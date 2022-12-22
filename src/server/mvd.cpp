@@ -374,8 +374,7 @@ static int dummy_create(void)
     newcl->state = cs_connected;
     newcl->AddMessage = dummy_add_message;
     newcl->edict = EDICT_NUM(number + 1);
-    newcl->netchan = static_cast<netchan_t*>( SV_Mallocz(sizeof(netchan_t)) ); // WID: C++20: Added cast.
-    newcl->netchan->remote_address.type = NA_LOOPBACK;
+    newcl->netchan.remote_address.type = NA_LOOPBACK;
 
     List_Init(&newcl->entry);
 
@@ -399,13 +398,12 @@ static int dummy_create(void)
     if (!allow) {
         s = Info_ValueForKey(userinfo, "rejmsg");
 		// WID: C++20: Just an easy fix.
-        if (!*s) {
-            //s = "Connection refused";
-			Com_EPrintf("Dummy MVD client rejected by game: %s\n", "Connection refused" );
-        } else {
-			Com_EPrintf("Dummy MVD client rejected by game: %s\n", s);
+		if ( !*s ) {
+			//s = "Connection refused";
+			Com_EPrintf( "Dummy MVD client rejected by game: %s\n", "Connection refused" );
+		} else {
+			Com_EPrintf( "Dummy MVD client rejected by game: %s\n", s );
 		}
-        Z_Free(newcl->netchan);
         mvd.dummy = NULL;
         return -1;
     }
