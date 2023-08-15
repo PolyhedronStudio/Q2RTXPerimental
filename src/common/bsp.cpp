@@ -1412,7 +1412,6 @@ static bool BSP_RecursiveLightPoint(mnode_t *node, float p1f, float p2f, const v
     vec3_t mid;
     int i, side;
     mface_t *surf;
-    mtexinfo_t *texinfo;
 
     while (node->plane) {
         // calculate distancies
@@ -1438,9 +1437,7 @@ static bool BSP_RecursiveLightPoint(mnode_t *node, float p1f, float p2f, const v
         for (i = 0, surf = node->firstface; i < node->numfaces; i++, surf++) {
             if (!surf->lightmap)
                 continue;
-
-            texinfo = surf->texinfo;
-            if (texinfo->c.flags & SURF_NOLM_MASK)
+            if (surf->drawflags & SURF_NOLM_MASK)
                 continue;
 
             s = DotProduct(surf->lm_axis[0], mid) + surf->lm_offset[0];
