@@ -1120,6 +1120,10 @@ void SV_MvdMulticast(int leafnum, multicast_t to)
     if (!mvd.active) {
         return;
     }
+    if (leafnum >= UINT16_MAX) {
+        Com_WPrintf("%s: leafnum out of range\n", __func__);
+        return;
+    }
 
     op = static_cast<mvd_ops_t>( mvd_multicast_all + to ); // WID: C++20: Added cast.
     buf = to < MULTICAST_ALL_R ? &mvd.datagram : &mvd.message;
