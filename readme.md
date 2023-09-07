@@ -1,6 +1,11 @@
 # Quake II RTXPerimental
 
-[![Build Status](https://github.com/NVIDIA/Q2RTX/actions/workflows/build.yml/badge.svg)](https://github.com/NVIDIA/Q2RTX/actions/workflows/build.yml)
+[![Build Status](https://github.com/PolyhedronStudio/Q2RTXPerimental/actions/workflows/build.yml/badge.svg)](https://github.com/PolyhedronStudio/Q2RTXPerimental/actions/workflows/build.yml)
+
+**Quake II RTXPerimental - Lua Branch**
+This is the Lua branch, an attempt at actually using LuaJIT to replace the gamex86_64.dll baseq2 code with.
+Currently it lacks actually properly compiling luajit through CMake, so this has to be done by hand.
+(It expects the resulting built libraries and needed headers to land in /extern/luajit2.1/src folder.)
 
 **Quake II RTXPerimental** is my 'playing field' and an attempt to improve
 the engine in various parts where I see fit. This can range from implementing

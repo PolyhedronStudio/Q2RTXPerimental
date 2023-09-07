@@ -14,6 +14,17 @@ if (NOT CONFIG_LINUX_STEAM_RUNTIME_SUPPORT)
 endif()
 
 #
+# LuaJIT - TODO: Actually properly generate the LuaJIT static library using CMake methods.
+#                Currently it is required to be built externally, before touching CMake.
+#
+SET( CONFIG_BUILD_LUA ON )
+if(CONFIG_BUILD_LUA)
+# TODO: Build Lua here.
+	set( LUA_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/luajit-2.1/src/ )
+	set( LUA_LIBRARIES ${CMAKE_CURRENT_SOURCE_DIR}/luajit-2.1/src/luajit ${CMAKE_CURRENT_SOURCE_DIR}/luajit-2.1/src/lua51 )
+endif()
+
+#
 # glslangValidator
 #
 

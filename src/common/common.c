@@ -404,7 +404,7 @@ Both client and server can use this, and it will output
 to the apropriate place.
 =============
 */
-void Com_LPrintf(print_type_t type, const char *fmt, ...)
+__declspec(dllexport) void Com_LPrintf(print_type_t type, const char *fmt, ...)
 {
     va_list     argptr;
     char        msg[MAXPRINTMSG];

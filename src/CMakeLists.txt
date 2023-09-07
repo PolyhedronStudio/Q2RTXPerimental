@@ -512,6 +512,12 @@ IF (TARGET client)
     TARGET_LINK_LIBRARIES(client stb)
     TARGET_LINK_LIBRARIES(client tinyobjloader)
 	TARGET_LINK_LIBRARIES(client OpenAL)
+
+	# WID: Lua
+	TARGET_INCLUDE_DIRECTORIES( client PRIVATE ../extern/luajit-2.1/src ) #${LUA_INCLUDES} )
+	TARGET_LINK_DIRECTORIES( client PRIVATE ../extern/luajit-2.1/src )
+	TARGET_LINK_LIBRARIES( client luajit )
+	TARGET_LINK_LIBRARIES( client lua51 )
 ENDIF()
 
 SOURCE_GROUP("baseq2\\sources" FILES ${SRC_BASEQ2})
@@ -560,6 +566,12 @@ ENDIF()
 
 TARGET_INCLUDE_DIRECTORIES(server PRIVATE ../inc)
 TARGET_INCLUDE_DIRECTORIES(server PRIVATE "${ZLIB_INCLUDE_DIRS}")
+
+# WID: Lua
+TARGET_INCLUDE_DIRECTORIES( server PRIVATE ../extern/luajit-2.1/src ) #${LUA_INCLUDES} )
+TARGET_LINK_DIRECTORIES( server PRIVATE ../extern/luajit-2.1/src )
+TARGET_LINK_LIBRARIES( server luajit )
+TARGET_LINK_LIBRARIES( server lua51 )
 
 # Use dynamic zlib for steam runtime
 if (CONFIG_LINUX_STEAM_RUNTIME_SUPPORT)

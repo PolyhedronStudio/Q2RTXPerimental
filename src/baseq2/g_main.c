@@ -244,7 +244,7 @@ q_exported game_export_t *GetGameAPI(game_import_t *import)
 
 #ifndef GAME_HARD_LINKED
 // this is only here so the functions in q_shared.c can link
-void Com_LPrintf(print_type_t type, const char *fmt, ...)
+__declspec(dllexport) void Com_LPrintf(print_type_t type, const char *fmt, ...)
 {
     va_list     argptr;
     char        text[MAX_STRING_CHARS];

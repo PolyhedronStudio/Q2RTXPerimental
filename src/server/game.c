@@ -719,6 +719,18 @@ static void PF_DebugGraph(float value, int color)
 //==============================================
 
 static void *game_library;
+// WID: Lua.
+static lua_State* gameProgsLuaState = NULL;
+
+/**
+*	@brief	Unloads the lua game progs.
+**/
+void SV_UnloadLuaGameProgs(void) {
+	// If somehow progs is still active, safely close it first.
+	if (gameProgsLuaState != NULL) {
+		lua_close(gameProgsLuaState);
+	}
+}
 
 /*
 ===============
@@ -730,6 +742,8 @@ it is changing to a different game directory.
 */
 void SV_ShutdownGameProgs(void)
 {
+	SV_UnloadLuaGameProgs();
+
     if (ge) {
         ge->Shutdown();
         ge = NULL;
@@ -774,6 +788,36 @@ static void *SV_LoadGameLibrary(const char *game, const char *prefix)
     return _SV_LoadGameLibrary(path);
 }
 
+/**
+*	@brief	Loads in the Lua GameProgs.
+**/
+void SV_LoadLuaGameProgs( const char *path ) {
+	// If somehow progs is still active, safely close it first.
+	if ( gameProgsLuaState != NULL ) {
+		lua_close( gameProgsLuaState );
+	}
+
+	// Allocate a new state.
+	gameProgsLuaState = luaL_newstate();
+
+	// Open all 'default' lua libraries.
+	luaL_openlibs( gameProgsLuaState );
+
+	// Now load in the actual progs file.
+	int loadStatus = luaL_loadfile( gameProgsLuaState, "baseq2/game_x64.lua" );
+	if ( loadStatus ) {
+		// Get error str.
+		const char *luaErrorStr = lua_tostring( gameProgsLuaState, -1 );
+		Com_WPrintf( "Lua Load Error: %s\n", luaErrorStr );
+	}
+
+	if ( lua_pcall( gameProgsLuaState, 0, 0, 0) != LUA_OK) {
+		// Get error str.
+		const char* luaErrorStr = lua_tostring(gameProgsLuaState, -1);
+		Com_WPrintf("Lua Runtime Error: %s\n", luaErrorStr);
+	}
+}
+
 /*
 ===============
 SV_InitGameProgs
@@ -789,6 +833,7 @@ void SV_InitGameProgs(void)
     // unload anything we have now
     SV_ShutdownGameProgs();
 
+	SV_LoadLuaGameProgs(BASEGAME);
     // for debugging or `proxy' mods
     if (sys_forcegamelib->string[0])
         entry = _SV_LoadGameLibrary(sys_forcegamelib->string);

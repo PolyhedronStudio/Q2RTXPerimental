@@ -104,7 +104,7 @@ typedef enum {
     PRINT_NOTICE        // print in cyan color
 } print_type_t;
 
-void    Com_LPrintf(print_type_t type, const char *fmt, ...)
+__declspec(dllexport) void    Com_LPrintf(print_type_t type, const char *fmt, ...)
 q_printf(2, 3);
 void    Com_Error(error_type_t code, const char *fmt, ...)
 q_noreturn q_printf(2, 3);

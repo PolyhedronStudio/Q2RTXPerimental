@@ -48,6 +48,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <zlib.h>
 #endif
 
+// WID: Lua
+#include "lua.h"
+#include "luajit.h"
+#include "lualib.h"
+#include "lauxlib.h"
+
 //=============================================================================
 
 #define SV_Malloc(size)         Z_TagMalloc(size, TAG_SERVER)
