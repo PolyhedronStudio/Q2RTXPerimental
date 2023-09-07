@@ -14,10 +14,4 @@ ffi.cdef[[
 
     void Com_LPrintf( print_type_t type, const char *fmt, ... );
 ]]
-
---local x = 10;
--- local y = 20;
-
--- print( "Hello from Lua " .. " test, test, test!\n" .. "x=" .. x .. "\ny=" .. y .. "\n" )
---print( "Hello from Lua!" )
 ffi.C.Com_LPrintf( ffi.C.PRINT_WARNING, "Hello from Lua using Com_LPrintf here is a vararg(1=%d, 2=%d\n", ffi.new("int", 10), ffi.new("int", 20 ) )
