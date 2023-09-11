@@ -20,6 +20,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/input.h"
 #include "common/intreadwrite.h"
 
+// WID: Mono: Include SV Mono API.
+#include "servermono.h"
+
 pmoveParams_t   sv_pmp;
 
 master_t    sv_masters[MAX_MASTERS];   // address of group servers
@@ -2166,6 +2169,9 @@ Only called at quake2.exe startup, not for each game
 */
 void SV_Init(void)
 {
+	// WID: Mono: Initialize server side Mono.
+    SV_Mono_Init();
+
     SV_InitOperatorCommands();
 
     SV_MvdRegister();
@@ -2424,6 +2430,9 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
 #if USE_SYSCON
     SV_SetConsoleTitle();
 #endif
+
+	// WID: Mono: Shutdown the Mono Runtime right before Z_LeakTest.
+    SV_Mono_Shutdown();
 
     Z_LeakTest(TAG_SERVER);
 }

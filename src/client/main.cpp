@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_main.c  -- client main loop
 
 #include "client.h"
-#include "mono/mono.h"
+
 
 cvar_t  *rcon_address;
 
@@ -2678,7 +2678,6 @@ static const cmdreg_t c_client[] = {
 CL_InitLocal
 =================
 */
-static MonoDomain *monoDomain = nullptr;
 static void CL_InitLocal(void)
 {
     cvar_t *var;
@@ -2686,9 +2685,6 @@ static void CL_InitLocal(void)
 
     cls.state = ca_disconnected;
     cls.connect_time -= CONNECT_INSTANT;
-
-	mono_set_dirs("mono/lib", "mono/etc");
-    monoDomain = mono_jit_init("ClientDomain");
 
     CL_RegisterInput();
     CL_InitDemos();

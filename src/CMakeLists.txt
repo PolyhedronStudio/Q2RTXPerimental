@@ -150,6 +150,7 @@ SET(SRC_SERVER
 	server/game.cpp
 	server/init.cpp
 	server/main.cpp
+	server/servermono.cpp
 	server/mvd.cpp
 	server/send.cpp
 	server/user.cpp
@@ -176,6 +177,7 @@ SET(SRC_COMMON
 	common/files.cpp
 	common/math.cpp
 	common/mdfour.cpp
+	common/mono.cpp
 	common/msg.cpp
 	common/pmove.cpp
 	common/prompt.cpp
@@ -577,8 +579,8 @@ ENDIF()
 
 TARGET_INCLUDE_DIRECTORIES(server PRIVATE ../inc)
 # Server Mono
-TARGET_INCLUDE_DIRECTORIES(client PUBLIC "${MONO_INCLUDE_PATH}")
-TARGET_LINK_LIBRARIES(client "${MONO_LIBRARIES}")
+TARGET_INCLUDE_DIRECTORIES(server PUBLIC "${MONO_INCLUDE_PATH}")
+TARGET_LINK_LIBRARIES(server "${MONO_LIBRARIES}")
 
 # Use dynamic zlib for steam runtime
 if (CONFIG_LINUX_STEAM_RUNTIME_SUPPORT)

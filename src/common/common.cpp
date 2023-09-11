@@ -34,6 +34,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/files.h"
 #include "common/math.h"
 #include "common/mdfour.h"
+#include "common/mono.h"
 #include "common/msg.h"
 #include "common/net/net.h"
 #include "common/net/chan.h"
@@ -50,11 +51,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "system/system.h"
 #include "system/hunk.h"
 
+
 #include <setjmp.h>
 
 #ifdef _WIN32
 #include <Windows.h>
 #endif
+
+// WID: For initializing Mono at boot time and deinitialize at closing time.
+#include "mono/mono.h"
 
 static jmp_buf  com_abortframe;    // an ERR_DROP occured, exit the entire frame
 
@@ -620,6 +625,7 @@ void Com_Quit(const char *reason, error_type_t type)
     logfile_close();
     FS_Shutdown();
 
+	QCommon_Mono_Shutdown( );
     Sys_Quit();
     // doesn't get there
 }
@@ -869,6 +875,15 @@ void Qcommon_Init(int argc, char **argv)
     Com_SetLastError(NULL);
 
     Q_srand(time(NULL));
+
+	// WID: Mono: Initialize the Mono runtime.
+	// (With debugging enabled if we're doing a debug build).
+	const std::string monoJITDomainName = "Q2RTXPerimental";
+	#ifdef _DEBUG
+    QCommon_Mono_Init( "Q2RTXPerimental", true );
+	#else
+	QCommon_Mono_Init( "Q2RTXPerimental", false );
+	#endif
 
     // prepare enough of the subsystems to handle
     // cvar and command buffer management
