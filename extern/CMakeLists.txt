@@ -108,3 +108,17 @@ if (IS_64_BIT)
     set_target_properties(common PROPERTIES FOLDER extern/openal-soft)
     set_target_properties(ex-common PROPERTIES FOLDER extern/openal-soft)
 endif()
+
+#
+#	Mono(Thx MonoPP)
+#
+include(Mono)
+
+set(INTERNAL_MONO_MCS_EXECUTABLE "${MONO_MCS_EXECUTABLE}"
+    CACHE PATH "Path to the Mono msc executable (mono/bin/msc). May be a relative path.")
+set(INTERNAL_MONO_ASSEMBLY_DIR "${MONO_ASSEMBLY_PATH}"
+    CACHE PATH "Path to the Mono assembly dir (mono/lib). May be a relative path.")
+set(INTERNAL_MONO_CONFIG_DIR "${MONO_CONFIG_PATH}"
+    CACHE PATH "Path to the Mono config dir (mono/etc). May be a relative path.")
+
+configure_file( ../inc/mono/mono_build_config.h.in ../inc/mono/mono_build_config.h @ONLY )

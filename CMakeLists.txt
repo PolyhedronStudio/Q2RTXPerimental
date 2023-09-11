@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.9)
 cmake_policy(SET CMP0069 NEW)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 
 project(quake2-RTX)
 set(Q2RTX_VERSION_MAJOR 1)
