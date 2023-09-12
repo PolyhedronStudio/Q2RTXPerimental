@@ -42,6 +42,17 @@ static void QCommon_Mono_LogCallback( const char *log_domain, const char *log_le
 	outputMessage += logLevel;
 	outputMessage += "] ";
 	outputMessage += logMessage;
+
+	/**
+	*	Output log message.
+	**/
+	if ( logLevel == "error" ) {
+		Com_EPrintf( "%s\n", outputMessage.c_str() );
+	} else if ( logLevel == "warning" ) {
+		Com_WPrintf( "%s\n", outputMessage.c_str() );
+	} else {
+		Com_LPrintf( print_type_t::PRINT_DEVELOPER, "%s\n", outputMessage.c_str() );
+	}
 }
 
 /**
@@ -54,7 +65,6 @@ const int QCommon_Mono_Init( const std::string &jitDomainName, const bool enable
 
 	// Enable debugging if requested.
 	if ( enableDebugging ) {
-		// clang-format off
 		const char *options[] =
 		{
 			"--soft-breakpoints",

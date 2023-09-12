@@ -1,16 +1,19 @@
 cmake_minimum_required (VERSION 3.9)
 cmake_policy(SET CMP0069 NEW)
 
+# For all C Files, use C99 Standard.
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-#set_property( TARGET client PROPERTY CXX_STANDARD 20 )
-#set_property( TARGET client PROPERTY CXX_STANDARD_REQUIRED 20 )
-#set_property( TARGET client PROPERTY CXX_EXTENSIONS OFF )
+# For all C++ Files, use C++20 Standard, and disable compiler specific extensions.
 set( CMAKE_CXX_STANDARD 20 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 set( CMAKE_CXX_EXTENSIONS OFF )
 
+# Set C++ 20 standard for client target.
+#set_property( TARGET client PROPERTY CXX_STANDARD 20 )
+#set_property( TARGET client PROPERTY CXX_STANDARD_REQUIRED 20 )
+#set_property( TARGET client PROPERTY CXX_EXTENSIONS OFF )
 
 SET(SRC_BASEQ2
 	baseq2/g_ai.c
@@ -674,6 +677,15 @@ ELSE()
     )
 ENDIF()
 
+#
+#	Mono 'ServerGame' Library
+#
+add_subdirectory( mono_servergame )
+
+
+#
+# Linux Packaging Support:
+#
 IF(CONFIG_LINUX_PACKAGING_SUPPORT)
     # Put the real game binary in /usr/share so we can have a wrapper in /usr/bin
     IF(TARGET client)

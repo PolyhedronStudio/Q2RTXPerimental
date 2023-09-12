@@ -10,8 +10,15 @@
 #include "server.h"
 #include "servermono.h"
 
-// Server mono Domain.
-static MonoDomain* monoServerDomain = nullptr;
+
+
+// Server Domain.
+static MonoDomain *monoServerDomain = nullptr;
+// Server Assembly.
+static MonoAssembly *monoServerAssembly = nullptr;
+// Server Image.
+static MonoImage *monoServerImage = nullptr;
+
 
 
 /********************************************************************
@@ -31,7 +38,7 @@ const int SV_Mono_Init() {
 	monoServerDomain = mono_domain_create_appdomain( const_cast<char *>( serverDomainName.c_str( ) ), nullptr );
 
 	// Attempt to set the domain so we can thread attach it.
-	auto res = mono_domain_set( monoServerDomain, 0 );
+	auto res = mono_domain_set( monoServerDomain, false );
 	if ( res ) {
 		mono_thread_attach( monoServerDomain );
 	}
@@ -48,7 +55,7 @@ const void SV_Mono_Shutdown( ) {
 	if ( monoServerDomain ) {
 		// Switch back to root domain.
 		auto root_domain = mono_get_root_domain( );
-		auto res = mono_domain_set( root_domain, 0 );
+		auto res = mono_domain_set( root_domain, false );
 		// Unload 'ServerDomain'.
 		if ( res ) {
 			mono_domain_unload( monoServerDomain );
@@ -62,21 +69,37 @@ const void SV_Mono_Shutdown( ) {
 
 /********************************************************************
 *
-*	Load/Unload Assembly:
+*	Load/Unload Assembly/Image:
 *
 /*******************************************************************/
 /**
 *	@brief	
 **/
 const MonoAssembly *SV_Mono_LoadAssembly( const std::string &path ) {
-	return nullptr;
+	// 'Open' the mono server assembly in our server domain.
+	monoServerAssembly = mono_domain_assembly_open( monoServerDomain, path.c_str() );
+
+	// If we do have an assembly loaded up, acquire its image.
+	if ( monoServerAssembly ) {
+		monoServerImage = mono_assembly_get_image( monoServerAssembly );
+	}
+
+	// Is a nullptr on failure.
+	return monoServerAssembly;
 }
+
 /**
 *	@brief
 **/
-const void SV_Mono_UnloadAssembly( MonoAssembly *assembly ) {
+const void SV_Mono_UnloadAssembly( ) {
+	// Close image if we have any.
+	if ( monoServerImage ) {
+		mono_image_close( monoServerImage );
+		monoServerImage = nullptr;
+	}
 	// Close mono assembly.
-	if ( assembly ) {
-		mono_assembly_close(assembly);
+	if ( monoServerAssembly ) {
+		mono_assembly_close( monoServerAssembly );
+		monoServerAssembly = nullptr;
 	}
 }
