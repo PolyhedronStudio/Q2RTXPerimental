@@ -625,7 +625,7 @@ void Com_Quit(const char *reason, error_type_t type)
     logfile_close();
     FS_Shutdown();
 
-	QCommon_Mono_Shutdown( );
+	Com_Mono_Shutdown( );
     Sys_Quit();
     // doesn't get there
 }
@@ -880,9 +880,9 @@ void Qcommon_Init(int argc, char **argv)
 	// (With debugging enabled if we're doing a debug build).
 	const std::string monoJITDomainName = "Q2RTXPerimental";
 	#ifdef _DEBUG
-    QCommon_Mono_Init( "Q2RTXPerimental", true );
+    Com_Mono_Init( "Q2RTXPerimental", true );
 	#else
-	QCommon_Mono_Init( "Q2RTXPerimental", false );
+	Com_Mono_Init( "Q2RTXPerimental", false );
 	#endif
 
     // prepare enough of the subsystems to handle
@@ -905,7 +905,7 @@ void Qcommon_Init(int argc, char **argv)
     host_speeds = Cvar_Get("host_speeds", "0", 0);
 #endif
 #if USE_DEBUG
-    developer = Cvar_Get("developer", "0", 0);
+    developer = Cvar_Get("developer", "1", 0); // WID: Might as well enable it to 1.
 #endif
     timescale = Cvar_Get("timescale", "1", CVAR_CHEAT);
     fixedtime = Cvar_Get("fixedtime", "0", CVAR_CHEAT);

@@ -43,6 +43,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <limits.h>
 #include <time.h>
 #else//__cplusplus
+// STDIO
 #include <cctype>
 #include <cinttypes>
 #include <climits>
@@ -54,6 +55,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+
+// STL.
+#include <string>
+#include <vector>
+#include <list>
+#include <map>
+#include <unordered_map>
+#include <set>
+#include <type_traits>
+
 #endif//__cplusplus
 
 

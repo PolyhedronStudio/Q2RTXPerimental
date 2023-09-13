@@ -9,8 +9,24 @@
 /*******************************************************************/
 #pragma once
 
+// MonoAPI includes reside here.
 #include "mono/mono.h"
 
+// Our MonoAPI wrapper API resides here.
+#include "common/mono.h"
+
+/**
+*	@brief	Stores pointers to Mono Runtime objects for the server.
+**/
+struct ServerMono {
+	// Server Domain.
+	MonoDomain *monoServerDomain = nullptr;
+	// Server Assembly.
+	MonoAssembly *monoServerAssembly = nullptr;
+	// Server Image.
+	MonoImage *monoServerImage = nullptr;
+};
+extern ServerMono serverMono;
 
 /********************************************************************
 *
@@ -39,8 +55,8 @@ const void SV_Mono_Shutdown();
 /**
 *	@brief
 **/
-const MonoAssembly* SV_Mono_LoadAssembly(const std::string& path);
+MonoAssembly* SV_Mono_LoadAssembly( const std::string& path );
 /**
 *	@brief
 **/
-const void SV_Mono_UnloadAssembly(MonoAssembly* assembly);
+const void SV_Mono_UnloadAssembly( );

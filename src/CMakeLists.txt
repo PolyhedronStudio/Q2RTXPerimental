@@ -153,19 +153,25 @@ SET(SRC_SERVER
 	server/game.cpp
 	server/init.cpp
 	server/main.cpp
-	server/servermono.cpp
 	server/mvd.cpp
 	server/send.cpp
 	server/user.cpp
 	server/world.cpp
+
+	server/mono/ServerMono.cpp
+	server/mono/ServerMonoExports.cpp
+
 	server/mvd/client.cpp
 	server/mvd/parse.cpp
 	server/mvd/game.cpp
+
 	server/save.cpp
 )
 
 SET(HEADERS_SERVER
 	server/server.h
+	server/mono/ServerMono.h
+	server/mono/ServerMonoExports.h
 )
 
 SET(SRC_COMMON

@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/intreadwrite.h"
 
 // WID: Mono: Include SV Mono API.
-#include "servermono.h"
+#include "mono/ServerMono.h"
 
 pmoveParams_t   sv_pmp;
 

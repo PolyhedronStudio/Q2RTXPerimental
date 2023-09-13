@@ -47,3 +47,4 @@ baseq2/**/*.txt
 !baseq2/maps/sky/*.txt
 !baseq2/pics/flashlight_profile.png
 /mono
+/baseq2/Mono_ServerGame_x64.dll.mdb

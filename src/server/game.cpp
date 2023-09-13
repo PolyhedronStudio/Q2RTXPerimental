@@ -18,11 +18,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // sv_game.c -- interface to the game dll
 
 #include "server.h"
+
+#include "mono/ServerMono.h"
+
 extern "C" {
 
-game_export_t    *ge;
+game_export_t    *ge = nullptr;
+mono_game_export_t *monoGE = nullptr;
 
-static void PF_configstring(int index, const char *val);
+void PF_configstring(int index, const char *val);
 
 /*
 ================
@@ -30,7 +34,7 @@ PF_FindIndex
 
 ================
 */
-static int PF_FindIndex(const char *name, int start, int max, const char *func)
+int PF_FindIndex(const char *name, int start, int max, const char *func)
 {
     char *string;
     int i;
@@ -57,17 +61,17 @@ static int PF_FindIndex(const char *name, int start, int max, const char *func)
     return i;
 }
 
-static int PF_ModelIndex(const char *name)
+int PF_ModelIndex(const char *name)
 {
     return PF_FindIndex(name, CS_MODELS, MAX_MODELS, __func__);
 }
 
-static int PF_SoundIndex(const char *name)
+int PF_SoundIndex(const char *name)
 {
     return PF_FindIndex(name, CS_SOUNDS, MAX_SOUNDS, __func__);
 }
 
-static int PF_ImageIndex(const char *name)
+int PF_ImageIndex(const char *name)
 {
     return PF_FindIndex(name, CS_IMAGES, MAX_IMAGES, __func__);
 }
@@ -80,7 +84,7 @@ Sends the contents of the mutlicast buffer to a single client.
 Archived in MVD stream.
 ===============
 */
-static void PF_Unicast(edict_t *ent, qboolean reliable)
+void PF_Unicast(edict_t *ent, qboolean reliable)
 {
     client_t    *client;
     int         cmd, flags, clientNum;
@@ -139,7 +143,7 @@ Sends text to all active clients.
 Archived in MVD stream.
 =================
 */
-static void PF_bprintf(int level, const char *fmt, ...)
+void PF_bprintf(int level, const char *fmt, ...)
 {
     va_list     argptr;
     char        string[MAX_STRING_CHARS];
@@ -188,7 +192,7 @@ PF_dprintf
 Debug print to server console.
 ===============
 */
-static void PF_dprintf(const char *fmt, ...)
+void PF_dprintf(const char *fmt, ...)
 {
     char        msg[MAXPRINTMSG];
     va_list     argptr;
@@ -208,7 +212,7 @@ Print to a single client if the level passes.
 Archived in MVD stream.
 ===============
 */
-static void PF_cprintf(edict_t *ent, int level, const char *fmt, ...)
+void PF_cprintf(edict_t *ent, int level, const char *fmt, ...)
 {
     char        msg[MAX_STRING_CHARS];
     va_list     argptr;
@@ -262,7 +266,7 @@ Centerprint to a single client.
 Archived in MVD stream.
 ===============
 */
-static void PF_centerprintf(edict_t *ent, const char *fmt, ...)
+void PF_centerprintf(edict_t *ent, const char *fmt, ...)
 {
     char        msg[MAX_STRING_CHARS];
     va_list     argptr;
@@ -301,7 +305,7 @@ PF_error
 Abort the server with a game error
 ===============
 */
-static q_noreturn void PF_error(const char *fmt, ...)
+q_noreturn void PF_error(const char *fmt, ...)
 {
     char        msg[MAXERRORMSG];
     va_list     argptr;
@@ -320,7 +324,7 @@ PF_setmodel
 Also sets mins and maxs for inline bmodels
 =================
 */
-static void PF_setmodel(edict_t *ent, const char *name)
+void PF_setmodel(edict_t *ent, const char *name)
 {
     mmodel_t    *mod;
 
@@ -346,7 +350,7 @@ If game is actively running, broadcasts configstring change.
 Archived in MVD stream.
 ===============
 */
-static void PF_configstring(int index, const char *val)
+void PF_configstring(int index, const char *val)
 {
     size_t len, maxlen;
     client_t *client;
@@ -412,12 +416,12 @@ static void PF_configstring(int index, const char *val)
     SZ_Clear(&msg_write);
 }
 
-static void PF_WriteFloat(float f)
+void PF_WriteFloat(float f)
 {
     Com_Error(ERR_DROP, "PF_WriteFloat not implemented");
 }
 
-static qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, int vis)
+qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, int vis)
 {
     mleaf_t *leaf1, *leaf2;
     byte mask[VIS_MAX_BYTES];
@@ -447,7 +451,7 @@ PF_inPVS
 Also checks portalareas so that doors block sight
 =================
 */
-static qboolean PF_inPVS(const vec3_t p1, const vec3_t p2)
+qboolean PF_inPVS(const vec3_t p1, const vec3_t p2)
 {
     return PF_inVIS(p1, p2, DVIS_PVS);
 }
@@ -459,7 +463,7 @@ PF_inPHS
 Also checks portalareas so that doors block sound
 =================
 */
-static qboolean PF_inPHS(const vec3_t p1, const vec3_t p2)
+qboolean PF_inPHS(const vec3_t p1, const vec3_t p2)
 {
     return PF_inVIS(p1, p2, DVIS_PHS);
 }
@@ -490,7 +494,7 @@ If origin is NULL, the origin is determined from the entity origin
 or the midpoint of the entity box for bmodels.
 ==================
 */
-static void SV_StartSound(const vec3_t origin, edict_t *edict,
+void SV_StartSound(const vec3_t origin, edict_t *edict,
                           int channel, int soundindex, float volume,
                           float attenuation, float timeofs)
 {
@@ -649,13 +653,20 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
                      volume * 255, attenuation * 64, timeofs * 1000);
 }
 
-static void PF_StartSound(edict_t *entity, int channel,
+void PF_StartSound(edict_t *entity, int channel,
                           int soundindex, float volume,
                           float attenuation, float timeofs)
 {
     if (!entity)
         return;
-    SV_StartSound(NULL, entity, channel, soundindex, volume, attenuation, timeofs);
+    SV_StartSound( NULL, entity, channel, soundindex, volume, attenuation, timeofs);
+}
+void PF_StartPositionedSound( vec3_t origin, edict_t *entity, int channel,
+	int soundindex, float volume,
+	float attenuation, float timeofs ) {
+	if ( !entity )
+		return;
+	SV_StartSound( origin, entity, channel, soundindex, volume, attenuation, timeofs );
 }
 
 void PF_Pmove(pmove_t *pm)
@@ -667,7 +678,7 @@ void PF_Pmove(pmove_t *pm)
     }
 }
 
-static cvar_t *PF_cvar(const char *name, const char *value, int flags)
+cvar_t *PF_cvar(const char *name, const char *value, int flags)
 {
     if (flags & CVAR_EXTENDED_MASK) {
         Com_WPrintf("Game attemped to set extended flags on '%s', masked out.\n", name);
@@ -677,12 +688,12 @@ static cvar_t *PF_cvar(const char *name, const char *value, int flags)
     return Cvar_Get(name, value, flags | CVAR_GAME);
 }
 
-static void PF_AddCommandString(const char *string)
+void PF_AddCommandString(const char *string)
 {
     Cbuf_AddText(&cmd_buffer, string);
 }
 
-static void PF_SetAreaPortalState(int portalnum, qboolean open)
+void PF_SetAreaPortalState(int portalnum, qboolean open)
 {
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
@@ -690,7 +701,7 @@ static void PF_SetAreaPortalState(int portalnum, qboolean open)
     CM_SetAreaPortalState(&sv.cm, portalnum, open);
 }
 
-static qboolean PF_AreasConnected(int area1, int area2)
+qboolean PF_AreasConnected(int area1, int area2)
 {
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
@@ -698,7 +709,7 @@ static qboolean PF_AreasConnected(int area1, int area2)
     return CM_AreasConnected(&sv.cm, area1, area2);
 }
 
-static void *PF_TagMalloc(unsigned size, unsigned tag)
+void *PF_TagMalloc(unsigned size, unsigned tag)
 {
     Q_assert(tag + TAG_MAX > tag);
     if (!size) {
@@ -707,14 +718,32 @@ static void *PF_TagMalloc(unsigned size, unsigned tag)
     return memset(Z_TagMalloc(size, static_cast<memtag_t>( tag + TAG_MAX ) ), 0, size); // WID: C++20: Added cast.
 }
 
-static void PF_FreeTags(unsigned tag)
+void PF_FreeTags(unsigned tag)
 {
     Q_assert(tag + TAG_MAX > tag);
     Z_FreeTags( static_cast<memtag_t>( tag + TAG_MAX ) ); // WID: C++20: Added cast.
 }
 
-static void PF_DebugGraph(float value, int color)
+void PF_DebugGraph(float value, int color)
 {
+}
+
+
+
+
+//==============================================
+// Needed for Mono GE function pointer tests. Half completed imports.
+static void __cdecl SV_Mono_BPrint( int printLevel, const char *str ) {
+	PF_bprintf( printLevel, "%s", str );
+}
+static void __cdecl SV_Mono_DevPrint( const char *str ) {
+	PF_dprintf( "%s", str );
+}
+static void __cdecl SV_Mono_ClientPrint( edict_t *entity, int printLevel, const char *str ) {
+	PF_cprintf( entity, printLevel, "%s", str );
+}
+static void __cdecl SV_Mono_CenterPrint( edict_t *entity, const char *str ) {
+	PF_centerprintf( entity, "%s", str );
 }
 
 //==============================================
@@ -892,6 +921,40 @@ void SV_InitGameProgs(void)
     if (ge->max_edicts <= sv_maxclients->integer || ge->max_edicts > MAX_EDICTS) {
         Com_Error(ERR_DROP, "Game library returned bad number of max_edicts");
     }
+
+
+	/**************************************************
+	*
+	* MonoGE testing.
+	*
+	**************************************************/
+	// First load in our mono assembly
+	MonoAssembly *assembly = SV_Mono_LoadAssembly( std::string( "baseq2/Mono_ServerGame_x64.dll" ) );
+
+	if ( assembly ) {
+		MonoClass *klassGameMain = Com_Mono_GetClass_FromName_InAssembly( assembly, "ServerGame", "GameMain" );
+		MonoObject *instanceGameMain = Com_Mono_NewObject_FromClassType( serverMono.monoServerDomain, klassGameMain, true );
+
+		void *nullArgValues[] = {
+			nullptr
+		};
+		MonoObject *callResultA = Com_Mono_CallMethod_FromName( instanceGameMain, "Initialize", 0, nullptr );
+		MonoObject *callResultB = Com_Mono_CallMethod_FromName( instanceGameMain, "Shutdown", 0, nullptr );
+
+		const char *mapName = "mapName.bsp";
+		const char *entString = "entityString my man";
+		const char *spawnPoint = "my_spawn_point";
+		void *spawnEntitiesArgValues[] = {
+			(void*)mono_string_new( serverMono.monoServerDomain, mapName ),
+			(void*)mono_string_new( serverMono.monoServerDomain, entString ),
+			(void*)mono_string_new( serverMono.monoServerDomain, spawnPoint )
+		};
+		MonoObject *callResult = Com_Mono_CallMethod_FromName( instanceGameMain, "SpawnEntities", 3, spawnEntitiesArgValues );
+		
+		//if ( callResult ) {
+
+		//}
+	}
 }
 
-};
+}; // Extern "C"

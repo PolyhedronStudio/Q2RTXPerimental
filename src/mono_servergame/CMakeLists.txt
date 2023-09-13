@@ -4,6 +4,10 @@
 # Glob Recurse for all .cs files in mono_servergame/
 file(GLOB_RECURSE SRC_MONO_SERVERGAME 
 	${CMAKE_CURRENT_SOURCE_DIR}/*.cs 
+	${CMAKE_CURRENT_SOURCE_DIR}/Interop/*.cs 
+	${CMAKE_CURRENT_SOURCE_DIR}/Interop/Math/*.cs 
+	${CMAKE_CURRENT_SOURCE_DIR}/Interop/Types/*.cs 
+	${CMAKE_CURRENT_SOURCE_DIR}/Types/*.cs 
 )
 
 # Make sure to allow 'unsafe' code, we're doing gamedev...
