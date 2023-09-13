@@ -17,7 +17,7 @@ namespace ServerGame {
 		*	@brief	Entity Dictionary
 		**/
 		[StructLayout( LayoutKind.Sequential )]
-		public unsafe struct edict_t {
+		public unsafe struct Edict {
 			/**
 			*   Shared memory block: C server side memory. Do not touch.
 			**/
@@ -45,7 +45,7 @@ namespace ServerGame {
 			//! Specific type of clipping.
 			public ContentFlags clipMask;
 			//! Entity's can own others in regards to clipping exclusion tests.
-			public IntPtr* owner;//public edict_t* owner;
+			public IntPtr* owner;//public Edict* owner;
 			/**
 			*   End of shared memory block.
 			**/

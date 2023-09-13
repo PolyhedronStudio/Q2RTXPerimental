@@ -79,6 +79,15 @@ int PF_ImageIndex(const char *name)
 /*
 ===============
 PF_Unicast
+===============
+*/
+void PF_Multicast( const vec3_t origin, multicast_t to ) {
+	SV_Multicast( origin, to );
+}
+
+/*
+===============
+PF_Unicast
 
 Sends the contents of the mutlicast buffer to a single client.
 Archived in MVD stream.
@@ -747,7 +756,29 @@ static void __cdecl SV_Mono_CenterPrint( edict_t *entity, const char *str ) {
 }
 
 //==============================================
+// SV MonoGame
+//==============================================
+static MonoAssembly *SV_LoadMonoGameLibrary( const char *game, const char *prefix ) {
+	char path[ MAX_OSPATH ];
 
+	if ( Q_concat( path, sizeof( path ), sys_libdir->string,
+		 PATH_SEP_STRING, game, PATH_SEP_STRING,
+		 prefix, "game" CPUSTRING LIBSUFFIX ) >= sizeof( path ) ) {
+		Com_EPrintf( "Game library path length exceeded\n" );
+		return NULL;
+	}
+
+	if ( os_access( path, F_OK ) ) {
+		if ( !*prefix )
+			Com_Printf( "Can't access %s: %s\n", path, strerror( errno ) );
+		return NULL;
+	}
+
+	return SV_Mono_LoadAssembly( path );
+}
+
+
+//==============================================
 static void *game_library;
 
 // WID: C++20: Typedef this for casting
@@ -762,6 +793,9 @@ it is changing to a different game directory.
 */
 void SV_ShutdownGameProgs(void)
 {
+	SV_Mono_Shutdown( );
+	//SV_Mono_UnloadAssembly( );
+
     if (ge) {
         ge->Shutdown();
         ge = NULL;
@@ -928,8 +962,36 @@ void SV_InitGameProgs(void)
 	* MonoGE testing.
 	*
 	**************************************************/
-	// First load in our mono assembly
+	// Initialize/(Reinitialize) Mono.
+	SV_Mono_Init( );
+
+	// Now attempt to load in the mono assembly.
 	MonoAssembly *assembly = SV_Mono_LoadAssembly( std::string( "baseq2/Mono_ServerGame_x64.dll" ) );
+
+	// TODO: Uncomment when gamex86_64.dll isn't required anymore.
+	//MonoAssembly *assembly = nullptr;
+	// for debugging or `proxy' mods
+	//if ( sys_forcegamelib->string[ 0 ] )
+	//	assembly = SV_LoadMonoGameLibrary( sys_forcegamelib->string ); // WID: C++20: Added cast.
+
+	//// try game first
+	//if ( assembly == nullptr && fs_game->string[ 0 ] ) {
+	//	// Removed.
+	//	//entry = SV_LoadMonoGameLibrary( fs_game->string, "q2pro_" ); // WID: C++20: Added cast.
+	//	//if ( !entry )
+	//		assembly = SV_LoadMonoGameLibrary( fs_game->string, "" ); // WID: C++20: Added cast.
+	//}
+
+	//// then try baseq2
+	//if ( !assembly ) {
+	//	assembly = SV_LoadMonoGameLibrary( BASEGAME, "q2pro_" ); // WID: C++20: Added cast.
+	//	if ( !assembly )
+	//		assembly = SV_LoadMonoGameLibrary( BASEGAME, "" ); // WID: C++20: Added cast.
+	//}
+
+	// all paths failed
+	//if ( !assembly )
+	//	Com_Error( ERR_DROP, "Failed to load server-side mono game library" );
 
 	if ( assembly ) {
 		MonoClass *klassGameMain = Com_Mono_GetClass_FromName_InAssembly( assembly, "ServerGame", "GameMain" );

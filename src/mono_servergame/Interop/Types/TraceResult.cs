@@ -40,7 +40,7 @@ namespace Interop
             public ContentFlags contents;
 
 			//! World in case of not hitting any entity, otherwise a pointer to the actual entity instead. 
-            public edict_t* entity;
+            public Edict* entity;
         }
     }
 }

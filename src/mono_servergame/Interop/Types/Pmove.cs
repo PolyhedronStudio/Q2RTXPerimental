@@ -49,7 +49,7 @@ namespace Interop
             public int numTouch;
 			//! Pointers to all entities possibly touched.
             //public IntPtr *touchEntities[ 32 ];
-            public edict_t* touchEntities_0, touchEntities_1, touchEntities_2, touchEntities_3, touchEntities_4, touchEntities_5, touchEntities_6, touchEntities_7,
+            public Edict* touchEntities_0, touchEntities_1, touchEntities_2, touchEntities_3, touchEntities_4, touchEntities_5, touchEntities_6, touchEntities_7,
                  touchEntities_8, touchEntities_9, touchEntities_10, touchEntities_11, touchEntities_12, touchEntities_13, touchEntities_14, touchEntities_15,
                  touchEntities_16, touchEntities_17, touchEntities_18, touchEntities_19, touchEntities_20, touchEntities_21, touchEntities_22, touchEntities_23,
                  touchEntities_24, touchEntities_25, touchEntities_26, touchEntities_27, touchEntities_28, touchEntities_29, touchEntities_30, touchEntities_31;
@@ -63,7 +63,7 @@ namespace Interop
             public Vector3 mins, maxs;
 
 			//! If any, a pointer to the ground entity we're currently standing on top of.
-            public edict_t* groundEntity;
+            public Edict* groundEntity;
 
 			//! Type of water we're in. (Solid content's type(s).)
             public ContentFlags waterType;

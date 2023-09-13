@@ -35,9 +35,7 @@ extern "C" {
 		float attenuation, float timeofs ); //
 
 
-	void PF_Multicast( const vec3_t origin, multicast_t to ) {
-		SV_Multicast( origin, to );
-	}
+	void PF_Multicast( const vec3_t origin, multicast_t to ); //
 	void PF_Unicast( edict_t *ent, qboolean reliable ); //
 	void PF_WriteFloat( float f ); //
 
@@ -135,9 +133,7 @@ __declspec( dllexport ) int32_t __cdecl SV_Mono_Export_ImageIndex( const char *n
 
 /*************************************************************************
 *
-*
 *	(Positioned-) Sound
-*
 *
 *************************************************************************/
 /**

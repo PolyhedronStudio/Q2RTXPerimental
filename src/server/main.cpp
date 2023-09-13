@@ -2170,7 +2170,7 @@ Only called at quake2.exe startup, not for each game
 void SV_Init(void)
 {
 	// WID: Mono: Initialize server side Mono.
-    SV_Mono_Init();
+    //SV_Mono_Init();
 
     SV_InitOperatorCommands();
 
@@ -2432,7 +2432,7 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
 #endif
 
 	// WID: Mono: Shutdown the Mono Runtime right before Z_LeakTest.
-    SV_Mono_Shutdown();
+    //SV_Mono_Shutdown();
 
     Z_LeakTest(TAG_SERVER);
 }

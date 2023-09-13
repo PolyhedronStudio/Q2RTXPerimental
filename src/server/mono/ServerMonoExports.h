@@ -29,9 +29,7 @@ extern "C" {
 extern "C" {
 	/*************************************************************************
 	*
-	*
 	*	ConfigString and Resource Indexing/Precaching.
-	*
 	*
 	*************************************************************************/
 	/**
@@ -52,11 +50,10 @@ extern "C" {
 	__declspec( dllexport ) int32_t __cdecl SV_Mono_Export_ImageIndex( const char *name );
 
 
+
 	/*************************************************************************
 	*
-	*
 	*	Print Messaging
-	*
 	*
 	*************************************************************************/
 	/**
@@ -77,11 +74,10 @@ extern "C" {
 	__declspec( dllexport ) void __cdecl SV_Mono_Export_CenterPrint( edict_t *ent, const char *str );
 
 
+
 	/*************************************************************************
 	*
-	*
 	*	(Positioned-) Sound
-	*
 	*
 	*************************************************************************/
 	/**
@@ -95,11 +91,10 @@ extern "C" {
 	__declspec( dllexport ) void __cdecl SV_Mono_Export_StartPositionedSound( vec3_t origin, edict_t *ent, int channel, int soundIndex, float volume, float attenuation, float timeOffset );
 
 
+
 	/*************************************************************************
 	*
-	*
 	*	Message Read/Write, Uni, and Multi -casting.
-	*
 	*
 	*************************************************************************/
 	/**
@@ -143,11 +138,11 @@ extern "C" {
 	**/
 	__declspec( dllexport ) void __cdecl SV_Mono_Export_MSG_WriteAngle( float f );
 
+
+
 	/*************************************************************************
 	*
-	*
 	*	VIS/PVS/PHS/Area Functions
-	*
 	*
 	*************************************************************************/
 	/**
@@ -189,17 +184,16 @@ extern "C" {
 	**/
 	__declspec( dllexport ) int __cdecl SV_Mono_Export_PointContents( const vec3_t point );
 
-
 	/**
 	*	@brief	Export wrapper for SV_AreaEntities function.
 	**/
 	__declspec( dllexport ) int __cdecl SV_Mono_Export_AreaEdicts( const vec3_t mins, const vec3_t maxs, edict_t **list, int maxCount, int areaType );
 
+
+
 	/*************************************************************************
 	*
-	*
 	*	ClientCommand and ServerCommand parameter access
-	*
 	*
 	*************************************************************************/
 	/**
@@ -216,11 +210,10 @@ extern "C" {
 	__declspec( dllexport ) const char *__cdecl SV_Mono_Export_CmdArgs( );
 
 
+
 	/*************************************************************************
 	*
-	*
 	*	Random/Other Functions
-	*
 	*
 	*************************************************************************/
 	/**

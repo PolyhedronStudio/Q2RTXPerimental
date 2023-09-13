@@ -25,6 +25,11 @@ struct ServerMono {
 	MonoAssembly *monoServerAssembly = nullptr;
 	// Server Image.
 	MonoImage *monoServerImage = nullptr;
+
+	// GameMain 'klass' Type.
+	MonoClass *gameMainKlass = nullptr;
+	// GameMain Instance.
+	MonoObject *gameMainInstance = nullptr;
 };
 extern ServerMono serverMono;
 

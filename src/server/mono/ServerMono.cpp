@@ -77,7 +77,7 @@ const void SV_Mono_Shutdown( ) {
 *
 /*******************************************************************/
 /**
-*	@brief	
+*	@brief	Will load the 'Server Game' Mono assembly, if succesfull, return its pointer, otherwise: nullptr.
 **/
 MonoAssembly *SV_Mono_LoadAssembly( const std::string &path ) {
 	// 'Open' the mono server assembly in our server domain.
@@ -93,17 +93,17 @@ MonoAssembly *SV_Mono_LoadAssembly( const std::string &path ) {
 }
 
 /**
-*	@brief
+*	@brief	Unloads the 'Server Game' Mono assembly.
 **/
 const void SV_Mono_UnloadAssembly( ) {
 	// Close image if we have any.
-	if ( serverMono.monoServerImage ) {
-		mono_image_close( serverMono.monoServerImage );
-		serverMono.monoServerImage = nullptr;
-	}
+	//if ( serverMono.monoServerImage ) {
+	//	mono_image_close( serverMono.monoServerImage );
+	//	serverMono.monoServerImage = nullptr;
+	//}
 	// Close mono assembly.
-	if ( serverMono.monoServerAssembly ) {
-		mono_assembly_close( serverMono.monoServerAssembly );
-		serverMono.monoServerAssembly = nullptr;
-	}
+	//if ( serverMono.monoServerAssembly ) {
+	//	mono_assembly_close( serverMono.monoServerAssembly );
+	//	serverMono.monoServerAssembly = nullptr;
+	//}
 }

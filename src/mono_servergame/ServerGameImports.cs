@@ -25,21 +25,21 @@ namespace ServerGame {
         *
         *
         *************************************************************************/
-		/**
-        *	@brief	Export wrapper for TagMalloc.
-        **/
-        [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "MonoVM_Export_TagMalloc")]
-        public static extern ref void* _MonoVM_TagMalloc(int size, int tag);
-        /**
-	    *	@brief	Export wrapper for TagFree.
-	    **/
-        [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "MonoVM_Export_TagFree")]
-        public static extern void _MonoVM_TagFree(void* ptr);
-        /**
-	    *	@brief	Export wrapper for FreeTags.
-	    **/
-        [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "MonoVM_Export_FreeTags")]
-        public static extern void _MonoVM_FreeTags(int tag);
+		// /**
+        // *	@brief	Export wrapper for TagMalloc.
+        // **/
+        // [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "MonoVM_Export_TagMalloc")]
+        // public static extern ref void* _MonoVM_TagMalloc(int size, int tag);
+        // /**
+	    // *	@brief	Export wrapper for TagFree.
+	    // **/
+        // [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "MonoVM_Export_TagFree")]
+        // public static extern void _MonoVM_TagFree(void* ptr);
+        // /**
+	    // *	@brief	Export wrapper for FreeTags.
+	    // **/
+        // [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "MonoVM_Export_FreeTags")]
+        // public static extern void _MonoVM_FreeTags(int tag);
 
         /*************************************************************************
         *
@@ -109,12 +109,12 @@ namespace ServerGame {
         *	@brief	Export wrapper for CPrintf.
         **/
         [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SV_Mono_Export_CPrintf")]
-        public static extern void CPrint(edict_t* ent, GamePrintLevel gamePrintLevel, string str);
+        public static extern void CPrint(Edict* ent, GamePrintLevel gamePrintLevel, string str);
         /**
         *	@brief	Export wrapper for CenterPrintf.
         **/
         [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SV_Mono_Export_CenterPrint")]
-        public static extern void CenterPrint(edict_t* ent, string str);
+        public static extern void CenterPrint(Edict* ent, string str);
 
 
         /*************************************************************************
@@ -128,13 +128,13 @@ namespace ServerGame {
         *	@brief	Export wrapper for Sound().
         **/
         [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SV_Mono_Export_StartSound")]
-        public static extern void StartSound(edict_t* ent, SoundChannel channel, int soundIndex, float volume, SoundAttenuation attenuation, float timeOffset);
+        public static extern void StartSound(Edict* ent, SoundChannel channel, int soundIndex, float volume, SoundAttenuation attenuation, float timeOffset);
 
         /**
         *	@brief	Export wrapper for StartPositionedSound.
         **/
         [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SV_Mono_Export_StartPositionedSound")]
-        public static extern void StartPositionedSound(Vector3 *origin, edict_t* ent, SoundChannel channel, int soundIndex, float volume, SoundAttenuation attenuation, float timeOffset);
+        public static extern void StartPositionedSound(Vector3 *origin, Edict* ent, SoundChannel channel, int soundIndex, float volume, SoundAttenuation attenuation, float timeOffset);
 
 
         /*************************************************************************
@@ -148,7 +148,7 @@ namespace ServerGame {
         *	@brief	Export wrapper for Unicast.
         **/
         [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SV_Mono_Export_MSG_Unicast")]
-        public static extern void Unicast(edict_t* ent, /*qboolean*/ int reliable);
+        public static extern void Unicast(Edict* ent, /*qboolean*/ int reliable);
         /**
         *	@brief	Export wrapper for Multicast.
         **/
@@ -207,12 +207,12 @@ namespace ServerGame {
         *	@brief	Export wrapper for inVIS
         **/
         [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SV_Mono_Export_LinkEntity")]
-        public static extern void LinkEntity(edict_t *entity);
+        public static extern void LinkEntity(Edict *entity);
         /**
         *	@brief	Export wrapper for inPVS
         **/
         [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SV_Mono_Export_UnlinkEntity")]
-        public static extern void UnlinkEntity(edict_t *entity);
+        public static extern void UnlinkEntity(Edict *entity);
         /**
         *	@brief	Export wrapper for inVIS
         **/
@@ -242,7 +242,7 @@ namespace ServerGame {
         *	@brief	Export wrapper for SV_Trace function.
         **/
         [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SV_Mono_Export_Trace")]
-        public static extern TraceResult Trace(Vector3 *start, Vector3 *mins, Vector3 *maxs, Vector3 *end, edict_t* passEdict, ContentFlags contentMask);
+        public static extern TraceResult Trace(Vector3 *start, Vector3 *mins, Vector3 *maxs, Vector3 *end, Edict* passEdict, ContentFlags contentMask);
        	/**
 	    *	@brief	Export wrapper for SV_PointContents function.
 	    **/
@@ -252,7 +252,7 @@ namespace ServerGame {
         *	@brief	Export wrapper for SV_AreaEdicts function.
         **/
         [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SV_Mono_Export_AreaEdicts")]
-        public static extern int AreaEdicts( Vector3 *mins, Vector3 *maxs, edict_t **edictList, int maxCount, AreaType areaType );
+        public static extern int AreaEdicts( Vector3 *mins, Vector3 *maxs, Edict **edictList, int maxCount, AreaType areaType );
 
 
         /*************************************************************************
@@ -295,7 +295,7 @@ namespace ServerGame {
         *	@brief	Export wrapper for SetModel.
         **/
         [DllImport("__Internal", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SV_Mono_Export_SetModel")]
-        public static extern void SetModel(edict_t* ent, string name);
+        public static extern void SetModel(Edict* ent, string name);
         /**
         *	@brief	Export wrapper for CVar.
         **/
