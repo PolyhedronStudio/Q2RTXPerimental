@@ -23,6 +23,22 @@ namespace ServerGame {
 		GameMain() {
 			DPrint( "GameMain::GameMain();\n" );
 		}
+		~GameMain() {
+			DPrint( "GameMain::~GameMain();\n" );
+		}
+
+		/****
+		*
+		*
+		*	API Tests
+		*
+		*
+		****/
+		public unsafe void PassEdictPtr( Edict *entity ) {
+			// This is just a test.
+			entity->serverFlags = ServerFlags.Monster;
+			entity->state.number = 20;
+		}
 
 		/****
 		*

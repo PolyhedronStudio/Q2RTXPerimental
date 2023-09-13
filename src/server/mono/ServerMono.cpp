@@ -96,6 +96,23 @@ MonoAssembly *SV_Mono_LoadAssembly( const std::string &path ) {
 *	@brief	Unloads the 'Server Game' Mono assembly.
 **/
 const void SV_Mono_UnloadAssembly( ) {
+	// Free the GameMain 'klass' GCHandle.
+	if ( serverMono.gameMainInstanceGCHandle ) {
+		mono_gchandle_free( serverMono.gameMainInstanceGCHandle );
+		serverMono.gameMainInstanceGCHandle = 0;
+	}
+	// Free the GameMain 'klass' instance if its there.
+	if ( serverMono.gameMainInstance ) {
+		mono_free( serverMono.gameMainInstance );
+		serverMono.gameMainInstance = nullptr;
+	}
+
+	// This should already be dealt with by SV_Mono_Shutdown itself
+	// TODO: Is this true?
+	
+
+
+
 	// Close image if we have any.
 	//if ( serverMono.monoServerImage ) {
 	//	mono_image_close( serverMono.monoServerImage );
@@ -106,4 +123,5 @@ const void SV_Mono_UnloadAssembly( ) {
 	//	mono_assembly_close( serverMono.monoServerAssembly );
 	//	serverMono.monoServerAssembly = nullptr;
 	//}
+
 }

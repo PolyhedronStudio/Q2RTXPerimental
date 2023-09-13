@@ -994,14 +994,27 @@ void SV_InitGameProgs(void)
 	//	Com_Error( ERR_DROP, "Failed to load server-side mono game library" );
 
 	if ( assembly ) {
-		MonoClass *klassGameMain = Com_Mono_GetClass_FromName_InAssembly( assembly, "ServerGame", "GameMain" );
-		MonoObject *instanceGameMain = Com_Mono_NewObject_FromClassType( serverMono.monoServerDomain, klassGameMain, true );
+		//MonoClass *klassGameMain = Com_Mono_GetClass_FromName_InAssembly( assembly, "ServerGame", "GameMain" );
+		//MonoObject *instanceGameMain = Com_Mono_NewObject_FromClassType( serverMono.monoServerDomain, klassGameMain, true );
 
+		serverMono.gameMainKlass = Com_Mono_GetClass_FromName_InAssembly( assembly, "ServerGame", "GameMain" );
+		if ( serverMono.gameMainKlass == nullptr ) {
+			Com_Error( ERR_DROP, "Failed to look up Mono Class \"ServerGame::GameMain\"" );
+		}
+		serverMono.gameMainInstance = Com_Mono_NewObject_FromClassType( serverMono.monoServerDomain, serverMono.gameMainKlass, true );
+		if ( serverMono.gameMainInstance == nullptr ) {
+			Com_Error( ERR_DROP, "Failed to instanciate up Mono Class \"ServerGame::GameMain\"" );
+		}
+
+		// Allocate a GCHandle to prevent Mono from cleaning up our GameMain instance.
+		serverMono.gameMainInstanceGCHandle = mono_gchandle_new( serverMono.gameMainInstance, true );
+
+		// Try and call some of its methods.
 		void *nullArgValues[] = {
 			nullptr
 		};
-		MonoObject *callResultA = Com_Mono_CallMethod_FromName( instanceGameMain, "Initialize", 0, nullptr );
-		MonoObject *callResultB = Com_Mono_CallMethod_FromName( instanceGameMain, "Shutdown", 0, nullptr );
+		MonoObject *callResultA = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "Initialize", 0, nullptr );
+		MonoObject *callResultB = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "Shutdown", 0, nullptr );
 
 		const char *mapName = "mapName.bsp";
 		const char *entString = "entityString my man";
@@ -1011,10 +1024,18 @@ void SV_InitGameProgs(void)
 			(void*)mono_string_new( serverMono.monoServerDomain, entString ),
 			(void*)mono_string_new( serverMono.monoServerDomain, spawnPoint )
 		};
-		MonoObject *callResult = Com_Mono_CallMethod_FromName( instanceGameMain, "SpawnEntities", 3, spawnEntitiesArgValues );
-		
-		//if ( callResult ) {
+		MonoObject *callResultC = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "SpawnEntities", 3, spawnEntitiesArgValues );
 
+		edict_t testEdict;
+		void *passEdictPtrArgValues[] = {
+			&testEdict
+		};
+		MonoObject *callResultD = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "PassEdictPtr", 1, passEdictPtrArgValues );
+		//if ( callResultD ) {
+			Com_DPrintf( "testEdict.state.number=%d testEdict.serverFlags=%s\n", 
+						 testEdict.s.number, 
+						 (testEdict.svflags & SVF_MONSTER ? "Monster" : "Zero" ) 
+			);
 		//}
 	}
 }

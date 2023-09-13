@@ -30,6 +30,9 @@ struct ServerMono {
 	MonoClass *gameMainKlass = nullptr;
 	// GameMain Instance.
 	MonoObject *gameMainInstance = nullptr;
+
+	// GCHandle ID for the gameMainInstance 'klass' object.
+	uint32_t gameMainInstanceGCHandle = 0;
 };
 extern ServerMono serverMono;
 

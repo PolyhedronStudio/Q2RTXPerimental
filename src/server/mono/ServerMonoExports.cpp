@@ -2,7 +2,7 @@
 *
 *
 *
-*	Server-Side Mono Exports API:
+*	Server-Side Mono P/Invoke Exports API:
 *
 *
 *
