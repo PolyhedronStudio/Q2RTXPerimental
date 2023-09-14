@@ -24,7 +24,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 
 game_export_t    *ge = nullptr;
-mono_game_export_t *monoGE = nullptr;
 
 void PF_configstring(int index, const char *val);
 
@@ -847,6 +846,22 @@ SV_InitGameProgs
 Init the game subsystem for a new map
 ===============
 */
+game_export_t monoGE;
+
+static inline void SV_Mono_ZeroOutEdictMemory( ) {
+	memset( monoGE.edicts, 0, monoGE.edict_size * monoGE.max_edicts );
+}
+static inline edict_t *SV_Mono_GetEdictByNumber( int number ) {
+	// Clamp.
+	if ( number < 0 ) {
+		number = 0;
+	} else if ( number > monoGE.max_edicts ) {
+		number = monoGE.max_edicts - 1;
+	}
+
+	// Return pointer to said entity index.
+	return monoGE.edicts + ( number * monoGE.edict_size );
+}
 void SV_InitGameProgs(void)
 {
 	
@@ -994,9 +1009,7 @@ void SV_InitGameProgs(void)
 	//	Com_Error( ERR_DROP, "Failed to load server-side mono game library" );
 
 	if ( assembly ) {
-		//MonoClass *klassGameMain = Com_Mono_GetClass_FromName_InAssembly( assembly, "ServerGame", "GameMain" );
-		//MonoObject *instanceGameMain = Com_Mono_NewObject_FromClassType( serverMono.monoServerDomain, klassGameMain, true );
-
+		// Allocate a 'GameMain' class instance.
 		serverMono.gameMainKlass = Com_Mono_GetClass_FromName_InAssembly( assembly, "ServerGame", "GameMain" );
 		if ( serverMono.gameMainKlass == nullptr ) {
 			Com_Error( ERR_DROP, "Failed to look up Mono Class \"ServerGame::GameMain\"" );
@@ -1008,35 +1021,129 @@ void SV_InitGameProgs(void)
 
 		// Allocate a GCHandle to prevent Mono from cleaning up our GameMain instance.
 		serverMono.gameMainInstanceGCHandle = mono_gchandle_new( serverMono.gameMainInstance, true );
+		
 
-		// Try and call some of its methods.
-		void *nullArgValues[] = {
-			nullptr
+		// Create the 'Initialize' method argument value array.
+		void *initArgValues[] = {
+			&monoGE.apiversion,
+			//&monoGE.edicts,
+			&monoGE.edict_size,
+			&monoGE.max_edicts,
+			&monoGE.num_edicts
 		};
-		MonoObject *callResultA = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "Initialize", 0, nullptr );
-		MonoObject *callResultB = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "Shutdown", 0, nullptr );
+		// Call upon the actual GameMain.Initialize function.
+		MonoObject *initializeResult = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "Initialize", 4, initArgValues );
+		
+		// This should be memory of ManagedSizeOf(edict_t) * max_edicts.
+		// We add 8 to the returned pointer, since the first 8 bytes are .net specific data.
+		monoGE.edicts = (edict_t*)((int64_t)mono_object_unbox( initializeResult ) + 8);
+		
+		int x = 10;
 
-		const char *mapName = "mapName.bsp";
-		const char *entString = "entityString my man";
-		const char *spawnPoint = "my_spawn_point";
-		void *spawnEntitiesArgValues[] = {
-			(void*)mono_string_new( serverMono.monoServerDomain, mapName ),
-			(void*)mono_string_new( serverMono.monoServerDomain, entString ),
-			(void*)mono_string_new( serverMono.monoServerDomain, spawnPoint )
-		};
-		MonoObject *callResultC = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "SpawnEntities", 3, spawnEntitiesArgValues );
+		// Ensure all entities are memset 0.
+		//SV_Mono_ZeroOutEdictMemory( );
 
-		edict_t testEdict;
-		void *passEdictPtrArgValues[] = {
-			&testEdict
+		////// Get edict #10, assign its number, and call a C# function accepting it as a pointer.
+		edict_t *edict10 = SV_Mono_GetEdictByNumber( 10 );
+		edict10->s.number = 10;
+
+		////// C# Function
+		void *testEntityInArgValues[] = {
+			edict10
 		};
-		MonoObject *callResultD = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "PassEdictPtr", 1, passEdictPtrArgValues );
-		//if ( callResultD ) {
-			Com_DPrintf( "testEdict.state.number=%d testEdict.serverFlags=%s\n", 
-						 testEdict.s.number, 
-						 (testEdict.svflags & SVF_MONSTER ? "Monster" : "Zero" ) 
-			);
+		MonoObject *edictFuncResult = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "TestEntityIn", 1, testEntityInArgValues );
+
+		int y = 20;
+		/**
+		*	Old Test Code.
+		**/
+		//// Try and call some of its methods.
+		//void *nullArgValues[] = {
+		//	nullptr
+		//};
+		//MonoObject *callResultA = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "Initialize", 0, nullptr );
+		//MonoObject *callResultB = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "Shutdown", 0, nullptr );
+
+		//// Call into a function requiring string arguments.
+		//const char *mapName = "mapName.bsp";
+		//const char *entString = "entityString my man";
+		//const char *spawnPoint = "my_spawn_point";
+		//void *spawnEntitiesArgValues[] = {
+		//	(void*)mono_string_new( serverMono.monoServerDomain, mapName ),
+		//	(void*)mono_string_new( serverMono.monoServerDomain, entString ),
+		//	(void*)mono_string_new( serverMono.monoServerDomain, spawnPoint )
+		//};
+		//MonoObject *callResultC = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "SpawnEntities", 3, spawnEntitiesArgValues );
+
+		//// Pass edict into a mono function accepting an IntPtr, which converts it safely to managed memory and back into unmanaged memory.
+		//edict_t testEdictA;
+		//void *passEdictAPtrArgValues[] = {
+		//	&testEdictA
+		//};
+		//MonoObject *callResultD = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "PassEdictIntPtr", 1, passEdictAPtrArgValues );
+		//Com_DPrintf( "PassEdictIntPtr[ testEdictA.state.number=%d testEdictA.serverFlags=%s ]\n", 
+		//			 testEdictA.s.number, 
+		//			 (testEdictA.svflags & SVF_MONSTER ? "Monster" : "Zero" ) 
+		//);
+
+		//// Pass edict into a mono function accepting an edict_t, meaning we interact with the raw C memory.
+		//edict_t testEdictB;
+		//void *passEdictBPtrArgValues[] = {
+		//	&testEdictB
+		//};
+		//MonoObject *callResultE = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "PassEdictPtr", 1, passEdictBPtrArgValues );
+		//Com_DPrintf( "PassEdictPtr[ testEdictB.state.number=%d testEdictB.serverFlags=%s ]\n",
+		//			 testEdictB.s.number,
+		//			 ( testEdictB.svflags & SVF_MONSTER ? "Monster" : "Zero" )
+		//);
+
+		/**
+		*	NEW Test Code:
+		**/
+		//// Allocate the array of edicts using C# unmanaged memory allocation, but be sure to use the managed edict struct size.
+		//monoGE.num_edicts = 1024;
+		//monoGE.edict_size = 0;
+		//
+		//void *allocEdictsArrayArgValues[] = {
+		//	&monoGE.num_edicts,
+		//	&monoGE.edict_size
+		//};
+		//MonoObject *allocateEdictsResult = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "AllocateEdictsArray", 2, allocEdictsArrayArgValues );
+
+		//if ( !allocateEdictsResult ) {
+		//	Com_WPrintf( "!allocateEdictsResult\n" );
+		//	return;
 		//}
+
+		//// Add the mono struct ID stuff offset.
+		////monoGE.edict_size += 4;
+
+		//// Unbox the return value, which is the address pointing to the unmanaged C# allocated edict array.
+		//monoGE.edicts = (edict_t*)mono_object_unbox( allocateEdictsResult );
+
+		//// Set edict numbers.
+		////for ( int i = 0; i < 1024; i++ ) {
+		////	// Get edict based on index.
+		////	edict_t *edict = ( monoGE.edicts + ( i * monoGE.edict_size ) );
+
+		////	// Set some values for testing.
+		////	edict->s.number = i;
+		////	edict->s.event = i;
+		////	edict->svflags = SVF_DEADMONSTER;
+		////}
+
+		//// Pass one of these edicts as a pointer back to a C# method.
+		//int entityIndex = 10;
+		//void *passEdict10PtrArgValues[] = {
+		//	(void*)(monoGE.edicts + ( entityIndex * ( monoGE.edict_size + 4 ) ) )
+		//};
+		//MonoObject *callResultD = Com_Mono_CallMethod_FromName( serverMono.gameMainInstance, "PassEdictPtr", 1, passEdict10PtrArgValues );
+		////Com_DPrintf( "PassEdictIntPtr[ edict[10].state.number=%d edict[10].serverFlags=%s ]\n", 
+		////			 unsafeEdictsPtr[ 10 ].s.number,
+		////			 ( unsafeEdictsPtr[ 10 ].svflags & SVF_MONSTER ? "Monster" : "Zero" )
+		////);
+
+		//int x = 10;
 	}
 }
 

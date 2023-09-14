@@ -107,12 +107,12 @@ const void SV_Mono_UnloadAssembly( ) {
 		serverMono.gameMainInstance = nullptr;
 	}
 
+
+
+
 	// This should already be dealt with by SV_Mono_Shutdown itself
 	// TODO: Is this true?
 	
-
-
-
 	// Close image if we have any.
 	//if ( serverMono.monoServerImage ) {
 	//	mono_image_close( serverMono.monoServerImage );

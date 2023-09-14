@@ -218,7 +218,7 @@ MonoObject *Com_Mono_CallMethod_FromName( MonoObject *objectInstance, const std:
 	}
 
 	// Call the C# method on the objectInstance instance, and get any potential exceptions
-	MonoObject *exception = nullptr;
+	MonoObject *exception;// = nullptr;
 	//void *param = &argValues[0];
 	MonoObject *invokeResult = mono_runtime_invoke( method, objectInstance, argValues, &exception );
 

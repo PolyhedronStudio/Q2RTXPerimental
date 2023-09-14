@@ -22,7 +22,7 @@ namespace ServerGame {
 			*   Shared memory block: C server side memory. Do not touch.
 			**/
 			public EntityState state;
-			public IntPtr* client;//public Client* client;
+			public IntPtr client;//public Client* client;
 			public int inUse;
 
 			//! BSP Clip Linking Properties:
@@ -45,10 +45,14 @@ namespace ServerGame {
 			//! Specific type of clipping.
 			public ContentFlags clipMask;
 			//! Entity's can own others in regards to clipping exclusion tests.
-			public IntPtr* owner;//public Edict* owner;
+			public IntPtr owner;//public Edict* owner;
 			/**
 			*   End of shared memory block.
 			**/
+			// string className;
+
+			// double timeFreed;
+
 		};
 
 	};
