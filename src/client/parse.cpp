@@ -200,7 +200,7 @@ static void CL_ParseFrame(int extrabits)
     cl.frameflags = 0;
 
     extraflags = 0;
-    if (cls.serverProtocol > PROTOCOL_VERSION_DEFAULT) {
+    if (cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         bits = MSG_ReadLong();
 
         currentframe = bits & FRAMENUM_MASK;
@@ -300,7 +300,7 @@ static void CL_ParseFrame(int extrabits)
         frame.areabytes = 0;
     }
 
-    if (cls.serverProtocol <= PROTOCOL_VERSION_DEFAULT) {
+    if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         if (MSG_ReadByte() != svc_playerinfo) {
             Com_Error(ERR_DROP, "%s: not playerinfo", __func__);
         }
@@ -310,7 +310,7 @@ static void CL_ParseFrame(int extrabits)
 
     // parse playerstate
     bits = MSG_ReadWord();
-    if (cls.serverProtocol > PROTOCOL_VERSION_DEFAULT) {
+    if (cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         MSG_ParseDeltaPlayerstate_Enhanced(from, &frame.ps, bits, extraflags);
 #if USE_DEBUG
         if (cl_shownet->integer > 2 && (bits || extraflags)) {
@@ -340,7 +340,7 @@ static void CL_ParseFrame(int extrabits)
     }
 
     // parse packetentities
-    if (cls.serverProtocol <= PROTOCOL_VERSION_DEFAULT) {
+    if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         if (MSG_ReadByte() != svc_packetentities) {
             Com_Error(ERR_DROP, "%s: not packetentities", __func__);
         }

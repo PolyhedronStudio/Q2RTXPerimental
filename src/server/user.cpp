@@ -1095,7 +1095,7 @@ static void SV_OldClientExecuteMove(void)
 
     moveIssued = true;
 
-    if (sv_client->protocol == PROTOCOL_VERSION_DEFAULT) {
+    if (sv_client->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         MSG_ReadByte();    // skip over checksum
     }
 

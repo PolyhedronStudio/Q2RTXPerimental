@@ -34,7 +34,9 @@ extern "C" {
 #define MAX_MSGLEN  0x8000  // max length of a message, 32k
 
 #define PROTOCOL_VERSION_OLD        26
-#define PROTOCOL_VERSION_DEFAULT    34
+// WID: net-code: This is the 'DEFAULT' protocol code, renamed the definition to Q2RTXPERIMENTAL. 
+// TODO: Change the number later on. For now we want to work, and edit, the default protocol routes.
+#define PROTOCOL_VERSION_Q2RTXPERIMENTAL    34
 #define PROTOCOL_VERSION_R1Q2       35
 #define PROTOCOL_VERSION_Q2PRO      36
 #define PROTOCOL_VERSION_MVD        37 // not used for UDP connections

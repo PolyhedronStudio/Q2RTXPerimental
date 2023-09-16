@@ -544,7 +544,7 @@ static void SVC_Info(void)
         return; // ignore in single player
 
     version = atoi(Cmd_Argv(1));
-    if (version < PROTOCOL_VERSION_DEFAULT || version > PROTOCOL_VERSION_Q2PRO)
+    if (version < PROTOCOL_VERSION_Q2RTXPERIMENTAL || version > PROTOCOL_VERSION_Q2PRO)
         return; // ignore invalid versions
 
     len = Q_scnprintf(buffer, sizeof(buffer),
@@ -658,7 +658,7 @@ static bool parse_basic_params(conn_params_t *p)
         return reject("Unsupported protocol version %d.\n", p->protocol);
 
     // check for valid, but outdated protocol version
-    if (p->protocol < PROTOCOL_VERSION_DEFAULT)
+    if (p->protocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL)
         return reject("You need Quake 2 version 3.19 or higher.\n");
 
     return true;
@@ -891,9 +891,9 @@ static bool parse_userinfo(conn_params_t *params, char *userinfo)
 	if (sv_restrict_rtx->integer)
 	{
 		s = Info_ValueForKey(info, "version");
-		if (strncmp(s, "q2rtx", 5) != 0)
+		if (strncmp(s, "Q2RTXPerimental", 15) != 0)
 		{
-			return reject("This server is only available to Q2RTX clients.\n");
+			return reject("This server is only available to Q2RTXPerimental clients.\n");
 		}
 	}
 
@@ -1189,7 +1189,7 @@ static void SVC_DirectConnect(void)
 
     SV_InitClientSend(newcl);
 
-    if (newcl->protocol == PROTOCOL_VERSION_DEFAULT) {
+    if (newcl->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         newcl->WriteFrame = SV_WriteFrameToClient_Default;
     } else {
         newcl->WriteFrame = SV_WriteFrameToClient_Enhanced;
@@ -1547,7 +1547,7 @@ static void SV_PacketEvent(void)
 
         // read the qport out of the message so we can fix up
         // stupid address translating routers
-        if (client->protocol == PROTOCOL_VERSION_DEFAULT) {
+        if (client->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
             qport = RL16(&msg_read.data[8]);
             if (netchan->qport != qport) {
                 continue;
@@ -2178,7 +2178,7 @@ void SV_Init(void)
 
     SV_RegisterSavegames();
 
-    Cvar_Get("protocol", STRINGIFY(PROTOCOL_VERSION_DEFAULT), CVAR_SERVERINFO | CVAR_ROM);
+    Cvar_Get("protocol", STRINGIFY(PROTOCOL_VERSION_Q2RTXPERIMENTAL), CVAR_SERVERINFO | CVAR_ROM);
 
     Cvar_Get("skill", "1", CVAR_LATCH);
     Cvar_Get("deathmatch", "1", CVAR_SERVERINFO | CVAR_LATCH);

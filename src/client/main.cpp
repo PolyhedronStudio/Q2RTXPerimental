@@ -404,9 +404,12 @@ void CL_CheckForResend(void)
         strcpy(cls.servername, "localhost");
         cls.serverAddress.type = NA_LOOPBACK;
         cls.serverProtocol = cl_protocol->integer;
-        if (cls.serverProtocol < PROTOCOL_VERSION_DEFAULT ||
+        if (cls.serverProtocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL ||
             cls.serverProtocol > PROTOCOL_VERSION_Q2PRO) {
-            cls.serverProtocol = PROTOCOL_VERSION_Q2PRO;
+            
+			// WID: net-code: default to PROTOCOL_VERSION_Q2PRO
+			cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
+			//cls.serverProtocol = PROTOCOL_VERSION_Q2PRO;
         }
 
         // we don't need a challenge on the localhost
@@ -529,14 +532,15 @@ usage:
 
     if (argc > 2) {
         protocol = atoi(Cmd_Argv(2));
-        if (protocol < PROTOCOL_VERSION_DEFAULT ||
+        if (protocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL ||
             protocol > PROTOCOL_VERSION_Q2PRO) {
             goto usage;
         }
     } else {
         protocol = cl_protocol->integer;
         if (!protocol) {
-            protocol = PROTOCOL_VERSION_Q2PRO;
+			// WID: net-code: We want to default to Q2RTXPerimental protocol my man.
+            protocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
         }
     }
 
@@ -1328,7 +1332,7 @@ static void CL_ConnectionlessPacket(void)
             }
             // fall through
         default:
-            cls.serverProtocol = PROTOCOL_VERSION_DEFAULT;
+            cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
             break;
         }
         Com_DPrintf("Selected protocol %d\n", cls.serverProtocol);
