@@ -85,9 +85,14 @@ unacknowledged reliable
 #if USE_DEBUG
 // WID: net-code: already defined in chan.c
 extern cvar_t *showpackets;
+extern cvar_t *showfragments;
+extern cvar_t *showdrop;
 extern cvar_t *showdrop;
 #define SHOWPACKET(...) \
     if (showpackets->integer) \
+        Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
+#define SHOWFRAGMENT(...) \
+    if (showfragments->integer) \
         Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
 #define SHOWDROP(...) \
     if (showdrop->integer) \
@@ -102,6 +107,14 @@ extern cvar_t *showdrop;
 
 size_t NetchanQ2RTXPerimental_TransmitNextFragment( netchan_t *netchan ) {
 	Q_assert( !"not implemented" );
+
+	if ( showfragments->integer & 1 && netchan->sock == NS_CLIENT ) {
+		SHOWFRAGMENT( "Transmit fragment (%s) (id:%i)\n", Netchan_SocketString( netchan->sock ), netchan->outgoing_sequence );
+	}
+	if ( showfragments->integer & 2 && netchan->sock == NS_SERVER ) {
+		SHOWFRAGMENT( "Transmit fragment (%s) (id:%i)\n", Netchan_SocketString( netchan->sock ), netchan->outgoing_sequence );
+	}
+
 	return 0;
 }
 
@@ -116,7 +129,7 @@ A 0 length will still generate a packet and deal with the reliable messages.
 ================
 */
 size_t NetchanQ2RTXPerimental_Transmit( netchan_t *netchan, size_t length, const void *data, int numpackets ) {
-	netchan_old_t *chan = (netchan_old_t *)netchan;
+	netchan_q2rtxperimental_t *chan = (netchan_q2rtxperimental_t *)netchan;
 	sizebuf_t   send;
 	byte        send_buf[ MAX_PACKETLEN ];
 	bool        send_reliable;
@@ -216,7 +229,7 @@ modifies net_message so that it points to the packet payload
 =================
 */
 bool NetchanQ2RTXPerimental_Process( netchan_t *netchan ) {
-	netchan_old_t *chan = (netchan_old_t *)netchan;
+	netchan_q2rtxperimental_t *chan = (netchan_q2rtxperimental_t *)netchan;
 	uint32_t    sequence, sequence_ack;
 	uint32_t    reliable_ack, reliable_message;
 

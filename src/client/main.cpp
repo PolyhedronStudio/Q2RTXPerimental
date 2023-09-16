@@ -467,6 +467,10 @@ void CL_CheckForResend(void)
                    PROTOCOL_VERSION_Q2PRO_CURRENT);
         cls.quakePort = net_qport->integer & 0xff;
         break;
+	case PROTOCOL_VERSION_Q2RTXPERIMENTAL:
+		tail[ 0 ] = 0;
+		cls.quakePort = net_qport->integer;
+		break;
     default:
         tail[0] = 0;
         cls.quakePort = net_qport->integer;

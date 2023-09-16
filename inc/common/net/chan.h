@@ -76,6 +76,7 @@ extern cvar_t       *net_qport;
 extern cvar_t       *net_maxmsglen;
 extern cvar_t       *net_chantype;
 
+const char *Netchan_SocketString( netsrc_t socket );
 void Netchan_Init(void);
 void Netchan_OutOfBand(netsrc_t sock, const netadr_t *adr,
                        const char *format, ...) q_printf(3, 4);

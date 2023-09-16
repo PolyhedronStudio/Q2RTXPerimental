@@ -83,22 +83,42 @@ unacknowledged reliable
 */
 
 #if USE_DEBUG
-cvar_t       *showpackets; // WID: net-code: removed 'static' keyword, we're sharing these to Q2RTXPerimentalNetChan.cpp
-cvar_t       *showdrop; // WID: net-code: removed 'static' keyword, we're sharing these to Q2RTXPerimentalNetChan.cpp
+cvar_t *showpackets; // WID: net-code: removed 'static' keyword, we're sharing these to Q2RTXPerimentalNetChan.cpp
+cvar_t *showfragments; // & 1 = client & 2 = server
+cvar_t *showdrop; // WID: net-code: removed 'static' keyword, we're sharing these to Q2RTXPerimentalNetChan.cpp
 #define SHOWPACKET(...) \
     if (showpackets->integer) \
+        Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
+#define SHOWFRAGMENT(...) \
+    if (showfragments->integer) \
         Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
 #define SHOWDROP(...) \
     if (showdrop->integer) \
         Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
 #else
 #define SHOWPACKET(...)
+#define SHOWFRAGMENT(...)
 #define SHOWDROP(...)
 #endif
 
 cvar_t      *net_qport;
 cvar_t      *net_maxmsglen;
 cvar_t      *net_chantype;
+
+
+#if USE_DEBUG
+static const char socketnames[ 3 ][ 16 ] = { "Client", "Server", "Unknown" };
+
+const char *Netchan_SocketString( netsrc_t socket ) {
+
+	if ( socket == NS_CLIENT )
+		return socketnames[ 0 ];
+	else if ( socket == NS_SERVER )
+		return socketnames[ 1 ];
+	else
+		return socketnames[ 2 ];
+}
+#endif
 
 // allow either 0 (no hard limit), or an integer between 512 and 4086
 static void net_maxmsglen_changed(cvar_t *self)
@@ -121,6 +141,7 @@ void Netchan_Init(void)
 #if USE_DEBUG
     showpackets = Cvar_Get("showpackets", "0", 0);
     showdrop = Cvar_Get("showdrop", "0", 0);
+	showfragments = Cvar_Get( "showfragments", "0", 0 );
 #endif
 
     // pick a port value that should be nice and random
