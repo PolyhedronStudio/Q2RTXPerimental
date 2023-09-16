@@ -1364,7 +1364,8 @@ static void CL_ConnectionlessPacket(void)
         if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
             type = NETCHAN_NEW;
         } else {
-            type = NETCHAN_OLD;
+			// WID: net-code: Different Net Channel in place.
+            type = NETCHAN_Q2RTXPERIMENTAL; //NETCHAN_OLD;
         }
 
         mapname[0] = 0;
@@ -1382,7 +1383,8 @@ static void CL_ConnectionlessPacket(void)
                 s += 3;
                 if (*s) {
                     type = static_cast<netchan_type_t>( atoi(s) ); // WID: C++20: Was without a cast.
-                    if (type != NETCHAN_OLD && type != NETCHAN_NEW) {
+					// WID: net-code: Check for NETCHAN_Q2RTXPERIMENTAL as well.
+                    if (type != NETCHAN_OLD && type != NETCHAN_NEW && type != NETCHAN_Q2RTXPERIMENTAL ) {
                         Com_Error(ERR_DISCONNECT,
                                   "Server returned invalid netchan type");
                     }
@@ -2797,7 +2799,7 @@ static void CL_InitLocal(void)
     //
     info_password = Cvar_Get("password", "", CVAR_USERINFO);
     info_spectator = Cvar_Get("spectator", "0", CVAR_USERINFO);
-    info_name = Cvar_Get("name", "Player", CVAR_USERINFO | CVAR_ARCHIVE);
+    info_name = Cvar_Get("name", "Q2RTXPerimental", CVAR_USERINFO | CVAR_ARCHIVE);
     info_skin = Cvar_Get("skin", "male/grunt", CVAR_USERINFO | CVAR_ARCHIVE);
     info_rate = Cvar_Get("rate", "5000", CVAR_USERINFO | CVAR_ARCHIVE);
     info_msg = Cvar_Get("msg", "1", CVAR_USERINFO | CVAR_ARCHIVE);

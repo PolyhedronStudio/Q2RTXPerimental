@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/cvar.h"
 #include "common/msg.h"
 #include "common/net/chan.h"
+#include "common/net/Q2RTXPerimentalNetChan.h"
 #include "common/net/net.h"
 #include "common/protocol.h"
 #include "common/sizebuf.h"
@@ -82,8 +83,8 @@ unacknowledged reliable
 */
 
 #if USE_DEBUG
-static cvar_t       *showpackets;
-static cvar_t       *showdrop;
+cvar_t       *showpackets; // WID: net-code: removed 'static' keyword, we're sharing these to Q2RTXPerimentalNetChan.cpp
+cvar_t       *showdrop; // WID: net-code: removed 'static' keyword, we're sharing these to Q2RTXPerimentalNetChan.cpp
 #define SHOWPACKET(...) \
     if (showpackets->integer) \
         Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
@@ -846,6 +847,9 @@ netchan_t *Netchan_Setup(netsrc_t sock, netchan_type_t type,
     case NETCHAN_NEW:
         netchan = NetchanNew_Setup(sock, adr, qport, maxpacketlen);
         break;
+	case NETCHAN_Q2RTXPERIMENTAL:
+		netchan = NetchanQ2RTXPerimental_Setup( sock, adr, qport, maxpacketlen );
+		break;
     default:
         Q_assert(!"bad type");
         netchan = NULL;

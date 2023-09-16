@@ -184,10 +184,13 @@ SET(SRC_COMMON
 	common/utils.cpp
 	common/zone.cpp
 	common/net/chan.cpp
+	common/net/Q2RTXPerimentalNetChan.cpp
 	common/net/net.cpp
 )
 
 SET(HEADERS_COMMON
+	#common/net/chan.h
+	#common/net/Q2RTXPerimentalNetChan.h
 	common/net/inet_ntop.h
 	common/net/inet_pton.h
 	common/net/win.h

@@ -31,7 +31,8 @@ extern "C" {
 
 typedef enum netchan_type_e {
     NETCHAN_OLD,
-    NETCHAN_NEW
+    NETCHAN_NEW,
+	NETCHAN_Q2RTXPERIMENTAL
 } netchan_type_t;
 
 typedef struct netchan_s {

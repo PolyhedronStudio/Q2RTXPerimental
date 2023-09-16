@@ -781,7 +781,10 @@ static bool parse_enhanced_params(conn_params_t *p)
 {
     char *s;
 
-    if (p->protocol == PROTOCOL_VERSION_R1Q2) {
+	if ( p->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
+		p->nctype = NETCHAN_Q2RTXPERIMENTAL;
+		p->has_zlib = false;
+	} else if (p->protocol == PROTOCOL_VERSION_R1Q2) {
         // set minor protocol version
         s = Cmd_Argv(6);
         if (*s) {
@@ -1607,6 +1610,10 @@ static void update_client_mtu(client_t *client, int ee_info)
     // TODO: old clients require entire queue flush :(
     if (netchan->type == NETCHAN_OLD)
         return;
+	// WID: net-code: Ours is based on the code of OLD thus:
+	if ( netchan->type == NETCHAN_Q2RTXPERIMENTAL ) {
+		return;
+	}
 
     if (!netchan->reliable_length)
         return;
