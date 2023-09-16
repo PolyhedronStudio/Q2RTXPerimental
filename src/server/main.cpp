@@ -1190,7 +1190,7 @@ static void SVC_DirectConnect(void)
     SV_InitClientSend(newcl);
 
     if (newcl->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-        newcl->WriteFrame = SV_WriteFrameToClient_Default;
+        newcl->WriteFrame = SV_WriteFrameToClient_Q2RTXPerimental;
     } else {
         newcl->WriteFrame = SV_WriteFrameToClient_Enhanced;
     }

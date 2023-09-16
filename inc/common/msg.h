@@ -115,7 +115,8 @@ void    MSG_WriteDir(const vec3_t vector);
 void    MSG_PackEntity(entity_packed_t *out, const entity_state_t *in, bool short_angles);
 void    MSG_WriteDeltaEntity(const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags);
 void    MSG_PackPlayer(player_packed_t *out, const player_state_t *in);
-void    MSG_WriteDeltaPlayerstate_Default(const player_packed_t *from, const player_packed_t *to);
+void    MSG_WriteDeltaPlayerstate_Q2RTXPerimental( const player_packed_t *from, const player_packed_t *to );
+//void    MSG_WriteDeltaPlayerstate_Default(const player_packed_t *from, const player_packed_t *to);
 int     MSG_WriteDeltaPlayerstate_Enhanced(const player_packed_t *from, player_packed_t *to, msgPsFlags_t flags);
 void    MSG_WriteDeltaPlayerstate_Packet(const player_packed_t *from, const player_packed_t *to, int number, msgPsFlags_t flags);
 
@@ -150,14 +151,16 @@ void    MSG_ReadDeltaUsercmd_Enhanced(const usercmd_t *from, usercmd_t *to, int 
 int     MSG_ParseEntityBits(int *bits);
 void    MSG_ParseDeltaEntity(const entity_state_t *from, entity_state_t *to, int number, int bits, msgEsFlags_t flags);
 #if USE_CLIENT
-void    MSG_ParseDeltaPlayerstate_Default(const player_state_t *from, player_state_t *to, int flags);
+void    MSG_ParseDeltaPlayerstate_Q2RTXPerimental( const player_state_t *from, player_state_t *to, int flags );
+//void    MSG_ParseDeltaPlayerstate_Default(const player_state_t *from, player_state_t *to, int flags);
 void    MSG_ParseDeltaPlayerstate_Enhanced(const player_state_t *from, player_state_t *to, int flags, int extraflags);
 #endif
 void    MSG_ParseDeltaPlayerstate_Packet(const player_state_t *from, player_state_t *to, int flags);
 
 #if USE_DEBUG
 #if USE_CLIENT
-void    MSG_ShowDeltaPlayerstateBits_Default(int flags);
+void    MSG_ShowDeltaPlayerstateBits_Q2RTXPerimental( int flags );
+//void    MSG_ShowDeltaPlayerstateBits_Default(int flags);
 void    MSG_ShowDeltaPlayerstateBits_Enhanced(int flags, int extraflags);
 void    MSG_ShowDeltaUsercmdBits_Enhanced(int bits);
 #endif

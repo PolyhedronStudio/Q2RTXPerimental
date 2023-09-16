@@ -329,10 +329,10 @@ static void CL_ParseFrame(int extrabits)
             frame.clientNum = cl.clientNum;
         }
     } else {
-        MSG_ParseDeltaPlayerstate_Default(from, &frame.ps, bits);
+        MSG_ParseDeltaPlayerstate_Q2RTXPerimental(from, &frame.ps, bits);
 #if USE_DEBUG
         if (cl_shownet->integer > 2 && bits) {
-            MSG_ShowDeltaPlayerstateBits_Default(bits);
+            MSG_ShowDeltaPlayerstateBits_Q2RTXPerimental(bits);
             Com_LPrintf(PRINT_DEVELOPER, "\n");
         }
 #endif
