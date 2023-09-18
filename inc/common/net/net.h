@@ -40,6 +40,12 @@ extern "C" {
 #define MAX_PACKETLEN_WRITABLE          (MAX_PACKETLEN - PACKET_HEADER)
 #define MAX_PACKETLEN_WRITABLE_DEFAULT  (MAX_PACKETLEN_DEFAULT - PACKET_HEADER)
 
+// WID: net-code:
+// Fragment specific consts
+#define	FRAGMENT_SIZE	    ( MAX_PACKETLEN - 96 ) // - PACKET_HEADER ? TODO:
+#define	FRAGMENT_LAST	    ( 1<<14 )
+#define	FRAGMENT_BIT	    ( 1<<31 )
+
 // portable network error codes
 #define NET_OK       0  // success
 #define NET_ERROR   -1  // failure (NET_ErrorString returns error message)

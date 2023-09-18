@@ -338,7 +338,7 @@ void M_MoveFrame(edict_t *self)
     self->nextthink = level.framenum + 1;
 
     if ((self->monsterinfo.nextframe) && (self->monsterinfo.nextframe >= move->firstframe) && (self->monsterinfo.nextframe <= move->lastframe)) {
-        self->s.frame = self->monsterinfo.nextframe;
+        self->s.frame = self->monsterinfo.nextframe % BASE_FRAMETIME;
         self->monsterinfo.nextframe = 0;
     } else {
         if (self->s.frame == move->lastframe) {
@@ -366,12 +366,17 @@ void M_MoveFrame(edict_t *self)
         }
     }
 
-    index = self->s.frame - move->firstframe;
+    //index = self->s.frame - move->firstframe;
+	index = (self->s.frame - move->firstframe) % BASE_FRAMETIME;
     if (move->frame[index].aifunc) {
-        if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
-            move->frame[index].aifunc(self, move->frame[index].dist * self->monsterinfo.scale);
-        else
-            move->frame[index].aifunc(self, 0);
+		if ( !( self->monsterinfo.aiflags & AI_HOLD_FRAME ) ) {
+			float dist = move->frame[ index ].dist *self->monsterinfo.scale;
+			dist /= BASE_FRAMERATE / 10.f; // 40hz, but 10hz move speed.
+			move->frame[ index ].aifunc( self, dist * self->monsterinfo.scale );
+			//move->frame[ index ].aifunc( self, move->frame[ index ].dist * self->monsterinfo.scale );
+		} else {
+			move->frame[ index ].aifunc( self, 0 );
+		}
     }
 
     if (move->frame[index].thinkfunc)

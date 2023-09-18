@@ -43,7 +43,7 @@ typedef struct netchan_q2rtxperimental_s {
 
     byte        *message_buf;       // leave space for header
 
-// message is copied to this buffer when it is first transfered
+	// message is copied to this buffer when it is first transfered
     byte        *reliable_buf;  // unacked reliable message
 } netchan_q2rtxperimental_t;
 
