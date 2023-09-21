@@ -26,6 +26,29 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define GAME_INCLUDE
 #include "shared/game.h"
 
+// Extern here right after including shared/game.h
+extern  game_import_t   gi;
+extern  game_export_t   globals;
+
+//==================================================================
+// Q2RE: Time
+//==================================================================
+// gtime type.
+#include "gtime.h"
+
+// extern times.
+extern gtime_t FRAME_TIME_S;
+extern gtime_t FRAME_TIME_MS;
+
+// Undef max 
+#undef max
+
+// Just to, hold time, forever.
+constexpr gtime_t HOLD_FOREVER = gtime_t::from_ms( std::numeric_limits<int64_t>::max( ) );
+//==================================================================
+// 
+//==================================================================
+
 // features this game supports
 #define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS|GMF_ENHANCED_SAVEGAMES)
 
@@ -40,12 +63,112 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define svc_inventory       5
 #define svc_stufftext       11
 
+
+//==================================================================
+// Q2RE: Random Number Utilities
+//==================================================================
+#include <random>
+extern std::mt19937 mt_rand;
+
+// uniform float [0, 1)
+[[nodiscard]] inline float frandom( ) {
+	return std::uniform_real_distribution<float>( )( mt_rand );
+}
+
+// uniform float [min_inclusive, max_exclusive)
+[[nodiscard]] inline float frandom( float min_inclusive, float max_exclusive ) {
+	return std::uniform_real_distribution<float>( min_inclusive, max_exclusive )( mt_rand );
+}
+
+// uniform float [0, max_exclusive)
+[[nodiscard]] inline float frandom( float max_exclusive ) {
+	return std::uniform_real_distribution<float>( 0, max_exclusive )( mt_rand );
+}
+
+// uniform time [min_inclusive, max_exclusive)
+[[nodiscard]] inline gtime_t random_time( gtime_t min_inclusive, gtime_t max_exclusive ) {
+	return gtime_t::from_ms( std::uniform_int_distribution<int64_t>( min_inclusive.milliseconds( ), max_exclusive.milliseconds( ) )( mt_rand ) );
+}
+
+// uniform time [0, max_exclusive)
+[[nodiscard]] inline gtime_t random_time( gtime_t max_exclusive ) {
+	return gtime_t::from_ms( std::uniform_int_distribution<int64_t>( 0, max_exclusive.milliseconds( ) )( mt_rand ) );
+}
+
+// uniform float [-1, 1)
+// note: closed on min but not max
+// to match vanilla behavior
+[[nodiscard]] inline float crandom( ) {
+	return std::uniform_real_distribution<float>( -1.f, 1.f )( mt_rand );
+}
+
+// uniform float (-1, 1)
+[[nodiscard]] inline float crandom_open( ) {
+	return std::uniform_real_distribution<float>( std::nextafterf( -1.f, 0.f ), 1.f )( mt_rand );
+}
+
+// raw unsigned int32 value from random
+[[nodiscard]] inline uint32_t irandom( ) {
+	return mt_rand( );
+}
+
+// uniform int [min, max)
+// always returns min if min == (max - 1)
+// undefined behavior if min > (max - 1)
+[[nodiscard]] inline int32_t irandom( int32_t min_inclusive, int32_t max_exclusive ) {
+	if ( min_inclusive == max_exclusive - 1 )
+		return min_inclusive;
+
+	return std::uniform_int_distribution<int32_t>( min_inclusive, max_exclusive - 1 )( mt_rand );
+}
+
+// uniform int [0, max)
+// always returns 0 if max <= 0
+// note for Q2 code:
+// - to fix rand()%x, do irandom(x)
+// - to fix rand()&x, do irandom(x + 1)
+[[nodiscard]] inline int32_t irandom( int32_t max_exclusive ) {
+	if ( max_exclusive <= 0 )
+		return 0;
+
+	return irandom( 0, max_exclusive );
+}
+
+// uniform random index from given container
+template<typename T>
+[[nodiscard]] inline int32_t random_index( const T &container ) {
+	return irandom( std::size( container ) );
+}
+
+// uniform random element from given container
+template<typename T>
+[[nodiscard]] inline auto random_element( T &container ) -> decltype( *std::begin( container ) ) {
+	return *( std::begin( container ) + random_index( container ) );
+}
+
+// flip a coin
+[[nodiscard]] inline bool brandom( ) {
+	return irandom( 2 ) == 0;
+}
+//==================================================================
+// 
 //==================================================================
 
 // view pitching times
-#define DAMAGE_TIME     0.5f
-#define FALL_TIME       0.3f
+//#define DAMAGE_TIME     0.5f
+//#define FALL_TIME       0.3f
+// view pitching times
+inline gtime_t DAMAGE_TIME_SLACK( ) {
+	return ( 100_ms - FRAME_TIME_MS );
+}
 
+inline gtime_t DAMAGE_TIME( ) {
+	return 500_ms + DAMAGE_TIME_SLACK( );
+}
+
+inline gtime_t FALL_TIME( ) {
+	return 300_ms + DAMAGE_TIME_SLACK( );
+}
 
 // edict->spawnflags
 // these are set with checkboxes on each entity in the map editor
@@ -230,23 +353,23 @@ typedef struct {
 #define WEAP_FLAREGUN           12
 
 typedef struct gitem_s {
-    char        *classname; // spawning name
+	const char        *classname; // spawning name
     bool        (*pickup)(struct edict_s *ent, struct edict_s *other);
     void        (*use)(struct edict_s *ent, struct gitem_s *item);
     void        (*drop)(struct edict_s *ent, struct gitem_s *item);
     void        (*weaponthink)(struct edict_s *ent);
-    char        *pickup_sound;
-    char        *world_model;
+	const char	*pickup_sound; // WID: C++20: Added const.
+	const char	*world_model; // WID: C++20: Added const.
     int         world_model_flags;
-    char        *view_model;
+	const char	*view_model; // WID: C++20: Added const.
 
     // client side info
-    char        *icon;
-    char        *pickup_name;   // for printing on pickup
+	const char	*icon; // WID: C++20: Added const.
+	const char	*pickup_name;   // for printing on pickup	// WID: C++20: Added const.
     int         count_width;    // number of digits to display by icon
 
     int         quantity;       // for ammo how much, for weapons how much is used per shot
-    char        *ammo;          // for weapons
+	const char	*ammo;          // for weapons	// WID: C++20: Added const.
     int         flags;          // IT_* flags
 
     int         weapmodel;      // weapon model index (for weapons)
@@ -254,7 +377,7 @@ typedef struct gitem_s {
     void        *info;
     int         tag;
 
-    char        *precaches;     // string of all models, sounds, and images this item will use
+    const char	*precaches;     // string of all models, sounds, and images this item will use	// WID: C++20: Added const.
 } gitem_t;
 
 
@@ -296,7 +419,7 @@ typedef struct {
 //
 typedef struct {
     int         framenum;
-    float       time;
+    gtime_t		time;
 
     char        level_name[MAX_QPATH];  // the descriptive name (Outer Base, etc)
     char        mapname[MAX_QPATH];     // the server name (base1, etc)
@@ -304,7 +427,8 @@ typedef struct {
 
     // intermission state
     int         intermission_framenum;  // time the intermission was started
-    char        *changemap;
+	// WID: C++20: Added const.
+    const char	*changemap;
     int         exitintermission;
     vec3_t      intermission_origin;
     vec3_t      intermission_angle;
@@ -350,7 +474,8 @@ typedef struct {
     int         lip;
     int         distance;
     int         height;
-    char        *noise;
+	// WID: C++20: Added const.
+    const char	*noise;
     float       pausetime;
     char        *item;
     char        *gravity;
@@ -392,11 +517,12 @@ typedef struct {
 } moveinfo_t;
 
 
-typedef struct {
+struct mframe_t {
     void    (*aifunc)(edict_t *self, float dist);
-    float   dist;
+    float   dist = 0;
     void    (*thinkfunc)(edict_t *self);
-} mframe_t;
+	int32_t lerp_frame = -1;
+};
 
 typedef struct {
     int         firstframe;
@@ -407,8 +533,9 @@ typedef struct {
 
 typedef struct {
     mmove_t     *currentmove;
+	mmove_t		*nextmove;
     int         aiflags;
-    int         nextframe;
+    int         nextframe;	// if next_move is set, this is ignored until a frame is ran
     float       scale;
 
     void        (*stand)(edict_t *self);
@@ -422,16 +549,19 @@ typedef struct {
     void        (*sight)(edict_t *self, edict_t *other);
     bool        (*checkattack)(edict_t *self);
 
-    int         pause_framenum;
-    int         attack_finished;
+	gtime_t		next_move_time; // high tick rate
+
+    gtime_t		pause_time;
+    gtime_t     attack_finished;
+	gtime_t		fire_wait;
 
     vec3_t      saved_goal;
-    int         search_framenum;
-    int         trail_framenum;
+	gtime_t		search_time;
+	gtime_t		trail_time;
     vec3_t      last_sighting;
     int         attack_state;
     int         lefty;
-    int         idle_framenum;
+    gtime_t     idle_time;
     int         linkcount;
 
     int         power_armor_type;
@@ -442,8 +572,6 @@ typedef struct {
 
 extern  game_locals_t   game;
 extern  level_locals_t  level;
-extern  game_import_t   gi;
-extern  game_export_t   globals;
 extern  spawn_temp_t    st;
 
 extern  int sm_meat_index;
@@ -600,8 +728,8 @@ void Cmd_Score_f(edict_t *ent);
 void PrecacheItem(gitem_t *it);
 void InitItems(void);
 void SetItemNames(void);
-gitem_t *FindItem(char *pickup_name);
-gitem_t *FindItemByClassname(char *classname);
+gitem_t *FindItem(const char *pickup_name);
+gitem_t *FindItemByClassname(const char *classname);
 #define ITEM_INDEX(x) ((x)-itemlist)
 edict_t *Drop_Item(edict_t *ent, gitem_t *item);
 void SetRespawn(edict_t *ent, float delay);
@@ -619,7 +747,7 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 //
 bool    KillBox(edict_t *ent);
 void    G_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result);
-edict_t *G_Find(edict_t *from, int fieldofs, char *match);
+edict_t *G_Find(edict_t *from, int fieldofs, const char *match); // WID: C++20: Added const.
 edict_t *findradius(edict_t *from, vec3_t org, float rad);
 edict_t *G_PickTarget(char *targetname);
 void    G_UseTargets(edict_t *ent, edict_t *activator);
@@ -688,9 +816,11 @@ void M_CheckGround(edict_t *ent);
 //
 // g_misc.c
 //
-void ThrowHead(edict_t *self, char *gibname, int damage, int type);
+// WID: C++20: Added const.
+void ThrowHead(edict_t *self, const char *gibname, int damage, int type);
 void ThrowClientHead(edict_t *self, int damage);
-void ThrowGib(edict_t *self, char *gibname, int damage, int type);
+// WID: C++20: Added const.
+void ThrowGib(edict_t *self, const char *gibname, int damage, int type);
 void BecomeExplosion1(edict_t *self);
 
 #define CLOCK_MESSAGE_SIZE  16
@@ -718,13 +848,14 @@ bool FacingIdeal(edict_t *self);
 //
 // g_weapon.c
 //
-void ThrowDebris(edict_t *self, char *modelname, float speed, vec3_t origin);
+// WID: C++20: Added const.
+void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origin);
 bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick);
 void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int mod);
 void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int mod);
 void fire_blaster(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int effect, bool hyper);
-void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius);
-void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, float timer, float damage_radius, bool held);
+void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, gtime_t timer, float damage_radius);
+void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, gtime_t timer, float damage_radius, bool held);
 void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick);
 void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius);
@@ -908,8 +1039,10 @@ struct gclient_s {
     weaponstate_t   weaponstate;
     vec3_t      kick_angles;    // weapon kicks
     vec3_t      kick_origin;
-    float       v_dmg_roll, v_dmg_pitch, v_dmg_time;    // damage kicks
-    float       fall_time, fall_value;      // for view drop on fall
+    float       v_dmg_roll, v_dmg_pitch;    // damage kicks
+	gtime_t		v_dmg_time;
+    gtime_t		fall_time;
+	float		fall_value;      // for view drop on fall
     float       damage_alpha;
     float       bonus_alpha;
     vec3_t      damage_blend;
@@ -918,7 +1051,7 @@ struct gclient_s {
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
 
-    int         next_drown_framenum;
+	gtime_t		next_drown_time;
     int         old_waterlevel;
     int         breather_sound;
 
@@ -931,23 +1064,24 @@ struct gclient_s {
     bool        anim_run;
 
     // powerup timers
-    int         quad_framenum;
-    int         invincible_framenum;
-    int         breather_framenum;
-    int         enviro_framenum;
+	gtime_t		quad_time;
+	gtime_t		invincible_time;
+	gtime_t		breather_time;
+	gtime_t		enviro_time;
 
     bool        grenade_blew_up;
-    int         grenade_framenum;
+	gtime_t		grenade_time;
+	gtime_t		grenade_finished_time;
     int         silencer_shots;
     int         weapon_sound;
 
-    int         pickup_msg_framenum;
+    gtime_t		pickup_msg_time;
 
-    float       flood_locktill;     // locked from talking
-    float       flood_when[10];     // when messages were said
-    int         flood_whenhead;     // head pointer for when said
+    gtime_t		flood_locktill;     // locked from talking
+    gtime_t		flood_when[10];     // when messages were said
+    int32_t		flood_whenhead;     // head pointer for when said
 
-    int         respawn_framenum;   // can respawn when time > this
+    gtime_t		respawn_time;		// can respawn when time > this
 
     edict_t     *chase_target;      // player we are chasing
     bool        update_chase;       // need to update chase info?
@@ -989,21 +1123,24 @@ struct edict_s {
     int         movetype;
     int         flags;
 
-    char        *model;
-    float       freetime;           // sv.time when the object was freed
+	// WID: C++20: added const.
+    const char  *model;
+	gtime_t		freetime;           // sv.time when the object was freed
 
     //
     // only used locally in game, not by server
     //
     char        *message;
-    char        *classname;
+	// WID: C++20: Added const.
+    const char	*classname;
     int         spawnflags;
 
-    int         timestamp;
+	gtime_t		timestamp;
 
     float       angle;          // set in qe3, -1 = up, -2 = down
     char        *target;
-    char        *targetname;
+	// WID: C++20: Added const.
+    const char	*targetname;
     char        *killtarget;
     char        *team;
     char        *pathtarget;
@@ -1018,7 +1155,7 @@ struct edict_s {
     vec3_t      velocity;
     vec3_t      avelocity;
     int         mass;
-    int         air_finished_framenum;
+	gtime_t		air_finished_time;
     float       gravity;        // per entity gravity multiplier (1.0 is normal)
                                 // use for lowgrav artifact, flares
 
@@ -1027,7 +1164,7 @@ struct edict_s {
     float       yaw_speed;
     float       ideal_yaw;
 
-    int         nextthink;
+    gtime_t         nextthink;
     void        (*prethink)(edict_t *ent);
     void        (*think)(edict_t *self);
     void        (*blocked)(edict_t *self, edict_t *other);         // move to moveinfo?
@@ -1036,21 +1173,22 @@ struct edict_s {
     void        (*pain)(edict_t *self, edict_t *other, float kick, int damage);
     void        (*die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point);
 
-    int         touch_debounce_framenum;        // are all these legit?  do we need more/less of them?
-    int         pain_debounce_framenum;
-    int         damage_debounce_framenum;
-    int         fly_sound_debounce_framenum;    // move to clientinfo
-    int         last_move_framenum;
+	gtime_t		touch_debounce_time;        // are all these legit?  do we need more/less of them?
+	gtime_t		pain_debounce_time;
+	gtime_t		damage_debounce_time;
+    gtime_t		fly_sound_debounce_time;    // move to clientinfo
+	gtime_t		last_move_time;
 
     int         health;
     int         max_health;
     int         gib_health;
     int         deadflag;
-    int         show_hostile;
+    gtime_t		show_hostile;
 
-    int         powerarmor_framenum;
+	gtime_t		powerarmor_time;
 
-    char        *map;           // target_changelevel
+	// WID: C++20: Added const.
+    const char        *map;           // target_changelevel
 
     int         viewheight;     // height above origin where eyesight is determined
     int         takedamage;
@@ -1082,7 +1220,7 @@ struct edict_s {
     float       delay;          // before firing targets
     float       random;
 
-    int         last_sound_framenum;
+    gtime_t		last_sound_time;
 
     int         watertype;
     int         waterlevel;

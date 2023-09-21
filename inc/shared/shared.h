@@ -54,6 +54,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+
+#include <type_traits>
+#include <algorithm>
+#include <array>
+#include <string_view>
+#include <numeric>
+#include <functional>
+#include <random>
+
 #endif//__cplusplus
 
 
@@ -380,6 +389,11 @@ uint32_t Q_rand_uniform(uint32_t n);
 #define clamp(a,b,c)    ((a)<(b)?(a)=(b):(a)>(c)?(a)=(c):(a))
 #define cclamp(a,b,c)   ((b)>(c)?clamp(a,c,b):clamp(a,b,c))
 
+// WID: C++20:
+//#ifdef __cplusplus
+//#define max std::max
+//#define min std::min
+//#else 
 #ifndef max
 #define max(a,b) ((a)>(b)?(a):(b))
 #endif
@@ -387,6 +401,7 @@ uint32_t Q_rand_uniform(uint32_t n);
 #ifndef min
 #define min(a,b) ((a)<(b)?(a):(b))
 #endif
+//#endif
 
 #define frand()     ((int32_t)Q_rand() * 0x1p-32f + 0.5f)
 #define crand()     ((int32_t)Q_rand() * 0x1p-31f)
@@ -1351,6 +1366,9 @@ typedef struct entity_state_s {
     int     event;          // impulse events -- muzzle flashes, footsteps, etc
                             // events only go out for a single frame, they
                             // are automatically cleared each frame
+							
+	// [Paril-KEX] for custom interpolation stuff
+	int32_t        old_frame;
 } entity_state_t;
 
 //==============================================
