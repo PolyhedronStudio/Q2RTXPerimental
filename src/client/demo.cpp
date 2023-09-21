@@ -161,9 +161,9 @@ static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
     MSG_PackPlayer(&newpack, &to->ps);
     if (from) {
         MSG_PackPlayer(&oldpack, &from->ps);
-        MSG_WriteDeltaPlayerstate_Default(&oldpack, &newpack);
+        MSG_WriteDeltaPlayerstate_Q2RTXPerimental(&oldpack, &newpack);
     } else {
-        MSG_WriteDeltaPlayerstate_Default(NULL, &newpack);
+		MSG_WriteDeltaPlayerstate_Q2RTXPerimental(NULL, &newpack);
     }
 
     // delta encode the entities
@@ -397,7 +397,7 @@ static void CL_Record_f(void)
 
     // send the serverdata
     MSG_WriteByte(svc_serverdata);
-    MSG_WriteLong(PROTOCOL_VERSION_DEFAULT);
+    MSG_WriteLong(PROTOCOL_VERSION_Q2RTXPERIMENTAL);
     MSG_WriteLong(0x10000 + cl.servercount);
     MSG_WriteByte(1);      // demos are always attract loops
     MSG_WriteString(cl.gamedir);
@@ -1097,7 +1097,7 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
         if (MSG_ReadByte() != svc_serverdata) {
             goto fail;
         }
-        if (MSG_ReadLong() != PROTOCOL_VERSION_DEFAULT) {
+        if (MSG_ReadLong() != PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
             goto fail;
         }
         MSG_ReadLong();

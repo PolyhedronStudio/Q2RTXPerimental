@@ -184,47 +184,90 @@ static client_frame_t *get_last_frame(client_t *client)
 
 /*
 ==================
+SV_WriteFrameToClient_Q2RTXPerimental
+==================
+*/
+void SV_WriteFrameToClient_Q2RTXPerimental( client_t *client ) {
+	client_frame_t *frame, *oldframe;
+	player_packed_t *oldstate;
+	int             lastframe;
+
+	// this is the frame we are creating
+	frame = &client->frames[ client->framenum & UPDATE_MASK ];
+
+	// this is the frame we are delta'ing from
+	oldframe = get_last_frame( client );
+	if ( oldframe ) {
+		oldstate = &oldframe->ps;
+		lastframe = client->lastframe;
+	} else {
+		oldstate = NULL;
+		lastframe = -1;
+	}
+
+	MSG_WriteByte( svc_frame );
+	MSG_WriteLong( client->framenum );
+	MSG_WriteLong( lastframe );   // what we are delta'ing from
+	MSG_WriteByte( client->suppress_count );  // rate dropped packets
+	client->suppress_count = 0;
+	client->frameflags = 0;
+
+	// send over the areabits
+	MSG_WriteByte( frame->areabytes );
+	MSG_WriteData( frame->areabits, frame->areabytes );
+
+	// delta encode the playerstate
+	MSG_WriteByte( svc_playerinfo );
+	MSG_WriteDeltaPlayerstate_Q2RTXPerimental( oldstate, &frame->ps );
+
+	// delta encode the entities
+	MSG_WriteByte( svc_packetentities );
+	SV_EmitPacketEntities( client, oldframe, frame, 0 );
+}
+
+/*
+==================
 SV_WriteFrameToClient_Default
 ==================
 */
-void SV_WriteFrameToClient_Default(client_t *client)
-{
-    client_frame_t  *frame, *oldframe;
-    player_packed_t *oldstate;
-    int             lastframe;
-
-    // this is the frame we are creating
-    frame = &client->frames[client->framenum & UPDATE_MASK];
-
-    // this is the frame we are delta'ing from
-    oldframe = get_last_frame(client);
-    if (oldframe) {
-        oldstate = &oldframe->ps;
-        lastframe = client->lastframe;
-    } else {
-        oldstate = NULL;
-        lastframe = -1;
-    }
-
-    MSG_WriteByte(svc_frame);
-    MSG_WriteLong(client->framenum);
-    MSG_WriteLong(lastframe);   // what we are delta'ing from
-    MSG_WriteByte(client->suppress_count);  // rate dropped packets
-    client->suppress_count = 0;
-    client->frameflags = 0;
-
-    // send over the areabits
-    MSG_WriteByte(frame->areabytes);
-    MSG_WriteData(frame->areabits, frame->areabytes);
-
-    // delta encode the playerstate
-    MSG_WriteByte(svc_playerinfo);
-    MSG_WriteDeltaPlayerstate_Default(oldstate, &frame->ps);
-
-    // delta encode the entities
-    MSG_WriteByte(svc_packetentities);
-    SV_EmitPacketEntities(client, oldframe, frame, 0);
-}
+//void SV_WriteFrameToClient_Default(client_t *client)
+//{
+//    client_frame_t  *frame, *oldframe;
+//    player_packed_t *oldstate;
+//    int             lastframe;
+//
+//    // this is the frame we are creating
+//    frame = &client->frames[client->framenum & UPDATE_MASK];
+//
+//    // this is the frame we are delta'ing from
+//    oldframe = get_last_frame(client);
+//    if (oldframe) {
+//        oldstate = &oldframe->ps;
+//        lastframe = client->lastframe;
+//    } else {
+//        oldstate = NULL;
+//        lastframe = -1;
+//    }
+//
+//    MSG_WriteByte(svc_frame);
+//    MSG_WriteLong(client->framenum);
+//    MSG_WriteLong(lastframe);   // what we are delta'ing from
+//    MSG_WriteByte(client->suppress_count);  // rate dropped packets
+//    client->suppress_count = 0;
+//    client->frameflags = 0;
+//
+//    // send over the areabits
+//    MSG_WriteByte(frame->areabytes);
+//    MSG_WriteData(frame->areabits, frame->areabytes);
+//
+//    // delta encode the playerstate
+//    MSG_WriteByte(svc_playerinfo);
+//    MSG_WriteDeltaPlayerstate_Default(oldstate, &frame->ps);
+//
+//    // delta encode the entities
+//    MSG_WriteByte(svc_packetentities);
+//    SV_EmitPacketEntities(client, oldframe, frame, 0);
+//}
 
 /*
 ==================

@@ -568,7 +568,7 @@ static void MVD_ParseSound(mvd_t *mvd, int extrabits)
         }
 
         // default client doesn't know that bmodels have weird origins
-        if (entity->solid == SOLID_BSP && cl->protocol == PROTOCOL_VERSION_DEFAULT) {
+        if (entity->solid == SOLID_BSP && cl->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
             SV_ClientAddMessage(cl, 0);
             continue;
         }

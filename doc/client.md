@@ -47,8 +47,8 @@ Specifies preferred network protocol version to use when connecting to
 servers.  If the server doesn't support the specified protocol, client will
 fall back to the previous supported version. Default value is 0.
 
-- 0 — automatically select the highest protocol version supported
-- 34 — use default Quake 2 protocol
+- 0 — (removed support for this, we now rely on hard-setting it. 34 = default. ): automatically select the highest protocol version supported
+- 34 — use default Quake 2 RTXPerimental protocol
 - 35 — use enhanced R1Q2 protocol
 - 36 — use enhanced Q2PRO protocol
 

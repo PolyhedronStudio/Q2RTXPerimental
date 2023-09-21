@@ -613,7 +613,7 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
         }
 
         // default client doesn't know that bmodels have weird origins
-        if (edict->solid == SOLID_BSP && client->protocol == PROTOCOL_VERSION_DEFAULT) {
+        if (edict->solid == SOLID_BSP && client->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
             SV_ClientAddMessage(client, 0);
             continue;
         }

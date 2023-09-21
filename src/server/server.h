@@ -751,7 +751,8 @@ void SV_PrintMiscInfo(void);
     ((s)->modelindex || (s)->effects || (s)->sound || (s)->event)
 
 void SV_BuildClientFrame(client_t *client);
-void SV_WriteFrameToClient_Default(client_t *client);
+void SV_WriteFrameToClient_Q2RTXPerimental( client_t *client );
+//void SV_WriteFrameToClient_Default(client_t *client);
 void SV_WriteFrameToClient_Enhanced(client_t *client);
 
 //

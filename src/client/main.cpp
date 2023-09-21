@@ -404,9 +404,12 @@ void CL_CheckForResend(void)
         strcpy(cls.servername, "localhost");
         cls.serverAddress.type = NA_LOOPBACK;
         cls.serverProtocol = cl_protocol->integer;
-        if (cls.serverProtocol < PROTOCOL_VERSION_DEFAULT ||
+        if (cls.serverProtocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL ||
             cls.serverProtocol > PROTOCOL_VERSION_Q2PRO) {
-            cls.serverProtocol = PROTOCOL_VERSION_Q2PRO;
+            
+			// WID: net-code: default to PROTOCOL_VERSION_Q2PRO
+			cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
+			//cls.serverProtocol = PROTOCOL_VERSION_Q2PRO;
         }
 
         // we don't need a challenge on the localhost
@@ -464,6 +467,10 @@ void CL_CheckForResend(void)
                    PROTOCOL_VERSION_Q2PRO_CURRENT);
         cls.quakePort = net_qport->integer & 0xff;
         break;
+	case PROTOCOL_VERSION_Q2RTXPERIMENTAL:
+		tail[ 0 ] = 0;
+		cls.quakePort = net_qport->integer;
+		break;
     default:
         tail[0] = 0;
         cls.quakePort = net_qport->integer;
@@ -529,14 +536,15 @@ usage:
 
     if (argc > 2) {
         protocol = atoi(Cmd_Argv(2));
-        if (protocol < PROTOCOL_VERSION_DEFAULT ||
+        if (protocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL ||
             protocol > PROTOCOL_VERSION_Q2PRO) {
             goto usage;
         }
     } else {
         protocol = cl_protocol->integer;
         if (!protocol) {
-            protocol = PROTOCOL_VERSION_Q2PRO;
+			// WID: net-code: We want to default to Q2RTXPerimental protocol my man.
+            protocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
         }
     }
 
@@ -1328,7 +1336,7 @@ static void CL_ConnectionlessPacket(void)
             }
             // fall through
         default:
-            cls.serverProtocol = PROTOCOL_VERSION_DEFAULT;
+            cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
             break;
         }
         Com_DPrintf("Selected protocol %d\n", cls.serverProtocol);
@@ -1360,7 +1368,8 @@ static void CL_ConnectionlessPacket(void)
         if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
             type = NETCHAN_NEW;
         } else {
-            type = NETCHAN_OLD;
+			// WID: net-code: Different Net Channel in place.
+            type = NETCHAN_Q2RTXPERIMENTAL; //NETCHAN_OLD;
         }
 
         mapname[0] = 0;
@@ -1378,7 +1387,8 @@ static void CL_ConnectionlessPacket(void)
                 s += 3;
                 if (*s) {
                     type = static_cast<netchan_type_t>( atoi(s) ); // WID: C++20: Was without a cast.
-                    if (type != NETCHAN_OLD && type != NETCHAN_NEW) {
+					// WID: net-code: Check for NETCHAN_Q2RTXPERIMENTAL as well.
+                    if (type != NETCHAN_OLD && type != NETCHAN_NEW && type != NETCHAN_Q2RTXPERIMENTAL ) {
                         Com_Error(ERR_DISCONNECT,
                                   "Server returned invalid netchan type");
                     }
@@ -2793,7 +2803,7 @@ static void CL_InitLocal(void)
     //
     info_password = Cvar_Get("password", "", CVAR_USERINFO);
     info_spectator = Cvar_Get("spectator", "0", CVAR_USERINFO);
-    info_name = Cvar_Get("name", "Player", CVAR_USERINFO | CVAR_ARCHIVE);
+    info_name = Cvar_Get("name", "Q2RTXPerimental", CVAR_USERINFO | CVAR_ARCHIVE);
     info_skin = Cvar_Get("skin", "male/grunt", CVAR_USERINFO | CVAR_ARCHIVE);
     info_rate = Cvar_Get("rate", "5000", CVAR_USERINFO | CVAR_ARCHIVE);
     info_msg = Cvar_Get("msg", "1", CVAR_USERINFO | CVAR_ARCHIVE);

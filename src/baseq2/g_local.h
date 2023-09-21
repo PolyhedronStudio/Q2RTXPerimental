@@ -195,7 +195,7 @@ inline gtime_t FALL_TIME( ) {
 #define FL_RESPAWN              0x80000000  // used for item respawning
 
 
-#define FRAMETIME       0.1f
+#define FRAMETIME       BASE_FRAMETIME_1000 // NEW 40hz so, 0.025f	OLD: 0.1f
 
 // memory tags to allow dynamic memory to be cleaned up
 #define TAG_GAME    765     // clear when unloading the dll

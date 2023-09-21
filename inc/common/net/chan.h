@@ -31,7 +31,8 @@ extern "C" {
 
 typedef enum netchan_type_e {
     NETCHAN_OLD,
-    NETCHAN_NEW
+    NETCHAN_NEW,
+	NETCHAN_Q2RTXPERIMENTAL
 } netchan_type_t;
 
 typedef struct netchan_s {
@@ -75,6 +76,7 @@ extern cvar_t       *net_qport;
 extern cvar_t       *net_maxmsglen;
 extern cvar_t       *net_chantype;
 
+const char *Netchan_SocketString( netsrc_t socket );
 void Netchan_Init(void);
 void Netchan_OutOfBand(netsrc_t sock, const netadr_t *adr,
                        const char *format, ...) q_printf(3, 4);
