@@ -9,6 +9,7 @@ put it at.
 Features currently done:
   - C++-ify the codebase, meaning that it now compiles using a C++ compiler. The only exception being the VKPT code, to make life easy merging in any new Q2RTX VKPT features.
   - 40hz Tick Rate like Q2RE.
+  - Stair Step Smoothing adjusted to BASE_FRAMETIME(25ms at 40hz) instead of its old hard values: 100ms at 10hz.
   - Enabled USE_SMOOTH_DELTA_ANGLES.
   - Replace (most)_framenum based functionality with that of Q2RE, the gtime_t type approach instead.
 	- AI now has the option to run at 40hz when the AI_HIGH_TICK_RATE flag is set.
