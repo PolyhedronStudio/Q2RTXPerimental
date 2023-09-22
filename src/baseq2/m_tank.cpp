@@ -111,7 +111,7 @@ mmove_t tank_move_stand = {FRAME_stand01, FRAME_stand30, tank_frames_stand, NULL
 
 void tank_stand(edict_t *self)
 {
-    self->monsterinfo.currentmove = &tank_move_stand;
+	M_SetAnimation( self, &tank_move_stand );
 }
 
 
@@ -160,7 +160,7 @@ mmove_t tank_move_stop_walk = {FRAME_walk21, FRAME_walk25, tank_frames_stop_walk
 
 void tank_walk(edict_t *self)
 {
-    self->monsterinfo.currentmove = &tank_move_walk;
+	M_SetAnimation( self, &tank_move_walk );
 }
 
 
@@ -215,15 +215,15 @@ void tank_run(edict_t *self)
         self->monsterinfo.aiflags &= ~AI_BRUTAL;
 
     if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
-        self->monsterinfo.currentmove = &tank_move_stand;
+		M_SetAnimation( self, &tank_move_stand );
         return;
     }
 
     if (self->monsterinfo.currentmove == &tank_move_walk ||
         self->monsterinfo.currentmove == &tank_move_start_run) {
-        self->monsterinfo.currentmove = &tank_move_run;
+		M_SetAnimation( self, &tank_move_run );
     } else {
-        self->monsterinfo.currentmove = &tank_move_start_run;
+		M_SetAnimation( self, &tank_move_start_run );
     }
 }
 
@@ -299,11 +299,11 @@ void tank_pain(edict_t *self, edict_t *other, float kick, int damage)
         return;     // no pain anims in nightmare
 
     if (damage <= 30)
-        self->monsterinfo.currentmove = &tank_move_pain1;
+		M_SetAnimation( self, &tank_move_pain1 );
     else if (damage <= 60)
-        self->monsterinfo.currentmove = &tank_move_pain2;
+		M_SetAnimation( self, &tank_move_pain2 );
     else
-        self->monsterinfo.currentmove = &tank_move_pain3;
+        M_SetAnimation( self, &tank_move_pain3 );
 }
 
 
@@ -447,10 +447,10 @@ void tank_reattack_blaster(edict_t *self)
         if (visible(self, self->enemy))
             if (self->enemy->health > 0)
                 if (random() <= 0.6f) {
-                    self->monsterinfo.currentmove = &tank_move_reattack_blast;
+                    M_SetAnimation( self, &tank_move_reattack_blast );
                     return;
                 }
-    self->monsterinfo.currentmove = &tank_move_attack_post_blast;
+	M_SetAnimation( self, &tank_move_attack_post_blast );
 }
 
 
@@ -611,15 +611,15 @@ void tank_refire_rocket(edict_t *self)
         if (self->enemy->health > 0)
             if (visible(self, self->enemy))
                 if (random() <= 0.4f) {
-                    self->monsterinfo.currentmove = &tank_move_attack_fire_rocket;
+					M_SetAnimation( self, &tank_move_attack_fire_rocket );
                     return;
                 }
-    self->monsterinfo.currentmove = &tank_move_attack_post_rocket;
+	M_SetAnimation( self, &tank_move_attack_post_rocket );
 }
 
 void tank_doattack_rocket(edict_t *self)
 {
-    self->monsterinfo.currentmove = &tank_move_attack_fire_rocket;
+	M_SetAnimation( self, &tank_move_attack_fire_rocket );
 }
 
 void tank_attack(edict_t *self)
@@ -629,7 +629,7 @@ void tank_attack(edict_t *self)
     float   r;
 
     if (self->enemy->health < 0) {
-        self->monsterinfo.currentmove = &tank_move_attack_strike;
+		M_SetAnimation( self, &tank_move_attack_strike );
         self->monsterinfo.aiflags &= ~AI_BRUTAL;
         return;
     }
@@ -641,22 +641,22 @@ void tank_attack(edict_t *self)
 
     if (range <= 125) {
         if (r < 0.4f)
-            self->monsterinfo.currentmove = &tank_move_attack_chain;
+			M_SetAnimation( self, &tank_move_attack_chain );
         else
-            self->monsterinfo.currentmove = &tank_move_attack_blast;
+			M_SetAnimation( self, &tank_move_attack_blast );
     } else if (range <= 250) {
         if (r < 0.5f)
-            self->monsterinfo.currentmove = &tank_move_attack_chain;
+			M_SetAnimation( self, &tank_move_attack_chain );
         else
-            self->monsterinfo.currentmove = &tank_move_attack_blast;
+			M_SetAnimation( self, &tank_move_attack_blast );
     } else {
         if (r < 0.33f)
-            self->monsterinfo.currentmove = &tank_move_attack_chain;
+			M_SetAnimation( self, &tank_move_attack_chain );
         else if (r < 0.66f) {
-            self->monsterinfo.currentmove = &tank_move_attack_pre_rocket;
+			M_SetAnimation( self, &tank_move_attack_pre_rocket );
             self->pain_debounce_time = level.time + 5_sec;  // no pain for a while
         } else
-            self->monsterinfo.currentmove = &tank_move_attack_blast;
+			M_SetAnimation( self, &tank_move_attack_blast );
     }
 }
 
@@ -736,7 +736,7 @@ void tank_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
     self->deadflag = DEAD_DEAD;
     self->takedamage = DAMAGE_YES;
 
-    self->monsterinfo.currentmove = &tank_move_death;
+	M_SetAnimation( self, &tank_move_death );
 
 }
 
@@ -802,7 +802,7 @@ void SP_monster_tank(edict_t *self)
 
     gi.linkentity(self);
 
-    self->monsterinfo.currentmove = &tank_move_stand;
+	M_SetAnimation( self, &tank_move_stand );
     self->monsterinfo.scale = MODEL_SCALE;
 
     walkmonster_start(self);

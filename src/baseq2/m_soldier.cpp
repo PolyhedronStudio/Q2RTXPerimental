@@ -206,9 +206,9 @@ mmove_t soldier_move_stand4 = {FRAME_stand401, FRAME_stand452, soldier_frames_st
 void soldier_stand(edict_t *self)
 {
     if ((self->monsterinfo.currentmove == &soldier_move_stand3) || (random() < 0.8f))
-        self->monsterinfo.currentmove = &soldier_move_stand1;
+        M_SetAnimation( self, &soldier_move_stand1 );
     else
-        self->monsterinfo.currentmove = &soldier_move_stand3;
+        M_SetAnimation( self, &soldier_move_stand3 );
 }
 
 
@@ -276,9 +276,9 @@ mmove_t soldier_move_walk2 = {FRAME_walk209, FRAME_walk218, soldier_frames_walk2
 void soldier_walk(edict_t *self)
 {
     if (random() < 0.5f)
-        self->monsterinfo.currentmove = &soldier_move_walk1;
+        M_SetAnimation( self, &soldier_move_walk1 );
     else
-        self->monsterinfo.currentmove = &soldier_move_walk2;
+        M_SetAnimation( self, &soldier_move_walk2 );
 }
 
 
@@ -307,16 +307,16 @@ mmove_t soldier_move_run = {FRAME_run03, FRAME_run08, soldier_frames_run, NULL};
 void soldier_run(edict_t *self)
 {
     if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
-        self->monsterinfo.currentmove = &soldier_move_stand1;
+        M_SetAnimation( self, &soldier_move_stand1 );
         return;
     }
 
     if (self->monsterinfo.currentmove == &soldier_move_walk1 ||
         self->monsterinfo.currentmove == &soldier_move_walk2 ||
         self->monsterinfo.currentmove == &soldier_move_start_run) {
-        self->monsterinfo.currentmove = &soldier_move_run;
+        M_SetAnimation( self, &soldier_move_run );
     } else {
-        self->monsterinfo.currentmove = &soldier_move_start_run;
+        M_SetAnimation( self, &soldier_move_start_run );
     }
 }
 
@@ -399,7 +399,7 @@ void soldier_pain(edict_t *self, edict_t *other, float kick, int damage)
 
     if (level.time < self->pain_debounce_time) {
         if ((self->velocity[2] > 100) && ((self->monsterinfo.currentmove == &soldier_move_pain1) || (self->monsterinfo.currentmove == &soldier_move_pain2) || (self->monsterinfo.currentmove == &soldier_move_pain3)))
-            self->monsterinfo.currentmove = &soldier_move_pain4;
+            M_SetAnimation( self, &soldier_move_pain4 );
         return;
     }
 
@@ -414,7 +414,7 @@ void soldier_pain(edict_t *self, edict_t *other, float kick, int damage)
         gi.sound(self, CHAN_VOICE, sound_pain_ss, 1, ATTN_NORM, 0);
 
     if (self->velocity[2] > 100) {
-        self->monsterinfo.currentmove = &soldier_move_pain4;
+        M_SetAnimation( self, &soldier_move_pain4 );
         return;
     }
 
@@ -424,11 +424,11 @@ void soldier_pain(edict_t *self, edict_t *other, float kick, int damage)
     r = random();
 
     if (r < 0.33f)
-        self->monsterinfo.currentmove = &soldier_move_pain1;
+        M_SetAnimation( self, &soldier_move_pain1 );
     else if (r < 0.66f)
-        self->monsterinfo.currentmove = &soldier_move_pain2;
+        M_SetAnimation( self, &soldier_move_pain2 );
     else
-        self->monsterinfo.currentmove = &soldier_move_pain3;
+        M_SetAnimation( self, &soldier_move_pain3 );
 }
 
 
@@ -740,11 +740,11 @@ void soldier_attack(edict_t *self)
 {
     if (self->s.skinnum < 4) {
         if (random() < 0.5f)
-            self->monsterinfo.currentmove = &soldier_move_attack1;
+            M_SetAnimation( self, &soldier_move_attack1 );
         else
-            self->monsterinfo.currentmove = &soldier_move_attack2;
+            M_SetAnimation( self, &soldier_move_attack2 );
     } else {
-        self->monsterinfo.currentmove = &soldier_move_attack4;
+        M_SetAnimation( self, &soldier_move_attack4 );
     }
 }
 
@@ -762,7 +762,7 @@ void soldier_sight(edict_t *self, edict_t *other)
 
     if ((skill->value > 0) && (range(self, self->enemy) >= RANGE_MID)) {
         if (random() > 0.5f)
-            self->monsterinfo.currentmove = &soldier_move_attack6;
+            M_SetAnimation( self, &soldier_move_attack6 );
     }
 }
 
@@ -799,7 +799,7 @@ void soldier_dodge(edict_t *self, edict_t *attacker, float eta)
         self->enemy = attacker;
 
     if (skill->value == 0) {
-        self->monsterinfo.currentmove = &soldier_move_duck;
+        M_SetAnimation( self, &soldier_move_duck );
         return;
     }
 
@@ -808,21 +808,21 @@ void soldier_dodge(edict_t *self, edict_t *attacker, float eta)
 
     if (skill->value == 1) {
         if (r > 0.33f)
-            self->monsterinfo.currentmove = &soldier_move_duck;
+            M_SetAnimation( self, &soldier_move_duck );
         else
-            self->monsterinfo.currentmove = &soldier_move_attack3;
+            M_SetAnimation( self, &soldier_move_attack3 );
         return;
     }
 
     if (skill->value >= 2) {
         if (r > 0.66f)
-            self->monsterinfo.currentmove = &soldier_move_duck;
+            M_SetAnimation( self, &soldier_move_duck );
         else
-            self->monsterinfo.currentmove = &soldier_move_attack3;
+            M_SetAnimation( self, &soldier_move_attack3 );
         return;
     }
 
-    self->monsterinfo.currentmove = &soldier_move_attack3;
+    M_SetAnimation( self, &soldier_move_attack3 );
 }
 
 
@@ -1126,21 +1126,21 @@ void soldier_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
     if (fabsf((self->s.origin[2] + self->viewheight) - point[2]) <= 4) {
         // head shot
-        self->monsterinfo.currentmove = &soldier_move_death3;
+        M_SetAnimation( self, &soldier_move_death3 );
         return;
     }
 
     n = Q_rand() % 5;
     if (n == 0)
-        self->monsterinfo.currentmove = &soldier_move_death1;
+        M_SetAnimation( self, &soldier_move_death1 );
     else if (n == 1)
-        self->monsterinfo.currentmove = &soldier_move_death2;
+        M_SetAnimation( self, &soldier_move_death2 );
     else if (n == 2)
-        self->monsterinfo.currentmove = &soldier_move_death4;
+        M_SetAnimation( self, &soldier_move_death4 );
     else if (n == 3)
-        self->monsterinfo.currentmove = &soldier_move_death5;
+        M_SetAnimation( self, &soldier_move_death5 );
     else
-        self->monsterinfo.currentmove = &soldier_move_death6;
+        M_SetAnimation( self, &soldier_move_death6 );
 }
 
 

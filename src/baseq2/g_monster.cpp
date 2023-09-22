@@ -341,6 +341,11 @@ void M_SetAnimation( edict_t *self, mmove_t *move, bool instant ) {
 void M_MoveFrame(edict_t *self)
 {
 	mmove_t *move = self->monsterinfo.currentmove;
+
+	// [Paril-KEX] high tick rate adjustments;
+	// monsters still only step frames and run thinkfunc's at
+	// 10hz, but will run aifuncs at full speed with
+	// distance spread over 10hz
 	self->nextthink = level.time + FRAME_TIME_S;
 
 	// time to run next 10hz move yet?
@@ -367,8 +372,10 @@ void M_MoveFrame(edict_t *self)
 		bool explicit_frame = false;
 		if ( ( self->monsterinfo.nextframe ) && ( self->monsterinfo.nextframe >= move->firstframe ) 
 			 && ( self->monsterinfo.nextframe <= move->lastframe ) ) {
+
 			self->s.frame = self->monsterinfo.nextframe;
 			self->monsterinfo.nextframe = 0;
+
 		} else {
 			if ( self->s.frame == move->lastframe ) {
 				if ( move->endfunc ) {
@@ -383,6 +390,9 @@ void M_MoveFrame(edict_t *self)
 							explicit_frame = true;
 						}
 					}
+
+					// regrab move, endfunc is very likely to change it
+					move = self->monsterinfo.currentmove;
 
 					// check for death
 					if ( self->svflags & SVF_DEADMONSTER ) {
@@ -404,9 +414,9 @@ void M_MoveFrame(edict_t *self)
 			}
 		}
 
-		//if ( self->monsterinfo.aiflags & AI_HIGH_TICK_RATE )
-		//	self->monsterinfo.next_move_time = level.time;
-		//else
+		if ( self->monsterinfo.aiflags & AI_HIGH_TICK_RATE )
+			self->monsterinfo.next_move_time = level.time;
+		else
 			self->monsterinfo.next_move_time = level.time + 10_hz;
 
 		if ( ( self->monsterinfo.nextframe ) && !( ( self->monsterinfo.nextframe >= move->firstframe ) &&
@@ -430,10 +440,10 @@ void M_MoveFrame(edict_t *self)
 	if ( run_frame && move->frame[ index ].thinkfunc )
 		move->frame[ index ].thinkfunc( self );
 
-	//if ( move->frame[ index ].lerp_frame != -1 ) {
+	if ( move->frame[ index ].lerp_frame != -1 ) {
 	//	self->s.renderfx |= RF_OLD_FRAME_LERP;
-	//	self->s.old_frame = move->frame[ index ].lerp_frame;
-	//}
+		self->s.old_frame = move->frame[ index ].lerp_frame;
+	}
 
 	//index = self->s.frame - move->firstframe;
     //if (move->frame[index].aifunc) {

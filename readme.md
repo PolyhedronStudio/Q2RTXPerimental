@@ -7,7 +7,11 @@ the engine in various parts, 'modernizing' it is probably the best term to
 put it at.
 
 Features currently done:
-  - C++-ify the codebase, meaning that it now compiles using a C++ compiler. There are exceptions however, one being the 'baseq2' game code, as well as the VKPT code. The main reason for keeping VKPT as .c is to make life easy merging in any new Q2RTX VKPT features.
+  - C++-ify the codebase, meaning that it now compiles using a C++ compiler. The only exception being the VKPT code, to make life easy merging in any new Q2RTX VKPT features.
+  - 40hz Tick Rate like Q2RE.
+  - Enabled USE_SMOOTH_DELTA_ANGLES.
+  - Replace (most)_framenum based functionality with that of Q2RE, the gtime_t type approach instead.
+	- AI now has the option to run at 40hz when the AI_HIGH_TICK_RATE flag is set.
 
 Features certain to be implemented:
   - Client game DLL.

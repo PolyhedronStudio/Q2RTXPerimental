@@ -209,7 +209,7 @@ mmove_t medic_move_stand = {FRAME_wait1, FRAME_wait90, medic_frames_stand, NULL}
 
 void medic_stand(edict_t *self)
 {
-    self->monsterinfo.currentmove = &medic_move_stand;
+    M_SetAnimation( self, &medic_move_stand );
 }
 
 
@@ -231,7 +231,7 @@ mmove_t medic_move_walk = {FRAME_walk1, FRAME_walk12, medic_frames_walk, NULL};
 
 void medic_walk(edict_t *self)
 {
-    self->monsterinfo.currentmove = &medic_move_walk;
+    M_SetAnimation( self, &medic_move_walk );
 }
 
 
@@ -263,9 +263,9 @@ void medic_run(edict_t *self)
     }
 
     if (self->monsterinfo.aiflags & AI_STAND_GROUND)
-        self->monsterinfo.currentmove = &medic_move_stand;
+        M_SetAnimation( self, &medic_move_stand );
     else
-        self->monsterinfo.currentmove = &medic_move_run;
+        M_SetAnimation( self, &medic_move_run );
 }
 
 
@@ -314,10 +314,10 @@ void medic_pain(edict_t *self, edict_t *other, float kick, int damage)
         return;     // no pain anims in nightmare
 
     if (random() < 0.5f) {
-        self->monsterinfo.currentmove = &medic_move_pain1;
+        M_SetAnimation( self, &medic_move_pain1 );
         gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NORM, 0);
     } else {
-        self->monsterinfo.currentmove = &medic_move_pain2;
+        M_SetAnimation( self, &medic_move_pain2 );
         gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NORM, 0);
     }
 }
@@ -420,7 +420,7 @@ void medic_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
     self->deadflag = DEAD_DEAD;
     self->takedamage = DAMAGE_YES;
 
-    self->monsterinfo.currentmove = &medic_move_death;
+    M_SetAnimation( self, &medic_move_death );
 }
 
 
@@ -479,7 +479,7 @@ void medic_dodge(edict_t *self, edict_t *attacker, float eta)
     if (!self->enemy)
         self->enemy = attacker;
 
-    self->monsterinfo.currentmove = &medic_move_duck;
+    M_SetAnimation( self, &medic_move_duck );
 }
 
 mframe_t medic_frames_attackHyperBlaster [] = {
@@ -507,7 +507,7 @@ void medic_continue(edict_t *self)
 {
     if (visible(self, self->enemy))
         if (random() <= 0.95f)
-            self->monsterinfo.currentmove = &medic_move_attackHyperBlaster;
+            M_SetAnimation( self, &medic_move_attackHyperBlaster );
 }
 
 
@@ -665,9 +665,9 @@ mmove_t medic_move_attackCable = {FRAME_attack33, FRAME_attack60, medic_frames_a
 void medic_attack(edict_t *self)
 {
     if (self->monsterinfo.aiflags & AI_MEDIC)
-        self->monsterinfo.currentmove = &medic_move_attackCable;
+        M_SetAnimation( self, &medic_move_attackCable );
     else
-        self->monsterinfo.currentmove = &medic_move_attackBlaster;
+        M_SetAnimation( self, &medic_move_attackBlaster );
 }
 
 bool medic_checkattack(edict_t *self)
@@ -729,7 +729,7 @@ void SP_monster_medic(edict_t *self)
 
     gi.linkentity(self);
 
-    self->monsterinfo.currentmove = &medic_move_stand;
+    M_SetAnimation( self, &medic_move_stand );
     self->monsterinfo.scale = MODEL_SCALE;
 
     walkmonster_start(self);

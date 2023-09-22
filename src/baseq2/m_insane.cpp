@@ -417,39 +417,39 @@ mmove_t insane_move_struggle_cross = {FRAME_cross16, FRAME_cross30, insane_frame
 void insane_cross(edict_t *self)
 {
     if (random() < 0.8f)
-        self->monsterinfo.currentmove = &insane_move_cross;
+        M_SetAnimation( self, &insane_move_cross );
     else
-        self->monsterinfo.currentmove = &insane_move_struggle_cross;
+        M_SetAnimation( self, &insane_move_struggle_cross );
 }
 
 void insane_walk(edict_t *self)
 {
     if (self->spawnflags & 16)              // Hold Ground?
         if (self->s.frame == FRAME_cr_pain10) {
-            self->monsterinfo.currentmove = &insane_move_down;
+            M_SetAnimation( self, &insane_move_down );
             return;
         }
     if (self->spawnflags & 4)
-        self->monsterinfo.currentmove = &insane_move_crawl;
+        M_SetAnimation( self, &insane_move_crawl );
     else if (random() <= 0.5f)
-        self->monsterinfo.currentmove = &insane_move_walk_normal;
+        M_SetAnimation( self, &insane_move_walk_normal );
     else
-        self->monsterinfo.currentmove = &insane_move_walk_insane;
+        M_SetAnimation( self, &insane_move_walk_insane );
 }
 
 void insane_run(edict_t *self)
 {
     if (self->spawnflags & 16)              // Hold Ground?
         if (self->s.frame == FRAME_cr_pain10) {
-            self->monsterinfo.currentmove = &insane_move_down;
+            M_SetAnimation( self, &insane_move_down );
             return;
         }
     if (self->spawnflags & 4)               // Crawling?
-        self->monsterinfo.currentmove = &insane_move_runcrawl;
+        M_SetAnimation( self, &insane_move_runcrawl );
     else if (random() <= 0.5f)              // Else, mix it up
-        self->monsterinfo.currentmove = &insane_move_run_normal;
+        M_SetAnimation( self, &insane_move_run_normal );
     else
-        self->monsterinfo.currentmove = &insane_move_run_insane;
+        M_SetAnimation( self, &insane_move_run_insane );
 }
 
 
@@ -481,20 +481,20 @@ void insane_pain(edict_t *self, edict_t *other, float kick, int damage)
 
     // Don't go into pain frames if crucified.
     if (self->spawnflags & 8) {
-        self->monsterinfo.currentmove = &insane_move_struggle_cross;
+        M_SetAnimation( self, &insane_move_struggle_cross );
         return;
     }
 
     if (((self->s.frame >= FRAME_crawl1) && (self->s.frame <= FRAME_crawl9)) || ((self->s.frame >= FRAME_stand99) && (self->s.frame <= FRAME_stand160))) {
-        self->monsterinfo.currentmove = &insane_move_crawl_pain;
+        M_SetAnimation( self, &insane_move_crawl_pain );
     } else
-        self->monsterinfo.currentmove = &insane_move_stand_pain;
+        M_SetAnimation( self, &insane_move_stand_pain );
 
 }
 
 void insane_onground(edict_t *self)
 {
-    self->monsterinfo.currentmove = &insane_move_down;
+    M_SetAnimation( self, &insane_move_down );
 }
 
 void insane_checkdown(edict_t *self)
@@ -504,9 +504,9 @@ void insane_checkdown(edict_t *self)
         return;
     if (random() < 0.3f) {
         if (random() < 0.5f)
-            self->monsterinfo.currentmove = &insane_move_uptodown;
+            M_SetAnimation( self, &insane_move_uptodown );
         else
-            self->monsterinfo.currentmove = &insane_move_jumpdown;
+            M_SetAnimation( self, &insane_move_jumpdown );
     }
 }
 
@@ -516,23 +516,23 @@ void insane_checkup(edict_t *self)
     if ((self->spawnflags & 4) && (self->spawnflags & 16))
         return;
     if (random() < 0.5f)
-        self->monsterinfo.currentmove = &insane_move_downtoup;
+        M_SetAnimation( self, &insane_move_downtoup );
 
 }
 
 void insane_stand(edict_t *self)
 {
     if (self->spawnflags & 8) {         // If crucified
-        self->monsterinfo.currentmove = &insane_move_cross;
+        M_SetAnimation( self, &insane_move_cross );
         self->monsterinfo.aiflags |= AI_STAND_GROUND;
     }
     // If Hold_Ground and Crawl are set
     else if ((self->spawnflags & 4) && (self->spawnflags & 16))
-        self->monsterinfo.currentmove = &insane_move_down;
+        M_SetAnimation( self, &insane_move_down );
     else if (random() < 0.5f)
-        self->monsterinfo.currentmove = &insane_move_stand_normal;
+        M_SetAnimation( self, &insane_move_stand_normal );
     else
-        self->monsterinfo.currentmove = &insane_move_stand_insane;
+        M_SetAnimation( self, &insane_move_stand_insane );
 }
 
 void insane_dead(edict_t *self)
@@ -577,9 +577,9 @@ void insane_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         insane_dead(self);
     } else {
         if (((self->s.frame >= FRAME_crawl1) && (self->s.frame <= FRAME_crawl9)) || ((self->s.frame >= FRAME_stand99) && (self->s.frame <= FRAME_stand160)))
-            self->monsterinfo.currentmove = &insane_move_crawl_death;
+            M_SetAnimation( self, &insane_move_crawl_death );
         else
-            self->monsterinfo.currentmove = &insane_move_stand_death;
+            M_SetAnimation( self, &insane_move_stand_death );
     }
 }
 
@@ -641,7 +641,7 @@ void SP_misc_insane(edict_t *self)
     if (self->spawnflags & 16)              // Stand Ground
         self->monsterinfo.aiflags |= AI_STAND_GROUND;
 
-    self->monsterinfo.currentmove = &insane_move_stand_normal;
+    M_SetAnimation( self, &insane_move_stand_normal );
 
     self->monsterinfo.scale = MODEL_SCALE;
 

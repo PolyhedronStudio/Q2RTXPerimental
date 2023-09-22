@@ -71,7 +71,7 @@ mmove_t infantry_move_stand = {FRAME_stand50, FRAME_stand71, infantry_frames_sta
 
 void infantry_stand(edict_t *self)
 {
-    self->monsterinfo.currentmove = &infantry_move_stand;
+	M_SetAnimation( self, &infantry_move_stand );
 }
 
 
@@ -130,7 +130,7 @@ mmove_t infantry_move_fidget = {FRAME_stand01, FRAME_stand49, infantry_frames_fi
 
 void infantry_fidget(edict_t *self)
 {
-    self->monsterinfo.currentmove = &infantry_move_fidget;
+	M_SetAnimation( self, &infantry_move_fidget );
     gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_IDLE, 0);
 }
 
@@ -152,7 +152,7 @@ mmove_t infantry_move_walk = {FRAME_walk03, FRAME_walk14, infantry_frames_walk, 
 
 void infantry_walk(edict_t *self)
 {
-    self->monsterinfo.currentmove = &infantry_move_walk;
+	M_SetAnimation( self, &infantry_move_walk );
 }
 
 mframe_t infantry_frames_run [] = {
@@ -170,9 +170,9 @@ mmove_t infantry_move_run = {FRAME_run01, FRAME_run08, infantry_frames_run, NULL
 void infantry_run(edict_t *self)
 {
     if (self->monsterinfo.aiflags & AI_STAND_GROUND)
-        self->monsterinfo.currentmove = &infantry_move_stand;
+		M_SetAnimation( self, &infantry_move_stand );
     else
-        self->monsterinfo.currentmove = &infantry_move_run;
+		M_SetAnimation( self, &infantry_move_run );
 }
 
 
@@ -221,10 +221,10 @@ void infantry_pain(edict_t *self, edict_t *other, float kick, int damage)
 
     n = Q_rand() % 2;
     if (n == 0) {
-        self->monsterinfo.currentmove = &infantry_move_pain1;
+		M_SetAnimation( self, &infantry_move_pain1 );
         gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NORM, 0);
     } else {
-        self->monsterinfo.currentmove = &infantry_move_pain2;
+		M_SetAnimation( self, &infantry_move_pain2 );
         gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NORM, 0);
     }
 }
@@ -387,13 +387,13 @@ void infantry_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 
     n = Q_rand() % 3;
     if (n == 0) {
-        self->monsterinfo.currentmove = &infantry_move_death1;
+		M_SetAnimation( self, &infantry_move_death1 );
         gi.sound(self, CHAN_VOICE, sound_die2, 1, ATTN_NORM, 0);
     } else if (n == 1) {
-        self->monsterinfo.currentmove = &infantry_move_death2;
+		M_SetAnimation( self, &infantry_move_death2 );
         gi.sound(self, CHAN_VOICE, sound_die1, 1, ATTN_NORM, 0);
     } else {
-        self->monsterinfo.currentmove = &infantry_move_death3;
+		M_SetAnimation( self, &infantry_move_death3 );
         gi.sound(self, CHAN_VOICE, sound_die2, 1, ATTN_NORM, 0);
     }
 }
@@ -443,7 +443,7 @@ void infantry_dodge(edict_t *self, edict_t *attacker, float eta)
     if (!self->enemy)
         self->enemy = attacker;
 
-    self->monsterinfo.currentmove = &infantry_move_duck;
+    M_SetAnimation( self, &infantry_move_duck );
 }
 
 
@@ -516,9 +516,9 @@ mmove_t infantry_move_attack2 = {FRAME_attak201, FRAME_attak208, infantry_frames
 void infantry_attack(edict_t *self)
 {
     if (range(self, self->enemy) == RANGE_MELEE)
-        self->monsterinfo.currentmove = &infantry_move_attack2;
+        M_SetAnimation( self, &infantry_move_attack2 );
     else
-        self->monsterinfo.currentmove = &infantry_move_attack1;
+		M_SetAnimation( self, &infantry_move_attack1 );
 }
 
 
@@ -570,7 +570,7 @@ void SP_monster_infantry(edict_t *self)
 
     gi.linkentity(self);
 
-    self->monsterinfo.currentmove = &infantry_move_stand;
+	M_SetAnimation( self, &infantry_move_stand );
     self->monsterinfo.scale = MODEL_SCALE;
 
     walkmonster_start(self);

@@ -72,7 +72,7 @@ mmove_t gladiator_move_stand = {FRAME_stand1, FRAME_stand7, gladiator_frames_sta
 
 void gladiator_stand(edict_t *self)
 {
-    self->monsterinfo.currentmove = &gladiator_move_stand;
+    M_SetAnimation( self, &gladiator_move_stand );
 }
 
 
@@ -98,7 +98,7 @@ mmove_t gladiator_move_walk = {FRAME_walk1, FRAME_walk16, gladiator_frames_walk,
 
 void gladiator_walk(edict_t *self)
 {
-    self->monsterinfo.currentmove = &gladiator_move_walk;
+    M_SetAnimation( self, &gladiator_move_walk );
 }
 
 
@@ -115,9 +115,9 @@ mmove_t gladiator_move_run = {FRAME_run1, FRAME_run6, gladiator_frames_run, NULL
 void gladiator_run(edict_t *self)
 {
     if (self->monsterinfo.aiflags & AI_STAND_GROUND)
-        self->monsterinfo.currentmove = &gladiator_move_stand;
+        M_SetAnimation( self, &gladiator_move_stand );
     else
-        self->monsterinfo.currentmove = &gladiator_move_run;
+        M_SetAnimation( self, &gladiator_move_run );
 }
 
 
@@ -155,7 +155,7 @@ mmove_t gladiator_move_attack_melee = {FRAME_melee1, FRAME_melee17, gladiator_fr
 
 void gladiator_melee(edict_t *self)
 {
-    self->monsterinfo.currentmove = &gladiator_move_attack_melee;
+    M_SetAnimation( self, &gladiator_move_attack_melee );
 }
 
 
@@ -203,7 +203,7 @@ void gladiator_attack(edict_t *self)
     gi.sound(self, CHAN_WEAPON, sound_gun, 1, ATTN_NORM, 0);
     VectorCopy(self->enemy->s.origin, self->pos1);  //save for aiming the shot
     self->pos1[2] += self->enemy->viewheight;
-    self->monsterinfo.currentmove = &gladiator_move_attack_gun;
+    M_SetAnimation( self, &gladiator_move_attack_gun );
 }
 
 
@@ -236,7 +236,7 @@ void gladiator_pain(edict_t *self, edict_t *other, float kick, int damage)
 
     if (level.time < self->pain_debounce_time) {
         if ((self->velocity[2] > 100) && (self->monsterinfo.currentmove == &gladiator_move_pain))
-            self->monsterinfo.currentmove = &gladiator_move_pain_air;
+            M_SetAnimation( self, &gladiator_move_pain_air );
         return;
     }
 
@@ -251,9 +251,9 @@ void gladiator_pain(edict_t *self, edict_t *other, float kick, int damage)
         return;     // no pain anims in nightmare
 
     if (self->velocity[2] > 100)
-        self->monsterinfo.currentmove = &gladiator_move_pain_air;
+        M_SetAnimation( self, &gladiator_move_pain_air );
     else
-        self->monsterinfo.currentmove = &gladiator_move_pain;
+        M_SetAnimation( self, &gladiator_move_pain );
 
 }
 
@@ -318,7 +318,7 @@ void gladiator_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int dam
     self->deadflag = DEAD_DEAD;
     self->takedamage = DAMAGE_YES;
 
-    self->monsterinfo.currentmove = &gladiator_move_death;
+    M_SetAnimation( self, &gladiator_move_death );
 }
 
 
@@ -367,7 +367,7 @@ void SP_monster_gladiator(edict_t *self)
     self->monsterinfo.search = gladiator_search;
 
     gi.linkentity(self);
-    self->monsterinfo.currentmove = &gladiator_move_stand;
+    M_SetAnimation( self, &gladiator_move_stand );
     self->monsterinfo.scale = MODEL_SCALE;
 
     walkmonster_start(self);

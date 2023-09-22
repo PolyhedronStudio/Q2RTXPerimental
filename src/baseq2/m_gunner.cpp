@@ -123,7 +123,7 @@ void gunner_fidget(edict_t *self)
     if (self->monsterinfo.aiflags & AI_STAND_GROUND)
         return;
     if (random() <= 0.05f)
-        self->monsterinfo.currentmove = &gunner_move_fidget;
+        M_SetAnimation( self, &gunner_move_fidget );
 }
 
 mframe_t gunner_frames_stand [] = {
@@ -164,7 +164,7 @@ mmove_t gunner_move_stand = {FRAME_stand01, FRAME_stand30, gunner_frames_stand, 
 
 void gunner_stand(edict_t *self)
 {
-    self->monsterinfo.currentmove = &gunner_move_stand;
+	M_SetAnimation( self, &gunner_move_stand );
 }
 
 
@@ -187,7 +187,7 @@ mmove_t gunner_move_walk = {FRAME_walk07, FRAME_walk19, gunner_frames_walk, NULL
 
 void gunner_walk(edict_t *self)
 {
-    self->monsterinfo.currentmove = &gunner_move_walk;
+	M_SetAnimation( self, &gunner_move_walk );
 }
 
 mframe_t gunner_frames_run [] = {
@@ -206,9 +206,9 @@ mmove_t gunner_move_run = {FRAME_run01, FRAME_run08, gunner_frames_run, NULL};
 void gunner_run(edict_t *self)
 {
     if (self->monsterinfo.aiflags & AI_STAND_GROUND)
-        self->monsterinfo.currentmove = &gunner_move_stand;
+		M_SetAnimation( self, &gunner_move_stand );
     else
-        self->monsterinfo.currentmove = &gunner_move_run;
+		M_SetAnimation( self, &gunner_move_run );
 }
 
 mframe_t gunner_frames_runandshoot [] = {
@@ -224,7 +224,7 @@ mmove_t gunner_move_runandshoot = {FRAME_runs01, FRAME_runs06, gunner_frames_run
 
 void gunner_runandshoot(edict_t *self)
 {
-    self->monsterinfo.currentmove = &gunner_move_runandshoot;
+	M_SetAnimation( self, &gunner_move_runandshoot );
 }
 
 mframe_t gunner_frames_pain3 [] = {
@@ -289,11 +289,11 @@ void gunner_pain(edict_t *self, edict_t *other, float kick, int damage)
         return;     // no pain anims in nightmare
 
     if (damage <= 10)
-        self->monsterinfo.currentmove = &gunner_move_pain3;
+		M_SetAnimation( self, &gunner_move_pain3 );
     else if (damage <= 25)
-        self->monsterinfo.currentmove = &gunner_move_pain2;
+		M_SetAnimation( self, &gunner_move_pain2 );
     else
-        self->monsterinfo.currentmove = &gunner_move_pain1;
+		M_SetAnimation( self, &gunner_move_pain1 );
 }
 
 void gunner_dead(edict_t *self)
@@ -344,7 +344,7 @@ void gunner_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
     self->deadflag = DEAD_DEAD;
     self->takedamage = DAMAGE_YES;
-    self->monsterinfo.currentmove = &gunner_move_death;
+    M_SetAnimation( self, &gunner_move_death );
 }
 
 
@@ -400,7 +400,7 @@ void gunner_dodge(edict_t *self, edict_t *attacker, float eta)
     if (!self->enemy)
         self->enemy = attacker;
 
-    self->monsterinfo.currentmove = &gunner_move_duck;
+    M_SetAnimation( self, &gunner_move_duck );
 }
 
 
@@ -529,18 +529,18 @@ mmove_t gunner_move_attack_grenade = {FRAME_attak101, FRAME_attak121, gunner_fra
 void gunner_attack(edict_t *self)
 {
     if (range(self, self->enemy) == RANGE_MELEE) {
-        self->monsterinfo.currentmove = &gunner_move_attack_chain;
+        M_SetAnimation( self, &gunner_move_attack_chain );
     } else {
         if (random() <= 0.5f)
-            self->monsterinfo.currentmove = &gunner_move_attack_grenade;
+            M_SetAnimation( self, &gunner_move_attack_grenade );
         else
-            self->monsterinfo.currentmove = &gunner_move_attack_chain;
+            M_SetAnimation( self, &gunner_move_attack_chain );
     }
 }
 
 void gunner_fire_chain(edict_t *self)
 {
-    self->monsterinfo.currentmove = &gunner_move_fire_chain;
+    M_SetAnimation( self, &gunner_move_fire_chain );
 }
 
 void gunner_refire_chain(edict_t *self)
@@ -548,10 +548,10 @@ void gunner_refire_chain(edict_t *self)
     if (self->enemy->health > 0)
         if (visible(self, self->enemy))
             if (random() <= 0.5f) {
-                self->monsterinfo.currentmove = &gunner_move_fire_chain;
+                M_SetAnimation( self, &gunner_move_fire_chain, false );
                 return;
             }
-    self->monsterinfo.currentmove = &gunner_move_endfire_chain;
+    M_SetAnimation( self, &gunner_move_endfire_chain, false );
 }
 
 /*QUAKED monster_gunner (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
@@ -598,7 +598,7 @@ void SP_monster_gunner(edict_t *self)
 
     gi.linkentity(self);
 
-    self->monsterinfo.currentmove = &gunner_move_stand;
+    M_SetAnimation( self, &gunner_move_stand );
     self->monsterinfo.scale = MODEL_SCALE;
 
     walkmonster_start(self);

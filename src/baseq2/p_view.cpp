@@ -233,29 +233,58 @@ void SV_CalcViewOffset(edict_t *ent)
         ent->client->ps.viewangles[YAW] = ent->client->killer_yaw;
     } else {
         // add angles based on weapon kick
-
-        VectorCopy(ent->client->kick_angles, angles);
+		VectorCopy(ent->client->kick_angles, angles);
 
         // add angles based on damage kick
+        //ratio = (ent->client->v_dmg_time - level.time).seconds() / DAMAGE_TIME().seconds();
+        //if (ratio < 0) {
+        //    ratio = 0;
+        //    ent->client->v_dmg_pitch = 0;
+        //    ent->client->v_dmg_roll = 0;
+        //}
+        //angles[PITCH] += ratio * ent->client->v_dmg_pitch;
+        //angles[ROLL] += ratio * ent->client->v_dmg_roll;
+		// add angles based on damage kick
+		if ( ent->client->v_dmg_time > level.time ) {
+			// [Paril-KEX] 100ms of slack is added to account for
+			// visual difference in higher tickrates
+			gtime_t diff = ent->client->v_dmg_time - level.time;
 
-        ratio = (ent->client->v_dmg_time - level.time).seconds() / DAMAGE_TIME().seconds();
-        if (ratio < 0) {
-            ratio = 0;
-            ent->client->v_dmg_pitch = 0;
-            ent->client->v_dmg_roll = 0;
-        }
-        angles[PITCH] += ratio * ent->client->v_dmg_pitch;
-        angles[ROLL] += ratio * ent->client->v_dmg_roll;
+			// slack time remaining
+			if ( DAMAGE_TIME_SLACK( ) ) {
+				if ( diff > DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) )
+					ratio = ( DAMAGE_TIME( ) - diff ).seconds( ) / DAMAGE_TIME_SLACK( ).seconds( );
+				else
+					ratio = diff.seconds( ) / ( DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
+			} else
+				ratio = diff.seconds( ) / ( DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
+
+			angles[ PITCH ] += ratio * ent->client->v_dmg_pitch;
+			angles[ ROLL ] += ratio * ent->client->v_dmg_roll;
+		}
 
         // add pitch based on fall kick
+        //ratio = (ent->client->fall_time - level.time).seconds() / FALL_TIME().seconds( );
+        //if (ratio < 0)
+        //    ratio = 0;
+        //angles[PITCH] += ratio * ent->client->fall_value;
+		if ( ent->client->fall_time > level.time ) {
+			// [Paril-KEX] 100ms of slack is added to account for
+			// visual difference in higher tickrates
+			gtime_t diff = ent->client->fall_time - level.time;
 
-        ratio = (ent->client->fall_time - level.time).seconds() / FALL_TIME().seconds( );
-        if (ratio < 0)
-            ratio = 0;
-        angles[PITCH] += ratio * ent->client->fall_value;
+			// slack time remaining
+			if ( DAMAGE_TIME_SLACK( ) ) {
+				if ( diff > FALL_TIME( ) - DAMAGE_TIME_SLACK( ) )
+					ratio = ( FALL_TIME( ) - diff ).seconds( ) / DAMAGE_TIME_SLACK( ).seconds( );
+				else
+					ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
+			} else
+				ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
+			angles[ PITCH ] += ratio * ent->client->fall_value;
+		}
 
         // add angles based on velocity
-
         delta = DotProduct(ent->velocity, forward);
         angles[PITCH] += delta * run_pitch->value;
 
@@ -263,19 +292,38 @@ void SV_CalcViewOffset(edict_t *ent)
         angles[ROLL] += delta * run_roll->value;
 
         // add angles based on bob
-
-        delta = bobfracsin * bob_pitch->value * xyspeed;
-        if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-            delta *= 6;     // crouching
-        angles[PITCH] += delta;
-        delta = bobfracsin * bob_roll->value * xyspeed;
-        if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-            delta *= 6;     // crouching
-        if (bobcycle & 1)
-            delta = -delta;
-        angles[ROLL] += delta;
+        //delta = bobfracsin * bob_pitch->value * xyspeed;
+        //if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+        //    delta *= 6;     // crouching
+        //angles[PITCH] += delta;
+        //delta = bobfracsin * bob_roll->value * xyspeed;
+        //if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+        //    delta *= 6;     // crouching
+        //if (bobcycle & 1)
+        //    delta = -delta;
+        //angles[ROLL] += delta;
+		delta = bobfracsin * bob_pitch->value * xyspeed;
+		if ( ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity )
+			delta *= 6; // crouching
+		delta = min( delta, 1.2f );
+		angles[ PITCH ] += delta;
+		delta = bobfracsin * bob_roll->value * xyspeed;
+		if ( ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity )
+			delta *= 6; // crouching
+		delta = min( delta, 1.2f );
+		if ( bobcycle & 1 )
+			delta = -delta;
+		angles[ ROLL ] += delta;
     }
 
+	// add earthquake angles
+	if ( ent->client->quake_time > level.time ) {
+		float factor = min( 1.0f, ( ent->client->quake_time.seconds( ) / level.time.seconds( ) ) * 0.25f );
+
+		angles[0] += crandom_open( ) * factor;
+		angles[2] += crandom_open( ) * factor;
+		angles[1] += crandom_open( ) * factor;
+	}
 //===================================
 
     // base origin

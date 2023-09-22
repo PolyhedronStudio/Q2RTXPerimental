@@ -261,6 +261,7 @@ typedef enum {
 #define AI_COMBAT_POINT         0x00001000
 #define AI_MEDIC                0x00002000
 #define AI_RESURRECTING         0x00004000
+#define AI_HIGH_TICK_RATE		0x00008000
 
 //monster attack state
 #define AS_STRAIGHT             1
@@ -812,6 +813,8 @@ void M_CatagorizePosition(edict_t *ent);
 bool M_CheckAttack(edict_t *self);
 void M_FlyCheck(edict_t *self);
 void M_CheckGround(edict_t *ent);
+void M_SetAnimation( edict_t *self, mmove_t *move, bool instant = true );
+
 
 //
 // g_misc.c
@@ -1041,6 +1044,7 @@ struct gclient_s {
     vec3_t      kick_origin;
     float       v_dmg_roll, v_dmg_pitch;    // damage kicks
 	gtime_t		v_dmg_time;
+	gtime_t		quake_time;
     gtime_t		fall_time;
 	float		fall_value;      // for view drop on fall
     float       damage_alpha;

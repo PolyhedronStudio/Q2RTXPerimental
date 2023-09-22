@@ -214,19 +214,19 @@ mmove_t flyer_move_run = {FRAME_stand01, FRAME_stand45, flyer_frames_run, NULL};
 void flyer_run(edict_t *self)
 {
     if (self->monsterinfo.aiflags & AI_STAND_GROUND)
-        self->monsterinfo.currentmove = &flyer_move_stand;
+        M_SetAnimation( self, &flyer_move_stand );
     else
-        self->monsterinfo.currentmove = &flyer_move_run;
+        M_SetAnimation( self, &flyer_move_run );
 }
 
 void flyer_walk(edict_t *self)
 {
-    self->monsterinfo.currentmove = &flyer_move_walk;
+    M_SetAnimation( self, &flyer_move_walk );
 }
 
 void flyer_stand(edict_t *self)
 {
-    self->monsterinfo.currentmove = &flyer_move_stand;
+    M_SetAnimation( self, &flyer_move_stand );
 }
 
 mframe_t flyer_frames_start [] = {
@@ -252,12 +252,12 @@ mmove_t flyer_move_stop = {FRAME_stop01, FRAME_stop07, flyer_frames_stop, NULL};
 
 void flyer_stop(edict_t *self)
 {
-    self->monsterinfo.currentmove = &flyer_move_stop;
+    M_SetAnimation( self, &flyer_move_stop );
 }
 
 void flyer_start(edict_t *self)
 {
-    self->monsterinfo.currentmove = &flyer_move_start;
+    M_SetAnimation( self, &flyer_move_start );
 }
 
 
@@ -459,48 +459,48 @@ mmove_t flyer_move_loop_melee = {FRAME_attak107, FRAME_attak118, flyer_frames_lo
 
 void flyer_loop_melee(edict_t *self)
 {
-    self->monsterinfo.currentmove = &flyer_move_loop_melee;
+    M_SetAnimation( self, &flyer_move_loop_melee );
 }
 
 
 
 void flyer_attack(edict_t *self)
 {
-    self->monsterinfo.currentmove = &flyer_move_attack2;
+    M_SetAnimation( self, &flyer_move_attack2 );
 }
 
 void flyer_setstart(edict_t *self)
 {
     nextmove = ACTION_run;
-    self->monsterinfo.currentmove = &flyer_move_start;
+    M_SetAnimation( self, &flyer_move_start );
 }
 
 void flyer_nextmove(edict_t *self)
 {
     if (nextmove == ACTION_attack1)
-        self->monsterinfo.currentmove = &flyer_move_start_melee;
+        M_SetAnimation( self, &flyer_move_start_melee );
     else if (nextmove == ACTION_attack2)
-        self->monsterinfo.currentmove = &flyer_move_attack2;
+        M_SetAnimation( self, &flyer_move_attack2 );
     else if (nextmove == ACTION_run)
-        self->monsterinfo.currentmove = &flyer_move_run;
+        M_SetAnimation( self, &flyer_move_run );
 }
 
 void flyer_melee(edict_t *self)
 {
 //  flyer.nextmove = ACTION_attack1;
-//  self->monsterinfo.currentmove = &flyer_move_stop;
-    self->monsterinfo.currentmove = &flyer_move_start_melee;
+//  M_SetAnimation( self, &flyer_move_stop;
+    M_SetAnimation( self, &flyer_move_start_melee );
 }
 
 void flyer_check_melee(edict_t *self)
 {
     if (range(self, self->enemy) == RANGE_MELEE)
         if (random() <= 0.8f)
-            self->monsterinfo.currentmove = &flyer_move_loop_melee;
+            M_SetAnimation( self, &flyer_move_loop_melee );
         else
-            self->monsterinfo.currentmove = &flyer_move_end_melee;
+            M_SetAnimation( self, &flyer_move_end_melee );
     else
-        self->monsterinfo.currentmove = &flyer_move_end_melee;
+        M_SetAnimation( self, &flyer_move_end_melee );
 }
 
 void flyer_pain(edict_t *self, edict_t *other, float kick, int damage)
@@ -520,13 +520,13 @@ void flyer_pain(edict_t *self, edict_t *other, float kick, int damage)
     n = Q_rand() % 3;
     if (n == 0) {
         gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NORM, 0);
-        self->monsterinfo.currentmove = &flyer_move_pain1;
+        M_SetAnimation( self, &flyer_move_pain1 );
     } else if (n == 1) {
         gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NORM, 0);
-        self->monsterinfo.currentmove = &flyer_move_pain2;
+        M_SetAnimation( self, &flyer_move_pain2 );
     } else {
         gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NORM, 0);
-        self->monsterinfo.currentmove = &flyer_move_pain3;
+        M_SetAnimation( self, &flyer_move_pain3 );
     }
 }
 
@@ -587,7 +587,7 @@ void SP_monster_flyer(edict_t *self)
 
     gi.linkentity(self);
 
-    self->monsterinfo.currentmove = &flyer_move_stand;
+    M_SetAnimation( self, &flyer_move_stand );
     self->monsterinfo.scale = MODEL_SCALE;
 
     flymonster_start(self);

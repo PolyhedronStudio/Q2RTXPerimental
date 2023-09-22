@@ -266,6 +266,32 @@ void NoAmmoWeaponChange(edict_t *ent)
     ent->client->newweapon = FindItem("blaster");
 }
 
+// [Paril-KEX] get time per animation frame
+inline gtime_t Weapon_AnimationTime( edict_t *ent ) {
+	//if ( g_quick_weapon_switch->integer && ( gi.tick_rate == 20 || gi.tick_rate == 40 ) &&
+	//	( ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING ) )
+	//	ent->client->ps.gunrate = 20;
+	//else
+	//	ent->client->ps.gunrate = 10;
+
+	//if ( ent->client->ps.gunframe != 0 && ( !( ent->client->pers.weapon->flags & IF_NO_HASTE ) || ent->client->weaponstate != WEAPON_FIRING ) ) {
+	//	if ( is_quadfire )
+	//		ent->client->ps.gunrate *= 2;
+	//	if ( CTFApplyHaste( ent ) )
+	//		ent->client->ps.gunrate *= 2;
+	//}
+
+	//// network optimization...
+	//if ( ent->client->ps.gunrate == 10 ) {
+	//	ent->client->ps.gunrate = 0;
+	//	return 100_ms;
+	//}
+
+	//return gtime_t::from_ms( ( 1.f / ent->client->ps.gunrate ) * 1000 );
+	constexpr int32_t gunrate = 10; // Maintain 10hz.
+	return gtime_t::from_ms( ( 1.f / gunrate ) * 1000 );
+}
+
 /*
 =================
 Think_Weapon
