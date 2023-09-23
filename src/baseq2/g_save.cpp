@@ -459,6 +459,11 @@ static void write_int(FILE *f, int v)
     write_data(&v, sizeof(v), f);
 }
 
+static void write_int64( FILE *f, int64_t v ) {
+	v = LittleLongLong( v );
+	write_data( &v, sizeof( v ), f );
+}
+
 static void write_float(FILE *f, float v)
 {
     v = LittleFloat(v);
@@ -585,11 +590,16 @@ static void write_field(FILE *f, const save_field_t *field, void *base)
         break;
 
     case F_FRAMETIME:
-        // Writing is always new version -> treat as integere
+		// WID: We got gtime_t, so we need int64 saving for frametime.
         for (i = 0; i < field->size; i++) {
-            write_int(f, ((int *)p)[i]);
+            write_int64(f, ((int64_t *)p)[i]);
         }
         break;
+	case F_INT64:
+		for ( i = 0; i < field->size; i++ ) {
+			write_int64( f, ( (int64_t *)p )[ i ] );
+		}
+		break;
 
     default:
         gi.error("%s: unknown field type", __func__);
@@ -607,7 +617,6 @@ static void write_fields(FILE *f, const save_field_t *fields, void *base)
 
 typedef struct game_read_context_s {
     FILE *f;
-    bool frametime_is_float;
     const save_ptr_t* save_ptrs;
     int num_save_ptrs;
 } game_read_context_t;
@@ -638,6 +647,15 @@ static int read_int(FILE *f)
     v = LittleLong(v);
 
     return v;
+}
+
+static int64_t read_int64( FILE *f ) {
+	int64_t v;
+
+	read_data( &v, sizeof( v ), f );
+	v = LittleLongLong( v );
+
+	return v;
 }
 
 static float read_float(FILE *f)
@@ -797,17 +815,16 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
         break;
 
     case F_FRAMETIME:
-        for (i = 0; i < field->size; i++) {
-            if(ctx->frametime_is_float) {
-                // "Old" savegame: read float timestamp, convert to frame number
-                float timestamp = read_float(ctx->f);
-                ((int *)p)[i] = (int)(timestamp * BASE_FRAMERATE);
-            } else {
-                // "New" savegame: simple int
-                ((int *)p)[i] = read_int(ctx->f);
-            }
+		// WID: We got gtime_t, so we need int64 saving for frametime.
+		for (i = 0; i < field->size; i++) {
+	        ((int64_t *)p)[i] = read_int64(ctx->f);
         }
         break;
+	case F_INT64:
+		for ( i = 0; i < field->size; i++ ) {
+			( (int64_t *)p )[ i ] = read_int64( ctx->f );
+		}
+		break;
 
     default:
         gi.error("%s: unknown field type", __func__);
@@ -827,7 +844,9 @@ static void read_fields(game_read_context_t* ctx, const save_field_t *fields, vo
 
 #define SAVE_MAGIC1     MakeLittleLong('S','S','V','1')
 #define SAVE_MAGIC2     MakeLittleLong('S','A','V','1')
-#define SAVE_VERSION    8
+// WID: We got our own version number obviously.
+//#define SAVE_VERSION    8
+#define SAVE_VERSION	1337
 
 /*
 ============
@@ -875,17 +894,8 @@ static game_read_context_t make_read_context(FILE* f, int version)
 {
     game_read_context_t ctx;
     ctx.f = f;
-    //if(version == 2) {
-    //    // Old savegame
-    //    ctx.frametime_is_float = true;
-    //    //ctx.save_ptrs = save_ptrs_v2;
-    //    //ctx.num_save_ptrs = num_save_ptrs_v2;
-    //} else {
-        // Newer savegame
-        ctx.frametime_is_float = false;
-        ctx.save_ptrs = save_ptrs;
-        ctx.num_save_ptrs = num_save_ptrs;
-    //}
+	ctx.save_ptrs = save_ptrs;
+	ctx.num_save_ptrs = num_save_ptrs;
     return ctx;
 }
 

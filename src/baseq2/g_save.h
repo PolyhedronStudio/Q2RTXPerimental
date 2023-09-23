@@ -1,10 +1,20 @@
+/********************************************************************
+*
+*
+*	Save Game mechanism related types:
+*
+* 
+********************************************************************/
 #pragma once
 
-//
-// fields are needed for spawning from the entity string
-// and saving / loading games
-//
-typedef enum {
+#include "shared/shared.h"
+
+
+/**
+*	@brief	Fields are needed for spawning from the entity string
+*			and saving / loading games
+**/
+enum fieldtype_t : int32_t {
 	F_BAD,
 	F_BYTE,
 	F_SHORT,
@@ -23,12 +33,22 @@ typedef enum {
 	F_POINTER,
 	F_IGNORE,
 
-	F_FRAMETIME         // speciality for savegame compatibility: float on disk, converted to framenum
-} fieldtype_t;
+	// WID: This was from Q2RTX 1.7.0
+	//F_FRAMETIME,         // speciality for savegame compatibility: float on disk, converted to framenum
+	// WID: However, we now got gtime_t running on int64_t power.
+	F_FRAMETIME,	// Same as F_INT64
+	F_INT64
+};
 
-typedef enum {
+/**
+*	@brief	Indexes what type of pointer is/was being read/written to.
+**/
+enum ptr_type_t : int32_t {
     P_bad,
 
+	//
+	// edict-><methodname> function pointer addresses.
+	//
     P_prethink,
     P_think,
     P_blocked,
@@ -37,8 +57,14 @@ typedef enum {
     P_pain,
     P_die,
 
+	//
+	// edict->moveinfo.<methodname> function pointer addresses.
+	//
     P_moveinfo_endfunc,
 
+	//
+	// edict->monsterinfo.<methodname> function pointer addresses.
+	//
     P_monsterinfo_currentmove,
 	P_monsterinfo_nextmove,
     P_monsterinfo_stand,
@@ -51,14 +77,18 @@ typedef enum {
     P_monsterinfo_melee,
     P_monsterinfo_sight,
     P_monsterinfo_checkattack
-} ptr_type_t;
+};
 
+/**
+*	@brief	Used for constructing our array(located in g_ptrs.cpp) containing all possible callback save methods and their type.
+**/
 typedef struct {
     ptr_type_t type;
     void *ptr;
 } save_ptr_t;
 
+/**
+*	For accessing them outside of g_ptrs.cpp
+**/
 extern const save_ptr_t save_ptrs[];
 extern const int num_save_ptrs;
-extern const save_ptr_t save_ptrs_v2[];
-extern const int num_save_ptrs_v2;
