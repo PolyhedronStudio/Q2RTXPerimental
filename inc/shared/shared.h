@@ -593,12 +593,14 @@ static inline float FloatSwap(float f)
 #define BigFloat    FloatSwap
 #define LittleShort(x)    ((uint16_t)(x))
 #define LittleLong(x)     ((uint32_t)(x))
+#define LittleLongLong(x) ((uint64_t)(x))
 #define LittleFloat(x)    ((float)(x))
 #define MakeRawLong(b1,b2,b3,b4) (((unsigned)(b4)<<24)|((b3)<<16)|((b2)<<8)|(b1))
 #define MakeRawShort(b1,b2) (((b2)<<8)|(b1))
 #elif USE_BIG_ENDIAN
 #define BigShort(x)     ((uint16_t)(x))
 #define BigLong(x)      ((uint32_t)(x))
+#define BigLongLong(x)      ((uint32_t)(x))
 #define BigFloat(x)     ((float)(x))
 #define LittleShort ShortSwap
 #define LittleLong  LongSwap

@@ -23,7 +23,7 @@ SET(SRC_BASEQ2
 	baseq2/g_misc.cpp
 	baseq2/g_monster.cpp
 	baseq2/g_phys.cpp
-	#baseq2/g_ptrs.cpp
+	baseq2/g_ptrs.cpp
 	#baseq2/g_ptrs_compat_v2.cpp
 	baseq2/g_save.cpp
 	baseq2/g_spawn.cpp
@@ -66,7 +66,9 @@ SET(SRC_BASEQ2
 SET(HEADERS_BASEQ2
 	baseq2/g_local.h
 	baseq2/gtime.h
-	#baseq2/g_ptrs.h
+
+	baseq2/g_save.h
+
 	baseq2/m_actor.h
 	baseq2/m_berserk.h
 	baseq2/m_boss2.h

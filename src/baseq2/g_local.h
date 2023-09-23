@@ -689,32 +689,6 @@ extern  cvar_t  *sv_flaregun;
 #define DROPPED_PLAYER_ITEM     0x00020000
 #define ITEM_TARGETS_USED       0x00040000
 
-//
-// fields are needed for spawning from the entity string
-// and saving / loading games
-//
-typedef enum {
-    F_BAD,
-    F_BYTE,
-    F_SHORT,
-    F_INT,
-    F_BOOL,
-    F_FLOAT,
-    F_LSTRING,          // string on disk, pointer in memory, TAG_LEVEL
-    F_GSTRING,          // string on disk, pointer in memory, TAG_GAME
-    F_ZSTRING,          // string on disk, string in memory
-    F_VECTOR,
-    F_ANGLEHACK,
-    F_EDICT,            // index on disk, pointer in memory
-    F_ITEM,             // index on disk, pointer in memory
-    F_CLIENT,           // index on disk, pointer in memory
-    F_FUNCTION,
-    F_POINTER,
-    F_IGNORE,
-
-    F_FRAMETIME         // speciality for savegame compatibility: float on disk, converted to framenum
-} fieldtype_t;
-
 extern  gitem_t itemlist[];
 
 //

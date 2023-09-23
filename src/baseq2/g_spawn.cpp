@@ -18,6 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "g_local.h"
+#include "g_save.h"
 
 typedef struct {
 	// WID: C++20: added const.

@@ -931,7 +931,7 @@ void InitialiseSkyCVars()
 
     // sky
 
-    physical_sky = Cvar_Get("physical_sky", "2", 0);
+    physical_sky = Cvar_Get("physical_sky", "1", 0);
     physical_sky->changed = physical_sky_cvar_changed;
 
     physical_sky_draw_clouds = Cvar_Get("physical_sky_draw_clouds", "1", 0);
