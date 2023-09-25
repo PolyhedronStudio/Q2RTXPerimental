@@ -864,7 +864,9 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 		
 		
 		if (mat->filename_base[0]) {
+			// WID: This will try and load the image that is specified, expecting a 'hi-res HD' texture.
 			load_material_image(&mat->image_base, mat->filename_base, mat, type, flags | IF_SRGB);
+			// WID: If unable to find, try again but this time try and acquire its low-res '.wal' type.
 			if (mat->image_base == R_NOTEXTURE) {
 				Com_WPrintf("Texture '%s' specified in material '%s' could not be found. Using the low-res texture.\n", mat->filename_base, mat_name_no_ext);
 				
@@ -877,7 +879,28 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 			}
 			else
 			{
-				IMG_GetDimensions(name, &mat->original_width, &mat->original_height);
+				// WID: When this else statement hits, it may still have been a '.wal' texture that IS specified in the 'texture_base' property.
+				// Now, IMG_GetDimensions only supports .wal and .pcx, so when the image is neither of the two, it won't return: Q_ERR_SUCCESS
+				int foundDimension = IMG_GetDimensions(name, &mat->original_width, &mat->original_height);
+
+				// WID: This allows support for maps that have been compiled without .wal textures using 'ericw-tools'.
+				// We now know that the texinfo name is most definitely not a '.wal', in other words the BSP contains 
+				// texinfo a path such as: textures/tests/01.tga
+				//
+				// This scenario leaves us with no '.wal' to derive any 'original' width and height from. 
+				// Meaning that instead we'll just use the '.tga/.png/.jpg' image its own original width and height.
+				if ( type == IT_WALL && foundDimension != Q_ERR_SUCCESS ) {
+					//ssize_t len = strlen( mat->filename_base );
+					//if ( len > 4 && ) {
+					//	if ( Q_stricmp( mat->filename_base + len - 4, ".wal" ) != 0 ) {
+							Com_DPrintf( "MAT: Should not be a .wal '%s'\n", mat->filename_base );
+							mat->original_width = mat->image_base->width;
+							mat->original_height = mat->image_base->height;
+//							mat->original_width = mat->image_base->upload_width;
+//							mat->original_height = mat->image_base->upload_height;
+						//}
+					//}
+				}
 			}
 		}
 

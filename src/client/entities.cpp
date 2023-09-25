@@ -518,7 +518,7 @@ static void CL_AddPacketEntities(void)
 	int base_entity_flags = 0;
 
     // bonus items rotate at a fixed rate
-    autorotate = anglemod(cl.time * 0.1f);
+	autorotate = anglemod( cl.time * BASE_FRAMETIME_1000 );//anglemod(cl.time * 0.1f); // WID: 40hz: Adjusted.
 
     // brush models can auto animate their frames
     autoanim = 2 * cl.time / 1000;
@@ -543,7 +543,7 @@ static void CL_AddPacketEntities(void)
         else if (effects & EF_ANIM_ALL)
             ent.frame = autoanim;
         else if (effects & EF_ANIM_ALLFAST)
-            ent.frame = cl.time / 100;
+            ent.frame = cl.time / BASE_FRAMETIME; // WID: 40hz: Adjusted. cl.time / 100;
         else
             ent.frame = s1->frame;
 

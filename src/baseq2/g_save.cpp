@@ -864,7 +864,6 @@ last save position.
 */
 void WriteGame(const char *filename, qboolean autosave)
 {
-	gi.bprintf( PRINT_WARNING, "WriteGame: Not implemented! \n" );
     FILE    *f;
     int     i;
 
@@ -901,9 +900,7 @@ static game_read_context_t make_read_context(FILE* f, int version)
 
 void ReadGame(const char *filename)
 {
-	gi.bprintf( PRINT_WARNING, "ReadGame: Not implemented! \n" );
-
-	  FILE    *f;
+	FILE    *f;
     int     i;
 
     gi.FreeTags(TAG_GAME);
@@ -964,7 +961,6 @@ WriteLevel
 */
 void WriteLevel(const char *filename)
 {
-	gi.bprintf( PRINT_WARNING, "WriteLevel: Not implemented! \n" );
     int     i;
     edict_t *ent;
     FILE    *f;
@@ -1012,8 +1008,6 @@ No clients are connected yet.
 */
 void ReadLevel(const char *filename)
 {
-	gi.bprintf( PRINT_WARNING, "ReadLevel: Not implemented! \n" );
-
     int     entnum;
     FILE    *f;
     int     i;

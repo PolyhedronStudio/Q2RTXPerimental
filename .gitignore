@@ -46,3 +46,7 @@ baseq2/**/*.txt
 !baseq2/*.txt
 !baseq2/maps/sky/*.txt
 !baseq2/pics/flashlight_profile.png
+/baseq2/maps
+/baseq2/materials
+/baseq2/textures/kenny
+/baseq2/.conhistory
