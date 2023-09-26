@@ -13,7 +13,7 @@ Features currently done:
   - Enabled USE_SMOOTH_DELTA_ANGLES.
   - Replace (most)_framenum based functionality with that of Q2RE, the gtime_t type approach instead.
 	- AI now has the option to run at 40hz when the AI_HIGH_TICK_RATE flag is set.
-
+  - BSP maps compiled with texinfos such as: textures/test/01.tga now will load with their proper dimensions, meaning one does not need low-res .wal textures to substitute for that.
 Features certain to be implemented:
   - Client game DLL.
   - PMove being extracted to both game DLLs for customization needs.

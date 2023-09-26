@@ -893,12 +893,12 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 					//ssize_t len = strlen( mat->filename_base );
 					//if ( len > 4 && ) {
 					//	if ( Q_stricmp( mat->filename_base + len - 4, ".wal" ) != 0 ) {
-							Com_DPrintf( "MAT: Should not be a .wal '%s'\n", mat->filename_base );
-							mat->original_width = mat->image_base->width;
-							mat->original_height = mat->image_base->height;
-//							mat->original_width = mat->image_base->upload_width;
-//							mat->original_height = mat->image_base->upload_height;
-						//}
+					//		Com_DPrintf( "MAT: Should not be a .wal '%s'\n", mat->filename_base );
+					//		mat->original_width = mat->image_base->width;
+					//		mat->original_height = mat->image_base->height;
+					//		mat->original_width = mat->image_base->upload_width;
+					//		mat->original_height = mat->image_base->upload_height;
+					//	}
 					//}
 				}
 			}
