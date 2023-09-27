@@ -1,30 +1,34 @@
 # Quake II RTXPerimental
 
-[![Build Status](https://github.com/NVIDIA/Q2RTX/actions/workflows/build.yml/badge.svg)](https://github.com/NVIDIA/Q2RTX/actions/workflows/build.yml)
+[![Build Status](https://github.com/PolyhedronStudio/Q2RTXPerimental/actions/workflows/build.yml/badge.svg)](https://github.com/PolyhedronStudio/Q2RTXPerimental/actions/workflows/build.yml)
 
-**Quake II RTXPerimental** is my 'playing field' and an attempt to improve
-the engine in various parts, 'modernizing' it is probably the best term to
-put it at.
+**Quake II RTXPerimental** is my 'playing field' and an attempt to improve the engine in various parts, 'modernizing' it is probably the best term to put it at. The target public for this would be anyone who is interested at doing a project using Q2RTX, but would like it to pack some more punch when it comes to having more 'modern' features.
 
 Features currently done:
-  - C++-ify the codebase, meaning that it now compiles using a C++ compiler. The only exception being the VKPT code, to make life easy merging in any new Q2RTX VKPT features.
-  - 40hz Tick Rate like Q2RE.
-  - Stair Step Smoothing adjusted to BASE_FRAMETIME(25ms at 40hz) instead of its old hard values: 100ms at 10hz.
+  - **CPP-ify the codebase, meaning that it now compiles using a CPP compiler** The only exception being the VKPT code, to make life easy merging in any new Q2RTX VKPT features.
+  - Tick Rate adjustment: 40hz (following **Q2RE** on this).
+  - Adjusted stair **Step Smoothing** to BASE_FRAMETIME(25ms for 40hz) instead of its old hard values: 100ms at 10hz.
   - Enabled USE_SMOOTH_DELTA_ANGLES.
-  - Replace (most)_framenum based functionality with that of Q2RE, the gtime_t type approach instead.
+  - Replaced (most)_framenum based functionality with time again, borrowing gtime_t type from **Q2E**.
 	- AI now has the option to run at 40hz when the AI_HIGH_TICK_RATE flag is set.
   - BSP maps compiled with texinfos such as: textures/test/01.tga now will load with their proper dimensions, meaning one does not need low-res .wal textures to substitute for that.
+  - Uses protocol #34(still needs a custom protocol number) by default, having already layed out the path to allocating a **Q2RTXPerimental** NetChan to work from later on.
+
 Features certain to be implemented:
-  - Client game DLL.
-  - PMove being extracted to both game DLLs for customization needs.
+  - GameRules, this rids us of random cvar checks and gives us a centralized class to inquire for gamemode related aspects.
+  - Client Game DLL which allows for:
+	- Custom user input code/commands.
+	- Code client-side specific effects.
+	- Proper control over 'HUD'.
+  - Shared Game code:
+	- PMove being extracted to Shared Game allows for customization of player movement.
 
 Features planned to experiment with:
   - Net code improvements. (Think, Quake 3 like.)
-  - SharedGame DLL, where depending on how the Net code improvements go, the physics'll move to as well.
   - Full floating point precision movement.
   - Collision code rewrite. (Use proper matrix/quaternions, and allow for different hull types such as Spheres, Cylinders and Capsules.)
 	- This requires several editing/rewriting parts of the Physics as well.
-  - Proper Skeletal Animation support.
+  - Proper control over IQM's Skeletal Animation capabilities.
   - Add in [RmlUI](https://github.com/mikke89/RmlUi) and replace the HUD and menus with it. (And possibly, allow in-game menus as well.)
 
 Anyone familiar with my previous/other project [Polyhedron](https://github.com/PolyhedronStudio/Polyhedron-Engine) will likely notice that I've enlisted features that can already be found there.
