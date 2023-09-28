@@ -20,7 +20,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "client.h"
 #include "client/sound/sound.h"
-#include "client/sound/vorbis.h"
 #include "common/files.h"
 #include "refresh/images.h"
 
@@ -375,6 +374,14 @@ qhandle_t SCR_ReadNextFrame(void)
     count = end - start;
 
     FS_Read(samples, count*cin.s_width*cin.s_channels, cin.file);
+
+#if USE_BIG_ENDIAN
+    if (cin.s_width == 2) {
+        uint16_t *data = (uint16_t *)samples;
+        for (int i = 0; i < s_size >> 1; i++)
+            data[i] = LittleShort(data[i]);
+    }
+#endif
 
     S_RawSamples(count, cin.s_rate, cin.s_width, cin.s_channels, samples, 1.0f);
 

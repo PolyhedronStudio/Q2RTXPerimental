@@ -321,7 +321,14 @@ static void CL_ParseFrame(int extrabits)
         if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
             // parse clientNum
             if (extraflags & EPS_CLIENTNUM) {
-                frame.clientNum = MSG_ReadByte();
+                if (cls.protocolVersion < PROTOCOL_VERSION_Q2PRO_CLIENTNUM_SHORT) {
+                    frame.clientNum = MSG_ReadByte();
+                } else {
+                    frame.clientNum = MSG_ReadShort();
+                }
+                if (!VALIDATE_CLIENTNUM(frame.clientNum)) {
+                    Com_Error(ERR_DROP, "%s: bad clientNum", __func__);
+                }
             } else if (oldframe) {
                 frame.clientNum = oldframe->clientNum;
             }
@@ -638,8 +645,9 @@ static void CL_ParseServerData(void)
         Com_SetColor(COLOR_NONE);
 
         // make sure clientNum is in range
-        if (cl.clientNum < 0 || cl.clientNum >= MAX_CLIENTS) {
-            cl.clientNum = CLIENTNUM_NONE;
+        if (!VALIDATE_CLIENTNUM(cl.clientNum)) {
+            Com_WPrintf("Serverdata has invalid playernum %d\n", cl.clientNum);
+            cl.clientNum = -1;
         }
     }
 }
@@ -987,9 +995,9 @@ static void CL_ParsePrint(void)
 
     // play sound
     if (cl_chat_sound->integer > 1)
-        S_StartLocalSound_("misc/talk1.wav");
+        S_StartLocalSoundOnce("misc/talk1.wav");
     else if (cl_chat_sound->integer > 0)
-        S_StartLocalSound_("misc/talk.wav");
+        S_StartLocalSoundOnce("misc/talk.wav");
 }
 
 static void CL_ParseCenterPrint(void)
