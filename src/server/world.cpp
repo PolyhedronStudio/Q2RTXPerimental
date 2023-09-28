@@ -266,8 +266,10 @@ void PF_LinkEdict(edict_t *ent)
             ent->s.solid = 0;
             sent->solid32 = 0;
         } else {
-            ent->s.solid = MSG_PackSolid16(ent->mins, ent->maxs);
-            sent->solid32 = MSG_PackSolid32(ent->mins, ent->maxs);
+			// WID: upgr-solid: Q2RE Approach.
+			ent->s.solid = sent->solid32 = MSG_PackSolidUint32( ent->mins, ent->maxs ).u;
+            //ent->s.solid = MSG_PackSolid16(ent->mins, ent->maxs);
+            //sent->solid32 = MSG_PackSolid32(ent->mins, ent->maxs);
         }
         break;
     case SOLID_BSP:

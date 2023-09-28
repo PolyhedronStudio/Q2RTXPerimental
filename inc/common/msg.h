@@ -28,6 +28,19 @@ extern "C" {
 #include "common/protocol.h"
 #include "common/sizebuf.h"
 
+
+// WID: upgr-solid: From Q2RE, similar it seems to how Q3 does it. (Did not check that).
+typedef union solid_packed_u {
+	struct p {
+		uint8_t x;
+		uint8_t y;
+		uint8_t zd; // always negative
+		uint8_t zu; // encoded as + 32
+	} p;
+
+	uint32_t u;
+} solid_packed_t;
+
 // entity and player states are pre-quantized before sending to make delta
 // comparsion easier
 typedef struct {
@@ -42,7 +55,7 @@ typedef struct {
     uint32_t    skinnum;
     uint32_t    effects;
     uint32_t    renderfx;
-    uint32_t    solid;
+    solid_packed_t solid;
     uint16_t    frame;
     uint8_t     sound;
     uint8_t     event;
@@ -78,7 +91,7 @@ typedef enum {
     MSG_ES_FORCE        = (1 << 0),
     MSG_ES_NEWENTITY    = (1 << 1),
     MSG_ES_FIRSTPERSON  = (1 << 2),
-    MSG_ES_LONGSOLID    = (1 << 3),
+	MSG_ES_LONGSOLID    = (1 << 3), // WID: upgr-solid: Depracated, we now use the Q2RE Approach.
     MSG_ES_UMASK        = (1 << 4),
     MSG_ES_BEAMORIGIN   = (1 << 5),
     MSG_ES_SHORTANGLES  = (1 << 6),
@@ -215,6 +228,18 @@ static inline int MSG_PackSolid32(const vec3_t mins, const vec3_t maxs)
     return ((unsigned)zu << 16) | (zd << 8) | x;
 }
 
+// WID: upgr-solid: Q2RE Approach.
+static inline solid_packed_t MSG_PackSolidUint32( const vec3_t mins, const vec3_t maxs ) {
+	solid_packed_t packedSolid;
+
+	packedSolid.p.x = maxs[ 0 ];
+	packedSolid.p.y = maxs[ 1 ];
+	packedSolid.p.zd = -mins[ 2 ];
+	packedSolid.p.zu = maxs[ 2 ] + 32;
+
+	return packedSolid;
+}
+
 static inline void MSG_UnpackSolid16(int solid, vec3_t mins, vec3_t maxs)
 {
     int x, zd, zu;
@@ -241,6 +266,17 @@ static inline void MSG_UnpackSolid32(int solid, vec3_t mins, vec3_t maxs)
     maxs[0] = maxs[1] = x;
     mins[2] = -zd;
     maxs[2] = zu;
+}
+
+// WID: upgr-solid: Q2RE Approach.
+static inline void MSG_UnpackSolidUint32( uint32_t solid, vec3_t mins, vec3_t maxs ) {
+	solid_packed_t packedSolid;
+	packedSolid.u = solid;
+
+	//packed.u = state->solid;
+	mins[ 0 ] = -packedSolid.p.x;  maxs[ 0 ] = packedSolid.p.x;
+	mins[ 1 ] = -packedSolid.p.y;  maxs[ 1 ] = packedSolid.p.y;
+	mins[ 2 ] = -packedSolid.p.zd; maxs[ 2 ] = packedSolid.p.zu - 32;
 }
 
 // WID: C++20: In case of C++ including this..

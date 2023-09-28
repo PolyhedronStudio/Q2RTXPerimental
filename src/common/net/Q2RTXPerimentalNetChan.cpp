@@ -102,6 +102,45 @@ extern cvar_t *showdrop;
 #define SHOWDROP(...)
 #endif
 
+/*
+==============
+NetchanQ2RTXPerimental_Setup
+
+called to open a channel to a remote system
+==============
+*/
+netchan_t *NetchanQ2RTXPerimental_Setup( netsrc_t sock, const netadr_t * adr,
+								   int qport, size_t maxpacketlen ) {
+	netchan_q2rtxperimental_t *chan;
+	netchan_t *netchan;
+
+	Z_TagReserve( sizeof( *chan ) + maxpacketlen * 2,
+				 sock == NS_SERVER ? TAG_SERVER : TAG_GENERAL );
+
+	chan = static_cast<netchan_q2rtxperimental_t *>( Z_ReservedAlloc( sizeof( *chan ) ) ); // WID: C++20: Added cast.
+	memset( chan, 0, sizeof( *chan ) );
+	netchan = (netchan_t *)chan;
+	netchan->sock = sock;
+	netchan->remote_address = *adr;
+	netchan->qport = qport;
+	netchan->maxpacketlen = maxpacketlen;
+	netchan->last_received = com_localTime;
+	netchan->last_sent = com_localTime;
+	netchan->incoming_sequence = 0;
+	netchan->outgoing_sequence = 1;
+
+	netchan->Process = NetchanQ2RTXPerimental_Process;
+	netchan->Transmit = NetchanQ2RTXPerimental_Transmit;
+	netchan->TransmitNextFragment = NetchanQ2RTXPerimental_TransmitNextFragment;
+	netchan->ShouldUpdate = NetchanQ2RTXPerimental_ShouldUpdate;
+
+	chan->message_buf = static_cast<byte *>( Z_ReservedAlloc( maxpacketlen ) ); // WID: C++20: Added cast.
+	SZ_Init( &netchan->message, chan->message_buf, maxpacketlen );
+
+	chan->reliable_buf = static_cast<byte *>( Z_ReservedAlloc( maxpacketlen ) ); // WID: C++20: Added cast.
+
+	return netchan;
+}
 
 // ============================================================================
 
@@ -329,45 +368,7 @@ bool NetchanQ2RTXPerimental_ShouldUpdate( netchan_t *netchan ) {
 	return false;
 }
 
-/*
-==============
-NetchanQ2RTXPerimental_Setup
 
-called to open a channel to a remote system
-==============
-*/
-netchan_t *NetchanQ2RTXPerimental_Setup( netsrc_t sock, const netadr_t *adr,
-								   int qport, size_t maxpacketlen ) {
-	netchan_q2rtxperimental_t *chan;
-	netchan_t *netchan;
-
-	Z_TagReserve( sizeof( *chan ) + maxpacketlen * 2,
-				 sock == NS_SERVER ? TAG_SERVER : TAG_GENERAL );
-
-	chan = static_cast<netchan_q2rtxperimental_t *>( Z_ReservedAlloc( sizeof( *chan ) ) ); // WID: C++20: Added cast.
-	memset( chan, 0, sizeof( *chan ) );
-	netchan = (netchan_t *)chan;
-	netchan->sock = sock;
-	netchan->remote_address = *adr;
-	netchan->qport = qport;
-	netchan->maxpacketlen = maxpacketlen;
-	netchan->last_received = com_localTime;
-	netchan->last_sent = com_localTime;
-	netchan->incoming_sequence = 0;
-	netchan->outgoing_sequence = 1;
-
-	netchan->Process = NetchanQ2RTXPerimental_Process;
-	netchan->Transmit = NetchanQ2RTXPerimental_Transmit;
-	netchan->TransmitNextFragment = NetchanQ2RTXPerimental_TransmitNextFragment;
-	netchan->ShouldUpdate = NetchanQ2RTXPerimental_ShouldUpdate;
-
-	chan->message_buf = static_cast<byte *>( Z_ReservedAlloc( maxpacketlen ) ); // WID: C++20: Added cast.
-	SZ_Init( &netchan->message, chan->message_buf, maxpacketlen );
-
-	chan->reliable_buf = static_cast<byte *>( Z_ReservedAlloc( maxpacketlen ) ); // WID: C++20: Added cast.
-
-	return netchan;
-}
 
 // ============================================================================
 

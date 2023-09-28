@@ -157,12 +157,14 @@ static void parse_entity_update(const entity_state_t *state)
         && cl.numSolidEntities < MAX_PACKET_ENTITIES) {
         cl.solidEntities[cl.numSolidEntities++] = ent;
         if (state->solid != PACKED_BSP) {
+			// WID: upgr-solid: Q2RE Approach.
+			MSG_UnpackSolidUint32( state->solid, ent->mins, ent->maxs );
             // encoded bbox
-            if (cl.esFlags & MSG_ES_LONGSOLID) {
-                MSG_UnpackSolid32(state->solid, ent->mins, ent->maxs);
-            } else {
-                MSG_UnpackSolid16(state->solid, ent->mins, ent->maxs);
-            }
+            //if (cl.esFlags & MSG_ES_LONGSOLID) {
+            //    MSG_UnpackSolid32(state->solid, ent->mins, ent->maxs);
+            //} else {
+            //    MSG_UnpackSolid16(state->solid, ent->mins, ent->maxs);
+            //}
         }
     }
 

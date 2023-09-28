@@ -475,7 +475,7 @@ void MSG_PackEntity(entity_packed_t *out, const entity_state_t *in, bool short_a
     out->skinnum = in->skinnum;
     out->effects = in->effects;
     out->renderfx = in->renderfx;
-    out->solid = in->solid;
+    out->solid.u = in->solid;
     out->frame = in->frame;
     out->sound = in->sound;
     out->event = in->event;
@@ -586,7 +586,7 @@ void MSG_WriteDeltaEntity(const entity_packed_t *from,
             bits |= U_RENDERFX8;
     }
 
-    if (to->solid != from->solid)
+    if (to->solid.u != from->solid.u)
         bits |= U_SOLID;
 
     // event is not delta compressed, just 0 compressed
@@ -726,10 +726,12 @@ void MSG_WriteDeltaEntity(const entity_packed_t *from,
     if (bits & U_EVENT)
         MSG_WriteByte(to->event);
     if (bits & U_SOLID) {
-        if (flags & MSG_ES_LONGSOLID)
-            MSG_WriteLong(to->solid);
-        else
-            MSG_WriteShort(to->solid);
+		// WID: upgr-solid: WriteLong by default.
+		MSG_WriteLong( to->solid.u );
+        //if (flags & MSG_ES_LONGSOLID)
+        //    MSG_WriteLong(to->solid.u);
+        //else
+        //    MSG_WriteShort(to->solid.u);
     }
 }
 
@@ -2039,11 +2041,13 @@ void MSG_ParseDeltaEntity(const entity_state_t *from,
     }
 
     if (bits & U_SOLID) {
-        if (flags & MSG_ES_LONGSOLID) {
-            to->solid = MSG_ReadLong();
-        } else {
-            to->solid = MSG_ReadWord();
-        }
+		// WID: upgr-solid: ReadLong by default.
+		to->solid = MSG_ReadLong();
+        //if (flags & MSG_ES_LONGSOLID) {
+        //    to->solid = MSG_ReadLong();
+        //} else {
+        //    to->solid = MSG_ReadWord();
+        //}
     }
 }
 

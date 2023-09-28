@@ -115,7 +115,9 @@ typedef struct {
 } client_frame_t;
 
 typedef struct {
-    int         solid32;
+	// WID: upgr-solid: Q2RE Approach.
+	uint32_t	solid32;
+	//int         solid32;
 
 #if USE_FPS
 
