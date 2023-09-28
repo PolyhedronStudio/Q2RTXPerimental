@@ -166,7 +166,8 @@ static sndinitstat_t WAVE_Init(void)
     Com_DPrintf("ok\n");
 
     Com_DPrintf("...locking waveform buffer: ");
-    lpData = static_cast<HPSTR>( GlobalLock(hData) ); // WID: C++20: Added cast.
+    //lpData = static_cast<HPSTR>( GlobalLock(hData) ); // WID: C++20: Added cast.
+	lpData = ( GlobalLock( hData ) );
     if (!lpData) {
         Com_DPrintf(" failed with error %#lx\n", GetLastError());
         WAVE_Shutdown();
@@ -290,7 +291,7 @@ static void WAVE_Submit(void)
     //
     while (((snd_sent - snd_completed) >> sample16) < 8) {
         h = lpWaveHdr + (snd_sent & WAV_MASK);
-        if (paintedtime / 256 <= snd_sent)
+        if (s_paintedtime / 256 <= snd_sent)
             break;
         snd_sent++;
         /*
@@ -322,11 +323,11 @@ static void WAVE_Activate(bool active)
 {
 }
 
-void WAVE_FillAPI(snddmaAPI_t *api)
-{
-    api->Init = WAVE_Init;
-    api->Shutdown = WAVE_Shutdown;
-    api->BeginPainting = WAVE_BeginPainting;
-    api->Submit = WAVE_Submit;
-    api->Activate = WAVE_Activate;
-}
+const snddma_driver_t snddma_wave = {
+	.name = "wave",
+	.init = WAVE_Init,
+	.shutdown = WAVE_Shutdown,
+	.begin_painting = WAVE_BeginPainting,
+	.submit = WAVE_Submit,
+	.activate = WAVE_Activate,
+};

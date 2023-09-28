@@ -33,7 +33,7 @@ void S_StartSound(const vec3_t origin, int entnum, int entchannel,
                   qhandle_t sfx, float fvol, float attenuation, float timeofs);
 void S_ParseStartSound(void);
 void S_StartLocalSound(const char *s);
-void S_StartLocalSound_(const char *s);
+void S_StartLocalSoundOnce(const char *s);
 
 void S_FreeAllSounds(void);
 void S_StopAllSounds(void);
@@ -45,7 +45,16 @@ void S_BeginRegistration(void);
 qhandle_t S_RegisterSound(const char *sample);
 void S_EndRegistration(void);
 
-void S_RawSamples(int samples, int rate, int width,
+void OGG_Play(void);
+void OGG_Stop(void);
+void OGG_Update(void);
+void OGG_LoadTrackList(void);
+void OGG_Init(void);
+void OGG_Shutdown(void);
+void OGG_RecoverState(void);
+void OGG_SaveState(void);
+
+bool S_RawSamples(int samples, int rate, int width,
 		int channels, byte *data, float volume);
 
 void S_UnqueueRawSamples(void);
@@ -64,11 +73,11 @@ typedef enum {
 
 extern sndstarted_t s_started;
 
-extern  vec3_t  listener_origin;
-extern  vec3_t  listener_forward;
-extern  vec3_t  listener_right;
-extern  vec3_t  listener_up;
-extern  int     listener_entnum;
+extern vec3_t   listener_origin;
+extern vec3_t   listener_forward;
+extern vec3_t   listener_right;
+extern vec3_t   listener_up;
+extern int      listener_entnum;
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
