@@ -13,6 +13,16 @@ set( CMAKE_CXX_EXTENSIONS OFF )
 
 
 #
+#	BaseQ2 SharedGame
+#
+SET(SRC_BASEQ2_SHAREDGAME
+	#nothing yet.
+)
+SET(HEADERS_BASEQ2_SHAREDGAME
+	baseq2/sharedgame/gtime.h
+)
+
+#
 #	BaseQ2 ServerGame
 #
 SET(SRC_BASEQ2_SVGAME
@@ -117,6 +127,7 @@ SET(SRC_CLIENT
 	client/ascii.cpp
 	client/console.cpp
 	client/cin.cpp
+	client/clgame.cpp
 	client/crc.cpp
 	client/demo.cpp
 	client/download.cpp
@@ -455,8 +466,8 @@ if(NOT MSVC)
     # CCompilerFlagString(WARN_MISSING_PROTOTYPES "-Wmissing-prototypes")
 endif()
 
-ADD_LIBRARY(baseq2_svgame SHARED ${SRC_BASEQ2_SVGAME} ${HEADERS_BASEQ2_SVGAME} ${SRC_SHARED})
-ADD_LIBRARY(baseq2_clgame SHARED ${SRC_BASEQ2_CLGAME} ${HEADERS_BASEQ2_CLGAME} ${SRC_SHARED})
+ADD_LIBRARY(baseq2_svgame SHARED ${SRC_BASEQ2_SVGAME} ${HEADERS_BASEQ2_SVGAME} ${HEADERS_BASEQ2_SHAREDGAME} ${SRC_SHARED})
+ADD_LIBRARY(baseq2_clgame SHARED ${SRC_BASEQ2_CLGAME} ${HEADERS_BASEQ2_CLGAME} ${HEADERS_BASEQ2_SHAREDGAME} ${SRC_SHARED})
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # Workaround for GCC 10 linking shared libgcc by default
     target_link_options(baseq2_clgame PRIVATE "-static-libgcc")

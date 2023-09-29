@@ -1,3 +1,10 @@
+/********************************************************************
+*
+*
+*	ClientGame: Handles the module's GetGameAPI entry point.
+*
+*
+********************************************************************/
 #include "clg_local.h"
 
 //game_locals_t   game;
@@ -6,37 +13,86 @@ clgame_import_t	gi;
 clgame_export_t	globals;
 //spawn_temp_t    st;
 
-// Times.
-//gtime_t FRAME_TIME_S;
-//gtime_t FRAME_TIME_MS;
+/**
+*	Times.
+**/
+//! Frame time in Seconds.
+gtime_t FRAME_TIME_S;
+//! Frame time in Miliseconds.
+gtime_t FRAME_TIME_MS;
 
-// Mersenne Twister random number generator.
-//std::mt19937 mt_rand;
-//
-//int sm_meat_index;
-//int snd_fry;
-//int meansOfDeath;
-//
-//edict_t *g_edicts;
-//
+
+/**
+*	Random Number Generator.
+**/
+//! Mersenne Twister random number generator.
+std::mt19937 mt_rand;
+
 //cvar_t *deathmatch;
 //cvar_t *coop;
 //cvar_t *dmflags;
 //cvar_t *skill;
-//cvar_t *fraglimit;
-//cvar_t *timelimit;
-//cvar_t *password;
-//cvar_t *spectator_password;
-//cvar_t *needpass;
-//cvar_t *maxclients;
-//cvar_t *maxspectators;
-//cvar_t *maxentities;
-//cvar_t *g_select_empty;
-//cvar_t *dedicated;
-//cvar_t *nomonsters;
-//cvar_t *aimfix;
+
+/**
+*	@brief	This will be called when the dll is first loaded, which
+*			only happens when a new game is started or a save game
+*			is loaded from the main menu without having a game running
+*			in the background.
+**/
+void ShutdownGame( void ) {
+	gi.dprintf( "==== Shutdown ClientGame ====\n" );
+
+	// Uncomment after we actually allocate anything using this.
+	//gi.FreeTags( TAG_CLGAME_LEVEL );
+	//gi.FreeTags( TAG_CLGAME );
+}
+
+/**
+*	@brief	This will be called when the dll is first loaded, which
+*			only happens when a new game is started or a save game
+*			is loaded from the main menu without having a game running
+*			in the background.
+**/
+void InitGame( void ) {
+	gi.dprintf( "==== Init ClientGame ====\n" );
+
+	// C Random time initializing.
+	Q_srand( time( NULL ) );
+
+	// seed RNG
+	mt_rand.seed( (uint32_t)std::chrono::system_clock::now( ).time_since_epoch( ).count( ) );
+}
 
 
+
+/**
+*	@brief	Returns a pointer to the structure with all entry points
+*			and global variables
+**/
+extern "C" { // WID: C++20: extern "C".
+	q_exported clgame_export_t *GetGameAPI( clgame_import_t *import ) {
+		gi = *import;
+
+		// From Q2RE:
+		FRAME_TIME_S = FRAME_TIME_MS = gtime_t::from_ms( gi.frame_time_ms );
+
+		globals.apiversion = CLGAME_API_VERSION;
+		globals.Init = InitGame;
+		globals.Shutdown = ShutdownGame;
+
+		return &globals;
+	}
+}; // WID: C++20: extern "C".
+
+
+
+/**
+* 
+* 
+*	For 'Hard Linking'.
+* 
+* 
+**/
 #ifndef CLGAME_HARD_LINKED
 // this is only here so the functions in q_shared.c can link
 void Com_LPrintf( print_type_t type, const char *fmt, ... ) {

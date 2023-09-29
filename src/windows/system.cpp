@@ -51,7 +51,7 @@ static LARGE_INTEGER            timer_freq;
 cvar_t  *sys_basedir;
 cvar_t  *sys_libdir;
 cvar_t  *sys_homedir;
-cvar_t  *sys_forcegamelib;
+cvar_t  *sys_forcesvgamelib;
 
 // Enable Windows visual styles for message boxes
 #pragma comment(linker,"\"/manifestdependency:type='win32' \
@@ -1107,7 +1107,7 @@ void Sys_Init(void)
     // specifies per-user writable directory for demos, screenshots, etc
     sys_homedir = Cvar_Get("homedir", "", CVAR_NOSET);
 
-    sys_forcegamelib = Cvar_Get("sys_forcegamelib", "", CVAR_NOSET);
+    sys_forcesvgamelib = Cvar_Get("sys_forcesvgamelib", "", CVAR_NOSET);
 
 #if USE_WINSVC
     Cmd_AddCommand("installservice", Sys_InstallService_f);

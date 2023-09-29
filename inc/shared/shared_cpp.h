@@ -13,13 +13,19 @@
 *
 ********************************************************************/
 #include <type_traits>
+#include <algorithm>
 #include <array>
+#include <functional>
 #include <map>
+#include <numeric>
 #include <unordered_map>
 #include <set>
 #include <unordered_set>
+#include <random>
+#include <string_view>
 #include <vector>
 #include <chrono>
+
 
 /****
 *

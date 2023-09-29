@@ -87,7 +87,7 @@ void Sys_QueueAsyncWork(asyncwork_t *work);
 extern cvar_t   *sys_basedir;
 extern cvar_t   *sys_libdir;
 extern cvar_t   *sys_homedir;
-extern cvar_t   *sys_forcegamelib;
+extern cvar_t   *sys_forcesvgamelib;
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

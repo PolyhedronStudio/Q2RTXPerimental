@@ -388,7 +388,7 @@ static char *ED_NewString(const char *string)
     l = strlen(string) + 1;
 
 	// WID: C++20: Addec cast.
-    newb = (char*)gi.TagMalloc(l, TAG_LEVEL);
+    newb = (char*)gi.TagMalloc(l, TAG_SVGAME_LEVEL);
 
     new_p = newb;
 
@@ -590,7 +590,7 @@ void SpawnEntities(const char *mapname, const char *entities, const char *spawnp
 
     SaveClientData();
 
-    gi.FreeTags(TAG_LEVEL);
+    gi.FreeTags(TAG_SVGAME_LEVEL);
 
     memset(&level, 0, sizeof(level));
     memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));

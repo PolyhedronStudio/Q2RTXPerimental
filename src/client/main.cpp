@@ -3360,6 +3360,9 @@ void CL_Init(void)
     // start with full screen console
     cls.key_dest = KEY_CONSOLE;
 
+	// WID: Initialize CLGame.
+	CL_GM_InitProgs( );
+
     CL_InitRefresh();
     S_Init();   // sound must be initialized after window is created
 
@@ -3409,6 +3412,8 @@ void CL_Shutdown(void)
     if (!cl_running || !cl_running->integer) {
         return;
     }
+	// Shutdown the RMLUI
+	CL_GM_Shutdown( );
 
     CL_GTV_Shutdown();
 

@@ -750,9 +750,9 @@ static GameEntryFunctionPointer *_SV_LoadGameLibrary(const char *path)
 
     entry = Sys_LoadLibrary(path, "GetGameAPI", &game_library);
     if (!entry)
-        Com_EPrintf("Failed to load game library: %s\n", Com_GetLastError());
+        Com_EPrintf("Failed to load ServerGame library: %s\n", Com_GetLastError());
     else
-        Com_Printf("Loaded game library from %s\n", path);
+        Com_Printf("Loaded ServerGame library from %s\n", path);
 
     return static_cast<GameEntryFunctionPointer*>( entry );
 }
@@ -764,7 +764,7 @@ static GameEntryFunctionPointer *SV_LoadGameLibrary(const char *game, const char
     if (Q_concat(path, sizeof(path), sys_libdir->string,
                  PATH_SEP_STRING, game, PATH_SEP_STRING,
                  prefix, "svgame" CPUSTRING LIBSUFFIX) >= sizeof(path)) {
-        Com_EPrintf("Game library path length exceeded\n");
+        Com_EPrintf("ServerGame library path length exceeded\n");
         return NULL;
     }
 
@@ -794,8 +794,8 @@ void SV_InitGameProgs(void)
     SV_ShutdownGameProgs();
 
     // for debugging or `proxy' mods
-    if (sys_forcegamelib->string[0])
-        entry = _SV_LoadGameLibrary(sys_forcegamelib->string); // WID: C++20: Added cast.
+    if (sys_forcesvgamelib->string[0])
+        entry = _SV_LoadGameLibrary(sys_forcesvgamelib->string); // WID: C++20: Added cast.
 
     // try game first
     if (!entry && fs_game->string[0]) {
@@ -877,11 +877,11 @@ void SV_InitGameProgs(void)
 
     ge = entry(&import);
     if (!ge) {
-        Com_Error(ERR_DROP, "Game library returned NULL exports");
+        Com_Error(ERR_DROP, "ServerGame library returned NULL exports");
     }
 
     if (ge->apiversion != SVGAME_API_VERSION) {
-        Com_Error(ERR_DROP, "Game library is version %d, expected %d",
+        Com_Error(ERR_DROP, "ServerGame library is version %d, expected %d",
                   ge->apiversion, SVGAME_API_VERSION);
     }
 
@@ -890,12 +890,12 @@ void SV_InitGameProgs(void)
 
     // sanitize edict_size
     if (ge->edict_size < sizeof(edict_t) || ge->edict_size > (unsigned)INT_MAX / MAX_EDICTS) {
-        Com_Error(ERR_DROP, "Game library returned bad size of edict_t");
+        Com_Error(ERR_DROP, "ServerGame library returned bad size of edict_t");
     }
 
     // sanitize max_edicts
     if (ge->max_edicts <= sv_maxclients->integer || ge->max_edicts > MAX_EDICTS) {
-        Com_Error(ERR_DROP, "Game library returned bad number of max_edicts");
+        Com_Error(ERR_DROP, "ServerGame library returned bad number of max_edicts");
     }
 }
 

@@ -53,7 +53,7 @@ static char baseDirectory[PATH_MAX];
 cvar_t  *sys_basedir;
 cvar_t  *sys_libdir;
 cvar_t  *sys_homedir;
-cvar_t  *sys_forcegamelib;
+cvar_t  *sys_forcesvgamelib;
 
 static bool terminate;
 static bool flush_logs;
@@ -372,7 +372,7 @@ void Sys_Init(void)
     }
     sys_homedir = Cvar_Get("homedir", homegamedir, CVAR_NOSET);
     sys_libdir = Cvar_Get("libdir", baseDirectory, CVAR_NOSET);
-    sys_forcegamelib = Cvar_Get("sys_forcegamelib", "", CVAR_NOSET);
+    sys_forcesvgamelib = Cvar_Get("sys_forcesvgamelib", "", CVAR_NOSET);
 
     if (tty_init_input()) {
         signal(SIGHUP, term_handler);

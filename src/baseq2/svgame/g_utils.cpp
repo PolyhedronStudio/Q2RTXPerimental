@@ -341,7 +341,7 @@ char *G_CopyString(char *in)
     char    *out;
 
 	// WID: C++20: Addec cast.
-    out = (char*)gi.TagMalloc(strlen(in) + 1, TAG_LEVEL);
+    out = (char*)gi.TagMalloc(strlen(in) + 1, TAG_SVGAME_LEVEL);
     strcpy(out, in);
     return out;
 }

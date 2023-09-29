@@ -607,6 +607,14 @@ extern vec3_t     cl_testmodel_position;
 //=============================================================================
 
 //
+// clgame.cpp
+// 
+extern clgame_export_t *clge;
+
+void CL_GM_InitProgs( );
+void CL_GM_Shutdown( );
+
+//
 // main.c
 //
 

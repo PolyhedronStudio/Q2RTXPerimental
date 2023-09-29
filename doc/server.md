@@ -491,7 +491,7 @@ it crashes, like restoring terminal settings.  However, this will prevent
 core dump from being generated. To enable core dumps, set this variable to
 0.
 
-#### `sys_forcegamelib`
+#### `sys_forcesvgamelib`
 Specifies the full path to the game library server should attempt to load
 first, before normal search paths are tried. Useful mainly for debugging or
 mod development.  Default value is empty (use normal search paths).
@@ -876,7 +876,7 @@ it used to be you know where to look. The following list may be incomplete.
 
 - On Windows, `./release/gamex86.dll` path will not be tried by default when
   loading the game DLL.  If you need this for loading some sort of a game mod
-  proxy, use `sys_forcegamelib` variable.
+  proxy, use `sys_forcesvgamelib` variable.
 
 - Q2PRO works only with virtual paths constrained to the quake file system.
   All paths are normalized before use so that it is impossible to go past virtual

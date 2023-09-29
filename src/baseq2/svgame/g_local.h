@@ -26,25 +26,31 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define SVGAME_INCLUDE
 #include "shared/svgame.h"
 
-// Extern here right after including shared/game.h
-extern  svgame_import_t   gi;
-extern  svgame_export_t   globals;
+// Extern here right after including shared/svgame.h
+extern svgame_import_t gi;
+extern svgame_export_t globals;
 
-//==================================================================
-// Q2RE: Time
-//==================================================================
+
+
+/******************************************************************
+*	Q2RE: Time
+*******************************************************************/
 // gtime type.
-#include "gtime.h"
+#include "../sharedgame/gtime.h"
 
 // extern times.
 extern gtime_t FRAME_TIME_S;
 extern gtime_t FRAME_TIME_MS;
 
-// Undef max 
+// For backwards compatibilities.
+#define FRAMETIME       BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
+
+// TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
 #undef max
 
 // Just to, hold time, forever.
 constexpr gtime_t HOLD_FOREVER = gtime_t::from_ms( std::numeric_limits<int64_t>::max( ) );
+
 //==================================================================
 // 
 //==================================================================
@@ -67,7 +73,6 @@ constexpr gtime_t HOLD_FOREVER = gtime_t::from_ms( std::numeric_limits<int64_t>:
 //==================================================================
 // Q2RE: Random Number Utilities
 //==================================================================
-#include <random>
 extern std::mt19937 mt_rand;
 
 // uniform float [0, 1)
@@ -195,11 +200,12 @@ inline gtime_t FALL_TIME( ) {
 #define FL_RESPAWN              0x80000000  // used for item respawning
 
 
-#define FRAMETIME       BASE_FRAMETIME_1000 // NEW 40hz so, 0.025f	OLD: 0.1f
 
-// memory tags to allow dynamic memory to be cleaned up
-#define TAG_GAME    765     // clear when unloading the dll
-#define TAG_LEVEL   766     // clear when loading a new level
+/**
+*	Memory tag IDs to allow dynamic memory to be cleaned up.
+**/
+#define TAG_SVGAME			765 // Clear when unloading the dll.
+#define TAG_SVGAME_LEVEL	766 // Clear when loading a new level.
 
 
 #define MELEE_DISTANCE  80

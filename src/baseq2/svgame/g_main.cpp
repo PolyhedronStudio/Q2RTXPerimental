@@ -18,19 +18,36 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "g_local.h"
 
+
+/**
+*	General used Game Objects.
+**/
 game_locals_t   game;
 level_locals_t  level;
 svgame_import_t	gi;
 svgame_export_t	globals;
 spawn_temp_t    st;
 
-// Times.
+
+/**
+*	Times.
+**/
+//! Frame time in Seconds.
 gtime_t FRAME_TIME_S;
+//! Frame time in Miliseconds.
 gtime_t FRAME_TIME_MS;
 
-// Mersenne Twister random number generator.
+
+/**
+*	Random Number Generator.
+**/
+//! Mersenne Twister random number generator.
 std::mt19937 mt_rand;
 
+
+/**
+*	Cached indexes and global meansOfDeath var.
+**/
 int sm_meat_index;
 int snd_fry;
 int meansOfDeath;
@@ -101,28 +118,32 @@ void G_RunFrame(void);
 
 //===================================================================
 
-
+/**
+*	@brief	This will be called when the dll is first loaded, which
+*			only happens when a new game is started or a save game
+*			is loaded from the main menu without having a game running
+*			in the background.
+**/
 void ShutdownGame(void)
 {
-    gi.dprintf("==== ShutdownGame ====\n");
+    gi.dprintf("==== Shutdown ServerGame ====\n");
 
-    gi.FreeTags(TAG_LEVEL);
-    gi.FreeTags(TAG_GAME);
+    gi.FreeTags(TAG_SVGAME_LEVEL);
+    gi.FreeTags(TAG_SVGAME);
 }
 
-/*
-============
-InitGame
-
-This will be called when the dll is first loaded, which
-only happens when a new game is started or a save game
-is loaded.
-============
-*/
+/**
+*	@brief	This will be called when the dll is first loaded, which
+*			only happens when a new game is started or a save game
+*			is loaded from the main menu without having a game running
+*			in the background.
+**/
 void InitGame(void)
 {
-    gi.dprintf("==== InitGame ====\n");
+	// Notify 
+    gi.dprintf("==== Init ServerGame ====\n");
 
+	// C Random time initializing.
     Q_srand(time(NULL));
 	
 	// seed RNG
@@ -204,28 +225,24 @@ void InitGame(void)
     game.maxentities = maxentities->value;
     clamp(game.maxentities, (int)maxclients->value + 1, MAX_EDICTS);
 	// WID: C++20: Addec cast.
-    g_edicts = (edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_GAME);
+    g_edicts = (edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
     globals.edicts = g_edicts;
     globals.max_edicts = game.maxentities;
 
     // initialize all clients for this game
     game.maxclients = maxclients->value;
 	// WID: C++20: Addec cast.
-    game.clients = (gclient_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_GAME);
+    game.clients = (gclient_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
     globals.num_edicts = game.maxclients + 1;
 }
 
 
-/*
-=================
-GetGameAPI
-
-Returns a pointer to the structure with all entry points
-and global variables
-=================
-*/
+/**
+*	@brief	Returns a pointer to the structure with all entry points
+*			and global variables
+**/
 extern "C" { // WID: C++20: extern "C".
-	q_exported svgame_export_t * GetGameAPI( svgame_import_t * import ) {
+	q_exported svgame_export_t *GetGameAPI( svgame_import_t *import ) {
 		gi = *import;
 
 		// From Q2RE:
@@ -258,6 +275,15 @@ extern "C" { // WID: C++20: extern "C".
 	}
 }; // WID: C++20: extern "C".
 
+
+
+/**
+*
+*
+*	For 'Hard Linking'.
+*
+*
+**/
 #ifndef SVGAME_HARD_LINKED
 // this is only here so the functions in q_shared.c can link
 void Com_LPrintf(print_type_t type, const char *fmt, ...)

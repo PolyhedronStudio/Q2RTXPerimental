@@ -685,7 +685,7 @@ static char *read_string(FILE *f)
     }
 
 	// WID: C++20: Added cast.
-    s = (char*)gi.TagMalloc(len + 1, TAG_LEVEL);
+    s = (char*)gi.TagMalloc(len + 1, TAG_SVGAME_LEVEL);
     read_data(s, len, f);
     s[len] = 0;
 
@@ -903,7 +903,7 @@ void ReadGame(const char *filename)
 	FILE    *f;
     int     i;
 
-    gi.FreeTags(TAG_GAME);
+    gi.FreeTags(TAG_SVGAME);
 
     f = fopen(filename, "rb");
     if (!f)
@@ -937,12 +937,12 @@ void ReadGame(const char *filename)
     }
 
 	// WID: C++20: Added cast.
-    g_edicts = (edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_GAME);
+    g_edicts = (edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
     globals.edicts = g_edicts;
     globals.max_edicts = game.maxentities;
 	
 	// WID: C++20: Added cast.
-    game.clients = (gclient_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_GAME);
+    game.clients = (gclient_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
     for (i = 0; i < game.maxclients; i++) {
         read_fields(&ctx, clientfields, &game.clients[i]);
     }
@@ -1015,7 +1015,7 @@ void ReadLevel(const char *filename)
 
     // free any dynamic memory allocated by loading the level
     // base state
-    gi.FreeTags(TAG_LEVEL);
+    gi.FreeTags(TAG_SVGAME_LEVEL);
 
     f = fopen(filename, "rb");
     if (!f)
@@ -1089,7 +1089,7 @@ void ReadLevel(const char *filename)
         if (ent->think == func_clock_think || ent->use == func_clock_use) {
             char *msg = ent->message;
 			// WID: C++20: Added cast.
-            ent->message = (char*)gi.TagMalloc(CLOCK_MESSAGE_SIZE, TAG_LEVEL);
+            ent->message = (char*)gi.TagMalloc(CLOCK_MESSAGE_SIZE, TAG_SVGAME_LEVEL);
             if (msg) {
                 Q_strlcpy(ent->message, msg, CLOCK_MESSAGE_SIZE);
                 gi.TagFree(msg);

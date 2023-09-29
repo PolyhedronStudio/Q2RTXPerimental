@@ -1697,7 +1697,7 @@ void SP_func_clock(edict_t *self)
     func_clock_reset(self);
 
 	// WID: C++20: Addec cast.
-    self->message = (char*)gi.TagMalloc(CLOCK_MESSAGE_SIZE, TAG_LEVEL);
+    self->message = (char*)gi.TagMalloc(CLOCK_MESSAGE_SIZE, TAG_SVGAME_LEVEL);
 
     self->think = func_clock_think;
 
