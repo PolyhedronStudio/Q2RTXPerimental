@@ -40,7 +40,7 @@ std::mt19937 mt_rand;
 *			in the background.
 **/
 void ShutdownGame( void ) {
-	gi.dprintf( "==== Shutdown ClientGame ====\n" );
+	gi.Print( print_type_t::PRINT_ALL, "==== Shutdown ClientGame ====\n" );
 
 	// Uncomment after we actually allocate anything using this.
 	//gi.FreeTags( TAG_CLGAME_LEVEL );
@@ -54,7 +54,7 @@ void ShutdownGame( void ) {
 *			in the background.
 **/
 void InitGame( void ) {
-	gi.dprintf( "==== Init ClientGame ====\n" );
+	gi.Print( print_type_t::PRINT_ALL, "==== Init ClientGame ====\n" );
 
 	// C Random time initializing.
 	Q_srand( time( NULL ) );
@@ -78,6 +78,14 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.apiversion = CLGAME_API_VERSION;
 		globals.Init = InitGame;
+
+		// Net
+
+		// Tag Alloc
+
+		// CVar
+
+
 		globals.Shutdown = ShutdownGame;
 
 		return &globals;
@@ -107,7 +115,7 @@ void Com_LPrintf( print_type_t type, const char *fmt, ... ) {
 	Q_vsnprintf( text, sizeof( text ), fmt, argptr );
 	va_end( argptr );
 
-	gi.dprintf( "%s", text );
+	gi.Print( print_type_t::PRINT_ALL, "%s", text );
 }
 
 void Com_Error( error_type_t type, const char *fmt, ... ) {
@@ -118,6 +126,6 @@ void Com_Error( error_type_t type, const char *fmt, ... ) {
 	Q_vsnprintf( text, sizeof( text ), fmt, argptr );
 	va_end( argptr );
 
-	gi.error( "%s", text );
+	gi.Error( "%s", text );
 }
 #endif

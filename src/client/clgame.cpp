@@ -2,11 +2,33 @@
 
 extern "C" {
 
+/**
+*
+*
+*	Prog Functions
+*
+*
+**/
+/**
+*	CVar:
+**/
+static cvar_t *PF_CVar( const char *name, const char *value, int flags ) {
+	if ( flags & CVAR_EXTENDED_MASK ) {
+		Com_WPrintf( "ServerGame attemped to set extended flags on '%s', masked out.\n", name );
+		flags &= ~CVAR_EXTENDED_MASK;
+	}
+
+	return Cvar_Get( name, value, flags | CVAR_GAME );
+}
+
 
 /**
-*	@brief	Debug print to server console.
+*	Printing:
 **/
-static void PF_dprintf( const char *fmt, ... ) {
+/**
+*	@brief	Client Side Printf
+**/
+static void PF_Print( print_type_t printType, const char *fmt, ... ) {
 	char        msg[ MAXPRINTMSG ];
 	va_list     argptr;
 
@@ -14,10 +36,55 @@ static void PF_dprintf( const char *fmt, ... ) {
 	Q_vsnprintf( msg, sizeof( msg ), fmt, argptr );
 	va_end( argptr );
 
-	Com_Printf( "%s", msg );
+	Com_LPrintf( printType, "%s", msg );
+}
+
+/**
+*	@brief	Abort the client/(server too in case we're local.) with a game error
+**/
+static q_noreturn void PF_Error( const char *fmt, ... ) {
+	char        msg[ MAXERRORMSG ];
+	va_list     argptr;
+
+	va_start( argptr, fmt );
+	Q_vsnprintf( msg, sizeof( msg ), fmt, argptr );
+	va_end( argptr );
+
+	Com_Error( ERR_DROP, "ServerGame Error: %s", msg );
 }
 
 
+/**
+*	'Tag' Managed memory allocation:
+**/
+/**
+*	@brief	Malloc tag.
+**/
+static void *PF_TagMalloc( unsigned size, unsigned tag ) {
+	Q_assert( tag + TAG_MAX > tag );
+	if ( !size ) {
+		return NULL;
+	}
+	return memset( Z_TagMalloc( size, static_cast<memtag_t>( tag + TAG_MAX ) ), 0, size ); // WID: C++20: Added cast.
+}
+
+/**
+*	@brief	Free all 'tags'.
+**/
+static void PF_FreeTags( unsigned tag ) {
+	Q_assert( tag + TAG_MAX > tag );
+	Z_FreeTags( static_cast<memtag_t>( tag + TAG_MAX ) ); // WID: C++20: Added cast.
+}
+
+
+
+/**
+*
+*
+*	Library Loading
+*
+*
+**/
 // Stores actual game library.
 static void *game_library;
 
@@ -87,7 +154,7 @@ Init the game subsystem for a new map
 */
 void CL_GM_InitProgs( void ) {
 
-	clgame_import_t   import;
+	clgame_import_t   imports;
 	GameEntryFunctionPointer *entry = NULL;
 
 	// unload anything we have now
@@ -116,13 +183,22 @@ void CL_GM_InitProgs( void ) {
 		Com_Error( ERR_DROP, "Failed to load game library" );
 
 	// Setup import frametime related values so the GameDLL knows about it.
-	import.tick_rate = BASE_FRAMERATE;
-	import.frame_time_s = BASE_FRAMETIME_1000;
-	import.frame_time_ms = BASE_FRAMETIME;
+	imports.tick_rate = BASE_FRAMERATE;
+	imports.frame_time_s = BASE_FRAMETIME_1000;
+	imports.frame_time_ms = BASE_FRAMETIME;
 
-	import.dprintf = PF_dprintf;
+	imports.CVar = PF_CVar;
+	imports.CVar_Set = Cvar_UserSet;
+	imports.CVar_ForceSet = Cvar_Set;
 
-	clge = entry( &import );
+	imports.Print = PF_Print;
+	imports.Error = PF_Error;
+
+	imports.TagMalloc = PF_TagMalloc;
+	imports.TagFree = Z_Free;
+	imports.FreeTags = PF_FreeTags;
+
+	clge = entry( &imports );
 
 	if ( !clge ) {
 		Com_Error( ERR_DROP, "ClientGame library returned NULL exports" );
