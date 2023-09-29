@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "server.h"
 extern "C" {
 
-game_export_t    *ge;
+svgame_export_t    *ge;
 
 static void PF_configstring(int index, const char *val);
 
@@ -722,7 +722,7 @@ static void PF_DebugGraph(float value, int color)
 static void *game_library;
 
 // WID: C++20: Typedef this for casting
-typedef game_export_t*(GameEntryFunctionPointer(game_import_t*));
+typedef svgame_export_t*(GameEntryFunctionPointer(svgame_import_t*));
 /*
 ===============
 SV_ShutdownGameProgs
@@ -763,7 +763,7 @@ static GameEntryFunctionPointer *SV_LoadGameLibrary(const char *game, const char
 
     if (Q_concat(path, sizeof(path), sys_libdir->string,
                  PATH_SEP_STRING, game, PATH_SEP_STRING,
-                 prefix, "game" CPUSTRING LIBSUFFIX) >= sizeof(path)) {
+                 prefix, "svgame" CPUSTRING LIBSUFFIX) >= sizeof(path)) {
         Com_EPrintf("Game library path length exceeded\n");
         return NULL;
     }
@@ -787,7 +787,7 @@ Init the game subsystem for a new map
 void SV_InitGameProgs(void)
 {
 	
-    game_import_t   import;
+    svgame_import_t   import;
 	GameEntryFunctionPointer *entry = NULL;
 
     // unload anything we have now
@@ -880,9 +880,9 @@ void SV_InitGameProgs(void)
         Com_Error(ERR_DROP, "Game library returned NULL exports");
     }
 
-    if (ge->apiversion != GAME_API_VERSION) {
+    if (ge->apiversion != SVGAME_API_VERSION) {
         Com_Error(ERR_DROP, "Game library is version %d, expected %d",
-                  ge->apiversion, GAME_API_VERSION);
+                  ge->apiversion, SVGAME_API_VERSION);
     }
 
     // initialize

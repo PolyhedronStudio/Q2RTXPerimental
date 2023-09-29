@@ -20,8 +20,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 game_locals_t   game;
 level_locals_t  level;
-game_import_t   gi;
-game_export_t   globals;
+svgame_import_t	gi;
+svgame_export_t	globals;
 spawn_temp_t    st;
 
 // Times.
@@ -225,13 +225,13 @@ and global variables
 =================
 */
 extern "C" { // WID: C++20: extern "C".
-	q_exported game_export_t * GetGameAPI( game_import_t * import ) {
+	q_exported svgame_export_t * GetGameAPI( svgame_import_t * import ) {
 		gi = *import;
 
 		// From Q2RE:
 		FRAME_TIME_S = FRAME_TIME_MS = gtime_t::from_ms( gi.frame_time_ms );
 
-		globals.apiversion = GAME_API_VERSION;
+		globals.apiversion = SVGAME_API_VERSION;
 		globals.Init = InitGame;
 		globals.Shutdown = ShutdownGame;
 		globals.SpawnEntities = SpawnEntities;
@@ -258,7 +258,7 @@ extern "C" { // WID: C++20: extern "C".
 	}
 }; // WID: C++20: extern "C".
 
-#ifndef GAME_HARD_LINKED
+#ifndef SVGAME_HARD_LINKED
 // this is only here so the functions in q_shared.c can link
 void Com_LPrintf(print_type_t type, const char *fmt, ...)
 {

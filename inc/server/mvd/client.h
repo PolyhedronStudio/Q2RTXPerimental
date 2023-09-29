@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
-extern game_export_t    mvd_ge;
+extern svgame_export_t    mvd_ge;
 
 extern list_t mvd_gtv_list;
 

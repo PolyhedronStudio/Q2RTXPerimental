@@ -1378,7 +1378,7 @@ typedef struct entity_state_s {
 
 
 // player_state_t is the information needed in addition to pmove_state_t
-// to rendered a view.  There will only be 10 player_state_t sent each second,
+// to rendered a view.  There will only be 40(since we're running 40hz) player_state_t sent each second,
 // but the number of pmove_state_t changes will be reletive to client
 // frame rates
 typedef struct {

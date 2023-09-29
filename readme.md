@@ -13,6 +13,7 @@ Features currently done:
 	- AI now has the option to run at 40hz when the AI_HIGH_TICK_RATE flag is set.
   - BSP maps compiled with texinfos such as: textures/test/01.tga now will load with their proper dimensions, meaning one does not need low-res .wal textures to substitute for that.
   - Uses protocol #34(still needs a custom protocol number) by default, having already layed out the path to allocating a **Q2RTXPerimental** NetChan to work from later on.
+	- BoundingBoxes can now be up to size like Q2RE/Q3.
 
 Features certain to be implemented:
   - GameRules, this rids us of random cvar checks and gives us a centralized class to inquire for gamemode related aspects.

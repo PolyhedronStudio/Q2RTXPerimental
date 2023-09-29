@@ -16,8 +16,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef GAME_H
-#define GAME_H
+#ifndef SVGAME_H
+#define SVGAME_H
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
@@ -28,10 +28,10 @@ extern "C" {
 #include "shared/list.h"
 
 //
-// game.h -- game dll information visible to server
+// svgame.h -- server game dll information visible to server
 //
 
-#define GAME_API_VERSION    3
+#define SVGAME_API_VERSION    3
 
 // edict->svflags
 
@@ -69,7 +69,7 @@ typedef struct edict_s edict_t;
 typedef struct gclient_s gclient_t;
 
 
-#ifndef GAME_INCLUDE
+#ifndef SVGAME_INCLUDE
 
 struct gclient_s {
     player_state_t  ps;     // communicated by server to clients
@@ -108,7 +108,7 @@ struct edict_s {
     // this point in the structure
 };
 
-#endif      // GAME_INCLUDE
+#endif      // SVGAME_INCLUDE
 
 //===============================================================
 
@@ -193,7 +193,7 @@ typedef struct {
     void (*AddCommandString)(const char *text);
 
     void (*DebugGraph)(float value, int color);
-} game_import_t;
+} svgame_import_t;
 
 //
 // functions exported by the game subsystem
@@ -249,7 +249,7 @@ typedef struct {
     int         edict_size;
     int         num_edicts;     // current number, <= max_edicts
     int         max_edicts;
-} game_export_t;
+} svgame_export_t;
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
@@ -257,4 +257,4 @@ typedef struct {
 };
 #endif
 
-#endif // GAME_H
+#endif // SVGAME_H

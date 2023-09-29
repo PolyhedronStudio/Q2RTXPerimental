@@ -12,89 +12,107 @@ set( CMAKE_CXX_STANDARD_REQUIRED ON )
 set( CMAKE_CXX_EXTENSIONS OFF )
 
 
-SET(SRC_BASEQ2
-	baseq2/g_ai.cpp
-	baseq2/g_chase.cpp
-	baseq2/g_cmds.cpp
-	baseq2/g_combat.cpp
-	baseq2/g_func.cpp
-	baseq2/g_items.cpp
-	baseq2/g_main.cpp
-	baseq2/g_misc.cpp
-	baseq2/g_monster.cpp
-	baseq2/g_phys.cpp
-	baseq2/g_ptrs.cpp
-	#baseq2/g_ptrs_compat_v2.cpp
-	baseq2/g_save.cpp
-	baseq2/g_spawn.cpp
-	baseq2/g_svcmds.cpp
-	baseq2/g_target.cpp
-	baseq2/g_trigger.cpp
-	baseq2/g_turret.cpp
-	baseq2/g_utils.cpp
-	baseq2/g_weapon.cpp
-	baseq2/m_actor.cpp
-	baseq2/m_berserk.cpp
-	baseq2/m_boss2.cpp
-	baseq2/m_boss3.cpp
-	baseq2/m_boss31.cpp
-	baseq2/m_boss32.cpp
-	baseq2/m_brain.cpp
-	baseq2/m_chick.cpp
-	baseq2/m_flipper.cpp
-	baseq2/m_float.cpp
-	baseq2/m_flyer.cpp
-	baseq2/m_gladiator.cpp
-	baseq2/m_gunner.cpp
-	baseq2/m_hover.cpp
-	baseq2/m_infantry.cpp
-	baseq2/m_insane.cpp
-	baseq2/m_medic.cpp
-	baseq2/m_move.cpp
-	baseq2/m_mutant.cpp
-	baseq2/m_parasite.cpp
-	baseq2/m_soldier.cpp
-	baseq2/m_supertank.cpp
-	baseq2/m_tank.cpp
-	baseq2/p_client.cpp
-	baseq2/p_hud.cpp
-	baseq2/p_trail.cpp
-	baseq2/p_view.cpp
-	baseq2/p_weapon.cpp
+#
+#	BaseQ2 ServerGame
+#
+SET(SRC_BASEQ2_SVGAME
+	baseq2/svgame/g_ai.cpp
+	baseq2/svgame/g_chase.cpp
+	baseq2/svgame/g_cmds.cpp
+	baseq2/svgame/g_combat.cpp
+	baseq2/svgame/g_func.cpp
+	baseq2/svgame/g_items.cpp
+	baseq2/svgame/g_main.cpp
+	baseq2/svgame/g_misc.cpp
+	baseq2/svgame/g_monster.cpp
+	baseq2/svgame/g_phys.cpp
+	baseq2/svgame/g_ptrs.cpp
+	#baseq2/svgame/g_ptrs_compat_v2.cpp
+	baseq2/svgame/g_save.cpp
+	baseq2/svgame/g_spawn.cpp
+	baseq2/svgame/g_svcmds.cpp
+	baseq2/svgame/g_target.cpp
+	baseq2/svgame/g_trigger.cpp
+	baseq2/svgame/g_turret.cpp
+	baseq2/svgame/g_utils.cpp
+	baseq2/svgame/g_weapon.cpp
+	baseq2/svgame/m_actor.cpp
+	baseq2/svgame/m_berserk.cpp
+	baseq2/svgame/m_boss2.cpp
+	baseq2/svgame/m_boss3.cpp
+	baseq2/svgame/m_boss31.cpp
+	baseq2/svgame/m_boss32.cpp
+	baseq2/svgame/m_brain.cpp
+	baseq2/svgame/m_chick.cpp
+	baseq2/svgame/m_flipper.cpp
+	baseq2/svgame/m_float.cpp
+	baseq2/svgame/m_flyer.cpp
+	baseq2/svgame/m_gladiator.cpp
+	baseq2/svgame/m_gunner.cpp
+	baseq2/svgame/m_hover.cpp
+	baseq2/svgame/m_infantry.cpp
+	baseq2/svgame/m_insane.cpp
+	baseq2/svgame/m_medic.cpp
+	baseq2/svgame/m_move.cpp
+	baseq2/svgame/m_mutant.cpp
+	baseq2/svgame/m_parasite.cpp
+	baseq2/svgame/m_soldier.cpp
+	baseq2/svgame/m_supertank.cpp
+	baseq2/svgame/m_tank.cpp
+	baseq2/svgame/p_client.cpp
+	baseq2/svgame/p_hud.cpp
+	baseq2/svgame/p_trail.cpp
+	baseq2/svgame/p_view.cpp
+	baseq2/svgame/p_weapon.cpp
 )
 
-SET(HEADERS_BASEQ2
-	baseq2/g_local.h
-	baseq2/gtime.h
+SET(HEADERS_BASEQ2_SVGAME
+	baseq2/svgame/g_local.h
+	baseq2/svgame/gtime.h
 
-	baseq2/g_save.h
+	baseq2/svgame/g_save.h
 
-	baseq2/m_actor.h
-	baseq2/m_berserk.h
-	baseq2/m_boss2.h
-	baseq2/m_boss31.h
-	baseq2/m_boss32.h
-	baseq2/m_brain.h
-	baseq2/m_chick.h
-	baseq2/m_flipper.h
-	baseq2/m_float.h
-	baseq2/m_flyer.h
-	baseq2/m_gladiator.h
-	baseq2/m_gunner.h
-	baseq2/m_hover.h
-	baseq2/m_infantry.h
-	baseq2/m_insane.h
-	baseq2/m_medic.h
-	baseq2/m_mutant.h
-	baseq2/m_parasite.h
-	baseq2/m_player.h
-	baseq2/m_rider.h
-	baseq2/m_soldier.h
-	baseq2/m_supertank.h
-	baseq2/m_tank.h
+	baseq2/svgame/m_actor.h
+	baseq2/svgame/m_berserk.h
+	baseq2/svgame/m_boss2.h
+	baseq2/svgame/m_boss31.h
+	baseq2/svgame/m_boss32.h
+	baseq2/svgame/m_brain.h
+	baseq2/svgame/m_chick.h
+	baseq2/svgame/m_flipper.h
+	baseq2/svgame/m_float.h
+	baseq2/svgame/m_flyer.h
+	baseq2/svgame/m_gladiator.h
+	baseq2/svgame/m_gunner.h
+	baseq2/svgame/m_hover.h
+	baseq2/svgame/m_infantry.h
+	baseq2/svgame/m_insane.h
+	baseq2/svgame/m_medic.h
+	baseq2/svgame/m_mutant.h
+	baseq2/svgame/m_parasite.h
+	baseq2/svgame/m_player.h
+	baseq2/svgame/m_rider.h
+	baseq2/svgame/m_soldier.h
+	baseq2/svgame/m_supertank.h
+	baseq2/svgame/m_tank.h
+)
+
+#
+#	BaseQ2 ServerGame
+#
+SET(SRC_BASEQ2_CLGAME
+	baseq2/clgame/clg_main.cpp
+)
+
+SET(HEADERS_BASEQ2_CLGAME
+	baseq2/clgame/clg_local.h
 )
 
 
+
+#
+#	Client
+#
 SET(SRC_CLIENT
 	client/ascii.cpp
 	client/console.cpp
@@ -149,11 +167,11 @@ SET(HEADERS_CLIENT
 SET(SRC_SERVER
 	server/commands.cpp
 	server/entities.cpp
-	server/game.cpp
 	server/init.cpp
 	server/main.cpp
 	server/mvd.cpp
 	server/send.cpp
+	server/svgame.cpp
 	server/user.cpp
 	server/world.cpp
 	server/mvd/client.cpp
@@ -437,10 +455,11 @@ if(NOT MSVC)
     # CCompilerFlagString(WARN_MISSING_PROTOTYPES "-Wmissing-prototypes")
 endif()
 
-ADD_LIBRARY(baseq2 SHARED ${SRC_BASEQ2} ${HEADERS_BASEQ2} ${SRC_SHARED})
+ADD_LIBRARY(baseq2_svgame SHARED ${SRC_BASEQ2_SVGAME} ${HEADERS_BASEQ2_SVGAME} ${SRC_SHARED})
+ADD_LIBRARY(baseq2_clgame SHARED ${SRC_BASEQ2_CLGAME} ${HEADERS_BASEQ2_CLGAME} ${SRC_SHARED})
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # Workaround for GCC 10 linking shared libgcc by default
-    target_link_options(baseq2 PRIVATE "-static-libgcc")
+    target_link_options(baseq2_clgame PRIVATE "-static-libgcc")
 endif()
 
 IF(WIN32)
@@ -533,8 +552,10 @@ IF (TARGET client)
 	TARGET_LINK_LIBRARIES(client OpenAL)
 ENDIF()
 
-SOURCE_GROUP("baseq2\\sources" FILES ${SRC_BASEQ2})
-SOURCE_GROUP("baseq2\\headers" FILES ${HEADERS_BASEQ2})
+SOURCE_GROUP("baseq2\\svgame\\sources" FILES ${SRC_BASEQ2_SVGAME})
+SOURCE_GROUP("baseq2\\svgame\\headers" FILES ${HEADERS_BASEQ2_SVGAME})
+SOURCE_GROUP("baseq2\\clgame\\sources" FILES ${SRC_BASEQ2_CLGAME})
+SOURCE_GROUP("baseq2\\clgame\\headers" FILES ${HEADERS_BASEQ2_CLGAME})
 SOURCE_GROUP("client\\sources" FILES ${SRC_CLIENT})
 SOURCE_GROUP("client\\headers" FILES ${HEADERS_CLIENT})
 SOURCE_GROUP("server\\sources" FILES ${SRC_SERVER})
@@ -558,8 +579,10 @@ IF (WIN32)
     ENDIF()
 
     TARGET_INCLUDE_DIRECTORIES(server PRIVATE ../VC/inc)
-    TARGET_INCLUDE_DIRECTORIES(baseq2 PRIVATE ../VC/inc)
-    TARGET_SOURCES(baseq2 PRIVATE windows/res/baseq2.rc)
+    TARGET_INCLUDE_DIRECTORIES(baseq2_svgame PRIVATE ../VC/inc)
+    TARGET_INCLUDE_DIRECTORIES(baseq2_clgame PRIVATE ../VC/inc)
+    TARGET_SOURCES(baseq2_svgame PRIVATE windows/res/baseq2_svgame.rc)
+	TARGET_SOURCES(baseq2_clgame PRIVATE windows/res/baseq2_clgame.rc)
 
     TARGET_LINK_LIBRARIES(server winmm ws2_32)
 
@@ -567,10 +590,12 @@ IF (WIN32)
 
     # macro redefinition, deprecation
     TARGET_COMPILE_OPTIONS(server PRIVATE /wd4996)#TARGET_COMPILE_OPTIONS(server PRIVATE /wd4005 /wd4996)
-    TARGET_COMPILE_OPTIONS(baseq2 PRIVATE /wd4996)#TARGET_COMPILE_OPTIONS(baseq2 PRIVATE /wd4005 /wd4996)
+    TARGET_COMPILE_OPTIONS(baseq2_svgame PRIVATE /wd4996)#TARGET_COMPILE_OPTIONS(baseq2_svgame PRIVATE /wd4005 /wd4996)
+	TARGET_COMPILE_OPTIONS(baseq2_clgame PRIVATE /wd4996)#TARGET_COMPILE_OPTIONS(baseq2_svgame PRIVATE /wd4005 /wd4996)
 ENDIF()
 
-TARGET_INCLUDE_DIRECTORIES(baseq2 PRIVATE ../inc)
+TARGET_INCLUDE_DIRECTORIES(baseq2_svgame PRIVATE ../inc)
+TARGET_INCLUDE_DIRECTORIES(baseq2_clgame PRIVATE ../inc)
 
 IF(TARGET client)
     TARGET_INCLUDE_DIRECTORIES(client PRIVATE ../inc)
@@ -628,7 +653,23 @@ ENDIF()
 
 # specify both LIBRARY and RUNTIME because one works only on Windows and another works only on Linux
 
-SET_TARGET_PROPERTIES(baseq2
+SET_TARGET_PROPERTIES(baseq2_svgame
+    PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
+    LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
+    LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
+    LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
+    PREFIX ""
+    DEBUG_POSTFIX ""
+)
+
+SET_TARGET_PROPERTIES(baseq2_clgame
     PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
     LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
@@ -646,29 +687,49 @@ SET_TARGET_PROPERTIES(baseq2
 
 IF(IS_64_BIT)
 	IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-		SET_TARGET_PROPERTIES(baseq2
+		SET_TARGET_PROPERTIES(baseq2_svgame
 			PROPERTIES
-			LIBRARY_OUTPUT_NAME "gameaarch64"
-			RUNTIME_OUTPUT_NAME "gameaarch64"
+			LIBRARY_OUTPUT_NAME "svgameaarch64"
+			RUNTIME_OUTPUT_NAME "svgameaarch64"
+		)
+		SET_TARGET_PROPERTIES(baseq2_clgame
+			PROPERTIES
+			LIBRARY_OUTPUT_NAME "clgameaarch64"
+			RUNTIME_OUTPUT_NAME "clgameaarch64"
 		)
 	ELSEIF(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le")
-		SET_TARGET_PROPERTIES(baseq2
+		SET_TARGET_PROPERTIES(baseq2_svgame
 			PROPERTIES
-			LIBRARY_OUTPUT_NAME "gameppc64le"
-			RUNTIME_OUTPUT_NAME "gameppc64le"
-                )
+			LIBRARY_OUTPUT_NAME "svgameppc64le"
+			RUNTIME_OUTPUT_NAME "svgameppc64le"
+        )
+		SET_TARGET_PROPERTIES(baseq2_clgame
+			PROPERTIES
+			LIBRARY_OUTPUT_NAME "clgameppc64le"
+			RUNTIME_OUTPUT_NAME "clgameppc64le"
+        )
 	ELSE()
-		SET_TARGET_PROPERTIES(baseq2
+		SET_TARGET_PROPERTIES(baseq2_svgame
 			PROPERTIES
-			LIBRARY_OUTPUT_NAME "gamex86_64"
-			RUNTIME_OUTPUT_NAME "gamex86_64"
+			LIBRARY_OUTPUT_NAME "svgamex86_64"
+			RUNTIME_OUTPUT_NAME "svgamex86_64"
+		)
+		SET_TARGET_PROPERTIES(baseq2_clgame
+			PROPERTIES
+			LIBRARY_OUTPUT_NAME "clgamex86_64"
+			RUNTIME_OUTPUT_NAME "clgamex86_64"
 		)
 	ENDIF()
 ELSE()
-    SET_TARGET_PROPERTIES(baseq2
+    SET_TARGET_PROPERTIES(baseq2_svgame
         PROPERTIES
-        LIBRARY_OUTPUT_NAME "gamex86"
-        RUNTIME_OUTPUT_NAME "gamex86"
+        LIBRARY_OUTPUT_NAME "svgamex86"
+        RUNTIME_OUTPUT_NAME "svgamex86"
+    )
+    SET_TARGET_PROPERTIES(baseq2_clgame
+        PROPERTIES
+        LIBRARY_OUTPUT_NAME "clgamex86"
+        RUNTIME_OUTPUT_NAME "clgamex86"
     )
 ENDIF()
 
@@ -686,7 +747,8 @@ IF(CONFIG_LINUX_PACKAGING_SUPPORT)
 	        SCRIPT "${CMAKE_SOURCE_DIR}/setup/package_shaders.cmake"
 	        COMPONENT shareware)
 	ENDIF()
-    INSTALL(TARGETS baseq2 DESTINATION share/quake2rtx/baseq2 COMPONENT shareware)
+    INSTALL(TARGETS baseq2_svgame DESTINATION share/quake2rtx/baseq2 COMPONENT shareware)
+	INSTALL(TARGETS baseq2_clgame DESTINATION share/quake2rtx/baseq2 COMPONENT shareware)
 
     # Package data files, including the shareware pak0 for demo levels
     set (SHAREWARE_DATA_FILES_LIST

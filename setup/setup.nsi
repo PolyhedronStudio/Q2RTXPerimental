@@ -70,10 +70,10 @@ Section "Engine Files (Required)" Section_Game
 	File "${SOURCE_DIR}\changelog.md"
 
 	SetOutPath "$INSTDIR\baseq2"
-	File "${SOURCE_DIR}\baseq2\gamex86_64.dll"
-	File "${SOURCE_DIR}\baseq2\gamex86_64.pdb"
-	File "${SOURCE_DIR}\baseq2\gamex86.dll"
-	File "${SOURCE_DIR}\baseq2\gamex86.pdb"
+	File "${SOURCE_DIR}\baseq2\svgamex86_64.dll"
+	File "${SOURCE_DIR}\baseq2\svgamex86_64.pdb"
+	File "${SOURCE_DIR}\baseq2\svgamex86.dll"
+	File "${SOURCE_DIR}\baseq2\svgamex86.pdb"
 
 	SetCompress OFF
 	File "${SOURCE_DIR}\baseq2\shaders.pkz"

@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "shared/shared.h"
 #include "shared/list.h"
-#include "shared/game.h"
+#include "shared/svgame.h"
 
 #include "common/bsp.h"
 #include "common/cmd.h"
@@ -760,7 +760,7 @@ void SV_WriteFrameToClient_Enhanced(client_t *client);
 //
 // sv_game.c
 //
-extern    game_export_t    *ge;
+extern    svgame_export_t    *ge;
 
 void SV_InitGameProgs(void);
 void SV_ShutdownGameProgs(void);

@@ -15,20 +15,20 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-// g_local.h -- local definitions for game module
+// g_local.h -- local definitions for ServerGame module
 
 #include "shared/shared.h"
 #include "shared/list.h"
 
-// define GAME_INCLUDE so that game.h does not define the
+// define SVGAME_INCLUDE so that game.h does not define the
 // short, server-visible gclient_t and edict_t structures,
 // because we define the full size ones in this file
-#define GAME_INCLUDE
-#include "shared/game.h"
+#define SVGAME_INCLUDE
+#include "shared/svgame.h"
 
 // Extern here right after including shared/game.h
-extern  game_import_t   gi;
-extern  game_export_t   globals;
+extern  svgame_import_t   gi;
+extern  svgame_export_t   globals;
 
 //==================================================================
 // Q2RE: Time
