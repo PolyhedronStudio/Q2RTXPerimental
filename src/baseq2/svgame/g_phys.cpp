@@ -91,7 +91,7 @@ Runs thinking code for this frame if necessary
 */
 bool SV_RunThink(edict_t *ent)
 {
-    gtime_t     thinktime;
+    sg_time_t     thinktime;
 
     thinktime = ent->nextthink;
     if (thinktime <= 0_ms)

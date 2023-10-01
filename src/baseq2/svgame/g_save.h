@@ -35,7 +35,7 @@ enum fieldtype_t : int32_t {
 
 	// WID: This was from Q2RTX 1.7.0
 	//F_FRAMETIME,         // speciality for savegame compatibility: float on disk, converted to framenum
-	// WID: However, we now got gtime_t running on int64_t power.
+	// WID: However, we now got sg_time_t running on int64_t power.
 	F_FRAMETIME,	// Same as F_INT64
 	F_INT64
 };

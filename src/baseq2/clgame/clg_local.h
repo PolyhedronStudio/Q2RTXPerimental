@@ -24,17 +24,17 @@ extern clgame_export_t globals;
 *	Q2RE: Time
 *******************************************************************/
 // gtime type.
-#include "../sharedgame/gtime.h"
+#include "../sharedgame/sg_time.h"
 
 // extern times.
-extern gtime_t FRAME_TIME_S;
-extern gtime_t FRAME_TIME_MS;
+extern sg_time_t FRAME_TIME_S;
+extern sg_time_t FRAME_TIME_MS;
 
 // TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
 #undef max
 
 // Just to, hold time, forever.
-constexpr gtime_t HOLD_FOREVER = gtime_t::from_ms( std::numeric_limits<int64_t>::max( ) );
+constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64_t>::max( ) );
 
 
 
@@ -59,13 +59,13 @@ extern std::mt19937 mt_rand;
 }
 
 // uniform time [min_inclusive, max_exclusive)
-[[nodiscard]] inline gtime_t random_time( gtime_t min_inclusive, gtime_t max_exclusive ) {
-	return gtime_t::from_ms( std::uniform_int_distribution<int64_t>( min_inclusive.milliseconds( ), max_exclusive.milliseconds( ) )( mt_rand ) );
+[[nodiscard]] inline sg_time_t random_time( sg_time_t min_inclusive, sg_time_t max_exclusive ) {
+	return sg_time_t::from_ms( std::uniform_int_distribution<int64_t>( min_inclusive.milliseconds( ), max_exclusive.milliseconds( ) )( mt_rand ) );
 }
 
 // uniform time [0, max_exclusive)
-[[nodiscard]] inline gtime_t random_time( gtime_t max_exclusive ) {
-	return gtime_t::from_ms( std::uniform_int_distribution<int64_t>( 0, max_exclusive.milliseconds( ) )( mt_rand ) );
+[[nodiscard]] inline sg_time_t random_time( sg_time_t max_exclusive ) {
+	return sg_time_t::from_ms( std::uniform_int_distribution<int64_t>( 0, max_exclusive.milliseconds( ) )( mt_rand ) );
 }
 
 // uniform float [-1, 1)

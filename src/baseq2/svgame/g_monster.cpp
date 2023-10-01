@@ -55,7 +55,7 @@ void monster_fire_blaster( edict_t *self, vec3_t start, vec3_t dir, int damage, 
 
 void monster_fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int flashtype)
 {
-    fire_grenade(self, start, aimdir, damage, speed, gtime_t::from_sec( 2.5f ), damage + 40);
+    fire_grenade(self, start, aimdir, damage, speed, sg_time_t::from_sec( 2.5f ), damage + 40);
 
 	gi.WriteByte( svc_muzzleflash2 );
 	gi.WriteShort( self - g_edicts );
@@ -122,7 +122,7 @@ void M_FlyCheck( edict_t *self ) {
     self->nextthink = level.time + random_time(5_sec, 10_sec );// + ( 5 + 10 * random( ) ) * BASE_FRAMERATE;
 }
 
-void AttackFinished(edict_t *self, gtime_t time)
+void AttackFinished(edict_t *self, sg_time_t time)
 {
     self->monsterinfo.attack_finished = level.time + time;
 }

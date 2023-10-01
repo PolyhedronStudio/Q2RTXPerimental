@@ -629,7 +629,7 @@ void soldier_fire3(edict_t *self)
 
 void soldier_attack3_refire(edict_t *self)
 {
-    if ((level.time + gtime_t::from_sec( 0.4f ) ) < self->monsterinfo.pause_time)
+    if ((level.time + sg_time_t::from_sec( 0.4f ) ) < self->monsterinfo.pause_time)
         self->monsterinfo.nextframe = FRAME_attak303;
 }
 
@@ -803,7 +803,7 @@ void soldier_dodge(edict_t *self, edict_t *attacker, float eta)
         return;
     }
 
-    self->monsterinfo.pause_time = level.time + gtime_t::from_sec(eta + 0.3f);
+    self->monsterinfo.pause_time = level.time + sg_time_t::from_sec(eta + 0.3f);
     r = random();
 
     if (skill->value == 1) {

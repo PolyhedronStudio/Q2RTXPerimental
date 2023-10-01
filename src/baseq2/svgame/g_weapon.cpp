@@ -447,7 +447,7 @@ void Grenade_Touch(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *su
     Grenade_Explode(ent);
 }
 
-void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, gtime_t timer, float damage_radius)
+void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, sg_time_t timer, float damage_radius)
 {
     edict_t *grenade;
     vec3_t  dir;
@@ -483,7 +483,7 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     gi.linkentity(grenade);
 }
 
-void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, gtime_t timer, float damage_radius, bool held)
+void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, sg_time_t timer, float damage_radius, bool held)
 {
     edict_t *grenade;
     vec3_t  dir;
@@ -598,7 +598,7 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
     rocket->s.modelindex = gi.modelindex("models/objects/rocket/tris.md2");
     rocket->owner = self;
     rocket->touch = rocket_touch;
-	rocket->nextthink = level.time + gtime_t::from_sec( 8000.f / speed );
+	rocket->nextthink = level.time + sg_time_t::from_sec( 8000.f / speed );
     rocket->think = G_FreeEdict;
     rocket->dmg = damage;
     rocket->radius_dmg = radius_damage;
@@ -854,7 +854,7 @@ void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, fl
     bfg->s.modelindex = gi.modelindex("sprites/s_bfg1.sp2");
     bfg->owner = self;
     bfg->touch = bfg_touch;
-	bfg->nextthink = level.time + gtime_t::from_sec( 8000.f / speed );
+	bfg->nextthink = level.time + sg_time_t::from_sec( 8000.f / speed );
     bfg->think = G_FreeEdict;
     bfg->radius_dmg = damage;
     bfg->dmg_radius = damage_radius;
@@ -888,7 +888,7 @@ void flare_sparks(edict_t *self)
 
     gi.WriteShort((int)(self - g_edicts));
     // if this is the first tick of flare, set count to 1 to start the sound
-	// WID: gtime_t: WARNING: Did we do this properly?
+	// WID: sg_time_t: WARNING: Did we do this properly?
     gi.WriteByte( (self->timestamp - level.time) < 14.75_sec ? 0 : 1 );
 
     gi.WritePosition(self->s.origin);
@@ -951,7 +951,7 @@ void flare_think(edict_t *self)
 	
 	// We'll think again in .2 seconds 
 	// 
-	self->nextthink = level.time + gtime_t::from_sec(.2f);
+	self->nextthink = level.time + sg_time_t::from_sec(.2f);
 }
 
 void flare_touch(edict_t *ent, edict_t *other,

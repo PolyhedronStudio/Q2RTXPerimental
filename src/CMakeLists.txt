@@ -19,7 +19,7 @@ SET(SRC_BASEQ2_SHAREDGAME
 	#nothing yet.
 )
 SET(HEADERS_BASEQ2_SHAREDGAME
-	baseq2/sharedgame/gtime.h
+	baseq2/sharedgame/sg_time.h
 )
 
 #
@@ -78,8 +78,6 @@ SET(SRC_BASEQ2_SVGAME
 
 SET(HEADERS_BASEQ2_SVGAME
 	baseq2/svgame/g_local.h
-	baseq2/svgame/gtime.h
-
 	baseq2/svgame/g_save.h
 
 	baseq2/svgame/m_actor.h

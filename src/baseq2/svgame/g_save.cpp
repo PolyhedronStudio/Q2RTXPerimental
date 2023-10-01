@@ -590,7 +590,7 @@ static void write_field(FILE *f, const save_field_t *field, void *base)
         break;
 
     case F_FRAMETIME:
-		// WID: We got gtime_t, so we need int64 saving for frametime.
+		// WID: We got sg_time_t, so we need int64 saving for frametime.
         for (i = 0; i < field->size; i++) {
             write_int64(f, ((int64_t *)p)[i]);
         }
@@ -815,7 +815,7 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
         break;
 
     case F_FRAMETIME:
-		// WID: We got gtime_t, so we need int64 saving for frametime.
+		// WID: We got sg_time_t, so we need int64 saving for frametime.
 		for (i = 0; i < field->size; i++) {
 	        ((int64_t *)p)[i] = read_int64(ctx->f);
         }
@@ -1084,7 +1084,7 @@ void ReadLevel(const char *filename)
         // fire any cross-level triggers
         if (ent->classname)
             if (strcmp(ent->classname, "target_crosslevel_target") == 0)
-                ent->nextthink = level.time + gtime_t::from_sec( ent->delay );
+                ent->nextthink = level.time + sg_time_t::from_sec( ent->delay );
 
         if (ent->think == func_clock_think || ent->use == func_clock_use) {
             char *msg = ent->message;

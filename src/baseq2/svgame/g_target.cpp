@@ -246,7 +246,7 @@ void use_target_explosion(edict_t *self, edict_t *other, edict_t *activator)
     }
 
     self->think = target_explosion_explode;
-    self->nextthink = level.time + gtime_t::from_sec( self->delay );
+    self->nextthink = level.time + sg_time_t::from_sec( self->delay );
 }
 
 void SP_target_explosion(edict_t *ent)
@@ -472,7 +472,7 @@ void SP_target_crosslevel_target(edict_t *self)
     self->svflags = SVF_NOCLIENT;
 
     self->think = target_crosslevel_target_think;
-    self->nextthink = level.time + gtime_t::from_sec( self->delay );
+    self->nextthink = level.time + sg_time_t::from_sec( self->delay );
 }
 
 //==========================================================
@@ -763,7 +763,7 @@ void target_earthquake_think(edict_t *self)
 
 void target_earthquake_use(edict_t *self, edict_t *other, edict_t *activator)
 {
-	self->timestamp = level.time + gtime_t::from_sec( self->count );
+	self->timestamp = level.time + sg_time_t::from_sec( self->count );
 	//self->nextthink = level.time + FRAME_TIME_S;
 	//self->last_move_time = 0_ms;
  //   self->activator = activator;
@@ -784,7 +784,7 @@ void target_earthquake_use(edict_t *self, edict_t *other, edict_t *activator)
 		return;
 	}
 
-	self->timestamp = level.time + gtime_t::from_sec( self->count );
+	self->timestamp = level.time + sg_time_t::from_sec( self->count );
 
 	if ( self->spawnflags & 2 /*SPAWNFLAGS_EARTHQUAKE_TOGGLE*/ ) {
 		if ( self->style )

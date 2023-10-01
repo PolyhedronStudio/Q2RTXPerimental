@@ -49,7 +49,7 @@ static int  power_shield_index;
 #define HEALTH_TIMED        2
 
 void Use_Quad(edict_t *ent, gitem_t *item);
-static gtime_t  quad_drop_timeout_hack;
+static sg_time_t  quad_drop_timeout_hack;
 
 //======================================================================
 
@@ -146,7 +146,7 @@ void SetRespawn(edict_t *ent, float delay)
     ent->flags |= FL_RESPAWN;
     ent->svflags |= SVF_NOCLIENT;
     ent->solid = SOLID_NOT;
-    ent->nextthink = level.time + gtime_t::from_sec( delay );
+    ent->nextthink = level.time + sg_time_t::from_sec( delay );
     ent->think = DoRespawn;
     gi.linkentity(ent);
 }
@@ -326,7 +326,7 @@ bool Pickup_Pack(edict_t *ent, edict_t *other)
 
 void Use_Quad(edict_t *ent, gitem_t *item)
 {
-    gtime_t     timeout;
+    sg_time_t     timeout;
 
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
     ValidateSelectedItem(ent);

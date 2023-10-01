@@ -322,7 +322,7 @@ void turret_driver_think(edict_t *self)
     vectoangles(dir, self->target_ent->move_angles);
 
     // decide if we should shoot
-	gtime_t reaction_time = gtime_t::from_sec( 3 - skill->integer );
+	sg_time_t reaction_time = sg_time_t::from_sec( 3 - skill->integer );
 	if ( ( level.time - self->monsterinfo.trail_time ) < reaction_time )
 		return;
 

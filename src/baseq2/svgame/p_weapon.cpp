@@ -267,7 +267,7 @@ void NoAmmoWeaponChange(edict_t *ent)
 }
 
 // [Paril-KEX] get time per animation frame
-inline gtime_t Weapon_AnimationTime( edict_t *ent ) {
+inline sg_time_t Weapon_AnimationTime( edict_t *ent ) {
 	//if ( g_quick_weapon_switch->integer && ( gi.tick_rate == 20 || gi.tick_rate == 40 ) &&
 	//	( ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING ) )
 	//	ent->client->ps.gunrate = 20;
@@ -287,9 +287,9 @@ inline gtime_t Weapon_AnimationTime( edict_t *ent ) {
 	//	return 100_ms;
 	//}
 
-	//return gtime_t::from_ms( ( 1.f / ent->client->ps.gunrate ) * 1000 );
+	//return sg_time_t::from_ms( ( 1.f / ent->client->ps.gunrate ) * 1000 );
 	constexpr int32_t gunrate = 10; // Maintain 10hz.
-	return gtime_t::from_ms( ( 1.f / gunrate ) * 1000 );
+	return sg_time_t::from_ms( ( 1.f / gunrate ) * 1000 );
 }
 
 /*
@@ -520,7 +520,7 @@ GRENADE
 ======================================================================
 */
 
-constexpr gtime_t GRENADE_TIMER = 3_sec;
+constexpr sg_time_t GRENADE_TIMER = 3_sec;
 constexpr float GRENADE_MINSPEED = 400.f;
 constexpr float GRENADE_MAXSPEED = 800.f;
 
@@ -541,7 +541,7 @@ void weapon_grenade_fire(edict_t *ent, bool held)
     AngleVectors(ent->client->v_angle, forward, right, NULL);
     P_ProjectSource(ent, ent->s.origin, offset, forward, right, start);
 
-	gtime_t timer = ent->client->grenade_time - level.time;
+	sg_time_t timer = ent->client->grenade_time - level.time;
 	speed = (int)( ent->health <= 0 ? GRENADE_MINSPEED : min( GRENADE_MINSPEED + ( GRENADE_TIMER - timer ).seconds( ) * ( ( GRENADE_MAXSPEED - GRENADE_MINSPEED ) / GRENADE_TIMER.seconds( ) ), GRENADE_MAXSPEED ) );
     fire_grenade2(ent, start, forward, damage, speed, timer, radius, held);
 

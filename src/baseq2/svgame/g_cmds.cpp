@@ -781,8 +781,8 @@ void Cmd_Say_f(edict_t *ent, bool team, bool arg0)
 		if ( i >= q_countof( cl->flood_when ) )
 			i = 0;
         if (cl->flood_when[i] &&
-            level.time - cl->flood_when[i] < gtime_t::from_sec( flood_persecond->value ) ) {
-            cl->flood_locktill = level.time + gtime_t::from_sec( flood_waitdelay->value );
+            level.time - cl->flood_when[i] < sg_time_t::from_sec( flood_persecond->value ) ) {
+            cl->flood_locktill = level.time + sg_time_t::from_sec( flood_waitdelay->value );
             gi.cprintf(
 				ent, PRINT_CHAT, "Flood protection:  You can't talk for %d seconds.\n",
                        (int)flood_waitdelay->value);

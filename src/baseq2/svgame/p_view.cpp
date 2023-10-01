@@ -248,7 +248,7 @@ void SV_CalcViewOffset(edict_t *ent)
 		if ( ent->client->v_dmg_time > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
-			gtime_t diff = ent->client->v_dmg_time - level.time;
+			sg_time_t diff = ent->client->v_dmg_time - level.time;
 
 			// slack time remaining
 			if ( DAMAGE_TIME_SLACK( ) ) {
@@ -271,7 +271,7 @@ void SV_CalcViewOffset(edict_t *ent)
 		if ( ent->client->fall_time > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
-			gtime_t diff = ent->client->fall_time - level.time;
+			sg_time_t diff = ent->client->fall_time - level.time;
 
 			// slack time remaining
 			if ( DAMAGE_TIME_SLACK( ) ) {
@@ -450,11 +450,11 @@ SV_CalcBlend
 // [Paril-KEX] convenience functions that returns true
 // if the powerup should be 'active' (false to disable,
 // will flash at 500ms intervals after 3 sec)
-[[nodiscard]] constexpr bool G_PowerUpExpiringRelative( gtime_t left ) {
+[[nodiscard]] constexpr bool G_PowerUpExpiringRelative( sg_time_t left ) {
 	return left.milliseconds( ) > 3000 || ( left.milliseconds( ) % 1000 ) < 500;
 }
 
-[[nodiscard]] constexpr bool G_PowerUpExpiring( gtime_t time ) {
+[[nodiscard]] constexpr bool G_PowerUpExpiring( sg_time_t time ) {
 	return G_PowerUpExpiringRelative( time - level.time );
 }
 
@@ -462,7 +462,7 @@ void SV_CalcBlend(edict_t *ent)
 {
     int     contents;
     vec3_t  vieworg;
-	gtime_t remaining;
+	sg_time_t remaining;
 
     ent->client->ps.blend[0] = ent->client->ps.blend[1] =
                                    ent->client->ps.blend[2] = ent->client->ps.blend[3] = 0;
