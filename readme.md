@@ -2,20 +2,21 @@
 
 [![Build Status](https://github.com/PolyhedronStudio/Q2RTXPerimental/actions/workflows/build.yml/badge.svg)](https://github.com/PolyhedronStudio/Q2RTXPerimental/actions/workflows/build.yml)
 
-**Quake II RTXPerimental** is my 'playing field' and an attempt to improve the engine in various parts, 'modernizing' it is probably the best term to put it at. The target public for this would be anyone who is interested at doing a project using Q2RTX, but would like it to pack some more punch when it comes to having more 'modern' features.
+**Quake II RTXPerimental** is my 'playing field', taking Q2RTX, while trying to modernize the code where possible. While doing so it becomes gradually necessary to move away from 'baseq2' and its data, on to providing our own basic game template instead.
 
-Features currently done:
-  - **CPP-ify the codebase, meaning that it now compiles using a CPP compiler** The only exception being the VKPT code, to make life easy merging in any new Q2RTX VKPT features.
+## **Quake II RTXPerimental** Features currently done:
+  - **CPP-ify the codebase, meaning that it now compiles using a CPP compiler** The only exception being the **VKPT** code, to make life easy merging in any new **Q2RTX VKPT** features.
   - Tick Rate adjustment: 40hz (following **Q2RE** on this).
-  - Adjusted stair **Step Smoothing** to BASE_FRAMETIME(25ms for 40hz) instead of its old hard values: 100ms at 10hz.
-  - Enabled USE_SMOOTH_DELTA_ANGLES.
-  - Replaced (most)_framenum based functionality with time again, borrowing gtime_t type from **Q2E**.
-	- AI now has the option to run at 40hz when the AI_HIGH_TICK_RATE flag is set.
+  - Adjusted stair **Step Smoothing** to *BASE_FRAMETIME*(25ms for 40hz) instead of its old hard values: 100ms at 10hz.
+  - Enabled *USE_SMOOTH_DELTA_ANGLES*.
+  - Replaced (most)_framenum based functionality with time again, borrowing *gtime_t* type from **Q2E**.
+	- AI now has the option to run at 40hz when the *AI_HIGH_TICK_RATE* flag is set.
   - BSP maps compiled with texinfos such as: textures/test/01.tga now will load with their proper dimensions, meaning one does not need low-res .wal textures to substitute for that.
-  - Uses protocol #34(still needs a custom protocol number) by default, having already layed out the path to allocating a **Q2RTXPerimental** NetChan to work from later on.
-	- BoundingBoxes can now be up to size like Q2RE/Q3.
+  - Uses a custom protocol, currently nearly identical to the default. (#34, it still needs a custom protocol number). There exists already a path fully layed out to allocating our own **Q2RTXPerimental** NetChan.
+	- Changed Solids from *int32_t* to *uint32_t*, so that *SOLID_BBOX* can now have **BoundingBox** sizes up to those of Q2RE/Q3.
+  - Currently a ClientGame DLL that merely initializes and shutsdown. It doesn't actually do anything just yet.
 
-Features certain to be implemented:
+## **Quake II RTXPerimental** Features certain to be implemented:
   - GameRules, this rids us of random cvar checks and gives us a centralized class to inquire for gamemode related aspects.
   - Client Game DLL which allows for:
 	- Custom user input code/commands.
@@ -24,7 +25,7 @@ Features certain to be implemented:
   - Shared Game code:
 	- PMove being extracted to Shared Game allows for customization of player movement.
 
-Features planned to experiment with:
+## **Quake II RTXPerimental** Features planned to experiment with:
   - Net code improvements. (Think, Quake 3 like.)
   - Full floating point precision movement.
   - Collision code rewrite. (Use proper matrix/quaternions, and allow for different hull types such as Spheres, Cylinders and Capsules.)
@@ -61,12 +62,7 @@ The **Quake II** game data files remain copyrighted and licensed under the
 original id Software terms, so you cannot redistribute the pak files from the
 original game.
 
-## Features
-
-**Quake II RTXPerimental** introduces the following changes/features:
-  - All files of client/, common/, server/ and shared/ are now compiled using a C++ compiler.
-	This allows for an easier time trying to integrate several ideas for experimentation.
-	(Untested on Unixes, likely needs a few more files to be 'converted')
+## **Quake II RTX** Features
 
 **Quake II RTX** introduces the following features:
   - Caustics approximation and coloring of light that passes through tinted glass

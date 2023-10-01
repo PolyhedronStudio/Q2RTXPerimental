@@ -78,15 +78,9 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.apiversion = CLGAME_API_VERSION;
 		globals.Init = InitGame;
-
-		// Net
-
-		// Tag Alloc
-
-		// CVar
-
-
 		globals.Shutdown = ShutdownGame;
+
+		//..
 
 		return &globals;
 	}
