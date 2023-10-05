@@ -440,28 +440,30 @@ static int entitycmpfnc(const void *_a, const void *_b)
         return a->model - b->model;
 }
 
+// WID: Removed, since VKPT can't read a proper 'lightvalue' anyhow, and it is a client-side value
+// which should never be used like that for a client-server game.
 static void V_SetLightLevel(void)
 {
-    vec3_t shadelight;
+    //vec3_t shadelight;
 
     // save off light value for server to look at (BIG HACK!)
-    R_LightPoint(cl.refdef.vieworg, shadelight);
+    //R_LightPoint(cl.refdef.vieworg, shadelight);
 
     // pick the greatest component, which should be the same
     // as the mono value returned by software
-    if (shadelight[0] > shadelight[1]) {
-        if (shadelight[0] > shadelight[2]) {
-            cl.lightlevel = 150.0f * shadelight[0];
-        } else {
-            cl.lightlevel = 150.0f * shadelight[2];
-        }
-    } else {
-        if (shadelight[1] > shadelight[2]) {
-            cl.lightlevel = 150.0f * shadelight[1];
-        } else {
-            cl.lightlevel = 150.0f * shadelight[2];
-        }
-    }
+	//if (shadelight[0] > shadelight[1]) {
+    //    if (shadelight[0] > shadelight[2]) {
+    //        cl.lightlevel = 150.0f * shadelight[0];
+    //    } else {
+    //        cl.lightlevel = 150.0f * shadelight[2];
+    //    }
+    //} else {
+    //    if (shadelight[1] > shadelight[2]) {
+    //        cl.lightlevel = 150.0f * shadelight[1];
+    //    } else {
+    //        cl.lightlevel = 150.0f * shadelight[2];
+    //    }
+    //}
 }
 
 /*

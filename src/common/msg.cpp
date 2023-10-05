@@ -1717,9 +1717,6 @@ void MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *to)
 
 // read time to run command
     to->msec = MSG_ReadByte();
-
-// read the light level
-    to->lightlevel = MSG_ReadByte();
 }
 
 void MSG_ReadDeltaUsercmd_Hacked(const usercmd_t *from, usercmd_t *to)
@@ -1786,9 +1783,6 @@ void MSG_ReadDeltaUsercmd_Hacked(const usercmd_t *from, usercmd_t *to)
 
 // read time to run command
     to->msec = MSG_ReadByte();
-
-// read the light level
-    to->lightlevel = MSG_ReadByte();
 }
 
 int MSG_ReadBits(int bits)
