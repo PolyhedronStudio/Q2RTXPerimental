@@ -116,6 +116,8 @@ void P_DamageFeedback(edict_t *player)
                 break;
             }
         }
+
+		client->anim_time = 0_ms; // WID: 40hz:
     }
 
     realcount = count;
@@ -885,15 +887,23 @@ void G_SetClientFrame(edict_t *ent)
     if (!ent->groundentity && client->anim_priority <= ANIM_WAVE)
         goto newanim;
 
-    if (client->anim_priority == ANIM_REVERSED) {
-        if (ent->s.frame > client->anim_end) {
+	// WID: 40hz:
+	if ( client->anim_time > level.time )
+		return;
+
+    else if (client->anim_priority == ANIM_REVERSED) {
+        if ( client->anim_time <= level.time ) {
             ent->s.frame--;
-            return;
+			client->anim_time = level.time + 10_hz; // WID: 40hz:
         }
+		return;
     } else if (ent->s.frame < client->anim_end) {
         // continue an animation
-        ent->s.frame++;
-        return;
+		if ( client->anim_time <= level.time ) {
+			ent->s.frame++;
+			client->anim_time = level.time + 10_hz; // WID: 40hz:
+		}
+		return;
     }
 
     if (client->anim_priority == ANIM_DEATH)
@@ -902,8 +912,16 @@ void G_SetClientFrame(edict_t *ent)
         if (!ent->groundentity)
             return;     // stay there
         ent->client->anim_priority = ANIM_WAVE;
-        ent->s.frame = FRAME_jump3;
-        ent->client->anim_end = FRAME_jump6;
+		// WID: 40hz:
+		if ( duck ) {
+			ent->s.frame = FRAME_jump6;
+			ent->client->anim_end = FRAME_jump4;
+			ent->client->anim_priority |= ANIM_REVERSED;
+		} else {
+			ent->s.frame = FRAME_jump3;
+			ent->client->anim_end = FRAME_jump6;
+		}
+		ent->client->anim_time = level.time + 10_hz; // WID: 40hz:
         return;
     }
 
@@ -912,6 +930,7 @@ newanim:
     client->anim_priority = ANIM_BASIC;
     client->anim_duck = duck;
     client->anim_run = run;
+	client->anim_time = level.time + 10_hz; // WID: 40hz:
 
     if (!ent->groundentity) {
         client->anim_priority = ANIM_JUMP;

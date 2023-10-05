@@ -222,8 +222,8 @@ void ChangeWeapon(edict_t *ent)
     } else {
         ent->s.frame = FRAME_pain301;
         ent->client->anim_end = FRAME_pain304;
-
     }
+	ent->client->anim_time = 0_ms; // WID: 40hz:
 }
 
 /*
@@ -996,6 +996,7 @@ void Weapon_HyperBlaster_Fire(edict_t *ent)
                 ent->s.frame = FRAME_attack1 - 1;
                 ent->client->anim_end = FRAME_attack8;
             }
+			ent->client->anim_time = 0_ms; // WID: 40hz:
         }
 
         ent->client->ps.gunframe++;
@@ -1101,6 +1102,7 @@ void Machinegun_Fire(edict_t *ent)
         ent->s.frame = FRAME_attack1 - (int)(random() + 0.25f);
         ent->client->anim_end = FRAME_attack8;
     }
+	ent->client->anim_time = 0_ms; // WID: 40hz:
 }
 
 void Weapon_Machinegun(edict_t *ent)
@@ -1156,6 +1158,7 @@ void Chaingun_Fire(edict_t *ent)
         ent->s.frame = FRAME_attack1 - (ent->client->ps.gunframe & 1);
         ent->client->anim_end = FRAME_attack8;
     }
+	ent->client->anim_time = 0_ms; // WID: 40hz:
 
     if (ent->client->ps.gunframe <= 9)
         shots = 1;

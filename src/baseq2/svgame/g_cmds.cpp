@@ -721,6 +721,8 @@ void Cmd_Wave_f(edict_t *ent)
         ent->client->anim_end = FRAME_point12;
         break;
     }
+
+	ent->client->anim_time = 0_ms; // WID: 40hz:
 }
 
 /*

@@ -555,6 +555,8 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
                     break;
                 }
             gi.sound(self, CHAN_VOICE, gi.soundindex(va("*death%i.wav", (Q_rand() % 4) + 1)), 1, ATTN_NORM, 0);
+
+			self->client->anim_time = 0_ms; // WID: 40hz:
         }
     }
 
