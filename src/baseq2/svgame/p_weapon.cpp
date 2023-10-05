@@ -380,135 +380,266 @@ void Drop_Weapon(edict_t *ent, gitem_t *item)
 }
 
 
-/*
-================
-Weapon_Generic
-
-A generic function to handle the basics of weapon thinking
-================
+/**
+*
+*
+*	Core Weapon Mechanics: Taken from Q2RE to match with the new 40hz rate:
+* 
 */
-#define FRAME_FIRE_FIRST        (FRAME_ACTIVATE_LAST + 1)
-#define FRAME_IDLE_FIRST        (FRAME_FIRE_LAST + 1)
-#define FRAME_DEACTIVATE_FIRST  (FRAME_IDLE_LAST + 1)
+inline void Weapon_PowerupSound( edict_t *ent ) {
+	if ( ent->client->quad_time > level.time )
+		gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/damage3.wav" ), 1, ATTN_NORM, 0 );
+}
 
-void Weapon_Generic(edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_DEACTIVATE_LAST, int *pause_frames, int *fire_frames, void (*fire)(edict_t *ent))
-{
-    int     n;
+inline bool Weapon_CanAnimate( edict_t *ent ) {
+	// VWep animations screw up corpses
+	return !ent->deadflag && ent->s.modelindex == 255;
+}
 
-    if (ent->deadflag || ent->s.modelindex != 255) { // VWep animations screw up corpses
-        return;
-    }
+// [Paril-KEX] called when finished to set time until
+// we're allowed to switch to fire again
+inline void Weapon_SetFinished( edict_t *ent ) {
+	ent->client->weapon_fire_finished = level.time + Weapon_AnimationTime( ent );
+}
 
-    if (ent->client->weaponstate == WEAPON_DROPPING) {
-        if (ent->client->ps.gunframe == FRAME_DEACTIVATE_LAST) {
-            ChangeWeapon(ent);
-            return;
-        } else if ((FRAME_DEACTIVATE_LAST - ent->client->ps.gunframe) == 4) {
-            ent->client->anim_priority = ANIM_REVERSE;
-            if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
-                ent->s.frame = FRAME_crpain4 + 1;
-                ent->client->anim_end = FRAME_crpain1;
-            } else {
-                ent->s.frame = FRAME_pain304 + 1;
-                ent->client->anim_end = FRAME_pain301;
+inline bool Weapon_HandleDropping( edict_t *ent, int FRAME_DEACTIVATE_LAST ) {
+	if ( ent->client->weaponstate == WEAPON_DROPPING ) {
+		if ( ent->client->weapon_think_time <= level.time ) {
+			if ( ent->client->ps.gunframe == FRAME_DEACTIVATE_LAST ) {
+				ChangeWeapon( ent );
+				return true;
+			} else if ( ( FRAME_DEACTIVATE_LAST - ent->client->ps.gunframe ) == 4 ) {
+				ent->client->anim_priority = ANIM_ATTACK | ANIM_REVERSED;
+				if ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) {
+					ent->s.frame = FRAME_crpain4 + 1;
+					ent->client->anim_end = FRAME_crpain1;
+				} else {
+					ent->s.frame = FRAME_pain304 + 1;
+					ent->client->anim_end = FRAME_pain301;
+				}
+				ent->client->anim_time = 0_ms;
+			}
 
-            }
-        }
+			ent->client->ps.gunframe++;
+			ent->client->weapon_think_time = level.time + Weapon_AnimationTime( ent );
+		}
+		return true;
+	}
 
-        ent->client->ps.gunframe++;
-        return;
-    }
+	return false;
+}
 
-    if (ent->client->weaponstate == WEAPON_ACTIVATING) {
-        if (ent->client->ps.gunframe == FRAME_ACTIVATE_LAST) {
-            ent->client->weaponstate = WEAPON_READY;
-            ent->client->ps.gunframe = FRAME_IDLE_FIRST;
-            return;
-        }
+inline bool Weapon_HandleActivating( edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_IDLE_FIRST ) {
+	if ( ent->client->weaponstate == WEAPON_ACTIVATING ) {
+		if ( ent->client->weapon_think_time <= level.time || g_instant_weapon_switch->integer ) {
+			ent->client->weapon_think_time = level.time + Weapon_AnimationTime( ent );
 
-        ent->client->ps.gunframe++;
-        return;
-    }
+			if ( ent->client->ps.gunframe == FRAME_ACTIVATE_LAST || g_instant_weapon_switch->integer ) {
+				ent->client->weaponstate = WEAPON_READY;
+				ent->client->ps.gunframe = FRAME_IDLE_FIRST;
+				ent->client->weapon_fire_buffered = false;
+				if ( !g_instant_weapon_switch->integer )
+					Weapon_SetFinished( ent );
+				else
+					ent->client->weapon_fire_finished = 0_ms;
+				return true;
+			}
 
-    if ((ent->client->newweapon) && (ent->client->weaponstate != WEAPON_FIRING)) {
-        ent->client->weaponstate = WEAPON_DROPPING;
-        ent->client->ps.gunframe = FRAME_DEACTIVATE_FIRST;
+			ent->client->ps.gunframe++;
+			return true;
+		}
+	}
 
-        if ((FRAME_DEACTIVATE_LAST - FRAME_DEACTIVATE_FIRST) < 4) {
-            ent->client->anim_priority = ANIM_REVERSE;
-            if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
-                ent->s.frame = FRAME_crpain4 + 1;
-                ent->client->anim_end = FRAME_crpain1;
-            } else {
-                ent->s.frame = FRAME_pain304 + 1;
-                ent->client->anim_end = FRAME_pain301;
+	return false;
+}
 
-            }
-        }
-        return;
-    }
+inline bool Weapon_HandleNewWeapon( edict_t *ent, int FRAME_DEACTIVATE_FIRST, int FRAME_DEACTIVATE_LAST ) {
+	bool is_holstering = false;
 
-    if (ent->client->weaponstate == WEAPON_READY) {
-        if (((ent->client->latched_buttons | ent->client->buttons) & BUTTON_ATTACK)) {
-            ent->client->latched_buttons &= ~BUTTON_ATTACK;
-            if ((!ent->client->ammo_index) ||
-                (ent->client->pers.inventory[ent->client->ammo_index] >= ent->client->pers.weapon->quantity)) {
-                ent->client->ps.gunframe = FRAME_FIRE_FIRST;
-                ent->client->weaponstate = WEAPON_FIRING;
+	//if ( !g_instant_weapon_switch->integer )
+	//	is_holstering = ( ( ent->client->latched_buttons | ent->client->buttons ) & BUTTON_HOLSTER );
 
-                // start the animation
-                ent->client->anim_priority = ANIM_ATTACK;
-                if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
-                    ent->s.frame = FRAME_crattak1 - 1;
-                    ent->client->anim_end = FRAME_crattak9;
-                } else {
-                    ent->s.frame = FRAME_attack1 - 1;
-                    ent->client->anim_end = FRAME_attack8;
-                }
-            } else {
-                if (level.time >= ent->pain_debounce_time) {
-                    gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-                    ent->pain_debounce_time = level.time + 1_sec;
-                }
-                NoAmmoWeaponChange(ent);
-            }
-        } else {
-            if (ent->client->ps.gunframe == FRAME_IDLE_LAST) {
-                ent->client->ps.gunframe = FRAME_IDLE_FIRST;
-                return;
-            }
+	if ( ( ent->client->newweapon || is_holstering ) && ( ent->client->weaponstate != WEAPON_FIRING ) ) {
+		if ( g_instant_weapon_switch->integer || ent->client->weapon_think_time <= level.time ) {
+			if ( !ent->client->newweapon )
+				ent->client->newweapon = ent->client->pers.weapon;
 
-            if (pause_frames) {
-                for (n = 0; pause_frames[n]; n++) {
-                    if (ent->client->ps.gunframe == pause_frames[n]) {
-                        if (Q_rand() & 15)
-                            return;
-                    }
-                }
-            }
+			ent->client->weaponstate = WEAPON_DROPPING;
 
-            ent->client->ps.gunframe++;
-            return;
-        }
-    }
+			if ( g_instant_weapon_switch->integer ) {
+				ChangeWeapon( ent );
+				return true;
+			}
 
-    if (ent->client->weaponstate == WEAPON_FIRING) {
-        for (n = 0; fire_frames[n]; n++) {
-            if (ent->client->ps.gunframe == fire_frames[n]) {
-                if (ent->client->quad_time > level.time)
-                    gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
+			ent->client->ps.gunframe = FRAME_DEACTIVATE_FIRST;
 
-                fire(ent);
-                break;
-            }
-        }
+			if ( ( FRAME_DEACTIVATE_LAST - FRAME_DEACTIVATE_FIRST ) < 4 ) {
+				ent->client->anim_priority = ANIM_ATTACK | ANIM_REVERSED;
+				if ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) {
+					ent->s.frame = FRAME_crpain4 + 1;
+					ent->client->anim_end = FRAME_crpain1;
+				} else {
+					ent->s.frame = FRAME_pain304 + 1;
+					ent->client->anim_end = FRAME_pain301;
+				}
+				ent->client->anim_time = 0_ms;
+			}
 
-        if (!fire_frames[n])
-            ent->client->ps.gunframe++;
+			ent->client->weapon_think_time = level.time + Weapon_AnimationTime( ent );
+		}
+		return true;
+	}
 
-        if (ent->client->ps.gunframe == FRAME_IDLE_FIRST + 1)
-            ent->client->weaponstate = WEAPON_READY;
-    }
+	return false;
+}
+
+enum weapon_ready_state_t {
+	READY_NONE,
+	READY_CHANGING,
+	READY_FIRING
+};
+
+inline weapon_ready_state_t Weapon_HandleReady( edict_t *ent, int FRAME_FIRE_FIRST, int FRAME_IDLE_FIRST, int FRAME_IDLE_LAST, const int *pause_frames ) {
+	if ( ent->client->weaponstate == WEAPON_READY ) {
+		bool request_firing = ent->client->weapon_fire_buffered || ( ( ent->client->latched_buttons | ent->client->buttons ) & BUTTON_ATTACK );
+
+		if ( request_firing && ent->client->weapon_fire_finished <= level.time ) {
+			ent->client->latched_buttons &= ~BUTTON_ATTACK;
+			ent->client->weapon_think_time = level.time;
+
+			if ( ( !ent->client->ammo_index ) ||
+				( ent->client->pers.inventory[ ent->client->ammo_index ] >= ent->client->pers.weapon->quantity ) ) {
+				ent->client->weaponstate = WEAPON_FIRING;
+				return READY_FIRING;
+			} else {
+				NoAmmoWeaponChange( ent );
+				return READY_CHANGING;
+			}
+		} else if ( ent->client->weapon_think_time <= level.time ) {
+			ent->client->weapon_think_time = level.time + Weapon_AnimationTime( ent );
+
+			if ( ent->client->ps.gunframe == FRAME_IDLE_LAST ) {
+				ent->client->ps.gunframe = FRAME_IDLE_FIRST;
+				return READY_CHANGING;
+			}
+
+			if ( pause_frames )
+				for ( int n = 0; pause_frames[ n ]; n++ )
+					if ( ent->client->ps.gunframe == pause_frames[ n ] )
+						if ( irandom( 16 ) )
+							return READY_CHANGING;
+
+			ent->client->ps.gunframe++;
+			return READY_CHANGING;
+		}
+	}
+
+	return READY_NONE;
+}
+
+inline void Weapon_HandleFiring( edict_t *ent, int32_t FRAME_IDLE_FIRST, std::function<void( )> fire_handler ) {
+	Weapon_SetFinished( ent );
+
+	if ( ent->client->weapon_fire_buffered ) {
+		ent->client->buttons |= BUTTON_ATTACK;
+		ent->client->weapon_fire_buffered = false;
+	}
+
+	fire_handler( );
+
+	if ( ent->client->ps.gunframe == FRAME_IDLE_FIRST ) {
+		ent->client->weaponstate = WEAPON_READY;
+		ent->client->weapon_fire_buffered = false;
+	}
+
+	ent->client->weapon_think_time = level.time + Weapon_AnimationTime( ent );
+}
+
+void Weapon_Generic( edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_DEACTIVATE_LAST, const int *pause_frames, const int *fire_frames, void ( *fire )( edict_t *ent ) ) {
+	int FRAME_FIRE_FIRST = ( FRAME_ACTIVATE_LAST + 1 );
+	int FRAME_IDLE_FIRST = ( FRAME_FIRE_LAST + 1 );
+	int FRAME_DEACTIVATE_FIRST = ( FRAME_IDLE_LAST + 1 );
+
+	if ( !Weapon_CanAnimate( ent ) )
+		return;
+
+	if ( Weapon_HandleDropping( ent, FRAME_DEACTIVATE_LAST ) )
+		return;
+	else if ( Weapon_HandleActivating( ent, FRAME_ACTIVATE_LAST, FRAME_IDLE_FIRST ) )
+		return;
+	else if ( Weapon_HandleNewWeapon( ent, FRAME_DEACTIVATE_FIRST, FRAME_DEACTIVATE_LAST ) )
+		return;
+	else if ( auto state = Weapon_HandleReady( ent, FRAME_FIRE_FIRST, FRAME_IDLE_FIRST, FRAME_IDLE_LAST, pause_frames ) ) {
+		if ( state == READY_FIRING ) {
+			ent->client->ps.gunframe = FRAME_FIRE_FIRST;
+			ent->client->weapon_fire_buffered = false;
+
+			if ( ent->client->weapon_thunk )
+				ent->client->weapon_think_time += FRAME_TIME_S;
+
+			ent->client->weapon_think_time += Weapon_AnimationTime( ent );
+			Weapon_SetFinished( ent );
+
+			for ( int n = 0; fire_frames[ n ]; n++ ) {
+				if ( ent->client->ps.gunframe == fire_frames[ n ] ) {
+					Weapon_PowerupSound( ent );
+					fire( ent );
+					break;
+				}
+			}
+
+			// start the animation
+			ent->client->anim_priority = ANIM_ATTACK;
+			if ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) {
+				ent->s.frame = FRAME_crattak1 - 1;
+				ent->client->anim_end = FRAME_crattak9;
+			} else {
+				ent->s.frame = FRAME_attack1 - 1;
+				ent->client->anim_end = FRAME_attack8;
+			}
+			ent->client->anim_time = 0_ms;
+		}
+
+		return;
+	}
+
+	if ( ent->client->weaponstate == WEAPON_FIRING && ent->client->weapon_think_time <= level.time ) {
+		ent->client->ps.gunframe++;
+		Weapon_HandleFiring( ent, FRAME_IDLE_FIRST, [ & ]( ) {
+			for ( int n = 0; fire_frames[ n ]; n++ ) {
+				if ( ent->client->ps.gunframe == fire_frames[ n ] ) {
+					Weapon_PowerupSound( ent );
+					fire( ent );
+					break;
+				}
+			}
+		} );
+	}
+}
+
+void Weapon_Repeating( edict_t *ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_DEACTIVATE_LAST, const int *pause_frames, void ( *fire )( edict_t *ent ) ) {
+	int FRAME_FIRE_FIRST = ( FRAME_ACTIVATE_LAST + 1 );
+	int FRAME_IDLE_FIRST = ( FRAME_FIRE_LAST + 1 );
+	int FRAME_DEACTIVATE_FIRST = ( FRAME_IDLE_LAST + 1 );
+
+	if ( !Weapon_CanAnimate( ent ) )
+		return;
+
+	if ( Weapon_HandleDropping( ent, FRAME_DEACTIVATE_LAST ) )
+		return;
+	else if ( Weapon_HandleActivating( ent, FRAME_ACTIVATE_LAST, FRAME_IDLE_FIRST ) )
+		return;
+	else if ( Weapon_HandleNewWeapon( ent, FRAME_DEACTIVATE_FIRST, FRAME_DEACTIVATE_LAST ) )
+		return;
+	else if ( Weapon_HandleReady( ent, FRAME_FIRE_FIRST, FRAME_IDLE_FIRST, FRAME_IDLE_LAST, pause_frames ) == READY_CHANGING )
+		return;
+
+	if ( ent->client->weaponstate == WEAPON_FIRING && ent->client->weapon_think_time <= level.time ) {
+		Weapon_HandleFiring( ent, FRAME_IDLE_FIRST, [ & ]( ) { fire( ent ); } );
+
+		if ( ent->client->weapon_thunk )
+			ent->client->weapon_think_time += FRAME_TIME_S;
+	}
 }
 
 
@@ -562,7 +693,7 @@ void weapon_grenade_fire(edict_t *ent, bool held)
         ent->s.frame = FRAME_crattak1 - 1;
         ent->client->anim_end = FRAME_crattak3;
     } else {
-        ent->client->anim_priority = ANIM_REVERSE;
+        ent->client->anim_priority = ANIM_REVERSED;
         ent->s.frame = FRAME_wave08;
         ent->client->anim_end = FRAME_wave01;
     }

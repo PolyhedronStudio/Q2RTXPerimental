@@ -652,6 +652,7 @@ extern  cvar_t  *password;
 extern  cvar_t  *spectator_password;
 extern  cvar_t  *needpass;
 extern  cvar_t  *g_select_empty;
+extern cvar_t *g_instant_weapon_switch;
 extern  cvar_t  *dedicated;
 extern  cvar_t  *nomonsters;
 extern  cvar_t  *aimfix;
@@ -933,7 +934,7 @@ void GetChaseTarget(edict_t *ent);
 #define ANIM_PAIN       3
 #define ANIM_ATTACK     4
 #define ANIM_DEATH      5
-#define ANIM_REVERSE    6
+#define ANIM_REVERSED   6		// animation is played in reverse.
 
 
 // client data that stays across multiple level loads
@@ -986,30 +987,64 @@ typedef struct {
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'
 struct gclient_s {
-    // known to server
+    /**
+    *	Known and Shared with the Server:
+    /**/
     player_state_t  ps;             // communicated by server to clients
     int             ping;
 
-    // private to game
+	/**
+    *	Private to game:
+	**/
     client_persistant_t pers;
     client_respawn_t    resp;
     pmove_state_t       old_pmove;  // for detecting out-of-pmove changes
 
+    /**
+    *	Layout(s):
+    **/
     bool        showscores;         // set layout stat
     bool        showinventory;      // set layout stat
     bool        showhelp;
     bool        showhelpicon;
 
-    int         ammo_index;
 
+    /**
+    *	User Imput:
+    **/
     int         buttons;
     int         oldbuttons;
     int         latched_buttons;
 
-    bool        weapon_thunk;
+	/**
+	*	Weapon Related:
+	**/
+	// Actual current 'weapon', based on 'ammo_index'.
+	int	ammo_index;
 
-    gitem_t     *newweapon;
+	// Set when we want to switch weapons.
+	gitem_t *newweapon;
 
+	// weapon cannot fire until this time is up
+	sg_time_t weapon_fire_finished;
+	// time between processing individual animation frames
+	sg_time_t weapon_think_time;
+	// if we latched fire between server frames but before
+	// the weapon fire finish has elapsed, we'll "press" it
+	// automatically when we have a chance
+	bool weapon_fire_buffered;
+	bool weapon_thunk;
+
+	sg_time_t	grenade_time;
+	sg_time_t	grenade_finished_time;
+	bool        grenade_blew_up;
+
+	int         silencer_shots;
+	int         weapon_sound;
+
+	/**
+	*	Damage Related:
+	**/
     // sum up damage over an entire frame, so
     // shotgun blasts give a single big kick
     int         damage_armor;       // damage absorbed by armor
@@ -1024,9 +1059,9 @@ struct gclient_s {
     vec3_t      kick_angles;    // weapon kicks
     vec3_t      kick_origin;
     float       v_dmg_roll, v_dmg_pitch;    // damage kicks
-	sg_time_t		v_dmg_time;
-	sg_time_t		quake_time;
-    sg_time_t		fall_time;
+	sg_time_t	v_dmg_time;
+	sg_time_t	quake_time;
+    sg_time_t	fall_time;
 	float		fall_value;      // for view drop on fall
     float       damage_alpha;
     float       bonus_alpha;
@@ -1036,37 +1071,39 @@ struct gclient_s {
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
 
-	sg_time_t		next_drown_time;
+	sg_time_t	next_drown_time;
     int         old_waterlevel;
     int         breather_sound;
 
     int         machinegun_shots;   // for weapon raising
 
-    // animation vars
-    int         anim_end;
-    int         anim_priority;
-    bool        anim_duck;
-    bool        anim_run;
+	/**
+    *	Animation Related:
+	**/
+    int			anim_end;
+    int			anim_priority;
+    bool		anim_duck;
+    bool		anim_run;
+	sg_time_t	anim_time;
 
-    // powerup timers
-	sg_time_t		quad_time;
-	sg_time_t		invincible_time;
-	sg_time_t		breather_time;
-	sg_time_t		enviro_time;
+	/**
+	*	Powerup Timers:
+	**/
+	sg_time_t	quad_time;
+	sg_time_t	invincible_time;
+	sg_time_t	breather_time;
+	sg_time_t	enviro_time;
 
-    bool        grenade_blew_up;
-	sg_time_t		grenade_time;
-	sg_time_t		grenade_finished_time;
-    int         silencer_shots;
-    int         weapon_sound;
+    sg_time_t	pickup_msg_time;
 
-    sg_time_t		pickup_msg_time;
-
-    sg_time_t		flood_locktill;     // locked from talking
-    sg_time_t		flood_when[10];     // when messages were said
+    /**
+    *	Chat Flood Related:
+    **/
+    sg_time_t	flood_locktill;     // locked from talking
+    sg_time_t	flood_when[10];     // when messages were said
     int32_t		flood_whenhead;     // head pointer for when said
 
-    sg_time_t		respawn_time;		// can respawn when time > this
+    sg_time_t	respawn_time;		// can respawn when time > this
 
     edict_t     *chase_target;      // player we are chasing
     bool        update_chase;       // need to update chase info?

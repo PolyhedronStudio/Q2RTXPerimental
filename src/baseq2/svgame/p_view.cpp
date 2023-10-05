@@ -885,7 +885,7 @@ void G_SetClientFrame(edict_t *ent)
     if (!ent->groundentity && client->anim_priority <= ANIM_WAVE)
         goto newanim;
 
-    if (client->anim_priority == ANIM_REVERSE) {
+    if (client->anim_priority == ANIM_REVERSED) {
         if (ent->s.frame > client->anim_end) {
             ent->s.frame--;
             return;
