@@ -34,8 +34,8 @@ BEGIN
             VALUE "FileDescription", VER_FILEDESCRIPTION_STR
             VALUE "OriginalFilename", VER_ORIGINALFILENAME_STR
             VALUE "FileVersion", VERSION_STRING
-            VALUE "InternalName", "Q2RTXPerimental_ded"
-            VALUE "LegalCopyright", "Copyright (C) 2019-2020, NVIDIA CORPORATION. All rights reserved."
+            VALUE "InternalName", "q2rtxded"
+            VALUE "LegalCopyright", "Copyright (C) 2019-2023, NVIDIA CORPORATION. All rights reserved."
             VALUE "ProductName", "Quake II RTXPerimental"
             VALUE "ProductVersion", VERSION_STRING
         END

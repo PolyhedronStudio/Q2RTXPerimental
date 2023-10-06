@@ -354,9 +354,12 @@ OGG_Update(void)
 
 		samples = stb_vorbis_get_samples_short_interleaved(ogg.vf, ogg.vf->channels, buffer,
 														   sizeof(buffer) / sizeof(short));
-		if (samples == 0 && (OGG_Play(), ogg.initialized))
-			samples = stb_vorbis_get_samples_short_interleaved(ogg.vf, ogg.vf->channels, buffer,
-															sizeof(buffer) / sizeof(short));
+		if (samples == 0) {
+			ogg_status = STOP;
+			if(OGG_Play(), ogg.initialized)
+				samples = stb_vorbis_get_samples_short_interleaved(ogg.vf, ogg.vf->channels, buffer,
+																sizeof(buffer) / sizeof(short));
+		}
 
 		if (samples <= 0)
 			break;
@@ -379,8 +382,7 @@ void
 OGG_LoadTrackList(void)
 {
 	tracklist_free();
-	Z_Free(ogg.music_dir);
-	ogg.music_dir = NULL;
+	Z_Freep((void**)&ogg.music_dir);
 
 	const char* potMusicDirs[4] = {0};
 	char fullMusicDir[MAX_OSPATH] = {0};
@@ -796,8 +798,7 @@ OGG_Shutdown(void)
 	// Free file lsit.
 	tracklist_free();
 
-	Z_Free(ogg.music_dir);
-	ogg.music_dir = NULL;
+	Z_Freep((void**)&ogg.music_dir);
 
 	// Remove console commands
 	Cmd_RemoveCommand("ogg");

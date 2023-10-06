@@ -114,9 +114,9 @@ void SP_target_speaker(edict_t *ent)
 void Use_Target_Help(edict_t *ent, edict_t *other, edict_t *activator)
 {
     if (ent->spawnflags & 1)
-        Q_strlcpy(game.helpmessage1, ent->message, sizeof(game.helpmessage2));
+        Q_strlcpy(game.helpmessage1, ent->message, sizeof(game.helpmessage1));
     else
-        Q_strlcpy(game.helpmessage2, ent->message, sizeof(game.helpmessage1));
+        Q_strlcpy(game.helpmessage2, ent->message, sizeof(game.helpmessage2));
 
     game.helpchanged++;
 }
@@ -284,7 +284,7 @@ void use_target_changelevel(edict_t *self, edict_t *other, edict_t *activator)
     }
 
     // if going to a new unit, clear cross triggers
-    if (strstr(self->map, "*"))
+    if (strchr(self->map, '*'))
         game.serverflags &= ~(SFL_CROSS_TRIGGER_MASK);
 
     BeginIntermission(self);
@@ -743,19 +743,19 @@ void target_earthquake_think(edict_t *self)
 
 	if ( level.time < self->timestamp )
 		self->nextthink = level.time + 10_hz;
- //   for (i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++) {
- //       if (!e->inuse)
- //           continue;
- //       if (!e->client)
- //           continue;
- //       if (!e->groundentity)
- //           continue;
+    for (i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++) {
+        if (!e->inuse)
+            continue;
+        if (!e->client)
+            continue;
+        if (!e->groundentity)
+            continue;
 
- //       e->groundentity = NULL;
- //       e->velocity[0] += crandom() * 150;
- //       e->velocity[1] += crandom() * 150;
- //       e->velocity[2] = self->speed * (100.0f / e->mass);
- //   }
+        e->groundentity = NULL;
+        e->velocity[0] += crandom() * 150;
+        e->velocity[1] += crandom() * 150;
+        e->velocity[2] = self->speed * (100.0f / e->mass);
+    }
 
 	//if ( level.time < self->timestamp )
 	//	self->nextthink = level.time + 10_hz;
@@ -764,9 +764,9 @@ void target_earthquake_think(edict_t *self)
 void target_earthquake_use(edict_t *self, edict_t *other, edict_t *activator)
 {
 	self->timestamp = level.time + sg_time_t::from_sec( self->count );
-	//self->nextthink = level.time + FRAME_TIME_S;
-	//self->last_move_time = 0_ms;
- //   self->activator = activator;
+	self->nextthink = level.time + FRAME_TIME_S;
+	self->last_move_time = 0_ms;
+    self->activator = activator;
 	if ( self->spawnflags & 8 /*.has( SPAWNFLAGS_EARTHQUAKE_ONE_SHOT )*/ ) {
 		uint32_t i;
 		edict_t *e;
