@@ -1035,6 +1035,9 @@ struct gclient_s {
 	bool weapon_fire_buffered;
 	bool weapon_thunk;
 
+	// Last time we played an 'empty weapon click' sound.
+	sg_time_t	empty_weapon_click_sound;
+
 	sg_time_t	grenade_time;
 	sg_time_t	grenade_finished_time;
 	bool        grenade_blew_up;
@@ -1157,7 +1160,7 @@ struct edict_s {
     const char	*classname;
     int         spawnflags;
 
-	sg_time_t		timestamp;
+	sg_time_t	timestamp;
 
     float       angle;          // set in qe3, -1 = up, -2 = down
     char        *target;

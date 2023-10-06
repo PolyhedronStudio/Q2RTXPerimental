@@ -223,7 +223,7 @@ void ChangeWeapon(edict_t *ent)
         ent->s.frame = FRAME_pain301;
         ent->client->anim_end = FRAME_pain304;
     }
-	ent->client->anim_time = 0_ms; // WID: 40hz:
+	ent->client->anim_time = 0_ms;
 }
 
 /*
@@ -231,8 +231,15 @@ void ChangeWeapon(edict_t *ent)
 NoAmmoWeaponChange
 =================
 */
-void NoAmmoWeaponChange(edict_t *ent)
+void NoAmmoWeaponChange( edict_t *ent, bool sound = false )
 {
+	if ( sound ) {
+		if ( level.time >= ent->client->empty_weapon_click_sound ) {
+			gi.sound( ent, CHAN_VOICE, gi.soundindex( "weapons/noammo.wav" ), 1, ATTN_NORM, 0 );
+			ent->client->empty_weapon_click_sound = level.time + 1_sec;
+		}
+	}
+
     if (ent->client->pers.inventory[ITEM_INDEX(FindItem("slugs"))]
         &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("railgun"))]) {
         ent->client->newweapon = FindItem("railgun");
@@ -697,6 +704,7 @@ void weapon_grenade_fire(edict_t *ent, bool held)
         ent->s.frame = FRAME_wave08;
         ent->client->anim_end = FRAME_wave01;
     }
+	ent->client->anim_time = 0_ms;
 }
 
 void Weapon_Grenade(edict_t *ent)
@@ -940,7 +948,7 @@ void Weapon_Blaster_Fire(edict_t *ent)
     else
         damage = 10;
     Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
-    ent->client->ps.gunframe++;
+    //ent->client->ps.gunframe++;
 }
 
 void Weapon_Blaster(edict_t *ent)
@@ -954,69 +962,76 @@ void Weapon_Blaster(edict_t *ent)
 
 void Weapon_HyperBlaster_Fire(edict_t *ent)
 {
-    float   rotation;
-    vec3_t  offset;
-    int     effect;
-    int     damage;
+	float	  rotation;
+	vec3_t	  offset;
+	int		  damage;
 
-    ent->client->weapon_sound = gi.soundindex("weapons/hyprbl1a.wav");
+	// start on frame 6
+	if ( ent->client->ps.gunframe > 20 )
+		ent->client->ps.gunframe = 6;
+	else
+		ent->client->ps.gunframe++;
 
-    if (!(ent->client->buttons & BUTTON_ATTACK)) {
-        ent->client->ps.gunframe++;
-    } else {
-        if (! ent->client->pers.inventory[ent->client->ammo_index]) {
-            if (level.time >= ent->pain_debounce_time) {
-                gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-                ent->pain_debounce_time = level.time + FRAME_TIME_S;
-            }
-            NoAmmoWeaponChange(ent);
-        } else {
-            rotation = (ent->client->ps.gunframe - 5) * (M_PI / 3);
-            offset[0] = -4 * sin(rotation);
-            offset[1] = 0;
-            offset[2] = 4 * cos(rotation);
+	// if we reached end of loop, have ammo & holding attack, reset loop
+	// otherwise play wind down
+	if ( ent->client->ps.gunframe == 12 ) {
+		if ( ent->client->pers.inventory[ ent->client->ammo_index ] && ( ent->client->buttons & BUTTON_ATTACK ) )
+			ent->client->ps.gunframe = 6;
+		else
+			gi.sound( ent, CHAN_AUTO, gi.soundindex( "weapons/hyprbd1a.wav" ), 1, ATTN_NORM, 0 );
+	}
 
-            if ((ent->client->ps.gunframe == 6) || (ent->client->ps.gunframe == 9))
-                effect = EF_HYPERBLASTER;
-            else
-                effect = 0;
-            if (deathmatch->value)
-                damage = 15;
-            else
-                damage = 20;
-            Blaster_Fire(ent, offset, damage, true, effect);
-            if (!((int)dmflags->value & DF_INFINITE_AMMO))
-                ent->client->pers.inventory[ent->client->ammo_index]--;
+	// play weapon sound for firing loop
+	if ( ent->client->ps.gunframe >= 6 && ent->client->ps.gunframe <= 11 )
+		ent->client->weapon_sound = gi.soundindex( "weapons/hyprbl1a.wav" );
+	else
+		ent->client->weapon_sound = 0;
 
-            ent->client->anim_priority = ANIM_ATTACK;
-            if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
-                ent->s.frame = FRAME_crattak1 - 1;
-                ent->client->anim_end = FRAME_crattak9;
-            } else {
-                ent->s.frame = FRAME_attack1 - 1;
-                ent->client->anim_end = FRAME_attack8;
-            }
-			ent->client->anim_time = 0_ms; // WID: 40hz:
-        }
+	// fire frames
+	bool request_firing = ent->client->weapon_fire_buffered || ( ent->client->buttons & BUTTON_ATTACK );
 
-        ent->client->ps.gunframe++;
-        if (ent->client->ps.gunframe == 12 && ent->client->pers.inventory[ent->client->ammo_index])
-            ent->client->ps.gunframe = 6;
-    }
+	if ( request_firing ) {
+		if ( ent->client->ps.gunframe >= 6 && ent->client->ps.gunframe <= 11 ) {
+			ent->client->weapon_fire_buffered = false;
 
-    if (ent->client->ps.gunframe == 12) {
-        gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/hyprbd1a.wav"), 1, ATTN_NORM, 0);
-        ent->client->weapon_sound = 0;
-    }
+			if ( !ent->client->pers.inventory[ ent->client->ammo_index ] ) {
+				NoAmmoWeaponChange( ent, true );
+				return;
+			}
 
+			rotation = ( ent->client->ps.gunframe - 5 ) * 2 * M_PI / 6;
+			offset[ 0 ] = -4 * sinf( rotation );
+			offset[ 2 ] = 0;
+			offset[ 1 ] = 4 * cosf( rotation );
+
+			if ( deathmatch->integer )
+				damage = 15;
+			else
+				damage = 20;
+			Blaster_Fire( ent, offset, damage, true, ( ent->client->ps.gunframe % 4 ) ? 0/*EF_NONE*/ : EF_HYPERBLASTER );
+			Weapon_PowerupSound( ent );
+
+	        if (!((int)dmflags->value & DF_INFINITE_AMMO))
+	            ent->client->pers.inventory[ent->client->ammo_index]--;
+
+			ent->client->anim_priority = ANIM_ATTACK;
+			if ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) {
+				ent->s.frame = FRAME_crattak1 - (int)( frandom( ) + 0.25f );
+				ent->client->anim_end = FRAME_crattak9;
+			} else {
+				ent->s.frame = FRAME_attack1 - (int)( frandom( ) + 0.25f );
+				ent->client->anim_end = FRAME_attack8;
+			}
+			ent->client->anim_time = 0_ms;
+		}
+	}
 }
 
 void Weapon_HyperBlaster(edict_t *ent)
 {
-    static int  pause_frames[]  = {0};
-    static int  fire_frames[]   = {6, 7, 8, 9, 10, 11, 0};
+	constexpr int pause_frames[] = { 0 };
 
-    Weapon_Generic(ent, 5, 20, 49, 53, pause_frames, fire_frames, Weapon_HyperBlaster_Fire);
+	Weapon_Repeating( ent, 5, 20, 49, 53, pause_frames, Weapon_HyperBlaster_Fire );
 }
 
 /*
@@ -1102,15 +1117,18 @@ void Machinegun_Fire(edict_t *ent)
         ent->s.frame = FRAME_attack1 - (int)(random() + 0.25f);
         ent->client->anim_end = FRAME_attack8;
     }
-	ent->client->anim_time = 0_ms; // WID: 40hz:
+	ent->client->anim_time = 0_ms;
 }
 
 void Weapon_Machinegun(edict_t *ent)
 {
-    static int  pause_frames[]  = {23, 45, 0};
-    static int  fire_frames[]   = {4, 5, 0};
+    //static int  pause_frames[]  = {23, 45, 0};
+    //static int  fire_frames[]   = {4, 5, 0};
 
-    Weapon_Generic(ent, 3, 5, 45, 49, pause_frames, fire_frames, Machinegun_Fire);
+    //Weapon_Generic(ent, 3, 5, 45, 49, pause_frames, fire_frames, Machinegun_Fire);
+	constexpr int pause_frames[] = { 23, 45, 0 };
+
+	Weapon_Repeating( ent, 3, 5, 45, 49, pause_frames, Machinegun_Fire );
 }
 
 void Chaingun_Fire(edict_t *ent)
@@ -1129,10 +1147,10 @@ void Chaingun_Fire(edict_t *ent)
     else
         damage = 8;
 
-    if (ent->client->ps.gunframe == 5)
-        gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
-
-    if ((ent->client->ps.gunframe == 14) && !(ent->client->buttons & BUTTON_ATTACK)) {
+	if ( ent->client->ps.gunframe > 31 ) {
+		ent->client->ps.gunframe = 5;
+		gi.sound( ent, CHAN_AUTO, gi.soundindex( "weapons/chngnu1a.wav" ), 1, ATTN_IDLE, 0 );
+	} else if ((ent->client->ps.gunframe == 14) && !(ent->client->buttons & BUTTON_ATTACK)) {
         ent->client->ps.gunframe = 32;
         ent->client->weapon_sound = 0;
         return;
@@ -1158,7 +1176,7 @@ void Chaingun_Fire(edict_t *ent)
         ent->s.frame = FRAME_attack1 - (ent->client->ps.gunframe & 1);
         ent->client->anim_end = FRAME_attack8;
     }
-	ent->client->anim_time = 0_ms; // WID: 40hz:
+	ent->client->anim_time = 0_ms;
 
     if (ent->client->ps.gunframe <= 9)
         shots = 1;
@@ -1218,10 +1236,9 @@ void Chaingun_Fire(edict_t *ent)
 
 void Weapon_Chaingun(edict_t *ent)
 {
-    static int  pause_frames[]  = {38, 43, 51, 61, 0};
-    static int  fire_frames[]   = {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 0};
+	constexpr int pause_frames[] = { 38, 43, 51, 61, 0 };
 
-    Weapon_Generic(ent, 4, 31, 61, 64, pause_frames, fire_frames, Chaingun_Fire);
+	Weapon_Repeating( ent, 4, 31, 61, 64, pause_frames, Chaingun_Fire );
 }
 
 
