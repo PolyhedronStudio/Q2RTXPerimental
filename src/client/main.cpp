@@ -3090,7 +3090,7 @@ static int ref_msec, phys_msec, main_msec;
 static int ref_extra, phys_extra, main_extra;
 static sync_mode_t sync_mode;
 
-#define MIN_PHYS_HZ 10
+#define MIN_PHYS_HZ 40
 #define MAX_PHYS_HZ 125
 #define MIN_REF_HZ MIN_PHYS_HZ
 #define MAX_REF_HZ 1000

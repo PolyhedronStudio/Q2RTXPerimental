@@ -292,7 +292,7 @@ static void KeyDown(kbutton_t *b)
     c = Cmd_Argv(2);
     b->downtime = atoi(c);
     if (!b->downtime) {
-        b->downtime = com_eventTime - 100;
+        b->downtime = com_eventTime - 40;
     }
 
     b->state |= 1 + 2;    // down + impulse down
@@ -789,7 +789,7 @@ void CL_FinalizeCmd(void)
     }
 
     if (cl.cmd.msec > 250) {
-        cl.cmd.msec = 100;        // time was unreasonable
+        cl.cmd.msec = 40;        // time was unreasonable
     }
 
     // rebuild the movement vector
@@ -860,7 +860,7 @@ static inline bool ready_to_send(void)
 
     msec = 1000 / cl_maxpackets->integer;
     if (msec) {
-        msec = 100 / (100 / msec);
+        msec = 40 / (40 / msec);
     }
     if (cls.realtime - cl.lastTransmitTime < msec) {
         return false;
