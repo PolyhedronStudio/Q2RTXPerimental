@@ -1658,6 +1658,10 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     client->buttons = ucmd->buttons;
     client->latched_buttons |= client->buttons & ~client->oldbuttons;
 
+	// save light level the player is standing on for
+	// monster sighting AI
+	ent->light_level = 255;//ucmd->lightlevel;
+
     // fire weapon from final position if needed
     if (client->latched_buttons & BUTTON_ATTACK) {
         if (client->resp.spectator) {
