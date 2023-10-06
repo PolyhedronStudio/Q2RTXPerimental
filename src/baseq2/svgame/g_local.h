@@ -745,8 +745,6 @@ void    G_TouchSolids(edict_t *ent);
 
 char    *G_CopyString(char *in);
 
-float   *tv(float x, float y, float z);
-
 float vectoyaw(vec3_t vec);
 void vectoangles(vec3_t vec, vec3_t angles);
 
@@ -1104,7 +1102,7 @@ struct gclient_s {
     **/
     sg_time_t	flood_locktill;     // locked from talking
     sg_time_t	flood_when[10];     // when messages were said
-    int32_t		flood_whenhead;     // head pointer for when said
+    int64_t		flood_whenhead;     // head pointer for when said
 
     sg_time_t	respawn_time;		// can respawn when time > this
 

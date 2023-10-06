@@ -88,6 +88,7 @@ cvar_t  *sv_waterjump_hack;
 cvar_t  *sv_packetdup_hack;
 #endif
 cvar_t  *sv_allow_map;
+cvar_t  *sv_cinematics;
 #if !USE_CLIENT
 cvar_t  *sv_recycle;
 #endif
@@ -159,17 +160,11 @@ void SV_CleanClient(client_t *client)
     // close any existing donwload
     SV_CloseDownload(client);
 
-    if (client->version_string) {
-        Z_Free(client->version_string);
-        client->version_string = NULL;
-    }
+    Z_Freep((void**)&client->version_string);
 
     // free baselines allocated for this client
     for (i = 0; i < SV_BASELINES_CHUNKS; i++) {
-        if (client->baselines[i]) {
-            Z_Free(client->baselines[i]);
-            client->baselines[i] = NULL;
-        }
+        Z_Freep((void**)&client->baselines[i]);
     }
 }
 
@@ -2260,6 +2255,7 @@ void SV_Init(void)
 #endif
 
     sv_allow_map = Cvar_Get("sv_allow_map", "0", 0);
+    sv_cinematics = Cvar_Get("sv_cinematics", "1", 0);
 
 #if !USE_CLIENT
     sv_recycle = Cvar_Get("sv_recycle", "0", 0);

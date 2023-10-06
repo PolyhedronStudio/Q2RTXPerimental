@@ -101,6 +101,8 @@ cvar_t *showdrop; // WID: net-code: removed 'static' keyword, we're sharing thes
 #define SHOWDROP(...)
 #endif
 
+#define SOCK_TAG(sock)  ((sock) == NS_SERVER ? TAG_SERVER : TAG_GENERAL)
+
 cvar_t      *net_qport;
 cvar_t      *net_maxmsglen;
 cvar_t      *net_chantype;
@@ -420,11 +422,7 @@ static netchan_t *NetchanOld_Setup(netsrc_t sock, const netadr_t *adr,
     netchan_old_t *chan;
     netchan_t *netchan;
 
-    Z_TagReserve(sizeof(*chan) + maxpacketlen * 2,
-                 sock == NS_SERVER ? TAG_SERVER : TAG_GENERAL);
-
-    chan = static_cast<netchan_old_t*>( Z_ReservedAlloc(sizeof(*chan)) ); // WID: C++20: Added cast.
-    memset(chan, 0, sizeof(*chan));
+    chan = static_cast<netchan_old_t *>( Z_TagMallocz(sizeof(*chan), SOCK_TAG(sock)) );
     netchan = (netchan_t *)chan;
     netchan->sock = sock;
     netchan->remote_address = *adr;
@@ -440,10 +438,10 @@ static netchan_t *NetchanOld_Setup(netsrc_t sock, const netadr_t *adr,
     netchan->TransmitNextFragment = NetchanOld_TransmitNextFragment;
     netchan->ShouldUpdate = NetchanOld_ShouldUpdate;
 
-    chan->message_buf = static_cast<byte*>( Z_ReservedAlloc(maxpacketlen) ); // WID: C++20: Added cast.
+    chan->message_buf = static_cast<byte *>( Z_TagMalloc(maxpacketlen, SOCK_TAG(sock)) );
     SZ_Init(&netchan->message, chan->message_buf, maxpacketlen);
 
-    chan->reliable_buf = static_cast<byte*>( Z_ReservedAlloc(maxpacketlen) ); // WID: C++20: Added cast.
+    chan->reliable_buf = static_cast<byte *>( Z_TagMalloc(maxpacketlen, SOCK_TAG(sock)) );
 
     return netchan;
 }
@@ -822,8 +820,7 @@ static netchan_t *NetchanNew_Setup(netsrc_t sock, const netadr_t *adr,
     netchan_new_t *chan;
     netchan_t *netchan;
 
-    chan = static_cast<netchan_new_t*>( Z_TagMallocz(sizeof(*chan),
-                        sock == NS_SERVER ? TAG_SERVER : TAG_GENERAL) ); // WID: C++20: Added cast.
+    chan = static_cast<netchan_new_t *>( Z_TagMallocz(sizeof(*chan), SOCK_TAG(sock)) );
     netchan = (netchan_t *)chan;
     netchan->sock = sock;
     netchan->remote_address = *adr;
@@ -890,6 +887,12 @@ Netchan_Close
 */
 void Netchan_Close(netchan_t *netchan)
 {
+    if (netchan->type == NETCHAN_OLD) {
+        netchan_old_t *chan = (netchan_old_t *)netchan;
+
+        Z_Free(chan->message_buf);
+        Z_Free(chan->reliable_buf);
+    }
     Z_Free(netchan);
 }
 

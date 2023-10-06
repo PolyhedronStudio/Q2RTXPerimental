@@ -54,10 +54,8 @@ extern "C" {
 
 #define SHELL_WHITE_COLOR 0xD7
 
-// NOTE: these flags are intentionally the same value
-#define RF_LEFTHAND RF_NOSHADOW
-
-#define RF_SHELL_MASK (RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE | RF_SHELL_DOUBLE | RF_SHELL_HALF_DAM)
+#define RF_SHELL_MASK       (RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE | \
+                             RF_SHELL_DOUBLE | RF_SHELL_HALF_DAM)
 
 #define DLIGHT_CUTOFF 64
 
@@ -323,23 +321,26 @@ extern "C" {
 #endif // __cplusplus
 extern void (*R_RenderFrame)(refdef_t* fd);
 extern void (*R_LightPoint)(const vec3_t origin, vec3_t light);
-
-extern void (*R_ClearColor)(void);
-extern void (*R_SetAlpha)(float clpha);
-extern void (*R_SetAlphaScale)(float alpha);
-extern void (*R_SetColor)(uint32_t color);
-extern void (*R_SetClipRect)(const clipRect_t* clip);
-float R_ClampScale(cvar_t* var);
-extern void (*R_SetScale)(float scale);
-extern void (*R_DrawChar)(int x, int y, int flags, int ch, qhandle_t font);
-extern int (*R_DrawString)(int x, int y, int flags, size_t maxChars,
-    const char* string, qhandle_t font); // returns advanced x coord
-bool R_GetPicSize(int* w, int* h, qhandle_t pic); // returns transparency bit
-extern void (*R_DrawPic)(int x, int y, qhandle_t pic);
-extern void (*R_DrawStretchPic)(int x, int y, int w, int h, qhandle_t pic);
-extern void (*R_TileClear)(int x, int y, int w, int h, qhandle_t pic);
-extern void (*R_DrawFill8)(int x, int y, int w, int h, int c);
-extern void (*R_DrawFill32)(int x, int y, int w, int h, uint32_t color);
+extern void    (*R_ClearColor)(void);
+extern void    (*R_SetAlpha)(float clpha);
+extern void    (*R_SetAlphaScale)(float alpha);
+extern void    (*R_SetColor)(uint32_t color);
+extern void    (*R_SetClipRect)(const clipRect_t *clip);
+float   R_ClampScale(cvar_t *var);
+extern void    (*R_SetScale)(float scale);
+extern void    (*R_DrawChar)(int x, int y, int flags, int ch, qhandle_t font);
+extern int     (*R_DrawString)(int x, int y, int flags, size_t maxChars,
+                     const char *string, qhandle_t font);  // returns advanced x coord
+bool R_GetPicSize(int *w, int *h, qhandle_t pic);   // returns transparency bit
+extern void    (*R_DrawPic)(int x, int y, qhandle_t pic);
+extern void    (*R_DrawStretchPic)(int x, int y, int w, int h, qhandle_t pic);
+extern void    (*R_DrawStretchRaw)(int x, int y, int w, int h);
+extern void    (*R_TileClear)(int x, int y, int w, int h, qhandle_t pic);
+extern void    (*R_DrawFill8)(int x, int y, int w, int h, int c);
+extern void    (*R_DrawFill32)(int x, int y, int w, int h, uint32_t color);
+extern void    (*R_UpdateRawPic)(int pic_w, int pic_h, const uint32_t *pic);
+extern void    (*R_DiscardRawPic)(void);
+extern void    (*R_DrawFill32)(int x, int y, int w, int h, uint32_t color);
 
 // video mode and refresh state management entry points
 extern void (*R_BeginFrame)(void);

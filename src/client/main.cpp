@@ -27,7 +27,14 @@ cvar_t  *cl_footsteps;
 cvar_t  *cl_timeout;
 cvar_t  *cl_predict;
 cvar_t  *cl_gunalpha;
+// WID: C++20: For linkage with .c
+extern "C" {
+	cvar_t *cl_gunfov;
+}
 cvar_t  *cl_gunscale;
+cvar_t  *cl_gun_x;
+cvar_t  *cl_gun_y;
+cvar_t  *cl_gun_z;
 cvar_t  *cl_warn_on_fps_rounding;
 cvar_t  *cl_maxfps;
 cvar_t  *cl_async;
@@ -708,6 +715,7 @@ void CL_ClearState(void)
 {
     S_StopAllSounds();
     OGG_Stop();
+    SCR_StopCinematic();
     CL_ClearEffects();
     CL_ClearTEnts();
     LOC_FreeLocations();
@@ -756,12 +764,6 @@ void CL_Disconnect(error_type_t type)
     if (cls.state > ca_disconnected && !cls.demo.playback) {
         EXEC_TRIGGER(cl_disconnectcmd);
     }
-
-#if 0
-    if (cls.ref_initialized) {
-        R_CinematicSetPalette(NULL);
-    }
-#endif
 
     //cls.connect_time = 0;
     //cls.connect_count = 0;
@@ -2395,7 +2397,7 @@ void CL_RestartFilesystem(bool total)
         CL_RegisterSounds();
         CL_LoadState(LOAD_NONE);
     } else if (cls_state == ca_cinematic) {
-        cl.image_precache[0] = R_RegisterPic2(cl.mapname);
+        SCR_ReloadCinematic();
     }
 
     CL_LoadDownloadIgnores();
@@ -2450,7 +2452,7 @@ void CL_RestartRefresh(bool total)
         CL_PrepRefresh();
         CL_LoadState(LOAD_NONE);
     } else if (cls_state == ca_cinematic) {
-        cl.image_precache[0] = R_RegisterPic2(cl.mapname);
+        SCR_ReloadCinematic();
     }
 
     // switch back to original state
@@ -2712,7 +2714,11 @@ static void CL_InitLocal(void)
     // register our variables
     //
     cl_gunalpha = Cvar_Get("cl_gunalpha", "1", 0);
+    cl_gunfov = Cvar_Get("cl_gunfov", "90", 0);
     cl_gunscale = Cvar_Get("cl_gunscale", "0.25", CVAR_ARCHIVE);
+    cl_gun_x = Cvar_Get("cl_gun_x", "0", 0);
+    cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
+    cl_gun_z = Cvar_Get("cl_gun_z", "0", 0);
     cl_footsteps = Cvar_Get("cl_footsteps", "1", 0);
     cl_footsteps->changed = cl_footsteps_changed;
     cl_noskins = Cvar_Get("cl_noskins", "0", 0);
@@ -3271,6 +3277,8 @@ unsigned CL_Frame(unsigned msec)
     CL_PredictMovement();
 
     Con_RunConsole();
+
+    SCR_RunCinematic();
 
     UI_Frame(main_extra);
 

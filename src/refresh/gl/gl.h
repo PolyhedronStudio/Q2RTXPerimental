@@ -51,7 +51,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define TAB_COS(x) gl_static.sintab[((x) + 64) & 255]
 
 #define MAX_PROGRAMS    64
-#define NUM_TEXNUMS     6
+#define NUM_TEXNUMS     7
 
 typedef struct {
     const char *name;
@@ -63,7 +63,6 @@ typedef struct {
 
     void (*proj_matrix)(const GLfloat *matrix);
     void (*view_matrix)(const GLfloat *matrix);
-    void (*reflect)(void);
 
     void (*state_bits)(GLbitfield bits);
     void (*array_bits)(GLbitfield bits);
@@ -426,13 +425,13 @@ static inline void GL_DepthRange(GLfloat n, GLfloat f)
 #define GL_ColorBytePointer     gl_static.backend.color_byte_pointer
 #define GL_ColorFloatPointer    gl_static.backend.color_float_pointer
 #define GL_Color                gl_static.backend.color
-#define GL_Reflect              gl_static.backend.reflect
 
 void GL_ForceTexture(GLuint tmu, GLuint texnum);
 void GL_BindTexture(GLuint tmu, GLuint texnum);
 void GL_CommonStateBits(GLbitfield bits);
 void GL_DrawOutlines(GLsizei count, QGL_INDEX_TYPE *indices);
 void GL_Ortho(GLfloat xmin, GLfloat xmax, GLfloat ymin, GLfloat ymax, GLfloat znear, GLfloat zfar);
+void GL_Frustum(GLfloat fov_x, GLfloat fov_y, GLfloat reflect_x);
 void GL_Setup2D(void);
 void GL_Setup3D(void);
 void GL_ClearState(void);
@@ -472,6 +471,9 @@ float R_ClampScaleGL(cvar_t *var);
 void R_SetScale_GL(float scale);
 void R_DrawStretchPic_GL(int x, int y, int w, int h, qhandle_t pic);
 void R_DrawPic_GL(int x, int y, qhandle_t pic);
+void R_DrawStretchRaw_GL(int x, int y, int w, int h);
+void R_UpdateRawPic_GL(int pic_w, int pic_h, const uint32_t *pic);
+void R_DiscardRawPic_GL(void);
 void R_TileClear_GL(int x, int y, int w, int h, qhandle_t pic);
 void R_DrawFill8_GL(int x, int y, int w, int h, int c);
 void R_DrawFill32_GL(int x, int y, int w, int h, uint32_t color);
@@ -490,6 +492,7 @@ int R_DrawString_GL(int x, int y, int flags, size_t maxlen, const char *s, qhand
 #define TEXNUM_BEAM     gl_static.texnums[3]
 #define TEXNUM_WHITE    gl_static.texnums[4]
 #define TEXNUM_BLACK    gl_static.texnums[5]
+#define TEXNUM_RAW      gl_static.texnums[6]
 
 void Scrap_Upload(void);
 

@@ -524,6 +524,9 @@ extern char        cl_cmdbuf_text[MAX_STRING_CHARS];
 //
 extern cvar_t    *cl_gunalpha;
 extern cvar_t    *cl_gunscale;
+extern cvar_t    *cl_gun_x;
+extern cvar_t    *cl_gun_y;
+extern cvar_t    *cl_gun_z;
 extern cvar_t    *cl_predict;
 extern cvar_t    *cl_footsteps;
 extern cvar_t    *cl_noskins;
@@ -958,9 +961,6 @@ void    SCR_UpdateScreen(void);
 void    SCR_SizeUp(void);
 void    SCR_SizeDown(void);
 void    SCR_CenterPrint(const char *str);
-void    SCR_FinishCinematic(void);
-void    SCR_PlayCinematic(const char *name);
-void    SCR_RunCinematic(void);
 void    SCR_BeginLoadingPlaque(void);
 void    SCR_EndLoadingPlaque(void);
 void    SCR_TouchPics(void);
@@ -979,6 +979,15 @@ void    SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen, const char *
 void    SCR_ClearChatHUD_f(void);
 void    SCR_AddToChatHUD(const char *text);
 
+//
+// cin.c
+//
+void    SCR_StopCinematic(void);
+void    SCR_FinishCinematic(void);
+void    SCR_RunCinematic(void);
+void    SCR_DrawCinematic(void);
+void    SCR_ReloadCinematic(void);
+void    SCR_PlayCinematic(const char *name);
 
 //
 // ascii.c
