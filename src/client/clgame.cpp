@@ -14,7 +14,7 @@ extern "C" {
 **/
 static cvar_t *PF_CVar( const char *name, const char *value, int flags ) {
 	if ( flags & CVAR_EXTENDED_MASK ) {
-		Com_WPrintf( "ServerGame attemped to set extended flags on '%s', masked out.\n", name );
+		Com_WPrintf( "ClientGame attemped to set extended flags on '%s', masked out.\n", name );
 		flags &= ~CVAR_EXTENDED_MASK;
 	}
 
@@ -50,7 +50,7 @@ static q_noreturn void PF_Error( const char *fmt, ... ) {
 	Q_vsnprintf( msg, sizeof( msg ), fmt, argptr );
 	va_end( argptr );
 
-	Com_Error( ERR_DROP, "ServerGame Error: %s", msg );
+	Com_Error( ERR_DROP, "ClientGame Error: %s", msg );
 }
 
 

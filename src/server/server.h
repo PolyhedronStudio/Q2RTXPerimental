@@ -243,7 +243,9 @@ typedef struct {
     };
 } message_packet_t;
 
-#define RATE_MESSAGES   10
+// WID: 40hz:
+//#define RATE_MESSAGES   10
+#define RATE_MESSAGES   40
 
 #define FOR_EACH_CLIENT(client) \
     LIST_FOR_EACH(client_t, client, &sv_clientlist, entry)

@@ -2006,7 +2006,7 @@ unsigned SV_Frame(unsigned msec)
     // don't accumulate bogus residual
     if (sv.frameresidual > 250) {
         Com_DDDPrintf("Reset residual %u\n", sv.frameresidual);
-        sv.frameresidual = 100;
+        sv.frameresidual = 40; // WID: 40hz:
     }
 
     return 0;
@@ -2123,7 +2123,9 @@ static void init_rate_limits(void)
 
 static void sv_rate_changed(cvar_t *self)
 {
-    Cvar_ClampInteger(sv_min_rate, 100, Cvar_ClampInteger(sv_max_rate, 1000, INT_MAX));
+	// WID: 40hz:
+    //Cvar_ClampInteger(sv_min_rate, 100, Cvar_ClampInteger(sv_max_rate, 1000, INT_MAX));
+	Cvar_ClampInteger( sv_min_rate, 100, Cvar_ClampInteger( sv_max_rate, 1000, INT_MAX ) );
 }
 
 void sv_sec_timeout_changed(cvar_t *self)
@@ -2241,7 +2243,9 @@ void SV_Init(void)
     sv_pad_packets = Cvar_Get("sv_pad_packets", "0", 0);
 #endif
     sv_lan_force_rate = Cvar_Get("sv_lan_force_rate", "0", CVAR_LATCH);
-    sv_min_rate = Cvar_Get("sv_min_rate", "100", CVAR_LATCH);
+	// WID: 40hz:
+	//sv_min_rate = Cvar_Get("sv_min_rate", "100", CVAR_LATCH);
+	sv_min_rate = Cvar_Get( "sv_min_rate", "40", CVAR_LATCH );
     sv_max_rate = Cvar_Get("sv_max_rate", "15000", CVAR_LATCH);
     sv_max_rate->changed = sv_min_rate->changed = sv_rate_changed;
     sv_max_rate->changed(sv_max_rate);

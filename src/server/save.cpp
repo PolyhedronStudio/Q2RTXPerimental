@@ -551,7 +551,9 @@ void SV_CheckForSavegame(mapcmd_t *cmd)
 
         // coming back to a level after being in a different
         // level, so run it for ten seconds
-        for (i = 0; i < 100; i++)
+		//for (i = 0; i < 100; i++)
+		// WID: 40hz:
+		for( i = 0; i < 400; i++ )
             ge->RunFrame();
     }
 }
