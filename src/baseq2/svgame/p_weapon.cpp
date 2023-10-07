@@ -1161,12 +1161,18 @@ void Chaingun_Fire(edict_t *ent)
         ent->client->ps.gunframe++;
     }
 
-    if (ent->client->ps.gunframe == 22) {
-        ent->client->weapon_sound = 0;
-        gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
-    } else {
-        ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
-    }
+	if ( ent->client->ps.gunframe == 22 ) {
+		ent->client->weapon_sound = 0;
+		gi.sound( ent, CHAN_AUTO, gi.soundindex( "weapons/chngnd1a.wav" ), 1, ATTN_IDLE, 0 );
+	}
+	//} else {
+    //    ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
+    //}
+	if ( ent->client->ps.gunframe < 5 || ent->client->ps.gunframe > 21 ) {
+		return;
+	}
+
+	ent->client->weapon_sound = gi.soundindex( "weapons/chngnl1a.wav" );
 
     ent->client->anim_priority = ANIM_ATTACK;
     if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
@@ -1178,25 +1184,27 @@ void Chaingun_Fire(edict_t *ent)
     }
 	ent->client->anim_time = 0_ms;
 
-    if (ent->client->ps.gunframe <= 9)
-        shots = 1;
-    else if (ent->client->ps.gunframe <= 14) {
+	if ( ent->client->ps.gunframe <= 9 ) {
+		shots = 1;
+	} else if ( ent->client->ps.gunframe <= 14 ) {
         if (ent->client->buttons & BUTTON_ATTACK)
             shots = 2;
         else
             shots = 1;
-    } else
-        shots = 3;
+	} else {
+		shots = 3;
+	}
 
-    if (ent->client->pers.inventory[ent->client->ammo_index] < shots)
-        shots = ent->client->pers.inventory[ent->client->ammo_index];
+	if ( ent->client->pers.inventory[ ent->client->ammo_index ] < shots ) {
+		shots = ent->client->pers.inventory[ ent->client->ammo_index ];
+	}
 
     if (!shots) {
-        if (level.time >= ent->pain_debounce_time) {
-            gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
-            ent->pain_debounce_time = level.time + FRAME_TIME_S;
-        }
-        NoAmmoWeaponChange(ent);
+        //if (level.time >= ent->pain_debounce_time) {
+        //    gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/noammo.wav"), 1, ATTN_NORM, 0);
+        //    ent->pain_debounce_time = level.time + FRAME_TIME_S;
+        //}
+        NoAmmoWeaponChange(ent, true);
         return;
     }
 
