@@ -165,45 +165,44 @@ transmition / retransmition of the reliable messages.
 A 0 length will still generate a packet and deal with the reliable messages.
 ================
 */
-size_t NetchanQ2RTXPerimental_Transmit( netchan_t *netchan, size_t length, const void *data, int numpackets ) {
-	netchan_q2rtxperimental_t *chan = (netchan_q2rtxperimental_t *)netchan;
+size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const void *data, int numpackets ) {
 	sizebuf_t   send;
 	byte        send_buf[ MAX_PACKETLEN ];
 	bool        send_reliable;
-	uint32_t    w1, w2;
-	int         i;
+	int         i, w1, w2;
 
 // check for message overflow
-	if ( netchan->message.overflowed ) {
-		netchan->fatal_error = true;
-		Com_WPrintf( "%s: outgoing message overflow\n",
-					NET_AdrToString( &netchan->remote_address ) );
+	if ( chan->message.overflowed ) {
+		chan->fatal_error = true;
+		Com_WPrintf( "%s: outgoing message overflow\n", NET_AdrToString( &chan->remote_address ) );
 		return 0;
 	}
 
 	send_reliable = false;
 
 	// if the remote side dropped the last reliable message, resend it
-	if ( netchan->incoming_acknowledged > chan->last_reliable_sequence &&
+	if ( chan->incoming_acknowledged > chan->last_reliable_sequence &&
 		chan->incoming_reliable_acknowledged != chan->reliable_sequence ) {
 		send_reliable = true;
 	}
 
 // if the reliable transmit buffer is empty, copy the current message out
-	if ( !netchan->reliable_length && netchan->message.cursize ) {
+	if ( !chan->reliable_length && chan->message.cursize ) {
 		send_reliable = true;
-		memcpy( chan->reliable_buf, chan->message_buf,
-			   netchan->message.cursize );
-		netchan->reliable_length = netchan->message.cursize;
-		netchan->message.cursize = 0;
+		memcpy( chan->reliable_buf, chan->message_buf, chan->message.cursize );
+		chan->reliable_length = chan->message.cursize;
+		chan->message.cursize = 0;
 		chan->reliable_sequence ^= 1;
 	}
 
 // write the packet header
-	w1 = ( netchan->outgoing_sequence & 0x7FFFFFFF ) |
-		( (unsigned)send_reliable << 31 );
-	w2 = ( netchan->incoming_sequence & 0x7FFFFFFF ) |
-		( (unsigned)chan->incoming_reliable_sequence << 31 );
+	w1 = chan->outgoing_sequence & 0x7FFFFFFF;
+	if ( send_reliable )
+		w1 |= 0x80000000;
+
+	w2 = chan->incoming_sequence & 0x7FFFFFFF;
+	if ( chan->incoming_reliable_sequence )
+		w2 |= 0x80000000;
 
 	SZ_TagInit( &send, send_buf, sizeof( send_buf ), "nc_send_old" );
 
@@ -212,32 +211,31 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *netchan, size_t length, const
 
 	#if USE_CLIENT
 		// send the qport if we are a client
-	if ( netchan->sock == NS_CLIENT ) {
-		if ( netchan->protocol < PROTOCOL_VERSION_R1Q2 ) {
-			SZ_WriteShort( &send, netchan->qport );
-		} else if ( netchan->qport ) {
-			SZ_WriteByte( &send, netchan->qport );
+	if ( chan->sock == NS_CLIENT ) {
+		if ( chan->protocol < PROTOCOL_VERSION_R1Q2 ) {
+			SZ_WriteShort( &send, chan->qport );
+		} else if ( chan->qport ) {
+			SZ_WriteByte( &send, chan->qport );
 		}
 	}
 	#endif
 
 	// copy the reliable message to the packet first
 	if ( send_reliable ) {
-		SZ_Write( &send, chan->reliable_buf, netchan->reliable_length );
-		chan->last_reliable_sequence = netchan->outgoing_sequence;
+		SZ_Write( &send, chan->reliable_buf, chan->reliable_length );
+		chan->last_reliable_sequence = chan->outgoing_sequence;
 	}
 
 // add the unreliable part if space is available
 	if ( send.maxsize - send.cursize >= length )
 		SZ_Write( &send, data, length );
 	else
-		Com_WPrintf( "%s: dumped unreliable\n",
-					NET_AdrToString( &netchan->remote_address ) );
+		Com_WPrintf( "%s: dumped unreliable\n", NET_AdrToString( &chan->remote_address ) );
 
 	SHOWPACKET( "send %4zu : s=%d ack=%d rack=%d",
 			   send.cursize,
-			   netchan->outgoing_sequence,
-			   netchan->incoming_sequence,
+			   chan->outgoing_sequence,
+			   chan->incoming_sequence,
 			   chan->incoming_reliable_sequence );
 	if ( send_reliable ) {
 		SHOWPACKET( " reliable=%i", chan->reliable_sequence );
@@ -246,13 +244,12 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *netchan, size_t length, const
 
 	// send the datagram
 	for ( i = 0; i < numpackets; i++ ) {
-		NET_SendPacket( netchan->sock, send.data, send.cursize,
-					   &netchan->remote_address );
+		NET_SendPacket( chan->sock, send.data, send.cursize, &chan->remote_address );
 	}
 
-	netchan->outgoing_sequence++;
-	netchan->reliable_ack_pending = false;
-	netchan->last_sent = com_localTime;
+	chan->outgoing_sequence++;
+	chan->reliable_ack_pending = false;
+	chan->last_sent = com_localTime;
 
 	return send.cursize * numpackets;
 }
@@ -265,10 +262,9 @@ called when the current net_message is from remote_address
 modifies net_message so that it points to the packet payload
 =================
 */
-bool NetchanQ2RTXPerimental_Process( netchan_t *netchan ) {
-	netchan_q2rtxperimental_t *chan = (netchan_q2rtxperimental_t *)netchan;
-	uint32_t    sequence, sequence_ack;
-	uint32_t    reliable_ack, reliable_message;
+bool NetchanQ2RTXPerimental_Process( netchan_t *chan ) {
+	int     sequence, sequence_ack;
+	bool    reliable_ack, reliable_message;
 
 // get sequence numbers
 	MSG_BeginReading( );
@@ -276,19 +272,22 @@ bool NetchanQ2RTXPerimental_Process( netchan_t *netchan ) {
 	sequence_ack = MSG_ReadLong( );
 
 	// read the qport if we are a server
-	#if USE_CLIENT
-	if ( netchan->sock == NS_SERVER )
-		#endif
-	{
-		if ( netchan->protocol < PROTOCOL_VERSION_R1Q2 ) {
+	if ( chan->sock == NS_SERVER ) {
+		if ( chan->protocol < PROTOCOL_VERSION_R1Q2 ) {
 			MSG_ReadShort( );
-		} else if ( netchan->qport ) {
+		} else if ( chan->qport ) {
 			MSG_ReadByte( );
-		}
+	}
+}
+
+	if ( msg_read.readcount > msg_read.cursize ) {
+		SHOWDROP( "%s: message too short\n",
+				 NET_AdrToString( &chan->remote_address ) );
+		return false;
 	}
 
-	reliable_message = sequence >> 31;
-	reliable_ack = sequence_ack >> 31;
+	reliable_message = sequence & 0x80000000;
+	reliable_ack = sequence_ack & 0x80000000;
 
 	sequence &= 0x7FFFFFFF;
 	sequence_ack &= 0x7FFFFFFF;
@@ -306,21 +305,21 @@ bool NetchanQ2RTXPerimental_Process( netchan_t *netchan ) {
 //
 // discard stale or duplicated packets
 //
-	if ( sequence <= netchan->incoming_sequence ) {
+	if ( sequence <= chan->incoming_sequence ) {
 		SHOWDROP( "%s: out of order packet %i at %i\n",
-				 NET_AdrToString( &netchan->remote_address ),
-				 sequence, netchan->incoming_sequence );
+				 NET_AdrToString( &chan->remote_address ),
+				 sequence, chan->incoming_sequence );
 		return false;
 	}
 
 //
 // dropped packets don't keep the message from being used
 //
-	netchan->dropped = sequence - ( netchan->incoming_sequence + 1 );
-	if ( netchan->dropped > 0 ) {
+	chan->dropped = sequence - ( chan->incoming_sequence + 1 );
+	if ( chan->dropped > 0 ) {
 		SHOWDROP( "%s: dropped %i packets at %i\n",
-				 NET_AdrToString( &netchan->remote_address ),
-				 netchan->dropped, sequence );
+				 NET_AdrToString( &chan->remote_address ),
+				 chan->dropped, sequence );
 	}
 
 //
@@ -329,25 +328,25 @@ bool NetchanQ2RTXPerimental_Process( netchan_t *netchan ) {
 //
 	chan->incoming_reliable_acknowledged = reliable_ack;
 	if ( reliable_ack == chan->reliable_sequence )
-		netchan->reliable_length = 0;   // it has been received
+		chan->reliable_length = 0;   // it has been received
 
 //
 // if this message contains a reliable message, bump incoming_reliable_sequence
 //
-	netchan->incoming_sequence = sequence;
-	netchan->incoming_acknowledged = sequence_ack;
+	chan->incoming_sequence = sequence;
+	chan->incoming_acknowledged = sequence_ack;
 	if ( reliable_message ) {
-		netchan->reliable_ack_pending = true;
+		chan->reliable_ack_pending = true;
 		chan->incoming_reliable_sequence ^= 1;
 	}
 
 //
 // the message can now be read from the current message pointer
 //
-	netchan->last_received = com_localTime;
+	chan->last_received = com_localTime;
 
-	netchan->total_dropped += netchan->dropped;
-	netchan->total_received += netchan->dropped + 1;
+	chan->total_dropped += chan->dropped;
+	chan->total_received += chan->dropped + 1;
 
 	return true;
 }
@@ -357,13 +356,10 @@ bool NetchanQ2RTXPerimental_Process( netchan_t *netchan ) {
 NetchanQ2RTXPerimental_ShouldUpdate
 ================
 */
-bool NetchanQ2RTXPerimental_ShouldUpdate( netchan_t *netchan ) {
-	if ( netchan->message.cursize || netchan->reliable_ack_pending ||
-		com_localTime - netchan->last_sent > 1000 ) {
-		return true;
-	}
-
-	return false;
+bool NetchanQ2RTXPerimental_ShouldUpdate( netchan_t *chan ) {
+	return chan->message.cursize
+		|| chan->reliable_ack_pending
+		|| com_localTime - chan->last_sent > 1000;
 }
 
 

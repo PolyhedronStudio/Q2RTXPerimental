@@ -625,7 +625,7 @@ static inline void write_unreliables_q2rtxperimental( client_t *client, size_t m
 
 static void add_message_q2rtxperimental( client_t *client, byte *data,
 							size_t len, bool reliable ) {
-	if ( len > client->netchan->maxpacketlen ) {
+	if ( len > client->netchan.maxpacketlen ) {
 		if ( reliable ) {
 			SV_DropClient( client, "oversize reliable message" );
 		} else {
@@ -642,7 +642,7 @@ static void write_reliables_q2rtxperimental( client_t *client, size_t maxsize ) 
 	message_packet_t *msg, *next;
 	int count;
 
-	if ( client->netchan->reliable_length ) {
+	if ( client->netchan.reliable_length ) {
 		SV_DPrintf( 1, "%s to %s: unacked\n", __func__, client->name );
 		return;    // there is still outgoing reliable message pending
 	}
@@ -651,7 +651,7 @@ static void write_reliables_q2rtxperimental( client_t *client, size_t maxsize ) 
 	count = 0;
 	FOR_EACH_MSG_SAFE( &client->msg_reliable_list ) {
 		// stop if this msg doesn't fit (reliables must be delivered in order)
-		if ( client->netchan->message.cursize + msg->cursize > maxsize ) {
+		if ( client->netchan.message.cursize + msg->cursize > maxsize ) {
 			if ( !count ) {
 				// this should never happen
 				Com_WPrintf( "%s to %s: overflow on the first message\n",
@@ -663,7 +663,7 @@ static void write_reliables_q2rtxperimental( client_t *client, size_t maxsize ) 
 		SV_DPrintf( 1, "%s to %s: writing msg %d: %d bytes\n",
 				   __func__, client->name, count, msg->cursize );
 
-		SZ_Write( &client->netchan->message, msg->data, msg->cursize );
+		SZ_Write( &client->netchan.message, msg->data, msg->cursize );
 		free_msg_packet( client, msg );
 		count++;
 	}
@@ -730,10 +730,10 @@ static void write_datagram_q2rtxperimental( client_t *client ) {
 	size_t maxsize, cursize;
 
 	// determine how much space is left for unreliable data
-	maxsize = client->netchan->maxpacketlen;
-	if ( client->netchan->reliable_length ) {
+	maxsize = client->netchan.maxpacketlen;
+	if ( client->netchan.reliable_length ) {
 		// there is still unacked reliable message pending
-		maxsize -= client->netchan->reliable_length;
+		maxsize -= client->netchan.reliable_length;
 	} else {
 		// find at least one reliable message to send
 		// and make sure to reserve space for it
@@ -764,10 +764,10 @@ static void write_datagram_q2rtxperimental( client_t *client ) {
 	}
 
 	// write at least one reliable message
-	write_reliables_q2rtxperimental( client, client->netchan->maxpacketlen - msg_write.cursize );
+	write_reliables_q2rtxperimental( client, client->netchan.maxpacketlen - msg_write.cursize );
 
 	// send the datagram
-	cursize = client->netchan->Transmit( client->netchan,
+	cursize = client->netchan.Transmit( &client->netchan,
 										msg_write.cursize,
 										msg_write.data,
 										client->numpackets );
@@ -1231,7 +1231,7 @@ void SV_InitClientSend(client_t *newcl)
     if (newcl->netchan.type == NETCHAN_NEW) {
         newcl->AddMessage = add_message_new;
         newcl->WriteDatagram = write_datagram_new;
-	} if ( newcl->netchan->type == NETCHAN_Q2RTXPERIMENTAL ) {
+	} if ( newcl->netchan.type == NETCHAN_Q2RTXPERIMENTAL ) {
 		newcl->AddMessage = add_message_q2rtxperimental;
 		newcl->WriteDatagram = write_datagram_q2rtxperimental;
 

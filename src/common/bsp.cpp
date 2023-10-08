@@ -89,7 +89,7 @@ LOAD(Visibility)
     }
 
     bsp->numvisibility = count;
-    bsp->vis = ALLOC(count);
+    bsp->vis = static_cast<dvis_t*>( ALLOC(count) );
     bsp->vis->numclusters = numclusters;
     bsp->visrowsize = (numclusters + 7) >> 3;
     Q_assert(bsp->visrowsize <= VIS_MAX_BYTES);
@@ -285,7 +285,7 @@ LOAD(Lightmap)
 {
     if (count) {
         bsp->numlightmapbytes = count;
-        bsp->lightmap = ALLOC(count);
+        bsp->lightmap = static_cast<byte*>( ALLOC(count) );
         memcpy(bsp->lightmap, in, count);
     }
 
@@ -631,7 +631,7 @@ LOAD(SubModels)
     }
 
     bsp->nummodels = count;
-    bsp->models = ALLOC(sizeof(*out) * count);
+    bsp->models = static_cast<mmodel_t*>( ALLOC(sizeof(*out) * count) );
 
     out = bsp->models;
     for (i = 0; i < count; i++, out++) {
@@ -735,7 +735,7 @@ LOAD(Areas)
 LOAD(EntString)
 {
     bsp->numentitychars = count;
-    bsp->entitystring = ALLOC(count + 1);
+    bsp->entitystring = static_cast<char*>( ALLOC(count + 1) );
     memcpy(bsp->entitystring, in, count);
     bsp->entitystring[count] = 0;
 
@@ -1122,9 +1122,9 @@ static void BSP_LoadBspxNormals(bsp_t* bsp, const byte* in, uint32_t data_size)
 		return;
 
 	// Allocate the storage arrays
-	bsp->basisvectors = ALLOC(sizeof(vec3_t) * num_vectors);
+	bsp->basisvectors = static_cast<vec3_t*>( ALLOC(sizeof(vec3_t) * num_vectors) );
 	bsp->numbasisvectors = num_vectors;
-	bsp->bases = ALLOC(sizeof(mbasis_t) * total_vertices);
+	bsp->bases = static_cast<mbasis_t*>( ALLOC(sizeof(mbasis_t) * total_vertices) );
 	bsp->numbases = total_vertices;
 
 	// Copy the vectors data
@@ -1233,8 +1233,9 @@ int BSP_Load(const char *name, bsp_t **bsp_p)
     size_t          memsize;
     bool            extended = false;
 	
-	const void* normal_lump_data = NULL;
-	size_t normal_lump_size = 0;
+	// WID: Need to be here otherwise C++ complains about skipping 'goto fail2'.
+	const void *normal_lump_data = NULL;
+	uint32_t normal_lump_size = 0;
 
     Q_assert(name);
     Q_assert(bsp_p);
@@ -1310,8 +1311,7 @@ int BSP_Load(const char *name, bsp_t **bsp_p)
     }
 
 #if USE_REF
-    const void* normal_lump_data = NULL;
-    uint32_t normal_lump_size = 0;
+
     if (BSP_FindBspxLump(buf, maxpos, filelen, "FACENORMALS", &normal_lump_data, &normal_lump_size))
     {
         memsize += normal_lump_size;

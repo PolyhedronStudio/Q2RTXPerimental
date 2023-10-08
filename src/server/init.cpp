@@ -170,7 +170,8 @@ void SV_SpawnServer(mapcmd_t *cmd)
     } else {
         // no real map
         strcpy(sv.configstrings[CS_MAPCHECKSUM], "0");
-        sv.cm.entitystring = "";
+        //sv.cm.entitystring = "";
+		strcpy(sv.cm.entitystring, "" );
     }
 
     //

@@ -782,11 +782,23 @@ void Netchan_Setup(netchan_t *chan, netsrc_t sock, netchan_type_t type,
         chan->TransmitNextFragment = NetchanOld_TransmitNextFragment;
         chan->ShouldUpdate = NetchanOld_ShouldUpdate;
 
-        chan->message_buf = Z_TagMalloc(maxpacketlen * 2, tag);
+        chan->message_buf = static_cast<byte*>( Z_TagMalloc(maxpacketlen * 2, tag) );
         chan->reliable_buf = chan->message_buf + maxpacketlen;
 
         SZ_Init(&chan->message, chan->message_buf, maxpacketlen);
         break;
+	// WID: net-code:
+	case NETCHAN_Q2RTXPERIMENTAL:
+		chan->Process = NetchanQ2RTXPerimental_Process;
+		chan->Transmit = NetchanQ2RTXPerimental_Transmit;
+		chan->TransmitNextFragment = NetchanQ2RTXPerimental_TransmitNextFragment;
+		chan->ShouldUpdate = NetchanQ2RTXPerimental_ShouldUpdate;
+
+		chan->message_buf = static_cast<byte *>( Z_TagMalloc( maxpacketlen * 2, tag ) );
+		chan->reliable_buf = chan->message_buf + maxpacketlen;
+
+		SZ_Init( &chan->message, chan->message_buf, maxpacketlen );
+		break;
 
     case NETCHAN_NEW:
         chan->Process = NetchanNew_Process;
@@ -794,7 +806,7 @@ void Netchan_Setup(netchan_t *chan, netsrc_t sock, netchan_type_t type,
         chan->TransmitNextFragment = NetchanNew_TransmitNextFragment;
         chan->ShouldUpdate = NetchanNew_ShouldUpdate;
 
-        chan->message_buf = Z_TagMalloc(MAX_MSGLEN * 4, tag);
+        chan->message_buf = static_cast<byte*>( Z_TagMalloc(MAX_MSGLEN * 4, tag) );
         chan->reliable_buf = chan->message_buf + MAX_MSGLEN;
         chan->fragment_in_buf = chan->message_buf + MAX_MSGLEN * 2;
         chan->fragment_out_buf = chan->message_buf + MAX_MSGLEN * 3;

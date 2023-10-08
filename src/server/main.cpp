@@ -1165,7 +1165,7 @@ static void SVC_DirectConnect(void)
     }
 
     // setup netchan
-    Netchan_Setup(&newcl->netchan, NS_SERVER, params.nctype, &net_from,
+    Netchan_Setup(&newcl->netchan, NS_SERVER, ( netchan_type_t )params.nctype, &net_from,
                   params.qport, params.maxlength, params.protocol);
     newcl->numpackets = 1;
 

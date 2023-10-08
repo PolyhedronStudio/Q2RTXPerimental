@@ -108,7 +108,7 @@ static void load_binary_override(cm_t *cm, char *server, size_t server_size)
         goto fail;
 
     if (bits & OVERRIDE_NAME) {
-        if (!(buf = SZ_ReadData(&sz, MAX_QPATH)))
+        if (!(buf = static_cast<char*>( SZ_ReadData(&sz, MAX_QPATH)) ) )
             goto fail;
         if (!memchr(buf, 0, MAX_QPATH))
             goto fail;
@@ -123,9 +123,9 @@ static void load_binary_override(cm_t *cm, char *server, size_t server_size)
         len = SZ_ReadLong(&sz);
         if (len <= 0)
             goto fail;
-        if (!(buf = SZ_ReadData(&sz, len)))
+        if (!(buf = static_cast<char*>( SZ_ReadData(&sz, len)) ))
             goto fail;
-        cm->entitystring = Z_TagMalloc(len + 1, TAG_CMODEL);
+        cm->entitystring = static_cast<char*>( Z_TagMalloc(len + 1, TAG_CMODEL) );
         memcpy(cm->entitystring, buf, len);
         cm->entitystring[len] = 0;
     }
@@ -204,8 +204,8 @@ int CM_LoadMap(cm_t *cm, const char *name)
     if (!(cm->override_bits & OVERRIDE_ENTS))
         cm->entitystring = cm->cache->entitystring;
 
-    cm->floodnums = Z_TagMallocz(sizeof(cm->floodnums[0]) * cm->cache->numareas, TAG_CMODEL);
-    cm->portalopen = Z_TagMallocz(sizeof(cm->portalopen[0]) * cm->cache->numportals, TAG_CMODEL);
+    cm->floodnums = static_cast<int*>( Z_TagMallocz(sizeof(cm->floodnums[0]) * cm->cache->numareas, TAG_CMODEL) );
+    cm->portalopen = static_cast<bool*>( Z_TagMallocz(sizeof(cm->portalopen[0]) * cm->cache->numportals, TAG_CMODEL) );
     FloodAreaConnections(cm);
 
     return Q_ERR_SUCCESS;
