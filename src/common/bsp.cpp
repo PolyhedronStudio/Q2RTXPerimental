@@ -1187,6 +1187,9 @@ int BSP_Load(const char *name, bsp_t **bsp_p)
     size_t          lumpcount[HEADER_LUMPS];
     size_t          memsize;
     bool            extended = false;
+	
+	const void* normal_lump_data = NULL;
+	size_t normal_lump_size = 0;
 
     Q_assert(name);
     Q_assert(bsp_p);
