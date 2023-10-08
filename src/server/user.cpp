@@ -97,7 +97,7 @@ static bool need_flush_msg(size_t size)
     if (sv_client->has_zlib)
         size = ZPACKET_HEADER + deflateBound(&svs.z, size);
 #endif
-    return size > sv_client->netchan->maxpacketlen;
+    return size > sv_client->netchan.maxpacketlen;
 }
 
 static void write_configstrings(void)
@@ -294,7 +294,7 @@ void SV_New_f(void)
 
     // stuff some junk, drop them and expect them to be back soon
     if (sv_force_reconnect->string[0] && !sv_client->reconnect_var[0] &&
-        !NET_IsLocalAddress(&sv_client->netchan->remote_address)) {
+        !NET_IsLocalAddress(&sv_client->netchan.remote_address)) {
         stuff_junk();
         SV_DropClient(sv_client, NULL);
         return;
@@ -379,7 +379,7 @@ void SV_New_f(void)
         return;
 
     // send gamestate
-    if (sv_client->netchan->type == NETCHAN_NEW) {
+    if (sv_client->netchan.type == NETCHAN_NEW) {
         write_gamestate();
     } else {
         write_configstrings();
@@ -812,7 +812,7 @@ static bool handle_cvar_ban(const cvarban_t *ban, const char *v)
 
     if (ban->action == FA_LOG || ban->action == FA_KICK)
         Com_Printf("%s[%s]: matched cvarban: \"%s\" is \"%s\"\n", sv_client->name,
-                   NET_AdrToString(&sv_client->netchan->remote_address), ban->var, v);
+                   NET_AdrToString(&sv_client->netchan.remote_address), ban->var, v);
 
     if (ban->action == FA_LOG)
         return false;
@@ -849,7 +849,7 @@ static void SV_CvarResult_f(void)
             v = Cmd_RawArgsFrom(2);
             if (COM_DEDICATED) {
                 Com_Printf("%s[%s]: %s\n", sv_client->name,
-                           NET_AdrToString(&sv_client->netchan->remote_address), v);
+                           NET_AdrToString(&sv_client->netchan.remote_address), v);
             }
             sv_client->version_string = SV_CopyString(v);
         }
@@ -864,7 +864,7 @@ static void SV_CvarResult_f(void)
     } else if (!strcmp(c, "console")) {
         if (sv_client->console_queries > 0) {
             Com_Printf("%s[%s]: \"%s\" is \"%s\"\n", sv_client->name,
-                       NET_AdrToString(&sv_client->netchan->remote_address),
+                       NET_AdrToString(&sv_client->netchan.remote_address),
                        Cmd_Argv(2), Cmd_RawArgsFrom(3));
             sv_client->console_queries--;
         }
@@ -929,7 +929,7 @@ static void handle_filtercmd(filtercmd_t *filter)
 
     if (filter->action == FA_LOG || filter->action == FA_KICK)
         Com_Printf("%s[%s]: issued banned command: %s\n", sv_client->name,
-                   NET_AdrToString(&sv_client->netchan->remote_address), filter->string);
+                   NET_AdrToString(&sv_client->netchan.remote_address), filter->string);
 
     if (filter->action == FA_LOG)
         return;
@@ -1112,7 +1112,7 @@ static void SV_OldClientExecuteMove(void)
 
     SV_SetLastFrame(lastframe);
 
-    net_drop = sv_client->netchan->dropped;
+    net_drop = sv_client->netchan.dropped;
     if (net_drop > 2) {
         sv_client->frameflags |= FF_CLIENTPRED;
     }
@@ -1206,7 +1206,7 @@ static void SV_NewClientExecuteMove(int c)
         return; // should never happen
     }
 
-    net_drop = sv_client->netchan->dropped;
+    net_drop = sv_client->netchan.dropped;
     if (net_drop > numDups) {
         sv_client->frameflags |= FF_CLIENTPRED;
     }

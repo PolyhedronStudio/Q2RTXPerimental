@@ -92,8 +92,10 @@ bool Com_ParseTimespec(const char* s, int* frames);
 
 void Com_PlayerToEntityState(const player_state_t* ps, entity_state_t* es);
 
-unsigned Com_HashString(const char* s, unsigned size);
-unsigned Com_HashStringLen(const char* s, size_t len, unsigned size);
+bool Com_ParseMapName(char *out, const char *in, size_t size);
+
+unsigned Com_HashString(const char *s, unsigned size);
+unsigned Com_HashStringLen(const char *s, size_t len, unsigned size);
 
 size_t Com_FormatTime(char* buffer, size_t size, time_t t);
 size_t Com_FormatTimeLong(char* buffer, size_t size, time_t t);

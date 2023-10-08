@@ -52,7 +52,7 @@ typedef struct netchan_q2rtxperimental_s {
 NetchanQ2RTXPerimental_Transmit
 ===============
 */
-size_t NetchanQ2RTXPerimental_TransmitNextFragment( netchan_t *netchan );
+size_t NetchanQ2RTXPerimental_TransmitNextFragment( netchan_t *chan );
 
 /*
 ===============
@@ -64,7 +64,7 @@ transmition / retransmition of the reliable messages.
 A 0 length will still generate a packet and deal with the reliable messages.
 ================
 */
-size_t NetchanQ2RTXPerimental_Transmit( netchan_t *netchan, size_t length, const void *data, int numpackets );
+size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const void *data, int numpackets );
 
 /*
 =================
@@ -74,13 +74,13 @@ called when the current net_message is from remote_address
 modifies net_message so that it points to the packet payload
 =================
 */
-bool NetchanQ2RTXPerimental_Process( netchan_t *netchan );
+bool NetchanQ2RTXPerimental_Process( netchan_t *chan );
 /*
 ===============
 NetchanQ2RTXPerimental_ShouldUpdate
 ================
 */
-bool NetchanQ2RTXPerimental_ShouldUpdate( netchan_t *netchan );
+bool NetchanQ2RTXPerimental_ShouldUpdate( netchan_t *chan );
 
 /*
 ==============

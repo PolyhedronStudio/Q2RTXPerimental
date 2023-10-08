@@ -110,8 +110,6 @@ cvar_t  *sv_lrcon_password;
 
 cvar_t  *g_features;
 
-cvar_t  *map_override_path;
-
 static bool     sv_registered;
 
 //============================================================================
@@ -122,10 +120,7 @@ void SV_RemoveClient(client_t *client)
         SV_ShutdownClientSend(client);
     }
 
-    if (client->netchan) {
-        Netchan_Close(client->netchan);
-        client->netchan = NULL;
-    }
+    Netchan_Close(&client->netchan);
 
     // unlink them from active client list, but don't clear the list entry
     // itself to make code that traverses client list in a loop happy!
@@ -200,9 +195,9 @@ static void print_drop_reason(client_t *client, const char *reason, clstate_t ol
                         client->name, prefix, reason);
 
     // print to server console
-    if (COM_DEDICATED && client->netchan)
+    if (COM_DEDICATED)
         Com_Printf("%s[%s]%s%s\n", client->name,
-                   NET_AdrToString(&client->netchan->remote_address),
+                   NET_AdrToString(&client->netchan.remote_address),
                    prefix, reason);
 }
 
@@ -715,7 +710,7 @@ static bool permit_connection(conn_params_t *p)
     if (sv_iplimit->integer > 0) {
         count = 0;
         FOR_EACH_CLIENT(cl) {
-            netadr_t *adr = &cl->netchan->remote_address;
+            netadr_t *adr = &cl->netchan.remote_address;
 
             if (net_from.type != adr->type)
                 continue;
@@ -956,7 +951,7 @@ static client_t *find_client_slot(conn_params_t *params)
 
     // if there is already a slot for this ip, reuse it
     FOR_EACH_CLIENT(cl) {
-        if (NET_IsEqualAdr(&net_from, &cl->netchan->remote_address)) {
+        if (NET_IsEqualAdr(&net_from, &cl->netchan.remote_address)) {
             if (cl->state == cs_zombie) {
                 strcpy(params->reconnect_var, cl->reconnect_var);
                 strcpy(params->reconnect_val, cl->reconnect_val);
@@ -1170,10 +1165,8 @@ static void SVC_DirectConnect(void)
     }
 
     // setup netchan
-    newcl->netchan = static_cast<netchan_t*>( Netchan_Setup(NS_SERVER, static_cast<netchan_type_t>(params.nctype),
-                                   &net_from, params.qport,
-                                   params.maxlength,
-                                   params.protocol) ); // WID: C++20: Added cast.
+    Netchan_Setup(&newcl->netchan, NS_SERVER, ( netchan_type_t )params.nctype, &net_from,
+                  params.qport, params.maxlength, params.protocol);
     newcl->numpackets = 1;
 
     // parse some info from the info strings
@@ -1504,7 +1497,7 @@ static void SV_GiveMsec(void)
 
         if (sv_timescale_warn->value > 1.0f && cl->timescale > sv_timescale_warn->value) {
             Com_Printf("%s[%s]: detected time skew: %.3f\n", cl->name,
-                       NET_AdrToString(&cl->netchan->remote_address), cl->timescale);
+                       NET_AdrToString(&cl->netchan.remote_address), cl->timescale);
         }
 
         if (sv_timescale_kick->value > 1.0f && cl->timescale > sv_timescale_kick->value) {
@@ -1538,7 +1531,7 @@ static void SV_PacketEvent(void)
 
     // check for packets from connected clients
     FOR_EACH_CLIENT(client) {
-        netchan = client->netchan;
+        netchan = &client->netchan;
         if (!NET_IsEqualBaseAdr(&net_from, &netchan->remote_address)) {
             continue;
         }
@@ -1592,7 +1585,7 @@ static void SV_PacketEvent(void)
 // Total 64 bytes of headers is assumed.
 static void update_client_mtu(client_t *client, int ee_info)
 {
-    netchan_t *netchan = client->netchan;
+    netchan_t *netchan = &client->netchan;
     size_t newpacketlen;
 
     // sanity check discovered MTU
@@ -1643,7 +1636,7 @@ void SV_ErrorEvent(netadr_t *from, int ee_errno, int ee_info)
         if (client->state == cs_zombie) {
             continue; // already a zombie
         }
-        netchan = client->netchan;
+        netchan = &client->netchan;
         if (!NET_IsEqualBaseAdr(from, &netchan->remote_address)) {
             continue;
         }
@@ -1682,7 +1675,7 @@ static void SV_CheckTimeouts(void)
 
     FOR_EACH_CLIENT(client) {
         // never timeout local clients
-        if (NET_IsLocalAddress(&client->netchan->remote_address)) {
+        if (NET_IsLocalAddress(&client->netchan.remote_address)) {
             continue;
         }
         // NOTE: delta calculated this way is not sensitive to overflow
@@ -2039,7 +2032,7 @@ void SV_UserinfoChanged(client_t *cl)
     if (cl->name[0] && strcmp(cl->name, name)) {
         if (COM_DEDICATED) {
             Com_Printf("%s[%s] changed name to %s\n", cl->name,
-                       NET_AdrToString(&cl->netchan->remote_address), name);
+                       NET_AdrToString(&cl->netchan.remote_address), name);
         }
 #if USE_MVD_CLIENT
         if (sv.state == ss_broadcast) {
@@ -2064,13 +2057,13 @@ void SV_UserinfoChanged(client_t *cl)
     }
 
     // never drop over the loopback
-    if (NET_IsLocalAddress(&cl->netchan->remote_address)) {
+    if (NET_IsLocalAddress(&cl->netchan.remote_address)) {
         cl->rate = 0;
     }
 
     // don't drop over LAN connections
     if (sv_lan_force_rate->integer &&
-        NET_IsLanAddress(&cl->netchan->remote_address)) {
+        NET_IsLanAddress(&cl->netchan.remote_address)) {
         cl->rate = 0;
     }
 
@@ -2290,8 +2283,6 @@ void SV_Init(void)
     Cvar_Get("sv_features", va("%d", SV_FEATURES), CVAR_ROM);
     g_features = Cvar_Get("g_features", "0", CVAR_ROM);
 
-    map_override_path = Cvar_Get("map_override_path", "", 0);
-
     init_rate_limits();
 
 #if USE_FPS
@@ -2348,7 +2339,7 @@ static void SV_FinalMessage(const char *message, error_type_t type)
             if (client->state == cs_zombie) {
                 continue;
             }
-            netchan = client->netchan;
+            netchan = &client->netchan;
             while (netchan->fragment_pending) {
                 netchan->TransmitNextFragment(netchan);
             }
@@ -2403,7 +2394,6 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
 
     // free current level
     CM_FreeMap(&sv.cm);
-    SV_FreeFile(sv.entitystring);
     memset(&sv, 0, sizeof(sv));
 
     // free server static data

@@ -847,7 +847,7 @@ static void MVD_Admin_f(mvd_client_t *client)
         return;
     }
 
-    if (!NET_IsLocalAddress(&client->cl->netchan->remote_address)) {
+    if (!NET_IsLocalAddress(&client->cl->netchan.remote_address)) {
         if (Cmd_Argc() < 2) {
             SV_ClientPrintf(client->cl, PRINT_HIGH, "Usage: %s <password>\n", Cmd_Argv(0));
             return;
@@ -1745,7 +1745,7 @@ static void MVD_GameInit(void)
     ret = BSP_Load(buffer, &bsp);
     if (!bsp) {
         Com_EPrintf("Couldn't load %s for the Waiting Room: %s\n",
-                    buffer, Q_ErrorString(ret));
+                    buffer, BSP_ErrorString(ret));
         Cvar_Reset(mvd_default_map);
         strcpy(buffer, "maps/q2dm1.bsp");
         checksum = 80717714;
@@ -1855,7 +1855,7 @@ static void MVD_GameClientBegin(edict_t *ent)
     client->notified = false;
 
     // skip notifications for local clients
-    if (NET_IsLocalAddress(&client->cl->netchan->remote_address))
+    if (NET_IsLocalAddress(&client->cl->netchan.remote_address))
         client->notified = true;
 
     // skip notifications for Waiting Room channel
