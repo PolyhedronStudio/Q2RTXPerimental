@@ -104,42 +104,6 @@ extern cvar_t *showdrop;
 
 #define SOCK_TAG(sock)  ((sock) == NS_SERVER ? TAG_SERVER : TAG_GENERAL)
 
-/*
-==============
-NetchanQ2RTXPerimental_Setup
-
-called to open a channel to a remote system
-==============
-*/
-netchan_t *NetchanQ2RTXPerimental_Setup( netsrc_t sock, const netadr_t * adr,
-								   int qport, size_t maxpacketlen ) {
-	netchan_q2rtxperimental_t *chan;
-	netchan_t *netchan;
-
-	chan = static_cast<netchan_q2rtxperimental_t *>( Z_TagMallocz( sizeof( *chan ), SOCK_TAG( sock ) ) );
-	netchan = (netchan_t *)chan;
-	netchan->sock = sock;
-	netchan->remote_address = *adr;
-	netchan->qport = qport;
-	netchan->maxpacketlen = maxpacketlen;
-	netchan->last_received = com_localTime;
-	netchan->last_sent = com_localTime;
-	netchan->incoming_sequence = 0;
-	netchan->outgoing_sequence = 1;
-
-	netchan->Process = NetchanQ2RTXPerimental_Process;
-	netchan->Transmit = NetchanQ2RTXPerimental_Transmit;
-	netchan->TransmitNextFragment = NetchanQ2RTXPerimental_TransmitNextFragment;
-	netchan->ShouldUpdate = NetchanQ2RTXPerimental_ShouldUpdate;
-
-	chan->message_buf = static_cast<byte *>( Z_TagMalloc( maxpacketlen, SOCK_TAG( sock ) ) );
-	SZ_Init( &netchan->message, chan->message_buf, maxpacketlen );
-
-	chan->reliable_buf = static_cast<byte *>( Z_TagMalloc( maxpacketlen, SOCK_TAG( sock ) ) );
-
-	return netchan;
-}
-
 // ============================================================================
 
 size_t NetchanQ2RTXPerimental_TransmitNextFragment( netchan_t *netchan ) {

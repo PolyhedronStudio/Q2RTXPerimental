@@ -82,15 +82,6 @@ NetchanQ2RTXPerimental_ShouldUpdate
 */
 bool NetchanQ2RTXPerimental_ShouldUpdate( netchan_t *chan );
 
-/*
-==============
-NetchanQ2RTXPerimental_Setup
-
-called to open a channel to a remote system
-==============
-*/
-netchan_t *NetchanQ2RTXPerimental_Setup( netsrc_t sock, const netadr_t *adr, int qport, size_t maxpacketlen );
-
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
