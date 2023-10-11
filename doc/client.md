@@ -270,7 +270,7 @@ in RTX mode.
 
 #### `cl_gunfov`
 Specifies custom FOV value for drawing player's own gun model. Default
-value is 90. Set to 0 to draw with current FOV value.
+value is 75. Set to 0 to draw with current FOV value.
 
 #### `cl_gun_x`, `cl_gun_y`, `cl_gun_z`
 Specifies custom gun model offset. Default value is 0.

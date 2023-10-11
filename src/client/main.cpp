@@ -2692,7 +2692,7 @@ static void CL_InitLocal(void)
     // register our variables
     //
     cl_gunalpha = Cvar_Get("cl_gunalpha", "1", 0);
-    cl_gunfov = Cvar_Get("cl_gunfov", "90", 0);
+    cl_gunfov = Cvar_Get("cl_gunfov", "75", 0);
     cl_gunscale = Cvar_Get("cl_gunscale", "0.25", CVAR_ARCHIVE);
     cl_gun_x = Cvar_Get("cl_gun_x", "0", 0);
     cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
