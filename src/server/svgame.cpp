@@ -59,7 +59,21 @@ static int PF_FindIndex(const char *name, int start, int max, const char *func)
 
 static int PF_ModelIndex(const char *name)
 {
-    return PF_FindIndex(name, CS_MODELS, MAX_MODELS, __func__);
+    int configStringIndex = PF_FindIndex(name, CS_MODELS, MAX_MODELS, __func__);
+
+	// Try and load the model, in case it has already been loaded, it'll "Reference"/"Touch" it to ensure
+	// it remains loaded.
+	qhandle_t modelHandle = MOD_SV_RegisterModel( name );
+
+	// if ( !modelHandle ) {
+	// OMG
+	// }
+	//if ( m ) {
+	//	//Com_DPrintf( "Precached Server Model: %s\n", m->name );
+	//	Com_DPrintf( "Precached Server Model: %i\n", m );
+	//}
+
+	return configStringIndex;
 }
 
 static int PF_SoundIndex(const char *name)

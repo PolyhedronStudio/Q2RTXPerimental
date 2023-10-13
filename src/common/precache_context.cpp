@@ -13,6 +13,9 @@
 #include "common/models.h"
 #include "common/precache_context.h"
 
+/**
+*	@brief	Try and allocate another slot in the context's model cache.
+**/
 model_t *MOD_Alloc( precache_context_t *precacheContext ) {
 	model_t *model;
 	int i;
@@ -33,6 +36,9 @@ model_t *MOD_Alloc( precache_context_t *precacheContext ) {
 	return model;
 }
 
+/**
+*	@brief	Find the actual model by 'name' in our context's model cache.
+**/
 model_t *MOD_Find( precache_context_t *precacheContext, const char *name ) {
 	model_t *model;
 	int i;
@@ -49,6 +55,9 @@ model_t *MOD_Find( precache_context_t *precacheContext, const char *name ) {
 	return NULL;
 }
 
+/**
+*	@brief	Find the actual model by 'handle' in our context's model cache.
+**/
 model_t *MOD_ForHandle( precache_context_t *precacheContext, qhandle_t h ) {
 	model_t *model;
 
@@ -65,6 +74,9 @@ model_t *MOD_ForHandle( precache_context_t *precacheContext, qhandle_t h ) {
 	return model;
 }
 
+/**
+*	@brief	Free any unused models residing in the precache context. (This implies, models with an off registration_sequence.
+**/
 void MOD_FreeUnused( precache_context_t *precacheContext ) {
 	model_t *model;
 	int i;
@@ -84,6 +96,9 @@ void MOD_FreeUnused( precache_context_t *precacheContext ) {
 	}
 }
 
+/**
+*	@brief	Free all models from the precache context.
+**/
 void MOD_FreeAll( precache_context_t *precacheContext ) {
 	model_t *model;
 	int i;

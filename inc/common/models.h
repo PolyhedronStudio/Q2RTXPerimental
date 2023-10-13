@@ -161,6 +161,12 @@ typedef struct model_s {
 	light_poly_t *light_polys;
 } model_t;
 
+//! Function pointer callback type for assigning the format's to use, load method.
+typedef int ( *mod_load_t )( model_t *, const void *, size_t, const char * );
+
+//! Base IQM load code.
+int MOD_LoadIQM_Base( model_t *model, const void *rawdata, size_t length, const char *mod_name );
+
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
 };

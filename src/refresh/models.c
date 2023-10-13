@@ -88,29 +88,6 @@ vec3_t     cl_testmodel_position;
 //    return NULL;
 //}
 
-static void MOD_Refresh_List_f(void)
-{
-    static const char types[4] = "FASE";
-    int     i, count;
-    model_t *model;
-    size_t  bytes;
-
-    Com_Printf("------------------\n");
-    bytes = count = 0;
-
-    for (i = 0, model = cl_precache.models; i < cl_precache.numModels; i++, model++) {
-        if (!model->type) {
-            continue;
-        }
-        Com_Printf("%c %8zu : %s\n", types[model->type],
-                   model->hunk.mapped, model->name);
-        bytes += model->hunk.mapped;
-        count++;
-    }
-    Com_Printf("Total refresh models: %d (out of %d slots)\n", count, cl_precache.numModels);
-    Com_Printf("Total refresh resident bytes: %zu\n", bytes);
-}
-
 // WID: cl_and_sv-load-models: Moved to /common/precache_context.cpp
 //void MOD_FreeUnused(void)
 //{
@@ -471,7 +448,29 @@ fail1:
 //    return model;
 //}
 
-static void MOD_Refresh_PutTest_f(void)
+static void MOD_CL_List_f( void ) {
+	static const char types[ 4 ] = "FASE";
+	int     i, count;
+	model_t *model;
+	size_t  bytes;
+
+	Com_Printf( "------------------\n" );
+	bytes = count = 0;
+
+	for ( i = 0, model = cl_precache.models; i < cl_precache.numModels; i++, model++ ) {
+		if ( !model->type ) {
+			continue;
+		}
+		Com_Printf( "%c %8zu : %s\n", types[ model->type ],
+				   model->hunk.mapped, model->name );
+		bytes += model->hunk.mapped;
+		count++;
+	}
+	Com_Printf( "Total refresh models: %d (out of %d slots)\n", count, cl_precache.numModels );
+	Com_Printf( "Total refresh resident bytes: %zu\n", bytes );
+}
+
+static void MOD_CL_PutTest_f(void)
 {
     VectorCopy(cl.refdef.vieworg, cl_testmodel_position);
     cl_testmodel_position[2] -= 46.12f; // player eye-level
@@ -480,8 +479,8 @@ static void MOD_Refresh_PutTest_f(void)
 void MOD_Refresh_Init(void)
 {
     Q_assert(!cl_precache.numModels);
-    Cmd_AddCommand("modellist", MOD_Refresh_List_f);
-    Cmd_AddCommand("puttest", MOD_Refresh_PutTest_f);
+    Cmd_AddCommand("cl_modellist", MOD_CL_List_f);
+    Cmd_AddCommand("cl_puttest", MOD_CL_PutTest_f);
 
     // Path to the test model - can be an .md2, .md3 or .iqm file
     cl_testmodel = Cvar_Get("cl_testmodel", "", 0);
@@ -496,7 +495,7 @@ void MOD_Refresh_Init(void)
 void MOD_Refresh_Shutdown(void)
 {
     MOD_FreeAll( &cl_precache );
-    Cmd_RemoveCommand("modellist");
-    Cmd_RemoveCommand("puttest");
+    Cmd_RemoveCommand("cl_modellist");
+    Cmd_RemoveCommand("cl_puttest");
 }
 

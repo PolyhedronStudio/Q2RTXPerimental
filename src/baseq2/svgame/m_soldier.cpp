@@ -1151,7 +1151,7 @@ void soldier_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 void SP_monster_soldier_x(edict_t *self)
 {
 
-    self->s.modelindex = gi.modelindex("models/monsters/soldier/tris.md2");
+    self->s.modelindex = gi.modelindex("models/monsters/soldier/tris.iqm");
     self->monsterinfo.scale = MODEL_SCALE;
     VectorSet(self->mins, -16, -16, -24);
     VectorSet(self->maxs, 16, 16, 32);

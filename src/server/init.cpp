@@ -103,6 +103,7 @@ void SV_SpawnServer(mapcmd_t *cmd)
     client_t    *client;
     const char        *entitystring; // WID: C++20: Added const.
 
+	// Initialize server side precache.
     SCR_BeginLoadingPlaque();           // for local system
 
     Com_Printf("------- Server Initialization -------\n");
@@ -186,6 +187,10 @@ void SV_SpawnServer(mapcmd_t *cmd)
     // precache and static commands can be issued during
     // map initialization
     sv.state = ss_loading;
+
+	// Free server side unused models, and reinitialize cache.
+	MOD_SV_Shutdown( );
+	MOD_SV_Init( );
 
     // load and spawn all other entities
     ge->SpawnEntities(sv.name, sv.cm.entitystring, cmd->spawnpoint);

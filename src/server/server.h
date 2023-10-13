@@ -28,10 +28,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/cvar.h"
 #include "common/error.h"
 #include "common/files.h"
+#include "common/images.h"
+#include "common/models.h"
 #include "common/msg.h"
 #include "common/net/net.h"
 #include "common/net/chan.h"
 #include "common/pmove.h"
+#include "common/precache_context.h"
 #include "common/prompt.h"
 #include "common/protocol.h"
 #include "common/zone.h"
@@ -574,6 +577,7 @@ extern edict_t      *sv_player;
 
 extern bool     sv_pending_autosave;
 
+extern precache_context_t sv_precache;
 
 //===========================================================
 
@@ -611,6 +615,13 @@ void SV_ClientReset(client_t *client);
 void SV_SpawnServer(mapcmd_t *cmd);
 bool SV_ParseMapCmd(mapcmd_t *cmd);
 void SV_InitGame(unsigned mvd_spawn);
+
+//
+// sv_models.c
+// 
+void MOD_SV_Init( void );
+void MOD_SV_Shutdown( void );
+qhandle_t MOD_SV_RegisterModel( const char *name );
 
 //
 // sv_send.c

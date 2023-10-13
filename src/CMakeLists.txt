@@ -178,6 +178,7 @@ SET(SRC_SERVER
 	server/entities.cpp
 	server/init.cpp
 	server/main.cpp
+	server/models.cpp
 	server/mvd.cpp
 	server/send.cpp
 	server/svgame.cpp
@@ -205,6 +206,7 @@ SET(SRC_COMMON
 	common/files.cpp
 	common/math.cpp
 	common/mdfour.cpp
+	common/model_iqm.c
 	common/msg.cpp
 	common/pmove.cpp
 	common/precache_context.cpp

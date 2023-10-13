@@ -112,6 +112,9 @@ cvar_t  *g_features;
 
 static bool     sv_registered;
 
+//! Server precache context for model data. (We need, for skeletal model access.)
+precache_context_t sv_precache;
+
 //============================================================================
 
 void SV_RemoveClient(client_t *client)
@@ -2391,6 +2394,9 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
     SV_FinalMessage(finalmsg, type);
     SV_MasterShutdown();
     SV_ShutdownGameProgs();
+
+	// Shutdown server models.
+	MOD_SV_Shutdown( );
 
     // free current level
     CM_FreeMap(&sv.cm);

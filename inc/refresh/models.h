@@ -189,11 +189,9 @@ qhandle_t R_RegisterModel(const char *name);
 struct dmd2header_s;
 int MOD_ValidateMD2(struct dmd2header_s *header, size_t length);
 
-int MOD_LoadIQM_Base(model_t* mod, const void* rawdata, size_t length, const char* mod_name);
 bool R_ComputeIQMTransforms(const iqm_model_t* model, const entity_t* entity, float* pose_matrices);
 
 // these are implemented in [gl,sw]_models.c
-typedef int (*mod_load_t)(model_t *, const void *, size_t, const char*);
 extern int (*MOD_LoadMD2)(model_t *model, const void *rawdata, size_t length, const char* mod_name);
 #if USE_MD3
 extern int (*MOD_LoadMD3)(model_t *model, const void *rawdata, size_t length, const char* mod_name);
