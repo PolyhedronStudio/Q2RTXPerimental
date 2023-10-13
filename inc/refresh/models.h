@@ -180,8 +180,8 @@ typedef struct entity_s entity_t;
 // these are implemented in r_models.c
 //void MOD_FreeUnused(void);
 //void MOD_FreeAll(void);
-//void MOD_Init(void);
-//void MOD_Shutdown(void);
+void MOD_Refresh_Init(void);
+void MOD_Refresh_Shutdown(void);
 //
 //model_t *MOD_ForHandle(qhandle_t h);
 qhandle_t R_RegisterModel(const char *name);

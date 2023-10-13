@@ -3737,7 +3737,7 @@ R_Init_RTX(bool total)
 
 	IMG_Init();
 	IMG_GetPalette();
-	MOD_Init();
+	MOD_Refresh_Init();
 	
 	if(!init_vulkan()) {
 		Com_Error(ERR_FATAL, "Couldn't initialize Vulkan.\n");
@@ -3811,7 +3811,7 @@ R_Shutdown_RTX(bool total)
 	}
 
 	IMG_Shutdown();
-	MOD_Shutdown( &cl_precache ); // todo: currently leaks memory, need to clear submeshes
+	MOD_Refresh_Shutdown( &cl_precache ); // todo: currently leaks memory, need to clear submeshes
 	VID_Shutdown();
 }
 

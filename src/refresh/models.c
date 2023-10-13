@@ -39,6 +39,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // we are sure we won't need it.
 #define MAX_RMODELS     (MAX_MODELS * 2)
 
+// WID: cl_and_sv-load-models: Moved to /common/precache_context.cpp
 //model_t      r_models[MAX_RMODELS];
 //int          r_numModels;
 
@@ -48,6 +49,7 @@ cvar_t    *cl_testalpha;
 qhandle_t  cl_testmodel_handle = -1;
 vec3_t     cl_testmodel_position;
 
+// WID: cl_and_sv-load-models: Moved to /common/precache_context.cpp
 //static model_t *MOD_Alloc(void)
 //{
 //    model_t *model;
@@ -109,6 +111,7 @@ static void MOD_Refresh_List_f(void)
     Com_Printf("Total refresh resident bytes: %zu\n", bytes);
 }
 
+// WID: cl_and_sv-load-models: Moved to /common/precache_context.cpp
 //void MOD_FreeUnused(void)
 //{
 //    model_t *model;
@@ -450,6 +453,7 @@ fail1:
     return 0;
 }
 
+// WID: cl_and_sv-load-models: Moved to /common/precache_context.cpp
 //model_t *MOD_ForHandle(qhandle_t h)
 //{
 //    model_t *model;
@@ -473,7 +477,7 @@ static void MOD_Refresh_PutTest_f(void)
     cl_testmodel_position[2] -= 46.12f; // player eye-level
 }
 
-void MOD_Init(void)
+void MOD_Refresh_Init(void)
 {
     Q_assert(!cl_precache.numModels);
     Cmd_AddCommand("modellist", MOD_Refresh_List_f);
@@ -489,7 +493,7 @@ void MOD_Init(void)
     cl_testalpha = Cvar_Get("cl_testalpha", "1", 0);
 }
 
-void MOD_Shutdown(void)
+void MOD_Refresh_Shutdown(void)
 {
     MOD_FreeAll( &cl_precache );
     Cmd_RemoveCommand("modellist");

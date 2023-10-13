@@ -819,7 +819,7 @@ static void GL_PostInit(void)
 
     GL_ClearState();
     GL_InitImages();
-    MOD_Init();
+    MOD_Refresh_Init();
 }
 
 // ==============================================================================
@@ -887,7 +887,7 @@ void R_Shutdown_GL(bool total)
 
     GL_FreeWorld();
     GL_ShutdownImages();
-    MOD_Shutdown( &cl_precache );
+	MOD_Refresh_Shutdown( &cl_precache );
 
     if (!total) {
         return;
