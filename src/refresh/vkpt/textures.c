@@ -876,7 +876,7 @@ image_t *vkpt_fake_emissive_texture(image_t *image, int bright_threshold_int)
 	image_t *prev_image = IMG_FindExisting(emissive_image_name, image->type);
 	if(prev_image != R_NOTEXTURE)
 	{
-		prev_image->registration_sequence = registration_sequence;
+		prev_image->registration_sequence = cl_precache.registration_sequence;
 		return prev_image;
 	}
 
@@ -964,7 +964,7 @@ IMG_Unload_RTX(image_t *image)
 		Z_Free(image->pix_data);
 	image->pix_data = NULL;
 
-	const uint32_t index = image - r_images;
+	const uint32_t index = image - cl_precache.images;
 
 	if (tex_images[index])
 	{
@@ -992,7 +992,7 @@ void IMG_ReloadAll(void)
     int i, reloaded=0;
     image_t * image;
 
-    for (i = 1, image = r_images + 1; i < r_numImages; i++, image++)
+    for (i = 1, image = cl_precache.images + 1; i < cl_precache.numImages; i++, image++)
     {
         if (!image->registration_sequence)
             continue;
@@ -1605,7 +1605,7 @@ vkpt_textures_end_registration()
 	size_t   total_size = 0;
 	for(int i = 0; i < MAX_RIMAGES; i++)
 	{
-		image_t *q_img = r_images + i;
+		image_t *q_img = cl_precache.images + i;
 
 		if (tex_upload_frames[i] == qvk.current_frame_index + 1)
 		{
@@ -1671,7 +1671,7 @@ vkpt_textures_end_registration()
 		if (tex_upload_frames[i] != qvk.current_frame_index + 1)
 			continue;
 
-		image_t* q_img = r_images + i;
+		image_t* q_img = cl_precache.images + i;
 		
 		int num_mip_levels = get_num_miplevels(q_img->upload_width, q_img->upload_height);
 
@@ -1704,7 +1704,7 @@ vkpt_textures_end_registration()
 	size_t offset = 0;
 	for (int i = 0; i < MAX_RIMAGES; i++)
 	{
-		image_t *q_img = r_images + i;
+		image_t *q_img = cl_precache.images + i;
 
 		if (tex_upload_frames[i] != qvk.current_frame_index + 1)
 			continue;
@@ -1788,7 +1788,7 @@ vkpt_textures_end_registration()
 
 	for (int i = 0; i < MAX_RIMAGES; i++)
 	{
-		image_t* q_img = r_images + i;
+		image_t* q_img = cl_precache.images + i;
 
 		if (tex_upload_frames[i] != qvk.current_frame_index + 1)
 			continue;
@@ -1922,7 +1922,7 @@ void vkpt_textures_update_descriptor_set()
 	descriptor_set_dirty_flags[qvk.current_frame_index] = 0;
 	
 	for(int i = 0; i < MAX_RIMAGES; i++) {
-		image_t *q_img = r_images + i;
+		image_t *q_img = cl_precache.images + i;
 		
 		VkImageView image_view = tex_image_views[i];
 		if (image_view == VK_NULL_HANDLE)

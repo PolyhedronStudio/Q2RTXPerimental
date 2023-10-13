@@ -207,6 +207,7 @@ SET(SRC_COMMON
 	common/mdfour.cpp
 	common/msg.cpp
 	common/pmove.cpp
+	common/precache_context.cpp
 	common/prompt.cpp
 	common/sizebuf.cpp
 #	common/tests.cpp

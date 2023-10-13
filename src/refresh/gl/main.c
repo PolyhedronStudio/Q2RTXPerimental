@@ -432,7 +432,7 @@ static void GL_DrawEntities(int mask)
             continue;
         }
 
-        model = MOD_ForHandle(ent->model);
+        model = MOD_ForHandle( &cl_precache.models, ent->model );
         if (!model) {
             GL_DrawNullModel();
             continue;
@@ -815,7 +815,7 @@ static void GL_InitTables(void)
 
 static void GL_PostInit(void)
 {
-    registration_sequence = 1;
+    cl_precache.registration_sequence = 1;
 
     GL_ClearState();
     GL_InitImages();
@@ -887,7 +887,7 @@ void R_Shutdown_GL(bool total)
 
     GL_FreeWorld();
     GL_ShutdownImages();
-    MOD_Shutdown();
+    MOD_Shutdown( &cl_precache );
 
     if (!total) {
         return;
@@ -917,7 +917,7 @@ void R_BeginRegistration_GL(const char *name)
     char fullname[MAX_QPATH];
 
     gl_static.registering = true;
-    registration_sequence++;
+    cl_precache.registration_sequence++;
 
     memset(&glr, 0, sizeof(glr));
     glr.viewcluster1 = glr.viewcluster2 = -2;
@@ -934,7 +934,7 @@ R_EndRegistration
 void R_EndRegistration_GL(void)
 {
     IMG_FreeUnused();
-    MOD_FreeUnused();
+    MOD_FreeUnused( &cl_precache.models );
     Scrap_Upload();
     gl_static.registering = false;
 }

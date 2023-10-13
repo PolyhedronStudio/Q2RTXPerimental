@@ -123,7 +123,7 @@ void CL_RegisterTEntModels(void)
 
 	for (int i = 0; i < sizeof(cl_mod_explosions) / sizeof(*cl_mod_explosions); i++)
 	{
-		model_t* model = MOD_ForHandle(cl_mod_explosions[i]);
+		model_t* model = MOD_ForHandle( &cl_precache, cl_mod_explosions[i] );
 
         if (model) {
     		model->sprite_vertical = true;
@@ -186,7 +186,7 @@ static explosion_t *CL_PlainExplosion(bool big)
     ex->ent.angles[1] = Q_rand() % 360;
 
 	int model_idx = Q_rand() % (sizeof(cl_mod_explosions) / sizeof(*cl_mod_explosions));
-	model_t* sprite_model = MOD_ForHandle(cl_mod_explosions[model_idx]);
+	model_t* sprite_model = MOD_ForHandle( &cl_precache, cl_mod_explosions[model_idx] );
 
 	if (cl_explosion_sprites->integer && !big && sprite_model)
 	{

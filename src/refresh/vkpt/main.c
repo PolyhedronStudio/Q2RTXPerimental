@@ -1683,7 +1683,7 @@ static void fill_model_instance(ModelInstance* instance, const entity_t* entity,
 	instance->material = mat_shell.material_id;
 	instance->shell = mat_shell.shell;
 	instance->cluster = cluster;
-	instance->source_buffer_idx = (int)(model - r_models) + VERTEX_BUFFER_FIRST_MODEL;
+	instance->source_buffer_idx = (int)(model - cl_precache.models) + VERTEX_BUFFER_FIRST_MODEL;
 	instance->prim_count = mesh->numtris;
 	instance->prim_offset_curr_pose_curr_frame = mesh->tri_offset + frame * mesh->numtris;
 	instance->prim_offset_prev_pose_curr_frame = mesh->tri_offset + oldframe * mesh->numtris;
@@ -1959,7 +1959,7 @@ static void process_regular_entity(
 			mat4 transform_;
 			memcpy(transform_, transform, sizeof(mat4));
 
-			uint32_t model_index = (uint32_t)(model - r_models);
+			uint32_t model_index = (uint32_t)(model - cl_precache.models);
 
 			vkpt_pt_instance_model_blas(geom, transform_, VERTEX_BUFFER_FIRST_MODEL + model_index, current_instance_index, (alpha < 1.f) ? AS_FLAG_TRANSPARENT : 0);
 		}
@@ -2106,7 +2106,7 @@ prepare_entities(EntityUploadInfo* upload_info)
 		}
 		else
 		{
-			const model_t* model = MOD_ForHandle(entity->model);
+			const model_t* model = MOD_ForHandle( &cl_precache, entity->model);
 			if (model == NULL || model->meshes == NULL)
 				continue;
 
@@ -2150,7 +2150,7 @@ prepare_entities(EntityUploadInfo* upload_info)
 	{
 		const entity_t* entity = vkpt_refdef.fd->entities + transparent_model_indices[i];
 
-		const model_t* model = MOD_ForHandle(entity->model);
+		const model_t* model = MOD_ForHandle( &cl_precache, entity->model );
 		process_regular_entity(entity, model, false, false, &model_instance_idx, &instance_idx, &num_instanced_prim,
 			MESH_FILTER_TRANSPARENT, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow);
 	}
@@ -2162,7 +2162,7 @@ prepare_entities(EntityUploadInfo* upload_info)
 	{
 		const entity_t* entity = vkpt_refdef.fd->entities + masked_model_indices[i];
 		
-		const model_t* model = MOD_ForHandle(entity->model);
+		const model_t* model = MOD_ForHandle( &cl_precache, entity->model );
 		process_regular_entity(entity, model, false, true, &model_instance_idx, &instance_idx, &num_instanced_prim,
 			MESH_FILTER_MASKED, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow);
 	}
@@ -2175,7 +2175,7 @@ prepare_entities(EntityUploadInfo* upload_info)
 		for (int i = 0; i < viewer_model_num; i++)
 		{
 			const entity_t* entity = vkpt_refdef.fd->entities + viewer_model_indices[i];
-			const model_t* model = MOD_ForHandle(entity->model);
+			const model_t* model = MOD_ForHandle( &cl_precache, entity->model );
 			process_regular_entity(entity, model, false, true, &model_instance_idx, &instance_idx, &num_instanced_prim,
 				MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow);
 		}
@@ -2189,7 +2189,7 @@ prepare_entities(EntityUploadInfo* upload_info)
 	for (int i = 0; i < viewer_weapon_num; i++)
 	{
 		const entity_t* entity = vkpt_refdef.fd->entities + viewer_weapon_indices[i];
-		const model_t* model = MOD_ForHandle(entity->model);
+		const model_t* model = MOD_ForHandle( &cl_precache, entity->model );
 		process_regular_entity(entity, model, true, false, &model_instance_idx, &instance_idx, &num_instanced_prim,
 			MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow);
 
@@ -2203,7 +2203,7 @@ prepare_entities(EntityUploadInfo* upload_info)
 	for (int i = 0; i < explosion_num; i++)
 	{
 		const entity_t* entity = vkpt_refdef.fd->entities + explosion_indices[i];
-		const model_t* model = MOD_ForHandle(entity->model);
+		const model_t* model = MOD_ForHandle( &cl_precache, entity->model );
 		process_regular_entity(entity, model, false, false, &model_instance_idx, &instance_idx, &num_instanced_prim,
 			MESH_FILTER_ALL, NULL, NULL, &iqm_matrix_offset, qvk.iqm_matrices_shadow);
 	}
@@ -2670,7 +2670,7 @@ prepare_ubo(refdef_t *fd, mleaf_t* viewleaf, const reference_mode_t* ref_mode, c
 	ubo->prev_gpu_slice_width = qvk.gpu_slice_width_prev;
 	ubo->screen_image_width = qvk.extent_screen_images.width;
 	ubo->screen_image_height = qvk.extent_screen_images.height;
-	ubo->water_normal_texture = water_normal_texture - r_images;
+	ubo->water_normal_texture = water_normal_texture - cl_precache.images;
 	ubo->pt_swap_checkerboard = 0;
 	qvk.extent_render_prev = qvk.extent_render;
 	qvk.gpu_slice_width_prev = qvk.gpu_slice_width;
@@ -3590,7 +3590,7 @@ static void ray_tracing_api_g(genctx_t *ctx)
 ref_type_t
 R_Init_RTX(bool total)
 {
-	registration_sequence = 1;
+	cl_precache.registration_sequence = 1;
 
 	if (!VID_Init(GAPI_VULKAN)) {
 		Com_Error(ERR_FATAL, "VID_Init failed\n");
@@ -3811,7 +3811,7 @@ R_Shutdown_RTX(bool total)
 	}
 
 	IMG_Shutdown();
-	MOD_Shutdown(); // todo: currently leaks memory, need to clear submeshes
+	MOD_Shutdown( &cl_precache ); // todo: currently leaks memory, need to clear submeshes
 	VID_Shutdown();
 }
 
@@ -4127,7 +4127,7 @@ void R_AddDecal_RTX(decal_t *d)
 void
 R_BeginRegistration_RTX(const char *name)
 {
-	registration_sequence++;
+	cl_precache.registration_sequence++;
 	LOG_FUNC();
 	Com_Printf("loading %s\n", name);
 	vkDeviceWaitIdle(qvk.device);
@@ -4194,7 +4194,7 @@ R_EndRegistration_RTX(void)
 	vkpt_physical_sky_endRegistration();
 
 	IMG_FreeUnused();
-	MOD_FreeUnused();
+	MOD_FreeUnused( &cl_precache );
 	MAT_FreeUnused();
 }
 

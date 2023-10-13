@@ -180,7 +180,7 @@ void update_transparency(VkCommandBuffer command_buffer, const float* view_matri
 		}
 		else if ((entities[i].model & 0x80000000) == 0)
 		{
-			const model_t* model = MOD_ForHandle(entities[i].model);
+			const model_t* model = MOD_ForHandle( &cl_precache, entities[i].model );
 			if (model && model->type == MOD_SPRITE)
 				++sprite_num;
 		}
@@ -637,14 +637,14 @@ static void write_sprite_geometry(const float* view_matrix, const entity_t* enti
 		if (e->model & 0x80000000)
 			continue;
 
-		const model_t* model = MOD_ForHandle(e->model);
+		const model_t* model = MOD_ForHandle( &cl_precache, e->model);
 		if (!model || model->type != MOD_SPRITE)
 			continue;
 
 		mspriteframe_t *frame = &model->spriteframes[e->frame % model->numframes];
 		image_t *image = frame->image;
 
-		sprite_info[0] = image - r_images;
+		sprite_info[0] = image - cl_precache.images;
 		memcpy(&sprite_info[1], &e->alpha, sizeof(uint32_t));
 
 		// set up the quad - reference code is in function GL_DrawSpriteModel

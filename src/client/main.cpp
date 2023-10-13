@@ -110,6 +110,11 @@ extern "C" {
 client_static_t cls;
 client_state_t  cl;
 
+// WID: Model/Image/Sound precache for the client.
+extern "C" {
+	precache_context_t cl_precache;
+};
+
 centity_t   cl_entities[MAX_EDICTS];
 
 // used for executing stringcmds

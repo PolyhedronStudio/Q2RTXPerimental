@@ -463,13 +463,13 @@ void MOD_Reference_GL(model_t *model)
         for (i = 0; i < model->nummeshes; i++) {
             maliasmesh_t *mesh = &model->meshes[i];
             for (j = 0; j < mesh->numskins; j++) {
-                mesh->skins[j]->registration_sequence = registration_sequence;
+                mesh->skins[j]->registration_sequence = cl_precache.registration_sequence;
             }
         }
         break;
     case MOD_SPRITE:
         for (i = 0; i < model->numframes; i++) {
-            model->spriteframes[i].image->registration_sequence = registration_sequence;
+            model->spriteframes[i].image->registration_sequence = cl_precache.registration_sequence;
         }
         break;
     case MOD_EMPTY:
@@ -478,6 +478,6 @@ void MOD_Reference_GL(model_t *model)
         Com_Error(ERR_FATAL, "%s: bad model type", __func__);
     }
 
-    model->registration_sequence = registration_sequence;
+    model->registration_sequence = cl_precache.registration_sequence;
 }
 

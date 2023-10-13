@@ -349,12 +349,12 @@ vkpt_physical_sky_endRegistration()
     {
         image_t const * albedo_map = IMG_Find("env/planet_albedo.tga", IT_SKIN, IF_SRGB);
         if (albedo_map != R_NOTEXTURE) {
-            physical_sky_planet_albedo_map = albedo_map - r_images;
+            physical_sky_planet_albedo_map = albedo_map - cl_precache.images;
         }
 
         image_t const * normal_map = IMG_Find("env/planet_normal.tga", IT_SKIN, IF_SRGB);
         if (normal_map != R_NOTEXTURE) {
-            physical_sky_planet_normal_map = normal_map - r_images;
+            physical_sky_planet_normal_map = normal_map - cl_precache.images;
         }
     }
     return VK_SUCCESS;

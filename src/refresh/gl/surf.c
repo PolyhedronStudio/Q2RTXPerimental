@@ -914,7 +914,7 @@ void GL_LoadWorld(const char *name)
     // check if the required world model was already loaded
     if (gl_static.world.cache == bsp) {
         for (i = 0; i < bsp->numtexinfo; i++) {
-            bsp->texinfo[i].image->registration_sequence = registration_sequence;
+            bsp->texinfo[i].image->registration_sequence = cl_precache.registration_sequence;
         }
         for (i = 0; i < bsp->numnodes; i++) {
             bsp->nodes[i].visframe = 0;

@@ -770,7 +770,7 @@ static void CL_AddPacketEntities(void)
 		// add dlights for flares
 		model_t* model;
 		if (ent.model && !(ent.model & 0x80000000) &&
-			(model = MOD_ForHandle(ent.model)))
+			(model = MOD_ForHandle( &cl_precache, ent.model)))
 		{
 			if (model->model_class == MCLASS_FLARE)
 			{
@@ -1052,7 +1052,7 @@ static void CL_AddViewWeapon(void)
 		gun.flags |= shell_flags;
 	}
 
-	model_t* model = MOD_ForHandle(gun.model);
+	model_t* model = MOD_ForHandle( &cl_precache, gun.model);
 	if (model && strstr(model->name, "v_flareg"))
 		gun.scale *= 0.3f; // The flare gun is modeled too large, scale it down to match other weapons
 
@@ -1312,7 +1312,7 @@ void CL_AddTestModel(void)
 
     if (cl_testmodel_handle != -1)
     {
-        model_t* model = MOD_ForHandle(cl_testmodel_handle);
+        model_t* model = MOD_ForHandle( &cl_precache, cl_testmodel_handle );
 
         if (model != NULL && model->meshes != NULL)
         {

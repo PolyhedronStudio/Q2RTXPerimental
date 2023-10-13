@@ -26,6 +26,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/common.h"
 #include "common/cvar.h"
 #include "common/files.h"
+#include "common/images.h"
+#include "common/models.h"
+#include "common/precache_context.h"
 #include "../client/client.h"
 #include "refresh/images.h"
 #include "system/system.h"
@@ -865,8 +868,8 @@ IMAGE MANAGER
 
 static list_t   r_imageHash[RIMAGES_HASH];
 
-image_t     r_images[MAX_RIMAGES];
-int         r_numImages;
+//image_t     cl_precache.images[MAX_RIMAGES];
+//int         cl_precache.numImages;
 
 uint32_t    d_8to24table[256];
 
@@ -970,7 +973,7 @@ static void IMG_List_f(void)
         Com_Printf("------------------\n");
     }
 
-    for (i = 1, image = r_images + 1; i < r_numImages; i++, image++) {
+    for (i = 1, image = cl_precache.images + 1; i < cl_precache.numImages; i++, image++) {
         if (!image->registration_sequence)
             continue;
         if (mask && !(mask & (1 << image->type)))
@@ -1010,7 +1013,7 @@ static void IMG_List_f(void)
         FS_CloseFile(f);
         Com_Printf("Saved '%s'\n", path);
     } else {
-        Com_Printf("Total images: %d (out of %d slots)\n", count, r_numImages);
+        Com_Printf("Total images: %d (out of %d slots)\n", count, cl_precache.numImages);
         Com_Printf("Total texels: %zu (not counting mipmaps)\n", texels);
     }
 }
@@ -1021,7 +1024,7 @@ static image_t *alloc_image(void)
     image_t *image, *placeholder = NULL;
 
     // find a free image_t slot
-    for (i = 1, image = r_images + 1; i < r_numImages; i++, image++) {
+    for (i = 1, image = cl_precache.images + 1; i < cl_precache.numImages; i++, image++) {
         if (!image->registration_sequence)
             return image;
         if (!image->upload_width && !image->upload_height && !placeholder)
@@ -1029,8 +1032,8 @@ static image_t *alloc_image(void)
     }
 
     // allocate new slot if possible
-    if (r_numImages < MAX_RIMAGES) {
-        r_numImages++;
+    if (cl_precache.numImages < MAX_RIMAGES) {
+        cl_precache.numImages++;
         return image;
     }
 
@@ -1320,7 +1323,7 @@ static int try_load_image_candidate(image_t *image, const char *orig_name, size_
 
     image->type = type;
     image->flags = flags;
-    image->registration_sequence = registration_sequence;
+    image->registration_sequence = cl_precache.registration_sequence;
 
     // find out original extension
     imageformat_t fmt;
@@ -1437,7 +1440,7 @@ static image_t *find_or_load_image(const char *name, size_t len,
 
     // look for it
     if ((image = lookup_image(name, type, hash, len - 4)) != NULL) {
-        image->registration_sequence = registration_sequence;
+        image->registration_sequence = cl_precache.registration_sequence;
         if (image->upload_width && image->upload_height) {
             image->flags |= flags & IF_PERMANENT;
             return image;
@@ -1624,8 +1627,8 @@ IMG_ForHandle
 */
 image_t *IMG_ForHandle(qhandle_t h)
 {
-    Q_assert(h >= 0 && h < r_numImages);
-    return &r_images[h];
+    Q_assert(h >= 0 && h < cl_precache.numImages);
+    return &cl_precache.images[h];
 }
 
 /*
@@ -1645,7 +1648,7 @@ qhandle_t R_RegisterImage(const char *name, imagetype_t type, imageflags_t flags
     }
 
     // no images = not initialized
-    if (!r_numImages) {
+    if (!cl_precache.numImages) {
         return 0;
     }
 
@@ -1667,7 +1670,7 @@ qhandle_t R_RegisterImage(const char *name, imagetype_t type, imageflags_t flags
     }
 
     if ((image = find_or_load_image(fullname, len, type, flags))) {
-        return image - r_images;
+        return image - cl_precache.images;
     }
     return 0;
 }
@@ -1683,8 +1686,8 @@ qhandle_t R_RegisterRawImage(const char *name, int width, int height, byte* pic,
     // look for it
     if ((image = lookup_image(name, type, hash, len)) != NULL) {
         image->flags |= flags & IF_PERMANENT;
-        image->registration_sequence = registration_sequence;
-        return image - r_images;
+        image->registration_sequence = cl_precache.registration_sequence;
+        return image - cl_precache.images;
     }
 
     // allocate image slot
@@ -1697,7 +1700,7 @@ qhandle_t R_RegisterRawImage(const char *name, int width, int height, byte* pic,
     image->baselen = len;
     image->type = type;
     image->flags = flags;
-    image->registration_sequence = registration_sequence;
+    image->registration_sequence = cl_precache.registration_sequence;
     image->last_modified = 0;
     image->width = width;
     image->height = height;
@@ -1711,7 +1714,7 @@ qhandle_t R_RegisterRawImage(const char *name, int width, int height, byte* pic,
     // upload the image
     IMG_Load(image, pic);
 
-    return image - r_images;
+    return image - cl_precache.images;
 }
 
 void R_UnregisterImage(qhandle_t handle)
@@ -1719,7 +1722,7 @@ void R_UnregisterImage(qhandle_t handle)
     if (!handle)
         return;
 
-    image_t* image = r_images + handle;
+    image_t* image = cl_precache.images + handle;
 
     if (image->registration_sequence)
     {
@@ -1759,8 +1762,8 @@ void IMG_FreeUnused(void)
     image_t *image;
     int i, count = 0;
 
-    for (i = 1, image = r_images + 1; i < r_numImages; i++, image++) {
-        if (image->registration_sequence == registration_sequence) {
+    for (i = 1, image = cl_precache.images + 1; i < cl_precache.numImages; i++, image++) {
+        if (image->registration_sequence == cl_precache.registration_sequence) {
             continue;        // used this sequence
         }
         if (!image->registration_sequence)
@@ -1788,7 +1791,7 @@ void IMG_FreeAll(void)
     image_t *image;
     int i, count = 0;
 
-    for (i = 1, image = r_images + 1; i < r_numImages; i++, image++) {
+    for (i = 1, image = cl_precache.images + 1; i < cl_precache.numImages; i++, image++) {
         if (!image->registration_sequence)
             continue;        // free image_t slot
         // free it
@@ -1806,8 +1809,8 @@ void IMG_FreeAll(void)
         List_Init(&r_imageHash[i]);
     }
 
-    // &r_images[0] == R_NOTEXTURE
-    r_numImages = 1;
+    // &cl_precache.images[0] == R_NOTEXTURE
+    cl_precache.numImages = 1;
 }
 
 /*
@@ -1862,7 +1865,7 @@ void IMG_Init(void)
 {
     int i;
 
-    Q_assert(!r_numImages);
+    Q_assert(!cl_precache.numImages);
 
     r_override_textures = Cvar_Get("r_override_textures", "1", CVAR_FILES);
     r_texture_formats = Cvar_Get("r_texture_formats", "pjt", 0);
@@ -1883,12 +1886,12 @@ void IMG_Init(void)
         List_Init(&r_imageHash[i]);
     }
 
-    // &r_images[0] == R_NOTEXTURE
-    r_numImages = 1;
+    // &cl_precache.images[0] == R_NOTEXTURE
+    cl_precache.numImages = 1;
 }
 
 void IMG_Shutdown(void)
 {
     Cmd_Deregister(img_cmd);
-    r_numImages = 0;
+    cl_precache.numImages = 0;
 }

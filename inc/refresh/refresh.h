@@ -28,6 +28,9 @@ extern "C" {
 
 #include "common/cvar.h"
 #include "common/error.h"
+#include "common/images.h"
+#include "common/models.h"
+#include "common/precache_context.h"
 
 #define MAX_DLIGHTS 32
 #define MAX_ENTITIES 1024 // == MAX_PACKET_ENTITIES * 2
@@ -230,42 +233,42 @@ typedef struct {
     int left, right, top, bottom;
 } clipRect_t;
 
-typedef enum {
-    IF_NONE = 0,
-    IF_PERMANENT = (1 << 0),
-    IF_TRANSPARENT = (1 << 1),
-    IF_PALETTED = (1 << 2),
-    IF_UPSCALED = (1 << 3),
-    IF_SCRAP = (1 << 4),
-    IF_TURBULENT = (1 << 5),
-    IF_REPEAT = (1 << 6),
-    IF_NEAREST = (1 << 7),
-    IF_OPAQUE = (1 << 8),
-    IF_SRGB = (1 << 9),
-    IF_FAKE_EMISSIVE = (1 << 10),
-    IF_EXACT = (1 << 11),
-    IF_NORMAL_MAP = (1 << 12),
-    IF_BILERP = (1 << 13), // always lerp, independent of bilerp_pics cvar
-
-    // Image source indicator/requirement flags
-    IF_SRC_BASE = (0x1 << 16),
-    IF_SRC_GAME = (0x2 << 16),
-    IF_SRC_MASK = (0x3 << 16),
-} imageflags_t;
+//typedef enum {
+//    IF_NONE = 0,
+//    IF_PERMANENT = (1 << 0),
+//    IF_TRANSPARENT = (1 << 1),
+//    IF_PALETTED = (1 << 2),
+//    IF_UPSCALED = (1 << 3),
+//    IF_SCRAP = (1 << 4),
+//    IF_TURBULENT = (1 << 5),
+//    IF_REPEAT = (1 << 6),
+//    IF_NEAREST = (1 << 7),
+//    IF_OPAQUE = (1 << 8),
+//    IF_SRGB = (1 << 9),
+//    IF_FAKE_EMISSIVE = (1 << 10),
+//    IF_EXACT = (1 << 11),
+//    IF_NORMAL_MAP = (1 << 12),
+//    IF_BILERP = (1 << 13), // always lerp, independent of bilerp_pics cvar
+//
+//    // Image source indicator/requirement flags
+//    IF_SRC_BASE = (0x1 << 16),
+//    IF_SRC_GAME = (0x2 << 16),
+//    IF_SRC_MASK = (0x3 << 16),
+//} imageflags_t;
 
 // Shift amount for storing fake emissive synthesis threshold
 #define IF_FAKE_EMISSIVE_THRESH_SHIFT 20
 
-typedef enum {
-    IT_PIC,
-    IT_FONT,
-    IT_SKIN,
-    IT_SPRITE,
-    IT_WALL,
-    IT_SKY,
-
-    IT_MAX
-} imagetype_t;
+//typedef enum {
+//    IT_PIC,
+//    IT_FONT,
+//    IT_SKIN,
+//    IT_SPRITE,
+//    IT_WALL,
+//    IT_SKY,
+//
+//    IT_MAX
+//} imagetype_t;
 
 typedef enum ref_type_e {
     REF_TYPE_NONE = 0,

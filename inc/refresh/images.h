@@ -18,8 +18,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef IMAGES_H
-#define IMAGES_H
+#ifndef REFRESH_IMAGES_H
+#define REFRESH_IMAGES_H
 
 //
 // images.h -- common image manager
@@ -32,6 +32,7 @@ extern "C" {
 
 #include "shared/list.h"
 #include "common/files.h"
+#include "common/images.h"
 #include "common/zone.h"
 #include "common/error.h"
 #include "refresh/refresh.h"
@@ -55,59 +56,61 @@ extern "C" {
 // absolute limit for OpenGL renderer
 #define MAX_TEXTURE_SIZE    4096
 
-typedef enum {
-    IM_PCX,
-    IM_WAL,
-    IM_TGA,
-    IM_JPG,
-    IM_PNG,
-    IM_MAX
-} imageformat_t;
-
-// Format of data in image_t.pix_data
-typedef enum
-{
-    PF_R8G8B8A8_UNORM = 0,
-    PF_R16_UNORM
-} pixelformat_t;
-
-typedef struct image_s {
-    list_t          entry;
-    char            name[MAX_QPATH]; // game path
-    int             baselen; // without extension
-    imagetype_t     type;
-    imageflags_t    flags;
-    int             width, height; // source image
-    int             upload_width, upload_height; // after power of two and picmip
-    int             registration_sequence; // 0 = free
-	char            filepath[MAX_QPATH]; // actual path loaded, with correct format extension
-	int             is_srgb;
-	uint64_t        last_modified;
-#if REF_GL
-    unsigned        texnum; // gl texture binding
-    float           sl, sh, tl, th;
-#endif
-#if REF_VKPT
-    byte            *pix_data; // todo: add miplevels
-    pixelformat_t   pixel_format; // pixel format (only supported by VKPT renderer)
-    vec3_t          light_color; // use this color if this is a light source
-	vec2_t          min_light_texcoord;
-	vec2_t          max_light_texcoord;
-	bool            entire_texture_emissive;
-	bool            processing_complete;
-#else
-    byte            *pixels[4]; // mip levels
-#endif
-} image_t;
+//typedef enum {
+//    IM_PCX,
+//    IM_WAL,
+//    IM_TGA,
+//    IM_JPG,
+//    IM_PNG,
+//    IM_MAX
+//} imageformat_t;
+//
+//// Format of data in image_t.pix_data
+//typedef enum
+//{
+//    PF_R8G8B8A8_UNORM = 0,
+//    PF_R16_UNORM
+//} pixelformat_t;
+//
+//typedef struct image_s {
+//    list_t          entry;
+//    char            name[MAX_QPATH]; // game path
+//    int             baselen; // without extension
+//    imagetype_t     type;
+//    imageflags_t    flags;
+//    int             width, height; // source image
+//    int             upload_width, upload_height; // after power of two and picmip
+//    int             registration_sequence; // 0 = free
+//	char            filepath[MAX_QPATH]; // actual path loaded, with correct format extension
+//	int             is_srgb;
+//	uint64_t        last_modified;
+//#if REF_GL
+//    unsigned        texnum; // gl texture binding
+//    float           sl, sh, tl, th;
+//#endif
+//#if REF_VKPT
+//    byte            *pix_data; // todo: add miplevels
+//    pixelformat_t   pixel_format; // pixel format (only supported by VKPT renderer)
+//    vec3_t          light_color; // use this color if this is a light source
+//	vec2_t          min_light_texcoord;
+//	vec2_t          max_light_texcoord;
+//	bool            entire_texture_emissive;
+//	bool            processing_complete;
+//#else
+//    byte            *pixels[4]; // mip levels
+//#endif
+//} image_t;
 
 #define MAX_RIMAGES     2048
 
-extern image_t  r_images[MAX_RIMAGES];
-extern int      r_numImages;
+//extern image_t  r_images[MAX_RIMAGES];
+//extern int      r_numImages;
+//
+//extern int registration_sequence;
 
-extern int registration_sequence;
+extern precache_context_t cl_precache;
 
-#define R_NOTEXTURE &r_images[0]
+#define R_NOTEXTURE &cl_precache.images[0]
 
 extern uint32_t d_8to24table[256];
 
@@ -155,6 +158,6 @@ extern void (*IMG_ReadPixelsHDR)(screenshot_t *s);
 };
 #endif
 
-#endif // IMAGES_H
+#endif // REFRESH_IMAGES_H
 
 /* vim: set ts=8 sw=4 tw=0 et : */

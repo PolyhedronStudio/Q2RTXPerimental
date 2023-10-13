@@ -560,7 +560,7 @@ static uint32_t load_material_file(const char* file_name, pbr_material_t* dest, 
 			linebuf[len - 1] = 0;
 			Q_strlcpy(dest->name, linebuf, sizeof(dest->name));
 			dest->image_flags = source;
-			dest->registration_sequence = registration_sequence;
+			dest->registration_sequence = cl_precache.registration_sequence;
 
 			// copy the material file name
 			Q_strlcpy(dest->source_matfile, file_name, sizeof(dest->source_matfile));
@@ -990,11 +990,11 @@ void MAT_UpdateRegistration(pbr_material_t * mat)
 	if (!mat)
 		return;
 
-	mat->registration_sequence = registration_sequence;
-	if (mat->image_base) mat->image_base->registration_sequence = registration_sequence;
-	if (mat->image_normals) mat->image_normals->registration_sequence = registration_sequence;
-	if (mat->image_emissive) mat->image_emissive->registration_sequence = registration_sequence;
-	if (mat->image_mask) mat->image_mask->registration_sequence = registration_sequence;
+	mat->registration_sequence = cl_precache.registration_sequence;
+	if (mat->image_base) mat->image_base->registration_sequence = cl_precache.registration_sequence;
+	if (mat->image_normals) mat->image_normals->registration_sequence = cl_precache.registration_sequence;
+	if (mat->image_emissive) mat->image_emissive->registration_sequence = cl_precache.registration_sequence;
+	if (mat->image_mask) mat->image_mask->registration_sequence = cl_precache.registration_sequence;
 }
 
 //
@@ -1004,7 +1004,7 @@ int MAT_FreeUnused()
 	{
 		pbr_material_t * mat = r_materials + i;
 
-		if (mat->registration_sequence == registration_sequence)
+		if (mat->registration_sequence == cl_precache.registration_sequence)
 			continue;
 
 		if (!mat->registration_sequence)

@@ -857,7 +857,7 @@ void MOD_Reference_RTX(model_t *model)
 		break;
 	case MOD_SPRITE:
 		for (frame_idx = 0; frame_idx < model->numframes; frame_idx++) {
-			model->spriteframes[frame_idx].image->registration_sequence = registration_sequence;
+			model->spriteframes[frame_idx].image->registration_sequence = cl_precache.registration_sequence;
 		}
 		break;
 	case MOD_EMPTY:
@@ -866,8 +866,8 @@ void MOD_Reference_RTX(model_t *model)
 		Q_assert(!"bad model type");
 	}
 
-	model->registration_sequence = registration_sequence;
-	model_vertex_data[model - r_models].registration_sequence = registration_sequence;
+	model->registration_sequence = cl_precache.registration_sequence;
+	model_vertex_data[model - cl_precache.models].registration_sequence = cl_precache.registration_sequence;
 }
 
 // vim: shiftwidth=4 noexpandtab tabstop=4 cindent

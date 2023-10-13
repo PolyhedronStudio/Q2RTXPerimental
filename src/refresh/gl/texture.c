@@ -93,7 +93,7 @@ static void gl_texturemode_changed(cvar_t *self)
     }
 
     // change all the existing mipmap texture objects
-    for (i = 0, image = r_images; i < r_numImages; i++, image++) {
+    for (i = 0, image = cl_precache.images; i < cl_precache.numImages; i++, image++) {
         if (image->type == IT_WALL || image->type == IT_SKIN) {
             GL_ForceTexture(0, image->texnum);
             GL_SetFilterAndRepeat(image->type, image->flags);
@@ -123,7 +123,7 @@ static void gl_anisotropy_changed(cvar_t *self)
     gl_filter_anisotropy = Cvar_ClampValue(self, 1, value);
 
     // change all the existing mipmap texture objects
-    for (i = 0, image = r_images; i < r_numImages; i++, image++) {
+    for (i = 0, image = cl_precache.images; i < cl_precache.numImages; i++, image++) {
         if (image->type == IT_WALL || image->type == IT_SKIN) {
             GL_ForceTexture(0, image->texnum);
             GL_SetFilterAndRepeat(image->type, image->flags);
@@ -137,7 +137,7 @@ static void gl_bilerp_chars_changed(cvar_t *self)
     image_t *image;
 
     // change all the existing charset texture objects
-    for (i = 0, image = r_images; i < r_numImages; i++, image++) {
+    for (i = 0, image = cl_precache.images; i < cl_precache.numImages; i++, image++) {
         if (image->type == IT_FONT) {
             GL_ForceTexture(0, image->texnum);
             GL_SetFilterAndRepeat(image->type, image->flags);
@@ -151,7 +151,7 @@ static void gl_bilerp_pics_changed(cvar_t *self)
     image_t *image;
 
     // change all the existing pic texture objects
-    for (i = 0, image = r_images; i < r_numImages; i++, image++) {
+    for (i = 0, image = cl_precache.images; i < cl_precache.numImages; i++, image++) {
         if (image->type == IT_PIC) {
             GL_ForceTexture(0, image->texnum);
             GL_SetFilterAndRepeat(image->type, image->flags);

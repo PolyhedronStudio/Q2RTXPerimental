@@ -739,10 +739,10 @@ vkpt_light_buffer_upload_to_staging(bool render_world, bsp_mesh_t *bsp_mesh, bsp
 		if (material->registration_sequence == 0)
 			continue;
 
-		if (material->image_base) mat_data[0] |= (material->image_base - r_images);
-		if (material->image_normals) mat_data[0] |= (material->image_normals - r_images) << 16;
-		if (material->image_emissive) mat_data[1] |= (material->image_emissive - r_images);
-		if (material->image_mask) mat_data[1] |= (material->image_mask - r_images) << 16;
+		if (material->image_base) mat_data[0] |= (material->image_base - cl_precache.images);
+		if (material->image_normals) mat_data[0] |= (material->image_normals - cl_precache.images) << 16;
+		if (material->image_emissive) mat_data[1] |= (material->image_emissive - cl_precache.images);
+		if (material->image_mask) mat_data[1] |= (material->image_mask - cl_precache.images) << 16;
 		
 		mat_data[2] = floatToHalf(material->bump_scale);
 		mat_data[2] |= floatToHalf(material->roughness_override) << 16;
@@ -904,7 +904,7 @@ void vkpt_vertex_buffer_invalidate_static_model_vbos(int material_index)
 
 	for (int i = 0; i < MAX_MODELS; i++)
 	{
-		const model_t* model = &r_models[i];
+		const model_t* model = &cl_precache.models[i];
 		model_vbo_t* vbo = model_vertex_data + i;
 
 		// Only look at valid static meshes.
@@ -942,7 +942,7 @@ vkpt_vertex_buffer_upload_models()
 
 	for(int i = 0; i < MAX_MODELS; i++)
 	{
-		const model_t* model = &r_models[i];
+		const model_t* model = &cl_precache.models[i];
 		model_vbo_t* vbo = model_vertex_data + i;
 
 		if (!model->meshes && vbo->buffer.buffer) {
@@ -1690,7 +1690,7 @@ bool vkpt_model_is_static(const model_t* model)
 	if (!model)
 		return false;
 
-	size_t model_index = model - r_models;
+	size_t model_index = model - cl_precache.models;
 	const model_vbo_t* vbo = &model_vertex_data[model_index];
 
 	return vbo->is_static;
@@ -1701,7 +1701,7 @@ const model_vbo_t* vkpt_get_model_vbo(const model_t* model)
 	if (!model)
 		return NULL;
 
-	size_t model_index = model - r_models;
+	size_t model_index = model - cl_precache.models;
 	
 	return &model_vertex_data[model_index];
 }

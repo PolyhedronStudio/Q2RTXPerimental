@@ -173,7 +173,7 @@ static inline void enqueue_stretch_pic(
 	sp->color = color;
 	sp->tex_handle = tex_handle;
 	if(tex_handle >= 0 && tex_handle < MAX_RIMAGES
-	&& !r_images[tex_handle].registration_sequence) {
+	&& !cl_precache.images[tex_handle].registration_sequence) {
 		sp->tex_handle = TEXNUM_WHITE;
 	}
 }
@@ -821,27 +821,27 @@ R_DrawStretchRaw_RTX(int x, int y, int w, int h)
 {
 	if(!qvk.raw_image)
 		return;
-	R_DrawStretchPic(x, y, w, h, qvk.raw_image - r_images);
+	R_DrawStretchPic(x, y, w, h, qvk.raw_image - cl_precache.images);
 }
 
 void
 R_UpdateRawPic_RTX(int pic_w, int pic_h, const uint32_t *pic)
 {
 	if(qvk.raw_image)
-		R_UnregisterImage(qvk.raw_image - r_images);
+		R_UnregisterImage(qvk.raw_image - cl_precache.images);
 
 	size_t raw_size = pic_w * pic_h * 4;
 	byte *raw_data = Z_Malloc(raw_size);
 	memcpy(raw_data, pic, raw_size);
 	static int raw_id;
-	qvk.raw_image = r_images + R_RegisterRawImage(va("**raw[%d]**", raw_id++), pic_w, pic_h, raw_data, IT_SPRITE, IF_SRGB);
+	qvk.raw_image = cl_precache.images + R_RegisterRawImage(va("**raw[%d]**", raw_id++), pic_w, pic_h, raw_data, IT_SPRITE, IF_SRGB);
 }
 
 void
 R_DiscardRawPic_RTX(void)
 {
 	if(qvk.raw_image) {
-		R_UnregisterImage(qvk.raw_image - r_images);
+		R_UnregisterImage(qvk.raw_image - cl_precache.images);
 		qvk.raw_image = NULL;
 	}
 }

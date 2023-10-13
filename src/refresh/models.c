@@ -39,8 +39,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // we are sure we won't need it.
 #define MAX_RMODELS     (MAX_MODELS * 2)
 
-model_t      r_models[MAX_RMODELS];
-int          r_numModels;
+//model_t      r_models[MAX_RMODELS];
+//int          r_numModels;
 
 cvar_t    *cl_testmodel;
 cvar_t    *cl_testfps;
@@ -48,45 +48,45 @@ cvar_t    *cl_testalpha;
 qhandle_t  cl_testmodel_handle = -1;
 vec3_t     cl_testmodel_position;
 
-static model_t *MOD_Alloc(void)
-{
-    model_t *model;
-    int i;
+//static model_t *MOD_Alloc(void)
+//{
+//    model_t *model;
+//    int i;
+//
+//    for (i = 0, model = r_models; i < r_numModels; i++, model++) {
+//        if (!model->type) {
+//            break;
+//        }
+//    }
+//
+//    if (i == r_numModels) {
+//        if (r_numModels == MAX_RMODELS) {
+//            return NULL;
+//        }
+//        r_numModels++;
+//    }
+//
+//    return model;
+//}
+//
+//static model_t *MOD_Find(const char *name)
+//{
+//    model_t *model;
+//    int i;
+//
+//    for (i = 0, model = r_models; i < r_numModels; i++, model++) {
+//        if (!model->type) {
+//            continue;
+//        }
+//        if (!FS_pathcmp(model->name, name)) {
+//            return model;
+//        }
+//    }
+//
+//    return NULL;
+//}
 
-    for (i = 0, model = r_models; i < r_numModels; i++, model++) {
-        if (!model->type) {
-            break;
-        }
-    }
-
-    if (i == r_numModels) {
-        if (r_numModels == MAX_RMODELS) {
-            return NULL;
-        }
-        r_numModels++;
-    }
-
-    return model;
-}
-
-static model_t *MOD_Find(const char *name)
-{
-    model_t *model;
-    int i;
-
-    for (i = 0, model = r_models; i < r_numModels; i++, model++) {
-        if (!model->type) {
-            continue;
-        }
-        if (!FS_pathcmp(model->name, name)) {
-            return model;
-        }
-    }
-
-    return NULL;
-}
-
-static void MOD_List_f(void)
+static void MOD_Refresh_List_f(void)
 {
     static const char types[4] = "FASE";
     int     i, count;
@@ -96,7 +96,7 @@ static void MOD_List_f(void)
     Com_Printf("------------------\n");
     bytes = count = 0;
 
-    for (i = 0, model = r_models; i < r_numModels; i++, model++) {
+    for (i = 0, model = cl_precache.models; i < cl_precache.numModels; i++, model++) {
         if (!model->type) {
             continue;
         }
@@ -105,46 +105,46 @@ static void MOD_List_f(void)
         bytes += model->hunk.mapped;
         count++;
     }
-    Com_Printf("Total models: %d (out of %d slots)\n", count, r_numModels);
-    Com_Printf("Total resident: %zu\n", bytes);
+    Com_Printf("Total refresh models: %d (out of %d slots)\n", count, cl_precache.numModels);
+    Com_Printf("Total refresh resident bytes: %zu\n", bytes);
 }
 
-void MOD_FreeUnused(void)
-{
-    model_t *model;
-    int i;
-
-    for (i = 0, model = r_models; i < r_numModels; i++, model++) {
-        if (!model->type) {
-            continue;
-        }
-        if (model->registration_sequence == registration_sequence) {
-            // make sure it is paged in
-            Com_PageInMemory(model->hunk.base, model->hunk.cursize);
-        } else {
-            // don't need this model
-            Hunk_Free(&model->hunk);
-            memset(model, 0, sizeof(*model));
-        }
-    }
-}
-
-void MOD_FreeAll(void)
-{
-    model_t *model;
-    int i;
-
-    for (i = 0, model = r_models; i < r_numModels; i++, model++) {
-        if (!model->type) {
-            continue;
-        }
-
-        Hunk_Free(&model->hunk);
-        memset(model, 0, sizeof(*model));
-    }
-
-    r_numModels = 0;
-}
+//void MOD_FreeUnused(void)
+//{
+//    model_t *model;
+//    int i;
+//
+//    for (i = 0, model = r_models; i < r_numModels; i++, model++) {
+//        if (!model->type) {
+//            continue;
+//        }
+//        if (model->registration_sequence == cl_precache.registration_sequence) {
+//            // make sure it is paged in
+//            Com_PageInMemory(model->hunk.base, model->hunk.cursize);
+//        } else {
+//            // don't need this model
+//            Hunk_Free(&model->hunk);
+//            memset(model, 0, sizeof(*model));
+//        }
+//    }
+//}
+//
+//void MOD_FreeAll(void)
+//{
+//    model_t *model;
+//    int i;
+//
+//    for (i = 0, model = r_models; i < r_numModels; i++, model++) {
+//        if (!model->type) {
+//            continue;
+//        }
+//
+//        Hunk_Free(&model->hunk);
+//        memset(model, 0, sizeof(*model));
+//    }
+//
+//    r_numModels = 0;
+//}
 
 int MOD_ValidateMD2(dmd2header_t *header, size_t length)
 {
@@ -339,7 +339,7 @@ qhandle_t R_RegisterModel(const char *name)
     }
 
     // see if it's already loaded
-    model = MOD_Find(normalized);
+    model = MOD_Find( &cl_precache, normalized);
     if (model) {
         MOD_Reference(model);
         goto done;
@@ -419,14 +419,14 @@ qhandle_t R_RegisterModel(const char *name)
         goto fail2;
     }
 
-    model = MOD_Alloc();
+    model = MOD_Alloc( &cl_precache );
     if (!model) {
         ret = Q_ERR_OUT_OF_SLOTS;
         goto fail2;
     }
 
     memcpy(model->name, normalized, namelen + 1);
-    model->registration_sequence = registration_sequence;
+    model->registration_sequence = cl_precache.registration_sequence;
 
     ret = load(model, rawdata, filelen, name);
 
@@ -440,7 +440,7 @@ qhandle_t R_RegisterModel(const char *name)
 	model->model_class = get_model_class(model->name);
 
 done:
-    index = (model - r_models) + 1;
+    index = (model - cl_precache.models) + 1;
     return index;
 
 fail2:
@@ -450,24 +450,24 @@ fail1:
     return 0;
 }
 
-model_t *MOD_ForHandle(qhandle_t h)
-{
-    model_t *model;
+//model_t *MOD_ForHandle(qhandle_t h)
+//{
+//    model_t *model;
+//
+//    if (!h) {
+//        return NULL;
+//    }
+//
+//    Q_assert(h > 0 && h <= r_numModels);
+//    model = &cl_precache.models[h - 1];
+//    if (!model->type) {
+//        return NULL;
+//    }
+//
+//    return model;
+//}
 
-    if (!h) {
-        return NULL;
-    }
-
-    Q_assert(h > 0 && h <= r_numModels);
-    model = &r_models[h - 1];
-    if (!model->type) {
-        return NULL;
-    }
-
-    return model;
-}
-
-static void MOD_PutTest_f(void)
+static void MOD_Refresh_PutTest_f(void)
 {
     VectorCopy(cl.refdef.vieworg, cl_testmodel_position);
     cl_testmodel_position[2] -= 46.12f; // player eye-level
@@ -475,9 +475,9 @@ static void MOD_PutTest_f(void)
 
 void MOD_Init(void)
 {
-    Q_assert(!r_numModels);
-    Cmd_AddCommand("modellist", MOD_List_f);
-    Cmd_AddCommand("puttest", MOD_PutTest_f);
+    Q_assert(!cl_precache.numModels);
+    Cmd_AddCommand("modellist", MOD_Refresh_List_f);
+    Cmd_AddCommand("puttest", MOD_Refresh_PutTest_f);
 
     // Path to the test model - can be an .md2, .md3 or .iqm file
     cl_testmodel = Cvar_Get("cl_testmodel", "", 0);
@@ -491,7 +491,7 @@ void MOD_Init(void)
 
 void MOD_Shutdown(void)
 {
-    MOD_FreeAll();
+    MOD_FreeAll( &cl_precache );
     Cmd_RemoveCommand("modellist");
     Cmd_RemoveCommand("puttest");
 }
