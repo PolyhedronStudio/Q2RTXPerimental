@@ -2396,7 +2396,7 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
     SV_ShutdownGameProgs();
 
 	// Shutdown server models.
-	MOD_SV_Shutdown( );
+	SV_MOD_Shutdown( );
 
     // free current level
     CM_FreeMap(&sv.cm);

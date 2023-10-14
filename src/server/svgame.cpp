@@ -63,7 +63,12 @@ static int PF_ModelIndex(const char *name)
 
 	// Try and load the model, in case it has already been loaded, it'll "Reference"/"Touch" it to ensure
 	// it remains loaded.
-	qhandle_t modelHandle = MOD_SV_RegisterModel( name );
+	if ( configStringIndex != 0 ) {
+		qhandle_t modelHandle = SV_MOD_RegisterModel( name );
+
+		// We need to start generating skeletal model root motion data from here on.
+		//model_t *modelIQM = MOD_ForHandle( &sv_precache, modelHandle );
+	}
 
 	// if ( !modelHandle ) {
 	// OMG
@@ -351,7 +356,7 @@ static void PF_setmodel(edict_t *ent, const char *name)
 
     ent->s.modelindex = PF_ModelIndex(name);
 
-// if it is an inline model, get the size information for it
+	// if it is an inline model, get the size information for it
     if (name[0] == '*') {
         mod = CM_InlineModel(&sv.cm, name);
         VectorCopy(mod->mins, ent->mins);

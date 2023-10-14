@@ -189,8 +189,8 @@ void SV_SpawnServer(mapcmd_t *cmd)
     sv.state = ss_loading;
 
 	// Free server side unused models, and reinitialize cache.
-	MOD_SV_Shutdown( );
-	MOD_SV_Init( );
+	SV_MOD_Shutdown( );
+	SV_MOD_Init( );
 
     // load and spawn all other entities
     ge->SpawnEntities(sv.name, sv.cm.entitystring, cmd->spawnpoint);

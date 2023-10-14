@@ -448,7 +448,7 @@ fail1:
 //    return model;
 //}
 
-static void MOD_CL_List_f( void ) {
+static void CL_MOD_List_f( void ) {
 	static const char types[ 4 ] = "FASE";
 	int     i, count;
 	model_t *model;
@@ -470,7 +470,7 @@ static void MOD_CL_List_f( void ) {
 	Com_Printf( "Total refresh resident bytes: %zu\n", bytes );
 }
 
-static void MOD_CL_PutTest_f(void)
+static void CL_MOD_PutTest_f(void)
 {
     VectorCopy(cl.refdef.vieworg, cl_testmodel_position);
     cl_testmodel_position[2] -= 46.12f; // player eye-level
@@ -479,8 +479,8 @@ static void MOD_CL_PutTest_f(void)
 void MOD_Refresh_Init(void)
 {
     Q_assert(!cl_precache.numModels);
-    Cmd_AddCommand("cl_modellist", MOD_CL_List_f);
-    Cmd_AddCommand("cl_puttest", MOD_CL_PutTest_f);
+    Cmd_AddCommand("cl_modellist", CL_MOD_List_f);
+    Cmd_AddCommand("cl_puttest", CL_MOD_PutTest_f);
 
     // Path to the test model - can be an .md2, .md3 or .iqm file
     cl_testmodel = Cvar_Get("cl_testmodel", "", 0);

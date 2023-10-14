@@ -28,6 +28,47 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <refresh/models.h>
 #include <refresh/refresh.h>
 
+
+/**
+*
+*
+*	SP2 Loading:
+*
+*
+**/
+// The server won't be needing it, hence its existence in /common/ is non existent:
+// GL and RTX got their own distinct implementation.
+
+
+/**
+*
+*
+*	MD2 Loading:
+*
+*
+**/
+// The server won't be needing it, hence its existence in /common/ is non existent:
+// GL and RTX got their own distinct implementation.
+
+
+/**
+*
+*
+*	MD3 Loading:
+*
+*
+**/
+// The server won't be needing it, hence its existence in /common/ is non existent:
+// GL and RTX got their own distinct implementation.
+
+
+/**
+*
+* 
+*	IQM Loading:
+* 
+* 
+**/
 static bool IQM_CheckRange( const iqmHeader_t *header, uint32_t offset, uint32_t count, size_t size ) {
 	// return true if the range specified by offset, count and size
 	// doesn't fit into the file
@@ -160,6 +201,7 @@ static vec_t QuatNormalize2( const quat_t v, quat_t out ) {
 MOD_LoadIQM_Base
 
 Load an IQM model and compute the joint poses for every frame.
+Located in /common/ due to the server as well as the client needing appropriate awareness of skeletal data.
 =================
 */
 int MOD_LoadIQM_Base( model_t *model, const void *rawdata, size_t length, const char *mod_name ) {

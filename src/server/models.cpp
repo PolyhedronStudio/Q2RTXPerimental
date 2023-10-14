@@ -29,7 +29,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *	@brief	sv_modellist implementation.
 **/
-static void MOD_SV_List_f( void ) {
+static void SV_MOD_List_f( void ) {
 	static const char types[ 5 ] = "FASE";
 	int     i, count;
 	model_t *model;
@@ -51,15 +51,15 @@ static void MOD_SV_List_f( void ) {
 	Com_Printf( "Total server resident bytes: %zu\n", bytes );
 }
 
-void MOD_SV_Init( void ) {
+void SV_MOD_Init( void ) {
 	Q_assert( !sv_precache.numModels );
-	Cmd_AddCommand( "sv_modellist", MOD_SV_List_f );
+	Cmd_AddCommand( "sv_modellist", SV_MOD_List_f );
 }
 
 /**
 *	@brief	SV Specific model shutdown.
 **/
-void MOD_SV_Shutdown( void ) {
+void SV_MOD_Shutdown( void ) {
 	MOD_FreeAll( &sv_precache );
 	Cmd_RemoveCommand( "sv_modellist" );
 }
@@ -67,7 +67,7 @@ void MOD_SV_Shutdown( void ) {
 /**
 *	@brief	Server specific "Touch" model reference implementation.
 **/
-void MOD_SV_Reference( model_t *model ) {
+void SV_MOD_Reference( model_t *model ) {
 	// WID: For now we won't be needing this, if ever at all. But let's keep it around just in case.
 	// register any images used by the models
 	//switch ( model->type ) {
@@ -97,7 +97,7 @@ void MOD_SV_Reference( model_t *model ) {
 /**
 *	@brief	We're only interested in skeletal models on the server side. Therefor, always return success on other formats.
 **/
-int MOD_LoadSTUB_SV( model_t *model, const void *rawdata, size_t length, const char *mod_name ) {
+int SV_MOD_LoadSTUB( model_t *model, const void *rawdata, size_t length, const char *mod_name ) {
 	return Q_ERR_SUCCESS;
 }
 
@@ -121,7 +121,7 @@ typedef struct maliasmesh_s {
 	bool            handedness;
 } maliasmesh_t;
 
-int MOD_LoadIQM_SV( model_t *model, const void *rawdata, size_t length, const char *mod_name ) {
+int SV_MOD_LoadIQM( model_t *model, const void *rawdata, size_t length, const char *mod_name ) {
 	Hunk_Begin( &model->hunk, 0x4000000 );
 	model->type = model_s::MOD_ALIAS;
 
@@ -183,7 +183,7 @@ fail:
 #define TRY_MODEL_SRC_GAME      1
 #define TRY_MODEL_SRC_BASE      0
 
-qhandle_t MOD_SV_RegisterModel( const char *name ) {
+qhandle_t SV_MOD_RegisterModel( const char *name ) {
 	char normalized[ MAX_QPATH ];
 	qhandle_t index;
 	size_t namelen;
@@ -220,7 +220,7 @@ qhandle_t MOD_SV_RegisterModel( const char *name ) {
 	// see if it's already loaded
 	model = MOD_Find( &sv_precache, normalized );
 	if ( model ) {
-		MOD_SV_Reference( model );
+		SV_MOD_Reference( model );
 		goto done;
 	}
 
@@ -270,18 +270,18 @@ qhandle_t MOD_SV_RegisterModel( const char *name ) {
 	ident = LittleLong( *(uint32_t *)rawdata );
 	switch ( ident ) {
 		case MD2_IDENT:
-			load = MOD_LoadSTUB_SV;
+			load = SV_MOD_LoadSTUB;
 			break;
 			#if USE_MD3
 		case MD3_IDENT:
-			load = MOD_LoadSTUB_SV;
+			load = SV_MOD_LoadSTUB;
 			break;
 			#endif
 		case SP2_IDENT:
-			load = MOD_LoadSTUB_SV;
+			load = SV_MOD_LoadSTUB;
 			break;
 		case IQM_IDENT:
-			load = MOD_LoadIQM_SV;
+			load = SV_MOD_LoadIQM;
 			break;
 		default:
 			ret = Q_ERR_UNKNOWN_FORMAT;

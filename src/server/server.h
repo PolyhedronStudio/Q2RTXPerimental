@@ -619,9 +619,9 @@ void SV_InitGame(unsigned mvd_spawn);
 //
 // sv_models.c
 // 
-void MOD_SV_Init( void );
-void MOD_SV_Shutdown( void );
-qhandle_t MOD_SV_RegisterModel( const char *name );
+void SV_MOD_Init( void );
+void SV_MOD_Shutdown( void );
+qhandle_t SV_MOD_RegisterModel( const char *name );
 
 //
 // sv_send.c
