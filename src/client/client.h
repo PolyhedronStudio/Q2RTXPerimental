@@ -109,6 +109,10 @@ typedef struct centity_s {
     int             fly_stoptime;
 
     int             id;
+
+// WID: 40hz
+	int32_t         current_frame, last_frame, frame_servertime;
+// WID: 40hz
 } centity_t;
 
 extern centity_t    cl_entities[MAX_EDICTS];
@@ -315,6 +319,25 @@ typedef struct client_state_s {
 
     char    weaponModels[MAX_CLIENTWEAPONMODELS][MAX_QPATH];
     int     numWeaponModels;
+
+// WID: 40hz - For proper frame lerping for 10hz models.
+	float sv_frametime_inv;
+	int32_t sv_frametime;
+	int32_t sv_framediv;
+
+	// Data for view weapon
+	struct {
+		int32_t frame, last_frame;
+		int32_t server_time;
+
+		//qhandle_t muzzle_model;
+		//int32_t muzzle_time;
+		//float muzzle_roll, muzzle_scale;
+		//int32_t muzzle_skin;
+		//vec3_t muzzle_offset;
+	} weapon;
+// WID: 40hz
+
 } client_state_t;
 
 extern    client_state_t    cl;

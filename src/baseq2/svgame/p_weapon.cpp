@@ -279,7 +279,7 @@ inline sg_time_t Weapon_AnimationTime( edict_t *ent ) {
 	//	( ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING ) )
 	//	ent->client->ps.gunrate = 20;
 	//else
-	//	ent->client->ps.gunrate = 10;
+		ent->client->ps.gunrate = 10;
 
 	//if ( ent->client->ps.gunframe != 0 && ( !( ent->client->pers.weapon->flags & IF_NO_HASTE ) || ent->client->weaponstate != WEAPON_FIRING ) ) {
 	//	if ( is_quadfire )
@@ -287,16 +287,17 @@ inline sg_time_t Weapon_AnimationTime( edict_t *ent ) {
 	//	if ( CTFApplyHaste( ent ) )
 	//		ent->client->ps.gunrate *= 2;
 	//}
+		gi.dprintf( "gunindex = %i\n", ent->client->ps.gunindex );
+	if ( ent->client->ps.gunindex == 36 ) {
+			ent->client->ps.gunrate = 40;
+	}
+	// network optimization...
+	if ( ent->client->ps.gunrate == 10 ) {
+		ent->client->ps.gunrate = 0;
+		return 100_ms;
+	}
 
-	//// network optimization...
-	//if ( ent->client->ps.gunrate == 10 ) {
-	//	ent->client->ps.gunrate = 0;
-	//	return 100_ms;
-	//}
-
-	//return sg_time_t::from_ms( ( 1.f / ent->client->ps.gunrate ) * 1000 );
-	constexpr int32_t gunrate = 10; // Maintain 10hz.
-	return sg_time_t::from_ms( ( 1.f / gunrate ) * 1000 );
+	return sg_time_t::from_ms( ( 1.f / ent->client->ps.gunrate ) * 1000 );
 }
 
 /*
@@ -1082,15 +1083,19 @@ void Machinegun_Fire(edict_t *ent)
         ent->client->kick_origin[i] = crandom() * 0.35f;
         ent->client->kick_angles[i] = crandom() * 0.7f;
     }
-    ent->client->kick_origin[0] = crandom() * 0.35f;
-    ent->client->kick_angles[0] = ent->client->machinegun_shots * -1.5f;
+    // WID: 40hz replaced with:
+	ent->client->kick_origin[ 0 ] = crandom( ) * 0.35f;
+	ent->client->kick_origin[ 2 ] = crandom( ) * 0.25f;
+	// WID: 40hz: Removed since it's non compatible to 40hz
+	//ent->client->kick_origin[0] = crandom() * 0.35f;
+	//ent->client->kick_angles[0] = ent->client->machinegun_shots * -1.5f;
 
-    // raise the gun as it is firing
-    if (!deathmatch->value) {
-        ent->client->machinegun_shots++;
-        if (ent->client->machinegun_shots > 9)
-            ent->client->machinegun_shots = 9;
-    }
+    //// raise the gun as it is firing
+    //if (!deathmatch->value) {
+    //    ent->client->machinegun_shots++;
+    //    if (ent->client->machinegun_shots > 9)
+    //        ent->client->machinegun_shots = 9;
+    //}
 
     // get start / end positions
     VectorAdd(ent->client->v_angle, ent->client->kick_angles, angles);

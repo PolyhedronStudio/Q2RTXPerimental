@@ -1396,6 +1396,9 @@ typedef struct {
     vec3_t      gunoffset;
     int         gunindex;
     int         gunframe;
+// WID: 40hz.
+	int         gunrate;
+// WID: 40hz.
 
     float       blend[4];       // rgba full screen effect
 

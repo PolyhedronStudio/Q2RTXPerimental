@@ -62,6 +62,11 @@ entity_update_new(centity_t *ent, const entity_state_t *state, const vec_t *orig
     ent->event_frame = cl.frame.number;
 #endif
 
+// WID: 40hz
+	ent->current_frame = ent->last_frame = state->frame;
+	ent->frame_servertime = cl.servertime;
+// WID: 40hz
+
     if (state->event == EV_PLAYER_TELEPORT ||
         state->event == EV_OTHER_TELEPORT ||
         (state->renderfx & (RF_FRAMELERP | RF_BEAM))) {
@@ -90,6 +95,14 @@ entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *orig
     else
         event = 0; // duplicated
 #endif
+
+// WID: 40hz
+	if ( ent->current_frame != state->frame ) {
+		ent->current_frame = state->frame;
+		ent->last_frame = ent->current.frame;
+		ent->frame_servertime = cl.servertime;
+	}
+// WID: 40hz
 
     if (state->modelindex != ent->current.modelindex
         || state->modelindex2 != ent->current.modelindex2
@@ -578,6 +591,18 @@ static void CL_AddPacketEntities(void)
         ent.oldframe = cent->prev.frame;
         ent.backlerp = 1.0f - cl.lerpfrac;
 
+// WID: 40hz - Does proper frame lerping for 10hz models.
+// TODO: Add a specific render flag for this perhaps? 
+		// TODO: must only do this on alias models
+		// Don't do this for 'world' model?
+		if ( ent.model != 0 && cent->last_frame != cent->current_frame ) {
+			ent.backlerp = 1.0f - ( ( cl.time - ( (float)cent->frame_servertime - cl.sv_frametime ) ) / 100.f );
+			clamp( ent.backlerp, 0.0f, 1.0f );
+			ent.frame = cent->current_frame;
+			ent.oldframe = cent->last_frame;
+		}
+// WID: 40hz
+
         if (renderfx & RF_FRAMELERP) {
             // step origin discretely, because the frames
             // do the animation properly
@@ -1028,13 +1053,34 @@ static void CL_AddViewWeapon(void)
         gun.frame = gun_frame;  // development tool
         gun.oldframe = gun_frame;   // development tool
     } else {
-        gun.frame = ps->gunframe;
-        if (gun.frame == 0) {
-            gun.oldframe = 0;   // just changed weapons, don't lerp from old
-        } else {
-            gun.oldframe = ops->gunframe;
-            gun.backlerp = 1.0f - CL_KEYLERPFRAC;
-        }
+
+// WID: 40hz - Does proper gun lerping.
+// TODO: Add gunrate, and transfer it over the wire.
+		if ( ops->gunindex != ps->gunindex ) { // just changed weapons, don't lerp from old
+			cl.weapon.frame = cl.weapon.last_frame = ps->gunframe;
+			cl.weapon.server_time = cl.servertime;
+		} else if ( cl.weapon.frame == -1 || cl.weapon.frame != ps->gunframe ) {
+			cl.weapon.frame = ps->gunframe;
+			cl.weapon.last_frame = ops->gunframe;
+			cl.weapon.server_time = cl.servertime;
+		}
+
+		//const float gun_ms = 1.f / ( !ps->gunrate ? 10 : ps->gunrate ) * 1000.f;
+		const int32_t playerstate_gun_rate = ps->gunrate;
+		const float gun_ms = 1.f / ( !playerstate_gun_rate ? 10 : playerstate_gun_rate ) * 1000.f;
+		gun.backlerp = 1.f - ( ( cl.time - ( (float)cl.weapon.server_time - cl.sv_frametime ) ) / gun_ms );
+		clamp( gun.backlerp, 0.0f, 1.f );
+		gun.frame = cl.weapon.frame;
+		gun.oldframe = cl.weapon.last_frame;
+// WID: 40hz
+
+		//gun.frame = ps->gunframe;
+        //if (gun.frame == 0) {
+        //    gun.oldframe = 0;   // just changed weapons, don't lerp from old
+        //} else {
+        //    gun.oldframe = ops->gunframe;
+        //    gun.backlerp = 1.0f - CL_KEYLERPFRAC;
+        //}
     }
 
     gun.flags = RF_MINLIGHT | RF_DEPTHHACK | RF_WEAPONMODEL;

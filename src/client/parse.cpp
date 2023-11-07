@@ -547,6 +547,12 @@ static void CL_ParseServerData(void)
     cl.framediv = 1;
 #endif
 
+// WID: 40hz - For proper frame lerping for 10hz models.
+	cl.sv_frametime = BASE_FRAMETIME;
+	cl.sv_frametime_inv = 1.0f / cl.sv_frametime;
+	cl.sv_framediv = 1;
+// WID: 40hz
+// 
     // setup default server state
     cl.serverstate = ss_game;
     cinematic = cl.clientNum == -1;

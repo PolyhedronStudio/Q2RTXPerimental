@@ -767,6 +767,9 @@ void MSG_PackPlayer(player_packed_t *out, const player_state_t *in)
     out->gunangles[2] = OFFSET2CHAR(in->gunangles[2]);
     out->gunindex = in->gunindex;
     out->gunframe = in->gunframe;
+	// WID: 40hz.
+	out->gunrate = ( in->gunrate == 10 ) ? 0 : in->gunrate;
+	// WID: 40hz.
     out->blend[0] = BLEND2BYTE(in->blend[0]);
     out->blend[1] = BLEND2BYTE(in->blend[1]);
     out->blend[2] = BLEND2BYTE(in->blend[2]);
@@ -840,6 +843,9 @@ void MSG_WriteDeltaPlayerstate_Q2RTXPerimental( const player_packed_t *from, con
 	if ( to->gunindex != from->gunindex )
 		pflags |= PS_WEAPONINDEX;
 
+	if ( to->gunrate != from->gunrate )
+		pflags |= PS_WEAPONRATE;
+
 	//
 	// write it
 	//
@@ -910,6 +916,10 @@ void MSG_WriteDeltaPlayerstate_Q2RTXPerimental( const player_packed_t *from, con
 		MSG_WriteChar( to->gunangles[ 0 ] );
 		MSG_WriteChar( to->gunangles[ 1 ] );
 		MSG_WriteChar( to->gunangles[ 2 ] );
+	}
+
+	if ( pflags & PS_WEAPONRATE ) {
+		MSG_WriteChar( to->gunrate );
 	}
 
 	if ( pflags & PS_BLEND ) {
@@ -2138,6 +2148,9 @@ void MSG_ParseDeltaPlayerstate_Q2RTXPerimental( const player_state_t *from,
 		to->gunangles[ 1 ] = MSG_ReadChar( ) * 0.25f;
 		to->gunangles[ 2 ] = MSG_ReadChar( ) * 0.25f;
 	}
+
+	if ( flags & PS_WEAPONRATE )
+		to->gunrate = MSG_ReadByte( );
 
 	if ( flags & PS_BLEND ) {
 		to->blend[ 0 ] = MSG_ReadByte( ) / 255.0f;

@@ -230,7 +230,7 @@ typedef enum {
 #define PS_WEAPONINDEX      (1<<12)
 #define PS_WEAPONFRAME      (1<<13)
 #define PS_RDFLAGS          (1<<14)
-#define PS_RESERVED         (1<<15)
+#define PS_WEAPONRATE       (1<<15)
 
 #define PS_BITS             16
 #define PS_MASK             ((1<<PS_BITS)-1)
