@@ -5,16 +5,7 @@
 **Quake II RTXPerimental** is my 'playing field', taking Q2RTX, while trying to modernize the code where possible. While doing so it becomes gradually necessary to move away from 'baseq2' and its data, on to providing our own basic game template instead.
 
 ## **Quake II RTXPerimental** Features currently done:
-  - **CPP-ify the codebase, meaning that it now compiles using a CPP compiler** The only exception being the **VKPT** code, to make life easy merging in any new **Q2RTX VKPT** features.
-  - Tick Rate adjustment: 40hz (following **Q2RE** on this).
-  - Adjusted stair **Step Smoothing** to *BASE_FRAMETIME*(25ms for 40hz) instead of its old hard values: 100ms at 10hz.
-  - Enabled *USE_SMOOTH_DELTA_ANGLES*.
-  - Replaced (most)_framenum based functionality with time again, borrowing *sg_time_t* type from **Q2E**.
-	- AI now has the option to run at 40hz when the *AI_HIGH_TICK_RATE* flag is set.
-  - BSP maps compiled with texinfos such as: textures/test/01.tga now will load with their proper dimensions, meaning one does not need low-res .wal textures to substitute for that.
-  - Uses a custom protocol, currently nearly identical to the default. (#34, it still needs a custom protocol number). There exists already a path fully layed out to allocating our own **Q2RTXPerimental** NetChan.
-	- Changed Solids from *int32_t* to *uint32_t*, so that *SOLID_BBOX* can now have **BoundingBox** sizes up to those of Q2RE/Q3.
-  - Currently a ClientGame DLL that merely initializes and shutsdown. It doesn't actually do anything just yet.
+Can from now on be found in the [Changelog](changelog.md)
 
 ## **Quake II RTXPerimental** Features certain to be implemented:
   - GameRules, this rids us of random cvar checks and gives us a centralized class to inquire for gamemode related aspects.
