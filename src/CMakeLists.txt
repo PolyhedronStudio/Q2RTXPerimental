@@ -666,33 +666,39 @@ ENDIF()
 
 SET_TARGET_PROPERTIES(baseq2_svgame
     PROPERTIES
+	# Linux:
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
     LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
     LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
     LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
     LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
+	# Windows:
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
     RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
     RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
     RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
     RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
+	# No Prefixes.
     PREFIX ""
     DEBUG_POSTFIX ""
 )
 
 SET_TARGET_PROPERTIES(baseq2_clgame
     PROPERTIES
+	# Linux:
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
     LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
     LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
     LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
     LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
+	# Windows:
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
     RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
     RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
     RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
     RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
-    PREFIX ""
+    # No Prefixes.
+	PREFIX ""
     DEBUG_POSTFIX ""
 )
 
@@ -744,72 +750,72 @@ ELSE()
     )
 ENDIF()
 
-IF(CONFIG_LINUX_PACKAGING_SUPPORT)
-    # Put the real game binary in /usr/share so we can have a wrapper in /usr/bin
-    IF(TARGET client)
-        INSTALL(TARGETS client DESTINATION share/quake2rtx/bin COMPONENT shareware)
-    ENDIF()
-    INSTALL(TARGETS server DESTINATION games COMPONENT shareware)
-
-    IF(NOT CONFIG_LINUX_PACKAGING_SKIP_PKZ)
-	    # Compress NVIDIA custom content
-	    INSTALL(CODE "set(SOURCE \"${CMAKE_SOURCE_DIR}\")"
-	        SCRIPT "${CMAKE_SOURCE_DIR}/setup/package_media.cmake"
-	        SCRIPT "${CMAKE_SOURCE_DIR}/setup/package_shaders.cmake"
-	        COMPONENT shareware)
-	ENDIF()
-    INSTALL(TARGETS baseq2_svgame DESTINATION share/quake2rtx/baseq2 COMPONENT shareware)
-	INSTALL(TARGETS baseq2_clgame DESTINATION share/quake2rtx/baseq2 COMPONENT shareware)
-
-    # Package data files, including the shareware pak0 for demo levels
-    set (SHAREWARE_DATA_FILES_LIST
-        "${CMAKE_SOURCE_DIR}/baseq2/q2rtx_media.pkz"
-        "${CMAKE_SOURCE_DIR}/baseq2/shaders.pkz"
-        "${CMAKE_SOURCE_DIR}/baseq2/blue_noise.pkz"
-        "${CMAKE_SOURCE_DIR}/baseq2/shareware/pak0.pak"
-    )
-    INSTALL(FILES
-        ${SHAREWARE_DATA_FILES_LIST}
-        DESTINATION share/quake2rtx/baseq2
-        COMPONENT shareware)
-
-    # Package shareware player model
-    INSTALL(DIRECTORY
-        "${CMAKE_SOURCE_DIR}/baseq2/shareware/players"
-        DESTINATION share/quake2rtx/baseq2
-        COMPONENT shareware)
-
-    # Package the legal and info files
-    INSTALL(FILES
-        "${CMAKE_SOURCE_DIR}/license.txt"
-        "${CMAKE_SOURCE_DIR}/notice.txt"
-        "${CMAKE_SOURCE_DIR}/readme.md"
-        "${CMAKE_SOURCE_DIR}/changelog.md"
-        DESTINATION share/quake2rtx/
-        COMPONENT shareware)
-
-    # Package the icon/desktop file
-    INSTALL(FILES
-        "${CMAKE_SOURCE_DIR}/setup/q2rtx.desktop"
-        DESTINATION share/applications/
-        COMPONENT shareware)
-    INSTALL(FILES
-        "${CMAKE_SOURCE_DIR}/setup/q2rtx.png"
-        DESTINATION share/pixmaps/
-        COMPONENT shareware)
-
-    # Install Client Wrapper
-    INSTALL(FILES
-        "${CMAKE_SOURCE_DIR}/setup/q2rtx.sh"
-        DESTINATION games/
-        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-        COMPONENT shareware
-	RENAME q2rtx)
-
-    # Install PAK file finder
-    INSTALL(FILES
-        "${CMAKE_SOURCE_DIR}/setup/find-retail-paks.sh"
-        DESTINATION share/quake2rtx/bin
-        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-        COMPONENT shareware)
-ENDIF()
+#IF(CONFIG_LINUX_PACKAGING_SUPPORT)
+#    # Put the real game binary in /usr/share so we can have a wrapper in /usr/bin
+#    IF(TARGET client)
+#        INSTALL(TARGETS client DESTINATION share/quake2rtx/bin COMPONENT shareware)
+#    ENDIF()
+#    INSTALL(TARGETS server DESTINATION games COMPONENT shareware)
+#
+#    IF(NOT CONFIG_LINUX_PACKAGING_SKIP_PKZ)
+#	    # Compress NVIDIA custom content
+#	    INSTALL(CODE "set(SOURCE \"${CMAKE_SOURCE_DIR}\")"
+#	        SCRIPT "${CMAKE_SOURCE_DIR}/setup/package_media.cmake"
+#	        SCRIPT "${CMAKE_SOURCE_DIR}/setup/package_shaders.cmake"
+#	        COMPONENT shareware)
+#	ENDIF()
+#    INSTALL(TARGETS baseq2_svgame DESTINATION share/quake2rtx/baseq2 COMPONENT shareware)
+#	INSTALL(TARGETS baseq2_clgame DESTINATION share/quake2rtx/baseq2 COMPONENT shareware)
+#
+#    # Package data files, including the shareware pak0 for demo levels
+#    set (SHAREWARE_DATA_FILES_LIST
+#        "${CMAKE_SOURCE_DIR}/baseq2/q2rtx_media.pkz"
+#        "${CMAKE_SOURCE_DIR}/baseq2/shaders.pkz"
+#        "${CMAKE_SOURCE_DIR}/baseq2/blue_noise.pkz"
+#        "${CMAKE_SOURCE_DIR}/baseq2/shareware/pak0.pak"
+#    )
+#    INSTALL(FILES
+#        ${SHAREWARE_DATA_FILES_LIST}
+#        DESTINATION share/quake2rtx/baseq2
+#        COMPONENT shareware)
+#
+#    # Package shareware player model
+#    INSTALL(DIRECTORY
+#        "${CMAKE_SOURCE_DIR}/baseq2/shareware/players"
+#        DESTINATION share/quake2rtx/baseq2
+#        COMPONENT shareware)
+#
+#    # Package the legal and info files
+#    INSTALL(FILES
+#        "${CMAKE_SOURCE_DIR}/license.txt"
+#        "${CMAKE_SOURCE_DIR}/notice.txt"
+#        "${CMAKE_SOURCE_DIR}/readme.md"
+#        "${CMAKE_SOURCE_DIR}/changelog.md"
+#        DESTINATION share/quake2rtx/
+#        COMPONENT shareware)
+#
+#    # Package the icon/desktop file
+#    INSTALL(FILES
+#        "${CMAKE_SOURCE_DIR}/setup/q2rtx.desktop"
+#        DESTINATION share/applications/
+#        COMPONENT shareware)
+#    INSTALL(FILES
+#        "${CMAKE_SOURCE_DIR}/setup/q2rtx.png"
+#        DESTINATION share/pixmaps/
+#        COMPONENT shareware)
+#
+#    # Install Client Wrapper
+#    INSTALL(FILES
+#        "${CMAKE_SOURCE_DIR}/setup/q2rtx.sh"
+#        DESTINATION games/
+#        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+#        COMPONENT shareware
+#	RENAME q2rtx)
+#
+#    # Install PAK file finder
+#    INSTALL(FILES
+#        "${CMAKE_SOURCE_DIR}/setup/find-retail-paks.sh"
+#        DESTINATION share/quake2rtx/bin
+#        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+#        COMPONENT shareware)
+#ENDIF()
