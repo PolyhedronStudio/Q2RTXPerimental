@@ -4,26 +4,6 @@
 
 **Quake II RTXPerimental** is my 'playing field', taking Q2RTX, while trying to modernize the code where possible. While doing so it becomes gradually necessary to move away from 'baseq2' and its data, on to providing our own basic game template instead.
 
-## **Quake II RTXPerimental** Features currently done:
-Can from now on be found in the [Changelog](changelog.md)
-
-## **Quake II RTXPerimental** Features certain to be implemented:
-  - GameRules, this rids us of random cvar checks and gives us a centralized class to inquire for gamemode related aspects.
-  - Client Game DLL which allows for:
-	- Custom user input code/commands.
-	- Code client-side specific effects.
-	- Proper control over 'HUD'.
-  - Shared Game code:
-	- PMove being extracted to Shared Game allows for customization of player movement.
-
-## **Quake II RTXPerimental** Features planned to experiment with:
-  - Net code improvements. (Think, Quake 3 like.)
-  - Full floating point precision movement.
-  - Collision code rewrite. (Use proper matrix/quaternions, and allow for different hull types such as Spheres, Cylinders and Capsules.)
-	- This requires several editing/rewriting parts of the Physics as well.
-  - Proper control over IQM's Skeletal Animation capabilities.
-  - Add in [RmlUI](https://github.com/mikke89/RmlUi) and replace the HUD and menus with it. (And possibly, allow in-game menus as well.)
-
 Anyone familiar with my previous/other project [Polyhedron](https://github.com/PolyhedronStudio/Polyhedron-Engine) will likely notice that I've enlisted features that can already be found there.
 For various reasons I wish to actually reimplement these properly in this codebase.
 
@@ -41,6 +21,11 @@ of Technology in Germany.
 Q2VKPT, in turn, builds upon [Q2PRO](https://skuller.net/q2pro/), which is a 
 modernized version of the Quake II engine. Consequently, many of the settings 
 and console variables that work for Q2PRO also work for Quake II RTX.
+
+## **Quake II RTXPerimental** Features/Todo/Contending Features:
+[Changelog](changelog.md)
+[Todo](todo.md)
+[Contending Todo Features](todo_future.md)
 
 ## License
 
