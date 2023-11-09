@@ -24,6 +24,7 @@
 * [ ] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
 * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
 * [ ] Add proper ``gamemode`` support based on a ``gamemode`` cvar.
+* [ ] Properly group functions and files accordingly, move into designated group subfolder if needed.
 ### Client Game:
 * [ ] Nothing for now.
 ### Shared Game:
