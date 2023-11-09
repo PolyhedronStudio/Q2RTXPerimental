@@ -1,25 +1,30 @@
-# Quake II RTX Change Log
+# Quake II RTXPerimental Change Log
 
 ## Q2RTXPerimental Engine Changes:
-**General:**
-  - **CPP-ify the codebase, meaning that it now compiles using a CPP compiler** The only exception being the **VKPT** code, to make life easy merging in any new **Q2RTX VKPT** features.
-  - Variable tickrate, defaulting to 40hz. Variable gun rate, defaulting to 10hz. AI animation/movement is currently still 10hz, its logic ticks at 40hz.
-  - Adjusted stair **Step Smoothing** to *BASE_FRAMETIME*(25ms for 40hz) instead of its old hard values: 100ms at 10hz.
-  - Enabled **USE_SMOOTH_DELTA_ANGLES**.
-**Net Code:**
-  - Uses a custom protocol, currently nearly identical to the default. (#34, it still needs a custom protocol number). There exists already a path fully layed out to allocating our own **Q2RTXPerimental** NetChan.
-	- Changed Solids from *int32_t* to *uint32_t*, so that *SOLID_BBOX* can now have **BoundingBox** sizes up to those of Q2RE/Q3.
-**Refresh(VKPT):**
-  - BSP maps compiled with texinfos such as: textures/test/01.tga now will load with their proper dimensions, meaning one does not need low-res .wal textures to substitute for that.
+### General:
+* **CPP-ify the codebase, meaning that it now compiles using a CPP compiler** 
+	* The only exception being the **VKPT** code, to make life easy merging in any new **Q2RTX VKPT** features.
+* Variable tickrate, defaulting to ``40hz``. Variable gun rate, defaulting to ``10hz``. AI animation/movement is currently still ``10hz``, its logic ticks at 40hz.
+* Adjusted stair **Step Smoothing** to ``BASE_FRAMETIME // (25ms for 40hz)`` instead of its old hard values: ``100ms at 10hz``.
+* Enabled ``USE_SMOOTH_DELTA_ANGLES``.
+
+### Net Code:
+* Uses a custom protocol, currently nearly identical to the default. (``#34``, it still needs a custom protocol number). There exists already a path fully layed out to allocating our own **Q2RTXPerimental** ``NetChan``.
+* Changed Solids from ``int32_t`` to ``uint32_t``, so that ``SOLID_BBOX`` can now have **BoundingBox** sizes up to those of **Q2RE/Q3**.
+
+### Refresh(VKPT):
+* BSP maps compiled with ``texinfos`` such as: ``textures/test/01.tga`` now will load with their proper dimensions, meaning one does not need low-res .wal textures to substitute for any of these.
 
 ## Q2RTXPerimental Game Changes:
-**Server Game:**
-  - Replaced (most)_framenum based functionality with time again, borrowing *sg_time_t* type from **Q2E**.
-	- AI now has the option to run at 40hz when the *AI_HIGH_TICK_RATE* flag is set.
-**Client Game:**
-	- Currently a ClientGame DLL that merely initializes and shutsdown. It doesn't actually do anything just yet.
-**Shared Game:**
-	- Currently only contains sg_time_t.
+### Server Game:
+* Replaced (most)_framenum based functionality with time again, borrowing ``sg_time_t`` type from **Q2E**.
+* AI now has the option to run at 40hz when the ``AI_HIGH_TICK_RATE`` flag is set.
+
+### Client Game:
+* Currently a ClientGame DLL that merely initializes and shutsdown. It doesn't actually do anything just yet.
+
+### Shared Game:
+* Currently only contains ``sg_time_t``.
 
 
 ## 1.7.0
