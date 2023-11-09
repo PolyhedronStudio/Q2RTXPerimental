@@ -7,7 +7,8 @@
 * Variable tickrate, defaulting to ``40hz``. Variable gun rate, defaulting to ``10hz``. AI animation/movement is currently still ``10hz``, its logic ticks at 40hz.
 * Adjusted stair **Step Smoothing** to ``BASE_FRAMETIME // (25ms for 40hz)`` instead of its old hard values: ``100ms at 10hz``.
 * Enabled ``USE_SMOOTH_DELTA_ANGLES``.
-
+### Client:
+* Assuming entities and weapons are still ``10hz`` based animation wise, does proper lerping for these.
 ### Net Code:
 * Uses a custom protocol, currently nearly identical to the default. (``#34``, it still needs a custom protocol number). There exists already a path fully layed out to allocating our own **Q2RTXPerimental** ``NetChan``.
 * Changed Solids from ``int32_t`` to ``uint32_t``, so that ``SOLID_BBOX`` can now have **BoundingBox** sizes up to those of **Q2RE/Q3**.
@@ -18,8 +19,8 @@
 ## Q2RTXPerimental Game Changes:
 ### Server Game:
 * Replaced (most)_framenum based functionality with time again, borrowing ``sg_time_t`` type from **Q2E**.
-* AI now has the option to run at 40hz when the ``AI_HIGH_TICK_RATE`` flag is set.
-
+* AI now has the option to run at ``tick rate``(defaults to ``40hz``), when the ``AI_HIGH_TICK_RATE`` flag is set.
+* Guns can operate at a varying tick rate, default is ``10hz``
 ### Client Game:
 * Currently a ClientGame DLL that merely initializes and shutsdown. It doesn't actually do anything just yet.
 
