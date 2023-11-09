@@ -96,13 +96,6 @@ entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *orig
         event = 0; // duplicated
 #endif
 
-// WID: 40hz
-	if ( ent->current_frame != state->frame ) {
-		ent->current_frame = state->frame;
-		ent->last_frame = ent->current.frame;
-		ent->frame_servertime = cl.servertime;
-	}
-// WID: 40hz
 
     if (state->modelindex != ent->current.modelindex
         || state->modelindex2 != ent->current.modelindex2
@@ -122,7 +115,11 @@ entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *orig
 #if USE_FPS
         ent->prev_frame = state->frame;
 #endif
-        // no lerping if teleported or morphed
+		// WID: 40hz
+		ent->last_frame = state->frame;
+		// WID: 40hz
+
+		// no lerping if teleported or morphed
         VectorCopy(origin, ent->lerp_origin);
         return;
     }
@@ -134,6 +131,13 @@ entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *orig
         ent->anim_start = cl.servertime - cl.frametime;
     }
 #endif
+// WID: 40hz
+	if ( ent->current_frame != state->frame ) {
+		ent->last_frame = ent->current.frame;
+		ent->current_frame = state->frame;
+		ent->frame_servertime = cl.servertime;
+	}
+// WID: 40hz
 
     // shuffle the last state to previous
     ent->prev = ent->current;

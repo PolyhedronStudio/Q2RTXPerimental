@@ -63,7 +63,7 @@ static bool SV_RateDrop(client_t *client)
     if (!client->rate) {
         return false;
     }
-
+	
     total = 0;
     for (i = 0; i < RATE_MESSAGES; i++) {
         total += client->message_size[i];
@@ -1234,7 +1234,6 @@ void SV_InitClientSend(client_t *newcl)
 	} if ( newcl->netchan.type == NETCHAN_Q2RTXPERIMENTAL ) {
 		newcl->AddMessage = add_message_q2rtxperimental;
 		newcl->WriteDatagram = write_datagram_q2rtxperimental;
-
 	} else {
         newcl->AddMessage = add_message_old;
         newcl->WriteDatagram = write_datagram_old;

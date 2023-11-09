@@ -287,10 +287,6 @@ inline sg_time_t Weapon_AnimationTime( edict_t *ent ) {
 	//	if ( CTFApplyHaste( ent ) )
 	//		ent->client->ps.gunrate *= 2;
 	//}
-		gi.dprintf( "gunindex = %i\n", ent->client->ps.gunindex );
-	if ( ent->client->ps.gunindex == 36 ) {
-			ent->client->ps.gunrate = 40;
-	}
 	// network optimization...
 	if ( ent->client->ps.gunrate == 10 ) {
 		ent->client->ps.gunrate = 0;
