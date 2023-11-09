@@ -43,7 +43,7 @@ extern sg_time_t FRAME_TIME_S;
 extern sg_time_t FRAME_TIME_MS;
 
 // For backwards compatibilities.
-#define FRAMETIME       BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
+#define FRAMETIME BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
 
 // TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
 #undef max
@@ -54,12 +54,11 @@ constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64
 //==================================================================
 // 
 //==================================================================
-
 // features this game supports
 #define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS|GMF_ENHANCED_SAVEGAMES)
 
 // the "gameversion" client command will print this plus compile date
-#define GAMEVERSION "baseq2"
+#define GAMEVERSION "BaseQ2RTXP"
 
 // protocol bytes that can be directly added to messages
 #define svc_muzzleflash     1
@@ -155,11 +154,10 @@ template<typename T>
 [[nodiscard]] inline bool brandom( ) {
 	return irandom( 2 ) == 0;
 }
-//==================================================================
-// 
-//==================================================================
 
-// view pitching times
+//==================================================================
+// Q2RE View Pitching Times:
+//==================================================================
 //#define DAMAGE_TIME     0.5f
 //#define FALL_TIME       0.3f
 // view pitching times
@@ -175,6 +173,10 @@ inline sg_time_t FALL_TIME( ) {
 	return 300_ms + DAMAGE_TIME_SLACK( );
 }
 
+
+//==================================================================
+// 
+//==================================================================
 // edict->spawnflags
 // these are set with checkboxes on each entity in the map editor
 #define SPAWNFLAG_NOT_EASY          0x00000100
