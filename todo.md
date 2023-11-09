@@ -6,7 +6,7 @@
 ### Shared:
 * [ ] Look for a library of sorts, to replace all C style maths with. Worst case scenario, hand-roll them, start off with taking ``qvec3`` from **Q2RE**
 ### Common/Collision Model:
-* [ ] Modify the code so it does not generate ``hulls`` on the fly, but instead retreives them from their **client/server** counterpart. For the client they will have to be regenerated in case of a ``new`` entity, or general ``bounds changes`` have occured.
+* [ ] Modify the code so it does not generate ``hulls`` on the fly, but instead set them at ``LinkEntity`` time. Then for tracing, retreives them from their **client/server** counterpart. In case of the **client** they will be regenerated in case of a ``new`` entity, or general ``bounds changes`` has occured for the **client** entity.
 ### Net Code:
 * [ ] Rework ``MSG_`` calls to those which I had in Polyhedron so their names are more in line with ``type-strictness``.
 * [ ] Rework ``origin`` and ``angles`` to be transmitted as ``floats`` instead of ``shorts``.
