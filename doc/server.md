@@ -583,10 +583,6 @@ which effectively means that clients see the entire map and everything in it.
 Q2RTX sets `sv_novis` to 1 when there are security cameras in the map.
 Default value is 0.
 
-#### `sv_restrict_rtx`
-When set to 1, the server will reject any client that does not have "q2rtx"
-in their userinfo version parameter. Default value is 1.
-
 #### `sv_savedir`
 Path within the `gamedir` where save game files should be stored. When hosting
 a dedicated server with cooperative mode games, `sv_savedir` should be set 

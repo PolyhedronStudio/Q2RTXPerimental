@@ -102,8 +102,6 @@ cvar_t  *sv_auth_limit;
 cvar_t  *sv_rcon_limit;
 cvar_t  *sv_namechange_limit;
 
-cvar_t  *sv_restrict_rtx;
-
 cvar_t  *sv_allow_unconnected_cmds;
 
 cvar_t  *sv_lrcon_password;
@@ -872,13 +870,11 @@ static bool parse_userinfo(conn_params_t *params, char *userinfo)
         params->reserved = sv_reserved_slots->integer;
     }
 
-	if (sv_restrict_rtx->integer)
+	// Ensure that whichever Quake thing that tries to connect, is actually "Q2RTXPerimental".
+	s = Info_ValueForKey(info, "version");
+	if (strncmp(s, "Q2RTXPerimental", 15) != 0)
 	{
-		s = Info_ValueForKey(info, "version");
-		if (strncmp(s, "Q2RTXPerimental", 15) != 0)
-		{
-			return reject("This server is only available to Q2RTXPerimental clients.\n");
-		}
+		return reject("This server is only available to Q2RTXPerimental clients.\n");
 	}
 
     // copy userinfo off
@@ -2247,8 +2243,6 @@ void SV_Init(void)
 
     sv_namechange_limit = Cvar_Get("sv_namechange_limit", "5/min", 0);
     sv_namechange_limit->changed = sv_namechange_limit_changed;
-
-	sv_restrict_rtx = Cvar_Get("sv_restrict_rtx", "1", 0);
 
     sv_allow_unconnected_cmds = Cvar_Get("sv_allow_unconnected_cmds", "0", 0);
 
