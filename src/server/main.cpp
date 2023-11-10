@@ -880,11 +880,8 @@ static bool parse_userinfo(conn_params_t *params, char *userinfo)
     // copy userinfo off
     Q_strlcpy(userinfo, info, MAX_INFO_STRING);
 
-    // mvdspec, ip, etc are passed in extra userinfo if supported
+    // ip, etc are passed in extra userinfo if supported
     if (!(g_features->integer & GMF_EXTRA_USERINFO)) {
-        // make sure mvdspec key is not set
-        Info_RemoveKey(userinfo, "mvdspec");
-
         if (sv_password->string[0] || sv_reserved_password->string[0]) {
             // unset password key to make game mod happy
             Info_RemoveKey(userinfo, "password");
