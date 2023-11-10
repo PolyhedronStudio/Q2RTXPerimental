@@ -711,7 +711,8 @@ void CL_RegisterInput(void)
     Cmd_AddCommand("in_restart", IN_Restart_f);
 
     cl_nodelta = Cvar_Get("cl_nodelta", "0", 0);
-    cl_maxpackets = Cvar_Get("cl_maxpackets", "30", 0);
+	// WID: netstuff: Changed from 30, to actually, 40.
+    cl_maxpackets = Cvar_Get("cl_maxpackets", "40", 0);
     cl_fuzzhack = Cvar_Get("cl_fuzzhack", "0", 0);
     cl_packetdup = Cvar_Get("cl_packetdup", "1", 0);
 #if USE_DEBUG
@@ -854,8 +855,9 @@ static inline bool ready_to_send(void)
         return true;
     }
 
-    if (cl_maxpackets->integer < 10) {
-        Cvar_Set("cl_maxpackets", "10");
+	// WID: netstuff: Changed from 10, to actually, 40.
+    if (cl_maxpackets->integer < 40) {
+        Cvar_Set("cl_maxpackets", "40");
     }
 
     msec = 1000 / cl_maxpackets->integer;
