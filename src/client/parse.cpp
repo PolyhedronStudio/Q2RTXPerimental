@@ -1342,10 +1342,6 @@ badbyte:
                 cls.demo.others_dropped++;
             }
         }
-
-        // if running GTV server, add current message
-        CL_GTV_WriteMessage(msg_read.data + readcount,
-                            msg_read.readcount - readcount);
     }
 }
 

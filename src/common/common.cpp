@@ -1097,7 +1097,7 @@ void Qcommon_Frame(void)
 
     if (msec > 250) {
         Com_DPrintf("Hitch warning: %u msec frame time\n", msec);
-        msec = 100; // time was unreasonable,
+        msec = BASE_FRAMETIME; // time was unreasonable,
         // host OS was hibernated or something
     }
 

@@ -147,9 +147,9 @@ static GameEntryFunctionPointer *CL_LoadGameLibrary( const char *game, const cha
 
 /*
 ===============
-SV_InitGameProgs
+CL_GM_InitGameProgs
 
-Init the game subsystem for a new map
+Init the client game subsystem for a new map
 ===============
 */
 void CL_GM_InitProgs( void ) {

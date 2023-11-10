@@ -54,11 +54,8 @@
 #define USE_SNDDMA 1
 //#define USE_CURL 0
 #define USE_AUTOREPLY 1
-#define USE_CLIENT_GTV 1
 #endif
 
-#define USE_MVD_SERVER 1
-#define USE_MVD_CLIENT 1
 #define USE_AC_SERVER USE_SERVER
 
 #if USE_SERVER

@@ -125,8 +125,6 @@ static void PF_Unicast(edict_t *ent, qboolean reliable)
         goto clear;
     }
 
-    SV_MvdUnicast(ent, clientNum, reliable);
-
 clear:
     SZ_Clear(&msg_write);
 }
@@ -155,8 +153,6 @@ static void PF_bprintf(int level, const char *fmt, ...)
         Com_WPrintf("%s: overflow\n", __func__);
         return;
     }
-
-    SV_MvdBroadcastPrint(level, string);
 
     MSG_WriteByte(svc_print);
     MSG_WriteByte(level);
@@ -256,8 +252,6 @@ static void PF_cprintf(edict_t *ent, int level, const char *fmt, ...)
     if (level >= client->messagelevel) {
         SV_ClientAddMessage(client, MSG_RELIABLE);
     }
-
-    SV_MvdUnicast(ent, clientNum, true);
 
     SZ_Clear(&msg_write);
 }
@@ -401,8 +395,6 @@ static void PF_configstring(int index, const char *val)
     if (sv.state == ss_loading) {
         return;
     }
-
-    SV_MvdConfigstring(index, val, len);
 
     // send the update to everyone
     MSG_WriteByte(svc_configstring);
@@ -652,9 +644,6 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
 
     // clear multicast buffer
     SZ_Clear(&msg_write);
-
-    SV_MvdStartSound(ent, channel, flags, soundindex,
-                     volume * 255, attenuation * 64, timeofs * 1000);
 }
 
 static void PF_StartSound(edict_t *entity, int channel,

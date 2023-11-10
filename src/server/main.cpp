@@ -240,9 +240,6 @@ void SV_DropClient(client_t *client, const char *reason)
     SV_CleanClient(client);
 
     Com_DPrintf("Going to cs_zombie for %s\n", client->name);
-
-    // give MVD server a chance to detect if its dummy client was dropped
-    SV_MvdClientDropped(client);
 }
 
 
@@ -754,8 +751,8 @@ static bool parse_packet_length(conn_params_t *p)
         }
     }
 
+	// If not local, cap to server defined maximum value
     if (!NET_IsLocalAddress(&net_from) && net_maxmsglen->integer > 0) {
-        // cap to server defined maximum value
         if (p->maxlength > net_maxmsglen->integer)
             p->maxlength = net_maxmsglen->integer;
     }
@@ -1794,8 +1791,6 @@ SV_RunGameFrame
 static void SV_RunGameFrame(void)
 {
     // save the entire world state if recording a serverdemo
-    SV_MvdBeginFrame();
-
 #if USE_CLIENT
     if (host_speeds->integer)
         time_before_game = Sys_Milliseconds();
@@ -1814,9 +1809,6 @@ static void SV_RunGameFrame(void)
                     msg_write.cursize);
         SZ_Clear(&msg_write);
     }
-
-    // save the entire world state if recording a serverdemo
-    SV_MvdEndFrame();
 }
 
 /*
@@ -1938,9 +1930,6 @@ unsigned SV_Frame(unsigned msec)
     if (svs.initialized) {
         // run connection to the anticheat server
         AC_Run();
-
-        // run connections from MVD/GTV clients
-        SV_MvdRunClients();
 
         // deliver fragments and reliable messages for connecting clients
         SV_SendAsyncPackets();
@@ -2165,7 +2154,6 @@ void SV_Init(void)
 {
     SV_InitOperatorCommands();
 
-    SV_MvdRegister();
 
 #if USE_MVD_CLIENT
     MVD_Register();
@@ -2385,8 +2373,6 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
 #endif
 
     AC_Disconnect();
-
-    SV_MvdShutdown(type);
 
     SV_FinalMessage(finalmsg, type);
     SV_MasterShutdown();

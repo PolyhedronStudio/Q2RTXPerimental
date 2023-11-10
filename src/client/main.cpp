@@ -773,8 +773,6 @@ void CL_Disconnect(error_type_t type)
 
     CL_ClearState();
 
-    CL_GTV_Suspend();
-
     cls.state = ca_disconnected;
     cls.userinfo_modified = 0;
 
@@ -1512,9 +1510,6 @@ static void CL_PacketEvent(void)
     if (cls.demo.recording && !cls.demo.paused && CL_FRAMESYNC) {
         CL_WriteDemoMessage(&cls.demo.buffer);
     }
-
-    // if running GTV server, transmit to client
-    CL_GTV_Transmit();
 }
 
 #if USE_ICMP
@@ -2169,10 +2164,7 @@ static size_t CL_DemoPos_m(char *buffer, size_t size)
     if (cls.demo.playback)
         framenum = cls.demo.frames_read;
     else
-#if USE_MVD_CLIENT
-        if (MVD_GetDemoPercent(NULL, &framenum) == -1)
-#endif
-            framenum = 0;
+		framenum = 0;
 
     sec = framenum / 10; framenum %= 10;
     min = sec / 60; sec %= 60;
@@ -2676,7 +2668,6 @@ static void CL_InitLocal(void)
     CL_InitEffects();
     CL_InitTEnts();
     CL_InitDownloads();
-    CL_GTV_Init();
 
     List_Init(&cl_ignore_text);
     List_Init(&cl_ignore_nick);
@@ -2854,12 +2845,6 @@ bool CL_CheatsOK(void)
     // single player can cheat
     if (cls.state > ca_connected && cl.maxclients == 1)
         return true;
-
-#if USE_MVD_CLIENT
-    // can cheat when playing MVD
-    if (MVD_GetDemoPercent(NULL, NULL) != -1)
-        return true;
-#endif
 
     return false;
 }
@@ -3321,8 +3306,6 @@ bool CL_ProcessEvents(void)
 
     HTTP_RunDownloads();
 
-    CL_GTV_Run();
-
     return cl.sendPacketNow;
 }
 
@@ -3402,8 +3385,6 @@ void CL_Shutdown(void)
     }
 	// Shutdown the RMLUI
 	CL_GM_Shutdown( );
-
-    CL_GTV_Shutdown();
 
     CL_Disconnect(ERR_FATAL);
 

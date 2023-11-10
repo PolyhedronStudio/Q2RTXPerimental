@@ -610,7 +610,7 @@ void sv_min_timeout_changed(cvar_t *self);
 void SV_ClientReset(client_t *client);
 void SV_SpawnServer(mapcmd_t *cmd);
 bool SV_ParseMapCmd(mapcmd_t *cmd);
-void SV_InitGame(unsigned mvd_spawn);
+void SV_InitGame();
 
 //
 // sv_send.c
@@ -639,53 +639,6 @@ void SV_BroadcastCommand(const char *fmt, ...) q_printf(1, 2);
 void SV_ClientAddMessage(client_t *client, int flags);
 void SV_ShutdownClientSend(client_t *client);
 void SV_InitClientSend(client_t *newcl);
-
-//
-// sv_mvd.c
-//
-#if USE_MVD_SERVER
-void SV_MvdRegister(void);
-void SV_MvdInit(void);
-void SV_MvdShutdown(error_type_t type);
-void SV_MvdBeginFrame(void);
-void SV_MvdEndFrame(void);
-void SV_MvdRunClients(void);
-void SV_MvdStatus_f(void);
-void SV_MvdMapChanged(void);
-void SV_MvdClientDropped(client_t *client);
-
-void SV_MvdUnicast(edict_t *ent, int clientNum, bool reliable);
-void SV_MvdMulticast(int leafnum, multicast_t to);
-void SV_MvdConfigstring(int index, const char *string, size_t len);
-void SV_MvdBroadcastPrint(int level, const char *string);
-void SV_MvdStartSound(int entnum, int channel, int flags,
-                      int soundindex, int volume,
-                      int attenuation, int timeofs);
-
-void SV_MvdRecord_f(void);
-void SV_MvdStop_f(void);
-#else
-#define SV_MvdRegister()            (void)0
-#define SV_MvdInit()                (void)0
-#define SV_MvdShutdown(type)        (void)0
-#define SV_MvdBeginFrame()          (void)0
-#define SV_MvdEndFrame()            (void)0
-#define SV_MvdRunClients()          (void)0
-#define SV_MvdStatus_f()            (void)0
-#define SV_MvdMapChanged()          (void)0
-#define SV_MvdClientDropped(client) (void)0
-
-#define SV_MvdUnicast(ent, clientNum, reliable)     (void)0
-#define SV_MvdMulticast(leafnum, to)                (void)0
-#define SV_MvdConfigstring(index, string, len)      (void)0
-#define SV_MvdBroadcastPrint(level, string)         (void)0
-#define SV_MvdStartSound(entnum, channel, flags, \
-                         soundindex, volume, \
-                         attenuation, timeofs)      (void)0
-
-#define SV_MvdRecord_f()    (void)0
-#define SV_MvdStop_f()      (void)0
-#endif
 
 //
 // sv_ac.c
@@ -739,9 +692,6 @@ cvarban_t *SV_CheckInfoBans(const char *info, bool match_only);
 //
 // sv_ccmds.c
 //
-#if USE_MVD_CLIENT || USE_MVD_SERVER
-extern const cmd_option_t o_record[];
-#endif
 
 void SV_AddMatch_f(list_t *list);
 void SV_DelMatch_f(list_t *list);

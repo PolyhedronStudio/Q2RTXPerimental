@@ -131,7 +131,7 @@ SET(SRC_CLIENT
 	client/download.cpp
 	client/effects.cpp
 	client/entities.cpp
-	client/gtv.cpp
+	#client/gtv.cpp
 	client/input.cpp
 	client/keys.cpp
 	client/locs.cpp
@@ -178,14 +178,14 @@ SET(SRC_SERVER
 	server/entities.cpp
 	server/init.cpp
 	server/main.cpp
-	server/mvd.cpp
+	#server/mvd.cpp
 	server/send.cpp
 	server/svgame.cpp
 	server/user.cpp
 	server/world.cpp
-	server/mvd/client.cpp
-	server/mvd/parse.cpp
-	server/mvd/game.cpp
+	#server/mvd/client.cpp
+	#server/mvd/parse.cpp
+	#server/mvd/game.cpp
 	server/save.cpp
 )
 
