@@ -142,15 +142,6 @@ void SV_RemoveClient(client_t *client)
 void SV_CleanClient(client_t *client)
 {
     int i;
-#if USE_AC_SERVER
-    string_entry_t *bad, *next;
-
-    for (bad = client->ac_bad_files; bad; bad = next) {
-        next = bad->next;
-        Z_Free(bad);
-    }
-    client->ac_bad_files = NULL;
-#endif
 
     // close any existing donwload
     SV_CloseDownload(client);
@@ -234,8 +225,6 @@ void SV_DropClient(client_t *client, const char *reason)
         // this will remove the body, among other things
         ge->ClientDisconnect(client->edict);
     }
-
-    AC_ClientDisconnect(client);
 
     SV_CleanClient(client);
 
@@ -751,6 +740,11 @@ static bool parse_packet_length(conn_params_t *p)
         }
     }
 
+	// WID: netstuff: We will fragment the packet if larger than 1024.
+	if ( p->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
+		p->maxlength = MAX_PACKETLEN_WRITABLE;
+	}
+
 	// If not local, cap to server defined maximum value
     if (!NET_IsLocalAddress(&net_from) && net_maxmsglen->integer > 0) {
         if (p->maxlength > net_maxmsglen->integer)
@@ -1055,16 +1049,13 @@ static void send_connect_packet(client_t *newcl, int nctype)
             ncstring = " nc=0";
     }
 
-    if (!sv_force_reconnect->string[0] || newcl->reconnect_var[0])
-        acstring = AC_ClientConnect(newcl);
-
     if (sv_downloadserver->string[0]) {
         dlstring1 = " dlserver=";
         dlstring2 = sv_downloadserver->string;
     }
 
     Netchan_OutOfBand(NS_SERVER, &net_from, "client_connect%s%s%s%s map=%s",
-                      ncstring, acstring, dlstring1, dlstring2, newcl->mapname);
+					  ncstring, "", dlstring1, dlstring2, newcl->mapname );
 }
 
 // converts all the extra positional parameters to `connect' command into an
@@ -1928,9 +1919,6 @@ unsigned SV_Frame(unsigned msec)
     NET_GetPackets(NS_SERVER, SV_PacketEvent);
 
     if (svs.initialized) {
-        // run connection to the anticheat server
-        AC_Run();
-
         // deliver fragments and reliable messages for connecting clients
         SV_SendAsyncPackets();
     }
@@ -1983,7 +1971,7 @@ unsigned SV_Frame(unsigned msec)
     // don't accumulate bogus residual
     if (sv.frameresidual > 250) {
         Com_DDDPrintf("Reset residual %u\n", sv.frameresidual);
-        sv.frameresidual = 40; // WID: 40hz:
+        sv.frameresidual = SV_FRAMETIME; // WID: 40hz:
     }
 
     return 0;
@@ -2158,8 +2146,6 @@ void SV_Init(void)
 #if USE_MVD_CLIENT
     MVD_Register();
 #endif
-
-    AC_Register();
 
     SV_RegisterSavegames();
 
@@ -2371,8 +2357,6 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
 	//type &= ~MVD_SPAWN_MASK;
 	type = static_cast<error_type_t>( type & ~MVD_SPAWN_MASK );
 #endif
-
-    AC_Disconnect();
 
     SV_FinalMessage(finalmsg, type);
     SV_MasterShutdown();

@@ -56,8 +56,6 @@
 #define USE_AUTOREPLY 1
 #endif
 
-#define USE_AC_SERVER USE_SERVER
-
 #if USE_SERVER
 #define USE_PACKETDUP 1
 #define USE_WINSVC !USE_CLIENT

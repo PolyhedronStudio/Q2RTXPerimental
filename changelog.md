@@ -8,6 +8,7 @@
 * Adjusted stair **Step Smoothing** to ``BASE_FRAMETIME // (25ms for 40hz)`` instead of its old hard values: ``100ms at 10hz``.
 * Enabled ``USE_SMOOTH_DELTA_ANGLES``.
 * Removed MVD, and GTV, although 'luxury' features, make things harder to maintain and I doubt it is within most target audience interest rates.
+* Removed Anti-Cheat, OS specific and h4x0rz are going to h4x anyway. Makes life easier to maintain this project.
 
 ### Client:
 * Assuming entities and weapons are still ``10hz`` based animation wise, does proper lerping for these.

@@ -436,8 +436,6 @@ void SV_InitGame()
         client->number = i;
     }
 
-    AC_Connect(false);
-
     svs.initialized = true;
 }
 

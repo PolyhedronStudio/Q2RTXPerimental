@@ -272,7 +272,7 @@ SET(SRC_LINUX_CLIENT
 )
 
 SET(SRC_WINDOWS
-	windows/ac.cpp
+	#windows/ac.cpp
 	windows/debug.cpp
 	windows/hunk.cpp
 	windows/system.cpp
@@ -480,7 +480,7 @@ IF(WIN32)
             ${SRC_SHARED} 
             ${SRC_WINDOWS} ${SRC_WINDOWS_CLIENT} ${HEADERS_WINDOWS}
             ${SRC_SERVER} ${HEADERS_SERVER}
-            windows/res/q2rtx.rc
+            windows/res/q2rtxp.rc
         )
     ENDIF()
     ADD_EXECUTABLE(server 
@@ -488,9 +488,9 @@ IF(WIN32)
         ${SRC_SHARED} 
         ${SRC_WINDOWS} ${HEADERS_WINDOWS}
         ${SRC_SERVER} ${HEADERS_SERVER}
-        server/ac.cpp
+        #server/ac.cpp
         client/null.cpp
-        windows/res/q2rtxded.rc
+        windows/res/q2rtxpded.rc
     )
 ELSE()
     IF(IS_64_BIT)
@@ -508,7 +508,7 @@ ELSE()
         ${SRC_SHARED} 
         ${SRC_LINUX}
         ${SRC_SERVER} ${HEADERS_SERVER}
-        server/ac.c
+        #server/ac.c
         client/null.cpp
     )
 ENDIF()
