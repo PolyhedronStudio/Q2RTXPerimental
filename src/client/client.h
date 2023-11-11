@@ -99,13 +99,6 @@ typedef struct centity_s {
     int             trailcount;         // for diminishing grenade trails
     vec3_t          lerp_origin;        // for trails (variable hz)
 
-#if USE_FPS
-    int             prev_frame;
-    int             anim_start;
-
-    int             event_frame;
-#endif
-
     int             fly_stoptime;
 
     int             id;
@@ -158,24 +151,9 @@ typedef struct {
 #define FF_OLDENT       (1<<7)
 #define FF_NODELTA      (1<<8)
 
-// variable server FPS
-#if USE_FPS
-#define CL_FRAMETIME    cl.frametime
-#define CL_1_FRAMETIME  cl.frametime_inv
-#define CL_FRAMEDIV     cl.framediv
-#define CL_FRAMESYNC    !(cl.frame.number % cl.framediv)
-#define CL_KEYPS        &cl.keyframe.ps
-#define CL_OLDKEYPS     &cl.oldkeyframe.ps
-#define CL_KEYLERPFRAC  cl.keylerpfrac
-#else
+// Variable server FPS
 #define CL_FRAMETIME    BASE_FRAMETIME
 #define CL_1_FRAMETIME  BASE_1_FRAMETIME
-#define CL_FRAMEDIV     1
-#define CL_FRAMESYNC    1
-#define CL_KEYPS        &cl.frame.ps
-#define CL_OLDKEYPS     &cl.oldframe.ps
-#define CL_KEYLERPFRAC  cl.lerpfrac
-#endif
 
 //
 // the client_state_t structure is wiped completely at every
@@ -224,12 +202,6 @@ typedef struct client_state_s {
     int             servertime;
     int             serverdelta;
 
-#if USE_FPS
-    server_frame_t  keyframe;
-    server_frame_t  oldkeyframe;
-    int             keyservertime;
-#endif
-
     byte            dcs[CS_BITMAP_BYTES];
 
     // the client maintains its own idea of view angles, which are
@@ -254,11 +226,6 @@ typedef struct client_state_s {
     int         time;           // this is the time value that the client
                                 // is rendering at.  always <= cl.servertime
     float       lerpfrac;       // between oldframe and frame
-
-#if USE_FPS
-    int         keytime;
-    float       keylerpfrac;
-#endif
 
     refdef_t    refdef;
     float       fov_x;      // interpolated
@@ -287,12 +254,6 @@ typedef struct client_state_s {
     int         clientNum;            // never changed during gameplay, set by serverdata packet
     int         maxclients;
     pmoveParams_t pmp;
-
-#if USE_FPS
-    int         frametime;      // variable server frame time
-    float       frametime_inv;  // 1/frametime
-    int         framediv;       // BASE_FRAMETIME/frametime
-#endif
 
     char        baseconfigstrings[MAX_CONFIGSTRINGS][MAX_QPATH];
     char        configstrings[MAX_CONFIGSTRINGS][MAX_QPATH];

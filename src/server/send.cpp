@@ -69,9 +69,9 @@ static bool SV_RateDrop(client_t *client)
         total += client->message_size[i];
     }
 
-#if USE_FPS
-    total = total * sv.framediv / client->framediv;
-#endif
+//#if USE_FPS
+//    total = total * sv.framediv / client->framediv;
+//#endif
 
     if (total > client->rate) {
         SV_DPrintf(0, "Frame %d suppressed for %s (total = %zu)\n",
@@ -766,8 +766,7 @@ static void write_datagram_q2rtxperimental( client_t *client ) {
 	// send the datagram
 	cursize = client->netchan.Transmit( &client->netchan,
 										msg_write.cursize,
-										msg_write.data,
-										client->numpackets );
+										msg_write.data );
 
 	// record the size for rate estimation
 	SV_CalcSendTime( client, cursize );
@@ -935,8 +934,7 @@ static void write_datagram_old(client_t *client)
     // send the datagram
     cursize = client->netchan.Transmit(&client->netchan,
                                        msg_write.cursize,
-                                       msg_write.data,
-                                       client->numpackets);
+                                       msg_write.data );
 
     // record the size for rate estimation
     SV_CalcSendTime(client, cursize);
@@ -1005,8 +1003,7 @@ static void write_datagram_new(client_t *client)
     // send the datagram
     cursize = client->netchan.Transmit(&client->netchan,
                                        msg_write.cursize,
-                                       msg_write.data,
-                                       client->numpackets);
+                                       msg_write.data );
 
     // record the size for rate estimation
     SV_CalcSendTime(client, cursize);
@@ -1034,21 +1031,6 @@ static void finish_frame(client_t *client)
     client->msg_unreliable_bytes = 0;
 }
 
-#if USE_DEBUG && USE_FPS
-static void check_key_sync(client_t *client)
-{
-    int div = sv.framediv / client->framediv;
-    int key1 = !(sv.framenum % sv.framediv);
-    int key2 = !(client->framenum % div);
-
-    if (key1 != key2) {
-        Com_LPrintf(PRINT_DEVELOPER,
-                    "[%d] frame %d for %s not synced (%d != %d)\n",
-                    sv.framenum, client->framenum, client->name, key1, key2);
-    }
-}
-#endif
-
 /*
 =======================
 SV_SendClientMessages
@@ -1066,14 +1048,6 @@ void SV_SendClientMessages(void)
     FOR_EACH_CLIENT(client) {
         if (!CLIENT_ACTIVE(client))
             goto finish;
-
-        if (!SV_CLIENTSYNC(client))
-            continue;
-
-#if USE_DEBUG && USE_FPS
-        if (developer->integer)
-            check_key_sync(client);
-#endif
 
         // if the reliable message overflowed,
         // drop the client (should never happen)
@@ -1139,7 +1113,6 @@ static void write_pending_download(client_t *client)
 
     if (client->downloadcount == client->downloadsize) {
         SV_CloseDownload(client);
-        SV_AlignKeyFrames(client);
     }
 }
 
@@ -1203,7 +1176,7 @@ void SV_SendAsyncPackets(void)
 
         if (netchan->message.cursize || netchan->reliable_ack_pending ||
             netchan->reliable_length || retransmit) {
-            cursize = netchan->Transmit(netchan, 0, "", 1);
+            cursize = netchan->Transmit(netchan, 0, "" );
             SV_DPrintf(0, "%s: send: %zu\n", client->name, cursize);
 calctime:
             SV_CalcSendTime(client, cursize);

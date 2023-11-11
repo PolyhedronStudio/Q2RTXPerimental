@@ -44,9 +44,6 @@ cvar_t  *sv_timescale_time;
 cvar_t  *sv_timescale_warn;
 cvar_t  *sv_timescale_kick;
 cvar_t  *sv_allow_nodelta;
-#if USE_FPS
-cvar_t  *sv_fps;
-#endif
 
 cvar_t  *sv_timeout;            // seconds without any message
 cvar_t  *sv_zombietime;         // seconds to sink messages after disconnect
@@ -84,9 +81,7 @@ cvar_t  *sv_changemapcmd;
 
 cvar_t  *sv_strafejump_hack;
 cvar_t  *sv_waterjump_hack;
-#if USE_PACKETDUP
-cvar_t  *sv_packetdup_hack;
-#endif
+
 cvar_t  *sv_allow_map;
 cvar_t  *sv_cinematics;
 #if !USE_CLIENT
@@ -1108,10 +1103,6 @@ static void SVC_DirectConnect(void)
 	newcl->last_valid_cluster = -1;
     strcpy(newcl->reconnect_var, params.reconnect_var);
     strcpy(newcl->reconnect_val, params.reconnect_val);
-#if USE_FPS
-    newcl->framediv = sv.framediv;
-    newcl->settings[CLS_FPS] = BASE_FRAMERATE;
-#endif
 
     init_pmove_and_es_flags(newcl);
 
@@ -1136,7 +1127,6 @@ static void SVC_DirectConnect(void)
     // setup netchan
     Netchan_Setup(&newcl->netchan, NS_SERVER, ( netchan_type_t )params.nctype, &net_from,
                   params.qport, params.maxlength, params.protocol);
-    newcl->numpackets = 1;
 
     // parse some info from the info strings
     Q_strlcpy(newcl->userinfo, userinfo, sizeof(newcl->userinfo));
@@ -1448,7 +1438,7 @@ static void SV_GiveMsec(void)
 {
     client_t    *cl;
 
-    if (!(sv.framenum % (16 * SV_FRAMEDIV))) {
+    if (!(sv.framenum % (16))) {
         FOR_EACH_CLIENT(cl) {
             cl->command_msec = 1800; // 1600 + some slop
         }
@@ -1698,9 +1688,6 @@ static void SV_PrepWorldFrame(void)
 {
     edict_t    *ent;
     int        i;
-
-    if (!SV_FRAMESYNC)
-        return;
 
     for (i = 1; i < ge->num_edicts; i++) {
         ent = EDICT_NUM(i);
@@ -2139,9 +2126,6 @@ void SV_Init(void)
     sv_timescale_warn = Cvar_Get("sv_timescale_warn", "0", 0);
     sv_timescale_kick = Cvar_Get("sv_timescale_kick", "0", 0);
     sv_allow_nodelta = Cvar_Get("sv_allow_nodelta", "1", 0);
-#if USE_FPS
-    sv_fps = Cvar_Get("sv_fps", "10", CVAR_LATCH);
-#endif
     sv_force_reconnect = Cvar_Get("sv_force_reconnect", "", CVAR_LATCH);
     sv_show_name_changes = Cvar_Get("sv_show_name_changes", "0", 0);
 
@@ -2171,10 +2155,6 @@ void SV_Init(void)
 
     sv_strafejump_hack = Cvar_Get("sv_strafejump_hack", "1", CVAR_LATCH);
     sv_waterjump_hack = Cvar_Get("sv_waterjump_hack", "0", CVAR_LATCH);
-
-#if USE_PACKETDUP
-    sv_packetdup_hack = Cvar_Get("sv_packetdup_hack", "0", 0);
-#endif
 
     sv_allow_map = Cvar_Get("sv_allow_map", "0", 0);
     sv_cinematics = Cvar_Get("sv_cinematics", "1", 0);
@@ -2211,11 +2191,6 @@ void SV_Init(void)
     g_features = Cvar_Get("g_features", "0", CVAR_ROM);
 
     init_rate_limits();
-
-#if USE_FPS
-    // set up default frametime for main loop
-    sv.frametime = BASE_FRAMETIME;
-#endif
 
     // set up default pmove parameters
     PmoveInit(&sv_pmp);
@@ -2270,7 +2245,7 @@ static void SV_FinalMessage(const char *message, error_type_t type)
             while (netchan->fragment_pending) {
                 netchan->TransmitNextFragment(netchan);
             }
-            netchan->Transmit(netchan, msg_write.cursize, msg_write.data, 1);
+            netchan->Transmit(netchan, msg_write.cursize, msg_write.data );
         }
     }
 
@@ -2318,11 +2293,6 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
 
     // reset rate limits
     init_rate_limits();
-
-#if USE_FPS
-    // set up default frametime for main loop
-    sv.frametime = BASE_FRAMETIME;
-#endif
 
     sv_client = NULL;
     sv_player = NULL;

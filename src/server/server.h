@@ -80,17 +80,10 @@ extern "C" {
 #define SV_PAUSED 0
 #endif
 
-#if USE_FPS
-#define SV_GMF_VARIABLE_FPS GMF_VARIABLE_FPS
-#else
-#define SV_GMF_VARIABLE_FPS 0
-#endif
-
 // game features this server supports
 #define SV_FEATURES (GMF_CLIENTNUM | GMF_PROPERINUSE | GMF_MVDSPEC | \
                      GMF_WANT_ALL_DISCONNECTS | GMF_ENHANCED_SAVEGAMES | \
-                     SV_GMF_VARIABLE_FPS | GMF_EXTRA_USERINFO | \
-                     GMF_IPV6_ADDRESS_AWARE)
+                     GMF_EXTRA_USERINFO | GMF_IPV6_ADDRESS_AWARE )
 
 // ugly hack for SV_Shutdown
 #define MVD_SPAWN_DISABLED  0
@@ -114,37 +107,11 @@ typedef struct {
 	// WID: upgr-solid: Q2RE Approach.
 	uint32_t	solid32;
 	//int         solid32;
-
-#if USE_FPS
-
-// must be > MAX_FRAMEDIV
-#define ENT_HISTORY_SIZE    8
-#define ENT_HISTORY_MASK    (ENT_HISTORY_SIZE - 1)
-
-    struct {
-        vec3_t  origin;
-        int     framenum;
-    } history[ENT_HISTORY_SIZE];
-
-    vec3_t      create_origin;
-    int         create_framenum;
-#endif
 } server_entity_t;
 
-// variable server FPS
-#if USE_FPS
-#define SV_FRAMERATE        sv.framerate
-#define SV_FRAMETIME        sv.frametime
-#define SV_FRAMEDIV         sv.framediv
-#define SV_FRAMESYNC        !(sv.framenum % sv.framediv)
-#define SV_CLIENTSYNC(cl)   !(sv.framenum % (cl)->framediv)
-#else
-#define SV_FRAMERATE        BASE_FRAMERATE
-#define SV_FRAMETIME        BASE_FRAMETIME
-#define SV_FRAMEDIV         1
-#define SV_FRAMESYNC        1
-#define SV_CLIENTSYNC(cl)   1
-#endif
+// Server FPS
+#define SV_FRAMERATE	BASE_FRAMERATE
+#define SV_FRAMETIME	BASE_FRAMETIME
 
 typedef struct {
     server_state_t  state;      // precache commands are only valid during load
@@ -152,12 +119,6 @@ typedef struct {
 
 #if USE_CLIENT || USE_SERVER
     int         gamedetecthack;
-#endif
-
-#if USE_FPS
-    int         framerate;
-    int         frametime;
-    int         framediv;
 #endif
 
     int         framenum;
@@ -307,9 +268,6 @@ typedef struct client_s {
     client_frame_t  frames[UPDATE_BACKUP];    // updates can be delta'd from here
     unsigned        frames_sent, frames_acked, frames_nodelta;
     int             framenum;
-#if USE_FPS
-    int             framediv;
-#endif
     unsigned        frameflags;
 
     // rate dropping
@@ -361,7 +319,7 @@ typedef struct client_s {
 
     // netchan
     netchan_t       netchan;
-    int             numpackets; // for that nasty packetdup hack
+    //int             numpackets; // for that nasty packetdup hack
 
     // misc
     time_t          connect_time; // time of initial connect
@@ -498,9 +456,6 @@ extern cvar_t       *sv_reserved_slots;
 extern cvar_t       *sv_airaccelerate;        // development tool
 extern cvar_t       *sv_qwmod;                // atu QW Physics modificator
 extern cvar_t       *sv_enforcetime;
-#if USE_FPS
-extern cvar_t       *sv_fps;
-#endif
 extern cvar_t       *sv_force_reconnect;
 extern cvar_t       *sv_iplimit;
 
@@ -514,9 +469,7 @@ extern cvar_t       *sv_calcpings_method;
 extern cvar_t       *sv_changemapcmd;
 
 extern cvar_t       *sv_strafejump_hack;
-#if USE_PACKETDUP
-extern cvar_t       *sv_packetdup_hack;
-#endif
+
 extern cvar_t       *sv_allow_map;
 extern cvar_t       *sv_cinematics;
 #if !USE_CLIENT
@@ -616,11 +569,6 @@ void SV_New_f(void);
 void SV_Begin_f(void);
 void SV_ExecuteClientMessage(client_t *cl);
 void SV_CloseDownload(client_t *client);
-#if USE_FPS
-void SV_AlignKeyFrames(client_t *client);
-#else
-#define SV_AlignKeyFrames(client) (void)0
-#endif
 cvarban_t *SV_CheckInfoBans(const char *info, bool match_only);
 
 //

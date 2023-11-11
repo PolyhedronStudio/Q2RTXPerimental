@@ -84,7 +84,7 @@ typedef struct netchan_s {
     byte        *fragment_out_buf;
 
     // common methods
-    size_t      (*Transmit)(struct netchan_s *, size_t, const void *, int);
+    size_t      (*Transmit)(struct netchan_s *, size_t, const void *);
     size_t      (*TransmitNextFragment)(struct netchan_s *);
     bool        (*Process)(struct netchan_s *);
     bool        (*ShouldUpdate)(struct netchan_s *);

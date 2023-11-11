@@ -199,7 +199,7 @@ transmition / retransmition of the reliable messages.
 A 0 length will still generate a packet and deal with the reliable messages.
 ================
 */
-static size_t NetchanOld_Transmit(netchan_t *chan, size_t length, const void *data, int numpackets)
+static size_t NetchanOld_Transmit(netchan_t *chan, size_t length, const void *data )
 {
     sizebuf_t   send;
     byte        send_buf[MAX_PACKETLEN];
@@ -278,15 +278,13 @@ static size_t NetchanOld_Transmit(netchan_t *chan, size_t length, const void *da
     SHOWPACKET("\n");
 
     // send the datagram
-    for (i = 0; i < numpackets; i++) {
-        NET_SendPacket(chan->sock, send.data, send.cursize, &chan->remote_address);
-    }
+    NET_SendPacket(chan->sock, send.data, send.cursize, &chan->remote_address);
 
     chan->outgoing_sequence++;
     chan->reliable_ack_pending = false;
     chan->last_sent = com_localTime;
 
-    return send.cursize * numpackets;
+    return send.cursize;
 }
 
 /*
@@ -490,7 +488,7 @@ static size_t NetchanNew_TransmitNextFragment(netchan_t *chan)
 NetchanNew_Transmit
 ================
 */
-static size_t NetchanNew_Transmit(netchan_t *chan, size_t length, const void *data, int numpackets)
+static size_t NetchanNew_Transmit(netchan_t *chan, size_t length, const void *data )
 {
     sizebuf_t   send;
     byte        send_buf[MAX_PACKETLEN];
@@ -580,15 +578,13 @@ static size_t NetchanNew_Transmit(netchan_t *chan, size_t length, const void *da
     SHOWPACKET("\n");
 
     // send the datagram
-    for (i = 0; i < numpackets; i++) {
-        NET_SendPacket(chan->sock, send.data, send.cursize, &chan->remote_address);
-    }
+	NET_SendPacket(chan->sock, send.data, send.cursize, &chan->remote_address);
 
-    chan->outgoing_sequence++;
+	chan->outgoing_sequence++;
     chan->reliable_ack_pending = false;
     chan->last_sent = com_localTime;
 
-    return send.cursize * numpackets;
+    return send.cursize;
 }
 
 /*

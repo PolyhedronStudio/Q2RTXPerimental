@@ -237,9 +237,6 @@ void PF_LinkEdict(edict_t *ent)
     areanode_t *node;
     server_entity_t *sent;
     int entnum;
-#if USE_FPS
-    int i;
-#endif
 
     if (ent->area.prev)
         PF_UnlinkEdict(ent);     // unlink from old position
@@ -288,19 +285,8 @@ void PF_LinkEdict(edict_t *ent)
     if (!ent->linkcount) {
         if (!(ent->s.renderfx & RF_BEAM))
             VectorCopy(ent->s.origin, ent->s.old_origin);
-#if USE_FPS
-        VectorCopy(ent->s.origin, sent->create_origin);
-        sent->create_framenum = sv.framenum;
-#endif
     }
     ent->linkcount++;
-
-#if USE_FPS
-    // save origin for later recovery
-    i = sv.framenum & ENT_HISTORY_MASK;
-    VectorCopy(ent->s.origin, sent->history[i].origin);
-    sent->history[i].framenum = sv.framenum;
-#endif
 
     if (ent->solid == SOLID_NOT)
         return;

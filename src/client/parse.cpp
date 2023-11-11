@@ -371,9 +371,6 @@ static void CL_ParseFrame(int extrabits)
 
     if (!frame.valid) {
         cl.frame.valid = false;
-#if USE_FPS
-        cl.keyframe.valid = false;
-#endif
         return; // do not change anything
     }
 
@@ -387,13 +384,6 @@ static void CL_ParseFrame(int extrabits)
 
     cl.oldframe = cl.frame;
     cl.frame = frame;
-
-#if USE_FPS
-    if (CL_FRAMESYNC) {
-        cl.oldkeyframe = cl.keyframe;
-        cl.keyframe = cl.frame;
-    }
-#endif
 
     cls.demo.frames_read++;
 
@@ -539,13 +529,6 @@ static void CL_ParseServerData(void)
 
     // setup default pmove parameters
     PmoveInit(&cl.pmp);
-
-#if USE_FPS
-    // setup default frame times
-    cl.frametime = BASE_FRAMETIME;
-    cl.frametime_inv = BASE_1_FRAMETIME;
-    cl.framediv = 1;
-#endif
 
 // WID: 40hz - For proper frame lerping for 10hz models.
 	cl.sv_frametime = BASE_FRAMETIME;
@@ -1136,28 +1119,6 @@ static void CL_ParseZPacket(void)
 #endif
 }
 
-#if USE_FPS
-static void set_server_fps(int value)
-{
-    int framediv = value / BASE_FRAMERATE;
-
-    clamp(framediv, 1, MAX_FRAMEDIV);
-
-    cl.frametime = BASE_FRAMETIME / framediv;
-    cl.frametime_inv = framediv * BASE_1_FRAMETIME;
-    cl.framediv = framediv;
-
-    // fix time delta
-    if (cls.state == ca_active) {
-        int delta = cl.frame.number - cl.servertime / cl.frametime;
-        cl.serverdelta = Q_align(delta, framediv);
-    }
-
-    Com_DPrintf("client framediv=%d time=%d delta=%d\n",
-                framediv, cl.servertime, cl.serverdelta);
-}
-#endif
-
 static void CL_ParseSetting(void)
 {
     int index q_unused;
@@ -1167,11 +1128,11 @@ static void CL_ParseSetting(void)
     value = MSG_ReadLong();
 
     switch (index) {
-#if USE_FPS
-    case SVS_FPS:
-        set_server_fps(value);
-        break;
-#endif
+//#if USE_FPS
+//    case SVS_FPS:
+//        set_server_fps(value);
+//        break;
+//#endif
     default:
         break;
     }

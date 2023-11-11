@@ -64,7 +64,7 @@ transmition / retransmition of the reliable messages.
 A 0 length will still generate a packet and deal with the reliable messages.
 ================
 */
-size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const void *data, int numpackets );
+size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const void *data );
 
 /*
 =================

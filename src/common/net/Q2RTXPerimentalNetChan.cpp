@@ -129,7 +129,7 @@ transmition / retransmition of the reliable messages.
 A 0 length will still generate a packet and deal with the reliable messages.
 ================
 */
-size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const void *data, int numpackets ) {
+size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const void *data ) {
 	sizebuf_t   send;
 	byte        send_buf[ MAX_PACKETLEN ];
 	bool        send_reliable;
@@ -207,15 +207,13 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const vo
 	SHOWPACKET( "\n" );
 
 	// send the datagram
-	for ( i = 0; i < numpackets; i++ ) {
-		NET_SendPacket( chan->sock, send.data, send.cursize, &chan->remote_address );
-	}
+	NET_SendPacket( chan->sock, send.data, send.cursize, &chan->remote_address );
 
 	chan->outgoing_sequence++;
 	chan->reliable_ack_pending = false;
 	chan->last_sent = com_localTime;
 
-	return send.cursize * numpackets;
+	return send.cursize;
 }
 
 /*
@@ -241,8 +239,8 @@ bool NetchanQ2RTXPerimental_Process( netchan_t *chan ) {
 			MSG_ReadShort( );
 		} else if ( chan->qport ) {
 			MSG_ReadByte( );
+		}
 	}
-}
 
 	if ( msg_read.readcount > msg_read.cursize ) {
 		SHOWDROP( "%s: message too short\n",

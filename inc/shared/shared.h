@@ -1290,9 +1290,10 @@ typedef enum {
 // maximum variable FPS factor
 #define MAX_FRAMEDIV    6
 
+// WID: floating-point:
 #define ANGLE2SHORT(x)  ((int)((x)*65536/360) & 65535)
 #define SHORT2ANGLE(x)  ((x)*(360.0f/65536))
-
+//
 #define COORD2SHORT(x)  ((int)((x)*8.0f))
 #define SHORT2COORD(x)  ((x)*(1.0f/8))
 

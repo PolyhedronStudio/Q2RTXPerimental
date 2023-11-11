@@ -656,7 +656,7 @@ static int parse_next_message(int wait)
     CL_ParseServerMessage();
 
     // if recording demo, write the message out
-    if (cls.demo.recording && !cls.demo.paused && CL_FRAMESYNC) {
+    if (cls.demo.recording && !cls.demo.paused) {
         CL_WriteDemoMessage(&cls.demo.buffer);
     }
 
@@ -1010,9 +1010,6 @@ static void CL_Seek_f(void)
 
     // don't lerp to old
     memset(&cl.oldframe, 0, sizeof(cl.oldframe));
-#if USE_FPS
-    memset(&cl.oldkeyframe, 0, sizeof(cl.oldkeyframe));
-#endif
 
     // clear old effects
     CL_ClearEffects();

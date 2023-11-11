@@ -21,7 +21,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 static cvar_t    *cl_nodelta;
 static cvar_t    *cl_maxpackets;
-static cvar_t    *cl_packetdup;
 static cvar_t    *cl_fuzzhack;
 #if USE_DEBUG
 static cvar_t    *cl_showpackets;
@@ -714,7 +713,6 @@ void CL_RegisterInput(void)
 	// WID: netstuff: Changed from 30, to actually, 40.
     cl_maxpackets = Cvar_Get("cl_maxpackets", "40", 0);
     cl_fuzzhack = Cvar_Get("cl_fuzzhack", "0", 0);
-    cl_packetdup = Cvar_Get("cl_packetdup", "1", 0);
 #if USE_DEBUG
     cl_showpackets = Cvar_Get("cl_showpackets", "0", 0);
 #endif
@@ -956,7 +954,7 @@ static void CL_SendDefaultCmd(void)
     //
     // deliver the message
     //
-    cursize = cls.netchan.Transmit(&cls.netchan, msg_write.cursize, msg_write.data, 1);
+    cursize = cls.netchan.Transmit(&cls.netchan, msg_write.cursize, msg_write.data );
 #if USE_DEBUG
     if (cl_showpackets->integer) {
         Com_Printf("%zu ", cursize);
@@ -1011,8 +1009,11 @@ static void CL_SendBatchedCmd(void)
         MSG_WriteLong(cl.frame.number);
     }
 
-    Cvar_ClampInteger(cl_packetdup, 0, MAX_PACKET_FRAMES - 1);
-    numDups = cl_packetdup->integer;
+	// WID: net-protocol2:
+    //Cvar_ClampInteger(cl_packetdup, 0, MAX_PACKET_FRAMES - 1);
+    //numDups = cl_packetdup->integer;
+	// WID: net-protocol2:
+	numDups = 1;
 
     *patch |= numDups << SVCMD_BITS;
 
@@ -1053,7 +1054,7 @@ static void CL_SendBatchedCmd(void)
     //
     // deliver the message
     //
-    cursize = cls.netchan.Transmit(&cls.netchan, msg_write.cursize, msg_write.data, 1);
+    cursize = cls.netchan.Transmit(&cls.netchan, msg_write.cursize, msg_write.data );
 #if USE_DEBUG
     if (cl_showpackets->integer == 1) {
         Com_Printf("%zu(%i) ", cursize, totalCmds);
@@ -1082,7 +1083,7 @@ static void CL_SendKeepAlive(void)
     cl.lastTransmitCmdNumber = cl.cmdNumber;
     cl.lastTransmitCmdNumberReal = cl.cmdNumber;
 
-    cursize = cls.netchan.Transmit(&cls.netchan, 0, "", 1);
+    cursize = cls.netchan.Transmit(&cls.netchan, 0, "" );
 #if USE_DEBUG
     if (cl_showpackets->integer) {
         Com_Printf("%zu ", cursize);
