@@ -124,13 +124,6 @@ void SV_RemoveClient(client_t *client)
     // itself to make code that traverses client list in a loop happy!
     List_Remove(&client->entry);
 
-#if USE_MVD_CLIENT
-    // unlink them from MVD client list
-    if (sv.state == ss_broadcast) {
-        MVD_RemoveClient(client);
-    }
-#endif
-
     Com_DPrintf("Going from cs_zombie to cs_free for %s\n", client->name);
 
     client->state = cs_free;    // can now be reused
@@ -169,13 +162,8 @@ static void print_drop_reason(client_t *client, const char *reason, clstate_t ol
 
     if (announce == 2) {
         // announce to others
-#if USE_MVD_CLIENT
-        if (sv.state == ss_broadcast)
-            MVD_GameClientDrop(client->edict, prefix, reason);
-        else
-#endif
-            SV_BroadcastPrintf(PRINT_HIGH, "%s%s%s\n",
-                               client->name, prefix, reason);
+        SV_BroadcastPrintf(PRINT_HIGH, "%s%s%s\n",
+                            client->name, prefix, reason);
     }
 
     if (announce)
@@ -1711,13 +1699,6 @@ static void SV_PrepWorldFrame(void)
     edict_t    *ent;
     int        i;
 
-#if USE_MVD_CLIENT
-    if (sv.state == ss_broadcast) {
-        MVD_PrepWorldFrame();
-        return;
-    }
-#endif
-
     if (!SV_FRAMESYNC)
         return;
 
@@ -1744,11 +1725,6 @@ static inline bool check_paused(void)
 
     if (!LIST_SINGLE(&sv_clientlist))
         goto resume;
-
-#if USE_MVD_CLIENT
-    if (!LIST_EMPTY(&mvd_gtv_list))
-        goto resume;
-#endif
 
     if (!sv_paused->integer) {
         Cvar_Set("sv_paused", "1");
@@ -1903,11 +1879,6 @@ unsigned SV_Frame(unsigned msec)
         Cbuf_Execute(&cmd_buffer);
     }
 
-#if USE_MVD_CLIENT
-    // run connections to MVD/GTV servers
-    MVD_Frame();
-#endif
-
     // read packets from UDP clients
     NET_GetPackets(NS_SERVER, SV_PacketEvent);
 
@@ -2004,11 +1975,7 @@ void SV_UserinfoChanged(client_t *cl)
             Com_Printf("%s[%s] changed name to %s\n", cl->name,
                        NET_AdrToString(&cl->netchan.remote_address), name);
         }
-#if USE_MVD_CLIENT
-        if (sv.state == ss_broadcast) {
-            MVD_GameClientNameChanged(cl->edict, name);
-        } else
-#endif
+
         if (sv_show_name_changes->integer > 1 ||
             (sv_show_name_changes->integer == 1 && cl->state == cs_spawned)) {
             SV_BroadcastPrintf(PRINT_HIGH, "%s changed name to %s\n",
@@ -2134,11 +2101,6 @@ Only called at quake2.exe startup, not for each game
 void SV_Init(void)
 {
     SV_InitOperatorCommands();
-
-
-#if USE_MVD_CLIENT
-    MVD_Register();
-#endif
 
     SV_RegisterSavegames();
 
@@ -2337,17 +2299,6 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
 {
     if (!sv_registered)
         return;
-
-#if USE_MVD_CLIENT
-    if (ge != &mvd_ge && !(type & MVD_SPAWN_INTERNAL)) {
-        // shutdown MVD client now if not already running the built-in MVD game module
-        // don't shutdown if called from internal MVD spawn function (ugly hack)!
-        MVD_Shutdown();
-    }
-    // WID: C++20: Added cast.
-	//type &= ~MVD_SPAWN_MASK;
-	type = static_cast<error_type_t>( type & ~MVD_SPAWN_MASK );
-#endif
 
     SV_FinalMessage(finalmsg, type);
     SV_MasterShutdown();

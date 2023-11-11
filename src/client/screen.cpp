@@ -300,12 +300,6 @@ static void draw_percent_bar(int percent, bool paused, int framenum)
 
 static void SCR_DrawDemo(void)
 {
-#if USE_MVD_CLIENT
-    int percent;
-    bool paused;
-    int framenum;
-#endif
-
     if (!scr_demobar->integer) {
         return;
     }

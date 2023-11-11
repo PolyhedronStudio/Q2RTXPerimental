@@ -77,13 +77,7 @@ static void SV_CreateBaselines(void)
         base = *chunk + (i & SV_BASELINES_MASK);
         MSG_PackEntity(base, &ent->s, Q2PRO_SHORTANGLES(sv_client, i));
 
-#if USE_MVD_CLIENT
-        if (sv.state == ss_broadcast) {
-            // spectators only need to know about inline BSP models
-            if (base->solid.u != PACKED_BSP)
-                base->solid.u = 0;
-        } else
-#endif
+		// WID: netstuff: This is actually where we should be assigning stuff to our internal local server entities.
         if (sv_client->esFlags & MSG_ES_LONGSOLID) {
             base->solid.u = sv.entities[i].solid32;
         }

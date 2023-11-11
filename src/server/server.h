@@ -40,10 +40,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "server/server.h"
 #include "system/system.h"
 
-#if USE_MVD_CLIENT
-#include "server/mvd/client.h"
-#endif
-
 #if USE_ZLIB
 #include <zlib.h>
 #endif

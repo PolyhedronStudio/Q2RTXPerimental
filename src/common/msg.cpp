@@ -1711,7 +1711,7 @@ void MSG_ReadDeltaUsercmd_Enhanced(const usercmd_t *from,
     }
 }
 
-#if USE_CLIENT || USE_MVD_CLIENT
+#if USE_CLIENT
 
 /*
 =================
@@ -1872,7 +1872,7 @@ void MSG_ParseDeltaEntity(const entity_state_t *from,
     }
 }
 
-#endif // USE_CLIENT || USE_MVD_CLIENT
+#endif // USE_CLIENT
 
 #if USE_CLIENT
 
@@ -2235,116 +2235,6 @@ void MSG_ParseDeltaPlayerstate_Enhanced(const player_state_t    *from,
 
 #endif // USE_CLIENT
 
-#if USE_MVD_CLIENT
-
-/*
-===================
-MSG_ParseDeltaPlayerstate_Packet
-===================
-*/
-void MSG_ParseDeltaPlayerstate_Packet(const player_state_t *from,
-                                      player_state_t *to,
-                                      int            flags)
-{
-    int         i;
-    int         statbits;
-
-    if (!to) {
-        Com_Error(ERR_DROP, "%s: NULL", __func__);
-    }
-
-    // clear to old value before delta parsing
-    if (!from) {
-        memset(to, 0, sizeof(*to));
-    } else if (to != from) {
-        memcpy(to, from, sizeof(*to));
-    }
-
-    //
-    // parse the pmove_state_t
-    //
-    if (flags & PPS_M_TYPE)
-        to->pmove.pm_type = static_cast<pmtype_t>( MSG_ReadByte() ); // WID: C++20: Added cast.
-
-    if (flags & PPS_M_ORIGIN) {
-        to->pmove.origin[0] = MSG_ReadShort();
-        to->pmove.origin[1] = MSG_ReadShort();
-    }
-
-    if (flags & PPS_M_ORIGIN2) {
-        to->pmove.origin[2] = MSG_ReadShort();
-    }
-
-    //
-    // parse the rest of the player_state_t
-    //
-    if (flags & PPS_VIEWOFFSET) {
-        to->viewoffset[0] = MSG_ReadChar() * 0.25f;
-        to->viewoffset[1] = MSG_ReadChar() * 0.25f;
-        to->viewoffset[2] = MSG_ReadChar() * 0.25f;
-    }
-
-    if (flags & PPS_VIEWANGLES) {
-        to->viewangles[0] = MSG_ReadAngle16();
-        to->viewangles[1] = MSG_ReadAngle16();
-    }
-
-    if (flags & PPS_VIEWANGLE2) {
-        to->viewangles[2] = MSG_ReadAngle16();
-    }
-
-    if (flags & PPS_KICKANGLES) {
-        to->kick_angles[0] = MSG_ReadChar() * 0.25f;
-        to->kick_angles[1] = MSG_ReadChar() * 0.25f;
-        to->kick_angles[2] = MSG_ReadChar() * 0.25f;
-    }
-
-    if (flags & PPS_WEAPONINDEX) {
-        to->gunindex = MSG_ReadByte();
-    }
-
-    if (flags & PPS_WEAPONFRAME) {
-        to->gunframe = MSG_ReadByte();
-    }
-
-    if (flags & PPS_GUNOFFSET) {
-        to->gunoffset[0] = MSG_ReadChar() * 0.25f;
-        to->gunoffset[1] = MSG_ReadChar() * 0.25f;
-        to->gunoffset[2] = MSG_ReadChar() * 0.25f;
-    }
-
-    if (flags & PPS_GUNANGLES) {
-        to->gunangles[0] = MSG_ReadChar() * 0.25f;
-        to->gunangles[1] = MSG_ReadChar() * 0.25f;
-        to->gunangles[2] = MSG_ReadChar() * 0.25f;
-    }
-
-    if (flags & PPS_BLEND) {
-        to->blend[0] = MSG_ReadByte() / 255.0f;
-        to->blend[1] = MSG_ReadByte() / 255.0f;
-        to->blend[2] = MSG_ReadByte() / 255.0f;
-        to->blend[3] = MSG_ReadByte() / 255.0f;
-    }
-
-    if (flags & PPS_FOV)
-        to->fov = MSG_ReadByte();
-
-    if (flags & PPS_RDFLAGS)
-        to->rdflags = MSG_ReadByte();
-
-    // parse stats
-    if (flags & PPS_STATS) {
-        statbits = MSG_ReadLong();
-        for (i = 0; i < MAX_STATS; i++) {
-            if (statbits & (1U << i)) {
-                to->stats[i] = MSG_ReadShort();
-            }
-        }
-    }
-}
-
-#endif // USE_MVD_CLIENT
-
 
 /*
 ==============================================================================
@@ -2451,7 +2341,7 @@ void MSG_ShowDeltaUsercmdBits_Enhanced(int bits)
 
 #endif // USE_CLIENT
 
-#if USE_CLIENT || USE_MVD_CLIENT
+#if USE_CLIENT
 
 void MSG_ShowDeltaEntityBits(int bits)
 {
@@ -2555,7 +2445,7 @@ const char *MSG_ServerCommandString(int cmd)
     }
 }
 
-#endif // USE_CLIENT || USE_MVD_CLIENT
+#endif // USE_CLIENT
 
 #endif // USE_DEBUG
 

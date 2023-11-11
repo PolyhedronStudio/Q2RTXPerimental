@@ -354,13 +354,6 @@ CL_Pause_f
 */
 static void CL_Pause_f(void)
 {
-#if USE_MVD_CLIENT
-    if (sv_running->integer == ss_broadcast) {
-        Cbuf_InsertText(&cmd_buffer, "mvdpause @@\n");
-        return;
-    }
-#endif
-
     // activate manual pause
     if (cl_paused->integer == 2) {
         Cvar_Set("cl_paused", "0");

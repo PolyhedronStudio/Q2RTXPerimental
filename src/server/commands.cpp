@@ -308,9 +308,6 @@ static void SV_DemoMap_f(void)
 #if USE_CLIENT
     Com_Printf("To play a client demo, use 'demo' command instead.\n");
 #endif
-#if USE_MVD_CLIENT
-    Com_Printf("To play a MVD, use 'mvdplay' command.\n");
-#endif
 }
 
 /*

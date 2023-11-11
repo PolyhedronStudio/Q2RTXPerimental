@@ -299,7 +299,7 @@ bool Com_ParseMapName(char *out, const char *in, size_t size)
     return COM_StripExtension(out, in, size) < size;
 }
 
-#if USE_CLIENT || USE_MVD_CLIENT
+#if USE_CLIENT
 /*
 ================
 Com_ParseTimespec
@@ -347,7 +347,7 @@ bool Com_ParseTimespec(const char *s, int *frames)
 
     return false;
 }
-#endif
+#endif // USE_CLIENT
 
 /*
 ================
