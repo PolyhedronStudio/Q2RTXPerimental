@@ -129,7 +129,7 @@ typedef struct {
     char        name[MAX_QPATH];            // map name, or cinematic name
     cm_t        cm;
 
-    char        configstrings[MAX_CONFIGSTRINGS][MAX_QPATH];
+	configstring_t  configstrings[ MAX_CONFIGSTRINGS ];
 
     server_entity_t entities[MAX_EDICTS];
 } server_t;
@@ -304,7 +304,7 @@ typedef struct client_s {
     entity_packed_t *baselines[SV_BASELINES_CHUNKS];
 
     // server state pointers (hack for MVD channels implementation)
-    char            *configstrings;
+	configstring_t *configstrings;
     char            *gamedir, *mapname;
     edict_pool_t    *pool;
     cm_t            *cm;

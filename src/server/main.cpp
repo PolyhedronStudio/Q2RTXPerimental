@@ -1095,7 +1095,7 @@ static void SVC_DirectConnect(void)
     newcl->edict = EDICT_NUM(number + 1);
     newcl->gamedir = fs_game->string;
     newcl->mapname = sv.name;
-    newcl->configstrings = (char *)sv.configstrings;
+    newcl->configstrings = (configstring_t *)&sv.configstrings[0];
     newcl->pool = (edict_pool_t *)&ge->edicts;
     newcl->cm = &sv.cm;
     newcl->spawncount = sv.spawncount;

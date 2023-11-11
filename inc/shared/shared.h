@@ -108,6 +108,9 @@ extern "C" {
 #define MAX_QPATH           64      // max length of a quake game pathname
 #define MAX_OSPATH          256     // max length of a filesystem pathname
 
+#define CS_MAX_STRING_LENGTH 96		// Maximum length of a configstring.
+typedef char configstring_t[ CS_MAX_STRING_LENGTH ];
+
 //
 // per-level limits
 //
@@ -1326,7 +1329,7 @@ typedef enum {
 // Some mods actually exploit CS_STATUSBAR to take space up to CS_AIRACCEL
 #define CS_SIZE(cs) \
     ((cs) >= CS_STATUSBAR && (cs) < CS_AIRACCEL ? \
-      MAX_QPATH * (CS_AIRACCEL - (cs)) : MAX_QPATH)
+      CS_MAX_STRING_LENGTH * (CS_AIRACCEL - (cs)) : CS_MAX_STRING_LENGTH)
 
 
 //==============================================

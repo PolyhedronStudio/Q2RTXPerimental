@@ -123,7 +123,7 @@ void SV_SpawnServer(mapcmd_t *cmd)
     svs.next_entity = 0;
 
     // save name for levels that don't set message
-    Q_strlcpy(sv.configstrings[CS_NAME], cmd->server, MAX_QPATH);
+    Q_strlcpy(sv.configstrings[CS_NAME], cmd->server, CS_MAX_STRING_LENGTH );
     Q_strlcpy(sv.name, cmd->server, sizeof(sv.name));
     Q_strlcpy(sv.mapcmd, cmd->buffer, sizeof(sv.mapcmd));
 
@@ -140,7 +140,7 @@ void SV_SpawnServer(mapcmd_t *cmd)
         sprintf(sv.configstrings[CS_MAPCHECKSUM], "%d", sv.cm.checksum);
 
         // set inline model names
-        Q_concat(sv.configstrings[CS_MODELS + 1], MAX_QPATH, "maps/", cmd->server, ".bsp");
+        Q_concat(sv.configstrings[CS_MODELS + 1], CS_MAX_STRING_LENGTH, "maps/", cmd->server, ".bsp");
         for (i = 1; i < sv.cm.cache->nummodels; i++) {
             sprintf(sv.configstrings[CS_MODELS + 1 + i], "*%d", i);
         }

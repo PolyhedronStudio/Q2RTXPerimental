@@ -98,16 +98,18 @@ static bool need_flush_msg(size_t size)
 static void write_configstrings(void)
 {
     int     i;
-    char    *string;
+    configstring_t    *string;
     size_t  length;
 
     // write a packet full of data
     string = sv_client->configstrings;
-    for (i = 0; i < MAX_CONFIGSTRINGS; i++, string += MAX_QPATH) {
+    for (i = 0; i < MAX_CONFIGSTRINGS; i++ ) {
+		string = &sv_client->configstrings[ i ];
+
         if (!string[0]) {
             continue;
         }
-        length = Q_strnlen(string, MAX_QPATH);
+        length = Q_strnlen((const char*)string, CS_MAX_STRING_LENGTH );
 
         // check if this configstring will overflow
         if (need_flush_msg(length + 4)) {
@@ -150,7 +152,7 @@ static void write_baselines(void)
         for (j = 0; j < SV_BASELINES_PER_CHUNK; j++) {
             if (base->number) {
                 // check if this baseline will overflow
-                if (need_flush_msg(64)) {
+                if (need_flush_msg( CS_MAX_STRING_LENGTH )) {
                     SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
                 }
 
@@ -169,17 +171,18 @@ static void write_gamestate(void)
     entity_packed_t  *base;
     int         i, j;
     size_t      length;
-    char        *string;
+    configstring_t        *string;
 
     MSG_WriteByte(svc_gamestate);
 
     // write configstrings
     string = sv_client->configstrings;
-    for (i = 0; i < MAX_CONFIGSTRINGS; i++, string += MAX_QPATH) {
+    for (i = 0; i < MAX_CONFIGSTRINGS; i++) {
+		string = &sv_client->configstrings[i];
         if (!string[0]) {
             continue;
         }
-        length = Q_strnlen(string, MAX_QPATH);
+        length = Q_strnlen((const char*)( string ), CS_MAX_STRING_LENGTH );
         MSG_WriteShort(i);
         MSG_WriteData(string, length);
         MSG_WriteByte(0);
@@ -315,7 +318,7 @@ void SV_New_f(void)
         MSG_WriteShort(-1);
     else
         MSG_WriteShort(sv_client->slot);
-    MSG_WriteString(&sv_client->configstrings[CS_NAME * MAX_QPATH]);
+    MSG_WriteString(sv_client->configstrings[CS_NAME * CS_MAX_STRING_LENGTH ]);
 
     // send protocol specific stuff
     switch (sv_client->protocol) {
