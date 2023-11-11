@@ -355,7 +355,7 @@ typedef enum {
 #define CLIENTNUM_RESERVED    (MAX_CLIENTS - 1)
 
 // a SOLID_BBOX will never create this value
-#define PACKED_BSP      31
+#define PACKED_BSP      255
 
 typedef enum {
     // r1q2 specific

@@ -78,9 +78,10 @@ static void SV_CreateBaselines(void)
         MSG_PackEntity(base, &ent->s, Q2PRO_SHORTANGLES(sv_client, i));
 
 		// WID: netstuff: This is actually where we should be assigning stuff to our internal local server entities.
-        if (sv_client->esFlags & MSG_ES_LONGSOLID) {
+		// WID: netstuff: longsolid
+		//if (sv_client->esFlags & MSG_ES_LONGSOLID) {
             base->solid.u = sv.entities[i].solid32;
-        }
+        //}
     }
 }
 
