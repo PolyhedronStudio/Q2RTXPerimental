@@ -214,7 +214,7 @@ void CL_EmitDemoFrame(void)
         cls.demo.frames_dropped++;
 
         // warn the user if drop rate is too high
-        if (cls.demo.frames_written < 10 && cls.demo.frames_dropped == 50)
+        if (cls.demo.frames_written < BASE_FRAMERATE && cls.demo.frames_dropped == 200)
             Com_WPrintf("Too many demo frames don't fit into %zu bytes.\n"
                         "Try to increase 'cl_demomsglen' value and restart recording.\n",
                         cls.demo.buffer.maxsize);
@@ -237,7 +237,7 @@ static size_t format_demo_status(char *buffer, size_t size)
     size_t len = format_demo_size(buffer, size);
     int min, sec, frames = cls.demo.frames_written;
 
-    sec = frames / 10; frames %= 10;
+    sec = frames / BASE_FRAMERATE; frames %= BASE_FRAMERATE;
     min = sec / 60; sec %= 60;
 
     len += Q_scnprintf(buffer + len, size - len, ", %d:%02d.%d",
@@ -763,7 +763,7 @@ void CL_EmitDemoSnapshot(void)
     if (cl_demosnaps->integer <= 0)
         return;
 
-    if (cls.demo.frames_read < cls.demo.last_snapshot + cl_demosnaps->integer * 10)
+    if (cls.demo.frames_read < cls.demo.last_snapshot + cl_demosnaps->integer * BASE_FRAMERATE)
         return;
 
     if (!cl.frame.valid)
@@ -1266,7 +1266,7 @@ CL_InitDemos
 */
 void CL_InitDemos(void)
 {
-    cl_demosnaps = Cvar_Get("cl_demosnaps", "10", 0);
+    cl_demosnaps = Cvar_Get("cl_demosnaps", std::to_string(BASE_FRAMERATE).c_str(), 0 );
     cl_demomsglen = Cvar_Get("cl_demomsglen", va("%d", MAX_PACKETLEN_WRITABLE_DEFAULT), 0);
     cl_demowait = Cvar_Get("cl_demowait", "0", 0);
 
