@@ -81,8 +81,8 @@ extern "C" {
 
 //=========================================
 
-#define UPDATE_BACKUP   64 //16 // copies of entity_state_t to keep buffered
-								// must be power of two
+#define UPDATE_BACKUP   128 //16	// copies of entity_state_t to keep buffered
+									// must be power of two
 #define UPDATE_MASK     (UPDATE_BACKUP - 1)
 
 #define CMD_BACKUP      512 //128	// allow a lot of command backups for very fast systems

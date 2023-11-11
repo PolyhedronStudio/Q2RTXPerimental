@@ -790,7 +790,7 @@ void CL_FinalizeCmd(void)
     }
 
     if (cl.cmd.msec > 250) {
-        cl.cmd.msec = 40;        // time was unreasonable
+        cl.cmd.msec = BASE_FRAMERATE;        // time was unreasonable
     }
 
     // rebuild the movement vector
