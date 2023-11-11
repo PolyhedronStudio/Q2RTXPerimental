@@ -27,6 +27,14 @@ extern "C" {
 
 #include "common/net/net.h"
 
+/**
+ * @brief Client bandwidth throttling thresholds, in bytes per second. Clients
+ * may actually request that the server drops messages for them above a certain
+ * bandwidth saturation point in order to maintain some level of connectivity.
+ * However, they must accept at least 8KB/s.
+ */
+#define CLIENT_RATE_MIN		8192
+
 // if this is changed, Q2PRO protocol version must be changed too!
 typedef enum {
     ss_dead,            // no map loaded

@@ -621,7 +621,7 @@ static bool parse_basic_params(conn_params_t *p)
 
     // check for valid, but outdated protocol version
     if (p->protocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL)
-        return reject("You need Quake 2 version 3.19 or higher.\n");
+        return reject("You need Q2RTXPerimental version " LONG_VERSION_STRING " or higher.\n");
 
     return true;
 }
@@ -1990,7 +1990,7 @@ void SV_UserinfoChanged(client_t *cl)
         cl->rate = atoi(val);
         clamp(cl->rate, sv_min_rate->integer, sv_max_rate->integer);
     } else {
-        cl->rate = 5000;
+        cl->rate = CLIENT_RATE_MIN;
     }
 
     // never drop over the loopback
@@ -2050,7 +2050,7 @@ static void sv_rate_changed(cvar_t *self)
 {
 	// WID: 40hz:
     //Cvar_ClampInteger(sv_min_rate, 100, Cvar_ClampInteger(sv_max_rate, 1000, INT_MAX));
-	Cvar_ClampInteger( sv_min_rate, BASE_FRAMETIME, Cvar_ClampInteger( sv_max_rate, 1000, INT_MAX ) );
+	Cvar_ClampInteger( sv_min_rate, CLIENT_RATE_MIN, Cvar_ClampInteger( sv_max_rate, CLIENT_RATE_MIN, INT_MAX ) );
 }
 
 void sv_sec_timeout_changed(cvar_t *self)
@@ -2162,7 +2162,7 @@ void SV_Init(void)
     sv_lan_force_rate = Cvar_Get("sv_lan_force_rate", "0", CVAR_LATCH);
 	// WID: 40hz:
 	//sv_min_rate = Cvar_Get("sv_min_rate", "100", CVAR_LATCH);
-	sv_min_rate = Cvar_Get( "sv_min_rate", std::to_string( BASE_FRAMETIME ).c_str(), CVAR_LATCH );
+	sv_min_rate = Cvar_Get( "sv_min_rate", std::to_string( CLIENT_RATE_MIN ).c_str( ), CVAR_LATCH );
     sv_max_rate = Cvar_Get("sv_max_rate", "15000", CVAR_LATCH);
     sv_max_rate->changed = sv_min_rate->changed = sv_rate_changed;
     sv_max_rate->changed(sv_max_rate);
