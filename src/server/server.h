@@ -304,7 +304,7 @@ typedef struct client_s {
     entity_packed_t *baselines[SV_BASELINES_CHUNKS];
 
     // server state pointers (hack for MVD channels implementation)
-	configstring_t *configstrings;
+	configstring_t	*configstrings;
     char            *gamedir, *mapname;
     edict_pool_t    *pool;
     cm_t            *cm;

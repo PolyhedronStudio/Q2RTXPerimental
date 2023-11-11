@@ -367,7 +367,7 @@ static void PF_configstring(int index, const char *val)
 
     // error out entirely if it exceedes array bounds
     len = strlen(val);
-    maxlen = (MAX_CONFIGSTRINGS - index) * CS_MAX_STRING_LENGTH;
+    maxlen = (MAX_CONFIGSTRINGS - index) * MAX_CS_STRING_LENGTH;
     if (len >= maxlen) {
         Com_Error(ERR_DROP,
                   "%s: index %d overflowed: %zu > %zu",

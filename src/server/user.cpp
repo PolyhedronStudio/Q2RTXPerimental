@@ -109,7 +109,7 @@ static void write_configstrings(void)
         if (!string[0]) {
             continue;
         }
-        length = Q_strnlen((const char*)string, CS_MAX_STRING_LENGTH );
+        length = Q_strnlen((const char*)string, MAX_CS_STRING_LENGTH );
 
         // check if this configstring will overflow
         if (need_flush_msg(length + 4)) {
@@ -152,7 +152,7 @@ static void write_baselines(void)
         for (j = 0; j < SV_BASELINES_PER_CHUNK; j++) {
             if (base->number) {
                 // check if this baseline will overflow
-                if (need_flush_msg( CS_MAX_STRING_LENGTH )) {
+                if (need_flush_msg( MAX_CS_STRING_LENGTH )) {
                     SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
                 }
 
@@ -182,7 +182,7 @@ static void write_gamestate(void)
         if (!string[0]) {
             continue;
         }
-        length = Q_strnlen((const char*)( string ), CS_MAX_STRING_LENGTH );
+        length = Q_strnlen((const char*)( string ), MAX_CS_STRING_LENGTH );
         MSG_WriteShort(i);
         MSG_WriteData(string, length);
         MSG_WriteByte(0);
@@ -318,7 +318,7 @@ void SV_New_f(void)
         MSG_WriteShort(-1);
     else
         MSG_WriteShort(sv_client->slot);
-    MSG_WriteString(sv_client->configstrings[CS_NAME * CS_MAX_STRING_LENGTH ]);
+    MSG_WriteString(sv_client->configstrings[ CS_NAME * MAX_CS_STRING_LENGTH ]);
 
     // send protocol specific stuff
     switch (sv_client->protocol) {

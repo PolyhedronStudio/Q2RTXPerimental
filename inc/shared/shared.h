@@ -105,11 +105,14 @@ extern "C" {
 #define MAX_TOKEN_CHARS     1024    // max length of an individual token
 #define MAX_NET_STRING      2048    // max length of a string used in network protocol
 
-#define MAX_QPATH           64      // max length of a quake game pathname
-#define MAX_OSPATH          256     // max length of a filesystem pathname
+#define MAX_QPATH				64      // max length of a quake game pathname
+#define MAX_OSPATH				256     // max length of a filesystem pathname
+#define MAX_CS_STRING_LENGTH	96		// Maximum length of a configstring.
 
-#define CS_MAX_STRING_LENGTH 96		// Maximum length of a configstring.
-typedef char configstring_t[ CS_MAX_STRING_LENGTH ];
+//
+// ConfigString type.
+//
+typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 
 //
 // per-level limits
@@ -1326,10 +1329,13 @@ typedef enum {
 #define CS_GENERAL          (CS_PLAYERSKINS+MAX_CLIENTS)
 #define MAX_CONFIGSTRINGS   (CS_GENERAL+MAX_GENERAL)
 
+#define MODELINDEX_PLAYER	(MAX_MODELS - 1)
+
 // Some mods actually exploit CS_STATUSBAR to take space up to CS_AIRACCEL
-#define CS_SIZE(cs) \
-    ((cs) >= CS_STATUSBAR && (cs) < CS_AIRACCEL ? \
-      CS_MAX_STRING_LENGTH * (CS_AIRACCEL - (cs)) : CS_MAX_STRING_LENGTH)
+static inline int32_t CS_SIZE( int32_t cs ) {
+	return ( ( cs ) >= CS_STATUSBAR && ( cs ) < CS_AIRACCEL ? \
+	  MAX_CS_STRING_LENGTH * ( CS_AIRACCEL - ( cs ) ) : MAX_CS_STRING_LENGTH );
+}
 
 
 //==============================================

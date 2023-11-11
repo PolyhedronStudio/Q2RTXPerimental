@@ -107,7 +107,7 @@ void P_DamageFeedback( edict_t *player ) {
 		return;     // didn't take any damage
 
 	// start a pain animation if still in the player model
-	if ( client->anim_priority < ANIM_PAIN && player->s.modelindex == 255 ) {
+	if ( client->anim_priority < ANIM_PAIN && player->s.modelindex == MODELINDEX_PLAYER ) {
 		static int      i;
 
 		client->anim_priority = ANIM_PAIN;

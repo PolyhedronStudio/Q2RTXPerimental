@@ -192,7 +192,7 @@ void ChangeWeapon(edict_t *ent)
     ent->client->machinegun_shots = 0;
 
     // set visible model
-    if (ent->s.modelindex == 255) {
+    if (ent->s.modelindex == MODELINDEX_PLAYER ) {
         if (ent->client->pers.weapon)
             i = ((ent->client->pers.weapon->weapmodel & 0xff) << 8);
         else
@@ -397,7 +397,7 @@ inline void Weapon_PowerupSound( edict_t *ent ) {
 
 inline bool Weapon_CanAnimate( edict_t *ent ) {
 	// VWep animations screw up corpses
-	return !ent->deadflag && ent->s.modelindex == 255;
+	return !ent->deadflag && ent->s.modelindex == MODELINDEX_PLAYER;
 }
 
 // [Paril-KEX] called when finished to set time until
