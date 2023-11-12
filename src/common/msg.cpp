@@ -186,9 +186,6 @@ MSG_WriteAngle
 =============
 */
 
-#define ANGLE2BYTE(x)   ((int)((x)*256.0f/360)&255)
-#define BYTE2ANGLE(x)   ((x)*(360.0f/256))
-
 void MSG_WriteAngle(float f)
 {
     MSG_WriteByte(ANGLE2BYTE(f));

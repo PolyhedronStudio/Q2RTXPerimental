@@ -73,20 +73,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // WID: C++20: For C++ we use int to align with C qboolean type.
 #ifdef __cplusplus
-
-// Include our 'sharedcpp.h' header.
-#include "shared_cpp.h"
-
+	// Include our 'sharedcpp.h' header.
+	#include "shared_cpp.h"
 #else // __cplusplus
+	typedef unsigned char byte;
+	typedef enum { qfalse, qtrue } qboolean;    // ABI compat only, don't use
+	typedef int qhandle_t;
 
-typedef unsigned char byte;
-typedef enum { qfalse, qtrue } qboolean;    // ABI compat only, don't use
-typedef int qhandle_t;
-
-#ifndef NULL
-#define NULL ((void *)0)
-#endif
-
+	#ifndef NULL
+	#define NULL ((void *)0)
+	#endif
 #endif //__cplusplus
 
 // WID: C++20: In case of C++ including this..
@@ -1280,7 +1276,6 @@ typedef enum {
 
 ==========================================================
 */
-
 // Default server FPS: 10hz
 //#define BASE_FRAMERATE          10
 //#define BASE_FRAMETIME          100
@@ -1293,22 +1288,58 @@ typedef enum {
 #define BASE_1_FRAMETIME        0.04f	// OLD: 0.01f   1/BASE_FRAMETIME
 #define BASE_FRAMETIME_1000     0.025f	// OLD: 0.1f    BASE_FRAMETIME/1000
 
-// maximum variable FPS factor
-#define MAX_FRAMEDIV    6
+/**
+*
+*	Encode/Decode utilities
+* 
+**/
+/**
+*	Byte to Angles/Angles to Bytes.
+**/
+// Used for 'wiring' angles, encoded in a 'byte/int8_t'.
+static inline const uint8_t ANGLE2BYTE( const float coord ) {
+	//#define ANGLE2BYTE(x)   ((int)((x)*256.0f/360)&255)
+	return ( (int)( ( coord ) * 256.0f / 360 ) & 255 );
+}
+// Used for decoding the 'wired' angle in a 'float'.
+static inline const float BYTE2ANGLE( const int s ) {
+	//#define BYTE2ANGLE(x)   ((x)*(360.0f/256))
+	return ( ( s ) * ( 360.0f / 256 ) );
+}
+/**
+*	Short to Angles/Angles to Shorts.
+**/
+// Used for 'wiring' angles encoded in a 'short/int16_t'.
+static inline const int16_t ANGLE2SHORT( const float coord ) {
+	//#define ANGLE2SHORT(x)  ((int)((x)*65536/360) & 65535)
+	return ( (int)( ( coord ) * 65536 / 360 ) & 65535 );
+}
+// Used for decoding the 'wired' angle in a 'float'.
+static inline const float SHORT2ANGLE( const int s ) {
+	//#define SHORT2ANGLE(x)  ((x)*(360.0f/65536))
+	return ( ( s ) * ( 360.0f / 65536 ) );
+}
+/**
+*	Short to Origin/Origin to float.
+**/
+// Used for 'wiring' origins encoded in a 'short/int16_t'..
+static inline const int16_t COORD2SHORT( const float coord ) {
+	//#define COORD2SHORT(x)  ((int)((x)*8.0f))
+	return ( (int)( ( coord ) * 8.0f ) );
+}
+// Used for decoding the 'wired' origin in a 'float'.
+static inline const float SHORT2COORD( const int s ) {
+	//#define SHORT2COORD(x)  ((x)*(1.0f/8))
+	return ( ( s ) * ( 1.0f / 8 ) );
+}
 
-// WID: floating-point:
-#define ANGLE2SHORT(x)  ((int)((x)*65536/360) & 65535)
-#define SHORT2ANGLE(x)  ((x)*(360.0f/65536))
-//
-#define COORD2SHORT(x)  ((int)((x)*8.0f))
-#define SHORT2COORD(x)  ((x)*(1.0f/8))
-
-
-//
-// config strings are a general means of communication from
-// the server to all connected clients.
-// Each config string can be at most MAX_QPATH characters.
-//
+/***
+* 
+*	config strings are a general means of communication from
+*	the server to all connected clients.
+*	Each config string can be at most MAX_QPATH characters.
+* 
+***/
 #define CS_NAME             0
 #define CS_CDTRACK          1
 #define CS_SKY              2
