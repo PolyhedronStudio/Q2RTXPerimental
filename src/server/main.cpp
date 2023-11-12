@@ -741,7 +741,11 @@ static bool parse_packet_length(conn_params_t *p)
 
 static bool parse_enhanced_params(conn_params_t *p)
 {
+	//#if USE_ZLIB
+	//p->has_zlib = true;
+	//#else
 	p->has_zlib = false;
+//	#endif
 
 	// Left here as an example if we ever wish to parse.
     // set minor protocol version

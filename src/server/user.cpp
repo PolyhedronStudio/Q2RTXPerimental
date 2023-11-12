@@ -320,39 +320,16 @@ void SV_New_f(void)
         MSG_WriteShort(sv_client->slot);
     MSG_WriteString(sv_client->configstrings[ CS_NAME * MAX_CS_STRING_LENGTH ]);
 
-    // send protocol specific stuff
-    switch (sv_client->protocol) {
-    case PROTOCOL_VERSION_R1Q2:
-        MSG_WriteByte(0);   // not enhanced
-        MSG_WriteShort(sv_client->version);
-        MSG_WriteByte(0);   // no advanced deltas
-        MSG_WriteByte(sv_client->pmp.strafehack);
-        break;
-    case PROTOCOL_VERSION_Q2PRO:
-        MSG_WriteShort(sv_client->version);
-        if (sv.state == ss_cinematic && sv_client->version < PROTOCOL_VERSION_Q2PRO_CINEMATICS)
-            MSG_WriteByte(ss_pic);
-        else
-            MSG_WriteByte(sv.state);
-        MSG_WriteByte(sv_client->pmp.strafehack);
-        MSG_WriteByte(sv_client->pmp.qwmode);
-        if (sv_client->version >= PROTOCOL_VERSION_Q2PRO_WATERJUMP_HACK) {
-            MSG_WriteByte(sv_client->pmp.waterhack);
-        }
-        break;
-    }
-
     SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
-
     SV_ClientCommand(sv_client, "\n");
 
-    // send version string request
+    // Send version string request
     if (oldstate == cs_assigned) {
         SV_ClientCommand(sv_client, "cmd \177c version $version\n");
         stuff_cmds(&sv_cmdlist_connect);
     }
 
-    // send reconnect var request
+    // Send reconnect var request
     if (sv_force_reconnect->string[0] && !sv_client->reconnected) {
         SV_ClientCommand(sv_client, "cmd \177c connect $%s\n",
                          sv_client->reconnect_var);
