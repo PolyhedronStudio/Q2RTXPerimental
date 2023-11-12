@@ -205,8 +205,8 @@ typedef enum {
     clc_setting,
 
     // q2pro specific operations
-    clc_move_nodelta = 10,
-    clc_move_batched,
+    //clc_move_nodelta = 10,
+    //clc_move_batched,
     clc_userinfo_delta
 } clc_ops_t;
 
