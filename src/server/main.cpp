@@ -588,7 +588,7 @@ typedef struct {
     int         challenge;
 
     int         maxlength;
-    int         nctype;
+    //int         nctype; We default to Q2RTXPerimental.
     bool        has_zlib;
 
     int         reserved;   // hidden client slots
@@ -741,53 +741,19 @@ static bool parse_packet_length(conn_params_t *p)
 
 static bool parse_enhanced_params(conn_params_t *p)
 {
-    char *s;
+	p->has_zlib = false;
 
-	if ( p->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
-		p->nctype = NETCHAN_Q2RTXPERIMENTAL;
-		p->has_zlib = false;
-	} else if (p->protocol == PROTOCOL_VERSION_R1Q2) {
-        // set minor protocol version
-        s = Cmd_Argv(6);
-        if (*s) {
-            p->version = atoi(s);
-            clamp(p->version,
-                  PROTOCOL_VERSION_R1Q2_MINIMUM,
-                  PROTOCOL_VERSION_R1Q2_CURRENT);
-        } else {
-            p->version = PROTOCOL_VERSION_R1Q2_MINIMUM;
-        }
-        p->nctype = NETCHAN_OLD;
-        p->has_zlib = true;
-    } else if (p->protocol == PROTOCOL_VERSION_Q2PRO) {
-        // set netchan type
-        s = Cmd_Argv(6);
-        if (*s) {
-            p->nctype = atoi(s);
-            if (p->nctype < NETCHAN_OLD || p->nctype > NETCHAN_NEW)
-                return reject("Invalid netchan type.\n");
-        } else {
-            p->nctype = NETCHAN_NEW;
-        }
-
-        // set zlib
-        s = Cmd_Argv(7);
-        p->has_zlib = !*s || atoi(s);
-
-        // set minor protocol version
-        s = Cmd_Argv(8);
-        if (*s) {
-            p->version = atoi(s);
-            clamp(p->version,
-                  PROTOCOL_VERSION_Q2PRO_MINIMUM,
-                  PROTOCOL_VERSION_Q2PRO_CURRENT);
-            if (p->version == PROTOCOL_VERSION_Q2PRO_RESERVED) {
-                p->version--; // never use this version
-            }
-        } else {
-            p->version = PROTOCOL_VERSION_Q2PRO_MINIMUM;
-        }
-    }
+	// Left here as an example if we ever wish to parse.
+    // set minor protocol version
+	//s = Cmd_Argv(6);
+    //if (*s) {
+    //    p->version = atoi(s);
+    //    clamp(p->version,
+    //          PROTOCOL_VERSION_R1Q2_MINIMUM,
+    //          PROTOCOL_VERSION_R1Q2_CURRENT);
+    //} else {
+    //    p->version = PROTOCOL_VERSION_R1Q2_MINIMUM;
+    //}
 
     return true;
 }
@@ -1046,10 +1012,10 @@ static void append_extra_userinfo(conn_params_t *params, char *userinfo)
 
     Q_snprintf(userinfo + strlen(userinfo) + 1, MAX_INFO_STRING,
                "\\challenge\\%d\\ip\\%s"
-               "\\major\\%d\\minor\\%d\\netchan\\%d"
+               "\\major\\%d\\minor\\%d"
                "\\packetlen\\%d\\qport\\%d\\zlib\\%d",
                params->challenge, userinfo_ip_string(),
-               params->protocol, params->version, params->nctype,
+               params->protocol, params->version, 
                params->maxlength, params->qport, params->has_zlib);
 }
 
@@ -1125,7 +1091,7 @@ static void SVC_DirectConnect(void)
     }
 
     // setup netchan
-    Netchan_Setup(&newcl->netchan, NS_SERVER, ( netchan_type_t )params.nctype, &net_from,
+    Netchan_Setup(&newcl->netchan, NS_SERVER, NETCHAN_Q2RTXPERIMENTAL, &net_from,
                   params.qport, params.maxlength, params.protocol);
 
     // parse some info from the info strings
@@ -1133,7 +1099,7 @@ static void SVC_DirectConnect(void)
     SV_UserinfoChanged(newcl);
 
     // send the connect packet to the client
-    send_connect_packet(newcl, params.nctype);
+    send_connect_packet(newcl, NETCHAN_Q2RTXPERIMENTAL);
 
     SV_RateInit(&newcl->ratelimit_namechange, sv_namechange_limit->string);
 

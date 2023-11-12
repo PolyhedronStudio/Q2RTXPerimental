@@ -771,50 +771,15 @@ void Netchan_Setup(netchan_t *chan, netsrc_t sock, netchan_type_t type,
     chan->incoming_sequence = 0;
     chan->outgoing_sequence = 1;
 
-    switch (type) {
-    case NETCHAN_OLD:
-        chan->Process = NetchanOld_Process;
-        chan->Transmit = NetchanOld_Transmit;
-        chan->TransmitNextFragment = NetchanOld_TransmitNextFragment;
-        chan->ShouldUpdate = NetchanOld_ShouldUpdate;
+	chan->Process = NetchanQ2RTXPerimental_Process;
+	chan->Transmit = NetchanQ2RTXPerimental_Transmit;
+	chan->TransmitNextFragment = NetchanQ2RTXPerimental_TransmitNextFragment;
+	chan->ShouldUpdate = NetchanQ2RTXPerimental_ShouldUpdate;
 
-        chan->message_buf = static_cast<byte*>( Z_TagMalloc(maxpacketlen * 2, tag) );
-        chan->reliable_buf = chan->message_buf + maxpacketlen;
+	chan->message_buf = static_cast<byte *>( Z_TagMalloc( maxpacketlen * 2, tag ) );
+	chan->reliable_buf = chan->message_buf + maxpacketlen;
 
-        SZ_Init(&chan->message, chan->message_buf, maxpacketlen);
-        break;
-	// WID: net-code:
-	case NETCHAN_Q2RTXPERIMENTAL:
-		chan->Process = NetchanQ2RTXPerimental_Process;
-		chan->Transmit = NetchanQ2RTXPerimental_Transmit;
-		chan->TransmitNextFragment = NetchanQ2RTXPerimental_TransmitNextFragment;
-		chan->ShouldUpdate = NetchanQ2RTXPerimental_ShouldUpdate;
-
-		chan->message_buf = static_cast<byte *>( Z_TagMalloc( maxpacketlen * 2, tag ) );
-		chan->reliable_buf = chan->message_buf + maxpacketlen;
-
-		SZ_Init( &chan->message, chan->message_buf, maxpacketlen );
-		break;
-
-    case NETCHAN_NEW:
-        chan->Process = NetchanNew_Process;
-        chan->Transmit = NetchanNew_Transmit;
-        chan->TransmitNextFragment = NetchanNew_TransmitNextFragment;
-        chan->ShouldUpdate = NetchanNew_ShouldUpdate;
-
-        chan->message_buf = static_cast<byte*>( Z_TagMalloc(MAX_MSGLEN * 4, tag) );
-        chan->reliable_buf = chan->message_buf + MAX_MSGLEN;
-        chan->fragment_in_buf = chan->message_buf + MAX_MSGLEN * 2;
-        chan->fragment_out_buf = chan->message_buf + MAX_MSGLEN * 3;
-
-        SZ_Init(&chan->message, chan->message_buf, MAX_MSGLEN);
-        SZ_TagInit(&chan->fragment_in, chan->fragment_in_buf, MAX_MSGLEN, "nc_frg_in");
-        SZ_TagInit(&chan->fragment_out, chan->fragment_out_buf, MAX_MSGLEN, "nc_frg_out");
-        break;
-
-    default:
-        Q_assert(!"bad type");
-    }
+	SZ_Init( &chan->message, chan->message_buf, maxpacketlen );
 }
 
 /*

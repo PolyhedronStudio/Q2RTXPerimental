@@ -1151,11 +1151,11 @@ static void CL_ConnectionlessPacket(void)
 
     Cmd_TokenizeString(string, false);
 
+	// Get the first argument value, determining the 'action' to take:
     c = Cmd_Argv(0);
-
     Com_DPrintf("%s: %s\n", NET_AdrToString(&net_from), string);
 
-    // challenge from the server we are connecting to
+    // Action: challenge: challenge from the server we are connecting to
     if (!strcmp(c, "challenge")) {
         int mask = 0;
 
@@ -1177,52 +1177,39 @@ static void CL_ConnectionlessPacket(void)
         cls.connect_time -= CONNECT_INSTANT; // fire immediately
         //cls.connect_count = 0;
 
-        // parse additional parameters
-        j = Cmd_Argc();
-        for (i = 2; i < j; i++) {
-            s = Cmd_Argv(i);
-            if (!strncmp(s, "p=", 2)) {
-                s += 2;
-                while (*s) {
-                    k = strtoul(s, &s, 10);
-                    if (k == PROTOCOL_VERSION_R1Q2) {
-                        mask |= 1;
-                    } else if (k == PROTOCOL_VERSION_Q2PRO) {
-                        mask |= 2;
-                    }
-                    s = strchr(s, ',');
-                    if (s == NULL) {
-                        break;
-                    }
-                    s++;
-                }
-            }
-        }
+        // Parse additional parameters.
+		// Left as an example:
+        //j = Cmd_Argc();
+        //for (i = 2; i < j; i++) {
+        //    s = Cmd_Argv(i);
+        //    if (!strncmp(s, "p=", 2)) {
+        //        s += 2;
+        //        while (*s) {
+        //            k = strtoul(s, &s, 10);
+        //            if (k == PROTOCOL_VERSION_R1Q2) {
+        //                mask |= 1;
+        //            } else if (k == PROTOCOL_VERSION_Q2PRO) {
+        //                mask |= 2;
+        //            }
+        //            s = strchr(s, ',');
+        //            if (s == NULL) {
+        //                break;
+        //            }
+        //            s++;
+        //        }
+        //    }
+        //}
 
-        // choose supported protocol
-        switch (cls.serverProtocol) {
-        case PROTOCOL_VERSION_Q2PRO:
-            if (mask & 2) {
-                break;
-            }
-            cls.serverProtocol = PROTOCOL_VERSION_R1Q2;
-            // fall through
-        case PROTOCOL_VERSION_R1Q2:
-            if (mask & 1) {
-                break;
-            }
-            // fall through
-        default:
-            cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
-            break;
-        }
+		// WID: net-protocol2: Default to PROTOCOL_VERSION_Q2RTXPERIMENTAL;
+		cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
         Com_DPrintf("Selected protocol %d\n", cls.serverProtocol);
 
+		// Keep on sending connect messages by retrying if it timed out.
         CL_CheckForResend();
         return;
     }
 
-    // server connection
+    // Action: Server Connection: Connect command received.
     if (!strcmp(c, "client_connect")) {
         netchan_type_t type;
         char mapname[MAX_QPATH];
@@ -1241,12 +1228,12 @@ static void CL_ConnectionlessPacket(void)
             return;
         }
 
-        if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
-            type = NETCHAN_NEW;
-        } else {
-			// WID: net-code: Different Net Channel in place.
-            type = NETCHAN_Q2RTXPERIMENTAL; //NETCHAN_OLD;
-        }
+   //     if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
+   //         type = NETCHAN_NEW;
+   //     } else {
+			//// WID: net-code: Different Net Channel in place.
+   //         type = NETCHAN_Q2RTXPERIMENTAL; //NETCHAN_OLD;
+   //     }
 
         mapname[0] = 0;
 
@@ -1254,17 +1241,7 @@ static void CL_ConnectionlessPacket(void)
         j = Cmd_Argc();
         for (i = 1; i < j; i++) {
             s = Cmd_Argv(i);
-			 if (!strncmp(s, "nc=", 3)) {
-                s += 3;
-                if (*s) {
-                    type = static_cast<netchan_type_t>( atoi(s) ); // WID: C++20: Was without a cast.
-					// WID: net-code: Check for NETCHAN_Q2RTXPERIMENTAL as well.
-                    if (type != NETCHAN_OLD && type != NETCHAN_NEW && type != NETCHAN_Q2RTXPERIMENTAL ) {
-                        Com_Error(ERR_DISCONNECT,
-                                  "Server returned invalid netchan type");
-                    }
-                }
-            } else if (!strncmp(s, "map=", 4)) {
+			if (!strncmp(s, "map=", 4)) {
                 Q_strlcpy(mapname, s + 4, sizeof(mapname));
             } else if (!strncmp(s, "dlserver=", 9)) {
                 if (!got_server) {
@@ -1281,7 +1258,7 @@ static void CL_ConnectionlessPacket(void)
         Com_Printf("Connected to %s (protocol %d).\n",
                    NET_AdrToString(&cls.serverAddress), cls.serverProtocol);
         Netchan_Close(&cls.netchan);
-        Netchan_Setup(&cls.netchan, NS_CLIENT, type, &cls.serverAddress,
+        Netchan_Setup(&cls.netchan, NS_CLIENT, NETCHAN_Q2RTXPERIMENTAL, &cls.serverAddress,
                       cls.quakePort, 1024, cls.serverProtocol);
 
         CL_ClientCommand("new");
