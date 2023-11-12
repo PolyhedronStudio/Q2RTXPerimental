@@ -378,7 +378,7 @@ static bool compress_message(client_t *client, int flags)
     if (len >= msg_write.cursize)
         return false;
 
-	SV_AddClientMessage(client, buffer, len, flags & MSG_RELIABLE);
+	SV_WriteClientMessage(client, buffer, len, flags & MSG_RELIABLE);
     return true;
 }
 #else
@@ -409,7 +409,7 @@ void SV_ClientAddMessage(client_t *client, int flags)
     }
 
     if (!(flags & MSG_COMPRESS) || !compress_message(client, flags)) {
-		SV_AddClientMessage(client, msg_write.data, msg_write.cursize, flags & MSG_RELIABLE);
+		SV_WriteClientMessage(client, msg_write.data, msg_write.cursize, flags & MSG_RELIABLE);
     }
 
     if (flags & MSG_CLEAR) {
@@ -580,19 +580,6 @@ static inline void write_msg(client_t *client, message_packet_t *msg, size_t max
     free_msg_packet(client, msg);
 }
 
-static inline void write_unreliables(client_t *client, size_t maxsize)
-{
-    message_packet_t    *msg, *next;
-
-    FOR_EACH_MSG_SAFE(&client->msg_unreliable_list) {
-        if (msg->cursize) {
-            write_msg(client, msg, maxsize);
-        } else {
-            write_snd(client, msg, maxsize);
-        }
-    }
-}
-
 /*
 ===============================================================================
 
@@ -612,7 +599,7 @@ static inline void write_unreliables_q2rtxperimental( client_t *client, size_t m
 	}
 }
 
-static void SV_AddClientMessage( client_t *client, byte *data,
+void SV_WriteClientMessage( client_t *client, byte *data,
 							size_t len, bool reliable ) {
 	if ( len > client->netchan.maxpacketlen ) {
 		if ( reliable ) {
@@ -746,7 +733,8 @@ static void SV_WriteDatagram( client_t *client ) {
 	// so that entity references will be current
 	if ( msg_write.cursize + client->msg_unreliable_bytes > maxsize ) {
 		// throw out some low priority effects
-		write_unreliables_q2rtxperimental( client, maxsize );
+		repack_unreliables_q2rtxperimental( client, maxsize );
+		//write_unreliables_q2rtxperimental( client, maxsize );
 	} else {
 		// all messages fit, write them in order
 		write_unreliables_q2rtxperimental( client, maxsize );
@@ -765,75 +753,6 @@ static void SV_WriteDatagram( client_t *client ) {
 
 	// clear the write buffer
 	SZ_Clear( &msg_write );
-}
-
-/*
-===============================================================================
-
-FRAME UPDATES - NEW NETCHAN
-
-===============================================================================
-*/
-
-static void add_message_new(client_t *client, byte *data,
-                            size_t len, bool reliable)
-{
-    if (reliable) {
-        // don't packetize, netchan level will do fragmentation as needed
-        SZ_Write(&client->netchan.message, data, len);
-    } else {
-        // still have to packetize, relative sounds need special processing
-        add_msg_packet(client, data, len, false);
-    }
-}
-
-static void write_datagram_new(client_t *client)
-{
-    size_t cursize;
-
-    // send over all the relevant entity_state_t
-    // and the player_state_t
-	SV_WriteFrameToClient(client);
-
-    if (msg_write.overflowed) {
-        // should never really happen
-        Com_WPrintf("Frame overflowed for %s\n", client->name);
-        SZ_Clear(&msg_write);
-    }
-
-    // now write unreliable messages
-    // for this client out to the message
-    // it is necessary for this to be after the WriteFrame
-    // so that entity references will be current
-    if (msg_write.cursize + client->msg_unreliable_bytes > msg_write.maxsize) {
-        Com_WPrintf("Dumping datagram for %s\n", client->name);
-    } else {
-        write_unreliables(client, msg_write.maxsize);
-    }
-
-#if USE_DEBUG
-    if (sv_pad_packets->integer) {
-        size_t pad = msg_write.cursize + sv_pad_packets->integer;
-
-        if (pad > msg_write.maxsize) {
-            pad = msg_write.maxsize;
-        }
-        for (; pad > 0; pad--) {
-            MSG_WriteByte(svc_nop);
-        }
-    }
-#endif
-
-    // send the datagram
-    cursize = client->netchan.Transmit(&client->netchan,
-                                       msg_write.cursize,
-                                       msg_write.data );
-
-    // record the size for rate estimation
-    SV_CalcSendTime(client, cursize);
-
-    // clear the write buffer
-    SZ_Clear(&msg_write);
 }
 
 
@@ -988,9 +907,9 @@ void SV_SendAsyncPackets(void)
         }
 
 		// just update reliable if needed.
-		if ( netchan->type == NETCHAN_Q2RTXPERIMENTAL ) {
+		//if ( netchan->type == NETCHAN_Q2RTXPERIMENTAL ) {
 			write_reliables_q2rtxperimental( client, netchan->maxpacketlen );
-		}
+		//}
         // now fill up remaining buffer space with download
         write_pending_download(client);
 
@@ -1016,9 +935,6 @@ void SV_InitClientSend(client_t *newcl)
     for (i = 0; i < MSG_POOLSIZE; i++) {
         List_Append(&newcl->msg_free_list, &newcl->msg_pool[i].entry);
     }
-
-    // setup protocol
-	newcl->AddMessage = SV_AddClientMessage;
 }
 
 void SV_ShutdownClientSend(client_t *client)
