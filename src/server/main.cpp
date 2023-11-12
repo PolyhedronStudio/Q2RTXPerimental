@@ -927,61 +927,15 @@ static client_t *find_client_slot(conn_params_t *params)
 
 static void init_pmove_and_es_flags(client_t *newcl)
 {
-    int force;
-
     // copy default pmove parameters
     newcl->pmp = sv_pmp;
     newcl->pmp.airaccelerate = sv_airaccelerate->integer;
 
-    // common extensions
-    force = 2;
-    if (newcl->protocol >= PROTOCOL_VERSION_R1Q2) {
-        newcl->pmp.speedmult = 2;
-        force = 1;
-    }
-    newcl->pmp.strafehack = sv_strafejump_hack->integer >= force;
-
-    // r1q2 extensions
-    if (newcl->protocol == PROTOCOL_VERSION_R1Q2) {
-        // WID: C++20: Added cast.
-		//newcl->esFlags |= MSG_ES_BEAMORIGIN;
-		newcl->esFlags = static_cast<msgEsFlags_t>( newcl->esFlags | MSG_ES_BEAMORIGIN );
-        if (newcl->version >= PROTOCOL_VERSION_R1Q2_LONG_SOLID) {
-			// WID: C++20: Added cast.
-            //newcl->esFlags |= MSG_ES_LONGSOLID;
-			newcl->esFlags = static_cast<msgEsFlags_t>( newcl->esFlags | MSG_ES_LONGSOLID );
-        }
-    }
-
-    // q2pro extensions
-    force = 2;
-    if (newcl->protocol == PROTOCOL_VERSION_Q2PRO) {
-        if (sv_qwmod->integer) {
-            PmoveEnableQW(&newcl->pmp);
-        }
-        newcl->pmp.flyhack = true;
-        newcl->pmp.flyfriction = 4;
-		// WID: C++20: Added cast.
-        //newcl->esFlags |= MSG_ES_UMASK;
-		newcl->esFlags = static_cast<msgEsFlags_t>( newcl->esFlags | MSG_ES_UMASK );
-        if (newcl->version >= PROTOCOL_VERSION_Q2PRO_LONG_SOLID) {
-			// WID: C++20: Added cast.
-            //newcl->esFlags |= MSG_ES_LONGSOLID;
-			newcl->esFlags = static_cast<msgEsFlags_t>(newcl->esFlags | MSG_ES_LONGSOLID);
-        }
-        if (newcl->version >= PROTOCOL_VERSION_Q2PRO_BEAM_ORIGIN) {
-			// WID: C++20: Added cast.
-            //newcl->esFlags |= MSG_ES_BEAMORIGIN;
-			newcl->esFlags = static_cast<msgEsFlags_t>(newcl->esFlags | MSG_ES_BEAMORIGIN);
-        }
-        if (newcl->version >= PROTOCOL_VERSION_Q2PRO_WATERJUMP_HACK) {
-            force = 1;
-        }
-    }
-    newcl->pmp.waterhack = sv_waterjump_hack->integer >= force;
+    newcl->pmp.strafehack = sv_strafejump_hack->integer;
+    newcl->pmp.waterhack = sv_waterjump_hack->integer;
 }
 
-static void send_connect_packet(client_t *newcl, int nctype)
+static void SV_SendConnectPacket(client_t *newcl)
 {
     const char *dlstring1   = "";
     const char *dlstring2   = "";
@@ -1094,7 +1048,7 @@ static void SVC_DirectConnect(void)
     SV_UserinfoChanged(newcl);
 
     // send the connect packet to the client
-    send_connect_packet(newcl, NETCHAN_Q2RTXPERIMENTAL);
+    SV_SendConnectPacket(newcl);
 
     SV_RateInit(&newcl->ratelimit_namechange, sv_namechange_limit->string);
 
