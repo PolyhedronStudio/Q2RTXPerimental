@@ -195,7 +195,6 @@ void MSG_WriteAngle(float f)
 }
 
 #if USE_CLIENT
-
 /*
 =============
 MSG_WriteDeltaUsercmd
@@ -338,102 +337,6 @@ void MSG_FlushBits(void)
     msg_write.bits_buf  = 0;
     msg_write.bits_left = 32;
 }
-
-/*
-=============
-MSG_WriteDeltaUsercmd_Enhanced
-=============
-*/
-int MSG_WriteDeltaUsercmd_Enhanced(const usercmd_t *from,
-                                   const usercmd_t *cmd,
-                                   int       version)
-{
-    int     bits, delta, count;
-
-    if (!from) {
-        from = &nullUserCmd;
-    }
-
-//
-// send the movement message
-//
-    bits = 0;
-    if (cmd->angles[0] != from->angles[0])
-        bits |= CM_ANGLE1;
-    if (cmd->angles[1] != from->angles[1])
-        bits |= CM_ANGLE2;
-    if (cmd->angles[2] != from->angles[2])
-        bits |= CM_ANGLE3;
-    if (cmd->forwardmove != from->forwardmove)
-        bits |= CM_FORWARD;
-    if (cmd->sidemove != from->sidemove)
-        bits |= CM_SIDE;
-    if (cmd->upmove != from->upmove)
-        bits |= CM_UP;
-    if (cmd->buttons != from->buttons)
-        bits |= CM_BUTTONS;
-    if (cmd->msec != from->msec)
-        bits |= CM_IMPULSE;
-
-    if (!bits) {
-        MSG_WriteBits(0, 1);
-        return 0;
-    }
-
-    MSG_WriteBits(1, 1);
-    MSG_WriteBits(bits, 8);
-
-    if (bits & CM_ANGLE1) {
-        delta = cmd->angles[0] - from->angles[0];
-        if (delta >= -128 && delta <= 127) {
-            MSG_WriteBits(1, 1);
-            MSG_WriteBits(delta, -8);
-        } else {
-            MSG_WriteBits(0, 1);
-            MSG_WriteBits(cmd->angles[0], -16);
-        }
-    }
-    if (bits & CM_ANGLE2) {
-        delta = cmd->angles[1] - from->angles[1];
-        if (delta >= -128 && delta <= 127) {
-            MSG_WriteBits(1, 1);
-            MSG_WriteBits(delta, -8);
-        } else {
-            MSG_WriteBits(0, 1);
-            MSG_WriteBits(cmd->angles[1], -16);
-        }
-    }
-    if (bits & CM_ANGLE3) {
-        MSG_WriteBits(cmd->angles[2], -16);
-    }
-
-    if (version >= PROTOCOL_VERSION_Q2PRO_UCMD) {
-        count = -10;
-    } else {
-        count = -16;
-    }
-
-    if (bits & CM_FORWARD) {
-        MSG_WriteBits(cmd->forwardmove, count);
-    }
-    if (bits & CM_SIDE) {
-        MSG_WriteBits(cmd->sidemove, count);
-    }
-    if (bits & CM_UP) {
-        MSG_WriteBits(cmd->upmove, count);
-    }
-
-    if (bits & CM_BUTTONS) {
-        int buttons = (cmd->buttons & 3) | (cmd->buttons >> 5);
-        MSG_WriteBits(buttons, 3);
-    }
-    if (bits & CM_IMPULSE) {
-        MSG_WriteBits(cmd->msec, 8);
-    }
-
-    return bits;
-}
-
 #endif // USE_CLIENT
 
 void MSG_WriteDir(const vec3_t dir)
