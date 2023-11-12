@@ -205,7 +205,7 @@ SET(SRC_COMMON
 	common/files.cpp
 	common/math.cpp
 	common/mdfour.cpp
-	common/msg.cpp
+	common/messages.cpp
 	common/pmove.cpp
 	common/prompt.cpp
 	common/sizebuf.cpp

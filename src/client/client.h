@@ -30,7 +30,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/files.h"
 #include "common/pmove.h"
 #include "common/math.h"
-#include "common/msg.h"
+#include "common/messages.h"
 #include "common/net/chan.h"
 #include "common/net/net.h"
 #include "common/prompt.h"

@@ -123,6 +123,7 @@ extern "C" {
 	}
 
 
+
 	/**
 	*
 	*   "Packing" POD types.
@@ -157,6 +158,7 @@ extern "C" {
 	} msgEsFlags_t;
 
 
+
 	/**
 	*
 	*   Message Buffer functionality.
@@ -169,7 +171,7 @@ extern "C" {
 	//! Extern the access to the message "read" buffer.
 	extern sizebuf_t    msg_read;
 	extern byte         msg_read_buffer[ MAX_MSGLEN ];
-
+	
 	/**
 	*   @details    Initialize default buffers, clearing allow overflow/underflow flags.
 	*
@@ -179,30 +181,36 @@ extern "C" {
 	*               Reading buffer is reinitialized in many other places. Reinitializing will set
 	*               the allow underflow flag as appropriate.
 	**/
-	void    MSG_Init(void);
+	void MSG_Init( void );
+
 	/**
 	*   @brief	Resets the "Write" message buffer for a new write session.
 	**/
-	void    MSG_BeginWriting(void);
+	void MSG_BeginWriting( void );
 	/**
 	*	@brief	Will copy(by appending) the 'data' memory into the "Write" message buffer.
-	*			
+	*
 	*			Triggers Com_Errors in case of trouble such as 'Overflowing'.
 	**/
-	static inline void *MSG_WriteData( const void *data, size_t len ) {
-		return memcpy( SZ_GetSpace( &msg_write, len ), data, len );
-	}
+	void *MSG_WriteData( const void *data, const size_t len );
 	/**
 	*	@brief	Will copy(by appending) the "Write" message buffer into the 'data' memory.
 	*
 	*			Triggers Com_Errors in case of trouble such as 'Overflowing'.
-	*			
+	*
 	*			Will clear the "Write" message buffer after succesfully copying the data.
 	**/
-	static inline void MSG_FlushTo( sizebuf_t *buf ) {
-		SZ_Write( buf, msg_write.data, msg_write.cursize );
-		SZ_Clear( &msg_write );
-	}
+	void MSG_FlushTo( sizebuf_t *buf );
+
+	/**
+	*   @brief
+	**/
+	void MSG_BeginReading( void );
+	/**
+	*   @brief
+	**/
+	byte *MSG_ReadData( const size_t len );
+
 
 
 	/**
@@ -234,9 +242,21 @@ extern "C" {
 	*   Wire Types "Read" functionality.
 	*
 	**/
+	/**
+	*   @brief
+	**/
 	void    MSG_BeginReading(void);
+	/**
+	*   @brief
+	**/
 	byte    *MSG_ReadData(size_t len);
+	/**
+	*   @brief	Returns -1 if no more characters are available
+	**/
 	int     MSG_ReadChar(void);
+	/**
+	*   @brief	Returns -1 if no more characters are available
+	**/
 	int     MSG_ReadByte(void);
 	int     MSG_ReadShort(void);
 	int     MSG_ReadWord(void);

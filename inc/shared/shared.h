@@ -1290,6 +1290,7 @@ typedef enum {
 #define BASE_1_FRAMETIME        0.04f	// OLD: 0.01f   1/BASE_FRAMETIME
 #define BASE_FRAMETIME_1000     0.025f	// OLD: 0.1f    BASE_FRAMETIME/1000
 
+
 /**
 *
 *	Encode/Decode utilities

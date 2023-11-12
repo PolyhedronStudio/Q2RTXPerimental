@@ -25,7 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
-#include "common/msg.h"
+#include "common/messages.h"
 #include "common/net/net.h"
 #include "common/sizebuf.h"
 

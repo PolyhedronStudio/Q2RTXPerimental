@@ -17,30 +17,35 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "shared/shared.h"
-#include "common/msg.h"
+#include "common/messages.h"
 #include "common/protocol.h"
 #include "common/sizebuf.h"
 #include "common/math.h"
 #include "common/intreadwrite.h"
 
-/*
-==============================================================================
 
-            MESSAGE IO FUNCTIONS
-
-Handles byte ordering and avoids alignment errors
-==============================================================================
-*/
-
+/**
+*
+*   Message Buffer functionality.
+* 
+*	Handles byte ordering and avoids alignment errors
+*
+**/
+//! The one and single only write buffer. Only initialized just once.
 sizebuf_t   msg_write;
 byte        msg_write_buffer[MAX_MSGLEN];
 
+//! The one and single only read buffer. Reinitialized in various places.
 sizebuf_t   msg_read;
 byte        msg_read_buffer[MAX_MSGLEN];
 
+//! Baseline EntityState.
 const entity_packed_t   nullEntityState;
+//! Baseline PlayerState.
 const player_packed_t   nullPlayerState;
+//! Baseline UserCommand.
 const usercmd_t         nullUserCmd;
+
 
 /**
 *	@brief	Initialize default buffers, clearing allow overflow/underflow flags.
@@ -51,162 +56,155 @@ const usercmd_t         nullUserCmd;
 *	Reading buffer is reinitialized in many other places. Reinitializing will set
 *	the allow underflow flag as appropriate.
 **/
-void MSG_Init(void)
-{
-    SZ_TagInit(&msg_read, msg_read_buffer, MAX_MSGLEN, "msg_read");
-    SZ_TagInit(&msg_write, msg_write_buffer, MAX_MSGLEN, "msg_write");
+void MSG_Init( void ) {
+	SZ_TagInit( &msg_read, msg_read_buffer, MAX_MSGLEN, "msg_read" );
+	SZ_TagInit( &msg_write, msg_write_buffer, MAX_MSGLEN, "msg_write" );
+}
+
+/**
+*   @brief	Resets the "Write" message buffer for a new write session.
+**/
+void MSG_BeginWriting( void ) {
+	msg_write.cursize = 0;
+	msg_write.bits_buf = 0;
+	msg_write.bits_left = 32;
+	msg_write.overflowed = false;
+}
+/**
+*	@brief	Will copy(by appending) the 'data' memory into the "Write" message buffer.
+*
+*			Triggers Com_Errors in case of trouble such as 'Overflowing'.
+**/
+void *MSG_WriteData( const void *data, const size_t len ) {
+	return memcpy( SZ_GetSpace( &msg_write, len ), data, len );
+}
+/**
+*	@brief	Will copy(by appending) the "Write" message buffer into the 'data' memory.
+*
+*			Triggers Com_Errors in case of trouble such as 'Overflowing'.
+*
+*			Will clear the "Write" message buffer after succesfully copying the data.
+**/
+void MSG_FlushTo( sizebuf_t *buf ) {
+	SZ_Write( buf, msg_write.data, msg_write.cursize );
+	SZ_Clear( &msg_write );
+}
+
+/**
+*   @brief
+**/
+void MSG_BeginReading( void ) {
+	msg_read.readcount = 0;
+	msg_read.bits_buf = 0;
+	msg_read.bits_left = 0;
+}
+/**
+*   @brief
+**/
+byte *MSG_ReadData( const size_t len ) {
+	return static_cast<byte *>( SZ_ReadData( &msg_read, len ) ); // WID: C++20: Added cast.
 }
 
 
-/*****************************************************************************
-*
-*
-*
-*
-*
-*
-*	Message Writing:
-*
-*
-*
-*
-*
-*
-*****************************************************************************/
 
-/*
-=============
-MSG_BeginWriting
-=============
-*/
-void MSG_BeginWriting(void)
-{
-    msg_write.cursize = 0;
-    msg_write.bits_buf = 0;
-    msg_write.bits_left = 32;
-    msg_write.overflowed = false;
-}
-
-/*
-=============
-MSG_WriteChar
-=============
-*/
-void MSG_WriteChar(int c)
-{
+/**
+*
+*   Wire Types "Read" functionality.
+*
+**/
+/**
+*   @brief
+**/
+void MSG_WriteChar(int c) {
     byte    *buf;
-
-#ifdef PARANOID
-    Q_assert(c >= -128 && c <= 127);
-#endif
-
+	#ifdef PARANOID
+		Q_assert(c >= -128 && c <= 127);
+	#endif
     buf = static_cast<byte*>( SZ_GetSpace(&msg_write, 1) ); // WID: C++20: Added cast.
     buf[0] = c;
 }
 
-/*
-=============
-MSG_WriteByte
-=============
-*/
-void MSG_WriteByte(int c)
-{
+/**
+*   @brief
+**/
+void MSG_WriteByte(int c) {
     byte    *buf;
-
-#ifdef PARANOID
-    Q_assert(c >= 0 && c <= 255);
-#endif
-
+	#ifdef PARANOID
+		Q_assert(c >= 0 && c <= 255);
+	#endif
     buf = static_cast<byte*>( SZ_GetSpace(&msg_write, 1) );
     buf[0] = c;
 }
 
-/*
-=============
-MSG_WriteShort
-=============
-*/
-void MSG_WriteShort(int c)
-{
+/**
+*   @brief
+**/
+void MSG_WriteShort(int c) {
     byte    *buf;
-
-#ifdef PARANOID
-    Q_assert(c >= -0x8000 && c <= 0x7fff);
-#endif
-
+	#ifdef PARANOID
+		Q_assert(c >= -0x8000 && c <= 0x7fff);
+	#endif
     buf = static_cast<byte*>( SZ_GetSpace(&msg_write, 2) ); // WID: C++20: Added cast.
     WL16(buf, c);
 }
 
-/*
-=============
-MSG_WriteLong
-=============
-*/
-void MSG_WriteLong(int c)
-{
+/**
+*   @brief
+**/
+void MSG_WriteLong(int c) {
     byte    *buf;
-
     buf = static_cast<byte*>( SZ_GetSpace(&msg_write, 4) ); // WID: C++20: Added cast.
     WL32(buf, c);
 }
 
-/*
-=============
-MSG_WriteString
-=============
-*/
-void MSG_WriteString(const char *string)
-{
+/**
+*   @brief
+**/
+void MSG_WriteString(const char *string) {
     SZ_WriteString(&msg_write, string);
 }
 
-/*
-=============
-MSG_WriteCoord
-=============
-*/
-
-static inline void MSG_WriteCoord(float f)
-{
+/**
+*   @brief
+**/
+static inline void MSG_WriteCoord(float f) {
     MSG_WriteShort(COORD2SHORT(f));
 }
 
-/*
-=============
-MSG_WritePos
-=============
-*/
-void MSG_WritePos(const vec3_t pos)
-{
+/**
+*   @brief
+**/
+void MSG_WritePos(const vec3_t pos) {
     MSG_WriteCoord(pos[0]);
     MSG_WriteCoord(pos[1]);
     MSG_WriteCoord(pos[2]);
 }
 
-/*
-=============
-MSG_WriteAngle
-=============
-*/
-
-void MSG_WriteAngle(float f)
-{
+/**
+*   @brief
+**/
+void MSG_WriteAngle(float f) {
     MSG_WriteByte(ANGLE2BYTE(f));
 }
 
-
+/**
+*   @brief
+**/
 void MSG_WriteDir( const vec3_t dir ) {
-	int     best;
-
-	best = DirToByte( dir );
+	int32_t best = DirToByte( dir );
 	MSG_WriteByte( best );
 }
 
+/**
+*   @brief
+**/
 static inline int OFFSET2CHAR( float x ) {
 	return clamp( x, -32, 127.0f / 4 ) * 4;
 }
 
+/**
+*   @brief
+**/
 static inline int BLEND2BYTE( float x ) {
 	return clamp( x, 0, 1 ) * 255;
 }
@@ -865,19 +863,9 @@ int MSG_WriteDeltaUsercmd( const usercmd_t *from, const usercmd_t *cmd, int vers
 * 
 * 
 *****************************************************************************/
-void MSG_BeginReading(void)
-{
-    msg_read.readcount = 0;
-    msg_read.bits_buf  = 0;
-    msg_read.bits_left = 0;
-}
-
-byte *MSG_ReadData(size_t len)
-{
-    return static_cast<byte*>( SZ_ReadData(&msg_read, len) ); // WID: C++20: Added cast.
-}
-
-// returns -1 if no more characters are available
+/**
+*   @brief	Returns -1 if no more characters are available
+**/
 int MSG_ReadChar(void)
 {
     byte *buf = MSG_ReadData(1);
@@ -891,7 +879,9 @@ int MSG_ReadChar(void)
 
     return c;
 }
-
+/**
+*   @brief	Returns -1 if no more characters are available
+**/
 int MSG_ReadByte(void)
 {
     byte *buf = MSG_ReadData(1);
@@ -1394,10 +1384,11 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 *****************************************************************************/
 #if USE_DEBUG
 
-#define SHOWBITS(x) Com_LPrintf(PRINT_DEVELOPER, x " ")
-
+//#define SHOWBITS(x) Com_LPrintf(PRINT_DEVELOPER, x " ")
+static inline void SHOWBITS( const char *x ) {
+	Com_LPrintf( PRINT_DEVELOPER, "%s ", x );
+}
 #if USE_CLIENT
-
 void MSG_ShowDeltaPlayerstateBits( int flags ) {
 	#define S(b,s) if(flags&PS_##b) SHOWBITS(s)
 	S( M_TYPE, "pmove.pm_type" );
@@ -1418,11 +1409,6 @@ void MSG_ShowDeltaPlayerstateBits( int flags ) {
 	S( RDFLAGS, "rdflags" );
 	#undef S
 }
-
-#endif // USE_CLIENT
-
-#if USE_CLIENT
-
 void MSG_ShowDeltaEntityBits(int bits)
 {
 #define S(b,s) if(bits&U_##b) SHOWBITS(s)
