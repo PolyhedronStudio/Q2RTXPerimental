@@ -714,7 +714,7 @@ static void repack_unreliables_q2rtxperimental( client_t *client, size_t maxsize
 	}
 }
 
-static void write_datagram_q2rtxperimental( client_t *client ) {
+static void SV_WriteDatagram( client_t *client ) {
 	message_packet_t *msg;
 	size_t maxsize, cursize;
 
@@ -1063,7 +1063,7 @@ void SV_SendClientMessages(void)
 
         // build the new frame and write it
         SV_BuildClientFrame(client);
-        client->WriteDatagram(client);
+		SV_WriteDatagram(client);
 
 advance:
         // advance for next frame
@@ -1192,13 +1192,10 @@ void SV_InitClientSend(client_t *newcl)
     // setup protocol
     if (newcl->netchan.type == NETCHAN_NEW) {
         newcl->AddMessage = add_message_new;
-        newcl->WriteDatagram = write_datagram_new;
 	} if ( newcl->netchan.type == NETCHAN_Q2RTXPERIMENTAL ) {
 		newcl->AddMessage = add_message_q2rtxperimental;
-		newcl->WriteDatagram = write_datagram_q2rtxperimental;
 	} else {
         newcl->AddMessage = add_message_old;
-        newcl->WriteDatagram = write_datagram_old;
     }
 }
 

@@ -313,7 +313,6 @@ typedef struct client_s {
 
     // netchan type dependent methods
     void            (*AddMessage)(struct client_s *, byte *, size_t, bool);
-    void            (*WriteDatagram)(struct client_s *);
 
     // netchan
     netchan_t       netchan;
