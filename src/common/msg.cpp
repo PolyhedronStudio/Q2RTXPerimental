@@ -42,19 +42,15 @@ const entity_packed_t   nullEntityState;
 const player_packed_t   nullPlayerState;
 const usercmd_t         nullUserCmd;
 
-/*
-=============
-MSG_Init
-
-Initialize default buffers, clearing allow overflow/underflow flags.
-
-This is the only place where writing buffer is initialized. Writing buffer is
-never allowed to overflow.
-
-Reading buffer is reinitialized in many other places. Reinitializing will set
-the allow underflow flag as appropriate.
-=============
-*/
+/**
+*	@brief	Initialize default buffers, clearing allow overflow/underflow flags.
+*
+*	This is the only place where writing buffer is initialized. Writing buffer is
+*	never allowed to overflow.
+*
+*	Reading buffer is reinitialized in many other places. Reinitializing will set
+*	the allow underflow flag as appropriate.
+**/
 void MSG_Init(void)
 {
     SZ_TagInit(&msg_read, msg_read_buffer, MAX_MSGLEN, "msg_read");
@@ -62,13 +58,21 @@ void MSG_Init(void)
 }
 
 
-/*
-==============================================================================
-
-            WRITING
-
-==============================================================================
-*/
+/*****************************************************************************
+*
+*
+*
+*
+*
+*
+*	Message Writing:
+*
+*
+*
+*
+*
+*
+*****************************************************************************/
 
 /*
 =============
@@ -191,98 +195,23 @@ void MSG_WriteAngle(float f)
     MSG_WriteByte(ANGLE2BYTE(f));
 }
 
-#if USE_CLIENT
-/*
-=============
-MSG_WriteDeltaUsercmd
-=============
-*/
-int MSG_WriteDeltaUsercmd(const usercmd_t *from, const usercmd_t *cmd, int version)
-{
-    int     bits, buttons = cmd->buttons & BUTTON_MASK;
 
-    if (!from) {
-        from = &nullUserCmd;
-    }
+void MSG_WriteDir( const vec3_t dir ) {
+	int     best;
 
-//
-// send the movement message
-//
-    bits = 0;
-    if (cmd->angles[0] != from->angles[0])
-        bits |= CM_ANGLE1;
-    if (cmd->angles[1] != from->angles[1])
-        bits |= CM_ANGLE2;
-    if (cmd->angles[2] != from->angles[2])
-        bits |= CM_ANGLE3;
-    if (cmd->forwardmove != from->forwardmove)
-        bits |= CM_FORWARD;
-    if (cmd->sidemove != from->sidemove)
-        bits |= CM_SIDE;
-    if (cmd->upmove != from->upmove)
-        bits |= CM_UP;
-    if (cmd->buttons != from->buttons)
-        bits |= CM_BUTTONS;
-    if (cmd->impulse != from->impulse)
-        bits |= CM_IMPULSE;
-
-    MSG_WriteByte(bits);
-
-    if (version >= PROTOCOL_VERSION_R1Q2_UCMD) {
-        if (bits & CM_BUTTONS) {
-            if ((bits & CM_FORWARD) && !(cmd->forwardmove % 5)) {
-                buttons |= BUTTON_FORWARD;
-            }
-            if ((bits & CM_SIDE) && !(cmd->sidemove % 5)) {
-                buttons |= BUTTON_SIDE;
-            }
-            if ((bits & CM_UP) && !(cmd->upmove % 5)) {
-                buttons |= BUTTON_UP;
-            }
-            MSG_WriteByte(buttons);
-        }
-    }
-
-    if (bits & CM_ANGLE1)
-        MSG_WriteShort(cmd->angles[0]);
-    if (bits & CM_ANGLE2)
-        MSG_WriteShort(cmd->angles[1]);
-    if (bits & CM_ANGLE3)
-        MSG_WriteShort(cmd->angles[2]);
-
-    if (bits & CM_FORWARD) {
-        if (buttons & BUTTON_FORWARD) {
-            MSG_WriteChar(cmd->forwardmove / 5);
-        } else {
-            MSG_WriteShort(cmd->forwardmove);
-        }
-    }
-    if (bits & CM_SIDE) {
-        if (buttons & BUTTON_SIDE) {
-            MSG_WriteChar(cmd->sidemove / 5);
-        } else {
-            MSG_WriteShort(cmd->sidemove);
-        }
-    }
-    if (bits & CM_UP) {
-        if (buttons & BUTTON_UP) {
-            MSG_WriteChar(cmd->upmove / 5);
-        } else {
-            MSG_WriteShort(cmd->upmove);
-        }
-    }
-
-    if (version < PROTOCOL_VERSION_R1Q2_UCMD) {
-        if (bits & CM_BUTTONS)
-            MSG_WriteByte(cmd->buttons);
-    }
-    if (bits & CM_IMPULSE)
-        MSG_WriteByte(cmd->impulse);
-
-    MSG_WriteByte(cmd->msec);
-
-    return bits;
+	best = DirToByte( dir );
+	MSG_WriteByte( best );
 }
+
+static inline int OFFSET2CHAR( float x ) {
+	return clamp( x, -32, 127.0f / 4 ) * 4;
+}
+
+static inline int BLEND2BYTE( float x ) {
+	return clamp( x, 0, 1 ) * 255;
+}
+
+#if USE_CLIENT
 
 /*
 =============
@@ -336,12 +265,38 @@ void MSG_FlushBits(void)
 }
 #endif // USE_CLIENT
 
-void MSG_WriteDir(const vec3_t dir)
-{
-    int     best;
+void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
+	int i;
 
-    best = DirToByte(dir);
-    MSG_WriteByte(best);
+	out->pmove = in->pmove;
+	out->viewangles[ 0 ] = ANGLE2SHORT( in->viewangles[ 0 ] );
+	out->viewangles[ 1 ] = ANGLE2SHORT( in->viewangles[ 1 ] );
+	out->viewangles[ 2 ] = ANGLE2SHORT( in->viewangles[ 2 ] );
+	out->viewoffset[ 0 ] = OFFSET2CHAR( in->viewoffset[ 0 ] );
+	out->viewoffset[ 1 ] = OFFSET2CHAR( in->viewoffset[ 1 ] );
+	out->viewoffset[ 2 ] = OFFSET2CHAR( in->viewoffset[ 2 ] );
+	out->kick_angles[ 0 ] = OFFSET2CHAR( in->kick_angles[ 0 ] );
+	out->kick_angles[ 1 ] = OFFSET2CHAR( in->kick_angles[ 1 ] );
+	out->kick_angles[ 2 ] = OFFSET2CHAR( in->kick_angles[ 2 ] );
+	out->gunoffset[ 0 ] = OFFSET2CHAR( in->gunoffset[ 0 ] );
+	out->gunoffset[ 1 ] = OFFSET2CHAR( in->gunoffset[ 1 ] );
+	out->gunoffset[ 2 ] = OFFSET2CHAR( in->gunoffset[ 2 ] );
+	out->gunangles[ 0 ] = OFFSET2CHAR( in->gunangles[ 0 ] );
+	out->gunangles[ 1 ] = OFFSET2CHAR( in->gunangles[ 1 ] );
+	out->gunangles[ 2 ] = OFFSET2CHAR( in->gunangles[ 2 ] );
+	out->gunindex = in->gunindex;
+	out->gunframe = in->gunframe;
+	// WID: 40hz.
+	out->gunrate = ( in->gunrate == 10 ) ? 0 : in->gunrate;
+	// WID: 40hz.
+	out->blend[ 0 ] = BLEND2BYTE( in->blend[ 0 ] );
+	out->blend[ 1 ] = BLEND2BYTE( in->blend[ 1 ] );
+	out->blend[ 2 ] = BLEND2BYTE( in->blend[ 2 ] );
+	out->blend[ 3 ] = BLEND2BYTE( in->blend[ 3 ] );
+	out->fov = (int)in->fov;
+	out->rdflags = in->rdflags;
+	for ( i = 0; i < MAX_STATS; i++ )
+		out->stats[ i ] = in->stats[ i ];
 }
 
 void MSG_PackEntity(entity_packed_t *out, const entity_state_t *in, bool short_angles)
@@ -635,51 +590,6 @@ void MSG_WriteDeltaEntity(const entity_packed_t *from,
     }
 }
 
-static inline int OFFSET2CHAR(float x)
-{
-    return clamp(x, -32, 127.0f / 4) * 4;
-}
-
-static inline int BLEND2BYTE(float x)
-{
-    return clamp(x, 0, 1) * 255;
-}
-
-void MSG_PackPlayer(player_packed_t *out, const player_state_t *in)
-{
-    int i;
-
-    out->pmove = in->pmove;
-    out->viewangles[0] = ANGLE2SHORT(in->viewangles[0]);
-    out->viewangles[1] = ANGLE2SHORT(in->viewangles[1]);
-    out->viewangles[2] = ANGLE2SHORT(in->viewangles[2]);
-    out->viewoffset[0] = OFFSET2CHAR(in->viewoffset[0]);
-    out->viewoffset[1] = OFFSET2CHAR(in->viewoffset[1]);
-    out->viewoffset[2] = OFFSET2CHAR(in->viewoffset[2]);
-    out->kick_angles[0] = OFFSET2CHAR(in->kick_angles[0]);
-    out->kick_angles[1] = OFFSET2CHAR(in->kick_angles[1]);
-    out->kick_angles[2] = OFFSET2CHAR(in->kick_angles[2]);
-    out->gunoffset[0] = OFFSET2CHAR(in->gunoffset[0]);
-    out->gunoffset[1] = OFFSET2CHAR(in->gunoffset[1]);
-    out->gunoffset[2] = OFFSET2CHAR(in->gunoffset[2]);
-    out->gunangles[0] = OFFSET2CHAR(in->gunangles[0]);
-    out->gunangles[1] = OFFSET2CHAR(in->gunangles[1]);
-    out->gunangles[2] = OFFSET2CHAR(in->gunangles[2]);
-    out->gunindex = in->gunindex;
-    out->gunframe = in->gunframe;
-	// WID: 40hz.
-	out->gunrate = ( in->gunrate == 10 ) ? 0 : in->gunrate;
-	// WID: 40hz.
-    out->blend[0] = BLEND2BYTE(in->blend[0]);
-    out->blend[1] = BLEND2BYTE(in->blend[1]);
-    out->blend[2] = BLEND2BYTE(in->blend[2]);
-    out->blend[3] = BLEND2BYTE(in->blend[3]);
-    out->fov = (int)in->fov;
-    out->rdflags = in->rdflags;
-    for (i = 0; i < MAX_STATS; i++)
-        out->stats[i] = in->stats[i];
-}
-
 void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to ) {
 	int     i;
 	int     pflags;
@@ -849,12 +759,112 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 
 
 /*
-==============================================================================
-
-            READING
-
-==============================================================================
+=============
+MSG_WriteDeltaUsercmd
+=============
 */
+int MSG_WriteDeltaUsercmd( const usercmd_t *from, const usercmd_t *cmd, int version ) {
+	int     bits, buttons = cmd->buttons & BUTTON_MASK;
+
+	if ( !from ) {
+		from = &nullUserCmd;
+	}
+
+//
+// send the movement message
+//
+	bits = 0;
+	if ( cmd->angles[ 0 ] != from->angles[ 0 ] )
+		bits |= CM_ANGLE1;
+	if ( cmd->angles[ 1 ] != from->angles[ 1 ] )
+		bits |= CM_ANGLE2;
+	if ( cmd->angles[ 2 ] != from->angles[ 2 ] )
+		bits |= CM_ANGLE3;
+	if ( cmd->forwardmove != from->forwardmove )
+		bits |= CM_FORWARD;
+	if ( cmd->sidemove != from->sidemove )
+		bits |= CM_SIDE;
+	if ( cmd->upmove != from->upmove )
+		bits |= CM_UP;
+	if ( cmd->buttons != from->buttons )
+		bits |= CM_BUTTONS;
+	if ( cmd->impulse != from->impulse )
+		bits |= CM_IMPULSE;
+
+	MSG_WriteByte( bits );
+
+	if ( version >= PROTOCOL_VERSION_R1Q2_UCMD ) {
+		if ( bits & CM_BUTTONS ) {
+			if ( ( bits & CM_FORWARD ) && !( cmd->forwardmove % 5 ) ) {
+				buttons |= BUTTON_FORWARD;
+			}
+			if ( ( bits & CM_SIDE ) && !( cmd->sidemove % 5 ) ) {
+				buttons |= BUTTON_SIDE;
+			}
+			if ( ( bits & CM_UP ) && !( cmd->upmove % 5 ) ) {
+				buttons |= BUTTON_UP;
+			}
+			MSG_WriteByte( buttons );
+		}
+	}
+
+	if ( bits & CM_ANGLE1 )
+		MSG_WriteShort( cmd->angles[ 0 ] );
+	if ( bits & CM_ANGLE2 )
+		MSG_WriteShort( cmd->angles[ 1 ] );
+	if ( bits & CM_ANGLE3 )
+		MSG_WriteShort( cmd->angles[ 2 ] );
+
+	if ( bits & CM_FORWARD ) {
+		if ( buttons & BUTTON_FORWARD ) {
+			MSG_WriteChar( cmd->forwardmove / 5 );
+		} else {
+			MSG_WriteShort( cmd->forwardmove );
+		}
+	}
+	if ( bits & CM_SIDE ) {
+		if ( buttons & BUTTON_SIDE ) {
+			MSG_WriteChar( cmd->sidemove / 5 );
+		} else {
+			MSG_WriteShort( cmd->sidemove );
+		}
+	}
+	if ( bits & CM_UP ) {
+		if ( buttons & BUTTON_UP ) {
+			MSG_WriteChar( cmd->upmove / 5 );
+		} else {
+			MSG_WriteShort( cmd->upmove );
+		}
+	}
+
+	if ( version < PROTOCOL_VERSION_R1Q2_UCMD ) {
+		if ( bits & CM_BUTTONS )
+			MSG_WriteByte( cmd->buttons );
+	}
+	if ( bits & CM_IMPULSE )
+		MSG_WriteByte( cmd->impulse );
+
+	MSG_WriteByte( cmd->msec );
+
+	return bits;
+}
+
+
+/*****************************************************************************
+*
+* 
+* 
+* 
+* 
+* 
+*	Message Reading:
+* 
+* 
+* 
+* 
+* 
+* 
+*****************************************************************************/
 void MSG_BeginReading(void)
 {
     msg_read.readcount = 0;
@@ -1367,14 +1377,21 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 #endif // USE_CLIENT
 
 
-/*
-==============================================================================
-
-            DEBUGGING STUFF
-
-==============================================================================
-*/
-
+/*****************************************************************************
+*
+*
+*
+*
+*
+*
+*	Message Debugging:
+*
+*
+*
+*
+*
+*
+*****************************************************************************/
 #if USE_DEBUG
 
 #define SHOWBITS(x) Com_LPrintf(PRINT_DEVELOPER, x " ")

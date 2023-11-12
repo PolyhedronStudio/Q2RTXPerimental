@@ -31,7 +31,7 @@ extern "C" {
 // protocol.h -- communications protocols
 //
 
-#define MAX_MSGLEN  0x8000  // max length of a message, 32k
+#define MAX_MSGLEN  0x10000  // max length of a message, 64k
 
 #define PROTOCOL_VERSION_OLD        26
 // WID: net-code: This is the 'DEFAULT' protocol code, renamed the definition to Q2RTXPERIMENTAL. 
