@@ -200,41 +200,14 @@ static void CL_ParseFrame(int extrabits)
     cl.frameflags = 0;
 
     extraflags = 0;
-    if (cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-        bits = MSG_ReadLong();
+    currentframe = MSG_ReadLong();
+    deltaframe = MSG_ReadLong();
 
-        currentframe = bits & FRAMENUM_MASK;
-        delta = bits >> FRAMENUM_BITS;
-
-        if (delta == 31) {
-            deltaframe = -1;
-        } else {
-            deltaframe = currentframe - delta;
-        }
-
-        bits = MSG_ReadByte();
-
-        suppressed = bits & SUPPRESSCOUNT_MASK;
-        if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
-            if (suppressed & FF_CLIENTPRED) {
-                // CLIENTDROP is implied, don't draw both
-                suppressed &= ~FF_CLIENTDROP;
-            }
-            cl.frameflags |= suppressed;
-        } else if (suppressed) {
+    // BIG HACK to let old demos continue to work
+    if (cls.serverProtocol != PROTOCOL_VERSION_OLD) {
+        suppressed = MSG_ReadByte();
+        if (suppressed) {
             cl.frameflags |= FF_SUPPRESSED;
-        }
-        extraflags = (extrabits << 4) | (bits >> SUPPRESSCOUNT_BITS);
-    } else {
-        currentframe = MSG_ReadLong();
-        deltaframe = MSG_ReadLong();
-
-        // BIG HACK to let old demos continue to work
-        if (cls.serverProtocol != PROTOCOL_VERSION_OLD) {
-            suppressed = MSG_ReadByte();
-            if (suppressed) {
-                cl.frameflags |= FF_SUPPRESSED;
-            }
         }
     }
 
@@ -310,41 +283,14 @@ static void CL_ParseFrame(int extrabits)
 
     // parse playerstate
     bits = MSG_ReadWord();
-    if (cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-        MSG_ParseDeltaPlayerstate_Enhanced(from, &frame.ps, bits, extraflags);
-#if USE_DEBUG
-        if (cl_shownet->integer > 2 && (bits || extraflags)) {
-            MSG_ShowDeltaPlayerstateBits_Enhanced(bits, extraflags);
-            Com_LPrintf(PRINT_DEVELOPER, "\n");
-        }
-#endif
-        if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
-            // parse clientNum
-            if (extraflags & EPS_CLIENTNUM) {
-                if (cls.protocolVersion < PROTOCOL_VERSION_Q2PRO_CLIENTNUM_SHORT) {
-                    frame.clientNum = MSG_ReadByte();
-                } else {
-                    frame.clientNum = MSG_ReadShort();
-                }
-                if (!VALIDATE_CLIENTNUM(frame.clientNum)) {
-                    Com_Error(ERR_DROP, "%s: bad clientNum", __func__);
-                }
-            } else if (oldframe) {
-                frame.clientNum = oldframe->clientNum;
-            }
-        } else {
-            frame.clientNum = cl.clientNum;
-        }
-    } else {
-        MSG_ParseDeltaPlayerstate_Q2RTXPerimental(from, &frame.ps, bits);
+	MSG_ParseDeltaPlayerstate(from, &frame.ps, bits);
 #if USE_DEBUG
         if (cl_shownet->integer > 2 && bits) {
-            MSG_ShowDeltaPlayerstateBits_Q2RTXPerimental(bits);
+            MSG_ShowDeltaPlayerstateBits(bits);
             Com_LPrintf(PRINT_DEVELOPER, "\n");
         }
 #endif
-        frame.clientNum = cl.clientNum;
-    }
+	frame.clientNum = cl.clientNum;
 
     // parse packetentities
     if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {

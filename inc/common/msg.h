@@ -163,22 +163,15 @@ void    MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *cmd);
 int     MSG_ParseEntityBits(int *bits);
 void    MSG_ParseDeltaEntity(const entity_state_t *from, entity_state_t *to, int number, int bits, msgEsFlags_t flags);
 #if USE_CLIENT
-void    MSG_ParseDeltaPlayerstate_Q2RTXPerimental( const player_state_t *from, player_state_t *to, int flags );
-//void    MSG_ParseDeltaPlayerstate_Default(const player_state_t *from, player_state_t *to, int flags);
-void    MSG_ParseDeltaPlayerstate_Enhanced(const player_state_t *from, player_state_t *to, int flags, int extraflags);
+void    MSG_ParseDeltaPlayerstate( const player_state_t *from, player_state_t *to, int flags );
 #endif
-void    MSG_ParseDeltaPlayerstate_Packet(const player_state_t *from, player_state_t *to, int flags);
 
 #if USE_DEBUG
 #if USE_CLIENT
-void    MSG_ShowDeltaPlayerstateBits_Q2RTXPerimental( int flags );
-//void    MSG_ShowDeltaPlayerstateBits_Default(int flags);
-void    MSG_ShowDeltaPlayerstateBits_Enhanced(int flags, int extraflags);
-void    MSG_ShowDeltaUsercmdBits_Enhanced(int bits);
+void    MSG_ShowDeltaPlayerstateBits( int flags );
 #endif
 #if USE_CLIENT
 void    MSG_ShowDeltaEntityBits(int bits);
-void    MSG_ShowDeltaPlayerstateBits_Packet(int flags);
 const char *MSG_ServerCommandString(int cmd);
 #define MSG_ShowSVC(cmd) \
     Com_LPrintf(PRINT_DEVELOPER, "%3zu:%s\n", msg_read.readcount - 1, \
