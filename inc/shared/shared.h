@@ -1269,6 +1269,8 @@ typedef enum {
 #define UF_MUTE_MISC        32
 #define UF_PLAYERFOV        64
 
+
+
 /*
 ==========================================================
 
@@ -1296,12 +1298,12 @@ typedef enum {
 /**
 *	Byte to Angles/Angles to Bytes.
 **/
-// Used for 'wiring' angles, encoded in a 'byte/int8_t'.
+//! Used for 'wiring' angles, encoded in a 'byte/int8_t'.
 static inline const uint8_t ANGLE2BYTE( const float coord ) {
 	//#define ANGLE2BYTE(x)   ((int)((x)*256.0f/360)&255)
 	return ( (int)( ( coord ) * 256.0f / 360 ) & 255 );
 }
-// Used for decoding the 'wired' angle in a 'float'.
+//! Used for decoding the 'wired' angle in a 'float'.
 static inline const float BYTE2ANGLE( const int s ) {
 	//#define BYTE2ANGLE(x)   ((x)*(360.0f/256))
 	return ( ( s ) * ( 360.0f / 256 ) );
@@ -1309,12 +1311,12 @@ static inline const float BYTE2ANGLE( const int s ) {
 /**
 *	Short to Angles/Angles to Shorts.
 **/
-// Used for 'wiring' angles encoded in a 'short/int16_t'.
+//! Used for 'wiring' angles encoded in a 'short/int16_t'.
 static inline const int16_t ANGLE2SHORT( const float coord ) {
 	//#define ANGLE2SHORT(x)  ((int)((x)*65536/360) & 65535)
 	return ( (int)( ( coord ) * 65536 / 360 ) & 65535 );
 }
-// Used for decoding the 'wired' angle in a 'float'.
+//! Used for decoding the 'wired' angle in a 'float'.
 static inline const float SHORT2ANGLE( const int s ) {
 	//#define SHORT2ANGLE(x)  ((x)*(360.0f/65536))
 	return ( ( s ) * ( 360.0f / 65536 ) );
@@ -1322,12 +1324,12 @@ static inline const float SHORT2ANGLE( const int s ) {
 /**
 *	Short to Origin/Origin to float.
 **/
-// Used for 'wiring' origins encoded in a 'short/int16_t'..
+//! Used for 'wiring' origins encoded in a 'short/int16_t'..
 static inline const int16_t COORD2SHORT( const float coord ) {
 	//#define COORD2SHORT(x)  ((int)((x)*8.0f))
 	return ( (int)( ( coord ) * 8.0f ) );
 }
-// Used for decoding the 'wired' origin in a 'float'.
+//! Used for decoding the 'wired' origin in a 'float'.
 static inline const float SHORT2COORD( const int s ) {
 	//#define SHORT2COORD(x)  ((x)*(1.0f/8))
 	return ( ( s ) * ( 1.0f / 8 ) );

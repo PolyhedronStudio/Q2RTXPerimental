@@ -186,88 +186,6 @@ static request_t *CL_FindRequest(void)
 
 //======================================================================
 
-static void CL_UpdateGunSetting(void)
-{
-    int nogun;
-
-    if (cls.netchan.protocol < PROTOCOL_VERSION_R1Q2) {
-        return;
-    }
-
-    if (cl_player_model->integer == CL_PLAYER_MODEL_DISABLED || info_hand->integer == 2) {
-        nogun = 1;
-    } else {
-        nogun = 0;
-    }
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_NOGUN);
-    MSG_WriteShort(nogun);
-    MSG_FlushTo(&cls.netchan.message);
-}
-
-static void CL_UpdateGibSetting(void)
-{
-    if (cls.netchan.protocol != PROTOCOL_VERSION_Q2PRO) {
-        return;
-    }
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_NOGIBS);
-    MSG_WriteShort(!cl_gibs->integer);
-    MSG_FlushTo(&cls.netchan.message);
-}
-
-static void CL_UpdateFootstepsSetting(void)
-{
-    if (cls.netchan.protocol != PROTOCOL_VERSION_Q2PRO) {
-        return;
-    }
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_NOFOOTSTEPS);
-    MSG_WriteShort(!cl_footsteps->integer);
-    MSG_FlushTo(&cls.netchan.message);
-}
-
-static void CL_UpdatePredictSetting(void)
-{
-    if (cls.netchan.protocol != PROTOCOL_VERSION_Q2PRO) {
-        return;
-    }
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_NOPREDICT);
-    MSG_WriteShort(!cl_predict->integer);
-    MSG_FlushTo(&cls.netchan.message);
-}
-
-void CL_UpdateRecordingSetting(void)
-{
-    int rec;
-
-    if (cls.netchan.protocol < PROTOCOL_VERSION_R1Q2) {
-        return;
-    }
-
-    if (cls.demo.recording) {
-        rec = 1;
-    } else {
-        rec = 0;
-    }
-
-#if USE_CLIENT_GTV
-    if (cls.gtv.state == ca_active) {
-        rec |= 1;
-    }
-#endif
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_RECORDING);
-    MSG_WriteShort(rec);
-    MSG_FlushTo(&cls.netchan.message);
-}
-
 /*
 ===================
 CL_ClientCommand
@@ -1630,15 +1548,6 @@ Called after all downloads are done. Not used for demos.
 */
 void CL_Begin(void)
 {
-#if USE_REF == REF_GL
-    if (!Q_stricmp(cl.gamedir, "gloom")) {
-        // cheat protect our custom modulate cvars
-        gl_modulate_world->flags |= CVAR_CHEAT;
-        gl_modulate_entities->flags |= CVAR_CHEAT;
-        gl_brightness->flags |= CVAR_CHEAT;
-    }
-#endif
-
     Cvar_FixCheats();
 
     CL_PrepRefresh();
@@ -1649,13 +1558,6 @@ void CL_Begin(void)
     cls.state = ca_precached;
 
     CL_ClientCommand(va("begin %i\n", precache_spawncount));
-
-    CL_UpdateGunSetting();
-    CL_UpdateBlendSetting();
-    CL_UpdateGibSetting();
-    CL_UpdateFootstepsSetting();
-    CL_UpdatePredictSetting();
-    CL_UpdateRecordingSetting();
 }
 
 /*
@@ -2443,31 +2345,6 @@ static void exec_server_string(cmdbuf_t *buf, const char *text)
     Cmd_ExecuteCommand(buf);
 }
 
-static void cl_player_model_changed(cvar_t *self)
-{
-    CL_UpdateGunSetting();
-}
-
-static void info_hand_changed(cvar_t *self)
-{
-    CL_UpdateGunSetting();
-}
-
-static void cl_gibs_changed(cvar_t *self)
-{
-    CL_UpdateGibSetting();
-}
-
-static void cl_footsteps_changed(cvar_t *self)
-{
-    CL_UpdateFootstepsSetting();
-}
-
-static void cl_predict_changed(cvar_t *self)
-{
-    CL_UpdatePredictSetting();
-}
-
 static inline int fps_to_msec(int fps)
 {
 #if 0
@@ -2629,11 +2506,9 @@ static void CL_InitLocal(void)
     cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
     cl_gun_z = Cvar_Get("cl_gun_z", "0", 0);
     cl_footsteps = Cvar_Get("cl_footsteps", "1", 0);
-    cl_footsteps->changed = cl_footsteps_changed;
     cl_noskins = Cvar_Get("cl_noskins", "0", 0);
     cl_noskins->changed = cl_noskins_changed;
     cl_predict = Cvar_Get("cl_predict", "1", 0);
-    cl_predict->changed = cl_predict_changed;
     cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
     cl_warn_on_fps_rounding = Cvar_Get("cl_warn_on_fps_rounding", "1", 0);
     cl_maxfps = Cvar_Get("cl_maxfps", "62", 0);
@@ -2668,7 +2543,6 @@ static void CL_InitLocal(void)
     rcon_address->generator = Com_Address_g;
 
 	cl_player_model = Cvar_Get("cl_player_model", va("%d", CL_PLAYER_MODEL_FIRST_PERSON), CVAR_ARCHIVE);
-	cl_player_model->changed = cl_player_model_changed;
     cl_thirdperson_angle = Cvar_Get("cl_thirdperson_angle", "0", 0);
     cl_thirdperson_range = Cvar_Get("cl_thirdperson_range", "60", 0);
 
@@ -2679,7 +2553,6 @@ static void CL_InitLocal(void)
     cl_dlight_hacks = Cvar_Get("cl_dlight_hacks", "0", 0);
 
     cl_gibs = Cvar_Get("cl_gibs", "1", 0);
-    cl_gibs->changed = cl_gibs_changed;
 
     cl_chat_notify = Cvar_Get("cl_chat_notify", "1", 0);
     cl_chat_sound = Cvar_Get("cl_chat_sound", "1", 0);
@@ -2713,7 +2586,6 @@ static void CL_InitLocal(void)
     info_rate = Cvar_Get("rate", std::to_string( CLIENT_RATE_MIN ).c_str(), CVAR_USERINFO | CVAR_ARCHIVE );
     info_msg = Cvar_Get("msg", "1", CVAR_USERINFO | CVAR_ARCHIVE);
     info_hand = Cvar_Get("hand", "0", CVAR_USERINFO | CVAR_ARCHIVE);
-    info_hand->changed = info_hand_changed;
     info_fov = Cvar_Get("fov", "75", CVAR_USERINFO | CVAR_ARCHIVE);
     info_gender = Cvar_Get("gender", "male", CVAR_USERINFO | CVAR_ARCHIVE);
     info_gender->modified = false; // clear this so we know when user sets it manually

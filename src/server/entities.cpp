@@ -311,51 +311,8 @@ void SV_WriteFrameToClient_Enhanced(client_t *client)
 
     // ignore some parts of playerstate if not recording demo
     psFlags = static_cast<msgPsFlags_t>( 0 );
-    if (!client->settings[CLS_RECORDING]) {
-        if (client->settings[CLS_NOGUN]) {
-			// WID: C++20:
-            //psFlags |= MSG_PS_IGNORE_GUNFRAMES;
-			psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_GUNFRAMES );
-            if (client->settings[CLS_NOGUN] != 2) {
-				// WID: C++20:
-                //psFlags |= MSG_PS_IGNORE_GUNINDEX;
-				psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_GUNINDEX );
-            }
-        }
-        if (client->settings[CLS_NOBLEND]) {
-            //psFlags |= MSG_PS_IGNORE_BLEND;
-			// WID: C++20:
-			psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_BLEND );
-        }
-        if (frame->ps.pmove.pm_type < PM_DEAD) {
-            if (!(frame->ps.pmove.pm_flags & PMF_NO_PREDICTION)) {
-				//psFlags |= MSG_PS_IGNORE_VIEWANGLES;
-				// WID: C++20:
-				psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_VIEWANGLES );
-            }
-        } else {
-            // lying dead on a rotating platform?
-            //psFlags |= MSG_PS_IGNORE_DELTAANGLES;
-			// WID: C++20:
-			psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_DELTAANGLES );
-
-        }
-    }
-
     clientEntityNum = 0;
-    if (client->protocol == PROTOCOL_VERSION_Q2PRO) {
-        if (frame->ps.pmove.pm_type < PM_DEAD && !client->settings[CLS_RECORDING]) {
-            clientEntityNum = frame->clientNum + 1;
-        }
-        if (client->settings[CLS_NOPREDICT]) {
-            //psFlags |= MSG_PS_IGNORE_PREDICTION;
-			// WID: C++20:
-			psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_PREDICTION );
-        }
-        suppressed = client->frameflags;
-    } else {
-        suppressed = client->suppress_count;
-    }
+	suppressed = client->suppress_count;
 
     // delta encode the playerstate
     extraflags = MSG_WriteDeltaPlayerstate_Enhanced(oldstate, &frame->ps, psFlags);
@@ -508,13 +465,6 @@ void SV_BuildClientFrame(client_t *client)
             if (!ent->s.event) {
                 continue;
             }
-            if (ent->s.event == EV_FOOTSTEP && client->settings[CLS_NOFOOTSTEPS]) {
-                continue;
-            }
-        }
-
-        if ((ent->s.effects & EF_GIB) && client->settings[CLS_NOGIBS]) {
-            continue;
         }
 
         ent_visible = true;
@@ -588,13 +538,13 @@ void SV_BuildClientFrame(client_t *client)
         MSG_PackEntity(state, &es, Q2PRO_SHORTANGLES(client, e));
 
         // clear footsteps
-        if (state->event == EV_FOOTSTEP && client->settings[CLS_NOFOOTSTEPS]) {
-            state->event = 0;
-        }
+        //if (state->event == EV_FOOTSTEP && client->settings[CLS_NOFOOTSTEPS]) {
+        //    state->event = 0;
+        //}
 
         // hide POV entity from renderer, unless this is player's own entity
         if (e == frame->clientNum + 1 && ent != clent &&
-            (!Q2PRO_OPTIMIZE(client) || need_clientnum_fix)) {
+            (/*!Q2PRO_OPTIMIZE(client) || */need_clientnum_fix)) {
             state->modelindex = 0;
         }
 

@@ -1226,21 +1226,6 @@ static void SV_ParseDeltaUserinfo(void)
     SV_UpdateUserinfo();
 }
 
-static void SV_ParseClientSetting(void)
-{
-    int idx, value;
-
-    idx = MSG_ReadShort();
-    value = MSG_ReadShort();
-
-    Com_DDPrintf("%s(%s): [%d] = %d\n", __func__, sv_client->name, idx, value);
-
-    if (idx < 0 || idx >= CLS_MAX)
-        return;
-
-    sv_client->settings[idx] = value;
-}
-
 static void SV_ParseClientCommand(void)
 {
     char buffer[MAX_STRING_CHARS];
@@ -1310,13 +1295,6 @@ badbyte:
 
         case clc_stringcmd:
             SV_ParseClientCommand();
-            break;
-
-        case clc_setting:
-            if (client->protocol < PROTOCOL_VERSION_R1Q2)
-                goto badbyte;
-
-            SV_ParseClientSetting();
             break;
 
         case clc_userinfo_delta:

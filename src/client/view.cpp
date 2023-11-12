@@ -383,20 +383,6 @@ static void V_TestLights(void)
 
 #endif
 
-//===================================================================
-
-void CL_UpdateBlendSetting(void)
-{
-    if (cls.netchan.protocol < PROTOCOL_VERSION_R1Q2) {
-        return;
-    }
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_NOBLEND);
-    MSG_WriteShort(!cl_add_blend->integer);
-    MSG_FlushTo(&cls.netchan.message);
-}
-
 //============================================================================
 
 // gun frame debugging functions
@@ -606,7 +592,6 @@ static const cmdreg_t v_cmds[] = {
 
 static void cl_add_blend_changed(cvar_t *self)
 {
-    CL_UpdateBlendSetting();
 }
 
 static void cl_flashlight_offset_changed(cvar_t *self)

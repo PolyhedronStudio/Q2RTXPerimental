@@ -593,7 +593,6 @@ void CL_GM_Shutdown( );
 void CL_Init(void);
 void CL_Quit_f(void);
 void CL_Disconnect(error_type_t type);
-void CL_UpdateRecordingSetting(void);
 void CL_Begin(void);
 void CL_CheckForResend(void);
 void CL_ClearState(void);
@@ -735,7 +734,6 @@ void V_AddLight(const vec3_t org, float intensity, float r, float g, float b);
 void V_AddSphereLight(const vec3_t org, float intensity, float r, float g, float b, float radius);
 void V_AddSpotLight(const vec3_t org, const vec3_t dir, float intensity, float r, float g, float b, float width_angle, float falloff_angle);
 void V_AddLightStyle(int style, float value);
-void CL_UpdateBlendSetting(void);
 
 
 //

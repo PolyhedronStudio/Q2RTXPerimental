@@ -331,14 +331,6 @@ static bool can_compress_message(client_t *client)
     if (!client->has_zlib)
         return false;
 
-    // older clients have problems seamlessly writing svc_zpackets
-    if (client->settings[CLS_RECORDING]) {
-        if (client->protocol != PROTOCOL_VERSION_Q2PRO)
-            return false;
-        if (client->version < PROTOCOL_VERSION_Q2PRO_EXTENDED_LAYOUT)
-            return false;
-    }
-
     // compress only sufficiently large layouts
     if (msg_write.cursize < client->netchan.maxpacketlen / 2)
         return false;
