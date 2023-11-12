@@ -161,9 +161,9 @@ static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
     MSG_PackPlayer(&newpack, &to->ps);
     if (from) {
         MSG_PackPlayer(&oldpack, &from->ps);
-        MSG_WriteDeltaPlayerstate_Q2RTXPerimental(&oldpack, &newpack);
+        MSG_WriteDeltaPlayerstate(&oldpack, &newpack);
     } else {
-		MSG_WriteDeltaPlayerstate_Q2RTXPerimental(NULL, &newpack);
+		MSG_WriteDeltaPlayerstate(NULL, &newpack);
     }
 
     // delta encode the entities

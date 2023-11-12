@@ -128,10 +128,7 @@ void    MSG_WriteDir(const vec3_t vector);
 void    MSG_PackEntity(entity_packed_t *out, const entity_state_t *in, bool short_angles);
 void    MSG_WriteDeltaEntity(const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags);
 void    MSG_PackPlayer(player_packed_t *out, const player_state_t *in);
-void    MSG_WriteDeltaPlayerstate_Q2RTXPerimental( const player_packed_t *from, const player_packed_t *to );
-//void    MSG_WriteDeltaPlayerstate_Default(const player_packed_t *from, const player_packed_t *to);
-int     MSG_WriteDeltaPlayerstate_Enhanced(const player_packed_t *from, player_packed_t *to, msgPsFlags_t flags);
-void    MSG_WriteDeltaPlayerstate_Packet(const player_packed_t *from, const player_packed_t *to, int number, msgPsFlags_t flags);
+void    MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to );
 
 static inline void *MSG_WriteData(const void *data, size_t len)
 {

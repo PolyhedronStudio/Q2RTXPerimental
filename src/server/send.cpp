@@ -734,7 +734,7 @@ static void write_datagram_q2rtxperimental( client_t *client ) {
 
 	// send over all the relevant entity_state_t
 	// and the player_state_t
-	client->WriteFrame( client );
+	SV_WriteFrameToClient( client );
 	if ( msg_write.cursize > maxsize ) {
 		SV_DPrintf( 0, "Frame %d overflowed for %s: %zu > %zu\n",
 				   client->framenum, client->name, msg_write.cursize, maxsize );
@@ -902,7 +902,7 @@ static void write_datagram_old(client_t *client)
 
     // send over all the relevant entity_state_t
     // and the player_state_t
-    client->WriteFrame(client);
+	SV_WriteFrameToClient(client);
     if (msg_write.cursize > maxsize) {
         SV_DPrintf(0, "Frame %d overflowed for %s: %zu > %zu\n",
                    client->framenum, client->name, msg_write.cursize, maxsize);
@@ -961,7 +961,7 @@ static void write_datagram_new(client_t *client)
 
     // send over all the relevant entity_state_t
     // and the player_state_t
-    client->WriteFrame(client);
+	SV_WriteFrameToClient(client);
 
     if (msg_write.overflowed) {
         // should never really happen

@@ -1139,12 +1139,6 @@ static void SVC_DirectConnect(void)
 
     SV_InitClientSend(newcl);
 
-    if (newcl->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-        newcl->WriteFrame = SV_WriteFrameToClient_Q2RTXPerimental;
-    } else {
-        newcl->WriteFrame = SV_WriteFrameToClient_Enhanced;
-    }
-
     // loopback client doesn't need to reconnect
     if (NET_IsLocalAddress(&net_from)) {
         newcl->reconnected = true;

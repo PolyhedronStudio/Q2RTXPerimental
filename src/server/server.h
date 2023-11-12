@@ -313,7 +313,6 @@ typedef struct client_s {
 
     // netchan type dependent methods
     void            (*AddMessage)(struct client_s *, byte *, size_t, bool);
-    void            (*WriteFrame)(struct client_s *);
     void            (*WriteDatagram)(struct client_s *);
 
     // netchan
@@ -588,7 +587,7 @@ void SV_PrintMiscInfo(void);
     ((s)->modelindex || (s)->effects || (s)->sound || (s)->event)
 
 void SV_BuildClientFrame(client_t *client);
-void SV_WriteFrameToClient_Q2RTXPerimental( client_t *client );
+void SV_WriteFrameToClient( client_t *client );
 //void SV_WriteFrameToClient_Default(client_t *client);
 void SV_WriteFrameToClient_Enhanced(client_t *client);
 
