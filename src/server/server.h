@@ -311,12 +311,8 @@ typedef struct client_s {
     int             spawncount;
     int             maxclients;
 
-    // netchan type dependent methods
-    void            (*AddMessage)(struct client_s *, byte *, size_t, bool);
-
     // netchan
     netchan_t       netchan;
-    //int             numpackets; // for that nasty packetdup hack
 
     // misc
     time_t          connect_time; // time of initial connect
