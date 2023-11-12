@@ -373,12 +373,12 @@ void SV_New_f(void)
         return;
 
     // send gamestate
-    if (sv_client->netchan.type == NETCHAN_NEW) {
-        write_gamestate();
-    } else {
+    //if (sv_client->netchan.type == NETCHAN_NEW) {
+    //    write_gamestate();
+    //} else {
         write_configstrings();
         write_baselines();
-    }
+    //}
 
     // send next command
     SV_ClientCommand(sv_client, "precache %i\n", sv_client->spawncount);

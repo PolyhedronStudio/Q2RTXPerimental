@@ -320,8 +320,8 @@ void SV_Multicast(const vec3_t origin, multicast_t to)
 #if USE_ZLIB
 static size_t max_compressed_len(client_t *client)
 {
-    if (client->netchan.type == NETCHAN_NEW)
-        return MAX_MSGLEN - ZPACKET_HEADER;
+    //if (client->netchan.type == NETCHAN_NEW)
+    //    return MAX_MSGLEN - ZPACKET_HEADER;
 
     return client->netchan.maxpacketlen - ZPACKET_HEADER;
 }

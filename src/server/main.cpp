@@ -979,25 +979,16 @@ static void init_pmove_and_es_flags(client_t *newcl)
 
 static void send_connect_packet(client_t *newcl, int nctype)
 {
-    const char *ncstring    = "";
-    const char *acstring    = "";
     const char *dlstring1   = "";
     const char *dlstring2   = "";
-
-    if (newcl->protocol == PROTOCOL_VERSION_Q2PRO) {
-        if (nctype == NETCHAN_NEW)
-            ncstring = " nc=1";
-        else
-            ncstring = " nc=0";
-    }
 
     if (sv_downloadserver->string[0]) {
         dlstring1 = " dlserver=";
         dlstring2 = sv_downloadserver->string;
     }
 
-    Netchan_OutOfBand(NS_SERVER, &net_from, "client_connect%s%s%s%s map=%s",
-					  ncstring, "", dlstring1, dlstring2, newcl->mapname );
+    Netchan_OutOfBand(NS_SERVER, &net_from, "client_connect%s%s map=%s",
+					  dlstring1, dlstring2, newcl->mapname );
 }
 
 // converts all the extra positional parameters to `connect' command into an
@@ -1507,20 +1498,17 @@ static void update_client_mtu(client_t *client, int ee_info)
     netchan_t *netchan = &client->netchan;
     size_t newpacketlen;
 
+	// WID: net-protocol2: We do a straight up return, since our work is based on the old protocol.
+	// TODO: old clients require entire queue flush :(
+	//if ( netchan->type == NETCHAN_OLD )
+		return;
+
     // sanity check discovered MTU
     if (ee_info < 576 || ee_info > 4096)
         return;
 
     if (client->state != cs_primed)
         return;
-
-    // TODO: old clients require entire queue flush :(
-    if (netchan->type == NETCHAN_OLD)
-        return;
-	// WID: net-code: Ours is based on the code of OLD thus:
-	if ( netchan->type == NETCHAN_Q2RTXPERIMENTAL ) {
-		return;
-	}
 
     if (!netchan->reliable_length)
         return;
