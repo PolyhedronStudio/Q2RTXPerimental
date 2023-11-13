@@ -60,10 +60,10 @@ static inline void CL_ParseDeltaEntity(server_frame_t  *frame,
 static void CL_ParsePacketEntities(server_frame_t *oldframe,
                                    server_frame_t *frame)
 {
-    int            newnum;
-    int            bits;
-    entity_state_t    *oldstate;
-    int            oldindex, oldnum;
+    int32_t newnum = 0;
+    uint32_t bits = 0;
+    entity_state_t *oldstate = nullptr;
+    int oldindex, oldnum;
     int i;
 
     frame->firstEntity = cl.numEntityStates;
@@ -85,7 +85,11 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
     }
 
     while (1) {
-        newnum = MSG_ParseEntityBits(&bits);
+		bool removeEntity = false;
+
+		// Read out entity number, whether to remove it or not, and its byteMask.
+		newnum = MSG_ReadEntityNumber( &removeEntity, &bits );
+
         if (newnum < 0 || newnum >= MAX_EDICTS) {
             Com_Error(ERR_DROP, "%s: bad number: %d", __func__, newnum);
         }
@@ -114,7 +118,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
             }
         }
 
-        if (bits & U_REMOVE) {
+        if ( removeEntity ) {
             // the entity present in oldframe is not in the current frame
             SHOWNET(2, "   remove: %i\n", newnum);
             if (oldnum != newnum) {
@@ -397,10 +401,8 @@ static void CL_ParseBaseline(int index, int bits)
 // bytes, entire game state is compressed into a single stream.
 static void CL_ParseGamestate(void)
 {
-    int        index, bits;
-
     while (msg_read.readcount < msg_read.cursize) {
-        index = MSG_ReadInt16();
+        const int32_t index = MSG_ReadInt16();
         if (index == MAX_CONFIGSTRINGS) {
             break;
         }
@@ -408,11 +410,14 @@ static void CL_ParseGamestate(void)
     }
 
     while (msg_read.readcount < msg_read.cursize) {
-        index = MSG_ParseEntityBits(&bits);
-        if (!index) {
-            break;
-        }
-        CL_ParseBaseline(index, bits);
+		bool remove = false; // Unused here.
+		uint32_t byteMask = 0;
+		const int32_t index = MSG_ReadEntityNumber( &remove, &byteMask );
+		if ( !index ) {
+			break;
+		}
+
+        CL_ParseBaseline(index, byteMask);
     }
 }
 
@@ -1093,10 +1098,13 @@ badbyte:
             S_ParseStartSound();
             break;
 
-        case svc_spawnbaseline:
-            index = MSG_ParseEntityBits(&bits);
-            CL_ParseBaseline(index, bits);
+        case svc_spawnbaseline: {
+			uint32_t byteMask = 0;
+			bool removeEntity = false;
+			index = MSG_ReadEntityNumber( &removeEntity, &byteMask );
+			CL_ParseBaseline( index, byteMask );
             break;
+		}
 
         case svc_temp_entity:
             CL_ParseTEntPacket();

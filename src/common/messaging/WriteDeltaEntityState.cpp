@@ -64,6 +64,14 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_
 }
 
 /**
+*   @brief  Writes entity number, remove bit, and the byte mask to buffer.
+**/
+void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint32_t byteMask) {
+    MSG_WriteIntBase128(number * (remove ? -1 : 1));
+    MSG_WriteUintBase128(byteMask);
+}
+
+/**
 *   @brief Writes the delta values of the entity state.
 **/
 void MSG_WriteDeltaEntity( const entity_packed_t *from,
@@ -75,21 +83,11 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 		if ( !from )
 			Com_Error( ERR_DROP, "%s: NULL", __func__ );
 
-		if ( from->number < 1 || from->number >= MAX_EDICTS )
+		if ( from->number < 1 || from->number >= MAX_PACKET_ENTITIES )
 			Com_Error( ERR_DROP, "%s: bad number: %d", __func__, from->number );
 
-		bits = U_REMOVE;
-		if ( from->number & 0xff00 )
-			bits |= U_NUMBER16 | U_MOREBITS1;
-
-		MSG_WriteUint8( bits & 255 );
-		if ( bits & 0x0000ff00 )
-			MSG_WriteUint8( ( bits >> 8 ) & 255 );
-
-		if ( bits & U_NUMBER16 )
-			MSG_WriteInt16( from->number );
-		else
-			MSG_WriteUint8( from->number );
+		// Write out entity number with a remove bit set.
+		MSG_WriteEntityNumber( from->number, true, 0 );
 
 		return; // remove entity
 	}
@@ -206,40 +204,7 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	if ( !bits && !( flags & MSG_ES_FORCE ) )
 		return;     // nothing to send!
 
-	if ( flags & MSG_ES_REMOVE )
-		bits |= U_REMOVE; // used for MVD stream only
-
-	//----------
-
-	if ( to->number & 0xff00 )
-		bits |= U_NUMBER16;     // number8 is implicit otherwise
-
-	if ( bits & 0xff000000 )
-		bits |= U_MOREBITS3 | U_MOREBITS2 | U_MOREBITS1;
-	else if ( bits & 0x00ff0000 )
-		bits |= U_MOREBITS2 | U_MOREBITS1;
-	else if ( bits & 0x0000ff00 )
-		bits |= U_MOREBITS1;
-
-	MSG_WriteUint8( bits & 255 );
-
-	if ( bits & 0xff000000 ) {
-		MSG_WriteUint8( ( bits >> 8 ) & 255 );
-		MSG_WriteUint8( ( bits >> 16 ) & 255 );
-		MSG_WriteUint8( ( bits >> 24 ) & 255 );
-	} else if ( bits & 0x00ff0000 ) {
-		MSG_WriteUint8( ( bits >> 8 ) & 255 );
-		MSG_WriteUint8( ( bits >> 16 ) & 255 );
-	} else if ( bits & 0x0000ff00 ) {
-		MSG_WriteUint8( ( bits >> 8 ) & 255 );
-	}
-
-	//----------
-
-	if ( bits & U_NUMBER16 )
-		MSG_WriteInt16( to->number );
-	else
-		MSG_WriteUint8( to->number );
+	MSG_WriteEntityNumber( to->number, false, bits );
 
 	if ( bits & U_MODEL )
 		MSG_WriteUint8( to->modelindex );

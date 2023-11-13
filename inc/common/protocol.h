@@ -313,20 +313,21 @@ typedef enum {
 #define U_ORIGIN2   (1<<1)
 #define U_ANGLE2    (1<<2)
 #define U_ANGLE3    (1<<3)
-#define U_FRAME8    (1<<4)        // frame is a byte
+#define U_FRAME8    (1<<4)			// frame is a byte
 #define U_EVENT     (1<<5)
-#define U_REMOVE    (1<<6)        // REMOVE this entity, don't add it
-#define U_MOREBITS1 (1<<7)        // read one additional byte
+#define U_REMOVE    (1<<6)			// REMOVE this entity, don't add it
+#define U_UNUSED1   (1<<7)			//#define U_MOREBITS1 (1<<7)        // read one additional byte
+
 
 // second byte
-#define U_NUMBER16  (1<<8)        // NUMBER8 is implicit if not set
+#define U_NUMBER16  (1<<8)			// NUMBER8 is implicit if not set
 #define U_ORIGIN3   (1<<9)
 #define U_ANGLE1    (1<<10)
 #define U_MODEL     (1<<11)
-#define U_RENDERFX8 (1<<12)        // fullbright, etc
+#define U_RENDERFX8 (1<<12)			// fullbright, etc
 #define U_ANGLE16   (1<<13)
-#define U_EFFECTS8  (1<<14)        // autorotate, trails, etc
-#define U_MOREBITS2 (1<<15)        // read one additional byte
+#define U_EFFECTS8  (1<<14)			// autorotate, trails, etc
+#define U_UNUSED2	(1<<15)			//#define U_MOREBITS2 (1<<15)        // read one additional byte
 
 // third byte
 #define U_SKIN8         (1<<16)
@@ -336,7 +337,7 @@ typedef enum {
 #define U_MODEL2        (1<<20)     // weapons, flags, etc
 #define U_MODEL3        (1<<21)
 #define U_MODEL4        (1<<22)
-#define U_MOREBITS3     (1<<23)     // read one additional byte
+#define U_UNUSED3		(1<<23)		//#define U_MOREBITS3     (1<<23)     // read one additional byte
 
 // fourth byte
 #define U_OLDORIGIN     (1<<24)     // FIXME: get rid of this

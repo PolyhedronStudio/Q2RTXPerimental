@@ -26,32 +26,24 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #if USE_CLIENT
 /**
-*	@brief	Returns the entity number and the header bits, representing a masks of what variables to delta.
+* @brief Reads out entity number of current message in the buffer.
+*
+* @param remove     Set to true in case a remove bit was send along the wire..
+* @param byteMask   Mask containing all the bits of message data to read out.
+*
+* @return   The entity number.
 **/
-int MSG_ParseEntityBits( int *bits ) {
-	unsigned    b, total;
-	int         number;
+const int32_t MSG_ReadEntityNumber( bool *remove, uint32_t *byteMask ) {
+	int32_t number;
 
-	total = MSG_ReadUint8( );
-	if ( total & U_MOREBITS1 ) {
-		b = MSG_ReadUint8( );
-		total |= b << 8;
-	}
-	if ( total & U_MOREBITS2 ) {
-		b = MSG_ReadUint8( );
-		total |= b << 16;
-	}
-	if ( total & U_MOREBITS3 ) {
-		b = MSG_ReadUint8( );
-		total |= b << 24;
-	}
+	*remove = false;
+	number = (int32_t)MSG_ReadIntBase128( );
+	*byteMask = MSG_ReadUintBase128( );
 
-	if ( total & U_NUMBER16 )
-		number = MSG_ReadInt16( );
-	else
-		number = MSG_ReadUint8( );
-
-	*bits = total;
+	if ( number < 0 ) {
+		number *= -1;
+		*remove = true;
+	}
 
 	return number;
 }

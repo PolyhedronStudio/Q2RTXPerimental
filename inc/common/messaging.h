@@ -320,16 +320,20 @@ extern "C" {
 	/**
 	*   @brief Write a client's delta move command.
 	**/
-	int     MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int version );
+	int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int version );
 	#endif
+	/**
+	*   @brief  Writes entity number, remove bit, and the byte mask to buffer.
+	**/
+	void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint32_t byteMask );
 	/**
 	*   @brief Writes the delta values of the entity state.
 	**/
-	void    MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags );
+	void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags );
 	/**
 	*   @brief Writes the delta player state.
 	**/
-	void    MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to );
+	void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to );
 
 
 
@@ -408,21 +412,27 @@ extern "C" {
 	/**
 	*   @brief Read a client's delta move command.
 	**/
-	void    MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *cmd );
+	void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *cmd );
 	/**
-	*	@brief	Returns the entity number and the header bits, representing a masks of what variables to delta.
+	* @brief Reads out entity number of current message in the buffer.
+	*
+	* @param remove     Set to true in case a remove bit was send along the wire..
+	* @param byteMask   Mask containing all the bits of message data to read out.
+	*
+	* @return   The entity number.
 	**/
-	int     MSG_ParseEntityBits( int *bits );
+	const int32_t MSG_ReadEntityNumber( bool *remove, uint32_t *byteMask );
+
 	/**
 	*   @brief Reads the delta entity state, can go from either a baseline or a previous packet Entity State.
 	**/
-	void    MSG_ParseDeltaEntity( const entity_state_t *from, entity_state_t *to, int number, int bits, msgEsFlags_t flags );
+	void MSG_ParseDeltaEntity( const entity_state_t *from, entity_state_t *to, int number, int bits, msgEsFlags_t flags );
 	#if USE_CLIENT
 		/**
 		*   @brief  Parses the delta packets of player states.
 		*			Can go from either a baseline or a previous packet_entity
 		**/
-		void    MSG_ParseDeltaPlayerstate( const player_state_t *from, player_state_t *to, int flags );
+		void MSG_ParseDeltaPlayerstate( const player_state_t *from, player_state_t *to, int flags );
 	#endif
 
 
