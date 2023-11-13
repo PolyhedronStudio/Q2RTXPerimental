@@ -378,7 +378,7 @@ static bool compress_message(client_t *client, int flags)
     if (len >= msg_write.cursize)
         return false;
 
-	SV_WriteClientMessage(client, buffer, len, flags & MSG_RELIABLE);
+	SV_AddMessage(client, buffer, len, flags & MSG_RELIABLE);
     return true;
 }
 #else
@@ -409,7 +409,7 @@ void SV_ClientAddMessage(client_t *client, int flags)
     }
 
     if (!(flags & MSG_COMPRESS) || !compress_message(client, flags)) {
-		SV_WriteClientMessage(client, msg_write.data, msg_write.cursize, flags & MSG_RELIABLE);
+		SV_AddMessage(client, msg_write.data, msg_write.cursize, flags & MSG_RELIABLE);
     }
 
     if (flags & MSG_CLEAR) {
@@ -599,7 +599,7 @@ static inline void write_unreliables_q2rtxperimental( client_t *client, size_t m
 	}
 }
 
-void SV_WriteClientMessage( client_t *client, byte *data,
+void SV_AddMessage( client_t *client, byte *data,
 							size_t len, bool reliable ) {
 	if ( len > client->netchan.maxpacketlen ) {
 		if ( reliable ) {

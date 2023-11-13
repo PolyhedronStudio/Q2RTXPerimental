@@ -1253,7 +1253,7 @@ void SV_ExecuteClientMessage(client_t *client)
         if (c == -1)
             break;
 
-        switch (c & SVCMD_MASK) {
+        switch (c) {
         default:
 badbyte:
             SV_DropClient(client, "unknown command byte");

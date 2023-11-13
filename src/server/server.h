@@ -552,7 +552,7 @@ void SV_BroadcastPrintf(int level, const char *fmt, ...) q_printf(2, 3);
 void SV_ClientCommand(client_t *cl, const char *fmt, ...) q_printf(2, 3);
 void SV_BroadcastCommand(const char *fmt, ...) q_printf(1, 2);
 void SV_ClientAddMessage(client_t *client, int flags);
-void SV_WriteClientMessage( client_t *client, byte *data,
+void SV_AddMessage( client_t *client, byte *data,
 							size_t len, bool reliable );
 void SV_ShutdownClientSend(client_t *client);
 void SV_InitClientSend(client_t *newcl);
