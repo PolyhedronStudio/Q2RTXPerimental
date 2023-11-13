@@ -33,7 +33,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *
 * @return   The entity number.
 **/
-const int32_t MSG_ReadEntityNumber( bool *remove, uint32_t *byteMask ) {
+const int32_t MSG_ReadEntityNumber( bool *remove, uint64_t *byteMask ) {
 	int32_t number;
 
 	*remove = false;

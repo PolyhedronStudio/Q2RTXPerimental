@@ -344,6 +344,50 @@ typedef enum {
 #define U_SKIN16        (1<<25)
 #define U_SOUND         (1<<26)
 #define U_SOLID         (1<<27)
+#define U_UNUSED4		(1<<28)
+#define U_UNUSED5		(1<<29)
+#define U_UNUSED6		(1<<30)
+#define U_UNUSED7		(1<<31)
+
+// fifth byte
+#define U_UNUSED8		(1<<32)
+#define U_UNUSED9		(1<<33)
+#define U_UNUSED10		(1<<34)
+#define U_UNUSED11		(1<<35)
+#define U_UNUSED12		(1<<36)
+#define U_UNUSED13		(1<<37)
+#define U_UNUSED14		(1<<38)
+#define U_UNUSED15		(1<<39)
+
+// sixth byte
+#define U_UNUSED16		(1<<40)
+#define U_UNUSED17		(1<<41)
+#define U_UNUSED18		(1<<42)
+#define U_UNUSED19		(1<<43)
+#define U_UNUSED20		(1<<44)
+#define U_UNUSED21		(1<<45)
+#define U_UNUSED22		(1<<46)
+#define U_UNUSED23		(1<<47)
+
+// seventh byte
+#define U_UNUSED24		(1<<48)
+#define U_UNUSED25		(1<<49)
+#define U_UNUSED26		(1<<50)
+#define U_UNUSED27		(1<<51)
+#define U_UNUSED28		(1<<52)
+#define U_UNUSED29		(1<<53)
+#define U_UNUSED30		(1<<54)
+#define U_UNUSED31		(1<<55)
+
+// eigth byte
+#define U_UNUSED32		(1<<56)
+#define U_UNUSED33		(1<<57)
+#define U_UNUSED34		(1<<58)
+#define U_UNUSED35		(1<<59)
+#define U_UNUSED36		(1<<60)
+#define U_UNUSED37		(1<<61)
+#define U_UNUSED38		(1<<62)
+#define U_UNUSED39		(1<<63)
 
 // ==============================================================
 

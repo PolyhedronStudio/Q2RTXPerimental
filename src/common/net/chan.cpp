@@ -214,10 +214,18 @@ void Netchan_Setup(netchan_t *chan, netsrc_t sock, netchan_type_t type,
     chan->incoming_sequence = 0;
     chan->outgoing_sequence = 1;
 
-	chan->message_buf = static_cast<byte *>( Z_TagMalloc( maxpacketlen * 2, tag ) );
-	chan->reliable_buf = chan->message_buf + maxpacketlen;
+	//chan->message_buf = static_cast<byte *>( Z_TagMalloc( maxpacketlen * 2, tag ) );
+	//chan->reliable_buf = chan->message_buf + maxpacketlen;
 
-	SZ_Init( &chan->message, chan->message_buf, maxpacketlen );
+	//SZ_Init( &chan->message, chan->message_buf, maxpacketlen );
+	chan->message_buf = static_cast<byte*>( Z_TagMalloc( MAX_MSGLEN * 4, tag ) );
+	chan->reliable_buf = chan->message_buf + MAX_MSGLEN;
+	chan->fragment_in_buf = chan->message_buf + MAX_MSGLEN * 2;
+	chan->fragment_out_buf = chan->message_buf + MAX_MSGLEN * 3;
+
+	SZ_Init( &chan->message, chan->message_buf, MAX_MSGLEN );
+	SZ_TagInit( &chan->fragment_in, chan->fragment_in_buf, MAX_MSGLEN, "nc_frg_in" );
+	SZ_TagInit( &chan->fragment_out, chan->fragment_out_buf, MAX_MSGLEN, "nc_frg_out" );
 }
 
 /*

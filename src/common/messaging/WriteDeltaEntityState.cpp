@@ -66,7 +66,7 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_
 /**
 *   @brief  Writes entity number, remove bit, and the byte mask to buffer.
 **/
-void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint32_t byteMask) {
+void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint64_t byteMask) {
     MSG_WriteIntBase128(number * (remove ? -1 : 1));
     MSG_WriteUintBase128(byteMask);
 }
@@ -77,7 +77,7 @@ void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint3
 void MSG_WriteDeltaEntity( const entity_packed_t *from,
 						  const entity_packed_t *to,
 						  msgEsFlags_t          flags ) {
-	uint32_t    bits, mask;
+	uint64_t    bits, mask;
 
 	if ( !to ) {
 		if ( !from )

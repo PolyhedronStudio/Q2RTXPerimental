@@ -61,7 +61,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
                                    server_frame_t *frame)
 {
     int32_t newnum = 0;
-    uint32_t bits = 0;
+    uint64_t bits = 0;
     entity_state_t *oldstate = nullptr;
     int oldindex, oldnum;
     int i;
@@ -411,7 +411,7 @@ static void CL_ParseGamestate(void)
 
     while (msg_read.readcount < msg_read.cursize) {
 		bool remove = false; // Unused here.
-		uint32_t byteMask = 0;
+		uint64_t byteMask = 0;
 		const int32_t index = MSG_ReadEntityNumber( &remove, &byteMask );
 		if ( !index ) {
 			break;
@@ -1099,7 +1099,7 @@ badbyte:
             break;
 
         case svc_spawnbaseline: {
-			uint32_t byteMask = 0;
+			uint64_t byteMask = 0;
 			bool removeEntity = false;
 			index = MSG_ReadEntityNumber( &removeEntity, &byteMask );
 			CL_ParseBaseline( index, byteMask );

@@ -325,7 +325,7 @@ extern "C" {
 	/**
 	*   @brief  Writes entity number, remove bit, and the byte mask to buffer.
 	**/
-	void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint32_t byteMask );
+	void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint64_t byteMask );
 	/**
 	*   @brief Writes the delta values of the entity state.
 	**/
@@ -421,7 +421,7 @@ extern "C" {
 	*
 	* @return   The entity number.
 	**/
-	const int32_t MSG_ReadEntityNumber( bool *remove, uint32_t *byteMask );
+	const int32_t MSG_ReadEntityNumber( bool *remove, uint64_t *byteMask );
 
 	/**
 	*   @brief Reads the delta entity state, can go from either a baseline or a previous packet Entity State.
