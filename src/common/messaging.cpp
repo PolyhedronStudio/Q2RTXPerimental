@@ -332,6 +332,7 @@ const int64_t MSG_ReadInt64( void ) {
 
 	return c;
 }
+
 /**
 *   @return Base 128 decoded unsigned integer.
 **/

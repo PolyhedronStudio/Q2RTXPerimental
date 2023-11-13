@@ -75,7 +75,7 @@ void *SZ_GetSpace( sizebuf_t *buf, const size_t len ) {
 	return data;
 }
 
-void SZ_WriteUint8( sizebuf_t *sb, const int32_t c ) {
+void SZ_WriteUint8( sizebuf_t *sb, const uint32_t c ) {
 	byte *buf;
 
 	buf = static_cast<byte *>( SZ_GetSpace( sb, 1 ) ); // WID: C++20: Added cast.
@@ -89,11 +89,38 @@ void SZ_WriteInt16( sizebuf_t *sb, const int32_t c ) {
 	WL16( buf, c );
 }
 
+void SZ_WriteUint16( sizebuf_t *sb, const uint32_t c ) {
+	byte *buf;
+
+	buf = static_cast<byte *>( SZ_GetSpace( sb, 2 ) ); // WID: C++20: Added cast.
+	WL16( buf, c );
+}
+
 void SZ_WriteInt32( sizebuf_t *sb, const int32_t c ) {
 	byte *buf;
 
 	buf = static_cast<byte *>( SZ_GetSpace( sb, 4 ) );
 	WL32( buf, c );
+}
+void SZ_WriteUint32( sizebuf_t *sb, const uint32_t c ) {
+	byte *buf;
+
+	buf = static_cast<byte *>( SZ_GetSpace( sb, 4 ) );
+	WL32( buf, c );
+}
+
+void SZ_WriteInt64( sizebuf_t *sb, const int64_t c ) {
+	byte *buf;
+
+	buf = static_cast<byte *>( SZ_GetSpace( sb, 8 ) );
+	WL64( buf, c );
+}
+
+void SZ_WriteUint64( sizebuf_t *sb, const uint64_t c ) {
+	byte *buf;
+
+	buf = static_cast<byte *>( SZ_GetSpace( sb, 8 ) );
+	WL64( buf, c );
 }
 
 void SZ_WriteString( sizebuf_t *sb, const char *s ) {

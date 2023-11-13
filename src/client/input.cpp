@@ -291,7 +291,7 @@ static void KeyDown(kbutton_t *b)
     c = Cmd_Argv(2);
     b->downtime = atoi(c);
     if (!b->downtime) {
-        b->downtime = com_eventTime - 40;
+        b->downtime = com_eventTime - BASE_FRAMETIME;
     }
 
     b->state |= 1 + 2;    // down + impulse down

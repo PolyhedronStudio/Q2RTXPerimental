@@ -578,7 +578,7 @@ static bool NET_SendLoopPacket(netsrc_t sock, const void *data,
     loopback_t *loop;
     loopmsg_t *msg;
 
-    if (net_dropsim->integer > 0 && (Q_rand() % 100) < net_dropsim->integer) {
+    if (net_dropsim->integer > 0 && (Q_rand() % BASE_FRAMETIME) < net_dropsim->integer) {
         return false;
     }
 

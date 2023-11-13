@@ -71,7 +71,7 @@ CL_AddLightStyles
 */
 void CL_AddLightStyles(void)
 {
-    int     i, ofs = cl.time / 100;
+    int     i, ofs = cl.time / CL_FRAMETIME;
     clightstyle_t   *ls;
 
     for (i = 0, ls = cl_lightstyles; i < MAX_LIGHTSTYLES; i++, ls++) {
