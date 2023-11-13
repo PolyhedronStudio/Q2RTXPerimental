@@ -32,24 +32,24 @@ int MSG_ParseEntityBits( int *bits ) {
 	unsigned    b, total;
 	int         number;
 
-	total = MSG_ReadByte( );
+	total = MSG_ReadUint8( );
 	if ( total & U_MOREBITS1 ) {
-		b = MSG_ReadByte( );
+		b = MSG_ReadUint8( );
 		total |= b << 8;
 	}
 	if ( total & U_MOREBITS2 ) {
-		b = MSG_ReadByte( );
+		b = MSG_ReadUint8( );
 		total |= b << 16;
 	}
 	if ( total & U_MOREBITS3 ) {
-		b = MSG_ReadByte( );
+		b = MSG_ReadUint8( );
 		total |= b << 24;
 	}
 
 	if ( total & U_NUMBER16 )
-		number = MSG_ReadShort( );
+		number = MSG_ReadInt16( );
 	else
-		number = MSG_ReadByte( );
+		number = MSG_ReadUint8( );
 
 	*bits = total;
 
@@ -87,43 +87,43 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 
 	if ( bits & U_MODEL ) {
-		to->modelindex = MSG_ReadByte( );
+		to->modelindex = MSG_ReadUint8( );
 	}
 	if ( bits & U_MODEL2 ) {
-		to->modelindex2 = MSG_ReadByte( );
+		to->modelindex2 = MSG_ReadUint8( );
 	}
 	if ( bits & U_MODEL3 ) {
-		to->modelindex3 = MSG_ReadByte( );
+		to->modelindex3 = MSG_ReadUint8( );
 	}
 	if ( bits & U_MODEL4 ) {
-		to->modelindex4 = MSG_ReadByte( );
+		to->modelindex4 = MSG_ReadUint8( );
 	}
 
 	if ( bits & U_FRAME8 )
-		to->frame = MSG_ReadByte( );
+		to->frame = MSG_ReadUint8( );
 	if ( bits & U_FRAME16 )
-		to->frame = MSG_ReadShort( );
+		to->frame = MSG_ReadInt16( );
 
 	if ( ( bits & ( U_SKIN8 | U_SKIN16 ) ) == ( U_SKIN8 | U_SKIN16 ) )  //used for laser colors
-		to->skinnum = MSG_ReadLong( );
+		to->skinnum = MSG_ReadInt32( );
 	else if ( bits & U_SKIN8 )
-		to->skinnum = MSG_ReadByte( );
+		to->skinnum = MSG_ReadUint8( );
 	else if ( bits & U_SKIN16 )
-		to->skinnum = MSG_ReadWord( );
+		to->skinnum = MSG_ReadUint16( );
 
 	if ( ( bits & ( U_EFFECTS8 | U_EFFECTS16 ) ) == ( U_EFFECTS8 | U_EFFECTS16 ) )
-		to->effects = MSG_ReadLong( );
+		to->effects = MSG_ReadInt32( );
 	else if ( bits & U_EFFECTS8 )
-		to->effects = MSG_ReadByte( );
+		to->effects = MSG_ReadUint8( );
 	else if ( bits & U_EFFECTS16 )
-		to->effects = MSG_ReadWord( );
+		to->effects = MSG_ReadUint16( );
 
 	if ( ( bits & ( U_RENDERFX8 | U_RENDERFX16 ) ) == ( U_RENDERFX8 | U_RENDERFX16 ) )
-		to->renderfx = MSG_ReadLong( );
+		to->renderfx = MSG_ReadInt32( );
 	else if ( bits & U_RENDERFX8 )
-		to->renderfx = MSG_ReadByte( );
+		to->renderfx = MSG_ReadUint8( );
 	else if ( bits & U_RENDERFX16 )
-		to->renderfx = MSG_ReadWord( );
+		to->renderfx = MSG_ReadUint16( );
 
 	if ( bits & U_ORIGIN1 ) {
 		to->origin[ 0 ] = MSG_ReadCoord( );
@@ -156,16 +156,16 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 
 	if ( bits & U_SOUND ) {
-		to->sound = MSG_ReadByte( );
+		to->sound = MSG_ReadUint8( );
 	}
 
 	if ( bits & U_EVENT ) {
-		to->event = MSG_ReadByte( );
+		to->event = MSG_ReadUint8( );
 	}
 
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: ReadLong by default.
-		to->solid = MSG_ReadLong( );
+		to->solid = MSG_ReadInt32( );
 	}
 }
 #endif // USE_CLIENT

@@ -46,9 +46,9 @@ extern "C" {
 	void SZ_TagInit(sizebuf_t *buf, void *data, size_t size, const char *tag);
 	void SZ_Clear(sizebuf_t *buf);
 	void *SZ_GetSpace(sizebuf_t *buf, size_t len);
-	void SZ_WriteByte(sizebuf_t *sb, int c);
-	void SZ_WriteShort(sizebuf_t *sb, int c);
-	void SZ_WriteLong(sizebuf_t *sb, int c);
+	void SZ_WriteUint8(sizebuf_t *sb, int c);
+	void SZ_WriteInt16(sizebuf_t *sb, int c);
+	void SZ_WriteInt32(sizebuf_t *sb, int c);
 	void SZ_WriteString(sizebuf_t *sb, const char *s);
 
 	static inline void *SZ_Write(sizebuf_t *buf, const void *data, size_t len)

@@ -260,10 +260,10 @@ extern "C" {
 	*   Wire Types "Write" functionality.
 	*
 	**/
-	void    MSG_WriteChar(int c);
-	void    MSG_WriteByte(int c);
-	void    MSG_WriteShort(int c);
-	void    MSG_WriteLong(int c);
+	void    MSG_WriteInt8(int c);
+	void    MSG_WriteUint8(int c);
+	void    MSG_WriteInt16(int c);
+	void    MSG_WriteInt32(int c);
 	void    MSG_WriteString(const char *s);
 	void    MSG_WritePos(const vec3_t pos);
 	void    MSG_WriteAngle8(float f);
@@ -285,14 +285,14 @@ extern "C" {
 	/**
 	*   @brief	Returns -1 if no more characters are available
 	**/
-	int     MSG_ReadChar(void);
+	int     MSG_ReadInt8(void);
 	/**
 	*   @brief	Returns -1 if no more characters are available
 	**/
-	int     MSG_ReadByte(void);
-	int     MSG_ReadShort(void);
-	int     MSG_ReadWord(void);
-	int     MSG_ReadLong(void);
+	int     MSG_ReadUint8(void);
+	int     MSG_ReadInt16(void);
+	int     MSG_ReadUint16(void);
+	int     MSG_ReadInt32(void);
 	size_t  MSG_ReadString(char *dest, size_t size);
 	size_t  MSG_ReadStringLine(char *dest, size_t size);
 	const float MSG_ReadCoord( void );

@@ -814,7 +814,7 @@ static void SV_Stuff_f(void)
     if (!SV_SetPlayer())
         return;
 
-    MSG_WriteByte(svc_stufftext);
+    MSG_WriteUint8(svc_stufftext);
     MSG_WriteString(COM_StripQuotes(Cmd_RawArgsFrom(2)));
     SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
 
@@ -843,7 +843,7 @@ static void SV_StuffAll_f(void)
         return;
     }
 
-    MSG_WriteByte(svc_stufftext);
+    MSG_WriteUint8(svc_stufftext);
     MSG_WriteString(COM_StripQuotes(Cmd_RawArgs()));
 
     FOR_EACH_CLIENT(client) {

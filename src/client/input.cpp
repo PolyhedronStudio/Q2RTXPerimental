@@ -911,7 +911,7 @@ static void CL_SendDefaultCmd(void)
     cl.lastTransmitCmdNumberReal = cl.cmdNumber;
 
     // begin a client move command
-    MSG_WriteByte(clc_move);
+    MSG_WriteUint8(clc_move);
 
     // save the position for a checksum byte
     checksumIndex = 0;
@@ -923,9 +923,9 @@ static void CL_SendDefaultCmd(void)
     // let the server know what the last frame we
     // got was, so the next message can be delta compressed
     if (cl_nodelta->integer || !cl.frame.valid /*|| cls.demowaiting*/) {
-        MSG_WriteLong(-1);   // no compression
+        MSG_WriteInt32(-1);   // no compression
     } else {
-        MSG_WriteLong(cl.frame.number);
+        MSG_WriteInt32(cl.frame.number);
     }
 
     // send this and the previous cmds in the message, so
@@ -996,7 +996,7 @@ static void CL_SendUserinfo(void)
     if (cls.userinfo_modified == MAX_PACKET_USERINFOS) {
         size_t len = Cvar_BitInfo(userinfo, CVAR_USERINFO);
         Com_DDPrintf("%s: %u: full update\n", __func__, com_framenum);
-        MSG_WriteByte(clc_userinfo);
+        MSG_WriteUint8(clc_userinfo);
         MSG_WriteData(userinfo, len + 1);
         MSG_FlushTo(&cls.netchan.message);
     } else if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
@@ -1004,7 +1004,7 @@ static void CL_SendUserinfo(void)
                      cls.userinfo_modified);
         for (i = 0; i < cls.userinfo_modified; i++) {
             var = cls.userinfo_updates[i];
-            MSG_WriteByte(clc_userinfo_delta);
+            MSG_WriteUint8(clc_userinfo_delta);
             MSG_WriteString(var->name);
             if (var->flags & CVAR_USERINFO) {
                 MSG_WriteString(var->string);

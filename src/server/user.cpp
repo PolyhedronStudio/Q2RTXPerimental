@@ -116,10 +116,10 @@ static void write_configstrings(void)
             SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
         }
 
-        MSG_WriteByte(svc_configstring);
-        MSG_WriteShort(i);
+        MSG_WriteUint8(svc_configstring);
+        MSG_WriteInt16(i);
         MSG_WriteData(string, length);
-        MSG_WriteByte(0);
+        MSG_WriteUint8(0);
     }
 
     SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
@@ -156,7 +156,7 @@ static void write_baselines(void)
                     SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
                 }
 
-                MSG_WriteByte(svc_spawnbaseline);
+                MSG_WriteUint8(svc_spawnbaseline);
                 write_baseline(base);
             }
             base++;
@@ -173,7 +173,7 @@ static void write_gamestate(void)
     size_t      length;
     configstring_t        *string;
 
-    MSG_WriteByte(svc_gamestate);
+    MSG_WriteUint8(svc_gamestate);
 
     // write configstrings
     string = sv_client->configstrings;
@@ -183,11 +183,11 @@ static void write_gamestate(void)
             continue;
         }
         length = Q_strnlen((const char*)( string ), MAX_CS_STRING_LENGTH );
-        MSG_WriteShort(i);
+        MSG_WriteInt16(i);
         MSG_WriteData(string, length);
-        MSG_WriteByte(0);
+        MSG_WriteUint8(0);
     }
-    MSG_WriteShort(MAX_CONFIGSTRINGS);   // end of configstrings
+    MSG_WriteInt16(MAX_CONFIGSTRINGS);   // end of configstrings
 
     // write baselines
     for (i = 0; i < SV_BASELINES_CHUNKS; i++) {
@@ -202,7 +202,7 @@ static void write_gamestate(void)
             base++;
         }
     }
-    MSG_WriteShort(0);   // end of baselines
+    MSG_WriteInt16(0);   // end of baselines
 
     SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
 }
@@ -212,10 +212,10 @@ static void stuff_cmds(list_t *list)
     stuffcmd_t *stuff;
 
     LIST_FOR_EACH(stuffcmd_t, stuff, list, entry) {
-        MSG_WriteByte(svc_stufftext);
+        MSG_WriteUint8(svc_stufftext);
         MSG_WriteData(stuff->string, strlen(stuff->string));
-        MSG_WriteByte('\n');
-        MSG_WriteByte(0);
+        MSG_WriteUint8('\n');
+        MSG_WriteUint8(0);
         SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
     }
 }
@@ -309,15 +309,15 @@ void SV_New_f(void)
     SV_CreateBaselines();
 
     // send the serverdata
-    MSG_WriteByte(svc_serverdata);
-    MSG_WriteLong(sv_client->protocol);
-    MSG_WriteLong(sv_client->spawncount);
-    MSG_WriteByte(0);   // no attract loop
+    MSG_WriteUint8(svc_serverdata);
+    MSG_WriteInt32(sv_client->protocol);
+    MSG_WriteInt32(sv_client->spawncount);
+    MSG_WriteUint8(0);   // no attract loop
     MSG_WriteString(sv_client->gamedir);
     if (sv.state == ss_pic || sv.state == ss_cinematic)
-        MSG_WriteShort(-1);
+        MSG_WriteInt16(-1);
     else
-        MSG_WriteShort(sv_client->slot);
+        MSG_WriteInt16(sv_client->slot);
     MSG_WriteString(sv_client->configstrings[ CS_NAME * MAX_CS_STRING_LENGTH ]);
 
     SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
@@ -570,9 +570,9 @@ static void SV_BeginDownload_f(void)
         Com_DPrintf("Refusing download, %s already has %s (%d bytes)\n",
                     sv_client->name, name, offset);
         FS_CloseFile(f);
-        MSG_WriteByte(svc_download);
-        MSG_WriteShort(0);
-        MSG_WriteByte(100);
+        MSG_WriteUint8(svc_download);
+        MSG_WriteInt16(0);
+        MSG_WriteUint8(100);
         SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
         return;
     }
@@ -601,9 +601,9 @@ fail3:
 fail2:
     FS_CloseFile(f);
 fail1:
-    MSG_WriteByte(svc_download);
-    MSG_WriteShort(-1);
-    MSG_WriteByte(0);
+    MSG_WriteUint8(svc_download);
+    MSG_WriteInt16(-1);
+    MSG_WriteUint8(0);
     SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
 }
 
@@ -616,9 +616,9 @@ static void SV_StopDownload_f(void)
 
     percent = sv_client->downloadcount * 100 / sv_client->downloadsize;
 
-    MSG_WriteByte(svc_download);
-    MSG_WriteShort(-1);
-    MSG_WriteByte(percent);
+    MSG_WriteUint8(svc_download);
+    MSG_WriteInt16(-1);
+    MSG_WriteUint8(percent);
     SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
 
     Com_DPrintf("Download of %s to %s stopped by user request\n",
@@ -758,14 +758,14 @@ static bool handle_cvar_ban(const cvarban_t *ban, const char *v)
 
     if (ban->comment) {
         if (ban->action == FA_STUFF) {
-            MSG_WriteByte(svc_stufftext);
+            MSG_WriteUint8(svc_stufftext);
         } else {
-            MSG_WriteByte(svc_print);
-            MSG_WriteByte(PRINT_HIGH);
+            MSG_WriteUint8(svc_print);
+            MSG_WriteUint8(PRINT_HIGH);
         }
         MSG_WriteData(ban->comment, strlen(ban->comment));
-        MSG_WriteByte('\n');
-        MSG_WriteByte(0);
+        MSG_WriteUint8('\n');
+        MSG_WriteUint8(0);
         SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
     }
 
@@ -854,14 +854,14 @@ static void handle_filtercmd(filtercmd_t *filter)
 
     if (filter->comment) {
         if (filter->action == FA_STUFF) {
-            MSG_WriteByte(svc_stufftext);
+            MSG_WriteUint8(svc_stufftext);
         } else {
-            MSG_WriteByte(svc_print);
-            MSG_WriteByte(PRINT_HIGH);
+            MSG_WriteUint8(svc_print);
+            MSG_WriteUint8(PRINT_HIGH);
         }
         MSG_WriteData(filter->comment, strlen(filter->comment));
-        MSG_WriteByte('\n');
-        MSG_WriteByte(0);
+        MSG_WriteUint8('\n');
+        MSG_WriteUint8(0);
         SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
     }
 
@@ -1006,10 +1006,10 @@ static void SV_ClientExecuteMove(void)
     moveIssued = true;
 
     if (sv_client->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-        MSG_ReadByte();    // skip over checksum
+        MSG_ReadUint8();    // skip over checksum
     }
 
-    lastframe = MSG_ReadLong();
+    lastframe = MSG_ReadInt32();
 
     // read all cmds
 	MSG_ParseDeltaUserCommand(NULL, &oldest);
@@ -1249,7 +1249,7 @@ void SV_ExecuteClientMessage(client_t *client)
             break;
         }
 
-        c = MSG_ReadByte();
+        c = MSG_ReadUint8();
         if (c == -1)
             break;
 

@@ -39,15 +39,15 @@ static int write_server_file(bool autosave)
     uint64_t    timestamp;
 
     // write magic
-    MSG_WriteLong(SAVE_MAGIC1);
-    MSG_WriteLong(SAVE_VERSION);
+    MSG_WriteInt32(SAVE_MAGIC1);
+    MSG_WriteInt32(SAVE_VERSION);
 
     timestamp = (uint64_t)time(NULL);
 
     // write the comment field
-    MSG_WriteLong(timestamp & 0xffffffff);
-    MSG_WriteLong(timestamp >> 32);
-    MSG_WriteByte(autosave);
+    MSG_WriteInt32(timestamp & 0xffffffff);
+    MSG_WriteInt32(timestamp >> 32);
+    MSG_WriteUint8(autosave);
     MSG_WriteString(sv.configstrings[CS_NAME]);
 
     // write the mapcmd
@@ -91,8 +91,8 @@ static int write_level_file(void)
     byte        portalbits[MAX_MAP_PORTAL_BYTES];
 
     // write magic
-    MSG_WriteLong(SAVE_MAGIC2);
-    MSG_WriteLong(SAVE_VERSION);
+    MSG_WriteInt32(SAVE_MAGIC2);
+    MSG_WriteInt32(SAVE_VERSION);
 
     // write configstrings
     for (i = 0; i < MAX_CONFIGSTRINGS; i++) {
@@ -101,14 +101,14 @@ static int write_level_file(void)
             continue;
 
         len = Q_strnlen(s, MAX_QPATH);
-        MSG_WriteShort(i);
+        MSG_WriteInt16(i);
         MSG_WriteData(s, len);
-        MSG_WriteByte(0);
+        MSG_WriteUint8(0);
     }
-    MSG_WriteShort(MAX_CONFIGSTRINGS);
+    MSG_WriteInt16(MAX_CONFIGSTRINGS);
 
     len = CM_WritePortalBits(&sv.cm, portalbits);
-    MSG_WriteByte(len);
+    MSG_WriteUint8(len);
     MSG_WriteData(portalbits, len);
 
     if (Q_snprintf(name, MAX_QPATH, "%s/%s/%s.sv2", sv_savedir->string, SAVE_CURRENT, sv.name) >= MAX_QPATH)
@@ -261,16 +261,16 @@ char *SV_GetSaveInfo(const char *dir)
     if (read_binary_file(name))
         return NULL;
 
-    if (MSG_ReadLong() != SAVE_MAGIC1)
+    if (MSG_ReadInt32() != SAVE_MAGIC1)
         return NULL;
 
-    if (MSG_ReadLong() != SAVE_VERSION)
+    if (MSG_ReadInt32() != SAVE_VERSION)
         return NULL;
 
     // read the comment field
-    timestamp = (uint64_t)MSG_ReadLong();
-    timestamp |= (uint64_t)MSG_ReadLong() << 32;
-    autosave = MSG_ReadByte();
+    timestamp = (uint64_t)MSG_ReadInt32();
+    timestamp |= (uint64_t)MSG_ReadInt32() << 32;
+    autosave = MSG_ReadUint8();
     MSG_ReadString(name, sizeof(name));
 
     if (autosave)
@@ -315,18 +315,18 @@ static int read_server_file(void)
     if (read_binary_file(name))
         return -1;
 
-    if (MSG_ReadLong() != SAVE_MAGIC1)
+    if (MSG_ReadInt32() != SAVE_MAGIC1)
         return -1;
 
-    if (MSG_ReadLong() != SAVE_VERSION)
+    if (MSG_ReadInt32() != SAVE_VERSION)
         return -1;
 
     memset(&cmd, 0, sizeof(cmd));
 
     // read the comment field
-    MSG_ReadLong();
-    MSG_ReadLong();
-    if (MSG_ReadByte())
+    MSG_ReadInt32();
+    MSG_ReadInt32();
+    if (MSG_ReadUint8())
         cmd.loadgame = 2;   // autosave
     else
         cmd.loadgame = 1;   // regular savegame
@@ -397,10 +397,10 @@ static int read_level_file(void)
     if (read_binary_file(name))
         return -1;
 
-    if (MSG_ReadLong() != SAVE_MAGIC2)
+    if (MSG_ReadInt32() != SAVE_MAGIC2)
         return -1;
 
-    if (MSG_ReadLong() != SAVE_VERSION)
+    if (MSG_ReadInt32() != SAVE_VERSION)
         return -1;
 
     // any error will drop from this point
@@ -410,7 +410,7 @@ static int read_level_file(void)
 
     // read all configstrings
     while (1) {
-        index = MSG_ReadShort();
+        index = MSG_ReadInt16();
         if (index == MAX_CONFIGSTRINGS)
             break;
 
@@ -422,7 +422,7 @@ static int read_level_file(void)
             Com_Error(ERR_DROP, "Savegame configstring too long");
     }
 
-    len = MSG_ReadByte();
+    len = MSG_ReadUint8();
     if (len > MAX_MAP_PORTAL_BYTES)
         Com_Error(ERR_DROP, "Savegame portalbits too long");
 

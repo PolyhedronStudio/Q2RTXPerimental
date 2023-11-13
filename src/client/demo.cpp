@@ -139,7 +139,7 @@ static void emit_packet_entities(server_frame_t *from, server_frame_t *to)
         }
     }
 
-    MSG_WriteShort(0);      // end of packetentities
+    MSG_WriteInt16(0);      // end of packetentities
 }
 
 static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
@@ -147,17 +147,17 @@ static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
 {
     player_packed_t oldpack, newpack;
 
-    MSG_WriteByte(svc_frame);
-    MSG_WriteLong(tonum);
-    MSG_WriteLong(fromnum);   // what we are delta'ing from
-    MSG_WriteByte(0);   // rate dropped packets
+    MSG_WriteUint8(svc_frame);
+    MSG_WriteInt32(tonum);
+    MSG_WriteInt32(fromnum);   // what we are delta'ing from
+    MSG_WriteUint8(0);   // rate dropped packets
 
     // send over the areabits
-    MSG_WriteByte(to->areabytes);
+    MSG_WriteUint8(to->areabytes);
     MSG_WriteData(to->areabits, to->areabytes);
 
     // delta encode the playerstate
-    MSG_WriteByte(svc_playerinfo);
+    MSG_WriteUint8(svc_playerinfo);
     MSG_PackPlayer(&newpack, &to->ps);
     if (from) {
         MSG_PackPlayer(&oldpack, &from->ps);
@@ -167,7 +167,7 @@ static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
     }
 
     // delta encode the entities
-    MSG_WriteByte(svc_packetentities);
+    MSG_WriteUint8(svc_packetentities);
     emit_packet_entities(from, to);
 }
 
@@ -390,12 +390,12 @@ static void CL_Record_f(void)
     //
 
     // send the serverdata
-    MSG_WriteByte(svc_serverdata);
-    MSG_WriteLong(PROTOCOL_VERSION_Q2RTXPERIMENTAL);
-    MSG_WriteLong(0x10000 + cl.servercount);
-    MSG_WriteByte(1);      // demos are always attract loops
+    MSG_WriteUint8(svc_serverdata);
+    MSG_WriteInt32(PROTOCOL_VERSION_Q2RTXPERIMENTAL);
+    MSG_WriteInt32(0x10000 + cl.servercount);
+    MSG_WriteUint8(1);      // demos are always attract loops
     MSG_WriteString(cl.gamedir);
-    MSG_WriteShort(cl.clientNum);
+    MSG_WriteInt16(cl.clientNum);
     MSG_WriteString(cl.configstrings[CS_NAME]);
 
     // configstrings
@@ -410,10 +410,10 @@ static void CL_Record_f(void)
                 return;
         }
 
-        MSG_WriteByte(svc_configstring);
-        MSG_WriteShort(i);
+        MSG_WriteUint8(svc_configstring);
+        MSG_WriteInt16(i);
         MSG_WriteData(s, len);
-        MSG_WriteByte(0);
+        MSG_WriteUint8(0);
     }
 
     // baselines
@@ -427,12 +427,12 @@ static void CL_Record_f(void)
                 return;
         }
 
-        MSG_WriteByte(svc_spawnbaseline);
+        MSG_WriteUint8(svc_spawnbaseline);
         MSG_PackEntity(&pack, ent, false);
         MSG_WriteDeltaEntity(NULL, &pack, MSG_ES_FORCE);
     }
 
-    MSG_WriteByte(svc_stufftext);
+    MSG_WriteUint8(svc_stufftext);
     MSG_WriteString("precache\n");
 
     // write it to the demo file
@@ -468,10 +468,10 @@ static void resume_record(void)
                 // multiple packets = not seamless
             }
 
-            SZ_WriteByte(&cls.demo.buffer, svc_configstring);
-            SZ_WriteShort(&cls.demo.buffer, index);
+            SZ_WriteUint8(&cls.demo.buffer, svc_configstring);
+            SZ_WriteInt16(&cls.demo.buffer, index);
             SZ_Write(&cls.demo.buffer, s, len);
-            SZ_WriteByte(&cls.demo.buffer, 0);
+            SZ_WriteUint8(&cls.demo.buffer, 0);
         }
     }
 
@@ -792,14 +792,14 @@ void CL_EmitDemoSnapshot(void)
             continue;
 
         len = Q_strnlen(to, MAX_QPATH);
-        MSG_WriteByte(svc_configstring);
-        MSG_WriteShort(i);
+        MSG_WriteUint8(svc_configstring);
+        MSG_WriteInt16(i);
         MSG_WriteData(to, len);
-        MSG_WriteByte(0);
+        MSG_WriteUint8(0);
     }
 
     // write layout
-    MSG_WriteByte(svc_layout);
+    MSG_WriteUint8(svc_layout);
     MSG_WriteString(cl.layout);
 
     snap = (demosnap_t*)Z_Malloc( sizeof( *snap ) + msg_write.cursize - 1 ); // WID: C++20: Was without a cast.
@@ -1066,20 +1066,20 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
     }
 
     if (type == 0) {
-        if (MSG_ReadByte() != svc_serverdata) {
+        if (MSG_ReadUint8() != svc_serverdata) {
             goto fail;
         }
-        if (MSG_ReadLong() != PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
+        if (MSG_ReadInt32() != PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
             goto fail;
         }
-        MSG_ReadLong();
-        MSG_ReadByte();
+        MSG_ReadInt32();
+        MSG_ReadUint8();
         MSG_ReadString(NULL, 0);
-        clientNum = MSG_ReadShort();
+        clientNum = MSG_ReadInt16();
         MSG_ReadString(NULL, 0);
 
         while (1) {
-            c = MSG_ReadByte();
+            c = MSG_ReadUint8();
             if (c == -1) {
                 if (read_next_message(f) <= 0) {
                     break;
@@ -1089,7 +1089,7 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
             if (c != svc_configstring) {
                 break;
             }
-            index = MSG_ReadShort();
+            index = MSG_ReadInt16();
             if (index < 0 || index >= MAX_CONFIGSTRINGS) {
                 goto fail;
             }
@@ -1099,19 +1099,19 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
 
         info->mvd = false;
     } else {
-        if ((MSG_ReadByte() & SVCMD_MASK) != mvd_serverdata) {
+        if ((MSG_ReadUint8() & SVCMD_MASK) != mvd_serverdata) {
             goto fail;
         }
-        if (MSG_ReadLong() != PROTOCOL_VERSION_MVD) {
+        if (MSG_ReadInt32() != PROTOCOL_VERSION_MVD) {
             goto fail;
         }
-        MSG_ReadShort();
-        MSG_ReadLong();
+        MSG_ReadInt16();
+        MSG_ReadInt32();
         MSG_ReadString(NULL, 0);
-        clientNum = MSG_ReadShort();
+        clientNum = MSG_ReadInt16();
 
         while (1) {
-            index = MSG_ReadShort();
+            index = MSG_ReadInt16();
             if (index == MAX_CONFIGSTRINGS) {
                 break;
             }

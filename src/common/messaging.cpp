@@ -115,7 +115,7 @@ byte *MSG_ReadData( const size_t len ) {
 /**
 *   @brief
 **/
-void MSG_WriteChar( int c ) {
+void MSG_WriteInt8( int c ) {
 	byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= -128 && c <= 127 );
@@ -127,7 +127,7 @@ void MSG_WriteChar( int c ) {
 /**
 *   @brief
 **/
-void MSG_WriteByte( int c ) {
+void MSG_WriteUint8( int c ) {
 	byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= 0 && c <= 255 );
@@ -139,7 +139,7 @@ void MSG_WriteByte( int c ) {
 /**
 *   @brief
 **/
-void MSG_WriteShort( int c ) {
+void MSG_WriteInt16( int c ) {
 	byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= -0x8000 && c <= 0x7fff );
@@ -151,7 +151,7 @@ void MSG_WriteShort( int c ) {
 /**
 *   @brief
 **/
-void MSG_WriteLong( int c ) {
+void MSG_WriteInt32( int c ) {
 	byte *buf;
 	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 4 ) ); // WID: C++20: Added cast.
 	WL32( buf, c );
@@ -168,7 +168,7 @@ void MSG_WriteString( const char *string ) {
 *   @brief
 **/
 static inline void MSG_WriteCoord( float f ) {
-	MSG_WriteShort( COORD2SHORT( f ) );
+	MSG_WriteInt16( COORD2SHORT( f ) );
 }
 
 /**
@@ -184,7 +184,7 @@ void MSG_WritePos( const vec3_t pos ) {
 *   @brief
 **/
 void MSG_WriteAngle8( float f ) {
-	MSG_WriteByte( ANGLE2BYTE( f ) );
+	MSG_WriteUint8( ANGLE2BYTE( f ) );
 }
 
 /**
@@ -192,7 +192,7 @@ void MSG_WriteAngle8( float f ) {
 **/
 void MSG_WriteDir8( const vec3_t dir ) {
 	int32_t best = DirToByte( dir );
-	MSG_WriteByte( best );
+	MSG_WriteUint8( best );
 }
 
 
@@ -205,7 +205,7 @@ void MSG_WriteDir8( const vec3_t dir ) {
 /**
 *   @brief	Returns -1 if no more characters are available
 **/
-int MSG_ReadChar( void ) {
+int MSG_ReadInt8( void ) {
 	byte *buf = MSG_ReadData( 1 );
 	int c;
 
@@ -220,7 +220,7 @@ int MSG_ReadChar( void ) {
 /**
 *   @brief	Returns -1 if no more characters are available
 **/
-int MSG_ReadByte( void ) {
+int MSG_ReadUint8( void ) {
 	byte *buf = MSG_ReadData( 1 );
 	int c;
 
@@ -233,7 +233,7 @@ int MSG_ReadByte( void ) {
 	return c;
 }
 
-int MSG_ReadShort( void ) {
+int MSG_ReadInt16( void ) {
 	byte *buf = MSG_ReadData( 2 );
 	int c;
 
@@ -246,7 +246,7 @@ int MSG_ReadShort( void ) {
 	return c;
 }
 
-int MSG_ReadWord( void ) {
+int MSG_ReadUint16( void ) {
 	byte *buf = MSG_ReadData( 2 );
 	int c;
 
@@ -259,7 +259,7 @@ int MSG_ReadWord( void ) {
 	return c;
 }
 
-int MSG_ReadLong( void ) {
+int MSG_ReadInt32( void ) {
 	byte *buf = MSG_ReadData( 4 );
 	int c;
 
@@ -277,7 +277,7 @@ size_t MSG_ReadString( char *dest, size_t size ) {
 	size_t  len = 0;
 
 	while ( 1 ) {
-		c = MSG_ReadByte( );
+		c = MSG_ReadUint8( );
 		if ( c == -1 || c == 0 ) {
 			break;
 		}
@@ -298,7 +298,7 @@ size_t MSG_ReadStringLine( char *dest, size_t size ) {
 	size_t  len = 0;
 
 	while ( 1 ) {
-		c = MSG_ReadByte( );
+		c = MSG_ReadUint8( );
 		if ( c == -1 || c == 0 || c == '\n' ) {
 			break;
 		}
@@ -315,7 +315,7 @@ size_t MSG_ReadStringLine( char *dest, size_t size ) {
 }
 
 const float MSG_ReadCoord( void ) {
-	return SHORT2COORD( MSG_ReadShort( ) );
+	return SHORT2COORD( MSG_ReadInt16( ) );
 }
 
 void MSG_ReadPos( vec3_t pos ) {
@@ -328,13 +328,13 @@ void MSG_ReadPos( vec3_t pos ) {
 *	@brief Reads a byte and decodes it to a float angle.
 **/
 const float MSG_ReadAngle8( void ) {
-	return BYTE2ANGLE( MSG_ReadChar( ) );
+	return BYTE2ANGLE( MSG_ReadInt8( ) );
 }
 /**
 *	@brief Reads a short and decodes it to a float angle.
 **/
 const float MSG_ReadAngle16( void ) {
-	return SHORT2ANGLE( MSG_ReadShort( ) );
+	return SHORT2ANGLE( MSG_ReadInt16( ) );
 }
 /**
 *	@brief	Reads a byte, and decodes it using it as an index into our directions table.
@@ -342,7 +342,7 @@ const float MSG_ReadAngle16( void ) {
 void MSG_ReadDir8( vec3_t dir ) {
 	int     b;
 
-	b = MSG_ReadByte( );
+	b = MSG_ReadUint8( );
 	if ( b < 0 || b >= NUMVERTEXNORMALS )
 		Com_Error( ERR_DROP, "MSG_ReadDir: out of range" );
 	VectorCopy( bytedirs[ b ], dir );

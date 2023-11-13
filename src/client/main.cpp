@@ -199,7 +199,7 @@ void CL_ClientCommand(const char *string)
 
     Com_DDPrintf("%s: %s\n", __func__, string);
 
-    MSG_WriteByte(clc_stringcmd);
+    MSG_WriteUint8(clc_stringcmd);
     MSG_WriteString(string);
     MSG_FlushTo(&cls.netchan.message);
 }
@@ -649,7 +649,7 @@ void CL_Disconnect(error_type_t type)
 
     if (cls.netchan.protocol) {
         // send a disconnect message to the server
-        MSG_WriteByte(clc_stringcmd);
+        MSG_WriteUint8(clc_stringcmd);
         MSG_WriteData("disconnect", 11);
 
 		// 3 times to make sure.
@@ -1142,7 +1142,7 @@ static void CL_ConnectionlessPacket(void)
     int     i, j, k;
 
     MSG_BeginReading();
-    MSG_ReadLong(); // skip the -1
+    MSG_ReadInt32(); // skip the -1
 
     if (MSG_ReadStringLine(string, sizeof(string)) >= sizeof(string)) {
         Com_DPrintf("Oversize message received.  Ignored.\n");

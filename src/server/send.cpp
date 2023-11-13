@@ -38,10 +38,10 @@ void SV_FlushRedirect(int redirected, char *outputbuf, size_t len)
         memcpy(buffer + 10, outputbuf, len);
         NET_SendPacket(NS_SERVER, buffer, len + 10, &net_from);
     } else if (redirected == RD_CLIENT) {
-        MSG_WriteByte(svc_print);
-        MSG_WriteByte(PRINT_HIGH);
+        MSG_WriteUint8(svc_print);
+        MSG_WriteUint8(PRINT_HIGH);
         MSG_WriteData(outputbuf, len);
-        MSG_WriteByte(0);
+        MSG_WriteUint8(0);
         SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
     }
 }
@@ -136,8 +136,8 @@ void SV_ClientPrintf(client_t *client, int level, const char *fmt, ...)
         return;
     }
 
-    MSG_WriteByte(svc_print);
-    MSG_WriteByte(level);
+    MSG_WriteUint8(svc_print);
+    MSG_WriteUint8(level);
     MSG_WriteData(string, len + 1);
 
     SV_ClientAddMessage(client, MSG_RELIABLE | MSG_CLEAR);
@@ -167,8 +167,8 @@ void SV_BroadcastPrintf(int level, const char *fmt, ...)
         return;
     }
 
-    MSG_WriteByte(svc_print);
-    MSG_WriteByte(level);
+    MSG_WriteUint8(svc_print);
+    MSG_WriteUint8(level);
     MSG_WriteData(string, len + 1);
 
     FOR_EACH_CLIENT(client) {
@@ -197,7 +197,7 @@ void SV_ClientCommand(client_t *client, const char *fmt, ...)
         return;
     }
 
-    MSG_WriteByte(svc_stufftext);
+    MSG_WriteUint8(svc_stufftext);
     MSG_WriteData(string, len + 1);
 
     SV_ClientAddMessage(client, MSG_RELIABLE | MSG_CLEAR);
@@ -227,7 +227,7 @@ void SV_BroadcastCommand(const char *fmt, ...)
         return;
     }
 
-    MSG_WriteByte(svc_stufftext);
+    MSG_WriteUint8(svc_stufftext);
     MSG_WriteData(string, len + 1);
 
     FOR_EACH_CLIENT(client) {
@@ -541,22 +541,22 @@ static void emit_snd(client_t *client, message_packet_t *msg)
         flags |= SND_POS;   // entity is not present in frame
     }
 
-    MSG_WriteByte(svc_sound);
-    MSG_WriteByte(flags);
-    MSG_WriteByte(msg->index);
+    MSG_WriteUint8(svc_sound);
+    MSG_WriteUint8(flags);
+    MSG_WriteUint8(msg->index);
 
     if (flags & SND_VOLUME)
-        MSG_WriteByte(msg->volume);
+        MSG_WriteUint8(msg->volume);
     if (flags & SND_ATTENUATION)
-        MSG_WriteByte(msg->attenuation);
+        MSG_WriteUint8(msg->attenuation);
     if (flags & SND_OFFSET)
-        MSG_WriteByte(msg->timeofs);
+        MSG_WriteUint8(msg->timeofs);
 
-    MSG_WriteShort(msg->sendchan);
+    MSG_WriteInt16(msg->sendchan);
 
     if (flags & SND_POS) {
         for (i = 0; i < 3; i++) {
-            MSG_WriteShort(msg->pos[i]);
+            MSG_WriteInt16(msg->pos[i]);
         }
     }
 }
@@ -849,9 +849,9 @@ static void write_pending_download(client_t *client)
     client->downloadpending = false;
     client->downloadcount += chunk;
 
-    SZ_WriteByte(buf, client->downloadcmd);
-    SZ_WriteShort(buf, chunk);
-    SZ_WriteByte(buf, client->downloadcount * 100 / client->downloadsize);
+    SZ_WriteUint8(buf, client->downloadcmd);
+    SZ_WriteInt16(buf, chunk);
+    SZ_WriteUint8(buf, client->downloadcount * 100 / client->downloadsize);
     SZ_Write(buf, client->download + client->downloadcount - chunk, chunk);
 
     if (client->downloadcount == client->downloadsize) {

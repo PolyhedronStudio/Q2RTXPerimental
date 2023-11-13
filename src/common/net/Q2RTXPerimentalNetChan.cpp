@@ -170,16 +170,16 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const vo
 
 	SZ_TagInit( &send, send_buf, sizeof( send_buf ), "nc_send_old" );
 
-	SZ_WriteLong( &send, w1 );
-	SZ_WriteLong( &send, w2 );
+	SZ_WriteInt32( &send, w1 );
+	SZ_WriteInt32( &send, w2 );
 
 	#if USE_CLIENT
 		// send the qport if we are a client
 	if ( chan->sock == NS_CLIENT ) {
 		if ( chan->protocol < PROTOCOL_VERSION_R1Q2 ) {
-			SZ_WriteShort( &send, chan->qport );
+			SZ_WriteInt16( &send, chan->qport );
 		} else if ( chan->qport ) {
-			SZ_WriteByte( &send, chan->qport );
+			SZ_WriteUint8( &send, chan->qport );
 		}
 	}
 	#endif
@@ -230,15 +230,15 @@ bool NetchanQ2RTXPerimental_Process( netchan_t *chan ) {
 
 // get sequence numbers
 	MSG_BeginReading( );
-	sequence = MSG_ReadLong( );
-	sequence_ack = MSG_ReadLong( );
+	sequence = MSG_ReadInt32( );
+	sequence_ack = MSG_ReadInt32( );
 
 	// read the qport if we are a server
 	if ( chan->sock == NS_SERVER ) {
 		if ( chan->protocol < PROTOCOL_VERSION_R1Q2 ) {
-			MSG_ReadShort( );
+			MSG_ReadInt16( );
 		} else if ( chan->qport ) {
-			MSG_ReadByte( );
+			MSG_ReadUint8( );
 		}
 	}
 

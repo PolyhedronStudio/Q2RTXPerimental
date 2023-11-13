@@ -133,91 +133,91 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	//
 	// write it
 	//
-	MSG_WriteShort( pflags );
+	MSG_WriteInt16( pflags );
 
 	//
 	// write the pmove_state_t
 	//
 	if ( pflags & PS_M_TYPE )
-		MSG_WriteByte( to->pmove.pm_type );
+		MSG_WriteUint8( to->pmove.pm_type );
 
 	if ( pflags & PS_M_ORIGIN ) {
-		MSG_WriteShort( to->pmove.origin[ 0 ] );
-		MSG_WriteShort( to->pmove.origin[ 1 ] );
-		MSG_WriteShort( to->pmove.origin[ 2 ] );
+		MSG_WriteInt16( to->pmove.origin[ 0 ] );
+		MSG_WriteInt16( to->pmove.origin[ 1 ] );
+		MSG_WriteInt16( to->pmove.origin[ 2 ] );
 	}
 
 	if ( pflags & PS_M_VELOCITY ) {
-		MSG_WriteShort( to->pmove.velocity[ 0 ] );
-		MSG_WriteShort( to->pmove.velocity[ 1 ] );
-		MSG_WriteShort( to->pmove.velocity[ 2 ] );
+		MSG_WriteInt16( to->pmove.velocity[ 0 ] );
+		MSG_WriteInt16( to->pmove.velocity[ 1 ] );
+		MSG_WriteInt16( to->pmove.velocity[ 2 ] );
 	}
 
 	if ( pflags & PS_M_TIME )
-		MSG_WriteByte( to->pmove.pm_time );
+		MSG_WriteUint8( to->pmove.pm_time );
 
 	if ( pflags & PS_M_FLAGS )
-		MSG_WriteByte( to->pmove.pm_flags );
+		MSG_WriteUint8( to->pmove.pm_flags );
 
 	if ( pflags & PS_M_GRAVITY )
-		MSG_WriteShort( to->pmove.gravity );
+		MSG_WriteInt16( to->pmove.gravity );
 
 	if ( pflags & PS_M_DELTA_ANGLES ) {
-		MSG_WriteShort( to->pmove.delta_angles[ 0 ] );
-		MSG_WriteShort( to->pmove.delta_angles[ 1 ] );
-		MSG_WriteShort( to->pmove.delta_angles[ 2 ] );
+		MSG_WriteInt16( to->pmove.delta_angles[ 0 ] );
+		MSG_WriteInt16( to->pmove.delta_angles[ 1 ] );
+		MSG_WriteInt16( to->pmove.delta_angles[ 2 ] );
 	}
 
 	//
 	// write the rest of the player_state_t
 	//
 	if ( pflags & PS_VIEWOFFSET ) {
-		MSG_WriteChar( to->viewoffset[ 0 ] );
-		MSG_WriteChar( to->viewoffset[ 1 ] );
-		MSG_WriteChar( to->viewoffset[ 2 ] );
+		MSG_WriteInt8( to->viewoffset[ 0 ] );
+		MSG_WriteInt8( to->viewoffset[ 1 ] );
+		MSG_WriteInt8( to->viewoffset[ 2 ] );
 	}
 
 	if ( pflags & PS_VIEWANGLES ) {
-		MSG_WriteShort( to->viewangles[ 0 ] );
-		MSG_WriteShort( to->viewangles[ 1 ] );
-		MSG_WriteShort( to->viewangles[ 2 ] );
+		MSG_WriteInt16( to->viewangles[ 0 ] );
+		MSG_WriteInt16( to->viewangles[ 1 ] );
+		MSG_WriteInt16( to->viewangles[ 2 ] );
 	}
 
 	if ( pflags & PS_KICKANGLES ) {
-		MSG_WriteChar( to->kick_angles[ 0 ] );
-		MSG_WriteChar( to->kick_angles[ 1 ] );
-		MSG_WriteChar( to->kick_angles[ 2 ] );
+		MSG_WriteInt8( to->kick_angles[ 0 ] );
+		MSG_WriteInt8( to->kick_angles[ 1 ] );
+		MSG_WriteInt8( to->kick_angles[ 2 ] );
 	}
 
 	if ( pflags & PS_WEAPONINDEX )
-		MSG_WriteByte( to->gunindex );
+		MSG_WriteUint8( to->gunindex );
 
 	if ( pflags & PS_WEAPONFRAME ) {
-		MSG_WriteByte( to->gunframe );
-		MSG_WriteChar( to->gunoffset[ 0 ] );
-		MSG_WriteChar( to->gunoffset[ 1 ] );
-		MSG_WriteChar( to->gunoffset[ 2 ] );
-		MSG_WriteChar( to->gunangles[ 0 ] );
-		MSG_WriteChar( to->gunangles[ 1 ] );
-		MSG_WriteChar( to->gunangles[ 2 ] );
+		MSG_WriteUint8( to->gunframe );
+		MSG_WriteInt8( to->gunoffset[ 0 ] );
+		MSG_WriteInt8( to->gunoffset[ 1 ] );
+		MSG_WriteInt8( to->gunoffset[ 2 ] );
+		MSG_WriteInt8( to->gunangles[ 0 ] );
+		MSG_WriteInt8( to->gunangles[ 1 ] );
+		MSG_WriteInt8( to->gunangles[ 2 ] );
 	}
 
 	if ( pflags & PS_WEAPONRATE ) {
-		MSG_WriteChar( to->gunrate );
+		MSG_WriteInt8( to->gunrate );
 	}
 
 	if ( pflags & PS_BLEND ) {
-		MSG_WriteByte( to->blend[ 0 ] );
-		MSG_WriteByte( to->blend[ 1 ] );
-		MSG_WriteByte( to->blend[ 2 ] );
-		MSG_WriteByte( to->blend[ 3 ] );
+		MSG_WriteUint8( to->blend[ 0 ] );
+		MSG_WriteUint8( to->blend[ 1 ] );
+		MSG_WriteUint8( to->blend[ 2 ] );
+		MSG_WriteUint8( to->blend[ 3 ] );
 	}
 
 	if ( pflags & PS_FOV )
-		MSG_WriteByte( to->fov );
+		MSG_WriteUint8( to->fov );
 
 	if ( pflags & PS_RDFLAGS )
-		MSG_WriteByte( to->rdflags );
+		MSG_WriteUint8( to->rdflags );
 
 	// send stats
 	statbits = 0;
@@ -225,8 +225,8 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		if ( to->stats[ i ] != from->stats[ i ] )
 			statbits |= 1U << i;
 
-	MSG_WriteLong( statbits );
+	MSG_WriteInt32( statbits );
 	for ( i = 0; i < MAX_STATS; i++ )
 		if ( statbits & ( 1U << i ) )
-			MSG_WriteShort( to->stats[ i ] );
+			MSG_WriteInt16( to->stats[ i ] );
 }

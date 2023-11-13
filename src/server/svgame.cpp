@@ -154,8 +154,8 @@ static void PF_bprintf(int level, const char *fmt, ...)
         return;
     }
 
-    MSG_WriteByte(svc_print);
-    MSG_WriteByte(level);
+    MSG_WriteUint8(svc_print);
+    MSG_WriteUint8(level);
     MSG_WriteData(string, len + 1);
 
     // echo to console
@@ -245,8 +245,8 @@ static void PF_cprintf(edict_t *ent, int level, const char *fmt, ...)
         return;
     }
 
-    MSG_WriteByte(svc_print);
-    MSG_WriteByte(level);
+    MSG_WriteUint8(svc_print);
+    MSG_WriteUint8(level);
     MSG_WriteData(msg, len + 1);
 
     if (level >= client->messagelevel) {
@@ -290,7 +290,7 @@ static void PF_centerprintf(edict_t *ent, const char *fmt, ...)
         return;
     }
 
-    MSG_WriteByte(svc_centerprint);
+    MSG_WriteUint8(svc_centerprint);
     MSG_WriteData(msg, len + 1);
 
     PF_Unicast(ent, true);
@@ -397,10 +397,10 @@ static void PF_configstring(int index, const char *val)
     }
 
     // send the update to everyone
-    MSG_WriteByte(svc_configstring);
-    MSG_WriteShort(index);
+    MSG_WriteUint8(svc_configstring);
+    MSG_WriteInt16(index);
     MSG_WriteData(val, len);
-    MSG_WriteByte(0);
+    MSG_WriteUint8(0);
 
     FOR_EACH_CLIENT(client) {
         if (client->state < cs_primed) {
@@ -544,18 +544,18 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
     }
 
     // prepare multicast message
-    MSG_WriteByte(svc_sound);
-    MSG_WriteByte(flags | SND_POS);
-    MSG_WriteByte(soundindex);
+    MSG_WriteUint8(svc_sound);
+    MSG_WriteUint8(flags | SND_POS);
+    MSG_WriteUint8(soundindex);
 
     if (flags & SND_VOLUME)
-        MSG_WriteByte(volume * 255);
+        MSG_WriteUint8(volume * 255);
     if (flags & SND_ATTENUATION)
-        MSG_WriteByte(attenuation * 64);
+        MSG_WriteUint8(attenuation * 64);
     if (flags & SND_OFFSET)
-        MSG_WriteByte(timeofs * 1000);
+        MSG_WriteUint8(timeofs * 1000);
 
-    MSG_WriteShort(sendchan);
+    MSG_WriteInt16(sendchan);
     MSG_WritePos(origin);
 
     // if the sound doesn't attenuate, send it to everyone
@@ -843,10 +843,10 @@ void SV_InitGameProgs(void)
     import.sound = PF_StartSound;
     import.positioned_sound = SV_StartSound;
 
-    import.WriteChar = MSG_WriteChar;
-    import.WriteByte = MSG_WriteByte;
-    import.WriteShort = MSG_WriteShort;
-    import.WriteLong = MSG_WriteLong;
+    import.WriteChar = MSG_WriteInt8;
+    import.WriteByte = MSG_WriteUint8;
+    import.WriteShort = MSG_WriteInt16;
+    import.WriteLong = MSG_WriteInt32;
     import.WriteFloat = PF_WriteFloat;
     import.WriteString = MSG_WriteString;
     import.WritePosition = MSG_WritePos;

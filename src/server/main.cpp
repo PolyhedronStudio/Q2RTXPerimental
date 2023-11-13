@@ -198,7 +198,7 @@ void SV_DropClient(client_t *client, const char *reason)
         print_drop_reason(client, reason, oldstate);
 
     // add the disconnect
-    MSG_WriteByte(svc_disconnect);
+    MSG_WriteUint8(svc_disconnect);
     SV_ClientAddMessage(client, MSG_RELIABLE | MSG_CLEAR);
 
     if (oldstate == cs_spawned || (g_features->integer & GMF_WANT_ALL_DISCONNECTS)) {
@@ -867,12 +867,12 @@ static client_t *redirect(const char *addr)
     Netchan_OutOfBand(NS_SERVER, &net_from, "client_connect");
 
     // set up a fake server netchan
-    MSG_WriteLong(1);
-    MSG_WriteLong(0);
-    MSG_WriteByte(svc_print);
-    MSG_WriteByte(PRINT_HIGH);
+    MSG_WriteInt32(1);
+    MSG_WriteInt32(0);
+    MSG_WriteUint8(svc_print);
+    MSG_WriteUint8(PRINT_HIGH);
     MSG_WriteString(va("Server is full. Redirecting you to %s...\n", addr));
-    MSG_WriteByte(svc_stufftext);
+    MSG_WriteUint8(svc_stufftext);
     MSG_WriteString(va("connect %s\n", addr));
 
     NET_SendPacket(NS_SERVER, msg_write.data, msg_write.cursize, &net_from);
@@ -1191,7 +1191,7 @@ static void SV_ConnectionlessPacket(void)
     }
 
     MSG_BeginReading();
-    MSG_ReadLong();        // skip the -1 marker
+    MSG_ReadInt32();        // skip the -1 marker
 
     if (MSG_ReadStringLine(string, sizeof(string)) >= sizeof(string)) {
         Com_DPrintf("ignored oversize connectionless packet\n");
@@ -2130,15 +2130,15 @@ static void SV_FinalMessage(const char *message, error_type_t type)
         return;
 
     if (message) {
-        MSG_WriteByte(svc_print);
-        MSG_WriteByte(PRINT_HIGH);
+        MSG_WriteUint8(svc_print);
+        MSG_WriteUint8(PRINT_HIGH);
         MSG_WriteString(message);
     }
 
     if (type == ERR_RECONNECT)
-        MSG_WriteByte(svc_reconnect);
+        MSG_WriteUint8(svc_reconnect);
     else
-        MSG_WriteByte(svc_disconnect);
+        MSG_WriteUint8(svc_disconnect);
 
     // send it twice
     // stagger the packets to crutch operating system limited buffers

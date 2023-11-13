@@ -200,12 +200,12 @@ static void CL_ParseFrame(int extrabits)
     cl.frameflags = 0;
 
     extraflags = 0;
-    currentframe = MSG_ReadLong();
-    deltaframe = MSG_ReadLong();
+    currentframe = MSG_ReadInt32();
+    deltaframe = MSG_ReadInt32();
 
     // BIG HACK to let old demos continue to work
     if (cls.serverProtocol != PROTOCOL_VERSION_OLD) {
-        suppressed = MSG_ReadByte();
+        suppressed = MSG_ReadUint8();
         if (suppressed) {
             cl.frameflags |= FF_SUPPRESSED;
         }
@@ -258,7 +258,7 @@ static void CL_ParseFrame(int extrabits)
     }
 
     // read areabits
-    length = MSG_ReadByte();
+    length = MSG_ReadUint8();
     if (length) {
         if (length < 0 || msg_read.readcount + length > msg_read.cursize) {
             Com_Error(ERR_DROP, "%s: read past end of message", __func__);
@@ -274,7 +274,7 @@ static void CL_ParseFrame(int extrabits)
     }
 
     if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-        if (MSG_ReadByte() != svc_playerinfo) {
+        if (MSG_ReadUint8() != svc_playerinfo) {
             Com_Error(ERR_DROP, "%s: not playerinfo", __func__);
         }
     }
@@ -282,7 +282,7 @@ static void CL_ParseFrame(int extrabits)
     SHOWNET(2, "%3zu:playerinfo\n", msg_read.readcount - 1);
 
     // parse playerstate
-    bits = MSG_ReadWord();
+    bits = MSG_ReadUint16();
 	MSG_ParseDeltaPlayerstate(from, &frame.ps, bits);
 #if USE_DEBUG
         if (cl_shownet->integer > 2 && bits) {
@@ -294,7 +294,7 @@ static void CL_ParseFrame(int extrabits)
 
     // parse packetentities
     if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-        if (MSG_ReadByte() != svc_packetentities) {
+        if (MSG_ReadUint8() != svc_packetentities) {
             Com_Error(ERR_DROP, "%s: not packetentities", __func__);
         }
     }
@@ -400,7 +400,7 @@ static void CL_ParseGamestate(void)
     int        index, bits;
 
     while (msg_read.readcount < msg_read.cursize) {
-        index = MSG_ReadShort();
+        index = MSG_ReadInt16();
         if (index == MAX_CONFIGSTRINGS) {
             break;
         }
@@ -428,9 +428,9 @@ static void CL_ParseServerData(void)
     CL_ClearState();
 
     // parse protocol version number
-    protocol = MSG_ReadLong();
-    cl.servercount = MSG_ReadLong();
-    attractloop = MSG_ReadByte();
+    protocol = MSG_ReadInt32();
+    cl.servercount = MSG_ReadInt32();
+    attractloop = MSG_ReadUint8();
 
     Com_DPrintf("Serverdata packet received "
                 "(protocol=%d, servercount=%d, attractloop=%d)\n",
@@ -468,7 +468,7 @@ static void CL_ParseServerData(void)
     }
 
     // parse player entity number
-    cl.clientNum = MSG_ReadShort();
+    cl.clientNum = MSG_ReadInt16();
 
     // get the full level name
     MSG_ReadString(levelname, sizeof(levelname));
@@ -523,7 +523,7 @@ snd_params_t    snd;
 
 static void CL_ParseTEntPacket(void)
 {
-    te.type = MSG_ReadByte();
+    te.type = MSG_ReadUint8();
 
     switch (te.type) {
     case TE_BLOOD:
@@ -549,10 +549,10 @@ static void CL_ParseTEntPacket(void)
     case TE_LASER_SPARKS:
     case TE_WELDING_SPARKS:
     case TE_TUNNEL_SPARKS:
-        te.count = MSG_ReadByte();
+        te.count = MSG_ReadUint8();
         MSG_ReadPos(te.pos1);
 		MSG_ReadDir8(te.dir);
-        te.color = MSG_ReadByte();
+        te.color = MSG_ReadUint8();
         break;
 
     case TE_BLUEHYPERBLASTER:
@@ -591,56 +591,56 @@ static void CL_ParseTEntPacket(void)
     case TE_MEDIC_CABLE_ATTACK:
     case TE_HEATBEAM:
     case TE_MONSTER_HEATBEAM:
-        te.entity1 = MSG_ReadShort();
+        te.entity1 = MSG_ReadInt16();
         MSG_ReadPos(te.pos1);
         MSG_ReadPos(te.pos2);
         break;
 
     case TE_GRAPPLE_CABLE:
-        te.entity1 = MSG_ReadShort();
+        te.entity1 = MSG_ReadInt16();
         MSG_ReadPos(te.pos1);
         MSG_ReadPos(te.pos2);
         MSG_ReadPos(te.offset);
         break;
 
     case TE_LIGHTNING:
-        te.entity1 = MSG_ReadShort();
-        te.entity2 = MSG_ReadShort();
+        te.entity1 = MSG_ReadInt16();
+        te.entity2 = MSG_ReadInt16();
         MSG_ReadPos(te.pos1);
         MSG_ReadPos(te.pos2);
         break;
 
     case TE_FLASHLIGHT:
         MSG_ReadPos(te.pos1);
-        te.entity1 = MSG_ReadShort();
+        te.entity1 = MSG_ReadInt16();
         break;
 
     case TE_FORCEWALL:
         MSG_ReadPos(te.pos1);
         MSG_ReadPos(te.pos2);
-        te.color = MSG_ReadByte();
+        te.color = MSG_ReadUint8();
         break;
 
     case TE_STEAM:
-        te.entity1 = MSG_ReadShort();
-        te.count = MSG_ReadByte();
+        te.entity1 = MSG_ReadInt16();
+        te.count = MSG_ReadUint8();
         MSG_ReadPos(te.pos1);
 		MSG_ReadDir8(te.dir);
-        te.color = MSG_ReadByte();
-        te.entity2 = MSG_ReadShort();
+        te.color = MSG_ReadUint8();
+        te.entity2 = MSG_ReadInt16();
         if (te.entity1 != -1) {
-            te.time = MSG_ReadLong();
+            te.time = MSG_ReadInt32();
         }
         break;
 
     case TE_WIDOWBEAMOUT:
-        te.entity1 = MSG_ReadShort();
+        te.entity1 = MSG_ReadInt16();
         MSG_ReadPos(te.pos1);
         break;
 
     case TE_FLARE:
-        te.entity1 = MSG_ReadShort();
-        te.count = MSG_ReadByte();
+        te.entity1 = MSG_ReadInt16();
+        te.count = MSG_ReadUint8();
         MSG_ReadPos(te.pos1);
 		MSG_ReadDir8(te.dir);
         break;
@@ -654,11 +654,11 @@ static void CL_ParseMuzzleFlashPacket(int mask)
 {
     int entity, weapon;
 
-    entity = MSG_ReadShort();
+    entity = MSG_ReadInt16();
     if (entity < 1 || entity >= MAX_EDICTS)
         Com_Error(ERR_DROP, "%s: bad entity", __func__);
 
-    weapon = MSG_ReadByte();
+    weapon = MSG_ReadUint8();
     mz.silenced = weapon & mask;
     mz.weapon = weapon & ~mask;
     mz.entity = entity;
@@ -668,32 +668,32 @@ static void CL_ParseStartSoundPacket(void)
 {
     int flags, channel, entity;
 
-    flags = MSG_ReadByte();
+    flags = MSG_ReadUint8();
     if ((flags & (SND_ENT | SND_POS)) == 0)
         Com_Error(ERR_DROP, "%s: neither SND_ENT nor SND_POS set", __func__);
 
-    snd.index = MSG_ReadByte();
+    snd.index = MSG_ReadUint8();
     if (snd.index == -1)
         Com_Error(ERR_DROP, "%s: read past end of message", __func__);
 
     if (flags & SND_VOLUME)
-        snd.volume = MSG_ReadByte() / 255.0f;
+        snd.volume = MSG_ReadUint8() / 255.0f;
     else
         snd.volume = DEFAULT_SOUND_PACKET_VOLUME;
 
     if (flags & SND_ATTENUATION)
-        snd.attenuation = MSG_ReadByte() / 64.0f;
+        snd.attenuation = MSG_ReadUint8() / 64.0f;
     else
         snd.attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
     if (flags & SND_OFFSET)
-        snd.timeofs = MSG_ReadByte() / 1000.0f;
+        snd.timeofs = MSG_ReadUint8() / 1000.0f;
     else
         snd.timeofs = 0;
 
     if (flags & SND_ENT) {
         // entity relative
-        channel = MSG_ReadShort();
+        channel = MSG_ReadInt16();
         entity = channel >> 3;
         if (entity < 0 || entity >= MAX_EDICTS)
             Com_Error(ERR_DROP, "%s: bad entity: %d", __func__, entity);
@@ -798,7 +798,7 @@ static void CL_ParsePrint(void)
     char s[MAX_STRING_CHARS];
     const char *fmt;
 
-    level = MSG_ReadByte();
+    level = MSG_ReadUint8();
     MSG_ReadString(s, sizeof(s));
 
     SHOWNET(2, "    %i \"%s\"\n", level, s);
@@ -888,7 +888,7 @@ static void CL_ParseInventory(void)
     int        i;
 
     for (i = 0; i < MAX_ITEMS; i++) {
-        cl.inventory[i] = MSG_ReadShort();
+        cl.inventory[i] = MSG_ReadInt16();
     }
 }
 
@@ -902,8 +902,8 @@ static void CL_ParseDownload(int cmd)
     }
 
     // read the data
-    size = MSG_ReadShort();
-    percent = MSG_ReadByte();
+    size = MSG_ReadInt16();
+    percent = MSG_ReadUint8();
     if (size == -1) {
         CL_HandleDownload(NULL, size, percent, 0);
         return;
@@ -913,7 +913,7 @@ static void CL_ParseDownload(int cmd)
     if (cmd == svc_zdownload) {
 #if USE_ZLIB
         if (cls.serverProtocol == PROTOCOL_VERSION_R1Q2) {
-            decompressed_size = MSG_ReadShort();
+            decompressed_size = MSG_ReadInt16();
         } else {
             decompressed_size = -1;
         }
@@ -950,8 +950,8 @@ static void CL_ParseZPacket(void)
         Com_Error(ERR_DROP, "%s: recursively entered", __func__);
     }
 
-    inlen = MSG_ReadWord();
-    outlen = MSG_ReadWord();
+    inlen = MSG_ReadUint16();
+    outlen = MSG_ReadUint16();
 
     if (inlen == -1 || outlen == -1 || msg_read.readcount + inlen > msg_read.cursize) {
         Com_Error(ERR_DROP, "%s: read past end of message", __func__);
@@ -992,8 +992,8 @@ static void CL_ParseSetting(void)
     int index q_unused;
     int value q_unused;
 
-    index = MSG_ReadLong();
-    value = MSG_ReadLong();
+    index = MSG_ReadInt32();
+    value = MSG_ReadInt32();
 
     switch (index) {
 //#if USE_FPS
@@ -1035,7 +1035,7 @@ void CL_ParseServerMessage(void)
 
         readcount = msg_read.readcount;
 
-        if ((cmd = MSG_ReadByte()) == -1) {
+        if ((cmd = MSG_ReadUint8()) == -1) {
             SHOWNET(1, "%3zu:END OF MESSAGE\n", msg_read.readcount - 1);
             break;
         }
@@ -1084,7 +1084,7 @@ badbyte:
             continue;
 
         case svc_configstring:
-            index = MSG_ReadShort();
+            index = MSG_ReadInt16();
             CL_ParseConfigstring(index);
             break;
 
@@ -1203,7 +1203,7 @@ void CL_SeekDemoMessage(void)
             Com_Error(ERR_DROP, "%s: read past end of server message", __func__);
         }
 
-        if ((cmd = MSG_ReadByte()) == -1) {
+        if ((cmd = MSG_ReadUint8()) == -1) {
             SHOWNET(1, "%3zu:END OF MESSAGE\n", msg_read.readcount - 1);
             break;
         }
@@ -1232,7 +1232,7 @@ void CL_SeekDemoMessage(void)
             break;
 
         case svc_print:
-            MSG_ReadByte();
+            MSG_ReadUint8();
             // fall through
 
         case svc_centerprint:
@@ -1241,7 +1241,7 @@ void CL_SeekDemoMessage(void)
             break;
 
         case svc_configstring:
-            index = MSG_ReadShort();
+            index = MSG_ReadInt16();
             CL_ParseConfigstring(index);
             break;
 

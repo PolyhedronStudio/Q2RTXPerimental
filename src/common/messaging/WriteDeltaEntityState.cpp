@@ -82,14 +82,14 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 		if ( from->number & 0xff00 )
 			bits |= U_NUMBER16 | U_MOREBITS1;
 
-		MSG_WriteByte( bits & 255 );
+		MSG_WriteUint8( bits & 255 );
 		if ( bits & 0x0000ff00 )
-			MSG_WriteByte( ( bits >> 8 ) & 255 );
+			MSG_WriteUint8( ( bits >> 8 ) & 255 );
 
 		if ( bits & U_NUMBER16 )
-			MSG_WriteShort( from->number );
+			MSG_WriteInt16( from->number );
 		else
-			MSG_WriteByte( from->number );
+			MSG_WriteUint8( from->number );
 
 		return; // remove entity
 	}
@@ -221,96 +221,96 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	else if ( bits & 0x0000ff00 )
 		bits |= U_MOREBITS1;
 
-	MSG_WriteByte( bits & 255 );
+	MSG_WriteUint8( bits & 255 );
 
 	if ( bits & 0xff000000 ) {
-		MSG_WriteByte( ( bits >> 8 ) & 255 );
-		MSG_WriteByte( ( bits >> 16 ) & 255 );
-		MSG_WriteByte( ( bits >> 24 ) & 255 );
+		MSG_WriteUint8( ( bits >> 8 ) & 255 );
+		MSG_WriteUint8( ( bits >> 16 ) & 255 );
+		MSG_WriteUint8( ( bits >> 24 ) & 255 );
 	} else if ( bits & 0x00ff0000 ) {
-		MSG_WriteByte( ( bits >> 8 ) & 255 );
-		MSG_WriteByte( ( bits >> 16 ) & 255 );
+		MSG_WriteUint8( ( bits >> 8 ) & 255 );
+		MSG_WriteUint8( ( bits >> 16 ) & 255 );
 	} else if ( bits & 0x0000ff00 ) {
-		MSG_WriteByte( ( bits >> 8 ) & 255 );
+		MSG_WriteUint8( ( bits >> 8 ) & 255 );
 	}
 
 	//----------
 
 	if ( bits & U_NUMBER16 )
-		MSG_WriteShort( to->number );
+		MSG_WriteInt16( to->number );
 	else
-		MSG_WriteByte( to->number );
+		MSG_WriteUint8( to->number );
 
 	if ( bits & U_MODEL )
-		MSG_WriteByte( to->modelindex );
+		MSG_WriteUint8( to->modelindex );
 	if ( bits & U_MODEL2 )
-		MSG_WriteByte( to->modelindex2 );
+		MSG_WriteUint8( to->modelindex2 );
 	if ( bits & U_MODEL3 )
-		MSG_WriteByte( to->modelindex3 );
+		MSG_WriteUint8( to->modelindex3 );
 	if ( bits & U_MODEL4 )
-		MSG_WriteByte( to->modelindex4 );
+		MSG_WriteUint8( to->modelindex4 );
 
 	if ( bits & U_FRAME8 )
-		MSG_WriteByte( to->frame );
+		MSG_WriteUint8( to->frame );
 	else if ( bits & U_FRAME16 )
-		MSG_WriteShort( to->frame );
+		MSG_WriteInt16( to->frame );
 
 	if ( ( bits & ( U_SKIN8 | U_SKIN16 ) ) == ( U_SKIN8 | U_SKIN16 ) )  //used for laser colors
-		MSG_WriteLong( to->skinnum );
+		MSG_WriteInt32( to->skinnum );
 	else if ( bits & U_SKIN8 )
-		MSG_WriteByte( to->skinnum );
+		MSG_WriteUint8( to->skinnum );
 	else if ( bits & U_SKIN16 )
-		MSG_WriteShort( to->skinnum );
+		MSG_WriteInt16( to->skinnum );
 
 	if ( ( bits & ( U_EFFECTS8 | U_EFFECTS16 ) ) == ( U_EFFECTS8 | U_EFFECTS16 ) )
-		MSG_WriteLong( to->effects );
+		MSG_WriteInt32( to->effects );
 	else if ( bits & U_EFFECTS8 )
-		MSG_WriteByte( to->effects );
+		MSG_WriteUint8( to->effects );
 	else if ( bits & U_EFFECTS16 )
-		MSG_WriteShort( to->effects );
+		MSG_WriteInt16( to->effects );
 
 	if ( ( bits & ( U_RENDERFX8 | U_RENDERFX16 ) ) == ( U_RENDERFX8 | U_RENDERFX16 ) )
-		MSG_WriteLong( to->renderfx );
+		MSG_WriteInt32( to->renderfx );
 	else if ( bits & U_RENDERFX8 )
-		MSG_WriteByte( to->renderfx );
+		MSG_WriteUint8( to->renderfx );
 	else if ( bits & U_RENDERFX16 )
-		MSG_WriteShort( to->renderfx );
+		MSG_WriteInt16( to->renderfx );
 
 	if ( bits & U_ORIGIN1 )
-		MSG_WriteShort( to->origin[ 0 ] );
+		MSG_WriteInt16( to->origin[ 0 ] );
 	if ( bits & U_ORIGIN2 )
-		MSG_WriteShort( to->origin[ 1 ] );
+		MSG_WriteInt16( to->origin[ 1 ] );
 	if ( bits & U_ORIGIN3 )
-		MSG_WriteShort( to->origin[ 2 ] );
+		MSG_WriteInt16( to->origin[ 2 ] );
 
 	if ( ( flags & MSG_ES_SHORTANGLES ) && ( bits & U_ANGLE16 ) ) {
 		if ( bits & U_ANGLE1 )
-			MSG_WriteShort( to->angles[ 0 ] );
+			MSG_WriteInt16( to->angles[ 0 ] );
 		if ( bits & U_ANGLE2 )
-			MSG_WriteShort( to->angles[ 1 ] );
+			MSG_WriteInt16( to->angles[ 1 ] );
 		if ( bits & U_ANGLE3 )
-			MSG_WriteShort( to->angles[ 2 ] );
+			MSG_WriteInt16( to->angles[ 2 ] );
 	} else {
 		if ( bits & U_ANGLE1 )
-			MSG_WriteByte( to->angles[ 0 ] >> 8 );
+			MSG_WriteUint8( to->angles[ 0 ] >> 8 );
 		if ( bits & U_ANGLE2 )
-			MSG_WriteByte( to->angles[ 1 ] >> 8 );
+			MSG_WriteUint8( to->angles[ 1 ] >> 8 );
 		if ( bits & U_ANGLE3 )
-			MSG_WriteByte( to->angles[ 2 ] >> 8 );
+			MSG_WriteUint8( to->angles[ 2 ] >> 8 );
 	}
 
 	if ( bits & U_OLDORIGIN ) {
-		MSG_WriteShort( to->old_origin[ 0 ] );
-		MSG_WriteShort( to->old_origin[ 1 ] );
-		MSG_WriteShort( to->old_origin[ 2 ] );
+		MSG_WriteInt16( to->old_origin[ 0 ] );
+		MSG_WriteInt16( to->old_origin[ 1 ] );
+		MSG_WriteInt16( to->old_origin[ 2 ] );
 	}
 
 	if ( bits & U_SOUND )
-		MSG_WriteByte( to->sound );
+		MSG_WriteUint8( to->sound );
 	if ( bits & U_EVENT )
-		MSG_WriteByte( to->event );
+		MSG_WriteUint8( to->event );
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: WriteLong by default.
-		MSG_WriteLong( to->solid.u );
+		MSG_WriteInt32( to->solid.u );
 	}
 }

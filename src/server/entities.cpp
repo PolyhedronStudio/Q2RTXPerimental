@@ -144,7 +144,7 @@ static void SV_EmitPacketEntities(client_t         *client,
         }
     }
 
-    MSG_WriteShort(0);      // end of packetentities
+    MSG_WriteInt16(0);      // end of packetentities
 }
 
 static client_frame_t *get_last_frame(client_t *client)
@@ -205,23 +205,23 @@ void SV_WriteFrameToClient( client_t *client ) {
 		lastframe = -1;
 	}
 
-	MSG_WriteByte( svc_frame );
-	MSG_WriteLong( client->framenum );
-	MSG_WriteLong( lastframe );   // what we are delta'ing from
-	MSG_WriteByte( client->suppress_count );  // rate dropped packets
+	MSG_WriteUint8( svc_frame );
+	MSG_WriteInt32( client->framenum );
+	MSG_WriteInt32( lastframe );   // what we are delta'ing from
+	MSG_WriteUint8( client->suppress_count );  // rate dropped packets
 	client->suppress_count = 0;
 	client->frameflags = 0;
 
 	// send over the areabits
-	MSG_WriteByte( frame->areabytes );
+	MSG_WriteUint8( frame->areabytes );
 	MSG_WriteData( frame->areabits, frame->areabytes );
 
 	// delta encode the playerstate
-	MSG_WriteByte( svc_playerinfo );
+	MSG_WriteUint8( svc_playerinfo );
 	MSG_WriteDeltaPlayerstate( oldstate, &frame->ps );
 
 	// delta encode the entities
-	MSG_WriteByte( svc_packetentities );
+	MSG_WriteUint8( svc_packetentities );
 	SV_EmitPacketEntities( client, oldframe, frame, 0 );
 }
 

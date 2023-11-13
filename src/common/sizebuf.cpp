@@ -79,7 +79,7 @@ void *SZ_GetSpace(sizebuf_t *buf, size_t len)
     return data;
 }
 
-void SZ_WriteByte(sizebuf_t *sb, int c)
+void SZ_WriteUint8(sizebuf_t *sb, int c)
 {
     byte    *buf;
 
@@ -87,7 +87,7 @@ void SZ_WriteByte(sizebuf_t *sb, int c)
     buf[0] = c;
 }
 
-void SZ_WriteShort(sizebuf_t *sb, int c)
+void SZ_WriteInt16(sizebuf_t *sb, int c)
 {
     byte    *buf;
 
@@ -95,7 +95,7 @@ void SZ_WriteShort(sizebuf_t *sb, int c)
     WL16(buf, c);
 }
 
-void SZ_WriteLong(sizebuf_t *sb, int c)
+void SZ_WriteInt32(sizebuf_t *sb, int c)
 {
     byte    *buf;
 
@@ -108,14 +108,14 @@ void SZ_WriteString(sizebuf_t *sb, const char *s)
     size_t len;
 
     if (!s) {
-        SZ_WriteByte(sb, 0);
+        SZ_WriteUint8(sb, 0);
         return;
     }
 
     len = strlen(s);
     if (len >= MAX_NET_STRING) {
         Com_WPrintf("%s: overflow: %zu chars", __func__, len);
-        SZ_WriteByte(sb, 0);
+        SZ_WriteUint8(sb, 0);
         return;
     }
 
