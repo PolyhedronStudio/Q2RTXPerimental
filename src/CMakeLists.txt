@@ -205,13 +205,22 @@ SET(SRC_COMMON
 	common/files.cpp
 	common/math.cpp
 	common/mdfour.cpp
-	common/messages.cpp
+	common/messaging.cpp
 	common/pmove.cpp
 	common/prompt.cpp
 	common/sizebuf.cpp
 #	common/tests.cpp
 	common/utils.cpp
 	common/zone.cpp
+
+	common/messaging/ParseDeltaEntityState.cpp
+	common/messaging/ParseDeltaPlayerState.cpp
+	common/messaging/ParseDeltaUserCommand.cpp
+
+	common/messaging/WriteDeltaEntityState.cpp
+	common/messaging/WriteDeltaPlayerState.cpp
+	common/messaging/WriteDeltaUserCommand.cpp
+
 	common/net/chan.cpp
 	common/net/Q2RTXPerimentalNetChan.cpp
 	common/net/net.cpp

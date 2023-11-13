@@ -542,7 +542,7 @@ static void CL_ParseTEntPacket(void)
     case TE_MOREBLOOD:
     case TE_ELECTRIC_SPARKS:
         MSG_ReadPos(te.pos1);
-        MSG_ReadDir(te.dir);
+        MSG_ReadDir8(te.dir);
         break;
 
     case TE_SPLASH:
@@ -551,7 +551,7 @@ static void CL_ParseTEntPacket(void)
     case TE_TUNNEL_SPARKS:
         te.count = MSG_ReadByte();
         MSG_ReadPos(te.pos1);
-        MSG_ReadDir(te.dir);
+		MSG_ReadDir8(te.dir);
         te.color = MSG_ReadByte();
         break;
 
@@ -625,7 +625,7 @@ static void CL_ParseTEntPacket(void)
         te.entity1 = MSG_ReadShort();
         te.count = MSG_ReadByte();
         MSG_ReadPos(te.pos1);
-        MSG_ReadDir(te.dir);
+		MSG_ReadDir8(te.dir);
         te.color = MSG_ReadByte();
         te.entity2 = MSG_ReadShort();
         if (te.entity1 != -1) {
@@ -642,7 +642,7 @@ static void CL_ParseTEntPacket(void)
         te.entity1 = MSG_ReadShort();
         te.count = MSG_ReadByte();
         MSG_ReadPos(te.pos1);
-        MSG_ReadDir(te.dir);
+		MSG_ReadDir8(te.dir);
         break;
 
     default:

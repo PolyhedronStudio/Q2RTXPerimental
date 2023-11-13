@@ -29,6 +29,7 @@ extern "C" {
 	#include "common/sizebuf.h"
 
 
+
 	/**
 	*
 	*   "Packing" POD types.
@@ -122,6 +123,33 @@ extern "C" {
 		mins[ 2 ] = -packedSolid.p.zd; maxs[ 2 ] = packedSolid.p.zu - 32;
 	}
 
+	/**
+	*   @brief	Encodes the float to an int8_t, having a limit of: -32/+32
+	**/
+	static inline const int8_t OFFSET2CHAR( float f ) {
+		clamp( f, -32, 127.0f / 4 );
+		return (int8_t)( f * 4.f );
+	}
+	/**
+	*	@brief	Decodes the byte back into a float, limit is: -32.f/+32.f
+	**/
+	static inline const float BYTE2OFFSET( const int8_t b ) {
+		return (float)( b ) / 255.f;
+	}
+
+	/**
+	*   @brief	Encodes the "blend" float to an uint8_t, range(0 = 0, 1 = 255).
+	**/
+	static inline const uint8_t BLEND2BYTE( float f ) {
+		clamp( f, 0.f, 1.f );
+		return (uint8_t)( f * 255.f );
+	}
+	/**
+	*	@brief	Decodes the byte back into a "blend" float, range(0 = 0, 255 = 1)
+	**/
+	static inline const float BYTE2BLEND( const uint8_t b ) {
+		return (float)( b ) * 0.25f;
+	}
 
 
 	/**
@@ -156,6 +184,21 @@ extern "C" {
 		MSG_ES_SHORTANGLES  = (1 << 6),
 		MSG_ES_REMOVE       = (1 << 7)
 	} msgEsFlags_t;
+
+
+	/**
+	*
+	*   Wire Delta Packing:
+	*
+	**/
+	/**
+	*   @brief	Pack a player state(in) encoding it into player_packed_t(out)
+	**/
+	void    MSG_PackPlayer( player_packed_t *out, const player_state_t *in );
+	/**
+	*   @brief	Pack an entity state(in) encoding it into entity_packed_t(out)
+	**/
+	void    MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_angles );
 
 
 
@@ -201,7 +244,6 @@ extern "C" {
 	*			Will clear the "Write" message buffer after succesfully copying the data.
 	**/
 	void MSG_FlushTo( sizebuf_t *buf );
-
 	/**
 	*   @brief
 	**/
@@ -224,17 +266,15 @@ extern "C" {
 	void    MSG_WriteLong(int c);
 	void    MSG_WriteString(const char *s);
 	void    MSG_WritePos(const vec3_t pos);
-	void    MSG_WriteAngle(float f);
+	void    MSG_WriteAngle8(float f);
+	void    MSG_WriteAngle16( float f );
 	#if USE_CLIENT
-	void    MSG_FlushBits(void);
-	void    MSG_WriteBits(int value, int bits);
-	int     MSG_WriteDeltaUsercmd(const usercmd_t *from, const usercmd_t *cmd, int version);
+		int     MSG_WriteDeltaUserCommand(const usercmd_t *from, const usercmd_t *cmd, int version);
 	#endif
-	void    MSG_WriteDir(const vec3_t vector);
-	void    MSG_PackEntity(entity_packed_t *out, const entity_state_t *in, bool short_angles);
+	void    MSG_WriteDir8(const vec3_t vector);
 	void    MSG_WriteDeltaEntity(const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags);
-	void    MSG_PackPlayer(player_packed_t *out, const player_state_t *in);
 	void    MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to );
+
 
 
 	/**
@@ -242,14 +282,6 @@ extern "C" {
 	*   Wire Types "Read" functionality.
 	*
 	**/
-	/**
-	*   @brief
-	**/
-	void    MSG_BeginReading(void);
-	/**
-	*   @brief
-	**/
-	byte    *MSG_ReadData(size_t len);
 	/**
 	*   @brief	Returns -1 if no more characters are available
 	**/
@@ -263,17 +295,28 @@ extern "C" {
 	int     MSG_ReadLong(void);
 	size_t  MSG_ReadString(char *dest, size_t size);
 	size_t  MSG_ReadStringLine(char *dest, size_t size);
+	const float MSG_ReadCoord( void );
+	void MSG_ReadPos( vec3_t pos );
+	/**
+	*	@brief Reads a byte and decodes it to a float angle.
+	**/
+	const float MSG_ReadAngle8( void );
+	/**
+	*	@brief Reads a short and decodes it to a float angle.
+	**/
+	const float MSG_ReadAngle16( void );
+	void MSG_ReadDir8( vec3_t dir );
 	#if USE_CLIENT
-	void    MSG_ReadPos(vec3_t pos);
-	void    MSG_ReadDir(vec3_t vector);
+		void    MSG_ReadPos(vec3_t pos);
+		void    MSG_ReadDir8(vec3_t vector);
 	#endif
-	int     MSG_ReadBits(int bits);
-	void    MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *cmd);
+	void    MSG_ParseDeltaUserCommand(const usercmd_t *from, usercmd_t *cmd);
 	int     MSG_ParseEntityBits(int *bits);
 	void    MSG_ParseDeltaEntity(const entity_state_t *from, entity_state_t *to, int number, int bits, msgEsFlags_t flags);
 	#if USE_CLIENT
-	void    MSG_ParseDeltaPlayerstate( const player_state_t *from, player_state_t *to, int flags );
+		void    MSG_ParseDeltaPlayerstate( const player_state_t *from, player_state_t *to, int flags );
 	#endif
+
 
 
 	/**
@@ -282,16 +325,16 @@ extern "C" {
 	*
 	**/
 	#if USE_DEBUG
-	#if USE_CLIENT
-	void    MSG_ShowDeltaPlayerstateBits( int flags );
-	#endif
-	#if USE_CLIENT
-	void    MSG_ShowDeltaEntityBits(int bits);
-	const char *MSG_ServerCommandString(int cmd);
-	#define MSG_ShowSVC(cmd) \
-		Com_LPrintf(PRINT_DEVELOPER, "%3zu:%s\n", msg_read.readcount - 1, \
-			MSG_ServerCommandString(cmd))
-	#endif // USE_CLIENT
+		#if USE_CLIENT
+			void    MSG_ShowDeltaPlayerstateBits( int flags );
+		#endif
+		#if USE_CLIENT
+			void    MSG_ShowDeltaEntityBits(int bits);
+			const char *MSG_ServerCommandString(int cmd);
+			#define MSG_ShowSVC(cmd) \
+				Com_LPrintf(PRINT_DEVELOPER, "%3zu:%s\n", msg_read.readcount - 1, \
+					MSG_ServerCommandString(cmd))
+		#endif // USE_CLIENT
 	#endif // USE_DEBUG
 
 // WID: C++20: In case of C++ including this..

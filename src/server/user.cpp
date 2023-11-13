@@ -1012,9 +1012,9 @@ static void SV_ClientExecuteMove(void)
     lastframe = MSG_ReadLong();
 
     // read all cmds
-	MSG_ReadDeltaUsercmd(NULL, &oldest);
-	MSG_ReadDeltaUsercmd(&oldest, &oldcmd);
-	MSG_ReadDeltaUsercmd(&oldcmd, &newcmd);
+	MSG_ParseDeltaUserCommand(NULL, &oldest);
+	MSG_ParseDeltaUserCommand(&oldest, &oldcmd);
+	MSG_ParseDeltaUserCommand(&oldcmd, &newcmd);
 
     if (sv_client->state != cs_spawned) {
         SV_SetLastFrame(-1);

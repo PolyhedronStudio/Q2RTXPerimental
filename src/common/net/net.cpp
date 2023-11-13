@@ -27,7 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #if USE_DEBUG
 #include "common/files.h"
 #endif
-#include "common/messages.h"
+#include "common/messaging.h"
 #include "common/net/net.h"
 #include "common/protocol.h"
 #include "common/zone.h"

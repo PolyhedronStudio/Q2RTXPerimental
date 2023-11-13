@@ -931,15 +931,15 @@ static void CL_SendDefaultCmd(void)
     // send this and the previous cmds in the message, so
     // if the last packet was dropped, it can be recovered
     cmd = &cl.cmds[(cl.cmdNumber - 2) & CMD_MASK];
-    MSG_WriteDeltaUsercmd(NULL, cmd, cls.protocolVersion);
+    MSG_WriteDeltaUserCommand(NULL, cmd, cls.protocolVersion);
     oldcmd = cmd;
 
     cmd = &cl.cmds[(cl.cmdNumber - 1) & CMD_MASK];
-    MSG_WriteDeltaUsercmd(oldcmd, cmd, cls.protocolVersion);
+    MSG_WriteDeltaUserCommand(oldcmd, cmd, cls.protocolVersion);
     oldcmd = cmd;
 
     cmd = &cl.cmds[cl.cmdNumber & CMD_MASK];
-    MSG_WriteDeltaUsercmd(oldcmd, cmd, cls.protocolVersion);
+    MSG_WriteDeltaUserCommand(oldcmd, cmd, cls.protocolVersion);
 
     if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         // calculate a checksum over the move commands

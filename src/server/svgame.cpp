@@ -850,8 +850,8 @@ void SV_InitGameProgs(void)
     import.WriteFloat = PF_WriteFloat;
     import.WriteString = MSG_WriteString;
     import.WritePosition = MSG_WritePos;
-    import.WriteDir = MSG_WriteDir;
-    import.WriteAngle = MSG_WriteAngle;
+    import.WriteDir = MSG_WriteDir8;
+    import.WriteAngle = MSG_WriteAngle8;
 
     import.TagMalloc = PF_TagMalloc;
     import.TagFree = Z_Free;
