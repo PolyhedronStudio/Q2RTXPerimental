@@ -25,7 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 /**
-*	@brief	
+*   @brief Read a client's delta move command.
 **/
 void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *to ) {
 	int bits;

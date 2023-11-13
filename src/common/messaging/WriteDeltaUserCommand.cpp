@@ -25,7 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 /**
-*	@brief	
+*   @brief Write a client's delta move command.
 **/
 int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int version ) {
 	int     bits, buttons = cmd->buttons & BUTTON_MASK;

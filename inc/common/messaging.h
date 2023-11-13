@@ -317,9 +317,18 @@ extern "C" {
 	void    MSG_WriteDir8( const vec3_t vector );
 
 	#if USE_CLIENT
+	/**
+	*   @brief Write a client's delta move command.
+	**/
 	int     MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int version );
 	#endif
+	/**
+	*   @brief Writes the delta values of the entity state.
+	**/
 	void    MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags );
+	/**
+	*   @brief Writes the delta player state.
+	**/
 	void    MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to );
 
 
@@ -396,10 +405,23 @@ extern "C" {
 		void    MSG_ReadPos( vec3_t pos );
 		void    MSG_ReadDir8( vec3_t vector );
 	#endif
+	/**
+	*   @brief Read a client's delta move command.
+	**/
 	void    MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *cmd );
+	/**
+	*	@brief	Returns the entity number and the header bits, representing a masks of what variables to delta.
+	**/
 	int     MSG_ParseEntityBits( int *bits );
+	/**
+	*   @brief Reads the delta entity state, can go from either a baseline or a previous packet Entity State.
+	**/
 	void    MSG_ParseDeltaEntity( const entity_state_t *from, entity_state_t *to, int number, int bits, msgEsFlags_t flags );
 	#if USE_CLIENT
+		/**
+		*   @brief  Parses the delta packets of player states.
+		*			Can go from either a baseline or a previous packet_entity
+		**/
 		void    MSG_ParseDeltaPlayerstate( const player_state_t *from, player_state_t *to, int flags );
 	#endif
 

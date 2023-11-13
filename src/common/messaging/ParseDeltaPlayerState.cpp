@@ -26,7 +26,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #if USE_CLIENT
 /**
-*	@brief	
+*   @brief  Parses the delta packets of player states.
+*			Can go from either a baseline or a previous packet_entity
 **/
 void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 									   player_state_t *to,

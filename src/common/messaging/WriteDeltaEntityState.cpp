@@ -64,7 +64,7 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_
 }
 
 /**
-*	@brief	
+*   @brief Writes the delta values of the entity state.
 **/
 void MSG_WriteDeltaEntity( const entity_packed_t *from,
 						  const entity_packed_t *to,

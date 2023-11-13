@@ -62,7 +62,7 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 }
 
 /**
-*	@brief	
+*   @brief Writes the delta player state.
 **/
 void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to ) {
 	int     i;

@@ -26,7 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #if USE_CLIENT
 /**
-*	@brief	Returns the entity number and the header bits
+*	@brief	Returns the entity number and the header bits, representing a masks of what variables to delta.
 **/
 int MSG_ParseEntityBits( int *bits ) {
 	unsigned    b, total;
