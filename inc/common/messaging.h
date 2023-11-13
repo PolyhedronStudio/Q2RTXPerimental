@@ -260,19 +260,50 @@ extern "C" {
 	*   Wire Types "Write" functionality.
 	*
 	**/
-	void    MSG_WriteInt8(int c);
-	void    MSG_WriteUint8(int c);
-	void    MSG_WriteInt16(int c);
-	void    MSG_WriteInt32(int c);
-	void    MSG_WriteString(const char *s);
-	void    MSG_WritePos(const vec3_t pos);
-	void    MSG_WriteAngle8(float f);
-	void    MSG_WriteAngle16( float f );
+	/**
+	*   @brief Writes a signed 8 bit byte.
+	**/
+	void MSG_WriteInt8( const int32_t c);
+	/**
+	*   @brief Writes an unsigned 8 bit byte.
+	**/
+	void MSG_WriteUint8( const int32_t c );
+	/**
+	*   @brief Writes a signed 16 bit short.
+	**/
+	void MSG_WriteInt16( const int32_t c );
+	/**
+	*   @brief Writes a 32 bit integer.
+	**/
+	void MSG_WriteInt32( const int32_t c );
+
+	/**
+	*   @brief Writes a character string.
+	**/
+	void MSG_WriteString( const char *s );
+
+	/**
+	*	@brief	Writes an 8 bit byte encoded angle value of (float)f.
+	**/
+	void MSG_WriteAngle8( const float f );
+	/**
+	*	@brief	Writes a 16 bit short encoded angle value of (float)f.
+	**/
+	void MSG_WriteAngle16( const float f );
+
+	/**
+	*   @brief Writes a 'short' encoded coordinate position vector.
+	**/
+	void MSG_WritePos( const vec3_t pos );
+	/**
+	*	@brief	Writes an 8 bit byte, table index encoded direction vector.
+	**/
+	void    MSG_WriteDir8( const vec3_t vector );
+
 	#if USE_CLIENT
-		int     MSG_WriteDeltaUserCommand(const usercmd_t *from, const usercmd_t *cmd, int version);
+	int     MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int version );
 	#endif
-	void    MSG_WriteDir8(const vec3_t vector);
-	void    MSG_WriteDeltaEntity(const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags);
+	void    MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags );
 	void    MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to );
 
 
@@ -283,20 +314,35 @@ extern "C" {
 	*
 	**/
 	/**
-	*   @brief	Returns -1 if no more characters are available
+	*   @return Signed 8 bit byte. Returns -1 if no more characters are available
 	**/
-	int     MSG_ReadInt8(void);
+	const int32_t MSG_ReadInt8( void );
 	/**
-	*   @brief	Returns -1 if no more characters are available
+	*   @return Unsigned 8 bit byte. Returns -1 if no more characters are available
 	**/
-	int     MSG_ReadUint8(void);
-	int     MSG_ReadInt16(void);
-	int     MSG_ReadUint16(void);
-	int     MSG_ReadInt32(void);
-	size_t  MSG_ReadString(char *dest, size_t size);
-	size_t  MSG_ReadStringLine(char *dest, size_t size);
-	const float MSG_ReadCoord( void );
-	void MSG_ReadPos( vec3_t pos );
+	const int32_t MSG_ReadUint8( void );
+	/**
+	*   @return Signed 16 bit short.
+	**/
+	const int32_t MSG_ReadInt16( void );
+	/**
+	*   @return Unsigned 16 bit short.
+	**/
+	const int32_t MSG_ReadUint16( void );
+	/**
+	*   @return Signed 32 bit int.
+	**/
+	const int32_t MSG_ReadInt32( void );
+
+	/**
+	*   @return The full string until its end.
+	**/
+	const size_t MSG_ReadString( char *dest, const size_t size );
+	/**
+	*   @return The part of the string data up till the first '\n'
+	**/
+	const size_t MSG_ReadStringLine( char *dest, const size_t size );
+
 	/**
 	*	@brief Reads a byte and decodes it to a float angle.
 	**/
@@ -305,14 +351,22 @@ extern "C" {
 	*	@brief Reads a short and decodes it to a float angle.
 	**/
 	const float MSG_ReadAngle16( void );
+
+	/**
+	*	@return A short vector decoded to its full floating point position.
+	**/
+	void MSG_ReadPos( vec3_t pos );
+	/**
+	*	@brief	Reads a byte, and decodes it using it as an index into our directions table.
+	**/
 	void MSG_ReadDir8( vec3_t dir );
 	#if USE_CLIENT
-		void    MSG_ReadPos(vec3_t pos);
-		void    MSG_ReadDir8(vec3_t vector);
+		void    MSG_ReadPos( vec3_t pos );
+		void    MSG_ReadDir8( vec3_t vector );
 	#endif
-	void    MSG_ParseDeltaUserCommand(const usercmd_t *from, usercmd_t *cmd);
-	int     MSG_ParseEntityBits(int *bits);
-	void    MSG_ParseDeltaEntity(const entity_state_t *from, entity_state_t *to, int number, int bits, msgEsFlags_t flags);
+	void    MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *cmd );
+	int     MSG_ParseEntityBits( int *bits );
+	void    MSG_ParseDeltaEntity( const entity_state_t *from, entity_state_t *to, int number, int bits, msgEsFlags_t flags );
 	#if USE_CLIENT
 		void    MSG_ParseDeltaPlayerstate( const player_state_t *from, player_state_t *to, int flags );
 	#endif
@@ -329,8 +383,8 @@ extern "C" {
 			void    MSG_ShowDeltaPlayerstateBits( int flags );
 		#endif
 		#if USE_CLIENT
-			void    MSG_ShowDeltaEntityBits(int bits);
-			const char *MSG_ServerCommandString(int cmd);
+			void    MSG_ShowDeltaEntityBits( int bits );
+			const char *MSG_ServerCommandString( int cmd );
 			#define MSG_ShowSVC(cmd) \
 				Com_LPrintf(PRINT_DEVELOPER, "%3zu:%s\n", msg_read.readcount - 1, \
 					MSG_ServerCommandString(cmd))

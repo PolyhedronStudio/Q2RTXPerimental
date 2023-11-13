@@ -42,24 +42,24 @@ extern "C" {
 	} sizebuf_t;
 
 
-	void SZ_Init(sizebuf_t *buf, void *data, size_t size);
-	void SZ_TagInit(sizebuf_t *buf, void *data, size_t size, const char *tag);
-	void SZ_Clear(sizebuf_t *buf);
-	void *SZ_GetSpace(sizebuf_t *buf, size_t len);
-	void SZ_WriteUint8(sizebuf_t *sb, int c);
-	void SZ_WriteInt16(sizebuf_t *sb, int c);
-	void SZ_WriteInt32(sizebuf_t *sb, int c);
-	void SZ_WriteString(sizebuf_t *sb, const char *s);
+	void SZ_Init( sizebuf_t *buf, void *data, const size_t size );
+	void SZ_TagInit( sizebuf_t *buf, void *data, const size_t size, const char *tag );
+	void SZ_Clear( sizebuf_t *buf );
+	void *SZ_GetSpace( sizebuf_t *buf, size_t len );
+	void SZ_WriteUint8( sizebuf_t *sb, const int32_t c );
+	void SZ_WriteInt16( sizebuf_t *sb, const int32_t c );
+	void SZ_WriteInt32( sizebuf_t *sb, const int32_t c );
+	void SZ_WriteString( sizebuf_t *sb, const char *s );
 
-	static inline void *SZ_Write(sizebuf_t *buf, const void *data, size_t len)
+	static inline void *SZ_Write(sizebuf_t *buf, const void *data, const size_t len)
 	{
 		return memcpy(SZ_GetSpace(buf, len), data, len);
 	}
 
 	void *SZ_ReadData(sizebuf_t *buf, size_t len);
-	int SZ_ReadByte(sizebuf_t *sb);
-	int SZ_ReadShort(sizebuf_t *sb);
-	int SZ_ReadLong(sizebuf_t *sb);
+	const int32_t SZ_ReadUint8(sizebuf_t *sb);
+	const int32_t SZ_ReadInt16(sizebuf_t *sb);
+	const int32_t SZ_ReadInt32(sizebuf_t *sb);
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

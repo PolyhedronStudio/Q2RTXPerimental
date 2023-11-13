@@ -113,9 +113,9 @@ byte *MSG_ReadData( const size_t len ) {
 *
 **/
 /**
-*   @brief
+*   @brief Writes a signed 8 bit byte.
 **/
-void MSG_WriteInt8( int c ) {
+void MSG_WriteInt8( const int32_t c ) {
 	byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= -128 && c <= 127 );
@@ -123,11 +123,10 @@ void MSG_WriteInt8( int c ) {
 	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 1 ) ); // WID: C++20: Added cast.
 	buf[ 0 ] = c;
 }
-
 /**
-*   @brief
+*   @brief Writes an unsigned 8 bit byte.
 **/
-void MSG_WriteUint8( int c ) {
+void MSG_WriteUint8( const int32_t c ) {
 	byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= 0 && c <= 255 );
@@ -135,11 +134,10 @@ void MSG_WriteUint8( int c ) {
 	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 1 ) );
 	buf[ 0 ] = c;
 }
-
 /**
-*   @brief
+*   @brief Writes a signed 16 bit short.
 **/
-void MSG_WriteInt16( int c ) {
+void MSG_WriteInt16( const int32_t c ) {
 	byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= -0x8000 && c <= 0x7fff );
@@ -147,48 +145,45 @@ void MSG_WriteInt16( int c ) {
 	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 2 ) ); // WID: C++20: Added cast.
 	WL16( buf, c );
 }
-
 /**
-*   @brief
+*   @brief Writes a 32 bit integer.
 **/
-void MSG_WriteInt32( int c ) {
+void MSG_WriteInt32( const int32_t c ) {
 	byte *buf;
 	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 4 ) ); // WID: C++20: Added cast.
 	WL32( buf, c );
 }
 
 /**
-*   @brief
+*   @brief Writes a character string.
 **/
 void MSG_WriteString( const char *string ) {
 	SZ_WriteString( &msg_write, string );
 }
 
 /**
-*   @brief
+*	@brief	Writes an 8 bit byte encoded angle value of (float)f.
 **/
-static inline void MSG_WriteCoord( float f ) {
-	MSG_WriteInt16( COORD2SHORT( f ) );
-}
-
-/**
-*   @brief
-**/
-void MSG_WritePos( const vec3_t pos ) {
-	MSG_WriteCoord( pos[ 0 ] );
-	MSG_WriteCoord( pos[ 1 ] );
-	MSG_WriteCoord( pos[ 2 ] );
-}
-
-/**
-*   @brief
-**/
-void MSG_WriteAngle8( float f ) {
+void MSG_WriteAngle8( const float f ) {
 	MSG_WriteUint8( ANGLE2BYTE( f ) );
 }
+/**
+*	@brief	Writes a 16 bit short encoded angle value of (float)f.
+**/
+void MSG_WriteAngle16( const float f ) {
+	MSG_WriteInt16( ANGLE2SHORT( f ) );
+}
 
 /**
-*   @brief
+*   @brief Writes a 'short' encoded coordinate position vector.
+**/
+void MSG_WritePos( const vec3_t pos ) {
+	MSG_WriteInt16( COORD2SHORT( pos[ 0 ] ) );
+	MSG_WriteInt16( COORD2SHORT( pos[ 1 ] ) );
+	MSG_WriteInt16( COORD2SHORT( pos[ 2 ] ) );
+}
+/**
+*	@brief	Writes an 8 bit byte, table index encoded direction vector.
 **/
 void MSG_WriteDir8( const vec3_t dir ) {
 	int32_t best = DirToByte( dir );
@@ -203,9 +198,9 @@ void MSG_WriteDir8( const vec3_t dir ) {
 *
 **/
 /**
-*   @brief	Returns -1 if no more characters are available
+*   @return Signed 8 bit byte. Returns -1 if no more characters are available
 **/
-int MSG_ReadInt8( void ) {
+const int32_t MSG_ReadInt8( void ) {
 	byte *buf = MSG_ReadData( 1 );
 	int c;
 
@@ -218,9 +213,9 @@ int MSG_ReadInt8( void ) {
 	return c;
 }
 /**
-*   @brief	Returns -1 if no more characters are available
+*   @return Unsigned 8 bit byte. Returns -1 if no more characters are available
 **/
-int MSG_ReadUint8( void ) {
+const int32_t MSG_ReadUint8( void ) {
 	byte *buf = MSG_ReadData( 1 );
 	int c;
 
@@ -232,8 +227,10 @@ int MSG_ReadUint8( void ) {
 
 	return c;
 }
-
-int MSG_ReadInt16( void ) {
+/**
+*   @return Signed 16 bit short.
+**/
+const int32_t MSG_ReadInt16( void ) {
 	byte *buf = MSG_ReadData( 2 );
 	int c;
 
@@ -245,8 +242,10 @@ int MSG_ReadInt16( void ) {
 
 	return c;
 }
-
-int MSG_ReadUint16( void ) {
+/**
+*   @return Unsigned 16 bit short.
+**/
+const int32_t MSG_ReadUint16( void ) {
 	byte *buf = MSG_ReadData( 2 );
 	int c;
 
@@ -259,7 +258,10 @@ int MSG_ReadUint16( void ) {
 	return c;
 }
 
-int MSG_ReadInt32( void ) {
+/**
+*   @return Signed 32 bit int.
+**/
+const int32_t MSG_ReadInt32( void ) {
 	byte *buf = MSG_ReadData( 4 );
 	int c;
 
@@ -272,7 +274,10 @@ int MSG_ReadInt32( void ) {
 	return c;
 }
 
-size_t MSG_ReadString( char *dest, size_t size ) {
+/**
+*   @return The full string until its end.
+**/
+const size_t MSG_ReadString( char *dest, const size_t size ) {
 	int     c;
 	size_t  len = 0;
 
@@ -292,8 +297,10 @@ size_t MSG_ReadString( char *dest, size_t size ) {
 
 	return len;
 }
-
-size_t MSG_ReadStringLine( char *dest, size_t size ) {
+/**
+*   @return The part of the string data up till the first '\n'
+**/
+const size_t MSG_ReadStringLine( char *dest, const size_t size ) {
 	int     c;
 	size_t  len = 0;
 
@@ -314,16 +321,6 @@ size_t MSG_ReadStringLine( char *dest, size_t size ) {
 	return len;
 }
 
-const float MSG_ReadCoord( void ) {
-	return SHORT2COORD( MSG_ReadInt16( ) );
-}
-
-void MSG_ReadPos( vec3_t pos ) {
-	pos[ 0 ] = MSG_ReadCoord( );
-	pos[ 1 ] = MSG_ReadCoord( );
-	pos[ 2 ] = MSG_ReadCoord( );
-}
-
 /**
 *	@brief Reads a byte and decodes it to a float angle.
 **/
@@ -336,6 +333,7 @@ const float MSG_ReadAngle8( void ) {
 const float MSG_ReadAngle16( void ) {
 	return SHORT2ANGLE( MSG_ReadInt16( ) );
 }
+
 /**
 *	@brief	Reads a byte, and decodes it using it as an index into our directions table.
 **/
@@ -346,6 +344,14 @@ void MSG_ReadDir8( vec3_t dir ) {
 	if ( b < 0 || b >= NUMVERTEXNORMALS )
 		Com_Error( ERR_DROP, "MSG_ReadDir: out of range" );
 	VectorCopy( bytedirs[ b ], dir );
+}
+/**
+*	@return A short vector decoded to its full floating point position.
+**/
+void MSG_ReadPos( vec3_t pos ) {
+	pos[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) );
+	pos[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) );
+	pos[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) );
 }
 
 

@@ -126,13 +126,13 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->renderfx = MSG_ReadUint16( );
 
 	if ( bits & U_ORIGIN1 ) {
-		to->origin[ 0 ] = MSG_ReadCoord( );
+		to->origin[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) );
 	}
 	if ( bits & U_ORIGIN2 ) {
-		to->origin[ 1 ] = MSG_ReadCoord( );
+		to->origin[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) );
 	}
 	if ( bits & U_ORIGIN3 ) {
-		to->origin[ 2 ] = MSG_ReadCoord( );
+		to->origin[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) );
 	}
 
 	if ( ( flags & MSG_ES_SHORTANGLES ) && ( bits & U_ANGLE16 ) ) {
