@@ -744,7 +744,7 @@ static void SV_WriteDatagram( client_t *client ) {
 	write_reliables_q2rtxperimental( client, client->netchan.maxpacketlen - msg_write.cursize );
 
 	// send the datagram
-	cursize = client->netchan.Transmit( &client->netchan,
+	cursize = NetchanQ2RTXPerimental_Transmit( &client->netchan,
 										msg_write.cursize,
 										msg_write.data );
 
@@ -807,7 +807,7 @@ void SV_SendClientMessages(void)
         // don't write any frame data until all fragments are sent
         if (client->netchan.fragment_pending) {
             client->frameflags |= FF_SUPPRESSED;
-            cursize = client->netchan.TransmitNextFragment(&client->netchan);
+            cursize = NetchanQ2RTXPerimental_TransmitNextFragment(&client->netchan);
             SV_CalcSendTime(client, cursize);
             goto advance;
         }
@@ -888,7 +888,7 @@ void SV_SendAsyncPackets(void)
 
         // make sure all fragments are transmitted first
         if (netchan->fragment_pending) {
-            cursize = netchan->TransmitNextFragment(netchan);
+            cursize = NetchanQ2RTXPerimental_TransmitNextFragment(netchan);
             SV_DPrintf(0, "%s: frag: %zu\n", client->name, cursize);
             goto calctime;
         }
@@ -915,7 +915,7 @@ void SV_SendAsyncPackets(void)
 
         if (netchan->message.cursize || netchan->reliable_ack_pending ||
             netchan->reliable_length || retransmit) {
-            cursize = netchan->Transmit(netchan, 0, "" );
+            cursize = NetchanQ2RTXPerimental_Transmit(netchan, 0, "" );
             SV_DPrintf(0, "%s: send: %zu\n", client->name, cursize);
 calctime:
             SV_CalcSendTime(client, cursize);

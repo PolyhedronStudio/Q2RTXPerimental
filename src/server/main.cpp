@@ -1428,7 +1428,7 @@ static void SV_PacketEvent(void)
             netchan->remote_address.port = net_from.port;
         }
 
-        if (!netchan->Process(netchan))
+        if ( !NetchanQ2RTXPerimental_Process( netchan ) )
             break;
 
         if (client->state == cs_zombie)
@@ -2149,9 +2149,9 @@ static void SV_FinalMessage(const char *message, error_type_t type)
             }
             netchan = &client->netchan;
             while (netchan->fragment_pending) {
-                netchan->TransmitNextFragment(netchan);
+				NetchanQ2RTXPerimental_TransmitNextFragment(netchan);
             }
-            netchan->Transmit(netchan, msg_write.cursize, msg_write.data );
+			NetchanQ2RTXPerimental_Transmit(netchan, msg_write.cursize, msg_write.data );
         }
     }
 

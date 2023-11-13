@@ -954,7 +954,7 @@ static void CL_SendDefaultCmd(void)
     //
     // deliver the message
     //
-    cursize = cls.netchan.Transmit(&cls.netchan, msg_write.cursize, msg_write.data );
+    cursize = NetchanQ2RTXPerimental_Transmit(&cls.netchan, msg_write.cursize, msg_write.data );
 #if USE_DEBUG
     if (cl_showpackets->integer) {
         Com_Printf("%zu ", cursize);
@@ -979,7 +979,7 @@ static void CL_SendKeepAlive(void)
     cl.lastTransmitCmdNumber = cl.cmdNumber;
     cl.lastTransmitCmdNumberReal = cl.cmdNumber;
 
-    cursize = cls.netchan.Transmit(&cls.netchan, 0, "" );
+    cursize = NetchanQ2RTXPerimental_Transmit(&cls.netchan, 0, "" );
 #if USE_DEBUG
     if (cl_showpackets->integer) {
         Com_Printf("%zu ", cursize);
@@ -1044,12 +1044,12 @@ void CL_SendCmd(void)
         return;
     }
 
-    if (cls.state != ca_active || sv_paused->integer) {
+    if ( cls.state != ca_active || sv_paused->integer ) {
         // send a userinfo update if needed
         CL_SendReliable();
 
         // just keepalive or update reliable
-        if (cls.netchan.ShouldUpdate(&cls.netchan)) {
+        if ( NetchanQ2RTXPerimental_ShouldUpdate( &cls.netchan ) ) {
             CL_SendKeepAlive();
         }
 

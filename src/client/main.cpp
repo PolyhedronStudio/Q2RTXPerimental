@@ -653,9 +653,9 @@ void CL_Disconnect(error_type_t type)
         MSG_WriteData("disconnect", 11);
 
 		// 3 times to make sure.
-        cls.netchan.Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
-		cls.netchan.Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
-		cls.netchan.Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
+		NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
+		NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
+		NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
 
         SZ_Clear(&msg_write);
 
@@ -1341,7 +1341,7 @@ static void CL_PacketEvent(void)
         return;
     }
 
-    if (!cls.netchan.Process(&cls.netchan))
+    if ( !NetchanQ2RTXPerimental_Process( &cls.netchan ) )
         return;     // wasn't accepted for some reason
 
 #if USE_ICMP

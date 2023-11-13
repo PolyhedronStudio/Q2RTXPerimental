@@ -168,7 +168,7 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const vo
 	if ( chan->incoming_reliable_sequence )
 		w2 |= 0x80000000;
 
-	SZ_TagInit( &send, send_buf, sizeof( send_buf ), "nc_send_old" );
+	SZ_TagInit( &send, send_buf, sizeof( send_buf ), "nc_send_q2rtxp" );
 
 	SZ_WriteInt32( &send, w1 );
 	SZ_WriteInt32( &send, w2 );
@@ -176,11 +176,12 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const vo
 	#if USE_CLIENT
 		// send the qport if we are a client
 	if ( chan->sock == NS_CLIENT ) {
-		if ( chan->protocol < PROTOCOL_VERSION_R1Q2 ) {
-			SZ_WriteInt16( &send, chan->qport );
-		} else if ( chan->qport ) {
-			SZ_WriteUint8( &send, chan->qport );
-		}
+		//if ( chan->protocol < PROTOCOL_VERSION_R1Q2 ) {
+		//	SZ_WriteInt16( &send, chan->qport );
+		//} else if ( chan->qport ) {
+		//	SZ_WriteUint8( &send, chan->qport );
+		//}
+		SZ_WriteUint16( &send, chan->qport );
 	}
 	#endif
 
@@ -235,11 +236,12 @@ bool NetchanQ2RTXPerimental_Process( netchan_t *chan ) {
 
 	// read the qport if we are a server
 	if ( chan->sock == NS_SERVER ) {
-		if ( chan->protocol < PROTOCOL_VERSION_R1Q2 ) {
-			MSG_ReadInt16( );
-		} else if ( chan->qport ) {
-			MSG_ReadUint8( );
-		}
+		//if ( chan->protocol < PROTOCOL_VERSION_R1Q2 ) {
+		//	MSG_ReadInt16( );
+		//} else if ( chan->qport ) {
+		//	MSG_ReadUint8( );
+		//}
+		MSG_ReadUint16( );
 	}
 
 	if ( msg_read.readcount > msg_read.cursize ) {
