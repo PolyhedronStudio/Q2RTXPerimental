@@ -153,6 +153,51 @@ void MSG_WriteInt32( const int32_t c ) {
 	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 4 ) ); // WID: C++20: Added cast.
 	WL32( buf, c );
 }
+/**
+*   @brief Writes a 64 bit integer.
+**/
+void MSG_WriteInt64( const int64_t c ) {
+	byte *buf;
+	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 8 ) ); // WID: C++20: Added cast.
+	WL64( buf, c );
+}
+/**
+*   @brief Writes an unsigned LEB 128(base 128 encoded) integer.
+**/
+void MSG_WriteUintBase128( uint64_t c ) {
+	uint8_t buf[ 10 ];
+	size_t len = 0;
+
+	do {
+		buf[ len ] = c & 0x7fU;
+		if ( c >>= 7 ) {
+			buf[ len ] |= 0x80U;
+		}
+		len++;
+	} while ( c );
+
+	MSG_WriteData( buf, len );
+}
+/**
+*   @brief Writes a zic-zac encoded signed integer.
+**/
+void MSG_WriteIntBase128( const int64_t c ) {
+	// use Zig-zag encoding for signed integers for more efficient storage
+	const uint64_t cc = (uint64_t)( c << 1 ) ^ (uint64_t)( c >> 63 );
+	MSG_WriteUintBase128( cc );
+}
+/**
+*   @brief Writes a full precision float. (Transfered over the wire as an int32_t).
+**/
+void MSG_WriteFloat( const float f ) {
+	union {
+		float f;
+		int32_t l;
+	} dat;
+
+	dat.f = f;
+	MSG_WriteInt32( dat.l );
+}
 
 /**
 *   @brief Writes a character string.
@@ -257,7 +302,6 @@ const int32_t MSG_ReadUint16( void ) {
 
 	return c;
 }
-
 /**
 *   @return Signed 32 bit int.
 **/
@@ -272,6 +316,63 @@ const int32_t MSG_ReadInt32( void ) {
 	}
 
 	return c;
+}
+/**
+*   @return Signed 32 bit int.
+**/
+const int64_t MSG_ReadInt64( void ) {
+	byte *buf = MSG_ReadData( 8 );
+	int c;
+
+	if ( !buf ) {
+		c = -1;
+	} else {
+		c = (int64_t)RL64( buf );
+	}
+
+	return c;
+}
+/**
+*   @return Base 128 decoded unsigned integer.
+**/
+const uint64_t MSG_ReadUintBase128( ) {
+	size_t   len = 0;
+	uint64_t i = 0;
+
+	while ( len < 10 ) {
+		const uint8_t c = MSG_ReadUint8( );
+		i |= ( c & 0x7fLL ) << ( 7 * len );
+		len++;
+
+		if ( !( c & 0x80 ) ) {
+			break;
+		}
+	}
+
+	return i;
+}
+/**
+*   @return Zig-Zac decoded signed integer.
+**/
+const int64_t MSG_ReadIntBase128( ) {
+	// un-Zig-Zag our value back to a signed integer
+	const uint64_t c = MSG_ReadUintBase128( );
+	return (int64_t)( c >> 1 ) ^ ( -(int64_t)( c & 1 ) );
+}
+/**
+*   @return The full precision float.
+**/
+const float MSG_ReadFloat( ) {
+	union {
+		float f;
+		int32_t   l;
+	} dat;
+
+	dat.l = MSG_ReadInt32( );
+	if ( msg_read.readcount > msg_read.cursize) {
+		dat.f = -1;
+	}
+	return dat.f;
 }
 
 /**

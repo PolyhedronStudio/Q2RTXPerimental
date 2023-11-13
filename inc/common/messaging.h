@@ -276,6 +276,22 @@ extern "C" {
 	*   @brief Writes a 32 bit integer.
 	**/
 	void MSG_WriteInt32( const int32_t c );
+	/**
+	*   @brief Writes a 64 bit integer.
+	**/
+	void MSG_WriteInt64( const int64_t c );
+	/**
+	*   @brief Writes an unsigned LEB 128(base 128 encoded) integer.
+	**/
+	void MSG_WriteUintBase128( uint64_t c );
+	/**
+	*   @brief Writes a zic-zac encoded signed integer.
+	**/
+	void MSG_WriteIntBase128( const int64_t c );
+	/**
+	*   @brief Writes a full precision float. (Transfered over the wire as an int32_t).
+	**/
+	void MSG_WriteFloat( const float f );
 
 	/**
 	*   @brief Writes a character string.
@@ -333,6 +349,22 @@ extern "C" {
 	*   @return Signed 32 bit int.
 	**/
 	const int32_t MSG_ReadInt32( void );
+	/**
+	*   @return Signed 32 bit int.
+	**/
+	const int64_t MSG_ReadInt64( void );
+	/**
+	*   @return Base 128 decoded unsigned integer.
+	**/
+	const uint64_t MSG_ReadUintBase128( );
+	/**
+	*   @return Zig-Zac decoded signed integer.
+	**/
+	const int64_t MSG_ReadIntBase128( );
+	/**
+	*   @return The full precision float.
+	**/
+	const float MSG_ReadFloat( );
 
 	/**
 	*   @return The full string until its end.
