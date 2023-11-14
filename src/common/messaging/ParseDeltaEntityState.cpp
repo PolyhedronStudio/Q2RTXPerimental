@@ -54,7 +54,7 @@ const int32_t MSG_ReadEntityNumber( bool *remove, uint64_t *byteMask ) {
 void MSG_ParseDeltaEntity( const entity_state_t *from,
 						  entity_state_t *to,
 						  int            number,
-						  int            bits,
+						  uint64_t       bits,
 						  msgEsFlags_t   flags ) {
 	if ( !to ) {
 		Com_Error( ERR_DROP, "%s: NULL", __func__ );
@@ -147,8 +147,10 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		MSG_ReadPos( to->old_origin );
 	}
 
-	if ( bits & U_SOUND ) {
+	if ( bits & U_SOUND8 ) {
 		to->sound = MSG_ReadUint8( );
+	} else if ( bits & U_SOUND16 ) {
+		to->sound = MSG_ReadUint16( );
 	}
 
 	if ( bits & U_EVENT ) {

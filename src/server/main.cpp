@@ -723,7 +723,7 @@ static bool parse_packet_length(conn_params_t *p)
 
 	// WID: netstuff: We will fragment the packet if larger than 1024.
 	if ( p->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
-		p->maxlength = MAX_PACKETLEN_WRITABLE;
+		//sp->maxlength = MAX_PACKETLEN_WRITABLE;
 	}
 
 	// If not local, cap to server defined maximum value

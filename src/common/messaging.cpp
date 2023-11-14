@@ -146,6 +146,17 @@ void MSG_WriteInt16( const int32_t c ) {
 	WL16( buf, c );
 }
 /**
+*   @brief Writes an unsigned 16 bit short.
+**/
+void MSG_WriteUint16( const int32_t c ) {
+	byte *buf;
+	#ifdef PARANOID
+	Q_assert( c >= 0 && c <= 65535 );
+	#endif
+	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 2 ) ); // WID: C++20: Added cast.
+	WL16( buf, c );
+}
+/**
 *   @brief Writes a 32 bit integer.
 **/
 void MSG_WriteInt32( const int32_t c ) {
@@ -470,7 +481,7 @@ static inline void SHOWBITS( const char *x ) {
 	Com_LPrintf( PRINT_DEVELOPER, "%s ", x );
 }
 #if USE_CLIENT
-void MSG_ShowDeltaPlayerstateBits( int flags ) {
+void MSG_ShowDeltaPlayerstateBits( uint64_t flags ) {
 	#define S(b,s) if(flags&PS_##b) SHOWBITS(s)
 	S( M_TYPE, "pmove.pm_type" );
 	S( M_ORIGIN, "pmove.origin" );
@@ -490,7 +501,7 @@ void MSG_ShowDeltaPlayerstateBits( int flags ) {
 	S( RDFLAGS, "rdflags" );
 	#undef S
 }
-void MSG_ShowDeltaEntityBits( int bits ) {
+void MSG_ShowDeltaEntityBits( uint64_t bits ) {
 	#define S(b,s) if(bits&U_##b) SHOWBITS(s)
 	S( MODEL, "modelindex" );
 	S( MODEL2, "modelindex2" );
@@ -530,7 +541,10 @@ void MSG_ShowDeltaEntityBits( int bits ) {
 	S( ANGLE2, "angles[1]" );
 	S( ANGLE3, "angles[2]" );
 	S( OLDORIGIN, "old_origin" );
-	S( SOUND, "sound" );
+	else if ( bits & U_SOUND8 )
+		SHOWBITS( "sound8" );
+	else if ( bits & U_SOUND16 )
+		SHOWBITS( "sound16" );
 	S( EVENT, "event" );
 	S( SOLID, "solid" );
 	#undef S

@@ -31,7 +31,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 **/
 void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 									   player_state_t *to,
-									   int            flags ) {
+									   uint64_t        flags ) {
 	int         i;
 	int         statbits;
 

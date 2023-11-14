@@ -184,8 +184,12 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	if ( to->modelindex4 != from->modelindex4 )
 		bits |= U_MODEL4;
 
-	if ( to->sound != from->sound )
-		bits |= U_SOUND;
+	if ( to->sound != from->sound ) {
+		if ( to->sound & 0xff00 )
+			bits |= U_SOUND16;
+		else
+			bits |= U_SOUND8;
+	}
 
 	if ( to->renderfx & RF_FRAMELERP ) {
 		bits |= U_OLDORIGIN;
@@ -270,8 +274,11 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 		MSG_WriteInt16( to->old_origin[ 2 ] );
 	}
 
-	if ( bits & U_SOUND )
+	if ( bits & U_SOUND8 )
 		MSG_WriteUint8( to->sound );
+	else if ( bits & U_SOUND16 )
+		MSG_WriteUint16( to->sound );
+
 	if ( bits & U_EVENT )
 		MSG_WriteUint8( to->event );
 	if ( bits & U_SOLID ) {

@@ -671,51 +671,53 @@ static void CL_ParseMuzzleFlashPacket(int mask)
 
 static void CL_ParseStartSoundPacket(void)
 {
-    int flags, channel, entity;
+	int flags, channel, entity;
 
-    flags = MSG_ReadUint8();
-    if ((flags & (SND_ENT | SND_POS)) == 0)
-        Com_Error(ERR_DROP, "%s: neither SND_ENT nor SND_POS set", __func__);
+	flags = MSG_ReadUint8( );
 
-    snd.index = MSG_ReadUint8();
-    if (snd.index == -1)
-        Com_Error(ERR_DROP, "%s: read past end of message", __func__);
+	if ( flags & SND_INDEX16 )
+		snd.index = MSG_ReadUint16( );
+	else
+		snd.index = MSG_ReadUint8( );
 
-    if (flags & SND_VOLUME)
-        snd.volume = MSG_ReadUint8() / 255.0f;
-    else
-        snd.volume = DEFAULT_SOUND_PACKET_VOLUME;
+	if ( snd.index >= MAX_SOUNDS )
+		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, snd.index );
 
-    if (flags & SND_ATTENUATION)
-        snd.attenuation = MSG_ReadUint8() / 64.0f;
-    else
-        snd.attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
+	if ( flags & SND_VOLUME )
+		snd.volume = MSG_ReadUint8( ) / 255.0f;
+	else
+		snd.volume = DEFAULT_SOUND_PACKET_VOLUME;
 
-    if (flags & SND_OFFSET)
-        snd.timeofs = MSG_ReadUint8() / 1000.0f;
-    else
-        snd.timeofs = 0;
+	if ( flags & SND_ATTENUATION )
+		snd.attenuation = MSG_ReadUint8( ) / 64.0f;
+	else
+		snd.attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
-    if (flags & SND_ENT) {
-        // entity relative
-        channel = MSG_ReadInt16();
-        entity = channel >> 3;
-        if (entity < 0 || entity >= MAX_EDICTS)
-            Com_Error(ERR_DROP, "%s: bad entity: %d", __func__, entity);
-        snd.entity = entity;
-        snd.channel = channel & 7;
-    } else {
-        snd.entity = 0;
-        snd.channel = 0;
-    }
+	if ( flags & SND_OFFSET )
+		snd.timeofs = MSG_ReadUint8( ) / 1000.0f;
+	else
+		snd.timeofs = 0;
 
-    // positioned in space
-    if (flags & SND_POS)
-        MSG_ReadPos(snd.pos);
+	if ( flags & SND_ENT ) {
+		// entity relative
+		channel = MSG_ReadUint16( );
+		entity = channel >> 3;
+		if ( entity < 0 || entity >= MAX_EDICTS )
+			Com_Error( ERR_DROP, "%s: bad entity: %d", __func__, entity );
+		snd.entity = entity;
+		snd.channel = channel & 7;
+	} else {
+		snd.entity = 0;
+		snd.channel = 0;
+	}
 
-    snd.flags = flags;
+	// positioned in space
+	if ( flags & SND_POS )
+		MSG_ReadPos( snd.pos );
 
-    SHOWNET(2, "    %s\n", cl.configstrings[CS_SOUNDS + snd.index]);
+	snd.flags = flags;
+
+	SHOWNET( 2, "    %s\n", cl.configstrings[ CS_SOUNDS + snd.index ] );
 }
 
 static void CL_ParseReconnect(void)

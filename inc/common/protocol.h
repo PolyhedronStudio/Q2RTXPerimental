@@ -300,6 +300,7 @@ typedef enum {
 #define SND_POS             (1<<2)  // three coordinates
 #define SND_ENT             (1<<3)  // a short 0-2: channel, 3-12: entity
 #define SND_OFFSET          (1<<4)  // a byte, msec offset from frame start
+#define SND_INDEX16         (1<<5)  // index is 16-bit
 
 #define DEFAULT_SOUND_PACKET_VOLUME         1.0f
 #define DEFAULT_SOUND_PACKET_ATTENUATION    1.0f
@@ -342,9 +343,9 @@ typedef enum {
 // fourth byte
 #define U_OLDORIGIN     (1<<24)     // FIXME: get rid of this
 #define U_SKIN16        (1<<25)
-#define U_SOUND         (1<<26)
+#define U_SOUND8        (1<<26)
 #define U_SOLID         (1<<27)
-#define U_UNUSED4		(1<<28)
+#define U_SOUND16		(1<<28)
 #define U_UNUSED5		(1<<29)
 #define U_UNUSED6		(1<<30)
 #define U_UNUSED7		(1<<31)

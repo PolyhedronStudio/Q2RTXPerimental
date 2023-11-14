@@ -68,7 +68,7 @@ extern "C" {
 		uint32_t    renderfx;
 		solid_packed_t solid;
 		uint16_t    frame;
-		uint8_t     sound;
+		uint16_t    sound;
 		uint8_t     event;
 	} entity_packed_t;
 
@@ -273,6 +273,10 @@ extern "C" {
 	**/
 	void MSG_WriteInt16( const int32_t c );
 	/**
+	*   @brief Writes an unsigned 16 bit short.
+	**/
+	void MSG_WriteUint16( const int32_t c );
+	/**
 	*   @brief Writes a 32 bit integer.
 	**/
 	void MSG_WriteInt32( const int32_t c );
@@ -426,13 +430,13 @@ extern "C" {
 	/**
 	*   @brief Reads the delta entity state, can go from either a baseline or a previous packet Entity State.
 	**/
-	void MSG_ParseDeltaEntity( const entity_state_t *from, entity_state_t *to, int number, int bits, msgEsFlags_t flags );
+	void MSG_ParseDeltaEntity( const entity_state_t *from, entity_state_t *to, int number, uint64_t bits, msgEsFlags_t flags );
 	#if USE_CLIENT
 		/**
 		*   @brief  Parses the delta packets of player states.
 		*			Can go from either a baseline or a previous packet_entity
 		**/
-		void MSG_ParseDeltaPlayerstate( const player_state_t *from, player_state_t *to, int flags );
+		void MSG_ParseDeltaPlayerstate( const player_state_t *from, player_state_t *to, uint64_t flags );
 	#endif
 
 
@@ -444,10 +448,10 @@ extern "C" {
 	**/
 	#if USE_DEBUG
 		#if USE_CLIENT
-			void    MSG_ShowDeltaPlayerstateBits( int flags );
+			void    MSG_ShowDeltaPlayerstateBits( uint64_t flags );
 		#endif
 		#if USE_CLIENT
-			void    MSG_ShowDeltaEntityBits( int bits );
+			void    MSG_ShowDeltaEntityBits( uint64_t bits );
 			const char *MSG_ServerCommandString( int cmd );
 			#define MSG_ShowSVC(cmd) \
 				Com_LPrintf(PRINT_DEVELOPER, "%3zu:%s\n", msg_read.readcount - 1, \
