@@ -351,10 +351,10 @@ void SV_New_f(void)
 
     // send gamestate
     //if (sv_client->netchan.type == NETCHAN_NEW) {
-    //    write_gamestate();
+        write_gamestate();
     //} else {
-        write_configstrings();
-        write_baselines();
+    //    write_configstrings();
+    //    write_baselines();
     //}
 
     // send next command
@@ -522,8 +522,8 @@ static void SV_BeginDownload_f(void)
 
 #if USE_ZLIB
     // prefer raw deflate stream from .pkz if supported
-    if (sv_client->protocol == PROTOCOL_VERSION_Q2PRO &&
-        sv_client->version >= PROTOCOL_VERSION_Q2PRO_ZLIB_DOWNLOADS &&
+    if (/*sv_client->protocol == PROTOCOL_VERSION_Q2PRO &&
+        sv_client->version >= PROTOCOL_VERSION_Q2PRO_ZLIB_DOWNLOADS &&*/
         sv_client->has_zlib && offset == 0) {
         downloadsize = FS_OpenFile(name, &f, FS_MODE_READ | FS_FLAG_DEFLATE);
         if (f) {

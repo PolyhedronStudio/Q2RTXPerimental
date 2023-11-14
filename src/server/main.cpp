@@ -741,11 +741,11 @@ static bool parse_packet_length(conn_params_t *p)
 
 static bool parse_enhanced_params(conn_params_t *p)
 {
-	//#if USE_ZLIB
-	//p->has_zlib = true;
-	//#else
+	#if USE_ZLIB
+	p->has_zlib = true;
+	#else
 	p->has_zlib = false;
-//	#endif
+	#endif
 
 	// Left here as an example if we ever wish to parse.
     // set minor protocol version
@@ -2194,6 +2194,7 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
     Z_Free(svs.entities);
 #if USE_ZLIB
     deflateEnd(&svs.z);
+	Z_Free( svs.z_buffer );
 #endif
     memset(&svs, 0, sizeof(svs));
 

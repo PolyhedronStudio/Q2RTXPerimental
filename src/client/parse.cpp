@@ -1140,23 +1140,23 @@ badbyte:
             break;
 
         case svc_zpacket:
-            if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
-                goto badbyte;
-            }
+            //if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
+            //    goto badbyte;
+            //}
             CL_ParseZPacket();
             continue;
 
         case svc_zdownload:
-            if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
-                goto badbyte;
-            }
+            //if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
+            //    goto badbyte;
+            //}
             CL_ParseDownload(cmd);
             continue;
 
         case svc_gamestate:
-            if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO) {
-                goto badbyte;
-            }
+            //if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO) {
+            //    goto badbyte;
+            //}
             CL_ParseGamestate();
             continue;
 
