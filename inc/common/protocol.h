@@ -93,11 +93,11 @@ extern "C" {
 #define SVCMD_BITS              5
 #define SVCMD_MASK              ((1 << SVCMD_BITS) - 1)
 
-#define FRAMENUM_BITS           27
-#define FRAMENUM_MASK           ((1 << FRAMENUM_BITS) - 1)
+//#define FRAMENUM_BITS           27
+//#define FRAMENUM_MASK           ((1 << FRAMENUM_BITS) - 1)
 
-#define SUPPRESSCOUNT_BITS      4
-#define SUPPRESSCOUNT_MASK      ((1 << SUPPRESSCOUNT_BITS) - 1)
+//#define SUPPRESSCOUNT_BITS      4
+//#define SUPPRESSCOUNT_MASK      ((1 << SUPPRESSCOUNT_BITS) - 1)
 
 #define MAX_PACKET_ENTITIES     1024
 #define MAX_PARSE_ENTITIES      (MAX_PACKET_ENTITIES * UPDATE_BACKUP)

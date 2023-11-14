@@ -4,17 +4,19 @@
 ### General:
 * **CPP-ify the codebase, meaning that it now compiles using a CPP compiler** 
 	* The only exception being the **VKPT** code, to make life easy merging in any new **Q2RTX VKPT** features.
-* Variable tickrate, defaulting to ``40hz``. Variable gun rate, defaulting to ``10hz``. AI animation/movement is currently still ``10hz``, its logic ticks at 40hz.
+* Customizable Tick Rate (``40hz`` is the current default).
 * Adjusted stair **Step Smoothing** to ``BASE_FRAMETIME // (25ms for 40hz)`` instead of its old hard values: ``100ms at 10hz``.
 * Enabled ``USE_SMOOTH_DELTA_ANGLES``.
 * Removed MVD, and GTV, although 'luxury' features, make things harder to maintain and I doubt it is within most target audience interest rates.
 * Removed Anti-Cheat, OS specific and h4x0rz are going to h4x anyway. Makes life easier to maintain this project.
 
 ### Client:
-* Assuming entities and weapons are still ``10hz`` based animation wise, does proper lerping for these.
+* Does proper lerping for entities that run lower than ``40hz``.
+* Does proper lerping for weapons based on their 'gunrate', defaults to ``10hz``
 
 ### Net Code:
-* Uses a custom protocol, currently nearly identical to the default. (``#34``, it still needs a custom protocol number). There exists already a path fully layed out to allocating our own **Q2RTXPerimental** ``NetChan``.
+* Uses its own protocol, partially based on Q2 Protocol #34 and Q2PRO its own. 
+This supports proper fragmenting, allowing for far more in-vis entities to be transfered over 'The Wire'.
 * Changed Solids from ``int32_t`` to ``uint32_t``, so that ``SOLID_BBOX`` can now have **BoundingBox** sizes up to those of **Q2RE/Q3**.
 
 ### Refresh(VKPT):
@@ -22,7 +24,7 @@
 
 ## Q2RTXPerimental Game Changes:
 ### Server Game:
-* Replaced (most)_framenum based functionality with time again, borrowing ``sg_time_t`` type from **Q2E**.
+* Replaced (most)_framenum based functionality with time again, borrowing ``sg_time_t`` type from **Q2RE**.
 * AI now has the option to run at ``tick rate``(defaults to ``40hz``), when the ``AI_HIGH_TICK_RATE`` flag is set.
 * Guns can operate at a varying tick rate, default is ``10hz``
 ### Client Game:

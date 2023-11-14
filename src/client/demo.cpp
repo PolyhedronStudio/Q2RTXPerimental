@@ -268,7 +268,7 @@ stop recording a demo
 void CL_Stop_f(void)
 {
     uint32_t msglen;
-    char buffer[MAX_QPATH];
+    char buffer[ MAX_CS_STRING_LENGTH ];
 
     if (!cls.demo.recording) {
         Com_Printf("Not recording a demo.\n");
@@ -404,7 +404,7 @@ static void CL_Record_f(void)
         if (!*s)
             continue;
 
-        len = Q_strnlen(s, MAX_QPATH);
+        len = Q_strnlen(s, MAX_CS_STRING_LENGTH );
         if (msg_write.cursize + len + 4 > size) {
             if (!CL_WriteDemoMessage(&msg_write))
                 return;
@@ -461,7 +461,7 @@ static void resume_record(void)
 
             s = cl.configstrings[index];
 
-            len = Q_strnlen(s, MAX_QPATH);
+            len = Q_strnlen(s, MAX_CS_STRING_LENGTH );
             if (cls.demo.buffer.cursize + len + 4 > cls.demo.buffer.maxsize) {
                 if (!CL_WriteDemoMessage(&cls.demo.buffer))
                     return;
@@ -791,7 +791,7 @@ void CL_EmitDemoSnapshot(void)
         if (!strcmp(from, to))
             continue;
 
-        len = Q_strnlen(to, MAX_QPATH);
+        len = Q_strnlen(to, MAX_CS_STRING_LENGTH);
         MSG_WriteUint8(svc_configstring);
         MSG_WriteInt16(i);
         MSG_WriteData(to, len);
@@ -1052,7 +1052,7 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
 {
     qhandle_t f;
     int c, index;
-    char string[MAX_QPATH];
+    char string[ MAX_CS_STRING_LENGTH ];
     int clientNum, type;
 
     FS_OpenFile(path, &f, FS_MODE_READ | FS_FLAG_GZIP);
