@@ -95,36 +95,6 @@ static bool maybe_flush_msg(size_t size)
     return size > sv_client->netchan.maxpacketlen;
 }
 
-//static void write_configstrings(void)
-//{
-//    int     i;
-//    configstring_t    *string;
-//    size_t  length;
-//
-//    // write a packet full of data
-//    string = sv_client->configstrings;
-//    for (i = 0; i < MAX_CONFIGSTRINGS; i++ ) {
-//		string = &sv_client->configstrings[ i ];
-//
-//        if (!string[0]) {
-//            continue;
-//        }
-//        length = Q_strnlen((const char*)string, MAX_CS_STRING_LENGTH );
-//
-//        // check if this configstring will overflow
-//        if (need_flush_msg(length + 4)) {
-//            SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
-//        }
-//
-//        MSG_WriteUint8(svc_configstring);
-//        MSG_WriteInt16(i);
-//        MSG_WriteData(string, length);
-//        MSG_WriteUint8(0);
-//    }
-//
-//    SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
-//}
-//
 static void write_baseline( entity_packed_t *base ) {
 	msgEsFlags_t flags = static_cast<msgEsFlags_t>( sv_client->esFlags | MSG_ES_FORCE ); // WID: C++20: Added cast.
 
@@ -136,35 +106,6 @@ static void write_baseline( entity_packed_t *base ) {
 
 	MSG_WriteDeltaEntity( NULL, base, flags );
 }
-//}
-//
-//static void write_baselines(void)
-//{
-//    int i, j;
-//    entity_packed_t *base;
-//
-//    // write a packet full of data
-//    for (i = 0; i < SV_BASELINES_CHUNKS; i++) {
-//        base = sv_client->baselines[i];
-//        if (!base) {
-//            continue;
-//        }
-//        for (j = 0; j < SV_BASELINES_PER_CHUNK; j++) {
-//            if (base->number) {
-//                // check if this baseline will overflow
-//                if (need_flush_msg( MAX_CS_STRING_LENGTH )) {
-//                    SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
-//                }
-//
-//                MSG_WriteUint8(svc_spawnbaseline);
-//                write_baseline(base);
-//            }
-//            base++;
-//        }
-//    }
-//
-//    SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
-//}
 
 static void write_gamestate(void)
 {
