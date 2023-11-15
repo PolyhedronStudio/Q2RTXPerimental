@@ -247,7 +247,6 @@ void MSG_WriteDir8( const vec3_t dir ) {
 }
 
 
-
 /**
 *
 *   Wire Types "Read" functionality.

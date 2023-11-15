@@ -334,9 +334,9 @@ void parasite_drain_attack(edict_t *self)
         damage = 2;
     }
 
-    gi.WriteByte(svc_temp_entity);
-    gi.WriteByte(TE_PARASITE_ATTACK);
-    gi.WriteShort(self - g_edicts);
+    gi.WriteUint8(svc_temp_entity);
+    gi.WriteUint8(TE_PARASITE_ATTACK);
+    gi.WriteInt16(self - g_edicts);
     gi.WritePosition(start);
     gi.WritePosition(end);
     gi.multicast(self->s.origin, MULTICAST_PVS);

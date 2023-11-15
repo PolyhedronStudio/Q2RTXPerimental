@@ -925,10 +925,10 @@ void CopyToBodyQue(edict_t *ent)
 
     // send an effect on the removed body
     if (body->s.modelindex) {
-        gi.WriteByte(svc_temp_entity);
-        gi.WriteByte(TE_BLOOD);
+        gi.WriteUint8(svc_temp_entity);
+        gi.WriteUint8(TE_BLOOD);
         gi.WritePosition(body->s.origin);
-        gi.WriteDir(vec3_origin);
+        gi.WriteDir8(vec3_origin);
         gi.multicast(body->s.origin, MULTICAST_PVS);
     }
 
@@ -1006,7 +1006,7 @@ void spectator_respawn(edict_t *ent)
             strcmp(spectator_password->string, value)) {
             gi.cprintf(ent, PRINT_HIGH, "Spectator password incorrect.\n");
             ent->client->pers.spectator = false;
-            gi.WriteByte(svc_stufftext);
+            gi.WriteUint8(svc_stufftext);
             gi.WriteString("spectator 0\n");
             gi.unicast(ent, true);
             return;
@@ -1021,7 +1021,7 @@ void spectator_respawn(edict_t *ent)
             gi.cprintf(ent, PRINT_HIGH, "Server spectator limit is full.");
             ent->client->pers.spectator = false;
             // reset his spectator var
-            gi.WriteByte(svc_stufftext);
+            gi.WriteUint8(svc_stufftext);
             gi.WriteString("spectator 0\n");
             gi.unicast(ent, true);
             return;
@@ -1034,7 +1034,7 @@ void spectator_respawn(edict_t *ent)
             strcmp(password->string, value)) {
             gi.cprintf(ent, PRINT_HIGH, "Password incorrect.\n");
             ent->client->pers.spectator = true;
-            gi.WriteByte(svc_stufftext);
+            gi.WriteUint8(svc_stufftext);
             gi.WriteString("spectator 1\n");
             gi.unicast(ent, true);
             return;
@@ -1050,9 +1050,9 @@ void spectator_respawn(edict_t *ent)
     // add a teleportation effect
     if (!ent->client->pers.spectator)  {
         // send effect
-        gi.WriteByte(svc_muzzleflash);
-        gi.WriteShort(ent - g_edicts);
-        gi.WriteByte(MZ_LOGIN);
+        gi.WriteUint8(svc_muzzleflash);
+        gi.WriteInt16(ent - g_edicts);
+        gi.WriteUint8(MZ_LOGIN);
         gi.multicast(ent->s.origin, MULTICAST_PVS);
 
         // hold in place briefly
@@ -1267,9 +1267,9 @@ void ClientBeginDeathmatch(edict_t *ent)
         MoveClientToIntermission(ent);
     } else {
         // send effect
-        gi.WriteByte(svc_muzzleflash);
-        gi.WriteShort(ent - g_edicts);
-        gi.WriteByte(MZ_LOGIN);
+        gi.WriteUint8(svc_muzzleflash);
+        gi.WriteInt16(ent - g_edicts);
+        gi.WriteUint8(MZ_LOGIN);
         gi.multicast(ent->s.origin, MULTICAST_PVS);
     }
 
@@ -1323,9 +1323,9 @@ void ClientBegin(edict_t *ent)
     } else {
         // send effect if in a multiplayer game
         if (game.maxclients > 1) {
-            gi.WriteByte(svc_muzzleflash);
-            gi.WriteShort(ent - g_edicts);
-            gi.WriteByte(MZ_LOGIN);
+            gi.WriteUint8(svc_muzzleflash);
+            gi.WriteInt16(ent - g_edicts);
+            gi.WriteUint8(MZ_LOGIN);
             gi.multicast(ent->s.origin, MULTICAST_PVS);
 
             gi.bprintf(PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
@@ -1494,9 +1494,9 @@ void ClientDisconnect(edict_t *ent)
 
     // send effect
     if (ent->inuse) {
-        gi.WriteByte(svc_muzzleflash);
-        gi.WriteShort(ent - g_edicts);
-        gi.WriteByte(MZ_LOGOUT);
+        gi.WriteUint8(svc_muzzleflash);
+        gi.WriteInt16(ent - g_edicts);
+        gi.WriteUint8(MZ_LOGOUT);
         gi.multicast(ent->s.origin, MULTICAST_PVS);
     }
 

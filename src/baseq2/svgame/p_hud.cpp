@@ -238,7 +238,7 @@ void DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
         stringlength += j;
     }
 
-    gi.WriteByte(svc_layout);
+    gi.WriteUint8(svc_layout);
     gi.WriteString(string);
 }
 
@@ -322,7 +322,7 @@ void HelpComputer(edict_t *ent)
                level.found_goals, level.total_goals,
                level.found_secrets, level.total_secrets);
 
-    gi.WriteByte(svc_layout);
+    gi.WriteUint8(svc_layout);
     gi.WriteString(string);
     gi.unicast(ent, true);
 }

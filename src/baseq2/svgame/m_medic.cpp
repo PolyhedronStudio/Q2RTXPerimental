@@ -615,9 +615,9 @@ void medic_cable_attack(edict_t *self)
     VectorCopy(self->enemy->s.origin, end);
     end[2] = self->enemy->absmin[2] + self->enemy->size[2] / 2;
 
-    gi.WriteByte(svc_temp_entity);
-    gi.WriteByte(TE_MEDIC_CABLE_ATTACK);
-    gi.WriteShort(self - g_edicts);
+    gi.WriteUint8(svc_temp_entity);
+    gi.WriteUint8(TE_MEDIC_CABLE_ATTACK);
+    gi.WriteInt16(self - g_edicts);
     gi.WritePosition(start);
     gi.WritePosition(end);
     gi.multicast(self->s.origin, MULTICAST_PVS);

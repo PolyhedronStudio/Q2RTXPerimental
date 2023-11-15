@@ -418,11 +418,6 @@ static void PF_configstring(int index, const char *val)
 	SZ_Clear( &msg_write );
 }
 
-static void PF_WriteFloat(float f)
-{
-    Com_Error(ERR_DROP, "PF_WriteFloat not implemented");
-}
-
 static qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, int vis)
 {
     mleaf_t *leaf1, *leaf2;
@@ -849,15 +844,20 @@ void SV_InitGameProgs(void)
     import.sound = PF_StartSound;
     import.positioned_sound = SV_StartSound;
 
-    import.WriteChar = MSG_WriteInt8;
-    import.WriteByte = MSG_WriteUint8;
-    import.WriteShort = MSG_WriteInt16;
-    import.WriteLong = MSG_WriteInt32;
-    import.WriteFloat = PF_WriteFloat;
+    import.WriteInt8 = MSG_WriteInt8;
+    import.WriteUint8 = MSG_WriteUint8;
+    import.WriteInt16 = MSG_WriteInt16;
+	import.WriteUint16 = MSG_WriteUint16;
+    import.WriteInt32 = MSG_WriteInt32;
+	import.WriteInt64 = MSG_WriteInt64;
+	import.WriteUintBase128 = MSG_WriteUintBase128;
+	import.WriteIntBase128 = MSG_WriteIntBase128;
+    import.WriteFloat = MSG_WriteFloat;
     import.WriteString = MSG_WriteString;
     import.WritePosition = MSG_WritePos;
-    import.WriteDir = MSG_WriteDir8;
-    import.WriteAngle = MSG_WriteAngle8;
+    import.WriteDir8 = MSG_WriteDir8;
+    import.WriteAngle8 = MSG_WriteAngle8;
+	import.WriteAngle16 = MSG_WriteAngle16;
 
     import.TagMalloc = PF_TagMalloc;
     import.TagFree = Z_Free;

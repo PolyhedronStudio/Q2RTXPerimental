@@ -31,7 +31,7 @@ extern "C" {
 // svgame.h -- server game dll information visible to server
 //
 
-#define SVGAME_API_VERSION    3
+#define SVGAME_API_VERSION    1337
 
 // edict->svflags
 
@@ -163,15 +163,20 @@ typedef struct {
     // network messaging
     void (*multicast)(const vec3_t origin, multicast_t to);
     void (*unicast)(edict_t *ent, qboolean reliable);
-    void (*WriteChar)(int c);
-    void (*WriteByte)(int c);
-    void (*WriteShort)(int c);
-    void (*WriteLong)(int c);
-    void (*WriteFloat)(float f);
+    void (*WriteInt8)( const int32_t c);
+    void (*WriteUint8)( const int32_t c);
+    void (*WriteInt16)( const int32_t c);
+	void (*WriteUint16)( const int32_t c );
+    void (*WriteInt32)( const int32_t c);
+	void (*WriteInt64)( const int64_t c );
+	void (*WriteIntBase128 )( int64_t c );
+	void ( *WriteUintBase128 )( uint64_t c );
+    void (*WriteFloat)( const float f );
     void (*WriteString)(const char *s);
     void (*WritePosition)(const vec3_t pos);    // some fractional bits
-    void (*WriteDir)(const vec3_t pos);         // single byte encoded, very coarse
-    void (*WriteAngle)(float f);
+    void (*WriteDir8)(const vec3_t pos);         // single byte encoded, very coarse
+    void (*WriteAngle8)( const float f);
+	void (*WriteAngle16)( const float f );
 
     // managed memory allocation
     void *(*TagMalloc)(unsigned size, unsigned tag);

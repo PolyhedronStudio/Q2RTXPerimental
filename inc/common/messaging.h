@@ -318,7 +318,7 @@ extern "C" {
 	/**
 	*	@brief	Writes an 8 bit byte, table index encoded direction vector.
 	**/
-	void    MSG_WriteDir8( const vec3_t vector );
+	void MSG_WriteDir8( const vec3_t vector );
 
 	#if USE_CLIENT
 	/**

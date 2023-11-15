@@ -133,7 +133,7 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	// parse stats
 	statbits = MSG_ReadIntBase128( );
 	for ( i = 0; i < MAX_STATS; i++ )
-		if ( statbits & ( 1U << i ) )
+		if ( statbits & ( 1ULL << i ) )
 			to->stats[ i ] = MSG_ReadInt16( );
 }
 #endif // USE_CLIENT

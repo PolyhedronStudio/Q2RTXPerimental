@@ -129,11 +129,11 @@ void SpawnDamage(int type, const vec3_t origin, const vec3_t normal, int damage)
 {
     if (damage > 255)
         damage = 255;
-    gi.WriteByte(svc_temp_entity);
-    gi.WriteByte(type);
+    gi.WriteUint8(svc_temp_entity);
+    gi.WriteUint8(type);
 //  gi.WriteByte (damage);
     gi.WritePosition(origin);
-    gi.WriteDir(normal);
+    gi.WriteDir8(normal);
     gi.multicast(origin, MULTICAST_PVS);
 }
 
