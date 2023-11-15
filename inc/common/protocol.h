@@ -196,46 +196,6 @@ typedef enum {
 #define PS_BITS             16
 #define PS_MASK             ((1<<PS_BITS)-1)
 
-// r1q2 protocol specific extra flags
-#define EPS_GUNOFFSET       (1<<0)
-#define EPS_GUNANGLES       (1<<1)
-#define EPS_M_VELOCITY2     (1<<2)
-#define EPS_M_ORIGIN2       (1<<3)
-#define EPS_VIEWANGLE2      (1<<4)
-#define EPS_STATS           (1<<5)
-
-// q2pro protocol specific extra flags
-#define EPS_CLIENTNUM       (1<<6)
-
-#define EPS_BITS            7
-#define EPS_MASK            ((1<<EPS_BITS)-1)
-
-//==============================================
-
-// packetized player_state_t communication (MVD specific)
-
-#define PPS_M_TYPE          (1<<0)
-#define PPS_M_ORIGIN        (1<<1)
-#define PPS_M_ORIGIN2       (1<<2)
-
-#define PPS_VIEWOFFSET      (1<<3)
-#define PPS_VIEWANGLES      (1<<4)
-#define PPS_VIEWANGLE2      (1<<5)
-#define PPS_KICKANGLES      (1<<6)
-#define PPS_BLEND           (1<<7)
-#define PPS_FOV             (1<<8)
-#define PPS_WEAPONINDEX     (1<<9)
-#define PPS_WEAPONFRAME     (1<<10)
-#define PPS_GUNOFFSET       (1<<11)
-#define PPS_GUNANGLES       (1<<12)
-#define PPS_RDFLAGS         (1<<13)
-#define PPS_STATS           (1<<14)
-#define PPS_REMOVE          (1<<15)
-
-// this is just a small hack to store inuse flag
-// in a field left otherwise unused by MVD code
-#define PPS_INUSE(ps)       (ps)->pmove.pm_time
-
 //==============================================
 
 // user_cmd_t communication
