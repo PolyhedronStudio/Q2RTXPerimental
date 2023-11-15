@@ -113,14 +113,16 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 //
 // per-level limits
 //
-#define MAX_CLIENTS         256     // absolute limit
-#define MAX_EDICTS          1024    // must change protocol to increase more
+#define MAX_CLIENTS         256     // Absolute limit
+#define MAX_EDICTS          8192    // must change protocol to increase more.
 #define MAX_LIGHTSTYLES     256
-#define MAX_MODELS          256     // these are sent over the net as bytes
+#define MAX_MODELS          8192	// These are sent over the net as bytes
 #define MAX_SOUNDS          2048	// so they cannot be blindly increased
-#define MAX_IMAGES          256
+#define MAX_IMAGES          512
 #define MAX_ITEMS           256
 #define MAX_GENERAL         (MAX_CLIENTS * 2) // general config strings
+
+#define MAX_MODELS_OLD		256		// Used for player model index.
 
 #define MAX_CLIENT_NAME     16
 
@@ -1354,7 +1356,7 @@ static inline const float SHORT2COORD( const int s ) {
 #define CS_MAXCLIENTS       30
 #define CS_MAPCHECKSUM      31      // for catching cheater maps
 
-#define CS_MODELS           32
+#define CS_MODELS           62
 #define CS_SOUNDS           (CS_MODELS+MAX_MODELS)
 #define CS_IMAGES           (CS_SOUNDS+MAX_SOUNDS)
 #define CS_LIGHTS           (CS_IMAGES+MAX_IMAGES)
@@ -1363,7 +1365,7 @@ static inline const float SHORT2COORD( const int s ) {
 #define CS_GENERAL          (CS_PLAYERSKINS+MAX_CLIENTS)
 #define MAX_CONFIGSTRINGS   (CS_GENERAL+MAX_GENERAL)
 
-#define MODELINDEX_PLAYER	(MAX_MODELS - 1)
+#define MODELINDEX_PLAYER	(MAX_MODELS_OLD - 1)
 
 // Some mods actually exploit CS_STATUSBAR to take space up to CS_AIRACCEL
 static inline int32_t CS_SIZE( int32_t cs ) {

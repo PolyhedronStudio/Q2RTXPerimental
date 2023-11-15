@@ -1065,65 +1065,38 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
         goto fail;
     }
 
-    if (type == 0) {
-        if (MSG_ReadUint8() != svc_serverdata) {
-            goto fail;
-        }
-        if (MSG_ReadInt32() != PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-            goto fail;
-        }
-        MSG_ReadInt32();
-        MSG_ReadUint8();
-        MSG_ReadString(NULL, 0);
-        clientNum = MSG_ReadInt16();
-        MSG_ReadString(NULL, 0);
-
-        while (1) {
-            c = MSG_ReadUint8();
-            if (c == -1) {
-                if (read_next_message(f) <= 0) {
-                    break;
-                }
-                continue; // parse new message
-            }
-            if (c != svc_configstring) {
-                break;
-            }
-            index = MSG_ReadInt16();
-            if (index < 0 || index >= MAX_CONFIGSTRINGS) {
-                goto fail;
-            }
-            MSG_ReadString(string, sizeof(string));
-            parse_info_string(info, clientNum, index, string);
-        }
-
-        info->mvd = false;
-    } else {
-        if ((MSG_ReadUint8() & SVCMD_MASK) != mvd_serverdata) {
-            goto fail;
-        }
-        if (MSG_ReadInt32() != PROTOCOL_VERSION_MVD) {
-            goto fail;
-        }
-        MSG_ReadInt16();
-        MSG_ReadInt32();
-        MSG_ReadString(NULL, 0);
-        clientNum = MSG_ReadInt16();
-
-        while (1) {
-            index = MSG_ReadInt16();
-            if (index == MAX_CONFIGSTRINGS) {
-                break;
-            }
-            if (index < 0 || index >= MAX_CONFIGSTRINGS) {
-                goto fail;
-            }
-            MSG_ReadString(string, sizeof(string));
-            parse_info_string(info, clientNum, index, string);
-        }
-
-        info->mvd = true;
+    if (MSG_ReadUint8() != svc_serverdata) {
+        goto fail;
     }
+    if (MSG_ReadInt32() != PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
+        goto fail;
+    }
+    MSG_ReadInt32();
+    MSG_ReadUint8();
+    MSG_ReadString(NULL, 0);
+    clientNum = MSG_ReadInt16();
+    MSG_ReadString(NULL, 0);
+
+    while (1) {
+        c = MSG_ReadUint8();
+        if (c == -1) {
+            if (read_next_message(f) <= 0) {
+                break;
+            }
+            continue; // parse new message
+        }
+        if (c != svc_configstring) {
+            break;
+        }
+        index = MSG_ReadInt16();
+        if (index < 0 || index >= MAX_CONFIGSTRINGS) {
+            goto fail;
+        }
+        MSG_ReadString(string, sizeof(string));
+        parse_info_string(info, clientNum, index, string);
+    }
+
+    info->mvd = false;
 
     FS_CloseFile(f);
     return info;

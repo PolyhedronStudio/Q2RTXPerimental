@@ -30,7 +30,7 @@ extern "C" {
 #include "common/error.h"
 
 #define MAX_DLIGHTS 32
-#define MAX_ENTITIES 1024 // == MAX_PACKET_ENTITIES * 2
+#define MAX_ENTITIES 8192 // == MAX_PACKET_ENTITIES * 2
 #define MAX_PARTICLES 16384
 #define MAX_LIGHTSTYLES 256
 

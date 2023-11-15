@@ -383,7 +383,7 @@ static void CL_ParseConfigstring(int index)
     CL_UpdateConfigstring(index);
 }
 
-static void CL_ParseBaseline(int index, int bits)
+static void CL_ParseBaseline(int index, uint64_t bits)
 {
     if (index < 1 || index >= MAX_EDICTS) {
         Com_Error(ERR_DROP, "%s: bad index: %d", __func__, index);
@@ -399,26 +399,30 @@ static void CL_ParseBaseline(int index, int bits)
 
 // instead of wasting space for svc_configstring and svc_spawnbaseline
 // bytes, entire game state is compressed into a single stream.
-static void CL_ParseGamestate(void)
+static void CL_ParseGamestate( int32_t cmd )
 {
-    while (msg_read.readcount < msg_read.cursize) {
-        const int32_t index = MSG_ReadInt16();
-        if (index == MAX_CONFIGSTRINGS) {
-            break;
-        }
-        CL_ParseConfigstring(index);
-    }
-
-    while (msg_read.readcount < msg_read.cursize) {
-		bool remove = false; // Unused here.
-		uint64_t byteMask = 0;
-		const int32_t index = MSG_ReadEntityNumber( &remove, &byteMask );
-		if ( !index ) {
-			break;
+	if ( cmd == svc_gamestate || cmd == svc_configstringstream ) {
+		while ( msg_read.readcount < msg_read.cursize ) {
+			const int32_t index = MSG_ReadInt16( );
+			if ( index == MAX_CONFIGSTRINGS ) {
+				break;
+			}
+			CL_ParseConfigstring( index );
 		}
+	}
 
-        CL_ParseBaseline(index, byteMask);
-    }
+	if ( cmd == svc_gamestate || cmd == svc_baselinestream ) {
+		while ( msg_read.readcount < msg_read.cursize ) {
+			bool remove = false; // Unused here.
+			uint64_t byteMask = 0;
+			const int32_t index = MSG_ReadEntityNumber( &remove, &byteMask );
+			if ( !index ) {
+				break;
+			}
+
+			CL_ParseBaseline( index, byteMask );
+		}
+	}
 }
 
 static void CL_ParseServerData(void)
@@ -1154,13 +1158,14 @@ badbyte:
             continue;
 
         case svc_gamestate:
-            //if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO) {
+		case svc_baselinestream:
+		case svc_configstringstream:
+			//if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO) {
             //    goto badbyte;
             //}
-            CL_ParseGamestate();
-            continue;
-
-        case svc_setting:
+            CL_ParseGamestate( cmd );
+			continue;
+		case svc_setting:
             if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
                 goto badbyte;
             }

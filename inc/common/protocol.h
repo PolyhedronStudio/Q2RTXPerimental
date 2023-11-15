@@ -99,7 +99,7 @@ extern "C" {
 //#define SUPPRESSCOUNT_BITS      4
 //#define SUPPRESSCOUNT_MASK      ((1 << SUPPRESSCOUNT_BITS) - 1)
 
-#define MAX_PACKET_ENTITIES     1024
+#define MAX_PACKET_ENTITIES     512
 #define MAX_PARSE_ENTITIES      (MAX_PACKET_ENTITIES * UPDATE_BACKUP)
 #define PARSE_ENTITIES_MASK     (MAX_PARSE_ENTITIES - 1)
 
@@ -144,50 +144,16 @@ typedef enum {
     svc_packetentities,         // [...]
     svc_deltapacketentities,    // [...]
     svc_frame,
-
-    // r1q2 specific operations
+	    
     svc_zpacket,
     svc_zdownload,
-    svc_gamestate, // q2pro specific, means svc_playerupdate in r1q2
-    svc_setting,
-
-    svc_num_types
+    svc_gamestate,
+	svc_configstringstream,
+	svc_baselinestream,
+	svc_setting,
+	
+	svc_num_types
 } svc_ops_t;
-
-// MVD protocol specific operations
-typedef enum {
-    mvd_bad,
-    mvd_nop,
-    mvd_disconnect,     // reserved
-    mvd_reconnect,      // reserved
-    mvd_serverdata,
-    mvd_configstring,
-    mvd_frame,
-    mvd_frame_nodelta,  // reserved
-    mvd_unicast,
-    mvd_unicast_r,
-
-    // must match multicast_t order!!!
-    mvd_multicast_all,
-    mvd_multicast_phs,
-    mvd_multicast_pvs,
-    mvd_multicast_all_r,
-    mvd_multicast_phs_r,
-    mvd_multicast_pvs_r,
-
-    mvd_sound,
-    mvd_print,
-    mvd_stufftext,      // reserved
-
-    mvd_num_types
-} mvd_ops_t;
-
-// MVD stream flags (only 3 bits can be used)
-typedef enum {
-    MVF_NOMSGS      = 1,
-    MVF_SINGLEPOV   = 2,
-    MVF_RESERVED2   = 4
-} mvd_flags_t;
 
 //==============================================
 

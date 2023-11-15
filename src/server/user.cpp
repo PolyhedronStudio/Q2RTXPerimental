@@ -85,7 +85,7 @@ static void SV_CreateBaselines(void)
     }
 }
 
-static bool need_flush_msg(size_t size)
+static bool maybe_flush_msg(size_t size)
 {
     size += msg_write.cursize;
 #if USE_ZLIB
@@ -95,76 +95,76 @@ static bool need_flush_msg(size_t size)
     return size > sv_client->netchan.maxpacketlen;
 }
 
-static void write_configstrings(void)
-{
-    int     i;
-    configstring_t    *string;
-    size_t  length;
+//static void write_configstrings(void)
+//{
+//    int     i;
+//    configstring_t    *string;
+//    size_t  length;
+//
+//    // write a packet full of data
+//    string = sv_client->configstrings;
+//    for (i = 0; i < MAX_CONFIGSTRINGS; i++ ) {
+//		string = &sv_client->configstrings[ i ];
+//
+//        if (!string[0]) {
+//            continue;
+//        }
+//        length = Q_strnlen((const char*)string, MAX_CS_STRING_LENGTH );
+//
+//        // check if this configstring will overflow
+//        if (need_flush_msg(length + 4)) {
+//            SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
+//        }
+//
+//        MSG_WriteUint8(svc_configstring);
+//        MSG_WriteInt16(i);
+//        MSG_WriteData(string, length);
+//        MSG_WriteUint8(0);
+//    }
+//
+//    SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
+//}
+//
+static void write_baseline( entity_packed_t *base ) {
+	msgEsFlags_t flags = static_cast<msgEsFlags_t>( sv_client->esFlags | MSG_ES_FORCE ); // WID: C++20: Added cast.
 
-    // write a packet full of data
-    string = sv_client->configstrings;
-    for (i = 0; i < MAX_CONFIGSTRINGS; i++ ) {
-		string = &sv_client->configstrings[ i ];
-
-        if (!string[0]) {
-            continue;
-        }
-        length = Q_strnlen((const char*)string, MAX_CS_STRING_LENGTH );
-
-        // check if this configstring will overflow
-        if (need_flush_msg(length + 4)) {
-            SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
-        }
-
-        MSG_WriteUint8(svc_configstring);
-        MSG_WriteInt16(i);
-        MSG_WriteData(string, length);
-        MSG_WriteUint8(0);
-    }
-
-    SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
-}
-
-static void write_baseline(entity_packed_t *base)
-{
-    msgEsFlags_t flags = static_cast<msgEsFlags_t>( sv_client->esFlags | MSG_ES_FORCE ); // WID: C++20: Added cast.
-
-    if (Q2PRO_SHORTANGLES(sv_client, base->number)) {
-		// WID: C++20:
+  if (Q2PRO_SHORTANGLES(sv_client, base->number)) {
+		//// WID: C++20:
         //flags |= MSG_ES_SHORTANGLES;
 		flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
     }
 
-    MSG_WriteDeltaEntity(NULL, base, flags);
+	MSG_WriteDeltaEntity( NULL, base, flags );
 }
-
-static void write_baselines(void)
-{
-    int i, j;
-    entity_packed_t *base;
-
-    // write a packet full of data
-    for (i = 0; i < SV_BASELINES_CHUNKS; i++) {
-        base = sv_client->baselines[i];
-        if (!base) {
-            continue;
-        }
-        for (j = 0; j < SV_BASELINES_PER_CHUNK; j++) {
-            if (base->number) {
-                // check if this baseline will overflow
-                if (need_flush_msg( MAX_CS_STRING_LENGTH )) {
-                    SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
-                }
-
-                MSG_WriteUint8(svc_spawnbaseline);
-                write_baseline(base);
-            }
-            base++;
-        }
-    }
-
-    SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
-}
+//}
+//
+//static void write_baselines(void)
+//{
+//    int i, j;
+//    entity_packed_t *base;
+//
+//    // write a packet full of data
+//    for (i = 0; i < SV_BASELINES_CHUNKS; i++) {
+//        base = sv_client->baselines[i];
+//        if (!base) {
+//            continue;
+//        }
+//        for (j = 0; j < SV_BASELINES_PER_CHUNK; j++) {
+//            if (base->number) {
+//                // check if this baseline will overflow
+//                if (need_flush_msg( MAX_CS_STRING_LENGTH )) {
+//                    SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
+//                }
+//
+//                MSG_WriteUint8(svc_spawnbaseline);
+//                write_baseline(base);
+//            }
+//            base++;
+//        }
+//    }
+//
+//    SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
+//}
 
 static void write_gamestate(void)
 {
@@ -206,6 +206,71 @@ static void write_gamestate(void)
 
     SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
 }
+//-----------------------------------------------------------------------------------------------
+static void write_configstring_stream( void ) {
+	int     i;
+	char *string;
+	size_t  length;
+
+	MSG_WriteUint8( svc_configstringstream );
+
+	// write a packet full of data
+	for ( i = 0; i < MAX_CONFIGSTRINGS; i++ ) {
+		string = sv_client->configstrings[ i ];
+		if ( !string[ 0 ] ) {
+			continue;
+		}
+		length = Q_strnlen( string, MAX_CS_STRING_LENGTH );
+
+		// check if this configstring will overflow
+		if ( msg_write.cursize + length + 4 > msg_write.maxsize ) {
+			MSG_WriteInt16( MAX_CONFIGSTRINGS );
+			SV_ClientAddMessage( sv_client, MSG_GAMESTATE );
+			MSG_WriteUint8( svc_configstringstream );
+		}
+
+		MSG_WriteInt16( i );
+		MSG_WriteData( string, length );
+		MSG_WriteUint8( 0 );
+	}
+
+	MSG_WriteInt16( MAX_CONFIGSTRINGS );
+	SV_ClientAddMessage( sv_client, MSG_GAMESTATE );
+}
+
+static void write_baseline_stream( void ) {
+	int i, j;
+	entity_packed_t *base;
+
+	MSG_WriteUint8( svc_baselinestream );
+
+	// write a packet full of data
+	for ( i = 0; i < SV_BASELINES_CHUNKS; i++ ) {
+		base = sv_client->baselines[ i ];
+		if ( !base ) {
+			continue;
+		}
+		for ( j = 0; j < SV_BASELINES_PER_CHUNK; j++, base++ ) {
+			if ( !base->number ) {
+				continue;
+			}
+
+			static constexpr int32_t MAX_PACKETENTITY_BYTES = 64;
+
+			// check if this baseline will overflow
+			if ( msg_write.cursize + MAX_PACKETENTITY_BYTES > msg_write.maxsize ) {
+				MSG_WriteInt16( 0 );
+				SV_ClientAddMessage( sv_client, MSG_GAMESTATE );
+				MSG_WriteUint8( svc_baselinestream );
+			}
+			write_baseline( base );
+		}
+	}
+
+	MSG_WriteInt16( 0 );
+	SV_ClientAddMessage( sv_client, MSG_GAMESTATE );
+}
+//--------------------------------------------------------------------------------
 
 static void stuff_cmds(list_t *list)
 {
@@ -351,7 +416,9 @@ void SV_New_f(void)
 
     // send gamestate
     //if (sv_client->netchan.type == NETCHAN_NEW) {
-        write_gamestate();
+	write_configstring_stream( );
+	write_baseline_stream( );
+    //    write_gamestate();
     //} else {
     //    write_configstrings();
     //    write_baselines();

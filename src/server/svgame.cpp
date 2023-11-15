@@ -30,46 +30,52 @@ PF_FindIndex
 
 ================
 */
-static int PF_FindIndex(const char *name, int start, int max, const char *func)
-{
-    char *string;
-    int i;
+static int PF_FindIndex( const char *name, int start, int max, int skip, const char *func ) {
+	char *string;
+	int i;
 
-    if (!name || !name[0])
-        return 0;
+	if ( !name || !name[ 0 ] )
+		return 0;
 
-    for (i = 1; i < max; i++) {
-        string = sv.configstrings[start + i];
-        if (!string[0]) {
-            break;
-        }
-        if (!strcmp(string, name)) {
-            return i;
-        }
-    }
+	for ( i = 1; i < max; i++ ) {
+		if ( i == skip ) {
+			continue;
+		}
+		string = sv.configstrings[ start + i ];
+		if ( !string[ 0 ] ) {
+			break;
+		}
+		if ( !strcmp( string, name ) ) {
+			return i;
+		}
+	}
 
-    if (i == max) {
-        Com_Error(ERR_DROP, "%s(%s): overflow", func, name);
-    }
+	if ( i == max ) {
+		//if ( g_features->integer & GMF_ALLOW_INDEX_OVERFLOW ) {
+		//	Com_DPrintf( "%s(%s): overflow\n", func, name );
+		//	return 0;
+		//}
+		Com_Error( ERR_DROP, "%s(%s): overflow", func, name );
+	}
 
-    PF_configstring(i + start, name);
+	PF_configstring( i + start, name );
 
-    return i;
+	return i;
 }
 
 static int PF_ModelIndex(const char *name)
 {
-    return PF_FindIndex(name, CS_MODELS, MAX_MODELS, __func__);
+    return PF_FindIndex(name, CS_MODELS, MAX_MODELS, MODELINDEX_PLAYER,  __func__);
 }
 
 static int PF_SoundIndex(const char *name)
 {
-    return PF_FindIndex(name, CS_SOUNDS, MAX_SOUNDS, __func__);
+    return PF_FindIndex(name, CS_SOUNDS, MAX_SOUNDS, 0, __func__);
 }
 
 static int PF_ImageIndex(const char *name)
 {
-    return PF_FindIndex(name, CS_IMAGES, MAX_IMAGES, __func__);
+    return PF_FindIndex(name, CS_IMAGES, MAX_IMAGES, 0, __func__);
 }
 
 /*
@@ -350,66 +356,66 @@ Archived in MVD stream.
 */
 static void PF_configstring(int index, const char *val)
 {
-    size_t len, maxlen;
-    client_t *client;
-    char *dst;
+	size_t len, maxlen;
+	client_t *client;
+	char *dst;
 
-    if (index < 0 || index >= MAX_CONFIGSTRINGS)
-        Com_Error(ERR_DROP, "%s: bad index: %d", __func__, index);
+	if ( index < 0 || index >= MAX_CONFIGSTRINGS )
+		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, index );
 
-    if (sv.state == ss_dead) {
-        Com_WPrintf("%s: not yet initialized\n", __func__);
-        return;
-    }
+	if ( sv.state == ss_dead ) {
+		Com_WPrintf( "%s: not yet initialized\n", __func__ );
+		return;
+	}
 
-    if (!val)
-        val = "";
+	if ( !val )
+		val = "";
 
-    // error out entirely if it exceedes array bounds
-    len = strlen(val);
-    maxlen = (MAX_CONFIGSTRINGS - index) * MAX_CS_STRING_LENGTH;
-    if (len >= maxlen) {
-        Com_Error(ERR_DROP,
-                  "%s: index %d overflowed: %zu > %zu",
-                  __func__, index, len, maxlen - 1);
-    }
+	// error out entirely if it exceedes array bounds
+	len = strlen( val );
+	maxlen = ( MAX_CONFIGSTRINGS - index ) * MAX_CS_STRING_LENGTH;
+	if ( len >= maxlen ) {
+		Com_Error( ERR_DROP,
+				  "%s: index %d overflowed: %zu > %zu",
+				  __func__, index, len, maxlen - 1 );
+	}
 
-    // print a warning and truncate everything else
-    maxlen = CS_SIZE(index);
-    if (len >= maxlen) {
-        Com_WPrintf(
-            "%s: index %d overflowed: %zu > %zu\n",
-            __func__, index, len, maxlen - 1);
-        len = maxlen - 1;
-    }
+	// print a warning and truncate everything else
+	maxlen = CS_SIZE( index );
+	if ( len >= maxlen ) {
+		Com_WPrintf(
+			"%s: index %d overflowed: %zu > %zu\n",
+			__func__, index, len, maxlen - 1 );
+		len = maxlen - 1;
+	}
 
-    dst = sv.configstrings[index];
-    if (!strncmp(dst, val, maxlen)) {
-        return;
-    }
+	dst = sv.configstrings[ index ];
+	if ( !strncmp( dst, val, maxlen ) ) {
+		return;
+	}
 
-    // change the string in sv
-    memcpy(dst, val, len);
-    dst[len] = 0;
+	// change the string in sv
+	memcpy( dst, val, len );
+	dst[ len ] = 0;
 
-    if (sv.state == ss_loading) {
-        return;
-    }
+	if ( sv.state == ss_loading ) {
+		return;
+	}
 
-    // send the update to everyone
-    MSG_WriteUint8(svc_configstring);
-    MSG_WriteInt16(index);
-    MSG_WriteData(val, len);
-    MSG_WriteUint8(0);
+	// send the update to everyone
+	MSG_WriteUint8( svc_configstring );
+	MSG_WriteInt16( index );
+	MSG_WriteData( val, len );
+	MSG_WriteUint8( 0 );
 
-    FOR_EACH_CLIENT(client) {
-        if (client->state < cs_primed) {
-            continue;
-        }
-        SV_ClientAddMessage(client, MSG_RELIABLE);
-    }
+	FOR_EACH_CLIENT( client ) {
+		if ( client->state < cs_primed ) {
+			continue;
+		}
+		SV_ClientAddMessage( client, MSG_RELIABLE );
+	}
 
-    SZ_Clear(&msg_write);
+	SZ_Clear( &msg_write );
 }
 
 static void PF_WriteFloat(float f)
