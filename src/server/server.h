@@ -188,8 +188,8 @@ typedef struct {
 } message_packet_t;
 
 // WID: 40hz:
-//#define RATE_MESSAGES   10
-#define RATE_MESSAGES   SV_FRAMERATE
+#define RATE_MESSAGES   10
+//#define RATE_MESSAGES   SV_FRAMERATE
 
 #define FOR_EACH_CLIENT(client) \
     LIST_FOR_EACH(client_t, client, &sv_clientlist, entry)

@@ -67,7 +67,6 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to ) {
 	int     i;
 	int     pflags;
-	int     statbits;
 
 	if ( !to )
 		Com_Error( ERR_DROP, "%s: NULL", __func__ );
@@ -220,12 +219,12 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		MSG_WriteUint8( to->rdflags );
 
 	// send stats
-	statbits = 0;
+	int64_t statbits = 0;
 	for ( i = 0; i < MAX_STATS; i++ )
 		if ( to->stats[ i ] != from->stats[ i ] )
 			statbits |= 1U << i;
 
-	MSG_WriteInt32( statbits );
+	MSG_WriteIntBase128( statbits );
 	for ( i = 0; i < MAX_STATS; i++ )
 		if ( statbits & ( 1U << i ) )
 			MSG_WriteInt16( to->stats[ i ] );

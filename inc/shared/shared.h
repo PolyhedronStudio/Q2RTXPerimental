@@ -1229,7 +1229,7 @@ typedef enum {
 #define STAT_CHASE              16
 #define STAT_SPECTATOR          17
 
-#define MAX_STATS               32
+#define MAX_STATS               64
 
 
 // dmflags->value flags

@@ -131,7 +131,7 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->rdflags = MSG_ReadUint8( );
 
 	// parse stats
-	statbits = MSG_ReadInt32( );
+	statbits = MSG_ReadIntBase128( );
 	for ( i = 0; i < MAX_STATS; i++ )
 		if ( statbits & ( 1U << i ) )
 			to->stats[ i ] = MSG_ReadInt16( );
