@@ -93,7 +93,7 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 
 	if ( bits & U_FRAME8 )
 		to->frame = MSG_ReadUint8( );
-	if ( bits & U_FRAME16 )
+	else if ( bits & U_FRAME16 )
 		to->frame = MSG_ReadInt16( );
 
 	if ( ( bits & ( U_SKIN8 | U_SKIN16 ) ) == ( U_SKIN8 | U_SKIN16 ) )  //used for laser colors
@@ -127,21 +127,21 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->origin[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) );
 	}
 
-	if ( ( flags & MSG_ES_SHORTANGLES ) && ( bits & U_ANGLE16 ) ) {
+	//if ( ( flags & MSG_ES_SHORTANGLES ) && ( bits & U_ANGLE16 ) ) {
 		if ( bits & U_ANGLE1 )
 			to->angles[ 0 ] = MSG_ReadAngle16( );
 		if ( bits & U_ANGLE2 )
 			to->angles[ 1 ] = MSG_ReadAngle16( );
 		if ( bits & U_ANGLE3 )
 			to->angles[ 2 ] = MSG_ReadAngle16( );
-	} else {
-		if ( bits & U_ANGLE1 )
-			to->angles[ 0 ] = MSG_ReadAngle8( );
-		if ( bits & U_ANGLE2 )
-			to->angles[ 1 ] = MSG_ReadAngle8( );
-		if ( bits & U_ANGLE3 )
-			to->angles[ 2 ] = MSG_ReadAngle8( );
-	}
+	//} else {
+	//	if ( bits & U_ANGLE1 )
+	//		to->angles[ 0 ] = MSG_ReadAngle8( );
+	//	if ( bits & U_ANGLE2 )
+	//		to->angles[ 1 ] = MSG_ReadAngle8( );
+	//	if ( bits & U_ANGLE3 )
+	//		to->angles[ 2 ] = MSG_ReadAngle8( );
+	//}
 
 	if ( bits & U_OLDORIGIN ) {
 		MSG_ReadPos( to->old_origin );

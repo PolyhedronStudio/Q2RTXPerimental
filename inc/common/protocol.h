@@ -36,45 +36,18 @@ extern "C" {
 #define PROTOCOL_VERSION_OLD        26
 // WID: net-code: This is the 'DEFAULT' protocol code, renamed the definition to Q2RTXPERIMENTAL. 
 // TODO: Change the number later on. For now we want to work, and edit, the default protocol routes.
-#define PROTOCOL_VERSION_Q2RTXPERIMENTAL    34
+#define PROTOCOL_VERSION_Q2RTXPERIMENTAL    1337
 #define PROTOCOL_VERSION_R1Q2       35
 #define PROTOCOL_VERSION_Q2PRO      36
 #define PROTOCOL_VERSION_MVD        37 // not used for UDP connections
 
-#define PROTOCOL_VERSION_R1Q2_MINIMUM           1903    // b6377
-#define PROTOCOL_VERSION_R1Q2_UCMD              1904    // b7387
-#define PROTOCOL_VERSION_R1Q2_LONG_SOLID        1905    // b7759
 #define PROTOCOL_VERSION_R1Q2_CURRENT           1905    // b7759
 
-#define PROTOCOL_VERSION_Q2PRO_MINIMUM          1011    // r161
-#define PROTOCOL_VERSION_Q2PRO_UCMD             1012    // r179
-#define PROTOCOL_VERSION_Q2PRO_CLIENTNUM_FIX    1013    // r226
-#define PROTOCOL_VERSION_Q2PRO_LONG_SOLID       1014    // r243
-#define PROTOCOL_VERSION_Q2PRO_WATERJUMP_HACK   1015    // r335
-#define PROTOCOL_VERSION_Q2PRO_RESERVED         1016    // r364
 #define PROTOCOL_VERSION_Q2PRO_BEAM_ORIGIN      1017    // r1037-8
 #define PROTOCOL_VERSION_Q2PRO_SHORT_ANGLES     1018    // r1037-44
-#define PROTOCOL_VERSION_Q2PRO_SERVER_STATE     1019    // r1302
-#define PROTOCOL_VERSION_Q2PRO_EXTENDED_LAYOUT  1020    // r1354
 #define PROTOCOL_VERSION_Q2PRO_ZLIB_DOWNLOADS   1021    // r1358
 #define PROTOCOL_VERSION_Q2PRO_CLIENTNUM_SHORT  1022    // r2161
-#define PROTOCOL_VERSION_Q2PRO_CINEMATICS       1023    // r2263
 #define PROTOCOL_VERSION_Q2PRO_CURRENT          1023    // r2263
-
-#define PROTOCOL_VERSION_MVD_MINIMUM            2009    // r168
-#define PROTOCOL_VERSION_MVD_CURRENT            2010    // r177
-
-#define R1Q2_SUPPORTED(x) \
-    ((x) >= PROTOCOL_VERSION_R1Q2_MINIMUM && \
-     (x) <= PROTOCOL_VERSION_R1Q2_CURRENT)
-
-#define Q2PRO_SUPPORTED(x) \
-    ((x) >= PROTOCOL_VERSION_Q2PRO_MINIMUM && \
-     (x) <= PROTOCOL_VERSION_Q2PRO_CURRENT)
-
-#define MVD_SUPPORTED(x) \
-    ((x) >= PROTOCOL_VERSION_MVD_MINIMUM && \
-     (x) <= PROTOCOL_VERSION_MVD_CURRENT)
 
 #define VALIDATE_CLIENTNUM(x) \
     ((x) >= -1 && (x) < MAX_EDICTS - 1)
@@ -243,7 +216,7 @@ typedef enum {
 #define U_FRAME8    (1<<4)			// frame is a byte
 #define U_EVENT     (1<<5)
 #define U_REMOVE    (1<<6)			// REMOVE this entity, don't add it
-#define U_UNUSED1   (1<<7)			//#define U_MOREBITS1 (1<<7)        // read one additional byte
+#define U_UNUSED0   (1<<7)			//#define U_MOREBITS1 (1<<7)        // read one additional byte
 
 
 // second byte
@@ -252,7 +225,7 @@ typedef enum {
 #define U_ANGLE1    (1<<10)
 #define U_MODEL     (1<<11)
 #define U_RENDERFX8 (1<<12)			// fullbright, etc
-#define U_ANGLE16   (1<<13)
+#define U_UNUSED1   (1<<13)			//#define U_ANGLE16   (1<<13)
 #define U_EFFECTS8  (1<<14)			// autorotate, trails, etc
 #define U_UNUSED2	(1<<15)			//#define U_MOREBITS2 (1<<15)        // read one additional byte
 
@@ -328,8 +301,8 @@ typedef enum {
 // only SUPPRESSCOUNT_BITS can be used
 #define FF_SUPPRESSED   (1<<0)
 #define FF_CLIENTDROP   (1<<1)
-#define FF_CLIENTPRED   (1<<2)
-#define FF_RESERVED     (1<<3)
+#define FF_CLIENTPRED   (1<<2)	// Set but unused?
+#define FF_RESERVED     (1<<3)	// Literally reserved.
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

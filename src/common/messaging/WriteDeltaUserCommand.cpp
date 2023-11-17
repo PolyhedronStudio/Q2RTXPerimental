@@ -57,20 +57,20 @@ int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int 
 
 	MSG_WriteUint8( bits );
 
-	if ( version >= PROTOCOL_VERSION_R1Q2_UCMD ) {
-		if ( bits & CM_BUTTONS ) {
-			if ( ( bits & CM_FORWARD ) && !( cmd->forwardmove % 5 ) ) {
-				buttons |= BUTTON_FORWARD;
-			}
-			if ( ( bits & CM_SIDE ) && !( cmd->sidemove % 5 ) ) {
-				buttons |= BUTTON_SIDE;
-			}
-			if ( ( bits & CM_UP ) && !( cmd->upmove % 5 ) ) {
-				buttons |= BUTTON_UP;
-			}
-			MSG_WriteUint8( buttons );
-		}
-	}
+	//if ( version >= PROTOCOL_VERSION_R1Q2_UCMD ) {
+	//	if ( bits & CM_BUTTONS ) {
+	//		if ( ( bits & CM_FORWARD ) && !( cmd->forwardmove % 5 ) ) {
+	//			buttons |= BUTTON_FORWARD;
+	//		}
+	//		if ( ( bits & CM_SIDE ) && !( cmd->sidemove % 5 ) ) {
+	//			buttons |= BUTTON_SIDE;
+	//		}
+	//		if ( ( bits & CM_UP ) && !( cmd->upmove % 5 ) ) {
+	//			buttons |= BUTTON_UP;
+	//		}
+	//		MSG_WriteUint8( buttons );
+	//	}
+	//}
 
 	if ( bits & CM_ANGLE1 )
 		MSG_WriteInt16( cmd->angles[ 0 ] );
@@ -101,10 +101,10 @@ int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int 
 		}
 	}
 
-	if ( version < PROTOCOL_VERSION_R1Q2_UCMD ) {
+	//if ( version < PROTOCOL_VERSION_R1Q2_UCMD ) {
 		if ( bits & CM_BUTTONS )
 			MSG_WriteUint8( cmd->buttons );
-	}
+	//}
 	if ( bits & CM_IMPULSE )
 		MSG_WriteUint8( cmd->impulse );
 

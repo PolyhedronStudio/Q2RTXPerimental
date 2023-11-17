@@ -28,9 +28,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 static inline void CL_ParseDeltaEntity(server_frame_t  *frame,
-                                       int             newnum,
+                                       int32_t         newnum,
                                        entity_state_t  *old,
-                                       int             bits)
+                                       uint64_t        bits)
 {
     entity_state_t    *state;
 

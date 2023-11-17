@@ -1,1 +1,1 @@
-Q2RTXPerimental_ded.exe +set developer 1 +set sv_debug 1 +set cheats 1 +set deathmatch 0 +set coop 1 +map demo3
+Q2RTXPerimental_ded.exe +set developer 1 +set sv_debug 1 +set cheats 1 +set deathmatch 0 +set coop 1 +map demo1

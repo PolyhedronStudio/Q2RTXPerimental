@@ -610,12 +610,12 @@ static bool parse_basic_params(conn_params_t *p)
     p->challenge = atoi(Cmd_Argv(3));
 
     // check for invalid protocol version
-    if (p->protocol < PROTOCOL_VERSION_OLD ||
-        p->protocol > PROTOCOL_VERSION_Q2PRO)
-        return reject("Unsupported protocol version %d.\n", p->protocol);
+    //if (p->protocol < PROTOCOL_VERSION_OLD ||
+    //    p->protocol > PROTOCOL_VERSION_Q2PRO)
+    //    return reject("Unsupported protocol version %d.\n", p->protocol);
 
     // check for valid, but outdated protocol version
-    if (p->protocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL)
+    if (p->protocol != PROTOCOL_VERSION_Q2RTXPERIMENTAL)
         return reject("You need Q2RTXPerimental version " LONG_VERSION_STRING " or higher.\n");
 
     return true;
