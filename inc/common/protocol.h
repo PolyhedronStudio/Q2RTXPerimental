@@ -34,20 +34,9 @@ extern "C" {
 #define MAX_MSGLEN  0x10000  // max length of a message, 64k
 
 #define PROTOCOL_VERSION_OLD        26
-// WID: net-code: This is the 'DEFAULT' protocol code, renamed the definition to Q2RTXPERIMENTAL. 
-// TODO: Change the number later on. For now we want to work, and edit, the default protocol routes.
+// WID: net-protocol2: This is our own new protocol.
 #define PROTOCOL_VERSION_Q2RTXPERIMENTAL    1337
-#define PROTOCOL_VERSION_R1Q2       35
-#define PROTOCOL_VERSION_Q2PRO      36
-#define PROTOCOL_VERSION_MVD        37 // not used for UDP connections
 
-#define PROTOCOL_VERSION_R1Q2_CURRENT           1905    // b7759
-
-#define PROTOCOL_VERSION_Q2PRO_BEAM_ORIGIN      1017    // r1037-8
-#define PROTOCOL_VERSION_Q2PRO_SHORT_ANGLES     1018    // r1037-44
-#define PROTOCOL_VERSION_Q2PRO_ZLIB_DOWNLOADS   1021    // r1358
-#define PROTOCOL_VERSION_Q2PRO_CLIENTNUM_SHORT  1022    // r2161
-#define PROTOCOL_VERSION_Q2PRO_CURRENT          1023    // r2263
 
 #define VALIDATE_CLIENTNUM(x) \
     ((x) >= -1 && (x) < MAX_EDICTS - 1)
@@ -138,10 +127,8 @@ typedef enum {
     clc_nop,
     clc_move,               // [usercmd_t]
     clc_userinfo,           // [userinfo string]
-    clc_stringcmd,          // [string] message
-
-    // q2pro specific operations
-    clc_userinfo_delta
+	clc_userinfo_delta,		// [userinfo_key][userinfo_value]
+	clc_stringcmd,          // [string] message
 } clc_ops_t;
 
 //==============================================

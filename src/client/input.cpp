@@ -999,25 +999,26 @@ static void CL_SendUserinfo(void)
         MSG_WriteUint8(clc_userinfo);
         MSG_WriteData(userinfo, len + 1);
         MSG_FlushTo(&cls.netchan.message);
-    } else if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
-        Com_DDPrintf("%s: %u: %d updates\n", __func__, com_framenum,
-                     cls.userinfo_modified);
-        for (i = 0; i < cls.userinfo_modified; i++) {
-            var = cls.userinfo_updates[i];
-            MSG_WriteUint8(clc_userinfo_delta);
-            MSG_WriteString(var->name);
-            if (var->flags & CVAR_USERINFO) {
-                MSG_WriteString(var->string);
-            } else {
-                // no longer in userinfo
-                MSG_WriteString(NULL);
-            }
-        }
-        MSG_FlushTo(&cls.netchan.message);
-    } else {
-        Com_WPrintf("%s: update count is %d, should never happen.\n",
-                    __func__, cls.userinfo_modified);
-    }
+	} else {
+		Com_DDPrintf( "%s: %u: %d updates\n", __func__, com_framenum,
+					 cls.userinfo_modified );
+		for ( i = 0; i < cls.userinfo_modified; i++ ) {
+			var = cls.userinfo_updates[ i ];
+			MSG_WriteUint8( clc_userinfo_delta );
+			MSG_WriteString( var->name );
+			if ( var->flags & CVAR_USERINFO ) {
+				MSG_WriteString( var->string );
+			} else {
+				// no longer in userinfo
+				MSG_WriteString( NULL );
+			}
+		}
+		MSG_FlushTo( &cls.netchan.message );
+	}
+    //} else {
+    //    Com_WPrintf("%s: update count is %d, should never happen.\n",
+    //                __func__, cls.userinfo_modified);
+    //}
 }
 
 static void CL_SendReliable(void)

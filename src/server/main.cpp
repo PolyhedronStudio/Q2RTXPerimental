@@ -501,7 +501,7 @@ static void SVC_Info(void)
         return; // ignore in single player
 
     version = atoi(Cmd_Argv(1));
-    if (version < PROTOCOL_VERSION_Q2RTXPERIMENTAL || version > PROTOCOL_VERSION_Q2PRO)
+    if (version != PROTOCOL_VERSION_Q2RTXPERIMENTAL)
         return; // ignore invalid versions
 
     len = Q_scnprintf(buffer, sizeof(buffer),
@@ -610,11 +610,6 @@ static bool parse_basic_params(conn_params_t *p)
     p->challenge = atoi(Cmd_Argv(3));
 
     // check for invalid protocol version
-    //if (p->protocol < PROTOCOL_VERSION_OLD ||
-    //    p->protocol > PROTOCOL_VERSION_Q2PRO)
-    //    return reject("Unsupported protocol version %d.\n", p->protocol);
-
-    // check for valid, but outdated protocol version
     if (p->protocol != PROTOCOL_VERSION_Q2RTXPERIMENTAL)
         return reject("You need Q2RTXPerimental version " LONG_VERSION_STRING " or higher.\n");
 
@@ -708,18 +703,18 @@ static bool parse_packet_length(conn_params_t *p)
 
     // set maximum packet length
     p->maxlength = MAX_PACKETLEN_WRITABLE_DEFAULT;
-    if (p->protocol >= PROTOCOL_VERSION_R1Q2) {
-        s = Cmd_Argv(5);
-        if (*s) {
-            p->maxlength = atoi(s);
-            if (p->maxlength < 0 || p->maxlength > MAX_PACKETLEN_WRITABLE)
-                return reject("Invalid maximum message length.\n");
+    //if (p->protocol >= PROTOCOL_VERSION_R1Q2) {
+    //    s = Cmd_Argv(5);
+    //    if (*s) {
+    //        p->maxlength = atoi(s);
+    //        if (p->maxlength < 0 || p->maxlength > MAX_PACKETLEN_WRITABLE)
+    //            return reject("Invalid maximum message length.\n");
 
-            // 0 means highest available
-            if (!p->maxlength)
-                p->maxlength = MAX_PACKETLEN_WRITABLE;
-        }
-    }
+    //        // 0 means highest available
+    //        if (!p->maxlength)
+    //            p->maxlength = MAX_PACKETLEN_WRITABLE;
+    //    }
+    //}
 
 	// WID: netstuff: We will fragment the packet if larger than 1024.
 	if ( p->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
@@ -1459,7 +1454,7 @@ static void update_client_mtu(client_t *client, int ee_info)
 	// WID: net-protocol2: We do a straight up return, since our work is based on the old protocol.
 	// TODO: old clients require entire queue flush :(
 	//if ( netchan->type == NETCHAN_OLD )
-		return;
+	//	return;
 
     // sanity check discovered MTU
     if (ee_info < 576 || ee_info > 4096)

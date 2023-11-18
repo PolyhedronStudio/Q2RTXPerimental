@@ -1283,8 +1283,8 @@ badbyte:
             break;
 
         case clc_userinfo_delta:
-            if (client->protocol != PROTOCOL_VERSION_Q2PRO)
-                goto badbyte;
+            //if (client->protocol != PROTOCOL_VERSION_Q2PRO)
+            //    goto badbyte;
 
             SV_ParseDeltaUserinfo();
             break;

@@ -288,13 +288,8 @@ void CL_CheckForResend(void)
         strcpy(cls.servername, "localhost");
         cls.serverAddress.type = NA_LOOPBACK;
         cls.serverProtocol = cl_protocol->integer;
-        if (cls.serverProtocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL ||
-            cls.serverProtocol > PROTOCOL_VERSION_Q2PRO) {
-            
-			// WID: net-code: default to PROTOCOL_VERSION_Q2PRO
-			cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
-			//cls.serverProtocol = PROTOCOL_VERSION_Q2PRO;
-        }
+		// WID: net-code: default to PROTOCOL_VERSION_Q2RTXPERIMENTAL
+		cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
 
         // we don't need a challenge on the localhost
         cls.state = ca_connecting;
@@ -340,17 +335,17 @@ void CL_CheckForResend(void)
 
     // add protocol dependent stuff
     switch (cls.serverProtocol) {
-    case PROTOCOL_VERSION_R1Q2:
-        Q_snprintf(tail, sizeof(tail), " %d %d",
-                   maxmsglen, PROTOCOL_VERSION_R1Q2_CURRENT);
-        cls.quakePort = net_qport->integer & 0xff;
-        break;
-    case PROTOCOL_VERSION_Q2PRO:
-        Q_snprintf(tail, sizeof(tail), " %d %d %d %d",
-                   maxmsglen, net_chantype->integer, USE_ZLIB,
-                   PROTOCOL_VERSION_Q2PRO_CURRENT);
-        cls.quakePort = net_qport->integer & 0xff;
-        break;
+    //case PROTOCOL_VERSION_R1Q2:
+    //    Q_snprintf(tail, sizeof(tail), " %d %d",
+    //               maxmsglen, PROTOCOL_VERSION_R1Q2_CURRENT);
+    //    cls.quakePort = net_qport->integer & 0xff;
+    //    break;
+    //case PROTOCOL_VERSION_Q2PRO:
+    //    Q_snprintf(tail, sizeof(tail), " %d %d %d %d",
+    //               maxmsglen, net_chantype->integer, USE_ZLIB,
+    //               PROTOCOL_VERSION_Q2PRO_CURRENT);
+    //    cls.quakePort = net_qport->integer & 0xff;
+    //    break;
 	case PROTOCOL_VERSION_Q2RTXPERIMENTAL:
 		tail[ 0 ] = 0;
 		cls.quakePort = net_qport->integer;
@@ -418,19 +413,19 @@ usage:
         return;
     }
 
-    if (argc > 2) {
-        protocol = atoi(Cmd_Argv(2));
-        if (protocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL ||
-            protocol > PROTOCOL_VERSION_Q2PRO) {
-            goto usage;
-        }
-    } else {
-        protocol = cl_protocol->integer;
-        if (!protocol) {
+    //if (argc > 2) {
+    //    protocol = atoi(Cmd_Argv(2));
+    //    if (protocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL ||
+    //        protocol > PROTOCOL_VERSION_Q2PRO) {
+    //        goto usage;
+    //    }
+    //} else {
+    //    protocol = cl_protocol->integer;
+    //    if (!protocol) {
 			// WID: net-code: We want to default to Q2RTXPerimental protocol my man.
             protocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
-        }
-    }
+    //    }
+    //}
 
     server = Cmd_Argv(1);
 
@@ -1428,11 +1423,11 @@ void CL_UpdateUserinfo(cvar_t *var, from_t from)
         return;
     }
 
-    if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO) {
-        // transmit at next oportunity
-        cls.userinfo_modified = MAX_PACKET_USERINFOS;
-        goto done;
-    }
+    //if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO) {
+    //    // transmit at next oportunity
+    //    cls.userinfo_modified = MAX_PACKET_USERINFOS;
+    //    goto done;
+    //}
 
     if (cls.userinfo_modified == MAX_PACKET_USERINFOS) {
         // can't hold any more
