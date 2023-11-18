@@ -147,6 +147,7 @@ typedef struct {
 //     (c)->version >= PROTOCOL_VERSION_Q2PRO_SHORT_ANGLES && \
 //     sv.state == ss_game && \
 //     EDICT_POOL(c, e)->solid == SOLID_BSP)
+// WID: Just use proper angles everywhere instead:
 #define Q2PRO_SHORTANGLES(c, e) true
 
 typedef enum {

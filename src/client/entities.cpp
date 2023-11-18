@@ -36,7 +36,9 @@ FRAME PARSING
 
 static inline bool entity_is_optimized(const entity_state_t *state)
 {
-    if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO)
+	// WID: net-protocol2: We don't want this anyway, should get rid of it?
+    //if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO)
+	if ( cls.serverProtocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL )
         return false;
 
     if (state->number != cl.frame.clientNum + 1)

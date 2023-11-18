@@ -207,13 +207,13 @@ static void CL_ParseFrame(int extrabits)
     currentframe = MSG_ReadInt32();
     deltaframe = MSG_ReadInt32();
 
-    // BIG HACK to let old demos continue to work
-    if (cls.serverProtocol != PROTOCOL_VERSION_OLD) {
+    // WID: net-protocol2: Removed the 'BIG HACK' to let old demos continue to work.
+    //if (cls.serverProtocol != PROTOCOL_VERSION_OLD) {
         suppressed = MSG_ReadUint8();
         if (suppressed) {
             cl.frameflags |= FF_SUPPRESSED;
         }
-    }
+    //}
 
     frame.number = currentframe;
     frame.delta = deltaframe;
@@ -277,11 +277,11 @@ static void CL_ParseFrame(int extrabits)
         frame.areabytes = 0;
     }
 
-    if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
+    //if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         if (MSG_ReadUint8() != svc_playerinfo) {
             Com_Error(ERR_DROP, "%s: not playerinfo", __func__);
         }
-    }
+    //}
 
     SHOWNET(2, "%3zu:playerinfo\n", msg_read.readcount - 1);
 
@@ -447,14 +447,14 @@ static void CL_ParseServerData(void)
 
     // check protocol
     if (cls.serverProtocol != protocol) {
-        if (!cls.demo.playback) {
-            Com_Error(ERR_DROP, "Requested protocol version %d, but server returned %d.",
-                      cls.serverProtocol, protocol);
-        }
-        // BIG HACK to let demos from release work with the 3.0x patch!!!
-        if (protocol < PROTOCOL_VERSION_OLD || protocol > PROTOCOL_VERSION_Q2PRO) {
-            Com_Error(ERR_DROP, "Demo uses unsupported protocol version %d.", protocol);
-        }
+		if ( !cls.demo.playback ) {
+			Com_Error( ERR_DROP, "Requested protocol version %d, but server returned %d.",
+					  cls.serverProtocol, protocol );
+		}
+		// Ensure it is our protocol.
+		if ( protocol != PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
+			Com_Error( ERR_DROP, "Demo uses unsupported protocol version %d.", protocol );
+		}
         cls.serverProtocol = protocol;
     }
 
@@ -923,11 +923,11 @@ static void CL_ParseDownload(int cmd)
     // read optional decompressed packet size
     if (cmd == svc_zdownload) {
 #if USE_ZLIB
-        if (cls.serverProtocol == PROTOCOL_VERSION_R1Q2) {
+        //if (cls.serverProtocol == PROTOCOL_VERSION_R1Q2) {
             decompressed_size = MSG_ReadInt16();
-        } else {
-            decompressed_size = -1;
-        }
+        //} else {
+        //   decompressed_size = -1;
+        //
 #else
         Com_Error(ERR_DROP, "Compressed server packet received, "
                   "but no zlib support linked in.");
@@ -1166,9 +1166,9 @@ badbyte:
             CL_ParseGamestate( cmd );
 			continue;
 		case svc_setting:
-            if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
-                goto badbyte;
-            }
+            //if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
+            //    goto badbyte;
+            //}
             CL_ParseSetting();
             continue;
         }

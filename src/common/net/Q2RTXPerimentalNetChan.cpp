@@ -148,7 +148,7 @@ size_t NetchanQ2RTXPerimental_TransmitNextFragment( netchan_t *chan ) {
 		//	SZ_WriteUint8( &send, chan->qport );
 		//}
 		SZ_WriteUint16( &send, chan->qport );
-}
+	}
 	#endif
 
 	fragment_length = chan->fragment_out.cursize - chan->fragment_out.readcount;
