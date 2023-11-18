@@ -1142,7 +1142,7 @@ static void SV_UpdateUserinfo(void)
 
 static void SV_ParseFullUserinfo(void)
 {
-    // malicious users may try sending too many userinfo updates
+    // Malicious users may try sending too many userinfo updates
     if (userinfoUpdateCount >= MAX_PACKET_USERINFOS) {
         Com_DPrintf("Too many userinfos from %s\n", sv_client->name);
         MSG_ReadString(NULL, 0);
@@ -1220,7 +1220,7 @@ static void SV_ParseClientCommand(void)
         return;
     }
 
-    // malicious users may try using too many string commands
+    // Malicious users may try using too many string commands
     if (stringCmdCount >= MAX_PACKET_STRINGCMDS) {
         Com_DPrintf("Too many stringcmds from %s\n", sv_client->name);
         return;

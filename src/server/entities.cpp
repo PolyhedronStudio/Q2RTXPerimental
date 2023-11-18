@@ -291,16 +291,16 @@ void SV_BuildClientFrame(client_t *client)
     MSG_PackPlayer(&frame->ps, ps);
 
     // grab the current clientNum
-    if (g_features->integer & GMF_CLIENTNUM) {
-        frame->clientNum = clent->client->clientNum;
-        if (!VALIDATE_CLIENTNUM(frame->clientNum)) {
-            Com_WPrintf("%s: bad clientNum %d for client %d\n",
-                        __func__, frame->clientNum, client->number);
-            frame->clientNum = client->number;
-        }
-    } else {
+    //if (g_features->integer & GMF_CLIENTNUM) {
+    //    frame->clientNum = clent->client->clientNum;
+    //    if (!VALIDATE_CLIENTNUM(frame->clientNum)) {
+    //        Com_WPrintf("%s: bad clientNum %d for client %d\n",
+    //                    __func__, frame->clientNum, client->number);
+    //        frame->clientNum = client->number;
+    //    }
+    //} else {
         frame->clientNum = client->number;
-    }
+    //}
 
     // fix clientNum if out of range for older version of Q2PRO protocol
     //need_clientnum_fix = client->protocol == PROTOCOL_VERSION_Q2PRO

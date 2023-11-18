@@ -599,7 +599,8 @@ static void finish_demo(int ret)
     char *s = Cvar_VariableString("nextserver");
 
     // Only execute nextserver if back-to-back timedemos are complete
-    if (!s[0] && cls.timedemo.run_current >= cls.timedemo.runs_total) {
+    if (s != nullptr 
+		 && ( !s[0] && cls.timedemo.run_current >= cls.timedemo.runs_total) ){
         if (ret == 0) {
             Com_Error(ERR_DISCONNECT, "Demo finished");
         } else {
@@ -612,8 +613,10 @@ static void finish_demo(int ret)
     if (cls.timedemo.run_current < cls.timedemo.runs_total)
         return;
 
-    Cbuf_AddText(&cmd_buffer, s);
-    Cbuf_AddText(&cmd_buffer, "\n");
+	if ( s != nullptr ) {
+		Cbuf_AddText( &cmd_buffer, s );
+		Cbuf_AddText( &cmd_buffer, "\n" );
+	}
 
     Cvar_Set("nextserver", "");
 }

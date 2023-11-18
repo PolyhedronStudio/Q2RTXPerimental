@@ -84,20 +84,15 @@ unacknowledged reliable
 
 #if USE_DEBUG
 cvar_t *showpackets; // WID: net-code: removed 'static' keyword, we're sharing these to Q2RTXPerimentalNetChan.cpp
-cvar_t *showfragments; // & 1 = client & 2 = server
 cvar_t *showdrop; // WID: net-code: removed 'static' keyword, we're sharing these to Q2RTXPerimentalNetChan.cpp
 #define SHOWPACKET(...) \
     if (showpackets->integer) \
-        Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
-#define SHOWFRAGMENT(...) \
-    if (showfragments->integer) \
         Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
 #define SHOWDROP(...) \
     if (showdrop->integer) \
         Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
 #else
 #define SHOWPACKET(...)
-#define SHOWFRAGMENT(...)
 #define SHOWDROP(...)
 #endif
 
@@ -141,7 +136,6 @@ void Netchan_Init(void)
 #if USE_DEBUG
     showpackets = Cvar_Get("showpackets", "0", 0);
     showdrop = Cvar_Get("showdrop", "0", 0);
-	showfragments = Cvar_Get( "showfragments", "0", 0 );
 #endif
 
     // pick a port value that should be nice and random

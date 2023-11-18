@@ -31,44 +31,35 @@ extern "C" {
 // protocol.h -- communications protocols
 //
 
-#define MAX_MSGLEN  0x10000  // max length of a message, 64k
+//! Max length of a message, 64k
+#define MAX_MSGLEN 0x10000 // 65536  
 
-#define PROTOCOL_VERSION_OLD        26
-// WID: net-protocol2: This is our own new protocol.
+//! WID: net-protocol2: This is our own new protocol.
 #define PROTOCOL_VERSION_Q2RTXPERIMENTAL    1337
 
-
-#define VALIDATE_CLIENTNUM(x) \
-    ((x) >= -1 && (x) < MAX_EDICTS - 1)
+//! Validate the client number.
+inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
+	return ( ( x ) >= -1 && ( x ) < MAX_CLIENTS );
+}
 
 //=========================================
 
-#define UPDATE_BACKUP   128 //16	// copies of entity_state_t to keep buffered
-									// must be power of two
+#define UPDATE_BACKUP   128 //16	// copies of entity_state_t to keep buffered must be power of two
 #define UPDATE_MASK     (UPDATE_BACKUP - 1)
 
-#define CMD_BACKUP      512 //128	// allow a lot of command backups for very fast systems
-									// increased from 64
+#define CMD_BACKUP      512 //128	// allow a lot of command backups for very fast systems increased from 64
 #define CMD_MASK        (CMD_BACKUP - 1)
 
-
-#define SVCMD_BITS              5
-#define SVCMD_MASK              ((1 << SVCMD_BITS) - 1)
-
-//#define FRAMENUM_BITS           27
-//#define FRAMENUM_MASK           ((1 << FRAMENUM_BITS) - 1)
-
-//#define SUPPRESSCOUNT_BITS      4
-//#define SUPPRESSCOUNT_MASK      ((1 << SUPPRESSCOUNT_BITS) - 1)
-
+// Max entities stuffed per packet.
 #define MAX_PACKET_ENTITIES     512
 #define MAX_PARSE_ENTITIES      (MAX_PACKET_ENTITIES * UPDATE_BACKUP)
 #define PARSE_ENTITIES_MASK     (MAX_PARSE_ENTITIES - 1)
 
-#define MAX_PACKET_USERCMDS     32
-#define MAX_PACKET_FRAMES       4
-
+// Malicious users may try using too many string commands
+// Define a capped limit to prevent doing so.
 #define MAX_PACKET_STRINGCMDS   8
+// Malicious users may try sending too many userinfo updates
+// Define a capped limit to prevent doing so.
 #define MAX_PACKET_USERINFOS    8
 
 #define CS_BITMAP_BYTES         (MAX_CONFIGSTRINGS / 8) // 260

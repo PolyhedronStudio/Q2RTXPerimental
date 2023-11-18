@@ -190,7 +190,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
     }
 }
 
-static void CL_ParseFrame(int extrabits)
+static void CL_ParseFrame()
 {
     uint32_t bits, extraflags;
     int     currentframe, deltaframe,
@@ -1024,9 +1024,9 @@ CL_ParseServerMessage
 */
 void CL_ParseServerMessage(void)
 {
-    int         cmd, extrabits;
+    int         cmd;
     size_t      readcount;
-    int         index, bits;
+    int         index;
 
 #if USE_DEBUG
     if (cl_shownet->integer == 1) {
@@ -1050,9 +1050,6 @@ void CL_ParseServerMessage(void)
             SHOWNET(1, "%3zu:END OF MESSAGE\n", msg_read.readcount - 1);
             break;
         }
-
-        extrabits = cmd >> SVCMD_BITS;
-        cmd &= SVCMD_MASK;
 
 #if USE_DEBUG
         if (cl_shownet->integer > 1) {
@@ -1132,7 +1129,7 @@ badbyte:
             continue;
 
         case svc_frame:
-            CL_ParseFrame(extrabits);
+            CL_ParseFrame();
             continue;
 
         case svc_inventory:
@@ -1199,7 +1196,7 @@ used for seeking in demos.
 */
 void CL_SeekDemoMessage(void)
 {
-    int         cmd, extrabits;
+    int         cmd;
     int         index;
 
 #if USE_DEBUG
@@ -1222,9 +1219,6 @@ void CL_SeekDemoMessage(void)
             SHOWNET(1, "%3zu:END OF MESSAGE\n", msg_read.readcount - 1);
             break;
         }
-
-        extrabits = cmd >> SVCMD_BITS;
-        cmd &= SVCMD_MASK;
 
 #if USE_DEBUG
         if (cl_shownet->integer > 1) {
@@ -1274,7 +1268,7 @@ void CL_SeekDemoMessage(void)
             break;
 
         case svc_frame:
-            CL_ParseFrame(extrabits);
+            CL_ParseFrame();
             continue;
 
         case svc_inventory:

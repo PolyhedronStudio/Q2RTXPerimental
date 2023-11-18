@@ -202,47 +202,48 @@ typedef struct client_state_s {
     int             servertime;
     int             serverdelta;
 
+	// WID: Seems to be related to demo configstring bytes.
     byte            dcs[CS_BITMAP_BYTES];
 
-    // the client maintains its own idea of view angles, which are
+    // The client maintains its own idea of view angles, which are
     // sent to the server each frame.  It is cleared to 0 upon entering each level.
     // the server sends a delta each frame which is added to the locally
     // tracked view angles to account for standing on rotating objects,
-    // and teleport direction changes
+    // and teleport direction changes.
     vec3_t      viewangles;
 
-    // interpolated movement vector used for local prediction,
-    // never sent to server, rebuilt each client frame
+    // Interpolated movement vector used for local prediction,
+    // never sent to server, rebuilt each client frame.
     vec3_t      localmove;
 
-    // accumulated mouse forward/side movement, added to both
-    // localmove and pending cmd, cleared each time cmd is finalized
+    // Accumulated mouse forward/side movement, added to both
+    // localmove and pending cmd, cleared each time cmd is finalized.
     vec2_t      mousemove;
 
 #if USE_SMOOTH_DELTA_ANGLES
     short       delta_angles[3]; // interpolated
 #endif
 
-    int         time;           // this is the time value that the client
+    int         time;           // This is the time value that the client
                                 // is rendering at.  always <= cl.servertime
-    float       lerpfrac;       // between oldframe and frame
+    float       lerpfrac;       // The current "lerp" -fraction between oldframe and frame
 
-    refdef_t    refdef;
-    float       fov_x;      // interpolated
-    float       fov_y;      // derived from fov_x assuming 4/3 aspect ratio
+    refdef_t    refdef;		// Refresh frame settings.
+    float       fov_x;      // Interpolated
+    float       fov_y;      // derived from fov_x assuming 4/3 aspect ratio.
 
     vec3_t      v_forward, v_right, v_up;    // set when refdef.angles is set
 
     bool        thirdPersonView;
 
-    // predicted values, used for smooth player entity movement in thirdperson view
+    // Predicted values, used for smooth player entity movement in thirdperson view.
     vec3_t      playerEntityOrigin;
     vec3_t      playerEntityAngles;
 
     //
-    // transient data from server
+    // Transient data from server.
     //
-    char        layout[MAX_NET_STRING];     // general 2D overlay
+    char        layout[MAX_NET_STRING];     // General 2D overlay cmd script.
     int         inventory[MAX_ITEMS];
 
     //

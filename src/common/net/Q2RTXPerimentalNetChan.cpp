@@ -85,14 +85,9 @@ unacknowledged reliable
 #if USE_DEBUG
 // WID: net-code: already defined in chan.c
 extern cvar_t *showpackets;
-extern cvar_t *showfragments;
-extern cvar_t *showdrop;
 extern cvar_t *showdrop;
 #define SHOWPACKET(...) \
     if (showpackets->integer) \
-        Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
-#define SHOWFRAGMENT(...) \
-    if (showfragments->integer) \
         Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
 #define SHOWDROP(...) \
     if (showdrop->integer) \
@@ -102,8 +97,7 @@ extern cvar_t *showdrop;
 #define SHOWDROP(...)
 #endif
 
-#define SOCK_TAG(sock)  ((sock) == NS_SERVER ? TAG_SERVER : TAG_GENERAL)
-
+// WID: TODO: Move to shared folder and properly make more use of these two.
 #define BIT(n)          (1U << (n))
 #define BIT_ULL(n)      (1ULL << (n))
 
