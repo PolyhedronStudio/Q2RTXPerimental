@@ -73,20 +73,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // WID: C++20: For C++ we use int to align with C qboolean type.
 #ifdef __cplusplus
-
-// Include our 'sharedcpp.h' header.
-#include "shared_cpp.h"
-
+	// Include our 'sharedcpp.h' header.
+	#include "shared_cpp.h"
 #else // __cplusplus
+	typedef unsigned char byte;
+	typedef enum { qfalse, qtrue } qboolean;    // ABI compat only, don't use
+	typedef int qhandle_t;
 
-typedef unsigned char byte;
-typedef enum { qfalse, qtrue } qboolean;    // ABI compat only, don't use
-typedef int qhandle_t;
-
-#ifndef NULL
-#define NULL ((void *)0)
-#endif
-
+	#ifndef NULL
+	#define NULL ((void *)0)
+	#endif
 #endif //__cplusplus
 
 // WID: C++20: In case of C++ including this..
@@ -105,20 +101,28 @@ extern "C" {
 #define MAX_TOKEN_CHARS     1024    // max length of an individual token
 #define MAX_NET_STRING      2048    // max length of a string used in network protocol
 
-#define MAX_QPATH           64      // max length of a quake game pathname
-#define MAX_OSPATH          256     // max length of a filesystem pathname
+#define MAX_QPATH				64      // max length of a quake game pathname
+#define MAX_OSPATH				256     // max length of a filesystem pathname
+#define MAX_CS_STRING_LENGTH	96		// Maximum length of a configstring.
+
+//
+// ConfigString type.
+//
+typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 
 //
 // per-level limits
 //
-#define MAX_CLIENTS         256     // absolute limit
-#define MAX_EDICTS          1024    // must change protocol to increase more
+#define MAX_CLIENTS         256     // Absolute limit
+#define MAX_EDICTS          8192    // must change protocol to increase more.
 #define MAX_LIGHTSTYLES     256
-#define MAX_MODELS          256     // these are sent over the net as bytes
-#define MAX_SOUNDS          256     // so they cannot be blindly increased
-#define MAX_IMAGES          256
+#define MAX_MODELS          8192	// These are sent over the net as bytes
+#define MAX_SOUNDS          2048	// so they cannot be blindly increased
+#define MAX_IMAGES          512
 #define MAX_ITEMS           256
 #define MAX_GENERAL         (MAX_CLIENTS * 2) // general config strings
+
+#define MAX_MODELS_OLD		256		// Used for player model index.
 
 #define MAX_CLIENT_NAME     16
 
@@ -1227,7 +1231,7 @@ typedef enum {
 #define STAT_CHASE              16
 #define STAT_SPECTATOR          17
 
-#define MAX_STATS               32
+#define MAX_STATS               64
 
 
 // dmflags->value flags
@@ -1267,6 +1271,8 @@ typedef enum {
 #define UF_MUTE_MISC        32
 #define UF_PLAYERFOV        64
 
+
+
 /*
 ==========================================================
 
@@ -1274,7 +1280,6 @@ typedef enum {
 
 ==========================================================
 */
-
 // Default server FPS: 10hz
 //#define BASE_FRAMERATE          10
 //#define BASE_FRAMETIME          100
@@ -1287,21 +1292,59 @@ typedef enum {
 #define BASE_1_FRAMETIME        0.04f	// OLD: 0.01f   1/BASE_FRAMETIME
 #define BASE_FRAMETIME_1000     0.025f	// OLD: 0.1f    BASE_FRAMETIME/1000
 
-// maximum variable FPS factor
-#define MAX_FRAMEDIV    6
 
-#define ANGLE2SHORT(x)  ((int)((x)*65536/360) & 65535)
-#define SHORT2ANGLE(x)  ((x)*(360.0f/65536))
+/**
+*
+*	Encode/Decode utilities
+* 
+**/
+/**
+*	Byte to Angles/Angles to Bytes.
+**/
+//! Used for 'wiring' angles, encoded in a 'byte/int8_t'.
+static inline const uint8_t ANGLE2BYTE( const float coord ) {
+	//#define ANGLE2BYTE(x)   ((int)((x)*256.0f/360)&255)
+	return ( (int)( ( coord ) * 256.0f / 360 ) & 255 );
+}
+//! Used for decoding the 'wired' angle in a 'float'.
+static inline const float BYTE2ANGLE( const int s ) {
+	//#define BYTE2ANGLE(x)   ((x)*(360.0f/256))
+	return ( ( s ) * ( 360.0f / 256 ) );
+}
+/**
+*	Short to Angles/Angles to Shorts.
+**/
+//! Used for 'wiring' angles encoded in a 'short/int16_t'.
+static inline const int16_t ANGLE2SHORT( const float coord ) {
+	//#define ANGLE2SHORT(x)  ((int)((x)*65536/360) & 65535)
+	return ( (int)( ( coord ) * 65536 / 360 ) & 65535 );
+}
+//! Used for decoding the 'wired' angle in a 'float'.
+static inline const float SHORT2ANGLE( const int s ) {
+	//#define SHORT2ANGLE(x)  ((x)*(360.0f/65536))
+	return ( ( s ) * ( 360.0f / 65536 ) );
+}
+/**
+*	Short to Origin/Origin to float.
+**/
+//! Used for 'wiring' origins encoded in a 'short/int16_t'..
+static inline const int16_t COORD2SHORT( const float coord ) {
+	//#define COORD2SHORT(x)  ((int)((x)*8.0f))
+	return ( (int)( ( coord ) * 8.0f ) );
+}
+//! Used for decoding the 'wired' origin in a 'float'.
+static inline const float SHORT2COORD( const int s ) {
+	//#define SHORT2COORD(x)  ((x)*(1.0f/8))
+	return ( ( s ) * ( 1.0f / 8 ) );
+}
 
-#define COORD2SHORT(x)  ((int)((x)*8.0f))
-#define SHORT2COORD(x)  ((x)*(1.0f/8))
-
-
-//
-// config strings are a general means of communication from
-// the server to all connected clients.
-// Each config string can be at most MAX_QPATH characters.
-//
+/***
+* 
+*	config strings are a general means of communication from
+*	the server to all connected clients.
+*	Each config string can be at most MAX_QPATH characters.
+* 
+***/
 #define CS_NAME             0
 #define CS_CDTRACK          1
 #define CS_SKY              2
@@ -1309,11 +1352,11 @@ typedef enum {
 #define CS_SKYROTATE        4
 #define CS_STATUSBAR        5       // display program string
 
-#define CS_AIRACCEL         29      // air acceleration control
-#define CS_MAXCLIENTS       30
-#define CS_MAPCHECKSUM      31      // for catching cheater maps
+#define CS_AIRACCEL         59      // air acceleration control
+#define CS_MAXCLIENTS       60
+#define CS_MAPCHECKSUM      61      // for catching cheater maps
+#define CS_MODELS           62
 
-#define CS_MODELS           32
 #define CS_SOUNDS           (CS_MODELS+MAX_MODELS)
 #define CS_IMAGES           (CS_SOUNDS+MAX_SOUNDS)
 #define CS_LIGHTS           (CS_IMAGES+MAX_IMAGES)
@@ -1322,10 +1365,13 @@ typedef enum {
 #define CS_GENERAL          (CS_PLAYERSKINS+MAX_CLIENTS)
 #define MAX_CONFIGSTRINGS   (CS_GENERAL+MAX_GENERAL)
 
+#define MODELINDEX_PLAYER	(MAX_MODELS_OLD - 1)
+
 // Some mods actually exploit CS_STATUSBAR to take space up to CS_AIRACCEL
-#define CS_SIZE(cs) \
-    ((cs) >= CS_STATUSBAR && (cs) < CS_AIRACCEL ? \
-      MAX_QPATH * (CS_AIRACCEL - (cs)) : MAX_QPATH)
+static inline int32_t CS_SIZE( int32_t cs ) {
+	return ( ( cs ) >= CS_STATUSBAR && ( cs ) < CS_AIRACCEL ? \
+	  MAX_CS_STRING_LENGTH * ( CS_AIRACCEL - ( cs ) ) : MAX_CS_STRING_LENGTH );
+}
 
 
 //==============================================

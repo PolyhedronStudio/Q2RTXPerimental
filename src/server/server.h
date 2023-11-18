@@ -28,7 +28,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/cvar.h"
 #include "common/error.h"
 #include "common/files.h"
-#include "common/msg.h"
+#include "common/messaging.h"
 #include "common/net/net.h"
 #include "common/net/chan.h"
 #include "common/pmove.h"
@@ -80,17 +80,10 @@ extern "C" {
 #define SV_PAUSED 0
 #endif
 
-#if USE_FPS
-#define SV_GMF_VARIABLE_FPS GMF_VARIABLE_FPS
-#else
-#define SV_GMF_VARIABLE_FPS 0
-#endif
-
 // game features this server supports
 #define SV_FEATURES (GMF_CLIENTNUM | GMF_PROPERINUSE | GMF_MVDSPEC | \
                      GMF_WANT_ALL_DISCONNECTS | GMF_ENHANCED_SAVEGAMES | \
-                     SV_GMF_VARIABLE_FPS | GMF_EXTRA_USERINFO | \
-                     GMF_IPV6_ADDRESS_AWARE)
+                     GMF_EXTRA_USERINFO | GMF_IPV6_ADDRESS_AWARE )
 
 // ugly hack for SV_Shutdown
 #define MVD_SPAWN_DISABLED  0
@@ -114,37 +107,11 @@ typedef struct {
 	// WID: upgr-solid: Q2RE Approach.
 	uint32_t	solid32;
 	//int         solid32;
-
-#if USE_FPS
-
-// must be > MAX_FRAMEDIV
-#define ENT_HISTORY_SIZE    8
-#define ENT_HISTORY_MASK    (ENT_HISTORY_SIZE - 1)
-
-    struct {
-        vec3_t  origin;
-        int     framenum;
-    } history[ENT_HISTORY_SIZE];
-
-    vec3_t      create_origin;
-    int         create_framenum;
-#endif
 } server_entity_t;
 
-// variable server FPS
-#if USE_FPS
-#define SV_FRAMERATE        sv.framerate
-#define SV_FRAMETIME        sv.frametime
-#define SV_FRAMEDIV         sv.framediv
-#define SV_FRAMESYNC        !(sv.framenum % sv.framediv)
-#define SV_CLIENTSYNC(cl)   !(sv.framenum % (cl)->framediv)
-#else
-#define SV_FRAMERATE        BASE_FRAMERATE
-#define SV_FRAMETIME        BASE_FRAMETIME
-#define SV_FRAMEDIV         1
-#define SV_FRAMESYNC        1
-#define SV_CLIENTSYNC(cl)   1
-#endif
+// Server FPS
+#define SV_FRAMERATE	BASE_FRAMERATE
+#define SV_FRAMETIME	BASE_FRAMETIME
 
 typedef struct {
     server_state_t  state;      // precache commands are only valid during load
@@ -152,12 +119,6 @@ typedef struct {
 
 #if USE_CLIENT || USE_SERVER
     int         gamedetecthack;
-#endif
-
-#if USE_FPS
-    int         framerate;
-    int         frametime;
-    int         framediv;
 #endif
 
     int         framenum;
@@ -168,7 +129,7 @@ typedef struct {
     char        name[MAX_QPATH];            // map name, or cinematic name
     cm_t        cm;
 
-    char        configstrings[MAX_CONFIGSTRINGS][MAX_QPATH];
+	configstring_t  configstrings[ MAX_CONFIGSTRINGS ];
 
     server_entity_t entities[MAX_EDICTS];
 } server_t;
@@ -181,11 +142,13 @@ typedef struct {
 #define MAX_TOTAL_ENT_LEAFS        128
 
 // hack for smooth BSP model rotation
-#define Q2PRO_SHORTANGLES(c, e) \
-    ((c)->protocol == PROTOCOL_VERSION_Q2PRO && \
-     (c)->version >= PROTOCOL_VERSION_Q2PRO_SHORT_ANGLES && \
-     sv.state == ss_game && \
-     EDICT_POOL(c, e)->solid == SOLID_BSP)
+//#define Q2PRO_SHORTANGLES(c, e) \
+//    ((c)->protocol == PROTOCOL_VERSION_Q2PRO && \
+//     (c)->version >= PROTOCOL_VERSION_Q2PRO_SHORT_ANGLES && \
+//     sv.state == ss_game && \
+//     EDICT_POOL(c, e)->solid == SOLID_BSP)
+// WID: Just use proper angles everywhere instead:
+#define Q2PRO_SHORTANGLES(c, e) true
 
 typedef enum {
     cs_free,        // can be reused for a new connection
@@ -227,8 +190,8 @@ typedef struct {
 } message_packet_t;
 
 // WID: 40hz:
-//#define RATE_MESSAGES   10
-#define RATE_MESSAGES   SV_FRAMERATE
+#define RATE_MESSAGES   10
+//#define RATE_MESSAGES   SV_FRAMERATE
 
 #define FOR_EACH_CLIENT(client) \
     LIST_FOR_EACH(client_t, client, &sv_clientlist, entry)
@@ -307,9 +270,6 @@ typedef struct client_s {
     client_frame_t  frames[UPDATE_BACKUP];    // updates can be delta'd from here
     unsigned        frames_sent, frames_acked, frames_nodelta;
     int             framenum;
-#if USE_FPS
-    int             framediv;
-#endif
     unsigned        frameflags;
 
     // rate dropping
@@ -329,7 +289,6 @@ typedef struct client_s {
     int             challenge;  // challenge of this user, randomly generated
     int             protocol;   // major version
     int             version;    // minor version
-    int             settings[CLS_MAX];
 
     pmoveParams_t   pmp;        // spectator speed, etc
     msgEsFlags_t    esFlags;    // entity protocol flags
@@ -346,7 +305,7 @@ typedef struct client_s {
     entity_packed_t *baselines[SV_BASELINES_CHUNKS];
 
     // server state pointers (hack for MVD channels implementation)
-    char            *configstrings;
+	configstring_t	*configstrings;
     char            *gamedir, *mapname;
     edict_pool_t    *pool;
     cm_t            *cm;
@@ -354,14 +313,8 @@ typedef struct client_s {
     int             spawncount;
     int             maxclients;
 
-    // netchan type dependent methods
-    void            (*AddMessage)(struct client_s *, byte *, size_t, bool);
-    void            (*WriteFrame)(struct client_s *);
-    void            (*WriteDatagram)(struct client_s *);
-
     // netchan
     netchan_t       netchan;
-    int             numpackets; // for that nasty packetdup hack
 
     // misc
     time_t          connect_time; // time of initial connect
@@ -458,6 +411,8 @@ typedef struct server_static_s {
 
 #if USE_ZLIB
     z_stream        z;  // for compressing messages at once
+	byte			*z_buffer;
+	size_t          z_buffer_size;
 #endif
 
     unsigned        last_heartbeat;
@@ -498,9 +453,6 @@ extern cvar_t       *sv_reserved_slots;
 extern cvar_t       *sv_airaccelerate;        // development tool
 extern cvar_t       *sv_qwmod;                // atu QW Physics modificator
 extern cvar_t       *sv_enforcetime;
-#if USE_FPS
-extern cvar_t       *sv_fps;
-#endif
 extern cvar_t       *sv_force_reconnect;
 extern cvar_t       *sv_iplimit;
 
@@ -514,9 +466,7 @@ extern cvar_t       *sv_calcpings_method;
 extern cvar_t       *sv_changemapcmd;
 
 extern cvar_t       *sv_strafejump_hack;
-#if USE_PACKETDUP
-extern cvar_t       *sv_packetdup_hack;
-#endif
+
 extern cvar_t       *sv_allow_map;
 extern cvar_t       *sv_cinematics;
 #if !USE_CLIENT
@@ -616,11 +566,6 @@ void SV_New_f(void);
 void SV_Begin_f(void);
 void SV_ExecuteClientMessage(client_t *cl);
 void SV_CloseDownload(client_t *client);
-#if USE_FPS
-void SV_AlignKeyFrames(client_t *client);
-#else
-#define SV_AlignKeyFrames(client) (void)0
-#endif
 cvarban_t *SV_CheckInfoBans(const char *info, bool match_only);
 
 //
@@ -641,7 +586,7 @@ void SV_PrintMiscInfo(void);
     ((s)->modelindex || (s)->effects || (s)->sound || (s)->event)
 
 void SV_BuildClientFrame(client_t *client);
-void SV_WriteFrameToClient_Q2RTXPerimental( client_t *client );
+void SV_WriteFrameToClient( client_t *client );
 //void SV_WriteFrameToClient_Default(client_t *client);
 void SV_WriteFrameToClient_Enhanced(client_t *client);
 

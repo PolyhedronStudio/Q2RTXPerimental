@@ -37,26 +37,6 @@ void SV_ClientReset(client_t *client)
     memset(&client->lastcmd, 0, sizeof(client->lastcmd));
 }
 
-static void set_frame_time(void)
-{
-#if USE_FPS
-    int framediv;
-
-    if (g_features->integer & GMF_VARIABLE_FPS)
-        framediv = sv_fps->integer / BASE_FRAMERATE;
-    else
-        framediv = 1;
-
-    clamp(framediv, 1, MAX_FRAMEDIV);
-
-    sv.framerate = framediv * BASE_FRAMERATE;
-    sv.frametime = BASE_FRAMETIME / framediv;
-    sv.framediv = framediv;
-
-    Cvar_SetInteger(sv_fps, sv.framerate, FROM_CODE);
-#endif
-}
-
 static void resolve_masters(void)
 {
 #if !USE_CLIENT
@@ -142,11 +122,8 @@ void SV_SpawnServer(mapcmd_t *cmd)
     // reset entity counter
     svs.next_entity = 0;
 
-    // set framerate parameters
-    set_frame_time();
-
     // save name for levels that don't set message
-    Q_strlcpy(sv.configstrings[CS_NAME], cmd->server, MAX_QPATH);
+    Q_strlcpy(sv.configstrings[CS_NAME], cmd->server, MAX_CS_STRING_LENGTH );
     Q_strlcpy(sv.name, cmd->server, sizeof(sv.name));
     Q_strlcpy(sv.mapcmd, cmd->buffer, sizeof(sv.mapcmd));
 
@@ -163,7 +140,7 @@ void SV_SpawnServer(mapcmd_t *cmd)
         sprintf(sv.configstrings[CS_MAPCHECKSUM], "%d", sv.cm.checksum);
 
         // set inline model names
-        Q_concat(sv.configstrings[CS_MODELS + 1], MAX_QPATH, "maps/", cmd->server, ".bsp");
+        Q_concat(sv.configstrings[CS_MODELS + 1], MAX_CS_STRING_LENGTH, "maps/", cmd->server, ".bsp");
         for (i = 1; i < sv.cm.cache->nummodels; i++) {
             sprintf(sv.configstrings[CS_MODELS + 1 + i], "*%d", i);
         }
@@ -359,11 +336,6 @@ void SV_InitGame()
 
         CM_FreeMap(&sv.cm);
         memset(&sv, 0, sizeof(sv));
-
-#if USE_FPS
-        // set up default frametime for main loop
-        sv.frametime = BASE_FRAMETIME;
-#endif
     }
 
     // get any latched variable changes (maxclients, etc)
@@ -417,6 +389,8 @@ void SV_InitGame()
     svs.z.zfree = SV_zfree;
     Q_assert(deflateInit2(&svs.z, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
              -MAX_WBITS, 9, Z_DEFAULT_STRATEGY) == Z_OK);
+	svs.z_buffer_size = ZPACKET_HEADER + deflateBound( &svs.z, MAX_MSGLEN );
+	svs.z_buffer = static_cast<byte*>( SV_Malloc( svs.z_buffer_size ) );
 #endif
 
     // init game

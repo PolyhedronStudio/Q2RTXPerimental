@@ -21,72 +21,41 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
-// We extern "C"
 extern "C" {
-#endif
+#endif // #ifdef __cplusplus
 
-#include "common/msg.h"
+#include "common/messaging.h"
 #include "common/net/net.h"
 #include "common/sizebuf.h"
 
-//============================================================================
 
-// WID: net-code: Our own NetChan struct.
-typedef struct netchan_q2rtxperimental_s {
-    netchan_t   pub;
-
-// sequencing variables
-    int         incoming_reliable_acknowledged; // single bit
-    int         incoming_reliable_sequence;     // single bit, maintained local
-    int         reliable_sequence;          // single bit
-    int         last_reliable_sequence;     // sequence number of last send
-
-    byte        *message_buf;       // leave space for header
-
-	// message is copied to this buffer when it is first transfered
-    byte        *reliable_buf;  // unacked reliable message
-} netchan_q2rtxperimental_t;
-
-/*
-===============
-NetchanQ2RTXPerimental_Transmit
-===============
-*/
+/**
+*	@brief
+**/
 size_t NetchanQ2RTXPerimental_TransmitNextFragment( netchan_t *chan );
 
-/*
-===============
-NetchanQ2RTXPerimental_Transmit
+/**
+*	@brief	Tries to send an unreliable message to a connection, and handles the
+*			transmition / retransmition of the reliable messages.
+*
+*			A 0 length will still generate a packet and deal with the reliable messages.
+**/
+size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const void *data );
 
-tries to send an unreliable message to a connection, and handles the
-transmition / retransmition of the reliable messages.
-
-A 0 length will still generate a packet and deal with the reliable messages.
-================
-*/
-size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const void *data, int numpackets );
-
-/*
-=================
-NetchanQ2RTXPerimental_Process
-
-called when the current net_message is from remote_address
-modifies net_message so that it points to the packet payload
-=================
-*/
+/**
+*	@brief	Called when the current net_message is from remote_address.
+*			Modifies net_message so that it points to the packet payload
+**/
 bool NetchanQ2RTXPerimental_Process( netchan_t *chan );
-/*
-===============
-NetchanQ2RTXPerimental_ShouldUpdate
-================
-*/
+/**
+*	@brief
+**/
 bool NetchanQ2RTXPerimental_ShouldUpdate( netchan_t *chan );
 
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
-// We extern "C"
 };
-#endif
+#endif // #ifdef __cplusplus
 
 #endif // NET_CHAN_H

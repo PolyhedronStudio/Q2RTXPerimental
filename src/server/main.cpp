@@ -44,9 +44,6 @@ cvar_t  *sv_timescale_time;
 cvar_t  *sv_timescale_warn;
 cvar_t  *sv_timescale_kick;
 cvar_t  *sv_allow_nodelta;
-#if USE_FPS
-cvar_t  *sv_fps;
-#endif
 
 cvar_t  *sv_timeout;            // seconds without any message
 cvar_t  *sv_zombietime;         // seconds to sink messages after disconnect
@@ -84,9 +81,7 @@ cvar_t  *sv_changemapcmd;
 
 cvar_t  *sv_strafejump_hack;
 cvar_t  *sv_waterjump_hack;
-#if USE_PACKETDUP
-cvar_t  *sv_packetdup_hack;
-#endif
+
 cvar_t  *sv_allow_map;
 cvar_t  *sv_cinematics;
 #if !USE_CLIENT
@@ -203,7 +198,7 @@ void SV_DropClient(client_t *client, const char *reason)
         print_drop_reason(client, reason, oldstate);
 
     // add the disconnect
-    MSG_WriteByte(svc_disconnect);
+    MSG_WriteUint8(svc_disconnect);
     SV_ClientAddMessage(client, MSG_RELIABLE | MSG_CLEAR);
 
     if (oldstate == cs_spawned || (g_features->integer & GMF_WANT_ALL_DISCONNECTS)) {
@@ -506,7 +501,7 @@ static void SVC_Info(void)
         return; // ignore in single player
 
     version = atoi(Cmd_Argv(1));
-    if (version < PROTOCOL_VERSION_Q2RTXPERIMENTAL || version > PROTOCOL_VERSION_Q2PRO)
+    if (version != PROTOCOL_VERSION_Q2RTXPERIMENTAL)
         return; // ignore invalid versions
 
     len = Q_scnprintf(buffer, sizeof(buffer),
@@ -593,7 +588,7 @@ typedef struct {
     int         challenge;
 
     int         maxlength;
-    int         nctype;
+    //int         nctype; We default to Q2RTXPerimental.
     bool        has_zlib;
 
     int         reserved;   // hidden client slots
@@ -615,12 +610,7 @@ static bool parse_basic_params(conn_params_t *p)
     p->challenge = atoi(Cmd_Argv(3));
 
     // check for invalid protocol version
-    if (p->protocol < PROTOCOL_VERSION_OLD ||
-        p->protocol > PROTOCOL_VERSION_Q2PRO)
-        return reject("Unsupported protocol version %d.\n", p->protocol);
-
-    // check for valid, but outdated protocol version
-    if (p->protocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL)
+    if (p->protocol != PROTOCOL_VERSION_Q2RTXPERIMENTAL)
         return reject("You need Q2RTXPerimental version " LONG_VERSION_STRING " or higher.\n");
 
     return true;
@@ -713,22 +703,22 @@ static bool parse_packet_length(conn_params_t *p)
 
     // set maximum packet length
     p->maxlength = MAX_PACKETLEN_WRITABLE_DEFAULT;
-    if (p->protocol >= PROTOCOL_VERSION_R1Q2) {
-        s = Cmd_Argv(5);
-        if (*s) {
-            p->maxlength = atoi(s);
-            if (p->maxlength < 0 || p->maxlength > MAX_PACKETLEN_WRITABLE)
-                return reject("Invalid maximum message length.\n");
+    //if (p->protocol >= PROTOCOL_VERSION_R1Q2) {
+    //    s = Cmd_Argv(5);
+    //    if (*s) {
+    //        p->maxlength = atoi(s);
+    //        if (p->maxlength < 0 || p->maxlength > MAX_PACKETLEN_WRITABLE)
+    //            return reject("Invalid maximum message length.\n");
 
-            // 0 means highest available
-            if (!p->maxlength)
-                p->maxlength = MAX_PACKETLEN_WRITABLE;
-        }
-    }
+    //        // 0 means highest available
+    //        if (!p->maxlength)
+    //            p->maxlength = MAX_PACKETLEN_WRITABLE;
+    //    }
+    //}
 
 	// WID: netstuff: We will fragment the packet if larger than 1024.
 	if ( p->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
-		p->maxlength = MAX_PACKETLEN_WRITABLE;
+		//sp->maxlength = MAX_PACKETLEN_WRITABLE;
 	}
 
 	// If not local, cap to server defined maximum value
@@ -746,53 +736,23 @@ static bool parse_packet_length(conn_params_t *p)
 
 static bool parse_enhanced_params(conn_params_t *p)
 {
-    char *s;
+	#if USE_ZLIB
+	p->has_zlib = true;
+	#else
+	p->has_zlib = false;
+	#endif
 
-	if ( p->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
-		p->nctype = NETCHAN_Q2RTXPERIMENTAL;
-		p->has_zlib = false;
-	} else if (p->protocol == PROTOCOL_VERSION_R1Q2) {
-        // set minor protocol version
-        s = Cmd_Argv(6);
-        if (*s) {
-            p->version = atoi(s);
-            clamp(p->version,
-                  PROTOCOL_VERSION_R1Q2_MINIMUM,
-                  PROTOCOL_VERSION_R1Q2_CURRENT);
-        } else {
-            p->version = PROTOCOL_VERSION_R1Q2_MINIMUM;
-        }
-        p->nctype = NETCHAN_OLD;
-        p->has_zlib = true;
-    } else if (p->protocol == PROTOCOL_VERSION_Q2PRO) {
-        // set netchan type
-        s = Cmd_Argv(6);
-        if (*s) {
-            p->nctype = atoi(s);
-            if (p->nctype < NETCHAN_OLD || p->nctype > NETCHAN_NEW)
-                return reject("Invalid netchan type.\n");
-        } else {
-            p->nctype = NETCHAN_NEW;
-        }
-
-        // set zlib
-        s = Cmd_Argv(7);
-        p->has_zlib = !*s || atoi(s);
-
-        // set minor protocol version
-        s = Cmd_Argv(8);
-        if (*s) {
-            p->version = atoi(s);
-            clamp(p->version,
-                  PROTOCOL_VERSION_Q2PRO_MINIMUM,
-                  PROTOCOL_VERSION_Q2PRO_CURRENT);
-            if (p->version == PROTOCOL_VERSION_Q2PRO_RESERVED) {
-                p->version--; // never use this version
-            }
-        } else {
-            p->version = PROTOCOL_VERSION_Q2PRO_MINIMUM;
-        }
-    }
+	// Left here as an example if we ever wish to parse.
+    // set minor protocol version
+	//s = Cmd_Argv(6);
+    //if (*s) {
+    //    p->version = atoi(s);
+    //    clamp(p->version,
+    //          PROTOCOL_VERSION_R1Q2_MINIMUM,
+    //          PROTOCOL_VERSION_R1Q2_CURRENT);
+    //} else {
+    //    p->version = PROTOCOL_VERSION_R1Q2_MINIMUM;
+    //}
 
     return true;
 }
@@ -902,12 +862,12 @@ static client_t *redirect(const char *addr)
     Netchan_OutOfBand(NS_SERVER, &net_from, "client_connect");
 
     // set up a fake server netchan
-    MSG_WriteLong(1);
-    MSG_WriteLong(0);
-    MSG_WriteByte(svc_print);
-    MSG_WriteByte(PRINT_HIGH);
+    MSG_WriteInt32(1);
+    MSG_WriteInt32(0);
+    MSG_WriteUint8(svc_print);
+    MSG_WriteUint8(PRINT_HIGH);
     MSG_WriteString(va("Server is full. Redirecting you to %s...\n", addr));
-    MSG_WriteByte(svc_stufftext);
+    MSG_WriteUint8(svc_stufftext);
     MSG_WriteString(va("connect %s\n", addr));
 
     NET_SendPacket(NS_SERVER, msg_write.data, msg_write.cursize, &net_from);
@@ -962,81 +922,26 @@ static client_t *find_client_slot(conn_params_t *params)
 
 static void init_pmove_and_es_flags(client_t *newcl)
 {
-    int force;
-
     // copy default pmove parameters
     newcl->pmp = sv_pmp;
     newcl->pmp.airaccelerate = sv_airaccelerate->integer;
 
-    // common extensions
-    force = 2;
-    if (newcl->protocol >= PROTOCOL_VERSION_R1Q2) {
-        newcl->pmp.speedmult = 2;
-        force = 1;
-    }
-    newcl->pmp.strafehack = sv_strafejump_hack->integer >= force;
-
-    // r1q2 extensions
-    if (newcl->protocol == PROTOCOL_VERSION_R1Q2) {
-        // WID: C++20: Added cast.
-		//newcl->esFlags |= MSG_ES_BEAMORIGIN;
-		newcl->esFlags = static_cast<msgEsFlags_t>( newcl->esFlags | MSG_ES_BEAMORIGIN );
-        if (newcl->version >= PROTOCOL_VERSION_R1Q2_LONG_SOLID) {
-			// WID: C++20: Added cast.
-            //newcl->esFlags |= MSG_ES_LONGSOLID;
-			newcl->esFlags = static_cast<msgEsFlags_t>( newcl->esFlags | MSG_ES_LONGSOLID );
-        }
-    }
-
-    // q2pro extensions
-    force = 2;
-    if (newcl->protocol == PROTOCOL_VERSION_Q2PRO) {
-        if (sv_qwmod->integer) {
-            PmoveEnableQW(&newcl->pmp);
-        }
-        newcl->pmp.flyhack = true;
-        newcl->pmp.flyfriction = 4;
-		// WID: C++20: Added cast.
-        //newcl->esFlags |= MSG_ES_UMASK;
-		newcl->esFlags = static_cast<msgEsFlags_t>( newcl->esFlags | MSG_ES_UMASK );
-        if (newcl->version >= PROTOCOL_VERSION_Q2PRO_LONG_SOLID) {
-			// WID: C++20: Added cast.
-            //newcl->esFlags |= MSG_ES_LONGSOLID;
-			newcl->esFlags = static_cast<msgEsFlags_t>(newcl->esFlags | MSG_ES_LONGSOLID);
-        }
-        if (newcl->version >= PROTOCOL_VERSION_Q2PRO_BEAM_ORIGIN) {
-			// WID: C++20: Added cast.
-            //newcl->esFlags |= MSG_ES_BEAMORIGIN;
-			newcl->esFlags = static_cast<msgEsFlags_t>(newcl->esFlags | MSG_ES_BEAMORIGIN);
-        }
-        if (newcl->version >= PROTOCOL_VERSION_Q2PRO_WATERJUMP_HACK) {
-            force = 1;
-        }
-    }
-    newcl->pmp.waterhack = sv_waterjump_hack->integer >= force;
+    newcl->pmp.strafehack = sv_strafejump_hack->integer;
+    newcl->pmp.waterhack = sv_waterjump_hack->integer;
 }
 
-static void send_connect_packet(client_t *newcl, int nctype)
+static void SV_SendConnectPacket(client_t *newcl)
 {
-    const char *ncstring    = "";
-    const char *acstring    = "";
     const char *dlstring1   = "";
     const char *dlstring2   = "";
-
-    if (newcl->protocol == PROTOCOL_VERSION_Q2PRO) {
-        if (nctype == NETCHAN_NEW)
-            ncstring = " nc=1";
-        else
-            ncstring = " nc=0";
-    }
 
     if (sv_downloadserver->string[0]) {
         dlstring1 = " dlserver=";
         dlstring2 = sv_downloadserver->string;
     }
 
-    Netchan_OutOfBand(NS_SERVER, &net_from, "client_connect%s%s%s%s map=%s",
-					  ncstring, "", dlstring1, dlstring2, newcl->mapname );
+    Netchan_OutOfBand(NS_SERVER, &net_from, "client_connect%s%s map=%s",
+					  dlstring1, dlstring2, newcl->mapname );
 }
 
 // converts all the extra positional parameters to `connect' command into an
@@ -1051,10 +956,10 @@ static void append_extra_userinfo(conn_params_t *params, char *userinfo)
 
     Q_snprintf(userinfo + strlen(userinfo) + 1, MAX_INFO_STRING,
                "\\challenge\\%d\\ip\\%s"
-               "\\major\\%d\\minor\\%d\\netchan\\%d"
+               "\\major\\%d\\minor\\%d"
                "\\packetlen\\%d\\qport\\%d\\zlib\\%d",
                params->challenge, userinfo_ip_string(),
-               params->protocol, params->version, params->nctype,
+               params->protocol, params->version, 
                params->maxlength, params->qport, params->has_zlib);
 }
 
@@ -1100,7 +1005,7 @@ static void SVC_DirectConnect(void)
     newcl->edict = EDICT_NUM(number + 1);
     newcl->gamedir = fs_game->string;
     newcl->mapname = sv.name;
-    newcl->configstrings = (char *)sv.configstrings;
+    newcl->configstrings = (configstring_t *)&sv.configstrings[0];
     newcl->pool = (edict_pool_t *)&ge->edicts;
     newcl->cm = &sv.cm;
     newcl->spawncount = sv.spawncount;
@@ -1108,10 +1013,6 @@ static void SVC_DirectConnect(void)
 	newcl->last_valid_cluster = -1;
     strcpy(newcl->reconnect_var, params.reconnect_var);
     strcpy(newcl->reconnect_val, params.reconnect_val);
-#if USE_FPS
-    newcl->framediv = sv.framediv;
-    newcl->settings[CLS_FPS] = BASE_FRAMERATE;
-#endif
 
     init_pmove_and_es_flags(newcl);
 
@@ -1134,26 +1035,19 @@ static void SVC_DirectConnect(void)
     }
 
     // setup netchan
-    Netchan_Setup(&newcl->netchan, NS_SERVER, ( netchan_type_t )params.nctype, &net_from,
+    Netchan_Setup(&newcl->netchan, NS_SERVER, NETCHAN_Q2RTXPERIMENTAL, &net_from,
                   params.qport, params.maxlength, params.protocol);
-    newcl->numpackets = 1;
 
     // parse some info from the info strings
     Q_strlcpy(newcl->userinfo, userinfo, sizeof(newcl->userinfo));
     SV_UserinfoChanged(newcl);
 
     // send the connect packet to the client
-    send_connect_packet(newcl, params.nctype);
+    SV_SendConnectPacket(newcl);
 
     SV_RateInit(&newcl->ratelimit_namechange, sv_namechange_limit->string);
 
     SV_InitClientSend(newcl);
-
-    if (newcl->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-        newcl->WriteFrame = SV_WriteFrameToClient_Q2RTXPerimental;
-    } else {
-        newcl->WriteFrame = SV_WriteFrameToClient_Enhanced;
-    }
 
     // loopback client doesn't need to reconnect
     if (NET_IsLocalAddress(&net_from)) {
@@ -1292,7 +1186,7 @@ static void SV_ConnectionlessPacket(void)
     }
 
     MSG_BeginReading();
-    MSG_ReadLong();        // skip the -1 marker
+    MSG_ReadInt32();        // skip the -1 marker
 
     if (MSG_ReadStringLine(string, sizeof(string)) >= sizeof(string)) {
         Com_DPrintf("ignored oversize connectionless packet\n");
@@ -1448,7 +1342,7 @@ static void SV_GiveMsec(void)
 {
     client_t    *cl;
 
-    if (!(sv.framenum % (16 * SV_FRAMEDIV))) {
+    if (!(sv.framenum % (16))) {
         FOR_EACH_CLIENT(cl) {
             cl->command_msec = 1800; // 1600 + some slop
         }
@@ -1529,7 +1423,7 @@ static void SV_PacketEvent(void)
             netchan->remote_address.port = net_from.port;
         }
 
-        if (!netchan->Process(netchan))
+        if ( !NetchanQ2RTXPerimental_Process( netchan ) )
             break;
 
         if (client->state == cs_zombie)
@@ -1557,20 +1451,17 @@ static void update_client_mtu(client_t *client, int ee_info)
     netchan_t *netchan = &client->netchan;
     size_t newpacketlen;
 
+	// WID: net-protocol2: We do a straight up return, since our work is based on the old protocol.
+	// TODO: old clients require entire queue flush :(
+	//if ( netchan->type == NETCHAN_OLD )
+	//	return;
+
     // sanity check discovered MTU
     if (ee_info < 576 || ee_info > 4096)
         return;
 
     if (client->state != cs_primed)
         return;
-
-    // TODO: old clients require entire queue flush :(
-    if (netchan->type == NETCHAN_OLD)
-        return;
-	// WID: net-code: Ours is based on the code of OLD thus:
-	if ( netchan->type == NETCHAN_Q2RTXPERIMENTAL ) {
-		return;
-	}
 
     if (!netchan->reliable_length)
         return;
@@ -1698,9 +1589,6 @@ static void SV_PrepWorldFrame(void)
 {
     edict_t    *ent;
     int        i;
-
-    if (!SV_FRAMESYNC)
-        return;
 
     for (i = 1; i < ge->num_edicts; i++) {
         ent = EDICT_NUM(i);
@@ -2139,9 +2027,6 @@ void SV_Init(void)
     sv_timescale_warn = Cvar_Get("sv_timescale_warn", "0", 0);
     sv_timescale_kick = Cvar_Get("sv_timescale_kick", "0", 0);
     sv_allow_nodelta = Cvar_Get("sv_allow_nodelta", "1", 0);
-#if USE_FPS
-    sv_fps = Cvar_Get("sv_fps", "10", CVAR_LATCH);
-#endif
     sv_force_reconnect = Cvar_Get("sv_force_reconnect", "", CVAR_LATCH);
     sv_show_name_changes = Cvar_Get("sv_show_name_changes", "0", 0);
 
@@ -2171,10 +2056,6 @@ void SV_Init(void)
 
     sv_strafejump_hack = Cvar_Get("sv_strafejump_hack", "1", CVAR_LATCH);
     sv_waterjump_hack = Cvar_Get("sv_waterjump_hack", "0", CVAR_LATCH);
-
-#if USE_PACKETDUP
-    sv_packetdup_hack = Cvar_Get("sv_packetdup_hack", "0", 0);
-#endif
 
     sv_allow_map = Cvar_Get("sv_allow_map", "0", 0);
     sv_cinematics = Cvar_Get("sv_cinematics", "1", 0);
@@ -2212,11 +2093,6 @@ void SV_Init(void)
 
     init_rate_limits();
 
-#if USE_FPS
-    // set up default frametime for main loop
-    sv.frametime = BASE_FRAMETIME;
-#endif
-
     // set up default pmove parameters
     PmoveInit(&sv_pmp);
 
@@ -2249,15 +2125,15 @@ static void SV_FinalMessage(const char *message, error_type_t type)
         return;
 
     if (message) {
-        MSG_WriteByte(svc_print);
-        MSG_WriteByte(PRINT_HIGH);
+        MSG_WriteUint8(svc_print);
+        MSG_WriteUint8(PRINT_HIGH);
         MSG_WriteString(message);
     }
 
     if (type == ERR_RECONNECT)
-        MSG_WriteByte(svc_reconnect);
+        MSG_WriteUint8(svc_reconnect);
     else
-        MSG_WriteByte(svc_disconnect);
+        MSG_WriteUint8(svc_disconnect);
 
     // send it twice
     // stagger the packets to crutch operating system limited buffers
@@ -2268,9 +2144,9 @@ static void SV_FinalMessage(const char *message, error_type_t type)
             }
             netchan = &client->netchan;
             while (netchan->fragment_pending) {
-                netchan->TransmitNextFragment(netchan);
+				NetchanQ2RTXPerimental_TransmitNextFragment(netchan);
             }
-            netchan->Transmit(netchan, msg_write.cursize, msg_write.data, 1);
+			NetchanQ2RTXPerimental_Transmit(netchan, msg_write.cursize, msg_write.data );
         }
     }
 
@@ -2313,16 +2189,12 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
     Z_Free(svs.entities);
 #if USE_ZLIB
     deflateEnd(&svs.z);
+	Z_Free( svs.z_buffer );
 #endif
     memset(&svs, 0, sizeof(svs));
 
     // reset rate limits
     init_rate_limits();
-
-#if USE_FPS
-    // set up default frametime for main loop
-    sv.frametime = BASE_FRAMETIME;
-#endif
 
     sv_client = NULL;
     sv_player = NULL;

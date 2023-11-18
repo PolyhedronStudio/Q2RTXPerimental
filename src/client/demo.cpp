@@ -139,7 +139,7 @@ static void emit_packet_entities(server_frame_t *from, server_frame_t *to)
         }
     }
 
-    MSG_WriteShort(0);      // end of packetentities
+    MSG_WriteInt16(0);      // end of packetentities
 }
 
 static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
@@ -147,27 +147,27 @@ static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
 {
     player_packed_t oldpack, newpack;
 
-    MSG_WriteByte(svc_frame);
-    MSG_WriteLong(tonum);
-    MSG_WriteLong(fromnum);   // what we are delta'ing from
-    MSG_WriteByte(0);   // rate dropped packets
+    MSG_WriteUint8(svc_frame);
+    MSG_WriteInt32(tonum);
+    MSG_WriteInt32(fromnum);   // what we are delta'ing from
+    MSG_WriteUint8(0);   // rate dropped packets
 
     // send over the areabits
-    MSG_WriteByte(to->areabytes);
+    MSG_WriteUint8(to->areabytes);
     MSG_WriteData(to->areabits, to->areabytes);
 
     // delta encode the playerstate
-    MSG_WriteByte(svc_playerinfo);
+    MSG_WriteUint8(svc_playerinfo);
     MSG_PackPlayer(&newpack, &to->ps);
     if (from) {
         MSG_PackPlayer(&oldpack, &from->ps);
-        MSG_WriteDeltaPlayerstate_Q2RTXPerimental(&oldpack, &newpack);
+        MSG_WriteDeltaPlayerstate(&oldpack, &newpack);
     } else {
-		MSG_WriteDeltaPlayerstate_Q2RTXPerimental(NULL, &newpack);
+		MSG_WriteDeltaPlayerstate(NULL, &newpack);
     }
 
     // delta encode the entities
-    MSG_WriteByte(svc_packetentities);
+    MSG_WriteUint8(svc_packetentities);
     emit_packet_entities(from, to);
 }
 
@@ -268,7 +268,7 @@ stop recording a demo
 void CL_Stop_f(void)
 {
     uint32_t msglen;
-    char buffer[MAX_QPATH];
+    char buffer[ MAX_CS_STRING_LENGTH ];
 
     if (!cls.demo.recording) {
         Com_Printf("Not recording a demo.\n");
@@ -291,9 +291,6 @@ void CL_Stop_f(void)
 
 // print some statistics
     Com_Printf("Stopped demo (%s).\n", buffer);
-
-// tell the server we finished recording
-    CL_UpdateRecordingSetting();
 }
 
 static const cmd_option_t o_record[] = {
@@ -388,20 +385,17 @@ static void CL_Record_f(void)
     // clear dirty configstrings
     memset(cl.dcs, 0, sizeof(cl.dcs));
 
-    // tell the server we are recording
-    CL_UpdateRecordingSetting();
-
     //
     // write out messages to hold the startup information
     //
 
     // send the serverdata
-    MSG_WriteByte(svc_serverdata);
-    MSG_WriteLong(PROTOCOL_VERSION_Q2RTXPERIMENTAL);
-    MSG_WriteLong(0x10000 + cl.servercount);
-    MSG_WriteByte(1);      // demos are always attract loops
+    MSG_WriteUint8(svc_serverdata);
+    MSG_WriteInt32(PROTOCOL_VERSION_Q2RTXPERIMENTAL);
+    MSG_WriteInt32(0x10000 + cl.servercount);
+    MSG_WriteUint8(1);      // demos are always attract loops
     MSG_WriteString(cl.gamedir);
-    MSG_WriteShort(cl.clientNum);
+    MSG_WriteInt16(cl.clientNum);
     MSG_WriteString(cl.configstrings[CS_NAME]);
 
     // configstrings
@@ -410,16 +404,16 @@ static void CL_Record_f(void)
         if (!*s)
             continue;
 
-        len = Q_strnlen(s, MAX_QPATH);
+        len = Q_strnlen(s, MAX_CS_STRING_LENGTH );
         if (msg_write.cursize + len + 4 > size) {
             if (!CL_WriteDemoMessage(&msg_write))
                 return;
         }
 
-        MSG_WriteByte(svc_configstring);
-        MSG_WriteShort(i);
+        MSG_WriteUint8(svc_configstring);
+        MSG_WriteInt16(i);
         MSG_WriteData(s, len);
-        MSG_WriteByte(0);
+        MSG_WriteUint8(0);
     }
 
     // baselines
@@ -433,12 +427,12 @@ static void CL_Record_f(void)
                 return;
         }
 
-        MSG_WriteByte(svc_spawnbaseline);
+        MSG_WriteUint8(svc_spawnbaseline);
         MSG_PackEntity(&pack, ent, false);
         MSG_WriteDeltaEntity(NULL, &pack, MSG_ES_FORCE);
     }
 
-    MSG_WriteByte(svc_stufftext);
+    MSG_WriteUint8(svc_stufftext);
     MSG_WriteString("precache\n");
 
     // write it to the demo file
@@ -467,17 +461,17 @@ static void resume_record(void)
 
             s = cl.configstrings[index];
 
-            len = Q_strnlen(s, MAX_QPATH);
+            len = Q_strnlen(s, MAX_CS_STRING_LENGTH );
             if (cls.demo.buffer.cursize + len + 4 > cls.demo.buffer.maxsize) {
                 if (!CL_WriteDemoMessage(&cls.demo.buffer))
                     return;
                 // multiple packets = not seamless
             }
 
-            SZ_WriteByte(&cls.demo.buffer, svc_configstring);
-            SZ_WriteShort(&cls.demo.buffer, index);
+            SZ_WriteUint8(&cls.demo.buffer, svc_configstring);
+            SZ_WriteInt16(&cls.demo.buffer, index);
             SZ_Write(&cls.demo.buffer, s, len);
-            SZ_WriteByte(&cls.demo.buffer, 0);
+            SZ_WriteUint8(&cls.demo.buffer, 0);
         }
     }
 
@@ -605,7 +599,8 @@ static void finish_demo(int ret)
     char *s = Cvar_VariableString("nextserver");
 
     // Only execute nextserver if back-to-back timedemos are complete
-    if (!s[0] && cls.timedemo.run_current >= cls.timedemo.runs_total) {
+    if (s != nullptr 
+		 && ( !s[0] && cls.timedemo.run_current >= cls.timedemo.runs_total) ){
         if (ret == 0) {
             Com_Error(ERR_DISCONNECT, "Demo finished");
         } else {
@@ -618,8 +613,10 @@ static void finish_demo(int ret)
     if (cls.timedemo.run_current < cls.timedemo.runs_total)
         return;
 
-    Cbuf_AddText(&cmd_buffer, s);
-    Cbuf_AddText(&cmd_buffer, "\n");
+	if ( s != nullptr ) {
+		Cbuf_AddText( &cmd_buffer, s );
+		Cbuf_AddText( &cmd_buffer, "\n" );
+	}
 
     Cvar_Set("nextserver", "");
 }
@@ -656,7 +653,7 @@ static int parse_next_message(int wait)
     CL_ParseServerMessage();
 
     // if recording demo, write the message out
-    if (cls.demo.recording && !cls.demo.paused && CL_FRAMESYNC) {
+    if (cls.demo.recording && !cls.demo.paused) {
         CL_WriteDemoMessage(&cls.demo.buffer);
     }
 
@@ -797,15 +794,15 @@ void CL_EmitDemoSnapshot(void)
         if (!strcmp(from, to))
             continue;
 
-        len = Q_strnlen(to, MAX_QPATH);
-        MSG_WriteByte(svc_configstring);
-        MSG_WriteShort(i);
+        len = Q_strnlen(to, MAX_CS_STRING_LENGTH);
+        MSG_WriteUint8(svc_configstring);
+        MSG_WriteInt16(i);
         MSG_WriteData(to, len);
-        MSG_WriteByte(0);
+        MSG_WriteUint8(0);
     }
 
     // write layout
-    MSG_WriteByte(svc_layout);
+    MSG_WriteUint8(svc_layout);
     MSG_WriteString(cl.layout);
 
     snap = (demosnap_t*)Z_Malloc( sizeof( *snap ) + msg_write.cursize - 1 ); // WID: C++20: Was without a cast.
@@ -1010,9 +1007,6 @@ static void CL_Seek_f(void)
 
     // don't lerp to old
     memset(&cl.oldframe, 0, sizeof(cl.oldframe));
-#if USE_FPS
-    memset(&cl.oldkeyframe, 0, sizeof(cl.oldkeyframe));
-#endif
 
     // clear old effects
     CL_ClearEffects();
@@ -1061,7 +1055,7 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
 {
     qhandle_t f;
     int c, index;
-    char string[MAX_QPATH];
+    char string[ MAX_CS_STRING_LENGTH ];
     int clientNum, type;
 
     FS_OpenFile(path, &f, FS_MODE_READ | FS_FLAG_GZIP);
@@ -1074,65 +1068,38 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
         goto fail;
     }
 
-    if (type == 0) {
-        if (MSG_ReadByte() != svc_serverdata) {
-            goto fail;
-        }
-        if (MSG_ReadLong() != PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-            goto fail;
-        }
-        MSG_ReadLong();
-        MSG_ReadByte();
-        MSG_ReadString(NULL, 0);
-        clientNum = MSG_ReadShort();
-        MSG_ReadString(NULL, 0);
-
-        while (1) {
-            c = MSG_ReadByte();
-            if (c == -1) {
-                if (read_next_message(f) <= 0) {
-                    break;
-                }
-                continue; // parse new message
-            }
-            if (c != svc_configstring) {
-                break;
-            }
-            index = MSG_ReadShort();
-            if (index < 0 || index >= MAX_CONFIGSTRINGS) {
-                goto fail;
-            }
-            MSG_ReadString(string, sizeof(string));
-            parse_info_string(info, clientNum, index, string);
-        }
-
-        info->mvd = false;
-    } else {
-        if ((MSG_ReadByte() & SVCMD_MASK) != mvd_serverdata) {
-            goto fail;
-        }
-        if (MSG_ReadLong() != PROTOCOL_VERSION_MVD) {
-            goto fail;
-        }
-        MSG_ReadShort();
-        MSG_ReadLong();
-        MSG_ReadString(NULL, 0);
-        clientNum = MSG_ReadShort();
-
-        while (1) {
-            index = MSG_ReadShort();
-            if (index == MAX_CONFIGSTRINGS) {
-                break;
-            }
-            if (index < 0 || index >= MAX_CONFIGSTRINGS) {
-                goto fail;
-            }
-            MSG_ReadString(string, sizeof(string));
-            parse_info_string(info, clientNum, index, string);
-        }
-
-        info->mvd = true;
+    if (MSG_ReadUint8() != svc_serverdata) {
+        goto fail;
     }
+    if (MSG_ReadInt32() != PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
+        goto fail;
+    }
+    MSG_ReadInt32();
+    MSG_ReadUint8();
+    MSG_ReadString(NULL, 0);
+    clientNum = MSG_ReadInt16();
+    MSG_ReadString(NULL, 0);
+
+    while (1) {
+        c = MSG_ReadUint8();
+        if (c == -1) {
+            if (read_next_message(f) <= 0) {
+                break;
+            }
+            continue; // parse new message
+        }
+        if (c != svc_configstring) {
+            break;
+        }
+        index = MSG_ReadInt16();
+        if (index < 0 || index >= MAX_CONFIGSTRINGS) {
+            goto fail;
+        }
+        MSG_ReadString(string, sizeof(string));
+        parse_info_string(info, clientNum, index, string);
+    }
+
+    info->mvd = false;
 
     FS_CloseFile(f);
     return info;

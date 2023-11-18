@@ -36,7 +36,9 @@ FRAME PARSING
 
 static inline bool entity_is_optimized(const entity_state_t *state)
 {
-    if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO)
+	// WID: net-protocol2: We don't want this anyway, should get rid of it?
+    //if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO)
+	if ( cls.serverProtocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL )
         return false;
 
     if (state->number != cl.frame.clientNum + 1)
@@ -57,10 +59,6 @@ entity_update_new(centity_t *ent, const entity_state_t *state, const vec_t *orig
 
     // duplicate the current state so lerping doesn't hurt anything
     ent->prev = *state;
-#if USE_FPS
-    ent->prev_frame = state->frame;
-    ent->event_frame = cl.frame.number;
-#endif
 
 // WID: 40hz
 	ent->current_frame = ent->last_frame = state->frame;
@@ -86,17 +84,6 @@ entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *orig
 {
     int event = state->event;
 
-#if USE_FPS
-    // check for new event
-    if (state->event != ent->current.event)
-        ent->event_frame = cl.frame.number; // new
-    else if (cl.frame.number - ent->event_frame >= cl.framediv)
-        ent->event_frame = cl.frame.number; // refreshed
-    else
-        event = 0; // duplicated
-#endif
-
-
     if (state->modelindex != ent->current.modelindex
         || state->modelindex2 != ent->current.modelindex2
         || state->modelindex3 != ent->current.modelindex3
@@ -112,9 +99,7 @@ entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *orig
 
         // duplicate the current state so lerping doesn't hurt anything
         ent->prev = *state;
-#if USE_FPS
-        ent->prev_frame = state->frame;
-#endif
+
 		// WID: 40hz
 		ent->last_frame = state->frame;
 		// WID: 40hz
@@ -123,14 +108,6 @@ entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *orig
         VectorCopy(origin, ent->lerp_origin);
         return;
     }
-
-#if USE_FPS
-    // start alias model animation
-    if (state->frame != ent->current.frame) {
-        ent->prev_frame = ent->current.frame;
-        ent->anim_start = cl.servertime - cl.frametime;
-    }
-#endif
 // WID: 40hz
 	if ( ent->current_frame != state->frame ) {
 		ent->last_frame = ent->current.frame;
@@ -215,14 +192,9 @@ static void parse_entity_event(int number)
     centity_t *cent = &cl_entities[number];
 
     // EF_TELEPORTER acts like an event, but is not cleared each frame
-    if ((cent->current.effects & EF_TELEPORTER) && CL_FRAMESYNC) {
+    if ((cent->current.effects & EF_TELEPORTER)) {
         CL_TeleporterParticles(cent->current.origin);
     }
-
-#if USE_FPS
-    if (cent->event_frame != cl.frame.number)
-        return;
-#endif
 
     switch (cent->current.event) {
     case EV_ITEM_RESPAWN:
@@ -253,20 +225,12 @@ static void set_active_state(void)
 {
     cls.state = ca_active;
 
-    cl.serverdelta = Q_align(cl.frame.number, CL_FRAMEDIV);
+    cl.serverdelta = Q_align(cl.frame.number, 1);
     cl.time = cl.servertime = 0; // set time, needed for demos
-#if USE_FPS
-    cl.keytime = cl.keyservertime = 0;
-    cl.keyframe = cl.frame; // initialize keyframe to make sure it's valid
-#endif
 
     // initialize oldframe so lerping doesn't hurt anything
     cl.oldframe.valid = false;
     cl.oldframe.ps = cl.frame.ps;
-#if USE_FPS
-    cl.oldkeyframe.valid = false;
-    cl.oldkeyframe.ps = cl.keyframe.ps;
-#endif
 
     cl.frameflags = 0;
     cl.initialSeq = cls.netchan.outgoing_sequence;
@@ -330,14 +294,8 @@ check_player_lerp(server_frame_t *oldframe, server_frame_t *frame, int framediv)
 
     // no lerping if player entity was teleported (event check)
     ent = &cl_entities[frame->clientNum + 1];
-    if (ent->serverframe > oldnum &&
-        ent->serverframe <= frame->number &&
-#if USE_FPS
-        ent->event_frame > oldnum &&
-        ent->event_frame <= frame->number &&
-#endif
-        (ent->current.event == EV_PLAYER_TELEPORT
-         || ent->current.event == EV_OTHER_TELEPORT)) {
+    if (ent->serverframe > oldnum && ent->serverframe <= frame->number && 
+		 (ent->current.event == EV_PLAYER_TELEPORT || ent->current.event == EV_OTHER_TELEPORT) ) {
         goto dup;
     }
 
@@ -382,9 +340,6 @@ void CL_DeltaFrame(void)
     // set server time
     framenum = cl.frame.number - cl.serverdelta;
     cl.servertime = framenum * CL_FRAMETIME;
-#if USE_FPS
-    cl.keyservertime = (framenum / cl.framediv) * BASE_FRAMETIME;
-#endif
 
     // rebuild the list of solid entities for this frame
     cl.numSolidEntities = 0;
@@ -406,7 +361,7 @@ void CL_DeltaFrame(void)
         parse_entity_event(state->number);
     }
 
-    if (cls.demo.recording && !cls.demo.paused && !cls.demo.seeking && CL_FRAMESYNC) {
+    if (cls.demo.recording && !cls.demo.paused && !cls.demo.seeking) {
         CL_EmitDemoFrame();
     }
 
@@ -421,11 +376,6 @@ void CL_DeltaFrame(void)
     }
 
     check_player_lerp(&cl.oldframe, &cl.frame, 1);
-
-#if USE_FPS
-    if (CL_FRAMESYNC)
-        check_player_lerp(&cl.oldkeyframe, &cl.keyframe, cl.framediv);
-#endif
 
     CL_CheckPredictionError();
 
@@ -591,7 +541,7 @@ static void CL_AddPacketEntities(void)
         ent.backlerp = 1.0f - cl.lerpfrac;
 
 // WID: 40hz - Does proper frame lerping for 10hz models.
-// TODO: Add a specific render flag for this perhaps? 
+		// TODO: Add a specific render flag for this perhaps? 
 		// TODO: must only do this on alias models
 		// Don't do this for 'world' model?
 		if ( ent.model != 0 && cent->last_frame != cent->current_frame ) {
@@ -624,25 +574,25 @@ static void CL_AddPacketEntities(void)
                            cl.lerpfrac, ent.origin);
                 VectorCopy(ent.origin, ent.oldorigin);
             }
-#if USE_FPS
-            // run alias model animation
-            if (cent->prev_frame != s1->frame) {
-                int delta = cl.time - cent->anim_start;
-                float frac;
-
-                if (delta > BASE_FRAMETIME) {
-                    cent->prev_frame = s1->frame;
-                    frac = 1;
-                } else if (delta > 0) {
-                    frac = delta * BASE_1_FRAMETIME;
-                } else {
-                    frac = 0;
-                }
-
-                ent.oldframe = cent->prev_frame;
-                ent.backlerp = 1.0f - frac;
-            }
-#endif
+//#if USE_FPS
+//            // run alias model animation
+//            if (cent->prev_frame != s1->frame) {
+//                int delta = cl.time - cent->anim_start;
+//                float frac;
+//
+//                if (delta > BASE_FRAMETIME) {
+//                    cent->prev_frame = s1->frame;
+//                    frac = 1;
+//                } else if (delta > 0) {
+//                    frac = delta * BASE_1_FRAMETIME;
+//                } else {
+//                    frac = 0;
+//                }
+//
+//                ent.oldframe = cent->prev_frame;
+//                ent.backlerp = 1.0f - frac;
+//            }
+//#endif
         }
 
         if ((effects & EF_GIB) && !cl_gibs->integer) {
@@ -659,7 +609,7 @@ static void CL_AddPacketEntities(void)
             ent.model = 0;
         } else {
             // set skin
-            if (s1->modelindex == 255) {
+            if (s1->modelindex == MODELINDEX_PLAYER ) {
                 // use custom player skin
                 ent.skinnum = 0;
                 ci = &cl.clientinfo[s1->skinnum & 0xff];
@@ -718,7 +668,7 @@ static void CL_AddPacketEntities(void)
                        cl.lerpfrac, ent.angles);
 
             // mimic original ref_gl "leaning" bug (uuugly!)
-            if (s1->modelindex == 255 && cl_rollhack->integer) {
+            if (s1->modelindex == MODELINDEX_PLAYER && cl_rollhack->integer) {
                 ent.angles[ROLL] = -ent.angles[ROLL];
             }
         }
@@ -827,7 +777,7 @@ static void CL_AddPacketEntities(void)
 
         // duplicate for linked models
         if (s1->modelindex2) {
-            if (s1->modelindex2 == 255) {
+            if (s1->modelindex2 == MODELINDEX_PLAYER ) {
                 // custom weapon
                 ci = &cl.clientinfo[s1->skinnum & 0xff];
                 i = (s1->skinnum >> 8); // 0 is default weapon model
@@ -1012,8 +962,8 @@ static void CL_AddViewWeapon(void)
     }
 
     // find states to interpolate between
-    ps = CL_KEYPS;
-    ops = CL_OLDKEYPS;
+    ps = &cl.frame.ps;
+    ops = &cl.oldframe.ps;
 
     memset(&gun, 0, sizeof(gun));
 
@@ -1031,9 +981,9 @@ static void CL_AddViewWeapon(void)
     // set up gun position
     for (i = 0; i < 3; i++) {
         gun.origin[i] = cl.refdef.vieworg[i] + ops->gunoffset[i] +
-                        CL_KEYLERPFRAC * (ps->gunoffset[i] - ops->gunoffset[i]);
+                        cl.lerpfrac * (ps->gunoffset[i] - ops->gunoffset[i]);
         gun.angles[i] = cl.refdef.viewangles[i] + LerpAngle(ops->gunangles[i],
-                        ps->gunangles[i], CL_KEYLERPFRAC);
+                        ps->gunangles[i], cl.lerpfrac );
     }
 
     // Adjust the gun scale so that the gun doesn't intersect with walls.
@@ -1078,7 +1028,7 @@ static void CL_AddViewWeapon(void)
         //    gun.oldframe = 0;   // just changed weapons, don't lerp from old
         //} else {
         //    gun.oldframe = ops->gunframe;
-        //    gun.backlerp = 1.0f - CL_KEYLERPFRAC;
+        //    gun.backlerp = 1.0f - cl.lerpfrac;
         //}
     }
 
@@ -1119,10 +1069,10 @@ static void CL_SetupFirstPersonView(void)
 
     // add kick angles
     if (cl_kickangles->integer) {
-        ps = CL_KEYPS;
-        ops = CL_OLDKEYPS;
+        ps = &cl.frame.ps;
+        ops = &cl.oldframe.ps;
 
-        lerp = CL_KEYLERPFRAC;
+        lerp = cl.lerpfrac;
 
         LerpAngles(ops->kick_angles, ps->kick_angles, lerp, kickangles);
         VectorAdd(cl.refdef.viewangles, kickangles, cl.refdef.viewangles);
@@ -1317,13 +1267,6 @@ void CL_CalcViewValues(void)
 
     // don't interpolate blend color
     Vector4Copy(ps->blend, cl.refdef.blend);
-
-#if USE_FPS
-    ps = &cl.keyframe.ps;
-    ops = &cl.oldkeyframe.ps;
-
-    lerp = cl.keylerpfrac;
-#endif
 
     // interpolate field of view
     cl.fov_x = lerp_client_fov(ops->fov, ps->fov, lerp);

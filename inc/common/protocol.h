@@ -31,82 +31,35 @@ extern "C" {
 // protocol.h -- communications protocols
 //
 
-#define MAX_MSGLEN  0x8000  // max length of a message, 32k
+//! Max length of a message, 64k
+#define MAX_MSGLEN 0x10000 // 65536  
 
-#define PROTOCOL_VERSION_OLD        26
-// WID: net-code: This is the 'DEFAULT' protocol code, renamed the definition to Q2RTXPERIMENTAL. 
-// TODO: Change the number later on. For now we want to work, and edit, the default protocol routes.
-#define PROTOCOL_VERSION_Q2RTXPERIMENTAL    34
-#define PROTOCOL_VERSION_R1Q2       35
-#define PROTOCOL_VERSION_Q2PRO      36
-#define PROTOCOL_VERSION_MVD        37 // not used for UDP connections
+//! WID: net-protocol2: This is our own new protocol.
+#define PROTOCOL_VERSION_Q2RTXPERIMENTAL    1337
 
-#define PROTOCOL_VERSION_R1Q2_MINIMUM           1903    // b6377
-#define PROTOCOL_VERSION_R1Q2_UCMD              1904    // b7387
-#define PROTOCOL_VERSION_R1Q2_LONG_SOLID        1905    // b7759
-#define PROTOCOL_VERSION_R1Q2_CURRENT           1905    // b7759
-
-#define PROTOCOL_VERSION_Q2PRO_MINIMUM          1011    // r161
-#define PROTOCOL_VERSION_Q2PRO_UCMD             1012    // r179
-#define PROTOCOL_VERSION_Q2PRO_CLIENTNUM_FIX    1013    // r226
-#define PROTOCOL_VERSION_Q2PRO_LONG_SOLID       1014    // r243
-#define PROTOCOL_VERSION_Q2PRO_WATERJUMP_HACK   1015    // r335
-#define PROTOCOL_VERSION_Q2PRO_RESERVED         1016    // r364
-#define PROTOCOL_VERSION_Q2PRO_BEAM_ORIGIN      1017    // r1037-8
-#define PROTOCOL_VERSION_Q2PRO_SHORT_ANGLES     1018    // r1037-44
-#define PROTOCOL_VERSION_Q2PRO_SERVER_STATE     1019    // r1302
-#define PROTOCOL_VERSION_Q2PRO_EXTENDED_LAYOUT  1020    // r1354
-#define PROTOCOL_VERSION_Q2PRO_ZLIB_DOWNLOADS   1021    // r1358
-#define PROTOCOL_VERSION_Q2PRO_CLIENTNUM_SHORT  1022    // r2161
-#define PROTOCOL_VERSION_Q2PRO_CINEMATICS       1023    // r2263
-#define PROTOCOL_VERSION_Q2PRO_CURRENT          1023    // r2263
-
-#define PROTOCOL_VERSION_MVD_MINIMUM            2009    // r168
-#define PROTOCOL_VERSION_MVD_CURRENT            2010    // r177
-
-#define R1Q2_SUPPORTED(x) \
-    ((x) >= PROTOCOL_VERSION_R1Q2_MINIMUM && \
-     (x) <= PROTOCOL_VERSION_R1Q2_CURRENT)
-
-#define Q2PRO_SUPPORTED(x) \
-    ((x) >= PROTOCOL_VERSION_Q2PRO_MINIMUM && \
-     (x) <= PROTOCOL_VERSION_Q2PRO_CURRENT)
-
-#define MVD_SUPPORTED(x) \
-    ((x) >= PROTOCOL_VERSION_MVD_MINIMUM && \
-     (x) <= PROTOCOL_VERSION_MVD_CURRENT)
-
-#define VALIDATE_CLIENTNUM(x) \
-    ((x) >= -1 && (x) < MAX_EDICTS - 1)
+//! Validate the client number.
+inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
+	return ( ( x ) >= -1 && ( x ) < MAX_CLIENTS );
+}
 
 //=========================================
 
-#define UPDATE_BACKUP   128 //16	// copies of entity_state_t to keep buffered
-									// must be power of two
+#define UPDATE_BACKUP   128 //16	// copies of entity_state_t to keep buffered must be power of two
 #define UPDATE_MASK     (UPDATE_BACKUP - 1)
 
-#define CMD_BACKUP      512 //128	// allow a lot of command backups for very fast systems
-									// increased from 64
+#define CMD_BACKUP      512 //128	// allow a lot of command backups for very fast systems increased from 64
 #define CMD_MASK        (CMD_BACKUP - 1)
 
-
-#define SVCMD_BITS              5
-#define SVCMD_MASK              ((1 << SVCMD_BITS) - 1)
-
-#define FRAMENUM_BITS           27
-#define FRAMENUM_MASK           ((1 << FRAMENUM_BITS) - 1)
-
-#define SUPPRESSCOUNT_BITS      4
-#define SUPPRESSCOUNT_MASK      ((1 << SUPPRESSCOUNT_BITS) - 1)
-
-#define MAX_PACKET_ENTITIES     1024
+// Max entities stuffed per packet.
+#define MAX_PACKET_ENTITIES     512
 #define MAX_PARSE_ENTITIES      (MAX_PACKET_ENTITIES * UPDATE_BACKUP)
 #define PARSE_ENTITIES_MASK     (MAX_PARSE_ENTITIES - 1)
 
-#define MAX_PACKET_USERCMDS     32
-#define MAX_PACKET_FRAMES       4
-
+// Malicious users may try using too many string commands
+// Define a capped limit to prevent doing so.
 #define MAX_PACKET_STRINGCMDS   8
+// Malicious users may try sending too many userinfo updates
+// Define a capped limit to prevent doing so.
 #define MAX_PACKET_USERINFOS    8
 
 #define CS_BITMAP_BYTES         (MAX_CONFIGSTRINGS / 8) // 260
@@ -144,50 +97,16 @@ typedef enum {
     svc_packetentities,         // [...]
     svc_deltapacketentities,    // [...]
     svc_frame,
-
-    // r1q2 specific operations
+	    
     svc_zpacket,
     svc_zdownload,
-    svc_gamestate, // q2pro specific, means svc_playerupdate in r1q2
-    svc_setting,
-
-    svc_num_types
+    svc_gamestate,
+	svc_configstringstream,
+	svc_baselinestream,
+	svc_setting,
+	
+	svc_num_types
 } svc_ops_t;
-
-// MVD protocol specific operations
-typedef enum {
-    mvd_bad,
-    mvd_nop,
-    mvd_disconnect,     // reserved
-    mvd_reconnect,      // reserved
-    mvd_serverdata,
-    mvd_configstring,
-    mvd_frame,
-    mvd_frame_nodelta,  // reserved
-    mvd_unicast,
-    mvd_unicast_r,
-
-    // must match multicast_t order!!!
-    mvd_multicast_all,
-    mvd_multicast_phs,
-    mvd_multicast_pvs,
-    mvd_multicast_all_r,
-    mvd_multicast_phs_r,
-    mvd_multicast_pvs_r,
-
-    mvd_sound,
-    mvd_print,
-    mvd_stufftext,      // reserved
-
-    mvd_num_types
-} mvd_ops_t;
-
-// MVD stream flags (only 3 bits can be used)
-typedef enum {
-    MVF_NOMSGS      = 1,
-    MVF_SINGLEPOV   = 2,
-    MVF_RESERVED2   = 4
-} mvd_flags_t;
 
 //==============================================
 
@@ -199,15 +118,8 @@ typedef enum {
     clc_nop,
     clc_move,               // [usercmd_t]
     clc_userinfo,           // [userinfo string]
-    clc_stringcmd,          // [string] message
-
-    // r1q2 specific operations
-    clc_setting,
-
-    // q2pro specific operations
-    clc_move_nodelta = 10,
-    clc_move_batched,
-    clc_userinfo_delta
+	clc_userinfo_delta,		// [userinfo_key][userinfo_value]
+	clc_stringcmd,          // [string] message
 } clc_ops_t;
 
 //==============================================
@@ -234,46 +146,6 @@ typedef enum {
 
 #define PS_BITS             16
 #define PS_MASK             ((1<<PS_BITS)-1)
-
-// r1q2 protocol specific extra flags
-#define EPS_GUNOFFSET       (1<<0)
-#define EPS_GUNANGLES       (1<<1)
-#define EPS_M_VELOCITY2     (1<<2)
-#define EPS_M_ORIGIN2       (1<<3)
-#define EPS_VIEWANGLE2      (1<<4)
-#define EPS_STATS           (1<<5)
-
-// q2pro protocol specific extra flags
-#define EPS_CLIENTNUM       (1<<6)
-
-#define EPS_BITS            7
-#define EPS_MASK            ((1<<EPS_BITS)-1)
-
-//==============================================
-
-// packetized player_state_t communication (MVD specific)
-
-#define PPS_M_TYPE          (1<<0)
-#define PPS_M_ORIGIN        (1<<1)
-#define PPS_M_ORIGIN2       (1<<2)
-
-#define PPS_VIEWOFFSET      (1<<3)
-#define PPS_VIEWANGLES      (1<<4)
-#define PPS_VIEWANGLE2      (1<<5)
-#define PPS_KICKANGLES      (1<<6)
-#define PPS_BLEND           (1<<7)
-#define PPS_FOV             (1<<8)
-#define PPS_WEAPONINDEX     (1<<9)
-#define PPS_WEAPONFRAME     (1<<10)
-#define PPS_GUNOFFSET       (1<<11)
-#define PPS_GUNANGLES       (1<<12)
-#define PPS_RDFLAGS         (1<<13)
-#define PPS_STATS           (1<<14)
-#define PPS_REMOVE          (1<<15)
-
-// this is just a small hack to store inuse flag
-// in a field left otherwise unused by MVD code
-#define PPS_INUSE(ps)       (ps)->pmove.pm_time
 
 //==============================================
 
@@ -305,6 +177,7 @@ typedef enum {
 #define SND_POS             (1<<2)  // three coordinates
 #define SND_ENT             (1<<3)  // a short 0-2: channel, 3-12: entity
 #define SND_OFFSET          (1<<4)  // a byte, msec offset from frame start
+#define SND_INDEX16         (1<<5)  // index is 16-bit
 
 #define DEFAULT_SOUND_PACKET_VOLUME         1.0f
 #define DEFAULT_SOUND_PACKET_ATTENUATION    1.0f
@@ -318,20 +191,21 @@ typedef enum {
 #define U_ORIGIN2   (1<<1)
 #define U_ANGLE2    (1<<2)
 #define U_ANGLE3    (1<<3)
-#define U_FRAME8    (1<<4)        // frame is a byte
+#define U_FRAME8    (1<<4)			// frame is a byte
 #define U_EVENT     (1<<5)
-#define U_REMOVE    (1<<6)        // REMOVE this entity, don't add it
-#define U_MOREBITS1 (1<<7)        // read one additional byte
+#define U_REMOVE    (1<<6)			// REMOVE this entity, don't add it
+#define U_UNUSED0   (1<<7)			//#define U_MOREBITS1 (1<<7)        // read one additional byte
+
 
 // second byte
-#define U_NUMBER16  (1<<8)        // NUMBER8 is implicit if not set
+#define U_NUMBER16  (1<<8)			// NUMBER8 is implicit if not set
 #define U_ORIGIN3   (1<<9)
 #define U_ANGLE1    (1<<10)
 #define U_MODEL     (1<<11)
-#define U_RENDERFX8 (1<<12)        // fullbright, etc
-#define U_ANGLE16   (1<<13)
-#define U_EFFECTS8  (1<<14)        // autorotate, trails, etc
-#define U_MOREBITS2 (1<<15)        // read one additional byte
+#define U_RENDERFX8 (1<<12)			// fullbright, etc
+#define U_UNUSED1   (1<<13)			//#define U_ANGLE16   (1<<13)
+#define U_EFFECTS8  (1<<14)			// autorotate, trails, etc
+#define U_UNUSED2	(1<<15)			//#define U_MOREBITS2 (1<<15)        // read one additional byte
 
 // third byte
 #define U_SKIN8         (1<<16)
@@ -341,13 +215,57 @@ typedef enum {
 #define U_MODEL2        (1<<20)     // weapons, flags, etc
 #define U_MODEL3        (1<<21)
 #define U_MODEL4        (1<<22)
-#define U_MOREBITS3     (1<<23)     // read one additional byte
+#define U_UNUSED3		(1<<23)		//#define U_MOREBITS3     (1<<23)     // read one additional byte
 
 // fourth byte
 #define U_OLDORIGIN     (1<<24)     // FIXME: get rid of this
 #define U_SKIN16        (1<<25)
-#define U_SOUND         (1<<26)
+#define U_SOUND8        (1<<26)
 #define U_SOLID         (1<<27)
+#define U_SOUND16		(1<<28)
+#define U_UNUSED5		(1<<29)
+#define U_UNUSED6		(1<<30)
+#define U_UNUSED7		(1<<31)
+
+// fifth byte
+#define U_UNUSED8		(1<<32)
+#define U_UNUSED9		(1<<33)
+#define U_UNUSED10		(1<<34)
+#define U_UNUSED11		(1<<35)
+#define U_UNUSED12		(1<<36)
+#define U_UNUSED13		(1<<37)
+#define U_UNUSED14		(1<<38)
+#define U_UNUSED15		(1<<39)
+
+// sixth byte
+#define U_UNUSED16		(1<<40)
+#define U_UNUSED17		(1<<41)
+#define U_UNUSED18		(1<<42)
+#define U_UNUSED19		(1<<43)
+#define U_UNUSED20		(1<<44)
+#define U_UNUSED21		(1<<45)
+#define U_UNUSED22		(1<<46)
+#define U_UNUSED23		(1<<47)
+
+// seventh byte
+#define U_UNUSED24		(1<<48)
+#define U_UNUSED25		(1<<49)
+#define U_UNUSED26		(1<<50)
+#define U_UNUSED27		(1<<51)
+#define U_UNUSED28		(1<<52)
+#define U_UNUSED29		(1<<53)
+#define U_UNUSED30		(1<<54)
+#define U_UNUSED31		(1<<55)
+
+// eigth byte
+#define U_UNUSED32		(1<<56)
+#define U_UNUSED33		(1<<57)
+#define U_UNUSED34		(1<<58)
+#define U_UNUSED35		(1<<59)
+#define U_UNUSED36		(1<<60)
+#define U_UNUSED37		(1<<61)
+#define U_UNUSED38		(1<<62)
+#define U_UNUSED39		(1<<63)
 
 // ==============================================================
 
@@ -357,36 +275,12 @@ typedef enum {
 // a SOLID_BBOX will never create this value
 #define PACKED_BSP      255
 
-typedef enum {
-    // r1q2 specific
-    CLS_NOGUN,
-    CLS_NOBLEND,
-    CLS_RECORDING,
-    CLS_PLAYERUPDATES,
-    CLS_FPS,
-
-    // q2pro specific
-    CLS_NOGIBS            = 10,
-    CLS_NOFOOTSTEPS,
-    CLS_NOPREDICT,
-
-    CLS_MAX
-} clientSetting_t;
-
-typedef enum {
-    // r1q2 specific
-    SVS_PLAYERUPDATES,
-    SVS_FPS,
-
-    SVS_MAX
-} serverSetting_t;
-
 // q2pro frame flags sent by the server
 // only SUPPRESSCOUNT_BITS can be used
 #define FF_SUPPRESSED   (1<<0)
 #define FF_CLIENTDROP   (1<<1)
-#define FF_CLIENTPRED   (1<<2)
-#define FF_RESERVED     (1<<3)
+#define FF_CLIENTPRED   (1<<2)	// Set but unused?
+#define FF_RESERVED     (1<<3)	// Literally reserved.
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

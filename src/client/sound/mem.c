@@ -43,8 +43,8 @@ WAV loading
 static int FindChunk(sizebuf_t *sz, uint32_t search)
 {
     while (sz->readcount + 8 < sz->cursize) {
-        uint32_t chunk = SZ_ReadLong(sz);
-        uint32_t len   = SZ_ReadLong(sz);
+        uint32_t chunk = SZ_ReadInt32(sz);
+        uint32_t len   = SZ_ReadInt32(sz);
 
         len = min(len, sz->cursize - sz->readcount);
         if (chunk == search)
@@ -60,7 +60,7 @@ static bool GetWavinfo(sizebuf_t *sz)
 {
     int tag, samples, width, chunk_len, next_chunk;
 
-    tag = SZ_ReadLong(sz);
+    tag = SZ_ReadInt32(sz);
 
     if (tag == MakeLittleLong('O','g','g','S') || !COM_CompareExtension(s_info.name, ".ogg")) {
         sz->readcount = 0;
@@ -74,7 +74,7 @@ static bool GetWavinfo(sizebuf_t *sz)
     }
 
     sz->readcount += 4;
-    if (SZ_ReadLong(sz) != TAG_WAVE) {
+    if (SZ_ReadInt32(sz) != TAG_WAVE) {
         Com_DPrintf("%s has missing/invalid WAVE chunk\n", s_info.name);
         return false;
     }
@@ -88,26 +88,26 @@ static bool GetWavinfo(sizebuf_t *sz)
         return false;
     }
 
-    s_info.format = SZ_ReadShort(sz);
+    s_info.format = SZ_ReadInt16(sz);
     if (s_info.format != FORMAT_PCM) {
         Com_DPrintf("%s has unsupported format\n", s_info.name);
         return false;
     }
 
-    s_info.channels = SZ_ReadShort(sz);
+    s_info.channels = SZ_ReadInt16(sz);
     if (s_info.channels < 1 || s_info.channels > 2) {
         Com_DPrintf("%s has bad number of channels\n", s_info.name);
         return false;
     }
 
-    s_info.rate = SZ_ReadLong(sz);
+    s_info.rate = SZ_ReadInt32(sz);
     if (s_info.rate < 8000 || s_info.rate > 48000) {
         Com_DPrintf("%s has bad rate\n", s_info.name);
         return false;
     }
 
     sz->readcount += 6;
-    width = SZ_ReadShort(sz);
+    width = SZ_ReadInt16(sz);
     switch (width) {
     case 8:
         s_info.width = 1;
@@ -149,7 +149,7 @@ static bool GetWavinfo(sizebuf_t *sz)
     next_chunk = sz->readcount + ALIGN(chunk_len, 2);
 
     sz->readcount += 24;
-    samples = SZ_ReadLong(sz);
+    samples = SZ_ReadInt32(sz);
     if (samples < 0 || samples >= s_info.samples) {
         Com_DPrintf("%s has bad loop start\n", s_info.name);
         return true;
@@ -163,13 +163,13 @@ static bool GetWavinfo(sizebuf_t *sz)
     }
 
     sz->readcount += 20;
-    if (SZ_ReadLong(sz) != TAG_mark) {
+    if (SZ_ReadInt32(sz) != TAG_mark) {
         return true;
     }
 
 // this is not a proper parse, but it works with cooledit...
     sz->readcount -= 8;
-    samples = SZ_ReadLong(sz);  // samples in loop
+    samples = SZ_ReadInt32(sz);  // samples in loop
     if (samples < 1 || samples > s_info.samples - s_info.loopstart) {
         Com_DPrintf("%s has bad loop length\n", s_info.name);
         return true;

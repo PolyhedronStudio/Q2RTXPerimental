@@ -103,7 +103,7 @@ static void load_binary_override(cm_t *cm, char *server, size_t server_size)
 
     ret = Q_ERR_INVALID_FORMAT;
 
-    bits = SZ_ReadLong(&sz);
+    bits = SZ_ReadInt32(&sz);
     if (bits & ~OVERRIDE_ALL)
         goto fail;
 
@@ -117,10 +117,10 @@ static void load_binary_override(cm_t *cm, char *server, size_t server_size)
     }
 
     if (bits & OVERRIDE_CSUM)
-        cm->checksum = SZ_ReadLong(&sz);
+        cm->checksum = SZ_ReadInt32(&sz);
 
     if (bits & OVERRIDE_ENTS) {
-        len = SZ_ReadLong(&sz);
+        len = SZ_ReadInt32(&sz);
         if (len <= 0)
             goto fail;
         if (!(buf = static_cast<char*>( SZ_ReadData(&sz, len)) ))

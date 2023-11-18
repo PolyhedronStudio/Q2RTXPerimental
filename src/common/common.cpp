@@ -34,7 +34,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/files.h"
 #include "common/math.h"
 #include "common/mdfour.h"
-#include "common/msg.h"
+#include "common/messaging.h"
 #include "common/net/net.h"
 #include "common/net/chan.h"
 #include "common/pmove.h"

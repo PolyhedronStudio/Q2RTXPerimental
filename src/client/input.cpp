@@ -21,7 +21,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 static cvar_t    *cl_nodelta;
 static cvar_t    *cl_maxpackets;
-static cvar_t    *cl_packetdup;
 static cvar_t    *cl_fuzzhack;
 #if USE_DEBUG
 static cvar_t    *cl_showpackets;
@@ -292,7 +291,7 @@ static void KeyDown(kbutton_t *b)
     c = Cmd_Argv(2);
     b->downtime = atoi(c);
     if (!b->downtime) {
-        b->downtime = com_eventTime - 40;
+        b->downtime = com_eventTime - BASE_FRAMETIME;
     }
 
     b->state |= 1 + 2;    // down + impulse down
@@ -714,7 +713,6 @@ void CL_RegisterInput(void)
 	// WID: netstuff: Changed from 30, to actually, 40.
     cl_maxpackets = Cvar_Get("cl_maxpackets", "40", 0);
     cl_fuzzhack = Cvar_Get("cl_fuzzhack", "0", 0);
-    cl_packetdup = Cvar_Get("cl_packetdup", "1", 0);
 #if USE_DEBUG
     cl_showpackets = Cvar_Get("cl_showpackets", "0", 0);
 #endif
@@ -913,7 +911,7 @@ static void CL_SendDefaultCmd(void)
     cl.lastTransmitCmdNumberReal = cl.cmdNumber;
 
     // begin a client move command
-    MSG_WriteByte(clc_move);
+    MSG_WriteUint8(clc_move);
 
     // save the position for a checksum byte
     checksumIndex = 0;
@@ -925,23 +923,23 @@ static void CL_SendDefaultCmd(void)
     // let the server know what the last frame we
     // got was, so the next message can be delta compressed
     if (cl_nodelta->integer || !cl.frame.valid /*|| cls.demowaiting*/) {
-        MSG_WriteLong(-1);   // no compression
+        MSG_WriteInt32(-1);   // no compression
     } else {
-        MSG_WriteLong(cl.frame.number);
+        MSG_WriteInt32(cl.frame.number);
     }
 
     // send this and the previous cmds in the message, so
     // if the last packet was dropped, it can be recovered
     cmd = &cl.cmds[(cl.cmdNumber - 2) & CMD_MASK];
-    MSG_WriteDeltaUsercmd(NULL, cmd, cls.protocolVersion);
+    MSG_WriteDeltaUserCommand(NULL, cmd, cls.protocolVersion);
     oldcmd = cmd;
 
     cmd = &cl.cmds[(cl.cmdNumber - 1) & CMD_MASK];
-    MSG_WriteDeltaUsercmd(oldcmd, cmd, cls.protocolVersion);
+    MSG_WriteDeltaUserCommand(oldcmd, cmd, cls.protocolVersion);
     oldcmd = cmd;
 
     cmd = &cl.cmds[cl.cmdNumber & CMD_MASK];
-    MSG_WriteDeltaUsercmd(oldcmd, cmd, cls.protocolVersion);
+    MSG_WriteDeltaUserCommand(oldcmd, cmd, cls.protocolVersion);
 
     if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         // calculate a checksum over the move commands
@@ -956,111 +954,10 @@ static void CL_SendDefaultCmd(void)
     //
     // deliver the message
     //
-    cursize = cls.netchan.Transmit(&cls.netchan, msg_write.cursize, msg_write.data, 1);
+    cursize = NetchanQ2RTXPerimental_Transmit(&cls.netchan, msg_write.cursize, msg_write.data );
 #if USE_DEBUG
     if (cl_showpackets->integer) {
         Com_Printf("%zu ", cursize);
-    }
-#endif
-
-    SZ_Clear(&msg_write);
-}
-
-/*
-=================
-CL_SendBatchedCmd
-=================
-*/
-static void CL_SendBatchedCmd(void)
-{
-    int i, j, seq, bits q_unused;
-    int numCmds, numDups;
-    int totalCmds, totalMsec;
-    size_t cursize q_unused;
-    usercmd_t *cmd, *oldcmd;
-    client_history_t *history, *oldest;
-    byte *patch;
-
-    // see if we are ready to send this packet
-    if (!ready_to_send()) {
-        return;
-    }
-
-    // archive this packet
-    seq = cls.netchan.outgoing_sequence;
-    history = &cl.history[seq & CMD_MASK];
-    history->cmdNumber = cl.cmdNumber;
-    history->sent = cls.realtime;    // for ping calculation
-    history->rcvd = 0;
-
-    cl.lastTransmitTime = cls.realtime;
-    cl.lastTransmitCmdNumber = cl.cmdNumber;
-    cl.lastTransmitCmdNumberReal = cl.cmdNumber;
-
-    MSG_BeginWriting();
-
-    // begin a client move command
-    patch = static_cast<byte*>( SZ_GetSpace(&msg_write, 1) ); // WID: C++20: Was without a cast.
-
-    // let the server know what the last frame we
-    // got was, so the next message can be delta compressed
-    if (cl_nodelta->integer || !cl.frame.valid /*|| cls.demowaiting*/) {
-        *patch = clc_move_nodelta; // no compression
-    } else {
-        *patch = clc_move_batched;
-        MSG_WriteLong(cl.frame.number);
-    }
-
-    Cvar_ClampInteger(cl_packetdup, 0, MAX_PACKET_FRAMES - 1);
-    numDups = cl_packetdup->integer;
-
-    *patch |= numDups << SVCMD_BITS;
-
-    // send this and the previous cmds in the message, so
-    // if the last packet was dropped, it can be recovered
-    oldcmd = NULL;
-    totalCmds = 0;
-    totalMsec = 0;
-    for (i = seq - numDups; i <= seq; i++) {
-        oldest = &cl.history[(i - 1) & CMD_MASK];
-        history = &cl.history[i & CMD_MASK];
-
-        numCmds = history->cmdNumber - oldest->cmdNumber;
-        if (numCmds >= MAX_PACKET_USERCMDS) {
-            Com_WPrintf("%s: MAX_PACKET_USERCMDS exceeded\n", __func__);
-            SZ_Clear(&msg_write);
-            break;
-        }
-        totalCmds += numCmds;
-        MSG_WriteBits(numCmds, 5);
-        for (j = oldest->cmdNumber + 1; j <= history->cmdNumber; j++) {
-            cmd = &cl.cmds[j & CMD_MASK];
-            totalMsec += cmd->msec;
-            bits = MSG_WriteDeltaUsercmd_Enhanced(oldcmd, cmd, cls.protocolVersion);
-#if USE_DEBUG
-            if (cl_showpackets->integer == 3) {
-                MSG_ShowDeltaUsercmdBits_Enhanced(bits);
-            }
-#endif
-            oldcmd = cmd;
-        }
-    }
-
-    MSG_FlushBits();
-
-    P_FRAMES++;
-
-    //
-    // deliver the message
-    //
-    cursize = cls.netchan.Transmit(&cls.netchan, msg_write.cursize, msg_write.data, 1);
-#if USE_DEBUG
-    if (cl_showpackets->integer == 1) {
-        Com_Printf("%zu(%i) ", cursize, totalCmds);
-    } else if (cl_showpackets->integer == 2) {
-        Com_Printf("%zu(%i) ", cursize, totalMsec);
-    } else if (cl_showpackets->integer == 3) {
-        Com_Printf(" | ");
     }
 #endif
 
@@ -1082,7 +979,7 @@ static void CL_SendKeepAlive(void)
     cl.lastTransmitCmdNumber = cl.cmdNumber;
     cl.lastTransmitCmdNumberReal = cl.cmdNumber;
 
-    cursize = cls.netchan.Transmit(&cls.netchan, 0, "", 1);
+    cursize = NetchanQ2RTXPerimental_Transmit(&cls.netchan, 0, "" );
 #if USE_DEBUG
     if (cl_showpackets->integer) {
         Com_Printf("%zu ", cursize);
@@ -1099,28 +996,29 @@ static void CL_SendUserinfo(void)
     if (cls.userinfo_modified == MAX_PACKET_USERINFOS) {
         size_t len = Cvar_BitInfo(userinfo, CVAR_USERINFO);
         Com_DDPrintf("%s: %u: full update\n", __func__, com_framenum);
-        MSG_WriteByte(clc_userinfo);
+        MSG_WriteUint8(clc_userinfo);
         MSG_WriteData(userinfo, len + 1);
         MSG_FlushTo(&cls.netchan.message);
-    } else if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
-        Com_DDPrintf("%s: %u: %d updates\n", __func__, com_framenum,
-                     cls.userinfo_modified);
-        for (i = 0; i < cls.userinfo_modified; i++) {
-            var = cls.userinfo_updates[i];
-            MSG_WriteByte(clc_userinfo_delta);
-            MSG_WriteString(var->name);
-            if (var->flags & CVAR_USERINFO) {
-                MSG_WriteString(var->string);
-            } else {
-                // no longer in userinfo
-                MSG_WriteString(NULL);
-            }
-        }
-        MSG_FlushTo(&cls.netchan.message);
-    } else {
-        Com_WPrintf("%s: update count is %d, should never happen.\n",
-                    __func__, cls.userinfo_modified);
-    }
+	} else {
+		Com_DDPrintf( "%s: %u: %d updates\n", __func__, com_framenum,
+					 cls.userinfo_modified );
+		for ( i = 0; i < cls.userinfo_modified; i++ ) {
+			var = cls.userinfo_updates[ i ];
+			MSG_WriteUint8( clc_userinfo_delta );
+			MSG_WriteString( var->name );
+			if ( var->flags & CVAR_USERINFO ) {
+				MSG_WriteString( var->string );
+			} else {
+				// no longer in userinfo
+				MSG_WriteString( NULL );
+			}
+		}
+		MSG_FlushTo( &cls.netchan.message );
+	}
+    //} else {
+    //    Com_WPrintf("%s: update count is %d, should never happen.\n",
+    //                __func__, cls.userinfo_modified);
+    //}
 }
 
 static void CL_SendReliable(void)
@@ -1147,12 +1045,12 @@ void CL_SendCmd(void)
         return;
     }
 
-    if (cls.state != ca_active || sv_paused->integer) {
+    if ( cls.state != ca_active || sv_paused->integer ) {
         // send a userinfo update if needed
         CL_SendReliable();
 
         // just keepalive or update reliable
-        if (cls.netchan.ShouldUpdate(&cls.netchan)) {
+        if ( NetchanQ2RTXPerimental_ShouldUpdate( &cls.netchan ) ) {
             CL_SendKeepAlive();
         }
 
@@ -1167,12 +1065,7 @@ void CL_SendCmd(void)
 
     // send a userinfo update if needed
     CL_SendReliable();
-
-    if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO && cl_batchcmds->integer) {
-        CL_SendBatchedCmd();
-    } else {
-        CL_SendDefaultCmd();
-    }
+	CL_SendDefaultCmd();
 
     cl.sendPacketNow = false;
 }

@@ -64,11 +64,6 @@ dropping packets. This is not a generally recommended thing to do, but can
 be enabled if nothing else helps to reduce ping. Default value is 0
 (disabled).
 
-#### `cl_packetdup`
-Number of backup movement commands client includes in each new packet,
-directly impacts upload rate. Unless connected using Q2PRO protocol,
-hardcoded value of 2 backups per packet is used. Default value is 1.
-
 #### `cl_instantpacket`
 Specifies if important events such as pressing `+attack` or `+use` are sent
 to the server immediately, ignoring any rate limits. Default value is 1

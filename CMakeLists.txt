@@ -107,7 +107,7 @@ endif ()
 
 
 #
-# --------- 'System Specific' Build Flag Management ------------
+# --------- 'MSVC' Build Flag Management ------------
 #
 IF(MSVC)
     macro(replace_msvcrt var value)
@@ -132,7 +132,6 @@ IF(MSVC)
     replace_msvcrt(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/MT")
 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
-
 ELSEIF(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le")
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=native")
 ELSEIF(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
@@ -158,41 +157,3 @@ link_directories(.)
 set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/install)
 SET(CMAKE_INTERPROCEDURAL_OPTIMIZATION ${CONFIG_BUILD_IPO})
 add_subdirectory(src)
-
-#IF(CONFIG_LINUX_PACKAGING_SUPPORT)
-#    # https://cmake.org/cmake/help/v3.8/module/CPackDeb.html
-#    set(CPACK_GENERATOR "DEB")
-#    set(CPACK_PACKAGE_NAME "quake2rtx")
-#    set(CPACK_PACKAGE_VENDOR "NVIDIA Corporation")
-#    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "RTX Remaster of Quake 2")
-#    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/license.txt")
-#    set(CPACK_PACKAGE_VERSION_MAJOR ${Q2RTX_VERSION_MAJOR})
-#    set(CPACK_PACKAGE_VERSION_MINOR ${Q2RTX_VERSION_MINOR})
-#    set(CPACK_PACKAGE_VERSION_PATCH ${Q2RTX_VERSION_POINT})
-#    set(CPACK_DEBIAN_PACKAGE_SECTION "games")
-#    
-#    IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-#        set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "arm64")
-#    ELSEIF(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le")
-#        set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "ppc64el")
-#    ELSE()
-#        set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
-#    ENDIF()
-#
-#    set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
-#
-#    set(CPACK_PACKAGE_CONTACT "http://nvidia.com/object/support.html")
-#
-#    set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://www.nvidia.com/en-us/geforce/news/quake-ii-rtx-ray-tracing-vulkan-vkray-geforce-rtx/")
-#
-#    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libvulkan1")
-#
-#    set(CPACK_DEB_PACKAGE_COMPONENT ON)
-#    set(CPACK_DEB_COMPONENT_INSTALL ON)
-#    set(CPACK_DEBIAN_ENABLE_COMPONENT_DEPENDS ON)
-#
-#    # Mark as shareware to be clear this is demo levels + RTX
-#    set(CPACK_COMPONENTS_ALL shareware)
-#
-#    include(CPack)
-#ENDIF()

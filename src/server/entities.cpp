@@ -144,7 +144,7 @@ static void SV_EmitPacketEntities(client_t         *client,
         }
     }
 
-    MSG_WriteShort(0);      // end of packetentities
+    MSG_WriteInt16(0);      // end of packetentities
 }
 
 static client_frame_t *get_last_frame(client_t *client)
@@ -184,10 +184,10 @@ static client_frame_t *get_last_frame(client_t *client)
 
 /*
 ==================
-SV_WriteFrameToClient_Q2RTXPerimental
+SV_WriteFrameToClient
 ==================
 */
-void SV_WriteFrameToClient_Q2RTXPerimental( client_t *client ) {
+void SV_WriteFrameToClient( client_t *client ) {
 	client_frame_t *frame, *oldframe;
 	player_packed_t *oldstate;
 	int             lastframe;
@@ -205,194 +205,26 @@ void SV_WriteFrameToClient_Q2RTXPerimental( client_t *client ) {
 		lastframe = -1;
 	}
 
-	MSG_WriteByte( svc_frame );
-	MSG_WriteLong( client->framenum );
-	MSG_WriteLong( lastframe );   // what we are delta'ing from
-	MSG_WriteByte( client->suppress_count );  // rate dropped packets
+	MSG_WriteUint8( svc_frame );
+	MSG_WriteInt32( client->framenum );
+	MSG_WriteInt32( lastframe );   // what we are delta'ing from
+	MSG_WriteUint8( client->suppress_count );  // rate dropped packets
 	client->suppress_count = 0;
 	client->frameflags = 0;
 
 	// send over the areabits
-	MSG_WriteByte( frame->areabytes );
+	MSG_WriteUint8( frame->areabytes );
 	MSG_WriteData( frame->areabits, frame->areabytes );
 
 	// delta encode the playerstate
-	MSG_WriteByte( svc_playerinfo );
-	MSG_WriteDeltaPlayerstate_Q2RTXPerimental( oldstate, &frame->ps );
+	MSG_WriteUint8( svc_playerinfo );
+	MSG_WriteDeltaPlayerstate( oldstate, &frame->ps );
 
 	// delta encode the entities
-	MSG_WriteByte( svc_packetentities );
+	MSG_WriteUint8( svc_packetentities );
 	SV_EmitPacketEntities( client, oldframe, frame, 0 );
 }
 
-/*
-==================
-SV_WriteFrameToClient_Default
-==================
-*/
-//void SV_WriteFrameToClient_Default(client_t *client)
-//{
-//    client_frame_t  *frame, *oldframe;
-//    player_packed_t *oldstate;
-//    int             lastframe;
-//
-//    // this is the frame we are creating
-//    frame = &client->frames[client->framenum & UPDATE_MASK];
-//
-//    // this is the frame we are delta'ing from
-//    oldframe = get_last_frame(client);
-//    if (oldframe) {
-//        oldstate = &oldframe->ps;
-//        lastframe = client->lastframe;
-//    } else {
-//        oldstate = NULL;
-//        lastframe = -1;
-//    }
-//
-//    MSG_WriteByte(svc_frame);
-//    MSG_WriteLong(client->framenum);
-//    MSG_WriteLong(lastframe);   // what we are delta'ing from
-//    MSG_WriteByte(client->suppress_count);  // rate dropped packets
-//    client->suppress_count = 0;
-//    client->frameflags = 0;
-//
-//    // send over the areabits
-//    MSG_WriteByte(frame->areabytes);
-//    MSG_WriteData(frame->areabits, frame->areabytes);
-//
-//    // delta encode the playerstate
-//    MSG_WriteByte(svc_playerinfo);
-//    MSG_WriteDeltaPlayerstate_Default(oldstate, &frame->ps);
-//
-//    // delta encode the entities
-//    MSG_WriteByte(svc_packetentities);
-//    SV_EmitPacketEntities(client, oldframe, frame, 0);
-//}
-
-/*
-==================
-SV_WriteFrameToClient_Enhanced
-==================
-*/
-void SV_WriteFrameToClient_Enhanced(client_t *client)
-{
-    client_frame_t  *frame, *oldframe;
-    player_packed_t *oldstate;
-    uint32_t        extraflags, delta;
-    int             suppressed;
-    byte            *b1, *b2;
-    msgPsFlags_t    psFlags;
-    int             clientEntityNum;
-
-    // this is the frame we are creating
-    frame = &client->frames[client->framenum & UPDATE_MASK];
-
-    // this is the frame we are delta'ing from
-    oldframe = get_last_frame(client);
-    if (oldframe) {
-        oldstate = &oldframe->ps;
-        delta = client->framenum - client->lastframe;
-    } else {
-        oldstate = NULL;
-        delta = 31;
-    }
-
-    // first byte to be patched
-    b1 = static_cast<byte*>( SZ_GetSpace(&msg_write, 1) ); // WID: C++20: Added cast.
-
-    MSG_WriteLong((client->framenum & FRAMENUM_MASK) | (delta << FRAMENUM_BITS));
-
-    // second byte to be patched
-    b2 = static_cast<byte*>( SZ_GetSpace(&msg_write, 1) ); // WID: C++20: Added cast.
-
-    // send over the areabits
-    MSG_WriteByte(frame->areabytes);
-    MSG_WriteData(frame->areabits, frame->areabytes);
-
-    // ignore some parts of playerstate if not recording demo
-    psFlags = static_cast<msgPsFlags_t>( 0 );
-    if (!client->settings[CLS_RECORDING]) {
-        if (client->settings[CLS_NOGUN]) {
-			// WID: C++20:
-            //psFlags |= MSG_PS_IGNORE_GUNFRAMES;
-			psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_GUNFRAMES );
-            if (client->settings[CLS_NOGUN] != 2) {
-				// WID: C++20:
-                //psFlags |= MSG_PS_IGNORE_GUNINDEX;
-				psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_GUNINDEX );
-            }
-        }
-        if (client->settings[CLS_NOBLEND]) {
-            //psFlags |= MSG_PS_IGNORE_BLEND;
-			// WID: C++20:
-			psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_BLEND );
-        }
-        if (frame->ps.pmove.pm_type < PM_DEAD) {
-            if (!(frame->ps.pmove.pm_flags & PMF_NO_PREDICTION)) {
-				//psFlags |= MSG_PS_IGNORE_VIEWANGLES;
-				// WID: C++20:
-				psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_VIEWANGLES );
-            }
-        } else {
-            // lying dead on a rotating platform?
-            //psFlags |= MSG_PS_IGNORE_DELTAANGLES;
-			// WID: C++20:
-			psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_DELTAANGLES );
-
-        }
-    }
-
-    clientEntityNum = 0;
-    if (client->protocol == PROTOCOL_VERSION_Q2PRO) {
-        if (frame->ps.pmove.pm_type < PM_DEAD && !client->settings[CLS_RECORDING]) {
-            clientEntityNum = frame->clientNum + 1;
-        }
-        if (client->settings[CLS_NOPREDICT]) {
-            //psFlags |= MSG_PS_IGNORE_PREDICTION;
-			// WID: C++20:
-			psFlags = static_cast<msgPsFlags_t>( psFlags | MSG_PS_IGNORE_PREDICTION );
-        }
-        suppressed = client->frameflags;
-    } else {
-        suppressed = client->suppress_count;
-    }
-
-    // delta encode the playerstate
-    extraflags = MSG_WriteDeltaPlayerstate_Enhanced(oldstate, &frame->ps, psFlags);
-
-    if (client->protocol == PROTOCOL_VERSION_Q2PRO) {
-        // delta encode the clientNum
-        if (client->version < PROTOCOL_VERSION_Q2PRO_CLIENTNUM_FIX) {
-            if (!oldframe || frame->clientNum != oldframe->clientNum) {
-                extraflags |= EPS_CLIENTNUM;
-                MSG_WriteByte(frame->clientNum);
-            }
-        } else {
-            int clientNum = oldframe ? oldframe->clientNum : 0;
-            if (clientNum != frame->clientNum) {
-                extraflags |= EPS_CLIENTNUM;
-                if (client->version < PROTOCOL_VERSION_Q2PRO_CLIENTNUM_SHORT) {
-                    MSG_WriteByte(frame->clientNum);
-                } else {
-                    MSG_WriteShort(frame->clientNum);
-                }
-            }
-        }
-    }
-
-    // save 3 high bits of extraflags
-    *b1 = svc_frame | (((extraflags & 0x70) << 1));
-
-    // save 4 low bits of extraflags
-    *b2 = (suppressed & SUPPRESSCOUNT_MASK) |
-          ((extraflags & 0x0F) << SUPPRESSCOUNT_BITS);
-
-    client->suppress_count = 0;
-    client->frameflags = 0;
-
-    // delta encode the entities
-    SV_EmitPacketEntities(client, oldframe, frame, clientEntityNum);
-}
 
 /*
 =============================================================================
@@ -401,51 +233,6 @@ Build a client frame structure
 
 =============================================================================
 */
-
-#if USE_FPS
-static void
-fix_old_origin(client_t *client, entity_packed_t *state, edict_t *ent, int e)
-{
-    server_entity_t *sent = &sv.entities[e];
-    int i, j, k;
-
-    if (ent->s.renderfx & RF_BEAM)
-        return;
-
-    if (!ent->linkcount)
-        return; // not linked in anywhere
-
-    if (sent->create_framenum >= sv.framenum) {
-        // created this frame. unfortunate for projectiles: they will move only
-        // with 1/client->framediv fraction of their normal speed on the client
-        return;
-    }
-
-    if (state->event == EV_PLAYER_TELEPORT && !Q2PRO_OPTIMIZE(client)) {
-        // other clients will lerp from old_origin on EV_PLAYER_TELEPORT...
-        VectorCopy(state->origin, state->old_origin);
-        return;
-    }
-
-    if (sent->create_framenum > sv.framenum - client->framediv) {
-        // created between client frames
-        VectorScale(sent->create_origin, 8.0f, state->old_origin);
-        return;
-    }
-
-    // find the oldest valid origin
-    for (i = 0; i < client->framediv - 1; i++) {
-        j = sv.framenum - (client->framediv - i);
-        k = j & ENT_HISTORY_MASK;
-        if (sent->history[k].framenum == j) {
-            VectorScale(sent->history[k].origin, 8.0f, state->old_origin);
-            return;
-        }
-    }
-
-    // no valid old_origin, just use what game provided
-}
-#endif
 
 /*
 =============
@@ -495,7 +282,7 @@ void SV_BuildClientFrame(client_t *client)
 
     // calculate the visible areas
     frame->areabytes = CM_WriteAreaBits(client->cm, frame->areabits, clientarea);
-    if (!frame->areabytes && client->protocol != PROTOCOL_VERSION_Q2PRO) {
+    if (!frame->areabytes/* && client->protocol != PROTOCOL_VERSION_Q2PRO*/) {
         frame->areabits[0] = 255;
         frame->areabytes = 1;
     }
@@ -504,21 +291,22 @@ void SV_BuildClientFrame(client_t *client)
     MSG_PackPlayer(&frame->ps, ps);
 
     // grab the current clientNum
-    if (g_features->integer & GMF_CLIENTNUM) {
-        frame->clientNum = clent->client->clientNum;
-        if (!VALIDATE_CLIENTNUM(frame->clientNum)) {
-            Com_WPrintf("%s: bad clientNum %d for client %d\n",
-                        __func__, frame->clientNum, client->number);
-            frame->clientNum = client->number;
-        }
-    } else {
+    //if (g_features->integer & GMF_CLIENTNUM) {
+    //    frame->clientNum = clent->client->clientNum;
+    //    if (!VALIDATE_CLIENTNUM(frame->clientNum)) {
+    //        Com_WPrintf("%s: bad clientNum %d for client %d\n",
+    //                    __func__, frame->clientNum, client->number);
+    //        frame->clientNum = client->number;
+    //    }
+    //} else {
         frame->clientNum = client->number;
-    }
+    //}
 
     // fix clientNum if out of range for older version of Q2PRO protocol
-    need_clientnum_fix = client->protocol == PROTOCOL_VERSION_Q2PRO
-        && client->version < PROTOCOL_VERSION_Q2PRO_CLIENTNUM_SHORT
-        && frame->clientNum >= CLIENTNUM_NONE;
+    //need_clientnum_fix = client->protocol == PROTOCOL_VERSION_Q2PRO
+    //    && client->version < PROTOCOL_VERSION_Q2PRO_CLIENTNUM_SHORT
+    //    && frame->clientNum >= CLIENTNUM_NONE;
+	need_clientnum_fix = false;
 
 	if (clientcluster >= 0)
 	{
@@ -553,13 +341,6 @@ void SV_BuildClientFrame(client_t *client)
             if (!ent->s.event) {
                 continue;
             }
-            if (ent->s.event == EV_FOOTSTEP && client->settings[CLS_NOFOOTSTEPS]) {
-                continue;
-            }
-        }
-
-        if ((ent->s.effects & EF_GIB) && client->settings[CLS_NOGIBS]) {
-            continue;
         }
 
         ent_visible = true;
@@ -632,26 +413,19 @@ void SV_BuildClientFrame(client_t *client)
         state = &svs.entities[svs.next_entity % svs.num_entities];
         MSG_PackEntity(state, &es, Q2PRO_SHORTANGLES(client, e));
 
-#if USE_FPS
-        // fix old entity origins for clients not running at
-        // full server frame rate
-        if (client->framediv != 1)
-            fix_old_origin(client, state, ent, e);
-#endif
-
         // clear footsteps
-        if (state->event == EV_FOOTSTEP && client->settings[CLS_NOFOOTSTEPS]) {
-            state->event = 0;
-        }
+        //if (state->event == EV_FOOTSTEP && client->settings[CLS_NOFOOTSTEPS]) {
+        //    state->event = 0;
+        //}
 
         // hide POV entity from renderer, unless this is player's own entity
         if (e == frame->clientNum + 1 && ent != clent &&
-            (!Q2PRO_OPTIMIZE(client) || need_clientnum_fix)) {
+            (/*!Q2PRO_OPTIMIZE(client) || */need_clientnum_fix)) {
             state->modelindex = 0;
         }
 
+		// don't mark players missiles as solid
         if (ent->owner == clent) {
-            // don't mark players missiles as solid
             state->solid.u = 0;
         }
 		// WID: netstuff: longsolid

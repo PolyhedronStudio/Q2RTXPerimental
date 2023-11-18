@@ -619,8 +619,8 @@ void BossExplode(edict_t *self)
         return;
     }
 
-    gi.WriteByte(svc_temp_entity);
-    gi.WriteByte(TE_EXPLOSION1);
+    gi.WriteUint8(svc_temp_entity);
+    gi.WriteUint8(TE_EXPLOSION1);
     gi.WritePosition(org);
     gi.multicast(self->s.origin, MULTICAST_PVS);
 

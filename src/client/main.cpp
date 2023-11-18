@@ -71,9 +71,6 @@ cvar_t  *cl_changemapcmd;
 cvar_t  *cl_beginmapcmd;
 
 cvar_t  *cl_gibs;
-#if USE_FPS
-cvar_t  *cl_updaterate;
-#endif
 
 cvar_t  *cl_protocol;
 
@@ -189,102 +186,6 @@ static request_t *CL_FindRequest(void)
 
 //======================================================================
 
-static void CL_UpdateGunSetting(void)
-{
-    int nogun;
-
-    if (cls.netchan.protocol < PROTOCOL_VERSION_R1Q2) {
-        return;
-    }
-
-    if (cl_player_model->integer == CL_PLAYER_MODEL_DISABLED || info_hand->integer == 2) {
-        nogun = 1;
-    } else {
-        nogun = 0;
-    }
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_NOGUN);
-    MSG_WriteShort(nogun);
-    MSG_FlushTo(&cls.netchan.message);
-}
-
-static void CL_UpdateGibSetting(void)
-{
-    if (cls.netchan.protocol != PROTOCOL_VERSION_Q2PRO) {
-        return;
-    }
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_NOGIBS);
-    MSG_WriteShort(!cl_gibs->integer);
-    MSG_FlushTo(&cls.netchan.message);
-}
-
-static void CL_UpdateFootstepsSetting(void)
-{
-    if (cls.netchan.protocol != PROTOCOL_VERSION_Q2PRO) {
-        return;
-    }
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_NOFOOTSTEPS);
-    MSG_WriteShort(!cl_footsteps->integer);
-    MSG_FlushTo(&cls.netchan.message);
-}
-
-static void CL_UpdatePredictSetting(void)
-{
-    if (cls.netchan.protocol != PROTOCOL_VERSION_Q2PRO) {
-        return;
-    }
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_NOPREDICT);
-    MSG_WriteShort(!cl_predict->integer);
-    MSG_FlushTo(&cls.netchan.message);
-}
-
-#if USE_FPS
-static void CL_UpdateRateSetting(void)
-{
-    if (cls.netchan.protocol != PROTOCOL_VERSION_Q2PRO) {
-        return;
-    }
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_FPS);
-    MSG_WriteShort(cl_updaterate->integer);
-    MSG_FlushTo(&cls.netchan.message);
-}
-#endif
-
-void CL_UpdateRecordingSetting(void)
-{
-    int rec;
-
-    if (cls.netchan.protocol < PROTOCOL_VERSION_R1Q2) {
-        return;
-    }
-
-    if (cls.demo.recording) {
-        rec = 1;
-    } else {
-        rec = 0;
-    }
-
-#if USE_CLIENT_GTV
-    if (cls.gtv.state == ca_active) {
-        rec |= 1;
-    }
-#endif
-
-    MSG_WriteByte(clc_setting);
-    MSG_WriteShort(CLS_RECORDING);
-    MSG_WriteShort(rec);
-    MSG_FlushTo(&cls.netchan.message);
-}
-
 /*
 ===================
 CL_ClientCommand
@@ -298,7 +199,7 @@ void CL_ClientCommand(const char *string)
 
     Com_DDPrintf("%s: %s\n", __func__, string);
 
-    MSG_WriteByte(clc_stringcmd);
+    MSG_WriteUint8(clc_stringcmd);
     MSG_WriteString(string);
     MSG_FlushTo(&cls.netchan.message);
 }
@@ -387,13 +288,8 @@ void CL_CheckForResend(void)
         strcpy(cls.servername, "localhost");
         cls.serverAddress.type = NA_LOOPBACK;
         cls.serverProtocol = cl_protocol->integer;
-        if (cls.serverProtocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL ||
-            cls.serverProtocol > PROTOCOL_VERSION_Q2PRO) {
-            
-			// WID: net-code: default to PROTOCOL_VERSION_Q2PRO
-			cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
-			//cls.serverProtocol = PROTOCOL_VERSION_Q2PRO;
-        }
+		// WID: net-code: default to PROTOCOL_VERSION_Q2RTXPERIMENTAL
+		cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
 
         // we don't need a challenge on the localhost
         cls.state = ca_connecting;
@@ -439,17 +335,17 @@ void CL_CheckForResend(void)
 
     // add protocol dependent stuff
     switch (cls.serverProtocol) {
-    case PROTOCOL_VERSION_R1Q2:
-        Q_snprintf(tail, sizeof(tail), " %d %d",
-                   maxmsglen, PROTOCOL_VERSION_R1Q2_CURRENT);
-        cls.quakePort = net_qport->integer & 0xff;
-        break;
-    case PROTOCOL_VERSION_Q2PRO:
-        Q_snprintf(tail, sizeof(tail), " %d %d %d %d",
-                   maxmsglen, net_chantype->integer, USE_ZLIB,
-                   PROTOCOL_VERSION_Q2PRO_CURRENT);
-        cls.quakePort = net_qport->integer & 0xff;
-        break;
+    //case PROTOCOL_VERSION_R1Q2:
+    //    Q_snprintf(tail, sizeof(tail), " %d %d",
+    //               maxmsglen, PROTOCOL_VERSION_R1Q2_CURRENT);
+    //    cls.quakePort = net_qport->integer & 0xff;
+    //    break;
+    //case PROTOCOL_VERSION_Q2PRO:
+    //    Q_snprintf(tail, sizeof(tail), " %d %d %d %d",
+    //               maxmsglen, net_chantype->integer, USE_ZLIB,
+    //               PROTOCOL_VERSION_Q2PRO_CURRENT);
+    //    cls.quakePort = net_qport->integer & 0xff;
+    //    break;
 	case PROTOCOL_VERSION_Q2RTXPERIMENTAL:
 		tail[ 0 ] = 0;
 		cls.quakePort = net_qport->integer;
@@ -517,19 +413,19 @@ usage:
         return;
     }
 
-    if (argc > 2) {
-        protocol = atoi(Cmd_Argv(2));
-        if (protocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL ||
-            protocol > PROTOCOL_VERSION_Q2PRO) {
-            goto usage;
-        }
-    } else {
-        protocol = cl_protocol->integer;
-        if (!protocol) {
+    //if (argc > 2) {
+    //    protocol = atoi(Cmd_Argv(2));
+    //    if (protocol < PROTOCOL_VERSION_Q2RTXPERIMENTAL ||
+    //        protocol > PROTOCOL_VERSION_Q2PRO) {
+    //        goto usage;
+    //    }
+    //} else {
+    //    protocol = cl_protocol->integer;
+    //    if (!protocol) {
 			// WID: net-code: We want to default to Q2RTXPerimental protocol my man.
             protocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
-        }
-    }
+    //    }
+    //}
 
     server = Cmd_Argv(1);
 
@@ -748,10 +644,13 @@ void CL_Disconnect(error_type_t type)
 
     if (cls.netchan.protocol) {
         // send a disconnect message to the server
-        MSG_WriteByte(clc_stringcmd);
+        MSG_WriteUint8(clc_stringcmd);
         MSG_WriteData("disconnect", 11);
 
-        cls.netchan.Transmit(&cls.netchan, msg_write.cursize, msg_write.data, 3);
+		// 3 times to make sure.
+		NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
+		NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
+		NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
 
         SZ_Clear(&msg_write);
 
@@ -1238,7 +1137,7 @@ static void CL_ConnectionlessPacket(void)
     int     i, j, k;
 
     MSG_BeginReading();
-    MSG_ReadLong(); // skip the -1
+    MSG_ReadInt32(); // skip the -1
 
     if (MSG_ReadStringLine(string, sizeof(string)) >= sizeof(string)) {
         Com_DPrintf("Oversize message received.  Ignored.\n");
@@ -1247,11 +1146,11 @@ static void CL_ConnectionlessPacket(void)
 
     Cmd_TokenizeString(string, false);
 
+	// Get the first argument value, determining the 'action' to take:
     c = Cmd_Argv(0);
-
     Com_DPrintf("%s: %s\n", NET_AdrToString(&net_from), string);
 
-    // challenge from the server we are connecting to
+    // Action: challenge: challenge from the server we are connecting to
     if (!strcmp(c, "challenge")) {
         int mask = 0;
 
@@ -1273,55 +1172,41 @@ static void CL_ConnectionlessPacket(void)
         cls.connect_time -= CONNECT_INSTANT; // fire immediately
         //cls.connect_count = 0;
 
-        // parse additional parameters
-        j = Cmd_Argc();
-        for (i = 2; i < j; i++) {
-            s = Cmd_Argv(i);
-            if (!strncmp(s, "p=", 2)) {
-                s += 2;
-                while (*s) {
-                    k = strtoul(s, &s, 10);
-                    if (k == PROTOCOL_VERSION_R1Q2) {
-                        mask |= 1;
-                    } else if (k == PROTOCOL_VERSION_Q2PRO) {
-                        mask |= 2;
-                    }
-                    s = strchr(s, ',');
-                    if (s == NULL) {
-                        break;
-                    }
-                    s++;
-                }
-            }
-        }
+        // Parse additional parameters.
+		// Left as an example:
+        //j = Cmd_Argc();
+        //for (i = 2; i < j; i++) {
+        //    s = Cmd_Argv(i);
+        //    if (!strncmp(s, "p=", 2)) {
+        //        s += 2;
+        //        while (*s) {
+        //            k = strtoul(s, &s, 10);
+        //            if (k == PROTOCOL_VERSION_R1Q2) {
+        //                mask |= 1;
+        //            } else if (k == PROTOCOL_VERSION_Q2PRO) {
+        //                mask |= 2;
+        //            }
+        //            s = strchr(s, ',');
+        //            if (s == NULL) {
+        //                break;
+        //            }
+        //            s++;
+        //        }
+        //    }
+        //}
 
-        // choose supported protocol
-        switch (cls.serverProtocol) {
-        case PROTOCOL_VERSION_Q2PRO:
-            if (mask & 2) {
-                break;
-            }
-            cls.serverProtocol = PROTOCOL_VERSION_R1Q2;
-            // fall through
-        case PROTOCOL_VERSION_R1Q2:
-            if (mask & 1) {
-                break;
-            }
-            // fall through
-        default:
-            cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
-            break;
-        }
+		// WID: net-protocol2: Default to PROTOCOL_VERSION_Q2RTXPERIMENTAL;
+		cls.serverProtocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
         Com_DPrintf("Selected protocol %d\n", cls.serverProtocol);
 
+		// Keep on sending connect messages by retrying if it timed out.
         CL_CheckForResend();
         return;
     }
 
-    // server connection
+    // Action: Server Connection: Connect command received.
     if (!strcmp(c, "client_connect")) {
         netchan_type_t type;
-        int anticheat = 0;
         char mapname[MAX_QPATH];
         bool got_server = false;
 
@@ -1338,12 +1223,12 @@ static void CL_ConnectionlessPacket(void)
             return;
         }
 
-        if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
-            type = NETCHAN_NEW;
-        } else {
-			// WID: net-code: Different Net Channel in place.
-            type = NETCHAN_Q2RTXPERIMENTAL; //NETCHAN_OLD;
-        }
+   //     if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
+   //         type = NETCHAN_NEW;
+   //     } else {
+			//// WID: net-code: Different Net Channel in place.
+   //         type = NETCHAN_Q2RTXPERIMENTAL; //NETCHAN_OLD;
+   //     }
 
         mapname[0] = 0;
 
@@ -1351,22 +1236,7 @@ static void CL_ConnectionlessPacket(void)
         j = Cmd_Argc();
         for (i = 1; i < j; i++) {
             s = Cmd_Argv(i);
-            if (!strncmp(s, "ac=", 3)) {
-                s += 3;
-                if (*s) {
-                    anticheat = atoi(s);
-                }
-            } else if (!strncmp(s, "nc=", 3)) {
-                s += 3;
-                if (*s) {
-                    type = static_cast<netchan_type_t>( atoi(s) ); // WID: C++20: Was without a cast.
-					// WID: net-code: Check for NETCHAN_Q2RTXPERIMENTAL as well.
-                    if (type != NETCHAN_OLD && type != NETCHAN_NEW && type != NETCHAN_Q2RTXPERIMENTAL ) {
-                        Com_Error(ERR_DISCONNECT,
-                                  "Server returned invalid netchan type");
-                    }
-                }
-            } else if (!strncmp(s, "map=", 4)) {
+			if (!strncmp(s, "map=", 4)) {
                 Q_strlcpy(mapname, s + 4, sizeof(mapname));
             } else if (!strncmp(s, "dlserver=", 9)) {
                 if (!got_server) {
@@ -1383,30 +1253,8 @@ static void CL_ConnectionlessPacket(void)
         Com_Printf("Connected to %s (protocol %d).\n",
                    NET_AdrToString(&cls.serverAddress), cls.serverProtocol);
         Netchan_Close(&cls.netchan);
-        Netchan_Setup(&cls.netchan, NS_CLIENT, type, &cls.serverAddress,
+        Netchan_Setup(&cls.netchan, NS_CLIENT, NETCHAN_Q2RTXPERIMENTAL, &cls.serverAddress,
                       cls.quakePort, 1024, cls.serverProtocol);
-
-#if USE_AC_CLIENT
-        if (anticheat) {
-            MSG_WriteByte(clc_nop);
-            MSG_FlushTo(&cls.netchan.message);
-            cls.netchan.Transmit(&cls.netchan, 0, "", 3);
-            S_StopAllSounds();
-            cls.connect_count = -1;
-            Com_Printf("Loading anticheat, this may take a few moments...\n");
-            SCR_UpdateScreen();
-            if (!Sys_GetAntiCheatAPI()) {
-                Com_Printf("Trying to connect without anticheat.\n");
-            } else {
-                Com_LPrintf(PRINT_NOTICE, "Anticheat loaded successfully.\n");
-            }
-        }
-#else
-        if (anticheat >= 2) {
-            Com_Printf("Anticheat required by server, "
-                       "but no anticheat support linked in.\n");
-        }
-#endif
 
         CL_ClientCommand("new");
         cls.state = ca_connected;
@@ -1488,7 +1336,7 @@ static void CL_PacketEvent(void)
         return;
     }
 
-    if (!cls.netchan.Process(&cls.netchan))
+    if ( !NetchanQ2RTXPerimental_Process( &cls.netchan ) )
         return;     // wasn't accepted for some reason
 
 #if USE_ICMP
@@ -1500,7 +1348,7 @@ static void CL_PacketEvent(void)
     SCR_LagSample();
 
     // if recording demo, write the message out
-    if (cls.demo.recording && !cls.demo.paused && CL_FRAMESYNC) {
+    if (cls.demo.recording && !cls.demo.paused) {
         CL_WriteDemoMessage(&cls.demo.buffer);
     }
 }
@@ -1575,11 +1423,11 @@ void CL_UpdateUserinfo(cvar_t *var, from_t from)
         return;
     }
 
-    if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO) {
-        // transmit at next oportunity
-        cls.userinfo_modified = MAX_PACKET_USERINFOS;
-        goto done;
-    }
+    //if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO) {
+    //    // transmit at next oportunity
+    //    cls.userinfo_modified = MAX_PACKET_USERINFOS;
+    //    goto done;
+    //}
 
     if (cls.userinfo_modified == MAX_PACKET_USERINFOS) {
         // can't hold any more
@@ -1672,15 +1520,6 @@ Called after all downloads are done. Not used for demos.
 */
 void CL_Begin(void)
 {
-#if USE_REF == REF_GL
-    if (!Q_stricmp(cl.gamedir, "gloom")) {
-        // cheat protect our custom modulate cvars
-        gl_modulate_world->flags |= CVAR_CHEAT;
-        gl_modulate_entities->flags |= CVAR_CHEAT;
-        gl_brightness->flags |= CVAR_CHEAT;
-    }
-#endif
-
     Cvar_FixCheats();
 
     CL_PrepRefresh();
@@ -1690,18 +1529,7 @@ void CL_Begin(void)
     CL_LoadState(LOAD_NONE);
     cls.state = ca_precached;
 
-#if USE_FPS
-    CL_UpdateRateSetting();
-#endif
-
     CL_ClientCommand(va("begin %i\n", precache_spawncount));
-
-    CL_UpdateGunSetting();
-    CL_UpdateBlendSetting();
-    CL_UpdateGibSetting();
-    CL_UpdateFootstepsSetting();
-    CL_UpdatePredictSetting();
-    CL_UpdateRecordingSetting();
 }
 
 /*
@@ -2489,38 +2317,6 @@ static void exec_server_string(cmdbuf_t *buf, const char *text)
     Cmd_ExecuteCommand(buf);
 }
 
-static void cl_player_model_changed(cvar_t *self)
-{
-    CL_UpdateGunSetting();
-}
-
-static void info_hand_changed(cvar_t *self)
-{
-    CL_UpdateGunSetting();
-}
-
-static void cl_gibs_changed(cvar_t *self)
-{
-    CL_UpdateGibSetting();
-}
-
-static void cl_footsteps_changed(cvar_t *self)
-{
-    CL_UpdateFootstepsSetting();
-}
-
-static void cl_predict_changed(cvar_t *self)
-{
-    CL_UpdatePredictSetting();
-}
-
-#if USE_FPS
-static void cl_updaterate_changed(cvar_t *self)
-{
-    CL_UpdateRateSetting();
-}
-#endif
-
 static inline int fps_to_msec(int fps)
 {
 #if 0
@@ -2682,11 +2478,9 @@ static void CL_InitLocal(void)
     cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
     cl_gun_z = Cvar_Get("cl_gun_z", "0", 0);
     cl_footsteps = Cvar_Get("cl_footsteps", "1", 0);
-    cl_footsteps->changed = cl_footsteps_changed;
     cl_noskins = Cvar_Get("cl_noskins", "0", 0);
     cl_noskins->changed = cl_noskins_changed;
     cl_predict = Cvar_Get("cl_predict", "1", 0);
-    cl_predict->changed = cl_predict_changed;
     cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
     cl_warn_on_fps_rounding = Cvar_Get("cl_warn_on_fps_rounding", "1", 0);
     cl_maxfps = Cvar_Get("cl_maxfps", "62", 0);
@@ -2721,7 +2515,6 @@ static void CL_InitLocal(void)
     rcon_address->generator = Com_Address_g;
 
 	cl_player_model = Cvar_Get("cl_player_model", va("%d", CL_PLAYER_MODEL_FIRST_PERSON), CVAR_ARCHIVE);
-	cl_player_model->changed = cl_player_model_changed;
     cl_thirdperson_angle = Cvar_Get("cl_thirdperson_angle", "0", 0);
     cl_thirdperson_range = Cvar_Get("cl_thirdperson_range", "60", 0);
 
@@ -2732,12 +2525,6 @@ static void CL_InitLocal(void)
     cl_dlight_hacks = Cvar_Get("cl_dlight_hacks", "0", 0);
 
     cl_gibs = Cvar_Get("cl_gibs", "1", 0);
-    cl_gibs->changed = cl_gibs_changed;
-
-#if USE_FPS
-    cl_updaterate = Cvar_Get("cl_updaterate", "0", 0);
-    cl_updaterate->changed = cl_updaterate_changed;
-#endif
 
     cl_chat_notify = Cvar_Get("cl_chat_notify", "1", 0);
     cl_chat_sound = Cvar_Get("cl_chat_sound", "1", 0);
@@ -2771,7 +2558,6 @@ static void CL_InitLocal(void)
     info_rate = Cvar_Get("rate", std::to_string( CLIENT_RATE_MIN ).c_str(), CVAR_USERINFO | CVAR_ARCHIVE );
     info_msg = Cvar_Get("msg", "1", CVAR_USERINFO | CVAR_ARCHIVE);
     info_hand = Cvar_Get("hand", "0", CVAR_USERINFO | CVAR_ARCHIVE);
-    info_hand->changed = info_hand_changed;
     info_fov = Cvar_Get("fov", "75", CVAR_USERINFO | CVAR_ARCHIVE);
     info_gender = Cvar_Get("gender", "male", CVAR_USERINFO | CVAR_ARCHIVE);
     info_gender->modified = false; // clear this so we know when user sets it manually
@@ -2869,10 +2655,6 @@ static void CL_SetClientTime(void)
     if (com_timedemo->integer) {
         cl.time = cl.servertime;
         cl.lerpfrac = 1.0f;
-#if USE_FPS
-        cl.keytime = cl.keyservertime;
-        cl.keylerpfrac = 1.0f;
-#endif
         return;
     }
 
@@ -2891,24 +2673,6 @@ static void CL_SetClientTime(void)
 
     SHOWCLAMP(2, "time %d %d, lerpfrac %.3f\n",
               cl.time, cl.servertime, cl.lerpfrac);
-
-#if USE_FPS
-    prevtime = cl.keyservertime - BASE_FRAMETIME;
-    if (cl.keytime > cl.keyservertime) {
-        SHOWCLAMP(1, "high keyclamp %i\n", cl.keytime - cl.keyservertime);
-        cl.keytime = cl.keyservertime;
-        cl.keylerpfrac = 1.0f;
-    } else if (cl.keytime < prevtime) {
-        SHOWCLAMP(1, "low keyclamp %i\n", prevtime - cl.keytime);
-        cl.keytime = prevtime;
-        cl.keylerpfrac = 0;
-    } else {
-        cl.keylerpfrac = (cl.keytime - prevtime) * BASE_1_FRAMETIME;
-    }
-
-    SHOWCLAMP(2, "keytime %d %d keylerpfrac %.3f\n",
-              cl.keytime, cl.keyservertime, cl.keylerpfrac);
-#endif
 }
 
 static void CL_MeasureStats(void)
@@ -3191,9 +2955,6 @@ unsigned CL_Frame(unsigned msec)
 
     if (!sv_paused->integer) {
         cl.time += main_extra;
-#if USE_FPS
-        cl.keytime += main_extra;
-#endif
     }
 
     // read next demo frame

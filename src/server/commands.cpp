@@ -611,10 +611,10 @@ static void dump_lag(void)
         "--- --------------- ----- ----- ---- ---- ---- --- -----\n");
 
     FOR_EACH_CLIENT(cl) {
-        Com_Printf("%3i %-15.15s %5.2f %5.2f %4d %4d %4d %3d %5.3f\n",
+        Com_Printf("%3i %-15.15s %5.2f %5.2f %4d %4d %4d %5.3f\n",
                    cl->number, cl->name, PL_S2C(cl), PL_C2S(cl),
                    cl->min_ping, AVG_PING(cl), cl->max_ping,
-                   cl->numpackets - 1, cl->timescale);
+                   cl->timescale);
     }
 }
 
@@ -632,30 +632,6 @@ static void dump_protocols(void)
                    cl->netchan.maxpacketlen,
                    cl->has_zlib ? "yes" : "no ",
                    cl->netchan.type ? "new" : "old");
-    }
-}
-
-static void dump_settings(void)
-{
-    client_t    *cl;
-    char        opt[8];
-
-    Com_Printf(
-        "num name            proto options upd fps\n"
-        "--- --------------- ----- ------- --- ---\n");
-
-    opt[6] = ' ';
-    opt[7] = 0;
-    FOR_EACH_CLIENT(cl) {
-        opt[0] = cl->settings[CLS_NOGUN]          ? 'G' : ' ';
-        opt[1] = cl->settings[CLS_NOBLEND]        ? 'B' : ' ';
-        opt[2] = cl->settings[CLS_RECORDING]      ? 'R' : ' ';
-        opt[3] = cl->settings[CLS_NOGIBS]         ? 'I' : ' ';
-        opt[4] = cl->settings[CLS_NOFOOTSTEPS]    ? 'F' : ' ';
-        opt[5] = cl->settings[CLS_NOPREDICT]      ? 'P' : ' ';
-        Com_Printf("%3i %-15.15s %5d %s %3d %3d\n",
-                   cl->number, cl->name, cl->protocol, opt,
-                   cl->settings[CLS_PLAYERUPDATES], cl->settings[CLS_FPS]);
     }
 }
 
@@ -684,11 +660,10 @@ static void SV_Status_f(void)
             case 'd': dump_downloads(); break;
             case 'l': dump_lag();       break;
             case 'p': dump_protocols(); break;
-            case 's': dump_settings();  break;
             case 't': dump_time();      break;
             case 'v': dump_versions();  break;
             default:
-                Com_Printf("Usage: %s [d|l|p|s|t|v]\n", Cmd_Argv(0));
+                Com_Printf("Usage: %s [d|l|p|t|v]\n", Cmd_Argv(0));
                 dump_clients();
                 break;
             }
@@ -772,16 +747,11 @@ void SV_PrintMiscInfo(void)
     Com_Printf("netchan type         %s\n", sv_client->netchan.type ? "new" : "old");
     Com_Printf("ping                 %d\n", sv_client->ping);
     Com_Printf("movement fps         %d\n", sv_client->moves_per_sec);
-#if USE_FPS
-    Com_Printf("update rate          %d\n", sv_client->settings[CLS_FPS]);
-#endif
     Com_Printf("RTT (min/avg/max)    %d/%d/%d ms\n",
                sv_client->min_ping, AVG_PING(sv_client), sv_client->max_ping);
     Com_Printf("PL server to client  %.2f%% (approx)\n", PL_S2C(sv_client));
     Com_Printf("PL client to server  %.2f%%\n", PL_C2S(sv_client));
-#ifdef USE_PACKETDUP
-    Com_Printf("packetdup            %d\n", sv_client->numpackets - 1);
-#endif
+
     Com_Printf("timescale            %.3f\n", sv_client->timescale);
     Com_TimeDiff(buffer, sizeof(buffer),
                  &sv_client->connect_time, time(NULL));
@@ -844,7 +814,7 @@ static void SV_Stuff_f(void)
     if (!SV_SetPlayer())
         return;
 
-    MSG_WriteByte(svc_stufftext);
+    MSG_WriteUint8(svc_stufftext);
     MSG_WriteString(COM_StripQuotes(Cmd_RawArgsFrom(2)));
     SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
 
@@ -873,7 +843,7 @@ static void SV_StuffAll_f(void)
         return;
     }
 
-    MSG_WriteByte(svc_stufftext);
+    MSG_WriteUint8(svc_stufftext);
     MSG_WriteString(COM_StripQuotes(Cmd_RawArgs()));
 
     FOR_EACH_CLIENT(client) {

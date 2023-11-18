@@ -30,7 +30,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/files.h"
 #include "common/pmove.h"
 #include "common/math.h"
-#include "common/msg.h"
+#include "common/messaging.h"
 #include "common/net/chan.h"
 #include "common/net/net.h"
 #include "common/prompt.h"
@@ -99,13 +99,6 @@ typedef struct centity_s {
     int             trailcount;         // for diminishing grenade trails
     vec3_t          lerp_origin;        // for trails (variable hz)
 
-#if USE_FPS
-    int             prev_frame;
-    int             anim_start;
-
-    int             event_frame;
-#endif
-
     int             fly_stoptime;
 
     int             id;
@@ -158,24 +151,9 @@ typedef struct {
 #define FF_OLDENT       (1<<7)
 #define FF_NODELTA      (1<<8)
 
-// variable server FPS
-#if USE_FPS
-#define CL_FRAMETIME    cl.frametime
-#define CL_1_FRAMETIME  cl.frametime_inv
-#define CL_FRAMEDIV     cl.framediv
-#define CL_FRAMESYNC    !(cl.frame.number % cl.framediv)
-#define CL_KEYPS        &cl.keyframe.ps
-#define CL_OLDKEYPS     &cl.oldkeyframe.ps
-#define CL_KEYLERPFRAC  cl.keylerpfrac
-#else
+// Variable server FPS
 #define CL_FRAMETIME    BASE_FRAMETIME
 #define CL_1_FRAMETIME  BASE_1_FRAMETIME
-#define CL_FRAMEDIV     1
-#define CL_FRAMESYNC    1
-#define CL_KEYPS        &cl.frame.ps
-#define CL_OLDKEYPS     &cl.oldframe.ps
-#define CL_KEYLERPFRAC  cl.lerpfrac
-#endif
 
 //
 // the client_state_t structure is wiped completely at every
@@ -224,58 +202,48 @@ typedef struct client_state_s {
     int             servertime;
     int             serverdelta;
 
-#if USE_FPS
-    server_frame_t  keyframe;
-    server_frame_t  oldkeyframe;
-    int             keyservertime;
-#endif
-
+	// WID: Seems to be related to demo configstring bytes.
     byte            dcs[CS_BITMAP_BYTES];
 
-    // the client maintains its own idea of view angles, which are
+    // The client maintains its own idea of view angles, which are
     // sent to the server each frame.  It is cleared to 0 upon entering each level.
     // the server sends a delta each frame which is added to the locally
     // tracked view angles to account for standing on rotating objects,
-    // and teleport direction changes
+    // and teleport direction changes.
     vec3_t      viewangles;
 
-    // interpolated movement vector used for local prediction,
-    // never sent to server, rebuilt each client frame
+    // Interpolated movement vector used for local prediction,
+    // never sent to server, rebuilt each client frame.
     vec3_t      localmove;
 
-    // accumulated mouse forward/side movement, added to both
-    // localmove and pending cmd, cleared each time cmd is finalized
+    // Accumulated mouse forward/side movement, added to both
+    // localmove and pending cmd, cleared each time cmd is finalized.
     vec2_t      mousemove;
 
 #if USE_SMOOTH_DELTA_ANGLES
     short       delta_angles[3]; // interpolated
 #endif
 
-    int         time;           // this is the time value that the client
+    int         time;           // This is the time value that the client
                                 // is rendering at.  always <= cl.servertime
-    float       lerpfrac;       // between oldframe and frame
+    float       lerpfrac;       // The current "lerp" -fraction between oldframe and frame
 
-#if USE_FPS
-    int         keytime;
-    float       keylerpfrac;
-#endif
-
-    refdef_t    refdef;
-    float       fov_x;      // interpolated
-    float       fov_y;      // derived from fov_x assuming 4/3 aspect ratio
+    refdef_t    refdef;		// Refresh frame settings.
+    float       fov_x;      // Interpolated
+    float       fov_y;      // derived from fov_x assuming 4/3 aspect ratio.
 
     vec3_t      v_forward, v_right, v_up;    // set when refdef.angles is set
 
     bool        thirdPersonView;
 
-    // predicted values, used for smooth player entity movement in thirdperson view
+    // Predicted values, used for smooth player entity movement in thirdperson view.
     vec3_t      playerEntityOrigin;
     vec3_t      playerEntityAngles;
 
     //
-    // transient data from server
+    // Transient data from server.
     //
-    char        layout[MAX_NET_STRING];     // general 2D overlay
+    char        layout[MAX_NET_STRING];     // General 2D overlay cmd script.
     int         inventory[MAX_ITEMS];
 
     //
@@ -288,14 +256,8 @@ typedef struct client_state_s {
     int         maxclients;
     pmoveParams_t pmp;
 
-#if USE_FPS
-    int         frametime;      // variable server frame time
-    float       frametime_inv;  // 1/frametime
-    int         framediv;       // BASE_FRAMETIME/frametime
-#endif
-
-    char        baseconfigstrings[MAX_CONFIGSTRINGS][MAX_QPATH];
-    char        configstrings[MAX_CONFIGSTRINGS][MAX_QPATH];
+	configstring_t baseconfigstrings[MAX_CONFIGSTRINGS];
+	configstring_t configstrings[MAX_CONFIGSTRINGS];
     char        mapname[MAX_QPATH]; // short format - q2dm1, etc
 
 #if USE_AUTOREPLY
@@ -632,7 +594,6 @@ void CL_GM_Shutdown( );
 void CL_Init(void);
 void CL_Quit_f(void);
 void CL_Disconnect(error_type_t type);
-void CL_UpdateRecordingSetting(void);
 void CL_Begin(void);
 void CL_CheckForResend(void);
 void CL_ClearState(void);
@@ -774,7 +735,6 @@ void V_AddLight(const vec3_t org, float intensity, float r, float g, float b);
 void V_AddSphereLight(const vec3_t org, float intensity, float r, float g, float b, float radius);
 void V_AddSpotLight(const vec3_t org, const vec3_t dir, float intensity, float r, float g, float b, float width_angle, float falloff_angle);
 void V_AddLightStyle(int style, float value);
-void CL_UpdateBlendSetting(void);
 
 
 //

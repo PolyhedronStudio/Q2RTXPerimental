@@ -25,7 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
-#include "common/msg.h"
+#include "common/messaging.h"
 #include "common/net/net.h"
 #include "common/sizebuf.h"
 
@@ -84,10 +84,10 @@ typedef struct netchan_s {
     byte        *fragment_out_buf;
 
     // common methods
-    size_t      (*Transmit)(struct netchan_s *, size_t, const void *, int);
-    size_t      (*TransmitNextFragment)(struct netchan_s *);
-    bool        (*Process)(struct netchan_s *);
-    bool        (*ShouldUpdate)(struct netchan_s *);
+    //size_t      (*Transmit)(struct netchan_s *, size_t, const void *);
+    //size_t      (*TransmitNextFragment)(struct netchan_s *);
+    //bool        (*Process)(struct netchan_s *);
+    //bool        (*ShouldUpdate)(struct netchan_s *);
 } netchan_t;
 
 extern cvar_t       *net_qport;
@@ -104,6 +104,8 @@ void Netchan_Close(netchan_t *netchan);
 
 #define OOB_PRINT(sock, addr, data) \
     NET_SendPacket(sock, CONST_STR_LEN("\xff\xff\xff\xff" data), addr)
+
+#include "Q2RTXPerimentalNetChan.h"
 
 #ifdef __cplusplus
 };

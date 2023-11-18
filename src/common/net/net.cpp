@@ -27,7 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #if USE_DEBUG
 #include "common/files.h"
 #endif
-#include "common/msg.h"
+#include "common/messaging.h"
 #include "common/net/net.h"
 #include "common/protocol.h"
 #include "common/zone.h"
@@ -578,7 +578,7 @@ static bool NET_SendLoopPacket(netsrc_t sock, const void *data,
     loopback_t *loop;
     loopmsg_t *msg;
 
-    if (net_dropsim->integer > 0 && (Q_rand() % 100) < net_dropsim->integer) {
+    if (net_dropsim->integer > 0 && (Q_rand() % BASE_FRAMETIME) < net_dropsim->integer) {
         return false;
     }
 
