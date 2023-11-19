@@ -229,7 +229,7 @@ void DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 
         // send the layout
         Q_snprintf(entry, sizeof(entry),
-                   "client %i %i %i %i %i %i ",
+                   "client %i %i %i %i %i %li ",
                    x, y, sorted[i], cl->resp.score, cl->ping, (level.framenum - cl->resp.enterframe) / 600);
         j = strlen(entry);
         if (stringlength + j > 1024)
