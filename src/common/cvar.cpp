@@ -164,7 +164,7 @@ static void parse_string_value(cvar_t *var)
     } else {
         var->integer = atoi(s);
         var->value = atof(s);
-        if (var->value != 0.0f && !isnormal(var->value))
+        if (var->value != 0.0f && !std::isnormal(var->value))
             var->value = 0.0f;
     }
 }
