@@ -751,7 +751,7 @@ static GameEntryFunctionPointer *_SV_LoadGameLibrary(const char *path)
     else
         Com_Printf("Loaded ServerGame library from %s\n", path);
 
-    return static_cast<GameEntryFunctionPointer*>( entry );
+    return ( GameEntryFunctionPointer* )( entry ); // WID: GCC Linux hates static cast here.
 }
 
 static GameEntryFunctionPointer *SV_LoadGameLibrary(const char *game, const char *prefix)
