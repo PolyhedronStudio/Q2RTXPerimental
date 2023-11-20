@@ -35,7 +35,7 @@ typedef enum {
 
 #define GMF_CLIENTNUM               0x00000001
 #define GMF_PROPERINUSE             0x00000002
-#define GMF_MVDSPEC                 0x00000004
+//#define GMF_MVDSPEC                 0x00000004
 #define GMF_WANT_ALL_DISCONNECTS    0x00000008
 
 #define GMF_ENHANCED_SAVEGAMES      0x00000400
