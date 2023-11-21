@@ -529,7 +529,7 @@ void floater_zap(edict_t *self)
     gi.WritePosition(origin);
     gi.WriteDir8(dir);
     gi.WriteUint8(1);    //sparks
-    gi.multicast(origin, MULTICAST_PVS);
+    gi.multicast( origin, MULTICAST_PVS, false );
 
     T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, 5 + Q_rand() % 6, -10, DAMAGE_ENERGY, MOD_UNKNOWN);
 }

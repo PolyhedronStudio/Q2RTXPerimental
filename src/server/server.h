@@ -28,6 +28,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/cvar.h"
 #include "common/error.h"
 #include "common/files.h"
+#include "common/intreadwrite.h"
 #include "common/messaging.h"
 #include "common/net/net.h"
 #include "common/net/chan.h"
@@ -544,7 +545,7 @@ void SV_FlushRedirect(int redirected, char *outputbuf, size_t len);
 void SV_SendClientMessages(void);
 void SV_SendAsyncPackets(void);
 
-void SV_Multicast(const vec3_t origin, multicast_t to);
+void SV_Multicast(const vec3_t origin, multicast_t to, bool reliable );
 void SV_ClientPrintf(client_t *cl, int level, const char *fmt, ...) q_printf(3, 4);
 void SV_BroadcastPrintf(int level, const char *fmt, ...) q_printf(2, 3);
 void SV_ClientCommand(client_t *cl, const char *fmt, ...) q_printf(2, 3);
@@ -581,8 +582,6 @@ void SV_PrintMiscInfo(void);
 
 void SV_BuildClientFrame(client_t *client);
 void SV_WriteFrameToClient( client_t *client );
-//void SV_WriteFrameToClient_Default(client_t *client);
-void SV_WriteFrameToClient_Enhanced(client_t *client);
 
 //
 // sv_game.c
@@ -591,7 +590,7 @@ extern    svgame_export_t    *ge;
 
 void SV_InitGameProgs(void);
 void SV_ShutdownGameProgs(void);
-void SV_InitEdict(edict_t *e);
+//void SV_InitEdict(edict_t *e);
 
 void PF_Pmove(pmove_t *pm);
 

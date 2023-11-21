@@ -164,10 +164,7 @@ q_noreturn q_printf(2, 3);
 typedef enum {
     MULTICAST_ALL,
     MULTICAST_PHS,
-    MULTICAST_PVS,
-    MULTICAST_ALL_R,
-    MULTICAST_PHS_R,
-    MULTICAST_PVS_R
+    MULTICAST_PVS
 } multicast_t;
 
 /*
