@@ -463,7 +463,7 @@ void M_MoveFrame(edict_t *self)
 
 void monster_think( edict_t *self ) {
 	// Ensure to remove RF_OLD_FRAME_LERP.
-	self->s.renderfx &= ~( RF_OLD_FRAME_LERP );
+	self->s.renderfx &= ~( RF_STAIR_STEP | RF_OLD_FRAME_LERP );
 
 	M_MoveFrame( self );
 	if ( self->linkcount != self->monsterinfo.linkcount ) {

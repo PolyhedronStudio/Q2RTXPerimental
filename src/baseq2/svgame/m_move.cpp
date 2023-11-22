@@ -236,6 +236,11 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
         return false;       // walked off an edge
     }
 
+	// Determine whether we stepped.
+	bool stepped = false;
+	if ( fabs( (float)ent->s.origin[ 2 ] - (float)(trace.endpos[ 2 ] )) > 8.f ) {
+		stepped = true;
+	}
 // check point traces down for dangling corners
     VectorCopy(trace.endpos, ent->s.origin);
 
@@ -264,6 +269,10 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
         gi.linkentity(ent);
         G_TouchTriggers(ent);
     }
+
+	if ( stepped ) {
+		ent->s.renderfx |= RF_STAIR_STEP;
+	}
     return true;
 }
 

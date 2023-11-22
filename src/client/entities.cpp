@@ -549,6 +549,7 @@ static void CL_AddPacketEntities(void)
 		// TODO: must only do this on alias models
 		// Don't do this for 'world' model?
 		if ( ent.model != 0 && cent->last_frame != cent->current_frame ) {
+			// Calculate back lerpfraction. (10hz.)
 			ent.backlerp = 1.0f - ( ( cl.time - ( (float)cent->frame_servertime - cl.sv_frametime ) ) / 100.f );
 			clamp( ent.backlerp, 0.0f, 1.0f );
 			ent.frame = cent->current_frame;
@@ -561,13 +562,28 @@ static void CL_AddPacketEntities(void)
             // do the animation properly
             VectorCopy(cent->current.origin, ent.origin);
             VectorCopy(cent->current.old_origin, ent.oldorigin);  // FIXME
-        } else if (renderfx & RF_BEAM) {
-            // interpolate start and end points for beams
-            LerpVector(cent->prev.origin, cent->current.origin,
-                       cl.lerpfrac, ent.origin);
-            LerpVector(cent->prev.old_origin, cent->current.old_origin,
-                       cl.lerpfrac, ent.oldorigin);
-        } else {
+
+			// WID: Stair stepping interpolation for monster entities.
+			if ( renderfx & RF_STAIR_STEP ) {
+				// Calculate lerpfraction. (10hz.)
+				float backlerpFrac = 1.0f - ( ( cl.time - ( (float)cent->frame_servertime - cl.sv_frametime ) ) / 100.f );
+				clamp( backlerpFrac, 0.0f, 1.0f );
+
+				// interpolate the z-origin
+				const float zlerpedOrigin =
+					( cent->prev.origin )[ 2 ] + ( backlerpFrac ) * ( ( cent->current.origin )[ 2 ] - ( cent->prev.origin )[ 2 ] );
+
+				// Settle with the lerped Z for the RF_FRAMELERPED origins. 
+				ent.origin[ 2 ] = zlerpedOrigin;
+				ent.oldorigin[ 2 ] = zlerpedOrigin;
+			}
+		} else if ( renderfx & RF_BEAM ) {
+			// interpolate start and end points for beams
+			LerpVector( cent->prev.origin, cent->current.origin,
+					   cl.lerpfrac, ent.origin );
+			LerpVector( cent->prev.old_origin, cent->current.old_origin,
+					   cl.lerpfrac, ent.oldorigin );
+		} else {
             if (s1->number == cl.frame.clientNum + 1) {
                 // use predicted origin
                 VectorCopy(cl.playerEntityOrigin, ent.origin);
