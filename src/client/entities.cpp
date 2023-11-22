@@ -110,7 +110,11 @@ entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *orig
     }
 // WID: 40hz
 	if ( ent->current_frame != state->frame ) {
-		ent->last_frame = ent->current.frame;
+		if ( state->renderfx & RF_OLD_FRAME_LERP ) {
+			ent->last_frame = ent->current.old_frame;
+		} else {
+			ent->last_frame = ent->current.frame;
+		}
 		ent->current_frame = state->frame;
 		ent->frame_servertime = cl.servertime;
 	}

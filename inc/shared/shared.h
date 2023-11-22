@@ -164,10 +164,7 @@ q_noreturn q_printf(2, 3);
 typedef enum {
     MULTICAST_ALL,
     MULTICAST_PHS,
-    MULTICAST_PVS,
-    MULTICAST_ALL_R,
-    MULTICAST_PHS_R,
-    MULTICAST_PVS_R
+    MULTICAST_PVS
 } multicast_t;
 
 /*
@@ -959,6 +956,7 @@ typedef struct {
 #define RF_SHELL_GREEN      2048
 #define RF_SHELL_BLUE       4096
 #define RF_NOSHADOW         8192    // used by YQ2
+#define	RF_OLD_FRAME_LERP	16384	// [Paril-KEX] force model to lerp from oldframe in entity state; otherwise it uses last frame client received
 
 //ROGUE
 #define RF_IR_VISIBLE       0x00008000      // 32768

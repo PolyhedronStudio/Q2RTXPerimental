@@ -254,66 +254,54 @@ MULTICAST_PVS    send to clients potentially visible from org
 MULTICAST_PHS    send to clients potentially hearable from org
 =================
 */
-void SV_Multicast(const vec3_t origin, multicast_t to)
-{
-    client_t    *client;
-    byte        mask[VIS_MAX_BYTES];
-    mleaf_t     *leaf1 = NULL, *leaf2;
-    int         leafnum q_unused = 0;
-    int         flags = 0;
+void SV_Multicast(const vec3_t origin, multicast_t to, bool reliable) {
+	client_t *client;
+	byte        mask[ VIS_MAX_BYTES ];
+	mleaf_t *leaf1 = NULL, *leaf2;
+	int         leafnum q_unused = 0;
+	int         flags = 0;
 
-    if (!sv.cm.cache) {
-        Com_Error(ERR_DROP, "%s: no map loaded", __func__);
-    }
+	switch ( to ) {
+		case MULTICAST_ALL:
+			break;
+		case MULTICAST_PHS:
+			leaf1 = CM_PointLeaf( &sv.cm, origin );
+			leafnum = CM_NumLeaf( &sv.cm, leaf1 );
+			BSP_ClusterVis( sv.cm.cache, mask, leaf1->cluster, DVIS_PHS );
+			break;
+		case MULTICAST_PVS:
+			leaf1 = CM_PointLeaf( &sv.cm, origin );
+			leafnum = CM_NumLeaf( &sv.cm, leaf1 );
+			BSP_ClusterVis( sv.cm.cache, mask, leaf1->cluster, DVIS_PVS );
+			break;
+		default:
+			Com_Error( ERR_DROP, "SV_Multicast: bad to: %i", to );
+	}
+	if ( reliable )
+		flags |= MSG_RELIABLE;
 
-    switch (to) {
-    case MULTICAST_ALL_R:
-        flags |= MSG_RELIABLE;
-        // intentional fallthrough
-    case MULTICAST_ALL:
-        break;
-    case MULTICAST_PHS_R:
-        flags |= MSG_RELIABLE;
-        // intentional fallthrough
-    case MULTICAST_PHS:
-        leaf1 = CM_PointLeaf(&sv.cm, origin);
-        leafnum = leaf1 - sv.cm.cache->leafs;
-        BSP_ClusterVis(sv.cm.cache, mask, leaf1->cluster, DVIS_PHS);
-        break;
-    case MULTICAST_PVS_R:
-        flags |= MSG_RELIABLE;
-        // intentional fallthrough
-    case MULTICAST_PVS:
-        leaf1 = CM_PointLeaf(&sv.cm, origin);
-        leafnum = leaf1 - sv.cm.cache->leafs;
-        BSP_ClusterVis(sv.cm.cache, mask, leaf1->cluster, DVIS_PVS2);
-        break;
-    default:
-        Com_Error(ERR_DROP, "SV_Multicast: bad to: %i", to);
-    }
+	// send the data to all relevent clients
+	FOR_EACH_CLIENT( client ) {
+		if ( client->state < cs_primed ) {
+			continue;
+		}
+		// do not send unreliables to connecting clients
+		if ( !( flags & MSG_RELIABLE ) && !CLIENT_ACTIVE( client ) ) {
+			continue;
+		}
 
-    // send the data to all relevent clients
-    FOR_EACH_CLIENT(client) {
-        if (client->state < cs_primed) {
-            continue;
-        }
-        // do not send unreliables to connecting clients
-        if (!(flags & MSG_RELIABLE) && !CLIENT_ACTIVE(client)) {
-            continue;
-        }
+		if ( leaf1 ) {
+			leaf2 = CM_PointLeaf( &sv.cm, client->edict->s.origin );
+			if ( !CM_AreasConnected( &sv.cm, leaf1->area, leaf2->area ) )
+				continue;
+			if ( leaf2->cluster == -1 )
+				continue;
+			if ( !Q_IsBitSet( mask, leaf2->cluster ) )
+				continue;
+		}
 
-        if (leaf1) {
-            leaf2 = CM_PointLeaf(&sv.cm, client->edict->s.origin);
-            if (!CM_AreasConnected(&sv.cm, leaf1->area, leaf2->area))
-                continue;
-            if (leaf2->cluster == -1)
-                continue;
-            if (!Q_IsBitSet(mask, leaf2->cluster))
-                continue;
-        }
-
-        SV_ClientAddMessage(client, flags);
-    }
+		SV_ClientAddMessage( client, flags );
+	}
 
     // clear the buffer
     SZ_Clear(&msg_write);

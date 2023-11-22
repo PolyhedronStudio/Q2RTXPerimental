@@ -1,6 +1,3 @@
-cmake_minimum_required (VERSION 3.9)
-cmake_policy(SET CMP0069 NEW)
-
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -12,399 +9,10 @@ set( CMAKE_CXX_STANDARD_REQUIRED ON )
 set( CMAKE_CXX_EXTENSIONS OFF )
 
 
-#
-#	BaseQ2 SharedGame
-#
-SET(SRC_BASEQ2_SHAREDGAME
-	#nothing yet.
-)
-SET(HEADERS_BASEQ2_SHAREDGAME
-	baseq2/sharedgame/sg_time.h
-)
-
-#
-#	BaseQ2 ServerGame
-#
-SET(SRC_BASEQ2_SVGAME
-	baseq2/svgame/g_ai.cpp
-	baseq2/svgame/g_chase.cpp
-	baseq2/svgame/g_cmds.cpp
-	baseq2/svgame/g_combat.cpp
-	baseq2/svgame/g_func.cpp
-	baseq2/svgame/g_items.cpp
-	baseq2/svgame/g_main.cpp
-	baseq2/svgame/g_misc.cpp
-	baseq2/svgame/g_monster.cpp
-	baseq2/svgame/g_phys.cpp
-	baseq2/svgame/g_ptrs.cpp
-	#baseq2/svgame/g_ptrs_compat_v2.cpp
-	baseq2/svgame/g_save.cpp
-	baseq2/svgame/g_spawn.cpp
-	baseq2/svgame/g_svcmds.cpp
-	baseq2/svgame/g_target.cpp
-	baseq2/svgame/g_trigger.cpp
-	baseq2/svgame/g_turret.cpp
-	baseq2/svgame/g_utils.cpp
-	baseq2/svgame/g_weapon.cpp
-	baseq2/svgame/m_actor.cpp
-	baseq2/svgame/m_berserk.cpp
-	baseq2/svgame/m_boss2.cpp
-	baseq2/svgame/m_boss3.cpp
-	baseq2/svgame/m_boss31.cpp
-	baseq2/svgame/m_boss32.cpp
-	baseq2/svgame/m_brain.cpp
-	baseq2/svgame/m_chick.cpp
-	baseq2/svgame/m_flipper.cpp
-	baseq2/svgame/m_float.cpp
-	baseq2/svgame/m_flyer.cpp
-	baseq2/svgame/m_gladiator.cpp
-	baseq2/svgame/m_gunner.cpp
-	baseq2/svgame/m_hover.cpp
-	baseq2/svgame/m_infantry.cpp
-	baseq2/svgame/m_insane.cpp
-	baseq2/svgame/m_medic.cpp
-	baseq2/svgame/m_move.cpp
-	baseq2/svgame/m_mutant.cpp
-	baseq2/svgame/m_parasite.cpp
-	baseq2/svgame/m_soldier.cpp
-	baseq2/svgame/m_supertank.cpp
-	baseq2/svgame/m_tank.cpp
-	baseq2/svgame/p_client.cpp
-	baseq2/svgame/p_hud.cpp
-	baseq2/svgame/p_trail.cpp
-	baseq2/svgame/p_view.cpp
-	baseq2/svgame/p_weapon.cpp
-)
-
-SET(HEADERS_BASEQ2_SVGAME
-	baseq2/svgame/g_local.h
-	baseq2/svgame/g_save.h
-
-	baseq2/svgame/m_actor.h
-	baseq2/svgame/m_berserk.h
-	baseq2/svgame/m_boss2.h
-	baseq2/svgame/m_boss31.h
-	baseq2/svgame/m_boss32.h
-	baseq2/svgame/m_brain.h
-	baseq2/svgame/m_chick.h
-	baseq2/svgame/m_flipper.h
-	baseq2/svgame/m_float.h
-	baseq2/svgame/m_flyer.h
-	baseq2/svgame/m_gladiator.h
-	baseq2/svgame/m_gunner.h
-	baseq2/svgame/m_hover.h
-	baseq2/svgame/m_infantry.h
-	baseq2/svgame/m_insane.h
-	baseq2/svgame/m_medic.h
-	baseq2/svgame/m_mutant.h
-	baseq2/svgame/m_parasite.h
-	baseq2/svgame/m_player.h
-	baseq2/svgame/m_rider.h
-	baseq2/svgame/m_soldier.h
-	baseq2/svgame/m_supertank.h
-	baseq2/svgame/m_tank.h
-)
-
-#
-#	BaseQ2 ServerGame
-#
-SET(SRC_BASEQ2_CLGAME
-	baseq2/clgame/clg_main.cpp
-)
-
-SET(HEADERS_BASEQ2_CLGAME
-	baseq2/clgame/clg_local.h
-)
-
-
-
-#
-#	Client
-#
-SET(SRC_CLIENT
-	client/ascii.cpp
-	client/console.cpp
-	client/cin.cpp
-	client/clgame.cpp
-	client/crc.cpp
-	client/demo.cpp
-	client/download.cpp
-	client/effects.cpp
-	client/entities.cpp
-	#client/gtv.cpp
-	client/input.cpp
-	client/keys.cpp
-	client/locs.cpp
-	client/main.cpp
-	client/newfx.cpp
-#	client/null.cpp
-	client/parse.cpp
-	client/precache.cpp
-	client/predict.cpp
-	client/refresh.cpp
-	client/screen.cpp
-	client/tent.cpp
-	client/view.cpp
-	client/ui/demos.cpp
-	client/ui/menu.cpp
-	client/ui/playerconfig.cpp
-	client/ui/playermodels.cpp
-	client/ui/script.cpp
-	client/ui/servers.cpp
-	client/ui/ui.cpp
-	client/sound/dma.c
-	client/sound/al.c
-	client/sound/main.c
-	client/sound/mem.c
-	client/sound/ogg.c
-	client/sound/qal/fixed.c
-#	client/sound/qal/dynamic.cpp
-)
-
-SET(SRC_CLIENT_HTTP
-	client/http.cpp
-)
-
-SET(HEADERS_CLIENT
-	client/client.h
-	client/ui/ui.h
-	client/sound/sound.h
-	client/sound/qal/dynamic.h
-	client/sound/qal/fixed.h
-)
-
-SET(SRC_SERVER
-	server/commands.cpp
-	server/entities.cpp
-	server/init.cpp
-	server/main.cpp
-	#server/mvd.cpp
-	server/send.cpp
-	server/svgame.cpp
-	server/user.cpp
-	server/world.cpp
-	#server/mvd/client.cpp
-	#server/mvd/parse.cpp
-	#server/mvd/game.cpp
-	server/save.cpp
-)
-
-SET(HEADERS_SERVER
-	server/server.h
-)
-
-SET(SRC_COMMON
-	common/bsp.cpp
-	common/cmd.cpp
-	common/cmodel.cpp
-	common/common.cpp
-	common/cvar.cpp
-	common/error.cpp
-	common/field.cpp
-	common/fifo.cpp
-	common/files.cpp
-	common/math.cpp
-	common/mdfour.cpp
-	common/messaging.cpp
-	common/pmove.cpp
-	common/prompt.cpp
-	common/sizebuf.cpp
-#	common/tests.cpp
-	common/utils.cpp
-	common/zone.cpp
-
-	common/messaging/ParseDeltaEntityState.cpp
-	common/messaging/ParseDeltaPlayerState.cpp
-	common/messaging/ParseDeltaUserCommand.cpp
-
-	common/messaging/WriteDeltaEntityState.cpp
-	common/messaging/WriteDeltaPlayerState.cpp
-	common/messaging/WriteDeltaUserCommand.cpp
-
-	common/net/chan.cpp
-	common/net/Q2RTXPerimentalNetChan.cpp
-	common/net/net.cpp
-)
-
-SET(HEADERS_COMMON
-	#common/net/chan.h
-	#common/net/Q2RTXPerimentalNetChan.h
-	common/net/inet_ntop.h
-	common/net/inet_pton.h
-	common/net/win.h
-)
-
-SET(SRC_REFRESH
-	refresh/images.c
-	refresh/models.c
-	refresh/model_iqm.c
-	refresh/stb/stb.c
-)
-
-
-SET(SRC_GL
-	refresh/gl/draw.c
-	refresh/gl/hq2x.c
-	refresh/gl/texture.c
-	refresh/gl/main.c
-	refresh/gl/mesh.c
-	refresh/gl/models.c
-	refresh/gl/sky.c
-	refresh/gl/state.c
-	refresh/gl/surf.c
-	refresh/gl/tess.c
-	refresh/gl/world.c
-	refresh/gl/qgl.c
-	refresh/gl/legacy.c
-	refresh/gl/shader.c
-)
-
-SET(HEADERS_GL
-	refresh/gl/arbfp.h
-	refresh/gl/gl.h
-)
-
-SET(SRC_SHARED
-	shared/m_flash.c
-	shared/shared.cpp
-)
-
-SET(SRC_LINUX
-	unix/hunk.c
-	unix/system.c
-	unix/tty.c
-)
-
-SET(SRC_LINUX_CLIENT
-	unix/sound/sdl.c
-	unix/video.c
-)
-
-SET(SRC_WINDOWS
-	#windows/ac.cpp
-	windows/debug.cpp
-	windows/hunk.cpp
-	windows/system.cpp
-)
-
-SET(SRC_WINDOWS_CLIENT
-	windows/wave.c
-	unix/sound/sdl.c
-	unix/video.cpp
-)
-
-	#windows/client.c
-	#windows/dinput.c
-	#windows/dsound.c
-	#windows/glimp.c
-	#windows/swimp.c
-	#windows/wgl.c
-	#unix/sdl2/sound.c
-
-SET(HEADERS_WINDOWS
-	windows/wgl.h
-	windows/glimp.h
-	windows/client.h
-	windows/threads/threads.h
-)
-
-SET(SRC_VKPT
-	refresh/vkpt/asvgf.c
-	refresh/vkpt/bloom.c
-	refresh/vkpt/bsp_mesh.c
-	refresh/vkpt/draw.c
-	refresh/vkpt/fog.c
-	refresh/vkpt/cameras.c
-	refresh/vkpt/freecam.c
-	refresh/vkpt/fsr.c
-	refresh/vkpt/main.c
-	refresh/vkpt/material.c
-	refresh/vkpt/matrix.c
-	refresh/vkpt/mgpu.c
-	refresh/vkpt/models.c
-	refresh/vkpt/path_tracer.c
-	refresh/vkpt/physical_sky.c
-	refresh/vkpt/precomputed_sky.c
-	refresh/vkpt/profiler.c
-	refresh/vkpt/shadow_map.c
-	refresh/vkpt/textures.c
-	refresh/vkpt/tone_mapping.c
-	refresh/vkpt/transparency.c
-	refresh/vkpt/uniform_buffer.c
-	refresh/vkpt/vertex_buffer.c
-	refresh/vkpt/vk_util.c
-	refresh/vkpt/buddy_allocator.c
-	refresh/vkpt/device_memory_allocator.c
-	refresh/vkpt/god_rays.c
-	refresh/vkpt/conversion.c
-)
-
-SET(HEADERS_VKPT
-	refresh/vkpt/vkpt.h
-	refresh/vkpt/vk_util.h
-	refresh/vkpt/buddy_allocator.h
-	refresh/vkpt/device_memory_allocator.h
-	refresh/vkpt/fog.h
-	refresh/vkpt/cameras.h
-	refresh/vkpt/material.h
-	refresh/vkpt/physical_sky.h
-	refresh/vkpt/precomputed_sky.h
-	refresh/vkpt/conversion.h
-)
-
-set(SRC_SHADERS
-	refresh/vkpt/shader/animate_materials.comp
-	refresh/vkpt/shader/god_rays_filter.comp
-	refresh/vkpt/shader/god_rays.comp
-	refresh/vkpt/shader/bloom_composite.comp
-	refresh/vkpt/shader/bloom_blur.comp
-	refresh/vkpt/shader/bloom_downscale.comp
-	refresh/vkpt/shader/compositing.comp
-	refresh/vkpt/shader/checkerboard_interleave.comp
-	refresh/vkpt/shader/asvgf_atrous.comp
-	refresh/vkpt/shader/asvgf_gradient_atrous.comp
-	refresh/vkpt/shader/asvgf_gradient_img.comp
-	refresh/vkpt/shader/asvgf_gradient_reproject.comp
-	refresh/vkpt/shader/asvgf_lf.comp
-	refresh/vkpt/shader/asvgf_taau.comp
-	refresh/vkpt/shader/asvgf_temporal.comp
-	refresh/vkpt/shader/instance_geometry.comp
-	refresh/vkpt/shader/normalize_normal_map.comp
-	refresh/vkpt/shader/tone_mapping_histogram.comp
-	refresh/vkpt/shader/tone_mapping_curve.comp
-    refresh/vkpt/shader/tone_mapping_apply.comp
-	refresh/vkpt/shader/physical_sky.comp
-	refresh/vkpt/shader/physical_sky_space.comp
-	refresh/vkpt/shader/shadow_map.vert
-	refresh/vkpt/shader/sky_buffer_resolve.comp
-	refresh/vkpt/shader/stretch_pic.frag
-	refresh/vkpt/shader/stretch_pic.vert
-	refresh/vkpt/shader/final_blit_lanczos.frag
-	refresh/vkpt/shader/final_blit.vert
-	refresh/vkpt/shader/fsr_easu_fp16.comp
-	refresh/vkpt/shader/fsr_easu_fp32.comp
-	refresh/vkpt/shader/fsr_rcas_fp16.comp
-	refresh/vkpt/shader/fsr_rcas_fp32.comp
-)
-
-set(SRC_RT_SHADERS
-	refresh/vkpt/shader/primary_rays.rgen
-	refresh/vkpt/shader/direct_lighting.rgen
-	refresh/vkpt/shader/indirect_lighting.rgen
-	refresh/vkpt/shader/path_tracer.rchit
-	refresh/vkpt/shader/path_tracer.rmiss
-	refresh/vkpt/shader/path_tracer_masked.rahit
-	refresh/vkpt/shader/path_tracer_particle.rahit
-	refresh/vkpt/shader/path_tracer_sprite.rahit
-	refresh/vkpt/shader/path_tracer_beam.rahit
-	refresh/vkpt/shader/path_tracer_beam.rint
-	refresh/vkpt/shader/path_tracer_explosion.rahit
-	refresh/vkpt/shader/reflect_refract.rgen
-)
-
-# Only build shaders in 64-bit builds, because the client
-# is also only built for 64-bit systems.
-IF(IS_64_BIT)
+####
+##	Build VKPT shaders ONLY if the client is being built, with VKPT renderer enabled.
+####
+IF( CONFIG_BUILD_CLIENT_TARGET AND CONFIG_VKPT_RENDERER )
     include(../cmake/compileShaders.cmake)
 
     foreach(s ${SRC_RT_SHADERS})
@@ -425,24 +33,24 @@ IF(IS_64_BIT)
     if(TARGET glslangValidator)
         add_dependencies(shaders glslangValidator)
     endif()
+ENDIF() #IF( CONFIG_BUILD_CLIENT_TARGET AND CONFIG_VKPT_RENDERER )
+
+####
+##	Embed GIT Repository Version Number as compiler parameter defines.
+####
+add_definitions(-DVERSION_MAJOR=${Q2RTX_VERSION_MAJOR})
+add_definitions(-DVERSION_MINOR=${Q2RTX_VERSION_MINOR})
+add_definitions(-DVERSION_POINT=${Q2RTX_VERSION_POINT})
+add_definitions(-DVERSION_SHA=${Q2RTX_VERSION_SHA})
+add_definitions(-DVERSION_BRANCH=${Q2RTX_VERSION_BRANCH})
+
+add_definitions(-DHAVE_CONFIG_H=1 -DCURL_STATICLIB -DAL_LIBTYPE_STATIC)
+
+IF( WIN32 )
+	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 ENDIF()
-
-# Embed version number
-ADD_DEFINITIONS(-DVERSION_MAJOR=${Q2RTX_VERSION_MAJOR})
-ADD_DEFINITIONS(-DVERSION_MINOR=${Q2RTX_VERSION_MINOR})
-ADD_DEFINITIONS(-DVERSION_POINT=${Q2RTX_VERSION_POINT})
-ADD_DEFINITIONS(-DVERSION_SHA=${Q2RTX_VERSION_SHA})
-ADD_DEFINITIONS(-DVERSION_BRANCH=${Q2RTX_VERSION_BRANCH})
-
-ADD_DEFINITIONS(-DHAVE_CONFIG_H=1 -DCURL_STATICLIB -DAL_LIBTYPE_STATIC)
-
-IF(WIN32)
-	ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
-ENDIF()
-
 add_compile_definitions($<$<CONFIG:Debug>:USE_DEBUG>)
-
-if(NOT WIN32)
+if( NOT WIN32 )
     add_compile_definitions(_GNU_SOURCE)
 endif()
 
@@ -463,7 +71,7 @@ function(CCompilerFlagStringAppend flagvar flagstr)
     endif()
 endfunction()
 
-if(NOT MSVC)
+if( NOT MSVC )
     CCompilerFlagStringAppend(CMAKE_C_FLAGS "-fsigned-char")
     CCompilerFlagStringAppend(CMAKE_C_FLAGS "-Wall")
     CCompilerFlagStringAppend(CMAKE_C_FLAGS "-Wpointer-arith")
@@ -473,177 +81,103 @@ if(NOT MSVC)
     # CCompilerFlagString(WARN_MISSING_PROTOTYPES "-Wmissing-prototypes")
 endif()
 
-ADD_LIBRARY(baseq2_svgame SHARED ${SRC_BASEQ2_SVGAME} ${HEADERS_BASEQ2_SVGAME} ${HEADERS_BASEQ2_SHAREDGAME} ${SRC_SHARED})
-ADD_LIBRARY(baseq2_clgame SHARED ${SRC_BASEQ2_CLGAME} ${HEADERS_BASEQ2_CLGAME} ${HEADERS_BASEQ2_SHAREDGAME} ${SRC_SHARED})
-if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-    # Workaround for GCC 10 linking shared libgcc by default
-    target_link_options(baseq2_clgame PRIVATE "-static-libgcc")
-endif()
 
-IF(WIN32)
-    IF(IS_64_BIT)
-        ADD_EXECUTABLE(client WIN32 
-            ${SRC_CLIENT} ${HEADERS_CLIENT} 
-            ${SRC_COMMON} ${HEADERS_COMMON} 
-            ${SRC_REFRESH} ${SRC_SHADERS} 
-            ${SRC_SHARED} 
-            ${SRC_WINDOWS} ${SRC_WINDOWS_CLIENT} ${HEADERS_WINDOWS}
-            ${SRC_SERVER} ${HEADERS_SERVER}
-            windows/res/q2rtxp.rc
-        )
-    ENDIF()
-    ADD_EXECUTABLE(server 
-        ${SRC_COMMON} ${HEADERS_COMMON} 
-        ${SRC_SHARED} 
-        ${SRC_WINDOWS} ${HEADERS_WINDOWS}
-        ${SRC_SERVER} ${HEADERS_SERVER}
-        #server/ac.cpp
-        client/null.cpp
-        windows/res/q2rtxpded.rc
-    )
-ELSE()
-    IF(IS_64_BIT)
-        ADD_EXECUTABLE(client
-            ${SRC_CLIENT} ${HEADERS_CLIENT} 
-            ${SRC_COMMON} ${HEADERS_COMMON} 
-            ${SRC_REFRESH} ${SRC_SHADERS} 
-            ${SRC_SHARED} 
-            ${SRC_LINUX} ${SRC_LINUX_CLIENT}
-            ${SRC_SERVER} ${HEADERS_SERVER}
-        )
-    ENDIF()
-    ADD_EXECUTABLE(server
-        ${SRC_COMMON} ${HEADERS_COMMON} 
-        ${SRC_SHARED} 
-        ${SRC_LINUX}
-        ${SRC_SERVER} ${HEADERS_SERVER}
-        #server/ac.c
-        client/null.cpp
-    )
-ENDIF()
 
-# WID: C++ 20 for Client target
-#set_property( TARGET client PROPERTY CXX_STANDARD 20 )
-#set_property( TARGET client PROPERTY CXX_STANDARD_REQUIRED 20 )
-#set_property( TARGET client PROPERTY CXX_EXTENSIONS OFF )
+####
+##	Build Target: "Client":
+####
+IF( CONFIG_BUILD_CLIENT_TARGET )
+	# Add Build Target:
+	IF( WIN32 )
+		add_executable(client WIN32 
+			${SRC_CLIENT} ${HEADERS_CLIENT} 
+			${SRC_COMMON} ${HEADERS_COMMON} 
+			${SRC_REFRESH} ${SRC_SHADERS} 
+			${SRC_SHARED} 
+			${SRC_WINDOWS} ${SRC_WINDOWS_CLIENT} ${HEADERS_WINDOWS}
+			${SRC_SERVER} ${HEADERS_SERVER}
+			windows/res/q2rtxp.rc
+		)
+	ELSE()
+		add_executable(client
+			${SRC_CLIENT} ${HEADERS_CLIENT} 
+			${SRC_COMMON} ${HEADERS_COMMON} 
+			${SRC_REFRESH} ${SRC_SHADERS} 
+			${SRC_SHARED} 
+			${SRC_LINUX} ${SRC_LINUX_CLIENT}
+			${SRC_SERVER} ${HEADERS_SERVER}
+		)
+	ENDIF()
 
-TARGET_COMPILE_DEFINITIONS(server PRIVATE USE_SERVER=1)
-target_compile_options(server PRIVATE "${WARN_MISSING_PROTOTYPES}")
-
-IF (TARGET client)
-    TARGET_COMPILE_DEFINITIONS(client PRIVATE USE_CLIENT=1 USE_FIXED_LIBAL=1 USE_SDL=1)
+	# Compile Definitions:
+    target_compile_definitions(client PRIVATE USE_CLIENT=1 USE_FIXED_LIBAL=1 USE_SDL=1)
+	# Compile Options:
     target_compile_options(client PRIVATE "${WARN_MISSING_PROTOTYPES}")
 
-    IF(CONFIG_USE_CURL)
-        TARGET_SOURCES(client PRIVATE ${SRC_CLIENT_HTTP})
-        TARGET_COMPILE_DEFINITIONS(client PRIVATE USE_CURL=1)
-        TARGET_LINK_LIBRARIES(client libcurl)
-    ENDIF()
+	# LibCURL:
+    IF( CONFIG_USE_CURL )
+        target_sources(client PRIVATE ${SRC_CLIENT_HTTP})
+        target_compile_definitions(client PRIVATE USE_CURL=1)
+        target_link_libraries(client libcurl)
+    ENDIF() #IF( CONFIG_USE_CURL )
 
-    add_dependencies(client shaders)
+	# IF Enabled: add "OpenGL Renderer" sources to the client's source list.
+    IF( CONFIG_GL_RENDERER )
+		# Add OpenGL Renderer sources.
+		target_sources(client PRIVATE ${SRC_GL} ${HEADERS_GL})
+		# Define for in-source use, REF_GL=1 and USE_REF=1.
+		target_compile_definitions(client PRIVATE REF_GL=1 USE_REF=1)
+    ENDIF() #IF( CONFIG_GL_RENDERER )
 
-    IF (CONFIG_GL_RENDERER)
-        TARGET_SOURCES(client PRIVATE ${SRC_GL} ${HEADERS_GL})
-        TARGET_COMPILE_DEFINITIONS(client PRIVATE REF_GL=1 USE_REF=1)
-    ENDIF()
+	# IF Enabled: add "Vulken Renderer" sources to the client's source list.
+    IF( CONFIG_VKPT_RENDERER )
+		# Add "Shaders" fake target as a dependency.
+		add_dependencies(client shaders)
 
-    IF (CONFIG_VKPT_RENDERER)
-        TARGET_SOURCES(client PRIVATE ${SRC_VKPT} ${HEADERS_VKPT})
-        TARGET_INCLUDE_DIRECTORIES(client PRIVATE ${CMAKE_SOURCE_DIR}/extern/Vulkan-Headers/include)
-        LINK_DIRECTORIES(client PRIVATE ${CMAKE_SOURCE_DIR})
-        TARGET_COMPILE_DEFINITIONS(client PRIVATE REF_VKPT=1 USE_REF=1)
-        IF (CONFIG_VKPT_ENABLE_DEVICE_GROUPS)
-            TARGET_COMPILE_DEFINITIONS(client PRIVATE VKPT_DEVICE_GROUPS)
+		# Add VKPT Renderer sources.
+        target_sources(client PRIVATE ${SRC_VKPT} ${HEADERS_VKPT})
+		# Add in Vulkan header includes.
+        target_include_directories(client PRIVATE ${CMAKE_SOURCE_DIR}/extern/Vulkan-Headers/include)
+        # Set link directories.
+		link_directories(client PRIVATE ${CMAKE_SOURCE_DIR})
+		# Define for in-source use, REF_VKPT=1 and USE_REF=1.
+        target_compile_definitions(client PRIVATE REF_VKPT=1 USE_REF=1)
+		# Refresh Subsystem Setting Compile Definitions:
+        IF(CONFIG_VKPT_ENABLE_DEVICE_GROUPS)
+            target_compile_definitions(client PRIVATE VKPT_DEVICE_GROUPS)
         ENDIF()
-        if (CONFIG_VKPT_ENABLE_IMAGE_DUMPS)
-            TARGET_COMPILE_DEFINITIONS(client PRIVATE VKPT_IMAGE_DUMPS)
+        IF(CONFIG_VKPT_ENABLE_IMAGE_DUMPS)
+            target_compile_definitions(client PRIVATE VKPT_IMAGE_DUMPS)
         ENDIF()
-        IF (WIN32)
-        TARGET_LINK_LIBRARIES(client vulkan-1)
+
+		# Specific Vulkan lib to link to depending on OS.
+        IF( WIN32 )
+			target_link_libraries(client vulkan-1)
         ELSE ()
-        TARGET_LINK_LIBRARIES(client vulkan)
-        ENDIF()
-    ENDIF()
+	        target_link_libraries(client vulkan)
+        ENDIF() #IF( WIN32 )
+    ENDIF()#IF( CONFIG_VKPT_RENDERER )
 
-    TARGET_LINK_LIBRARIES(client stb)
-    TARGET_LINK_LIBRARIES(client tinyobjloader)
-	TARGET_LINK_LIBRARIES(client OpenAL)
-ENDIF()
+    target_link_libraries(client stb)
+    target_link_libraries(client tinyobjloader)
+	target_link_libraries(client OpenAL)
+	target_link_libraries(client SDL2main SDL2-static zlibstatic)
 
-SOURCE_GROUP("baseq2\\svgame\\sources" FILES ${SRC_BASEQ2_SVGAME})
-SOURCE_GROUP("baseq2\\svgame\\headers" FILES ${HEADERS_BASEQ2_SVGAME})
-SOURCE_GROUP("baseq2\\clgame\\sources" FILES ${SRC_BASEQ2_CLGAME})
-SOURCE_GROUP("baseq2\\clgame\\headers" FILES ${HEADERS_BASEQ2_CLGAME})
-SOURCE_GROUP("client\\sources" FILES ${SRC_CLIENT})
-SOURCE_GROUP("client\\headers" FILES ${HEADERS_CLIENT})
-SOURCE_GROUP("server\\sources" FILES ${SRC_SERVER})
-SOURCE_GROUP("server\\headers" FILES ${HEADERS_SERVER})
-SOURCE_GROUP("common\\sources" FILES ${SRC_COMMON})
-SOURCE_GROUP("common\\headers" FILES ${HEADERS_COMMON})
-SOURCE_GROUP("refresh\\sources" FILES ${SRC_REFRESH} ${SRC_VKPT})
-SOURCE_GROUP("refresh\\headers" FILES ${HEADERS_VKPT})
-SOURCE_GROUP("refresh\\shaders" FILES ${SRC_SHADERS})
-SOURCE_GROUP("shared\\sources" FILES ${SRC_SHARED})
-SOURCE_GROUP("windows\\sources" FILES ${SRC_WINDOWS})
-SOURCE_GROUP("windows\\headers" FILES ${HEADERS_WINDOWS})
-
-IF (WIN32)
-    IF(TARGET client)
-        TARGET_INCLUDE_DIRECTORIES(client PRIVATE ../VC/inc)
-        TARGET_LINK_LIBRARIES(client winmm ws2_32)
-        SET_TARGET_PROPERTIES(client PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+	# Other WIN32 related options:
+	IF( WIN32 ) 
+        target_include_directories(client PRIVATE ../VC/inc)
+        target_link_libraries(client winmm ws2_32)
+        set_target_properties(client PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
         # macro redefinition, deprecation
-        TARGET_COMPILE_OPTIONS(client PRIVATE /wd4996)#TARGET_COMPILE_OPTIONS(client PRIVATE /wd4005 /wd4996)
-    ENDIF()
+        target_compile_options(client PRIVATE /wd4996) 
+		#TARGET_COMPILE_OPTIONS(client PRIVATE /wd4005 /wd4996)
+	ENDIF()
 
-    TARGET_INCLUDE_DIRECTORIES(server PRIVATE ../VC/inc)
-    TARGET_INCLUDE_DIRECTORIES(baseq2_svgame PRIVATE ../VC/inc)
-    TARGET_INCLUDE_DIRECTORIES(baseq2_clgame PRIVATE ../VC/inc)
-    TARGET_SOURCES(baseq2_svgame PRIVATE windows/res/baseq2_svgame.rc)
-	TARGET_SOURCES(baseq2_clgame PRIVATE windows/res/baseq2_clgame.rc)
+	target_include_directories(client PRIVATE ../inc)
+    target_include_directories(client PRIVATE "${ZLIB_INCLUDE_DIRS}")
 
-    TARGET_LINK_LIBRARIES(server winmm ws2_32)
-
-    SET_TARGET_PROPERTIES(server PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
-
-    # macro redefinition, deprecation
-    TARGET_COMPILE_OPTIONS(server PRIVATE /wd4996)#TARGET_COMPILE_OPTIONS(server PRIVATE /wd4005 /wd4996)
-    TARGET_COMPILE_OPTIONS(baseq2_svgame PRIVATE /wd4996)#TARGET_COMPILE_OPTIONS(baseq2_svgame PRIVATE /wd4005 /wd4996)
-	TARGET_COMPILE_OPTIONS(baseq2_clgame PRIVATE /wd4996)#TARGET_COMPILE_OPTIONS(baseq2_svgame PRIVATE /wd4005 /wd4996)
-ENDIF()
-
-TARGET_INCLUDE_DIRECTORIES(baseq2_svgame PRIVATE ../inc)
-TARGET_INCLUDE_DIRECTORIES(baseq2_clgame PRIVATE ../inc)
-
-IF(TARGET client)
-    TARGET_INCLUDE_DIRECTORIES(client PRIVATE ../inc)
-    TARGET_INCLUDE_DIRECTORIES(client PRIVATE "${ZLIB_INCLUDE_DIRS}")
-ENDIF()
-
-TARGET_INCLUDE_DIRECTORIES(server PRIVATE ../inc)
-TARGET_INCLUDE_DIRECTORIES(server PRIVATE "${ZLIB_INCLUDE_DIRS}")
-
-# Use dynamic zlib for steam runtime
-if (CONFIG_LINUX_STEAM_RUNTIME_SUPPORT)
-    IF(TARGET client)
-        TARGET_LINK_LIBRARIES(client SDL2main SDL2-static z)
-    ENDIF()
-    TARGET_LINK_LIBRARIES(server z)
-    TARGET_LINK_LIBRARIES(baseq2_svgame z)
-else()
-    IF(TARGET client)
-        TARGET_LINK_LIBRARIES(client SDL2main SDL2-static zlibstatic)
-    ENDIF()
-    TARGET_LINK_LIBRARIES(server zlibstatic)
-    TARGET_LINK_LIBRARIES(baseq2_svgame zlibstatic)
-endif()
-
-IF(UNIX)
-    TARGET_LINK_LIBRARIES(server dl rt m pthread)
-ENDIF()
-
-IF(TARGET client)
-    SET_TARGET_PROPERTIES(client
+	# Set the actual final binary output properties of the client.
+	set_target_properties(client
         PROPERTIES
         OUTPUT_NAME "Q2RTXPerimental"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}"
@@ -653,66 +187,156 @@ IF(TARGET client)
         RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}"
         DEBUG_POSTFIX ""
     )
-ENDIF()
+ENDIF() #IF( CONFIG_BUILD_CLIENT_TARGET )
 
-SET_TARGET_PROPERTIES(server
-    PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}"
-    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}"
-    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}"
-    DEBUG_POSTFIX ""
-)
 
-IF (IS_64_BIT)
-    SET_TARGET_PROPERTIES(server PROPERTIES OUTPUT_NAME "Q2RTXPerimental_ded")
-ELSE()
-    SET_TARGET_PROPERTIES(server PROPERTIES OUTPUT_NAME "Q2RTXPerimental_ded-x86")
-ENDIF()
 
-# specify both LIBRARY and RUNTIME because one works only on Windows and another works only on Linux
+####
+##	Build Target: "Dedicated Server":
+####
+IF( CONFIG_BUILD_SERVER_TARGET )
+	# Add Build Target:
+	IF( WIN32 )
+		ADD_EXECUTABLE(server 
+			${SRC_COMMON} ${HEADERS_COMMON} 
+			${SRC_SHARED} 
+			${SRC_WINDOWS} ${HEADERS_WINDOWS}
+			${SRC_SERVER} ${HEADERS_SERVER}
+			client/null.cpp
+			windows/res/q2rtxpded.rc
+		)
+	ELSE()
+		ADD_EXECUTABLE(server
+			${SRC_COMMON} ${HEADERS_COMMON} 
+			${SRC_SHARED} 
+			${SRC_LINUX}
+			${SRC_SERVER} ${HEADERS_SERVER}
+			client/null.cpp
+		)
+	ENDIF()#IF(WIN32)
 
-SET_TARGET_PROPERTIES(baseq2_svgame
-    PROPERTIES
-	# Linux:
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
-    LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
-    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
-    LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
-    LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
-	# Windows:
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
-    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
-    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
-	# No Prefixes.
-    PREFIX ""
-    DEBUG_POSTFIX ""
-)
+	target_compile_definitions(server PRIVATE USE_SERVER=1)
+	target_compile_options(server PRIVATE "${WARN_MISSING_PROTOTYPES}")
 
-SET_TARGET_PROPERTIES(baseq2_clgame
-    PROPERTIES
-	# Linux:
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
-    LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
-    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
-    LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
-    LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
-	# Windows:
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
-    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
-    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
-    # No Prefixes.
-	PREFIX ""
-    DEBUG_POSTFIX ""
-)
+	IF( WIN32 )
+		target_include_directories(server PRIVATE ../VC/inc)
+		target_link_libraries(server winmm ws2_32)
+		set_target_properties(server PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 
-IF(IS_64_BIT)
-	IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+		# macro redefinition, deprecation
+		target_compile_options(server PRIVATE /wd4996)
+		#TARGET_COMPILE_OPTIONS(server PRIVATE /wd4005 /wd4996)
+	ENDIF()#IF(WIN32)
+
+	# General include directory.
+	target_include_directories(server PRIVATE ../inc)
+
+	# ZLib:
+	target_include_directories(server PRIVATE "${ZLIB_INCLUDE_DIRS}")
+	target_link_libraries(server zlibstatic)
+
+	# Unix Specific Link Libraries:
+	IF( UNIX )
+		target_link_libraries(server dl rt m pthread)
+	ENDIF() # IF( UNIX )
+
+	set_target_properties(server
+		PROPERTIES
+		OUTPUT_NAME "Q2RTXPerimental_ded"
+		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}"
+		RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}"
+		RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}"
+		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}"
+		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}"
+		DEBUG_POSTFIX ""
+	)
+ENDIF()#IF( CONFIG_BUILD_SERVER_TARGET )
+
+
+
+####
+##	Build Targets: "BaseQ2 Game":
+####
+IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
+	# Server Game:
+	add_library(baseq2_svgame SHARED 
+		${SRC_BASEQ2_SVGAME} ${HEADERS_BASEQ2_SVGAME} 
+		${HEADERS_BASEQ2_SHAREDGAME} 
+		${SRC_SHARED}
+	)
+	# Client Game:
+	add_library(baseq2_clgame SHARED 
+		${SRC_BASEQ2_CLGAME} ${HEADERS_BASEQ2_CLGAME} 
+		${HEADERS_BASEQ2_SHAREDGAME} 
+		${SRC_SHARED}
+	)
+
+	IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
+		# Workaround for GCC 10 linking shared libgcc by default
+		target_link_options(baseq2_clgame PRIVATE "-static-libgcc")
+		target_link_options(baseq2_svgame PRIVATE "-static-libgcc")
+	ENDIF() #IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
+
+	# WIN32 Specifics:
+	IF( WIN32 )
+		target_include_directories(baseq2_svgame PRIVATE ../VC/inc)
+		target_include_directories(baseq2_clgame PRIVATE ../VC/inc)
+		target_sources(baseq2_svgame PRIVATE windows/res/baseq2_svgame.rc)
+		target_sources(baseq2_clgame PRIVATE windows/res/baseq2_clgame.rc)
+		# macro redefinition, deprecation
+		target_compile_options(baseq2_svgame PRIVATE /wd4996)
+		#target_compile_options(baseq2_svgame PRIVATE /wd4005 /wd4996)
+		target_compile_options(baseq2_clgame PRIVATE /wd4996)
+		#target_compile_options(baseq2_svgame PRIVATE /wd4005 /wd4996)
+	ENDIF() #IF( WIN32 ) 
+
+	target_include_directories(baseq2_svgame PRIVATE ../inc)
+	target_include_directories(baseq2_clgame PRIVATE ../inc)
+    target_link_libraries(baseq2_svgame zlibstatic)
+
+	# Specify both LIBRARY and RUNTIME because one works only on Windows,
+	# and another works only on Linux.
+	# "Server Game" Target Properties:
+	set_target_properties(baseq2_svgame
+		PROPERTIES
+		# Linux:
+		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
+		LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
+		LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
+		LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
+		LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
+		# Windows:
+		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
+		RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
+		RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
+		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
+		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
+		# No Prefixes.
+		PREFIX ""
+		DEBUG_POSTFIX ""
+	)
+	# "Client Game" Target Properties:
+	set_target_properties(baseq2_clgame
+		PROPERTIES
+		# Linux:
+		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
+		LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
+		LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
+		LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
+		LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
+		# Windows:
+		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2"
+		RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2"
+		RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2"
+		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2"
+		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
+		# No Prefixes.
+		PREFIX ""
+		DEBUG_POSTFIX ""
+	)
+
+	# Base binary output names on actual build architecture.
+	IF( CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" )
 		SET_TARGET_PROPERTIES(baseq2_svgame
 			PROPERTIES
 			LIBRARY_OUTPUT_NAME "svgameaarch64"
@@ -723,17 +347,17 @@ IF(IS_64_BIT)
 			LIBRARY_OUTPUT_NAME "clgameaarch64"
 			RUNTIME_OUTPUT_NAME "clgameaarch64"
 		)
-	ELSEIF(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le")
+	ELSEIF( CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le" )
 		SET_TARGET_PROPERTIES(baseq2_svgame
 			PROPERTIES
 			LIBRARY_OUTPUT_NAME "svgameppc64le"
 			RUNTIME_OUTPUT_NAME "svgameppc64le"
-        )
+		)
 		SET_TARGET_PROPERTIES(baseq2_clgame
 			PROPERTIES
 			LIBRARY_OUTPUT_NAME "clgameppc64le"
 			RUNTIME_OUTPUT_NAME "clgameppc64le"
-        )
+		)
 	ELSE()
 		SET_TARGET_PROPERTIES(baseq2_svgame
 			PROPERTIES
@@ -746,85 +370,26 @@ IF(IS_64_BIT)
 			RUNTIME_OUTPUT_NAME "clgamex86_64"
 		)
 	ENDIF()
-ELSE()
-    SET_TARGET_PROPERTIES(baseq2_svgame
-        PROPERTIES
-        LIBRARY_OUTPUT_NAME "svgamex86"
-        RUNTIME_OUTPUT_NAME "svgamex86"
-    )
-    SET_TARGET_PROPERTIES(baseq2_clgame
-        PROPERTIES
-        LIBRARY_OUTPUT_NAME "clgamex86"
-        RUNTIME_OUTPUT_NAME "clgamex86"
-    )
-ENDIF()
+ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 
-#IF(CONFIG_LINUX_PACKAGING_SUPPORT)
-#    # Put the real game binary in /usr/share so we can have a wrapper in /usr/bin
-#    IF(TARGET client)
-#        INSTALL(TARGETS client DESTINATION share/quake2rtx/bin COMPONENT shareware)
-#    ENDIF()
-#    INSTALL(TARGETS server DESTINATION games COMPONENT shareware)
-#
-#    IF(NOT CONFIG_LINUX_PACKAGING_SKIP_PKZ)
-#	    # Compress NVIDIA custom content
-#	    INSTALL(CODE "set(SOURCE \"${CMAKE_SOURCE_DIR}\")"
-#	        SCRIPT "${CMAKE_SOURCE_DIR}/setup/package_media.cmake"
-#	        SCRIPT "${CMAKE_SOURCE_DIR}/setup/package_shaders.cmake"
-#	        COMPONENT shareware)
-#	ENDIF()
-#    INSTALL(TARGETS baseq2_svgame DESTINATION share/quake2rtx/baseq2 COMPONENT shareware)
-#	INSTALL(TARGETS baseq2_clgame DESTINATION share/quake2rtx/baseq2 COMPONENT shareware)
-#
-#    # Package data files, including the shareware pak0 for demo levels
-#    set (SHAREWARE_DATA_FILES_LIST
-#        "${CMAKE_SOURCE_DIR}/baseq2/q2rtx_media.pkz"
-#        "${CMAKE_SOURCE_DIR}/baseq2/shaders.pkz"
-#        "${CMAKE_SOURCE_DIR}/baseq2/blue_noise.pkz"
-#        "${CMAKE_SOURCE_DIR}/baseq2/shareware/pak0.pak"
-#    )
-#    INSTALL(FILES
-#        ${SHAREWARE_DATA_FILES_LIST}
-#        DESTINATION share/quake2rtx/baseq2
-#        COMPONENT shareware)
-#
-#    # Package shareware player model
-#    INSTALL(DIRECTORY
-#        "${CMAKE_SOURCE_DIR}/baseq2/shareware/players"
-#        DESTINATION share/quake2rtx/baseq2
-#        COMPONENT shareware)
-#
-#    # Package the legal and info files
-#    INSTALL(FILES
-#        "${CMAKE_SOURCE_DIR}/license.txt"
-#        "${CMAKE_SOURCE_DIR}/notice.txt"
-#        "${CMAKE_SOURCE_DIR}/readme.md"
-#        "${CMAKE_SOURCE_DIR}/changelog.md"
-#        DESTINATION share/quake2rtx/
-#        COMPONENT shareware)
-#
-#    # Package the icon/desktop file
-#    INSTALL(FILES
-#        "${CMAKE_SOURCE_DIR}/setup/q2rtx.desktop"
-#        DESTINATION share/applications/
-#        COMPONENT shareware)
-#    INSTALL(FILES
-#        "${CMAKE_SOURCE_DIR}/setup/q2rtx.png"
-#        DESTINATION share/pixmaps/
-#        COMPONENT shareware)
-#
-#    # Install Client Wrapper
-#    INSTALL(FILES
-#        "${CMAKE_SOURCE_DIR}/setup/q2rtx.sh"
-#        DESTINATION games/
-#        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-#        COMPONENT shareware
-#	RENAME q2rtx)
-#
-#    # Install PAK file finder
-#    INSTALL(FILES
-#        "${CMAKE_SOURCE_DIR}/setup/find-retail-paks.sh"
-#        DESTINATION share/quake2rtx/bin
-#        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-#        COMPONENT shareware)
-#ENDIF()
+####
+##	MSVC Source Groups support for CMake generated "Solutions":
+####
+IF ( MSVC )
+	SOURCE_GROUP("baseq2\\svgame\\sources" FILES ${SRC_BASEQ2_SVGAME})
+	SOURCE_GROUP("baseq2\\svgame\\headers" FILES ${HEADERS_BASEQ2_SVGAME})
+	SOURCE_GROUP("baseq2\\clgame\\sources" FILES ${SRC_BASEQ2_CLGAME})
+	SOURCE_GROUP("baseq2\\clgame\\headers" FILES ${HEADERS_BASEQ2_CLGAME})
+	SOURCE_GROUP("client\\sources" FILES ${SRC_CLIENT})
+	SOURCE_GROUP("client\\headers" FILES ${HEADERS_CLIENT})
+	SOURCE_GROUP("server\\sources" FILES ${SRC_SERVER})
+	SOURCE_GROUP("server\\headers" FILES ${HEADERS_SERVER})
+	SOURCE_GROUP("common\\sources" FILES ${SRC_COMMON})
+	SOURCE_GROUP("common\\headers" FILES ${HEADERS_COMMON})
+	SOURCE_GROUP("refresh\\sources" FILES ${SRC_REFRESH} ${SRC_VKPT})
+	SOURCE_GROUP("refresh\\headers" FILES ${HEADERS_VKPT})
+	SOURCE_GROUP("refresh\\shaders" FILES ${SRC_SHADERS})
+	SOURCE_GROUP("shared\\sources" FILES ${SRC_SHARED})
+	SOURCE_GROUP("windows\\sources" FILES ${SRC_WINDOWS})
+	SOURCE_GROUP("windows\\headers" FILES ${HEADERS_WINDOWS})
+ENDIF() #IF ( MSVC )

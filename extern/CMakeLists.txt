@@ -1,23 +1,20 @@
+####
+##	ZLIB
+####
+#if (NOT CONFIG_LINUX_STEAM_RUNTIME_SUPPORT)
+add_subdirectory(zlib)
+target_include_directories(zlibstatic PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/zlib> $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/zlib>)
 
-#
-# ZLIB
-#
+set_target_properties(zlib PROPERTIES FOLDER extern)
+set_target_properties(zlibstatic PROPERTIES FOLDER extern POSITION_INDEPENDENT_CODE ON)
+set_target_properties(minigzip PROPERTIES FOLDER extern)
+set_target_properties(example PROPERTIES FOLDER extern)
+#endif()
 
-if (NOT CONFIG_LINUX_STEAM_RUNTIME_SUPPORT)
-    add_subdirectory(zlib)
-    target_include_directories(zlibstatic PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/zlib> $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/zlib>)
-
-    set_target_properties(zlib PROPERTIES FOLDER extern)
-    set_target_properties(zlibstatic PROPERTIES FOLDER extern POSITION_INDEPENDENT_CODE ON)
-    set_target_properties(minigzip PROPERTIES FOLDER extern)
-    set_target_properties(example PROPERTIES FOLDER extern)
-endif()
-
-#
-# glslangValidator
-#
-
-if(CONFIG_BUILD_GLSLANG)
+####
+##	glslangValidator
+####
+if( CONFIG_BUILD_CLIENT_TARGET AND CONFIG_VKPT_RENDERER AND CONFIG_BUILD_GLSLANG)
     option(BUILD_EXTERNAL OFF)
     option(ENABLE_SPVREMAPPER OFF)
     option(ENABLE_HLSL OFF)
@@ -31,20 +28,19 @@ if(CONFIG_BUILD_GLSLANG)
     set_target_properties(glslang-build-info PROPERTIES FOLDER glslang)
 endif()
 
-#
-# SDL 2
-#
-
+####
+##	SDL 2
+####
 # On a 32-bit target, only the server is built, and it doesn't need SDL
-if (IS_64_BIT)
+if( CONFIG_BUILD_CLIENT_TARGET )
     option(SDL_SHARED "" OFF)
     option(SDL_STATIC "" ON)
     option(SDL_SHARED_ENABLED_BY_DEFAULT OFF)
     option(SDL_TEST OFF)
 
-    if (CONFIG_LINUX_STEAM_RUNTIME_SUPPORT)
-    	option(INPUT_TSLIB OFF)
-    endif()
+    #IF(CONFIG_LINUX_STEAM_RUNTIME_SUPPORT)
+    #	option(INPUT_TSLIB OFF)
+    #ENDIF()
 
     add_subdirectory(SDL2)
 
@@ -52,14 +48,12 @@ if (IS_64_BIT)
     set_target_properties(SDL2-static PROPERTIES FOLDER extern)
     set_target_properties(uninstall PROPERTIES FOLDER extern)
     set_target_properties(sdl_headers_copy PROPERTIES FOLDER extern)
-endif()
+ENDIF() #IF ( CONFIG_BUILD_CLIENT_TARGET )
 
 #
 # CURL
 #
-
-if(CONFIG_USE_CURL)
-
+IF( CONFIG_USE_CURL )
     option(BUILD_CURL_EXE "" OFF)
     option(BUILD_SHARED_LIBS "" OFF)
     option(CURL_STATICLIB "" ON)
@@ -78,20 +72,20 @@ if(CONFIG_USE_CURL)
     add_subdirectory(curl)
 
     set_target_properties(libcurl PROPERTIES FOLDER extern)
-endif()
+ENDIF() #IF( CONFIG_USE_CURL )
 
 
-add_library(stb INTERFACE)
-target_include_directories(stb INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/stb)
+####
+##	openal-soft (not needed for the server)
+####
+IF ( CONFIG_BUILD_CLIENT_TARGET )
+	add_library(stb INTERFACE)
+	target_include_directories(stb INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/stb)
 
-add_library(tinyobjloader INTERFACE)
-target_include_directories(tinyobjloader INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/tinyobjloader-c)
+	add_library(tinyobjloader INTERFACE)
+	target_include_directories(tinyobjloader INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/tinyobjloader-c)
 
-#
-# openal-soft (64-bit only, not needed for the 32-bit server)
-#
 
-if (IS_64_BIT)
     set(LIBTYPE STATIC)
     option(FORCE_STATIC_VCRT "" ON)
     option(ALSOFT_UTILS "" OFF)
@@ -107,4 +101,4 @@ if (IS_64_BIT)
     set_target_properties(OpenAL PROPERTIES FOLDER extern/openal-soft)
     set_target_properties(common PROPERTIES FOLDER extern/openal-soft)
     set_target_properties(ex-common PROPERTIES FOLDER extern/openal-soft)
-endif()
+ENDIF() # IF ( CONFIG_BUILD_CLIENT_TARGET )

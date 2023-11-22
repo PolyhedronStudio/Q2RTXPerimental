@@ -40,11 +40,11 @@ sizebuf_t   msg_read;
 byte        msg_read_buffer[ MAX_MSGLEN ];
 
 //! Baseline EntityState.
-const entity_packed_t   nullEntityState;
+const entity_packed_t   nullEntityState = {};
 //! Baseline PlayerState.
-const player_packed_t   nullPlayerState;
+const player_packed_t   nullPlayerState = {};
 //! Baseline UserCommand.
-const usercmd_t         nullUserCmd;
+const usercmd_t         nullUserCmd = {};
 
 
 /**

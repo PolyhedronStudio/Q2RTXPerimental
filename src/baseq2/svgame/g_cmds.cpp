@@ -848,9 +848,10 @@ void Cmd_PlayerList_f(edict_t *ent)
         if (!e2->inuse)
             continue;
 
-        Q_snprintf(st, sizeof(st), "%02d:%02d %4d %3d %s%s\n",
+        Q_snprintf(st, sizeof(st), "%02ld:%02ld %4d %3d %s%s\n",
                    (level.framenum - e2->client->resp.enterframe) / 600,
-                   ((level.framenum - e2->client->resp.enterframe) % 600) / 10,
+                   //((level.framenum - e2->client->resp.enterframe) % 600) / 10,
+				   ( ( level.framenum - e2->client->resp.enterframe ) % 600 ) / BASE_FRAMERATE,
                    e2->client->ping,
                    e2->client->resp.score,
                    e2->client->pers.netname,

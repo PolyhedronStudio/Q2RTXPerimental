@@ -14,7 +14,7 @@ extern "C" {
 //
 // clgame.h -- client game dll information visible to client
 //
-#define CLGAME_API_VERSION    3
+#define CLGAME_API_VERSION    4
 
 // edict->svflags
 
@@ -23,7 +23,6 @@ extern "C" {
 #define SVF_MONSTER             0x00000004  // treat as CONTENTS_MONSTER for collision
 
 // edict->solid values
-
 typedef enum {
     SOLID_NOT,          // no interaction with other objects
     SOLID_TRIGGER,      // only touch when inside, after moving
@@ -35,7 +34,7 @@ typedef enum {
 
 #define GMF_CLIENTNUM               0x00000001
 #define GMF_PROPERINUSE             0x00000002
-#define GMF_MVDSPEC                 0x00000004
+//#define GMF_MVDSPEC                 0x00000004
 #define GMF_WANT_ALL_DISCONNECTS    0x00000008
 
 #define GMF_ENHANCED_SAVEGAMES      0x00000400

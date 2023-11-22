@@ -52,7 +52,7 @@ typedef enum {
 
 #define GMF_CLIENTNUM               0x00000001
 #define GMF_PROPERINUSE             0x00000002
-#define GMF_MVDSPEC                 0x00000004
+//#define GMF_MVDSPEC                 0x00000004
 #define GMF_WANT_ALL_DISCONNECTS    0x00000008
 
 #define GMF_ENHANCED_SAVEGAMES      0x00000400
@@ -161,8 +161,8 @@ typedef struct {
     void (*Pmove)(pmove_t *pmove);          // player movement code common with client prediction
 
     // network messaging
-    void (*multicast)(const vec3_t origin, multicast_t to);
-    void (*unicast)(edict_t *ent, qboolean reliable);
+    void (*multicast)(const vec3_t origin, multicast_t to, bool reliable);
+    void (*unicast)(edict_t *ent, bool reliable);
     void (*WriteInt8)( const int32_t c);
     void (*WriteUint8)( const int32_t c);
     void (*WriteInt16)( const int32_t c);

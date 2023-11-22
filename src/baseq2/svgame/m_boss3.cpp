@@ -31,7 +31,7 @@ void Use_Boss3(edict_t *ent, edict_t *other, edict_t *activator)
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_BOSSTPORT);
     gi.WritePosition(ent->s.origin);
-    gi.multicast(ent->s.origin, MULTICAST_PVS);
+    gi.multicast( ent->s.origin, MULTICAST_PHS, false );
     G_FreeEdict(ent);
 }
 

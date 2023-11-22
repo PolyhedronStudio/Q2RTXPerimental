@@ -86,53 +86,60 @@ Sends the contents of the mutlicast buffer to a single client.
 Archived in MVD stream.
 ===============
 */
-static void PF_Unicast(edict_t *ent, qboolean reliable)
+static void PF_Unicast(edict_t *ent, bool reliable)
 {
-    client_t    *client;
-    int         cmd, flags, clientNum;
+	client_t *client;
+	int         cmd, flags, clientNum;
 
-    if (!ent) {
-        goto clear;
-    }
+	if ( !ent ) {
+		goto clear;
+	}
 
-    clientNum = NUM_FOR_EDICT(ent) - 1;
-    if (clientNum < 0 || clientNum >= sv_maxclients->integer) {
-        Com_WPrintf("%s to a non-client %d\n", __func__, clientNum);
-        goto clear;
-    }
+	clientNum = NUM_FOR_EDICT( ent ) - 1;
+	if ( clientNum < 0 || clientNum >= sv_maxclients->integer ) {
+		Com_WPrintf( "%s to a non-client %d\n", __func__, clientNum );
+		goto clear;
+	}
 
-    client = svs.client_pool + clientNum;
-    if (client->state <= cs_zombie) {
-        Com_WPrintf("%s to a free/zombie client %d\n", __func__, clientNum);
-        goto clear;
-    }
+	client = svs.client_pool + clientNum;
+	if ( client->state <= cs_zombie ) {
+		Com_WPrintf( "%s to a free/zombie client %d\n", __func__, clientNum );
+		goto clear;
+	}
 
-    if (!msg_write.cursize) {
-        Com_DPrintf("%s with empty data\n", __func__);
-        goto clear;
-    }
+	if ( !msg_write.cursize ) {
+		Com_DPrintf( "%s with empty data\n", __func__ );
+		goto clear;
+	}
 
-    cmd = msg_write.data[0];
+	cmd = msg_write.data[ 0 ];
 
-    flags = 0;
-    if (reliable) {
-        flags |= MSG_RELIABLE;
-    }
+	flags = 0;
+	if ( reliable ) {
+		flags |= MSG_RELIABLE;
+	}
 
-    if (cmd == svc_layout || (cmd == svc_configstring && msg_write.data[1] == CS_STATUSBAR)) {
-        flags |= MSG_COMPRESS_AUTO;
-    }
+	if ( cmd == svc_layout || ( cmd == svc_configstring && RL16( &msg_write.data[ 1 ] ) == CS_STATUSBAR ) ) {
+		flags |= MSG_COMPRESS_AUTO;
+	}
 
-    SV_ClientAddMessage(client, flags);
+	SV_ClientAddMessage( client, flags );
 
-    // fix anti-kicking exploit for broken mods
-    if (cmd == svc_disconnect) {
-        client->drop_hack = true;
-        goto clear;
-    }
+	// fix anti-kicking exploit for broken mods
+	if ( cmd == svc_disconnect ) {
+		client->drop_hack = true;
+		goto clear;
+	}
 
 clear:
     SZ_Clear(&msg_write);
+}
+
+/**
+*	@brief	Wrapper around SV_Multicast that always uses false for reliable.
+**/
+static void PF_Multicast( const vec3_t origin, multicast_t to, bool reliable = false ) {
+	return SV_Multicast( origin, to, reliable );
 }
 
 /*
@@ -495,156 +502,147 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
                           int channel, int soundindex, float volume,
                           float attenuation, float timeofs)
 {
-    int         i, ent, flags, sendchan;
-    vec3_t      origin_v;
-    client_t    *client;
-    byte        mask[VIS_MAX_BYTES];
-    mleaf_t     *leaf1, *leaf2;
-    message_packet_t    *msg;
-    bool        force_pos;
+	int         ent, vol, att, ofs, flags, sendchan;
+	vec3_t      origin_v;
+	client_t *client;
+	byte        mask[ VIS_MAX_BYTES ];
+	mleaf_t *leaf1, *leaf2;
+	message_packet_t *msg;
+	bool        force_pos;
 
-    if (!edict)
-        Com_Error(ERR_DROP, "%s: edict = NULL", __func__);
-    if (volume < 0 || volume > 1)
-        Com_Error(ERR_DROP, "%s: volume = %f", __func__, volume);
-    if (attenuation < 0 || attenuation > 4)
-        Com_Error(ERR_DROP, "%s: attenuation = %f", __func__, attenuation);
-    if (timeofs < 0 || timeofs > 0.255f)
-        Com_Error(ERR_DROP, "%s: timeofs = %f", __func__, timeofs);
-    if (soundindex < 0 || soundindex >= MAX_SOUNDS)
-        Com_Error(ERR_DROP, "%s: soundindex = %d", __func__, soundindex);
+	if ( !edict )
+		Com_Error( ERR_DROP, "%s: edict = NULL", __func__ );
+	if ( volume < 0 || volume > 1 )
+		Com_Error( ERR_DROP, "%s: volume = %f", __func__, volume );
+	if ( attenuation < 0 || attenuation > 4 )
+		Com_Error( ERR_DROP, "%s: attenuation = %f", __func__, attenuation );
+	if ( timeofs < 0 || timeofs > 0.255f )
+		Com_Error( ERR_DROP, "%s: timeofs = %f", __func__, timeofs );
+	if ( soundindex < 0 || soundindex >= MAX_SOUNDS )
+		Com_Error( ERR_DROP, "%s: soundindex = %d", __func__, soundindex );
 
-    attenuation = min(attenuation, 255.0f / 64);
+	vol = volume * 255;
+	att = min( attenuation * 64, 255 );   // need to clip due to check above
+	ofs = timeofs * 1000;
 
-    ent = NUM_FOR_EDICT(edict);
+	ent = NUM_FOR_EDICT( edict );
 
-    sendchan = (ent << 3) | (channel & 7);
+	sendchan = ( ent << 3 ) | ( channel & 7 );
 
-    // always send the entity number for channel overrides
-    flags = SND_ENT;
-    if (volume != DEFAULT_SOUND_PACKET_VOLUME)
-        flags |= SND_VOLUME;
-    if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
-        flags |= SND_ATTENUATION;
-    if (timeofs)
-        flags |= SND_OFFSET;
+	// always send the entity number for channel overrides
+	flags = SND_ENT;
+	if ( vol != 255 )
+		flags |= SND_VOLUME;
+	if ( att != 64 )
+		flags |= SND_ATTENUATION;
+	if ( ofs )
+		flags |= SND_OFFSET;
+	if ( soundindex > 255 )
+		flags |= SND_INDEX16;
 
-    // send origin for invisible entities
-    // the origin can also be explicitly set
-    force_pos = (edict->svflags & SVF_NOCLIENT) || origin;
+	// send origin for invisible entities
+	// the origin can also be explicitly set
+	force_pos = ( edict->svflags & SVF_NOCLIENT ) || origin;
 
-    // use the entity origin unless it is a bmodel or explicitly specified
-    if (!origin) {
-        if (edict->solid == SOLID_BSP) {
-            VectorAvg(edict->mins, edict->maxs, origin_v);
-            VectorAdd(origin_v, edict->s.origin, origin_v);
-            origin = origin_v;
-        } else {
-            origin = edict->s.origin;
-        }
-    }
+	// use the entity origin unless it is a bmodel or explicitly specified
+	if ( !origin ) {
+		if ( edict->solid == SOLID_BSP ) {
+			VectorAvg( edict->mins, edict->maxs, origin_v );
+			VectorAdd( origin_v, edict->s.origin, origin_v );
+			origin = origin_v;
+		} else {
+			origin = edict->s.origin;
+		}
+	}
 
-    // prepare multicast message
-    MSG_WriteUint8(svc_sound);
-    MSG_WriteUint8(flags | SND_POS);
-    MSG_WriteUint8(soundindex);
+	// prepare multicast message
+	MSG_WriteUint8( svc_sound );
+	MSG_WriteUint8( flags | SND_POS );
+	if ( flags & SND_INDEX16 )
+		MSG_WriteUint16( soundindex );
+	else
+		MSG_WriteUint8( soundindex );
 
-    if (flags & SND_VOLUME)
-        MSG_WriteUint8(volume * 255);
-    if (flags & SND_ATTENUATION)
-        MSG_WriteUint8(attenuation * 64);
-    if (flags & SND_OFFSET)
-        MSG_WriteUint8(timeofs * 1000);
+	if ( flags & SND_VOLUME )
+		MSG_WriteUint8( vol );
+	if ( flags & SND_ATTENUATION )
+		MSG_WriteUint8( att );
+	if ( flags & SND_OFFSET )
+		MSG_WriteUint8( ofs );
 
-    MSG_WriteInt16(sendchan);
-    MSG_WritePos(origin);
+	MSG_WriteUint16( sendchan );
+	MSG_WritePos( origin );
+	
+	// if the sound doesn't attenuate, send it to everyone
+	// (global radio chatter, voiceovers, etc)
+	if ( attenuation == ATTN_NONE )
+		channel |= CHAN_NO_PHS_ADD;
 
-    // if the sound doesn't attenuate, send it to everyone
-    // (global radio chatter, voiceovers, etc)
-    if (attenuation == ATTN_NONE)
-        channel |= CHAN_NO_PHS_ADD;
+	// multicast if force sending origin
+	if ( force_pos ) {
+		if ( channel & CHAN_NO_PHS_ADD ) {
+			SV_Multicast( NULL, MULTICAST_ALL, channel & CHAN_RELIABLE );
+		} else {
+			SV_Multicast( origin, MULTICAST_PHS, channel & CHAN_RELIABLE );
+		}
+		return;
+	}
 
-    // multicast if force sending origin
-    if (force_pos) {
-        if (channel & CHAN_NO_PHS_ADD) {
-            if (channel & CHAN_RELIABLE) {
-                SV_Multicast(NULL, MULTICAST_ALL_R);
-            } else {
-                SV_Multicast(NULL, MULTICAST_ALL);
-            }
-        } else {
-            if (channel & CHAN_RELIABLE) {
-                SV_Multicast(origin, MULTICAST_PHS_R);
-            } else {
-                SV_Multicast(origin, MULTICAST_PHS);
-            }
-        }
-        return;
-    }
+	leaf1 = NULL;
+	if ( !( channel & CHAN_NO_PHS_ADD ) ) {
+		leaf1 = CM_PointLeaf( &sv.cm, origin );
+		BSP_ClusterVis( sv.cm.cache, mask, leaf1->cluster, DVIS_PHS );
+	}
 
-    leaf1 = NULL;
-    if (!(channel & CHAN_NO_PHS_ADD)) {
-        leaf1 = CM_PointLeaf(&sv.cm, origin);
-        BSP_ClusterVis(sv.cm.cache, mask, leaf1->cluster, DVIS_PHS);
-    }
+	// decide per client if origin needs to be sent
+	FOR_EACH_CLIENT( client ) {
+		// do not send sounds to connecting clients
+		if ( !CLIENT_ACTIVE( client ) ) {
+			continue;
+		}
 
-    // decide per client if origin needs to be sent
-    FOR_EACH_CLIENT(client) {
-        // do not send sounds to connecting clients
-        if (!CLIENT_ACTIVE(client)) {
-            continue;
-        }
+		// PHS cull this sound
+		if ( !( channel & CHAN_NO_PHS_ADD ) ) {
+			leaf2 = CM_PointLeaf( &sv.cm, client->edict->s.origin );
+			if ( !CM_AreasConnected( &sv.cm, leaf1->area, leaf2->area ) )
+				continue;
+			if ( leaf2->cluster == -1 )
+				continue;
+			if ( !Q_IsBitSet( mask, leaf2->cluster ) )
+				continue;
+		}
 
-        // PHS cull this sound
-        if (!(channel & CHAN_NO_PHS_ADD)) {
-            leaf2 = CM_PointLeaf(&sv.cm, client->edict->s.origin);
-            if (!CM_AreasConnected(&sv.cm, leaf1->area, leaf2->area))
-                continue;
-            if (leaf2->cluster == -1)
-                continue;
-            if (!Q_IsBitSet(mask, leaf2->cluster))
-                continue;
-        }
+		// reliable sounds will always have position explicitly set,
+		// as no one guarantees reliables to be delivered in time
+		if ( channel & CHAN_RELIABLE ) {
+			SV_ClientAddMessage( client, MSG_RELIABLE );
+			continue;
+		}
 
-        // reliable sounds will always have position explicitly set,
-        // as no one guarantees reliables to be delivered in time
-        if (channel & CHAN_RELIABLE) {
-            SV_ClientAddMessage(client, MSG_RELIABLE);
-            continue;
-        }
+		if ( LIST_EMPTY( &client->msg_free_list ) ) {
+			Com_WPrintf( "%s: %s: out of message slots\n",
+						__func__, client->name );
+			continue;
+		}
 
-        // default client doesn't know that bmodels have weird origins
-        if (edict->solid == SOLID_BSP && client->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-            SV_ClientAddMessage(client, 0);
-            continue;
-        }
+		msg = LIST_FIRST( message_packet_t, &client->msg_free_list, entry );
 
-        if (LIST_EMPTY(&client->msg_free_list)) {
-            Com_WPrintf("%s: %s: out of message slots\n",
-                        __func__, client->name);
-            continue;
-        }
+		msg->cursize = 0;
+		msg->flags = flags;
+		msg->index = soundindex;
+		msg->volume = vol;
+		msg->attenuation = att;
+		msg->timeofs = ofs;
+		msg->sendchan = sendchan;
+		VectorCopy( origin, msg->pos );
 
-        msg = LIST_FIRST(message_packet_t, &client->msg_free_list, entry);
+		List_Remove( &msg->entry );
+		List_Append( &client->msg_unreliable_list, &msg->entry );
+		client->msg_unreliable_bytes += MAX_SOUND_PACKET;
+	}
 
-        msg->cursize = 0;
-        msg->flags = flags;
-        msg->index = soundindex;
-        msg->volume = volume * 255;
-        msg->attenuation = attenuation * 64;
-        msg->timeofs = timeofs * 1000;
-        msg->sendchan = sendchan;
-        for (i = 0; i < 3; i++) {
-            msg->pos[i] = COORD2SHORT(origin[i]);
-        }
-
-        List_Remove(&msg->entry);
-        List_Append(&client->msg_unreliable_list, &msg->entry);
-        client->msg_unreliable_bytes += MAX_SOUND_PACKET;
-    }
-
-    // clear multicast buffer
-    SZ_Clear(&msg_write);
+	// clear multicast buffer
+	SZ_Clear( &msg_write );
 }
 
 static void PF_StartSound(edict_t *entity, int channel,
@@ -751,7 +749,7 @@ static GameEntryFunctionPointer *_SV_LoadGameLibrary(const char *path)
     else
         Com_Printf("Loaded ServerGame library from %s\n", path);
 
-    return static_cast<GameEntryFunctionPointer*>( entry );
+    return ( GameEntryFunctionPointer* )( entry ); // WID: GCC Linux hates static cast here.
 }
 
 static GameEntryFunctionPointer *SV_LoadGameLibrary(const char *game, const char *prefix)
@@ -818,7 +816,7 @@ void SV_InitGameProgs(void)
 	import.frame_time_ms = BASE_FRAMETIME;
 
     // load a new game dll
-    import.multicast = SV_Multicast;
+    import.multicast = PF_Multicast;
     import.unicast = PF_Unicast;
     import.bprintf = PF_bprintf;
     import.dprintf = PF_dprintf;

@@ -339,7 +339,7 @@ void parasite_drain_attack(edict_t *self)
     gi.WriteInt16(self - g_edicts);
     gi.WritePosition(start);
     gi.WritePosition(end);
-    gi.multicast(self->s.origin, MULTICAST_PVS);
+    gi.multicast( self->s.origin, MULTICAST_PVS, false );
 
     VectorSubtract(start, end, dir);
     T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_UNKNOWN);
