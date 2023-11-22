@@ -444,7 +444,7 @@ void M_MoveFrame(edict_t *self)
 		move->frame[ index ].thinkfunc( self );
 
 	if ( move->frame[ index ].lerp_frame != -1 ) {
-	//	self->s.renderfx |= RF_OLD_FRAME_LERP;
+		self->s.renderfx |= RF_OLD_FRAME_LERP;
 		self->s.old_frame = move->frame[ index ].lerp_frame;
 	}
 
@@ -462,6 +462,9 @@ void M_MoveFrame(edict_t *self)
 
 
 void monster_think( edict_t *self ) {
+	// Ensure to remove RF_OLD_FRAME_LERP.
+	self->s.renderfx &= ~( RF_OLD_FRAME_LERP );
+
 	M_MoveFrame( self );
 	if ( self->linkcount != self->monsterinfo.linkcount ) {
 		self->monsterinfo.linkcount = self->linkcount;
