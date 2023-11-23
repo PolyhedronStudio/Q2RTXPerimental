@@ -86,7 +86,14 @@ void *MSG_WriteData( const void *data, const size_t len ) {
 *			Will clear the "Write" message buffer after succesfully copying the data.
 **/
 void MSG_FlushTo( sizebuf_t *buf ) {
-	SZ_Write( buf, msg_write.data, msg_write.cursize );
+	if ( buf != nullptr ) {
+		SZ_Write( buf, msg_write.data, msg_write.cursize );
+	} else {
+		#ifdef PARANOID
+		Q_assert( buf == nullptr );
+		#endif
+	}
+
 	SZ_Clear( &msg_write );
 }
 
@@ -103,6 +110,89 @@ void MSG_BeginReading( void ) {
 **/
 byte *MSG_ReadData( const size_t len ) {
 	return static_cast<byte *>( SZ_ReadData( &msg_read, len ) ); // WID: C++20: Added cast.
+}
+
+
+
+
+/**
+*	@brief
+**/
+void MSG_WriteBits( const int32_t value, int32_t bits ) {
+	if ( bits == 0 || bits < -31 || bits > 31 ) {
+		Com_Error( ERR_FATAL, "MSG_WriteBits: bad bits: %d", bits );
+	}
+
+	if ( bits < 0 ) {
+		bits = -bits;
+	}
+
+	uint32_t bits_buf = msg_write.bits_buf;
+	uint32_t bits_left = msg_write.bits_left;
+	uint32_t v = value & ( ( 1U << bits ) - 1 );
+
+	bits_buf |= v << ( 32 - bits_left );
+	if ( bits >= bits_left ) {
+		MSG_WriteInt32( bits_buf );
+		bits_buf = v >> bits_left;
+		bits_left += 32;
+	}
+	bits_left -= bits;
+
+	msg_write.bits_buf = bits_buf;
+	msg_write.bits_left = bits_left;
+}
+
+/**
+*	@brief
+**/
+const int32_t MSG_ReadBits( int32_t bits ) {
+	bool sgn = false;
+
+	if ( bits == 0 || bits < -25 || bits > 25 ) {
+		Com_Error( ERR_FATAL, "MSG_ReadBits: bad bits: %d", bits );
+	}
+
+	if ( bits < 0 ) {
+		bits = -bits;
+		sgn = true;
+	}
+
+	uint32_t bits_buf = msg_read.bits_buf;
+	uint32_t bits_left = msg_read.bits_left;
+
+	while ( bits > bits_left ) {
+		bits_buf |= (uint32_t)MSG_ReadUint8( ) << bits_left;
+		bits_left += 8;
+	}
+
+	uint32_t value = bits_buf & ( ( 1U << bits ) - 1 );
+
+	msg_read.bits_buf = bits_buf >> bits;
+	msg_read.bits_left = bits_left - bits;
+
+	if ( sgn ) {
+		return (int32_t)( value << ( 32 - bits ) ) >> ( 32 - bits );
+	}
+
+	return value;
+}
+
+/**
+*	@brief	
+**/
+void MSG_FlushBits( void ) {
+	uint32_t bits_buf = msg_write.bits_buf;
+	uint32_t bits_left = msg_write.bits_left;
+
+	while ( bits_left < 32 ) {
+		MSG_WriteUint8( bits_buf & 255 );
+		bits_buf >>= 8;
+		bits_left += 8;
+	}
+
+	msg_write.bits_buf = 0;
+	msg_write.bits_left = 32;
 }
 
 

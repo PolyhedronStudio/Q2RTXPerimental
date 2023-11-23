@@ -254,6 +254,20 @@ extern "C" {
 	byte *MSG_ReadData( const size_t len );
 
 
+	/**
+	*	@brief
+	**/
+	void MSG_WriteBits( const int32_t value, int32_t bits );
+	/**
+	*	@brief
+	**/
+	const int32_t MSG_ReadBits( int32_t bits );
+	/**
+	*	@brief
+	**/
+	void MSG_FlushBits( void );
+
+
 
 	/**
 	*

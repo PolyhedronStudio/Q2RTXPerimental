@@ -1057,6 +1057,105 @@ static void SV_ClientExecuteMove(void)
 }
 
 /*
+==================
+SV_NewClientExecuteMove
+==================
+*/
+static void SV_NewClientExecuteMove( int c ) {
+	usercmd_t   cmds[ MAX_PACKET_FRAMES ][ MAX_PACKET_USERCMDS ];
+	usercmd_t *lastcmd, *cmd;
+	int         lastframe;
+	int         numCmds[ MAX_PACKET_FRAMES ], numDups;
+	int         i, j;
+	int         net_drop;
+
+	if ( moveIssued ) {
+		SV_DropClient( sv_client, "multiple clc_move commands in packet" );
+		return;     // someone is trying to cheat...
+	}
+
+	moveIssued = true;
+
+	if ( c == clc_move_nodelta ) {
+		lastframe = -1;
+		numDups = MSG_ReadUint8( );
+	} else {
+		numDups = MSG_ReadUint8( );
+		lastframe = MSG_ReadInt32( );
+	}
+
+
+	if ( numDups >= MAX_PACKET_FRAMES ) {
+		SV_DropClient( sv_client, "too many frames in packet" );
+		return;
+	}
+
+	// read all cmds
+	lastcmd = NULL;
+	for ( i = 0; i <= numDups; i++ ) {
+		numCmds[ i ] = MSG_ReadUint8();// MSG_ReadBits( 5 );
+		if ( msg_read.readcount > msg_read.cursize ) {
+			SV_DropClient( sv_client, "read past end of message" );
+			return;
+		}
+		if ( numCmds[ i ] >= MAX_PACKET_USERCMDS ) {
+			SV_DropClient( sv_client, "too many usercmds in frame" );
+			return;
+		}
+		for ( j = 0; j < numCmds[ i ]; j++ ) {
+			if ( msg_read.readcount > msg_read.cursize ) {
+				SV_DropClient( sv_client, "read past end of message" );
+				return;
+			}
+			cmd = &cmds[ i ][ j ];
+			MSG_ParseDeltaUserCommand( lastcmd, cmd );
+			lastcmd = cmd;
+		}
+	}
+
+	if ( sv_client->state != cs_spawned ) {
+		SV_SetLastFrame( -1 );
+		return;
+	}
+
+	SV_SetLastFrame( lastframe );
+
+	if ( q_unlikely( !lastcmd ) ) {
+		return; // should never happen
+	}
+
+	net_drop = sv_client->netchan.dropped;
+	if ( net_drop > numDups ) {
+		sv_client->frameflags |= FF_CLIENTPRED;
+	}
+
+	if ( net_drop < 20 ) {
+		// run lastcmd multiple times if no backups available
+		while ( net_drop > numDups ) {
+			SV_ClientThink( &sv_client->lastcmd );
+			net_drop--;
+		}
+
+		// run backup cmds, if any
+		while ( net_drop > 0 ) {
+			i = numDups - net_drop;
+			for ( j = 0; j < numCmds[ i ]; j++ ) {
+				SV_ClientThink( &cmds[ i ][ j ] );
+			}
+			net_drop--;
+		}
+
+	}
+
+	// run new cmds
+	for ( j = 0; j < numCmds[ numDups ]; j++ ) {
+		SV_ClientThink( &cmds[ numDups ][ j ] );
+	}
+
+	sv_client->lastcmd = *lastcmd;
+}
+
+/*
 =================
 SV_CheckInfoBans
 
@@ -1282,6 +1381,10 @@ badbyte:
             SV_ParseClientCommand();
             break;
 
+		case clc_move_nodelta:
+		case clc_move_batched:
+			SV_NewClientExecuteMove( c );
+			break;
         case clc_userinfo_delta:
             //if (client->protocol != PROTOCOL_VERSION_Q2PRO)
             //    goto badbyte;
