@@ -14,6 +14,8 @@
 * Does proper lerping for entities that run lower than ``40hz``.
 * Does proper lerping for weapons based on their 'gunrate', defaults to ``10hz``
 * Added RF_OLD_FRAME_LERP support: ``[Paril-KEX] force model to lerp from oldframe in entity state; otherwise it uses last frame client received``
+* Added support for monster 'step' Z-Axis lerping when RenderFlag ``RF_STAIR_STEP`` is set.
+* Added support to lerp from old entity state frame when RenderFlag ``RF_OLD_FRAME_LERP`` is set.
 
 ### Net Code:
 * Uses its own protocol, partially based on Q2 Protocol #34 and Q2PRO its own. 
