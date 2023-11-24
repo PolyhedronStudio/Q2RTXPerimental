@@ -115,69 +115,69 @@ byte *MSG_ReadData( const size_t len ) {
 
 
 
-/**
-*	@brief
-**/
-void MSG_WriteBits( const int32_t value, int32_t bits ) {
-	if ( bits == 0 || bits < -31 || bits > 31 ) {
-		Com_Error( ERR_FATAL, "MSG_WriteBits: bad bits: %d", bits );
-	}
-
-	if ( bits < 0 ) {
-		bits = -bits;
-	}
-
-	uint32_t bits_buf = msg_write.bits_buf;
-	uint32_t bits_left = msg_write.bits_left;
-	uint32_t v = value & ( ( 1U << bits ) - 1 );
-
-	bits_buf |= v << ( 32 - bits_left );
-	if ( bits >= bits_left ) {
-		MSG_WriteInt32( bits_buf );
-		bits_buf = v >> bits_left;
-		bits_left += 32;
-	}
-	bits_left -= bits;
-
-	msg_write.bits_buf = bits_buf;
-	msg_write.bits_left = bits_left;
-}
-
-/**
-*	@brief
-**/
-const int32_t MSG_ReadBits( int32_t bits ) {
-	bool sgn = false;
-
-	if ( bits == 0 || bits < -25 || bits > 25 ) {
-		Com_Error( ERR_FATAL, "MSG_ReadBits: bad bits: %d", bits );
-	}
-
-	if ( bits < 0 ) {
-		bits = -bits;
-		sgn = true;
-	}
-
-	uint32_t bits_buf = msg_read.bits_buf;
-	uint32_t bits_left = msg_read.bits_left;
-
-	while ( bits > bits_left ) {
-		bits_buf |= (uint32_t)MSG_ReadUint8( ) << bits_left;
-		bits_left += 8;
-	}
-
-	uint32_t value = bits_buf & ( ( 1U << bits ) - 1 );
-
-	msg_read.bits_buf = bits_buf >> bits;
-	msg_read.bits_left = bits_left - bits;
-
-	if ( sgn ) {
-		return (int32_t)( value << ( 32 - bits ) ) >> ( 32 - bits );
-	}
-
-	return value;
-}
-
+///**
+//*	@brief
+//**/
+//void MSG_WriteBits( const int32_t value, int32_t bits ) {
+//	if ( bits == 0 || bits < -31 || bits > 31 ) {
+//		Com_Error( ERR_FATAL, "MSG_WriteBits: bad bits: %d", bits );
+//	}
+//
+//	if ( bits < 0 ) {
+//		bits = -bits;
+//	}
+//
+//	uint32_t bits_buf = msg_write.bits_buf;
+//	uint32_t bits_left = msg_write.bits_left;
+//	uint32_t v = value & ( ( 1U << bits ) - 1 );
+//
+//	bits_buf |= v << ( 32 - bits_left );
+//	if ( bits >= bits_left ) {
+//		MSG_WriteInt32( bits_buf );
+//		bits_buf = v >> bits_left;
+//		bits_left += 32;
+//	}
+//	bits_left -= bits;
+//
+//	msg_write.bits_buf = bits_buf;
+//	msg_write.bits_left = bits_left;
+//}
+//
+///**
+//*	@brief
+//**/
+//const int32_t MSG_ReadBits( int32_t bits ) {
+//	bool sgn = false;
+//
+//	if ( bits == 0 || bits < -25 || bits > 25 ) {
+//		Com_Error( ERR_FATAL, "MSG_ReadBits: bad bits: %d", bits );
+//	}
+//
+//	if ( bits < 0 ) {
+//		bits = -bits;
+//		sgn = true;
+//	}
+//
+//	uint32_t bits_buf = msg_read.bits_buf;
+//	uint32_t bits_left = msg_read.bits_left;
+//
+//	while ( bits > bits_left ) {
+//		bits_buf |= (uint32_t)MSG_ReadUint8( ) << bits_left;
+//		bits_left += 8;
+//	}
+//
+//	uint32_t value = bits_buf & ( ( 1U << bits ) - 1 );
+//
+//	msg_read.bits_buf = bits_buf >> bits;
+//	msg_read.bits_left = bits_left - bits;
+//
+//	if ( sgn ) {
+//		return (int32_t)( value << ( 32 - bits ) ) >> ( 32 - bits );
+//	}
+//
+//	return value;
+//}
+//
 /**
 *	@brief	
 **/
@@ -570,27 +570,7 @@ static inline void SHOWBITS( const char *x ) {
 	Com_LPrintf( PRINT_DEVELOPER, "%s ", x );
 }
 #if USE_CLIENT
-void MSG_ShowDeltaPlayerstateBits( uint64_t flags ) {
-	#define S(b,s) if(flags&PS_##b) SHOWBITS(s)
-	S( M_TYPE, "pmove.pm_type" );
-	S( M_ORIGIN, "pmove.origin" );
-	S( M_VELOCITY, "pmove.velocity" );
-	S( M_TIME, "pmove.pm_time" );
-	S( M_FLAGS, "pmove.pm_flags" );
-	S( M_GRAVITY, "pmove.gravity" );
-	S( M_DELTA_ANGLES, "pmove.delta_angles" );
-	S( VIEWOFFSET, "viewoffset" );
-	S( VIEWANGLES, "viewangles" );
-	S( KICKANGLES, "kick_angles" );
-	S( WEAPONINDEX, "gunindex" );
-	S( WEAPONFRAME, "gunframe" );
-	S( WEAPONRATE, "gunrate" );
-	S( BLEND, "blend" );
-	S( FOV, "fov" );
-	S( RDFLAGS, "rdflags" );
-	#undef S
-}
-void MSG_ShowDeltaEntityBits( uint64_t bits ) {
+void MSG_ShowDeltaEntityBits( const uint64_t bits ) {
 	#define S(b,s) if(bits&U_##b) SHOWBITS(s)
 	S( MODEL, "modelindex" );
 	S( MODEL2, "modelindex2" );
@@ -638,7 +618,44 @@ void MSG_ShowDeltaEntityBits( uint64_t bits ) {
 	S( SOLID, "solid" );
 	#undef S
 }
-const char *MSG_ServerCommandString( int cmd ) {
+void MSG_ShowDeltaPlayerstateBits( const uint64_t flags ) {
+	#define S(b,s) if(flags&PS_##b) SHOWBITS(s)
+	S( M_TYPE, "pmove.pm_type" );
+	S( M_ORIGIN, "pmove.origin" );
+	S( M_VELOCITY, "pmove.velocity" );
+	S( M_TIME, "pmove.pm_time" );
+	S( M_FLAGS, "pmove.pm_flags" );
+	S( M_GRAVITY, "pmove.gravity" );
+	S( M_DELTA_ANGLES, "pmove.delta_angles" );
+	S( VIEWOFFSET, "viewoffset" );
+	S( VIEWANGLES, "viewangles" );
+	S( KICKANGLES, "kick_angles" );
+	S( WEAPONINDEX, "gunindex" );
+	S( WEAPONFRAME, "gunframe" );
+	S( WEAPONRATE, "gunrate" );
+	S( BLEND, "blend" );
+	S( FOV, "fov" );
+	S( RDFLAGS, "rdflags" );
+	#undef S
+}
+void MSG_ShowDeltaUserCommandBits( const int32_t bits ) {
+	if ( !bits ) {
+		SHOWBITS( "<none>" );
+		return;
+	}
+
+	#define S(b,s) if(bits&CM_##b) SHOWBITS(s)
+	S( ANGLE1, "angle1" );
+	S( ANGLE2, "angle2" );
+	S( ANGLE3, "angle3" );
+	S( FORWARD, "forward" );
+	S( SIDE, "side" );
+	S( UP, "up" );
+	S( BUTTONS, "buttons" );
+	S( IMPULSE, "msec" );
+	#undef S
+}
+const char *MSG_ServerCommandString( const int32_t cmd ) {
 	switch ( cmd ) {
 		case -1: return "END OF MESSAGE";
 		default: return "UNKNOWN COMMAND";

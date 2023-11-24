@@ -844,18 +844,26 @@ static inline bool ready_to_send(void)
     unsigned msec;
 
     if (cl.sendPacketNow) {
+		//Com_DPrintf( "%s\n", "client_ready_to_send(cl.sendPacketNow): true" );
         return true;
     }
     if (cls.netchan.message.cursize || cls.netchan.reliable_ack_pending) {
+		//if ( cls.netchan.reliable_ack_pending ) {
+		//	Com_DPrintf( "%s\n", "client_ready_to_send (cl.netchan.reliable_ack_pending): true" );
+		//}
+		//if ( cls.netchan.message.cursize ) {
+		//	Com_DPrintf( "%s\n", "client_ready_to_send (cl.netchan.message.cursize): true" );
+		//}
         return true;
     }
     if (!cl_maxpackets->integer) {
+		//Com_DPrintf( "%s\n", "client_ready_to_send (!cl_maxpackets->integer): true" );
         return true;
     }
 
 	// WID: netstuff: Changed from 10, to actually, 40.
-    if (cl_maxpackets->integer < 40) {
-        Cvar_Set("cl_maxpackets", "40");
+    if (cl_maxpackets->integer < BASE_FRAMERATE ) {
+        Cvar_Set("cl_maxpackets", std::to_string( BASE_FRAMERATE ).c_str() );
     }
 
     msec = 1000 / cl_maxpackets->integer;
@@ -863,6 +871,8 @@ static inline bool ready_to_send(void)
         msec = BASE_FRAMERATE / ( BASE_FRAMERATE / msec );
     }
     if (cls.realtime - cl.lastTransmitTime < msec) {
+		//Com_DPrintf( "client_ready_to_send (cls.realtime - cl.lastTransmitTime < msec): false\n" );
+		//Com_DPrintf( "cls.realtime(%i), cl.lastTransmitTime(%i), msec(%i)\n", cls.realtime, cl.lastTransmitTime, msec );
         return false;
     }
 
@@ -1035,15 +1045,16 @@ static void CL_SendBatchedCmd( void ) {
 			totalMsec += cmd->msec;
 			bits = MSG_WriteDeltaUserCommand( oldcmd, cmd, cls.serverProtocol );
 			#if USE_DEBUG
-			//if ( cl_showpackets->integer == 3 ) {
-			//	MSG_ShowDeltaUsercmdBits_Enhanced( bits );
-			//}
+			if ( cl_showpackets->integer == 3 ) {
+				MSG_ShowDeltaUserCommandBits( bits );
+			}
 			#endif
 			oldcmd = cmd;
 		}
 	}
 
-	MSG_FlushBits( );
+	//MSG_FlushTo( &msg_write );
+	//MSG_FlushBits( );
 
 	P_FRAMES++;
 
@@ -1149,7 +1160,7 @@ void CL_SendCmd(void)
         // send a userinfo update if needed
         CL_SendReliable();
 
-        // just keepalive or update reliable
+        // just keepalive and/oor update reliable
         if ( NetchanQ2RTXPerimental_ShouldUpdate( &cls.netchan ) ) {
             CL_SendKeepAlive();
         }
@@ -1165,8 +1176,13 @@ void CL_SendCmd(void)
 
     // send a userinfo update if needed
     CL_SendReliable();
-	//CL_SendDefaultCmd();
-	CL_SendBatchedCmd( );
+
+	// Check whether to send batched cmd packets, or just a single regular default command packet.
+	if ( cl_batchcmds->integer ) {
+		CL_SendBatchedCmd( );
+	} else {
+		CL_SendDefaultCmd();
+	}
 
     cl.sendPacketNow = false;
 }
