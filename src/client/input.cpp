@@ -844,25 +844,35 @@ static inline bool ready_to_send(void)
     unsigned msec;
 
     if (cl.sendPacketNow) {
+		//Com_DPrintf( "%s\n", "client_ready_to_send(cl.sendPacketNow): true" );
         return true;
     }
     if (cls.netchan.message.cursize || cls.netchan.reliable_ack_pending) {
+		//if ( cls.netchan.reliable_ack_pending ) {
+		//	Com_DPrintf( "%s\n", "client_ready_to_send (cl.netchan.reliable_ack_pending): true" );
+		//}
+		//if ( cls.netchan.message.cursize ) {
+		//	Com_DPrintf( "%s\n", "client_ready_to_send (cl.netchan.message.cursize): true" );
+		//}
         return true;
     }
     if (!cl_maxpackets->integer) {
+		//Com_DPrintf( "%s\n", "client_ready_to_send (!cl_maxpackets->integer): true" );
         return true;
     }
 
 	// WID: netstuff: Changed from 10, to actually, 40.
-    if (cl_maxpackets->integer < 40) {
-        Cvar_Set("cl_maxpackets", "40");
+    if (cl_maxpackets->integer < BASE_FRAMERATE ) {
+        Cvar_Set("cl_maxpackets", std::to_string( BASE_FRAMERATE ).c_str() );
     }
 
     msec = 1000 / cl_maxpackets->integer;
     if (msec) {
-        msec = 40 / (40 / msec);
+        msec = BASE_FRAMERATE / ( BASE_FRAMERATE / msec );
     }
     if (cls.realtime - cl.lastTransmitTime < msec) {
+		//Com_DPrintf( "client_ready_to_send (cls.realtime - cl.lastTransmitTime < msec): false\n" );
+		//Com_DPrintf( "cls.realtime(%i), cl.lastTransmitTime(%i), msec(%i)\n", cls.realtime, cl.lastTransmitTime, msec );
         return false;
     }
 
@@ -964,6 +974,107 @@ static void CL_SendDefaultCmd(void)
     SZ_Clear(&msg_write);
 }
 
+/*
+=================
+CL_SendBatchedCmd
+=================
+*/
+static void CL_SendBatchedCmd( void ) {
+	int i, j, seq, bits q_unused;
+	int numCmds, numDups;
+	int totalCmds, totalMsec;
+	size_t cursize q_unused;
+	usercmd_t *cmd, *oldcmd;
+	client_history_t *history, *oldest;
+	byte *patch;
+
+	// see if we are ready to send this packet
+	if ( !ready_to_send( ) ) {
+		return;
+	}
+
+	// archive this packet
+	seq = cls.netchan.outgoing_sequence;
+	history = &cl.history[ seq & CMD_MASK ];
+	history->cmdNumber = cl.cmdNumber;
+	history->sent = cls.realtime;    // for ping calculation
+	history->rcvd = 0;
+
+	cl.lastTransmitTime = cls.realtime;
+	cl.lastTransmitCmdNumber = cl.cmdNumber;
+	cl.lastTransmitCmdNumberReal = cl.cmdNumber;
+
+	MSG_BeginWriting( );
+	//Cvar_ClampInteger( cl_packetdup, 0, MAX_PACKET_FRAMES - 1 );
+	//numDups = cl_packetdup->integer;
+	numDups = MAX_PACKET_FRAMES - 1;
+
+	// Check whether cl_nodelta is wished for, or in case of an invalid frame, so we can
+	// let the server know what the last frame we got was, which in return allows
+	// the next message to be delta compressed
+	if ( cl_nodelta->integer || !cl.frame.valid /*|| cls.demowaiting*/ ) {
+		MSG_WriteUint8( clc_move_nodelta );
+		MSG_WriteUint8( numDups );
+	} else {
+		MSG_WriteUint8( clc_move_batched );
+		MSG_WriteUint8( numDups );
+		MSG_WriteInt32( cl.frame.number );
+	}
+
+
+	// send this and the previous cmds in the message, so
+	// if the last packet was dropped, it can be recovered
+	oldcmd = NULL;
+	totalCmds = 0;
+	totalMsec = 0;
+	for ( i = seq - numDups; i <= seq; i++ ) {
+		oldest = &cl.history[ ( i - 1 ) & CMD_MASK ];
+		history = &cl.history[ i & CMD_MASK ];
+
+		numCmds = history->cmdNumber - oldest->cmdNumber;
+		if ( numCmds >= MAX_PACKET_USERCMDS ) {
+			Com_WPrintf( "%s: MAX_PACKET_USERCMDS exceeded\n", __func__ );
+			SZ_Clear( &msg_write );
+			break;
+		}
+		totalCmds += numCmds;
+		//MSG_WriteBits( numCmds, 5 );
+		MSG_WriteUint8( numCmds );
+		for ( j = oldest->cmdNumber + 1; j <= history->cmdNumber; j++ ) {
+			cmd = &cl.cmds[ j & CMD_MASK ];
+			totalMsec += cmd->msec;
+			bits = MSG_WriteDeltaUserCommand( oldcmd, cmd, cls.serverProtocol );
+			#if USE_DEBUG
+			if ( cl_showpackets->integer == 3 ) {
+				MSG_ShowDeltaUserCommandBits( bits );
+			}
+			#endif
+			oldcmd = cmd;
+		}
+	}
+
+	//MSG_FlushTo( &msg_write );
+	//MSG_FlushBits( );
+
+	P_FRAMES++;
+
+	//
+	// deliver the message
+	//
+	cursize = NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
+	#if USE_DEBUG
+	if ( cl_showpackets->integer == 1 ) {
+		Com_Printf( "%zu(%i) ", cursize, totalCmds );
+	} else if ( cl_showpackets->integer == 2 ) {
+		Com_Printf( "%zu(%i) ", cursize, totalMsec );
+	} else if ( cl_showpackets->integer == 3 ) {
+		Com_Printf( " | " );
+	}
+	#endif
+
+	SZ_Clear( &msg_write );
+}
+
 static void CL_SendKeepAlive(void)
 {
     client_history_t *history;
@@ -1049,7 +1160,7 @@ void CL_SendCmd(void)
         // send a userinfo update if needed
         CL_SendReliable();
 
-        // just keepalive or update reliable
+        // just keepalive and/oor update reliable
         if ( NetchanQ2RTXPerimental_ShouldUpdate( &cls.netchan ) ) {
             CL_SendKeepAlive();
         }
@@ -1065,7 +1176,13 @@ void CL_SendCmd(void)
 
     // send a userinfo update if needed
     CL_SendReliable();
-	CL_SendDefaultCmd();
+
+	// Check whether to send batched cmd packets, or just a single regular default command packet.
+	if ( cl_batchcmds->integer ) {
+		CL_SendBatchedCmd( );
+	} else {
+		CL_SendDefaultCmd();
+	}
 
     cl.sendPacketNow = false;
 }

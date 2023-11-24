@@ -254,6 +254,20 @@ extern "C" {
 	byte *MSG_ReadData( const size_t len );
 
 
+	///**
+	//*	@brief
+	//**/
+	//void MSG_WriteBits( const int32_t value, int32_t bits );
+	///**
+	//*	@brief
+	//**/
+	//const int32_t MSG_ReadBits( int32_t bits );
+	///**
+	//*	@brief
+	//**/
+	void MSG_FlushBits( void );
+
+
 
 	/**
 	*
@@ -448,11 +462,10 @@ extern "C" {
 	**/
 	#if USE_DEBUG
 		#if USE_CLIENT
-			void    MSG_ShowDeltaPlayerstateBits( uint64_t flags );
-		#endif
-		#if USE_CLIENT
-			void    MSG_ShowDeltaEntityBits( uint64_t bits );
-			const char *MSG_ServerCommandString( int cmd );
+			void    MSG_ShowDeltaEntityBits( const uint64_t bits );
+			void    MSG_ShowDeltaPlayerstateBits( const uint64_t flags );
+			void	MSG_ShowDeltaUserCommandBits( const int32_t bits );
+			const char *MSG_ServerCommandString( const int32_t cmd );
 			#define MSG_ShowSVC(cmd) \
 				Com_LPrintf(PRINT_DEVELOPER, "%3zu:%s\n", msg_read.readcount - 1, \
 					MSG_ServerCommandString(cmd))

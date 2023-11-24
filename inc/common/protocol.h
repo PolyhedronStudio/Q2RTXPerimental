@@ -55,6 +55,10 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define MAX_PARSE_ENTITIES      (MAX_PACKET_ENTITIES * UPDATE_BACKUP)
 #define PARSE_ENTITIES_MASK     (MAX_PARSE_ENTITIES - 1)
 
+
+#define MAX_PACKET_USERCMDS     32
+#define MAX_PACKET_FRAMES       4
+
 // Malicious users may try using too many string commands
 // Define a capped limit to prevent doing so.
 #define MAX_PACKET_STRINGCMDS   8
@@ -116,9 +120,14 @@ typedef enum {
 typedef enum {
     clc_bad,
     clc_nop,
-    clc_move,               // [usercmd_t]
+    
+	clc_move,               // [usercmd_t]
+	clc_move_nodelta,		// [usercmd_t]
+	clc_move_batched,		// [batched_usercmd_t]
+
     clc_userinfo,           // [userinfo string]
 	clc_userinfo_delta,		// [userinfo_key][userinfo_value]
+	
 	clc_stringcmd,          // [string] message
 } clc_ops_t;
 
