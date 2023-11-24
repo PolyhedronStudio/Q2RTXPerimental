@@ -964,8 +964,11 @@ void R_RegisterFunctionsGL()
 
 	R_Sun_SetTimeOfDayPreset = R_Sun_SetTimeOfDayPreset_GL;
 	R_Sky_SetPhysicalSky = R_Sky_SetPhysicalSky_GL;
-	R_Sun_SetSunColor = R_Sun_SetSunColor_GL;
-
+	R_Sun_SetColor = R_Sun_SetColor_GL;
+	R_Sun_SetGroundAlbedoColor = R_Sun_SetAzimuth_GL;
+	R_Sun_SetElevation = R_Sun_SetElevation_GL;
+	R_Sun_SetAzimuth = R_Sun_SetAzimuth_GL;
+	R_Sun_SetLatitude = R_Sun_SetLatitude_GL;
 
 	R_RenderFrame = R_RenderFrame_GL;
 	R_LightPoint = R_LightPoint_GL;

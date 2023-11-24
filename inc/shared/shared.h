@@ -1372,17 +1372,17 @@ static inline const float SHORT2COORD( const int s ) {
 //! 3 = Night, 4 = Dawn, 5 = Morning, 6 = NOON, 7 = EVENING, 8 = DUSK.
 #define CS_SUN_TIME_OF_DAY_PRESET	9
 //! The sun's GI color.
-#define CS_SUN_COLOR		10
-//! The sun's albedo environment color.
-#define CS_SUN_ALBEDO		11
+#define CS_SUN_COLOR				10
+//! The sun's ground albedo environment color.
+#define CS_SUN_GROUND_ALBEDO		11
 //! The sun's custom Elevation(Default: 45). Only in effect when Time Of Day Preset is 0.
-#define CS_SUN_ELEVATION	12
+#define CS_SUN_ELEVATION			12
 //! The sun's custom Azimuth(Default: 345). Only in effect when Time Of Day Preset is 0.
-#define CS_SUN_AZIMUTH		13
+#define CS_SUN_AZIMUTH				13
 //! Latitude(on Earth) of the game location that is used to compute the direction of the sun 
 //! in automatic presets, i.e.when `Time Of Day Preset` is set to 1 or 2. 
 //! Default value is 32.9, which is the latitude of of former headquarters of id Software in Richardson, Texas.
-#define CS_SUN_LATITUDE		14
+#define CS_SUN_LATITUDE				14
 
 //! 
 /**

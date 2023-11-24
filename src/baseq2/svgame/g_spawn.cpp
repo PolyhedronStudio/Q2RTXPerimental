@@ -337,7 +337,7 @@ static const spawn_field_t temp_fields[] = {
 	// RTX Specific Sun Worldspawn Properties:
 	{"sun_time_of_day_preset", STOFS( sun_timeOfDayPreset), F_INT},
 	{"sun_color", STOFS( sun_color ), F_VECTOR},
-	{"sun_albedo", STOFS( sun_albedo ), F_VECTOR},
+	{"sun_ground_albedo", STOFS( sun_ground_albedo ), F_VECTOR},
 	{"sun_elevation", STOFS( sun_elevation ), F_FLOAT},
 	{"sun_azimuth", STOFS( sun_azimuth ), F_FLOAT},
 	{"sun_latitude", STOFS( sun_latitude ), F_FLOAT},
@@ -900,8 +900,8 @@ void SP_worldspawn(edict_t *ent)
 		gi.configstring( CS_SUN_COLOR, va( "%f %f %f", st.sun_color[0], st.sun_color[1], st.sun_color[2] ) );
 	}
 	// Sun: Albedo ConfigString.
-	if ( !VectorCompare( st.sun_albedo, vec3_origin ) ) {
-		gi.configstring( CS_SUN_ALBEDO, va( "%f %f %f", st.sun_albedo[ 0 ], st.sun_albedo[ 1 ], st.sun_albedo[ 2 ] ) );
+	if ( !VectorCompare( st.sun_ground_albedo, vec3_origin ) ) {
+		gi.configstring( CS_SUN_GROUND_ALBEDO, va( "%f %f %f", st.sun_ground_albedo[ 0 ], st.sun_ground_albedo[ 1 ], st.sun_ground_albedo[ 2 ] ) );
 	}
 	// Sun: Elevation, only in effect when the sun's Time Of Day preset is 0.
 	if ( st.sun_elevation > 0.0f ) {

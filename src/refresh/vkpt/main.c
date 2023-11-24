@@ -4152,17 +4152,37 @@ void R_Sky_SetPhysicalSky_RTX( const int32_t physicalSky, const int32_t physical
 void R_Sun_SetTimeOfDayPreset_RTX( const int32_t preset ) {
 	extern cvar_t *sun_preset;
 	Cvar_SetByVar( sun_preset, va( "%d", preset ), FROM_CODE );
-	Com_DPrintf( "R_Sun_SetTimeOfDayPreset_RTX( %i )\n", preset );
+	Com_DPrintf( "R_Sun_SetTimeOfDayPreset_RTX( %i )\n", sun_preset->integer );
 }
 /**
 *	@brief	Set the sun's GI color. 
 **/
-void R_Sun_SetSunColor_RTX( const vec3_t sunColor ) {
+void R_Sun_SetColor_RTX( const vec3_t sunColor ) {
 	extern cvar_t *sun_color[3];
 	Cvar_SetByVar( sun_color[ 0 ], va( "%f", sunColor[ 0 ] ), FROM_CODE );
 	Cvar_SetByVar( sun_color[ 1 ], va( "%f", sunColor[ 1 ] ), FROM_CODE );
 	Cvar_SetByVar( sun_color[ 2 ], va( "%f", sunColor[ 2 ] ), FROM_CODE );
 	Com_DPrintf( "R_Sun_SetColor_RTX( %f, %f, %f )\n", sunColor[ 0 ], sunColor[ 1 ], sunColor[ 2 ] );
+}
+void R_Sun_SetGroundAlbedoColor_RTX( const vec3_t sunGroundAlbedoColor ) {
+	//extern cvar_t *sun_preset;
+	//Cvar_SetByVar( sun_preset, va( "%d", preset ), FROM_CODE );
+	//Com_DPrintf( "R_Sun_SetTimeOfDayPreset_RTX( %i )\n", preset );
+}
+void R_Sun_SetElevation_RTX( const float sunElevation ) {
+	extern cvar_t *sun_elevation;
+	Cvar_SetByVar( sun_elevation, va( "%f", sunElevation ), FROM_CODE );
+	Com_DPrintf( "R_Sun_SetElevation_RTX( %f )\n", sun_elevation->value );
+}
+void R_Sun_SetAzimuth_RTX( const float sunAzimuth ) {
+	extern cvar_t *sun_azimuth;
+	Cvar_SetByVar( sun_azimuth, va( "%f", sunAzimuth ), FROM_CODE );
+	Com_DPrintf( "R_Sun_SetAzimuth_RTX( %f )\n", sun_azimuth->value );
+}
+void R_Sun_SetLatitude_RTX( const float sunLatitude ) {
+	extern cvar_t *sun_latitude;
+	Cvar_SetByVar( sun_latitude, va( "%f", sunLatitude ), FROM_CODE );
+	Com_DPrintf( "R_Sun_SetLatitude_RTX( %f )\n", sun_latitude->value );
 }
 /**
 *	@brief	Set the sun's GI color.
@@ -4469,8 +4489,12 @@ void R_RegisterFunctionsRTX()
 	R_SetSky = R_SetSky_RTX;
 	
 	R_Sky_SetPhysicalSky = R_Sky_SetPhysicalSky_RTX;
-	R_Sun_SetSunColor = R_Sun_SetSunColor_RTX;
 	R_Sun_SetTimeOfDayPreset = R_Sun_SetTimeOfDayPreset_RTX;
+	R_Sun_SetColor = R_Sun_SetColor_RTX;
+	R_Sun_SetGroundAlbedoColor = R_Sun_SetGroundAlbedoColor_RTX;
+	R_Sun_SetElevation = R_Sun_SetElevation_RTX;
+	R_Sun_SetAzimuth = R_Sun_SetAzimuth_RTX;
+	R_Sun_SetLatitude = R_Sun_SetLatitude_RTX;
 
 	R_RenderFrame = R_RenderFrame_RTX;
 	R_LightPoint = R_LightPoint_RTX;

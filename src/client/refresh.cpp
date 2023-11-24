@@ -461,8 +461,11 @@ void(*MOD_Reference)(model_t* model) = NULL;
 void ( *R_Sky_SetPhysicalSky )( const int32_t physicalSky, const int32_t physicalSkyDrawClouds, const int32_t physicalSkyDrawBackground ) = NULL;
 // Sun:
 void ( *R_Sun_SetTimeOfDayPreset )( const int32_t preset ) = NULL;
-void ( *R_Sun_SetSunColor )( const vec3_t sunColor ) = NULL;
-
+void ( *R_Sun_SetColor )( const vec3_t sunColor ) = NULL;
+void ( *R_Sun_SetGroundAlbedoColor )( const vec3_t sunGroundAlbedoColor ) = NULL;
+void ( *R_Sun_SetElevation )( const float sunElevation ) = NULL;
+void ( *R_Sun_SetAzimuth )( const float sunAzimuth ) = NULL;
+void ( *R_Sun_SetLatitude )( const float sunLatitude ) = NULL;
 /**
 *	End of VKPT Sky/Sun API.
 **/

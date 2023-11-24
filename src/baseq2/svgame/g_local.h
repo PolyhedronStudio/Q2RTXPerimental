@@ -489,7 +489,7 @@ typedef struct {
 	// RTX Specific Sun Worldspawn Properties:
 	int32_t sun_timeOfDayPreset;
 	vec3_t sun_color;
-	vec3_t sun_albedo;
+	vec3_t sun_ground_albedo;
 	float sun_elevation;
 	float sun_azimuth;
 	float sun_latitude;

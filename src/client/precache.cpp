@@ -347,7 +347,21 @@ static void CL_SetSkyRTX( void ) {
 			physicalSkyDrawBackground = 1;
 		}
 		R_Sky_SetPhysicalSky( physicalSky, physicalSkyDrawClouds, physicalSkyDrawBackground );
+	}
+}
 
+/*
+=================
+CL_SetSun_RTX
+
+Sets the proper sun settings based on ConfigStrings for RTX environments.
+=================
+*/
+static void CL_SetSunRTX( void ) {
+	/**
+	*	RTX Specific:
+	**/
+	if ( vid_rtx->integer ) {
 		/**
 		*	RTX Specific "Sun" Worldspawn Properties:
 		**/
@@ -356,10 +370,33 @@ static void CL_SetSkyRTX( void ) {
 		if ( sscanf( cl.configstrings[ CS_SUN_TIME_OF_DAY_PRESET ], "%i", &sunPreset ) == 1 ) {
 			R_Sun_SetTimeOfDayPreset( sunPreset );
 		}
-		// Defaults to 5, "Morning".
+		// Will if succesfully parsed, assign and set the Sun Color.
 		vec3_t sunColor = { 0.f, 0.f, 0.f };
 		if ( sscanf( cl.configstrings[ CS_SUN_COLOR ], "%f %f %f", &sunColor[ 0 ], &sunColor[ 1 ], &sunColor[ 2 ] ) == 3 ) {
-			R_Sun_SetSunColor( sunColor );
+			R_Sun_SetColor( sunColor );
+		}
+		// Will if succesfully parsed, assign and set the Sun's Ground Albedo Color.
+		vec3_t sunGroundAlbedoColor = { 0.f, 0.f, 0.f };
+		if ( sscanf( cl.configstrings[ CS_SUN_GROUND_ALBEDO ], "%f %f %f", &sunGroundAlbedoColor[ 0 ], &sunGroundAlbedoColor[ 1 ], &sunGroundAlbedoColor[ 2 ] ) == 3 ) {
+			R_Sun_SetGroundAlbedoColor( sunGroundAlbedoColor );
+		}
+		// Will if succesfully parsed, assign and set the Sun's Elevation. 
+		// (For 'Custom' Sun Preset #0)
+		float sunElevation = 45.f;
+		if ( sscanf( cl.configstrings[ CS_SUN_ELEVATION ], "%f", &sunElevation ) == 1 ) {
+			R_Sun_SetElevation( sunElevation );
+		}
+		// Will if succesfully parsed, assign and set the Sun's Elevation. 
+		// (For 'Custom' Sun Preset #0)
+		float sunAzimuth = 345.f;
+		if ( sscanf( cl.configstrings[ CS_SUN_AZIMUTH ], "%f", &sunAzimuth ) == 1 ) {
+			R_Sun_SetAzimuth( sunAzimuth );
+		}
+		// Will if succesfully parsed, assign and set the Sun's Latitude. 
+		// (Default's 32,9, which is the latitude of of former headquarters of id Software in Richardson, Texas.)
+		float sunLatitude = 32.9f;
+		if ( sscanf( cl.configstrings[ CS_SUN_LATITUDE ], "%f", &sunLatitude ) == 1 ) {
+			R_Sun_SetLatitude( sunLatitude );
 		}
 	}
 }
@@ -433,11 +470,18 @@ void CL_PrepRefresh(void)
     // set sky textures and speed
     CL_SetSky();
 
+	// Set RTX specific sky settings.
+	if ( vid_rtx->integer ) {
+		CL_SetSkyRTX( );
+	}
+
     // the renderer can now free unneeded stuff
     R_EndRegistration();
 
-	// set sky textures and speed
-	CL_SetSkyRTX( );
+	// Set RTX specific sun settings.
+	if ( vid_rtx->integer ) {
+		CL_SetSunRTX( );
+	}
 
     // clear any lines of console text
     Con_ClearNotify_f();

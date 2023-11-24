@@ -314,7 +314,11 @@ extern void (*R_EndRegistration)(void);
 extern void ( *R_Sky_SetPhysicalSky )( const int32_t physicalSky, const int32_t physicalSkyDrawClouds, const int32_t physicalSkyDrawBackground );
 // Sun:
 extern void ( *R_Sun_SetTimeOfDayPreset )( const int32_t preset );
-extern void ( *R_Sun_SetSunColor )( const vec3_t sunColor );
+extern void ( *R_Sun_SetColor )( const vec3_t sunColor );
+extern void ( *R_Sun_SetGroundAlbedoColor)( const vec3_t sunGroundAlbedoColor );
+extern void ( *R_Sun_SetElevation)( const float sunElevation );
+extern void ( *R_Sun_SetAzimuth )( const float sunAzimuth );
+extern void ( *R_Sun_SetLatitude )( const float sunLatitude );
 /**
 *	End of VKPT Sky/Sun API.
 **/
