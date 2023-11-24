@@ -481,6 +481,19 @@ typedef struct {
     char        *nextmap;
     char        *musictrack;
 
+	// RTX Physical Sky
+	int32_t	sky_physicalSky;
+	int32_t sky_physicalSkyDrawClouds;
+	int32_t sky_physicalSkyDrawBackground;
+	
+	// RTX Specific Sun Worldspawn Properties:
+	int32_t sun_timeOfDayPreset;
+	vec3_t sun_color;
+	vec3_t sun_albedo;
+	float sun_elevation;
+	float sun_azimuth;
+	float sun_latitude;
+
     int         lip;
     int         distance;
     int         height;

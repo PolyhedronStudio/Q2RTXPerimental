@@ -4121,6 +4121,62 @@ R_SetSky_RTX(const char *name, float rotate, int autorotate, const vec3_t axis)
 	Z_Free(data);
 }
 
+/**
+*
+*
+*	Q2RTXPerimental VKPT Sky/Sun API.
+*
+*
+**/
+/**
+*	@brief	Set the properties of the VKPT 'Physical Sky'.
+**/
+void R_Sky_SetPhysicalSky_RTX( const int32_t physicalSky, const int32_t physicalSkyDrawClouds, const int32_t physicalSkyDrawBackground ) {
+	extern cvar_t *physical_sky;
+	Cvar_SetByVar( physical_sky, va( "%d", physicalSky ), FROM_CODE );
+	extern cvar_t *physical_sky_draw_clouds;
+	Cvar_SetByVar( physical_sky_draw_clouds, va( "%d", physicalSkyDrawClouds ), FROM_CODE );
+	extern cvar_t *physical_sky_draw_background;
+	Cvar_SetByVar( physical_sky_draw_background, va( "%d", physicalSkyDrawBackground ), FROM_CODE );
+
+	const char *physicalSkyStr = ( physicalSky == 0 ? "Skybox" : ( physicalSky == 1 ? "Earth" : ( physicalSky == 2 ? "Stroggos" : "Unknown" ) ) );
+	Com_DPrintf( "R_Sky_SetPhysicalSky_RTX( %s, %s, %s )\n",
+				 physicalSkyStr,
+				 physicalSkyDrawClouds ? "DrawClouds" : "NoClouds",
+				 physicalSkyDrawBackground ? "DrawBackground" : "NoBackground" );
+}
+
+/**
+*	@brief	Set the preset for the sun's "Time Of Day".
+**/
+void R_Sun_SetTimeOfDayPreset_RTX( const int32_t preset ) {
+	extern cvar_t *sun_preset;
+	Cvar_SetByVar( sun_preset, va( "%d", preset ), FROM_CODE );
+	Com_DPrintf( "R_Sun_SetTimeOfDayPreset_RTX( %i )\n", preset );
+}
+/**
+*	@brief	Set the sun's GI color. 
+**/
+void R_Sun_SetSunColor_RTX( const vec3_t sunColor ) {
+	extern cvar_t *sun_color[3];
+	Cvar_SetByVar( sun_color[ 0 ], va( "%f", sunColor[ 0 ] ), FROM_CODE );
+	Cvar_SetByVar( sun_color[ 1 ], va( "%f", sunColor[ 1 ] ), FROM_CODE );
+	Cvar_SetByVar( sun_color[ 2 ], va( "%f", sunColor[ 2 ] ), FROM_CODE );
+	Com_DPrintf( "R_Sun_SetColor_RTX( %f, %f, %f )\n", sunColor[ 0 ], sunColor[ 1 ], sunColor[ 2 ] );
+}
+/**
+*	@brief	Set the sun's GI color.
+**/
+//void R_Sun_SetSunAlbedo_RTX( const vec3_t sunAlbedo ) {
+//	extern cvar_t *sun_albedo;
+//	Cvar_SetByVar( sun_albedo, va( "%f %f %f", sunAlbedo[ 0 ], sunAlbedo[ 1 ], sunAlbedo[ 2 ] ), FROM_CONSOLE );
+//	Com_DPrintf( "R_Sun_SetAlbedo_RTX( %i )\n", sunAlbedo[ 0 ], sunAlbedo[ 1 ], sunAlbedo[ 2 ] );
+//}
+
+/**
+*	End of VKPT Sky/Sun API.
+**/
+
 void R_AddDecal_RTX(decal_t *d)
 { }
 
@@ -4411,6 +4467,11 @@ void R_RegisterFunctionsRTX()
 	R_BeginRegistration = R_BeginRegistration_RTX;
 	R_EndRegistration = R_EndRegistration_RTX;
 	R_SetSky = R_SetSky_RTX;
+	
+	R_Sky_SetPhysicalSky = R_Sky_SetPhysicalSky_RTX;
+	R_Sun_SetSunColor = R_Sun_SetSunColor_RTX;
+	R_Sun_SetTimeOfDayPreset = R_Sun_SetTimeOfDayPreset_RTX;
+
 	R_RenderFrame = R_RenderFrame_RTX;
 	R_LightPoint = R_LightPoint_RTX;
 	R_ClearColor = R_ClearColor_RTX;

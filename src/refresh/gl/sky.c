@@ -414,3 +414,7 @@ void R_SetSky_GL(const char *name, float rotate, int autorotate, const vec3_t ax
     }
 }
 
+// The following are STUBS since they are RTX specific.
+void R_Sky_SetPhysicalSky_GL( const int32_t physicalSky, const int32_t physicalSkyDrawClouds, const int32_t physicalSkyDrawBackground ) {}
+void R_Sun_SetTimeOfDayPreset_GL( const int32_t preset ) {}
+void R_Sun_SetSunColor_GL( const vec3_t sunColor ) {}

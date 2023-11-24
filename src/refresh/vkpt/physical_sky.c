@@ -54,6 +54,7 @@ cvar_t *sun_latitude;
 
 cvar_t *physical_sky;
 cvar_t *physical_sky_draw_clouds;
+cvar_t *physical_sky_draw_background;
 cvar_t *physical_sky_space;
 cvar_t *physical_sky_brightness;
 
@@ -838,6 +839,11 @@ vkpt_physical_sky_update_ubo(QVKUniformBuffer_t * ubo, const sun_light_t* light,
         else
             flags = flags & (~PHYSICAL_SKY_FLAG_DRAW_CLOUDS);
 
+		if ( physical_sky_draw_background->value > 0.0f )
+			flags = flags | PHYSICAL_SKY_FLAG_DRAW_MOUNTAINS;
+		else
+			flags = flags & ( ~PHYSICAL_SKY_FLAG_DRAW_MOUNTAINS );
+
         ubo->physical_sky_flags = flags;
 
         // compute approximation of reflected radiance from ground
@@ -936,6 +942,9 @@ void InitialiseSkyCVars()
 
     physical_sky_draw_clouds = Cvar_Get("physical_sky_draw_clouds", "1", 0);
     physical_sky_draw_clouds->changed = physical_sky_cvar_changed;
+
+	physical_sky_draw_background = Cvar_Get( "physical_sky_draw_background", "1", 0 );
+	physical_sky_draw_background->changed = physical_sky_cvar_changed;
 
     physical_sky_space = Cvar_Get("physical_sky_space", "0", 0);
 	physical_sky_space->changed = physical_sky_cvar_changed;

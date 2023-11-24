@@ -318,6 +318,54 @@ void CL_SetSky(void)
 
 /*
 =================
+CL_SetSky_RTX
+
+Sets the proper sky settings based on ConfigStrings for RTX environments.
+=================
+*/
+static void CL_SetSkyRTX( void ) {
+	/**
+	*	RTX Specific:
+	**/
+	if ( vid_rtx->integer ) {
+		/**
+		*	RTX Specific "Sky" Worldspawn Properties:
+		**/
+		// Defaults to 2, strogg atmosphere.
+		int32_t physicalSky = 2;
+		if ( !sscanf( cl.configstrings[ CS_PHYSICAL_SKY ], "%i", &physicalSky ) ) {
+			physicalSky = 2;
+		}
+		// Defaults to 1, draw clouds, 0 = no clouds..
+		int32_t physicalSkyDrawClouds = 1;
+		if ( !sscanf( cl.configstrings[ CS_PHYSICAL_SKY_DRAW_CLOUDS ], "%i", &physicalSkyDrawClouds ) ) {
+			physicalSkyDrawClouds = 1;
+		}
+		// Defaults to 1, draw background, 0 = no background.
+		int32_t physicalSkyDrawBackground = 1;
+		if ( !sscanf( cl.configstrings[ CS_PHYSICAL_SKY_DRAW_MOUNTAINS ], "%i", &physicalSkyDrawBackground ) ) {
+			physicalSkyDrawBackground = 1;
+		}
+		R_Sky_SetPhysicalSky( physicalSky, physicalSkyDrawClouds, physicalSkyDrawBackground );
+
+		/**
+		*	RTX Specific "Sun" Worldspawn Properties:
+		**/
+		// Defaults to 5, "Morning".
+		int32_t sunPreset = 5;
+		if ( sscanf( cl.configstrings[ CS_SUN_TIME_OF_DAY_PRESET ], "%i", &sunPreset ) == 1 ) {
+			R_Sun_SetTimeOfDayPreset( sunPreset );
+		}
+		// Defaults to 5, "Morning".
+		vec3_t sunColor = { 0.f, 0.f, 0.f };
+		if ( sscanf( cl.configstrings[ CS_SUN_COLOR ], "%f %f %f", &sunColor[ 0 ], &sunColor[ 1 ], &sunColor[ 2 ] ) == 3 ) {
+			R_Sun_SetSunColor( sunColor );
+		}
+	}
+}
+
+/*
+=================
 CL_PrepRefresh
 
 Call before entering a new level, or after changing dlls
@@ -387,6 +435,9 @@ void CL_PrepRefresh(void)
 
     // the renderer can now free unneeded stuff
     R_EndRegistration();
+
+	// set sky textures and speed
+	CL_SetSkyRTX( );
 
     // clear any lines of console text
     Con_ClearNotify_f();

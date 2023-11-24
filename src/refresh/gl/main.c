@@ -961,6 +961,12 @@ void R_RegisterFunctionsGL()
 	R_BeginRegistration = R_BeginRegistration_GL;
 	R_EndRegistration = R_EndRegistration_GL;
 	R_SetSky = R_SetSky_GL;
+
+	R_Sun_SetTimeOfDayPreset = R_Sun_SetTimeOfDayPreset_GL;
+	R_Sky_SetPhysicalSky = R_Sky_SetPhysicalSky_GL;
+	R_Sun_SetSunColor = R_Sun_SetSunColor_GL;
+
+
 	R_RenderFrame = R_RenderFrame_GL;
 	R_LightPoint = R_LightPoint_GL;
 	R_ClearColor = R_ClearColor_GL;

@@ -1344,24 +1344,68 @@ static inline const float SHORT2COORD( const int s ) {
 *	Each config string can be at most MAX_QPATH characters.
 * 
 ***/
+//! Map Name.
 #define CS_NAME             0
+//! Unused: CD Track.
 #define CS_CDTRACK          1
+//! Vanilla Sky Control (Kept around for legacy OpenGL support.)
 #define CS_SKY              2
 #define CS_SKYAXIS          3       // %f %f %f format
 #define CS_SKYROTATE        4
+//! The 'layout' config string, a script on how to render the HUD, varies per game mode.
 #define CS_STATUSBAR        5       // display program string
 
+/**
+*	Custom Environment ConfigString Settings:
+**/
+//! 0 = Use the default texture skybox, 1 = Earth based environment sun, 2 = Stroggoes based environment sun.
+#define CS_PHYSICAL_SKY					6
+//! 0 = No Clouds, 1 = Clouds.
+#define CS_PHYSICAL_SKY_DRAW_CLOUDS		7
+//! 0 = Don't render "Mountains.dds", 1 = Render "Mountains.dds".
+#define CS_PHYSICAL_SKY_DRAW_MOUNTAINS	8
+
+//! The suns actual time of day preset:
+//! 0 = Custom, use the specifically set sun Elevation and Azimuth.
+//! 1 = Current Time.
+//! 2 = 12x Current Time.
+//! 3 = Night, 4 = Dawn, 5 = Morning, 6 = NOON, 7 = EVENING, 8 = DUSK.
+#define CS_SUN_TIME_OF_DAY_PRESET	9
+//! The sun's GI color.
+#define CS_SUN_COLOR		10
+//! The sun's albedo environment color.
+#define CS_SUN_ALBEDO		11
+//! The sun's custom Elevation(Default: 45). Only in effect when Time Of Day Preset is 0.
+#define CS_SUN_ELEVATION	12
+//! The sun's custom Azimuth(Default: 345). Only in effect when Time Of Day Preset is 0.
+#define CS_SUN_AZIMUTH		13
+//! Latitude(on Earth) of the game location that is used to compute the direction of the sun 
+//! in automatic presets, i.e.when `Time Of Day Preset` is set to 1 or 2. 
+//! Default value is 32.9, which is the latitude of of former headquarters of id Software in Richardson, Texas.
+#define CS_SUN_LATITUDE		14
+
+//! 
+/**
+*	Other:
+**/
 #define CS_AIRACCEL         59      // air acceleration control
 #define CS_MAXCLIENTS       60
 #define CS_MAPCHECKSUM      61      // for catching cheater maps
+//! Start index of Model precache configstrings.
 #define CS_MODELS           62
-
+//! Start index of Sound precache configstrings.
 #define CS_SOUNDS           (CS_MODELS+MAX_MODELS)
+//! Start index of Images precache configstrings.
 #define CS_IMAGES           (CS_SOUNDS+MAX_SOUNDS)
+//! Start index of LightStyles precache configstrings.
 #define CS_LIGHTS           (CS_IMAGES+MAX_IMAGES)
+//! Start index of Items precache configstrings.
 #define CS_ITEMS            (CS_LIGHTS+MAX_LIGHTSTYLES)
+//! Start of player skin precache configstrings.
 #define CS_PLAYERSKINS      (CS_ITEMS+MAX_ITEMS)
+//! Start of client general config strings.
 #define CS_GENERAL          (CS_PLAYERSKINS+MAX_CLIENTS)
+//! Maximum config strings.
 #define MAX_CONFIGSTRINGS   (CS_GENERAL+MAX_GENERAL)
 
 #define MODELINDEX_PLAYER	(MAX_MODELS_OLD - 1)

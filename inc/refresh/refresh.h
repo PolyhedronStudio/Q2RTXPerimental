@@ -303,6 +303,22 @@ void R_UnregisterImage(qhandle_t handle);
 extern void (*R_SetSky)(const char* name, float rotate, int autorotate, const vec3_t axis);
 extern void (*R_EndRegistration)(void);
 
+/**
+*
+*
+*	Q2RTXPerimental VKPT Sky/Sun API.
+*
+*
+**/
+// Sky:
+extern void ( *R_Sky_SetPhysicalSky )( const int32_t physicalSky, const int32_t physicalSkyDrawClouds, const int32_t physicalSkyDrawBackground );
+// Sun:
+extern void ( *R_Sun_SetTimeOfDayPreset )( const int32_t preset );
+extern void ( *R_Sun_SetSunColor )( const vec3_t sunColor );
+/**
+*	End of VKPT Sky/Sun API.
+**/
+
 // WID: C++20: We need to perform certain casts here in order for this to work. (Wish I could leave it untouched.)
 #ifdef __cplusplus
 #define R_RegisterPic(name) R_RegisterImage(name, IT_PIC, static_cast<imageflags_t>(IF_PERMANENT | IF_SRGB))

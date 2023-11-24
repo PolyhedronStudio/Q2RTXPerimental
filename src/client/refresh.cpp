@@ -405,7 +405,7 @@ void CL_ShutdownRefresh(void)
 // WID: C++20: Need to 'extern C' this.
 extern "C" {
 
-	refcfg_t r_config;
+refcfg_t r_config;
 
 ref_type_t(*R_Init)(bool total) = NULL;
 void(*R_Shutdown)(bool total) = NULL;
@@ -438,33 +438,50 @@ void(*R_AddDecal)(decal_t *d) = NULL;
 bool(*R_InterceptKey)(unsigned key, bool down) = NULL;
 bool(*R_IsHDR)(void) = NULL;
 
-	void(*IMG_Unload)(image_t* image) = NULL;
-	void(*IMG_Load)(image_t* image, byte* pic) = NULL;
-	void(*IMG_ReadPixels)(screenshot_t* s) = NULL;
-	void(*IMG_ReadPixelsHDR)(screenshot_t* s) = NULL;
+void(*IMG_Unload)(image_t* image) = NULL;
+void(*IMG_Load)(image_t* image, byte* pic) = NULL;
+void(*IMG_ReadPixels)(screenshot_t* s) = NULL;
+void(*IMG_ReadPixelsHDR)(screenshot_t* s) = NULL;
 
-	int(*MOD_LoadMD2)(model_t* model, const void* rawdata, size_t length, const char* mod_name) = NULL;
+int(*MOD_LoadMD2)(model_t* model, const void* rawdata, size_t length, const char* mod_name) = NULL;
 #if USE_MD3
 	int(*MOD_LoadMD3)(model_t* model, const void* rawdata, size_t length, const char* mod_name) = NULL;
 #endif
-	int(*MOD_LoadIQM)(model_t* model, const void* rawdata, size_t length, const char* mod_name) = NULL;
-	void(*MOD_Reference)(model_t* model) = NULL;
+int(*MOD_LoadIQM)(model_t* model, const void* rawdata, size_t length, const char* mod_name) = NULL;
+void(*MOD_Reference)(model_t* model) = NULL;
 
-	float R_ClampScale(cvar_t* var)
-	{
-		if (!var)
-			return 1.0f;
+/**
+*
+*
+*	Q2RTXPerimental VKPT Sky/Sun API.
+*
+*
+**/
+// Sky:
+void ( *R_Sky_SetPhysicalSky )( const int32_t physicalSky, const int32_t physicalSkyDrawClouds, const int32_t physicalSkyDrawBackground ) = NULL;
+// Sun:
+void ( *R_Sun_SetTimeOfDayPreset )( const int32_t preset ) = NULL;
+void ( *R_Sun_SetSunColor )( const vec3_t sunColor ) = NULL;
 
-		if (var->value)
-			return 1.0f / Cvar_ClampValue(var, 1.0f, 10.0f);
+/**
+*	End of VKPT Sky/Sun API.
+**/
 
-		if (r_config.width >= 3840 && r_config.height >= 2160)
-			return 0.25f; // 4x scaling
-
-		if (r_config.width >= 1920 && r_config.height >= 1080)
-			return 0.5f;  // 2x scaling
-
+float R_ClampScale(cvar_t* var)
+{
+	if (!var)
 		return 1.0f;
-	}
+
+	if (var->value)
+		return 1.0f / Cvar_ClampValue(var, 1.0f, 10.0f);
+
+	if (r_config.width >= 3840 && r_config.height >= 2160)
+		return 0.25f; // 4x scaling
+
+	if (r_config.width >= 1920 && r_config.height >= 1080)
+		return 0.5f;  // 2x scaling
+
+	return 1.0f;
+}
 
 };

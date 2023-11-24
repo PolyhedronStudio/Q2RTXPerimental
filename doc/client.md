@@ -777,6 +777,9 @@ Enables rendering of clouds on the procedural environment maps. Clouds are rende
 marching and therefore are relatively expensive, when the environment is updated. Default value
 is 1.
 
+#### `physical_sky_draw_background`
+Enables rendering of the procedural environment maps. Mountains are rendered as background.
+
 #### `physical_sky_space`
 Controls whether the space procedural environment should be used instead of the planetary one.
 Normally set from the map-specific scripts, like `maps/space.cfg`. When `physical_sky_space`

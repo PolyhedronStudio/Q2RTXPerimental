@@ -322,10 +322,27 @@ static const spawn_field_t temp_fields[] = {
     {"item", STOFS(item), F_LSTRING},
 
     {"gravity", STOFS(gravity), F_LSTRING},
-    {"sky", STOFS(sky), F_LSTRING},
+
+	// Default skybox properties for OpenGL, and RTX physical_sky = 0.
+	{"sky", STOFS(sky), F_LSTRING},
     {"skyrotate", STOFS(skyrotate), F_FLOAT},
     {"skyautorotate", STOFS(skyautorotate), F_INT},
-    {"skyaxis", STOFS(skyaxis), F_VECTOR},
+	{"skyaxis", STOFS( skyaxis ), F_VECTOR},
+
+	// RTX Specific Sky Worldspawn Properties:
+	{"physical_sky", STOFS( sky_physicalSky ), F_INT},
+	{"physical_sky_draw_clouds", STOFS( sky_physicalSkyDrawClouds ), F_INT},
+	{"physical_sky_draw_background", STOFS( sky_physicalSkyDrawBackground ), F_INT},
+
+	// RTX Specific Sun Worldspawn Properties:
+	{"sun_time_of_day_preset", STOFS( sun_timeOfDayPreset), F_INT},
+	{"sun_color", STOFS( sun_color ), F_VECTOR},
+	{"sun_albedo", STOFS( sun_albedo ), F_VECTOR},
+	{"sun_elevation", STOFS( sun_elevation ), F_FLOAT},
+	{"sun_azimuth", STOFS( sun_azimuth ), F_FLOAT},
+	{"sun_latitude", STOFS( sun_latitude ), F_FLOAT},
+
+
     {"minyaw", STOFS(minyaw), F_FLOAT},
     {"maxyaw", STOFS(maxyaw), F_FLOAT},
     {"minpitch", STOFS(minpitch), F_FLOAT},
@@ -848,8 +865,57 @@ void SP_worldspawn(edict_t *ent)
     else
         gi.configstring(CS_STATUSBAR, single_statusbar);
 
-    //---------------
-
+    //--------------- RTX Sky CS Support ------------
+	// Sky physical appearance ConfigString.
+	if ( st.sky_physicalSky != 0 && st.sky_physicalSky != 1 && st.sky_physicalSky != 2 ) {
+		gi.configstring( CS_PHYSICAL_SKY, "1" );
+	} else {
+		gi.configstring( CS_PHYSICAL_SKY, std::to_string( st.sky_physicalSky ).c_str() );
+	}
+	// Sky draw Clouds ConfigString:
+	if ( st.sky_physicalSkyDrawClouds != 0 && st.sky_physicalSkyDrawClouds != 1 ) {
+		gi.configstring( CS_PHYSICAL_SKY_DRAW_CLOUDS, "1" );
+	} else {
+		gi.configstring( CS_PHYSICAL_SKY_DRAW_CLOUDS, std::to_string( st.sky_physicalSkyDrawClouds ).c_str( ) );
+	}
+	// Sky draw Background ConfigString:
+	if ( st.sky_physicalSkyDrawBackground != 0 && st.sky_physicalSkyDrawBackground != 1 ) {
+		gi.configstring( CS_PHYSICAL_SKY_DRAW_MOUNTAINS, "1" );
+	} else {
+		gi.configstring( CS_PHYSICAL_SKY_DRAW_MOUNTAINS, std::to_string( st.sky_physicalSkyDrawBackground ).c_str( ) );
+	}
+	//--------------- RTX Sun CS Support ------------
+	// Sun: Time Of Day ConfigString: 	
+	// Default = 0, which uses the custom provided Elevation and Azimuth.
+	// Current Time = 1,
+	// Fast Time FAST_TIME = 2,
+	// Night = 3, Dawn = 4, Morning = 5, Noon = 6, Evening = 7, Dusk = 8,
+	if ( st.sun_timeOfDayPreset < 0 && st.sun_timeOfDayPreset > 8 ) {
+		gi.configstring( CS_SUN_TIME_OF_DAY_PRESET, "5" );
+	} else {
+		gi.configstring( CS_SUN_TIME_OF_DAY_PRESET, std::to_string( st.sun_timeOfDayPreset ).c_str( ) );
+	}
+	// Sun: Color ConfigString.
+	if ( !VectorCompare( st.sun_color, vec3_origin ) ) {
+		gi.configstring( CS_SUN_COLOR, va( "%f %f %f", st.sun_color[0], st.sun_color[1], st.sun_color[2] ) );
+	}
+	// Sun: Albedo ConfigString.
+	if ( !VectorCompare( st.sun_albedo, vec3_origin ) ) {
+		gi.configstring( CS_SUN_ALBEDO, va( "%f %f %f", st.sun_albedo[ 0 ], st.sun_albedo[ 1 ], st.sun_albedo[ 2 ] ) );
+	}
+	// Sun: Elevation, only in effect when the sun's Time Of Day preset is 0.
+	if ( st.sun_elevation > 0.0f ) {
+		gi.configstring( CS_SUN_ELEVATION, va( "%f", st.sun_elevation ) );
+	}
+	// Sun: Azimuth, only in effect when the sun's Time Of Day preset is 0.
+	if ( st.sun_azimuth > 0.0f ) {
+		gi.configstring( CS_SUN_AZIMUTH, va( "%f", st.sun_azimuth ) );
+	}
+	// Sun: Latitude.
+	if ( st.sun_latitude > 0.0f ) {
+		gi.configstring( CS_SUN_LATITUDE, va( "%f", st.sun_latitude ) );
+	}
+	//-----------------------------------------------
 
     // help icon for statusbar
     gi.imageindex("i_help");
