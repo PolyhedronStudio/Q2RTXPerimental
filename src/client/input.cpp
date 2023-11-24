@@ -868,7 +868,7 @@ static inline bool ready_to_send(void)
 
     msec = 1000 / cl_maxpackets->integer;
     if (msec) {
-        msec = BASE_FRAMERATE / ( BASE_FRAMERATE / msec );
+        msec = BASE_FRAMETIME / ( BASE_FRAMETIME / msec );
     }
     if (cls.realtime - cl.lastTransmitTime < msec) {
 		//Com_DPrintf( "client_ready_to_send (cls.realtime - cl.lastTransmitTime < msec): false\n" );

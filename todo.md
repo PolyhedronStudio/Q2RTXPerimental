@@ -2,14 +2,14 @@
 
 ## Engine:
 ### CMake:
-* [ ] Do a rewrite of CMakeLists.txt's to be more ``structured`` and easily allow for enabling/disabling multiple types of game builds.
+* [X] Do a rewrite of CMakeLists.txt's to be more ``structured`` and easily allow for enabling/disabling multiple types of game builds.
 ### Shared:
 * [ ] Look for a library of sorts, to replace all C style maths with. Worst case scenario, hand-roll them, start off with taking ``qvec3`` from **Q2RE**
 ### Common/Collision Model:
 * [ ] Modify the code so it does not generate ``hulls`` on the fly, but instead set them at ``LinkEntity`` time. Then for tracing, retreives them from their **client/server** counterpart. In case of the **client** they will be regenerated in case of a ``new`` entity, or general ``bounds changes`` has occured for the **client** entity.
 ### Net Code:
 * [X] Rework ``MSG_`` calls to those which I had in Polyhedron so their names are more in line with ``type-strictness``.
-* [ ] Rework ``origin`` and ``angles`` to be transmitted as ``floats`` instead of ``shorts``.
+* [X] Rework ``origin`` and ``angles`` to be transmitted as ``floats`` instead of ``shorts``.
 * [X] Add ``packet fragmentation`` for ``svc_frame`` so it can support a higher entity count.
 ### Refresh(VKPT):
 * [ ] Cpp-ify **VKPT** after all, this'll allow for more ``Cpp-ification``

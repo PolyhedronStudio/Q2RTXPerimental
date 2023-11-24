@@ -9,6 +9,8 @@
 * Enabled ``USE_SMOOTH_DELTA_ANGLES``.
 * Removed MVD, and GTV, although 'luxury' features, make things harder to maintain and I doubt it is within most target audience interest rates.
 * Removed Anti-Cheat, OS specific and h4x0rz are going to h4x anyway. Makes life easier to maintain this project.
+* Increased ``MAX_EDICTS(8192)``, ``MAX_MODELS(8192)``, ``MAX_SOUNDS(2048)``, ``MAX_IMAGES(512)``.
+* Increased maximum ConfigString length ``(96)``.
 
 ### Client:
 * Does proper lerping for entities that run lower than ``40hz``.
