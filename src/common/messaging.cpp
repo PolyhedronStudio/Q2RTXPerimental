@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "shared/shared.h"
+#include "common/halffloat.h"
 #include "common/messaging.h"
 #include "common/protocol.h"
 #include "common/sizebuf.h"
@@ -299,6 +300,12 @@ void MSG_WriteFloat( const float f ) {
 	dat.f = f;
 	MSG_WriteInt32( dat.l );
 }
+/**
+*   @brief Writes a half float, lesser precision. (Transfered over the wire as an uint16_t)
+**/
+void MSG_WriteHalfFloat( const float f ) {
+	MSG_WriteUint16( float_to_half( f ) );
+}
 
 /**
 *   @brief Writes a character string.
@@ -480,6 +487,12 @@ const float MSG_ReadFloat( ) {
 		dat.f = -1;
 	}
 	return dat.f;
+}
+/**
+*   @return A half float, converted to float, keep in mind that half floats have less precision.
+**/
+const float MSG_ReadHalfFloat( ) {
+	return half_to_float( MSG_ReadUint16( ) );
 }
 
 /**

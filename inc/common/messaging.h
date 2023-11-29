@@ -310,6 +310,10 @@ extern "C" {
 	*   @brief Writes a full precision float. (Transfered over the wire as an int32_t).
 	**/
 	void MSG_WriteFloat( const float f );
+	/**
+	*   @brief Writes a half float, lesser precision. (Transfered over the wire as an uint16_t)
+	**/
+	void MSG_WriteHalfFloat( const float f );
 
 	/**
 	*   @brief Writes a character string.
@@ -396,6 +400,10 @@ extern "C" {
 	*   @return The full precision float.
 	**/
 	const float MSG_ReadFloat( );
+	/**
+	*   @return A half float, converted to float, keep in mind that half floats have less precision.
+	**/
+	const float MSG_ReadHalfFloat( );
 
 	/**
 	*   @return The full string until its end.

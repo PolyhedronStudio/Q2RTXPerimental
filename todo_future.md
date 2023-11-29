@@ -10,6 +10,7 @@
 	* [X] PMove being extracted to Shared Game allows for customization of player movement.
 
 ## Possible contending ideas:
+* [ ] Rework CMake to how it was in Polyhedron.
 * [ ] Allow for entity class type specific read/write entity ``net code``?
 * [ ] Collision code rewrite. (Use proper **matrix/quaternions**, and allow for different ``hull`` types such as ``Spheres``, ``Cylinders`` and ``Capsules``.)
 	* This requires several editing/rewriting parts of the game **Physics** as well.
