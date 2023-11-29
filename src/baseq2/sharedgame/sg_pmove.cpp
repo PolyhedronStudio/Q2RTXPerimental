@@ -593,7 +593,7 @@ static void PM_CategorizePosition(void)
                 // just hit the ground
                 pm->s.pm_flags |= PMF_ON_GROUND;
                 // don't do landing time if we were just going down a slope
-                if (pml.velocity[2] < -200 && !pmp->strafehack) {
+				if ( pml.velocity[ 2 ] < -200 ) {/*&& !pmp->strafehack) {*/ WID: pmove_gamedlls
                     pm->s.pm_flags |= PMF_TIME_LAND;
                     // don't allow another jump for a little while
                     if (pml.velocity[2] < -400)
@@ -1153,15 +1153,24 @@ void Pmove(pmove_t *pmove, pmoveParams_t *params)
 
 void PmoveInit(pmoveParams_t *pmp)
 {
-    // set up default pmove parameters
-    memset(pmp, 0, sizeof(*pmp));
+	// set up default pmove parameters
+	memset(pmp, 0, sizeof(*pmp));
 
-    pmp->speedmult = 1;
-    pmp->watermult = 0.5f;
-    pmp->maxspeed = 300;
-    pmp->friction = 6;
-    pmp->waterfriction = 1;
-    pmp->flyfriction = 9;
+	// Old 'sane' defaults:
+	//pmp->speedmult = 1;
+	//pmp->watermult = 0.5f;
+	//pmp->maxspeed = 300;
+	//pmp->friction = 6;
+	//pmp->waterfriction = 1;
+	//pmp->flyfriction = 9;
+
+	// Q2RTXPerimental Defaults:
+	pmp->speedmult = 2;
+	pmp->watermult = 0.5f;
+	pmp->maxspeed = 320;
+	pmp->friction = 6;
+	pmp->waterfriction = 1;
+	pmp->flyfriction = 4;
 }
 
 void PmoveEnableQW(pmoveParams_t *pmp)
