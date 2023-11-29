@@ -374,7 +374,7 @@ pushed_t    pushed[MAX_EDICTS], *pushed_p;
 
 edict_t *obstacle;
 
-float SnapToEights(float x);
+const float SnapToEights(const float x);
 
 /*
 ============

@@ -321,12 +321,18 @@ void MSG_WriteAngle16( const float f ) {
 }
 
 /**
-*   @brief Writes a 'short' encoded coordinate position vector.
+*   @brief Writes out the position/coordinate, optionally 'short' encoded. (Limits us between range -4096/4096+)
 **/
-void MSG_WritePos( const vec3_t pos ) {
-	MSG_WriteInt16( COORD2SHORT( pos[ 0 ] ) );
-	MSG_WriteInt16( COORD2SHORT( pos[ 1 ] ) );
-	MSG_WriteInt16( COORD2SHORT( pos[ 2 ] ) );
+void MSG_WritePos( const vec3_t pos, const bool encodeAsShort = false ) {
+	if ( encodeAsShort ) {
+		MSG_WriteInt16( COORD2SHORT( pos[ 0 ] ) );
+		MSG_WriteInt16( COORD2SHORT( pos[ 1 ] ) );
+		MSG_WriteInt16( COORD2SHORT( pos[ 2 ] ) );
+	} else {
+		MSG_WriteFloat( pos[ 0 ] );
+		MSG_WriteFloat( pos[ 1 ] );
+		MSG_WriteFloat( pos[ 2 ] );
+	}
 }
 /**
 *	@brief	Writes an 8 bit byte, table index encoded direction vector.
@@ -548,12 +554,18 @@ void MSG_ReadDir8( vec3_t dir ) {
 	VectorCopy( bytedirs[ b ], dir );
 }
 /**
-*	@return A short vector decoded to its full floating point position.
+*	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
 **/
-void MSG_ReadPos( vec3_t pos ) {
-	pos[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) );
-	pos[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) );
-	pos[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) );
+void MSG_ReadPos( vec3_t pos, const bool decodeFromShort = false ) {
+	if ( decodeFromShort ) {
+		pos[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) );
+		pos[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) );
+		pos[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) );
+	} else {
+		pos[ 0 ] = MSG_ReadFloat( );
+		pos[ 1 ] = MSG_ReadFloat( );
+		pos[ 2 ] = MSG_ReadFloat( );
+	}
 }
 
 

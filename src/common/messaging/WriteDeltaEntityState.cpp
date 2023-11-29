@@ -33,9 +33,9 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_
 		Com_Error( ERR_DROP, "%s: bad number: %d", __func__, in->number );
 
 	out->number = in->number;
-	out->origin[ 0 ] = COORD2SHORT( in->origin[ 0 ] );
-	out->origin[ 1 ] = COORD2SHORT( in->origin[ 1 ] );
-	out->origin[ 2 ] = COORD2SHORT( in->origin[ 2 ] );
+	out->origin[ 0 ] = in->origin[ 0 ]; //COORD2SHORT( in->origin[ 0 ] ); // WID: float-movement
+	out->origin[ 1 ] = in->origin[ 1 ]; //COORD2SHORT( in->origin[ 1 ] ); // WID: float-movement
+	out->origin[ 2 ] = in->origin[ 2 ]; //COORD2SHORT( in->origin[ 2 ] ); // WID: float-movement
 	//if ( short_angles ) {
 		out->angles[ 0 ] = ANGLE2SHORT( in->angles[ 0 ] );
 		out->angles[ 1 ] = ANGLE2SHORT( in->angles[ 1 ] );
@@ -47,9 +47,9 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_
 	//	out->angles[ 1 ] = ANGLE2BYTE( in->angles[ 1 ] ) << 8;
 	//	out->angles[ 2 ] = ANGLE2BYTE( in->angles[ 2 ] ) << 8;
 	//}
-	out->old_origin[ 0 ] = COORD2SHORT( in->old_origin[ 0 ] );
-	out->old_origin[ 1 ] = COORD2SHORT( in->old_origin[ 1 ] );
-	out->old_origin[ 2 ] = COORD2SHORT( in->old_origin[ 2 ] );
+	out->old_origin[ 0 ] = in->old_origin[ 0 ]; //COORD2SHORT( in->old_origin[ 0 ] ); // WID: float-movement
+	out->old_origin[ 1 ] = in->old_origin[ 1 ]; //COORD2SHORT( in->old_origin[ 1 ] ); // WID: float-movement
+	out->old_origin[ 2 ] = in->old_origin[ 2 ]; //COORD2SHORT( in->old_origin[ 2 ] ); // WID: float-movement
 	out->modelindex = in->modelindex;
 	out->modelindex2 = in->modelindex2;
 	out->modelindex3 = in->modelindex3;
@@ -246,11 +246,11 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 		MSG_WriteInt16( to->renderfx );
 
 	if ( bits & U_ORIGIN1 )
-		MSG_WriteInt16( to->origin[ 0 ] );
+		MSG_WriteFloat( to->origin[ 0 ] ); //MSG_WriteInt16( to->origin[ 0 ] ); // WID: float-movement
 	if ( bits & U_ORIGIN2 )
-		MSG_WriteInt16( to->origin[ 1 ] );
+		MSG_WriteFloat( to->origin[ 1 ] );// MSG_WriteInt16( to->origin[ 1 ] ); // WID: float-movement
 	if ( bits & U_ORIGIN3 )
-		MSG_WriteInt16( to->origin[ 2 ] );
+		MSG_WriteFloat( to->origin[ 2 ] );// MSG_WriteInt16( to->origin[ 2 ] ); // WID: float-movement
 
 	//if ( ( flags & MSG_ES_SHORTANGLES ) && ( bits & U_ANGLE16 ) ) {
 		if ( bits & U_ANGLE1 )
@@ -269,9 +269,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	//}
 
 	if ( bits & U_OLDORIGIN ) {
-		MSG_WriteInt16( to->old_origin[ 0 ] );
-		MSG_WriteInt16( to->old_origin[ 1 ] );
-		MSG_WriteInt16( to->old_origin[ 2 ] );
+		MSG_WriteFloat( to->old_origin[ 0 ] );//MSG_WriteInt16( to->old_origin[ 0 ] ); // WID: float-movement
+		MSG_WriteFloat( to->old_origin[ 1 ] );//MSG_WriteInt16( to->old_origin[ 1 ] ); // WID: float-movement
+		MSG_WriteFloat( to->old_origin[ 2 ] );//MSG_WriteInt16( to->old_origin[ 2 ] ); // WID: float-movement
 	}
 
 	if ( bits & U_SOUND8 )

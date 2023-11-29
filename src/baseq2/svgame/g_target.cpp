@@ -25,7 +25,7 @@ void Use_Target_Tent(edict_t *ent, edict_t *other, edict_t *activator)
 {
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(ent->style);
-    gi.WritePosition(ent->s.origin);
+    gi.WritePosition( ent->s.origin, false );
     gi.multicast( ent->s.origin, MULTICAST_PVS, false );
 }
 
@@ -225,7 +225,7 @@ void target_explosion_explode(edict_t *self)
 
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_EXPLOSION1);
-    gi.WritePosition(self->s.origin);
+    gi.WritePosition( self->s.origin, false );
     gi.multicast( self->s.origin, MULTICAST_PHS, false );
 
     T_RadiusDamage(self, self->activator, self->dmg, NULL, self->dmg + 40, MOD_EXPLOSIVE);
@@ -330,7 +330,7 @@ void use_target_splash(edict_t *self, edict_t *other, edict_t *activator)
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_SPLASH);
     gi.WriteUint8(self->count);
-    gi.WritePosition(self->s.origin);
+    gi.WritePosition( self->s.origin, false );
     gi.WriteDir8(self->movedir);
     gi.WriteUint8(self->sounds);
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
@@ -526,7 +526,7 @@ void target_laser_think(edict_t *self)
                 gi.WriteUint8(svc_temp_entity);
                 gi.WriteUint8(TE_LASER_SPARKS);
                 gi.WriteUint8(count);
-                gi.WritePosition(tr.endpos);
+                gi.WritePosition( tr.endpos, false );
                 gi.WriteDir8(tr.plane.normal);
                 gi.WriteUint8(self->s.skinnum);
                 gi.multicast( tr.endpos, MULTICAST_PVS, false );

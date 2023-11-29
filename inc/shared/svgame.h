@@ -173,7 +173,7 @@ typedef struct {
 	void ( *WriteUintBase128 )( uint64_t c );
     void (*WriteFloat)( const float f );
     void (*WriteString)(const char *s);
-    void (*WritePosition)(const vec3_t pos);    // some fractional bits
+    void (*WritePosition)(const vec3_t pos, const bool encodeAsShort );    // some fractional bits
     void (*WriteDir8)(const vec3_t pos);         // single byte encoded, very coarse
     void (*WriteAngle8)( const float f);
 	void (*WriteAngle16)( const float f );

@@ -56,9 +56,9 @@ extern "C" {
 	**/
 	typedef struct {
 		uint16_t    number;
-		int16_t     origin[3];
-		int16_t     angles[3];
-		int16_t     old_origin[3];
+		vec3_t		origin;//int16_t     origin[3]; // WID: float-movement
+		int16_t     angles[3]; // WID: float-movement
+		vec3_t		old_origin; //int16_t     old_origin[3]; // WID: float-movement
 		uint8_t     modelindex;
 		uint8_t     modelindex2;
 		uint8_t     modelindex3;
@@ -326,9 +326,9 @@ extern "C" {
 	void MSG_WriteAngle16( const float f );
 
 	/**
-	*   @brief Writes a 'short' encoded coordinate position vector.
+	*   @brief Writes an optional 'short' encoded coordinate position vector.
 	**/
-	void MSG_WritePos( const vec3_t pos );
+	void MSG_WritePos( const vec3_t pos, const bool encodeAsShort );
 	/**
 	*	@brief	Writes an 8 bit byte, table index encoded direction vector.
 	**/
@@ -416,16 +416,16 @@ extern "C" {
 	const float MSG_ReadAngle16( void );
 
 	/**
-	*	@return A short vector decoded to its full floating point position.
-	**/
-	void MSG_ReadPos( vec3_t pos );
-	/**
 	*	@brief	Reads a byte, and decodes it using it as an index into our directions table.
 	**/
 	void MSG_ReadDir8( vec3_t dir );
 	#if USE_CLIENT
-		void    MSG_ReadPos( vec3_t pos );
 		void    MSG_ReadDir8( vec3_t vector );
+
+		/**
+		*	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
+		**/
+		void    MSG_ReadPos( vec3_t pos, const bool decodeFromShort );
 	#endif
 	/**
 	*   @brief Read a client's delta move command.

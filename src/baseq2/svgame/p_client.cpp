@@ -927,7 +927,7 @@ void CopyToBodyQue(edict_t *ent)
     if (body->s.modelindex) {
         gi.WriteUint8(svc_temp_entity);
         gi.WriteUint8(TE_BLOOD);
-        gi.WritePosition(body->s.origin);
+        gi.WritePosition( body->s.origin, false );
         gi.WriteDir8(vec3_origin);
         gi.multicast( body->s.origin, MULTICAST_PVS, false );
     }
@@ -1205,7 +1205,7 @@ void PutClientInServer(edict_t *ent)
     VectorCopy(ent->s.origin, ent->s.old_origin);
 
     for (i = 0; i < 3; i++) {
-        client->ps.pmove.origin[i] = COORD2SHORT(ent->s.origin[i]);
+        client->ps.pmove.origin[i] = ent->s.origin[i]; // COORD2SHORT(ent->s.origin[i]); // WID: float-movement
     }
 
     spawn_angles[PITCH] = 0;
@@ -1586,8 +1586,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         pm.s = client->ps.pmove;
 
         for (i = 0 ; i < 3 ; i++) {
-            pm.s.origin[i] = COORD2SHORT(ent->s.origin[i]);
-            pm.s.velocity[i] = COORD2SHORT(ent->velocity[i]);
+            pm.s.origin[i] = ent->s.origin[i]; // COORD2SHORT(ent->s.origin[i]); // WID: float-movement
+            pm.s.velocity[i] = ent->velocity[i]; // COORD2SHORT(ent->velocity[i]); // WID: float-movement
         }
 
         if (memcmp(&client->old_pmove, &pm.s, sizeof(pm.s))) {
@@ -1604,8 +1604,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         gi.Pmove(&pm);
 
         for (i = 0 ; i < 3 ; i++) {
-            ent->s.origin[i] = SHORT2COORD(pm.s.origin[i]);
-            ent->velocity[i] = SHORT2COORD(pm.s.velocity[i]);
+            ent->s.origin[i] = pm.s.origin[ i ]; // SHORT2COORD(pm.s.origin[i]); // WID: float-movement
+            ent->velocity[i] = pm.s.velocity[ i ]; // SHORT2COORD(pm.s.velocity[i]); // WID: float-movement
         }
 
         VectorCopy(pm.mins, ent->mins);

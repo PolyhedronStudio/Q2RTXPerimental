@@ -118,13 +118,13 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->renderfx = MSG_ReadUint16( );
 
 	if ( bits & U_ORIGIN1 ) {
-		to->origin[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) );
+		to->origin[ 0 ] = MSG_ReadFloat( );// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement 
 	}
 	if ( bits & U_ORIGIN2 ) {
-		to->origin[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) );
+		to->origin[ 1 ] = MSG_ReadFloat( );// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
 	}
 	if ( bits & U_ORIGIN3 ) {
-		to->origin[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) );
+		to->origin[ 2 ] = MSG_ReadFloat(); // SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
 	}
 
 	//if ( ( flags & MSG_ES_SHORTANGLES ) && ( bits & U_ANGLE16 ) ) {
@@ -144,7 +144,7 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	//}
 
 	if ( bits & U_OLDORIGIN ) {
-		MSG_ReadPos( to->old_origin );
+		MSG_ReadPos( to->old_origin, false );
 	}
 
 	if ( bits & U_SOUND8 ) {

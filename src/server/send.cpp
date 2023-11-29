@@ -570,10 +570,7 @@ static void emit_snd( client_t *client, message_packet_t *msg ) {
 	MSG_WriteUint16( msg->sendchan );
 
 	if ( flags & SND_POS ) {
-		//MSG_WritePos( msg->pos, true ); // True is for floats
-		MSG_WriteInt16( msg->pos[ 0 ] );
-		MSG_WriteInt16( msg->pos[ 1 ] );
-		MSG_WriteInt16( msg->pos[ 2 ] );
+		MSG_WritePos( msg->pos, false );
 	}
 }
 

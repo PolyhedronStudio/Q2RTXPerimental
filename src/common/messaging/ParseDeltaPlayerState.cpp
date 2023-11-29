@@ -53,15 +53,16 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->pmove.pm_type = static_cast<pmtype_t>( MSG_ReadUint8( ) ); // WID: C++20: Added cast.
 
 	if ( flags & PS_M_ORIGIN ) {
-		to->pmove.origin[ 0 ] = MSG_ReadInt16( );
-		to->pmove.origin[ 1 ] = MSG_ReadInt16( );
-		to->pmove.origin[ 2 ] = MSG_ReadInt16( );
+		// WID: float-movement MSG_ReadFloat();
+		to->pmove.origin[ 0 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
+		to->pmove.origin[ 1 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
+		to->pmove.origin[ 2 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 	}
 
 	if ( flags & PS_M_VELOCITY ) {
-		to->pmove.velocity[ 0 ] = MSG_ReadInt16( );
-		to->pmove.velocity[ 1 ] = MSG_ReadInt16( );
-		to->pmove.velocity[ 2 ] = MSG_ReadInt16( );
+		to->pmove.velocity[ 0 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
+		to->pmove.velocity[ 1 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
+		to->pmove.velocity[ 2 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 	}
 
 	if ( flags & PS_M_TIME )

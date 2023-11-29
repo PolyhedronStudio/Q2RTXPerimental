@@ -26,9 +26,9 @@ CL_CheckPredictionError
 void CL_CheckPredictionError(void)
 {
     int         frame;
-    int         delta[3];
+    float       delta[3];
     unsigned    cmd;
-    int         len;
+    float       len;
 
     if (cls.demo.playback) {
         return;
@@ -50,8 +50,9 @@ void CL_CheckPredictionError(void)
     VectorSubtract(cl.frame.ps.pmove.origin, cl.predicted_origins[cmd & CMD_MASK], delta);
 
     // save the prediction error for interpolation
-    len = abs(delta[0]) + abs(delta[1]) + abs(delta[2]);
-    if (len < 1 || len > 640) {
+    len = fabs(delta[0]) + abs(delta[1]) + abs(delta[2]);
+    //if (len < 1 || len > 640) {
+	if (len < 1.0f || len > 80.0f) {
         // > 80 world units is a teleport or something
         VectorClear(cl.prediction_error);
         return;
@@ -67,7 +68,8 @@ void CL_CheckPredictionError(void)
     VectorCopy(cl.frame.ps.pmove.origin, cl.predicted_origins[cmd & CMD_MASK]);
 
     // save for error interpolation
-    VectorScale(delta, 0.125f, cl.prediction_error);
+    //VectorScale(delta, 0.125f, cl.prediction_error);
+	VectorCopy( delta, cl.prediction_error );
 }
 
 /*
@@ -175,7 +177,7 @@ void CL_PredictMovement(void)
 {
     unsigned    ack, current, frame;
     pmove_t     pm;
-    int         step, oldz;
+    float         step, oldz;
 
     if (cls.state != ca_active) {
         return;
@@ -246,8 +248,9 @@ void CL_PredictMovement(void)
     if (pm.s.pm_type != PM_SPECTATOR && (pm.s.pm_flags & PMF_ON_GROUND)) {
         oldz = cl.predicted_origins[cl.predicted_step_frame & CMD_MASK][2];
         step = pm.s.origin[2] - oldz;
-        if (step > 63 && step < 160) {
-            cl.predicted_step = step * 0.125f;
+        //if (step > 63 && step < 160) {
+		if ( step > 8 && step < 20 ) {
+            cl.predicted_step = step;// * 0.125f; // WID: float-movement
             cl.predicted_step_time = cls.realtime;
             cl.predicted_step_frame = frame + 1;    // don't double step
         }
@@ -258,8 +261,8 @@ void CL_PredictMovement(void)
     }
 
     // copy results out for rendering
-    VectorScale(pm.s.origin, 0.125f, cl.predicted_origin);
-    VectorScale(pm.s.velocity, 0.125f, cl.predicted_velocity);
+    VectorCopy( pm.s.origin, cl.predicted_origin ); //VectorScale(pm.s.origin, 0.125f, cl.predicted_origin); // WID: float-movement
+    VectorCopy( pm.s.velocity, cl.predicted_velocity );//VectorScale(pm.s.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
     VectorCopy(pm.viewangles, cl.predicted_angles);
 }
 

@@ -621,7 +621,7 @@ void BossExplode(edict_t *self)
 
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_EXPLOSION1);
-    gi.WritePosition(org);
+    gi.WritePosition( org, false );
     gi.multicast( self->s.origin, MULTICAST_PHS, false );
 
 	self->nextthink = level.time + random_time( 50_ms, 200_ms );
