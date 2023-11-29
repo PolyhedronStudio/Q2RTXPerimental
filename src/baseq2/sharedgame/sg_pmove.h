@@ -43,9 +43,8 @@ typedef struct {
     float       flyfriction;
 } pmoveParams_t;
 
-void Pmove(pmove_t *pmove, pmoveParams_t *params);
+void SG_PlayerMove(pmove_t *pmove, pmoveParams_t *params);
+void SG_ConfigurePlayerMoveParameters(pmoveParams_t *pmp);
 
-void PmoveInit(pmoveParams_t *pmp);
-void PmoveEnableQW(pmoveParams_t *pmp);
 
 #endif // PMOVE_H

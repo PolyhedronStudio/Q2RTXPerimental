@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "shared/shared.h"
-#include "common/pmove.h"
+#include "sg_pmove.h"
 
 #define STEPSIZE    18
 
@@ -593,7 +593,7 @@ static void PM_CategorizePosition(void)
                 // just hit the ground
                 pm->s.pm_flags |= PMF_ON_GROUND;
                 // don't do landing time if we were just going down a slope
-				if ( pml.velocity[ 2 ] < -200 ) {/*&& !pmp->strafehack) {*/ WID: pmove_gamedlls
+                if (pml.velocity[2] < -200 && !pmp->strafehack) {
                     pm->s.pm_flags |= PMF_TIME_LAND;
                     // don't allow another jump for a little while
                     if (pml.velocity[2] < -400)
@@ -1039,7 +1039,7 @@ Pmove
 Can be called by either the server or the client
 ================
 */
-void Pmove(pmove_t *pmove, pmoveParams_t *params)
+void SG_PlayerMove(pmove_t *pmove, pmoveParams_t *params)
 {
     pm = pmove;
     pmp = params;
@@ -1151,11 +1151,8 @@ void Pmove(pmove_t *pmove, pmoveParams_t *params)
     PM_SnapPosition();
 }
 
-void PmoveInit(pmoveParams_t *pmp)
+void SG_ConfigurePlayerMoveParameters(pmoveParams_t *pmp)
 {
-	// set up default pmove parameters
-	memset(pmp, 0, sizeof(*pmp));
-
 	// Old 'sane' defaults:
 	//pmp->speedmult = 1;
 	//pmp->watermult = 0.5f;
@@ -1171,16 +1168,5 @@ void PmoveInit(pmoveParams_t *pmp)
 	pmp->friction = 6;
 	pmp->waterfriction = 1;
 	pmp->flyfriction = 4;
-}
-
-void PmoveEnableQW(pmoveParams_t *pmp)
-{
-    pmp->qwmode = true;
-    pmp->watermult = 0.7f;
-    pmp->maxspeed = 320;
-    //pmp->upspeed = (sv_qwmod->integer > 1) ? 310 : 350;
-    pmp->friction = 4;
-    pmp->waterfriction = 4;
-    pmp->airaccelerate = true;
 }
 
