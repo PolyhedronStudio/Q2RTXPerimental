@@ -1039,8 +1039,7 @@ Pmove
 Can be called by either the server or the client
 ================
 */
-void SG_PlayerMove(pmove_t *pmove, pmoveParams_t *params)
-{
+void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
     pm = pmove;
     pmp = params;
 
@@ -1151,8 +1150,7 @@ void SG_PlayerMove(pmove_t *pmove, pmoveParams_t *params)
     PM_SnapPosition();
 }
 
-void SG_ConfigurePlayerMoveParameters(pmoveParams_t *pmp)
-{
+void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	// Old 'sane' defaults:
 	//pmp->speedmult = 1;
 	//pmp->watermult = 0.5f;

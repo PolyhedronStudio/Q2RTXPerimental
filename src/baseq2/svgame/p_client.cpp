@@ -18,6 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 #include "g_local.h"
 #include "m_player.h"
+#include "../sharedgame/sg_pmove.h"
 
 void ClientUserinfoChanged(edict_t *ent, char *userinfo);
 
@@ -1546,7 +1547,11 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     gclient_t   *client;
     edict_t *other;
     int     i, j;
-    pmove_t pm;
+    
+	// Configure pmove.
+	pmove_t pm;
+	pmoveParams_t pmp;
+	SG_ConfigurePlayerMoveParameters( &pmp );
 
     level.current_entity = ent;
     client = ent->client;
@@ -1601,7 +1606,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         pm.pointcontents = gi.pointcontents;
 
         // perform a pmove
-        gi.Pmove(&pm);
+        SG_PlayerMove( &pm, &pmp );
 
         for (i = 0 ; i < 3 ; i++) {
             ent->s.origin[i] = pm.s.origin[ i ]; // SHORT2COORD(pm.s.origin[i]); // WID: float-movement

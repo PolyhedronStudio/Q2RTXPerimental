@@ -483,7 +483,7 @@ static void CL_ParseServerData(void)
     MSG_ReadString(levelname, sizeof(levelname));
 
     // setup default pmove parameters
-    PmoveInit(&cl.pmp);
+    clge->ConfigurePlayerMoveParameters( &cl.pmp );
 
 // WID: 40hz - For proper frame lerping for 10hz models.
 	cl.sv_frametime = BASE_FRAMETIME;

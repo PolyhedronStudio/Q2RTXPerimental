@@ -853,6 +853,25 @@ typedef struct {
                                     // changed by spawns, rotating objects, and teleporters
 } pmove_state_t;
 
+/**
+*	@brief	Used to configure player movement with, it is set by SG_ConfigurePlayerMoveParameters.
+* 
+*			NOTE: In the future this will change, obviously.
+**/
+typedef struct {
+	bool        qwmode;
+	bool        airaccelerate;
+	bool        strafehack;
+	bool        flyhack;
+	bool        waterhack;
+	float       speedmult;
+	float       watermult;
+	float       maxspeed;
+	float       friction;
+	float       waterfriction;
+	float       flyfriction;
+} pmoveParams_t;
+
 
 //
 // button bits

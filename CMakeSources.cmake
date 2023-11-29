@@ -2,9 +2,10 @@
 #	BaseQ2 SharedGame
 #
 SET(SRC_BASEQ2_SHAREDGAME
-	#nothing yet.
+	baseq2/sharedgame/sg_pmove.cpp
 )
 SET(HEADERS_BASEQ2_SHAREDGAME
+	baseq2/sharedgame/sg_pmove.h
 	baseq2/sharedgame/sg_time.h
 )
 
@@ -186,7 +187,7 @@ SET(SRC_COMMON
 	common/math.cpp
 	common/mdfour.cpp
 	common/messaging.cpp
-	common/pmove.cpp
+	#common/pmove.cpp
 	common/prompt.cpp
 	common/sizebuf.cpp
 #	common/tests.cpp

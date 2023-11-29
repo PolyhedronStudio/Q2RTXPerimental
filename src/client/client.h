@@ -28,7 +28,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/cvar.h"
 #include "common/field.h"
 #include "common/files.h"
-#include "common/pmove.h"
+//#include "common/pmove.h"
 #include "common/math.h"
 #include "common/messaging.h"
 #include "common/net/chan.h"

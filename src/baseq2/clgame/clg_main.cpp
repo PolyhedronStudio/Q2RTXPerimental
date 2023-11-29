@@ -7,6 +7,9 @@
 ********************************************************************/
 #include "clg_local.h"
 
+// SharedGame PlayerMove:
+#include "../sharedgame/sg_pmove.h"
+
 //game_locals_t   game;
 //level_locals_t  level;
 clgame_import_t	gi;
@@ -77,10 +80,12 @@ extern "C" { // WID: C++20: extern "C".
 		FRAME_TIME_S = FRAME_TIME_MS = sg_time_t::from_ms( gi.frame_time_ms );
 
 		globals.apiversion = CLGAME_API_VERSION;
+
 		globals.Init = InitGame;
 		globals.Shutdown = ShutdownGame;
 
-		//..
+		globals.PlayerMove = SG_PlayerMove;
+		globals.ConfigurePlayerMoveParameters = SG_ConfigurePlayerMoveParameters;
 
 		return &globals;
 	}

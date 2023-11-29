@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "g_local.h"
-
+#include "../sharedgame/sg_pmove.h"
 
 /**
 *	General used Game Objects.
@@ -266,6 +266,9 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ClientDisconnect = ClientDisconnect;
 		globals.ClientBegin = ClientBegin;
 		globals.ClientCommand = ClientCommand;
+
+		globals.PlayerMove = SG_PlayerMove;
+		globals.ConfigurePlayerMoveParameters = SG_ConfigurePlayerMoveParameters;
 
 		globals.RunFrame = G_RunFrame;
 

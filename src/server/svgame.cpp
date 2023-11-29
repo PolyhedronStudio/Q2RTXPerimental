@@ -654,14 +654,14 @@ static void PF_StartSound(edict_t *entity, int channel,
     SV_StartSound(NULL, entity, channel, soundindex, volume, attenuation, timeofs);
 }
 
-void PF_Pmove(pmove_t *pm)
-{
-    if (sv_client) {
-        Pmove(pm, &sv_client->pmp);
-    } else {
-        Pmove(pm, &sv_pmp);
-    }
-}
+//void PF_Pmove(pmove_t *pm)
+//{
+//    if (sv_client) {
+//        ge->PlayerMove(pm, &sv_client->pmp);
+//    } else {
+//		ge->PlayerMove(pm, &sv_pmp);
+//    }
+//}
 
 static cvar_t *PF_cvar(const char *name, const char *value, int flags)
 {
@@ -832,7 +832,7 @@ void SV_InitGameProgs(void)
     import.setmodel = PF_setmodel;
     import.inPVS = PF_inPVS;
     import.inPHS = PF_inPHS;
-    import.Pmove = PF_Pmove;
+    //import.Pmove = PF_Pmove;
 
     import.modelindex = PF_ModelIndex;
     import.soundindex = PF_SoundIndex;
@@ -897,6 +897,9 @@ void SV_InitGameProgs(void)
     if (ge->max_edicts <= sv_maxclients->integer || ge->max_edicts > MAX_EDICTS) {
         Com_Error(ERR_DROP, "ServerGame library returned bad number of max_edicts");
     }
+
+	// Set up default pmove parameters
+	ge->ConfigurePlayerMoveParameters( &sv_pmp );
 }
 
 };
