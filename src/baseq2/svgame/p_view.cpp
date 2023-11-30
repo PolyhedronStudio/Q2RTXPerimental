@@ -1020,8 +1020,8 @@ void ClientEndServerFrame( edict_t *ent ) {
 	// behind the body position when pushed -- "sinking into plats"
 	//
 	for ( i = 0; i < 3; i++ ) {
-		current_client->ps.pmove.origin[ i ] = COORD2SHORT( ent->s.origin[ i ] );
-		current_client->ps.pmove.velocity[ i ] = COORD2SHORT( ent->velocity[ i ] );
+		current_client->ps.pmove.origin[ i ] = ent->s.origin[ i ];//COORD2SHORT( ent->s.origin[ i ] ); // WID: float-movement
+		current_client->ps.pmove.velocity[ i ] = ent->velocity[ i ];//COORD2SHORT( ent->velocity[ i ] ); // WID: float-movement
 	}
 
 	//

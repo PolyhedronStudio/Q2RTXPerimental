@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "shared/shared.h"
-#include "common/pmove.h"
+#include "sg_pmove.h"
 
 #define STEPSIZE    18
 
@@ -907,7 +907,7 @@ static bool PM_GoodPosition(void)
         return true;
 
     for (i = 0; i < 3; i++)
-        origin[i] = end[i] = pm->s.origin[i] * 0.125f;
+        origin[i] = end[i] = pm->s.origin[i]; // * 0.125f; // WID: float-movement
     trace = pm->trace(origin, pm->mins, pm->maxs, end);
 
     return !trace.allsolid;
@@ -923,23 +923,33 @@ precision of the network channel and in a valid position.
 */
 static void PM_SnapPosition(void)
 {
+	VectorCopy( pml.origin, pm->s.origin );
+	VectorCopy( pml.velocity, pm->s.velocity );
+
+	if ( PM_GoodPosition( ) ) {
+		return;
+	}
+
+	VectorCopy( pml.previous_origin, pm->s.origin );
+
+#if 0
     int     sign[3];
     int     i, j, bits;
-    short   base[3];
+    float   base[3];
     // try all single bits first
     static const byte jitterbits[8] = {0, 4, 1, 2, 3, 5, 6, 7};
 
     // snap velocity to eigths
     for (i = 0; i < 3; i++)
-        pm->s.velocity[i] = (int)(pml.velocity[i] * 8);
+        pm->s.velocity[i] = (int)(pml.velocity[i]);// * 8); // WID: float-movement
 
     for (i = 0; i < 3; i++) {
         if (pml.origin[i] >= 0)
             sign[i] = 1;
         else
             sign[i] = -1;
-        pm->s.origin[i] = (int)(pml.origin[i] * 8);
-        if (pm->s.origin[i] * 0.125f == pml.origin[i])
+        pm->s.origin[i] = (int)(pml.origin[i]); // * 8); // WID: float-movement
+        if (pm->s.origin[i] == pml.origin[i])//* 0.125f == pml.origin[i]) // WID: float-movement
             sign[i] = 0;
     }
     VectorCopy(pm->s.origin, base);
@@ -958,6 +968,7 @@ static void PM_SnapPosition(void)
 
     // go back to the last position
     VectorCopy(pml.previous_origin, pm->s.origin);
+#endif
 }
 
 /*
@@ -968,28 +979,29 @@ PM_InitialSnapPosition
 */
 static void PM_InitialSnapPosition(void)
 {
-    int        x, y, z;
-    short      base[3];
-    static const short offset[3] = { 0, -1, 1 };
+    //int        x, y, z;
+    //float      base[3];
+    //static const float offset[3] = { 0, -1, 1 };
 
-    VectorCopy(pm->s.origin, base);
+    //VectorCopy(pm->s.origin, base);
 
-    for (z = 0; z < 3; z++) {
-        pm->s.origin[2] = base[2] + offset[z];
-        for (y = 0; y < 3; y++) {
-            pm->s.origin[1] = base[1] + offset[y];
-            for (x = 0; x < 3; x++) {
-                pm->s.origin[0] = base[0] + offset[x];
-                if (PM_GoodPosition()) {
-                    pml.origin[0] = pm->s.origin[0] * 0.125f;
-                    pml.origin[1] = pm->s.origin[1] * 0.125f;
-                    pml.origin[2] = pm->s.origin[2] * 0.125f;
-                    VectorCopy(pm->s.origin, pml.previous_origin);
-                    return;
-                }
-            }
-        }
-    }
+    //for (z = 0; z < 3; z++) {
+    //    pm->s.origin[2] = base[2] + offset[z];
+    //    for (y = 0; y < 3; y++) {
+    //        pm->s.origin[1] = base[1] + offset[y];
+    //        for (x = 0; x < 3; x++) {
+    //            pm->s.origin[0] = base[0] + offset[x];
+    //            if (PM_GoodPosition()) {
+    //                pml.origin[0] = pm->s.origin[0];// * 0.125f; // WID: float-movement
+    //                pml.origin[1] = pm->s.origin[1];// * 0.125f; // WID: float-movement
+    //                pml.origin[2] = pm->s.origin[2];// * 0.125f; // WID: float-movement
+    //                VectorCopy(pm->s.origin, pml.previous_origin);
+    //                return;
+    //            }
+    //        }
+    //    }
+    //}
+
 }
 
 /*
@@ -1027,8 +1039,7 @@ Pmove
 Can be called by either the server or the client
 ================
 */
-void Pmove(pmove_t *pmove, pmoveParams_t *params)
-{
+void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
     pm = pmove;
     pmp = params;
 
@@ -1044,8 +1055,10 @@ void Pmove(pmove_t *pmove, pmoveParams_t *params)
     memset(&pml, 0, sizeof(pml));
 
     // convert origin and velocity to float values
-    VectorScale(pm->s.origin, 0.125f, pml.origin);
-    VectorScale(pm->s.velocity, 0.125f, pml.velocity);
+    //VectorScale(pm->s.origin, 0.125f, pml.origin); // WID: float-movement
+    //VectorScale(pm->s.velocity, 0.125f, pml.velocity); // WID: float-movement
+	VectorCopy( pm->s.origin, pml.origin );
+	VectorCopy( pm->s.velocity, pml.velocity );
 
     // save old org in case we get stuck
     VectorCopy(pm->s.origin, pml.previous_origin);
@@ -1137,27 +1150,21 @@ void Pmove(pmove_t *pmove, pmoveParams_t *params)
     PM_SnapPosition();
 }
 
-void PmoveInit(pmoveParams_t *pmp)
-{
-    // set up default pmove parameters
-    memset(pmp, 0, sizeof(*pmp));
+void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
+	// Old 'sane' defaults:
+	//pmp->speedmult = 1;
+	//pmp->watermult = 0.5f;
+	//pmp->maxspeed = 300;
+	//pmp->friction = 6;
+	//pmp->waterfriction = 1;
+	//pmp->flyfriction = 9;
 
-    pmp->speedmult = 1;
-    pmp->watermult = 0.5f;
-    pmp->maxspeed = 300;
-    pmp->friction = 6;
-    pmp->waterfriction = 1;
-    pmp->flyfriction = 9;
-}
-
-void PmoveEnableQW(pmoveParams_t *pmp)
-{
-    pmp->qwmode = true;
-    pmp->watermult = 0.7f;
-    pmp->maxspeed = 320;
-    //pmp->upspeed = (sv_qwmod->integer > 1) ? 310 : 350;
-    pmp->friction = 4;
-    pmp->waterfriction = 4;
-    pmp->airaccelerate = true;
+	// Q2RTXPerimental Defaults:
+	pmp->speedmult = 2;
+	pmp->watermult = 0.5f;
+	pmp->maxspeed = 320;
+	pmp->friction = 6;
+	pmp->waterfriction = 1;
+	pmp->flyfriction = 4;
 }
 

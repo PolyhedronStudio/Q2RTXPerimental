@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "shared/shared.h"
+#include "common/halffloat.h"
 #include "common/messaging.h"
 #include "common/protocol.h"
 #include "common/sizebuf.h"
@@ -299,6 +300,12 @@ void MSG_WriteFloat( const float f ) {
 	dat.f = f;
 	MSG_WriteInt32( dat.l );
 }
+/**
+*   @brief Writes a half float, lesser precision. (Transfered over the wire as an uint16_t)
+**/
+void MSG_WriteHalfFloat( const float f ) {
+	MSG_WriteUint16( float_to_half( f ) );
+}
 
 /**
 *   @brief Writes a character string.
@@ -319,14 +326,26 @@ void MSG_WriteAngle8( const float f ) {
 void MSG_WriteAngle16( const float f ) {
 	MSG_WriteInt16( ANGLE2SHORT( f ) );
 }
+/**
+*	@brief	Reads a short and decodes its 'half float' into a float angle.
+**/
+void MSG_WriteAngleHalfFloat( const vec_t f ) {
+	MSG_WriteHalfFloat( f );
+}
 
 /**
-*   @brief Writes a 'short' encoded coordinate position vector.
+*   @brief Writes out the position/coordinate, optionally 'short' encoded. (Limits us between range -4096/4096+)
 **/
-void MSG_WritePos( const vec3_t pos ) {
-	MSG_WriteInt16( COORD2SHORT( pos[ 0 ] ) );
-	MSG_WriteInt16( COORD2SHORT( pos[ 1 ] ) );
-	MSG_WriteInt16( COORD2SHORT( pos[ 2 ] ) );
+void MSG_WritePos( const vec3_t pos, const bool encodeAsShort = false ) {
+	if ( encodeAsShort ) {
+		MSG_WriteInt16( COORD2SHORT( pos[ 0 ] ) );
+		MSG_WriteInt16( COORD2SHORT( pos[ 1 ] ) );
+		MSG_WriteInt16( COORD2SHORT( pos[ 2 ] ) );
+	} else {
+		MSG_WriteFloat( pos[ 0 ] );
+		MSG_WriteFloat( pos[ 1 ] );
+		MSG_WriteFloat( pos[ 2 ] );
+	}
 }
 /**
 *	@brief	Writes an 8 bit byte, table index encoded direction vector.
@@ -475,6 +494,12 @@ const float MSG_ReadFloat( ) {
 	}
 	return dat.f;
 }
+/**
+*   @return A half float, converted to float, keep in mind that half floats have less precision.
+**/
+const float MSG_ReadHalfFloat( ) {
+	return half_to_float( MSG_ReadUint16( ) );
+}
 
 /**
 *   @return The full string until its end.
@@ -535,6 +560,12 @@ const float MSG_ReadAngle8( void ) {
 const float MSG_ReadAngle16( void ) {
 	return SHORT2ANGLE( MSG_ReadInt16( ) );
 }
+/**
+*	@brief	Reads a short and decodes its 'half float' into a float angle.
+**/
+const float MSG_ReadAngleHalfFloat( void ) {
+	return MSG_ReadHalfFloat();
+}
 
 /**
 *	@brief	Reads a byte, and decodes it using it as an index into our directions table.
@@ -548,12 +579,18 @@ void MSG_ReadDir8( vec3_t dir ) {
 	VectorCopy( bytedirs[ b ], dir );
 }
 /**
-*	@return A short vector decoded to its full floating point position.
+*	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
 **/
-void MSG_ReadPos( vec3_t pos ) {
-	pos[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) );
-	pos[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) );
-	pos[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) );
+void MSG_ReadPos( vec3_t pos, const bool decodeFromShort = false ) {
+	if ( decodeFromShort ) {
+		pos[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) );
+		pos[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) );
+		pos[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) );
+	} else {
+		pos[ 0 ] = MSG_ReadFloat( );
+		pos[ 1 ] = MSG_ReadFloat( );
+		pos[ 2 ] = MSG_ReadFloat( );
+	}
 }
 
 
@@ -577,31 +614,14 @@ void MSG_ShowDeltaEntityBits( const uint64_t bits ) {
 	S( MODEL3, "modelindex3" );
 	S( MODEL4, "modelindex4" );
 
-	if ( bits & U_FRAME8 )
-		SHOWBITS( "frame8" );
-	if ( bits & U_FRAME16 )
-		SHOWBITS( "frame16" );
-
-	if ( ( bits & ( U_SKIN8 | U_SKIN16 ) ) == ( U_SKIN8 | U_SKIN16 ) )
-		SHOWBITS( "skinnum32" );
-	else if ( bits & U_SKIN8 )
-		SHOWBITS( "skinnum8" );
-	else if ( bits & U_SKIN16 )
-		SHOWBITS( "skinnum16" );
-
-	if ( ( bits & ( U_EFFECTS8 | U_EFFECTS16 ) ) == ( U_EFFECTS8 | U_EFFECTS16 ) )
-		SHOWBITS( "effects32" );
-	else if ( bits & U_EFFECTS8 )
-		SHOWBITS( "effects8" );
-	else if ( bits & U_EFFECTS16 )
-		SHOWBITS( "effects16" );
-
-	if ( ( bits & ( U_RENDERFX8 | U_RENDERFX16 ) ) == ( U_RENDERFX8 | U_RENDERFX16 ) )
-		SHOWBITS( "renderfx32" );
-	else if ( bits & U_RENDERFX8 )
-		SHOWBITS( "renderfx8" );
-	else if ( bits & U_RENDERFX16 )
-		SHOWBITS( "renderfx16" );
+	if ( bits & U_FRAME )
+		SHOWBITS( "frame" );
+	if ( bits & U_SKIN )
+		SHOWBITS( "skinnum" );
+	if ( bits & U_EFFECTS )
+		SHOWBITS( "effects" );
+	if ( bits & U_RENDERFX )
+		SHOWBITS( "renderfx" );
 
 	S( ORIGIN1, "origin[0]" );
 	S( ORIGIN2, "origin[1]" );
@@ -610,10 +630,8 @@ void MSG_ShowDeltaEntityBits( const uint64_t bits ) {
 	S( ANGLE2, "angles[1]" );
 	S( ANGLE3, "angles[2]" );
 	S( OLDORIGIN, "old_origin" );
-	else if ( bits & U_SOUND8 )
-		SHOWBITS( "sound8" );
-	else if ( bits & U_SOUND16 )
-		SHOWBITS( "sound16" );
+	if ( bits & U_SOUND )
+		SHOWBITS( "sound" );
 	S( EVENT, "event" );
 	S( SOLID, "solid" );
 	#undef S

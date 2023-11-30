@@ -28,7 +28,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/cvar.h"
 #include "common/field.h"
 #include "common/files.h"
-#include "common/pmove.h"
+//#include "common/pmove.h"
 #include "common/math.h"
 #include "common/messaging.h"
 #include "common/net/chan.h"
@@ -170,7 +170,7 @@ typedef struct client_state_s {
     usercmd_t    cmd;
     usercmd_t    cmds[CMD_BACKUP];    // each mesage will send several old cmds
     unsigned     cmdNumber;
-    short        predicted_origins[CMD_BACKUP][3];    // for debug comparing against server
+    vec3_t       predicted_origins[CMD_BACKUP];    // for debug comparing against server // WID: float-movement
     client_history_t    history[CMD_BACKUP];
     int         initialSeq;
 

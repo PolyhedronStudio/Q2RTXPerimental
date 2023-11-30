@@ -32,14 +32,16 @@ void AnglesNormalize(vec3_t vec)
         vec[1] += 360;
 }
 
-float SnapToEights(float x)
+const float SnapToEights(const float x)
 {
-    x *= 8.0f;
-    if (x > 0.0f)
-        x += 0.5f;
-    else
-        x -= 0.5f;
-    return 0.125f * (int)x;
+	// WID: Float-movement.
+    //x *= 8.0f;
+    //if (x > 0.0f)
+    //    x += 0.5f;
+    //else
+    //    x -= 0.5f;
+    //return 0.125f * (int)x;
+	return x;
 }
 
 

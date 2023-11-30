@@ -122,10 +122,10 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
             // the entity present in oldframe is not in the current frame
             SHOWNET(2, "   remove: %i\n", newnum);
             if (oldnum != newnum) {
-                Com_DPrintf("U_REMOVE: oldnum != newnum\n");
+                Com_DPrintf("RemoveEntity Bit Set: oldnum != newnum\n");
             }
             if (!oldframe) {
-                Com_Error(ERR_DROP, "%s: U_REMOVE with NULL oldframe", __func__);
+                Com_Error(ERR_DROP, "%s: RemoveEntity Bit Set with NULL oldframe", __func__);
             }
 
             oldindex++;
@@ -192,7 +192,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
 
 static void CL_ParseFrame()
 {
-    uint32_t bits, extraflags;
+    uint64_t bits;
     int     currentframe, deltaframe,
             delta, suppressed;
     server_frame_t  frame, *oldframe;
@@ -203,7 +203,6 @@ static void CL_ParseFrame()
 
     cl.frameflags = 0;
 
-    extraflags = 0;
     currentframe = MSG_ReadInt32();
     deltaframe = MSG_ReadInt32();
 
@@ -286,7 +285,7 @@ static void CL_ParseFrame()
     SHOWNET(2, "%3zu:playerinfo\n", msg_read.readcount - 1);
 
     // parse playerstate
-    bits = MSG_ReadUint16();
+    bits = MSG_ReadUintBase128();
 	MSG_ParseDeltaPlayerstate(from, &frame.ps, bits);
 #if USE_DEBUG
         if (cl_shownet->integer > 2 && bits) {
@@ -483,7 +482,7 @@ static void CL_ParseServerData(void)
     MSG_ReadString(levelname, sizeof(levelname));
 
     // setup default pmove parameters
-    PmoveInit(&cl.pmp);
+    clge->ConfigurePlayerMoveParameters( &cl.pmp );
 
 // WID: 40hz - For proper frame lerping for 10hz models.
 	cl.sv_frametime = BASE_FRAMETIME;
@@ -550,7 +549,7 @@ static void CL_ParseTEntPacket(void)
     case TE_HEATBEAM_STEAM:
     case TE_MOREBLOOD:
     case TE_ELECTRIC_SPARKS:
-        MSG_ReadPos(te.pos1);
+        MSG_ReadPos( te.pos1, false );
         MSG_ReadDir8(te.dir);
         break;
 
@@ -559,7 +558,7 @@ static void CL_ParseTEntPacket(void)
     case TE_WELDING_SPARKS:
     case TE_TUNNEL_SPARKS:
         te.count = MSG_ReadUint8();
-        MSG_ReadPos(te.pos1);
+        MSG_ReadPos( te.pos1, false );
 		MSG_ReadDir8(te.dir);
         te.color = MSG_ReadUint8();
         break;
@@ -570,8 +569,8 @@ static void CL_ParseTEntPacket(void)
     case TE_DEBUGTRAIL:
     case TE_BUBBLETRAIL2:
     case TE_BFG_LASER:
-        MSG_ReadPos(te.pos1);
-        MSG_ReadPos(te.pos2);
+        MSG_ReadPos( te.pos1, false );
+        MSG_ReadPos( te.pos2, false );
         break;
 
     case TE_GRENADE_EXPLOSION:
@@ -593,7 +592,7 @@ static void CL_ParseTEntPacket(void)
     case TE_DBALL_GOAL:
     case TE_WIDOWSPLASH:
     case TE_NUKEBLAST:
-        MSG_ReadPos(te.pos1);
+        MSG_ReadPos( te.pos1, false );
         break;
 
     case TE_PARASITE_ATTACK:
@@ -601,39 +600,39 @@ static void CL_ParseTEntPacket(void)
     case TE_HEATBEAM:
     case TE_MONSTER_HEATBEAM:
         te.entity1 = MSG_ReadInt16();
-        MSG_ReadPos(te.pos1);
-        MSG_ReadPos(te.pos2);
+        MSG_ReadPos( te.pos1, false );
+        MSG_ReadPos( te.pos2, false );
         break;
 
     case TE_GRAPPLE_CABLE:
         te.entity1 = MSG_ReadInt16();
-        MSG_ReadPos(te.pos1);
-        MSG_ReadPos(te.pos2);
-        MSG_ReadPos(te.offset);
+        MSG_ReadPos( te.pos1, false );
+        MSG_ReadPos( te.pos2, false );
+        MSG_ReadPos( te.offset, false );
         break;
 
     case TE_LIGHTNING:
         te.entity1 = MSG_ReadInt16();
         te.entity2 = MSG_ReadInt16();
-        MSG_ReadPos(te.pos1);
-        MSG_ReadPos(te.pos2);
+        MSG_ReadPos( te.pos1, false );
+        MSG_ReadPos( te.pos2, false );
         break;
 
     case TE_FLASHLIGHT:
-        MSG_ReadPos(te.pos1);
+        MSG_ReadPos( te.pos1, false );
         te.entity1 = MSG_ReadInt16();
         break;
 
     case TE_FORCEWALL:
-        MSG_ReadPos(te.pos1);
-        MSG_ReadPos(te.pos2);
+        MSG_ReadPos( te.pos1, false );
+        MSG_ReadPos( te.pos2, false );
         te.color = MSG_ReadUint8();
         break;
 
     case TE_STEAM:
         te.entity1 = MSG_ReadInt16();
         te.count = MSG_ReadUint8();
-        MSG_ReadPos(te.pos1);
+        MSG_ReadPos( te.pos1, false );
 		MSG_ReadDir8(te.dir);
         te.color = MSG_ReadUint8();
         te.entity2 = MSG_ReadInt16();
@@ -644,13 +643,13 @@ static void CL_ParseTEntPacket(void)
 
     case TE_WIDOWBEAMOUT:
         te.entity1 = MSG_ReadInt16();
-        MSG_ReadPos(te.pos1);
+        MSG_ReadPos( te.pos1, false );
         break;
 
     case TE_FLARE:
         te.entity1 = MSG_ReadInt16();
         te.count = MSG_ReadUint8();
-        MSG_ReadPos(te.pos1);
+        MSG_ReadPos( te.pos1, false );
 		MSG_ReadDir8(te.dir);
         break;
 
@@ -717,7 +716,7 @@ static void CL_ParseStartSoundPacket(void)
 
 	// positioned in space
 	if ( flags & SND_POS )
-		MSG_ReadPos( snd.pos );
+		MSG_ReadPos( snd.pos, false );
 
 	snd.flags = flags;
 

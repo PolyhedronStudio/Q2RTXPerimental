@@ -2093,9 +2093,6 @@ void SV_Init(void)
 
     init_rate_limits();
 
-    // set up default pmove parameters
-    PmoveInit(&sv_pmp);
-
 #if USE_SYSCON
     SV_SetConsoleTitle();
 #endif

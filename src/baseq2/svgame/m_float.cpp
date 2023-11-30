@@ -526,7 +526,7 @@ void floater_zap(edict_t *self)
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_SPLASH);
     gi.WriteUint8(32);
-    gi.WritePosition(origin);
+    gi.WritePosition( origin, false );
     gi.WriteDir8(dir);
     gi.WriteUint8(1);    //sparks
     gi.multicast( origin, MULTICAST_PVS, false );

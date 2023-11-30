@@ -11,6 +11,7 @@
 * Removed Anti-Cheat, OS specific and h4x0rz are going to h4x anyway. Makes life easier to maintain this project.
 * Increased ``MAX_EDICTS(8192)``, ``MAX_MODELS(8192)``, ``MAX_SOUNDS(2048)``, ``MAX_IMAGES(512)``.
 * Increased maximum ConfigString length ``(96)``.
+* Entity origins and player origin are ``wired/transferred`` as full floating point precision values.
 
 ### Client:
 * Does proper lerping for entities that run lower than ``40hz``.
@@ -21,7 +22,7 @@
 
 ### Net Code:
 * Uses its own protocol, partially based on Q2 Protocol #34 and Q2PRO its own. 
-This supports proper fragmenting, allowing for far more in-vis entities to be transfered over 'The Wire'. This does come with the drawback of needing a proper 25ms ping in order to have a smooth gameplay flow.
+This supports proper fragmenting, allowing for far more in-vis entities to be transfered over ``The Wire``. This does come with the drawback of needing a proper ``25ms`` ping in order to have a smooth gameplay flow.
 * Changed Solids from ``int32_t`` to ``uint32_t``, so that ``SOLID_BBOX`` can now have **BoundingBox** sizes up to those of **Q2RE/Q3**.
 * Already networking angles, origins, like floats. This in preparation for full floating point origins and angles.
 
@@ -38,9 +39,10 @@ This supports proper fragmenting, allowing for far more in-vis entities to be tr
 * Currently a ClientGame DLL that merely initializes and shutsdown. It doesn't actually do anything just yet.
 
 ### Shared Game:
-* Currently only contains ``sg_time_t``.
+* Contains the shared used ``sg_time_t`` which replaces all the vanilla frametime/framenum work.
+* Allows for a customizable Player Movement code.
 
-
+* 
 ## 1.7.0
 
 **Fixed Issues:**

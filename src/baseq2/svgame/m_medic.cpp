@@ -618,8 +618,8 @@ void medic_cable_attack(edict_t *self)
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_MEDIC_CABLE_ATTACK);
     gi.WriteInt16(self - g_edicts);
-    gi.WritePosition(start);
-    gi.WritePosition(end);
+    gi.WritePosition( start, false );
+    gi.WritePosition( end, false );
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
 }
 

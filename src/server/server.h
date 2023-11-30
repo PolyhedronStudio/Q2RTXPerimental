@@ -32,7 +32,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/messaging.h"
 #include "common/net/net.h"
 #include "common/net/chan.h"
-#include "common/pmove.h"
+//#include "common/pmove.h"
 #include "common/prompt.h"
 #include "common/protocol.h"
 #include "common/zone.h"
@@ -179,7 +179,7 @@ typedef struct {
             uint8_t     volume;
             uint8_t     attenuation;
             uint8_t     timeofs;
-            int16_t     pos[3];     // saved in case entity is freed
+            float		pos[3];     // saved in case entity is freed
         };
     };
 } message_packet_t;
