@@ -69,15 +69,15 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->pmove.pm_time = MSG_ReadUint8( );
 
 	if ( flags & PS_M_FLAGS )
-		to->pmove.pm_flags = MSG_ReadUint8( );
+		to->pmove.pm_flags = MSG_ReadUintBase128( );
 
 	if ( flags & PS_M_GRAVITY )
 		to->pmove.gravity = MSG_ReadInt16( );
 
 	if ( flags & PS_M_DELTA_ANGLES ) {
-		to->pmove.delta_angles[ 0 ] = MSG_ReadInt16( );
-		to->pmove.delta_angles[ 1 ] = MSG_ReadInt16( );
-		to->pmove.delta_angles[ 2 ] = MSG_ReadInt16( );
+		to->pmove.delta_angles[ 0 ] = MSG_ReadHalfFloat( );//MSG_ReadInt16( ); // WID: float-movement.
+		to->pmove.delta_angles[ 1 ] = MSG_ReadHalfFloat( );//MSG_ReadInt16( ); // WID: float-movement.
+		to->pmove.delta_angles[ 2 ] = MSG_ReadHalfFloat( );//MSG_ReadInt16( ); // WID: float-movement.
 	}
 
 	//
@@ -90,9 +90,9 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	}
 
 	if ( flags & PS_VIEWANGLES ) {
-		to->viewangles[ 0 ] = MSG_ReadAngle16( );
-		to->viewangles[ 1 ] = MSG_ReadAngle16( );
-		to->viewangles[ 2 ] = MSG_ReadAngle16( );
+		to->viewangles[ 0 ] = MSG_ReadHalfFloat( );
+		to->viewangles[ 1 ] = MSG_ReadHalfFloat( );
+		to->viewangles[ 2 ] = MSG_ReadHalfFloat( );
 	}
 
 	if ( flags & PS_KICKANGLES ) {
@@ -102,11 +102,11 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	}
 
 	if ( flags & PS_WEAPONINDEX ) {
-		to->gunindex = MSG_ReadUint8( );
+		to->gunindex = MSG_ReadUintBase128( );
 	}
 
 	if ( flags & PS_WEAPONFRAME ) {
-		to->gunframe = MSG_ReadUint8( );
+		to->gunframe = MSG_ReadUintBase128( );
 		to->gunoffset[ 0 ] = MSG_ReadInt8( ) * 0.25f;
 		to->gunoffset[ 1 ] = MSG_ReadInt8( ) * 0.25f;
 		to->gunoffset[ 2 ] = MSG_ReadInt8( ) * 0.25f;
@@ -129,12 +129,12 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->fov = MSG_ReadUint8( );
 
 	if ( flags & PS_RDFLAGS )
-		to->rdflags = MSG_ReadUint8( );
+		to->rdflags = MSG_ReadUintBase128( );
 
 	// parse stats
 	statbits = MSG_ReadIntBase128( );
 	for ( i = 0; i < MAX_STATS; i++ )
 		if ( statbits & ( 1ULL << i ) )
-			to->stats[ i ] = MSG_ReadInt16( );
+			to->stats[ i ] = MSG_ReadIntBase128( );
 }
 #endif // USE_CLIENT

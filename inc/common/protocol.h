@@ -213,13 +213,13 @@ typedef enum {
 #define U_MODEL     (1<<11)
 #define U_RENDERFX  (1<<12)			// fullbright, etc
 #define U_EFFECTS	(1<<13)			//
-#define U_SOUND		(1<<14)			// autorotate, trails, etc
-#define U_OLDORIGIN	(1<<15)			//
+#define U_OLDORIGIN	(1<<14)			// autorotate, trails, etc
+#define U_MODEL2	(1<<15)			//
 
 // third byte
-#define U_MODEL2	(1<<16)
-#define U_MODEL3	(1<<17)
-#define U_MODEL4	(1<<18)
+#define U_MODEL3	(1<<16)
+#define U_MODEL4	(1<<17)
+#define U_UNUSED47	(1<<18)
 #define U_UNUSED42	(1<<19)
 #define U_UNUSED43	(1<<20)
 #define U_UNUSED44	(1<<21)

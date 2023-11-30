@@ -326,6 +326,12 @@ void MSG_WriteAngle8( const float f ) {
 void MSG_WriteAngle16( const float f ) {
 	MSG_WriteInt16( ANGLE2SHORT( f ) );
 }
+/**
+*	@brief	Reads a short and decodes its 'half float' into a float angle.
+**/
+void MSG_WriteAngleHalfFloat( const vec_t f ) {
+	MSG_WriteHalfFloat( f );
+}
 
 /**
 *   @brief Writes out the position/coordinate, optionally 'short' encoded. (Limits us between range -4096/4096+)
@@ -553,6 +559,12 @@ const float MSG_ReadAngle8( void ) {
 **/
 const float MSG_ReadAngle16( void ) {
 	return SHORT2ANGLE( MSG_ReadInt16( ) );
+}
+/**
+*	@brief	Reads a short and decodes its 'half float' into a float angle.
+**/
+const float MSG_ReadAngleHalfFloat( void ) {
+	return MSG_ReadHalfFloat();
 }
 
 /**

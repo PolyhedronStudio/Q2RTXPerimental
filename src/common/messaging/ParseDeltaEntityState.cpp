@@ -114,13 +114,13 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 
 	if ( bits & U_ANGLE1 ) {
-		to->angles[ 0 ] = MSG_ReadAngle16( );
+		to->angles[ 0 ] = MSG_ReadAngleHalfFloat( ); //MSG_ReadAngle16( );
 	}
 	if ( bits & U_ANGLE2 ) {
-		to->angles[ 1 ] = MSG_ReadAngle16( );
+		to->angles[ 1 ] = MSG_ReadAngleHalfFloat( ); //MSG_ReadAngle16( );
 	}
 	if ( bits & U_ANGLE3 ) {
-		to->angles[ 2 ] = MSG_ReadAngle16( );
+		to->angles[ 2 ] = MSG_ReadAngleHalfFloat( ); //MSG_ReadAngle16( );
 	}
 
 	if ( bits & U_OLDORIGIN ) {

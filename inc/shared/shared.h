@@ -354,8 +354,17 @@ static inline float LerpAngle(float a2, float a1, float frac)
 
 static inline float anglemod(float a)
 {
-    a = (360.0f / 65536) * ((int)(a * (65536 / 360.0f)) & 65535);
+    //a = (360.0f / 65536) * ((int)(a * (65536 / 360.0f)) & 65535);
+	a = (360.0 / 65536) * ((int32_t) (a * (65536 / 360.0)) & 65535);
     return a;
+#if 0
+	a = fmodf( a, 360.f );// (360.0 / 65536) * ((int32_t) (a * (65536 / 360.0)) & 65535);
+
+	if ( a < 0 ) {
+		return a + ( ( ( a / 360.f ) + 1 ) * 360.f );
+	}
+	return a;
+#endif
 }
 
 static inline int Q_align(int value, int align)
@@ -1321,12 +1330,10 @@ typedef enum {
 **/
 //! Used for 'wiring' angles, encoded in a 'byte/int8_t'.
 static inline const uint8_t ANGLE2BYTE( const float coord ) {
-	//#define ANGLE2BYTE(x)   ((int)((x)*256.0f/360)&255)
 	return ( (int)( ( coord ) * 256.0f / 360 ) & 255 );
 }
 //! Used for decoding the 'wired' angle in a 'float'.
 static inline const float BYTE2ANGLE( const int s ) {
-	//#define BYTE2ANGLE(x)   ((x)*(360.0f/256))
 	return ( ( s ) * ( 360.0f / 256 ) );
 }
 /**
@@ -1334,25 +1341,32 @@ static inline const float BYTE2ANGLE( const int s ) {
 **/
 //! Used for 'wiring' angles encoded in a 'short/int16_t'.
 static inline const int16_t ANGLE2SHORT( const float coord ) {
-	//#define ANGLE2SHORT(x)  ((int)((x)*65536/360) & 65535)
 	return ( (int)( ( coord ) * 65536 / 360 ) & 65535 );
 }
 //! Used for decoding the 'wired' angle in a 'float'.
 static inline const float SHORT2ANGLE( const int s ) {
-	//#define SHORT2ANGLE(x)  ((x)*(360.0f/65536))
 	return ( ( s ) * ( 360.0f / 65536 ) );
 }
+///**
+//*	float to HalfFloat-Angles/HalfFloat-Angles to Floats.
+//**/
+////! Used for 'wiring' angles encoded in a 'short/int16_t'.
+//static inline const float ANGLE2HALFFLOAT( const float coord ) {
+//	return ( (int)( ( coord ) * 65536 / 360.f ) & 65535 );
+//}
+////! Used for decoding the 'wired' angle in a 'float'.
+//static inline const float HALFFLOAT2ANGLE( const int s ) {
+//	return ( ( s ) * ( 360.f / 65536 ) );
+//}
 /**
 *	Short to Origin/Origin to float.
 **/
 //! Used for 'wiring' origins encoded in a 'short/int16_t'..
 static inline const int16_t COORD2SHORT( const float coord ) {
-	//#define COORD2SHORT(x)  ((int)((x)*8.0f))
 	return ( (int)( ( coord ) * 8.0f ) );
 }
 //! Used for decoding the 'wired' origin in a 'float'.
 static inline const float SHORT2COORD( const int s ) {
-	//#define SHORT2COORD(x)  ((x)*(1.0f/8))
 	return ( ( s ) * ( 1.0f / 8 ) );
 }
 
@@ -1451,26 +1465,25 @@ typedef struct {
 
     // these fields do not need to be communicated bit-precise
 
-    vec3_t      viewangles;     // for fixed views
-    vec3_t      viewoffset;     // add to pmovestate->origin
-    vec3_t      kick_angles;    // add to view direction to get render angles
+    vec3_t viewangles;     // for fixed views
+    vec3_t viewoffset;     // add to pmovestate->origin
+    vec3_t kick_angles;    // add to view direction to get render angles
                                 // set by weapon kicks, pain effects, etc
 
-    vec3_t      gunangles;
-    vec3_t      gunoffset;
-    int         gunindex;
-    int         gunframe;
+    vec3_t gunangles;
+    vec3_t gunoffset;
+    uint32_t gunindex;
+    uint32_t gunframe;
 // WID: 40hz.
-	int         gunrate;
+	int32_t gunrate;
 // WID: 40hz.
 
-    float       blend[4];       // rgba full screen effect
+    float blend[4];       // rgba full screen effect
+    float fov;            // horizontal field of view
 
-    float       fov;            // horizontal field of view
+    int32_t rdflags;        // refdef flags
 
-    int         rdflags;        // refdef flags
-
-    short       stats[MAX_STATS];       // fast status bar updates
+    int16_t stats[MAX_STATS];       // fast status bar updates
 } player_state_t;
 
 // WID: C++20: In case of C++ including this..

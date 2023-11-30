@@ -31,9 +31,9 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 	int i;
 
 	out->pmove = in->pmove;
-	out->viewangles[ 0 ] = ANGLE2SHORT( in->viewangles[ 0 ] );
-	out->viewangles[ 1 ] = ANGLE2SHORT( in->viewangles[ 1 ] );
-	out->viewangles[ 2 ] = ANGLE2SHORT( in->viewangles[ 2 ] );
+	//out->viewangles[ 0 ] = ANGLE2SHORT( in->viewangles[ 0 ] );
+	//out->viewangles[ 1 ] = ANGLE2SHORT( in->viewangles[ 1 ] );
+	//out->viewangles[ 2 ] = ANGLE2SHORT( in->viewangles[ 2 ] );
 	out->viewoffset[ 0 ] = OFFSET2CHAR( in->viewoffset[ 0 ] );
 	out->viewoffset[ 1 ] = OFFSET2CHAR( in->viewoffset[ 1 ] );
 	out->viewoffset[ 2 ] = OFFSET2CHAR( in->viewoffset[ 2 ] );
@@ -156,15 +156,18 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		MSG_WriteUint8( to->pmove.pm_time );
 
 	if ( pflags & PS_M_FLAGS )
-		MSG_WriteUint8( to->pmove.pm_flags );
+		MSG_WriteUintBase128( to->pmove.pm_flags );
 
 	if ( pflags & PS_M_GRAVITY )
 		MSG_WriteInt16( to->pmove.gravity );
 
 	if ( pflags & PS_M_DELTA_ANGLES ) {
-		MSG_WriteInt16( to->pmove.delta_angles[ 0 ] );
-		MSG_WriteInt16( to->pmove.delta_angles[ 1 ] );
-		MSG_WriteInt16( to->pmove.delta_angles[ 2 ] );
+		MSG_WriteHalfFloat( to->pmove.delta_angles[ 0 ] );
+		MSG_WriteHalfFloat( to->pmove.delta_angles[ 1 ] );
+		MSG_WriteHalfFloat( to->pmove.delta_angles[ 2 ] );
+		//MSG_WriteInt16( to->pmove.delta_angles[ 0 ] );
+		//MSG_WriteInt16( to->pmove.delta_angles[ 1 ] );
+		//MSG_WriteInt16( to->pmove.delta_angles[ 2 ] );
 	}
 
 	//
@@ -177,9 +180,9 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	}
 
 	if ( pflags & PS_VIEWANGLES ) {
-		MSG_WriteInt16( to->viewangles[ 0 ] );
-		MSG_WriteInt16( to->viewangles[ 1 ] );
-		MSG_WriteInt16( to->viewangles[ 2 ] );
+		MSG_WriteHalfFloat( to->viewangles[ 0 ] );
+		MSG_WriteHalfFloat( to->viewangles[ 1 ] );
+		MSG_WriteHalfFloat( to->viewangles[ 2 ] );
 	}
 
 	if ( pflags & PS_KICKANGLES ) {
@@ -189,10 +192,10 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	}
 
 	if ( pflags & PS_WEAPONINDEX )
-		MSG_WriteUint8( to->gunindex );
+		MSG_WriteUintBase128( to->gunindex );
 
 	if ( pflags & PS_WEAPONFRAME ) {
-		MSG_WriteUint8( to->gunframe );
+		MSG_WriteUintBase128( to->gunframe );
 		MSG_WriteInt8( to->gunoffset[ 0 ] );
 		MSG_WriteInt8( to->gunoffset[ 1 ] );
 		MSG_WriteInt8( to->gunoffset[ 2 ] );
@@ -216,7 +219,7 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		MSG_WriteUint8( to->fov );
 
 	if ( pflags & PS_RDFLAGS )
-		MSG_WriteUint8( to->rdflags );
+		MSG_WriteUintBase128( to->rdflags );
 
 	// send stats
 	int64_t statbits = 0;
@@ -227,5 +230,5 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	MSG_WriteIntBase128( statbits );
 	for ( i = 0; i < MAX_STATS; i++ )
 		if ( statbits & ( 1ULL << i ) )
-			MSG_WriteInt16( to->stats[ i ] );
+			MSG_WriteIntBase128( to->stats[ i ] );
 }
