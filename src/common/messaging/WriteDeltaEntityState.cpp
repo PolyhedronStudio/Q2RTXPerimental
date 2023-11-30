@@ -110,20 +110,20 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 			bits |= U_ORIGIN3;
 
 		//if ( flags & MSG_ES_SHORTANGLES ) {
-			if ( to->angles[ 0 ] != from->angles[ 0 ] )
-				bits |= U_ANGLE1;// | U_ANGLE16;
-			if ( to->angles[ 1 ] != from->angles[ 1 ] )
-				bits |= U_ANGLE2;// | U_ANGLE16;
-			if ( to->angles[ 2 ] != from->angles[ 2 ] )
-				bits |= U_ANGLE3;// | U_ANGLE16;
-		//} else {
-		//	if ( to->angles[ 0 ] != from->angles[ 0 ] )
-		//		bits |= U_ANGLE1;
-		//	if ( to->angles[ 1 ] != from->angles[ 1 ] )
-		//		bits |= U_ANGLE2;
-		//	if ( to->angles[ 2 ] != from->angles[ 2 ] )
-		//		bits |= U_ANGLE3;
-		//}
+		if ( to->angles[ 0 ] != from->angles[ 0 ] )
+			bits |= U_ANGLE1;// | U_ANGLE16;
+		if ( to->angles[ 1 ] != from->angles[ 1 ] )
+			bits |= U_ANGLE2;// | U_ANGLE16;
+		if ( to->angles[ 2 ] != from->angles[ 2 ] )
+			bits |= U_ANGLE3;// | U_ANGLE16;
+	//} else {
+	//	if ( to->angles[ 0 ] != from->angles[ 0 ] )
+	//		bits |= U_ANGLE1;
+	//	if ( to->angles[ 1 ] != from->angles[ 1 ] )
+	//		bits |= U_ANGLE2;
+	//	if ( to->angles[ 2 ] != from->angles[ 2 ] )
+	//		bits |= U_ANGLE3;
+	//}
 
 		if ( ( flags & MSG_ES_NEWENTITY ) && !VectorCompare( to->old_origin, from->origin ) )
 			bits |= U_OLDORIGIN;
@@ -135,60 +135,44 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 		mask = 0xffff8000;  // don't confuse old clients
 
 	if ( to->skinnum != from->skinnum ) {
-		if ( to->skinnum & mask )
-			bits |= U_SKIN8 | U_SKIN16;
-		else if ( to->skinnum & 0x0000ff00 )
-			bits |= U_SKIN16;
-		else
-			bits |= U_SKIN8;
+		bits |= U_SKIN;
 	}
 
 	if ( to->frame != from->frame ) {
-		if ( to->frame & 0xff00 )
-			bits |= U_FRAME16;
-		else
-			bits |= U_FRAME8;
+		bits |= U_FRAME;
 	}
 
 	if ( to->effects != from->effects ) {
-		if ( to->effects & mask )
-			bits |= U_EFFECTS8 | U_EFFECTS16;
-		else if ( to->effects & 0x0000ff00 )
-			bits |= U_EFFECTS16;
-		else
-			bits |= U_EFFECTS8;
+		bits |= U_EFFECTS;
 	}
 
 	if ( to->renderfx != from->renderfx ) {
-		if ( to->renderfx & mask )
-			bits |= U_RENDERFX8 | U_RENDERFX16;
-		else if ( to->renderfx & 0x0000ff00 )
-			bits |= U_RENDERFX16;
-		else
-			bits |= U_RENDERFX8;
+		bits |= U_RENDERFX;
 	}
 
 	if ( to->solid.u != from->solid.u )
 		bits |= U_SOLID;
 
 	// event is not delta compressed, just 0 compressed
-	if ( to->event )
+	if ( to->event ) {
 		bits |= U_EVENT;
+	}
 
-	if ( to->modelindex != from->modelindex )
+	if ( to->modelindex != from->modelindex ) {
 		bits |= U_MODEL;
-	if ( to->modelindex2 != from->modelindex2 )
+	}
+	if ( to->modelindex2 != from->modelindex2 ) {
 		bits |= U_MODEL2;
-	if ( to->modelindex3 != from->modelindex3 )
+	}
+	if ( to->modelindex3 != from->modelindex3 ) {
 		bits |= U_MODEL3;
-	if ( to->modelindex4 != from->modelindex4 )
+	}
+	if ( to->modelindex4 != from->modelindex4 ) {
 		bits |= U_MODEL4;
+	}
 
 	if ( to->sound != from->sound ) {
-		if ( to->sound & 0xff00 )
-			bits |= U_SOUND16;
-		else
-			bits |= U_SOUND8;
+		bits |= U_SOUND;
 	}
 
 	if ( to->renderfx & RF_FRAMELERP ) {
@@ -210,63 +194,49 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 
 	MSG_WriteEntityNumber( to->number, false, bits );
 
-	if ( bits & U_MODEL )
-		MSG_WriteUint8( to->modelindex );
-	if ( bits & U_MODEL2 )
-		MSG_WriteUint8( to->modelindex2 );
-	if ( bits & U_MODEL3 )
-		MSG_WriteUint8( to->modelindex3 );
-	if ( bits & U_MODEL4 )
-		MSG_WriteUint8( to->modelindex4 );
-
-	if ( bits & U_FRAME8 )
-		MSG_WriteUint8( to->frame );
-	else if ( bits & U_FRAME16 )
-		MSG_WriteInt16( to->frame );
-
-	if ( ( bits & ( U_SKIN8 | U_SKIN16 ) ) == ( U_SKIN8 | U_SKIN16 ) )  //used for laser colors
-		MSG_WriteInt32( to->skinnum );
-	else if ( bits & U_SKIN8 )
-		MSG_WriteUint8( to->skinnum );
-	else if ( bits & U_SKIN16 )
-		MSG_WriteInt16( to->skinnum );
-
-	if ( ( bits & ( U_EFFECTS8 | U_EFFECTS16 ) ) == ( U_EFFECTS8 | U_EFFECTS16 ) )
-		MSG_WriteInt32( to->effects );
-	else if ( bits & U_EFFECTS8 )
-		MSG_WriteUint8( to->effects );
-	else if ( bits & U_EFFECTS16 )
-		MSG_WriteInt16( to->effects );
-
-	if ( ( bits & ( U_RENDERFX8 | U_RENDERFX16 ) ) == ( U_RENDERFX8 | U_RENDERFX16 ) )
-		MSG_WriteInt32( to->renderfx );
-	else if ( bits & U_RENDERFX8 )
-		MSG_WriteUint8( to->renderfx );
-	else if ( bits & U_RENDERFX16 )
-		MSG_WriteInt16( to->renderfx );
-
-	if ( bits & U_ORIGIN1 )
+	if ( bits & U_MODEL ) {
+		MSG_WriteUintBase128( to->modelindex );
+	}
+	if ( bits & U_MODEL2 ) {
+		MSG_WriteUintBase128( to->modelindex2 );
+	}
+	if ( bits & U_MODEL3 ) {
+		MSG_WriteUintBase128( to->modelindex3 );
+	}
+	if ( bits & U_MODEL4 ) {
+		MSG_WriteUintBase128( to->modelindex4 );
+	}
+	if ( bits & U_FRAME ) {
+		MSG_WriteUintBase128( to->frame );
+	}
+	if ( bits & U_SKIN ) {
+		MSG_WriteUintBase128( to->skinnum );
+	}
+	if ( bits & U_EFFECTS ) {
+		MSG_WriteUintBase128( to->effects );
+	}
+	if ( bits & U_RENDERFX ) {
+		MSG_WriteUintBase128( to->renderfx );
+	}
+	if ( bits & U_ORIGIN1 ) {
 		MSG_WriteFloat( to->origin[ 0 ] ); //MSG_WriteInt16( to->origin[ 0 ] ); // WID: float-movement
-	if ( bits & U_ORIGIN2 )
+	}
+	if ( bits & U_ORIGIN2 ) {
 		MSG_WriteFloat( to->origin[ 1 ] );// MSG_WriteInt16( to->origin[ 1 ] ); // WID: float-movement
-	if ( bits & U_ORIGIN3 )
+	}
+	if ( bits & U_ORIGIN3 ) {
 		MSG_WriteFloat( to->origin[ 2 ] );// MSG_WriteInt16( to->origin[ 2 ] ); // WID: float-movement
+	}
 
-	//if ( ( flags & MSG_ES_SHORTANGLES ) && ( bits & U_ANGLE16 ) ) {
-		if ( bits & U_ANGLE1 )
-			MSG_WriteInt16( to->angles[ 0 ] );
-		if ( bits & U_ANGLE2 )
-			MSG_WriteInt16( to->angles[ 1 ] );
-		if ( bits & U_ANGLE3 )
-			MSG_WriteInt16( to->angles[ 2 ] );
-	//} else {
-	//	if ( bits & U_ANGLE1 )
-	//		MSG_WriteUint8( to->angles[ 0 ] >> 8 );
-	//	if ( bits & U_ANGLE2 )
-	//		MSG_WriteUint8( to->angles[ 1 ] >> 8 );
-	//	if ( bits & U_ANGLE3 )
-	//		MSG_WriteUint8( to->angles[ 2 ] >> 8 );
-	//}
+	if ( bits & U_ANGLE1 ) {
+		MSG_WriteInt16( to->angles[ 0 ] );
+	}
+	if ( bits & U_ANGLE2 ) {
+		MSG_WriteInt16( to->angles[ 1 ] );
+	}
+	if ( bits & U_ANGLE3 ) {
+		MSG_WriteInt16( to->angles[ 2 ] );
+	}
 
 	if ( bits & U_OLDORIGIN ) {
 		MSG_WriteFloat( to->old_origin[ 0 ] );//MSG_WriteInt16( to->old_origin[ 0 ] ); // WID: float-movement
@@ -274,15 +244,13 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 		MSG_WriteFloat( to->old_origin[ 2 ] );//MSG_WriteInt16( to->old_origin[ 2 ] ); // WID: float-movement
 	}
 
-	if ( bits & U_SOUND8 )
-		MSG_WriteUint8( to->sound );
-	else if ( bits & U_SOUND16 )
-		MSG_WriteUint16( to->sound );
+	if ( bits & U_SOUND )
+		MSG_WriteUintBase128( to->sound );
 
 	if ( bits & U_EVENT )
-		MSG_WriteUint8( to->event );
+		MSG_WriteUintBase128( to->event );
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: WriteLong by default.
-		MSG_WriteInt32( to->solid.u );
+		MSG_WriteUintBase128( to->solid.u );
 	}
 }

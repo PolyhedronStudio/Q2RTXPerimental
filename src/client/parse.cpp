@@ -122,10 +122,10 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
             // the entity present in oldframe is not in the current frame
             SHOWNET(2, "   remove: %i\n", newnum);
             if (oldnum != newnum) {
-                Com_DPrintf("U_REMOVE: oldnum != newnum\n");
+                Com_DPrintf("RemoveEntity Bit Set: oldnum != newnum\n");
             }
             if (!oldframe) {
-                Com_Error(ERR_DROP, "%s: U_REMOVE with NULL oldframe", __func__);
+                Com_Error(ERR_DROP, "%s: RemoveEntity Bit Set with NULL oldframe", __func__);
             }
 
             oldindex++;

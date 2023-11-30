@@ -200,45 +200,45 @@ typedef enum {
 #define U_ORIGIN2   (1<<1)
 #define U_ANGLE2    (1<<2)
 #define U_ANGLE3    (1<<3)
-#define U_FRAME8    (1<<4)			// frame is a byte
+#define U_FRAME     (1<<4)			// 
 #define U_EVENT     (1<<5)
-#define U_REMOVE    (1<<6)			// REMOVE this entity, don't add it
-#define U_UNUSED0   (1<<7)			//#define U_MOREBITS1 (1<<7)        // read one additional byte
+#define U_SKIN		(1<<6)//#define U_UNUSGED    (1<<6)			// REMOVE this entity, don't add it
+#define U_SOLID		(1<<7)//#define U_UNUSED0   (1<<7)			//#define U_MOREBITS1 (1<<7)        // read one additional byte
 
 
 // second byte
-#define U_NUMBER16  (1<<8)			// NUMBER8 is implicit if not set
+#define U_SOUND		(1<<8)			// NUMBER8 is implicit if not set
 #define U_ORIGIN3   (1<<9)
 #define U_ANGLE1    (1<<10)
 #define U_MODEL     (1<<11)
-#define U_RENDERFX8 (1<<12)			// fullbright, etc
-#define U_UNUSED1   (1<<13)			//#define U_ANGLE16   (1<<13)
-#define U_EFFECTS8  (1<<14)			// autorotate, trails, etc
-#define U_UNUSED2	(1<<15)			//#define U_MOREBITS2 (1<<15)        // read one additional byte
+#define U_RENDERFX  (1<<12)			// fullbright, etc
+#define U_EFFECTS	(1<<13)			//
+#define U_SOUND		(1<<14)			// autorotate, trails, etc
+#define U_OLDORIGIN	(1<<15)			//
 
 // third byte
-#define U_SKIN8         (1<<16)
-#define U_FRAME16       (1<<17)     // frame is a short
-#define U_RENDERFX16    (1<<18)     // 8 + 16 = 32
-#define U_EFFECTS16     (1<<19)     // 8 + 16 = 32
-#define U_MODEL2        (1<<20)     // weapons, flags, etc
-#define U_MODEL3        (1<<21)
-#define U_MODEL4        (1<<22)
-#define U_UNUSED3		(1<<23)		//#define U_MOREBITS3     (1<<23)     // read one additional byte
+#define U_MODEL2	(1<<16)
+#define U_MODEL3	(1<<17)
+#define U_MODEL4	(1<<18)
+#define U_OLDORIGIN	(1<<19)
+#define U_UNUSED42	(1<<20)
+#define U_UNUSED43	(1<<21)
+#define U_UNUSED44	(1<<22)
+#define U_UNUSED45	(1<<23)
 
 // fourth byte
-#define U_OLDORIGIN     (1<<24)     // FIXME: get rid of this
-#define U_SKIN16        (1<<25)
-#define U_SOUND8        (1<<26)
-#define U_SOLID         (1<<27)
-#define U_SOUND16		(1<<28)
-#define U_UNUSED5		(1<<29)
-#define U_UNUSED6		(1<<30)
-#define U_UNUSED7		(1<<31)
+#define U_UNUSED2	(1<<24)
+#define U_UNUSED3	(1<<25)
+#define U_UNUSED4	(1<<26)
+#define U_UNUSED5	(1<<27)
+#define U_UNUSED6	(1<<28)
+#define U_UNUSED7	(1<<29)
+#define U_UNUSED8	(1<<30)
+#define U_UNUSED9	(1<<31)
 
 // fifth byte
-#define U_UNUSED8		(1<<32)
-#define U_UNUSED9		(1<<33)
+#define U_UNUSED40		(1<<32)
+#define U_UNUSED41		(1<<33)
 #define U_UNUSED10		(1<<34)
 #define U_UNUSED11		(1<<35)
 #define U_UNUSED12		(1<<36)
