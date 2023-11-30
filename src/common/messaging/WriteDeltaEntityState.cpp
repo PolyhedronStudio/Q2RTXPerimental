@@ -37,9 +37,9 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_
 	out->origin[ 1 ] = in->origin[ 1 ]; //COORD2SHORT( in->origin[ 1 ] ); // WID: float-movement
 	out->origin[ 2 ] = in->origin[ 2 ]; //COORD2SHORT( in->origin[ 2 ] ); // WID: float-movement
 	//if ( short_angles ) {
-		out->angles[ 0 ] = ANGLE2SHORT( in->angles[ 0 ] );
-		out->angles[ 1 ] = ANGLE2SHORT( in->angles[ 1 ] );
-		out->angles[ 2 ] = ANGLE2SHORT( in->angles[ 2 ] );
+		out->angles[ 0 ] = in->angles[ 0 ];//ANGLE2SHORT( in->angles[ 0 ] );
+		out->angles[ 1 ] = in->angles[ 1 ];//ANGLE2SHORT( in->angles[ 1 ] );
+		out->angles[ 2 ] = in->angles[ 2 ];//ANGLE2SHORT( in->angles[ 2 ] );
 	//} else {
 	//	// pack angles8 akin to angles16 to make delta compression happy when
 	//	// precision suddenly changes between entity updates
@@ -102,28 +102,26 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	bits = 0;
 
 	if ( !( flags & MSG_ES_FIRSTPERSON ) ) {
-		if ( to->origin[ 0 ] != from->origin[ 0 ] )
+		if ( to->origin[ 0 ] != from->origin[ 0 ] ) {
 			bits |= U_ORIGIN1;
-		if ( to->origin[ 1 ] != from->origin[ 1 ] )
+		}
+		if ( to->origin[ 1 ] != from->origin[ 1 ] ) {
 			bits |= U_ORIGIN2;
-		if ( to->origin[ 2 ] != from->origin[ 2 ] )
+		}
+		if ( to->origin[ 2 ] != from->origin[ 2 ] ) {
 			bits |= U_ORIGIN3;
+		}
 
 		//if ( flags & MSG_ES_SHORTANGLES ) {
-		if ( to->angles[ 0 ] != from->angles[ 0 ] )
-			bits |= U_ANGLE1;// | U_ANGLE16;
-		if ( to->angles[ 1 ] != from->angles[ 1 ] )
-			bits |= U_ANGLE2;// | U_ANGLE16;
-		if ( to->angles[ 2 ] != from->angles[ 2 ] )
-			bits |= U_ANGLE3;// | U_ANGLE16;
-	//} else {
-	//	if ( to->angles[ 0 ] != from->angles[ 0 ] )
-	//		bits |= U_ANGLE1;
-	//	if ( to->angles[ 1 ] != from->angles[ 1 ] )
-	//		bits |= U_ANGLE2;
-	//	if ( to->angles[ 2 ] != from->angles[ 2 ] )
-	//		bits |= U_ANGLE3;
-	//}
+		if ( to->angles[ 0 ] != from->angles[ 0 ] ) {
+			bits |= U_ANGLE1;
+		}
+		if ( to->angles[ 1 ] != from->angles[ 1 ] ) {
+			bits |= U_ANGLE2;
+		}
+		if ( to->angles[ 2 ] != from->angles[ 2 ] ) {
+			bits |= U_ANGLE3;
+		}
 
 		if ( ( flags & MSG_ES_NEWENTITY ) && !VectorCompare( to->old_origin, from->origin ) )
 			bits |= U_OLDORIGIN;
@@ -229,13 +227,13 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	}
 
 	if ( bits & U_ANGLE1 ) {
-		MSG_WriteInt16( to->angles[ 0 ] );
+		MSG_WriteAngleHalfFloat( to->angles[ 0 ] );
 	}
 	if ( bits & U_ANGLE2 ) {
-		MSG_WriteInt16( to->angles[ 1 ] );
+		MSG_WriteAngleHalfFloat( to->angles[ 1 ] );
 	}
 	if ( bits & U_ANGLE3 ) {
-		MSG_WriteInt16( to->angles[ 2 ] );
+		MSG_WriteAngleHalfFloat( to->angles[ 2 ] );
 	}
 
 	if ( bits & U_OLDORIGIN ) {

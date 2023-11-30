@@ -57,12 +57,12 @@ extern "C" {
 	typedef struct {
 		uint16_t    number;
 		vec3_t		origin;//int16_t     origin[3]; // WID: float-movement
-		int16_t     angles[3]; // WID: float-movement
+		vec3_t		angles; // WID: float-movement
 		vec3_t		old_origin; //int16_t     old_origin[3]; // WID: float-movement
-		uint8_t     modelindex;
-		uint8_t     modelindex2;
-		uint8_t     modelindex3;
-		uint8_t     modelindex4;
+		uint32_t	modelindex;
+		uint32_t	modelindex2;
+		uint32_t	modelindex3;
+		uint32_t	modelindex4;
 		uint32_t    skinnum;
 		uint32_t    effects;
 		uint32_t    renderfx;
@@ -78,7 +78,7 @@ extern "C" {
 	**/
 	typedef struct {
 		pmove_state_t   pmove;
-		int16_t         viewangles[3];
+		vec3_t			viewangles;
 		int8_t          viewoffset[3];
 		int8_t          kick_angles[3];
 		int8_t          gunangles[3];
@@ -328,6 +328,10 @@ extern "C" {
 	*	@brief	Writes a 16 bit short encoded angle value of (float)f.
 	**/
 	void MSG_WriteAngle16( const float f );
+	/**
+	*	@brief	Reads a short and decodes its 'half float' into a float angle.
+	**/
+	void MSG_WriteAngleHalfFloat( const float f );
 
 	/**
 	*   @brief Writes an optional 'short' encoded coordinate position vector.
@@ -422,6 +426,10 @@ extern "C" {
 	*	@brief Reads a short and decodes it to a float angle.
 	**/
 	const float MSG_ReadAngle16( void );
+	/**
+	*	@brief	Reads a short and decodes its 'half float' into a float angle.
+	**/
+	const float MSG_ReadAngleHalfFloat( void );
 
 	/**
 	*	@brief	Reads a byte, and decodes it using it as an index into our directions table.
