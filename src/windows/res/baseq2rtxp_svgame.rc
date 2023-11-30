@@ -12,8 +12,8 @@
 #define VER_FILEFLAGS   0x0L
 #endif
 
-#define VER_FILEDESCRIPTION_STR     "Q2RTXPerimental Client " LONG_VERSION_STRING
-#define VER_ORIGINALFILENAME_STR    "Q2RTXPerimental.exe"
+#define VER_FILEDESCRIPTION_STR     "Q2RTXPerimental BaseQ2 ClientGame Module " LONG_VERSION_STRING
+#define VER_ORIGINALFILENAME_STR    "clgamex86_64.dll"
 
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
@@ -23,7 +23,7 @@ VS_VERSION_INFO VERSIONINFO
     FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
     FILEFLAGS       VER_FILEFLAGS
     FILEOS          VOS_NT_WINDOWS32
-    FILETYPE        VFT_APP
+    FILETYPE        VFT_DLL
     FILESUBTYPE     VFT2_UNKNOWN
 BEGIN
     BLOCK "StringFileInfo"
@@ -34,8 +34,8 @@ BEGIN
             VALUE "FileDescription", VER_FILEDESCRIPTION_STR
             VALUE "OriginalFilename", VER_ORIGINALFILENAME_STR
             VALUE "FileVersion", VERSION_STRING
-            VALUE "InternalName", "q2rtxp"
-            VALUE "LegalCopyright", "Copyright (C) 2019-2023, NVIDIA CORPORATION. All rights reserved."
+            VALUE "InternalName", "baseq2_clgame"
+            VALUE "LegalCopyright", "Copyright (C) 2019-2020, NVIDIA CORPORATION. All rights reserved."
             VALUE "ProductName", "Quake II RTXPerimental"
             VALUE "ProductVersion", VERSION_STRING
         END
@@ -46,7 +46,3 @@ BEGIN
     END
 END
 
-LANGUAGE LANG_NEUTRAL, SUBLANG_DEFAULT
-
-100 ICON "q2rtxp.ico"
-CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "q2rtxp.exe.manifest"

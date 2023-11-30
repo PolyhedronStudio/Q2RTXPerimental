@@ -1,6 +1,9 @@
 #
-#	BaseQ2 SharedGame
 #
+#	Game: BaseQ2
+#
+#
+# BaseQ2 SharedGame
 SET(SRC_BASEQ2_SHAREDGAME
 	baseq2/sharedgame/sg_pmove.cpp
 )
@@ -8,10 +11,14 @@ SET(HEADERS_BASEQ2_SHAREDGAME
 	baseq2/sharedgame/sg_pmove.h
 	baseq2/sharedgame/sg_time.h
 )
-
-#
-#	BaseQ2 ServerGame
-#
+#	BaseQ2 ClientGame
+SET(SRC_BASEQ2_CLGAME
+	baseq2/clgame/clg_main.cpp
+)
+SET(HEADERS_BASEQ2_CLGAME
+	baseq2/clgame/clg_local.h
+)
+# BaseQ2 ServerGame
 SET(SRC_BASEQ2_SVGAME
 	baseq2/svgame/g_ai.cpp
 	baseq2/svgame/g_chase.cpp
@@ -61,7 +68,6 @@ SET(SRC_BASEQ2_SVGAME
 	baseq2/svgame/p_view.cpp
 	baseq2/svgame/p_weapon.cpp
 )
-
 SET(HEADERS_BASEQ2_SVGAME
 	baseq2/svgame/g_local.h
 	baseq2/svgame/g_save.h
@@ -91,21 +97,113 @@ SET(HEADERS_BASEQ2_SVGAME
 	baseq2/svgame/m_tank.h
 )
 
+
+
 #
-#	BaseQ2 ServerGame
 #
-SET(SRC_BASEQ2_CLGAME
-	baseq2/clgame/clg_main.cpp
+#	Game: BaseQ2RTXP
+#
+#
+# BaseQ2RTXP SharedGame
+SET(SRC_BASEQ2RTXP_SHAREDGAME
+	baseq2rtxp/sharedgame/sg_pmove.cpp
+)
+SET(HEADERS_BASEQ2RTXP_SHAREDGAME
+	baseq2rtxp/sharedgame/sg_pmove.h
+	baseq2rtxp/sharedgame/sg_time.h
+)
+#	BaseQ2RTXP ClientGame
+SET(SRC_BASEQ2RTXP_CLGAME
+	baseq2rtxp/clgame/clg_main.cpp
+)
+SET(HEADERS_BASEQ2RTXP_CLGAME
+	baseq2rtxp/clgame/clg_local.h
+)
+# BaseQ2RTXP ServerGame
+SET(SRC_BASEQ2RTXP_SVGAME
+	baseq2rtxp/svgame/g_ai.cpp
+	baseq2rtxp/svgame/g_chase.cpp
+	baseq2rtxp/svgame/g_cmds.cpp
+	baseq2rtxp/svgame/g_combat.cpp
+	baseq2rtxp/svgame/g_func.cpp
+	baseq2rtxp/svgame/g_items.cpp
+	baseq2rtxp/svgame/g_main.cpp
+	baseq2rtxp/svgame/g_misc.cpp
+	baseq2rtxp/svgame/g_monster.cpp
+	baseq2rtxp/svgame/g_phys.cpp
+	baseq2rtxp/svgame/g_ptrs.cpp
+	baseq2rtxp/svgame/g_save.cpp
+	baseq2rtxp/svgame/g_spawn.cpp
+	baseq2rtxp/svgame/g_svcmds.cpp
+	baseq2rtxp/svgame/g_target.cpp
+	baseq2rtxp/svgame/g_trigger.cpp
+	baseq2rtxp/svgame/g_turret.cpp
+	baseq2rtxp/svgame/g_utils.cpp
+	baseq2rtxp/svgame/g_weapon.cpp
+	baseq2rtxp/svgame/m_actor.cpp
+	baseq2rtxp/svgame/m_berserk.cpp
+	baseq2rtxp/svgame/m_boss2.cpp
+	baseq2rtxp/svgame/m_boss3.cpp
+	baseq2rtxp/svgame/m_boss31.cpp
+	baseq2rtxp/svgame/m_boss32.cpp
+	baseq2rtxp/svgame/m_brain.cpp
+	baseq2rtxp/svgame/m_chick.cpp
+	baseq2rtxp/svgame/m_flipper.cpp
+	baseq2rtxp/svgame/m_float.cpp
+	baseq2rtxp/svgame/m_flyer.cpp
+	baseq2rtxp/svgame/m_gladiator.cpp
+	baseq2rtxp/svgame/m_gunner.cpp
+	baseq2rtxp/svgame/m_hover.cpp
+	baseq2rtxp/svgame/m_infantry.cpp
+	baseq2rtxp/svgame/m_insane.cpp
+	baseq2rtxp/svgame/m_medic.cpp
+	baseq2rtxp/svgame/m_move.cpp
+	baseq2rtxp/svgame/m_mutant.cpp
+	baseq2rtxp/svgame/m_parasite.cpp
+	baseq2rtxp/svgame/m_soldier.cpp
+	baseq2rtxp/svgame/m_supertank.cpp
+	baseq2rtxp/svgame/m_tank.cpp
+	baseq2rtxp/svgame/p_client.cpp
+	baseq2rtxp/svgame/p_hud.cpp
+	baseq2rtxp/svgame/p_trail.cpp
+	baseq2rtxp/svgame/p_view.cpp
+	baseq2rtxp/svgame/p_weapon.cpp
+)
+SET(HEADERS_BASEQ2RTXP_SVGAME
+	baseq2rtxp/svgame/g_local.h
+	baseq2rtxp/svgame/g_save.h
+
+	baseq2rtxp/svgame/m_actor.h
+	baseq2rtxp/svgame/m_berserk.h
+	baseq2rtxp/svgame/m_boss2.h
+	baseq2rtxp/svgame/m_boss31.h
+	baseq2rtxp/svgame/m_boss32.h
+	baseq2rtxp/svgame/m_brain.h
+	baseq2rtxp/svgame/m_chick.h
+	baseq2rtxp/svgame/m_flipper.h
+	baseq2rtxp/svgame/m_float.h
+	baseq2rtxp/svgame/m_flyer.h
+	baseq2rtxp/svgame/m_gladiator.h
+	baseq2rtxp/svgame/m_gunner.h
+	baseq2rtxp/svgame/m_hover.h
+	baseq2rtxp/svgame/m_infantry.h
+	baseq2rtxp/svgame/m_insane.h
+	baseq2rtxp/svgame/m_medic.h
+	baseq2rtxp/svgame/m_mutant.h
+	baseq2rtxp/svgame/m_parasite.h
+	baseq2rtxp/svgame/m_player.h
+	baseq2rtxp/svgame/m_rider.h
+	baseq2rtxp/svgame/m_soldier.h
+	baseq2rtxp/svgame/m_supertank.h
+	baseq2rtxp/svgame/m_tank.h
 )
 
-SET(HEADERS_BASEQ2_CLGAME
-	baseq2/clgame/clg_local.h
-)
 
 
-
+#
 #
 #	Client
+#
 #
 SET(SRC_CLIENT
 	client/ascii.cpp
@@ -158,6 +256,12 @@ SET(HEADERS_CLIENT
 	client/sound/qal/fixed.h
 )
 
+
+#
+#
+# Server
+#
+#
 SET(SRC_SERVER
 	server/commands.cpp
 	server/entities.cpp
@@ -174,6 +278,12 @@ SET(HEADERS_SERVER
 	server/server.h
 )
 
+
+#
+#
+# Common
+#
+#
 SET(SRC_COMMON
 	common/bsp.cpp
 	common/cmd.cpp
@@ -206,7 +316,6 @@ SET(SRC_COMMON
 	common/net/Q2RTXPerimentalNetChan.cpp
 	common/net/net.cpp
 )
-
 SET(HEADERS_COMMON
 	#common/net/chan.h
 	#common/net/Q2RTXPerimentalNetChan.h
@@ -215,14 +324,18 @@ SET(HEADERS_COMMON
 	common/net/win.h
 )
 
+
+#
+#
+# Refresh GL:
+#
+#
 SET(SRC_REFRESH
 	refresh/images.c
 	refresh/models.c
 	refresh/model_iqm.c
 	refresh/stb/stb.c
 )
-
-
 SET(SRC_GL
 	refresh/gl/draw.c
 	refresh/gl/hq2x.c
@@ -239,41 +352,55 @@ SET(SRC_GL
 	refresh/gl/legacy.c
 	refresh/gl/shader.c
 )
-
 SET(HEADERS_GL
 	refresh/gl/arbfp.h
 	refresh/gl/gl.h
 )
 
+
+#
+#
+# Shared
+#
+#
 SET(SRC_SHARED
 	shared/m_flash.c
 	shared/shared.cpp
 )
 
+
+#
+#
+# Linux
+#
+#
 SET(SRC_LINUX
 	unix/hunk.c
 	unix/system.c
 	unix/tty.c
 )
-
 SET(SRC_LINUX_CLIENT
 	unix/sound/sdl.c
 	unix/video.c
 )
 
+
+#
+#
+# Windows
+#
+#
 SET(SRC_WINDOWS
 	#windows/ac.cpp
 	windows/debug.cpp
 	windows/hunk.cpp
 	windows/system.cpp
 )
-
 SET(SRC_WINDOWS_CLIENT
 	windows/wave.c
 	unix/sound/sdl.c
 	unix/video.cpp
 )
-
 SET(HEADERS_WINDOWS
 	windows/wgl.h
 	windows/glimp.h
@@ -281,6 +408,12 @@ SET(HEADERS_WINDOWS
 	windows/threads/threads.h
 )
 
+
+#
+#
+# Refresh VKPT:
+#
+#
 SET(SRC_VKPT
 	refresh/vkpt/asvgf.c
 	refresh/vkpt/bloom.c
@@ -311,7 +444,6 @@ SET(SRC_VKPT
 	refresh/vkpt/god_rays.c
 	refresh/vkpt/conversion.c
 )
-
 SET(HEADERS_VKPT
 	refresh/vkpt/vkpt.h
 	refresh/vkpt/vk_util.h
@@ -324,7 +456,6 @@ SET(HEADERS_VKPT
 	refresh/vkpt/precomputed_sky.h
 	refresh/vkpt/conversion.h
 )
-
 set(SRC_SHADERS
 	refresh/vkpt/shader/animate_materials.comp
 	refresh/vkpt/shader/god_rays_filter.comp
@@ -359,7 +490,6 @@ set(SRC_SHADERS
 	refresh/vkpt/shader/fsr_rcas_fp16.comp
 	refresh/vkpt/shader/fsr_rcas_fp32.comp
 )
-
 set(SRC_RT_SHADERS
 	refresh/vkpt/shader/primary_rays.rgen
 	refresh/vkpt/shader/direct_lighting.rgen

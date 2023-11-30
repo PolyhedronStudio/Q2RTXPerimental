@@ -372,14 +372,150 @@ IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 	ENDIF()
 ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 
+
+
+####
+##	Build Targets: "BaseQ2 Game":
+####
+IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
+	# Server Game:
+	add_library(baseq2rtxp_svgame SHARED 
+		${SRC_BASEQ2RTXP_SVGAME} ${HEADERS_BASEQ2RTXP_SVGAME} 
+		${SRC_BASEQ2RTXP_SHAREDGAME} ${HEADERS_BASEQ2RTXP_SHAREDGAME} 
+		${SRC_SHARED}
+	)
+	# Client Game:
+	add_library(baseq2rtxp_clgame SHARED 
+		${SRC_BASEQ2RTXP_CLGAME} ${HEADERS_BASEQ2RTXP_CLGAME} 
+		${SRC_BASEQ2RTXP_SHAREDGAME} ${HEADERS_BASEQ2RTXP_SHAREDGAME} 
+		${SRC_SHARED}
+	)
+
+	IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
+		# Workaround for GCC 10 linking shared libgcc by default
+		target_link_options(baseq2rtxp_clgame PRIVATE "-static-libgcc")
+		target_link_options(baseq2rtxp_svgame PRIVATE "-static-libgcc")
+	ENDIF() #IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
+
+	# WIN32 Specifics:
+	IF( WIN32 )
+		target_include_directories(baseq2rtxp_svgame PRIVATE ../VC/inc)
+		target_include_directories(baseq2rtxp_clgame PRIVATE ../VC/inc)
+		target_sources(baseq2rtxp_svgame PRIVATE windows/res/baseq2rtxp_svgame.rc)
+		target_sources(baseq2rtxp_clgame PRIVATE windows/res/baseq2rtxp_clgame.rc)
+		# macro redefinition, deprecation
+		target_compile_options(baseq2rtxp_svgame PRIVATE /wd4996)
+		#target_compile_options(baseq2rtxp_svgame PRIVATE /wd4005 /wd4996)
+		target_compile_options(baseq2rtxp_clgame PRIVATE /wd4996)
+		#target_compile_options(baseq2rtxp_svgame PRIVATE /wd4005 /wd4996)
+	ENDIF() #IF( WIN32 ) 
+
+	target_include_directories(baseq2rtxp_svgame PRIVATE ../inc)
+	target_include_directories(baseq2rtxp_clgame PRIVATE ../inc)
+    target_link_libraries(baseq2rtxp_svgame zlibstatic)
+
+	# Specify both LIBRARY and RUNTIME because one works only on Windows,
+	# and another works only on Linux.
+	# "Server Game" Target Properties:
+	set_target_properties(baseq2rtxp_svgame
+		PROPERTIES
+		# Linux:
+		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		# Windows:
+		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		# No Prefixes.
+		PREFIX ""
+		DEBUG_POSTFIX ""
+	)
+	# "Client Game" Target Properties:
+	set_target_properties(baseq2rtxp_clgame
+		PROPERTIES
+		# Linux:
+		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		# Windows:
+		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2rtxp"
+		# No Prefixes.
+		PREFIX ""
+		DEBUG_POSTFIX ""
+	)
+
+	# Base binary output names on actual build architecture.
+	IF( CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" )
+		SET_TARGET_PROPERTIES(baseq2rtxp_svgame
+			PROPERTIES
+			LIBRARY_OUTPUT_NAME "svgameaarch64"
+			RUNTIME_OUTPUT_NAME "svgameaarch64"
+		)
+		SET_TARGET_PROPERTIES(baseq2rtxp_clgame
+			PROPERTIES
+			LIBRARY_OUTPUT_NAME "clgameaarch64"
+			RUNTIME_OUTPUT_NAME "clgameaarch64"
+		)
+	ELSEIF( CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le" )
+		SET_TARGET_PROPERTIES(baseq2rtxp_svgame
+			PROPERTIES
+			LIBRARY_OUTPUT_NAME "svgameppc64le"
+			RUNTIME_OUTPUT_NAME "svgameppc64le"
+		)
+		SET_TARGET_PROPERTIES(baseq2rtxp_clgame
+			PROPERTIES
+			LIBRARY_OUTPUT_NAME "clgameppc64le"
+			RUNTIME_OUTPUT_NAME "clgameppc64le"
+		)
+	ELSE()
+		SET_TARGET_PROPERTIES(baseq2rtxp_svgame
+			PROPERTIES
+			LIBRARY_OUTPUT_NAME "svgamex86_64"
+			RUNTIME_OUTPUT_NAME "svgamex86_64"
+		)
+		SET_TARGET_PROPERTIES(baseq2rtxp_clgame
+			PROPERTIES
+			LIBRARY_OUTPUT_NAME "clgamex86_64"
+			RUNTIME_OUTPUT_NAME "clgamex86_64"
+		)
+	ENDIF()
+ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
+
+
+
 ####
 ##	MSVC Source Groups support for CMake generated "Solutions":
 ####
 IF ( MSVC )
-	SOURCE_GROUP("baseq2\\svgame\\sources" FILES ${SRC_BASEQ2_SVGAME})
-	SOURCE_GROUP("baseq2\\svgame\\headers" FILES ${HEADERS_BASEQ2_SVGAME})
-	SOURCE_GROUP("baseq2\\clgame\\sources" FILES ${SRC_BASEQ2_CLGAME})
-	SOURCE_GROUP("baseq2\\clgame\\headers" FILES ${HEADERS_BASEQ2_CLGAME})
+	IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
+		SOURCE_GROUP("baseq2\\sharedgame\\sources" FILES ${SRC_BASEQ2_SHAREDGAME})
+		SOURCE_GROUP("baseq2\\sharedgame\\headers" FILES ${HEADERS_BASEQ2_SHAREDGAME})
+		SOURCE_GROUP("baseq2\\clgame\\sources" FILES ${SRC_BASEQ2_CLGAME})
+		SOURCE_GROUP("baseq2\\clgame\\headers" FILES ${HEADERS_BASEQ2_CLGAME})
+		SOURCE_GROUP("baseq2\\svgame\\sources" FILES ${SRC_BASEQ2_SVGAME})
+		SOURCE_GROUP("baseq2\\svgame\\headers" FILES ${HEADERS_BASEQ2_SVGAME})
+	ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
+
+	IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
+		SOURCE_GROUP("baseq2rtxp\\sharedgame\\sources" FILES ${SRC_BASEQ2RTXP_SHAREDGAME})
+		SOURCE_GROUP("baseq2rtxp\\sharedgame\\headers" FILES ${HEADERS_BASEQ2RTXP_SHAREDGAME})
+		SOURCE_GROUP("baseq2rtxp\\clgame\\sources" FILES ${SRC_BASEQ2RTXP_CLGAME})
+		SOURCE_GROUP("baseq2rtxp\\clgame\\headers" FILES ${HEADERS_BASEQ2RTXP_CLGAME})
+		SOURCE_GROUP("baseq2rtxp\\svgame\\sources" FILES ${SRC_BASEQ2RTXP_SVGAME})
+		SOURCE_GROUP("baseq2rtxp\\svgame\\headers" FILES ${HEADERS_BASEQ2RTXP_SVGAME})
+	ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
+
 	SOURCE_GROUP("client\\sources" FILES ${SRC_CLIENT})
 	SOURCE_GROUP("client\\headers" FILES ${HEADERS_CLIENT})
 	SOURCE_GROUP("server\\sources" FILES ${SRC_SERVER})
