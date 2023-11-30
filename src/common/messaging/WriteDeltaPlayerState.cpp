@@ -66,7 +66,7 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 **/
 void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to ) {
 	int     i;
-	int     pflags;
+	uint64_t pflags;
 
 	if ( !to )
 		Com_Error( ERR_DROP, "%s: NULL", __func__ );
@@ -132,7 +132,7 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	//
 	// write it
 	//
-	MSG_WriteInt16( pflags );
+	MSG_WriteUintBase128( pflags );
 
 	//
 	// write the pmove_state_t

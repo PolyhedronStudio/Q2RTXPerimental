@@ -192,7 +192,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
 
 static void CL_ParseFrame()
 {
-    uint32_t bits, extraflags;
+    uint64_t bits;
     int     currentframe, deltaframe,
             delta, suppressed;
     server_frame_t  frame, *oldframe;
@@ -203,7 +203,6 @@ static void CL_ParseFrame()
 
     cl.frameflags = 0;
 
-    extraflags = 0;
     currentframe = MSG_ReadInt32();
     deltaframe = MSG_ReadInt32();
 
@@ -286,7 +285,7 @@ static void CL_ParseFrame()
     SHOWNET(2, "%3zu:playerinfo\n", msg_read.readcount - 1);
 
     // parse playerstate
-    bits = MSG_ReadUint16();
+    bits = MSG_ReadUintBase128();
 	MSG_ParseDeltaPlayerstate(from, &frame.ps, bits);
 #if USE_DEBUG
         if (cl_shownet->integer > 2 && bits) {

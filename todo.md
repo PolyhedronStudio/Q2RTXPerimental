@@ -1,6 +1,8 @@
 # Quake II RTXPerimental TODO (v0.0.1):
 
 ## Engine:
+### General:
+* [ ] Although we have 64 bit time in-game, the actual way how server frames, acks and requests are handled is usually still ``unsigned``. Convert this to ``int64_t/uint64_t``.
 ### CMake:
 * [X] Do a rewrite of CMakeLists.txt's to be more ``structured`` and easily allow for enabling/disabling multiple types of game builds.
 ### Shared:
