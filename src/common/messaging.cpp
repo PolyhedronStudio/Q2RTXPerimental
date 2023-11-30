@@ -602,31 +602,14 @@ void MSG_ShowDeltaEntityBits( const uint64_t bits ) {
 	S( MODEL3, "modelindex3" );
 	S( MODEL4, "modelindex4" );
 
-	if ( bits & U_FRAME8 )
-		SHOWBITS( "frame8" );
-	if ( bits & U_FRAME16 )
-		SHOWBITS( "frame16" );
-
-	if ( ( bits & ( U_SKIN8 | U_SKIN16 ) ) == ( U_SKIN8 | U_SKIN16 ) )
-		SHOWBITS( "skinnum32" );
-	else if ( bits & U_SKIN8 )
-		SHOWBITS( "skinnum8" );
-	else if ( bits & U_SKIN16 )
-		SHOWBITS( "skinnum16" );
-
-	if ( ( bits & ( U_EFFECTS8 | U_EFFECTS16 ) ) == ( U_EFFECTS8 | U_EFFECTS16 ) )
-		SHOWBITS( "effects32" );
-	else if ( bits & U_EFFECTS8 )
-		SHOWBITS( "effects8" );
-	else if ( bits & U_EFFECTS16 )
-		SHOWBITS( "effects16" );
-
-	if ( ( bits & ( U_RENDERFX8 | U_RENDERFX16 ) ) == ( U_RENDERFX8 | U_RENDERFX16 ) )
-		SHOWBITS( "renderfx32" );
-	else if ( bits & U_RENDERFX8 )
-		SHOWBITS( "renderfx8" );
-	else if ( bits & U_RENDERFX16 )
-		SHOWBITS( "renderfx16" );
+	if ( bits & U_FRAME )
+		SHOWBITS( "frame" );
+	if ( bits & U_SKIN )
+		SHOWBITS( "skinnum" );
+	if ( bits & U_EFFECTS )
+		SHOWBITS( "effects" );
+	if ( bits & U_RENDERFX )
+		SHOWBITS( "renderfx" );
 
 	S( ORIGIN1, "origin[0]" );
 	S( ORIGIN2, "origin[1]" );
@@ -635,10 +618,8 @@ void MSG_ShowDeltaEntityBits( const uint64_t bits ) {
 	S( ANGLE2, "angles[1]" );
 	S( ANGLE3, "angles[2]" );
 	S( OLDORIGIN, "old_origin" );
-	else if ( bits & U_SOUND8 )
-		SHOWBITS( "sound8" );
-	else if ( bits & U_SOUND16 )
-		SHOWBITS( "sound16" );
+	if ( bits & U_SOUND )
+		SHOWBITS( "sound" );
 	S( EVENT, "event" );
 	S( SOLID, "solid" );
 	#undef S

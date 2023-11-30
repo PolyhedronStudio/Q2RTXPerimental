@@ -79,43 +79,29 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 
 	if ( bits & U_MODEL ) {
-		to->modelindex = MSG_ReadUint8( );
+		to->modelindex = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_MODEL2 ) {
-		to->modelindex2 = MSG_ReadUint8( );
+		to->modelindex2 = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_MODEL3 ) {
-		to->modelindex3 = MSG_ReadUint8( );
+		to->modelindex3 = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_MODEL4 ) {
-		to->modelindex4 = MSG_ReadUint8( );
+		to->modelindex4 = MSG_ReadUintBase128( );
 	}
 
-	if ( bits & U_FRAME8 )
-		to->frame = MSG_ReadUint8( );
-	else if ( bits & U_FRAME16 )
-		to->frame = MSG_ReadInt16( );
+	if ( bits & U_FRAME )
+		to->frame = MSG_ReadUintBase128( );
 
-	if ( ( bits & ( U_SKIN8 | U_SKIN16 ) ) == ( U_SKIN8 | U_SKIN16 ) )  //used for laser colors
-		to->skinnum = MSG_ReadInt32( );
-	else if ( bits & U_SKIN8 )
-		to->skinnum = MSG_ReadUint8( );
-	else if ( bits & U_SKIN16 )
-		to->skinnum = MSG_ReadUint16( );
+	if ( bits & U_SKIN )
+		to->skinnum = MSG_ReadUintBase128( );
 
-	if ( ( bits & ( U_EFFECTS8 | U_EFFECTS16 ) ) == ( U_EFFECTS8 | U_EFFECTS16 ) )
-		to->effects = MSG_ReadInt32( );
-	else if ( bits & U_EFFECTS8 )
-		to->effects = MSG_ReadUint8( );
-	else if ( bits & U_EFFECTS16 )
-		to->effects = MSG_ReadUint16( );
+	if ( bits & U_EFFECTS )
+		to->effects = MSG_ReadUintBase128( );
 
-	if ( ( bits & ( U_RENDERFX8 | U_RENDERFX16 ) ) == ( U_RENDERFX8 | U_RENDERFX16 ) )
-		to->renderfx = MSG_ReadInt32( );
-	else if ( bits & U_RENDERFX8 )
-		to->renderfx = MSG_ReadUint8( );
-	else if ( bits & U_RENDERFX16 )
-		to->renderfx = MSG_ReadUint16( );
+	if ( bits & U_RENDERFX )
+		to->renderfx = MSG_ReadUintBase128( );
 
 	if ( bits & U_ORIGIN1 ) {
 		to->origin[ 0 ] = MSG_ReadFloat( );// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement 
@@ -127,39 +113,33 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->origin[ 2 ] = MSG_ReadFloat(); // SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
 	}
 
-	//if ( ( flags & MSG_ES_SHORTANGLES ) && ( bits & U_ANGLE16 ) ) {
-		if ( bits & U_ANGLE1 )
-			to->angles[ 0 ] = MSG_ReadAngle16( );
-		if ( bits & U_ANGLE2 )
-			to->angles[ 1 ] = MSG_ReadAngle16( );
-		if ( bits & U_ANGLE3 )
-			to->angles[ 2 ] = MSG_ReadAngle16( );
-	//} else {
-	//	if ( bits & U_ANGLE1 )
-	//		to->angles[ 0 ] = MSG_ReadAngle8( );
-	//	if ( bits & U_ANGLE2 )
-	//		to->angles[ 1 ] = MSG_ReadAngle8( );
-	//	if ( bits & U_ANGLE3 )
-	//		to->angles[ 2 ] = MSG_ReadAngle8( );
-	//}
-
-	if ( bits & U_OLDORIGIN ) {
-		MSG_ReadPos( to->old_origin, false );
+	if ( bits & U_ANGLE1 ) {
+		to->angles[ 0 ] = MSG_ReadAngle16( );
+	}
+	if ( bits & U_ANGLE2 ) {
+		to->angles[ 1 ] = MSG_ReadAngle16( );
+	}
+	if ( bits & U_ANGLE3 ) {
+		to->angles[ 2 ] = MSG_ReadAngle16( );
 	}
 
-	if ( bits & U_SOUND8 ) {
-		to->sound = MSG_ReadUint8( );
-	} else if ( bits & U_SOUND16 ) {
-		to->sound = MSG_ReadUint16( );
+	if ( bits & U_OLDORIGIN ) {
+		to->old_origin[ 0 ] = MSG_ReadFloat( );
+		to->old_origin[ 1 ] = MSG_ReadFloat( );
+		to->old_origin[ 2 ] = MSG_ReadFloat( );
+	}
+
+	if ( bits & U_SOUND ) {
+		to->sound = MSG_ReadUintBase128( );
 	}
 
 	if ( bits & U_EVENT ) {
-		to->event = MSG_ReadUint8( );
+		to->event = MSG_ReadUintBase128( );
 	}
 
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: ReadLong by default.
-		to->solid = MSG_ReadInt32( );
+		to->solid = MSG_ReadUintBase128( );
 	}
 }
 #endif // USE_CLIENT
