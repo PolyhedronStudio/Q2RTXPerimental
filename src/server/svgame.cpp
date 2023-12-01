@@ -828,6 +828,7 @@ void SV_InitGameProgs(void)
     import.unlinkentity = PF_UnlinkEdict;
     import.BoxEdicts = SV_AreaEdicts;
     import.trace = SV_Trace;
+	import.clip = SV_Clip;
     import.pointcontents = SV_PointContents;
     import.setmodel = PF_setmodel;
     import.inPVS = PF_inPVS;
