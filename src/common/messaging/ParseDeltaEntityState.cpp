@@ -78,31 +78,6 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		return;
 	}
 
-	if ( bits & U_MODEL ) {
-		to->modelindex = MSG_ReadUintBase128( );
-	}
-	if ( bits & U_MODEL2 ) {
-		to->modelindex2 = MSG_ReadUintBase128( );
-	}
-	if ( bits & U_MODEL3 ) {
-		to->modelindex3 = MSG_ReadUintBase128( );
-	}
-	if ( bits & U_MODEL4 ) {
-		to->modelindex4 = MSG_ReadUintBase128( );
-	}
-
-	if ( bits & U_FRAME )
-		to->frame = MSG_ReadUintBase128( );
-
-	if ( bits & U_SKIN )
-		to->skinnum = MSG_ReadUintBase128( );
-
-	if ( bits & U_EFFECTS )
-		to->effects = MSG_ReadUintBase128( );
-
-	if ( bits & U_RENDERFX )
-		to->renderfx = MSG_ReadUintBase128( );
-
 	if ( bits & U_ORIGIN1 ) {
 		to->origin[ 0 ] = MSG_ReadFloat( );// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement 
 	}
@@ -110,7 +85,7 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->origin[ 1 ] = MSG_ReadFloat( );// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
 	}
 	if ( bits & U_ORIGIN3 ) {
-		to->origin[ 2 ] = MSG_ReadFloat(); // SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
+		to->origin[ 2 ] = MSG_ReadFloat( ); // SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
 	}
 
 	if ( bits & U_ANGLE1 ) {
@@ -127,6 +102,32 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->old_origin[ 0 ] = MSG_ReadFloat( );
 		to->old_origin[ 1 ] = MSG_ReadFloat( );
 		to->old_origin[ 2 ] = MSG_ReadFloat( );
+	}
+
+	if ( bits & U_MODEL ) {
+		to->modelindex = MSG_ReadUintBase128( );
+	}
+	if ( bits & U_MODEL2 ) {
+		to->modelindex2 = MSG_ReadUintBase128( );
+	}
+	if ( bits & U_MODEL3 ) {
+		to->modelindex3 = MSG_ReadUintBase128( );
+	}
+	if ( bits & U_MODEL4 ) {
+		to->modelindex4 = MSG_ReadUintBase128( );
+	}
+
+	if ( bits & U_FRAME ) {
+		to->frame = MSG_ReadUintBase128( );
+	}
+	if ( bits & U_SKIN ) {
+		to->skinnum = MSG_ReadUintBase128( );
+	}
+	if ( bits & U_EFFECTS ) {
+		to->effects = MSG_ReadUintBase128( );
+	}
+	if ( bits & U_RENDERFX ) {
+		to->renderfx = MSG_ReadUintBase128( );
 	}
 
 	if ( bits & U_SOUND ) {

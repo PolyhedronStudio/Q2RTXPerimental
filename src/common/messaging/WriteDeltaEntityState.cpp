@@ -192,30 +192,7 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 
 	MSG_WriteEntityNumber( to->number, false, bits );
 
-	if ( bits & U_MODEL ) {
-		MSG_WriteUintBase128( to->modelindex );
-	}
-	if ( bits & U_MODEL2 ) {
-		MSG_WriteUintBase128( to->modelindex2 );
-	}
-	if ( bits & U_MODEL3 ) {
-		MSG_WriteUintBase128( to->modelindex3 );
-	}
-	if ( bits & U_MODEL4 ) {
-		MSG_WriteUintBase128( to->modelindex4 );
-	}
-	if ( bits & U_FRAME ) {
-		MSG_WriteUintBase128( to->frame );
-	}
-	if ( bits & U_SKIN ) {
-		MSG_WriteUintBase128( to->skinnum );
-	}
-	if ( bits & U_EFFECTS ) {
-		MSG_WriteUintBase128( to->effects );
-	}
-	if ( bits & U_RENDERFX ) {
-		MSG_WriteUintBase128( to->renderfx );
-	}
+
 	if ( bits & U_ORIGIN1 ) {
 		MSG_WriteFloat( to->origin[ 0 ] ); //MSG_WriteInt16( to->origin[ 0 ] ); // WID: float-movement
 	}
@@ -242,11 +219,38 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 		MSG_WriteFloat( to->old_origin[ 2 ] );//MSG_WriteInt16( to->old_origin[ 2 ] ); // WID: float-movement
 	}
 
+	if ( bits & U_MODEL ) {
+		MSG_WriteUintBase128( to->modelindex );
+	}
+	if ( bits & U_MODEL2 ) {
+		MSG_WriteUintBase128( to->modelindex2 );
+	}
+	if ( bits & U_MODEL3 ) {
+		MSG_WriteUintBase128( to->modelindex3 );
+	}
+	if ( bits & U_MODEL4 ) {
+		MSG_WriteUintBase128( to->modelindex4 );
+	}
+
+	if ( bits & U_FRAME ) {
+		MSG_WriteUintBase128( to->frame );
+	}
+	if ( bits & U_SKIN ) {
+		MSG_WriteUintBase128( to->skinnum );
+	}
+	if ( bits & U_EFFECTS ) {
+		MSG_WriteUintBase128( to->effects );
+	}
+	if ( bits & U_RENDERFX ) {
+		MSG_WriteUintBase128( to->renderfx );
+	}
+
 	if ( bits & U_SOUND )
 		MSG_WriteUintBase128( to->sound );
 
 	if ( bits & U_EVENT )
 		MSG_WriteUintBase128( to->event );
+
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: WriteLong by default.
 		MSG_WriteUintBase128( to->solid.u );
