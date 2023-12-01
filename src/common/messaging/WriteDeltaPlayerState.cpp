@@ -79,14 +79,33 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	//
 	pflags = 0;
 
-	if ( to->pmove.pm_type != from->pmove.pm_type )
+	if ( to->pmove.pm_type != from->pmove.pm_type ) {
 		pflags |= PS_M_TYPE;
+	}
 
-	if ( !VectorCompare( to->pmove.origin, from->pmove.origin ) )
-		pflags |= PS_M_ORIGIN;
+	if ( !VectorCompare( to->pmove.origin, from->pmove.origin ) ) {
+		if ( to->pmove.origin[ 0 ] != from->pmove.origin[ 0 ] ) {
+			pflags |= PS_M_ORIGIN1;
+		}
+		if ( to->pmove.origin[ 1 ] != from->pmove.origin[ 1 ] ) {
+			pflags |= PS_M_ORIGIN2;
+		}
+		if ( to->pmove.origin[ 2 ] != from->pmove.origin[ 2 ] ) {
+			pflags |= PS_M_ORIGIN3;
+		}
+	}
 
-	if ( !VectorCompare( to->pmove.velocity, from->pmove.velocity ) )
-		pflags |= PS_M_VELOCITY;
+	if ( !VectorCompare( to->pmove.velocity, from->pmove.velocity ) ) {
+		if ( to->pmove.velocity[ 0 ] != from->pmove.velocity[ 0 ] ) {
+			pflags |= PS_M_VELOCITY1;
+		}
+		if ( to->pmove.velocity[ 1 ] != from->pmove.velocity[ 1 ] ) {
+			pflags |= PS_M_VELOCITY2;
+		}
+		if ( to->pmove.velocity[ 2 ] != from->pmove.velocity[ 2 ] ) {
+			pflags |= PS_M_VELOCITY3;
+		}
+	}
 
 	if ( to->pmove.pm_time != from->pmove.pm_time )
 		pflags |= PS_M_TIME;
@@ -137,29 +156,41 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	//
 	// write the pmove_state_t
 	//
-	if ( pflags & PS_M_TYPE )
+	if ( pflags & PS_M_TYPE ) {
 		MSG_WriteUint8( to->pmove.pm_type );
+	}
 
-	if ( pflags & PS_M_ORIGIN ) {
+	if ( pflags & PS_M_ORIGIN1 ) {
 		MSG_WriteFloat( to->pmove.origin[ 0 ] ); //MSG_WriteInt16( to->pmove.origin[ 0 ] ); // WID: float-movement
+	}
+	if ( pflags & PS_M_ORIGIN2 ) {
 		MSG_WriteFloat( to->pmove.origin[ 1 ] ); //MSG_WriteInt16( to->pmove.origin[ 1 ] ); // WID: float-movement
+	}
+	if ( pflags & PS_M_ORIGIN3 ) {
 		MSG_WriteFloat( to->pmove.origin[ 2 ] );//MSG_WriteInt16( to->pmove.origin[ 2 ] ); // WID: float-movement
 	}
 
-	if ( pflags & PS_M_VELOCITY ) {
-		MSG_WriteFloat( to->pmove.velocity[ 0 ] ); //MSG_WriteInt16( to->pmove.velocity[ 0 ] ); // WID: float-movement
-		MSG_WriteFloat( to->pmove.velocity[ 1 ] ); //MSG_WriteInt16( to->pmove.velocity[ 1 ] ); // WID: float-movement
-		MSG_WriteFloat( to->pmove.velocity[ 2 ] ); //MSG_WriteInt16( to->pmove.velocity[ 2 ] ); // WID: float-movement
+	if ( pflags & PS_M_VELOCITY1 ) {
+		MSG_WriteHalfFloat( to->pmove.velocity[ 0 ] ); //MSG_WriteInt16( to->pmove.velocity[ 0 ] ); // WID: float-movement
+	}
+	if ( pflags & PS_M_VELOCITY2 ) {
+		MSG_WriteHalfFloat( to->pmove.velocity[ 1 ] ); //MSG_WriteInt16( to->pmove.velocity[ 1 ] ); // WID: float-movement
+	}
+	if ( pflags & PS_M_VELOCITY3 ) {
+		MSG_WriteHalfFloat( to->pmove.velocity[ 2 ] ); //MSG_WriteInt16( to->pmove.velocity[ 2 ] ); // WID: float-movement
 	}
 
-	if ( pflags & PS_M_TIME )
+	if ( pflags & PS_M_TIME ) {
 		MSG_WriteUint8( to->pmove.pm_time );
+	}
 
-	if ( pflags & PS_M_FLAGS )
+	if ( pflags & PS_M_FLAGS ) {
 		MSG_WriteUintBase128( to->pmove.pm_flags );
+	}
 
-	if ( pflags & PS_M_GRAVITY )
+	if ( pflags & PS_M_GRAVITY ) {
 		MSG_WriteInt16( to->pmove.gravity );
+	}
 
 	if ( pflags & PS_M_DELTA_ANGLES ) {
 		MSG_WriteHalfFloat( to->pmove.delta_angles[ 0 ] );
@@ -223,12 +254,16 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 
 	// send stats
 	int64_t statbits = 0;
-	for ( i = 0; i < MAX_STATS; i++ )
-		if ( to->stats[ i ] != from->stats[ i ] )
+	for ( i = 0; i < MAX_STATS; i++ ) {
+		if ( to->stats[ i ] != from->stats[ i ] ) {
 			statbits |= 1ULL << i;
+		}
+	}
 
 	MSG_WriteIntBase128( statbits );
-	for ( i = 0; i < MAX_STATS; i++ )
-		if ( statbits & ( 1ULL << i ) )
+	for ( i = 0; i < MAX_STATS; i++ ) {
+		if ( statbits & ( 1ULL << i ) ) {
 			MSG_WriteIntBase128( to->stats[ i ] );
+		}
+	}
 }

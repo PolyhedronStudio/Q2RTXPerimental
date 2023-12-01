@@ -542,7 +542,7 @@ bool FacingIdeal(edict_t *self)
 {
     float   delta;
 
-    delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
+    delta = AngleMod(self->s.angles[YAW] - self->ideal_yaw);
     if (delta > 45 && delta < 315)
         return false;
     return true;
