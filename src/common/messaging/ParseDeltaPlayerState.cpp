@@ -75,9 +75,9 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->pmove.gravity = MSG_ReadInt16( );
 
 	if ( flags & PS_M_DELTA_ANGLES ) {
-		to->pmove.delta_angles[ 0 ] = MSG_ReadHalfFloat( );//MSG_ReadInt16( ); // WID: float-movement.
-		to->pmove.delta_angles[ 1 ] = MSG_ReadHalfFloat( );//MSG_ReadInt16( ); // WID: float-movement.
-		to->pmove.delta_angles[ 2 ] = MSG_ReadHalfFloat( );//MSG_ReadInt16( ); // WID: float-movement.
+		to->pmove.delta_angles[ 0 ] = MSG_ReadInt16( ); // WID: float-movement.
+		to->pmove.delta_angles[ 1 ] = MSG_ReadInt16( ); // WID: float-movement.
+		to->pmove.delta_angles[ 2 ] = MSG_ReadInt16( ); // WID: float-movement.
 	}
 
 	//

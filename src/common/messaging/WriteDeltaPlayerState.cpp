@@ -162,12 +162,12 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		MSG_WriteInt16( to->pmove.gravity );
 
 	if ( pflags & PS_M_DELTA_ANGLES ) {
-		MSG_WriteHalfFloat( to->pmove.delta_angles[ 0 ] );
-		MSG_WriteHalfFloat( to->pmove.delta_angles[ 1 ] );
-		MSG_WriteHalfFloat( to->pmove.delta_angles[ 2 ] );
-		//MSG_WriteInt16( to->pmove.delta_angles[ 0 ] );
-		//MSG_WriteInt16( to->pmove.delta_angles[ 1 ] );
-		//MSG_WriteInt16( to->pmove.delta_angles[ 2 ] );
+		//MSG_WriteHalfFloat( to->pmove.delta_angles[ 0 ] );
+		//MSG_WriteHalfFloat( to->pmove.delta_angles[ 1 ] );
+		//MSG_WriteHalfFloat( to->pmove.delta_angles[ 2 ] );
+		MSG_WriteInt16( to->pmove.delta_angles[ 0 ] );
+		MSG_WriteInt16( to->pmove.delta_angles[ 1 ] );
+		MSG_WriteInt16( to->pmove.delta_angles[ 2 ] );
 	}
 
 	//
