@@ -227,13 +227,13 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	}
 
 	if ( bits & U_ANGLE1 ) {
-		MSG_WriteAngleHalfFloat( to->angles[ 0 ] );
+		MSG_WriteAngle16( to->angles[ 0 ] );
 	}
 	if ( bits & U_ANGLE2 ) {
-		MSG_WriteAngleHalfFloat( to->angles[ 1 ] );
+		MSG_WriteAngle16( to->angles[ 1 ] );
 	}
 	if ( bits & U_ANGLE3 ) {
-		MSG_WriteAngleHalfFloat( to->angles[ 2 ] );
+		MSG_WriteAngle16( to->angles[ 2 ] );
 	}
 
 	if ( bits & U_OLDORIGIN ) {
