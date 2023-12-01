@@ -352,25 +352,17 @@ static inline float LerpAngle(float a2, float a1, float frac)
     return a2 + frac * (a1 - a2);
 }
 
-static inline float AngleMod(float a)
+static inline float anglemod(float a)
 {
-	a = ( 360.0 / INT64_MAX ) * ( (int64_t)( a * ( INT64_MAX / 360.0 ) ) & INT64_MAX );
-	return a;
-
-// Original method: Bound to limits of uint16_t range.
-#if 0
     //a = (360.0f / 65536) * ((int)(a * (65536 / 360.0f)) & 65535);
 	a = (360.0 / 65536) * ((int32_t) (a * (65536 / 360.0)) & 65535);
     return a;
-#endif
-// Float method, however, seems strangley off.
 #if 0
-	a = fmodf( a, 360.f );
+	a = fmodf( a, 360.f );// (360.0 / 65536) * ((int32_t) (a * (65536 / 360.0)) & 65535);
 
 	if ( a < 0 ) {
-		return a + ( ( (int64_t)( a / 360.f ) + 1 ) * 360.f );
+		return a + ( ( ( a / 360.f ) + 1 ) * 360.f );
 	}
-
 	return a;
 #endif
 }
@@ -866,7 +858,7 @@ typedef struct {
     byte        pm_flags;       // ducked, jump_held, etc
     byte        pm_time;        // each unit = 8 ms
     short       gravity;
-    vec3_t      delta_angles;    // add to command angles to get view direction
+    short       delta_angles[3];    // add to command angles to get view direction
                                     // changed by spawns, rotating objects, and teleporters
 } pmove_state_t;
 
@@ -902,7 +894,7 @@ typedef struct {
 typedef struct usercmd_s {
     byte    msec;
     byte    buttons;
-    vec3_t  angles;
+    short   angles[3];
     short   forwardmove, sidemove, upmove;
     byte    impulse;        // remove?
 } usercmd_t;

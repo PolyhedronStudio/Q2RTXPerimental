@@ -639,12 +639,8 @@ void MSG_ShowDeltaEntityBits( const uint64_t bits ) {
 void MSG_ShowDeltaPlayerstateBits( const uint64_t flags ) {
 	#define S(b,s) if(flags&PS_##b) SHOWBITS(s)
 	S( M_TYPE, "pmove.pm_type" );
-	S( M_ORIGIN1, "pmove.origin[ 0 ]" );
-	S( M_ORIGIN2, "pmove.origin[ 1 ]" );
-	S( M_ORIGIN3, "pmove.origin[ 2 ]" );
-	S( M_VELOCITY1, "pmove.velocity[ 0 ]" );
-	S( M_VELOCITY2, "pmove.velocity[ 1 ]" );
-	S( M_VELOCITY3, "pmove.velocity[ 2 ]" );
+	S( M_ORIGIN, "pmove.origin" );
+	S( M_VELOCITY, "pmove.velocity" );
 	S( M_TIME, "pmove.pm_time" );
 	S( M_FLAGS, "pmove.pm_flags" );
 	S( M_GRAVITY, "pmove.gravity" );

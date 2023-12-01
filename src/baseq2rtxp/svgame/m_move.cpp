@@ -292,7 +292,7 @@ void M_ChangeYaw(edict_t *ent)
     float   move;
     float   speed;
 
-    current = AngleMod(ent->s.angles[YAW]);
+    current = anglemod(ent->s.angles[YAW]);
     ideal = ent->ideal_yaw;
 
     if (current == ideal)
@@ -315,7 +315,7 @@ void M_ChangeYaw(edict_t *ent)
             move = -speed;
     }
 
-    ent->s.angles[YAW] = AngleMod(current + move);
+    ent->s.angles[YAW] = anglemod(current + move);
 }
 
 
@@ -387,8 +387,8 @@ void SV_NewChaseDir(edict_t *actor, edict_t *enemy, float dist)
     if (!enemy)
         return;
 
-    olddir = AngleMod((int)(actor->ideal_yaw / 45) * 45);
-    turnaround = AngleMod(olddir - 180);
+    olddir = anglemod((int)(actor->ideal_yaw / 45) * 45);
+    turnaround = anglemod(olddir - 180);
 
     deltax = enemy->s.origin[0] - actor->s.origin[0];
     deltay = enemy->s.origin[1] - actor->s.origin[1];

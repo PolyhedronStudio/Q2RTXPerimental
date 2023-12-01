@@ -49,42 +49,30 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	//
 	// parse the pmove_state_t
 	//
-	if ( flags & PS_M_TYPE ) {
+	if ( flags & PS_M_TYPE )
 		to->pmove.pm_type = static_cast<pmtype_t>( MSG_ReadUint8( ) ); // WID: C++20: Added cast.
-	}
 
-	if ( flags & PS_M_ORIGIN1 ) {
+	if ( flags & PS_M_ORIGIN ) {
 		// WID: float-movement MSG_ReadFloat();
 		to->pmove.origin[ 0 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
-	}
-	if ( flags & PS_M_ORIGIN2 ) {
-		to->pmove.origin[ 1 ] = MSG_ReadFloat( ); // MSG_ReadInt16( ); // WID: float-movement 
-	}
-	if ( flags & PS_M_ORIGIN3 ) {
-		to->pmove.origin[ 2 ] = MSG_ReadFloat( ); // MSG_ReadInt16( ); // WID: float-movement 
+		to->pmove.origin[ 1 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
+		to->pmove.origin[ 2 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 	}
 
-	if ( flags & PS_M_VELOCITY1 ) {
-		to->pmove.velocity[ 0 ] = MSG_ReadHalfFloat(); // MSG_ReadInt16( ); // WID: float-movement 
-	}
-	if ( flags & PS_M_VELOCITY2 ) {
-		to->pmove.velocity[ 1 ] = MSG_ReadHalfFloat( ); // MSG_ReadInt16( ); // WID: float-movement 
-	}
-	if ( flags & PS_M_VELOCITY3 ) {
-		to->pmove.velocity[ 2 ] = MSG_ReadHalfFloat( ); // MSG_ReadInt16( ); // WID: float-movement 
+	if ( flags & PS_M_VELOCITY ) {
+		to->pmove.velocity[ 0 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
+		to->pmove.velocity[ 1 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
+		to->pmove.velocity[ 2 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 	}
 
-	if ( flags & PS_M_TIME ) {
+	if ( flags & PS_M_TIME )
 		to->pmove.pm_time = MSG_ReadUint8( );
-	}
 
-	if ( flags & PS_M_FLAGS ) {
+	if ( flags & PS_M_FLAGS )
 		to->pmove.pm_flags = MSG_ReadUintBase128( );
-	}
 
-	if ( flags & PS_M_GRAVITY ) {
+	if ( flags & PS_M_GRAVITY )
 		to->pmove.gravity = MSG_ReadInt16( );
-	}
 
 	if ( flags & PS_M_DELTA_ANGLES ) {
 		to->pmove.delta_angles[ 0 ] = MSG_ReadHalfFloat( );//MSG_ReadInt16( ); // WID: float-movement.
@@ -137,20 +125,16 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->blend[ 3 ] = MSG_ReadUint8( ) / 255.0f;
 	}
 
-	if ( flags & PS_FOV ) {
+	if ( flags & PS_FOV )
 		to->fov = MSG_ReadUint8( );
-	}
 
-	if ( flags & PS_RDFLAGS ) {
+	if ( flags & PS_RDFLAGS )
 		to->rdflags = MSG_ReadUintBase128( );
-	}
 
 	// parse stats
 	statbits = MSG_ReadIntBase128( );
-	for ( i = 0; i < MAX_STATS; i++ ) {
-		if ( statbits & ( 1ULL << i ) ) {
+	for ( i = 0; i < MAX_STATS; i++ )
+		if ( statbits & ( 1ULL << i ) )
 			to->stats[ i ] = MSG_ReadIntBase128( );
-		}
-	}
 }
 #endif // USE_CLIENT
