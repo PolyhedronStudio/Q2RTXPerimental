@@ -352,18 +352,23 @@ static inline float LerpAngle(float a2, float a1, float frac)
     return a2 + frac * (a1 - a2);
 }
 
-static inline float anglemod(float a)
-{
-    //a = (360.0f / 65536) * ((int)(a * (65536 / 360.0f)) & 65535);
-	a = (360.0 / 65536) * ((int32_t) (a * (65536 / 360.0)) & 65535);
-    return a;
-#if 0
-	a = fmodf( a, 360.f );// (360.0 / 65536) * ((int32_t) (a * (65536 / 360.0)) & 65535);
+static inline const float AngleMod( float a ) {
+// Float based method:
+#if 1
+	float v = fmod( a, 360.0f );
 
-	if ( a < 0 ) {
-		return a + ( ( ( a / 360.f ) + 1 ) * 360.f );
-	}
-	return a;
+	if ( v < 0 )
+		return 360.f + v;
+
+	return v;
+#endif
+// Failed attempt:
+#if 0
+	return ( 360.0 / UINT64_MAX ) * ( (int64_t)( a * ( UINT64_MAX / 360.0 ) ) & UINT64_MAX );
+#endif
+// Old 'vanilla' method:
+#if 0
+	return (360.0 / 65536) * ((int32_t) (a * (65536 / 360.0)) & 65535);
 #endif
 }
 

@@ -484,7 +484,7 @@ static void CL_AddPacketEntities(void)
 	int base_entity_flags = 0;
 
     // bonus items rotate at a fixed rate
-	autorotate = anglemod( cl.time * BASE_FRAMETIME_1000 );//anglemod(cl.time * 0.1f); // WID: 40hz: Adjusted.
+	autorotate = AngleMod( cl.time * BASE_FRAMETIME_1000 );//AngleMod(cl.time * 0.1f); // WID: 40hz: Adjusted.
 
     // brush models can auto animate their frames
     autoanim = 2 * cl.time / 1000;
@@ -676,7 +676,7 @@ static void CL_AddPacketEntities(void)
             vec3_t start;
 
             ent.angles[0] = 0;
-            ent.angles[1] = anglemod(cl.time / 2) + s1->angles[1];
+            ent.angles[1] = AngleMod(cl.time / 2) + s1->angles[1];
             ent.angles[2] = 180;
 
             AngleVectors(ent.angles, forward, NULL, NULL);

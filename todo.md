@@ -12,7 +12,6 @@
 ### Net Code:
 * [X] Rework ``MSG_`` calls to those which I had in Polyhedron so their names are more in line with ``type-strictness``.
 * [X] Rework ``origin`` to be ``wired/transmitted`` as ``floats`` instead of ``shorts``.
-* [ ] Rework ``angles`` to be ``wired/transmitted`` as ``floats`` instead of ``shorts``.
 * [X] Add ``packet fragmentation`` for ``svc_frame`` so it can support a higher entity count.
 ### Refresh(VKPT):
 * [ ] ??Cpp-ify **VKPT** after all, this'll allow for more ``Cpp-ification``
