@@ -23,8 +23,7 @@
 * Added support to lerp from old entity state frame when RenderFlag ``RF_OLD_FRAME_LERP`` is set.
 
 ### Net Code:
-* Uses its own protocol, partially based on Q2 Protocol #34 and Q2PRO its own. 
-This supports proper fragmenting, allowing for far more in-vis entities to be transfered over ``The Wire``. This does come with the drawback of needing a proper ``25ms`` ping in order to have a smooth gameplay flow.
+* Uses its own protocol, partially based on Q2 Protocol #34 and Q2PRO its own. This supports proper fragmenting, allowing for far more in-vis entities to be transfered over ``The Wire``. This does come with the drawback of needing a proper ``25ms`` ping in order to have a smooth gameplay flow.
 * Changed Solids from ``int32_t`` to ``uint32_t``, so that ``SOLID_BBOX`` can now have **BoundingBox** sizes up to those of **Q2RE/Q3**.
 * Network origins using full floating point precision, angles are half-floats.
 * Use ReadBase128 message read/write functions where applicable.
@@ -37,13 +36,14 @@ This supports proper fragmenting, allowing for far more in-vis entities to be tr
 * Replaced (most)_framenum based functionality with time again, borrowing ``sg_time_t`` type from **Q2RE**.
 * AI now has the option to run at ``tick rate``(defaults to ``40hz``), when the ``AI_HIGH_TICK_RATE`` flag is set.
 * Guns can operate at a varying tick rate, default is ``10hz``
+* Brush Triggers can now be set a spawnflag to trigger only when actually clipping with the trigger brush.
 
 ### Client Game:
-* Currently a ClientGame DLL that merely initializes and shutsdown. It doesn't actually do anything just yet.
+* Currently nothing strictly of its own, only the SharedGame PlayerMove code.
 
 ### Shared Game:
 * Contains the shared used ``sg_time_t`` which replaces all the vanilla frametime/framenum work.
-* Allows for a customizable Player Movement code.
+* Customizable PlayerMove code.
 
 * 
 ## 1.7.0
