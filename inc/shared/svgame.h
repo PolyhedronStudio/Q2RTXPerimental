@@ -35,10 +35,10 @@ extern "C" {
 
 // edict->svflags
 
-#define SVF_NOCLIENT            0x00000001  // don't send entity to clients, even if it has effects
-#define SVF_DEADMONSTER         0x00000002  // treat as CONTENTS_DEADMONSTER for collision
-#define SVF_MONSTER             0x00000004  // treat as CONTENTS_MONSTER for collision
-
+#define SVF_NOCLIENT            0x00000001  // Don't send entity to clients, even if it has effects
+#define SVF_DEADMONSTER         0x00000002  // Treat as CONTENTS_DEADMONSTER for collision
+#define SVF_MONSTER             0x00000004  // Treat as CONTENTS_MONSTER for collision
+#define SVF_USE_TRIGGER_HULL	0x00000008	// When touching the trigger's bounding box, perform an additional clip to trigger brush. (Used for G_TouchTriggers)
 // edict->solid values
 
 typedef enum {
@@ -157,7 +157,9 @@ typedef struct {
 	*	Collision Detection:
 	*
 	**/
+
     trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, int contentmask);
+	trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int contentmask );
     int (*pointcontents)(const vec3_t point);
     qboolean (*inPVS)(const vec3_t p1, const vec3_t p2);
     qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);

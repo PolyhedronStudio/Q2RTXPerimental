@@ -47,13 +47,11 @@ static edict_t      **area_list;
 static int          area_count, area_maxcount;
 static int          area_type;
 
-/*
-===============
-SV_CreateAreaNode
 
-Builds a uniformly subdivided tree for the given world size
-===============
-*/
+
+/**
+*	@brief	Builds a uniformly subdivided tree for the given world size
+**/
 static areanode_t *SV_CreateAreaNode(int depth, const vec3_t mins, const vec3_t maxs)
 {
     areanode_t  *anode;
@@ -92,12 +90,9 @@ static areanode_t *SV_CreateAreaNode(int depth, const vec3_t mins, const vec3_t 
     return anode;
 }
 
-/*
-===============
-SV_ClearWorld
-
-===============
-*/
+/**
+*	@brief	SV_ClearWorld
+**/
 void SV_ClearWorld(void)
 {
     mmodel_t *cm;
@@ -119,14 +114,10 @@ void SV_ClearWorld(void)
     }
 }
 
-/*
-===============
-SV_LinkEdict
-
-General purpose routine shared between game DLL and MVD code.
-Links entity to PVS leafs.
-===============
-*/
+/**
+*	@brief	General purpose routine shared between game DLL and MVD code.
+*			Links entity to PVS leafs.
+**/
 void SV_LinkEdict(cm_t *cm, edict_t *ent)
 {
     mleaf_t     *leafs[MAX_TOTAL_ENT_LEAFS];
@@ -224,6 +215,9 @@ void SV_LinkEdict(cm_t *cm, edict_t *ent)
     }
 }
 
+/**
+*	@brief	PF_UnlinkEdict
+**/
 void PF_UnlinkEdict(edict_t *ent)
 {
     if (!ent->area.prev)
@@ -232,6 +226,9 @@ void PF_UnlinkEdict(edict_t *ent)
     ent->area.prev = ent->area.next = NULL;
 }
 
+/**
+*	@brief	PF_LinkEdict
+**/
 void PF_LinkEdict(edict_t *ent)
 {
     areanode_t *node;
@@ -312,12 +309,9 @@ void PF_LinkEdict(edict_t *ent)
 }
 
 
-/*
-====================
-SV_AreaEdicts_r
-
-====================
-*/
+/**
+*	@brief	SV_AreaEdicts_r
+**/
 static void SV_AreaEdicts_r(areanode_t *node)
 {
     list_t      *start;
@@ -359,11 +353,9 @@ static void SV_AreaEdicts_r(areanode_t *node)
         SV_AreaEdicts_r(node->children[1]);
 }
 
-/*
-================
-SV_AreaEdicts
-================
-*/
+/**
+*	@brief	SV_AreaEdicts
+**/
 int SV_AreaEdicts(const vec3_t mins, const vec3_t maxs,
                   edict_t **list, int maxcount, int areatype)
 {
@@ -382,17 +374,12 @@ int SV_AreaEdicts(const vec3_t mins, const vec3_t maxs,
 
 //===========================================================================
 
-/*
-================
-SV_HullForEntity
-
-Returns a headnode that can be used for testing or clipping an
-object of mins/maxs size.
-================
-*/
-static mnode_t *SV_HullForEntity(edict_t *ent)
-{
-    if (ent->solid == SOLID_BSP) {
+/**
+*	@return	A headnode that can be used for testing or clipping an
+*			object of mins/maxs size.
+**/
+static mnode_t *SV_HullForEntity(edict_t *ent, const bool includeSolidTriggers = false ) {
+    if ( ent->solid == SOLID_BSP || ( includeSolidTriggers && ent->solid == SOLID_TRIGGER ) ){
         int i = ent->s.modelindex - 1;
 
         // explicit hulls in the BSP model
@@ -406,44 +393,45 @@ static mnode_t *SV_HullForEntity(edict_t *ent)
     return CM_HeadnodeForBox(ent->mins, ent->maxs);
 }
 
-/*
-=============
-SV_PointContents
-=============
-*/
-int SV_PointContents(const vec3_t p)
-{
-    edict_t     *touch[MAX_EDICTS], *hit;
-    int         i, num;
-    int         contents;
-
-    if (!sv.cm.cache) {
-        Com_Error(ERR_DROP, "%s: no map loaded", __func__);
-    }
-
-    // get base contents from world
-    contents = CM_PointContents(p, sv.cm.cache->nodes);
-
-    // or in contents from all the other entities
-    num = SV_AreaEdicts(p, p, touch, MAX_EDICTS, AREA_SOLID);
-
-    for (i = 0; i < num; i++) {
-        hit = touch[i];
-
-        // might intersect, so do an exact clip
-        contents |= CM_TransformedPointContents(p, SV_HullForEntity(hit),
-                                                hit->s.origin, hit->s.angles);
-    }
-
-    return contents;
+/**
+*	@brief	SV_WorldNodes
+**/
+static mnode_t *SV_WorldNodes( void ) {
+	return sv.cm.cache ? sv.cm.cache->nodes : NULL;
 }
 
-/*
-====================
-SV_ClipMoveToEntities
+/**
+*	@brief	SV_PointContents
+**/
+int SV_PointContents( const vec3_t p ) {
+	edict_t *touch[ MAX_EDICTS ], *hit;
+	int         i, num;
+	int         contents;
 
-====================
-*/
+	if ( !sv.cm.cache ) {
+		Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
+	}
+
+	// get base contents from world
+	contents = CM_PointContents( p, SV_WorldNodes( ) );
+
+	// or in contents from all the other entities
+	num = SV_AreaEdicts( p, p, touch, MAX_EDICTS, AREA_SOLID );
+
+	for ( i = 0; i < num; i++ ) {
+		hit = touch[ i ];
+
+		// might intersect, so do an exact clip
+		contents |= CM_TransformedPointContents( p, SV_HullForEntity( hit ),
+												hit->s.origin, hit->s.angles );
+	}
+
+	return contents;
+}
+
+/**
+*	@brief	SV_ClipMoveToEntities
+**/
 static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
                                   const vec3_t maxs, const vec3_t end,
                                   edict_t *passedict, int contentmask, trace_t *tr)
@@ -496,14 +484,10 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
     }
 }
 
-/*
-==================
-SV_Trace
-
-Moves the given mins/maxs volume through the world from start to end.
-Passedict and edicts owned by passedict are explicitly not checked.
-==================
-*/
+/**
+*	@brief	Moves the given mins/maxs volume through the world from start to end.
+*			Passedict and edicts owned by passedict, are explicitly not checked.
+**/
 trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
                            const vec3_t maxs, const vec3_t end,
                            edict_t *passedict, int contentmask)
@@ -520,7 +504,7 @@ trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
         maxs = vec3_origin;
 
     // clip to world
-    CM_BoxTrace(&trace, start, end, mins, maxs, sv.cm.cache->nodes, contentmask);
+    CM_BoxTrace(&trace, start, end, mins, maxs, SV_WorldNodes( ), contentmask );
     trace.ent = ge->edicts;
     if (trace.fraction == 0) {
         return trace;   // blocked by the world
@@ -531,3 +515,26 @@ trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
     return trace;
 }
 
+/**
+*	@brief	Like SV_Trace(), but clip to specified entity only.
+*			Can be used to clip to SOLID_TRIGGER by its BSP tree.
+**/
+trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
+						  const vec3_t maxs, const vec3_t end,
+						  int contentmask ) {
+	trace_t     trace;
+
+	if ( !mins )
+		mins = vec3_origin;
+	if ( !maxs )
+		maxs = vec3_origin;
+
+	if ( clip == ge->edicts )
+		CM_BoxTrace( &trace, start, end, mins, maxs, SV_WorldNodes( ), contentmask );
+	else
+		CM_TransformedBoxTrace( &trace, start, end, mins, maxs,
+							   SV_HullForEntity( clip, true ), contentmask,
+							   clip->s.origin, clip->s.angles );
+	trace.ent = clip;
+	return trace;
+}
