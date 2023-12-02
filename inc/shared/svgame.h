@@ -35,10 +35,10 @@ extern "C" {
 
 // edict->svflags
 
-#define SVF_NOCLIENT            0x00000001  // don't send entity to clients, even if it has effects
-#define SVF_DEADMONSTER         0x00000002  // treat as CONTENTS_DEADMONSTER for collision
-#define SVF_MONSTER             0x00000004  // treat as CONTENTS_MONSTER for collision
-
+#define SVF_NOCLIENT            0x00000001  // Don't send entity to clients, even if it has effects
+#define SVF_DEADMONSTER         0x00000002  // Treat as CONTENTS_DEADMONSTER for collision
+#define SVF_MONSTER             0x00000004  // Treat as CONTENTS_MONSTER for collision
+#define SVF_USE_TRIGGER_HULL	0x00000008	// When touching the trigger's bounding box, perform an additional clip to trigger brush. (Used for G_TouchTriggers)
 // edict->solid values
 
 typedef enum {
