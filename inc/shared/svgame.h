@@ -257,7 +257,8 @@ typedef struct {
 	/**
 	*	GameModes:
 	**/
-	const char *(*GetGamemodeName)( );
+	const int32_t (*GetGamemodeID)( );
+	const char *(*GetGamemodeName)( const int32_t gameModeID );
 	const bool (*GamemodeNoSaveGames)( const bool isDedicated );
 
 	/**

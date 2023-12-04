@@ -58,7 +58,7 @@ constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64
 #define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS)
 
 // the "gameversion" client command will print this plus compile date
-#define GAMEVERSION "BaseQ2RTXP"
+#define GAMEVERSION "BaseQ2"
 
 // protocol bytes that can be directly added to messages
 #define svc_muzzleflash     1
@@ -704,9 +704,12 @@ extern  gitem_t itemlist[];
 //
 // g_gamemode.cpp
 //
-const char *G_GetGamemodeName();
+#include "../sharedgame/sg_gamemode.h"
+
+const int32_t G_GetGamemodeID( );
 const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer );
 
+//
 // g_cmds.c
 //
 void Cmd_Help_f(edict_t *ent);

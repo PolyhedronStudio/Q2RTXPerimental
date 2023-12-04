@@ -1,19 +1,15 @@
 #include "g_local.h"
 
 /**
-*	@return	A string representative of the current gamemode ID. 
+*	@return	The actual ID of the current gamemode.
 **/
-const char *G_GetGamemodeName( ) {
-	// CooperativeL
-	if ( gamemode->integer == 1 ) {
-		return "Cooperative";
-	// Deathmatch:
-	} else if ( gamemode->integer == 2 ) {
-		return "Deathmatch";
-	// Default, Singleplayer
-	} else {
-		return "Singleplayer";
+const int32_t G_GetGamemodeID( ) {
+	if ( gamemode->integer >= GAMEMODE_SINGLEPLAYER && gamemode->integer <= GAMEMODE_COOPERATIVE ) {
+		return gamemode->integer;
 	}
+
+	// Unknown gamemode.
+	return -1;
 }
 
 /**
@@ -27,7 +23,7 @@ const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer ) {
 	}
 
 	// Don't allow saving on deathmatch either.
-	if ( gamemode->integer == 1 ) {
+	if ( gamemode->integer == GAMEMODE_DEATHMATCH ) {
 		return true;
 	}
 

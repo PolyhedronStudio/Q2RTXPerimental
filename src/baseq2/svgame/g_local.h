@@ -30,13 +30,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern svgame_import_t gi;
 extern svgame_export_t globals;
 
-
-
-/******************************************************************
-*	Q2RE: Time
-*******************************************************************/
-// gtime type.
-#include "../sharedgame/sg_time.h"
+// SharedGame includes:
+#include "../sharedgame/sg_shared.h"
 
 // extern times.
 extern sg_time_t FRAME_TIME_S;
@@ -704,9 +699,17 @@ extern  gitem_t itemlist[];
 //
 // g_gamemode.cpp
 //
-const char *G_GetGamemodeName();
+/**
+*	@return	The actual ID of the current gamemode.
+**/
+const int32_t G_GetGamemodeID( );
+/**
+*	@return	True in case the current gamemode allows for saving the game.
+*			(This should only be true for single and cooperative play modes.)
+**/
 const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer );
 
+//
 // g_cmds.c
 //
 void Cmd_Help_f(edict_t *ent);

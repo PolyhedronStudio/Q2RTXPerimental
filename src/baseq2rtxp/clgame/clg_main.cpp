@@ -84,6 +84,8 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Init = InitGame;
 		globals.Shutdown = ShutdownGame;
 
+		globals.GetGamemodeName = SG_GetGamemodeName;
+
 		globals.PlayerMove = SG_PlayerMove;
 		globals.ConfigurePlayerMoveParameters = SG_ConfigurePlayerMoveParameters;
 

@@ -169,7 +169,7 @@ void PreInitGame( void ) {
 	gi.configstring( CS_AIRACCEL, "0" );
 
 	// Deathmatch:
-	if ( gamemode->integer == 1 ) {
+	if ( gamemode->integer == GAMEMODE_DEATHMATCH ) {
 		// Set the cvar for keeping old code in-tact. TODO: Remove in the future.
 		gi.cvar_forceset( "deathmatch", "1" );
 
@@ -184,7 +184,7 @@ void PreInitGame( void ) {
 		cvar_t *sv_airaccelerate = gi.cvar( "sv_airaccelerate", 0, 0 );
 		gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
 	// Cooperative:
-	} else if ( gamemode->integer == 2 ) {
+	} else if ( gamemode->integer == GAMEMODE_COOPERATIVE ) {
 		gi.cvar_forceset( "coop", "1" );
 
 		if ( maxclients->integer <= 1 || maxclients->integer > 4 ) {
@@ -206,7 +206,7 @@ void InitGame( void )
 {
 	// Notify 
     gi.dprintf("==== Init ServerGame(Gamemode: \"%s\", maxclients=%d, maxspectators=%d, maxentities=%d) ====\n",
-				G_GetGamemodeName(), maxclients->integer, maxspectators->integer, maxentities->integer );
+				SG_GetGamemodeName( gamemode->integer ), maxclients->integer, maxspectators->integer, maxentities->integer );
 
 	// C Random time initializing.
     Q_srand(time(NULL));
@@ -308,7 +308,8 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Shutdown = ShutdownGame;
 		globals.SpawnEntities = SpawnEntities;
 
-		globals.GetGamemodeName = G_GetGamemodeName;
+		globals.GetGamemodeID = G_GetGamemodeID;
+		globals.GetGamemodeName = SG_GetGamemodeName;
 		globals.GamemodeNoSaveGames = G_GetGamemodeNoSaveGames;
 
 		globals.WriteGame = WriteGame;

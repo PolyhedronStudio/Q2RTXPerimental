@@ -8,23 +8,18 @@
 #include "shared/shared.h"
 #include "shared/list.h"
 
-// define SVGAME_INCLUDE so that game.h does not define the
+// define CLGAME_INCLUDE so that game.h does not define the
 // short, server-visible gclient_t and edict_t structures,
 // because we define the full size ones in this file
 #define CLGAME_INCLUDE
 #include "shared/clgame.h"
 
 // Extern here right after including shared/clgame.h
-extern clgame_import_t gi;
+extern clgame_import_t clgi;
 extern clgame_export_t globals;
 
-
-
-/******************************************************************
-*	Q2RE: Time
-*******************************************************************/
-// gtime type.
-#include "../sharedgame/sg_time.h"
+// SharedGame includes:
+#include "../sharedgame/sg_shared.h"
 
 // extern times.
 extern sg_time_t FRAME_TIME_S;
@@ -123,8 +118,9 @@ template<typename T>
 [[nodiscard]] inline bool brandom( ) {
 	return irandom( 2 ) == 0;
 }
+
 /******************************************************************
-*
+* GameMode
 *******************************************************************/
 
 
