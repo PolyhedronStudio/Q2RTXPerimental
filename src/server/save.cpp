@@ -26,10 +26,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define SAVE_AUTO       "save0"
 
 cvar_t *sv_savedir = NULL;
-/* Don't require GMF_ENHANCED_SAVEGAMES feature for savegame support.
- * Savegame logic may be less "safe", but in practice, this usually works fine.
- * Still, allow it as an option for cautious people. */
-cvar_t *sv_force_enhanced_savegames = NULL;
+///* Don't require GMF_ENHANCED_SAVEGAMES feature for savegame support.
+// * Savegame logic may be less "safe", but in practice, this usually works fine.
+// * Still, allow it as an option for cautious people. */
+//cvar_t *sv_force_enhanced_savegames = NULL;
 
 static int write_server_file(bool autosave)
 {
@@ -366,9 +366,9 @@ static int read_server_file(void)
     // start a new game fresh with new cvars
     SV_InitGame();
 
-    // error out immediately if game doesn't support safe savegames
-    if (sv_force_enhanced_savegames->integer && !(g_features->integer & GMF_ENHANCED_SAVEGAMES))
-        Com_Error(ERR_DROP, "Game does not support enhanced savegames");
+    //// error out immediately if game doesn't support safe savegames
+    //if (sv_force_enhanced_savegames->integer && !(g_features->integer & GMF_ENHANCED_SAVEGAMES))
+    //    Com_Error(ERR_DROP, "Game does not support enhanced savegames");
 
     // read game state
     if (Q_snprintf(name, MAX_OSPATH,
@@ -444,8 +444,8 @@ int SV_NoSaveGames(void)
 	//if (dedicated->integer && !Cvar_VariableInteger("coop"))
  //       return 1;
 
-    if (sv_force_enhanced_savegames->integer && !(g_features->integer & GMF_ENHANCED_SAVEGAMES))
-        return 1;
+    //if (sv_force_enhanced_savegames->integer && !(g_features->integer & GMF_ENHANCED_SAVEGAMES))
+    //    return 1;
 
     //if (Cvar_VariableInteger("deathmatch"))
     //    return 1;
@@ -558,28 +558,6 @@ void SV_CheckForSavegame(mapcmd_t *cmd)
     }
 }
 
-void SV_CheckForEnhancedSavegames(void)
-{
-    if (dedicated->integer)
-        return;
-
-    if (Cvar_VariableInteger("deathmatch"))
-        return;
-
-    if (g_features->integer & GMF_ENHANCED_SAVEGAMES) {
-        Com_Printf("Game supports Q2PRO enhanced savegames.\n");
-        return;
-    }
-
-    if (sv.gamedetecthack == 4) {
-        Com_Printf("Game supports YQ2 enhanced savegames.\n");
-        Cvar_SetInteger(g_features, g_features->integer | GMF_ENHANCED_SAVEGAMES, FROM_CODE);
-        return;
-    }
-
-    Com_WPrintf("Game does not support enhanced savegames. Savegames will not work.\n");
-}
-
 static void SV_Savegame_c(genctx_t *ctx, int argnum)
 {
     if (argnum == 1) {
@@ -647,16 +625,20 @@ static void SV_Savegame_f(void)
         return;
     }
 
-    // don't bother saving if we can't read them back!
-    if (sv_force_enhanced_savegames->integer && !(g_features->integer & GMF_ENHANCED_SAVEGAMES)) {
-        Com_Printf("Game does not support enhanced savegames.\n");
-        return;
-    }
+    //// don't bother saving if we can't read them back!
+    //if (sv_force_enhanced_savegames->integer && !(g_features->integer & GMF_ENHANCED_SAVEGAMES)) {
+    //    Com_Printf("Game does not support enhanced savegames.\n");
+    //    return;
+    //}
 
-    if (Cvar_VariableInteger("deathmatch")) {
-        Com_Printf("Can't savegame in a deathmatch.\n");
-        return;
-    }
+    //if (Cvar_VariableInteger("deathmatch")) {
+    //    Com_Printf("Can't savegame in a deathmatch.\n");
+    //    return;
+    //}
+	if ( ge->GamemodeNoSaveGames( dedicated->integer ) == true ) {
+		Com_Printf("The gamemode \"%s\" doesn't supported savegames!\n", ge->GetGamemodeName( ) );
+		return;
+	}
 
     if (sv_maxclients->integer == 1 && svs.client_pool[0].edict->client->ps.stats[STAT_HEALTH] <= 0) {
         Com_Printf("Can't savegame while dead!\n");
@@ -713,5 +695,5 @@ void SV_RegisterSavegames(void)
 {
     Cmd_Register(c_savegames);
 	sv_savedir = Cvar_Get("sv_savedir", "save", 0);
-	sv_force_enhanced_savegames = Cvar_Get("sv_force_enhanced_savegames", "0", 0);
+	//sv_force_enhanced_savegames = Cvar_Get("sv_force_enhanced_savegames", "0", 0);
 }

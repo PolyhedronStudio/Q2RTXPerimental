@@ -165,17 +165,25 @@ void PreInitGame( void ) {
 	fraglimit = gi.cvar( "fraglimit", "0", CVAR_SERVERINFO );
 	timelimit = gi.cvar( "timelimit", "0", CVAR_SERVERINFO );
 
-	// init clients for deathmatch:
+	// Air acceleration defaults to 0 and is only set for DM mode.
+	gi.configstring( CS_AIRACCEL, "0" );
+
+	// Deathmatch:
 	if ( gamemode->integer == 1 ) {
+		// Set the cvar for keeping old code in-tact. TODO: Remove in the future.
 		gi.cvar_forceset( "deathmatch", "1" );
 
+		// Setup maxclients correctly.
 		if ( maxclients->integer <= 1 ) {
 			gi.cvar_forceset( "maxclients", "8" ); //Cvar_SetInteger( maxclients, 8, FROM_CODE );
 		} else if ( maxclients->integer > CLIENTNUM_RESERVED ) {
 			gi.cvar_forceset( "maxclients", std::to_string( CLIENTNUM_RESERVED ).c_str() );
 		}
-		gi.dprintf( "[GameMode(#%d): Deathmatch][maxclients=%d]\n", gamemode->integer, maxclients->integer );
-	// init clients for coop:
+
+		// Deathmatch specific, set air acceleration properly.
+		cvar_t *sv_airaccelerate = gi.cvar( "sv_airaccelerate", 0, 0 );
+		gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
+	// Cooperative:
 	} else if ( gamemode->integer == 2 ) {
 		gi.cvar_forceset( "coop", "1" );
 
@@ -183,7 +191,7 @@ void PreInitGame( void ) {
 			gi.cvar_forceset( "maxclients", "4" ); // Cvar_Set( "maxclients", "4" );
 		}
 		gi.dprintf( "[GameMode(#%d): Cooperative][maxclients=%d]\n", gamemode->integer, maxclients->integer );
-	// init clients for singleplayer:
+	// Default: Singleplayer.
 	} else {    // non-deathmatch, non-coop is one player
 		//Cvar_FullSet( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH, FROM_CODE );
 		gi.cvar_forceset( "maxclients", "1" );

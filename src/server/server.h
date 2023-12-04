@@ -83,7 +83,7 @@ extern "C" {
 
 // game features this server supports
 #define SV_FEATURES (GMF_CLIENTNUM | GMF_PROPERINUSE | \
-                     GMF_WANT_ALL_DISCONNECTS | GMF_ENHANCED_SAVEGAMES | \
+                     GMF_WANT_ALL_DISCONNECTS | \
                      GMF_EXTRA_USERINFO | GMF_IPV6_ADDRESS_AWARE )
 
 typedef struct {

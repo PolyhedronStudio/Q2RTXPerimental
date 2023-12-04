@@ -55,7 +55,7 @@ constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64
 // 
 //==================================================================
 // features this game supports
-#define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS|GMF_ENHANCED_SAVEGAMES)
+#define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS)
 
 // the "gameversion" client command will print this plus compile date
 #define GAMEVERSION "BaseQ2RTXP"
