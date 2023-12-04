@@ -411,6 +411,7 @@ void    G_TouchTriggers(edict_t *ent)
             continue;
         if (!hit->touch)
             continue;
+
         hit->touch(hit, ent, NULL, NULL);
     }
 }
