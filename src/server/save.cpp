@@ -441,16 +441,16 @@ static int read_level_file(void)
 
 int SV_NoSaveGames(void)
 {
-	if (dedicated->integer && !Cvar_VariableInteger("coop"))
-        return 1;
+	//if (dedicated->integer && !Cvar_VariableInteger("coop"))
+ //       return 1;
 
     if (sv_force_enhanced_savegames->integer && !(g_features->integer & GMF_ENHANCED_SAVEGAMES))
         return 1;
 
-    if (Cvar_VariableInteger("deathmatch"))
-        return 1;
+    //if (Cvar_VariableInteger("deathmatch"))
+    //    return 1;
 
-    return 0;
+    return ge->GamemodeNoSaveGames( dedicated->integer );
 }
 
 void SV_AutoSaveBegin(mapcmd_t *cmd)

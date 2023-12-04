@@ -705,6 +705,7 @@ extern  gitem_t itemlist[];
 // g_gamemode.cpp
 //
 const char *G_GetGamemodeName();
+const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer );
 
 // g_cmds.c
 //

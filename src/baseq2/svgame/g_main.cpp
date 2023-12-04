@@ -157,7 +157,7 @@ void PreInitGame( void ) {
 	coop = gi.cvar( "coop", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ROM );
 	gi.cvar_forceset( "coop", "0" );
 
-
+	// These are possibily game mode related also.
 	nomonsters = gi.cvar( "nomonsters", "0", 0 );
 	skill = gi.cvar( "skill", "1", CVAR_LATCH );
 	maxentities = gi.cvar( "maxentities", "8192", CVAR_LATCH );
@@ -299,6 +299,9 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Init = InitGame;
 		globals.Shutdown = ShutdownGame;
 		globals.SpawnEntities = SpawnEntities;
+
+		globals.GetGamemodeName = G_GetGamemodeName;
+		globals.GamemodeNoSaveGames = G_GetGamemodeNoSaveGames;
 
 		globals.WriteGame = WriteGame;
 		globals.ReadGame = ReadGame;

@@ -247,12 +247,18 @@ typedef struct {
     *	not each time a level is loaded.  Persistant data for clients
     *	and the server can be allocated in init
 	**/
-	void ( *PreInit )( void );
+	void (*PreInit)( void );
 	void (*Init)(void);
     void (*Shutdown)(void);
 
-    // each new level entered will cause a call to SpawnEntities
+    // Each new level entered will cause a call to SpawnEntities
     void (*SpawnEntities)(const char *mapname, const char *entstring, const char *spawnpoint);
+
+	/**
+	*	GameModes:
+	**/
+	const char *(*GetGamemodeName)( );
+	const bool (*GamemodeNoSaveGames)( const bool isDedicated );
 
 	/**
 	*	Read/Write Game: 
