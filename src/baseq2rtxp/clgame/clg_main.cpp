@@ -7,12 +7,9 @@
 ********************************************************************/
 #include "clg_local.h"
 
-// SharedGame PlayerMove:
-#include "../sharedgame/sg_pmove.h"
-
 //game_locals_t   game;
 //level_locals_t  level;
-clgame_import_t	gi;
+clgame_import_t clgi;
 clgame_export_t	globals;
 //spawn_temp_t    st;
 
@@ -43,7 +40,7 @@ std::mt19937 mt_rand;
 *			in the background.
 **/
 void ShutdownGame( void ) {
-	gi.Print( print_type_t::PRINT_ALL, "==== Shutdown ClientGame ====\n" );
+	clgi.Print( print_type_t::PRINT_ALL, "==== Shutdown ClientGame ====\n" );
 
 	// Uncomment after we actually allocate anything using this.
 	//gi.FreeTags( TAG_CLGAME_LEVEL );
@@ -57,7 +54,7 @@ void ShutdownGame( void ) {
 *			in the background.
 **/
 void InitGame( void ) {
-	gi.Print( print_type_t::PRINT_ALL, "==== Init ClientGame ====\n" );
+	clgi.Print( print_type_t::PRINT_ALL, "==== Init ClientGame ====\n" );
 
 	// C Random time initializing.
 	Q_srand( time( NULL ) );
@@ -74,10 +71,10 @@ void InitGame( void ) {
 **/
 extern "C" { // WID: C++20: extern "C".
 	q_exported clgame_export_t *GetGameAPI( clgame_import_t *import ) {
-		gi = *import;
+		clgi = *import;
 
 		// From Q2RE:
-		FRAME_TIME_S = FRAME_TIME_MS = sg_time_t::from_ms( gi.frame_time_ms );
+		FRAME_TIME_S = FRAME_TIME_MS = sg_time_t::from_ms( clgi.frame_time_ms );
 
 		globals.apiversion = CLGAME_API_VERSION;
 
@@ -116,7 +113,7 @@ void Com_LPrintf( print_type_t type, const char *fmt, ... ) {
 	Q_vsnprintf( text, sizeof( text ), fmt, argptr );
 	va_end( argptr );
 
-	gi.Print( print_type_t::PRINT_ALL, "%s", text );
+	clgi.Print( print_type_t::PRINT_ALL, "%s", text );
 }
 
 void Com_Error( error_type_t type, const char *fmt, ... ) {
@@ -127,6 +124,6 @@ void Com_Error( error_type_t type, const char *fmt, ... ) {
 	Q_vsnprintf( text, sizeof( text ), fmt, argptr );
 	va_end( argptr );
 
-	gi.Error( "%s", text );
+	clgi.Error( "%s", text );
 }
 #endif

@@ -17,7 +17,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "g_local.h"
-#include "../sharedgame/sg_pmove.h"
 
 /**
 *	General used Game Objects.

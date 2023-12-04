@@ -30,13 +30,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern svgame_import_t gi;
 extern svgame_export_t globals;
 
-
-
-/******************************************************************
-*	Q2RE: Time
-*******************************************************************/
-// gtime type.
-#include "../sharedgame/sg_time.h"
+// SharedGame includes:
+#include "../sharedgame/sg_shared.h"
 
 // extern times.
 extern sg_time_t FRAME_TIME_S;
@@ -58,7 +53,7 @@ constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64
 #define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS)
 
 // the "gameversion" client command will print this plus compile date
-#define GAMEVERSION "BaseQ2"
+#define GAMEVERSION "BaseQ2RTXP"
 
 // protocol bytes that can be directly added to messages
 #define svc_muzzleflash     1
@@ -704,9 +699,14 @@ extern  gitem_t itemlist[];
 //
 // g_gamemode.cpp
 //
-#include "../sharedgame/sg_gamemode.h"
-
+/**
+*	@return	The actual ID of the current gamemode.
+**/
 const int32_t G_GetGamemodeID( );
+/**
+*	@return	True in case the current gamemode allows for saving the game.
+*			(This should only be true for single and cooperative play modes.)
+**/
 const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer );
 
 //
