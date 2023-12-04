@@ -83,7 +83,7 @@ extern "C" {
 
 // game features this server supports
 #define SV_FEATURES (GMF_CLIENTNUM | GMF_PROPERINUSE | \
-                     GMF_WANT_ALL_DISCONNECTS | GMF_ENHANCED_SAVEGAMES | \
+                     GMF_WANT_ALL_DISCONNECTS | \
                      GMF_EXTRA_USERINFO | GMF_IPV6_ADDRESS_AWARE )
 
 typedef struct {
@@ -524,7 +524,8 @@ void sv_min_timeout_changed(cvar_t *self);
 void SV_ClientReset(client_t *client);
 void SV_SpawnServer(mapcmd_t *cmd);
 bool SV_ParseMapCmd(mapcmd_t *cmd);
-void SV_InitGame();
+void SV_PreInitGame( void );
+void SV_InitGame( void );
 
 //
 // sv_send.c

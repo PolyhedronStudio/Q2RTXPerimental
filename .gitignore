@@ -51,3 +51,4 @@ baseq2/**/*.txt
 /baseq2/textures/kenny
 /baseq2/.conhistory
 /baseq2/textures/block/README.md
+/CMakeSettings.json

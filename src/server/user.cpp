@@ -319,7 +319,10 @@ void SV_New_f(void)
     MSG_WriteInt32(sv_client->protocol);
     MSG_WriteInt32(sv_client->spawncount);
     MSG_WriteUint8(0);   // no attract loop
+	MSG_WriteUint8( ge->GetGamemodeID( ) );
+
     MSG_WriteString(sv_client->gamedir);
+
     if (sv.state == ss_pic || sv.state == ss_cinematic)
         MSG_WriteInt16(-1);
     else

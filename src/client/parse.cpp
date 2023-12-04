@@ -427,7 +427,7 @@ static void CL_ParseGamestate( int32_t cmd )
 static void CL_ParseServerData(void)
 {
     char    levelname[MAX_QPATH];
-    int     i, protocol, attractloop q_unused;
+    int     i;//, q_unused;
     bool    cinematic;
 
     Cbuf_Execute(&cl_cmdbuf);          // make sure any stuffed commands are done
@@ -436,13 +436,18 @@ static void CL_ParseServerData(void)
     CL_ClearState();
 
     // parse protocol version number
-    protocol = MSG_ReadInt32();
+    int32_t protocol = MSG_ReadInt32();
     cl.servercount = MSG_ReadInt32();
-    attractloop = MSG_ReadUint8();
+    int32_t attractloop = MSG_ReadUint8();
+	int32_t gamemode = MSG_ReadUint8();
+
+	// TEMP
+	std::string strGamemode = clge->GetGamemodeName( gamemode );
+	// EOF TEMP
 
     Com_DPrintf("Serverdata packet received "
-                "(protocol=%d, servercount=%d, attractloop=%d)\n",
-                protocol, cl.servercount, attractloop);
+                "(protocol=%d, gamemode=%s, servercount=%d, attractloop=%d)\n",
+                protocol, strGamemode.c_str( ), cl.servercount, attractloop );
 
     // check protocol
     if (cls.serverProtocol != protocol) {

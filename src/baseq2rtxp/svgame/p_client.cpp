@@ -18,7 +18,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 #include "g_local.h"
 #include "m_player.h"
-#include "../sharedgame/sg_pmove.h"
 
 void ClientUserinfoChanged(edict_t *ent, char *userinfo);
 

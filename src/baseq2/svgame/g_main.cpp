@@ -17,7 +17,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "g_local.h"
-#include "../sharedgame/sg_pmove.h"
 
 /**
 *	General used Game Objects.
@@ -54,6 +53,8 @@ int meansOfDeath;
 
 edict_t	*g_edicts;
 
+// WID: gamemode support:
+cvar_t	*gamemode;
 cvar_t  *deathmatch;
 cvar_t  *coop;
 cvar_t  *dmflags;
@@ -139,10 +140,72 @@ void ShutdownGame(void)
 *			is loaded from the main menu without having a game running
 *			in the background.
 **/
-void InitGame(void)
+void PreInitGame( void ) {
+	// Notify 
+	gi.dprintf( "==== PreInit ServerGame ====\n" );
+
+	maxclients = gi.cvar( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH );
+	maxspectators = gi.cvar( "maxspectators", "4", CVAR_SERVERINFO );
+
+	// 0 = SinglePlayer, 1 = Deathmatch, 2 = Coop.
+	gamemode = gi.cvar( "gamemode", 0, CVAR_SERVERINFO | CVAR_LATCH );
+
+	// The following is to for now keep code compatability.
+	deathmatch = gi.cvar( "deathmatch", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ROM );
+	gi.cvar_forceset( "deathmatch", "0" );
+	coop = gi.cvar( "coop", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ROM );
+	gi.cvar_forceset( "coop", "0" );
+
+	// These are possibily game mode related also.
+	nomonsters = gi.cvar( "nomonsters", "0", 0 );
+	skill = gi.cvar( "skill", "1", CVAR_LATCH );
+	maxentities = gi.cvar( "maxentities", "8192", CVAR_LATCH );
+	dmflags = gi.cvar( "dmflags", "0", CVAR_SERVERINFO );
+	fraglimit = gi.cvar( "fraglimit", "0", CVAR_SERVERINFO );
+	timelimit = gi.cvar( "timelimit", "0", CVAR_SERVERINFO );
+
+	// Air acceleration defaults to 0 and is only set for DM mode.
+	gi.configstring( CS_AIRACCEL, "0" );
+
+	// Deathmatch:
+	if ( gamemode->integer == GAMEMODE_DEATHMATCH ) {
+		// Set the cvar for keeping old code in-tact. TODO: Remove in the future.
+		gi.cvar_forceset( "deathmatch", "1" );
+
+		// Setup maxclients correctly.
+		if ( maxclients->integer <= 1 ) {
+			gi.cvar_forceset( "maxclients", "8" ); //Cvar_SetInteger( maxclients, 8, FROM_CODE );
+		} else if ( maxclients->integer > CLIENTNUM_RESERVED ) {
+			gi.cvar_forceset( "maxclients", std::to_string( CLIENTNUM_RESERVED ).c_str() );
+		}
+
+		// Deathmatch specific, set air acceleration properly.
+		cvar_t *sv_airaccelerate = gi.cvar( "sv_airaccelerate", 0, 0 );
+		gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
+	// Cooperative:
+	} else if ( gamemode->integer == GAMEMODE_COOPERATIVE ) {
+		gi.cvar_forceset( "coop", "1" );
+
+		if ( maxclients->integer <= 1 || maxclients->integer > 4 ) {
+			gi.cvar_forceset( "maxclients", "4" ); // Cvar_Set( "maxclients", "4" );
+		}
+		gi.dprintf( "[GameMode(#%d): Cooperative][maxclients=%d]\n", gamemode->integer, maxclients->integer );
+	// Default: Singleplayer.
+	} else {    // non-deathmatch, non-coop is one player
+		//Cvar_FullSet( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH, FROM_CODE );
+		gi.cvar_forceset( "maxclients", "1" );
+		gi.dprintf( "[GameMode(#%d): Singleplayer][maxclients=%d]\n", gamemode->integer, maxclients->integer );
+	}
+}
+
+/**
+*	@brief	Called after PreInitGame when the game has set up gamemode specific cvars.
+**/
+void InitGame( void )
 {
 	// Notify 
-    gi.dprintf("==== Init ServerGame ====\n");
+    gi.dprintf("==== Init ServerGame(Gamemode: \"%s\", maxclients=%d, maxspectators=%d, maxentities=%d) ====\n",
+				SG_GetGamemodeName( gamemode->integer ), maxclients->integer, maxspectators->integer, maxentities->integer );
 
 	// C Random time initializing.
     Q_srand(time(NULL));
@@ -163,8 +226,6 @@ void InitGame(void)
     // noset vars
     dedicated = gi.cvar("dedicated", "0", CVAR_NOSET);
 
-    nomonsters = gi.cvar("nomonsters", "0", 0);
-	
     aimfix = gi.cvar("aimfix", "0", CVAR_ARCHIVE);
 
     // latched vars
@@ -172,17 +233,7 @@ void InitGame(void)
     gi.cvar("gamename", GAMEVERSION , CVAR_SERVERINFO | CVAR_LATCH);
     gi.cvar("gamedate", __DATE__ , CVAR_SERVERINFO | CVAR_LATCH);
 
-    maxclients = gi.cvar("maxclients", "4", CVAR_SERVERINFO | CVAR_LATCH);
-    maxspectators = gi.cvar("maxspectators", "4", CVAR_SERVERINFO);
-    deathmatch = gi.cvar("deathmatch", "0", CVAR_LATCH);
-    coop = gi.cvar("coop", "0", CVAR_LATCH);
-    skill = gi.cvar("skill", "1", CVAR_LATCH);
-    maxentities = gi.cvar("maxentities", "8192", CVAR_LATCH);
-
     // change anytime vars
-    dmflags = gi.cvar("dmflags", "0", CVAR_SERVERINFO);
-    fraglimit = gi.cvar("fraglimit", "0", CVAR_SERVERINFO);
-    timelimit = gi.cvar("timelimit", "0", CVAR_SERVERINFO);
 	password = gi.cvar("password", "", CVAR_USERINFO);
     spectator_password = gi.cvar("spectator_password", "", CVAR_USERINFO);
     needpass = gi.cvar("needpass", "0", CVAR_SERVERINFO);
@@ -251,9 +302,14 @@ extern "C" { // WID: C++20: extern "C".
 		FRAME_TIME_S = FRAME_TIME_MS = sg_time_t::from_ms( gi.frame_time_ms );
 
 		globals.apiversion = SVGAME_API_VERSION;
+		globals.PreInit = PreInitGame;
 		globals.Init = InitGame;
 		globals.Shutdown = ShutdownGame;
 		globals.SpawnEntities = SpawnEntities;
+
+		globals.GetGamemodeID = G_GetGamemodeID;
+		globals.GetGamemodeName = SG_GetGamemodeName;
+		globals.GamemodeNoSaveGames = G_GetGamemodeNoSaveGames;
 
 		globals.WriteGame = WriteGame;
 		globals.ReadGame = ReadGame;

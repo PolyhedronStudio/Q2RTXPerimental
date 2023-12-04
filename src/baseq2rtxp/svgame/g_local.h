@@ -30,13 +30,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern svgame_import_t gi;
 extern svgame_export_t globals;
 
-
-
-/******************************************************************
-*	Q2RE: Time
-*******************************************************************/
-// gtime type.
-#include "../sharedgame/sg_time.h"
+// SharedGame includes:
+#include "../sharedgame/sg_shared.h"
 
 // extern times.
 extern sg_time_t FRAME_TIME_S;
@@ -55,7 +50,7 @@ constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64
 // 
 //==================================================================
 // features this game supports
-#define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS|GMF_ENHANCED_SAVEGAMES)
+#define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS)
 
 // the "gameversion" client command will print this plus compile date
 #define GAMEVERSION "BaseQ2RTXP"
@@ -643,7 +638,11 @@ extern  edict_t         *g_edicts;
 #define random()    frand()
 #define crandom()   crand()
 
+extern  cvar_t	*sv_cheats;
+extern  cvar_t	*maxclients;
+extern  cvar_t	*maxspectators;
 extern  cvar_t  *maxentities;
+extern  cvar_t	*gamemode;
 extern  cvar_t  *deathmatch;
 extern  cvar_t  *coop;
 extern  cvar_t  *dmflags;
@@ -654,7 +653,7 @@ extern  cvar_t  *password;
 extern  cvar_t  *spectator_password;
 extern  cvar_t  *needpass;
 extern  cvar_t  *g_select_empty;
-extern cvar_t *g_instant_weapon_switch;
+extern	cvar_t	*g_instant_weapon_switch;
 extern  cvar_t  *dedicated;
 extern  cvar_t  *nomonsters;
 extern  cvar_t  *aimfix;
@@ -673,10 +672,6 @@ extern  cvar_t  *run_roll;
 extern  cvar_t  *bob_up;
 extern  cvar_t  *bob_pitch;
 extern  cvar_t  *bob_roll;
-
-extern  cvar_t  *sv_cheats;
-extern  cvar_t  *maxclients;
-extern  cvar_t  *maxspectators;
 
 extern  cvar_t  *flood_msgs;
 extern  cvar_t  *flood_persecond;
@@ -700,6 +695,19 @@ extern  cvar_t  *sv_flaregun;
 #define ITEM_TARGETS_USED       0x00040000
 
 extern  gitem_t itemlist[];
+
+//
+// g_gamemode.cpp
+//
+/**
+*	@return	The actual ID of the current gamemode.
+**/
+const int32_t G_GetGamemodeID( );
+/**
+*	@return	True in case the current gamemode allows for saving the game.
+*			(This should only be true for single and cooperative play modes.)
+**/
+const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer );
 
 //
 // g_cmds.c

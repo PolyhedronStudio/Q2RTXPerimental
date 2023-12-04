@@ -5,9 +5,11 @@
 #
 # BaseQ2 SharedGame
 SET(SRC_BASEQ2_SHAREDGAME
+	baseq2/sharedgame/sg_gamemode.cpp
 	baseq2/sharedgame/sg_pmove.cpp
 )
 SET(HEADERS_BASEQ2_SHAREDGAME
+	baseq2/sharedgame/sg_gamemode.h
 	baseq2/sharedgame/sg_pmove.h
 	baseq2/sharedgame/sg_time.h
 )
@@ -25,6 +27,7 @@ SET(SRC_BASEQ2_SVGAME
 	baseq2/svgame/g_cmds.cpp
 	baseq2/svgame/g_combat.cpp
 	baseq2/svgame/g_func.cpp
+	baseq2/svgame/g_gamemode.cpp
 	baseq2/svgame/g_items.cpp
 	baseq2/svgame/g_main.cpp
 	baseq2/svgame/g_misc.cpp
@@ -106,9 +109,11 @@ SET(HEADERS_BASEQ2_SVGAME
 #
 # BaseQ2RTXP SharedGame
 SET(SRC_BASEQ2RTXP_SHAREDGAME
+	baseq2rtxp/sharedgame/sg_gamemode.cpp
 	baseq2rtxp/sharedgame/sg_pmove.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SHAREDGAME
+	baseq2rtxp/sharedgame/sg_gamemode.h
 	baseq2rtxp/sharedgame/sg_pmove.h
 	baseq2rtxp/sharedgame/sg_time.h
 )
@@ -126,6 +131,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/g_cmds.cpp
 	baseq2rtxp/svgame/g_combat.cpp
 	baseq2rtxp/svgame/g_func.cpp
+	baseq2rtxp/svgame/g_gamemode.cpp
 	baseq2rtxp/svgame/g_items.cpp
 	baseq2rtxp/svgame/g_main.cpp
 	baseq2rtxp/svgame/g_misc.cpp

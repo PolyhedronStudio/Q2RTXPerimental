@@ -178,6 +178,11 @@ typedef struct {
     void (*Shutdown)(void);
 
 	/**
+	*	GameModes:
+	**/
+	const char *( *GetGamemodeName )( const int32_t gameModeID );
+
+	/**
 	*
 	*	Player Movement:
 	*

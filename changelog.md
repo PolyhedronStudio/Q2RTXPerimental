@@ -14,6 +14,7 @@
 * Increased maximum ConfigString length ``(96)``.
 * Entity origins and player origin are ``wired/transferred`` as full floating point precision values.
 * Enabled ``USE_SMOOTH_DELTA_ANGLES``.
+* Allows for up to 255 different gamemodes to be implemented. The client is also made aware of the actual game mode the server is running.
 
 ### Client:
 * Does proper lerping for entities that run lower than ``40hz``.
@@ -45,7 +46,6 @@
 * Contains the shared used ``sg_time_t`` which replaces all the vanilla frametime/framenum work.
 * Customizable PlayerMove code.
 
-* 
 ## 1.7.0
 
 **Fixed Issues:**

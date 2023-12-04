@@ -126,6 +126,9 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 
 #define MAX_CLIENT_NAME     16
 
+#define CLIENTNUM_NONE        (MAX_CLIENTS - 1)
+#define CLIENTNUM_RESERVED    (MAX_CLIENTS - 1)
+
 typedef enum {
     ERR_FATAL,          // exit the entire game with a popup window
     ERR_DROP,           // print to console and disconnect from game
@@ -684,6 +687,12 @@ CVARS (console variables)
 #define CVAR_NOSET      8   // don't allow change from console at all,
                             // but can be set from the command line
 #define CVAR_LATCH      16  // save changes until server restart
+#ifndef CVAR_PRIVATE
+	#define CVAR_PRIVATE	(1 << 6)  // never macro expanded or saved to config
+#endif
+#ifndef CVAR_ROM
+	#define CVAR_ROM		(1 << 7)  // can't be changed even from cmdline
+#endif
 
 struct cvar_s;
 struct genctx_s;

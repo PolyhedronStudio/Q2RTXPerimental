@@ -55,8 +55,8 @@ typedef enum {
 //#define GMF_MVDSPEC                 0x00000004
 #define GMF_WANT_ALL_DISCONNECTS    0x00000008
 
-#define GMF_ENHANCED_SAVEGAMES      0x00000400
-#define GMF_VARIABLE_FPS            0x00000800
+//#define GMF_ENHANCED_SAVEGAMES      0x00000400
+//#define GMF_VARIABLE_FPS            0x00000800
 #define GMF_EXTRA_USERINFO          0x00001000
 #define GMF_IPV6_ADDRESS_AWARE      0x00002000
 
@@ -243,15 +243,23 @@ typedef struct {
 	/**
 	*	Init/Shutdown:
 	* 
-    *	The init function will only be called when a game starts,
+    *	The preinit and init functions will only be called when a game starts,
     *	not each time a level is loaded.  Persistant data for clients
     *	and the server can be allocated in init
 	**/
-    void (*Init)(void);
+	void (*PreInit)( void );
+	void (*Init)(void);
     void (*Shutdown)(void);
 
-    // each new level entered will cause a call to SpawnEntities
+    // Each new level entered will cause a call to SpawnEntities
     void (*SpawnEntities)(const char *mapname, const char *entstring, const char *spawnpoint);
+
+	/**
+	*	GameModes:
+	**/
+	const int32_t (*GetGamemodeID)( );
+	const char *(*GetGamemodeName)( const int32_t gameModeID );
+	const bool (*GamemodeNoSaveGames)( const bool isDedicated );
 
 	/**
 	*	Read/Write Game: 

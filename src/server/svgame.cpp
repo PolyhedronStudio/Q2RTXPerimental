@@ -370,10 +370,10 @@ static void PF_configstring(int index, const char *val)
 	if ( index < 0 || index >= MAX_CONFIGSTRINGS )
 		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, index );
 
-	if ( sv.state == ss_dead ) {
-		Com_WPrintf( "%s: not yet initialized\n", __func__ );
-		return;
-	}
+	//if ( sv.state == ss_dead ) {
+	//	Com_WPrintf( "%s: not yet initialized\n", __func__ );
+	//	return;
+	//}
 
 	if ( !val )
 		val = "";
@@ -886,21 +886,6 @@ void SV_InitGameProgs(void)
                   ge->apiversion, SVGAME_API_VERSION);
     }
 
-    // initialize
-    ge->Init();
-
-    // sanitize edict_size
-    if (ge->edict_size < sizeof(edict_t) || ge->edict_size > (unsigned)INT_MAX / MAX_EDICTS) {
-        Com_Error(ERR_DROP, "ServerGame library returned bad size of edict_t");
-    }
-
-    // sanitize max_edicts
-    if (ge->max_edicts <= sv_maxclients->integer || ge->max_edicts > MAX_EDICTS) {
-        Com_Error(ERR_DROP, "ServerGame library returned bad number of max_edicts");
-    }
-
-	// Set up default pmove parameters
-	ge->ConfigurePlayerMoveParameters( &sv_pmp );
 }
 
 };
