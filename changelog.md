@@ -15,6 +15,7 @@
 * Entity origins and player origin are ``wired/transferred`` as full floating point precision values.
 * Enabled ``USE_SMOOTH_DELTA_ANGLES``.
 * Allows for up to 255 different gamemodes to be implemented. The client is also made aware of the actual game mode the server is running.
+* Brush Shaped Triggers: Triggers can now have a "Clipped" flag set, in which case it only triggers when an actual collision(clip to brush) occured.
 
 ### Client:
 * Does proper lerping for entities that run lower than ``40hz``.
@@ -31,6 +32,7 @@
 
 ### Refresh(VKPT):
 * BSP maps compiled with ``texinfos`` such as: ``textures/test/01.tga`` now will load with their proper dimensions, meaning one does not need low-res .wal textures to substitute for any of these.
+* RF_NOSHADOW is now respected for both, regular and brush entities.
 
 ## Q2RTXPerimental Game Changes:
 ### Server Game:

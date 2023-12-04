@@ -1874,7 +1874,16 @@ static void process_bsp_entity(const entity_t* entity, int* instance_count)
 
 	if (model->geometry.accel)
 	{
-		vkpt_pt_instance_model_blas(&model->geometry, mi->transform, VERTEX_BUFFER_WORLD, current_instance_idx, (model_alpha < 1.f) ? AS_FLAG_TRANSPARENT : 0);
+		// WID: RF_NOSHADOW
+		uint32_t override_masks = ( mi->alpha_and_frame < 1.f ) ? AS_FLAG_TRANSPARENT : 0;
+
+		if ( entity->flags & RF_NOSHADOW )
+			override_masks |= AS_FLAG_OPAQUE_NO_SHADOW;
+
+		vkpt_pt_instance_model_blas( &model->geometry, mi->transform, VERTEX_BUFFER_WORLD, current_instance_idx, override_masks );
+		//vkpt_pt_instance_model_blas( &model->geometry, mi->transform, VERTEX_BUFFER_WORLD, current_instance_idx, ( mi->alpha_and_frame < 1.f ) ? AS_FLAG_TRANSPARENT : 0 );
+		// WID: RF_NOSHADOW
+
 	}
 
 	if (!model->transparent)
@@ -1961,7 +1970,14 @@ static void process_regular_entity(
 
 			uint32_t model_index = (uint32_t)(model - r_models);
 
-			vkpt_pt_instance_model_blas(geom, transform_, VERTEX_BUFFER_FIRST_MODEL + model_index, current_instance_index, (alpha < 1.f) ? AS_FLAG_TRANSPARENT : 0);
+			// WID: RF_NOSHADOW
+			uint32_t override_masks = ( alpha < 1.f ) ? AS_FLAG_TRANSPARENT : 0;
+
+			if ( entity->flags & RF_NOSHADOW )
+				override_masks |= AS_FLAG_OPAQUE_NO_SHADOW;
+			vkpt_pt_instance_model_blas( geom, transform_, VERTEX_BUFFER_FIRST_MODEL + model_index, current_instance_index, override_masks );
+			//vkpt_pt_instance_model_blas( geom, transform_, VERTEX_BUFFER_FIRST_MODEL + model_index, current_instance_index, ( alpha < 1.f ) ? AS_FLAG_TRANSPARENT : 0 );
+			// WID: RF_NOSHADOW
 		}
 	}
 

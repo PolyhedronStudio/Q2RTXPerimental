@@ -120,12 +120,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define TLAS_COUNT               2
 
 // Geometry TLAS flags
-#define AS_FLAG_OPAQUE          (1 << 0)
-#define AS_FLAG_TRANSPARENT     (1 << 1)
-#define AS_FLAG_VIEWER_MODELS   (1 << 2)
-#define AS_FLAG_VIEWER_WEAPON   (1 << 3)
-#define AS_FLAG_SKY             (1 << 4)
-#define AS_FLAG_CUSTOM_SKY      (1 << 5)
+#define AS_FLAG_OPAQUE_NO_SHADOW	(0x01)	// Does NOT cast shadows.
+#define AS_FLAG_OPAQUE				(0x03)	// The second bit is cast shadow so, 0b11 is opaque, and 0b01 is opaque without shadows
+#define AS_FLAG_TRANSPARENT			(0x04)
+#define AS_FLAG_VIEWER_MODELS		(0x08)
+#define AS_FLAG_VIEWER_WEAPON		(0x10)
+#define AS_FLAG_SKY					(0x20)
+#define AS_FLAG_CUSTOM_SKY			(0x40)
+// Geometry TLAS bitflags.
+#define AS_BIT_MASK_SHADOW			(0x02)	// Second bit dictates shadows
 
 // Effects TLAS flags
 #define AS_FLAG_EFFECTS         (1 << 0)
