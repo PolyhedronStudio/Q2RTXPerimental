@@ -22,10 +22,10 @@
 
 ## Game Modules:
 ### Server Game:
+* [ ] Add proper ``gamemode`` support based on a ``gamemode`` cvar.
+* [ ] * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
 * [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing.
 * [ ] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
-* [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
-* [ ] Add proper ``gamemode`` support based on a ``gamemode`` cvar.
 ### Client Game:
 * [ ] Nothing for now.
 ### Shared Game:

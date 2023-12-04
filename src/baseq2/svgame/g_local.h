@@ -643,7 +643,11 @@ extern  edict_t         *g_edicts;
 #define random()    frand()
 #define crandom()   crand()
 
+extern  cvar_t	*sv_cheats;
+extern  cvar_t	*maxclients;
+extern  cvar_t	*maxspectators;
 extern  cvar_t  *maxentities;
+extern  cvar_t	*gamemode;
 extern  cvar_t  *deathmatch;
 extern  cvar_t  *coop;
 extern  cvar_t  *dmflags;
@@ -654,7 +658,7 @@ extern  cvar_t  *password;
 extern  cvar_t  *spectator_password;
 extern  cvar_t  *needpass;
 extern  cvar_t  *g_select_empty;
-extern cvar_t *g_instant_weapon_switch;
+extern	cvar_t	*g_instant_weapon_switch;
 extern  cvar_t  *dedicated;
 extern  cvar_t  *nomonsters;
 extern  cvar_t  *aimfix;
@@ -673,10 +677,6 @@ extern  cvar_t  *run_roll;
 extern  cvar_t  *bob_up;
 extern  cvar_t  *bob_pitch;
 extern  cvar_t  *bob_roll;
-
-extern  cvar_t  *sv_cheats;
-extern  cvar_t  *maxclients;
-extern  cvar_t  *maxspectators;
 
 extern  cvar_t  *flood_msgs;
 extern  cvar_t  *flood_persecond;
@@ -702,6 +702,10 @@ extern  cvar_t  *sv_flaregun;
 extern  gitem_t itemlist[];
 
 //
+// g_gamemode.cpp
+//
+const char *G_GetGamemodeName();
+
 // g_cmds.c
 //
 void Cmd_Help_f(edict_t *ent);

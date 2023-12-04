@@ -272,8 +272,9 @@ static void SV_Map(bool restart)
     SV_AutoSaveBegin(&cmd);
 
     // any error will drop from this point
-    if (sv.state < ss_game || sv.state == ss_broadcast || restart)
-        SV_InitGame();    // the game is just starting
+	if ( sv.state < ss_game || sv.state == ss_broadcast || restart ) {
+		SV_InitGame( );    // the game is just starting
+	}
 
     // clear pending CM
     Com_AbortFunc(NULL, NULL);

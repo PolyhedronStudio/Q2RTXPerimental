@@ -312,6 +312,33 @@ bool SV_ParseMapCmd(mapcmd_t *cmd)
     return false;
 }
 
+/**
+*	@brief
+**/
+static void SV_InitGame_PreInit( ) {
+	ge->PreInit( );
+}
+/**
+*	@brief
+**/
+static void SV_InitGame_Init( ) {
+	// initialize
+	ge->Init( );
+
+	// sanitize edict_size
+	if ( ge->edict_size < sizeof( edict_t ) || ge->edict_size >( unsigned )INT_MAX / MAX_EDICTS ) {
+		Com_Error( ERR_DROP, "ServerGame library returned bad size of edict_t" );
+	}
+
+	// sanitize max_edicts
+	if ( ge->max_edicts <= sv_maxclients->integer || ge->max_edicts > MAX_EDICTS ) {
+		Com_Error( ERR_DROP, "ServerGame library returned bad number of max_edicts" );
+	}
+
+	// Set up default pmove parameters
+	ge->ConfigurePlayerMoveParameters( &sv_pmp );
+}
+
 /*
 ==============
 SV_InitGame
@@ -338,39 +365,47 @@ void SV_InitGame()
         memset(&sv, 0, sizeof(sv));
     }
 
+	// Ensure gamemode is properly prepared to be set.
+	Cvar_Get( "gamemode", "0", CVAR_SERVERINFO | CVAR_LATCH );
+
     // get any latched variable changes (maxclients, etc)
     Cvar_GetLatchedVars();
 
 #if !USE_CLIENT
     Cvar_Reset(sv_recycle);
 #endif
+	// load up game progs.
+	SV_InitGameProgs( );
 
-    if (Cvar_VariableInteger("coop") &&
-        Cvar_VariableInteger("deathmatch")) {
-        Com_Printf("Deathmatch and Coop both set, disabling Coop\n");
-        Cvar_Set("coop", "0");
-    }
+	// Preinitialize the game.
+	SV_InitGame_PreInit( );
 
-    // dedicated servers can't be single player and are usually DM
-    // so unless they explicity set coop, force it to deathmatch
-    if (COM_DEDICATED) {
-        if (!Cvar_VariableInteger("coop"))
-            Cvar_Set("deathmatch", "1");
-    }
+    //if (Cvar_VariableInteger("coop") &&
+    //    Cvar_VariableInteger("deathmatch")) {
+    //    Com_Printf("Deathmatch and Coop both set, disabling Coop\n");
+    //    Cvar_Set("coop", "0");
+    //}
 
-    // init clients
-    if (Cvar_VariableInteger("deathmatch")) {
-        if (sv_maxclients->integer <= 1) {
-            Cvar_SetInteger(sv_maxclients, 8, FROM_CODE);
-        } else if (sv_maxclients->integer > CLIENTNUM_RESERVED) {
-            Cvar_SetInteger(sv_maxclients, CLIENTNUM_RESERVED, FROM_CODE);
-        }
-    } else if (Cvar_VariableInteger("coop")) {
-        if (sv_maxclients->integer <= 1 || sv_maxclients->integer > 4)
-            Cvar_Set("maxclients", "4");
-    } else {    // non-deathmatch, non-coop is one player
-        Cvar_FullSet("maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH, FROM_CODE);
-    }
+    //// dedicated servers can't be single player and are usually DM
+    //// so unless they explicity set coop, force it to deathmatch
+    //if (COM_DEDICATED) {
+    //    if (!Cvar_VariableInteger("coop"))
+    //        Cvar_Set("deathmatch", "1");
+    //}
+
+    //// init clients
+    //if (Cvar_VariableInteger("deathmatch")) {
+    //    if (sv_maxclients->integer <= 1) {
+    //        Cvar_SetInteger(sv_maxclients, 8, FROM_CODE);
+    //    } else if (sv_maxclients->integer > CLIENTNUM_RESERVED) {
+    //        Cvar_SetInteger(sv_maxclients, CLIENTNUM_RESERVED, FROM_CODE);
+    //    }
+    //} else if (Cvar_VariableInteger("coop")) {
+    //    if (sv_maxclients->integer <= 1 || sv_maxclients->integer > 4)
+    //        Cvar_Set("maxclients", "4");
+    //} else {    // non-deathmatch, non-coop is one player
+    //    Cvar_FullSet("maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH, FROM_CODE);
+    //}
 
     // enable networking
     if (sv_maxclients->integer > 1) {
@@ -393,8 +428,7 @@ void SV_InitGame()
 	svs.z_buffer = static_cast<byte*>( SV_Malloc( svs.z_buffer_size ) );
 #endif
 
-    // init game
-	SV_InitGameProgs();
+	SV_InitGame_Init();
 	SV_CheckForEnhancedSavegames();
 
     // send heartbeat very soon

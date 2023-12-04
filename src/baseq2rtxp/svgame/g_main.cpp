@@ -54,6 +54,8 @@ int meansOfDeath;
 
 edict_t	*g_edicts;
 
+// WID: gamemode support:
+cvar_t	*gamemode;
 cvar_t  *deathmatch;
 cvar_t  *coop;
 cvar_t  *dmflags;
@@ -174,8 +176,13 @@ void InitGame(void)
 
     maxclients = gi.cvar("maxclients", "4", CVAR_SERVERINFO | CVAR_LATCH);
     maxspectators = gi.cvar("maxspectators", "4", CVAR_SERVERINFO);
-    deathmatch = gi.cvar("deathmatch", "0", CVAR_LATCH);
-    coop = gi.cvar("coop", "0", CVAR_LATCH);
+
+	// 0 = SinglePlayer, 1 = Deathmatch, 2 = Coop.
+	gamemode = gi.cvar( "gamemode", "0", CVAR_LATCH );
+	// The following is to for now keep code compatability.
+	deathmatch = gi.cvar( "deathmatch", ( gamemode->value == 1 ? "1" : "0" ), CVAR_LATCH );
+    coop = gi.cvar("coop", ( gamemode->value == 2 ? "1" : "0" ), CVAR_LATCH );
+
     skill = gi.cvar("skill", "1", CVAR_LATCH);
     maxentities = gi.cvar("maxentities", "8192", CVAR_LATCH);
 

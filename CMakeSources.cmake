@@ -25,6 +25,7 @@ SET(SRC_BASEQ2_SVGAME
 	baseq2/svgame/g_cmds.cpp
 	baseq2/svgame/g_combat.cpp
 	baseq2/svgame/g_func.cpp
+	baseq2/svgame/g_gamemode.cpp
 	baseq2/svgame/g_items.cpp
 	baseq2/svgame/g_main.cpp
 	baseq2/svgame/g_misc.cpp

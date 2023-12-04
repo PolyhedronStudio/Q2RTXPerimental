@@ -243,11 +243,12 @@ typedef struct {
 	/**
 	*	Init/Shutdown:
 	* 
-    *	The init function will only be called when a game starts,
+    *	The preinit and init functions will only be called when a game starts,
     *	not each time a level is loaded.  Persistant data for clients
     *	and the server can be allocated in init
 	**/
-    void (*Init)(void);
+	void ( *PreInit )( void );
+	void (*Init)(void);
     void (*Shutdown)(void);
 
     // each new level entered will cause a call to SpawnEntities
