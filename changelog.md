@@ -46,7 +46,6 @@
 * Contains the shared used ``sg_time_t`` which replaces all the vanilla frametime/framenum work.
 * Customizable PlayerMove code.
 
-* 
 ## 1.7.0
 
 **Fixed Issues:**
