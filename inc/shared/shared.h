@@ -977,7 +977,7 @@ typedef struct {
 //ROGUE
 #define EF_TRACKER          0x04000000
 #define EF_DOUBLE           0x08000000
-#define EF_SPHERETRANS      0x10000000
+#define EF_SPOTLIGHT		0x10000000
 #define EF_TAGTRAIL         0x20000000
 #define EF_HALF_DAMAGE      0x40000000
 #define EF_TRACKERTRAIL     0x80000000
@@ -1422,13 +1422,14 @@ static inline int32_t CS_SIZE( int32_t cs ) {
 
 //==============================================
 
-
-// entity_state_t->event values
-// ertity events are for effects that take place reletive
-// to an existing entities origin.  Very network efficient.
-// All muzzle flashes really should be converted to events...
+/**
+*	@description entity_state_t->event values
+*				 ertity events are for effects that take place reletive
+*				 to an existing entities origin.  Very network efficient.
+*				 All muzzle flashes really should be converted to events...
+**/
 typedef enum {
-    EV_NONE,
+    EV_NONE = 0,
     EV_ITEM_RESPAWN,
     EV_FOOTSTEP,
     EV_FALLSHORT,
@@ -1438,33 +1439,91 @@ typedef enum {
     EV_OTHER_TELEPORT
 } entity_event_t;
 
+/**
+*	@description	Determines the actual entity type, in order to allow for appropriate state transmission
+*					and efficient client-side handling. (ET_SPOTLIGHT demands different data than 'generic' entities.
+*/
+typedef enum {
+	ET_ENGINE_TYPES = 0,
+	ET_GENERIC = ET_ENGINE_TYPES,
+	ET_SPOTLIGHT,
+
+	ET_GAME_TYPES,
+
+	// TODO: Game Types.
+	//ET_PLAYER,
+	//ET_CORPSE,
+	//ET_BEAM,
+	//ET_PORTALSURFACE,
+	//ET_PUSH_TRIGGER,
+
+	//ET_GIB,         // leave a trail
+	//ET_BLASTER,     // redlight + trail
+	//ET_ELECTRO_WEAK,
+	//ET_ROCKET,      // redlight + trail
+	//ET_GRENADE,
+	//ET_PLASMA,
+
+	//ET_SPRITE,
+
+	//ET_ITEM,        // for simple items
+	//ET_LASERBEAM,   // for continuous beams
+	////ET_CURVELASERBEAM, // for curved beams
+
+	//ET_PARTICLES,
+
+	//ET_MONSTER_PLAYER,
+	//ET_MONSTER_CORPSE,
+
+	// eventual entities: types below this will get event treatment
+	//ET_EVENT = EVENT_ENTITIES_START,
+	//ET_SOUNDEVENT,
+
+	//ET_TOTAL_TYPES, // current count
+	MAX_ENTITY_TYPES = 128
+} entity_type_t;
 
 // entity_state_t is the information conveyed from the server
 // in an update message about entities that the client will
 // need to render in some way
 typedef struct entity_state_s {
-    int     number;         // edict index
+	int32_t	number;         // edict index
 
-    vec3_t  origin;
+	int32_t	entityType;		// ET_GENERIC, ET_PLAYER, ET_MONSTER_PLAYER, ET_SPOTLIGHT etc..
+	
+	vec3_t  origin;
     vec3_t  angles;
     vec3_t  old_origin;     // for lerping
-    int     modelindex;
-    int     modelindex2, modelindex3, modelindex4;  // weapons, CTF flags, etc
-    int     frame;
-    int     skinnum;
-    unsigned int        effects;        // PGM - we're filling it, so it needs to be unsigned
-    int     renderfx;
-    uint32_t	solid;		// WID: upgr-solid: Now is uint32_t.
-							// for client side prediction, 8*(bits 0-4) is x/y radius
-                            // 8*(bits 5-9) is z down distance, 8(bits10-15) is z up
-                            // gi.linkentity sets this properly
-    int     sound;          // for looping sounds, to guarantee shutoff
-    int     event;          // impulse events -- muzzle flashes, footsteps, etc
-                            // events only go out for a single frame, they
-                            // are automatically cleared each frame
+	
+	uint32_t solid;		// WID: upgr-solid: Now is uint32_t.
+						// For client side prediction, 8*(bits 0-4) is x/y radius
+						// 8*(bits 5-9) is z down distance, 8(bits10-15) is z up
+						// gi.linkentity sets this properly
+
+	int32_t	modelindex;		// Main model.
+	int32_t	modelindex2, modelindex3, modelindex4;  // Used for weapons, CTF flags, etc
+	int32_t	renderfx;	// Render Effect Flags: RF_NOSHADOW etc.
+
+	int32_t	frame;
+    int32_t	skinnum;
+	uint32_t effects;	// General Effect Flags: EF_ROTATE etc.
+
+	int32_t	sound;	// For looping sounds, to guarantee shutoff
+	int32_t	event;	// Impulse events -- muzzle flashes, footsteps, etc.
+					// Events only go out for a single frame, and they are automatically cleared after that.
 							
 	// [Paril-KEX] for custom interpolation stuff
 	int32_t        old_frame;
+
+
+	// Spotlights
+	vec3_t rgb;
+
+	float intensity;
+
+	float angle_width;
+	float angle_falloff;
+
 } entity_state_t;
 
 //==============================================

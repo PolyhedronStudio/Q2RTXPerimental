@@ -418,6 +418,56 @@ void CL_CheckEntityPresent(int entnum, const char *what)
 /*
 ==========================================================================
 
+DYNLIGHT ENTITY SUPPORT:
+
+==========================================================================
+*/
+void CL_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state_t *s1 ) {
+	//
+	// First Attempt that works:
+	// 
+	// Extract color from skin number.
+	vec3_t rgb = { 1.f, 1.f, 1.f };
+	if ( s1->skinnum != 0 ) {
+		rgb[ 0 ] = ( s1->skinnum >> ( 8 * 0 ) ) & 0xff;
+		rgb[ 1 ] = ( s1->skinnum >> ( 8 * 1 ) ) & 0xff;
+		rgb[ 2 ] = ( s1->skinnum >> ( 8 * 2 ) ) & 0xff;
+	}
+
+	// Extract light intensity from "frame".
+	float lightIntensity = s1->frame;
+
+	// Calculate view direction based on angles.
+	vec3_t view_dir, right_dir, up_dir;
+	AngleVectors( ent->angles, view_dir, right_dir, up_dir );
+
+	//// Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
+	V_AddSpotLight( ent->origin, view_dir, lightIntensity, rgb[ 0 ], rgb[ 1 ], rgb[ 2 ], 15, 0 );
+
+
+	////
+	//// Second Attempt: Target the player origin.
+	//// 
+	////vec3_t view_dir, right_dir, up_dir;
+	////AngleVectors( ent.angles, view_dir, right_dir, up_dir );
+	//vec3_t view_dir;
+	//VectorSubtract( ent->origin, cl.playerEntityOrigin, view_dir );
+	////float x = view_dir[0];
+	////float z = view_dir[2];
+	////view_dir[0] = z;
+	////view_dir[2] = x;
+	//VectorNormalize( view_dir );
+
+	//// Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
+	//V_AddSpotLight( ent->origin, view_dir, 225.0, 1.f, 0.1f, 0.1f, 45, 0 );
+
+	//V_AddSphereLight( ent.origin, 500.f, 1.6f, 1.0f, 0.2f, 10.f );
+	//V_AddSpotLightTexEmission( light_pos, view_dir, cl_flashlight_intensity->value, 1.f, 1.f, 1.f, 90.0f, flashlight_profile_tex );
+}
+
+/*
+==========================================================================
+
 INTERPOLATE BETWEEN FRAMES TO GET RENDERING PARMS
 
 ==========================================================================
@@ -728,6 +778,13 @@ static void CL_AddPacketEntities(void)
 			VectorMA(ent.oldorigin, offset, forward, ent.oldorigin);
         }
 
+		// Spotlight
+		//if ( s1->entityType == ET_SPOTLIGHT ) {
+		if ( s1->effects & EF_SPOTLIGHT ) {
+			CL_PacketEntity_AddSpotlight( cent, &ent, s1 );
+			//return;
+		}
+
         // if set to invisible, skip
         if (!s1->modelindex) {
             goto skip;
@@ -743,13 +800,13 @@ static void CL_AddPacketEntities(void)
             ent.alpha = 0.6f;
         }
 
-        if (effects & EF_SPHERETRANS) {
-            ent.flags |= RF_TRANSLUCENT;
-            if (effects & EF_TRACKERTRAIL)
-                ent.alpha = 0.6f;
-            else
-                ent.alpha = 0.3f;
-        }
+        //if (effects & EF_SPHERETRANS) {
+        //    ent.flags |= RF_TRANSLUCENT;
+        //    if (effects & EF_TRACKERTRAIL)
+        //        ent.alpha = 0.6f;
+        //    else
+        //        ent.alpha = 0.3f;
+        //}
 
         ent.flags |= base_entity_flags;
 
@@ -780,8 +837,8 @@ static void CL_AddPacketEntities(void)
 				origin[2] += offset;
 
 				V_AddSphereLight(origin, 500.f, 1.6f * brightness, 1.0f * brightness, 0.2f * brightness, 5.f);
-                    }
-                }
+            }
+        }
 
         // color shells generate a separate entity for the main model
         if ((effects & EF_COLOR_SHELL) && cls.ref_type != REF_TYPE_VKPT) {

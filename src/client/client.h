@@ -734,6 +734,7 @@ void V_AddParticle(particle_t *p);
 void V_AddLight(const vec3_t org, float intensity, float r, float g, float b);
 void V_AddSphereLight(const vec3_t org, float intensity, float r, float g, float b, float radius);
 void V_AddSpotLight(const vec3_t org, const vec3_t dir, float intensity, float r, float g, float b, float width_angle, float falloff_angle);
+void V_AddSpotLightTexEmission( const vec3_t org, const vec3_t dir, float intensity, float r, float g, float b, float width_angle, qhandle_t emission_tex );
 void V_AddLightStyle(int style, float value);
 
 

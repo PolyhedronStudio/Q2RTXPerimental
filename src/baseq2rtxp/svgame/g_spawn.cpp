@@ -94,6 +94,7 @@ void SP_target_string(edict_t *ent);
 void SP_worldspawn(edict_t *ent);
 void SP_viewthing(edict_t *ent);
 
+void SP_spotlight(edict_t *self);
 void SP_light(edict_t *self);
 void SP_light_mine1(edict_t *ent);
 void SP_light_mine2(edict_t *ent);
@@ -213,6 +214,7 @@ static const spawn_func_t spawn_funcs[] = {
     {"worldspawn", SP_worldspawn},
     {"viewthing", SP_viewthing},
 
+	{"spotlight", SP_spotlight},
     {"light", SP_light},
     {"light_mine1", SP_light_mine1},
     {"light_mine2", SP_light_mine2},
@@ -276,6 +278,7 @@ static const spawn_func_t spawn_funcs[] = {
 };
 
 static const spawn_field_t spawn_fields[] = {
+	// ET_GENERIC:
     {"classname", FOFS(classname), F_LSTRING},
     {"model", FOFS(model), F_LSTRING},
     {"spawnflags", FOFS(spawnflags), F_INT},
@@ -299,7 +302,7 @@ static const spawn_field_t spawn_fields[] = {
     {"count", FOFS(count), F_INT},
     {"health", FOFS(health), F_INT},
     {"sounds", FOFS(sounds), F_INT},
-    {"light", 0, F_IGNORE},
+    {"light", FOFS(light), F_FLOAT},
     {"dmg", FOFS(dmg), F_INT},
     {"mass", FOFS(mass), F_INT},
     {"volume", FOFS(volume), F_FLOAT},
@@ -308,6 +311,7 @@ static const spawn_field_t spawn_fields[] = {
     {"origin", FOFS(s.origin), F_VECTOR},
     {"angles", FOFS(s.angles), F_VECTOR},
     {"angle", FOFS(s.angles), F_ANGLEHACK},
+
 
     {NULL}
 };

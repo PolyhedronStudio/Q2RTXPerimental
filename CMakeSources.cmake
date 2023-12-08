@@ -140,6 +140,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/g_ptrs.cpp
 	baseq2rtxp/svgame/g_save.cpp
 	baseq2rtxp/svgame/g_spawn.cpp
+	baseq2rtxp/svgame/g_spotlight.cpp
 	baseq2rtxp/svgame/g_svcmds.cpp
 	baseq2rtxp/svgame/g_target.cpp
 	baseq2rtxp/svgame/g_trigger.cpp
