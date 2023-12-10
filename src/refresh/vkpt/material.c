@@ -201,6 +201,7 @@ static struct MaterialKind {
 	{"INVISIBLE", MATERIAL_KIND_INVISIBLE},
 	{"SCREEN", MATERIAL_KIND_SCREEN},
 	{"CAMERA", MATERIAL_KIND_CAMERA},
+	{"UNLIT", MATERIAL_KIND_UNLIT},
 };
 
 static int nMaterialKinds = sizeof(materialKinds) / sizeof(struct MaterialKind);

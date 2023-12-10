@@ -69,6 +69,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define MATERIAL_KIND_CAMERA         0xc0000000
 #define MATERIAL_KIND_CHROME_MODEL   0xd0000000
 #define MATERIAL_KIND_TRANSP_MODEL   0xe0000000 // Transparent models. No distortion, just "see through".
+// WID: MAT_UNLIT
+#define MATERIAL_KIND_UNLIT			 0xf0000000 // Unlit material.
 
 #define MATERIAL_FLAG_LIGHT          0x08000000
 #define MATERIAL_FLAG_HANDEDNESS     0x02000000

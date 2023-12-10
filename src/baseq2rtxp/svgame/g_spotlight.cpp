@@ -157,15 +157,15 @@ void SP_spotlight( edict_t *self ) {
 	self->s.entityType = ET_SPOTLIGHT;
 	self->classname = "spotlight";
 	self->s.effects |= EF_SPOTLIGHT;
-//
-	//self->solid = SOLID_BBOX;
-	//self->movetype = MOVETYPE_STEP;
-	self->s.skinnum = MakeColor( 255, 0, 0, 255 );
-	self->s.frame = self->light;
-	//self->model = "models/objects/barrels/tris.md2";
-	//self->s.modelindex = gi.modelindex( self->model );
-	VectorSet( self->mins, -16, -16, 0 );
-	VectorSet( self->maxs, 16, 16, 40 );
+////
+//	//self->solid = SOLID_BBOX;
+//	//self->movetype = MOVETYPE_STEP;
+//	self->s.skinnum = MakeColor( 255, 0, 0, 255 );
+//	self->s.frame = self->light;
+//	//self->model = "models/objects/barrels/tris.md2";
+//	//self->s.modelindex = gi.modelindex( self->model );
+//	VectorSet( self->mins, -16, -16, 0 );
+//	VectorSet( self->maxs, 16, 16, 40 );
 
 	//if ( !self->mass )
 	//	self->mass = 400;

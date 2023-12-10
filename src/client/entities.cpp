@@ -445,7 +445,7 @@ void CL_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state_
 	AngleVectors( ent->angles, view_dir, right_dir, up_dir );
 
 	//// Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
-	V_AddSpotLight( ent->origin, view_dir, lightIntensity, rgb[ 0 ], rgb[ 1 ], rgb[ 2 ], s1->angle_width, s1->angle_falloff );
+	V_AddSpotLight( ent->origin, view_dir, lightIntensity, rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2, s1->angle_width, s1->angle_falloff );
 
 
 	////

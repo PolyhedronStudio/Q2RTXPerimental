@@ -245,6 +245,12 @@ is_camera(uint material)
 	return (material & MATERIAL_KIND_MASK) == MATERIAL_KIND_CAMERA;
 }
 
+// WID: MAT_UNLIT
+bool
+is_unlit( uint material ) {
+	return ( material & MATERIAL_KIND_MASK ) == MATERIAL_KIND_UNLIT;
+}
+
 vec3
 correct_emissive(uint material_id, vec3 emissive)
 {
