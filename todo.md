@@ -7,7 +7,9 @@
 * [ ] Add and 'Wire'/'Netcode' the specific entity type an entity is.
 * [ ] Currently svc_layout is sending 'large' strings, we can avoid doing so and just send minimal info now that
 the Client Game is made aware of the Gamemode we're in._
-* [ ] Create 'Spotlight' entities for the currently unused SPOTLIGHT features of the RTX renderer. (Ok, the client-side 'flashlight' makes use of it.)
+* [X] Create 'Spotlight' entities for the currently unused SPOTLIGHT features of the RTX renderer. (Ok, the client-side 'flashlight' makes use of it.)
+* [ ] Add the 'Spotlight' entity to the Q2RTXPerimental Trenchbroom package.
+
 #### CMake:
 * [ ] Nothing for now.
 #### Shared:
@@ -17,8 +19,8 @@ the Client Game is made aware of the Gamemode we're in._
 #### Net Code:
 * [ ] Nothing for now.
 #### Refresh(VKPT):
-* [ ] ?? Cpp-ify **VKPT** after all, this'll allow for more ``Cpp-ification`` ??
-* [ ] Allow support for ``RF_NOSHADOW``.
+* [X] Allow support for ``RF_NOSHADOW``.
+* [X] Allow support for ``UNLIT`` materials.
 #### Server:
 * [ ] Nothing for now.
 
