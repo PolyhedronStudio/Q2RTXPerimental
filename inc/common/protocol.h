@@ -220,7 +220,7 @@ typedef enum {
 #define U_MODEL3		(1<<16)
 #define U_MODEL4		(1<<17)
 #define U_ENTITY_TYPE	(1<<18)		// TODO: Move to other bit location.
-#define U_SPOTLIGHT_RGBA		(1<<19)
+#define U_SPOTLIGHT_RGB		(1<<19)
 #define U_SPOTLIGHT_INTENSITY	(1<<20)
 #define U_SPOTLIGHT_ANGLE_WIDTH	(1<<21)
 #define U_SPOTLIGHT_ANGLE_FALLOFF (1<<22)

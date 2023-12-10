@@ -142,5 +142,22 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		// WID: upgr-solid: ReadLong by default.
 		to->solid = MSG_ReadUintBase128( );
 	}
+
+	// START ET_SPOTLIGHT:
+	if ( bits & U_SPOTLIGHT_RGB ) {
+		to->rgb[ 0 ] = MSG_ReadUint8( );
+		to->rgb[ 1 ] = MSG_ReadUint8( );
+		to->rgb[ 2 ] = MSG_ReadUint8( );
+	}
+	if ( bits & U_SPOTLIGHT_INTENSITY ) {
+		to->intensity = MSG_ReadHalfFloat( );
+	}
+	if ( bits & U_SPOTLIGHT_ANGLE_FALLOFF ) {
+		to->angle_falloff = MSG_ReadHalfFloat( );
+	}
+	if ( bits & U_SPOTLIGHT_ANGLE_WIDTH ) {
+		to->angle_width = MSG_ReadHalfFloat( );
+	}
+	// END ET_SPOTLIGHT.
 }
 #endif // USE_CLIENT

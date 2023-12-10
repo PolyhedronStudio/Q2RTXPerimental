@@ -61,6 +61,14 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_
 	out->frame = in->frame;
 	out->sound = in->sound;
 	out->event = in->event;
+
+	// ET_SPOTLIGHT:
+	out->rgb[ 0 ] = in->rgb[ 0 ];
+	out->rgb[ 1 ] = in->rgb[ 1 ];
+	out->rgb[ 2 ] = in->rgb[ 2 ];
+	out->intensity = in->intensity;
+	out->angle_falloff = in->angle_falloff;
+	out->angle_width = in->angle_width;
 }
 
 /**
@@ -184,6 +192,24 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 		}
 	}
 
+
+	// START ET_SPOTLIGHT:
+	if ( to->rgb[ 0 ] != from->rgb[ 0 ]
+		 || to->rgb[ 1 ] != from->rgb[ 1 ]
+		 || to->rgb[ 2 ] != from->rgb[ 2 ] ) {
+		bits |= U_SPOTLIGHT_RGB;
+	}
+	if ( to->intensity != from->intensity ) {
+		bits |= U_SPOTLIGHT_INTENSITY;
+	}
+	if ( to->angle_falloff != from->angle_falloff ) {
+		bits |= U_SPOTLIGHT_ANGLE_FALLOFF;
+	}
+	if ( to->angle_width != from->angle_width ) {
+		bits |= U_SPOTLIGHT_ANGLE_WIDTH;
+	}
+	// END ET_SPOTLIGHT
+
 	//
 	// write the message
 	//
@@ -255,4 +281,21 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 		// WID: upgr-solid: WriteLong by default.
 		MSG_WriteUintBase128( to->solid.u );
 	}
+
+	// START ET_SPOTLIGHT:
+	if ( bits & U_SPOTLIGHT_RGB ) {
+		MSG_WriteUint8( to->rgb[ 0 ] );
+		MSG_WriteUint8( to->rgb[ 1 ] );
+		MSG_WriteUint8( to->rgb[ 2 ] );
+	}
+	if ( bits & U_SPOTLIGHT_INTENSITY ) {
+		MSG_WriteHalfFloat( to->intensity );
+	}
+	if ( bits & U_SPOTLIGHT_ANGLE_FALLOFF ) {
+		MSG_WriteHalfFloat( to->angle_falloff );
+	}
+	if ( bits & U_SPOTLIGHT_ANGLE_WIDTH ) {
+		MSG_WriteHalfFloat( to->angle_width );
+	}
+	// END ET_SPOTLIGHT.
 }

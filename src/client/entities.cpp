@@ -428,21 +428,24 @@ void CL_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state_
 	// 
 	// Extract color from skin number.
 	vec3_t rgb = { 1.f, 1.f, 1.f };
-	if ( s1->skinnum != 0 ) {
-		rgb[ 0 ] = ( s1->skinnum >> ( 8 * 0 ) ) & 0xff;
-		rgb[ 1 ] = ( s1->skinnum >> ( 8 * 1 ) ) & 0xff;
-		rgb[ 2 ] = ( s1->skinnum >> ( 8 * 2 ) ) & 0xff;
-	}
+	//if ( s1->skinnum != 0 ) {
+	//	rgb[ 0 ] = ( s1->skinnum >> ( 8 * 0 ) ) & 0xff;
+	//	rgb[ 1 ] = ( s1->skinnum >> ( 8 * 1 ) ) & 0xff;
+	//	rgb[ 2 ] = ( s1->skinnum >> ( 8 * 2 ) ) & 0xff;
+	//}
+	rgb[ 0 ] = ( 1.0f / 255.f ) * s1->rgb[ 0 ];
+	rgb[ 1 ] = ( 1.0f / 255.f ) * s1->rgb[ 1 ];
+	rgb[ 2 ] = ( 1.0f / 255.f ) * s1->rgb[ 2 ];
 
 	// Extract light intensity from "frame".
-	float lightIntensity = s1->frame;
+	float lightIntensity = s1->intensity;// s1->frame;
 
 	// Calculate view direction based on angles.
 	vec3_t view_dir, right_dir, up_dir;
 	AngleVectors( ent->angles, view_dir, right_dir, up_dir );
 
 	//// Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
-	V_AddSpotLight( ent->origin, view_dir, lightIntensity, rgb[ 0 ], rgb[ 1 ], rgb[ 2 ], 15, 0 );
+	V_AddSpotLight( ent->origin, view_dir, lightIntensity, rgb[ 0 ], rgb[ 1 ], rgb[ 2 ], s1->angle_width, s1->angle_falloff );
 
 
 	////

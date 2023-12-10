@@ -73,7 +73,7 @@ extern "C" {
 		uint8_t     event;
 
 		// Spotlights
-		vec3_t rgba;
+		vec3_t rgb;
 		float intensity;
 		float angle_width;
 		float angle_falloff;
