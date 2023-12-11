@@ -56,6 +56,7 @@ extern "C" {
 	**/
 	typedef struct {
 		uint16_t    number;
+		uint8_t		entityType;
 		vec3_t		origin;//int16_t     origin[3]; // WID: float-movement
 		int16_t		angles[3]; // WID: float-movement
 		vec3_t		old_origin; //int16_t     old_origin[3]; // WID: float-movement
@@ -70,6 +71,12 @@ extern "C" {
 		uint16_t    frame;
 		uint16_t    sound;
 		uint8_t     event;
+
+		// Spotlights
+		vec3_t rgb;
+		float intensity;
+		float angle_width;
+		float angle_falloff;
 	} entity_packed_t;
 
 	/**
@@ -89,7 +96,7 @@ extern "C" {
 		uint8_t         blend[4];
 		uint8_t         fov;
 		uint8_t         rdflags;
-		int16_t         stats[MAX_STATS];
+		int32_t         stats[MAX_STATS];
 	} player_packed_t;
 
 	//! Extern access to the 'NULL Baseline' states of entity, player, and user commands.

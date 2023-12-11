@@ -1228,6 +1228,7 @@ struct edict_s {
     int         dmg;
     int         radius_dmg;
     float       dmg_radius;
+	float		light;
     int         sounds;         // make this a spawntemp var?
     int         count;
 

@@ -94,6 +94,7 @@ void SP_target_string(edict_t *ent);
 void SP_worldspawn(edict_t *ent);
 void SP_viewthing(edict_t *ent);
 
+void SP_spotlight(edict_t *self);
 void SP_light(edict_t *self);
 void SP_light_mine1(edict_t *ent);
 void SP_light_mine2(edict_t *ent);
@@ -213,6 +214,7 @@ static const spawn_func_t spawn_funcs[] = {
     {"worldspawn", SP_worldspawn},
     {"viewthing", SP_viewthing},
 
+	{"spotlight", SP_spotlight},
     {"light", SP_light},
     {"light_mine1", SP_light_mine1},
     {"light_mine2", SP_light_mine2},
@@ -276,38 +278,44 @@ static const spawn_func_t spawn_funcs[] = {
 };
 
 static const spawn_field_t spawn_fields[] = {
-    {"classname", FOFS(classname), F_LSTRING},
-    {"model", FOFS(model), F_LSTRING},
-    {"spawnflags", FOFS(spawnflags), F_INT},
-    {"speed", FOFS(speed), F_FLOAT},
-    {"accel", FOFS(accel), F_FLOAT},
-    {"decel", FOFS(decel), F_FLOAT},
-    {"target", FOFS(target), F_LSTRING},
-    {"targetname", FOFS(targetname), F_LSTRING},
-    {"pathtarget", FOFS(pathtarget), F_LSTRING},
-    {"deathtarget", FOFS(deathtarget), F_LSTRING},
-    {"killtarget", FOFS(killtarget), F_LSTRING},
-    {"combattarget", FOFS(combattarget), F_LSTRING},
-    {"message", FOFS(message), F_LSTRING},
-    {"team", FOFS(team), F_LSTRING},
-    {"wait", FOFS(wait), F_FLOAT},
-    {"delay", FOFS(delay), F_FLOAT},
-    {"random", FOFS(random), F_FLOAT},
-    {"move_origin", FOFS(move_origin), F_VECTOR},
-    {"move_angles", FOFS(move_angles), F_VECTOR},
-    {"style", FOFS(style), F_INT},
-    {"count", FOFS(count), F_INT},
-    {"health", FOFS(health), F_INT},
-    {"sounds", FOFS(sounds), F_INT},
-    {"light", 0, F_IGNORE},
-    {"dmg", FOFS(dmg), F_INT},
-    {"mass", FOFS(mass), F_INT},
-    {"volume", FOFS(volume), F_FLOAT},
-    {"attenuation", FOFS(attenuation), F_FLOAT},
-    {"map", FOFS(map), F_LSTRING},
-    {"origin", FOFS(s.origin), F_VECTOR},
-    {"angles", FOFS(s.angles), F_VECTOR},
-    {"angle", FOFS(s.angles), F_ANGLEHACK},
+	// ET_GENERIC:
+	{"classname", FOFS( classname ), F_LSTRING},
+	{"model", FOFS( model ), F_LSTRING},
+	{"spawnflags", FOFS( spawnflags ), F_INT},
+	{"speed", FOFS( speed ), F_FLOAT},
+	{"accel", FOFS( accel ), F_FLOAT},
+	{"decel", FOFS( decel ), F_FLOAT},
+	{"target", FOFS( target ), F_LSTRING},
+	{"targetname", FOFS( targetname ), F_LSTRING},
+	{"pathtarget", FOFS( pathtarget ), F_LSTRING},
+	{"deathtarget", FOFS( deathtarget ), F_LSTRING},
+	{"killtarget", FOFS( killtarget ), F_LSTRING},
+	{"combattarget", FOFS( combattarget ), F_LSTRING},
+	{"message", FOFS( message ), F_LSTRING},
+	{"team", FOFS( team ), F_LSTRING},
+	{"wait", FOFS( wait ), F_FLOAT},
+	{"delay", FOFS( delay ), F_FLOAT},
+	{"random", FOFS( random ), F_FLOAT},
+	{"move_origin", FOFS( move_origin ), F_VECTOR},
+	{"move_angles", FOFS( move_angles ), F_VECTOR},
+	{"style", FOFS( style ), F_INT},
+	{"count", FOFS( count ), F_INT},
+	{"health", FOFS( health ), F_INT},
+	{"sounds", FOFS( sounds ), F_INT},
+	{"light", FOFS( light ), F_FLOAT},
+	{"dmg", FOFS( dmg ), F_INT},
+	{"mass", FOFS( mass ), F_INT},
+	{"volume", FOFS( volume ), F_FLOAT},
+	{"attenuation", FOFS( attenuation ), F_FLOAT},
+	{"map", FOFS( map ), F_LSTRING},
+	{"origin", FOFS( s.origin ), F_VECTOR},
+	{"angles", FOFS( s.angles ), F_VECTOR},
+	{"angle", FOFS( s.angles ), F_ANGLEHACK},
+
+	{"rgb", FOFS( s.rgb ), F_VECTOR},
+	{"intensity", FOFS( s.intensity ), F_FLOAT},
+	{"angle_width", FOFS( s.angle_width ), F_FLOAT},
+	{"angle_falloff", FOFS( s.angle_falloff ), F_FLOAT},
 
     {NULL}
 };

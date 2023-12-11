@@ -408,7 +408,8 @@ main()
 	}
 
 	// Replace the material light style with medium
-	material_id = (material_id & ~MATERIAL_LIGHT_STYLE_MASK) | (global_ubo.medium << MATERIAL_LIGHT_STYLE_SHIFT) & MATERIAL_LIGHT_STYLE_MASK;
+	if ( !is_unlit( material_id ) ) // WID: MAT_UNLIT
+		material_id = (material_id & ~MATERIAL_LIGHT_STYLE_MASK) | (global_ubo.medium << MATERIAL_LIGHT_STYLE_SHIFT) & MATERIAL_LIGHT_STYLE_MASK;
 
 	if ((material_id & MATERIAL_FLAG_WEAPON) != 0)
 		checkerboard_flags |= CHECKERBOARD_FLAG_WEAPON;

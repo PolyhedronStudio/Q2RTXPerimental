@@ -580,7 +580,6 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
     case F_VECTOR:
         write_vector(f, (vec_t *)p);
         break;
-
     case F_ZSTRING:
         write_string(f, (char *)p);
         break;
@@ -802,7 +801,6 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
     case F_VECTOR:
         read_vector(ctx->f, (vec_t *)p);
         break;
-
     case F_LSTRING:
         *(char **)p = read_string(ctx->f);
         break;

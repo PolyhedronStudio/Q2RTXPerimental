@@ -217,14 +217,14 @@ typedef enum {
 #define U_MODEL2	(1<<15)			//
 
 // third byte
-#define U_MODEL3	(1<<16)
-#define U_MODEL4	(1<<17)
-#define U_UNUSED47	(1<<18)
-#define U_UNUSED42	(1<<19)
-#define U_UNUSED43	(1<<20)
-#define U_UNUSED44	(1<<21)
-#define U_UNUSED45	(1<<22)
-#define U_UNUSED46	(1<<23)
+#define U_MODEL3		(1<<16)
+#define U_MODEL4		(1<<17)
+#define U_ENTITY_TYPE	(1<<18)		// TODO: Move to other bit location.
+#define U_SPOTLIGHT_RGB		(1<<19)
+#define U_SPOTLIGHT_INTENSITY	(1<<20)
+#define U_SPOTLIGHT_ANGLE_WIDTH	(1<<21)
+#define U_SPOTLIGHT_ANGLE_FALLOFF (1<<22)
+#define U_UNUSED46		(1<<23)
 
 // fourth byte
 #define U_UNUSED2	(1<<24)

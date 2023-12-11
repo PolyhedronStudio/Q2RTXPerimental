@@ -53,7 +53,8 @@ indirect_lighting(
 
 	// don't compute lighting for invalid surfaces;
 	// don't compute lighting for lava because it's emissive and self-illuminating, which causes issues with the filters
-	if(material_id == 0 || is_lava(material_id))
+	// WID: MAT_UNLIT: don't compute lighting for MAT_UNLIT types either.
+	if( material_id == 0 || is_lava( material_id ) || is_unlit( material_id ) )
 	{
 		bounce_direction = vec3(0);
 		bounce_contrib = vec3(0);

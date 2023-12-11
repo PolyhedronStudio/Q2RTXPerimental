@@ -21,16 +21,20 @@ enum fieldtype_t : int32_t {
 	F_INT,
 	F_BOOL,
 	F_FLOAT,
+
 	F_LSTRING,          // string on disk, pointer in memory, TAG_SVGAME_LEVEL
 	F_GSTRING,          // string on disk, pointer in memory, TAG_SVGAME
 	F_ZSTRING,          // string on disk, string in memory
+
 	F_VECTOR,
 	F_ANGLEHACK,
+
 	F_EDICT,            // index on disk, pointer in memory
 	F_ITEM,             // index on disk, pointer in memory
 	F_CLIENT,           // index on disk, pointer in memory
 	F_FUNCTION,
 	F_POINTER,
+
 	F_IGNORE,
 
 	// WID: This was from Q2RTX 1.7.0

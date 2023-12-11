@@ -23,6 +23,7 @@
 * Added RF_OLD_FRAME_LERP support: ``[Paril-KEX] force model to lerp from oldframe in entity state; otherwise it uses last frame client received``
 * Added support for monster 'step' Z-Axis lerping when RenderFlag ``RF_STAIR_STEP`` is set.
 * Added support to lerp from old entity state frame when RenderFlag ``RF_OLD_FRAME_LERP`` is set.
+* ``EF_SPOTLIGHT`` support.
 
 ### Net Code:
 * Uses its own protocol, partially based on Q2 Protocol #34 and Q2PRO its own. This supports proper fragmenting, allowing for far more in-vis entities to be transfered over ``The Wire``. This does come with the drawback of needing a proper ``25ms`` ping in order to have a smooth gameplay flow.
@@ -33,6 +34,7 @@
 ### Refresh(VKPT):
 * BSP maps compiled with ``texinfos`` such as: ``textures/test/01.tga`` now will load with their proper dimensions, meaning one does not need low-res .wal textures to substitute for any of these.
 * RF_NOSHADOW is now respected for both, regular and brush entities.
+* Added "UNLIT" material type. Example of use would be to use it for where a ``spotlight`` entity emits from.
 
 ## Q2RTXPerimental Game Changes:
 ### Server Game:
@@ -40,6 +42,7 @@
 * AI now has the option to run at ``tick rate``(defaults to ``40hz``), when the ``AI_HIGH_TICK_RATE`` flag is set.
 * Guns can operate at a varying tick rate, default is ``10hz``
 * Brush Triggers can now be set a spawnflag to trigger only when actually clipping with the trigger brush.
+* Very rough and basic ``Spotlight`` entity.
 
 ### Client Game:
 * Currently nothing strictly of its own, only the SharedGame PlayerMove code.

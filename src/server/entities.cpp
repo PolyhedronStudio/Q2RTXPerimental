@@ -380,7 +380,7 @@ void SV_BuildClientFrame(client_t *client)
                         }
                     }
 
-                    if (!ent->s.modelindex) {
+                    if ( !ent->s.modelindex && !( ent->s.effects & EF_SPOTLIGHT ) ) {
                         // don't send sounds if they will be attenuated away
                         vec3_t    delta;
                         float    len;
