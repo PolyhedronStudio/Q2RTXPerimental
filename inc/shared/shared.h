@@ -1556,7 +1556,7 @@ typedef struct {
 
     int32_t rdflags;        // refdef flags
 
-    int16_t stats[MAX_STATS];       // fast status bar updates
+    int32_t stats[MAX_STATS];       // fast status bar updates
 } player_state_t;
 
 // WID: C++20: In case of C++ including this..

@@ -423,47 +423,27 @@ DYNLIGHT ENTITY SUPPORT:
 ==========================================================================
 */
 void CL_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state_t *s1 ) {
-	//
-	// First Attempt that works:
-	// 
-	// Extract color from skin number.
+	// Calculate RGB vector.
 	vec3_t rgb = { 1.f, 1.f, 1.f };
-	//if ( s1->skinnum != 0 ) {
-	//	rgb[ 0 ] = ( s1->skinnum >> ( 8 * 0 ) ) & 0xff;
-	//	rgb[ 1 ] = ( s1->skinnum >> ( 8 * 1 ) ) & 0xff;
-	//	rgb[ 2 ] = ( s1->skinnum >> ( 8 * 2 ) ) & 0xff;
-	//}
 	rgb[ 0 ] = ( 1.0f / 255.f ) * s1->rgb[ 0 ];
 	rgb[ 1 ] = ( 1.0f / 255.f ) * s1->rgb[ 1 ];
 	rgb[ 2 ] = ( 1.0f / 255.f ) * s1->rgb[ 2 ];
 
 	// Extract light intensity from "frame".
-	float lightIntensity = s1->intensity;// s1->frame;
+	float lightIntensity = s1->intensity;
 
-	// Calculate view direction based on angles.
+	// Calculate the spotlight's view direction based on set euler angles.
 	vec3_t view_dir, right_dir, up_dir;
 	AngleVectors( ent->angles, view_dir, right_dir, up_dir );
 
-	//// Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
-	V_AddSpotLight( ent->origin, view_dir, lightIntensity, rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2, s1->angle_width, s1->angle_falloff );
+	// Add the spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
+	V_AddSpotLight( ent->origin, view_dir, lightIntensity, 
+					// TODO: Multiply the RGB?
+					rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2, 
+					s1->angle_width, s1->angle_falloff );
 
-
-	////
-	//// Second Attempt: Target the player origin.
-	//// 
-	////vec3_t view_dir, right_dir, up_dir;
-	////AngleVectors( ent.angles, view_dir, right_dir, up_dir );
-	//vec3_t view_dir;
-	//VectorSubtract( ent->origin, cl.playerEntityOrigin, view_dir );
-	////float x = view_dir[0];
-	////float z = view_dir[2];
-	////view_dir[0] = z;
-	////view_dir[2] = x;
-	//VectorNormalize( view_dir );
-
-	//// Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
+	// Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
 	//V_AddSpotLight( ent->origin, view_dir, 225.0, 1.f, 0.1f, 0.1f, 45, 0 );
-
 	//V_AddSphereLight( ent.origin, 500.f, 1.6f, 1.0f, 0.2f, 10.f );
 	//V_AddSpotLightTexEmission( light_pos, view_dir, cl_flashlight_intensity->value, 1.f, 1.f, 1.f, 90.0f, flashlight_profile_tex );
 }

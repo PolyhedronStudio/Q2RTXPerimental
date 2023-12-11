@@ -96,7 +96,7 @@ extern "C" {
 		uint8_t         blend[4];
 		uint8_t         fov;
 		uint8_t         rdflags;
-		int16_t         stats[MAX_STATS];
+		int32_t         stats[MAX_STATS];
 	} player_packed_t;
 
 	//! Extern access to the 'NULL Baseline' states of entity, player, and user commands.
