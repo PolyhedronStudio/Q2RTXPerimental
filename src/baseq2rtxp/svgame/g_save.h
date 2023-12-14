@@ -19,6 +19,7 @@ enum fieldtype_t : int32_t {
 	F_BYTE,
 	F_SHORT,
 	F_INT,
+
 	F_BOOL,
 	F_FLOAT,
 

@@ -64,6 +64,8 @@ typedef struct {
 #define E(name) _F(F_EDICT, name)
 #define P(name, type) _FA(F_POINTER, name, type)
 #define FT(name) _F(F_FRAMETIME, name)
+#define I64A(name, size) _FA(F_INT64, name, size)
+#define I64(name) IA(name, 1)
 
 static const save_field_t entityfields[] = {
 #define _OFS FOFS
@@ -98,13 +100,13 @@ static const save_field_t entityfields[] = {
     I(flags),
 
     L(model),
-    F(freetime),
+	I64(freetime), // WID: 64-bit-frame
 
     L(message),
     L(classname),
     I(spawnflags),
 
-    FT(timestamp),
+	I64( timestamp ), // WID: 64-bit-frame FT(timestamp),
 
     L(target),
     L(targetname),
@@ -125,7 +127,7 @@ static const save_field_t entityfields[] = {
     V(velocity),
     V(avelocity),
     I(mass),
-    FT(air_finished_time),
+	I64( air_finished_time ), // WID: 64-bit-frame FT(air_finished_time), FT(air_finished_time),
     F(gravity),
 
     E(goalentity),
@@ -142,11 +144,11 @@ static const save_field_t entityfields[] = {
     P(pain, P_pain),
     P(die, P_die),
 
-    FT(touch_debounce_time),
-    FT(pain_debounce_time),
-    FT(damage_debounce_time),
-    FT(fly_sound_debounce_time),
-    FT(last_move_time),
+	I64( touch_debounce_time ),		// WID: 64-bit-frame FT(touch_debounce_time),
+	I64( pain_debounce_time ),		// WID: 64-bit-frame FT(pain_debounce_time),
+	I64( damage_debounce_time ),	// WID: 64-bit-frame FT(damage_debounce_time),
+	I64( fly_sound_debounce_time ),	// WID: 64-bit-frame FT(fly_sound_debounce_time),
+	I64( last_move_time ),			// WID: 64-bit-frame FT(last_move_time),
 
     I(health),
     I(max_health),
@@ -154,7 +156,7 @@ static const save_field_t entityfields[] = {
     I(deadflag),
     F(show_hostile),
 
-    FT(powerarmor_time),
+    I64(powerarmor_time), // WID: 64-bit-frame
 
     L(map),
 
@@ -187,7 +189,7 @@ static const save_field_t entityfields[] = {
     F(delay),
     F(random),
 
-    FT(last_sound_time),
+	I64( last_sound_time ), // WID: 64-bit-frame  FT(last_sound_time),
 
     I(watertype),
     I(waterlevel),
@@ -229,7 +231,7 @@ static const save_field_t entityfields[] = {
     P(monsterinfo.currentmove, P_monsterinfo_currentmove),
 	P(monsterinfo.nextmove, P_monsterinfo_nextmove ),
     I(monsterinfo.aiflags),
-    I(monsterinfo.nextframe),
+	I64( monsterinfo.nextframe ), // WID: 64-bit-frame
     F(monsterinfo.scale),
 
     P(monsterinfo.stand, P_monsterinfo_stand),
@@ -243,16 +245,16 @@ static const save_field_t entityfields[] = {
     P(monsterinfo.sight, P_monsterinfo_sight),
     P(monsterinfo.checkattack, P_monsterinfo_checkattack),
 
-    FT(monsterinfo.pause_time),
-    FT(monsterinfo.attack_finished),
+	I64( monsterinfo.pause_time ),// WID: 64-bit-frame FT(monsterinfo.pause_time),
+	I64( monsterinfo.attack_finished ),// WID: 64-bit-frame FT(monsterinfo.attack_finished),
 
     V(monsterinfo.saved_goal),
-    FT(monsterinfo.search_time),
-    FT(monsterinfo.trail_time),
+	I64( monsterinfo.search_time ),// WID: 64-bit-frame FT(monsterinfo.search_time),
+	I64( monsterinfo.search_time ),// WID: 64-bit-frame FT(monsterinfo.trail_time),
     V(monsterinfo.last_sighting),
     I(monsterinfo.attack_state),
     I(monsterinfo.lefty),
-    FT(monsterinfo.idle_time),
+	I64( monsterinfo.idle_time ),// WID: 64-bit-frame FT(monsterinfo.idle_time),
     I(monsterinfo.linkcount),
 
     I(monsterinfo.power_armor_type),
@@ -265,8 +267,8 @@ static const save_field_t entityfields[] = {
 
 static const save_field_t levelfields[] = {
 #define _OFS LLOFS
-    I(framenum),
-    F(time),
+	I64( framenum ),
+	I64( time ), // WID: 64-bit-frame
 
     SZ(level_name, MAX_QPATH),
     SZ(mapname, MAX_QPATH),
@@ -274,18 +276,18 @@ static const save_field_t levelfields[] = {
 
     FT(intermission_framenum),
     L(changemap),
-    I(exitintermission),
+    I(exitintermission), // WID: 64-bit-frame
     V(intermission_origin),
     V(intermission_angle),
 
     E(sight_client),
 
     E(sight_entity),
-    I(sight_entity_framenum),
+    I64(sight_entity_framenum), // WID: 64-bit-frame
     E(sound_entity),
-    I(sound_entity_framenum),
+    I64(sound_entity_framenum), // WID: 64-bit-frame
     E(sound2_entity),
-    I(sound2_entity_framenum),
+    I64(sound2_entity_framenum),// WID: 64-bit-frame
 
     I(pic_health),
 
@@ -390,42 +392,42 @@ static const save_field_t clientfields[] = {
     F(v_dmg_roll),
     F(v_dmg_pitch),
     F(v_dmg_time),
-    F(fall_time),
-    F(fall_value),
-    F(damage_alpha),
-    F(bonus_alpha),
-    V(damage_blend),
-    V(v_angle),
-    F(bobtime),
-    V(oldviewangles),
-    V(oldvelocity),
+	I64( fall_time ), // WID: 64-bit-frame
+	F( fall_value ),
+	F( damage_alpha ),
+	F( bonus_alpha ),
+	V( damage_blend ),
+	V( v_angle ),
+	F( bobtime ),
+	V( oldviewangles ),
+	V( oldvelocity ),
 
-    FT(next_drown_time),
-    I(old_waterlevel),
-    I(breather_sound),
+	FT( next_drown_time ),
+	I( old_waterlevel ),
+	I( breather_sound ),
 
-    I(machinegun_shots),
+	I( machinegun_shots ),
 
-    I(anim_end),
-    I(anim_priority),
-    O(anim_duck),
-    O(anim_run),
+	I( anim_end ),
+	I( anim_priority ),
+	O( anim_duck ),
+	O( anim_run ),
 
-    // powerup timers
-    FT(quad_time),
-    FT(invincible_time),
-    FT(breather_time),
-    FT(enviro_time),
+	// powerup timers
+	I64( quad_time ), // WID: 64-bit-frame
+	I64( invincible_time ), // WID: 64-bit-frame
+	I64( breather_time ), // WID: 64-bit-frame
+	I64( enviro_time ), // WID: 64-bit-frame
 
-    O(grenade_blew_up),
-    FT(grenade_time),
-    I(silencer_shots),
-    I(weapon_sound),
+	O( grenade_blew_up ),
+	I64( grenade_time ), // WID: 64-bit-frame
+	I( silencer_shots ),
+	I( weapon_sound ),
 
-    FT(pickup_msg_time),
+	I64( pickup_msg_time ), // WID: 64-bit-frame
 
 	// WID: C++20: Replaced {0}
-    {}
+	{}
 #undef _OFS
 };
 

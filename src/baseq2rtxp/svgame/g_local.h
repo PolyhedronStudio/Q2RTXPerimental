@@ -439,12 +439,12 @@ typedef struct {
 
     edict_t     *sight_client;  // changed once each frame for coop games
 
-    edict_t     *sight_entity;
-    int         sight_entity_framenum;
-    edict_t     *sound_entity;
-    int         sound_entity_framenum;
-    edict_t     *sound2_entity;
-    int         sound2_entity_framenum;
+    edict_t		*sight_entity;
+    int64_t		sight_entity_framenum;
+    edict_t		*sound_entity;
+	int64_t		sound_entity_framenum;
+    edict_t		*sound2_entity;
+	int64_t		sound2_entity_framenum;
 
     int         pic_health;
 
@@ -526,12 +526,12 @@ struct mframe_t {
     void    (*aifunc)(edict_t *self, float dist);
     float   dist = 0;
     void    (*thinkfunc)(edict_t *self);
-	int32_t lerp_frame = -1;
+	int64_t lerp_frame = -1;
 };
 
 typedef struct {
-    int         firstframe;
-    int         lastframe;
+    int64_t     firstframe;
+    int64_t     lastframe;
     mframe_t    *frame;
     void        (*endfunc)(edict_t *self);
 } mmove_t;
@@ -540,7 +540,7 @@ typedef struct {
     mmove_t     *currentmove;
 	mmove_t		*nextmove;
     int         aiflags;
-    int         nextframe;	// if next_move is set, this is ignored until a frame is ran
+    int64_t     nextframe;	// if next_move is set, this is ignored until a frame is ran
     float       scale;
 
     void        (*stand)(edict_t *self);
@@ -554,19 +554,19 @@ typedef struct {
     void        (*sight)(edict_t *self, edict_t *other);
     bool        (*checkattack)(edict_t *self);
 
-	sg_time_t		next_move_time; // high tick rate
+	sg_time_t	next_move_time; // high tick rate
 
-    sg_time_t		pause_time;
-    sg_time_t     attack_finished;
-	sg_time_t		fire_wait;
+    sg_time_t	pause_time;
+    sg_time_t	attack_finished;
+	sg_time_t	fire_wait;
 
     vec3_t      saved_goal;
-	sg_time_t		search_time;
-	sg_time_t		trail_time;
+	sg_time_t	search_time;
+	sg_time_t	trail_time;
     vec3_t      last_sighting;
     int         attack_state;
     int         lefty;
-    sg_time_t     idle_time;
+    sg_time_t	idle_time;
     int         linkcount;
 
     int         power_armor_type;
@@ -985,11 +985,11 @@ typedef struct {
 // client data that stays across deathmatch respawns
 typedef struct {
     client_persistant_t coop_respawn;   // what to set client->pers to on a respawn
-    int         enterframe;         // level.framenum the client entered the game
-    int         score;              // frags, etc
-    vec3_t      cmd_angles;         // angles sent over in the last command
+    int64_t enterframe;         // level.framenum the client entered the game
+    int score;              // frags, etc
+    vec3_t cmd_angles;         // angles sent over in the last command
 
-    bool        spectator;          // client is a spectator
+    bool spectator;          // client is a spectator
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
@@ -999,7 +999,7 @@ struct gclient_s {
     *	Known and Shared with the Server:
     /**/
     player_state_t  ps;             // communicated by server to clients
-    int             ping;
+    int64_t		ping;			// WID: 64-bit-frame
 
 	/**
     *	Private to game:
