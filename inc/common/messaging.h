@@ -396,9 +396,13 @@ extern "C" {
 	**/
 	const int32_t MSG_ReadInt32( void );
 	/**
-	*   @return Signed 32 bit int.
+	*   @return Signed 64 bit int.
 	**/
 	const int64_t MSG_ReadInt64( void );
+	/**
+	*   @return UnSigned 64 bit int.
+	**/
+	const uint64_t MSG_ReadUint64( void );
 	/**
 	*   @return Base 128 decoded unsigned integer.
 	**/

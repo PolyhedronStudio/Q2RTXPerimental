@@ -437,16 +437,31 @@ const int32_t MSG_ReadInt32( void ) {
 	return c;
 }
 /**
-*   @return Signed 32 bit int.
+*   @return Signed 64 bit int.
 **/
 const int64_t MSG_ReadInt64( void ) {
 	byte *buf = MSG_ReadData( 8 );
-	int c;
+	int64_t c;
 
 	if ( !buf ) {
 		c = -1;
 	} else {
 		c = (int64_t)RL64( buf );
+	}
+
+	return c;
+}
+/**
+*   @return UnSigned 64 bit int.
+**/
+const uint64_t MSG_ReadUint64( void ) {
+	byte *buf = MSG_ReadData( 8 );
+	uint64_t c;
+
+	if ( !buf ) {
+		c = -1;
+	} else {
+		c = (uint64_t)RL64( buf );
 	}
 
 	return c;
