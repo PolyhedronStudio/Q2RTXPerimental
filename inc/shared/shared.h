@@ -56,7 +56,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <ctime>
 #endif//__cplusplus
 
-
 #if HAVE_ENDIAN_H
 #include <endian.h>
 #endif
@@ -178,486 +177,47 @@ MATHLIB
 ==============================================================
 */
 
-typedef float vec_t;
-typedef vec_t vec2_t[2];
-typedef vec_t vec3_t[3];
-typedef vec_t vec4_t[4];
-typedef vec_t vec5_t[5];
+#include "shared/math/math.h"
 
-typedef vec_t quat_t[4];
+/*
+==============================================================
 
-typedef float mat4_t[16];
+BIT UTILITIES:
 
-typedef union {
-    uint32_t u32;
-    uint8_t u8[4];
-} color_t;
-
-typedef int fixed4_t;
-typedef int fixed8_t;
-typedef int fixed16_t;
-
-#ifndef M_PI
-#define M_PI        3.14159265358979323846  // matches value in gcc v2 math.h
-#endif
-
-struct cplane_s;
-
-extern const vec3_t vec3_origin;
-
-typedef struct vrect_s {
-    int             x, y, width, height;
-} vrect_t;
-
-#define DEG2RAD(a)      ((a) * (M_PI / 180))
-#define RAD2DEG(a)      ((a) * (180 / M_PI))
-
-#define ALIGN(x, a)     (((x) + (a) - 1) & ~((a) - 1))
-
-#define SWAP(type, a, b) \
-    do { type SWAP_tmp = a; a = b; b = SWAP_tmp; } while (0)
-
-#define DotProduct(x,y)         ((x)[0]*(y)[0]+(x)[1]*(y)[1]+(x)[2]*(y)[2])
-#define CrossProduct(v1,v2,cross) \
-        ((cross)[0]=(v1)[1]*(v2)[2]-(v1)[2]*(v2)[1], \
-         (cross)[1]=(v1)[2]*(v2)[0]-(v1)[0]*(v2)[2], \
-         (cross)[2]=(v1)[0]*(v2)[1]-(v1)[1]*(v2)[0])
-#define VectorSubtract(a,b,c) \
-        ((c)[0]=(a)[0]-(b)[0], \
-         (c)[1]=(a)[1]-(b)[1], \
-         (c)[2]=(a)[2]-(b)[2])
-#define VectorAdd(a,b,c) \
-        ((c)[0]=(a)[0]+(b)[0], \
-         (c)[1]=(a)[1]+(b)[1], \
-         (c)[2]=(a)[2]+(b)[2])
-#define VectorAdd3(a,b,c,d) \
-        ((d)[0]=(a)[0]+(b)[0]+(c)[0], \
-         (d)[1]=(a)[1]+(b)[1]+(c)[1], \
-         (d)[2]=(a)[2]+(b)[2]+(c)[2])
-#define VectorCopy(a,b)     ((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2])
-#define VectorClear(a)      ((a)[0]=(a)[1]=(a)[2]=0)
-#define VectorNegate(a,b)   ((b)[0]=-(a)[0],(b)[1]=-(a)[1],(b)[2]=-(a)[2])
-#define VectorInverse(a)    ((a)[0]=-(a)[0],(a)[1]=-(a)[1],(a)[2]=-(a)[2])
-#define VectorSet(v, x, y, z)   ((v)[0]=(x),(v)[1]=(y),(v)[2]=(z))
-#define VectorAvg(a,b,c) \
-        ((c)[0]=((a)[0]+(b)[0])*0.5f, \
-         (c)[1]=((a)[1]+(b)[1])*0.5f, \
-         (c)[2]=((a)[2]+(b)[2])*0.5f)
-#define VectorMA(a,b,c,d) \
-        ((d)[0]=(a)[0]+(b)*(c)[0], \
-         (d)[1]=(a)[1]+(b)*(c)[1], \
-         (d)[2]=(a)[2]+(b)*(c)[2])
-#define VectorVectorMA(a,b,c,d) \
-        ((d)[0]=(a)[0]+(b)[0]*(c)[0], \
-         (d)[1]=(a)[1]+(b)[1]*(c)[1], \
-         (d)[2]=(a)[2]+(b)[2]*(c)[2])
-#define VectorEmpty(v) ((v)[0]==0&&(v)[1]==0&&(v)[2]==0)
-#define VectorCompare(v1,v2)    ((v1)[0]==(v2)[0]&&(v1)[1]==(v2)[1]&&(v1)[2]==(v2)[2])
-#define VectorLength(v)     (sqrtf(DotProduct((v),(v))))
-#define VectorLengthSquared(v)      (DotProduct((v),(v)))
-#define VectorScale(in,scale,out) \
-        ((out)[0]=(in)[0]*(scale), \
-         (out)[1]=(in)[1]*(scale), \
-         (out)[2]=(in)[2]*(scale))
-#define VectorVectorScale(in,scale,out) \
-        ((out)[0]=(in)[0]*(scale)[0], \
-         (out)[1]=(in)[1]*(scale)[1], \
-         (out)[2]=(in)[2]*(scale)[2])
-#define DistanceSquared(v1,v2) \
-        (((v1)[0]-(v2)[0])*((v1)[0]-(v2)[0])+ \
-        ((v1)[1]-(v2)[1])*((v1)[1]-(v2)[1])+ \
-        ((v1)[2]-(v2)[2])*((v1)[2]-(v2)[2]))
-#define Distance(v1,v2) (sqrtf(DistanceSquared(v1,v2)))
-#define LerpAngles(a,b,c,d) \
-        ((d)[0]=LerpAngle((a)[0],(b)[0],c), \
-         (d)[1]=LerpAngle((a)[1],(b)[1],c), \
-         (d)[2]=LerpAngle((a)[2],(b)[2],c))
-#define LerpVector(a,b,c,d) \
-    ((d)[0]=(a)[0]+(c)*((b)[0]-(a)[0]), \
-     (d)[1]=(a)[1]+(c)*((b)[1]-(a)[1]), \
-     (d)[2]=(a)[2]+(c)*((b)[2]-(a)[2]))
-#define LerpVector2(a,b,c,d,e) \
-    ((e)[0]=(a)[0]*(c)+(b)[0]*(d), \
-     (e)[1]=(a)[1]*(c)+(b)[1]*(d), \
-     (e)[2]=(a)[2]*(c)+(b)[2]*(d))
-#define PlaneDiff(v,p)   (DotProduct(v,(p)->normal)-(p)->dist)
-
-#define Vector2Subtract(a,b,c)  ((c)[0]=(a)[0]-(b)[0],(c)[1]=(a)[1]-(b)[1])
-#define Vector2Add(a,b,c)       ((c)[0]=(a)[0]+(b)[0],(c)[1]=(a)[1]+(b)[1])
-
-#define Vector4Subtract(a,b,c)  ((c)[0]=(a)[0]-(b)[0],(c)[1]=(a)[1]-(b)[1],(c)[2]=(a)[2]-(b)[2],(c)[3]=(a)[3]-(b)[3])
-#define Vector4Add(a,b,c)       ((c)[0]=(a)[0]+(b)[0],(c)[1]=(a)[1]+(b)[1],(c)[2]=(a)[2]+(b)[2],(c)[3]=(a)[3]+(b)[3])
-#define Vector4Copy(a,b)        ((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2],(b)[3]=(a)[3])
-#define Vector4Clear(a)         ((a)[0]=(a)[1]=(a)[2]=(a)[3]=0)
-#define Vector4Negate(a,b)      ((b)[0]=-(a)[0],(b)[1]=-(a)[1],(b)[2]=-(a)[2],(b)[3]=-(a)[3])
-#define Vector4Set(v, a, b, c, d)   ((v)[0]=(a),(v)[1]=(b),(v)[2]=(c),(v)[3]=(d))
-#define Vector4Compare(v1,v2)    ((v1)[0]==(v2)[0]&&(v1)[1]==(v2)[1]&&(v1)[2]==(v2)[2]&&(v1)[3]==(v2)[3])
-#define Vector4MA(a,b,c,d) \
-        ((d)[0]=(a)[0]+(b)*(c)[0], \
-         (d)[1]=(a)[1]+(b)*(c)[1], \
-         (d)[2]=(a)[2]+(b)*(c)[2], \
-         (d)[3]=(a)[3]+(b)*(c)[3])
-
-#define QuatCopy(a,b)			((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2],(b)[3]=(a)[3])
-
-void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
-vec_t VectorNormalize(vec3_t v);        // returns vector length
-vec_t VectorNormalize2(const vec3_t v, vec3_t out);
-void ClearBounds(vec3_t mins, vec3_t maxs);
-void AddPointToBounds(const vec3_t v, vec3_t mins, vec3_t maxs);
-vec_t RadiusFromBounds(const vec3_t mins, const vec3_t maxs);
-void UnionBounds(const vec3_t a[2], const vec3_t b[2], vec3_t c[2]);
-
-static inline void AnglesToAxis(const vec3_t angles, vec3_t axis[3])
-{
-    AngleVectors(angles, axis[0], axis[1], axis[2]);
-    VectorInverse(axis[1]);
-}
-
-static inline void TransposeAxis(vec3_t axis[3])
-{
-    SWAP(vec_t, axis[0][1], axis[1][0]);
-    SWAP(vec_t, axis[0][2], axis[2][0]);
-    SWAP(vec_t, axis[1][2], axis[2][1]);
-}
-
-static inline void RotatePoint(vec3_t point, const vec3_t axis[3])
-{
-    vec3_t temp;
-
-    VectorCopy(point, temp);
-    point[0] = DotProduct(temp, axis[0]);
-    point[1] = DotProduct(temp, axis[1]);
-    point[2] = DotProduct(temp, axis[2]);
-}
-
-static inline unsigned npot32(unsigned k)
-{
-    if (k == 0)
-        return 1;
-
-    k--;
-    k = k | (k >> 1);
-    k = k | (k >> 2);
-    k = k | (k >> 4);
-    k = k | (k >> 8);
-    k = k | (k >> 16);
-
-    return k + 1;
-}
-
-static inline float LerpAngle(float a2, float a1, float frac)
-{
-    if (a1 - a2 > 180)
-        a1 -= 360;
-    if (a1 - a2 < -180)
-        a1 += 360;
-    return a2 + frac * (a1 - a2);
-}
-
-static inline const float AngleMod( float a ) {
-// Float based method:
-#if 1
-	float v = fmod( a, 360.0f );
-
-	if ( v < 0 )
-		return 360.f + v;
-
-	return v;
-#endif
-// Failed attempt:
-#if 0
-	return ( 360.0 / UINT64_MAX ) * ( (int64_t)( a * ( UINT64_MAX / 360.0 ) ) & UINT64_MAX );
-#endif
-// Old 'vanilla' method:
-#if 0
-	return (360.0 / 65536) * ((int32_t) (a * (65536 / 360.0)) & 65535);
-#endif
-}
-
-static inline int Q_align(int value, int align)
-{
-    int mod = value % align;
-    return mod ? value + align - mod : value;
-}
-
-static inline int Q_gcd(int a, int b)
-{
-    while (b != 0) {
-        int t = b;
-        b = a % b;
-        a = t;
-    }
-    return a;
-}
-
-void Q_srand(uint32_t seed);
-uint32_t Q_rand(void);
-uint32_t Q_rand_uniform(uint32_t n);
-
-#define clamp(a,b,c)    ((a)<(b)?(a)=(b):(a)>(c)?(a)=(c):(a))
-#define cclamp(a,b,c)   ((b)>(c)?clamp(a,c,b):clamp(a,b,c))
-
-// WID: C++20:
-//#ifdef __cplusplus
-//#define max std::max
-//#define min std::min
-//#else 
-#ifndef max
-#define max(a,b) ((a)>(b)?(a):(b))
-#endif
-
-#ifndef min
-#define min(a,b) ((a)<(b)?(a):(b))
-#endif
-//#endif
-
-#define frand()     ((int32_t)Q_rand() * 0x1p-32f + 0.5f)
-#define crand()     ((int32_t)Q_rand() * 0x1p-31f)
-
-#define Q_rint(x)   ((x) < 0 ? ((int)((x) - 0.5f)) : ((int)((x) + 0.5f)))
-
+==============================================================
+*/
 #define Q_IsBitSet(data, bit)   (((data)[(bit) >> 3] & (1 << ((bit) & 7))) != 0)
 #define Q_SetBit(data, bit)     ((data)[(bit) >> 3] |= (1 << ((bit) & 7)))
 #define Q_ClearBit(data, bit)   ((data)[(bit) >> 3] &= ~(1 << ((bit) & 7)))
 
+
+/*
+==============================================================
+
+STRING UTILITIES:
+
+==============================================================
+*/
+#include "shared/string_utilities.h"
+
+
+/*
+==============================================================
+
+ENDIAN UTILITIES:
+
+==============================================================
+*/
+#include "shared/endian.h"
 //=============================================
 
-// fast "C" macros
-#define Q_isupper(c)    ((c) >= 'A' && (c) <= 'Z')
-#define Q_islower(c)    ((c) >= 'a' && (c) <= 'z')
-#define Q_isdigit(c)    ((c) >= '0' && (c) <= '9')
-#define Q_isalpha(c)    (Q_isupper(c) || Q_islower(c))
-#define Q_isalnum(c)    (Q_isalpha(c) || Q_isdigit(c))
-#define Q_isprint(c)    ((c) >= 32 && (c) < 127)
-#define Q_isgraph(c)    ((c) > 32 && (c) < 127)
-#define Q_isspace(c)    (c == ' ' || c == '\f' || c == '\n' || \
-                         c == '\r' || c == '\t' || c == '\v')
+/*
+==============================================================
 
-// tests if specified character is valid quake path character
-#define Q_ispath(c)     (Q_isalnum(c) || (c) == '_' || (c) == '-')
+KEY / VALUE INFO STRINGS:
 
-// tests if specified character has special meaning to quake console
-#define Q_isspecial(c)  ((c) == '\r' || (c) == '\n' || (c) == 127)
-
-static inline int Q_tolower(int c)
-{
-    if (Q_isupper(c)) {
-        c += ('a' - 'A');
-    }
-    return c;
-}
-
-static inline int Q_toupper(int c)
-{
-    if (Q_islower(c)) {
-        c -= ('a' - 'A');
-    }
-    return c;
-}
-
-static inline char *Q_strlwr(char *s)
-{
-    char *p = s;
-
-    while (*p) {
-        *p = Q_tolower(*p);
-        p++;
-    }
-
-    return s;
-}
-
-static inline char *Q_strupr(char *s)
-{
-    char *p = s;
-
-    while (*p) {
-        *p = Q_toupper(*p);
-        p++;
-    }
-
-    return s;
-}
-
-static inline int Q_charhex(int c)
-{
-    if (c >= 'A' && c <= 'F') {
-        return 10 + (c - 'A');
-    }
-    if (c >= 'a' && c <= 'f') {
-        return 10 + (c - 'a');
-    }
-    if (c >= '0' && c <= '9') {
-        return c - '0';
-    }
-    return -1;
-}
-
-// converts quake char to ASCII equivalent
-static inline int Q_charascii(int c)
-{
-    if (Q_isspace(c)) {
-        // white-space chars are output as-is
-        return c;
-    }
-    c &= 127; // strip high bits
-    if (Q_isprint(c)) {
-        return c;
-    }
-    switch (c) {
-        // handle bold brackets
-        case 16: return '[';
-        case 17: return ']';
-    }
-    return '.'; // don't output control chars, etc
-}
-
-// portable case insensitive compare
-int Q_strcasecmp(const char *s1, const char *s2);
-int Q_strncasecmp(const char *s1, const char *s2, size_t n);
-char *Q_strcasestr(const char *s1, const char *s2);
-
-#define Q_stricmp   Q_strcasecmp
-#define Q_stricmpn  Q_strncasecmp
-#define Q_stristr   Q_strcasestr
-
-char *Q_strchrnul(const char *s, int c);
-void *Q_memccpy(void *dst, const void *src, int c, size_t size);
-size_t Q_strnlen(const char *s, size_t maxlen);
-
-char *COM_SkipPath(const char *pathname);
-size_t COM_StripExtension(char *out, const char *in, size_t size);
-void COM_FilePath(const char *in, char *out, size_t size);
-size_t COM_DefaultExtension(char *path, const char *ext, size_t size);
-char *COM_FileExtension(const char *in);
-
-#define COM_CompareExtension(in, ext) \
-    Q_strcasecmp(COM_FileExtension(in), ext)
-
-bool COM_IsFloat(const char *s);
-bool COM_IsUint(const char *s);
-bool COM_IsPath(const char *s);
-bool COM_IsWhite(const char *s);
-
-char *COM_Parse(const char **data_p);
-// data is an in/out parm, returns a parsed out token
-size_t COM_Compress(char *data);
-
-int SortStrcmp(const void *p1, const void *p2);
-int SortStricmp(const void *p1, const void *p2);
-
-size_t COM_strclr(char *s);
-char *COM_StripQuotes(char *s);
-
-// buffer safe operations
-size_t Q_strlcpy(char *dst, const char *src, size_t size);
-size_t Q_strlcat(char *dst, const char *src, size_t size);
-
-// WID: The define replacement is found in shared_cpp.h for C++
-#ifndef __cplusplus
-#define Q_concat(dest, size, ...) \
-    Q_concat_array(dest, size, (const char *[]){__VA_ARGS__, NULL})
-size_t Q_concat_array(char *dest, size_t size, const char **arr);
-#endif // __cplusplus
-
-size_t Q_vsnprintf(char *dest, size_t size, const char *fmt, va_list argptr);
-size_t Q_vscnprintf(char *dest, size_t size, const char *fmt, va_list argptr);
-size_t Q_snprintf(char *dest, size_t size, const char *fmt, ...) q_printf(3, 4);
-size_t Q_scnprintf(char *dest, size_t size, const char *fmt, ...) q_printf(3, 4);
-
-char    *va(const char *format, ...) q_printf(1, 2);
-char    *vtos(const vec3_t v);
-
-//=============================================
-
-static inline uint16_t ShortSwap(uint16_t s)
-{
-    s = (s >> 8) | (s << 8);
-    return s;
-}
-
-static inline uint32_t LongSwap(uint32_t l)
-{
-    l = ((l >> 8) & 0x00ff00ff) | ((l << 8) & 0xff00ff00);
-    l = (l >> 16) | (l << 16);
-    return l;
-}
-
-static inline float FloatSwap(float f)
-{
-    union {
-        float f;
-        uint32_t l;
-    } dat1, dat2;
-
-    dat1.f = f;
-    dat2.l = LongSwap(dat1.l);
-    return dat2.f;
-}
-
-static inline float LongToFloat(uint32_t l)
-{
-    union {
-        float f;
-        uint32_t l;
-    } dat;
-
-    dat.l = l;
-    return dat.f;
-}
-
-#if USE_LITTLE_ENDIAN
-#define BigShort    ShortSwap
-#define BigLong     LongSwap
-#define BigFloat    FloatSwap
-#define LittleShort(x)    ((uint16_t)(x))
-#define LittleLong(x)     ((uint32_t)(x))
-#define LittleLongLong(x) ((uint64_t)(x))
-#define LittleFloat(x)    ((float)(x))
-#define MakeRawLong(b1,b2,b3,b4) (((unsigned)(b4)<<24)|((b3)<<16)|((b2)<<8)|(b1))
-#define MakeRawShort(b1,b2) (((b2)<<8)|(b1))
-#elif USE_BIG_ENDIAN
-#define BigShort(x)     ((uint16_t)(x))
-#define BigLong(x)      ((uint32_t)(x))
-#define BigLongLong(x)      ((uint32_t)(x))
-#define BigFloat(x)     ((float)(x))
-#define LittleShort ShortSwap
-#define LittleLong  LongSwap
-#define LittleFloat FloatSwap
-#define MakeRawLong(b1,b2,b3,b4) (((unsigned)(b1)<<24)|((b2)<<16)|((b3)<<8)|(b4))
-#define MakeRawShort(b1,b2) (((b1)<<8)|(b2))
-#else
-#error Unknown byte order
-#endif
-
-#define MakeLittleLong(b1,b2,b3,b4) (((unsigned)(b4)<<24)|((b3)<<16)|((b2)<<8)|(b1))
-
-#define LittleVector(a,b) \
-    ((b)[0]=LittleFloat((a)[0]),\
-     (b)[1]=LittleFloat((a)[1]),\
-     (b)[2]=LittleFloat((a)[2]))
-
-static inline void LittleBlock(void *out, const void *in, size_t size)
-{
-    memcpy(out, in, size);
-#if USE_BIG_ENDIAN
-    for (int i = 0; i < size / 4; i++)
-        ((uint32_t *)out)[i] = LittleLong(((uint32_t *)out)[i]);
-#endif
-}
-
-#if USE_BGRA
-#define MakeColor(r, g, b, a)   MakeRawLong(b, g, r, a)
-#else
-#define MakeColor(r, g, b, a)   MakeRawLong(r, g, b, a)
-#endif
-
-//=============================================
-
-//
-// key / value info strings
-//
+==============================================================
+*/
 #define MAX_INFO_KEY        64
 #define MAX_INFO_VALUE      64
 #define MAX_INFO_STRING     512
@@ -670,14 +230,17 @@ size_t  Info_SubValidate(const char *s);
 void    Info_NextPair(const char **string, char *key, char *value);
 void    Info_Print(const char *infostring);
 
+
+
 /*
 ==========================================================
 
-CVARS (console variables)
+CVARS (console variables) - Actually part of the /common/
+code. What is defined here, is the bare necessity of limited
+API for the game code to make use of.
 
 ==========================================================
 */
-
 #ifndef CVAR
 #define CVAR
 
@@ -720,6 +283,8 @@ typedef struct cvar_s {
 
 #endif      // CVAR
 
+
+
 /*
 ==============================================================
 
@@ -727,7 +292,6 @@ COLLISION DETECTION
 
 ==============================================================
 */
-
 // lower bits are stronger, and will eat weaker brushes completely
 #define CONTENTS_SOLID          1       // an eye is never valid in a solid
 #define CONTENTS_WINDOW         2       // translucent, but not watery
@@ -837,6 +401,42 @@ typedef struct {
     struct edict_s  *ent;       // not set by CM_*() functions
 } trace_t;
 
+
+
+
+/*
+==============================================================
+
+USER COMMANDS( User Input. ):
+
+==============================================================
+*/
+//
+// button bits
+//
+#define BUTTON_ATTACK       1
+#define BUTTON_USE          2
+#define BUTTON_ANY          128         // any key whatsoever
+
+
+// usercmd_t is sent to the server each client frame
+typedef struct usercmd_s {
+	byte    msec;
+	byte    buttons;
+	short   angles[ 3 ];
+	short   forwardmove, sidemove, upmove;
+	byte    impulse;        // remove?
+} usercmd_t;
+
+
+
+/*
+==============================================================
+
+PLAYER MOVEMENT
+
+==============================================================
+*/
 // pmove_state_t is the information necessary for client side movement
 // prediction
 typedef enum {
@@ -895,25 +495,6 @@ typedef struct {
 	float       flyfriction;
 } pmoveParams_t;
 
-
-//
-// button bits
-//
-#define BUTTON_ATTACK       1
-#define BUTTON_USE          2
-#define BUTTON_ANY          128         // any key whatsoever
-
-
-// usercmd_t is sent to the server each client frame
-typedef struct usercmd_s {
-    byte    msec;
-    byte    buttons;
-    short   angles[3];
-    short   forwardmove, sidemove, upmove;
-    byte    impulse;        // remove?
-} usercmd_t;
-
-
 #define MAXTOUCH    32
 typedef struct {
     // state (in / out)
@@ -940,6 +521,16 @@ typedef struct {
     trace_t     (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end);
     int         (*pointcontents)(const vec3_t point);
 } pmove_t;
+
+
+
+/*
+==============================================================
+
+MUZZLE FLASHES / PLAYER EFFECTS ETC:
+
+==============================================================
+*/
 
 
 // entity_state_t->effects
@@ -1016,7 +607,6 @@ typedef struct {
 #define RDF_IRGOGGLES       4
 #define RDF_UVGOGGLES       8
 //ROGUE
-
 //
 // muzzle flashes / player effects
 //
@@ -1151,6 +741,14 @@ enum {
 extern const vec3_t monster_flash_offset[256];
 
 
+
+/*
+==============================================================
+
+TEMP ENTITY EVENTS:
+
+==============================================================
+*/
 // temp entity events
 //
 // Temp entity events are for things that happen
@@ -1275,6 +873,14 @@ typedef enum {
 #define MAX_STATS               64
 
 
+
+/*
+==============================================================
+
+GAMEMODE FLAGS(TODO: Actually make it game mode related.)
+
+==============================================================
+*/
 // dmflags->value flags
 #define DF_NO_HEALTH        0x00000001  // 1
 #define DF_NO_ITEMS         0x00000002  // 2
@@ -1384,10 +990,10 @@ static inline const float SHORT2COORD( const int s ) {
 	return ( ( s ) * ( 1.0f / 8 ) );
 }
 
+
 /***
 * 
-*	config strings are a general means of communication from
-*	the server to all connected clients.
+*	Config Strings are a general means of communication from the server to all connected clients.
 *	Each config string can be at most MAX_QPATH characters.
 * 
 ***/
@@ -1420,8 +1026,14 @@ static inline int32_t CS_SIZE( int32_t cs ) {
 }
 
 
-//==============================================
 
+/*
+==============================================================
+
+ENTITY EVENTS:
+
+==============================================================
+*/
 /**
 *	@description entity_state_t->event values
 *				 ertity events are for effects that take place reletive
@@ -1439,6 +1051,15 @@ typedef enum {
     EV_OTHER_TELEPORT
 } entity_event_t;
 
+
+
+/*
+==============================================================
+
+ENTITY TYPES:
+
+==============================================================
+*/
 /**
 *	@description	Determines the actual entity type, in order to allow for appropriate state transmission
 *					and efficient client-side handling. (ET_SPOTLIGHT demands different data than 'generic' entities.
@@ -1483,6 +1104,15 @@ typedef enum {
 	MAX_ENTITY_TYPES = 128
 } entity_type_t;
 
+
+
+/*
+==============================================================
+
+ENTITY STATE:
+
+==============================================================
+*/
 // entity_state_t is the information conveyed from the server
 // in an update message about entities that the client will
 // need to render in some way
@@ -1526,9 +1156,15 @@ typedef struct entity_state_s {
 
 } entity_state_t;
 
-//==============================================
 
 
+/*
+==============================================================
+
+PLAYER STATE:
+
+==============================================================
+*/
 // player_state_t is the information needed in addition to pmove_state_t
 // to rendered a view.  There will only be 40(since we're running 40hz) player_state_t sent each second,
 // but the number of pmove_state_t changes will be reletive to client
@@ -1558,6 +1194,7 @@ typedef struct {
 
     int32_t stats[MAX_STATS];       // fast status bar updates
 } player_state_t;
+
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

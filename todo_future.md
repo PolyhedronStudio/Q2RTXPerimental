@@ -11,6 +11,7 @@
 
 ## Possible contending ideas:
 * [ ] Rework CMake to how it was in Polyhedron.
+* [ ] Make entity dictionaries 'stand on their own', acting as the ``BSP Entity Definition``.
 * [ ] Allow for entity class type specific read/write entity ``net code``?
 * [ ] Collision code rewrite. (Use proper **matrix/quaternions**, and allow for different ``hull`` types such as ``Spheres``, ``Cylinders`` and ``Capsules``.)
 	* This requires several editing/rewriting parts of the game **Physics** as well.
