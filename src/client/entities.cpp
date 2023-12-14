@@ -437,10 +437,19 @@ void CL_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state_
 	AngleVectors( ent->angles, view_dir, right_dir, up_dir );
 
 	// Add the spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
-	V_AddSpotLight( ent->origin, view_dir, lightIntensity, 
+	// Use the image based texture profile in case one is set.
+	//if ( s1->image_profile ) {
+	V_AddSpotLightTexEmission( ent->origin, view_dir, lightIntensity,
 					// TODO: Multiply the RGB?
-					rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2, 
-					s1->angle_width, s1->angle_falloff );
+					rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
+					90, R_RegisterImage( "flashlight_profile", IT_PIC, static_cast<imageflags_t>( IF_PERMANENT | IF_BILERP ) ) );
+					//25, R_RegisterPic2( "pics/flashlight_profile_0.tga" ) );
+	//} else {
+	//V_AddSpotLight( ent->origin, view_dir, lightIntensity,
+	//				// TODO: Multiply the RGB?
+	//				rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
+	//				s1->angle_width, s1->angle_falloff );
+	//}
 
 	// Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
 	//V_AddSpotLight( ent->origin, view_dir, 225.0, 1.f, 0.1f, 0.1f, 45, 0 );
