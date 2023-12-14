@@ -370,9 +370,27 @@ SET(HEADERS_GL
 # Shared
 #
 #
+SET(HEADERS_SHARED
+	#shared/clgame.h
+	#shared/config.h
+	#shared/config_cpp.h
+	#shared/endian.h
+	#shared/info_strings.h
+	#shared/list.h
+	#shared/platform.h
+	#shared/shared.h
+	#shared/shared_cpp.h
+	#shared/string_utilities.h
+	#shared/svgame.h
+
+	#shared/math/math.h
+)
 SET(SRC_SHARED
+	shared/info_strings.cpp
+	shared/math.cpp
 	shared/m_flash.c
 	shared/shared.cpp
+	shared/string_utilities.cpp
 )
 
 
