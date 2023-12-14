@@ -866,7 +866,7 @@ void CL_FirstDemoFrame(void)
         if(cls.timedemo.runs_total == 0) {
             cls.timedemo.runs_total = com_timedemo->integer;
             cls.timedemo.run_current = 0;
-            cls.timedemo.results = (unsigned int*)Z_Malloc( cls.timedemo.runs_total * sizeof( unsigned ) ); // WID: C++20: Was without a cast.
+            cls.timedemo.results = (uint64_t*)Z_Malloc( cls.timedemo.runs_total * sizeof( uint64_t ) ); // WID: C++20: Was without a cast.
         }
 
         cls.demo.time_frames = 0;

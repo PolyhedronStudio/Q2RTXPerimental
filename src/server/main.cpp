@@ -1753,7 +1753,7 @@ processing are run even when server is not yet initalized.
 Returns amount of extra frametime available for sleeping on IO.
 ==================
 */
-unsigned SV_Frame(unsigned msec)
+uint64_t SV_Frame(uint64_t msec)
 {
 #if USE_CLIENT
     time_before_game = time_after_game = 0;
@@ -1821,7 +1821,8 @@ unsigned SV_Frame(unsigned msec)
     }
 
     // don't accumulate bogus residual
-    if (sv.frameresidual > 250) {
+	// WID: 64-bit-frame: Should we messabout with this?
+    if (sv.frameresidual > 75) { // Was: > 250
         Com_DDDPrintf("Reset residual %u\n", sv.frameresidual);
         sv.frameresidual = SV_FRAMETIME; // WID: 40hz:
     }

@@ -3,7 +3,7 @@
 ## (v0.0.2):
 ### Engine:
 #### General:
-* [ ] Although we have 64 bit time in-game, the actual way how server frames, acks and requests are handled is usually still ``unsigned``. Convert this to ``int64_t/uint64_t``.
+* [X] Although we have 64 bit time in-game, the actual way how server frames, acks and requests are handled is usually still ``unsigned``. Convert this to ``int64_t/uint64_t``.
 * [ ] Add and 'Wire'/'Netcode' the specific entity type an entity is.
 * [ ] Currently svc_layout is sending 'large' strings, we can avoid doing so and just send minimal info now that
 the Client Game is made aware of the Gamemode we're in._

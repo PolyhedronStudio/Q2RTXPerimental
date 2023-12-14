@@ -226,7 +226,7 @@ void Sys_AddDefaultConfig(void)
     }
 }
 
-void Sys_Sleep(int msec)
+void Sys_Sleep(int64_t msec)
 {
     struct timespec req;
 

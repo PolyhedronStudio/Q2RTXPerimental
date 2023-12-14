@@ -206,8 +206,8 @@ void SV_WriteFrameToClient( client_t *client ) {
 	}
 
 	MSG_WriteUint8( svc_frame );
-	MSG_WriteInt32( client->framenum );
-	MSG_WriteInt32( lastframe );   // what we are delta'ing from
+	MSG_WriteIntBase128( client->framenum ); // WID: 64-bit-frame MSG_WriteInt32( client->framenum );
+	MSG_WriteIntBase128( lastframe ); // WID: 64-bit-frame MSG_WriteInt32( lastframe );   // what we are delta'ing from
 	MSG_WriteUint8( client->suppress_count );  // rate dropped packets
 	client->suppress_count = 0;
 	client->frameflags = 0;

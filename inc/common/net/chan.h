@@ -44,33 +44,33 @@ typedef struct netchan_s {
 
     netsrc_t    sock;
 
-    int         dropped;            // between last packet and previous
-    unsigned    total_dropped;      // for statistics
-    unsigned    total_received;
+    int64_t     dropped;            // between last packet and previous
+    uint64_t    total_dropped;      // for statistics
+	uint64_t	total_received;
 
-    unsigned    last_received;      // for timeouts
-    unsigned    last_sent;          // for retransmits
+	uint64_t	last_received;      // for timeouts
+	uint64_t	last_sent;          // for retransmits
 
     netadr_t    remote_address;
     int         qport;              // qport value to write when transmitting
 
     sizebuf_t   message;            // writing buffer for reliable data
 
-    size_t      reliable_length;
+	uint64_t	reliable_length;
 
     bool        reliable_ack_pending;   // set to true each time reliable is received
     bool        fragment_pending;
 
     // sequencing variables
-    int         incoming_sequence;
-    int         incoming_acknowledged;
-    int         outgoing_sequence;
+    int64_t     incoming_sequence;
+	int64_t		incoming_acknowledged;
+	int64_t		outgoing_sequence;
 
     bool        incoming_reliable_acknowledged; // single bit
     bool        incoming_reliable_sequence;     // single bit, maintained local
     bool        reliable_sequence;          // single bit
-    int         last_reliable_sequence;     // sequence number of last send
-    int         fragment_sequence;
+	int64_t		last_reliable_sequence;     // sequence number of last send
+	int64_t		fragment_sequence;
 
     byte        *message_buf;       // leave space for header
 

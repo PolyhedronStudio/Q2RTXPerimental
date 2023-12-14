@@ -707,13 +707,13 @@ terribly efficient, but that's fine for a small number of descriptors we
 typically have.
 =============
 */
-int NET_Sleep(int msec)
+int64_t NET_Sleep(int64_t msec)
 {
     struct timeval tv;
     fd_set rfds, wfds, efds;
     ioentry_t *e;
     qsocket_t fd;
-    int i, ret;
+    int64_t i, ret;
 
     if (!io_numfds) {
         // don't bother with select()

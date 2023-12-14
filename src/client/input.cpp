@@ -247,8 +247,8 @@ Key_Event (int key, bool down, unsigned time);
 
 typedef struct kbutton_s {
     int         down[2];        // key nums holding it down
-    unsigned    downtime;        // msec timestamp
-    unsigned    msec;            // msec down this frame
+    uint64_t    downtime;        // msec timestamp
+	uint64_t	msec;            // msec down this frame
     int         state;
 } kbutton_t;
 
@@ -301,7 +301,7 @@ static void KeyUp(kbutton_t *b)
 {
     int k;
     const char *c; // WID: C++20: Added const.
-    unsigned uptime;
+    uint64_t uptime;
 
     c = Cmd_Argv(1);
     if (c[0])
@@ -431,10 +431,10 @@ CL_KeyState
 Returns the fraction of the frame that the key was down
 ===============
 */
-static float CL_KeyState(kbutton_t *key)
+static double CL_KeyState(kbutton_t *key)
 {
-    unsigned msec = key->msec;
-    float val;
+	uint64_t msec = key->msec;
+    double val;
 
     if (key->state & 1) {
         // still down
@@ -445,10 +445,10 @@ static float CL_KeyState(kbutton_t *key)
 
     // special case for instant packet
     if (!cl.cmd.msec) {
-        return (float)(key->state & 1);
+        return (double)(key->state & 1);
     }
 
-    val = (float)msec / cl.cmd.msec;
+    val = (double)msec / cl.cmd.msec;
 
     return clamp(val, 0, 1);
 }
@@ -533,7 +533,7 @@ Moves the local angle positions
 */
 static void CL_AdjustAngles(int msec)
 {
-    float speed;
+    double speed;
 
     if (in_speed.state & 1)
         speed = msec * cl_anglespeedkey->value * 0.001f;
@@ -787,7 +787,8 @@ void CL_FinalizeCmd(void)
         cl.cmd.buttons |= BUTTON_ANY;
     }
 
-    if (cl.cmd.msec > 250) {
+	// WID: 64-bit-frame: Should we messabout with this?
+    if (cl.cmd.msec > 75) { // Was: > 250
         cl.cmd.msec = BASE_FRAMERATE;        // time was unreasonable
     }
 
@@ -841,7 +842,7 @@ void CL_FinalizeCmd(void)
 
 static inline bool ready_to_send(void)
 {
-    unsigned msec;
+    uint64_t msec;
 
     if (cl.sendPacketNow) {
 		//Com_DPrintf( "%s\n", "client_ready_to_send(cl.sendPacketNow): true" );
@@ -921,7 +922,7 @@ static void CL_SendDefaultCmd(void)
     cl.lastTransmitCmdNumberReal = cl.cmdNumber;
 
     // begin a client move command
-    MSG_WriteUint8(clc_move);
+    MSG_WriteUint8( clc_move );
 
     // save the position for a checksum byte
     checksumIndex = 0;
@@ -933,9 +934,9 @@ static void CL_SendDefaultCmd(void)
     // let the server know what the last frame we
     // got was, so the next message can be delta compressed
     if (cl_nodelta->integer || !cl.frame.valid /*|| cls.demowaiting*/) {
-        MSG_WriteInt32(-1);   // no compression
+		MSG_WriteIntBase128(-1);   // no compression
     } else {
-        MSG_WriteInt32(cl.frame.number);
+        MSG_WriteIntBase128(cl.frame.number);
     }
 
     // send this and the previous cmds in the message, so
@@ -1018,7 +1019,7 @@ static void CL_SendBatchedCmd( void ) {
 	} else {
 		MSG_WriteUint8( clc_move_batched );
 		MSG_WriteUint8( numDups );
-		MSG_WriteInt32( cl.frame.number );
+		MSG_WriteIntBase128( cl.frame.number );
 	}
 
 

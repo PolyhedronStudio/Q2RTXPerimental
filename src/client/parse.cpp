@@ -193,8 +193,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
 static void CL_ParseFrame()
 {
     uint64_t bits;
-    int     currentframe, deltaframe,
-            delta, suppressed;
+    int64_t currentframe, deltaframe, suppressed;
     server_frame_t  frame, *oldframe;
     player_state_t  *from;
     int     length;
@@ -203,8 +202,8 @@ static void CL_ParseFrame()
 
     cl.frameflags = 0;
 
-    currentframe = MSG_ReadInt32();
-    deltaframe = MSG_ReadInt32();
+    currentframe = MSG_ReadIntBase128( );// WID: 64-bit-frame MSG_ReadInt32();
+    deltaframe = MSG_ReadIntBase128( );// WID: 64-bit-frame MSG_ReadInt32(); 
 
     // WID: net-protocol2: Removed the 'BIG HACK' to let old demos continue to work.
     //if (cls.serverProtocol != PROTOCOL_VERSION_OLD) {

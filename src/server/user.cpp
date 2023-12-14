@@ -1006,8 +1006,8 @@ SV_ClientExecuteMove
 static void SV_ClientExecuteMove(void)
 {
     usercmd_t   oldest, oldcmd, newcmd;
-    int         lastframe;
-    int         net_drop;
+    int64_t     lastframe;
+	int64_t		net_drop;
 
     if (moveIssued) {
         SV_DropClient(sv_client, "multiple clc_move commands in packet");
@@ -1020,7 +1020,7 @@ static void SV_ClientExecuteMove(void)
         MSG_ReadUint8();    // skip over checksum
     }
 
-    lastframe = MSG_ReadInt32();
+    lastframe = MSG_ReadIntBase128();
 
     // read all cmds
 	MSG_ParseDeltaUserCommand(NULL, &oldest);
@@ -1067,10 +1067,10 @@ SV_NewClientExecuteMove
 static void SV_NewClientExecuteMove( int c ) {
 	usercmd_t   cmds[ MAX_PACKET_FRAMES ][ MAX_PACKET_USERCMDS ];
 	usercmd_t *lastcmd, *cmd;
-	int         lastframe;
-	int         numCmds[ MAX_PACKET_FRAMES ], numDups;
-	int         i, j;
-	int         net_drop;
+	int64_t     lastframe;
+	int64_t     numCmds[ MAX_PACKET_FRAMES ], numDups;
+	int64_t     i, j;
+	int64_t     net_drop;
 
 	if ( moveIssued ) {
 		SV_DropClient( sv_client, "multiple clc_move commands in packet" );
@@ -1084,7 +1084,7 @@ static void SV_NewClientExecuteMove( int c ) {
 		numDups = MSG_ReadUint8( );
 	} else {
 		numDups = MSG_ReadUint8( );
-		lastframe = MSG_ReadInt32( );
+		lastframe = MSG_ReadIntBase128( );
 	}
 
 

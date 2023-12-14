@@ -48,8 +48,8 @@ typedef struct cmdbuf_s {
     char        *text; // may not be NULL terminated
     size_t      cursize;
     size_t      maxsize;
-    int         waitCount;
-    int         aliasCount; // for detecting runaway loops
+    int64_t     waitCount;
+	int64_t		aliasCount; // for detecting runaway loops
     void        (*exec)(struct cmdbuf_s *, const char *);
 } cmdbuf_t;
 
