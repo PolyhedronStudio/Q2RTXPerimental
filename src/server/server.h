@@ -87,15 +87,15 @@ extern "C" {
                      GMF_EXTRA_USERINFO | GMF_IPV6_ADDRESS_AWARE )
 
 typedef struct {
-    int         number;
-    int         num_entities;
-    unsigned    first_entity;
+    int64_t		number;
+	int32_t		num_entities;
+    uint32_t	first_entity;
     player_packed_t ps;
-    int         clientNum;
-    int         areabytes;
+    int32_t		clientNum;
+	int32_t		areabytes;
     byte        areabits[MAX_MAP_AREA_BYTES];	// portalarea visibility bits
-    unsigned    sentTime;						// for ping calculations
-    int         latency;
+    uint64_t	sentTime;						// for ping calculations
+    int64_t		latency;
 } client_frame_t;
 
 typedef struct {
@@ -110,14 +110,14 @@ typedef struct {
 
 typedef struct {
     server_state_t  state;      // precache commands are only valid during load
-    int             spawncount; // random number generated each server spawn
+    int64_t			spawncount; // random number generated each server spawn
 
 #if USE_CLIENT || USE_SERVER
     int         gamedetecthack;
 #endif
 
-    int         framenum;
-    unsigned    frameresidual;
+    int64_t     framenum;
+    uint64_t    frameresidual;
 
     char        mapcmd[MAX_QPATH];          // ie: *intro.cin+base
 
@@ -202,10 +202,10 @@ typedef struct {
     cl->avg_ping_time / cl->avg_ping_count : cl->ping)
 
 typedef struct {
-    unsigned    time;
-    unsigned    credit;
-    unsigned    credit_cap;
-    unsigned    cost;
+    uint64_t    time;
+	uint64_t	credit;
+	uint64_t	credit_cap;
+	uint64_t	cost;
 } ratelimit_t;
 
 typedef struct {
@@ -237,7 +237,7 @@ typedef struct client_s {
     char            userinfo[MAX_INFO_STRING];  // name, etc
     char            name[MAX_CLIENT_NAME];      // extracted from userinfo, high bits masked
     int             messagelevel;               // for filtering printed messages
-    unsigned        rate;
+	uint64_t		rate;
     ratelimit_t     ratelimit_namechange;       // for suppressing "foo changed name" flood
 
     // console var probes
@@ -247,30 +247,30 @@ typedef struct client_s {
     int             console_queries;
 
     // usercmd stuff
-    unsigned        lastmessage;    // svs.realtime when packet was last received
-    unsigned        lastactivity;   // svs.realtime when user activity was last seen
-    int             lastframe;      // for delta compression
+	uint64_t		lastmessage;    // svs.realtime when packet was last received
+	uint64_t		lastactivity;   // svs.realtime when user activity was last seen
+    int64_t			lastframe;      // for delta compression
     usercmd_t       lastcmd;        // for filling in big drops
     int             command_msec;   // every seconds this is reset, if user
                                     // commands exhaust it, assume time cheating
-    int             num_moves;      // reset every 10 seconds
-    int             moves_per_sec;  // average movement FPS
+    int64_t         num_moves;      // reset every 10 seconds
+    int64_t         moves_per_sec;  // average movement FPS
     int             cmd_msec_used;
-    float           timescale;
+    double          timescale;
 
-    int             ping, min_ping, max_ping;
-    int             avg_ping_time, avg_ping_count;
+    int64_t			ping, min_ping, max_ping;
+    int64_t			avg_ping_time, avg_ping_count;
 
     // frame encoding
     client_frame_t  frames[UPDATE_BACKUP];    // updates can be delta'd from here
-    unsigned        frames_sent, frames_acked, frames_nodelta;
-    int             framenum;
-    unsigned        frameflags;
+    uint64_t		frames_sent, frames_acked, frames_nodelta;
+    int64_t			framenum;
+    uint64_t		frameflags;
 
     // rate dropping
     unsigned        message_size[RATE_MESSAGES];    // used to rate drop normal packets
-    int             suppress_count;                 // number of messages rate suppressed
-    unsigned        send_time, send_delta;          // used to rate drop async packets
+    int64_t         suppress_count;                 // number of messages rate suppressed
+    uint64_t		send_time, send_delta;          // used to rate drop async packets
 
     // current download
     byte            *download;      // file being downloaded
@@ -379,7 +379,7 @@ typedef struct {
 
 typedef struct {
     netadr_t        adr;
-    unsigned        last_ack;
+    uint64_t        last_ack;
     time_t          last_resolved;
     char            *name;
 } master_t;
@@ -396,7 +396,7 @@ typedef struct {
 
 typedef struct server_static_s {
     bool        initialized;        // sv_init has completed
-    unsigned    realtime;           // always increasing, no clamping, etc
+    uint64_t    realtime;           // always increasing, no clamping, etc
 
     client_t    *client_pool;   // [maxclients]
 
@@ -410,10 +410,10 @@ typedef struct server_static_s {
 	size_t          z_buffer_size;
 #endif
 
-    unsigned        last_heartbeat;
-    unsigned        last_timescale_check;
+    uint64_t        last_heartbeat;
+    uint64_t		last_timescale_check;
 
-    unsigned        heartbeat_index;
+    uint64_t		heartbeat_index;
 
     ratelimit_t     ratelimit_status;
     ratelimit_t     ratelimit_auth;

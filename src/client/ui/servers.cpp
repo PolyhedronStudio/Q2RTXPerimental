@@ -70,7 +70,7 @@ typedef struct {
     menuList_t      players;
     void            *names[MAX_STATUS_SERVERS];
     char            *args;
-    unsigned        timestamp;
+    uint64_t        timestamp;
     int             pingstage;
     int             pingindex;
     int             pingtime;

@@ -1040,7 +1040,7 @@ SCR_TimeRefresh_f
 static void SCR_TimeRefresh_f(void)
 {
     int     i;
-    unsigned    start, stop;
+    uint64_t start, stop;
     float       time;
 
     if (cls.state != ca_active) {
@@ -1471,9 +1471,9 @@ static void SCR_DrawInventory(void)
 static void SCR_DrawSelectedItemName(int x, int y, int item)
 {
     static int display_item = -1;
-    static int display_start_time = 0;
+    static int64_t display_start_time = 0;
 
-    float duration = 0.f;
+    double duration = 0.f;
     if (display_item != item)
     {
         display_start_time = Sys_Milliseconds();
@@ -1481,7 +1481,7 @@ static void SCR_DrawSelectedItemName(int x, int y, int item)
     }
     else
     {
-        duration = (float)(Sys_Milliseconds() - display_start_time) * 0.001f;
+        duration = (double)(Sys_Milliseconds() - display_start_time) * 0.001f;
     }
 
     float alpha;
@@ -2000,7 +2000,7 @@ void SCR_UpdateScreen(void)
 
     // if the screen is disabled (loading plaque is up), do nothing at all
     if (cls.disable_screen) {
-        unsigned delta = Sys_Milliseconds() - cls.disable_screen;
+        uint64_t delta = Sys_Milliseconds() - cls.disable_screen;
 
         if (delta < 120 * 1000) {
             return;
