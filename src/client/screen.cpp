@@ -1261,7 +1261,11 @@ void SCR_Init(void)
     scr_lag_min = Cvar_Get("scr_lag_min", "0", 0);
     scr_lag_max = Cvar_Get("scr_lag_max", "200", 0);
 	scr_alpha = Cvar_Get("scr_alpha", "1", 0);
-	scr_fps = Cvar_Get("scr_fps", "0", CVAR_ARCHIVE);
+	#if USE_DEBUG
+	scr_fps = Cvar_Get( "scr_fps", "2", CVAR_ARCHIVE );
+	#else
+	scr_fps = Cvar_Get( "scr_fps", "0", CVAR_ARCHIVE );
+	#endif
 #ifdef USE_DEBUG
     scr_showstats = Cvar_Get("scr_showstats", "0", 0);
     scr_showpmove = Cvar_Get("scr_showpmove", "0", 0);

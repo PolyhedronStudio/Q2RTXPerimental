@@ -299,6 +299,7 @@ static const spawn_field_t spawn_fields[] = {
 	{"move_origin", FOFS( move_origin ), F_VECTOR},
 	{"move_angles", FOFS( move_angles ), F_VECTOR},
 	{"style", FOFS( style ), F_INT},
+	{"customLightStyle", FOFS( customLightStyle ), F_LSTRING},
 	{"count", FOFS( count ), F_INT},
 	{"health", FOFS( health ), F_INT},
 	{"sounds", FOFS( sounds ), F_INT},

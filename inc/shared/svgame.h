@@ -136,16 +136,19 @@ typedef struct {
     void (*positioned_sound)(const vec3_t origin, edict_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs);
 
 	/**
-    *	Config strings hold all the index strings, the lightstyles,
-    *	and misc data like the sky definition and cdtrack.
-    *	All of the current configstrings are sent to clients when
-    *	they connect, and changes are sent to all connected clients.
+    *	Config strings hold all the index strings, the lightstyles, the models that are in-use,
+    *	and also misc data like the sky definition and cdtrack.
+	* 
+    *	All of the current configstrings are sent to clients when they connect, 
+	*	and in case of any changes, which too are sent to all connected clients.
 	**/
+	configstring_t *(*GetConfigString)( int32_t index );
     void (*configstring)(int num, const char *string);
 
     void (* q_noreturn q_printf(1, 2) error)(const char *fmt, ...);
 
-    // the *index functions create configstrings and some internal server state
+    // the *index functions create configstrings and some internal server state.
+	// these are sent over to the client 
     int (*modelindex)(const char *name);
     int (*soundindex)(const char *name);
     int (*imageindex)(const char *name);

@@ -1266,6 +1266,7 @@ struct edict_s {
     int         light_level;
 
     int         style;          // also used as areaportal number
+	const char *customLightStyle;	// It is as it says.
 
     gitem_t     *item;          // for bonus items
 

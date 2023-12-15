@@ -353,14 +353,9 @@ static void PF_setmodel(edict_t *ent, const char *name)
     }
 }
 
-/*
-===============
-PF_configstring
-
-If game is actively running, broadcasts configstring change.
-Archived in MVD stream.
-===============
-*/
+/**
+*	@brief	If game is actively running, broadcasts configstring change.
+**/
 static void PF_configstring(int index, const char *val)
 {
 	size_t len, maxlen;
@@ -423,6 +418,17 @@ static void PF_configstring(int index, const char *val)
 	}
 
 	SZ_Clear( &msg_write );
+}
+
+/**
+*	@brief	Returns the given configstring that sits at index.
+*/
+static configstring_t *PF_GetConfigString( int32_t configStringIndex ) {
+	if ( configStringIndex < 0 || configStringIndex > MAX_CONFIGSTRINGS ) {
+		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, configStringIndex );
+		return nullptr;
+	}
+	return &sv.configstrings[ configStringIndex ];
 }
 
 static qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, int vis)
@@ -839,6 +845,7 @@ void SV_InitGameProgs(void)
     import.soundindex = PF_SoundIndex;
     import.imageindex = PF_ImageIndex;
 
+	import.GetConfigString = PF_GetConfigString;
     import.configstring = PF_configstring;
     import.sound = PF_StartSound;
     import.positioned_sound = SV_StartSound;

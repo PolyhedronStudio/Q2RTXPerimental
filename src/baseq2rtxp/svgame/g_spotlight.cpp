@@ -132,19 +132,53 @@
 //	}
 //}
 
+
+#define START_OFF   1
+
+
 /**
 *	@brief
 **/
 void spotlight_think( edict_t *self ) {
+	// Server-side lightstyles for spotlights.
+	// (This makes them consistent across all clients, while also not having to mess with VKPT.)
+	const char *lightStyle = self->customLightStyle;
+
+	// Use frame as the actual index into the array as is.
+	if ( lightStyle ) {
+		// The next frame.
+		const int32_t nextFrame = self->s.frame + 1;
+		const int32_t currentFrame = self->s.frame = nextFrame % strlen( lightStyle );
+
+		// Set the current intensity to that of ( ( ASCII - 97 ) * 100 ).
+		if ( Q_isalpha( lightStyle[ currentFrame ] ) ) {
+			self->s.intensity = ( lightStyle[ currentFrame ] - 'a' ) * 100;
+		}
+	}
+
+	// Setup for next frame's 'think'.
 	self->think = spotlight_think;
-	self->nextthink = level.time + FRAME_TIME_MS;
+	self->nextthink = level.time + 10_hz;
 }
 
 /**
 *	@brief	
 **/
 void spotlight_use( edict_t *self, edict_t *other, edict_t *activator ) {
+	if ( self->spawnflags & START_OFF ) {
+		// Remove the 'off' flag.
+		self->spawnflags &= ~START_OFF;
+		// Enable it being sent to clients again.
+		self->svflags &= ~SVF_NOCLIENT;
+	} else {
+		// Don't send to client when the light is off.
+		self->svflags |= SVF_NOCLIENT;
+		self->spawnflags |= START_OFF;
 
+		// Reset its intensity and frame, so it can start anew when turned on again.
+		self->s.intensity = 0;
+		self->s.frame = 0;
+	}
 }
 
 /**
@@ -157,27 +191,19 @@ void SP_spotlight( edict_t *self ) {
 	self->s.entityType = ET_SPOTLIGHT;
 	self->classname = "spotlight";
 	self->s.effects |= EF_SPOTLIGHT;
-////
-//	//self->solid = SOLID_BBOX;
-//	//self->movetype = MOVETYPE_STEP;
-//	self->s.skinnum = MakeColor( 255, 0, 0, 255 );
-//	self->s.frame = self->light;
-//	//self->model = "models/objects/barrels/tris.md2";
-//	//self->s.modelindex = gi.modelindex( self->model );
-//	VectorSet( self->mins, -16, -16, 0 );
-//	VectorSet( self->maxs, 16, 16, 40 );
 
-	//if ( !self->mass )
-	//	self->mass = 400;
-	//if ( !self->health )
-	//	self->health = 10;
-	//if ( !self->dmg )
-	//	self->dmg = 150;
-//
-
-	self->think = spotlight_think;
+	// Support for on/off triggering.
 	self->use = spotlight_use;
+
+	// Immediately set a SVF_NOCLIENT flag if light is meant to start 'off'.
+	if ( self->spawnflags & START_OFF ) {
+		self->svflags |= SVF_NOCLIENT;
+	}
+
+	// Required think method.
+	self->think = spotlight_think;
 	self->nextthink = level.time + FRAME_TIME_MS;
 
+	// Link it in.
 	gi.linkentity( self );
 }
