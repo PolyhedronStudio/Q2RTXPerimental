@@ -6,14 +6,14 @@
 * [X] Although we have 64 bit time in-game, the actual way how server frames, acks and requests are handled is usually still ``unsigned``. Convert this to ``int64_t/uint64_t``.
 * [ ] Add and 'Wire'/'Netcode' the specific entity type an entity is.
 * [ ] Currently svc_layout is sending 'large' strings, we can avoid doing so and just send minimal info now that
-the Client Game is made aware of the Gamemode we're in._
+the Client Game is made aware of the Gamemode we're in.
 * [X] Create 'Spotlight' entities for the currently unused SPOTLIGHT features of the RTX renderer. (Ok, the client-side 'flashlight' makes use of it.)
-* [ ] Add the 'Spotlight' entity to the Q2RTXPerimental Trenchbroom package.
+* [X] Add the 'Spotlight' entity to the Q2RTXPerimental Trenchbroom package.
 
 #### CMake:
 * [ ] Nothing for now.
 #### Shared:
-* [ ] Replace all C style maths with a library of sorts. Worst case scenario, hand-roll it.
+* [X] Replace all C style maths with a library of sorts. Worst case scenario, hand-roll it.
 #### Common/Collision Model:
 * [ ] Nothing for now.
 #### Net Code:

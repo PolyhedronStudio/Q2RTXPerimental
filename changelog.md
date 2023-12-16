@@ -9,14 +9,14 @@
 * Customizable Tick Rate (``40hz`` is the current default).
 * Removed MVD, and GTV, although 'luxury' features, make things harder to maintain and I doubt it is within most target audience interest rates.
 * Removed Anti-Cheat, OS specific and h4x0rz are going to h4x anyway. Makes life easier to maintain this project.
-* Adjusted stair **Step Smoothing** to ``BASE_FRAMETIME // (25ms for 40hz)`` instead of its old hard values: ``100ms at 10hz``.
 * Increased ``MAX_EDICTS(8192)``, ``MAX_MODELS(8192)``, ``MAX_SOUNDS(2048)``, ``MAX_IMAGES(512)``.
 * Increased maximum ConfigString length ``(96)``.
+* Enabled ``USE_SMOOTH_DELTA_ANGLES`` by default.
+* Adjusted stair **Step Smoothing** to ``BASE_FRAMETIME // (25ms for 40hz)`` instead of its old hard values: ``100ms at 10hz``.
 * Entity origins and player origin are ``wired/transferred`` as full floating point precision values.
-* Enabled ``USE_SMOOTH_DELTA_ANGLES``.
-* Allows for up to 255 different gamemodes to be implemented. The client is also made aware of the actual game mode the server is running.
-* Brush Shaped Triggers: Triggers can now have a "Clipped" flag set, in which case it only triggers when an actual collision(clip to brush) occured.
-
+* Client-Side awareness of the gamemode that is being played. Totally Q2RTXPerimental allows for up to 255 different gamemodes to be implemented.
+* Brush Shaped Triggers: Triggers can now have a "Clipped" flag set, in which case it only triggers when an actual collision(clip to brush) has occured.
+* Comes with [Handmade Math](https://github.com/HandmadeMath/HandmadeMath), it is the ``new`` math library that co-exists with the old one for legacy reasons and to prevent possibly breaking anything if we were to try and convert all math to use Handmade Math. To make it look pleasing, the HMM_ has been replaced by QM_ standing for, Quake Maths.
 ### Client:
 * Does proper lerping for entities that run lower than ``40hz``.
 * Does proper lerping for weapons based on their 'gunrate', defaults to ``10hz``
