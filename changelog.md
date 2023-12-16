@@ -42,7 +42,7 @@
 * AI now has the option to run at ``tick rate``(defaults to ``40hz``), when the ``AI_HIGH_TICK_RATE`` flag is set.
 * Guns can operate at a varying tick rate, default is ``10hz``
 * Brush Triggers can now be set a spawnflag to trigger only when actually clipping with the trigger brush.
-* Very rough and basic ``Spotlight`` entity.
+* Basic configurable Spotlight entity that can be given its own ``customLightStyle`` property as well.
 
 ### Client Game:
 * Currently nothing strictly of its own, only the SharedGame PlayerMove code.
