@@ -1001,7 +1001,9 @@ static void PM_InitialSnapPosition(void)
     //        }
     //    }
     //}
-
+	if ( PM_GoodPosition( ) ) {
+		VectorCopy( pm->s.origin, pml.previous_origin );
+	}
 }
 
 /*
