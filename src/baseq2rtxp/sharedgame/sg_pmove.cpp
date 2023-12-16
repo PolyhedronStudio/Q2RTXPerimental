@@ -47,11 +47,11 @@ static pml_t        pml;
 static pmoveParams_t    *pmp;
 
 // movement parameters
-static const float  pm_stopspeed = 100;
-static const float  pm_duckspeed = 100;
-static const float  pm_accelerate = 10;
-static const float  pm_wateraccelerate = 10;
-static const float  pm_waterspeed = 400;
+static constexpr float  pm_stopspeed = 100;
+static constexpr float  pm_duckspeed = 100;
+static constexpr float  pm_accelerate = 10;
+static constexpr float  pm_wateraccelerate = 10;
+static constexpr float  pm_waterspeed = 400;
 
 /*
   walking up a step should kill some velocity
@@ -977,31 +977,34 @@ PM_InitialSnapPosition
 
 ================
 */
-static void PM_InitialSnapPosition(void)
-{
-    //int        x, y, z;
-    //float      base[3];
-    //static const float offset[3] = { 0, -1, 1 };
+static void PM_InitialSnapPosition( void ) {
+	//int        x, y, z;
+	//float      base[3];
+	//static const float offset[3] = { 0, -1, 1 };
 
-    //VectorCopy(pm->s.origin, base);
+	//VectorCopy(pm->s.origin, base);
 
-    //for (z = 0; z < 3; z++) {
-    //    pm->s.origin[2] = base[2] + offset[z];
-    //    for (y = 0; y < 3; y++) {
-    //        pm->s.origin[1] = base[1] + offset[y];
-    //        for (x = 0; x < 3; x++) {
-    //            pm->s.origin[0] = base[0] + offset[x];
-    //            if (PM_GoodPosition()) {
-    //                pml.origin[0] = pm->s.origin[0];// * 0.125f; // WID: float-movement
-    //                pml.origin[1] = pm->s.origin[1];// * 0.125f; // WID: float-movement
-    //                pml.origin[2] = pm->s.origin[2];// * 0.125f; // WID: float-movement
-    //                VectorCopy(pm->s.origin, pml.previous_origin);
-    //                return;
-    //            }
-    //        }
-    //    }
-    //}
+	//for (z = 0; z < 3; z++) {
+	//    pm->s.origin[2] = base[2] + offset[z];
+	//    for (y = 0; y < 3; y++) {
+	//        pm->s.origin[1] = base[1] + offset[y];
+	//        for (x = 0; x < 3; x++) {
+	//            pm->s.origin[0] = base[0] + offset[x];
+	//            if (PM_GoodPosition()) {
+	//                pml.origin[0] = pm->s.origin[0];// * 0.125f; // WID: float-movement
+	//                pml.origin[1] = pm->s.origin[1];// * 0.125f; // WID: float-movement
+	//                pml.origin[2] = pm->s.origin[2];// * 0.125f; // WID: float-movement
+	//                VectorCopy(pm->s.origin, pml.previous_origin);
+	//                return;
+	//            }
+	//        }
+	//    }
+	//}
 
+	// Do check for a valid position to copy back as, into 'player move last previous origin'.
+	if ( PM_GoodPosition( ) ) {
+		VectorCopy( pm->s.origin, pml.previous_origin );
+	}
 }
 
 /*

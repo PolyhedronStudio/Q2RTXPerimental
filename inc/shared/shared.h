@@ -176,8 +176,21 @@ MATHLIB
 
 ==============================================================
 */
+// Includes the 'old' math library support. Which is pretty much still in use all over the place.
+// Strictly speaking, for consistency sake, we should update all code however it is prone to creating
+// possible new bugs and takes a lot of time to invest.
+#include "shared/math/math_old.h"
 
-#include "shared/math/math.h"
+// Undo extern "C" here for 'HandMadeMath'.
+#ifdef __cplusplus
+};
+#endif
+// Include the 'new' math library, a slightly customized version of: https://github.com/HandmadeMath/HandmadeMath
+#include "shared/math/math_new.h"
+#ifdef __cplusplus
+// We extern "C"
+extern "C" {
+#endif
 
 /*
 ==============================================================
