@@ -88,10 +88,10 @@ extern "C" {
 		vec3_t			viewangles;
 		int8_t          viewoffset[3];
 		int8_t          kick_angles[3];
-		int8_t          gunangles[3];
-		int8_t          gunoffset[3];
-		uint32_t         gunindex;
-		uint32_t         gunframe;
+		int16_t			gunangles[3]; // WID: new-pmove //int8_t          gunangles[3];
+		int16_t         gunoffset[3]; // WID: new-pmove //int8_t          gunoffset[3];
+		uint32_t		gunindex;
+		uint32_t		gunframe;
 		int8_t			gunrate;
 		uint8_t         blend[4];
 		uint8_t         fov;

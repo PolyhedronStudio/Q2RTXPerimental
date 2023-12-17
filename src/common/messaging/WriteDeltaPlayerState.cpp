@@ -34,18 +34,21 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 	//out->viewangles[ 0 ] = ANGLE2SHORT( in->viewangles[ 0 ] );
 	//out->viewangles[ 1 ] = ANGLE2SHORT( in->viewangles[ 1 ] );
 	//out->viewangles[ 2 ] = ANGLE2SHORT( in->viewangles[ 2 ] );
+	out->viewangles[ 0 ] = in->viewangles[ 0 ];
+	out->viewangles[ 1 ] = in->viewangles[ 1 ];
+	out->viewangles[ 2 ] = in->viewangles[ 2 ];
 	out->viewoffset[ 0 ] = OFFSET2CHAR( in->viewoffset[ 0 ] );
 	out->viewoffset[ 1 ] = OFFSET2CHAR( in->viewoffset[ 1 ] );
 	out->viewoffset[ 2 ] = OFFSET2CHAR( in->viewoffset[ 2 ] );
 	out->kick_angles[ 0 ] = OFFSET2CHAR( in->kick_angles[ 0 ] );
 	out->kick_angles[ 1 ] = OFFSET2CHAR( in->kick_angles[ 1 ] );
 	out->kick_angles[ 2 ] = OFFSET2CHAR( in->kick_angles[ 2 ] );
-	out->gunoffset[ 0 ] = OFFSET2CHAR( in->gunoffset[ 0 ] );
-	out->gunoffset[ 1 ] = OFFSET2CHAR( in->gunoffset[ 1 ] );
-	out->gunoffset[ 2 ] = OFFSET2CHAR( in->gunoffset[ 2 ] );
-	out->gunangles[ 0 ] = OFFSET2CHAR( in->gunangles[ 0 ] );
-	out->gunangles[ 1 ] = OFFSET2CHAR( in->gunangles[ 1 ] );
-	out->gunangles[ 2 ] = OFFSET2CHAR( in->gunangles[ 2 ] );
+	out->gunoffset[ 0 ] = COORD2SHORT( in->gunoffset[ 0 ] );
+	out->gunoffset[ 1 ] = COORD2SHORT( in->gunoffset[ 1 ] );
+	out->gunoffset[ 2 ] = COORD2SHORT( in->gunoffset[ 2 ] );
+	out->gunangles[ 0 ] = ANGLE2SHORT( in->gunangles[ 0 ] );// WID: new-pmove OFFSET2CHAR( in->gunangles[ 0 ] );
+	out->gunangles[ 1 ] = ANGLE2SHORT( in->gunangles[ 1 ] );// WID: new-pmove OFFSET2CHAR( in->gunangles[ 1 ] );
+	out->gunangles[ 2 ] = ANGLE2SHORT( in->gunangles[ 2 ] );// WID: new-pmove OFFSET2CHAR( in->gunangles[ 2 ] );
 	out->gunindex = in->gunindex;
 	out->gunframe = in->gunframe;
 	// WID: 40hz.
@@ -196,12 +199,12 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 
 	if ( pflags & PS_WEAPONFRAME ) {
 		MSG_WriteUintBase128( to->gunframe );
-		MSG_WriteInt8( to->gunoffset[ 0 ] );
-		MSG_WriteInt8( to->gunoffset[ 1 ] );
-		MSG_WriteInt8( to->gunoffset[ 2 ] );
-		MSG_WriteInt8( to->gunangles[ 0 ] );
-		MSG_WriteInt8( to->gunangles[ 1 ] );
-		MSG_WriteInt8( to->gunangles[ 2 ] );
+		MSG_WriteInt16( to->gunoffset[ 0 ] );
+		MSG_WriteInt16( to->gunoffset[ 1 ] );
+		MSG_WriteInt16( to->gunoffset[ 2 ] );
+		MSG_WriteInt16( to->gunangles[ 0 ] );
+		MSG_WriteInt16( to->gunangles[ 1 ] );
+		MSG_WriteInt16( to->gunangles[ 2 ] );
 	}
 
 	if ( pflags & PS_WEAPONRATE ) {

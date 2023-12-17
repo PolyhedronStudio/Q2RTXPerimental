@@ -185,8 +185,10 @@ MATHLIB
 #ifdef __cplusplus
 };
 #endif
+
 // Include the 'new' math library, a slightly customized version of: https://github.com/HandmadeMath/HandmadeMath
 #include "shared/math/math_new.h"
+
 #ifdef __cplusplus
 // We extern "C"
 extern "C" {

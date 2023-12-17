@@ -49,8 +49,9 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	//
 	// parse the pmove_state_t
 	//
-	if ( flags & PS_M_TYPE )
+	if ( flags & PS_M_TYPE ) {
 		to->pmove.pm_type = static_cast<pmtype_t>( MSG_ReadUint8( ) ); // WID: C++20: Added cast.
+	}
 
 	if ( flags & PS_M_ORIGIN ) {
 		// WID: float-movement MSG_ReadFloat();
@@ -65,14 +66,17 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->pmove.velocity[ 2 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 	}
 
-	if ( flags & PS_M_TIME )
+	if ( flags & PS_M_TIME ) {
 		to->pmove.pm_time = MSG_ReadUint8( );
+	}
 
-	if ( flags & PS_M_FLAGS )
+	if ( flags & PS_M_FLAGS ) {
 		to->pmove.pm_flags = MSG_ReadUintBase128( );
+	}
 
-	if ( flags & PS_M_GRAVITY )
+	if ( flags & PS_M_GRAVITY ) {
 		to->pmove.gravity = MSG_ReadInt16( );
+	}
 
 	if ( flags & PS_M_DELTA_ANGLES ) {
 		to->pmove.delta_angles[ 0 ] = MSG_ReadInt16( ); // WID: float-movement.
@@ -107,16 +111,17 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 
 	if ( flags & PS_WEAPONFRAME ) {
 		to->gunframe = MSG_ReadUintBase128( );
-		to->gunoffset[ 0 ] = MSG_ReadInt8( ) * 0.25f;
-		to->gunoffset[ 1 ] = MSG_ReadInt8( ) * 0.25f;
-		to->gunoffset[ 2 ] = MSG_ReadInt8( ) * 0.25f;
-		to->gunangles[ 0 ] = MSG_ReadInt8( ) * 0.25f;
-		to->gunangles[ 1 ] = MSG_ReadInt8( ) * 0.25f;
-		to->gunangles[ 2 ] = MSG_ReadInt8( ) * 0.25f;
+		to->gunoffset[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
+		to->gunoffset[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmoveMSG_ReadInt8( ) * 0.25f;
+		to->gunoffset[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmoveMSG_ReadInt8( ) * 0.25f;
+		to->gunangles[ 0 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
+		to->gunangles[ 1 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
+		to->gunangles[ 2 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
 	}
 
-	if ( flags & PS_WEAPONRATE )
+	if ( flags & PS_WEAPONRATE ) {
 		to->gunrate = MSG_ReadUint8( );
+	}
 
 	if ( flags & PS_BLEND ) {
 		to->blend[ 0 ] = MSG_ReadUint8( ) / 255.0f;
@@ -125,16 +130,20 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->blend[ 3 ] = MSG_ReadUint8( ) / 255.0f;
 	}
 
-	if ( flags & PS_FOV )
+	if ( flags & PS_FOV ) {
 		to->fov = MSG_ReadUint8( );
-
-	if ( flags & PS_RDFLAGS )
+	}
+	
+	if ( flags & PS_RDFLAGS ) {
 		to->rdflags = MSG_ReadUintBase128( );
+	}
 
 	// parse stats
 	statbits = MSG_ReadIntBase128( );
-	for ( i = 0; i < MAX_STATS; i++ )
-		if ( statbits & ( 1ULL << i ) )
+	for ( i = 0; i < MAX_STATS; i++ ) {
+		if ( statbits & ( 1ULL << i ) ) {
 			to->stats[ i ] = MSG_ReadIntBase128( );
+		}
+	}
 }
 #endif // USE_CLIENT
