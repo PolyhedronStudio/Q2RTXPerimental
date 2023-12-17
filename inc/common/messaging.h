@@ -86,8 +86,8 @@ extern "C" {
 	typedef struct {
 		pmove_state_t   pmove;
 		vec3_t			viewangles;
-		int8_t          viewoffset[3];
-		int8_t          kick_angles[3];
+		int16_t			viewoffset[3];// WID: new-pmove int8_t          viewoffset[3];
+		int16_t			kick_angles[3]; // WID: new-pmove int8_t          kick_angles[3];
 		int16_t			gunangles[3]; // WID: new-pmove //int8_t          gunangles[3];
 		int16_t         gunoffset[3]; // WID: new-pmove //int8_t          gunoffset[3];
 		uint32_t		gunindex;

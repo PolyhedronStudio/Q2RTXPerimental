@@ -88,9 +88,9 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	// parse the rest of the player_state_t
 	//
 	if ( flags & PS_VIEWOFFSET ) {
-		to->viewoffset[ 0 ] = MSG_ReadInt8( ) * 0.25f;
-		to->viewoffset[ 1 ] = MSG_ReadInt8( ) * 0.25f;
-		to->viewoffset[ 2 ] = MSG_ReadInt8( ) * 0.25f;
+		to->viewoffset[ 0 ] = MSG_ReadInt16( ) / 16.f;
+		to->viewoffset[ 1 ] = MSG_ReadInt16( ) / 16.f;
+		to->viewoffset[ 2 ] = MSG_ReadInt16( ) / 16.f;
 	}
 
 	if ( flags & PS_VIEWANGLES ) {
@@ -100,9 +100,9 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	}
 
 	if ( flags & PS_KICKANGLES ) {
-		to->kick_angles[ 0 ] = MSG_ReadInt8( ) * 0.25f;
-		to->kick_angles[ 1 ] = MSG_ReadInt8( ) * 0.25f;
-		to->kick_angles[ 2 ] = MSG_ReadInt8( ) * 0.25f;
+		to->kick_angles[ 0 ] = MSG_ReadInt16( ) / 1024.f;
+		to->kick_angles[ 1 ] = MSG_ReadInt16( ) / 1024.f;
+		to->kick_angles[ 2 ] = MSG_ReadInt16( ) / 1024.f;
 	}
 
 	if ( flags & PS_WEAPONINDEX ) {
