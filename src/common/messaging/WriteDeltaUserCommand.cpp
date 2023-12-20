@@ -73,32 +73,32 @@ int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int 
 	//}
 
 	if ( bits & CM_ANGLE1 )
-		MSG_WriteInt16( cmd->angles[ 0 ] );
+		MSG_WriteFloat( cmd->angles[ 0 ] );
 	if ( bits & CM_ANGLE2 )
-		MSG_WriteInt16( cmd->angles[ 1 ] );
+		MSG_WriteFloat( cmd->angles[ 1 ] );
 	if ( bits & CM_ANGLE3 )
-		MSG_WriteInt16( cmd->angles[ 2 ] );
+		MSG_WriteFloat( cmd->angles[ 2 ] );
 
 	if ( bits & CM_FORWARD ) {
-		if ( buttons & BUTTON_FORWARD ) {
-			MSG_WriteInt8( cmd->forwardmove / 5 );
-		} else {
+		//if ( buttons & BUTTON_FORWARD ) {
+		//	MSG_WriteInt8( cmd->forwardmove / 5 );
+		//} else {
 			MSG_WriteInt16( cmd->forwardmove );
-		}
+		//}
 	}
 	if ( bits & CM_SIDE ) {
-		if ( buttons & BUTTON_SIDE ) {
-			MSG_WriteInt8( cmd->sidemove / 5 );
-		} else {
+		//if ( buttons & BUTTON_SIDE ) {
+		//	MSG_WriteInt8( cmd->sidemove / 5 );
+		//} else {
 			MSG_WriteInt16( cmd->sidemove );
-		}
+		//}
 	}
 	if ( bits & CM_UP ) {
-		if ( buttons & BUTTON_UP ) {
-			MSG_WriteInt8( cmd->upmove / 5 );
-		} else {
+		//if ( buttons & BUTTON_UP ) {
+		//	MSG_WriteInt8( cmd->upmove / 5 );
+		//} else {
 			MSG_WriteInt16( cmd->upmove );
-		}
+		//}
 	}
 
 	//if ( version < PROTOCOL_VERSION_R1Q2_UCMD ) {

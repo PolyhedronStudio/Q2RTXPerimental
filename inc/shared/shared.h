@@ -430,7 +430,7 @@ USER COMMANDS( User Input. ):
 typedef struct usercmd_s {
 	byte    msec;
 	byte    buttons;
-	short   angles[ 3 ];
+	vec3_t  angles;
 	short   forwardmove, sidemove, upmove;
 	byte    impulse;        // remove?
 } usercmd_t;

@@ -40,11 +40,11 @@ void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *to ) {
 
 // read current angles
 	if ( bits & CM_ANGLE1 )
-		to->angles[ 0 ] = MSG_ReadInt16( );
+		to->angles[ 0 ] = MSG_ReadFloat( );
 	if ( bits & CM_ANGLE2 )
-		to->angles[ 1 ] = MSG_ReadInt16( );
+		to->angles[ 1 ] = MSG_ReadFloat( );
 	if ( bits & CM_ANGLE3 )
-		to->angles[ 2 ] = MSG_ReadInt16( );
+		to->angles[ 2 ] = MSG_ReadFloat( );
 
 // read movement
 	if ( bits & CM_FORWARD )

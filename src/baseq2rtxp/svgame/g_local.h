@@ -984,12 +984,12 @@ typedef struct {
 
 // client data that stays across deathmatch respawns
 typedef struct {
-    client_persistant_t coop_respawn;   // what to set client->pers to on a respawn
-    int64_t enterframe;         // level.framenum the client entered the game
-    int score;              // frags, etc
-    vec3_t cmd_angles;         // angles sent over in the last command
+    client_persistant_t coop_respawn;	// what to set client->pers to on a respawn
+    int64_t enterframe;			// level.framenum the client entered the game
+    int score;					// frags, etc
+    vec3_t cmd_angles;			// angles sent over in the last command
 
-    bool spectator;          // client is a spectator
+    bool spectator;				// client is a spectator
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
