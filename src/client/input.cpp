@@ -408,7 +408,7 @@ static void IN_Impulse(void)
 
 static void IN_CenterView(void)
 {
-    cl.viewangles[PITCH] = -SHORT2ANGLE(cl.frame.ps.pmove.delta_angles[PITCH]);
+    cl.viewangles[PITCH] = -/*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[PITCH]);
 }
 
 static void IN_MLookDown(void)
@@ -597,7 +597,7 @@ static void CL_ClampPitch(void)
 {
     float pitch, angle;
 
-    pitch = SHORT2ANGLE(cl.frame.ps.pmove.delta_angles[PITCH]);
+    pitch = /*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[PITCH]);
     angle = cl.viewangles[PITCH] + pitch;
 
     if (angle < -180)

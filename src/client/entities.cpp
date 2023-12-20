@@ -1336,9 +1336,9 @@ void CL_CalcViewValues(void)
     }
 
 #if USE_SMOOTH_DELTA_ANGLES
-    cl.delta_angles[0] = LerpShort(ops->pmove.delta_angles[0], ps->pmove.delta_angles[0], lerp);
-    cl.delta_angles[1] = LerpShort(ops->pmove.delta_angles[1], ps->pmove.delta_angles[1], lerp);
-    cl.delta_angles[2] = LerpShort(ops->pmove.delta_angles[2], ps->pmove.delta_angles[2], lerp);
+    cl.delta_angles[0] = LerpAngle(ops->pmove.delta_angles[0], ps->pmove.delta_angles[0], lerp);
+    cl.delta_angles[1] = LerpAngle(ops->pmove.delta_angles[1], ps->pmove.delta_angles[1], lerp);
+    cl.delta_angles[2] = LerpAngle(ops->pmove.delta_angles[2], ps->pmove.delta_angles[2], lerp);
 #endif
 
     // don't interpolate blend color

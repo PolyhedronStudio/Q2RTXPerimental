@@ -221,7 +221,7 @@ typedef struct client_state_s {
     vec2_t      mousemove;
 
 #if USE_SMOOTH_DELTA_ANGLES
-    short       delta_angles[3]; // interpolated
+    vec3_t      delta_angles; // interpolated
 #endif
 
     int64_t     time;           // This is the time value that the client

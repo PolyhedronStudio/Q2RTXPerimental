@@ -1013,13 +1013,13 @@ PM_ClampAngles
 static void PM_ClampAngles(void)
 {
 	if ( pm->s.pm_flags & PMF_TIME_TELEPORT ) {
-		pm->viewangles[ YAW ] = pm->cmd.angles[ YAW ] + SHORT2ANGLE( pm->s.delta_angles[ YAW ] );
+		pm->viewangles[ YAW ] = pm->cmd.angles[ YAW ] + /*SHORT2ANGLE*/( pm->s.delta_angles[ YAW ] );
 		pm->viewangles[ PITCH ] = 0;
 		pm->viewangles[ ROLL ] = 0;
 	} else {
 		// circularly clamp the angles with deltas
 		for ( int32_t i = 0; i < 3; i++ ) {
-			const float temp = pm->cmd.angles[ i ] + SHORT2ANGLE( pm->s.delta_angles[ i ] );
+			const float temp = pm->cmd.angles[ i ] + /*SHORT2ANGLE*/( pm->s.delta_angles[ i ] );
 			pm->viewangles[ i ] = temp;
 		}
 
