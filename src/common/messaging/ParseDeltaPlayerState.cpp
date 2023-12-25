@@ -67,7 +67,7 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	}
 
 	if ( flags & PS_M_TIME ) {
-		to->pmove.pm_time = MSG_ReadUint8( );
+		to->pmove.pm_time = MSG_ReadUint16( );
 	}
 
 	if ( flags & PS_M_FLAGS ) {
@@ -91,6 +91,10 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->viewoffset[ 0 ] = MSG_ReadInt16( ) / 16.f;
 		to->viewoffset[ 1 ] = MSG_ReadInt16( ) / 16.f;
 		to->viewoffset[ 2 ] = MSG_ReadInt16( ) / 16.f;
+	}
+
+	if ( flags & PS_VIEWHEIGHT ) {
+		to->pmove.viewheight = MSG_ReadInt8( );
 	}
 
 	if ( flags & PS_VIEWANGLES ) {

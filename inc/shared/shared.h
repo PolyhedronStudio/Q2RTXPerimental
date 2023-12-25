@@ -468,14 +468,19 @@ typedef enum {
 } pmtype_t;
 
 // pmove->pm_flags
-#define PMF_DUCKED          1
-#define PMF_JUMP_HELD       2
-#define PMF_ON_GROUND       4
-#define PMF_TIME_WATERJUMP  8   // pm_time is waterjump
-#define PMF_TIME_LAND       16  // pm_time is time before rejump
-#define PMF_TIME_TELEPORT   32  // pm_time is non-moving time
-#define PMF_NO_PREDICTION   64  // temporarily disables prediction (used for grappling hook)
-#define PMF_TELEPORT_BIT    128 // used by q2pro
+#define PMF_NONE						0
+#define PMF_DUCKED						1
+#define PMF_JUMP_HELD					2
+#define PMF_ON_GROUND					4
+#define PMF_TIME_WATERJUMP				8   // pm_time is waterjump.
+#define PMF_TIME_LAND					16  // pm_time is time before rejump.
+#define PMF_TIME_TELEPORT				32  // pm_time is non-moving time.
+#define PMF_NO_POSITIONAL_PREDICTION	64  // Temporarily disables prediction (used for grappling hook).
+//#define PMF_TELEPORT_BIT				128 // used by q2pro
+#define PMF_ON_LADDER					128	// Signal to game that we are on a ladder.
+#define PMF_NO_ANGULAR_PREDICTION		256 // Temporary disables angular prediction.
+#define PMF_IGNORE_PLAYER_COLLISION		512	// Don't collide with other players.
+#define PMF_TIME_TRICK_JUMP				1024// pm_time is the trick jump time.
 
 // this structure needs to be communicated bit-accurate
 // from the server to the client to guarantee that
@@ -485,13 +490,14 @@ typedef enum {
 typedef struct {
     pmtype_t    pm_type;
 
-    vec3_t		origin;//short       origin[3];      // 12.3 // WID: float-movement
-    vec3_t		velocity;//short       velocity[3];    // 12.3 // WID: float-movement
-    byte        pm_flags;       // ducked, jump_held, etc
-    byte        pm_time;        // each unit = 8 ms
+    vec3_t		origin;			//short       origin[3];      // 12.3 // WID: float-movement
+    vec3_t		velocity;		//short       velocity[3];    // 12.3 // WID: float-movement
+    byte        pm_flags;		// Ducked, jump_held, etc
+	uint16_t	pm_time;		// Each unit = 8 ms
     short       gravity;
-    vec3_t      delta_angles;    // add to command angles to get view direction
-                                    // changed by spawns, rotating objects, and teleporters
+    vec3_t      delta_angles;	// Add to command angles to get view direction
+								// changed by spawns, rotating objects, and teleporters
+	int8_t		viewheight;		// View height, added to origin[2] + viewoffset[2], for crouching
 } pmove_state_t;
 
 /**
@@ -519,15 +525,15 @@ typedef struct {
     pmove_state_t   s;
 
     // command (in)
-    usercmd_t       cmd;
-    qboolean        snapinitial;    // if s has been changed outside pmove
+    usercmd_t	cmd;
+    bool		snapinitial;    // if s has been changed outside pmove
 
     // results (out)
     int         numtouch;
     struct edict_s  *touchents[MAXTOUCH];
 
     vec3_t      viewangles;         // clamped
-    float       viewheight;
+    //float       viewheight;
 
     vec3_t      mins, maxs;         // bounding box size
 

@@ -39,7 +39,7 @@ void CL_CheckPredictionError(void)
         return;
     }
 
-    if (!cl_predict->integer || (cl.frame.ps.pmove.pm_flags & PMF_NO_PREDICTION))
+    if (!cl_predict->integer || (cl.frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION))
         return;
 
     // calculate the last usercmd_t we sent that the server has processed
@@ -191,7 +191,7 @@ void CL_PredictMovement(void)
         return;
     }
 
-    if (!cl_predict->integer || (cl.frame.ps.pmove.pm_flags & PMF_NO_PREDICTION)) {
+    if (!cl_predict->integer || (cl.frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION)) {
         // just set angles
         CL_PredictAngles();
         return;

@@ -616,7 +616,7 @@ static void PM_CategorizePosition(void)
     pm->waterlevel = water_level_t::WATER_NONE;
     pm->watertype = 0;
 
-    sample2 = pm->viewheight - pm->mins[2];
+    sample2 = pm->s.viewheight - pm->mins[2];
     sample1 = sample2 / 2;
 
     point[2] = pml.origin[2] + pm->mins[2] + 1;
@@ -760,7 +760,7 @@ static void PM_FlyMove(void)
     vec3_t      wishdir;
     float       wishspeed;
 
-    pm->viewheight = 22;
+    pm->s.viewheight = 22;
 
     // friction
     speed = VectorLength(pml.velocity);
@@ -843,7 +843,7 @@ static void PM_CheckDuck(void)
     if (pm->s.pm_type == PM_GIB) {
         pm->mins[2] = 0;
         pm->maxs[2] = 16;
-        pm->viewheight = 8;
+        pm->s.viewheight = 8;
         return;
     }
 
@@ -867,10 +867,10 @@ static void PM_CheckDuck(void)
 
     if (pm->s.pm_flags & PMF_DUCKED) {
         pm->maxs[2] = 4;
-        pm->viewheight = -2;
+        pm->s.viewheight = -2;
     } else {
         pm->maxs[2] = 32;
-        pm->viewheight = 22;
+        pm->s.viewheight = 22;
     }
 }
 
@@ -1043,7 +1043,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
     // clear results
     pm->numtouch = 0;
     VectorClear(pm->viewangles);
-    pm->viewheight = 0;
+    pm->s.viewheight = 0;
     pm->groundentity = NULL;
     pm->watertype = 0;
     pm->waterlevel = water_level_t::WATER_NONE;

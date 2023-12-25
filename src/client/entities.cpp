@@ -305,8 +305,8 @@ check_player_lerp(server_frame_t *oldframe, server_frame_t *frame, int framediv)
     }
 
     // no lerping if teleport bit was flipped
-    if ((ops->pmove.pm_flags ^ ps->pmove.pm_flags) & PMF_TELEPORT_BIT)
-        goto dup;
+    //if ((ops->pmove.pm_flags ^ ps->pmove.pm_flags) & PMF_TELEPORT_BIT)
+    //    goto dup;
 
     // no lerping if POV number changed
     if (oldframe->clientNum != frame->clientNum)
@@ -1287,7 +1287,7 @@ void CL_CalcViewValues(void)
     lerp = cl.lerpfrac;
 
     // calculate the origin
-    if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_PREDICTION)) {
+    if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
         // use predicted values
         unsigned delta = cls.realtime - cl.predicted_step_time;
         float backlerp = lerp - 1.0f;
@@ -1326,13 +1326,17 @@ void CL_CalcViewValues(void)
     } else if (ps->pmove.pm_type < PM_DEAD) {
         // use predicted values
         VectorCopy(cl.predicted_angles, cl.refdef.viewangles);
-    } else if (ops->pmove.pm_type < PM_DEAD && cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
+    } else if (ops->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
         // lerp from predicted angles, since enhanced servers
         // do not send viewangles each frame
         LerpAngles(cl.predicted_angles, ps->viewangles, lerp, cl.refdef.viewangles);
     } else {
-        // just use interpolated values
-        LerpAngles(ops->viewangles, ps->viewangles, lerp, cl.refdef.viewangles);
+		if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
+			// just use interpolated values
+			LerpAngles( ops->viewangles, ps->viewangles, lerp, cl.refdef.viewangles );
+		} else {
+			VectorCopy( ps->viewangles, cl.refdef.viewangles );
+		}
     }
 
 #if USE_SMOOTH_DELTA_ANGLES

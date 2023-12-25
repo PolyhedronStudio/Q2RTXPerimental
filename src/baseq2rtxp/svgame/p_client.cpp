@@ -1628,7 +1628,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         client->ps.pmove = pm.s;
         client->old_pmove = pm.s;
 
-        ent->viewheight = pm.viewheight;
+        ent->viewheight = pm.s.viewheight;
         ent->waterlevel = pm.waterlevel;
         ent->watertype = pm.watertype;
         ent->groundentity = pm.groundentity;
@@ -1680,7 +1680,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
             if (client->chase_target) {
                 client->chase_target = NULL;
-                client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
+				client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
             } else
                 GetChaseTarget(ent);
 

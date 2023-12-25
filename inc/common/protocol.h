@@ -144,17 +144,19 @@ typedef enum {
 #define PS_M_DELTA_ANGLES   (1<<6)
 
 #define PS_VIEWOFFSET       (1<<7)
-#define PS_VIEWANGLES       (1<<8)
-#define PS_KICKANGLES       (1<<9)
-#define PS_BLEND            (1<<10)
-#define PS_FOV              (1<<11)
-#define PS_WEAPONINDEX      (1<<12)
-#define PS_WEAPONFRAME      (1<<13)
-#define PS_RDFLAGS          (1<<14)
-#define PS_WEAPONRATE       (1<<15)
+#define PS_VIEWHEIGHT		(1<<8)
+#define PS_VIEWANGLES       (1<<9)
+#define PS_KICKANGLES       (1<<10)
+#define PS_BLEND            (1<<11)
+#define PS_FOV              (1<<12)
+#define PS_WEAPONINDEX      (1<<13)
+#define PS_WEAPONFRAME      (1<<14)
+#define PS_RDFLAGS          (1<<15)
+#define PS_WEAPONRATE       (1<<16)
 
-#define PS_BITS             16
-#define PS_MASK             ((1<<PS_BITS)-1)
+
+//#define PS_BITS             16
+//#define PS_MASK             ((1<<PS_BITS)-1)
 
 //==============================================
 
