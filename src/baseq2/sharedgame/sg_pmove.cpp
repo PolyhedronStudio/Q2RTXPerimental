@@ -613,7 +613,7 @@ static void PM_CategorizePosition(void)
 //
 // get waterlevel, accounting for ducking
 //
-    pm->waterlevel = 0;
+    pm->waterlevel = water_level_t::WATER_NONE;
     pm->watertype = 0;
 
     sample2 = pm->viewheight - pm->mins[2];
@@ -624,15 +624,15 @@ static void PM_CategorizePosition(void)
 
     if (cont & MASK_WATER) {
         pm->watertype = cont;
-        pm->waterlevel = 1;
+        pm->waterlevel = water_level_t::WATER_FEET;
         point[2] = pml.origin[2] + pm->mins[2] + sample1;
         cont = pm->pointcontents(point);
         if (cont & MASK_WATER) {
-            pm->waterlevel = 2;
+            pm->waterlevel = water_level_t::WATER_WAIST;
             point[2] = pml.origin[2] + pm->mins[2] + sample2;
             cont = pm->pointcontents(point);
             if (cont & MASK_WATER)
-                pm->waterlevel = 3;
+                pm->waterlevel = water_level_t::WATER_UNDER;
         }
     }
 }
@@ -1046,7 +1046,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
     pm->viewheight = 0;
     pm->groundentity = NULL;
     pm->watertype = 0;
-    pm->waterlevel = 0;
+    pm->waterlevel = water_level_t::WATER_NONE;
 
     // clear all pmove local vars
     memset(&pml, 0, sizeof(pml));

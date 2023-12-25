@@ -1082,9 +1082,9 @@ struct gclient_s {
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
 
-	sg_time_t	next_drown_time;
-    int         old_waterlevel;
-    int         breather_sound;
+	sg_time_t		next_drown_time;
+	water_level_t	old_waterlevel;
+    int				breather_sound;
 
     int         machinegun_shots;   // for weapon raising
 
@@ -1256,8 +1256,8 @@ struct edict_s {
 
     sg_time_t		last_sound_time;
 
-    int         watertype;
-    int         waterlevel;
+    int				watertype;
+	water_level_t	waterlevel;
 
     vec3_t      move_origin;
     vec3_t      move_angles;

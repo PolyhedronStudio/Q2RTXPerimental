@@ -448,6 +448,13 @@ PLAYER MOVEMENT
 
 ==============================================================
 */
+typedef enum {//: uint8_t {
+	WATER_NONE,
+	WATER_FEET,
+	WATER_WAIST,
+	WATER_UNDER
+} water_level_t;
+
 // pmove_state_t is the information necessary for client side movement
 // prediction
 typedef enum {
@@ -525,8 +532,8 @@ typedef struct {
     vec3_t      mins, maxs;         // bounding box size
 
     struct edict_s  *groundentity;
-    int         watertype;
-    int         waterlevel;
+    int				watertype;
+    water_level_t	waterlevel;
 
     // callbacks to test the world
     trace_t     (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end);

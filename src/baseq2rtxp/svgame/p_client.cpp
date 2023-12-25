@@ -1153,7 +1153,7 @@ void PutClientInServer(edict_t *ent)
     ent->model = "players/male/tris.md2";
     ent->pain = player_pain;
     ent->die = player_die;
-    ent->waterlevel = 0;
+    ent->waterlevel = water_level_t::WATER_NONE;;
     ent->watertype = 0;
     ent->flags &= ~FL_NO_KNOCKBACK;
     ent->svflags &= ~SVF_DEADMONSTER;
