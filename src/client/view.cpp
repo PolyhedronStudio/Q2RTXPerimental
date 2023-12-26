@@ -217,7 +217,7 @@ void V_Flashlight(void)
             /* Use cl.playerEntityOrigin+viewoffset, playerEntityAngles instead of
              * cl.refdef.vieworg, cl.refdef.viewangles as as the cl.refdef values
              * are the camera values, but not the player "eye" values in 3rd person mode. */
-            VectorCopy(cl.predicted_angles, flashlight_angles);
+            VectorCopy(cl.predictedState.angles, flashlight_angles);
         }
         // Add a bit of gun bob to the flashlight as well
         vec3_t gunangles;

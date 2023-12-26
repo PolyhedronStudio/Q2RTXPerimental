@@ -245,15 +245,15 @@ static void set_active_state(void)
         CL_FirstDemoFrame();
     } else {
         // set initial cl.predicted_origin and cl.predicted_angles
-        VectorCopy(cl.frame.ps.pmove.origin, cl.predicted_origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
-        VectorCopy(cl.frame.ps.pmove.velocity, cl.predicted_velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
+        VectorCopy(cl.frame.ps.pmove.origin, cl.predictedState.origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
+        VectorCopy(cl.frame.ps.pmove.velocity, cl.predictedState.velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
         if (cl.frame.ps.pmove.pm_type < PM_DEAD &&
             cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
             // enhanced servers don't send viewangles
             CL_PredictAngles();
         } else {
             // just use what server provided
-            VectorCopy(cl.frame.ps.viewangles, cl.predicted_angles);
+            VectorCopy(cl.frame.ps.viewangles, cl.predictedState.angles);
         }
     }
 
@@ -1289,13 +1289,13 @@ void CL_CalcViewValues(void)
     // calculate the origin
     if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
         // use predicted values
-        unsigned delta = cls.realtime - cl.predicted_step_time;
+        unsigned delta = cls.realtime - cl.predictedState.step_time;
         float backlerp = lerp - 1.0f;
 
-        VectorMA(cl.predicted_origin, backlerp, cl.prediction_error, cl.refdef.vieworg);
+        VectorMA(cl.predictedState.origin, backlerp, cl.predictedState.error, cl.refdef.vieworg);
 
         // smooth out stair climbing
-        if (cl.predicted_step < 15.875) {//127 ) {// * 0.125f) { // WID: float-movement
+        if (cl.predictedState.predicted_step < 15.875) {//127 ) {// * 0.125f) { // WID: float-movement
             delta <<= 1; // small steps
         }
 
@@ -1305,7 +1305,7 @@ void CL_CalcViewValues(void)
         //}
 		// WID: Prediction: Now should be dependant on specific framerate.
 		if ( delta < BASE_FRAMETIME ) {
-			cl.refdef.vieworg[ 2 ] -= cl.predicted_step * ( BASE_FRAMETIME - delta ) * BASE_1_FRAMETIME;
+			cl.refdef.vieworg[ 2 ] -= cl.predictedState.predicted_step * ( BASE_FRAMETIME - delta ) * BASE_1_FRAMETIME;
 		}
     } else {
         int i;
@@ -1325,11 +1325,11 @@ void CL_CalcViewValues(void)
         LerpAngles(ops->viewangles, ps->viewangles, lerp, cl.refdef.viewangles);
     } else if (ps->pmove.pm_type < PM_DEAD) {
         // use predicted values
-        VectorCopy(cl.predicted_angles, cl.refdef.viewangles);
+        VectorCopy(cl.predictedState.angles, cl.refdef.viewangles);
     } else if (ops->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
         // lerp from predicted angles, since enhanced servers
         // do not send viewangles each frame
-        LerpAngles(cl.predicted_angles, ps->viewangles, lerp, cl.refdef.viewangles);
+        LerpAngles(cl.predictedState.angles, ps->viewangles, lerp, cl.refdef.viewangles);
     } else {
 		if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
 			// just use interpolated values
