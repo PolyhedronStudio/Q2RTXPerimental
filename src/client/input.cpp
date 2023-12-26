@@ -444,11 +444,11 @@ static double CL_KeyState(kbutton_t *key)
     }
 
     // special case for instant packet
-    if (!cl.cmd.msec) {
+    if (!cl.predictedState.cmd.msec) {
         return (double)(key->state & 1);
     }
 
-    val = (double)msec / cl.cmd.msec;
+    val = (double)msec / cl.predictedState.cmd.msec;
 
     return clamp(val, 0, 1);
 }
@@ -626,7 +626,7 @@ void CL_UpdateCmd(int msec)
     }
 
     // add to milliseconds of time to apply the move
-    cl.cmd.msec += msec;
+    cl.predictedState.cmd.msec += msec;
 
     // adjust viewangles
     CL_AdjustAngles(msec);
@@ -646,9 +646,9 @@ void CL_UpdateCmd(int msec)
 
     CL_ClampPitch();
 
-    cl.cmd.angles[0] = /*ANGLE2SHORT*/(cl.viewangles[0]);
-    cl.cmd.angles[1] = /*ANGLE2SHORT*/(cl.viewangles[1]);
-    cl.cmd.angles[2] = /*ANGLE2SHORT*/(cl.viewangles[2]);
+    cl.predictedState.cmd.angles[0] = /*ANGLE2SHORT*/(cl.viewangles[0]);
+    cl.predictedState.cmd.angles[1] = /*ANGLE2SHORT*/(cl.viewangles[1]);
+    cl.predictedState.cmd.angles[2] = /*ANGLE2SHORT*/(cl.viewangles[2]);
 }
 
 static void m_autosens_changed(cvar_t *self)
@@ -776,20 +776,20 @@ void CL_FinalizeCmd(void)
 // figure button bits
 //
     if (in_attack.state & 3)
-        cl.cmd.buttons |= BUTTON_ATTACK;
+        cl.predictedState.cmd.buttons |= BUTTON_ATTACK;
     if (in_use.state & 3)
-        cl.cmd.buttons |= BUTTON_USE;
+        cl.predictedState.cmd.buttons |= BUTTON_USE;
 
     in_attack.state &= ~2;
     in_use.state &= ~2;
 
     if (cls.key_dest == KEY_GAME && Key_AnyKeyDown()) {
-        cl.cmd.buttons |= BUTTON_ANY;
+        cl.predictedState.cmd.buttons |= BUTTON_ANY;
     }
 
 	// WID: 64-bit-frame: Should we messabout with this?
-    if (cl.cmd.msec > 75) { // Was: > 250
-        cl.cmd.msec = BASE_FRAMERATE;        // time was unreasonable
+    if (cl.predictedState.cmd.msec > 75) { // Was: > 250
+        cl.predictedState.cmd.msec = BASE_FRAMERATE;        // time was unreasonable
     }
 
     // rebuild the movement vector
@@ -806,9 +806,9 @@ void CL_FinalizeCmd(void)
     CL_ClampSpeed(move);
 
     // store the movement vector
-    cl.cmd.forwardmove = move[0];
-    cl.cmd.sidemove = move[1];
-    cl.cmd.upmove = move[2];
+    cl.predictedState.cmd.forwardmove = move[0];
+    cl.predictedState.cmd.sidemove = move[1];
+    cl.predictedState.cmd.upmove = move[2];
 
     // clear all states
     cl.mousemove[0] = 0;
@@ -829,15 +829,15 @@ void CL_FinalizeCmd(void)
     KeyClear(&in_lookup);
     KeyClear(&in_lookdown);
 
-    cl.cmd.impulse = in_impulse;
+    cl.predictedState.cmd.impulse = in_impulse;
     in_impulse = 0;
 
     // save this command off for prediction
     cl.cmdNumber++;
-    cl.cmds[cl.cmdNumber & CMD_MASK] = cl.cmd;
+    cl.predictedStates[cl.cmdNumber & CMD_MASK].cmd = cl.predictedState.cmd;
 
     // clear pending cmd
-    memset(&cl.cmd, 0, sizeof(cl.cmd));
+	cl.predictedState.cmd = {};
 }
 
 static inline bool ready_to_send(void)
@@ -941,15 +941,15 @@ static void CL_SendDefaultCmd(void)
 
     // send this and the previous cmds in the message, so
     // if the last packet was dropped, it can be recovered
-    cmd = &cl.cmds[(cl.cmdNumber - 2) & CMD_MASK];
+    cmd = &cl.predictedStates[(cl.cmdNumber - 2) & CMD_MASK].cmd;
     MSG_WriteDeltaUserCommand(NULL, cmd, cls.protocolVersion);
     oldcmd = cmd;
 
-    cmd = &cl.cmds[(cl.cmdNumber - 1) & CMD_MASK];
+	cmd = &cl.predictedStates[ ( cl.cmdNumber - 1 ) & CMD_MASK ].cmd;
     MSG_WriteDeltaUserCommand(oldcmd, cmd, cls.protocolVersion);
     oldcmd = cmd;
 
-    cmd = &cl.cmds[cl.cmdNumber & CMD_MASK];
+	cmd = &cl.predictedStates[ ( cl.cmdNumber ) & CMD_MASK ].cmd;
     MSG_WriteDeltaUserCommand(oldcmd, cmd, cls.protocolVersion);
 
     if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
@@ -1042,7 +1042,7 @@ static void CL_SendBatchedCmd( void ) {
 		//MSG_WriteBits( numCmds, 5 );
 		MSG_WriteUint8( numCmds );
 		for ( j = oldest->cmdNumber + 1; j <= history->cmdNumber; j++ ) {
-			cmd = &cl.cmds[ j & CMD_MASK ];
+			cmd = &cl.predictedStates[ j & CMD_MASK ].cmd;
 			totalMsec += cmd->msec;
 			bits = MSG_WriteDeltaUserCommand( oldcmd, cmd, cls.serverProtocol );
 			#if USE_DEBUG

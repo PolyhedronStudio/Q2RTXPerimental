@@ -367,7 +367,7 @@ typedef struct {
     vec3_t  origin;
     vec3_t  angles;
 #if USE_SMOOTH_DELTA_ANGLES
-    int     deltayaw;
+    float deltayaw;
 #endif
 } pushed_t;
 pushed_t    pushed[MAX_EDICTS], *pushed_p;

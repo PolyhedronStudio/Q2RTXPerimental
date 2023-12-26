@@ -27,7 +27,7 @@ void CL_CheckPredictionError(void)
 {
     int         frame;
     float       delta[3];
-    unsigned    cmd;
+    uint64_t    cmdIndex;
     float       len;
 
     if (cls.demo.playback) {
@@ -35,7 +35,7 @@ void CL_CheckPredictionError(void)
     }
 
     if (sv_paused->integer) {
-        VectorClear(cl.prediction_error);
+        VectorClear(cl.predictedState.error);
         return;
     }
 
@@ -44,17 +44,17 @@ void CL_CheckPredictionError(void)
 
     // calculate the last usercmd_t we sent that the server has processed
     frame = cls.netchan.incoming_acknowledged & CMD_MASK;
-    cmd = cl.history[frame].cmdNumber;
+	cmdIndex = cl.history[frame].cmdNumber;
 
     // compare what the server returned with what we had predicted it to be
-    VectorSubtract(cl.frame.ps.pmove.origin, cl.predicted_origins[cmd & CMD_MASK], delta);
+    VectorSubtract(cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin, delta);
 
     // save the prediction error for interpolation
     len = fabs(delta[0]) + abs(delta[1]) + abs(delta[2]);
     //if (len < 1 || len > 640) {
 	if (len < 1.0f || len > 80.0f) {
         // > 80 world units is a teleport or something
-        VectorClear(cl.prediction_error);
+        VectorClear(cl.predictedState.error);
         return;
     }
 
@@ -62,14 +62,13 @@ void CL_CheckPredictionError(void)
              cl.frame.number, len, delta[0], delta[1], delta[2]);
 
     // don't predict steps against server returned data
-    if (cl.predicted_step_frame <= cmd)
-        cl.predicted_step_frame = cmd + 1;
+    if (cl.predictedState.step_frame <= cmdIndex )
+        cl.predictedState.step_frame = cmdIndex + 1;
 
-    VectorCopy(cl.frame.ps.pmove.origin, cl.predicted_origins[cmd & CMD_MASK]);
+    VectorCopy(cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin);
 
     // save for error interpolation
-    //VectorScale(delta, 0.125f, cl.prediction_error);
-	VectorCopy( delta, cl.prediction_error );
+	VectorCopy( delta, cl.predictedState.error );
 }
 
 /*
@@ -168,17 +167,15 @@ Sets cl.predicted_origin and cl.predicted_angles
 */
 void CL_PredictAngles(void)
 {
-    cl.predicted_angles[0] = cl.viewangles[0] + /*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[0]);
-    cl.predicted_angles[1] = cl.viewangles[1] + /*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[1]);
-    cl.predicted_angles[2] = cl.viewangles[2] + /*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[2]);
+    cl.predictedState.angles[0] = cl.viewangles[0] + /*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[0]);
+    cl.predictedState.angles[1] = cl.viewangles[1] + /*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[1]);
+    cl.predictedState.angles[2] = cl.viewangles[2] + /*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[2]);
 }
 
 void CL_PredictMovement(void)
 {
-    unsigned    ack, current, frame;
-    pmove_t     pm;
-    float         step, oldz;
-
+    //    acknowledgedCommandNumber, currentCommandNumber, frameNumber;
+    
     if (cls.state != ca_active) {
         return;
     }
@@ -191,28 +188,28 @@ void CL_PredictMovement(void)
         return;
     }
 
-    if (!cl_predict->integer || (cl.frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION)) {
+    if ( !cl_predict->integer || ( cl.frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
         // just set angles
         CL_PredictAngles();
         return;
     }
 
-    ack = cl.history[cls.netchan.incoming_acknowledged & CMD_MASK].cmdNumber;
-    current = cl.cmdNumber;
+	uint64_t acknowledgedCommandNumber = cl.history[ cls.netchan.incoming_acknowledged & CMD_MASK ].cmdNumber;
+	const uint64_t currentCommandNumber = cl.cmdNumber;
 
     // if we are too far out of date, just freeze
-    if (current - ack > CMD_BACKUP - 1) {
+    if ( currentCommandNumber - acknowledgedCommandNumber > CMD_BACKUP - 1 ) {
         SHOWMISS("%i: exceeded CMD_BACKUP\n", cl.frame.number);
         return;
     }
 
-    if (!cl.cmd.msec && current == ack) {
+    if ( !cl.predictedState.cmd.msec && currentCommandNumber == acknowledgedCommandNumber ) {
         SHOWMISS("%i: not moved\n", cl.frame.number);
         return;
     }
 
-    // copy current state to pmove
-    memset(&pm, 0, sizeof(pm));
+    // Copy over the current client state data into pmove.
+	pmove_t pm = {};
     pm.trace = CL_Trace;
     pm.pointcontents = CL_PointContents;
 
@@ -221,48 +218,50 @@ void CL_PredictMovement(void)
     VectorCopy(cl.delta_angles, pm.s.delta_angles);
 #endif
 
-    // run frames
-    while (++ack <= current) {
-        pm.cmd = cl.cmds[ack & CMD_MASK];
+    // Run previously stored and acknowledged frames
+    while( ++acknowledgedCommandNumber <= currentCommandNumber ) {
+        pm.cmd = cl.predictedStates[ acknowledgedCommandNumber & CMD_MASK ].cmd;
         clge->PlayerMove(&pm, &cl.pmp);
 
-        // save for debug checking
-        VectorCopy(pm.s.origin, cl.predicted_origins[ack & CMD_MASK]);
+        // Save for debug checking
+        VectorCopy(pm.s.origin, cl.predictedStates[ acknowledgedCommandNumber & CMD_MASK ].origin );
     }
 
-    // run pending cmd
-    if (cl.cmd.msec) {
-        pm.cmd = cl.cmd;
+    // Run pending cmd
+	uint64_t frameNumber = currentCommandNumber;
+    if (cl.predictedState.cmd.msec) {
+        pm.cmd = cl.predictedState.cmd;
         pm.cmd.forwardmove = cl.localmove[0];
         pm.cmd.sidemove = cl.localmove[1];
         pm.cmd.upmove = cl.localmove[2];
 		clge->PlayerMove(&pm, &cl.pmp);
-        frame = current;
 
-        // save for debug checking
-        VectorCopy(pm.s.origin, cl.predicted_origins[(current + 1) & CMD_MASK]);
+        // Save for debug checking
+        VectorCopy(pm.s.origin, cl.predictedStates[ (currentCommandNumber + 1) & CMD_MASK ].origin);
+	// Use previous frame if no command is pending.
     } else {
-        frame = current - 1;
+		frameNumber = currentCommandNumber - 1;
     }
 
+	// Stair Stepping:
     if (pm.s.pm_type != PM_SPECTATOR && (pm.s.pm_flags & PMF_ON_GROUND)) {
-        oldz = cl.predicted_origins[cl.predicted_step_frame & CMD_MASK][2];
-        step = pm.s.origin[2] - oldz;
+        const float oldz = cl.predictedStates[ cl.predictedState.step_frame & CMD_MASK ].origin[2];
+		const float step = pm.s.origin[2] - oldz;
         //if (step > 63 && step < 160) {
 		if ( step > 8 && step < 20 ) {
-            cl.predicted_step = step;// * 0.125f; // WID: float-movement
-            cl.predicted_step_time = cls.realtime;
-            cl.predicted_step_frame = frame + 1;    // don't double step
+            cl.predictedState.predicted_step = step;// * 0.125f; // WID: float-movement
+            cl.predictedState.step_time = cls.realtime;
+            cl.predictedState.step_frame = frameNumber + 1;    // don't double step
         }
     }
 
-    if (cl.predicted_step_frame < frame) {
-        cl.predicted_step_frame = frame;
+    if ( cl.predictedState.step_frame < frameNumber ) {
+        cl.predictedState.step_frame = frameNumber;
     }
 
-    // copy results out for rendering
-    VectorCopy( pm.s.origin, cl.predicted_origin ); //VectorScale(pm.s.origin, 0.125f, cl.predicted_origin); // WID: float-movement
-    VectorCopy( pm.s.velocity, cl.predicted_velocity );//VectorScale(pm.s.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
-    VectorCopy(pm.viewangles, cl.predicted_angles);
+    // Copy results out into the current predicted state.
+    VectorCopy( pm.s.origin, cl.predictedState.origin );
+    VectorCopy( pm.s.velocity, cl.predictedState.velocity );
+    VectorCopy( pm.viewangles, cl.predictedState.angles );
 }
 
