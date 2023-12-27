@@ -29,7 +29,7 @@
 #endif
 
 #define BASEGAME "baseq2"
-#define DEFGAME ""
+#define DEFGAME "baseq2rtxp"
 
 #define USE_ICMP 1
 #define USE_ZLIB 1

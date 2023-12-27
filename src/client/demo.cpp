@@ -143,13 +143,13 @@ static void emit_packet_entities(server_frame_t *from, server_frame_t *to)
 }
 
 static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
-                             int fromnum, int tonum)
+                             int64_t fromnum, int64_t tonum)
 {
     player_packed_t oldpack, newpack;
 
     MSG_WriteUint8(svc_frame);
-    MSG_WriteInt32(tonum);
-    MSG_WriteInt32(fromnum);   // what we are delta'ing from
+    MSG_WriteIntBase128(tonum);
+	MSG_WriteIntBase128(fromnum);   // what we are delta'ing from
     MSG_WriteUint8(0);   // rate dropped packets
 
     // send over the areabits
@@ -186,7 +186,7 @@ Writes delta from the last frame we got to the current frame.
 void CL_EmitDemoFrame(void)
 {
     server_frame_t  *oldframe;
-    int             lastframe;
+    int64_t         lastframe;
 
     if (!cl.frame.valid)
         return;

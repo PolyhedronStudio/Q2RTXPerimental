@@ -800,16 +800,12 @@ void SV_InitGameProgs(void)
 
     // try game first
     if (!entry && fs_game->string[0]) {
-        entry = SV_LoadGameLibrary(fs_game->string, "q2pro_"); // WID: C++20: Added cast.
-        if (!entry)
-            entry = SV_LoadGameLibrary(fs_game->string, ""); // WID: C++20: Added cast.
+		entry = SV_LoadGameLibrary(fs_game->string, ""); // WID: C++20: Added cast.
     }
 
     // then try baseq2
     if (!entry) {
-        entry = SV_LoadGameLibrary(BASEGAME, "q2pro_"); // WID: C++20: Added cast.
-        if (!entry)
-            entry = SV_LoadGameLibrary(BASEGAME, ""); // WID: C++20: Added cast.
+		entry = SV_LoadGameLibrary(BASEGAME, ""); // WID: C++20: Added cast.
     }
 
     // all paths failed
