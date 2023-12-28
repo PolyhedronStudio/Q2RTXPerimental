@@ -23,52 +23,48 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 CL_CheckPredictionError
 ===================
 */
-void CL_CheckPredictionError(void)
-{
-    int         frame;
-    float       delta[3];
-    uint64_t    cmdIndex;
-    float       len;
+void CL_CheckPredictionError(void) {
+	if ( cls.demo.playback ) {
+		return;
+	}
 
-    if (cls.demo.playback) {
-        return;
-    }
+	if ( sv_paused->integer ) {
+		VectorClear( cl.predictedState.error );
+		return;
+	}
 
-    if (sv_paused->integer) {
-        VectorClear(cl.predictedState.error);
-        return;
-    }
+	if ( !cl_predict->integer || ( cl.frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
+		return;
+	}
 
-    if (!cl_predict->integer || (cl.frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION))
-        return;
+	// calculate the last usercmd_t we sent that the server has processed
+	int64_t frame = cls.netchan.incoming_acknowledged & CMD_MASK;
+	uint64_t cmdIndex = cl.history[ frame ].cmdNumber;
 
-    // calculate the last usercmd_t we sent that the server has processed
-    frame = cls.netchan.incoming_acknowledged & CMD_MASK;
-	cmdIndex = cl.history[frame].cmdNumber;
+	// compare what the server returned with what we had predicted it to be
+	vec3_t delta = { 0.f, 0.f, 0.f };
+	VectorSubtract( cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin, delta );
 
-    // compare what the server returned with what we had predicted it to be
-    VectorSubtract(cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin, delta);
+	// save the prediction error for interpolation
+	const float len = fabs( delta[ 0 ] ) + abs( delta[ 1 ] ) + abs( delta[ 2 ] );
+	//if (len < 1 || len > 640) {
+	if ( len < 1.0f || len > 80.0f ) {
+		// > 80 world units is a teleport or something
+		VectorClear( cl.predictedState.error );
+		return;
+	}
 
-    // save the prediction error for interpolation
-    len = fabs(delta[0]) + abs(delta[1]) + abs(delta[2]);
-    //if (len < 1 || len > 640) {
-	if (len < 1.0f || len > 80.0f) {
-        // > 80 world units is a teleport or something
-        VectorClear(cl.predictedState.error);
-        return;
-    }
+	SHOWMISS( "prediction miss on %i: %i (%f %f %f)\n",
+			 cl.frame.number, len, delta[ 0 ], delta[ 1 ], delta[ 2 ] );
 
-    SHOWMISS("prediction miss on %i: %i (%f %f %f)\n",
-             cl.frame.number, len, delta[0], delta[1], delta[2]);
-
-    // don't predict steps against server returned data
+	// don't predict steps against server returned data
 	if ( cl.predictedState.step_frame <= cmdIndex ) {
 		cl.predictedState.step_frame = cmdIndex + 1;
 	}
 
-    VectorCopy(cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin);
+	VectorCopy( cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin );
 
-    // save for error interpolation
+	// save for error interpolation
 	VectorCopy( delta, cl.predictedState.error );
 }
 
@@ -78,36 +74,32 @@ CL_ClipMoveToEntities
 
 ====================
 */
-static void CL_ClipMoveToEntities(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, trace_t *tr)
-{
-    int         i;
-    trace_t     trace;
-    mnode_t     *headnode;
-    centity_t   *ent;
-    mmodel_t    *cmodel;
+static void CL_ClipMoveToEntities(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, trace_t *tr) {
+	trace_t     trace;
 
-    for (i = 0; i < cl.numSolidEntities; i++) {
-        ent = cl.solidEntities[i];
+	for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
+		centity_t *ent = cl.solidEntities[ i ];
 
-        if (ent->current.solid == PACKED_BSP) {
-            // special value for bmodel
-            cmodel = cl.model_clip[ent->current.modelindex];
-            if (!cmodel)
-                continue;
-            headnode = cmodel->headnode;
-        } else {
-            headnode = CM_HeadnodeForBox(ent->mins, ent->maxs);
-        }
+		mnode_t *headnode = nullptr;
+		if ( ent->current.solid == PACKED_BSP ) {
+			// special value for bmodel
+			mmodel_t *cmodel = cl.model_clip[ ent->current.modelindex ];
+			if ( !cmodel )
+				continue;
+			headnode = cmodel->headnode;
+		} else {
+			headnode = CM_HeadnodeForBox( ent->mins, ent->maxs );
+		}
 
-        if (tr->allsolid)
-            return;
+		if ( tr->allsolid )
+			return;
 
-        CM_TransformedBoxTrace(&trace, start, end,
-                               mins, maxs, headnode,  MASK_PLAYERSOLID,
-                               ent->current.origin, ent->current.angles);
+		CM_TransformedBoxTrace( &trace, start, end,
+							   mins, maxs, headnode, MASK_PLAYERSOLID,
+							   ent->current.origin, ent->current.angles );
 
-        CM_ClipEntity(tr, &trace, (struct edict_s *)ent);
-    }
+		CM_ClipEntity( tr, &trace, (struct edict_s *)ent );
+	}
 }
 
 
@@ -116,37 +108,30 @@ static void CL_ClipMoveToEntities(const vec3_t start, const vec3_t mins, const v
 CL_PMTrace
 ================
 */
-static trace_t q_gameabi CL_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end)
-{
-    trace_t    t;
+static trace_t q_gameabi CL_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end) {
+	trace_t    t;
 
-    // check against world
-    CM_BoxTrace(&t, start, end, mins, maxs, cl.bsp->nodes, MASK_PLAYERSOLID);
-    if (t.fraction < 1.0f)
-        t.ent = (struct edict_s *)cl_entities;
+	// check against world
+	CM_BoxTrace( &t, start, end, mins, maxs, cl.bsp->nodes, MASK_PLAYERSOLID );
+	if ( t.fraction < 1.0f )
+		t.ent = (struct edict_s *)cl_entities;
 
-    // check all other solid models
-    CL_ClipMoveToEntities(start, mins, maxs, end, &t);
+	// check all other solid models
+	CL_ClipMoveToEntities( start, mins, maxs, end, &t );
 
     return t;
 }
 
-static int CL_PointContents(const vec3_t point)
-{
-    int         i;
-    centity_t   *ent;
-    mmodel_t    *cmodel;
-    int         contents;
+static int CL_PointContents(const vec3_t point) {
+    int32_t contents = CM_PointContents(point, cl.bsp->nodes);
 
-    contents = CM_PointContents(point, cl.bsp->nodes);
-
-    for (i = 0; i < cl.numSolidEntities; i++) {
-        ent = cl.solidEntities[i];
+    for (int32_t i = 0; i < cl.numSolidEntities; i++) {
+        centity_t *ent = cl.solidEntities[i];
 
         if (ent->current.solid != PACKED_BSP) // special value for bmodel
             continue;
 
-        cmodel = cl.model_clip[ent->current.modelindex];
+        mmodel_t *cmodel = cl.model_clip[ent->current.modelindex];
         if (!cmodel)
             continue;
 
