@@ -58,12 +58,13 @@ void CL_CheckPredictionError(void)
         return;
     }
 
-    SHOWMISS("prediction miss on %i: %i (%d %d %d)\n",
+    SHOWMISS("prediction miss on %i: %i (%f %f %f)\n",
              cl.frame.number, len, delta[0], delta[1], delta[2]);
 
     // don't predict steps against server returned data
-    if (cl.predictedState.step_frame <= cmdIndex )
-        cl.predictedState.step_frame = cmdIndex + 1;
+	if ( cl.predictedState.step_frame <= cmdIndex ) {
+		cl.predictedState.step_frame = cmdIndex + 1;
+	}
 
     VectorCopy(cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin);
 
@@ -122,7 +123,7 @@ static trace_t q_gameabi CL_Trace(const vec3_t start, const vec3_t mins, const v
     // check against world
     CM_BoxTrace(&t, start, end, mins, maxs, cl.bsp->nodes, MASK_PLAYERSOLID);
     if (t.fraction < 1.0f)
-        t.ent = (struct edict_s *)1;
+        t.ent = (struct edict_s *)cl_entities;
 
     // check all other solid models
     CL_ClipMoveToEntities(start, mins, maxs, end, &t);
@@ -167,15 +168,14 @@ Sets cl.predicted_origin and cl.predicted_angles
 */
 void CL_PredictAngles(void)
 {
-    cl.predictedState.angles[0] = cl.viewangles[0] + /*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[0]);
-    cl.predictedState.angles[1] = cl.viewangles[1] + /*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[1]);
-    cl.predictedState.angles[2] = cl.viewangles[2] + /*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[2]);
+	VectorAdd( cl.viewangles, cl.frame.ps.pmove.delta_angles, cl.predictedState.angles );
+//cl.predictedState.angles[0] = cl.viewangles[0] + (cl.frame.ps.pmove.delta_angles[0]);
+//cl.predictedState.angles[1] = cl.viewangles[1] + (cl.frame.ps.pmove.delta_angles[1]);
+//cl.predictedState.angles[2] = cl.viewangles[2] + (cl.frame.ps.pmove.delta_angles[2]);
 }
 
 void CL_PredictMovement(void)
 {
-    //    acknowledgedCommandNumber, currentCommandNumber, frameNumber;
-    
     if (cls.state != ca_active) {
         return;
     }
@@ -215,8 +215,9 @@ void CL_PredictMovement(void)
 
     pm.s = cl.frame.ps.pmove;
 #if USE_SMOOTH_DELTA_ANGLES
-    VectorCopy(cl.delta_angles, pm.s.delta_angles);
+    VectorCopy( cl.delta_angles, pm.s.delta_angles );
 #endif
+
 
     // Run previously stored and acknowledged frames
     while( ++acknowledgedCommandNumber <= currentCommandNumber ) {

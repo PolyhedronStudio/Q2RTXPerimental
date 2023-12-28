@@ -96,6 +96,26 @@ Does not modify any world state?
 #define MIN_STEP_NORMAL 0.7f    // can't step up onto very steep slopes
 #define MAX_CLIP_PLANES 5
 
+/**
+*	@brief	Will store the trace to the entity trace touch list if NOT already being a duplicate or exceeding limits.
+**/
+inline void PM_StoreTouchTrace( pmove_touch_list_t &touch, trace_t &tr ) {
+	// Prevent exceeding the limit, just return.
+	if ( touch.numberOfTouches == MAXTOUCH ) {
+		return;
+	}
+
+	// Prevent us from having duplicate entity traces stored.
+	for ( size_t i = 0; i < touch.numberOfTouches; i++ ) {
+		if ( touch.traces[ i ].ent == tr.ent ) {
+			return;
+		}
+	}
+
+	// Store the actual trace since it's not containing a duplicate entity or exceeding limits.
+	touch.traces[ touch.numberOfTouches++ ] = tr;
+}
+
 static void PM_StepSlideMove_( void ) {
 	int         bumpcount, numbumps;
 	vec3_t      dir;
@@ -124,6 +144,7 @@ static void PM_StepSlideMove_( void ) {
 		if ( trace.allsolid ) {
 			// entity is trapped in another solid
 			pml.velocity[ 2 ] = 0;    // don't build up falling damage
+			PM_StoreTouchTrace( pm->touchedEntities, trace );
 			return;
 		}
 
@@ -137,10 +158,7 @@ static void PM_StepSlideMove_( void ) {
 			break;     // moved the entire distance
 
 		// save entity for contact
-		if ( pm->numtouch < MAXTOUCH && trace.ent ) {
-			pm->touchents[ pm->numtouch ] = trace.ent;
-			pm->numtouch++;
-		}
+		PM_StoreTouchTrace( pm->touchedEntities, trace );
 
 		time_left -= time_left * trace.fraction;
 
@@ -286,7 +304,7 @@ static void PM_Friction( void ) {
 	}
 
 // apply water friction
-	if ( pm->waterlevel > water_level_t::WATER_NONE && !pml.ladder )
+	if ( pm->waterlevel && !pml.ladder )
 		drop += speed * pmp->waterfriction * pm->waterlevel * pml.frametime;
 
 // scale the velocity
@@ -392,7 +410,7 @@ static void PM_AddCurrents( vec3_t wishvel ) {
 			v[ 2 ] -= 1;
 
 		s = pm_waterspeed;
-		if ( ( pm->waterlevel == water_level_t::WATER_FEET ) && ( pm->groundentity ) )
+		if ( ( pm->waterlevel == 1 ) && ( pm->groundentity ) )
 			s /= 2;
 
 		VectorMA( wishvel, s, v, wishvel );
@@ -594,10 +612,7 @@ static void PM_CategorizePosition( void ) {
 			}
 		}
 
-		if ( pm->numtouch < MAXTOUCH && trace.ent ) {
-			pm->touchents[ pm->numtouch ] = trace.ent;
-			pm->numtouch++;
-		}
+		PM_StoreTouchTrace( pm->touchedEntities, trace );
 	}
 
 //
@@ -651,7 +666,7 @@ static void PM_CheckJump( void ) {
 	if ( pm->s.pm_type == PM_DEAD )
 		return;
 
-	if ( pm->waterlevel >= water_level_t::WATER_WAIST ) {
+	if ( pm->waterlevel >= 2 ) {
 		// swimming, not jumping
 		pm->groundentity = NULL;
 
@@ -712,7 +727,7 @@ static void PM_CheckSpecialMovement( void ) {
 		pml.ladder = true;
 
 	// check for water jump
-	if ( pm->waterlevel != water_level_t::WATER_WAIST )
+	if ( pm->waterlevel != 2 )
 		return;
 
 	VectorMA( pml.origin, 30, flatforward, spot );
@@ -1027,8 +1042,8 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	pmp = params;
 
 	// Clear out previous old pointer members for a new move.
-	pm->numtouch = 0;
-	VectorClear( pm->viewangles );//pm->viewangles = {};
+	pm->touchedEntities.numberOfTouches = 0;
+	VectorClear( pm->viewangles );
 	pm->s.viewheight = 0;
 	pm->groundentity = nullptr;
 	pm->watertype = 0;
@@ -1088,21 +1103,16 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 	// drop timing counter
 	if ( pm->s.pm_time ) {
-		// WID: What is this for really?
-		//int msec = pm->cmd.msec >> 3;
-		//if ( !msec )
-		//	msec = 1;
-		int32_t msec = pm->cmd.msec;
-		if ( !msec ) {
-			msec = 0;
-		}
+		int     msec;
 
+		msec = pm->cmd.msec >> 3;
+		if ( !msec )
+			msec = 1;
 		if ( msec >= pm->s.pm_time ) {
 			pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT );
 			pm->s.pm_time = 0;
-		} else {
+		} else
 			pm->s.pm_time -= msec;
-		}
 	}
 
 	if ( pm->s.pm_flags & PMF_TIME_TELEPORT ) {
@@ -1122,9 +1132,9 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 		PM_Friction( );
 
-		if ( pm->waterlevel >= water_level_t::WATER_WAIST ) {
+		if ( pm->waterlevel >= 2 )
 			PM_WaterMove( );
-		} else {
+		else {
 			vec3_t  angles;
 
 			VectorCopy( pm->viewangles, angles );

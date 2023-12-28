@@ -1153,7 +1153,7 @@ void PutClientInServer(edict_t *ent)
     ent->model = "players/male/tris.md2";
     ent->pain = player_pain;
     ent->die = player_die;
-    ent->waterlevel = 0;
+    ent->waterlevel = water_level_t::WATER_NONE;;
     ent->watertype = 0;
     ent->flags &= ~FL_NO_KNOCKBACK;
     ent->svflags &= ~SVF_DEADMONSTER;
@@ -1567,67 +1567,58 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     pm_passent = ent;
 
     if (ent->client->chase_target) {
-
-        client->resp.cmd_angles[0] = /*SHORT2ANGLE*/(ucmd->angles[0]);
-        client->resp.cmd_angles[1] = /*SHORT2ANGLE*/(ucmd->angles[1]);
-        client->resp.cmd_angles[2] = /*SHORT2ANGLE*/(ucmd->angles[2]);
-
+		VectorCopy( ucmd->angles, client->resp.cmd_angles );
     } else {
 
         // set up for pmove
-        memset(&pm, 0, sizeof(pm));
+		pm = {};
 
-        if (ent->movetype == MOVETYPE_NOCLIP)
-            client->ps.pmove.pm_type = PM_SPECTATOR;
-        else if (ent->s.modelindex != 255)
-            client->ps.pmove.pm_type = PM_GIB;
-        else if (ent->deadflag)
-            client->ps.pmove.pm_type = PM_DEAD;
-        else
-            client->ps.pmove.pm_type = PM_NORMAL;
+		if ( ent->movetype == MOVETYPE_NOCLIP ) {
+			client->ps.pmove.pm_type = PM_SPECTATOR;
+		} else if ( ent->s.modelindex != 255 ) {
+			client->ps.pmove.pm_type = PM_GIB;
+		} else if ( ent->deadflag ) {
+			client->ps.pmove.pm_type = PM_DEAD;
+		} else {
+			client->ps.pmove.pm_type = PM_NORMAL;
+		}
 
         client->ps.pmove.gravity = sv_gravity->value;
         pm.s = client->ps.pmove;
 
-        for (i = 0 ; i < 3 ; i++) {
-            pm.s.origin[i] = ent->s.origin[i]; // COORD2SHORT(ent->s.origin[i]); // WID: float-movement
-            pm.s.velocity[i] = ent->velocity[i]; // COORD2SHORT(ent->velocity[i]); // WID: float-movement
-        }
+		// Copy the current entity origin and velocity into our 'pmove movestate'.
+		VectorCopy( ent->s.origin, pm.s.origin );
+		VectorCopy( ent->velocity, pm.s.velocity );
 
+		// Determine if it has changed and we should 'resnap' to position.
         if (memcmp(&client->old_pmove, &pm.s, sizeof(pm.s))) {
-            pm.snapinitial = true;
-            //      gi.dprintf ("pmove changed!\n");
+            pm.snapinitial = true; // gi.dprintf ("pmove changed!\n");
         }
-
+		// Setup user commands and function pointers.
         pm.cmd = *ucmd;
-
         pm.trace = PM_trace;    // adds default parms
         pm.pointcontents = gi.pointcontents;
-
-        // perform a pmove
+        // Perform a PMove.
         SG_PlayerMove( &pm, &pmp );
-
-        for (i = 0 ; i < 3 ; i++) {
-            ent->s.origin[i] = pm.s.origin[ i ]; // SHORT2COORD(pm.s.origin[i]); // WID: float-movement
-            ent->velocity[i] = pm.s.velocity[ i ]; // SHORT2COORD(pm.s.velocity[i]); // WID: float-movement
-        }
-
+		// Copy back into the entity, both the resulting origin and velocity.
+		VectorCopy( pm.s.origin, ent->s.origin );
+		VectorCopy( pm.s.velocity, ent->velocity );
+		// Copy back in bounding box results. (Player might've crouched for example.)
         VectorCopy(pm.mins, ent->mins);
         VectorCopy(pm.maxs, ent->maxs);
 
-        client->resp.cmd_angles[0] = /*SHORT2ANGLE*/(ucmd->angles[0]);
-        client->resp.cmd_angles[1] = /*SHORT2ANGLE*/(ucmd->angles[1]);
-        client->resp.cmd_angles[2] = /*SHORT2ANGLE*/(ucmd->angles[2]);
+		// Backup the command angles given from ast command.
+		VectorCopy( ucmd->angles, client->resp.cmd_angles );
 
         if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.waterlevel == 0) {
             gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
             PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
         }
 
-        // save results of pmove
+        // Save into the client pointer, the resulting move states pmove
         client->ps.pmove = pm.s;
         client->old_pmove = pm.s;
-
+		// Update the entity's other properties.
         ent->viewheight = pm.s.viewheight;
         ent->waterlevel = pm.waterlevel;
         ent->watertype = pm.watertype;
@@ -1646,8 +1637,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
         gi.linkentity(ent);
 
-        if (ent->movetype != MOVETYPE_NOCLIP)
-            G_TouchTriggers(ent);
+		if ( ent->movetype != MOVETYPE_NOCLIP ) {
+			G_TouchTriggers( ent );
+		}
 
         // touch other objects
         for (i = 0 ; i < pm.numtouch ; i++) {
@@ -1681,12 +1673,21 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             if (client->chase_target) {
                 client->chase_target = NULL;
 				client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
-            } else
-                GetChaseTarget(ent);
+			} else {
+				GetChaseTarget( ent );
+			}
 
         } else if (!client->weapon_thunk) {
-            client->weapon_thunk = true;
-            Think_Weapon(ent);
+			// we can only do this during a ready state and
+			// if enough time has passed from last fire
+			if ( ent->client->weaponstate == WEAPON_READY ) {
+				ent->client->weapon_fire_buffered = true;
+
+				if ( ent->client->weapon_fire_finished <= level.time ) {
+					ent->client->weapon_thunk = true;
+					Think_Weapon( ent );
+				}
+			}
         }
     }
 
@@ -1694,20 +1695,24 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         if (ucmd->upmove >= 10) {
             if (!(client->ps.pmove.pm_flags & PMF_JUMP_HELD)) {
                 client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
-                if (client->chase_target)
-                    ChaseNext(ent);
-                else
-                    GetChaseTarget(ent);
+
+				if ( client->chase_target ) {
+					ChaseNext( ent );
+				} else {
+					GetChaseTarget( ent );
+				}
             }
-        } else
-            client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
+		} else {
+			client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
+		}
     }
 
     // update chase cam if being followed
     for (i = 1; i <= maxclients->value; i++) {
         other = g_edicts + i;
-        if (other->inuse && other->client->chase_target == ent)
-            UpdateChaseCam(other);
+		if ( other->inuse && other->client->chase_target == ent ) {
+			UpdateChaseCam( other );
+		}
     }
 }
 
