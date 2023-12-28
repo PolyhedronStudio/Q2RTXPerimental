@@ -738,7 +738,7 @@ static void PM_CheckSpecialMovement( void ) {
 PM_FlyMove
 ===============
 */
-static void PM_FlyMove( void ) {
+static void PM_FlyMove( const bool performNoClipping ) {
 	float   speed, drop, friction, control, newspeed;
 	float   currentspeed, addspeed, accelspeed;
 	int         i;
@@ -747,7 +747,7 @@ static void PM_FlyMove( void ) {
 	vec3_t      wishdir;
 	float       wishspeed;
 
-	pm->s.viewheight = 22;
+	pm->s.viewheight = performNoClipping ? 0 : 22;
 
 	// friction
 	speed = VectorLength( pml.velocity );
@@ -806,8 +806,12 @@ static void PM_FlyMove( void ) {
 			pml.velocity[ i ] += accelspeed * wishdir[ i ];
 	}
 
-	// move
-	VectorMA( pml.origin, pml.frametime, pml.velocity, pml.origin );
+	if ( performNoClipping ) {
+		PM_StepSlideMove( );
+	} else {
+		// move
+		VectorMA( pml.origin, pml.frametime, pml.velocity, pml.origin );
+	}
 }
 
 /*
@@ -882,17 +886,20 @@ static void PM_DeadMove( void ) {
 	}
 }
 
+/**
+*	@brief	Determine whether the position is allsolid or not. In case of PM_NOCLIP it is always a good position.
+**/
 static bool PM_GoodPosition( void ) {
-	trace_t trace;
-	vec3_t  origin, end;
-	int     i;
-
-	if ( pm->s.pm_type == PM_SPECTATOR )
+	if ( pm->s.pm_type == PM_NOCLIP ) {
 		return true;
+	}
 
-	for ( i = 0; i < 3; i++ )
-		origin[ i ] = end[ i ] = pm->s.origin[ i ]; // * 0.125f; // WID: float-movement
-	trace = pm->trace( origin, pm->mins, pm->maxs, end );
+	vec3_t  origin;
+	VectorCopy( pm->s.origin, origin );
+	vec3_t end;
+	VectorCopy( pm->s.origin, end );
+
+	trace_t trace = pm->trace( origin, pm->mins, pm->maxs, end );
 
 	return !trace.allsolid;
 }
@@ -999,21 +1006,47 @@ PM_ClampAngles
 */
 static void PM_ClampAngles( void ) {
 	if ( pm->s.pm_flags & PMF_TIME_TELEPORT ) {
-		pm->viewangles[ YAW ] = pm->cmd.angles[ YAW ] + /*SHORT2ANGLE*/( pm->s.delta_angles[ YAW ] );
+		pm->viewangles[ YAW ] = pm->cmd.angles[ YAW ] + ( pm->s.delta_angles[ YAW ] );
 		pm->viewangles[ PITCH ] = 0;
 		pm->viewangles[ ROLL ] = 0;
 	} else {
 		// circularly clamp the angles with deltas
-		for ( int32_t i = 0; i < 3; i++ ) {
-			const float temp = pm->cmd.angles[ i ] + /*SHORT2ANGLE*/( pm->s.delta_angles[ i ] );
-			pm->viewangles[ i ] = temp;
-		}
+		VectorAdd( pm->cmd.angles, pm->s.delta_angles, pm->viewangles );
 
 		// don't let the player look up or down more than 90 degrees
-		clamp( pm->viewangles[ PITCH ], -89, 89 );
+		if ( pm->viewangles[ PITCH ] > 89 && pm->viewangles[ PITCH ] < 180 ) {
+			pm->viewangles[ PITCH ] = 89;
+		} else if ( pm->viewangles[ PITCH ] < 271 && pm->viewangles[ PITCH ] >= 180 ) {
+			pm->viewangles[ PITCH ] = 271;
+		}
 	}
+
 	AngleVectors( pm->viewangles, pml.forward, pml.right, pml.up );
 }
+
+/*
+================
+PM_ScreenEffects
+
+================
+*/
+//static void PM_ScreenEffects( ) {
+//	// add for contents
+//	vec3_t vieworg = pml.origin + pm->viewoffset + vec3_t{ 0, 0, (float)pm->s.viewheight };
+//	int32_t contents = pm->pointcontents( vieworg );
+//
+//	if ( contents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) )
+//		pm->rdflags |= RDF_UNDERWATER;
+//	else
+//		pm->rdflags &= ~RDF_UNDERWATER;
+//
+//	if ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) )
+//		G_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, pm->screen_blend );
+//	else if ( contents & CONTENTS_SLIME )
+//		G_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, pm->screen_blend );
+//	else if ( contents & CONTENTS_WATER )
+//		G_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, pm->screen_blend );
+//}
 
 /*
 ================
@@ -1042,23 +1075,39 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	// Clear all pmove local vars
 	pml = {};
 
-	// convert origin and velocity to float values
+	// Store the origin and velocity in pmove local.
 	VectorCopy( pm->s.origin, pml.origin );
 	VectorCopy( pm->s.velocity, pml.velocity );
-
-	// save old org in case we get stuck
+	// Save the origin as 'old origin' for in case we get stuck.
 	VectorCopy( pm->s.origin, pml.previous_origin );
 
+	// Calculate frametime.
+	pml.frametime = pm->cmd.msec * 0.001f;
+	// Clamp view angles.
 	PM_ClampAngles( );
 
-	if ( pm->s.pm_type == PM_SPECTATOR ) {
+	if ( pm->s.pm_type == PM_SPECTATOR || pm->s.pm_type == PM_NOCLIP ) {
+		// Updated speed multiplied frametime for spectator and noclip move types.
 		pml.frametime = pmp->speedmult * pm->cmd.msec * 0.001f;
-		PM_FlyMove( );
+
+		// Re-ensure no flags are set anymore.
+		pm->s.pm_flags = PMF_NONE;
+
+		// Give the spectator a small 8x8x8 bounding box.
+		if ( pm->s.pm_type == PM_SPECTATOR ) {
+			pm->mins[ 0 ] = -8;
+			pm->mins[ 1 ] = -8;
+			pm->mins[ 2 ] = -8;
+			pm->maxs[ 0 ] = 8;
+			pm->maxs[ 1 ] = 8;
+			pm->maxs[ 2 ] = 8;
+		}
+
+		PM_FlyMove( pm->s.pm_type == PM_SPECTATOR );
 		PM_SnapPosition( );
 		return;
 	}
 
-	pml.frametime = pm->cmd.msec * 0.001f;
 
 	if ( pm->s.pm_type >= PM_DEAD ) {
 		pm->cmd.forwardmove = 0;
@@ -1066,8 +1115,9 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		pm->cmd.upmove = 0;
 	}
 
-	if ( pm->s.pm_type == PM_FREEZE )
+	if ( pm->s.pm_type == PM_FREEZE ) {
 		return;     // no movement at all
+	}
 
 	// set mins, maxs, and viewheight
 	PM_CheckDuck( );
@@ -1081,8 +1131,9 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	// set groundentity, watertype, and waterlevel
 	PM_CategorizePosition( );
 
-	if ( pm->s.pm_type == PM_DEAD )
+	if ( pm->s.pm_type == PM_DEAD ) {
 		PM_DeadMove( );
+	}
 
 	PM_CheckSpecialMovement( );
 

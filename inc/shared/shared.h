@@ -460,6 +460,7 @@ typedef enum {//: uint8_t {
 typedef enum {
     // can accelerate and turn
     PM_NORMAL,
+	PM_NOCLIP,
     PM_SPECTATOR,
     // no acceleration or turning
     PM_DEAD,
