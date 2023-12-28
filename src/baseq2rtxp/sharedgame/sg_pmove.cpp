@@ -21,30 +21,39 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #define STEPSIZE    18
 
-// all of the locals will be zeroed before each
-// pmove, just to make damn sure we don't have
-// any differences when running on client or server
-
+/**
+*	@brief	Actual in-moment local move variables.
+*
+*			All of the locals will be zeroed before each pmove, just to make damn sure we don't have
+*			any differences when running on client or server
+**/
 typedef struct {
-	vec3_t      origin;         // full float precision
-	vec3_t      velocity;       // full float precision
+	//! Obvious origin and velocity.
+	vec3_t      origin;
+	vec3_t      velocity;
 
+	//! Forward, right and up vectors.
 	vec3_t      forward, right, up;
+	//! Move frametime.
 	float       frametime;
 
-
+	//! Ground information.
 	csurface_t *groundsurface;
 	cplane_t    groundplane;
 	int         groundcontents;
 
+	//! Used to reset ourselves in case we are truly stuck.
 	vec3_t      previous_origin;
-	bool        ladder;
+	//! Used for calculating the fall impact with.
+	vec3_t		start_velocity;
 } pml_t;
 
+//! An actual pointer to the pmove object that we're moving.
 static pmove_t *pm;
-static pml_t        pml;
-
+//! An actual pointer to the pmove parameters object for use with moving.
 static pmoveParams_t *pmp;
+//! Contains our local in-moment move variables.
+static pml_t pml;
 
 // movement parameters
 static constexpr float  pm_stopspeed = 100;
@@ -279,20 +288,22 @@ static void PM_Friction( void ) {
 	drop = 0;
 
 // apply ground friction
-	if ( ( pm->groundentity && pml.groundsurface && !( pml.groundsurface->flags & SURF_SLICK ) ) || ( pml.ladder ) ) {
+	if ( ( pm->groundentity && pml.groundsurface && !( pml.groundsurface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
 		friction = pmp->friction;
 		control = speed < pm_stopspeed ? pm_stopspeed : speed;
 		drop += control * friction * pml.frametime;
 	}
 
 // apply water friction
-	if ( pm->waterlevel > water_level_t::WATER_NONE && !pml.ladder )
+	if ( pm->waterlevel > water_level_t::WATER_NONE && !( pm->s.pm_flags & PMF_ON_LADDER ) ) {
 		drop += speed * pmp->waterfriction * pm->waterlevel * pml.frametime;
+	}
 
 // scale the velocity
 	newspeed = speed - drop;
-	if ( newspeed < 0 )
+	if ( newspeed < 0 ) {
 		newspeed = 0;
+	}
 	newspeed /= speed;
 
 	vel[ 0 ] = vel[ 0 ] * newspeed;
@@ -354,18 +365,18 @@ static void PM_AddCurrents( vec3_t wishvel ) {
 	// account for ladders
 	//
 
-	if ( pml.ladder && fabsf( pml.velocity[ 2 ] ) <= 200 ) {
-		if ( ( pm->viewangles[ PITCH ] <= -15 ) && ( pm->cmd.forwardmove > 0 ) )
+	if ( ( pm->s.pm_flags & PMF_ON_LADDER ) && fabsf( pml.velocity[ 2 ] ) <= 200 ) {
+		if ( ( pm->viewangles[ PITCH ] <= -15 ) && ( pm->cmd.forwardmove > 0 ) ) {
 			wishvel[ 2 ] = 200;
-		else if ( ( pm->viewangles[ PITCH ] >= 15 ) && ( pm->cmd.forwardmove > 0 ) )
+		} else if ( ( pm->viewangles[ PITCH ] >= 15 ) && ( pm->cmd.forwardmove > 0 ) ) {
 			wishvel[ 2 ] = -200;
-		else if ( pm->cmd.upmove > 0 )
+		} else if ( pm->cmd.upmove > 0 ) {
 			wishvel[ 2 ] = 200;
-		else if ( pm->cmd.upmove < 0 )
+		} else if ( pm->cmd.upmove < 0 ) {
 			wishvel[ 2 ] = -200;
-		else
+		} else {
 			wishvel[ 2 ] = 0;
-
+		}
 		// limit horizontal speed when on a ladder
 		clamp( wishvel[ 0 ], -25, 25 );
 		clamp( wishvel[ 1 ], -25, 25 );
@@ -497,7 +508,7 @@ static void PM_AirMove( void ) {
 		wishspeed = maxspeed;
 	}
 
-	if ( pml.ladder ) {
+	if ( pm->s.pm_flags & PMF_ON_LADDER ) {
 		PM_Accelerate( wishdir, wishspeed, pm_accelerate );
 		if ( !wishvel[ 2 ] ) {
 			if ( pml.velocity[ 2 ] > 0 ) {
@@ -698,7 +709,8 @@ static void PM_CheckSpecialMovement( void ) {
 	if ( pm->s.pm_time )
 		return;
 
-	pml.ladder = false;
+	// Remove on ladder flag.
+	pm->s.pm_flags &= ~PMF_ON_LADDER;
 
 	// check for ladder
 	flatforward[ 0 ] = pml.forward[ 0 ];
@@ -708,8 +720,10 @@ static void PM_CheckSpecialMovement( void ) {
 
 	VectorMA( pml.origin, 1, flatforward, spot );
 	trace = pm->trace( pml.origin, pm->mins, pm->maxs, spot );
-	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) )
-		pml.ladder = true;
+	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) ) {
+		// Add ON_LADDER flag.
+		pm->s.pm_flags |= PMF_ON_LADDER;
+	}
 
 	// check for water jump
 	if ( pm->waterlevel != water_level_t::WATER_WAIST )
@@ -890,28 +904,20 @@ static void PM_DeadMove( void ) {
 *	@brief	Determine whether the position is allsolid or not. In case of PM_NOCLIP it is always a good position.
 **/
 static bool PM_GoodPosition( void ) {
+	// Always valid for PM_NOCLIP mode.
 	if ( pm->s.pm_type == PM_NOCLIP ) {
 		return true;
 	}
 
-	vec3_t  origin;
-	VectorCopy( pm->s.origin, origin );
-	vec3_t end;
-	VectorCopy( pm->s.origin, end );
-
-	trace_t trace = pm->trace( origin, pm->mins, pm->maxs, end );
-
+	// Base the outcome on whether we're in an 'all-solid' situation or not.
+	trace_t trace = pm->trace( pm->s.origin, pm->mins, pm->maxs, pm->s.origin );
 	return !trace.allsolid;
 }
 
-/*
-================
-PM_SnapPosition
-
-On exit, the origin will have a value that is pre-quantized to the 0.125
-precision of the network channel and in a valid position.
-================
-*/
+/**
+*	@brief	On exit, the origin will have a value that is pre-quantized to 
+*			the network channel and in a valid position.
+**/
 static void PM_SnapPosition( void ) {
 	VectorCopy( pml.origin, pm->s.origin );
 	VectorCopy( pml.velocity, pm->s.velocity );
@@ -921,44 +927,6 @@ static void PM_SnapPosition( void ) {
 	}
 
 	VectorCopy( pml.previous_origin, pm->s.origin );
-
-	#if 0
-	int     sign[ 3 ];
-	int     i, j, bits;
-	float   base[ 3 ];
-	// try all single bits first
-	static const byte jitterbits[ 8 ] = { 0, 4, 1, 2, 3, 5, 6, 7 };
-
-	// snap velocity to eigths
-	for ( i = 0; i < 3; i++ )
-		pm->s.velocity[ i ] = (int)( pml.velocity[ i ] );// * 8); // WID: float-movement
-
-	for ( i = 0; i < 3; i++ ) {
-		if ( pml.origin[ i ] >= 0 )
-			sign[ i ] = 1;
-		else
-			sign[ i ] = -1;
-		pm->s.origin[ i ] = (int)( pml.origin[ i ] ); // * 8); // WID: float-movement
-		if ( pm->s.origin[ i ] == pml.origin[ i ] )//* 0.125f == pml.origin[i]) // WID: float-movement
-			sign[ i ] = 0;
-	}
-	VectorCopy( pm->s.origin, base );
-
-	// try all combinations
-	for ( j = 0; j < 8; j++ ) {
-		bits = jitterbits[ j ];
-		VectorCopy( base, pm->s.origin );
-		for ( i = 0; i < 3; i++ )
-			if ( bits & ( 1 << i ) )
-				pm->s.origin[ i ] += sign[ i ];
-
-		if ( PM_GoodPosition( ) )
-			return;
-	}
-
-	// go back to the last position
-	VectorCopy( pml.previous_origin, pm->s.origin );
-	#endif
 }
 
 /*
@@ -968,30 +936,7 @@ PM_InitialSnapPosition
 ================
 */
 static void PM_InitialSnapPosition( void ) {
-	//int        x, y, z;
-	//float      base[3];
-	//static const float offset[3] = { 0, -1, 1 };
-
-	//VectorCopy(pm->s.origin, base);
-
-	//for (z = 0; z < 3; z++) {
-	//    pm->s.origin[2] = base[2] + offset[z];
-	//    for (y = 0; y < 3; y++) {
-	//        pm->s.origin[1] = base[1] + offset[y];
-	//        for (x = 0; x < 3; x++) {
-	//            pm->s.origin[0] = base[0] + offset[x];
-	//            if (PM_GoodPosition()) {
-	//                pml.origin[0] = pm->s.origin[0];// * 0.125f; // WID: float-movement
-	//                pml.origin[1] = pm->s.origin[1];// * 0.125f; // WID: float-movement
-	//                pml.origin[2] = pm->s.origin[2];// * 0.125f; // WID: float-movement
-	//                VectorCopy(pm->s.origin, pml.previous_origin);
-	//                return;
-	//            }
-	//        }
-	//    }
-	//}
-
-	// Do check for a valid position to copy back as, into 'player move last previous origin'.
+	// Do a check for a valid position to copy back as, into 'player move last previous origin'.
 	if ( PM_GoodPosition( ) ) {
 		VectorCopy( pm->s.origin, pml.origin );
 		VectorCopy( pm->s.origin, pml.previous_origin );
@@ -1108,7 +1053,6 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		return;
 	}
 
-
 	if ( pm->s.pm_type >= PM_DEAD ) {
 		pm->cmd.forwardmove = 0;
 		pm->cmd.sidemove = 0;
@@ -1142,6 +1086,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		// WID: What is this for really?
 		//int msec = pm->cmd.msec >> 3;
 		//if ( !msec )
+		// 
 		//	msec = 1;
 		int32_t msec = pm->cmd.msec;
 		if ( !msec ) {
