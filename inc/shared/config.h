@@ -38,7 +38,8 @@
 #define USE_SYSCON 1
 #define USE_DBGHELP 1
 
-#define USE_SMOOTH_DELTA_ANGLES 1
+// WID: We'll use them either way.
+//#define USE_SMOOTH_DELTA_ANGLES 1
 
 #if USE_CLIENT
 //#define VID_REF "gl"

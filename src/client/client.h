@@ -239,10 +239,10 @@ typedef struct client_state_s {
     // localmove and pending cmd, cleared each time cmd is finalized.
     vec2_t      mousemove;
 
-#if USE_SMOOTH_DELTA_ANGLES
+    //#if USE_SMOOTH_DELTA_ANGLES
 	// Interpolated.
     vec3_t      delta_angles;
-#endif
+    //#endif
 	// This is the 'moment-in-time' value that the client is rendering at.
 	// Always <= cl.servertime
     int64_t     time;           

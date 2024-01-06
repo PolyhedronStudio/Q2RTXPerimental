@@ -197,39 +197,39 @@ void CL_PredictMovement(void)
     pm.pointcontents = CL_PointContents;
 
     pm.s = cl.frame.ps.pmove;
-#if USE_SMOOTH_DELTA_ANGLES
+    //#if USE_SMOOTH_DELTA_ANGLES
     VectorCopy( cl.delta_angles, pm.s.delta_angles );
-#endif
+    //#endif
 
     // Run previously stored and acknowledged frames
-    while (++acknowledgedCommandNumber <= currentCommandNumber) {
+    while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
         pm.cmd = cl.predictedStates[ acknowledgedCommandNumber & CMD_MASK ].cmd;
-        clge->PlayerMove(&pm, &cl.pmp);
+        clge->PlayerMove( &pm, &cl.pmp );
 
         // Save for debug checking
-        VectorCopy(pm.s.origin, cl.predictedStates[ acknowledgedCommandNumber & CMD_MASK ].origin );
+        VectorCopy( pm.s.origin, cl.predictedStates[ acknowledgedCommandNumber & CMD_MASK ].origin );
     }
 
     // Run pending cmd
     uint64_t frameNumber = currentCommandNumber; //! Default to current frame, expected behavior for if we got msec in predicedState.cmd
-    if (cl.predictedState.cmd.msec) {
+    if ( cl.predictedState.cmd.msec ) {
         pm.cmd = cl.predictedState.cmd;
-        pm.cmd.forwardmove = cl.localmove[0];
-        pm.cmd.sidemove = cl.localmove[1];
-        pm.cmd.upmove = cl.localmove[2];
-		clge->PlayerMove(&pm, &cl.pmp);
+        pm.cmd.forwardmove = cl.localmove[ 0 ];
+        pm.cmd.sidemove = cl.localmove[ 1 ];
+        pm.cmd.upmove = cl.localmove[ 2 ];
+		clge->PlayerMove( &pm, &cl.pmp );
 
         // Save for debug checking
-        VectorCopy(pm.s.origin, cl.predictedStates[ (currentCommandNumber + 1) & CMD_MASK ].origin);
+        VectorCopy( pm.s.origin, cl.predictedStates[ (currentCommandNumber + 1) & CMD_MASK ].origin );
 	// Use previous frame if no command is pending.
     } else {
 		frameNumber = currentCommandNumber - 1;
     }
 
 	// Stair Stepping:
-    if (pm.s.pm_type != PM_SPECTATOR && (pm.s.pm_flags & PMF_ON_GROUND)) {
+    if ( pm.s.pm_type != PM_SPECTATOR && ( pm.s.pm_flags & PMF_ON_GROUND ) ) {
         const float oldz = cl.predictedStates[ cl.predictedState.step_frame & CMD_MASK ].origin[2];
-		const float step = pm.s.origin[2] - oldz;
+		const float step = pm.s.origin[ 2 ] - oldz;
         //if (step > 63 && step < 160) {
 		if ( step > 8 && step < 20 ) {
             cl.predictedState.predicted_step = step;// * 0.125f; // WID: float-movement

@@ -1,12 +1,9 @@
-
 #pragma once
 
 /*
 ==============================================================
 
 PLAYER MOVEMENT CODE
-
-Common between server and client so prediction matches
 
 ==============================================================
 */
