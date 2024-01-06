@@ -113,8 +113,9 @@ static trace_t q_gameabi CL_Trace(const vec3_t start, const vec3_t mins, const v
 
 	// check against world
 	CM_BoxTrace( &t, start, end, mins, maxs, cl.bsp->nodes, MASK_PLAYERSOLID );
-	if ( t.fraction < 1.0f )
+	if ( t.fraction < 1.0f ) {
 		t.ent = (struct edict_s *)cl_entities;
+    }
 
 	// check all other solid models
 	CL_ClipMoveToEntities( start, mins, maxs, end, &t );
@@ -123,29 +124,27 @@ static trace_t q_gameabi CL_Trace(const vec3_t start, const vec3_t mins, const v
 }
 
 static int CL_PointContents(const vec3_t point) {
-    int32_t contents = CM_PointContents(point, cl.bsp->nodes);
+    int32_t contents = CM_PointContents( point, cl.bsp->nodes );
 
-    for (int32_t i = 0; i < cl.numSolidEntities; i++) {
-        centity_t *ent = cl.solidEntities[i];
+    for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
+        centity_t *ent = cl.solidEntities[ i ];
 
-        if (ent->current.solid != PACKED_BSP) // special value for bmodel
+        if ( ent->current.solid != PACKED_BSP ) { // special value for bmodel
             continue;
+        }
 
-        mmodel_t *cmodel = cl.model_clip[ent->current.modelindex];
-        if (!cmodel)
+        mmodel_t *cmodel = cl.model_clip[ ent->current.modelindex ];
+        if ( !cmodel ) {
             continue;
+        }
 
-        contents |= CM_TransformedPointContents(
-                        point, cmodel->headnode,
-                        ent->current.origin,
-                        ent->current.angles);
+        contents |= CM_TransformedPointContents( point, cmodel->headnode, ent->current.origin, ent->current.angles );
     }
 
     return contents;
 }
 
-void CL_PredictAngles(void)
-{
+void CL_PredictAngles(void) {
 	VectorAdd( cl.viewangles, cl.frame.ps.pmove.delta_angles, cl.predictedState.angles );
 }
 
@@ -157,17 +156,16 @@ CL_PredictMovement
 Sets cl.predicted_origin and cl.predicted_angles
 =================
 */
-void CL_PredictMovement(void)
-{
-    if (cls.state != ca_active) {
+void CL_PredictMovement(void) {
+    if ( cls.state != ca_active ) {
         return;
     }
 
-    if (cls.demo.playback) {
+    if ( cls.demo.playback ) {
         return;
     }
 
-    if (sv_paused->integer) {
+    if ( sv_paused->integer ) {
         return;
     }
 
