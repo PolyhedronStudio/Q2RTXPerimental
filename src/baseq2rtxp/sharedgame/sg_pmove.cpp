@@ -56,11 +56,45 @@ static pmoveParams_t *pmp;
 static pml_t pml;
 
 // movement parameters
-static constexpr float  pm_stopspeed = 100;
-static constexpr float  pm_duckspeed = 100;
-static constexpr float  pm_accelerate = 10;
-static constexpr float  pm_wateraccelerate = 10;
-static constexpr float  pm_waterspeed = 400;
+float pm_stopspeed = 100;
+float pm_maxspeed = 300;
+float pm_duckspeed = 100;
+float pm_accelerate = 10;
+float pm_wateraccelerate = 10;
+float pm_friction = 6;
+float pm_waterfriction = 1;
+float pm_waterspeed = 400;
+float pm_laddermod = 0.5f;
+
+
+/**
+*
+*
+*	Touch Entities List:
+*
+*
+**/
+/**
+*	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
+*			this function adds the trace into the touchTraceList array and increases the numberOfTraces.
+**/
+static inline void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_t &trace ) {
+	// Escape function if we are exceeding maximum touch traces.
+	if ( touchTraceList.numberOfTraces >= MAX_TOUCH_TRACES ) {
+		return;
+	}
+
+	// Iterate for possible duplicates.
+	for ( int32_t i = 0; i < touchTraceList.numberOfTraces; i++ ) {
+		// Escape function if duplicate.
+		if ( touchTraceList.traces[ i ].ent == trace.ent ) {
+			return;
+		}
+	}
+
+	// Add trace to list.
+	touchTraceList.traces[ touchTraceList.numberOfTraces++ ] = trace;
+}
 
 /*
   walking up a step should kill some velocity
@@ -133,6 +167,9 @@ static void PM_StepSlideMove_( void ) {
 		if ( trace.allsolid ) {
 			// entity is trapped in another solid
 			pml.velocity[ 2 ] = 0;    // don't build up falling damage
+
+			// Save entity for contact.
+			PM_RegisterTouchTrace( pm->touchTraces, trace );
 			return;
 		}
 
@@ -145,11 +182,12 @@ static void PM_StepSlideMove_( void ) {
 		if ( trace.fraction == 1 )
 			break;     // moved the entire distance
 
-		// save entity for contact
-		if ( pm->numtouch < MAXTOUCH && trace.ent ) {
-			pm->touchents[ pm->numtouch ] = trace.ent;
-			pm->numtouch++;
-		}
+		// Save entity for contact.
+		PM_RegisterTouchTrace( pm->touchTraces, trace );
+		//if ( pm->numtouch < MAX_TOUCH_TRACES && trace.ent ) {
+		//	pm->touchents[ pm->numtouch ] = trace.ent;
+		//	pm->numtouch++;
+		//}
 
 		time_left -= time_left * trace.fraction;
 
@@ -605,10 +643,8 @@ static void PM_CategorizePosition( void ) {
 			}
 		}
 
-		if ( pm->numtouch < MAXTOUCH && trace.ent ) {
-			pm->touchents[ pm->numtouch ] = trace.ent;
-			pm->numtouch++;
-		}
+		// Save entity for contact.
+		PM_RegisterTouchTrace( pm->touchTraces, trace );
 	}
 
 //
@@ -1005,7 +1041,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	pmp = params;
 
 	// Clear out previous old pointer members for a new move.
-	pm->numtouch = 0;
+	pm->touchTraces.numberOfTraces = 0;
 	VectorClear( pm->viewangles );//pm->viewangles = {};
 	pm->s.viewheight = 0;
 	pm->groundentity = nullptr;
@@ -1025,9 +1061,12 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	VectorCopy( pm->s.velocity, pml.velocity );
 	// Save the origin as 'old origin' for in case we get stuck.
 	VectorCopy( pm->s.origin, pml.previous_origin );
+	// Save the start velocity.
+	VectorCopy( pm->s.velocity, pml.start_velocity );
 
 	// Calculate frametime.
 	pml.frametime = pm->cmd.msec * 0.001f;
+
 	// Clamp view angles.
 	PM_ClampAngles( );
 

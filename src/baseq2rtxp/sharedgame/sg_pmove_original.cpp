@@ -101,7 +101,7 @@ Does not modify any world state?
 **/
 inline void PM_StoreTouchTrace( pmove_touch_list_t &touch, trace_t &tr ) {
 	// Prevent exceeding the limit, just return.
-	if ( touch.numberOfTouches == MAXTOUCH ) {
+	if ( touch.numberOfTouches == MAX_TOUCH_TRACES ) {
 		return;
 	}
 

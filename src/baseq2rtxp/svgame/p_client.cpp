@@ -1608,8 +1608,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		VectorCopy( pm.s.origin, ent->s.origin );
 		VectorCopy( pm.s.velocity, ent->velocity );
 		// Copy back in bounding box results. (Player might've crouched for example.)
-        VectorCopy(pm.mins, ent->mins);
-        VectorCopy(pm.maxs, ent->maxs);
+        VectorCopy( pm.mins, ent->mins );
+        VectorCopy( pm.maxs, ent->maxs );
 
 		// Backup the command angles given from ast command.
 		VectorCopy( ucmd->angles, client->resp.cmd_angles );
@@ -1627,35 +1627,39 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         ent->waterlevel = pm.waterlevel;
         ent->watertype = pm.watertype;
         ent->groundentity = pm.groundentity;
-        if (pm.groundentity)
+        if ( pm.groundentity )
             ent->groundentity_linkcount = pm.groundentity->linkcount;
 
-        if (ent->deadflag) {
+        if ( ent->deadflag ) {
             client->ps.viewangles[ROLL] = 40;
             client->ps.viewangles[PITCH] = -15;
             client->ps.viewangles[YAW] = client->killer_yaw;
         } else {
-            VectorCopy(pm.viewangles, client->v_angle);
-            VectorCopy(pm.viewangles, client->ps.viewangles);
+            VectorCopy( pm.viewangles, client->v_angle );
+            VectorCopy( pm.viewangles, client->ps.viewangles );
         }
 
-        gi.linkentity(ent);
+        gi.linkentity( ent );
+
+        // PGM trigger_gravity support
+        ent->gravity = 1.0;
+        // PGM
 
 		if ( ent->movetype != MOVETYPE_NOCLIP ) {
 			G_TouchTriggers( ent );
+            //G_TouchProjectiles(ent, old_origin);
 		}
 
-        // touch other objects
-        for (i = 0 ; i < pm.numtouch ; i++) {
-            other = pm.touchents[i];
-            for (j = 0 ; j < i ; j++)
-                if (pm.touchents[j] == other)
-                    break;
-            if (j != i)
-                continue;   // duplicated
-            if (!other->touch)
-                continue;
-            other->touch(other, ent, NULL, NULL);
+        // Touch other objects
+        for ( i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
+            trace_t &tr = pm.touchTraces.traces[ i ];
+            edict_t *other = tr.ent;
+
+            if ( other->touch ) {
+                // TODO: Q2RE has these for last 2 args: const trace_t &tr, bool other_touching_self
+                // What the??
+                other->touch( other, ent, &tr.plane, tr.surface );
+            }
         }
 
     }
@@ -1669,19 +1673,19 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 	ent->light_level = 255;//ucmd->lightlevel;
 
     // fire weapon from final position if needed
-    if (client->latched_buttons & BUTTON_ATTACK) {
-        if (client->resp.spectator) {
+    if ( client->latched_buttons & BUTTON_ATTACK ) {
+        if ( client->resp.spectator ) {
 
             client->latched_buttons = 0;
 
-            if (client->chase_target) {
+            if ( client->chase_target ) {
                 client->chase_target = NULL;
-				client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
+                client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
 			} else {
 				GetChaseTarget( ent );
 			}
 
-        } else if (!client->weapon_thunk) {
+        } else if ( !client->weapon_thunk ) {
 			// we can only do this during a ready state and
 			// if enough time has passed from last fire
 			if ( ent->client->weaponstate == WEAPON_READY ) {
@@ -1695,9 +1699,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         }
     }
 
-    if (client->resp.spectator) {
-        if (ucmd->upmove >= 10) {
-            if (!(client->ps.pmove.pm_flags & PMF_JUMP_HELD)) {
+    if ( client->resp.spectator ) {
+        if ( ucmd->upmove >= 10 ) {
+            if ( !( client->ps.pmove.pm_flags & PMF_JUMP_HELD ) ) {
                 client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
 
 				if ( client->chase_target ) {
@@ -1707,14 +1711,14 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 				}
             }
 		} else {
-			client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
+            client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
 		}
     }
 
     // update chase cam if being followed
-    for (i = 1; i <= maxclients->value; i++) {
+    for ( i = 1; i <= maxclients->value; i++ ) {
         other = g_edicts + i;
-		if ( other->inuse && other->client->chase_target == ent ) {
+        if ( other->inuse && other->client->chase_target == ent ) {
 			UpdateChaseCam( other );
 		}
     }
@@ -1734,36 +1738,38 @@ void ClientBeginServerFrame(edict_t *ent)
     gclient_t   *client;
     int         buttonMask;
 
-    if (level.intermission_framenum)
+    if ( level.intermission_framenum )
         return;
 
     client = ent->client;
 
-    if (deathmatch->value &&
+    if ( deathmatch->value &&
         client->pers.spectator != client->resp.spectator &&
-        (level.time - client->respawn_time) >= 5_sec) {
-        spectator_respawn(ent);
+        ( level.time - client->respawn_time ) >= 5_sec ) {
+        spectator_respawn( ent );
         return;
     }
 
     // run weapon animations if it hasn't been done by a ucmd_t
-    if (!client->weapon_thunk && !client->resp.spectator)
+    if ( !client->weapon_thunk && !client->resp.spectator ) {
         Think_Weapon(ent);
-    else
+    } else {
         client->weapon_thunk = false;
+    }
 
-    if (ent->deadflag) {
+    if ( ent->deadflag ) {
         // wait for any button just going down
-        if (level.time > client->respawn_time) {
+        if ( level.time > client->respawn_time ) {
             // in deathmatch, only wait for attack button
-            if (deathmatch->value)
+            if ( deathmatch->value ) {
                 buttonMask = BUTTON_ATTACK;
-            else
+            } else {
                 buttonMask = -1;
+            }
 
-            if ((client->latched_buttons & buttonMask) ||
-                (deathmatch->value && ((int)dmflags->value & DF_FORCE_RESPAWN))) {
-                respawn(ent);
+            if ( ( client->latched_buttons & buttonMask ) ||
+                ( deathmatch->value && ( (int)dmflags->value & DF_FORCE_RESPAWN ) ) ) {
+                respawn( ent );
                 client->latched_buttons = 0;
             }
         }
@@ -1771,9 +1777,9 @@ void ClientBeginServerFrame(edict_t *ent)
     }
 
     // add player trail so monsters can follow
-    if (!deathmatch->value)
-        if (!visible(ent, PlayerTrail_LastSpot()))
-            PlayerTrail_Add(ent->s.old_origin);
+    if ( !deathmatch->value )
+        if ( !visible( ent, PlayerTrail_LastSpot() ) )
+            PlayerTrail_Add( ent->s.old_origin );
 
     client->latched_buttons = 0;
 }

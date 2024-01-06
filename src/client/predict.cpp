@@ -144,6 +144,12 @@ static int CL_PointContents(const vec3_t point) {
     return contents;
 }
 
+void CL_PredictAngles(void)
+{
+	VectorAdd( cl.viewangles, cl.frame.ps.pmove.delta_angles, cl.predictedState.angles );
+}
+
+
 /*
 =================
 CL_PredictMovement
@@ -151,14 +157,6 @@ CL_PredictMovement
 Sets cl.predicted_origin and cl.predicted_angles
 =================
 */
-void CL_PredictAngles(void)
-{
-	VectorAdd( cl.viewangles, cl.frame.ps.pmove.delta_angles, cl.predictedState.angles );
-//cl.predictedState.angles[0] = cl.viewangles[0] + (cl.frame.ps.pmove.delta_angles[0]);
-//cl.predictedState.angles[1] = cl.viewangles[1] + (cl.frame.ps.pmove.delta_angles[1]);
-//cl.predictedState.angles[2] = cl.viewangles[2] + (cl.frame.ps.pmove.delta_angles[2]);
-}
-
 void CL_PredictMovement(void)
 {
     if (cls.state != ca_active) {
@@ -203,9 +201,8 @@ void CL_PredictMovement(void)
     VectorCopy( cl.delta_angles, pm.s.delta_angles );
 #endif
 
-
     // Run previously stored and acknowledged frames
-    while( ++acknowledgedCommandNumber <= currentCommandNumber ) {
+    while (++acknowledgedCommandNumber <= currentCommandNumber) {
         pm.cmd = cl.predictedStates[ acknowledgedCommandNumber & CMD_MASK ].cmd;
         clge->PlayerMove(&pm, &cl.pmp);
 
@@ -214,7 +211,7 @@ void CL_PredictMovement(void)
     }
 
     // Run pending cmd
-	uint64_t frameNumber = currentCommandNumber;
+    uint64_t frameNumber = currentCommandNumber; //! Default to current frame, expected behavior for if we got msec in predicedState.cmd
     if (cl.predictedState.cmd.msec) {
         pm.cmd = cl.predictedState.cmd;
         pm.cmd.forwardmove = cl.localmove[0];

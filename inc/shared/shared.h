@@ -520,23 +520,32 @@ typedef struct {
 	float       flyfriction;
 } pmoveParams_t;
 
-#define MAXTOUCH    32
+/**
+*   @brief  Used for registering entity touching resulting traces.
+**/
+#define MAX_TOUCH_TRACES    32
+typedef struct pm_touch_trace_list_s {
+    uint32_t numberOfTraces;
+    trace_t traces[ MAX_TOUCH_TRACES ];
+} pm_touch_trace_list_t;
+
+/**
+*   @brief  Object storing data such as the player's move state, in order to perform another 
+*           frame of movement on its data.
+**/
 typedef struct {
-    // state (in / out)
+    // state (in / out) 
     pmove_state_t   s;
 
     // command (in)
-    usercmd_t	cmd;
+	usercmd_t	cmd;
     bool		snapinitial;    // if s has been changed outside pmove
 
     // results (out)
-    int         numtouch;
-    struct edict_s  *touchents[MAXTOUCH];
+	pm_touch_trace_list_t touchTraces;
 
-    vec3_t      viewangles;         // clamped
-    //float       viewheight;
-
-    vec3_t      mins, maxs;         // bounding box size
+    vec3_t viewangles;         // clamped
+    vec3_t mins, maxs;         // bounding box size
 
     struct edict_s  *groundentity;
     int				watertype;

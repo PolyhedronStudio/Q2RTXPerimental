@@ -248,7 +248,7 @@ static void set_active_state(void)
         VectorCopy(cl.frame.ps.pmove.origin, cl.predictedState.origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
         VectorCopy(cl.frame.ps.pmove.velocity, cl.predictedState.velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
         if (cl.frame.ps.pmove.pm_type < PM_DEAD &&
-            cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
+            cls.serverProtocol >= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
             // enhanced servers don't send viewangles
             CL_PredictAngles();
         } else {
