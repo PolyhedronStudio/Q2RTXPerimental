@@ -255,7 +255,19 @@ static void set_active_state(void)
             // just use what server provided
             VectorCopy(cl.frame.ps.viewangles, cl.predictedState.angles);
         }
+
+        // Copy predicted screen blend, renderflags and viewheight.
+        Vector4Copy( cl.frame.ps.blend, cl.predictedState.screen_blend );
+        cl.predictedState.rdflags = cl.frame.ps.rdflags;
+        cl.current_viewheight = cl.prev_viewheight = cl.frame.ps.pmove.viewheight;
     }
+
+    // Reset viewheight change local time.
+    cl.viewheight_change_time = 0;
+
+    // Reset ground information.
+    cl.last_groundentity = NULL;
+    memset( &cl.last_groundplane, 0, sizeof( cl.last_groundplane ) );
 
     SCR_EndLoadingPlaque();     // get rid of loading plaque
     SCR_LagClear();
@@ -1272,11 +1284,13 @@ loop if rendering is disabled but sound is running.
 */
 void CL_CalcViewValues(void)
 {
+    static constexpr int32_t STEP_TIME = 100;
+
     player_state_t *ps, *ops;
     vec3_t viewoffset;
     float lerp;
 
-    if (!cl.frame.valid) {
+    if ( !cl.frame.valid ) {
         return;
     }
 
@@ -1304,17 +1318,17 @@ void CL_CalcViewValues(void)
         //    cl.refdef.vieworg[2] -= cl.predicted_step * (100 - delta) * 0.01f;
         //}
 		// WID: Prediction: Now should be dependant on specific framerate.
-		if ( delta < BASE_FRAMETIME ) {
-			cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( BASE_FRAMETIME - delta ) * BASE_1_FRAMETIME;
-		}
+		//if ( delta < BASE_FRAMETIME ) {
+		//	cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( BASE_FRAMETIME - delta ) * BASE_1_FRAMETIME;
+		//}
+        if ( delta < STEP_TIME ) {
+            cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( STEP_TIME - delta ) * ( 1.f / STEP_TIME );
+        }
     } else {
         int i;
 
         // just use interpolated values
         for (i = 0; i < 3; i++) {
-			// WID: float-movement
-            //cl.refdef.vieworg[i] = SHORT2COORD(ops->pmove.origin[i] +
-            //    lerp * (ps->pmove.origin[i] - ops->pmove.origin[i]));
 			cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
 				lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
         }
@@ -1345,14 +1359,38 @@ void CL_CalcViewValues(void)
     cl.delta_angles[2] = LerpAngle(ops->pmove.delta_angles[2], ps->pmove.delta_angles[2], lerp);
 //#endif
 
+    //// interpolate blend colors if the last frame wasn't clear
+    //float blendfrac = ops->screen_blend[ 3 ] ? cl.lerpfrac : 1;
+    //float damageblendfrac = ops->damage_blend[ 3 ] ? cl.lerpfrac : 1;
+
+    //Vector4Lerp( ops->screen_blend, ps->screen_blend, blendfrac, cl.refdef.screen_blend );
+    //Vector4Lerp( ops->damage_blend, ps->damage_blend, damageblendfrac, cl.refdef.damage_blend );
+
     // don't interpolate blend color
     Vector4Copy(ps->blend, cl.refdef.blend);
+
+    // Mix in screen_blend from cgame pmove
+    // FIXME: Should also be interpolated?...
+    //if ( cl.predictedState.screen_blend[ 3 ] > 0 ) {
+    //    float a2 = cl.refdef.screen_blend[ 3 ] + ( 1 - cl.refdef.screen_blend[ 3 ] ) * cl.predicted_screen_blend[ 3 ]; // new total alpha
+    //    float a3 = cl.refdef.screen_blend[ 3 ] / a2;					// fraction of color from old
+
+    //    LerpVector( cl.predictedState.screen_blend, cl.refdef.screen_blend, a3, cl.refdef.screen_blend );
+    //    cl.refdef.screen_blend[ 3 ] = a2;
+    //}
+
 
     // interpolate field of view
     cl.fov_x = lerp_client_fov(ops->fov, ps->fov, lerp);
     cl.fov_y = V_CalcFov(cl.fov_x, 4, 3);
 
     LerpVector(ops->viewoffset, ps->viewoffset, lerp, viewoffset);
+
+    // Smooth out view height over 100ms
+    float viewheight_lerp = ( cl.time - cl.viewheight_change_time );
+    viewheight_lerp = STEP_TIME - min( viewheight_lerp, STEP_TIME );
+    float predicted_viewheight = cl.current_viewheight + (float)( cl.prev_viewheight - cl.current_viewheight ) * viewheight_lerp * 0.01f;
+    viewoffset[ 2 ] += predicted_viewheight;
 
     AngleVectors(cl.refdef.viewangles, cl.v_forward, cl.v_right, cl.v_up);
 

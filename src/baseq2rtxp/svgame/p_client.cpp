@@ -1580,8 +1580,6 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         return;
     }
 
-    pm_passent = ent;
-
     if (ent->client->chase_target) {
 		VectorCopy( ucmd->angles, client->resp.cmd_angles );
     } else {
@@ -1647,8 +1645,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         ent->waterlevel = pm.waterlevel;
         ent->watertype = pm.watertype;
         ent->groundentity = pm.groundentity;
-        if ( pm.groundentity )
+        if ( pm.groundentity ) {
             ent->groundentity_linkcount = pm.groundentity->linkcount;
+        }
 
         if ( ent->deadflag ) {
             client->ps.viewangles[ROLL] = 40;
@@ -1797,9 +1796,10 @@ void ClientBeginServerFrame(edict_t *ent)
     }
 
     // add player trail so monsters can follow
-    if ( !deathmatch->value )
-        if ( !visible( ent, PlayerTrail_LastSpot() ) )
+    if ( !deathmatch->value ) {
+        if ( !visible( ent, PlayerTrail_LastSpot() ) ) {
             PlayerTrail_Add( ent->s.old_origin );
-
+        }
+    }
     client->latched_buttons = 0;
 }

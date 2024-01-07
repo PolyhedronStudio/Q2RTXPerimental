@@ -376,16 +376,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 	// base origin
 	VectorClear( v );
 
-	// add view height
-
-	v[ 2 ] += ent->viewheight;
-
 	// add fall height
-
-	//ratio = (ent->client->fall_time - level.time).seconds() / FALL_TIME().seconds( );
-	//if (ratio < 0)
-	//    ratio = 0;
-	//v[2] -= ratio * ent->client->fall_value * 0.4f;
 	if ( ent->client->fall_time > level.time ) {
 		// [Paril-KEX] 100ms of slack is added to account for
 		// visual difference in higher tickrates
@@ -411,7 +402,6 @@ void SV_CalcViewOffset( edict_t *ent ) {
 	v[ 2 ] += bob;
 
 	// add kick offset
-
 	VectorAdd( v, ent->client->kick_origin, v );
 
 	// absolutely bound offsets
@@ -506,16 +496,16 @@ SV_CalcBlend
 }
 
 void SV_CalcBlend( edict_t *ent ) {
-	int     contents;
-	vec3_t  vieworg;
 	sg_time_t remaining;
 
 	Vector4Clear( ent->client->ps.blend );
 
 	// add for contents
+	vec3_t vieworg = {};
 	VectorAdd( ent->s.origin, ent->client->ps.viewoffset, vieworg );
-	contents = gi.pointcontents( vieworg );
+	vieworg[ 2 ] += ent->client->ps.pmove.viewheight;
 
+	int32_t contents = gi.pointcontents( vieworg );
 	if ( contents & ( CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA ) )
 		ent->client->ps.rdflags |= RDF_UNDERWATER;
 	else

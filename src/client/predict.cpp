@@ -258,7 +258,7 @@ void CL_PredictMovement(void) {
         const float oldz = cl.predictedStates[ cl.predictedState.step_frame & CMD_MASK ].origin[2];
 		const float step = pm.s.origin[ 2 ] - oldz;
         //if (step > 63 && step < 160) {
-		if ( step > 8 && step < 20 ) {
+		if ( step > 1 && step < 20 ) {
             cl.predictedState.step = step;// * 0.125f; // WID: float-movement
             cl.predictedState.step_time = cls.realtime;
             cl.predictedState.step_frame = frameNumber + 1;    // don't double step
@@ -273,5 +273,17 @@ void CL_PredictMovement(void) {
     VectorCopy( pm.s.origin, cl.predictedState.origin );
     VectorCopy( pm.s.velocity, cl.predictedState.velocity );
     VectorCopy( pm.viewangles, cl.predictedState.angles );
+    Vector4Copy( pm.screen_blend, cl.predictedState.screen_blend );
+    cl.predictedState.rdflags = pm.rdflags;
+
+    // Record viewheight changes
+    if ( cl.current_viewheight != pm.s.viewheight ) {
+        cl.prev_viewheight = cl.current_viewheight;
+        cl.current_viewheight = pm.s.viewheight;
+        cl.viewheight_change_time = cl.time;
+    }
+
+    cl.last_groundplane = pm.groundplane;
+    cl.last_groundentity = pm.groundentity;
 }
 

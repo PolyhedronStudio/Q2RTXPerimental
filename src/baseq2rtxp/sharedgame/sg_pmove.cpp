@@ -731,14 +731,16 @@ static void PM_CheckJump( void ) {
 	}
 
 	// must wait for jump to be released
-	if ( pm->s.pm_flags & PMF_JUMP_HELD )
+	if ( pm->s.pm_flags & PMF_JUMP_HELD ) {
 		return;
+	}
 
-	if ( pm->s.pm_type == PM_DEAD )
+	if ( pm->s.pm_type == PM_DEAD ) {
 		return;
+	}
 
 	if ( pm->waterlevel >= water_level_t::WATER_WAIST ) {
-		// swimming, not jumping
+		// Swimming, not jumping
 		pm->groundentity = NULL;
 
 		if ( pmp->waterhack )
@@ -933,21 +935,24 @@ static void PM_SetDimensions() {
 }
 
 /**
-*	@return	True if we're still 'heads above water'. False otherwise.
+*	@return	True if we're heads above water, false otherwise.
 **/
 static inline bool PM_AboveWater() {
 	const vec3_t below = { pml.origin[ 0 ], pml.origin[ 1 ], pml.origin[ 2 ] - 8.f };
-
+	
+	// Test if we got solid below.
 	bool solid_below = pm->trace( pml.origin, pm->mins, pm->maxs, below, (const void *)pm->player, MASK_SOLID ).fraction < 1.0f;
-
-	if ( solid_below )
+	if ( solid_below ) {
 		return false;
+	}
 
+	// No solid below us, is it water instead?
 	bool water_below = pm->trace( pml.origin, pm->mins, pm->maxs, below, (const void*)pm->player, MASK_WATER ).fraction < 1.0f;
-
-	if ( water_below )
+	if ( water_below ) {
 		return true;
+	}
 
+	// A different type of solid was found, so we're definitely not dealing with water. (Thus, we're above it.)
 	return false;
 }
 
@@ -1007,8 +1012,9 @@ PM_DeadMove
 static void PM_DeadMove( void ) {
 	float   forward;
 
-	if ( !pm->groundentity )
+	if ( !pm->groundentity ) {
 		return;
+	}
 
 	// extra friction
 	forward = VectorLength( pml.velocity );
@@ -1076,10 +1082,10 @@ static void PM_ClampAngles( void ) {
 		pm->viewangles[ PITCH ] = 0;
 		pm->viewangles[ ROLL ] = 0;
 	} else {
-		// circularly clamp the angles with deltas
+		// Circularly clamp the angles with deltas
 		VectorAdd( pm->cmd.angles, pm->s.delta_angles, pm->viewangles );
 
-		// don't let the player look up or down more than 90 degrees
+		// Don't let the player look up or down more than 90 degrees.
 		if ( pm->viewangles[ PITCH ] > 89 && pm->viewangles[ PITCH ] < 180 ) {
 			pm->viewangles[ PITCH ] = 89;
 		} else if ( pm->viewangles[ PITCH ] < 271 && pm->viewangles[ PITCH ] >= 180 ) {
@@ -1087,6 +1093,7 @@ static void PM_ClampAngles( void ) {
 		}
 	}
 
+	// Calculate angle vectors based on view angles.
 	AngleVectors( pm->viewangles, pml.forward, pml.right, pml.up );
 }
 
@@ -1096,23 +1103,26 @@ PM_ScreenEffects
 
 ================
 */
-//static void PM_ScreenEffects( ) {
-//	// add for contents
-//	vec3_t vieworg = pml.origin + pm->viewoffset + vec3_t{ 0, 0, (float)pm->s.viewheight };
-//	int32_t contents = pm->pointcontents( vieworg );
-//
-//	if ( contents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) )
-//		pm->rdflags |= RDF_UNDERWATER;
-//	else
-//		pm->rdflags &= ~RDF_UNDERWATER;
-//
+static void PM_ScreenEffects( ) {
+	// add for contents
+	vec3_t vieworg = {}; // pml.origin + pm->viewoffset + vec3_t{ 0, 0, (float)pm->s.viewheight };
+	VectorAdd( pml.origin, pm->viewoffset, vieworg );
+	vieworg[ 2 ] += pm->s.viewheight;
+
+	int32_t contents = pm->pointcontents( vieworg );
+
+	if ( contents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) )
+		pm->rdflags |= RDF_UNDERWATER;
+	else
+		pm->rdflags &= ~RDF_UNDERWATER;
+
 //	if ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) )
 //		G_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, pm->screen_blend );
 //	else if ( contents & CONTENTS_SLIME )
 //		G_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, pm->screen_blend );
 //	else if ( contents & CONTENTS_WATER )
 //		G_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, pm->screen_blend );
-//}
+}
 
 /*
 ================
@@ -1132,11 +1142,11 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	pm->groundentity = nullptr;
 	pm->watertype = 0;
 	pm->waterlevel = water_level_t::WATER_NONE;
-	//pm->screenblend = {};
-	//pm->rdflags = 0;
-	//pm->jump_sound = false;
-	//pm->step_clip = false;
-	//pm->impact_delta = false;
+	Vector4Clear( pm->screen_blend );
+	pm->rdflags = 0;
+	pm->jump_sound = false;
+	pm->step_clip = false;
+	pm->impact_delta = false;
 
 	// Clear all pmove local vars
 	pml = {};
@@ -1246,16 +1256,16 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		if ( pm->waterlevel >= water_level_t::WATER_WAIST ) {
 			PM_WaterMove( );
 		} else {
-			// Regular 'air move'.
+			// Different pitch handling.
 			vec3_t  angles;
-
 			VectorCopy( pm->viewangles, angles );
 			if ( angles[ PITCH ] > 180 )
 				angles[ PITCH ] = angles[ PITCH ] - 360;
 			angles[ PITCH ] /= 3;
 
 			AngleVectors( angles, pml.forward, pml.right, pml.up );
-
+			
+			// Regular 'air move'.
 			PM_AirMove( );
 		}
 	}
@@ -1269,7 +1279,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	}
 
 	// [Paril-KEX]
-	//PM_ScreenEffects();
+	PM_ScreenEffects();
 
 	PM_SnapPosition();
 }
