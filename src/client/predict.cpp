@@ -83,18 +83,18 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
     for ( i = 0; i < cl.numSolidEntities; i++ ) {
         ent = cl.solidEntities[ i ];
 
-        //if ( !( contentmask & CONTENTS_PLAYER ) ) {
-        //    continue;
-        //}
+        if ( !( contentmask & CONTENTS_PLAYERCLIP ) ) { // if ( !( contentmask & CONTENTS_PLAYER ) ) {
+            continue;
+        }
 
         if ( ent->current.solid == PACKED_BSP ) {
             // special value for bmodel
             cmodel = cl.model_clip[ ent->current.modelindex ];
-            if ( !cmodel )
+            if ( !cmodel ) {
                 continue;
+            }
             headnode = cmodel->headnode;
-        }
-        else {
+        } else {
             headnode = CM_HeadnodeForBox( ent->mins, ent->maxs );
         }
 
@@ -118,8 +118,9 @@ CL_Trace
 void CL_Trace( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const struct edict_s *passEntity, int32_t contentmask ) {
     // check against world
     CM_BoxTrace( tr, start, end, mins, maxs, cl.bsp->nodes, contentmask );
-    if ( tr->fraction < 1.0f )
+    if ( tr->fraction < 1.0f ) {
         tr->ent = (struct edict_s *)cl_entities;
+    }
 
     // check all other solid models
     CL_ClipMoveToEntities( tr, start, mins, maxs, end, contentmask );
@@ -128,24 +129,26 @@ void CL_Trace( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t 
 /**
 *   @brief  A wrapper to make it compatible with the pm->trace that desired a 'void' to be passed in.
 **/
-static trace_t q_gameabi CL_PMTrace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask ) {
+static trace_t q_gameabi CL_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask ) {
     trace_t t;
     CL_Trace( &t, start, mins, maxs, end, (const edict_s*)passEntity, contentMask );
     return t;
 }
 
-static trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int32_t contentmask ) {
+static trace_t q_gameabi CL_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int32_t contentmask ) {
     trace_t     trace;
 
-    if ( !mins )
+    if ( !mins ) {
         mins = vec3_origin;
-    if ( !maxs )
+    }
+    if ( !maxs ) {
         maxs = vec3_origin;
+    }
 
     CM_BoxTrace( &trace, start, end, mins, maxs, cl.bsp->nodes, contentmask );
     return trace;
 }
-static int CL_PointContents(const vec3_t point) {
+static int CL_PM_PointContents(const vec3_t point) {
     int32_t contents = CM_PointContents( point, cl.bsp->nodes );
 
     for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
@@ -222,9 +225,9 @@ void CL_PredictMovement(void) {
 
     // Copy over the current client state data into pmove.
 	pmove_t pm = {};
-    pm.trace = CL_PMTrace;
-    pm.pointcontents = CL_PointContents;
-    pm.clip = CL_Clip;
+    pm.trace = CL_PM_Trace;
+    pm.pointcontents = CL_PM_PointContents;
+    pm.clip = CL_PM_Clip;
     pm.s = cl.frame.ps.pmove;
     //#if USE_SMOOTH_DELTA_ANGLES
     VectorCopy( cl.delta_angles, pm.s.delta_angles );
@@ -264,7 +267,7 @@ void CL_PredictMovement(void) {
     // Consider a Z change being "stepping" if...
     const bool step_detected = ( fabsStep > 1 && fabsStep < 20 ) // absolute change is in this limited range
         && ( ( cl.frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // and we started off on the ground
-        && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type < PM_NOCLIP/*<= PM_GRAPPLE*/ ) // and are still predicted to be on the ground
+        && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ) // and are still predicted to be on the ground
         && ( memcmp( &cl.last_groundplane, &pm.groundplane, sizeof( cplane_t ) ) != 0
             || cl.last_groundentity != pm.groundentity ); // and don't stand on another plane or entity
     if ( step_detected ) {
@@ -282,32 +285,23 @@ void CL_PredictMovement(void) {
         cl.predictedState.step = constclamp( old_step + step, -MAX_STEP_CHANGE, MAX_STEP_CHANGE );
         cl.predictedState.step_time = cls.realtime;
     }
-//if ( pm.s.pm_type != PM_SPECTATOR && ( pm.s.pm_flags & PMF_ON_GROUND ) ) {
-//    const float oldz = cl.predictedStates[ cl.predictedState.step_frame & CMD_MASK ].origin[2];
-//	const float step = pm.s.origin[ 2 ] - oldz;
-//    //if (step > 63 && step < 160) {
-//	if ( step > 1 && step < 20 ) {
-//        cl.predictedState.step = step;// * 0.125f; // WID: float-movement
-//        cl.predictedState.step_time = cls.realtime;
-//        cl.predictedState.step_frame = frameNumber + 1;    // don't double step
-//    }
-//}
-
-//if ( cl.predictedState.step_frame < frameNumber ) {
-//    cl.predictedState.step_frame = frameNumber;
-//}
 
     // Copy results out into the current predicted state.
     VectorCopy( pm.s.origin, cl.predictedState.origin );
     VectorCopy( pm.s.velocity, cl.predictedState.velocity );
     VectorCopy( pm.viewangles, cl.predictedState.angles );
+    // To be merged with server screen blend.
     Vector4Copy( pm.screen_blend, cl.predictedState.screen_blend );
+    // To be merged with server rdflags.
     cl.predictedState.rdflags = pm.rdflags;
 
     // Record viewheight changes.
     if ( cl.current_viewheight != pm.s.viewheight ) {
+        // Backup the old 'current' viewheight.
         cl.prev_viewheight = cl.current_viewheight;
+        // Apply new viewheight.
         cl.current_viewheight = pm.s.viewheight;
+        // Register client's time of viewheight change.
         cl.viewheight_change_time = cl.time;
     }
 

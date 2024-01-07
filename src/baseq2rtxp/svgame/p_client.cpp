@@ -1531,7 +1531,7 @@ void ClientDisconnect(edict_t *ent)
 /**
 *   @brief  Wrapper for proper player move trace.
 **/
-trace_t q_gameabi PM_trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask ) {
+static trace_t q_gameabi SV_PM_trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask ) {
     //if (pm_passent->health > 0)
     //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
     //else
@@ -1541,7 +1541,7 @@ trace_t q_gameabi PM_trace(const vec3_t start, const vec3_t mins, const vec3_t m
 /**
 *   @brief  Wrapper for proper player move clip. Clips against the world only.
 **/
-trace_t q_gameabi PM_clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int32_t contentMask ) {
+static trace_t q_gameabi SV_PM_clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int32_t contentMask ) {
     return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
 }
 
@@ -1616,9 +1616,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		// Setup user commands and function pointers.
         pm.cmd = *ucmd;
         pm.player = ent;
-        pm.trace = PM_trace;    // adds default parms
+        pm.trace = SV_PM_trace;    // adds default parms
         pm.pointcontents = gi.pointcontents;
-        pm.clip = PM_clip;
+        pm.clip = SV_PM_clip;
         VectorCopy( ent->client->ps.viewoffset, pm.viewoffset );
         // Perform a PMove.
         SG_PlayerMove( &pm, &pmp );

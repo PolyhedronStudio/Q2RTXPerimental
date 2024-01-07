@@ -448,31 +448,34 @@ PLAYER MOVEMENT
 
 ==============================================================
 */
-typedef enum {//: uint8_t {
+typedef enum {  //: uint8_t {
 	WATER_NONE,
 	WATER_FEET,
 	WATER_WAIST,
 	WATER_UNDER
 } water_level_t;
 
-// pmove_state_t is the information necessary for client side movement
-// prediction
-typedef enum {
-    // can accelerate and turn
-    PM_NORMAL,
-	PM_NOCLIP,
-    PM_SPECTATOR,
-    // no acceleration or turning
+/**
+*   pmove_state_t is the information necessary for client side movement prediction.
+**/
+typedef enum {  // : uint8_t {
+    // Types that can accelerate and turn:
+    PM_NORMAL,      // Gravity. Clips to world and its entities.
+    PM_GRAPPLE,     // No gravity. Pull towards velocity.
+    PM_NOCLIP,      // No gravity. Don't clip against entities/world at all. 
+    PM_SPECTATOR,   // No gravity. Only clip against walls.
+
+    // Types with no acceleration or turning support:
     PM_DEAD,
-    PM_GIB,     // different bounding box
-    PM_FREEZE
+    PM_GIB,         // Different bounding box for when the player is 'gibbing out'.
+    PM_FREEZE       // Does not respond to any movement inputs.
 } pmtype_t;
 
 // pmove->pm_flags
-#define PMF_NONE						0
-#define PMF_DUCKED						1
-#define PMF_JUMP_HELD					2
-#define PMF_ON_GROUND					4
+#define PMF_NONE						0   // No flags.
+#define PMF_DUCKED						1   // Player is ducked.
+#define PMF_JUMP_HELD					2   // Player is keeping jump button pressed.
+#define PMF_ON_GROUND					4   // Player is on-ground.
 #define PMF_TIME_WATERJUMP				8   // pm_time is waterjump.
 #define PMF_TIME_LAND					16  // pm_time is time before rejump.
 #define PMF_TIME_TELEPORT				32  // pm_time is non-moving time.
@@ -483,11 +486,11 @@ typedef enum {
 #define PMF_IGNORE_PLAYER_COLLISION		512	// Don't collide with other players.
 #define PMF_TIME_TRICK_JUMP				1024// pm_time is the trick jump time.
 
-// this structure needs to be communicated bit-accurate
-// from the server to the client to guarantee that
-// prediction stays in sync, so no floats are used.
-// if any part of the game code modifies this struct, it
-// will result in a prediction error of some degree.
+/**
+*   This structure needs to be communicated bit-accurate from the server to the client to guarantee that
+*   prediction stays in sync. If any part of the game code modifies this struct, it will result in a 
+*   prediction error of some degree.
+**/
 typedef struct {
     pmtype_t    pm_type;
 
