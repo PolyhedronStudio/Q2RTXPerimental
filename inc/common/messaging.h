@@ -58,7 +58,7 @@ extern "C" {
 		uint16_t    number;
 		uint8_t		entityType;
 		vec3_t		origin;//int16_t     origin[3]; // WID: float-movement
-		int16_t		angles[3]; // WID: float-movement
+		vec3_t		angles; // WID: float-movement
 		vec3_t		old_origin; //int16_t     old_origin[3]; // WID: float-movement
 		uint32_t	modelindex;
 		uint32_t	modelindex2;

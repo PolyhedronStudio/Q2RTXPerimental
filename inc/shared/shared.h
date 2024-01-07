@@ -534,26 +534,40 @@ typedef struct pm_touch_trace_list_s {
 *           frame of movement on its data.
 **/
 typedef struct {
-    // state (in / out) 
-    pmove_state_t   s;
+    /**
+    *   Mixed (In/Out):
+    **/
+    //! The actual player's move state (in / out) 
+    pmove_state_t s;
 
-    // command (in)
+    /**
+    *   Input (In):
+    **/
+    //! The player's move command. (in)
 	usercmd_t	cmd;
     bool		snapinitial;    // if s has been changed outside pmove
 
-    // results (out)
+    /**
+    *   Results: (Out):
+    **/
+    //! Contains the trace results of any entities touched.
 	pm_touch_trace_list_t touchTraces;
 
-    vec3_t viewangles;         // clamped
-    vec3_t mins, maxs;         // bounding box size
+    //! Actual view angles, clamped to (0 .. 360) and for Pitch(-89 .. 89).
+    vec3_t viewangles;
+    //! bounding box size.
+    vec3_t mins, maxs;
 
+    //! Pointer ot the actual ground entity we are on or not(nullptr).
     struct edict_s  *groundentity;
+    //! The actual BSP 'contents' type we're in.
     int				watertype;
+    //! The depth of the player in the actual water solid.
     water_level_t	waterlevel;
 
-    // callbacks to test the world
-    trace_t     (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end);
-    int         (*pointcontents)(const vec3_t point);
+    //! Callbacks to test the world with.
+    trace_t ( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end );
+    int     ( *pointcontents )( const vec3_t point );
 } pmove_t;
 
 
