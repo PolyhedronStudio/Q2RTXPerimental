@@ -1175,7 +1175,14 @@ void PutClientInServer(edict_t *ent)
             client->ps.fov = 160;
     }
 
-    client->ps.gunindex = gi.modelindex(client->pers.weapon->view_model);
+    // Set viewheight for player state pmove.
+    ent->client->ps.pmove.viewheight = ent->viewheight;
+    // Proper gunindex.
+    if ( client->pers.weapon ) {
+        client->ps.gunindex = gi.modelindex( client->pers.weapon->view_model );
+    } else {
+        client->ps.gunindex = 0;
+    }    
 
     // clear entity state values
     ent->s.sound = 0;
@@ -1557,10 +1564,14 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
     if (level.intermission_framenum) {
         client->ps.pmove.pm_type = PM_FREEZE;
+
         // can exit intermission after five seconds
-        if (level.framenum > level.intermission_framenum + 5.0f * BASE_FRAMERATE
-            && (ucmd->buttons & BUTTON_ANY))
+        if ( ( level.framenum > level.intermission_framenum + 5.0f * BASE_FRAMERATE ) && ( ucmd->buttons & BUTTON_ANY ) ) {
             level.exitintermission = true;
+        }
+
+        client->ps.pmove.viewheight = ent->viewheight = 22;
+
         return;
     }
 
@@ -1602,6 +1613,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         pm.cmd = *ucmd;
         pm.trace = PM_trace;    // adds default parms
         pm.pointcontents = gi.pointcontents;
+        VectorCopy( ent->client->ps.viewoffset, pm.viewoffset );
         // Perform a PMove.
         SG_PlayerMove( &pm, &pmp );
 		// Copy back into the entity, both the resulting origin and velocity.

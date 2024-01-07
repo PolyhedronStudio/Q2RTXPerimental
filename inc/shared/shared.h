@@ -491,8 +491,8 @@ typedef enum {
 typedef struct {
     pmtype_t    pm_type;
 
-    vec3_t		origin;			//short       origin[3];      // 12.3 // WID: float-movement
-    vec3_t		velocity;		//short       velocity[3];    // 12.3 // WID: float-movement
+    vec3_t		origin;
+    vec3_t		velocity;
     byte        pm_flags;		// Ducked, jump_held, etc
 	uint16_t	pm_time;		// Each unit = 8 ms
     short       gravity;
@@ -568,6 +568,9 @@ typedef struct {
     //! Callbacks to test the world with.
     trace_t ( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end );
     int     ( *pointcontents )( const vec3_t point );
+
+    // [KEX] variables (in)
+    vec3_t viewoffset; // last viewoffset (for accurate calculation of blending)
 } pmove_t;
 
 

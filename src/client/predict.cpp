@@ -197,6 +197,7 @@ void CL_PredictMovement(void) {
     pm.s = cl.frame.ps.pmove;
     //#if USE_SMOOTH_DELTA_ANGLES
     VectorCopy( cl.delta_angles, pm.s.delta_angles );
+    VectorCopy( cl.frame.ps.viewoffset, pm.viewoffset );
     //#endif
 
     // Run previously stored and acknowledged frames
