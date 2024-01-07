@@ -185,6 +185,9 @@ Sets cl.predicted_origin and cl.predicted_angles
 =================
 */
 void CL_PredictMovement(void) {
+    static constexpr int32_t STEP_TIME = 100;
+    static constexpr int32_t MAX_STEP_CHANGE = 32;
+
     if ( cls.state != ca_active ) {
         return;
     }
@@ -254,20 +257,45 @@ void CL_PredictMovement(void) {
     }
 
 	// Stair Stepping:
-    if ( pm.s.pm_type != PM_SPECTATOR && ( pm.s.pm_flags & PMF_ON_GROUND ) ) {
-        const float oldz = cl.predictedStates[ cl.predictedState.step_frame & CMD_MASK ].origin[2];
-		const float step = pm.s.origin[ 2 ] - oldz;
-        //if (step > 63 && step < 160) {
-		if ( step > 1 && step < 20 ) {
-            cl.predictedState.step = step;// * 0.125f; // WID: float-movement
-            cl.predictedState.step_time = cls.realtime;
-            cl.predictedState.step_frame = frameNumber + 1;    // don't double step
+    // Step detection
+    float oldZ = cl.predictedStates[ frameNumber & CMD_MASK ].origin[ 2 ];
+    float step = pm.s.origin[ 2 ] - oldZ;
+    const float fabsStep = fabsf( step );
+    // Consider a Z change being "stepping" if...
+    const bool step_detected = ( fabsStep > 1 && fabsStep < 20 ) // absolute change is in this limited range
+        && ( ( cl.frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // and we started off on the ground
+        && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type < PM_NOCLIP/*<= PM_GRAPPLE*/ ) // and are still predicted to be on the ground
+        && ( memcmp( &cl.last_groundplane, &pm.groundplane, sizeof( cplane_t ) ) != 0
+            || cl.last_groundentity != pm.groundentity ); // and don't stand on another plane or entity
+    if ( step_detected ) {
+        // Code below adapted from Q3A.
+        // check for stepping up before a previous step is completed
+        float delta = cls.realtime - cl.predictedState.step_time;
+        float old_step;
+        if ( delta < STEP_TIME ) {
+            old_step = cl.predictedState.step * ( STEP_TIME - delta ) / STEP_TIME;
+        } else {
+            old_step = 0;
         }
-    }
 
-    if ( cl.predictedState.step_frame < frameNumber ) {
-        cl.predictedState.step_frame = frameNumber;
+        // add this amount
+        cl.predictedState.step = constclamp( old_step + step, -MAX_STEP_CHANGE, MAX_STEP_CHANGE );
+        cl.predictedState.step_time = cls.realtime;
     }
+//if ( pm.s.pm_type != PM_SPECTATOR && ( pm.s.pm_flags & PMF_ON_GROUND ) ) {
+//    const float oldz = cl.predictedStates[ cl.predictedState.step_frame & CMD_MASK ].origin[2];
+//	const float step = pm.s.origin[ 2 ] - oldz;
+//    //if (step > 63 && step < 160) {
+//	if ( step > 1 && step < 20 ) {
+//        cl.predictedState.step = step;// * 0.125f; // WID: float-movement
+//        cl.predictedState.step_time = cls.realtime;
+//        cl.predictedState.step_frame = frameNumber + 1;    // don't double step
+//    }
+//}
+
+//if ( cl.predictedState.step_frame < frameNumber ) {
+//    cl.predictedState.step_frame = frameNumber;
+//}
 
     // Copy results out into the current predicted state.
     VectorCopy( pm.s.origin, cl.predictedState.origin );
@@ -276,7 +304,7 @@ void CL_PredictMovement(void) {
     Vector4Copy( pm.screen_blend, cl.predictedState.screen_blend );
     cl.predictedState.rdflags = pm.rdflags;
 
-    // Record viewheight changes
+    // Record viewheight changes.
     if ( cl.current_viewheight != pm.s.viewheight ) {
         cl.prev_viewheight = cl.current_viewheight;
         cl.current_viewheight = pm.s.viewheight;
