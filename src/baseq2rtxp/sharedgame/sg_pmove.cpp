@@ -18,8 +18,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "shared/shared.h"
 #include "sg_pmove.h"
+#include "sg_pmove_slidemove.h"
 
-#define STEPSIZE    18
+static constexpr float STEPSIZE = 18.f;
 
 /**
 *	@brief	Actual in-moment local move variables.
@@ -39,7 +40,7 @@ typedef struct {
 
 	//! Ground information.
 	csurface_t *groundsurface;
-	cplane_t    groundplane;
+	//! Contents of ground brush.
 	int         groundcontents;
 
 	//! Used to reset ourselves in case we are truly stuck.
@@ -49,7 +50,7 @@ typedef struct {
 } pml_t;
 
 //! An actual pointer to the pmove object that we're moving.
-static pmove_t *pm;
+pmove_t *pm;
 //! An actual pointer to the pmove parameters object for use with moving.
 static pmoveParams_t *pmp;
 //! Contains our local in-moment move variables.
@@ -67,226 +68,14 @@ float pm_waterspeed = 400;
 float pm_laddermod = 0.5f;
 
 
-/**
-*
-*
-*	PM Clip/Trace:
-*
-*
-**/
-/**
-*	@brief	Clips trace against world only.
-**/
-trace_t PM_Clip( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end, int32_t contentMask ) {
-	return pm->clip( start, mins, maxs, end, contentMask );
-}
 
 /**
-*	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
+*	@brief	Each intersection will try to step over the obstruction instead of
+*			sliding along it.
+* 
+*			Returns a new origin, velocity, and contact entity
+*			Does not modify any world state?
 **/
-trace_t PM_Trace( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end, int32_t contentMask = 0 ) {
-	// Spectators only clip against world, so use clip instead.
-	if ( pm->s.pm_type == PM_SPECTATOR ) {
-		return PM_Clip( start, mins, maxs, end, MASK_SOLID );
-	}
-
-	if ( contentMask == 0 ) {
-		if ( pm->s.pm_type == PM_DEAD || pm->s.pm_type == PM_GIB ) {
-			contentMask = MASK_DEADSOLID;
-		} else if ( pm->s.pm_type == PM_SPECTATOR ) {
-			contentMask = MASK_SOLID;
-		} else {
-			contentMask = MASK_PLAYERSOLID;
-		}
-
-		//if ( pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION )
-		//	mask &= ~CONTENTS_PLAYER;
-	}
-
-	return pm->trace( start, mins, maxs, end, pm->player, contentMask );
-}
-
-/**
-*
-*
-*	Touch Entities List:
-*
-*
-**/
-/**
-*	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
-*			this function adds the trace into the touchTraceList array and increases the numberOfTraces.
-**/
-static inline void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_t &trace ) {
-	// Escape function if we are exceeding maximum touch traces.
-	if ( touchTraceList.numberOfTraces >= MAX_TOUCH_TRACES ) {
-		return;
-	}
-
-	// Iterate for possible duplicates.
-	for ( int32_t i = 0; i < touchTraceList.numberOfTraces; i++ ) {
-		// Escape function if duplicate.
-		if ( touchTraceList.traces[ i ].ent == trace.ent ) {
-			return;
-		}
-	}
-
-	// Add trace to list.
-	touchTraceList.traces[ touchTraceList.numberOfTraces++ ] = trace;
-}
-
-/*
-  walking up a step should kill some velocity
-*/
-
-/*
-==================
-PM_ClipVelocity
-
-Slide off of the impacting object
-returns the blocked flags (1 = floor, 2 = step / wall)
-==================
-*/
-#define STOP_EPSILON    0.1f
-
-static void PM_ClipVelocity( const vec3_t in, const vec3_t normal, vec3_t out, float overbounce ) {
-	float   backoff;
-	float   change;
-	int     i;
-
-	backoff = DotProduct( in, normal ) * overbounce;
-
-	for ( i = 0; i < 3; i++ ) {
-		change = normal[ i ] * backoff;
-		out[ i ] = in[ i ] - change;
-		if ( out[ i ] > -STOP_EPSILON && out[ i ] < STOP_EPSILON )
-			out[ i ] = 0;
-	}
-}
-
-/*
-==================
-PM_StepSlideMove
-
-Each intersection will try to step over the obstruction instead of
-sliding along it.
-
-Returns a new origin, velocity, and contact entity
-Does not modify any world state?
-==================
-*/
-#define MIN_STEP_NORMAL 0.7f    // can't step up onto very steep slopes
-#define MAX_CLIP_PLANES 5
-
-static void PM_StepSlideMove_( void ) {
-	int         bumpcount, numbumps;
-	vec3_t      dir;
-	float       d;
-	int         numplanes;
-	vec3_t      planes[ MAX_CLIP_PLANES ];
-	vec3_t      primal_velocity;
-	int         i, j;
-	trace_t trace;
-	vec3_t      end;
-	float       time_left;
-
-	numbumps = 4;
-
-	VectorCopy( pml.velocity, primal_velocity );
-	numplanes = 0;
-
-	time_left = pml.frametime;
-
-	for ( bumpcount = 0; bumpcount < numbumps; bumpcount++ ) {
-		for ( i = 0; i < 3; i++ )
-			end[ i ] = pml.origin[ i ] + time_left * pml.velocity[ i ];
-
-		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, end );
-
-		if ( trace.allsolid ) {
-			// entity is trapped in another solid
-			pml.velocity[ 2 ] = 0;    // don't build up falling damage
-
-			// Save entity for contact.
-			PM_RegisterTouchTrace( pm->touchTraces, trace );
-			return;
-		}
-
-		if ( trace.fraction > 0 ) {
-			// actually covered some distance
-			VectorCopy( trace.endpos, pml.origin );
-			numplanes = 0;
-		}
-
-		if ( trace.fraction == 1 )
-			break;     // moved the entire distance
-
-		// Save entity for contact.
-		PM_RegisterTouchTrace( pm->touchTraces, trace );
-		//if ( pm->numtouch < MAX_TOUCH_TRACES && trace.ent ) {
-		//	pm->touchents[ pm->numtouch ] = trace.ent;
-		//	pm->numtouch++;
-		//}
-
-		time_left -= time_left * trace.fraction;
-
-		// slide along this plane
-		if ( numplanes >= MAX_CLIP_PLANES ) {
-			// this shouldn't really happen
-			VectorClear( pml.velocity );
-			break;
-		}
-
-		VectorCopy( trace.plane.normal, planes[ numplanes ] );
-		numplanes++;
-
-//
-// modify original_velocity so it parallels all of the clip planes
-//
-		for ( i = 0; i < numplanes; i++ ) {
-			PM_ClipVelocity( pml.velocity, planes[ i ], pml.velocity, 1.01f );
-			for ( j = 0; j < numplanes; j++ )
-				if ( j != i ) {
-					if ( DotProduct( pml.velocity, planes[ j ] ) < 0 )
-						break;  // not ok
-				}
-			if ( j == numplanes )
-				break;
-		}
-
-		if ( i != numplanes ) {
-			// go along this plane
-		} else {
-			// go along the crease
-			if ( numplanes != 2 ) {
-				VectorClear( pml.velocity );
-				break;
-			}
-			CrossProduct( planes[ 0 ], planes[ 1 ], dir );
-			d = DotProduct( dir, pml.velocity );
-			VectorScale( dir, d, pml.velocity );
-		}
-
-		//
-		// if velocity is against the original velocity, stop dead
-		// to avoid tiny occilations in sloping corners
-		//
-		if ( DotProduct( pml.velocity, primal_velocity ) <= 0 ) {
-			VectorClear( pml.velocity );
-			break;
-		}
-	}
-
-	if ( pm->s.pm_time )
-		VectorCopy( primal_velocity, pml.velocity );
-}
-
-/*
-==================
-PM_StepSlideMove
-
-==================
-*/
 static void PM_StepSlideMove( void ) {
 	vec3_t      start_o, start_v;
 	vec3_t      down_o, down_v;
@@ -297,7 +86,7 @@ static void PM_StepSlideMove( void ) {
 	VectorCopy( pml.origin, start_o );
 	VectorCopy( pml.velocity, start_v );
 
-	PM_StepSlideMove_( );
+	PM_StepSlideMove_Generic( pml.origin, pml.velocity, pml.frametime, pm->mins, pm->maxs, pm->touchTraces, pm->s.pm_time );
 
 	VectorCopy( pml.origin, down_o );
 	VectorCopy( pml.velocity, down_v );
@@ -306,38 +95,79 @@ static void PM_StepSlideMove( void ) {
 	up[ 2 ] += STEPSIZE;
 
 	trace = PM_Trace( up, pm->mins, pm->maxs, up );
-	if ( trace.allsolid )
-		return;     // can't step up
+	// Can't step up.
+	if ( trace.allsolid ) {
+		return;
+	}
 
-	// try sliding above
+	// Try sliding above.
 	VectorCopy( up, pml.origin );
 	VectorCopy( start_v, pml.velocity );
 
-	PM_StepSlideMove_( );
+	PM_StepSlideMove_Generic( pml.origin, pml.velocity, pml.frametime, pm->mins, pm->maxs, pm->touchTraces, pm->s.pm_time );
 
-	// push down the final amount
+	// Push down the final amount.
 	VectorCopy( pml.origin, down );
 	down[ 2 ] -= STEPSIZE;
+
+	// [Paril-KEX] jitspoe suggestion for stair clip fix; store
+	// the old down position, and pick a better spot for downwards
+	// trace if the start origin's Z position is lower than the down end pt.
+	vec3_t original_down = { down[ 0 ], down[ 1 ], down[ 2 ] };
+
+	if ( start_o[ 2 ] < down[ 2 ] ) {
+		down[ 2 ] = start_o[ 2 ] - 1.f; // 1.f ?
+	}
+
 	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
-	if ( !trace.allsolid )
-		VectorCopy( trace.endpos, pml.origin );
+	if ( !trace.allsolid ) {
+		// From above, do the proper trace now.
+		trace_t realTrace = PM_Trace( pml.origin, pm->mins, pm->maxs, original_down );
+		VectorCopy( realTrace.endpos, pml.origin );
+
+		// Only upwards jumps are stair clips.
+		if ( pml.velocity[ 2 ] > 0.f ) {
+			pm->step_clip = true;
+		}
+	}
 
 	VectorCopy( pml.origin, up );
 
-	// decide which one went farther
-	down_dist = ( down_o[ 0 ] - start_o[ 0 ] ) * ( down_o[ 0 ] - start_o[ 0 ] )
-		+ ( down_o[ 1 ] - start_o[ 1 ] ) * ( down_o[ 1 ] - start_o[ 1 ] );
-	up_dist = ( up[ 0 ] - start_o[ 0 ] ) * ( up[ 0 ] - start_o[ 0 ] )
-		+ ( up[ 1 ] - start_o[ 1 ] ) * ( up[ 1 ] - start_o[ 1 ] );
+	// Decide which one went farther.
+	down_dist = ( down_o[ 0 ] - start_o[ 0 ] ) * ( down_o[ 0 ] - start_o[ 0 ] ) + ( down_o[ 1 ] - start_o[ 1 ] ) * ( down_o[ 1 ] - start_o[ 1 ] );
+	up_dist = ( up[ 0 ] - start_o[ 0 ] ) * ( up[ 0 ] - start_o[ 0 ] ) + ( up[ 1 ] - start_o[ 1 ] ) * ( up[ 1 ] - start_o[ 1 ] );
 
 	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < MIN_STEP_NORMAL ) {
 		VectorCopy( down_o, pml.origin );
 		VectorCopy( down_v, pml.velocity );
-		return;
 	}
-	//!! Special case
-	// if we were walking along a plane, then we need to copy the Z over
-	pml.velocity[ 2 ] = down_v[ 2 ];
+	// [Paril-KEX] NB: this line being commented is crucial for ramp-jumps to work.
+	// thanks to Jitspoe for pointing this one out.
+	else {// if (pm->s.pm_flags & PMF_ON_GROUND) {
+		//!! Special case
+		// if we were walking along a plane, then we need to copy the Z over
+		pml.velocity[ 2 ] = down_v[ 2 ];
+	}
+
+	// Paril: step down stairs/slopes
+	if ( ( pm->s.pm_flags & PMF_ON_GROUND ) && !( pm->s.pm_flags & PMF_ON_LADDER ) &&
+		( pm->waterlevel < water_level_t::WATER_WAIST || ( !( pm->cmd.upmove/*pm->cmd.buttons & BUTTON_JUMP*/ ) && pml.velocity[ 2 ] <= 0 ) ) ) {
+		VectorCopy( pml.origin, down );
+		down[ 2 ] -= STEPSIZE;
+		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
+		if ( trace.fraction < 1.f ) {
+			VectorCopy( trace.endpos, pml.origin );
+		}
+	}
+	//if ( ( pm->s.pm_flags & PMF_ON_GROUND ) && !( pm->s.pm_flags & PMF_ON_LADDER ) &&
+	//	( pm->waterlevel < WATER_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity.z <= 0 ) ) ) {
+	//	down = pml.origin;
+	//	down[ 2 ] -= STEPSIZE;
+	//	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
+	//	if ( trace.fraction < 1.f ) {
+	//		pml.origin = trace.endpos;
+	//	}
+	//}
 }
 
 /*
