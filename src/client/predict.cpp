@@ -71,58 +71,80 @@ void CL_CheckPredictionError(void) {
 /*
 ====================
 CL_ClipMoveToEntities
-
 ====================
 */
-static void CL_ClipMoveToEntities(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, trace_t *tr) {
-	trace_t     trace;
+static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int contentmask ) {
+    int         i;
+    trace_t     trace;
+    mnode_t *headnode;
+    centity_t *ent;
+    mmodel_t *cmodel;
 
-	for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
-		centity_t *ent = cl.solidEntities[ i ];
+    for ( i = 0; i < cl.numSolidEntities; i++ ) {
+        ent = cl.solidEntities[ i ];
 
-		mnode_t *headnode = nullptr;
-		if ( ent->current.solid == PACKED_BSP ) {
-			// special value for bmodel
-			mmodel_t *cmodel = cl.model_clip[ ent->current.modelindex ];
-			if ( !cmodel )
-				continue;
-			headnode = cmodel->headnode;
-		} else {
-			headnode = CM_HeadnodeForBox( ent->mins, ent->maxs );
-		}
+        //if ( !( contentmask & CONTENTS_PLAYER ) ) {
+        //    continue;
+        //}
 
-		if ( tr->allsolid )
-			return;
+        if ( ent->current.solid == PACKED_BSP ) {
+            // special value for bmodel
+            cmodel = cl.model_clip[ ent->current.modelindex ];
+            if ( !cmodel )
+                continue;
+            headnode = cmodel->headnode;
+        }
+        else {
+            headnode = CM_HeadnodeForBox( ent->mins, ent->maxs );
+        }
 
-		CM_TransformedBoxTrace( &trace, start, end,
-							   mins, maxs, headnode, MASK_PLAYERSOLID,
-							   ent->current.origin, ent->current.angles );
+        if ( tr->allsolid ) {
+            return;
+        }
 
-		CM_ClipEntity( tr, &trace, (struct edict_s *)ent );
-	}
+        CM_TransformedBoxTrace( &trace, start, end,
+            mins, maxs, headnode, contentmask,
+            ent->current.origin, ent->current.angles );
+
+        CM_ClipEntity( tr, &trace, (struct edict_s *)ent );
+    }
 }
-
 
 /*
 ================
-CL_PMTrace
+CL_Trace
 ================
 */
-static trace_t q_gameabi CL_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end) {
-	trace_t    t;
+void CL_Trace( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const struct edict_s *passEntity, int32_t contentmask ) {
+    // check against world
+    CM_BoxTrace( tr, start, end, mins, maxs, cl.bsp->nodes, contentmask );
+    if ( tr->fraction < 1.0f )
+        tr->ent = (struct edict_s *)cl_entities;
 
-	// check against world
-	CM_BoxTrace( &t, start, end, mins, maxs, cl.bsp->nodes, MASK_PLAYERSOLID );
-	if ( t.fraction < 1.0f ) {
-		t.ent = (struct edict_s *)cl_entities;
-    }
+    // check all other solid models
+    CL_ClipMoveToEntities( tr, start, mins, maxs, end, contentmask );
+}
 
-	// check all other solid models
-	CL_ClipMoveToEntities( start, mins, maxs, end, &t );
-
+/**
+*   @brief  A wrapper to make it compatible with the pm->trace that desired a 'void' to be passed in.
+**/
+static trace_t q_gameabi CL_PMTrace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask ) {
+    trace_t t;
+    CL_Trace( &t, start, mins, maxs, end, (const edict_s*)passEntity, contentMask );
     return t;
 }
 
+static trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int32_t contentmask ) {
+    trace_t     trace;
+
+    if ( !mins )
+        mins = vec3_origin;
+    if ( !maxs )
+        maxs = vec3_origin;
+
+    CM_BoxTrace( &trace, start, end, mins, maxs, cl.bsp->nodes, contentmask );
+    return trace;
+}
 static int CL_PointContents(const vec3_t point) {
     int32_t contents = CM_PointContents( point, cl.bsp->nodes );
 
@@ -144,10 +166,16 @@ static int CL_PointContents(const vec3_t point) {
     return contents;
 }
 
+/*
+=================
+CL_PredictAngles
+
+Sets the predicted view angles.
+=================
+*/
 void CL_PredictAngles(void) {
 	VectorAdd( cl.viewangles, cl.frame.ps.pmove.delta_angles, cl.predictedState.angles );
 }
-
 
 /*
 =================
@@ -191,9 +219,9 @@ void CL_PredictMovement(void) {
 
     // Copy over the current client state data into pmove.
 	pmove_t pm = {};
-    pm.trace = CL_Trace;
+    pm.trace = CL_PMTrace;
     pm.pointcontents = CL_PointContents;
-
+    pm.clip = CL_Clip;
     pm.s = cl.frame.ps.pmove;
     //#if USE_SMOOTH_DELTA_ANGLES
     VectorCopy( cl.delta_angles, pm.s.delta_angles );
@@ -231,7 +259,7 @@ void CL_PredictMovement(void) {
 		const float step = pm.s.origin[ 2 ] - oldz;
         //if (step > 63 && step < 160) {
 		if ( step > 8 && step < 20 ) {
-            cl.predictedState.predicted_step = step;// * 0.125f; // WID: float-movement
+            cl.predictedState.step = step;// * 0.125f; // WID: float-movement
             cl.predictedState.step_time = cls.realtime;
             cl.predictedState.step_frame = frameNumber + 1;    // don't double step
         }

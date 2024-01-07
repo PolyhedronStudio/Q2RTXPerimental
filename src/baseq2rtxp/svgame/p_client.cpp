@@ -1528,16 +1528,21 @@ void ClientDisconnect(edict_t *ent)
 
 //==============================================================
 
-
-edict_t *pm_passent;
-
-// pmove doesn't need to know about passent and contentmask
-trace_t q_gameabi PM_trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end)
-{
-    if (pm_passent->health > 0)
-        return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
-    else
-        return gi.trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
+/**
+*   @brief  Wrapper for proper player move trace.
+**/
+trace_t q_gameabi PM_trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask ) {
+    //if (pm_passent->health > 0)
+    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
+    //else
+    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
+    return gi.trace( start, mins, maxs, end, (edict_t*)passEntity, contentMask );
+}
+/**
+*   @brief  Wrapper for proper player move clip. Clips against the world only.
+**/
+trace_t q_gameabi PM_clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int32_t contentMask ) {
+    return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
 }
 
 /*
@@ -1598,7 +1603,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 			client->ps.pmove.pm_type = PM_NORMAL;
 		}
 
-        client->ps.pmove.gravity = sv_gravity->value;
+        // PGM	trigger_gravity support
+        client->ps.pmove.gravity = (short)( sv_gravity->value * ent->gravity );
         pm.s = client->ps.pmove;
 
 		// Copy the current entity origin and velocity into our 'pmove movestate'.
@@ -1606,13 +1612,15 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		VectorCopy( ent->velocity, pm.s.velocity );
 
 		// Determine if it has changed and we should 'resnap' to position.
-        if (memcmp(&client->old_pmove, &pm.s, sizeof(pm.s))) {
+        if ( memcmp( &client->old_pmove, &pm.s, sizeof(pm.s) ) ) {
             pm.snapinitial = true; // gi.dprintf ("pmove changed!\n");
         }
 		// Setup user commands and function pointers.
         pm.cmd = *ucmd;
+        pm.player = ent;
         pm.trace = PM_trace;    // adds default parms
         pm.pointcontents = gi.pointcontents;
+        pm.clip = PM_clip;
         VectorCopy( ent->client->ps.viewoffset, pm.viewoffset );
         // Perform a PMove.
         SG_PlayerMove( &pm, &pmp );

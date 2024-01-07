@@ -535,24 +535,28 @@ typedef struct pm_touch_trace_list_s {
 **/
 typedef struct {
     /**
-    *   Mixed (In/Out):
+    *   (In/Out):
     **/
-    //! The actual player's move state (in / out) 
     pmove_state_t s;
 
     /**
-    *   Input (In):
+    *   (In):
     **/
-    //! The player's move command. (in)
+    //! The player's move command.
 	usercmd_t	cmd;
     bool		snapinitial;    // if s has been changed outside pmove
 
+    struct edict_s *player;
+
     /**
-    *   Results: (Out):
+    *   (Out):
     **/
     //! Contains the trace results of any entities touched.
 	pm_touch_trace_list_t touchTraces;
 
+    /**
+    *   (In/Out):
+    **/
     //! Actual view angles, clamped to (0 .. 360) and for Pitch(-89 .. 89).
     vec3_t viewangles;
     //! bounding box size.
@@ -560,17 +564,43 @@ typedef struct {
 
     //! Pointer ot the actual ground entity we are on or not(nullptr).
     struct edict_s  *groundentity;
+    //! A copy of the plane data from our ground entity.
+    cplane_t        groundplane;
     //! The actual BSP 'contents' type we're in.
     int				watertype;
     //! The depth of the player in the actual water solid.
     water_level_t	waterlevel;
 
+    /**
+    *   (Out):
+    **/
     //! Callbacks to test the world with.
-    trace_t ( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end );
+    //! Trace against all entities.
+    trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask );
+    //! PointContents.
     int     ( *pointcontents )( const vec3_t point );
+    //! Clips to world only.
+    trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ int32_t contentMask );
 
+    /**
+    *   (In):
+    **/
     // [KEX] variables (in)
     vec3_t viewoffset; // last viewoffset (for accurate calculation of blending)
+
+    /**
+    *   (Out):
+    **/
+    // [KEX] results (out)
+    vec4_t screen_blend;
+    //! Merged with rdflags from server.
+    uint64_t rdflags;
+    //! Play jump sound.
+    bool jump_sound;
+    //! We clipped on top of an object from below.
+    bool step_clip; 
+    //! Impact delta, for falling damage.
+    float impact_delta;
 } pmove_t;
 
 

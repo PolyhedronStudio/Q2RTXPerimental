@@ -164,8 +164,13 @@ typedef struct {
 	//! User Command Input for this frame.
 	usercmd_t cmd;
 
+    //! Total accumulated screen blend.
+    vec4_t screen_blend;
+    //! Refdef Flags.
+    int64_t rdflags;
+
 	// for stair up smoothing
-	double predicted_step;
+	double step;
 	uint64_t step_time;
 	uint64_t step_frame;
 
@@ -201,6 +206,19 @@ typedef struct client_state_s {
 	client_predicted_state_t predictedStates[CMD_BACKUP];
 	//! The current pmove state to be predicted this frame.
 	client_predicted_state_t predictedState;
+    /////////////////////////////
+    // TODO: Move to predictedState?
+    //! Current viewheight from client Pmove().
+    int8_t  current_viewheight;
+    //! Viewheight before last change.
+    int8_t  prev_viewheight;
+    //! Time when a viewheight change was detected.
+    int32_t viewheight_change_time;
+    //! :ast groundentity reported by pmove.
+    edict_t     *last_groundentity;
+    //! last groundplane reported by pmove.
+    cplane_t    last_groundplane;
+    /////////////////////////////
 
     // Rebuilt each valid frame:
     centity_t		*solidEntities[MAX_PACKET_ENTITIES];

@@ -70,6 +70,45 @@ float pm_laddermod = 0.5f;
 /**
 *
 *
+*	PM Clip/Trace:
+*
+*
+**/
+/**
+*	@brief	Clips trace against world only.
+**/
+trace_t PM_Clip( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end, int32_t contentMask ) {
+	return pm->clip( start, mins, maxs, end, contentMask );
+}
+
+/**
+*	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
+**/
+trace_t PM_Trace( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end, int32_t contentMask = 0 ) {
+	// Spectators only clip against world, so use clip instead.
+	if ( pm->s.pm_type == PM_SPECTATOR ) {
+		return PM_Clip( start, mins, maxs, end, MASK_SOLID );
+	}
+
+	if ( contentMask == 0 ) {
+		if ( pm->s.pm_type == PM_DEAD || pm->s.pm_type == PM_GIB ) {
+			contentMask = MASK_DEADSOLID;
+		} else if ( pm->s.pm_type == PM_SPECTATOR ) {
+			contentMask = MASK_SOLID;
+		} else {
+			contentMask = MASK_PLAYERSOLID;
+		}
+
+		//if ( pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION )
+		//	mask &= ~CONTENTS_PLAYER;
+	}
+
+	return pm->trace( start, mins, maxs, end, pm->player, contentMask );
+}
+
+/**
+*
+*
 *	Touch Entities List:
 *
 *
@@ -162,7 +201,7 @@ static void PM_StepSlideMove_( void ) {
 		for ( i = 0; i < 3; i++ )
 			end[ i ] = pml.origin[ i ] + time_left * pml.velocity[ i ];
 
-		trace = pm->trace( pml.origin, pm->mins, pm->maxs, end );
+		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, end );
 
 		if ( trace.allsolid ) {
 			// entity is trapped in another solid
@@ -266,7 +305,7 @@ static void PM_StepSlideMove( void ) {
 	VectorCopy( start_o, up );
 	up[ 2 ] += STEPSIZE;
 
-	trace = pm->trace( up, pm->mins, pm->maxs, up );
+	trace = PM_Trace( up, pm->mins, pm->maxs, up );
 	if ( trace.allsolid )
 		return;     // can't step up
 
@@ -279,7 +318,7 @@ static void PM_StepSlideMove( void ) {
 	// push down the final amount
 	VectorCopy( pml.origin, down );
 	down[ 2 ] -= STEPSIZE;
-	trace = pm->trace( pml.origin, pm->mins, pm->maxs, down );
+	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
 	if ( !trace.allsolid )
 		VectorCopy( trace.endpos, pml.origin );
 
@@ -611,8 +650,8 @@ static void PM_CategorizePosition( void ) {
 		pm->s.pm_flags &= ~PMF_ON_GROUND;
 		pm->groundentity = NULL;
 	} else {
-		trace = pm->trace( pml.origin, pm->mins, pm->maxs, point );
-		pml.groundplane = trace.plane;
+		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, point );
+		pm->groundplane = trace.plane;
 		pml.groundsurface = trace.surface;
 		pml.groundcontents = trace.contents;
 
@@ -755,7 +794,7 @@ static void PM_CheckSpecialMovement( void ) {
 	VectorNormalize( flatforward );
 
 	VectorMA( pml.origin, 1, flatforward, spot );
-	trace = pm->trace( pml.origin, pm->mins, pm->maxs, spot );
+	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot );
 	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) ) {
 		// Add ON_LADDER flag.
 		pm->s.pm_flags |= PMF_ON_LADDER;
@@ -864,16 +903,10 @@ static void PM_FlyMove( const bool performNoClipping ) {
 	}
 }
 
-/*
-==============
-PM_CheckDuck
-
-Sets mins, maxs, and pm->viewheight
-==============
-*/
-static void PM_CheckDuck( void ) {
-	trace_t trace;
-
+/**
+*	@brief	Update the player's bounding box dimensions.
+**/
+static void PM_SetDimensions() {
 	pm->mins[ 0 ] = -16;
 	pm->mins[ 1 ] = -16;
 
@@ -889,29 +922,81 @@ static void PM_CheckDuck( void ) {
 
 	pm->mins[ 2 ] = -24;
 
-	if ( pm->s.pm_type == PM_DEAD ) {
-		pm->s.pm_flags |= PMF_DUCKED;
-	} else if ( pm->cmd.upmove < 0 && ( pm->s.pm_flags & PMF_ON_GROUND ) ) {
-		// duck
-		pm->s.pm_flags |= PMF_DUCKED;
-	} else {
-		// stand up if possible
-		if ( pm->s.pm_flags & PMF_DUCKED ) {
-			// try to stand up
-			pm->maxs[ 2 ] = 32;
-			trace = pm->trace( pml.origin, pm->mins, pm->maxs, pml.origin );
-			if ( !trace.allsolid )
-				pm->s.pm_flags &= ~PMF_DUCKED;
-		}
-	}
-
-	if ( pm->s.pm_flags & PMF_DUCKED ) {
+	if ( ( pm->s.pm_flags & PMF_DUCKED ) || pm->s.pm_type == PM_DEAD ) {
 		pm->maxs[ 2 ] = 4;
 		pm->s.viewheight = -2;
-	} else {
+	}
+	else {
 		pm->maxs[ 2 ] = 32;
 		pm->s.viewheight = 22;
 	}
+}
+
+/**
+*	@return	True if we're still 'heads above water'. False otherwise.
+**/
+static inline bool PM_AboveWater() {
+	const vec3_t below = { pml.origin[ 0 ], pml.origin[ 1 ], pml.origin[ 2 ] - 8.f };
+
+	bool solid_below = pm->trace( pml.origin, pm->mins, pm->maxs, below, (const void *)pm->player, MASK_SOLID ).fraction < 1.0f;
+
+	if ( solid_below )
+		return false;
+
+	bool water_below = pm->trace( pml.origin, pm->mins, pm->maxs, below, (const void*)pm->player, MASK_WATER ).fraction < 1.0f;
+
+	if ( water_below )
+		return true;
+
+	return false;
+}
+
+/**
+*	@brief	Check if we can duck, if so, adjust player boundingbox dimensions.
+**/
+static const bool PM_CheckDuck( void ) {
+	// Gibs can't duck.
+	if ( pm->s.pm_type == PM_GIB ) {
+		return false;
+	}
+	trace_t trace;
+	bool hasFlagsChanged = false;
+
+	if ( pm->s.pm_type == PM_DEAD ) {
+		if ( !( pm->s.pm_flags & PMF_DUCKED ) ) {
+			pm->s.pm_flags |= PMF_DUCKED;
+			hasFlagsChanged = true;
+		}
+	} else if ( ( pm->cmd.upmove < 0 ) &&//( pm->cmd.buttons & BUTTON_CROUCH ) &&
+		( pm->groundentity || ( pm->waterlevel <= water_level_t::WATER_FEET && !PM_AboveWater() ) ) &&
+		!( pm->s.pm_flags & PMF_ON_LADDER ) ) {
+			if ( !( pm->s.pm_flags & PMF_DUCKED ) ) {
+				// check that duck won't be blocked
+				vec3_t check_maxs = { pm->maxs[ 0 ], pm->maxs[ 1 ], 4 };
+				trace = PM_Trace( pml.origin, pm->mins, check_maxs, pml.origin );
+				if ( !trace.allsolid ) {
+					pm->s.pm_flags |= PMF_DUCKED;
+					hasFlagsChanged = true;
+				}
+			}
+	} else { // stand up if possible
+		if ( pm->s.pm_flags & PMF_DUCKED ) {
+			// try to stand up
+			vec3_t check_maxs = { pm->maxs[ 0 ], pm->maxs[ 1 ], 32 };
+			trace = PM_Trace( pml.origin, pm->mins, check_maxs, pml.origin ); //trace = PM_Trace( pml.origin, pm->mins, check_maxs, pml.origin );
+			if ( !trace.allsolid ) {
+				pm->s.pm_flags &= ~PMF_DUCKED;
+				hasFlagsChanged = true;
+			}
+		}
+	}
+
+	if ( !hasFlagsChanged ) {
+		return false;
+	}
+
+	PM_SetDimensions();
+	return true;
 }
 
 /*
@@ -946,7 +1031,7 @@ static bool PM_GoodPosition( void ) {
 	}
 
 	// Base the outcome on whether we're in an 'all-solid' situation or not.
-	trace_t trace = pm->trace( pm->s.origin, pm->mins, pm->maxs, pm->s.origin );
+	trace_t trace = PM_Trace( pm->s.origin, pm->mins, pm->maxs, pm->s.origin );
 	return !trace.allsolid;
 }
 
@@ -1103,63 +1188,65 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	}
 
 	// set mins, maxs, and viewheight
-	PM_CheckDuck( );
+	PM_SetDimensions();
 
-	// If the move state has been changed outside of PMove, check if the new position
-	// is valid and if so, store it as our last previous valid origin.
+	// catagorize for ducking
+	PM_CategorizePosition();
+
 	if ( pm->snapinitial ) {
-		PM_InitialSnapPosition( );
+		PM_InitialSnapPosition();
 	}
 
 	// set groundentity, watertype, and waterlevel
-	PM_CategorizePosition( );
-
-	if ( pm->s.pm_type == PM_DEAD ) {
-		PM_DeadMove( );
+	if ( PM_CheckDuck() ) {
+		PM_CategorizePosition();
 	}
 
-	PM_CheckSpecialMovement( );
+	if ( pm->s.pm_type == PM_DEAD ) {
+		PM_DeadMove();
+	}
 
-	// drop timing counter
+	PM_CheckSpecialMovement();
+
+	// Drop timing counter.
 	if ( pm->s.pm_time ) {
-		// WID: What is this for really?
-		//int msec = pm->cmd.msec >> 3;
-		//if ( !msec )
-		// 
-		//	msec = 1;
-		int32_t msec = pm->cmd.msec;
+		int32_t msec = pm->cmd.msec; //int msec = pm->cmd.msec >> 3;
 		if ( !msec ) {
-			msec = 0;
+			msec = 0; // msec = 1;
 		}
 
 		if ( msec >= pm->s.pm_time ) {
-			pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT );
+			pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
 			pm->s.pm_time = 0;
 		} else {
 			pm->s.pm_time -= msec;
 		}
 	}
 
+	// Teleport pause stays exactly in place:
 	if ( pm->s.pm_flags & PMF_TIME_TELEPORT ) {
-		// teleport pause stays exactly in place
+		
+	// Waterjump has no control, but falls:
 	} else if ( pm->s.pm_flags & PMF_TIME_WATERJUMP ) {
-		// waterjump has no control, but falls
 		pml.velocity[ 2 ] -= pm->s.gravity * pml.frametime;
-		if ( pml.velocity[ 2 ] < 0 ) {
-			// cancel as soon as we are falling down again
-			pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT );
+		// Cancel as soon as we are falling down again.
+		if ( pml.velocity[ 2 ] < 0 ) { // cancel as soon as we are falling down again
+			pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
 			pm->s.pm_time = 0;
 		}
 
-		PM_StepSlideMove( );
+		PM_StepSlideMove();
 	} else {
+		// Check for jumping.
 		PM_CheckJump( );
-
+		// Apply friction.
 		PM_Friction( );
 
+		// Determine water level and pursue to WaterMove if deep in above waist.
 		if ( pm->waterlevel >= water_level_t::WATER_WAIST ) {
 			PM_WaterMove( );
 		} else {
+			// Regular 'air move'.
 			vec3_t  angles;
 
 			VectorCopy( pm->viewangles, angles );
@@ -1174,20 +1261,20 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	}
 
 	// set groundentity, watertype, and waterlevel for final spot
-	PM_CategorizePosition( );
+	PM_CategorizePosition();
 
-	PM_SnapPosition( );
+	// trick jump
+	if ( pm->s.pm_flags & PMF_TIME_TRICK_JUMP ) {
+		PM_CheckJump();
+	}
+
+	// [Paril-KEX]
+	//PM_ScreenEffects();
+
+	PM_SnapPosition();
 }
 
 void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
-	// Old 'sane' defaults:
-	//pmp->speedmult = 1;
-	//pmp->watermult = 0.5f;
-	//pmp->maxspeed = 300;
-	//pmp->friction = 6;
-	//pmp->waterfriction = 1;
-	//pmp->flyfriction = 9;
-
 	// Q2RTXPerimental Defaults:
 	pmp->speedmult = 2;
 	pmp->watermult = 0.5f;

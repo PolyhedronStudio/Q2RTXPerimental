@@ -1295,7 +1295,7 @@ void CL_CalcViewValues(void)
         VectorMA(cl.predictedState.origin, backlerp, cl.predictedState.error, cl.refdef.vieworg);
 
         // smooth out stair climbing
-        if (cl.predictedState.predicted_step < 15.875) {//127 ) {// * 0.125f) { // WID: float-movement
+        if (cl.predictedState.step < 15.875) {//127 ) {// * 0.125f) { // WID: float-movement
             delta <<= 1; // small steps
         }
 
@@ -1305,7 +1305,7 @@ void CL_CalcViewValues(void)
         //}
 		// WID: Prediction: Now should be dependant on specific framerate.
 		if ( delta < BASE_FRAMETIME ) {
-			cl.refdef.vieworg[ 2 ] -= cl.predictedState.predicted_step * ( BASE_FRAMETIME - delta ) * BASE_1_FRAMETIME;
+			cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( BASE_FRAMETIME - delta ) * BASE_1_FRAMETIME;
 		}
     } else {
         int i;
