@@ -4,4 +4,5 @@
 
 #include "sg_gamemode.h"
 #include "sg_pmove.h"
+#include "sg_pmove_slidemove.h"
 #include "sg_time.h"

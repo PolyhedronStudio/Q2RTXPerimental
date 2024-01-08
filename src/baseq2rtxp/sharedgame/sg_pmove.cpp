@@ -57,15 +57,17 @@ static pmoveParams_t *pmp;
 static pml_t pml;
 
 // movement parameters
-float pm_stopspeed = 100;
-float pm_maxspeed = 300;
-float pm_duckspeed = 100;
-float pm_accelerate = 10;
-float pm_wateraccelerate = 10;
-float pm_friction = 6;
-float pm_waterfriction = 1;
-float pm_waterspeed = 400;
-float pm_laddermod = 0.5f;
+static constexpr float pm_stopspeed = 100.f;
+static constexpr float pm_maxspeed = 300.f;
+static constexpr float pm_ladderspeed = 200.f;
+static constexpr float pm_ladder_sidemove_speed = 150.f;
+static constexpr float pm_duckspeed = 100.f;
+static constexpr float pm_accelerate = 10.f;
+static constexpr float pm_wateraccelerate = 10.f;
+static constexpr float pm_friction = 6.f;
+static constexpr float pm_waterfriction = 1.f;
+static constexpr float pm_waterspeed = 400.f;
+static constexpr float pm_laddermod = 0.5f;
 
 
 
@@ -159,184 +161,245 @@ static void PM_StepSlideMove( void ) {
 			VectorCopy( trace.endpos, pml.origin );
 		}
 	}
-	//if ( ( pm->s.pm_flags & PMF_ON_GROUND ) && !( pm->s.pm_flags & PMF_ON_LADDER ) &&
-	//	( pm->waterlevel < WATER_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity.z <= 0 ) ) ) {
-	//	down = pml.origin;
-	//	down[ 2 ] -= STEPSIZE;
-	//	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
-	//	if ( trace.fraction < 1.f ) {
-	//		pml.origin = trace.endpos;
-	//	}
-	//}
 }
 
-/*
-==================
-PM_Friction
-
-Handles both ground friction and water friction
-==================
-*/
+/**
+*	@brief	Applies handling both ground friction and water friction
+**/
 static void PM_Friction( void ) {
-	float *vel;
-	float   speed, newspeed, control;
-	float   friction;
-	float   drop;
+	// Pointer to velocity for value adjustment.
+	float *vel = pml.velocity;
 
-	vel = pml.velocity;
-
-	speed = VectorLength( vel );
+	float speed = VectorLength( vel );
 	if ( speed < 1 ) {
 		vel[ 0 ] = 0;
 		vel[ 1 ] = 0;
 		return;
 	}
 
-	drop = 0;
+	float drop = 0;
+	float friction = 0;
+	float control = 0;
 
-// apply ground friction
+	// Apply ground friction.
 	if ( ( pm->groundentity && pml.groundsurface && !( pml.groundsurface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
-		friction = pmp->friction;
+		friction = pm_friction;
 		control = speed < pm_stopspeed ? pm_stopspeed : speed;
 		drop += control * friction * pml.frametime;
 	}
 
-// apply water friction
+	// Apply water friction.
 	if ( pm->waterlevel > water_level_t::WATER_NONE && !( pm->s.pm_flags & PMF_ON_LADDER ) ) {
-		drop += speed * pmp->waterfriction * pm->waterlevel * pml.frametime;
+		drop += speed * pm_waterfriction * (float)pm->waterlevel * pml.frametime;
 	}
 
-// scale the velocity
-	newspeed = speed - drop;
+	// Scale the velocity.
+	float newspeed = speed - drop;
 	if ( newspeed < 0 ) {
 		newspeed = 0;
 	}
 	newspeed /= speed;
 
+	// Apply friction based newspeed to velocity.
 	vel[ 0 ] = vel[ 0 ] * newspeed;
 	vel[ 1 ] = vel[ 1 ] * newspeed;
 	vel[ 2 ] = vel[ 2 ] * newspeed;
 }
 
-/*
-==============
-PM_Accelerate
-
-Handles user intended acceleration
-==============
-*/
-static void PM_Accelerate( const vec3_t wishdir, float wishspeed, float accel ) {
-	int         i;
-	float       addspeed, accelspeed, currentspeed;
-
-	currentspeed = DotProduct( pml.velocity, wishdir );
-	addspeed = wishspeed - currentspeed;
-	if ( addspeed <= 0 )
+/**
+*	@brief	Handles user intended Ground acceleration
+**/
+static void PM_Accelerate( const vec3_t wishDirection, const float wishSpeed, const float acceleration ) {
+	float currentSpeed = DotProduct( pml.velocity, wishDirection );
+	float addSpeed = wishSpeed - currentSpeed;
+	if ( addSpeed <= 0 ) {
 		return;
-	accelspeed = accel * pml.frametime * wishspeed;
-	if ( accelspeed > addspeed )
-		accelspeed = addspeed;
+	}
+	float accelSpeed = acceleration * pml.frametime * wishSpeed;
+	if ( accelSpeed > addSpeed ) {
+		accelSpeed = addSpeed;
+	}
 
-	for ( i = 0; i < 3; i++ )
-		pml.velocity[ i ] += accelspeed * wishdir[ i ];
+	for ( int32_t i = 0; i < 3; i++ ) {
+		pml.velocity[ i ] += accelSpeed * wishDirection[ i ];
+	}
 }
 
-static void PM_AirAccelerate( const vec3_t wishdir, float wishspeed, float accel ) {
-	int         i;
-	float       addspeed, accelspeed, currentspeed, wishspd = wishspeed;
+/**
+*	@brief	Handles user intended Air acceleration
+**/
+static void PM_AirAccelerate( const vec3_t wishDirection, float wishSpeed, const float acceleration ) {
+	// Upper clamp.
+	if ( wishSpeed > 30 ) {
+		wishSpeed = 30;
+	}
 
-	if ( wishspd > 30 )
-		wishspd = 30;
-	currentspeed = DotProduct( pml.velocity, wishdir );
-	addspeed = wishspd - currentspeed;
-	if ( addspeed <= 0 )
+	float currentspeed = DotProduct( pml.velocity, wishDirection );
+	float addSpeed = wishSpeed - currentspeed;
+	if ( addSpeed <= 0 ) {
 		return;
-	accelspeed = accel * wishspeed * pml.frametime;
-	if ( accelspeed > addspeed )
-		accelspeed = addspeed;
+	}
 
-	for ( i = 0; i < 3; i++ )
-		pml.velocity[ i ] += accelspeed * wishdir[ i ];
+	float acceleratedSpeed = acceleration * wishSpeed * pml.frametime;
+	if ( acceleratedSpeed > addSpeed ) {
+		acceleratedSpeed = addSpeed;
+	}
+
+	for ( int32_t i = 0; i < 3; i++ ) {
+		pml.velocity[ i ] += acceleratedSpeed * wishDirection[ i ];
+	}
 }
 
-/*
-=============
-PM_AddCurrents
-=============
+/**
+*	@brief	Account for surface 'currents', as well as ladders.
 */
-static void PM_AddCurrents( vec3_t wishvel ) {
+static void PM_AddCurrents( vec3_t wishVelocity ) {
 	vec3_t  v;
 	float   s;
 
-	//
-	// account for ladders
-	//
+	/**
+	*	Account for Ladder movement.
+	**/
+	if ( pm->s.pm_flags & PMF_ON_LADDER ) {
+		// Check for Up(Jump) or Down(Crouch) actions:
+		if ( pm->cmd.upmove > 0 || pm->cmd.upmove < 0 ) {//if ( pm->cmd.buttons & ( BUTTON_JUMP | BUTTON_CROUCH ) ) {
+			// Use full speed on ladders if we're underwater.
+			const float ladderSpeed = ( pm->waterlevel >= water_level_t::WATER_WAIST ? pm_maxspeed : pm_ladderspeed );
+		
+			if ( pm->cmd.upmove > 0 ) {
+				wishVelocity[ 2 ] = ladderSpeed;
+			} else if ( pm->cmd.upmove < 0 ) {
+				wishVelocity[ 2 ] = -ladderSpeed;
+			}
+		// Situation for where 'forwardmove' is in use.
+		} else if ( pm->cmd.forwardmove ) {
+			// Clamp the speed to prevent it from being 'too fast'.
+			const float ladderSpeed = clamp( pm->cmd.forwardmove, -pm_ladderspeed, pm_ladderspeed );
 
-	if ( ( pm->s.pm_flags & PMF_ON_LADDER ) && fabsf( pml.velocity[ 2 ] ) <= 200 ) {
-		if ( ( pm->viewangles[ PITCH ] <= -15 ) && ( pm->cmd.forwardmove > 0 ) ) {
-			wishvel[ 2 ] = 200;
-		} else if ( ( pm->viewangles[ PITCH ] >= 15 ) && ( pm->cmd.forwardmove > 0 ) ) {
-			wishvel[ 2 ] = -200;
-		} else if ( pm->cmd.upmove > 0 ) {
-			wishvel[ 2 ] = 200;
-		} else if ( pm->cmd.upmove < 0 ) {
-			wishvel[ 2 ] = -200;
+			// Determine whether to move up/down based on pitch when pressing 'Forward'.
+			if ( pm->cmd.forwardmove > 0 ) {
+				// Determine by pitch whether to move up/down.
+				if ( pm->viewangles[ PITCH ] < 15 ) {
+					wishVelocity[ 2 ] = ladderSpeed;
+				} else {
+					wishVelocity[ 2 ] = -ladderSpeed;
+				}
+			// Allow the 'Back' button to let us climb down.
+			} else if ( pm->cmd.forwardmove < 0 ) {
+				// Remove x/y from the wishVelocity if we haven't touched ground yet, to prevent
+				// sliding off the ladder.
+				if ( !pm->groundentity ) {
+					wishVelocity[ 0 ] = wishVelocity[ 1 ] = 0;
+				}
+
+				wishVelocity[ 2 ] = ladderSpeed;
+			}
+		// Otherwise, remain idle, unset Z velocity.
 		} else {
-			wishvel[ 2 ] = 0;
+			wishVelocity[ 2 ] = 0;
 		}
-		// limit horizontal speed when on a ladder
-		clamp( wishvel[ 0 ], -25, 25 );
-		clamp( wishvel[ 1 ], -25, 25 );
+
+		// Limit horizontal speed when on a ladder, unless we're still on the ground.
+		if ( !pm->groundentity ) {
+			// Allow left/right to move perpendicular to the ladder plane.
+			if ( pm->cmd.sidemove ) {
+				// Clamp the speed 'so it is not jarring':
+				float ladderSpeed = clamp( pm->cmd.sidemove, -pm_ladder_sidemove_speed, pm_ladder_sidemove_speed );
+				
+				// Modulate speed based on depth of water level.
+				if ( pm->waterlevel < water_level_t::WATER_WAIST ) {
+					ladderSpeed *= pm_laddermod;
+				}
+
+				// Check for a ladder:
+				vec3_t flatForward = { pml.forward[ 0 ], pml.forward[ 1 ], 0.f };
+				VectorNormalize( flatForward );
+				
+				vec3_t spot = { 0.f, 0.f, 0.f };
+				VectorAdd( pml.origin, flatForward, spot );//VectorMA( pml.origin, 1, flatForward, spot );
+				trace_t ladderTrace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
+
+				// If we hit it, adjust our velocity.
+				if ( ladderTrace.fraction != 1.f && ( ladderTrace.contents & CONTENTS_LADDER ) ) {
+					vec3_t right = { 0.f, 0.f, 0.f };
+					vec3_t v2 = { 0.f, 0.f, 1.f };
+					CrossProduct( ladderTrace.plane.normal, v2, right );
+
+					// Adjust wish velocity.
+					wishVelocity[ 0 ] = wishVelocity[ 1 ] = 0;
+					
+					// Scale right
+					vec3_t vLadderSpeed = { -ladderSpeed , -ladderSpeed , -ladderSpeed };
+					VectorVectorScale( right, vLadderSpeed, right );
+					VectorAdd( wishVelocity, right, wishVelocity );
+				}
+			// Otherwise, ensure the wish velocity is clamped properly.
+			} else {
+				clamp( wishVelocity[ 0 ], -25, 25 );
+				clamp( wishVelocity[ 1 ], -25, 25 );
+			}
+		}
 	}
 
-	//
-	// add water currents
-	//
-
+	/**
+	*	Add Water Currents.
+	**/
 	if ( pm->watertype & MASK_CURRENT ) {
 		VectorClear( v );
 
-		if ( pm->watertype & CONTENTS_CURRENT_0 )
+		if ( pm->watertype & CONTENTS_CURRENT_0 ) {
 			v[ 0 ] += 1;
-		if ( pm->watertype & CONTENTS_CURRENT_90 )
+		}
+		if ( pm->watertype & CONTENTS_CURRENT_90 ) {
 			v[ 1 ] += 1;
-		if ( pm->watertype & CONTENTS_CURRENT_180 )
+		}
+		if ( pm->watertype & CONTENTS_CURRENT_180 ) {
 			v[ 0 ] -= 1;
-		if ( pm->watertype & CONTENTS_CURRENT_270 )
+		}
+		if ( pm->watertype & CONTENTS_CURRENT_270 ) {
 			v[ 1 ] -= 1;
-		if ( pm->watertype & CONTENTS_CURRENT_UP )
+		}
+		if ( pm->watertype & CONTENTS_CURRENT_UP ) {
 			v[ 2 ] += 1;
-		if ( pm->watertype & CONTENTS_CURRENT_DOWN )
+		}
+		if ( pm->watertype & CONTENTS_CURRENT_DOWN ) {
 			v[ 2 ] -= 1;
+		}
 
 		s = pm_waterspeed;
-		if ( ( pm->waterlevel == water_level_t::WATER_FEET ) && ( pm->groundentity ) )
+		if ( ( pm->waterlevel == water_level_t::WATER_FEET ) && ( pm->groundentity ) ) {
 			s /= 2;
+		}
 
-		VectorMA( wishvel, s, v, wishvel );
+		VectorMA( wishVelocity, s, v, wishVelocity );
 	}
 
-	//
-	// add conveyor belt velocities
-	//
-
+	/**
+	*	Add conveyor belt velocities (They change the velocities direction.)
+	**/
 	if ( pm->groundentity ) {
 		VectorClear( v );
 
-		if ( pml.groundcontents & CONTENTS_CURRENT_0 )
+		if ( pml.groundcontents & CONTENTS_CURRENT_0 ) {
 			v[ 0 ] += 1;
-		if ( pml.groundcontents & CONTENTS_CURRENT_90 )
+		}
+		if ( pml.groundcontents & CONTENTS_CURRENT_90 ) {
 			v[ 1 ] += 1;
-		if ( pml.groundcontents & CONTENTS_CURRENT_180 )
+		}
+		if ( pml.groundcontents & CONTENTS_CURRENT_180 ) {
 			v[ 0 ] -= 1;
-		if ( pml.groundcontents & CONTENTS_CURRENT_270 )
+		}
+		if ( pml.groundcontents & CONTENTS_CURRENT_270 ) {
 			v[ 1 ] -= 1;
-		if ( pml.groundcontents & CONTENTS_CURRENT_UP )
+		}
+		if ( pml.groundcontents & CONTENTS_CURRENT_UP ) {
 			v[ 2 ] += 1;
-		if ( pml.groundcontents & CONTENTS_CURRENT_DOWN )
+		}
+		if ( pml.groundcontents & CONTENTS_CURRENT_DOWN ) {
 			v[ 2 ] -= 1;
-
-		VectorMA( wishvel, 100 /* pm->groundentity->speed */, v, wishvel );
+		}
+		
+		VectorMA( wishVelocity, 100 /* pm->groundentity->speed */, v, wishVelocity );
 	}
 }
 
