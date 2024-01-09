@@ -280,11 +280,13 @@ static void PM_AddCurrents( vec3_t wishVelocity ) {
 			// Determine whether to move up/down based on pitch when pressing 'Forward'.
 			if ( pm->cmd.forwardmove > 0 ) {
 				// Determine by pitch whether to move up/down.
-				if ( pm->viewangles[ PITCH ] < 15 ) {
+				//if ( pm->viewangles[ PITCH ] > 15 ) {
+					//	wishVelocity[ 2 ] = ladderSpeed;
+					//} else {
+					//	wishVelocity[ 2 ] = -ladderSpeed;
+					//}
 					wishVelocity[ 2 ] = ladderSpeed;
-				} else {
-					wishVelocity[ 2 ] = -ladderSpeed;
-				}
+				//}
 			// Allow the 'Back' button to let us climb down.
 			} else if ( pm->cmd.forwardmove < 0 ) {
 				// Remove x/y from the wishVelocity if we haven't touched ground yet, to prevent
@@ -634,10 +636,10 @@ static void PM_CategorizePosition( void ) {
 
 				pm->s.pm_flags |= PMF_ON_GROUND;
 
-				//if ( pm_config.n64_physics || ( pm->s.pm_flags & PMF_DUCKED ) ) {
-				//	pm->s.pm_flags |= PMF_TIME_LAND;
-				//	pm->s.pm_time = 128;
-				//}
+				if ( /*pm_config.n64_physics ||*/ ( pm->s.pm_flags & PMF_DUCKED ) ) {
+					pm->s.pm_flags |= PMF_TIME_LAND;
+					pm->s.pm_time = 128;
+				}
 			}
 		}
 
@@ -1228,12 +1230,12 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	// Drop timing counter.
 	if ( pm->s.pm_time ) {
 		int32_t msec = pm->cmd.msec; //int msec = pm->cmd.msec >> 3;
-		if ( !msec ) {
-			msec = 0; // msec = 1;
-		}
+		//if ( !msec ) {
+		//	msec = 0; // msec = 1;
+		//}
 
 		if ( msec >= pm->s.pm_time ) {
-			pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
+			//pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
 			pm->s.pm_time = 0;
 		} else {
 			pm->s.pm_time -= msec;
