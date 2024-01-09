@@ -186,6 +186,29 @@ void PM_StepSlideMove_Generic( vec3_t &origin, vec3_t &velocity, float frametime
 			return;
 		}
 
+		// [Paril-KEX] experimental attempt to fix stray collisions on curved
+		// surfaces; easiest to see on q2dm1 by running/jumping against the sides
+		// of the curved map.
+		if ( trace.surface2 ) {
+			vec3_t clipped_a, clipped_b;
+			PM_ClipVelocity( velocity, trace.plane.normal, clipped_a, 1.01f );
+			PM_ClipVelocity( velocity, trace.plane2.normal, clipped_b, 1.01f );
+
+			bool better = false;
+
+			for ( int i = 0; i < 3; i++ ) {
+				if ( fabsf( clipped_a[ i ] ) < fabsf( clipped_b[ i ] ) ) {
+					better = true;
+					break;
+				}
+			}
+
+			if ( better ) {
+				trace.plane = trace.plane2;
+				trace.surface = trace.surface2;
+			}
+		}
+
 		if ( trace.fraction > 0 ) {
 			// actually covered some distance
 			VectorCopy( trace.endpos, origin );
@@ -251,7 +274,7 @@ void PM_StepSlideMove_Generic( vec3_t &origin, vec3_t &velocity, float frametime
 		}
 	}
 
-	if ( pm->s.pm_time ) {
+	if ( has_time ) {
 		VectorCopy( primal_velocity, velocity );
 	}
 }

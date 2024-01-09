@@ -1632,17 +1632,20 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
 		// Backup the command angles given from ast command.
 		VectorCopy( ucmd->angles, client->resp.cmd_angles );
-
-        if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.waterlevel == 0) {
-            gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
-            PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
-        }
-
+        
         // Save into the client pointer, the resulting move states pmove
         client->ps.pmove = pm.s;
         client->old_pmove = pm.s;
+
+        if ( pm.jump_sound && !( pm.s.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.waterlevel == 0) {
+            gi.sound( ent, CHAN_VOICE, gi.soundindex( "*jump1.wav" ), 1, ATTN_NORM, 0 );
+            // Paril: removed to make ambushes more effective and to
+            // not have monsters around corners come to jumps
+            // PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
+        }
+
 		// Update the entity's other properties.
-        ent->viewheight = pm.s.viewheight;
+        ent->viewheight = (int32_t)pm.s.viewheight;
         ent->waterlevel = pm.waterlevel;
         ent->watertype = pm.watertype;
         ent->groundentity = pm.groundentity;

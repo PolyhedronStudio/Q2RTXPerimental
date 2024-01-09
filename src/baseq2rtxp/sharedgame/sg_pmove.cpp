@@ -96,11 +96,13 @@ static void PM_StepSlideMove( void ) {
 	VectorCopy( start_o, up );
 	up[ 2 ] += STEPSIZE;
 
-	trace = PM_Trace( up, pm->mins, pm->maxs, up );
+	trace = PM_Trace( start_o, pm->mins, pm->maxs, up );
 	// Can't step up.
 	if ( trace.allsolid ) {
 		return;
 	}
+
+	float stepSize = trace.endpos[ 2 ] - start_o[ 2 ];
 
 	// Try sliding above.
 	VectorCopy( up, pml.origin );
@@ -110,7 +112,7 @@ static void PM_StepSlideMove( void ) {
 
 	// Push down the final amount.
 	VectorCopy( pml.origin, down );
-	down[ 2 ] -= STEPSIZE;
+	down[ 2 ] -= stepSize;
 
 	// [Paril-KEX] jitspoe suggestion for stair clip fix; store
 	// the old down position, and pick a better spot for downwards
@@ -153,7 +155,8 @@ static void PM_StepSlideMove( void ) {
 
 	// Paril: step down stairs/slopes
 	if ( ( pm->s.pm_flags & PMF_ON_GROUND ) && !( pm->s.pm_flags & PMF_ON_LADDER ) &&
-		( pm->waterlevel < water_level_t::WATER_WAIST || ( !( pm->cmd.upmove/*pm->cmd.buttons & BUTTON_JUMP*/ ) && pml.velocity[ 2 ] <= 0 ) ) ) {
+		( pm->waterlevel < water_level_t::WATER_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity[ 2 ] <= 0 ) ) ) {
+		//( pm->waterlevel < water_level_t::WATER_WAIST || ( !( pm->cmd.upmove/*pm->cmd.buttons & BUTTON_JUMP*/ ) && pml.velocity[ 2 ] <= 0 ) ) ) {
 		VectorCopy( pml.origin, down );
 		down[ 2 ] -= STEPSIZE;
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
@@ -253,7 +256,7 @@ static void PM_AirAccelerate( const vec3_t wishDirection, float wishSpeed, const
 /**
 *	@brief	Account for surface 'currents', as well as ladders.
 */
-static void PM_AddCurrents( vec3_t wishVelocity ) {
+static void PM_AddCurrents( vec3_t &wishVelocity ) {
 	vec3_t  v;
 	float   s;
 
@@ -267,15 +270,15 @@ static void PM_AddCurrents( vec3_t wishVelocity ) {
 			// Use full speed on ladders if we're underwater.
 			const float ladderSpeed = ( pm->waterlevel >= water_level_t::WATER_WAIST ? pm_maxspeed : pm_ladderspeed );
 		
-			if ( pm->cmd.upmove > 0 ) {
+			if ( pm->cmd.buttons & BUTTON_JUMP ) {
 				wishVelocity[ 2 ] = ladderSpeed;
-			} else if ( pm->cmd.upmove < 0 ) {
+			} else if ( pm->cmd.buttons & BUTTON_CROUCH ) {
 				wishVelocity[ 2 ] = -ladderSpeed;
 			}
 		// Situation for where 'forwardmove' is in use.
 		} else if ( pm->cmd.forwardmove ) {
 			// Clamp the speed to prevent it from being 'too fast'.
-			const float ladderSpeed = clamp( pm->cmd.forwardmove, -pm_ladderspeed, pm_ladderspeed );
+			const float ladderSpeed = constclamp( pm->cmd.forwardmove, -pm_ladderspeed, pm_ladderspeed );
 
 			// Determine whether to move up/down based on pitch when pressing 'Forward'.
 			if ( pm->cmd.forwardmove > 0 ) {
@@ -424,21 +427,37 @@ static void PM_WaterMove( void ) {
 	for ( i = 0; i < 3; i++ )
 		wishvel[ i ] = pml.forward[ i ] * pm->cmd.forwardmove + pml.right[ i ] * pm->cmd.sidemove;
 
-	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove && !pm->cmd.upmove )
-		wishvel[ 2 ] -= 60;       // drift towards bottom
-	else
-		wishvel[ 2 ] += pm->cmd.upmove;
+	//if ( !pm->cmd.forwardmove && !pm->cmd.sidemove && !pm->cmd.upmove ) {
+	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove &&
+		!( pm->cmd.buttons & ( BUTTON_JUMP | BUTTON_CROUCH ) ) ) {
+		if ( !pm->groundentity )
+			wishvel[ 2 ] -= 60; // drift towards bottom
+	} else {
+		//wishvel[ 2 ] += pm->cmd.upmove;
+		if ( pm->cmd.buttons & BUTTON_CROUCH ) {
+			wishvel[ 2 ] -= pm_waterspeed * 0.5f;
+		} else if ( pm->cmd.buttons & BUTTON_JUMP ) {
+			wishvel[ 2 ] += pm_waterspeed * 0.5f;
+		}
+	}
 
 	PM_AddCurrents( wishvel );
 
 	VectorCopy( wishvel, wishdir );
 	wishspeed = VectorNormalize( wishdir );
 
-	if ( wishspeed > pmp->maxspeed ) {
-		VectorScale( wishvel, pmp->maxspeed / wishspeed, wishvel );
-		wishspeed = pmp->maxspeed;
+	if ( wishspeed > pm_maxspeed ) {
+		VectorScale( wishvel, pm_maxspeed / wishspeed, wishvel );
+		wishspeed = pm_maxspeed;
 	}
-	wishspeed *= pmp->watermult;
+	wishspeed *= 0.5f;// pmp->watermult;
+
+	if ( ( pm->s.pm_flags & PMF_DUCKED ) && wishspeed > pm_duckspeed ) {
+		wishvel[ 0 ] *= pm_duckspeed / wishspeed;
+		wishvel[ 1 ] *= pm_duckspeed / wishspeed;
+		wishvel[ 2 ] *= pm_duckspeed / wishspeed;
+		wishspeed = pm_duckspeed;
+	}
 
 	PM_Accelerate( wishdir, wishspeed, pm_wateraccelerate );
 
@@ -620,7 +639,6 @@ static void PM_CategorizePosition( void ) {
 
 			if ( !( pm->s.pm_flags & PMF_ON_GROUND ) ) {
 				// just hit the ground
-				pm->s.pm_flags |= PMF_ON_GROUND;
 
 				// [Paril-KEX] - WID: Trick Jump.
 				if ( /*!pm_config.n64_physics && */ pml.velocity[ 2 ] >= 100.f && pm->groundplane.normal[ 2 ] >= 0.9f && !( pm->s.pm_flags & PMF_DUCKED ) ) {
@@ -636,10 +654,10 @@ static void PM_CategorizePosition( void ) {
 
 				pm->s.pm_flags |= PMF_ON_GROUND;
 
-				if ( /*pm_config.n64_physics ||*/ ( pm->s.pm_flags & PMF_DUCKED ) ) {
-					pm->s.pm_flags |= PMF_TIME_LAND;
-					pm->s.pm_time = 128;
-				}
+				//if ( /*pm_config.n64_physics ||*/ ( pm->s.pm_flags & PMF_DUCKED ) ) {
+				//	pm->s.pm_flags |= PMF_TIME_LAND;
+				//	pm->s.pm_time = 128;
+				//}
 			}
 		}
 
@@ -663,7 +681,7 @@ static void PM_CheckJump( void ) {
 	}
 
 	// Not holding jump:
-	if ( pm->cmd.upmove < 10 ) { // if (!(pm->cmd.buttons & BUTTON_JUMP))
+	if ( !( pm->cmd.buttons & BUTTON_JUMP ) ) { // if ( pm->cmd.upmove < 10 ) { // 
 		pm->s.pm_flags &= ~PMF_JUMP_HELD;
 		return;
 	}
@@ -740,7 +758,7 @@ static void PM_CheckSpecialMovement( void ) {
 
 	// Check for water jump:
 	// [Paril-KEX] don't try waterjump if we're moving against where we'll hop
-	if ( !( pm->cmd.upmove )//if ( !( pm->cmd.buttons & BUTTON_JUMP )
+	if ( !( pm->cmd.buttons & BUTTON_JUMP ) // if ( !( pm->cmd.upmove )
 		&& pm->cmd.forwardmove <= 0 ) {
 		return;
 	}
@@ -751,7 +769,7 @@ static void PM_CheckSpecialMovement( void ) {
 	//	return;
 
 	// Quick check that something is even blocking us forward:
-	VectorMA( pml.origin, 50.f, flatforward, spot );
+	VectorMA( pml.origin, 40.f, flatforward, spot );
 	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, MASK_SOLID );
 	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= MIN_STEP_NORMAL ) {
 		return;
@@ -764,10 +782,10 @@ static void PM_CheckSpecialMovement( void ) {
 	// Total: 1 sec of movement.
 	pm_touch_trace_list_t touchList = { };
 	vec3_t waterJumpOrigin = { pml.origin[ 0 ], pml.origin[ 1 ], pml.origin[ 2 ] };
-	float time = 0.025f;//0.1f;
+	float time = 0.1f;//0.025f;//0.1f;
 	bool hasTime = true;
 
-	for ( size_t i = 0; i < min( 50, (int32_t)( 40/*10*/ * ( 800.f / pm->s.gravity ) ) ); i++ ) {
+	for ( size_t i = 0; i < min( 50, (int32_t)( /*40*/10 * ( 800.f / pm->s.gravity ) ) ); i++ ) {
 		waterJumpVelocity[ 2 ] -= pm->s.gravity * time;
 
 		if ( waterJumpVelocity[ 2 ] < 0 )
@@ -851,7 +869,7 @@ static void PM_FlyMove( const bool performNoClipping ) {
 	} else {
 		drop = 0;
 
-		friction = pmp->flyfriction;
+		friction = pm_friction;
 		control = speed < pm_stopspeed ? pm_stopspeed : speed;
 		drop += control * friction * pml.frametime;
 
@@ -874,10 +892,10 @@ static void PM_FlyMove( const bool performNoClipping ) {
 	for ( i = 0; i < 3; i++ )
 		wishvel[ i ] = pml.forward[ i ] * fmove + pml.right[ i ] * smove;
 
-	if ( pm->cmd.upmove > 0 ) {//if ( pm->cmd.buttons & BUTTON_JUMP )
+	if ( pm->cmd.buttons & BUTTON_JUMP ) {// if ( pm->cmd.upmove > 0 ) {//
 		wishvel[ 2 ] += ( pm_waterspeed * 0.5f );
 	}
-	if ( pm->cmd.upmove < 0 ) {//if ( pm->cmd.buttons & BUTTON_CROUCH )
+	if ( pm->cmd.buttons & BUTTON_CROUCH ) {//if ( pm->cmd.upmove < 0 ) {//
 		wishvel[ 2 ] -= ( pm_waterspeed * 0.5f );
 	}
 	//wishvel[ 2 ] += pm->cmd.upmove;
@@ -981,7 +999,7 @@ static const bool PM_CheckDuck( void ) {
 			pm->s.pm_flags |= PMF_DUCKED;
 			hasFlagsChanged = true;
 		}
-	} else if ( ( pm->cmd.upmove < 0 ) &&//( pm->cmd.buttons & BUTTON_CROUCH ) &&
+	} else if ( ( pm->cmd.buttons & BUTTON_CROUCH ) && // ( pm->cmd.upmove < 0 ) &&
 		( pm->groundentity || ( pm->waterlevel <= water_level_t::WATER_FEET && !PM_AboveWater() ) ) &&
 		!( pm->s.pm_flags & PMF_ON_LADDER ) ) {
 			if ( !( pm->s.pm_flags & PMF_DUCKED ) ) {
@@ -1155,7 +1173,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	pm->rdflags = 0;
 	pm->jump_sound = false;
 	pm->step_clip = false;
-	pm->impact_delta = false;
+	pm->impact_delta = 0;
 
 	// Clear all pmove local vars
 	pml = {};
@@ -1175,9 +1193,6 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	PM_ClampAngles( );
 
 	if ( pm->s.pm_type == PM_SPECTATOR || pm->s.pm_type == PM_NOCLIP ) {
-		// Updated speed multiplied frametime for spectator and noclip move types.
-		pml.frametime = pmp->speedmult * pm->cmd.msec * 0.001f;
-
 		// Re-ensure no flags are set anymore.
 		pm->s.pm_flags = PMF_NONE;
 
@@ -1200,6 +1215,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		pm->cmd.forwardmove = 0;
 		pm->cmd.sidemove = 0;
 		pm->cmd.upmove = 0;
+		pm->cmd.buttons &= ~( BUTTON_JUMP | BUTTON_CROUCH );
 	}
 
 	if ( pm->s.pm_type == PM_FREEZE ) {
@@ -1295,6 +1311,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	// Q2RTXPerimental Defaults:
+	pmp->airaccelerate = true;
 	pmp->speedmult = 2;
 	pmp->watermult = 0.5f;
 	pmp->maxspeed = 320;

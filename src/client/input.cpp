@@ -631,9 +631,8 @@ void CL_UpdateCmd(int msec)
     // adjust viewangles
     CL_AdjustAngles(msec);
 
-    // get basic movement from keyboard
+    // get basic movement from keyboard, including jump/crouch.
     CL_BaseMove(cl.localmove);
-
     if ( in_up.state & 3 )
         cl.predictedState.cmd.buttons |= BUTTON_JUMP;
     if ( in_down.state & 3 )
