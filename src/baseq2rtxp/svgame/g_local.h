@@ -1077,7 +1077,7 @@ struct gclient_s {
     float       damage_alpha;
     float       bonus_alpha;
     vec3_t      damage_blend;
-    vec3_t      v_angle;            // aiming direction
+    vec3_t      v_angle, v_forward; // aiming direction
     float       bobtime;            // so off-ground doesn't change it
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;

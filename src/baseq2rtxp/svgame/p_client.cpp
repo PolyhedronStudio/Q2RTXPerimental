@@ -1226,6 +1226,7 @@ void PutClientInServer(edict_t *ent)
     VectorCopy(spawn_angles, ent->s.angles);
     VectorCopy(spawn_angles, client->ps.viewangles);
     VectorCopy(spawn_angles, client->v_angle);
+    AngleVectors( client->v_angle, client->v_forward, nullptr, nullptr );
 
     // spawn a spectator
     if (client->pers.spectator) {
@@ -1656,6 +1657,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         } else {
             VectorCopy( pm.viewangles, client->v_angle );
             VectorCopy( pm.viewangles, client->ps.viewangles );
+            AngleVectors( client->v_angle, client->v_forward, nullptr, nullptr );
         }
 
         gi.linkentity( ent );

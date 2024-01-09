@@ -123,7 +123,7 @@ static constexpr float STOP_EPSILON = 0.1f;
 /**
 *	@brief	Clips the velocity to surface normal.
 **/
-static void PM_ClipVelocity( const vec3_t in, const vec3_t normal, vec3_t out, float overbounce ) {
+void PM_ClipVelocity( const vec3_t in, const vec3_t normal, vec3_t out, float overbounce ) {
 	float   backoff;
 	float   change;
 	int     i;

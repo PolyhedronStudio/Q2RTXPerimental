@@ -1702,6 +1702,7 @@ void teleporter_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t
     VectorClear(other->s.angles);
     VectorClear(other->client->ps.viewangles);
     VectorClear(other->client->v_angle);
+    AngleVectors( other->client->v_angle, other->client->v_forward, nullptr, nullptr );
 
     // kill anything at the destination
     KillBox(other);

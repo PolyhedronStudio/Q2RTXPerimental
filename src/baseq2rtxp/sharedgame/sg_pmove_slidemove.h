@@ -11,7 +11,12 @@ trace_t PM_Clip( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, co
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-trace_t PM_Trace( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end, int32_t contentMask = 0 );
+trace_t PM_Trace( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end, int32_t contentMask = CONTENTS_NONE );
+
+/**
+*	@brief	Clips the velocity to surface normal.
+**/
+void PM_ClipVelocity( const vec3_t in, const vec3_t normal, vec3_t out, float overbounce );
 
 /**
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,

@@ -300,6 +300,7 @@ COLLISION DETECTION
 ==============================================================
 */
 // lower bits are stronger, and will eat weaker brushes completely
+#define CONTENTS_NONE           0       // No contents, non-solid.
 #define CONTENTS_SOLID          1       // an eye is never valid in a solid
 #define CONTENTS_WINDOW         2       // translucent, but not watery
 #define CONTENTS_AUX            4
@@ -425,8 +426,12 @@ USER COMMANDS( User Input. ):
 //
 // button bits
 //
+#define BUTTON_NONE         0
 #define BUTTON_ATTACK       1
 #define BUTTON_USE          2
+//#define BUTTON_HOLSTER      4
+#define BUTTON_JUMP         8
+#define BUTTON_CROUCH       16
 #define BUTTON_ANY          128         // any key whatsoever
 
 

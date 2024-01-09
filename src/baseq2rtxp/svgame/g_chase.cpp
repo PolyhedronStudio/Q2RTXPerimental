@@ -97,6 +97,7 @@ void UpdateChaseCam(edict_t *ent)
     } else {
         VectorCopy(targ->client->v_angle, ent->client->ps.viewangles);
         VectorCopy(targ->client->v_angle, ent->client->v_angle);
+        AngleVectors( ent->client->v_angle, ent->client->v_forward, nullptr, nullptr );
     }
 
     ent->viewheight = 0;

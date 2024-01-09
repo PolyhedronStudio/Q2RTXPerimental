@@ -634,6 +634,11 @@ void CL_UpdateCmd(int msec)
     // get basic movement from keyboard
     CL_BaseMove(cl.localmove);
 
+    if ( in_up.state & 3 )
+        cl.predictedState.cmd.buttons |= BUTTON_JUMP;
+    if ( in_down.state & 3 )
+        cl.predictedState.cmd.buttons |= BUTTON_CROUCH;
+
     // allow mice to add to the move
     CL_MouseMove();
 
@@ -779,6 +784,10 @@ void CL_FinalizeCmd(void)
         cl.predictedState.cmd.buttons |= BUTTON_ATTACK;
     if (in_use.state & 3)
         cl.predictedState.cmd.buttons |= BUTTON_USE;
+    if ( in_up.state & 3 )
+        cl.predictedState.cmd.buttons |= BUTTON_JUMP;
+    if ( in_down.state & 3 )
+        cl.predictedState.cmd.buttons |= BUTTON_CROUCH;
 
     in_attack.state &= ~2;
     in_use.state &= ~2;
