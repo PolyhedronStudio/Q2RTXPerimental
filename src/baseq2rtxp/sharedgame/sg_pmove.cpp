@@ -23,7 +23,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // TODO: FIX CLAMP BEING NAMED CLAMP... preventing std::clamp
 #undef clamp
 
-static constexpr float STEPSIZE = 18.f;
 
 /**
 *	@brief	Actual in-moment local move variables.
@@ -103,8 +102,8 @@ void PM_StepSlideMove() {
 	VectorCopy( pml.velocity, down_v );
 
 	//up = start_o;
-	//up[ 2 ] += STEPSIZE;
-	vec3_t up = { start_o[ 0 ], start_o[ 1 ], start_o[ 2 ] + STEPSIZE };
+	//up[ 2 ] += PM_STEPSIZE;
+	vec3_t up = { start_o[ 0 ], start_o[ 1 ], start_o[ 2 ] + PM_STEPSIZE };
 
 	trace = PM_Trace( start_o, pm->mins, pm->maxs, up );
 	if ( trace.allsolid ) {
@@ -166,8 +165,8 @@ void PM_StepSlideMove() {
 	// Paril: step down stairs/slopes
 	if ( ( pm->s.pm_flags & PMF_ON_GROUND ) && !( pm->s.pm_flags & PMF_ON_LADDER ) &&
 		( pm->waterlevel < water_level_t::WATER_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity[ 2 ] <= 0 ) ) ) {
-		vec3_t down = { pml.origin[ 0 ], pml.origin[ 1 ], pml.origin[ 2 ] - STEPSIZE };
-		//down[ 2 ] -= STEPSIZE;
+		vec3_t down = { pml.origin[ 0 ], pml.origin[ 1 ], pml.origin[ 2 ] - PM_STEPSIZE };
+		//down[ 2 ] -= PM_STEPSIZE;
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
 		if ( trace.fraction < 1.f ) {
 			VectorCopy( trace.endpos, pml.origin ); // pml.origin = trace.endpos;
@@ -863,7 +862,7 @@ void PM_CheckSpecialMovement() {
 
 	// we're currently standing on ground, and the snapped position
 	// is a step
-	if ( pm->groundentity && fabsf( pml.origin[ 2 ] - trace.endpos[2] ) <= STEPSIZE ) {
+	if ( pm->groundentity && fabsf( pml.origin[ 2 ] - trace.endpos[2] ) <= PM_STEPSIZE ) {
 		return;
 	}
 

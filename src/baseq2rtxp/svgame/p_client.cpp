@@ -1623,6 +1623,16 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         VectorCopy( ent->client->ps.viewoffset, pm.viewoffset );
         // Perform a PMove.
         SG_PlayerMove( &pm, &pmp );
+        // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those.
+        if ( pm.groundentity && ent->groundentity ) {
+            float stepsize = fabs( ent->s.origin[ 2 ] - pm.s.origin[ 2 ] );
+
+            if ( stepsize > 4.f && stepsize < PM_STEPSIZE ) {
+                ent->s.renderfx |= RF_STAIR_STEP;
+                ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
+            }
+        }
+
 		// Copy back into the entity, both the resulting origin and velocity.
 		VectorCopy( pm.s.origin, ent->s.origin );
 		VectorCopy( pm.s.velocity, ent->velocity );
@@ -1700,7 +1710,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     if ( client->latched_buttons & BUTTON_ATTACK ) {
         if ( client->resp.spectator ) {
 
-            client->latched_buttons = 0;
+            client->latched_buttons = BUTTON_NONE;
 
             if ( client->chase_target ) {
                 client->chase_target = NULL;
@@ -1762,6 +1772,11 @@ void ClientBeginServerFrame(edict_t *ent)
     gclient_t   *client;
     int         buttonMask;
 
+    // Remove RF_STAIR_STEP if we're in a new frame, not stepping.
+    if ( gi.GetServerFrameNumber() != ent->client->last_stair_step_frame ) {
+        ent->s.renderfx &= ~RF_STAIR_STEP;
+    }
+
     if ( level.intermission_framenum )
         return;
 
@@ -1794,7 +1809,7 @@ void ClientBeginServerFrame(edict_t *ent)
             if ( ( client->latched_buttons & buttonMask ) ||
                 ( deathmatch->value && ( (int)dmflags->value & DF_FORCE_RESPAWN ) ) ) {
                 respawn( ent );
-                client->latched_buttons = 0;
+                client->latched_buttons = BUTTON_NONE;
             }
         }
         return;
@@ -1806,5 +1821,5 @@ void ClientBeginServerFrame(edict_t *ent)
             PlayerTrail_Add( ent->s.old_origin );
         }
     }
-    client->latched_buttons = 0;
+    client->latched_buttons = BUTTON_NONE;
 }

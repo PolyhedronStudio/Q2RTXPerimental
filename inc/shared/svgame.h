@@ -123,6 +123,8 @@ typedef struct {
 	float       frame_time_s;
 	uint32_t    frame_time_ms;
 
+    const int64_t ( *GetServerFrameNumber )( void );
+
 	/**
 	*
 	*	Special Messages:
@@ -160,7 +162,6 @@ typedef struct {
 	*	Collision Detection:
 	*
 	**/
-
     trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, int contentmask);
 	trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int contentmask );
     int (*pointcontents)(const vec3_t point);
@@ -184,22 +185,22 @@ typedef struct {
 	*	Network Messaging:
 	*
 	**/
-    void (*multicast)(const vec3_t origin, multicast_t to, bool reliable);
-    void (*unicast)(edict_t *ent, bool reliable);
-    void (*WriteInt8)( const int32_t c);
-    void (*WriteUint8)( const int32_t c);
-    void (*WriteInt16)( const int32_t c);
-	void (*WriteUint16)( const int32_t c );
-    void (*WriteInt32)( const int32_t c);
-	void (*WriteInt64)( const int64_t c );
-	void (*WriteIntBase128 )( int64_t c );
-	void ( *WriteUintBase128 )( uint64_t c );
-    void (*WriteFloat)( const float f );
-    void (*WriteString)(const char *s);
-    void (*WritePosition)(const vec3_t pos, const bool encodeAsShort );    // some fractional bits
-    void (*WriteDir8)(const vec3_t pos);         // single byte encoded, very coarse
-    void (*WriteAngle8)( const float f);
-	void (*WriteAngle16)( const float f );
+    void ( *multicast )( const vec3_t origin, multicast_t to, bool reliable );
+    void ( *unicast )( edict_t *ent, bool reliable );
+    void ( *WriteInt8 )( const int32_t c );
+    void ( *WriteUint8 )( const int32_t c );
+    void ( *WriteInt16 )( const int32_t c );
+    void ( *WriteUint16 )( const int32_t c );
+    void ( *WriteInt32 )( const int32_t c );
+    void ( *WriteInt64 )( const int64_t c );
+    void ( *WriteIntBase128 )( int64_t c );
+    void ( *WriteUintBase128 )( uint64_t c );
+    void ( *WriteFloat )( const float f );
+    void ( *WriteString )( const char *s );
+    void ( *WritePosition )( const vec3_t pos, const bool encodeAsShort );    // some fractional bits
+    void ( *WriteDir8 )( const vec3_t pos );         // single byte encoded, very coarse
+    void ( *WriteAngle8 )( const float f );
+    void ( *WriteAngle16 )( const float f );
 
 	/**
 	*

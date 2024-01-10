@@ -24,6 +24,9 @@ svgame_export_t    *ge;
 
 static void PF_configstring(int index, const char *val);
 
+static const int64_t PF_GetServerFrameNumber() {
+    return sv.framenum;
+}
 /*
 ================
 PF_FindIndex
@@ -816,6 +819,8 @@ void SV_InitGameProgs(void)
 	import.tick_rate = BASE_FRAMERATE;
 	import.frame_time_s = BASE_FRAMETIME_1000;
 	import.frame_time_ms = BASE_FRAMETIME;
+
+    import.GetServerFrameNumber = PF_GetServerFrameNumber;
 
     // load a new game dll
     import.multicast = PF_Multicast;

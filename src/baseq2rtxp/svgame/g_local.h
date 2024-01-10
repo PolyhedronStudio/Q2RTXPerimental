@@ -1082,7 +1082,7 @@ struct gclient_s {
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
     edict_t     *oldgroundentity; // [Paril-KEX]
-
+    uint64_t    last_stair_step_frame;
 
 	sg_time_t		next_drown_time;
 	water_level_t	old_waterlevel;

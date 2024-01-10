@@ -7,6 +7,8 @@ PLAYER MOVEMENT CODE
 
 ==============================================================
 */
+static constexpr float PM_STEPSIZE = 18.f;
+
 /**
 *	@brief	Shard Game Player Movement code implementation:
 **/
