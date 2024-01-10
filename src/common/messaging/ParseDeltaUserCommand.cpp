@@ -36,7 +36,7 @@ void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *to ) {
 		memset( to, 0, sizeof( *to ) );
 	}
 
-	bits = MSG_ReadUint8( );
+	bits = MSG_ReadUintBase128( );
 
 	// Read current angles.
 	if ( bits & CM_ANGLE1 ) {
@@ -51,18 +51,18 @@ void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *to ) {
 
 	// Read movement.
 	if ( bits & CM_FORWARD ) {
-		to->forwardmove = MSG_ReadInt16( );
+		to->forwardmove = MSG_ReadFloat( );
 	}
 	if ( bits & CM_SIDE ) {
-		to->sidemove = MSG_ReadInt16( );
+		to->sidemove = MSG_ReadFloat( );
 	}
 	if ( bits & CM_UP ) {
-		to->upmove = MSG_ReadInt16( );
+		to->upmove = MSG_ReadFloat( );
 	}
 
 	// Read buttons.
 	if ( bits & CM_BUTTONS ) {
-		to->buttons = MSG_ReadUint8( );
+		to->buttons = MSG_ReadUint16( );
 	}
 	if ( bits & CM_IMPULSE ) {
 		to->impulse = MSG_ReadUint8( );
@@ -70,4 +70,7 @@ void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *to ) {
 
 	// Read time to run command.
 	to->msec = MSG_ReadUint8( );
+
+	// Read in the current frame number, for possibly deterministics.
+	to->frameNumber = MSG_ReadUintBase128();
 }

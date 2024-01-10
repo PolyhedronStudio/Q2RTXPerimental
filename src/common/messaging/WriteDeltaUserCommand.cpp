@@ -63,7 +63,7 @@ int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int 
 		bits |= CM_IMPULSE;
 	}
 
-	MSG_WriteUint8( bits );
+	MSG_WriteUintBase128( bits );
 
 	// Write current angles.
 	if ( bits & CM_ANGLE1 ) {
@@ -78,18 +78,18 @@ int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int 
 
 	// Write movement.
 	if ( bits & CM_FORWARD ) {
-		MSG_WriteInt16( cmd->forwardmove );
+		MSG_WriteFloat( cmd->forwardmove );
 	}
 	if ( bits & CM_SIDE ) {
-		MSG_WriteInt16( cmd->sidemove );
+		MSG_WriteFloat( cmd->sidemove );
 	}
 	if ( bits & CM_UP ) {
-		MSG_WriteInt16( cmd->upmove );
+		MSG_WriteFloat( cmd->upmove );
 	}
 
 	// Write buttons.
 	if ( bits & CM_BUTTONS ) {
-		MSG_WriteUint8( cmd->buttons );
+		MSG_WriteUint16( cmd->buttons );
 	}
 	if ( bits & CM_IMPULSE ) {
 		MSG_WriteUint8( cmd->impulse );
@@ -97,6 +97,9 @@ int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int 
 
 	// Write command ran time.
 	MSG_WriteUint8( cmd->msec );
+
+	// Read out the current frame number, for possibly deterministics.
+	MSG_WriteUintBase128( cmd->frameNumber );
 
 	return bits;
 }

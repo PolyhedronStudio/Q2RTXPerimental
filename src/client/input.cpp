@@ -90,6 +90,9 @@ static bool IN_GetCurrentGrab(void)
     if (cls.key_dest & (KEY_MENU | KEY_CONSOLE))
         return false;  // menu or console is up
 
+    if ( sv_paused->integer )
+        return false;   // game paused
+
     if (cls.state != ca_active && cls.state != ca_cinematic)
         return false;  // not connected
 
@@ -258,6 +261,8 @@ static kbutton_t    in_lookup, in_lookdown, in_moveleft, in_moveright;
 static kbutton_t    in_strafe, in_speed, in_use, in_attack;
 static kbutton_t    in_up, in_down;
 
+//static kbutton_t    in_holster;
+
 static int          in_impulse;
 static bool         in_mlooking;
 
@@ -423,6 +428,9 @@ static void IN_MLookUp(void)
     if (!freelook->integer && lookspring->integer)
         IN_CenterView();
 }
+
+//static void IN_HolsterDown( void ) { KeyDown( &in_holster ); }
+//static void IN_HolsterUp( void ) { KeyUp( &in_holster ); }
 
 /*
 ===============
@@ -761,35 +769,37 @@ void CL_FinalizeCmd(void)
     vec3_t move;
 
     // command buffer ticks in sync with cl_maxfps
-    if (cmd_buffer.waitCount > 0) {
-        cmd_buffer.waitCount--;
-    }
-    if (cl_cmdbuf.waitCount > 0) {
-        cl_cmdbuf.waitCount--;
-    }
+    Cbuf_Frame( &cmd_buffer );
+    Cbuf_Frame( &cl_cmdbuf );
 
     if (cls.state != ca_active) {
-        return; // not talking to a server
+        goto clear;
     }
 
     if (sv_paused->integer) {
-        return;
+        goto clear;
     }
 
 //
 // figure button bits
 //
-    if (in_attack.state & 3)
+    if ( in_attack.state & 3 ) {
         cl.predictedState.cmd.buttons |= BUTTON_ATTACK;
-    if (in_use.state & 3)
+    }
+    if ( in_use.state & 3 ) {
         cl.predictedState.cmd.buttons |= BUTTON_USE;
-    if ( in_up.state & 3 )
+    }
+    //if ( in_use.state & 3 )
+    //    cl.predictedState.cmd.buttons |= BUTTON_HOLSTER;
+    if ( in_up.state & 3 ) {
         cl.predictedState.cmd.buttons |= BUTTON_JUMP;
-    if ( in_down.state & 3 )
+    }
+    if ( in_down.state & 3 ) {
         cl.predictedState.cmd.buttons |= BUTTON_CROUCH;
+    }
 
-    in_attack.state &= ~2;
-    in_use.state &= ~2;
+    //in_attack.state &= ~2;
+    //in_use.state &= ~2;
 
     if (cls.key_dest == KEY_GAME && Key_AnyKeyDown()) {
         cl.predictedState.cmd.buttons |= BUTTON_ANY;
@@ -813,14 +823,32 @@ void CL_FinalizeCmd(void)
     // clamp to server defined max speed
     CL_ClampSpeed(move);
 
-    // store the movement vector
+    // Store the movement vector
     cl.predictedState.cmd.forwardmove = move[0];
     cl.predictedState.cmd.sidemove = move[1];
     cl.predictedState.cmd.upmove = move[2];
 
+    // Store impulse.
+    cl.predictedState.cmd.impulse = in_impulse;
+
+    // Store the frame number this was fired at.
+    cl.predictedState.cmd.frameNumber = cl.frame.number;
+
+    // save this command off for prediction
+    cl.cmdNumber++;
+    cl.predictedStates[ cl.cmdNumber & CMD_MASK ].cmd = cl.predictedState.cmd;
+
+clear:
+    // clear pending cmd
+    cl.predictedState.cmd = {};
+
     // clear all states
     cl.mousemove[0] = 0;
     cl.mousemove[1] = 0;
+
+    in_attack.state &= ~2;
+    in_use.state &= ~2;
+    //in_holster.state &= ~2;
 
     KeyClear(&in_right);
     KeyClear(&in_left);
@@ -837,15 +865,8 @@ void CL_FinalizeCmd(void)
     KeyClear(&in_lookup);
     KeyClear(&in_lookdown);
 
-    cl.predictedState.cmd.impulse = in_impulse;
     in_impulse = 0;
 
-    // save this command off for prediction
-    cl.cmdNumber++;
-    cl.predictedStates[cl.cmdNumber & CMD_MASK].cmd = cl.predictedState.cmd;
-
-    // clear pending cmd
-	cl.predictedState.cmd = {};
 }
 
 static inline bool ready_to_send(void)

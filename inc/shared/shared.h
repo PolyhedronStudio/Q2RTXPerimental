@@ -429,7 +429,7 @@ USER COMMANDS( User Input. ):
 #define BUTTON_NONE         0
 #define BUTTON_ATTACK       1
 #define BUTTON_USE          2
-//#define BUTTON_HOLSTER      4
+#define BUTTON_HOLSTER      4
 #define BUTTON_JUMP         8
 #define BUTTON_CROUCH       16
 #define BUTTON_ANY          128         // any key whatsoever
@@ -437,11 +437,13 @@ USER COMMANDS( User Input. ):
 
 // usercmd_t is sent to the server each client frame
 typedef struct usercmd_s {
-	byte    msec;
-	byte    buttons;
+	uint8_t  msec;
+    uint16_t buttons;
 	vec3_t  angles;
-	short   forwardmove, sidemove, upmove;
+	float   forwardmove, sidemove, upmove;
 	byte    impulse;        // remove?
+
+    uint64_t frameNumber;   // For possible deterministics.
 } usercmd_t;
 
 

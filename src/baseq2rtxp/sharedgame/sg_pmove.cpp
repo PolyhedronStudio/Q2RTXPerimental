@@ -165,7 +165,7 @@ void PM_StepSlideMove() {
 
 	// Paril: step down stairs/slopes
 	if ( ( pm->s.pm_flags & PMF_ON_GROUND ) && !( pm->s.pm_flags & PMF_ON_LADDER ) &&
-		( pm->waterlevel < WATER_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity[ 2 ] <= 0 ) ) ) {
+		( pm->waterlevel < water_level_t::WATER_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity[ 2 ] <= 0 ) ) ) {
 		vec3_t down = { pml.origin[ 0 ], pml.origin[ 1 ], pml.origin[ 2 ] - STEPSIZE };
 		//down[ 2 ] -= STEPSIZE;
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
@@ -286,7 +286,7 @@ void PM_AddCurrents( vec3_t &wishvel ) {
 	if ( pm->s.pm_flags & PMF_ON_LADDER ) {
 		if ( pm->cmd.buttons & ( BUTTON_JUMP | BUTTON_CROUCH ) ) {
 			// [Paril-KEX]: if we're underwater, use full speed on ladders
-			float ladder_speed = pm->waterlevel >= WATER_WAIST ? pm_maxspeed : 200;
+			float ladder_speed = pm->waterlevel >= water_level_t::WATER_WAIST ? pm_maxspeed : 200;
 
 			if ( pm->cmd.buttons & BUTTON_JUMP ) {
 				wishvel[ 2 ] = ladder_speed;
@@ -327,7 +327,7 @@ void PM_AddCurrents( vec3_t &wishvel ) {
 				// clamp side speed so it's not jarring...
 				float ladder_speed = std::clamp( (float)pm->cmd.sidemove, -150.f, 150.f );
 
-				if ( pm->waterlevel < WATER_WAIST )
+				if ( pm->waterlevel < water_level_t::WATER_WAIST )
 					ladder_speed *= pm_laddermod;
 
 				// check for ladder
@@ -401,7 +401,7 @@ void PM_AddCurrents( vec3_t &wishvel ) {
 		}
 
 		s = pm_waterspeed;
-		if ( ( pm->waterlevel == WATER_FEET ) && ( pm->groundentity ) ) {
+		if ( ( pm->waterlevel == water_level_t::WATER_FEET ) && ( pm->groundentity ) ) {
 			s /= 2;
 		}
 
@@ -595,7 +595,7 @@ inline void PM_GetWaterLevel( const vec3_t &position, water_level_t &level, int3
 	//
 	// get waterlevel, accounting for ducking
 	//
-	level = WATER_NONE;
+	level = water_level_t::WATER_NONE;
 	type = CONTENTS_NONE;
 
 	int32_t sample2 = (int)( pm->s.viewheight - pm->mins[ 2 ] );
@@ -609,15 +609,15 @@ inline void PM_GetWaterLevel( const vec3_t &position, water_level_t &level, int3
 
 	if ( cont & MASK_WATER ) {
 		type = cont;
-		level = WATER_FEET;
+		level = water_level_t::WATER_FEET;
 		point[ 2 ] = pml.origin[ 2 ] + pm->mins[ 2 ] + sample1;
 		cont = pm->pointcontents( point );
 		if ( cont & MASK_WATER ) {
-			level = WATER_WAIST;
+			level = water_level_t::WATER_WAIST;
 			point[ 2 ] = pml.origin[ 2 ] + pm->mins[ 2 ] + sample2;
 			cont = pm->pointcontents( point );
 			if ( cont & MASK_WATER )
-				level = WATER_UNDER;
+				level = water_level_t::WATER_UNDER;
 		}
 	}
 }
@@ -737,7 +737,7 @@ void PM_CheckJump() {
 	if ( pm->s.pm_type == PM_DEAD )
 		return;
 
-	if ( pm->waterlevel >= WATER_WAIST ) { // swimming, not jumping
+	if ( pm->waterlevel >= water_level_t::WATER_WAIST ) { // swimming, not jumping
 		pm->groundentity = nullptr;
 		return;
 	}
@@ -790,7 +790,7 @@ void PM_CheckSpecialMovement() {
 		pml.origin[ 2 ] + ( flatforward[ 2 ] * 1 )
 	};
 	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
-	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->waterlevel < WATER_WAIST ) {
+	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->waterlevel < water_level_t::WATER_WAIST ) {
 		pm->s.pm_flags |= PMF_ON_LADDER;
 	}
 
@@ -805,7 +805,7 @@ void PM_CheckSpecialMovement() {
 		return;
 	}
 
-	if ( pm->waterlevel != WATER_WAIST ) {
+	if ( pm->waterlevel != water_level_t::WATER_WAIST ) {
 		return;
 	}
 	// [Paril-KEX]
@@ -874,7 +874,7 @@ void PM_CheckSpecialMovement() {
 
 	// the water jump spot will be under water, so we're
 	// probably hitting something weird that isn't important
-	if ( level >= WATER_WAIST )
+	if ( level >= water_level_t::WATER_WAIST )
 		return;
 
 	// valid waterjump!
@@ -1061,7 +1061,7 @@ bool PM_CheckDuck() {
 		}
 	} else if (
 		( pm->cmd.buttons & BUTTON_CROUCH ) &&
-		( pm->groundentity || ( pm->waterlevel <= WATER_FEET && !PM_AboveWater() ) ) &&
+		( pm->groundentity || ( pm->waterlevel <= water_level_t::WATER_FEET && !PM_AboveWater() ) ) &&
 		!( pm->s.pm_flags & PMF_ON_LADDER ) /*&&
 		!pm_config.n64_physics*/ ) { // duck
 		if ( !( pm->s.pm_flags & PMF_DUCKED ) ) {
