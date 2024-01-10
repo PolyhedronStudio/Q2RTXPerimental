@@ -1054,12 +1054,18 @@ void ClientEndServerFrame( edict_t *ent ) {
 		current_client->bobtime = 0;    // start at beginning of cycle again
 	} else if ( ent->groundentity ) {
 		// so bobbing only cycles when on ground
+		//if ( xyspeed > 210 )
+		//	bobmove = 0.25f;
+		//else if ( xyspeed > 100 )
+		//	bobmove = 0.125f;
+		//else
+		//	bobmove = 0.0625f;
 		if ( xyspeed > 210 )
-			bobmove = 0.25f;
+			bobmove = gi.frame_time_ms / 400.f;
 		else if ( xyspeed > 100 )
-			bobmove = 0.125f;
+			bobmove = gi.frame_time_ms / 800.f;
 		else
-			bobmove = 0.0625f;
+			bobmove = gi.frame_time_ms / 1600.f;
 	} else {
 		bobmove = 0;
 	}
@@ -1108,6 +1114,7 @@ void ClientEndServerFrame( edict_t *ent ) {
 
 	VectorCopy( ent->velocity, ent->client->oldvelocity );
 	VectorCopy( ent->client->ps.viewangles, ent->client->oldviewangles );
+	ent->client->oldgroundentity = ent->groundentity;
 
 	// clear weapon kicks
 	VectorClear( ent->client->kick_origin );

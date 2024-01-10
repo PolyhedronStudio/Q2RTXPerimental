@@ -516,7 +516,7 @@ typedef struct {
 **/
 typedef struct {
 	bool        qwmode;
-	bool        airaccelerate;
+	int32_t     airaccelerate;
 	bool        strafehack;
 	bool        flyhack;
 	bool        waterhack;

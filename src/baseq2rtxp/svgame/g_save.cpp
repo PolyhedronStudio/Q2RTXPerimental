@@ -401,6 +401,7 @@ static const save_field_t clientfields[] = {
 	F( bobtime ),
 	V( oldviewangles ),
 	V( oldvelocity ),
+    E( oldgroundentity ),
 
 	FT( next_drown_time ),
 	I( old_waterlevel ),

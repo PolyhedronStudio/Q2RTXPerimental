@@ -1081,6 +1081,8 @@ struct gclient_s {
     float       bobtime;            // so off-ground doesn't change it
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
+    edict_t     *oldgroundentity; // [Paril-KEX]
+
 
 	sg_time_t		next_drown_time;
 	water_level_t	old_waterlevel;
