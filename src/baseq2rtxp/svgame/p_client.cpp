@@ -1845,7 +1845,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             client->latched_buttons = BUTTON_NONE;
 
             if ( client->chase_target ) {
-                client->chase_target = NULL;
+                client->chase_target = nullptr;
                 client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
 			} else {
 				GetChaseTarget( ent );

@@ -698,10 +698,10 @@ void PM_CategorizePosition() {
 
 				// WID: Commenting this allows to jump again after having done a jump + crouch.
 				// really weird.
-				//if ( /*pm_config.n64_physics ||*/ ( pm->s.pm_flags & PMF_DUCKED ) ) {
-				//	pm->s.pm_flags |= PMF_TIME_LAND;
-				//	pm->s.pm_time = 128;
-				//}
+				if ( /*pm_config.n64_physics ||*/ ( pm->s.pm_flags & PMF_DUCKED ) ) {
+					pm->s.pm_flags |= PMF_TIME_LAND;
+					pm->s.pm_time = 128;
+				}
 			}
 		}
 
@@ -730,19 +730,22 @@ void PM_CheckJump() {
 	}
 
 	// must wait for jump to be released
-	if ( pm->s.pm_flags & PMF_JUMP_HELD )
+	if ( pm->s.pm_flags & PMF_JUMP_HELD ) {
 		return;
+	}
 
-	if ( pm->s.pm_type == PM_DEAD )
+	if ( pm->s.pm_type == PM_DEAD ) {
 		return;
+	}
 
 	if ( pm->waterlevel >= water_level_t::WATER_WAIST ) { // swimming, not jumping
 		pm->groundentity = nullptr;
 		return;
 	}
 
-	if ( pm->groundentity == nullptr )
+	if ( pm->groundentity == nullptr ) {
 		return; // in air, so no effect
+	}
 
 	pm->s.pm_flags |= PMF_JUMP_HELD;
 	pm->jump_sound = true;
@@ -821,8 +824,9 @@ void PM_CheckSpecialMovement() {
 	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, blockTraceEnd, MASK_SOLID );
 
 	// we aren't blocked, or what we're blocked by is something we can walk up
-	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= MIN_STEP_NORMAL )
+	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= MIN_STEP_NORMAL ) {
 		return;
+	}
 
 	// [Paril-KEX] improved waterjump
 	//vec3_t waterjump_vel = flatforward * 50;
@@ -856,9 +860,9 @@ void PM_CheckSpecialMovement() {
 	//trace = PM_Trace( waterjump_origin, pm->mins, pm->maxs, waterjump_origin - vec3_t{ 0, 0, 2.f }, MASK_SOLID );
 
 	// can't stand here
-	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] < MIN_STEP_NORMAL ||
-		trace.endpos[ 2 ]< pml.origin[ 2 ] )
+	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] < MIN_STEP_NORMAL || trace.endpos[ 2 ] < pml.origin[ 2 ] ) {
 		return;
+	}
 
 	// we're currently standing on ground, and the snapped position
 	// is a step
@@ -1333,11 +1337,18 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	if ( pm->s.pm_time ) {
 		int32_t msec = pm->cmd.msec; //int msec = pm->cmd.msec >> 3;
 		//if ( !msec ) {
-		//	msec = 0; // msec = 1;
+		////	msec = 0; // msec = 1;
+		//	msec = 1;
 		//}
 
 		if ( msec >= pm->s.pm_time ) {
-			//pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
+			//if ( /*pm_config.n64_physics ||*/ ( pm->s.pm_flags & PMF_DUCKED ) ) {
+			//	pm->s.pm_flags |= PMF_TIME_LAND;
+			//	pm->s.pm_time = 128;
+			//}
+			// Somehow need this, Q2RE does not. If we don't do so, the code piece in this comment that resides above in PM_CategorizePosition
+			// causes us to remain unable to jump.
+			pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
 			pm->s.pm_time = 0;
 		} else {
 			pm->s.pm_time -= msec;
@@ -1386,7 +1397,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 	// trick jump
 	if ( pm->s.pm_flags & PMF_TIME_TRICK_JUMP ) {
-		PM_CheckJump();
+ 		PM_CheckJump();
 	}
 
 	// [Paril-KEX]

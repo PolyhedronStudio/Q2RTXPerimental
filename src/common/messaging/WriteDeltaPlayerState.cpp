@@ -179,14 +179,17 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		MSG_WriteFloat( to->pmove.velocity[ 2 ] ); //MSG_WriteInt16( to->pmove.velocity[ 2 ] ); // WID: float-movement
 	}
 
-	if ( pflags & PS_M_TIME )
+	if ( pflags & PS_M_TIME ) {
 		MSG_WriteUint16( to->pmove.pm_time );
+	}
 
-	if ( pflags & PS_M_FLAGS )
+	if ( pflags & PS_M_FLAGS ) {
 		MSG_WriteUintBase128( to->pmove.pm_flags );
+	}
 
-	if ( pflags & PS_M_GRAVITY )
+	if ( pflags & PS_M_GRAVITY ) {
 		MSG_WriteInt16( to->pmove.gravity );
+	}
 
 	if ( pflags & PS_M_DELTA_ANGLES ) {
 		//MSG_WriteHalfFloat( to->pmove.delta_angles[ 0 ] );

@@ -503,7 +503,7 @@ typedef struct {
 
     vec3_t		origin;
     vec3_t		velocity;
-    byte        pm_flags;		// Ducked, jump_held, etc
+    uint16_t    pm_flags;		// Ducked, jump_held, etc
 	uint16_t	pm_time;		// Each unit = 8 ms
     short       gravity;
     vec3_t      delta_angles;	// Add to command angles to get view direction
