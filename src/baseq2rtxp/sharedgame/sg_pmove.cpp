@@ -17,6 +17,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "shared/shared.h"
+
+#include "sg_shared.h"
 #include "sg_pmove.h"
 #include "sg_pmove_slidemove.h"
 
@@ -70,7 +72,6 @@ static constexpr float pm_friction = 6.f;
 static constexpr float pm_waterfriction = 1.f;
 static constexpr float pm_waterspeed = 400.f;
 static constexpr float pm_laddermod = 0.5f;
-
 
 
 /**
@@ -297,11 +298,13 @@ void PM_AddCurrents( vec3_t &wishvel ) {
 			float ladder_speed = std::clamp( (float)pm->cmd.forwardmove, -200.f, 200.f );
 
 			if ( pm->cmd.forwardmove > 0 ) {
-				if ( pm->viewangles[ PITCH ] < 15 ) {
+				if ( pm->viewangles[ PITCH ] >= 271 && pm->viewangles[ PITCH ] < 345 ) {
 					wishvel[ 2 ] = ladder_speed;
-				} else {
+				} else if ( pm->viewangles[ PITCH ] < 271 && pm->viewangles[ PITCH ] >= 15 ) {
 					wishvel[ 2 ] = -ladder_speed;
 				}
+
+				//SG_DPrintf( "pm->cmd.forwardmove=%f, viewangles[PITCH]=(%f), wishvel(%f, %f, %f)\n", pm->cmd.forwardmove, pm->viewangles[ PITCH ], wishvel[0], wishvel[1], wishvel[2] );
 			}
 			// [Paril-KEX] allow using "back" arrow to go down on ladder
 			else if ( pm->cmd.forwardmove < 0 ) {
@@ -312,6 +315,8 @@ void PM_AddCurrents( vec3_t &wishvel ) {
 				}
 
 				wishvel[ 2 ] = ladder_speed;
+
+				//SG_DPrintf( "pm->cmd.forwardmove=%f, viewangles[PITCH]=(%f), wishvel(%f, %f, %f)\n", pm->cmd.forwardmove, pm->viewangles[ PITCH ], wishvel[ 0 ], wishvel[ 1 ], wishvel[ 2 ] );
 			}
 		} else {
 			wishvel[ 2 ] = 0;
@@ -443,66 +448,6 @@ void PM_AddCurrents( vec3_t &wishvel ) {
 	}
 }
 
-/*
-===================
-PM_WaterMove
-
-===================
-*/
-void PM_WaterMove() {
-	int	   i;
-	vec3_t wishvel;
-	float  wishspeed;
-	vec3_t wishdir;
-
-	//
-	// user intentions
-	//
-	for ( i = 0; i < 3; i++ )
-		wishvel[ i ] = pml.forward[ i ] * pm->cmd.forwardmove + pml.right[ i ] * pm->cmd.sidemove;
-
-	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove &&
-		!( pm->cmd.buttons & ( BUTTON_JUMP | BUTTON_CROUCH ) ) ) {
-		if ( !pm->groundentity ) {
-			wishvel[ 2 ] -= 60; // drift towards bottom
-		}
-	} else {
-		if ( pm->cmd.buttons & BUTTON_CROUCH ) {
-			wishvel[ 2 ] -= pm_waterspeed * 0.5f;
-		} else if ( pm->cmd.buttons & BUTTON_JUMP ) {
-			wishvel[ 2 ] += pm_waterspeed * 0.5f;
-		}
-	}
-
-	PM_AddCurrents( wishvel );
-
-	//vec3_t wishdir = { wishvel[ 0 ], wishvel[ 1 ], wishvel[ 2 ] }; // wishdir = wishvel
-	wishdir[ 0 ] = wishvel[ 0 ];
-	wishdir[ 1 ] = wishvel[ 1 ];
-	wishdir[ 2 ] = wishvel[ 2 ];
-	wishspeed = VectorNormalize( wishdir ); // wishspeed = wishdir.normalize();
-
-	if ( wishspeed > pm_maxspeed ) {
-		//wishvel *= pm_maxspeed / wishspeed;
-		wishvel[ 0 ] *= pm_maxspeed / wishspeed;
-		wishvel[ 1 ] *= pm_maxspeed / wishspeed;
-		wishvel[ 2 ] *= pm_maxspeed / wishspeed;
-		wishspeed = pm_maxspeed;
-	}
-	wishspeed *= 0.5f;
-
-	if ( ( pm->s.pm_flags & PMF_DUCKED ) && wishspeed > pm_duckspeed ) {
-		//wishvel *= pm_duckspeed / wishspeed;
-		wishvel[ 0 ] *= pm_duckspeed / wishspeed;
-		wishvel[ 1 ] *= pm_duckspeed / wishspeed;
-		wishvel[ 2 ] *= pm_duckspeed / wishspeed;
-		wishspeed = pm_duckspeed;
-	}
-
-	PM_Accelerate( wishdir, wishspeed, pm_wateraccelerate );
-
-	PM_StepSlideMove();
-}
 
 /*
 ===================
@@ -589,6 +534,68 @@ void PM_AirMove() {
 		PM_StepSlideMove();
 	}
 }
+
+/*
+===================
+PM_WaterMove
+
+===================
+*/
+void PM_WaterMove() {
+	int	   i;
+	vec3_t wishvel;
+	float  wishspeed;
+	vec3_t wishdir;
+
+	//
+	// user intentions
+	//
+	for ( i = 0; i < 3; i++ )
+		wishvel[ i ] = pml.forward[ i ] * pm->cmd.forwardmove + pml.right[ i ] * pm->cmd.sidemove;
+
+	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove &&
+		!( pm->cmd.buttons & ( BUTTON_JUMP | BUTTON_CROUCH ) ) ) {
+		if ( !pm->groundentity ) {
+			wishvel[ 2 ] -= 60; // drift towards bottom
+		}
+	} else {
+		if ( pm->cmd.buttons & BUTTON_CROUCH ) {
+			wishvel[ 2 ] -= pm_waterspeed * 0.5f;
+		} else if ( pm->cmd.buttons & BUTTON_JUMP ) {
+			wishvel[ 2 ] += pm_waterspeed * 0.5f;
+		}
+	}
+
+	PM_AddCurrents( wishvel );
+
+	//vec3_t wishdir = { wishvel[ 0 ], wishvel[ 1 ], wishvel[ 2 ] }; // wishdir = wishvel
+	wishdir[ 0 ] = wishvel[ 0 ];
+	wishdir[ 1 ] = wishvel[ 1 ];
+	wishdir[ 2 ] = wishvel[ 2 ];
+	wishspeed = VectorNormalize( wishdir ); // wishspeed = wishdir.normalize();
+
+	if ( wishspeed > pm_maxspeed ) {
+		//wishvel *= pm_maxspeed / wishspeed;
+		wishvel[ 0 ] *= pm_maxspeed / wishspeed;
+		wishvel[ 1 ] *= pm_maxspeed / wishspeed;
+		wishvel[ 2 ] *= pm_maxspeed / wishspeed;
+		wishspeed = pm_maxspeed;
+	}
+	wishspeed *= 0.5f;
+
+	if ( ( pm->s.pm_flags & PMF_DUCKED ) && wishspeed > pm_duckspeed ) {
+		//wishvel *= pm_duckspeed / wishspeed;
+		wishvel[ 0 ] *= pm_duckspeed / wishspeed;
+		wishvel[ 1 ] *= pm_duckspeed / wishspeed;
+		wishvel[ 2 ] *= pm_duckspeed / wishspeed;
+		wishspeed = pm_duckspeed;
+	}
+
+	PM_Accelerate( wishdir, wishspeed, pm_wateraccelerate );
+
+	PM_StepSlideMove();
+}
+
 
 inline void PM_GetWaterLevel( const vec3_t &position, water_level_t &level, int32_t &type ) {
 	//
@@ -1198,15 +1205,15 @@ PM_ClampAngles
 */
 static void PM_ClampAngles() {
 	if ( pm->s.pm_flags & PMF_TIME_TELEPORT ) {
-		pm->viewangles[ YAW ] = pm->cmd.angles[ YAW ] + pm->s.delta_angles[ YAW ];
+		pm->viewangles[ YAW ] = AngleMod( pm->cmd.angles[ YAW ] + pm->s.delta_angles[ YAW ] );
 		pm->viewangles[ PITCH ] = 0;
 		pm->viewangles[ ROLL ] = 0;
 	} else {
 		// circularly clamp the angles with deltas
 		//pm->viewangles = pm->cmd.angles + pm->s.delta_angles;
-		pm->viewangles[ 0 ] = pm->cmd.angles[ 0 ] + pm->s.delta_angles[ 0 ];
-		pm->viewangles[ 1 ] = pm->cmd.angles[ 1 ] + pm->s.delta_angles[ 1 ];
-		pm->viewangles[ 2 ] = pm->cmd.angles[ 2 ] + pm->s.delta_angles[ 2 ];
+		pm->viewangles[ 0 ] = AngleMod( pm->cmd.angles[ 0 ] + pm->s.delta_angles[ 0 ] );
+		pm->viewangles[ 1 ] = AngleMod( pm->cmd.angles[ 1 ] + pm->s.delta_angles[ 1 ] );
+		pm->viewangles[ 2 ] = AngleMod( pm->cmd.angles[ 2 ] + pm->s.delta_angles[ 2 ] );
 
 		// don't let the player look up or down more than 90 degrees
 		if ( pm->viewangles[ PITCH ] > 89 && pm->viewangles[ PITCH ] < 180 )
@@ -1214,6 +1221,11 @@ static void PM_ClampAngles() {
 		else if ( pm->viewangles[ PITCH ] < 271 && pm->viewangles[ PITCH ] >= 180 )
 			pm->viewangles[ PITCH ] = 271;
 	}
+	#if 0
+	// DEBUG:
+	//SG_DPrintf( "pm->cmd.forwardmove=%f, viewangles[PITCH]=(%f), viewangles[YAW]=(%f), viewangles[ROLL]=(%f)\n", pm->cmd.forwardmove, pm->viewangles[ PITCH ], pm->viewangles[ YAW ], pm->viewangles[ ROLL ] );
+	// EOF DEBUG:
+	#endif
 	AngleVectors( pm->viewangles, pml.forward, pml.right, pml.up );
 }
 
