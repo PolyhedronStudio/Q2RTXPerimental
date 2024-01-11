@@ -767,6 +767,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod);
 
 // damage flags
+#define DAMAGE_NONE             0x00000000
 #define DAMAGE_RADIUS           0x00000001  // damage was indirect
 #define DAMAGE_NO_ARMOR         0x00000002  // armour does not protect from this damage
 #define DAMAGE_ENERGY           0x00000004  // damage is from an energy based weapon
@@ -904,7 +905,7 @@ void DeathmatchScoreboardMessage(edict_t *client, edict_t *killer);
 //
 // g_pweapon.c
 //
-void PlayerNoise(edict_t *who, vec3_t where, int type);
+void PlayerNoise(edict_t *who, const vec3_t where, int type);
 
 //
 // m_move.c
@@ -980,6 +981,7 @@ typedef struct {
     int         helpchanged;
 
     bool        spectator;      // client is a spectator
+    bool        spawned;        // Stores whether spawned or not. A loadgame will leave valid entities that just don't have a connection yet.
 } client_persistant_t;
 
 // client data that stays across deathmatch respawns
@@ -1078,7 +1080,7 @@ struct gclient_s {
     float       bonus_alpha;
     vec3_t      damage_blend;
     vec3_t      v_angle, v_forward; // aiming direction
-    float       bobtime;            // so off-ground doesn't change it
+    float       bobtime;            // Store it, so we know where we're at (To Prevent off-ground from changing it).
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
     edict_t     *oldgroundentity; // [Paril-KEX]

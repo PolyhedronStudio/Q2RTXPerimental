@@ -69,7 +69,7 @@ Monsters that don't directly see the player can move
 to a noise in hopes of seeing the player from there.
 ===============
 */
-void PlayerNoise(edict_t *who, vec3_t where, int type)
+void PlayerNoise(edict_t *who, const vec3_t where, int type)
 {
     edict_t     *noise;
 

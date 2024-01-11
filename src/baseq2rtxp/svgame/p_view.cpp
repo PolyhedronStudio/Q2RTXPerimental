@@ -28,7 +28,7 @@ static  vec3_t  forward, right, up;
 float   xyspeed;
 
 float   bobmove;
-int     bobcycle;       // odd cycles are right foot going forward
+int64_t bobcycle, bobcycle_run;       // odd cycles are right foot going forward
 float   bobfracsin;     // sin(bobfrac*M_PI)
 
 
@@ -564,76 +564,6 @@ void SV_CalcBlend( edict_t *ent ) {
 		ent->client->bonus_alpha = 0;
 }
 
-
-/*
-=================
-P_FallingDamage
-=================
-*/
-void P_FallingDamage( edict_t *ent ) {
-	float   delta;
-	int     damage;
-	vec3_t  dir;
-
-	if ( ent->s.modelindex != 255 )
-		return;     // not in the player model
-
-	if ( ent->movetype == MOVETYPE_NOCLIP )
-		return;
-
-	if ( ( ent->client->oldvelocity[ 2 ] < 0 ) && ( ent->velocity[ 2 ] > ent->client->oldvelocity[ 2 ] ) && ( !ent->groundentity ) ) {
-		delta = ent->client->oldvelocity[ 2 ];
-	} else {
-		if ( !ent->groundentity )
-			return;
-		delta = ent->velocity[ 2 ] - ent->client->oldvelocity[ 2 ];
-	}
-	delta = delta * delta * 0.0001f;
-
-	// never take falling damage if completely underwater
-	if ( ent->waterlevel == 3 )
-		return;
-	if ( ent->waterlevel == 2 )
-		delta *= 0.25f;
-	if ( ent->waterlevel == 1 )
-		delta *= 0.5f;
-
-	if ( delta < 1 )
-		return;
-
-	if ( delta < 15 ) {
-		ent->s.event = EV_FOOTSTEP;
-		return;
-	}
-
-	ent->client->fall_value = delta * 0.5f;
-	if ( ent->client->fall_value > 40 )
-		ent->client->fall_value = 40;
-	ent->client->fall_time = level.time + FALL_TIME( );
-
-	if ( delta > 30 ) {
-		if ( ent->health > 0 ) {
-			if ( delta >= 55 )
-				ent->s.event = EV_FALLFAR;
-			else
-				ent->s.event = EV_FALL;
-		}
-		ent->pain_debounce_time = level.time;   // no normal pain sound
-		damage = ( delta - 30 ) / 2;
-		if ( damage < 1 )
-			damage = 1;
-		VectorSet( dir, 0, 0, 1 );
-
-		if ( !deathmatch->value || !( (int)dmflags->value & DF_NO_FALLING ) )
-			T_Damage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, 0, MOD_FALLING );
-	} else {
-		ent->s.event = EV_FALLSHORT;
-		return;
-	}
-}
-
-
-
 /*
 =============
 P_WorldEffects
@@ -839,8 +769,21 @@ void G_SetClientEvent( edict_t *ent ) {
 	if ( ent->s.event )
 		return;
 
-	if ( ent->groundentity && xyspeed > 225 ) {
-		if ( (int)( current_client->bobtime + bobmove ) != bobcycle )
+	//if ( ent->groundentity && xyspeed > 225 ) {
+	//	if ( (int)( current_client->bobtime + bobmove ) != bobcycle )
+	//		ent->s.event = EV_FOOTSTEP;
+	//}
+
+/*	if ( ent->client->ps.pmove.pm_flags & PMF_ON_LADDER ) {
+		if ( !deathmatch->integer &&
+			current_client->last_ladder_sound < level.time &&
+			( current_client->last_ladder_pos - ent->s.origin ).length() > 48.f ) {
+			ent->s.event = EV_LADDER_STEP;
+			current_client->last_ladder_pos = ent->s.origin;
+			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
+		}
+	} else */if ( ent->groundentity && xyspeed > 225 ) {
+		if ( (int)( current_client->bobtime + bobmove ) != bobcycle_run )
 			ent->s.event = EV_FOOTSTEP;
 	}
 }
@@ -995,8 +938,12 @@ and right after spawning
 =================
 */
 void ClientEndServerFrame( edict_t *ent ) {
-	float   bobtime;
 	int     i;
+
+	// no player exists yet (load game)
+	if ( !ent->client->pers.spawned ) {
+		return;
+	}
 
 	current_player = ent;
 	current_client = ent->client;
@@ -1060,26 +1007,27 @@ void ClientEndServerFrame( edict_t *ent ) {
 		//	bobmove = 0.125f;
 		//else
 		//	bobmove = 0.0625f;
-		if ( xyspeed > 210 )
+		if ( xyspeed > 210 ) {
 			bobmove = gi.frame_time_ms / 400.f;
-		else if ( xyspeed > 100 )
+		} else if ( xyspeed > 100 ) {
 			bobmove = gi.frame_time_ms / 800.f;
-		else
+		} else {
 			bobmove = gi.frame_time_ms / 1600.f;
+		}
 	} else {
 		bobmove = 0;
 	}
 
-	bobtime = ( current_client->bobtime += bobmove );
+	float bobtime = ( current_client->bobtime += bobmove );
+	const float bobtime_run = bobtime;
 
-	if ( current_client->ps.pmove.pm_flags & PMF_DUCKED )
+	if ( ( current_client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity ) {
 		bobtime *= 4;
+	}
 
 	bobcycle = (int)bobtime;
+	bobcycle_run = (int)bobtime_run;
 	bobfracsin = fabs( sin( bobtime * M_PI ) );
-
-	// detect hitting the floor
-	P_FallingDamage( ent );
 
 	// apply all the damage taken this frame
 	P_DamageFeedback( ent );

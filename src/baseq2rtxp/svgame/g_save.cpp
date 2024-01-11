@@ -1101,6 +1101,7 @@ void ReadLevel(const char *filename)
         ent = &g_edicts[i + 1];
         ent->client = game.clients + i;
         ent->client->pers.connected = false;
+        ent->client->pers.spawned = false;
     }
 
     // do any load time things at this point

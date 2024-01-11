@@ -1307,6 +1307,8 @@ void ClientBegin(edict_t *ent)
         return;
     }
 
+    ent->client->pers.spawned = true;
+
     // if there is already a body waiting for us (a loadgame), just
     // take it, otherwise spawn one from scratch
     if (ent->inuse == true) {
@@ -1519,6 +1521,7 @@ void ClientDisconnect(edict_t *ent)
     ent->solid = SOLID_NOT;
     ent->inuse = false;
     ent->classname = "disconnected";
+    ent->client->pers.spawned = false;
     ent->client->pers.connected = false;
 
     // FIXME: don't break skins on corpses, etc
@@ -1544,6 +1547,106 @@ static trace_t q_gameabi SV_PM_trace(const vec3_t start, const vec3_t mins, cons
 **/
 static trace_t q_gameabi SV_PM_clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int32_t contentMask ) {
     return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
+}
+
+/*
+=================
+P_FallingDamage
+
+Paril-KEX: this is moved here and now reacts directly
+to ClientThink rather than being delayed.
+=================
+*/
+void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
+    int	   damage;
+    vec3_t dir;
+
+    // dead stuff can't crater
+    if ( ent->health <= 0 || ent->deadflag ) {
+        return;
+    }
+
+    if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
+        return; // not in the player model
+    }
+
+    if ( ent->movetype == MOVETYPE_NOCLIP ) {
+        return;
+    }
+
+    // never take falling damage if completely underwater
+    if ( pm.waterlevel == WATER_UNDER ) {
+        return;
+    }
+
+    // ZOID
+    //  never take damage if just release grapple or on grapple
+    //if ( ent->client->ctf_grapplereleasetime >= level.time ||
+    //    ( ent->client->ctf_grapple &&
+    //        ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY ) )
+    //    return;
+    // ZOID
+
+    float delta = pm.impact_delta;
+
+    delta = delta * delta * 0.0001f;
+
+    if ( pm.waterlevel == WATER_WAIST ) {
+        delta *= 0.25f;
+    }
+    if ( pm.waterlevel == WATER_FEET ) {
+        delta *= 0.5f;
+    }
+
+    if ( delta < 1 )
+        return;
+
+    // restart footstep timer
+    ent->client->bobtime = 0;
+
+    //if ( ent->client->landmark_free_fall ) {
+    //    delta = min( 30.f, delta );
+    //    ent->client->landmark_free_fall = false;
+    //    ent->client->landmark_noise_time = level.time + 100_ms;
+    //}
+
+    if ( delta < 15 ) {
+        if ( !( pm.s.pm_flags & PMF_ON_LADDER ) ) {
+            ent->s.event = EV_FOOTSTEP;
+        }
+        return;
+    }
+
+    ent->client->fall_value = delta * 0.5f;
+    if ( ent->client->fall_value > 40 ) {
+        ent->client->fall_value = 40;
+    }
+    ent->client->fall_time = level.time + FALL_TIME();
+
+    if ( delta > 30 ) {
+        if ( delta >= 55 ) {
+            ent->s.event = EV_FALLFAR;
+        } else {
+            ent->s.event = EV_FALL;
+        }
+
+        ent->pain_debounce_time = level.time + FRAME_TIME_S; // no normal pain sound
+        damage = (int)( ( delta - 30 ) / 2 );
+        if ( damage < 1 ) {
+            damage = 1;
+        }
+        VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
+
+        if ( !deathmatch->integer /*|| !g_dm_no_fall_damage->integer*/ ) {
+            T_Damage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING );
+        }
+    } else {
+        ent->s.event = EV_FALLSHORT;
+    }
+
+    // Paril: falling damage noises alert monsters
+    if ( ent->health )
+        PlayerNoise( ent, pm.s.origin, PNOISE_SELF);
 }
 
 /*
@@ -1617,12 +1720,14 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		// Setup user commands and function pointers.
         pm.cmd = *ucmd;
         pm.player = ent;
-        pm.trace = SV_PM_trace;    // adds default parms
+        pm.trace = SV_PM_trace;
         pm.pointcontents = gi.pointcontents;
         pm.clip = SV_PM_clip;
         VectorCopy( ent->client->ps.viewoffset, pm.viewoffset );
+
         // Perform a PMove.
         SG_PlayerMove( &pm, &pmp );
+
         // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those.
         if ( pm.groundentity && ent->groundentity ) {
             float stepsize = fabs( ent->s.origin[ 2 ] - pm.s.origin[ 2 ] );
@@ -1633,19 +1738,46 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             }
         }
 
+        // Apply falling damage directly.
+        P_FallingDamage( ent, pm );
+
+        //if ( ent->client->landmark_free_fall && pm.groundentity ) {
+        //    ent->client->landmark_free_fall = false;
+        //    ent->client->landmark_noise_time = level.time + 100_ms;
+        //}
+
+        //// [Paril-KEX] save old position for G_TouchProjectiles
+        //vec3_t old_origin = ent->s.origin;
+        
+        // [Paril-KEX] if we stepped onto/off of a ladder, reset the
+        // last ladder pos
+        //if ( ( pm.s.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
+        //    client->last_ladder_pos = ent->s.origin;
+
+        //    if ( pm.s.pm_flags & PMF_ON_LADDER ) {
+        //        if ( !deathmatch->integer &&
+        //            client->last_ladder_sound < level.time ) {
+        //            ent->s.event = EV_LADDER_STEP;
+        //            client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
+        //        }
+        //    }
+        //}
+
 		// Copy back into the entity, both the resulting origin and velocity.
 		VectorCopy( pm.s.origin, ent->s.origin );
 		VectorCopy( pm.s.velocity, ent->velocity );
+
 		// Copy back in bounding box results. (Player might've crouched for example.)
         VectorCopy( pm.mins, ent->mins );
         VectorCopy( pm.maxs, ent->maxs );
-
-		// Backup the command angles given from ast command.
-		VectorCopy( ucmd->angles, client->resp.cmd_angles );
         
         // Save into the client pointer, the resulting move states pmove
         client->ps.pmove = pm.s;
         client->old_pmove = pm.s;
+
+		// Backup the command angles given from ast command.
+		VectorCopy( ucmd->angles, client->resp.cmd_angles );
+
 
         if ( pm.jump_sound && !( pm.s.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.waterlevel == 0) {
             gi.sound( ent, CHAN_VOICE, gi.soundindex( "*jump1.wav" ), 1, ATTN_NORM, 0 );
