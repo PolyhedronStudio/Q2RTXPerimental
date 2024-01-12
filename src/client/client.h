@@ -207,16 +207,20 @@ typedef struct client_state_s {
 	client_predicted_state_t predictedState;
     /////////////////////////////
     // TODO: Move to predictedState?
-    //! Current viewheight from client Pmove().
-    int8_t  current_viewheight;
-    //! Viewheight before last change.
-    int8_t  prev_viewheight;
-    //! Time when a viewheight change was detected.
-    int64_t viewheight_change_time;
-    //! :ast groundentity reported by pmove.
-    edict_t     *last_groundentity;
-    //! last groundplane reported by pmove.
-    cplane_t    last_groundplane;
+    struct {
+        //! Current viewheight from client Pmove().
+        int8_t  current;
+        //! Viewheight before last change.
+        int8_t  previous;
+        //! Time when a viewheight change was detected.
+        int64_t change_time;
+        //! :ast groundentity reported by pmove.
+    } viewheight;
+    struct {
+        centity_t *entity;
+        //! last groundplane reported by pmove.
+        cplane_t plane;
+    } lastGround;
     /////////////////////////////
 
     // Rebuilt each valid frame:

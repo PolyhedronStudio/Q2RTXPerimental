@@ -261,15 +261,15 @@ static void set_active_state(void)
         // Copy predicted rdflags.
         cl.predictedState.rdflags = cl.frame.ps.rdflags;
         // Copy current viewheight into prev and current viewheights.
-        cl.current_viewheight = cl.prev_viewheight = cl.frame.ps.pmove.viewheight;
+        cl.viewheight.current = cl.viewheight.previous = cl.frame.ps.pmove.viewheight;
     }
 
     // Reset local time of viewheight changes.
-    cl.viewheight_change_time = 0;
+    cl.viewheight.change_time = 0;
 
     // Reset ground information.
-    cl.last_groundentity = NULL;
-    cl.last_groundplane = { };
+    cl.lastGround.entity = nullptr;
+    cl.lastGround.plane = { };
 
     SCR_EndLoadingPlaque();     // get rid of loading plaque
     SCR_LagClear();
@@ -1293,6 +1293,7 @@ void CL_CalcViewValues(void)
 {
     // TODO: Move elsewhere
     static constexpr int32_t STEP_TIME = 100;
+    static constexpr float STEP_BASE_1_FRAMETIME = 0.01f;
 
     player_state_t *ps, *ops;
     vec3_t viewoffset;
@@ -1395,9 +1396,9 @@ void CL_CalcViewValues(void)
     LerpVector(ops->viewoffset, ps->viewoffset, lerp, viewoffset);
 
     // Smooth out view height over 100ms
-    float viewheight_lerp = ( cl.time - cl.viewheight_change_time );
+    float viewheight_lerp = ( cl.time - cl.viewheight.change_time );
     viewheight_lerp = STEP_TIME - min( viewheight_lerp, STEP_TIME );
-    float predicted_viewheight = cl.current_viewheight + (float)( cl.prev_viewheight - cl.current_viewheight ) * viewheight_lerp * 0.01f;
+    float predicted_viewheight = cl.viewheight.current + (float)( cl.viewheight.previous - cl.viewheight.current ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
     viewoffset[ 2 ] += predicted_viewheight;
 
     AngleVectors(cl.refdef.viewangles, cl.v_forward, cl.v_right, cl.v_up);

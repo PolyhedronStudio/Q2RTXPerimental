@@ -266,8 +266,8 @@ void CL_PredictMovement(void) {
     const bool step_detected = ( fabsStep > STEP_MIN_HEIGHT && fabsStep < STEP_MAX_HEIGHT ) // Absolute change is in this limited range
                 && ( ( cl.frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // And we started off on the ground
                 && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground
-                && ( memcmp( &cl.last_groundplane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
-                || cl.last_groundentity != pm.groundentity ); // we stand on another plane or entity
+                && ( memcmp( &cl.lastGround.plane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
+                || cl.lastGround.entity != (centity_t*)pm.groundentity ); // we stand on another plane or entity
 
     // Code below adapted from Q3A.
     if ( step_detected ) {
@@ -295,17 +295,17 @@ void CL_PredictMovement(void) {
     cl.predictedState.rdflags = pm.rdflags;
 
     // Record viewheight changes.
-    if ( cl.current_viewheight != pm.s.viewheight ) {
+    if ( cl.viewheight.current != pm.s.viewheight ) {
         // Backup the old 'current' viewheight.
-        cl.prev_viewheight = cl.current_viewheight;
+        cl.viewheight.previous = cl.viewheight.current;
         // Apply new viewheight.
-        cl.current_viewheight = pm.s.viewheight;
+        cl.viewheight.current = pm.s.viewheight;
         // Register client's time of viewheight change.
-        cl.viewheight_change_time = cl.time;
+        cl.viewheight.change_time = cl.time;
     }
 
     // Store resulting ground data.
-    cl.last_groundplane = pm.groundplane;
-    cl.last_groundentity = pm.groundentity;
+    cl.lastGround.plane = pm.groundplane;
+    cl.lastGround.entity = (centity_t *)pm.groundentity;
 }
 
