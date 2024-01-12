@@ -257,7 +257,7 @@ static void set_active_state(void)
         }
 
         // Copy predicted screen blend, renderflags and viewheight.
-        Vector4Copy( cl.frame.ps.blend, cl.predictedState.screen_blend );
+        Vector4Copy( cl.frame.ps.screen_blend, cl.predictedState.screen_blend );
         // Copy predicted rdflags.
         cl.predictedState.rdflags = cl.frame.ps.rdflags;
         // Copy current viewheight into prev and current viewheights.
@@ -1291,6 +1291,7 @@ loop if rendering is disabled but sound is running.
 */
 void CL_CalcViewValues(void)
 {
+    // TODO: Move elsewhere
     static constexpr int32_t STEP_TIME = 100;
 
     player_state_t *ps, *ops;
@@ -1367,24 +1368,24 @@ void CL_CalcViewValues(void)
 //#endif
 
     //// interpolate blend colors if the last frame wasn't clear
-    //float blendfrac = ops->screen_blend[ 3 ] ? cl.lerpfrac : 1;
+    float blendfrac = ops->screen_blend[ 3 ] ? cl.lerpfrac : 1;
     //float damageblendfrac = ops->damage_blend[ 3 ] ? cl.lerpfrac : 1;
 
-    //Vector4Lerp( ops->screen_blend, ps->screen_blend, blendfrac, cl.refdef.screen_blend );
+    Vector4Lerp( ops->screen_blend, ps->screen_blend, blendfrac, cl.refdef.screen_blend );
     //Vector4Lerp( ops->damage_blend, ps->damage_blend, damageblendfrac, cl.refdef.damage_blend );
 
     // don't interpolate blend color
-    Vector4Copy(ps->blend, cl.refdef.blend);
+    //Vector4Copy(ps->blend, cl.refdef.screen_blend);
 
     // Mix in screen_blend from cgame pmove
     // FIXME: Should also be interpolated?...
-    //if ( cl.predictedState.screen_blend[ 3 ] > 0 ) {
-    //    float a2 = cl.refdef.screen_blend[ 3 ] + ( 1 - cl.refdef.screen_blend[ 3 ] ) * cl.predicted_screen_blend[ 3 ]; // new total alpha
-    //    float a3 = cl.refdef.screen_blend[ 3 ] / a2;					// fraction of color from old
+    if ( cl.predictedState.screen_blend[ 3 ] > 0 ) {
+        float a2 = cl.refdef.screen_blend[ 3 ] + ( 1 - cl.refdef.screen_blend[ 3 ] ) * cl.predictedState.screen_blend[ 3 ]; // new total alpha
+        float a3 = cl.refdef.screen_blend[ 3 ] / a2;					// fraction of color from old
 
-    //    LerpVector( cl.predictedState.screen_blend, cl.refdef.screen_blend, a3, cl.refdef.screen_blend );
-    //    cl.refdef.screen_blend[ 3 ] = a2;
-    //}
+        LerpVector( cl.predictedState.screen_blend, cl.refdef.screen_blend, a3, cl.refdef.screen_blend );
+        cl.refdef.screen_blend[ 3 ] = a2;
+    }
 
 
     // interpolate field of view

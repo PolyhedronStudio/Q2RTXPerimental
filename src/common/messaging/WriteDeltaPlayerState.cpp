@@ -58,10 +58,10 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 	// WID: 40hz.
 	out->gunrate = ( in->gunrate == 10 ) ? 0 : in->gunrate;
 	// WID: 40hz.
-	out->blend[ 0 ] = BLEND2BYTE( in->blend[ 0 ] );
-	out->blend[ 1 ] = BLEND2BYTE( in->blend[ 1 ] );
-	out->blend[ 2 ] = BLEND2BYTE( in->blend[ 2 ] );
-	out->blend[ 3 ] = BLEND2BYTE( in->blend[ 3 ] );
+	out->screen_blend[ 0 ] = BLEND2BYTE( in->screen_blend[ 0 ] );
+	out->screen_blend[ 1 ] = BLEND2BYTE( in->screen_blend[ 1 ] );
+	out->screen_blend[ 2 ] = BLEND2BYTE( in->screen_blend[ 2 ] );
+	out->screen_blend[ 3 ] = BLEND2BYTE( in->screen_blend[ 3 ] );
 	out->fov = (int)in->fov;
 	out->rdflags = in->rdflags;
 	for ( i = 0; i < MAX_STATS; i++ )
@@ -130,7 +130,7 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		pflags |= PS_KICKANGLES;
 	}
 
-	if ( !Vector4Compare( to->blend, from->blend ) ) {
+	if ( !Vector4Compare( to->screen_blend, from->screen_blend ) ) {
 		pflags |= PS_BLEND;
 	}
 
@@ -243,14 +243,15 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	}
 
 	if ( pflags & PS_BLEND ) {
-		MSG_WriteUint8( to->blend[ 0 ] );
-		MSG_WriteUint8( to->blend[ 1 ] );
-		MSG_WriteUint8( to->blend[ 2 ] );
-		MSG_WriteUint8( to->blend[ 3 ] );
+		MSG_WriteUint8( to->screen_blend[ 0 ] );
+		MSG_WriteUint8( to->screen_blend[ 1 ] );
+		MSG_WriteUint8( to->screen_blend[ 2 ] );
+		MSG_WriteUint8( to->screen_blend[ 3 ] );
 	}
 
-	if ( pflags & PS_FOV )
+	if ( pflags & PS_FOV ) {
 		MSG_WriteUint8( to->fov );
+	}
 
 	if ( pflags & PS_RDFLAGS )
 		MSG_WriteUintBase128( to->rdflags );

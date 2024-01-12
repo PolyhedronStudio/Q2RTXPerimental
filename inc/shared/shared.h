@@ -1280,7 +1280,8 @@ typedef struct {
 	int32_t gunrate;
 // WID: 40hz.
 
-    float blend[4];       // rgba full screen effect
+    //float damage_blend[ 4 ];       // rgba full screen effect
+    float screen_blend[4];       // rgba full screen effect
     float fov;            // horizontal field of view
 
     int32_t rdflags;        // refdef flags

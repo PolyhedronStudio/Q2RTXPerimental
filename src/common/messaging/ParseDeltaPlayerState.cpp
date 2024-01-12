@@ -128,10 +128,10 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	}
 
 	if ( flags & PS_BLEND ) {
-		to->blend[ 0 ] = MSG_ReadUint8( ) / 255.0f;
-		to->blend[ 1 ] = MSG_ReadUint8( ) / 255.0f;
-		to->blend[ 2 ] = MSG_ReadUint8( ) / 255.0f;
-		to->blend[ 3 ] = MSG_ReadUint8( ) / 255.0f;
+		to->screen_blend[ 0 ] = MSG_ReadUint8( ) / 255.0f;
+		to->screen_blend[ 1 ] = MSG_ReadUint8( ) / 255.0f;
+		to->screen_blend[ 2 ] = MSG_ReadUint8( ) / 255.0f;
+		to->screen_blend[ 3 ] = MSG_ReadUint8( ) / 255.0f;
 	}
 
 	if ( flags & PS_FOV ) {

@@ -500,10 +500,10 @@ void V_RenderView(void)
         if (cl_testlights->integer)
             V_TestLights();
         if (cl_testblend->integer) {
-            cl.refdef.blend[0] = 1;
-            cl.refdef.blend[1] = 0.5f;
-            cl.refdef.blend[2] = 0.25f;
-            cl.refdef.blend[3] = 0.5f;
+            cl.refdef.screen_blend[0] = 1;
+            cl.refdef.screen_blend[1] = 0.5f;
+            cl.refdef.screen_blend[2] = 0.25f;
+            cl.refdef.screen_blend[3] = 0.5f;
         }
 #endif
 
@@ -545,8 +545,8 @@ void V_RenderView(void)
             r_numparticles = 0;
         if (!cl_add_lights->integer)
             r_numdlights = 0;
-        if (!cl_add_blend->integer)
-            Vector4Clear(cl.refdef.blend);
+        //if (!cl_add_blend->integer)
+        //    Vector4Clear(cl.refdef.screen_blend);
 
         cl.refdef.num_entities = r_numentities;
         cl.refdef.entities = r_entities;
