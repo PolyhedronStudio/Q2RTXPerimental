@@ -512,11 +512,11 @@ void SV_CalcBlend( edict_t *ent ) {
 		ent->client->ps.rdflags &= ~RDF_UNDERWATER;
 
 	if ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) )
-		SV_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, ent->client->ps.screen_blend );
+		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, ent->client->ps.screen_blend );
 	else if ( contents & CONTENTS_SLIME )
-		SV_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, ent->client->ps.screen_blend );
+		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, ent->client->ps.screen_blend );
 	else if ( contents & CONTENTS_WATER )
-		SV_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, ent->client->ps.screen_blend );
+		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, ent->client->ps.screen_blend );
 
 	// add for powerups
 	if ( ent->client->quad_time > level.time ) {
@@ -524,30 +524,30 @@ void SV_CalcBlend( edict_t *ent ) {
 		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
 			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/damage2.wav" ), 1, ATTN_NORM, 0 );
 		if ( G_PowerUpExpiringRelative( remaining ) )
-			SV_AddBlend( 0, 0, 1, 0.08f, ent->client->ps.screen_blend );
+			SG_AddBlend( 0, 0, 1, 0.08f, ent->client->ps.screen_blend );
 	} else if ( ent->client->invincible_time > level.time ) {
 		remaining = ent->client->invincible_time - level.time;
 		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
 			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/protect2.wav" ), 1, ATTN_NORM, 0 );
 		if ( G_PowerUpExpiringRelative( remaining ) )
-			SV_AddBlend( 1, 1, 0, 0.08f, ent->client->ps.screen_blend );
+			SG_AddBlend( 1, 1, 0, 0.08f, ent->client->ps.screen_blend );
 	} else if ( ent->client->enviro_time > level.time ) {
 		remaining = ent->client->enviro_time - level.time;
 		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
 			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/airout.wav" ), 1, ATTN_NORM, 0 );
 		if ( G_PowerUpExpiringRelative( remaining ) )
-			SV_AddBlend( 0, 1, 0, 0.08f, ent->client->ps.screen_blend );
+			SG_AddBlend( 0, 1, 0, 0.08f, ent->client->ps.screen_blend );
 	} else if ( ent->client->breather_time > level.time ) {
 		remaining = ent->client->breather_time - level.time;
 		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
 			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/airout.wav" ), 1, ATTN_NORM, 0 );
 		if ( G_PowerUpExpiringRelative( remaining ) )
-			SV_AddBlend( 0.4f, 1, 0.4f, 0.04f, ent->client->ps.screen_blend );
+			SG_AddBlend( 0.4f, 1, 0.4f, 0.04f, ent->client->ps.screen_blend );
 	}
 
 	// add for damage
 	if ( ent->client->damage_alpha > 0 )
-		SV_AddBlend( ent->client->damage_blend[ 0 ], ent->client->damage_blend[ 1 ]
+		SG_AddBlend( ent->client->damage_blend[ 0 ], ent->client->damage_blend[ 1 ]
 					, ent->client->damage_blend[ 2 ], ent->client->damage_alpha, ent->client->ps.screen_blend );
 
 	// [Paril-KEX] drowning visual indicator
@@ -556,12 +556,12 @@ void SV_CalcBlend( edict_t *ent ) {
 		constexpr float max_drown_alpha = 0.75f;
 		float alpha = ( ent->air_finished_time < level.time ) ? 1 : ( 1.f - ( ( ent->air_finished_time - level.time ).seconds() / 9.0f ) );
 		//SV_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], min( alpha, max_drown_alpha ), ent->client->ps.damage_blend );
-		SV_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], min( alpha, max_drown_alpha ), ent->client->damage_blend );
+		SG_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], min( alpha, max_drown_alpha ), ent->client->damage_blend );
 	}
 
 #if 0
 	if ( ent->client->bonus_alpha > 0 )
-		SV_AddBlend( 0.85f, 0.7f, 0.3f, ent->client->bonus_alpha, ent->client->ps.screen_blend );
+		SG_AddBlend( 0.85f, 0.7f, 0.3f, ent->client->bonus_alpha, ent->client->ps.screen_blend );
 #endif
 	// drop the damage value
 	ent->client->damage_alpha -= gi.frame_time_s * 0.6f;

@@ -1381,7 +1381,7 @@ void CL_CalcViewValues(void)
     // FIXME: Should also be interpolated?...
     if ( cl.predictedState.screen_blend[ 3 ] > 0 ) {
         float a2 = cl.refdef.screen_blend[ 3 ] + ( 1 - cl.refdef.screen_blend[ 3 ] ) * cl.predictedState.screen_blend[ 3 ]; // new total alpha
-        float a3 = cl.refdef.screen_blend[ 3 ] / a2;					// fraction of color from old
+        float a3 = cl.refdef.screen_blend[ 3 ] / a2; // fraction of color from old
 
         LerpVector( cl.predictedState.screen_blend, cl.refdef.screen_blend, a3, cl.refdef.screen_blend );
         cl.refdef.screen_blend[ 3 ] = a2;

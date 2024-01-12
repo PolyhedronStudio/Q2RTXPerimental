@@ -1245,12 +1245,12 @@ static void PM_ScreenEffects() {
 	else
 		pm->rdflags &= ~RDF_UNDERWATER;
 
-	//if ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) )
-	//	G_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, pm->screen_blend );
-	//else if ( contents & CONTENTS_SLIME )
-	//	G_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, pm->screen_blend );
-	//else if ( contents & CONTENTS_WATER )
-	//	G_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, pm->screen_blend );
+	if ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) )
+		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, pm->screen_blend );
+	else if ( contents & CONTENTS_SLIME )
+		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, pm->screen_blend );
+	else if ( contents & CONTENTS_WATER )
+		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, pm->screen_blend );
 }
 
 /*
