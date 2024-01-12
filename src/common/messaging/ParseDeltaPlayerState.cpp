@@ -139,7 +139,7 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	}
 	
 	if ( flags & PS_RDFLAGS ) {
-		to->rdflags = MSG_ReadUintBase128( );
+		to->rdflags = MSG_ReadIntBase128( );
 	}
 
 	// parse stats

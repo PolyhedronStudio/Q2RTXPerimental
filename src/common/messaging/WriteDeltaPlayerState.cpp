@@ -253,17 +253,22 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		MSG_WriteUint8( to->fov );
 	}
 
-	if ( pflags & PS_RDFLAGS )
-		MSG_WriteUintBase128( to->rdflags );
+	if ( pflags & PS_RDFLAGS ) {
+		MSG_WriteIntBase128( to->rdflags );
+	}
 
 	// send stats
 	int64_t statbits = 0;
-	for ( i = 0; i < MAX_STATS; i++ )
-		if ( to->stats[ i ] != from->stats[ i ] )
+	for ( int32_t i = 0; i < MAX_STATS; i++ ) {
+		if ( to->stats[ i ] != from->stats[ i ] ) {
 			statbits |= 1ULL << i;
+		}
+	}
 
 	MSG_WriteIntBase128( statbits );
-	for ( i = 0; i < MAX_STATS; i++ )
-		if ( statbits & ( 1ULL << i ) )
+	for ( int32_t i = 0; i < MAX_STATS; i++ ) {
+		if ( statbits & ( 1ULL << i ) ) {
 			MSG_WriteIntBase128( to->stats[ i ] );
+		}
+	}
 }

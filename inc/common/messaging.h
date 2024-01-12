@@ -96,7 +96,7 @@ extern "C" {
 		//uint8_t         damage_blend[ 4 ];
 		uint8_t         screen_blend[4];
 		uint8_t         fov;
-		uint8_t         rdflags;
+		int32_t        rdflags;
 		int32_t         stats[MAX_STATS];
 	} player_packed_t;
 

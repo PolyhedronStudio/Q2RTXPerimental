@@ -167,7 +167,7 @@ typedef struct {
     //! Total accumulated screen blend.
     vec4_t screen_blend;
     //! Refdef Flags.
-    int64_t rdflags;
+    int32_t rdflags;
 
 	// for stair up smoothing
 	double step;
