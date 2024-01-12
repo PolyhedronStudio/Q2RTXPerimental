@@ -188,6 +188,9 @@ Sets cl.predicted_origin and cl.predicted_angles
 =================
 */
 void CL_PredictMovement(void) {
+    static constexpr float STEP_MIN_HEIGHT = 1.f;
+    static constexpr float STEP_MAX_HEIGHT = 20.f;
+
     static constexpr int32_t STEP_TIME = 100;
     static constexpr int32_t MAX_STEP_CHANGE = 32;
 
@@ -264,14 +267,16 @@ void CL_PredictMovement(void) {
     float oldZ = cl.predictedStates[ frameNumber & CMD_MASK ].origin[ 2 ];
     float step = pm.s.origin[ 2 ] - oldZ;
     const float fabsStep = fabsf( step );
+    
     // Consider a Z change being "stepping" if...
-    const bool step_detected = ( fabsStep > 1 && fabsStep < 20 ) // absolute change is in this limited range
-        && ( ( cl.frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // and we started off on the ground
-        && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ) // and are still predicted to be on the ground
-        && ( memcmp( &cl.last_groundplane, &pm.groundplane, sizeof( cplane_t ) ) != 0
-            || cl.last_groundentity != pm.groundentity ); // and don't stand on another plane or entity
+    const bool step_detected = ( fabsStep > STEP_MIN_HEIGHT && fabsStep < STEP_MAX_HEIGHT ) // Absolute change is in this limited range
+                && ( ( cl.frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // And we started off on the ground
+                && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground
+                && ( memcmp( &cl.last_groundplane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
+                || cl.last_groundentity != pm.groundentity ); // we stand on another plane or entity
+
+    // Code below adapted from Q3A.
     if ( step_detected ) {
-        // Code below adapted from Q3A.
         // check for stepping up before a previous step is completed
         float delta = cls.realtime - cl.predictedState.step_time;
         float old_step;
@@ -305,6 +310,7 @@ void CL_PredictMovement(void) {
         cl.viewheight_change_time = cl.time;
     }
 
+    // Store resulting ground data.
     cl.last_groundplane = pm.groundplane;
     cl.last_groundentity = pm.groundentity;
 }

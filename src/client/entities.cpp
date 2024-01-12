@@ -258,16 +258,18 @@ static void set_active_state(void)
 
         // Copy predicted screen blend, renderflags and viewheight.
         Vector4Copy( cl.frame.ps.blend, cl.predictedState.screen_blend );
+        // Copy predicted rdflags.
         cl.predictedState.rdflags = cl.frame.ps.rdflags;
+        // Copy current viewheight into prev and current viewheights.
         cl.current_viewheight = cl.prev_viewheight = cl.frame.ps.pmove.viewheight;
     }
 
-    // Reset viewheight change local time.
+    // Reset local time of viewheight changes.
     cl.viewheight_change_time = 0;
 
     // Reset ground information.
     cl.last_groundentity = NULL;
-    memset( &cl.last_groundplane, 0, sizeof( cl.last_groundplane ) );
+    cl.last_groundplane = { };
 
     SCR_EndLoadingPlaque();     // get rid of loading plaque
     SCR_LagClear();
@@ -318,6 +320,11 @@ check_player_lerp(server_frame_t *oldframe, server_frame_t *frame, int framediv)
 
     // no lerping if teleport bit was flipped
     //if ((ops->pmove.pm_flags ^ ps->pmove.pm_flags) & PMF_TELEPORT_BIT)
+    //    goto dup;
+    // no lerping if teleport bit was flipped
+    //if ( !cl.csr.extended && ( ops->pmove.pm_flags ^ ps->pmove.pm_flags ) & PMF_TELEPORT_BIT )
+    //    goto dup;
+    //if ( cl.csr.extended && ( ops->rdflags ^ ps->rdflags ) & RDF_TELEPORT_BIT )
     //    goto dup;
 
     // no lerping if POV number changed

@@ -604,7 +604,7 @@ typedef struct {
     // [KEX] results (out)
     vec4_t screen_blend;
     //! Merged with rdflags from server.
-    uint64_t rdflags;
+    int32_t rdflags;
     //! Play jump sound.
     bool jump_sound;
     //! We clipped on top of an object from below.
@@ -629,6 +629,7 @@ MUZZLE FLASHES / PLAYER EFFECTS ETC:
 // that happen constantly on the given entity.
 // An entity that has effects will be sent to the client
 // even if it has a zero index model.
+#define EF_NONE             0x00000000
 #define EF_ROTATE           0x00000001      // rotate (bonus items)
 #define EF_GIB              0x00000002      // leave a trail
 #define EF_BLASTER          0x00000008      // redlight + trail
@@ -666,6 +667,7 @@ MUZZLE FLASHES / PLAYER EFFECTS ETC:
 //ROGUE
 
 // entity_state_t->renderfx flags
+#define RF_NONE             0
 #define RF_MINLIGHT         1       // allways have some light (viewmodel)
 #define RF_VIEWERMODEL      2       // don't draw through eyes, only mirrors
 #define RF_WEAPONMODEL      4       // only draw through eyes
@@ -691,6 +693,7 @@ MUZZLE FLASHES / PLAYER EFFECTS ETC:
 //ROGUE
 
 // player_state_t->refdef flags
+#define RDF_NONE            0
 #define RDF_UNDERWATER      1       // warp the screen as apropriate
 #define RDF_NOWORLDMODEL    2       // used for player configuration screen
 
