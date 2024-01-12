@@ -223,13 +223,13 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 
 
 	if ( bits & U_ORIGIN1 ) {
-		MSG_WriteFloat( to->origin[ 0 ] ); //MSG_WriteInt16( to->origin[ 0 ] ); // WID: float-movement
+		MSG_WriteFloat( to->origin[ 0 ] );
 	}
 	if ( bits & U_ORIGIN2 ) {
-		MSG_WriteFloat( to->origin[ 1 ] );// MSG_WriteInt16( to->origin[ 1 ] ); // WID: float-movement
+		MSG_WriteFloat( to->origin[ 1 ] );
 	}
 	if ( bits & U_ORIGIN3 ) {
-		MSG_WriteFloat( to->origin[ 2 ] );// MSG_WriteInt16( to->origin[ 2 ] ); // WID: float-movement
+		MSG_WriteFloat( to->origin[ 2 ] );
 	}
 
 	if ( bits & U_ANGLE1 ) {

@@ -204,19 +204,19 @@ typedef enum {
 #define U_ANGLE3    (1<<3)
 #define U_FRAME     (1<<4)			// 
 #define U_EVENT     (1<<5)
-#define U_SKIN		(1<<6)//#define U_UNUSGED    (1<<6)			// REMOVE this entity, don't add it
-#define U_SOLID		(1<<7)//#define U_UNUSED0   (1<<7)			//#define U_MOREBITS1 (1<<7)        // read one additional byte
+#define U_SKIN		(1<<6)
+#define U_SOLID		(1<<7)
 
 
 // second byte
-#define U_SOUND		(1<<8)			// NUMBER8 is implicit if not set
+#define U_SOUND		(1<<8)
 #define U_ORIGIN3   (1<<9)
 #define U_ANGLE1    (1<<10)
 #define U_MODEL     (1<<11)
 #define U_RENDERFX  (1<<12)			// fullbright, etc
-#define U_EFFECTS	(1<<13)			//
+#define U_EFFECTS	(1<<13)
 #define U_OLDORIGIN	(1<<14)			// autorotate, trails, etc
-#define U_MODEL2	(1<<15)			//
+#define U_MODEL2	(1<<15)
 
 // third byte
 #define U_MODEL3		(1<<16)

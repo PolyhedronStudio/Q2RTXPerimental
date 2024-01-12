@@ -172,7 +172,6 @@ typedef struct {
 	// for stair up smoothing
 	double step;
 	uint64_t step_time;
-	uint64_t step_frame;
 
 	//! Origin, angles and velocity of current frame pmove's results.
 	vec3_t origin;    
@@ -213,7 +212,7 @@ typedef struct client_state_s {
     //! Viewheight before last change.
     int8_t  prev_viewheight;
     //! Time when a viewheight change was detected.
-    int32_t viewheight_change_time;
+    int64_t viewheight_change_time;
     //! :ast groundentity reported by pmove.
     edict_t     *last_groundentity;
     //! last groundplane reported by pmove.

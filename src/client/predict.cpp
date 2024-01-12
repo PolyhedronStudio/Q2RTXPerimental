@@ -57,11 +57,6 @@ void CL_CheckPredictionError(void) {
 	SHOWMISS( "prediction miss on %i: %i (%f %f %f)\n",
 			 cl.frame.number, len, delta[ 0 ], delta[ 1 ], delta[ 2 ] );
 
-	// don't predict steps against server returned data
-	if ( cl.predictedState.step_frame <= cmdIndex ) {
-		cl.predictedState.step_frame = cmdIndex + 1;
-	}
-
 	VectorCopy( cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin );
 
 	// save for error interpolation
@@ -263,9 +258,8 @@ void CL_PredictMovement(void) {
     }
 
 	// Stair Stepping:
-    // Step detection
-    float oldZ = cl.predictedStates[ frameNumber & CMD_MASK ].origin[ 2 ];
-    float step = pm.s.origin[ 2 ] - oldZ;
+    const float oldZ = cl.predictedStates[ frameNumber & CMD_MASK ].origin[ 2 ];
+    const float step = pm.s.origin[ 2 ] - oldZ;
     const float fabsStep = fabsf( step );
     
     // Consider a Z change being "stepping" if...
@@ -278,8 +272,8 @@ void CL_PredictMovement(void) {
     // Code below adapted from Q3A.
     if ( step_detected ) {
         // check for stepping up before a previous step is completed
-        float delta = cls.realtime - cl.predictedState.step_time;
-        float old_step;
+        const float delta = cls.realtime - cl.predictedState.step_time;
+        float old_step = 0.f;
         if ( delta < STEP_TIME ) {
             old_step = cl.predictedState.step * ( STEP_TIME - delta ) / STEP_TIME;
         } else {
