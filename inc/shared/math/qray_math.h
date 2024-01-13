@@ -2423,10 +2423,10 @@ inline Vector3 operator/( const Vector3 &left, const float &right ) {
     return QM_Vector3DivideValue( left, right );
 }
 
-inline Vector3 &operator/( Vector3 &left, const Vector3 &right ) {
+inline Vector3 &operator/=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Divide( left, right );
 }
-inline Vector3 &operator/( Vector3 &left, const float &right ) {
+inline Vector3 &operator/=( Vector3 &left, const float &right ) {
     return left = QM_Vector3DivideValue( left, right );
 }
 
