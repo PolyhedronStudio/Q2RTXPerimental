@@ -34,21 +34,21 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 **/
 typedef struct {
 	//! Obvious origin and velocity.
-	vec3_t      origin;
-	vec3_t      velocity;
+	vec3_t		origin;
+	vec3_t		velocity;
 
 	//! Forward, right and up vectors.
-	vec3_t      forward, right, up;
+	vec3_t		forward, right, up;
 	//! Move frametime.
-	float       frametime;
+	float		frametime;
 
 	//! Ground information.
-	csurface_t *groundsurface;
+	csurface_t	*groundsurface;
 	//! Contents of ground brush.
-	int         groundcontents;
+	int32_t		groundcontents;
 
 	//! Used to reset ourselves in case we are truly stuck.
-	vec3_t      previous_origin;
+	vec3_t		previous_origin;
 	//! Used for calculating the fall impact with.
 	vec3_t		start_velocity;
 } pml_t;
@@ -1416,6 +1416,15 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	PM_ScreenEffects();
 
 	PM_SnapPosition();
+
+	// Temporary Vector3 test.
+	Vector3 _origin = { pm->s.origin[ 0 ], pm->s.origin[ 1 ], pm->s.origin[ 2 ] };
+	Vector3 _offset = { 0, 0, 24 };
+	Vector3 _sum = _origin;
+	_sum += _offset;
+	SG_DPrintf( "_sum(%f, %f, %f)\n", _sum.x, _sum.y, _sum.z );
+
+	// EOF Temporary Vector3 test.
 }
 
 void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {

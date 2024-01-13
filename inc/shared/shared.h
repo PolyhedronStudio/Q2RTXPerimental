@@ -187,7 +187,12 @@ MATHLIB
 #endif
 
 // Include the 'new' math library, a slightly customized version of: https://github.com/HandmadeMath/HandmadeMath
-#include "shared/math/math_new.h"
+//#include "shared/math/math_new.h"
+
+// Include RayMath.
+#define RAYMATH_STATIC_INLINE
+#include <shared/math/qray_math.h>
+
 
 #ifdef __cplusplus
 // We extern "C"
