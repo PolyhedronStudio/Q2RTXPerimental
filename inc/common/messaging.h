@@ -58,7 +58,7 @@ extern "C" {
 		uint16_t    number;
 		uint8_t		entityType;
 		vec3_t		origin;//int16_t     origin[3]; // WID: float-movement
-		int16_t		angles[3]; // WID: float-movement
+		vec3_t		angles; // WID: float-movement
 		vec3_t		old_origin; //int16_t     old_origin[3]; // WID: float-movement
 		uint32_t	modelindex;
 		uint32_t	modelindex2;
@@ -86,16 +86,17 @@ extern "C" {
 	typedef struct {
 		pmove_state_t   pmove;
 		vec3_t			viewangles;
-		int8_t          viewoffset[3];
-		int8_t          kick_angles[3];
-		int8_t          gunangles[3];
-		int8_t          gunoffset[3];
-		uint32_t         gunindex;
-		uint32_t         gunframe;
+		int16_t			viewoffset[3];// WID: new-pmove int8_t          viewoffset[3];
+		int16_t			kick_angles[3]; // WID: new-pmove int8_t          kick_angles[3];
+		int16_t			gunangles[3]; // WID: new-pmove //int8_t          gunangles[3];
+		int16_t         gunoffset[3]; // WID: new-pmove //int8_t          gunoffset[3];
+		uint32_t		gunindex;
+		uint32_t		gunframe;
 		int8_t			gunrate;
-		uint8_t         blend[4];
+		//uint8_t         damage_blend[ 4 ];
+		uint8_t         screen_blend[4];
 		uint8_t         fov;
-		uint8_t         rdflags;
+		int32_t        rdflags;
 		int32_t         stats[MAX_STATS];
 	} player_packed_t;
 

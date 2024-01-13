@@ -15,6 +15,10 @@ SET(HEADERS_BASEQ2_SHAREDGAME
 )
 #	BaseQ2 ClientGame
 SET(SRC_BASEQ2_CLGAME
+	# SharedGame API Bindings
+	baseq2/sharedgame/game_bindings/sg_binding_clgame.cpp
+
+	# ClientGame
 	baseq2/clgame/clg_main.cpp
 )
 SET(HEADERS_BASEQ2_CLGAME
@@ -22,6 +26,10 @@ SET(HEADERS_BASEQ2_CLGAME
 )
 # BaseQ2 ServerGame
 SET(SRC_BASEQ2_SVGAME
+	# SharedGame API Bindings
+	baseq2/sharedgame/game_bindings/sg_binding_svgame.cpp
+
+	# SererGame
 	baseq2/svgame/g_ai.cpp
 	baseq2/svgame/g_chase.cpp
 	baseq2/svgame/g_cmds.cpp
@@ -111,14 +119,20 @@ SET(HEADERS_BASEQ2_SVGAME
 SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_gamemode.cpp
 	baseq2rtxp/sharedgame/sg_pmove.cpp
+	baseq2rtxp/sharedgame/sg_pmove_slidemove.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_gamemode.h
 	baseq2rtxp/sharedgame/sg_pmove.h
+	baseq2rtxp/sharedgame/sg_pmove_slidemove.h
 	baseq2rtxp/sharedgame/sg_time.h
 )
 #	BaseQ2RTXP ClientGame
 SET(SRC_BASEQ2RTXP_CLGAME
+	# SharedGame API Bindings
+	baseq2rtxp/sharedgame/game_bindings/sg_binding_clgame.cpp
+
+	# ClientGame
 	baseq2rtxp/clgame/clg_main.cpp
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME
@@ -126,6 +140,10 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 )
 # BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2RTXP_SVGAME
+	# SharedGame API Bindings
+	baseq2rtxp/sharedgame/game_bindings/sg_binding_svgame.cpp
+
+	# SererGame
 	baseq2rtxp/svgame/g_ai.cpp
 	baseq2rtxp/svgame/g_chase.cpp
 	baseq2rtxp/svgame/g_cmds.cpp

@@ -366,9 +366,9 @@ typedef struct {
     edict_t *ent;
     vec3_t  origin;
     vec3_t  angles;
-#if USE_SMOOTH_DELTA_ANGLES
-    int     deltayaw;
-#endif
+    //#if USE_SMOOTH_DELTA_ANGLES
+	float deltayaw;
+    //#endif
 } pushed_t;
 pushed_t    pushed[MAX_EDICTS], *pushed_p;
 
@@ -411,10 +411,10 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
     pushed_p->ent = pusher;
     VectorCopy(pusher->s.origin, pushed_p->origin);
     VectorCopy(pusher->s.angles, pushed_p->angles);
-#if USE_SMOOTH_DELTA_ANGLES
+    //#if USE_SMOOTH_DELTA_ANGLES
     if (pusher->client)
         pushed_p->deltayaw = pusher->client->ps.pmove.delta_angles[YAW];
-#endif
+    //#endif
     pushed_p++;
 
 // move the pusher to it's final position
@@ -457,21 +457,21 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
             pushed_p->ent = check;
             VectorCopy(check->s.origin, pushed_p->origin);
             VectorCopy(check->s.angles, pushed_p->angles);
-#if USE_SMOOTH_DELTA_ANGLES
+            //#if USE_SMOOTH_DELTA_ANGLES
             if (check->client)
                 pushed_p->deltayaw = check->client->ps.pmove.delta_angles[YAW];
-#endif
+            //#endif
             pushed_p++;
 
             // try moving the contacted entity
             VectorAdd(check->s.origin, move, check->s.origin);
-#if USE_SMOOTH_DELTA_ANGLES
+            //#if USE_SMOOTH_DELTA_ANGLES
             if (check->client) {
                 // FIXME: doesn't rotate monsters?
                 // FIXME: skuller: needs client side interpolation
-                check->client->ps.pmove.delta_angles[YAW] += ANGLE2SHORT(amove[YAW]);
+                check->client->ps.pmove.delta_angles[YAW] += /*ANGLE2SHORT*/(amove[YAW]);
             }
-#endif
+            //#endif
 
             // figure movement due to the pusher's amove
             VectorSubtract(check->s.origin, pusher->s.origin, org);
@@ -514,11 +514,11 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
             p = &pushed[i];
             VectorCopy(p->origin, p->ent->s.origin);
             VectorCopy(p->angles, p->ent->s.angles);
-#if USE_SMOOTH_DELTA_ANGLES
+            //#if USE_SMOOTH_DELTA_ANGLES
             if (p->ent->client) {
                 p->ent->client->ps.pmove.delta_angles[YAW] = p->deltayaw;
             }
-#endif
+            //#endif
             gi.linkentity(p->ent);
         }
         return false;
@@ -719,9 +719,9 @@ void SV_Physics_Toss(edict_t *ent)
     isinwater = ent->watertype & MASK_WATER;
 
     if (isinwater)
-        ent->waterlevel = 1;
+        ent->waterlevel = water_level_t::WATER_FEET;
     else
-        ent->waterlevel = 0;
+        ent->waterlevel = water_level_t::WATER_NONE;
 
     if (!wasinwater && isinwater)
         gi.positioned_sound(old_origin, g_edicts, CHAN_AUTO, gi.soundindex("misc/h2ohit1.wav"), 1, 1, 0);

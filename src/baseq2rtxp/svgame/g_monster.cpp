@@ -182,23 +182,23 @@ void M_CatagorizePosition( edict_t *ent ) {
 	cont = gi.pointcontents( point );
 
 	if ( !( cont & MASK_WATER ) ) {
-		ent->waterlevel = 0;
+		ent->waterlevel = water_level_t::WATER_NONE;
 		ent->watertype = 0;
 		return;
 	}
 
 	ent->watertype = cont;
-	ent->waterlevel = 1;
+	ent->waterlevel = water_level_t::WATER_FEET;
 	point[ 2 ] += 26;
 	cont = gi.pointcontents( point );
 	if ( !( cont & MASK_WATER ) )
 		return;
 
-	ent->waterlevel = 2;
+	ent->waterlevel = water_level_t::WATER_WAIST;
 	point[ 2 ] += 22;
 	cont = gi.pointcontents( point );
 	if ( cont & MASK_WATER )
-		ent->waterlevel = 3;
+		ent->waterlevel = water_level_t::WATER_UNDER;
 }
 
 

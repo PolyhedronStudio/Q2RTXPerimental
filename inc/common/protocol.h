@@ -144,17 +144,19 @@ typedef enum {
 #define PS_M_DELTA_ANGLES   (1<<6)
 
 #define PS_VIEWOFFSET       (1<<7)
-#define PS_VIEWANGLES       (1<<8)
-#define PS_KICKANGLES       (1<<9)
-#define PS_BLEND            (1<<10)
-#define PS_FOV              (1<<11)
-#define PS_WEAPONINDEX      (1<<12)
-#define PS_WEAPONFRAME      (1<<13)
-#define PS_RDFLAGS          (1<<14)
-#define PS_WEAPONRATE       (1<<15)
+#define PS_VIEWHEIGHT		(1<<8)
+#define PS_VIEWANGLES       (1<<9)
+#define PS_KICKANGLES       (1<<10)
+#define PS_BLEND            (1<<11)
+#define PS_FOV              (1<<12)
+#define PS_WEAPONINDEX      (1<<13)
+#define PS_WEAPONFRAME      (1<<14)
+#define PS_RDFLAGS          (1<<15)
+#define PS_WEAPONRATE       (1<<16)
 
-#define PS_BITS             16
-#define PS_MASK             ((1<<PS_BITS)-1)
+
+//#define PS_BITS             16
+//#define PS_MASK             ((1<<PS_BITS)-1)
 
 //==============================================
 
@@ -202,19 +204,19 @@ typedef enum {
 #define U_ANGLE3    (1<<3)
 #define U_FRAME     (1<<4)			// 
 #define U_EVENT     (1<<5)
-#define U_SKIN		(1<<6)//#define U_UNUSGED    (1<<6)			// REMOVE this entity, don't add it
-#define U_SOLID		(1<<7)//#define U_UNUSED0   (1<<7)			//#define U_MOREBITS1 (1<<7)        // read one additional byte
+#define U_SKIN		(1<<6)
+#define U_SOLID		(1<<7)
 
 
 // second byte
-#define U_SOUND		(1<<8)			// NUMBER8 is implicit if not set
+#define U_SOUND		(1<<8)
 #define U_ORIGIN3   (1<<9)
 #define U_ANGLE1    (1<<10)
 #define U_MODEL     (1<<11)
 #define U_RENDERFX  (1<<12)			// fullbright, etc
-#define U_EFFECTS	(1<<13)			//
+#define U_EFFECTS	(1<<13)
 #define U_OLDORIGIN	(1<<14)			// autorotate, trails, etc
-#define U_MODEL2	(1<<15)			//
+#define U_MODEL2	(1<<15)
 
 // third byte
 #define U_MODEL3		(1<<16)

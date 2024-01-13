@@ -2938,7 +2938,7 @@ R_RenderFrame_RTX(refdef_t *fd)
 	ubo->prev_adapted_luminance = prev_adapted_luminance;
 
 	if (cvar_tm_blend_enable->integer)
-		Vector4Copy(fd->blend, ubo->fs_blend_color);
+		Vector4Copy(fd->screen_blend, ubo->fs_blend_color);
 	else
 		Vector4Set(ubo->fs_blend_color, 0.f, 0.f, 0.f, 0.f);
 

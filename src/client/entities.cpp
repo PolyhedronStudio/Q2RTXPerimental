@@ -245,17 +245,31 @@ static void set_active_state(void)
         CL_FirstDemoFrame();
     } else {
         // set initial cl.predicted_origin and cl.predicted_angles
-        VectorCopy(cl.frame.ps.pmove.origin, cl.predicted_origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
-        VectorCopy(cl.frame.ps.pmove.velocity, cl.predicted_velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
+        VectorCopy(cl.frame.ps.pmove.origin, cl.predictedState.origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
+        VectorCopy(cl.frame.ps.pmove.velocity, cl.predictedState.velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
         if (cl.frame.ps.pmove.pm_type < PM_DEAD &&
-            cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
+            cls.serverProtocol >= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
             // enhanced servers don't send viewangles
             CL_PredictAngles();
         } else {
             // just use what server provided
-            VectorCopy(cl.frame.ps.viewangles, cl.predicted_angles);
+            VectorCopy(cl.frame.ps.viewangles, cl.predictedState.angles);
         }
+
+        // Copy predicted screen blend, renderflags and viewheight.
+        Vector4Copy( cl.frame.ps.screen_blend, cl.predictedState.screen_blend );
+        // Copy predicted rdflags.
+        cl.predictedState.rdflags = cl.frame.ps.rdflags;
+        // Copy current viewheight into prev and current viewheights.
+        cl.viewheight.current = cl.viewheight.previous = cl.frame.ps.pmove.viewheight;
     }
+
+    // Reset local time of viewheight changes.
+    cl.viewheight.change_time = 0;
+
+    // Reset ground information.
+    cl.lastGround.entity = nullptr;
+    cl.lastGround.plane = { };
 
     SCR_EndLoadingPlaque();     // get rid of loading plaque
     SCR_LagClear();
@@ -305,8 +319,13 @@ check_player_lerp(server_frame_t *oldframe, server_frame_t *frame, int framediv)
     }
 
     // no lerping if teleport bit was flipped
-    if ((ops->pmove.pm_flags ^ ps->pmove.pm_flags) & PMF_TELEPORT_BIT)
-        goto dup;
+    //if ((ops->pmove.pm_flags ^ ps->pmove.pm_flags) & PMF_TELEPORT_BIT)
+    //    goto dup;
+    // no lerping if teleport bit was flipped
+    //if ( !cl.csr.extended && ( ops->pmove.pm_flags ^ ps->pmove.pm_flags ) & PMF_TELEPORT_BIT )
+    //    goto dup;
+    //if ( cl.csr.extended && ( ops->rdflags ^ ps->rdflags ) & RDF_TELEPORT_BIT )
+    //    goto dup;
 
     // no lerping if POV number changed
     if (oldframe->clientNum != frame->clientNum)
@@ -1226,7 +1245,7 @@ first:
     CL_SetupFirstPersonView();
 }
 
-#if USE_SMOOTH_DELTA_ANGLES
+//#if USE_SMOOTH_DELTA_ANGLES
 static inline float LerpShort(int a2, int a1, float frac)
 {
     if (a1 - a2 > 32768)
@@ -1235,7 +1254,7 @@ static inline float LerpShort(int a2, int a1, float frac)
         a1 &= 65536;
     return a2 + frac * (a1 - a2);
 }
-#endif
+//#endif
 
 static inline float lerp_client_fov(float ofov, float nfov, float lerp)
 {
@@ -1272,11 +1291,15 @@ loop if rendering is disabled but sound is running.
 */
 void CL_CalcViewValues(void)
 {
+    // TODO: Move elsewhere
+    static constexpr int32_t STEP_TIME = 100;
+    static constexpr float STEP_BASE_1_FRAMETIME = 0.01f;
+
     player_state_t *ps, *ops;
     vec3_t viewoffset;
     float lerp;
 
-    if (!cl.frame.valid) {
+    if ( !cl.frame.valid ) {
         return;
     }
 
@@ -1287,15 +1310,15 @@ void CL_CalcViewValues(void)
     lerp = cl.lerpfrac;
 
     // calculate the origin
-    if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_PREDICTION)) {
+    if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
         // use predicted values
-        unsigned delta = cls.realtime - cl.predicted_step_time;
+        unsigned delta = cls.realtime - cl.predictedState.step_time;
         float backlerp = lerp - 1.0f;
 
-        VectorMA(cl.predicted_origin, backlerp, cl.prediction_error, cl.refdef.vieworg);
+        VectorMA(cl.predictedState.origin, backlerp, cl.predictedState.error, cl.refdef.vieworg);
 
         // smooth out stair climbing
-        if (cl.predicted_step < 15.875) {//127 ) {// * 0.125f) { // WID: float-movement
+        if (cl.predictedState.step < 15.875) {//127 ) {// * 0.125f) { // WID: float-movement
             delta <<= 1; // small steps
         }
 
@@ -1304,17 +1327,17 @@ void CL_CalcViewValues(void)
         //    cl.refdef.vieworg[2] -= cl.predicted_step * (100 - delta) * 0.01f;
         //}
 		// WID: Prediction: Now should be dependant on specific framerate.
-		if ( delta < BASE_FRAMETIME ) {
-			cl.refdef.vieworg[ 2 ] -= cl.predicted_step * ( BASE_FRAMETIME - delta ) * BASE_1_FRAMETIME;
-		}
+		//if ( delta < BASE_FRAMETIME ) {
+		//	cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( BASE_FRAMETIME - delta ) * BASE_1_FRAMETIME;
+		//}
+        if ( delta < STEP_TIME ) {
+            cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( STEP_TIME - delta ) * ( 1.f / STEP_TIME );
+        }
     } else {
         int i;
 
         // just use interpolated values
         for (i = 0; i < 3; i++) {
-			// WID: float-movement
-            //cl.refdef.vieworg[i] = SHORT2COORD(ops->pmove.origin[i] +
-            //    lerp * (ps->pmove.origin[i] - ops->pmove.origin[i]));
 			cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
 				lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
         }
@@ -1325,30 +1348,58 @@ void CL_CalcViewValues(void)
         LerpAngles(ops->viewangles, ps->viewangles, lerp, cl.refdef.viewangles);
     } else if (ps->pmove.pm_type < PM_DEAD) {
         // use predicted values
-        VectorCopy(cl.predicted_angles, cl.refdef.viewangles);
-    } else if (ops->pmove.pm_type < PM_DEAD && cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
+        VectorCopy(cl.predictedState.angles, cl.refdef.viewangles);
+    } else if (ops->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
         // lerp from predicted angles, since enhanced servers
         // do not send viewangles each frame
-        LerpAngles(cl.predicted_angles, ps->viewangles, lerp, cl.refdef.viewangles);
+        LerpAngles(cl.predictedState.angles, ps->viewangles, lerp, cl.refdef.viewangles);
     } else {
-        // just use interpolated values
-        LerpAngles(ops->viewangles, ps->viewangles, lerp, cl.refdef.viewangles);
+		if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
+			// just use interpolated values
+			LerpAngles( ops->viewangles, ps->viewangles, lerp, cl.refdef.viewangles );
+		} else {
+			VectorCopy( ps->viewangles, cl.refdef.viewangles );
+		}
     }
 
-#if USE_SMOOTH_DELTA_ANGLES
-    cl.delta_angles[0] = LerpShort(ops->pmove.delta_angles[0], ps->pmove.delta_angles[0], lerp);
-    cl.delta_angles[1] = LerpShort(ops->pmove.delta_angles[1], ps->pmove.delta_angles[1], lerp);
-    cl.delta_angles[2] = LerpShort(ops->pmove.delta_angles[2], ps->pmove.delta_angles[2], lerp);
-#endif
+//#if USE_SMOOTH_DELTA_ANGLES
+    cl.delta_angles[0] = LerpAngle(ops->pmove.delta_angles[0], ps->pmove.delta_angles[0], lerp);
+    cl.delta_angles[1] = LerpAngle(ops->pmove.delta_angles[1], ps->pmove.delta_angles[1], lerp);
+    cl.delta_angles[2] = LerpAngle(ops->pmove.delta_angles[2], ps->pmove.delta_angles[2], lerp);
+//#endif
+
+    //// interpolate blend colors if the last frame wasn't clear
+    float blendfrac = ops->screen_blend[ 3 ] ? cl.lerpfrac : 1;
+    //float damageblendfrac = ops->damage_blend[ 3 ] ? cl.lerpfrac : 1;
+
+    Vector4Lerp( ops->screen_blend, ps->screen_blend, blendfrac, cl.refdef.screen_blend );
+    //Vector4Lerp( ops->damage_blend, ps->damage_blend, damageblendfrac, cl.refdef.damage_blend );
 
     // don't interpolate blend color
-    Vector4Copy(ps->blend, cl.refdef.blend);
+    //Vector4Copy(ps->blend, cl.refdef.screen_blend);
+
+    // Mix in screen_blend from cgame pmove
+    // FIXME: Should also be interpolated?...
+    if ( cl.predictedState.screen_blend[ 3 ] > 0 ) {
+        float a2 = cl.refdef.screen_blend[ 3 ] + ( 1 - cl.refdef.screen_blend[ 3 ] ) * cl.predictedState.screen_blend[ 3 ]; // new total alpha
+        float a3 = cl.refdef.screen_blend[ 3 ] / a2; // fraction of color from old
+
+        LerpVector( cl.predictedState.screen_blend, cl.refdef.screen_blend, a3, cl.refdef.screen_blend );
+        cl.refdef.screen_blend[ 3 ] = a2;
+    }
+
 
     // interpolate field of view
     cl.fov_x = lerp_client_fov(ops->fov, ps->fov, lerp);
     cl.fov_y = V_CalcFov(cl.fov_x, 4, 3);
 
     LerpVector(ops->viewoffset, ps->viewoffset, lerp, viewoffset);
+
+    // Smooth out view height over 100ms
+    float viewheight_lerp = ( cl.time - cl.viewheight.change_time );
+    viewheight_lerp = STEP_TIME - min( viewheight_lerp, STEP_TIME );
+    float predicted_viewheight = cl.viewheight.current + (float)( cl.viewheight.previous - cl.viewheight.current ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
+    viewoffset[ 2 ] += predicted_viewheight;
 
     AngleVectors(cl.refdef.viewangles, cl.v_forward, cl.v_right, cl.v_up);
 

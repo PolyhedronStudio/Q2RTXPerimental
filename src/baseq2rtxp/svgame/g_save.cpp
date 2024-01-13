@@ -313,12 +313,12 @@ static const save_field_t clientfields[] = {
 #define _OFS CLOFS
 	I( ps.pmove.pm_type ),
 
-	SA( ps.pmove.origin, 3 ),
-	SA( ps.pmove.velocity, 3 ),
+	V( ps.pmove.origin ),
+	V( ps.pmove.velocity ),
 	B( ps.pmove.pm_flags ),
 	B( ps.pmove.pm_time ),
 	S( ps.pmove.gravity ),
-	SA( ps.pmove.delta_angles, 3 ),
+	V( ps.pmove.delta_angles ),
 
 	V( ps.viewangles ),
 	V( ps.viewoffset ),
@@ -329,7 +329,8 @@ static const save_field_t clientfields[] = {
 	I( ps.gunindex ),
 	I( ps.gunframe ),
 
-	FA( ps.blend, 4 ),
+    //FA( ps.damage_blend, 4 ),
+	FA( ps.screen_blend, 4 ),
 
 	F( ps.fov ),
 
@@ -401,6 +402,7 @@ static const save_field_t clientfields[] = {
 	F( bobtime ),
 	V( oldviewangles ),
 	V( oldvelocity ),
+    E( oldgroundentity ),
 
 	FT( next_drown_time ),
 	I( old_waterlevel ),
@@ -1100,6 +1102,7 @@ void ReadLevel(const char *filename)
         ent = &g_edicts[i + 1];
         ent->client = game.clients + i;
         ent->client->pers.connected = false;
+        ent->client->pers.spawned = false;
     }
 
     // do any load time things at this point

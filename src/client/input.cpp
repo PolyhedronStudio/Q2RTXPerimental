@@ -90,6 +90,9 @@ static bool IN_GetCurrentGrab(void)
     if (cls.key_dest & (KEY_MENU | KEY_CONSOLE))
         return false;  // menu or console is up
 
+    if ( sv_paused->integer )
+        return false;   // game paused
+
     if (cls.state != ca_active && cls.state != ca_cinematic)
         return false;  // not connected
 
@@ -258,6 +261,8 @@ static kbutton_t    in_lookup, in_lookdown, in_moveleft, in_moveright;
 static kbutton_t    in_strafe, in_speed, in_use, in_attack;
 static kbutton_t    in_up, in_down;
 
+//static kbutton_t    in_holster;
+
 static int          in_impulse;
 static bool         in_mlooking;
 
@@ -408,7 +413,7 @@ static void IN_Impulse(void)
 
 static void IN_CenterView(void)
 {
-    cl.viewangles[PITCH] = -SHORT2ANGLE(cl.frame.ps.pmove.delta_angles[PITCH]);
+    cl.viewangles[PITCH] = -/*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[PITCH]);
 }
 
 static void IN_MLookDown(void)
@@ -423,6 +428,9 @@ static void IN_MLookUp(void)
     if (!freelook->integer && lookspring->integer)
         IN_CenterView();
 }
+
+//static void IN_HolsterDown( void ) { KeyDown( &in_holster ); }
+//static void IN_HolsterUp( void ) { KeyUp( &in_holster ); }
 
 /*
 ===============
@@ -444,11 +452,11 @@ static double CL_KeyState(kbutton_t *key)
     }
 
     // special case for instant packet
-    if (!cl.cmd.msec) {
+    if (!cl.predictedState.cmd.msec) {
         return (double)(key->state & 1);
     }
 
-    val = (double)msec / cl.cmd.msec;
+    val = (double)msec / cl.predictedState.cmd.msec;
 
     return clamp(val, 0, 1);
 }
@@ -597,7 +605,7 @@ static void CL_ClampPitch(void)
 {
     float pitch, angle;
 
-    pitch = SHORT2ANGLE(cl.frame.ps.pmove.delta_angles[PITCH]);
+    pitch = /*SHORT2ANGLE*/(cl.frame.ps.pmove.delta_angles[PITCH]);
     angle = cl.viewangles[PITCH] + pitch;
 
     if (angle < -180)
@@ -626,13 +634,17 @@ void CL_UpdateCmd(int msec)
     }
 
     // add to milliseconds of time to apply the move
-    cl.cmd.msec += msec;
+    cl.predictedState.cmd.msec += msec;
 
     // adjust viewangles
     CL_AdjustAngles(msec);
 
-    // get basic movement from keyboard
+    // get basic movement from keyboard, including jump/crouch.
     CL_BaseMove(cl.localmove);
+    if ( in_up.state & 3 )
+        cl.predictedState.cmd.buttons |= BUTTON_JUMP;
+    if ( in_down.state & 3 )
+        cl.predictedState.cmd.buttons |= BUTTON_CROUCH;
 
     // allow mice to add to the move
     CL_MouseMove();
@@ -646,9 +658,9 @@ void CL_UpdateCmd(int msec)
 
     CL_ClampPitch();
 
-    cl.cmd.angles[0] = ANGLE2SHORT(cl.viewangles[0]);
-    cl.cmd.angles[1] = ANGLE2SHORT(cl.viewangles[1]);
-    cl.cmd.angles[2] = ANGLE2SHORT(cl.viewangles[2]);
+    cl.predictedState.cmd.angles[0] = /*ANGLE2SHORT*/(cl.viewangles[0]);
+    cl.predictedState.cmd.angles[1] = /*ANGLE2SHORT*/(cl.viewangles[1]);
+    cl.predictedState.cmd.angles[2] = /*ANGLE2SHORT*/(cl.viewangles[2]);
 }
 
 static void m_autosens_changed(cvar_t *self)
@@ -757,39 +769,45 @@ void CL_FinalizeCmd(void)
     vec3_t move;
 
     // command buffer ticks in sync with cl_maxfps
-    if (cmd_buffer.waitCount > 0) {
-        cmd_buffer.waitCount--;
-    }
-    if (cl_cmdbuf.waitCount > 0) {
-        cl_cmdbuf.waitCount--;
-    }
+    Cbuf_Frame( &cmd_buffer );
+    Cbuf_Frame( &cl_cmdbuf );
 
     if (cls.state != ca_active) {
-        return; // not talking to a server
+        goto clear;
     }
 
     if (sv_paused->integer) {
-        return;
+        goto clear;
     }
 
 //
 // figure button bits
 //
-    if (in_attack.state & 3)
-        cl.cmd.buttons |= BUTTON_ATTACK;
-    if (in_use.state & 3)
-        cl.cmd.buttons |= BUTTON_USE;
+    if ( in_attack.state & 3 ) {
+        cl.predictedState.cmd.buttons |= BUTTON_ATTACK;
+    }
+    if ( in_use.state & 3 ) {
+        cl.predictedState.cmd.buttons |= BUTTON_USE;
+    }
+    //if ( in_use.state & 3 )
+    //    cl.predictedState.cmd.buttons |= BUTTON_HOLSTER;
+    if ( in_up.state & 3 ) {
+        cl.predictedState.cmd.buttons |= BUTTON_JUMP;
+    }
+    if ( in_down.state & 3 ) {
+        cl.predictedState.cmd.buttons |= BUTTON_CROUCH;
+    }
 
-    in_attack.state &= ~2;
-    in_use.state &= ~2;
+    //in_attack.state &= ~2;
+    //in_use.state &= ~2;
 
     if (cls.key_dest == KEY_GAME && Key_AnyKeyDown()) {
-        cl.cmd.buttons |= BUTTON_ANY;
+        cl.predictedState.cmd.buttons |= BUTTON_ANY;
     }
 
 	// WID: 64-bit-frame: Should we messabout with this?
-    if (cl.cmd.msec > 75) { // Was: > 250
-        cl.cmd.msec = BASE_FRAMERATE;        // time was unreasonable
+    if (cl.predictedState.cmd.msec > 75) { // Was: > 250
+        cl.predictedState.cmd.msec = BASE_FRAMERATE;        // time was unreasonable
     }
 
     // rebuild the movement vector
@@ -805,14 +823,32 @@ void CL_FinalizeCmd(void)
     // clamp to server defined max speed
     CL_ClampSpeed(move);
 
-    // store the movement vector
-    cl.cmd.forwardmove = move[0];
-    cl.cmd.sidemove = move[1];
-    cl.cmd.upmove = move[2];
+    // Store the movement vector
+    cl.predictedState.cmd.forwardmove = move[0];
+    cl.predictedState.cmd.sidemove = move[1];
+    cl.predictedState.cmd.upmove = move[2];
+
+    // Store impulse.
+    cl.predictedState.cmd.impulse = in_impulse;
+
+    // Store the frame number this was fired at.
+    cl.predictedState.cmd.frameNumber = cl.frame.number;
+
+    // save this command off for prediction
+    cl.cmdNumber++;
+    cl.predictedStates[ cl.cmdNumber & CMD_MASK ].cmd = cl.predictedState.cmd;
+
+clear:
+    // clear pending cmd
+    cl.predictedState.cmd = {};
 
     // clear all states
     cl.mousemove[0] = 0;
     cl.mousemove[1] = 0;
+
+    in_attack.state &= ~2;
+    in_use.state &= ~2;
+    //in_holster.state &= ~2;
 
     KeyClear(&in_right);
     KeyClear(&in_left);
@@ -829,15 +865,8 @@ void CL_FinalizeCmd(void)
     KeyClear(&in_lookup);
     KeyClear(&in_lookdown);
 
-    cl.cmd.impulse = in_impulse;
     in_impulse = 0;
 
-    // save this command off for prediction
-    cl.cmdNumber++;
-    cl.cmds[cl.cmdNumber & CMD_MASK] = cl.cmd;
-
-    // clear pending cmd
-    memset(&cl.cmd, 0, sizeof(cl.cmd));
 }
 
 static inline bool ready_to_send(void)
@@ -941,15 +970,15 @@ static void CL_SendDefaultCmd(void)
 
     // send this and the previous cmds in the message, so
     // if the last packet was dropped, it can be recovered
-    cmd = &cl.cmds[(cl.cmdNumber - 2) & CMD_MASK];
+    cmd = &cl.predictedStates[(cl.cmdNumber - 2) & CMD_MASK].cmd;
     MSG_WriteDeltaUserCommand(NULL, cmd, cls.protocolVersion);
     oldcmd = cmd;
 
-    cmd = &cl.cmds[(cl.cmdNumber - 1) & CMD_MASK];
+	cmd = &cl.predictedStates[ ( cl.cmdNumber - 1 ) & CMD_MASK ].cmd;
     MSG_WriteDeltaUserCommand(oldcmd, cmd, cls.protocolVersion);
     oldcmd = cmd;
 
-    cmd = &cl.cmds[cl.cmdNumber & CMD_MASK];
+	cmd = &cl.predictedStates[ ( cl.cmdNumber ) & CMD_MASK ].cmd;
     MSG_WriteDeltaUserCommand(oldcmd, cmd, cls.protocolVersion);
 
     if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
@@ -1042,7 +1071,7 @@ static void CL_SendBatchedCmd( void ) {
 		//MSG_WriteBits( numCmds, 5 );
 		MSG_WriteUint8( numCmds );
 		for ( j = oldest->cmdNumber + 1; j <= history->cmdNumber; j++ ) {
-			cmd = &cl.cmds[ j & CMD_MASK ];
+			cmd = &cl.predictedStates[ j & CMD_MASK ].cmd;
 			totalMsec += cmd->msec;
 			bits = MSG_WriteDeltaUserCommand( oldcmd, cmd, cls.serverProtocol );
 			#if USE_DEBUG

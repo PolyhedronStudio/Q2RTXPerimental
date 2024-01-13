@@ -31,17 +31,23 @@ INTERMISSION
 
 void MoveClientToIntermission(edict_t *ent)
 {
-    if (deathmatch->value || coop->value)
+    if ( deathmatch->value || coop->value ) {
         ent->client->showscores = true;
+    } else {
+        ent->client->showscores = false;
+    }
+    ent->client->showhelp = false;
+
     VectorCopy(level.intermission_origin, ent->s.origin);
-    ent->client->ps.pmove.origin[0] = level.intermission_origin[0];//COORD2SHORT(level.intermission_origin[0]); // WID: float-movement
-    ent->client->ps.pmove.origin[1] = level.intermission_origin[1];//COORD2SHORT(level.intermission_origin[1]); // WID: float-movement
-    ent->client->ps.pmove.origin[2] = level.intermission_origin[2];//COORD2SHORT(level.intermission_origin[2]); // WID: float-movement
+    VectorCopy( level.intermission_origin, ent->client->ps.pmove.origin );
     VectorCopy(level.intermission_angle, ent->client->ps.viewangles);
+    ent->client->ps.viewangles[ 0 ] = AngleMod( level.intermission_angle[ 0 ] );
+    ent->client->ps.viewangles[ 1 ] = AngleMod( level.intermission_angle[ 1 ] );
+    ent->client->ps.viewangles[ 2 ] = AngleMod( level.intermission_angle[ 2 ] );
     ent->client->ps.pmove.pm_type = PM_FREEZE;
     ent->client->ps.gunindex = 0;
-    ent->client->ps.blend[3] = 0;
-    ent->client->ps.rdflags &= ~RDF_UNDERWATER;
+    /*ent->client->ps.damage_blend[3] = */ent->client->ps.screen_blend[ 3 ] = 0; // damageblend?
+    ent->client->ps.rdflags = RDF_NONE;
 
     // clean up powerup info
     ent->client->quad_time = 0_ms;
@@ -52,16 +58,17 @@ void MoveClientToIntermission(edict_t *ent)
     ent->client->grenade_time = 0_ms;
 
     ent->watertype = 0;
-    ent->waterlevel = 0;
+    ent->waterlevel = water_level_t::WATER_NONE;;
     ent->viewheight = 0;
     ent->s.modelindex = 0;
     ent->s.modelindex2 = 0;
     ent->s.modelindex3 = 0;
     ent->s.modelindex4 = 0;
-    ent->s.effects = 0;
-    ent->s.renderfx = 0;
+
+    ent->s.effects = EF_NONE;
+    ent->s.renderfx = RF_NONE;
     ent->s.sound = 0;
-    ent->s.event = 0;
+    ent->s.event = EV_NONE;
     ent->s.solid = 0;
     ent->solid = SOLID_NOT;
     ent->svflags = SVF_NOCLIENT;

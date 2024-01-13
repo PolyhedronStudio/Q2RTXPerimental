@@ -472,96 +472,113 @@ CM_ClipBoxToBrush
 */
 static void CM_ClipBoxToBrush(const vec3_t p1, const vec3_t p2, trace_t *trace, mbrush_t *brush)
 {
-    int         i;
-    cplane_t    *plane, *clipplane;
-    float       dist;
-    float       enterfrac, leavefrac;
-    float       d1, d2;
-    bool        getout, startout;
-    float       f;
-    mbrushside_t    *side, *leadside;
+	int         i;
+	cplane_t *plane, *clipplane[ 2 ];
+	float       dist;
+	float       enterfrac[ 2 ], leavefrac;
+	float       d1, d2;
+	bool        getout, startout;
+	float       f;
+	mbrushside_t *side, *leadside[ 2 ];
 
-    if (!brush->numsides)
-        return;
+	if ( !brush->numsides )
+		return;
 
-    enterfrac = -1;
-    leavefrac = 1;
-    clipplane = NULL;
+	enterfrac[ 0 ] = enterfrac[ 1 ] = -1;
+	leavefrac = 1;
+	clipplane[ 0 ] = clipplane[ 1 ] = NULL;
 
-    getout = false;
-    startout = false;
-    leadside = NULL;
+	getout = false;
+	startout = false;
+	leadside[ 0 ] = leadside[ 1 ] = NULL;
 
-    side = brush->firstbrushside;
-    for (i = 0; i < brush->numsides; i++, side++) {
-        plane = side->plane;
+	side = brush->firstbrushside;
+	for ( i = 0; i < brush->numsides; i++, side++ ) {
+		plane = side->plane;
 
-        // FIXME: special case for axial
-        if (!trace_ispoint) {
-            // general box case
-            // push the plane out apropriately for mins/maxs
-            dist = DotProduct(trace_offsets[plane->signbits], plane->normal);
-            dist = plane->dist - dist;
-        } else {
-            // special point case
-            dist = plane->dist;
-        }
+		// FIXME: special case for axial
+		if ( !trace_ispoint ) {
+			// general box case
+			// push the plane out apropriately for mins/maxs
+			dist = DotProduct( trace_offsets[ plane->signbits ], plane->normal );
+			dist = plane->dist - dist;
+		} else {
+			// special point case
+			dist = plane->dist;
+		}
 
-        d1 = DotProduct(p1, plane->normal) - dist;
-        d2 = DotProduct(p2, plane->normal) - dist;
+		d1 = DotProduct( p1, plane->normal ) - dist;
+		d2 = DotProduct( p2, plane->normal ) - dist;
 
-        if (d2 > 0)
-            getout = true; // endpoint is not in solid
-        if (d1 > 0)
-            startout = true;
+		if ( d2 > 0 )
+			getout = true; // endpoint is not in solid
+		if ( d1 > 0 )
+			startout = true;
 
-        // if completely in front of face, no intersection
-        if (d1 > 0 && d2 >= d1)
-            return;
+		// if completely in front of face, no intersection with the entire brush
+		// Paril: Q3A fix
+		if ( d1 > 0 && ( d2 >= DIST_EPSILON || d2 >= d1 ) )
+		// Paril
+			return;
 
-        if (d1 <= 0 && d2 <= 0)
-            continue;
+		// if it doesn't cross the plane, the plane isn't relevent
+		if ( d1 <= 0 && d2 <= 0 )
+			continue;
 
-        // crosses face
-        if (d1 > d2) {
-            // enter
-            f = (d1 - DIST_EPSILON) / (d1 - d2);
-            if (f > enterfrac) {
-                enterfrac = f;
-                clipplane = plane;
-                leadside = side;
-            }
-        } else {
-            // leave
-            f = (d1 + DIST_EPSILON) / (d1 - d2);
-            if (f < leavefrac)
-                leavefrac = f;
-        }
-    }
+		// crosses face
+		if ( d1 > d2 ) {
+			// enter
+			// Paril: from Q3A
+			f = max( 0.0f, ( d1 - DIST_EPSILON ) / ( d1 - d2 ) );
+			// Paril
+			// KEX
+			if ( f > enterfrac[ 0 ] ) {
+				enterfrac[ 0 ] = f;
+				clipplane[ 0 ] = plane;
+				leadside[ 0 ] = side;
+			} else if ( f > enterfrac[ 1 ] ) {
+				enterfrac[ 1 ] = f;
+				clipplane[ 1 ] = plane;
+				leadside[ 1 ] = side;
+			}
+			// KEX
+		} else {
+			// leave
+			// Paril: from Q3A
+			f = min( 1.0f, ( d1 + DIST_EPSILON ) / ( d1 - d2 ) );
+			// Paril
+			if ( f < leavefrac )
+				leavefrac = f;
+		}
+	}
 
-    if (!startout) {
-        // original point was inside brush
-        trace->startsolid = true;
-        if (!getout) {
-            trace->allsolid = true;
-            if (!map_allsolid_bug->integer) {
-                // original Q2 didn't set these
-                trace->fraction = 0;
-                trace->contents = brush->contents;
-            }
-        }
-        return;
-    }
-    if (enterfrac < leavefrac) {
-        if (enterfrac > -1 && enterfrac < trace->fraction) {
-            if (enterfrac < 0)
-                enterfrac = 0;
-            trace->fraction = enterfrac;
-            trace->plane = *clipplane;
-            trace->surface = &(leadside->texinfo->c);
-            trace->contents = brush->contents;
-        }
-    }
+	if ( !startout ) {
+		// original point was inside brush
+		trace->startsolid = true;
+		if ( !getout ) {
+			trace->allsolid = true;
+			if ( !map_allsolid_bug->integer ) {
+				// original Q2 didn't set these
+				trace->fraction = 0;
+				trace->contents = brush->contents;
+			}
+		}
+		return;
+	}
+	if ( enterfrac[ 0 ] < leavefrac ) {
+		if ( enterfrac[ 0 ] > -1 && enterfrac[ 0 ] < trace->fraction ) {
+
+			trace->fraction = enterfrac[ 0 ];
+			trace->plane = *clipplane[ 0 ];
+			trace->surface = &( leadside[ 0 ]->texinfo->c );
+			trace->contents = brush->contents;
+
+			if ( leadside[ 1 ] ) {
+				trace->plane2 = *clipplane[ 1 ];
+				trace->surface2 = &( leadside[ 1 ]->texinfo->c );
+			}
+		}
+	}
 }
 
 /*

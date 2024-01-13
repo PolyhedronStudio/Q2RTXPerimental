@@ -180,6 +180,14 @@ void Cbuf_Execute(cmdbuf_t *buf)
     buf->aliasCount = 0;        // don't allow infinite alias loops
 }
 
+// Called once per frame. Decrements waitCount, resets aliasCount.
+void Cbuf_Frame( cmdbuf_t *buf ) {
+    if ( buf->waitCount > 0 ) {
+        buf->waitCount--;
+    }
+    buf->aliasCount = 0;        // don't allow infinite alias loops
+}
+
 /*
 ==============================================================================
 

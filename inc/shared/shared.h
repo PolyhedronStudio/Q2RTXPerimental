@@ -185,8 +185,10 @@ MATHLIB
 #ifdef __cplusplus
 };
 #endif
+
 // Include the 'new' math library, a slightly customized version of: https://github.com/HandmadeMath/HandmadeMath
 #include "shared/math/math_new.h"
+
 #ifdef __cplusplus
 // We extern "C"
 extern "C" {
@@ -298,6 +300,7 @@ COLLISION DETECTION
 ==============================================================
 */
 // lower bits are stronger, and will eat weaker brushes completely
+#define CONTENTS_NONE           0       // No contents, non-solid.
 #define CONTENTS_SOLID          1       // an eye is never valid in a solid
 #define CONTENTS_WINDOW         2       // translucent, but not watery
 #define CONTENTS_AUX            4
@@ -404,6 +407,10 @@ typedef struct {
     csurface_t  *surface;   // surface hit
     int         contents;   // contents on other side of surface hit
     struct edict_s  *ent;       // not set by CM_*() functions
+
+	// [Paril-KEX] the second-best surface hit from a trace
+	cplane_t	plane2;		// second surface normal at impact
+	csurface_t *surface2;	// second surface hit
 } trace_t;
 
 
@@ -419,18 +426,24 @@ USER COMMANDS( User Input. ):
 //
 // button bits
 //
+#define BUTTON_NONE         0
 #define BUTTON_ATTACK       1
 #define BUTTON_USE          2
+#define BUTTON_HOLSTER      4
+#define BUTTON_JUMP         8
+#define BUTTON_CROUCH       16
 #define BUTTON_ANY          128         // any key whatsoever
 
 
 // usercmd_t is sent to the server each client frame
 typedef struct usercmd_s {
-	byte    msec;
-	byte    buttons;
-	short   angles[ 3 ];
-	short   forwardmove, sidemove, upmove;
+	uint8_t  msec;
+    uint16_t buttons;
+	vec3_t  angles;
+	float   forwardmove, sidemove, upmove;
 	byte    impulse;        // remove?
+
+    uint64_t frameNumber;   // For possible deterministics.
 } usercmd_t;
 
 
@@ -442,43 +455,60 @@ PLAYER MOVEMENT
 
 ==============================================================
 */
-// pmove_state_t is the information necessary for client side movement
-// prediction
-typedef enum {
-    // can accelerate and turn
-    PM_NORMAL,
-    PM_SPECTATOR,
-    // no acceleration or turning
+typedef enum {  //: uint8_t {
+	WATER_NONE,
+	WATER_FEET,
+	WATER_WAIST,
+	WATER_UNDER
+} water_level_t;
+
+/**
+*   pmove_state_t is the information necessary for client side movement prediction.
+**/
+typedef enum {  // : uint8_t {
+    // Types that can accelerate and turn:
+    PM_NORMAL,      // Gravity. Clips to world and its entities.
+    PM_GRAPPLE,     // No gravity. Pull towards velocity.
+    PM_NOCLIP,      // No gravity. Don't clip against entities/world at all. 
+    PM_SPECTATOR,   // No gravity. Only clip against walls.
+
+    // Types with no acceleration or turning support:
     PM_DEAD,
-    PM_GIB,     // different bounding box
-    PM_FREEZE
+    PM_GIB,         // Different bounding box for when the player is 'gibbing out'.
+    PM_FREEZE       // Does not respond to any movement inputs.
 } pmtype_t;
 
 // pmove->pm_flags
-#define PMF_DUCKED          1
-#define PMF_JUMP_HELD       2
-#define PMF_ON_GROUND       4
-#define PMF_TIME_WATERJUMP  8   // pm_time is waterjump
-#define PMF_TIME_LAND       16  // pm_time is time before rejump
-#define PMF_TIME_TELEPORT   32  // pm_time is non-moving time
-#define PMF_NO_PREDICTION   64  // temporarily disables prediction (used for grappling hook)
-#define PMF_TELEPORT_BIT    128 // used by q2pro
+#define PMF_NONE						0   // No flags.
+#define PMF_DUCKED						1   // Player is ducked.
+#define PMF_JUMP_HELD					2   // Player is keeping jump button pressed.
+#define PMF_ON_GROUND					4   // Player is on-ground.
+#define PMF_TIME_WATERJUMP				8   // pm_time is waterjump.
+#define PMF_TIME_LAND					16  // pm_time is time before rejump.
+#define PMF_TIME_TELEPORT				32  // pm_time is non-moving time.
+#define PMF_NO_POSITIONAL_PREDICTION	64  // Temporarily disables prediction (used for grappling hook).
+//#define PMF_TELEPORT_BIT				128 // used by q2pro
+#define PMF_ON_LADDER					128	// Signal to game that we are on a ladder.
+#define PMF_NO_ANGULAR_PREDICTION		256 // Temporary disables angular prediction.
+#define PMF_IGNORE_PLAYER_COLLISION		512	// Don't collide with other players.
+#define PMF_TIME_TRICK_JUMP				1024// pm_time is the trick jump time.
 
-// this structure needs to be communicated bit-accurate
-// from the server to the client to guarantee that
-// prediction stays in sync, so no floats are used.
-// if any part of the game code modifies this struct, it
-// will result in a prediction error of some degree.
+/**
+*   This structure needs to be communicated bit-accurate from the server to the client to guarantee that
+*   prediction stays in sync. If any part of the game code modifies this struct, it will result in a 
+*   prediction error of some degree.
+**/
 typedef struct {
     pmtype_t    pm_type;
 
-    vec3_t		origin;//short       origin[3];      // 12.3 // WID: float-movement
-    vec3_t		velocity;//short       velocity[3];    // 12.3 // WID: float-movement
-    byte        pm_flags;       // ducked, jump_held, etc
-    byte        pm_time;        // each unit = 8 ms
+    vec3_t		origin;
+    vec3_t		velocity;
+    uint16_t    pm_flags;		// Ducked, jump_held, etc
+	uint16_t	pm_time;		// Each unit = 8 ms
     short       gravity;
-    short       delta_angles[3];    // add to command angles to get view direction
-                                    // changed by spawns, rotating objects, and teleporters
+    vec3_t      delta_angles;	// Add to command angles to get view direction
+								// changed by spawns, rotating objects, and teleporters
+	int8_t		viewheight;		// View height, added to origin[2] + viewoffset[2], for crouching
 } pmove_state_t;
 
 /**
@@ -488,7 +518,7 @@ typedef struct {
 **/
 typedef struct {
 	bool        qwmode;
-	bool        airaccelerate;
+	int32_t     airaccelerate;
 	bool        strafehack;
 	bool        flyhack;
 	bool        waterhack;
@@ -500,31 +530,87 @@ typedef struct {
 	float       flyfriction;
 } pmoveParams_t;
 
-#define MAXTOUCH    32
+/**
+*   @brief  Used for registering entity touching resulting traces.
+**/
+#define MAX_TOUCH_TRACES    32
+typedef struct pm_touch_trace_list_s {
+    uint32_t numberOfTraces;
+    trace_t traces[ MAX_TOUCH_TRACES ];
+} pm_touch_trace_list_t;
+
+/**
+*   @brief  Object storing data such as the player's move state, in order to perform another 
+*           frame of movement on its data.
+**/
 typedef struct {
-    // state (in / out)
-    pmove_state_t   s;
+    /**
+    *   (In/Out):
+    **/
+    pmove_state_t s;
 
-    // command (in)
-    usercmd_t       cmd;
-    qboolean        snapinitial;    // if s has been changed outside pmove
+    /**
+    *   (In):
+    **/
+    //! The player's move command.
+	usercmd_t	cmd;
+    bool		snapinitial;    // if s has been changed outside pmove
 
-    // results (out)
-    int         numtouch;
-    struct edict_s  *touchents[MAXTOUCH];
+    struct edict_s *player;
 
-    vec3_t      viewangles;         // clamped
-    float       viewheight;
+    /**
+    *   (Out):
+    **/
+    //! Contains the trace results of any entities touched.
+	pm_touch_trace_list_t touchTraces;
 
-    vec3_t      mins, maxs;         // bounding box size
+    /**
+    *   (In/Out):
+    **/
+    //! Actual view angles, clamped to (0 .. 360) and for Pitch(-89 .. 89).
+    vec3_t viewangles;
+    //! bounding box size.
+    vec3_t mins, maxs;
 
+    //! Pointer ot the actual ground entity we are on or not(nullptr).
     struct edict_s  *groundentity;
-    int         watertype;
-    int         waterlevel;
+    //! A copy of the plane data from our ground entity.
+    cplane_t        groundplane;
+    //! The actual BSP 'contents' type we're in.
+    int				watertype;
+    //! The depth of the player in the actual water solid.
+    water_level_t	waterlevel;
 
-    // callbacks to test the world
-    trace_t     (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end);
-    int         (*pointcontents)(const vec3_t point);
+    /**
+    *   (Out):
+    **/
+    //! Callbacks to test the world with.
+    //! Trace against all entities.
+    trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask );
+    //! PointContents.
+    int     ( *pointcontents )( const vec3_t point );
+    //! Clips to world only.
+    trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ int32_t contentMask );
+
+    /**
+    *   (In):
+    **/
+    // [KEX] variables (in)
+    vec3_t viewoffset; // last viewoffset (for accurate calculation of blending)
+
+    /**
+    *   (Out):
+    **/
+    // [KEX] results (out)
+    vec4_t screen_blend;
+    //! Merged with rdflags from server.
+    int32_t rdflags;
+    //! Play jump sound.
+    bool jump_sound;
+    //! We clipped on top of an object from below.
+    bool step_clip; 
+    //! Impact delta, for falling damage.
+    float impact_delta;
 } pmove_t;
 
 
@@ -543,6 +629,7 @@ MUZZLE FLASHES / PLAYER EFFECTS ETC:
 // that happen constantly on the given entity.
 // An entity that has effects will be sent to the client
 // even if it has a zero index model.
+#define EF_NONE             0x00000000
 #define EF_ROTATE           0x00000001      // rotate (bonus items)
 #define EF_GIB              0x00000002      // leave a trail
 #define EF_BLASTER          0x00000008      // redlight + trail
@@ -580,6 +667,7 @@ MUZZLE FLASHES / PLAYER EFFECTS ETC:
 //ROGUE
 
 // entity_state_t->renderfx flags
+#define RF_NONE             0
 #define RF_MINLIGHT         1       // allways have some light (viewmodel)
 #define RF_VIEWERMODEL      2       // don't draw through eyes, only mirrors
 #define RF_WEAPONMODEL      4       // only draw through eyes
@@ -605,6 +693,7 @@ MUZZLE FLASHES / PLAYER EFFECTS ETC:
 //ROGUE
 
 // player_state_t->refdef flags
+#define RDF_NONE            0
 #define RDF_UNDERWATER      1       // warp the screen as apropriate
 #define RDF_NOWORLDMODEL    2       // used for player configuration screen
 
@@ -1178,11 +1267,10 @@ typedef struct {
     pmove_state_t   pmove;      // for prediction
 
     // these fields do not need to be communicated bit-precise
-
-    vec3_t viewangles;     // for fixed views
-    vec3_t viewoffset;     // add to pmovestate->origin
-    vec3_t kick_angles;    // add to view direction to get render angles
-                                // set by weapon kicks, pain effects, etc
+    vec3_t viewangles;		// for fixed views
+    vec3_t viewoffset;		// add to pmovestate->origin
+    vec3_t kick_angles;		// add to view direction to get render angles
+							// set by weapon kicks, pain effects, etc
 
     vec3_t gunangles;
     vec3_t gunoffset;
@@ -1192,7 +1280,8 @@ typedef struct {
 	int32_t gunrate;
 // WID: 40hz.
 
-    float blend[4];       // rgba full screen effect
+    //float damage_blend[ 4 ];       // rgba full screen effect
+    float screen_blend[4];       // rgba full screen effect
     float fov;            // horizontal field of view
 
     int32_t rdflags;        // refdef flags

@@ -166,16 +166,12 @@ void CL_GM_InitProgs( void ) {
 
 	// Try game first
 	if ( !entry && fs_game->string[ 0 ] ) {
-		entry = CL_LoadGameLibrary( fs_game->string, "q2pro_" ); // WID: C++20: Added cast.
-		if ( !entry )
-			entry = CL_LoadGameLibrary( fs_game->string, "" ); // WID: C++20: Added cast.
+		entry = CL_LoadGameLibrary( fs_game->string, "" ); // WID: C++20: Added cast.
 	}
 
 	// Then try baseq2
 	if ( !entry ) {
-		entry = CL_LoadGameLibrary( BASEGAME, "q2pro_" ); // WID: C++20: Added cast.
-		if ( !entry )
-			entry = CL_LoadGameLibrary( BASEGAME, "" ); // WID: C++20: Added cast.
+		entry = CL_LoadGameLibrary( BASEGAME, "" ); // WID: C++20: Added cast.
 	}
 
 	// all paths failed

@@ -24,6 +24,9 @@ svgame_export_t    *ge;
 
 static void PF_configstring(int index, const char *val);
 
+static const int64_t PF_GetServerFrameNumber() {
+    return sv.framenum;
+}
 /*
 ================
 PF_FindIndex
@@ -800,16 +803,12 @@ void SV_InitGameProgs(void)
 
     // try game first
     if (!entry && fs_game->string[0]) {
-        entry = SV_LoadGameLibrary(fs_game->string, "q2pro_"); // WID: C++20: Added cast.
-        if (!entry)
-            entry = SV_LoadGameLibrary(fs_game->string, ""); // WID: C++20: Added cast.
+		entry = SV_LoadGameLibrary(fs_game->string, ""); // WID: C++20: Added cast.
     }
 
     // then try baseq2
     if (!entry) {
-        entry = SV_LoadGameLibrary(BASEGAME, "q2pro_"); // WID: C++20: Added cast.
-        if (!entry)
-            entry = SV_LoadGameLibrary(BASEGAME, ""); // WID: C++20: Added cast.
+		entry = SV_LoadGameLibrary(BASEGAME, ""); // WID: C++20: Added cast.
     }
 
     // all paths failed
@@ -820,6 +819,8 @@ void SV_InitGameProgs(void)
 	import.tick_rate = BASE_FRAMERATE;
 	import.frame_time_s = BASE_FRAMETIME_1000;
 	import.frame_time_ms = BASE_FRAMETIME;
+
+    import.GetServerFrameNumber = PF_GetServerFrameNumber;
 
     // load a new game dll
     import.multicast = PF_Multicast;

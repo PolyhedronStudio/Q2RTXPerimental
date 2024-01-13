@@ -37,9 +37,12 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_
 	out->origin[ 1 ] = in->origin[ 1 ]; //COORD2SHORT( in->origin[ 1 ] ); // WID: float-movement
 	out->origin[ 2 ] = in->origin[ 2 ]; //COORD2SHORT( in->origin[ 2 ] ); // WID: float-movement
 	//if ( short_angles ) {
-		out->angles[ 0 ] = ANGLE2SHORT( in->angles[ 0 ] );
-		out->angles[ 1 ] = ANGLE2SHORT( in->angles[ 1 ] );
-		out->angles[ 2 ] = ANGLE2SHORT( in->angles[ 2 ] );
+		//out->angles[ 0 ] = ANGLE2SHORT( in->angles[ 0 ] );
+		//out->angles[ 1 ] = ANGLE2SHORT( in->angles[ 1 ] );
+		//out->angles[ 2 ] = ANGLE2SHORT( in->angles[ 2 ] );
+		out->angles[ 0 ] = AngleMod( in->angles[ 0 ] );
+		out->angles[ 1 ] = AngleMod( in->angles[ 1 ] );
+		out->angles[ 2 ] = AngleMod( in->angles[ 2 ] );
 	//} else {
 	//	// pack angles8 akin to angles16 to make delta compression happy when
 	//	// precision suddenly changes between entity updates
@@ -220,23 +223,23 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 
 
 	if ( bits & U_ORIGIN1 ) {
-		MSG_WriteFloat( to->origin[ 0 ] ); //MSG_WriteInt16( to->origin[ 0 ] ); // WID: float-movement
+		MSG_WriteFloat( to->origin[ 0 ] );
 	}
 	if ( bits & U_ORIGIN2 ) {
-		MSG_WriteFloat( to->origin[ 1 ] );// MSG_WriteInt16( to->origin[ 1 ] ); // WID: float-movement
+		MSG_WriteFloat( to->origin[ 1 ] );
 	}
 	if ( bits & U_ORIGIN3 ) {
-		MSG_WriteFloat( to->origin[ 2 ] );// MSG_WriteInt16( to->origin[ 2 ] ); // WID: float-movement
+		MSG_WriteFloat( to->origin[ 2 ] );
 	}
 
 	if ( bits & U_ANGLE1 ) {
-		MSG_WriteInt16( to->angles[ 0 ] );
+		MSG_WriteHalfFloat( to->angles[ 0 ] );
 	}
 	if ( bits & U_ANGLE2 ) {
-		MSG_WriteInt16( to->angles[ 1 ] );
+		MSG_WriteHalfFloat( to->angles[ 1 ] );
 	}
 	if ( bits & U_ANGLE3 ) {
-		MSG_WriteInt16( to->angles[ 2 ] );
+		MSG_WriteHalfFloat( to->angles[ 2 ] );
 	}
 
 	if ( bits & U_OLDORIGIN ) {

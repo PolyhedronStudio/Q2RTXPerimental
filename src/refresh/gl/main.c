@@ -563,7 +563,7 @@ void R_RenderFrame_GL(refdef_t *fd)
     // go back into 2D mode
     GL_Setup2D();
 
-    if (gl_polyblend->integer && glr.fd.blend[3] != 0) {
+    if (gl_polyblend->integer && glr.fd.screen_blend[3] != 0) {
         GL_Blend();
     }
 

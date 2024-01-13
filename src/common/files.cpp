@@ -3748,7 +3748,7 @@ void FS_Init(void)
 #endif
 
     // get the game cvar and start the filesystem
-    fs_game = Cvar_Get("game", DEFGAME, CVAR_LATCH | CVAR_SERVERINFO);
+    fs_game = Cvar_Get("game", DEFAULT_GAME, CVAR_LATCH | CVAR_SERVERINFO);
     fs_game->changed = fs_game_changed;
     fs_game_changed(fs_game);
 

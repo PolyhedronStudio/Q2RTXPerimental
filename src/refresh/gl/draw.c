@@ -80,10 +80,10 @@ void GL_Blend(void)
 {
     color_t color;
 
-    color.u8[0] = glr.fd.blend[0] * 255;
-    color.u8[1] = glr.fd.blend[1] * 255;
-    color.u8[2] = glr.fd.blend[2] * 255;
-    color.u8[3] = glr.fd.blend[3] * 255;
+    color.u8[0] = glr.fd.screen_blend[0] * 255;
+    color.u8[1] = glr.fd.screen_blend[1] * 255;
+    color.u8[2] = glr.fd.screen_blend[2] * 255;
+    color.u8[3] = glr.fd.screen_blend[3] * 255;
 
     _GL_StretchPic(glr.fd.x, glr.fd.y, glr.fd.width, glr.fd.height, 0, 0, 1, 1,
                    color.u32, TEXNUM_WHITE, 0);

@@ -84,8 +84,9 @@ extern std::mt19937 mt_rand;
 // always returns min if min == (max - 1)
 // undefined behavior if min > (max - 1)
 [[nodiscard]] inline int32_t irandom( int32_t min_inclusive, int32_t max_exclusive ) {
-	if ( min_inclusive == max_exclusive - 1 )
+	if ( min_inclusive == max_exclusive - 1 ) {
 		return min_inclusive;
+	}
 
 	return std::uniform_int_distribution<int32_t>( min_inclusive, max_exclusive - 1 )( mt_rand );
 }
@@ -96,8 +97,9 @@ extern std::mt19937 mt_rand;
 // - to fix rand()%x, do irandom(x)
 // - to fix rand()&x, do irandom(x + 1)
 [[nodiscard]] inline int32_t irandom( int32_t max_exclusive ) {
-	if ( max_exclusive <= 0 )
+	if ( max_exclusive <= 0 ) {
 		return 0;
+	}
 
 	return irandom( 0, max_exclusive );
 }

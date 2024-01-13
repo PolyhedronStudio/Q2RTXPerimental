@@ -217,7 +217,7 @@ void V_Flashlight(void)
             /* Use cl.playerEntityOrigin+viewoffset, playerEntityAngles instead of
              * cl.refdef.vieworg, cl.refdef.viewangles as as the cl.refdef values
              * are the camera values, but not the player "eye" values in 3rd person mode. */
-            VectorCopy(cl.predicted_angles, flashlight_angles);
+            VectorCopy(cl.predictedState.angles, flashlight_angles);
         }
         // Add a bit of gun bob to the flashlight as well
         vec3_t gunangles;
@@ -500,10 +500,10 @@ void V_RenderView(void)
         if (cl_testlights->integer)
             V_TestLights();
         if (cl_testblend->integer) {
-            cl.refdef.blend[0] = 1;
-            cl.refdef.blend[1] = 0.5f;
-            cl.refdef.blend[2] = 0.25f;
-            cl.refdef.blend[3] = 0.5f;
+            cl.refdef.screen_blend[0] = 1;
+            cl.refdef.screen_blend[1] = 0.5f;
+            cl.refdef.screen_blend[2] = 0.25f;
+            cl.refdef.screen_blend[3] = 0.5f;
         }
 #endif
 
@@ -545,8 +545,8 @@ void V_RenderView(void)
             r_numparticles = 0;
         if (!cl_add_lights->integer)
             r_numdlights = 0;
-        if (!cl_add_blend->integer)
-            Vector4Clear(cl.refdef.blend);
+        //if (!cl_add_blend->integer)
+        //    Vector4Clear(cl.refdef.screen_blend);
 
         cl.refdef.num_entities = r_numentities;
         cl.refdef.entities = r_entities;
@@ -556,7 +556,7 @@ void V_RenderView(void)
         cl.refdef.dlights = r_dlights;
         cl.refdef.lightstyles = r_lightstyles;
 
-        cl.refdef.rdflags = cl.frame.ps.rdflags;
+        cl.refdef.rdflags = cl.frame.ps.rdflags | cl.predictedState.rdflags;
 
         // sort entities for better cache locality
         qsort(cl.refdef.entities, cl.refdef.num_entities, sizeof(cl.refdef.entities[0]), entitycmpfnc);

@@ -767,6 +767,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod);
 
 // damage flags
+#define DAMAGE_NONE             0x00000000
 #define DAMAGE_RADIUS           0x00000001  // damage was indirect
 #define DAMAGE_NO_ARMOR         0x00000002  // armour does not protect from this damage
 #define DAMAGE_ENERGY           0x00000004  // damage is from an energy based weapon
@@ -904,7 +905,7 @@ void DeathmatchScoreboardMessage(edict_t *client, edict_t *killer);
 //
 // g_pweapon.c
 //
-void PlayerNoise(edict_t *who, vec3_t where, int type);
+void PlayerNoise(edict_t *who, const vec3_t where, int type);
 
 //
 // m_move.c
@@ -980,16 +981,17 @@ typedef struct {
     int         helpchanged;
 
     bool        spectator;      // client is a spectator
+    bool        spawned;        // Stores whether spawned or not. A loadgame will leave valid entities that just don't have a connection yet.
 } client_persistant_t;
 
 // client data that stays across deathmatch respawns
 typedef struct {
-    client_persistant_t coop_respawn;   // what to set client->pers to on a respawn
-    int64_t enterframe;         // level.framenum the client entered the game
-    int score;              // frags, etc
-    vec3_t cmd_angles;         // angles sent over in the last command
+    client_persistant_t coop_respawn;	// what to set client->pers to on a respawn
+    int64_t enterframe;			// level.framenum the client entered the game
+    int score;					// frags, etc
+    vec3_t cmd_angles;			// angles sent over in the last command
 
-    bool spectator;          // client is a spectator
+    bool spectator;				// client is a spectator
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
@@ -1077,14 +1079,16 @@ struct gclient_s {
     float       damage_alpha;
     float       bonus_alpha;
     vec3_t      damage_blend;
-    vec3_t      v_angle;            // aiming direction
-    float       bobtime;            // so off-ground doesn't change it
+    vec3_t      v_angle, v_forward; // aiming direction
+    float       bobtime;            // Store it, so we know where we're at (To Prevent off-ground from changing it).
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
+    edict_t     *oldgroundentity; // [Paril-KEX]
+    uint64_t    last_stair_step_frame;
 
-	sg_time_t	next_drown_time;
-    int         old_waterlevel;
-    int         breather_sound;
+	sg_time_t		next_drown_time;
+	water_level_t	old_waterlevel;
+    int				breather_sound;
 
     int         machinegun_shots;   // for weapon raising
 
@@ -1256,8 +1260,8 @@ struct edict_s {
 
     sg_time_t		last_sound_time;
 
-    int         watertype;
-    int         waterlevel;
+    int				watertype;
+	water_level_t	waterlevel;
 
     vec3_t      move_origin;
     vec3_t      move_angles;

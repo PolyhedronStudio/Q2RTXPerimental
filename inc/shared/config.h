@@ -28,15 +28,18 @@
 #define BUILDSTRING "Linux"
 #endif
 
+// The 'base' game directory.
 #define BASEGAME "baseq2"
-#define DEFGAME ""
+// The default game directory to launch. When left empty, the default game to load will be BASEGAME itself.
+#define DEFAULT_GAME "baseq2rtxp"
 
 #define USE_ICMP 1
 #define USE_ZLIB 1
 #define USE_SYSCON 1
 #define USE_DBGHELP 1
 
-#define USE_SMOOTH_DELTA_ANGLES 1
+// WID: We'll use them either way.
+//#define USE_SMOOTH_DELTA_ANGLES 1
 
 #if USE_CLIENT
 //#define VID_REF "gl"
