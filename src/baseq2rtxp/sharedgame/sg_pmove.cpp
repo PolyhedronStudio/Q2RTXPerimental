@@ -1421,9 +1421,17 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	Vector3 _origin = { pm->s.origin[ 0 ], pm->s.origin[ 1 ], pm->s.origin[ 2 ] };
 	Vector3 _offset = { 0, 0, 24 };
 	Vector3 _sum = _origin;
-	_sum += _offset;
-	SG_DPrintf( "_sum(%f, %f, %f)\n", _sum.x, _sum.y, _sum.z );
+	_sum += _offset; 
+	_sum -= _offset;
+//	SG_DPrintf( "_sum(%f, %f, %f)\n", _sum.x, _sum.y, _sum.z );
+//	if ( _offset != Vector3( 0.f, 0.f, 0.f ) ) {
+//		SG_DPrintf( "wooowww\n" );
+//	}
+	Vector3 traceStart = pm->s.origin;
+	Vector3 traceEnd = traceStart + Vector3{ 0.f, 0.f, -20.f };
+	trace_t tresult = PM_Trace( QM_Vector3ToQFloatV( traceStart ).v, pm->mins, pm->maxs, QM_Vector3ToQFloatV( traceEnd ).v, 0 );
 
+	SG_DPrintf( "tresult.ent=(%f)\n", tresult.fraction );
 	// EOF Temporary Vector3 test.
 }
 

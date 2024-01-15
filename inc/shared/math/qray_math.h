@@ -135,6 +135,26 @@ typedef struct Vector2 {
 **/
 #ifdef __cplusplus
     /**
+    *   @brief  Vector2 Constructors, including support for passing in a vec2_t
+    **/
+    [[nodiscard]] inline Vector2( const float x, const float y ) {
+        this->x = x;
+        this->y = y;
+    }
+    [[nodiscard]] inline Vector2( Vector2 &v ) {
+        this->x = v.x;
+        this->y = v.y;
+    }
+    [[nodiscard]] inline Vector2( const Vector2 &v ) {
+        this->x = v.x;
+        this->y = v.y;
+    }
+    [[nodiscard]] inline Vector2( vec2_t v2 ) {
+        this->x = v2[ 0 ];
+        this->y = v2[ 1 ];
+    }
+
+    /**
     *   Array like component accessors:
     **/
     [[nodiscard]] inline constexpr const float &operator[]( const  size_t i ) const;
@@ -156,11 +176,36 @@ typedef struct Vector3 {
 **/
 #ifdef __cplusplus
     /**
+    *   @brief  Vector3 Constructors, including support for passing in a vec3_t
+    **/
+    [[nodiscard]] inline Vector3( const float x, const float y, const float z ) {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+    }
+    [[nodiscard]] inline Vector3( Vector3 &v ) {
+        this->x = v.x;
+        this->y = v.y;
+        this->z = v.z;
+    }
+    [[nodiscard]] inline Vector3( const Vector3 &v ) {
+        this->x = v.x;
+        this->y = v.y;
+        this->z = v.z;
+    }
+    [[nodiscard]] inline Vector3( vec3_t v3 ) {
+        this->x = v3[ 0 ];
+        this->y = v3[ 1 ];
+        this->z = v3[ 2 ];
+    }
+    /**
     *   Array like component accessors:
     **/
     [[nodiscard]] inline constexpr const float &operator[]( size_t i ) const;
     [[nodiscard]] inline constexpr float &operator[]( size_t i );
-#endif
+
+
+#endif // #ifdef __cplusplus
 } Vector3;
 #define RL_VECTOR3_TYPE
 #endif
@@ -201,6 +246,11 @@ typedef struct float3 {
 typedef struct float16 {
     float v[16];
 } float16;
+
+// NOTE: Helper types to be used instead of array return types for *ToQVec3_t functions
+typedef struct qfloat3 {
+    vec3_t v;
+} qfloat3;
 
 #include <math.h>       // Required for: sinf(), cosf(), tan(), atan2f(), sqrtf(), floor(), fminf(), fmaxf(), fabs()
 
@@ -1100,9 +1150,9 @@ RMAPI float3 QM_Vector3ToFloatV(Vector3 v)
     return buffer;
 }
 
-// Q2RTXPerimental: Get Vector3 as const float array.
-RMAPI const float3 QM_Vector3ToConstFloatV( Vector3 v ) {
-    float3 buffer = { 0 };
+// Q2RTXPerimental: Get Vector3 as vec3_t array.
+RMAPI qfloat3 QM_Vector3ToQFloatV( Vector3 v ) {
+    qfloat3 buffer = { 0 };
 
     buffer.v[ 0 ] = v.x;
     buffer.v[ 1 ] = v.y;
@@ -2285,43 +2335,88 @@ RMAPI int QM_QuaternionEquals(Quaternion p, Quaternion q)
 }
 
 /**
-*   @brief  Vector3 C++ 'Plus' operator:
+*   @brief  Vector2 C++ 'Plus' operator:
 **/
-inline Vector2 operator+( const Vector2 &left, const Vector2 &right ) {
+RMAPI Vector2 operator+( const Vector2 &left, const Vector2 &right ) {
     return QM_Vector2Add( left, right );
 }
-inline Vector2 operator+( const Vector2 &left, const float &right ) {
+RMAPI Vector2 operator+( const Vector2 &left, const float &right ) {
     return QM_Vector2AddValue( left, right );
 }
 
-/**
-*   @brief  Vector3 C++ 'Minus' operator:
-**/
-inline Vector2 operator-( const Vector2 &left, const Vector2 &right ) {
-    return QM_Vector2Subtract( left, right );
+RMAPI Vector2 &operator+=( Vector2 &left, const Vector2 &right ) {
+    return left = QM_Vector2Add( left, right );
 }
-inline Vector2 operator-( const Vector2 &left, const float &right ) {
-    return QM_Vector2SubtractValue( left, right );
+RMAPI Vector2 &operator+=( Vector2 &left, const float &right ) {
+    return left = QM_Vector2AddValue( left, right );
 }
 
 /**
-*   @brief  Vector3 C++ 'Multiply' operator:
+*   @brief  Vector2 C++ 'Minus' operator:
 **/
-inline Vector2 operator*( const Vector2 &left, const Vector2 &right ) {
+RMAPI Vector2 operator-( const Vector2 &left, const Vector2 &right ) {
+    return QM_Vector2Subtract( left, right );
+}
+RMAPI Vector2 operator-( const Vector2 &left, const float &right ) {
+    return QM_Vector2SubtractValue( left, right );
+}
+RMAPI Vector2 operator-( const Vector2 &v ) {
+    return QM_Vector2Negate( v );
+}
+
+RMAPI Vector2 &operator-=( Vector2 &left, const Vector2 &right ) {
+    return left = QM_Vector2Subtract( left, right );
+}
+RMAPI Vector2 &operator-=( Vector2 &left, const float &right ) {
+    return left = QM_Vector2SubtractValue( left, right );
+}
+
+/**
+*   @brief  Vector2 C++ 'Multiply' operator:
+**/
+RMAPI Vector2 operator*( const Vector2 &left, const Vector2 &right ) {
     return QM_Vector2Multiply( left, right );
 }
-inline Vector2 operator*( const Vector2 &left, const float &right ) {
+RMAPI Vector2 operator*( const Vector2 &left, const float &right ) {
     return QM_Vector2Scale( left, right );
 }
 
+RMAPI Vector2 &operator*=( Vector2 &left, const Vector2 &right ) {
+    return left = QM_Vector2Multiply( left, right );
+}
+RMAPI Vector2 &operator*=( Vector2 &left, const float &right ) {
+    return left = QM_Vector2Scale( left, right );
+}
+
 /**
-*   @brief  Vector3 C++ 'Divide' operator:
+*   @brief  Vector2 C++ 'Divide' operator:
 **/
-inline Vector2 operator/( const Vector2 &left, const Vector2 &right ) {
+RMAPI Vector2 operator/( const Vector2 &left, const Vector2 &right ) {
     return QM_Vector2Divide( left, right );
 }
-inline Vector2 operator/( const Vector2 &left, const float &right ) {
+RMAPI Vector2 operator/( const Vector2 &left, const float &right ) {
     return QM_Vector2DivideValue( left, right );
+}
+
+RMAPI Vector2 &operator/=( Vector2 &left, const Vector2 &right ) {
+    return left = QM_Vector2Divide( left, right );
+}
+RMAPI Vector2 &operator/=( Vector2 &left, const float &right ) {
+    return left = QM_Vector2DivideValue( left, right );
+}
+
+/**
+*   @brief  Vector2 C++ 'Equals' operator:
+**/
+RMAPI bool operator==( const Vector2 &left, const Vector2 &right ) {
+    return QM_Vector2Equals( left, right );
+}
+
+/**
+*   @brief  Vector2 C++ 'Not Equals' operator:
+**/
+RMAPI bool operator!=( const Vector2 &left, const Vector2 &right ) {
+    return !QM_Vector2Equals( left, right );
 }
 #endif  // __cplusplus
 
@@ -2365,69 +2460,86 @@ inline Vector2 operator/( const Vector2 &left, const float &right ) {
 /**
 *   @brief  Vector3 C++ 'Plus' operator:
 **/
-inline Vector3 operator+( const Vector3 &left, const Vector3 &right ) {
+RMAPI Vector3 operator+( const Vector3 &left, const Vector3 &right ) {
     return QM_Vector3Add( left, right );
 }
-inline Vector3 operator+( const Vector3 &left, const float &right ) {
+RMAPI Vector3 operator+( const Vector3 &left, const float &right ) {
     return QM_Vector3AddValue( left, right );
 }
 
-inline Vector3 &operator+=( Vector3 &left, const Vector3 &right ) {
+RMAPI Vector3 operator+=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Add( left, right );
 }
-inline Vector3 &operator+=( Vector3 &left, const float &right ) {
+RMAPI Vector3 operator+=( Vector3 &left, const float &right ) {
     return left = QM_Vector3AddValue( left, right );
 }
 
 /**
 *   @brief  Vector3 C++ 'Minus' operator:
 **/
-inline Vector3 operator-( const Vector3 &left, const Vector3 &right ) {
+RMAPI Vector3 operator-( const Vector3 &left, const Vector3 &right ) {
     return QM_Vector3Subtract( left, right );
 }
-inline Vector3 operator-( const Vector3 &left, const float &right ) {
+RMAPI Vector3 operator-( const Vector3 &left, const float &right ) {
     return QM_Vector3SubtractValue( left, right );
 }
+RMAPI Vector3 operator-( const Vector3 &v ) {
+    return QM_Vector3Negate( v );
+}
 
-inline Vector3 &operator-=( Vector3 &left, const Vector3 &right ) {
+RMAPI Vector3 &operator-=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Subtract( left, right );
 }
-inline Vector3 &operator-=( Vector3 &left, const float &right ) {
+RMAPI Vector3 &operator-=( Vector3 &left, const float &right ) {
     return left = QM_Vector3SubtractValue( left, right );
 }
 
 /**
 *   @brief  Vector3 C++ 'Multiply' operator:
 **/
-inline Vector3 operator*( const Vector3 &left, const Vector3 &right ) {
+RMAPI Vector3 operator*( const Vector3 &left, const Vector3 &right ) {
     return QM_Vector3Multiply( left, right );
 }
-inline Vector3 operator*( const Vector3 &left, const float &right ) {
+RMAPI Vector3 operator*( const Vector3 &left, const float &right ) {
     return QM_Vector3Scale( left, right );
 }
 
-inline Vector3 &operator*=( Vector3 &left, const Vector3 &right ) {
+RMAPI Vector3 &operator*=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Multiply( left, right );
 }
-inline Vector3 &operator*=( Vector3 &left, const float &right ) {
+RMAPI Vector3 &operator*=( Vector3 &left, const float &right ) {
     return left = QM_Vector3Scale( left, right );
 }
 
 /**
 *   @brief  Vector3 C++ 'Divide' operator:
 **/
-inline Vector3 operator/( const Vector3 &left, const Vector3 &right ) {
+RMAPI Vector3 operator/( const Vector3 &left, const Vector3 &right ) {
     return QM_Vector3Divide( left, right );
 }
-inline Vector3 operator/( const Vector3 &left, const float &right ) {
+RMAPI Vector3 operator/( const Vector3 &left, const float &right ) {
     return QM_Vector3DivideValue( left, right );
 }
 
-inline Vector3 &operator/=( Vector3 &left, const Vector3 &right ) {
+RMAPI Vector3 &operator/=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Divide( left, right );
 }
-inline Vector3 &operator/=( Vector3 &left, const float &right ) {
+RMAPI Vector3 &operator/=( Vector3 &left, const float &right ) {
     return left = QM_Vector3DivideValue( left, right );
+}
+
+/**
+*   @brief  Vector3 C++ 'Equals' operator:
+**/
+RMAPI bool operator==( const Vector3 &left, const Vector3 &right ) {
+    return QM_Vector3Equals( left, right );
+}
+
+/**
+*   @brief  Vector3 C++ 'Not Equals' operator:
+**/
+RMAPI bool operator!=( const Vector3 &left, const Vector3 &right ) {
+    return !QM_Vector3Equals( left, right );
 }
 
 #endif  // __cplusplus
