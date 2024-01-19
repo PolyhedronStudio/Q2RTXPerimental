@@ -137,6 +137,10 @@ typedef struct Vector2 {
     /**
     *   @brief  Vector2 Constructors, including support for passing in a vec2_t
     **/
+    [[nodiscard]] inline Vector2() {
+        this->x = 0;
+        this->y = 0;
+    }
     [[nodiscard]] inline Vector2( const float x, const float y ) {
         this->x = x;
         this->y = y;
@@ -178,6 +182,11 @@ typedef struct Vector3 {
     /**
     *   @brief  Vector3 Constructors, including support for passing in a vec3_t
     **/
+    [[nodiscard]] inline Vector3( ) {
+        this->x = 0;
+        this->y = 0;
+        this->z = 0;
+    }
     [[nodiscard]] inline Vector3( const float x, const float y, const float z ) {
         this->x = x;
         this->y = y;
@@ -2380,6 +2389,10 @@ RMAPI Vector2 operator*( const Vector2 &left, const Vector2 &right ) {
 RMAPI Vector2 operator*( const Vector2 &left, const float &right ) {
     return QM_Vector2Scale( left, right );
 }
+// for: Vector2 v1 = floatVal * v2;
+RMAPI Vector2 operator*( const float &left, const Vector2 &right ) {
+    return QM_Vector2Scale( right, left );
+}
 
 RMAPI Vector2 &operator*=( Vector2 &left, const Vector2 &right ) {
     return left = QM_Vector2Multiply( left, right );
@@ -2425,7 +2438,7 @@ RMAPI bool operator!=( const Vector2 &left, const Vector2 &right ) {
 /**
 *
 *
-*   Q2RTXPerimental: C++ Operators for the Vector3 type.
+*   Q2RTXPerimental: C++ Functions/Operators for the Vector3 type.
 *
 *
 **/
@@ -2503,6 +2516,10 @@ RMAPI Vector3 operator*( const Vector3 &left, const Vector3 &right ) {
 RMAPI Vector3 operator*( const Vector3 &left, const float &right ) {
     return QM_Vector3Scale( left, right );
 }
+// for: Vector3 v1 = floatVal * v2;
+RMAPI Vector3 operator*( const float &left, const Vector3 &right ) {
+    return QM_Vector3Scale( right, left );
+}
 
 RMAPI Vector3 &operator*=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Multiply( left, right );
@@ -2542,5 +2559,38 @@ RMAPI bool operator!=( const Vector3 &left, const Vector3 &right ) {
     return !QM_Vector3Equals( left, right );
 }
 
+/**
+*   @brief  Vector3 C++ 'AngleVectors' method for QMRayLib.
+**/
+RMAPI void QM_AngleVectors( const Vector3 &angles, Vector3 *forward, Vector3 *right, Vector3 *up ) {
+    float        angle;
+    float        sr, sp, sy, cr, cp, cy;
+
+    angle = DEG2RAD( angles[ YAW ] );
+    sy = sin( angle );
+    cy = cos( angle );
+    angle = DEG2RAD( angles[ PITCH ] );
+    sp = sin( angle );
+    cp = cos( angle );
+    angle = DEG2RAD( angles[ ROLL ] );
+    sr = sin( angle );
+    cr = cos( angle );
+
+    if ( forward ) {
+        forward->x = cp * cy;
+        forward->y = cp * sy;
+        forward->z = -sp;
+    }
+    if ( right ) {
+        right->x = ( -1 * sr * sp * cy + -1 * cr * -sy );
+        right->y = ( -1 * sr * sp * sy + -1 * cr * cy );
+        right->z = -1 * sr * cp;
+    }
+    if ( up ) {
+        up->x = ( cr * sp * cy + -sr * -sy );
+        up->y = ( cr * sp * sy + -sr * cy );
+        up->z = cr * cp;
+    }
+}
 #endif  // __cplusplus
 #endif  // QRAYMATH_H

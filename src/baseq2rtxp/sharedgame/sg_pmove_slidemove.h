@@ -6,17 +6,17 @@ static constexpr int32_t MAX_CLIP_PLANES = 5;
 /**
 *	@brief	Clips trace against world only.
 **/
-trace_t PM_Clip( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end, int32_t contentMask );
+trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, int32_t contentMask );
 
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-trace_t PM_Trace( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end, int32_t contentMask = CONTENTS_NONE );
+trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, int32_t contentMask = CONTENTS_NONE );
 
 /**
 *	@brief	Clips the velocity to surface normal.
 **/
-void PM_ClipVelocity( const vec3_t in, const vec3_t normal, vec3_t out, float overbounce );
+void PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
 
 /**
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
@@ -27,4 +27,4 @@ inline void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-void PM_StepSlideMove_Generic( vec3_t &origin, vec3_t &velocity, float frametime, const vec3_t &mins, const vec3_t &maxs, pm_touch_trace_list_t &touch_traces, bool has_time );
+void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time );

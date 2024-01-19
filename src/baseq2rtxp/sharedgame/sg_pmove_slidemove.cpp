@@ -23,17 +23,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //! An actual pointer to the pmove object that we're moving.
 extern pmove_t *pm;
 
-// movement parameters
-//float pm_stopspeed = 100;
-//float pm_maxspeed = 300;
-//float pm_duckspeed = 100;
-//float pm_accelerate = 10;
-//float pm_wateraccelerate = 10;
-//float pm_friction = 6;
-//float pm_waterfriction = 1;
-//float pm_waterspeed = 400;
-//float pm_laddermod = 0.5f;
-
 
 /**
 *
@@ -45,14 +34,14 @@ extern pmove_t *pm;
 /**
 *	@brief	Clips trace against world only.
 **/
-trace_t PM_Clip( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end, int32_t contentMask ) {
-	return pm->clip( start, mins, maxs, end, contentMask );
+trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, int32_t contentMask ) {
+	return pm->clip( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, contentMask );
 }
 
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-trace_t PM_Trace( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end, int32_t contentMask ) {
+trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, int32_t contentMask ) {
 	// Spectators only clip against world, so use clip instead.
 	if ( pm->s.pm_type == PM_SPECTATOR ) {
 		return PM_Clip( start, mins, maxs, end, MASK_SOLID );
@@ -71,7 +60,7 @@ trace_t PM_Trace( const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, c
 		//	mask &= ~CONTENTS_PLAYER;
 	}
 
-	return pm->trace( start, mins, maxs, end, pm->player, contentMask );
+	return pm->trace( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, pm->player, contentMask );
 }
 
 
@@ -123,7 +112,7 @@ static constexpr float STOP_EPSILON = 0.1f;
 /**
 *	@brief	Clips the velocity to surface normal.
 **/
-void PM_ClipVelocity( const vec3_t in, const vec3_t normal, vec3_t out, float overbounce ) {
+void PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce ) {
 	float   backoff;
 	float   change;
 	int     i;
@@ -152,7 +141,7 @@ Does not modify any world state?
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-void PM_StepSlideMove_Generic( vec3_t &origin, vec3_t &velocity, float frametime, const vec3_t &mins, const vec3_t &maxs, pm_touch_trace_list_t &touch_traces, bool has_time ) {
+void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time ) {
 	int bumpcount = 0, numbumps = 0;
 	vec3_t dir = {};
 	float d = 0;
@@ -190,7 +179,8 @@ void PM_StepSlideMove_Generic( vec3_t &origin, vec3_t &velocity, float frametime
 		// surfaces; easiest to see on q2dm1 by running/jumping against the sides
 		// of the curved map.
 		if ( trace.surface2 ) {
-			vec3_t clipped_a, clipped_b;
+			Vector3 clipped_a = QM_Vector3Zero();
+			Vector3 clipped_b = QM_Vector3Zero();
 			PM_ClipVelocity( velocity, trace.plane.normal, clipped_a, 1.01f );
 			PM_ClipVelocity( velocity, trace.plane2.normal, clipped_b, 1.01f );
 
