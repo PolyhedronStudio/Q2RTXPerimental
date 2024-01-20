@@ -110,7 +110,7 @@ static void PM_StepSlideMove() {
 	Vector3 downVelocity = pml.velocity;
 
 	// Perform 'up-trace' to see whether we can step up at all.
-	Vector3 up = startOrigin + Vector3{ 0.f, 0.f, PM_STEPSIZE };
+	Vector3 up = startOrigin + Vector3{ 0.f, 0.f, PM_MAX_STEPSIZE };
 	trace = PM_Trace( startOrigin, pm->mins, pm->maxs, up );
 	if ( trace.allsolid ) {
 		return; // can't step up
@@ -170,7 +170,7 @@ static void PM_StepSlideMove() {
 	// Paril: step down stairs/slopes
 	if ( ( pm->s.pm_flags & PMF_ON_GROUND ) && !( pm->s.pm_flags & PMF_ON_LADDER ) &&
 		( pm->waterlevel < water_level_t::WATER_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity.z <= 0 ) ) ) {
-		Vector3 down = pml.origin - Vector3{ 0.f, 0.f, PM_STEPSIZE }; // { pml.origin.x, pml.origin.y, pml.origin.z - PM_STEPSIZE };
+		Vector3 down = pml.origin - Vector3{ 0.f, 0.f, PM_MAX_STEPSIZE }; // { pml.origin.x, pml.origin.y, pml.origin.z - PM_MAX_STEPSIZE };
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
 		if ( trace.fraction < 1.f ) {
 			pml.origin = trace.endpos;
@@ -780,7 +780,7 @@ static void PM_CheckSpecialMovement() {
 	}
 
 	// We're currently standing on ground, and the snapped position is a step.
-	if ( pm->groundentity && fabsf( pml.origin.z - trace.endpos[2] ) <= PM_STEPSIZE ) {
+	if ( pm->groundentity && fabsf( pml.origin.z - trace.endpos[2] ) <= PM_MAX_STEPSIZE ) {
 		return;
 	}
 
