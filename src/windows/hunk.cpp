@@ -35,7 +35,7 @@ void Hunk_Begin(memhunk_t *hunk, size_t maxsize)
 {
     Q_assert(maxsize <= SIZE_MAX - (pagesize - 1));
 
-    // reserve a huge chunk of memory, but don't commit any yet
+    // Reserve a huge chunk of memory, but don't commit any yet
     hunk->cursize = 0;
     hunk->maxsize = ALIGN(maxsize, pagesize);
     hunk->base = VirtualAlloc(NULL, hunk->maxsize, MEM_RESERVE, PAGE_NOACCESS);

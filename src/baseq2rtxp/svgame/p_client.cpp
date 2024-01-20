@@ -1647,7 +1647,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
 
     // Paril: falling damage noises alert monsters
     if ( ent->health )
-        PlayerNoise( ent, pm.s.origin, PNOISE_SELF);
+        PlayerNoise( ent, &pm.s.origin[ 0 ], PNOISE_SELF);
 }
 
 /*
@@ -1733,7 +1733,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         if ( pm.groundentity && ent->groundentity ) {
             float stepsize = fabs( ent->s.origin[ 2 ] - pm.s.origin[ 2 ] );
 
-            if ( stepsize > 4.f && stepsize < PM_STEPSIZE ) {
+            if ( stepsize > PM_MIN_STEPSIZE && stepsize < PM_MAX_STEPSIZE ) {
                 ent->s.renderfx |= RF_STAIR_STEP;
                 ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
             }

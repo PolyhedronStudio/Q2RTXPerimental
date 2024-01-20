@@ -604,7 +604,7 @@ static inline void write_unreliables( client_t *client, size_t maxsize ) {
 }
 
 static void SV_WriteDatagram( client_t *client ) {
-	message_packet_t *msg;
+	//message_packet_t *msg;
 	size_t cursize;
 
 	// determine how much space is left for unreliable data

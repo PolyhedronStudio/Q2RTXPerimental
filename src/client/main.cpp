@@ -408,7 +408,7 @@ static void CL_Connect_f(void)
 
 
     if (argc < 2) {
-usage:
+//usage:
         Com_Printf("Usage: %s <server> [34|35|36]\n", Cmd_Argv(0));
         return;
     }
@@ -1134,7 +1134,7 @@ static void CL_ConnectionlessPacket(void)
 {
     char    string[MAX_STRING_CHARS];
     char    *s, *c;
-    int     i, j, k;
+    int     i, j;
 
     MSG_BeginReading();
     MSG_ReadInt32(); // skip the -1
@@ -1206,7 +1206,7 @@ static void CL_ConnectionlessPacket(void)
 
     // Action: Server Connection: Connect command received.
     if (!strcmp(c, "client_connect")) {
-        netchan_type_t type;
+        //netchan_type_t type;
         char mapname[MAX_QPATH];
         bool got_server = false;
 

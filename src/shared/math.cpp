@@ -1,3 +1,5 @@
+// WID: It makes sense to have the 'implementation' reside here.
+//#define RAYMATH_IMPLEMENTATION
 #include "shared/shared.h"
 
 void AngleVectors( const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up ) {

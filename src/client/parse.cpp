@@ -426,7 +426,6 @@ static void CL_ParseGamestate( int32_t cmd )
 static void CL_ParseServerData(void)
 {
     char    levelname[MAX_QPATH];
-    int     i;//, q_unused;
     bool    cinematic;
 
     Cbuf_Execute(&cl_cmdbuf);          // make sure any stuffed commands are done
@@ -1009,15 +1008,15 @@ static void CL_ParseSetting(void)
     index = MSG_ReadInt32();
     value = MSG_ReadInt32();
 
-    switch (index) {
+//    switch (index) {
 //#if USE_FPS
 //    case SVS_FPS:
 //        set_server_fps(value);
 //        break;
 //#endif
-    default:
-        break;
-    }
+//    default:
+//        break;
+//    }
 }
 
 /*
