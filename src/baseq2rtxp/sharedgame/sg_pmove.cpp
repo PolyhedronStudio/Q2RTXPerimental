@@ -33,24 +33,24 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *			any differences when running on client or server
 **/
 struct pml_t {
-	//! Obvious origin and velocity.
+	//! Actual in-move origin and velocity.
 	Vector3	origin = {};
 	Vector3 velocity = {};
 
 	//! Forward, right and up vectors.
-	Vector3		forward = {}, right = {}, up = {};
-	//! Move frametime.
-	float		frametime = 0.f;
+	Vector3	forward = {}, right = {}, up = {};
+	//! Move frameTime.
+	float	frameTime = 0.f;
 
 	//! Ground information.
-	csurface_t *groundsurface = nullptr;
+	csurface_t *groundSurface = nullptr;
 	//! Contents of ground brush.
-	int32_t		groundcontents = 0;
+	int32_t		groundContents = 0;
 
 	//! Used to reset ourselves in case we are truly stuck.
-	Vector3		previous_origin = {};
+	Vector3		previousOrigin = {};
 	//! Used for calculating the fall impact with.
-	Vector3		start_velocity = {};
+	Vector3		startVelocity = {};
 };
 
 //! An actual pointer to the pmove object that we're moving.
@@ -104,7 +104,7 @@ static void PM_StepSlideMove() {
 	Vector3 startVelocity = pml.velocity;
 
 	// Perform an actual 'Step Slide'.
-	PM_StepSlideMove_Generic( pml.origin, pml.velocity, pml.frametime, pm->mins, pm->maxs, pm->touchTraces, pm->s.pm_time );
+	PM_StepSlideMove_Generic( pml.origin, pml.velocity, pml.frameTime, pm->mins, pm->maxs, pm->touchTraces, pm->s.pm_time );
 
 	Vector3 downOrigin = pml.origin;
 	Vector3 downVelocity = pml.velocity;
@@ -123,7 +123,7 @@ static void PM_StepSlideMove() {
 	pml.velocity = startVelocity;
 
 	// Perform an actual 'Step Slide'.
-	PM_StepSlideMove_Generic( pml.origin, pml.velocity, pml.frametime, pm->mins, pm->maxs, pm->touchTraces, pm->s.pm_time );
+	PM_StepSlideMove_Generic( pml.origin, pml.velocity, pml.frameTime, pm->mins, pm->maxs, pm->touchTraces, pm->s.pm_time );
 
 	// Push down the final amount.
 	Vector3 down = pml.origin - Vector3{ 0.f, 0.f, stepSize };
@@ -193,15 +193,15 @@ static void PM_Friction() {
 
 	// Apply ground friction.
 	float drop = 0;
-	if ( ( pm->groundentity && pml.groundsurface && !( pml.groundsurface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
+	if ( ( pm->groundentity && pml.groundSurface && !( pml.groundSurface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
 		const float friction = pm_friction;
 		const float control = ( speed < pm_stop_speed ? pm_stop_speed : speed );
-		drop += control * friction * pml.frametime;
+		drop += control * friction * pml.frameTime;
 	}
 
 	// Apply water friction.
 	if ( pm->waterlevel && !( pm->s.pm_flags & PMF_ON_LADDER ) ) {
-		drop += speed * pm_water_friction * (float)pm->waterlevel * pml.frametime;
+		drop += speed * pm_water_friction * (float)pm->waterlevel * pml.frameTime;
 	}
 
 	// Scale the velocity.
@@ -225,7 +225,7 @@ static void PM_Accelerate( const Vector3 &wishDirection, const float wishSpeed, 
 		return;
 	}
 
-	float accelerationSpeed = acceleration * pml.frametime * wishSpeed;
+	float accelerationSpeed = acceleration * pml.frameTime * wishSpeed;
 	if ( accelerationSpeed > addSpeed ) {
 		accelerationSpeed = addSpeed;
 	}
@@ -248,7 +248,7 @@ static void PM_AirAccelerate( const Vector3 &wishDirection, const float wishSpee
 		return;
 	}
 
-	float accelerationSpeed = acceleration * wishSpeed * pml.frametime;
+	float accelerationSpeed = acceleration * wishSpeed * pml.frameTime;
 	if ( accelerationSpeed > addSpeed ) {
 		accelerationSpeed = addSpeed;
 	}
@@ -375,22 +375,22 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 	if ( pm->groundentity ) {
 		velocity = QM_Vector3Zero();
 
-		if ( pml.groundcontents & CONTENTS_CURRENT_0 ) {
+		if ( pml.groundContents & CONTENTS_CURRENT_0 ) {
 			velocity.x += 1;
 		}
-		if ( pml.groundcontents & CONTENTS_CURRENT_90 ) {
+		if ( pml.groundContents & CONTENTS_CURRENT_90 ) {
 			velocity.y += 1;
 		}
-		if ( pml.groundcontents & CONTENTS_CURRENT_180 ) {
+		if ( pml.groundContents & CONTENTS_CURRENT_180 ) {
 			velocity.x -= 1;
 		}
-		if ( pml.groundcontents & CONTENTS_CURRENT_270 ) {
+		if ( pml.groundContents & CONTENTS_CURRENT_270 ) {
 			velocity.y -= 1;
 		}
-		if ( pml.groundcontents & CONTENTS_CURRENT_UP ) {
+		if ( pml.groundContents & CONTENTS_CURRENT_UP ) {
 			velocity.z += 1;
 		}
-		if ( pml.groundcontents & CONTENTS_CURRENT_DOWN ) {
+		if ( pml.groundContents & CONTENTS_CURRENT_DOWN ) {
 			velocity.z -= 1;
 		}
 
@@ -430,12 +430,12 @@ static void PM_AirMove() {
 		PM_Accelerate( wishDirection, wishSpeed, pm_accelerate );
 		if ( !wishVelocity.z ) {
 			if ( pml.velocity.z > 0 ) {
-				pml.velocity.z -= pm->s.gravity * pml.frametime;
+				pml.velocity.z -= pm->s.gravity * pml.frameTime;
 				if ( pml.velocity.z < 0 ) {
 					pml.velocity.z = 0;
 				}
 			} else {
-				pml.velocity.z += pm->s.gravity * pml.frametime;
+				pml.velocity.z += pm->s.gravity * pml.frameTime;
 				if ( pml.velocity.z > 0 ) {
 					pml.velocity.z = 0;
 				}
@@ -453,7 +453,7 @@ static void PM_AirMove() {
 		if ( pm->s.gravity > 0 ) {
 			pml.velocity.z = 0;
 		} else {
-			pml.velocity.z -= pm->s.gravity * pml.frametime;
+			pml.velocity.z -= pm->s.gravity * pml.frameTime;
 		}
 		// PGM
 
@@ -475,7 +475,7 @@ static void PM_AirMove() {
 
 		// Add gravity in case we're not in grappling mode.
 		if ( pm->s.pm_type != PM_GRAPPLE ) {
-			pml.velocity.z -= pm->s.gravity * pml.frametime;
+			pml.velocity.z -= pm->s.gravity * pml.frameTime;
 		}
 
 		// Step Slide.
@@ -580,8 +580,8 @@ static void PM_CategorizePosition() {
 	} else {
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, point );
 		pm->groundplane = trace.plane;
-		pml.groundsurface = trace.surface;
-		pml.groundcontents = trace.contents;
+		pml.groundSurface = trace.surface;
+		pml.groundContents = trace.contents;
 
 		// [Paril-KEX] to attempt to fix edge cases where you get stuck
 		// wedged between a slope and a wall (which is irrecoverable
@@ -623,7 +623,7 @@ static void PM_CategorizePosition() {
 				Vector3 clipped_velocity = QM_Vector3Zero();
 				PM_ClipVelocity( pml.velocity, pm->groundplane.normal, clipped_velocity, 1.01f );
 
-				pm->impact_delta = pml.start_velocity.z - clipped_velocity.z;
+				pm->impact_delta = pml.startVelocity.z - clipped_velocity.z;
 
 				pm->s.pm_flags |= PMF_ON_GROUND;
 
@@ -820,7 +820,7 @@ static void PM_FlyMove( bool doclip ) {
 
 		const float friction = pm_friction * 1.5f; // extra friction
 		const float control = speed < pm_stop_speed ? pm_stop_speed : speed;
-		drop += control * friction * pml.frametime;
+		drop += control * friction * pml.frameTime;
 
 		// Scale the velocity
 		float newspeed = speed - drop;
@@ -862,7 +862,7 @@ static void PM_FlyMove( bool doclip ) {
 	float addspeed = wishspeed - currentspeed;
 
 	if ( addspeed > 0 ) {
-		float accelspeed = pm_accelerate * pml.frametime * wishspeed;
+		float accelspeed = pm_accelerate * pml.frameTime * wishspeed;
 		if ( accelspeed > addspeed ) {
 			accelspeed = addspeed;
 		}
@@ -871,7 +871,7 @@ static void PM_FlyMove( bool doclip ) {
 
 	if ( doclip ) {
 		/*for (i = 0; i < 3; i++)
-			end[i] = pml.origin[i] + pml.frametime * pml.velocity[i];
+			end[i] = pml.origin[i] + pml.frameTime * pml.velocity[i];
 
 		trace = PM_Trace(pml.origin, pm->mins, pm->maxs, end);
 
@@ -880,7 +880,7 @@ static void PM_FlyMove( bool doclip ) {
 		PM_StepSlideMove();
 	} else {
 		// Hard set origin in order to move.
-		pml.origin += ( pml.velocity * pml.frametime );
+		pml.origin += ( pml.velocity * pml.frameTime );
 	}
 }
 
@@ -1035,7 +1035,7 @@ static void PM_SnapPosition() {
 	}
 
 	//if ( G_FixStuckObject_Generic( pm->s.origin, pm->mins, pm->maxs  ) == stuck_result_t::NO_GOOD_POSITION ) {
-	//	pm->s.origin = pml.previous_origin;
+	//	pm->s.origin = pml.previousOrigin;
 	//	return;
 	//}
 }
@@ -1056,7 +1056,7 @@ static void PM_InitialSnapPosition() {
 				pm->s.origin.x = base.x + offset[ x ];
 				if ( PM_GoodPosition() ) {
 					pml.origin = pm->s.origin;
-					pml.previous_origin = pm->s.origin;
+					pml.previousOrigin = pm->s.origin;
 					return;
 				}
 			}
@@ -1150,12 +1150,12 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	pml.origin = pm->s.origin;
 	pml.velocity = pm->s.velocity;
 	// Save the start velocity.
-	pml.start_velocity = pm->s.velocity;
+	pml.startVelocity = pm->s.velocity;
 	// Save the origin as 'old origin' for in case we get stuck.
-	pml.previous_origin = pm->s.origin;
+	pml.previousOrigin = pm->s.origin;
 
-	// Calculate frametime.
-	pml.frametime = pm->cmd.msec * 0.001f;
+	// Calculate frameTime.
+	pml.frameTime = pm->cmd.msec * 0.001f;
 
 	// Clamp view angles.
 	PM_ClampAngles( );
@@ -1247,7 +1247,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	// Waterjump has no control, but falls:
 	} else if ( pm->s.pm_flags & PMF_TIME_WATERJUMP ) {
 		// Apply downwards gravity to the velocity.
-		pml.velocity.z -= pm->s.gravity * pml.frametime;
+		pml.velocity.z -= pm->s.gravity * pml.frameTime;
 
 		// Cancel as soon as we are falling down again.
 		if ( pml.velocity.z < 0 ) { // cancel as soon as we are falling down again
