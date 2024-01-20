@@ -187,14 +187,19 @@ typedef struct {
 // server map change
 //
 typedef struct client_state_s {
+    //! Count for possible time-outs.
     int64_t     timeoutcount;
 
+    //! Last time of packet transmission.
     uint64_t	lastTransmitTime;
+    //! Last command number that transmitted.
 	uint64_t	lastTransmitCmdNumber;
+    //! Real last command number that transmitted.
 	uint64_t	lastTransmitCmdNumberReal;
+    //! Immediately send the 'command' packet, or not.
     bool        sendPacketNow;
 
-	//! The current command number index.
+	//! The current command its numerical index.
 	uint64_t cmdNumber;
 	//! Client history of command user input index, its time sent, as well as time received.
     client_history_t history[CMD_BACKUP];
@@ -226,18 +231,19 @@ typedef struct client_state_s {
     // Rebuilt each valid frame:
     centity_t		*solidEntities[MAX_PACKET_ENTITIES];
     int32_t			numSolidEntities;
-
+    //! Stores all entity baseline states to use for delta-ing.
     entity_state_t	baselines[MAX_EDICTS];
-
+    //! Stores the actual received delta decoded entity states.
     entity_state_t	entityStates[MAX_PARSE_ENTITIES];
     int32_t			numEntityStates;
-
+    //! Entity specific message flags.
     msgEsFlags_t	esFlags;
-
+    //! Received server frames, might possibly be invalid.
     server_frame_t	frames[UPDATE_BACKUP];
     uint32_t		frameflags;
 
-    server_frame_t	frame;                // received from server
+    //! Last/Currently received from server:
+    server_frame_t	frame;                
     server_frame_t	oldframe;
     int64_t			servertime;
     int64_t			serverdelta;
@@ -245,27 +251,26 @@ typedef struct client_state_s {
 	// WID: Seems to be related to demo configstring bytes.
     byte            dcs[CS_BITMAP_BYTES];
 
-    // The client maintains its own idea of view angles, which are
-    // sent to the server each frame.  It is cleared to 0 upon entering each level.
-    // the server sends a delta each frame which is added to the locally
-    // tracked view angles to account for standing on rotating objects,
-    // and teleport direction changes.
+    //! The client maintains its own idea of view angles, which are
+    //! sent to the server each frame.  It is cleared to 0 upon entering each level.
+    //! the server sends a delta each frame which is added to the locally
+    //! tracked view angles to account for standing on rotating objects,
+    //! and teleport direction changes.
     vec3_t      viewangles;
 
-    // Interpolated movement vector used for local prediction,
-    // never sent to server, rebuilt each client frame.
+    //! Interpolated movement vector used for local prediction,
+    //! never sent to server, rebuilt each client frame.
     vec3_t      localmove;
 
-    // Accumulated mouse forward/side movement, added to both
-    // localmove and pending cmd, cleared each time cmd is finalized.
+    //! Accumulated mouse forward/side movement, added to both
+    //! localmove and pending cmd, cleared each time cmd is finalized.
     vec2_t      mousemove;
 
-    //#if USE_SMOOTH_DELTA_ANGLES
-	// Interpolated.
+	//! The delta of the current frames move angles.
     vec3_t      delta_angles;
-    //#endif
-	// This is the 'moment-in-time' value that the client is rendering at.
-	// Always <= cl.servertime
+
+	//! This is the 'moment-in-time' value that the client is rendering at.
+	//! Always <= cl.servertime
     int64_t     time;           
 	//! The current "lerp" -fraction between 'oldframe' and 'frame'
     double      lerpfrac;       
@@ -283,23 +288,29 @@ typedef struct client_state_s {
 	//! Whether in thirdperson view or not.
     bool        thirdPersonView;
 
-    // Predicted values, used for smooth player entity movement in thirdperson view.
+    //! Predicted values, used for smooth player entity movement in thirdperson view.
     vec3_t      playerEntityOrigin;
     vec3_t      playerEntityAngles;
 
-    //
-    // Transient data from server.
-    //
-    char		layout[MAX_NET_STRING];     // General 2D overlay cmd script.
+    //!
+    //! Transient data from server.
+    //!
+    //! General 2D overlay cmd script.
+    char		layout[MAX_NET_STRING];     
     int32_t		inventory[MAX_ITEMS];
 
-    //
-    // server state information
-    //
-    int32_t		serverstate;    // ss_* constants
-    int32_t		servercount;    // server identification for prespawns
+    //!
+    //! Server state information.
+    //!
+    //! ss_* constants
+    int32_t		serverstate;    
+    //! Server identification for prespawns.
+    int32_t		servercount;
+    //! Directory name of the current game(dir) that is in-use.
     char		gamedir[MAX_QPATH];
-    int32_t		clientNum;            // never changed during gameplay, set by serverdata packet
+    //! Never changed during gameplay, set by serverdata packet.
+    int32_t		clientNum;
+    //! Maximum number of clients that the current connected game accepts.
     int32_t		maxclients;
 
 	// Received pmove configuration.

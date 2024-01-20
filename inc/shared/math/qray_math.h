@@ -2592,5 +2592,47 @@ RMAPI void QM_AngleVectors( const Vector3 &angles, Vector3 *forward, Vector3 *ri
         up->z = cr * cp;
     }
 }
+
+/**
+*   @brief  Normalize provided vector, return the final length.
+**/
+RMAPI const float QM_Vector3NormalizeLength( Vector3 &v ) {
+    float length = sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
+    if ( length != 0.0f ) {
+        float ilength = 1.0f / length;
+
+        v.x *= ilength;
+        v.y *= ilength;
+        v.z *= ilength;
+    }
+
+    return length;
+}
+
+/**
+*   @brief  Returns the angle by clamping it within 0 to 359 degrees using modulation.
+*           Useful to maintain the floating point angles precision.
+**/
+RMAPI const float QM_AngleMod( const float a ) {
+    // Float based method:
+    float v = fmod( a, 360.0f );
+
+    if ( v < 0 ) {
+        return 360.f + v;
+    }
+
+    return v;
+}
+
+/**
+*   @brief  AngleMod the entire Vector3.
+**/
+RMAPI Vector3 QM_Vector3AngleMod( Vector3 v ) {
+    return Vector3{
+        QM_AngleMod( v.x ),
+        QM_AngleMod( v.y ),
+        QM_AngleMod( v.z )
+    };
+}
 #endif  // __cplusplus
 #endif  // QRAYMATH_H

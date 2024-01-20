@@ -126,8 +126,8 @@ static void show_console_input(void)
 		// WID: C++20: Old
         //WriteConsoleOutputCharacter(houtput, va("]%s", text), res, (COORD){ 0, info.dwCursorPosition.Y }, &res);
         //SetConsoleCursorPosition(houtput, (COORD){ pos + 1, info.dwCursorPosition.Y });
-		WriteConsoleOutputCharacter(houtput, va("]%s", text), res, { 0, info.dwCursorPosition.Y }, & res);
-		COORD cursorCoord = { pos + 1, info.dwCursorPosition.Y };
+		WriteConsoleOutputCharacter(houtput, va("]%s", text), res, { (SHORT)0, (SHORT)info.dwCursorPosition.Y }, & res);
+		COORD cursorCoord = { (SHORT)pos + 1, (SHORT)info.dwCursorPosition.Y };
 		SetConsoleCursorPosition(houtput, cursorCoord);
     }
 }

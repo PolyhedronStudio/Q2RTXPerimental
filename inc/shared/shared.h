@@ -186,10 +186,7 @@ MATHLIB
 };
 #endif
 
-// Include the 'new' math library, a slightly customized version of: https://github.com/HandmadeMath/HandmadeMath
-//#include "shared/math/math_new.h"
-
-// Include RayMath.
+// Include our own custom version of raylib1.5 its raymath library.
 #define RAYMATH_STATIC_INLINE
 #include <shared/math/qray_math.h>
 
@@ -506,12 +503,12 @@ typedef enum {  // : uint8_t {
 typedef struct {
     pmtype_t    pm_type;
 
-    vec3_t		origin;
-    vec3_t		velocity;
+    Vector3		origin;
+    Vector3		velocity;
     uint16_t    pm_flags;		// Ducked, jump_held, etc
 	uint16_t	pm_time;		// Each unit = 8 ms
     short       gravity;
-    vec3_t      delta_angles;	// Add to command angles to get view direction
+    Vector3     delta_angles;	// Add to command angles to get view direction
 								// changed by spawns, rotating objects, and teleporters
 	int8_t		viewheight;		// View height, added to origin[2] + viewoffset[2], for crouching
 } pmove_state_t;
@@ -573,9 +570,9 @@ typedef struct {
     *   (In/Out):
     **/
     //! Actual view angles, clamped to (0 .. 360) and for Pitch(-89 .. 89).
-    vec3_t viewangles;
+    Vector3 viewangles;
     //! bounding box size.
-    vec3_t mins, maxs;
+    Vector3 mins, maxs;
 
     //! Pointer ot the actual ground entity we are on or not(nullptr).
     struct edict_s  *groundentity;
@@ -601,7 +598,7 @@ typedef struct {
     *   (In):
     **/
     // [KEX] variables (in)
-    vec3_t viewoffset; // last viewoffset (for accurate calculation of blending)
+    Vector3 viewoffset; // last viewoffset (for accurate calculation of blending)
 
     /**
     *   (Out):

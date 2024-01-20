@@ -1647,7 +1647,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
 
     // Paril: falling damage noises alert monsters
     if ( ent->health )
-        PlayerNoise( ent, pm.s.origin, PNOISE_SELF);
+        PlayerNoise( ent, &pm.s.origin[ 0 ], PNOISE_SELF);
 }
 
 /*
