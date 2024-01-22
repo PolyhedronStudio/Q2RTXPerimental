@@ -40,6 +40,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <errno.h>
 
 #if USE_CLIENT
+// Defined to prevent a warning C4005: 'M_PI': macro redefinition
+#define HAVE_M_PI
 #include <SDL_video.h>
 #include <SDL_messagebox.h>
 #include <SDL.h>

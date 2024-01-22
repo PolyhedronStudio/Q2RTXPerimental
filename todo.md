@@ -32,7 +32,7 @@ the Client Game is made aware of the Gamemode we're in.
 #### Client Game:
 * [ ] In accordance of ridding ourselves of entire layout strings, implement the desired rendering for each game mode in the CLGame side.
 #### Shared Game:
-* [ ] Improve PMove.
+* [X] Improve PMove.
 
 ## (v0.0.3):
 ### Engine:

@@ -170,6 +170,7 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
         set_target_properties(client PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
         # macro redefinition, deprecation
         target_compile_options(client PRIVATE /wd4996) 
+		target_compile_options(client PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
 		#TARGET_COMPILE_OPTIONS(client PRIVATE /wd4005 /wd4996)
 	ENDIF()
 
@@ -225,6 +226,8 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 
 		# macro redefinition, deprecation
 		target_compile_options(server PRIVATE /wd4996)
+		target_compile_options(server PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
+
 		#TARGET_COMPILE_OPTIONS(server PRIVATE /wd4005 /wd4996)
 	ENDIF()#IF(WIN32)
 
@@ -285,8 +288,12 @@ IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 		target_sources(baseq2_clgame PRIVATE windows/res/baseq2_clgame.rc)
 		# macro redefinition, deprecation
 		target_compile_options(baseq2_svgame PRIVATE /wd4996)
+		target_compile_options(baseq2_svgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
+
 		#target_compile_options(baseq2_svgame PRIVATE /wd4005 /wd4996)
 		target_compile_options(baseq2_clgame PRIVATE /wd4996)
+		target_compile_options(baseq2_clgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
+
 		#target_compile_options(baseq2_svgame PRIVATE /wd4005 /wd4996)
 	ENDIF() #IF( WIN32 ) 
 
@@ -404,9 +411,11 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 		target_sources(baseq2rtxp_svgame PRIVATE windows/res/baseq2rtxp_svgame.rc)
 		target_sources(baseq2rtxp_clgame PRIVATE windows/res/baseq2rtxp_clgame.rc)
 		# macro redefinition, deprecation
-		target_compile_options(baseq2rtxp_svgame PRIVATE /wd4996)
+		target_compile_options(baseq2rtxp_svgame PRIVATE /wd4996 )
+		target_compile_options(baseq2rtxp_svgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
 		#target_compile_options(baseq2rtxp_svgame PRIVATE /wd4005 /wd4996)
-		target_compile_options(baseq2rtxp_clgame PRIVATE /wd4996)
+		target_compile_options(baseq2rtxp_clgame PRIVATE /wd4996 )
+		target_compile_options(baseq2rtxp_clgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
 		#target_compile_options(baseq2rtxp_svgame PRIVATE /wd4005 /wd4996)
 	ENDIF() #IF( WIN32 ) 
 

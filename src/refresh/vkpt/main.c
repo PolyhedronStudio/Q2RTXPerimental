@@ -42,6 +42,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "shader/vertex_buffer.h"
 
 #include <vulkan/vulkan.h>
+// Defined to prevent a warning C4005: 'M_PI': macro redefinition
+#define HAVE_M_PI
 #include <SDL.h>
 #include <SDL_vulkan.h>
 

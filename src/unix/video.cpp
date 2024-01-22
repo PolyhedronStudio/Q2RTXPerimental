@@ -34,6 +34,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "refresh/refresh.h"
 #include "system/system.h"
 #include "res/q2pro.xbm"
+// Defined to prevent a warning C4005: 'M_PI': macro redefinition
+#define HAVE_M_PI
 #include <SDL.h>
 
 #ifdef _WINDOWS
