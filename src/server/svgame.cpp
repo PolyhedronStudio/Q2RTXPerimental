@@ -365,16 +365,18 @@ static void PF_configstring(int index, const char *val)
 	client_t *client;
 	char *dst;
 
-	if ( index < 0 || index >= MAX_CONFIGSTRINGS )
-		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, index );
+    if ( index < 0 || index >= MAX_CONFIGSTRINGS ) {
+        Com_Error( ERR_DROP, "%s: bad index: %d", __func__, index );
+    }
 
-	//if ( sv.state == ss_dead ) {
-	//	Com_WPrintf( "%s: not yet initialized\n", __func__ );
-	//	return;
-	//}
+	if ( sv.state == ss_dead ) {
+		Com_WPrintf( "%s: not yet initialized\n", __func__ );
+		return;
+	}
 
-	if ( !val )
-		val = "";
+    if ( !val ) {
+        val = "";
+    }
 
 	// error out entirely if it exceedes array bounds
 	len = strlen( val );
