@@ -10,7 +10,28 @@ extern "C" {
 *
 **/
 /**
+*
+*
+*	ConfigStrings:
+*
+*
+**/
+/**
+*	@brief	Returns the given configstring that sits at index.
+**/
+static configstring_t *PF_GetConfigString( const int32_t configStringIndex ) {
+	if ( configStringIndex < 0 || configStringIndex > MAX_CONFIGSTRINGS ) {
+		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, configStringIndex );
+		return nullptr;
+	}
+	return &cl.configstrings[ configStringIndex ];
+}
+/**
+* 
+* 
 *	CVar:
+* 
+* 
 **/
 static cvar_t *PF_CVar( const char *name, const char *value, int flags ) {
 	if ( flags & CVAR_EXTENDED_MASK ) {
@@ -22,8 +43,13 @@ static cvar_t *PF_CVar( const char *name, const char *value, int flags ) {
 }
 
 
+
 /**
+* 
+* 
 *	Printing:
+* 
+* 
 **/
 /**
 *	@brief	Client Side Printf
@@ -54,8 +80,13 @@ static q_noreturn void PF_Error( const char *fmt, ... ) {
 }
 
 
+
 /**
+* 
+* 
 *	'Tag' Managed memory allocation:
+* 
+* 
 **/
 /**
 *	@brief	Malloc tag.
@@ -182,6 +213,8 @@ void CL_GM_InitProgs( void ) {
 	imports.tick_rate = BASE_FRAMERATE;
 	imports.frame_time_s = BASE_FRAMETIME_1000;
 	imports.frame_time_ms = BASE_FRAMETIME;
+
+	imports.GetConfigString = PF_GetConfigString;
 
 	imports.CVar = PF_CVar;
 	imports.CVar_Set = Cvar_UserSet;

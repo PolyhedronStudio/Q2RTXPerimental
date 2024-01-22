@@ -427,8 +427,8 @@ static void PF_configstring(int index, const char *val)
 
 /**
 *	@brief	Returns the given configstring that sits at index.
-*/
-static configstring_t *PF_GetConfigString( int32_t configStringIndex ) {
+**/
+static configstring_t *PF_GetConfigString( const int32_t configStringIndex ) {
 	if ( configStringIndex < 0 || configStringIndex > MAX_CONFIGSTRINGS ) {
 		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, configStringIndex );
 		return nullptr;
@@ -436,6 +436,9 @@ static configstring_t *PF_GetConfigString( int32_t configStringIndex ) {
 	return &sv.configstrings[ configStringIndex ];
 }
 
+/**
+*   @return True if the points p1 to p2 are within the specified vis type.
+**/
 static qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, int vis)
 {
     mleaf_t *leaf1, *leaf2;
@@ -459,56 +462,44 @@ static qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, int vis)
     return true;
 }
 
-/*
-=================
-PF_inPVS
-
-Also checks portalareas so that doors block sight
-=================
-*/
+/**
+*   @brief  Also checks portalareas so that doors block sight
+**/
 static qboolean PF_inPVS(const vec3_t p1, const vec3_t p2)
 {
     return PF_inVIS(p1, p2, DVIS_PVS);
 }
 
-/*
-=================
-PF_inPHS
-
-Also checks portalareas so that doors block sound
-=================
-*/
+/**
+*   @brief  Also checks portalareas so that doors block sound
+**/
 static qboolean PF_inPHS(const vec3_t p1, const vec3_t p2)
 {
     return PF_inVIS(p1, p2, DVIS_PHS);
 }
 
-/*
-==================
-SV_StartSound
-
-Each entity can have eight independant sound sources, like voice,
-weapon, feet, etc.
-
-If channel & 8, the sound will be sent to everyone, not just
-things in the PHS.
-
-FIXME: if entity isn't in PHS, they must be forced to be sent or
-have the origin explicitly sent.
-
-Channel 0 is an auto-allocate channel, the others override anything
-already running on that entity/channel pair.
-
-An attenuation of 0 will play full volume everywhere in the level.
-Larger attenuations will drop off.  (max 4 attenuation)
-
-Timeofs can range from 0.0 to 0.1 to cause sounds to be started
-later in the frame than they normally would.
-
-If origin is NULL, the origin is determined from the entity origin
-or the midpoint of the entity box for bmodels.
-==================
-*/
+/**
+*   @description    Each entity can have eight independant sound sources, like voice,
+*                   weapon, feet, etc.
+*
+*                   If channel & 8, the sound will be sent to everyone, not just
+*                   things in the PHS.
+*
+*                   FIXME: if entity isn't in PHS, they must be forced to be sent or
+*                   have the origin explicitly sent.
+*
+*                   Channel 0 is an auto-allocate channel, the others override anything
+*                   already running on that entity/channel pair.
+*
+*                   An attenuation of 0 will play full volume everywhere in the level.
+*                   Larger attenuations will drop off.  (max 4 attenuation)
+*
+*                   Timeofs can range from 0.0 to 0.1 to cause sounds to be started
+*                   later in the frame than they normally would.
+*
+*                   If origin is NULL, the origin is determined from the entity origin
+*                   or the midpoint of the entity box for bmodels.
+**/
 static void SV_StartSound(const vec3_t origin, edict_t *edict,
                           int channel, int soundindex, float volume,
                           float attenuation, float timeofs)

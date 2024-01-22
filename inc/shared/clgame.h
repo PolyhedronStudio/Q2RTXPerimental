@@ -108,12 +108,19 @@ typedef struct {
 
 	/**
 	*
+	*	ConfigStrings:
+	*
+	*
+	**/
+	configstring_t *( *GetConfigString )( const int32_t index );
+	/**
+	*
 	*	Console variable interaction:
 	*
 	**/
-    cvar_t *(*CVar)(const char *var_name, const char *value, int flags);
-    cvar_t *(*CVar_Set)(const char *var_name, const char *value);
-    cvar_t *(*CVar_ForceSet)(const char *var_name, const char *value);
+	cvar_t *( *CVar )( const char *var_name, const char *value, int flags );
+	cvar_t *( *CVar_Set )( const char *var_name, const char *value );
+	cvar_t *( *CVar_ForceSet )( const char *var_name, const char *value );
 
 	/**
 	*
@@ -172,10 +179,10 @@ typedef struct {
 	*	not each time a level is loaded.  Persistant data for clients
 	*	and the server can be allocated in init
 	**/
-    // Called during client initialization.
-    void (*Init)(void);
+	// Called during client initialization.
+	void ( *Init )( void );
 	// Called during client shutdown.
-    void (*Shutdown)(void);
+	void ( *Shutdown )( void );
 
 	/**
 	*	GameModes:

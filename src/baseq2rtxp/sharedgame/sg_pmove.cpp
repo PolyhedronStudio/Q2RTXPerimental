@@ -1299,7 +1299,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	// Q2RTXPerimental Defaults:
-	pmp->airaccelerate = 8; // TODO: Has to use the ConfigString, determined by sv_airaccelerate.
+	pmp->airaccelerate = 8; // atoi( (const char *)SG_GetConfigString( CS_AIRACCEL ) ); // TODO: Has to use the ConfigString, determined by sv_airaccelerate.
 	pmp->speedmult = 2;
 	pmp->watermult = 0.5f;
 	pmp->maxspeed = 320;

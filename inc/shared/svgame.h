@@ -144,7 +144,7 @@ typedef struct {
     *	All of the current configstrings are sent to clients when they connect, 
 	*	and in case of any changes, which too are sent to all connected clients.
 	**/
-	configstring_t *(*GetConfigString)( int32_t index );
+	configstring_t *(*GetConfigString)( const int32_t index );
     void (*configstring)(int num, const char *string);
 
     void (* q_noreturn q_printf(1, 2) error)(const char *fmt, ...);

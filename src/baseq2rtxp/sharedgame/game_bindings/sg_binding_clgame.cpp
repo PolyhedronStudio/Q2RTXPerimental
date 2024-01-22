@@ -27,3 +27,10 @@ void SG_DPrintf( const char *fmt, ... ) {
 	clgi.Print( PRINT_DEVELOPER, "[CL]: %s", msg );
 	//#endif
 }
+
+/**
+*	@brief	Returns the given configstring that sits at index.
+**/
+configstring_t *SG_GetConfigString( const int32_t configStringIndex ) {
+	return clgi.GetConfigString( configStringIndex );
+}

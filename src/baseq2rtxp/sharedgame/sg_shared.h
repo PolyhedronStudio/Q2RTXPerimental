@@ -21,7 +21,10 @@
 **/
 void SG_DPrintf( const char *fmt, ... );
 
-
+/**
+*	@brief	Returns the given configstring that sits at index.
+**/
+configstring_t *SG_GetConfigString( const int32_t configStringIndex );
 
 /**
 *
