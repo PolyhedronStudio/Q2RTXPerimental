@@ -1354,18 +1354,18 @@ void CL_CalcViewValues(void)
         // do not send viewangles each frame
         LerpAngles(cl.predictedState.angles, ps->viewangles, lerp, cl.refdef.viewangles);
     } else {
-		if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
-			// just use interpolated values
-			LerpAngles( ops->viewangles, ps->viewangles, lerp, cl.refdef.viewangles );
-		} else {
-			VectorCopy( ps->viewangles, cl.refdef.viewangles );
-		}
+		//if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
+		// just use interpolated values
+		LerpAngles( ops->viewangles, ps->viewangles, lerp, cl.refdef.viewangles );
+		//} else {
+		//	VectorCopy( ps->viewangles, cl.refdef.viewangles );
+		//}
     }
 
 //#if USE_SMOOTH_DELTA_ANGLES
-    cl.delta_angles[0] = LerpAngle(ops->pmove.delta_angles[0], ps->pmove.delta_angles[0], lerp);
-    cl.delta_angles[1] = LerpAngle(ops->pmove.delta_angles[1], ps->pmove.delta_angles[1], lerp);
-    cl.delta_angles[2] = LerpAngle(ops->pmove.delta_angles[2], ps->pmove.delta_angles[2], lerp);
+    cl.delta_angles[ 0 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 0 ], ps->pmove.delta_angles[ 0 ], lerp ) );
+    cl.delta_angles[ 1 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[1], ps->pmove.delta_angles[1], lerp ) );
+    cl.delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[2], ps->pmove.delta_angles[2], lerp ) );
 //#endif
 
     //// interpolate blend colors if the last frame wasn't clear

@@ -112,10 +112,6 @@ typedef struct {
     server_state_t  state;      // precache commands are only valid during load
     int64_t			spawncount; // random number generated each server spawn
 
-#if USE_CLIENT || USE_SERVER
-    int         gamedetecthack;
-#endif
-
     int64_t     framenum;
     uint64_t    frameresidual;
 

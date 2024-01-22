@@ -23,9 +23,7 @@ void SG_DPrintf( const char *fmt, ... ) {
 	va_end( argptr );
 
 	// Developer print.
-	//#ifdef CLGAME_INCLUDE
-	clgi.Print( PRINT_DEVELOPER, "[CL]: %s", msg );
-	//#endif
+	clgi.Print( PRINT_DEVELOPER, "%s", msg );
 }
 
 /**

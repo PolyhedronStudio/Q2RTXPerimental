@@ -172,6 +172,10 @@ Sets the predicted view angles.
 =================
 */
 void CL_PredictAngles(void) {
+    if ( !cl_predict->integer || ( cl.frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
+        return;
+    }
+
 	VectorAdd( cl.viewangles, cl.frame.ps.pmove.delta_angles, cl.predictedState.angles );
 }
 
@@ -183,8 +187,8 @@ Sets cl.predicted_origin and cl.predicted_angles
 =================
 */
 void CL_PredictMovement(void) {
-    static constexpr float STEP_MIN_HEIGHT = 1.f;
-    static constexpr float STEP_MAX_HEIGHT = 20.f;
+    static constexpr float STEP_MIN_HEIGHT = 4.f;
+    static constexpr float STEP_MAX_HEIGHT = 18.0f;
 
     static constexpr int32_t STEP_TIME = 100;
     static constexpr int32_t MAX_STEP_CHANGE = 32;

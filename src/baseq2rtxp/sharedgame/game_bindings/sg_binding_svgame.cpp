@@ -23,9 +23,7 @@ void SG_DPrintf( const char *fmt, ... ) {
 	va_end( argptr );
 
 	// Developer print.
-	//#ifdef SVGAME_INCLUDE
-	gi.dprintf( "[SV]: %s", msg );
-	//#endif
+	gi.dprintf( "%s", msg );
 }
 
 /**

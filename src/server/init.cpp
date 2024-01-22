@@ -366,7 +366,7 @@ void SV_InitGame()
     }
 
 	// Ensure gamemode is properly prepared to be set.
-	Cvar_Get( "gamemode", "0", CVAR_SERVERINFO | CVAR_LATCH );
+	Cvar_Get( "gamemode", "singleplayer", CVAR_SERVERINFO | CVAR_LATCH );
 
     // get any latched variable changes (maxclients, etc)
     Cvar_GetLatchedVars();

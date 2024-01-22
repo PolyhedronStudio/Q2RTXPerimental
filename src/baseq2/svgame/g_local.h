@@ -20,9 +20,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "shared/shared.h"
 #include "shared/list.h"
 
-// define SVGAME_INCLUDE so that game.h does not define the
-// short, server-visible gclient_t and edict_t structures,
-// because we define the full size ones in this file
+// Define SVGAME_INCLUDE so that game.h does not define the short, server-visible 
+// gclient_t and edict_t structures, because we define the full size ones in this file
 #define SVGAME_INCLUDE
 #include "shared/svgame.h"
 
@@ -156,15 +155,15 @@ template<typename T>
 //#define DAMAGE_TIME     0.5f
 //#define FALL_TIME       0.3f
 // view pitching times
-inline sg_time_t DAMAGE_TIME_SLACK( ) {
+static inline sg_time_t DAMAGE_TIME_SLACK( ) {
 	return ( 100_ms - FRAME_TIME_MS );
 }
 
-inline sg_time_t DAMAGE_TIME( ) {
+static inline sg_time_t DAMAGE_TIME( ) {
 	return 500_ms + DAMAGE_TIME_SLACK( );
 }
 
-inline sg_time_t FALL_TIME( ) {
+static inline sg_time_t FALL_TIME( ) {
 	return 300_ms + DAMAGE_TIME_SLACK( );
 }
 

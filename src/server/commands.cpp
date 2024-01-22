@@ -272,7 +272,7 @@ static void SV_Map(bool restart)
     SV_AutoSaveBegin(&cmd);
 
     // any error will drop from this point
-	if ( sv.state < ss_game || sv.state == ss_broadcast || restart ) {
+	if ( sv.state < ss_game ||restart ) {
 		SV_InitGame( );    // the game is just starting
 	}
 
@@ -354,7 +354,7 @@ static int should_really_restart(void)
 {
     static bool warned;
 
-    if (sv.state < ss_game || sv.state == ss_broadcast)
+    if (sv.state < ss_game)
         return 1;   // the game is just starting
 
 #if !USE_CLIENT

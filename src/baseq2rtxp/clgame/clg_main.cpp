@@ -54,12 +54,12 @@ void ShutdownGame( void ) {
 *			in the background.
 **/
 void InitGame( void ) {
-	clgi.Print( print_type_t::PRINT_ALL, "==== Init ClientGame ====\n" );
+	clgi.Print( print_type_t::PRINT_ALL, "==== Init ClientGame(Gamemode: \"%s\") ====\n" );
 
 	// C Random time initializing.
 	Q_srand( time( NULL ) );
 
-	// seed RNG
+	// Seed RNG
 	mt_rand.seed( (uint32_t)std::chrono::system_clock::now( ).time_since_epoch( ).count( ) );
 }
 

@@ -469,7 +469,8 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
             if (check->client) {
                 // FIXME: doesn't rotate monsters?
                 // FIXME: skuller: needs client side interpolation
-                check->client->ps.pmove.delta_angles[YAW] += /*ANGLE2SHORT*/(amove[YAW]);
+                //check->client->ps.pmove.delta_angles[YAW] += /*ANGLE2SHORT*/(amove[YAW]);
+                check->client->ps.pmove.delta_angles[ YAW ] = AngleMod( check->client->ps.pmove.delta_angles[ YAW ] + amove[ YAW ] );
             }
             //#endif
 
