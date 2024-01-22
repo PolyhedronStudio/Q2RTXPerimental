@@ -1365,7 +1365,7 @@ void SV_ExecuteClientMessage(client_t *client)
 
         switch (c) {
         default:
-badbyte:
+//badbyte:
             SV_DropClient(client, "unknown command byte");
             break;
 

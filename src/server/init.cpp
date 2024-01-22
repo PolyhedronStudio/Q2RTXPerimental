@@ -81,7 +81,7 @@ void SV_SpawnServer(mapcmd_t *cmd)
 {
     int         i;
     client_t    *client;
-    const char        *entitystring; // WID: C++20: Added const.
+    //const char        *entitystring; // WID: C++20: Added const.
 
     SCR_BeginLoadingPlaque();           // for local system
 

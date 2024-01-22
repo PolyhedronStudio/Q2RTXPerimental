@@ -368,10 +368,8 @@ mmove_t actor_move_attack = {FRAME_attak01, FRAME_attak04, actor_frames_attack, 
 
 void actor_attack(edict_t *self)
 {
-    int     n;
-
 	M_SetAnimation( self, &actor_move_attack );
-    //n = (Q_rand() & 15) + 3 + 7;
+    //int n = (Q_rand() & 15) + 3 + 7;
     //self->monsterinfo.pause_framenum = level.framenum + n;
 	self->monsterinfo.pause_time = level.time + random_time( 1_sec, 2.6_sec );
 }

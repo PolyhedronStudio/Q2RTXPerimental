@@ -699,7 +699,7 @@ static bool permit_connection(conn_params_t *p)
 
 static bool parse_packet_length(conn_params_t *p)
 {
-    char *s;
+    //char *s;
 
     // set maximum packet length
     p->maxlength = MAX_PACKETLEN_WRITABLE_DEFAULT;

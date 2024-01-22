@@ -747,8 +747,8 @@ void Cmd_Wave_f(edict_t *ent)
 static bool FloodProtect(edict_t *ent)
 {
 	int     i;
-	edict_t *other;
-	char    text[ 2048 ];
+	//edict_t *other;
+	//char    text[ 2048 ];
 	gclient_t *cl;
 
 	if ( flood_msgs->value ) {
@@ -760,10 +760,12 @@ static bool FloodProtect(edict_t *ent)
 			return true;
 		}
 		i = cl->flood_whenhead - flood_msgs->value + 1;
-		if ( i < 0 )
-			i = ( sizeof( cl->flood_when ) / sizeof( cl->flood_when[ 0 ] ) ) + i;
-		if ( i >= q_countof( cl->flood_when ) )
-			i = 0;
+        if ( i < 0 ) {
+            i = ( sizeof( cl->flood_when ) / sizeof( cl->flood_when[ 0 ] ) ) + i;
+        }
+        if ( i >= q_countof( cl->flood_when ) ) {
+            i = 0;
+        }
 		if ( cl->flood_when[ i ] &&
 			level.time - cl->flood_when[ i ] < sg_time_t::from_sec( flood_persecond->value ) ) {
 			cl->flood_locktill = level.time + sg_time_t::from_sec( flood_waitdelay->value );

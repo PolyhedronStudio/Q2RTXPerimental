@@ -757,9 +757,9 @@ FIXME: is this true?
 */
 
 //FIXME: hacked in for E3 demo
-#define sv_stopspeed        100
-#define sv_friction         6
-#define sv_waterfriction    1
+#define sv_stopspeed        100.f
+#define sv_friction         6.f
+#define sv_waterfriction    1.f
 
 void SV_AddRotationalFriction(edict_t *ent)
 {
@@ -835,7 +835,7 @@ void SV_Physics_Step(edict_t *ent)
     if ((ent->flags & FL_SWIM) && (ent->velocity[2] != 0)) {
         speed = fabsf(ent->velocity[2]);
         control = speed < sv_stopspeed ? sv_stopspeed : speed;
-        newspeed = speed - (FRAMETIME * control * sv_waterfriction * ent->waterlevel);
+        newspeed = speed - (FRAMETIME * control * sv_waterfriction * (float)ent->waterlevel);
         if (newspeed < 0)
             newspeed = 0;
         newspeed /= speed;

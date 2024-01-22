@@ -730,7 +730,7 @@ G_SetClientEffects
 */
 void G_SetClientEffects( edict_t *ent ) {
 	int     pa_type;
-	int     remaining;
+	//int     remaining;
 
 	ent->s.effects = 0;
 	ent->s.renderfx = 0;

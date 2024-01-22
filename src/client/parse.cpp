@@ -1062,7 +1062,7 @@ void CL_ParseServerMessage(void)
         // other commands
         switch (cmd) {
         default:
-badbyte:
+//badbyte:
             Com_Error(ERR_DROP, "%s: illegible server message: %d", __func__, cmd);
             break;
 

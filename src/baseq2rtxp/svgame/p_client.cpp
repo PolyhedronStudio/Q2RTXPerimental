@@ -1311,7 +1311,7 @@ void ClientBegin(edict_t *ent)
 
     // if there is already a body waiting for us (a loadgame), just
     // take it, otherwise spawn one from scratch
-    if (ent->inuse == true) {
+    if (ent->inuse == (qboolean)true) {
         // the client has cleared the client side viewangles upon
         // connecting to the server, which is different than the
         // state when the game is saved, so we need to compensate
@@ -1662,7 +1662,6 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 {
     gclient_t   *client;
     edict_t *other;
-    int     i, j;
     
 	// Configure pmove.
 	pmove_t pm;
@@ -1818,7 +1817,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		}
 
         // Touch other objects
-        for ( i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
+        for ( int32_t i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
             trace_t &tr = pm.touchTraces.traces[ i ];
             edict_t *other = tr.ent;
 
@@ -1883,7 +1882,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     }
 
     // update chase cam if being followed
-    for ( i = 1; i <= maxclients->value; i++ ) {
+    for ( int32_t i = 1; i <= maxclients->value; i++ ) {
         other = g_edicts + i;
         if ( other->inuse && other->client->chase_target == ent ) {
 			UpdateChaseCam( other );

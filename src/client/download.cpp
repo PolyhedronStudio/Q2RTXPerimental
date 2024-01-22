@@ -267,7 +267,7 @@ static bool start_udp_download(dlqueue_t *q)
         cls.download.position = ret;
         // give the server an offset to start the download
         Com_DPrintf("[UDP] Resuming %s\n", q->path);
-#if USE_ZLIB == 1 w
+#if USE_ZLIB == 1
         //if (cls.serverProtocol == PROTOCOL_VERSION_R1Q2)
             CL_ClientCommand(va("download \"%s\" %d udp-zlib", q->path, (int)ret));
         //else

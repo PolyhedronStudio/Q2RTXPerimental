@@ -449,12 +449,12 @@ void infantry_dodge(edict_t *self, edict_t *attacker, float eta)
 
 void infantry_cock_gun(edict_t *self)
 {
-    int     n;
-
     gi.sound(self, CHAN_WEAPON, sound_weapon_cock, 1, ATTN_NORM, 0);
-    //n = (Q_rand() & 15) + 3 + 7;
+    //int n = (Q_rand() & 15) + 3 + 7;
     //self->monsterinfo.pause_time = level.framenum + n;
-	self->monsterinfo.fire_wait = level.time + random_time( 0.7_sec, 2_sec );
+	
+    //self->monsterinfo.fire_wait = level.time + random_time( 0.7_sec, 2_sec );
+    self->monsterinfo.pause_time= level.time + random_time( 0.7_sec, 2_sec );
 }
 
 void infantry_fire(edict_t *self)

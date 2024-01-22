@@ -150,7 +150,7 @@ static void console_move_cursor(inputField_t *f, size_t pos)
         CONSOLE_SCREEN_BUFFER_INFO info;
         if (GetConsoleScreenBufferInfo(houtput, &info)) {
 			// WID: C++20: 
-			COORD cursorCoord = { pos + 1, info.dwCursorPosition.Y };
+			COORD cursorCoord = { (SHORT)pos + 1, (SHORT)info.dwCursorPosition.Y };
             SetConsoleCursorPosition(houtput, cursorCoord );
         }
     } else {

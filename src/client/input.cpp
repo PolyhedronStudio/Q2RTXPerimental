@@ -1016,7 +1016,7 @@ static void CL_SendBatchedCmd( void ) {
 	size_t cursize q_unused;
 	usercmd_t *cmd, *oldcmd;
 	client_history_t *history, *oldest;
-	byte *patch;
+	//byte *patch;
 
 	// see if we are ready to send this packet
 	if ( !ready_to_send( ) ) {
