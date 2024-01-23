@@ -94,7 +94,7 @@ typedef struct centity_s {
 
     vec3_t          mins, maxs;
 
-    int             serverframe;        // if not current, this ent isn't in the frame
+    int64_t         serverframe;        // if not current, this ent isn't in the frame
 
     int             trailcount;         // for diminishing grenade trails
     vec3_t          lerp_origin;        // for trails (variable hz)
@@ -104,7 +104,11 @@ typedef struct centity_s {
     int             id;
 
 // WID: 40hz
-	int32_t         current_frame, last_frame, frame_servertime;
+    int32_t         current_frame, last_frame;
+    int64_t         frame_servertime;
+
+    int64_t         step_servertime;
+    float           step_height;
 // WID: 40hz
 } centity_t;
 

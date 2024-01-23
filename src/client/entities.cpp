@@ -118,6 +118,13 @@ entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *orig
 		ent->current_frame = state->frame;
 		ent->frame_servertime = cl.servertime;
 	}
+    // Set step server time if stair stepping.
+    if ( state->renderfx & RF_STAIR_STEP ) {
+        ent->step_height = state->origin[ 2 ] - ent->current.origin[ 2 ];
+        ent->step_servertime = cl.servertime;
+
+        Com_LPrintf( PRINT_DEVELOPER, "RF_STAIR_STEP for Monster(%d) step_height(%f), step_servertime(%zu)\n", state->number, ent->step_height, ent->step_servertime );
+    }
 // WID: 40hz
 
     // shuffle the last state to previous
@@ -627,21 +634,6 @@ static void CL_AddPacketEntities(void)
             // do the animation properly
             VectorCopy(cent->current.origin, ent.origin);
             VectorCopy(cent->current.old_origin, ent.oldorigin);  // FIXME
-
-			// WID: Stair stepping interpolation for monster entities.
-			if ( renderfx & RF_STAIR_STEP ) {
-				// Calculate lerpfraction. (10hz.)
-				float backlerpFrac = 1.0f - ( ( cl.time - ( (float)cent->frame_servertime - cl.sv_frametime ) ) / 100.f );
-				clamp( backlerpFrac, 0.0f, 1.0f );
-
-				// interpolate the z-origin
-				const float zlerpedOrigin =
-					( cent->prev.origin )[ 2 ] + ( backlerpFrac ) * ( ( cent->current.origin )[ 2 ] - ( cent->prev.origin )[ 2 ] );
-
-				// Settle with the lerped Z for the RF_FRAMELERPED origins. 
-				ent.origin[ 2 ] = zlerpedOrigin;
-				ent.oldorigin[ 2 ] = zlerpedOrigin;
-			}
 		} else if ( renderfx & RF_BEAM ) {
 			// interpolate start and end points for beams
 			LerpVector( cent->prev.origin, cent->current.origin,
@@ -680,6 +672,23 @@ static void CL_AddPacketEntities(void)
 //#endif
         }
 
+        // WID: RF_STAIR_STEP smooth interpolation:
+        // TODO: Generalize STEP_ stuff.
+        static constexpr int64_t STEP_TIME = 100; // 100ms.
+        if ( cls.realtime - cent->step_servertime <= STEP_TIME ) { //if ( renderfx & RF_STAIR_STEP ) {
+            // Smooth out stair step over 100ms.
+            static constexpr float STEP_BASE_1_FRAMETIME = 0.01f;
+
+            // Calculate step time.
+            float stair_step_time = ( cls.realtime - cent->step_servertime ); // float stair_step_lerp = ( cl.time - cent->step_servertime );
+            stair_step_time = STEP_TIME - min( stair_step_time, STEP_TIME );
+
+            // Calculate lerped Z origin.
+            const float stair_step_lerp_z = cent->current.origin[ 2 ] + (float)( cent->prev.origin[ 2 ] - cent->current.origin[ 2 ] ) * stair_step_time * STEP_BASE_1_FRAMETIME;
+            cent->current.origin[ 2 ] = stair_step_lerp_z;
+        }
+
+        // Goto skip if gibs are disabled.
         if ((effects & EF_GIB) && !cl_gibs->integer) {
             goto skip;
         }
@@ -882,8 +891,9 @@ static void CL_AddPacketEntities(void)
                     if (!ent.model)
                         ent.model = cl.baseclientinfo.weaponmodel[0];
                 }
-            } else
-                ent.model = cl.model_draw[s1->modelindex2];
+            } else {
+                ent.model = cl.model_draw[ s1->modelindex2 ];
+            }
 
             // PMM - check for the defender sphere shell .. make it translucent
             if (!Q_strcasecmp(cl.configstrings[CS_MODELS + (s1->modelindex2)], "models/items/shell/tris.md2")) {
@@ -1289,12 +1299,7 @@ Usually called from CL_AddEntities, but may be directly called from the main
 loop if rendering is disabled but sound is running.
 ===============
 */
-void CL_CalcViewValues(void)
-{
-    // TODO: Move elsewhere
-    static constexpr int32_t STEP_TIME = 100;
-    static constexpr float STEP_BASE_1_FRAMETIME = 0.01f;
-
+void CL_CalcViewValues(void) {   
     player_state_t *ps, *ops;
     vec3_t viewoffset;
     float lerp;
@@ -1309,27 +1314,33 @@ void CL_CalcViewValues(void)
 
     lerp = cl.lerpfrac;
 
+    // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_.. values from SharedGame.
+    static constexpr int32_t STEP_TIME = 100;
+    static constexpr float STEP_BASE_1_FRAMETIME = 0.01f;
+
     // calculate the origin
     if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
+        // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_.. values from SharedGame.
+        // TODO: Is this accurate?
+        // PM_MAX_STEP_HEIGHT = 18
+        // PM_MIN_STEP_HEIGHT = 4
+        //
+        // However, the original code was 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_HEIGHT
+        //static constexpr float STEP_HEIGHT = PM_MAX_STEP_HEIGHT - PM_MIN_STEP_HEIGHT // This seems like what would be more accurate?
+        static constexpr float STEP_HEIGHT = 15.875;
+
         // use predicted values
-        unsigned delta = cls.realtime - cl.predictedState.step_time;
+        uint64_t delta = cls.realtime - cl.predictedState.step_time;
         float backlerp = lerp - 1.0f;
 
         VectorMA(cl.predictedState.origin, backlerp, cl.predictedState.error, cl.refdef.vieworg);
 
         // smooth out stair climbing
-        if (cl.predictedState.step < 15.875) {//127 ) {// * 0.125f) { // WID: float-movement
+        if (fabs(cl.predictedState.step) < STEP_HEIGHT ) {
             delta <<= 1; // small steps
         }
 
 		// WID: Prediction: Was based on old 10hz, 100ms.
-        //if (delta < 100) {
-        //    cl.refdef.vieworg[2] -= cl.predicted_step * (100 - delta) * 0.01f;
-        //}
-		// WID: Prediction: Now should be dependant on specific framerate.
-		//if ( delta < BASE_FRAMETIME ) {
-		//	cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( BASE_FRAMETIME - delta ) * BASE_1_FRAMETIME;
-		//}
         if ( delta < STEP_TIME ) {
             cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( STEP_TIME - delta ) * ( 1.f / STEP_TIME );
         }
