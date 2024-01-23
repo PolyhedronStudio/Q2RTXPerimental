@@ -675,12 +675,12 @@ static void CL_AddPacketEntities(void)
         // WID: RF_STAIR_STEP smooth interpolation:
         // TODO: Generalize STEP_ stuff.
         static constexpr int64_t STEP_TIME = 100; // 100ms.
-        if ( cls.realtime - cent->step_servertime <= STEP_TIME ) { //if ( renderfx & RF_STAIR_STEP ) {
+        if ( cl.time - ( cent->step_servertime - cl.sv_frametime ) <= STEP_TIME ) {
             // Smooth out stair step over 100ms.
             static constexpr float STEP_BASE_1_FRAMETIME = 0.01f;
 
             // Calculate step time.
-            float stair_step_time = ( cls.realtime - cent->step_servertime ); // float stair_step_lerp = ( cl.time - cent->step_servertime );
+            float stair_step_time = ( cl.time - ( cent->step_servertime - cl.sv_frametime ) );
             stair_step_time = STEP_TIME - min( stair_step_time, STEP_TIME );
 
             // Calculate lerped Z origin.
