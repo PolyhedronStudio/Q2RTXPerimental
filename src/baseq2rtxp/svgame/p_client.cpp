@@ -1691,16 +1691,20 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         // set up for pmove
 		pm = {};
 
+        // NoClip/Spectator:
 		if ( ent->movetype == MOVETYPE_NOCLIP ) {
 			if ( ent->client->resp.spectator ) {
 				client->ps.pmove.pm_type = PM_SPECTATOR;
 			} else {
 				client->ps.pmove.pm_type = PM_NOCLIP;
 			}
+        // If our model index differs, we're gibbing out:
 		} else if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
 			client->ps.pmove.pm_type = PM_GIB;
+        // Dead:
 		} else if ( ent->deadflag ) {
 			client->ps.pmove.pm_type = PM_DEAD;
+        // Otherwise, default, normal movement behavior:
 		} else {
 			client->ps.pmove.pm_type = PM_NORMAL;
 		}

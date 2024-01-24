@@ -652,6 +652,11 @@ static void PM_CheckJump() {
 		return;
 	}
 
+	// Can't jump while ducked.
+	if ( pm->s.pm_flags & PMF_DUCKED ) {
+		return;
+	}
+
 	// Not holding jump.
 	if ( !( pm->cmd.buttons & BUTTON_JUMP ) ) { 
 		pm->s.pm_flags &= ~PMF_JUMP_HELD;

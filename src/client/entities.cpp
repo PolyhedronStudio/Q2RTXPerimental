@@ -273,6 +273,8 @@ static void set_active_state(void)
 
     // Reset local time of viewheight changes.
     cl.viewheight.change_time = 0;
+    //cl.viewheight.previous = 0;
+    //cl.viewheight.current = 0;
 
     // Reset ground information.
     cl.lastGround.entity = nullptr;
@@ -676,8 +678,8 @@ static void CL_AddPacketEntities(void)
         // TODO: Generalize STEP_ constexpr stuff.
         static constexpr int64_t STEP_TIME = 100; // 100ms.
         uint64_t stair_step_delta = cls.realtime - ( cent->step_servertime - cl.sv_frametime );
+        // Smooth out stair step over 100ms.
         if ( stair_step_delta <= STEP_TIME ) {
-            // Smooth out stair step over 100ms.
             static constexpr float STEP_BASE_1_FRAMETIME = 1.0f / STEP_TIME; // 0.01f;
 
             // Smooth it out further for small steps.

@@ -188,22 +188,24 @@ void ChangeWeapon(edict_t *ent)
 
     ent->client->pers.lastweapon = ent->client->pers.weapon;
     ent->client->pers.weapon = ent->client->newweapon;
-    ent->client->newweapon = NULL;
+    ent->client->newweapon = nullptr;
     ent->client->machinegun_shots = 0;
 
-    // set visible model
+    // Set visible weapon model.
     if (ent->s.modelindex == MODELINDEX_PLAYER ) {
-        if (ent->client->pers.weapon)
-            i = ((ent->client->pers.weapon->weapmodel & 0xff) << 8);
-        else
+        if ( ent->client->pers.weapon ) {
+            i = ( ( ent->client->pers.weapon->weapmodel & 0xff ) << 8 );
+        } else {
             i = 0;
+        }
         ent->s.skinnum = (ent - g_edicts - 1) | i;
     }
 
-    if (ent->client->pers.weapon && ent->client->pers.weapon->ammo)
-        ent->client->ammo_index = ITEM_INDEX(FindItem(ent->client->pers.weapon->ammo));
-    else
+    if ( ent->client->pers.weapon && ent->client->pers.weapon->ammo ) {
+        ent->client->ammo_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->ammo ) );
+    } else {
         ent->client->ammo_index = 0;
+    }
 
     if (!ent->client->pers.weapon) {
         // dead
@@ -279,7 +281,12 @@ inline sg_time_t Weapon_AnimationTime( edict_t *ent ) {
 	//	( ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING ) )
 	//	ent->client->ps.gunrate = 20;
 	//else
-		ent->client->ps.gunrate = 10;
+    if ( ( gi.tick_rate == 20 || gi.tick_rate == 40 ) &&
+        ( ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING ) ) {
+        ent->client->ps.gunrate = 20;
+    } else {
+        ent->client->ps.gunrate = 10;
+    }
 
 	//if ( ent->client->ps.gunframe != 0 && ( !( ent->client->pers.weapon->flags & IF_NO_HASTE ) || ent->client->weaponstate != WEAPON_FIRING ) ) {
 	//	if ( is_quadfire )
