@@ -673,19 +673,29 @@ static void CL_AddPacketEntities(void)
         }
 
         // WID: RF_STAIR_STEP smooth interpolation:
-        // TODO: Generalize STEP_ stuff.
+        // TODO: Generalize STEP_ constexpr stuff.
         static constexpr int64_t STEP_TIME = 100; // 100ms.
-        if ( cl.time - ( cent->step_servertime - cl.sv_frametime ) <= STEP_TIME ) {
+        uint64_t stair_step_delta = cls.realtime - ( cent->step_servertime - cl.sv_frametime );
+        if ( stair_step_delta <= STEP_TIME ) {
             // Smooth out stair step over 100ms.
-            static constexpr float STEP_BASE_1_FRAMETIME = 0.01f;
+            static constexpr float STEP_BASE_1_FRAMETIME = 1.0f / STEP_TIME; // 0.01f;
+
+            // Smooth it out further for small steps.
+            static constexpr float STEP_MAX_SMALL_STEP_SIZE = 18.f;
+            if ( fabs( cent->step_height ) <= STEP_MAX_SMALL_STEP_SIZE ) {
+                stair_step_delta <<= 1; // small steps
+            }
 
             // Calculate step time.
-            float stair_step_time = ( cl.time - ( cent->step_servertime - cl.sv_frametime ) );
-            stair_step_time = STEP_TIME - min( stair_step_time, STEP_TIME );
+            uint64_t stair_step_time = STEP_TIME - min( stair_step_delta, STEP_TIME );
 
             // Calculate lerped Z origin.
-            const float stair_step_lerp_z = cent->current.origin[ 2 ] + (float)( cent->prev.origin[ 2 ] - cent->current.origin[ 2 ] ) * stair_step_time * STEP_BASE_1_FRAMETIME;
+            const float stair_step_lerp_z = cent->current.origin[ 2 ] + ( cent->prev.origin[ 2 ] - cent->current.origin[ 2 ] ) * stair_step_time * STEP_BASE_1_FRAMETIME;
             cent->current.origin[ 2 ] = stair_step_lerp_z;
+
+            // Assign to render entity.
+            VectorCopy( cent->current.origin, ent.origin );
+            VectorCopy( cent->current.origin, ent.oldorigin );
         }
 
         // Goto skip if gibs are disabled.
