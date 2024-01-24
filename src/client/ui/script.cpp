@@ -835,6 +835,8 @@ static bool Parse_File(const char *path, int depth)
 
 void UI_LoadScript(void)
 {
-    Parse_File("q2rtx.menu", 0);
+    if ( !Parse_File( "q2rtxp.menu", 0 ) ) {
+        Parse_File( "q2rtx.menu", 0 );
+    }
 }
 
