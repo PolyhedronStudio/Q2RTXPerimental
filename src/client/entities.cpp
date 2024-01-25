@@ -406,6 +406,18 @@ void CL_DeltaFrame(void)
         // this delta has nothing to do with local viewangles,
         // clear it to avoid interfering with demo freelook hack
         VectorClear(cl.frame.ps.pmove.delta_angles);
+
+        // TODO: Proper stair smoothing.
+
+        // Keep in mind the possible viewheight changes.
+        if ( cl.viewheight.current != cl.frame.ps.pmove.viewheight ) {
+            // Backup the old 'current' viewheight.
+            cl.viewheight.previous = cl.viewheight.current;
+            // Apply new viewheight.
+            cl.viewheight.current = cl.frame.ps.pmove.viewheight;
+            // Register client's time of viewheight change.
+            cl.viewheight.change_time = cl.time;
+        }
     }
 
     if (cl.oldframe.ps.pmove.pm_type != cl.frame.ps.pmove.pm_type) {
@@ -1368,6 +1380,8 @@ void CL_CalcViewValues(void) {
 			cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
 				lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
         }
+        
+        // TODO: Add demo stair smoothing.
     }
 
     // if not running a demo or on a locked frame, add the local angle movement
