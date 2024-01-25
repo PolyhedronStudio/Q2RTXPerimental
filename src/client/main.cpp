@@ -107,7 +107,7 @@ extern "C" {
 client_static_t cls;
 client_state_t  cl;
 
-centity_t   *cl_entities;
+centity_t   *cl_entities = nullptr;
 
 // used for executing stringcmds
 cmdbuf_t    cl_cmdbuf;
@@ -1264,6 +1264,7 @@ static void CL_ConnectionlessPacket(void)
         cls.connect_count = 0;
         strcpy(cl.mapname, mapname);   // for levelshot screen
 
+        // Let the client game know we connected.
         clge->ClientConnected();
         return;
     }

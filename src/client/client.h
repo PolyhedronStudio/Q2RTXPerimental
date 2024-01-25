@@ -88,6 +88,7 @@ typedef struct {
 
 extern explosion_t  cl_explosions[MAX_EXPLOSIONS];
 
+// Moved to inc/shared/clgame.h
 //typedef struct centity_s {
 //    entity_state_t    current;
 //    entity_state_t    prev;            // will always be valid, but might just be a copy of current
@@ -111,8 +112,17 @@ extern explosion_t  cl_explosions[MAX_EXPLOSIONS];
 //    float           step_height;
 //// WID: 40hz
 //} centity_t;
+extern centity_t *cl_entities;
+extern clgame_export_t *clge;
 
-extern centity_t    *cl_entities;
+//#define CENTITY_NUM(n) ((centity_t *)((byte *)cl_entities + clge->entity_size*(n)))
+static inline centity_t *ENTITY_FOR_NUMBER( const int32_t number ) {
+    return ( (centity_t *)( (byte *)cl_entities + clge->entity_size * ( number ) ) );
+}
+//#define NUM_FOR_CENTITY(e) ((int)(((byte *)(e) - (byte *)cl_entities) / clge->entity_size))
+static inline int32_t NUMBER_OF_ENTITY( const centity_t *cent ) {
+    return ( (int)( ( (byte *)(cent)-(byte *)cl_entities ) / clge->entity_size ) );
+}
 
 #define MAX_CLIENTWEAPONMODELS        20        // PGM -- upped from 16 to fit the chainfist vwep
 

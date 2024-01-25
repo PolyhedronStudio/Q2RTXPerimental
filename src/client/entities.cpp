@@ -153,7 +153,7 @@ static inline bool entity_is_new(const centity_t *ent)
 
 static void parse_entity_update(const entity_state_t *state)
 {
-    centity_t *ent = &cl_entities[state->number];
+    centity_t *ent = ENTITY_FOR_NUMBER( state->number );//centity_t *ent = &cl_entities[state->number];
     const vec_t *origin;
     vec3_t origin_v;
 
@@ -199,9 +199,9 @@ static void parse_entity_update(const entity_state_t *state)
 }
 
 // an entity has just been parsed that has an event value
-static void parse_entity_event(int number)
+static void parse_entity_event(const int32_t number)
 {
-    centity_t *cent = &cl_entities[number];
+    centity_t *cent = ENTITY_FOR_NUMBER( number );//centity_t *cent = &cl_entities[number];
 
     // EF_TELEPORTER acts like an event, but is not cleared each frame
     if ((cent->current.effects & EF_TELEPORTER)) {
@@ -324,7 +324,7 @@ check_player_lerp(server_frame_t *oldframe, server_frame_t *frame, int framediv)
     }
 
     // no lerping if player entity was teleported (event check)
-    ent = &cl_entities[frame->clientNum + 1];
+    ent = ENTITY_FOR_NUMBER( frame->clientNum + 1 );//ent = &cl_entities[frame->clientNum + 1];
     if (ent->serverframe > oldnum && ent->serverframe <= frame->number && 
 		 (ent->current.event == EV_PLAYER_TELEPORT || ent->current.event == EV_OTHER_TELEPORT) ) {
         goto dup;
@@ -384,7 +384,7 @@ void CL_DeltaFrame(void)
     // initialize position of the player's own entity from playerstate.
     // this is needed in situations when player entity is invisible, but
     // server sends an effect referencing it's origin (such as MZ_LOGIN, etc)
-    ent = &cl_entities[cl.frame.clientNum + 1];
+    ent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );//ent = &cl_entities[cl.frame.clientNum + 1];
     Com_PlayerToEntityState(&cl.frame.ps, &ent->current);
 
     for (i = 0; i < cl.frame.numEntities; i++) {
@@ -429,7 +429,7 @@ void CL_CheckEntityPresent(int entnum, const char *what)
         return; // player entity = current
     }
 
-    e = &cl_entities[entnum];
+    e = ENTITY_FOR_NUMBER( entnum ); //e = &cl_entities[entnum];
     if (e->serverframe == cl.frame.number) {
         return; // current
     }
@@ -572,7 +572,7 @@ static void CL_AddPacketEntities(void)
         i = (cl.frame.firstEntity + pnum) & PARSE_ENTITIES_MASK;
         s1 = &cl.entityStates[i];
 
-        cent = &cl_entities[s1->number];
+        cent = ENTITY_FOR_NUMBER( s1->number );//cent = &cl_entities[s1->number];
         ent.id = cent->id + RESERVED_ENTITIY_COUNT;
 
         effects = s1->effects;
@@ -1040,7 +1040,7 @@ static int shell_effect_hack(void)
     centity_t   *ent;
     int         flags = 0;
 
-    ent = &cl_entities[cl.frame.clientNum + 1];
+    ent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );//ent = &cl_entities[cl.frame.clientNum + 1];
     if (ent->serverframe != cl.frame.number)
         return 0;
 
@@ -1257,7 +1257,7 @@ static void CL_FinishViewValues(void)
     if (cl_player_model->integer != CL_PLAYER_MODEL_THIRD_PERSON)
         goto first;
 
-    ent = &cl_entities[cl.frame.clientNum + 1];
+    ent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );//ent = &cl_entities[cl.frame.clientNum + 1];
     if (ent->serverframe != cl.frame.number)
         goto first;
 
@@ -1543,7 +1543,7 @@ void CL_GetEntitySoundOrigin(int entnum, vec3_t org)
 
     // interpolate origin
     // FIXME: what should be the sound origin point for RF_BEAM entities?
-    ent = &cl_entities[entnum];
+    ent = ENTITY_FOR_NUMBER( entnum );//ent = &cl_entities[entnum];
     LerpVector(ent->prev.origin, ent->current.origin, cl.lerpfrac, org);
 
     // offset the origin for BSP models
