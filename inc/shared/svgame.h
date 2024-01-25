@@ -255,7 +255,7 @@ typedef struct {
 	void (*Init)(void);
     void (*Shutdown)(void);
 
-    // Each new level entered will cause a call to SpawnEntities
+    //! Each new level entered will cause a call to SpawnEntities
     void (*SpawnEntities)(const char *mapname, const char *entstring, const char *spawnpoint);
 
 	/**
@@ -301,7 +301,9 @@ typedef struct {
 	*	Player Movement:
 	*
 	**/
+    //! Perform a frame's worth of player movement using specified pmoveParams configuration.
 	void ( *PlayerMove )( pmove_t *pmove, pmoveParams_t *params );
+    //! Setup the basic player move configuration parameters. (Used by server for new clients.)
 	void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
 
     /**
@@ -310,6 +312,7 @@ typedef struct {
 	* 
 	* 
     **/
+    //! Runs a single frame of the server game.
     void (*RunFrame)(void);
 
 	/**
@@ -317,10 +320,10 @@ typedef struct {
 	*	ServerCommand:
 	*
 	**/
-    // ServerCommand will be called when an "sv <command>" command is issued on the
-    // server console.
-    // The game can issue gi.argc() / gi.argv() commands to get the rest
-    // of the parameters
+    //! ServerCommand will be called when an "sv <command>" command is issued on the
+    //! server console.
+    //! The game can issue gi.argc() / gi.argv() commands to get the rest
+    //! of the parameters
     void (*ServerCommand)(void);
 
     /**
@@ -332,9 +335,9 @@ typedef struct {
     *	The size will be fixed when ge->Init() is called
 	**/
     struct edict_s  *edicts;
-    int         edict_size;
-    int         num_edicts;     // current number, <= max_edicts
-    int         max_edicts;
+    int32_t edict_size;
+    int32_t num_edicts;     // current number, <= max_edicts
+    int32_t max_edicts;
 } svgame_export_t;
 
 // WID: C++20: In case of C++ including this..

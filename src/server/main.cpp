@@ -1035,7 +1035,7 @@ static void SVC_DirectConnect(void)
     }
 
     // setup netchan
-    Netchan_Setup(&newcl->netchan, NS_SERVER, NETCHAN_Q2RTXPERIMENTAL, &net_from,
+    Netchan_Setup(&newcl->netchan, NS_SERVER, /*NETCHAN_Q2RTXPERIMENTAL, */&net_from,
                   params.qport, params.maxlength, params.protocol);
 
     // parse some info from the info strings

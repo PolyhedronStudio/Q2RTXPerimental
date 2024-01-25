@@ -107,7 +107,7 @@ extern "C" {
 client_static_t cls;
 client_state_t  cl;
 
-centity_t   cl_entities[MAX_EDICTS];
+centity_t   *cl_entities;
 
 // used for executing stringcmds
 cmdbuf_t    cl_cmdbuf;
@@ -593,7 +593,9 @@ void CL_ClearState(void)
     // wipe the entire cl structure
     BSP_Free(cl.bsp);
     memset(&cl, 0, sizeof(cl));
-    memset(&cl_entities, 0, sizeof(cl_entities));
+
+    // Let the client game wipe state also.
+    clge->ClearState();
 
     if (cls.state > ca_connected) {
         cls.state = ca_connected;
@@ -663,6 +665,7 @@ void CL_Disconnect(error_type_t type)
     // stop download
     CL_CleanupDownloads();
 
+    // Clear state.
     CL_ClearState();
 
     cls.state = ca_disconnected;
@@ -1253,13 +1256,15 @@ static void CL_ConnectionlessPacket(void)
         Com_Printf("Connected to %s (protocol %d).\n",
                    NET_AdrToString(&cls.serverAddress), cls.serverProtocol);
         Netchan_Close(&cls.netchan);
-        Netchan_Setup(&cls.netchan, NS_CLIENT, NETCHAN_Q2RTXPERIMENTAL, &cls.serverAddress,
+        Netchan_Setup(&cls.netchan, NS_CLIENT, /*NETCHAN_Q2RTXPERIMENTAL, */&cls.serverAddress,
                       cls.quakePort, 1024, cls.serverProtocol);
 
         CL_ClientCommand("new");
         cls.state = ca_connected;
         cls.connect_count = 0;
         strcpy(cl.mapname, mapname);   // for levelshot screen
+
+        clge->ClientConnected();
         return;
     }
 
@@ -2451,6 +2456,9 @@ static void CL_InitLocal(void)
     cls.state = ca_disconnected;
     cls.connect_time -= CONNECT_INSTANT;
 
+    // WID: Initialize CLGame.
+    CL_GM_InitProgs();
+
     CL_RegisterInput();
     CL_InitDemos();
     LOC_Init();
@@ -3085,10 +3093,6 @@ void CL_Init(void)
 
     // start with full screen console
     cls.key_dest = KEY_CONSOLE;
-
-	// WID: Initialize CLGame.
-	CL_GM_InitProgs( );
-
     CL_InitRefresh();
     S_Init();   // sound must be initialized after window is created
 
@@ -3138,10 +3142,12 @@ void CL_Shutdown(void)
     if (!cl_running || !cl_running->integer) {
         return;
     }
-	// Shutdown the RMLUI
-	CL_GM_Shutdown( );
 
+    // Disconnect first. (Unloading server game dll if loopbacked.)
     CL_Disconnect(ERR_FATAL);
+    
+    // Shutdown the client game module.
+    CL_GM_Shutdown();
 
 #if USE_ZLIB
     inflateEnd(&cls.z);

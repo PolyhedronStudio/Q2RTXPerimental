@@ -92,19 +92,16 @@ static q_noreturn void PF_Error( const char *fmt, ... ) {
 *	@brief	Malloc tag.
 **/
 static void *PF_TagMalloc( unsigned size, unsigned tag ) {
-	Q_assert( tag + TAG_MAX > tag );
-	if ( !size ) {
-		return NULL;
-	}
-	return memset( Z_TagMalloc( size, static_cast<memtag_t>( tag + TAG_MAX ) ), 0, size ); // WID: C++20: Added cast.
+	Q_assert( tag <= UINT16_MAX - TAG_MAX );
+	return Z_TagMallocz( size, static_cast<memtag_t>( tag + TAG_MAX ) );
 }
 
 /**
-*	@brief	Free all 'tags'.
+*	@brief	Free tag memory.
 **/
 static void PF_FreeTags( unsigned tag ) {
-	Q_assert( tag + TAG_MAX > tag );
-	Z_FreeTags( static_cast<memtag_t>( tag + TAG_MAX ) ); // WID: C++20: Added cast.
+	Q_assert( tag <= UINT16_MAX - TAG_MAX );
+	Z_FreeTags( static_cast<memtag_t>( tag + TAG_MAX ) );
 }
 
 
@@ -137,6 +134,8 @@ void CL_GM_Shutdown( void ) {
 		Sys_FreeLibrary( game_library );
 		game_library = NULL;
 	}
+
+	Z_LeakTest( TAG_FREE );
 }
 
 /**
@@ -206,8 +205,9 @@ void CL_GM_InitProgs( void ) {
 	}
 
 	// all paths failed
-	if ( !entry )
+	if ( !entry ) {
 		Com_Error( ERR_DROP, "Failed to load game library" );
+	}
 
 	// Setup import frametime related values so the GameDLL knows about it.
 	imports.tick_rate = BASE_FRAMERATE;

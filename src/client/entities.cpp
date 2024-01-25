@@ -237,6 +237,9 @@ static void set_active_state(void)
 {
     cls.state = ca_active;
 
+    // Point our cl_entities to the address of the memory supplied by the client game.
+    cl_entities = clge->entities;
+
     cl.serverdelta = Q_align(cl.frame.number, 1);
     cl.time = cl.servertime = 0; // set time, needed for demos
 
@@ -367,8 +370,9 @@ void CL_DeltaFrame(void)
     int                 prevstate = cls.state;
 
     // getting a valid frame message ends the connection process
-    if (cls.state == ca_precached)
+    if ( cls.state == ca_precached ) {
         set_active_state();
+    }
 
     // set server time
     framenum = cl.frame.number - cl.serverdelta;

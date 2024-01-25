@@ -88,31 +88,31 @@ typedef struct {
 
 extern explosion_t  cl_explosions[MAX_EXPLOSIONS];
 
-typedef struct centity_s {
-    entity_state_t    current;
-    entity_state_t    prev;            // will always be valid, but might just be a copy of current
+//typedef struct centity_s {
+//    entity_state_t    current;
+//    entity_state_t    prev;            // will always be valid, but might just be a copy of current
+//
+//    vec3_t          mins, maxs;
+//
+//    int64_t         serverframe;        // if not current, this ent isn't in the frame
+//
+//    int             trailcount;         // for diminishing grenade trails
+//    vec3_t          lerp_origin;        // for trails (variable hz)
+//
+//    int             fly_stoptime;
+//
+//    int             id;
+//
+//// WID: 40hz
+//    int32_t         current_frame, last_frame;
+//    int64_t         frame_servertime;
+//
+//    int64_t         step_servertime;
+//    float           step_height;
+//// WID: 40hz
+//} centity_t;
 
-    vec3_t          mins, maxs;
-
-    int64_t         serverframe;        // if not current, this ent isn't in the frame
-
-    int             trailcount;         // for diminishing grenade trails
-    vec3_t          lerp_origin;        // for trails (variable hz)
-
-    int             fly_stoptime;
-
-    int             id;
-
-// WID: 40hz
-    int32_t         current_frame, last_frame;
-    int64_t         frame_servertime;
-
-    int64_t         step_servertime;
-    float           step_height;
-// WID: 40hz
-} centity_t;
-
-extern centity_t    cl_entities[MAX_EDICTS];
+extern centity_t    *cl_entities;
 
 #define MAX_CLIENTWEAPONMODELS        20        // PGM -- upped from 16 to fit the chainfist vwep
 

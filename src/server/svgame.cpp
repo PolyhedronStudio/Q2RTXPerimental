@@ -732,7 +732,7 @@ void SV_ShutdownGameProgs(void)
     }
     Cvar_Set("g_features", "0");
 
-    Z_LeakTest(TAG_FREE);
+    //Z_LeakTest(TAG_FREE);
 }
 
 static GameEntryFunctionPointer *_SV_LoadGameLibrary(const char *path)
@@ -775,9 +775,7 @@ SV_InitGameProgs
 Init the game subsystem for a new map
 ===============
 */
-void SV_InitGameProgs(void)
-{
-	
+void SV_InitGameProgs(void) {
     svgame_import_t   import;
 	GameEntryFunctionPointer *entry = NULL;
 
@@ -785,22 +783,23 @@ void SV_InitGameProgs(void)
     SV_ShutdownGameProgs();
 
     // for debugging or `proxy' mods
-    if (sys_forcesvgamelib->string[0])
-        entry = _SV_LoadGameLibrary(sys_forcesvgamelib->string); // WID: C++20: Added cast.
-
-    // try game first
-    if (!entry && fs_game->string[0]) {
-		entry = SV_LoadGameLibrary(fs_game->string, ""); // WID: C++20: Added cast.
+    if ( sys_forcesvgamelib->string[0] ) {
+        entry = _SV_LoadGameLibrary( sys_forcesvgamelib->string ); // WID: C++20: Added cast.
     }
-
+    // try game first ( DEFAULT_GAME unless cvar has been modified. )
+    if ( !entry && fs_game->string[0] ) {
+		entry = SV_LoadGameLibrary( fs_game->string, "" ); // WID: C++20: Added cast.
+    }
     // then try baseq2
-    if (!entry) {
-		entry = SV_LoadGameLibrary(BASEGAME, ""); // WID: C++20: Added cast.
+    if ( !entry ) {
+		entry = SV_LoadGameLibrary( BASEGAME, "" ); // WID: C++20: Added cast.
     }
 
-    // all paths failed
-    if (!entry)
-        Com_Error(ERR_DROP, "Failed to load game library");
+    // All paths failed.
+    if ( !entry ) {
+        Com_Error( ERR_DROP, "Failed to load game library" );
+        return;
+    }
 
 	// Setup import frametime related values so the GameDLL knows about it.
 	import.tick_rate = BASE_FRAMERATE;
@@ -812,6 +811,7 @@ void SV_InitGameProgs(void)
     // load a new game dll
     import.multicast = PF_Multicast;
     import.unicast = PF_Unicast;
+
     import.bprintf = PF_bprintf;
     import.dprintf = PF_dprintf;
     import.cprintf = PF_cprintf;
@@ -820,14 +820,15 @@ void SV_InitGameProgs(void)
 
     import.linkentity = PF_LinkEdict;
     import.unlinkentity = PF_UnlinkEdict;
+
     import.BoxEdicts = SV_AreaEdicts;
     import.trace = SV_Trace;
 	import.clip = SV_Clip;
     import.pointcontents = SV_PointContents;
     import.setmodel = PF_setmodel;
+
     import.inPVS = PF_inPVS;
     import.inPHS = PF_inPHS;
-    //import.Pmove = PF_Pmove;
 
     import.modelindex = PF_ModelIndex;
     import.soundindex = PF_SoundIndex;
@@ -835,6 +836,7 @@ void SV_InitGameProgs(void)
 
 	import.GetConfigString = PF_GetConfigString;
     import.configstring = PF_configstring;
+
     import.sound = PF_StartSound;
     import.positioned_sound = SV_StartSound;
 

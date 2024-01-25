@@ -47,11 +47,11 @@ extern "C" {
 //#define MAX_ENT_CLUSTERS    16
 
 
-typedef struct edict_s edict_t;
-typedef struct gclient_s gclient_t;
+typedef struct centity_s centity_t;
+//typedef struct gclient_s gclient_t;
 
 
-//#ifndef SVGAME_INCLUDE
+#ifndef CLGAME_INCLUDE
 //
 //struct gclient_s {
 //    player_state_t  ps;     // communicated by server to clients
@@ -63,6 +63,32 @@ typedef struct gclient_s gclient_t;
 //};
 //
 //
+typedef struct centity_s {
+	entity_state_t    current;
+	entity_state_t    prev;            // will always be valid, but might just be a copy of current
+
+	vec3_t          mins, maxs;
+
+	int64_t         serverframe;        // if not current, this ent isn't in the frame
+
+	int             trailcount;         // for diminishing grenade trails
+	vec3_t          lerp_origin;        // for trails (variable hz)
+
+	int             fly_stoptime;
+
+	int             id;
+
+	// WID: 40hz
+	int32_t         current_frame, last_frame;
+	int64_t         frame_servertime;
+
+	int64_t         step_servertime;
+	float           step_height;
+	// WID: 40hz
+
+	// the game dll can add anything it wants after
+	// this point in the structure
+} centity_t;
 //struct edict_s {
 //    entity_state_t  s;
 //    struct gclient_s    *client;
@@ -90,7 +116,7 @@ typedef struct gclient_s gclient_t;
 //    // this point in the structure
 //};
 //
-//#endif      // SVGAME_INCLUDE
+#endif      // SVGAME_INCLUDE
 
 //===============================================================
 
@@ -112,7 +138,9 @@ typedef struct {
 	*
 	*
 	**/
+
 	configstring_t *( *GetConfigString )( const int32_t index );
+
 	/**
 	*
 	*	Console variable interaction:
@@ -179,14 +207,24 @@ typedef struct {
 	*	not each time a level is loaded.  Persistant data for clients
 	*	and the server can be allocated in init
 	**/
-	// Called during client initialization.
+	//! Called during client initialization.
 	void ( *Init )( void );
-	// Called during client shutdown.
+	//! Called during client shutdown.
 	void ( *Shutdown )( void );
+
+	/**
+	*	Connecting and State:
+	**/
+	//! Called when the client wants to 'clear state', this happens during Disconnecting and when 
+	//! the first server data message, an svc_serverdata(ParsingServerData) event is received..
+	void ( *ClearState ) ( void );
+	//! Called when the client state has moved into being properly connected to server.
+	void ( *ClientConnected ) ( void );
 
 	/**
 	*	GameModes:
 	**/
+	//! Returns the string name of specified game mode ID.
 	const char *( *GetGamemodeName )( const int32_t gameModeID );
 
 	/**
@@ -194,9 +232,23 @@ typedef struct {
 	*	Player Movement:
 	*
 	**/
+	//! Perform a frame's worth of player movement using specified pmoveParams configuration.
 	void ( *PlayerMove )( pmove_t *pmove, pmoveParams_t *params );
+	//! Setup the basic player move configuration parameters. (Used by server for new clients.)
 	void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
 
+	/**
+	*	Global variables shared between game and client.
+	*
+	*	The entities array is allocated in the client game dll so it
+	*	can vary in size from one game to another.
+	*
+	*	The size will be fixed when clge->Init() is called
+	**/
+	struct centity_s *entities;
+	int32_t	entity_size;
+	int32_t	num_entities;     // current number, <= max_edicts
+	int32_t	max_entities;
 } clgame_export_t;
 
 #ifdef __cplusplus

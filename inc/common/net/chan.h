@@ -29,14 +29,14 @@ extern "C" {
 #include "common/net/net.h"
 #include "common/sizebuf.h"
 
-typedef enum netchan_type_e {
-    NETCHAN_OLD,
-    NETCHAN_NEW,
-	NETCHAN_Q2RTXPERIMENTAL
-} netchan_type_t;
+//typedef enum netchan_type_e {
+//    NETCHAN_OLD,
+//    NETCHAN_NEW,
+//	NETCHAN_Q2RTXPERIMENTAL
+//} netchan_type_t;
 
 typedef struct netchan_s {
-    netchan_type_t  type;
+    //netchan_type_t  type;
     int         protocol;
     size_t      maxpacketlen;
 
@@ -98,7 +98,7 @@ const char *Netchan_SocketString( netsrc_t socket );
 void Netchan_Init(void);
 void Netchan_OutOfBand(netsrc_t sock, const netadr_t *adr,
                        const char *format, ...) q_printf(3, 4);
-void Netchan_Setup(netchan_t *netchan, netsrc_t sock, netchan_type_t type,
+void Netchan_Setup(netchan_t *netchan, netsrc_t sock, /*netchan_type_t type,*/
                    const netadr_t *adr, int qport, size_t maxpacketlen, int protocol);
 void Netchan_Close(netchan_t *netchan);
 
