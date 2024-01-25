@@ -149,7 +149,7 @@ static inline const int32_t NUMBER_OF_EDICT( const edict_t *ent ) {
 //     sv.state == ss_game && \
 //     EDICT_POOL(c, e)->solid == SOLID_BSP)
 // WID: Just use proper angles everywhere instead:
-#define Q2PRO_SHORTANGLES(c, e) true
+//#define Q2PRO_SHORTANGLES(c, e) true
 
 typedef enum {
     cs_free,        // can be reused for a new connection

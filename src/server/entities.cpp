@@ -93,12 +93,12 @@ static void SV_EmitPacketEntities(client_t         *client,
                 VectorCopy(oldent->origin, newent->origin);
                 VectorCopy(oldent->angles, newent->angles);
             }
-            if (Q2PRO_SHORTANGLES(client, newnum)) {
-                //flags |= MSG_ES_SHORTANGLES;
-				// WID: C++20:
-				//flags |= MSG_ES_NEWENTITY;
-				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
-			}
+            //if (Q2PRO_SHORTANGLES(client, newnum)) {
+            //  //flags |= MSG_ES_SHORTANGLES;
+			//	// WID: C++20:
+			//	//flags |= MSG_ES_NEWENTITY;
+			//	flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
+			//}
             MSG_WriteDeltaEntity(oldent, newent, flags);
             oldindex++;
             newindex++;
@@ -125,12 +125,12 @@ static void SV_EmitPacketEntities(client_t         *client,
                 VectorCopy(oldent->origin, newent->origin);
                 VectorCopy(oldent->angles, newent->angles);
             }
-            if (Q2PRO_SHORTANGLES(client, newnum)) {
-                //flags |= MSG_ES_SHORTANGLES;
-				// WID: C++20:
-				//flags |= MSG_ES_NEWENTITY;
-				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
-            }
+            //if (Q2PRO_SHORTANGLES(client, newnum)) {
+            //  //flags |= MSG_ES_SHORTANGLES;
+	        //  // WID: C++20:
+	        //  //flags |= MSG_ES_NEWENTITY;
+	        //  //flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
+            //}
             MSG_WriteDeltaEntity(oldent, newent, flags);
             newindex++;
             continue;
@@ -277,7 +277,6 @@ void SV_BuildClientFrame(client_t *client)
 	VectorAdd( ps->viewoffset, ps->pmove.origin, org );
     // Add the actual viewoffset to the origin.
     org[ 2 ] += ps->pmove.viewheight;
-    //VectorMA(ps->viewoffset, 1, ps->pmove.origin, org); // WID: floating-point
 
     leaf = CM_PointLeaf(client->cm, org);
     clientarea = leaf->area;
@@ -414,7 +413,7 @@ void SV_BuildClientFrame(client_t *client)
 
         // add it to the circular client_entities array
         state = &svs.entities[svs.next_entity % svs.num_entities];
-        MSG_PackEntity(state, &es, Q2PRO_SHORTANGLES(client, e));
+        MSG_PackEntity( state, &es );
 
         // clear footsteps
         //if (state->event == EV_FOOTSTEP && client->settings[CLS_NOFOOTSTEPS]) {

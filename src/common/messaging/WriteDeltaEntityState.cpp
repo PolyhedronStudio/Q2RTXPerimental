@@ -27,7 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *   @brief	Pack an entity state(in) encoding it into entity_packed_t(out)
 **/
-void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_angles ) {
+void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	// allow 0 to accomodate empty baselines
 	if ( in->number < 0 || in->number >= MAX_EDICTS )
 		Com_Error( ERR_DROP, "%s: bad number: %d", __func__, in->number );

@@ -112,8 +112,8 @@ static void emit_packet_entities(server_frame_t *from, server_frame_t *to)
             // not changed at all. Note that players are always 'newentities',
             // this updates their old_origin always and prevents warping in case
             // of packet loss.
-            MSG_PackEntity(&oldpack, oldent, false);
-            MSG_PackEntity(&newpack, newent, false);
+            MSG_PackEntity( &oldpack, oldent );
+            MSG_PackEntity( &newpack, newent );
             MSG_WriteDeltaEntity(&oldpack, &newpack,
                                 static_cast<msgEsFlags_t>( newent->number <= cl.maxclients ? MSG_ES_NEWENTITY : 0) ); // WID: C++20: Was without static_cast
             oldindex++;
@@ -123,8 +123,8 @@ static void emit_packet_entities(server_frame_t *from, server_frame_t *to)
 
         if (newnum < oldnum) {
             // this is a new entity, send it from the baseline
-            MSG_PackEntity(&oldpack, &cl.baselines[newnum], false);
-            MSG_PackEntity(&newpack, newent, false);
+            MSG_PackEntity( &oldpack, &cl.baselines[ newnum ] );
+            MSG_PackEntity( &newpack, newent );
             MSG_WriteDeltaEntity(&oldpack, &newpack, static_cast<msgEsFlags_t>( MSG_ES_FORCE | MSG_ES_NEWENTITY ) ); // WID: C++20: Was without static_cast
             newindex++;
             continue;
@@ -132,7 +132,7 @@ static void emit_packet_entities(server_frame_t *from, server_frame_t *to)
 
         if (newnum > oldnum) {
             // the old entity isn't present in the new message
-            MSG_PackEntity(&oldpack, oldent, false);
+            MSG_PackEntity( &oldpack, oldent );
             MSG_WriteDeltaEntity(&oldpack, NULL, MSG_ES_FORCE);
             oldindex++;
             continue;
@@ -428,7 +428,7 @@ static void CL_Record_f(void)
         }
 
         MSG_WriteUint8(svc_spawnbaseline);
-        MSG_PackEntity(&pack, ent, false);
+        MSG_PackEntity( &pack, ent );
         MSG_WriteDeltaEntity(NULL, &pack, MSG_ES_FORCE);
     }
 

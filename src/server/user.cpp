@@ -75,7 +75,7 @@ static void SV_CreateBaselines(void)
         }
 
         base = *chunk + (i & SV_BASELINES_MASK);
-        MSG_PackEntity(base, &ent->s, Q2PRO_SHORTANGLES(sv_client, i));
+        MSG_PackEntity( base, &ent->s );
 
 		// WID: netstuff: This is actually where we should be assigning stuff to our internal local server entities.
 		// WID: netstuff: longsolid
@@ -98,11 +98,11 @@ static bool maybe_flush_msg(size_t size)
 static void write_baseline( entity_packed_t *base ) {
 	msgEsFlags_t flags = static_cast<msgEsFlags_t>( sv_client->esFlags | MSG_ES_FORCE ); // WID: C++20: Added cast.
 
-  if (Q2PRO_SHORTANGLES(sv_client, base->number)) {
-		//// WID: C++20:
-        //flags |= MSG_ES_SHORTANGLES;
-		flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
-    }
+    //if (Q2PRO_SHORTANGLES(sv_client, base->number)) {
+    ////// WID: C++20:
+    ////flags |= MSG_ES_SHORTANGLES;
+    //    flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
+    //}
 
 	MSG_WriteDeltaEntity( NULL, base, flags );
 }

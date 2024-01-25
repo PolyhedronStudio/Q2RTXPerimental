@@ -189,7 +189,7 @@ extern "C" {
 		//MSG_ES_LONGSOLID    = (1 << 3), // WID: upgr-solid: Depracated, we now use the Q2RE Approach.
 		MSG_ES_UMASK        = (1 << 4),
 		MSG_ES_BEAMORIGIN   = (1 << 5),
-		MSG_ES_SHORTANGLES  = (1 << 6),
+		//MSG_ES_SHORTANGLES  = (1 << 6),
 		MSG_ES_REMOVE       = (1 << 7)
 	} msgEsFlags_t;
 
@@ -206,7 +206,7 @@ extern "C" {
 	/**
 	*   @brief	Pack an entity state(in) encoding it into entity_packed_t(out)
 	**/
-	void    MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_angles );
+	void    MSG_PackEntity( entity_packed_t *out, const entity_state_t *in);
 
 
 
