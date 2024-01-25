@@ -229,9 +229,9 @@ typedef enum {
 #define U_UNUSED46		(1<<23)
 
 // fourth byte
-#define U_UNUSED2	(1<<24)
-#define U_UNUSED3	(1<<25)
-#define U_UNUSED4	(1<<26)
+#define U_CLIPMASK	(1<<24)
+#define U_OWNER 	(1<<25)
+#define U_OLD_FRAME	(1<<26)
 #define U_UNUSED5	(1<<27)
 #define U_UNUSED6	(1<<28)
 #define U_UNUSED7	(1<<29)

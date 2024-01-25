@@ -276,6 +276,19 @@ void PF_LinkEdict(edict_t *ent)
         break;
     }
 
+    // Clipmask:
+    if ( ent->clipmask ) {
+        ent->s.clipmask = ent->clipmask;
+    } else {
+        ent->s.clipmask = 0;
+    }
+    // Owner:
+    if ( ent->owner != nullptr ) {
+        ent->s.ownerNumber = ent->owner->s.number;
+    } else {
+        ent->s.ownerNumber = 0;
+    }
+
     SV_LinkEdict(&sv.cm, ent);
 
     // if first time, make sure old_origin is valid

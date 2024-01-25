@@ -68,7 +68,7 @@ void CL_CheckPredictionError(void) {
 CL_ClipMoveToEntities
 ====================
 */
-static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int contentmask ) {
+static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const int32_t contentmask ) {
     int         i;
     trace_t     trace;
     mnode_t *headnode;
@@ -97,6 +97,15 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
             return;
         }
 
+        if ( passEntity ) {
+            if ( ent->current.ownerNumber == passEntity->current.number ) {
+                continue;    // Don't clip against own missiles.
+            }
+            if ( passEntity->current.ownerNumber == ent->current.number ) {
+                continue;    // Don't clip against owner.
+            }
+        }
+
         CM_TransformedBoxTrace( &trace, start, end,
             mins, maxs, headnode, contentmask,
             ent->current.origin, ent->current.angles );
@@ -110,27 +119,28 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
 CL_Trace
 ================
 */
-void CL_Trace( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const struct edict_s *passEntity, int32_t contentmask ) {
+void CL_Trace( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const int32_t contentmask ) {
     // check against world
     CM_BoxTrace( tr, start, end, mins, maxs, cl.bsp->nodes, contentmask );
-    if ( tr->fraction < 1.0f ) {
-        tr->ent = (struct edict_s *)cl_entities;
+    tr->ent = (struct edict_s*)cl_entities;
+    if ( tr->fraction == 0 ) {
+        return; // Blocked by world.
     }
 
-    // check all other solid models
-    CL_ClipMoveToEntities( tr, start, mins, maxs, end, contentmask );
+    // Clip to all other solid entities.
+    CL_ClipMoveToEntities( tr, start, mins, maxs, end, passEntity, contentmask );
 }
 
 /**
 *   @brief  A wrapper to make it compatible with the pm->trace that desired a 'void' to be passed in.
 **/
-static trace_t q_gameabi CL_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask ) {
+static trace_t q_gameabi CL_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const int32_t contentMask ) {
     trace_t t;
-    CL_Trace( &t, start, mins, maxs, end, (const edict_s*)passEntity, contentMask );
+    CL_Trace( &t, start, mins, maxs, end, (const centity_t*)passEntity, contentMask );
     return t;
 }
 
-static trace_t q_gameabi CL_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int32_t contentmask ) {
+static trace_t q_gameabi CL_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const int32_t contentmask ) {
     trace_t     trace;
 
     if ( !mins ) {
@@ -158,6 +168,7 @@ static int CL_PM_PointContents(const vec3_t point) {
             continue;
         }
 
+        // might intersect, so do an exact clip
         contents |= CM_TransformedPointContents( point, cmodel->headnode, ent->current.origin, ent->current.angles );
     }
 

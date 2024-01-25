@@ -62,6 +62,7 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	out->renderfx = in->renderfx;
 	out->solid.u = in->solid;
 	out->frame = in->frame;
+	out->old_frame = in->old_frame;
 	out->sound = in->sound;
 	out->event = in->event;
 
@@ -143,28 +144,28 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	else
 		mask = 0xffff8000;  // don't confuse old clients
 
-	if ( to->skinnum != from->skinnum ) {
-		bits |= U_SKIN;
-	}
-
 	if ( to->frame != from->frame ) {
 		bits |= U_FRAME;
 	}
-
-	if ( to->effects != from->effects ) {
-		bits |= U_EFFECTS;
+	if ( to->old_frame != from->old_frame ) {
+		bits |= U_OLD_FRAME;
 	}
 
 	if ( to->renderfx != from->renderfx ) {
 		bits |= U_RENDERFX;
 	}
+	if ( to->effects != from->effects ) {
+		bits |= U_EFFECTS;
+	}
 
-	if ( to->solid.u != from->solid.u )
+	if ( to->solid.u != from->solid.u ) {
 		bits |= U_SOLID;
-
-	// event is not delta compressed, just 0 compressed
-	if ( to->event ) {
-		bits |= U_EVENT;
+	}
+	if ( to->clipmask != from->clipmask ) {
+		bits |= U_CLIPMASK;
+	}
+	if ( to->ownerNumber != from->ownerNumber ) {
+		bits |= U_OWNER;
 	}
 
 	if ( to->modelindex != from->modelindex ) {
@@ -179,9 +180,16 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	if ( to->modelindex4 != from->modelindex4 ) {
 		bits |= U_MODEL4;
 	}
+	if ( to->skinnum != from->skinnum ) {
+		bits |= U_SKIN;
+	}
 
 	if ( to->sound != from->sound ) {
 		bits |= U_SOUND;
+	}
+	// event is not delta compressed, just 0 compressed
+	if ( to->event ) {
+		bits |= U_EVENT;
 	}
 
 	if ( to->renderfx & RF_FRAMELERP ) {
@@ -264,6 +272,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	if ( bits & U_FRAME ) {
 		MSG_WriteUintBase128( to->frame );
 	}
+	if ( bits & U_OLD_FRAME ) {
+		MSG_WriteUintBase128( to->old_frame );
+	}
 	if ( bits & U_SKIN ) {
 		MSG_WriteUintBase128( to->skinnum );
 	}
@@ -283,6 +294,14 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: WriteLong by default.
 		MSG_WriteUintBase128( to->solid.u );
+	}
+	if ( bits & U_CLIPMASK ) {
+		// WID: upgr-solid: WriteLong by default.
+		MSG_WriteUintBase128( to->clipmask );
+	}
+	if ( bits & U_OWNER ) {
+		// WID: upgr-solid: WriteLong by default.
+		MSG_WriteUintBase128( to->ownerNumber );
 	}
 
 	// START ET_SPOTLIGHT:

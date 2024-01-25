@@ -128,30 +128,45 @@ template<typename T>
 * Client Game Entity
 *******************************************************************/
 typedef struct centity_s {
-	entity_state_t    current;
-	entity_state_t    prev;            // will always be valid, but might just be a copy of current
+	//! Current(and thus last acknowledged and received) entity state.
+	entity_state_t	current;
+	//! Previous entity state. Will always be valid, but might be just a copy of the current state.
+	entity_state_t	prev;
 
-	vec3_t          mins, maxs;
+	//! Modelspace Mins/Maxs of Bounding Box.
+	vec3_t	mins, maxs;
+	//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
+	vec3_t	absmin, absmax, size;
 
-	int64_t         serverframe;        // if not current, this ent isn't in the frame
+	//! The (last) serverframe this entity was in. If not current, this entity isn't in the received frame.
+	int64_t	serverframe;
 
-	int             trailcount;         // for diminishing grenade trails
-	vec3_t          lerp_origin;        // for trails (variable hz)
+	//! For diminishing grenade trails.
+	int32_t	trailcount;         // for diminishing grenade trails
+	//! for trails (variable hz)
+	vec3_t	lerp_origin;
 
-	int             fly_stoptime;
+	//! Used for CL_FlyEffect and CL_TrapParticles to determine when to stop the effect.
+	int32_t	fly_stoptime;
 
-	int             id;
+	//! Entity id for the refresh(render) entity.
+	int32_t	id;
 
 	// WID: 40hz
-	int32_t         current_frame, last_frame;
-	int64_t         frame_servertime;
+	int32_t	current_frame, last_frame;
+	// Server Time of receiving the current frame.
+	int64_t	frame_servertime;
 
-	int64_t         step_servertime;
-	float           step_height;
+	// Server Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
+	int64_t	step_servertime;
+	// Actual height of the step taken.
+	float	step_height;
 	// WID: 40hz
 
 	// the game dll can add anything it wants after
 	// this point in the structure
+	int64_t someTestVar;
+	int64_t someTestVar2;
 } centity_t;
 
 /**

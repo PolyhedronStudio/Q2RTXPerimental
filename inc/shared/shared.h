@@ -313,7 +313,6 @@ COLLISION DETECTION
 #define LAST_VISIBLE_CONTENTS   64
 
 // remaining contents are non-visible, and don't eat brushes
-
 #define CONTENTS_AREAPORTAL     0x8000
 
 #define CONTENTS_PLAYERCLIP     0x10000
@@ -1213,43 +1212,58 @@ ENTITY STATE:
 // in an update message about entities that the client will
 // need to render in some way
 typedef struct entity_state_s {
-	int32_t	number;         // edict index
+    //! Server edict index.
+	int32_t	number;
 
-	int32_t	entityType;		// ET_GENERIC, ET_PLAYER, ET_MONSTER_PLAYER, ET_SPOTLIGHT etc..
+    //! The specific type of entity.
+	int32_t	entityType; // ET_GENERIC, ET_PLAYER, ET_MONSTER_PLAYER, ET_SPOTLIGHT etc..
 	
+    //! Entity origin.
 	vec3_t  origin;
+    //! Entity 'view' angles.
     vec3_t  angles;
-    vec3_t  old_origin;     // for lerping
+    //! For lerping.
+    vec3_t  old_origin;
 	
-	uint32_t solid;		// WID: upgr-solid: Now is uint32_t.
-						// For client side prediction, 8*(bits 0-4) is x/y radius
-						// 8*(bits 5-9) is z down distance, 8(bits10-15) is z up
-						// gi.linkentity sets this properly
+    //! The following fields (solid,clipmask,owner) are for client side prediction.
+    //! gi.linkentity sets these properly.
+    uint32_t solid;
+    //! Clipmask for collision.
+    int32_t clipmask;
+    //! Entity who owns this entity.
+    int32_t ownerNumber;
 
-	int32_t	modelindex;		// Main model.
-	int32_t	modelindex2, modelindex3, modelindex4;  // Used for weapons, CTF flags, etc
-	int32_t	renderfx;	// Render Effect Flags: RF_NOSHADOW etc.
-
-	int32_t	frame;
+    //! Main entity model.
+	int32_t	modelindex;
+    //! Used for weapons, CTF flags, etc
+	int32_t	modelindex2, modelindex3, modelindex4;
+    //! Skinnumber, in case of clients, packs model index and weapon model.
     int32_t	skinnum;
-	uint32_t effects;	// General Effect Flags: EF_ROTATE etc.
+    //! Render Effect Flags: RF_NOSHADOW etc.
+	int32_t	renderfx;
+    //! General Effect Flags: EF_ROTATE etc.
+    uint32_t effects;
 
-	int32_t	sound;	// For looping sounds, to guarantee shutoff
-	int32_t	event;	// Impulse events -- muzzle flashes, footsteps, etc.
-					// Events only go out for a single frame, and they are automatically cleared after that.
-							
-	// [Paril-KEX] for custom interpolation stuff
-	int32_t        old_frame;
+    //! Current animation frame.
+	int32_t	frame;
+    //! [Paril-KEX] for custom interpolation stuff
+    int32_t old_frame;   //! Old animation frame.
 
+	int32_t	sound;  //! For looping sounds, to guarantee shutoff
+	int32_t	event;  //! Impulse events -- muzzle flashes, footsteps, etc.
+					//! Events only go out for a single frame, and they are automatically cleared after that.
 
-	// Spotlights
+    //
+	//! Spotlights
+    //
+    //! RGB Color of spotlight.
 	vec3_t rgb;
-
+    //! Intensity of the spotlight.
 	float intensity;
-
+    //! Angle width.
 	float angle_width;
+    //! Angle falloff.
 	float angle_falloff;
-
 } entity_state_t;
 
 

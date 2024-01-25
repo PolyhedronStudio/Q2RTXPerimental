@@ -120,6 +120,10 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	if ( bits & U_FRAME ) {
 		to->frame = MSG_ReadUintBase128( );
 	}
+	if ( bits & U_OLD_FRAME ) {
+		to->old_frame = MSG_ReadUintBase128();
+	}
+
 	if ( bits & U_SKIN ) {
 		to->skinnum = MSG_ReadUintBase128( );
 	}
@@ -141,6 +145,12 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: ReadLong by default.
 		to->solid = MSG_ReadUintBase128( );
+	}
+	if ( bits & U_CLIPMASK ) {
+		to->clipmask = MSG_ReadUintBase128( );
+	}
+	if ( bits & U_OWNER ) {
+		to->ownerNumber = MSG_ReadUintBase128( );
 	}
 
 	// START ET_SPOTLIGHT:

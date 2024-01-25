@@ -56,19 +56,29 @@ extern "C" {
 	**/
 	typedef struct {
 		uint16_t    number;
+		
 		uint8_t		entityType;
+
 		vec3_t		origin;//int16_t     origin[3]; // WID: float-movement
 		vec3_t		angles; // WID: float-movement
 		vec3_t		old_origin; //int16_t     old_origin[3]; // WID: float-movement
+
+		solid_packed_t solid;
+		int32_t clipmask;		//! Clipmask for collision.
+		int32_t ownerNumber;	//! Entity who owns this entity.
+
 		uint32_t	modelindex;
 		uint32_t	modelindex2;
 		uint32_t	modelindex3;
 		uint32_t	modelindex4;
+
 		uint32_t    skinnum;
-		uint32_t    effects;
 		uint32_t    renderfx;
-		solid_packed_t solid;
+		uint32_t    effects;
+
 		uint16_t    frame;
+		uint16_t	old_frame;
+
 		uint16_t    sound;
 		uint8_t     event;
 
