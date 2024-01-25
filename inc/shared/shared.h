@@ -369,7 +369,10 @@ COLLISION DETECTION
 #define AREA_TRIGGERS   2
 
 
-// plane_t structure
+/**
+*   @brief  BSP Brush plane_t structure. To acquire the origin,
+*           scale normal by dist.
+**/
 typedef struct cplane_s {
     vec3_t  normal;
     float   dist;
@@ -392,12 +395,23 @@ typedef struct cplane_s {
 
 #define PLANE_NON_AXIAL 6
 
+/**
+*   @brief  BSP Brush side surface. 
+*
+*   Stores material/texture name, flags as well as an 
+*   integral 'value' which was commonly used for light flagged surfaces.
+**/
 typedef struct csurface_s {
     char        name[16];
     int         flags;
     int         value;
 } csurface_t;
 
+/**
+*   @brief  A trace is basically 'sweeping' the collision shape(bounding box) through the world
+*           and returning the results of that 'sweep'. 
+*           (ie, how far did it get, whether it is inside of a solid or not, etc)
+**/
 // a trace is returned when a box is swept through the world
 typedef struct {
     qboolean    allsolid;   // if true, plane is not valid

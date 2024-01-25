@@ -282,6 +282,7 @@ void PF_LinkEdict(edict_t *ent)
     } else {
         ent->s.clipmask = 0;
     }
+
     // Owner:
     if ( ent->owner != nullptr ) {
         ent->s.ownerNumber = ent->owner->s.number;
