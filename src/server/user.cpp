@@ -50,10 +50,9 @@ static void SV_CreateBaselines(void)
     // clear baselines from previous level
     for (i = 0; i < SV_BASELINES_CHUNKS; i++) {
         base = sv_client->baselines[i];
-        if (!base) {
-            continue;
+        if (base) {
+            memset( base, 0, sizeof( *base ) * SV_BASELINES_PER_CHUNK );
         }
-        memset(base, 0, sizeof(*base) * SV_BASELINES_PER_CHUNK);
     }
 
     for (i = 1; i < sv_client->pool->num_edicts; i++) {
@@ -196,8 +195,6 @@ static void write_baseline_stream( void ) {
 				continue;
 			}
 
-			static constexpr int32_t MAX_PACKETENTITY_BYTES = 64;
-
 			// check if this baseline will overflow
 			if ( msg_write.cursize + MAX_PACKETENTITY_BYTES > msg_write.maxsize ) {
 				MSG_WriteInt16( 0 );
@@ -319,7 +316,7 @@ void SV_New_f(void)
     MSG_WriteInt32(sv_client->protocol);
     MSG_WriteInt32(sv_client->spawncount);
     MSG_WriteUint8(0);   // no attract loop
-	MSG_WriteUint8( ge->GetGamemodeID( ) );
+	MSG_WriteUint8( ge->GetActiveGamemodeID( ) );
 
     MSG_WriteString(sv_client->gamedir);
 
@@ -553,11 +550,11 @@ static void SV_BeginDownload_f(void)
     }
 
     maxdownloadsize = MAX_LOADFILE;
-#if 0
+//#if 0
     if (sv_max_download_size->integer) {
         maxdownloadsize = Cvar_ClampInteger(sv_max_download_size, 1, MAX_LOADFILE);
     }
-#endif
+//#endif
 
     if (downloadsize == 0) {
         Com_DPrintf("Refusing empty download of %s to %s\n", name, sv_client->name);

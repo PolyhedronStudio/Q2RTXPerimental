@@ -947,7 +947,12 @@ The server is changing levels
 */
 static void CL_Reconnect_f(void)
 {
-    if (cls.state >= ca_precached) {
+    if ( cls.demo.playback ) {
+        Com_Printf( "No server to reconnect to.\n" );
+        return;
+    }
+
+    if ( cls.state >= ca_precached || Cmd_From() != FROM_STUFFTEXT ) {
         CL_Disconnect(ERR_RECONNECT);
     }
 
@@ -972,7 +977,7 @@ static void CL_Reconnect_f(void)
         Com_Printf("No server to reconnect to.\n");
         return;
     }
-    if (cls.serverAddress.type == NA_LOOPBACK) {
+    if ( cls.serverAddress.type == NA_LOOPBACK && !sv_running->integer ) {
         Com_Printf("Can not reconnect to loopback.\n");
         return;
     }
@@ -1059,7 +1064,7 @@ static void CL_Skins_f(void)
     char *s;
     clientinfo_t *ci;
 
-    if (cls.state < ca_loading) {
+    if ( cls.state < ca_precached ) {
         Com_Printf("Must be in a level to load skins.\n");
         return;
     }
@@ -1086,7 +1091,7 @@ static void cl_noskins_changed(cvar_t *self)
     char *s;
     clientinfo_t *ci;
 
-    if (cls.state < ca_loading) {
+    if ( cls.state < ca_precached ) {
         return;
     }
 
@@ -1101,7 +1106,7 @@ static void cl_noskins_changed(cvar_t *self)
 
 static void cl_vwep_changed(cvar_t *self)
 {
-    if (cls.state < ca_loading) {
+    if ( cls.state < ca_precached ) {
         return;
     }
 
@@ -1114,7 +1119,7 @@ static void CL_Name_g(genctx_t *ctx)
     int i;
     char buffer[MAX_CLIENT_NAME];
 
-    if (cls.state < ca_loading) {
+    if ( cls.state < ca_precached ) {
         return;
     }
 
@@ -1312,6 +1317,10 @@ CL_PacketEvent
 */
 static void CL_PacketEvent(void)
 {
+    if ( msg_read.cursize < 4 ) {
+        return;
+    }
+
     //
     // remote command packet
     //
@@ -1960,8 +1969,8 @@ static size_t CL_Ups_m(char *buffer, size_t size)
 {
     vec3_t vel;
 
-    if (!cls.demo.playback && cl.frame.clientNum == cl.clientNum &&
-        cl_predict->integer) {
+    if ( !cls.demo.playback && cl_predict->integer &&
+        !( cl.frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
         VectorCopy(cl.predictedState.velocity, vel);
     } else {
         //VectorScale(cl.frame.ps.pmove.velocity, 0.125f, vel);

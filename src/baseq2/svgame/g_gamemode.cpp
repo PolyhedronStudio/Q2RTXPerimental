@@ -3,7 +3,7 @@
 /**
 *	@return	The actual ID of the current gamemode.
 **/
-const int32_t G_GetGamemodeID( ) {
+const int32_t G_GetActiveGamemodeID( ) {
 	if ( gamemode->integer >= GAMEMODE_SINGLEPLAYER && gamemode->integer <= GAMEMODE_COOPERATIVE ) {
 		return gamemode->integer;
 	}
@@ -17,6 +17,14 @@ const int32_t G_GetGamemodeID( ) {
 *			(This should only be true for single and cooperative play modes.)
 **/
 const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer ) {
+	//if (dedicated->integer && !Cvar_VariableInteger("coop"))
+ //       return 1;
+
+    //if (sv_force_enhanced_savegames->integer && !(g_features->integer & GMF_ENHANCED_SAVEGAMES))
+    //    return 1;
+
+    //if (Cvar_VariableInteger("deathmatch"))
+    //    return 1;
 	// Dedicated server mode only allows coop saving.
 	if ( dedicated->integer && !coop->integer ) {
 		return true;

@@ -55,7 +55,7 @@ centity_t *g_entities;
 /**
 *	@return	The actual ID of the current gamemode.
 **/
-//const int32_t G_GetGamemodeID() {
+//const int32_t G_GetActiveGamemodeID() {
 //	if ( gamemode && gamemode->integer >= GAMEMODE_SINGLEPLAYER && gamemode->integer <= GAMEMODE_COOPERATIVE ) {
 //		return gamemode->integer;
 //	}

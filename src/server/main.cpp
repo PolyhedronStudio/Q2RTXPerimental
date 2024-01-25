@@ -78,6 +78,8 @@ cvar_t  *sv_min_rate;
 cvar_t  *sv_max_rate;
 cvar_t  *sv_calcpings_method;
 cvar_t  *sv_changemapcmd;
+cvar_t  *sv_max_download_size;
+cvar_t  *sv_max_packet_entities;
 
 cvar_t  *sv_strafejump_hack;
 cvar_t  *sv_waterjump_hack;
@@ -1381,6 +1383,10 @@ static void SV_PacketEvent(void)
     netchan_t   *netchan;
     int         qport;
 
+    if ( msg_read.cursize < 4 ) {
+        return;
+    }
+
     // check for connectionless packet (0xffffffff) first
     // connectionless packets are processed even if the server is down
     if (*(int *)msg_read.data == -1) {
@@ -1402,11 +1408,17 @@ static void SV_PacketEvent(void)
         // read the qport out of the message so we can fix up
         // stupid address translating routers
         if (client->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
+            if ( msg_read.cursize < PACKET_HEADER ) {
+                continue;
+            }
             qport = RL16(&msg_read.data[8]);
             if (netchan->qport != qport) {
                 continue;
             }
         } else if (netchan->qport) {
+            if ( msg_read.cursize < PACKET_HEADER - 1 ) {
+                continue;
+            }
             qport = msg_read.data[8];
             if (netchan->qport != qport) {
                 continue;
@@ -2048,6 +2060,8 @@ void SV_Init(void)
     sv_pad_packets = Cvar_Get("sv_pad_packets", "0", 0);
 #endif
     sv_lan_force_rate = Cvar_Get("sv_lan_force_rate", "0", CVAR_LATCH);
+    sv_max_download_size = Cvar_Get( "sv_max_download_size", "8388608", 0 );
+    sv_max_packet_entities = Cvar_Get( "sv_max_packet_entities", STRINGIFY( MAX_PACKET_ENTITIES ), 0 );
 	// WID: 40hz:
 	//sv_min_rate = Cvar_Get("sv_min_rate", "100", CVAR_LATCH);
 	sv_min_rate = Cvar_Get( "sv_min_rate", std::to_string( CLIENT_RATE_MIN ).c_str( ), CVAR_LATCH );

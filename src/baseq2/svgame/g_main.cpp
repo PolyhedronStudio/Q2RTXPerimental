@@ -307,7 +307,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Shutdown = ShutdownGame;
 		globals.SpawnEntities = SpawnEntities;
 
-		globals.GetGamemodeID = G_GetGamemodeID;
+		globals.GetActiveGamemodeID = G_GetActiveGamemodeID;
 		globals.GetGamemodeName = SG_GetGamemodeName;
 		globals.GamemodeNoSaveGames = G_GetGamemodeNoSaveGames;
 

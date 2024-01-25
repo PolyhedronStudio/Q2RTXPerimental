@@ -50,11 +50,12 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define CMD_BACKUP      512 //128	// allow a lot of command backups for very fast systems increased from 64
 #define CMD_MASK        (CMD_BACKUP - 1)
 
+#define MAX_PACKETENTITY_BYTES 64
+
 // Max entities stuffed per packet.
 #define MAX_PACKET_ENTITIES     1024
 #define MAX_PARSE_ENTITIES      (MAX_PACKET_ENTITIES * UPDATE_BACKUP)
 #define PARSE_ENTITIES_MASK     (MAX_PARSE_ENTITIES - 1)
-
 
 #define MAX_PACKET_USERCMDS     32
 #define MAX_PACKET_FRAMES       4

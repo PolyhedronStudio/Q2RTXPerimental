@@ -37,19 +37,19 @@ void CL_CheckPredictionError(void) {
 		return;
 	}
 
-	// calculate the last usercmd_t we sent that the server has processed
+	// Calculate the last usercmd_t we sent that the server has processed.
 	int64_t frame = cls.netchan.incoming_acknowledged & CMD_MASK;
 	uint64_t cmdIndex = cl.history[ frame ].cmdNumber;
 
-	// compare what the server returned with what we had predicted it to be
+	// Compare what the server returned with what we had predicted it to be.
 	vec3_t delta = { 0.f, 0.f, 0.f };
 	VectorSubtract( cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin, delta );
 
-	// save the prediction error for interpolation
+	// Save the prediction error for interpolation.
 	const float len = fabs( delta[ 0 ] ) + abs( delta[ 1 ] ) + abs( delta[ 2 ] );
 	//if (len < 1 || len > 640) {
 	if ( len < 1.0f || len > 80.0f ) {
-		// > 80 world units is a teleport or something
+		// > 80 world units is a teleport or something.
 		VectorClear( cl.predictedState.error );
 		return;
 	}
@@ -59,7 +59,7 @@ void CL_CheckPredictionError(void) {
 
 	VectorCopy( cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin );
 
-	// save for error interpolation
+	// Save for error interpolation.
 	VectorCopy( delta, cl.predictedState.error );
 }
 
@@ -78,25 +78,24 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
     for ( i = 0; i < cl.numSolidEntities; i++ ) {
         ent = cl.solidEntities[ i ];
 
-        if ( !( contentmask & CONTENTS_PLAYERCLIP ) ) { // if ( !( contentmask & CONTENTS_PLAYER ) ) {
+        if ( ent == nullptr ) {
             continue;
         }
 
-        if ( ent->current.solid == PACKED_BSP ) {
-            // special value for bmodel
-            cmodel = cl.model_clip[ ent->current.modelindex ];
-            if ( !cmodel ) {
-                continue;
-            }
-            headnode = cmodel->headnode;
-        } else {
-            headnode = CM_HeadnodeForBox( ent->mins, ent->maxs );
+        if ( ent->current.solid == SOLID_NOT ) {
+            continue;
+        }
+        // 
+        if ( !( contentmask & CONTENTS_PLAYERCLIP ) ) { // if ( !( contentmask & CONTENTS_PLAYER ) ) {
+            continue;
+        }
+        
+        // Prevent tracing against passEntity.
+        if ( passEntity != nullptr && ent != nullptr && ( ent->current.number == passEntity->current.number ) ) {
+            continue;
         }
 
-        if ( tr->allsolid ) {
-            return;
-        }
-
+        // Don't clip if we're owner of said entity.
         if ( passEntity ) {
             if ( ent->current.ownerNumber == passEntity->current.number ) {
                 continue;    // Don't clip against own missiles.
@@ -106,10 +105,30 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
             }
         }
 
+        // No need to continue if we're in all-solid.
+        if ( tr->allsolid ) {
+            return;
+        }
+
+        // BSP Brush Model Entity:
+        if ( ent->current.solid == PACKED_BSP ) {
+            // special value for bmodel
+            cmodel = cl.model_clip[ ent->current.modelindex ];
+            if ( !cmodel ) {
+                continue;
+            }
+            headnode = cmodel->headnode;
+        // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
+        } else {
+            headnode = CM_HeadnodeForBox( ent->mins, ent->maxs );
+        }
+
+        // Perform the BSP box sweep.
         CM_TransformedBoxTrace( &trace, start, end,
             mins, maxs, headnode, contentmask,
             ent->current.origin, ent->current.angles );
 
+        // Determine clipped entity trace result.
         CM_ClipEntity( tr, &trace, (struct edict_s *)ent );
     }
 }

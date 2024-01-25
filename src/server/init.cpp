@@ -377,6 +377,30 @@ void SV_InitGame()
 	// load up game progs.
 	SV_InitGameProgs( );
 
+    // Ensure the gamemode is valid.
+    if ( !ge->IsGamemodeIDValid( Cvar_VariableInteger( "gamemode" ) ) ) {
+        // Warn.
+        Com_WPrintf( "Invalid gamemode detected, defaulting to %s\n", ge->GetGamemodeName( 0 ) );
+
+        // Set to singleplayer.
+        Cvar_Set( "gamemode", "0" );
+    }
+
+    // Dedicated servers can't be singleplayer. 
+    // Force it to the game API 'default' multiplayer mode.
+    if ( COM_DEDICATED ) {
+        if ( !ge->IsMultiplayerGameMode( Cvar_VariableInteger( "gamemode" ) ) ) {
+            const int32_t newGameModeID = ge->GetDefaultMultiplayerGamemodeID();
+            // Warn.
+            Com_WPrintf( "Can't do %s on a dedicated server. Defaulting to %s\n",
+                ge->GetGamemodeName( Cvar_VariableInteger( "gamemode" ) ),
+                ge->GetGamemodeName( newGameModeID ) );
+
+            std::string gameModeStr = std::to_string( newGameModeID );
+            Cvar_Set( "gamemode", gameModeStr.c_str() );
+        }
+    }
+
 	// Preinitialize the game.
 	SV_InitGame_PreInit( );
 
@@ -386,12 +410,6 @@ void SV_InitGame()
     //    Cvar_Set("coop", "0");
     //}
 
-    //// dedicated servers can't be single player and are usually DM
-    //// so unless they explicity set coop, force it to deathmatch
-    //if (COM_DEDICATED) {
-    //    if (!Cvar_VariableInteger("coop"))
-    //        Cvar_Set("deathmatch", "1");
-    //}
 
     //// init clients
     //if (Cvar_VariableInteger("deathmatch")) {

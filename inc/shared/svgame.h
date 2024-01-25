@@ -39,14 +39,6 @@ extern "C" {
 #define SVF_DEADMONSTER         0x00000002  // Treat as CONTENTS_DEADMONSTER for collision
 #define SVF_MONSTER             0x00000004  // Treat as CONTENTS_MONSTER for collision
 #define SVF_USE_TRIGGER_HULL	0x00000008	// When touching the trigger's bounding box, perform an additional clip to trigger brush. (Used for G_TouchTriggers)
-// edict->solid values
-
-typedef enum {
-    SOLID_NOT,          // no interaction with other objects
-    SOLID_TRIGGER,      // only touch when inside, after moving
-    SOLID_BBOX,         // touch on edge
-    SOLID_BSP           // bsp clip, touch on edge
-} solid_t;
 
 // extended features
 
@@ -261,9 +253,31 @@ typedef struct {
 	/**
 	*	GameModes:
 	**/
-	const int32_t (*GetGamemodeID)( );
-	const char *(*GetGamemodeName)( const int32_t gameModeID );
-	const bool (*GamemodeNoSaveGames)( const bool isDedicated );
+    /**
+    *	@return	True if the game mode is a legitimate existing one.
+    **/
+    const bool ( *IsGamemodeIDValid )( const int32_t gameModeID );
+    /**
+    *   @return True if the game mode is multiplayer.
+    **/
+    const bool ( *IsMultiplayerGameMode ) ( const int32_t gameModeID );
+    /**
+    *	@return	The current active game mode ID.
+    **/
+    const int32_t( *GetActiveGamemodeID )( void );
+    /**
+    *	@return	The default game mode which is to be set. Used in case of booting a dedicated server without gamemode args.
+    **/
+    const int32_t( *GetDefaultMultiplayerGamemodeID )( void );
+    /**
+    *	@return	The actual ID of the current gamemode.
+    **/
+    const char *( *GetGamemodeName )( const int32_t gameModeID );
+    /**
+    *	@return	True in case the current gamemode allows for saving the game.
+    *			(This should only be true for single and cooperative play modes.)
+    **/
+    const bool ( *GamemodeNoSaveGames )( const bool isDedicated );
 
 	/**
 	*	Read/Write Game: 

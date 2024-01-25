@@ -482,6 +482,17 @@ PLAYER MOVEMENT
 
 ==============================================================
 */
+// edict->solid values
+/**
+*   @brief  The actual 'solid' type of an entity, determines how to behave when colliding with other objects.
+**/
+typedef enum {
+    SOLID_NOT,          //! No interaction with other objects.
+    SOLID_TRIGGER,      //! Only touch when inside, after moving. (Optional BSP Brush clip when SVF_USE_TRIGGER_HULL is set.)
+    SOLID_BBOX,         //! Touch on edge.
+    SOLID_BSP           //! BSP clip, touch on edge.
+} solid_t;
+
 /**
 *   @brief  The water 'level' of said entity.
 **/

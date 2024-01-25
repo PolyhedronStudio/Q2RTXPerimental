@@ -701,7 +701,7 @@ extern  gitem_t itemlist[];
 /**
 *	@return	The actual ID of the current gamemode.
 **/
-const int32_t G_GetGamemodeID( );
+const int32_t G_GetActiveGamemodeID( );
 /**
 *	@return	True in case the current gamemode allows for saving the game.
 *			(This should only be true for single and cooperative play modes.)
