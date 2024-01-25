@@ -477,7 +477,7 @@ void SV_AutoSaveBegin(mapcmd_t *cmd)
     // when the level is re-entered, the clients will spawn
     // at spawn points instead of occupying body shells
     for (i = 0; i < sv_maxclients->integer; i++) {
-        ent = EDICT_NUM(i + 1);
+        ent = EDICT_FOR_NUMBER(i + 1);
         if (ent->inuse) {
             Q_SetBit(bitmap, i);
             ent->inuse = false;
@@ -490,7 +490,7 @@ void SV_AutoSaveBegin(mapcmd_t *cmd)
 
     // we must restore these for clients to transfer over correctly
     for (i = 0; i < sv_maxclients->integer; i++) {
-        ent = EDICT_NUM(i + 1);
+        ent = EDICT_FOR_NUMBER(i + 1);
         ent->inuse = Q_IsBitSet(bitmap, i);
     }
 }

@@ -125,11 +125,21 @@ typedef struct {
     server_entity_t entities[MAX_EDICTS];
 } server_t;
 
-#define EDICT_POOL(c, n) ((edict_t *)((byte *)(c)->pool->edicts + (c)->pool->edict_size*(n)))
+//! Access all over.
+extern svgame_export_t *ge;
 
-#define EDICT_NUM(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
-#define NUM_FOR_EDICT(e) ((int)(((byte *)(e) - (byte *)ge->edicts) / ge->edict_size))
+//! Returns a pointer to the edict matching the number.
+static inline edict_t *EDICT_FOR_NUMBER( const int32_t number ) {
+    //#define EDICT_FOR_NUMBER(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
+    return ( (edict_t *)( (byte *)ge->edicts + ge->edict_size * ( number ) ) );
+}
+//! Returns the number of the pointer entity.
+static inline const int32_t NUMBER_OF_EDICT( const edict_t *ent ) {
+    //#define EDICT_NUM(e) ((int)(((byte *)(e) - (byte *)ge->edicts) / ge->edict_size))
+    return ( (int32_t)( ( (byte *)(ent)-(byte *)ge->edicts ) / ge->edict_size ) );
+}
 
+//! Maximum total entity leafs.
 #define MAX_TOTAL_ENT_LEAFS        128
 
 // hack for smooth BSP model rotation
@@ -216,7 +226,7 @@ typedef struct client_s {
 
     // core info
     clstate_t       state;
-    edict_t         *edict;     // EDICT_NUM(clientnum+1)
+    edict_t         *edict;     // EDICT_FOR_NUMBER(clientnum+1)
     int             number;     // client slot number
 
     // client flags
@@ -311,6 +321,12 @@ typedef struct client_s {
     time_t          connect_time; // time of initial connect
 	int             last_valid_cluster;
 } client_t;
+
+//! Returns the edict for the client entity pool matching the number.
+static inline edict_t *EDICT_POOL( client_s *client, const int32_t number ) {
+    //#define EDICT_POOL(c, n) ((edict_t *)((byte *)(c)->pool->edicts + (c)->pool->edict_size*(n)))
+    return ( (edict_t *)( (byte *)( client )->pool->edicts + ( client )->pool->edict_size * ( number ) ) );
+}
 
 // a client can leave the server in one of four ways:
 // dropping properly by quiting or disconnecting

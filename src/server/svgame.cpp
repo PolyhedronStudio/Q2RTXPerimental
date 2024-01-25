@@ -98,7 +98,7 @@ static void PF_Unicast(edict_t *ent, bool reliable)
 		goto clear;
 	}
 
-	clientNum = NUM_FOR_EDICT( ent ) - 1;
+	clientNum = NUMBER_OF_EDICT( ent ) - 1;
 	if ( clientNum < 0 || clientNum >= sv_maxclients->integer ) {
 		Com_WPrintf( "%s to a non-client %d\n", __func__, clientNum );
 		goto clear;
@@ -243,7 +243,7 @@ static void PF_cprintf(edict_t *ent, int level, const char *fmt, ...)
         return;
     }
 
-    clientNum = NUM_FOR_EDICT(ent) - 1;
+    clientNum = NUMBER_OF_EDICT(ent) - 1;
     if (clientNum < 0 || clientNum >= sv_maxclients->integer) {
         Com_Error(ERR_DROP, "%s to a non-client %d", __func__, clientNum);
     }
@@ -284,7 +284,7 @@ static void PF_centerprintf(edict_t *ent, const char *fmt, ...)
         return;
     }
 
-    n = NUM_FOR_EDICT(ent);
+    n = NUMBER_OF_EDICT(ent);
     if (n < 1 || n > sv_maxclients->integer) {
         Com_WPrintf("%s to a non-client %d\n", __func__, n - 1);
         return;
@@ -521,7 +521,7 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
 	att = min( attenuation * 64, 255 );   // need to clip due to check above
 	ofs = timeofs * 1000;
 
-	ent = NUM_FOR_EDICT( edict );
+	ent = NUMBER_OF_EDICT( edict );
 
 	sendchan = ( ent << 3 ) | ( channel & 7 );
 

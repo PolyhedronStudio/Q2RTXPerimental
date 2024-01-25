@@ -109,7 +109,7 @@ void SV_ClearWorld(void)
 
     // make sure all entities are unlinked
     for (i = 0; i < ge->max_edicts; i++) {
-        ent = EDICT_NUM(i);
+        ent = EDICT_FOR_NUMBER(i);
         ent->area.prev = ent->area.next = NULL;
     }
 }
@@ -242,7 +242,7 @@ void PF_LinkEdict(edict_t *ent)
         return;        // don't add the world
 
     if (!ent->inuse) {
-        Com_DPrintf("%s: entity %d is not in use\n", __func__, NUM_FOR_EDICT(ent));
+        Com_DPrintf("%s: entity %d is not in use\n", __func__, NUMBER_OF_EDICT(ent));
         return;
     }
 
@@ -250,7 +250,7 @@ void PF_LinkEdict(edict_t *ent)
         return;
     }
 
-    entnum = NUM_FOR_EDICT(ent);
+    entnum = NUMBER_OF_EDICT(ent);
     sent = &sv.entities[entnum];
 
     // encode the size into the entity_state for client prediction

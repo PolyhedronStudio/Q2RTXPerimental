@@ -1002,7 +1002,7 @@ static void SVC_DirectConnect(void)
     newcl->protocol = params.protocol;
     newcl->version = params.version;
     newcl->has_zlib = params.has_zlib;
-    newcl->edict = EDICT_NUM(number + 1);
+    newcl->edict = EDICT_FOR_NUMBER(number + 1);
     newcl->gamedir = fs_game->string;
     newcl->mapname = sv.name;
     newcl->configstrings = (configstring_t *)&sv.configstrings[0];
@@ -1591,7 +1591,7 @@ static void SV_PrepWorldFrame(void)
     int        i;
 
     for (i = 1; i < ge->num_edicts; i++) {
-        ent = EDICT_NUM(i);
+        ent = EDICT_FOR_NUMBER(i);
 
         // events only last for a single keyframe
         ent->s.event = 0;

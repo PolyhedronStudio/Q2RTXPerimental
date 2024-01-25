@@ -112,16 +112,19 @@ extern explosion_t  cl_explosions[MAX_EXPLOSIONS];
 //    float           step_height;
 //// WID: 40hz
 //} centity_t;
+// Will point to the actual client game its client entity array.
 extern centity_t *cl_entities;
+
+// Extern it so we got access to it anywhere in the client.
 extern clgame_export_t *clge;
 
-//#define CENTITY_NUM(n) ((centity_t *)((byte *)cl_entities + clge->entity_size*(n)))
 static inline centity_t *ENTITY_FOR_NUMBER( const int32_t number ) {
+    //#define CENTITY_NUM(n) ((centity_t *)((byte *)cl_entities + clge->entity_size*(n)))
     return ( (centity_t *)( (byte *)cl_entities + clge->entity_size * ( number ) ) );
 }
-//#define NUM_FOR_CENTITY(e) ((int)(((byte *)(e) - (byte *)cl_entities) / clge->entity_size))
-static inline int32_t NUMBER_OF_ENTITY( const centity_t *cent ) {
-    return ( (int)( ( (byte *)(cent)-(byte *)cl_entities ) / clge->entity_size ) );
+static inline const int32_t NUMBER_OF_ENTITY( const centity_t *cent ) {
+    //#define NUM_FOR_CENTITY(e) ((int)(((byte *)(e) - (byte *)cl_entities) / clge->entity_size))
+    return ( (int32_t)( ( (byte *)(cent)-(byte *)cl_entities ) / clge->entity_size ) );
 }
 
 #define MAX_CLIENTWEAPONMODELS        20        // PGM -- upped from 16 to fit the chainfist vwep
