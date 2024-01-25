@@ -64,16 +64,19 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		Com_Error( ERR_DROP, "%s: bad entity number: %d", __func__, number );
 	}
 
-	// set everything to the state we are delta'ing from
+	// Set everything to the state we are delta'ing from.
 	if ( !from ) {
 		memset( to, 0, sizeof( *to ) );
 	} else if ( to != from ) {
 		memcpy( to, from, sizeof( *to ) );
 	}
 
+	// Ensure its number is set.
 	to->number = number;
+	// Always reset the event to begin with.
 	to->event = 0;
 
+	// Don't proceed reading if no other bits were present.
 	if ( !bits ) {
 		return;
 	}

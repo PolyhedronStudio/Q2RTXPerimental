@@ -438,27 +438,39 @@ USER COMMANDS( User Input. ):
 
 ==============================================================
 */
-//
-// button bits
-//
+//! Set in case of no button being pressed for the frame at all.
 #define BUTTON_NONE         0
+//! Set when the 'attack'(bombs away) button is pressed.
 #define BUTTON_ATTACK       1
+//! Set when the 'use' button is pressed. (Use item, not actually 'use targetting entity')
+//! TODO: Probably rename to USE_ITEM instead later when this moves to the client game.
 #define BUTTON_USE          2
+//! Set when the holster button is pressed.
 #define BUTTON_HOLSTER      4
+//! Set when the jump key is pressed.
 #define BUTTON_JUMP         8
+//! Set when the crouch/duck key is pressed.
 #define BUTTON_CROUCH       16
+//! Set when any button is pressed at all.
 #define BUTTON_ANY          128         // any key whatsoever
 
 
-// usercmd_t is sent to the server each client frame
+/**
+*   @brief  usercmd_t is sent multiple times to the server for each client frame.
+**/
 typedef struct usercmd_s {
+    //! Amount of miliseconds for this user command frame.
 	uint8_t  msec;
+    //! Button bits, determines which keys are pressed.
     uint16_t buttons;
+    //! View angles.
 	vec3_t  angles;
+    //! Direction key when held, 'speeds':
 	float   forwardmove, sidemove, upmove;
+    //! The impulse.
 	byte    impulse;        // remove?
-
-    uint64_t frameNumber;   // For possible deterministics.
+    //! The frame number, can be used for possible anti-lag. TODO: Implement something for that.
+    uint64_t frameNumber;
 } usercmd_t;
 
 
@@ -470,6 +482,9 @@ PLAYER MOVEMENT
 
 ==============================================================
 */
+/**
+*   @brief  The water 'level' of said entity.
+**/
 typedef enum {  //: uint8_t {
 	WATER_NONE,
 	WATER_FEET,
@@ -482,31 +497,31 @@ typedef enum {  //: uint8_t {
 **/
 typedef enum {  // : uint8_t {
     // Types that can accelerate and turn:
-    PM_NORMAL,      // Gravity. Clips to world and its entities.
-    PM_GRAPPLE,     // No gravity. Pull towards velocity.
-    PM_NOCLIP,      // No gravity. Don't clip against entities/world at all. 
-    PM_SPECTATOR,   // No gravity. Only clip against walls.
+    PM_NORMAL,      //! Gravity. Clips to world and its entities.
+    PM_GRAPPLE,     //! No gravity. Pull towards velocity.
+    PM_NOCLIP,      //! No gravity. Don't clip against entities/world at all. 
+    PM_SPECTATOR,   //! No gravity. Only clip against walls.
 
     // Types with no acceleration or turning support:
     PM_DEAD,
-    PM_GIB,         // Different bounding box for when the player is 'gibbing out'.
-    PM_FREEZE       // Does not respond to any movement inputs.
+    PM_GIB,         //! Different bounding box for when the player is 'gibbing out'.
+    PM_FREEZE       //! Does not respond to any movement inputs.
 } pmtype_t;
 
 // pmove->pm_flags
-#define PMF_NONE						0   // No flags.
-#define PMF_DUCKED						1   // Player is ducked.
-#define PMF_JUMP_HELD					2   // Player is keeping jump button pressed.
-#define PMF_ON_GROUND					4   // Player is on-ground.
-#define PMF_TIME_WATERJUMP				8   // pm_time is waterjump.
-#define PMF_TIME_LAND					16  // pm_time is time before rejump.
-#define PMF_TIME_TELEPORT				32  // pm_time is non-moving time.
-#define PMF_NO_POSITIONAL_PREDICTION	64  // Temporarily disables prediction (used for grappling hook).
-//#define PMF_TELEPORT_BIT				128 // used by q2pro
-#define PMF_ON_LADDER					128	// Signal to game that we are on a ladder.
-#define PMF_NO_ANGULAR_PREDICTION		256 // Temporary disables angular prediction.
-#define PMF_IGNORE_PLAYER_COLLISION		512	// Don't collide with other players.
-#define PMF_TIME_TRICK_JUMP				1024// pm_time is the trick jump time.
+#define PMF_NONE						0   //! No flags.
+#define PMF_DUCKED						1   //! Player is ducked.
+#define PMF_JUMP_HELD					2   //! Player is keeping jump button pressed.
+#define PMF_ON_GROUND					4   //! Player is on-ground.
+#define PMF_TIME_WATERJUMP				8   //! pm_time is waterjump.
+#define PMF_TIME_LAND					16  //! pm_time is time before rejump.
+#define PMF_TIME_TELEPORT				32  //! pm_time is non-moving time.
+#define PMF_NO_POSITIONAL_PREDICTION	64  //! Temporarily disables prediction (used for grappling hook).
+//#define PMF_TELEPORT_BIT				128 //! used by q2pro
+#define PMF_ON_LADDER					128	//! Signal to game that we are on a ladder.
+#define PMF_NO_ANGULAR_PREDICTION		256 //! Temporary disables angular prediction.
+#define PMF_IGNORE_PLAYER_COLLISION		512	//! Don't collide with other players.
+#define PMF_TIME_TRICK_JUMP				1024//! pm_time is the trick jump time.
 
 /**
 *   This structure needs to be communicated bit-accurate from the server to the client to guarantee that
@@ -518,12 +533,12 @@ typedef struct {
 
     Vector3		origin;
     Vector3		velocity;
-    uint16_t    pm_flags;		// Ducked, jump_held, etc
-	uint16_t	pm_time;		// Each unit = 8 ms
+    uint16_t    pm_flags;		//! Ducked, jump_held, etc
+	uint16_t	pm_time;		//! Each unit = 8 ms
     short       gravity;
-    Vector3     delta_angles;	// Add to command angles to get view direction
-								// changed by spawns, rotating objects, and teleporters
-	int8_t		viewheight;		// View height, added to origin[2] + viewoffset[2], for crouching
+    Vector3     delta_angles;	//! Add to command angles to get view direction
+								//! changed by spawns, rotating objects, and teleporters
+	int8_t		viewheight;		//! View height, added to origin[2] + viewoffset[2], for crouching
 } pmove_state_t;
 
 /**
@@ -601,11 +616,11 @@ typedef struct {
     **/
     //! Callbacks to test the world with.
     //! Trace against all entities.
-    trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask );
+    trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const int32_t contentMask );
     //! PointContents.
     int     ( *pointcontents )( const vec3_t point );
     //! Clips to world only.
-    trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ int32_t contentMask );
+    trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ const int32_t contentMask );
 
     /**
     *   (In):
