@@ -1,4 +1,4 @@
-# Quake II RTXPerimental Contenting Todo Features:
+# Quake II RTXPerimental Contending Todo Features:
 ## Features most certain to be on a future Todo List:
 * **Engine:**
 	* [ ] Take a closer look at the ``system`` codes and unify Windows/Linux, keep things **SDL2** and **OpenAL** only.

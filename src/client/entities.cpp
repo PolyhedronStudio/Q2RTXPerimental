@@ -410,14 +410,7 @@ void CL_DeltaFrame(void)
         // TODO: Proper stair smoothing.
 
         // Keep in mind the possible viewheight changes.
-        if ( cl.viewheight.current != cl.frame.ps.pmove.viewheight ) {
-            // Backup the old 'current' viewheight.
-            cl.viewheight.previous = cl.viewheight.current;
-            // Apply new viewheight.
-            cl.viewheight.current = cl.frame.ps.pmove.viewheight;
-            // Register client's time of viewheight change.
-            cl.viewheight.change_time = cl.time;
-        }
+        CL_AdjustViewHeight( cl.frame.ps.pmove.viewheight );
     }
 
     if (cl.oldframe.ps.pmove.pm_type != cl.frame.ps.pmove.pm_type) {
@@ -1373,15 +1366,11 @@ void CL_CalcViewValues(void) {
             cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( STEP_TIME - delta ) * ( 1.f / STEP_TIME );
         }
     } else {
-        int i;
-
         // just use interpolated values
-        for (i = 0; i < 3; i++) {
-			cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
-				lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
+        for ( int32_t i = 0; i < 3; i++ ) {
+            cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
+                lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
         }
-        
-        // TODO: Add demo stair smoothing.
     }
 
     // if not running a demo or on a locked frame, add the local angle movement

@@ -66,7 +66,7 @@ extern "C" {
 typedef struct {
 	enum {
 		ex_free,
-		ex_explosion,
+		//ex_explosion, Somehow unused. lol. TODO: Probably implement some day? xD
 		ex_misc,
 		ex_flash,
 		ex_mflash,
@@ -844,8 +844,22 @@ void CL_InitTEnts(void);
 //
 // predict.c
 //
+/**
+*   @brief  Sets the predicted view angles.
+**/
 void CL_PredictAngles(void);
+/**
+*   @brief  Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
+**/
+void CL_AdjustViewHeight( const int32_t viewHeight );
+/**
+*   @brief  Performs player movement over the registered 'move command frames' and stores the final outcome
+*           into the cl.predictedState struct.
+**/
 void CL_PredictMovement(void);
+/**
+*   @brief  
+**/
 void CL_CheckPredictionError(void);
 
 

@@ -76,12 +76,15 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
     mmodel_t *cmodel;
 
     for ( i = 0; i < cl.numSolidEntities; i++ ) {
+        // Acquire the entity state.
         ent = cl.solidEntities[ i ];
 
+        // Can't trace without proper data.
         if ( ent == nullptr ) {
             continue;
         }
 
+        // Prevent tracing against non solids.
         if ( ent->current.solid == SOLID_NOT ) {
             continue;
         }
@@ -133,11 +136,9 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
     }
 }
 
-/*
-================
-CL_Trace
-================
-*/
+/**
+*   @brief  Substituting the below 'CL_PM_Trace' implementation:
+**/
 void CL_Trace( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const int32_t contentmask ) {
     // check against world
     CM_BoxTrace( tr, start, end, mins, maxs, cl.bsp->nodes, contentmask );
@@ -149,7 +150,6 @@ void CL_Trace( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t 
     // Clip to all other solid entities.
     CL_ClipMoveToEntities( tr, start, mins, maxs, end, passEntity, contentmask );
 }
-
 /**
 *   @brief  A wrapper to make it compatible with the pm->trace that desired a 'void' to be passed in.
 **/
@@ -158,7 +158,9 @@ static trace_t q_gameabi CL_PM_Trace( const vec3_t start, const vec3_t mins, con
     CL_Trace( &t, start, mins, maxs, end, (const centity_t*)passEntity, contentMask );
     return t;
 }
-
+/**
+*   @brief  Player Move specific 'Clip' implementation:
+**/
 static trace_t q_gameabi CL_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const int32_t contentmask ) {
     trace_t     trace;
 
@@ -172,6 +174,9 @@ static trace_t q_gameabi CL_PM_Clip( const vec3_t start, const vec3_t mins, cons
     CM_BoxTrace( &trace, start, end, mins, maxs, cl.bsp->nodes, contentmask );
     return trace;
 }
+/**
+*   @brief  Player Move specific 'PointContents' implementation:
+**/
 static int CL_PM_PointContents(const vec3_t point) {
     int32_t contents = CM_PointContents( point, cl.bsp->nodes );
 
@@ -194,13 +199,9 @@ static int CL_PM_PointContents(const vec3_t point) {
     return contents;
 }
 
-/*
-=================
-CL_PredictAngles
-
-Sets the predicted view angles.
-=================
-*/
+/**
+*   @brief  Sets the predicted view angles.
+**/
 void CL_PredictAngles(void) {
     if ( !cl_predict->integer || ( cl.frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
         return;
@@ -209,13 +210,25 @@ void CL_PredictAngles(void) {
 	VectorAdd( cl.viewangles, cl.frame.ps.pmove.delta_angles, cl.predictedState.angles );
 }
 
-/*
-=================
-CL_PredictMovement
+/**
+*   @brief  Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
+**/
+void CL_AdjustViewHeight( const int32_t viewHeight ) {
+    // Record viewheight changes.
+    if ( cl.viewheight.current != viewHeight ) {
+        // Backup the old 'current' viewheight.
+        cl.viewheight.previous = cl.viewheight.current;
+        // Apply new viewheight.
+        cl.viewheight.current = viewHeight;
+        // Register client's time of viewheight change.
+        cl.viewheight.change_time = cl.time;
+    }
+}
 
-Sets cl.predicted_origin and cl.predicted_angles
-=================
-*/
+/**
+*   @brief  Performs player movement over the registered 'move command frames' and stores the final outcome
+*           into the cl.predictedState struct.
+**/
 void CL_PredictMovement(void) {
     static constexpr float STEP_MIN_HEIGHT = 4.f;
     static constexpr float STEP_MAX_HEIGHT = 18.0f;
