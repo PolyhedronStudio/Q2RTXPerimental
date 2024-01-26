@@ -9,6 +9,9 @@
 * **Shared Game:**
 	* [X] PMove being extracted to Shared Game allows for customization of player movement.
 
+## Low priority must do:
+* [ ] Add support for stair step smoothing during demo playback.
+
 ## Possible contending ideas:
 * [ ] Rework CMake to how it was in Polyhedron.
 * [ ] Make entity dictionaries 'stand on their own', acting as the ``BSP Entity Definition``.
