@@ -769,6 +769,7 @@ void CL_RequestNextDownload(void)
                 if (!name[0]) {
                     break;
                 }
+                // Skip if inlined bsp or view weapon model.
                 if (name[0] == '*' || name[0] == '#') {
                     continue;
                 }

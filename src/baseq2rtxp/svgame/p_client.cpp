@@ -569,13 +569,13 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 
 /*
 ==============
-InitClientPersistant
+InitClientPersistantData
 
 This is only called when the game first initializes in single player,
 but is called after each death and level change in deathmatch
 ==============
 */
-void InitClientPersistant(gclient_t *client)
+void InitClientPersistantData(edict_t *ent, gclient_t *client)
 {
 	gitem_t     *item;
 
@@ -615,10 +615,11 @@ void InitClientPersistant(gclient_t *client)
     client->pers.max_slugs      = 50;
 
     client->pers.connected = true;
+    client->pers.spawned = true;
 }
 
 
-void InitClientResp(gclient_t *client)
+void InitClientRespawnData(gclient_t *client)
 {
     memset(&client->resp, 0, sizeof(client->resp));
     client->resp.enterframe = level.framenum;
@@ -1106,7 +1107,7 @@ void PutClientInServer(edict_t *ent)
     // deathmatch wipes most client data every spawn
     if (deathmatch->value) {
         resp = client->resp;
-        InitClientPersistant(client);
+        InitClientPersistantData( ent, client );
     } else {
 //      int         n;
 
@@ -1131,7 +1132,7 @@ void PutClientInServer(edict_t *ent)
     memset(client, 0, sizeof(*client));
     client->pers = saved;
     if (client->pers.health <= 0)
-        InitClientPersistant(client);
+        InitClientPersistantData( ent, client );
     client->resp = resp;
 
     // copy some data from the client to the entity
@@ -1266,7 +1267,7 @@ void ClientBeginDeathmatch(edict_t *ent)
 {
     G_InitEdict(ent);
 
-    InitClientResp(ent->client);
+    InitClientRespawnData(ent->client);
 
     // locate ent at a spawn point
     PutClientInServer(ent);
@@ -1325,7 +1326,7 @@ void ClientBegin(edict_t *ent)
         // ClientConnect() time
         G_InitEdict(ent);
         ent->classname = "player";
-        InitClientResp(ent->client);
+        InitClientRespawnData(ent->client);
         PutClientInServer(ent);
     }
 
@@ -1471,9 +1472,9 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
     // take it, otherwise spawn one from scratch
     if (ent->inuse == false) {
         // clear the respawning variables
-        InitClientResp(ent->client);
+        InitClientRespawnData(ent->client);
         if (!game.autosaved || !ent->client->pers.weapon)
-            InitClientPersistant(ent->client);
+            InitClientPersistantData( ent, ent->client );
     }
 
     ClientUserinfoChanged(ent, userinfo);
@@ -1524,7 +1525,9 @@ void ClientDisconnect(edict_t *ent)
     ent->classname = "disconnected";
     ent->client->pers.spawned = false;
     ent->client->pers.connected = false;
+    ent->timestamp = level.time + 1_sec;
 
+    // WID: This is now residing in RunFrame
     // FIXME: don't break skins on corpses, etc
     //playernum = ent-g_edicts-1;
     //gi.configstring (CS_PLAYERSKINS+playernum, "");

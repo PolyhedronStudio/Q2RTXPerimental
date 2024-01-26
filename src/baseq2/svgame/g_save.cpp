@@ -1098,10 +1098,11 @@ void ReadLevel(const char *filename)
     gzclose(f);
 
     // mark all clients as unconnected
-    for (i = 0 ; i < maxclients->value ; i++) {
-        ent = &g_edicts[i + 1];
+    for ( i = 0; i < maxclients->value; i++ ) {
+        ent = &g_edicts[ i + 1 ];
         ent->client = game.clients + i;
         ent->client->pers.connected = false;
+        ent->client->pers.spawned = false;
     }
 
     // do any load time things at this point

@@ -69,23 +69,38 @@ typedef struct {
 
 static const save_field_t entityfields[] = {
 #define _OFS FOFS
-    V(s.origin),
-    V(s.angles),
-    V(s.old_origin),
-    I(s.modelindex),
-    I(s.modelindex2),
-    I(s.modelindex3),
-    I(s.modelindex4),
-    I(s.frame),
-    I(s.skinnum),
-    I(s.effects),
-    I(s.renderfx),
-    I(s.solid),
-    I(s.sound),
-    I(s.event),
+    // [entity_state_s]:
+    V( s.origin ),
+    V( s.angles ),
+    V( s.old_origin ),
+
+    I( s.solid ),
+    I( s.clipmask ),
+    I( s.ownerNumber ),
+
+    I( s.modelindex ),
+    I( s.modelindex2 ),
+    I( s.modelindex3 ),
+    I( s.modelindex4 ),
+
+    I( s.skinnum ),
+    I( s.effects ),
+    I( s.renderfx ),
+
+    I( s.frame ),
+    I( s.old_frame ),
+
+    I( s.sound ),
+    I( s.event ),
+
+    // TODO: Do we really need to save this? Perhaps.
+    // For spotlights.
+    V( s.rgb ),
+    F( s.intensity ),
+    F( s.angle_width ),
+    F( s.angle_falloff ),
 
     // [...]
-
     I(svflags),
     V(mins),
     V(maxs),
@@ -107,6 +122,8 @@ static const save_field_t entityfields[] = {
     I(spawnflags),
 
 	I64( timestamp ), // WID: 64-bit-frame FT(timestamp),
+
+    F( angle ),
 
     L(target),
     L(targetname),
@@ -135,7 +152,7 @@ static const save_field_t entityfields[] = {
     F(yaw_speed),
     F(ideal_yaw),
 
-    FT(nextthink),
+    I64(nextthink),
     P(prethink, P_prethink),
     P(think, P_think),
     P(blocked, P_blocked),
@@ -154,9 +171,9 @@ static const save_field_t entityfields[] = {
     I(max_health),
     I(gib_health),
     I(deadflag),
-    F(show_hostile),
+    I64(show_hostile),
 
-I64( powerarmor_time ), // WID: 64-bit-frame
+    I64( powerarmor_time ), // WID: 64-bit-frame
 
     L(map),
 
@@ -165,6 +182,7 @@ I64( powerarmor_time ), // WID: 64-bit-frame
     I(dmg),
     I(radius_dmg),
     F(dmg_radius),
+    F(light),
     I(sounds),
     I(count),
 
@@ -200,6 +218,8 @@ I64( powerarmor_time ), // WID: 64-bit-frame
     I(light_level),
 
     I(style),
+    L(customLightStyle),
+
 
     T(item),
 
@@ -245,12 +265,15 @@ I64( powerarmor_time ), // WID: 64-bit-frame
     P(monsterinfo.sight, P_monsterinfo_sight),
     P(monsterinfo.checkattack, P_monsterinfo_checkattack),
 
-	I64( monsterinfo.pause_time ),// WID: 64-bit-frame FT(monsterinfo.pause_time),
+    I64( monsterinfo.next_move_time ),
+	
+    I64( monsterinfo.pause_time ),// WID: 64-bit-frame FT(monsterinfo.pause_time),
 	I64( monsterinfo.attack_finished ),// WID: 64-bit-frame FT(monsterinfo.attack_finished),
+    I64( monsterinfo.fire_wait ),
 
 	V( monsterinfo.saved_goal ),
 	I64( monsterinfo.search_time ),// WID: 64-bit-frame FT(monsterinfo.search_time),
-	I64( monsterinfo.search_time ),// WID: 64-bit-frame FT(monsterinfo.trail_time),
+	I64( monsterinfo.trail_time ),// WID: 64-bit-frame FT(monsterinfo.trail_time),
 	V( monsterinfo.last_sighting ),
 	I( monsterinfo.attack_state ),
 	I( monsterinfo.lefty ),
@@ -1098,8 +1121,8 @@ void ReadLevel(const char *filename)
     gzclose(f);
 
     // mark all clients as unconnected
-    for (i = 0 ; i < maxclients->value ; i++) {
-        ent = &g_edicts[i + 1];
+    for ( i = 0; i < maxclients->value; i++ ) {
+        ent = &g_edicts[ i + 1 ];
         ent->client = game.clients + i;
         ent->client->pers.connected = false;
         ent->client->pers.spawned = false;

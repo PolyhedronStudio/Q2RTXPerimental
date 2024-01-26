@@ -1,1 +1,1 @@
-Q2RTXPerimental_ded.exe +set developer 1 +set sv_debug 1 +set cheats 1 +set gamemode 2 +map demo1
+Q2RTXPerimental_ded.exe +set developer 1 +set sv_debug 1 +set cheats 1 +set allow_download -1 +set gamemode 2 +map demo1

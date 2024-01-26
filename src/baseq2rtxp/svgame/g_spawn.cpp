@@ -607,8 +607,13 @@ void SpawnEntities(const char *mapname, const char *entities, const char *spawnp
     Q_strlcpy(game.spawnpoint, spawnpoint, sizeof(game.spawnpoint));
 
     // set client fields on player ents
-    for (i = 0 ; i < game.maxclients ; i++)
-        g_edicts[i + 1].client = game.clients + i;
+    for ( i = 0; i < game.maxclients; i++ ) {
+        g_edicts[ i + 1 ].client = game.clients + i;
+
+        // Set their states as disconnected, unspawned, since the level is switching.
+        game.clients[ i ].pers.connected = false;
+        game.clients[ i ].pers.spawned = false;
+    }
 
     ent = NULL;
     inhibit = 0;

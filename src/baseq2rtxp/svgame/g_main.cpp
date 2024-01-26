@@ -587,14 +587,16 @@ void G_RunFrame(void)
     int     i;
     edict_t *ent;
 
+    // Increase the frame number we're in for this level..
     level.framenum++;
-	level.time += FRAME_TIME_MS;
+    // Increase the amount of time that has passed for this level.
+    level.time += FRAME_TIME_MS;
 
-    // choose a client for monsters to target this frame
+    // Choose a client for monsters to target this frame.
     AI_SetSightClient();
 
-    // exit intermissions
-    if (level.exitintermission) {
+    // Exit intermissions.
+    if ( level.exitintermission ) {
         ExitLevel();
         return;
     }
@@ -603,34 +605,45 @@ void G_RunFrame(void)
     // treat each object in turn
     // even the world gets a chance to think
     //
-    ent = &g_edicts[0];
-    for (i = 0 ; i < globals.num_edicts ; i++, ent++) {
-        if (!ent->inuse)
+    ent = &g_edicts[ 0 ];
+    for ( i = 0; i < globals.num_edicts; i++, ent++ ) {
+        if ( !ent->inuse ) {
+            // "Defer removing client info so that disconnected, etc works."
+            if ( i > 0 && i <= game.maxclients ) {
+                if ( ent->timestamp && level.time < ent->timestamp ) {
+                    const int32_t playernum = ent - g_edicts - 1;
+                    gi.configstring( CS_PLAYERSKINS + playernum, "" );
+                    ent->timestamp = 0_sec;
+                }
+            }
             continue;
+        }
 
+        // Set the current entity being processed for the current frame.
         level.current_entity = ent;
 
-        if (!(ent->s.renderfx & RF_BEAM))
-            VectorCopy(ent->s.origin, ent->s.old_origin);
+        // RF Beam Entities update old_origin themselves.
+        if ( !( ent->s.renderfx & RF_BEAM ) )
+            VectorCopy( ent->s.origin, ent->s.old_origin );
 
         // if the ground entity moved, make sure we are still on it
-        if ((ent->groundentity) && (ent->groundentity->linkcount != ent->groundentity_linkcount)) {
+        if ( ( ent->groundentity ) && ( ent->groundentity->linkcount != ent->groundentity_linkcount ) ) {
             ent->groundentity = NULL;
-            if (!(ent->flags & (FL_SWIM | FL_FLY)) && (ent->svflags & SVF_MONSTER)) {
-                M_CheckGround(ent);
+            if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {
+                M_CheckGround( ent );
             }
         }
 
-        if (i > 0 && i <= maxclients->value) {
-            ClientBeginServerFrame(ent);
+        if ( i > 0 && i <= maxclients->value ) {
+            ClientBeginServerFrame( ent );
             continue;
         }
 
-        G_RunEntity(ent);
+        G_RunEntity( ent );
     }
 
     // exit intermission right now to avoid annoying fov change
-    if (level.exitintermission) {
+    if ( level.exitintermission ) {
         ExitLevel();
         return;
     }

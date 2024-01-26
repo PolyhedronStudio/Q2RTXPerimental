@@ -886,8 +886,8 @@ edict_t *PlayerTrail_LastSpot(void);
 void respawn(edict_t *ent);
 void BeginIntermission(edict_t *targ);
 void PutClientInServer(edict_t *ent);
-void InitClientPersistant(gclient_t *client);
-void InitClientResp(gclient_t *client);
+void InitClientPersistantData(edict_t *ent, gclient_t *client);
+void InitClientRespawnData(gclient_t *client);
 void InitBodyQue(void);
 void ClientBeginServerFrame(edict_t *ent);
 
