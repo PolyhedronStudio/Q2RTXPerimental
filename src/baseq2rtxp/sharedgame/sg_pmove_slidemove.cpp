@@ -142,21 +142,21 @@ Does not modify any world state?
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
 void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time ) {
-	int bumpcount = 0, numbumps = 0;
-	vec3_t dir = {};
+	Vector3 dir = {};
+
+	Vector3 planes[ MAX_CLIP_PLANES ] = {};
+
+	trace_t	trace = {};
+	Vector3	end = {};
+
 	float d = 0;
-	int numplanes = 0;
-	vec3_t planes[ MAX_CLIP_PLANES ] = {};
-	vec3_t primal_velocity = {};
-	int i = 0, j = 0;
-	trace_t trace = {};
-	vec3_t end = {};
 	float time_left = 0.f;
 
-	numbumps = 4;
+	int32_t bumpcount = 0;
+	int32_t numbumps = 4;
 
-	VectorCopy( velocity, primal_velocity );
-	numplanes = 0;
+	Vector3 primal_velocity = velocity;
+	int32_t numplanes = 0;
 
 	time_left = frametime;
 
@@ -201,7 +201,7 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 
 		if ( trace.fraction > 0 ) {
 			// actually covered some distance
-			VectorCopy( trace.endpos, origin );
+			origin = trace.endpos;
 			numplanes = 0;
 		}
 
@@ -216,22 +216,24 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 
 		// slide along this plane
 		if ( numplanes >= MAX_CLIP_PLANES ) {
-			// this shouldn't really happen
-			VectorClear( velocity );
+			// Zero out velocity. This should never happen though.
+			velocity = {};
 			break;
 		}
 
-		VectorCopy( trace.plane.normal, planes[ numplanes ] );
+		planes[ numplanes ] = trace.plane.normal;
 		numplanes++;
 
 		//
 		// modify original_velocity so it parallels all of the clip planes
 		//
+		int32_t i = 0;
+		int32_t j = 0;
 		for ( i = 0; i < numplanes; i++ ) {
 			PM_ClipVelocity( velocity, planes[ i ], velocity, 1.01f );
 			for ( j = 0; j < numplanes; j++ ) {
 				if ( j != i ) {
-					if ( DotProduct( velocity, planes[ j ] ) < 0 ) {
+					if ( QM_Vector3DotProduct( velocity, planes[ j ] ) < 0 ) {
 						break;  // not ok
 					}
 				}
@@ -246,25 +248,25 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 		} else {
 			// go along the crease
 			if ( numplanes != 2 ) {
-				VectorClear( velocity );
+				velocity = {}; // Clear out velocity.
 				break;
 			}
-			CrossProduct( planes[ 0 ], planes[ 1 ], dir );
-			d = DotProduct( dir, velocity );
-			VectorScale( dir, d, velocity );
+			dir = QM_Vector3CrossProduct( planes[ 0 ], planes[ 1 ] );
+			d = QM_Vector3DotProduct( dir, velocity );
+			velocity = QM_Vector3Scale( dir, d );
 		}
 
 		//
 		// if velocity is against the original velocity, stop dead
 		// to avoid tiny occilations in sloping corners
 		//
-		if ( DotProduct( velocity, primal_velocity ) <= 0 ) {
-			VectorClear( velocity );
+		if ( QM_Vector3DotProduct( velocity, primal_velocity ) <= 0 ) {
+			velocity = {};
 			break;
 		}
 	}
 
 	if ( has_time ) {
-		VectorCopy( primal_velocity, velocity );
+		velocity = primal_velocity;
 	}
 }
