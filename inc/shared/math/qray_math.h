@@ -203,9 +203,11 @@ typedef struct Vector3 {
         this->z = v.z;
     }
     [[nodiscard]] inline Vector3( vec3_t v3 ) {
-        this->x = v3[ 0 ];
-        this->y = v3[ 1 ];
-        this->z = v3[ 2 ];
+        if ( v3 ) {
+            this->x = v3[ 0 ];
+            this->y = v3[ 1 ];
+            this->z = v3[ 2 ];
+        }
     }
     /**
     *   Array like component accessors:

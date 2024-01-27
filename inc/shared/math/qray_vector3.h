@@ -335,13 +335,35 @@ RMAPI const Vector3 QM_Vector3RotateByAxisAngle( ConstVector3Ref v, Vector3 axis
     return result;
 }
 
-// Calculate linear interpolation between two vectors
-RMAPI const Vector3 QM_Vector3Lerp( ConstVector3Ref v1, ConstVector3Ref v2, const float amount ) {
+// Calculate linear interpolation between two vectors, the slightly less precise version.
+RMAPI const Vector3 QM_Vector3LerpFast( ConstVector3Ref v1, ConstVector3Ref v2, const float amount ) {
     Vector3 result = { 0 };
 
     result.x = v1.x + amount * ( v2.x - v1.x );
     result.y = v1.y + amount * ( v2.y - v1.y );
     result.z = v1.z + amount * ( v2.z - v1.z );
+
+    return result;
+}
+
+// Calculate linear interpolation between two vectors, slower lerp, but you specify back & front lerp separately.
+RMAPI const Vector3 QM_Vector3LerpBackFront( ConstVector3Ref v1, ConstVector3Ref v2, const float backLerp, const float frontLerp ) {
+    Vector3 result = { 0 };
+
+    result.x = ( v1.x ) * (backLerp) + ( v2.x ) * ( frontLerp );
+    result.y = ( v1.y ) * (backLerp) + ( v2.y ) * ( frontLerp );
+    result.z = ( v1.z ) * (backLerp) + ( v2.z ) * ( frontLerp );
+
+    return result;
+}
+
+// Calculate linear interpolation between two vectors, slower lerp, but is more mathematically precise.
+RMAPI const Vector3 QM_Vector3Lerp( ConstVector3Ref v1, ConstVector3Ref v2, const float amount ) {
+    Vector3 result = { 0 };
+
+    result.x = ( v1.x ) * ( 1.0f - amount ) + ( v2.x ) * ( amount );
+    result.y = ( v1.y ) * ( 1.0f - amount ) + ( v2.y ) * ( amount );
+    result.z = ( v1.z ) * ( 1.0f - amount ) + ( v2.z ) * ( amount );
 
     return result;
 }
@@ -701,8 +723,15 @@ RMAPI void QM_Vector3ToAngles( const Vector3 forward, vec3_t angles ) {
 }
 #endif
 
-// Vector with z component value 1.0f, pointing up in Quake Space.
+// Vector with z component value 1.0f, pointing upwards in Quake Space.
 RMAPI const Vector3 QM_Vector3Up( void ) {
+    Vector3 result = { 0.0f, 0.0f, 1.0f };
+
+    return result;
+}
+
+// Vector with z component value -1.0f, pointing downwards in Quake Space.
+RMAPI const Vector3 QM_Vector3Down( void ) {
     Vector3 result = { 0.0f, 0.0f, 1.0f };
 
     return result;

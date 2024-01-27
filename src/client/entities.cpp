@@ -640,27 +640,33 @@ static void CL_AddPacketEntities(void)
 		}
 // WID: 40hz
 
-        if (renderfx & RF_FRAMELERP) {
+        if ( renderfx & RF_FRAMELERP ) {
             // step origin discretely, because the frames
             // do the animation properly
-            VectorCopy(cent->current.origin, ent.origin);
-            VectorCopy(cent->current.old_origin, ent.oldorigin);  // FIXME
-		} else if ( renderfx & RF_BEAM ) {
-			// interpolate start and end points for beams
-			LerpVector( cent->prev.origin, cent->current.origin,
-					   cl.lerpfrac, ent.origin );
-			LerpVector( cent->prev.old_origin, cent->current.old_origin,
-					   cl.lerpfrac, ent.oldorigin );
-		} else {
-            if (s1->number == cl.frame.clientNum + 1) {
+            VectorCopy( cent->current.origin, ent.origin );
+            VectorCopy( cent->current.old_origin, ent.oldorigin );  // FIXME
+        } else if ( renderfx & RF_BEAM ) {
+            // interpolate start and end points for beams
+            //LerpVector( cent->prev.origin, cent->current.origin,
+            //    cl.lerpfrac, ent.origin );
+            //LerpVector( cent->prev.old_origin, cent->current.old_origin,
+            //    cl.lerpfrac, ent.oldorigin );
+            Vector3 cent_origin = QM_Vector3Lerp( cent->prev.origin, cent->current.origin, cl.lerpfrac );
+            VectorCopy( cent_origin, ent.origin );
+            Vector3 cent_old_origin = QM_Vector3Lerp( cent->prev.old_origin, cent->current.old_origin, cl.lerpfrac );
+            VectorCopy( cent_old_origin, ent.oldorigin );
+        } else {
+            if ( s1->number == cl.frame.clientNum + 1 ) {
                 // use predicted origin
-                VectorCopy(cl.playerEntityOrigin, ent.origin);
-                VectorCopy(cl.playerEntityOrigin, ent.oldorigin);
+                VectorCopy( cl.playerEntityOrigin, ent.origin );
+                VectorCopy( cl.playerEntityOrigin, ent.oldorigin );
             } else {
                 // interpolate origin
-                LerpVector(cent->prev.origin, cent->current.origin,
-                           cl.lerpfrac, ent.origin);
-                VectorCopy(ent.origin, ent.oldorigin);
+                //LerpVector(cent->prev.origin, cent->current.origin,
+                //           cl.lerpfrac, ent.origin);
+                Vector3 cent_origin = QM_Vector3Lerp( cent->prev.origin, cent->current.origin, cl.lerpfrac );
+                VectorCopy( cent_origin, ent.origin );
+                VectorCopy( ent.origin, ent.oldorigin );
             }
 //#if USE_FPS
 //            // run alias model animation
@@ -685,7 +691,7 @@ static void CL_AddPacketEntities(void)
 
         // WID: RF_STAIR_STEP smooth interpolation:
         // TODO: Generalize STEP_ constexpr stuff.
-        static constexpr int64_t STEP_TIME = 100; // 100ms.
+        static constexpr int64_t STEP_TIME = 200; // 100ms.
         uint64_t stair_step_delta = cls.realtime - ( cent->step_servertime - cl.sv_frametime );
         // Smooth out stair step over 100ms.
         if ( stair_step_delta <= STEP_TIME ) {
@@ -701,9 +707,9 @@ static void CL_AddPacketEntities(void)
             uint64_t stair_step_time = STEP_TIME - min( stair_step_delta, STEP_TIME );
 
             // Calculate lerped Z origin.
-            const float stair_step_lerp_z = cent->current.origin[ 2 ] + ( cent->prev.origin[ 2 ] - cent->current.origin[ 2 ] ) * stair_step_time * STEP_BASE_1_FRAMETIME;
-            cent->current.origin[ 2 ] = stair_step_lerp_z;
-
+            //const float stair_step_lerp_z = cent->current.origin[ 2 ] + ( cent->prev.origin[ 2 ] - cent->current.origin[ 2 ] ) * stair_step_time * STEP_BASE_1_FRAMETIME;
+            cent->current.origin[ 2 ] = QM_Lerp( cent->prev.origin[ 2 ], cent->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME);
+            
             // Assign to render entity.
             VectorCopy( cent->current.origin, ent.origin );
             VectorCopy( cent->current.origin, ent.oldorigin );
@@ -1367,10 +1373,11 @@ void CL_CalcViewValues(void) {
         }
     } else {
         // just use interpolated values
-        for ( int32_t i = 0; i < 3; i++ ) {
-            cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
-                lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
-        }
+        //for ( int32_t i = 0; i < 3; i++ ) {
+        //    cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
+        //        lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
+        //}
+        Vector3 newViewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerp );
     }
 
     // if not running a demo or on a locked frame, add the local angle movement

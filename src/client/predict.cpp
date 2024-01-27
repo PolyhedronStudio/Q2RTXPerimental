@@ -233,7 +233,7 @@ void CL_PredictMovement(void) {
     static constexpr float STEP_MIN_HEIGHT = 4.f;
     static constexpr float STEP_MAX_HEIGHT = 18.0f;
 
-    static constexpr int32_t STEP_TIME = 100;
+    static constexpr int32_t STEP_TIME = 200;
     static constexpr int32_t MAX_STEP_CHANGE = 32;
 
     if ( cls.state != ca_active ) {

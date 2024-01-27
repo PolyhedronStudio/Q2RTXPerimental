@@ -15,9 +15,32 @@ RMAPI const float QM_Clamp( const float value, const float min, const float max 
     return ( result > max ) ? max : result;
 }
 
-// Calculate linear interpolation between two floats
-RMAPI const float QM_Lerp( const float start, const float end, const float amount ) {
+// slightly faster lerp that may not be as precise
+#define FASTLERP(a, b, c)   ((a)+(c)*((b)-(a)))
+// slower lerp, but you specify back & front lerp separately
+#define LERP2(a, b, c, d)   ((a)*(c)+(b)*(d))
+// slower lerp but is more mathematically precise
+#define LERP(a, b, c)       LERP2((a), (b), (1.0f - (c)), (c))
+
+//                cl.refdef.fog.p = LERP2(cl.fog.start.p, cl.fog.end.p, fog_backlerp, fog_frontlerp)
+
+// Slightly faster Lerp, might not be as precise.
+RMAPI const float QM_FastLerp( const float start, const float end, const float amount ) {
     const float result = start + amount * ( end - start );
+
+    return result;
+}
+
+// Slower lerp, but you specify back & front lerp separately.
+RMAPI const float QM_LerpBackFront( const float start, const float end, const float backLerp, const float frontLerp ) {
+    const float result = ( (start) * (backLerp) +  (end) * (frontLerp) );
+
+    return result;
+}
+
+// Slower lerp but is more mathematically precise.
+RMAPI const float QM_Lerp( const float start, const float end, const float amount ) {
+    const float result = ( ( start ) * (1.0f - amount)+( end ) * ( amount ) );
 
     return result;
 }
