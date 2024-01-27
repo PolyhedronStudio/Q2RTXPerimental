@@ -1332,12 +1332,11 @@ typedef struct {
     vec3_t gunoffset;
     uint32_t gunindex;
     uint32_t gunframe;
-// WID: 40hz.
-	int32_t gunrate;
-// WID: 40hz.
 
-    //float damage_blend[ 4 ];       // rgba full screen effect
-    float screen_blend[4];       // rgba full screen effect
+	int32_t gunrate;
+
+    //float damage_blend[ 4 ];      // rgba full screen damage blend effect
+    float screen_blend[4];          // rgba full screen general blend effect
     float fov;            // horizontal field of view
 
     int32_t rdflags;        // refdef flags

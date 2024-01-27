@@ -430,10 +430,11 @@ typedef struct {
     char        nextmap[MAX_QPATH];     // go here when fraglimit is hit
 
     // intermission state
-    int         intermission_framenum;  // time the intermission was started
+    int64_t         intermission_framenum;  // time the intermission was started
+
 	// WID: C++20: Added const.
     const char	*changemap;
-    int         exitintermission;
+    int64_t     exitintermission;
     vec3_t      intermission_origin;
     vec3_t      intermission_angle;
 
@@ -771,8 +772,8 @@ void    G_TouchSolids(edict_t *ent);
 
 char    *G_CopyString(char *in);
 
-float vectoyaw(vec3_t vec);
-void vectoangles(vec3_t vec, vec3_t angles);
+float vectoyaw( vec3_t vec );
+void vectoangles( const vec3_t vec, vec3_t angles );
 
 //
 // g_combat.c
@@ -968,8 +969,8 @@ typedef struct {
     char        netname[16];
     int         hand;
 
-    bool        connected;  // a loadgame will leave valid entities that
-                            // just don't have a connection yet
+    bool        connected;  // A loadgame will leave valid entities that just don't have a connection yet.
+    bool        spawned;    // Stores whether spawned or not. 
 
     // values saved and restored from edicts when changing levels
     int         health;
@@ -997,17 +998,19 @@ typedef struct {
     int         helpchanged;
 
     bool        spectator;      // client is a spectator
-    bool        spawned;        // Stores whether spawned or not. A loadgame will leave valid entities that just don't have a connection yet.
 } client_persistant_t;
 
-// client data that stays across deathmatch respawns
+// Client data that stays across deathmatch respawns
 typedef struct {
     client_persistant_t coop_respawn;	// what to set client->pers to on a respawn
-    int64_t enterframe;			// level.framenum the client entered the game
-    int score;					// frags, etc
-    vec3_t cmd_angles;			// angles sent over in the last command
 
-    bool spectator;				// client is a spectator
+    int64_t enterframe;     // level.framenum the client entered the game
+    sg_time_t entertime;    // the moment in time the client entered the game.
+
+    int32_t score;      // Frags, etc
+    vec3_t cmd_angles;  // Angles sent over in the last command.
+
+    bool spectator;     // Client is a spectator
 } client_respawn_t;
 
 // this structure is cleared on each PutClientInServer(),
@@ -1017,7 +1020,7 @@ struct gclient_s {
     *	Known and Shared with the Server:
     /**/
     player_state_t  ps;             // communicated by server to clients
-    int64_t		ping;			// WID: 64-bit-frame
+    int64_t         ping;			// WID: 64-bit-frame
 
 	/**
     *	Private to game:

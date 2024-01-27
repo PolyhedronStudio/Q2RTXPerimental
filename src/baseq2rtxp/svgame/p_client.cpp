@@ -579,8 +579,10 @@ void InitClientPersistantData(edict_t *ent, gclient_t *client)
 {
 	gitem_t     *item;
 
-	memset(&client->pers, 0, sizeof(client->pers));
+    // Clear out persistent data.
+    client->pers = {};
 
+    // Find the blaster item, add it to our inventory and appoint it as the selected weapon.
 	item = FindItem("Blaster");
 	client->pers.selected_item = ITEM_INDEX(item);
 	client->pers.inventory[client->pers.selected_item] = 1;
@@ -621,8 +623,16 @@ void InitClientPersistantData(edict_t *ent, gclient_t *client)
 
 void InitClientRespawnData(gclient_t *client)
 {
-    memset(&client->resp, 0, sizeof(client->resp));
+    // Clear out respawn data.
+    client->resp = {};
+
+    // Save the moment in time.
     client->resp.enterframe = level.framenum;
+    client->resp.entertime = level.time;
+
+    // In case of a coop game mode, we make sure to store the 
+    // 'persistent across level changes' data into the client's
+    // respawn field, so we can restore it.
     client->resp.coop_respawn = client->pers;
 }
 
@@ -1178,6 +1188,7 @@ void PutClientInServer(edict_t *ent)
 
     // Set viewheight for player state pmove.
     ent->client->ps.pmove.viewheight = ent->viewheight;
+
     // Proper gunindex.
     if ( client->pers.weapon ) {
         client->ps.gunindex = gi.modelindex( client->pers.weapon->view_model );
@@ -1195,6 +1206,7 @@ void PutClientInServer(edict_t *ent)
     // weapon number will be added in changeweapon
     ent->s.skinnum = ent - g_edicts - 1;
     ent->s.frame = 0;
+    ent->s.old_frame = 0;
 
     // try to properly clip to the floor / spawn
     VectorCopy(spawn_origin, temp);

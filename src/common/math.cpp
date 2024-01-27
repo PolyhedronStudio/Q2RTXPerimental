@@ -21,43 +21,63 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #if USE_CLIENT
 
-/*
-======
-vectoangles2 - this is duplicated in the game DLL, but I need it here.
-======
-*/
-void vectoangles2(const vec3_t value1, vec3_t angles)
-{
+#if 0
+// OLD:
+void vectoangles2( vec3_t value1, vec3_t angles ) {
     float   forward;
     float   yaw, pitch;
 
-    if (value1[1] == 0 && value1[0] == 0) {
+    if ( value1[ 1 ] == 0 && value1[ 0 ] == 0 ) {
         yaw = 0;
-        if (value1[2] > 0)
+        if ( value1[ 2 ] > 0 )
             pitch = 90;
         else
             pitch = 270;
     } else {
-        if (value1[0])
-            yaw = RAD2DEG(atan2(value1[1], value1[0]));
-        else if (value1[1] > 0)
+        if ( value1[ 0 ] )
+            yaw = (int)RAD2DEG( atan2( value1[ 1 ], value1[ 0 ] ) );
+        else if ( value1[ 1 ] > 0 )
             yaw = 90;
         else
-            yaw = 270;
-
-        if (yaw < 0)
+            yaw = -90;
+        if ( yaw < 0 )
             yaw += 360;
 
-        forward = sqrtf(value1[0] * value1[0] + value1[1] * value1[1]);
-        pitch = RAD2DEG(atan2(value1[2], forward));
-        if (pitch < 0)
+        forward = sqrtf( value1[ 0 ] * value1[ 0 ] + value1[ 1 ] * value1[ 1 ] );
+        pitch = (int)RAD2DEG( atan2( value1[ 2 ], forward ) );
+        if ( pitch < 0 )
             pitch += 360;
     }
 
-    angles[PITCH] = -pitch;
-    angles[YAW] = yaw;
-    angles[ROLL] = 0;
+    angles[ PITCH ] = -pitch;
+    angles[ YAW ] = yaw;
+    angles[ ROLL ] = 0;
 }
+#else
+// NEW:
+void vectoangles2( const vec3_t forward, vec3_t angles ) {
+    float tmp, yaw, pitch;
+    if ( forward[ 1 ] == 0 && forward[ 0 ] == 0 ) {
+        yaw = 0;
+        if ( forward[ 2 ] > 0 ) {
+            pitch = 270;
+        } else {
+            pitch = 90;
+        }
+    } else {
+        yaw = ( atan2( forward[ 1 ], forward[ 0 ] ) * 180 / M_PI );
+        if ( yaw < 0 ) {
+            yaw += 360;
+        }
+        tmp = sqrt( forward[ 0 ] * forward[ 0 ] + forward[ 1 ] * forward[ 1 ] );
+        pitch = ( atan2( -forward[ 2 ], tmp ) * 180 / M_PI );
+        if ( pitch < 0 ) {
+            pitch += 360;
+        }
+    }
+    angles[ 0 ] = pitch; angles[ 1 ] = yaw; angles[ 2 ] = 0;
+}
+#endif
 
 void MakeNormalVectors(const vec3_t forward, vec3_t right, vec3_t up)
 {

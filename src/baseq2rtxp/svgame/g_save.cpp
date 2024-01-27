@@ -297,9 +297,9 @@ static const save_field_t levelfields[] = {
 	SZ( mapname, MAX_QPATH ),
 	SZ( nextmap, MAX_QPATH ),
 
-	FT( intermission_framenum ),
+	I64( intermission_framenum ),
 	L( changemap ),
-	I( exitintermission ),
+	I64( exitintermission ),
 	V( intermission_origin ),
 	V( intermission_angle ),
 
@@ -338,10 +338,11 @@ static const save_field_t clientfields[] = {
 
 	V( ps.pmove.origin ),
 	V( ps.pmove.velocity ),
-	B( ps.pmove.pm_flags ),
-	B( ps.pmove.pm_time ),
+	S( ps.pmove.pm_flags ),
+	S( ps.pmove.pm_time ),
 	S( ps.pmove.gravity ),
 	V( ps.pmove.delta_angles ),
+    B( ps.pmove.viewheight ),
 
 	V( ps.viewangles ),
 	V( ps.viewoffset ),
@@ -351,6 +352,8 @@ static const save_field_t clientfields[] = {
 	V( ps.gunoffset ),
 	I( ps.gunindex ),
 	I( ps.gunframe ),
+    
+    I( ps.gunrate ),
 
     //FA( ps.damage_blend, 4 ),
 	FA( ps.screen_blend, 4 ),
@@ -359,13 +362,14 @@ static const save_field_t clientfields[] = {
 
 	I( ps.rdflags ),
 
-	SA( ps.stats, MAX_STATS ),
+	IA( ps.stats, MAX_STATS ),
 
 	SZ( pers.userinfo, MAX_INFO_STRING ),
 	SZ( pers.netname, 16 ),
 	I( pers.hand ),
 
-	O( pers.connected ),
+    O( pers.connected ),
+    O( pers.spawned ),
 
 	I( pers.health ),
 	I( pers.max_health ),

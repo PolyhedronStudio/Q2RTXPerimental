@@ -1082,10 +1082,10 @@ static void PM_ClampAngles() {
 		pm->viewangles = QM_Vector3AngleMod( pm->cmd.angles + pm->s.delta_angles );
 
 		// Don't let the player look up or down more than 90 degrees.
-		if ( pm->viewangles[ PITCH ] > 89 && pm->viewangles[ PITCH ] < 180 ) {
-			pm->viewangles[ PITCH ] = 89;
-		} else if ( pm->viewangles[ PITCH ] < 271 && pm->viewangles[ PITCH ] >= 180 ) {
-			pm->viewangles[ PITCH ] = 271;
+		if ( pm->viewangles[ PITCH ] >= 90 && pm->viewangles[ PITCH ] <= 180 ) {
+			pm->viewangles[ PITCH ] = 90;
+		} else if ( pm->viewangles[ PITCH ] <= 270 && pm->viewangles[ PITCH ] >= 180 ) {
+			pm->viewangles[ PITCH ] = 270;
 		}
 	}
 
