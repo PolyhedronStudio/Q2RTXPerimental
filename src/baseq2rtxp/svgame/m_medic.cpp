@@ -571,7 +571,7 @@ void medic_cable_attack(edict_t *self)
         return;
 
     // check for min/max pitch
-    vectoangles(dir, angles);
+    QM_Vector3ToAngles(dir, angles);
     if (angles[0] < -180)
         angles[0] += 360;
     if (fabsf(angles[0]) > 45)

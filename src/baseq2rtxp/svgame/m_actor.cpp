@@ -234,7 +234,7 @@ void actor_pain(edict_t *self, edict_t *other, float kick, int damage)
         const char    *name;
 
         VectorSubtract(other->s.origin, self->s.origin, v);
-        self->ideal_yaw = vectoyaw(v);
+        self->ideal_yaw = QM_Vector3ToYaw(v);
         if (random() < 0.5f)
 			M_SetAnimation( self, &actor_move_flipoff );
         else
@@ -389,7 +389,7 @@ void actor_use(edict_t *self, edict_t *other, edict_t *activator)
     }
 
     VectorSubtract(self->goalentity->s.origin, self->s.origin, v);
-    self->ideal_yaw = self->s.angles[YAW] = vectoyaw(v);
+    self->ideal_yaw = self->s.angles[YAW] = QM_Vector3ToYaw(v);
     self->monsterinfo.walk(self);
     self->target = NULL;
 }
@@ -536,7 +536,7 @@ void target_actor_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface
         other->monsterinfo.stand(other);
     } else if (other->movetarget == other->goalentity) {
         VectorSubtract(other->movetarget->s.origin, other->s.origin, v);
-        other->ideal_yaw = vectoyaw(v);
+        other->ideal_yaw = QM_Vector3ToYaw(v);
     }
 }
 

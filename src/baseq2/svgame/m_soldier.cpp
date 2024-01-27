@@ -466,7 +466,7 @@ void soldier_fire(edict_t *self, int flash_number)
         VectorCopy(self->enemy->s.origin, end);
         end[2] += self->enemy->viewheight;
         VectorSubtract(end, start, aim);
-        vectoangles(aim, dir);
+        QM_Vector3ToAngles(aim, dir);
         AngleVectors(dir, forward, right, up);
 
         r = crandom() * 1000;

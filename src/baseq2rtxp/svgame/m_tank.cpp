@@ -384,7 +384,7 @@ void TankMachineGun(edict_t *self)
         VectorCopy(self->enemy->s.origin, vec);
         vec[2] += self->enemy->viewheight;
         VectorSubtract(vec, start, vec);
-        vectoangles(vec, vec);
+        QM_Vector3ToAngles(vec, vec);
         dir[0] = vec[0];
     } else {
         dir[0] = 0;

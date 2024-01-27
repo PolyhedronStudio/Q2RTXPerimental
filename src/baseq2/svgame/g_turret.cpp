@@ -321,7 +321,7 @@ void turret_driver_think(edict_t *self)
     VectorCopy(self->enemy->s.origin, target);
     target[2] += self->enemy->viewheight;
     VectorSubtract(target, self->target_ent->s.origin, dir);
-    vectoangles(dir, self->target_ent->move_angles);
+    QM_Vector3ToAngles(dir, self->target_ent->move_angles);
 
     // decide if we should shoot
 	sg_time_t reaction_time = sg_time_t::from_sec( 3 - skill->integer );
@@ -352,7 +352,7 @@ void turret_driver_link(edict_t *self)
     self->move_origin[0] = VectorLength(vec);
 
     VectorSubtract(self->s.origin, self->target_ent->s.origin, vec);
-    vectoangles(vec, vec);
+    QM_Vector3ToAngles(vec, vec);
     AnglesNormalize(vec);
     self->move_origin[1] = vec[1];
 

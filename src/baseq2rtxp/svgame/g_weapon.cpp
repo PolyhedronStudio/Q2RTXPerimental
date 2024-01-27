@@ -137,7 +137,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
 
     tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
     if (!(tr.fraction < 1.0f)) {
-        vectoangles(aimdir, dir);
+        QM_Vector3ToAngles(aimdir, dir);
         AngleVectors(dir, forward, right, up);
 
         r = crandom() * hspread;
@@ -186,7 +186,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
 
                 // change bullet's course when it enters water
                 VectorSubtract(end, start, dir);
-                vectoangles(dir, dir);
+                QM_Vector3ToAngles(dir, dir);
                 AngleVectors(dir, forward, right, up);
                 r = crandom() * hspread * 2;
                 u = crandom() * vspread * 2;
@@ -332,7 +332,7 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
     // is very jerky since you are predicted 'against' the shots.
     VectorCopy(start, bolt->s.origin);
     VectorCopy(start, bolt->s.old_origin);
-    vectoangles(dir, bolt->s.angles);
+    QM_Vector3ToAngles(dir, bolt->s.angles);
     VectorScale(dir, speed, bolt->velocity);
     bolt->movetype = MOVETYPE_FLYMISSILE;
     bolt->clipmask = MASK_SHOT;
@@ -455,7 +455,7 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     vec3_t  forward, right, up;
     float   scale;
 
-    vectoangles(aimdir, dir);
+    QM_Vector3ToAngles(aimdir, dir);
     AngleVectors(dir, forward, right, up);
 
     grenade = G_Spawn();
@@ -491,7 +491,7 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
     vec3_t  forward, right, up;
     float   scale;
 
-    vectoangles(aimdir, dir);
+    QM_Vector3ToAngles(aimdir, dir);
     AngleVectors(dir, forward, right, up);
 
     grenade = G_Spawn();
@@ -588,7 +588,7 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
     rocket = G_Spawn();
     VectorCopy(start, rocket->s.origin);
     VectorCopy(dir, rocket->movedir);
-    vectoangles(dir, rocket->s.angles);
+    QM_Vector3ToAngles(dir, rocket->s.angles);
     VectorScale(dir, speed, rocket->velocity);
     rocket->movetype = MOVETYPE_FLYMISSILE;
     rocket->clipmask = MASK_SHOT;
@@ -844,7 +844,7 @@ void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, fl
     bfg = G_Spawn();
     VectorCopy(start, bfg->s.origin);
     VectorCopy(dir, bfg->movedir);
-    vectoangles(dir, bfg->s.angles);
+    QM_Vector3ToAngles(dir, bfg->s.angles);
     VectorScale(dir, speed, bfg->velocity);
     bfg->movetype = MOVETYPE_FLYMISSILE;
     bfg->clipmask = MASK_SHOT;
@@ -899,7 +899,7 @@ void flare_sparks(edict_t *self)
 	 // 
 	if (VectorLength(self->velocity) > 0.0)
 	{
-		vectoangles(self->velocity, dir);
+		QM_Vector3ToAngles(self->velocity, dir);
 		AngleVectors(dir, forward, right, up);
 
 		gi.WriteDir8(up);
@@ -972,7 +972,7 @@ void fire_flaregun(edict_t *self, vec3_t start, vec3_t aimdir,
 	vec3_t dir;
 	vec3_t forward, right, up;
 
-	vectoangles(aimdir, dir);
+	QM_Vector3ToAngles(aimdir, dir);
 	AngleVectors(dir, forward, right, up);
 
 	flare = G_Spawn();

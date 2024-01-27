@@ -754,8 +754,8 @@ void    G_TouchSolids(edict_t *ent);
 
 char    *G_CopyString(char *in);
 
-float vectoyaw(vec3_t vec);
-void vectoangles(vec3_t vec, vec3_t angles);
+float QM_Vector3ToAngles(vec3_t vec);
+void QM_Vector3ToAngles(vec3_t vec, vec3_t angles);
 
 //
 // g_combat.c
