@@ -406,7 +406,7 @@ void CL_DeltaFrame(void)
 
         // TODO: Proper stair smoothing.
 
-        // Keep in mind the possible viewheight changes.
+        // Record time of changing and adjusting viewheight if it differs from previous time.
         CL_AdjustViewHeight( cl.frame.ps.pmove.viewheight );
     }
 
