@@ -113,14 +113,17 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 // per-level limits
 //
 #define MAX_CLIENTS         256     // Absolute limit
-#define MAX_EDICTS          8192    // must change protocol to increase more.
+
+#define MAX_EDICTS          8192    // maximum amount of server entities, must change protocol to increase more.
+#define MAX_CLIENT_ENTITIES 8192    // maximum amount of client entities.
+
 #define MAX_LIGHTSTYLES     256
 #define MAX_MODELS          8192	// These are sent over the net as bytes
 #define MAX_SOUNDS          2048	// so they cannot be blindly increased
 #define MAX_IMAGES          512
 #define MAX_ITEMS           256
-#define MAX_GENERAL         (MAX_CLIENTS * 2) // general config strings
 
+#define MAX_GENERAL         (MAX_CLIENTS * 2) // general config strings
 #define MAX_MODELS_OLD		256		// Used for player model index.
 
 #define MAX_CLIENT_NAME     16

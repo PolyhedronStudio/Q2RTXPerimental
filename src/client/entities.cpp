@@ -237,9 +237,6 @@ static void set_active_state(void)
 {
     cls.state = ca_active;
 
-    // Point our cl_entities to the address of the memory supplied by the client game.
-    cl_entities = clge->entities;
-
     cl.serverdelta = Q_align(cl.frame.number, 1);
     cl.time = cl.servertime = 0; // set time, needed for demos
 
@@ -428,18 +425,19 @@ void CL_DeltaFrame(void)
 // for debugging problems when out-of-date entity origin is referenced
 void CL_CheckEntityPresent(int entnum, const char *what)
 {
-    centity_t *e;
+    centity_t *e = nullptr;
 
     if (entnum == cl.frame.clientNum + 1) {
         return; // player entity = current
     }
 
     e = ENTITY_FOR_NUMBER( entnum ); //e = &cl_entities[entnum];
-    if (e->serverframe == cl.frame.number) {
+
+    if (e && e->serverframe == cl.frame.number) {
         return; // current
     }
 
-    if (e->serverframe) {
+    if (e && e->serverframe) {
         Com_LPrintf(PRINT_DEVELOPER,
                     "SERVER BUG: %s on entity %d last seen %d frames ago\n",
                     what, entnum, cl.frame.number - e->serverframe);
@@ -1377,7 +1375,27 @@ void CL_CalcViewValues(void) {
         //    cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
         //        lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
         //}
+        if ( cl.predictedState.step ) {
+            Com_DPrintf( "PREDICTED STATE DEMO STEP??\n" );
+        }
         Vector3 newViewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerp );
+        VectorCopy( newViewOrg, cl.refdef.vieworg );
+
+        static constexpr float STEP_HEIGHT = 15.875;
+        uint64_t delta = cls.realtime - cl.predictedState.step_time;
+
+        const float step = ps->pmove.origin.z - ops->pmove.origin.z;
+        if ( ps->pmove.pm_flags & PMF_ON_GROUND ) {
+            // smooth out stair climbing
+            if ( fabs( step ) < STEP_HEIGHT ) {
+                delta <<= 1; // small steps
+            }
+
+            // WID: Prediction: Was based on old 10hz, 100ms.
+            if ( delta < STEP_TIME ) {
+                cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( STEP_TIME - delta ) * ( 1.f / STEP_TIME );
+            }
+        }
     }
 
     // if not running a demo or on a locked frame, add the local angle movement

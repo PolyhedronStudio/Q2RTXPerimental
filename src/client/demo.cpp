@@ -1008,6 +1008,10 @@ static void CL_Seek_f(void)
     // don't lerp to old
     memset(&cl.oldframe, 0, sizeof(cl.oldframe));
 
+    // Clear old local entities and effects.
+    clge->ClearState();
+
+    // TODO: Move these two over to client game dll.
     // clear old effects
     CL_ClearEffects();
     CL_ClearTEnts();

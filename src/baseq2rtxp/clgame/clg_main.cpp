@@ -132,7 +132,7 @@ void PF_InitGame( void ) {
 **/
 void PF_ClearState( void ) {
 	// Clear out client entities array.
-	memset( g_entities, 0, sizeof( g_entities ) );
+	memset( g_entities, 0, globals.entity_size * MAX_CLIENT_ENTITIES );
 }
 
 /**
