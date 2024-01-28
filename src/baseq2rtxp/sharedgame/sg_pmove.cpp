@@ -230,7 +230,8 @@ static void PM_Accelerate( const Vector3 &wishDirection, const float wishSpeed, 
 		accelerationSpeed = addSpeed;
 	}
 
-	pml.velocity += accelerationSpeed * wishDirection;
+	//pml.velocity += accelerationSpeed * wishDirection;
+	pml.velocity = QM_Vector3MultiplyAdd( wishDirection, accelerationSpeed, pml.velocity );
 }
 
 /**
@@ -253,7 +254,7 @@ static void PM_AirAccelerate( const Vector3 &wishDirection, const float wishSpee
 		accelerationSpeed = addSpeed;
 	}
 
-	pml.velocity += accelerationSpeed * wishDirection;
+	pml.velocity = QM_Vector3MultiplyAdd( wishDirection, accelerationSpeed, pml.velocity );
 }
 
 /**
@@ -322,7 +323,8 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 				if ( trace.fraction != 1.f && ( trace.contents & CONTENTS_LADDER ) ) {
 					Vector3 right = QM_Vector3CrossProduct( trace.plane.normal, { 0.f, 0.f, 1.f } );
 					wishVelocity.x = wishVelocity.y = 0;
-					wishVelocity += ( right * -ladder_speed );
+					//wishVelocity += ( right * -ladder_speed );
+					wishVelocity = QM_Vector3MultiplyAdd( right, -ladder_speed, wishVelocity );
 				}
 			} else {
 				if ( wishVelocity.x < -25 ) {
@@ -368,7 +370,8 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 			speed /= 2;
 		}
 
-		wishVelocity += ( velocity * speed );
+		//wishVelocity += ( velocity * speed );
+		wishVelocity = QM_Vector3MultiplyAdd( velocity, speed, wishVelocity );
 	}
 
 	// Add conveyor belt velocities.
@@ -394,7 +397,8 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 			velocity.z -= 1;
 		}
 
-		wishVelocity += velocity * 100.f;
+		//wishVelocity += velocity * 100.f;
+		wishVelocity = QM_Vector3MultiplyAdd( velocity, 100.f, wishVelocity );
 	}
 }
 

@@ -71,6 +71,25 @@ RMAPI const Vector3 QM_Vector3Multiply( ConstVector3Ref v1, ConstVector3Ref v2 )
     return result;
 }
 
+// Multiply vector by vector
+RMAPI const Vector3 QM_Vector3MultiplyAdd( ConstVector3Ref v1, const float multiply, ConstVector3Ref v2 ) {
+    #ifdef __cplusplus
+    Vector3 result = { 
+        std::fmaf( v1.x, multiply, v2.x ), 
+        std::fmaf( v1.y, multiply, v2.y ),
+        std::fmaf( v1.z, multiply, v2.z ),
+    };
+    #else
+    Vector3 result = {
+        fmaf( v1.x, multiply, v2.x ),
+        fmaf( v1.y, multiply, v2.y ),
+        fmaf( v1.z, multiply, v2.z ),
+    };
+    #endif
+
+    return result;
+}
+
 // Calculate two vectors cross product
 RMAPI const Vector3 QM_Vector3CrossProduct( ConstVector3Ref v1, ConstVector3Ref v2 ) {
     Vector3 result = { v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x };
