@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "shared/shared.h"
 #include "shared/list.h"
+#include "shared/m_flash.h"
 
 // Define SVGAME_INCLUDE so that game.h does not define the short, server-visible 
 // gclient_t and edict_t structures, because we define the full size ones in this file
@@ -167,34 +168,36 @@ static inline sg_time_t FALL_TIME( ) {
 	return 300_ms + DAMAGE_TIME_SLACK( );
 }
 
+<<<<<<<< HEAD:src/baseq2/svgame/g_local.h
 
 //==================================================================
 // 
 //==================================================================
+========
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_local.h
 // edict->spawnflags
 // these are set with checkboxes on each entity in the map editor
-#define SPAWNFLAG_NOT_EASY          0x00000100
-#define SPAWNFLAG_NOT_MEDIUM        0x00000200
-#define SPAWNFLAG_NOT_HARD          0x00000400
-#define SPAWNFLAG_NOT_DEATHMATCH    0x00000800
-#define SPAWNFLAG_NOT_COOP          0x00001000
+#define SPAWNFLAG_NOT_EASY          BIT(8)
+#define SPAWNFLAG_NOT_MEDIUM        BIT(9)
+#define SPAWNFLAG_NOT_HARD          BIT(10)
+#define SPAWNFLAG_NOT_DEATHMATCH    BIT(11)
+#define SPAWNFLAG_NOT_COOP          BIT(12)
 
 // edict->flags
-#define FL_FLY                  0x00000001
-#define FL_SWIM                 0x00000002  // implied immunity to drowining
-#define FL_IMMUNE_LASER         0x00000004
-#define FL_INWATER              0x00000008
-#define FL_GODMODE              0x00000010
-#define FL_NOTARGET             0x00000020
-#define FL_IMMUNE_SLIME         0x00000040
-#define FL_IMMUNE_LAVA          0x00000080
-#define FL_PARTIALGROUND        0x00000100  // not all corners are valid
-#define FL_WATERJUMP            0x00000200  // player jumping out of water
-#define FL_TEAMSLAVE            0x00000400  // not the first on the team
-#define FL_NO_KNOCKBACK         0x00000800
-#define FL_POWER_ARMOR          0x00001000  // power armor (if any) is active
-#define FL_RESPAWN              0x80000000  // used for item respawning
-
+#define FL_FLY                  BIT(0)
+#define FL_SWIM                 BIT(1)      // implied immunity to drowining
+#define FL_IMMUNE_LASER         BIT(2)
+#define FL_INWATER              BIT(3)
+#define FL_GODMODE              BIT(4)
+#define FL_NOTARGET             BIT(5)
+#define FL_IMMUNE_SLIME         BIT(6)
+#define FL_IMMUNE_LAVA          BIT(7)
+#define FL_PARTIALGROUND        BIT(8)      // not all corners are valid
+#define FL_WATERJUMP            BIT(9)      // player jumping out of water
+#define FL_TEAMSLAVE            BIT(10)     // not the first on the team
+#define FL_NO_KNOCKBACK         BIT(11)
+#define FL_POWER_ARMOR          BIT(12)     // power armor (if any) is active
+#define FL_RESPAWN              BIT(31)     // used for item respawning
 
 
 /**
@@ -202,7 +205,6 @@ static inline sg_time_t FALL_TIME( ) {
 **/
 #define TAG_SVGAME			765 // Clear when unloading the dll.
 #define TAG_SVGAME_LEVEL	766 // Clear when loading a new level.
-
 
 #define MELEE_DISTANCE  80
 
@@ -230,7 +232,6 @@ typedef enum {
     AMMO_SLUGS
 } ammo_t;
 
-
 //deadflag
 #define DEAD_NO                 0
 #define DEAD_DYING              1
@@ -248,22 +249,22 @@ typedef enum {
 #define GIB_METALLIC            1
 
 //monster ai flags
-#define AI_STAND_GROUND         0x00000001
-#define AI_TEMP_STAND_GROUND    0x00000002
-#define AI_SOUND_TARGET         0x00000004
-#define AI_LOST_SIGHT           0x00000008
-#define AI_PURSUIT_LAST_SEEN    0x00000010
-#define AI_PURSUE_NEXT          0x00000020
-#define AI_PURSUE_TEMP          0x00000040
-#define AI_HOLD_FRAME           0x00000080
-#define AI_GOOD_GUY             0x00000100
-#define AI_BRUTAL               0x00000200
-#define AI_NOSTEP               0x00000400
-#define AI_DUCKED               0x00000800
-#define AI_COMBAT_POINT         0x00001000
-#define AI_MEDIC                0x00002000
-#define AI_RESURRECTING         0x00004000
-#define AI_HIGH_TICK_RATE		0x00008000
+#define AI_STAND_GROUND         BIT(0)
+#define AI_TEMP_STAND_GROUND    BIT(1)
+#define AI_SOUND_TARGET         BIT(2)
+#define AI_LOST_SIGHT           BIT(3)
+#define AI_PURSUIT_LAST_SEEN    BIT(4)
+#define AI_PURSUE_NEXT          BIT(5)
+#define AI_PURSUE_TEMP          BIT(6)
+#define AI_HOLD_FRAME           BIT(7)
+#define AI_GOOD_GUY             BIT(8)
+#define AI_BRUTAL               BIT(9)
+#define AI_NOSTEP               BIT(10)
+#define AI_DUCKED               BIT(11)
+#define AI_COMBAT_POINT         BIT(12)
+#define AI_MEDIC                BIT(13)
+#define AI_RESURRECTING         BIT(14)
+#define AI_HIGH_TICK_RATE		BIT(15)
 
 //monster attack state
 #define AS_STRAIGHT             1
@@ -288,24 +289,21 @@ typedef enum {
 #define LEFT_HANDED             1
 #define CENTER_HANDED           2
 
-
 // game.serverflags values
-#define SFL_CROSS_TRIGGER_1     0x00000001
-#define SFL_CROSS_TRIGGER_2     0x00000002
-#define SFL_CROSS_TRIGGER_3     0x00000004
-#define SFL_CROSS_TRIGGER_4     0x00000008
-#define SFL_CROSS_TRIGGER_5     0x00000010
-#define SFL_CROSS_TRIGGER_6     0x00000020
-#define SFL_CROSS_TRIGGER_7     0x00000040
-#define SFL_CROSS_TRIGGER_8     0x00000080
-#define SFL_CROSS_TRIGGER_MASK  0x000000ff
-
+#define SFL_CROSS_TRIGGER_1     BIT(0)
+#define SFL_CROSS_TRIGGER_2     BIT(1)
+#define SFL_CROSS_TRIGGER_3     BIT(2)
+#define SFL_CROSS_TRIGGER_4     BIT(3)
+#define SFL_CROSS_TRIGGER_5     BIT(4)
+#define SFL_CROSS_TRIGGER_6     BIT(5)
+#define SFL_CROSS_TRIGGER_7     BIT(6)
+#define SFL_CROSS_TRIGGER_8     BIT(7)
+#define SFL_CROSS_TRIGGER_MASK  (BIT(8) - 1)
 
 // noise types for PlayerNoise
 #define PNOISE_SELF             0
 #define PNOISE_WEAPON           1
 #define PNOISE_IMPACT           2
-
 
 // edict->movetype values
 typedef enum {
@@ -322,8 +320,6 @@ typedef enum {
     MOVETYPE_BOUNCE
 } movetype_t;
 
-
-
 typedef struct {
     int     base_count;
     int     max_count;
@@ -332,14 +328,13 @@ typedef struct {
     int     armor;
 } gitem_armor_t;
 
-
 // gitem_t->flags
-#define IT_WEAPON       1       // use makes active weapon
-#define IT_AMMO         2
-#define IT_ARMOR        4
-#define IT_STAY_COOP    8
-#define IT_KEY          16
-#define IT_POWERUP      32
+#define IT_WEAPON       BIT(0)      // use makes active weapon
+#define IT_AMMO         BIT(1)
+#define IT_ARMOR        BIT(2)
+#define IT_STAY_COOP    BIT(3)
+#define IT_KEY          BIT(4)
+#define IT_POWERUP      BIT(5)
 
 // gitem_t->weapmodel for weapons indicates model index
 #define WEAP_BLASTER            1
@@ -358,8 +353,8 @@ typedef struct {
 typedef struct gitem_s {
 	const char        *classname; // spawning name
     bool        (*pickup)(struct edict_s *ent, struct edict_s *other);
-    void        (*use)(struct edict_s *ent, struct gitem_s *item);
-    void        (*drop)(struct edict_s *ent, struct gitem_s *item);
+    void        (*use)(struct edict_s *ent, const struct gitem_s *item);
+    void        (*drop)(struct edict_s *ent, const struct gitem_s *item);
     void        (*weaponthink)(struct edict_s *ent);
 	const char	*pickup_sound; // WID: C++20: Added const.
 	const char	*world_model; // WID: C++20: Added const.
@@ -377,13 +372,15 @@ typedef struct gitem_s {
 
     int         weapmodel;      // weapon model index (for weapons)
 
-    void        *info;
+    const void  *info;
     int         tag;
 
+<<<<<<<< HEAD:src/baseq2/svgame/g_local.h
     const char	*precaches;     // string of all models, sounds, and images this item will use	// WID: C++20: Added const.
+========
+    const char *const   *precaches;     // array of all models, sounds, and images this item will use
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_local.h
 } gitem_t;
-
-
 
 //
 // this structure is left intact through an entire game
@@ -414,7 +411,6 @@ typedef struct {
 
     bool        autosaved;
 } game_locals_t;
-
 
 //
 // this structure is cleared as each map is entered
@@ -462,7 +458,6 @@ typedef struct {
     int         power_cubes;        // ugly necessity for coop
 } level_locals_t;
 
-
 // spawn_temp_t is only used to hold entity field values that
 // can be set from the editor, but aren't actualy present
 // in edict_t during gameplay
@@ -489,7 +484,6 @@ typedef struct {
     float       minpitch;
     float       maxpitch;
 } spawn_temp_t;
-
 
 typedef struct {
     // fixed data
@@ -520,8 +514,12 @@ typedef struct {
     void        (*endfunc)(edict_t *);
 } moveinfo_t;
 
+<<<<<<<< HEAD:src/baseq2/svgame/g_local.h
 
 struct mframe_t {
+========
+typedef struct {
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_local.h
     void    (*aifunc)(edict_t *self, float dist);
     float   dist = 0;
     void    (*thinkfunc)(edict_t *self);
@@ -529,15 +527,25 @@ struct mframe_t {
 };
 
 typedef struct {
+<<<<<<<< HEAD:src/baseq2/svgame/g_local.h
     int64_t     firstframe;
     int64_t     lastframe;
     mframe_t    *frame;
+========
+    int         firstframe;
+    int         lastframe;
+    const mframe_t  *frame;
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_local.h
     void        (*endfunc)(edict_t *self);
 } mmove_t;
 
 typedef struct {
+<<<<<<<< HEAD:src/baseq2/svgame/g_local.h
     mmove_t     *currentmove;
 	mmove_t		*nextmove;
+========
+    const mmove_t   *currentmove;
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_local.h
     int         aiflags;
     int64_t     nextframe;	// if next_move is set, this is ignored until a frame is ran
     float       scale;
@@ -572,8 +580,6 @@ typedef struct {
     int         power_armor_power;
 } monsterinfo_t;
 
-
-
 extern  game_locals_t   game;
 extern  level_locals_t  level;
 extern  spawn_temp_t    st;
@@ -584,7 +590,6 @@ extern  int snd_fry;
 //extern  int jacket_armor_index;
 //extern  int combat_armor_index;
 //extern  int body_armor_index;
-
 
 // means of death
 #define MOD_UNKNOWN         0
@@ -621,10 +626,9 @@ extern  int snd_fry;
 #define MOD_TRIGGER_HURT    31
 #define MOD_HIT             32
 #define MOD_TARGET_BLASTER  33
-#define MOD_FRIENDLY_FIRE   0x8000000
+#define MOD_FRIENDLY_FIRE   BIT(31)
 
 extern  int meansOfDeath;
-
 
 extern  edict_t         *g_edicts;
 
@@ -685,15 +689,45 @@ extern  cvar_t  *sv_flaregun;
 #define world   (&g_edicts[0])
 
 // item spawnflags
-#define ITEM_TRIGGER_SPAWN      0x00000001
-#define ITEM_NO_TOUCH           0x00000002
+#define ITEM_TRIGGER_SPAWN      BIT(0)
+#define ITEM_NO_TOUCH           BIT(1)
 // 6 bits reserved for editor flags
 // 8 bits used as power cube id bits for coop games
-#define DROPPED_ITEM            0x00010000
-#define DROPPED_PLAYER_ITEM     0x00020000
-#define ITEM_TARGETS_USED       0x00040000
+#define DROPPED_ITEM            BIT(16)
+#define DROPPED_PLAYER_ITEM     BIT(17)
+#define ITEM_TARGETS_USED       BIT(18)
 
+<<<<<<<< HEAD:src/baseq2/svgame/g_local.h
 extern  gitem_t itemlist[];
+========
+//
+// fields are needed for spawning from the entity string
+// and saving / loading games
+//
+typedef enum {
+    F_BAD,
+    F_BYTE,
+    F_SHORT,
+    F_INT,
+    F_BOOL,
+    F_FLOAT,
+    F_LSTRING,          // string on disk, pointer in memory, TAG_LEVEL
+    F_GSTRING,          // string on disk, pointer in memory, TAG_GAME
+    F_ZSTRING,          // string on disk, string in memory
+    F_VECTOR,
+    F_ANGLEHACK,
+    F_EDICT,            // index on disk, pointer in memory
+    F_ITEM,             // index on disk, pointer in memory
+    F_CLIENT,           // index on disk, pointer in memory
+    F_FUNCTION,
+    F_POINTER,
+    F_IGNORE,
+
+    F_FRAMETIME         // speciality for savegame compatibility: float on disk, converted to framenum
+} fieldtype_t;
+
+extern const gitem_t    itemlist[];
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_local.h
 
 //
 // g_gamemode.cpp
@@ -717,21 +751,26 @@ void Cmd_Score_f(edict_t *ent);
 //
 // g_items.c
 //
-void PrecacheItem(gitem_t *it);
+void PrecacheItem(const gitem_t *it);
 void InitItems(void);
 void SetItemNames(void);
+<<<<<<<< HEAD:src/baseq2/svgame/g_local.h
 gitem_t *FindItem(const char *pickup_name);
 gitem_t *FindItemByClassname(const char *classname);
+========
+const gitem_t *FindItem(const char *pickup_name);
+const gitem_t *FindItemByClassname(const char *classname);
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_local.h
 #define ITEM_INDEX(x) ((x)-itemlist)
-edict_t *Drop_Item(edict_t *ent, gitem_t *item);
+edict_t *Drop_Item(edict_t *ent, const gitem_t *item);
 void SetRespawn(edict_t *ent, float delay);
 void ChangeWeapon(edict_t *ent);
-void SpawnItem(edict_t *ent, gitem_t *item);
+void SpawnItem(edict_t *ent, const gitem_t *item);
 void Think_Weapon(edict_t *ent);
 int ArmorIndex(edict_t *ent);
 int PowerArmorType(edict_t *ent);
-gitem_t *GetItemByIndex(int index);
-bool Add_Ammo(edict_t *ent, gitem_t *item, int count);
+const gitem_t *GetItemByIndex(int index);
+bool Add_Ammo(edict_t *ent, const gitem_t *item, int count);
 void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
 
 //
@@ -766,12 +805,12 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod);
 
 // damage flags
-#define DAMAGE_RADIUS           0x00000001  // damage was indirect
-#define DAMAGE_NO_ARMOR         0x00000002  // armour does not protect from this damage
-#define DAMAGE_ENERGY           0x00000004  // damage is from an energy based weapon
-#define DAMAGE_NO_KNOCKBACK     0x00000008  // do not affect velocity, just view angles
-#define DAMAGE_BULLET           0x00000010  // damage is from a bullet (used for ricochets)
-#define DAMAGE_NO_PROTECTION    0x00000020  // armor, shields, invulnerability, and godmode have no effect
+#define DAMAGE_RADIUS           BIT(0)  // damage was indirect
+#define DAMAGE_NO_ARMOR         BIT(1)  // armour does not protect from this damage
+#define DAMAGE_ENERGY           BIT(2)  // damage is from an energy based weapon
+#define DAMAGE_NO_KNOCKBACK     BIT(3)  // do not affect velocity, just view angles
+#define DAMAGE_BULLET           BIT(4)  // damage is from a bullet (used for ricochets)
+#define DAMAGE_NO_PROTECTION    BIT(5)  // armor, shields, invulnerability, and godmode have no effect
 
 #define DEFAULT_BULLET_HSPREAD  300
 #define DEFAULT_BULLET_VSPREAD  500
@@ -943,7 +982,6 @@ void GetChaseTarget(edict_t *ent);
 #define ANIM_DEATH      5
 #define ANIM_REVERSED   6		// animation is played in reverse.
 
-
 // client data that stays across multiple level loads
 typedef struct {
     char        userinfo[MAX_INFO_STRING];
@@ -969,8 +1007,8 @@ typedef struct {
     int         max_cells;
     int         max_slugs;
 
-    gitem_t     *weapon;
-    gitem_t     *lastweapon;
+    const gitem_t   *weapon;
+    const gitem_t   *lastweapon;
 
     int         power_cubes;    // used for tracking the cubes in coop games
     int         score;          // for calculating total unit score in coop games
@@ -1029,8 +1067,12 @@ struct gclient_s {
 	// Actual current 'weapon', based on 'ammo_index'.
 	int	ammo_index;
 
+<<<<<<<< HEAD:src/baseq2/svgame/g_local.h
 	// Set when we want to switch weapons.
 	gitem_t *newweapon;
+========
+    const gitem_t   *newweapon;
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_local.h
 
 	// weapon cannot fire until this time is up
 	sg_time_t weapon_fire_finished;
@@ -1119,7 +1161,6 @@ struct gclient_s {
     bool        update_chase;       // need to update chase info?
 };
 
-
 struct edict_s {
     entity_state_t  s;
     struct gclient_s    *client;    // NULL if not a player
@@ -1146,7 +1187,6 @@ struct edict_s {
     solid_t     solid;
     int         clipmask;
     edict_t     *owner;
-
 
     // DO NOT MODIFY ANYTHING ABOVE THIS, THE SERVER
     // EXPECTS THE FIELDS IN THAT ORDER!
@@ -1266,7 +1306,7 @@ struct edict_s {
 
     int         style;          // also used as areaportal number
 
-    gitem_t     *item;          // for bonus items
+    const gitem_t   *item;      // for bonus items
 
     // common data blocks
     moveinfo_t      moveinfo;

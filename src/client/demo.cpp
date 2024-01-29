@@ -596,7 +596,7 @@ static int read_next_message(qhandle_t f)
 
 static void finish_demo(int ret)
 {
-    char *s = Cvar_VariableString("nextserver");
+    const char *s = Cvar_VariableString("nextserver");
 
     // Only execute nextserver if back-to-back timedemos are complete
     if (s != nullptr 
@@ -627,9 +627,9 @@ static void update_status(void)
         int64_t pos = FS_Tell(cls.demo.playback);
 
         if (pos > cls.demo.file_offset)
-            cls.demo.file_percent = (pos - cls.demo.file_offset) * 100 / cls.demo.file_size;
+            cls.demo.file_progress = (float)(pos - cls.demo.file_offset) / cls.demo.file_size;
         else
-            cls.demo.file_percent = 0;
+            cls.demo.file_progress = 0.0f;
     }
 }
 

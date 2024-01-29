@@ -38,9 +38,6 @@ extern "C" {
 
 #define CHECK(x)    if (!(x)) { ret = Q_ERR(ENOMEM); goto fail; }
 
-#define MAX_ALIAS_SKINS     32
-#define MAX_ALIAS_VERTS     4096
-
 typedef struct mspriteframe_s {
     int             width, height;
     int             origin_x, origin_y;

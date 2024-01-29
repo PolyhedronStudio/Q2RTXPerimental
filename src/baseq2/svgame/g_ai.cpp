@@ -31,7 +31,6 @@ float       enemy_yaw;
 
 //============================================================================
 
-
 /*
 =================
 AI_SetSightClient
@@ -89,7 +88,6 @@ void ai_move(edict_t *self, float dist)
     M_walkmove(self, self->s.angles[YAW], dist);
 }
 
-
 /*
 =============
 ai_stand
@@ -139,7 +137,6 @@ void ai_stand(edict_t *self, float dist)
     }
 }
 
-
 /*
 =============
 ai_walk
@@ -165,7 +162,6 @@ void ai_walk(edict_t *self, float dist)
     }
 }
 
-
 /*
 =============
 ai_charge
@@ -186,7 +182,6 @@ void ai_charge(edict_t *self, float dist)
         M_walkmove(self, self->s.angles[YAW], dist);
 }
 
-
 /*
 =============
 ai_turn
@@ -205,7 +200,6 @@ void ai_turn(edict_t *self, float dist)
 
     M_ChangeYaw(self);
 }
-
 
 /*
 
@@ -284,7 +278,6 @@ bool visible(edict_t *self, edict_t *other)
     return false;
 }
 
-
 /*
 =============
 infront
@@ -307,7 +300,6 @@ bool infront(edict_t *self, edict_t *other)
         return true;
     return false;
 }
-
 
 //============================================================================
 
@@ -364,7 +356,6 @@ void FoundTarget(edict_t *self)
     // run for it
     self->monsterinfo.run(self);
 }
-
 
 /*
 ===========
@@ -529,7 +520,6 @@ bool FindTarget(edict_t *self)
     return true;
 }
 
-
 //=============================================================================
 
 /*
@@ -547,7 +537,6 @@ bool FacingIdeal(edict_t *self)
         return false;
     return true;
 }
-
 
 //=============================================================================
 
@@ -626,7 +615,6 @@ bool M_CheckAttack(edict_t *self)
     return false;
 }
 
-
 /*
 =============
 ai_run_melee
@@ -645,7 +633,6 @@ void ai_run_melee(edict_t *self)
     }
 }
 
-
 /*
 =============
 ai_run_missile
@@ -663,7 +650,6 @@ void ai_run_missile(edict_t *self)
         self->monsterinfo.attack_state = AS_STRAIGHT;
     }
 }
-
 
 /*
 =============
@@ -690,7 +676,6 @@ void ai_run_slide(edict_t *self, float distance)
     self->monsterinfo.lefty = 1 - self->monsterinfo.lefty;
     M_walkmove(self, self->ideal_yaw - ofs, distance);
 }
-
 
 /*
 =============
@@ -792,7 +777,6 @@ bool ai_checkattack(edict_t *self, float dist)
     VectorSubtract(self->enemy->s.origin, self->s.origin, temp);
     enemy_yaw = QM_Vector3ToAngles(temp);
 
-
     // JDC self->ideal_yaw = enemy_yaw;
 
     if (self->monsterinfo.attack_state == AS_MISSILE) {
@@ -810,7 +794,6 @@ bool ai_checkattack(edict_t *self, float dist)
 
     return self->monsterinfo.checkattack(self);
 }
-
 
 /*
 =============

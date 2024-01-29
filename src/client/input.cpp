@@ -64,7 +64,6 @@ INPUT SUBSYSTEM
 
 typedef struct {
     bool        modified;
-    inputAPI_t  api;
     int         old_dx;
     int         old_dy;
 } in_state_t;
@@ -73,11 +72,6 @@ static in_state_t   input;
 
 static cvar_t    *in_enable;
 static cvar_t    *in_grab;
-
-const inputAPI_t* IN_GetAPI()
-{
-	return &input.api;
-}
 
 static bool IN_GetCurrentGrab(void)
 {
@@ -117,8 +111,8 @@ IN_Activate
 */
 void IN_Activate(void)
 {
-    if (input.api.Grab) {
-        input.api.Grab(IN_GetCurrentGrab());
+    if (vid.grab_mouse) {
+        vid.grab_mouse(IN_GetCurrentGrab());
     }
 }
 
@@ -142,11 +136,6 @@ void IN_Frame(void)
 {
     if (input.modified) {
         IN_Restart_f();
-        return;
-    }
-
-    if (input.api.GetEvents) {
-        input.api.GetEvents();
     }
 }
 
@@ -157,8 +146,8 @@ IN_WarpMouse
 */
 void IN_WarpMouse(int x, int y)
 {
-    if (input.api.Warp) {
-        input.api.Warp(x, y);
+    if (vid.warp_mouse) {
+        vid.warp_mouse(x, y);
     }
 }
 
@@ -173,8 +162,8 @@ void IN_Shutdown(void)
         in_grab->changed = NULL;
     }
 
-    if (input.api.Shutdown) {
-        input.api.Shutdown();
+    if (vid.shutdown_mouse) {
+        vid.shutdown_mouse();
     }
 
     memset(&input, 0, sizeof(input));
@@ -197,8 +186,6 @@ IN_Init
 */
 void IN_Init(void)
 {
-    bool ret = false;
-
     in_enable = Cvar_Get("in_enable", "1", 0);
     in_enable->changed = in_changed_hard;
     if (!in_enable->integer) {
@@ -206,13 +193,9 @@ void IN_Init(void)
         return;
     }
 
-    if (!ret) {
-        VID_FillInputAPI(&input.api);
-        ret = input.api.Init();
-        if (!ret) {
-            Cvar_Set("in_enable", "0");
-            return;
-        }
+    if (!vid.init_mouse()) {
+        Cvar_Set("in_enable", "0");
+        return;
     }
 
     in_grab = Cvar_Get("in_grab", "1", 0);
@@ -479,13 +462,13 @@ static void CL_MouseMove(void)
     float mx, my;
     float speed;
 
-    if (!input.api.GetMotion) {
+    if (!vid.get_mouse_motion) {
         return;
     }
     if (cls.key_dest & (KEY_MENU | KEY_CONSOLE)) {
         return;
     }
-    if (!input.api.GetMotion(&dx, &dy)) {
+    if (!vid.get_mouse_motion(&dx, &dy)) {
         return;
     }
 
@@ -773,7 +756,7 @@ void CL_FinalizeCmd(void)
     Cbuf_Frame( &cl_cmdbuf );
 
     if (cls.state != ca_active) {
-        goto clear;
+        goto clear; // not talking to a server
     }
 
     if (sv_paused->integer) {
@@ -878,12 +861,6 @@ static inline bool ready_to_send(void)
         return true;
     }
     if (cls.netchan.message.cursize || cls.netchan.reliable_ack_pending) {
-		//if ( cls.netchan.reliable_ack_pending ) {
-		//	Com_DPrintf( "%s\n", "client_ready_to_send (cl.netchan.reliable_ack_pending): true" );
-		//}
-		//if ( cls.netchan.message.cursize ) {
-		//	Com_DPrintf( "%s\n", "client_ready_to_send (cl.netchan.message.cursize): true" );
-		//}
         return true;
     }
     if (!cl_maxpackets->integer) {
@@ -932,6 +909,7 @@ static void CL_SendDefaultCmd(void)
     size_t cursize q_unused, checksumIndex;
     usercmd_t *cmd, *oldcmd;
     client_history_t *history;
+    int version;
 
     // archive this packet
     history = &cl.history[cls.netchan.outgoing_sequence & CMD_MASK];
@@ -955,10 +933,12 @@ static void CL_SendDefaultCmd(void)
 
     // save the position for a checksum byte
     checksumIndex = 0;
-    if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
+    //if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         checksumIndex = msg_write.cursize;
         SZ_GetSpace(&msg_write, 1);
-    }
+    //} else if (cls.serverProtocol == PROTOCOL_VERSION_R1Q2) {
+    //    version = cls.protocolVersion;
+    //}
 
     // let the server know what the last frame we
     // got was, so the next message can be delta compressed

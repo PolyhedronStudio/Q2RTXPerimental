@@ -151,8 +151,8 @@ typedef struct particle_s {
 } particle_t;
 
 typedef struct lightstyle_s {
-    float white; // highest of RGB
-    vec3_t rgb; // 0.0 - 2.0
+    float           white;          // highest of RGB
+    vec3_t          rgb;            // 0.0 - 2.0
 } lightstyle_t;
 
 #ifdef USE_SMALL_GPU
@@ -212,6 +212,14 @@ typedef struct refdef_s {
 
     ref_feedback_t feedback;
 } refdef_t;
+
+typedef struct {
+    int     colorbits;
+    int     depthbits;
+    int     stencilbits;
+    int     multisamples;
+    bool    debug;
+} r_opengl_config_t;
 
 typedef enum {
     QVF_ACCELERATED = (1 << 0),
@@ -335,6 +343,7 @@ extern int     (*R_DrawString)(int x, int y, int flags, size_t maxChars,
 bool R_GetPicSize(int *w, int *h, qhandle_t pic);   // returns transparency bit
 extern void    (*R_DrawPic)(int x, int y, qhandle_t pic);
 extern void    (*R_DrawStretchPic)(int x, int y, int w, int h, qhandle_t pic);
+extern void    (*R_DrawKeepAspectPic)(int x, int y, int w, int h, qhandle_t pic);
 extern void    (*R_DrawStretchRaw)(int x, int y, int w, int h);
 extern void    (*R_TileClear)(int x, int y, int w, int h, qhandle_t pic);
 extern void    (*R_DrawFill8)(int x, int y, int w, int h, int c);
@@ -344,9 +353,9 @@ extern void    (*R_DiscardRawPic)(void);
 extern void    (*R_DrawFill32)(int x, int y, int w, int h, uint32_t color);
 
 // video mode and refresh state management entry points
-extern void (*R_BeginFrame)(void);
-extern void (*R_EndFrame)(void);
-extern void (*R_ModeChanged)(int width, int height, int flags, int rowbytes, void* pixels);
+extern void    (*R_BeginFrame)(void);
+extern void    (*R_EndFrame)(void);
+extern void    (*R_ModeChanged)(int width, int height, int flags);
 
 // add decal to ring buffer
 extern void (*R_AddDecal)(decal_t* d);
@@ -360,6 +369,8 @@ void R_RegisterFunctionsGL(void);
 #if REF_VKPT
 void R_RegisterFunctionsRTX(void);
 #endif
+
+r_opengl_config_t *R_GetGLConfig( void );
 
 #ifdef __cplusplus
 };

@@ -26,7 +26,6 @@ brain
 #include "g_local.h"
 #include "m_brain.h"
 
-
 static int  sound_chest_open;
 static int  sound_tentacles_extend;
 static int  sound_tentacles_retract;
@@ -42,7 +41,6 @@ static int  sound_melee1;
 static int  sound_melee2;
 static int  sound_melee3;
 
-
 void brain_sight(edict_t *self, edict_t *other)
 {
     gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
@@ -53,16 +51,14 @@ void brain_search(edict_t *self)
     gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 }
 
-
 void brain_run(edict_t *self);
 void brain_dead(edict_t *self);
-
 
 //
 // STAND
 //
 
-mframe_t brain_frames_stand [] = {
+static const mframe_t brain_frames_stand[] = {
     { ai_stand,   0,  NULL },
     { ai_stand,   0,  NULL },
     { ai_stand,   0,  NULL },
@@ -96,19 +92,18 @@ mframe_t brain_frames_stand [] = {
     { ai_stand,   0,  NULL },
     { ai_stand,   0,  NULL }
 };
-mmove_t brain_move_stand = {FRAME_stand01, FRAME_stand30, brain_frames_stand, NULL};
+const mmove_t brain_move_stand = {FRAME_stand01, FRAME_stand30, brain_frames_stand, NULL};
 
 void brain_stand(edict_t *self)
 {
     M_SetAnimation( self, &brain_move_stand );
 }
 
-
 //
 // IDLE
 //
 
-mframe_t brain_frames_idle [] = {
+static const mframe_t brain_frames_idle[] = {
     { ai_stand,   0,  NULL },
     { ai_stand,   0,  NULL },
     { ai_stand,   0,  NULL },
@@ -142,7 +137,7 @@ mframe_t brain_frames_idle [] = {
     { ai_stand,   0,  NULL },
     { ai_stand,   0,  NULL }
 };
-mmove_t brain_move_idle = {FRAME_stand31, FRAME_stand60, brain_frames_idle, brain_stand};
+const mmove_t brain_move_idle = {FRAME_stand31, FRAME_stand60, brain_frames_idle, brain_stand};
 
 void brain_idle(edict_t *self)
 {
@@ -150,11 +145,10 @@ void brain_idle(edict_t *self)
     M_SetAnimation( self, &brain_move_idle );
 }
 
-
 //
 // WALK
 //
-mframe_t brain_frames_walk1 [] = {
+static const mframe_t brain_frames_walk1[] = {
     { ai_walk,    7,  NULL },
     { ai_walk,    2,  NULL },
     { ai_walk,    3,  NULL },
@@ -167,77 +161,20 @@ mframe_t brain_frames_walk1 [] = {
     { ai_walk,    -1, NULL },
     { ai_walk,    2,  NULL }
 };
-mmove_t brain_move_walk1 = {FRAME_walk101, FRAME_walk111, brain_frames_walk1, NULL};
-
-// walk2 is FUBAR, do not use
-#if 0
-void brain_walk2_cycle(edict_t *self)
-{
-    if (random() > 0.1f)
-        self->monsterinfo.nextframe = FRAME_walk220;
-}
-
-mframe_t brain_frames_walk2 [] = {
-    { ai_walk,    3,  NULL },
-    { ai_walk,    -2, NULL },
-    { ai_walk,    -4, NULL },
-    { ai_walk,    -3, NULL },
-    { ai_walk,    0,  NULL },
-    { ai_walk,    1,  NULL },
-    { ai_walk,    12, NULL },
-    { ai_walk,    0,  NULL },
-    { ai_walk,    -3, NULL },
-    { ai_walk,    0,  NULL },
-
-    { ai_walk,    -2, NULL },
-    { ai_walk,    0,  NULL },
-    { ai_walk,    0,  NULL },
-    { ai_walk,    1,  NULL },
-    { ai_walk,    0,  NULL },
-    { ai_walk,    0,  NULL },
-    { ai_walk,    0,  NULL },
-    { ai_walk,    0,  NULL },
-    { ai_walk,    0,  NULL },
-    { ai_walk,    10, NULL },       // Cycle Start
-
-    { ai_walk,    -1, NULL },
-    { ai_walk,    7,  NULL },
-    { ai_walk,    0,  NULL },
-    { ai_walk,    3,  NULL },
-    { ai_walk,    -3, NULL },
-    { ai_walk,    2,  NULL },
-    { ai_walk,    4,  NULL },
-    { ai_walk,    -3, NULL },
-    { ai_walk,    2,  NULL },
-    { ai_walk,    0,  NULL },
-
-    {
-        ai_walk,    4,  brain_walk2_cycle,
-        { ai_walk,    -1, NULL },
-        { ai_walk,    -1, NULL },
-        { ai_walk,    -8, NULL },
-        { ai_walk,    0,  NULL },
-        { ai_walk,    1,  NULL },
-        { ai_walk,    5,  NULL },
-        { ai_walk,    2,  NULL },
-        { ai_walk,    -1, NULL },
-        {
-            ai_walk,    -5, NULL
-        };
-        mmove_t brain_move_walk2 = {FRAME_walk201, FRAME_walk240, brain_frames_walk2, NULL};
-    }
-#endif
+const mmove_t brain_move_walk1 = {FRAME_walk101, FRAME_walk111, brain_frames_walk1, NULL};
 
 void brain_walk(edict_t *self) {
+<<<<<<<< HEAD:src/baseq2/svgame/m_brain.cpp
 //  if (random() <= 0.5)
     M_SetAnimation( self, &brain_move_walk1 );
 //  else
 //      M_SetAnimation( self, &brain_move_walk2;
+========
+    self->monsterinfo.currentmove = &brain_move_walk1;
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/m_brain.c
 }
 
-
-
-mframe_t brain_frames_defense [] =
+static const mframe_t brain_frames_defense[] =
 {
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL },
@@ -249,9 +186,9 @@ mframe_t brain_frames_defense [] =
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL }
 };
-mmove_t brain_move_defense = {FRAME_defens01, FRAME_defens08, brain_frames_defense, NULL};
+const mmove_t brain_move_defense = {FRAME_defens01, FRAME_defens08, brain_frames_defense, NULL};
 
-mframe_t brain_frames_pain3 [] =
+static const mframe_t brain_frames_pain3[] =
 {
     { ai_move,    -2, NULL },
     { ai_move,    2,  NULL },
@@ -260,9 +197,9 @@ mframe_t brain_frames_pain3 [] =
     { ai_move,    0,  NULL },
     { ai_move,    -4, NULL }
 };
-mmove_t brain_move_pain3 = {FRAME_pain301, FRAME_pain306, brain_frames_pain3, brain_run};
+const mmove_t brain_move_pain3 = {FRAME_pain301, FRAME_pain306, brain_frames_pain3, brain_run};
 
-mframe_t brain_frames_pain2 [] =
+static const mframe_t brain_frames_pain2[] =
 {
     { ai_move,    -2, NULL },
     { ai_move,    0,  NULL },
@@ -273,9 +210,9 @@ mframe_t brain_frames_pain2 [] =
     { ai_move,    1,  NULL },
     { ai_move,    -2, NULL }
 };
-mmove_t brain_move_pain2 = {FRAME_pain201, FRAME_pain208, brain_frames_pain2, brain_run};
+const mmove_t brain_move_pain2 = {FRAME_pain201, FRAME_pain208, brain_frames_pain2, brain_run};
 
-mframe_t brain_frames_pain1 [] =
+static const mframe_t brain_frames_pain1[] =
 {
     { ai_move,    -6, NULL },
     { ai_move,    -2, NULL },
@@ -299,8 +236,7 @@ mframe_t brain_frames_pain1 [] =
     { ai_move,    3,  NULL },
     { ai_move,    -1, NULL }
 };
-mmove_t brain_move_pain1 = {FRAME_pain101, FRAME_pain121, brain_frames_pain1, brain_run};
-
+const mmove_t brain_move_pain1 = {FRAME_pain101, FRAME_pain121, brain_frames_pain1, brain_run};
 
 //
 // DUCK
@@ -329,7 +265,7 @@ void brain_duck_up(edict_t *self) {
     gi.linkentity(self);
 }
 
-mframe_t brain_frames_duck [] =
+static const mframe_t brain_frames_duck[] =
 {
     { ai_move,    0,  NULL },
     { ai_move,    -2, brain_duck_down },
@@ -340,7 +276,7 @@ mframe_t brain_frames_duck [] =
     { ai_move,    -6, NULL },
     { ai_move,    -6, NULL }
 };
-mmove_t brain_move_duck = {FRAME_duck01, FRAME_duck08, brain_frames_duck, brain_run};
+const mmove_t brain_move_duck = {FRAME_duck01, FRAME_duck08, brain_frames_duck, brain_run};
 
 void brain_dodge(edict_t *self, edict_t *attacker, float eta) {
     if (random() > 0.25f)
@@ -353,8 +289,7 @@ void brain_dodge(edict_t *self, edict_t *attacker, float eta) {
     M_SetAnimation( self, &brain_move_duck );
 }
 
-
-mframe_t brain_frames_death2 [] =
+static const mframe_t brain_frames_death2[] =
 {
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL },
@@ -362,9 +297,9 @@ mframe_t brain_frames_death2 [] =
     { ai_move,    9,  NULL },
     { ai_move,    0,  NULL }
 };
-mmove_t brain_move_death2 = {FRAME_death201, FRAME_death205, brain_frames_death2, brain_dead};
+const mmove_t brain_move_death2 = {FRAME_death201, FRAME_death205, brain_frames_death2, brain_dead};
 
-mframe_t brain_frames_death1 [] =
+static const mframe_t brain_frames_death1[] =
 {
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL },
@@ -385,8 +320,7 @@ mframe_t brain_frames_death1 [] =
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL }
 };
-mmove_t brain_move_death1 = {FRAME_death101, FRAME_death118, brain_frames_death1, brain_dead};
-
+const mmove_t brain_move_death1 = {FRAME_death101, FRAME_death118, brain_frames_death1, brain_dead};
 
 //
 // MELEE
@@ -416,7 +350,7 @@ void brain_hit_left(edict_t *self) {
         gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
 }
 
-mframe_t brain_frames_attack1 [] =
+static const mframe_t brain_frames_attack1[] =
 {
     { ai_charge,  8,  NULL },
     { ai_charge,  3,  NULL },
@@ -437,7 +371,7 @@ mframe_t brain_frames_attack1 [] =
     { ai_charge,  2,  NULL },
     { ai_charge,  -11, NULL }
 };
-mmove_t brain_move_attack1 = {FRAME_attak101, FRAME_attak118, brain_frames_attack1, brain_run};
+const mmove_t brain_move_attack1 = {FRAME_attak101, FRAME_attak118, brain_frames_attack1, brain_run};
 
 void brain_chest_open(edict_t *self) {
     self->spawnflags &= ~65536;
@@ -462,7 +396,7 @@ void brain_chest_closed(edict_t *self) {
     }
 }
 
-mframe_t brain_frames_attack2 [] =
+static const mframe_t brain_frames_attack2[] =
 {
     { ai_charge,  5,  NULL },
     { ai_charge,  -4, NULL },
@@ -482,7 +416,7 @@ mframe_t brain_frames_attack2 [] =
     { ai_charge,  -3, NULL },
     { ai_charge,  -6, NULL }
 };
-mmove_t brain_move_attack2 = {FRAME_attak201, FRAME_attak217, brain_frames_attack2, brain_run};
+const mmove_t brain_move_attack2 = {FRAME_attak201, FRAME_attak217, brain_frames_attack2, brain_run};
 
 void brain_melee(edict_t *self) {
     if (random() <= 0.5f)
@@ -491,12 +425,11 @@ void brain_melee(edict_t *self) {
         M_SetAnimation( self, &brain_move_attack2 );
 }
 
-
 //
 // RUN
 //
 
-mframe_t brain_frames_run [] =
+static const mframe_t brain_frames_run[] =
 {
     { ai_run, 9,  NULL },
     { ai_run, 2,  NULL },
@@ -510,7 +443,7 @@ mframe_t brain_frames_run [] =
     { ai_run, -1, NULL },
     { ai_run, 2,  NULL }
 };
-mmove_t brain_move_run = {FRAME_walk101, FRAME_walk111, brain_frames_run, NULL};
+const mmove_t brain_move_run = {FRAME_walk101, FRAME_walk111, brain_frames_run, NULL};
 
 void brain_run(edict_t *self) {
     self->monsterinfo.power_armor_type = POWER_ARMOR_SCREEN;
@@ -519,7 +452,6 @@ void brain_run(edict_t *self) {
     else
         M_SetAnimation( self, &brain_move_run );
 }
-
 
 void brain_pain(edict_t *self, edict_t *other, float kick, int damage) {
     float   r;
@@ -555,8 +487,6 @@ void brain_dead(edict_t *self) {
     self->nextthink = 0_ms;
     gi.linkentity(self);
 }
-
-
 
 void brain_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point) {
     int     n;

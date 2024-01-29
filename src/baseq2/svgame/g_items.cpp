@@ -17,10 +17,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 #include "g_local.h"
 
-
 bool        Pickup_Weapon(edict_t *ent, edict_t *other);
-void        Use_Weapon(edict_t *ent, gitem_t *inv);
-void        Drop_Weapon(edict_t *ent, gitem_t *inv);
+void        Use_Weapon(edict_t *ent, const gitem_t *inv);
+void        Drop_Weapon(edict_t *ent, const gitem_t *inv);
 
 void Weapon_Blaster(edict_t *ent);
 void Weapon_Shotgun(edict_t *ent);
@@ -35,9 +34,9 @@ void Weapon_Railgun(edict_t *ent);
 void Weapon_BFG(edict_t *ent);
 void Weapon_FlareGun(edict_t *ent);
 
-gitem_armor_t jacketarmor_info  = { 25,  50, .30f, .00f, ARMOR_JACKET};
-gitem_armor_t combatarmor_info  = { 50, 100, .60f, .30f, ARMOR_COMBAT};
-gitem_armor_t bodyarmor_info    = {100, 200, .80f, .60f, ARMOR_BODY};
+static const gitem_armor_t jacketarmor_info = { 25,  50, .30f, .00f, ARMOR_JACKET};
+static const gitem_armor_t combatarmor_info = { 50, 100, .60f, .30f, ARMOR_COMBAT};
+static const gitem_armor_t bodyarmor_info   = {100, 200, .80f, .60f, ARMOR_BODY};
 
 static int  jacket_armor_index;
 static int  combat_armor_index;
@@ -48,8 +47,13 @@ static int  power_shield_index;
 #define HEALTH_IGNORE_MAX   1
 #define HEALTH_TIMED        2
 
+<<<<<<<< HEAD:src/baseq2/svgame/g_items.cpp
 void Use_Quad(edict_t *ent, gitem_t *item);
 static sg_time_t  quad_drop_timeout_hack;
+========
+void Use_Quad(edict_t *ent, const gitem_t *item);
+static int  quad_drop_timeout_hack;
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_items.c
 
 //======================================================================
 
@@ -58,7 +62,7 @@ static sg_time_t  quad_drop_timeout_hack;
 GetItemByIndex
 ===============
 */
-gitem_t *GetItemByIndex(int index)
+const gitem_t *GetItemByIndex(int index)
 {
     if (index == 0 || index >= game.num_items)
         return NULL;
@@ -66,21 +70,24 @@ gitem_t *GetItemByIndex(int index)
     return &itemlist[index];
 }
 
-
 /*
 ===============
 FindItemByClassname
 
 ===============
 */
+<<<<<<<< HEAD:src/baseq2/svgame/g_items.cpp
 // WID: C++20: added const.
 gitem_t *FindItemByClassname(const char *classname)
+========
+const gitem_t *FindItemByClassname(const char *classname)
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_items.c
 {
     int     i;
-    gitem_t *it;
+    const gitem_t   *it;
 
     it = itemlist;
-    for (i = 0 ; i < game.num_items ; i++, it++) {
+    for (i = 0; i < game.num_items; i++, it++) {
         if (!it->classname)
             continue;
         if (!Q_stricmp(it->classname, classname))
@@ -96,14 +103,18 @@ FindItem
 
 ===============
 */
+<<<<<<<< HEAD:src/baseq2/svgame/g_items.cpp
 // WID: C++20: added const.
 gitem_t *FindItem(const char *pickup_name)
+========
+const gitem_t *FindItem(const char *pickup_name)
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_items.c
 {
     int     i;
-    gitem_t *it;
+    const gitem_t   *it;
 
     it = itemlist;
-    for (i = 0 ; i < game.num_items ; i++, it++) {
+    for (i = 0; i < game.num_items; i++, it++) {
         if (!it->pickup_name)
             continue;
         if (!Q_stricmp(it->pickup_name, pickup_name))
@@ -151,7 +162,6 @@ void SetRespawn(edict_t *ent, float delay)
     gi.linkentity(ent);
 }
 
-
 //======================================================================
 
 bool Pickup_Powerup(edict_t *ent, edict_t *other)
@@ -180,13 +190,12 @@ bool Pickup_Powerup(edict_t *ent, edict_t *other)
     return true;
 }
 
-void Drop_General(edict_t *ent, gitem_t *item)
+void Drop_General(edict_t *ent, const gitem_t *item)
 {
     Drop_Item(ent, item);
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
     ValidateSelectedItem(ent);
 }
-
 
 //======================================================================
 
@@ -216,7 +225,7 @@ bool Pickup_AncientHead(edict_t *ent, edict_t *other)
 
 bool Pickup_Bandolier(edict_t *ent, edict_t *other)
 {
-    gitem_t *item;
+    const gitem_t   *item;
     int     index;
 
     if (other->client->pers.max_bullets < 250)
@@ -252,7 +261,7 @@ bool Pickup_Bandolier(edict_t *ent, edict_t *other)
 
 bool Pickup_Pack(edict_t *ent, edict_t *other)
 {
-    gitem_t *item;
+    const gitem_t   *item;
     int     index;
 
     if (other->client->pers.max_bullets < 300)
@@ -324,7 +333,7 @@ bool Pickup_Pack(edict_t *ent, edict_t *other)
 
 //======================================================================
 
-void Use_Quad(edict_t *ent, gitem_t *item)
+void Use_Quad(edict_t *ent, const gitem_t *item)
 {
     sg_time_t     timeout;
 
@@ -348,7 +357,7 @@ void Use_Quad(edict_t *ent, gitem_t *item)
 
 //======================================================================
 
-void Use_Breather(edict_t *ent, gitem_t *item)
+void Use_Breather(edict_t *ent, const gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
     ValidateSelectedItem(ent);
@@ -360,7 +369,7 @@ void Use_Breather(edict_t *ent, gitem_t *item)
 
 //======================================================================
 
-void Use_Envirosuit(edict_t *ent, gitem_t *item)
+void Use_Envirosuit(edict_t *ent, const gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
     ValidateSelectedItem(ent);
@@ -372,7 +381,7 @@ void Use_Envirosuit(edict_t *ent, gitem_t *item)
 
 //======================================================================
 
-void    Use_Invulnerability(edict_t *ent, gitem_t *item)
+void Use_Invulnerability(edict_t *ent, const gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
     ValidateSelectedItem(ent);
@@ -384,7 +393,7 @@ void    Use_Invulnerability(edict_t *ent, gitem_t *item)
 
 //======================================================================
 
-void    Use_Silencer(edict_t *ent, gitem_t *item)
+void Use_Silencer(edict_t *ent, const gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
     ValidateSelectedItem(ent);
@@ -416,7 +425,7 @@ bool Pickup_Key(edict_t *ent, edict_t *other)
 
 //======================================================================
 
-bool Add_Ammo(edict_t *ent, gitem_t *item, int count)
+bool Add_Ammo(edict_t *ent, const gitem_t *item, int count)
 {
     int         index;
     int         max;
@@ -481,7 +490,7 @@ bool Pickup_Ammo(edict_t *ent, edict_t *other)
     return true;
 }
 
-void Drop_Ammo(edict_t *ent, gitem_t *item)
+void Drop_Ammo(edict_t *ent, const gitem_t *item)
 {
     edict_t *dropped;
     int     index;
@@ -505,7 +514,6 @@ void Drop_Ammo(edict_t *ent, gitem_t *item)
     ent->client->pers.inventory[index] -= dropped->count;
     ValidateSelectedItem(ent);
 }
-
 
 //======================================================================
 
@@ -573,14 +581,14 @@ int ArmorIndex(edict_t *ent)
 bool Pickup_Armor(edict_t *ent, edict_t *other)
 {
     int             old_armor_index;
-    gitem_armor_t   *oldinfo;
-    gitem_armor_t   *newinfo;
+    const gitem_armor_t *oldinfo;
+    const gitem_armor_t *newinfo;
     int             newcount;
     float           salvage;
     int             salvagecount;
 
     // get info on new armor
-    newinfo = (gitem_armor_t *)ent->item->info;
+    newinfo = (const gitem_armor_t *)ent->item->info;
 
     old_armor_index = ArmorIndex(other);
 
@@ -662,7 +670,7 @@ int PowerArmorType(edict_t *ent)
     return POWER_ARMOR_NONE;
 }
 
-void Use_PowerArmor(edict_t *ent, gitem_t *item)
+void Use_PowerArmor(edict_t *ent, const gitem_t *item)
 {
     int     index;
 
@@ -699,7 +707,7 @@ bool Pickup_PowerArmor(edict_t *ent, edict_t *other)
     return true;
 }
 
-void Drop_PowerArmor(edict_t *ent, gitem_t *item)
+void Drop_PowerArmor(edict_t *ent, const gitem_t *item)
 {
     if ((ent->flags & FL_POWER_ARMOR) && (ent->client->pers.inventory[ITEM_INDEX(item)] == 1))
         Use_PowerArmor(ent, item);
@@ -788,7 +796,7 @@ void drop_make_touchable(edict_t *ent)
     }
 }
 
-edict_t *Drop_Item(edict_t *ent, gitem_t *item)
+edict_t *Drop_Item(edict_t *ent, const gitem_t *item)
 {
     edict_t *dropped;
     vec3_t  forward, right;
@@ -914,7 +922,6 @@ void droptofloor(edict_t *ent)
     gi.linkentity(ent);
 }
 
-
 /*
 ===============
 PrecacheItem
@@ -924,14 +931,20 @@ This will be called for each item spawned in a level,
 and for each item in each client's inventory.
 ===============
 */
-void PrecacheItem(gitem_t *it)
+void PrecacheItem(const gitem_t *it)
 {
+<<<<<<<< HEAD:src/baseq2/svgame/g_items.cpp
 	// WID: C++20: Added const.
     const char    *s;
 	const char *start;
     char    data[MAX_QPATH];
     int     len;
     gitem_t *ammo;
+========
+    const char *const *s;
+    const char *data;
+    size_t len;
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_items.c
 
     if (!it)
         return;
@@ -947,28 +960,21 @@ void PrecacheItem(gitem_t *it)
 
     // parse everything for its ammo
     if (it->ammo && it->ammo[0]) {
-        ammo = FindItem(it->ammo);
+        const gitem_t *ammo = FindItem(it->ammo);
         if (ammo != it)
             PrecacheItem(ammo);
     }
 
-    // parse the space seperated precache string for other items
+    // parse NULL terminated precache list for other items
     s = it->precaches;
-    if (!s || !s[0])
+    if (!s)
         return;
 
     while (*s) {
-        start = s;
-        while (*s && *s != ' ')
-            s++;
-
-        len = s - start;
+        data = *s++;
+        len = strlen(data);
         if (len >= MAX_QPATH || len < 5)
             gi.error("PrecacheItem: %s has bad precache string", it->classname);
-        memcpy(data, start, len);
-        data[len] = 0;
-        if (*s)
-            s++;
 
         // determine type based on extension
         if (!strcmp(data + len - 3, "md2"))
@@ -992,7 +998,7 @@ Items can't be immediately dropped to floor, because they might
 be on an entity that hasn't spawned yet.
 ============
 */
-void SpawnItem(edict_t *ent, gitem_t *item)
+void SpawnItem(edict_t *ent, const gitem_t *item)
 {
     PrecacheItem(item);
 
@@ -1036,11 +1042,6 @@ void SpawnItem(edict_t *ent, gitem_t *item)
         level.power_cubes++;
     }
 
-    // don't let them drop items that stay in a coop game
-    if ((coop->value) && (item->flags & IT_STAY_COOP)) {
-        item->drop = NULL;
-    }
-
     ent->item = item;
     ent->nextthink = level.time + 20_hz;    // items start after other solids
     ent->think = droptofloor;
@@ -1052,7 +1053,7 @@ void SpawnItem(edict_t *ent, gitem_t *item)
 
 //======================================================================
 
-gitem_t itemlist[] = {
+const gitem_t itemlist[] = {
     {
         NULL
     },  // leave index 0 alone
@@ -1064,142 +1065,107 @@ gitem_t itemlist[] = {
     /*QUAKED item_armor_body (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_armor_body",
-        Pickup_Armor,
-        NULL,
-        NULL,
-        NULL,
-        "misc/ar1_pkup.wav",
-        "models/items/armor/body/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_bodyarmor",
-        /* pickup */    "Body Armor",
-        /* width */     3,
-        0,
-        NULL,
-        IT_ARMOR,
-        0,
-        &bodyarmor_info,
-        ARMOR_BODY,
-        /* precache */ ""
+        .classname          = "item_armor_body",
+        .pickup             = Pickup_Armor,
+        .pickup_sound       = "misc/ar1_pkup.wav",
+        .world_model        = "models/items/armor/body/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "i_bodyarmor",
+        .pickup_name        = "Body Armor",
+        .count_width        = 3,
+        .flags              = IT_ARMOR,
+        .info               = &bodyarmor_info,
+        .tag                = ARMOR_BODY,
     },
 
     /*QUAKED item_armor_combat (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_armor_combat",
-        Pickup_Armor,
-        NULL,
-        NULL,
-        NULL,
-        "misc/ar1_pkup.wav",
-        "models/items/armor/combat/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_combatarmor",
-        /* pickup */    "Combat Armor",
-        /* width */     3,
-        0,
-        NULL,
-        IT_ARMOR,
-        0,
-        &combatarmor_info,
-        ARMOR_COMBAT,
-        /* precache */ ""
+        .classname          = "item_armor_combat",
+        .pickup             = Pickup_Armor,
+        .pickup_sound       = "misc/ar1_pkup.wav",
+        .world_model        = "models/items/armor/combat/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "i_combatarmor",
+        .pickup_name        = "Combat Armor",
+        .count_width        = 3,
+        .flags              = IT_ARMOR,
+        .info               = &combatarmor_info,
+        .tag                = ARMOR_COMBAT,
     },
 
     /*QUAKED item_armor_jacket (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_armor_jacket",
-        Pickup_Armor,
-        NULL,
-        NULL,
-        NULL,
-        "misc/ar1_pkup.wav",
-        "models/items/armor/jacket/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_jacketarmor",
-        /* pickup */    "Jacket Armor",
-        /* width */     3,
-        0,
-        NULL,
-        IT_ARMOR,
-        0,
-        &jacketarmor_info,
-        ARMOR_JACKET,
-        /* precache */ ""
+        .classname          = "item_armor_jacket",
+        .pickup             = Pickup_Armor,
+        .pickup_sound       = "misc/ar1_pkup.wav",
+        .world_model        = "models/items/armor/jacket/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "i_jacketarmor",
+        .pickup_name        = "Jacket Armor",
+        .count_width        = 3,
+        .flags              = IT_ARMOR,
+        .info               = &jacketarmor_info,
+        .tag                = ARMOR_JACKET,
     },
 
     /*QUAKED item_armor_shard (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_armor_shard",
-        Pickup_Armor,
-        NULL,
-        NULL,
-        NULL,
-        "misc/ar2_pkup.wav",
-        "models/items/armor/shard/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_jacketarmor",
-        /* pickup */    "Armor Shard",
-        /* width */     3,
-        0,
-        NULL,
-        IT_ARMOR,
-        0,
-        NULL,
-        ARMOR_SHARD,
-        /* precache */ ""
+        .classname          = "item_armor_shard",
+        .pickup             = Pickup_Armor,
+        .pickup_sound       = "misc/ar2_pkup.wav",
+        .world_model        = "models/items/armor/shard/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "i_jacketarmor",
+        .pickup_name        = "Armor Shard",
+        .count_width        = 3,
+        .flags              = IT_ARMOR,
+        .tag                = ARMOR_SHARD,
     },
-
 
     /*QUAKED item_power_screen (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_power_screen",
-        Pickup_PowerArmor,
-        Use_PowerArmor,
-        Drop_PowerArmor,
-        NULL,
-        "misc/ar3_pkup.wav",
-        "models/items/armor/screen/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_powerscreen",
-        /* pickup */    "Power Screen",
-        /* width */     0,
-        60,
-        NULL,
-        IT_ARMOR,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "item_power_screen",
+        .pickup             = Pickup_PowerArmor,
+        .use                = Use_PowerArmor,
+        .drop               = Drop_PowerArmor,
+        .pickup_sound       = "misc/ar3_pkup.wav",
+        .world_model        = "models/items/armor/screen/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "i_powerscreen",
+        .pickup_name        = "Power Screen",
+        .quantity           = 60,
+        .flags              = IT_ARMOR,
+        .precaches          = (const char *const []) {
+            "misc/power1.wav",
+            "misc/power2.wav",
+            NULL
+        },
     },
 
     /*QUAKED item_power_shield (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_power_shield",
-        Pickup_PowerArmor,
-        Use_PowerArmor,
-        Drop_PowerArmor,
-        NULL,
-        "misc/ar3_pkup.wav",
-        "models/items/armor/shield/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_powershield",
-        /* pickup */    "Power Shield",
-        /* width */     0,
-        60,
-        NULL,
-        IT_ARMOR,
-        0,
-        NULL,
-        0,
-        /* precache */ "misc/power2.wav misc/power1.wav"
+        .classname          = "item_power_shield",
+        .pickup             = Pickup_PowerArmor,
+        .use                = Use_PowerArmor,
+        .drop               = Drop_PowerArmor,
+        .pickup_sound       = "misc/ar3_pkup.wav",
+        .world_model        = "models/items/armor/shield/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "i_powershield",
+        .pickup_name        = "Power Shield",
+        .quantity           = 60,
+        .flags              = IT_ARMOR,
+        .precaches          = (const char *const []) {
+            "misc/power1.wav",
+            "misc/power2.wav",
+            NULL
+        },
     },
-
 
     //
     // WEAPONS
@@ -1209,277 +1175,318 @@ gitem_t itemlist[] = {
     always owned, never in the world
     */
     {
-        "weapon_blaster",
-        NULL,
-        Use_Weapon,
-        NULL,
-        Weapon_Blaster,
-        "misc/w_pkup.wav",
-        NULL, 0,
-        "models/weapons/v_blast/tris.md2",
-        /* icon */      "w_blaster",
-        /* pickup */    "Blaster",
-        0,
-        0,
-        NULL,
-        IT_WEAPON | IT_STAY_COOP,
-        WEAP_BLASTER,
-        NULL,
-        0,
-        /* precache */ "models/objects/laser/tris.md2 weapons/blastf1a.wav misc/lasfly.wav"
+        .classname          = "weapon_blaster",
+        .use                = Use_Weapon,
+        .weaponthink        = Weapon_Blaster,
+        .pickup_sound       = "misc/w_pkup.wav",
+        .view_model         = "models/weapons/v_blast/tris.md2",
+        .icon               = "w_blaster",
+        .pickup_name        = "Blaster",
+        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .weapmodel          = WEAP_BLASTER,
+        .precaches          = (const char *const []) {
+            "models/objects/laser/tris.md2",
+            "weapons/blastf1a.wav",
+            "misc/lasfly.wav",
+            NULL
+        },
     },
 
     /*QUAKED weapon_shotgun (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "weapon_shotgun",
-        Pickup_Weapon,
-        Use_Weapon,
-        Drop_Weapon,
-        Weapon_Shotgun,
-        "misc/w_pkup.wav",
-        "models/weapons/g_shotg/tris.md2", EF_ROTATE,
-        "models/weapons/v_shotg/tris.md2",
-        /* icon */      "w_shotgun",
-        /* pickup */    "Shotgun",
-        0,
-        1,
-        "Shells",
-        IT_WEAPON | IT_STAY_COOP,
-        WEAP_SHOTGUN,
-        NULL,
-        0,
-        /* precache */ "weapons/shotgf1b.wav weapons/shotgr1b.wav"
+        .classname          = "weapon_shotgun",
+        .pickup             = Pickup_Weapon,
+        .use                = Use_Weapon,
+        .drop               = Drop_Weapon,
+        .weaponthink        = Weapon_Shotgun,
+        .pickup_sound       = "misc/w_pkup.wav",
+        .world_model        = "models/weapons/g_shotg/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .view_model         = "models/weapons/v_shotg/tris.md2",
+        .icon               = "w_shotgun",
+        .pickup_name        = "Shotgun",
+        .quantity           = 1,
+        .ammo               = "Shells",
+        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .weapmodel          = WEAP_SHOTGUN,
+        .precaches          = (const char *const []) {
+            "weapons/shotgf1b.wav",
+            "weapons/shotgr1b.wav",
+            NULL
+        },
     },
 
     /*QUAKED weapon_supershotgun (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "weapon_supershotgun",
-        Pickup_Weapon,
-        Use_Weapon,
-        Drop_Weapon,
-        Weapon_SuperShotgun,
-        "misc/w_pkup.wav",
-        "models/weapons/g_shotg2/tris.md2", EF_ROTATE,
-        "models/weapons/v_shotg2/tris.md2",
-        /* icon */      "w_sshotgun",
-        /* pickup */    "Super Shotgun",
-        0,
-        2,
-        "Shells",
-        IT_WEAPON | IT_STAY_COOP,
-        WEAP_SUPERSHOTGUN,
-        NULL,
-        0,
-        /* precache */ "weapons/sshotf1b.wav"
+        .classname          = "weapon_supershotgun",
+        .pickup             = Pickup_Weapon,
+        .use                = Use_Weapon,
+        .drop               = Drop_Weapon,
+        .weaponthink        = Weapon_SuperShotgun,
+        .pickup_sound       = "misc/w_pkup.wav",
+        .world_model        = "models/weapons/g_shotg2/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .view_model         = "models/weapons/v_shotg2/tris.md2",
+        .icon               = "w_sshotgun",
+        .pickup_name        = "Super Shotgun",
+        .quantity           = 2,
+        .ammo               = "Shells",
+        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .weapmodel          = WEAP_SUPERSHOTGUN,
+        .precaches          = (const char *const []) {
+            "weapons/sshotf1b.wav",
+            NULL
+        },
     },
 
     /*QUAKED weapon_machinegun (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "weapon_machinegun",
-        Pickup_Weapon,
-        Use_Weapon,
-        Drop_Weapon,
-        Weapon_Machinegun,
-        "misc/w_pkup.wav",
-        "models/weapons/g_machn/tris.md2", EF_ROTATE,
-        "models/weapons/v_machn/tris.md2",
-        /* icon */      "w_machinegun",
-        /* pickup */    "Machinegun",
-        0,
-        1,
-        "Bullets",
-        IT_WEAPON | IT_STAY_COOP,
-        WEAP_MACHINEGUN,
-        NULL,
-        0,
-        /* precache */ "weapons/machgf1b.wav weapons/machgf2b.wav weapons/machgf3b.wav weapons/machgf4b.wav weapons/machgf5b.wav"
+        .classname          = "weapon_machinegun",
+        .pickup             = Pickup_Weapon,
+        .use                = Use_Weapon,
+        .drop               = Drop_Weapon,
+        .weaponthink        = Weapon_Machinegun,
+        .pickup_sound       = "misc/w_pkup.wav",
+        .world_model        = "models/weapons/g_machn/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .view_model         = "models/weapons/v_machn/tris.md2",
+        .icon               = "w_machinegun",
+        .pickup_name        = "Machinegun",
+        .quantity           = 1,
+        .ammo               = "Bullets",
+        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .weapmodel          = WEAP_MACHINEGUN,
+        .precaches          = (const char *const []) {
+            "weapons/machgf1b.wav",
+            "weapons/machgf2b.wav",
+            "weapons/machgf3b.wav",
+            "weapons/machgf4b.wav",
+            "weapons/machgf5b.wav",
+            NULL
+        },
     },
 
     /*QUAKED weapon_chaingun (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "weapon_chaingun",
-        Pickup_Weapon,
-        Use_Weapon,
-        Drop_Weapon,
-        Weapon_Chaingun,
-        "misc/w_pkup.wav",
-        "models/weapons/g_chain/tris.md2", EF_ROTATE,
-        "models/weapons/v_chain/tris.md2",
-        /* icon */      "w_chaingun",
-        /* pickup */    "Chaingun",
-        0,
-        1,
-        "Bullets",
-        IT_WEAPON | IT_STAY_COOP,
-        WEAP_CHAINGUN,
-        NULL,
-        0,
-        /* precache */ "weapons/chngnu1a.wav weapons/chngnl1a.wav weapons/machgf3b.wav weapons/chngnd1a.wav"
+        .classname          = "weapon_chaingun",
+        .pickup             = Pickup_Weapon,
+        .use                = Use_Weapon,
+        .drop               = Drop_Weapon,
+        .weaponthink        = Weapon_Chaingun,
+        .pickup_sound       = "misc/w_pkup.wav",
+        .world_model        = "models/weapons/g_chain/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .view_model         = "models/weapons/v_chain/tris.md2",
+        .icon               = "w_chaingun",
+        .pickup_name        = "Chaingun",
+        .quantity           = 1,
+        .ammo               = "Bullets",
+        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .weapmodel          = WEAP_CHAINGUN,
+        .precaches          = (const char *const []) {
+            "weapons/machgf1b.wav",
+            "weapons/machgf2b.wav",
+            "weapons/machgf3b.wav",
+            "weapons/machgf4b.wav",
+            "weapons/machgf5b.wav",
+            "weapons/chngnu1a.wav",
+            "weapons/chngnl1a.wav",
+            "weapons/chngnd1a.wav",
+            NULL
+        },
     },
 
     /*QUAKED ammo_grenades (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "ammo_grenades",
-        Pickup_Ammo,
-        Use_Weapon,
-        Drop_Ammo,
-        Weapon_Grenade,
-        "misc/am_pkup.wav",
-        "models/items/ammo/grenades/medium/tris.md2", 0,
-        "models/weapons/v_handgr/tris.md2",
-        /* icon */      "a_grenades",
-        /* pickup */    "Grenades",
-        /* width */     3,
-        5,
-        "grenades",
-        IT_AMMO | IT_WEAPON,
-        WEAP_GRENADES,
-        NULL,
-        AMMO_GRENADES,
-        /* precache */ "models/objects/grenade2/tris.md2 weapons/hgrent1a.wav weapons/hgrena1b.wav weapons/hgrenc1b.wav weapons/hgrenb1a.wav weapons/hgrenb2a.wav"
+        .classname          = "ammo_grenades",
+        .pickup             = Pickup_Ammo,
+        .use                = Use_Weapon,
+        .drop               = Drop_Ammo,
+        .weaponthink        = Weapon_Grenade,
+        .pickup_sound       = "misc/am_pkup.wav",
+        .world_model        = "models/items/ammo/grenades/medium/tris.md2",
+        .view_model         = "models/weapons/v_handgr/tris.md2",
+        .icon               = "a_grenades",
+        .pickup_name        = "Grenades",
+        .count_width        = 3,
+        .quantity           = 5,
+        .ammo               = "grenades",
+        .flags              = IT_AMMO | IT_WEAPON,
+        .weapmodel          = WEAP_GRENADES,
+        .tag                = AMMO_GRENADES,
+        .precaches          = (const char *const []) {
+            "models/objects/grenade2/tris.md2",
+            "weapons/hgrent1a.wav",
+            "weapons/hgrena1b.wav",
+            "weapons/hgrenc1b.wav",
+            "weapons/hgrenb1a.wav",
+            "weapons/hgrenb2a.wav",
+            NULL
+        },
     },
 
     /*QUAKED weapon_grenadelauncher (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "weapon_grenadelauncher",
-        Pickup_Weapon,
-        Use_Weapon,
-        Drop_Weapon,
-        Weapon_GrenadeLauncher,
-        "misc/w_pkup.wav",
-        "models/weapons/g_launch/tris.md2", EF_ROTATE,
-        "models/weapons/v_launch/tris.md2",
-        /* icon */      "w_glauncher",
-        /* pickup */    "Grenade Launcher",
-        0,
-        1,
-        "Grenades",
-        IT_WEAPON | IT_STAY_COOP,
-        WEAP_GRENADELAUNCHER,
-        NULL,
-        0,
-        /* precache */ "models/objects/grenade/tris.md2 weapons/grenlf1a.wav weapons/grenlr1b.wav weapons/grenlb1b.wav"
+        .classname          = "weapon_grenadelauncher",
+        .pickup             = Pickup_Weapon,
+        .use                = Use_Weapon,
+        .drop               = Drop_Weapon,
+        .weaponthink        = Weapon_GrenadeLauncher,
+        .pickup_sound       = "misc/w_pkup.wav",
+        .world_model        = "models/weapons/g_launch/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .view_model         = "models/weapons/v_launch/tris.md2",
+        .icon               = "w_glauncher",
+        .pickup_name        = "Grenade Launcher",
+        .quantity           = 1,
+        .ammo               = "Grenades",
+        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .weapmodel          = WEAP_GRENADELAUNCHER,
+        .precaches          = (const char *const []) {
+            "models/objects/grenade/tris.md2",
+            "weapons/grenlf1a.wav",
+            "weapons/grenlr1b.wav",
+            "weapons/grenlb1b.wav",
+            NULL
+        },
     },
 
     /*QUAKED weapon_rocketlauncher (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "weapon_rocketlauncher",
-        Pickup_Weapon,
-        Use_Weapon,
-        Drop_Weapon,
-        Weapon_RocketLauncher,
-        "misc/w_pkup.wav",
-        "models/weapons/g_rocket/tris.md2", EF_ROTATE,
-        "models/weapons/v_rocket/tris.md2",
-        /* icon */      "w_rlauncher",
-        /* pickup */    "Rocket Launcher",
-        0,
-        1,
-        "Rockets",
-        IT_WEAPON | IT_STAY_COOP,
-        WEAP_ROCKETLAUNCHER,
-        NULL,
-        0,
-        /* precache */ "models/objects/rocket/tris.md2 weapons/rockfly.wav weapons/rocklf1a.wav weapons/rocklr1b.wav models/objects/debris2/tris.md2"
+        .classname          = "weapon_rocketlauncher",
+        .pickup             = Pickup_Weapon,
+        .use                = Use_Weapon,
+        .drop               = Drop_Weapon,
+        .weaponthink        = Weapon_RocketLauncher,
+        .pickup_sound       = "misc/w_pkup.wav",
+        .world_model        = "models/weapons/g_rocket/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .view_model         = "models/weapons/v_rocket/tris.md2",
+        .icon               = "w_rlauncher",
+        .pickup_name        = "Rocket Launcher",
+        .quantity           = 1,
+        .ammo               = "Rockets",
+        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .weapmodel          = WEAP_ROCKETLAUNCHER,
+        .precaches          = (const char *const []) {
+            "models/objects/rocket/tris.md2",
+            "models/objects/debris2/tris.md2",
+            "weapons/rockfly.wav",
+            "weapons/rocklf1a.wav",
+            "weapons/rocklr1b.wav",
+            NULL
+        },
     },
 
     /*QUAKED weapon_hyperblaster (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "weapon_hyperblaster",
-        Pickup_Weapon,
-        Use_Weapon,
-        Drop_Weapon,
-        Weapon_HyperBlaster,
-        "misc/w_pkup.wav",
-        "models/weapons/g_hyperb/tris.md2", EF_ROTATE,
-        "models/weapons/v_hyperb/tris.md2",
-        /* icon */      "w_hyperblaster",
-        /* pickup */    "HyperBlaster",
-        0,
-        1,
-        "Cells",
-        IT_WEAPON | IT_STAY_COOP,
-        WEAP_HYPERBLASTER,
-        NULL,
-        0,
-        /* precache */ "models/objects/laser/tris.md2 weapons/hyprbu1a.wav weapons/hyprbl1a.wav weapons/hyprbf1a.wav weapons/hyprbd1a.wav misc/lasfly.wav"
+        .classname          = "weapon_hyperblaster",
+        .pickup             = Pickup_Weapon,
+        .use                = Use_Weapon,
+        .drop               = Drop_Weapon,
+        .weaponthink        = Weapon_HyperBlaster,
+        .pickup_sound       = "misc/w_pkup.wav",
+        .world_model        = "models/weapons/g_hyperb/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .view_model         = "models/weapons/v_hyperb/tris.md2",
+        .icon               = "w_hyperblaster",
+        .pickup_name        = "HyperBlaster",
+        .quantity           = 1,
+        .ammo               = "Cells",
+        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .weapmodel          = WEAP_HYPERBLASTER,
+        .precaches          = (const char *const []) {
+            "models/objects/laser/tris.md2",
+            "weapons/hyprbu1a.wav",
+            "weapons/hyprbl1a.wav",
+            "weapons/hyprbf1a.wav",
+            "weapons/hyprbd1a.wav",
+            "misc/lasfly.wav",
+            NULL
+        },
     },
 
     /*QUAKED weapon_railgun (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "weapon_railgun",
-        Pickup_Weapon,
-        Use_Weapon,
-        Drop_Weapon,
-        Weapon_Railgun,
-        "misc/w_pkup.wav",
-        "models/weapons/g_rail/tris.md2", EF_ROTATE,
-        "models/weapons/v_rail/tris.md2",
-        /* icon */      "w_railgun",
-        /* pickup */    "Railgun",
-        0,
-        1,
-        "Slugs",
-        IT_WEAPON | IT_STAY_COOP,
-        WEAP_RAILGUN,
-        NULL,
-        0,
-        /* precache */ "weapons/rg_hum.wav"
+        .classname          = "weapon_railgun",
+        .pickup             = Pickup_Weapon,
+        .use                = Use_Weapon,
+        .drop               = Drop_Weapon,
+        .weaponthink        = Weapon_Railgun,
+        .pickup_sound       = "misc/w_pkup.wav",
+        .world_model        = "models/weapons/g_rail/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .view_model         = "models/weapons/v_rail/tris.md2",
+        .icon               = "w_railgun",
+        .pickup_name        = "Railgun",
+        .quantity           = 1,
+        .ammo               = "Slugs",
+        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .weapmodel          = WEAP_RAILGUN,
+        .precaches          = (const char *const []) {
+            "weapons/railgf1a.wav",
+            "weapons/rg_hum.wav",
+            NULL
+        },
     },
 
     /*QUAKED weapon_bfg (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "weapon_bfg",
-        Pickup_Weapon,
-        Use_Weapon,
-        Drop_Weapon,
-        Weapon_BFG,
-        "misc/w_pkup.wav",
-        "models/weapons/g_bfg/tris.md2", EF_ROTATE,
-        "models/weapons/v_bfg/tris.md2",
-        /* icon */      "w_bfg",
-        /* pickup */    "BFG10K",
-        0,
-        50,
-        "Cells",
-        IT_WEAPON | IT_STAY_COOP,
-        WEAP_BFG,
-        NULL,
-        0,
-        /* precache */ "sprites/s_bfg1.sp2 sprites/s_bfg2.sp2 sprites/s_bfg3.sp2 weapons/bfg__f1y.wav weapons/bfg__l1a.wav weapons/bfg__x1b.wav weapons/bfg_hum.wav"
+        .classname          = "weapon_bfg",
+        .pickup             = Pickup_Weapon,
+        .use                = Use_Weapon,
+        .drop               = Drop_Weapon,
+        .weaponthink        = Weapon_BFG,
+        .pickup_sound       = "misc/w_pkup.wav",
+        .world_model        = "models/weapons/g_bfg/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .view_model         = "models/weapons/v_bfg/tris.md2",
+        .icon               = "w_bfg",
+        .pickup_name        = "BFG10K",
+        .quantity           = 50,
+        .ammo               = "Cells",
+        .flags              = IT_WEAPON | IT_STAY_COOP,
+        .weapmodel          = WEAP_BFG,
+        .precaches          = (const char *const []) {
+            "sprites/s_bfg1.sp2",
+            "sprites/s_bfg2.sp2",
+            "sprites/s_bfg3.sp2",
+            "weapons/bfg__f1y.wav",
+            "weapons/bfg__l1a.wav",
+            "weapons/bfg__x1b.wav",
+            "weapons/bfg_hum.wav",
+            NULL
+        },
     },
 
 	/*QUAKED weapon_flaregun (.3 .3 1) (-16 -16 -16) (16 16 16)*/
 	{ 
-		"weapon_flaregun", // class name 
-		Pickup_Weapon, // Function to use to pickup weapon 
-		Use_Weapon,  // Function to use to use weapon 
-		Drop_Weapon, // Function to use to drop weapon 
-		Weapon_FlareGun, // Function called every frame this weapon is active 
-		"misc/w_pkup.wav",// Sound to play when picked up 
-		"models/weapons/g_flareg/tris.md2", // Item model for placement on maps 
-		EF_ROTATE,//Flags 
-		"models/weapons/v_flareg/tris.md3",//Model player sees 
-		"w_flareg", //name of item icon in item list (minus .pcx) 
-		"Flare Gun", //Item name (ie use flare gun) 
-		0, // Count width (for timed things like quad) 
-		1, // Ammo per shot 
-		"Grenades", // Type of ammo to use 
-		IT_WEAPON, // IT_WEAPON, IT_ARMOR, or IT_AMMO 
-		WEAP_FLAREGUN,
-		NULL, // userinfo? (void*) 
-		0, // tag 
-		"" //things to precache 
+		.classname          = "weapon_flaregun", // class name
+		.pickup             = Pickup_Weapon, // Function to use to pickup weapon
+		.use                = Use_Weapon,  // Function to use to use weapon
+		.drop               = Drop_Weapon, // Function to use to drop weapon
+		.weaponthink        = Weapon_FlareGun, // Function called every frame this weapon is active
+		.pickup_sound       = "misc/w_pkup.wav",// Sound to play when picked up
+		.world_model        = "models/weapons/g_flareg/tris.md2", // Item model for placement on maps
+		.world_model_flags  = EF_ROTATE,//Flags
+		.view_model         = "models/weapons/v_flareg/tris.md3",//Model player sees
+		.icon               = "w_flareg", //name of item icon in item list (minus .pcx)
+		.pickup_name        = "Flare Gun", //Item name (ie use flare gun)
+		.quantity           = 1, // Ammo per shot
+		.ammo               = "Grenades", // Type of ammo to use
+		.flags              = IT_WEAPON, // IT_WEAPON, IT_ARMOR, or IT_AMMO
+		.weapmodel          = WEAP_FLAREGUN,
+		.precaches          = (const char *const []) { NULL } //things to precache
 	},
     //
     // AMMO ITEMS
@@ -1488,118 +1495,82 @@ gitem_t itemlist[] = {
     /*QUAKED ammo_shells (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "ammo_shells",
-        Pickup_Ammo,
-        NULL,
-        Drop_Ammo,
-        NULL,
-        "misc/am_pkup.wav",
-        "models/items/ammo/shells/medium/tris.md2", 0,
-        NULL,
-        /* icon */      "a_shells",
-        /* pickup */    "Shells",
-        /* width */     3,
-        10,
-        NULL,
-        IT_AMMO,
-        0,
-        NULL,
-        AMMO_SHELLS,
-        /* precache */ ""
+        .classname          = "ammo_shells",
+        .pickup             = Pickup_Ammo,
+        .drop               = Drop_Ammo,
+        .pickup_sound       = "misc/am_pkup.wav",
+        .world_model        = "models/items/ammo/shells/medium/tris.md2",
+        .icon               = "a_shells",
+        .pickup_name        = "Shells",
+        .count_width        = 3,
+        .quantity           = 10,
+        .flags              = IT_AMMO,
+        .tag                = AMMO_SHELLS,
     },
 
     /*QUAKED ammo_bullets (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "ammo_bullets",
-        Pickup_Ammo,
-        NULL,
-        Drop_Ammo,
-        NULL,
-        "misc/am_pkup.wav",
-        "models/items/ammo/bullets/medium/tris.md2", 0,
-        NULL,
-        /* icon */      "a_bullets",
-        /* pickup */    "Bullets",
-        /* width */     3,
-        50,
-        NULL,
-        IT_AMMO,
-        0,
-        NULL,
-        AMMO_BULLETS,
-        /* precache */ ""
+        .classname          = "ammo_bullets",
+        .pickup             = Pickup_Ammo,
+        .drop               = Drop_Ammo,
+        .pickup_sound       = "misc/am_pkup.wav",
+        .world_model        = "models/items/ammo/bullets/medium/tris.md2",
+        .icon               = "a_bullets",
+        .pickup_name        = "Bullets",
+        .count_width        = 3,
+        .quantity           = 50,
+        .flags              = IT_AMMO,
+        .tag                = AMMO_BULLETS,
     },
 
     /*QUAKED ammo_cells (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "ammo_cells",
-        Pickup_Ammo,
-        NULL,
-        Drop_Ammo,
-        NULL,
-        "misc/am_pkup.wav",
-        "models/items/ammo/cells/medium/tris.md2", 0,
-        NULL,
-        /* icon */      "a_cells",
-        /* pickup */    "Cells",
-        /* width */     3,
-        50,
-        NULL,
-        IT_AMMO,
-        0,
-        NULL,
-        AMMO_CELLS,
-        /* precache */ ""
+        .classname          = "ammo_cells",
+        .pickup             = Pickup_Ammo,
+        .drop               = Drop_Ammo,
+        .pickup_sound       = "misc/am_pkup.wav",
+        .world_model        = "models/items/ammo/cells/medium/tris.md2",
+        .icon               = "a_cells",
+        .pickup_name        = "Cells",
+        .count_width        = 3,
+        .quantity           = 50,
+        .flags              = IT_AMMO,
+        .tag                = AMMO_CELLS,
     },
 
     /*QUAKED ammo_rockets (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "ammo_rockets",
-        Pickup_Ammo,
-        NULL,
-        Drop_Ammo,
-        NULL,
-        "misc/am_pkup.wav",
-        "models/items/ammo/rockets/medium/tris.md2", 0,
-        NULL,
-        /* icon */      "a_rockets",
-        /* pickup */    "Rockets",
-        /* width */     3,
-        5,
-        NULL,
-        IT_AMMO,
-        0,
-        NULL,
-        AMMO_ROCKETS,
-        /* precache */ ""
+        .classname          = "ammo_rockets",
+        .pickup             = Pickup_Ammo,
+        .drop               = Drop_Ammo,
+        .pickup_sound       = "misc/am_pkup.wav",
+        .world_model        = "models/items/ammo/rockets/medium/tris.md2",
+        .icon               = "a_rockets",
+        .pickup_name        = "Rockets",
+        .count_width        = 3,
+        .quantity           = 5,
+        .flags              = IT_AMMO,
+        .tag                = AMMO_ROCKETS,
     },
 
     /*QUAKED ammo_slugs (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "ammo_slugs",
-        Pickup_Ammo,
-        NULL,
-        Drop_Ammo,
-        NULL,
-        "misc/am_pkup.wav",
-        "models/items/ammo/slugs/medium/tris.md2", 0,
-        NULL,
-        /* icon */      "a_slugs",
-        /* pickup */    "Slugs",
-        /* width */     3,
-        10,
-        NULL,
-        IT_AMMO,
-        0,
-        NULL,
-        AMMO_SLUGS,
-        /* precache */ ""
+        .classname          = "ammo_slugs",
+        .pickup             = Pickup_Ammo,
+        .drop               = Drop_Ammo,
+        .pickup_sound       = "misc/am_pkup.wav",
+        .world_model        = "models/items/ammo/slugs/medium/tris.md2",
+        .icon               = "a_slugs",
+        .pickup_name        = "Slugs",
+        .count_width        = 3,
+        .quantity           = 10,
+        .flags              = IT_AMMO,
+        .tag                = AMMO_SLUGS,
     },
-
 
     //
     // POWERUP ITEMS
@@ -1607,210 +1578,164 @@ gitem_t itemlist[] = {
     /*QUAKED item_quad (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_quad",
-        Pickup_Powerup,
-        Use_Quad,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/quaddama/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_quad",
-        /* pickup */    "Quad Damage",
-        /* width */     2,
-        60,
-        NULL,
-        IT_POWERUP,
-        0,
-        NULL,
-        0,
-        /* precache */ "items/damage.wav items/damage2.wav items/damage3.wav"
+        .classname          = "item_quad",
+        .pickup             = Pickup_Powerup,
+        .use                = Use_Quad,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/quaddama/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "p_quad",
+        .pickup_name        = "Quad Damage",
+        .count_width        = 2,
+        .quantity           = 60,
+        .flags              = IT_POWERUP,
+        .precaches          = (const char *const []) {
+            "items/damage.wav",
+            "items/damage2.wav",
+            "items/damage3.wav",
+            NULL
+        },
     },
 
     /*QUAKED item_invulnerability (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_invulnerability",
-        Pickup_Powerup,
-        Use_Invulnerability,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/invulner/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_invulnerability",
-        /* pickup */    "Invulnerability",
-        /* width */     2,
-        300,
-        NULL,
-        IT_POWERUP,
-        0,
-        NULL,
-        0,
-        /* precache */ "items/protect.wav items/protect2.wav items/protect4.wav"
+        .classname          = "item_invulnerability",
+        .pickup             = Pickup_Powerup,
+        .use                = Use_Invulnerability,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/invulner/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "p_invulnerability",
+        .pickup_name        = "Invulnerability",
+        .count_width        = 2,
+        .quantity           = 300,
+        .flags              = IT_POWERUP,
+        .precaches          = (const char *const []) {
+            "items/protect.wav",
+            "items/protect2.wav",
+            "items/protect4.wav",
+            NULL
+        },
     },
 
     /*QUAKED item_silencer (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_silencer",
-        Pickup_Powerup,
-        Use_Silencer,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/silencer/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_silencer",
-        /* pickup */    "Silencer",
-        /* width */     2,
-        60,
-        NULL,
-        IT_POWERUP,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "item_silencer",
+        .pickup             = Pickup_Powerup,
+        .use                = Use_Silencer,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/silencer/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "p_silencer",
+        .pickup_name        = "Silencer",
+        .count_width        = 2,
+        .quantity           = 60,
+        .flags              = IT_POWERUP,
     },
 
     /*QUAKED item_breather (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_breather",
-        Pickup_Powerup,
-        Use_Breather,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/breather/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_rebreather",
-        /* pickup */    "Rebreather",
-        /* width */     2,
-        60,
-        NULL,
-        IT_STAY_COOP | IT_POWERUP,
-        0,
-        NULL,
-        0,
-        /* precache */ "items/airout.wav"
+        .classname          = "item_breather",
+        .pickup             = Pickup_Powerup,
+        .use                = Use_Breather,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/breather/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "p_rebreather",
+        .pickup_name        = "Rebreather",
+        .count_width        = 2,
+        .quantity           = 60,
+        .flags              = IT_STAY_COOP | IT_POWERUP,
+        .precaches          = (const char *const []) {
+            "items/airout.wav",
+            NULL
+        },
     },
 
     /*QUAKED item_enviro (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_enviro",
-        Pickup_Powerup,
-        Use_Envirosuit,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/enviro/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_envirosuit",
-        /* pickup */    "Environment Suit",
-        /* width */     2,
-        60,
-        NULL,
-        IT_STAY_COOP | IT_POWERUP,
-        0,
-        NULL,
-        0,
-        /* precache */ "items/airout.wav"
+        .classname          = "item_enviro",
+        .pickup             = Pickup_Powerup,
+        .use                = Use_Envirosuit,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/enviro/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "p_envirosuit",
+        .pickup_name        = "Environment Suit",
+        .count_width        = 2,
+        .quantity           = 60,
+        .flags              = IT_STAY_COOP | IT_POWERUP,
+        .precaches          = (const char *const []) {
+            "items/airout.wav",
+            NULL
+        },
     },
 
     /*QUAKED item_ancient_head (.3 .3 1) (-16 -16 -16) (16 16 16)
     Special item that gives +2 to maximum health
     */
     {
-        "item_ancient_head",
-        Pickup_AncientHead,
-        NULL,
-        NULL,
-        NULL,
-        "items/pkup.wav",
-        "models/items/c_head/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_fixme",
-        /* pickup */    "Ancient Head",
-        /* width */     2,
-        60,
-        NULL,
-        0,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "item_ancient_head",
+        .pickup             = Pickup_AncientHead,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/c_head/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "i_fixme",
+        .pickup_name        = "Ancient Head",
+        .count_width        = 2,
+        .quantity           = 60,
     },
 
     /*QUAKED item_adrenaline (.3 .3 1) (-16 -16 -16) (16 16 16)
     gives +1 to maximum health
     */
     {
-        "item_adrenaline",
-        Pickup_Adrenaline,
-        NULL,
-        NULL,
-        NULL,
-        "items/pkup.wav",
-        "models/items/adrenal/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_adrenaline",
-        /* pickup */    "Adrenaline",
-        /* width */     2,
-        60,
-        NULL,
-        0,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "item_adrenaline",
+        .pickup             = Pickup_Adrenaline,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/adrenal/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "p_adrenaline",
+        .pickup_name        = "Adrenaline",
+        .count_width        = 2,
+        .quantity           = 60,
     },
 
     /*QUAKED item_bandolier (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_bandolier",
-        Pickup_Bandolier,
-        NULL,
-        NULL,
-        NULL,
-        "items/pkup.wav",
-        "models/items/band/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_bandolier",
-        /* pickup */    "Bandolier",
-        /* width */     2,
-        60,
-        NULL,
-        0,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "item_bandolier",
+        .pickup             = Pickup_Bandolier,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/band/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "p_bandolier",
+        .pickup_name        = "Bandolier",
+        .count_width        = 2,
+        .quantity           = 60,
     },
 
     /*QUAKED item_pack (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_pack",
-        Pickup_Pack,
-        NULL,
-        NULL,
-        NULL,
-        "items/pkup.wav",
-        "models/items/pack/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_pack",
-        /* pickup */    "Ammo Pack",
-        /* width */     2,
-        180,
-        NULL,
-        0,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "item_pack",
+        .pickup             = Pickup_Pack,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/pack/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "i_pack",
+        .pickup_name        = "Ammo Pack",
+        .count_width        = 2,
+        .quantity           = 180,
     },
 
     //
@@ -1820,243 +1745,164 @@ gitem_t itemlist[] = {
     key for computer centers
     */
     {
-        "key_data_cd",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/data_cd/tris.md2", EF_ROTATE,
-        NULL,
-        "k_datacd",
-        "Data CD",
-        2,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "key_data_cd",
+        .pickup             = Pickup_Key,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/keys/data_cd/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "k_datacd",
+        .pickup_name        = "Data CD",
+        .count_width        = 2,
+        .flags              = IT_STAY_COOP | IT_KEY,
     },
 
     /*QUAKED key_power_cube (0 .5 .8) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN NO_TOUCH
     warehouse circuits
     */
     {
-        "key_power_cube",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/power/tris.md2", EF_ROTATE,
-        NULL,
-        "k_powercube",
-        "Power Cube",
-        2,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "key_power_cube",
+        .pickup             = Pickup_Key,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/keys/power/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "k_powercube",
+        .pickup_name        = "Power Cube",
+        .count_width        = 2,
+        .flags              = IT_STAY_COOP | IT_KEY,
     },
 
     /*QUAKED key_pyramid (0 .5 .8) (-16 -16 -16) (16 16 16)
     key for the entrance of jail3
     */
     {
-        "key_pyramid",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/pyramid/tris.md2", EF_ROTATE,
-        NULL,
-        "k_pyramid",
-        "Pyramid Key",
-        2,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "key_pyramid",
+        .pickup             = Pickup_Key,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/keys/pyramid/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "k_pyramid",
+        .pickup_name        = "Pyramid Key",
+        .count_width        = 2,
+        .flags              = IT_STAY_COOP | IT_KEY,
     },
 
     /*QUAKED key_data_spinner (0 .5 .8) (-16 -16 -16) (16 16 16)
     key for the city computer
     */
     {
-        "key_data_spinner",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/spinner/tris.md2", EF_ROTATE,
-        NULL,
-        "k_dataspin",
-        "Data Spinner",
-        2,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "key_data_spinner",
+        .pickup             = Pickup_Key,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/keys/spinner/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "k_dataspin",
+        .pickup_name        = "Data Spinner",
+        .count_width        = 2,
+        .flags              = IT_STAY_COOP | IT_KEY,
     },
 
     /*QUAKED key_pass (0 .5 .8) (-16 -16 -16) (16 16 16)
     security pass for the security level
     */
     {
-        "key_pass",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/pass/tris.md2", EF_ROTATE,
-        NULL,
-        "k_security",
-        "Security Pass",
-        2,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "key_pass",
+        .pickup             = Pickup_Key,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/keys/pass/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "k_security",
+        .pickup_name        = "Security Pass",
+        .count_width        = 2,
+        .flags              = IT_STAY_COOP | IT_KEY,
     },
 
     /*QUAKED key_blue_key (0 .5 .8) (-16 -16 -16) (16 16 16)
     normal door key - blue
     */
     {
-        "key_blue_key",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/key/tris.md2", EF_ROTATE,
-        NULL,
-        "k_bluekey",
-        "Blue Key",
-        2,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "key_blue_key",
+        .pickup             = Pickup_Key,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/keys/key/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "k_bluekey",
+        .pickup_name        = "Blue Key",
+        .count_width        = 2,
+        .flags              = IT_STAY_COOP | IT_KEY,
     },
 
     /*QUAKED key_red_key (0 .5 .8) (-16 -16 -16) (16 16 16)
     normal door key - red
     */
     {
-        "key_red_key",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/red_key/tris.md2", EF_ROTATE,
-        NULL,
-        "k_redkey",
-        "Red Key",
-        2,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "key_red_key",
+        .pickup             = Pickup_Key,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/keys/red_key/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "k_redkey",
+        .pickup_name        = "Red Key",
+        .count_width        = 2,
+        .flags              = IT_STAY_COOP | IT_KEY,
     },
 
     /*QUAKED key_commander_head (0 .5 .8) (-16 -16 -16) (16 16 16)
     tank commander's head
     */
     {
-        "key_commander_head",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/monsters/commandr/head/tris.md2", EF_GIB,
-        NULL,
-        /* icon */      "k_comhead",
-        /* pickup */    "Commander's Head",
-        /* width */     2,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "key_commander_head",
+        .pickup             = Pickup_Key,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/monsters/commandr/head/tris.md2",
+        .world_model_flags  = EF_GIB,
+        .icon               = "k_comhead",
+        .pickup_name        = "Commander's Head",
+        .count_width        = 2,
+        .flags              = IT_STAY_COOP | IT_KEY,
     },
 
     /*QUAKED key_airstrike_target (0 .5 .8) (-16 -16 -16) (16 16 16)
     tank commander's head
     */
     {
-        "key_airstrike_target",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/target/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_airstrike",
-        /* pickup */    "Airstrike Marker",
-        /* width */     2,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
+        .classname          = "key_airstrike_target",
+        .pickup             = Pickup_Key,
+        .drop               = Drop_General,
+        .pickup_sound       = "items/pkup.wav",
+        .world_model        = "models/items/keys/target/tris.md2",
+        .world_model_flags  = EF_ROTATE,
+        .icon               = "i_airstrike",
+        .pickup_name        = "Airstrike Marker",
+        .count_width        = 2,
+        .flags              = IT_STAY_COOP | IT_KEY,
     },
 
     {
-        NULL,
-        Pickup_Health,
-        NULL,
-        NULL,
-        NULL,
-        "items/pkup.wav",
-        NULL, 0,
-        NULL,
-        /* icon */      "i_health",
-        /* pickup */    "Health",
-        /* width */     3,
-        0,
-        NULL,
-        0,
-        0,
-        NULL,
-        0,
-        /* precache */ "items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
+        .pickup             = Pickup_Health,
+        .pickup_sound       = "items/pkup.wav",
+        .icon               = "i_health",
+        .pickup_name        = "Health",
+        .count_width        = 3,
+        .precaches          = (const char *const []) {
+            "items/s_health.wav",
+            "items/n_health.wav",
+            "items/l_health.wav",
+            "items/m_health.wav",
+            NULL
+        },
     },
 
     // end of list marker
-    {NULL}
+    { NULL }
 };
-
 
 /*QUAKED item_health (.3 .3 1) (-16 -16 -16) (16 16 16)
 */
@@ -2120,13 +1966,10 @@ void SP_item_health_mega(edict_t *self)
     self->style = HEALTH_IGNORE_MAX | HEALTH_TIMED;
 }
 
-
 void InitItems(void)
 {
     game.num_items = sizeof(itemlist) / sizeof(itemlist[0]) - 1;
 }
-
-
 
 /*
 ===============
@@ -2138,9 +1981,9 @@ Called by worldspawn
 void SetItemNames(void)
 {
     int     i;
-    gitem_t *it;
+    const gitem_t   *it;
 
-    for (i = 0 ; i < game.num_items ; i++) {
+    for (i = 0; i < game.num_items; i++) {
         it = &itemlist[i];
         gi.configstring(CS_ITEMS + i, it->pickup_name);
     }

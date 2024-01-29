@@ -47,7 +47,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     disabled?
   auto trigger spawning
 
-
 =========================================================
 */
 
@@ -65,7 +64,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define DOOR_TOGGLE         32
 #define DOOR_X_AXIS         64
 #define DOOR_Y_AXIS         128
-
 
 //
 // Support routines for movement (changes in origin using velocity)
@@ -128,7 +126,6 @@ void Move_Calc(edict_t *ent, const vec3_t dest, void(*func)(edict_t*))
 		ent->nextthink = level.time + FRAME_TIME_S;
     }
 }
-
 
 //
 // Support routines for angular movement (changes in angle using avelocity)
@@ -213,7 +210,6 @@ void AngleMove_Calc(edict_t *ent, void(*func)(edict_t*))
 		ent->think = AngleMove_Begin;
     }
 }
-
 
 /*
 ==============
@@ -340,7 +336,6 @@ void Think_AccelMove(edict_t *ent)
     ent->think = Think_AccelMove;
 }
 
-
 void plat_go_down(edict_t *ent);
 
 void plat_hit_top(edict_t *ent)
@@ -407,14 +402,12 @@ void plat_blocked(edict_t *self, edict_t *other)
         plat_go_up(self);
 }
 
-
 void Use_Plat(edict_t *ent, edict_t *other, edict_t *activator)
 {
     if (ent->think)
         return;     // already down
     plat_go_down(ent);
 }
-
 
 void Touch_Plat_Center(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
@@ -472,7 +465,6 @@ void plat_spawn_inside_trigger(edict_t *ent)
 
     gi.linkentity(trigger);
 }
-
 
 /*QUAKED func_plat (0 .5 .8) ? PLAT_LOW_TRIGGER
 speed   default 150
@@ -920,7 +912,7 @@ void door_use(edict_t *self, edict_t *other, edict_t *activator)
     if (self->spawnflags & DOOR_TOGGLE) {
         if (self->moveinfo.state == STATE_UP || self->moveinfo.state == STATE_TOP) {
             // trigger all paired doors
-            for (ent = self ; ent ; ent = ent->teamchain) {
+            for (ent = self; ent; ent = ent->teamchain) {
                 ent->message = NULL;
                 ent->touch = NULL;
                 door_go_down(ent);
@@ -930,7 +922,7 @@ void door_use(edict_t *self, edict_t *other, edict_t *activator)
     }
 
     // trigger all paired doors
-    for (ent = self ; ent ; ent = ent->teamchain) {
+    for (ent = self; ent; ent = ent->teamchain) {
         ent->message = NULL;
         ent->touch = NULL;
         door_go_up(ent, activator);
@@ -1004,7 +996,7 @@ void Think_SpawnDoorTrigger(edict_t *ent)
     VectorCopy(ent->absmin, mins);
     VectorCopy(ent->absmax, maxs);
 
-    for (other = ent->teamchain ; other ; other = other->teamchain) {
+    for (other = ent->teamchain; other; other = other->teamchain) {
         AddPointToBounds(other->absmin, mins, maxs);
         AddPointToBounds(other->absmax, mins, maxs);
     }
@@ -1048,15 +1040,14 @@ void door_blocked(edict_t *self, edict_t *other)
     if (self->spawnflags & DOOR_CRUSHER)
         return;
 
-
 // if a door has a negative wait, it would never come back if blocked,
 // so let it just squash the object to death real fast
     if (self->moveinfo.wait >= 0) {
         if (self->moveinfo.state == STATE_DOWN) {
-            for (ent = self->teammaster ; ent ; ent = ent->teamchain)
+            for (ent = self->teammaster; ent; ent = ent->teamchain)
                 door_go_up(ent, ent->activator);
         } else {
-            for (ent = self->teammaster ; ent ; ent = ent->teamchain)
+            for (ent = self->teammaster; ent; ent = ent->teamchain)
                 door_go_down(ent);
         }
     }
@@ -1066,7 +1057,7 @@ void door_killed(edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 {
     edict_t *ent;
 
-    for (ent = self->teammaster ; ent ; ent = ent->teamchain) {
+    for (ent = self->teammaster; ent; ent = ent->teamchain) {
         ent->health = ent->max_health;
         ent->takedamage = DAMAGE_NO;
     }
@@ -1174,7 +1165,6 @@ void SP_func_door(edict_t *ent)
     else
         ent->think = Think_SpawnDoorTrigger;
 }
-
 
 /*QUAKED func_door_rotating (0 .5 .8) ? START_OPEN REVERSE CRUSHER NOMONSTER ANIMATED TOGGLE X_AXIS Y_AXIS
 TOGGLE causes the door to wait in both the start and end states for a trigger event.
@@ -1301,7 +1291,6 @@ void SP_func_door_rotating(edict_t *ent)
         ent->think = Think_SpawnDoorTrigger;
 }
 
-
 /*QUAKED func_water (0 .5 .8) ? START_OPEN
 func_water is a moveable water brush.  It must be targeted to operate.  Use a non-water texture at your own risk.
 
@@ -1380,7 +1369,6 @@ void SP_func_water(edict_t *self)
 
     gi.linkentity(self);
 }
-
 
 #define TRAIN_START_ON      1
 #define TRAIN_TOGGLE        2
@@ -1609,7 +1597,6 @@ void SP_func_train(edict_t *self)
     }
 }
 
-
 /*QUAKED trigger_elevator (0.3 0.1 0.6) (-8 -8 -8) (8 8 8)
 */
 void trigger_elevator_use(edict_t *self, edict_t *other, edict_t *activator)
@@ -1662,7 +1649,6 @@ void SP_trigger_elevator(edict_t *self)
     self->think = trigger_elevator_init;
 	self->nextthink = level.time + FRAME_TIME_S;
 }
-
 
 /*QUAKED func_timer (0.3 0.1 0.6) (-8 -8 -8) (8 8 8) START_ON
 "wait"          base time between triggering all targets, default is 1
@@ -1722,7 +1708,6 @@ void SP_func_timer(edict_t *self)
     self->svflags = SVF_NOCLIENT;
 }
 
-
 /*QUAKED func_conveyor (0 .5 .8) ? START_ON TOGGLE
 Conveyors are stationary brushes that move what's on them.
 The brush should be have a surface with at least one current content enabled.
@@ -1759,7 +1744,6 @@ void SP_func_conveyor(edict_t *self)
     self->solid = SOLID_BSP;
     gi.linkentity(self);
 }
-
 
 /*QUAKED func_door_secret (0 .5 .8) ? always_shoot 1st_left 1st_down
 A secret door.  Slide back and then to the side.
@@ -1926,7 +1910,6 @@ void SP_func_door_secret(edict_t *ent)
 
     gi.linkentity(ent);
 }
-
 
 /*QUAKED func_killbox (1 0 0) ?
 Kills everything inside when fired, irrespective of protection.

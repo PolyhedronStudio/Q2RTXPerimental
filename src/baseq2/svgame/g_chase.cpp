@@ -87,8 +87,13 @@ void UpdateChaseCam(edict_t *ent)
         ent->client->ps.pmove.pm_type = PM_FREEZE;
 
     VectorCopy(goal, ent->s.origin);
+<<<<<<<< HEAD:src/baseq2/svgame/g_chase.cpp
     for (i = 0 ; i < 3 ; i++)
         ent->client->ps.pmove.delta_angles[i] = /*ANGLE2SHORT*/(targ->client->v_angle[i] - ent->client->resp.cmd_angles[i]);
+========
+    for (i = 0; i < 3; i++)
+        ent->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(targ->client->v_angle[i] - ent->client->resp.cmd_angles[i]);
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_chase.c
 
     if (targ->deadflag) {
         ent->client->ps.viewangles[ROLL] = 40;

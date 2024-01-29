@@ -384,12 +384,6 @@ static void CL_Connect_c(genctx_t *ctx, int argnum)
     if (argnum == 1) {
         CL_RecentIP_g(ctx);
         Com_Address_g(ctx);
-    } else if (argnum == 2) {
-        if (!ctx->partial[0] || (ctx->partial[0] == '3' && !ctx->partial[1])) {
-            Prompt_AddMatch(ctx, "34");
-            Prompt_AddMatch(ctx, "35");
-            Prompt_AddMatch(ctx, "36");
-        }
     }
 }
 
@@ -403,13 +397,10 @@ static void CL_Connect_f(void)
 {
     char    *server, *p;
     netadr_t    address;
-    int protocol;
-    int argc = Cmd_Argc();
 
 
-    if (argc < 2) {
-//usage:
-        Com_Printf("Usage: %s <server> [34|35|36]\n", Cmd_Argv(0));
+    if (Cmd_Argc() < 2) {
+        Com_Printf("Usage: %s <server>\n", Cmd_Argv(0));
         return;
     }
 
@@ -423,7 +414,7 @@ static void CL_Connect_f(void)
     //    protocol = cl_protocol->integer;
     //    if (!protocol) {
 			// WID: net-code: We want to default to Q2RTXPerimental protocol my man.
-            protocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
+            int32_t protocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
     //    }
     //}
 
@@ -453,8 +444,7 @@ static void CL_Connect_f(void)
     CL_Disconnect(ERR_RECONNECT);
 
     cls.serverAddress = address;
-    cls.serverProtocol = protocol;
-    cls.protocolVersion = 0;
+    cls.serverProtocol = cl_protocol->integer;
     cls.passive = false;
     cls.state = ca_challenging;
     cls.connect_time -= CONNECT_FAST;
@@ -947,21 +937,18 @@ The server is changing levels
 */
 static void CL_Reconnect_f(void)
 {
-    if ( cls.demo.playback ) {
-        Com_Printf( "No server to reconnect to.\n" );
+    if (cls.demo.playback) {
+        Com_Printf("No server to reconnect to.\n");
         return;
     }
 
-    if ( cls.state >= ca_precached || Cmd_From() != FROM_STUFFTEXT ) {
+    if (cls.state >= ca_precached || Cmd_From() != FROM_STUFFTEXT) {
         CL_Disconnect(ERR_RECONNECT);
     }
 
     if (cls.state >= ca_connected) {
         cls.state = ca_connected;
 
-        if (cls.demo.playback) {
-            return;
-        }
         if (cls.download.file) {
             return; // if we are downloading, we don't change!
         }
@@ -977,13 +964,14 @@ static void CL_Reconnect_f(void)
         Com_Printf("No server to reconnect to.\n");
         return;
     }
-    if ( cls.serverAddress.type == NA_LOOPBACK && !sv_running->integer ) {
+    if (cls.serverAddress.type == NA_LOOPBACK && !sv_running->integer) {
         Com_Printf("Can not reconnect to loopback.\n");
         return;
     }
 
     Com_Printf("Reconnecting...\n");
 
+    cls.serverProtocol = cl_protocol->integer;
     cls.state = ca_challenging;
     cls.connect_time -= CONNECT_FAST;
     cls.connect_count = 0;
@@ -991,7 +979,7 @@ static void CL_Reconnect_f(void)
     SCR_UpdateScreen();
 }
 
-#ifdef USE_UI
+#if USE_UI
 /*
 =================
 CL_SendStatusRequest
@@ -1064,7 +1052,7 @@ static void CL_Skins_f(void)
     char *s;
     clientinfo_t *ci;
 
-    if ( cls.state < ca_precached ) {
+    if (cls.state < ca_precached) {
         Com_Printf("Must be in a level to load skins.\n");
         return;
     }
@@ -1091,7 +1079,7 @@ static void cl_noskins_changed(cvar_t *self)
     char *s;
     clientinfo_t *ci;
 
-    if ( cls.state < ca_precached ) {
+    if (cls.state < ca_precached) {
         return;
     }
 
@@ -1106,7 +1094,7 @@ static void cl_noskins_changed(cvar_t *self)
 
 static void cl_vwep_changed(cvar_t *self)
 {
-    if ( cls.state < ca_precached ) {
+    if (cls.state < ca_precached) {
         return;
     }
 
@@ -1119,7 +1107,7 @@ static void CL_Name_g(genctx_t *ctx)
     int i;
     char buffer[MAX_CLIENT_NAME];
 
-    if ( cls.state < ca_precached ) {
+    if (cls.state < ca_precached) {
         return;
     }
 
@@ -1317,7 +1305,7 @@ CL_PacketEvent
 */
 static void CL_PacketEvent(void)
 {
-    if ( msg_read.cursize < 4 ) {
+    if (msg_read.cursize < 4) {
         return;
     }
 
@@ -2006,8 +1994,7 @@ static size_t CL_DemoPos_m(char *buffer, size_t size)
     sec = framenum / 10; framenum %= 10;
     min = sec / 60; sec %= 60;
 
-    return Q_scnprintf(buffer, size,
-                       "%d:%02d.%d", min, sec, framenum);
+    return Q_scnprintf(buffer, size, "%d:%02d.%d", min, sec, framenum);
 }
 
 static size_t CL_Fps_m(char *buffer, size_t size)
@@ -2555,7 +2542,7 @@ static void CL_InitLocal(void)
     cl_changemapcmd = Cvar_Get("cl_changemapcmd", "", 0);
     cl_beginmapcmd = Cvar_Get("cl_beginmapcmd", "", 0);
 
-    cl_protocol = Cvar_Get("cl_protocol", "0", 0);
+    cl_protocol = Cvar_Get("cl_protocol", std::to_string( PROTOCOL_VERSION_Q2RTXPERIMENTAL).c_str(), 0);
 
     gender_auto = Cvar_Get("gender_auto", "1", CVAR_ARCHIVE);
 

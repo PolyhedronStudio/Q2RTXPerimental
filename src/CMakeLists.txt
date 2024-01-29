@@ -89,6 +89,7 @@ endif()
 IF( CONFIG_BUILD_CLIENT_TARGET )
 	# Add Build Target:
 	IF( WIN32 )
+		message( ${SRC_CLIENT} )
 		add_executable(client WIN32 
 			${SRC_CLIENT} ${HEADERS_CLIENT} 
 			${SRC_COMMON} ${HEADERS_COMMON} 
@@ -97,6 +98,8 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
 			${SRC_WINDOWS} ${SRC_WINDOWS_CLIENT} ${HEADERS_WINDOWS}
 			${SRC_SERVER} ${HEADERS_SERVER}
 			windows/res/q2rtxp.rc
+			windows/threads/threads.c
+			windows/pthread.c
 		)
 	ELSE()
 		add_executable(client
@@ -205,6 +208,7 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 			${SRC_SERVER} ${HEADERS_SERVER}
 			client/null.cpp
 			windows/res/q2rtxpded.rc
+			windows/threads/threads.c
 		)
 	ELSE()
 		ADD_EXECUTABLE(server

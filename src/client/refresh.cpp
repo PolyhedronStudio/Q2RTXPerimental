@@ -23,21 +23,26 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 #include "client.h"
+#include "client/video.h"
 #include "refresh/images.h"
 #include "refresh/models.h"
 
 // Console variables that we need to access from this module
-cvar_t      *vid_rtx;
-cvar_t      *vid_geometry;
-cvar_t      *vid_modelist;
-cvar_t      *vid_fullscreen;
-cvar_t      *_vid_fullscreen;
-cvar_t      *vid_display;
-cvar_t      *vid_displaylist;
-
+extern "C" {
+    cvar_t *vid_rtx;
+    cvar_t *vid_geometry;
+    cvar_t *vid_modelist;
+    cvar_t *vid_fullscreen;
+    cvar_t *_vid_fullscreen;
+    cvar_t *vid_display;
+    cvar_t *vid_displaylist;
+};
 // used in gl and vkpt renderers
 int registration_sequence;
 
+extern "C" {
+    vid_driver_t    vid;
+}
 #define MODE_GEOMETRY   1
 #define MODE_FULLSCREEN 2
 #define MODE_MODELIST   4
@@ -124,7 +129,7 @@ bool VID_GetFullscreen(vrect_t *rc, int *freq_p, int *depth_p)
     }
 
     // sanity check
-    if (w < 64 || w > 8192 || h < 64 || h > 8192 || freq > 1000 || depth > 32) {
+    if (w < 320 || w > 8192 || h < 240 || h > 8192 || freq > 1000 || depth > 32) {
         Com_DPrintf("Mode %lux%lu@%lu:%lu doesn't look sane\n", w, h, freq, depth);
         return false;
     }
@@ -179,7 +184,7 @@ bool VID_GetGeometry(vrect_t *rc)
     }
 
     // sanity check
-    if (w < 64 || w > 8192 || h < 64 || h > 8192) {
+    if (w < 320 || w > 8192 || h < 240 || h > 8192) {
         Com_DPrintf("Geometry %lux%lu doesn't look sane\n", w, h);
         return false;
     }
@@ -226,6 +231,11 @@ LOADING / SHUTDOWN
 
 ==========================================================================
 */
+extern const vid_driver_t vid_sdl;
+static const vid_driver_t *const vid_drivers[] = {
+    &vid_sdl,
+    NULL
+};
 
 /*
 ============
@@ -238,22 +248,22 @@ void CL_RunRefresh(void)
         return;
     }
 
-    VID_PumpEvents();
+    vid.pump_events();
 
     if (mode_changed) {
         if (mode_changed & MODE_FULLSCREEN) {
-            VID_SetMode();
+            vid.set_mode();
             if (vid_fullscreen->integer) {
                 Cvar_Set("_vid_fullscreen", vid_fullscreen->string);
             }
         } else {
             if (vid_fullscreen->integer) {
                 if (mode_changed & MODE_MODELIST) {
-                    VID_SetMode();
+                    vid.set_mode();
                 }
             } else {
                 if (mode_changed & MODE_GEOMETRY) {
-                    VID_SetMode();
+                    vid.set_mode();
                 }
             }
         }
@@ -284,6 +294,12 @@ static void vid_modelist_changed(cvar_t *self)
     mode_changed |= MODE_MODELIST;
 }
 
+static void vid_driver_g(genctx_t *ctx)
+{
+    for (int i = 0; vid_drivers[i]; i++)
+        Prompt_AddMatch(ctx, vid_drivers[i]->name);
+}
+
 /*
 ============
 CL_InitRefresh
@@ -292,6 +308,7 @@ CL_InitRefresh
 void CL_InitRefresh(void)
 {
     char *modelist;
+    int i;
 
     if (cls.ref_initialized) {
         return;
@@ -299,13 +316,6 @@ void CL_InitRefresh(void)
 
     vid_display = Cvar_Get("vid_display", "0", CVAR_ARCHIVE | CVAR_REFRESH);
     vid_displaylist = Cvar_Get("vid_displaylist", "\"<unknown>\" 0", CVAR_ROM);
-
-    Com_SetLastError(NULL);
-
-    modelist = VID_GetDefaultModeList();
-    if (!modelist) {
-        Com_Error(ERR_FATAL, "Couldn't initialize refresh: %s", Com_GetLastError());
-    }
 
     // Create the video variables so we know how to start the graphics drivers
 
@@ -317,12 +327,11 @@ void CL_InitRefresh(void)
 #endif
 		CVAR_REFRESH | CVAR_ARCHIVE);
 
+    cvar_t *vid_driver = Cvar_Get("vid_driver", "", CVAR_REFRESH);
+    vid_driver->generator = vid_driver_g;
     vid_fullscreen = Cvar_Get("vid_fullscreen", "0", CVAR_ARCHIVE);
     _vid_fullscreen = Cvar_Get("_vid_fullscreen", "1", CVAR_ARCHIVE);
-    vid_modelist = Cvar_Get("vid_modelist", modelist, 0);
     vid_geometry = Cvar_Get("vid_geometry", VID_GEOMETRY, CVAR_ARCHIVE);
-
-    Z_Free(modelist);
 
     if (vid_fullscreen->integer) {
         Cvar_Set("_vid_fullscreen", vid_fullscreen->string);
@@ -330,7 +339,7 @@ void CL_InitRefresh(void)
         Cvar_Set("_vid_fullscreen", "1");
     }
 
-    Com_SetLastError(NULL);
+    Com_SetLastError("No available video driver");
 
 #if REF_GL && REF_VKPT
 	if (vid_rtx->integer)
@@ -345,11 +354,50 @@ void CL_InitRefresh(void)
 #error "REF_GL and REF_VKPT are both disabled, at least one has to be enableds"
 #endif
 
-    cls.ref_type = R_Init(true);
-    if (cls.ref_type == REF_TYPE_NONE) {
-        Com_Error(ERR_FATAL, "Couldn't initialize refresh: %s", Com_GetLastError());
+    // Try to initialize selected driver first
+    ref_type_t ref_type = REF_TYPE_NONE;
+    for (i = 0; vid_drivers[i]; i++) {
+        if (!strcmp(vid_drivers[i]->name, vid_driver->string)) {
+            vid = *vid_drivers[i];
+            ref_type = R_Init(true);
+            break;
+        }
     }
 
+    if (!vid_drivers[i] && vid_driver->string[0]) {
+        Com_Printf("No such video driver: %s.\n"
+                   "Available video drivers: ", vid_driver->string);
+        for (int j = 0; vid_drivers[j]; j++) {
+            if (j)
+                Com_Printf(", ");
+            Com_Printf("%s", vid_drivers[j]->name);
+        }
+        Com_Printf(".\n");
+    }
+
+    // Fall back to other available drivers
+    if (ref_type == REF_TYPE_NONE) {
+        int tried = i;
+        for (i = 0; vid_drivers[i]; i++) {
+            if (i == tried || !vid_drivers[i]->probe || !vid_drivers[i]->probe())
+                continue;
+            vid = *vid_drivers[i];
+            if ((ref_type = R_Init(true)) != REF_TYPE_NONE)
+                break;
+        }
+        Cvar_Reset(vid_driver);
+    }
+
+    if (ref_type == REF_TYPE_NONE)
+        Com_Error(ERR_FATAL, "Couldn't initialize refresh: %s", Com_GetLastError());
+
+    modelist = vid.get_mode_list();
+    vid_modelist = Cvar_Get("vid_modelist", modelist, 0);
+    Z_Free(modelist);
+
+    vid.set_mode();
+
+    cls.ref_type = ref_type;
     cls.ref_initialized = true;
 
     vid_geometry->changed = vid_geometry_changed;
@@ -393,6 +441,8 @@ void CL_ShutdownRefresh(void)
 
     R_Shutdown(true);
 
+    memset(&vid, 0, sizeof(vid));
+
     cls.ref_initialized = false;
     cls.ref_type = REF_TYPE_NONE;
 
@@ -405,66 +455,82 @@ void CL_ShutdownRefresh(void)
 // WID: C++20: Need to 'extern C' this.
 extern "C" {
 
-	refcfg_t r_config;
+    refcfg_t r_config;
 
-ref_type_t(*R_Init)(bool total) = NULL;
-void(*R_Shutdown)(bool total) = NULL;
-void(*R_BeginRegistration)(const char *map) = NULL;
-void(*R_SetSky)(const char *name, float rotate, int autorotate, const vec3_t axis) = NULL;
-void(*R_EndRegistration)(void) = NULL;
-void(*R_RenderFrame)(refdef_t *fd) = NULL;
-void(*R_LightPoint)(const vec3_t origin, vec3_t light) = NULL;
-void(*R_ClearColor)(void) = NULL;
-void(*R_SetAlpha)(float clpha) = NULL;
-void(*R_SetAlphaScale)(float alpha) = NULL;
-void(*R_SetColor)(uint32_t color) = NULL;
-void(*R_SetClipRect)(const clipRect_t *clip) = NULL;
-void(*R_SetScale)(float scale) = NULL;
-void(*R_DrawChar)(int x, int y, int flags, int ch, qhandle_t font) = NULL;
-int(*R_DrawString)(int x, int y, int flags, size_t maxChars,
-	const char *string, qhandle_t font) = NULL;
-void(*R_DrawPic)(int x, int y, qhandle_t pic) = NULL;
-void(*R_DrawStretchPic)(int x, int y, int w, int h, qhandle_t pic) = NULL;
-void(*R_DrawStretchRaw)(int x, int y, int w, int h) = NULL;
-void(*R_TileClear)(int x, int y, int w, int h, qhandle_t pic) = NULL;
-void(*R_DrawFill8)(int x, int y, int w, int h, int c) = NULL;
-void(*R_DrawFill32)(int x, int y, int w, int h, uint32_t color) = NULL;
-void(*R_UpdateRawPic)(int pic_w, int pic_h, const uint32_t *pic) = NULL;
-void(*R_DiscardRawPic)(void) = NULL;
-void(*R_BeginFrame)(void) = NULL;
-void(*R_EndFrame)(void) = NULL;
-void(*R_ModeChanged)(int width, int height, int flags, int rowbytes, void *pixels) = NULL;
-void(*R_AddDecal)(decal_t *d) = NULL;
-bool(*R_InterceptKey)(unsigned key, bool down) = NULL;
-bool(*R_IsHDR)(void) = NULL;
+    ref_type_t( *R_Init )( bool total ) = NULL;
+    void( *R_Shutdown )( bool total ) = NULL;
+    void( *R_BeginRegistration )( const char *map ) = NULL;
+    void( *R_SetSky )( const char *name, float rotate, int autorotate, const vec3_t axis ) = NULL;
+    void( *R_EndRegistration )( void ) = NULL;
+    void( *R_RenderFrame )( refdef_t *fd ) = NULL;
+    void( *R_LightPoint )( const vec3_t origin, vec3_t light ) = NULL;
+    void( *R_ClearColor )( void ) = NULL;
+    void( *R_SetAlpha )( float clpha ) = NULL;
+    void( *R_SetAlphaScale )( float alpha ) = NULL;
+    void( *R_SetColor )( uint32_t color ) = NULL;
+    void( *R_SetClipRect )( const clipRect_t *clip ) = NULL;
+    void( *R_SetScale )( float scale ) = NULL;
+    void( *R_DrawChar )( int x, int y, int flags, int ch, qhandle_t font ) = NULL;
+    int( *R_DrawString )( int x, int y, int flags, size_t maxChars,
+        const char *string, qhandle_t font ) = NULL;
+    void( *R_DrawPic )( int x, int y, qhandle_t pic ) = NULL;
+    void( *R_DrawStretchPic )( int x, int y, int w, int h, qhandle_t pic ) = NULL;
+    void( *R_DrawKeepAspectPic )( int x, int y, int w, int h, qhandle_t pic ) = NULL;
+    void( *R_DrawStretchRaw )( int x, int y, int w, int h ) = NULL;
+    void( *R_TileClear )( int x, int y, int w, int h, qhandle_t pic ) = NULL;
+    void( *R_DrawFill8 )( int x, int y, int w, int h, int c ) = NULL;
+    void( *R_DrawFill32 )( int x, int y, int w, int h, uint32_t color ) = NULL;
+    void( *R_UpdateRawPic )( int pic_w, int pic_h, const uint32_t *pic ) = NULL;
+    void( *R_DiscardRawPic )( void ) = NULL;
+    void( *R_BeginFrame )( void ) = NULL;
+    void( *R_EndFrame )( void ) = NULL;
+    void( *R_ModeChanged )( int width, int height, int flags ) = NULL;
+    void( *R_AddDecal )( decal_t *d ) = NULL;
+    bool( *R_InterceptKey )( unsigned key, bool down ) = NULL;
+    bool( *R_IsHDR )( void ) = NULL;
 
-	void(*IMG_Unload)(image_t* image) = NULL;
-	void(*IMG_Load)(image_t* image, byte* pic) = NULL;
-	void(*IMG_ReadPixels)(screenshot_t* s) = NULL;
-	void(*IMG_ReadPixelsHDR)(screenshot_t* s) = NULL;
+    void( *IMG_Unload )( image_t *image ) = NULL;
+    void( *IMG_Load )( image_t *image, byte *pic ) = NULL;
+    void( *IMG_ReadPixels )( screenshot_t *s ) = NULL;
+    void( *IMG_ReadPixelsHDR )( screenshot_t *s ) = NULL;
 
-	int(*MOD_LoadMD2)(model_t* model, const void* rawdata, size_t length, const char* mod_name) = NULL;
-#if USE_MD3
-	int(*MOD_LoadMD3)(model_t* model, const void* rawdata, size_t length, const char* mod_name) = NULL;
-#endif
-	int(*MOD_LoadIQM)(model_t* model, const void* rawdata, size_t length, const char* mod_name) = NULL;
-	void(*MOD_Reference)(model_t* model) = NULL;
+    int( *MOD_LoadMD2 )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = NULL;
+    #if USE_MD3
+    int( *MOD_LoadMD3 )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = NULL;
+    #endif
+    int( *MOD_LoadIQM )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = NULL;
+    void( *MOD_Reference )( model_t *model ) = NULL;
 
-	float R_ClampScale(cvar_t* var)
-	{
-		if (!var)
-			return 1.0f;
+    int get_auto_scale( void ) {
+        int scale = 1;
 
-		if (var->value)
-			return 1.0f / Cvar_ClampValue(var, 1.0f, 10.0f);
+        if ( r_config.height < r_config.width ) {
+            if ( r_config.height >= 2160 )
+                scale = 4;
+            else if ( r_config.height >= 1080 )
+                scale = 2;
+        } else {
+            if ( r_config.width >= 3840 )
+                scale = 4;
+            else if ( r_config.width >= 1920 )
+                scale = 2;
+        }
 
-		if (r_config.width >= 3840 && r_config.height >= 2160)
-			return 0.25f; // 4x scaling
+        if ( vid.get_dpi_scale ) {
+            int min_scale = vid.get_dpi_scale();
+            return max( scale, min_scale );
+        }
 
-		if (r_config.width >= 1920 && r_config.height >= 1080)
-			return 0.5f;  // 2x scaling
+        return scale;
+    }
 
-		return 1.0f;
-	}
+    float R_ClampScale( cvar_t *var ) {
+        if ( !var )
+            return 1.0f;
 
-};
+        if ( var->value )
+            return 1.0f / Cvar_ClampValue( var, 1.0f, 10.0f );
+
+        return 1.0f / get_auto_scale();
+    }
+}

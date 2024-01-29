@@ -321,6 +321,13 @@ add more delay. Only affects the DMA sound engine. Default value is 0.1.
 Swap left and right audio channels. Only effective when using DMA sound
 engine. Default value is 0 (don't swap).
 
+#### `s_driver`
+Specifies which DMA sound driver to use. Default value is empty (detect
+automatically). Possible sound drivers are (not all of them are typically
+available at the same time, depending on how client was compiled):
+  - wave — Windows waveform audio
+  - sdl — SDL2 audio
+
 #### `al_driver`
 Specifies the name of OpenAL driver to use. Default value is `soft_oal`
 on Windows, and ‘libopenal.so.1’ on Linux.
@@ -586,6 +593,12 @@ value is 0 (don't switch video modes).
 Instructs the video driver to use hardware gamma correction for
 implementing `vid_gamma`.  Default value is 0 (use software gamma).
 
+#### `vid_driver`
+Specifies which video driver to use. Default value is empty (detect
+automatically). Possible video drivers are (not all of them are typically
+available at the same time, depending on how client was compiled):
+  - sdl — SDL2 video driver
+
 #### `vid_rtx`
 Switches between the OpenGL (0) and Vulkan RTX (1) renderers.
 Default value is 1.
@@ -624,14 +637,16 @@ Hides the main window title bar. Default is 0 (show title bar).
 Puts the main window on top of other windows. Default is 0 (main window can
 be obscured by other windows).
 
-#### `win_xpfix`
-Temporary disables mouse acceleration setting applied by the OS. Only
-effective when legacy Windows mouse input is in use, otherwise ignored.
-Default value is 0 (don't modify OS setting).
+#### `sys_viewlog`
+Show system console window when running a client. Can be set from command
+line only.
 
-#### `win_rawmouse`
-Enables raw mouse input instead of legacy Windows mouse input. Default
-value is 1 (use raw input).
+#### `sys_disablecrashdump`
+Disable crash dump generation. Can be set from command line only.
+
+#### `sys_exitonerror`
+Exit on fatal error instead of showing error message. Can be set from
+command line only.
 
 ### Vulkan RTX Renderer
 
@@ -852,10 +867,15 @@ Controls if the Depth of Field effect should be used in various rendering modes:
 Enables the laser beam effects. Default value is 1.
 
 #### `pt_enable_nodraw`
-When this cvar is set to 1, all BSP surfaces marked with the `SURF_NODRAW` flag
-will be removed from the world at map load time. Should be enabled on some 
-maps outside of the base Quake 2 game where such surfaces are used to provide 
-fake indoor lighting, normally appearing as sky blocks in the middle of a room.
+When this cvar is set to 1, BSP surfaces marked with the `SURF_NODRAW` flag
+will be removed from the world at map load time, with the exception of those
+with a "SKY" type material specified in the materials database.
+Should be enabled on some maps outside of the base Quake 2 game where such
+surfaces are used to provide fake indoor lighting, normally appearing as sky
+blocks in the middle of a room.
+If set to 2, removes all `SURF_NODRAW` surfaces, including those with a
+"proper" sky surface. Should be used if such fake lighting blocks keep
+showing up.
 Default value is 0.
 
 #### `pt_enable_particles`
@@ -905,7 +925,11 @@ Size of new particles, before they fade out, in world units. Default value is 0.
 Selects the projection to use for rendering. Default value is 0.
 
 - 0 — regular perspective projection
-- 1 — cylindrical projection
+- 1 — panini (cylindrical stereographic) projection
+- 2 — stereographic projection
+- 3 — cylindrical projection
+- 4 — equirectangular projection
+- 5 — mercator projection
 
 #### `pt_reflect_refract`
 Number of reflection or refraction bounces to trace. Default value is 2.
@@ -1732,7 +1756,7 @@ If _value_ is omitted, subtract 1 from the value of _cvar_.
 Otherwise, subtract the specified floating point _value_.
 
 #### `reset <cvar>`
-Reset the specified _cvar_ to it's default value.
+Reset the specified _cvar_ to its default value.
 
 #### `resetall`
 Resets all cvars to their default values.
@@ -1992,6 +2016,10 @@ it used to be you know where to look. The following list may be incomplete.
   renderers.  Thus, `vid_ref` cvar has been made read-only and exists only for
   informational purpose.
 
+- Q2PRO supports loading system OpenGL library only. Thus, `gl_driver` cvar has
+  been made read-only and exists only for compatibility with tools like
+  Q2Admin.
+
 - Default value of `gl_dynamic` variable has been changed from 1 to 2. This means
   dynamic lights will be disabled by default.
 
@@ -2005,7 +2033,7 @@ it used to be you know where to look. The following list may be incomplete.
 - `gl_particle_*` series of variables are gone, as well as
   `gl_ext_pointparameters` and R1GL-specific `gl_ext_point_sprite`. For
   controlling size of particles, which are always drawn as textured triangles,
-  Q2PRO supports it's own `gl_partscale` variable.
+  Q2PRO supports its own `gl_partscale` variable.
 
 - `ip` variable has been renamed to `net_ip`.
 

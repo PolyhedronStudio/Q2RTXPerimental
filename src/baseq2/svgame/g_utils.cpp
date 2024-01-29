@@ -19,14 +19,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "g_local.h"
 
-
 void G_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result)
 {
     result[0] = point[0] + forward[0] * distance[0] + right[0] * distance[1];
     result[1] = point[1] + forward[1] * distance[0] + right[1] * distance[1];
     result[2] = point[2] + forward[2] * distance[0] + right[2] * distance[1] + distance[2];
 }
-
 
 /*
 =============
@@ -50,7 +48,7 @@ edict_t *G_Find(edict_t *from, int fieldofs, const char *match)
     else
         from++;
 
-    for (; from < &g_edicts[globals.num_edicts] ; from++) {
+    for (; from < &g_edicts[globals.num_edicts]; from++) {
         if (!from->inuse)
             continue;
         s = *(char **)((byte *)from + fieldofs);
@@ -62,7 +60,6 @@ edict_t *G_Find(edict_t *from, int fieldofs, const char *match)
 
     return NULL;
 }
-
 
 /*
 =================
@@ -87,7 +84,7 @@ edict_t *findradius(edict_t *from, vec3_t org, float rad)
             continue;
         if (from->solid == SOLID_NOT)
             continue;
-        for (j = 0 ; j < 3 ; j++)
+        for (j = 0; j < 3; j++)
             eorg[j] = org[j] - (from->s.origin[j] + (from->mins[j] + from->maxs[j]) * 0.5f);
         if (VectorLength(eorg) > rad)
             continue;
@@ -96,7 +93,6 @@ edict_t *findradius(edict_t *from, vec3_t org, float rad)
 
     return NULL;
 }
-
 
 /*
 =============
@@ -139,8 +135,6 @@ edict_t *G_PickTarget(char *targetname)
 
     return choice[Q_rand_uniform(num_choices)];
 }
-
-
 
 void Think_Delay(edict_t *ent)
 {
@@ -185,7 +179,6 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
         t->killtarget = ent->killtarget;
         return;
     }
-
 
 //
 // print the message
@@ -237,11 +230,10 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
     }
 }
 
-
-vec3_t VEC_UP       = {0, -1, 0};
-vec3_t MOVEDIR_UP   = {0, 0, 1};
-vec3_t VEC_DOWN     = {0, -2, 0};
-vec3_t MOVEDIR_DOWN = {0, 0, -1};
+static const vec3_t VEC_UP       = { 0, -1,  0 };
+static const vec3_t MOVEDIR_UP   = { 0,  0,  1 };
+static const vec3_t VEC_DOWN     = { 0, -2,  0 };
+static const vec3_t MOVEDIR_DOWN = { 0,  0, -1 };
 
 void G_SetMovedir(vec3_t angles, vec3_t movedir)
 {
@@ -256,6 +248,60 @@ void G_SetMovedir(vec3_t angles, vec3_t movedir)
     VectorClear(angles);
 }
 
+<<<<<<<< HEAD:src/baseq2/svgame/g_utils.cpp
+========
+float vectoyaw(vec3_t vec)
+{
+    float   yaw;
+
+    if (/*vec[YAW] == 0 &&*/ vec[PITCH] == 0) {
+        yaw = 0;
+        if (vec[YAW] > 0)
+            yaw = 90;
+        else if (vec[YAW] < 0)
+            yaw = -90;
+    } else {
+        yaw = (int)RAD2DEG(atan2(vec[YAW], vec[PITCH]));
+        if (yaw < 0)
+            yaw += 360;
+    }
+
+    return yaw;
+}
+
+void vectoangles(vec3_t value1, vec3_t angles)
+{
+    float   forward;
+    float   yaw, pitch;
+
+    if (value1[1] == 0 && value1[0] == 0) {
+        yaw = 0;
+        if (value1[2] > 0)
+            pitch = 90;
+        else
+            pitch = 270;
+    } else {
+        if (value1[0])
+            yaw = (int)RAD2DEG(atan2(value1[1], value1[0]));
+        else if (value1[1] > 0)
+            yaw = 90;
+        else
+            yaw = -90;
+        if (yaw < 0)
+            yaw += 360;
+
+        forward = sqrtf(value1[0] * value1[0] + value1[1] * value1[1]);
+        pitch = (int)RAD2DEG(atan2(value1[2], forward));
+        if (pitch < 0)
+            pitch += 360;
+    }
+
+    angles[PITCH] = -pitch;
+    angles[YAW] = yaw;
+    angles[ROLL] = 0;
+}
+
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_utils.c
 char *G_CopyString(char *in)
 {
     char    *out;
@@ -265,7 +311,6 @@ char *G_CopyString(char *in)
     strcpy(out, in);
     return out;
 }
-
 
 void G_InitEdict(edict_t *e)
 {
@@ -294,7 +339,7 @@ edict_t *G_Spawn(void)
     edict_t     *e;
 
     e = &g_edicts[game.maxclients + 1];
-    for (i = game.maxclients + 1 ; i < globals.num_edicts ; i++, e++) {
+    for (i = game.maxclients + 1; i < globals.num_edicts; i++, e++) {
         // the first couple seconds of server time can involve a lot of
         // freeing and allocating, so relax the replacement policy
         if (!e->inuse && (e->freetime < 2_sec || level.time - e->freetime > 500_ms)) {
@@ -333,14 +378,13 @@ void G_FreeEdict(edict_t *ed)
     ed->inuse = false;
 }
 
-
 /*
 ============
 G_TouchTriggers
 
 ============
 */
-void    G_TouchTriggers(edict_t *ent)
+void G_TouchTriggers(edict_t *ent)
 {
     int         i, num;
     edict_t     *touch[MAX_EDICTS], *hit;
@@ -349,12 +393,11 @@ void    G_TouchTriggers(edict_t *ent)
     if ((ent->client || (ent->svflags & SVF_MONSTER)) && (ent->health <= 0))
         return;
 
-    num = gi.BoxEdicts(ent->absmin, ent->absmax, touch
-                       , MAX_EDICTS, AREA_TRIGGERS);
+    num = gi.BoxEdicts(ent->absmin, ent->absmax, touch, MAX_EDICTS, AREA_TRIGGERS);
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
-    for (i = 0 ; i < num ; i++) {
+    for (i = 0; i < num; i++) {
         hit = touch[i];
         if (!hit->inuse)
             continue;
@@ -373,17 +416,16 @@ Call after linking a new trigger in during gameplay
 to force all entities it covers to immediately touch it
 ============
 */
-void    G_TouchSolids(edict_t *ent)
+void G_TouchSolids(edict_t *ent)
 {
     int         i, num;
     edict_t     *touch[MAX_EDICTS], *hit;
 
-    num = gi.BoxEdicts(ent->absmin, ent->absmax, touch
-                       , MAX_EDICTS, AREA_SOLID);
+    num = gi.BoxEdicts(ent->absmin, ent->absmax, touch, MAX_EDICTS, AREA_SOLID);
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
-    for (i = 0 ; i < num ; i++) {
+    for (i = 0; i < num; i++) {
         hit = touch[i];
         if (!hit->inuse)
             continue;
@@ -393,9 +435,6 @@ void    G_TouchSolids(edict_t *ent)
             break;
     }
 }
-
-
-
 
 /*
 ==============================================================================

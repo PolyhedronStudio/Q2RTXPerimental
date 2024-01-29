@@ -320,15 +320,14 @@ static void Parse_Bitmap(menuFrameWork_t *menu)
         return;
     }
 
-    if (!altname)
-        altname = va("%s_sel", Cmd_Argv(cmd_optind));
-
-    b = static_cast<menuBitmap_t*>( UI_Mallocz(sizeof(*b)) ); // WID: C++20: Added cast.
+    b = static_cast<menuBitmap_t *>( UI_Mallocz( sizeof( *b ) ) ); // WID: C++20: Added cast.
     b->generic.type = MTYPE_BITMAP;
     b->generic.activate = Activate;
     b->generic.status = UI_CopyString(status);
     b->cmd = UI_CopyString(Cmd_ArgsFrom(cmd_optind + 1));
     b->pics[0] = R_RegisterPic(Cmd_Argv(cmd_optind));
+    if (!altname)
+        altname = va("%s_sel", Cmd_Argv(cmd_optind));
     b->pics[1] = R_RegisterPic(altname);
     R_GetPicSize(&b->generic.width, &b->generic.height, b->pics[0]);
 
@@ -343,8 +342,8 @@ static void Parse_Bind(menuFrameWork_t *menu)
         { NULL }
     };
     menuKeybind_t *k;
-    const char *status = "Press Enter to change, Backspace to clear"; // WID: C++20: Added const.
-	const char *altstatus = "Press the desired key, Escape to cancel"; // WID: C++20: Added const.
+    const char *status = "Press Enter to change, Backspace to clear";
+    const char *altstatus = "Press the desired key, Escape to cancel";
     int c;
 
     while ((c = Cmd_ParseOptions(o_bind)) != -1) {

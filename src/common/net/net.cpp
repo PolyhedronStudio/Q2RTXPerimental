@@ -202,17 +202,6 @@ static void NET_SockadrToNetadr(const struct sockaddr_storage *s, netadr_t *a)
     }
 }
 
-#ifdef _WIN32
-#define NS_INT16SZ      2
-#define NS_INADDRSZ     4
-#define NS_IN6ADDRSZ    16
-#include "inet_ntop.h"
-#include "inet_pton.h"
-#else
-#define os_inet_ntop    inet_ntop
-#define os_inet_pton    inet_pton
-#endif
-
 char *NET_BaseAdrToString(const netadr_t *a)
 {
     static char s[MAX_QPATH];
@@ -224,7 +213,7 @@ char *NET_BaseAdrToString(const netadr_t *a)
         return strcpy(s, "loopback");
     case NA_IP:
     case NA_BROADCAST:
-        if (os_inet_ntop(AF_INET, &a->ip, s, sizeof(s)))
+        if (inet_ntop(AF_INET, &a->ip, s, sizeof(s)))
             return s;
         else
             return strcpy(s, "<invalid>");
@@ -238,7 +227,7 @@ char *NET_BaseAdrToString(const netadr_t *a)
                             s, sizeof(s), NULL, 0, NI_NUMERICHOST) == 0)
                 return s;
         }
-        if (os_inet_ntop(AF_INET6, &a->ip, s, sizeof(s)))
+        if (inet_ntop(AF_INET6, &a->ip, s, sizeof(s)))
             return s;
         else
             return strcpy(s, "<invalid>");
@@ -292,8 +281,8 @@ bool NET_StringPairToAdr(const char *host, const char *port, netadr_t *a)
     if (net_enable_ipv6->integer < 1)
         hints.ai_family = AF_INET;
 
-    if (os_inet_pton(AF_INET, host, buf) == 1 ||
-        os_inet_pton(AF_INET6, host, buf) == 1)
+    if (inet_pton(AF_INET, host, buf) == 1 ||
+        inet_pton(AF_INET6, host, buf) == 1)
         hints.ai_flags |= AI_NUMERICHOST;
 
 #ifdef AI_NUMERICSERV
@@ -461,6 +450,8 @@ static void NET_LogPacket(const netadr_t *address, const char *prefix,
     FS_FPrintf(net_logFile, "\n");
 }
 
+#else
+#define NET_LogPacket(adr, pre, data, len)  (void)0
 #endif
 
 //=============================================================================
@@ -556,11 +547,8 @@ static void NET_GetLoopPackets(netsrc_t sock, void (*packet_cb)(void))
 
         memcpy(msg_read_buffer, loopmsg->data, loopmsg->datalen);
 
-#if USE_DEBUG
-        if (net_log_enable->integer > 1) {
-            NET_LogPacket(&net_from, "LP recv", loopmsg->data, loopmsg->datalen);
-        }
-#endif
+        NET_LogPacket(&net_from, "LP recv", loopmsg->data, loopmsg->datalen);
+
         if (sock == NS_CLIENT) {
             net_rate_rcvd += loopmsg->datalen;
         }
@@ -589,6 +577,8 @@ static bool NET_SendLoopPacket(netsrc_t sock, const void *data,
 
     memcpy(msg->data, data, len);
     msg->datalen = len;
+
+    NET_LogPacket(to, "LP send", (const byte*)data, len);
 
 #if USE_DEBUG
     if (net_log_enable->integer > 1) {
@@ -792,10 +782,7 @@ static void NET_GetUdpPackets(qsocket_t sock, void (*packet_cb)(void))
             break;
         }
 
-#if USE_DEBUG
-        if (net_log_enable->integer)
-            NET_LogPacket(&net_from, "UDP recv", msg_read_buffer, ret);
-#endif
+        NET_LogPacket(&net_from, "UDP recv", msg_read_buffer, ret);
 
         net_rate_rcvd += ret;
         net_bytes_rcvd += ret;
@@ -1141,12 +1128,10 @@ static void NET_OpenServer(void)
         return;
     }
 
-#if USE_CLIENT
-    if (!dedicated->integer) {
+    if (saved_port || !dedicated->integer) {
         Com_WPrintf("Couldn't open server UDP port.\n");
         return;
     }
-#endif
 
     Com_Error(ERR_FATAL, "Couldn't open dedicated server UDP port");
 }
@@ -1671,7 +1656,7 @@ error:
 static void dump_addrinfo(struct addrinfo *ai)
 {
     char buf1[MAX_QPATH], buf2[MAX_STRING_CHARS];
-    const char *fa = (ai->ai_addr->sa_family == AF_INET6) ? "6" : ""; // WID: C++20: Added const.
+    const char *fa = ai->ai_addr->sa_family == AF_INET6 ? "6" : "";
 
     getnameinfo(ai->ai_addr, ai->ai_addrlen,
                 buf1, sizeof(buf1), NULL, 0, NI_NUMERICHOST);

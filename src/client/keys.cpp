@@ -256,7 +256,7 @@ given keynum.
 FIXME: handle quote special (general escape sequence?)
 ===================
 */
-const char *Key_KeynumToString(int keynum) // WID: C++20: Required a const char*, was non const.
+const char *Key_KeynumToString(int keynum)
 {
     const keyname_t *kn;
     static char tinystr[2];
@@ -285,7 +285,7 @@ Key_GetBinding
 Returns the name of the first key found.
 ===================
 */
-const char *Key_GetBinding(const char *binding) // WID: C++20: Required a const char*, was non const.
+const char *Key_GetBinding(const char *binding)
 {
     int key;
 
@@ -307,7 +307,7 @@ Key_GetBindingForKey
 Returns the command bound to a given key.
 ===================
 */
-char *Key_GetBindingForKey(int keynum)
+const char *Key_GetBindingForKey(int keynum)
 {
 	return keybindings[keynum];
 }
@@ -856,6 +856,33 @@ void Key_Event(unsigned key, bool down, unsigned time)
     } else if (cls.key_dest & KEY_MESSAGE) {
         Char_Message(key);
     }
+}
+
+/*
+===================
+Key_Event2
+
+Hack to emulate legacy modifier key presses.
+===================
+*/
+void Key_Event2(unsigned key, bool down, unsigned time)
+{
+    switch (key) {
+    case K_LALT:
+    case K_RALT:
+        Key_Event(K_ALT, down, time);
+        break;
+    case K_LCTRL:
+    case K_RCTRL:
+        Key_Event(K_CTRL, down, time);
+        break;
+    case K_LSHIFT:
+    case K_RSHIFT:
+        Key_Event(K_SHIFT, down, time);
+        break;
+    }
+
+    Key_Event(key, down, time);
 }
 
 /*
