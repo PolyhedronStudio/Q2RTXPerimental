@@ -589,7 +589,7 @@ bool Jorg_CheckAttack(edict_t *self)
 
     enemy_range = range(self, self->enemy);
     VectorSubtract(self->enemy->s.origin, self->s.origin, temp);
-    enemy_yaw = vectoyaw(temp);
+    enemy_yaw = QM_Vector3ToYaw(temp);
 
     self->ideal_yaw = enemy_yaw;
 

@@ -311,7 +311,7 @@ void CL_TrackerTrail(const vec3_t start, const vec3_t end, int particleColor)
     len = VectorNormalize(vec);
 
     VectorCopy(vec, forward);
-    vectoangles2(forward, angle_dir);
+    QM_Vector3ToAngles(forward, angle_dir);
     AngleVectors(angle_dir, forward, right, up);
 
     dec = 3;

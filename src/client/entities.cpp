@@ -237,9 +237,6 @@ static void set_active_state(void)
 {
     cls.state = ca_active;
 
-    // Point our cl_entities to the address of the memory supplied by the client game.
-    cl_entities = clge->entities;
-
     cl.serverdelta = Q_align(cl.frame.number, 1);
     cl.time = cl.servertime = 0; // set time, needed for demos
 
@@ -409,7 +406,7 @@ void CL_DeltaFrame(void)
 
         // TODO: Proper stair smoothing.
 
-        // Keep in mind the possible viewheight changes.
+        // Record time of changing and adjusting viewheight if it differs from previous time.
         CL_AdjustViewHeight( cl.frame.ps.pmove.viewheight );
     }
 
@@ -428,18 +425,19 @@ void CL_DeltaFrame(void)
 // for debugging problems when out-of-date entity origin is referenced
 void CL_CheckEntityPresent(int entnum, const char *what)
 {
-    centity_t *e;
+    centity_t *e = nullptr;
 
     if (entnum == cl.frame.clientNum + 1) {
         return; // player entity = current
     }
 
     e = ENTITY_FOR_NUMBER( entnum ); //e = &cl_entities[entnum];
-    if (e->serverframe == cl.frame.number) {
+
+    if (e && e->serverframe == cl.frame.number) {
         return; // current
     }
 
-    if (e->serverframe) {
+    if (e && e->serverframe) {
         Com_LPrintf(PRINT_DEVELOPER,
                     "SERVER BUG: %s on entity %d last seen %d frames ago\n",
                     what, entnum, cl.frame.number - e->serverframe);
@@ -640,27 +638,33 @@ static void CL_AddPacketEntities(void)
 		}
 // WID: 40hz
 
-        if (renderfx & RF_FRAMELERP) {
+        if ( renderfx & RF_FRAMELERP ) {
             // step origin discretely, because the frames
             // do the animation properly
-            VectorCopy(cent->current.origin, ent.origin);
-            VectorCopy(cent->current.old_origin, ent.oldorigin);  // FIXME
-		} else if ( renderfx & RF_BEAM ) {
-			// interpolate start and end points for beams
-			LerpVector( cent->prev.origin, cent->current.origin,
-					   cl.lerpfrac, ent.origin );
-			LerpVector( cent->prev.old_origin, cent->current.old_origin,
-					   cl.lerpfrac, ent.oldorigin );
-		} else {
-            if (s1->number == cl.frame.clientNum + 1) {
+            VectorCopy( cent->current.origin, ent.origin );
+            VectorCopy( cent->current.old_origin, ent.oldorigin );  // FIXME
+        } else if ( renderfx & RF_BEAM ) {
+            // interpolate start and end points for beams
+            //LerpVector( cent->prev.origin, cent->current.origin,
+            //    cl.lerpfrac, ent.origin );
+            //LerpVector( cent->prev.old_origin, cent->current.old_origin,
+            //    cl.lerpfrac, ent.oldorigin );
+            Vector3 cent_origin = QM_Vector3Lerp( cent->prev.origin, cent->current.origin, cl.lerpfrac );
+            VectorCopy( cent_origin, ent.origin );
+            Vector3 cent_old_origin = QM_Vector3Lerp( cent->prev.old_origin, cent->current.old_origin, cl.lerpfrac );
+            VectorCopy( cent_old_origin, ent.oldorigin );
+        } else {
+            if ( s1->number == cl.frame.clientNum + 1 ) {
                 // use predicted origin
-                VectorCopy(cl.playerEntityOrigin, ent.origin);
-                VectorCopy(cl.playerEntityOrigin, ent.oldorigin);
+                VectorCopy( cl.playerEntityOrigin, ent.origin );
+                VectorCopy( cl.playerEntityOrigin, ent.oldorigin );
             } else {
                 // interpolate origin
-                LerpVector(cent->prev.origin, cent->current.origin,
-                           cl.lerpfrac, ent.origin);
-                VectorCopy(ent.origin, ent.oldorigin);
+                //LerpVector(cent->prev.origin, cent->current.origin,
+                //           cl.lerpfrac, ent.origin);
+                Vector3 cent_origin = QM_Vector3Lerp( cent->prev.origin, cent->current.origin, cl.lerpfrac );
+                VectorCopy( cent_origin, ent.origin );
+                VectorCopy( ent.origin, ent.oldorigin );
             }
 //#if USE_FPS
 //            // run alias model animation
@@ -685,7 +689,7 @@ static void CL_AddPacketEntities(void)
 
         // WID: RF_STAIR_STEP smooth interpolation:
         // TODO: Generalize STEP_ constexpr stuff.
-        static constexpr int64_t STEP_TIME = 100; // 100ms.
+        static constexpr int64_t STEP_TIME = 200; // 100ms.
         uint64_t stair_step_delta = cls.realtime - ( cent->step_servertime - cl.sv_frametime );
         // Smooth out stair step over 100ms.
         if ( stair_step_delta <= STEP_TIME ) {
@@ -701,9 +705,9 @@ static void CL_AddPacketEntities(void)
             uint64_t stair_step_time = STEP_TIME - min( stair_step_delta, STEP_TIME );
 
             // Calculate lerped Z origin.
-            const float stair_step_lerp_z = cent->current.origin[ 2 ] + ( cent->prev.origin[ 2 ] - cent->current.origin[ 2 ] ) * stair_step_time * STEP_BASE_1_FRAMETIME;
-            cent->current.origin[ 2 ] = stair_step_lerp_z;
-
+            //const float stair_step_lerp_z = cent->current.origin[ 2 ] + ( cent->prev.origin[ 2 ] - cent->current.origin[ 2 ] ) * stair_step_time * STEP_BASE_1_FRAMETIME;
+            cent->current.origin[ 2 ] = QM_Lerp( cent->prev.origin[ 2 ], cent->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME);
+            
             // Assign to render entity.
             VectorCopy( cent->current.origin, ent.origin );
             VectorCopy( cent->current.origin, ent.oldorigin );
@@ -1367,9 +1371,30 @@ void CL_CalcViewValues(void) {
         }
     } else {
         // just use interpolated values
-        for ( int32_t i = 0; i < 3; i++ ) {
-            cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
-                lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
+        //for ( int32_t i = 0; i < 3; i++ ) {
+        //    cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
+        //        lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
+        //}
+        if ( cl.predictedState.step ) {
+            Com_DPrintf( "PREDICTED STATE DEMO STEP??\n" );
+        }
+        Vector3 newViewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerp );
+        VectorCopy( newViewOrg, cl.refdef.vieworg );
+
+        static constexpr float STEP_HEIGHT = 15.875;
+        uint64_t delta = cls.realtime - cl.predictedState.step_time;
+
+        const float step = ps->pmove.origin.z - ops->pmove.origin.z;
+        if ( ps->pmove.pm_flags & PMF_ON_GROUND ) {
+            // smooth out stair climbing
+            if ( fabs( step ) < STEP_HEIGHT ) {
+                delta <<= 1; // small steps
+            }
+
+            // WID: Prediction: Was based on old 10hz, 100ms.
+            if ( delta < STEP_TIME ) {
+                cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( STEP_TIME - delta ) * ( 1.f / STEP_TIME );
+            }
         }
     }
 

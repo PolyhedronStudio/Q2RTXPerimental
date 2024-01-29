@@ -526,23 +526,23 @@ static int read_first_message(qhandle_t f)
     }
 
     // determine demo type
-    if (ul == MVD_MAGIC) {
-        read = FS_Read(&us, 2, f);
-        if (read != 2) {
-            return read < 0 ? read : Q_ERR_UNEXPECTED_EOF;
-        }
-        if (!us) {
-            return Q_ERR_UNEXPECTED_EOF;
-        }
-        msglen = LittleShort(us);
-        type = 1;
-    } else {
+    //if (ul == MVD_MAGIC) {
+    //    read = FS_Read(&us, 2, f);
+    //    if (read != 2) {
+    //        return read < 0 ? read : Q_ERR_UNEXPECTED_EOF;
+    //    }
+    //    if (!us) {
+    //        return Q_ERR_UNEXPECTED_EOF;
+    //    }
+    //    msglen = LittleShort(us);
+    //    type = 1;
+    //} else {
         if (ul == (uint32_t)-1) {
             return Q_ERR_UNEXPECTED_EOF;
         }
         msglen = LittleLong(ul);
         type = 0;
-    }
+    //}
 
     // if (msglen < 64 || msglen > sizeof(msg_read_buffer)) {
     if (msglen > sizeof(msg_read_buffer)) {
@@ -882,43 +882,43 @@ static void CL_Seek_f(void)
     demosnap_t *snap;
     int i, j, ret, index, frames, dest, prev;
     const char *from; // WID: C++20: Added const.
-	char *to; 
+    char *to;
 
-    if (Cmd_Argc() < 2) {
-        Com_Printf("Usage: %s [+-]<timespec>\n", Cmd_Argv(0));
+    if ( Cmd_Argc() < 2 ) {
+        Com_Printf( "Usage: %s [+-]<timespec>\n", Cmd_Argv( 0 ) );
         return;
     }
 
-    if (!cls.demo.playback) {
-        Com_Printf("Not playing a demo.\n");
+    if ( !cls.demo.playback ) {
+        Com_Printf( "Not playing a demo.\n" );
         return;
     }
 
-    to = Cmd_Argv(1);
+    to = Cmd_Argv( 1 );
 
-    if (*to == '-' || *to == '+') {
+    if ( *to == '-' || *to == '+' ) {
         // relative to current frame
-        if (!Com_ParseTimespec(to + 1, &frames)) {
-            Com_Printf("Invalid relative timespec.\n");
+        if ( !Com_ParseTimespec( to + 1, &frames ) ) {
+            Com_Printf( "Invalid relative timespec.\n" );
             return;
         }
-        if (*to == '-')
+        if ( *to == '-' )
             frames = -frames;
         dest = cls.demo.frames_read + frames;
     } else {
         // relative to first frame
-        if (!Com_ParseTimespec(to, &dest)) {
-            Com_Printf("Invalid absolute timespec.\n");
+        if ( !Com_ParseTimespec( to, &dest ) ) {
+            Com_Printf( "Invalid absolute timespec.\n" );
             return;
         }
         frames = dest - cls.demo.frames_read;
     }
 
-    if (!frames)
+    if ( !frames )
         // already there
         return;
 
-    if (frames > 0 && cls.demo.eof && cl_demowait->integer)
+    if ( frames > 0 && cls.demo.eof && cl_demowait->integer )
         // already at end
         return;
 
@@ -926,7 +926,7 @@ static void CL_Seek_f(void)
     cls.demo.seeking = true;
 
     // clear dirty configstrings
-    memset(cl.dcs, 0, sizeof(cl.dcs));
+    memset( cl.dcs, 0, sizeof( cl.dcs ) );
 
     // stop sounds
     S_StopAllSounds();
@@ -934,17 +934,17 @@ static void CL_Seek_f(void)
     // save previous server frame number
     prev = cl.frame.number;
 
-    Com_DPrintf("[%d] seeking to %d\n", cls.demo.frames_read, dest);
+    Com_DPrintf( "[%d] seeking to %d\n", cls.demo.frames_read, dest );
 
     // seek to the previous most recent snapshot
-    if (frames < 0 || cls.demo.last_snapshot > cls.demo.frames_read) {
-        snap = find_snapshot(dest);
+    if ( frames < 0 || cls.demo.last_snapshot > cls.demo.frames_read ) {
+        snap = find_snapshot( dest );
 
-        if (snap) {
-            Com_DPrintf("found snap at %d\n", snap->framenum);
-            ret = FS_Seek(cls.demo.playback, snap->filepos, SEEK_SET);
-            if (ret < 0) {
-                Com_EPrintf("Couldn't seek demo: %s\n", Q_ErrorString(ret));
+        if ( snap ) {
+            Com_DPrintf( "found snap at %d\n", snap->framenum );
+            ret = FS_Seek( cls.demo.playback, snap->filepos, SEEK_SET );
+            if ( ret < 0 ) {
+                Com_EPrintf( "Couldn't seek demo: %s\n", Q_ErrorString( ret ) );
                 goto done;
             }
 
@@ -952,38 +952,38 @@ static void CL_Seek_f(void)
             cls.demo.eof = false;
 
             // reset configstrings
-            for (i = 0; i < MAX_CONFIGSTRINGS; i++) {
-                from = cl.baseconfigstrings[i];
-                to = cl.configstrings[i];
+            for ( i = 0; i < MAX_CONFIGSTRINGS; i++ ) {
+                from = cl.baseconfigstrings[ i ];
+                to = cl.configstrings[ i ];
 
-                if (!strcmp(from, to))
+                if ( !strcmp( from, to ) )
                     continue;
 
-                Q_SetBit(cl.dcs, i);
-                strcpy(to, from);
+                Q_SetBit( cl.dcs, i );
+                strcpy( to, from );
             }
 
-            SZ_Init(&msg_read, snap->data, snap->msglen);
+            SZ_Init( &msg_read, snap->data, snap->msglen );
             msg_read.cursize = snap->msglen;
 
             CL_SeekDemoMessage();
             cls.demo.frames_read = snap->framenum;
-            Com_DPrintf("[%d] after snap parse %d\n", cls.demo.frames_read, cl.frame.number);
-        } else if (frames < 0) {
-            Com_Printf("Couldn't seek backwards without snapshots!\n");
+            Com_DPrintf( "[%d] after snap parse %d\n", cls.demo.frames_read, cl.frame.number );
+        } else if ( frames < 0 ) {
+            Com_Printf( "Couldn't seek backwards without snapshots!\n" );
             goto done;
         }
     }
 
     // skip forward to destination frame
-    while (cls.demo.frames_read < dest) {
-        ret = read_next_message(cls.demo.playback);
-        if (ret == 0 && cl_demowait->integer) {
+    while ( cls.demo.frames_read < dest ) {
+        ret = read_next_message( cls.demo.playback );
+        if ( ret == 0 && cl_demowait->integer ) {
             cls.demo.eof = true;
             break;
         }
-        if (ret <= 0) {
-            finish_demo(ret);
+        if ( ret <= 0 ) {
+            finish_demo( ret );
             return;
         }
 
@@ -991,26 +991,30 @@ static void CL_Seek_f(void)
         CL_EmitDemoSnapshot();
     }
 
-    Com_DPrintf("[%d] after skip %d\n", cls.demo.frames_read, cl.frame.number);
+    Com_DPrintf( "[%d] after skip %d\n", cls.demo.frames_read, cl.frame.number );
 
     // update dirty configstrings
-    for (i = 0; i < CS_BITMAP_LONGS; i++) {
-        if (((uint32_t *)cl.dcs)[i] == 0)
+    for ( i = 0; i < CS_BITMAP_LONGS; i++ ) {
+        if ( ( (uint32_t *)cl.dcs )[ i ] == 0 )
             continue;
 
         index = i << 5;
-        for (j = 0; j < 32; j++, index++) {
-            if (Q_IsBitSet(cl.dcs, index))
-                CL_UpdateConfigstring(index);
+        for ( j = 0; j < 32; j++, index++ ) {
+            if ( Q_IsBitSet( cl.dcs, index ) )
+                CL_UpdateConfigstring( index );
         }
     }
 
     // don't lerp to old
-    memset(&cl.oldframe, 0, sizeof(cl.oldframe));
+    memset( &cl.oldframe, 0, sizeof( cl.oldframe ) );
 
+    // TODO: Move these two over to client game dll.
     // clear old effects
     CL_ClearEffects();
     CL_ClearTEnts();
+    
+    // Clear old local entities and effects.
+    clge->ClearState();
 
     // fix time delta
     cl.serverdelta += cl.frame.number - prev;
@@ -1018,8 +1022,9 @@ static void CL_Seek_f(void)
     // fire up destination frame
     CL_DeltaFrame();
 
-    if (cls.demo.recording && !cls.demo.paused)
+    if ( cls.demo.recording && !cls.demo.paused ) {
         resume_record();
+    }
 
     update_status();
 

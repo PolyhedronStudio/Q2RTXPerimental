@@ -518,7 +518,7 @@ void MakronHyperblaster(edict_t *self)
         VectorCopy(self->enemy->s.origin, vec);
         vec[2] += self->enemy->viewheight;
         VectorSubtract(vec, start, vec);
-        vectoangles(vec, vec);
+        QM_Vector3ToAngles(vec, vec);
         dir[0] = vec[0];
     } else {
         dir[0] = 0;
@@ -702,7 +702,7 @@ bool Makron_CheckAttack(edict_t *self)
 
     enemy_range = range(self, self->enemy);
     VectorSubtract(self->enemy->s.origin, self->s.origin, temp);
-    enemy_yaw = vectoyaw(temp);
+    enemy_yaw = QM_Vector3ToYaw(temp);
 
     self->ideal_yaw = enemy_yaw;
 
@@ -840,7 +840,7 @@ void MakronSpawn(edict_t *self)
         return;
 
     VectorSubtract(player->s.origin, self->s.origin, vec);
-    self->s.angles[YAW] = vectoyaw(vec);
+    self->s.angles[YAW] = QM_Vector3ToYaw(vec);
     VectorNormalize(vec);
     VectorScale(vec, 400, self->velocity);
     self->velocity[2] = 200;

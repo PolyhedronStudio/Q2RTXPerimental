@@ -101,9 +101,9 @@ void gib_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
     if (plane) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/fhit3.wav"), 1, ATTN_NORM, 0);
 
-        vectoangles(plane->normal, normal_angles);
+        QM_Vector3ToAngles(plane->normal, normal_angles);
         AngleVectors(normal_angles, NULL, right, NULL);
-        vectoangles(right, self->s.angles);
+        QM_Vector3ToAngles(right, self->s.angles);
 
         if (self->s.modelindex == sm_meat_index) {
             self->s.frame++;
@@ -362,7 +362,7 @@ void path_corner_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_
         other->monsterinfo.stand(other);
     } else {
         VectorSubtract(other->goalentity->s.origin, other->s.origin, v);
-        other->ideal_yaw = vectoyaw(v);
+        other->ideal_yaw = QM_Vector3ToAngles(v);
     }
 }
 
@@ -814,7 +814,7 @@ void barrel_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *su
 
     ratio = (float)other->mass / (float)self->mass;
     VectorSubtract(self->s.origin, other->s.origin, v);
-    M_walkmove(self, vectoyaw(v), 20 * ratio * FRAMETIME);
+    M_walkmove(self, QM_Vector3ToAngles(v), 20 * ratio * FRAMETIME);
 }
 
 void barrel_explode(edict_t *self)
@@ -1255,7 +1255,7 @@ void misc_viper_bomb_prethink(edict_t *self)
     v[2] = diff;
 
     diff = self->s.angles[2];
-    vectoangles(v, self->s.angles);
+    QM_Vector3ToAngles(v, self->s.angles);
     self->s.angles[2] = diff + 10;
 }
 

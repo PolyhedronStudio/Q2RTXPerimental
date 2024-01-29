@@ -399,9 +399,15 @@ SET(HEADERS_SHARED
 	#shared/shared.h
 	#shared/shared_cpp.h
 	#shared/string_utilities.h
-	#shared/svgame.h
+	#inc/shared/svgame.h
 
-	#shared/math/math.h
+	#inc/shared/math/qray_math.h
+	#inc/shared/math/qray_matrix4x4.h
+	#inc/shared/math/qray_quaternion.h
+	#inc/shared/math/qray_utils.h
+	#inc/shared/math/qray_vector2.h
+	#inc/shared/math/qray_vector3.h
+	#inc/shared/math/qray_vector4.h
 )
 SET(SRC_SHARED
 	shared/info_strings.cpp

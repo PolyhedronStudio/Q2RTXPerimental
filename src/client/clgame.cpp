@@ -240,6 +240,9 @@ void CL_GM_InitProgs( void ) {
 
 	// initialize
 	clge->Init( );
+
+	// Point our cl_entities to the address of the memory supplied by the client game.
+	cl_entities = clge->entities;
 }
 
 }; // extern "C"

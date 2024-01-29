@@ -669,7 +669,7 @@ void monster_start_go( edict_t *self ) {
             self->monsterinfo.stand(self);
         } else if (strcmp(self->movetarget->classname, "path_corner") == 0) {
             VectorSubtract(self->goalentity->s.origin, self->s.origin, v);
-            self->ideal_yaw = self->s.angles[YAW] = vectoyaw(v);
+            self->ideal_yaw = self->s.angles[YAW] = QM_Vector3ToAngles(v);
             self->monsterinfo.walk(self);
             self->target = NULL;
         } else {

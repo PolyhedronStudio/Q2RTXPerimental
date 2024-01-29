@@ -461,7 +461,7 @@ void LookAtKiller(edict_t *self, edict_t *inflictor, edict_t *attacker)
         if (dir[1] > 0)
             self->client->killer_yaw = 90;
         else if (dir[1] < 0)
-            self->client->killer_yaw = -90;
+            self->client->killer_yaw = 270; // WID: pitch-fix.
     }
     if (self->client->killer_yaw < 0)
         self->client->killer_yaw += 360;

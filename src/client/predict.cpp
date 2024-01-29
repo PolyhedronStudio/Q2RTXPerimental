@@ -277,6 +277,7 @@ void CL_PredictMovement(void) {
     //#if USE_SMOOTH_DELTA_ANGLES
     VectorCopy( cl.delta_angles, pm.s.delta_angles );
     VectorCopy( cl.frame.ps.viewoffset, pm.viewoffset );
+    cl.frame.ps.pmove.viewheight = pm.s.viewheight;
     //#endif
 
     // Run previously stored and acknowledged frames
@@ -341,15 +342,8 @@ void CL_PredictMovement(void) {
     // To be merged with server rdflags.
     cl.predictedState.rdflags = pm.rdflags;
 
-    // Record viewheight changes.
-    if ( cl.viewheight.current != pm.s.viewheight ) {
-        // Backup the old 'current' viewheight.
-        cl.viewheight.previous = cl.viewheight.current;
-        // Apply new viewheight.
-        cl.viewheight.current = pm.s.viewheight;
-        // Register client's time of viewheight change.
-        cl.viewheight.change_time = cl.time;
-    }
+    // Record time of changing and adjusting viewheight if it differs from previous time.
+    CL_AdjustViewHeight( pm.s.viewheight );
 
     // Store resulting ground data.
     cl.lastGround.plane = pm.groundplane;

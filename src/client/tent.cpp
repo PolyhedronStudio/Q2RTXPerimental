@@ -613,7 +613,7 @@ static void CL_AddBeams(void)
 
         // calculate pitch and yaw
         VectorSubtract(b->end, org, dist);
-        vectoangles2(dist, angles);
+        QM_Vector3ToAngles(dist, angles);
 
         // add new entities for the beams
         d = VectorNormalize(dist);
@@ -726,7 +726,7 @@ static void CL_AddPlayerBeams(void)
                 VectorMA(org, -1, cl.v_up, org);
 
             // FIXME: use cl.refdef.viewangles?
-            vectoangles2(dist, angles);
+            QM_Vector3ToAngles(dist, angles);
 
             // if it's the heatbeam, draw the particle effect
             CL_Heatbeam(org, dist);
@@ -737,7 +737,7 @@ static void CL_AddPlayerBeams(void)
 
             // calculate pitch and yaw
             VectorSubtract(b->end, org, dist);
-            vectoangles2(dist, angles);
+            QM_Vector3ToAngles(dist, angles);
 
             // if it's a non-origin offset, it's a player, so use the hardcoded player offset
             if (!VectorEmpty(b->offset)) {

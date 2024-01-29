@@ -55,14 +55,6 @@ constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64
 // the "gameversion" client command will print this plus compile date
 #define GAMEVERSION "BaseQ2RTXP"
 
-// protocol bytes that can be directly added to messages
-#define svc_muzzleflash     1
-#define svc_muzzleflash2    2
-#define svc_temp_entity     3
-#define svc_layout          4
-#define svc_inventory       5
-#define svc_stufftext       11
-
 
 //==================================================================
 // Q2RE: Random Number Utilities
@@ -771,9 +763,6 @@ void    G_TouchTriggers(edict_t *ent);
 void    G_TouchSolids(edict_t *ent);
 
 char    *G_CopyString(char *in);
-
-float vectoyaw( vec3_t vec );
-void vectoangles( const vec3_t vec, vec3_t angles );
 
 //
 // g_combat.c

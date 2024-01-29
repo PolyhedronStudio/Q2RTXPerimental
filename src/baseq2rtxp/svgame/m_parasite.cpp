@@ -291,7 +291,7 @@ static bool parasite_drain_attack_ok(vec3_t start, vec3_t end)
         return false;
 
     // check for min/max pitch
-    vectoangles(dir, angles);
+    QM_Vector3ToAngles(dir, angles);
     if (angles[0] < -180)
         angles[0] += 360;
     if (fabsf(angles[0]) > 30)
