@@ -622,7 +622,7 @@ SpinControl_Draw
 */
 static void SpinControl_Draw(menuSpinControl_t *s)
 {
-    const char *name; // WID: C++20: Was without const
+    const char *name;
 
     UI_DrawString(s->generic.x + LCOLUMN_OFFSET, s->generic.y,
                   s->generic.uiFlags | UI_RIGHT | UI_ALTCOLOR, s->generic.name);
@@ -1140,9 +1140,9 @@ static menuSound_t MenuList_Key(menuList_t *l, int key)
 
         return QMS_NOTHANDLED;
     }
-#endif
 
     l->scratchCount = 0;
+#endif
 
     switch (key) {
     case K_LEFTARROW:
@@ -2210,8 +2210,8 @@ void Menu_Draw(menuFrameWork_t *menu)
 // draw background
 //
     if (menu->image) {
-        R_DrawStretchPic(0, menu->y1, uis.width,
-                         menu->y2 - menu->y1, menu->image);
+        R_DrawKeepAspectPic(0, menu->y1, uis.width,
+                            menu->y2 - menu->y1, menu->image);
     } else {
         R_DrawFill32(0, menu->y1, uis.width,
                      menu->y2 - menu->y1, menu->color.u32);

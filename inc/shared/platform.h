@@ -70,7 +70,7 @@ extern "C" {
 #define os_stat(p, s)       _stat64(p, s)
 #define os_fstat(f, s)      _fstat64(f, s)
 #define os_fileno(f)        _fileno(f)
-#define os_access(p, m)     _access(p, m)
+#define os_access(p, m)     _access(p, (m) & ~X_OK)
 #define Q_ISREG(m)          (((m) & _S_IFMT) == _S_IFREG)
 #define Q_ISDIR(m)          (((m) & _S_IFMT) == _S_IFDIR)
 #define Q_STATBUF           struct _stat64

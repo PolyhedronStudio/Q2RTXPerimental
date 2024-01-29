@@ -508,7 +508,7 @@ static void write_vector(gzFile f, vec_t *v)
     write_float(f, v[2]);
 }
 
-static void write_index(gzFile f, void *p, size_t size, void *start, int max_index)
+static void write_index(gzFile f, void *p, size_t size, const void *start, int max_index)
 {
     uintptr_t diff;
 
@@ -729,7 +729,7 @@ static void read_vector(gzFile f, vec_t *v)
     v[2] = static_cast<vec_t>( read_float( f ) );
 }
 
-static void *read_index(gzFile f, size_t size, void *start, int max_index)
+static void *read_index(gzFile f, size_t size, const void *start, int max_index)
 {
     int index;
     byte *p;
@@ -769,7 +769,7 @@ static void *read_pointer(game_read_context_t* ctx, ptr_type_t type)
         gi.error("%s: type mismatch", __func__);
     }
 
-    return ptr->ptr;
+    return (void *)ptr->ptr;
 }
 
 static void read_field(game_read_context_t* ctx, const save_field_t *field, void *base)
@@ -979,7 +979,6 @@ void ReadGame(const char *filename)
 
 //==========================================================
 
-
 /*
 =================
 WriteLevel
@@ -1015,7 +1014,6 @@ void WriteLevel(const char *filename)
     if (gzclose(f))
         gi.error("Couldn't write %s", filename);
 }
-
 
 /*
 =================
@@ -1098,15 +1096,20 @@ void ReadLevel(const char *filename)
     gzclose(f);
 
     // mark all clients as unconnected
+<<<<<<<< HEAD:src/baseq2/svgame/g_save.cpp
     for ( i = 0; i < maxclients->value; i++ ) {
         ent = &g_edicts[ i + 1 ];
+========
+    for (i = 0; i < maxclients->value; i++) {
+        ent = &g_edicts[i + 1];
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_save.c
         ent->client = game.clients + i;
         ent->client->pers.connected = false;
         ent->client->pers.spawned = false;
     }
 
     // do any load time things at this point
-    for (i = 0 ; i < globals.num_edicts ; i++) {
+    for (i = 0; i < globals.num_edicts; i++) {
         ent = &g_edicts[i];
 
         if (!ent->inuse)

@@ -117,15 +117,17 @@ void ReadLevel(const char *filename);
 void InitGame(void);
 void G_RunFrame(void);
 
-
 //===================================================================
 
+<<<<<<<< HEAD:src/baseq2/svgame/g_main.cpp
 /**
 *	@brief	This will be called when the dll is first loaded, which
 *			only happens when a new game is started or a save game
 *			is loaded from the main menu without having a game running
 *			in the background.
 **/
+========
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_main.c
 void ShutdownGame(void)
 {
     gi.dprintf("==== Shutdown ServerGame ====\n");
@@ -244,7 +246,7 @@ void InitGame( void )
 
     run_pitch = gi.cvar("run_pitch", "0.002", 0);
     run_roll = gi.cvar("run_roll", "0.005", 0);
-    bob_up  = gi.cvar("bob_up", "0.005", 0);
+    bob_up = gi.cvar("bob_up", "0.005", 0);
     bob_pitch = gi.cvar("bob_pitch", "0.002", 0);
     bob_roll = gi.cvar("bob_roll", "0.002", 0);
 
@@ -289,6 +291,7 @@ void InitGame( void )
     globals.num_edicts = game.maxclients + 1;
 }
 
+<<<<<<<< HEAD:src/baseq2/svgame/g_main.cpp
 
 /**
 *	@brief	Returns a pointer to the structure with all entry points
@@ -297,6 +300,11 @@ void InitGame( void )
 extern "C" { // WID: C++20: extern "C".
 	q_exported svgame_export_t *GetGameAPI( svgame_import_t *import ) {
 		gi = *import;
+========
+/*
+=================
+GetGameAPI
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_main.c
 
 		// From Q2RE:
 		FRAME_TIME_S = FRAME_TIME_MS = sg_time_t::from_ms( gi.frame_time_ms );
@@ -378,7 +386,6 @@ void Com_Error(error_type_t type, const char *fmt, ...)
 
 //======================================================================
 
-
 /*
 =================
 ClientEndServerFrames
@@ -391,13 +398,12 @@ void ClientEndServerFrames(void)
 
     // calc the player views now that all pushing
     // and damage has been added
-    for (i = 0 ; i < maxclients->value ; i++) {
+    for (i = 0; i < maxclients->value; i++) {
         ent = g_edicts + 1 + i;
         if (!ent->inuse || !ent->client)
             continue;
         ClientEndServerFrame(ent);
     }
-
 }
 
 /*
@@ -478,7 +484,6 @@ void EndDMLevel(void)
     }
 }
 
-
 /*
 =================
 CheckNeedPass
@@ -529,7 +534,7 @@ void CheckDMRules(void)
     }
 
     if (fraglimit->value) {
-        for (i = 0 ; i < maxclients->value ; i++) {
+        for (i = 0; i < maxclients->value; i++) {
             cl = game.clients + i;
             if (!g_edicts[i + 1].inuse)
                 continue;
@@ -543,7 +548,6 @@ void CheckDMRules(void)
     }
 }
 
-
 /*
 =============
 ExitLevel
@@ -553,7 +557,7 @@ void ExitLevel(void)
 {
     int     i;
     edict_t *ent;
-    char    command [256];
+    char    command[256];
 
     Q_snprintf(command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
     gi.AddCommandString(command);
@@ -562,7 +566,7 @@ void ExitLevel(void)
     level.intermission_framenum = 0;
 
     // clear some things before going to next level
-    for (i = 0 ; i < maxclients->value ; i++) {
+    for (i = 0; i < maxclients->value; i++) {
         ent = g_edicts + 1 + i;
         if (!ent->inuse)
             continue;
@@ -601,7 +605,7 @@ void G_RunFrame(void)
     // even the world gets a chance to think
     //
     ent = &g_edicts[0];
-    for (i = 0 ; i < globals.num_edicts ; i++, ent++) {
+    for (i = 0; i < globals.num_edicts; i++, ent++) {
         if (!ent->inuse)
             continue;
 

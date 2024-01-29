@@ -19,7 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "g_local.h"
 
-
 /*QUAKED func_group (0 0 0) ?
 Used to group brushes together just for editor convenience.
 */
@@ -47,7 +46,6 @@ void SP_func_areaportal(edict_t *ent)
 
 //=====================================================
 
-
 /*
 =================
 Misc functions
@@ -71,7 +69,6 @@ void ClipGibVelocity(edict_t *ent)
     clamp(ent->velocity[1], -300, 300);
     clamp(ent->velocity[2],  200, 500); // always some upwards
 }
-
 
 /*
 =================
@@ -205,7 +202,6 @@ void ThrowHead(edict_t *self, const char *gibname, int damage, int type)
     gi.linkentity(self);
 }
 
-
 void ThrowClientHead(edict_t *self, int damage)
 {
     vec3_t  vd;
@@ -247,7 +243,6 @@ void ThrowClientHead(edict_t *self, int damage)
     gi.linkentity(self);
 }
 
-
 /*
 =================
 debris
@@ -286,7 +281,6 @@ void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origi
     gi.linkentity(chunk);
 }
 
-
 void BecomeExplosion1(edict_t *self)
 {
     gi.WriteUint8(svc_temp_entity);
@@ -297,7 +291,6 @@ void BecomeExplosion1(edict_t *self)
     G_FreeEdict(self);
 }
 
-
 void BecomeExplosion2(edict_t *self)
 {
     gi.WriteUint8(svc_temp_entity);
@@ -307,7 +300,6 @@ void BecomeExplosion2(edict_t *self)
 
     G_FreeEdict(self);
 }
-
 
 /*QUAKED path_corner (.5 .3 0) (-8 -8 -8) (8 8 8) TELEPORT
 Target: next path corner
@@ -382,7 +374,6 @@ void SP_path_corner(edict_t *self)
     gi.linkentity(self);
 }
 
-
 /*QUAKED point_combat (0.5 0.3 0) (-8 -8 -8) (8 8 8) Hold
 Makes this the target of a monster and it will head here
 when first activated before going after the activator.  If
@@ -448,7 +439,6 @@ void SP_point_combat(edict_t *self)
     gi.linkentity(self);
 }
 
-
 /*QUAKED viewthing (0 .5 .8) (-8 -8 -8) (8 8 8)
 Just for the debugging level.  Don't use
 */
@@ -474,7 +464,6 @@ void SP_viewthing(edict_t *ent)
     return;
 }
 
-
 /*QUAKED info_null (0 0.5 0) (-4 -4 -4) (4 4 4)
 Used as a positional target for spotlights, etc.
 */
@@ -482,7 +471,6 @@ void SP_info_null(edict_t *self)
 {
     G_FreeEdict(self);
 }
-
 
 /*QUAKED info_notnull (0 0.5 0) (-4 -4 -4) (4 4 4)
 Used as a positional target for lightning.
@@ -492,7 +480,6 @@ void SP_info_notnull(edict_t *self)
     VectorCopy(self->s.origin, self->absmin);
     VectorCopy(self->s.origin, self->absmax);
 }
-
 
 /*QUAKED light (0 1 0) (-8 -8 -8) (8 8 8) START_OFF
 Non-displayed light.
@@ -531,7 +518,6 @@ void SP_light(edict_t *self)
             gi.configstring(CS_LIGHTS + self->style, "m");
     }
 }
-
 
 /*QUAKED func_wall (0 .5 .8) ? TRIGGER_SPAWN TOGGLE START_ON ANIMATED ANIMATED_FAST
 This is just a solid wall if not inhibited
@@ -604,7 +590,6 @@ void SP_func_wall(edict_t *self)
     gi.linkentity(self);
 }
 
-
 /*QUAKED func_object (0 .5 .8) ? TRIGGER_SPAWN ANIMATED ANIMATED_FAST
 This is solid bmodel that will fall if it's support it removed.
 */
@@ -671,7 +656,6 @@ void SP_func_object(edict_t *self)
 
     gi.linkentity(self);
 }
-
 
 /*QUAKED func_explosive (0 .5 .8) ? Trigger_Spawn ANIMATED ANIMATED_FAST
 Any brush that you want to explode or break apart.  If you want an
@@ -797,7 +781,6 @@ void SP_func_explosive(edict_t *self)
     gi.linkentity(self);
 }
 
-
 /*QUAKED misc_explobox (0 .5 .8) (-16 -16 0) (16 16 40)
 Large exploding box.  You can override its mass (100),
 health (80), and dmg (150).
@@ -912,7 +895,6 @@ void SP_misc_explobox(edict_t *self)
     gi.linkentity(self);
 }
 
-
 //
 // miscellaneous specialty items
 //
@@ -991,7 +973,6 @@ void SP_misc_eastertank(edict_t *ent)
 /*QUAKED misc_easterchick (1 .5 0) (-32 -32 0) (32 32 32)
 */
 
-
 void misc_easterchick_think(edict_t *self)
 {
     if (++self->s.frame < 247)
@@ -1018,7 +999,6 @@ void SP_misc_easterchick(edict_t *ent)
 /*QUAKED misc_easterchick2 (1 .5 0) (-32 -32 0) (32 32 32)
 */
 
-
 void misc_easterchick2_think(edict_t *self)
 {
     if (++self->s.frame < 287)
@@ -1041,7 +1021,6 @@ void SP_misc_easterchick2(edict_t *ent)
 	ent->nextthink = level.time + 20_hz;
     gi.linkentity(ent);
 }
-
 
 /*QUAKED monster_commander_body (1 .5 0) (-32 -32 0) (32 32 48)
 Not really a monster, this is the Tank Commander's decapitated body.
@@ -1092,7 +1071,6 @@ void SP_monster_commander_body(edict_t *self)
     self->think = commander_body_drop;
 	self->nextthink = level.time + 50_hz;
 }
-
 
 /*QUAKED misc_banner (1 .5 0) (-4 -4 -4) (4 4 4)
 The origin is the bottom of the banner.
@@ -1214,7 +1192,6 @@ void SP_misc_viper(edict_t *ent)
     gi.linkentity(ent);
 }
 
-
 /*QUAKED misc_bigviper (1 .5 0) (-176 -120 -24) (176 120 72)
 This is a large stationary viper as seen in Paul's intro
 */
@@ -1227,7 +1204,6 @@ void SP_misc_bigviper(edict_t *ent)
     ent->s.modelindex = gi.modelindex("models/ships/bigviper/tris.md2");
     gi.linkentity(ent);
 }
-
 
 /*QUAKED misc_viper_bomb (1 0 0) (-8 -8 -8) (8 8 8)
 "dmg"   how much boom should the bomb make?
@@ -1298,7 +1274,6 @@ void SP_misc_viper_bomb(edict_t *self)
     gi.linkentity(self);
 }
 
-
 /*QUAKED misc_strogg_ship (1 .5 0) (-16 -16 0) (16 16 32)
 This is a Storgg ship for the flybys.
 It is trigger_spawned, so you must have something use it for it to show up.
@@ -1343,7 +1318,6 @@ void SP_misc_strogg_ship(edict_t *ent)
     gi.linkentity(ent);
 }
 
-
 /*QUAKED misc_satellite_dish (1 .5 0) (-64 -64 0) (64 64 128)
 */
 void misc_satellite_dish_think(edict_t *self)
@@ -1371,7 +1345,6 @@ void SP_misc_satellite_dish(edict_t *ent)
     gi.linkentity(ent);
 }
 
-
 /*QUAKED light_mine1 (0 1 0) (-2 -2 -12) (2 2 12)
 */
 void SP_light_mine1(edict_t *ent)
@@ -1382,7 +1355,6 @@ void SP_light_mine1(edict_t *ent)
     gi.linkentity(ent);
 }
 
-
 /*QUAKED light_mine2 (0 1 0) (-2 -2 -12) (2 2 12)
 */
 void SP_light_mine2(edict_t *ent)
@@ -1392,7 +1364,6 @@ void SP_light_mine2(edict_t *ent)
     ent->s.modelindex = gi.modelindex("models/objects/minelite/light2/tris.md2");
     gi.linkentity(ent);
 }
-
 
 /*QUAKED misc_gib_arm (1 0 0) (-8 -8 -8) (8 8 8)
 Intended for use with the target_spawner
@@ -1474,7 +1445,6 @@ void SP_target_character(edict_t *self)
     return;
 }
 
-
 /*QUAKED target_string (0 0 1) (-8 -8 -8) (8 8 8)
 */
 
@@ -1512,7 +1482,6 @@ void SP_target_string(edict_t *self)
         self->message = const_cast<char*>(""); // WID: C++20: Added cast.
     self->use = target_string_use;
 }
-
 
 /*QUAKED func_clock (0 0 1) (-8 -8 -8) (8 8 8) TIMER_UP TIMER_DOWN START_OFF MULTI_USE
 target a target_string with this
@@ -1695,8 +1664,13 @@ void teleporter_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t
     other->s.event = EV_PLAYER_TELEPORT;
 
     // set angles
+<<<<<<<< HEAD:src/baseq2/svgame/g_misc.cpp
     for (i = 0 ; i < 3 ; i++) {
         other->client->ps.pmove.delta_angles[i] = /*ANGLE2SHORT*/(dest->s.angles[i] - other->client->resp.cmd_angles[i]);
+========
+    for (i = 0; i < 3; i++) {
+        other->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(dest->s.angles[i] - other->client->resp.cmd_angles[i]);
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_misc.c
     }
 
     VectorClear(other->s.angles);

@@ -47,7 +47,6 @@ static int  sound_death_hit;
 void BossExplode(edict_t *self);
 void MakronToss(edict_t *self);
 
-
 void jorg_search(edict_t *self)
 {
     float r;
@@ -61,7 +60,6 @@ void jorg_search(edict_t *self)
     else
         gi.sound(self, CHAN_VOICE, sound_search3, 1, ATTN_NORM, 0);
 }
-
 
 void jorg_dead(edict_t *self);
 void jorgBFG(edict_t *self);
@@ -78,7 +76,7 @@ void jorg_death_hit(edict_t *self);
 // stand
 //
 
-mframe_t jorg_frames_stand [] = {
+static const mframe_t jorg_frames_stand[] = {
     { ai_stand, 0, jorg_idle },
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL },
@@ -131,7 +129,7 @@ mframe_t jorg_frames_stand [] = {
     { ai_stand, -12, NULL },        // 50
     { ai_stand, -14, jorg_step_right }  // 51
 };
-mmove_t jorg_move_stand = {FRAME_stand01, FRAME_stand51, jorg_frames_stand, NULL};
+const mmove_t jorg_move_stand = {FRAME_stand01, FRAME_stand51, jorg_frames_stand, NULL};
 
 void jorg_idle(edict_t *self)
 {
@@ -143,7 +141,6 @@ void jorg_death_hit(edict_t *self)
     gi.sound(self, CHAN_BODY, sound_death_hit, 1, ATTN_NORM, 0);
 }
 
-
 void jorg_step_left(edict_t *self)
 {
     gi.sound(self, CHAN_BODY, sound_step_left, 1, ATTN_NORM, 0);
@@ -154,13 +151,12 @@ void jorg_step_right(edict_t *self)
     gi.sound(self, CHAN_BODY, sound_step_right, 1, ATTN_NORM, 0);
 }
 
-
 void jorg_stand(edict_t *self)
 {
     M_SetAnimation( self, &jorg_move_stand );
 }
 
-mframe_t jorg_frames_run [] = {
+static const mframe_t jorg_frames_run[] = {
     { ai_run, 17, jorg_step_left },
     { ai_run, 0,  NULL },
     { ai_run, 0,  NULL },
@@ -176,22 +172,22 @@ mframe_t jorg_frames_run [] = {
     { ai_run, 9,  NULL },
     { ai_run, 9,  NULL }
 };
-mmove_t jorg_move_run = {FRAME_walk06, FRAME_walk19, jorg_frames_run, NULL};
+const mmove_t jorg_move_run = {FRAME_walk06, FRAME_walk19, jorg_frames_run, NULL};
 
 //
 // walk
 //
 
-mframe_t jorg_frames_start_walk [] = {
+static const mframe_t jorg_frames_start_walk[] = {
     { ai_walk,    5,  NULL },
     { ai_walk,    6,  NULL },
     { ai_walk,    7,  NULL },
     { ai_walk,    9,  NULL },
     { ai_walk,    15, NULL }
 };
-mmove_t jorg_move_start_walk = {FRAME_walk01, FRAME_walk05, jorg_frames_start_walk, NULL};
+const mmove_t jorg_move_start_walk = {FRAME_walk01, FRAME_walk05, jorg_frames_start_walk, NULL};
 
-mframe_t jorg_frames_walk [] = {
+static const mframe_t jorg_frames_walk[] = {
     { ai_walk, 17,    NULL },
     { ai_walk, 0, NULL },
     { ai_walk, 0, NULL },
@@ -207,9 +203,9 @@ mframe_t jorg_frames_walk [] = {
     { ai_walk, 9, NULL },
     { ai_walk, 9, NULL }
 };
-mmove_t jorg_move_walk = {FRAME_walk06, FRAME_walk19, jorg_frames_walk, NULL};
+const mmove_t jorg_move_walk = {FRAME_walk06, FRAME_walk19, jorg_frames_walk, NULL};
 
-mframe_t jorg_frames_end_walk [] = {
+static const mframe_t jorg_frames_end_walk[] = {
     { ai_walk,    11, NULL },
     { ai_walk,    0,  NULL },
     { ai_walk,    0,  NULL },
@@ -217,7 +213,7 @@ mframe_t jorg_frames_end_walk [] = {
     { ai_walk,    8,  NULL },
     { ai_walk,    -8, NULL }
 };
-mmove_t jorg_move_end_walk = {FRAME_walk20, FRAME_walk25, jorg_frames_end_walk, NULL};
+const mmove_t jorg_move_end_walk = {FRAME_walk20, FRAME_walk25, jorg_frames_end_walk, NULL};
 
 void jorg_walk(edict_t *self)
 {
@@ -232,7 +228,7 @@ void jorg_run(edict_t *self)
         M_SetAnimation( self, &jorg_move_run );
 }
 
-mframe_t jorg_frames_pain3 [] = {
+static const mframe_t jorg_frames_pain3[] = {
     { ai_move,    -28,    NULL },
     { ai_move,    -6, NULL },
     { ai_move,    -3, jorg_step_left },
@@ -259,23 +255,23 @@ mframe_t jorg_frames_pain3 [] = {
     { ai_move,    0,  NULL },
     { ai_move,    0,  jorg_step_right }
 };
-mmove_t jorg_move_pain3 = {FRAME_pain301, FRAME_pain325, jorg_frames_pain3, jorg_run};
+const mmove_t jorg_move_pain3 = {FRAME_pain301, FRAME_pain325, jorg_frames_pain3, jorg_run};
 
-mframe_t jorg_frames_pain2 [] = {
+static const mframe_t jorg_frames_pain2[] = {
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL }
 };
-mmove_t jorg_move_pain2 = {FRAME_pain201, FRAME_pain203, jorg_frames_pain2, jorg_run};
+const mmove_t jorg_move_pain2 = {FRAME_pain201, FRAME_pain203, jorg_frames_pain2, jorg_run};
 
-mframe_t jorg_frames_pain1 [] = {
+static const mframe_t jorg_frames_pain1[] = {
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL }
 };
-mmove_t jorg_move_pain1 = {FRAME_pain101, FRAME_pain103, jorg_frames_pain1, jorg_run};
+const mmove_t jorg_move_pain1 = {FRAME_pain101, FRAME_pain103, jorg_frames_pain1, jorg_run};
 
-mframe_t jorg_frames_death1 [] = {
+static const mframe_t jorg_frames_death1[] = {
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL },
@@ -327,9 +323,9 @@ mframe_t jorg_frames_death1 [] = {
     { ai_move,    0,  MakronToss },
     { ai_move,    0,  BossExplode }     // 50
 };
-mmove_t jorg_move_death = {FRAME_death01, FRAME_death50, jorg_frames_death1, jorg_dead};
+const mmove_t jorg_move_death = {FRAME_death01, FRAME_death50, jorg_frames_death1, jorg_dead};
 
-mframe_t jorg_frames_attack2 [] = {
+static const mframe_t jorg_frames_attack2[] = {
     { ai_charge,  0,  NULL },
     { ai_charge,  0,  NULL },
     { ai_charge,  0,  NULL },
@@ -344,9 +340,9 @@ mframe_t jorg_frames_attack2 [] = {
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL }
 };
-mmove_t jorg_move_attack2 = {FRAME_attak201, FRAME_attak213, jorg_frames_attack2, jorg_run};
+const mmove_t jorg_move_attack2 = {FRAME_attak201, FRAME_attak213, jorg_frames_attack2, jorg_run};
 
-mframe_t jorg_frames_start_attack1 [] = {
+static const mframe_t jorg_frames_start_attack1[] = {
     { ai_charge,  0,  NULL },
     { ai_charge,  0,  NULL },
     { ai_charge,  0,  NULL },
@@ -356,9 +352,9 @@ mframe_t jorg_frames_start_attack1 [] = {
     { ai_charge,  0,  NULL },
     { ai_charge,  0,  NULL }
 };
-mmove_t jorg_move_start_attack1 = {FRAME_attak101, FRAME_attak108, jorg_frames_start_attack1, jorg_attack1};
+const mmove_t jorg_move_start_attack1 = {FRAME_attak101, FRAME_attak108, jorg_frames_start_attack1, jorg_attack1};
 
-mframe_t jorg_frames_attack1[] = {
+static const mframe_t jorg_frames_attack1[] = {
     { ai_charge,  0,  jorg_firebullet },
     { ai_charge,  0,  jorg_firebullet },
     { ai_charge,  0,  jorg_firebullet },
@@ -366,15 +362,15 @@ mframe_t jorg_frames_attack1[] = {
     { ai_charge,  0,  jorg_firebullet },
     { ai_charge,  0,  jorg_firebullet }
 };
-mmove_t jorg_move_attack1 = {FRAME_attak109, FRAME_attak114, jorg_frames_attack1, jorg_reattack1};
+const mmove_t jorg_move_attack1 = {FRAME_attak109, FRAME_attak114, jorg_frames_attack1, jorg_reattack1};
 
-mframe_t jorg_frames_end_attack1[] = {
+static const mframe_t jorg_frames_end_attack1[] = {
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL },
     { ai_move,    0,  NULL }
 };
-mmove_t jorg_move_end_attack1 = {FRAME_attak115, FRAME_attak118, jorg_frames_end_attack1, jorg_run};
+const mmove_t jorg_move_end_attack1 = {FRAME_attak115, FRAME_attak118, jorg_frames_end_attack1, jorg_run};
 
 void jorg_reattack1(edict_t *self)
 {
@@ -425,13 +421,16 @@ void jorg_pain(edict_t *self, edict_t *other, float kick, int damage)
         if (random() <= 0.00005f)
             return;
 
-
     if ((self->s.frame >= FRAME_attak201) && (self->s.frame <= FRAME_attak208))
         if (random() <= 0.005f)
             return;
 
+<<<<<<<< HEAD:src/baseq2/svgame/m_boss31.cpp
 
     self->pain_debounce_time = level.time + 3_sec;
+========
+    self->pain_debounce_framenum = level.framenum + 3 * BASE_FRAMERATE;
+>>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/m_boss31.c
     if (skill->value == 3)
         return;     // no pain anims in nightmare
 
@@ -464,14 +463,6 @@ void jorgBFG(edict_t *self)
     VectorSubtract(vec, start, dir);
     VectorNormalize(dir);
     gi.sound(self, CHAN_VOICE, sound_attack2, 1, ATTN_NORM, 0);
-    /*void monster_fire_bfg (edict_t *self,
-                             vec3_t start,
-                             vec3_t aimdir,
-                             int damage,
-                             int speed,
-                             int kick,
-                             float damage_radius,
-                             int flashtype)*/
     monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
 }
 
@@ -527,32 +518,7 @@ void jorg_attack(edict_t *self)
 
 void jorg_dead(edict_t *self)
 {
-#if 0
-    edict_t *tempent;
-    /*
-    VectorSet (self->mins, -16, -16, -24);
-    VectorSet (self->maxs, 16, 16, -8);
-    */
-
-    // Jorg is on modelindex2. Do not clear him.
-    VectorSet(self->mins, -60, -60, 0);
-    VectorSet(self->maxs, 60, 60, 72);
-    self->movetype = MOVETYPE_TOSS;
-    self->nextthink = 0;
-    gi.linkentity(self);
-
-    tempent = G_Spawn();
-    VectorCopy(self->s.origin, tempent->s.origin);
-    VectorCopy(self->s.angles, tempent->s.angles);
-    tempent->killtarget = self->killtarget;
-    tempent->target = self->target;
-    tempent->activator = self->enemy;
-    self->killtarget = 0;
-    self->target = 0;
-    SP_monster_makron(tempent);
-#endif
 }
-
 
 void jorg_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
@@ -592,7 +558,6 @@ bool Jorg_CheckAttack(edict_t *self)
     enemy_yaw = QM_Vector3ToYaw(temp);
 
     self->ideal_yaw = enemy_yaw;
-
 
     // melee attack
     if (enemy_range == RANGE_MELEE) {
@@ -640,7 +605,6 @@ bool Jorg_CheckAttack(edict_t *self)
 
     return false;
 }
-
 
 void MakronPrecache(void);
 

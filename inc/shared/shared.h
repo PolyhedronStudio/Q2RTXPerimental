@@ -289,11 +289,13 @@ typedef struct cvar_s {
     struct cvar_s *next;
 
 // ------ new stuff ------
+#if USE_CLIENT || USE_SERVER
     int         integer;
     char        *default_string;
     xchanged_t      changed;
     xgenerator_t    generator;
     struct cvar_s   *hashNext;
+#endif
 } cvar_t;
 
 #endif      // CVAR
@@ -355,6 +357,10 @@ COLLISION DETECTION
 
 #define SURF_ALPHATEST  0x02000000  // used by kmquake2
 
+#define SURF_N64_UV             (1U << 28)
+#define SURF_N64_SCROLL_X       (1U << 29)
+#define SURF_N64_SCROLL_Y       (1U << 30)
+#define SURF_N64_SCROLL_FLIP    (1U << 31)
 
 
 // content masks

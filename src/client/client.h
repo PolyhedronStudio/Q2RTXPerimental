@@ -33,14 +33,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/messaging.h"
 #include "common/net/chan.h"
 #include "common/net/net.h"
+#include "common/pmove.h"
 #include "common/prompt.h"
 #include "common/protocol.h"
 #include "common/sizebuf.h"
 #include "common/zone.h"
 
-#include "system/system.h"
 #include "refresh/refresh.h"
 #include "server/server.h"
+#include "system/system.h"
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
@@ -425,6 +426,7 @@ typedef enum {
 } dltype_t;
 
 typedef enum {
+    DL_FREE,
     DL_PENDING,
     DL_RUNNING,
     DL_DONE
@@ -506,7 +508,7 @@ typedef struct client_static_s {
         int         pending;            // number of non-finished entries in queue
         dlqueue_t   *current;           // path being downloaded
         int         percent;            // how much downloaded
-        int         position;           // how much downloaded (in bytes)
+        int64_t     position;           // how much downloaded (in bytes)
         qhandle_t   file;               // UDP file transfer from server
         char        temp[MAX_QPATH + 4];// account 4 bytes for .tmp suffix
 #if USE_ZLIB
@@ -529,7 +531,7 @@ typedef struct client_static_s {
 		uint64_t	last_snapshot;      // number of demo frame the last snapshot was saved
         int64_t     file_size;
         int64_t     file_offset;
-        int         file_percent;
+        float       file_progress;
         sizebuf_t   buffer;
         list_t      snapshots;
         bool        paused;

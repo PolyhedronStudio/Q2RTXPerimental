@@ -149,6 +149,7 @@ typedef bool (*keywaitcb_t)(void *arg, int key);
 void    Key_Init(void);
 
 void    Key_Event(unsigned key, bool down, unsigned time);
+void    Key_Event2(unsigned key, bool down, unsigned time);
 void    Key_CharEvent(int key);
 
 bool        Key_GetOverstrikeMode(void);
@@ -160,11 +161,11 @@ int         Key_IsDown(int key);
 int         Key_AnyKeyDown(void);
 void        Key_ClearStates(void);
 
-const char    *Key_KeynumToString(int keynum); // WID: C++20: Required a const char*, was non const.
+const char  *Key_KeynumToString(int keynum);
 int     Key_StringToKeynum(const char *str);
 void    Key_SetBinding(int keynum, const char *binding);
-const char    *Key_GetBinding(const char *binding); // WID: C++20: Required a const char*, was non const.
-char    *Key_GetBindingForKey(int keynum);
+const char    *Key_GetBinding(const char *binding);
+const char    *Key_GetBindingForKey(int keynum);
 int     Key_EnumBindings(int key, const char *binding);
 void    Key_WriteBindings(qhandle_t f);
 

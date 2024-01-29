@@ -34,8 +34,12 @@ FRAME PARSING
 =========================================================================
 */
 
+// returns true if origin/angles update has been optimized out
 static inline bool entity_is_optimized(const entity_state_t *state)
 {
+    //return cls.serverProtocol == PROTOCOL_VERSION_Q2PRO
+    //    && state->number == cl.frame.clientNum + 1
+    //    && cl.frame.ps.pmove.pm_type < PM_DEAD;
 	// WID: net-protocol2: We don't want this anyway, should get rid of it?
     //if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO)
 	if ( cls.serverProtocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL )
@@ -67,7 +71,7 @@ entity_update_new(centity_t *ent, const entity_state_t *state, const vec_t *orig
 
     if (state->event == EV_PLAYER_TELEPORT ||
         state->event == EV_OTHER_TELEPORT ||
-        (state->renderfx & (RF_FRAMELERP | RF_BEAM))) {
+        (state->renderfx & RF_BEAM)) {
         // no lerping if teleported
         VectorCopy(origin, ent->lerp_origin);
         return;
@@ -760,7 +764,7 @@ static void CL_AddPacketEntities(void)
 
         // render effects (fullbright, translucent, etc)
         if ((effects & EF_COLOR_SHELL))
-            ent.flags = renderfx & RF_FRAMELERP;    // renderfx go on color shell entity
+            ent.flags = 0;  // renderfx go on color shell entity
         else
             ent.flags = renderfx;
 

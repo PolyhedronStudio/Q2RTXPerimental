@@ -1,5 +1,5 @@
 /*
-Copyright (C) 1997-2001 Id Software, Inc.
+Copyright (C) 2023 Andrey Nazarov
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -16,20 +16,25 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-//
-// win_glimp.h
-//
+#pragma once
 
-#include <GL/gl.h>
-#include <GL/wglext.h>
+#if USE_CLIENT
 
-typedef struct {
-    HGLRC       hGLRC;          // handle to GL rendering context
-    HINSTANCE   hinstOpenGL;    // handle to GL library
-    bool        minidriver;
-    GLenum      drawbuffer;
-    unsigned    extensions;
-} glwstate_t;
+typedef struct asyncwork_s {
+    void (*work_cb)(void *);
+    void (*done_cb)(void *);
+    void *cb_arg;
+    struct asyncwork_s *next;
+} asyncwork_t;
 
-extern glwstate_t glw;
+void Com_QueueAsyncWork(asyncwork_t *work);
+void Com_CompleteAsyncWork(void);
+void Com_ShutdownAsyncWork(void);
 
+#else
+
+#define Com_QueueAsyncWork(work)    (void)0
+#define Com_CompleteAsyncWork()     (void)0
+#define Com_ShutdownAsyncWork()     (void)0
+
+#endif
