@@ -562,15 +562,9 @@ void SV_Physics_Pusher(edict_t *ent)
 
     if (part) {
         // the move failed, bump all nextthink times and back out moves
-<<<<<<<< HEAD:src/baseq2rtxp/svgame/g_phys.cpp
         for (mv = ent ; mv ; mv = mv->teamchain) {
 			if ( mv->nextthink > 0_ms )
 				mv->nextthink += FRAME_TIME_S;
-========
-        for (mv = ent; mv; mv = mv->teamchain) {
-            if (mv->nextthink > 0)
-                mv->nextthink++;
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_phys.c
         }
 
         // if the pusher has a "blocked" function, call it

@@ -578,7 +578,7 @@ static bool NET_SendLoopPacket(netsrc_t sock, const void *data,
     memcpy(msg->data, data, len);
     msg->datalen = len;
 
-    NET_LogPacket(to, "LP send", data, len);
+    NET_LogPacket(to, "LP send", (const byte*)data, len);
 
 #if USE_DEBUG
     if (net_log_enable->integer > 1) {

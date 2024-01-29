@@ -995,7 +995,7 @@ void Qcommon_Init(int argc, char **argv)
     // add + commands from command line
     if (!Com_AddLateCommands()) {
         // if the user didn't give any commands, run default action
-        const char *cmd = COM_DEDICATED ? "dedicated_start" : "client_start"; // WID: C++20: Added const.
+        //const char *cmd = COM_DEDICATED ? "dedicated_start" : "client_start"; // WID: C++20: Added const.
         const char *cmd = COM_DEDICATED ? "dedicated_start" : "client_start";
 
         if ((cmd = Cmd_AliasCommand(cmd)) != NULL) {

@@ -310,6 +310,7 @@ SET(HEADERS_SERVER
 #
 #
 SET(SRC_COMMON
+	common/async.c
 	common/bsp.cpp
 	common/cmd.cpp
 	common/cmodel.cpp
@@ -451,8 +452,8 @@ SET(SRC_WINDOWS_CLIENT
 	unix/video.cpp
 )
 SET(HEADERS_WINDOWS
-	windows/wgl.h
-	windows/glimp.h
+	#windows/wgl.h
+	#windows/glimp.h
 	windows/client.h
 	windows/threads/threads.h
 )

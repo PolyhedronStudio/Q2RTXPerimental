@@ -933,12 +933,12 @@ static void CL_SendDefaultCmd(void)
 
     // save the position for a checksum byte
     checksumIndex = 0;
-    if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
+    //if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         checksumIndex = msg_write.cursize;
         SZ_GetSpace(&msg_write, 1);
-    } else if (cls.serverProtocol == PROTOCOL_VERSION_R1Q2) {
-        version = cls.protocolVersion;
-    }
+    //} else if (cls.serverProtocol == PROTOCOL_VERSION_R1Q2) {
+    //    version = cls.protocolVersion;
+    //}
 
     // let the server know what the last frame we
     // got was, so the next message can be delta compressed

@@ -249,24 +249,6 @@ typedef enum {
 #define GIB_METALLIC            1
 
 //monster ai flags
-<<<<<<<< HEAD:src/baseq2/svgame/g_local.h
-#define AI_STAND_GROUND         0x00000001
-#define AI_TEMP_STAND_GROUND    0x00000002
-#define AI_SOUND_TARGET         0x00000004
-#define AI_LOST_SIGHT           0x00000008
-#define AI_PURSUIT_LAST_SEEN    0x00000010
-#define AI_PURSUE_NEXT          0x00000020
-#define AI_PURSUE_TEMP          0x00000040
-#define AI_HOLD_FRAME           0x00000080
-#define AI_GOOD_GUY             0x00000100
-#define AI_BRUTAL               0x00000200
-#define AI_NOSTEP               0x00000400
-#define AI_DUCKED               0x00000800
-#define AI_COMBAT_POINT         0x00001000
-#define AI_MEDIC                0x00002000
-#define AI_RESURRECTING         0x00004000
-#define AI_HIGH_TICK_RATE		0x00008000
-========
 #define AI_STAND_GROUND         BIT(0)
 #define AI_TEMP_STAND_GROUND    BIT(1)
 #define AI_SOUND_TARGET         BIT(2)
@@ -282,7 +264,7 @@ typedef enum {
 #define AI_COMBAT_POINT         BIT(12)
 #define AI_MEDIC                BIT(13)
 #define AI_RESURRECTING         BIT(14)
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_local.h
+#define AI_HIGH_TICK_RATE		BIT(15)
 
 //monster attack state
 #define AS_STRAIGHT             1

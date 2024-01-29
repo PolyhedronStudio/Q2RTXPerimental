@@ -141,7 +141,7 @@ static size_t recv_func(void *ptr, size_t size, size_t nmemb, void *stream)
     new_size = ALIGN(dl->position + bytes + 1, MIN_DLSIZE);
     if (new_size > dl->size) {
         // can't use Z_Realloc here because it's not threadsafe!
-        char *buf = realloc(dl->buffer, new_size);
+        char *buf = static_cast<char *>( realloc( dl->buffer, new_size ) );
         if (!buf)
             return 0;
         dl->size = new_size;
@@ -773,7 +773,7 @@ static void process_downloads(void)
 
     for (i = 0; i < MAX_DLHANDLES; i++) {
         dl = &download_handles[i];
-        state = atomic_load(&dl->state);
+        state = static_cast<dlstate_t>( atomic_load( &dl->state ) );
 
         if (state == DL_RUNNING) {
             running = true;
@@ -1029,7 +1029,7 @@ void HTTP_RunDownloads(void)
     if (!curl_multi)
         return;
 
-    ret = atomic_load(&worker_status);
+    ret = static_cast<CURLMcode>( atomic_load( &worker_status ) );
     if (ret != CURLM_OK) {
         Com_EPrintf("[HTTP] Error running downloads: %s.\n",
                     curl_multi_strerror(ret));

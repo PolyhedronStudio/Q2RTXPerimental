@@ -219,6 +219,7 @@ bool GL_AllocBlock(int width, int height, int *inuse,
 
 void GL_MultMatrix(GLfloat *out, const GLfloat *a, const GLfloat *b);
 void GL_SetEntityAxis(void);
+void GL_RotationMatrix( GLfloat *matrix );
 void GL_RotateForEntity(void);
 
 void QGL_ClearErrors(void);

@@ -24,7 +24,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifdef __cplusplus
 // We extern "C"
 extern "C" {
-    #endif
+#endif
+
 typedef enum { GAPI_OPENGL, GAPI_VULKAN } graphics_api_t;
 
 typedef struct {
@@ -63,6 +64,7 @@ extern cvar_t       *vid_fullscreen;
 extern cvar_t       *_vid_fullscreen;
 
 extern vid_driver_t vid;
+extern const vid_driver_t vid_sdl;
 
 bool VID_GetFullscreen(vrect_t *rc, int *freq_p, int *depth_p);
 bool VID_GetGeometry(vrect_t *rc);

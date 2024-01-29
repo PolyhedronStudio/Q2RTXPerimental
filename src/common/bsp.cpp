@@ -1231,6 +1231,10 @@ int BSP_Load(const char *name, bsp_t **bsp_p)
     size_t          memsize;
     bool            extended = false;
 
+    #if USE_REF
+    lump_t ext[ q_countof( bspx_lumps ) ] = { 0 };
+    #endif
+
     Q_assert(name);
     Q_assert(bsp_p);
 
@@ -1312,7 +1316,6 @@ int BSP_Load(const char *name, bsp_t **bsp_p)
     bsp->extended = extended;
 
 #if USE_REF
-    lump_t ext[q_countof(bspx_lumps)] = { 0 };
     memsize += BSP_ParseExtensionHeader(bsp, ext, buf, maxpos, filelen);
 #endif
 

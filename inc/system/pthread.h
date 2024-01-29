@@ -27,6 +27,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define PTHREAD_MUTEX_INITIALIZER   {0}
 #define PTHREAD_COND_INITIALIZER    {0}
 
+#ifdef __cplusplus
+extern "C" {
+    #endif
+
 typedef void pthread_attr_t;
 typedef void pthread_mutexattr_t;
 typedef void pthread_condattr_t;
@@ -94,6 +98,10 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                    void *(*start_routine)(void *), void *arg);
 
 int pthread_join(pthread_t thread, void **retval);
+
+#ifdef __cplusplus
+}; // extern "C" {
+#endif
 
 #else
 #include <pthread.h>

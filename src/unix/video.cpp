@@ -33,13 +33,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/video.h"
 #include "refresh/refresh.h"
 #include "system/system.h"
-<<<<<<<< HEAD:src/unix/video.cpp
 #include "res/q2pro.xbm"
 // Defined to prevent a warning C4005: 'M_PI': macro redefinition
 #define HAVE_M_PI
-========
-#include "../res/q2pro.xbm"
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/unix/video/sdl.c
 #include <SDL.h>
 
 #ifdef _WINDOWS
@@ -50,35 +46,32 @@ PFN_SetProcessDpiAwareness_t PFN_SetProcessDpiAwareness = NULL;
 HMODULE h_ShCoreDLL = 0;
 #endif
 
-<<<<<<<< HEAD:src/unix/video.cpp
 extern "C" {
 	SDL_Window* sdl_window;
-};
-static vidFlags_t       sdl_flags;
-========
-static struct {
-    SDL_Window      *window;
-#if REF_GL
-    SDL_GLContext   *context;
-#endif
-    vidFlags_t      flags;
+    static vidFlags_t       sdl_flags;
 
-    int             width;
-    int             height;
-    int             win_width;
-    int             win_height;
+    static struct {
+        SDL_Window      *window;
+    #if REF_GL
+        SDL_GLContext   *context;
+    #endif
+        vidFlags_t      flags;
 
-    bool            wayland;
-    int             focus_hack;
-} sdl;
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/unix/video/sdl.c
+        int             width;
+        int             height;
+        int             win_width;
+        int             win_height;
 
-extern cvar_t* vid_display;
-extern cvar_t* vid_displaylist;
+        bool            wayland;
+        int             focus_hack;
+    } sdl;
 
-SDL_Window* get_sdl_window(void)
-{
-    return sdl.window;
+    extern cvar_t* vid_display;
+    extern cvar_t* vid_displaylist;
+
+    SDL_Window *get_sdl_window( void ) {
+        return sdl.window;
+    }
 }
 
 /*
@@ -150,8 +143,7 @@ static void mode_changed(void)
 
     SDL_GL_GetDrawableSize(sdl.window, &sdl.width, &sdl.height);
 
-<<<<<<<< HEAD:src/unix/video.cpp
-    Uint32 flags = SDL_GetWindowFlags(sdl_window);
+    Uint32 flags = SDL_GetWindowFlags(sdl.window);
 	// WID: C++20: Added cast.
 	if (flags & SDL_WINDOW_FULLSCREEN) {
 		//sdl_flags |= QVF_FULLSCREEN;
@@ -159,13 +151,6 @@ static void mode_changed(void)
 	} else {
         sdl_flags = static_cast<vidFlags_t>( sdl_flags & ~QVF_FULLSCREEN );
 	}
-========
-    Uint32 flags = SDL_GetWindowFlags(sdl.window);
-    if (flags & SDL_WINDOW_FULLSCREEN)
-        sdl.flags |= QVF_FULLSCREEN;
-    else
-        sdl.flags &= ~QVF_FULLSCREEN;
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/unix/video/sdl.c
 
     R_ModeChanged(sdl.width, sdl.height, sdl.flags);
     SCR_ModeChanged();
@@ -328,18 +313,13 @@ static char *get_mode_list(void)
 
 static int get_dpi_scale(void)
 {
-<<<<<<<< HEAD:src/unix/video.cpp
-#ifdef _WINDOWS
 	// Load the DLL and function dynamically to avoid exe file incompatibility with Windows 7
-    cvar_t* vid_hwgamma;
-========
     if (sdl.win_width && sdl.win_height) {
         int scale_x = (sdl.width + sdl.win_width / 2) / sdl.win_width;
         int scale_y = (sdl.height + sdl.win_height / 2) / sdl.win_height;
         if (scale_x == scale_y)
             return clamp(scale_x, 1, 10);
     }
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/unix/video/sdl.c
 
     return 1;
 }
@@ -362,6 +342,9 @@ static bool init(graphics_api_t api)
 {
 	Uint32 flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 	vrect_t rc;
+    uint32_t icon_rgb[ q2icon_height ][ q2icon_width ];
+    SDL_Surface *icon = nullptr;
+    cvar_t *vid_hwgamma = nullptr;
 
     if (SDL_InitSubSystem(SDL_INIT_VIDEO) == -1) {
         Com_EPrintf("Couldn't initialize SDL video: %s\n", SDL_GetError());
@@ -397,7 +380,6 @@ static bool init(graphics_api_t api)
 
     SDL_SetWindowMinimumSize(sdl.window, 320, 240);
 
-	uint32_t icon_rgb[q2icon_height][q2icon_width];
 	for (int y = 0; y < q2icon_height; y++)
 	{
 		for (int x = 0; x < q2icon_height; x++)
@@ -410,7 +392,7 @@ static bool init(graphics_api_t api)
 		}
 	}
 
-    SDL_Surface *icon = SDL_CreateRGBSurfaceFrom(icon_rgb, q2icon_width, q2icon_height, 32, q2icon_width * sizeof(uint32_t), 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
+    icon = SDL_CreateRGBSurfaceFrom(icon_rgb, q2icon_width, q2icon_height, 32, q2icon_width * sizeof(uint32_t), 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000);
     if (icon) {
         SDL_SetWindowIcon(sdl.window, icon);
         SDL_FreeSurface(icon);
@@ -419,14 +401,9 @@ static bool init(graphics_api_t api)
 #if REF_GL
 	if (api == GAPI_OPENGL)
 	{
-<<<<<<<< HEAD:src/unix/video.cpp
 		// WID: C++20: Added cast? Odd...
-        sdl_context = (SDL_GLContext*)SDL_GL_CreateContext(sdl_window);
-		if (!sdl_context) {
-========
-		sdl.context = SDL_GL_CreateContext(sdl.window);
+		sdl.context = (SDL_GLContext *)SDL_GL_CreateContext(sdl.window);
 		if (!sdl.context) {
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/unix/video/sdl.c
 			Com_EPrintf("Couldn't create OpenGL context: %s\n", SDL_GetError());
 			goto fail;
 		}
@@ -435,7 +412,6 @@ static bool init(graphics_api_t api)
 #endif
 
 	// WID: C++20: Moved to top, still initialized here.
-    //cvar_t *vid_hwgamma = Cvar_Get("vid_hwgamma", "0", CVAR_REFRESH);
     vid_hwgamma = Cvar_Get("vid_hwgamma", "0", CVAR_REFRESH);
     if (vid_hwgamma->integer) {
         Uint16  gamma[3][256];
@@ -443,13 +419,9 @@ static bool init(graphics_api_t api)
         if (SDL_GetWindowGammaRamp(sdl.window, gamma[0], gamma[1], gamma[2]) == 0 &&
             SDL_SetWindowGammaRamp(sdl.window, gamma[0], gamma[1], gamma[2]) == 0) {
             Com_Printf("...enabling hardware gamma\n");
-<<<<<<<< HEAD:src/unix/video.cpp
 			// WID: C++20: Added cast.
             //sdl_flags |= QVF_GAMMARAMP;
-            sdl_flags = static_cast<vidFlags_t>( sdl_flags | QVF_GAMMARAMP );
-========
-            sdl.flags |= QVF_GAMMARAMP;
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/unix/video/sdl.c
+            sdl.flags = static_cast<vidFlags_t>( sdl.flags | QVF_GAMMARAMP );
         } else {
             Com_Printf("...hardware gamma not supported\n");
             Cvar_Reset(vid_hwgamma);
@@ -464,29 +436,13 @@ static bool init(graphics_api_t api)
     return true;
 
 fail:
-<<<<<<<< HEAD:src/unix/video.cpp
-	VID_Shutdown();
+    sdl_shutdown();
 	return false;
 }
 
 void VID_Shutdown(void)
 {
-#if REF_GL
-    if (sdl_context) {
-        SDL_GL_DeleteContext(sdl_context);
-        sdl_context = NULL;
-    }
-#endif
-    if (sdl_window) {
-        SDL_DestroyWindow(sdl_window);
-        sdl_window = NULL;
-    }
-    SDL_QuitSubSystem(SDL_INIT_VIDEO);
-    sdl_flags = static_cast<vidFlags_t>( 0 );
-========
     sdl_shutdown();
-    return false;
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/unix/video/sdl.c
 }
 
 /*
@@ -556,9 +512,30 @@ static void window_event(SDL_WindowEvent *event)
     }
 }
 
-static const byte scantokey[] = {
-    #include "keytables/sdl.h"
+//static const byte scantokey[] = {
+//    #include "unix/video/keytables/sdl.h"
+//};
+static const byte scantokey[ 128 ] = {
+    //  0               1               2               3               4               5               6                   7
+    //  8               9               A               B               C               D               E                   F
+        0,              0,              0,              0,              'a',            'b',            'c',                'd',            // 0
+        'e',            'f',            'g',            'h',            'i',            'j',            'k',                'l',
+        'm',            'n',            'o',            'p',            'q',            'r',            's',                't',            // 1
+        'u',            'v',            'w',            'x',            'y',            'z',            '1',                '2',
+        '3',            '4',            '5',            '6',            '7',            '8',            '9',                '0',            // 2
+        K_ENTER,        K_ESCAPE,       K_BACKSPACE,    K_TAB,          K_SPACE,        '-',            '=',                '[',
+        ']',            '\\',           0,              ';',            '\'',           '`',            ',',                '.',            // 3
+        '/' ,           K_CAPSLOCK,     K_F1,           K_F2,           K_F3,           K_F4,           K_F5,               K_F6,
+        K_F7,           K_F8,           K_F9,           K_F10,          K_F11,          K_F12,          K_PRINTSCREEN,      K_SCROLLOCK,    // 4
+        K_PAUSE,        K_INS,          K_HOME,         K_PGUP,         K_DEL,          K_END,          K_PGDN,             K_RIGHTARROW,
+        K_LEFTARROW,    K_DOWNARROW,    K_UPARROW,      K_NUMLOCK,      K_KP_SLASH,     K_KP_MULTIPLY,  K_KP_MINUS,         K_KP_PLUS,      // 5
+        K_KP_ENTER,     K_KP_END,       K_KP_DOWNARROW, K_KP_PGDN,      K_KP_LEFTARROW, K_KP_5,         K_KP_RIGHTARROW,    K_KP_HOME,
+        K_KP_UPARROW,   K_KP_PGUP,      K_KP_INS,       K_KP_DEL,       K_102ND,        0,              0,                  0,              // 6
+        0,              0,              0,              0,              0,              0,              0,                  0,
+        0,              0,              0,              0,              0,              0,              K_MENU,             0,              // 7
+        K_LCTRL,        K_LSHIFT,       K_LALT,         K_LWINKEY,      K_RCTRL,        K_RSHIFT,       K_RALT,             K_RWINKEY,      // E
 };
+
 
 static const byte scantokey2[] = {
     K_LCTRL, K_LSHIFT, K_LALT, K_LWINKEY, K_RCTRL, K_RSHIFT, K_RALT, K_RWINKEY
@@ -704,13 +681,9 @@ static bool init_mouse(void)
 
 static void grab_mouse(bool grab)
 {
-<<<<<<<< HEAD:src/unix/video.cpp
     SDL_SetWindowGrab(sdl_window, static_cast<SDL_bool>( grab ) ); // WID: C++20: Added cast.
     SDL_SetRelativeMouseMode((SDL_bool)( (grab) && !(Key_GetDest() & KEY_MENU) )); // WID: C++20: Added cast.
-========
-    SDL_SetWindowGrab(sdl.window, grab);
-    SDL_SetRelativeMouseMode(grab && !(Key_GetDest() & KEY_MENU));
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/unix/video/sdl.c
+
     SDL_GetRelativeMouseState(NULL, NULL);
     SDL_ShowCursor(!(sdl.flags & QVF_FULLSCREEN));
 }
@@ -719,31 +692,32 @@ static bool probe(void)
 {
     return true;
 }
+extern "C" {
+    const vid_driver_t vid_sdl = {
+        .name = "sdl",
 
-const vid_driver_t vid_sdl = {
-    .name = "sdl",
+        .probe = probe,
+        .init = init,
+        .shutdown = sdl_shutdown,
+        .fatal_shutdown = fatal_shutdown,
+        .pump_events = pump_events,
 
-    .probe = probe,
-    .init = init,
-    .shutdown = sdl_shutdown,
-    .fatal_shutdown = fatal_shutdown,
-    .pump_events = pump_events,
+        .get_mode_list = get_mode_list,
+        .get_dpi_scale = get_dpi_scale,
+        .set_mode = set_mode,
+        .update_gamma = update_gamma,
 
-    .get_mode_list = get_mode_list,
-    .get_dpi_scale = get_dpi_scale,
-    .set_mode = set_mode,
-    .update_gamma = update_gamma,
+        .get_proc_addr = get_proc_addr,
+        .swap_buffers = swap_buffers,
+        .swap_interval = swap_interval,
 
-    .get_proc_addr = get_proc_addr,
-    .swap_buffers = swap_buffers,
-    .swap_interval = swap_interval,
+        .get_clipboard_data = get_clipboard_data,
+        .set_clipboard_data = set_clipboard_data,
 
-    .get_clipboard_data = get_clipboard_data,
-    .set_clipboard_data = set_clipboard_data,
-
-    .init_mouse = init_mouse,
-    .shutdown_mouse = shutdown_mouse,
-    .grab_mouse = grab_mouse,
-    .warp_mouse = warp_mouse,
-    .get_mouse_motion = get_mouse_motion,
-};
+        .init_mouse = init_mouse,
+        .shutdown_mouse = shutdown_mouse,
+        .grab_mouse = grab_mouse,
+        .warp_mouse = warp_mouse,
+        .get_mouse_motion = get_mouse_motion,
+    };
+}

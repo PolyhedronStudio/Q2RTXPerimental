@@ -275,42 +275,39 @@ void GL_SetEntityAxis(void)
     }
 }
 
-void GL_RotateForEntity(void)
-{
-	float scale = 1.f;
-	if (glr.ent->scale > 0.f)
-		scale = glr.ent->scale;
 
-    GLfloat matrix[16];
+void GL_RotationMatrix( GLfloat *matrix ) {
+    float scale = 1.f;
+    if ( glr.ent->scale > 0.f )
+        scale = glr.ent->scale;
 
-    matrix[0] = glr.entaxis[0][0] * scale;
-    matrix[4] = glr.entaxis[1][0] * scale;
-    matrix[8] = glr.entaxis[2][0] * scale;
-    matrix[12] = glr.ent->origin[0];
+    matrix[ 0 ] = glr.entaxis[ 0 ][ 0 ] * scale;
+    matrix[ 4 ] = glr.entaxis[ 1 ][ 0 ] * scale;
+    matrix[ 8 ] = glr.entaxis[ 2 ][ 0 ] * scale;
+    matrix[ 12 ] = glr.ent->origin[ 0 ];
 
-    matrix[1] = glr.entaxis[0][1] * scale;
-    matrix[5] = glr.entaxis[1][1] * scale;
-    matrix[9] = glr.entaxis[2][1] * scale;
-    matrix[13] = glr.ent->origin[1];
+    matrix[ 1 ] = glr.entaxis[ 0 ][ 1 ] * scale;
+    matrix[ 5 ] = glr.entaxis[ 1 ][ 1 ] * scale;
+    matrix[ 9 ] = glr.entaxis[ 2 ][ 1 ] * scale;
+    matrix[ 13 ] = glr.ent->origin[ 1 ];
 
-    matrix[2] = glr.entaxis[0][2] * scale;
-    matrix[6] = glr.entaxis[1][2] * scale;
-    matrix[10] = glr.entaxis[2][2] * scale;
-    matrix[14] = glr.ent->origin[2];
+    matrix[ 2 ] = glr.entaxis[ 0 ][ 2 ] * scale;
+    matrix[ 6 ] = glr.entaxis[ 1 ][ 2 ] * scale;
+    matrix[ 10 ] = glr.entaxis[ 2 ][ 2 ] * scale;
+    matrix[ 14 ] = glr.ent->origin[ 2 ];
 
-    matrix[3] = 0;
-    matrix[7] = 0;
-    matrix[11] = 0;
-    matrix[15] = 1;
+    matrix[ 3 ] = 0;
+    matrix[ 7 ] = 0;
+    matrix[ 11 ] = 0;
+    matrix[ 15 ] = 1;
 }
 
-void GL_RotateForEntity(void)
-{
-    GLfloat matrix[16];
+void GL_RotateForEntity( void ) {
+    GLfloat matrix[ 16 ];
 
-    GL_RotationMatrix(matrix);
-    GL_MultMatrix(glr.entmatrix, glr.viewmatrix, matrix);
-    GL_ForceMatrix(glr.entmatrix);
+    GL_RotationMatrix( matrix );
+    GL_MultMatrix( glr.entmatrix, glr.viewmatrix, matrix );
+    GL_ForceMatrix( glr.entmatrix );
 }
 
 static void GL_DrawSpriteModel(const model_t *model)

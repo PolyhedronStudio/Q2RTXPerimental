@@ -60,6 +60,7 @@ static void *work_func(void *arg)
 
     return NULL;
 }
+#if USE_CLIENT
 
 void Com_QueueAsyncWork(asyncwork_t *work)
 {
@@ -116,3 +117,5 @@ void Com_ShutdownAsyncWork(void)
     pthread_cond_destroy(&work_cond);
     work_initialized = false;
 }
+
+#endif //#if USE_CLIENT

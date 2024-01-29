@@ -17,15 +17,17 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+    typedef struct asyncwork_s {
+        void ( *work_cb )( void * );
+        void ( *done_cb )( void * );
+        void *cb_arg;
+        struct asyncwork_s *next;
+    } asyncwork_t;
 
 #if USE_CLIENT
-
-typedef struct asyncwork_s {
-    void (*work_cb)(void *);
-    void (*done_cb)(void *);
-    void *cb_arg;
-    struct asyncwork_s *next;
-} asyncwork_t;
 
 void Com_QueueAsyncWork(asyncwork_t *work);
 void Com_CompleteAsyncWork(void);
@@ -37,4 +39,8 @@ void Com_ShutdownAsyncWork(void);
 #define Com_CompleteAsyncWork()     (void)0
 #define Com_ShutdownAsyncWork()     (void)0
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif

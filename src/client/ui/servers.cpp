@@ -213,7 +213,7 @@ A server status response has been received, validated and parsed.
 void UI_StatusEvent(const serverStatus_t *status)
 {
     serverslot_t *slot;
-    char *hostname;
+    const char *hostname;
     const char *host, *mod, *map, *maxclients;
     unsigned timestamp, ping;
     const char *info = status->infostring;

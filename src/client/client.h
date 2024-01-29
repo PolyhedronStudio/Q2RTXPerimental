@@ -33,7 +33,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/messaging.h"
 #include "common/net/chan.h"
 #include "common/net/net.h"
-#include "common/pmove.h"
+//#include "common/pmove.h"
 #include "common/prompt.h"
 #include "common/protocol.h"
 #include "common/sizebuf.h"

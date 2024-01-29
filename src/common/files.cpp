@@ -3532,10 +3532,10 @@ static void setup_base_paths(void)
     // base paths have both BASE and GAME bits set by default
     // the GAME bit will be removed once gamedir is set,
     // and will be put back once gamedir is reset to basegame
-    add_game_dir(FS_PATH_BASE | FS_PATH_GAME, "%s/"BASEGAME, sys_basedir->string);
+    add_game_dir(FS_PATH_BASE | FS_PATH_GAME, "%s/" BASEGAME, sys_basedir->string);
 
     if (sys_homedir->string[0]) {
-        add_game_dir(FS_PATH_BASE | FS_PATH_GAME, "%s/"BASEGAME, sys_homedir->string);
+        add_game_dir(FS_PATH_BASE | FS_PATH_GAME, "%s/" BASEGAME, sys_homedir->string);
     }
 
     fs_base_searchpaths = fs_searchpaths;
@@ -3578,9 +3578,9 @@ static void setup_game_paths(void)
 static void setup_base_gamedir(void)
 {
     if (sys_homedir->string[0]) {
-        Q_snprintf(fs_gamedir, sizeof(fs_gamedir), "%s/"BASEGAME, sys_homedir->string);
+        Q_snprintf(fs_gamedir, sizeof(fs_gamedir), "%s/" BASEGAME, sys_homedir->string);
     } else {
-        Q_snprintf(fs_gamedir, sizeof(fs_gamedir), "%s/"BASEGAME, sys_basedir->string);
+        Q_snprintf(fs_gamedir, sizeof(fs_gamedir), "%s/" BASEGAME, sys_basedir->string);
     }
 #ifdef _WIN32
     FS_ReplaceSeparators(fs_gamedir, '/');
@@ -3763,7 +3763,7 @@ static void list_dirs(genctx_t *ctx, const char *path)
     Sys_ListFiles_r(&list, path, 0);
 
     for (int i = 0; i < list.count; i++) {
-        char *s = list.files[i];
+        char *s = static_cast<char *>( list.files[ i ] );
 
         if (COM_IsPath(s))
             Prompt_AddMatch(ctx, s);
