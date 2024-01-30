@@ -517,7 +517,6 @@ static void CL_Suspend_f(void)
 static int read_first_message(qhandle_t f)
 {
     uint32_t    ul;
-    uint16_t    us;
     size_t      msglen;
     int         read, type;
 

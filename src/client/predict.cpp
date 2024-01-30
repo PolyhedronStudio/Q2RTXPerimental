@@ -23,6 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 CL_CheckPredictionError
 ===================
 */
+static constexpr double MAX_DELTA_ORIGIN = ( 2400 * ( 1.0 / BASE_FRAMERATE ) );
 void CL_CheckPredictionError(void) {
 	if ( cls.demo.playback ) {
 		return;
@@ -37,30 +38,55 @@ void CL_CheckPredictionError(void) {
 		return;
 	}
 
-	// Calculate the last usercmd_t we sent that the server has processed.
-	int64_t frame = cls.netchan.incoming_acknowledged & CMD_MASK;
-	uint64_t cmdIndex = cl.history[ frame ].cmdNumber;
+    const pmove_state_t *in = &cl.frame.ps.pmove;
+    client_predicted_state_t *out = &cl.predictedState;
 
-	// Compare what the server returned with what we had predicted it to be.
-	vec3_t delta = { 0.f, 0.f, 0.f };
-	VectorSubtract( cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin, delta );
+	// Calculate the last usercmd_t we sent that the server has processed.
+	int64_t frameIndex = cls.netchan.incoming_acknowledged & CMD_MASK;
+    // Move command index for this frame in history.
+	uint64_t commandIndex = cl.history[ frameIndex ].commandNumber;
+    // Get the move command.
+    client_movecmd_t *moveCommand = &cl.moveCommands[ commandIndex & CMD_MASK ];
+
+    if ( moveCommand->prediction.time == 0 ) {
+        out->angles = cl.frame.ps.viewangles;
+        out->origin = in->origin;
+        out->velocity = in->velocity;
+        out->error = {};
+
+        out->step_time = 0;
+        out->step = 0;
+        out->rdflags = 0;
+        out->screen_blend = {};
+        return;
+    }
+
+    // Subtract what the server returned from our predicted origin for that frame.
+    out->error = moveCommand->prediction.error = moveCommand->prediction.origin - in->origin;
 
 	// Save the prediction error for interpolation.
-	const float len = fabs( delta[ 0 ] ) + abs( delta[ 1 ] ) + abs( delta[ 2 ] );
+	//const float len = fabs( delta[ 0 ] ) + abs( delta[ 1 ] ) + abs( delta[ 2 ] );
+    const float len = QM_Vector3Length( out->error );
 	//if (len < 1 || len > 640) {
-	if ( len < 1.0f || len > 80.0f ) {
-		// > 80 world units is a teleport or something.
-		VectorClear( cl.predictedState.error );
-		return;
+    if ( len > .1f ) {
+        if ( len > MAX_DELTA_ORIGIN ) {
+            SHOWMISS( "MAX_DELTA_ORIGIN on frame #(%i): len(%f) (%f %f %f)\n",
+                cl.frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+
+            out->angles = cl.frame.ps.viewangles;
+            out->origin = in->origin;
+            out->velocity = in->velocity;
+            out->error = {};
+
+            out->step_time = 0;
+            out->step = 0;
+            out->rdflags = 0;
+            out->screen_blend = {};
+        } else {
+            SHOWMISS( "prediction miss on frame #(%i): len(%f) (%f %f %f)\n",
+            		 cl.frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+        }
 	}
-
-	SHOWMISS( "prediction miss on %i: %i (%f %f %f)\n",
-			 cl.frame.number, len, delta[ 0 ], delta[ 1 ], delta[ 2 ] );
-
-	VectorCopy( cl.frame.ps.pmove.origin, cl.predictedStates[ cmdIndex & CMD_MASK ].origin );
-
-	// Save for error interpolation.
-	VectorCopy( delta, cl.predictedState.error );
 }
 
 /*
@@ -254,8 +280,8 @@ void CL_PredictMovement(void) {
         return;
     }
 
-	uint64_t acknowledgedCommandNumber = cl.history[ cls.netchan.incoming_acknowledged & CMD_MASK ].cmdNumber;
-	const uint64_t currentCommandNumber = cl.cmdNumber;
+	uint64_t acknowledgedCommandNumber = cl.history[ cls.netchan.incoming_acknowledged & CMD_MASK ].commandNumber;
+	const uint64_t currentCommandNumber = cl.currentUserCommandNumber;
 
     // if we are too far out of date, just freeze
     if ( currentCommandNumber - acknowledgedCommandNumber > CMD_BACKUP - 1 ) {
@@ -263,50 +289,70 @@ void CL_PredictMovement(void) {
         return;
     }
 
-    if ( !cl.predictedState.cmd.msec && currentCommandNumber == acknowledgedCommandNumber ) {
+    if ( !cl.moveCommand.cmd.msec && currentCommandNumber == acknowledgedCommandNumber ) {
         SHOWMISS("%i: not moved\n", cl.frame.number);
         return;
     }
 
-    // Copy over the current client state data into pmove.
+    // Prepare our player move, setup the client side trace function pointers.
 	pmove_t pm = {};
     pm.trace = CL_PM_Trace;
     pm.pointcontents = CL_PM_PointContents;
     pm.clip = CL_PM_Clip;
+
+    // Copy over the current client state data into pmove.
     pm.s = cl.frame.ps.pmove;
-    //#if USE_SMOOTH_DELTA_ANGLES
-    VectorCopy( cl.delta_angles, pm.s.delta_angles );
-    VectorCopy( cl.frame.ps.viewoffset, pm.viewoffset );
-    cl.frame.ps.pmove.viewheight = pm.s.viewheight;
-    //#endif
+    pm.s.delta_angles = cl.delta_angles;
+    pm.viewoffset = cl.frame.ps.viewoffset;
+    //pm.s.viewheight = cl.frame.ps.pmove.viewheight;
 
-    // Run previously stored and acknowledged frames
+    // Run previously stored and acknowledged frames up and including the last one.
     while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
-        pm.cmd = cl.predictedStates[ acknowledgedCommandNumber & CMD_MASK ].cmd;
-        clge->PlayerMove( &pm, &cl.pmp );
+        // Get the acknowledged move command from our circular buffer.
+        client_movecmd_t *moveCommand = &cl.moveCommands[ acknowledgedCommandNumber & CMD_MASK ];
 
-        // Save for debug checking
-        VectorCopy( pm.s.origin, cl.predictedStates[ acknowledgedCommandNumber & CMD_MASK ].origin );
+        // Only simulate it if it had movement.
+        if ( moveCommand->cmd.msec ) {
+            // Timestamp it so the client knows we have valid results.
+            moveCommand->prediction.time = cl.time;
+
+            // Simulate the movement.
+            pm.cmd = moveCommand->cmd;
+            clge->PlayerMove( &pm, &cl.pmp );
+        }
+        
+        // Save for prediction checking.
+        moveCommand->prediction.origin = pm.s.origin;
     }
 
-    // Run pending cmd
+    // Now run the pending command number.
     uint64_t frameNumber = currentCommandNumber; //! Default to current frame, expected behavior for if we got msec in predicedState.cmd
-    if ( cl.predictedState.cmd.msec ) {
-        pm.cmd = cl.predictedState.cmd;
+    if ( cl.moveCommand.cmd.msec ) {
+        // Store time of prediction.
+        cl.moveCommand.prediction.time = cl.time;
+
+        // Initialize pmove with the proper moveCommand data.
+        pm.cmd = cl.moveCommand.cmd;
         pm.cmd.forwardmove = cl.localmove[ 0 ];
         pm.cmd.sidemove = cl.localmove[ 1 ];
         pm.cmd.upmove = cl.localmove[ 2 ];
+
+        // Perform movement.
 		clge->PlayerMove( &pm, &cl.pmp );
 
-        // Save for debug checking
-        VectorCopy( pm.s.origin, cl.predictedStates[ (currentCommandNumber + 1) & CMD_MASK ].origin );
+        // Save for prediction checking.
+        cl.moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ].prediction.origin = pm.s.origin;
+        //cl.moveCommand.prediction.origin = pm.s.origin; //
+
+        // Save the now not pending anymore move command as the last entry in our circular buffer.
+        //cl.moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = cl.moveCommand;
 	// Use previous frame if no command is pending.
     } else {
 		frameNumber = currentCommandNumber - 1;
     }
 
 	// Stair Stepping:
-    const float oldZ = cl.predictedStates[ frameNumber & CMD_MASK ].origin[ 2 ];
+    const float oldZ = cl.moveCommands[ frameNumber & CMD_MASK ].prediction.origin[ 2 ];
     const float step = pm.s.origin[ 2 ] - oldZ;
     const float fabsStep = fabsf( step );
     
@@ -317,7 +363,7 @@ void CL_PredictMovement(void) {
                 && ( memcmp( &cl.lastGround.plane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
                 || cl.lastGround.entity != (centity_t*)pm.groundentity ); // we stand on another plane or entity
 
-    // Code below adapted from Q3A.
+    // Code below adapted from Q3A. Smoothes out stair step.
     if ( step_detected ) {
         // check for stepping up before a previous step is completed
         const float delta = cls.realtime - cl.predictedState.step_time;
@@ -334,15 +380,13 @@ void CL_PredictMovement(void) {
     }
 
     // Copy results out into the current predicted state.
-    VectorCopy( pm.s.origin, cl.predictedState.origin );
-    VectorCopy( pm.s.velocity, cl.predictedState.velocity );
-    VectorCopy( pm.viewangles, cl.predictedState.angles );
-    // To be merged with server screen blend.
-    Vector4Copy( pm.screen_blend, cl.predictedState.screen_blend );
-    // To be merged with server rdflags.
-    cl.predictedState.rdflags = pm.rdflags;
-
-    // Record time of changing and adjusting viewheight if it differs from previous time.
+    cl.predictedState.origin = pm.s.origin;
+    cl.predictedState.angles = pm.viewangles;
+    cl.predictedState.velocity = pm.s.velocity;
+    cl.predictedState.screen_blend = pm.screen_blend; // // To be merged with server screen blend.
+    cl.predictedState.rdflags = pm.rdflags; // To be merged with server rdflags.
+    
+    // Adjust the view height to the new state's height, if changing, record moment in time.
     CL_AdjustViewHeight( pm.s.viewheight );
 
     // Store resulting ground data.

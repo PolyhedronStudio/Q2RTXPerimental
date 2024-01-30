@@ -268,7 +268,10 @@ static void set_active_state(void)
         }
 
         // Copy predicted screen blend, renderflags and viewheight.
-        Vector4Copy( cl.frame.ps.screen_blend, cl.predictedState.screen_blend );
+        cl.predictedState.screen_blend.x = cl.frame.ps.screen_blend[ 0 ];
+        cl.predictedState.screen_blend.y = cl.frame.ps.screen_blend[ 1 ];
+        cl.predictedState.screen_blend.z = cl.frame.ps.screen_blend[ 2 ];
+        cl.predictedState.screen_blend.w = cl.frame.ps.screen_blend[ 3 ];
         // Copy predicted rdflags.
         cl.predictedState.rdflags = cl.frame.ps.rdflags;
         // Copy current viewheight into prev and current viewheights.
@@ -1439,8 +1442,8 @@ void CL_CalcViewValues(void) {
 
     // Mix in screen_blend from cgame pmove
     // FIXME: Should also be interpolated?...
-    if ( cl.predictedState.screen_blend[ 3 ] > 0 ) {
-        float a2 = cl.refdef.screen_blend[ 3 ] + ( 1 - cl.refdef.screen_blend[ 3 ] ) * cl.predictedState.screen_blend[ 3 ]; // new total alpha
+    if ( cl.predictedState.screen_blend.z > 0 ) {
+        float a2 = cl.refdef.screen_blend[ 3 ] + ( 1 - cl.refdef.screen_blend[ 3 ] ) * cl.predictedState.screen_blend.z; // new total alpha
         float a3 = cl.refdef.screen_blend[ 3 ] / a2; // fraction of color from old
 
         LerpVector( cl.predictedState.screen_blend, cl.refdef.screen_blend, a3, cl.refdef.screen_blend );

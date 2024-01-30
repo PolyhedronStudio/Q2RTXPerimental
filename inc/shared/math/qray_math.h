@@ -210,12 +210,10 @@ typedef struct Vector3 {
         }
     }
     /**
-    *   Array like component accessors:
+    *  C++ Array like component accessors:
     **/
-    [[nodiscard]] inline constexpr const float &operator[]( size_t i ) const;
-    [[nodiscard]] inline constexpr float &operator[]( size_t i );
-
-
+    [[nodiscard]] inline constexpr const float &operator[]( const size_t i ) const;
+    [[nodiscard]] inline constexpr float &operator[]( const size_t i );
     #endif // #ifdef __cplusplus
 } Vector3;
 #define RL_VECTOR3_TYPE
@@ -228,6 +226,72 @@ typedef struct Vector4 {
     float y;
     float z;
     float w;
+
+    /**
+    *   Q2RTXPerimental: C++ operator support. Implementations are further down this file.
+    **/
+    #ifdef __cplusplus
+    /**
+    *   @brief  Vector3 Constructors, including support for passing in a vec3_t
+    **/
+    [[nodiscard]] inline Vector4() {
+        this->x = 0;
+        this->y = 0;
+        this->z = 0;
+        this->w = 0;
+    }
+    [[nodiscard]] inline Vector4( const float x, const float y, const float z, const float w ) {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+        this->w = w;
+    }
+    [[nodiscard]] inline Vector4( Vector3 &v ) {
+        this->x = v.x;
+        this->y = v.y;
+        this->z = v.z;
+        this->w = 1;
+    }
+    [[nodiscard]] inline Vector4( Vector4 &v ) {
+        this->x = v.x;
+        this->y = v.y;
+        this->z = v.z;
+        this->w = v.w;
+    }
+    [[nodiscard]] inline Vector4( const Vector3 &v ) {
+        this->x = v.x;
+        this->y = v.y;
+        this->z = v.z;
+        this->w = 1;
+    }
+    [[nodiscard]] inline Vector4( const Vector4 &v ) {
+        this->x = v.x;
+        this->y = v.y;
+        this->z = v.z;
+        this->w = v.w;
+    }
+    //[[nodiscard]] inline Vector4( vec3_t v3 ) {
+    //    if ( v3 ) {
+    //        this->x = v3[ 0 ];
+    //        this->y = v3[ 1 ];
+    //        this->z = v3[ 2 ];
+    //        this->w = 1;
+    //    }
+    //}
+    [[nodiscard]] inline Vector4( vec4_t v4 ) {
+        if ( v4 ) {
+            this->x = v4[ 0 ];
+            this->y = v4[ 1 ];
+            this->z = v4[ 2 ];
+            this->w = v4[ 3 ];
+        }
+    }
+    /**
+    *  C++ Array like component accessors:
+    **/
+    [[nodiscard]] inline constexpr const float &operator[]( const size_t i ) const;
+    [[nodiscard]] inline constexpr float &operator[]( const size_t i );
+    #endif // #ifdef __cplusplus
 } Vector4;
 #define RL_VECTOR4_TYPE
 #endif
@@ -279,6 +343,11 @@ typedef struct qfloat3 {
 // Module Functions Definition - Vector3 math
 //----------------------------------------------------------------------------------
 #include "shared/math/qray_vector3.h"
+
+//----------------------------------------------------------------------------------
+// Module Functions Definition - Vector4 math
+//----------------------------------------------------------------------------------
+#include "shared/math/qray_vector4.h"
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Matrix math

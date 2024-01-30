@@ -423,15 +423,15 @@ void SCR_LagClear(void)
 void SCR_LagSample(void)
 {
     int i = cls.netchan.incoming_acknowledged & CMD_MASK;
-    client_history_t *h = &cl.history[i];
+    client_usercmd_history_t *h = &cl.history[i];
     unsigned ping;
 
-    h->rcvd = cls.realtime;
-    if (!h->cmdNumber || h->rcvd < h->sent) {
+    h->timeReceived = cls.realtime;
+    if (!h->commandNumber || h->timeReceived < h->timeSent) {
         return;
     }
 
-    ping = h->rcvd - h->sent;
+    ping = h->timeReceived - h->timeSent;
     for (i = 0; i < cls.netchan.dropped; i++) {
         lag.samples[lag.head % LAG_WIDTH] = ping | LAG_CRIT_BIT;
         lag.head++;

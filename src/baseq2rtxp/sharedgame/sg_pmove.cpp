@@ -1119,11 +1119,11 @@ static void PM_ScreenEffects() {
 
 	// Add screen blending for specific 'water' like solid types if needed:
 	if ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) {
-		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, pm->screen_blend );
+		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, &pm->screen_blend.x );
 	} else if ( contents & CONTENTS_SLIME ) {
-		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, pm->screen_blend );
+		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, &pm->screen_blend.x );
 	} else if ( contents & CONTENTS_WATER ) {
-		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, pm->screen_blend );
+		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, &pm->screen_blend.x );
 	}
 }
 

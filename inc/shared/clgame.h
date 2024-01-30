@@ -152,7 +152,7 @@ typedef struct {
 	//! Frametime in miliseconds.
 	uint32_t    frame_time_ms;
 
-	//! Client State.
+	//! Client State. Shared with client game.
 	struct client_state_s *client;
 
 	/**

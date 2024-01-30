@@ -2700,9 +2700,9 @@ static void CL_MeasureStats(void)
             i = cl.initialSeq;
         }
         for (j = i; j <= ack; j++) {
-            client_history_t *h = &cl.history[j & CMD_MASK];
-            if (h->rcvd > h->sent) {
-                ping += h->rcvd - h->sent;
+            client_usercmd_history_t *h = &cl.history[j & CMD_MASK];
+            if (h->timeReceived > h->timeSent) {
+                ping += h->timeReceived - h->timeSent;
                 k++;
             }
         }

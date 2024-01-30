@@ -638,7 +638,7 @@ typedef struct {
     *   (Out):
     **/
     // [KEX] results (out)
-    vec4_t screen_blend;
+    Vector4 screen_blend;
     //! Merged with rdflags from server.
     int32_t rdflags;
     //! Play jump sound.

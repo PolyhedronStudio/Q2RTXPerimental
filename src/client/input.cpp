@@ -435,11 +435,11 @@ static double CL_KeyState(kbutton_t *key)
     }
 
     // special case for instant packet
-    if (!cl.predictedState.cmd.msec) {
+    if (!cl.moveCommand.cmd.msec) {
         return (double)(key->state & 1);
     }
 
-    val = (double)msec / cl.predictedState.cmd.msec;
+    val = (double)msec / cl.moveCommand.cmd.msec;
 
     return clamp(val, 0, 1);
 }
@@ -551,8 +551,7 @@ CL_BaseMove
 Build the intended movement vector
 ================
 */
-static void CL_BaseMove(vec3_t move)
-{
+static void CL_BaseMove( Vector3 &move ) {
     if (in_strafe.state & 1) {
         move[1] += cl_sidespeed->value * CL_KeyState(&in_right);
         move[1] -= cl_sidespeed->value * CL_KeyState(&in_left);
@@ -575,13 +574,12 @@ static void CL_BaseMove(vec3_t move)
     }
 }
 
-static void CL_ClampSpeed(vec3_t move)
-{
-    float speed = 400;  // default (maximum) running speed
-
-    clamp(move[0], -speed, speed);
-    clamp(move[1], -speed, speed);
-    clamp(move[2], -speed, speed);
+static void CL_ClampSpeed( Vector3 &move ) {
+    const float speed = 400;  // default (maximum) running speed
+    move = QM_Vector3ClampValue( move, -speed, speed );
+    //clamp(move[0], -speed, speed);
+    //clamp(move[1], -speed, speed);
+    //clamp(move[2], -speed, speed);
 }
 
 static void CL_ClampPitch(void)
@@ -617,7 +615,14 @@ void CL_UpdateCmd(int msec)
     }
 
     // add to milliseconds of time to apply the move
-    cl.predictedState.cmd.msec += msec;
+    cl.moveCommand.cmd.msec += msec;
+
+    // Store framenumber.
+    cl.moveCommand.cmd.frameNumber = cl.frame.number;
+
+    // Store times.
+    cl.moveCommand.simulationTime = cl.time;
+    cl.moveCommand.systemTime = cls.realtime;
 
     // adjust viewangles
     CL_AdjustAngles(msec);
@@ -625,9 +630,9 @@ void CL_UpdateCmd(int msec)
     // get basic movement from keyboard, including jump/crouch.
     CL_BaseMove(cl.localmove);
     if ( in_up.state & 3 )
-        cl.predictedState.cmd.buttons |= BUTTON_JUMP;
+        cl.moveCommand.cmd.buttons |= BUTTON_JUMP;
     if ( in_down.state & 3 )
-        cl.predictedState.cmd.buttons |= BUTTON_CROUCH;
+        cl.moveCommand.cmd.buttons |= BUTTON_CROUCH;
 
     // allow mice to add to the move
     CL_MouseMove();
@@ -641,9 +646,9 @@ void CL_UpdateCmd(int msec)
 
     CL_ClampPitch();
 
-    cl.predictedState.cmd.angles[0] = /*ANGLE2SHORT*/(cl.viewangles[0]);
-    cl.predictedState.cmd.angles[1] = /*ANGLE2SHORT*/(cl.viewangles[1]);
-    cl.predictedState.cmd.angles[2] = /*ANGLE2SHORT*/(cl.viewangles[2]);
+    cl.moveCommand.cmd.angles[0] = /*ANGLE2SHORT*/(cl.viewangles[0]);
+    cl.moveCommand.cmd.angles[1] = /*ANGLE2SHORT*/(cl.viewangles[1]);
+    cl.moveCommand.cmd.angles[2] = /*ANGLE2SHORT*/(cl.viewangles[2]);
 }
 
 static void m_autosens_changed(cvar_t *self)
@@ -749,7 +754,7 @@ and angles are already set for this frame by CL_UpdateCmd.
 */
 void CL_FinalizeCmd(void)
 {
-    vec3_t move;
+    Vector3 move;
 
     // command buffer ticks in sync with cl_maxfps
     Cbuf_Frame( &cmd_buffer );
@@ -767,30 +772,30 @@ void CL_FinalizeCmd(void)
 // figure button bits
 //
     if ( in_attack.state & 3 ) {
-        cl.predictedState.cmd.buttons |= BUTTON_ATTACK;
+        cl.moveCommand.cmd.buttons |= BUTTON_ATTACK;
     }
     if ( in_use.state & 3 ) {
-        cl.predictedState.cmd.buttons |= BUTTON_USE;
+        cl.moveCommand.cmd.buttons |= BUTTON_USE;
     }
     //if ( in_use.state & 3 )
-    //    cl.predictedState.cmd.buttons |= BUTTON_HOLSTER;
+    //    cl.moveCommand.cmd.buttons |= BUTTON_HOLSTER;
     if ( in_up.state & 3 ) {
-        cl.predictedState.cmd.buttons |= BUTTON_JUMP;
+        cl.moveCommand.cmd.buttons |= BUTTON_JUMP;
     }
     if ( in_down.state & 3 ) {
-        cl.predictedState.cmd.buttons |= BUTTON_CROUCH;
+        cl.moveCommand.cmd.buttons |= BUTTON_CROUCH;
     }
 
     //in_attack.state &= ~2;
     //in_use.state &= ~2;
 
     if (cls.key_dest == KEY_GAME && Key_AnyKeyDown()) {
-        cl.predictedState.cmd.buttons |= BUTTON_ANY;
+        cl.moveCommand.cmd.buttons |= BUTTON_ANY;
     }
 
 	// WID: 64-bit-frame: Should we messabout with this?
-    if (cl.predictedState.cmd.msec > 75) { // Was: > 250
-        cl.predictedState.cmd.msec = BASE_FRAMERATE;        // time was unreasonable
+    if (cl.moveCommand.cmd.msec > 75) { // Was: > 250
+        cl.moveCommand.cmd.msec = BASE_FRAMERATE;        // time was unreasonable
     }
 
     // rebuild the movement vector
@@ -807,23 +812,27 @@ void CL_FinalizeCmd(void)
     CL_ClampSpeed(move);
 
     // Store the movement vector
-    cl.predictedState.cmd.forwardmove = move[0];
-    cl.predictedState.cmd.sidemove = move[1];
-    cl.predictedState.cmd.upmove = move[2];
+    cl.moveCommand.cmd.forwardmove = move[0];
+    cl.moveCommand.cmd.sidemove = move[1];
+    cl.moveCommand.cmd.upmove = move[2];
 
     // Store impulse.
-    cl.predictedState.cmd.impulse = in_impulse;
+    cl.moveCommand.cmd.impulse = in_impulse;
 
     // Store the frame number this was fired at.
-    cl.predictedState.cmd.frameNumber = cl.frame.number;
+    cl.moveCommand.cmd.frameNumber = cl.frame.number;
+
+    // Store times.
+    cl.moveCommand.simulationTime = cl.time;
+    cl.moveCommand.systemTime = cls.realtime;
 
     // save this command off for prediction
-    cl.cmdNumber++;
-    cl.predictedStates[ cl.cmdNumber & CMD_MASK ].cmd = cl.predictedState.cmd;
+    cl.currentUserCommandNumber++;
+    cl.moveCommands[ cl.currentUserCommandNumber & CMD_MASK ] = cl.moveCommand;
 
 clear:
     // clear pending cmd
-    cl.predictedState.cmd = {};
+    cl.moveCommand.cmd = {};
 
     // clear all states
     cl.mousemove[0] = 0;
@@ -892,7 +901,7 @@ static inline bool ready_to_send_hacked(void)
         return true; // packet drop hack disabled
     }
 
-    if (cl.cmdNumber - cl.lastTransmitCmdNumberReal > 2) {
+    if (cl.currentUserCommandNumber - cl.lastTransmitCmdNumberReal > 2) {
         return true; // can't drop more than 2 cmds
     }
 
@@ -908,16 +917,15 @@ static void CL_SendDefaultCmd(void)
 {
     size_t cursize q_unused, checksumIndex;
     usercmd_t *cmd, *oldcmd;
-    client_history_t *history;
-    int version;
+    client_usercmd_history_t *history;
 
     // archive this packet
     history = &cl.history[cls.netchan.outgoing_sequence & CMD_MASK];
-    history->cmdNumber = cl.cmdNumber;
-    history->sent = cls.realtime;    // for ping calculation
-    history->rcvd = 0;
+    history->commandNumber = cl.currentUserCommandNumber;
+    history->timeSent = cls.realtime;    // for ping calculation
+    history->timeReceived = 0;
 
-    cl.lastTransmitCmdNumber = cl.cmdNumber;
+    cl.lastTransmitCmdNumber = cl.currentUserCommandNumber;
 
     // see if we are ready to send this packet
     if (!ready_to_send_hacked()) {
@@ -926,7 +934,7 @@ static void CL_SendDefaultCmd(void)
     }
 
     cl.lastTransmitTime = cls.realtime;
-    cl.lastTransmitCmdNumberReal = cl.cmdNumber;
+    cl.lastTransmitCmdNumberReal = cl.currentUserCommandNumber;
 
     // begin a client move command
     MSG_WriteUint8( clc_move );
@@ -950,15 +958,15 @@ static void CL_SendDefaultCmd(void)
 
     // send this and the previous cmds in the message, so
     // if the last packet was dropped, it can be recovered
-    cmd = &cl.predictedStates[(cl.cmdNumber - 2) & CMD_MASK].cmd;
+    cmd = &cl.moveCommands[(cl.currentUserCommandNumber - 2) & CMD_MASK].cmd;
     MSG_WriteDeltaUserCommand(NULL, cmd, cls.protocolVersion);
     oldcmd = cmd;
 
-	cmd = &cl.predictedStates[ ( cl.cmdNumber - 1 ) & CMD_MASK ].cmd;
+	cmd = &cl.moveCommands[ ( cl.currentUserCommandNumber - 1 ) & CMD_MASK ].cmd;
     MSG_WriteDeltaUserCommand(oldcmd, cmd, cls.protocolVersion);
     oldcmd = cmd;
 
-	cmd = &cl.predictedStates[ ( cl.cmdNumber ) & CMD_MASK ].cmd;
+	cmd = &cl.moveCommands[ ( cl.currentUserCommandNumber ) & CMD_MASK ].cmd;
     MSG_WriteDeltaUserCommand(oldcmd, cmd, cls.protocolVersion);
 
     if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
@@ -995,7 +1003,7 @@ static void CL_SendBatchedCmd( void ) {
 	int totalCmds, totalMsec;
 	size_t cursize q_unused;
 	usercmd_t *cmd, *oldcmd;
-	client_history_t *history, *oldest;
+	client_usercmd_history_t *history, *oldest;
 	//byte *patch;
 
 	// see if we are ready to send this packet
@@ -1006,13 +1014,13 @@ static void CL_SendBatchedCmd( void ) {
 	// archive this packet
 	seq = cls.netchan.outgoing_sequence;
 	history = &cl.history[ seq & CMD_MASK ];
-	history->cmdNumber = cl.cmdNumber;
-	history->sent = cls.realtime;    // for ping calculation
-	history->rcvd = 0;
+	history->commandNumber = cl.currentUserCommandNumber;
+	history->timeSent = cls.realtime;    // for ping calculation
+	history->timeReceived = 0;
 
 	cl.lastTransmitTime = cls.realtime;
-	cl.lastTransmitCmdNumber = cl.cmdNumber;
-	cl.lastTransmitCmdNumberReal = cl.cmdNumber;
+	cl.lastTransmitCmdNumber = cl.currentUserCommandNumber;
+	cl.lastTransmitCmdNumberReal = cl.currentUserCommandNumber;
 
 	MSG_BeginWriting( );
 	//Cvar_ClampInteger( cl_packetdup, 0, MAX_PACKET_FRAMES - 1 );
@@ -1041,7 +1049,7 @@ static void CL_SendBatchedCmd( void ) {
 		oldest = &cl.history[ ( i - 1 ) & CMD_MASK ];
 		history = &cl.history[ i & CMD_MASK ];
 
-		numCmds = history->cmdNumber - oldest->cmdNumber;
+		numCmds = history->commandNumber - oldest->commandNumber;
 		if ( numCmds >= MAX_PACKET_USERCMDS ) {
 			Com_WPrintf( "%s: MAX_PACKET_USERCMDS exceeded\n", __func__ );
 			SZ_Clear( &msg_write );
@@ -1050,8 +1058,8 @@ static void CL_SendBatchedCmd( void ) {
 		totalCmds += numCmds;
 		//MSG_WriteBits( numCmds, 5 );
 		MSG_WriteUint8( numCmds );
-		for ( j = oldest->cmdNumber + 1; j <= history->cmdNumber; j++ ) {
-			cmd = &cl.predictedStates[ j & CMD_MASK ].cmd;
+		for ( j = oldest->commandNumber + 1; j <= history->commandNumber; j++ ) {
+			cmd = &cl.moveCommands[ j & CMD_MASK ].cmd;
 			totalMsec += cmd->msec;
 			bits = MSG_WriteDeltaUserCommand( oldcmd, cmd, cls.serverProtocol );
 			#if USE_DEBUG
@@ -1087,18 +1095,18 @@ static void CL_SendBatchedCmd( void ) {
 
 static void CL_SendKeepAlive(void)
 {
-    client_history_t *history;
+    client_usercmd_history_t *history;
     size_t cursize q_unused;
 
     // archive this packet
     history = &cl.history[cls.netchan.outgoing_sequence & CMD_MASK];
-    history->cmdNumber = cl.cmdNumber;
-    history->sent = cls.realtime;    // for ping calculation
-    history->rcvd = 0;
+    history->commandNumber = cl.currentUserCommandNumber;
+    history->timeSent = cls.realtime;    // for ping calculation
+    history->timeReceived = 0;
 
     cl.lastTransmitTime = cls.realtime;
-    cl.lastTransmitCmdNumber = cl.cmdNumber;
-    cl.lastTransmitCmdNumberReal = cl.cmdNumber;
+    cl.lastTransmitCmdNumber = cl.currentUserCommandNumber;
+    cl.lastTransmitCmdNumberReal = cl.currentUserCommandNumber;
 
     cursize = NetchanQ2RTXPerimental_Transmit(&cls.netchan, 0, "" );
 #if USE_DEBUG
@@ -1180,7 +1188,7 @@ void CL_SendCmd(void)
     }
 
     // are there any new usercmds to send after all?
-    if (cl.lastTransmitCmdNumber == cl.cmdNumber) {
+    if (cl.lastTransmitCmdNumber == cl.currentUserCommandNumber) {
         return; // nothing to send
     }
 

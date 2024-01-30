@@ -140,7 +140,7 @@ static inline const int32_t NUMBER_OF_ENTITY( const centity_t *cent ) {
 //    uint64_t sent;    // time sent, for calculating pings
 //	uint64_t rcvd;    // time rcvd, for calculating pings
 //	uint64_t cmdNumber;    // current cmdNumber for this frame
-//} client_history_t;
+//} client_usercmd_history_t;
 //
 ///**
 //*   @brief  Contains, if valid, snapshots of the player state and the range of
@@ -219,7 +219,7 @@ static inline const int32_t NUMBER_OF_ENTITY( const centity_t *cent ) {
 //	//! The current command its numerical index.
 //	uint64_t cmdNumber;
 //	//! Client history of command user input index, its time sent, as well as time received.
-//    client_history_t history[CMD_BACKUP];
+//    client_usercmd_history_t history[CMD_BACKUP];
 //	//! The initiali client frame sequence.
 //    int64_t initialSeq;
 //
