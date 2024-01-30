@@ -412,6 +412,7 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 	IF( WIN32 )
 		target_include_directories(baseq2rtxp_svgame PRIVATE ../VC/inc)
 		target_include_directories(baseq2rtxp_clgame PRIVATE ../VC/inc)
+
 		target_sources(baseq2rtxp_svgame PRIVATE windows/res/baseq2rtxp_svgame.rc)
 		target_sources(baseq2rtxp_clgame PRIVATE windows/res/baseq2rtxp_clgame.rc)
 		# macro redefinition, deprecation

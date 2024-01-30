@@ -27,10 +27,6 @@ extern "C" {
 
 #include "common/bsp.h"
 
-// bitmasks communicated by server
-#define MAX_MAP_AREA_BYTES      (MAX_MAP_AREAS / 8)
-#define MAX_MAP_PORTAL_BYTES    MAX_MAP_AREA_BYTES
-
 typedef struct {
     bsp_t       *cache;
     int         *floodnums;     // if two areas have equal floodnums,

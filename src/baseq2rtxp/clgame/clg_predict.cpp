@@ -91,7 +91,7 @@ void PF_InitGame( void ) {
 	// C Random time initializing.
 	Q_srand( time( NULL ) );
 	// Seed RNG
-	mt_rand.seed( (uint32_t)std::chrono::system_clock::now( ).time_since_epoch( ).count( ) );
+	mt_rand.seed( (uint32_t)std::chrono::system_clock::now().time_since_epoch().count() );
 
 	/**
 	*	CVars.
@@ -122,12 +122,13 @@ void PF_InitGame( void ) {
 	//globals.num_edicts = game.maxclients + 1;
 	globals.num_entities = 0;
 
+
 	// Get the game mode.
 	clgi.Print( print_type_t::PRINT_ALL, "==== Init ClientGame ====\n" );
 }
 
 /**
-*	@brief	
+*	@brief
 **/
 void PF_ClearState( void ) {
 	// Clear out client entities array.
@@ -149,14 +150,14 @@ const char *PF_GetGamemodeName( int32_t gameModeID ) {
 }
 
 /**
-*	@brief 
+*	@brief
 **/
 void PF_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	SG_PlayerMove( pmove, params );
 }
 
 /**
-*	@brief	
+*	@brief
 **/
 void PF_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	SG_ConfigurePlayerMoveParameters( pmp );
@@ -167,7 +168,7 @@ void PF_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 *			and global variables
 **/
 extern "C" { // WID: C++20: extern "C".
-	q_exported clgame_export_t *GetGameAPI( clgame_import_t *import ) {
+	q_exported clgame_export_t * GetGameAPI( clgame_import_t * import ) {
 		clgi = *import;
 
 		// From Q2RE:
@@ -194,11 +195,11 @@ extern "C" { // WID: C++20: extern "C".
 
 
 /**
-* 
-* 
+*
+*
 *	For 'Hard Linking' with Info_Print and Com_SkipPath in q_shared.cpp.
-* 
-* 
+*
+*
 **/
 #ifndef CLGAME_HARD_LINKED
 /**
@@ -219,7 +220,7 @@ void Com_LPrintf( print_type_t type, const char *fmt, ... ) {
 	clgi.Print( print_type_t::PRINT_ALL, "%s", text );
 }
 /**
-*	@brief  
+*	@brief
 **/
 void Com_Error( error_type_t type, const char *fmt, ... ) {
 	va_list     argptr;

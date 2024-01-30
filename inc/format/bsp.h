@@ -32,8 +32,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define BSPVERSION      38
 
 
+// Moved to shared.h since we need it there for MAX_MAP_AREA_BYTES
+// Other than that, this define is only used 1 time in bsp.cpp
 // can't be increased without changing network protocol
-#define     MAX_MAP_AREAS       256
+//#define     MAX_MAP_AREAS       256
 
 // arbitrary limit
 #define     MAX_MAP_CLUSTERS    65536

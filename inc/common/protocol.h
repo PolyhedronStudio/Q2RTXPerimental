@@ -44,18 +44,7 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 
 //=========================================
 
-#define UPDATE_BACKUP   512 //16	// copies of entity_state_t to keep buffered must be power of two
-#define UPDATE_MASK     (UPDATE_BACKUP - 1)
-
-#define CMD_BACKUP      512 //128	// allow a lot of command backups for very fast systems increased from 64
-#define CMD_MASK        (CMD_BACKUP - 1)
-
 #define MAX_PACKETENTITY_BYTES 64
-
-// Max entities stuffed per packet.
-#define MAX_PACKET_ENTITIES     1024
-#define MAX_PARSE_ENTITIES      (MAX_PACKET_ENTITIES * UPDATE_BACKUP)
-#define PARSE_ENTITIES_MASK     (MAX_PARSE_ENTITIES - 1)
 
 #define MAX_PACKET_USERCMDS     32
 #define MAX_PACKET_FRAMES       4
@@ -67,8 +56,8 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 // Define a capped limit to prevent doing so.
 #define MAX_PACKET_USERINFOS    8
 
-#define CS_BITMAP_BYTES         (MAX_CONFIGSTRINGS / 8) // 260
-#define CS_BITMAP_LONGS         (CS_BITMAP_BYTES / 4)
+
+
 
 
 // player_state_t communication

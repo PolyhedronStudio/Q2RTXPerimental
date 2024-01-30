@@ -214,6 +214,8 @@ void CL_GM_InitProgs( void ) {
 	imports.frame_time_s = BASE_FRAMETIME_1000;
 	imports.frame_time_ms = BASE_FRAMETIME;
 
+	imports.client = &cl;
+
 	imports.GetConfigString = PF_GetConfigString;
 
 	imports.CVar = PF_CVar;

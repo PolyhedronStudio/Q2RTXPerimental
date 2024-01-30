@@ -198,14 +198,11 @@ MATHLIB
 // We extern "C"
 extern "C" {
 #endif
-
-/*
-==============================================================
-
-BIT UTILITIES:
-
-==============================================================
-*/
+/**
+*
+*	Bit Utilities:
+*
+**/
 #define BIT(n)          (1U << (n))
 #define BIT_ULL(n)      (1ULL << (n))
 
@@ -214,48 +211,40 @@ BIT UTILITIES:
 #define Q_ClearBit(data, bit)   ((data)[(bit) >> 3] &= ~(1 << ((bit) & 7)))
 
 
-/*
-==============================================================
-
-STRING UTILITIES:
-
-==============================================================
-*/
+/**
+*
+*	String Utilities:
+*
+**/
 #include "shared/string_utilities.h"
 
 
-/*
-==============================================================
-
-ENDIAN UTILITIES:
-
-==============================================================
-*/
+/**
+*
+*	Endian Utilities:
+*
+**/
 #include "shared/endian.h"
-//=============================================
 
-/*
-==============================================================
 
-KEY / VALUE INFO STRINGS:
 
-==============================================================
-*/
+/**
+*
+*   Key/Value Info Strings:
+*
+**/
 #include "info_strings.h"
 
 
 
-/*
-==========================================================
-
-CVARS (console variables):
-
-Actually part of the /common/
-code. What is defined here, is the bare necessity of limited
-API for the game code to make use of.
-
-==========================================================
-*/
+/**
+*
+*   CVARS (console variables):
+*
+*   Actually part of the /common/ code. What is defined here, is the bare necessity of limited
+*   API for the game codes to make use of.
+*
+**/
 #ifndef CVAR
 #define CVAR
 
@@ -287,9 +276,11 @@ typedef struct cvar_s {
     qboolean    modified;   // set each time the cvar is changed
     float       value;
     struct cvar_s *next;
+    // 
     int         integer;
 // ------ new stuff ------
 #if USE_CLIENT || USE_SERVER
+    //int         integer;
     char        *default_string;
     xchanged_t      changed;
     xgenerator_t    generator;
@@ -301,13 +292,11 @@ typedef struct cvar_s {
 
 
 
-/*
-==============================================================
-
-COLLISION DETECTION
-
-==============================================================
-*/
+/**
+*
+*	Collision Detection:
+*
+**/
 // lower bits are stronger, and will eat weaker brushes completely
 #define CONTENTS_NONE           0       // No contents, non-solid.
 #define CONTENTS_SOLID          1       // an eye is never valid in a solid
@@ -441,14 +430,11 @@ typedef struct {
 
 
 
-
-/*
-==============================================================
-
-USER COMMANDS( User Input. ):
-
-==============================================================
-*/
+/**
+*
+*	User Commands( User Input ):
+*
+**/
 //! Set in case of no button being pressed for the frame at all.
 #define BUTTON_NONE         0
 //! Set when the 'attack'(bombs away) button is pressed.
@@ -486,13 +472,11 @@ typedef struct usercmd_s {
 
 
 
-/*
-==============================================================
-
-PLAYER MOVEMENT
-
-==============================================================
-*/
+/**
+*
+*	Player Movement:
+*
+**/
 // edict->solid values
 /**
 *   @brief  The actual 'solid' type of an entity, determines how to behave when colliding with other objects.
@@ -667,15 +651,12 @@ typedef struct {
 
 
 
-/*
-==============================================================
-
-MUZZLE FLASHES / PLAYER EFFECTS ETC:
-
-==============================================================
-*/
-
-
+/**
+*
+*	Muzzleflashes/Player Effects:
+*
+**/
+//
 // entity_state_t->effects
 // Effects are things handled on the client side (lights, particles, frame animations)
 // that happen constantly on the given entity.
@@ -718,7 +699,8 @@ MUZZLE FLASHES / PLAYER EFFECTS ETC:
 #define EF_TRACKERTRAIL     0x80000000
 //ROGUE
 
-// entity_state_t->renderfx flags
+//
+//! entity_state_t->renderfx flags
 #define RF_NONE             0
 #define RF_MINLIGHT         1       // allways have some light (viewmodel)
 #define RF_VIEWERMODEL      2       // don't draw through eyes, only mirrors
@@ -753,9 +735,7 @@ MUZZLE FLASHES / PLAYER EFFECTS ETC:
 #define RDF_IRGOGGLES       4
 #define RDF_UVGOGGLES       8
 //ROGUE
-//
-// muzzle flashes / player effects
-//
+
 enum {
     MZ_BLASTER,
     MZ_MACHINEGUN,
@@ -798,25 +778,26 @@ enum {
     MZ_SILENCED = 128,  // bit flag ORed with one of the above numbers
 };
 
-//
-// monster muzzle flashes
-//
+
+
+/**
+*
+*	Monster Muzzleflashes:
+*
+**/
 #include "shared/m_flash.h"
 
 
-/*
-==============================================================
 
-TEMP ENTITY EVENTS:
-
-==============================================================
-*/
+/**
+*
+*	Temp Entity Events:
+*
+*   Temp entity events are for things that happen at a location seperate from any existing entity.
+*   Temporary entity messages are explicitly constructed and broadcast.
+* 
+**/
 // temp entity events
-//
-// Temp entity events are for things that happen
-// at a location seperate from any existing entity.
-// Temporary entity messages are explicitly constructed
-// and broadcast.
 typedef enum {
     TE_GUNSHOT,
     TE_BLOOD,
@@ -892,6 +873,12 @@ typedef enum {
 #define SPLASH_BLOOD        6
 
 
+
+/**
+*
+*	Sound:
+*
+**/
 // sound channels
 // channel 0 never willingly overrides
 // other channels (1-7) allways override a playing sound on that channel
@@ -912,6 +899,13 @@ typedef enum {
 #define ATTN_STATIC             3   // diminish very rapidly with distance
 
 
+
+/**
+*
+*	Stats Array Indexes, there is room for a game's own stats
+*   after STAT_SPECTATOR up to MAX_STATS(64).
+*
+**/
 // player_state->stats[] indexes
 #define STAT_HEALTH_ICON        0
 #define STAT_HEALTH             1
@@ -936,13 +930,11 @@ typedef enum {
 
 
 
-/*
-==============================================================
-
-GAMEMODE FLAGS(TODO: Actually make it game mode related.)
-
-==============================================================
-*/
+/**
+*
+*	Gamemode Flags: (TODO: Move into sharedgame and do per gamemode.?)
+*
+**/
 // dmflags->value flags
 #define DF_NO_HEALTH        0x00000001  // 1
 #define DF_NO_ITEMS         0x00000002  // 2
@@ -982,93 +974,6 @@ GAMEMODE FLAGS(TODO: Actually make it game mode related.)
 
 
 
-/*
-==========================================================
-
-  ELEMENTS COMMUNICATED ACROSS THE NET
-
-==========================================================
-*/
-// Default server FPS: 10hz
-//#define BASE_FRAMERATE          10
-//#define BASE_FRAMETIME          100
-//#define BASE_1_FRAMETIME        0.01f   // 1/BASE_FRAMETIME
-//#define BASE_FRAMETIME_1000     0.1f    // BASE_FRAMETIME/1000
-
-// Default Server FPS: 40hz
-#define BASE_FRAMERATE          40		// OLD: 10
-#define BASE_FRAMETIME          25		// OLD: 100		1000 / 10 = 100     NEW: 1000 / 40 = 25
-#define BASE_1_FRAMETIME        0.04f	// OLD: 0.01f   1/BASE_FRAMETIME
-#define BASE_FRAMETIME_1000     0.025f	// OLD: 0.1f    BASE_FRAMETIME/1000
-
-/**
-*
-*   Server to Client, and Client to Server CommandMessages.
-* 
-**/
-//
-// server to client
-//
-typedef enum {
-    svc_bad,
-
-    // these are private to the client and server
-    svc_nop,
-    svc_disconnect,
-    svc_reconnect,
-    svc_sound,                  // <see code>
-    svc_print,                  // [byte] id [string] null terminated string
-    svc_stufftext,              // [string] stuffed into client's console buffer should be \n terminated
-    svc_serverdata,             // [long] protocol ...
-    svc_configstring,           // [short] [string]
-    svc_spawnbaseline,
-    svc_centerprint,            // [string] to put in center of the screen
-    svc_download,               // [short] size [size bytes]
-    svc_playerinfo,             // variable
-    svc_packetentities,         // [...]
-    svc_deltapacketentities,    // [...]
-    svc_frame,
-
-    svc_zpacket,
-    svc_zdownload,
-    svc_gamestate,
-    svc_configstringstream,
-    svc_baselinestream,
-    svc_setting,
-
-
-    // These are also known to the game dlls, however, also needed by the engine.
-    svc_muzzleflash,
-    svc_muzzleflash2,
-    svc_temp_entity,
-    svc_layout,
-    svc_inventory,
-
-    svc_svgame                 // The server game is allowed to add custom commands after this. Max limit is a byte, 255.
-} server_command_t;
-
-//==============================================
-
-//
-// client to server
-//
-typedef enum {
-    clc_bad,                // Bad command.
-    clc_nop,                // 'No' command.
-
-    clc_move,               // [usercmd_t]
-    clc_move_nodelta,		// [usercmd_t]
-    clc_move_batched,		// [batched_usercmd_t]
-
-    clc_userinfo,           // [userinfo string]
-    clc_userinfo_delta,		// [userinfo_key][userinfo_value]
-
-    clc_stringcmd,          // [string] message
-
-    svc_clgame                 // The server game is allowed to add custom commands after this. Max limit is a byte, 255.
-} client_command_t;
-
-//==============================================
 /**
 *
 *	Encode/Decode utilities
@@ -1121,10 +1026,8 @@ static inline const float SHORT2COORD( const int s ) {
 
 
 /***
-* 
-*	Config Strings are a general means of communication from the server to all connected clients.
+* 	Config Strings are a general means of communication from the server to all connected clients.
 *	Each config string can be at most MAX_QPATH characters.
-* 
 ***/
 #define CS_NAME             0
 #define CS_CDTRACK          1
@@ -1156,13 +1059,121 @@ static inline int32_t CS_SIZE( int32_t cs ) {
 
 
 
-/*
-==============================================================
+/**
+*
+*	Elements Communicated across the NET.
+*
+**/
+// Default server FPS: 10hz
+//#define BASE_FRAMERATE          10
+//#define BASE_FRAMETIME          100
+//#define BASE_1_FRAMETIME        0.01f   // 1/BASE_FRAMETIME
+//#define BASE_FRAMETIME_1000     0.1f    // BASE_FRAMETIME/1000
 
-ENTITY EVENTS:
+// Default Server FPS: 40hz
+#define BASE_FRAMERATE          40		// OLD: 10
+#define BASE_FRAMETIME          25		// OLD: 100		1000 / 10 = 100     NEW: 1000 / 40 = 25
+#define BASE_1_FRAMETIME        0.04f	// OLD: 0.01f   1/BASE_FRAMETIME
+#define BASE_FRAMETIME_1000     0.025f	// OLD: 0.1f    BASE_FRAMETIME/1000
 
-==============================================================
-*/
+//! Can't be increased without changing network protocol.
+#define MAX_MAP_AREAS       256
+//! Bitmasks communicated by server
+#define MAX_MAP_AREA_BYTES      (MAX_MAP_AREAS / 8)
+#define MAX_MAP_PORTAL_BYTES    MAX_MAP_AREA_BYTES
+
+//! Circular update array.
+#define UPDATE_BACKUP   512 //! 16	//! copies of entity_state_t to keep buffered must be power of two
+#define UPDATE_MASK     (UPDATE_BACKUP - 1)
+
+//! Circular command array.
+#define CMD_BACKUP      512 //! 128	//! allow a lot of command backups for very fast systems increased from 64
+#define CMD_MASK        (CMD_BACKUP - 1)
+
+//! Max entities stuffed per packet.
+#define MAX_PACKET_ENTITIES     1024
+#define MAX_PARSE_ENTITIES      (MAX_PACKET_ENTITIES * UPDATE_BACKUP)
+#define PARSE_ENTITIES_MASK     (MAX_PARSE_ENTITIES - 1)
+
+//! Configstring Bitmap Bytes.
+#define CS_BITMAP_BYTES         (MAX_CONFIGSTRINGS / 8) // 260
+
+//! Entity State messaging flags:
+typedef enum {
+    MSG_ES_FORCE = ( 1 << 0 ),
+    MSG_ES_NEWENTITY = ( 1 << 1 ),
+    MSG_ES_FIRSTPERSON = ( 1 << 2 ),
+    MSG_ES_UMASK = ( 1 << 4 ),
+    MSG_ES_BEAMORIGIN = ( 1 << 5 ),
+    MSG_ES_REMOVE = ( 1 << 7 )
+} msgEsFlags_t;
+
+/**
+*   Server to Client, and Client to Server CommandMessages.
+**/
+// Server to Client
+typedef enum {
+    svc_bad,
+
+    // these are private to the client and server
+    svc_nop,
+    svc_disconnect,
+    svc_reconnect,
+    svc_sound,                  // <see code>
+    svc_print,                  // [byte] id [string] null terminated string
+    svc_stufftext,              // [string] stuffed into client's console buffer should be \n terminated
+    svc_serverdata,             // [long] protocol ...
+    svc_configstring,           // [short] [string]
+    svc_spawnbaseline,
+    svc_centerprint,            // [string] to put in center of the screen
+    svc_download,               // [short] size [size bytes]
+    svc_playerinfo,             // variable
+    svc_packetentities,         // [...]
+    svc_deltapacketentities,    // [...]
+    svc_frame,
+
+    svc_zpacket,
+    svc_zdownload,
+    svc_gamestate,
+    svc_configstringstream,
+    svc_baselinestream,
+    svc_setting,
+
+
+    // These are also known to the game dlls, however, also needed by the engine.
+    svc_muzzleflash,
+    svc_muzzleflash2,
+    svc_temp_entity,
+    svc_layout,
+    svc_inventory,
+
+    svc_svgame                 // The server game is allowed to add custom commands after this. Max limit is a byte, 255.
+} server_command_t;
+
+// Client to Server
+typedef enum {
+    clc_bad,                // Bad command.
+    clc_nop,                // 'No' command.
+
+    clc_move,               // [usercmd_t]
+    clc_move_nodelta,		// [usercmd_t]
+    clc_move_batched,		// [batched_usercmd_t]
+
+    clc_userinfo,           // [userinfo string]
+    clc_userinfo_delta,		// [userinfo_key][userinfo_value]
+
+    clc_stringcmd,          // [string] message
+
+    svc_clgame                 // The server game is allowed to add custom commands after this. Max limit is a byte, 255.
+} client_command_t;
+
+
+
+/**
+*
+*	Entity Events:
+*
+**/
 /**
 *	@description entity_state_t->event values
 *				 ertity events are for effects that take place reletive
@@ -1182,13 +1193,11 @@ typedef enum {
 
 
 
-/*
-==============================================================
-
-ENTITY TYPES:
-
-==============================================================
-*/
+/**
+*
+*	Entity Types:
+*
+**/
 /**
 *	@description	Determines the actual entity type, in order to allow for appropriate state transmission
 *					and efficient client-side handling. (ET_SPOTLIGHT demands different data than 'generic' entities.
@@ -1235,13 +1244,11 @@ typedef enum {
 
 
 
-/*
-==============================================================
-
-ENTITY STATE:
-
-==============================================================
-*/
+/**
+*
+*	Entity State:
+*
+**/
 // entity_state_t is the information conveyed from the server
 // in an update message about entities that the client will
 // need to render in some way
@@ -1302,13 +1309,11 @@ typedef struct entity_state_s {
 
 
 
-/*
-==============================================================
-
-PLAYER STATE:
-
-==============================================================
-*/
+/**
+*
+*	Player State:
+*
+**/
 // player_state_t is the information needed in addition to pmove_state_t
 // to rendered a view.  There will only be 40(since we're running 40hz) player_state_t sent each second,
 // but the number of pmove_state_t changes will be reletive to client

@@ -8,7 +8,7 @@
 #include "shared/shared.h"
 #include "shared/list.h"
 
-// define CLGAME_INCLUDE so that game.h does not define the
+// define CLGAME_INCLUDE so that clgame.h does not define the
 // short, server-visible gclient_t and edict_t structures,
 // because we define the full size ones in this file
 #define CLGAME_INCLUDE

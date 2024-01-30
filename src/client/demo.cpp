@@ -22,6 +22,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "client.h"
 
+#define CS_BITMAP_LONGS         (CS_BITMAP_BYTES / 4)
+
 static byte     demo_buffer[MAX_PACKETLEN];
 
 static cvar_t   *cl_demosnaps;

@@ -132,6 +132,8 @@ typedef struct centity_s {
 //    // this point in the structure
 //};
 //
+#else
+#include "client/client_types.h"
 #endif      // SVGAME_INCLUDE
 
 //===============================================================
@@ -143,10 +145,15 @@ typedef struct {
 	/**
 	*	Consts and Variables:
 	**/
+	//! Tick Rate in hz.
 	uint32_t    tick_rate;
+	//! Frametime in seconds.
 	float       frame_time_s;
+	//! Frametime in miliseconds.
 	uint32_t    frame_time_ms;
 
+	//! Client State.
+	struct client_state_s *client;
 
 	/**
 	*
@@ -154,7 +161,6 @@ typedef struct {
 	*
 	*
 	**/
-
 	configstring_t *( *GetConfigString )( const int32_t index );
 
 	/**
