@@ -18,7 +18,7 @@
 /**
 *   @brief  Explosion struct for varying explosion type effects.
 */
-typedef struct {
+typedef struct explosion_s {
     //! Explosion Type.
     enum {
         ex_free,
@@ -78,7 +78,7 @@ typedef struct clientinfo_s {
 *	@brief  Data needed for storing a 'client user input' command history. Store its time at which
 *	        it was sent as well as when it was received. Used for calculating pings.
 **/
-typedef struct {
+typedef struct client_usercmd_history_s {
     //! Command Number indexing into the cl.predictedStates.
     uint64_t commandNumber;
     //! Time sent, for calculating pings.
@@ -90,7 +90,7 @@ typedef struct {
 /**
 *   @brief  
 **/
-typedef struct {
+typedef struct client_movecmd_s {
     //! The user input command data.
     usercmd_t cmd;
 
@@ -109,7 +109,7 @@ typedef struct {
 /**
 *   @brief  Stores client-side predicted player_state_t information.
 **/
-typedef struct {
+typedef struct client_predicted_state_s {
     //! User Command Input for this frame.
     usercmd_t cmd;
 
@@ -135,7 +135,7 @@ typedef struct {
 *   @brief  Contains, if valid, snapshots of the player state and the range of
 *           entity_state_t entities that were in the current frame.
 **/
-typedef struct {
+typedef struct server_frame_s {
     bool            valid;
 
     //! Sequential identifier, used for delta.
@@ -417,6 +417,38 @@ typedef enum {
 #define CL_PLAYER_MODEL_THIRD_PERSON 3
 
 //
+// effects.c
+//
+#define PARTICLE_GRAVITY        120
+#define BLASTER_PARTICLE_COLOR  0xe0
+#define INSTANT_PARTICLE    -10000.0f
+
+typedef struct cparticle_s {
+    struct cparticle_s *next;
+
+    double   time;
+
+    vec3_t  org;
+    vec3_t  vel;
+    vec3_t  accel;
+    int     color;      // -1 => use rgba
+    float   alpha;
+    float   alphavel;
+    color_t rgba;
+    float   brightness;
+} cparticle_t;
+
+typedef struct cdlight_s {
+    int     key;        // so entities can reuse same entry
+    vec3_t  color;
+    vec3_t  origin;
+    float   radius;
+    float   die;        // stop lighting after this time
+    float   decay;      // drop this each second
+    vec3_t  velosity;     // move this far each second
+} cdlight_t;
+
+//
 // precache.c
 //
 typedef enum {
@@ -428,6 +460,7 @@ typedef enum {
     LOAD_SOUNDS
 } load_state_t;
 
+//
 // parse.c
 //
 typedef struct {

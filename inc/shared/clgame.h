@@ -134,7 +134,7 @@ typedef struct centity_s {
 //
 #else
 #include "client/client_types.h"
-#endif      // SVGAME_INCLUDE
+#endif      // CLGAME_INCLUDE
 
 //===============================================================
 
@@ -157,8 +157,15 @@ typedef struct {
 
 	/**
 	*
-	*	ConfigStrings:
+	*	Client Static:
+	* 
+	**/
+	const bool ( *IsDemoPlayback )( );
+	const uint64_t( *GetRealTime )( );
+
+	/**
 	*
+	*	ConfigStrings:
 	*
 	**/
 	configstring_t *( *GetConfigString )( const int32_t index );
@@ -168,7 +175,8 @@ typedef struct {
 	*	Console variable interaction:
 	*
 	**/
-	cvar_t *( *CVar )( const char *var_name, const char *value, int flags );
+	cvar_t *( *CVar )( const char *var_name, const char *value, const int32_t flags );
+	cvar_t *( *CVar_Get )( const char *var_name, const char *value, const int32_t flags );
 	cvar_t *( *CVar_Set )( const char *var_name, const char *value );
 	cvar_t *( *CVar_ForceSet )( const char *var_name, const char *value );
 
@@ -196,6 +204,15 @@ typedef struct {
 	**/
 
 	
+	/**
+	*
+	*	Clip Tracing:
+	*
+	**/
+	const trace_t ( *q_gameabi Trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const int32_t contentmask );
+	const trace_t ( *q_gameabi Clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const int32_t contentmask );
+	const int32_t ( *q_gameabi PointContents )( const vec3_t point );
+
 	/**
 	*
 	*	ClientCommand Parameter Access:
@@ -230,6 +247,8 @@ typedef struct {
 	*	and the server can be allocated in init
 	**/
 	//! Called during client initialization.
+	void ( *PreInit ) ( void );
+	//! Called during client initialization.
 	void ( *Init )( void );
 	//! Called during client shutdown.
 	void ( *Shutdown )( void );
@@ -240,6 +259,8 @@ typedef struct {
 	//! Called when the client wants to 'clear state', this happens during Disconnecting and when 
 	//! the first server data message, an svc_serverdata(ParsingServerData) event is received..
 	void ( *ClearState ) ( void );
+	//! Called when the client state has moved into being active and the game begins.
+	void ( *ClientBegin ) ( void );
 	//! Called when the client state has moved into being properly connected to server.
 	void ( *ClientConnected ) ( void );
 
@@ -254,8 +275,20 @@ typedef struct {
 	*	Player Movement:
 	*
 	**/
+	//! Returns false if cl_predict == 0, or player move inquired to perform no prediction.
+	const bool ( *UsePrediction )( void );
+	//! Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
+	void ( *AdjustViewHeight )( const int32_t viewHeight );
+	//! Sets the predicted view angles.
+	void ( *PredictAngles )( void );
+	/**
+	*   @brief  Performs player movement over the yet unacknowledged 'move command' frames, as well
+	*           as the pending user move command. To finally store the predicted outcome
+	*           into the cl.predictedState struct.
+	**/
+	void ( *PredictMovement )( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber );
 	//! Perform a frame's worth of player movement using specified pmoveParams configuration.
-	void ( *PlayerMove )( pmove_t *pmove, pmoveParams_t *params );
+	//void ( *PlayerMove )( pmove_t *pmove, pmoveParams_t *params );
 	//! Setup the basic player move configuration parameters. (Used by server for new clients.)
 	void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
 

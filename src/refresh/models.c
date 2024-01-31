@@ -31,7 +31,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "format/iqm.h"
 #include "refresh/images.h"
 #include "refresh/models.h"
-#include "../client/client.h"
+#include "../client/cl_client.h"
 #include "gl/gl.h"
 
 // during registration it is possible to have more models than could actually

@@ -1,4 +1,4 @@
-#include "client.h"
+#include "cl_client.h"
 
 extern "C" {
 
@@ -9,6 +9,23 @@ extern "C" {
 *
 *
 **/
+/**
+*
+*
+*	Client Static:
+*
+*
+**/
+/**
+*	@return	True if playing a demo, false otherwise.
+**/
+static const bool PF_IsDemoPlayback( ) {
+	return cls.demo.playback;
+}
+static const uint64_t PF_GetRealTime() {
+	return cls.realtime;
+}
+
 /**
 *
 *
@@ -33,15 +50,24 @@ static configstring_t *PF_GetConfigString( const int32_t configStringIndex ) {
 * 
 * 
 **/
-static cvar_t *PF_CVar( const char *name, const char *value, int flags ) {
+/**
+*	@brief	For creating CVars in the client game. Will append them with CVAR_GAME flag.
+**/
+static cvar_t *PF_CVar( const char *name, const char *value, const int32_t flags ) {
+	int32_t newFlags = flags;
 	if ( flags & CVAR_EXTENDED_MASK ) {
 		Com_WPrintf( "ClientGame attemped to set extended flags on '%s', masked out.\n", name );
-		flags &= ~CVAR_EXTENDED_MASK;
+		newFlags &= ~CVAR_EXTENDED_MASK;
 	}
 
-	return Cvar_Get( name, value, flags | CVAR_GAME );
+	return Cvar_Get( name, value, newFlags | CVAR_GAME );
 }
-
+/**
+*	@brief	For fetching CVars outside of the client game.
+**/
+static cvar_t *PF_CVarGet( const char *name, const char *value, const int32_t flags ) {
+	return Cvar_Get( name, value, flags );
+}
 
 
 /**
@@ -182,7 +208,7 @@ CL_GM_InitGameProgs
 Init the client game subsystem for a new map
 ===============
 */
-void CL_GM_InitProgs( void ) {
+void CL_GM_LoadProgs( void ) {
 
 	clgame_import_t   imports;
 	GameEntryFunctionPointer *entry = NULL;
@@ -216,9 +242,13 @@ void CL_GM_InitProgs( void ) {
 
 	imports.client = &cl;
 
+	imports.IsDemoPlayback = PF_IsDemoPlayback;
+	imports.GetRealTime = PF_GetRealTime;
+
 	imports.GetConfigString = PF_GetConfigString;
 
 	imports.CVar = PF_CVar;
+	imports.CVar_Get = PF_CVarGet;
 	imports.CVar_Set = Cvar_UserSet;
 	imports.CVar_ForceSet = Cvar_Set;
 
@@ -228,6 +258,10 @@ void CL_GM_InitProgs( void ) {
 	imports.TagMalloc = PF_TagMalloc;
 	imports.TagFree = Z_Free;
 	imports.FreeTags = PF_FreeTags;
+
+	imports.Trace = CL_Trace;
+	imports.Clip = CL_Clip;
+	imports.PointContents = CL_PointContents;
 
 	clge = entry( &imports );
 
@@ -239,9 +273,21 @@ void CL_GM_InitProgs( void ) {
 		Com_Error( ERR_DROP, "ClientGame library is version %d, expected %d",
 				  clge->apiversion, CLGAME_API_VERSION );
 	}
+}
 
+/**
+*	@brief	Properly pre-initialize the client game sub systems.
+**/
+void CL_GM_PreInit( void ) {
+	clge->PreInit( );
+}
+
+/**
+*	@brief	Finalize intializing the client game system.
+**/
+void CL_GM_Init( void ) {
 	// initialize
-	clge->Init( );
+	clge->Init();
 
 	// Point our cl_entities to the address of the memory supplied by the client game.
 	cl_entities = clge->entities;

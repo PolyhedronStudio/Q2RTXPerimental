@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // cl_scrn.c -- master for refresh, status bar, console, chat, notify, etc
 
-#include "client.h"
+#include "cl_client.h"
 #include "refresh/images.h"
 
 #define STAT_PICS       11

@@ -31,6 +31,14 @@ extern sg_time_t FRAME_TIME_MS;
 // Just to, hold time, forever.
 constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64_t>::max( ) );
 
+/**
+*	CVars
+**/
+extern cvar_t *cl_predict;
+extern cvar_t *cl_running;
+extern cvar_t *cl_paused;
+extern cvar_t *sv_running;
+extern cvar_t *sv_paused;
 
 
 /******************************************************************
@@ -174,3 +182,27 @@ typedef struct centity_s {
 **/
 #define TAG_CLGAME			777 // Clear when unloading the dll.
 #define TAG_CLGAME_LEVEL	778 // Clear when loading a new level.
+
+
+
+//
+//	clg_predict.cpp
+//
+/**
+*   @brief  Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
+**/
+void PF_AdjustViewHeight( const int32_t viewHeight );
+/**
+*   @brief  Sets the predicted view angles.
+**/
+void PF_PredictAngles( );
+/**
+*	@return	False if prediction is not desired for. True if it is.
+**/
+const bool PF_UsePrediction( );
+/**
+*   @brief  Performs player movement over the yet unacknowledged 'move command' frames, as well
+*           as the pending user move command. To finally store the predicted outcome
+*           into the cl.predictedState struct.
+**/
+void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber );

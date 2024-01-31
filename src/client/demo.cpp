@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_demo.c - demo recording and playback
 //
 
-#include "client.h"
+#include "cl_client.h"
 
 #define CS_BITMAP_LONGS         (CS_BITMAP_BYTES / 4)
 
@@ -915,13 +915,15 @@ static void CL_Seek_f(void)
         frames = dest - cls.demo.frames_read;
     }
 
-    if ( !frames )
+    if ( !frames ) {
         // already there
         return;
+    }
 
-    if ( frames > 0 && cls.demo.eof && cl_demowait->integer )
+    if ( frames > 0 && cls.demo.eof && cl_demowait->integer ) {
         // already at end
         return;
+    }
 
     // disable effects processing
     cls.demo.seeking = true;

@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // Quake refresh engine.
 
 
-#include "client.h"
+#include "cl_client.h"
 #include "client/video.h"
 #include "refresh/images.h"
 #include "refresh/models.h"

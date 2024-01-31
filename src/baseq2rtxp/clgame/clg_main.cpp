@@ -40,6 +40,14 @@ std::mt19937 mt_rand;
 /**
 *	CVars.
 **/
+#if USE_DEBUG
+cvar_t *developer;
+#endif
+cvar_t *cl_predict;
+cvar_t *cl_running;
+cvar_t *cl_paused;
+cvar_t *sv_running;
+cvar_t *sv_paused;
 //cvar_t *gamemode;
 //cvar_t *maxclients;
 //cvar_t *maxspectators;
@@ -65,6 +73,13 @@ centity_t *g_entities;
 //}
 
 /**
+*
+*
+*	Init/Shutdown
+*
+*
+**/
+/**
 *	@brief	This will be called when the dll is first loaded, which
 *			only happens when a new game is started or a save game
 *			is loaded from the main menu without having a game running
@@ -76,6 +91,13 @@ void PF_ShutdownGame( void ) {
 	// Uncomment after we actually allocate anything using this.
 	//gi.FreeTags( TAG_CLGAME_LEVEL );
 	clgi.FreeTags( TAG_CLGAME );
+}
+
+/**
+*	@brief	Pre-init.
+**/
+void PF_PreInitGame( void ) {
+	clgi.Print( print_type_t::PRINT_ALL, "==== PreInit ClientGame ====\n" );
 }
 
 /**
@@ -96,6 +118,14 @@ void PF_InitGame( void ) {
 	/**
 	*	CVars.
 	**/
+	#if USE_DEBUG
+	developer = clgi.CVar_Get( "developer", nullptr, 0 );
+	#endif
+	cl_predict = clgi.CVar_Get( "cl_predict", nullptr, 0 );
+	cl_running = clgi.CVar_Get( "cl_running", nullptr, 0 );
+	cl_paused = clgi.CVar_Get( "cl_paused", nullptr, 0 );
+	sv_running = clgi.CVar_Get( "cl_running", nullptr, 0 );
+	sv_paused = clgi.CVar_Get( "cl_paused", nullptr, 0 );
 	//gamemode = clgi.CVar( "gamemode", "", 0 );
 	//maxclients = clgi.CVar( "maxclients", "", 0 );
 	//maxspectators = clgi.CVar( "maxspectators", "", 0 );
@@ -126,12 +156,37 @@ void PF_InitGame( void ) {
 	clgi.Print( print_type_t::PRINT_ALL, "==== Init ClientGame ====\n" );
 }
 
+
+
+/**
+*
+*
+*	Client State:
+*
+*
+**/
 /**
 *	@brief	
 **/
 void PF_ClearState( void ) {
 	// Clear out client entities array.
 	memset( g_entities, 0, globals.entity_size * MAX_CLIENT_ENTITIES );
+}
+
+
+
+/**
+*
+*
+*	The player's 'Client':
+*
+*
+**/
+/**
+*	@brief
+**/
+void PF_ClientBegin( void ) {
+	clgi.Print( PRINT_ERROR, "PF_ClientBegin\n" );
 }
 
 /**
@@ -141,6 +196,15 @@ void PF_ClientConnected( void ) {
 	clgi.Print( PRINT_ERROR, "PF_ClientConnected\n" );
 }
 
+
+
+/**
+*
+*
+*	Gamemode:
+*
+*
+**/
 /**
 *	@brief
 **/
@@ -148,6 +212,15 @@ const char *PF_GetGamemodeName( int32_t gameModeID ) {
 	return SG_GetGamemodeName( gameModeID );
 }
 
+
+
+/**
+*
+*
+*	Player Move:
+*
+*
+**/
 /**
 *	@brief 
 **/
@@ -162,6 +235,15 @@ void PF_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	SG_ConfigurePlayerMoveParameters( pmp );
 }
 
+
+
+/**
+*
+*
+*	GetGameAPI
+*
+*
+**/
 /**
 *	@brief	Returns a pointer to the structure with all entry points
 *			and global variables
@@ -176,13 +258,19 @@ extern "C" { // WID: C++20: extern "C".
 		globals.apiversion = CLGAME_API_VERSION;
 
 		globals.Init = PF_InitGame;
+		globals.PreInit = PF_PreInitGame;
 		globals.Shutdown = PF_ShutdownGame;
 		globals.ClearState = PF_ClearState;
+		globals.ClientBegin = PF_ClientBegin;
 		globals.ClientConnected = PF_ClientConnected;
 
 		globals.GetGamemodeName = PF_GetGamemodeName;
 
-		globals.PlayerMove = PF_PlayerMove;
+		globals.AdjustViewHeight = PF_AdjustViewHeight;
+		globals.PredictAngles = PF_PredictAngles;
+		globals.UsePrediction = PF_UsePrediction;
+		globals.PredictMovement = PF_PredictMovement;
+		//globals.PlayerMove = PF_PlayerMove;
 		globals.ConfigurePlayerMoveParameters = PF_ConfigurePlayerMoveParameters;
 
 		globals.entity_size = sizeof( centity_t );

@@ -413,7 +413,7 @@ typedef struct csurface_s {
 *           (ie, how far did it get, whether it is inside of a solid or not, etc)
 **/
 // a trace is returned when a box is swept through the world
-typedef struct {
+typedef struct trace_s {
     qboolean    allsolid;   // if true, plane is not valid
     qboolean    startsolid; // if true, the initial point was in a solid area
     float       fraction;   // time completed, 1.0 = didn't hit anything
@@ -622,11 +622,11 @@ typedef struct {
     **/
     //! Callbacks to test the world with.
     //! Trace against all entities.
-    trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const int32_t contentMask );
+    const trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const int32_t contentMask );
     //! PointContents.
-    int     ( *pointcontents )( const vec3_t point );
+    const int32_t ( *q_gameabi pointcontents )( const vec3_t point );
     //! Clips to world only.
-    trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ const int32_t contentMask );
+    const trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ const int32_t contentMask );
 
     /**
     *   (In):

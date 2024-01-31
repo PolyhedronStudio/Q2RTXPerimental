@@ -7,229 +7,196 @@
 ********************************************************************/
 #include "clg_local.h"
 
-struct game_locals_t {
-	//// store latched cvars here that we want to get at often
-	//int32_t	maxclients;
-	int32_t	maxentities;
-};
-game_locals_t   game;
-struct level_locals_t {
-	// Nothing yet.
-};
-level_locals_t  level;
-clgame_import_t clgi;
-clgame_export_t	globals;
-
-
 /**
-*	Times.
+*   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-//! Frame time in Seconds.
-sg_time_t FRAME_TIME_S;
-//! Frame time in Miliseconds.
-sg_time_t FRAME_TIME_MS;
-
-
+static const trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const int32_t contentMask ) {
+    trace_t t;
+    //if (pm_passent->health > 0)
+    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
+    //else
+    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
+    t = clgi.Trace( start, mins, maxs, end, (const centity_t *)passEntity, contentMask );
+    return t;
+}
 /**
-*	Random Number Generator.
+*   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-//! Mersenne Twister random number generator.
-std::mt19937 mt_rand;
-
-
+static const trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const int32_t contentmask ) {
+    trace_t trace;
+    trace = clgi.Clip( start, mins, maxs, end, nullptr, contentmask );
+    return trace;
+}
 /**
-*	CVars.
+*   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-//cvar_t *gamemode;
-//cvar_t *maxclients;
-//cvar_t *maxspectators;
-//cvar_t *maxentities;
-
-
-/**
-*	Other.
-**/
-centity_t *g_entities;
-
-
-/**
-*	@return	The actual ID of the current gamemode.
-**/
-//const int32_t G_GetActiveGamemodeID() {
-//	if ( gamemode && gamemode->integer >= GAMEMODE_SINGLEPLAYER && gamemode->integer <= GAMEMODE_COOPERATIVE ) {
-//		return gamemode->integer;
-//	}
-//
-//	// Unknown gamemode.
-//	return -1;
-//}
-
-/**
-*	@brief	This will be called when the dll is first loaded, which
-*			only happens when a new game is started or a save game
-*			is loaded from the main menu without having a game running
-*			in the background.
-**/
-void PF_ShutdownGame( void ) {
-	clgi.Print( print_type_t::PRINT_ALL, "==== Shutdown ClientGame ====\n" );
-
-	// Uncomment after we actually allocate anything using this.
-	//gi.FreeTags( TAG_CLGAME_LEVEL );
-	clgi.FreeTags( TAG_CLGAME );
+static const int32_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
+    return clgi.PointContents( point );
 }
 
 /**
-*	@brief	This will be called when the dll is first loaded, which
-*			only happens when a new game is started or a save game
-*			is loaded from the main menu without having a game running
-*			in the background.
+*   @brief  Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
 **/
-void PF_InitGame( void ) {
-	/**
-	*	Initialize time seeds, for C as well as C++.
-	**/
-	// C Random time initializing.
-	Q_srand( time( NULL ) );
-	// Seed RNG
-	mt_rand.seed( (uint32_t)std::chrono::system_clock::now().time_since_epoch().count() );
-
-	/**
-	*	CVars.
-	**/
-	//gamemode = clgi.CVar( "gamemode", "", 0 );
-	//maxclients = clgi.CVar( "maxclients", "", 0 );
-	//maxspectators = clgi.CVar( "maxspectators", "", 0 );
-	//maxentities = clgi.CVar( "maxentities", "", 0 );
-
-	/**
-	*	Allocate space for entities.
-	**/
-	// Initialize all entities for this game.
-	//game.maxentities = maxentities->value;
-	//clamp( game.maxentities, (int)maxclients->value + 1, MAX_EDICTS );
-	game.maxentities = MAX_EDICTS;
-	g_entities = (centity_t *)clgi.TagMalloc( game.maxentities * sizeof( g_entities[ 0 ] ), TAG_CLGAME );
-	globals.entities = g_entities;
-	globals.max_entities = game.maxentities;
-
-	/**
-	*	Allocate space for clients.
-	**/
-	// initialize all clients for this game
-	//game.maxclients = maxclients->value;
-	// WID: C++20: Addec cast.
-	//game.clients = (gclient_t *)gi.TagMalloc( game.maxclients * sizeof( game.clients[ 0 ] ), TAG_SVGAME );
-	//globals.num_edicts = game.maxclients + 1;
-	globals.num_entities = 0;
-
-
-	// Get the game mode.
-	clgi.Print( print_type_t::PRINT_ALL, "==== Init ClientGame ====\n" );
+void PF_AdjustViewHeight( const int32_t viewHeight ) {
+    // Record viewheight changes.
+    if ( clgi.client->viewheight.current != viewHeight ) {
+        // Backup the old 'current' viewheight.
+        clgi.client->viewheight.previous = clgi.client->viewheight.current;
+        // Apply new viewheight.
+        clgi.client->viewheight.current = viewHeight;
+        // Register client's time of viewheight change.
+        clgi.client->viewheight.change_time = clgi.client->time;
+    }
 }
 
 /**
-*	@brief
+*   @brief  Sets the predicted view angles.
 **/
-void PF_ClearState( void ) {
-	// Clear out client entities array.
-	memset( g_entities, 0, globals.entity_size * MAX_CLIENT_ENTITIES );
+void PF_PredictAngles( void ) {
+    // Don't predict angles if the pmove asks so specifically.
+    if ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )/* || !cl_predict->integer*/ ) {
+        VectorCopy( clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.angles );
+        return;
+    }
+
+    // This is done even with cl_predict == 0.
+	VectorAdd( clgi.client->viewangles, clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.angles );
 }
 
 /**
-*	@brief
+*	@return	False if prediction is not desired for. True if it is.
 **/
-void PF_ClientConnected( void ) {
-	clgi.Print( PRINT_ERROR, "PF_ClientConnected\n" );
-}
-
-/**
-*	@brief
-**/
-const char *PF_GetGamemodeName( int32_t gameModeID ) {
-	return SG_GetGamemodeName( gameModeID );
-}
-
-/**
-*	@brief
-**/
-void PF_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
-	SG_PlayerMove( pmove, params );
-}
-
-/**
-*	@brief
-**/
-void PF_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
-	SG_ConfigurePlayerMoveParameters( pmp );
-}
-
-/**
-*	@brief	Returns a pointer to the structure with all entry points
-*			and global variables
-**/
-extern "C" { // WID: C++20: extern "C".
-	q_exported clgame_export_t * GetGameAPI( clgame_import_t * import ) {
-		clgi = *import;
-
-		// From Q2RE:
-		FRAME_TIME_S = FRAME_TIME_MS = sg_time_t::from_ms( clgi.frame_time_ms );
-
-		globals.apiversion = CLGAME_API_VERSION;
-
-		globals.Init = PF_InitGame;
-		globals.Shutdown = PF_ShutdownGame;
-		globals.ClearState = PF_ClearState;
-		globals.ClientConnected = PF_ClientConnected;
-
-		globals.GetGamemodeName = PF_GetGamemodeName;
-
-		globals.PlayerMove = PF_PlayerMove;
-		globals.ConfigurePlayerMoveParameters = PF_ConfigurePlayerMoveParameters;
-
-		globals.entity_size = sizeof( centity_t );
-
-		return &globals;
-	}
-}; // WID: C++20: extern "C".
-
-
-
-/**
-*
-*
-*	For 'Hard Linking' with Info_Print and Com_SkipPath in q_shared.cpp.
-*
-*
-**/
-#ifndef CLGAME_HARD_LINKED
-/**
-*	@brief
-**/
-void Com_LPrintf( print_type_t type, const char *fmt, ... ) {
-	va_list     argptr;
-	char        text[ MAX_STRING_CHARS ];
-
-	if ( type == PRINT_DEVELOPER ) {
-		return;
+const bool PF_UsePrediction( void ) {
+	// We're playing a demo, there is nothing to predict.
+	if ( clgi.IsDemoPlayback() ) {
+		return false;
 	}
 
-	va_start( argptr, fmt );
-	Q_vsnprintf( text, sizeof( text ), fmt, argptr );
-	va_end( argptr );
+	// When the server is paused, nothing to predict, make sure to clear any possible predicted state error.
+	if ( sv_paused->integer ) {
+		clgi.client->predictedState.error = {};
+		return false;
+	}
 
-	clgi.Print( print_type_t::PRINT_ALL, "%s", text );
+	// Prediction is disabled by user, or received frame playerstate.
+	if ( !cl_predict->integer || ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
+		return false;
+	}
+
+	return true;
 }
+
 /**
-*	@brief
+*   @brief  Performs player movement over the yet unacknowledged 'move command' frames, as well
+*           as the pending user move command. To finally store the predicted outcome
+*           into the cl.predictedState struct.
 **/
-void Com_Error( error_type_t type, const char *fmt, ... ) {
-	va_list     argptr;
-	char        text[ MAX_STRING_CHARS ];
+void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber ) {
+    static constexpr float STEP_MIN_HEIGHT = 4.f;
+    static constexpr float STEP_MAX_HEIGHT = 18.0f;
 
-	va_start( argptr, fmt );
-	Q_vsnprintf( text, sizeof( text ), fmt, argptr );
-	va_end( argptr );
+    static constexpr int32_t STEP_TIME = 100;
+    static constexpr int32_t MAX_STEP_CHANGE = 32;
 
-	clgi.Error( "%s", text );
+    // Prepare our player move, setup the client side trace function pointers.
+    pmove_t pm = {};
+    pm.trace = CLG_PM_Trace;
+    pm.pointcontents = CLG_PM_PointContents;
+    pm.clip = CLG_PM_Clip;
+
+    // Copy over the current client state data into pmove.
+    pm.s.origin = clgi.client->frame.ps.pmove.origin;
+    pm.s.velocity = clgi.client->frame.ps.pmove.velocity;
+    pm.s = clgi.client->frame.ps.pmove;
+    pm.s.delta_angles = clgi.client->delta_angles;
+    pm.viewoffset = clgi.client->frame.ps.viewoffset;
+    //pm.s.viewheight = cl.frame.ps.pmove.viewheight;
+
+    // Run previously stored and acknowledged frames up and including the last one.
+    while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
+        // Get the acknowledged move command from our circular buffer.
+        client_movecmd_t *moveCommand = &clgi.client->moveCommands[ acknowledgedCommandNumber & CMD_MASK ];
+
+        // Only simulate it if it had movement.
+        if ( moveCommand->cmd.msec ) {
+            // Timestamp it so the client knows we have valid results.
+            moveCommand->prediction.time = clgi.client->time;
+
+            // Simulate the movement.
+            pm.cmd = moveCommand->cmd;
+            SG_PlayerMove( &pm, &clgi.client->pmp );
+        }
+
+        // Save for prediction checking.
+        moveCommand->prediction.origin = pm.s.origin;
+    }
+
+    // Now run the pending command number.
+    uint64_t frameNumber = currentCommandNumber; //! Default to current frame, expected behavior for if we got msec in predicedState.cmd
+    if ( clgi.client->moveCommand.cmd.msec ) {
+        // Store time of prediction.
+        clgi.client->moveCommand.prediction.time = clgi.client->time;
+
+        // Initialize pmove with the proper moveCommand data.
+        pm.cmd = clgi.client->moveCommand.cmd;
+        pm.cmd.forwardmove = clgi.client->localmove[ 0 ];
+        pm.cmd.sidemove = clgi.client->localmove[ 1 ];
+        pm.cmd.upmove = clgi.client->localmove[ 2 ];
+
+        // Perform movement.
+        SG_PlayerMove( &pm, &clgi.client->pmp );
+
+        // Save for prediction checking.
+        clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ].prediction.origin = pm.s.origin;
+
+        // Save the now not pending anymore move command as the last entry in our circular buffer.
+        //cl.moveCommand.prediction.origin = pm.s.origin;
+        //cl.moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = cl.moveCommand;
+    // Use previous frame if no command is pending.
+    } else {
+        frameNumber = currentCommandNumber - 1;
+    }
+
+    // Stair Stepping:
+    const float oldZ = clgi.client->moveCommands[ frameNumber & CMD_MASK ].prediction.origin[ 2 ];
+    const float step = pm.s.origin[ 2 ] - oldZ;
+    const float fabsStep = fabsf( step );
+
+    // Consider a Z change being "stepping" if...
+    const bool step_detected = ( fabsStep > STEP_MIN_HEIGHT && fabsStep < STEP_MAX_HEIGHT ) // Absolute change is in this limited range
+        && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // And we started off on the ground
+        && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground
+        && ( memcmp( &clgi.client->lastGround.plane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
+            || clgi.client->lastGround.entity != (centity_t *)pm.groundentity ); // we stand on another plane or entity
+
+    // Code below adapted from Q3A. Smoothes out stair step.
+    client_predicted_state_t *predictedState = &clgi.client->predictedState;
+    if ( step_detected ) {
+        // check for stepping up before a previous step is completed
+        const float delta = clgi.GetRealTime() - predictedState->step_time;
+        float old_step = 0.f;
+        if ( delta < STEP_TIME ) {
+            old_step = predictedState->step * ( STEP_TIME - delta ) / STEP_TIME;
+        } else {
+            old_step = 0;
+        }
+
+        // add this amount
+        predictedState->step = constclamp( old_step + step, -MAX_STEP_CHANGE, MAX_STEP_CHANGE );
+        predictedState->step_time = clgi.GetRealTime();
+    }
+
+    // Copy results out into the current predicted state.
+    predictedState->origin = pm.s.origin;
+    predictedState->angles = pm.viewangles;
+    predictedState->velocity = pm.s.velocity;
+    predictedState->screen_blend = pm.screen_blend; // // To be merged with server screen blend.
+    predictedState->rdflags = pm.rdflags; // To be merged with server rdflags.
+
+    // Adjust the view height to the new state's height, if changing, record moment in time.
+    PF_AdjustViewHeight( pm.s.viewheight );
+
+    // Store resulting ground data.
+    clgi.client->lastGround.plane = pm.groundplane;
+    clgi.client->lastGround.entity = (centity_t *)pm.groundentity;
 }
-#endif

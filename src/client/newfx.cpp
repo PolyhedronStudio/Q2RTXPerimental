@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // cl_newfx.c -- MORE entity effects parsing and management
 
-#include "client.h"
+#include "cl_client.h"
 
 void CL_Flashlight(int ent, const vec3_t pos)
 {

@@ -36,7 +36,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "cameras.h"
 #include "physical_sky.h"
 #include "conversion.h"
-#include "../../client/client.h"
+#include "../../client/cl_client.h"
 #include "../../client/ui/ui.h"
 
 #include "shader/vertex_buffer.h"

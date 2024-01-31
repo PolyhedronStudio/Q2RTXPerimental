@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // cl_main.c  -- client main loop
 
-#include "client.h"
+#include "cl_client.h"
 
 cvar_t  *rcon_address;
 
@@ -2453,8 +2453,12 @@ static void CL_InitLocal(void)
     cls.state = ca_disconnected;
     cls.connect_time -= CONNECT_INSTANT;
 
-    // WID: Initialize CLGame.
-    CL_GM_InitProgs();
+    // Load in the client game module.
+    CL_GM_LoadProgs();
+
+    // The pre-init phase is there for initializing various submodules.
+    // Do not expect to be able to access any cvars here just yet.
+    CL_GM_PreInit( );
 
     CL_RegisterInput();
     CL_InitDemos();
@@ -2606,6 +2610,9 @@ static void CL_InitLocal(void)
 	Cmd_AddMacro("cl_viewdir", CL_ViewDir_m);
 	Cmd_AddMacro("cl_hdr_color", CL_HdrColor_m);
 	Cmd_AddMacro("cl_resolution_scale", CL_ResolutionScale_m);
+
+    // Call the initialize method of client game.
+    CL_GM_Init( );
 }
 
 /*

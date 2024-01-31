@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // cl_ents.c -- entity parsing and management
 
-#include "client.h"
+#include "cl_client.h"
 #include "refresh/models.h"
 
 extern qhandle_t cl_mod_powerscreen;
@@ -112,7 +112,8 @@ entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *orig
         VectorCopy(origin, ent->lerp_origin);
         return;
     }
-// WID: 40hz
+
+    // Handle proper lerping for animated entities by Hz.
 	if ( ent->current_frame != state->frame ) {
 		if ( state->renderfx & RF_OLD_FRAME_LERP ) {
 			ent->last_frame = ent->current.old_frame;
@@ -122,64 +123,64 @@ entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *orig
 		ent->current_frame = state->frame;
 		ent->frame_servertime = cl.servertime;
 	}
-    // Set step server time if stair stepping.
+
+    // Set step height, and server time, if caught stair stepping.
     if ( state->renderfx & RF_STAIR_STEP ) {
         ent->step_height = state->origin[ 2 ] - ent->current.origin[ 2 ];
         ent->step_servertime = cl.servertime;
 
         Com_LPrintf( PRINT_DEVELOPER, "RF_STAIR_STEP for Monster(%d) step_height(%f), step_servertime(%zu)\n", state->number, ent->step_height, ent->step_servertime );
     }
-// WID: 40hz
 
     // shuffle the last state to previous
     ent->prev = ent->current;
 }
 
-static inline bool entity_is_new(const centity_t *ent)
-{
-    if (!cl.oldframe.valid)
-        return true;    // last received frame was invalid
-
-    if (ent->serverframe != cl.oldframe.number)
-        return true;    // wasn't in last received frame
-
-    if (cl_nolerp->integer == 2)
-        return true;    // developer option, always new
-
-    if (cl_nolerp->integer == 3)
-        return false;   // developer option, lerp from last received frame
-
-    if (cl.oldframe.number != cl.frame.number - 1)
-        return true;    // previous server frame was dropped
+static inline bool entity_is_new(const centity_t *ent) {
+    // Last received frame was invalid.
+    if ( !cl.oldframe.valid ) {
+        return true;
+    }
+    // Wasn't in last received frame.
+    if ( ent->serverframe != cl.oldframe.number ) {
+        return true;
+    }
+    // Developer option, always new.
+    if ( cl_nolerp->integer == 2 ) {
+        return true;
+    }
+    //! Developer option, lerp from last received frame.
+    if ( cl_nolerp->integer == 3 ) {
+        return false;
+    }
+    //! Previous server frame was dropped.
+    if ( cl.oldframe.number != cl.frame.number - 1 ) {
+        return true;
+    }
 
     return false;
 }
 
 static void parse_entity_update(const entity_state_t *state)
 {
-    centity_t *ent = ENTITY_FOR_NUMBER( state->number );//centity_t *ent = &cl_entities[state->number];
+    centity_t *ent = ENTITY_FOR_NUMBER( state->number );
     const vec_t *origin;
     vec3_t origin_v;
 
-    // if entity is solid, decode mins/maxs and add to the list
-    if (state->solid && state->number != cl.frame.clientNum + 1
-        && cl.numSolidEntities < MAX_PACKET_ENTITIES) {
+    // If entity is solid, and not our client entity, add it to the solid entity list.
+    if ( state->solid && state->number != cl.frame.clientNum + 1 && cl.numSolidEntities < MAX_PACKET_ENTITIES) {
+        // Add it to the solids entity list.
         cl.solidEntities[cl.numSolidEntities++] = ent;
+
+        // If not a brush bsp entity, decode its mins and maxs.
         if (state->solid != PACKED_BSP) {
 			// WID: upgr-solid: Q2RE Approach.
 			MSG_UnpackSolidUint32( state->solid, ent->mins, ent->maxs );
-            // encoded bbox
-            //if (cl.esFlags & MSG_ES_LONGSOLID) {
-            //    MSG_UnpackSolid32(state->solid, ent->mins, ent->maxs);
-            //} else {
-            //    MSG_UnpackSolid16(state->solid, ent->mins, ent->maxs);
-            //}
         }
     }
 
-    // work around Q2PRO server bandwidth optimization
+    // Work around Q2PRO server bandwidth optimization.
     if (entity_is_optimized(state)) {
-        //VectorScale(cl.frame.ps.pmove.origin, 0.125f, origin_v); // WID: float-movement
 		VectorCopy(cl.frame.ps.pmove.origin, origin_v );
         origin = origin_v;
     } else {
@@ -187,16 +188,18 @@ static void parse_entity_update(const entity_state_t *state)
     }
 
     if (entity_is_new(ent)) {
-        // wasn't in last update, so initialize some things
+        // Wasn't in last update, so initialize some things.
         entity_update_new(ent, state, origin);
     } else {
         entity_update_old(ent, state, origin);
     }
 
+    // Assign last received server frame.
     ent->serverframe = cl.frame.number;
+    // Assign new state.
     ent->current = *state;
 
-    // work around Q2PRO server bandwidth optimization
+    // Work around Q2PRO server bandwidth optimization.
     if (entity_is_optimized(state)) {
         Com_PlayerToEntityState(&cl.frame.ps, &ent->current);
     }
@@ -291,10 +294,16 @@ static void set_active_state(void)
     SCR_LagClear();
     Con_Close(false);           // get rid of connection screen
 
+    // Fire the ClientConnected callback of the client game module.
+    clge->ClientBegin();
+
+    // Check for pause.
     CL_CheckForPause();
 
+    // Update frame times.
     CL_UpdateFrameTimes();
 
+    // Fire a local trigger in case it is not a demo playback.
     if (!cls.demo.playback) {
         EXEC_TRIGGER(cl_beginmapcmd);
         Cmd_ExecTrigger("#cl_enterlevel");
@@ -1351,7 +1360,8 @@ void CL_CalcViewValues(void) {
     static constexpr float STEP_BASE_1_FRAMETIME = 0.01f;
 
     // calculate the origin
-    if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
+    //if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
+    if ( clge->UsePrediction() ) {
         // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_.. values from SharedGame.
         // TODO: Is this accurate?
         // PM_MAX_STEP_HEIGHT = 18
@@ -1378,31 +1388,31 @@ void CL_CalcViewValues(void) {
         }
     } else {
         // just use interpolated values
-        //for ( int32_t i = 0; i < 3; i++ ) {
-        //    cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
-        //        lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
+        for ( int32_t i = 0; i < 3; i++ ) {
+            cl.refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
+                lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
+        }
+        //if ( cl.predictedState.step ) {
+        //    Com_DPrintf( "PREDICTED STATE DEMO STEP??\n" );
         //}
-        if ( cl.predictedState.step ) {
-            Com_DPrintf( "PREDICTED STATE DEMO STEP??\n" );
-        }
-        Vector3 newViewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerp );
-        VectorCopy( newViewOrg, cl.refdef.vieworg );
+        //Vector3 newViewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerp );
+        //VectorCopy( newViewOrg, cl.refdef.vieworg );
 
-        static constexpr float STEP_HEIGHT = 15.875;
-        uint64_t delta = cls.realtime - cl.predictedState.step_time;
+        //static constexpr float STEP_HEIGHT = 15.875;
+        //uint64_t delta = cls.realtime - cl.predictedState.step_time;
 
-        const float step = ps->pmove.origin.z - ops->pmove.origin.z;
-        if ( ps->pmove.pm_flags & PMF_ON_GROUND ) {
-            // smooth out stair climbing
-            if ( fabs( step ) < STEP_HEIGHT ) {
-                delta <<= 1; // small steps
-            }
+        //const float step = ps->pmove.origin.z - ops->pmove.origin.z;
+        //if ( ps->pmove.pm_flags & PMF_ON_GROUND ) {
+        //    // smooth out stair climbing
+        //    if ( fabs( step ) < STEP_HEIGHT ) {
+        //        delta <<= 1; // small steps
+        //    }
 
-            // WID: Prediction: Was based on old 10hz, 100ms.
-            if ( delta < STEP_TIME ) {
-                cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( STEP_TIME - delta ) * ( 1.f / STEP_TIME );
-            }
-        }
+        //    // WID: Prediction: Was based on old 10hz, 100ms.
+        //    if ( delta < STEP_TIME ) {
+        //        cl.refdef.vieworg[ 2 ] -= cl.predictedState.step * ( STEP_TIME - delta ) * ( 1.f / STEP_TIME );
+        //    }
+        //}
     }
 
     // if not running a demo or on a locked frame, add the local angle movement
@@ -1418,9 +1428,9 @@ void CL_CalcViewValues(void) {
     } else {
 		//if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
 		// just use interpolated values
-		LerpAngles( ops->viewangles, ps->viewangles, lerp, cl.refdef.viewangles );
+		//LerpAngles( ops->viewangles, ps->viewangles, lerp, cl.refdef.viewangles );
 		//} else {
-		//	VectorCopy( ps->viewangles, cl.refdef.viewangles );
+		VectorCopy( ps->viewangles, cl.refdef.viewangles );
 		//}
     }
 

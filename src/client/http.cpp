@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #define CURL_DISABLE_DEPRECATION
 
-#include "client.h"
+#include "cl_client.h"
 #include <curl/curl.h>
 
 #ifdef _MSC_VER

@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // cl_tent.c -- client side temporary entities
 
-#include "client.h"
+#include "cl_client.h"
 #include "refresh/models.h"
 
 qhandle_t   cl_sfx_ric1;

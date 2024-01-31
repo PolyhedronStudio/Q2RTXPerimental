@@ -1549,9 +1549,9 @@ void ClientDisconnect(edict_t *ent)
 //==============================================================
 
 /**
-*   @brief  Wrapper for proper player move trace.
+*   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static trace_t q_gameabi SV_PM_trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask ) {
+static const trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const int32_t contentMask ) {
     //if (pm_passent->health > 0)
     //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
     //else
@@ -1559,10 +1559,16 @@ static trace_t q_gameabi SV_PM_trace(const vec3_t start, const vec3_t mins, cons
     return gi.trace( start, mins, maxs, end, (edict_t*)passEntity, contentMask );
 }
 /**
-*   @brief  Wrapper for proper player move clip. Clips against the world only.
+*   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static trace_t q_gameabi SV_PM_clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int32_t contentMask ) {
+static const trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const int32_t contentMask ) {
     return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
+}
+/**
+*   @brief  Player Move specific 'PointContents' wrapper implementation.
+**/
+static const int32_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
+    return gi.pointcontents( point );
 }
 
 /*
@@ -1729,8 +1735,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         pm.s = client->ps.pmove;
 
 		// Copy the current entity origin and velocity into our 'pmove movestate'.
-		VectorCopy( ent->s.origin, pm.s.origin );
-		VectorCopy( ent->velocity, pm.s.velocity );
+        pm.s.origin = ent->s.origin;
+        pm.s.velocity = ent->velocity;
 
 		// Determine if it has changed and we should 'resnap' to position.
         if ( memcmp( &client->old_pmove, &pm.s, sizeof(pm.s) ) ) {
@@ -1739,9 +1745,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		// Setup user commands and function pointers.
         pm.cmd = *ucmd;
         pm.player = ent;
-        pm.trace = SV_PM_trace;
-        pm.pointcontents = gi.pointcontents;
-        pm.clip = SV_PM_clip;
+        pm.trace = SV_PM_Trace;
+        pm.pointcontents = SV_PM_PointContents;
+        pm.clip = SV_PM_Clip;
         VectorCopy( ent->client->ps.viewoffset, pm.viewoffset );
 
         // Perform a PMove.

@@ -134,6 +134,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 
 	# ClientGame
 	baseq2rtxp/clgame/clg_main.cpp
+	baseq2rtxp/clgame/clg_predict.cpp
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_local.h
@@ -253,6 +254,7 @@ SET(SRC_CLIENT
 	client/screen.cpp
 	client/tent.cpp
 	client/view.cpp
+	client/world.cpp
 	client/ui/demos.cpp
 	client/ui/menu.cpp
 	client/ui/playerconfig.cpp
@@ -274,7 +276,7 @@ SET(SRC_CLIENT_HTTP
 )
 
 SET(HEADERS_CLIENT
-	client/client.h
+	client/cl_client.h
 	client/ui/ui.h
 	client/sound/sound.h
 	client/sound/qal/dynamic.h

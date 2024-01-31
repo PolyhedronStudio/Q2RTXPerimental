@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_precache.c
 //
 
-#include "client.h"
+#include "cl_client.h"
 
 /*
 ================

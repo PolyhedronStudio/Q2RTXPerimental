@@ -631,7 +631,9 @@ extern vec3_t     cl_testmodel_position;
 // 
 extern clgame_export_t *clge;
 
-void CL_GM_InitProgs( );
+void CL_GM_LoadProgs( );
+void CL_GM_Init();
+void CL_GM_PreInit();
 void CL_GM_Shutdown( );
 
 //
@@ -775,13 +777,13 @@ void CL_InitTEnts(void);
 // predict.c
 //
 /**
-*   @brief  Sets the predicted view angles.
-**/
-void CL_PredictAngles(void);
-/**
 *   @brief  Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
 **/
 void CL_AdjustViewHeight( const int32_t viewHeight );
+/**
+*   @brief  Sets the predicted view angles.
+**/
+void CL_PredictAngles( void );
 /**
 *   @brief  Performs player movement over the registered 'move command frames' and stores the final outcome
 *           into the cl.predictedState struct.
@@ -796,35 +798,6 @@ void CL_CheckPredictionError(void);
 //
 // effects.c
 //
-#define PARTICLE_GRAVITY        120
-#define BLASTER_PARTICLE_COLOR  0xe0
-#define INSTANT_PARTICLE    -10000.0f
-
-typedef struct cparticle_s {
-    struct cparticle_s    *next;
-
-    double   time;
-
-    vec3_t  org;
-    vec3_t  vel;
-    vec3_t  accel;
-    int     color;      // -1 => use rgba
-    float   alpha;
-    float   alphavel;
-    color_t rgba;
-	float   brightness;
-} cparticle_t;
-
-typedef struct cdlight_s {
-    int     key;        // so entities can reuse same entry
-    vec3_t  color;
-    vec3_t  origin;
-    float   radius;
-    float   die;        // stop lighting after this time
-    float   decay;      // drop this each second
-	vec3_t  velosity;     // move this far each second
-} cdlight_t;
-
 void CL_BigTeleportParticles(const vec3_t org);
 void CL_RocketTrail(const vec3_t start, const vec3_t end, centity_t *old);
 void CL_DiminishingTrail(const vec3_t start, const vec3_t end, centity_t *old, int flags);
@@ -1013,6 +986,23 @@ byte COM_BlockSequenceCRCByte(byte *base, size_t length, int sequence);
 // effects.c
 //
 void FX_Init(void);
+
+//
+// world.cpp
+// 
+/**
+*   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.
+**/
+const trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const int32_t contentmask );
+/**
+*   @brief  Will perform a clipping trace to the specified entity.
+*           If clipEntity == nullptr, it'll perform a clipping trace against the World.
+**/
+const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const int32_t contentmask );
+/**
+*   @return The type of 'contents' at the given point.
+**/
+const int32_t q_gameabi CL_PointContents( const vec3_t point );
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

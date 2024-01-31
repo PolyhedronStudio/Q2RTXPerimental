@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // sound.h -- private sound functions
 
-#include "../client.h"
+#include "../cl_client.h"
 #include "shared/list.h"
 
 #if USE_SNDDMA
