@@ -1757,7 +1757,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         if ( pm.groundentity && ent->groundentity ) {
             float stepsize = fabs( ent->s.origin[ 2 ] - pm.s.origin[ 2 ] );
 
-            if ( stepsize > PM_MIN_STEPSIZE && stepsize < PM_MAX_STEPSIZE ) {
+            if ( stepsize > PM_MIN_STEP_SIZE && stepsize < PM_MAX_STEP_SIZE ) {
                 ent->s.renderfx |= RF_STAIR_STEP;
                 ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
             }

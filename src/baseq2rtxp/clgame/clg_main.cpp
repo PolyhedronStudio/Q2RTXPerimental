@@ -260,6 +260,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Init = PF_InitGame;
 		globals.PreInit = PF_PreInitGame;
 		globals.Shutdown = PF_ShutdownGame;
+
 		globals.ClearState = PF_ClearState;
 		globals.ClientBegin = PF_ClientBegin;
 		globals.ClientConnected = PF_ClientConnected;

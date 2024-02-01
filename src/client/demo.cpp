@@ -725,7 +725,7 @@ static void CL_PlayDemo_f(void)
 static void CL_Demo_c(genctx_t *ctx, int argnum)
 {
     if (argnum == 1) {
-        FS_File_g("demos", "*.dm2;*.dm2.gz;*.mvd2;*.mvd2.gz", FS_SEARCH_SAVEPATH | FS_SEARCH_BYFILTER, ctx);
+        FS_File_g("demos", "*.dm2;*.dm2.gz", FS_SEARCH_SAVEPATH | FS_SEARCH_BYFILTER, ctx);
     }
 }
 
@@ -757,7 +757,7 @@ void CL_EmitDemoSnapshot(void)
     if (cl_demosnaps->integer <= 0)
         return;
 
-    if (cls.demo.frames_read < cls.demo.last_snapshot + cl_demosnaps->integer * BASE_FRAMERATE)
+    if (cls.demo.frames_read < cls.demo.last_snapshot + cl_demosnaps->integer * BASE_FRAMETIME)
         return;
 
     if (!cl.frame.valid)

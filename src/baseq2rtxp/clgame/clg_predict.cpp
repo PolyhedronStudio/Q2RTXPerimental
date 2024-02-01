@@ -39,13 +39,9 @@ static const int32_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
 **/
 void PF_AdjustViewHeight( const int32_t viewHeight ) {
     // Record viewheight changes.
-    if ( clgi.client->viewheight.current != viewHeight ) {
-        // Backup the old 'current' viewheight.
-        clgi.client->viewheight.previous = clgi.client->viewheight.current;
-        // Apply new viewheight.
-        clgi.client->viewheight.current = viewHeight;
-        // Register client's time of viewheight change.
-        clgi.client->viewheight.change_time = clgi.client->time;
+    if ( clgi.client->predictedState.view_height != viewHeight ) {
+        clgi.client->predictedState.view_height = viewHeight;
+        clgi.client->predictedState.view_height_time = clgi.client->time;
     }
 }
 
@@ -55,12 +51,12 @@ void PF_AdjustViewHeight( const int32_t viewHeight ) {
 void PF_PredictAngles( void ) {
     // Don't predict angles if the pmove asks so specifically.
     if ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )/* || !cl_predict->integer*/ ) {
-        VectorCopy( clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.angles );
+        VectorCopy( clgi.client->frame.ps.viewangles, clgi.client->predictedState.view.angles );
         return;
     }
 
     // This is done even with cl_predict == 0.
-	VectorAdd( clgi.client->viewangles, clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.angles );
+	VectorAdd( clgi.client->viewangles, clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.view.angles );
 }
 
 /**
@@ -92,11 +88,13 @@ const bool PF_UsePrediction( void ) {
 *           into the cl.predictedState struct.
 **/
 void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber ) {
-    static constexpr float STEP_MIN_HEIGHT = 4.f;
-    static constexpr float STEP_MAX_HEIGHT = 18.0f;
+    // Time in miliseconds to lerp the step with.
+    static constexpr int32_t PM_STEP_TIME = 100;
+    // Maximum -/+ change we allow in step lerps.
+    static constexpr int32_t PM_MAX_STEP_CHANGE = 32;
 
-    static constexpr int32_t STEP_TIME = 100;
-    static constexpr int32_t MAX_STEP_CHANGE = 32;
+    // Last predicted state.
+    client_predicted_state_t *predictedState = &clgi.client->predictedState;
 
     // Prepare our player move, setup the client side trace function pointers.
     pmove_t pm = {};
@@ -105,12 +103,15 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     pm.clip = CLG_PM_Clip;
 
     // Copy over the current client state data into pmove.
-    pm.s.origin = clgi.client->frame.ps.pmove.origin;
-    pm.s.velocity = clgi.client->frame.ps.pmove.velocity;
     pm.s = clgi.client->frame.ps.pmove;
+    // Apply client delta_angles.
     pm.s.delta_angles = clgi.client->delta_angles;
-    pm.viewoffset = clgi.client->frame.ps.viewoffset;
-    //pm.s.viewheight = cl.frame.ps.pmove.viewheight;
+    // Ensure viewoffset is set properly also.
+    //pm.viewoffset = clgi.client->frame.ps.viewoffset;
+    // Set ground entity to last predicted one.
+    pm.groundentity = (edict_s*)predictedState->groundEntity;
+    // Set ground plane to last predicted one.
+    pm.groundplane = predictedState->groundPlane;
 
     // Run previously stored and acknowledged frames up and including the last one.
     while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
@@ -163,40 +164,38 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     const float fabsStep = fabsf( step );
 
     // Consider a Z change being "stepping" if...
-    const bool step_detected = ( fabsStep > STEP_MIN_HEIGHT && fabsStep < STEP_MAX_HEIGHT ) // Absolute change is in this limited range
+    const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range
         && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // And we started off on the ground
         && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground
-        && ( memcmp( &clgi.client->lastGround.plane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
-            || clgi.client->lastGround.entity != (centity_t *)pm.groundentity ); // we stand on another plane or entity
+        && ( memcmp( &predictedState->groundPlane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
+            || predictedState->groundEntity != (centity_t *)pm.groundentity ); // we stand on another plane or entity
 
     // Code below adapted from Q3A. Smoothes out stair step.
-    client_predicted_state_t *predictedState = &clgi.client->predictedState;
     if ( step_detected ) {
         // check for stepping up before a previous step is completed
         const float delta = clgi.GetRealTime() - predictedState->step_time;
         float old_step = 0.f;
-        if ( delta < STEP_TIME ) {
-            old_step = predictedState->step * ( STEP_TIME - delta ) / STEP_TIME;
+        if ( delta < PM_STEP_TIME ) {
+            old_step = predictedState->step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
         } else {
             old_step = 0;
         }
 
         // add this amount
-        predictedState->step = constclamp( old_step + step, -MAX_STEP_CHANGE, MAX_STEP_CHANGE );
+        predictedState->step = constclamp( old_step + step, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
         predictedState->step_time = clgi.GetRealTime();
     }
 
     // Copy results out into the current predicted state.
-    predictedState->origin = pm.s.origin;
-    predictedState->angles = pm.viewangles;
-    predictedState->velocity = pm.s.velocity;
-    predictedState->screen_blend = pm.screen_blend; // // To be merged with server screen blend.
-    predictedState->rdflags = pm.rdflags; // To be merged with server rdflags.
+    predictedState->view.origin = pm.s.origin;
+    predictedState->view.velocity = pm.s.velocity;
+    predictedState->view.angles = pm.viewangles;
+    predictedState->view.viewOffset = pm.viewoffset;
+    predictedState->view.screen_blend = pm.screen_blend; // // To be merged with server screen blend.
+    predictedState->view.rdflags = pm.rdflags; // To be merged with server rdflags.
+    predictedState->groundEntity = (centity_t *)pm.groundentity;
+    predictedState->groundPlane = pm.groundplane;
 
     // Adjust the view height to the new state's height, if changing, record moment in time.
     PF_AdjustViewHeight( pm.s.viewheight );
-
-    // Store resulting ground data.
-    clgi.client->lastGround.plane = pm.groundplane;
-    clgi.client->lastGround.entity = (centity_t *)pm.groundentity;
 }

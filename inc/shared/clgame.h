@@ -287,8 +287,6 @@ typedef struct {
 	*           into the cl.predictedState struct.
 	**/
 	void ( *PredictMovement )( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber );
-	//! Perform a frame's worth of player movement using specified pmoveParams configuration.
-	//void ( *PlayerMove )( pmove_t *pmove, pmoveParams_t *params );
 	//! Setup the basic player move configuration parameters. (Used by server for new clients.)
 	void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
 

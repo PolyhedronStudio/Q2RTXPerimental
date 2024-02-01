@@ -1959,7 +1959,7 @@ static size_t CL_Ups_m(char *buffer, size_t size)
 
     if ( !cls.demo.playback && cl_predict->integer &&
         !( cl.frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
-        VectorCopy(cl.predictedState.velocity, vel);
+        VectorCopy(cl.predictedState.view.velocity, vel);
     } else {
         //VectorScale(cl.frame.ps.pmove.velocity, 0.125f, vel);
 		VectorCopy( cl.frame.ps.pmove.velocity, vel );

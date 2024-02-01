@@ -100,9 +100,10 @@ typedef struct client_movecmd_s {
     uint64_t systemTime;
 
     struct {
-        uint64_t time; // The simulation time when prediction was run.
+        uint64_t time;  // The simulation time when prediction was run.
         Vector3 origin; // The predicted origin for this command.
-        Vector3 error; // The prediction error for this command.
+        Vector3 velocity;// Velocity.
+        Vector3 error;  // The prediction error for this command.
     } prediction;
 } client_movecmd_t;
 
@@ -111,21 +112,35 @@ typedef struct client_movecmd_s {
 **/
 typedef struct client_predicted_state_s {
     //! User Command Input for this frame.
-    usercmd_t cmd;
-
-    //! Total accumulated screen blend.
-    Vector4 screen_blend;
-    //! Refdef Flags.
-    int32_t rdflags;
-
+    //usercmd_t cmd;
     // for stair up smoothing
-    double step;
     uint64_t step_time;
+    double step;
+
+    // Viewheight.
+    float view_height;
+    uint64_t view_height_time;
 
     //! Origin, angles and velocity of current frame pmove's results.
-    Vector3 origin;
-    Vector3 angles;
-    Vector3 velocity;
+    struct {
+        //! Total accumulated screen blend.
+        Vector4 screen_blend;
+        //! Refdef Flags.
+        int32_t rdflags;
+
+        // Predicted origin, velocity and angles.
+        Vector3 origin;
+        Vector3 velocity;
+        Vector3 angles;
+
+        // Predicted view offset.
+        Vector3 viewOffset;
+    } view;
+
+    //! Ground entity we're predicted to hit.
+    centity_t *groundEntity;
+    //! Ground plane we predicted to hit.
+    cplane_t groundPlane;
 
     //! Margin of error for this frame.
     Vector3 error;
@@ -197,15 +212,6 @@ typedef struct client_state_s {
     //! Real last command number that actually got transmitted.
     uint64_t	lastTransmitCmdNumberReal;
 
-
-    //! The current pmove state to be predicted this frame.
-    client_predicted_state_t predictedState;
-
-
-    //! The current command its numerical index.
-    uint64_t currentUserCommandNumber;
-    //! Current client move command that is being processed.
-    client_movecmd_t moveCommand;
     //! The client maintains its own idea of view angles, which are
     //! sent to the server each frame.  It is cleared to 0 upon entering each level.
     //! the server sends a delta each frame which is added to the locally
@@ -221,31 +227,18 @@ typedef struct client_state_s {
     //! The delta of the current frames move angles.
     Vector3     delta_angles;
 
+    //! The current command its numerical index.
+    uint64_t currentUserCommandNumber;
+    //! Current client move command that is being processed.
+    client_movecmd_t moveCommand;
     //! Circular client buffer of (predicted-) move commands.
     client_movecmd_t moveCommands[ CMD_BACKUP ];
+
+    //! The current pmove state to be predicted this frame.
+    client_predicted_state_t predictedState;
     //! Circular client history buffer, of time sent, and received, for user commands.
     client_usercmd_history_t history[ CMD_BACKUP ];
 
-    //! The actual pmove predicted state history results.
-    /*client_predicted_state_t predictedStates[ CMD_BACKUP ]*/
-
-    /////////////////////////////
-    // TODO: Move to predictedState?
-    struct {
-        //! Current viewheight from client Pmove().
-        int8_t  current;
-        //! Viewheight before last change.
-        int8_t  previous;
-        //! Time when a viewheight change was detected.
-        int64_t change_time;
-        //! :ast groundentity reported by pmove.
-    } viewheight;
-    struct {
-        centity_t *entity;
-        //! last groundplane reported by pmove.
-        cplane_t plane;
-    } lastGround;
-    /////////////////////////////
 
     /**
     *
