@@ -134,6 +134,9 @@ SET(SRC_BASEQ2RTXP_CLGAME
 
 	# ClientGame
 	baseq2rtxp/clgame/clg_main.cpp
+	baseq2rtxp/clgame/clg_gamemode.cpp
+	baseq2rtxp/clgame/clg_parse.cpp
+	baseq2rtxp/clgame/clg_precache.cpp
 	baseq2rtxp/clgame/clg_predict.cpp
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME

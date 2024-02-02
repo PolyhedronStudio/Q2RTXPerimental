@@ -886,21 +886,6 @@ static void CL_ParseStuffText(void)
     Cbuf_AddText(&cl_cmdbuf, s);
 }
 
-static void CL_ParseLayout(void)
-{
-    MSG_ReadString(cl.layout, sizeof(cl.layout));
-    SHOWNET(2, "    \"%s\"\n", cl.layout);
-}
-
-static void CL_ParseInventory(void)
-{
-    int        i;
-
-    for (i = 0; i < MAX_ITEMS; i++) {
-        cl.inventory[i] = MSG_ReadInt16();
-    }
-}
-
 static void CL_ParseDownload(int cmd)
 {
     int size, percent, decompressed_size;
@@ -1058,8 +1043,15 @@ void CL_ParseServerMessage(void)
         // other commands
         switch (cmd) {
         default:
+            // Didn't recognize the command, pass control over the client game to give it a shot
+            // at handling the command.
+            clge->StartServerMessage();
+            if ( !clge->ParseServerMessage( cmd ) ) {
+                Com_Error( ERR_DROP, "%s: illegible server message: %d", __func__, cmd );
+            }
+            clge->EndServerMessage();
 //badbyte:
-            Com_Error(ERR_DROP, "%s: illegible server message: %d", __func__, cmd);
+//            Com_Error(ERR_DROP, "%s: illegible server message: %d", __func__, cmd);
             break;
 
         case svc_nop:
@@ -1130,13 +1122,13 @@ void CL_ParseServerMessage(void)
             CL_ParseFrame();
             continue;
 
-        case svc_inventory:
-            CL_ParseInventory();
-            break;
+        //case svc_inventory:
+        //    CL_ParseInventory();
+        //    break;
 
-        case svc_layout:
-            CL_ParseLayout();
-            break;
+        //case svc_layout:
+        //    CL_ParseLayout();
+        //    break;
 
         case svc_zpacket:
             //if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
@@ -1269,13 +1261,14 @@ void CL_SeekDemoMessage(void)
             CL_ParseFrame();
             continue;
 
-        case svc_inventory:
-            CL_ParseInventory();
-            break;
-
-        case svc_layout:
-            CL_ParseLayout();
-            break;
+        // Moved to Client Game.
+        //case svc_inventory:
+        //    CL_ParseInventory();
+        //    break;
+        // Moved to Client Game.
+        //case svc_layout:
+        //    CL_ParseLayout();
+        //    break;
 
         }
     }

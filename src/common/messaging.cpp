@@ -616,7 +616,6 @@ void MSG_ReadPos( vec3_t pos, const bool decodeFromShort = false ) {
 *
 *****************************************************************************/
 #if USE_DEBUG
-
 //#define SHOWBITS(x) Com_LPrintf(PRINT_DEVELOPER, x " ")
 static inline void SHOWBITS( const char *x ) {
 	Com_LPrintf( PRINT_DEVELOPER, "%s ", x );
@@ -666,7 +665,7 @@ void MSG_ShowDeltaPlayerstateBits( const uint64_t flags ) {
 	S( WEAPONINDEX, "gunindex" );
 	S( WEAPONFRAME, "gunframe" );
 	S( WEAPONRATE, "gunrate" );
-	S( BLEND, "blend" );
+	S( BLEND, "screen_blend" );
 	S( FOV, "fov" );
 	S( RDFLAGS, "rdflags" );
 	#undef S
@@ -717,7 +716,7 @@ const char *MSG_ServerCommandString( const int32_t cmd ) {
 				S( zpacket )
 				S( zdownload )
 				S( gamestate )
-				#undef S
+			#undef S
 	}
 }
 

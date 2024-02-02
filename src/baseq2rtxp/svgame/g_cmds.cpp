@@ -437,7 +437,7 @@ void Cmd_Inven_f(edict_t *ent)
 
     gi.WriteUint8(svc_inventory);
     for (i = 0 ; i < MAX_ITEMS ; i++) {
-        gi.WriteInt16(cl->pers.inventory[i]);
+        gi.WriteIntBase128(cl->pers.inventory[i]);
     }
     gi.unicast(ent, true);
 }

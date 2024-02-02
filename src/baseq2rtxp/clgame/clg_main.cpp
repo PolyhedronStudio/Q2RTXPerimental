@@ -222,13 +222,6 @@ const char *PF_GetGamemodeName( int32_t gameModeID ) {
 *
 **/
 /**
-*	@brief 
-**/
-void PF_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
-	SG_PlayerMove( pmove, params );
-}
-
-/**
 *	@brief	
 **/
 void PF_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
@@ -273,6 +266,10 @@ extern "C" { // WID: C++20: extern "C".
 		globals.PredictMovement = PF_PredictMovement;
 		//globals.PlayerMove = PF_PlayerMove;
 		globals.ConfigurePlayerMoveParameters = PF_ConfigurePlayerMoveParameters;
+
+		globals.StartServerMessage = PF_StartServerMessage;
+		globals.ParseServerMessage = PF_ParseServerMessage;
+		globals.EndServerMessage = PF_EndServerMessage;
 
 		globals.entity_size = sizeof( centity_t );
 

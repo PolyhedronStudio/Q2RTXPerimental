@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	ClientGame: Gamemode Implementation(s).
+*	ClientGame: Deal with optional client specific precaching.
 *
 *
 ********************************************************************/

@@ -202,7 +202,76 @@ typedef struct {
 	*	Network Messaging:
 	*
 	**/
+	/**
+	*   @return Signed 8 bit byte. Returns -1 if no more characters are available
+	**/
+	const int32_t( *MSG_ReadInt8 )( void );
+	/**
+	*   @return Unsigned 8 bit byte. Returns -1 if no more characters are available
+	**/
+	const int32_t( *MSG_ReadUint8 )( void );
+	/**
+	*   @return Signed 16 bit short.
+	**/
+	const int32_t( *MSG_ReadInt16 )( void );
+	/**
+	*   @return Unsigned 16 bit short.
+	**/
+	const int32_t( *MSG_ReadUint16 )( void );
+	/**
+	*   @return Signed 32 bit int.
+	**/
+	const int32_t( *MSG_ReadInt32 )( void );
+	/**
+	*   @return Signed 64 bit int.
+	**/
+	const int64_t( *MSG_ReadInt64 )( void );
+	/**
+	*   @return UnSigned 64 bit int.
+	**/
+	const uint64_t( *MSG_ReadUint64 )( void );
+	/**
+	*   @return Base 128 decoded unsigned integer.
+	**/
+	const uint64_t( *MSG_ReadUintBase128 )();
+	/**
+	*   @return Zig-Zac decoded signed integer.
+	**/
+	const int64_t( *MSG_ReadIntBase128 )();
+	/**
+	*   @return The full precision float.
+	**/
+	const float ( *MSG_ReadFloat )();
+	/**
+	*   @return A half float, converted to float, keep in mind that half floats have less precision.
+	**/
+	const float ( *MSG_ReadHalfFloat )();
 
+	/**
+	*   @return The full string until its end.
+	**/
+	const size_t( *MSG_ReadString )( char *dest, const size_t size );
+	/**
+	*   @return The part of the string data up till the first '\n'
+	**/
+	const size_t( *MSG_ReadStringLine )( char *dest, const size_t size );
+
+	/**
+	*	@brief Reads a byte and decodes it to a float angle.
+	**/
+	const float ( *MSG_ReadAngle8 )( void );
+	/**
+	*	@brief Reads a short and decodes it to a float angle.
+	**/
+	const float ( *MSG_ReadAngle16 )( void );
+	/**
+	*	@brief	Reads a short and decodes its 'half float' into a float angle.
+	**/
+	const float ( *MSG_ReadAngleHalfFloat )( void );
+	/**
+	*	@brief	Reads a byte, and decodes it using it as an index into our directions table.
+	**/
+	void ( *MSG_ReadDir8 )( vec3_t dir );
 	
 	/**
 	*
@@ -212,6 +281,15 @@ typedef struct {
 	const trace_t ( *q_gameabi Trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const int32_t contentmask );
 	const trace_t ( *q_gameabi Clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const int32_t contentmask );
 	const int32_t ( *q_gameabi PointContents )( const vec3_t point );
+
+	/**
+	*
+	*	Debugging Utilities:
+	*
+	**/
+	void ( *ShowNet )( const int32_t level, const char *fmt, ... );
+	void ( *ShowClamp )( const int32_t level, const char *fmt, ... );
+	void ( *ShowMiss )( const char *fmt, ... );
 
 	/**
 	*
@@ -289,6 +367,26 @@ typedef struct {
 	void ( *PredictMovement )( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber );
 	//! Setup the basic player move configuration parameters. (Used by server for new clients.)
 	void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
+
+	/**
+	*
+	*	Server Messages:
+	*
+	**/
+	/**
+	*	@brief	Called by the client BEFORE all server messages have been parsed.
+	**/
+	void ( *StartServerMessage )( );
+	/**
+	*	@brief	Called by the client AFTER all server messages have been parsed.
+	**/
+	void ( *EndServerMessage )( );
+	/**
+	*	@brief	Called by the client when it does not recognize the server message itself,
+	*			so it gives the client game a chance to handle and respond to it.
+	*	@return	True if the message was handled properly. False otherwise.
+	**/
+	const bool ( *ParseServerMessage )( const int32_t serverMessage );
 
 	/**
 	*	Global variables shared between game and client.

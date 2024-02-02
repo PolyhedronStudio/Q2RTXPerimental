@@ -184,8 +184,25 @@ typedef struct centity_s {
 #define TAG_CLGAME_LEVEL	778 // Clear when loading a new level.
 
 
-
 //
+// clg_parse.cpp
+// 
+/**
+*	@brief	Called by the client BEFORE all server messages have been parsed.
+**/
+void PF_StartServerMessage();
+/**
+*	@brief	Called by the client AFTER all server messages have been parsed.
+**/
+void PF_EndServerMessage();
+/**
+*	@brief	Called by the client when it does not recognize the server message itself,
+*			so it gives the client game a chance to handle and respond to it.
+*	@return	True if the message was handled properly. False otherwise.
+**/
+const bool PF_ParseServerMessage( const int32_t serverMessage );
+
+// 
 //	clg_predict.cpp
 //
 /**

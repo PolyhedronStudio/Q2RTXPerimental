@@ -135,6 +135,45 @@ static void PF_FreeTags( unsigned tag ) {
 /**
 *
 *
+*	Debugging Utilities, for USE_DEBUG!=0:
+*
+*
+**/
+#if USE_DEBUG
+static void PF_ShowNet( const int32_t level, const char *fmt, ... ) {
+	char        msg[ MAXPRINTMSG ];
+	va_list     argptr;
+
+	va_start( argptr, fmt );
+	Q_vsnprintf( msg, sizeof( msg ), fmt, argptr );
+	va_end( argptr );
+
+	SHOWNET( level, "%s", msg );
+}
+static void PF_ShowClamp( const int32_t level, const char *fmt, ... ) {
+	char        msg[ MAXPRINTMSG ];
+	va_list     argptr;
+
+	va_start( argptr, fmt );
+	Q_vsnprintf( msg, sizeof( msg ), fmt, argptr );
+	va_end( argptr );
+
+	SHOWCLAMP( level, "%s", msg );
+}
+static void PF_ShowMiss( const char *fmt, ... ) {
+	
+}
+#else
+// Empty placeholders, in case they are used outside of a forgotten #if USE_DEBUG
+// so we can prevent anything from crashing.
+void PF_ShowNet( const int32_t level, const char *fmt, ... ) {}
+void PF_ShowClamp( const int32_t level, const char *fmt, ... ) {}
+void PF_ShowMiss( const int32_t level, const char *fmt, ... ) {}
+#endif
+
+/**
+*
+*
 *	Library Loading
 *
 *
@@ -259,9 +298,36 @@ void CL_GM_LoadProgs( void ) {
 	imports.TagFree = Z_Free;
 	imports.FreeTags = PF_FreeTags;
 
+	imports.MSG_ReadInt8 = MSG_ReadInt8;
+	imports.MSG_ReadUint8 = MSG_ReadUint8;
+	imports.MSG_ReadInt16 = MSG_ReadInt16;
+	imports.MSG_ReadUint16 = MSG_ReadUint16;
+	imports.MSG_ReadInt32 = MSG_ReadInt32;
+	imports.MSG_ReadInt64 = MSG_ReadInt64;
+	imports.MSG_ReadUint64 = MSG_ReadUint64;
+	imports.MSG_ReadUintBase128 = MSG_ReadUintBase128;
+	imports.MSG_ReadIntBase128 = MSG_ReadIntBase128;
+	imports.MSG_ReadFloat = MSG_ReadFloat;
+	imports.MSG_ReadHalfFloat = MSG_ReadHalfFloat;
+	imports.MSG_ReadString = MSG_ReadString;
+	imports.MSG_ReadStringLine = MSG_ReadStringLine;
+	imports.MSG_ReadAngle8 = MSG_ReadAngle8;
+	imports.MSG_ReadAngle16 = MSG_ReadAngle16;
+	imports.MSG_ReadAngleHalfFloat = MSG_ReadAngleHalfFloat;
+	imports.MSG_ReadDir8 = MSG_ReadDir8;
+
 	imports.Trace = CL_Trace;
 	imports.Clip = CL_Clip;
 	imports.PointContents = CL_PointContents;
+
+	#if USE_DEBUG
+	// ShowNet
+	imports.ShowNet = PF_ShowNet;
+	// ShowClamp
+	imports.ShowClamp = PF_ShowClamp;
+	// ShowMiss
+	imports.ShowMiss = PF_ShowMiss;
+	#endif
 
 	clge = entry( &imports );
 

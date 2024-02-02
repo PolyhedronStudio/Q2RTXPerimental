@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	ClientGame: Handles the module's GetGameAPI entry point.
+*	ClientGame: Player Movement Prediction Simulation Implementation.
 *
 *
 ********************************************************************/
@@ -191,8 +191,10 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     predictedState->view.velocity = pm.s.velocity;
     predictedState->view.angles = pm.viewangles;
     predictedState->view.viewOffset = pm.viewoffset;
+
     predictedState->view.screen_blend = pm.screen_blend; // // To be merged with server screen blend.
     predictedState->view.rdflags = pm.rdflags; // To be merged with server rdflags.
+    
     predictedState->groundEntity = (centity_t *)pm.groundentity;
     predictedState->groundPlane = pm.groundplane;
 
