@@ -182,7 +182,8 @@ static void PM_StepSlideMove() {
 *	@brief	Handles both ground friction and water friction
 **/
 static void PM_Friction() {
-	
+	// Set us to a halt, if our speed is too low, otherwise we'll see
+	// ourselves sort of 'drifting'.
 	const float speed = QM_Vector3Length( pml.velocity );//sqrtf( pml.velocity.x * pml.velocity.x + pml.velocity.y * pml.velocity.y + pml.velocity.z * pml.velocity.z );
 	if ( speed < 1 ) {
 		pml.velocity.x = 0;
@@ -190,8 +191,7 @@ static void PM_Friction() {
 		return;
 	}
 
-
-	// Apply ground friction.
+	// Apply ground friction if on-ground.
 	float drop = 0;
 	if ( ( pm->groundentity && pml.groundSurface && !( pml.groundSurface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
 		const float friction = pm_friction;
@@ -199,7 +199,7 @@ static void PM_Friction() {
 		drop += control * friction * pml.frameTime;
 	}
 
-	// Apply water friction.
+	// Apply water friction, and not off-ground yet on a ladder.
 	if ( pm->waterlevel && !( pm->s.pm_flags & PMF_ON_LADDER ) ) {
 		drop += speed * pm_water_friction * (float)pm->waterlevel * pml.frameTime;
 	}
@@ -230,7 +230,6 @@ static void PM_Accelerate( const Vector3 &wishDirection, const float wishSpeed, 
 		accelerationSpeed = addSpeed;
 	}
 
-	//pml.velocity += accelerationSpeed * wishDirection;
 	pml.velocity = QM_Vector3MultiplyAdd( wishDirection, accelerationSpeed, pml.velocity );
 }
 
@@ -261,8 +260,6 @@ static void PM_AirAccelerate( const Vector3 &wishDirection, const float wishSpee
 *	@brief	Handles the velocities for 'ladders', as well as water and conveyor belt by applying their 'currents'.
 **/
 static void PM_AddCurrents( Vector3 &wishVelocity ) {
-	Vector3 velocity = QM_Vector3Zero();
-	float speed = 0.f;
 
 	// Account for ladders.
 	if ( pm->s.pm_flags & PMF_ON_LADDER ) {
@@ -323,7 +320,6 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 				if ( trace.fraction != 1.f && ( trace.contents & CONTENTS_LADDER ) ) {
 					Vector3 right = QM_Vector3CrossProduct( trace.plane.normal, { 0.f, 0.f, 1.f } );
 					wishVelocity.x = wishVelocity.y = 0;
-					//wishVelocity += ( right * -ladder_speed );
 					wishVelocity = QM_Vector3MultiplyAdd( right, -ladder_speed, wishVelocity );
 				}
 			} else {
@@ -344,7 +340,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 
 	// Add water currents.
 	if ( pm->watertype & MASK_CURRENT ) {
-		velocity = QM_Vector3Zero();
+		Vector3 velocity = QM_Vector3Zero();
 
 		if ( pm->watertype & CONTENTS_CURRENT_0 ) {
 			velocity.x += 1;
@@ -365,18 +361,18 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 			velocity.z -= 1;
 		}
 
-		speed = pm_water_speed;
+		float speed = pm_water_speed;
+		// Walking in water, against a current, so slow down our 
 		if ( ( pm->waterlevel == water_level_t::WATER_FEET ) && ( pm->groundentity ) ) {
 			speed /= 2;
 		}
 
-		//wishVelocity += ( velocity * speed );
 		wishVelocity = QM_Vector3MultiplyAdd( velocity, speed, wishVelocity );
 	}
 
 	// Add conveyor belt velocities.
 	if ( pm->groundentity ) {
-		velocity = QM_Vector3Zero();
+		Vector3 velocity = QM_Vector3Zero();
 
 		if ( pml.groundContents & CONTENTS_CURRENT_0 ) {
 			velocity.x += 1;
@@ -397,7 +393,6 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 			velocity.z -= 1;
 		}
 
-		//wishVelocity += velocity * 100.f;
 		wishVelocity = QM_Vector3MultiplyAdd( velocity, 100.f, wishVelocity );
 	}
 }
@@ -572,6 +567,7 @@ static inline void PM_GetWaterLevel( const Vector3 &position, water_level_t &lev
 static void PM_CategorizePosition() {
 	trace_t	   trace;
 
+	// 
 	// if the player hull point one unit down is solid, the player
 	// is on ground
 
@@ -661,13 +657,13 @@ static void PM_CheckJump() {
 		return;
 	}
 
-	// Not holding jump.
+	// Player has let go of jump button.
 	if ( !( pm->cmd.buttons & BUTTON_JUMP ) ) { 
 		pm->s.pm_flags &= ~PMF_JUMP_HELD;
 		return;
 	}
 
-	// Must wait for jump to be released.
+	// Player must wait for jump to be released.
 	if ( pm->s.pm_flags & PMF_JUMP_HELD ) {
 		return;
 	}
@@ -677,13 +673,13 @@ static void PM_CheckJump() {
 		return;
 	}
 
-	// We're swimming, not jumping.
+	// We're swimming, not jumping, so unset ground entity.
 	if ( pm->waterlevel >= water_level_t::WATER_WAIST ) { 
 		pm->groundentity = nullptr;
 		return;
 	}
 
-	// In-air, so no effect, can't re-jump without ground.
+	// In-air/liquid, so no effect, can't re-jump without ground.
 	if ( pm->groundentity == nullptr ) {
 		return;
 	}
@@ -733,8 +729,7 @@ static void PM_CheckSpecialMovement() {
 
 	// check for water jump
 	// [Paril-KEX] don't try waterjump if we're moving against where we'll hop
-	if ( !( pm->cmd.buttons & BUTTON_JUMP )
-		&& pm->cmd.forwardmove <= 0 ) {
+	if ( !( pm->cmd.buttons & BUTTON_JUMP )	&& pm->cmd.forwardmove <= 0 ) {
 		return;
 	}
 
@@ -897,12 +892,13 @@ static void PM_FlyMove( bool doclip ) {
 *	@brief	Sets the player's movement bounding box depending on various state factors.
 **/
 static void PM_SetDimensions() {
+	// Start with a {-16,-16, 0}, {16,16, 0}, and set Z after.
 	pm->mins.x = -16;
 	pm->mins.y = -16;
-
 	pm->maxs.x = 16;
 	pm->maxs.y = 16;
 
+	// Specifical gib treatment.
 	if ( pm->s.pm_type == PM_GIB ) {
 		pm->mins.z = 0;
 		pm->maxs.z = 16;
@@ -910,11 +906,14 @@ static void PM_SetDimensions() {
 		return;
 	}
 
+	// Mins for standing/crouching/dead.
 	pm->mins.z = -24;
 
+	// Dead, or ducked bbox:
 	if ( ( pm->s.pm_flags & PMF_DUCKED ) || pm->s.pm_type == PM_DEAD ) {
 		pm->maxs.z = 4;
 		pm->s.viewheight = -2;
+	// Alive and kicking bbox:
 	} else {
 		pm->maxs.z = 32;
 		pm->s.viewheight = 22;
@@ -925,18 +924,21 @@ static void PM_SetDimensions() {
 *	@brief	Determine whether we're above water, or not.
 **/
 static inline const bool PM_AboveWater() {
-	const Vector3 below = pml.origin + vec3_t{ 0, 0, -8 };
-
+	// Testing point.
+	const Vector3 below = pml.origin + Vector3{ 0, 0, -8 };
+	// We got solid below, not water:
 	bool solid_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, MASK_SOLID ).fraction < 1.0f;
 	if ( solid_below ) {
 		return false;
 	}
 
+	// We're above water:
 	bool water_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, MASK_WATER ).fraction < 1.0f;
 	if ( water_below ) {
 		return true;
 	}
 
+	// No water below.
 	return false;
 }
 
@@ -944,36 +946,41 @@ static inline const bool PM_AboveWater() {
 *	@brief	Decide whether to duck, and/or unduck.
 **/
 static inline const bool PM_CheckDuck() {
-	if ( pm->s.pm_type == PM_GIB ) {
+	// Can't duck if gibbed.
+	if ( pm->s.pm_type == PM_GIB /*|| pm->s.pm_type == PM_DEAD*/ ) {
 		return false;
 	}
 
 	trace_t trace;
 	bool flags_changed = false;
 
+	// Dead:
 	if ( pm->s.pm_type == PM_DEAD ) {
+		// TODO: This makes no sense, since the actual check in SetDimensions
+		// does the same for PM_DEAD as it does for being DUCKED.
 		if ( !( pm->s.pm_flags & PMF_DUCKED ) ) {
 			pm->s.pm_flags |= PMF_DUCKED;
 			flags_changed = true;
 		}
+	// Duck:
 	} else if (
 		( pm->cmd.buttons & BUTTON_CROUCH ) &&
 		( pm->groundentity || ( pm->waterlevel <= water_level_t::WATER_FEET && !PM_AboveWater() ) ) &&
-		!( pm->s.pm_flags & PMF_ON_LADDER ) /*&&
-		!pm_config.n64_physics*/ ) { // duck
+		!( pm->s.pm_flags & PMF_ON_LADDER ) ) { 
 		if ( !( pm->s.pm_flags & PMF_DUCKED ) ) {
 			// check that duck won't be blocked
-			vec3_t check_maxs = { pm->maxs.x, pm->maxs.y, 4 };
+			Vector3 check_maxs = { pm->maxs.x, pm->maxs.y, 4 };
 			trace = PM_Trace( pml.origin, pm->mins, check_maxs, pml.origin );
 			if ( !trace.allsolid ) {
 				pm->s.pm_flags |= PMF_DUCKED;
 				flags_changed = true;
 			}
 		}
-	} else { // stand up if possible
+	// Try and get out of the ducked state, stand up, if possible.
+	} else {
 		if ( pm->s.pm_flags & PMF_DUCKED ) {
 			// try to stand up
-			vec3_t check_maxs = { pm->maxs.x, pm->maxs.y, 32 };
+			Vector3 check_maxs = { pm->maxs.x, pm->maxs.y, 32 };
 			trace = PM_Trace( pml.origin, pm->mins, check_maxs, pml.origin );
 			if ( !trace.allsolid ) {
 				pm->s.pm_flags &= ~PMF_DUCKED;
@@ -987,7 +994,7 @@ static inline const bool PM_CheckDuck() {
 		return false;
 	}
 
-	// Reset dimensions since our ducking state has changed.
+	// Determine the possible new dimensions since our flags have changed.
 	PM_SetDimensions();
 
 	// We're ducked.
@@ -1143,7 +1150,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	pm->touchTraces.numberOfTraces = 0;
 	pm->viewangles = {};
 	pm->s.viewheight = 0;
-	pm->groundentity = nullptr;
+	//pm->groundentity = nullptr;
 	pm->watertype = CONTENTS_NONE;
 	pm->waterlevel = water_level_t::WATER_NONE;
 	pm->screen_blend = {};
@@ -1169,6 +1176,9 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	// Clamp view angles.
 	PM_ClampAngles( );
 
+	// Remove the ground entity changed flag.
+	//pm->s.pm_flags &= ~PMF_GROUNDENTITY_CHANGED;
+
 	// Performs fly move, only clips in case of spectator mode, noclips otherwise.
 	if ( pm->s.pm_type == PM_SPECTATOR || pm->s.pm_type == PM_NOCLIP ) {
 		// Re-ensure no flags are set anymore.
@@ -1193,9 +1203,11 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 	// Erase all input command state when dead, we don't want to allow moving our dead body.
 	if ( pm->s.pm_type >= PM_DEAD ) {
+		// Idle our directional user input.
 		pm->cmd.forwardmove = 0;
 		pm->cmd.sidemove = 0;
 		pm->cmd.upmove = 0;
+		// Unset these two buttons so other code won't respond to it.
 		pm->cmd.buttons &= ~( BUTTON_JUMP | BUTTON_CROUCH );
 	}
 
@@ -1229,21 +1241,12 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 	// Drop timing counter.
 	if ( pm->s.pm_time ) {
-		int32_t msec = pm->cmd.msec; //int msec = pm->cmd.msec >> 3;
-		//if ( !msec ) {
-		////	msec = 0; // msec = 1;
-		//	msec = 1;
-		//}
+		const int32_t msec = pm->cmd.msec;
 
 		if ( msec >= pm->s.pm_time ) {
-			//if ( /*pm_config.n64_physics ||*/ ( pm->s.pm_flags & PMF_DUCKED ) ) {
-			//	pm->s.pm_flags |= PMF_TIME_LAND;
-			//	pm->s.pm_time = 128;
-			//}
-			
 			// Somehow need this, Q2RE does not. If we don't do so, the code piece in this comment that resides above in PM_CategorizePosition
 			// causes us to remain unable to jump.
-			pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
+			//pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
 			pm->s.pm_time = 0;
 		} else {
 			pm->s.pm_time -= msec;
@@ -1275,6 +1278,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		// Determine water level and pursue to WaterMove if deep in above waist.
 		if ( pm->waterlevel >= water_level_t::WATER_WAIST ) {
 			PM_WaterMove( );
+		// Otherwise AirMove(Which, also, does ground move.)
 		} else {
 			// Different pitch handling.
 			Vector3 angles = pm->viewangles;

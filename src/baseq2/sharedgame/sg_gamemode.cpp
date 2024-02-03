@@ -4,7 +4,7 @@
 /**
 *	@return	A string representative of the passed in gameModeID.
 **/
-const char *SG_GetGamemodeName( int32_t gameModeID ) {
+const char *SG_GetGamemodeName( const int32_t gameModeID ) {
 	// CooperativeL
 	if ( gameModeID == GAMEMODE_COOPERATIVE ) {
 		return "Cooperative";

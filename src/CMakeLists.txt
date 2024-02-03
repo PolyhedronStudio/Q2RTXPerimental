@@ -408,6 +408,10 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 		target_link_options(baseq2rtxp_svgame PRIVATE "-static-libgcc")
 	ENDIF() #IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
 
+	# Add appropriate definition so the sharedgame code knows what binding it operates with.
+	target_compile_definitions(baseq2rtxp_clgame PRIVATE CLGAME_INCLUDE=1)
+	target_compile_definitions(baseq2rtxp_svgame PRIVATE SVGAME_INCLUDE=1)
+
 	# WIN32 Specifics:
 	IF( WIN32 )
 		target_include_directories(baseq2rtxp_svgame PRIVATE ../VC/inc)

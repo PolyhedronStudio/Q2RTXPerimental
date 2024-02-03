@@ -20,10 +20,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "shared/shared.h"
 #include "shared/list.h"
 
-// define SVGAME_INCLUDE so that game.h does not define the
+// Should already have been defined by CMake for this ClientGame target.
+//
+// Define SVGAME_INCLUDE so that game.h does not define the
 // short, server-visible gclient_t and edict_t structures,
 // because we define the full size ones in this file
+#ifndef SVGAME_INCLUDE
 #define SVGAME_INCLUDE
+#endif
 #include "shared/svgame.h"
 
 // Extern here right after including shared/svgame.h

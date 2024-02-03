@@ -8,10 +8,14 @@
 #include "shared/shared.h"
 #include "shared/list.h"
 
-// define CLGAME_INCLUDE so that clgame.h does not define the
+// Should already have been defined by CMake for this ClientGame target.
+// 
+// Define CLGAME_INCLUDE so that clgame.h does not define the
 // short, server-visible gclient_t and edict_t structures,
 // because we define the full size ones in this file
+#ifndef CLGAME_INCLUDE
 #define CLGAME_INCLUDE
+#endif
 #include "shared/clgame.h"
 
 // Extern here right after including shared/clgame.h

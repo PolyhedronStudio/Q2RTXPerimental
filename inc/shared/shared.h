@@ -528,6 +528,7 @@ typedef enum {  // : uint8_t {
 #define PMF_NO_ANGULAR_PREDICTION		256 //! Temporary disables angular prediction.
 #define PMF_IGNORE_PLAYER_COLLISION		512	//! Don't collide with other players.
 #define PMF_TIME_TRICK_JUMP				1024//! pm_time is the trick jump time.
+//#define PMF_GROUNDENTITY_CHANGED        2048//! Set if the ground entity has changed between previous and current pmove state.
 
 /**
 *   This structure needs to be communicated bit-accurate from the server to the client to guarantee that
@@ -613,7 +614,7 @@ typedef struct {
     //! A copy of the plane data from our ground entity.
     cplane_t        groundplane;
     //! The actual BSP 'contents' type we're in.
-    int				watertype;
+    int32_t			watertype;
     //! The depth of the player in the actual water solid.
     water_level_t	waterlevel;
 
@@ -1164,7 +1165,7 @@ typedef enum {
 
     clc_stringcmd,          // [string] message
 
-    svc_clgame                 // The server game is allowed to add custom commands after this. Max limit is a byte, 255.
+    clc_clgame                 // The client game is allowed to add custom commands after this. Max limit is a byte, 255.
 } client_command_t;
 
 

@@ -4,8 +4,8 @@
 // define SVGAME_INCLUDE so that game.h does not define the
 // short, server-visible gclient_t and edict_t structures,
 // because we define the full size ones in this file
-#define SVGAME_INCLUDE
 #include "shared/svgame.h"
+#include "../../svgame/g_local.h"
 
 // Extern here right after including shared/clgame.h
 extern svgame_import_t gi;
@@ -27,8 +27,26 @@ void SG_DPrintf( const char *fmt, ... ) {
 }
 
 /**
+*	@brief	Returns the entity number, -1 if invalid(nullptr, or out of bounds).
+**/
+const int32_t SG_GetEntityNumber( sgentity_s *sgent ) {
+	if ( sgent ) {
+		return sgent->s.number;
+	} else {
+		return -1;
+	}
+}
+
+/**
 *	@brief	Returns the given configstring that sits at index.
 **/
 configstring_t *SG_GetConfigString( const int32_t configStringIndex ) {
 	return gi.GetConfigString( configStringIndex );
+}
+
+/**
+*	@brief	Server side sharedgame implementation of sg_time_t::frames.
+**/
+int64_t sg_time_t::frames( ) const {
+	return _ms / gi.frame_time_ms;
 }

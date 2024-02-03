@@ -60,14 +60,7 @@ public:
 		return _ms;
 	}
 
-	int64_t frames( ) const {
-		#ifdef CLGAME_INCLUDE
-		return _ms / clgi.frame_time_ms;
-		#endif
-		#ifdef SVGAME_INCLUDE
-		return _ms / gi.frame_time_ms;
-		#endif
-	}
+	int64_t frames( ) const;;
 
 	// check if non-zero
 	constexpr explicit operator bool( ) const {

@@ -3,11 +3,18 @@
 #include "shared/shared.h"
 #include "shared/list.h"
 
+#ifdef CLGAME_INCLUDE
+typedef struct centity_s sgentity_s;
+#endif
+#ifdef SVGAME_INCLUDE
+typedef struct edict_s sgentity_s;
+#endif
+
+//! Define the entity type based on from which game module we're compiling.
 #include "sg_gamemode.h"
 #include "sg_pmove.h"
 #include "sg_pmove_slidemove.h"
 #include "sg_time.h"
-
 
 
 /**
@@ -20,7 +27,10 @@
 *	@brief	Wrapper for using the appropriate developer print for the specific game module we're building.
 **/
 void SG_DPrintf( const char *fmt, ... );
-
+///**
+//*	@brief	Returns the entity number, -1 if invalid(nullptr, or out of bounds).
+//**/
+const int32_t SG_GetEntityNumber( sgentity_s *sgent );
 /**
 *	@brief	Returns the given configstring that sits at index.
 **/

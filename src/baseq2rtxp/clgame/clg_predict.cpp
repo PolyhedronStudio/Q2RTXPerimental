@@ -107,7 +107,9 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Apply client delta_angles.
     pm.s.delta_angles = clgi.client->delta_angles;
     // Ensure viewoffset is set properly also.
-    //pm.viewoffset = clgi.client->frame.ps.viewoffset;
+    pm.s.viewheight = predictedState->view_height;
+    // Set view offset.
+    pm.viewoffset = predictedState->view.viewOffset;
     // Set ground entity to last predicted one.
     pm.groundentity = (edict_s*)predictedState->groundEntity;
     // Set ground plane to last predicted one.
@@ -134,9 +136,10 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
     // Now run the pending command number.
     uint64_t frameNumber = currentCommandNumber; //! Default to current frame, expected behavior for if we got msec in predicedState.cmd
-    if ( clgi.client->moveCommand.cmd.msec ) {
+    client_movecmd_t *moveCommand = &clgi.client->moveCommand;
+    if ( moveCommand->cmd.msec ) {
         // Store time of prediction.
-        clgi.client->moveCommand.prediction.time = clgi.client->time;
+        moveCommand->prediction.time = clgi.client->time;
 
         // Initialize pmove with the proper moveCommand data.
         pm.cmd = clgi.client->moveCommand.cmd;
@@ -148,11 +151,11 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         SG_PlayerMove( &pm, &clgi.client->pmp );
 
         // Save for prediction checking.
-        clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ].prediction.origin = pm.s.origin;
+        //clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ].prediction.origin = pm.s.origin;
 
         // Save the now not pending anymore move command as the last entry in our circular buffer.
-        //cl.moveCommand.prediction.origin = pm.s.origin;
-        //cl.moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = cl.moveCommand;
+        clgi.client->moveCommand.prediction.origin = pm.s.origin;
+        clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *moveCommand;
     // Use previous frame if no command is pending.
     } else {
         frameNumber = currentCommandNumber - 1;
@@ -186,6 +189,11 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         predictedState->step_time = clgi.GetRealTime();
     }
 
+    if ( pm.s.pm_flags ) {
+        int32_t oldGroundEntityNumber = SG_GetEntityNumber( (sgentity_s*)predictedState->groundEntity );
+        int32_t groundEntityNumber = SG_GetEntityNumber( (sgentity_s *)pm.groundentity );
+        SG_DPrintf( "Ground Entity changed from(%d) to (%d)!!!\n", oldGroundEntityNumber, groundEntityNumber );
+    }
     // Copy results out into the current predicted state.
     predictedState->view.origin = pm.s.origin;
     predictedState->view.velocity = pm.s.velocity;
@@ -198,6 +206,6 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     predictedState->groundEntity = (centity_t *)pm.groundentity;
     predictedState->groundPlane = pm.groundplane;
 
-    // Adjust the view height to the new state's height, if changing, record moment in time.
+    // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
     PF_AdjustViewHeight( pm.s.viewheight );
 }
