@@ -414,21 +414,45 @@ Kills all entities that would touch the proposed new positioning
 of ent.  Ent should be unlinked before calling this!
 =================
 */
-bool KillBox(edict_t *ent)
-{
+const bool KillBox(edict_t *ent, const bool bspClipping ) {
     trace_t     tr;
 
-    while (1) {
-        tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, NULL, MASK_PLAYERSOLID);
-        if (!tr.ent)
-            break;
+    // don't telefrag as spectator...
+    if ( ent->movetype == MOVETYPE_NOCLIP ) {
+        return true;
+    }
+
+    contents_t mask = static_cast<contents_t>( CONTENTS_MONSTER | CONTENTS_PLAYER );
+
+    //// [Paril-KEX] don't gib other players in coop if we're not colliding
+    //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
+    //    mask &= ~CONTENTS_PLAYER;
+    static edict_t *touchedEdicts[ MAX_EDICTS ];
+    int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
+    for ( int32_t i = 0; i < num; i++ ) {
+        edict_t *hit = touchedEdicts[ i ];
+
+        if ( hit == ent )
+            continue;
+        else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP )
+            continue;
+        else if ( hit->client && !( mask & CONTENTS_PLAYER ) )
+            continue;
+
+        if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
+            trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, G_GetClipMask( hit ) );
+
+            if ( clip.fraction == 1.0f ) {
+                continue;
+            }
+        }
 
         // nail it
-        T_Damage(tr.ent, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+        T_Damage(hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
 
-        // if we didn't kill it, fail
-        if (tr.ent->solid)
-            return false;
+        //// if we didn't kill it, fail
+        //if (tr.ent->solid)
+        //    return false;
     }
 
     return true;        // all clear

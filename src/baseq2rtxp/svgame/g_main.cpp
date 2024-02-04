@@ -622,15 +622,30 @@ void G_RunFrame(void)
         // Set the current entity being processed for the current frame.
         level.current_entity = ent;
 
-        // RF Beam Entities update old_origin themselves.
-        if ( !( ent->s.renderfx & RF_BEAM ) )
+        // RF Beam Entities update their old_origin by hand.
+        if ( !( ent->s.renderfx & RF_BEAM ) ) {
             VectorCopy( ent->s.origin, ent->s.old_origin );
+        }
 
-        // if the ground entity moved, make sure we are still on it
+        // If the ground entity moved, make sure we are still on it.
         if ( ( ent->groundentity ) && ( ent->groundentity->linkcount != ent->groundentity_linkcount ) ) {
-            ent->groundentity = NULL;
+            contents_t mask = G_GetClipMask( ent );
+
+            // Monsters that don't SWIM or FLY, got their own unique ground check.
             if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {
-                M_CheckGround( ent );
+                ent->groundentity = nullptr;
+                M_CheckGround( ent, mask );
+            // All other entities use this route instead:
+            } else {
+                // If the ground entity is still 1 unit below us, we're good.
+                Vector3 endPoint = Vector3( ent->s.origin ) - Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
+                trace_t tr = gi.trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
+
+                if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundentity ) {
+                    ent->groundentity = nullptr;
+                } else {
+                    ent->groundentity_linkcount = ent->groundentity->linkcount;
+                }
             }
         }
 

@@ -377,7 +377,7 @@ void use_target_spawner(edict_t *self, edict_t *other, edict_t *activator)
     VectorCopy(self->s.angles, ent->s.angles);
     ED_CallSpawn(ent);
     gi.unlinkentity(ent);
-    KillBox(ent);
+    KillBox(ent, false);
     gi.linkentity(ent);
     if (self->speed)
         VectorCopy(self->movedir, ent->velocity);
@@ -510,7 +510,7 @@ void target_laser_think(edict_t *self)
     VectorCopy(self->s.origin, start);
     VectorMA(start, 2048, self->movedir, end);
     while (1) {
-        tr = gi.trace(start, NULL, NULL, end, ignore, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER);
+        tr = gi.trace( start, NULL, NULL, end, ignore, static_cast<contents_t>( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER ) );
 
         if (!tr.ent)
             break;

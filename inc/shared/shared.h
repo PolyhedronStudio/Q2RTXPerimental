@@ -186,13 +186,12 @@ MATHLIB
 
 // Undo extern "C" here for 'HandMadeMath'.
 #ifdef __cplusplus
-};
+};  // Escape extern "C" for raymath.h
 #endif
 
 // Include our own custom version of raylib1.5 its raymath library.
 #define RAYMATH_STATIC_INLINE
 #include <shared/math/qray_math.h>
-
 
 #ifdef __cplusplus
 // We extern "C"
@@ -297,71 +296,83 @@ typedef struct cvar_s {
 *	Collision Detection:
 *
 **/
-// lower bits are stronger, and will eat weaker brushes completely
-#define CONTENTS_NONE           0       // No contents, non-solid.
-#define CONTENTS_SOLID          1       // an eye is never valid in a solid
-#define CONTENTS_WINDOW         2       // translucent, but not watery
-#define CONTENTS_AUX            4
-#define CONTENTS_LAVA           8
-#define CONTENTS_SLIME          16
-#define CONTENTS_WATER          32
-#define CONTENTS_MIST           64
-#define LAST_VISIBLE_CONTENTS   64
+/**
+*   @brief  Brush Contents: lower bits are stronger, and will eat weaker brushes completely
+**/
+typedef enum {
+    CONTENTS_NONE = 0,
+    CONTENTS_SOLID = BIT( 0 ),  // An eye is never valid in a solid.
+    CONTENTS_WINDOW = BIT( 1 ), // Translucent, but not watery.
+    CONTENTS_AUX = BIT( 2 ),
+    CONTENTS_LAVA = BIT( 3 ),
+    CONTENTS_SLIME = BIT( 4 ),
+    CONTENTS_WATER = BIT( 5 ),
+    CONTENTS_MIST = BIT( 6 ),
 
-// remaining contents are non-visible, and don't eat brushes
-#define CONTENTS_AREAPORTAL     0x8000
+    // Remaining contents are non-visible, and don't eat brushes.
+    CONTENTS_NO_WATERJUMP = BIT( 13 ),      // [Paril-KEX] This brush cannot be waterjumped out of.
+    CONTENTS_PROJECTILECLIP = BIT( 14 ),    // [Paril-KEX] Projectiles will collide with this.
 
-#define CONTENTS_PLAYERCLIP     0x10000
-#define CONTENTS_MONSTERCLIP    0x20000
+    CONTENTS_AREAPORTAL = BIT( 15 ),
 
-// currents can be added to any other contents, and may be mixed
-#define CONTENTS_CURRENT_0      0x40000
-#define CONTENTS_CURRENT_90     0x80000
-#define CONTENTS_CURRENT_180    0x100000
-#define CONTENTS_CURRENT_270    0x200000
-#define CONTENTS_CURRENT_UP     0x400000
-#define CONTENTS_CURRENT_DOWN   0x800000
+    CONTENTS_PLAYERCLIP = BIT( 16 ),
+    CONTENTS_MONSTERCLIP = BIT( 17 ),
 
-#define CONTENTS_ORIGIN         0x1000000   // removed before bsping an entity
+    // Currents can be added to any other contents, and may be mixed.
+    CONTENTS_CURRENT_0 = BIT( 18 ),
+    CONTENTS_CURRENT_90 = BIT( 19 ),
+    CONTENTS_CURRENT_180 = BIT( 20 ),
+    CONTENTS_CURRENT_270 = BIT( 21 ),
+    CONTENTS_CURRENT_UP = BIT( 22 ),
+    CONTENTS_CURRENT_DOWN = BIT( 23 ),
 
-#define CONTENTS_MONSTER        0x2000000   // should never be on a brush, only in game
-#define CONTENTS_DEADMONSTER    0x4000000
-#define CONTENTS_DETAIL         0x8000000   // brushes to be added after vis leafs
-#define CONTENTS_TRANSLUCENT    0x10000000  // auto set if any surface has trans
-#define CONTENTS_LADDER         0x20000000
+    CONTENTS_ORIGIN = BIT( 24 ), // Removed before bsping an entity.
 
+    CONTENTS_MONSTER = BIT( 25 ), // Should never be on a brush, only in game.
+    CONTENTS_DEADMONSTER = BIT( 26 ),
 
+    CONTENTS_DETAIL = BIT( 27 ),        // Brushes to be added after vis leafs.
+    CONTENTS_TRANSLUCENT = BIT( 28 ),   // Auto set if any surface has trans.
+    CONTENTS_LADDER = BIT( 29 ),
 
+    CONTENTS_PLAYER = BIT( 30 ) , // [Paril-KEX] should never be on a brush, only in game; player
+    CONTENTS_PROJECTILE = BIT( 31 )  // [Paril-KEX] should never be on a brush, only in game; projectiles.
+    // used to solve deadmonster collision issues.
+} contents_t;
+
+/**
+*   Surface Types:
+**/
 #define SURF_LIGHT      0x1     // value will hold the light strength
-
 #define SURF_SLICK      0x2     // effects game physics
-
 #define SURF_SKY        0x4     // don't draw, but add to skybox
 #define SURF_WARP       0x8     // turbulent water warp
 #define SURF_TRANS33    0x10
 #define SURF_TRANS66    0x20
 #define SURF_FLOWING    0x40    // scroll towards angle
 #define SURF_NODRAW     0x80    // don't bother referencing the texture
-
 #define SURF_ALPHATEST  0x02000000  // used by kmquake2
-
 #define SURF_N64_UV             (1U << 28)
 #define SURF_N64_SCROLL_X       (1U << 29)
 #define SURF_N64_SCROLL_Y       (1U << 30)
 #define SURF_N64_SCROLL_FLIP    (1U << 31)
 
-
-// content masks
-#define MASK_ALL                (-1)
-#define MASK_SOLID              (CONTENTS_SOLID|CONTENTS_WINDOW)
-#define MASK_PLAYERSOLID        (CONTENTS_SOLID|CONTENTS_PLAYERCLIP|CONTENTS_WINDOW|CONTENTS_MONSTER)
-#define MASK_DEADSOLID          (CONTENTS_SOLID|CONTENTS_PLAYERCLIP|CONTENTS_WINDOW)
-#define MASK_MONSTERSOLID       (CONTENTS_SOLID|CONTENTS_MONSTERCLIP|CONTENTS_WINDOW|CONTENTS_MONSTER)
-#define MASK_WATER              (CONTENTS_WATER|CONTENTS_LAVA|CONTENTS_SLIME)
-#define MASK_OPAQUE             (CONTENTS_SOLID|CONTENTS_SLIME|CONTENTS_LAVA)
-#define MASK_SHOT               (CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_WINDOW|CONTENTS_DEADMONSTER)
-#define MASK_CURRENT            (CONTENTS_CURRENT_0|CONTENTS_CURRENT_90|CONTENTS_CURRENT_180|CONTENTS_CURRENT_270|CONTENTS_CURRENT_UP|CONTENTS_CURRENT_DOWN)
-
+/**
+*   ContentMask Sets:
+**/
+#define MASK_SOLID              contents_t( CONTENTS_SOLID | CONTENTS_WINDOW )
+#define MASK_PLAYERSOLID        contents_t( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTER | CONTENTS_PLAYER )
+#define MASK_DEADSOLID          contents_t( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW )
+#define MASK_MONSTERSOLID       contents_t( CONTENTS_SOLID | CONTENTS_MONSTERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTER | CONTENTS_PLAYER )
+#define MASK_WATER              contents_t( CONTENTS_WATER | CONTENTS_LAVA | CONTENTS_SLIME )
+#define MASK_OPAQUE             contents_t( CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA )
+#define MASK_SHOT               contents_t( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_WINDOW | CONTENTS_DEADMONSTER )
+#define MASK_CURRENT            contents_t( CONTENTS_CURRENT_0 | CONTENTS_CURRENT_90 | CONTENTS_CURRENT_180 | CONTENTS_CURRENT_270 | CONTENTS_CURRENT_UP | CONTENTS_CURRENT_DOWN )
+//#define MASK_BLOCK_SIGHT        ( CONTENTS_SOLID | CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_MONSTER | CONTENTS_PLAYER )
+//#define MASK_NAV_SOLID          ( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW )
+//#define MASK_LADDER_NAV_SOLID   ( CONTENTS_SOLID | CONTENTS_WINDOW )
+//#define MASK_WALK_NAV_SOLID     ( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTERCLIP )
+#define MASK_PROJECTILE         contents_t( MASK_SHOT | CONTENTS_PROJECTILECLIP )
 
 // gi.BoxEdicts() can return a list of either solid or trigger entities
 // FIXME: eliminate AREA_ distinction?
@@ -420,7 +431,7 @@ typedef struct trace_s {
     vec3_t      endpos;     // final position
     cplane_t    plane;      // surface normal at impact
     csurface_t  *surface;   // surface hit
-    int         contents;   // contents on other side of surface hit
+    contents_t  contents;   // contents on other side of surface hit
     struct edict_s  *ent;       // not set by CM_*() functions
 
 	// [Paril-KEX] the second-best surface hit from a trace
@@ -483,7 +494,7 @@ typedef struct usercmd_s {
 **/
 typedef enum {
     SOLID_NOT,          //! No interaction with other objects.
-    SOLID_TRIGGER,      //! Only touch when inside, after moving. (Optional BSP Brush clip when SVF_USE_TRIGGER_HULL is set.)
+    SOLID_TRIGGER,      //! Only touch when inside, after moving. (Optional BSP Brush clip when SVF_HULL is set.)
     SOLID_BBOX,         //! Touch on edge.
     SOLID_BSP           //! BSP clip, touch on edge.
 } solid_t;
@@ -614,7 +625,7 @@ typedef struct {
     //! A copy of the plane data from our ground entity.
     cplane_t        groundplane;
     //! The actual BSP 'contents' type we're in.
-    int32_t			watertype;
+    contents_t			watertype;
     //! The depth of the player in the actual water solid.
     water_level_t	waterlevel;
 
@@ -623,11 +634,11 @@ typedef struct {
     **/
     //! Callbacks to test the world with.
     //! Trace against all entities.
-    const trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const int32_t contentMask );
-    //! PointContents.
-    const int32_t ( *q_gameabi pointcontents )( const vec3_t point );
+    const trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask );
     //! Clips to world only.
-    const trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ const int32_t contentMask );
+    const trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ const contents_t contentMask );
+    //! PointContents.
+    const contents_t( *q_gameabi pointcontents )( const vec3_t point );
 
     /**
     *   (In):
@@ -1271,7 +1282,7 @@ typedef struct entity_state_s {
     //! gi.linkentity sets these properly.
     uint32_t solid;
     //! Clipmask for collision.
-    int32_t clipmask;
+    contents_t clipmask;
     //! Entity who owns this entity.
     int32_t ownerNumber;
 

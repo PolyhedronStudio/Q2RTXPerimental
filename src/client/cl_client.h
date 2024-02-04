@@ -993,16 +993,16 @@ void FX_Init(void);
 /**
 *   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.
 **/
-const trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const int32_t contentmask );
+const trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask );
 /**
 *   @brief  Will perform a clipping trace to the specified entity.
 *           If clipEntity == nullptr, it'll perform a clipping trace against the World.
 **/
-const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const int32_t contentmask );
+const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const contents_t contentmask );
 /**
 *   @return The type of 'contents' at the given point.
 **/
-const int32_t q_gameabi CL_PointContents( const vec3_t point );
+const contents_t q_gameabi CL_PointContents( const vec3_t point );
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

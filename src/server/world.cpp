@@ -280,7 +280,7 @@ void PF_LinkEdict(edict_t *ent)
     if ( ent->clipmask ) {
         ent->s.clipmask = ent->clipmask;
     } else {
-        ent->s.clipmask = 0;
+        ent->s.clipmask = CONTENTS_NONE;
     }
 
     // Owner:
@@ -417,17 +417,17 @@ static mnode_t *SV_WorldNodes( void ) {
 /**
 *	@brief	SV_PointContents
 **/
-int SV_PointContents( const vec3_t p ) {
+const contents_t SV_PointContents( const vec3_t p ) {
 	edict_t *touch[ MAX_EDICTS ], *hit;
 	int         i, num;
-	int         contents;
+    contents_t  contents;
 
 	if ( !sv.cm.cache ) {
 		Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
 	}
 
 	// get base contents from world
-	contents = CM_PointContents( p, SV_WorldNodes( ) );
+    contents = static_cast<contents_t>( CM_PointContents( p, SV_WorldNodes() ) );
 
 	// or in contents from all the other entities
 	num = SV_AreaEdicts( p, p, touch, MAX_EDICTS, AREA_SOLID );
@@ -436,8 +436,8 @@ int SV_PointContents( const vec3_t p ) {
 		hit = touch[ i ];
 
 		// might intersect, so do an exact clip
-		contents |= CM_TransformedPointContents( p, SV_HullForEntity( hit ),
-												hit->s.origin, hit->s.angles );
+		contents = static_cast<contents_t>( contents | CM_TransformedPointContents(p, SV_HullForEntity(hit),
+												hit->s.origin, hit->s.angles ) );
 	}
 
 	return contents;
@@ -502,9 +502,9 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
 *	@brief	Moves the given mins/maxs volume through the world from start to end.
 *			Passedict and edicts owned by passedict, are explicitly not checked.
 **/
-trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
+const trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
                            const vec3_t maxs, const vec3_t end,
-                           edict_t *passedict, int contentmask)
+                           edict_t *passedict, const contents_t contentmask)
 {
     trace_t     trace;
 
@@ -533,9 +533,9 @@ trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
 *	@brief	Like SV_Trace(), but clip to specified entity only.
 *			Can be used to clip to SOLID_TRIGGER by its BSP tree.
 **/
-trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
-						  const vec3_t maxs, const vec3_t end,
-						  int contentmask ) {
+const trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
+                            const vec3_t maxs, const vec3_t end,
+                            const contents_t contentmask ) {
 	trace_t     trace;
 
 	if ( !mins )

@@ -6,12 +6,12 @@ static constexpr int32_t MAX_CLIP_PLANES = 5;
 /**
 *	@brief	Clips trace against world only.
 **/
-trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, int32_t contentMask );
+trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask );
 
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, int32_t contentMask = CONTENTS_NONE );
+trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask = CONTENTS_NONE );
 
 /**
 *	@brief	Clips the velocity to surface normal.

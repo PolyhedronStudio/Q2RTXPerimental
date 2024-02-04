@@ -1160,7 +1160,7 @@ void PutClientInServer(edict_t *ent)
     ent->solid = SOLID_BBOX;
     ent->deadflag = DEAD_NO;
     ent->air_finished_time = level.time + 12_sec;
-    ent->clipmask = MASK_PLAYERSOLID;
+    ent->clipmask = static_cast<contents_t>( MASK_PLAYERSOLID );
     ent->model = "players/male/tris.md2";
     ent->pain = player_pain;
     ent->die = player_die;
@@ -1213,7 +1213,7 @@ void PutClientInServer(edict_t *ent)
     VectorCopy(spawn_origin, temp2);
     temp[2] -= 64;
     temp2[2] += 16;
-    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, MASK_PLAYERSOLID);
+    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, static_cast<contents_t>( MASK_PLAYERSOLID ));
     if (!tr.allsolid && !tr.startsolid && Q_stricmp(level.mapname, "tech5")) {
         VectorCopy(tr.endpos, ent->s.origin);
         ent->groundentity = tr.ent;
@@ -1256,7 +1256,7 @@ void PutClientInServer(edict_t *ent)
     } else
         client->resp.spectator = false;
 
-    if (!KillBox(ent)) {
+    if (!KillBox(ent, true)) {
         // could't spawn in?
     }
 
@@ -1551,7 +1551,7 @@ void ClientDisconnect(edict_t *ent)
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const int32_t contentMask ) {
+static const trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
     //if (pm_passent->health > 0)
     //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
     //else
@@ -1561,13 +1561,13 @@ static const trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const int32_t contentMask ) {
+static const trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
     return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-static const int32_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
+static const contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
     return gi.pointcontents( point );
 }
 

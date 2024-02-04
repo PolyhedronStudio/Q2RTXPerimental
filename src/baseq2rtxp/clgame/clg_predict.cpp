@@ -10,7 +10,7 @@
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const int32_t contentMask ) {
+static const trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
     trace_t t;
     //if (pm_passent->health > 0)
     //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
@@ -22,7 +22,7 @@ static const trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mi
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const int32_t contentmask ) {
+static const trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentmask ) {
     trace_t trace;
     trace = clgi.Clip( start, mins, maxs, end, nullptr, contentmask );
     return trace;
@@ -30,7 +30,7 @@ static const trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t min
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-static const int32_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
+static const contents_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
     return clgi.PointContents( point );
 }
 
@@ -189,11 +189,6 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         predictedState->step_time = clgi.GetRealTime();
     }
 
-    if ( pm.s.pm_flags ) {
-        int32_t oldGroundEntityNumber = SG_GetEntityNumber( (sgentity_s*)predictedState->groundEntity );
-        int32_t groundEntityNumber = SG_GetEntityNumber( (sgentity_s *)pm.groundentity );
-        SG_DPrintf( "Ground Entity changed from(%d) to (%d)!!!\n", oldGroundEntityNumber, groundEntityNumber );
-    }
     // Copy results out into the current predicted state.
     predictedState->view.origin = pm.s.origin;
     predictedState->view.velocity = pm.s.velocity;

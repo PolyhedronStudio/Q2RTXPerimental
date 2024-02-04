@@ -751,7 +751,7 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 //
 // g_utils.c
 //
-bool    KillBox(edict_t *ent);
+const bool    KillBox( edict_t *ent, const bool bspClipping );
 void    G_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result);
 edict_t *G_Find(edict_t *from, int fieldofs, const char *match); // WID: C++20: Added const.
 edict_t *findradius(edict_t *from, vec3_t org, float rad);
@@ -813,7 +813,7 @@ void monster_death_use(edict_t *self);
 void M_CatagorizePosition(edict_t *ent);
 bool M_CheckAttack(edict_t *self);
 void M_FlyCheck(edict_t *self);
-void M_CheckGround(edict_t *ent);
+void M_CheckGround(edict_t *ent, const contents_t mask);
 void M_SetAnimation( edict_t *self, mmove_t *move, bool instant = true );
 
 
@@ -928,6 +928,7 @@ void M_ChangeYaw(edict_t *ent);
 //
 // g_phys.c
 //
+const contents_t G_GetClipMask( edict_t *ent );
 void G_RunEntity(edict_t *ent);
 
 //
@@ -1161,7 +1162,7 @@ struct edict_s {
     vec3_t      mins, maxs;
     vec3_t      absmin, absmax, size;
     solid_t     solid;
-    int         clipmask;
+    contents_t  clipmask;
     edict_t     *owner;
 
 

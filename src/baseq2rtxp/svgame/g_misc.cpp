@@ -552,7 +552,7 @@ void func_wall_use(edict_t *self, edict_t *other, edict_t *activator)
     if (self->solid == SOLID_NOT) {
         self->solid = SOLID_BSP;
         self->svflags &= ~SVF_NOCLIENT;
-        KillBox(self);
+        KillBox(self, false);
     } else {
         self->solid = SOLID_NOT;
         self->svflags |= SVF_NOCLIENT;
@@ -632,7 +632,7 @@ void func_object_use(edict_t *self, edict_t *other, edict_t *activator)
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
     self->use = NULL;
-    KillBox(self);
+    KillBox(self, false);
     func_object_release(self);
 }
 
@@ -753,7 +753,7 @@ void func_explosive_spawn(edict_t *self, edict_t *other, edict_t *activator)
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
     self->use = NULL;
-    KillBox(self);
+    KillBox(self, false);
     gi.linkentity(self);
 }
 
@@ -1705,7 +1705,7 @@ void teleporter_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t
     AngleVectors( other->client->v_angle, other->client->v_forward, nullptr, nullptr );
 
     // kill anything at the destination
-    KillBox(other);
+    KillBox(other, !!other->client );
 
     gi.linkentity(other);
 }

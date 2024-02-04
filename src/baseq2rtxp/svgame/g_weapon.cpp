@@ -133,7 +133,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
     float       u;
     vec3_t      water_start;
     bool        water = false;
-    int         content_mask = MASK_SHOT | MASK_WATER;
+    contents_t  content_mask = static_cast<contents_t>( MASK_SHOT | MASK_WATER );
 
     tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
     if (!(tr.fraction < 1.0f)) {
@@ -149,7 +149,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
         if (gi.pointcontents(start) & MASK_WATER) {
             water = true;
             VectorCopy(start, water_start);
-            content_mask &= ~MASK_WATER;
+            content_mask = static_cast<contents_t>( content_mask & ~MASK_WATER ); // content_mask &= ~MASK_WATER
         }
 
         tr = gi.trace(start, NULL, NULL, end, self, content_mask);
@@ -625,7 +625,7 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
     vec3_t      end;
     trace_t     tr;
     edict_t     *ignore;
-    int         mask;
+    contents_t  mask;
     bool        water;
     float       lastfrac;
 
@@ -633,13 +633,13 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
     VectorCopy(start, from);
     ignore = self;
     water = false;
-    mask = MASK_SHOT | CONTENTS_SLIME | CONTENTS_LAVA;
+    mask = static_cast<contents_t>( MASK_SHOT | CONTENTS_SLIME | CONTENTS_LAVA );
     lastfrac = 1;
     while (ignore) {
         tr = gi.trace(from, NULL, NULL, end, ignore, mask);
 
         if (tr.contents & (CONTENTS_SLIME | CONTENTS_LAVA)) {
-            mask &= ~(CONTENTS_SLIME | CONTENTS_LAVA);
+            mask = static_cast<contents_t>( ~( CONTENTS_SLIME | CONTENTS_LAVA ) );
             water = true;
         } else {
             //ZOID--added so rail goes through SOLID_BBOX entities (gibs, etc)
@@ -801,7 +801,7 @@ void bfg_think(edict_t *self)
         VectorCopy(self->s.origin, start);
         VectorMA(start, 2048, dir, end);
         while (1) {
-            tr = gi.trace(start, NULL, NULL, end, ignore, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER);
+            tr = gi.trace( start, NULL, NULL, end, ignore, static_cast<contents_t>( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER ) );
 
             if (!tr.ent)
                 break;

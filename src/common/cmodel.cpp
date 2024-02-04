@@ -560,7 +560,7 @@ static void CM_ClipBoxToBrush(const vec3_t p1, const vec3_t p2, trace_t *trace, 
 			if ( !map_allsolid_bug->integer ) {
 				// original Q2 didn't set these
 				trace->fraction = 0;
-				trace->contents = brush->contents;
+				trace->contents = static_cast<contents_t>( brush->contents );
 			}
 		}
 		return;
@@ -571,7 +571,7 @@ static void CM_ClipBoxToBrush(const vec3_t p1, const vec3_t p2, trace_t *trace, 
 			trace->fraction = enterfrac[ 0 ];
 			trace->plane = *clipplane[ 0 ];
 			trace->surface = &( leadside[ 0 ]->texinfo->c );
-			trace->contents = brush->contents;
+            trace->contents = static_cast<contents_t>( brush->contents );
 
 			if ( leadside[ 1 ] ) {
 				trace->plane2 = *clipplane[ 1 ];
@@ -617,7 +617,7 @@ static void CM_TestBoxInBrush(const vec3_t p1, trace_t *trace, mbrush_t *brush)
     // inside this brush
     trace->startsolid = trace->allsolid = true;
     trace->fraction = 0;
-    trace->contents = brush->contents;
+    trace->contents = static_cast<contents_t>( brush->contents );
 }
 
 /*
@@ -898,7 +898,7 @@ void CM_ClipEntity(trace_t *dst, const trace_t *src, struct edict_s *ent)
         VectorCopy(src->endpos, dst->endpos);
         dst->plane = src->plane;
         dst->surface = src->surface;
-        dst->contents |= src->contents;
+        dst->contents = static_cast<contents_t>( dst->contents | src->contents );
         dst->ent = ent;
     }
 }

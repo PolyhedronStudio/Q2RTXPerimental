@@ -73,7 +73,8 @@ void monster_fire_rocket( edict_t *self, vec3_t start, vec3_t dir, int damage, i
 }
 
 void monster_fire_railgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int flashtype ) {
-	if ( gi.pointcontents( start ) & MASK_SOLID )
+	contents_t contents = gi.pointcontents( start );
+	if ( contents & (const contents_t)MASK_SOLID )
 		return;
 
 	fire_rail( self, start, aimdir, damage, kick );
@@ -131,28 +132,31 @@ void AttackFinished(edict_t *self, sg_time_t time)
 }
 
 
-void M_CheckGround( edict_t *ent ) {
+void M_CheckGround( edict_t *ent, const contents_t mask ) {
 	vec3_t      point;
 	trace_t     trace;
 
-	if ( ent->flags & ( FL_SWIM | FL_FLY ) )
-		return;
-
-	if ( ent->velocity[ 2 ] > 100 ) {
-		ent->groundentity = NULL;
+	// Swimming and flying monsters don't check for ground.
+	if ( ent->flags & ( FL_SWIM | FL_FLY ) ) {
 		return;
 	}
 
-// if the hull point one-quarter unit down is solid the entity is on ground
+	// Too high of a velocity, we're moving upwards rapidly.
+	if ( ent->velocity[ 2 ] > 100 ) {
+		ent->groundentity = nullptr;
+		return;
+	}
+
+	// If the hull point one-quarter unit down is solid the entity is on ground.
 	point[ 0 ] = ent->s.origin[ 0 ];
 	point[ 1 ] = ent->s.origin[ 1 ];
 	point[ 2 ] = ent->s.origin[ 2 ] - 0.25f;
 
-	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, point, ent, MASK_MONSTERSOLID );
+	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, point, ent, mask );
 
 	// check steepness
 	if ( trace.plane.normal[ 2 ] < 0.7f && !trace.startsolid ) {
-		ent->groundentity = NULL;
+		ent->groundentity = nullptr;
 		return;
 	}
 
@@ -279,19 +283,22 @@ void M_droptofloor( edict_t *ent ) {
 	vec3_t      end;
 	trace_t     trace;
 
+	contents_t mask = G_GetClipMask( ent );
+
 	ent->s.origin[ 2 ] += 1;
 	VectorCopy( ent->s.origin, end );
 	end[ 2 ] -= 256;
 
-	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, end, ent, MASK_MONSTERSOLID );
+	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, end, ent, mask );
 
-	if ( trace.fraction == 1 || trace.allsolid )
+	if ( trace.fraction == 1 || trace.allsolid ) {
 		return;
+	}
 
 	VectorCopy( trace.endpos, ent->s.origin );
 
 	gi.linkentity( ent );
-	M_CheckGround( ent );
+	M_CheckGround( ent, mask );
 	M_CatagorizePosition( ent );
 }
 
@@ -462,13 +469,13 @@ void M_MoveFrame(edict_t *self)
 
 
 void monster_think( edict_t *self ) {
-	// Ensure to remove RF_OLD_FRAME_LERP.
+	// Ensure to remove RF_STAIR_STEP and RF_OLD_FRAME_LERP.
 	self->s.renderfx &= ~( RF_STAIR_STEP | RF_OLD_FRAME_LERP );
 
 	M_MoveFrame( self );
 	if ( self->linkcount != self->monsterinfo.linkcount ) {
 		self->monsterinfo.linkcount = self->linkcount;
-		M_CheckGround( self );
+		M_CheckGround( self, G_GetClipMask( self ) );
 	}
 	M_CatagorizePosition( self );
 	M_WorldEffects( self );
@@ -506,7 +513,7 @@ void monster_start_go( edict_t *self );
 
 void monster_triggered_spawn( edict_t *self ) {
 	self->s.origin[ 2 ] += 1;
-	KillBox( self );
+	KillBox( self, false );
 
     self->solid = SOLID_BBOX;
     self->movetype = MOVETYPE_STEP;

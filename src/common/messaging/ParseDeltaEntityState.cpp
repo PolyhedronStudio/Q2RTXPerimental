@@ -150,7 +150,7 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->solid = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_CLIPMASK ) {
-		to->clipmask = MSG_ReadUintBase128( );
+		to->clipmask = static_cast<contents_t>( MSG_ReadUintBase128( ) );
 	}
 	if ( bits & U_OWNER ) {
 		to->ownerNumber = MSG_ReadUintBase128( );

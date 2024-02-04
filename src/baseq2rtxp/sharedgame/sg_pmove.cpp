@@ -529,7 +529,7 @@ static void PM_WaterMove() {
 /**
 *	@brief
 **/
-static inline void PM_GetWaterLevel( const Vector3 &position, water_level_t &level, int32_t &type ) {
+static inline void PM_GetWaterLevel( const Vector3 &position, water_level_t &level, contents_t &type ) {
 	//
 	// get waterlevel, accounting for ducking
 	//
@@ -543,7 +543,7 @@ static inline void PM_GetWaterLevel( const Vector3 &position, water_level_t &lev
 
 	point.z += pm->mins.z + 1;
 
-	int32_t contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
+	contents_t contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
 
 	if ( contentType & MASK_WATER ) {
 		type = contentType;
@@ -790,7 +790,7 @@ static void PM_CheckSpecialMovement() {
 
 	// Get water level.
 	water_level_t level;
-	int32_t type;
+	contents_t type;
 	PM_GetWaterLevel( trace.endpos, level, type );
 
 	// The water jump spot will be under water, so we're probably hitting something weird that isn't important

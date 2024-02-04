@@ -241,7 +241,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 	if ( fabs( (float)ent->s.origin[ 2 ] - (float)(trace.endpos[ 2 ] )) > 8.f ) {
 		stepped = true;
 	}
-// check point traces down for dangling corners
+    // check point traces down for dangling corners
     VectorCopy(trace.endpos, ent->s.origin);
 
     if (!M_CheckBottom(ent)) {

@@ -36,6 +36,38 @@ solid_edge items only clip against bsp models.
 
 */
 
+// [Paril-KEX] fetch the clipmask for this entity; certain modifiers
+// affect the clipping behavior of objects.
+const contents_t G_GetClipMask( edict_t *ent ) {
+    // Get current clip mask.
+    contents_t mask = ent->clipmask;
+
+    // If none, setup a default mask based on the svflags.
+    if ( !mask ) {
+        if ( ent->svflags & SVF_MONSTER ) {
+            mask = static_cast<contents_t>( MASK_MONSTERSOLID );
+        } else if ( ent->svflags & SVF_PROJECTILE ) {
+            mask = static_cast<contents_t>( MASK_PROJECTILE );
+        } else {
+            mask = static_cast<contents_t>( MASK_SHOT & ~CONTENTS_DEADMONSTER );
+        }
+    }
+
+    // Non-Solid objects (items, etc) shouldn't try to clip
+    // against players/monsters.
+    if ( ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER ) {
+        mask = static_cast<contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
+    }
+
+    // Monsters/Players that are also dead shouldn't clip
+    // against players/monsters.
+    if ( ( ent->svflags & ( SVF_MONSTER | SVF_PLAYER ) ) && ( ent->svflags & SVF_DEADMONSTER ) ) {
+        mask = static_cast<contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
+    }
+
+    return mask;
+}
+
 /*
 ============
 SV_TestEntityPosition
@@ -45,18 +77,19 @@ SV_TestEntityPosition
 edict_t *SV_TestEntityPosition(edict_t *ent)
 {
     trace_t trace;
-    int     mask;
+    //contents_t mask;
 
-    if (ent->clipmask)
-        mask = ent->clipmask;
-    else
-        mask = MASK_SOLID;
-    trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask);
+    //if (ent->clipmask)
+    //    mask = ent->clipmask;
+    //else
+    //    mask = MASK_SOLID;
+    trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, G_GetClipMask( ent ) );
 
-    if (trace.startsolid)
+    if ( trace.startsolid ) {
         return g_edicts;
+    }
 
-    return NULL;
+    return nullptr;
 }
 
 /*
@@ -167,7 +200,7 @@ Returns the clipflags if the velocity was modified (hit something solid)
 ============
 */
 #define MAX_CLIP_PLANES 5
-int SV_FlyMove(edict_t *ent, float time, int mask)
+int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
 {
     edict_t     *hit;
     int         bumpcount, numbumps;
@@ -320,18 +353,18 @@ trace_t SV_PushEntity(edict_t *ent, vec3_t push)
     trace_t trace;
     vec3_t  start;
     vec3_t  end;
-    int     mask;
+    contents_t mask;
 
     VectorCopy(ent->s.origin, start);
     VectorAdd(start, push, end);
 
 retry:
-    if (ent->clipmask)
-        mask = ent->clipmask;
-    else
-        mask = MASK_SOLID;
+    //if (ent->clipmask)
+    //    mask = ent->clipmask;
+    //else
+    //    mask = MASK_SOLID;
 
-    trace = gi.trace(start, ent->mins, ent->maxs, end, ent, mask);
+    trace = gi.trace(start, ent->mins, ent->maxs, end, ent, G_GetClipMask( ent ) );
 
     VectorCopy(trace.endpos, ent->s.origin);
     gi.linkentity(ent);
@@ -775,17 +808,18 @@ void SV_AddRotationalFriction(edict_t *ent)
 
 void SV_Physics_Step(edict_t *ent)
 {
-    bool        wasonground;
+    bool        wasonground = false;
     bool        hitsound = false;
-    float       *vel;
-    float       speed, newspeed, control;
-    float       friction;
-    edict_t     *groundentity;
-    int         mask;
+    float       *vel = nullptr;
+    float       speed = 0.f, newspeed = 0.f, control = 0.f;
+    float       friction = 0.f;
+    edict_t     *groundentity = nullptr;
+    contents_t  mask = G_GetClipMask( ent );
 
     // airborn monsters should always check for ground
-    if (!ent->groundentity)
-        M_CheckGround(ent);
+    if ( !ent->groundentity ) {
+        M_CheckGround( ent, mask );
+    }
 
     groundentity = ent->groundentity;
 
@@ -886,6 +920,14 @@ G_RunEntity
 */
 void G_RunEntity(edict_t *ent)
 {
+    Vector3	previousOrigin;
+    bool	isMoveStepper = false;
+
+    if ( ent->movetype == MOVETYPE_STEP ) {
+        previousOrigin = ent->s.origin;
+        isMoveStepper = true;
+    }
+
     if (ent->prethink)
         ent->prethink(ent);
 
@@ -911,5 +953,14 @@ void G_RunEntity(edict_t *ent)
         break;
     default:
         gi.error("SV_Physics: bad movetype %i", ent->movetype);
+    }
+
+    if ( isMoveStepper && ent->movetype == MOVETYPE_STEP ) {
+        // if we moved, check and fix origin if needed
+        if ( !VectorCompare( ent->s.origin, previousOrigin ) ) {
+            trace_t trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, G_GetClipMask( ent ) );
+            if ( trace.allsolid || trace.startsolid )
+                VectorCopy( previousOrigin, ent->s.origin ); // = previous_origin;
+        }
     }
 }

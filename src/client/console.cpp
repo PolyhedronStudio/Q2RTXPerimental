@@ -165,7 +165,7 @@ void Con_Popup(bool force)
         con.mode = CON_POPUP;
     }
 
-    Key_SetDest(static_cast<keydest_t>( cls.key_dest | KEY_CONSOLE ) ); // WID: C++20: Was without a cast...
+    Key_SetDest(static_cast<keydest_e>( cls.key_dest | KEY_CONSOLE ) ); // WID: C++20: Was without a cast...
     Con_RunConsole();
 }
 

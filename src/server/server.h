@@ -657,7 +657,7 @@ int SV_AreaEdicts(const vec3_t mins, const vec3_t maxs, edict_t **list, int maxc
 *	@return	The CONTENTS_* value from the world at the given point.
 *			Quake 2 extends this to also check entities, to allow moving liquids
 **/
-int SV_PointContents( const vec3_t p );
+const contents_t SV_PointContents( const vec3_t p );
 
 
 /**
@@ -671,16 +671,16 @@ int SV_PointContents( const vec3_t p );
 *
 *					passedict is explicitly excluded from clipping checks (normally NULL)
 **/
-trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
+const trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
                            const vec3_t maxs, const vec3_t end,
-                           edict_t *passedict, int contentmask );
+                           edict_t *passedict, const contents_t contentmask );
 
 /**
 *	@brief	Like SV_Trace(), but clip to specified entity only.
 *			Can be used to clip to SOLID_TRIGGER by its BSP tree.
 **/
-trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
-						  const vec3_t maxs, const vec3_t end, int contentmask );
+const trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
+						  const vec3_t maxs, const vec3_t end, const contents_t contentmask );
 #ifdef __cplusplus
 // We extern "C"
 };

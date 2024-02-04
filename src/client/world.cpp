@@ -91,7 +91,7 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
 /**
 *   @brief  Substituting the below 'CL_PM_Trace' implementation:
 **/
-const trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const int32_t contentmask ) {
+const trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask ) {
     // Trace results.
     trace_t trace = {};
 
@@ -115,7 +115,7 @@ const trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const v
 *   @brief  Will perform a clipping trace to the specified entity.
 *           If clipEntity == nullptr, it'll perform a clipping trace against the World.
 **/
-const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const int32_t contentmask ) {
+const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const contents_t contentmask ) {
     // Trace results.
     trace_t trace = {};
 
@@ -163,9 +163,9 @@ const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const ve
 /**
 *   @brief  Player Move specific 'PointContents' implementation:
 **/
-const int32_t q_gameabi CL_PointContents( const vec3_t point ) {
+const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
     // Perform point contents against world.
-    int32_t contents = CM_PointContents( point, cl.bsp->nodes );
+    contents_t contents = static_cast<contents_t>( CM_PointContents( point, cl.bsp->nodes ) );
 
     for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
         // Clip against all brush entity models.
@@ -182,7 +182,7 @@ const int32_t q_gameabi CL_PointContents( const vec3_t point ) {
         }
 
         // Might intersect, so do an exact clip.
-        contents |= CM_TransformedPointContents( point, cmodel->headnode, ent->current.origin, ent->current.angles );
+        contents = static_cast<contents_t>( contents | CM_TransformedPointContents( point, cmodel->headnode, ent->current.origin, ent->current.angles ) );
     }
 
     // Et voila.

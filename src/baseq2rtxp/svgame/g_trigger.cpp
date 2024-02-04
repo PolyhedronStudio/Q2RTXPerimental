@@ -102,18 +102,20 @@ void Touch_Multi( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *su
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_CLIPPED ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, other->clipmask );
+		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
 
-		if ( clip.fraction == 1.0f )
+		if ( clip.fraction == 1.0f ) {
 			return;
+		}
 	}
 
 	if ( !VectorEmpty( self->movedir ) ) {
 		vec3_t  forward;
 
 		AngleVectors( other->s.angles, forward, NULL, NULL );
-		if ( DotProduct( forward, self->movedir ) < 0 )
+		if ( DotProduct( forward, self->movedir ) < 0 ) {
 			return;
+		}
 	}
 
 	self->activator = other;
@@ -172,7 +174,7 @@ void SP_trigger_multiple( edict_t *ent ) {
 	gi.linkentity( ent );
 
 	if ( ent->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_CLIPPED ) {
-		ent->svflags |= SVF_USE_TRIGGER_HULL;
+		ent->svflags |= SVF_HULL;
 	}
 }
 
@@ -440,10 +442,11 @@ static int windsound = 0;
 void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
 	
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_CLIPPED ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, other->clipmask );
+		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
 
-		if ( clip.fraction == 1.0f )
+		if ( clip.fraction == 1.0f ) {
 			return;
+		}
 	}
 
 	if ( strcmp( other->classname, "grenade" ) == 0 ) {
@@ -486,7 +489,7 @@ void SP_trigger_push( edict_t *self ) {
 	gi.linkentity( self );
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_CLIPPED ) {
-		self->svflags |= SVF_USE_TRIGGER_HULL;
+		self->svflags |= SVF_HULL;
 	}
 }
 
@@ -537,10 +540,11 @@ void hurt_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *sur
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_CLIPPED ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, other->clipmask );
+		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
 
-		if ( clip.fraction == 1.0f )
+		if ( clip.fraction == 1.0f ) {
 			return;
+		}
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_SLOW_HURT ) {
@@ -596,7 +600,7 @@ void SP_trigger_hurt( edict_t *self ) {
 	gi.linkentity( self );
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_CLIPPED ) {
-		self->svflags |= SVF_USE_TRIGGER_HULL;
+		self->svflags |= SVF_HULL;
 	}
 }
 
@@ -616,10 +620,11 @@ static constexpr int32_t SPAWNFLAG_TRIGGER_GRAVITY_CLIPPED = 32;
 **/
 void trigger_gravity_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_CLIPPED ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, other->clipmask );
+		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
 
-		if ( clip.fraction == 1.0f )
+		if ( clip.fraction == 1.0f ) {
 			return;
+		}
 	}
 
 	other->gravity = self->gravity;
@@ -643,7 +648,7 @@ void SP_trigger_gravity( edict_t *self ) {
 	self->touch = trigger_gravity_touch;
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_CLIPPED ) {
-		self->svflags |= SVF_USE_TRIGGER_HULL;
+		self->svflags |= SVF_HULL;
 	}
 }
 
@@ -671,10 +676,11 @@ void trigger_monsterjump_touch( edict_t *self, edict_t *other, cplane_t *plane, 
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MONSTERJUMP_CLIPPED ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, other->clipmask );
+		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
 
-		if ( clip.fraction == 1.0f )
+		if ( clip.fraction == 1.0f ) {
 			return;
+		}
 	}
 
 	// set XY even if not on ground, so the jump will clear lips
@@ -709,7 +715,7 @@ void SP_trigger_monsterjump( edict_t *self ) {
 	self->movedir[ 2 ] = st.height;
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MONSTERJUMP_CLIPPED ) {
-		self->svflags |= SVF_USE_TRIGGER_HULL;
+		self->svflags |= SVF_HULL;
 	}
 }
 
