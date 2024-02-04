@@ -212,9 +212,10 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
         t = NULL;
         while ((t = G_Find(t, FOFS(targetname), ent->target))) {
             // doors fire area portals in a specific way
-            if (!Q_stricmp(t->classname, "func_areaportal") &&
-                (!Q_stricmp(ent->classname, "func_door") || !Q_stricmp(ent->classname, "func_door_rotating")))
+            if ( !Q_stricmp( t->classname, "func_areaportal" ) &&
+                ( ent->svflags & SVF_DOOR ) {//(!Q_stricmp(ent->classname, "func_door") || !Q_stricmp(ent->classname, "func_door_rotating")))
                 continue;
+            }
 
             if (t == ent) {
                 gi.dprintf("WARNING: Entity used itself.\n");

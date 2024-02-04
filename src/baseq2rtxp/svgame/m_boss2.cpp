@@ -621,7 +621,7 @@ void SP_monster_boss2(edict_t *self)
     self->gib_health = -200;
     self->mass = 1000;
 
-    self->flags |= FL_IMMUNE_LASER;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_IMMUNE_LASER );
 
     self->pain = boss2_pain;
     self->die = boss2_die;

@@ -619,6 +619,9 @@ void CL_Disconnect(error_type_t type)
         return;
     }
 
+    // Let the client game know we're disconnecting.
+    CL_GM_Disconnect();
+
     SCR_EndLoadingPlaque(); // get rid of loading plaque
 
     SCR_ClearChatHUD_f();   // clear chat HUD on server change

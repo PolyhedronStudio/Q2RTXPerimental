@@ -136,7 +136,7 @@ void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
     gi.setmodel(gib, gibname);
     gib->solid = SOLID_NOT;
     gib->s.effects |= EF_GIB;
-    gib->flags |= FL_NO_KNOCKBACK;
+    gib->flags = static_cast<ent_flags_t>( gib->flags | FL_NO_KNOCKBACK );
     gib->takedamage = DAMAGE_YES;
     gib->die = gib_die;
 
@@ -179,7 +179,7 @@ void ThrowHead(edict_t *self, const char *gibname, int damage, int type)
     self->s.effects |= EF_GIB;
     self->s.effects &= ~EF_FLIES;
     self->s.sound = 0;
-    self->flags |= FL_NO_KNOCKBACK;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
     self->svflags &= ~SVF_MONSTER;
     self->takedamage = DAMAGE_YES;
     self->die = gib_die;
@@ -230,7 +230,7 @@ void ThrowClientHead(edict_t *self, int damage)
     self->solid = SOLID_NOT;
     self->s.effects = EF_GIB;
     self->s.sound = 0;
-    self->flags |= FL_NO_KNOCKBACK;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
 
     self->movetype = MOVETYPE_BOUNCE;
     VelocityForDamage(damage, vd);
@@ -279,7 +279,7 @@ void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origi
     chunk->think = G_FreeEdict;
     chunk->nextthink = level.time + random_time( 5_sec, 10_sec );//= level.framenum + (5 + random() * 5) * BASE_FRAMERATE;
     chunk->s.frame = 0;
-    chunk->flags = 0;
+    chunk->flags = FL_NONE;
     chunk->classname = "debris";
     chunk->takedamage = DAMAGE_YES;
     chunk->die = debris_die;

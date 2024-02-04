@@ -519,7 +519,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     self->client->invincible_time = 0_ms;
     self->client->breather_time = 0_ms;
     self->client->enviro_time = 0_ms;
-    self->flags &= ~FL_POWER_ARMOR;
+    self->flags = static_cast<ent_flags_t>( self->flags & ~FL_POWER_ARMOR );
 
     if (self->health < -40) {
         // gib
@@ -657,7 +657,7 @@ void SaveClientData(void)
             continue;
         game.clients[i].pers.health = ent->health;
         game.clients[i].pers.max_health = ent->max_health;
-        game.clients[i].pers.savedFlags = (ent->flags & (FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR));
+        game.clients[i].pers.savedFlags = static_cast<ent_flags_t>(ent->flags & (FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR));
         if (coop->value)
             game.clients[i].pers.score = ent->client->resp.score;
     }
@@ -1166,8 +1166,10 @@ void PutClientInServer(edict_t *ent)
     ent->die = player_die;
     ent->waterlevel = water_level_t::WATER_NONE;;
     ent->watertype = 0;
-    ent->flags &= ~FL_NO_KNOCKBACK;
+    ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
+
     ent->svflags &= ~SVF_DEADMONSTER;
+    ent->svflags |= SVF_PLAYER;
 
     VectorCopy(mins, ent->mins);
     VectorCopy(maxs, ent->maxs);
@@ -1277,7 +1279,11 @@ deathmatch mode, so clear everything out before starting them.
 */
 void ClientBeginDeathmatch(edict_t *ent)
 {
+    // Init Edict.
     G_InitEdict(ent);
+    
+    // Make sure it is recognized as a player.
+    ent->svflags |= SVF_PLAYER;
 
     InitClientRespawnData(ent->client);
 
@@ -1341,6 +1347,8 @@ void ClientBegin(edict_t *ent)
         InitClientRespawnData(ent->client);
         PutClientInServer(ent);
     }
+
+    ent->svflags |= SVF_PLAYER;
 
     if (level.intermission_framenum) {
         MoveClientToIntermission(ent);
@@ -1489,12 +1497,16 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
             InitClientPersistantData( ent, ent->client );
     }
 
+    // make sure we start with known default(s)
+    //ent->svflags = SVF_PLAYER;
+
     ClientUserinfoChanged(ent, userinfo);
 
     if (game.maxclients > 1)
         gi.dprintf("%s connected\n", ent->client->pers.netname);
 
-    ent->svflags = 0; // make sure we start with known default
+    // make sure we start with known default(s)
+    ent->svflags = SVF_PLAYER;
     ent->client->pers.connected = true;
     return true;
 }

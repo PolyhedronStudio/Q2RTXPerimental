@@ -32,19 +32,19 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
     vec3_t  end;
     vec3_t  v;
     trace_t tr;
-    float   eta;
 
     // easy mode only ducks one quarter the time
     if (skill->value == 0) {
         if (random() > 0.25f)
             return;
     }
+
     VectorMA(start, 8192, dir, end);
     tr = gi.trace(start, NULL, NULL, end, self, MASK_SHOT);
     if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self)) {
         VectorSubtract(tr.endpos, start, v);
-        eta = (VectorLength(v) - tr.ent->maxs[0]) / speed;
-        tr.ent->monsterinfo.dodge(tr.ent, self, eta);
+        sg_time_t eta = sg_time_t::from_sec(VectorLength(v) - tr.ent->maxs[0]) / speed;
+        tr.ent->monsterinfo.dodge(tr.ent, self, eta.seconds() );
     }
 }
 
@@ -316,6 +316,15 @@ void blaster_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
     G_FreeEdict(self);
 }
 
+static const bool G_ShouldPlayersCollideProjectile( edict_t *self ) {
+    // In Coop they don't.
+    if ( G_GetActiveGamemodeID() == GAMEMODE_COOPERATIVE ) {
+        return false;
+    }
+
+    // Otherwise they do.
+    return true;
+}
 void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect, bool hyper)
 {
     edict_t *bolt;
@@ -324,7 +333,8 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
     VectorNormalize(dir);
 
     bolt = G_Spawn();
-    bolt->svflags = SVF_DEADMONSTER;
+    bolt->svflags = SVF_PROJECTILE; // Special net code for projectiles. 
+    // SVF_DEADMONSTER; // The following is now irrelevant:
     // yes, I know it looks weird that projectiles are deadmonsters
     // what this means is that when prediction is used against the object
     // (blaster/hyperblaster shots), the player won't be solid clipped against
@@ -335,7 +345,11 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
     QM_Vector3ToAngles(dir, bolt->s.angles);
     VectorScale(dir, speed, bolt->velocity);
     bolt->movetype = MOVETYPE_FLYMISSILE;
-    bolt->clipmask = MASK_SHOT;
+    bolt->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        bolt->clipmask = static_cast<contents_t>( bolt->clipmask & ~CONTENTS_PLAYER );
+    }
+    bolt->flags = static_cast<ent_flags_t>( bolt->flags | FL_DODGE );
     bolt->solid = SOLID_BBOX;
     bolt->s.effects |= effect;
     bolt->s.renderfx |= RF_NOSHADOW;
@@ -467,7 +481,12 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     VectorMA(grenade->velocity, scale, right, grenade->velocity);
     VectorSet(grenade->avelocity, 300, 300, 300);
     grenade->movetype = MOVETYPE_BOUNCE;
-    grenade->clipmask = MASK_SHOT;
+    grenade->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        grenade->clipmask = static_cast<contents_t>( grenade->clipmask & ~CONTENTS_PLAYER );
+    }
+    grenade->flags = static_cast<ent_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */);
+    grenade->svflags |= SVF_PROJECTILE;
     grenade->solid = SOLID_BBOX;
     grenade->s.effects |= EF_GRENADE;
     VectorClear(grenade->mins);
@@ -503,7 +522,12 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
     VectorMA(grenade->velocity, scale, right, grenade->velocity);
     VectorSet(grenade->avelocity, 300, 300, 300);
     grenade->movetype = MOVETYPE_BOUNCE;
-    grenade->clipmask = MASK_SHOT;
+    grenade->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        grenade->clipmask = static_cast<contents_t>( grenade->clipmask & ~CONTENTS_PLAYER );
+    }
+    grenade->flags = static_cast<ent_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */ );
+    grenade->svflags |= SVF_PROJECTILE;
     grenade->solid = SOLID_BBOX;
     grenade->s.effects |= EF_GRENADE;
     VectorClear(grenade->mins);
@@ -591,7 +615,12 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
     QM_Vector3ToAngles(dir, rocket->s.angles);
     VectorScale(dir, speed, rocket->velocity);
     rocket->movetype = MOVETYPE_FLYMISSILE;
-    rocket->clipmask = MASK_SHOT;
+    rocket->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        rocket->clipmask = static_cast<contents_t>( rocket->clipmask & ~CONTENTS_PLAYER );
+    }
+    rocket->flags = static_cast<ent_flags_t>( rocket->flags | FL_DODGE /*| FL_TRAP */ );
+    rocket->svflags |= SVF_PROJECTILE;
     rocket->solid = SOLID_BBOX;
     rocket->s.effects |= EF_ROCKET;
     VectorClear(rocket->mins);
@@ -847,7 +876,12 @@ void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, fl
     QM_Vector3ToAngles(dir, bfg->s.angles);
     VectorScale(dir, speed, bfg->velocity);
     bfg->movetype = MOVETYPE_FLYMISSILE;
-    bfg->clipmask = MASK_SHOT;
+    bfg->clipmask = MASK_PROJECTILE;
+    bfg->svflags = SVF_PROJECTILE;
+    // [Paril-KEX]
+    if ( self->client && !G_ShouldPlayersCollideProjectile( self ) ) {
+        bfg->clipmask = static_cast<contents_t>( bfg->clipmask & ~CONTENTS_PLAYER );
+    }
     bfg->solid = SOLID_BBOX;
     bfg->s.effects |= EF_BFG | EF_ANIM_ALLFAST;
     VectorClear(bfg->mins);

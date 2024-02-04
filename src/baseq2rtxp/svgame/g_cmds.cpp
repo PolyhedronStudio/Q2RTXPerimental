@@ -291,7 +291,7 @@ void Cmd_God_f(edict_t *ent)
         return;
     }
 
-    ent->flags ^= FL_GODMODE;
+    ent->flags = static_cast<ent_flags_t>( ent->flags ^ FL_GODMODE );
     if (!(ent->flags & FL_GODMODE))
         gi.cprintf(ent, PRINT_HIGH, "godmode OFF\n");
     else
@@ -315,7 +315,7 @@ void Cmd_Notarget_f(edict_t *ent)
         return;
     }
 
-    ent->flags ^= FL_NOTARGET;
+    ent->flags = static_cast<ent_flags_t>( ent->flags ^ FL_NOTARGET );
     if (!(ent->flags & FL_NOTARGET))
         gi.cprintf(ent, PRINT_HIGH, "notarget OFF\n");
     else
@@ -615,7 +615,7 @@ void Cmd_Kill_f(edict_t *ent)
 {
     if ((level.time - ent->client->respawn_time) < 5_sec)
         return;
-    ent->flags &= ~FL_GODMODE;
+    ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_GODMODE );
     ent->health = 0;
     meansOfDeath = MOD_SUICIDE;
     player_die(ent, ent, ent, 100000, ent->s.origin);

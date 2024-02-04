@@ -471,23 +471,36 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
     for (i = 0; i < num; i++) {
-        touch = touchlist[i];
-        if (touch->solid == SOLID_NOT)
+        touch = touchlist[ i ];
+        if ( touch->solid == SOLID_NOT ) {
             continue;
-        if (touch == passedict)
+        }
+        if ( touch == passedict ) {
             continue;
-        if (tr->allsolid)
+        }
+        if ( tr->allsolid ) {
             return;
-        if (passedict) {
-            if (touch->owner == passedict)
+        }
+        if ( passedict ) {
+            if ( touch->owner == passedict )
                 continue;    // don't clip against own missiles
-            if (passedict->owner == touch)
+            if ( passedict->owner == touch )
                 continue;    // don't clip against owner
         }
 
-        if (!(contentmask & CONTENTS_DEADMONSTER)
-            && (touch->svflags & SVF_DEADMONSTER))
+        if ( !( contentmask & CONTENTS_DEADMONSTER )
+            && ( touch->svflags & SVF_DEADMONSTER ) ) {
             continue;
+        }
+
+        if ( !( contentmask & CONTENTS_PROJECTILE )
+            && ( touch->svflags & SVF_PROJECTILE ) ) {
+            continue;
+        }
+        if ( !( contentmask & CONTENTS_PLAYER ) 
+            && ( touch->svflags & SVF_PLAYER ) ) {
+            continue;
+        }
 
         // might intersect, so do an exact clip
         CM_TransformedBoxTrace(&trace, start, end, mins, maxs,

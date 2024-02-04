@@ -65,6 +65,19 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
             return;
         }
 
+        //if ( !( contentmask & CONTENTS_DEADMONSTER )
+        //    && ( ent->svflags & SVF_DEADMONSTER ) ) {
+        //    continue;
+        //}
+        //if ( !( contentmask & CONTENTS_PROJECTILE )
+        //    && ( ent->svflags & SVF_PROJECTILE ) ) {
+        //    continue;
+        //}
+        //if ( !( contentmask & CONTENTS_PLAYER ) {
+        //    && ( ent->svflags & SVF_PLAYER ) )
+        //    continue;
+        //}
+
         // BSP Brush Model Entity:
         if ( ent->current.solid == PACKED_BSP ) {
             // special value for bmodel

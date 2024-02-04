@@ -290,7 +290,7 @@ static void set_active_state(void)
     cl.predictedState.groundEntity = nullptr;
     cl.predictedState.groundPlane = { };
 
-    // Fire the ClientConnected callback of the client game module.
+    // Fire the ClientBegin callback of the client game module.
     clge->ClientBegin();
 
     //! Get rid of loading plaque.

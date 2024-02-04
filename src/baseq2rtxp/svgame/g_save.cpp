@@ -111,6 +111,7 @@ static const save_field_t entityfields[] = {
     I(clipmask),
     E(owner),
 
+    I(spawn_count),
     I(movetype),
     I(flags),
 

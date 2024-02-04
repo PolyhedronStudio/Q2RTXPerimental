@@ -147,11 +147,13 @@ void SV_Impact(edict_t *e1, trace_t *trace)
 
     e2 = trace->ent;
 
-    if (e1->touch && e1->solid != SOLID_NOT)
-        e1->touch(e1, e2, &trace->plane, trace->surface);
+    if ( e1->touch && e1->solid != SOLID_NOT ) {
+        e1->touch( e1, e2, &trace->plane, trace->surface );
+    }
 
-    if (e2->touch && e2->solid != SOLID_NOT)
-        e2->touch(e2, e1, NULL, NULL);
+    if ( e2->touch && e2->solid != SOLID_NOT ) {
+        e2->touch( e2, e1, NULL, NULL );
+    }
 }
 
 /*
@@ -353,7 +355,6 @@ trace_t SV_PushEntity(edict_t *ent, vec3_t push)
     trace_t trace;
     vec3_t  start;
     vec3_t  end;
-    contents_t mask;
 
     VectorCopy(ent->s.origin, start);
     VectorAdd(start, push, end);

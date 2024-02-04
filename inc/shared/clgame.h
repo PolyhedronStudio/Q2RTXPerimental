@@ -341,6 +341,9 @@ typedef struct {
 	void ( *ClientBegin ) ( void );
 	//! Called when the client state has moved into being properly connected to server.
 	void ( *ClientConnected ) ( void );
+	//! Called when the client state has moved into a disconnected state. Before ending
+	//! the loading plague and starting to clear its state. (So it is still accessible.)
+	void ( *ClientDisconnected ) ( void );
 
 	/**
 	*	GameModes:

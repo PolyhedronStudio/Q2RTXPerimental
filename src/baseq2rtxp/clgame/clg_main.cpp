@@ -183,19 +183,25 @@ void PF_ClearState( void ) {
 *
 **/
 /**
-*	@brief
+*	@brief	Called when the client state has moved into being active and the game begins.
 **/
 void PF_ClientBegin( void ) {
-	clgi.Print( PRINT_ERROR, "PF_ClientBegin\n" );
+	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientBegin\n" );
 }
 
 /**
-*	@brief
+*	@brief	Called when the client state has moved into being properly connected to server.
 **/
 void PF_ClientConnected( void ) {
-	clgi.Print( PRINT_ERROR, "PF_ClientConnected\n" );
+	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientConnected\n" );
 }
 
+/**
+*	@brief	Called when the client state has moved into being properly connected to server.
+**/
+void PF_ClientDisconnected( void ) {
+	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientDisconnected\n" );
+}
 
 
 /**
@@ -257,6 +263,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ClearState = PF_ClearState;
 		globals.ClientBegin = PF_ClientBegin;
 		globals.ClientConnected = PF_ClientConnected;
+		globals.ClientDisconnected = PF_ClientDisconnected;
 
 		globals.GetGamemodeName = PF_GetGamemodeName;
 
