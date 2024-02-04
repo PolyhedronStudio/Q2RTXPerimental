@@ -767,6 +767,7 @@ edict_t *G_Spawn(void);
 void    G_FreeEdict(edict_t *e);
 
 void    G_TouchTriggers(edict_t *ent);
+void    G_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
 void    G_TouchSolids(edict_t *ent);
 
 char    *G_CopyString(char *in);
@@ -813,10 +814,11 @@ void swimmonster_start(edict_t *self);
 void flymonster_start(edict_t *self);
 void AttackFinished(edict_t *self, float time);
 void monster_death_use(edict_t *self);
-void M_CatagorizePosition(edict_t *ent);
+void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, water_level_t &waterlevel, contents_t &watertype );
 bool M_CheckAttack(edict_t *self);
 void M_FlyCheck(edict_t *self);
 void M_CheckGround(edict_t *ent, const contents_t mask);
+void M_WorldEffects( edict_t *ent );
 void M_SetAnimation( edict_t *self, mmove_t *move, bool instant = true );
 
 
@@ -1278,7 +1280,7 @@ struct edict_s {
 
     sg_time_t		last_sound_time;
 
-    int32_t     	watertype;
+    contents_t      watertype;
 	water_level_t	waterlevel;
 
     vec3_t      move_origin;

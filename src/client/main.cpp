@@ -620,7 +620,7 @@ void CL_Disconnect(error_type_t type)
     }
 
     // Let the client game know we're disconnecting.
-    CL_GM_Disconnect();
+    clge->ClientDisconnected();
 
     SCR_EndLoadingPlaque(); // get rid of loading plaque
 

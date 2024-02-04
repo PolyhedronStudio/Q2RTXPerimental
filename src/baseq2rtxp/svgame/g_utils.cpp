@@ -403,7 +403,7 @@ void    G_TouchSolids(edict_t *ent)
 
 // [Paril-KEX] scan for projectiles between our movement positions
 // to see if we need to collide against them
-void G_TouchProjectiles( edict_t *ent, vec3_t previous_origin ) {
+void G_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
     struct skipped_projectile {
         edict_t *projectile;
         int32_t		spawn_count;
@@ -412,12 +412,14 @@ void G_TouchProjectiles( edict_t *ent, vec3_t previous_origin ) {
     static std::vector<skipped_projectile> skipped;
 
     while ( true ) {
-        trace_t tr = gi.trace( previous_origin, ent->mins, ent->maxs, ent->s.origin, ent, static_cast<contents_t>( ent->clipmask | CONTENTS_PROJECTILE ) );
+        trace_t tr = gi.trace( &previous_origin.x, ent->mins, ent->maxs, ent->s.origin, ent, static_cast<contents_t>( ent->clipmask | CONTENTS_PROJECTILE ) );
 
-        if ( tr.fraction == 1.0f )
+        if ( tr.fraction == 1.0f ) {
             break;
-        else if ( !( tr.ent->svflags & SVF_PROJECTILE ) )
+        }
+        else if ( !( tr.ent->svflags & SVF_PROJECTILE ) ) {
             break;
+        }
 
         // always skip this projectile since certain conditions may cause the projectile
         // to not disappear immediately
@@ -425,19 +427,21 @@ void G_TouchProjectiles( edict_t *ent, vec3_t previous_origin ) {
         skipped.push_back( { tr.ent, tr.ent->spawn_count } );
 
         // Q2RE: if we're both players and it's coop, allow the projectile to "pass" through
-        // However, we got no methods like them, but we do have optional no friendly fire.
-
+        // However, we got no methods like them, but we do have an optional check for no friendly fire.
         if ( ent->client && tr.ent->owner && tr.ent->owner->client 
             && OnSameTeam( ent, tr.ent->owner ) && !( dmflags->integer & DF_NO_FRIENDLY_FIRE ) ) {
             continue;
         }
 
+        // Call impact(touch) triggers.
         SV_Impact( ent, &tr );
     }
 
-    for ( auto &skip : skipped )
-        if ( skip.projectile->inuse && skip.projectile->spawn_count == skip.spawn_count )
+    for ( auto &skip : skipped ) {
+        if ( skip.projectile->inuse && skip.projectile->spawn_count == skip.spawn_count ) {
             skip.projectile->svflags |= SVF_PROJECTILE;
+        }
+    }
 
     skipped.clear();
 }

@@ -173,36 +173,33 @@ void M_CheckGround( edict_t *ent, const contents_t mask ) {
 }
 
 
-void M_CatagorizePosition( edict_t *ent ) {
-	vec3_t      point;
-	int         cont;
-
-//
-// get waterlevel
-//
-	point[ 0 ] = ent->s.origin[ 0 ];
-	point[ 1 ] = ent->s.origin[ 1 ];
-	point[ 2 ] = ent->s.origin[ 2 ] + ent->mins[ 2 ] + 1;
-	cont = gi.pointcontents( point );
+void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, water_level_t &waterlevel, contents_t &watertype ) {
+	//
+	// get waterlevel
+	//
+	Vector3 point = in_point + Vector3{ 0.f, 0.f, ent->mins[ 2 ] + 1 };
+	contents_t cont = gi.pointcontents( &point.x );
 
 	if ( !( cont & MASK_WATER ) ) {
-		ent->waterlevel = water_level_t::WATER_NONE;
-		ent->watertype = 0;
+		waterlevel = water_level_t::WATER_NONE;
+		watertype = CONTENTS_NONE;
 		return;
 	}
 
-	ent->watertype = cont;
-	ent->waterlevel = water_level_t::WATER_FEET;
-	point[ 2 ] += 26;
-	cont = gi.pointcontents( point );
-	if ( !( cont & MASK_WATER ) )
+	watertype = cont;
+	waterlevel = water_level_t::WATER_FEET;
+	point.z += 26;
+	cont = gi.pointcontents( &point.x );
+	if ( !( cont & MASK_WATER ) ) {
 		return;
+	}
 
-	ent->waterlevel = water_level_t::WATER_WAIST;
+	waterlevel = water_level_t::WATER_WAIST;
 	point[ 2 ] += 22;
-	cont = gi.pointcontents( point );
-	if ( cont & MASK_WATER )
-		ent->waterlevel = water_level_t::WATER_UNDER;
+	cont = gi.pointcontents( &point.x );
+	if ( cont & MASK_WATER ) {
+		waterlevel = water_level_t::WATER_UNDER;
+	}
 }
 
 
@@ -300,7 +297,7 @@ void M_droptofloor( edict_t *ent ) {
 
 	gi.linkentity( ent );
 	M_CheckGround( ent, mask );
-	M_CatagorizePosition( ent );
+	M_CatagorizePosition( ent, ent->s.origin, ent->waterlevel, ent->watertype );
 }
 
 
@@ -478,7 +475,7 @@ void monster_think( edict_t *self ) {
 		self->monsterinfo.linkcount = self->linkcount;
 		M_CheckGround( self, G_GetClipMask( self ) );
 	}
-	M_CatagorizePosition( self );
+	M_CatagorizePosition( self, self->s.origin, self->waterlevel, self->watertype );
 	M_WorldEffects( self );
 	M_SetEffects( self );
 }

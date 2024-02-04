@@ -1165,7 +1165,7 @@ void PutClientInServer(edict_t *ent)
     ent->pain = player_pain;
     ent->die = player_die;
     ent->waterlevel = water_level_t::WATER_NONE;;
-    ent->watertype = 0;
+    ent->watertype = CONTENTS_NONE;
     ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
     ent->svflags &= ~SVF_DEADMONSTER;
@@ -1799,6 +1799,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         //        }
         //    }
         //}
+        
+        // [Paril-KEX] save old position for G_TouchProjectiles
+        const Vector3 old_origin = ent->s.origin;
 
 		// Copy back into the entity, both the resulting origin and velocity.
 		VectorCopy( pm.s.origin, ent->s.origin );
@@ -1850,7 +1853,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
 		if ( ent->movetype != MOVETYPE_NOCLIP ) {
 			G_TouchTriggers( ent );
-            //G_TouchProjectiles(ent, old_origin);
+            G_TouchProjectiles( ent, old_origin );
 		}
 
         // Touch other objects

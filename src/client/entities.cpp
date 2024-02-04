@@ -279,10 +279,12 @@ static void set_active_state(void)
         cl.predictedState.view.rdflags = cl.frame.ps.rdflags;
         // Copy current viewheight into prev and current viewheights.
         cl.predictedState.view_height = cl.frame.ps.pmove.viewheight;
+        // Reset local time of viewheight changes.
+        cl.predictedState.view_height_time = cl.time;
     }
 
     // Reset local time of viewheight changes.
-    cl.predictedState.view_height_time = 0;
+    //cl.predictedState.view_height_time = 0;
     //cl.viewheight.previous = 0;
     //cl.viewheight.current = 0;
 

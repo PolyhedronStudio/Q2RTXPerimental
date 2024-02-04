@@ -59,10 +59,14 @@ RMAPI const float QM_Remap( const float value, const float inputStart, const flo
     return result;
 }
 
-// Wrap input value from min to max
-RMAPI const float QM_Wrap( const float value, const float min, const float max ) {
+// Wrap int input value from min to max
+RMAPI const int32_t QM_Wrapi( const int32_t value, const int32_t min, const int32_t max ) {
+    const int32_t result = value - ( max - min ) * floorf( ( value - min ) / ( max - min ) );
+    return result;
+}
+// Wrap float input value from min to max
+RMAPI const float QM_Wrapf( const float value, const float min, const float max ) {
     const float result = value - ( max - min ) * floorf( ( value - min ) / ( max - min ) );
-
     return result;
 }
 
