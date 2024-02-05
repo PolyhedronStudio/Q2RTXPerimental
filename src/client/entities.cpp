@@ -42,14 +42,18 @@ static inline bool entity_is_optimized(const entity_state_t *state)
     //    && cl.frame.ps.pmove.pm_type < PM_DEAD;
 	// WID: net-protocol2: We don't want this anyway, should get rid of it?
     //if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO)
-	if ( cls.serverProtocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL )
-        return false;
-
     if (state->number != cl.frame.clientNum + 1)
         return false;
 
     if (cl.frame.ps.pmove.pm_type >= PM_DEAD)
         return false;
+
+    // WID: TODO: It does WORK with this, but do we want to do this?
+    // using the entity origin for the player, wouldn't that mean
+    // it is a slower update rate than the actual player is?
+    if ( cls.serverProtocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
+        return false;
+    }
 
     return true;
 }
@@ -206,41 +210,45 @@ static void parse_entity_update(const entity_state_t *state)
 }
 
 // an entity has just been parsed that has an event value
-static void parse_entity_event(const int32_t number)
-{
-    centity_t *cent = ENTITY_FOR_NUMBER( number );//centity_t *cent = &cl_entities[number];
+static void parse_entity_event(const int32_t entityNumber ) {
+    clge->ParseEntityEvent( entityNumber );
+    //centity_t *cent = ENTITY_FOR_NUMBER( number );//centity_t *cent = &cl_entities[number];
 
-    // EF_TELEPORTER acts like an event, but is not cleared each frame
-    if ((cent->current.effects & EF_TELEPORTER)) {
-        CL_TeleporterParticles(cent->current.origin);
-    }
+    //// EF_TELEPORTER acts like an event, but is not cleared each frame
+    //if ((cent->current.effects & EF_TELEPORTER)) {
+    //    CL_TeleporterParticles(cent->current.origin);
+    //}
 
-    switch (cent->current.event) {
-    case EV_ITEM_RESPAWN:
-        S_StartSound(NULL, number, CHAN_WEAPON, S_RegisterSound("items/respawn1.wav"), 1, ATTN_IDLE, 0);
-        CL_ItemRespawnParticles(cent->current.origin);
-        break;
-    case EV_PLAYER_TELEPORT:
-        S_StartSound(NULL, number, CHAN_WEAPON, S_RegisterSound("misc/tele1.wav"), 1, ATTN_IDLE, 0);
-        CL_TeleportParticles(cent->current.origin);
-        break;
-    case EV_FOOTSTEP:
-        if (cl_footsteps->integer)
-            S_StartSound(NULL, number, CHAN_BODY, cl_sfx_footsteps[Q_rand() & 3], 1, ATTN_NORM, 0);
-        break;
-    case EV_FALLSHORT:
-        S_StartSound(NULL, number, CHAN_AUTO, S_RegisterSound("player/land1.wav"), 1, ATTN_NORM, 0);
-        break;
-    case EV_FALL:
-        S_StartSound(NULL, number, CHAN_AUTO, S_RegisterSound("*fall2.wav"), 1, ATTN_NORM, 0);
-        break;
-    case EV_FALLFAR:
-        S_StartSound(NULL, number, CHAN_AUTO, S_RegisterSound("*fall1.wav"), 1, ATTN_NORM, 0);
-        break;
-    }
+    //switch (cent->current.event) {
+    //case EV_ITEM_RESPAWN:
+    //    S_StartSound(NULL, number, CHAN_WEAPON, S_RegisterSound("items/respawn1.wav"), 1, ATTN_IDLE, 0);
+    //    CL_ItemRespawnParticles(cent->current.origin);
+    //    break;
+    //case EV_PLAYER_TELEPORT:
+    //    S_StartSound(NULL, number, CHAN_WEAPON, S_RegisterSound("misc/tele1.wav"), 1, ATTN_IDLE, 0);
+    //    CL_TeleportParticles(cent->current.origin);
+    //    break;
+    //case EV_FOOTSTEP:
+    //    if (cl_footsteps->integer)
+    //        S_StartSound(NULL, number, CHAN_BODY, cl_sfx_footsteps[Q_rand() & 3], 1, ATTN_NORM, 0);
+    //    break;
+    //case EV_FALLSHORT:
+    //    S_StartSound(NULL, number, CHAN_AUTO, S_RegisterSound("player/land1.wav"), 1, ATTN_NORM, 0);
+    //    break;
+    //case EV_FALL:
+    //    S_StartSound(NULL, number, CHAN_AUTO, S_RegisterSound("*fall2.wav"), 1, ATTN_NORM, 0);
+    //    break;
+    //case EV_FALLFAR:
+    //    S_StartSound(NULL, number, CHAN_AUTO, S_RegisterSound("*fall1.wav"), 1, ATTN_NORM, 0);
+    //    break;
+    //}
 }
 
-static void set_active_state(void)
+/**
+*   @brief  Prepares the client state for 'activation', also setting the predicted values
+*           to those of the initially received first valid frame.
+**/
+static void CL_SetActiveState(void)
 {
     cls.state = ca_active;
 
@@ -258,7 +266,7 @@ static void set_active_state(void)
         // init some demo things
         CL_FirstDemoFrame();
     } else {
-        // set initial cl.predicted_origin and cl.predicted_angles
+        // Set the initial client predicted state values.
         VectorCopy(cl.frame.ps.pmove.origin, cl.predictedState.view.origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
         VectorCopy(cl.frame.ps.pmove.velocity, cl.predictedState.view.velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
         if (cl.frame.ps.pmove.pm_type < PM_DEAD &&
@@ -281,16 +289,11 @@ static void set_active_state(void)
         cl.predictedState.view_height = cl.frame.ps.pmove.viewheight;
         // Reset local time of viewheight changes.
         cl.predictedState.view_height_time = cl.time;
+
+        // Reset ground information.
+        cl.predictedState.groundEntity = nullptr;
+        cl.predictedState.groundPlane = { };
     }
-
-    // Reset local time of viewheight changes.
-    //cl.predictedState.view_height_time = 0;
-    //cl.viewheight.previous = 0;
-    //cl.viewheight.current = 0;
-
-    // Reset ground information.
-    cl.predictedState.groundEntity = nullptr;
-    cl.predictedState.groundPlane = { };
 
     // Fire the ClientBegin callback of the client game module.
     clge->ClientBegin();
@@ -314,115 +317,131 @@ static void set_active_state(void)
     }
 }
 
-static void
-check_player_lerp(server_frame_t *oldframe, server_frame_t *frame, int framediv)
-{
-    player_state_t *ps, *ops;
-    centity_t *ent;
-    int oldnum;
-
-    // find states to interpolate between
-    ps = &frame->ps;
-    ops = &oldframe->ps;
-
-    // no lerping if previous frame was dropped or invalid
-    if (!oldframe->valid)
-        goto dup;
-
-    oldnum = frame->number - framediv;
-    if (oldframe->number != oldnum)
-        goto dup;
-
-    // no lerping if player entity was teleported (origin check)
-    if (abs(ops->pmove.origin[0] - ps->pmove.origin[0]) > 256 || // * 8 || // WID: float-movement
-        abs(ops->pmove.origin[1] - ps->pmove.origin[1]) > 256 || // * 8 || // WID: float-movement
-        abs(ops->pmove.origin[2] - ps->pmove.origin[2]) > 256 ) {// * 8) { // WID: float-movement
-        goto dup;
-    }
-
-    // no lerping if player entity was teleported (event check)
-    ent = ENTITY_FOR_NUMBER( frame->clientNum + 1 );//ent = &cl_entities[frame->clientNum + 1];
-    if (ent->serverframe > oldnum && ent->serverframe <= frame->number && 
-		 (ent->current.event == EV_PLAYER_TELEPORT || ent->current.event == EV_OTHER_TELEPORT) ) {
-        goto dup;
-    }
-
-    // no lerping if teleport bit was flipped
-    //if ((ops->pmove.pm_flags ^ ps->pmove.pm_flags) & PMF_TELEPORT_BIT)
-    //    goto dup;
-    // no lerping if teleport bit was flipped
-    //if ( !cl.csr.extended && ( ops->pmove.pm_flags ^ ps->pmove.pm_flags ) & PMF_TELEPORT_BIT )
-    //    goto dup;
-    //if ( cl.csr.extended && ( ops->rdflags ^ ps->rdflags ) & RDF_TELEPORT_BIT )
-    //    goto dup;
-
-    // no lerping if POV number changed
-    if (oldframe->clientNum != frame->clientNum)
-        goto dup;
-
-    // developer option
-    if (cl_nolerp->integer == 1)
-        goto dup;
-
-    return;
-
-dup:
-    // duplicate the current state so lerping doesn't hurt anything
+/**
+*   @brief  Duplicates old player state, into playerstate. Used as a utility function.
+*   @param ps Pointer to the state that we want to copy data into.
+*   @param ops Pointer to the state's data source.
+**/
+static void duplicate_player_state( player_state_t *ps, player_state_t *ops ) {
     *ops = *ps;
 }
 
-/*
-==================
-CL_DeltaFrame
+/**
+*   Determine whether the player state has to lerp between the current and old frame,
+*   or snap 'to'.
+**/
+static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv) {
+    // Find player states to interpolate between
+    player_state_t *ps = &frame->ps;
+    player_state_t *ops = &oldframe->ps;
 
-A valid frame has been parsed.
-==================
-*/
-void CL_DeltaFrame(void)
-{
-    centity_t           *ent;
-    entity_state_t      *state;
-    int                 i, j;
-    int                 framenum;
-    int                 prevstate = cls.state;
-
-    // getting a valid frame message ends the connection process
-    if ( cls.state == ca_precached ) {
-        set_active_state();
+    // No lerping if previous frame was dropped or invalid.
+    if ( !oldframe->valid ) {
+        duplicate_player_state( ps, ops );
+        return;
     }
 
-    // set server time
-    framenum = cl.frame.number - cl.serverdelta;
+    // Duplicate state in case the stored old frame number does not match to the
+    // expected last frame number.
+    const int32_t lastFrameNumber = frame->number - framediv;
+    if ( oldframe->number != lastFrameNumber ) {
+        duplicate_player_state( ps, ops );
+        return;
+    }
+
+    // No lerping if player entity was teleported (origin check).
+    if ( abs( ops->pmove.origin[ 0 ] - ps->pmove.origin[ 0 ] ) > 256 || // * 8 || // WID: float-movement
+        abs( ops->pmove.origin[ 1 ] - ps->pmove.origin[ 1 ] ) > 256 || // * 8 || // WID: float-movement
+        abs( ops->pmove.origin[ 2 ] - ps->pmove.origin[ 2 ] ) > 256 ) {// * 8) { // WID: float-movement
+        duplicate_player_state( ps, ops );
+        return;
+    }
+
+    // No lerping if player entity was teleported (event check).
+    centity_t *clent = ENTITY_FOR_NUMBER( frame->clientNum + 1 );//ent = &cl_entities[frame->clientNum + 1];
+    // If the player entity was within the range of lastFrameNumber and frame->number,
+    // and had any teleport events going on, duplicate the player state into the old player state,
+    // to prevent it from lerping afar distance.
+    if ( clent->serverframe > lastFrameNumber && clent->serverframe <= frame->number &&
+        ( clent->current.event == EV_PLAYER_TELEPORT || clent->current.event == EV_OTHER_TELEPORT ) ) {
+        duplicate_player_state( ps, ops );
+        return;
+    }
+
+    // No lerping if teleport bit was flipped.
+    //if ((ops->pmove.pm_flags ^ ps->pmove.pm_flags) & PMF_TELEPORT_BIT){
+    //    duplicate_player_state( ps, ops );
+    //    return;
+    //}
+    //if ( ( ops->rdflags ^ ps->rdflags ) & RDF_TELEPORT_BIT ) {
+    //    duplicate_player_state( ps, ops );
+    //    return;
+    //}
+
+    // No lerping if POV number changed.
+    if ( oldframe->clientNum != frame->clientNum ) {
+        duplicate_player_state( ps, ops );
+        return;
+    }
+
+    // No lerping in case of the enabled developer option.
+    if ( cl_nolerp->integer == 1 ) {
+        duplicate_player_state( ps, ops );
+        return;
+    }
+}
+
+/**
+*   @brief  Called after finished parsing the frame data. All entity states and the
+*           player state will be updated, and checked for 'snapping to' their new state,
+*           or to smoothly lerp into it. It'll check for any prediction errors afterwards
+*           also and calculate its correction value.
+*           
+*           Will switch the clientstatic state to 'ca_active' if it is the first
+*           parsed valid frame and the client is done precaching all data.
+**/
+void CL_DeltaFrame(void)
+{
+    // Getting a valid frame message ends the connection process
+    //if ( cls.state == ca_precached ) {
+    if ( cl.frame.valid && cls.state == ca_precached ) {
+        CL_SetActiveState();
+    }
+
+    // Determine the current delta frame's server time.
+    int64_t framenum = cl.frame.number - cl.serverdelta;
     cl.servertime = framenum * CL_FRAMETIME;
 
     // rebuild the list of solid entities for this frame
     cl.numSolidEntities = 0;
 
-    // initialize position of the player's own entity from playerstate.
+    // Initialize position of the player's own entity from playerstate.
     // this is needed in situations when player entity is invisible, but
-    // server sends an effect referencing it's origin (such as MZ_LOGIN, etc)
-    ent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );//ent = &cl_entities[cl.frame.clientNum + 1];
-    Com_PlayerToEntityState(&cl.frame.ps, &ent->current);
+    // server sends an effect referencing it's origin (such as MZ_LOGIN, etc).
+    centity_t *clent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );
+    Com_PlayerToEntityState( &cl.frame.ps, &clent->current );
 
-    for (i = 0; i < cl.frame.numEntities; i++) {
-        j = (cl.frame.firstEntity + i) & PARSE_ENTITIES_MASK;
-        state = &cl.entityStates[j];
+    // Iterate over the current frame entity states.
+    for ( int32_t i = 0; i < cl.frame.numEntities; i++ ) {
+        int32_t j = ( cl.frame.firstEntity + i ) & PARSE_ENTITIES_MASK;
+        entity_state_t *state = &cl.entityStates[ j ];
 
-        // set current and prev
-        parse_entity_update(state);
+        // Set the current and previous entity state.
+        parse_entity_update( state );
 
-        // fire events
-        parse_entity_event(state->number);
+        // Fire any needed entity events.
+        parse_entity_event( state->number );
     }
 
-    if (cls.demo.recording && !cls.demo.paused && !cls.demo.seeking) {
+    // If we're recording a demo, make sure to store this frame into the demo data.
+    if ( cls.demo.recording && !cls.demo.paused && !cls.demo.seeking ) {
         CL_EmitDemoFrame();
     }
 
-    if (cls.demo.playback) {
+    if ( cls.demo.playback ) {
         // this delta has nothing to do with local viewangles,
         // clear it to avoid interfering with demo freelook hack
-        VectorClear(cl.frame.ps.pmove.delta_angles);
+        VectorClear( cl.frame.ps.pmove.delta_angles );
 
         // TODO: Proper stair smoothing.
 
@@ -430,14 +449,20 @@ void CL_DeltaFrame(void)
         CL_AdjustViewHeight( cl.frame.ps.pmove.viewheight );
     }
 
-    if (cl.oldframe.ps.pmove.pm_type != cl.frame.ps.pmove.pm_type) {
+    // Grab mouse in case of player move type changes between frames.
+    // TODO: I have no clue why this was here to begin with, it wasn't me.
+    if ( cl.oldframe.ps.pmove.pm_type != cl.frame.ps.pmove.pm_type ) {
         IN_Activate();
     }
 
-    check_player_lerp(&cl.oldframe, &cl.frame, 1);
+    // Determine whether the player state has to lerp between the current and old frame,
+    // or snap 'to'.
+    CL_LerpOrSnapPlayerState( &cl.oldframe, &cl.frame, 1 );
 
+    // See if we had any prediction errors.
     CL_CheckPredictionError();
 
+    // Last but not least, set crosshair color, lol.
     SCR_SetCrosshairColor();
 }
 
@@ -1208,26 +1233,22 @@ static void CL_AddViewWeapon(void)
     }
 }
 
-static void CL_SetupFirstPersonView(void)
-{
-    player_state_t *ps, *ops;
-    vec3_t kickangles;
-    float lerp;
+static void CL_SetupFirstPersonView(void) {
+    const float lerp = cl.lerpfrac;
 
-    // add kick angles
+    // Add kick angles
     if (cl_kickangles->integer) {
-        ps = &cl.frame.ps;
-        ops = &cl.oldframe.ps;
+        player_state_t *ps = &cl.frame.ps;
+        player_state_t *ops = &cl.oldframe.ps;
 
-        lerp = cl.lerpfrac;
-
-        LerpAngles(ops->kick_angles, ps->kick_angles, lerp, kickangles);
-        VectorAdd(cl.refdef.viewangles, kickangles, cl.refdef.viewangles);
+        const Vector3 kickAngles = QM_Vector3LerpAngles( ops->kick_angles, ps->kick_angles, lerp );
+        VectorAdd( cl.refdef.viewangles, kickAngles, cl.refdef.viewangles );
     }
 
-    // add the weapon
+    // Add the view weapon model.
     CL_AddViewWeapon();
 
+    // Inform client state we're not in third-person view.
     cl.thirdPersonView = false;
 }
 
@@ -1279,7 +1300,7 @@ static void CL_SetupThirdPersionView(void)
     cl.thirdPersonView = true;
 }
 
-static void CL_FinishViewValues(void)
+void CL_FinishViewValues(void)
 {
     centity_t *ent;
 
@@ -1287,11 +1308,14 @@ static void CL_FinishViewValues(void)
         goto first;
 
     ent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );//ent = &cl_entities[cl.frame.clientNum + 1];
-    if (ent->serverframe != cl.frame.number)
+    if ( ent->serverframe != cl.frame.number ) {
         goto first;
+    }
 
-    if (!ent->current.modelindex)
+    // Need a model to display if we want to go third-person mode.
+    if ( !ent->current.modelindex ) {
         goto first;
+    }
 
     CL_SetupThirdPersionView();
     return;
@@ -1335,29 +1359,23 @@ static inline float lerp_client_fov(float ofov, float nfov, float lerp)
     return ofov + lerp * (nfov - ofov);
 }
 
-/*
-===============
-CL_CalcViewValues
-
-Sets cl.refdef view values and sound spatialization params.
-Usually called from CL_AddEntities, but may be directly called from the main
-loop if rendering is disabled but sound is running.
-===============
-*/
+/**
+*   @brief  Sets cl.refdef view values and sound spatialization params.
+*           Usually called from CL_PrepareViewEntities, but may be directly called from the main
+*           loop if rendering is disabled but sound is running.
+**/
 void CL_CalcViewValues(void) {   
-    player_state_t *ps, *ops;
     vec3_t viewoffset;
-    float lerp;
 
     if ( !cl.frame.valid ) {
         return;
     }
 
-    // find states to interpolate between
-    ps = &cl.frame.ps;
-    ops = &cl.oldframe.ps;
+    // Find states to interpolate between
+    player_state_t *ps = &cl.frame.ps;
+    player_state_t *ops = &cl.oldframe.ps;
 
-    lerp = cl.lerpfrac;
+    const float lerp = cl.lerpfrac;
 
     // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_.. values from SharedGame.
     static constexpr int32_t STEP_TIME = 100;
@@ -1528,23 +1546,17 @@ void CL_AddTestModel(void)
     }
 }
 
-/*
-===============
-CL_AddEntities
-
-Emits all entities, particles, and lights to the refresh
-===============
-*/
-void CL_AddEntities(void)
+/**
+*   @brief  Prepares the current frame's view scene for the refdef by 
+*           emitting all frame data(entities, particles, dynamic lights, lightstyles,
+*           and temp entities) to the refresh definition.
+**/
+void CL_PrepareViewEntities(void)
 {
-    CL_CalcViewValues();
-    CL_FinishViewValues();
-    CL_AddPacketEntities();
-    CL_AddTEnts();
-    CL_AddParticles();
-    CL_AddDLights();
-    CL_AddLightStyles();
-	CL_AddTestModel();
+    // WID: Moved to V_RenderView:
+    //CL_CalcViewValues();
+    //CL_FinishViewValues();
+    clge->PrepareViewEntities();
     LOC_AddLocationsToScene();
 }
 

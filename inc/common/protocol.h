@@ -211,6 +211,7 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 
 // q2pro frame flags sent by the server
 // only SUPPRESSCOUNT_BITS can be used
+#define FF_NONE			0
 #define FF_SUPPRESSED   (1<<0)
 #define FF_CLIENTDROP   (1<<1)
 #define FF_CLIENTPRED   (1<<2)	// Set but unused?

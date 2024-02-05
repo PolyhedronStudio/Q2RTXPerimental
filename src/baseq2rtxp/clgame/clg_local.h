@@ -35,18 +35,41 @@ extern sg_time_t FRAME_TIME_MS;
 // Just to, hold time, forever.
 constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64_t>::max( ) );
 
+
+
 /**
+* 
 *	CVars
+* 
 **/
+#if USE_DEBUG
+extern cvar_t *developer;
+#endif
 extern cvar_t *cl_predict;
 extern cvar_t *cl_running;
 extern cvar_t *cl_paused;
 extern cvar_t *sv_running;
 extern cvar_t *sv_paused;
 
+extern cvar_t *cl_footsteps;
+
+// Cheesy workaround for these two cvars initialized in client FX_Init
+extern cvar_t *cvar_pt_particle_emissive;
+extern cvar_t *cl_particle_num_factor;
+
+
+
+/**
+* 
+*	Other.
+* 
+**/
+extern centity_t *clg_entities;
 
 /******************************************************************
+* 
 *	Q2RE: Random Number Utilities
+* 
 *******************************************************************/
 extern std::mt19937 mt_rand;
 
@@ -131,13 +154,20 @@ template<typename T>
 	return irandom( 2 ) == 0;
 }
 
+
+
 /******************************************************************
+* 
 * GameMode
+* 
 *******************************************************************/
 
 
+
 /******************************************************************
+* 
 * Client Game Entity
+* 
 *******************************************************************/
 typedef struct centity_s {
 	//! Current(and thus last acknowledged and received) entity state.
@@ -188,27 +218,185 @@ typedef struct centity_s {
 #define TAG_CLGAME_LEVEL	778 // Clear when loading a new level.
 
 
-//
-// clg_parse.cpp
-// 
+
+/*
+*
+*	clg_effects.cpp	
+* 
+*/
+/**
+*   @brief
+**/
+void CLG_ClearEffects( void );
+/**
+*   @brief
+**/
+void CLG_InitEffects( void );
+
+// Wall Impact Puffs.
+void CLG_ParticleEffect( const vec3_t org, const vec3_t dir, int color, int count );
+void CLG_ParticleEffectWaterSplash( const vec3_t org, const vec3_t dir, int color, int count );
+void CLG_BloodParticleEffect( const vec3_t org, const vec3_t dir, int color, int count );
+void CLG_ParticleEffect2( const vec3_t org, const vec3_t dir, int color, int count );
+void CLG_TeleporterParticles( const vec3_t org );
+//static void CL_LogoutEffect( const vec3_t org, int type );
+void CLG_ItemRespawnParticles( const vec3_t org );
+void CLG_ExplosionParticles( const vec3_t org );
+void CLG_BigTeleportParticles( const vec3_t org );
+void CLG_BlasterParticles( const vec3_t org, const vec3_t dir );
+void CLG_BlasterTrail( const vec3_t start, const vec3_t end );
+void CLG_FlagTrail( const vec3_t start, const vec3_t end, int color );
+void CLG_DiminishingTrail( const vec3_t start, const vec3_t end, centity_t *old, int flags );
+void CLG_RocketTrail( const vec3_t start, const vec3_t end, centity_t *old );
+void CLG_OldRailTrail( void );
+void CLG_BubbleTrail( const vec3_t start, const vec3_t end );
+//static void CL_FlyParticles( const vec3_t origin, int count );
+void CLG_FlyEffect( centity_t *ent, const vec3_t origin );
+void CLG_BfgParticles( entity_t *ent );
+//FIXME combined with CL_ExplosionParticles
+void CLG_BFGExplosionParticles( const vec3_t org );
+void CLG_TeleportParticles( const vec3_t org );
+
+
+
+/*
+*
+*	effects/clg_fx_dynamiclights.cpp
+*
+*/
+/**
+*   @brief
+**/
+void CLG_ClearDlights( void );
+/**
+*   @brief
+**/
+cdlight_t *CLG_AllocDlight( const int32_t key );
+/**
+*   @brief
+**/
+void CLG_AddDLights( void );
+
+
+
+/*
+*
+*	effects/clg_fx_lightstyles.cpp
+*
+*/
+/**
+*	@brief
+**/
+void CLG_ClearLightStyles( void );
+/**
+*   @brief
+**/
+void CLG_SetLightStyle( const int32_t index, const char *s );
+/**
+*   @brief
+**/
+void CLG_AddLightStyles( void );
+
+
+
+/*
+*
+*	effects/clg_fx_muzzleflash.cpp & effects/clg_fx_muzzleflash2.cpp
+*
+*/
+/**
+*   @brief  Handles the parsed client muzzleflash effects.
+**/
+void CLG_MuzzleFlash( void );
+/**
+*   @brief  Handles the parsed entities/monster muzzleflash effects.
+**/
+void CLG_MuzzleFlash2( void );
+
+
+
+/*
+*
+*	effects/clg_fx_particles.cpp
+*
+*/
+/**
+*   @brief
+**/
+void CLG_ClearParticles( void );
+/**
+*   @brief
+**/
+cparticle_t *CLG_AllocParticle( void );
+
+
+/*
+*
+*	clg_entities.cpp
+*
+*/
+#if USE_DEBUG
+/**
+*	@brief	For debugging problems when out - of - date entity origin is referenced
+**/
+void CLG_CheckEntityPresent( int32_t entityNumber, const char *what );
+#endif
+/**
+*	@return		The entity bound to the client's view.
+*	@remarks	(Can be the one we're chasing, instead of the player himself.)
+**/
+centity_t *CLG_Self( void );
+/**
+ * @return True if the specified entity is bound to the local client's view.
+ */
+const bool CLG_IsSelf( const centity_t *ent );
+
+
+
+/*
+*
+*	clg_parse.cpp
+*
+*/
+/**
+*	@brief	Called by the client when it receives a configstring update, this
+*			allows us to interscept it and respond to it. If not interscepted the 
+*			control is passed back to the client again.
+* 
+*	@return	True if we interscepted one succesfully, false otherwise.
+**/
+const bool PF_UpdateConfigString( const int32_t index );
 /**
 *	@brief	Called by the client BEFORE all server messages have been parsed.
 **/
-void PF_StartServerMessage();
+void PF_StartServerMessage( const bool isDemoPlayback );
 /**
 *	@brief	Called by the client AFTER all server messages have been parsed.
 **/
-void PF_EndServerMessage();
+void PF_EndServerMessage( const bool isDemoPlayback );
 /**
 *	@brief	Called by the client when it does not recognize the server message itself,
 *			so it gives the client game a chance to handle and respond to it.
 *	@return	True if the message was handled properly. False otherwise.
 **/
 const bool PF_ParseServerMessage( const int32_t serverMessage );
+/**
+*	@brief	A variant of ParseServerMessage that skips over non-important action messages,
+*			used for seeking in demos.
+*	@return	True if the message was handled properly. False otherwise.
+**/
+const bool PF_SeekDemoMessage( const int32_t serverMessage );
+/**
+*	@brief	Parsess entity events.
+**/
+void PF_ParseEntityEvent( const int32_t entityNumber );
 
-// 
-//	clg_predict.cpp
-//
+
+/*
+*
+*	clg_predict.cpp
+*
+*/
 /**
 *   @brief  Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
 **/
@@ -227,3 +415,77 @@ const bool PF_UsePrediction( );
 *           into the cl.predictedState struct.
 **/
 void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber );
+
+
+
+/*
+*
+*	clg_temp_entities.cpp
+*
+*/
+/**
+*   @brief
+**/
+void CLG_InitTEnts( void );
+/**
+*   @brief
+**/
+void CLG_ClearTEnts( void );
+/**
+*   @brief
+**/
+void CLG_ParseTEnt( void );
+/**
+*   @brief
+**/
+void CLG_AddTEnts( void );
+
+
+
+/*
+*
+*	clg_view.cpp
+*
+*/
+/**
+*   @brief
+**/
+void PF_ClearViewScene( void );
+/**
+*   @brief
+**/
+void PF_PrepareViewEntites( void );
+
+
+
+/**
+*	
+*	Game/Level Locals:
+* 
+**/
+/**
+*	@brief	Stores data that remains accross level switches.
+**/
+struct game_locals_t {
+	//// store latched cvars here that we want to get at often
+	//int32_t	maxclients;
+	int32_t	maxentities;
+};
+extern game_locals_t game;
+
+/**
+*	@brief	Stores data for the current level session.
+**/
+struct level_locals_t {
+	//! For storing parsed message data that is handled later on by corresponding said
+	//! event/effect functions.
+	struct {
+		// For the 'event' like style messages, store data here so that the later called upon
+		// effect(s) functions can access it.
+		struct {
+			tent_params_t   tempEntity;
+			mz_params_t     muzzleFlash;
+		} events;
+	} parsedMessage;
+};
+extern level_locals_t level;

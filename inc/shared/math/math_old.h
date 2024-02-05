@@ -238,3 +238,12 @@ uint32_t Q_rand_uniform( uint32_t n );
 #define crand()     ((int32_t)Q_rand() * 0x1p-31f)
 
 #define Q_rint(x)   ((x) < 0 ? ((int)((x) - 0.5f)) : ((int)((x) + 0.5f)))
+
+#define NUMVERTEXNORMALS    162
+
+void MakeNormalVectors(const vec3_t forward, vec3_t right, vec3_t up);
+
+extern const vec3_t bytedirs[NUMVERTEXNORMALS];
+
+const int32_t DirToByte( const vec3_t dir );
+void ByteToDir(const int32_t index, vec3_t dir );

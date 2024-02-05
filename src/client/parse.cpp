@@ -193,73 +193,83 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
 static void CL_ParseFrame()
 {
     uint64_t bits;
-    int64_t currentframe, deltaframe, suppressed;
-    server_frame_t  frame, *oldframe;
-    player_state_t  *from;
-    int     length;
+    // Current frame being parsed.
+    server_frame_t  frame;
+    // Previous old frame.
+    server_frame_t *oldframe = nullptr;
+    // Player state to interpolate from.
+    player_state_t *from;
+
+    int32_t length = 0;
 
     memset(&frame, 0, sizeof(frame));
 
-    cl.frameflags = 0;
+    // Reset current frame flags.
+    cl.frameflags = FF_NONE;
 
-    currentframe = MSG_ReadIntBase128( );// WID: 64-bit-frame MSG_ReadInt32();
-    deltaframe = MSG_ReadIntBase128( );// WID: 64-bit-frame MSG_ReadInt32(); 
+    // Current frame.
+    int64_t currentframe = frame.number = MSG_ReadIntBase128( );// WID: 64-bit-frame MSG_ReadInt32();
+    // Frame to delta from.
+    int64_t deltaframe = frame.delta = MSG_ReadIntBase128( );// WID: 64-bit-frame MSG_ReadInt32(); 
 
     // WID: net-protocol2: Removed the 'BIG HACK' to let old demos continue to work.
     //if (cls.serverProtocol != PROTOCOL_VERSION_OLD) {
-        suppressed = MSG_ReadUint8();
-        if (suppressed) {
-            cl.frameflags |= FF_SUPPRESSED;
-        }
+    // Read frame supressed count.
+    int64_t suppressed = MSG_ReadUint8();
+    if (suppressed) {
+        cl.frameflags |= FF_SUPPRESSED;
+    }
     //}
-
-    frame.number = currentframe;
-    frame.delta = deltaframe;
-
+    // Determine if the frame was dropped.
     if (cls.netchan.dropped) {
         cl.frameflags |= FF_SERVERDROP;
     }
 
-    // if the frame is delta compressed from data that we no longer have
+    // If the frame is delta compressed from data that we no longer have
     // available, we must suck up the rest of the frame, but not use it, then
-    // ask for a non-compressed message
-    if (deltaframe > 0) {
-        oldframe = &cl.frames[deltaframe & UPDATE_MASK];
+    // ask for a non-compressed message.
+    //
+    // Delta Compressed Frame:
+    if ( deltaframe > 0 ) {
+        oldframe = &cl.frames[ deltaframe & UPDATE_MASK ];
         from = &oldframe->ps;
-        if (deltaframe == currentframe) {
-            // old servers may cause this on map change
-            Com_DPrintf("%s: delta from current frame\n", __func__);
+        // Old servers may cause this on map change:
+        if ( deltaframe == currentframe ) {
+            Com_DPrintf( "%s: delta from current frame\n", __func__ );
             cl.frameflags |= FF_BADFRAME;
-        } else if (oldframe->number != deltaframe) {
-            // the frame that the server did the delta from
-            // is too old, so we can't reconstruct it properly.
-            Com_DPrintf("%s: delta frame was never received or too old\n", __func__);
+            // Should never happen.
+        } else if ( !oldframe->valid ) {
+            Com_DPrintf( "%s: delta from invalid frame\n", __func__ );
+            cl.frameflags |= FF_BADFRAME;
+        // The frame that the server did the delta from is too old, so we can't reconstruct it properly.
+        } else if ( oldframe->number != deltaframe ) {
+            Com_DPrintf( "%s: delta frame was never received or too old\n", __func__ );
             cl.frameflags |= FF_OLDFRAME;
-        } else if (!oldframe->valid) {
-            // should never happen
-            Com_DPrintf("%s: delta from invalid frame\n", __func__);
-            cl.frameflags |= FF_BADFRAME;
-        } else if (cl.numEntityStates - oldframe->firstEntity >
-                   MAX_PARSE_ENTITIES - MAX_PACKET_ENTITIES) {
-            Com_DPrintf("%s: delta entities too old\n", __func__);
+        // The entities are outdated:
+        } else if ( ( cl.numEntityStates - oldframe->firstEntity ) > ( MAX_PARSE_ENTITIES - MAX_PACKET_ENTITIES ) ) {
+            Com_DPrintf( "%s: delta entities too old\n", __func__ );
             cl.frameflags |= FF_OLDENT;
+        // A valid delta frame has been parsed.
         } else {
-            frame.valid = true; // valid delta parse
+            frame.valid = true;
         }
-        if (!frame.valid && cl.frame.valid && cls.demo.playback) {
-            Com_DPrintf("%s: recovering broken demo\n", __func__);
+
+        // For demo playback, support invalid frames either way.
+        if ( !frame.valid && cl.frame.valid && cls.demo.playback ) {
+            Com_DPrintf( "%s: recovering broken demo\n", __func__ );
             oldframe = &cl.frame;
             from = &oldframe->ps;
             frame.valid = true;
         }
+    // Unompressed Frame:
     } else {
-        oldframe = NULL;
-        from = NULL;
+        oldframe = nullptr;
+        from = nullptr;
         frame.valid = true; // uncompressed frame
         cl.frameflags |= FF_NODELTA;
     }
 
-    // read areabits
+    // Read areabits
     length = MSG_ReadUint8();
     if (length) {
         if (length < 0 || msg_read.readcount + length > msg_read.cursize) {
@@ -305,7 +315,7 @@ static void CL_ParseFrame()
 
     CL_ParsePacketEntities(oldframe, &frame);
 
-    // save the frame off in the backup array for later delta comparisons
+    // Save the frame off in the backup array for later delta comparisons
     cl.frames[currentframe & UPDATE_MASK] = frame;
 
 #if USE_DEBUG
@@ -317,26 +327,34 @@ static void CL_ParseFrame()
     }
 #endif
 
+    // Ignore the data if the parsed frame isn't valid.
     if (!frame.valid) {
         cl.frame.valid = false;
-        return; // do not change anything
+        return; // Do not change anything.
     }
 
+    // Fail out early to prevent spurious errors later in case of a bad FOV.
     if (!frame.ps.fov) {
-        // fail out early to prevent spurious errors later
         Com_Error(ERR_DROP, "%s: bad fov", __func__);
     }
 
-    if (cls.state < ca_precached)
+    // Do NOT actually start swapping our active client frames if we're not precached yet.
+    if ( cls.state < ca_precached ) {
         return;
+    }
 
+    // Swap frames.
     cl.oldframe = cl.frame;
     cl.frame = frame;
 
+    // Increase demo frames read.
     cls.demo.frames_read++;
 
-    if (!cls.demo.seeking)
+    // Start to perform the delta frame lerping if we're not demo seeking,
+    // this will also move our cls.state into ca_active if it is our first valid received frame.
+    if ( !cls.demo.seeking ) {
         CL_DeltaFrame();
+    }
 }
 
 /*
@@ -520,161 +538,9 @@ static void CL_ParseServerData(void)
     }
 }
 
-/*
-=====================================================================
-
-ACTION MESSAGES
-
-=====================================================================
-*/
-
-tent_params_t   te;
-mz_params_t     mz;
-snd_params_t    snd;
-
-static void CL_ParseTEntPacket(void)
-{
-    te.type = MSG_ReadUint8();
-
-    switch (te.type) {
-    case TE_BLOOD:
-    case TE_GUNSHOT:
-    case TE_SPARKS:
-    case TE_BULLET_SPARKS:
-    case TE_SCREEN_SPARKS:
-    case TE_SHIELD_SPARKS:
-    case TE_SHOTGUN:
-    case TE_BLASTER:
-    case TE_GREENBLOOD:
-    case TE_BLASTER2:
-	case TE_FLECHETTE:
-    case TE_HEATBEAM_SPARKS:
-    case TE_HEATBEAM_STEAM:
-    case TE_MOREBLOOD:
-    case TE_ELECTRIC_SPARKS:
-        MSG_ReadPos( te.pos1, false );
-        MSG_ReadDir8(te.dir);
-        break;
-
-    case TE_SPLASH:
-    case TE_LASER_SPARKS:
-    case TE_WELDING_SPARKS:
-    case TE_TUNNEL_SPARKS:
-        te.count = MSG_ReadUint8();
-        MSG_ReadPos( te.pos1, false );
-		MSG_ReadDir8(te.dir);
-        te.color = MSG_ReadUint8();
-        break;
-
-    case TE_BLUEHYPERBLASTER:
-    case TE_RAILTRAIL:
-    case TE_BUBBLETRAIL:
-    case TE_DEBUGTRAIL:
-    case TE_BUBBLETRAIL2:
-    case TE_BFG_LASER:
-        MSG_ReadPos( te.pos1, false );
-        MSG_ReadPos( te.pos2, false );
-        break;
-
-    case TE_GRENADE_EXPLOSION:
-    case TE_GRENADE_EXPLOSION_WATER:
-    case TE_EXPLOSION2:
-    case TE_PLASMA_EXPLOSION:
-    case TE_ROCKET_EXPLOSION:
-    case TE_ROCKET_EXPLOSION_WATER:
-    case TE_EXPLOSION1:
-    case TE_EXPLOSION1_NP:
-    case TE_EXPLOSION1_BIG:
-    case TE_BFG_EXPLOSION:
-    case TE_BFG_BIGEXPLOSION:
-    case TE_BOSSTPORT:
-    case TE_PLAIN_EXPLOSION:
-    case TE_CHAINFIST_SMOKE:
-    case TE_TRACKER_EXPLOSION:
-    case TE_TELEPORT_EFFECT:
-    case TE_DBALL_GOAL:
-    case TE_WIDOWSPLASH:
-    case TE_NUKEBLAST:
-        MSG_ReadPos( te.pos1, false );
-        break;
-
-    case TE_PARASITE_ATTACK:
-    case TE_MEDIC_CABLE_ATTACK:
-    case TE_HEATBEAM:
-    case TE_MONSTER_HEATBEAM:
-        te.entity1 = MSG_ReadInt16();
-        MSG_ReadPos( te.pos1, false );
-        MSG_ReadPos( te.pos2, false );
-        break;
-
-    case TE_GRAPPLE_CABLE:
-        te.entity1 = MSG_ReadInt16();
-        MSG_ReadPos( te.pos1, false );
-        MSG_ReadPos( te.pos2, false );
-        MSG_ReadPos( te.offset, false );
-        break;
-
-    case TE_LIGHTNING:
-        te.entity1 = MSG_ReadInt16();
-        te.entity2 = MSG_ReadInt16();
-        MSG_ReadPos( te.pos1, false );
-        MSG_ReadPos( te.pos2, false );
-        break;
-
-    case TE_FLASHLIGHT:
-        MSG_ReadPos( te.pos1, false );
-        te.entity1 = MSG_ReadInt16();
-        break;
-
-    case TE_FORCEWALL:
-        MSG_ReadPos( te.pos1, false );
-        MSG_ReadPos( te.pos2, false );
-        te.color = MSG_ReadUint8();
-        break;
-
-    case TE_STEAM:
-        te.entity1 = MSG_ReadInt16();
-        te.count = MSG_ReadUint8();
-        MSG_ReadPos( te.pos1, false );
-		MSG_ReadDir8(te.dir);
-        te.color = MSG_ReadUint8();
-        te.entity2 = MSG_ReadInt16();
-        if (te.entity1 != -1) {
-            te.time = MSG_ReadInt32();
-        }
-        break;
-
-    case TE_WIDOWBEAMOUT:
-        te.entity1 = MSG_ReadInt16();
-        MSG_ReadPos( te.pos1, false );
-        break;
-
-    case TE_FLARE:
-        te.entity1 = MSG_ReadInt16();
-        te.count = MSG_ReadUint8();
-        MSG_ReadPos( te.pos1, false );
-		MSG_ReadDir8(te.dir);
-        break;
-
-    default:
-        Com_Error(ERR_DROP, "%s: bad type", __func__);
-    }
-}
-
-static void CL_ParseMuzzleFlashPacket(int mask)
-{
-    int entity, weapon;
-
-    entity = MSG_ReadInt16();
-    if (entity < 1 || entity >= MAX_EDICTS)
-        Com_Error(ERR_DROP, "%s: bad entity", __func__);
-
-    weapon = MSG_ReadUint8();
-    mz.silenced = weapon & mask;
-    mz.weapon = weapon & ~mask;
-    mz.entity = entity;
-}
-
+/**
+*   @brief  
+**/
 static void CL_ParseStartSoundPacket(void)
 {
 	int flags, channel, entity;
@@ -682,27 +548,27 @@ static void CL_ParseStartSoundPacket(void)
 	flags = MSG_ReadUint8( );
 
 	if ( flags & SND_INDEX16 )
-		snd.index = MSG_ReadUint16( );
+		cl.snd.index = MSG_ReadUint16( );
 	else
-		snd.index = MSG_ReadUint8( );
+		cl.snd.index = MSG_ReadUint8( );
 
-	if ( snd.index >= MAX_SOUNDS )
-		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, snd.index );
+	if ( cl.snd.index >= MAX_SOUNDS )
+		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, cl.snd.index );
 
 	if ( flags & SND_VOLUME )
-		snd.volume = MSG_ReadUint8( ) / 255.0f;
+		cl.snd.volume = MSG_ReadUint8( ) / 255.0f;
 	else
-		snd.volume = DEFAULT_SOUND_PACKET_VOLUME;
+		cl.snd.volume = DEFAULT_SOUND_PACKET_VOLUME;
 
 	if ( flags & SND_ATTENUATION )
-		snd.attenuation = MSG_ReadUint8( ) / 64.0f;
+		cl.snd.attenuation = MSG_ReadUint8( ) / 64.0f;
 	else
-		snd.attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
+		cl.snd.attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
 	if ( flags & SND_OFFSET )
-		snd.timeofs = MSG_ReadUint8( ) / 1000.0f;
+		cl.snd.timeofs = MSG_ReadUint8( ) / 1000.0f;
 	else
-		snd.timeofs = 0;
+		cl.snd.timeofs = 0;
 
 	if ( flags & SND_ENT ) {
 		// entity relative
@@ -710,20 +576,20 @@ static void CL_ParseStartSoundPacket(void)
 		entity = channel >> 3;
 		if ( entity < 0 || entity >= MAX_EDICTS )
 			Com_Error( ERR_DROP, "%s: bad entity: %d", __func__, entity );
-		snd.entity = entity;
-		snd.channel = channel & 7;
+		cl.snd.entity = entity;
+		cl.snd.channel = channel & 7;
 	} else {
-		snd.entity = 0;
-		snd.channel = 0;
+		cl.snd.entity = 0;
+		cl.snd.channel = 0;
 	}
 
 	// positioned in space
 	if ( flags & SND_POS )
-		MSG_ReadPos( snd.pos, false );
+		MSG_ReadPos( cl.snd.pos, false );
 
-	snd.flags = flags;
+	cl.snd.flags = flags;
 
-	SHOWNET( 2, "    %s\n", cl.configstrings[ CS_SOUNDS + snd.index ] );
+	SHOWNET( 2, "    %s\n", cl.configstrings[ CS_SOUNDS + cl.snd.index ] );
 }
 
 static void CL_ParseReconnect(void)
@@ -1045,11 +911,11 @@ void CL_ParseServerMessage(void)
         default:
             // Didn't recognize the command, pass control over the client game to give it a shot
             // at handling the command.
-            clge->StartServerMessage();
+            clge->StartServerMessage( false );
             if ( !clge->ParseServerMessage( cmd ) ) {
                 Com_Error( ERR_DROP, "%s: illegible server message: %d", __func__, cmd );
             }
-            clge->EndServerMessage();
+            clge->EndServerMessage( false );
 //badbyte:
 //            Com_Error(ERR_DROP, "%s: illegible server message: %d", __func__, cmd);
             break;
@@ -1099,20 +965,21 @@ void CL_ParseServerMessage(void)
             break;
 		}
 
-        case svc_temp_entity:
-            CL_ParseTEntPacket();
-            CL_ParseTEnt();
-            break;
-
-        case svc_muzzleflash:
-            CL_ParseMuzzleFlashPacket(MZ_SILENCED);
-            CL_MuzzleFlash();
-            break;
-
-        case svc_muzzleflash2:
-            CL_ParseMuzzleFlashPacket(0);
-            CL_MuzzleFlash2();
-            break;
+        // WID: Moved to client game.
+        //case svc_temp_entity:
+        //    CL_ParseTEntPacket();
+        //    CL_ParseTEnt();
+        //    break;
+        // WID: Moved to client game.
+        //case svc_muzzleflash:
+        //    CL_ParseMuzzleFlashPacket(MZ_SILENCED);
+        //    CL_MuzzleFlash();
+        //    break;
+        // WID: Moved to client game.
+        //case svc_muzzleflash2:
+        //    CL_ParseMuzzleFlashPacket(0);
+        //    CL_MuzzleFlash2();
+        //    break;
 
         case svc_download:
             CL_ParseDownload(cmd);
@@ -1219,7 +1086,13 @@ void CL_SeekDemoMessage(void)
         // other commands
         switch (cmd) {
         default:
-            Com_Error(ERR_DROP, "%s: illegible server message: %d", __func__, cmd);
+            // Didn't recognize the command, pass control over the client game to give it a shot
+            // at handling the command.
+            clge->StartServerMessage( true );
+            if ( !clge->SeekDemoMessage( cmd ) ) {
+                Com_Error( ERR_DROP, "%s: illegible server message: %d", __func__, cmd );
+            }
+            clge->EndServerMessage( true );
             break;
 
         case svc_nop:
@@ -1248,14 +1121,14 @@ void CL_SeekDemoMessage(void)
             CL_ParseStartSoundPacket();
             break;
 
-        case svc_temp_entity:
-            CL_ParseTEntPacket();
-            break;
+        //case svc_temp_entity:
+        //    CL_ParseTEntPacket();
+        //    break;
 
-        case svc_muzzleflash:
-        case svc_muzzleflash2:
-            CL_ParseMuzzleFlashPacket(0);
-            break;
+        //case svc_muzzleflash:
+        //case svc_muzzleflash2:
+        //    CL_ParseMuzzleFlashPacket(0);
+        //    break;
 
         case svc_frame:
             CL_ParseFrame();

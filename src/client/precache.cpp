@@ -404,19 +404,24 @@ CL_UpdateConfigstring
 A configstring update has been parsed.
 =================
 */
-void CL_UpdateConfigstring(int index)
-{
+void CL_UpdateConfigstring( const int32_t index ) {
     const char *s = cl.configstrings[index];
+
+    // Allow the client game to interscept the config string.
+    if ( clge->UpdateConfigString( index ) ) {
+        return;
+    }
 
     if (index == CS_MAXCLIENTS) {
         cl.maxclients = atoi(s);
         return;
     }
 
-    if (index == CS_AIRACCEL) {
-        cl.pmp.airaccelerate = cl.pmp.qwmode || atoi(s);
-        return;
-    }
+    // Moved to Client Game.
+    //if (index == CS_AIRACCEL) {
+    //    cl.pmp.airaccelerate = cl.pmp.qwmode || atoi(s);
+    //    return;
+    //}
 
     if (index == CS_MODELS + 1) {
         if (!Com_ParseMapName(cl.mapname, s, sizeof(cl.mapname)))
@@ -424,10 +429,11 @@ void CL_UpdateConfigstring(int index)
         return;
     }
 
-    if (index >= CS_LIGHTS && index < CS_LIGHTS + MAX_LIGHTSTYLES) {
-        CL_SetLightStyle(index - CS_LIGHTS, s);
-        return;
-    }
+    // Moved to Client Game.
+    //if (index >= CS_LIGHTS && index < CS_LIGHTS + MAX_LIGHTSTYLES) {
+    //    CL_SetLightStyle(index - CS_LIGHTS, s);
+    //    return;
+    //}
 
     if (cls.state < ca_precached) {
         return;

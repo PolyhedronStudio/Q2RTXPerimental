@@ -463,8 +463,6 @@ of ent.  Ent should be unlinked before calling this!
 =================
 */
 const bool KillBox(edict_t *ent, const bool bspClipping ) {
-    trace_t     tr;
-
     // don't telefrag as spectator...
     if ( ent->movetype == MOVETYPE_NOCLIP ) {
         return true;

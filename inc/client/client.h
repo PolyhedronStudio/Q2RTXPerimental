@@ -97,14 +97,15 @@ void SCR_EndLoadingPlaque(void);
 void SCR_ModeChanged(void);
 void SCR_UpdateScreen(void);
 
-#define U32_BLACK   MakeColor(  0,   0,   0, 255)
-#define U32_RED     MakeColor(255,   0,   0, 255)
-#define U32_GREEN   MakeColor(  0, 255,   0, 255)
-#define U32_YELLOW  MakeColor(255, 255,   0, 255)
-#define U32_BLUE    MakeColor(  0,   0, 255, 255)
-#define U32_CYAN    MakeColor(  0, 255, 255, 255)
-#define U32_MAGENTA MakeColor(255,   0, 255, 255)
-#define U32_WHITE   MakeColor(255, 255, 255, 255)
+// Moved to shared.h
+//#define U32_BLACK   MakeColor(  0,   0,   0, 255)
+//#define U32_RED     MakeColor(255,   0,   0, 255)
+//#define U32_GREEN   MakeColor(  0, 255,   0, 255)
+//#define U32_YELLOW  MakeColor(255, 255,   0, 255)
+//#define U32_BLUE    MakeColor(  0,   0, 255, 255)
+//#define U32_CYAN    MakeColor(  0, 255, 255, 255)
+//#define U32_MAGENTA MakeColor(255,   0, 255, 255)
+//#define U32_WHITE   MakeColor(255, 255, 255, 255)
 
 #define UI_LEFT             0x00000001
 #define UI_RIGHT            0x00000002
@@ -122,7 +123,7 @@ void SCR_UpdateScreen(void);
 
 extern const uint32_t   colorTable[8];
 
-bool SCR_ParseColor(const char *s, color_t *color);
+const bool SCR_ParseColor(const char *s, color_t *color);
 
 float V_CalcFov(float fov_x, float width, float height);
 

@@ -660,18 +660,12 @@ void S_IssuePlaysound(playsound_t *ps)
 // =======================================================================
 // Start a sound effect
 // =======================================================================
-
-/*
-====================
-S_StartSound
-
-Validates the parms and ques the sound up
-if pos is NULL, the sound will be dynamically sourced from the entity
-Entchannel 0 will never override a playing sound
-====================
-*/
-void S_StartSound(const vec3_t origin, int entnum, int entchannel, qhandle_t hSfx, float vol, float attenuation, float timeofs)
-{
+/**
+*   @brief  Validates the parms and ques the sound up
+*           if pos is NULL, the sound will be dynamically sourced from the entity
+*           Entchannel 0 will never override a playing sound
+**/
+void S_StartSound(const vec3_t origin, const int32_t entnum, const int32_t entchannel, const qhandle_t hSfx, const float vol, const float attenuation, const float timeofs) {
     sfxcache_t  *sc;
     playsound_t *ps, *sort;
     sfx_t       *sfx;
@@ -723,19 +717,19 @@ void S_StartSound(const vec3_t origin, int entnum, int entchannel, qhandle_t hSf
 
 void S_ParseStartSound(void)
 {
-    qhandle_t handle = cl.sound_precache[snd.index];
+    qhandle_t handle = cl.sound_precache[cl.snd.index];
 
     if (!handle)
         return;
 
 #if USE_DEBUG
-    if (developer->integer && !(snd.flags & SND_POS))
-        CL_CheckEntityPresent(snd.entity, "sound");
+    if (developer->integer && !( cl.snd.flags & SND_POS))
+        CL_CheckEntityPresent( cl.snd.entity, "sound");
 #endif
 
-    S_StartSound((snd.flags & SND_POS) ? snd.pos : NULL,
-                 snd.entity, snd.channel, handle,
-                 snd.volume, snd.attenuation, snd.timeofs);
+    S_StartSound(( cl.snd.flags & SND_POS) ? cl.snd.pos : NULL,
+            cl.snd.entity, cl.snd.channel, handle,
+            cl.snd.volume, cl.snd.attenuation, cl.snd.timeofs);
 }
 
 /*

@@ -887,598 +887,177 @@ static void CL_ParseNuke(void)
 
 //==============================================================
 
-static color_t  railcore_color;
-static color_t  railspiral_color;
+//static color_t  railcore_color;
+//static color_t  railspiral_color;
+//
+//static cvar_t *cl_railtrail_type;
+//static cvar_t *cl_railtrail_time;
+//static cvar_t *cl_railcore_color;
+//static cvar_t *cl_railcore_width;
+//static cvar_t *cl_railspiral_color;
+//static cvar_t *cl_railspiral_radius;
+//
+//static void cl_railcore_color_changed(cvar_t *self)
+//{
+//    if (!SCR_ParseColor(self->string, &railcore_color)) {
+//        Com_WPrintf("Invalid value '%s' for '%s'\n", self->string, self->name);
+//        Cvar_Reset(self);
+//        railcore_color.u32 = U32_RED;
+//    }
+//}
+//
+//static void cl_railspiral_color_changed(cvar_t *self)
+//{
+//    if (!SCR_ParseColor(self->string, &railspiral_color)) {
+//        Com_WPrintf("Invalid value '%s' for '%s'\n", self->string, self->name);
+//        Cvar_Reset(self);
+//        railspiral_color.u32 = U32_BLUE;
+//    }
+//}
+//
+//static void CL_RailCore(void)
+//{
+//    laser_t *l;
+//
+//    l = CL_AllocLaser();
+//    if (!l)
+//        return;
+//
+//    VectorCopy(te.pos1, l->start);
+//    VectorCopy(te.pos2, l->end);
+//    l->color = -1;
+//    l->lifetime = cl_railtrail_time->integer;
+//    l->width = cl_railcore_width->integer;
+//    l->rgba.u32 = railcore_color.u32;
+//}
+//
+//static void CL_RailSpiral(void)
+//{
+//    vec3_t      move;
+//    vec3_t      vec;
+//    float       len;
+//    int         j;
+//    cparticle_t *p;
+//    vec3_t      right, up;
+//    int         i;
+//    float       d, c, s;
+//    vec3_t      dir;
+//
+//    VectorCopy(te.pos1, move);
+//    VectorSubtract(te.pos2, te.pos1, vec);
+//    len = VectorNormalize(vec);
+//
+//    MakeNormalVectors(vec, right, up);
+//
+//    for (i = 0; i < len; i++) {
+//        p = CL_AllocParticle();
+//        if (!p)
+//            return;
+//
+//        p->time = cl.time;
+//        VectorClear(p->accel);
+//
+//        d = i * 0.1f;
+//        c = cos(d);
+//        s = sin(d);
+//
+//        VectorScale(right, c, dir);
+//        VectorMA(dir, s, up, dir);
+//
+//        p->alpha = 1.0f;
+//        p->alphavel = -1.0f / (cl_railtrail_time->value + frand() * 0.2f);
+//        p->color = -1;
+//        p->rgba.u32 = railspiral_color.u32;
+//		p->brightness = cvar_pt_particle_emissive->value;
+//        for (j = 0; j < 3; j++) {
+//            p->org[j] = move[j] + dir[j] * cl_railspiral_radius->value;
+//            p->vel[j] = dir[j] * 6;
+//        }
+//
+//        VectorAdd(move, vec, move);
+//    }
+//}
+//
+//static void CL_RailLights(color_t color)
+//{
+//	vec3_t fcolor;
+//	fcolor[0] = (float)color.u8[0] / 255.f;
+//	fcolor[1] = (float)color.u8[1] / 255.f;
+//	fcolor[2] = (float)color.u8[2] / 255.f;
+//
+//	vec3_t      move;
+//	vec3_t      vec;
+//	float       len;
+//
+//	VectorCopy(te.pos1, move);
+//	VectorSubtract(te.pos2, te.pos1, vec);
+//	len = VectorNormalize(vec);
+//
+//	float num_segments = ceilf(len / 100.f);
+//	float segment_size = len / num_segments;
+//
+//	for (float segment = 0; segment < num_segments; segment++)
+//	{
+//		float offset = (segment + 0.25f) * segment_size;
+//		vec3_t pos;
+//		VectorMA(move, offset, vec, pos);
+//
+//		cdlight_t* dl = CL_AllocDlight(0);
+//		VectorScale(fcolor, 0.25f, dl->color);
+//		VectorCopy(pos, dl->origin);
+//		dl->radius = 400;
+//		dl->decay = 400;
+//		dl->die = cl.time + 1000;
+//		VectorScale(vec, segment_size * 0.5f, dl->velosity);
+//	}
+//}
+//
+//// WID: C++20: Needed for linkage.
+//extern "C" uint32_t d_8to24table[256];
+//extern "C" cvar_t* cvar_pt_beam_lights;
+//
+//static void CL_RailTrail(void)
+//{
+//	color_t rail_color;
+//	
+//	if (!cl_railtrail_type->integer) 
+//	{
+//		rail_color.u32 = d_8to24table[0x74];
+//
+//        CL_OldRailTrail();
+//	}
+//	else 
+//	{
+//		rail_color = railcore_color;
+//
+//        if (cl_railcore_width->integer > 0) {
+//            CL_RailCore();
+//        }
+//        if (cl_railtrail_type->integer > 1) {
+//            CL_RailSpiral();
+//        }
+//    }
+//
+//    if (!cl_railtrail_type->integer || cvar_pt_beam_lights->value <= 0)
+//    {
+//        CL_RailLights(rail_color);
+//    }
+//}
+
+//static void dirtoangles(vec3_t angles)
+//{
+//    angles[0] = RAD2DEG(acos(te.dir[2]));
+//    if (te.dir[0])
+//        angles[1] = RAD2DEG(atan2(te.dir[1], te.dir[0]));
+//    else if (te.dir[1] > 0)
+//        angles[1] = 90;
+//    else if (te.dir[1] < 0)
+//        angles[1] = 270;
+//    else
+//        angles[1] = 0;
+//}
 
-static cvar_t *cl_railtrail_type;
-static cvar_t *cl_railtrail_time;
-static cvar_t *cl_railcore_color;
-static cvar_t *cl_railcore_width;
-static cvar_t *cl_railspiral_color;
-static cvar_t *cl_railspiral_radius;
 
-static void cl_railcore_color_changed(cvar_t *self)
-{
-    if (!SCR_ParseColor(self->string, &railcore_color)) {
-        Com_WPrintf("Invalid value '%s' for '%s'\n", self->string, self->name);
-        Cvar_Reset(self);
-        railcore_color.u32 = U32_RED;
-    }
-}
 
-static void cl_railspiral_color_changed(cvar_t *self)
-{
-    if (!SCR_ParseColor(self->string, &railspiral_color)) {
-        Com_WPrintf("Invalid value '%s' for '%s'\n", self->string, self->name);
-        Cvar_Reset(self);
-        railspiral_color.u32 = U32_BLUE;
-    }
-}
 
-static void CL_RailCore(void)
-{
-    laser_t *l;
-
-    l = CL_AllocLaser();
-    if (!l)
-        return;
-
-    VectorCopy(te.pos1, l->start);
-    VectorCopy(te.pos2, l->end);
-    l->color = -1;
-    l->lifetime = cl_railtrail_time->integer;
-    l->width = cl_railcore_width->integer;
-    l->rgba.u32 = railcore_color.u32;
-}
-
-static void CL_RailSpiral(void)
-{
-    vec3_t      move;
-    vec3_t      vec;
-    float       len;
-    int         j;
-    cparticle_t *p;
-    vec3_t      right, up;
-    int         i;
-    float       d, c, s;
-    vec3_t      dir;
-
-    VectorCopy(te.pos1, move);
-    VectorSubtract(te.pos2, te.pos1, vec);
-    len = VectorNormalize(vec);
-
-    MakeNormalVectors(vec, right, up);
-
-    for (i = 0; i < len; i++) {
-        p = CL_AllocParticle();
-        if (!p)
-            return;
-
-        p->time = cl.time;
-        VectorClear(p->accel);
-
-        d = i * 0.1f;
-        c = cos(d);
-        s = sin(d);
-
-        VectorScale(right, c, dir);
-        VectorMA(dir, s, up, dir);
-
-        p->alpha = 1.0f;
-        p->alphavel = -1.0f / (cl_railtrail_time->value + frand() * 0.2f);
-        p->color = -1;
-        p->rgba.u32 = railspiral_color.u32;
-		p->brightness = cvar_pt_particle_emissive->value;
-        for (j = 0; j < 3; j++) {
-            p->org[j] = move[j] + dir[j] * cl_railspiral_radius->value;
-            p->vel[j] = dir[j] * 6;
-        }
-
-        VectorAdd(move, vec, move);
-    }
-}
-
-static void CL_RailLights(color_t color)
-{
-	vec3_t fcolor;
-	fcolor[0] = (float)color.u8[0] / 255.f;
-	fcolor[1] = (float)color.u8[1] / 255.f;
-	fcolor[2] = (float)color.u8[2] / 255.f;
-
-	vec3_t      move;
-	vec3_t      vec;
-	float       len;
-
-	VectorCopy(te.pos1, move);
-	VectorSubtract(te.pos2, te.pos1, vec);
-	len = VectorNormalize(vec);
-
-	float num_segments = ceilf(len / 100.f);
-	float segment_size = len / num_segments;
-
-	for (float segment = 0; segment < num_segments; segment++)
-	{
-		float offset = (segment + 0.25f) * segment_size;
-		vec3_t pos;
-		VectorMA(move, offset, vec, pos);
-
-		cdlight_t* dl = CL_AllocDlight(0);
-		VectorScale(fcolor, 0.25f, dl->color);
-		VectorCopy(pos, dl->origin);
-		dl->radius = 400;
-		dl->decay = 400;
-		dl->die = cl.time + 1000;
-		VectorScale(vec, segment_size * 0.5f, dl->velosity);
-	}
-}
-
-// WID: C++20: Needed for linkage.
-extern "C" uint32_t d_8to24table[256];
-extern "C" cvar_t* cvar_pt_beam_lights;
-
-static void CL_RailTrail(void)
-{
-	color_t rail_color;
-	
-	if (!cl_railtrail_type->integer) 
-	{
-		rail_color.u32 = d_8to24table[0x74];
-
-        CL_OldRailTrail();
-	}
-	else 
-	{
-		rail_color = railcore_color;
-
-        if (cl_railcore_width->integer > 0) {
-            CL_RailCore();
-        }
-        if (cl_railtrail_type->integer > 1) {
-            CL_RailSpiral();
-        }
-    }
-
-    if (!cl_railtrail_type->integer || cvar_pt_beam_lights->value <= 0)
-    {
-        CL_RailLights(rail_color);
-    }
-}
-
-static void dirtoangles(vec3_t angles)
-{
-    angles[0] = RAD2DEG(acos(te.dir[2]));
-    if (te.dir[0])
-        angles[1] = RAD2DEG(atan2(te.dir[1], te.dir[0]));
-    else if (te.dir[1] > 0)
-        angles[1] = 90;
-    else if (te.dir[1] < 0)
-        angles[1] = 270;
-    else
-        angles[1] = 0;
-}
-
-/*
-=================
-CL_ParseTEnt
-=================
-*/
-static const byte splash_color[] = {0x00, 0xe0, 0xb0, 0x50, 0xd0, 0xe0, 0xe8};
-
-void CL_ParseTEnt(void)
-{
-    explosion_t *ex;
-    int r;
-
-    switch (te.type) {
-    case TE_BLOOD:          // bullet hitting flesh
-        if (!(cl_disable_particles->integer & NOPART_BLOOD))
-        {
-            // CL_ParticleEffect(te.pos1, te.dir, 0xe8, 60);
-            CL_BloodParticleEffect(te.pos1, te.dir, 0xe8, 1000);
-        }
-        break;
-
-    case TE_GUNSHOT:            // bullet hitting wall
-    case TE_SPARKS:
-    case TE_BULLET_SPARKS:
-        if (te.type == TE_GUNSHOT)
-            CL_ParticleEffect(te.pos1, te.dir, 0, 40);
-        else
-            CL_ParticleEffect(te.pos1, te.dir, 0xe0, 6);
-
-        if (te.type != TE_SPARKS) {
-            CL_SmokeAndFlash(te.pos1);
-
-            // impact sound
-            r = Q_rand() & 15;
-            if (r == 1)
-                S_StartSound(te.pos1, 0, 0, cl_sfx_ric1, 1, ATTN_NORM, 0);
-            else if (r == 2)
-                S_StartSound(te.pos1, 0, 0, cl_sfx_ric2, 1, ATTN_NORM, 0);
-            else if (r == 3)
-                S_StartSound(te.pos1, 0, 0, cl_sfx_ric3, 1, ATTN_NORM, 0);
-        }
-        break;
-
-    case TE_SCREEN_SPARKS:
-    case TE_SHIELD_SPARKS:
-        if (te.type == TE_SCREEN_SPARKS)
-            CL_ParticleEffect(te.pos1, te.dir, 0xd0, 40);
-        else
-            CL_ParticleEffect(te.pos1, te.dir, 0xb0, 40);
-        //FIXME : replace or remove this sound
-        S_StartSound(te.pos1, 0, 257, cl_sfx_lashit, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_SHOTGUN:            // bullet hitting wall
-        CL_ParticleEffect(te.pos1, te.dir, 0, 20);
-        CL_SmokeAndFlash(te.pos1);
-        break;
-
-    case TE_SPLASH:         // bullet hitting water
-        if (te.color < 0 || te.color > 6)
-            r = 0x00;
-        else
-            r = splash_color[te.color];
-        CL_ParticleEffectWaterSplash(te.pos1, te.dir, r, te.count);
-
-        if (te.color == SPLASH_SPARKS) {
-            r = Q_rand() & 3;
-            if (r == 0)
-                S_StartSound(te.pos1, 0, 0, cl_sfx_spark5, 1, ATTN_STATIC, 0);
-            else if (r == 1)
-                S_StartSound(te.pos1, 0, 0, cl_sfx_spark6, 1, ATTN_STATIC, 0);
-            else
-                S_StartSound(te.pos1, 0, 0, cl_sfx_spark7, 1, ATTN_STATIC, 0);
-        }
-        break;
-
-    case TE_LASER_SPARKS:
-        CL_ParticleEffect2(te.pos1, te.dir, te.color, te.count);
-        break;
-
-    case TE_BLUEHYPERBLASTER:
-        CL_BlasterParticles(te.pos1, te.dir);
-        break;
-
-    case TE_BLASTER:            // blaster hitting wall
-    case TE_BLASTER2:           // green blaster hitting wall
-    case TE_FLECHETTE:          // flechette
-	case TE_FLARE:              // flare
-        ex = CL_AllocExplosion();
-        VectorCopy(te.pos1, ex->ent.origin);
-        dirtoangles(ex->ent.angles);
-        ex->type = explosion_t::ex_blaster;
-        ex->ent.flags = RF_FULLBRIGHT | RF_TRANSLUCENT;
-		ex->ent.tent_type = te.type;
-        switch (te.type) {
-        case TE_BLASTER:
-            CL_BlasterParticles(te.pos1, te.dir);
-            ex->lightcolor[0] = 1;
-            ex->lightcolor[1] = 1;
-            break;
-        case TE_BLASTER2:
-            CL_BlasterParticles2(te.pos1, te.dir, 0xd0);
-            ex->ent.skinnum = 1;
-            ex->lightcolor[1] = 1;
-            break;
-        case TE_FLECHETTE:
-            CL_BlasterParticles2(te.pos1, te.dir, 0x6f);  // 75
-            ex->ent.skinnum = 2;
-            ex->lightcolor[0] = 0.19f;
-            ex->lightcolor[1] = 0.41f;
-            ex->lightcolor[2] = 0.75f;
-            break;
-		case TE_FLARE:
-			CL_BlasterParticles2(te.pos1, te.dir, 0xd0);
-			ex->lightcolor[0] = 1;
-			ex->lightcolor[1] = 1;
-			ex->type = explosion_t::ex_flare;
-			break;
-        }
-        ex->start = cl.servertime - CL_FRAMETIME;
-        ex->light = 150;
-        ex->ent.model = cl_mod_explode;
-        ex->frames = 4;
-
-		if (te.type != TE_FLARE)
-		{
-            S_StartSound(te.pos1,  0, 0, cl_sfx_lashit, 1, ATTN_NORM, 0);
-        }
-        else
-        {
-            // te.count is set to 1 on the first tick of the flare, 0 afterwards
-            if (te.count!=0)
-                S_StartSound(NULL, te.entity1, 0, cl_sfx_flare, 0.5, ATTN_NORM, 0);
-        }
-        break;
-
-    case TE_RAILTRAIL:          // railgun effect
-        CL_RailTrail();
-        S_StartSound(te.pos2, 0, 0, cl_sfx_railg, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_GRENADE_EXPLOSION:
-    case TE_GRENADE_EXPLOSION_WATER:
-		ex = CL_PlainExplosion(false);
-		if (!cl_explosion_sprites->integer)
-		{
-            ex->frames = 19;
-            ex->baseframe = 30;
-		}
-        if (cl_disable_explosions->integer & NOEXP_GRENADE)
-            ex->type = explosion_t::ex_light; // WID: C++20: Was without explosion_t::
-
-        if (!(cl_disable_particles->integer & NOPART_GRENADE_EXPLOSION))
-            CL_ExplosionParticles(te.pos1);
-
-        if (cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION)
-            ex->light = 200;
-
-        if (te.type == TE_GRENADE_EXPLOSION_WATER)
-            S_StartSound(te.pos1, 0, 0, cl_sfx_watrexp, 1, ATTN_NORM, 0);
-        else
-            S_StartSound(te.pos1, 0, 0, cl_sfx_grenexp, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_EXPLOSION2:
-        ex = CL_PlainExplosion(false);
-		if (!cl_explosion_sprites->integer)
-		{
-            ex->frames = 19;
-            ex->baseframe = 30;
-		}
-        CL_ExplosionParticles(te.pos1);
-        S_StartSound(te.pos1, 0, 0, cl_sfx_grenexp, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_PLASMA_EXPLOSION:
-        CL_PlainExplosion(false);
-        CL_ExplosionParticles(te.pos1);
-        S_StartSound(te.pos1, 0, 0, cl_sfx_rockexp, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_ROCKET_EXPLOSION:
-    case TE_ROCKET_EXPLOSION_WATER:
-        ex = CL_PlainExplosion(false);
-        if (cl_disable_explosions->integer & NOEXP_ROCKET)
-            ex->type = explosion_t::ex_light; // WID: C++20: This was without explosion_t::
-
-        if (!(cl_disable_particles->integer & NOPART_ROCKET_EXPLOSION))
-            CL_ExplosionParticles(te.pos1);
-
-        if (cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION)
-            ex->light = 200;
-
-        if (te.type == TE_ROCKET_EXPLOSION_WATER)
-            S_StartSound(te.pos1, 0, 0, cl_sfx_watrexp, 1, ATTN_NORM, 0);
-        else
-            S_StartSound(te.pos1, 0, 0, cl_sfx_rockexp, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_EXPLOSION1:
-        CL_PlainExplosion(false);
-        CL_ExplosionParticles(te.pos1);
-        S_StartSound(te.pos1, 0, 0, cl_sfx_rockexp, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_EXPLOSION1_NP:
-        CL_PlainExplosion(false);
-        S_StartSound(te.pos1, 0, 0, cl_sfx_rockexp, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_EXPLOSION1_BIG:
-        ex = CL_PlainExplosion(true);
-        S_StartSound(te.pos1, 0, 0, cl_sfx_rockexp, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_BFG_EXPLOSION:
-        ex = CL_AllocExplosion();
-        VectorCopy(te.pos1, ex->ent.origin);
-        ex->type = explosion_t::ex_poly;
-        ex->ent.flags = RF_FULLBRIGHT;
-        ex->start = cl.servertime - CL_FRAMETIME;
-        ex->light = 350;
-        ex->lightcolor[0] = 0.0f;
-        ex->lightcolor[1] = 1.0f;
-        ex->lightcolor[2] = 0.0f;
-        ex->ent.model = cl_mod_bfg_explo;
-        ex->ent.flags |= RF_TRANSLUCENT;
-        ex->ent.alpha = 0.80;
-        ex->frames = 4;
-        break;
-
-    case TE_BFG_BIGEXPLOSION:
-        CL_BFGExplosionParticles(te.pos1);
-        break;
-
-    case TE_BFG_LASER:
-        CL_ParseLaser(0xd0d1d2d3);
-        break;
-
-    case TE_BUBBLETRAIL:
-        CL_BubbleTrail(te.pos1, te.pos2);
-        break;
-
-    case TE_PARASITE_ATTACK:
-    case TE_MEDIC_CABLE_ATTACK:
-        VectorClear(te.offset);
-        te.entity2 = 0;
-        CL_ParseBeam(cl_mod_parasite_segment);
-        break;
-
-    case TE_BOSSTPORT:          // boss teleporting to station
-        CL_BigTeleportParticles(te.pos1);
-        S_StartSound(te.pos1, 0, 0, S_RegisterSound("misc/bigtele.wav"), 1, ATTN_NONE, 0);
-        break;
-
-    case TE_GRAPPLE_CABLE:
-        te.entity2 = 0;
-        CL_ParseBeam(cl_mod_grapple_cable);
-        break;
-
-    case TE_WELDING_SPARKS:
-        CL_ParticleEffect2(te.pos1, te.dir, te.color, te.count);
-
-        ex = CL_AllocExplosion();
-        VectorCopy(te.pos1, ex->ent.origin);
-        ex->type = explosion_t::ex_flash;
-        // note to self
-        // we need a better no draw flag
-        ex->ent.flags = RF_BEAM;
-        ex->start = cl.servertime - CL_FRAMETIME;
-        ex->light = 100 + (Q_rand() % 75);
-        ex->lightcolor[0] = 1.0f;
-        ex->lightcolor[1] = 1.0f;
-        ex->lightcolor[2] = 0.3f;
-        ex->ent.model = cl_mod_flash;
-        ex->frames = 2;
-        break;
-
-    case TE_GREENBLOOD:
-        CL_ParticleEffect2(te.pos1, te.dir, 0xdf, 30);
-        break;
-
-    case TE_TUNNEL_SPARKS:
-        CL_ParticleEffect3(te.pos1, te.dir, te.color, te.count);
-        break;
-
-    case TE_LIGHTNING:
-        S_StartSound(NULL, te.entity1, CHAN_WEAPON, cl_sfx_lightning, 1, ATTN_NORM, 0);
-        VectorClear(te.offset);
-        CL_ParseBeam(cl_mod_lightning);
-        break;
-
-    case TE_DEBUGTRAIL:
-        CL_DebugTrail(te.pos1, te.pos2);
-        break;
-
-    case TE_PLAIN_EXPLOSION:
-        CL_PlainExplosion(false);
-        break;
-
-    case TE_FLASHLIGHT:
-        CL_Flashlight(te.entity1, te.pos1);
-        break;
-
-    case TE_FORCEWALL:
-        CL_ForceWall(te.pos1, te.pos2, te.color);
-        break;
-
-    case TE_HEATBEAM:
-        VectorSet(te.offset, 2, 7, -3);
-        CL_ParsePlayerBeam(cl_mod_heatbeam);
-        break;
-
-    case TE_MONSTER_HEATBEAM:
-        VectorClear(te.offset);
-        CL_ParsePlayerBeam(cl_mod_heatbeam);
-        break;
-
-    case TE_HEATBEAM_SPARKS:
-        CL_ParticleSteamEffect(te.pos1, te.dir, 0x8, 50, 60);
-        S_StartSound(te.pos1,  0, 0, cl_sfx_lashit, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_HEATBEAM_STEAM:
-        CL_ParticleSteamEffect(te.pos1, te.dir, 0xE0, 20, 60);
-        S_StartSound(te.pos1,  0, 0, cl_sfx_lashit, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_STEAM:
-        CL_ParseSteam();
-        break;
-
-    case TE_BUBBLETRAIL2:
-        CL_BubbleTrail2(te.pos1, te.pos2, 8);
-        S_StartSound(te.pos1,  0, 0, cl_sfx_lashit, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_MOREBLOOD:
-        CL_ParticleEffect(te.pos1, te.dir, 0xe8, 250);
-        break;
-
-    case TE_CHAINFIST_SMOKE:
-        VectorSet(te.dir, 0, 0, 1);
-        CL_ParticleSmokeEffect(te.pos1, te.dir, 0, 20, 20);
-        break;
-
-    case TE_ELECTRIC_SPARKS:
-        CL_ParticleEffect(te.pos1, te.dir, 0x75, 40);
-        //FIXME : replace or remove this sound
-        S_StartSound(te.pos1, 0, 0, cl_sfx_lashit, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_TRACKER_EXPLOSION:
-        CL_ColorFlash(te.pos1, 0, 150, -1, -1, -1);
-        CL_ColorExplosionParticles(te.pos1, 0, 1);
-        S_StartSound(te.pos1, 0, 0, cl_sfx_disrexp, 1, ATTN_NORM, 0);
-        break;
-
-    case TE_TELEPORT_EFFECT:
-    case TE_DBALL_GOAL:
-        CL_TeleportParticles(te.pos1);
-        break;
-
-    case TE_WIDOWBEAMOUT:
-        CL_ParseWidow();
-        break;
-
-    case TE_NUKEBLAST:
-        CL_ParseNuke();
-        break;
-
-    case TE_WIDOWSPLASH:
-        CL_WidowSplash();
-        break;
-
-    default:
-        Com_Error(ERR_DROP, "%s: bad type", __func__);
-    }
-}
-
-/*
-=================
-CL_AddTEnts
-=================
-*/
-void CL_AddTEnts(void)
-{
-    CL_AddBeams();
-    CL_AddPlayerBeams();
-    CL_AddExplosions();
-    CL_ProcessSustain();
-    CL_AddLasers();
-}
-
-/*
-=================
-CL_ClearTEnts
-=================
-*/
-void CL_ClearTEnts(void)
-{
-    CL_ClearBeams();
-    CL_ClearExplosions();
-    CL_ClearLasers();
-    CL_ClearSustains();
-}
-
-void CL_InitTEnts(void)
-{
-    cl_railtrail_type = Cvar_Get("cl_railtrail_type", "0", 0);
-    cl_railtrail_time = Cvar_Get("cl_railtrail_time", "1.0", 0);
-    cl_railtrail_time->changed = cl_timeout_changed;
-    cl_railtrail_time->changed(cl_railtrail_time);
-    cl_railcore_color = Cvar_Get("cl_railcore_color", "red", 0);
-    cl_railcore_color->changed = cl_railcore_color_changed;
-    cl_railcore_color->generator = Com_Color_g;
-    cl_railcore_color_changed(cl_railcore_color);
-    cl_railcore_width = Cvar_Get("cl_railcore_width", "2", 0);
-    cl_railspiral_color = Cvar_Get("cl_railspiral_color", "blue", 0);
-    cl_railspiral_color->changed = cl_railspiral_color_changed;
-    cl_railspiral_color->generator = Com_Color_g;
-    cl_railspiral_color_changed(cl_railspiral_color);
-    cl_railspiral_radius = Cvar_Get("cl_railspiral_radius", "3", 0);
-}
 

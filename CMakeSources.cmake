@@ -122,9 +122,12 @@ SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SHAREDGAME
+	baseq2rtxp/sharedgame/sg_cmd_messages.h
 	baseq2rtxp/sharedgame/sg_gamemode.h
+	baseq2rtxp/sharedgame/sg_local.h
 	baseq2rtxp/sharedgame/sg_pmove.h
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.h
+	baseq2rtxp/sharedgame/sg_shared.h
 	baseq2rtxp/sharedgame/sg_time.h
 )
 #	BaseQ2RTXP ClientGame
@@ -133,11 +136,22 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/sharedgame/game_bindings/sg_binding_clgame.cpp
 
 	# ClientGame
-	baseq2rtxp/clgame/clg_main.cpp
+	baseq2rtxp/clgame/clg_effects.cpp
+	baseq2rtxp/clgame/clg_entities.cpp
 	baseq2rtxp/clgame/clg_gamemode.cpp
+	baseq2rtxp/clgame/clg_main.cpp
 	baseq2rtxp/clgame/clg_parse.cpp
 	baseq2rtxp/clgame/clg_precache.cpp
 	baseq2rtxp/clgame/clg_predict.cpp
+	baseq2rtxp/clgame/clg_temp_entities.cpp
+	baseq2rtxp/clgame/clg_view.cpp
+
+	baseq2rtxp/clgame/effects/clg_fx_dynamiclights.cpp
+	baseq2rtxp/clgame/effects/clg_fx_lightstyles.cpp
+	baseq2rtxp/clgame/effects/clg_fx_muzzleflash.cpp
+	baseq2rtxp/clgame/effects/clg_fx_muzzleflash2.cpp
+	baseq2rtxp/clgame/effects/clg_fx_particles.cpp
+	baseq2rtxp/clgame/effects/clg_fx_new.cpp
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_local.h

@@ -206,7 +206,7 @@ float SCR_FadeAlpha(unsigned startTime, unsigned visTime, unsigned fadeTime)
     return alpha;
 }
 
-bool SCR_ParseColor(const char *s, color_t *color)
+const bool SCR_ParseColor(const char *s, color_t *color)
 {
     int i;
     int c[8];
@@ -532,7 +532,18 @@ typedef struct {
 
 static LIST_DECL(scr_objects);
 
-static void SCR_Color_g(genctx_t *ctx)
+/**
+*   @return A lowercase string matching the textual name of the color for colorIndex. 
+**/
+const char *SCR_GetColorName( const color_index_t colorIndex ) {
+    if ( colorIndex >= 0 && colorIndex < COLOR_COUNT ) {
+        return colorNames[ colorIndex ];
+    }
+
+    return nullptr;
+}
+
+void SCR_Color_g(genctx_t *ctx)
 {
     int color;
 

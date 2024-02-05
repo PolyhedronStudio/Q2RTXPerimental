@@ -1,7 +1,5 @@
 #pragma once
 
-// Include needed shared refresh types.
-#include "refresh/shared_types.h"
 
 /**
 *
@@ -49,16 +47,149 @@ typedef struct explosion_s {
     int64_t     frametime;
 } explosion_t;
 
+#define NOPART_GRENADE_EXPLOSION    1
+#define NOPART_GRENADE_TRAIL        2
+#define NOPART_ROCKET_EXPLOSION     4
+#define NOPART_ROCKET_TRAIL         8
+#define NOPART_BLOOD                16
 
+
+
+/**
+*
+*
+*   Particles:
+*
+*
+**/
+#define PARTICLE_GRAVITY        120
+#define BLASTER_PARTICLE_COLOR  0xe0
+#define INSTANT_PARTICLE    -10000.0f
+
+typedef struct cparticle_s {
+    struct cparticle_s *next;
+
+    double   time;
+
+    vec3_t  org;
+    vec3_t  vel;
+    vec3_t  accel;
+    int     color;      // -1 => use rgba
+    float   alpha;
+    float   alphavel;
+    color_t rgba;
+    float   brightness;
+} cparticle_t;
+
+
+
+/**
+*
+*
+*   Dynamic Lights:
+*
+*
+**/
+typedef struct cdlight_s {
+    int32_t key;        // so entities can reuse same entry
+    vec3_t  color;
+    vec3_t  origin;
+    float   radius;
+    float   die;        // stop lighting after this time
+    float   decay;      // drop this each second
+    vec3_t  velosity;     // move this far each second
+} cdlight_t;
+
+#define DLHACK_ROCKET_COLOR         1
+#define DLHACK_SMALLER_EXPLOSION    2
+#define DLHACK_NO_MUZZLEFLASH       4
 //extern explosion_t  cl_explosions[ MAX_EXPLOSIONS ];
+
+
+
+/**
+*
+*
+*   Sustains:
+*
+*
+**/
+typedef struct cl_sustain_s {
+    int     id;
+    int     type;
+    int     endtime;
+    int64_t nextthink;
+    vec3_t  org;
+    vec3_t  dir;
+    int     color;
+    int     count;
+    int     magnitude;
+    void    ( *think )( struct cl_sustain_s *self );
+} cl_sustain_t;
+
+
+
+/**
+*
+*
+*   Server Events/Frames/Messages:
+*
+* 
+**/
+/**
+*   @brief  Contains, if valid, snapshots of the player state and the range of
+*           entity_state_t entities that were in the current frame.
+**/
+typedef struct server_frame_s {
+    bool            valid;
+
+    //! Sequential identifier, used for delta.
+    int64_t         number;
+    //! Delta frame identifier, negatives indicate no delta.
+    int64_t         delta;
+
+    //! Visibility area bits and bytes.
+    byte            areabits[ MAX_MAP_AREA_BYTES ];
+    int32_t         areabytes;
+
+    //! A snapshot of the player's state during this frame.
+    player_state_t  ps;
+    //! The client number that this frame belongs to.
+    int32_t         clientNum;
+
+    //! The number of entities in the frame.
+    int32_t         numEntities;
+    //! Non-masked index into cl.entityStates array
+    uint32_t        firstEntity;
+} server_frame_t;
+
+// locally calculated frame flags for debug display
+#define FF_SERVERDROP   (1<<4)
+#define FF_BADFRAME     (1<<5)
+#define FF_OLDFRAME     (1<<6)
+#define FF_OLDENT       (1<<7)
+#define FF_NODELTA      (1<<8)
+
+// Variable client FPS
+#define CL_FRAMETIME    BASE_FRAMETIME
+#define CL_1_FRAMETIME  BASE_1_FRAMETIME
+
+
 
 /**
 *
 *
 *   Client State:
 *
-* 
+*
 **/
+//! These are constants for cl_player_model cvar.
+#define CL_PLAYER_MODEL_DISABLED     0
+#define CL_PLAYER_MODEL_ONLY_GUN     1
+#define CL_PLAYER_MODEL_FIRST_PERSON 2
+#define CL_PLAYER_MODEL_THIRD_PERSON 3
+
+// Max client weapon models.
 #define MAX_CLIENTWEAPONMODELS        20        // PGM -- upped from 16 to fit the chainfist vwep
 
 /**
@@ -146,44 +277,38 @@ typedef struct client_predicted_state_s {
     Vector3 error;
 } client_predicted_state_t;
 
-/**
-*   @brief  Contains, if valid, snapshots of the player state and the range of
-*           entity_state_t entities that were in the current frame.
-**/
-typedef struct server_frame_s {
-    bool            valid;
+//
+// parse.c
+//
+typedef struct {
+    int32_t type;
+    vec3_t  pos1;
+    vec3_t  pos2;
+    vec3_t  offset;
+    vec3_t  dir;
+    int32_t count;
+    int32_t color;
+    int32_t entity1;
+    int32_t entity2;
+    int32_t time;
+} tent_params_t;
 
-    //! Sequential identifier, used for delta.
-    int64_t         number;
-    //! Delta frame identifier, negatives indicate no delta.
-    int64_t         delta;
+typedef struct {
+    int32_t entity;
+    int32_t weapon;
+    bool silenced;
+} mz_params_t;
 
-    //! Visibility area bits and bytes.
-    byte            areabits[ MAX_MAP_AREA_BYTES ];
-    int32_t         areabytes;
-
-    //! A snapshot of the player's state during this frame.
-    player_state_t  ps;
-    //! The client number that this frame belongs to.
-    int32_t         clientNum;
-
-    //! The number of entities in the frame.
-    int32_t         numEntities;
-    //! Non-masked index into cl.entityStates array
-    uint32_t        firstEntity;
-} server_frame_t;
-
-// locally calculated frame flags for debug display
-#define FF_SERVERDROP   (1<<4)
-#define FF_BADFRAME     (1<<5)
-#define FF_OLDFRAME     (1<<6)
-#define FF_OLDENT       (1<<7)
-#define FF_NODELTA      (1<<8)
-
-// Variable client FPS
-#define CL_FRAMETIME    BASE_FRAMETIME
-#define CL_1_FRAMETIME  BASE_1_FRAMETIME
-
+typedef struct {
+    int32_t flags;
+    int32_t index;
+    int32_t entity;
+    int32_t channel;
+    vec3_t  pos;
+    float   volume;
+    float   attenuation;
+    float   timeofs;
+} snd_params_t;
 
 /**
  *  @brief  The client state structure is cleared at each level load, and is exposed to
@@ -266,13 +391,15 @@ typedef struct client_state_s {
     server_frame_t	frames[ UPDATE_BACKUP ];
     uint32_t		frameflags;
 
-    //! Last/Currently received from server:
+    //! Last(old)/Currently(frame) frames received from the server:
     server_frame_t	frame;
     server_frame_t	oldframe;
+    //! The server game time of the last received valid frame.
     int64_t			servertime;
+    //! 
     int64_t			serverdelta;
     
-    //! This is the 'moment-in-time' value that the client is rendering at.
+    //! This is the 'moment-in-time' value that the client is interpolating at.
     //! Always <= cl.servertime
     int64_t     time;
     //! The current "lerp" -fraction between 'oldframe' and 'frame'
@@ -295,17 +422,35 @@ typedef struct client_state_s {
     //! Predicted values, used for smooth player entity movement in thirdperson view.
     vec3_t      playerEntityOrigin;
     vec3_t      playerEntityAngles;
-
+    /**
+    *   @brief  Gets properly configured by the client game, when V_RenderView is called upon,
+    *           and then passes on the data to the refresh render module.
+    **/
+    struct {
+        //! Refresh dynamic lights.
+        int32_t     r_numdlights;
+        dlight_t    r_dlights[ MAX_DLIGHTS ];
+        //! Refresh entities.
+        int32_t     r_numentities;
+        entity_t    r_entities[ MAX_ENTITIES ];
+        //! Refresh particles.
+        int32_t     r_numparticles;
+        particle_t  r_particles[ MAX_PARTICLES ];
+        //! Refresh lightstyles.
+        lightstyle_t    r_lightstyles[ MAX_LIGHTSTYLES ];
+    } viewScene;
 
     /**
     *
     *   Transient data from server.
     *
     **/
-    //! General 2D overlay cmd script.
+    //! Parsed layout event data, this is a general 2D overlay cmd script.
     char		layout[ MAX_NET_STRING ];
+    //! Parsed inventory event data.
     int32_t		inventory[ MAX_ITEMS ];
-
+    //! Parsed sound event parameters.
+    snd_params_t     snd;
 
     /**
     *
@@ -326,6 +471,7 @@ typedef struct client_state_s {
     // Received pmove configuration.
     pmoveParams_t pmp;
 
+    // Configstrings.
     configstring_t baseconfigstrings[ MAX_CONFIGSTRINGS ];
     configstring_t configstrings[ MAX_CONFIGSTRINGS ];
     char		mapname[ MAX_QPATH ]; // short format - q2dm1, etc
@@ -342,21 +488,24 @@ typedef struct client_state_s {
     //       Essentially we don't want to include common in these parts of the code.
     #ifndef BSP_H
     struct bsp_t *bsp;
-
+    //! Refresh handle buffer for all precached models.
     qhandle_t model_draw[ MAX_MODELS ];
+    //! PACKED_BSP clip models
     struct mmodel_t *model_clip[ MAX_MODELS ];
-
     #else
     bsp_t *bsp;
-
     qhandle_t model_draw[ MAX_MODELS ];
     mmodel_t *model_clip[ MAX_MODELS ];
     #endif
 
+    //! Buffer of unique indexed precached sounds.
     qhandle_t sound_precache[ MAX_SOUNDS ];
+    //! Buffer of unique indexed precached images.
     qhandle_t image_precache[ MAX_IMAGES ];
 
+    //! Client info for each connected client in the game.
     clientinfo_t clientinfo[ MAX_CLIENTS ];
+    //! Baseline client info.
     clientinfo_t baseclientinfo;
 
     char	weaponModels[ MAX_CLIENTWEAPONMODELS ][ MAX_QPATH ];
@@ -382,7 +531,7 @@ typedef struct client_state_s {
 } client_state_t;
 
 
-typedef enum {
+typedef enum connstate_s {
     ca_uninitialized,
     ca_disconnected,    // not talking to a server
     ca_challenging,     // sending getchallenge packets to the server
@@ -394,57 +543,10 @@ typedef enum {
     ca_cinematic        // running a cinematic
 } connstate_t;
 
-#define NOPART_GRENADE_EXPLOSION    1
-#define NOPART_GRENADE_TRAIL        2
-#define NOPART_ROCKET_EXPLOSION     4
-#define NOPART_ROCKET_TRAIL         8
-#define NOPART_BLOOD                16
-
-#define DLHACK_ROCKET_COLOR         1
-#define DLHACK_SMALLER_EXPLOSION    2
-#define DLHACK_NO_MUZZLEFLASH       4
-
-#define CL_PLAYER_MODEL_DISABLED     0
-#define CL_PLAYER_MODEL_ONLY_GUN     1
-#define CL_PLAYER_MODEL_FIRST_PERSON 2
-#define CL_PLAYER_MODEL_THIRD_PERSON 3
-
-//
-// effects.c
-//
-#define PARTICLE_GRAVITY        120
-#define BLASTER_PARTICLE_COLOR  0xe0
-#define INSTANT_PARTICLE    -10000.0f
-
-typedef struct cparticle_s {
-    struct cparticle_s *next;
-
-    double   time;
-
-    vec3_t  org;
-    vec3_t  vel;
-    vec3_t  accel;
-    int     color;      // -1 => use rgba
-    float   alpha;
-    float   alphavel;
-    color_t rgba;
-    float   brightness;
-} cparticle_t;
-
-typedef struct cdlight_s {
-    int     key;        // so entities can reuse same entry
-    vec3_t  color;
-    vec3_t  origin;
-    float   radius;
-    float   die;        // stop lighting after this time
-    float   decay;      // drop this each second
-    vec3_t  velosity;     // move this far each second
-} cdlight_t;
-
 //
 // precache.c
 //
-typedef enum {
+typedef enum load_state_s {
     LOAD_NONE,
     LOAD_MAP,
     LOAD_MODELS,
@@ -453,35 +555,3 @@ typedef enum {
     LOAD_SOUNDS
 } load_state_t;
 
-//
-// parse.c
-//
-typedef struct {
-    int type;
-    vec3_t pos1;
-    vec3_t pos2;
-    vec3_t offset;
-    vec3_t dir;
-    int count;
-    int color;
-    int entity1;
-    int entity2;
-    int time;
-} tent_params_t;
-
-typedef struct {
-    int entity;
-    int weapon;
-    bool silenced;
-} mz_params_t;
-
-typedef struct {
-    int     flags;
-    int     index;
-    int     entity;
-    int     channel;
-    vec3_t  pos;
-    float   volume;
-    float   attenuation;
-    float   timeofs;
-} snd_params_t;

@@ -23,7 +23,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 cvar_t  *rcon_address;
 
 cvar_t  *cl_noskins;
-cvar_t  *cl_footsteps;
 cvar_t  *cl_timeout;
 cvar_t  *cl_predict;
 cvar_t  *cl_gunalpha;
@@ -576,16 +575,14 @@ void CL_ClearState(void)
     S_StopAllSounds();
     OGG_Stop();
     SCR_StopCinematic();
-    CL_ClearEffects();
-    CL_ClearTEnts();
+
+    // Let the client game wipe state also.
+    clge->ClearState();
     LOC_FreeLocations();
 
     // wipe the entire cl structure
     BSP_Free(cl.bsp);
     memset(&cl, 0, sizeof(cl));
-
-    // Let the client game wipe state also.
-    clge->ClearState();
 
     if (cls.state > ca_connected) {
         cls.state = ca_connected;
@@ -2456,19 +2453,12 @@ static void CL_InitLocal(void)
     cls.state = ca_disconnected;
     cls.connect_time -= CONNECT_INSTANT;
 
-    // Load in the client game module.
-    CL_GM_LoadProgs();
-
-    // The pre-init phase is there for initializing various submodules.
-    // Do not expect to be able to access any cvars here just yet.
-    CL_GM_PreInit( );
-
     CL_RegisterInput();
     CL_InitDemos();
     LOC_Init();
     CL_InitAscii();
-    CL_InitEffects();
-    CL_InitTEnts();
+    //CL_InitEffects();
+    //CL_InitTEnts();
     CL_InitDownloads();
 
     List_Init(&cl_ignore_text);
@@ -2490,7 +2480,6 @@ static void CL_InitLocal(void)
     cl_gun_x = Cvar_Get("cl_gun_x", "0", 0);
     cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
     cl_gun_z = Cvar_Get("cl_gun_z", "0", 0);
-    cl_footsteps = Cvar_Get("cl_footsteps", "1", 0);
     cl_noskins = Cvar_Get("cl_noskins", "0", 0);
     cl_noskins->changed = cl_noskins_changed;
     cl_predict = Cvar_Get("cl_predict", "1", 0);
@@ -2664,6 +2653,17 @@ void CL_Activate(active_t active)
     }
 }
 
+/**
+ * @brief Updates the interpolation fraction for the current client frame.
+ * Because the client often runs at a higher framerate than the server, we
+ * use linear interpolation between the last 2 server frames. We aim to reach
+ * the current server time just as a new packet arrives.
+ *
+ * @remarks The client advances its simulation time each frame, by the elapsed
+ * millisecond delta. Here, we clamp the simulation time to be within the
+ * range of the current frame. Even under ideal conditions, it's likely that
+ * clamping will occur due to e.g. network jitter.
+ */
 static void CL_SetClientTime(void)
 {
     int prevtime;
@@ -3095,6 +3095,13 @@ void CL_Init(void)
     if (cl_running->integer) {
         return;
     }
+
+    // Load in the client game module.
+    CL_GM_LoadProgs();
+
+    // The pre-init phase is there for initializing various submodules.
+    // Do not expect to be able to access any cvars here just yet.
+    CL_GM_PreInit();
 
     // all archived variables will now be loaded
 

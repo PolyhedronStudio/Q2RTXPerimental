@@ -551,7 +551,6 @@ extern cvar_t    *cl_gun_x;
 extern cvar_t    *cl_gun_y;
 extern cvar_t    *cl_gun_z;
 extern cvar_t    *cl_predict;
-extern cvar_t    *cl_footsteps;
 extern cvar_t    *cl_noskins;
 extern cvar_t    *cl_kickangles;
 extern cvar_t    *cl_rollhack;
@@ -668,7 +667,7 @@ void CL_RegisterSounds(void);
 void CL_RegisterBspModels(void);
 void CL_RegisterVWepModels(void);
 void CL_PrepRefresh(void);
-void CL_UpdateConfigstring(int index);
+void CL_UpdateConfigstring( const int32_t index);
 
 
 //
@@ -706,7 +705,6 @@ void CL_SendCmd(void);
 //
 extern tent_params_t    te;
 extern mz_params_t      mz;
-extern snd_params_t     snd;
 
 void CL_ParseServerMessage(void);
 void CL_SeekDemoMessage(void);
@@ -715,9 +713,33 @@ void CL_SeekDemoMessage(void);
 //
 // entities.c
 //
-void CL_DeltaFrame(void);
-void CL_AddEntities(void);
-void CL_CalcViewValues(void);
+/**
+*   @brief  Called after finished parsing the frame data. All entity states and the
+*           player state will be updated, and checked for 'snapping to' their new state,
+*           or to smoothly lerp into it. It'll check for any prediction errors afterwards
+*           also and calculate its correction value.
+*
+*           Will switch the clientstatic state to 'ca_active' if it is the first
+*           parsed valid frame and the client is done precaching all data.
+**/
+void CL_DeltaFrame( void );
+/**
+*   @brief  Prepares the current frame's view scene for the refdef by
+*           emitting all frame data(entities, particles, dynamic lights, lightstyles,
+*           and temp entities) to the refresh definition.
+**/
+void CL_PrepareViewEntities( void );
+/**
+*   @brief  Sets cl.refdef view values and sound spatialization params.
+*           Usually called from CL_PrepareViewEntities, but may be directly called from the main
+*           loop if rendering is disabled but sound is running.
+**/
+void CL_CalcViewValues( void );
+/**
+*   @brief  Sets up a firstperson or thirdperson view. Depending on what is desired.
+**/
+void CL_FinishViewValues( void );
+
 
 #if USE_DEBUG
 void CL_CheckEntityPresent(int entnum, const char *what);
@@ -750,27 +772,16 @@ void V_AddLightStyle(int style, float value);
 // tent.c
 //
 
-typedef struct cl_sustain_s {
-    int     id;
-    int     type;
-    int     endtime;
-    int64_t nextthink;
-    vec3_t  org;
-    vec3_t  dir;
-    int     color;
-    int     count;
-    int     magnitude;
-    void    (*think)(struct cl_sustain_s *self);
-} cl_sustain_t;
+
 
 void CL_SmokeAndFlash(const vec3_t origin);
 
 void CL_RegisterTEntSounds(void);
 void CL_RegisterTEntModels(void);
-void CL_ParseTEnt(void);
-void CL_AddTEnts(void);
-void CL_ClearTEnts(void);
-void CL_InitTEnts(void);
+//void CL_ParseTEnt(void);
+//void CL_AddTEnts(void);
+//void CL_ClearTEnts(void);
+//void CL_InitTEnts(void);
 
 
 //
@@ -804,8 +815,8 @@ void CL_DiminishingTrail(const vec3_t start, const vec3_t end, centity_t *old, i
 void CL_FlyEffect(centity_t *ent, const vec3_t origin);
 void CL_BfgParticles(entity_t *ent);
 void CL_ItemRespawnParticles(const vec3_t org);
-void CL_InitEffects(void);
-void CL_ClearEffects(void);
+//void CL_InitEffects(void);
+//void CL_ClearEffects(void);
 void CL_BlasterParticles(const vec3_t org, const vec3_t dir);
 void CL_ExplosionParticles(const vec3_t org);
 void CL_BFGExplosionParticles(const vec3_t org);
@@ -813,8 +824,8 @@ void CL_BlasterTrail(const vec3_t start, const vec3_t end);
 void CL_OldRailTrail(void);
 void CL_BubbleTrail(const vec3_t start, const vec3_t end);
 void CL_FlagTrail(const vec3_t start, const vec3_t end, int color);
-void CL_MuzzleFlash(void);
-void CL_MuzzleFlash2(void);
+//void CL_MuzzleFlash(void);
+//void CL_MuzzleFlash2(void);
 void CL_TeleporterParticles(const vec3_t org);
 void CL_TeleportParticles(const vec3_t org);
 void CL_ParticleEffect(const vec3_t org, const vec3_t dir, int color, int count);
@@ -824,10 +835,10 @@ void CL_ParticleEffect2(const vec3_t org, const vec3_t dir, int color, int count
 cparticle_t *CL_AllocParticle(void);
 void CL_RunParticles(void);
 void CL_AddParticles(void);
-cdlight_t *CL_AllocDlight(int key);
-void CL_AddDLights(void);
-void CL_SetLightStyle(int index, const char *s);
-void CL_AddLightStyles(void);
+//cdlight_t *CL_AllocDlight(int key);
+//void CL_AddDLights(void);
+//void CL_SetLightStyle(int index, const char *s);
+//void CL_AddLightStyles(void);
 
 //
 // newfx.c
@@ -941,6 +952,10 @@ void    SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen, const char *
 
 void    SCR_ClearChatHUD_f(void);
 void    SCR_AddToChatHUD(const char *text);
+/**
+*   @return A lowercase string matching the textual name of the color for colorIndex.
+**/
+const char *SCR_GetColorName( const color_index_t colorIndex );
 
 //
 // cin.c

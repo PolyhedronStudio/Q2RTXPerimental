@@ -1013,8 +1013,8 @@ static void CL_Seek_f(void)
 
     // TODO: Move these two over to client game dll.
     // clear old effects
-    CL_ClearEffects();
-    CL_ClearTEnts();
+    //CL_ClearEffects();
+    //CL_ClearTEnts();
     
     // Clear old local entities and effects.
     clge->ClearState();

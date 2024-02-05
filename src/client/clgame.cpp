@@ -25,6 +25,14 @@ static const bool PF_IsDemoPlayback( ) {
 static const uint64_t PF_GetRealTime() {
 	return cls.realtime;
 }
+static const int32_t PF_GetConnectionState() {
+	return cls.state;
+}
+static const ref_type_t PF_GetRefreshType() {
+	return cls.ref_type;
+}
+
+
 
 /**
 *
@@ -43,6 +51,9 @@ static configstring_t *PF_GetConfigString( const int32_t configStringIndex ) {
 	}
 	return &cl.configstrings[ configStringIndex ];
 }
+
+
+
 /**
 * 
 * 
@@ -68,7 +79,25 @@ static cvar_t *PF_CVar( const char *name, const char *value, const int32_t flags
 static cvar_t *PF_CVarGet( const char *name, const char *value, const int32_t flags ) {
 	return Cvar_Get( name, value, flags );
 }
+/**
+*	@brief	Resets cvar to default value.
+**/
+static void PF_Cvar_Reset( cvar_t *cvar ) {
+	Cvar_Reset( cvar );
+}
 
+
+
+/**
+*
+*
+*	Rendering:
+*
+* 
+**/
+const qhandle_t PF_R_RegisterModel( const char *name ) {
+	return R_RegisterModel( name );
+}
 
 /**
 * 
@@ -283,13 +312,19 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.IsDemoPlayback = PF_IsDemoPlayback;
 	imports.GetRealTime = PF_GetRealTime;
+	imports.GetConnectionState = PF_GetConnectionState;
+	imports.GetRefreshType = PF_GetRefreshType;
 
 	imports.GetConfigString = PF_GetConfigString;
+
+	imports.SCR_GetColorName = SCR_GetColorName;
+	imports.SCR_ParseColor = SCR_ParseColor;
 
 	imports.CVar = PF_CVar;
 	imports.CVar_Get = PF_CVarGet;
 	imports.CVar_Set = Cvar_UserSet;
 	imports.CVar_ForceSet = Cvar_Set;
+	imports.CVar_Reset = PF_Cvar_Reset;
 
 	imports.Print = PF_Print;
 	imports.Error = PF_Error;
@@ -320,6 +355,24 @@ void CL_GM_LoadProgs( void ) {
 	imports.Trace = CL_Trace;
 	imports.Clip = CL_Clip;
 	imports.PointContents = CL_PointContents;
+
+	imports.Prompt_AddMatch = Prompt_AddMatch;
+
+	imports.R_RegisterModel = PF_R_RegisterModel;
+
+	imports.S_StartSound = S_StartSound;
+	imports.S_StartLocalSound = S_StartLocalSound;
+	imports.S_StartLocalSoundOnce = S_StartLocalSoundOnce;
+	imports.S_StopAllSounds = S_StopAllSounds;
+	imports.S_RegisterSound = S_RegisterSound;
+
+	imports.V_AddEntity = V_AddEntity;
+	imports.V_AddParticle = V_AddParticle;
+	imports.V_AddSphereLight = V_AddSphereLight;
+	imports.V_AddSpotLight = V_AddSpotLight;
+	imports.V_AddSpotLightTexEmission = V_AddSpotLightTexEmission;
+	imports.V_AddLight = V_AddLight;
+	imports.V_AddLightStyle = V_AddLightStyle;
 
 	#if USE_DEBUG
 	// ShowNet

@@ -33,25 +33,26 @@ extern "C" {
 
 #define ALIAS_LOOP_COUNT    16
 
-// where did current command come from?
-typedef enum {
-    FROM_STUFFTEXT,
-    FROM_RCON,
-    FROM_MENU,
-    FROM_CONSOLE,
-    FROM_CMDLINE,
-    FROM_CODE
-} from_t;
-
-typedef struct cmdbuf_s {
-    from_t      from;
-    char        *text; // may not be NULL terminated
-    size_t      cursize;
-    size_t      maxsize;
-    int64_t     waitCount;
-	int64_t		aliasCount; // for detecting runaway loops
-    void        (*exec)(struct cmdbuf_s *, const char *);
-} cmdbuf_t;
+// Moved to shared.h
+//// where did current command come from?
+//typedef enum {
+//    FROM_STUFFTEXT,
+//    FROM_RCON,
+//    FROM_MENU,
+//    FROM_CONSOLE,
+//    FROM_CMDLINE,
+//    FROM_CODE
+//} from_t;
+//
+//typedef struct cmdbuf_s {
+//    from_t      from;
+//    char        *text; // may not be NULL terminated
+//    size_t      cursize;
+//    size_t      maxsize;
+//    int64_t     waitCount;
+//	int64_t		aliasCount; // for detecting runaway loops
+//    void        (*exec)(struct cmdbuf_s *, const char *);
+//} cmdbuf_t;
 
 // generic console buffer
 extern char         cmd_buffer_text[CMD_BUFFER_SIZE];
@@ -93,37 +94,38 @@ Command execution takes a null terminated string, breaks it into tokens,
 then searches for a command or variable that matches the first token.
 */
 
-typedef struct genctx_s {
-    const char  *partial;
-    size_t length;
-    int argnum;
-    char **matches;
-    int count, size;
-    void *data;
-    bool ignorecase;
-    bool ignoredups;
-} genctx_t;
+//typedef struct genctx_s {
+//    const char  *partial;
+//    size_t length;
+//    int argnum;
+//    char **matches;
+//    int count, size;
+//    void *data;
+//    bool ignorecase;
+//    bool ignoredups;
+//} genctx_t;
+//
+////typedef void (*xcommand_t)(void); -> Moved to shared.h
+//typedef void (*xcommandex_t)(cmdbuf_t *);
+//typedef size_t (*xmacro_t)(char *, size_t);
+////typedef void (*xcompleter_t)(struct genctx_s *, int); -> Moved to shared.h
 
-typedef void (*xcommand_t)(void);
-typedef void (*xcommandex_t)(cmdbuf_t *);
-typedef size_t (*xmacro_t)(char *, size_t);
-typedef void (*xcompleter_t)(struct genctx_s *, int);
+//typedef struct cmd_macro_s {
+//    struct cmd_macro_s  *next, *hashNext;
+//    const char          *name;
+//    xmacro_t            function;
+//} cmd_macro_t;
+//
+//typedef struct {
+//    const char *sh, *lo, *help;
+//} cmd_option_t;
 
-typedef struct cmd_macro_s {
-    struct cmd_macro_s  *next, *hashNext;
-    const char          *name;
-    xmacro_t            function;
-} cmd_macro_t;
-
-typedef struct {
-    const char *sh, *lo, *help;
-} cmd_option_t;
-
-typedef struct cmdreg_s {
-    const char      *name;
-    xcommand_t      function;
-    xcompleter_t    completer;
-} cmdreg_t;
+// Moved to shared.h
+//typedef struct cmdreg_s {
+//    const char      *name;
+//    xcommand_t      function;
+//    xcompleter_t    completer;
+//} cmdreg_t;
 
 void Cmd_Init(void);
 

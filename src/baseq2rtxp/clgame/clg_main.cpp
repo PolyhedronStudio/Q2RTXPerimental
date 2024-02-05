@@ -7,15 +7,7 @@
 ********************************************************************/
 #include "clg_local.h"
 
-struct game_locals_t {
-	//// store latched cvars here that we want to get at often
-	//int32_t	maxclients;
-	int32_t	maxentities;
-};
 game_locals_t   game;
-struct level_locals_t {
-	// Nothing yet.
-};
 level_locals_t  level;
 clgame_import_t clgi;
 clgame_export_t	globals;
@@ -41,23 +33,28 @@ std::mt19937 mt_rand;
 *	CVars.
 **/
 #if USE_DEBUG
-cvar_t *developer;
+cvar_t *developer = nullptr;
 #endif
-cvar_t *cl_predict;
-cvar_t *cl_running;
-cvar_t *cl_paused;
-cvar_t *sv_running;
-cvar_t *sv_paused;
+cvar_t *cl_predict = nullptr;
+cvar_t *cl_running = nullptr;
+cvar_t *cl_paused = nullptr;
+cvar_t *sv_running = nullptr;
+cvar_t *sv_paused = nullptr;
 //cvar_t *gamemode;
 //cvar_t *maxclients;
 //cvar_t *maxspectators;
 //cvar_t *maxentities;
+cvar_t *cl_footsteps = nullptr;
+
+// Cheesy workaround for these two cvars initialized in client FX_Init
+cvar_t *cvar_pt_particle_emissive = nullptr;
+cvar_t *cl_particle_num_factor = nullptr;
 
 
 /**
 *	Other.
 **/
-centity_t *g_entities;
+centity_t *clg_entities = nullptr;
 
 
 /**
@@ -98,6 +95,10 @@ void PF_ShutdownGame( void ) {
 **/
 void PF_PreInitGame( void ) {
 	clgi.Print( print_type_t::PRINT_ALL, "==== PreInit ClientGame ====\n" );
+
+	// Initialize effects and temp entities.
+	CLG_InitEffects();
+	CLG_InitTEnts();
 }
 
 /**
@@ -131,6 +132,12 @@ void PF_InitGame( void ) {
 	//maxspectators = clgi.CVar( "maxspectators", "", 0 );
 	//maxentities = clgi.CVar( "maxentities", "", 0 );
 
+	cvar_pt_particle_emissive = clgi.CVar( "pt_particle_emissive", nullptr, 0 );
+	cl_particle_num_factor = clgi.CVar( "cl_particle_num_factor", nullptr, 0 );
+
+	cl_footsteps = clgi.CVar_Get( "cl_footsteps", "1", 0 );
+
+
 	/**
 	*	Allocate space for entities.
 	**/
@@ -138,8 +145,8 @@ void PF_InitGame( void ) {
 	//game.maxentities = maxentities->value;
 	//clamp( game.maxentities, (int)maxclients->value + 1, MAX_EDICTS );
 	game.maxentities = MAX_EDICTS;
-	g_entities = (centity_t *)clgi.TagMalloc( game.maxentities * sizeof( g_entities[ 0 ] ), TAG_CLGAME );
-	globals.entities = g_entities;
+	clg_entities = (centity_t *)clgi.TagMalloc( game.maxentities * sizeof( clg_entities[ 0 ] ), TAG_CLGAME );
+	globals.entities = clg_entities;
 	globals.max_entities = game.maxentities;
 
 	/**
@@ -170,7 +177,10 @@ void PF_InitGame( void ) {
 **/
 void PF_ClearState( void ) {
 	// Clear out client entities array.
-	memset( g_entities, 0, globals.entity_size * MAX_CLIENT_ENTITIES );
+	memset( clg_entities, 0, globals.entity_size * MAX_CLIENT_ENTITIES );
+
+	CLG_ClearTEnts();
+	CLG_ClearEffects();
 }
 
 
@@ -202,6 +212,7 @@ void PF_ClientConnected( void ) {
 void PF_ClientDisconnected( void ) {
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientDisconnected\n" );
 }
+
 
 
 /**
@@ -265,6 +276,9 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ClientConnected = PF_ClientConnected;
 		globals.ClientDisconnected = PF_ClientDisconnected;
 
+		globals.ClearViewScene = PF_ClearViewScene;
+		globals.PrepareViewEntities = PF_PrepareViewEntites;
+
 		globals.GetGamemodeName = PF_GetGamemodeName;
 
 		globals.AdjustViewHeight = PF_AdjustViewHeight;
@@ -274,9 +288,11 @@ extern "C" { // WID: C++20: extern "C".
 		//globals.PlayerMove = PF_PlayerMove;
 		globals.ConfigurePlayerMoveParameters = PF_ConfigurePlayerMoveParameters;
 
+		globals.UpdateConfigString = PF_UpdateConfigString;
 		globals.StartServerMessage = PF_StartServerMessage;
 		globals.ParseServerMessage = PF_ParseServerMessage;
 		globals.EndServerMessage = PF_EndServerMessage;
+		globals.SeekDemoMessage = PF_SeekDemoMessage;
 
 		globals.entity_size = sizeof( centity_t );
 

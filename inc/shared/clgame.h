@@ -50,6 +50,8 @@ extern "C" {
 typedef struct centity_s centity_t;
 //typedef struct gclient_s gclient_t;
 
+// Include needed shared refresh types.
+#include "refresh/shared_types.h"
 
 #ifndef CLGAME_INCLUDE
 //
@@ -155,13 +157,17 @@ typedef struct {
 	//! Client State. Shared with client game.
 	struct client_state_s *client;
 
+
+
 	/**
 	*
 	*	Client Static:
 	* 
 	**/
 	const bool ( *IsDemoPlayback )( );
-	const uint64_t( *GetRealTime )( );
+	const uint64_t ( *GetRealTime )( );
+	const int32_t ( *GetConnectionState )( );
+	const ref_type_t( *GetRefreshType )( );
 
 	/**
 	*
@@ -169,6 +175,18 @@ typedef struct {
 	*
 	**/
 	configstring_t *( *GetConfigString )( const int32_t index );
+
+
+
+	/**
+	*
+	*	Screen
+	*
+	**/
+	const char *( *SCR_GetColorName )( color_index_t colorIndex );
+	const bool ( *SCR_ParseColor )( const char *s, color_t *color );
+
+
 
 	/**
 	*
@@ -179,6 +197,9 @@ typedef struct {
 	cvar_t *( *CVar_Get )( const char *var_name, const char *value, const int32_t flags );
 	cvar_t *( *CVar_Set )( const char *var_name, const char *value );
 	cvar_t *( *CVar_ForceSet )( const char *var_name, const char *value );
+	void ( *CVar_Reset )( cvar_t *cvar );
+
+
 
 	/**
 	*
@@ -188,6 +209,8 @@ typedef struct {
 	void ( *q_printf( 2, 3 ) Print )( print_type_t printlevel, const char *fmt, ... );
 	void ( *q_noreturn q_printf( 1, 2 ) Error )( const char *fmt, ... );
 
+
+
 	/**
 	*
 	*	'Tag' Managed Memory Allocation:
@@ -196,6 +219,8 @@ typedef struct {
 	void *( *TagMalloc )( unsigned size, unsigned tag );
 	void ( *TagFree )( void *block );
 	void ( *FreeTags )( unsigned tag );
+
+
 
 	/**
 	*
@@ -277,6 +302,8 @@ typedef struct {
 	**/
 	void ( *MSG_ReadPos )( vec3_t pos, const bool decodeFromShort );
 	
+
+
 	/**
 	*
 	*	Clip Tracing:
@@ -285,6 +312,54 @@ typedef struct {
 	const trace_t ( *q_gameabi Trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask );
 	const trace_t ( *q_gameabi Clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const contents_t contentmask );
 	const contents_t ( *q_gameabi PointContents )( const vec3_t point );
+
+
+
+	/**
+	*
+	*	Command Prompt
+	*
+	**/
+	void ( *Prompt_AddMatch )( genctx_t *ctx, const char *s );
+
+
+	
+	/**
+	*
+	*	Refresh:
+	*
+	**/
+	const qhandle_t( *R_RegisterModel )( const char *name );
+
+
+
+	/**
+	*
+	*	Sound:
+	*
+	**/
+	void ( *S_StartSound )( const vec3_t origin, const int32_t entnum, const int32_t entchannel, const qhandle_t hSfx, const float vol, const float attenuation, const float timeofs );
+	void ( *S_StartLocalSound )( const char *s );
+	void ( *S_StartLocalSoundOnce )( const char *s );
+	void ( *S_StopAllSounds )( void );
+	qhandle_t( *S_RegisterSound )( const char *sample );
+
+
+
+	/**
+	*
+	*	Client View Scene
+	*
+	**/
+	void ( *V_AddEntity )( entity_t *ent );
+	void ( *V_AddParticle )( particle_t *p );
+	void ( *V_AddSphereLight )( const vec3_t org, float intensity, float r, float g, float b, float radius );
+	void ( *V_AddSpotLight )( const vec3_t org, const vec3_t dir, float intensity, float r, float g, float b, float width_angle, float falloff_angle );
+	void ( *V_AddSpotLightTexEmission )( const vec3_t org, const vec3_t dir, float intensity, float r, float g, float b, float width_angle, qhandle_t emission_tex );
+	void ( *V_AddLight )( const vec3_t org, float intensity, float r, float g, float b );
+	void ( *V_AddLightStyle )( int style, float value );
+
+
 
 	/**
 	*
@@ -295,9 +370,11 @@ typedef struct {
 	void ( *ShowClamp )( const int32_t level, const char *fmt, ... );
 	void ( *ShowMiss )( const char *fmt, ... );
 
+
+
 	/**
 	*
-	*	ClientCommand Parameter Access:
+	*	Client Command Parameter Access:
 	*
 	**/
     //int (*argc)(void);
@@ -335,6 +412,8 @@ typedef struct {
 	//! Called during client shutdown.
 	void ( *Shutdown )( void );
 
+
+
 	/**
 	*	Connecting and State:
 	**/
@@ -349,11 +428,14 @@ typedef struct {
 	//! the loading plague and starting to clear its state. (So it is still accessible.)
 	void ( *ClientDisconnected ) ( void );
 
+
+
 	/**
 	*	GameModes:
 	**/
 	//! Returns the string name of specified game mode ID.
 	const char *( *GetGamemodeName )( const int32_t gameModeID );
+
 
 	/**
 	*
@@ -375,11 +457,19 @@ typedef struct {
 	//! Setup the basic player move configuration parameters. (Used by server for new clients.)
 	void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
 
+
+
 	/**
 	*
 	*	Server Messages:
 	*
 	**/
+	/**
+	*	@brief	Gives the client game a chance to interscept and respond to configstring updates.
+	*			Returns true if interscepted.
+	**/
+	const bool ( *UpdateConfigString )( const int32_t index );
+
 	/**
 	*	@brief	Called by the client BEFORE all server messages have been parsed.
 	**/
@@ -400,6 +490,29 @@ typedef struct {
 	*	@return	True if the message was handled properly. False otherwise.
 	**/
 	const bool ( *SeekDemoMessage )( const int32_t serverMessage );
+
+	/**
+	*	@brief	Parsess entity events.
+	**/
+	void ( *ParseEntityEvent )( const int32_t entityNumber );
+
+
+	/**
+	*
+	*	Client View Scene:
+	*
+	**/
+	/**
+	*	@brief	
+	**/
+	void ( *ClearViewScene )( void );
+	/**
+	*   @brief  Prepares the current frame's view scene for the refdef by
+	*           emitting all frame data(entities, particles, dynamic lights, lightstyles,
+	*           and temp entities) to the refresh definition.
+	**/
+	void ( *PrepareViewEntities )( void );
+
 
 
 	/**
