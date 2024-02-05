@@ -170,11 +170,13 @@ static inline int clip16(int v)
     return ((v + 0x8000U) & ~0xFFFF) ? (v >> 31) ^ 0x7FFF : v;
 }
 
-#define S_IsFullVolume(ch) \
-    ((ch)->entnum == -1 || (ch)->entnum == listener_entnum || (ch)->dist_mult == 0)
+static inline const bool S_IsFullVolume( channel_t *ch ) { //
+    return ( ( ch )->entnum == -1 || ( ch )->entnum == listener_entnum || ( ch )->dist_mult == 0 );
+}
 
-#define S_IsUnderWater() \
-    (cls.state == ca_active && ( cl.frame.ps.rdflags | cl.predictedState.view.rdflags ) & RDF_UNDERWATER && s_underwater->integer)
+static inline const bool S_IsUnderWater() {
+    return ( cls.state == ca_active && ( cl.frame.ps.rdflags | cl.predictedState.view.rdflags ) & RDF_UNDERWATER && s_underwater->integer );
+}
 
 #define S_Malloc(x)     Z_TagMalloc(x, TAG_SOUND)
 #define S_CopyString(x) Z_TagCopyString(x, TAG_SOUND)

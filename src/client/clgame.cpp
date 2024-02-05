@@ -315,6 +315,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.MSG_ReadAngle16 = MSG_ReadAngle16;
 	imports.MSG_ReadAngleHalfFloat = MSG_ReadAngleHalfFloat;
 	imports.MSG_ReadDir8 = MSG_ReadDir8;
+	imports.MSG_ReadPos = MSG_ReadPos;
 
 	imports.Trace = CL_Trace;
 	imports.Clip = CL_Clip;

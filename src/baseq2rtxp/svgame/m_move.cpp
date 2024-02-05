@@ -313,7 +313,7 @@ void M_ChangeYaw(edict_t *ent)
     //    }
     //}
     // Clamp the yaw move speed.
-    move = QM_Clamp( move, -speed, speed );
+    move = QM_Clampf( move, -speed, speed );
     //if (move > 0) {
     //    if ( move > speed ) {
     //        move = speed;

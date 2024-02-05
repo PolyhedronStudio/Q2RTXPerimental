@@ -940,4 +940,16 @@ RMAPI const Vector3 QM_Vector3AngleMod( ConstVector3Ref v ) {
         QM_AngleMod( v.z )
     };
 }
+
+/**
+*   @brief  Will lerp between the euler angle, a2 and a1.
+**/
+RMAPI const Vector3 QM_Vector3LerpAngles( ConstVector3Ref angleVec2, ConstVector3Ref angleVec1, const float fraction ) {
+    return {
+        LerpAngle( angleVec2.x, angleVec1.x, fraction ),
+        LerpAngle( angleVec2.y, angleVec1.y, fraction ),
+        LerpAngle( angleVec2.z, angleVec1.z, fraction ),
+    };
+}
+
 #endif  // __cplusplus

@@ -272,6 +272,10 @@ typedef struct {
 	*	@brief	Reads a byte, and decodes it using it as an index into our directions table.
 	**/
 	void ( *MSG_ReadDir8 )( vec3_t dir );
+	/**
+	*	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
+	**/
+	void ( *MSG_ReadPos )( vec3_t pos, const bool decodeFromShort );
 	
 	/**
 	*
@@ -379,17 +383,24 @@ typedef struct {
 	/**
 	*	@brief	Called by the client BEFORE all server messages have been parsed.
 	**/
-	void ( *StartServerMessage )( );
+	void ( *StartServerMessage )( const bool isDemoPlayback );
 	/**
 	*	@brief	Called by the client AFTER all server messages have been parsed.
 	**/
-	void ( *EndServerMessage )( );
+	void ( *EndServerMessage )( const bool isDemoPlayback );
 	/**
 	*	@brief	Called by the client when it does not recognize the server message itself,
 	*			so it gives the client game a chance to handle and respond to it.
 	*	@return	True if the message was handled properly. False otherwise.
 	**/
 	const bool ( *ParseServerMessage )( const int32_t serverMessage );
+	/**
+	*	@brief	A variant of ParseServerMessage that skips over non-important action messages,
+	*			used for seeking in demos.
+	*	@return	True if the message was handled properly. False otherwise.
+	**/
+	const bool ( *SeekDemoMessage )( const int32_t serverMessage );
+
 
 	/**
 	*	Global variables shared between game and client.
@@ -401,7 +412,7 @@ typedef struct {
 	**/
 	struct centity_s *entities;
 	int32_t	entity_size;
-	int32_t	num_entities;     // current number, <= max_edicts
+	int32_t	num_entities;     // current number, <= max_entities
 	int32_t	max_entities;
 } clgame_export_t;
 

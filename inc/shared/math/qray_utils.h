@@ -8,7 +8,7 @@
 #pragma once
 
 // Clamp float value
-RMAPI const float QM_Clamp( const float value, const float min, const float max ) {
+RMAPI const float QM_Clampf( const float value, const float min, const float max ) {
     const float result = ( value < min ) ? min : value;
     //if ( result > max ) result = max;
     //result;
@@ -21,8 +21,6 @@ RMAPI const float QM_Clamp( const float value, const float min, const float max 
 #define LERP2(a, b, c, d)   ((a)*(c)+(b)*(d))
 // slower lerp but is more mathematically precise
 #define LERP(a, b, c)       LERP2((a), (b), (1.0f - (c)), (c))
-
-//                cl.refdef.fog.p = LERP2(cl.fog.start.p, cl.fog.end.p, fog_backlerp, fog_frontlerp)
 
 // Slightly faster Lerp, might not be as precise.
 RMAPI const float QM_FastLerp( const float start, const float end, const float amount ) {
@@ -46,14 +44,14 @@ RMAPI const float QM_Lerp( const float start, const float end, const float amoun
 }
 
 // Normalize input value within input range
-RMAPI const float QM_Normalize( const float value, const float start, const float end ) {
+RMAPI const float QM_Normalizef( const float value, const float start, const float end ) {
     const float result = ( value - start ) / ( end - start );
 
     return result;
 }
 
 // Remap input value within input range to output range
-RMAPI const float QM_Remap( const float value, const float inputStart, const float inputEnd, const float outputStart, const float outputEnd ) {
+RMAPI const float QM_Remapf( const float value, const float inputStart, const float inputEnd, const float outputStart, const float outputEnd ) {
     const float result = ( value - inputStart ) / ( inputEnd - inputStart ) * ( outputEnd - outputStart ) + outputStart;
     
     return result;
@@ -94,4 +92,17 @@ RMAPI const float QM_AngleMod( const float a ) {
     }
 
     return v;
+}
+
+/**
+*   @brief  Will lerp between the euler angle, a2 and a1.
+**/
+RMAPI const float QM_LerpAngle( float angle2, float angle1, const float fraction ) {
+    if ( angle1 - angle2 > 180 ) {
+        angle1 -= 360;
+    }
+    if ( angle1 - angle2 < -180 ) {
+        angle1 += 360;
+    }
+    return angle2 + fraction * ( angle1 - angle2 );
 }
