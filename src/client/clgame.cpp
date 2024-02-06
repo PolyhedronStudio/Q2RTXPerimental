@@ -97,8 +97,17 @@ static void PF_Cvar_Reset( cvar_t *cvar ) {
 *
 * 
 **/
+/**
+*	@brief
+**/
 const qhandle_t PF_R_RegisterModel( const char *name ) {
 	return R_RegisterModel( name );
+}
+/**
+*	@brief
+**/
+const qhandle_t PF_R_RegisterSkin( const char *name ) {
+	return R_RegisterSkin( name );
 }
 /**
 *	@brief
@@ -413,6 +422,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.PointContents = CL_PointContents;
 
 	imports.R_RegisterModel = PF_R_RegisterModel;
+	imports.R_RegisterSkin = PF_R_RegisterSkin;
 	imports.R_AddDecal = PF_R_AddDecal;
 	imports.R_Get8BitTo24BitTable = PF_R_Get8BitTo24BitTable;
 

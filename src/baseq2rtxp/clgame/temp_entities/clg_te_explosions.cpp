@@ -81,7 +81,7 @@ void CLG_SmokeAndFlash( const vec3_t origin ) {
     ex->type = explosion_t::ex_misc; // WID: C++20: Was without explosion_t::
     ex->frames = 4;
     ex->ent.flags = RF_TRANSLUCENT | RF_NOSHADOW;
-    ex->start = clgi.client->servertime - CL_FRAMETIME;
+    ex->start = clgi.client->servertime - clgi.frame_time_ms;
     ex->ent.model = precache.cl_mod_smoke;
 
     ex = CLG_AllocExplosion();
@@ -89,7 +89,7 @@ void CLG_SmokeAndFlash( const vec3_t origin ) {
     ex->type = explosion_t::ex_flash;
     ex->ent.flags = RF_FULLBRIGHT;
     ex->frames = 2;
-    ex->start = clgi.client->servertime - CL_FRAMETIME;
+    ex->start = clgi.client->servertime - clgi.frame_time_ms;
     ex->ent.model = precache.cl_mod_flash;
 }
 

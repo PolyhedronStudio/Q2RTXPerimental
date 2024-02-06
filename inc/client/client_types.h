@@ -472,6 +472,8 @@ typedef struct client_state_s {
     char		gamedir[ MAX_QPATH ];
     //! Never changed during gameplay, set by serverdata packet.
     int32_t		clientNum;
+    //! Always points to the client entity itself.
+    centity_t   *clientEntity;
     //! Maximum number of clients that the current connected game accepts.
     int32_t		maxclients;
 

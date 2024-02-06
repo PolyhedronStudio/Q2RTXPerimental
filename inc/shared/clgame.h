@@ -321,8 +321,14 @@ typedef struct {
 	*	Refresh:
 	*
 	**/
+	//! Register a model.
 	const qhandle_t( *R_RegisterModel )( const char *name );
+	//! Register a skin.
+	const qhandle_t( *R_RegisterSkin )( const char *name );
+
+	//! Unimplemented in VKPT, but, adds a decal.
 	void ( *R_AddDecal )( decal_t *d );
+	
 	// Very cheesy, but we need access to it however
 	const uint32_t *( *R_Get8BitTo24BitTable )( void );
 

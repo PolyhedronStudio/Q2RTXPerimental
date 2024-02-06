@@ -247,7 +247,7 @@ void CL_RegisterBspModels(void) {
 
     for (i = 1; i < MAX_MODELS; i++) {
         name = cl.configstrings[CS_MODELS + i];
-        if (!name[0]) {
+        if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
             break;
         }
         if (name[0] == '*')
@@ -350,10 +350,10 @@ void CL_PrepRefresh(void)
 
     for (i = 2; i < MAX_MODELS; i++) {
         name = cl.configstrings[CS_MODELS + i];
-        if (!name[0]) {
+        if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
             break;
         }
-        if (name[0] == '#') {
+        if ( name[ 0 ] == '#' ) {
             continue;
         }
         cl.model_draw[i] = R_RegisterModel(name);
@@ -415,10 +415,10 @@ void CL_UpdateConfigstring( const int32_t index ) {
     }
 
     // Moved to Client Game.
-    //if (index == CS_AIRACCEL) {
+    if (index == CS_AIRACCEL) {
     //    cl.pmp.airaccelerate = cl.pmp.qwmode || atoi(s);
-    //    return;
-    //}
+        return;
+    }
 
     if (index == CS_MODELS + 1) {
         if (!Com_ParseMapName(cl.mapname, s, sizeof(cl.mapname)))
@@ -427,10 +427,10 @@ void CL_UpdateConfigstring( const int32_t index ) {
     }
 
     // Moved to Client Game.
-    //if (index >= CS_LIGHTS && index < CS_LIGHTS + MAX_LIGHTSTYLES) {
+    if (index >= CS_LIGHTS && index < CS_LIGHTS + MAX_LIGHTSTYLES) {
     //    CL_SetLightStyle(index - CS_LIGHTS, s);
-    //    return;
-    //}
+        return;
+    }
 
     if (cls.state < ca_precached) {
         return;

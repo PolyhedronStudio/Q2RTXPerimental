@@ -75,6 +75,8 @@ static void V_ClearScene( void ) {
     cl.viewScene.r_numdlights = 0;
     cl.viewScene.r_numentities = 0;
     cl.viewScene.r_numparticles = 0;
+
+    clge->ClearViewScene();
 }
 
 
@@ -432,13 +434,12 @@ V_RenderView
 
 ==================
 */
-void V_RenderView(void)
-{
-    V_ClearScene();
-
+void V_RenderView(void) {
     // an invalid frame will just use the exact previous refdef
     // we can't use the old frame if the video mode has changed, though...
     if ( cl.frame.valid ) {
+        V_ClearScene();
+
         // Calculate/lerp the current view origin and angles between frames.
         CL_CalcViewValues();
         CL_FinishViewValues();

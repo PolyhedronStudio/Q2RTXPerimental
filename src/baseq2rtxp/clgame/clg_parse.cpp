@@ -183,7 +183,7 @@ void CLG_ParseMuzzleFlashPacket( const int32_t mask ) {
 **/
 const bool PF_UpdateConfigString( const int32_t index ) {
     // Get config string.
-    const char *s = clgi.client->configstrings[ index ];
+    const char *s = (const char*)clgi.GetConfigString( index );//clgi.client->configstrings[ index ];
 
     if ( index == CS_AIRACCEL ) {
         clgi.client->pmp.airaccelerate = clgi.client->pmp.qwmode || atoi( s );
@@ -209,6 +209,7 @@ const bool PF_UpdateConfigString( const int32_t index ) {
         //	CLG_LoadClientinfo( &cl.clientinfo[ index - CS_PLAYERSKINS ], s );
         //	return;
         //}
+        return false;
     }
 
     // Client proceeds to process said configstring index.

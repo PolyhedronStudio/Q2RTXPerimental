@@ -758,11 +758,11 @@ void CL_RequestNextDownload(void)
         if (allow_download_models->integer) {
             for (i = 2; i < MAX_MODELS; i++) {
                 name = cl.configstrings[CS_MODELS + i];
-                if (!name[0]) {
+                if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
                     break;
                 }
                 // Skip if inlined bsp or view weapon model.
-                if (name[0] == '*' || name[0] == '#') {
+                if ( name[ 0 ] == '*' || name[ 0 ] == '#' || name[ 0 ] == 0 ) {
                     continue;
                 }
                 check_file(name, DL_MODEL);
@@ -782,14 +782,31 @@ void CL_RequestNextDownload(void)
 
             for (i = 2; i < MAX_MODELS; i++) {
                 name = cl.configstrings[CS_MODELS + i];
-                if (!name[0]) {
+                if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
                     break;
                 }
-                if (name[0] == '*' || name[0] == '#') {
+                if ( name[ 0 ] == '*' || name[ 0 ] == '#' || name[ 0 ] == 0 ) {
                     continue;
                 }
                 check_skins(name);
             }
+
+            //// check skins for RF_CUSTOMSKIN
+            //if ( cl.csr.extended ) {
+            //    for ( i = 1; i < cl.csr.max_images; i++ ) {
+            //        name = cl.configstrings[ cl.csr.images + i ];
+            //        if ( !name[ 0 ] ) {
+            //            break;
+            //        }
+            //        if ( name[ 0 ] == '/' || name[ 0 ] == '\\' ) {
+            //            continue;
+            //        }
+            //        if ( !*COM_FileExtension( name ) || !strchr( name, '/' ) ) {
+            //            continue;
+            //        }
+            //        check_file( name, DL_OTHER );
+            //    }
+            //}
         }
 
         if (allow_download_sounds->integer) {

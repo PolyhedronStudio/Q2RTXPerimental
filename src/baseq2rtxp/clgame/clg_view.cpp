@@ -27,7 +27,7 @@ void PF_ClearViewScene( void ) {
 *           and temp entities) to the refresh definition.
 **/
 void PF_PrepareViewEntites( void ) {
-    //CLG_AddPacketEntities();
+    CLG_AddPacketEntities();
     CLG_AddTEnts();
     CLG_AddParticles();
     CLG_AddDLights();

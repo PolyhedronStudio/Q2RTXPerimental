@@ -592,7 +592,7 @@ extern cvar_t    *cl_disconnectcmd;
 extern cvar_t    *cl_changemapcmd;
 extern cvar_t    *cl_beginmapcmd;
 
-extern cvar_t    *cl_gibs;
+//extern cvar_t    *cl_gibs;
 
 extern cvar_t    *cl_player_model;
 extern cvar_t    *cl_thirdperson_angle;

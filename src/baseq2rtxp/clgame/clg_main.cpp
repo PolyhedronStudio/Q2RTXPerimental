@@ -45,6 +45,9 @@ cvar_t *sv_paused = nullptr;
 //cvar_t *maxspectators;
 //cvar_t *maxentities;
 cvar_t *cl_footsteps = nullptr;
+cvar_t *cl_rollhack = nullptr;
+cvar_t *cl_noglow = nullptr;
+cvar_t *cl_gibs = nullptr;
 
 cvar_t *info_password = nullptr;
 cvar_t *info_spectator = nullptr;
@@ -142,11 +145,20 @@ void PF_InitGame( void ) {
 	//maxclients = clgi.CVar( "maxclients", "", 0 );
 	//maxspectators = clgi.CVar( "maxspectators", "", 0 );
 	//maxentities = clgi.CVar( "maxentities", "", 0 );
+		//cl_disable_particles = Cvar_Get("cl_disable_particles", "0", 0);
+	//cl_disable_explosions = Cvar_Get("cl_disable_explosions", "0", 0);
+	//cl_explosion_sprites = Cvar_Get("cl_explosion_sprites", "1", 0);
+	//cl_explosion_frametime = Cvar_Get("cl_explosion_frametime", "20", 0);
+	//cl_dlight_hacks = Cvar_Get("cl_dlight_hacks", "0", 0);
 
 	cvar_pt_particle_emissive = clgi.CVar( "pt_particle_emissive", nullptr, 0 );
 	cl_particle_num_factor = clgi.CVar( "cl_particle_num_factor", nullptr, 0 );
 
 	cl_footsteps = clgi.CVar_Get( "cl_footsteps", "1", 0 );
+	cl_rollhack = clgi.CVar_Get( "cl_rollhack", "1", 0 );
+	cl_noglow = clgi.CVar_Get( "cl_noglow", "0", 0 );
+
+	cl_gibs = clgi.CVar_Get( "cl_gibs", "1", 0 );
 
 	/**
 	*	UserInfo - Initialized by the client, but we desire access to these user info cvars.
@@ -208,11 +220,11 @@ void PF_InitGame( void ) {
 *
 **/
 /**
-*	@brief	
+*	@brief
 **/
 void PF_ClearState( void ) {
 	// Clear out client entities array.
-	memset( clg_entities, 0, globals.entity_size * MAX_CLIENT_ENTITIES );
+	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
 
 	CLG_ClearTEnts();
 	CLG_ClearEffects();
@@ -320,7 +332,6 @@ extern "C" { // WID: C++20: extern "C".
 		globals.PredictAngles = PF_PredictAngles;
 		globals.UsePrediction = PF_UsePrediction;
 		globals.PredictMovement = PF_PredictMovement;
-		//globals.PlayerMove = PF_PlayerMove;
 		globals.ConfigurePlayerMoveParameters = PF_ConfigurePlayerMoveParameters;
 
 		globals.RegisterTEntModels = PF_RegisterTEntModels;

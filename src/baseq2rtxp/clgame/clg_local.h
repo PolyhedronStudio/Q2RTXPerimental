@@ -52,6 +52,9 @@ extern cvar_t *sv_running;
 extern cvar_t *sv_paused;
 
 extern cvar_t *cl_footsteps;
+extern cvar_t *cl_rollhack;
+extern cvar_t *cl_noglow;
+extern cvar_t *cl_gibs;
 
 extern cvar_t *info_password;
 extern cvar_t *info_spectator;
@@ -398,6 +401,10 @@ centity_t *CLG_Self( void );
  * @return True if the specified entity is bound to the local client's view.
  */
 const bool CLG_IsSelf( const centity_t *ent );
+/**
+*	@brief	
+**/
+void CLG_AddPacketEntities( void );
 
 
 

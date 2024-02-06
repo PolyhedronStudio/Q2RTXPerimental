@@ -2485,8 +2485,6 @@ static void CL_InitLocal(void)
     r_maxfps = Cvar_Get("r_maxfps", "0", 0);
     r_maxfps->changed = cl_maxfps_changed;
     cl_autopause = Cvar_Get("cl_autopause", "1", 0);
-    cl_rollhack = Cvar_Get("cl_rollhack", "1", 0);
-    cl_noglow = Cvar_Get("cl_noglow", "0", 0);
     cl_nolerp = Cvar_Get("cl_nolerp", "0", 0);
 
     // hack for timedemo
