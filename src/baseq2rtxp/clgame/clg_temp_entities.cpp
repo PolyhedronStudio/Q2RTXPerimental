@@ -17,6 +17,14 @@ static cvar_t *cl_railcore_width;
 static cvar_t *cl_railspiral_color;
 static cvar_t *cl_railspiral_radius;
 
+cvar_t *cl_disable_particles;
+cvar_t *cl_disable_explosions;
+cvar_t *cl_explosion_sprites;
+cvar_t *cl_explosion_frametime;
+cvar_t *cl_dlight_hacks;
+
+cvar_t *gibs;
+
 static void cl_railcore_color_changed( cvar_t *self ) {
     if ( !clgi.SCR_ParseColor( self->string, &railcore_color ) ) {
         Com_WPrintf( "Invalid value '%s' for '%s'\n", self->string, self->name );
@@ -529,10 +537,9 @@ void CLG_ClearTEnts( void ) {
 *   @brief  
 **/
 void TE_Color_g( genctx_t *ctx ) {
-    color_index_t color;
-
-    for ( color_index_t color = /*0*/COLOR_BLACK; color < COLOR_ALT; color++ )
-        clgi.Prompt_AddMatch( ctx, clgi.SCR_GetColorName( color ) );
+    for ( int32_t color = /*0*/COLOR_BLACK; color < COLOR_ALT; color++ ) {
+        clgi.Prompt_AddMatch( ctx, clgi.SCR_GetColorName( (color_index_t)color ) );
+    }
 }
 
 void CLG_InitTEnts( void ) {
@@ -549,5 +556,14 @@ void CLG_InitTEnts( void ) {
     cl_railspiral_color->changed = cl_railspiral_color_changed;
     cl_railspiral_color->generator = TE_Color_g;
     cl_railspiral_color_changed( cl_railspiral_color );
-    cl_railspiral_radius = clgi.Cvar_Get( "cl_railspiral_radius", "3", 0 );
+    cl_railspiral_radius = clgi.CVar_Get( "cl_railspiral_radius", "3", 0 );
+
+
+    cl_disable_particles = clgi.CVar_Get( "cl_disable_particles", "0", 0 );
+    cl_disable_explosions = clgi.CVar_Get( "cl_disable_explosions", "0", 0 );
+    cl_explosion_sprites = clgi.CVar_Get( "cl_explosion_sprites", "1", 0 );
+    cl_explosion_frametime = clgi.CVar_Get( "cl_explosion_frametime", "20", 0 );
+    cl_dlight_hacks = clgi.CVar_Get( "cl_dlight_hacks", "0", 0 );
+
+    cl_gibs = clgi.CVar_Get( "cl_gibs", "1", 0 );
 }

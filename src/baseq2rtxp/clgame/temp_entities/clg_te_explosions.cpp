@@ -7,18 +7,18 @@
 ********************************************************************/
 #include "../clg_local.h"
 
-explosion_t  cl_explosions[ MAX_EXPLOSIONS ];
+explosion_t  clg_explosions[ MAX_EXPLOSIONS ];
 
-static void CLG_ClearExplosions( void ) {
-    memset( cl_explosions, 0, sizeof( cl_explosions ) );
+void CLG_ClearExplosions( void ) {
+    memset( clg_explosions, 0, sizeof( clg_explosions ) );
 }
 
-static explosion_t *CLG_AllocExplosion( void ) {
+explosion_t *CLG_AllocExplosion( void ) {
     explosion_t *e, *oldest;
     int     i;
     int     time;
 
-    for ( i = 0, e = cl_explosions; i < MAX_EXPLOSIONS; i++, e++ ) {
+    for ( i = 0, e = clg_explosions; i < MAX_EXPLOSIONS; i++, e++ ) {
         if ( e->type == explosion_t::ex_free ) { // WID: C++20: Was without explosion_t::
             memset( e, 0, sizeof( *e ) );
             return e;
@@ -26,9 +26,9 @@ static explosion_t *CLG_AllocExplosion( void ) {
     }
     // find the oldest explosion
     time = cl.time;
-    oldest = cl_explosions;
+    oldest = clg_explosions;
 
-    for ( i = 0, e = cl_explosions; i < MAX_EXPLOSIONS; i++, e++ ) {
+    for ( i = 0, e = clg_explosions; i < MAX_EXPLOSIONS; i++, e++ ) {
         if ( e->start < time ) {
             time = e->start;
             oldest = e;
@@ -38,7 +38,7 @@ static explosion_t *CLG_AllocExplosion( void ) {
     return oldest;
 }
 
-static explosion_t *CLG_PlainExplosion( bool big ) {
+explosion_t *CLG_PlainExplosion( bool big ) {
     explosion_t *ex;
 
     ex = CLG_AllocExplosion();
@@ -173,7 +173,7 @@ void CLG_AddExplosions( void ) {
     float       frac;
     int         f;
 
-    for ( i = 0, ex = cl_explosions; i < MAX_EXPLOSIONS; i++, ex++ ) {
+    for ( i = 0, ex = clg_explosions; i < MAX_EXPLOSIONS; i++, ex++ ) {
         if ( ex->type == explosion_t::ex_free )
             continue;
         float inv_frametime = ex->frametime ? 1.f / (float)ex->frametime : BASE_1_FRAMETIME;

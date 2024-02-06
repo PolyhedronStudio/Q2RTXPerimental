@@ -66,6 +66,8 @@ extern cvar_t *cl_particle_num_factor;
 **/
 extern centity_t *clg_entities;
 
+
+
 /******************************************************************
 * 
 *	Q2RE: Random Number Utilities
@@ -239,7 +241,7 @@ void CLG_ParticleEffectWaterSplash( const vec3_t org, const vec3_t dir, int colo
 void CLG_BloodParticleEffect( const vec3_t org, const vec3_t dir, int color, int count );
 void CLG_ParticleEffect2( const vec3_t org, const vec3_t dir, int color, int count );
 void CLG_TeleporterParticles( const vec3_t org );
-//static void CL_LogoutEffect( const vec3_t org, int type );
+void CLG_LogoutEffect( const vec3_t org, int type );
 void CLG_ItemRespawnParticles( const vec3_t org );
 void CLG_ExplosionParticles( const vec3_t org );
 void CLG_BigTeleportParticles( const vec3_t org );
@@ -256,6 +258,36 @@ void CLG_BfgParticles( entity_t *ent );
 //FIXME combined with CL_ExplosionParticles
 void CLG_BFGExplosionParticles( const vec3_t org );
 void CLG_TeleportParticles( const vec3_t org );
+
+
+
+/*
+*
+*	clg_effects.cpp
+*
+*/
+void CLG_Flashlight( int ent, const vec3_t pos );
+void CLG_ColorFlash( const vec3_t pos, int ent, int intensity, float r, float g, float b );
+void CLG_DebugTrail( const vec3_t start, const vec3_t end );
+void CLG_ForceWall( const vec3_t start, const vec3_t end, int color );
+void CLG_BubbleTrail2( const vec3_t start, const vec3_t end, int dist );
+void CLG_Heatbeam( const vec3_t start, const vec3_t forward );
+void CLG_ParticleSteamEffect( const vec3_t org, const vec3_t dir, int color, int count, int magnitude );
+void CLG_ParticleSteamEffect2( cl_sustain_t *self );
+void CLG_TrackerTrail( const vec3_t start, const vec3_t end, int particleColor );
+void CLG_Tracker_Shell( const vec3_t origin );
+void CLG_MonsterPlasma_Shell( const vec3_t origin );
+void CLG_Widowbeamout( cl_sustain_t *self );
+void CLG_Nukeblast( cl_sustain_t *self );
+void CLG_WidowSplash( void );
+void CLG_TagTrail( const vec3_t start, const vec3_t end, int color );
+void CLG_ColorExplosionParticles( const vec3_t org, int color, int run );
+void CLG_ParticleSmokeEffect( const vec3_t org, const vec3_t dir, int color, int count, int magnitude );
+void CLG_BlasterParticles2( const vec3_t org, const vec3_t dir, unsigned int color );
+void CLG_BlasterTrail2( const vec3_t start, const vec3_t end );
+void CLG_IonripperTrail( const vec3_t start, const vec3_t ent );
+void CLG_TrapParticles( centity_t *ent, const vec3_t origin );
+void CLG_ParticleEffect3( const vec3_t org, const vec3_t dir, int color, int count );
 
 
 
@@ -328,6 +360,11 @@ void CLG_ClearParticles( void );
 *   @brief
 **/
 cparticle_t *CLG_AllocParticle( void );
+/**
+*	@brief
+**/
+void CLG_AddParticles( void );
+
 
 
 /*
@@ -439,6 +476,45 @@ void CLG_ParseTEnt( void );
 *   @brief
 **/
 void CLG_AddTEnts( void );
+
+
+
+/*
+*
+*	temp_entities/clg_te_explosions.cpp
+*
+*/
+extern cvar_t *cl_disable_particles;
+extern cvar_t *cl_disable_explosions;
+extern cvar_t *cl_explosion_sprites;
+extern cvar_t *cl_explosion_frametime;
+extern cvar_t *cl_dlight_hacks;
+
+extern cvar_t *gibs;
+/**
+*   @brief
+**/
+void CLG_ClearExplosions( void );
+/**
+*   @brief
+**/
+explosion_t *CLG_AllocExplosion( void );
+/**
+*   @brief
+**/
+explosion_t *CLG_PlainExplosion( bool big );
+/**
+*   @brief
+**/
+void CLG_SmokeAndFlash( const vec3_t origin );
+/**
+*   @brief
+**/
+//static void CL_AddExplosionLight( explosion_t *ex, float phase );
+/**
+*   @brief
+**/
+void CLG_AddExplosions( void );
 
 
 

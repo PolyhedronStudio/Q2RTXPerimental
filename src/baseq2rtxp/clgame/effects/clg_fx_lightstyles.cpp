@@ -53,6 +53,6 @@ void CLG_AddLightStyles( void ) {
         float value = ls->length ? ls->map[ ofs % ls->length ] : 1.0f;
 
         // Add lightstyle to the view scene.
-        V_AddLightStyle( i, value );
+        clgi.V_AddLightStyle( i, value );
     }
 }

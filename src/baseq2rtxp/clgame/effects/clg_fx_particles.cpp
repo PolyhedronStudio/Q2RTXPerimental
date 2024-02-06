@@ -15,12 +15,12 @@ static cparticle_t particles[ MAX_PARTICLES ];
 *   @brief  
 **/
 void CLG_ClearParticles( void ) {
-    int     i;
+    int32_t i = 0;
 
     free_particles = &particles[ 0 ];
     active_particles = nullptr;
 
-    for ( int32_t i = 0; i < MAX_PARTICLES - 1; i++ ) {
+    for ( i = 0; i < MAX_PARTICLES - 1; i++ ) {
         particles[ i ].next = &particles[ i + 1 ];
     }
     particles[ i ].next = nullptr;

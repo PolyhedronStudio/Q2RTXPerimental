@@ -55,21 +55,14 @@ cvar_t  *cl_player_model;
 cvar_t  *cl_thirdperson_angle;
 cvar_t  *cl_thirdperson_range;
 
-cvar_t  *cl_disable_particles;
-cvar_t  *cl_disable_explosions;
-cvar_t  *cl_dlight_hacks;
-
 cvar_t  *cl_chat_notify;
 cvar_t  *cl_chat_sound;
 cvar_t  *cl_chat_filter;
-cvar_t  *cl_explosion_sprites;
-cvar_t  *cl_explosion_frametime;
+
 
 cvar_t  *cl_disconnectcmd;
 cvar_t  *cl_changemapcmd;
 cvar_t  *cl_beginmapcmd;
-
-cvar_t  *cl_gibs;
 
 cvar_t  *cl_protocol;
 
@@ -2520,13 +2513,14 @@ static void CL_InitLocal(void)
     cl_thirdperson_angle = Cvar_Get("cl_thirdperson_angle", "0", 0);
     cl_thirdperson_range = Cvar_Get("cl_thirdperson_range", "60", 0);
 
-    cl_disable_particles = Cvar_Get("cl_disable_particles", "0", 0);
-    cl_disable_explosions = Cvar_Get("cl_disable_explosions", "0", 0);
-	cl_explosion_sprites = Cvar_Get("cl_explosion_sprites", "1", 0);
-	cl_explosion_frametime = Cvar_Get("cl_explosion_frametime", "20", 0);
-    cl_dlight_hacks = Cvar_Get("cl_dlight_hacks", "0", 0);
-
-    cl_gibs = Cvar_Get("cl_gibs", "1", 0);
+    // Moved to clgame.
+    //cl_disable_particles = Cvar_Get("cl_disable_particles", "0", 0);
+    //cl_disable_explosions = Cvar_Get("cl_disable_explosions", "0", 0);
+    //cl_explosion_sprites = Cvar_Get("cl_explosion_sprites", "1", 0);
+    //cl_explosion_frametime = Cvar_Get("cl_explosion_frametime", "20", 0);
+    //cl_dlight_hacks = Cvar_Get("cl_dlight_hacks", "0", 0);
+    //
+    //cl_gibs = Cvar_Get("cl_gibs", "1", 0);
 
     cl_chat_notify = Cvar_Get("cl_chat_notify", "1", 0);
     cl_chat_sound = Cvar_Get("cl_chat_sound", "1", 0);

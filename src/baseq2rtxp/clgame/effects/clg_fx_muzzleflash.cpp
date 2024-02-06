@@ -7,6 +7,9 @@
 ********************************************************************/
 #include "../clg_local.h"
 
+// Need it here.
+extern cvar_t *cl_dlight_hacks;
+
 /**
 *   @brief  Handles the parsed client muzzleflash effects. 
 **/
@@ -107,17 +110,17 @@ void CLG_MuzzleFlash( void ) {
     case MZ_LOGIN:
         VectorSet( dl->color, 0, 1, 0 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "weapons/grenlf1a.wav" ), 1, ATTN_NORM, 0 );
-        CL_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
+        CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
         break;
     case MZ_LOGOUT:
         VectorSet( dl->color, 1, 0, 0 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "weapons/grenlf1a.wav" ), 1, ATTN_NORM, 0 );
-        CL_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
+        CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
         break;
     case MZ_RESPAWN:
         VectorSet( dl->color, 1, 1, 0 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "weapons/grenlf1a.wav" ), 1, ATTN_NORM, 0 );
-        CL_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
+        CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
         break;
     case MZ_PHALANX:
         VectorSet( dl->color, 1, 0.5f, 0.5f );
@@ -138,7 +141,7 @@ void CLG_MuzzleFlash( void ) {
         break;
     case MZ_HEATBEAM:
         VectorSet( dl->color, 1, 1, 0 );
-        dl->die = cl.time + 100;
+        dl->die = clgi.client->time + 100;
         //      S_StartSound (NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound("weapons/bfg__l1a.wav"), volume, ATTN_NORM, 0);
         break;
     case MZ_BLASTER2:
@@ -153,19 +156,19 @@ void CLG_MuzzleFlash( void ) {
         break;
     case MZ_NUKE1:
         VectorSet( dl->color, 1, 0, 0 );
-        dl->die = cl.time + 100;
+        dl->die = clgi.client->time + 100;
         break;
     case MZ_NUKE2:
         VectorSet( dl->color, 1, 1, 0 );
-        dl->die = cl.time + 100;
+        dl->die = clgi.client->time + 100;
         break;
     case MZ_NUKE4:
         VectorSet( dl->color, 0, 0, 1 );
-        dl->die = cl.time + 100;
+        dl->die = clgi.client->time + 100;
         break;
     case MZ_NUKE8:
         VectorSet( dl->color, 0, 1, 1 );
-        dl->die = cl.time + 100;
+        dl->die = clgi.client->time + 100;
         break;
 
         // Q2RTX
@@ -176,7 +179,7 @@ void CLG_MuzzleFlash( void ) {
         // Q2RTX
     }
 
-    if ( cls.ref_type == REF_TYPE_VKPT ) {
+    if ( clgi.GetRefreshType() == REF_TYPE_VKPT ) {
         // don't add muzzle flashes in RTX mode
         dl->radius = 0;
     }

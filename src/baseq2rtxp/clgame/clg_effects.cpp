@@ -287,7 +287,7 @@ CLG_LogoutEffect
 
 ===============
 */
-static void CLG_LogoutEffect( const vec3_t org, int type ) {
+void CLG_LogoutEffect( const vec3_t org, int type ) {
     int         i, j;
     cparticle_t *p;
 
