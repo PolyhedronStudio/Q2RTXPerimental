@@ -17,6 +17,8 @@ extern cvar_t *cl_railcore_width;
 extern cvar_t *cl_railspiral_color;
 extern cvar_t *cl_railspiral_radius;
 
+extern cvar_t *cvar_pt_beam_lights;
+
 static void clg_railcore_color_changed( cvar_t *self ) {
     if ( !clgi.SCR_ParseColor( self->string, &railcore_color ) ) {
         clgi.Print( PRINT_WARNING, "Invalid value '%s' for '%s'\n", self->string, self->name );
@@ -128,11 +130,11 @@ void CLG_RailLights( const color_t color ) {
 
 
 // WID: C++20: Needed for linkage.
-extern "C" uint32_t d_8to24table[ 256 ];
-extern "C" cvar_t * cvar_pt_beam_lights;
+extern cvar_t *cvar_pt_beam_lights;
 
 void CLG_RailTrail( void ) {
     color_t rail_color;
+    const uint32_t *d_8to24table = clgi.R_Get8BitTo24BitTable();
 
     if ( !cl_railtrail_type->integer ) {
         rail_color.u32 = d_8to24table[ 0x74 ];

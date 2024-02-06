@@ -205,7 +205,8 @@ void CL_RegisterSounds(void)
     char    *s;
 
     S_BeginRegistration();
-    CL_RegisterTEntSounds();
+    clge->RegisterTEntSounds();
+    //CL_RegisterTEntSounds();
     for (i = 1; i < MAX_SOUNDS; i++) {
         s = cl.configstrings[CS_SOUNDS + i];
         if (!s[0])
@@ -316,13 +317,9 @@ void CL_SetSky(void)
     R_SetSky(cl.configstrings[CS_SKY], rotate, autorotate, axis);
 }
 
-/*
-=================
-CL_PrepRefresh
-
-Call before entering a new level, or after changing dlls
-=================
-*/
+/**
+*   @brief  Called before entering a new level, or after changing dlls
+**/
 void CL_PrepRefresh(void)
 {
     int         i;
@@ -338,7 +335,7 @@ void CL_PrepRefresh(void)
 
     CL_LoadState(LOAD_MODELS);
 
-    CL_RegisterTEntModels();
+    clge->RegisterTEntModels();
 
 	if (cl_testmodel->string && cl_testmodel->string[0])
 	{

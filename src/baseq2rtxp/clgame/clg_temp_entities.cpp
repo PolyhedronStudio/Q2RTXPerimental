@@ -10,21 +10,33 @@
 static color_t  railcore_color;
 static color_t  railspiral_color;
 
-static cvar_t *cl_railtrail_type;
-static cvar_t *cl_railtrail_time;
-static cvar_t *cl_railcore_color;
-static cvar_t *cl_railcore_width;
-static cvar_t *cl_railspiral_color;
-static cvar_t *cl_railspiral_radius;
+cvar_t *cl_railtrail_type = nullptr;
+cvar_t *cl_railtrail_time = nullptr;
+cvar_t *cl_railcore_color = nullptr;
+cvar_t *cl_railcore_width = nullptr;
+cvar_t *cl_railspiral_color = nullptr;
+cvar_t *cl_railspiral_radius = nullptr;
 
-cvar_t *cl_disable_particles;
-cvar_t *cl_disable_explosions;
-cvar_t *cl_explosion_sprites;
-cvar_t *cl_explosion_frametime;
-cvar_t *cl_dlight_hacks;
+cvar_t *cvar_pt_beam_lights = nullptr;
 
-cvar_t *cl_gibs;
+cvar_t *cl_disable_particles = nullptr;
+cvar_t *cl_disable_explosions = nullptr;
+cvar_t *cl_explosion_sprites = nullptr;
+cvar_t *cl_explosion_frametime = nullptr;
+cvar_t *cl_dlight_hacks = nullptr;
 
+cvar_t *cl_gibs = nullptr;
+
+
+/**
+*   @brief  
+**/
+static void cl_timeout_changed( cvar_t *self ) {
+    self->integer = 1000 * clgi.CVar_ClampValue( self, 0, 24 * 24 * 60 * 60 );
+}
+/**
+*   @brief
+**/
 static void cl_railcore_color_changed( cvar_t *self ) {
     if ( !clgi.SCR_ParseColor( self->string, &railcore_color ) ) {
         Com_WPrintf( "Invalid value '%s' for '%s'\n", self->string, self->name );
@@ -32,7 +44,9 @@ static void cl_railcore_color_changed( cvar_t *self ) {
         railcore_color.u32 = U32_RED;
     }
 }
-
+/**
+*   @brief
+**/
 static void cl_railspiral_color_changed( cvar_t *self ) {
     if ( !clgi.SCR_ParseColor( self->string, &railspiral_color ) ) {
         Com_WPrintf( "Invalid value '%s' for '%s'\n", self->string, self->name );
@@ -77,71 +91,6 @@ qhandle_t   cl_mod_lightning;
 qhandle_t   cl_mod_heatbeam;
 qhandle_t   cl_mod_explo4_big;
 
-
-/**
-*   @brief
-**/
-void CLG_RegisterTEntSounds( void ) {
-    int     i;
-    char    name[ MAX_QPATH ];
-
-    cl_sfx_ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
-    cl_sfx_ric2 = clgi.S_RegisterSound( "world/ric2.wav" );
-    cl_sfx_ric3 = clgi.S_RegisterSound( "world/ric3.wav" );
-    cl_sfx_lashit = clgi.S_RegisterSound( "weapons/lashit.wav" );
-    cl_sfx_flare = clgi.S_RegisterSound( "weapons/flare.wav" );
-    cl_sfx_spark5 = clgi.S_RegisterSound( "world/spark5.wav" );
-    cl_sfx_spark6 = clgi.S_RegisterSound( "world/spark6.wav" );
-    cl_sfx_spark7 = clgi.S_RegisterSound( "world/spark7.wav" );
-    cl_sfx_railg = clgi.S_RegisterSound( "weapons/railgf1a.wav" );
-    cl_sfx_rockexp = clgi.S_RegisterSound( "weapons/rocklx1a.wav" );
-    cl_sfx_grenexp = clgi.S_RegisterSound( "weapons/grenlx1a.wav" );
-    cl_sfx_watrexp = clgi.S_RegisterSound( "weapons/xpld_wat.wav" );
-
-    clgi.S_RegisterSound( "player/land1.wav" );
-    clgi.S_RegisterSound( "player/fall2.wav" );
-    clgi.S_RegisterSound( "player/fall1.wav" );
-
-    for ( i = 0; i < 4; i++ ) {
-        Q_snprintf( name, sizeof( name ), "player/step%i.wav", i + 1 );
-        cl_sfx_footsteps[ i ] = clgi.S_RegisterSound( name );
-    }
-
-    cl_sfx_lightning = clgi.S_RegisterSound( "weapons/tesla.wav" );
-    cl_sfx_disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
-}
-
-/**
-*   @brief  
-**/
-void CLG_RegisterTEntModels( void ) {
-    cl_mod_explode = clgi.R_RegisterModel( "models/objects/explode/tris.md2" );
-    cl_mod_smoke = clgi.R_RegisterModel( "models/objects/smoke/tris.md2" );
-    cl_mod_flash = clgi.R_RegisterModel( "models/objects/flash/tris.md2" );
-    cl_mod_parasite_segment = clgi.R_RegisterModel( "models/monsters/parasite/segment/tris.md2" );
-    cl_mod_grapple_cable = clgi.R_RegisterModel( "models/ctf/segment/tris.md2" );
-    cl_mod_explo4 = clgi.R_RegisterModel( "models/objects/r_explode/tris.md2" );
-    cl_mod_explosions[ 0 ] = clgi.R_RegisterModel( "sprites/rocket_0.sp2" );
-    cl_mod_explosions[ 1 ] = clgi.R_RegisterModel( "sprites/rocket_1.sp2" );
-    cl_mod_explosions[ 2 ] = clgi.R_RegisterModel( "sprites/rocket_5.sp2" );
-    cl_mod_explosions[ 3 ] = clgi.R_RegisterModel( "sprites/rocket_6.sp2" );
-    cl_mod_bfg_explo = clgi.R_RegisterModel( "sprites/s_bfg2.sp2" );
-    cl_mod_powerscreen = clgi.R_RegisterModel( "models/items/armor/effect/tris.md2" );
-    cl_mod_laser = clgi.R_RegisterModel( "models/objects/laser/tris.md2" );
-    cl_mod_dmspot = clgi.R_RegisterModel( "models/objects/dmspot/tris.md2" );
-
-    cl_mod_lightning = clgi.R_RegisterModel( "models/proj/lightning/tris.md2" );
-    cl_mod_heatbeam = clgi.R_RegisterModel( "models/proj/beam/tris.md2" );
-    cl_mod_explo4_big = clgi.R_RegisterModel( "models/objects/r_explode2/tris.md2" );
-
-    for ( int i = 0; i < sizeof( cl_mod_explosions ) / sizeof( *cl_mod_explosions ); i++ ) {
-        model_t *model = MOD_ForHandle( cl_mod_explosions[ i ] );
-
-        if ( model ) {
-            model->sprite_vertical = true;
-        }
-    }
-}
 
 /**
 *   @brief   
@@ -558,6 +507,7 @@ void CLG_InitTEnts( void ) {
     cl_railspiral_color_changed( cl_railspiral_color );
     cl_railspiral_radius = clgi.CVar_Get( "cl_railspiral_radius", "3", 0 );
 
+    cvar_pt_beam_lights = clgi.CVar_Get( "pt_beam_lights", nullptr, 0 );
 
     cl_disable_particles = clgi.CVar_Get( "cl_disable_particles", "0", 0 );
     cl_disable_explosions = clgi.CVar_Get( "cl_disable_explosions", "0", 0 );

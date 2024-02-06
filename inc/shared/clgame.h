@@ -197,6 +197,7 @@ typedef struct {
 	cvar_t *( *CVar_Get )( const char *var_name, const char *value, const int32_t flags );
 	cvar_t *( *CVar_Set )( const char *var_name, const char *value );
 	cvar_t *( *CVar_ForceSet )( const char *var_name, const char *value );
+	float ( *CVar_ClampValue )( cvar_t *var, float min, float max );
 	void ( *CVar_Reset )( cvar_t *cvar );
 
 
@@ -317,20 +318,13 @@ typedef struct {
 
 	/**
 	*
-	*	Command Prompt
-	*
-	**/
-	void ( *Prompt_AddMatch )( genctx_t *ctx, const char *s );
-
-
-	
-	/**
-	*
 	*	Refresh:
 	*
 	**/
 	const qhandle_t( *R_RegisterModel )( const char *name );
 	void ( *R_AddDecal )( decal_t *d );
+	// Very cheesy, but we need access to it however
+	const uint32_t *( *R_Get8BitTo24BitTable )( void );
 
 
 	/**
@@ -363,12 +357,10 @@ typedef struct {
 
 	/**
 	*
-	*	Debugging Utilities:
+	*	Command Prompt
 	*
 	**/
-	void ( *ShowNet )( const int32_t level, const char *fmt, ... );
-	void ( *ShowClamp )( const int32_t level, const char *fmt, ... );
-	void ( *ShowMiss )( const char *fmt, ... );
+	void ( *Prompt_AddMatch )( genctx_t *ctx, const char *s );
 
 
 
@@ -388,6 +380,28 @@ typedef struct {
     //void (*AddCommandString)(const char *text);
 
     //void (*DebugGraph)(float value, int color);
+
+
+
+	/**
+	*
+	*	Debugging Utilities:
+	*
+	**/
+	void ( *ShowNet )( const int32_t level, const char *fmt, ... );
+	void ( *ShowClamp )( const int32_t level, const char *fmt, ... );
+	void ( *ShowMiss )( const char *fmt, ... );
+
+
+
+	/**
+	*
+	*	Other:
+	*
+	**/
+	void ( *SetSpriteModelVerticality )( const qhandle_t spriteHandle );
+	const int32_t( *GetSpriteModelFrameCount )( const qhandle_t spriteHandle );
+	const bool ( *IsValidSpriteModelHandle )( const qhandle_t spriteHandle );
 } clgame_import_t;
 
 /**
@@ -437,6 +451,7 @@ typedef struct {
 	const char *( *GetGamemodeName )( const int32_t gameModeID );
 
 
+
 	/**
 	*
 	*	Player Movement:
@@ -456,6 +471,16 @@ typedef struct {
 	void ( *PredictMovement )( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber );
 	//! Setup the basic player move configuration parameters. (Used by server for new clients.)
 	void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
+
+
+
+	/**
+	*
+	*	Precache:
+	*
+	**/
+	void ( *RegisterTEntModels )( void );
+	void ( *RegisterTEntSounds )( void );
 
 
 

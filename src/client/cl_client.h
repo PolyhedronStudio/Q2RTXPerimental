@@ -666,7 +666,13 @@ void CL_LoadState(load_state_t state);
 void CL_RegisterSounds(void);
 void CL_RegisterBspModels(void);
 void CL_RegisterVWepModels(void);
+/**
+*   @brief  Called before entering a new level, or after changing dlls
+**/
 void CL_PrepRefresh(void);
+/**
+*   @brief  
+**/
 void CL_UpdateConfigstring( const int32_t index);
 
 

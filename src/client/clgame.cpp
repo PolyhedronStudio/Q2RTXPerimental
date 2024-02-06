@@ -1,4 +1,6 @@
 #include "cl_client.h"
+#include "refresh/models.h"
+#include "refresh/images.h"
 
 extern "C" {
 
@@ -104,6 +106,12 @@ const qhandle_t PF_R_RegisterModel( const char *name ) {
 void PF_R_AddDecal( decal_t *d ) {
 	return R_AddDecal( d );
 }
+/**
+*	@brief	Returns a pointer to d_8to24table[256]; And yes, I know this is a cheesy method.
+**/
+const uint32_t *PF_R_Get8BitTo24BitTable( void ) {
+	return d_8to24table;
+}
 
 
 /**
@@ -206,6 +214,46 @@ void PF_ShowNet( const int32_t level, const char *fmt, ... ) {}
 void PF_ShowClamp( const int32_t level, const char *fmt, ... ) {}
 void PF_ShowMiss( const int32_t level, const char *fmt, ... ) {}
 #endif
+
+
+
+/**
+*
+*
+*	Other:
+*
+*
+**/
+/**
+*	@brief
+**/
+void PF_SetSpriteModelVerticality( const qhandle_t spriteHandle ) {
+	model_t *model = MOD_ForHandle( spriteHandle );
+
+	if ( model ) {
+		model->sprite_vertical = true;
+	}
+}
+/**
+*	@return Sprite's framecount, or 0 on failure.
+**/
+const int32_t PF_GetSpriteModelFrameCount( const qhandle_t spriteHandle ) {
+	model_t *model = MOD_ForHandle( spriteHandle );
+
+	if ( model ) {
+		return model->numframes;
+	}
+
+	return 0;
+}
+/**
+*	@return	True if the handle leads to a valid and loaded sprite model.
+**/
+const bool PF_IsValidSpriteModelHandle( const qhandle_t spriteHandle ) {
+	model_t *model = MOD_ForHandle( spriteHandle );
+	return ( model ? true : false );
+}
+
 
 /**
 *
@@ -331,6 +379,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.CVar_Get = PF_CVarGet;
 	imports.CVar_Set = Cvar_UserSet;
 	imports.CVar_ForceSet = Cvar_Set;
+	imports.CVar_ClampValue = Cvar_ClampValue;
 	imports.CVar_Reset = PF_Cvar_Reset;
 
 	imports.Print = PF_Print;
@@ -363,10 +412,9 @@ void CL_GM_LoadProgs( void ) {
 	imports.Clip = CL_Clip;
 	imports.PointContents = CL_PointContents;
 
-	imports.Prompt_AddMatch = Prompt_AddMatch;
-
 	imports.R_RegisterModel = PF_R_RegisterModel;
 	imports.R_AddDecal = PF_R_AddDecal;
+	imports.R_Get8BitTo24BitTable = PF_R_Get8BitTo24BitTable;
 
 	imports.S_StartSound = S_StartSound;
 	imports.S_StartLocalSound = S_StartLocalSound;
@@ -382,6 +430,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.V_AddLight = V_AddLight;
 	imports.V_AddLightStyle = V_AddLightStyle;
 
+	imports.Prompt_AddMatch = Prompt_AddMatch;
 	#if USE_DEBUG
 	// ShowNet
 	imports.ShowNet = PF_ShowNet;
@@ -390,6 +439,9 @@ void CL_GM_LoadProgs( void ) {
 	// ShowMiss
 	imports.ShowMiss = PF_ShowMiss;
 	#endif
+	imports.SetSpriteModelVerticality = PF_SetSpriteModelVerticality;
+	imports.GetSpriteModelFrameCount = PF_GetSpriteModelFrameCount;
+	imports.IsValidSpriteModelHandle = PF_IsValidSpriteModelHandle;
 
 	clge = entry( &imports );
 

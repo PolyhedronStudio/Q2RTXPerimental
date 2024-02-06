@@ -43,8 +43,9 @@ cparticle_t *CLG_AllocParticle( void ) {
     return p;
 }
 
-extern int          r_numparticles;
-extern particle_t   r_particles[ MAX_PARTICLES ];
+
+//extern int          r_numparticles;
+//extern particle_t   r_particles[ MAX_PARTICLES ];
 
 /**
 *   @brief
@@ -76,9 +77,9 @@ void CLG_AddParticles( void ) {
             alpha = p->alpha;
         }
 
-        if ( r_numparticles >= MAX_PARTICLES )
+        if ( clgi.client->viewScene.r_numparticles >= MAX_PARTICLES )
             break;
-        part = &r_particles[ r_numparticles++ ];
+        part = &clgi.client->viewScene.r_particles[ clgi.client->viewScene.r_numparticles++ ];
 
         p->next = NULL;
         if ( !tail )

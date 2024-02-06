@@ -211,7 +211,9 @@ static void parse_entity_update(const entity_state_t *state)
 
 // an entity has just been parsed that has an event value
 static void parse_entity_event(const int32_t entityNumber ) {
-    clge->ParseEntityEvent( entityNumber );
+    if ( clge != nullptr ) {
+        clge->ParseEntityEvent( entityNumber );
+    }
     //centity_t *cent = ENTITY_FOR_NUMBER( number );//centity_t *cent = &cl_entities[number];
 
     //// EF_TELEPORTER acts like an event, but is not cleared each frame

@@ -46,9 +46,20 @@ cvar_t *sv_paused = nullptr;
 //cvar_t *maxentities;
 cvar_t *cl_footsteps = nullptr;
 
-// Cheesy workaround for these two cvars initialized in client FX_Init
-cvar_t *cvar_pt_particle_emissive = nullptr;
-cvar_t *cl_particle_num_factor = nullptr;
+cvar_t *info_password = nullptr;
+cvar_t *info_spectator = nullptr;
+cvar_t *info_name = nullptr;
+cvar_t *info_skin = nullptr;
+cvar_t *info_rate = nullptr;// WID: C++20: Needed for linkage.
+cvar_t *info_fov = nullptr;
+cvar_t *info_msg = nullptr;
+cvar_t *info_hand = nullptr;
+cvar_t *info_gender = nullptr;
+cvar_t *info_uf = nullptr;
+
+// Cheesy workaround for various cvars initialized elsewhere in the client, but we need access.
+cvar_t *cvar_pt_particle_emissive = nullptr; // from client FX_Init
+cvar_t *cl_particle_num_factor = nullptr; // from client FX_Init
 
 
 /**
@@ -136,6 +147,30 @@ void PF_InitGame( void ) {
 	cl_particle_num_factor = clgi.CVar( "cl_particle_num_factor", nullptr, 0 );
 
 	cl_footsteps = clgi.CVar_Get( "cl_footsteps", "1", 0 );
+
+	/**
+	*	UserInfo - Initialized by the client, but we desire access to these user info cvars.
+	**/
+	info_password = clgi.CVar_Get( "password", nullptr, 0 );
+	info_spectator = clgi.CVar_Get( "spectator", nullptr, 0 );
+	info_name = clgi.CVar_Get( "name", nullptr, 0 );
+	info_skin = clgi.CVar_Get( "skin", nullptr, 0 );
+	info_rate = clgi.CVar_Get( "rate", nullptr, 0 );
+	info_msg = clgi.CVar_Get( "msg", nullptr, 0 );
+	info_hand = clgi.CVar_Get( "hand", nullptr, 0 );
+	info_fov = clgi.CVar_Get( "fov", nullptr, 0 );
+	info_gender = clgi.CVar_Get( "gender", nullptr, 0 );
+	info_gender->modified = false; // clear this so we know when user sets it manually
+	info_uf = clgi.CVar_Get( "uf", nullptr, 0 );
+
+	// Generate a random user name to avoid new users being kicked out of MP servers.
+	// The default quake2 config files set the user name to "Player", same as the cvar initialization above.
+	if ( Q_strcasecmp( info_name->string, "Q2RTXPerimental" ) == 0 ) {
+		int random_number = Q_rand() % 10000;
+		char buf[ MAX_CLIENT_NAME ];
+		Q_snprintf( buf, sizeof( buf ), "Q2RTXP-%04d", random_number );
+		clgi.CVar_Set( "name", buf );
+	}
 
 
 	/**
@@ -288,11 +323,15 @@ extern "C" { // WID: C++20: extern "C".
 		//globals.PlayerMove = PF_PlayerMove;
 		globals.ConfigurePlayerMoveParameters = PF_ConfigurePlayerMoveParameters;
 
+		globals.RegisterTEntModels = PF_RegisterTEntModels;
+		globals.RegisterTEntSounds = PF_RegisterTEntSounds;
+
 		globals.UpdateConfigString = PF_UpdateConfigString;
 		globals.StartServerMessage = PF_StartServerMessage;
 		globals.ParseServerMessage = PF_ParseServerMessage;
 		globals.EndServerMessage = PF_EndServerMessage;
 		globals.SeekDemoMessage = PF_SeekDemoMessage;
+		globals.ParseEntityEvent = PF_ParseEntityEvent;
 
 		globals.entity_size = sizeof( centity_t );
 

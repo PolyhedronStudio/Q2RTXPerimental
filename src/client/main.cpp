@@ -2559,15 +2559,6 @@ static void CL_InitLocal(void)
     info_gender->modified = false; // clear this so we know when user sets it manually
     info_uf = Cvar_Get("uf", "", CVAR_USERINFO);
 
-	// Generate a random user name to avoid new users being kicked out of MP servers.
-	// The default quake2 config files set the user name to "Player", same as the cvar initialization above.
-	if (Q_strcasecmp(info_name->string, "Player") == 0)
-	{
-		int random_number = Q_rand() % 10000;
-		char buf[MAX_CLIENT_NAME];
-		Q_snprintf(buf, sizeof(buf), "Player-%04d", random_number);
-		Cvar_Set("name", buf);
-	}
 
     //
     // macros

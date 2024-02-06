@@ -116,7 +116,7 @@ void CLG_AddBeams( void ) {
 
         // add new entities for the beams
         d = VectorNormalize( dist );
-        if ( b->model == cl_mod_lightning ) {
+        if ( b->model == precache.cl_mod_lightning ) {
             model_length = 35.0f;
             d -= 20.0f; // correction so it doesn't end in middle of tesla
         } else {
@@ -131,7 +131,7 @@ void CLG_AddBeams( void ) {
         // PMM - special case for lightning model .. if the real length is shorter than the model,
         // flip it around & draw it from the end to the start.  This prevents the model from going
         // through the tesla mine (instead it goes through the target)
-        if ( ( b->model == cl_mod_lightning ) && ( d <= model_length ) ) {
+        if ( ( b->model == precache.cl_mod_lightning ) && ( d <= model_length ) ) {
             VectorCopy( b->end, ent.origin );
             ent.flags = RF_FULLBRIGHT;
             ent.angles[ 0 ] = angles[ 0 ];
@@ -143,7 +143,7 @@ void CLG_AddBeams( void ) {
 
         while ( d > 0 ) {
             VectorCopy( org, ent.origin );
-            if ( b->model == cl_mod_lightning ) {
+            if ( b->model == precache.cl_mod_lightning ) {
                 ent.flags = RF_FULLBRIGHT;
                 ent.angles[ 0 ] = -angles[ 0 ];
                 ent.angles[ 1 ] = angles[ 1 ] + 180.0f;

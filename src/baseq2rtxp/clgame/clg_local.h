@@ -53,6 +53,17 @@ extern cvar_t *sv_paused;
 
 extern cvar_t *cl_footsteps;
 
+extern cvar_t *info_password;
+extern cvar_t *info_spectator;
+extern cvar_t *info_name;
+extern cvar_t *info_skin;
+extern cvar_t *info_rate;// WID: C++20: Needed for linkage.
+extern cvar_t *info_fov;
+extern cvar_t *info_msg;
+extern cvar_t *info_hand;
+extern cvar_t *info_gender;
+extern cvar_t *info_uf;
+
 // Cheesy workaround for these two cvars initialized in client FX_Init
 extern cvar_t *cvar_pt_particle_emissive;
 extern cvar_t *cl_particle_num_factor;
@@ -429,6 +440,73 @@ const bool PF_SeekDemoMessage( const int32_t serverMessage );
 void PF_ParseEntityEvent( const int32_t entityNumber );
 
 
+
+/*
+*
+*	clg_precache.cpp
+*
+*/
+typedef struct precached_media_s {
+	//
+	// Models:
+	//
+	qhandle_t cl_mod_explode;
+	qhandle_t cl_mod_smoke;
+	qhandle_t cl_mod_flash;
+	qhandle_t cl_mod_parasite_segment;
+	qhandle_t cl_mod_grapple_cable;
+	qhandle_t cl_mod_explo4;
+	qhandle_t cl_mod_explosions[ 4 ];
+	qhandle_t cl_mod_bfg_explo;
+	qhandle_t cl_mod_powerscreen;
+	qhandle_t cl_mod_laser;
+	qhandle_t cl_mod_dmspot;
+
+	qhandle_t cl_mod_lightning;
+	qhandle_t cl_mod_heatbeam;
+	qhandle_t cl_mod_explo4_big;
+
+	// 
+	// Sound Effects:
+	//
+	qhandle_t cl_sfx_ric1;
+	qhandle_t cl_sfx_ric2;
+	qhandle_t cl_sfx_ric3;
+	qhandle_t cl_sfx_lashit;
+	qhandle_t cl_sfx_flare;
+	qhandle_t cl_sfx_spark5;
+	qhandle_t cl_sfx_spark6;
+	qhandle_t cl_sfx_spark7;
+	qhandle_t cl_sfx_railg;
+	qhandle_t cl_sfx_rockexp;
+	qhandle_t cl_sfx_grenexp;
+	qhandle_t cl_sfx_watrexp;
+
+	qhandle_t cl_sfx_footsteps[ 4 ];
+
+	qhandle_t cl_sfx_lightning;
+	qhandle_t cl_sfx_disrexp;
+
+	//
+	// Other:
+	//
+	// ...
+} precached_media_t;
+
+//! Stores qhandles to all precached client game media.
+extern precached_media_t precache;
+
+/**
+*   @brief
+**/
+void PF_RegisterTEntModels( void );
+/**
+*   @brief
+**/
+void PF_RegisterTEntSounds( void );
+
+
+
 /*
 *
 *	clg_predict.cpp
@@ -613,7 +691,7 @@ void CLG_RailTrail( void );
 /**
 *   @brief
 **/
-static void CLG_ClearSustains( void );
+void CLG_ClearSustains( void );
 /**
 *   @brief
 **/
