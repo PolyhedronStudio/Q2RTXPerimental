@@ -123,7 +123,7 @@ static light_curve_t ex_blaster_light[] = {
     { { 0.04f,      0.02f,      0.0f      },  5.f, 15.00f },
 };
 
-static void CL_AddExplosionLight( explosion_t *ex, float phase ) {
+static void CLG_AddExplosionLight( explosion_t *ex, float phase ) {
     int curve_size;
     light_curve_t *curve;
 
@@ -142,7 +142,7 @@ static void CL_AddExplosionLight( explosion_t *ex, float phase ) {
 
     float timeAlpha = ( (float)( curve_size - 1 ) ) * phase;
     int baseSample = (int)floorf( timeAlpha );
-    baseSample = max( 0, min( curve_size - 2, baseSample ) );
+    baseSample = std::max( 0, min( curve_size - 2, baseSample ) );
 
     float w1 = timeAlpha - (float)( baseSample );
     float w0 = 1.f - w1;
@@ -163,7 +163,7 @@ static void CL_AddExplosionLight( explosion_t *ex, float phase ) {
     VectorMA( color, w0, s0->color, color );
     VectorMA( color, w1, s1->color, color );
 
-    V_AddSphereLight( origin, 500.f, color[ 0 ], color[ 1 ], color[ 2 ], radius );
+    clgi.V_AddSphereLight( origin, 500.f, color[ 0 ], color[ 1 ], color[ 2 ], radius );
 }
 
 void CLG_AddExplosions( void ) {
@@ -211,7 +211,7 @@ void CLG_AddExplosions( void ) {
             }
 
             ent->alpha = ( (float)ex->frames - (float)f ) / (float)ex->frames;
-            ent->alpha = max( 0.f, min( 1.f, ent->alpha ) );
+            ent->alpha = std::max( 0.f, min( 1.f, ent->alpha ) );
             ent->alpha = ent->alpha * ent->alpha * ( 3.f - 2.f * ent->alpha ); // smoothstep
 
             if ( f < 10 ) {
@@ -260,7 +260,7 @@ void CLG_AddExplosions( void ) {
             ent->oldframe = ex->baseframe + f;
             ent->backlerp = 1.0f - ( frac - f );
 
-            V_AddEntity( ent );
+            clgi.V_AddEntity( ent );
         }
     }
 }

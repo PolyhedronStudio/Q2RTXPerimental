@@ -91,13 +91,20 @@ static void PF_Cvar_Reset( cvar_t *cvar ) {
 /**
 *
 *
-*	Rendering:
+*	Refresh:
 *
 * 
 **/
 const qhandle_t PF_R_RegisterModel( const char *name ) {
 	return R_RegisterModel( name );
 }
+/**
+*	@brief
+**/
+void PF_R_AddDecal( decal_t *d ) {
+	return R_AddDecal( d );
+}
+
 
 /**
 * 
@@ -359,6 +366,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.Prompt_AddMatch = Prompt_AddMatch;
 
 	imports.R_RegisterModel = PF_R_RegisterModel;
+	imports.R_AddDecal = PF_R_AddDecal;
 
 	imports.S_StartSound = S_StartSound;
 	imports.S_StartLocalSound = S_StartLocalSound;

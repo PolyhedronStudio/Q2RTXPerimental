@@ -453,7 +453,7 @@ void CLG_WidowSplash( void ) {
         dir[ 1 ] = crand();
         dir[ 2 ] = crand();
         VectorNormalize( dir );
-        VectorMA( te.pos1, 45.0f, dir, p->org );
+        VectorMA( level.parsedMessage.events.tempEntity.pos1, 45.0f, dir, p->org );
         VectorScale( dir, 40.0f, p->vel );
 
         p->accel[ 0 ] = p->accel[ 1 ] = 0;

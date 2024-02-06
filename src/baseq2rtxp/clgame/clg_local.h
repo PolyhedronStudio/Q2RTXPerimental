@@ -263,36 +263,6 @@ void CLG_TeleportParticles( const vec3_t org );
 
 /*
 *
-*	clg_effects.cpp
-*
-*/
-void CLG_Flashlight( int ent, const vec3_t pos );
-void CLG_ColorFlash( const vec3_t pos, int ent, int intensity, float r, float g, float b );
-void CLG_DebugTrail( const vec3_t start, const vec3_t end );
-void CLG_ForceWall( const vec3_t start, const vec3_t end, int color );
-void CLG_BubbleTrail2( const vec3_t start, const vec3_t end, int dist );
-void CLG_Heatbeam( const vec3_t start, const vec3_t forward );
-void CLG_ParticleSteamEffect( const vec3_t org, const vec3_t dir, int color, int count, int magnitude );
-void CLG_ParticleSteamEffect2( cl_sustain_t *self );
-void CLG_TrackerTrail( const vec3_t start, const vec3_t end, int particleColor );
-void CLG_Tracker_Shell( const vec3_t origin );
-void CLG_MonsterPlasma_Shell( const vec3_t origin );
-void CLG_Widowbeamout( cl_sustain_t *self );
-void CLG_Nukeblast( cl_sustain_t *self );
-void CLG_WidowSplash( void );
-void CLG_TagTrail( const vec3_t start, const vec3_t end, int color );
-void CLG_ColorExplosionParticles( const vec3_t org, int color, int run );
-void CLG_ParticleSmokeEffect( const vec3_t org, const vec3_t dir, int color, int count, int magnitude );
-void CLG_BlasterParticles2( const vec3_t org, const vec3_t dir, unsigned int color );
-void CLG_BlasterTrail2( const vec3_t start, const vec3_t end );
-void CLG_IonripperTrail( const vec3_t start, const vec3_t ent );
-void CLG_TrapParticles( centity_t *ent, const vec3_t origin );
-void CLG_ParticleEffect3( const vec3_t org, const vec3_t dir, int color, int count );
-
-
-
-/*
-*
 *	effects/clg_fx_dynamiclights.cpp
 *
 */
@@ -344,6 +314,36 @@ void CLG_MuzzleFlash( void );
 *   @brief  Handles the parsed entities/monster muzzleflash effects.
 **/
 void CLG_MuzzleFlash2( void );
+
+
+
+/*
+*
+*	effects/clg_fx_newfx.cpp
+*
+*/
+void CLG_Flashlight( int ent, const vec3_t pos );
+void CLG_ColorFlash( const vec3_t pos, int ent, int intensity, float r, float g, float b );
+void CLG_DebugTrail( const vec3_t start, const vec3_t end );
+void CLG_ForceWall( const vec3_t start, const vec3_t end, int color );
+void CLG_BubbleTrail2( const vec3_t start, const vec3_t end, int dist );
+void CLG_Heatbeam( const vec3_t start, const vec3_t forward );
+void CLG_ParticleSteamEffect( const vec3_t org, const vec3_t dir, int color, int count, int magnitude );
+void CLG_ParticleSteamEffect2( cl_sustain_t *self );
+void CLG_TrackerTrail( const vec3_t start, const vec3_t end, int particleColor );
+void CLG_Tracker_Shell( const vec3_t origin );
+void CLG_MonsterPlasma_Shell( const vec3_t origin );
+void CLG_Widowbeamout( cl_sustain_t *self );
+void CLG_Nukeblast( cl_sustain_t *self );
+void CLG_WidowSplash( void );
+void CLG_TagTrail( const vec3_t start, const vec3_t end, int color );
+void CLG_ColorExplosionParticles( const vec3_t org, int color, int run );
+void CLG_ParticleSmokeEffect( const vec3_t org, const vec3_t dir, int color, int count, int magnitude );
+void CLG_BlasterParticles2( const vec3_t org, const vec3_t dir, unsigned int color );
+void CLG_BlasterTrail2( const vec3_t start, const vec3_t end );
+void CLG_IonripperTrail( const vec3_t start, const vec3_t ent );
+void CLG_TrapParticles( centity_t *ent, const vec3_t origin );
+void CLG_ParticleEffect3( const vec3_t org, const vec3_t dir, int color, int count );
 
 
 
@@ -481,6 +481,34 @@ void CLG_AddTEnts( void );
 
 /*
 *
+*	temp_entities/clg_te_beams.cpp
+*
+*/
+/**
+*   @brief
+**/
+void CLG_ClearBeams( void );
+/**
+*   @brief
+**/
+void CLG_ParseBeam( const qhandle_t model );
+/**
+*   @brief
+**/
+void CLG_ParsePlayerBeam( const qhandle_t model );
+/**
+*   @brief
+**/
+void CLG_AddBeams( void );
+/**
+*   @brief  Draw player locked beams. Currently only used by the plasma beam.
+**/
+void CLG_AddPlayerBeams( void );
+
+
+
+/*
+*
 *	temp_entities/clg_te_explosions.cpp
 *
 */
@@ -515,6 +543,97 @@ void CLG_SmokeAndFlash( const vec3_t origin );
 *   @brief
 **/
 void CLG_AddExplosions( void );
+
+
+
+/*
+*
+*	temp_entities/clg_te_lasers.cpp
+*
+*/
+//!
+typedef struct {
+	vec3_t      start;
+	vec3_t      end;
+
+	int32_t     color;
+	color_t     rgba;
+	int32_t     width;
+
+	int64_t     lifetime, starttime;
+} laser_t;
+/**
+*   @brief
+**/
+void CLG_ClearLasers( void );
+/**
+*   @brief
+**/
+laser_t *CLG_AllocLaser( void );
+/**
+*   @brief
+**/
+void CLG_AddLasers( void );
+/**
+*   @brief
+**/
+void CLG_ParseLaser( const int32_t colors );
+
+
+
+/*
+*
+*	temp_entities/clg_te_railtrails.cpp
+*
+*/
+/**
+*   @brief
+**/
+void CLG_RailCore( void );
+/**
+*   @brief
+**/
+void CLG_RailSpiral( void );
+/**
+*   @brief
+**/
+void CLG_RailLights( const color_t color );
+/**
+*   @brief
+**/
+void CLG_RailTrail( void );
+
+
+
+/*
+*
+*	temp_entities/clg_te_sustain.cpp
+*
+*/
+/**
+*   @brief
+**/
+static void CLG_ClearSustains( void );
+/**
+*   @brief
+**/
+cl_sustain_t *CLG_AllocSustain( void );
+/**
+*   @brief
+**/
+void CLG_ProcessSustain( void );
+/**
+*   @brief
+**/
+void CLG_ParseSteam( void );
+/**
+*   @brief
+**/
+void CLG_ParseWidow( void );
+/**
+*   @brief
+**/
+void CLG_ParseNuke( void );
 
 
 

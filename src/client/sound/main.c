@@ -717,19 +717,20 @@ void S_StartSound(const vec3_t origin, const int32_t entnum, const int32_t entch
 
 void S_ParseStartSound(void)
 {
-    qhandle_t handle = cl.sound_precache[cl.snd.index];
+    qhandle_t handle = cl.sound_precache[ cl.snd.index ];
 
-    if (!handle)
+    if ( !handle )
         return;
 
 #if USE_DEBUG
-    if (developer->integer && !( cl.snd.flags & SND_POS))
-        CL_CheckEntityPresent( cl.snd.entity, "sound");
+    if ( developer->integer && !( cl.snd.flags & SND_POS ) ) {
+        CL_CheckEntityPresent( cl.snd.entity, "sound" );
+    }
 #endif
 
-    S_StartSound(( cl.snd.flags & SND_POS) ? cl.snd.pos : NULL,
-            cl.snd.entity, cl.snd.channel, handle,
-            cl.snd.volume, cl.snd.attenuation, cl.snd.timeofs);
+    S_StartSound( ( cl.snd.flags & SND_POS ) ? cl.snd.pos : NULL,
+        cl.snd.entity, cl.snd.channel, handle,
+        cl.snd.volume, cl.snd.attenuation, cl.snd.timeofs );
 }
 
 /*

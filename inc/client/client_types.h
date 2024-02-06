@@ -117,7 +117,7 @@ typedef struct cdlight_s {
 typedef struct cl_sustain_s {
     int     id;
     int     type;
-    int     endtime;
+    int64_t endtime;
     int64_t nextthink;
     vec3_t  org;
     vec3_t  dir;
@@ -280,6 +280,9 @@ typedef struct client_predicted_state_s {
 //
 // parse.c
 //
+/**
+*   @brief  Stores temp entity data from the last parsed svc_temp_entity message.
+**/
 typedef struct {
     int32_t type;
     vec3_t  pos1;
@@ -292,13 +295,17 @@ typedef struct {
     int32_t entity2;
     int32_t time;
 } tent_params_t;
-
+/**
+*   @brief  Stores muzzleflash data from the last parsed svc_muzzleflash message.
+**/
 typedef struct {
     int32_t entity;
     int32_t weapon;
     bool silenced;
 } mz_params_t;
-
+/**
+*   @brief  Stores sound data from the last parsed svc_sound message.
+**/
 typedef struct {
     int32_t flags;
     int32_t index;

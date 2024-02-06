@@ -169,7 +169,7 @@ void CLG_BloodParticleEffect( const vec3_t org, const vec3_t dir, int color, int
       .spread = 0.25f,
       .length = 350 
     };
-    R_AddDecal( &dec );
+    clgi.R_AddDecal( &dec );
 
     float a[ 3 ] = { dir[ 1 ], -dir[ 2 ], dir[ 0 ] };
     float b[ 3 ] = { -dir[ 2 ], dir[ 0 ], dir[ 1 ] };

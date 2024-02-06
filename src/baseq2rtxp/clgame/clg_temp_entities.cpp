@@ -23,7 +23,7 @@ cvar_t *cl_explosion_sprites;
 cvar_t *cl_explosion_frametime;
 cvar_t *cl_dlight_hacks;
 
-cvar_t *gibs;
+cvar_t *cl_gibs;
 
 static void cl_railcore_color_changed( cvar_t *self ) {
     if ( !clgi.SCR_ParseColor( self->string, &railcore_color ) ) {
@@ -227,7 +227,7 @@ void CLG_ParseTEnt( void ) {
     case TE_FLARE:              // flare
         ex = CLG_AllocExplosion();
         VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
-        dirtoangles( ex->ent.angles );
+        QM_Vector3ToAngles( Vector3( 0, 1.f, 0.f ), ex->ent.angles ); //dirtoangles( ex->ent.angles );
         ex->type = explosion_t::ex_blaster;
         ex->ent.flags = RF_FULLBRIGHT | RF_TRANSLUCENT;
         ex->ent.tent_type = level.parsedMessage.events.tempEntity.type;

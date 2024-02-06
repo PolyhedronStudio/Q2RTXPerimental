@@ -330,7 +330,7 @@ typedef struct {
 	*
 	**/
 	const qhandle_t( *R_RegisterModel )( const char *name );
-
+	void ( *R_AddDecal )( decal_t *d );
 
 
 	/**

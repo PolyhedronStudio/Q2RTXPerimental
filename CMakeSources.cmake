@@ -152,6 +152,12 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/effects/clg_fx_muzzleflash2.cpp
 	baseq2rtxp/clgame/effects/clg_fx_particles.cpp
 	baseq2rtxp/clgame/effects/clg_fx_new.cpp
+
+	baseq2rtxp/clgame/temp_entities/clg_te_beams.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_explosions.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_lasers.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_railtrails.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_sustain.cpp
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_local.h
