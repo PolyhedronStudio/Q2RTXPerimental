@@ -123,7 +123,7 @@ void SCR_UpdateScreen(void);
 
 extern const uint32_t   colorTable[8];
 
-const bool SCR_ParseColor(const char *s, color_t *color);
+const qboolean SCR_ParseColor(const char *s, color_t *color);
 
 float V_CalcFov(float fov_x, float width, float height);
 

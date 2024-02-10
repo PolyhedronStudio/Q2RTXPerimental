@@ -29,7 +29,8 @@ typedef struct explosion_s {
         ex_light,
         ex_blaster,
         ex_flare
-    } type;
+    } explosion_type;
+    int32_t     type;
 
     //! Render Entity.
     entity_t    ent;
@@ -325,7 +326,7 @@ typedef struct client_state_s {
     //! Used for chats, for possible time-outs.
     int64_t     timeoutcount;
     //! Dirty demo configstrings.
-    byte            dcs[ CS_BITMAP_BYTES ];
+    byte        dcs[ CS_BITMAP_BYTES ];
 
     /**
     *
@@ -336,7 +337,7 @@ typedef struct client_state_s {
     int64_t initialSeq;
 
     //! Immediately send the 'command' packet, or not.
-    bool        sendPacketNow;
+    qboolean    sendPacketNow;
     //! Last time of packet transmission.
     uint64_t	lastTransmitTime;
     //! Last command number which is meant to be transmitted.
@@ -485,10 +486,10 @@ typedef struct client_state_s {
     configstring_t configstrings[ MAX_CONFIGSTRINGS ];
     char		mapname[ MAX_QPATH ]; // short format - q2dm1, etc
 
-    #if USE_AUTOREPLY
+    //#if USE_AUTOREPLY // Removed ifdef for memory alignment consistency sake.
     uint64_t	reply_time;
     uint64_t	reply_delta;
-    #endif
+    //#endif
 
     //
     // locally derived information from server state

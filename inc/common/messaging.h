@@ -464,7 +464,7 @@ extern "C" {
 		/**
 		*	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
 		**/
-		void    MSG_ReadPos( vec3_t pos, const bool decodeFromShort );
+		void    MSG_ReadPos( vec3_t pos, const qboolean decodeFromShort );
 	#endif
 	/**
 	*   @brief Read a client's delta move command.

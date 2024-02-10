@@ -206,7 +206,7 @@ float SCR_FadeAlpha(unsigned startTime, unsigned visTime, unsigned fadeTime)
     return alpha;
 }
 
-const bool SCR_ParseColor(const char *s, color_t *color)
+const qboolean SCR_ParseColor(const char *s, color_t *color)
 {
     int i;
     int c[8];

@@ -1501,8 +1501,6 @@ void CL_PrepareViewEntities(void)
     //CL_CalcViewValues();
     //CL_FinishViewValues();
 
-    // WID: This is where things get really weird.
-    CL_AddPacketEntities();
     clge->PrepareViewEntities();
 
     LOC_AddLocationsToScene();

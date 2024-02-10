@@ -596,7 +596,7 @@ void MSG_ReadDir8( vec3_t dir ) {
 /**
 *	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
 **/
-void MSG_ReadPos( vec3_t pos, const bool decodeFromShort = false ) {
+void MSG_ReadPos( vec3_t pos, const qboolean decodeFromShort = false ) {
 	if ( decodeFromShort ) {
 		pos[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) );
 		pos[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) );

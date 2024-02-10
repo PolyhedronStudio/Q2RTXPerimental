@@ -36,9 +36,11 @@
 typedef unsigned char byte;
 
 // QBoolean support(treat it as an int to remain compatible with the C code parts).
-typedef int qboolean;
-#define qfalse false;
-#define qtrue true;
+typedef int32_t qboolean;
+static constexpr int32_t qtrue = true;
+static constexpr int32_t qfalse = false;
+//#define qfalse false;
+//#define qtrue true;
 
 // qhandle_t
 typedef int qhandle_t;

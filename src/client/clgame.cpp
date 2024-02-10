@@ -21,7 +21,7 @@ extern "C" {
 /**
 *	@return	True if playing a demo, false otherwise.
 **/
-static const bool PF_IsDemoPlayback( ) {
+static const qboolean PF_IsDemoPlayback( ) {
 	return cls.demo.playback;
 }
 static const uint64_t PF_GetRealTime() {
@@ -258,7 +258,7 @@ const int32_t PF_GetSpriteModelFrameCount( const qhandle_t spriteHandle ) {
 /**
 *	@return	True if the handle leads to a valid and loaded sprite model.
 **/
-const bool PF_IsValidSpriteModelHandle( const qhandle_t spriteHandle ) {
+const qboolean PF_IsValidSpriteModelHandle( const qhandle_t spriteHandle ) {
 	model_t *model = MOD_ForHandle( spriteHandle );
 	return ( model ? true : false );
 }

@@ -194,15 +194,11 @@ static void CL_ParseFrame()
 {
     uint64_t bits;
     // Current frame being parsed.
-    server_frame_t  frame;
+    server_frame_t  frame = { };
     // Previous old frame.
     server_frame_t *oldframe = nullptr;
     // Player state to interpolate from.
     player_state_t *from;
-
-    int32_t length = 0;
-
-    memset(&frame, 0, sizeof(frame));
 
     // Reset current frame flags.
     cl.frameflags = FF_NONE;
@@ -270,7 +266,7 @@ static void CL_ParseFrame()
     }
 
     // Read areabits
-    length = MSG_ReadUint8();
+    int32_t length = MSG_ReadUint8();
     if (length) {
         if (length < 0 || msg_read.readcount + length > msg_read.cursize) {
             Com_Error(ERR_DROP, "%s: read past end of message", __func__);
@@ -320,8 +316,8 @@ static void CL_ParseFrame()
 
 #if USE_DEBUG
     if (cl_shownet->integer > 2) {
-        int seq = cls.netchan.incoming_acknowledged & CMD_MASK;
-        int rtt = cls.demo.playback ? 0 : cls.realtime - cl.history[seq].timeSent;
+        int64_t seq = cls.netchan.incoming_acknowledged & CMD_MASK;
+        int64_t rtt = cls.demo.playback ? 0 : cls.realtime - cl.history[seq].timeSent;
         Com_LPrintf(PRINT_DEVELOPER, "%3zu:frame:%d  delta:%d  rtt:%d\n",
                     msg_read.readcount - 1, frame.number, frame.delta, rtt);
     }

@@ -62,7 +62,7 @@ void PF_PredictAngles( void ) {
 /**
 *	@return	False if prediction is not desired for. True if it is.
 **/
-const bool PF_UsePrediction( void ) {
+const qboolean PF_UsePrediction( void ) {
 	// We're playing a demo, there is nothing to predict.
 	if ( clgi.IsDemoPlayback() ) {
 		return false;

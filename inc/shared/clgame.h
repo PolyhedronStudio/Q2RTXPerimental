@@ -164,7 +164,7 @@ typedef struct {
 	*	Client Static:
 	* 
 	**/
-	const bool ( *IsDemoPlayback )( );
+	const qboolean ( *IsDemoPlayback )( );
 	const uint64_t ( *GetRealTime )( );
 	const int32_t ( *GetConnectionState )( );
 	const ref_type_t( *GetRefreshType )( );
@@ -184,7 +184,7 @@ typedef struct {
 	*
 	**/
 	const char *( *SCR_GetColorName )( color_index_t colorIndex );
-	const bool ( *SCR_ParseColor )( const char *s, color_t *color );
+	const qboolean ( *SCR_ParseColor )( const char *s, color_t *color );
 
 
 
@@ -301,7 +301,7 @@ typedef struct {
 	/**
 	*	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
 	**/
-	void ( *MSG_ReadPos )( vec3_t pos, const bool decodeFromShort );
+	void ( *MSG_ReadPos )( vec3_t pos, const qboolean decodeFromShort );
 	
 
 
@@ -407,7 +407,7 @@ typedef struct {
 	**/
 	void ( *SetSpriteModelVerticality )( const qhandle_t spriteHandle );
 	const int32_t( *GetSpriteModelFrameCount )( const qhandle_t spriteHandle );
-	const bool ( *IsValidSpriteModelHandle )( const qhandle_t spriteHandle );
+	const qboolean ( *IsValidSpriteModelHandle )( const qhandle_t spriteHandle );
 } clgame_import_t;
 
 /**
@@ -464,7 +464,7 @@ typedef struct {
 	*
 	**/
 	//! Returns false if cl_predict == 0, or player move inquired to perform no prediction.
-	const bool ( *UsePrediction )( void );
+	const qboolean ( *UsePrediction )( void );
 	//! Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
 	void ( *AdjustViewHeight )( const int32_t viewHeight );
 	//! Sets the predicted view angles.
@@ -499,28 +499,28 @@ typedef struct {
 	*	@brief	Gives the client game a chance to interscept and respond to configstring updates.
 	*			Returns true if interscepted.
 	**/
-	const bool ( *UpdateConfigString )( const int32_t index );
+	const qboolean ( *UpdateConfigString )( const int32_t index );
 
 	/**
 	*	@brief	Called by the client BEFORE all server messages have been parsed.
 	**/
-	void ( *StartServerMessage )( const bool isDemoPlayback );
+	void ( *StartServerMessage )( const qboolean isDemoPlayback );
 	/**
 	*	@brief	Called by the client AFTER all server messages have been parsed.
 	**/
-	void ( *EndServerMessage )( const bool isDemoPlayback );
+	void ( *EndServerMessage )( const qboolean isDemoPlayback );
 	/**
 	*	@brief	Called by the client when it does not recognize the server message itself,
 	*			so it gives the client game a chance to handle and respond to it.
 	*	@return	True if the message was handled properly. False otherwise.
 	**/
-	const bool ( *ParseServerMessage )( const int32_t serverMessage );
+	const qboolean ( *ParseServerMessage )( const int32_t serverMessage );
 	/**
 	*	@brief	A variant of ParseServerMessage that skips over non-important action messages,
 	*			used for seeking in demos.
 	*	@return	True if the message was handled properly. False otherwise.
 	**/
-	const bool ( *SeekDemoMessage )( const int32_t serverMessage );
+	const qboolean ( *SeekDemoMessage )( const int32_t serverMessage );
 
 	/**
 	*	@brief	Parsess entity events.

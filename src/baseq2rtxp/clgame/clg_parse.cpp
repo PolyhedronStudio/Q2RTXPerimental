@@ -181,7 +181,7 @@ void CLG_ParseMuzzleFlashPacket( const int32_t mask ) {
 *
 *	@return	True if we interscepted one succesfully, false otherwise.
 **/
-const bool PF_UpdateConfigString( const int32_t index ) {
+const qboolean PF_UpdateConfigString( const int32_t index ) {
     // Get config string.
     const char *s = (const char*)clgi.GetConfigString( index );//clgi.client->configstrings[ index ];
 
@@ -219,14 +219,14 @@ const bool PF_UpdateConfigString( const int32_t index ) {
 /**
 *	@brief	Called by the client BEFORE all server messages have been parsed.
 **/
-void PF_StartServerMessage( const bool isDemoPlayback ) {
+void PF_StartServerMessage( const qboolean isDemoPlayback ) {
 
 }
 
 /**
 *	@brief	Called by the client AFTER all server messages have been parsed.
 **/
-void PF_EndServerMessage( const bool isDemoPlayback ) {
+void PF_EndServerMessage( const qboolean isDemoPlayback ) {
 
 }
 
@@ -235,7 +235,7 @@ void PF_EndServerMessage( const bool isDemoPlayback ) {
 *			so it gives the client game a chance to handle and respond to it.
 *	@return	True if the message was handled properly. False otherwise.
 **/
-const bool PF_ParseServerMessage( const int32_t serverMessage ) {
+const qboolean PF_ParseServerMessage( const int32_t serverMessage ) {
 	switch ( serverMessage ) {
 	//case svc_centerprint:
 	//	return true;
@@ -275,7 +275,7 @@ const bool PF_ParseServerMessage( const int32_t serverMessage ) {
 *			used for seeking in demos.
 *	@return	True if the message was handled properly. False otherwise.
 **/
-const bool PF_SeekDemoMessage( const int32_t serverMessage ) {
+const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
     switch ( serverMessage ) {
     case svc_inventory:
         CLG_ParseInventory();

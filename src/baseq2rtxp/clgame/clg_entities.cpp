@@ -244,7 +244,8 @@ void CLG_AddPacketEntities( void ) {
                 // TODO: Add a specific render flag for this perhaps? 
                 // TODO: must only do this on alias models
                 // Don't do this for 'world' model?
-        if ( ent.model != 0 && cent->last_frame != cent->current_frame ) {
+        //if ( ent.model != 0 && cent->last_frame != cent->current_frame ) {
+        if ( !( ent.model & 0x80000000 ) && cent->last_frame != cent->current_frame ) {
             // Calculate back lerpfraction. (10hz.)
             ent.backlerp = 1.0f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / 100.f );
             clamp( ent.backlerp, 0.0f, 1.0f );

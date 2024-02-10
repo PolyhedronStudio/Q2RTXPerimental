@@ -51,7 +51,7 @@ explosion_t *CLG_PlainExplosion( bool big ) {
     ex->ent.angles[ 1 ] = Q_rand() % 360;
 
     int model_idx = Q_rand() % ( sizeof( precache.cl_mod_explosions ) / sizeof( *precache.cl_mod_explosions ) );
-    const bool isValidSpriteModel = clgi.IsValidSpriteModelHandle( precache.cl_mod_explosions[ model_idx ] );
+    const qboolean isValidSpriteModel = clgi.IsValidSpriteModelHandle( precache.cl_mod_explosions[ model_idx ] );
     //model_t *sprite_model = MOD_ForHandle( cl_mod_explosions[ model_idx ] );
 
     if ( cl_explosion_sprites->integer && !big && isValidSpriteModel ) {

@@ -420,27 +420,27 @@ void CLG_AddPacketEntities( void );
 * 
 *	@return	True if we interscepted one succesfully, false otherwise.
 **/
-const bool PF_UpdateConfigString( const int32_t index );
+const qboolean PF_UpdateConfigString( const int32_t index );
 /**
 *	@brief	Called by the client BEFORE all server messages have been parsed.
 **/
-void PF_StartServerMessage( const bool isDemoPlayback );
+void PF_StartServerMessage( const qboolean isDemoPlayback );
 /**
 *	@brief	Called by the client AFTER all server messages have been parsed.
 **/
-void PF_EndServerMessage( const bool isDemoPlayback );
+void PF_EndServerMessage( const qboolean isDemoPlayback );
 /**
 *	@brief	Called by the client when it does not recognize the server message itself,
 *			so it gives the client game a chance to handle and respond to it.
 *	@return	True if the message was handled properly. False otherwise.
 **/
-const bool PF_ParseServerMessage( const int32_t serverMessage );
+const qboolean PF_ParseServerMessage( const int32_t serverMessage );
 /**
 *	@brief	A variant of ParseServerMessage that skips over non-important action messages,
 *			used for seeking in demos.
 *	@return	True if the message was handled properly. False otherwise.
 **/
-const bool PF_SeekDemoMessage( const int32_t serverMessage );
+const qboolean PF_SeekDemoMessage( const int32_t serverMessage );
 /**
 *	@brief	Parsess entity events.
 **/
@@ -530,7 +530,7 @@ void PF_PredictAngles( );
 /**
 *	@return	False if prediction is not desired for. True if it is.
 **/
-const bool PF_UsePrediction( );
+const qboolean PF_UsePrediction( );
 /**
 *   @brief  Performs player movement over the yet unacknowledged 'move command' frames, as well
 *           as the pending user move command. To finally store the predicted outcome

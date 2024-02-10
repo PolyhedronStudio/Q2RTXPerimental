@@ -415,6 +415,27 @@ typedef struct trace_s {
 	csurface_t *surface2;	// second surface hit
 } trace_t;
 
+// edict->solid values
+/**
+*   @brief  The actual 'solid' type of an entity, determines how to behave when colliding with other objects.
+**/
+typedef enum {
+    SOLID_NOT,          //! No interaction with other objects.
+    SOLID_TRIGGER,      //! Only touch when inside, after moving. (Optional BSP Brush clip when SVF_HULL is set.)
+    SOLID_BBOX,         //! Touch on edge.
+    SOLID_BSP           //! BSP clip, touch on edge.
+} solid_t;
+
+/**
+*   @brief  The water 'level' of said entity.
+**/
+typedef enum {  //: uint8_t {
+    WATER_NONE,
+    WATER_FEET,
+    WATER_WAIST,
+    WATER_UNDER
+} water_level_t;
+
 
 
 /**
@@ -464,27 +485,6 @@ typedef struct usercmd_s {
 *	Player Movement:
 *
 **/
-// edict->solid values
-/**
-*   @brief  The actual 'solid' type of an entity, determines how to behave when colliding with other objects.
-**/
-typedef enum {
-    SOLID_NOT,          //! No interaction with other objects.
-    SOLID_TRIGGER,      //! Only touch when inside, after moving. (Optional BSP Brush clip when SVF_HULL is set.)
-    SOLID_BBOX,         //! Touch on edge.
-    SOLID_BSP           //! BSP clip, touch on edge.
-} solid_t;
-
-/**
-*   @brief  The water 'level' of said entity.
-**/
-typedef enum {  //: uint8_t {
-	WATER_NONE,
-	WATER_FEET,
-	WATER_WAIST,
-	WATER_UNDER
-} water_level_t;
-
 /**
 *   pmove_state_t is the information necessary for client side movement prediction.
 **/
@@ -541,11 +541,11 @@ typedef struct {
 *			NOTE: In the future this will change, obviously.
 **/
 typedef struct {
-	bool        qwmode;
+	qboolean        qwmode;
 	int32_t     airaccelerate;
-	bool        strafehack;
-	bool        flyhack;
-	bool        waterhack;
+    qboolean    strafehack;
+    qboolean    flyhack;
+    qboolean    waterhack;
 	float       speedmult;
 	float       watermult;
 	float       maxspeed;
@@ -578,7 +578,7 @@ typedef struct {
     **/
     //! The player's move command.
 	usercmd_t	cmd;
-    bool		snapinitial;    // if s has been changed outside pmove
+    qboolean    snapinitial;    // if s has been changed outside pmove
 
     struct edict_s *player;
 
@@ -630,9 +630,9 @@ typedef struct {
     //! Merged with rdflags from server.
     int32_t rdflags;
     //! Play jump sound.
-    bool jump_sound;
+    qboolean jump_sound;
     //! We clipped on top of an object from below.
-    bool step_clip; 
+    qboolean step_clip;
     //! Impact delta, for falling damage.
     float impact_delta;
 } pmove_t;
