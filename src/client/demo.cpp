@@ -1107,8 +1107,6 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
         parse_info_string(info, clientNum, index, string);
     }
 
-    info->mvd = false;
-
     FS_CloseFile(f);
     return info;
 

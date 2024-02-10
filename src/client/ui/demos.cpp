@@ -102,9 +102,6 @@ static void BuildName(const file_info_t *info, char **cache)
     } else {
         Q_concat(buffer, sizeof(buffer), m_demos.browse, "/", info->name);
         CL_GetDemoInfo(buffer, &demo);
-        if (demo.mvd) {
-            strcpy(demo.pov, DEMO_MVD_POV);
-        }
     }
 
     // resize columns
