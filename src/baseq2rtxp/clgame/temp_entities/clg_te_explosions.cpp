@@ -57,7 +57,7 @@ explosion_t *CLG_PlainExplosion( bool big ) {
     if ( cl_explosion_sprites->integer && !big && isValidSpriteModel ) {
         ex->ent.model = precache.cl_mod_explosions[ model_idx ];
         //ex->frames = sprite_model->numframes;
-        ex->frames = clgi.GetSpriteModelFrameCount( model_idx );
+        ex->frames = clgi.GetSpriteModelFrameCount( ex->ent.model );
         ex->frametime = cl_explosion_frametime->integer;
     } else {
         ex->ent.model = big ? precache.cl_mod_explo4_big : precache.cl_mod_explo4;

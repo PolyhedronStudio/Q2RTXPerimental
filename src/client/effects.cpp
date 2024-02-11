@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_fx.c -- entity effects parsing and management
 
 #include "cl_client.h"
-#include "shared/m_flash.h"
+//#include "shared/m_flash.h"
 
 static void CL_LogoutEffect(const vec3_t org, int type);
 

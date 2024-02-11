@@ -1,5 +1,5 @@
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 
 // define SVGAME_INCLUDE so that game.h does not define the
 // short, server-visible gclient_t and edict_t structures,

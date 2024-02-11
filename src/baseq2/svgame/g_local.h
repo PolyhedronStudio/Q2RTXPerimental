@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // g_local.h -- local definitions for ServerGame module
 
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 #include "shared/m_flash.h"
 
 // Define SVGAME_INCLUDE so that game.h does not define the short, server-visible 

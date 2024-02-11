@@ -6,7 +6,7 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 
 // Should already have been defined by CMake for this ClientGame target.
 // 

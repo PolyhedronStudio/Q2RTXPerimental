@@ -212,7 +212,7 @@ typedef struct {
     int     depthbits;
     int     stencilbits;
     int     multisamples;
-    bool    debug;
+    qboolean debug;
 } r_opengl_config_t;
 
 typedef enum {

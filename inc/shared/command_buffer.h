@@ -1,8 +1,10 @@
-/**
+/********************************************************************
 *
-*   Shared Cmd Types, these used to be in common, however for game API's sake, some moved here.
 *
-**/
+*   Shared CommandBuffer types, these used to be in common, however for game API's sake, some moved here.
+*
+*
+********************************************************************/
 #ifndef CMDDEF
 #define CMDDEF
 
@@ -33,8 +35,8 @@ typedef struct genctx_s {
     char **matches;
     int count, size;
     void *data;
-    bool ignorecase;
-    bool ignoredups;
+    qboolean ignorecase;
+    qboolean ignoredups;
 } genctx_t;
 
 typedef void ( *xcommand_t )( void );

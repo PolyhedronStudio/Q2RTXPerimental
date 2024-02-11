@@ -142,7 +142,7 @@ typedef struct cl_sustain_s {
 *           entity_state_t entities that were in the current frame.
 **/
 typedef struct server_frame_s {
-    bool            valid;
+    qboolean        valid;
 
     //! Sequential identifier, used for delta.
     int64_t         number;
@@ -302,7 +302,7 @@ typedef struct {
 typedef struct {
     int32_t entity;
     int32_t weapon;
-    bool silenced;
+    qboolean silenced;
 } mz_params_t;
 /**
 *   @brief  Stores sound data from the last parsed svc_sound message.
@@ -426,7 +426,7 @@ typedef struct client_state_s {
     //! Set when refdef.angles is set.
     vec3_t      v_forward, v_right, v_up;
     //! Whether in thirdperson view or not.
-    bool        thirdPersonView;
+    qboolean        thirdPersonView;
     //! Predicted values, used for smooth player entity movement in thirdperson view.
     vec3_t      playerEntityOrigin;
     vec3_t      playerEntityAngles;

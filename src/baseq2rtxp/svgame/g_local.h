@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // g_local.h -- local definitions for ServerGame module
 
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 
 // Should already have been defined by CMake for this ClientGame target.
 //

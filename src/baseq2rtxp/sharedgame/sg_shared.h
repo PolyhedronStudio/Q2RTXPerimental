@@ -1,7 +1,7 @@
 #pragma once
 
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 
 #ifdef CLGAME_INCLUDE
 typedef struct centity_s sgentity_s;

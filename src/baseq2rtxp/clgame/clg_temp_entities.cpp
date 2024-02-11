@@ -510,6 +510,6 @@ void CLG_InitTEnts( void ) {
     cl_disable_particles = clgi.CVar_Get( "cl_disable_particles", "0", 0 );
     cl_disable_explosions = clgi.CVar_Get( "cl_disable_explosions", "0", 0 );
     cl_explosion_sprites = clgi.CVar_Get( "cl_explosion_sprites", "1", 0 );
-    cl_explosion_frametime = clgi.CVar_Get( "cl_explosion_frametime", "20", 0 );
+    cl_explosion_frametime = clgi.CVar_Get( "cl_explosion_frametime", std::to_string(clgi.frame_time_ms).c_str(), 0);
     cl_dlight_hacks = clgi.CVar_Get( "cl_dlight_hacks", "0", 0 );
 }

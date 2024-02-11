@@ -7,6 +7,11 @@
 ********************************************************************/
 #include "clg_local.h"
 
+
+#define RESERVED_ENTITIY_GUN 1
+#define RESERVED_ENTITIY_TESTMODEL 2
+#define RESERVED_ENTITIY_COUNT 3
+
 /**
 *
 *
@@ -90,9 +95,7 @@ CL_AddPacketEntities
 
 ===============
 */
-#define RESERVED_ENTITIY_GUN 1
-#define RESERVED_ENTITIY_TESTMODEL 2
-#define RESERVED_ENTITIY_COUNT 3
+
 
 static int adjust_shell_fx( int renderfx ) {
     // PMM - at this point, all of the shells have been handled
@@ -159,7 +162,7 @@ void CL_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state_
             rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
             s1->angle_width, spotlightPicHandle );
     } else
-        #endif
+    #endif
     {
         clgi.V_AddSpotLight( ent->origin, view_dir, lightIntensity,
             // TODO: Multiply the RGB?

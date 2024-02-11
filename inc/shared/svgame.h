@@ -25,7 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
-#include "shared/list.h"
+#include "shared/util_list.h"
 
 //
 // svgame.h -- server game dll information visible to server

@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "client.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 #include "system/pthread.h"
 #include <process.h>
 
