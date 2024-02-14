@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_ents.c -- entity parsing and management
 
 #include "cl_client.h"
+#include "client/sound/sound.h"
 #include "refresh/models.h"
 
 extern qhandle_t cl_mod_powerscreen;
@@ -1303,6 +1304,10 @@ static inline float lerp_client_fov(float ofov, float nfov, float lerp)
     return ofov + lerp * (nfov - ofov);
 }
 
+extern "C" {
+    void S_SetupSpatialListener( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp );
+};
+
 /**
 *   @brief  Sets cl.refdef view values and sound spatialization params.
 *           Usually called from CL_PrepareViewEntities, but may be directly called from the main
@@ -1433,10 +1438,11 @@ void CL_CalcViewValues(void) {
 
     VectorAdd(cl.refdef.vieworg, viewoffset, cl.refdef.vieworg);
 
-    VectorCopy(cl.refdef.vieworg, listener_origin);
-    VectorCopy(cl.v_forward, listener_forward);
-    VectorCopy(cl.v_right, listener_right);
-    VectorCopy(cl.v_up, listener_up);
+    S_SetupSpatialListener( cl.refdef.vieworg, cl.v_forward, cl.v_right, cl.v_up );
+    //VectorCopy(cl.refdef.vieworg, listener_origin);
+    //VectorCopy(cl.v_forward, listener_forward);
+    //VectorCopy(cl.v_right, listener_right);
+    //VectorCopy(cl.v_up, listener_up);
 }
 
 void CL_AddTestModel(void)

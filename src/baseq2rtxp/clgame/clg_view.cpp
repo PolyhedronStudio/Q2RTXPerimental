@@ -27,13 +27,20 @@ void PF_ClearViewScene( void ) {
 *           and temp entities) to the refresh definition.
 **/
 void PF_PrepareViewEntites( void ) {
+
+    // Add all 'in-frame' entities, also known as packet entities, to the rendered view.
     CLG_AddPacketEntities();
+
+    // Add any and all other special FX.
     CLG_AddTEnts();
     CLG_AddParticles();
     CLG_AddDLights();
     CLG_AddLightStyles();
+
+    // Add in .md2/.md3/.iqm model 'debugger' entity.
     //CLG_AddTestModel();
 
+    //! Add in the client-side flashlight.
     //if ( cl_flashlight->integer ) {
     //    //CLG_View_Flashlight();
     //}

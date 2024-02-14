@@ -74,10 +74,15 @@ const qboolean PF_UsePrediction( void ) {
 		return false;
 	}
 
-	// Prediction is disabled by user, or received frame playerstate.
-	if ( !cl_predict->integer || ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
-		return false;
-	}
+    // Player state demands no prediction.
+    if ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) {
+        return false;
+    }
+
+    // Prediction is disabled by user.
+    if ( !cl_predict->integer ) {
+        return false;
+    }
 
 	return true;
 }

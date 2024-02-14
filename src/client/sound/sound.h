@@ -186,5 +186,6 @@ sfxcache_t *S_LoadSound(sfx_t *s);
 channel_t *S_PickChannel(int entnum, int entchannel);
 void S_IssuePlaysound(playsound_t *ps);
 void S_BuildSoundList(int *sounds);
+void S_SetupSpatialListener( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp );
 
 bool OGG_Load(sizebuf_t *sz);

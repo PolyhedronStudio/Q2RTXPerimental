@@ -810,6 +810,16 @@ void S_BuildSoundList(int *sounds)
     }
 }
 
+// =======================================================================
+// Update Spatial Listener Positioning
+// =======================================================================
+void S_SetupSpatialListener( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp ) {
+    VectorCopy( viewOrigin, listener_origin );
+    VectorCopy( vForward, listener_forward );
+    VectorCopy( vRight, listener_right );
+    VectorCopy( vUp, listener_up );
+}
+
 /*
 ============
 S_Update
