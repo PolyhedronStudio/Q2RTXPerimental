@@ -43,7 +43,8 @@
 * Brush Triggers can now be set a spawnflag to trigger only when actually clipping with the trigger brush.
 * Basic configurable Spotlight entity that can be given its own ``customLightStyle`` property as well.
 ### Client Game:
-* Currently nothing strictly of its own, only the SharedGame PlayerMove code.
+* View/Scene handling, this includes: ``Packet Entities``, ``Entity Events``, ``Temp Entity Events``, ``Particles``, ``Explosions``, ``Beams/Lasers/Trails``, ``Sustains``.
+* Player Movement Prediction.
 ### Shared Game:
 * Contains the shared used ``sg_time_t`` which replaces all the vanilla frametime/framenum work.
 * Customizable PlayerMove code.
