@@ -323,9 +323,6 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ClientConnected = PF_ClientConnected;
 		globals.ClientDisconnected = PF_ClientDisconnected;
 
-		globals.ClearViewScene = PF_ClearViewScene;
-		globals.PrepareViewEntities = PF_PrepareViewEntites;
-
 		globals.GetGamemodeName = PF_GetGamemodeName;
 
 		globals.AdjustViewHeight = PF_AdjustViewHeight;
@@ -343,6 +340,10 @@ extern "C" { // WID: C++20: extern "C".
 		globals.EndServerMessage = PF_EndServerMessage;
 		globals.SeekDemoMessage = PF_SeekDemoMessage;
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
+
+		globals.CalculateFieldOfView = PF_CalculateFieldOfView;
+		globals.ClearViewScene = PF_ClearViewScene;
+		globals.PrepareViewEntities = PF_PrepareViewEntites;
 
 		globals.entity_size = sizeof( centity_t );
 

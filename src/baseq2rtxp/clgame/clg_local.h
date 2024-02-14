@@ -730,6 +730,10 @@ void CLG_ParseNuke( void );
 /**
 *   @brief
 **/
+const float PF_CalculateFieldOfView( const float fov_x, const float width, const float height );
+/**
+*   @brief
+**/
 void PF_ClearViewScene( void );
 /**
 *   @brief

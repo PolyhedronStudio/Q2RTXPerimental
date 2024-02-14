@@ -125,7 +125,7 @@ extern const uint32_t   colorTable[8];
 
 const qboolean SCR_ParseColor(const char *s, color_t *color);
 
-float V_CalcFov(float fov_x, float width, float height);
+const float V_CalcFov( const float fov_x, const float width, const float height );
 
 #else // USE_CLIENT
 

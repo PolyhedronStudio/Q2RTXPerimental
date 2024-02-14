@@ -379,10 +379,11 @@ void CL_GM_LoadProgs( void ) {
 	imports.GetConnectionState = PF_GetConnectionState;
 	imports.GetRefreshType = PF_GetRefreshType;
 
-	imports.GetConfigString = PF_GetConfigString;
+	imports.Trace = CL_Trace;
+	imports.Clip = CL_Clip;
+	imports.PointContents = CL_PointContents;
 
-	imports.SCR_GetColorName = SCR_GetColorName;
-	imports.SCR_ParseColor = SCR_ParseColor;
+	imports.GetConfigString = PF_GetConfigString;
 
 	imports.CVar = PF_CVar;
 	imports.CVar_Get = PF_CVarGet;
@@ -393,10 +394,6 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.Print = PF_Print;
 	imports.Error = PF_Error;
-
-	imports.TagMalloc = PF_TagMalloc;
-	imports.TagFree = Z_Free;
-	imports.FreeTags = PF_FreeTags;
 
 	imports.MSG_ReadInt8 = MSG_ReadInt8;
 	imports.MSG_ReadUint8 = MSG_ReadUint8;
@@ -417,20 +414,23 @@ void CL_GM_LoadProgs( void ) {
 	imports.MSG_ReadDir8 = MSG_ReadDir8;
 	imports.MSG_ReadPos = MSG_ReadPos;
 
-	imports.Trace = CL_Trace;
-	imports.Clip = CL_Clip;
-	imports.PointContents = CL_PointContents;
-
 	imports.R_RegisterModel = PF_R_RegisterModel;
 	imports.R_RegisterSkin = PF_R_RegisterSkin;
 	imports.R_AddDecal = PF_R_AddDecal;
 	imports.R_Get8BitTo24BitTable = PF_R_Get8BitTo24BitTable;
+
+	imports.SCR_GetColorName = SCR_GetColorName;
+	imports.SCR_ParseColor = SCR_ParseColor;
 
 	imports.S_StartSound = S_StartSound;
 	imports.S_StartLocalSound = S_StartLocalSound;
 	imports.S_StartLocalSoundOnce = S_StartLocalSoundOnce;
 	imports.S_StopAllSounds = S_StopAllSounds;
 	imports.S_RegisterSound = S_RegisterSound;
+
+	imports.TagMalloc = PF_TagMalloc;
+	imports.TagFree = Z_Free;
+	imports.FreeTags = PF_FreeTags;
 
 	imports.V_AddEntity = V_AddEntity;
 	imports.V_AddParticle = V_AddParticle;

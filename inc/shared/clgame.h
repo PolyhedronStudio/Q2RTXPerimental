@@ -169,22 +169,25 @@ typedef struct {
 	const int32_t ( *GetConnectionState )( );
 	const ref_type_t( *GetRefreshType )( );
 
+
+
+	/**
+	*
+	*	Clip Tracing:
+	*
+	**/
+	const trace_t( *q_gameabi Trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask );
+	const trace_t( *q_gameabi Clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const contents_t contentmask );
+	const contents_t( *q_gameabi PointContents )( const vec3_t point );
+
+
+
 	/**
 	*
 	*	ConfigStrings:
 	*
 	**/
 	configstring_t *( *GetConfigString )( const int32_t index );
-
-
-
-	/**
-	*
-	*	Screen
-	*
-	**/
-	const char *( *SCR_GetColorName )( color_index_t colorIndex );
-	const qboolean ( *SCR_ParseColor )( const char *s, color_t *color );
 
 
 
@@ -199,27 +202,6 @@ typedef struct {
 	cvar_t *( *CVar_ForceSet )( const char *var_name, const char *value );
 	float ( *CVar_ClampValue )( cvar_t *var, float min, float max );
 	void ( *CVar_Reset )( cvar_t *cvar );
-
-
-
-	/**
-	*
-	*	Printing:
-	*
-	**/
-	void ( *q_printf( 2, 3 ) Print )( print_type_t printlevel, const char *fmt, ... );
-	void ( *q_noreturn q_printf( 1, 2 ) Error )( const char *fmt, ... );
-
-
-
-	/**
-	*
-	*	'Tag' Managed Memory Allocation:
-	*
-	**/
-	void *( *TagMalloc )( unsigned size, unsigned tag );
-	void ( *TagFree )( void *block );
-	void ( *FreeTags )( unsigned tag );
 
 
 
@@ -302,17 +284,16 @@ typedef struct {
 	*	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
 	**/
 	void ( *MSG_ReadPos )( vec3_t pos, const qboolean decodeFromShort );
-	
+
 
 
 	/**
 	*
-	*	Clip Tracing:
+	*	Printing:
 	*
 	**/
-	const trace_t ( *q_gameabi Trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask );
-	const trace_t ( *q_gameabi Clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const contents_t contentmask );
-	const contents_t ( *q_gameabi PointContents )( const vec3_t point );
+	void ( *q_printf( 2, 3 ) Print )( print_type_t printlevel, const char *fmt, ... );
+	void ( *q_noreturn q_printf( 1, 2 ) Error )( const char *fmt, ... );
 
 
 
@@ -333,6 +314,17 @@ typedef struct {
 	const uint32_t *( *R_Get8BitTo24BitTable )( void );
 
 
+
+	/**
+	*
+	*	Screen:
+	*
+	**/
+	const char *( *SCR_GetColorName )( color_index_t colorIndex );
+	const qboolean( *SCR_ParseColor )( const char *s, color_t *color );
+
+
+
 	/**
 	*
 	*	Sound:
@@ -348,7 +340,18 @@ typedef struct {
 
 	/**
 	*
-	*	Client View Scene
+	*	'Tag' Managed Memory Allocation:
+	*
+	**/
+	void *( *TagMalloc )( unsigned size, unsigned tag );
+	void ( *TagFree )( void *block );
+	void ( *FreeTags )( unsigned tag );
+
+
+
+	/**
+	*
+	*	(Client-)View Scene
 	*
 	**/
 	void ( *V_AddEntity )( entity_t *ent );
@@ -465,7 +468,7 @@ typedef struct {
 	**/
 	//! Returns false if cl_predict == 0, or player move inquired to perform no prediction.
 	const qboolean ( *UsePrediction )( void );
-	//! Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
+	//! Will shuffle current viewheight into previous before updating the current viewheight, and record the time of changing.
 	void ( *AdjustViewHeight )( const int32_t viewHeight );
 	//! Sets the predicted view angles.
 	void ( *PredictAngles )( void );
@@ -528,11 +531,17 @@ typedef struct {
 	void ( *ParseEntityEvent )( const int32_t entityNumber );
 
 
+
 	/**
 	*
-	*	Client View Scene:
+	*	(Client-)View Scene:
 	*
 	**/
+	/**
+	*	@brief	
+	**/
+	const float ( *CalculateFieldOfView )( const float fov_x, const float width, const float height );
+
 	/**
 	*	@brief	
 	**/
