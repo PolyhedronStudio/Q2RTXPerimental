@@ -48,6 +48,8 @@ void S_Activate(void);
 void S_BeginRegistration(void);
 qhandle_t S_RegisterSound(const char *sample);
 void S_EndRegistration(void);
+void S_SetupSpatialListener( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp );
+
 
 void OGG_Play(void);
 void OGG_Stop(void);

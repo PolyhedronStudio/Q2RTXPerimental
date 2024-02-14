@@ -369,29 +369,29 @@ static void V_TestLights( void ) {
 
 //============================================================================
 
-// gun frame debugging functions
-static void V_Gun_Next_f( void ) {
-    gun_frame++;
-    Com_Printf( "frame %i\n", gun_frame );
-}
-
-static void V_Gun_Prev_f( void ) {
-    gun_frame--;
-    if ( gun_frame < 0 )
-        gun_frame = 0;
-    Com_Printf( "frame %i\n", gun_frame );
-}
-
-static void V_Gun_Model_f( void ) {
-    char    name[ MAX_QPATH ];
-
-    if ( Cmd_Argc() != 2 ) {
-        gun_model = 0;
-        return;
-    }
-    Q_concat( name, sizeof( name ), "models/", Cmd_Argv( 1 ), "/tris.iqm" );
-    gun_model = R_RegisterModel( name );
-}
+//// gun frame debugging functions
+//static void V_Gun_Next_f( void ) {
+//    gun_frame++;
+//    Com_Printf( "frame %i\n", gun_frame );
+//}
+//
+//static void V_Gun_Prev_f( void ) {
+//    gun_frame--;
+//    if ( gun_frame < 0 )
+//        gun_frame = 0;
+//    Com_Printf( "frame %i\n", gun_frame );
+//}
+//
+//static void V_Gun_Model_f( void ) {
+//    char    name[ MAX_QPATH ];
+//
+//    if ( Cmd_Argc() != 2 ) {
+//        gun_model = 0;
+//        return;
+//    }
+//    Q_concat( name, sizeof( name ), "models/", Cmd_Argv( 1 ), "/tris.iqm" );
+//    gun_model = R_RegisterModel( name );
+//}
 //============================================================================
 
 static int entitycmpfnc(const void *_a, const void *_b)
@@ -428,9 +428,9 @@ void V_RenderView(void) {
     if ( cl.frame.valid ) {
         V_ClearScene();
 
-        // Calculate/lerp the current view origin and angles between frames.
-        CL_CalcViewValues();
-        CL_FinishViewValues();
+        //// Calculate/lerp the current view origin and angles between frames.
+        //CL_CalcViewValues();
+        //CL_FinishViewValues();
 
         // Build a refresh entity list and calc cl.sim*
         // this also calls CL_CalcViewValues which loads
@@ -531,9 +531,9 @@ static void V_Viewpos_f(void)
 }
 
 static const cmdreg_t v_cmds[] = {
-    { "gun_next", V_Gun_Next_f },
-    { "gun_prev", V_Gun_Prev_f },
-    { "gun_model", V_Gun_Model_f },
+    //{ "gun_next", V_Gun_Next_f },
+    //{ "gun_prev", V_Gun_Prev_f },
+    //{ "gun_model", V_Gun_Model_f },
     { "viewpos", V_Viewpos_f },
     { NULL }
 };

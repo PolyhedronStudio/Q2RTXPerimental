@@ -25,22 +25,22 @@ cvar_t  *rcon_address;
 cvar_t  *cl_noskins;
 cvar_t  *cl_timeout;
 cvar_t  *cl_predict;
-cvar_t  *cl_gunalpha;
+//cvar_t  *cl_gunalpha;
 // WID: C++20: For linkage with .c
 extern "C" {
 	cvar_t *cl_gunfov;
 }
-cvar_t  *cl_gunscale;
-cvar_t  *cl_gun_x;
-cvar_t  *cl_gun_y;
-cvar_t  *cl_gun_z;
+//cvar_t  *cl_gunscale;
+//cvar_t  *cl_gun_x;
+//cvar_t  *cl_gun_y;
+//cvar_t  *cl_gun_z;
 cvar_t  *cl_warn_on_fps_rounding;
 cvar_t  *cl_maxfps;
 cvar_t  *cl_async;
 cvar_t  *r_maxfps;
 cvar_t  *cl_autopause;
 
-cvar_t  *cl_kickangles;
+//cvar_t  *cl_kickangles;
 cvar_t  *cl_rollhack;
 cvar_t  *cl_noglow;
 cvar_t  *cl_nolerp;
@@ -52,8 +52,8 @@ cvar_t  *cl_showclamp;
 #endif
 
 cvar_t  *cl_player_model;
-cvar_t  *cl_thirdperson_angle;
-cvar_t  *cl_thirdperson_range;
+//cvar_t  *cl_thirdperson_angle;
+//cvar_t  *cl_thirdperson_range;
 
 cvar_t  *cl_chat_notify;
 cvar_t  *cl_chat_sound;
@@ -2467,16 +2467,16 @@ static void CL_InitLocal(void)
     //
     // register our variables
     //
-    cl_gunalpha = Cvar_Get("cl_gunalpha", "1", 0);
+    //cl_gunalpha = Cvar_Get("cl_gunalpha", "1", 0);
     cl_gunfov = Cvar_Get("cl_gunfov", "75", 0);
-    cl_gunscale = Cvar_Get("cl_gunscale", "0.25", CVAR_ARCHIVE);
-    cl_gun_x = Cvar_Get("cl_gun_x", "0", 0);
-    cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
-    cl_gun_z = Cvar_Get("cl_gun_z", "0", 0);
+    //cl_gunscale = Cvar_Get("cl_gunscale", "0.25", CVAR_ARCHIVE);
+    //cl_gun_x = Cvar_Get("cl_gun_x", "0", 0);
+    //cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
+    //cl_gun_z = Cvar_Get("cl_gun_z", "0", 0);
     cl_noskins = Cvar_Get("cl_noskins", "0", 0);
     cl_noskins->changed = cl_noskins_changed;
     cl_predict = Cvar_Get("cl_predict", "1", 0);
-    cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
+    //cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
     cl_warn_on_fps_rounding = Cvar_Get("cl_warn_on_fps_rounding", "1", 0);
     cl_maxfps = Cvar_Get("cl_maxfps", "62", 0);
     cl_maxfps->changed = cl_maxfps_changed;
@@ -2508,8 +2508,8 @@ static void CL_InitLocal(void)
     rcon_address->generator = Com_Address_g;
 
 	cl_player_model = Cvar_Get("cl_player_model", va("%d", CL_PLAYER_MODEL_FIRST_PERSON), CVAR_ARCHIVE);
-    cl_thirdperson_angle = Cvar_Get("cl_thirdperson_angle", "0", 0);
-    cl_thirdperson_range = Cvar_Get("cl_thirdperson_range", "60", 0);
+    //cl_thirdperson_angle = Cvar_Get("cl_thirdperson_angle", "0", 0);
+    //cl_thirdperson_range = Cvar_Get("cl_thirdperson_range", "60", 0);
 
     // Moved to clgame.
     //cl_disable_particles = Cvar_Get("cl_disable_particles", "0", 0);
@@ -3019,7 +3019,7 @@ unsigned CL_Frame(unsigned msec)
         SCR_RunCinematic();
     } else if (sync_mode == SYNC_SLEEP_10) {
         // force audio and effects update if not rendering
-        CL_CalcViewValues();
+        CL_CalculateViewValues();
         S_Update();
     }
 

@@ -545,14 +545,14 @@ extern char        cl_cmdbuf_text[MAX_STRING_CHARS];
 //
 // cvars
 //
-extern cvar_t    *cl_gunalpha;
+//extern cvar_t    *cl_gunalpha;
 extern cvar_t    *cl_gunscale;
-extern cvar_t    *cl_gun_x;
-extern cvar_t    *cl_gun_y;
-extern cvar_t    *cl_gun_z;
+//extern cvar_t    *cl_gun_x;
+//extern cvar_t    *cl_gun_y;
+//extern cvar_t    *cl_gun_z;
 extern cvar_t    *cl_predict;
 extern cvar_t    *cl_noskins;
-extern cvar_t    *cl_kickangles;
+//extern cvar_t    *cl_kickangles;
 extern cvar_t    *cl_rollhack;
 extern cvar_t    *cl_noglow;
 extern cvar_t    *cl_nolerp;
@@ -578,7 +578,6 @@ extern cvar_t    *cl_showclamp;
 
 extern cvar_t    *cl_vwep;
 
-extern cvar_t    *cl_disable_particles;
 extern cvar_t    *cl_disable_explosions;
 extern cvar_t    *cl_explosion_sprites;
 extern cvar_t    *cl_explosion_frametime;
@@ -592,11 +591,13 @@ extern cvar_t    *cl_disconnectcmd;
 extern cvar_t    *cl_changemapcmd;
 extern cvar_t    *cl_beginmapcmd;
 
+// Moved to CLGame:
 //extern cvar_t    *cl_gibs;
 
 extern cvar_t    *cl_player_model;
-extern cvar_t    *cl_thirdperson_angle;
-extern cvar_t    *cl_thirdperson_range;
+// Moved to CLGame:
+//extern cvar_t    *cl_thirdperson_angle;
+//extern cvar_t    *cl_thirdperson_range;
 
 extern cvar_t    *cl_async;
 
@@ -740,28 +741,25 @@ void CL_PrepareViewEntities( void );
 *           Usually called from CL_PrepareViewEntities, but may be directly called from the main
 *           loop if rendering is disabled but sound is running.
 **/
-void CL_CalcViewValues( void );
+void CL_CalculateViewValues( void );
 /**
 *   @brief  Sets up a firstperson or thirdperson view. Depending on what is desired.
 **/
-void CL_FinishViewValues( void );
+//void CL_FinishViewValues( void );
 
 
 #if USE_DEBUG
-void CL_CheckEntityPresent(int entnum, const char *what);
+void CL_CheckEntityPresent( const int32_t entnum, const char *what);
 #endif
 
 // the sound code makes callbacks to the client for entitiy position
 // information, so entities can be dynamically re-spatialized
-void CL_GetEntitySoundOrigin(int ent, vec3_t org);
+void CL_GetEntitySoundOrigin( const int32_t ent, vec3_t org);
 
 
 //
 // view.c
 //
-extern    int       gun_frame;
-extern    qhandle_t gun_model;
-
 void V_Init(void);
 void V_Shutdown(void);
 void V_RenderView(void);

@@ -45,9 +45,22 @@ cvar_t *sv_paused = nullptr;
 //cvar_t *maxspectators;
 //cvar_t *maxentities;
 cvar_t *cl_footsteps = nullptr;
+
+cvar_t *cl_kickangles = nullptr;
 cvar_t *cl_rollhack = nullptr;
 cvar_t *cl_noglow = nullptr;
+
 cvar_t *cl_gibs = nullptr;
+
+cvar_t *cl_gunalpha = nullptr;
+cvar_t *cl_gunscale = nullptr;
+cvar_t *cl_gun_x = nullptr;
+cvar_t *cl_gun_y = nullptr;
+cvar_t *cl_gun_z = nullptr;
+
+cvar_t *cl_player_model = nullptr;
+cvar_t *cl_thirdperson_angle = nullptr;
+cvar_t *cl_thirdperson_range = nullptr;
 
 cvar_t *info_password = nullptr;
 cvar_t *info_spectator = nullptr;
@@ -155,10 +168,24 @@ void PF_InitGame( void ) {
 	cl_particle_num_factor = clgi.CVar( "cl_particle_num_factor", nullptr, 0 );
 
 	cl_footsteps = clgi.CVar_Get( "cl_footsteps", "1", 0 );
+	cl_kickangles = clgi.CVar_Get( "cl_kickangles", "1", CVAR_CHEAT );
 	cl_rollhack = clgi.CVar_Get( "cl_rollhack", "1", 0 );
 	cl_noglow = clgi.CVar_Get( "cl_noglow", "0", 0 );
 
 	cl_gibs = clgi.CVar_Get( "cl_gibs", "1", 0 );
+
+	cl_gunalpha = clgi.CVar_Get( "cl_gunalpha", "1", 0 );
+	cl_gunscale = clgi.CVar_Get( "cl_gunscale", "0.25", CVAR_ARCHIVE );
+	cl_gun_x = clgi.CVar_Get( "cl_gun_x", "0", 0 );
+	cl_gun_y = clgi.CVar_Get( "cl_gun_y", "0", 0 );
+	cl_gun_z = clgi.CVar_Get( "cl_gun_z", "0", 0 );
+
+	// Shared with client thirdperson cvars, since refresh modules desire access to it.
+	cl_player_model = clgi.CVar_Get( "cl_player_model", nullptr, 0 );
+	// Client game specific thirdperson cvars.
+	cl_thirdperson_angle = clgi.CVar_Get( "cl_thirdperson_angle", "0", 0 );
+	cl_thirdperson_range = clgi.CVar_Get( "cl_thirdperson_range", "60", 0 );
+
 
 	/**
 	*	UserInfo - Initialized by the client, but we desire access to these user info cvars.
@@ -342,6 +369,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
 
 		globals.CalculateFieldOfView = PF_CalculateFieldOfView;
+		globals.CalculateViewValues = PF_CalculateViewValues;
 		globals.ClearViewScene = PF_ClearViewScene;
 		globals.PrepareViewEntities = PF_PrepareViewEntites;
 

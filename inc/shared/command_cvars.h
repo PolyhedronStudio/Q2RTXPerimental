@@ -15,6 +15,9 @@
 #define CVAR_NOSET      8   // don't allow change from console at all,
 // but can be set from the command line
 #define CVAR_LATCH      16  // save changes until server restart
+#ifndef CVAR_CHEAT
+#define CVAR_CHEAT      (1 << 5)  // can't be changed when connected
+#endif
 #ifndef CVAR_PRIVATE
 #define CVAR_PRIVATE	(1 << 6)  // never macro expanded or saved to config
 #endif

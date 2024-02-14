@@ -335,7 +335,7 @@ typedef struct {
 	void ( *S_StartLocalSoundOnce )( const char *s );
 	void ( *S_StopAllSounds )( void );
 	qhandle_t( *S_RegisterSound )( const char *sample );
-
+	void ( *S_SetupSpatialListener )( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp );
 
 
 	/**
@@ -538,10 +538,15 @@ typedef struct {
 	*
 	**/
 	/**
-	*	@brief	
+	*   @brief  Calculates the client's field of view.
 	**/
 	const float ( *CalculateFieldOfView )( const float fov_x, const float width, const float height );
-
+	/**
+	*   @brief  Sets cl.refdef view values and sound spatialization params.
+	*           Usually called from CL_PrepareViewEntities, but may be directly called from the main
+	*           loop if rendering is disabled but sound is running.
+	**/
+	void ( *CalculateViewValues )( void );
 	/**
 	*	@brief	
 	**/

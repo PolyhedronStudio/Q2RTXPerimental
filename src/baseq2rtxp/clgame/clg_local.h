@@ -52,9 +52,22 @@ extern cvar_t *sv_running;
 extern cvar_t *sv_paused;
 
 extern cvar_t *cl_footsteps;
+
+extern cvar_t *cl_kickangles;
 extern cvar_t *cl_rollhack;
 extern cvar_t *cl_noglow;
+
 extern cvar_t *cl_gibs;
+
+extern cvar_t *cl_gunalpha;
+extern cvar_t *cl_gunscale;
+extern cvar_t *cl_gun_x;
+extern cvar_t *cl_gun_y;
+extern cvar_t *cl_gun_z;
+
+extern cvar_t *cl_player_model;
+extern cvar_t *cl_thirdperson_angle;
+extern cvar_t *cl_thirdperson_range;
 
 extern cvar_t *info_password;
 extern cvar_t *info_spectator;
@@ -386,6 +399,12 @@ void CLG_AddParticles( void );
 *	clg_entities.cpp
 *
 */
+// Use a static entity ID on some things because the renderer relies on eid to match between meshes
+// on the current and previous frames.
+static constexpr int32_t RESERVED_ENTITIY_GUN = 1;
+static constexpr int32_t RESERVED_ENTITIY_TESTMODEL = 2;
+static constexpr int32_t RESERVED_ENTITIY_COUNT = 3;
+
 #if USE_DEBUG
 /**
 *	@brief	For debugging problems when out - of - date entity origin is referenced
@@ -731,6 +750,12 @@ void CLG_ParseNuke( void );
 *   @brief
 **/
 const float PF_CalculateFieldOfView( const float fov_x, const float width, const float height );
+/**
+*   @brief  Sets clgi.client->refdef view values and sound spatialization params.
+*           Usually called from CL_PrepareViewEntities, but may be directly called from the main
+*           loop if rendering is disabled but sound is running.
+**/
+void PF_CalculateViewValues( void );
 /**
 *   @brief
 **/
