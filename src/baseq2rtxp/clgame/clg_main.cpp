@@ -352,9 +352,10 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.GetGamemodeName = PF_GetGamemodeName;
 
-		globals.AdjustViewHeight = PF_AdjustViewHeight;
-		globals.PredictAngles = PF_PredictAngles;
 		globals.UsePrediction = PF_UsePrediction;
+		globals.AdjustViewHeight = PF_AdjustViewHeight;
+		globals.CheckPredictionError = PF_CheckPredictionError;
+		globals.PredictAngles = PF_PredictAngles;
 		globals.PredictMovement = PF_PredictMovement;
 		globals.ConfigurePlayerMoveParameters = PF_ConfigurePlayerMoveParameters;
 

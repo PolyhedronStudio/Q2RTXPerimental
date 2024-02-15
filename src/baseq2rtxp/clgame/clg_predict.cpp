@@ -46,33 +46,19 @@ void PF_AdjustViewHeight( const int32_t viewHeight ) {
 }
 
 /**
-*   @brief  Sets the predicted view angles.
-**/
-void PF_PredictAngles( void ) {
-    // Don't predict angles if the pmove asks so specifically.
-    if ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )/* || !cl_predict->integer*/ ) {
-        VectorCopy( clgi.client->frame.ps.viewangles, clgi.client->predictedState.view.angles );
-        return;
-    }
-
-    // This is done even with cl_predict == 0.
-	VectorAdd( clgi.client->viewangles, clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.view.angles );
-}
-
-/**
 *	@return	False if prediction is not desired for. True if it is.
 **/
 const qboolean PF_UsePrediction( void ) {
-	// We're playing a demo, there is nothing to predict.
-	if ( clgi.IsDemoPlayback() ) {
-		return false;
-	}
+    // We're playing a demo, there is nothing to predict.
+    if ( clgi.IsDemoPlayback() ) {
+        return false;
+    }
 
-	// When the server is paused, nothing to predict, make sure to clear any possible predicted state error.
-	if ( sv_paused->integer ) {
-		clgi.client->predictedState.error = {};
-		return false;
-	}
+    // When the server is paused, nothing to predict, make sure to clear any possible predicted state error.
+    if ( sv_paused->integer ) {
+        clgi.client->predictedState.error = {};
+        return false;
+    }
 
     // Player state demands no prediction.
     if ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) {
@@ -84,7 +70,81 @@ const qboolean PF_UsePrediction( void ) {
         return false;
     }
 
-	return true;
+    return true;
+}
+
+/**
+*   @brief  Checks for prediction if desired. Will determine the error margin
+*           between our predicted state and the server returned state. In case
+*           the margin is too high, snap back to server provided player state.
+**/
+void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIndex, const pmove_state_t *in, struct client_movecmd_s *moveCommand, client_predicted_state_t *out ) {
+    // Maximum delta allowed before snapping back.
+    static constexpr double MAX_DELTA_ORIGIN = ( 2400 * ( 1.0 / BASE_FRAMERATE ) );
+
+    // If it is the first frame, we got nothing to predict yet.
+    if ( moveCommand->prediction.time == 0 ) {
+        out->view.origin = in->origin;
+        out->view.viewOffset = clgi.client->frame.ps.viewoffset;
+        out->view.angles = clgi.client->frame.ps.viewangles;
+        out->view.velocity = in->velocity;
+        out->error = {};
+
+        out->step_time = 0;
+        out->step = 0;
+        out->view.rdflags = 0;
+        out->view.screen_blend = {};
+        return;
+    }
+
+    // Subtract what the server returned from our predicted origin for that frame.
+    out->error = moveCommand->prediction.error = moveCommand->prediction.origin - in->origin;
+
+    // Save the prediction error for interpolation.
+    //const float len = fabs( delta[ 0 ] ) + abs( delta[ 1 ] ) + abs( delta[ 2 ] );
+    const float len = QM_Vector3Length( out->error );
+    //if (len < 1 || len > 640) {
+    if ( len > .1f ) {
+        // Snap back if the distance was too far off:
+        if ( len > MAX_DELTA_ORIGIN ) {
+            // Debug misses:
+            #if USE_DEBUG
+                clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%i): len(%f) (%f %f %f)\n",
+                    clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+            #endif
+            out->view.origin = in->origin;
+            out->view.viewOffset = clgi.client->frame.ps.viewoffset;
+            out->view.angles = clgi.client->frame.ps.viewangles;
+            out->view.velocity = in->velocity;
+            out->error = {};
+
+            out->step_time = 0;
+            out->step = 0;
+            out->view.rdflags = 0;
+            out->view.screen_blend = {};
+            // In case of a minor distance, only report if cl_showmiss is enabled:
+        } else {
+            // Debug misses:
+            #if USE_DEBUG
+                clgi.ShowMiss( "Prediction miss on frame #(%i): len(%f) (%f %f %f)\n",
+                    clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+            #endif
+        }
+    }
+}
+
+/**
+*   @brief  Sets the predicted view angles.
+**/
+void PF_PredictAngles( void ) {
+    // Don't predict angles if the pmove asks so specifically.
+    if ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )/* || !cl_predict->integer*/ ) {
+        VectorCopy( clgi.client->frame.ps.viewangles, clgi.client->predictedState.view.angles );
+        return;
+    }
+
+    // This is done even with cl_predict == 0.
+	VectorAdd( clgi.client->viewangles, clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.view.angles );
 }
 
 /**

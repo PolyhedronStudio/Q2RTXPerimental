@@ -466,10 +466,16 @@ typedef struct {
 	*	Player Movement:
 	*
 	**/
-	//! Returns false if cl_predict == 0, or player move inquired to perform no prediction.
-	const qboolean ( *UsePrediction )( void );
 	//! Will shuffle current viewheight into previous before updating the current viewheight, and record the time of changing.
 	void ( *AdjustViewHeight )( const int32_t viewHeight );
+	//! Returns false if cl_predict == 0, or player move inquired to perform no prediction.
+	const qboolean( *UsePrediction )( void );
+	/**
+	*   @brief  Checks for prediction if desired. Will determine the error margin
+	*           between our predicted state and the server returned state. In case
+	*           the margin is too high, snap back to server provided player state.
+	**/
+	void ( *CheckPredictionError )( const int64_t frameIndex, const uint64_t commandIndex, const pmove_state_t *in, struct client_movecmd_s *moveCommand, struct client_predicted_state_s *out );
 	//! Sets the predicted view angles.
 	void ( *PredictAngles )( void );
 	/**

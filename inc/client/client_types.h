@@ -498,15 +498,14 @@ typedef struct client_state_s {
     //       Essentially we don't want to include common in these parts of the code.
     #ifndef BSP_H
     struct bsp_t *bsp;
-    //! Refresh handle buffer for all precached models.
-    qhandle_t model_draw[ MAX_MODELS ];
     //! PACKED_BSP clip models
     struct mmodel_t *model_clip[ MAX_MODELS ];
     #else
     bsp_t *bsp;
-    qhandle_t model_draw[ MAX_MODELS ];
     mmodel_t *model_clip[ MAX_MODELS ];
     #endif
+    //! Refresh handle buffer for all precached models.
+    qhandle_t model_draw[ MAX_MODELS ];
 
     //! Buffer of unique indexed precached sounds.
     qhandle_t sound_precache[ MAX_SOUNDS ];
