@@ -136,6 +136,5 @@ void CL_PredictMovement(void) {
     }
 
     clge->PredictMovement( acknowledgedCommandNumber, currentCommandNumber );
-
 }
 

@@ -146,6 +146,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_temp_entities.cpp
 	baseq2rtxp/clgame/clg_view.cpp
 
+	baseq2rtxp/clgame/effects/clg_fx_classic.cpp
 	baseq2rtxp/clgame/effects/clg_fx_dynamiclights.cpp
 	baseq2rtxp/clgame/effects/clg_fx_lightstyles.cpp
 	baseq2rtxp/clgame/effects/clg_fx_muzzleflash.cpp
@@ -268,8 +269,8 @@ SET(SRC_CLIENT
 	client/keys.cpp
 	client/locs.cpp
 	client/main.cpp
-	client/newfx.cpp
-#	client/null.cpp
+	#client/newfx.cpp
+	#client/null.cpp
 	client/parse.cpp
 	client/precache.cpp
 	client/predict.cpp

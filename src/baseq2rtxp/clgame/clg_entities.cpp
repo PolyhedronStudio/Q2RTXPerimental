@@ -674,11 +674,13 @@ static int shell_effect_hack( void ) {
     int         flags = 0;
 
     ent = &clg_entities[ clgi.client->frame.clientNum + 1 ];//ent = &cl_entities[clgi.client->frame.clientNum + 1];
-    if ( ent->serverframe != clgi.client->frame.number )
+    if ( ent->serverframe != clgi.client->frame.number ) {
         return 0;
+    }
 
-    if ( !ent->current.modelindex )
+    if ( !ent->current.modelindex ) {
         return 0;
+    }
 
     if ( ent->current.effects & EF_PENT )
         flags |= RF_SHELL_RED;
