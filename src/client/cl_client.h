@@ -710,9 +710,6 @@ void CL_SendCmd(void);
 //
 // parse.c
 //
-extern tent_params_t    te;
-extern mz_params_t      mz;
-
 void CL_ParseServerMessage(void);
 void CL_SeekDemoMessage(void);
 
@@ -775,13 +772,8 @@ void V_AddLightStyle(int style, float value);
 //
 // tent.c
 //
-
-
-
-void CL_SmokeAndFlash(const vec3_t origin);
-
-void CL_RegisterTEntSounds(void);
-void CL_RegisterTEntModels(void);
+//void CL_PrecacheClientSounds(void);
+//void CL_PrecacheClientModels(void);
 //void CL_ParseTEnt(void);
 //void CL_AddTEnts(void);
 //void CL_ClearTEnts(void);

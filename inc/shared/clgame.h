@@ -488,8 +488,14 @@ typedef struct {
 	*	Precache:
 	*
 	**/
-	void ( *RegisterTEntModels )( void );
-	void ( *RegisterTEntSounds )( void );
+	/**
+	*	@brief	Called right before loading all received configstring (server-) models.
+	**/
+	void ( *PrecacheClientModels )( void );
+	/**
+	*	@brief	Called right before loading all received configstring (server-) sounds.
+	**/
+	void ( *PrecacheClientSounds )( void );
 
 
 

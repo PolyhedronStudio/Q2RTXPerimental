@@ -61,10 +61,10 @@ extern "C" {
 
 /*
 =================
-CL_RegisterTEntSounds
+CL_PrecacheClientSounds
 =================
 */
-void CL_RegisterTEntSounds(void)
+void CL_PrecacheClientSounds(void)
 {
     int     i;
     char    name[MAX_QPATH];
@@ -97,10 +97,10 @@ void CL_RegisterTEntSounds(void)
 
 /*
 =================
-CL_RegisterTEntModels
+CL_PrecacheClientModels
 =================
 */
-void CL_RegisterTEntModels(void)
+void CL_PrecacheClientModels(void)
 {
     cl_mod_explode = R_RegisterModel("models/objects/explode/tris.md2");
     cl_mod_smoke = R_RegisterModel("models/objects/smoke/tris.md2");

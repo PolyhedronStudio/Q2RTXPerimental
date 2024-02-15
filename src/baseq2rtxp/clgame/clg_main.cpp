@@ -358,8 +358,8 @@ extern "C" { // WID: C++20: extern "C".
 		globals.PredictMovement = PF_PredictMovement;
 		globals.ConfigurePlayerMoveParameters = PF_ConfigurePlayerMoveParameters;
 
-		globals.RegisterTEntModels = PF_RegisterTEntModels;
-		globals.RegisterTEntSounds = PF_RegisterTEntSounds;
+		globals.PrecacheClientModels = PF_PrecacheClientModels;
+		globals.PrecacheClientSounds = PF_PrecacheClientSounds;
 
 		globals.UpdateConfigString = PF_UpdateConfigString;
 		globals.StartServerMessage = PF_StartServerMessage;

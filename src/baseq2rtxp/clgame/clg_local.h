@@ -516,20 +516,22 @@ typedef struct precached_media_s {
 	//
 	// Other:
 	//
+
 	// ...
+
 } precached_media_t;
 
 //! Stores qhandles to all precached client game media.
 extern precached_media_t precache;
 
 /**
-*   @brief
+*	@brief	Called right before loading all received configstring (server-) models.
 **/
-void PF_RegisterTEntModels( void );
+void PF_PrecacheClientModels( void );
 /**
-*   @brief
+*	@brief	Called right before loading all received configstring (server-) sounds.
 **/
-void PF_RegisterTEntSounds( void );
+void PF_PrecacheClientSounds( void );
 
 
 

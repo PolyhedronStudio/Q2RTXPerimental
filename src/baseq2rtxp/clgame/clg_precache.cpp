@@ -11,9 +11,9 @@
 precached_media_t precache;
 
 /**
-*   @brief
+*	@brief	Called right before loading all received configstring (server-) sounds.
 **/
-void PF_RegisterTEntSounds( void ) {
+void PF_PrecacheClientSounds( void ) {
     int     i;
     char    name[ MAX_QPATH ];
 
@@ -44,9 +44,9 @@ void PF_RegisterTEntSounds( void ) {
 }
 
 /**
-*   @brief
+*	@brief	Called right before loading all received configstring (server-) models.
 **/
-void PF_RegisterTEntModels( void ) {
+void PF_PrecacheClientModels( void ) {
     precache.cl_mod_explode = clgi.R_RegisterModel( "models/objects/explode/tris.md2" );
     precache.cl_mod_smoke = clgi.R_RegisterModel( "models/objects/smoke/tris.md2" );
     precache.cl_mod_flash = clgi.R_RegisterModel( "models/objects/flash/tris.md2" );

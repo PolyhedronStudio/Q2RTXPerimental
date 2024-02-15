@@ -205,8 +205,8 @@ void CL_RegisterSounds(void)
     char    *s;
 
     S_BeginRegistration();
-    clge->RegisterTEntSounds();
-    //CL_RegisterTEntSounds();
+    clge->PrecacheClientSounds();
+    //CL_PrecacheClientSounds();
     for (i = 1; i < MAX_SOUNDS; i++) {
         s = cl.configstrings[CS_SOUNDS + i];
         if (!s[0])
@@ -335,7 +335,7 @@ void CL_PrepRefresh(void)
 
     CL_LoadState(LOAD_MODELS);
 
-    clge->RegisterTEntModels();
+    clge->PrecacheClientModels();
 
 	if (cl_testmodel->string && cl_testmodel->string[0])
 	{
