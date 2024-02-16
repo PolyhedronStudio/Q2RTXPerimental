@@ -19,35 +19,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_fx.c -- entity effects parsing and management
 
 #include "cl_client.h"
-//#include "shared/m_flash.h"
-
-static void CL_LogoutEffect(const vec3_t org, int type);
-
-static vec3_t avelocities[NUMVERTEXNORMALS];
-
-
-
-
-
-// ==============================================================
-
-
-/*
-==============================================================
-
-PARTICLE MANAGEMENT
-
-==============================================================
-*/
 
 // We extern "C" so that C files can extern link
 extern "C" {
-
-//static cparticle_t  *active_particles, *free_particles;
-//
-//static cparticle_t  particles[MAX_PARTICLES];
-
-extern uint32_t d_8to24table[256];
 
 cvar_t* cvar_pt_particle_emissive = NULL;
 static cvar_t* cl_particle_num_factor = NULL;

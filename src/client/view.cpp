@@ -52,17 +52,7 @@ static cvar_t   *cl_stats;
 extern "C" {
 	cvar_t *cl_adjustfov;
 }
-//int         r_numdlights;
-//dlight_t    r_dlights[ MAX_DLIGHTS ];
-//static qhandle_t flashlight_profile_tex;
-//
-//int         r_numentities;
-//entity_t    r_entities[ MAX_ENTITIES ];
-//
-//int         r_numparticles;
-//particle_t  r_particles[ MAX_PARTICLES ];
 
-//lightstyle_t    r_lightstyles[ MAX_LIGHTSTYLES ];
 
 /*
 ====================

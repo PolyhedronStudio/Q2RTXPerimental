@@ -483,7 +483,7 @@ void CL_PrepareViewEntities(void)
 }
 
 /**
-*   @brief  Called to get the sound spatialization origin
+*   @brief  Called to get the sound spatialization origin of said entity.
 **/
 void CL_GetEntitySoundOrigin( const int32_t entnum, vec3_t org ) {
     centity_t   *ent;

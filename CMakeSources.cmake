@@ -277,7 +277,7 @@ SET(SRC_CLIENT
 	client/predict.cpp
 	client/refresh.cpp
 	client/screen.cpp
-	client/tent.cpp
+	#client/tent.cpp
 	client/view.cpp
 	client/world.cpp
 	client/ui/demos.cpp
