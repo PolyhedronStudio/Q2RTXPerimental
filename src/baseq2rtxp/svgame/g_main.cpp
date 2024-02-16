@@ -61,6 +61,7 @@ cvar_t  *dmflags;
 cvar_t  *skill;
 cvar_t  *fraglimit;
 cvar_t  *timelimit;
+cvar_t  *sv_airaccelerate;
 cvar_t  *password;
 cvar_t  *spectator_password;
 cvar_t  *needpass;
@@ -163,6 +164,7 @@ void PreInitGame( void ) {
 	dmflags = gi.cvar( "dmflags", "0", CVAR_SERVERINFO );
 	fraglimit = gi.cvar( "fraglimit", "0", CVAR_SERVERINFO );
 	timelimit = gi.cvar( "timelimit", "0", CVAR_SERVERINFO );
+    sv_airaccelerate = gi.cvar( "sv_airaccelerate", "8", CVAR_LATCH );
 
 	// Air acceleration defaults to 0 and is only set for DM mode.
 	gi.configstring( CS_AIRACCEL, "0" );
@@ -178,10 +180,7 @@ void PreInitGame( void ) {
 		} else if ( maxclients->integer > CLIENTNUM_RESERVED ) {
 			gi.cvar_forceset( "maxclients", std::to_string( CLIENTNUM_RESERVED ).c_str() );
 		}
-
-		// Deathmatch specific, set air acceleration properly.
-		cvar_t *sv_airaccelerate = gi.cvar( "sv_airaccelerate", 0, 0 );
-		gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
+        gi.dprintf( "[GameMode(#%d): Deathmatch][maxclients=%d]\n", gamemode->integer, maxclients->integer );
 	// Cooperative:
 	} else if ( gamemode->integer == GAMEMODE_COOPERATIVE ) {
 		gi.cvar_forceset( "coop", "1" );

@@ -278,24 +278,22 @@ typedef struct client_predicted_state_s {
     Vector3 error;
 } client_predicted_state_t;
 
-//
-// parse.c
-//
 /**
-*   @brief  Stores temp entity data from the last parsed svc_temp_entity message.
+*   @brief  Stores captured mouse motion data for (later) use in the
+*           move command generation process.
 **/
-typedef struct {
-    int32_t type;
-    vec3_t  pos1;
-    vec3_t  pos2;
-    vec3_t  offset;
-    vec3_t  dir;
-    int32_t count;
-    int32_t color;
-    int32_t entity1;
-    int32_t entity2;
-    int32_t time;
-} tent_params_t;
+typedef struct mouse_motion_s {
+    qboolean hasMotion;
+
+    int32_t deltaX;
+    int32_t deltaY;
+
+    float moveX;
+    float moveY;
+
+    float speed;
+} mouse_motion_t;
+
 /**
 *   @brief  Stores muzzleflash data from the last parsed svc_muzzleflash message.
 **/
@@ -304,6 +302,7 @@ typedef struct {
     int32_t weapon;
     qboolean silenced;
 } mz_params_t;
+
 /**
 *   @brief  Stores sound data from the last parsed svc_sound message.
 **/
@@ -565,15 +564,3 @@ typedef enum load_state_s {
     LOAD_CLIENTS,
     LOAD_SOUNDS
 } load_state_t;
-
-typedef struct mouse_motion_s {
-    qboolean hasMotion;
-
-    int32_t deltaX;
-    int32_t deltaY;
-
-    float moveX;
-    float moveY;
-
-    float speed;
-} mouse_motion_t;

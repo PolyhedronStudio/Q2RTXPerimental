@@ -186,7 +186,7 @@ const qboolean PF_UpdateConfigString( const int32_t index ) {
     const char *s = (const char*)clgi.GetConfigString( index );//clgi.client->configstrings[ index ];
 
     if ( index == CS_AIRACCEL ) {
-        clgi.client->pmp.airaccelerate = clgi.client->pmp.qwmode || atoi( s );
+        clgi.client->pmp.pm_air_accelerate = /*clgi.client->pmp.qwmode || */atoi( s );
         return true;
     }
 

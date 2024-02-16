@@ -64,17 +64,38 @@ typedef struct {
 *			NOTE: In the future this will change, obviously.
 **/
 typedef struct {
-    qboolean    qwmode;
-    int32_t     airaccelerate;
-    qboolean    strafehack;
-    qboolean    flyhack;
-    qboolean    waterhack;
-    float       speedmult;
-    float       watermult;
-    float       maxspeed;
-    float       friction;
-    float       waterfriction;
-    float       flyfriction;
+    //! Stop speed.
+    float pm_stop_speed;
+    //! Server determined maximum speed.
+    float pm_max_speed;
+    //! Velocity that is set for jumping. (Determines the height we aim for.)
+    float pm_jump_height;
+
+    //! General up/down movespeed for on a ladder.
+    float pm_ladder_speed;
+    //! Maximum 'strafe' side move speed while on a ladder.
+    float pm_ladder_sidemove_speed;
+    //! Ladder modulation scalar for when being in-water and climbing a ladder.
+    float pm_ladder_mod;
+
+    //! Speed for when ducked and crawling on-ground.
+    float pm_duck_speed;
+    //! Speed for when moving in water(swimming).
+    float pm_water_speed;
+    //! Speed for when flying.
+    float pm_fly_speed;
+
+    //! General acceleration.
+    float pm_accelerate;
+    //! If set, general 'in-air' acceleration.
+    float pm_air_accelerate;
+    //! General water acceleration.
+    float pm_water_accelerate;
+
+    //! General friction.
+    float pm_friction;
+    //! General water friction.
+    float pm_water_friction;
 } pmoveParams_t;
 
 /**

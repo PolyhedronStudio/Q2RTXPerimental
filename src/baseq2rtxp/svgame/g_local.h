@@ -649,6 +649,7 @@ extern  cvar_t  *dmflags;
 extern  cvar_t  *skill;
 extern  cvar_t  *fraglimit;
 extern  cvar_t  *timelimit;
+extern  cvar_t  *sv_airaccelerate;
 extern  cvar_t  *password;
 extern  cvar_t  *spectator_password;
 extern  cvar_t  *needpass;

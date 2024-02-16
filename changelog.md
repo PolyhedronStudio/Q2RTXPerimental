@@ -43,6 +43,8 @@
 * Brush Triggers can now be set a spawnflag to trigger only when actually clipping with the trigger brush.
 * Basic configurable Spotlight entity that can be given its own ``customLightStyle`` property as well.
 ### Client Game:
+* Responsible for preparing the view by adding all the packet entities as well as the player viewweapon/thirdperson model.
+* User Input ``KeyButton`` registration and handling of.
 * View/Scene handling, this includes: ``Packet Entities``, ``Entity Events``, ``Temp Entity Events``, ``Particles``, ``Explosions``, ``Beams/Lasers/Trails``, ``Sustains``.
 * Player Movement Prediction.
 ### Shared Game:

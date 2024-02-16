@@ -307,25 +307,25 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
     if ( in_use.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_USE;
     }
-    //if ( in_use.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) )
-    //    cl.moveCommand.cmd.buttons |= BUTTON_HOLSTER;
     if ( in_up.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_JUMP;
     }
     if ( in_down.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_CROUCH;
     }
+    in_attack.state = static_cast<keybutton_state_t>( in_attack.state & ~BUTTON_STATE_DOWN );
+    in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
 
-    //in_attack.state &= ~BUTTON_STATE_DOWN;
-    //in_use.state &= ~BUTTON_STATE_DOWN;
+    in_up.state = static_cast<keybutton_state_t>( in_up.state & ~BUTTON_STATE_DOWN );
+    in_down.state = static_cast<keybutton_state_t>( in_down.state & ~BUTTON_STATE_DOWN );
 
     if ( clgi.GetKeyEventDestination() == KEY_GAME && clgi.Key_AnyKeyDown() ) {
         moveCommand->cmd.buttons |= BUTTON_ANY;
     }
 
-    // WID: 64-bit-frame: Should we messabout with this?
     if ( moveCommand->cmd.msec > 75 ) { // Was: > 250
-        moveCommand->cmd.msec = BASE_FRAMERATE;        // time was unreasonable
+        // Time was unreasonable.
+        moveCommand->cmd.msec = BASE_FRAMERATE; // Was: 100
     }
 
     // rebuild the movement vector
@@ -359,6 +359,9 @@ void PF_ClearMoveCommand( client_movecmd_t *moveCommand ) {
 
     in_attack.state = static_cast<keybutton_state_t>( in_attack.state & ~BUTTON_STATE_DOWN );
     in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
+
+    in_up.state = static_cast<keybutton_state_t>( in_up.state & ~BUTTON_STATE_DOWN );
+    in_down.state = static_cast<keybutton_state_t>( in_down.state & ~BUTTON_STATE_DOWN );
     //in_holster.state &= ~BUTTON_STATE_DOWN;
 
     clgi.KeyClear( &in_right );

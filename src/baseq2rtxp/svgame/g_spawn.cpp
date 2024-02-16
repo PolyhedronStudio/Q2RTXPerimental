@@ -857,10 +857,14 @@ void SP_worldspawn(edict_t *ent)
     gi.configstring(CS_MAXCLIENTS, va("%i", (int)(maxclients->value)));
 
     // status bar program
-    if (deathmatch->value)
-        gi.configstring(CS_STATUSBAR, va("%s%s", single_statusbar, dm_statusbar));
-    else
-        gi.configstring(CS_STATUSBAR, single_statusbar);
+    if ( deathmatch->value ) {
+        gi.configstring( CS_STATUSBAR, va( "%s%s", single_statusbar, dm_statusbar ) );
+        // Deathmatch specific, set air acceleration properly.
+        gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
+    } else {
+        gi.configstring( CS_STATUSBAR, single_statusbar );
+        gi.configstring( CS_AIRACCEL, "0" );
+    }
 
     //---------------
 

@@ -182,7 +182,7 @@ void PreInitGame( void ) {
 		}
 
 		// Deathmatch specific, set air acceleration properly.
-		cvar_t *sv_airaccelerate = gi.cvar( "sv_airaccelerate", 0, 0 );
+        cvar_t *sv_airaccelerate = gi.cvar( "sv_airaccelerate", "8", CVAR_LATCH );
 		gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
 	// Cooperative:
 	} else if ( gamemode->integer == GAMEMODE_COOPERATIVE ) {

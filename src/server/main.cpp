@@ -56,8 +56,8 @@ cvar_t  *sv_reserved_password;
 cvar_t  *sv_force_reconnect;
 cvar_t  *sv_show_name_changes;
 
-cvar_t  *sv_airaccelerate;
-cvar_t  *sv_qwmod;              // atu QW Physics modificator
+//cvar_t  *sv_airaccelerate;
+//cvar_t  *sv_qwmod;              // atu QW Physics modificator
 cvar_t  *sv_novis;
 
 cvar_t  *sv_maxclients;
@@ -926,10 +926,10 @@ static void init_pmove_and_es_flags(client_t *newcl)
 {
     // copy default pmove parameters
     newcl->pmp = sv_pmp;
-    newcl->pmp.airaccelerate = sv_airaccelerate->integer;
+    //newcl->pmp.airaccelerate = sv_airaccelerate->integer;
 
-    newcl->pmp.strafehack = sv_strafejump_hack->integer;
-    newcl->pmp.waterhack = sv_waterjump_hack->integer;
+    //newcl->pmp.strafehack = sv_strafejump_hack->integer;
+    //newcl->pmp.waterhack = sv_waterjump_hack->integer;
 }
 
 static void SV_SendConnectPacket(client_t *newcl)
@@ -2045,8 +2045,8 @@ void SV_Init(void)
     sv_force_reconnect = Cvar_Get("sv_force_reconnect", "", CVAR_LATCH);
     sv_show_name_changes = Cvar_Get("sv_show_name_changes", "0", 0);
 
-    sv_airaccelerate = Cvar_Get("sv_airaccelerate", "0", CVAR_LATCH);
-    sv_qwmod = Cvar_Get("sv_qwmod", "0", CVAR_LATCH);   //atu QWMod
+    //sv_airaccelerate = Cvar_Get("sv_airaccelerate", "0", CVAR_LATCH);
+    //sv_qwmod = Cvar_Get("sv_qwmod", "0", CVAR_LATCH);   //atu QWMod
     sv_public = Cvar_Get("public", "0", CVAR_LATCH);
     sv_password = Cvar_Get("sv_password", "", CVAR_PRIVATE);
     sv_reserved_password = Cvar_Get("sv_reserved_password", "", CVAR_PRIVATE);

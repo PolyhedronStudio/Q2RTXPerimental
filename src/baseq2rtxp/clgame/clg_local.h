@@ -246,6 +246,21 @@ typedef struct centity_s {
 #define TAG_CLGAME			777 // Clear when unloading the dll.
 #define TAG_CLGAME_LEVEL	778 // Clear when loading a new level.
 
+/**
+*   @brief  Stores temp entity data from the last parsed svc_temp_entity message.
+**/
+typedef struct {
+	int32_t type;
+	vec3_t  pos1;
+	vec3_t  pos2;
+	vec3_t  offset;
+	vec3_t  dir;
+	int32_t count;
+	int32_t color;
+	int32_t entity1;
+	int32_t entity2;
+	int64_t time;
+} tent_params_t;
 
 
 /*
