@@ -233,49 +233,45 @@ Key_Event (int key, bool down, unsigned time);
 ===============================================================================
 */
 
-typedef struct kbutton_s {
-    int32_t     down[2];        // key nums holding it down.
-    uint64_t    downtime;       // msec timestamp of when key was first pressed.
-	uint64_t	msec;           // msec down this frame
-    int32_t     state;
-} kbutton_t;
+static keybutton_t    in_klook;
+static keybutton_t    in_left, in_right, in_forward, in_back;
+static keybutton_t    in_lookup, in_lookdown, in_moveleft, in_moveright;
+static keybutton_t    in_strafe, in_speed, in_use, in_attack;
+static keybutton_t    in_up, in_down;
 
-static kbutton_t    in_klook;
-static kbutton_t    in_left, in_right, in_forward, in_back;
-static kbutton_t    in_lookup, in_lookdown, in_moveleft, in_moveright;
-static kbutton_t    in_strafe, in_speed, in_use, in_attack;
-static kbutton_t    in_up, in_down;
-
-//static kbutton_t    in_holster;
+//static keybutton_t    in_holster;
 
 static int          in_impulse;
 static bool         in_mlooking;
 
-static void KeyDown(kbutton_t *b)
+static void KeyDown(keybutton_t *b)
 {
     int k;
     const char *c; // WID: C++20: Added const.
 
     c = Cmd_Argv(1);
-    if (c[0])
-        k = atoi(c);
-    else
+    if ( c[ 0 ] ) {
+        k = atoi( c );
+    } else {
         k = -1;        // typed manually at the console for continuous down
+    }
 
-    if (k == b->down[0] || k == b->down[1])
+    if ( k == b->down[ 0 ] || k == b->down[ 1 ] ) {
         return;        // repeating key
+    }
 
-    if (!b->down[0])
-        b->down[0] = k;
-    else if (!b->down[1])
-        b->down[1] = k;
-    else {
+    if ( !b->down[ 0 ] ) {
+        b->down[ 0 ] = k;
+    } else if ( !b->down[ 1 ] ) {
+        b->down[ 1 ] = k;
+    } else {
         Com_WPrintf("Three keys down for a button!\n");
         return;
     }
 
-    if (b->state & 1)
+    if ( b->state & BUTTON_STATE_HELD ) {
         return;        // still down
+    }
 
     // save timestamp
     c = Cmd_Argv(2);
@@ -284,54 +280,56 @@ static void KeyDown(kbutton_t *b)
         b->downtime = com_eventTime - BASE_FRAMETIME;
     }
 
-    b->state |= 1 + 2;    // down + impulse down
+    b->state = static_cast<keybutton_state_t>( b->state | BUTTON_STATE_HELD | BUTTON_STATE_DOWN );//1 + 2;    // down + impulse down
 }
 
-static void KeyUp(kbutton_t *b)
+static void KeyUp(keybutton_t *b)
 {
     int k;
     const char *c; // WID: C++20: Added const.
     uint64_t uptime;
 
     c = Cmd_Argv(1);
-    if (c[0])
-        k = atoi(c);
-    else {
-        // typed manually at the console, assume for unsticking, so clear all
+    if ( c[ 0 ] ) {
+        k = atoi( c );
+    } else {
+        // Typed manually at the console, assume for unsticking, so clear all.
         b->down[0] = b->down[1] = 0;
-        b->state = 0;    // impulse up
+        b->state = static_cast<keybutton_state_t>( 0 );    // impulse up
         return;
     }
 
-    if (b->down[0] == k)
+    if (b->down[0] == k) {
         b->down[0] = 0;
-    else if (b->down[1] == k)
-        b->down[1] = 0;
-    else
+    } else if ( b->down[ 1 ] == k ) {
+        b->down[ 1 ] = 0;
+    } else {
         return;        // key up without coresponding down (menu pass through)
-    if (b->down[0] || b->down[1])
+    }
+    if ( b->down[ 0 ] || b->down[ 1 ] ) {
         return;        // some other key is still holding it down
-
-    if (!(b->state & 1))
+    }
+    if ( !( b->state & BUTTON_STATE_HELD ) ) {
         return;        // still up (this should not happen)
+    }
 
     // save timestamp
     c = Cmd_Argv(2);
     uptime = atoi(c);
     if (!uptime) {
-        b->msec += 10;
+        b->msec += BASE_FRAMETIME; // WID: 40hz: Used to be 10;
     } else if (uptime > b->downtime) {
         b->msec += uptime - b->downtime;
     }
 
-    b->state &= ~1;        // now up
+    b->state = static_cast<keybutton_state_t>( b->state & ~BUTTON_STATE_HELD );        // now up
 }
 
-static void KeyClear(kbutton_t *b)
+static void KeyClear(keybutton_t *b)
 {
     b->msec = 0;
-    b->state &= ~2;        // clear impulses
-    if (b->state & 1) {
+    b->state = static_cast<keybutton_state_t>( b->state & ~BUTTON_STATE_DOWN );        // clear impulses
+    if (b->state & BUTTON_STATE_HELD ) {
         b->downtime = com_eventTime; // still down
     }
 }
@@ -424,12 +422,12 @@ CL_KeyState
 Returns the fraction of the frame that the key was down
 ===============
 */
-static double CL_KeyState(kbutton_t *key)
+static double CL_KeyState(keybutton_t *key)
 {
 	uint64_t msec = key->msec;
     double val;
 
-    if (key->state & 1) {
+    if (key->state & BUTTON_STATE_HELD) {
         // still down
         if (com_eventTime > key->downtime) {
             msec += com_eventTime - key->downtime;
@@ -438,7 +436,7 @@ static double CL_KeyState(kbutton_t *key)
 
     // special case for instant packet
     if (!cl.moveCommand.cmd.msec) {
-        return (double)(key->state & 1);
+        return (double)(key->state & BUTTON_STATE_HELD );
     }
 
     val = (double)msec / cl.moveCommand.cmd.msec;
@@ -503,13 +501,13 @@ static void CL_MouseMove(void)
     }
 
 // add mouse X/Y movement
-    if ((in_strafe.state & 1) || (lookstrafe->integer && !in_mlooking)) {
+    if ((in_strafe.state & BUTTON_STATE_HELD ) || (lookstrafe->integer && !in_mlooking)) {
         cl.mousemove[1] += m_side->value * mx;
     } else {
         cl.viewangles[YAW] -= m_yaw->value * mx;
     }
 
-    if ((in_mlooking || freelook->integer) && !(in_strafe.state & 1)) {
+    if ((in_mlooking || freelook->integer) && !(in_strafe.state & BUTTON_STATE_HELD )) {
         cl.viewangles[PITCH] += m_pitch->value * my * (m_invert->integer ? -1.f : 1.f);
     } else {
         cl.mousemove[0] -= m_forward->value * my;
@@ -528,16 +526,16 @@ static void CL_AdjustAngles(int msec)
 {
     double speed;
 
-    if (in_speed.state & 1)
+    if (in_speed.state & BUTTON_STATE_HELD )
         speed = msec * cl_anglespeedkey->value * 0.001f;
     else
         speed = msec * 0.001f;
 
-    if (!(in_strafe.state & 1)) {
+    if (!(in_strafe.state & BUTTON_STATE_HELD )) {
         cl.viewangles[YAW] -= speed * cl_yawspeed->value * CL_KeyState(&in_right);
         cl.viewangles[YAW] += speed * cl_yawspeed->value * CL_KeyState(&in_left);
     }
-    if (in_klook.state & 1) {
+    if (in_klook.state & BUTTON_STATE_HELD ) {
         cl.viewangles[PITCH] -= speed * cl_pitchspeed->value * CL_KeyState(&in_forward);
         cl.viewangles[PITCH] += speed * cl_pitchspeed->value * CL_KeyState(&in_back);
     }
@@ -554,7 +552,7 @@ Build the intended movement vector
 ================
 */
 static void CL_BaseMove( Vector3 &move ) {
-    if (in_strafe.state & 1) {
+    if ( in_strafe.state & BUTTON_STATE_HELD ) {
         move[1] += cl_sidespeed->value * CL_KeyState(&in_right);
         move[1] -= cl_sidespeed->value * CL_KeyState(&in_left);
     }
@@ -565,13 +563,13 @@ static void CL_BaseMove( Vector3 &move ) {
     move[2] += cl_upspeed->value * CL_KeyState(&in_up);
     move[2] -= cl_upspeed->value * CL_KeyState(&in_down);
 
-    if (!(in_klook.state & 1)) {
+    if ( !( in_klook.state & BUTTON_STATE_HELD ) ) {
         move[0] += cl_forwardspeed->value * CL_KeyState(&in_forward);
         move[0] -= cl_forwardspeed->value * CL_KeyState(&in_back);
     }
 
 // adjust for speed key / running
-    if ((in_speed.state & 1) ^ cl_run->integer) {
+    if ( ( in_speed.state & BUTTON_STATE_HELD ) ^ cl_run->integer ) {
         VectorScale(move, 2, move);
     }
 }
@@ -631,10 +629,12 @@ void CL_UpdateCmd(int msec)
 
     // get basic movement from keyboard, including jump/crouch.
     CL_BaseMove(cl.localmove);
-    if ( in_up.state & 3 )
+    if ( in_up.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         cl.moveCommand.cmd.buttons |= BUTTON_JUMP;
-    if ( in_down.state & 3 )
+    }
+    if ( in_down.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         cl.moveCommand.cmd.buttons |= BUTTON_CROUCH;
+    }
 
     // allow mice to add to the move
     CL_MouseMove();
@@ -657,10 +657,11 @@ static void m_autosens_changed(cvar_t *self)
 {
     float fov;
 
-    if (self->value > 90.0f && self->value <= 179.0f)
+    if ( self->value > 90.0f && self->value <= 179.0f ) {
         fov = self->value;
-    else
+    } else {
         fov = 90.0f;
+    }
 
     autosens_x = 1.0f / fov;
     autosens_y = 1.0f / V_CalcFov(fov, 4, 3);
@@ -773,23 +774,23 @@ void CL_FinalizeCmd(void)
 //
 // figure button bits
 //
-    if ( in_attack.state & 3 ) {
+    if ( in_attack.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         cl.moveCommand.cmd.buttons |= BUTTON_ATTACK;
     }
-    if ( in_use.state & 3 ) {
+    if ( in_use.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         cl.moveCommand.cmd.buttons |= BUTTON_USE;
     }
-    //if ( in_use.state & 3 )
+    //if ( in_use.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) )
     //    cl.moveCommand.cmd.buttons |= BUTTON_HOLSTER;
-    if ( in_up.state & 3 ) {
+    if ( in_up.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         cl.moveCommand.cmd.buttons |= BUTTON_JUMP;
     }
-    if ( in_down.state & 3 ) {
+    if ( in_down.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         cl.moveCommand.cmd.buttons |= BUTTON_CROUCH;
     }
 
-    //in_attack.state &= ~2;
-    //in_use.state &= ~2;
+    //in_attack.state &= ~BUTTON_STATE_DOWN;
+    //in_use.state &= ~BUTTON_STATE_DOWN;
 
     if (cls.key_dest == KEY_GAME && Key_AnyKeyDown()) {
         cl.moveCommand.cmd.buttons |= BUTTON_ANY;
@@ -840,9 +841,9 @@ clear:
     cl.mousemove[0] = 0;
     cl.mousemove[1] = 0;
 
-    in_attack.state &= ~2;
-    in_use.state &= ~2;
-    //in_holster.state &= ~2;
+    in_attack.state = static_cast<keybutton_state_t>( in_attack.state & ~BUTTON_STATE_DOWN );
+    in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
+    //in_holster.state &= ~BUTTON_STATE_DOWN;
 
     KeyClear(&in_right);
     KeyClear(&in_left);

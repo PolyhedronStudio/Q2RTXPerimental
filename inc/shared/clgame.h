@@ -207,6 +207,20 @@ typedef struct {
 
 	/**
 	*
+	*
+	*
+	**/
+	//! Register a button as being 'held down'.
+	void (* KeyDown )( keybutton_t *keyButton );
+	//! Register a button as being 'released'.
+	void ( *KeyUp )( keybutton_t *keyButton );
+	//! Returns the fraction of the command frame's interval for which the key was 'down'.
+	const double ( *KeyState )( keybutton_t *keyButton, const uint64_t msec );
+
+
+
+	/**
+	*
 	*	Network Messaging:
 	*
 	**/

@@ -539,7 +539,9 @@ typedef struct client_state_s {
     // WID: 40hz
 } client_state_t;
 
-
+/**
+*   @brief  Defines the actual client's current 'operating state'.
+**/
 typedef enum connstate_s {
     ca_uninitialized,
     ca_disconnected,    // not talking to a server
@@ -552,9 +554,9 @@ typedef enum connstate_s {
     ca_cinematic        // running a cinematic
 } connstate_t;
 
-//
-// precache.c
-//
+/**
+*   @brief  Defines the actual client's current 'loading phase'.
+**/
 typedef enum load_state_s {
     LOAD_NONE,
     LOAD_MAP,

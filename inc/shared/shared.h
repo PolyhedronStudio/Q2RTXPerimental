@@ -73,9 +73,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #if HAVE_ENDIAN_H
     #include <endian.h>
 #endif
-
 //! Include shared platform specifics.
 #include "shared/platform.h"
+
 
 //! Determine and define which endianness we're compiling for.
 #if __BYTE_ORDER == __LITTLE_ENDIAN
@@ -84,9 +84,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     #define USE_BIG_ENDIAN      1
 #endif
 
+
 //! Utility to get the count of arrays.
 #define q_countof(a) (sizeof(a) / sizeof(a[0]))
-
 
 
 /**
@@ -128,7 +128,6 @@ extern "C" {
 #define ROLL                2       // fall over
 
 
-
 /**
 *   String Limits:
 **/
@@ -141,7 +140,6 @@ extern "C" {
 #define MAX_OSPATH				256     // max length of a filesystem pathname
 
 
-
 /**
 *   ConfigString type:
 **/
@@ -149,7 +147,6 @@ extern "C" {
 #define MAX_CS_STRING_LENGTH	96	
 //! The actual configstring_t char array type.
 typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
-
 
 
 /**
@@ -185,115 +182,79 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 
 
 /**
-*   Shared "Common":
-**/
-
-
-/**
 *   Math Library:
 **/
 // Includes the 'old' math library support. Which is pretty much still in use all over the place.
 // Strictly speaking, for consistency sake, we should update all code however it is prone to creating
 // possible new bugs and takes a lot of time to invest.
 #include "shared/math/math_old.h"
+
 #ifdef __cplusplus
 };  // Escape extern "C" for raymath.h include. ( This is because we got some C++ specifics code in there. )
 #endif
-// Use static inlining for all its functions.
+
+//! Use static inlining for all its functions.
 #define RAYMATH_STATIC_INLINE
-// Include our own custom version of raylib1.5 its raymath library.
+//! Include our own custom version of raylib1.5 its raymath library.
 #include <shared/math/qray_math.h>
+
 #ifdef __cplusplus
 // We extern back to "C"
 extern "C" {
 #endif
 
-/**
-*   Color Index Table:
-**/
+//! Color Index Table:
 #include "shared/color_index_table.h"
 
-/**
-*	Bit Utilities:
-**/
+//! Bit Utilities:
 #include "shared/util_bits.h"
-/**
-*	Endian Utilities:
-**/
+//! Endian Utilities:
 #include "shared/util_endian.h"
-/**
-*	String Utilities:
-**/
+//! String Utilities:
 #include "shared/util_strings.h"
-/**
-*	Encode/Decode utilities
-**/
+//! Encode/Decode utilities
 #include "shared/util_encode.h"
 #include "shared/util_decode.h"
 
-/**
-*   Key/Value Info Strings:
-**/
+//! Key/Value Info Strings:
 #include "shared/info_strings.h"
 
-/**
-*   CVARS (console variables)/Command Buffer
-*
-*   Actually part of the /common/ code. What is defined here, is the bare necessity of limited
-*   API for the game codes to make use of.
-*
-**/
+//! KeyButton/KeyButton State:
+#include "shared/key_button.h"
+
+//! CommandBuffers/Console/CVars:
 #include "shared/command_cvars.h"
 #include "shared/command_buffer.h"
 #include "shared/command_print.h"
 
-/**
-*	Collision Detection:
-**/
+//! Collision Detection:
 #include "shared/collision.h"
 
-/**
-*	Muzzleflashes/Player Effects:
-**/
+//!	Entity Muzzleflashes/Player Effects:
 #include "shared/entity_effects.h"
-/**
-*   Entity Render Flags:
-**/
+//!	Entity Render Flags:
 #include "shared/entity_renderflags.h"
-/**
-*	Entity Events:
-**/
+//!	Entity Events:
 #include "shared/entity_events.h"
-/**
-*	Entity Types:
-**/
+//! Entity Types:
 #include "shared/entity_types.h"
-/**
-*	Entity State:
-**/
+//! Entity State:
 #include "shared/entity_state.h"
-/**
-*	Muzzleflashes:
-**/
+
+//! Muzzleflashes:
 #include "shared/muzzleflashes.h"
-/**
-*	Monster Muzzleflashes:
-**/
+//! Monster Muzzleflashes:
 #include "shared/muzzleflashes_monsters.h"
-/**
-*	Temp Entity Events:
-**/
+
+//! Temp Entity Events:
 #include "shared/temp_entity_events.h"
 
-/**
-*	Sound:
-**/
+//! Sound:
 #include "shared/sound.h"
 
-/**
-*	Gamemode Flags: (TODO: Move into sharedgame and do per gamemode.?)
-**/
+//! Gamemode Flags: (TODO: Move into sharedgame and do per gamemode.?)
 #include "shared/gamemode_flags.h"
+
 /**
 *   User Flags, most are unused, likely were used in the past:
 **/
@@ -316,23 +277,19 @@ extern "C" {
 *                   Each config string can be at most MAX_QPATH characters.
 ***/
 #include "shared/net_configstrings.h"
-/**
-*	Elements Communicated across the NET.
-**/
+//! Elements Communicated across the NET.
 #include "shared/net_elements.h"
-/**
-*   Server to Client, and Client to Server CommandMessages.
-**/
+//! Server to Client, and Client to Server CommandMessages.
 #include "shared/net_command_messages.h"
-/**
-*	User Commands( User Input ):
-**/
+//! User Commands( User Input ):
 #include "shared/net_usercommand.h"
-
-// destination class for gi.multicast()
+//! Destination determinant for gi.multicast()
 typedef enum {
+    //! Multicast to all client.
     MULTICAST_ALL,
+    //! Multicast to all clients inside of PHS(Possible Hearing Set).
     MULTICAST_PHS,
+    //! Multicast to all clients inside of PVS(Possible Visibility Set).
     MULTICAST_PVS
 } multicast_t;
 
