@@ -217,8 +217,7 @@ Key_AnyKeyDown
 Returns total number of keys down.
 ===================
 */
-int Key_AnyKeyDown(void)
-{
+const int32_t Key_AnyKeyDown(void) {
     return anykeydown;
 }
 

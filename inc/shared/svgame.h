@@ -233,7 +233,7 @@ typedef struct {
 	*	ClientCommand and ServerCommand parameter access:
 	*
 	**/
-    int (*argc)(void);
+    const int32_t (*argc)(void);
     char *(*argv)(int n);
     char *(*args)(void);     // concatenation of all argv >= 1
 

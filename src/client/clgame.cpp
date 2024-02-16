@@ -48,6 +48,42 @@ static const ref_type_t PF_GetRefreshType() {
 /**
 *
 *
+*	Commands:
+*
+*
+**/
+/**
+*	@brief	Registers the specified function pointer as the 'name' command.
+**/
+void PF_Cmd_AddCommand( const char *name, xcommand_t function ) {
+	cmdreg_t reg = { .name = name, .function = function };
+	Cmd_RegCommand( &reg );
+}
+/**
+*	@brief	Registers the specified function pointer as the 'name' command.
+**/
+void PF_Cmd_Register( const cmdreg_t *reg ) {
+	for ( ; reg->name; reg++ )
+		Cmd_RegCommand( reg );
+}
+/**
+*	@brief	Deregisters the specified function pointer as the 'name' command.
+**/
+void PF_Cmd_Deregister( const cmdreg_t *reg ) {
+	for ( ; reg->name; reg++ )
+		Cmd_RemoveCommand( reg->name );
+}
+
+/**
+*	@brief	Removes the specified 'name' command registration.
+**/
+void PF_Cmd_RemoveCommand( const char *name ) {
+	Cmd_RemoveCommand( name );
+}
+
+/**
+*
+*
 *	ConfigStrings:
 *
 *
@@ -109,13 +145,13 @@ static void PF_Cvar_Reset( cvar_t *cvar ) {
 *	@brief	Set the 'layer' of where key events are handled by.
 **/
 static void PF_SetKeyEventDestination( const keydest_t keyEventDestination ) {
-	cls.key_dest = keyEventDestination;
+	Key_SetDest( keyEventDestination );
 }
 /** 
 *	@return	The 'layer' of where key events are handled by.
 **/
 static const keydest_t PF_GetKeyEventDestination( void ) {
-	return cls.key_dest;
+	return Key_GetDest();
 }
 
 
@@ -415,6 +451,25 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.GetConfigString = PF_GetConfigString;
 
+	imports.Cmd_From = Cmd_From;
+	imports.Cmd_Argc = Cmd_Argc;
+	imports.Cmd_Argv = Cmd_Argv;
+	imports.Cmd_Args = Cmd_Args;
+	imports.Cmd_RawArgs = Cmd_RawArgs;
+	imports.Cmd_ArgsFrom = Cmd_ArgsFrom;
+	imports.Cmd_RawArgsFrom = Cmd_RawArgsFrom;
+	imports.Cmd_ArgsRange = Cmd_ArgsRange;
+	imports.Cmd_ArgsBuffer = Cmd_ArgsBuffer;
+	imports.Cmd_ArgvBuffer = Cmd_ArgvBuffer;
+	imports.Cmd_ArgOffset = Cmd_ArgOffset;
+	imports.Cmd_FindArgForOffset = Cmd_FindArgForOffset;
+	imports.Cmd_RawString = Cmd_RawString; // WID: C++20: Added const.
+	imports.Cmd_Shift = Cmd_Shift;
+	imports.Cmd_AddCommand = PF_Cmd_AddCommand;
+	imports.Cmd_RemoveCommand = PF_Cmd_RemoveCommand;
+	imports.Cmd_Register = PF_Cmd_Register;
+	imports.Cmd_Deregister = PF_Cmd_Deregister;
+
 	imports.CVar = PF_CVar;
 	imports.CVar_Get = PF_CVarGet;
 	imports.CVar_Set = Cvar_UserSet;
@@ -424,7 +479,9 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.KeyDown = CL_KeyDown;
 	imports.KeyUp = CL_KeyUp;
+	imports.KeyClear = CL_KeyClear;
 	imports.KeyState = CL_KeyState;
+	imports.Key_AnyKeyDown = Key_AnyKeyDown;
 	imports.SetKeyEventDestination = PF_SetKeyEventDestination;
 	imports.GetKeyEventDestination = PF_GetKeyEventDestination;
 

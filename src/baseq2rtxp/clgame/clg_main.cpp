@@ -369,6 +369,12 @@ extern "C" { // WID: C++20: extern "C".
 		globals.SeekDemoMessage = PF_SeekDemoMessage;
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
 
+		globals.MouseMove = PF_MouseMove;
+		globals.RegisterUserInput = PF_RegisterUserInput;
+		globals.UpdateMoveCommand = PF_UpdateMoveCommand;
+		globals.FinalizeMoveCommand = PF_FinalizeMoveCommand;
+		globals.ClearMoveCommand = PF_ClearMoveCommand;
+
 		globals.CalculateFieldOfView = PF_CalculateFieldOfView;
 		globals.CalculateViewValues = PF_CalculateViewValues;
 		globals.ClearViewScene = PF_ClearViewScene;

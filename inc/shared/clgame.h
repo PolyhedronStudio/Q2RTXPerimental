@@ -141,7 +141,11 @@ typedef struct centity_s {
 //===============================================================
 
 /**
+* 
+* 
 *	@brief	Functions and variable data that is provided by the main engine.
+* 
+* 
 **/
 typedef struct {
 	/**
@@ -190,6 +194,49 @@ typedef struct {
 	configstring_t *( *GetConfigString )( const int32_t index );
 
 
+	/**
+	*
+	*	Commands:
+	*
+	**/
+	/**
+	*	The functions that execute commands get their parameters with these
+	*	functions. Cmd_Argv () will return an empty string, not a NULL
+	*	if arg > argc, so string operations are always safe.
+	**/
+	const from_t  ( *Cmd_From )( void );
+	const int32_t ( *Cmd_Argc )( void );
+	char *( *Cmd_Argv )( const int32_t arg );
+	char *( *Cmd_Args )( void );
+	char *( *Cmd_RawArgs )( void );
+	char *( *Cmd_ArgsFrom )( const int32_t from );
+	char *( *Cmd_RawArgsFrom )( const int32_t from );
+	char *( *Cmd_ArgsRange )( const int32_t from, const int32_t to );
+	const size_t  ( *Cmd_ArgsBuffer )( char *buffer, const size_t size );
+	const size_t  ( *Cmd_ArgvBuffer )( const int32_t arg, char *buffer, const size_t size );
+	const int32_t ( *Cmd_ArgOffset )( const int32_t arg );
+	const int32_t ( *Cmd_FindArgForOffset )( const int32_t offset );
+	char *( *Cmd_RawString )( void ); // WID: C++20: Added const.
+	void    ( *Cmd_Shift )( void );
+
+	/**
+	*	@brief	Registers the specified function pointer as the 'name' command.
+	**/
+	void ( *Cmd_AddCommand )( const char *name, xcommand_t function );
+	/**
+	*	@brief	Removes the specified 'name' command registration.
+	**/
+	void ( *Cmd_RemoveCommand )( const char *name );
+	/**
+	*	@brief	Registers the specified function pointer as the 'name' command.
+	**/
+	void ( *Cmd_Register )( const cmdreg_t *reg );
+	/**
+	*	@brief	Deregisters the specified function pointer as the 'name' command.
+	**/
+	void ( *Cmd_Deregister )( const cmdreg_t *reg );
+
+
 
 	/**
 	*
@@ -207,19 +254,25 @@ typedef struct {
 
 	/**
 	*
-	*
+	*	KeyButtons/KeyEvents:
 	*
 	**/
 	//! Register a button as being 'held down'.
 	void (* KeyDown )( keybutton_t *keyButton );
 	//! Register a button as being 'released'.
 	void ( *KeyUp )( keybutton_t *keyButton );
+	//! Clear out a key's down state and msec, but maintain track of whether it is 'held'.
+	void ( *KeyClear )( keybutton_t *keyButton );
 	//! Returns the fraction of the command frame's interval for which the key was 'down'.
 	const double ( *KeyState )( keybutton_t *keyButton );
+	//! Returns total numbers of keys that are 'down'.
+	const int32_t ( *Key_AnyKeyDown )( void );
+
 	//! Set the 'layer' of where key events are handled by.
 	void ( *SetKeyEventDestination )( const keydest_t keyEventDestination );
 	//! Returns the 'layer' of where key events are handled by.
 	const keydest_t ( *GetKeyEventDestination )( void );
+
 
 
 	/**
@@ -561,6 +614,21 @@ typedef struct {
 
 
 
+	/**
+	*
+	*	User Input:
+	*
+	**/
+	//! Called upon when mouse movement is detected.
+	void ( *MouseMove )( const float deltaX, const float deltaY, const float moveX, const float moveY, const float speed );
+	//! Called upon to register user input keybuttons.
+	void ( *RegisterUserInput )( void );
+	//!
+	void ( *UpdateMoveCommand )( const int64_t msec, struct client_movecmd_s *moveCommand, struct mouse_motion_s *mouseMotion );
+	//!
+	void ( *FinalizeMoveCommand )( struct client_movecmd_s *moveCommand );
+	//!
+	void ( *ClearMoveCommand )( struct client_movecmd_s *moveCommand );
 	/**
 	*
 	*	(Client-)View Scene:

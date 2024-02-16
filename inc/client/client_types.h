@@ -565,3 +565,15 @@ typedef enum load_state_s {
     LOAD_CLIENTS,
     LOAD_SOUNDS
 } load_state_t;
+
+typedef struct mouse_motion_s {
+    qboolean hasMotion;
+
+    int32_t deltaX;
+    int32_t deltaY;
+
+    float moveX;
+    float moveY;
+
+    float speed;
+} mouse_motion_t;

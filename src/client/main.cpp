@@ -2972,25 +2972,25 @@ unsigned CL_Frame(unsigned msec)
     // resend a connection request if necessary
     CL_CheckForResend();
 
-    // read user intentions
-    CL_UpdateCmd(main_extra);
+    // Read user intentions. (Build up the local movement command for prediction.)
+    CL_UpdateCommand(main_extra);
 
-    // finalize pending cmd
+    // Finalize the pending command to be send.
     phys_frame |= static_cast<bool>( cl.sendPacketNow );
     if (phys_frame) {
-        CL_FinalizeCmd();
+        CL_FinalizeCommand();
         phys_extra -= phys_msec;
         M_FRAMES++;
 
-        // don't let the time go too far off
-        // this can happen due to cl.sendPacketNow
+        // Don't let the time go too far off
+        // this can happen due to cl.sendPacketNow.
         if (phys_extra < -phys_msec * 4) {
             phys_extra = 0;
         }
     }
 
     // send pending cmds
-    CL_SendCmd();
+    CL_SendCommand();
 
     // predict all unacknowledged movements
     CL_PredictMovement();
@@ -3143,8 +3143,6 @@ void CL_Shutdown(void)
     // Disconnect first. (Unloading server game dll if loopbacked.)
     CL_Disconnect(ERR_FATAL);
     
-    // Shutdown the client game module.
-    CL_GM_Shutdown();
 
 #if USE_ZLIB
     inflateEnd(&cls.z);
@@ -3155,6 +3153,10 @@ void CL_Shutdown(void)
     S_Shutdown();
     IN_Shutdown();
     Con_Shutdown();
+
+    // Shutdown the client game module.
+    CL_GM_Shutdown();
+
     CL_ShutdownRefresh();
     CL_WriteConfig();
 

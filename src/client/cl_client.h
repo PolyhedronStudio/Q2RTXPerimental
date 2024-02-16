@@ -717,10 +717,25 @@ void CL_KeyClear( keybutton_t *b );
 **/
 const double CL_KeyState( keybutton_t *key );
 
+/**
+*   @brief  Create all move related cvars, and registers all input commands. 
+*           (Also gives the client game a chance.)
+**/
 void CL_RegisterInput(void);
-void CL_UpdateCmd(int msec);
-void CL_FinalizeCmd(void);
-void CL_SendCmd(void);
+/**
+*   @brief  Updates msec, angles and builds the interpolated movement vector for local movement prediction.
+*           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
+**/
+void CL_UpdateCommand(int64_t msec);
+/**
+*   @brief  Builds the actual movement vector for sending to server. Assumes that msec
+*           and angles are already set for this frame by CL_UpdateCommand.
+**/
+void CL_FinalizeCommand(void);
+/**
+*   @brief  Sends the current pending command to server.
+**/
+void CL_SendCommand(void);
 
 
 //

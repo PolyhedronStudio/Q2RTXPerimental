@@ -157,9 +157,9 @@ void        Key_SetOverstrikeMode(bool overstrike);
 keydest_t   Key_GetDest(void);
 void        Key_SetDest(keydest_t dest);
 
-int         Key_IsDown(int key);
-int         Key_AnyKeyDown(void);
-void        Key_ClearStates(void);
+int				Key_IsDown(int key);
+const int32_t	Key_AnyKeyDown(void);
+void			Key_ClearStates(void);
 
 const char  *Key_KeynumToString(int keynum);
 int     Key_StringToKeynum(const char *str);
