@@ -25,6 +25,16 @@
 #pragma once
 
 /**
+*   @brief  Determines the 'layer' of where key events are handled by.
+**/
+typedef enum keydest_e {
+    KEY_GAME = 0,
+    KEY_CONSOLE = ( 1 << 0 ),
+    KEY_MESSAGE = ( 1 << 1 ),
+    KEY_MENU = ( 1 << 2 )
+} keydest_t;
+
+/**
 *   @brief  A button's state is either up(not pressed at all), down(pressed for a frame), or held(multiple frames).
 **/
 typedef enum keybutton_state_s {

@@ -565,4 +565,3 @@ typedef enum load_state_s {
     LOAD_CLIENTS,
     LOAD_SOUNDS
 } load_state_t;
-

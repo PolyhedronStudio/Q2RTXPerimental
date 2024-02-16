@@ -700,6 +700,22 @@ void IN_Init(void);
 void IN_Shutdown(void);
 void IN_Frame(void);
 void IN_Activate(void);
+/**
+*   @brief  Register a button as being 'held down'.
+**/
+void CL_KeyDown( keybutton_t *b );
+/**
+*   @brief  Register a button as being 'released'.
+**/
+void CL_KeyUp( keybutton_t *b );
+/**
+*   @brief  Clear out a key's down state and msec, but maintain track of whether it is 'held'.
+**/
+void CL_KeyClear( keybutton_t *b );
+/**
+*   @brief  Returns the fraction of the command frame's interval for which the key was 'down'.
+**/
+const double CL_KeyState( keybutton_t *key );
 
 void CL_RegisterInput(void);
 void CL_UpdateCmd(int msec);

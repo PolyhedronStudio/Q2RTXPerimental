@@ -24,12 +24,21 @@ extern "C" {
 static const qboolean PF_IsDemoPlayback( ) {
 	return cls.demo.playback;
 }
+/**
+*	@return	The real system time since application boot time.
+**/
 static const uint64_t PF_GetRealTime() {
 	return cls.realtime;
 }
+/**
+*	@return	Client's actual current 'connection' state.
+**/
 static const int32_t PF_GetConnectionState() {
 	return cls.state;
 }
+/**
+*	@return	Type of renderer that is in-use.
+**/
 static const ref_type_t PF_GetRefreshType() {
 	return cls.ref_type;
 }
@@ -89,37 +98,24 @@ static void PF_Cvar_Reset( cvar_t *cvar ) {
 }
 
 
-
 /**
 *
 *
-*	Refresh:
+*	Key Event destination:
 *
-* 
+*
 **/
 /**
-*	@brief
+*	@brief	Set the 'layer' of where key events are handled by.
 **/
-const qhandle_t PF_R_RegisterModel( const char *name ) {
-	return R_RegisterModel( name );
+static void PF_SetKeyEventDestination( const keydest_t keyEventDestination ) {
+	cls.key_dest = keyEventDestination;
 }
-/**
-*	@brief
+/** 
+*	@return	The 'layer' of where key events are handled by.
 **/
-const qhandle_t PF_R_RegisterSkin( const char *name ) {
-	return R_RegisterSkin( name );
-}
-/**
-*	@brief
-**/
-void PF_R_AddDecal( decal_t *d ) {
-	return R_AddDecal( d );
-}
-/**
-*	@brief	Returns a pointer to d_8to24table[256]; And yes, I know this is a cheesy method.
-**/
-const uint32_t *PF_R_Get8BitTo24BitTable( void ) {
-	return d_8to24table;
+static const keydest_t PF_GetKeyEventDestination( void ) {
+	return cls.key_dest;
 }
 
 
@@ -156,6 +152,40 @@ static q_noreturn void PF_Error( const char *fmt, ... ) {
 	va_end( argptr );
 
 	Com_Error( ERR_DROP, "ClientGame Error: %s", msg );
+}
+
+
+
+/**
+*
+*
+*	Refresh:
+*
+*
+**/
+/**
+*	@brief
+**/
+const qhandle_t PF_R_RegisterModel( const char *name ) {
+	return R_RegisterModel( name );
+}
+/**
+*	@brief
+**/
+const qhandle_t PF_R_RegisterSkin( const char *name ) {
+	return R_RegisterSkin( name );
+}
+/**
+*	@brief
+**/
+void PF_R_AddDecal( decal_t *d ) {
+	return R_AddDecal( d );
+}
+/**
+*	@brief	Returns a pointer to d_8to24table[256]; And yes, I know this is a cheesy method.
+**/
+const uint32_t *PF_R_Get8BitTo24BitTable( void ) {
+	return d_8to24table;
 }
 
 
@@ -391,6 +421,12 @@ void CL_GM_LoadProgs( void ) {
 	imports.CVar_ForceSet = Cvar_Set;
 	imports.CVar_ClampValue = Cvar_ClampValue;
 	imports.CVar_Reset = PF_Cvar_Reset;
+
+	imports.KeyDown = CL_KeyDown;
+	imports.KeyUp = CL_KeyUp;
+	imports.KeyState = CL_KeyState;
+	imports.SetKeyEventDestination = PF_SetKeyEventDestination;
+	imports.GetKeyEventDestination = PF_GetKeyEventDestination;
 
 	imports.Print = PF_Print;
 	imports.Error = PF_Error;

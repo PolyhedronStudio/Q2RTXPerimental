@@ -119,12 +119,12 @@ extern "C" {
 #define K_MWHEELLEFT    213
 #define K_MOUSELAST     213
 
-typedef enum keydest_e {
-    KEY_GAME    = 0,
-    KEY_CONSOLE = (1 << 0),
-    KEY_MESSAGE = (1 << 1),
-    KEY_MENU    = (1 << 2)
-} keydest_t;
+//typedef enum keydest_e {
+//    KEY_GAME    = 0,
+//    KEY_CONSOLE = (1 << 0),
+//    KEY_MESSAGE = (1 << 1),
+//    KEY_MENU    = (1 << 2)
+//} keydest_t;
 
 //
 // WID: C++20: Need some enum operator overloading.

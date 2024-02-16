@@ -215,8 +215,11 @@ typedef struct {
 	//! Register a button as being 'released'.
 	void ( *KeyUp )( keybutton_t *keyButton );
 	//! Returns the fraction of the command frame's interval for which the key was 'down'.
-	const double ( *KeyState )( keybutton_t *keyButton, const uint64_t msec );
-
+	const double ( *KeyState )( keybutton_t *keyButton );
+	//! Set the 'layer' of where key events are handled by.
+	void ( *SetKeyEventDestination )( const keydest_t keyEventDestination );
+	//! Returns the 'layer' of where key events are handled by.
+	const keydest_t ( *GetKeyEventDestination )( void );
 
 
 	/**
