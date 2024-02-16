@@ -74,7 +74,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     #include <endian.h>
 #endif
 
-//! Include shared platform data.
+//! Include shared platform specifics.
 #include "shared/platform.h"
 
 //! Determine and define which endianness we're compiling for.
@@ -87,8 +87,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //! Utility to get the count of arrays.
 #define q_countof(a) (sizeof(a) / sizeof(a[0]))
 
+
+
 /**
-*   
+*   Typedef certain types based on the translation unit's source language.
 **/
 #ifdef __cplusplus
     // Byte type remains the same, just included here as well as in the else statement for consistency.
@@ -113,16 +115,23 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 	#endif
 #endif //__cplusplus
 
+
 #ifdef __cplusplus
 // We extern "C"
 extern "C" {
 #endif
-
-// Angle Indexes
+/**
+*   Angle Indices:
+**/
 #define PITCH               0       // up / down
 #define YAW                 1       // left / right
 #define ROLL                2       // fall over
 
+
+
+/**
+*   String Limits:
+**/
 #define MAX_STRING_CHARS    4096    // max length of a string passed to Cmd_TokenizeString
 #define MAX_STRING_TOKENS   256     // max tokens resulting from Cmd_TokenizeString
 #define MAX_TOKEN_CHARS     1024    // max length of an individual token
@@ -131,18 +140,20 @@ extern "C" {
 #define MAX_QPATH				64      // max length of a quake game pathname
 #define MAX_OSPATH				256     // max length of a filesystem pathname
 
-//
-// ConfigString type.
-//
+
+
+/**
+*   ConfigString type:
+**/
 //! Maximum length of a configstring.
 #define MAX_CS_STRING_LENGTH	96	
 //! The actual configstring_t char array type.
 typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 
+
+
 /**
-*
 *   Per-Level Limits:
-*
 **/
 //! // Absolute limit
 #define MAX_CLIENTS         256     
@@ -174,70 +185,12 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 
 
 /**
-*
 *   Shared "Common":
-*
 **/
-/**
-*   @brief  Com_Error specific types:
-**/
-typedef enum {
-    //! Exit the entire game with a popup window.
-    ERR_FATAL,          
-    //! Print to console and disconnect from game.
-    ERR_DROP,           
-    //! Like ERR_DROP, but not an error.
-    ERR_DISCONNECT,     
-    //! Make the server broadcast 'reconnect' message.
-    ERR_RECONNECT       
-} error_type_t;
-/**
-*   @brief  Com_LPrintf specific types:
-**/
-typedef enum {
-    //! For general messages.
-    PRINT_ALL,          
-    //! Prints in green color.
-    PRINT_TALK,         
-    //! Only prints when the cvar "developer" == 1
-    PRINT_DEVELOPER,
-    PRINT_WARNING,      // print in yellow color
-    PRINT_ERROR,        // print in red color
-    PRINT_NOTICE        // print in cyan color
-} print_type_t;
 
-//! Prints to console the specific message in its 'type'.
-void    Com_LPrintf(print_type_t type, const char *fmt, ...)
-q_printf(2, 3);
-//! For erroring out and returning(in most cases) back to a disconnect console.
-void    Com_Error(error_type_t code, const char *fmt, ...)
-q_noreturn q_printf(2, 3);
-
-#define Com_Printf(...) Com_LPrintf(PRINT_ALL, __VA_ARGS__)
-#define Com_WPrintf(...) Com_LPrintf(PRINT_WARNING, __VA_ARGS__)
-#define Com_EPrintf(...) Com_LPrintf(PRINT_ERROR, __VA_ARGS__)
-
-#define Q_assert(expr) \
-    do { if (!(expr)) Com_Error(ERR_FATAL, "%s: assertion `%s' failed", __func__, #expr); } while (0)
-
-// game print flags
-#define PRINT_LOW           0       // pickup messages
-#define PRINT_MEDIUM        1       // death messages
-#define PRINT_HIGH          2       // critical messages
-#define PRINT_CHAT          3       // chat messages    
-
-// destination class for gi.multicast()
-typedef enum {
-    MULTICAST_ALL,
-    MULTICAST_PHS,
-    MULTICAST_PVS
-} multicast_t;
 
 /**
-*
-*
-*   The Math Library Code:
-*
+*   Math Library:
 **/
 // Includes the 'old' math library support. Which is pretty much still in use all over the place.
 // Strictly speaking, for consistency sake, we should update all code however it is prone to creating
@@ -259,27 +212,24 @@ extern "C" {
 *   Color Index Table:
 **/
 #include "shared/color_index_table.h"
+
 /**
 *	Bit Utilities:
 **/
 #include "shared/util_bits.h"
-
 /**
 *	Endian Utilities:
 **/
 #include "shared/util_endian.h"
-
 /**
 *	String Utilities:
 **/
 #include "shared/util_strings.h"
-
 /**
 *	Encode/Decode utilities
 **/
 #include "shared/util_encode.h"
 #include "shared/util_decode.h"
-
 
 /**
 *   Key/Value Info Strings:
@@ -295,6 +245,7 @@ extern "C" {
 **/
 #include "shared/command_cvars.h"
 #include "shared/command_buffer.h"
+#include "shared/command_print.h"
 
 /**
 *	Collision Detection:
@@ -305,37 +256,30 @@ extern "C" {
 *	Muzzleflashes/Player Effects:
 **/
 #include "shared/entity_effects.h"
-
 /**
 *   Entity Render Flags:
 **/
 #include "shared/entity_renderflags.h"
-
 /**
 *	Entity Events:
 **/
 #include "shared/entity_events.h"
-
 /**
 *	Entity Types:
 **/
 #include "shared/entity_types.h"
-
 /**
 *	Entity State:
 **/
 #include "shared/entity_state.h"
-
 /**
 *	Muzzleflashes:
 **/
 #include "shared/muzzleflashes.h"
-
 /**
 *	Monster Muzzleflashes:
 **/
 #include "shared/muzzleflashes_monsters.h"
-
 /**
 *	Temp Entity Events:
 **/
@@ -350,7 +294,6 @@ extern "C" {
 *	Gamemode Flags: (TODO: Move into sharedgame and do per gamemode.?)
 **/
 #include "shared/gamemode_flags.h"
-
 /**
 *   User Flags, most are unused, likely were used in the past:
 **/
@@ -373,31 +316,36 @@ extern "C" {
 *                   Each config string can be at most MAX_QPATH characters.
 ***/
 #include "shared/net_configstrings.h"
-
 /**
 *	Elements Communicated across the NET.
 **/
 #include "shared/net_elements.h"
-
 /**
 *   Server to Client, and Client to Server CommandMessages.
 **/
 #include "shared/net_command_messages.h"
-
 /**
 *	User Commands( User Input ):
 **/
 #include "shared/net_usercommand.h"
 
+// destination class for gi.multicast()
+typedef enum {
+    MULTICAST_ALL,
+    MULTICAST_PHS,
+    MULTICAST_PVS
+} multicast_t;
+
 /**
 *	Player Movement:
 **/
 #include "shared/player_move.h"
-
 /**
 *	Player State:
 **/
 #include "shared/player_state.h"
+
+
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

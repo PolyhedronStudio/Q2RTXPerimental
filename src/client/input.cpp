@@ -45,14 +45,16 @@ static cvar_t    *lookstrafe;
 
 // WID: C++20:
 extern "C" {
-       cvar_t* m_accel;
-       cvar_t* m_autosens;
-       cvar_t    *m_pitch;
-       cvar_t    *m_invert;
-       cvar_t    *m_yaw;
-static cvar_t    *m_forward;
-static cvar_t    *m_side;
-       cvar_t* sensitivity;
+    cvar_t *m_accel;
+    cvar_t *m_autosens;
+    cvar_t *m_pitch;
+    cvar_t *m_invert;
+    cvar_t *m_yaw;
+};
+static cvar_t *m_forward;
+static cvar_t *m_side;
+extern "C" {
+    cvar_t *sensitivity;
 };
 /*
 ===============================================================================
@@ -232,10 +234,10 @@ Key_Event (int key, bool down, unsigned time);
 */
 
 typedef struct kbutton_s {
-    int         down[2];        // key nums holding it down
-    uint64_t    downtime;        // msec timestamp
-	uint64_t	msec;            // msec down this frame
-    int         state;
+    int32_t     down[2];        // key nums holding it down.
+    uint64_t    downtime;       // msec timestamp of when key was first pressed.
+	uint64_t	msec;           // msec down this frame
+    int32_t     state;
 } kbutton_t;
 
 static kbutton_t    in_klook;

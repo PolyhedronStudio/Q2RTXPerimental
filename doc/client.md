@@ -49,8 +49,6 @@ fall back to the previous supported version. Default value is 0.
 
 - 0 — (removed support for this, we now rely on hard-setting it. 34 = default. ): automatically select the highest protocol version supported
 - 34 — use default Quake 2 RTXPerimental protocol
-- 35 — use enhanced R1Q2 protocol
-- 36 — use enhanced Q2PRO protocol
 
 #### `cl_maxpackets`
 Number of packets client sends per second. 0 means no particular limit.
