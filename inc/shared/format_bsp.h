@@ -178,7 +178,15 @@ typedef struct mface_s {
     int             light_s, light_t;
     float           stylecache[ MAX_LIGHTMAPS ];
     #else
-    struct surfcache_s *cachespots[ 4/*MIPLEVELS*/ ]; // surface generation data
+    #ifndef MIPLEVELS
+    #define MIPLEVELS 4
+    #define IN_HEADER_MIPLEVELS
+    #endif
+    struct surfcache_s *cachespots[ MIPLEVELS ]; // surface generation data
+    #ifndef IN_HEADER_MIPLEVELS
+    #undef MIPLEVELS 4
+    #undef IN_HEADER_MIPLEVELS
+    #endif
     #endif
 
     int             firstbasis;
