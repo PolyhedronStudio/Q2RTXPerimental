@@ -356,9 +356,9 @@ extern "C" {
 *   @brief  A somewhat of a hack, we first read in mouse-movement, to then later on in
 *           UpdateCommand actually allow it to be handled and added to our local movement.
 **/
-static const mouse_motion_t CL_MouseMove( void ) {
+static const client_mouse_motion_t CL_MouseMove( void ) {
     // Clear motion struct.
-    mouse_motion_t motion = { .hasMotion = false };
+    client_mouse_motion_t motion = { .hasMotion = false };
 
     if ( !vid.get_mouse_motion ) {
         return motion;
@@ -428,7 +428,7 @@ void CL_UpdateCommand( int64_t msec ) {
     cl.moveCommand.systemTime = cls.realtime;
 
     // Catch mouse input data to pass into updateCommand.
-    mouse_motion_t mouseMotion = CL_MouseMove();
+    client_mouse_motion_t mouseMotion = CL_MouseMove();
 
     // Call into UpdateCommand for updating our local prediction move command.
     if ( clge ) {

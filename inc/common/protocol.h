@@ -206,8 +206,9 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 
 // ==============================================================
 
+// WID: Moved to shared/shared.h
 // a SOLID_BBOX will never create this value
-#define PACKED_BSP      255
+//#define PACKED_BSP      255
 
 // q2pro frame flags sent by the server
 // only SUPPRESSCOUNT_BITS can be used

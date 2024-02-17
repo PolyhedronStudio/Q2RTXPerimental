@@ -223,7 +223,7 @@ static void AL_Spatialize(channel_t *ch)
     // anything coming from the view entity will always be full volume
     // no attenuation = no spatialization
     if (S_IsFullVolume(ch)) {
-        VectorCopy(listener_origin, origin);
+        VectorCopy( cl.listener_spatialize.origin, origin);
     } else if (ch->fixed_origin) {
         VectorCopy(ch->origin, origin);
     } else {
@@ -363,7 +363,7 @@ static void AL_AddLoopSounds(void)
 
         // check attenuation before playing the sound
         CL_GetEntitySoundOrigin(ent->number, origin);
-        VectorSubtract(origin, listener_origin, origin);
+        VectorSubtract(origin, cl.listener_spatialize.origin, origin);
         dist = VectorNormalize(origin);
         dist = (dist - SOUND_FULLVOLUME) * SOUND_LOOPATTENUATE;
         if(dist >= 1.f)
@@ -486,12 +486,12 @@ static void AL_Update(void)
     s_paintedtime = cl.time;
 
     // set listener parameters
-    qalListener3f(AL_POSITION, AL_UnpackVector(listener_origin));
-    AL_CopyVector(listener_forward, orientation);
-    AL_CopyVector(listener_up, orientation + 3);
-    qalListenerfv(AL_ORIENTATION, orientation);
-    qalListenerf(AL_GAIN, S_GetLinearVolume(s_volume->value));
-    qalDistanceModel(AL_LINEAR_DISTANCE_CLAMPED);
+    qalListener3f( AL_POSITION, AL_UnpackVector( cl.listener_spatialize.origin ) );
+    AL_CopyVector( cl.listener_spatialize.v_forward, orientation );
+    AL_CopyVector( cl.listener_spatialize.v_up, orientation + 3 );
+    qalListenerfv( AL_ORIENTATION, orientation );
+    qalListenerf( AL_GAIN, S_GetLinearVolume( s_volume->value ) );
+    qalDistanceModel( AL_LINEAR_DISTANCE_CLAMPED );
 
     AL_UpdateUnderWater();
 

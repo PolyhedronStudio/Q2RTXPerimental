@@ -952,4 +952,17 @@ RMAPI const Vector3 QM_Vector3LerpAngles( ConstVector3Ref angleVec2, ConstVector
     };
 }
 
+/**
+*   @return The closest point of the box that is near vector 'in'.
+**/
+RMAPI const Vector3 QM_Vector3ClosestPointToBox( ConstVector3Ref in, ConstVector3Ref absmin, ConstVector3Ref absmax ) {
+    Vector3 out = {};
+
+    for ( int i = 0; i < 3; i++ ) {
+        out[ i ] = ( in[ i ] < absmin[ i ] ) ? absmin[ i ] : ( in[ i ] > absmax[ i ] ) ? absmax[ i ] : in[ i ];
+    }
+
+    return out;
+}
+
 #endif  // __cplusplus

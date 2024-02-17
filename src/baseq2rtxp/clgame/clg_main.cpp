@@ -350,6 +350,9 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ClientConnected = PF_ClientConnected;
 		globals.ClientDisconnected = PF_ClientDisconnected;
 
+		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
+		globals.ParseEntityEvent = PF_ParseEntityEvent;
+
 		globals.GetGamemodeName = PF_GetGamemodeName;
 
 		globals.UsePrediction = PF_UsePrediction;
@@ -367,7 +370,6 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ParseServerMessage = PF_ParseServerMessage;
 		globals.EndServerMessage = PF_EndServerMessage;
 		globals.SeekDemoMessage = PF_SeekDemoMessage;
-		globals.ParseEntityEvent = PF_ParseEntityEvent;
 
 		globals.MouseMove = PF_MouseMove;
 		globals.RegisterUserInput = PF_RegisterUserInput;

@@ -420,12 +420,17 @@ static constexpr int32_t RESERVED_ENTITIY_GUN = 1;
 static constexpr int32_t RESERVED_ENTITIY_TESTMODEL = 2;
 static constexpr int32_t RESERVED_ENTITIY_COUNT = 3;
 
-#if USE_DEBUG
 /**
-*	@brief	For debugging problems when out - of - date entity origin is referenced
+*   @brief  For debugging problems when out-of-date entity origin is referenced.
 **/
+#if USE_DEBUG
 void CLG_CheckEntityPresent( int32_t entityNumber, const char *what );
 #endif
+/**
+*   @brief  The sound code makes callbacks to the client for entitiy position
+*           information, so entities can be dynamically re-spatialized.
+**/
+void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
 /**
 *	@return		The entity bound to the client's view.
 *	@remarks	(Can be the one we're chasing, instead of the player himself.)
@@ -455,7 +460,7 @@ void PF_RegisterUserInput( void );
 *   @brief  Updates msec, angles and builds the interpolated movement vector for local movement prediction.
 *           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
 **/
-void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, mouse_motion_t *mouseMotion );
+void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, client_mouse_motion_t *mouseMotion );
 /**
 *   @brief  Builds the actual movement vector for sending to server. Assumes that msec
 *           and angles are already set for this frame by CL_UpdateCommand.

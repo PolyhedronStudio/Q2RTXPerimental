@@ -206,29 +206,48 @@ extern "C" {
 //! Color Index Table:
 #include "shared/color_index_table.h"
 
+
 //! Bit Utilities:
 #include "shared/util_bits.h"
 //! Endian Utilities:
 #include "shared/util_endian.h"
+//! List Utility:
+#include "shared/util_list.h"
 //! String Utilities:
 #include "shared/util_strings.h"
 //! Encode/Decode utilities
 #include "shared/util_encode.h"
 #include "shared/util_decode.h"
 
+
 //! Key/Value Info Strings:
 #include "shared/info_strings.h"
 
+
 //! KeyButton/KeyButton State:
 #include "shared/key_button.h"
+
 
 //! CommandBuffers/Console/CVars:
 #include "shared/command_cvars.h"
 #include "shared/command_buffer.h"
 #include "shared/command_print.h"
 
+
 //! Collision Detection:
 #include "shared/collision.h"
+
+
+//! BSP Format Data Structure:
+typedef struct {
+    void *base;
+    size_t  maxsize;
+    size_t  cursize;
+    size_t  mapped;
+} memhunk_t;
+
+#include "shared/format_bsp.h"
+
 
 //!	Entity Muzzleflashes/Player Effects:
 #include "shared/entity_effects.h"
@@ -241,19 +260,24 @@ extern "C" {
 //! Entity State:
 #include "shared/entity_state.h"
 
+
 //! Muzzleflashes:
 #include "shared/muzzleflashes.h"
 //! Monster Muzzleflashes:
 #include "shared/muzzleflashes_monsters.h"
 
-//! Temp Entity Events:
-#include "shared/temp_entity_events.h"
 
 //! Sound:
 #include "shared/sound.h"
 
+
+//! Temp Entity Events:
+#include "shared/temp_entity_events.h"
+
+
 //! Gamemode Flags: (TODO: Move into sharedgame and do per gamemode.?)
 #include "shared/gamemode_flags.h"
+
 
 /**
 *   User Flags, most are unused, likely were used in the past:
@@ -272,6 +296,18 @@ extern "C" {
 //! Whether to use the player's 'own' point of view for lerping player pov.
 #define UF_PLAYERFOV        64
 
+
+//! Destination determinant for gi.multicast()
+typedef enum {
+    //! Multicast to all client.
+    MULTICAST_ALL,
+    //! Multicast to all clients inside of PHS(Possible Hearing Set).
+    MULTICAST_PHS,
+    //! Multicast to all clients inside of PVS(Possible Visibility Set).
+    MULTICAST_PVS
+} multicast_t;
+// a SOLID_BBOX will never create this value
+#define PACKED_BSP      255
 /***
 * 	Config Strings: A general means of communication from the server to all connected clients.
 *                   Each config string can be at most MAX_QPATH characters.
@@ -283,15 +319,7 @@ extern "C" {
 #include "shared/net_command_messages.h"
 //! User Commands( User Input ):
 #include "shared/net_usercommand.h"
-//! Destination determinant for gi.multicast()
-typedef enum {
-    //! Multicast to all client.
-    MULTICAST_ALL,
-    //! Multicast to all clients inside of PHS(Possible Hearing Set).
-    MULTICAST_PHS,
-    //! Multicast to all clients inside of PVS(Possible Visibility Set).
-    MULTICAST_PVS
-} multicast_t;
+
 
 /**
 *	Player Movement:

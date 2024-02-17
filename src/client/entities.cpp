@@ -439,24 +439,26 @@ void CL_DeltaFrame(void)
     SCR_SetCrosshairColor();
 }
 
+/**
+*   @brief  For debugging problems when out-of-date entity origin is referenced.
+**/
 #if USE_DEBUG
-// for debugging problems when out-of-date entity origin is referenced
-void CL_CheckEntityPresent( const int32_t entnum, const char *what)
+void CL_CheckEntityPresent( const int32_t entityNumber, const char *what)
 {
-    if ( entnum == cl.frame.clientNum + 1 ) {
+    if ( entityNumber == cl.frame.clientNum + 1 ) {
         return; // player entity = current
     }
 
-    centity_t *e = ENTITY_FOR_NUMBER( entnum ); //e = &cl_entities[entnum];
+    centity_t *e = ENTITY_FOR_NUMBER( entityNumber ); //e = &cl_entities[entnum];
 
     if ( e && e->serverframe == cl.frame.number ) {
         return; // current
     }
 
     if ( e && e->serverframe ) {
-        Com_LPrintf( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d last seen %d frames ago\n", what, entnum, cl.frame.number - e->serverframe );
+        Com_LPrintf( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d last seen %d frames ago\n", what, entityNumber, cl.frame.number - e->serverframe );
     } else {
-        Com_LPrintf( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d never seen before\n", what, entnum );
+        Com_LPrintf( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d never seen before\n", what, entityNumber );
     }
 }
 #endif
@@ -483,35 +485,11 @@ void CL_PrepareViewEntities(void)
 }
 
 /**
-*   @brief  Called to get the sound spatialization origin of said entity.
+*   @brief  The sound code makes callbacks to the client for entitiy position
+*           information, so entities can be dynamically re-spatialized.
 **/
-void CL_GetEntitySoundOrigin( const int32_t entnum, vec3_t org ) {
-    centity_t   *ent;
-    mmodel_t    *cm;
-    vec3_t      mid;
-
-    if (entnum < 0 || entnum >= MAX_EDICTS) {
-        Com_Error(ERR_DROP, "%s: bad entnum: %d", __func__, entnum);
-    }
-
-    if (!entnum || entnum == listener_entnum) {
-        // should this ever happen?
-        VectorCopy(listener_origin, org);
-        return;
-    }
-
-    // interpolate origin
-    // FIXME: what should be the sound origin point for RF_BEAM entities?
-    ent = ENTITY_FOR_NUMBER( entnum );//ent = &cl_entities[entnum];
-    LerpVector(ent->prev.origin, ent->current.origin, cl.lerpfrac, org);
-
-    // offset the origin for BSP models
-    if (ent->current.solid == PACKED_BSP) {
-        cm = cl.model_clip[ent->current.modelindex];
-        if (cm) {
-            VectorAvg(cm->mins, cm->maxs, mid);
-            VectorAdd(org, mid, org);
-        }
-    }
+void CL_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
+    clge->GetEntitySoundOrigin( entityNumber, org );
+    return;
 }
 

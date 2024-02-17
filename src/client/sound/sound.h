@@ -171,7 +171,7 @@ static inline int clip16(int v)
 }
 
 static inline const bool S_IsFullVolume( channel_t *ch ) { //
-    return ( ( ch )->entnum == -1 || ( ch )->entnum == listener_entnum || ( ch )->dist_mult == 0 );
+    return ( ( ch )->entnum == -1 || ( ch )->entnum == cl.listener_spatialize.entnum || ( ch )->dist_mult == 0 );
 }
 
 static inline const bool S_IsUnderWater() {

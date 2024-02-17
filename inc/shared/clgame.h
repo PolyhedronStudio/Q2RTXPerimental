@@ -524,6 +524,23 @@ typedef struct {
 
 
 	/**
+	*
+	*	Entities:
+	*
+	**/
+	/**
+	*   @brief  The sound code makes callbacks to the client for entitiy position
+	*           information, so entities can be dynamically re-spatialized.
+	**/
+	void ( *GetEntitySoundOrigin )( const int32_t entityNumber, vec3_t origin );
+	/**
+	*	@brief	Parsess entity events.
+	**/
+	void ( *ParseEntityEvent )( const int32_t entityNumber );
+
+
+
+	/**
 	*	GameModes:
 	**/
 	//! Returns the string name of specified game mode ID.
@@ -607,11 +624,6 @@ typedef struct {
 	**/
 	const qboolean ( *SeekDemoMessage )( const int32_t serverMessage );
 
-	/**
-	*	@brief	Parsess entity events.
-	**/
-	void ( *ParseEntityEvent )( const int32_t entityNumber );
-
 
 
 	/**
@@ -624,11 +636,14 @@ typedef struct {
 	//! Called upon to register user input keybuttons.
 	void ( *RegisterUserInput )( void );
 	//!
-	void ( *UpdateMoveCommand )( const int64_t msec, struct client_movecmd_s *moveCommand, struct mouse_motion_s *mouseMotion );
+	void ( *UpdateMoveCommand )( const int64_t msec, struct client_movecmd_s *moveCommand, struct client_mouse_motion_s *mouseMotion );
 	//!
 	void ( *FinalizeMoveCommand )( struct client_movecmd_s *moveCommand );
 	//!
 	void ( *ClearMoveCommand )( struct client_movecmd_s *moveCommand );
+
+
+
 	/**
 	*
 	*	(Client-)View Scene:

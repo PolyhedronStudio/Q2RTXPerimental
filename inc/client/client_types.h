@@ -282,7 +282,7 @@ typedef struct client_predicted_state_s {
 *   @brief  Stores captured mouse motion data for (later) use in the
 *           move command generation process.
 **/
-typedef struct mouse_motion_s {
+typedef struct client_mouse_motion_s {
     qboolean hasMotion;
 
     int32_t deltaX;
@@ -292,7 +292,21 @@ typedef struct mouse_motion_s {
     float moveY;
 
     float speed;
-} mouse_motion_t;
+} client_mouse_motion_t;
+
+/**
+*   @brief  Used to store the client's audio 'spatial awareness'.
+*           It is always set by CL_CalculateViewValues, which can
+*           also be called directly from the main loop if rendering
+*           is disabled, yet sound is running.
+**/
+typedef struct client_listener_spatialization_s {
+    vec3_t      origin;
+    vec3_t      v_forward;
+    vec3_t      v_right;
+    vec3_t      v_up;
+    int32_t     entnum;
+} client_listener_spatialization_t;
 
 /**
 *   @brief  Stores muzzleflash data from the last parsed svc_muzzleflash message.
@@ -371,6 +385,8 @@ typedef struct client_state_s {
     //! Circular client history buffer, of time sent, and received, for user commands.
     client_usercmd_history_t history[ CMD_BACKUP ];
 
+    //! Clien't s audio spatialized data.
+    client_listener_spatialization_t listener_spatialize;
 
     /**
     *
@@ -491,18 +507,17 @@ typedef struct client_state_s {
     //#endif
 
     //
-    // locally derived information from server state
+    // Most are locally derived information from server state, with the exception of the following
+    // which also store locally client-side specific data:
+    // - model_clip
+    // - model_draw
+    // - sound_precache
+    // - image_precache
     //
-    // TODO: Somehow move bsp_t and mmodel_t out of common/bsp.h.
-    //       Essentially we don't want to include common in these parts of the code.
-    #ifndef BSP_H
-    struct bsp_t *bsp;
-    //! PACKED_BSP clip models
-    struct mmodel_t *model_clip[ MAX_MODELS ];
-    #else
+    //! Pointer to the current map's BSP data.
     bsp_t *bsp;
+    //! Collision brush models.
     mmodel_t *model_clip[ MAX_MODELS ];
-    #endif
     //! Refresh handle buffer for all precached models.
     qhandle_t model_draw[ MAX_MODELS ];
 

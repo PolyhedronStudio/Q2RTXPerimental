@@ -1213,7 +1213,7 @@ struct edict_s {
     vec3_t      velocity;
     vec3_t      avelocity;
     int32_t     mass;
-	sg_time_t		air_finished_time;
+	sg_time_t   air_finished_time;
     float       gravity;        // per entity gravity multiplier (1.0 is normal)
                                 // use for lowgrav artifact, flares
 
@@ -1241,12 +1241,12 @@ struct edict_s {
     int32_t     max_health;
     int32_t     gib_health;
     int32_t     deadflag;
-    sg_time_t		show_hostile;
+    sg_time_t   show_hostile;
 
-	sg_time_t		powerarmor_time;
+	sg_time_t   powerarmor_time;
 
 	// WID: C++20: Added const.
-    const char        *map;           // target_changelevel
+    const char  *map;           // target_changelevel
 
     int32_t     viewheight;     // height above origin where eyesight is determined
     int32_t     takedamage;

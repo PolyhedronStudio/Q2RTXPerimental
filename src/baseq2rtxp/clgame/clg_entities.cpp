@@ -19,10 +19,10 @@
 *
 *
 **/
-#if USE_DEBUG
 /**
-*	@brief	For debugging problems when out - of - date entity origin is referenced
+*   @brief  For debugging problems when out-of-date entity origin is referenced.
 **/
+#if USE_DEBUG
 void CLG_CheckEntityPresent( int32_t entityNumber, const char *what ) {
 	server_frame_t *frame = &clgi.client->frame;
 
@@ -42,6 +42,62 @@ void CLG_CheckEntityPresent( int32_t entityNumber, const char *what ) {
 	}
 }
 #endif
+
+/**
+*   @brief  The sound code makes callbacks to the client for entitiy position
+*           information, so entities can be dynamically re-spatialized.
+**/
+void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
+    if ( entityNumber < 0 || entityNumber >= MAX_EDICTS ) {
+        Com_Error( ERR_DROP, "%s: bad entnum: %d", __func__, entityNumber );
+    }
+
+    if ( !entityNumber || entityNumber == clgi.client->listener_spatialize.entnum ) {
+        // Should this ever happen?
+        VectorCopy( clgi.client->listener_spatialize.origin, org );
+        return;
+    }
+
+    // Get entity pointer.
+    centity_t *ent = &clg_entities[ entityNumber ]; // ENTITY_FOR_NUMBER( entityNumber );
+
+    // If for whatever reason it is invalid:
+    if ( !ent ) {
+        Com_Error( ERR_DROP, "%s: nullptr entity for entnum: %d", __func__, entityNumber );
+        return;
+    }
+
+    // Just regular lerp for most of all entities.
+    LerpVector( ent->prev.origin, ent->current.origin, clgi.client->lerpfrac, org );
+
+    // Use the closest point on the line for beam entities:
+    if ( ent->current.renderfx & RF_BEAM ) {
+        const Vector3 oldOrg = QM_Vector3Lerp( ent->prev.old_origin, ent->current.old_origin, clgi.client->lerpfrac );
+        const Vector3 vec = oldOrg - org;
+
+        const Vector3 playerEntityOrigin = clgi.client->playerEntityOrigin;
+        const Vector3 p = playerEntityOrigin - org;
+
+        const float t = QM_Clampf( QM_Vector3DotProduct( p, vec ) / QM_Vector3DotProduct( vec, vec ), 0.f, 1.f );
+
+        const Vector3 closestPoint = QM_Vector3MultiplyAdd( org, t, vec );
+        VectorCopy( closestPoint, org );
+        // Calculate origin for BSP models to be closest point
+        // from listener to the bmodel's aabb:
+    } else {
+        if ( ent->current.solid == PACKED_BSP ) {
+            mmodel_t *cm = clgi.client->model_clip[ ent->current.modelindex ];
+            if ( cm ) {
+                Vector3 absmin = org, absmax = org;
+                absmin += cm->mins;
+                absmax += cm->maxs;
+
+                const Vector3 closestPoint = QM_Vector3ClosestPointToBox( clgi.client->playerEntityOrigin, absmin, absmax );
+                VectorCopy( closestPoint, org );
+            }
+        }
+    }
+}
 
 /**
 *	@return		The entity bound to the client's view. 
@@ -98,36 +154,6 @@ CL_AddPacketEntities
 
 
 static int adjust_shell_fx( int renderfx ) {
-    // PMM - at this point, all of the shells have been handled
-    // if we're in the rogue pack, set up the custom mixing, otherwise just
-    // keep going
-    //if ( !strcmp( fs_game->string, "rogue" ) ) {
-    //    // all of the solo colors are fine.  we need to catch any of the combinations that look bad
-    //    // (double & half) and turn them into the appropriate color, and make double/quad something special
-    //    if ( renderfx & RF_SHELL_HALF_DAM ) {
-    //        // ditch the half damage shell if any of red, blue, or double are on
-    //        if ( renderfx & ( RF_SHELL_RED | RF_SHELL_BLUE | RF_SHELL_DOUBLE ) )
-    //            renderfx &= ~RF_SHELL_HALF_DAM;
-    //    }
-
-    //    if ( renderfx & RF_SHELL_DOUBLE ) {
-    //        // lose the yellow shell if we have a red, blue, or green shell
-    //        if ( renderfx & ( RF_SHELL_RED | RF_SHELL_BLUE | RF_SHELL_GREEN ) )
-    //            renderfx &= ~RF_SHELL_DOUBLE;
-    //        // if we have a red shell, turn it to purple by adding blue
-    //        if ( renderfx & RF_SHELL_RED )
-    //            renderfx |= RF_SHELL_BLUE;
-    //        // if we have a blue shell (and not a red shell), turn it to cyan by adding green
-    //        else if ( renderfx & RF_SHELL_BLUE ) {
-    //            // go to green if it's on already, otherwise do cyan (flash green)
-    //            if ( renderfx & RF_SHELL_GREEN )
-    //                renderfx &= ~RF_SHELL_BLUE;
-    //            else
-    //                renderfx |= RF_SHELL_GREEN;
-    //        }
-    //    }
-    //}
-
     return renderfx;
 }
 
@@ -248,6 +274,7 @@ void CLG_AddPacketEntities( void ) {
                 // TODO: must only do this on alias models
                 // Don't do this for 'world' model?
         //if ( ent.model != 0 && cent->last_frame != cent->current_frame ) {
+        ent.model = ( clgi.client->model_draw[ cent->current.modelindex ] );
         if ( !( ent.model & 0x80000000 ) && cent->last_frame != cent->current_frame ) {
             // Calculate back lerpfraction. (10hz.)
             ent.backlerp = 1.0f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / 100.f );
@@ -457,7 +484,7 @@ void CLG_AddPacketEntities( void ) {
         //if ( s1->entityType == ET_SPOTLIGHT ) {
         if ( s1->effects & EF_SPOTLIGHT ) {
             CL_PacketEntity_AddSpotlight( cent, &ent, s1 );
-            return;
+            //return;
         }
 
         // if set to invisible, skip

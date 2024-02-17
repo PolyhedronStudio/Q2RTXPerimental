@@ -522,16 +522,17 @@ void CL_PrepareViewEntities( void );
 *           loop if rendering is disabled but sound is running.
 **/
 void CL_CalculateViewValues( void );
-
-
+/**
+*   @brief  The sound code makes callbacks to the client for entitiy position
+*           information, so entities can be dynamically re-spatialized.
+**/
+void CL_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t origin );
+/**
+*   @brief  For debugging problems when out-of-date entity origin is referenced.
+**/
 #if USE_DEBUG
-void CL_CheckEntityPresent( const int32_t entnum, const char *what);
+void CL_CheckEntityPresent( const int32_t entityNumber, const char *what );
 #endif
-
-// the sound code makes callbacks to the client for entitiy position
-// information, so entities can be dynamically re-spatialized
-void CL_GetEntitySoundOrigin( const int32_t ent, vec3_t org);
-
 
 
 //
