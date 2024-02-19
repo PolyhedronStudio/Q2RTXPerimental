@@ -41,9 +41,13 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
             continue;
         }
         // 
-        if ( !( contentmask & CONTENTS_PLAYERCLIP ) ) { // if ( !( contentmask & CONTENTS_PLAYER ) ) {
+        //if ( !( contentmask & CONTENTS_PLAYERCLIP ) ) { // if ( !( contentmask & CONTENTS_PLAYER ) ) {
+        //    continue;
+        //}
+        if ( ent->current.number <= cl.maxclients && !( contentmask & CONTENTS_PLAYER ) ) {
             continue;
         }
+
 
         // Prevent tracing against passEntity.
         if ( passEntity != nullptr && ent != nullptr && ( ent->current.number == passEntity->current.number ) ) {
@@ -88,7 +92,7 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
             headnode = cmodel->headnode;
             // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
         } else {
-            headnode = CM_HeadnodeForBox( ent->mins, ent->maxs );
+            headnode = CM_HeadnodeForBox( ent->mins, ent->maxs, ent->current.hullContents );
         }
 
         // Perform the BSP box sweep.
@@ -158,7 +162,7 @@ const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const ve
                 headNode = cmodel->headnode;
                 // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
             } else {
-                headNode = CM_HeadnodeForBox( clipEntity->mins, clipEntity->maxs );
+                headNode = CM_HeadnodeForBox( clipEntity->mins, clipEntity->maxs, clipEntity->current.hullContents );
             }
 
             // Perform clip.
@@ -184,18 +188,31 @@ const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
         // Clip against all brush entity models.
         centity_t *ent = cl.solidEntities[ i ];
 
-        if ( ent->current.solid != PACKED_BSP ) { // special value for bmodel
-            continue;
-        }
+        //if ( ent->current.solid != PACKED_BSP ) { // special value for bmodel
+        //    continue;
+        //}
 
-        // Get model.
-        mmodel_t *cmodel = cl.model_clip[ ent->current.modelindex ];
-        if ( !cmodel ) {
-            continue;
+        //// Get model.
+        //mmodel_t *cmodel = cl.model_clip[ ent->current.modelindex ];
+        //if ( !cmodel ) {
+        //    continue;
+        //}
+        // BSP Brush Model Entity:
+        mnode_t *headNode = nullptr;
+        if ( ent->current.solid == PACKED_BSP ) {
+            // special value for bmodel
+            mmodel_t *cmodel = cl.model_clip[ ent->current.modelindex ];
+            if ( !cmodel ) {
+                continue;
+            }
+            headNode = cmodel->headnode;
+            // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
+        } else {
+            headNode = CM_HeadnodeForBox( ent->mins, ent->maxs, ent->current.hullContents );
         }
 
         // Might intersect, so do an exact clip.
-        contents = static_cast<contents_t>( contents | CM_TransformedPointContents( point, cmodel->headnode, ent->current.origin, ent->current.angles ) );
+        contents = static_cast<contents_t>( contents | CM_TransformedPointContents( point, headNode, ent->current.origin, ent->current.angles ) );
     }
 
     // Et voila.

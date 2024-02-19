@@ -1166,10 +1166,13 @@ struct edict_s {
     //================================
 
     int         svflags;
+
     vec3_t      mins, maxs;
     vec3_t      absmin, absmax, size;
     solid_t     solid;
+    contents_t  hullContents;
     contents_t  clipmask;
+
     edict_t     *owner;
 
 

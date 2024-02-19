@@ -69,7 +69,7 @@ void MoveClientToIntermission(edict_t *ent)
     ent->s.renderfx = RF_NONE;
     ent->s.sound = 0;
     ent->s.event = EV_NONE;
-    ent->s.solid = 0;
+    ent->s.solid = SOLID_NOT; // 0
     ent->solid = SOLID_NOT;
     ent->svflags = SVF_NOCLIENT;
     gi.unlinkentity(ent);

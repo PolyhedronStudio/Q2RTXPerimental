@@ -257,22 +257,22 @@ void PF_LinkEdict(edict_t *ent)
     switch (ent->solid) {
     case SOLID_BBOX:
         if ((ent->svflags & SVF_DEADMONSTER) || VectorCompare(ent->mins, ent->maxs)) {
-            ent->s.solid = 0;
-            sent->solid32 = 0;
+            ent->s.solid = SOLID_NOT;   // 0
+            sent->solid32 = SOLID_NOT;  // 0
         } else {
 			// WID: upgr-solid: Q2RE Approach.
-			ent->s.solid = sent->solid32 = MSG_PackSolidUint32( ent->mins, ent->maxs ).u;
+			ent->s.solid = static_cast<solid_t>( sent->solid32 = MSG_PackSolidUint32( ent->mins, ent->maxs ).u );
             //ent->s.solid = MSG_PackSolid16(ent->mins, ent->maxs);
             //sent->solid32 = MSG_PackSolid32(ent->mins, ent->maxs);
         }
         break;
     case SOLID_BSP:
-        ent->s.solid = PACKED_BSP;      // a SOLID_BBOX will never create this value
-        sent->solid32 = PACKED_BSP;     // FIXME: use 255?
+        ent->s.solid = static_cast<solid_t>(PACKED_BSP);      // a SOLID_BBOX will never create this value
+        sent->solid32 = PACKED_BSP;                           // FIXME: use 255? NOTICE: We do now :-)
         break;
     default:
-        ent->s.solid = 0;
-        sent->solid32 = 0;
+        ent->s.solid = SOLID_NOT;   // 0
+        sent->solid32 = SOLID_NOT;  // 0
         break;
     }
 
@@ -282,6 +282,9 @@ void PF_LinkEdict(edict_t *ent)
     } else {
         ent->s.clipmask = CONTENTS_NONE;
     }
+
+    // Hull Contents: (Further on this gets set to CONTENTS_NONE in case of a SOLID_NOT).
+    ent->s.hullContents = ent->hullContents;
 
     // Owner:
     if ( ent->owner != nullptr ) {
@@ -299,8 +302,10 @@ void PF_LinkEdict(edict_t *ent)
     }
     ent->linkcount++;
 
-    if (ent->solid == SOLID_NOT)
+    if ( ent->solid == SOLID_NOT ) {
+        ent->s.hullContents = CONTENTS_NONE;
         return;
+    }
 
 // find the first node that the ent's box crosses
     node = sv_areanodes;
@@ -397,14 +402,16 @@ static mnode_t *SV_HullForEntity(edict_t *ent, const bool includeSolidTriggers =
         int i = ent->s.modelindex - 1;
 
         // explicit hulls in the BSP model
-        if (i <= 0 || i >= sv.cm.cache->nummodels)
-            Com_Error(ERR_DROP, "%s: inline model %d out of range", __func__, i);
+        if ( i <= 0 || i >= sv.cm.cache->nummodels ) {
+            Com_Error( ERR_DROP, "%s: inline model %d out of range", __func__, i );
+            return nullptr;
+        }
 
         return sv.cm.cache->models[i].headnode;
     }
 
-    // create a temp hull from bounding box sizes
-    return CM_HeadnodeForBox(ent->mins, ent->maxs);
+    // Create a temp hull from entity bounding box which's contents are set to its clipmask.
+    return CM_HeadnodeForBox( ent->mins, ent->maxs, ent->s.hullContents );
 }
 
 /**
@@ -434,6 +441,11 @@ const contents_t SV_PointContents( const vec3_t p ) {
 
 	for ( i = 0; i < num; i++ ) {
 		hit = touch[ i ];
+
+        // Skip client entiteis if their SVF_PLAYER flag is set.
+        if ( hit->s.number <= sv_maxclients->integer && ( hit->svflags & SVF_PLAYER ) ) {
+            continue;
+        }
 
 		// might intersect, so do an exact clip
 		contents = static_cast<contents_t>( contents | CM_TransformedPointContents(p, SV_HullForEntity(hit),
@@ -483,9 +495,9 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
         }
         if ( passedict ) {
             if ( touch->owner == passedict )
-                continue;    // don't clip against own missiles
+                continue;    // Don't clip against own missiles.
             if ( passedict->owner == touch )
-                continue;    // don't clip against owner
+                continue;    // Don't clip against owner.
         }
 
         if ( !( contentmask & CONTENTS_DEADMONSTER )

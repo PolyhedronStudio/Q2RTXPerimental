@@ -483,17 +483,22 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     self->takedamage = DAMAGE_YES;
     self->movetype = MOVETYPE_TOSS;
 
+    // Unset weapon model.
     self->s.modelindex2 = 0;    // remove linked weapon model
 
+    // Clear X and Z angles.
     self->s.angles[0] = 0;
     self->s.angles[2] = 0;
 
+    // Stop playing any sounds.
     self->s.sound = 0;
     self->client->weapon_sound = 0;
 
+    // Set bbox maxs to -8.
     self->maxs[2] = -8;
 
 //  self->solid = SOLID_NOT;
+    // Flag as to be treated as 'deadmonster' collision.
     self->svflags |= SVF_DEADMONSTER;
 
     if (!self->deadflag) {
@@ -514,23 +519,28 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         }
     }
 
-    // remove powerups
+    // Remove powerups.
     self->client->quad_time = 0_ms;
     self->client->invincible_time = 0_ms;
     self->client->breather_time = 0_ms;
     self->client->enviro_time = 0_ms;
     self->flags = static_cast<ent_flags_t>( self->flags & ~FL_POWER_ARMOR );
 
+    // Gib Death:
     if (self->health < -40) {
-        // gib
+        // Play gib sound.
         gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-        for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
+        //! Throw 4 small meat gibs around.
+        for ( n = 0; n < 4; n++ ) {
+            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC );
+        }
+        // Turn ourself into the thrown head entity.
         ThrowClientHead(self, damage);
 
+        // Gibs don't take damage, but fade away as time passes.
         self->takedamage = DAMAGE_NO;
+    // Normal death:
     } else {
-        // normal death
         if (!self->deadflag) {
             static int i;
 
@@ -1502,8 +1512,9 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
 
     ClientUserinfoChanged(ent, userinfo);
 
-    if (game.maxclients > 1)
-        gi.dprintf("%s connected\n", ent->client->pers.netname);
+    if ( game.maxclients > 1 ) {
+        gi.dprintf( "%s connected\n", ent->client->pers.netname );
+    }
 
     // make sure we start with known default(s)
     ent->svflags = SVF_PLAYER;
@@ -1543,7 +1554,7 @@ void ClientDisconnect(edict_t *ent)
     ent->s.event = 0;
     ent->s.effects = 0;
     ent->s.renderfx = 0;
-    ent->s.solid = 0;
+    ent->s.solid = SOLID_NOT; // 0
     ent->solid = SOLID_NOT;
     ent->inuse = false;
     ent->classname = "disconnected";

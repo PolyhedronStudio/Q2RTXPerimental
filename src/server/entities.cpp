@@ -80,11 +80,13 @@ static void SV_EmitPacketEntities(client_t         *client,
             // this updates their old_origin always and prevents warping in case
             // of packet loss.
             flags = client->esFlags;
+            // In case of a Player Entity:
             if (newnum <= client->maxclients) {
                 // WID: C++20:
 				//flags |= MSG_ES_NEWENTITY;
 				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_NEWENTITY );
             }
+            // In case this is our own client entity, update the new ent's origin and angles.
             if (newnum == clientEntityNum) {
                 //flags |= MSG_ES_FIRSTPERSON;
 				// WID: C++20:
@@ -117,6 +119,7 @@ static void SV_EmitPacketEntities(client_t         *client,
             } else {
                 oldent = &nullEntityState;
             }
+            // In case this is our own client entity, update the new ent's origin and angles.
             if (newnum == clientEntityNum) {
                 //flags |= MSG_ES_FIRSTPERSON;
 				// WID: C++20:

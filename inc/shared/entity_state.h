@@ -23,12 +23,16 @@ typedef struct entity_state_s {
     vec3_t  angles;
     //! For lerping.
     vec3_t  old_origin;
-
-    //! The following fields (solid,clipmask,owner) are for client side prediction.
-    //! gi.linkentity sets these properly.
-    uint32_t solid;
+    /**
+    *   @brief  The following fields are for client side prediction: (solid,clipmask,hullContents,ownerNumber) 
+    *           gi.linkentity sets these properly.
+    **/
+    //! The actual 'solid' type of entity.
+    solid_t solid;
     //! Clipmask for collision.
     contents_t clipmask;
+    //! The actual temporary hull's leaf and brush contents of this entity in case it is a SOLID_BBOX.
+    contents_t hullContents;
     //! Entity who owns this entity.
     int32_t ownerNumber;
 

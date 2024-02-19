@@ -314,8 +314,14 @@ To keep everything totally uniform, bounding boxes are turned into small
 BSP trees instead of being compared directly.
 ===================
 */
-mnode_t *CM_HeadnodeForBox(const vec3_t mins, const vec3_t maxs)
-{
+mnode_t *CM_HeadnodeForBox( const vec3_t mins, const vec3_t maxs, const contents_t contents ) {
+    // Setup its bounding boxes.
+    VectorCopy( mins, box_headnode->mins );
+    VectorCopy( maxs, box_headnode->maxs );
+    VectorCopy( mins, box_leaf.mins );
+    VectorCopy( maxs, box_leaf.maxs );
+
+    // Setup planes.
     box_planes[0].dist = maxs[0];
     box_planes[1].dist = -maxs[0];
     box_planes[2].dist = mins[0];
@@ -328,6 +334,13 @@ mnode_t *CM_HeadnodeForBox(const vec3_t mins, const vec3_t maxs)
     box_planes[9].dist = -maxs[2];
     box_planes[10].dist = mins[2];
     box_planes[11].dist = -mins[2];
+
+    // Setup to CONTENTS_SOLID in case of no contents being passed in.
+    if ( !contents ) {
+        box_leaf.contents = box_brush.contents = CONTENTS_MONSTER;
+    } else {
+        box_leaf.contents = box_brush.contents = contents;
+    }
 
     return box_headnode;
 }

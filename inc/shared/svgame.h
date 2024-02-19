@@ -110,6 +110,7 @@ struct edict_s {
     vec3_t      absmin, absmax, size;
     solid_t     solid;
     contents_t  clipmask;
+    contents_t  hullContents;
     edict_t     *owner;
 
     // the game dll can add anything it wants after

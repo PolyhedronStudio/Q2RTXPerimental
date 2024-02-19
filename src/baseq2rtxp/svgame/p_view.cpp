@@ -510,14 +510,17 @@ void SV_CalcBlend( edict_t *ent ) {
 		ent->client->ps.rdflags |= RDF_UNDERWATER;
 	else
 		ent->client->ps.rdflags &= ~RDF_UNDERWATER;
-
-	if ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) )
+	
+	// Prevent it from adding screenblend if we're inside a client entity, by checking
+	// if its brush has CONTENTS_PLAYER set in its clipmask.
+	if ( /*!( contents & CONTENTS_PLAYER ) 
+		&&*/ ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
 		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, ent->client->ps.screen_blend );
-	else if ( contents & CONTENTS_SLIME )
+	} else if ( contents & CONTENTS_SLIME ) {
 		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, ent->client->ps.screen_blend );
-	else if ( contents & CONTENTS_WATER )
+	} else if ( contents & CONTENTS_WATER ) {
 		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, ent->client->ps.screen_blend );
-
+	}
 	// add for powerups
 	if ( ent->client->quad_time > level.time ) {
 		remaining = ent->client->quad_time - level.time;
@@ -546,9 +549,10 @@ void SV_CalcBlend( edict_t *ent ) {
 	}
 
 	// add for damage
-	if ( ent->client->damage_alpha > 0 )
+	if ( ent->client->damage_alpha > 0 ) {
 		SG_AddBlend( ent->client->damage_blend[ 0 ], ent->client->damage_blend[ 1 ]
-					, ent->client->damage_blend[ 2 ], ent->client->damage_alpha, ent->client->ps.screen_blend );
+			, ent->client->damage_blend[ 2 ], ent->client->damage_alpha, ent->client->ps.screen_blend );
+	}
 
 	// [Paril-KEX] drowning visual indicator
 	if ( ent->air_finished_time < level.time + 9_sec ) {
@@ -563,15 +567,17 @@ void SV_CalcBlend( edict_t *ent ) {
 	if ( ent->client->bonus_alpha > 0 )
 		SG_AddBlend( 0.85f, 0.7f, 0.3f, ent->client->bonus_alpha, ent->client->ps.screen_blend );
 #endif
-	// drop the damage value
+	// Drop the damage value
 	ent->client->damage_alpha -= gi.frame_time_s * 0.6f;
-	if ( ent->client->damage_alpha < 0 )
+	if ( ent->client->damage_alpha < 0 ) {
 		ent->client->damage_alpha = 0;
+	}
 
-	// drop the bonus value
+	// Drop the bonus value
 	ent->client->bonus_alpha -= gi.frame_time_s;
-	if ( ent->client->bonus_alpha < 0 )
+	if ( ent->client->bonus_alpha < 0 ) {
 		ent->client->bonus_alpha = 0;
+	}
 }
 
 /*

@@ -406,7 +406,7 @@ void    G_TouchSolids(edict_t *ent)
 void G_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
     struct skipped_projectile {
         edict_t *projectile;
-        int32_t		spawn_count;
+        int32_t spawn_count;
     };
     // a bit ugly, but we'll store projectiles we are ignoring here.
     static std::vector<skipped_projectile> skipped;
@@ -463,7 +463,7 @@ of ent.  Ent should be unlinked before calling this!
 =================
 */
 const bool KillBox(edict_t *ent, const bool bspClipping ) {
-    // don't telefrag as spectator...
+    // don't telefrag as spectator... or in noclip
     if ( ent->movetype == MOVETYPE_NOCLIP ) {
         return true;
     }
@@ -478,12 +478,13 @@ const bool KillBox(edict_t *ent, const bool bspClipping ) {
     for ( int32_t i = 0; i < num; i++ ) {
         edict_t *hit = touchedEdicts[ i ];
 
-        if ( hit == ent )
+        if ( hit == ent ) {
             continue;
-        else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP )
+        } else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP ) {
             continue;
-        else if ( hit->client && !( mask & CONTENTS_PLAYER ) )
+        } else if ( hit->client && !( mask & CONTENTS_PLAYER ) ) {
             continue;
+        }
 
         if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
             trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, G_GetClipMask( hit ) );
