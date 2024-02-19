@@ -18,6 +18,7 @@
 * Brush Shaped Triggers: Triggers can now have a "Clipped" flag set, in which case it only triggers when an actual collision(clip to brush) has occured.
 * Comes with basic vector, matrix and quaternion math utilities derived from raylib1.5, and adds in C++ utilities such as operator support.
 * Modern player movement derived from Q2RE.
+* BoundingBox entities can have their hull contents be set to any CONTENTS_ values._
 ### Client:
 * Does proper lerping for entities that run lower than ``40hz``.
 * Does proper lerping for weapons based on their 'gunrate', defaults to ``10hz``

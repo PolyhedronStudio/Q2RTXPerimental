@@ -45,7 +45,7 @@ void InitTrigger( edict_t *self ) {
 static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_MONSTER = 1;
 static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_NOT_PLAYER = 2;
 static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_TRIGGERED = 4;
-static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_CLIPPED = 32;
+static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP = 32;
 /**
 *	@brief	The wait time has passed, so set back up for another activation
 **/
@@ -101,7 +101,7 @@ void Touch_Multi( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *su
 		return;
 	}
 
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_CLIPPED ) {
+	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP ) {
 		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
@@ -173,7 +173,7 @@ void SP_trigger_multiple( edict_t *ent ) {
 
 	gi.linkentity( ent );
 
-	if ( ent->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_CLIPPED ) {
+	if ( ent->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP ) {
 		ent->svflags |= SVF_HULL;
 	}
 }
@@ -432,7 +432,7 @@ void SP_trigger_always( edict_t *ent ) {
 *
 ***/
 static constexpr int32_t SPAWNFLAG_TRIGGER_PUSH_PUSH_ONCE	= 1;
-static constexpr int32_t SPAWNFLAG_TRIGGER_PUSH_CLIPPED		= 32;
+static constexpr int32_t SPAWNFLAG_TRIGGER_PUSH_BRUSH_CLIP	= 32;
 
 static int windsound = 0;
 
@@ -441,7 +441,7 @@ static int windsound = 0;
 **/
 void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
 	
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_CLIPPED ) {
+	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_BRUSH_CLIP ) {
 		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
@@ -488,7 +488,7 @@ void SP_trigger_push( edict_t *self ) {
 	}
 	gi.linkentity( self );
 
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_CLIPPED ) {
+	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_BRUSH_CLIP ) {
 		self->svflags |= SVF_HULL;
 	}
 }
@@ -507,7 +507,7 @@ static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_TOGGLE = 2;
 static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_SILENT = 4;
 static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_NO_PROTECTION = 8;
 static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_SLOW_HURT = 16;
-static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_CLIPPED = 32;
+static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP = 32;
 
 /**
 *	@brief
@@ -539,7 +539,7 @@ void hurt_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *sur
 		return;
 	}
 
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_CLIPPED ) {
+	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP ) {
 		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
@@ -599,7 +599,7 @@ void SP_trigger_hurt( edict_t *self ) {
 
 	gi.linkentity( self );
 
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_CLIPPED ) {
+	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP ) {
 		self->svflags |= SVF_HULL;
 	}
 }
@@ -613,13 +613,13 @@ void SP_trigger_hurt( edict_t *self ) {
 *
 *
 ***/
-static constexpr int32_t SPAWNFLAG_TRIGGER_GRAVITY_CLIPPED = 32;
+static constexpr int32_t SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP = 32;
 
 /**
 *	@brief	Touch callback in order to change the gravity of 'other', the touching entity.
 **/
 void trigger_gravity_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_CLIPPED ) {
+	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP ) {
 		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
@@ -647,7 +647,7 @@ void SP_trigger_gravity( edict_t *self ) {
 	self->gravity = atof( st.gravity );
 	self->touch = trigger_gravity_touch;
 
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_CLIPPED ) {
+	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP ) {
 		self->svflags |= SVF_HULL;
 	}
 }
@@ -660,7 +660,7 @@ void SP_trigger_gravity( edict_t *self ) {
 *
 *
 ***/
-static constexpr int32_t SPAWNFLAG_TRIGGER_MONSTERJUMP_CLIPPED = 32;
+static constexpr int32_t SPAWNFLAG_TRIGGER_MONSTERJUMP_BRUSH_CLIP = 32;
 /**
 *	@brief	
 **/
@@ -675,7 +675,7 @@ void trigger_monsterjump_touch( edict_t *self, edict_t *other, cplane_t *plane, 
 		return;
 	}
 
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MONSTERJUMP_CLIPPED ) {
+	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MONSTERJUMP_BRUSH_CLIP ) {
 		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
@@ -714,7 +714,7 @@ void SP_trigger_monsterjump( edict_t *self ) {
 	self->touch = trigger_monsterjump_touch;
 	self->movedir[ 2 ] = st.height;
 
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MONSTERJUMP_CLIPPED ) {
+	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MONSTERJUMP_BRUSH_CLIP ) {
 		self->svflags |= SVF_HULL;
 	}
 }
