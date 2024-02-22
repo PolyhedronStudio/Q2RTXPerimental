@@ -91,21 +91,23 @@ struct gclient_s {
 
 struct edict_s {
     entity_state_t  s;
-    struct gclient_s    *client;
-    qboolean    inuse;
-    int         linkcount;
+    struct gclient_s *client;   //! NULL if not a player the server expects the first part
+                                //! of gclient_s to be a player_state_t but the rest of it is opaque
+    qboolean inuse;
+    int32_t linkcount;
 
     // FIXME: move these fields to a server private sv_entity_t
-    list_t      area;               // linked to a division node or leaf
+    list_t area;    //! Linked to a division node or leaf
 
-    int         num_clusters;       // if -1, use headnode instead
-    int         clusternums[MAX_ENT_CLUSTERS];
-    int         headnode;           // unused if num_clusters != -1
-    int         areanum, areanum2;
+    int32_t num_clusters;       // If -1, use headnode instead.
+    int32_t clusternums[MAX_ENT_CLUSTERS];
+    int32_t headnode;           // Unused if num_clusters != -1
+    
+    int32_t areanum, areanum2;
 
     //================================
 
-    int         svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
+    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
     vec3_t      mins, maxs;
     vec3_t      absmin, absmax, size;
     solid_t     solid;

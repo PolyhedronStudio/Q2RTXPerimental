@@ -24,6 +24,7 @@ void SG_DPrintf( const char *fmt, ... ) {
 
 	// Developer print.
 	clgi.Print( PRINT_DEVELOPER, "%s", msg );
+	//Com_LPrintf( PRINT_DEVELOPER, "%s", msg );
 }
 
 /**

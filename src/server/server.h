@@ -291,7 +291,7 @@ typedef struct client_s {
     int             protocol;   // major version
     int             version;    // minor version
 
-    pmoveParams_t   pmp;        // spectator speed, etc
+    //pmoveParams_t   pmp;        // spectator speed, etc
     msgEsFlags_t    esFlags;    // entity protocol flags
 
     // packetized messages
@@ -451,7 +451,7 @@ extern list_t       sv_clientlist;  // linked list of non-free clients
 extern server_static_t      svs;        // persistant server info
 extern server_t             sv;         // local server
 
-extern pmoveParams_t    sv_pmp;
+//extern pmoveParams_t    sv_pmp;
 
 extern cvar_t       *sv_hostname;
 extern cvar_t       *sv_maxclients;
@@ -538,7 +538,7 @@ void sv_min_timeout_changed(cvar_t *self);
 void SV_ClientReset(client_t *client);
 void SV_SpawnServer(mapcmd_t *cmd);
 bool SV_ParseMapCmd(mapcmd_t *cmd);
-void SV_PreInitGame( void );
+//void SV_PreInitGame( void );
 void SV_InitGame( void );
 
 //

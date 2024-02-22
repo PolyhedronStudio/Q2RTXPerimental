@@ -54,55 +54,58 @@ int meansOfDeath;
 edict_t	*g_edicts;
 
 // WID: gamemode support:
-cvar_t	*gamemode;
-cvar_t  *deathmatch;
-cvar_t  *coop;
-cvar_t  *dmflags;
-cvar_t  *skill;
-cvar_t  *fraglimit;
-cvar_t  *timelimit;
-cvar_t  *sv_airaccelerate;
-cvar_t  *password;
-cvar_t  *spectator_password;
-cvar_t  *needpass;
-cvar_t  *maxclients;
-cvar_t  *maxspectators;
-cvar_t  *maxentities;
-cvar_t  *g_select_empty;
-cvar_t	*g_instant_weapon_switch;
-cvar_t  *dedicated;
-cvar_t  *nomonsters;
-cvar_t  *aimfix;
+cvar_t *dedicated;
+cvar_t *password;
+cvar_t *spectator_password;
+cvar_t *needpass;
+cvar_t *filterban;
 
-cvar_t  *filterban;
+cvar_t *maxclients;
+cvar_t *maxspectators;
+cvar_t *maxentities;
+cvar_t *nomonsters;
+cvar_t *aimfix;
 
-cvar_t  *sv_maxvelocity;
-cvar_t  *sv_gravity;
+cvar_t *gamemode;
+cvar_t *deathmatch;
+cvar_t *coop;
+cvar_t *dmflags;
+cvar_t *skill;
+cvar_t *fraglimit;
+cvar_t *timelimit;
 
-cvar_t  *sv_rollspeed;
-cvar_t  *sv_rollangle;
-cvar_t  *gun_x;
-cvar_t  *gun_y;
-cvar_t  *gun_z;
+cvar_t *sv_cheats;
+cvar_t *sv_flaregun;
+cvar_t *sv_maplist;
+cvar_t *sv_features;
 
-cvar_t  *run_pitch;
-cvar_t  *run_roll;
-cvar_t  *bob_up;
-cvar_t  *bob_pitch;
-cvar_t  *bob_roll;
+cvar_t *sv_airaccelerate;
+cvar_t *sv_maxvelocity;
+cvar_t *sv_gravity;
 
-cvar_t  *sv_cheats;
+cvar_t *sv_rollspeed;
+cvar_t *sv_rollangle;
 
-cvar_t  *flood_msgs;
-cvar_t  *flood_persecond;
-cvar_t  *flood_waitdelay;
+cvar_t *gun_x;
+cvar_t *gun_y;
+cvar_t *gun_z;
 
-cvar_t  *sv_maplist;
+cvar_t *run_pitch;
+cvar_t *run_roll;
+cvar_t *bob_up;
+cvar_t *bob_pitch;
+cvar_t *bob_roll;
 
-cvar_t  *sv_features;
+cvar_t *flood_msgs;
+cvar_t *flood_persecond;
+cvar_t *flood_waitdelay;
 
-cvar_t  *sv_flaregun;
+cvar_t *g_select_empty;
+cvar_t *g_instant_weapon_switch;
 
+//
+// Func Declarations:
+//
 void SpawnEntities(const char *mapname, const char *entities, const char *spawnpoint);
 void ClientThink(edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect(edict_t *ent, char *userinfo);
@@ -117,9 +120,20 @@ void WriteLevel(const char *filename);
 void ReadLevel(const char *filename);
 void InitGame(void);
 void G_RunFrame(void);
-
-
 //===================================================================
+/**
+*
+*
+*   CVar Changed Callbacks:
+* 
+*
+**/
+static void sv_airaccelerate_changed( cvar_t *self ) {
+    // Update air acceleration config string.
+    if ( COM_IsUint( self->string ) || COM_IsFloat( self->string ) ) {
+        gi.configstring( CS_AIRACCEL, self->string );
+    }
+}
 
 /**
 *	@brief	This will be called when the dll is first loaded, which
@@ -164,10 +178,11 @@ void PreInitGame( void ) {
 	dmflags = gi.cvar( "dmflags", "0", CVAR_SERVERINFO );
 	fraglimit = gi.cvar( "fraglimit", "0", CVAR_SERVERINFO );
 	timelimit = gi.cvar( "timelimit", "0", CVAR_SERVERINFO );
-    sv_airaccelerate = gi.cvar( "sv_airaccelerate", "8", CVAR_LATCH );
-
+    sv_airaccelerate = gi.cvar( "sv_airaccelerate", "0", CVAR_SERVERINFO | CVAR_LATCH );
+    // Force set its value so the config string gets updated accordingly.
+    //gi.cvar_forceset( "sv_airaccelerate", "0" );
 	// Air acceleration defaults to 0 and is only set for DM mode.
-	gi.configstring( CS_AIRACCEL, "0" );
+	//gi.configstring( CS_AIRACCEL, "0" );
 
 	// Deathmatch:
 	if ( gamemode->integer == GAMEMODE_DEATHMATCH ) {
@@ -266,6 +281,15 @@ void InitGame( void )
 
     // export our own features
     gi.cvar_forceset("g_features", va("%d", G_FEATURES));
+    
+    // In case we've modified air acceleration, update the config string.
+    //gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
+    // Update air acceleration config string.
+    //if ( COM_IsUint( sv_airaccelerate->string ) || COM_IsFloat( sv_airaccelerate->string ) ) {
+    //    gi.configstring( CS_AIRACCEL, sv_airaccelerate->string );
+    //} else {
+    //    gi.configstring( CS_AIRACCEL, "0" );
+    //}
 
     // items
     InitItems();
@@ -585,6 +609,9 @@ void G_RunFrame(void)
 {
     int     i;
     edict_t *ent;
+
+    // Check for cvars that demand a configstring update if they've changed.
+    //G_CheckCVarConfigStrings();
 
     // Increase the frame number we're in for this level..
     level.framenum++;

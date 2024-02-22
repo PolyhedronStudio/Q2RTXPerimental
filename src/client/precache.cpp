@@ -408,33 +408,40 @@ void CL_UpdateConfigstring( const int32_t index ) {
         return;
     }
 
+    // Parse any max client changes.
     if (index == CS_MAXCLIENTS) {
         cl.maxclients = atoi(s);
         return;
     }
 
-    // Moved to Client Game.
-    if (index == CS_AIRACCEL) {
-    //    cl.pmp.airaccelerate = cl.pmp.qwmode || atoi(s);
-        return;
-    }
-
+    // Parse the actual map name.
     if (index == CS_MODELS + 1) {
         if (!Com_ParseMapName(cl.mapname, s, sizeof(cl.mapname)))
             Com_Error(ERR_DROP, "%s: bad world model: %s", __func__, s);
         return;
     }
 
-    // Moved to Client Game.
-    if (index >= CS_LIGHTS && index < CS_LIGHTS + MAX_LIGHTSTYLES) {
-    //    CL_SetLightStyle(index - CS_LIGHTS, s);
+    // Moved to Client Game: Return for safety reasons, in case the client game 
+    // forgot to return 'true' for intersception.
+    if ( index == CS_AIRACCEL ) {
+        //cl.pmp.airaccelerate = cl.pmp.qwmode || atoi(s);
+        return;
+    }
+    // Moved to Client Game: Return for safety reasons, in case the client game 
+    // forgot to return 'true' for intersception.
+    if ( index >= CS_LIGHTS && index < CS_LIGHTS + MAX_LIGHTSTYLES ) {
+        //CL_SetLightStyle(index - CS_LIGHTS, s);
         return;
     }
 
+    // Any updates below are for 'in-game' state where data was precached,
+    // but has changed by the 'server game' module.
     if (cls.state < ca_precached) {
         return;
     }
 
+    // Reload the model, and if an inline-bsp-brush model, reload its 
+    // brush clipping data also.
     if (index >= CS_MODELS + 2 && index < CS_MODELS + MAX_MODELS) {
         int i = index - CS_MODELS;
 
@@ -446,21 +453,25 @@ void CL_UpdateConfigstring( const int32_t index ) {
         return;
     }
 
+    // Reload the sound.
     if (index >= CS_SOUNDS && index < CS_SOUNDS + MAX_SOUNDS) {
         cl.sound_precache[index - CS_SOUNDS] = S_RegisterSound(s);
         return;
     }
 
+    // Reload the image.
     if (index >= CS_IMAGES && index < CS_IMAGES + MAX_IMAGES) {
         cl.image_precache[index - CS_IMAGES] = R_RegisterPic2(s);
         return;
     }
 
+    // Reload the client info.
     if (index >= CS_PLAYERSKINS && index < CS_PLAYERSKINS + MAX_CLIENTS) {
         CL_LoadClientinfo(&cl.clientinfo[index - CS_PLAYERSKINS], s);
         return;
     }
 
+    // Reload the soundtrack. TODO: We still need this?
     if (index == CS_CDTRACK) {
         OGG_Play();
         return;

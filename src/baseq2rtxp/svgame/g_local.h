@@ -638,51 +638,54 @@ extern  edict_t         *g_edicts;
 #define random()    frand()
 #define crandom()   crand()
 
-extern  cvar_t	*sv_cheats;
-extern  cvar_t	*maxclients;
-extern  cvar_t	*maxspectators;
-extern  cvar_t  *maxentities;
-extern  cvar_t	*gamemode;
-extern  cvar_t  *deathmatch;
-extern  cvar_t  *coop;
-extern  cvar_t  *dmflags;
-extern  cvar_t  *skill;
-extern  cvar_t  *fraglimit;
-extern  cvar_t  *timelimit;
-extern  cvar_t  *sv_airaccelerate;
-extern  cvar_t  *password;
-extern  cvar_t  *spectator_password;
-extern  cvar_t  *needpass;
-extern  cvar_t  *g_select_empty;
-extern	cvar_t	*g_instant_weapon_switch;
-extern  cvar_t  *dedicated;
-extern  cvar_t  *nomonsters;
-extern  cvar_t  *aimfix;
+extern cvar_t *dedicated;
+extern cvar_t *password;
+extern cvar_t *spectator_password;
+extern cvar_t *needpass;
+extern cvar_t *filterban;
 
-extern  cvar_t  *filterban;
+extern cvar_t *maxclients;
+extern cvar_t *maxspectators;
+extern cvar_t *maxentities;
+extern cvar_t *nomonsters;
+extern cvar_t *aimfix;
 
-extern  cvar_t  *sv_gravity;
-extern  cvar_t  *sv_maxvelocity;
+extern cvar_t *gamemode;
+extern cvar_t *deathmatch;
+extern cvar_t *coop;
+extern cvar_t *dmflags;
+extern cvar_t *skill;
+extern cvar_t *fraglimit;
+extern cvar_t *timelimit;
 
-extern  cvar_t  *gun_x, *gun_y, *gun_z;
-extern  cvar_t  *sv_rollspeed;
-extern  cvar_t  *sv_rollangle;
+extern cvar_t *sv_cheats;
+extern cvar_t *sv_flaregun;
+extern cvar_t *sv_maplist;
+extern cvar_t *sv_features;
 
-extern  cvar_t  *run_pitch;
-extern  cvar_t  *run_roll;
-extern  cvar_t  *bob_up;
-extern  cvar_t  *bob_pitch;
-extern  cvar_t  *bob_roll;
+extern cvar_t *sv_airaccelerate;
+extern cvar_t *sv_maxvelocity;
+extern cvar_t *sv_gravity;
 
-extern  cvar_t  *flood_msgs;
-extern  cvar_t  *flood_persecond;
-extern  cvar_t  *flood_waitdelay;
+extern cvar_t *sv_rollspeed;
+extern cvar_t *sv_rollangle;
 
-extern  cvar_t  *sv_maplist;
+extern cvar_t *gun_x;
+extern cvar_t *gun_y;
+extern cvar_t *gun_z;
 
-extern  cvar_t  *sv_features;
+extern cvar_t *run_pitch;
+extern cvar_t *run_roll;
+extern cvar_t *bob_up;
+extern cvar_t *bob_pitch;
+extern cvar_t *bob_roll;
 
-extern  cvar_t  *sv_flaregun;
+extern cvar_t *flood_msgs;
+extern cvar_t *flood_persecond;
+extern cvar_t *flood_waitdelay;
+
+extern cvar_t *g_select_empty;
+extern cvar_t *g_instant_weapon_switch;
 
 #define world   (&g_edicts[0])
 
@@ -1147,32 +1150,28 @@ struct gclient_s {
 
 struct edict_s {
     entity_state_t  s;
-    struct gclient_s    *client;    // NULL if not a player
-                                    // the server expects the first part
-                                    // of gclient_s to be a player_state_t
-                                    // but the rest of it is opaque
-
-    qboolean    inuse;
-    int         linkcount;
+    struct gclient_s *client;   //! NULL if not a player the server expects the first part
+                                //! of gclient_s to be a player_state_t but the rest of it is opaque
+    qboolean inuse;
+    int32_t linkcount;
 
     // FIXME: move these fields to a server private sv_entity_t
-    list_t      area;               // linked to a division node or leaf
+    list_t area;    //! Linked to a division node or leaf
 
-    int         num_clusters;       // if -1, use headnode instead
-    int         clusternums[MAX_ENT_CLUSTERS];
-    int         headnode;           // unused if num_clusters != -1
-    int         areanum, areanum2;
+    int32_t num_clusters;       // If -1, use headnode instead.
+    int32_t clusternums[MAX_ENT_CLUSTERS];
+    int32_t headnode;           // Unused if num_clusters != -1
+    
+    int32_t areanum, areanum2;
 
     //================================
 
-    int         svflags;
-
+    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
     vec3_t      mins, maxs;
     vec3_t      absmin, absmax, size;
     solid_t     solid;
-    contents_t  hullContents;
     contents_t  clipmask;
-
+    contents_t  hullContents;
     edict_t     *owner;
 
 
@@ -1186,7 +1185,7 @@ struct edict_s {
 
 	// WID: C++20: added const.
     const char  *model;
-	sg_time_t		freetime;           // sv.time when the object was freed
+	sg_time_t   freetime;           // sv.time when the object was freed
 
     //
     // only used locally in game, not by server

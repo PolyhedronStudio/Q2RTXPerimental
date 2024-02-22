@@ -1704,12 +1704,12 @@ usually be a couple times for each server frame.
 */
 void ClientThink(edict_t *ent, usercmd_t *ucmd)
 {
-    gclient_t   *client;
-    edict_t *other;
+    gclient_t   *client = nullptr;
+    edict_t     *other = nullptr;
     
 	// Configure pmove.
-	pmove_t pm;
-	pmoveParams_t pmp;
+    pmove_t pm = {};
+    pmoveParams_t pmp = {};
 	SG_ConfigurePlayerMoveParameters( &pmp );
 
     level.current_entity = ent;

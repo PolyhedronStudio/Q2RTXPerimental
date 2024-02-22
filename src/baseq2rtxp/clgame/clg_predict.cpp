@@ -158,6 +158,10 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Maximum -/+ change we allow in step lerps.
     static constexpr int32_t PM_MAX_STEP_CHANGE = 32;
 
+    // Prepare the player move parameters.
+    pmoveParams_t pmp;
+    SG_ConfigurePlayerMoveParameters( &pmp );
+
     // Last predicted state.
     client_predicted_state_t *predictedState = &clgi.client->predictedState;
 
@@ -192,7 +196,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
-            SG_PlayerMove( &pm, &clgi.client->pmp );
+            SG_PlayerMove( &pm, &pmp );
         }
 
         // Save for prediction checking.
@@ -213,7 +217,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         pm.cmd.upmove = clgi.client->localmove[ 2 ];
 
         // Perform movement.
-        SG_PlayerMove( &pm, &clgi.client->pmp );
+        SG_PlayerMove( &pm, &pmp );
 
         // Save for prediction checking.
         //clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ].prediction.origin = pm.s.origin;

@@ -1318,9 +1318,13 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	// Q2RTXPerimental Defaults:
-	//pmp->pm_air_accelerate = 8; // atoi( (const char *)SG_GetConfigString( CS_AIRACCEL ) ); // TODO: Has to use the ConfigString, determined by sv_airaccelerate.
-	pmp->pm_air_accelerate = atoi( (const char *)SG_GetConfigString( CS_AIRACCEL ) ); // TODO: Has to use the ConfigString, determined by sv_airaccelerate.
+	pmp->pm_air_accelerate = atof( (const char *)SG_GetConfigString( CS_AIRACCEL ) );
 	
+	//#ifdef CLGAME_INCLUDE
+	//SG_DPrintf( "[CLGame]: CS_AIRACCELL=%f\n", pmp->pm_air_accelerate );
+	//#else
+	////SG_DPrintf( "[SVGame]: CS_AIRACCELL=%f\n", pmp->pm_air_accelerate );
+	//#endif
 	//
 	// Configure the defaults, however, here one could for example use the
 	// player move stats by adding a 'class' slot, and basing movement parameters

@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/input.h"
 #include "common/intreadwrite.h"
 
-pmoveParams_t   sv_pmp;
+//pmoveParams_t   sv_pmp;
 
 master_t    sv_masters[MAX_MASTERS];   // address of group servers
 
@@ -922,15 +922,15 @@ static client_t *find_client_slot(conn_params_t *params)
     return (client_t*)( reject2("Server is full.\n") ); // WID: C++20: No static cast, but C cast.
 }
 
-static void init_pmove_and_es_flags(client_t *newcl)
-{
-    // copy default pmove parameters
-    newcl->pmp = sv_pmp;
-    //newcl->pmp.airaccelerate = sv_airaccelerate->integer;
-
-    //newcl->pmp.strafehack = sv_strafejump_hack->integer;
-    //newcl->pmp.waterhack = sv_waterjump_hack->integer;
-}
+//static void init_pmove_and_es_flags(client_t *newcl)
+//{
+//    // copy default pmove parameters
+//    //newcl->pmp = sv_pmp;
+//    //newcl->pmp.airaccelerate = sv_airaccelerate->integer;
+//
+//    //newcl->pmp.strafehack = sv_strafejump_hack->integer;
+//    //newcl->pmp.waterhack = sv_waterjump_hack->integer;
+//}
 
 static void SV_SendConnectPacket(client_t *newcl)
 {
@@ -1016,7 +1016,7 @@ static void SVC_DirectConnect(void)
     strcpy(newcl->reconnect_var, params.reconnect_var);
     strcpy(newcl->reconnect_val, params.reconnect_val);
 
-    init_pmove_and_es_flags(newcl);
+    //init_pmove_and_es_flags(newcl);
 
     append_extra_userinfo(&params, userinfo);
 

@@ -494,7 +494,7 @@ typedef struct client_state_s {
     int32_t		maxclients;
 
     // Received pmove configuration.
-    pmoveParams_t pmp;
+    //pmoveParams_t pmp;
 
     // Configstrings.
     configstring_t baseconfigstrings[ MAX_CONFIGSTRINGS ];
