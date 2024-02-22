@@ -278,6 +278,7 @@ void SV_BuildClientFrame(client_t *client)
     // find the client's PVS
     ps = &clent->client->ps;
 	VectorAdd( ps->viewoffset, ps->pmove.origin, org );
+
     // Add the actual viewoffset to the origin.
     org[ 2 ] += ps->pmove.viewheight;
 
@@ -432,11 +433,11 @@ void SV_BuildClientFrame(client_t *client)
 		// don't mark players missiles as solid
         if (ent->owner == clent) {
             state->solid.u = 0;
-        }
-		// WID: netstuff: longsolid
+        // WID: netstuff: longsolid
 		// else if (client->esFlags & MSG_ES_LONGSOLID) {
+        } else {
             state->solid.u = sv.entities[e].solid32;
-        //}
+        }
 
         svs.next_entity++;
 
