@@ -522,11 +522,11 @@ void CLG_ColorExplosionParticles( const vec3_t org, int color, int run ) {
             return;
 
         p->time = clgi.client->time;
-        p->color = color + ( Q_rand() % run );
+        p->color = color + ( irandom( run ) );
 
         for ( j = 0; j < 3; j++ ) {
-            p->org[ j ] = org[ j ] + ( (int)( Q_rand() % 32 ) - 16 );
-            p->vel[ j ] = (int)( Q_rand() % 256 ) - 128;
+            p->org[ j ] = org[ j ] + ( (int)( irandom( 32 ) ) - 16 );
+            p->vel[ j ] = (int)( irandom( 256 ) ) - 128;
         }
 
         p->accel[ 0 ] = p->accel[ 1 ] = 0;

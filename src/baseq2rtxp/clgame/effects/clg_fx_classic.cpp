@@ -364,8 +364,8 @@ void CLG_ExplosionParticles( const vec3_t org ) {
         p->brightness = cvar_pt_particle_emissive->value;
 
         for ( j = 0; j < 3; j++ ) {
-            p->org[ j ] = org[ j ] + ( (int)( Q_rand() % 32 ) - 16 );
-            p->vel[ j ] = (int)( Q_rand() % 384 ) - 192;
+            p->org[ j ] = org[ j ] + ( (int)( irandom( 32 ) ) - 16 );
+            p->vel[ j ] = (int)( irandom( 384 ) ) - 192;
         }
 
         p->accel[ 0 ] = p->accel[ 1 ] = 0;
@@ -407,7 +407,7 @@ void CLG_BigTeleportParticles( const vec3_t org ) {
         p->vel[ 1 ] = sin( angle ) * ( 70 + ( Q_rand() & 63 ) );
         p->accel[ 1 ] = -sin( angle ) * 100;
 
-        p->org[ 2 ] = org[ 2 ] + 8 + ( Q_rand() % 90 );
+        p->org[ 2 ] = org[ 2 ] + 8 + ( irandom( 90 ) );
         p->vel[ 2 ] = -100 + ( Q_rand() & 31 );
         p->accel[ 2 ] = PARTICLE_GRAVITY * 4;
         p->alpha = 1.0f;
@@ -985,8 +985,8 @@ void CLG_BFGExplosionParticles( const vec3_t org ) {
         p->brightness = cvar_pt_particle_emissive->value;
 
         for ( j = 0; j < 3; j++ ) {
-            p->org[ j ] = org[ j ] + ( (int)( Q_rand() % 32 ) - 16 );
-            p->vel[ j ] = (int)( Q_rand() % 384 ) - 192;
+            p->org[ j ] = org[ j ] + ( (int)( irandom( 32 ) ) - 16 );
+            p->vel[ j ] = (int)( irandom( 384 ) ) - 192;
         }
 
         p->accel[ 0 ] = p->accel[ 1 ] = 0;

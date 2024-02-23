@@ -184,7 +184,7 @@ void CLG_MuzzleFlash2( void ) {
         VectorSet( dl->color, 1, 1, 0 );
         CLG_ParticleEffect( origin, forward, 0, 40 );
         CLG_SmokeAndFlash( origin );
-        Q_snprintf( soundname, sizeof( soundname ), "tank/tnkatk2%c.wav", 'a' + Q_rand() % 5 );
+        Q_snprintf( soundname, sizeof( soundname ), "tank/tnkatk2%c.wav", 'a' + irandom( 5 ) );
         clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), 1, ATTN_NORM, 0 );
         break;
 

@@ -71,6 +71,6 @@ void CLG_ParseLaser( const int32_t colors ) {
     VectorCopy( level.parsedMessage.events.tempEntity.pos1, l->start );
     VectorCopy( level.parsedMessage.events.tempEntity.pos2, l->end );
     l->lifetime = 100;
-    l->color = ( colors >> ( ( Q_rand() % 4 ) * 8 ) ) & 0xff;
+    l->color = ( colors >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
     l->width = 4;
 }

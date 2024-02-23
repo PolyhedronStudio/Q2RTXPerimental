@@ -53,7 +53,7 @@ void CLG_MuzzleFlash( void ) {
         break;
     case MZ_MACHINEGUN:
         VectorSet( dl->color, 1, 1, 0 );
-        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( Q_rand() % 5 ) + 1 );
+        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( irandom( 5 ) ) + 1 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0 );
         break;
     case MZ_SHOTGUN:
@@ -68,25 +68,25 @@ void CLG_MuzzleFlash( void ) {
     case MZ_CHAINGUN1:
         dl->radius = 200 + ( Q_rand() & 31 );
         VectorSet( dl->color, 1, 0.25f, 0 );
-        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( Q_rand() % 5 ) + 1 );
+        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( irandom( 5 ) ) + 1 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0 );
         break;
     case MZ_CHAINGUN2:
         dl->radius = 225 + ( Q_rand() & 31 );
         VectorSet( dl->color, 1, 0.5f, 0 );
-        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( Q_rand() % 5 ) + 1 );
+        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( irandom( 5 ) ) + 1 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0 );
-        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( Q_rand() % 5 ) + 1 );
+        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( irandom( 5 ) ) + 1 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0.05f );
         break;
     case MZ_CHAINGUN3:
         dl->radius = 250 + ( Q_rand() & 31 );
         VectorSet( dl->color, 1, 1, 0 );
-        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( Q_rand() % 5 ) + 1 );
+        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( irandom( 5 ) ) + 1 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0 );
-        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( Q_rand() % 5 ) + 1 );
+        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( irandom( 5 ) ) + 1 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0.033f );
-        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( Q_rand() % 5 ) + 1 );
+        Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( irandom( 5 ) ) + 1 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0.066f );
         break;
     case MZ_RAILGUN:

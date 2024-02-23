@@ -210,7 +210,7 @@ void PF_InitGame( void ) {
 	// Generate a random user name to avoid new users being kicked out of MP servers.
 	// The default quake2 config files set the user name to "Player", same as the cvar initialization above.
 	if ( Q_strcasecmp( info_name->string, "Q2RTXPerimental" ) == 0 ) {
-		int random_number = Q_rand() % 10000;
+		int random_number = irandom( 10000 );
 		char buf[ MAX_CLIENT_NAME ];
 		Q_snprintf( buf, sizeof( buf ), "Q2RTXP-%04d", random_number );
 		clgi.CVar_Set( "name", buf );

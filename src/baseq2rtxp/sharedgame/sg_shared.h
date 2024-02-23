@@ -3,6 +3,7 @@
 #include "shared/shared.h"
 #include "shared/util_list.h"
 
+//! Define the entity type based on from which game module we're compiling.
 #ifdef CLGAME_INCLUDE
 typedef struct centity_s sgentity_s;
 #endif
@@ -10,7 +11,7 @@ typedef struct centity_s sgentity_s;
 typedef struct edict_s sgentity_s;
 #endif
 
-//! Define the entity type based on from which game module we're compiling.
+// Include other shared game headers.
 #include "sg_gamemode.h"
 #include "sg_pmove.h"
 #include "sg_pmove_slidemove.h"

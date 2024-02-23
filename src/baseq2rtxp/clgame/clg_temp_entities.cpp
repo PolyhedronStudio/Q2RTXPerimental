@@ -349,7 +349,7 @@ void CLG_ParseTEnt( void ) {
         // we need a better no draw flag
         ex->ent.flags = RF_BEAM;
         ex->start = clgi.client->servertime - CL_FRAMETIME;
-        ex->light = 100 + ( Q_rand() % 75 );
+        ex->light = 100 + ( irandom( 75 ) );
         ex->lightcolor[ 0 ] = 1.0f;
         ex->lightcolor[ 1 ] = 1.0f;
         ex->lightcolor[ 2 ] = 0.3f;

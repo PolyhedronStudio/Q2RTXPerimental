@@ -193,21 +193,18 @@ template<typename T>
 
 
 /**
-*	Client-Side version of gclient_t:
+*	ClientGame version of gclient_t:
 **/
-typedef struct cclient_s {
-	player_state_t  ps;
-	int             ping;
-	//    // the game dll can add anything it wants after
-	//    // this point in the structure
-	//    //int32_t             clientNum;
-} cclient_t;
-
-/******************************************************************
-* 
-* Client Game Entity
-* 
-*******************************************************************/
+//typedef struct cclient_s {
+//	player_state_t  ps;
+//	int             ping;
+//	//    // the game dll can add anything it wants after
+//	//    // this point in the structure
+//	//    //int32_t             clientNum;
+//} cclient_t;
+/**
+*	ClientGame version of centity_t:
+**/
 typedef struct centity_s {
 	//! Current(and thus last acknowledged and received) entity state.
 	entity_state_t	current;
@@ -256,6 +253,13 @@ typedef struct centity_s {
 #define TAG_CLGAME			777 // Clear when unloading the dll.
 #define TAG_CLGAME_LEVEL	778 // Clear when loading a new level.
 
+
+
+/*
+*
+*	clg_effects.cpp	
+* 
+*/
 /**
 *   @brief  Stores temp entity data from the last parsed svc_temp_entity message.
 **/
@@ -272,12 +276,6 @@ typedef struct {
 	int64_t time;
 } tent_params_t;
 
-
-/*
-*
-*	clg_effects.cpp	
-* 
-*/
 /**
 *   @brief
 **/

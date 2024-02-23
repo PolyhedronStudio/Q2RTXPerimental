@@ -48,9 +48,9 @@ explosion_t *CLG_PlainExplosion( bool big ) {
     ex->start = clgi.client->servertime - CL_FRAMETIME;
     ex->light = 350;
     VectorSet( ex->lightcolor, 1.0f, 0.5f, 0.5f );
-    ex->ent.angles[ 1 ] = Q_rand() % 360;
+    ex->ent.angles[ 1 ] = irandom( 360 );
 
-    int model_idx = Q_rand() % ( sizeof( precache.cl_mod_explosions ) / sizeof( *precache.cl_mod_explosions ) );
+    int model_idx = irandom( sizeof( precache.cl_mod_explosions ) / sizeof( *precache.cl_mod_explosions ) );
     const qboolean isValidSpriteModel = clgi.IsValidSpriteModelHandle( precache.cl_mod_explosions[ model_idx ] );
     //model_t *sprite_model = MOD_ForHandle( cl_mod_explosions[ model_idx ] );
 
