@@ -201,7 +201,7 @@ Key_IsDown
 Returns key down status: if > 1, it is auto-repeating
 ===================
 */
-int Key_IsDown(int key)
+const int32_t Key_IsDown( const int32_t key)
 {
     if (key < 0 || key > 255) {
         return 0;

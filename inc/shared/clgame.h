@@ -48,22 +48,20 @@ extern "C" {
 
 
 typedef struct centity_s centity_t;
-//typedef struct gclient_s gclient_t;
+typedef struct gclient_s gclient_t;
 
 // Include needed shared refresh types.
 #include "refresh/shared_types.h"
 
 #ifndef CLGAME_INCLUDE
 //
-//struct gclient_s {
-//    player_state_t  ps;     // communicated by server to clients
-//    int             ping;
-//
-//    // the game dll can add anything it wants after
-//    // this point in the structure
-//    int             clientNum;
-//};
-//
+typedef struct cclient_s {
+    player_state_t  ps;
+    int             ping;
+	//    // the game dll can add anything it wants after
+	//    // this point in the structure
+	//    //int32_t             clientNum;
+} cclient_t;
 //
 typedef struct centity_s {
 	//! Current(and thus last acknowledged and received) entity state.
@@ -168,12 +166,21 @@ typedef struct {
 	*	Client Static:
 	* 
 	**/
+	// Demo:
 	const qboolean ( *IsDemoPlayback )( );
+	const uint64_t( *GetDemoFramesRead )( );
+	const float( *GetDemoFileProgress )( );
+	const int64_t( *GetDemoFileSize )( );
+	// Time/State:
 	const uint64_t ( *GetRealTime )( );
 	const int32_t ( *GetConnectionState )( );
 	const ref_type_t( *GetRefreshType )( );
-
-
+	// Actually from Sys_... :
+	const uint64_t( *Sys_Milliseconds )( void );
+	// FPS and Scale:
+	const int32_t ( *GetClientFps )( void );
+	const int32_t ( *GetRefreshFps )( void );
+	const int32_t ( *GetResolutionScale )( void );
 
 	/**
 	*
@@ -217,7 +224,15 @@ typedef struct {
 	const int32_t ( *Cmd_ArgOffset )( const int32_t arg );
 	const int32_t ( *Cmd_FindArgForOffset )( const int32_t offset );
 	char *( *Cmd_RawString )( void ); // WID: C++20: Added const.
-	void    ( *Cmd_Shift )( void );
+	void ( *Cmd_Shift )( void );
+
+	// These few functions attempt to find partial matching variable names for command line completetion.
+	void ( *Cmd_Command_g )( genctx_t *ctx );
+	void ( *Cmd_Alias_g )( genctx_t *ctx );
+	void ( *Cmd_Macro_g )( genctx_t *ctx );
+	void ( *Cmd_Config_g )( genctx_t *ctx );
+	//! Find specified macro.
+	cmd_macro_t *( *Cmd_FindMacro )( const char *name );
 
 	/**
 	*	@brief	Registers the specified function pointer as the 'name' command.
@@ -247,8 +262,22 @@ typedef struct {
 	cvar_t *( *CVar_Get )( const char *var_name, const char *value, const int32_t flags );
 	cvar_t *( *CVar_Set )( const char *var_name, const char *value );
 	cvar_t *( *CVar_ForceSet )( const char *var_name, const char *value );
+	void ( *CVar_SetInteger )( cvar_t *var, int value, from_t from );
+	int ( *CVar_ClampInteger )( cvar_t *var, int min, int max );
 	float ( *CVar_ClampValue )( cvar_t *var, float min, float max );
 	void ( *CVar_Reset )( cvar_t *cvar );
+	cvar_t * ( *CVar_WeakGet )( const char *var_name );
+	//! Attempts to match a partial variable name for command line completion
+	//! Returns NULL if nothing fits.
+	void ( *CVar_Variable_g )( genctx_t *ctx );
+	void ( *CVar_Default_g )( genctx_t *ctx );
+	
+	/**
+	*
+	*	Console:
+	* 
+	**/
+	void ( *Con_ClearNotify_f )( void );
 
 
 
@@ -267,6 +296,10 @@ typedef struct {
 	const double ( *KeyState )( keybutton_t *keyButton );
 	//! Returns total numbers of keys that are 'down'.
 	const int32_t ( *Key_AnyKeyDown )( void );
+	//! Returns key down status : if > 1, it is auto - repeating
+	const int32_t ( *Key_IsDown )( const int32_t key );
+	//!
+	const char *( *Key_GetBinding )( const char *binding );
 
 	//! Set the 'layer' of where key events are handled by.
 	void ( *SetKeyEventDestination )( const keydest_t keyEventDestination );
@@ -372,10 +405,58 @@ typedef struct {
 	*	Refresh:
 	*
 	**/
-	//! Register a model.
+	//! Register a model for the current load sequence.
 	const qhandle_t( *R_RegisterModel )( const char *name );
-	//! Register a skin.
+	//! Register a skin for the current load sequence.
 	const qhandle_t( *R_RegisterSkin )( const char *name );
+	//! Register an image for the current load sequence.
+	const qhandle_t ( *R_RegisterImage )( const char *name, imagetype_t type, imageflags_t flags );
+	
+	//! Wrapper around R_RegisterImage: Register a font for the current load sequence.
+	const qhandle_t( *R_RegisterFont )( const char *name );
+	//! Wrapper around R_RegisterImage: Register a 2D 'Picture' for the current load sequence.
+	const qhandle_t( *R_RegisterPic )( const char *name );
+	//! Wrapper around R_RegisterImage: Register a 2D 'Picture' that is permanently laoded until application shutdown.
+	const qhandle_t( *R_RegisterPic2 )( const char *name );
+
+	//!
+	void ( *R_ClearColor )( void );
+	//!
+	void ( *R_SetAlpha )( const float alpha );
+	//!
+	void ( *R_SetAlphaScale )( const float alphaScale );
+	//!
+	void ( *R_SetColor )( const uint32_t color );
+	//!
+	void ( *R_SetClipRect )( const clipRect_t *clipRect );
+	//!
+	const float ( *R_ClampScale )( cvar_t *var );
+	//!
+	void ( *R_SetScale )( const float scale );
+	//!
+	void ( *R_DrawChar )( const int32_t x, const int32_t y, const int32_t flags, const int32_t ch, const qhandle_t font );
+	//!
+	const int32_t ( *R_DrawString )( const int32_t x, const int32_t y, const int32_t flags, const size_t maxChars, const char *str, const qhandle_t font );
+	//! Returns transparency bit
+	const qboolean ( *R_GetPicSize )( int32_t *w, int32_t *h, const qhandle_t pic );
+	//!
+	void ( *R_DrawPic )( const int32_t x, const int32_t y, const qhandle_t pic );
+	//!
+	void ( *R_DrawStretchPic )( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic );
+	//!
+	void ( *R_DrawKeepAspectPic )( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic );
+	//!
+	void ( *R_DrawStretchRaw )( const int32_t x, const int32_t y, const int32_t w, const int32_t h );
+	//!
+	void ( *R_TileClear )( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic );
+	//!
+	void ( *R_DrawFill8 )( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const int32_t c );
+	//!
+	void ( *R_DrawFill32 )( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const uint32_t color );
+	//!
+	void ( *R_UpdateRawPic )( const int32_t pic_w, const int32_t pic_h, uint32_t *pic );
+	//!
+	void ( *R_DiscardRawPic )( void );
 
 	//! Unimplemented in VKPT, but, adds a decal.
 	void ( *R_AddDecal )( decal_t *d );
@@ -424,6 +505,7 @@ typedef struct {
 	*	(Client-)View Scene
 	*
 	**/
+	void ( *V_RenderView )( void );
 	void ( *V_AddEntity )( entity_t *ent );
 	void ( *V_AddParticle )( particle_t *p );
 	void ( *V_AddSphereLight )( const vec3_t org, float intensity, float r, float g, float b, float radius );
@@ -431,6 +513,19 @@ typedef struct {
 	void ( *V_AddSpotLightTexEmission )( const vec3_t org, const vec3_t dir, float intensity, float r, float g, float b, float width_angle, qhandle_t emission_tex );
 	void ( *V_AddLight )( const vec3_t org, float intensity, float r, float g, float b );
 	void ( *V_AddLightStyle )( int style, float value );
+
+
+
+	/**
+	*
+	*	Zone Memory Allocator:
+	*
+	**/
+	void ( *Z_Free )( void *ptr );
+	// Frees the memory block pointed at by (*ptr), if that's nonzero, and sets (*ptr) to zero.
+	void ( *Z_Freep )( void **ptr );
+	void *( *Z_Realloc )( void *ptr, size_t size );
+	void *( *Z_Malloc )( size_t size ) q_malloc;
 
 
 
@@ -502,7 +597,9 @@ typedef struct {
 	void ( *PreInit ) ( void );
 	//! Called during client initialization.
 	void ( *Init )( void );
-	//! Called during client shutdown.
+	//! Called when the client is about to shutdown, giving us a last minute shot at accessing possible required data.
+	void ( *PreShutdown )( void );
+	//! Called after the client has shutdown.
 	void ( *Shutdown )( void );
 
 
@@ -589,6 +686,40 @@ typedef struct {
 	*	@brief	Called right before loading all received configstring (server-) sounds.
 	**/
 	void ( *PrecacheClientSounds )( void );
+
+
+	/**
+	*
+	*	Screen:
+	*
+	**/
+	/**
+	*	@brief
+	**/
+	void ( *ScreenInit )( void );
+	void ( *ScreenShutdown )( void );
+	void ( *ScreenRegisterMedia )( void );
+	void ( *ScreenModeChanged )( void );
+	void ( *ScreenSetCrosshairColor )( void );
+	vrect_t *( *GetScreenVideoRect )( void );
+
+	/**
+	*	@brief	Prepare and draw the current 'active' state's 2D and 3D views.
+	**/
+	void ( *DrawActiveState )( refcfg_t *refcfg );
+	/**
+	*	@brief	Prepare and draw the loading screen's 2D state.
+	**/
+	void ( *DrawLoadState )( refcfg_t *refcfg );
+	
+	/**
+	*   @return The current active handle to the font image. (Used by ref/vkpt.)
+	**/
+	const qhandle_t( *GetScreenFontHandle )( void );
+	/**
+	*   @brief  Set the alpha value of the HUD. (Used by ref/vkpt.)
+	**/
+	void ( *SetScreenHUDAlpha )( const float alpha );
 
 
 

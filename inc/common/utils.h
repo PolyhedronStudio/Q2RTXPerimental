@@ -66,8 +66,8 @@ extern "C" {
 
 extern const char *const colorNames[ COLOR_COUNT ];
 
-bool Com_WildCmpEx(const char* filter, const char* string, int term, bool ignorecase);
-#define Com_WildCmp(filter, string) Com_WildCmpEx(filter, string, 0, false)
+//bool Com_WildCmpEx(const char* filter, const char* string, int term, bool ignorecase);
+//#define Com_WildCmp(filter, string) Com_WildCmpEx(filter, string, 0, false)
 
 #if USE_CLIENT
 bool Com_ParseTimespec(const char* s, int* frames);

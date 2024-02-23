@@ -40,10 +40,10 @@ cvar_t *cl_running = nullptr;
 cvar_t *cl_paused = nullptr;
 cvar_t *sv_running = nullptr;
 cvar_t *sv_paused = nullptr;
-//cvar_t *gamemode;
-//cvar_t *maxclients;
-//cvar_t *maxspectators;
-//cvar_t *maxentities;
+//cvar_t *gamemode = nullptr;
+//cvar_t *maxclients = nullptr;
+//cvar_t *maxspectators = nullptr;
+//cvar_t *maxentities = nullptr;
 cvar_t *cl_footsteps = nullptr;
 
 cvar_t *cl_kickangles = nullptr;
@@ -104,6 +104,18 @@ centity_t *clg_entities = nullptr;
 *
 **/
 /**
+*	@brief	Called when the client is about to shutdown, giving us a last minute 
+*			shot at accessing possible required data.
+**/
+void PF_PreShutdownGame( void ) {
+	clgi.Print( print_type_t::PRINT_ALL, "==== PreShutdown ClientGame ====\n" );
+
+	// Uncomment after we actually allocate anything using this.
+	//clgi.FreeTags( TAG_CLGAME_LEVEL );
+	clgi.FreeTags( TAG_CLGAME );
+}
+
+/**
 *	@brief	This will be called when the dll is first loaded, which
 *			only happens when a new game is started or a save game
 *			is loaded from the main menu without having a game running
@@ -113,7 +125,7 @@ void PF_ShutdownGame( void ) {
 	clgi.Print( print_type_t::PRINT_ALL, "==== Shutdown ClientGame ====\n" );
 
 	// Uncomment after we actually allocate anything using this.
-	//gi.FreeTags( TAG_CLGAME_LEVEL );
+	//clgi.FreeTags( TAG_CLGAME_LEVEL );
 	clgi.FreeTags( TAG_CLGAME );
 }
 
@@ -122,10 +134,6 @@ void PF_ShutdownGame( void ) {
 **/
 void PF_PreInitGame( void ) {
 	clgi.Print( print_type_t::PRINT_ALL, "==== PreInit ClientGame ====\n" );
-
-	// Initialize effects and temp entities.
-	CLG_InitEffects();
-	CLG_InitTEnts();
 }
 
 /**
@@ -143,6 +151,7 @@ void PF_InitGame( void ) {
 	// Seed RNG
 	mt_rand.seed( (uint32_t)std::chrono::system_clock::now( ).time_since_epoch( ).count( ) );
 
+
 	/**
 	*	CVars.
 	**/
@@ -154,15 +163,11 @@ void PF_InitGame( void ) {
 	cl_paused = clgi.CVar_Get( "cl_paused", nullptr, 0 );
 	sv_running = clgi.CVar_Get( "cl_running", nullptr, 0 );
 	sv_paused = clgi.CVar_Get( "cl_paused", nullptr, 0 );
-	//gamemode = clgi.CVar( "gamemode", "", 0 );
-	//maxclients = clgi.CVar( "maxclients", "", 0 );
-	//maxspectators = clgi.CVar( "maxspectators", "", 0 );
-	//maxentities = clgi.CVar( "maxentities", "", 0 );
-		//cl_disable_particles = Cvar_Get("cl_disable_particles", "0", 0);
-	//cl_disable_explosions = Cvar_Get("cl_disable_explosions", "0", 0);
-	//cl_explosion_sprites = Cvar_Get("cl_explosion_sprites", "1", 0);
-	//cl_explosion_frametime = Cvar_Get("cl_explosion_frametime", "20", 0);
-	//cl_dlight_hacks = Cvar_Get("cl_dlight_hacks", "0", 0);
+	
+	//gamemode = clgi.CVar( "gamemode", nullptr, 0 );
+	//maxclients = clgi.CVar( "maxclients", nullptr, 0 );
+	//maxspectators = clgi.CVar( "maxspectators", nullptr, 0 );
+	//maxentities = clgi.CVar( "maxentities", nullptr, 0 );
 
 	cvar_pt_particle_emissive = clgi.CVar( "pt_particle_emissive", nullptr, 0 );
 	cl_particle_num_factor = clgi.CVar( "cl_particle_num_factor", nullptr, 0 );
@@ -211,14 +216,19 @@ void PF_InitGame( void ) {
 		clgi.CVar_Set( "name", buf );
 	}
 
+	/**
+	*	Initialize effects and temp entities.
+	**/
+	CLG_InitEffects();
+	CLG_InitTEnts();
 
 	/**
 	*	Allocate space for entities.
 	**/
 	// Initialize all entities for this game.
 	//game.maxentities = maxentities->value;
-	//clamp( game.maxentities, (int)maxclients->value + 1, MAX_EDICTS );
-	game.maxentities = MAX_EDICTS;
+	//clamp( game.maxentities, (int)maxclients->value + 1, MAX_CLIENT_ENTITIES );
+	game.maxentities = MAX_CLIENT_ENTITIES;
 	clg_entities = (centity_t *)clgi.TagMalloc( game.maxentities * sizeof( clg_entities[ 0 ] ), TAG_CLGAME );
 	globals.entities = clg_entities;
 	globals.max_entities = game.maxentities;
@@ -229,9 +239,9 @@ void PF_InitGame( void ) {
 	// initialize all clients for this game
 	//game.maxclients = maxclients->value;
 	// WID: C++20: Addec cast.
-	//game.clients = (gclient_t *)gi.TagMalloc( game.maxclients * sizeof( game.clients[ 0 ] ), TAG_SVGAME );
+	//game.clients = (cclient_t *)clgi.TagMalloc( game.maxclients * sizeof( game.clients[ 0 ] ), TAG_CLGAME );
 	//globals.num_edicts = game.maxclients + 1;
-	globals.num_entities = 0;
+	//globals.num_entities = game.maxclients + 1;
 
 	// Get the game mode.
 	clgi.Print( print_type_t::PRINT_ALL, "==== Init ClientGame ====\n" );
@@ -344,6 +354,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Init = PF_InitGame;
 		globals.PreInit = PF_PreInitGame;
 		globals.Shutdown = PF_ShutdownGame;
+		globals.PreShutdown = PF_PreShutdownGame;
 
 		globals.ClearState = PF_ClearState;
 		globals.ClientBegin = PF_ClientBegin;
@@ -364,6 +375,17 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.PrecacheClientModels = PF_PrecacheClientModels;
 		globals.PrecacheClientSounds = PF_PrecacheClientSounds;
+
+		globals.ScreenInit = PF_SCR_Init;
+		globals.ScreenRegisterMedia = PF_SCR_RegisterMedia;
+		globals.ScreenModeChanged = PF_SCR_ModeChanged;
+		globals.ScreenSetCrosshairColor = PF_SCR_SetCrosshairColor;
+		globals.ScreenShutdown = PF_SCR_Shutdown;
+		globals.GetScreenVideoRect = PF_GetScreenVideoRect;
+		globals.DrawActiveState = PF_DrawActiveState;
+		globals.DrawLoadState = PF_DrawLoadState;
+		globals.GetScreenFontHandle = PF_GetScreenFontHandle;
+		globals.SetScreenHUDAlpha = PF_SetScreenHUDAlpha;
 
 		globals.UpdateConfigString = PF_UpdateConfigString;
 		globals.StartServerMessage = PF_StartServerMessage;

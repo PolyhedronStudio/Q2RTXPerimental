@@ -175,7 +175,7 @@ typedef struct client_static_s {
     qboolean    ref_initialized;
     //! OpenGL or VKPT.
     ref_type_t  ref_type;
-    uint64_t    disable_screen;
+    uint64_t    disable_screen; //! If the screen is disabled (loading plaque is up), do nothing at all
 
     //! Whether the userinfo was modified or not.
     //! This is set each time a CVAR_USERINFO variable is changed
@@ -382,6 +382,7 @@ void CL_GM_LoadProgs( );
 void CL_GM_Init();
 void CL_GM_PreInit();
 void CL_GM_Shutdown( );
+void CL_GM_PreShutdown();
 
 
 
@@ -653,8 +654,8 @@ void    SCR_ModeChanged(void);
 void    SCR_LagSample(void);
 void    SCR_LagClear(void);
 void    SCR_SetCrosshairColor(void);
-qhandle_t SCR_GetFont(void);
-void    SCR_SetHudAlpha(float alpha);
+const qhandle_t SCR_GetFont(void);
+void    SCR_SetHudAlpha( const float alpha);
 
 float   SCR_FadeAlpha(unsigned startTime, unsigned visTime, unsigned fadeTime);
 int     SCR_DrawStringEx(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);

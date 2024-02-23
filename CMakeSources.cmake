@@ -145,6 +145,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_precache.cpp
 	baseq2rtxp/clgame/clg_predict.cpp
 	baseq2rtxp/clgame/clg_temp_entities.cpp
+	baseq2rtxp/clgame/clg_screen.cpp
 	baseq2rtxp/clgame/clg_view.cpp
 
 	baseq2rtxp/clgame/effects/clg_fx_classic.cpp

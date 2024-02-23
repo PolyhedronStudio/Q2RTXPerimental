@@ -742,8 +742,8 @@ static void SCR_DrawObjects(void)
     }
 }
 
-extern int CL_GetFps(void);
-extern int CL_GetResolutionScale(void);
+extern const int32_t CL_GetClientFps(void);
+extern const int32_t CL_GetResolutionScale(void);
 
 static void SCR_DrawFPS(void)
 {
@@ -971,13 +971,13 @@ static void SCR_DrawDebugPmove(void)
 //============================================================================
 
 // Sets scr_vrect, the coordinates of the rendered window
-void SCR_CalcVrect(void)
-{
-    scr_vrect.width = scr.hud_width;
-    scr_vrect.height = scr.hud_height;
-    scr_vrect.x = 0;
-    scr_vrect.y = 0;
-}
+//void SCR_CalcVrect(void)
+//{
+//    scr_vrect.width = scr.hud_width;
+//    scr_vrect.height = scr.hud_height;
+//    scr_vrect.x = 0;
+//    scr_vrect.y = 0;
+//}
 
 /*
 =================
@@ -1128,40 +1128,40 @@ static void scr_crosshair_changed(cvar_t *self)
     }
 }
 
-void SCR_SetCrosshairColor(void)
-{
-    int health;
+void SCR_SetCrosshairColor(void) {
+    clge->ScreenSetCrosshairColor();
+    //int health;
 
-    if (!ch_health->integer) {
-        return;
-    }
+    //if (!ch_health->integer) {
+    //    return;
+    //}
 
-    health = cl.frame.ps.stats[STAT_HEALTH];
-    if (health <= 0) {
-        VectorSet(scr.crosshair_color.u8, 0, 0, 0);
-        return;
-    }
+    //health = cl.frame.ps.stats[STAT_HEALTH];
+    //if (health <= 0) {
+    //    VectorSet(scr.crosshair_color.u8, 0, 0, 0);
+    //    return;
+    //}
 
-    // red
-    scr.crosshair_color.u8[0] = 255;
+    //// red
+    //scr.crosshair_color.u8[0] = 255;
 
-    // green
-    if (health >= 66) {
-        scr.crosshair_color.u8[1] = 255;
-    } else if (health < 33) {
-        scr.crosshair_color.u8[1] = 0;
-    } else {
-        scr.crosshair_color.u8[1] = (255 * (health - 33)) / 33;
-    }
+    //// green
+    //if (health >= 66) {
+    //    scr.crosshair_color.u8[1] = 255;
+    //} else if (health < 33) {
+    //    scr.crosshair_color.u8[1] = 0;
+    //} else {
+    //    scr.crosshair_color.u8[1] = (255 * (health - 33)) / 33;
+    //}
 
-    // blue
-    if (health >= 99) {
-        scr.crosshair_color.u8[2] = 255;
-    } else if (health < 66) {
-        scr.crosshair_color.u8[2] = 0;
-    } else {
-        scr.crosshair_color.u8[2] = (255 * (health - 66)) / 33;
-    }
+    //// blue
+    //if (health >= 99) {
+    //    scr.crosshair_color.u8[2] = 255;
+    //} else if (health < 66) {
+    //    scr.crosshair_color.u8[2] = 0;
+    //} else {
+    //    scr.crosshair_color.u8[2] = (255 * (health - 66)) / 33;
+    //}
 }
 
 void SCR_ModeChanged(void)
@@ -1170,10 +1170,12 @@ void SCR_ModeChanged(void)
     Con_CheckResize();
     UI_ModeChanged();
     cls.disable_screen = 0;
-    if (scr.initialized)
-        scr.hud_scale = R_ClampScale(scr_scale);
 
-    scr.hud_alpha = 1.f;
+    clge->ScreenModeChanged();
+    //if (scr.initialized)
+    //    scr.hud_scale = R_ClampScale(scr_scale);
+
+    //scr.hud_alpha = 1.f;
 }
 
 /*
@@ -1181,29 +1183,30 @@ void SCR_ModeChanged(void)
 SCR_RegisterMedia
 ==================
 */
-void SCR_RegisterMedia(void)
-{
-    int     i, j;
+void SCR_RegisterMedia(void) {
+    clge->ScreenRegisterMedia();
 
-    for (i = 0; i < 2; i++)
-        for (j = 0; j < STAT_PICS; j++)
-            scr.sb_pics[i][j] = R_RegisterPic(sb_nums[i][j]);
+    //int     i, j;
 
-    scr.inven_pic = R_RegisterPic("inventory");
-    scr.field_pic = R_RegisterPic("field_3");
+    //for (i = 0; i < 2; i++)
+    //    for (j = 0; j < STAT_PICS; j++)
+    //        scr.sb_pics[i][j] = R_RegisterPic(sb_nums[i][j]);
 
-    scr.backtile_pic = R_RegisterImage("backtile", IT_PIC, static_cast<imageflags_t>( IF_PERMANENT | IF_REPEAT) ); // WID: C++20: Added static cast
+    //scr.inven_pic = R_RegisterPic("inventory");
+    //scr.field_pic = R_RegisterPic("field_3");
 
-    scr.pause_pic = R_RegisterPic("pause");
-    R_GetPicSize(&scr.pause_width, &scr.pause_height, scr.pause_pic);
+    //scr.backtile_pic = R_RegisterImage("backtile", IT_PIC, static_cast<imageflags_t>( IF_PERMANENT | IF_REPEAT) ); // WID: C++20: Added static cast
 
-    scr.loading_pic = R_RegisterPic("loading");
-    R_GetPicSize(&scr.loading_width, &scr.loading_height, scr.loading_pic);
+    //scr.pause_pic = R_RegisterPic("pause");
+    //R_GetPicSize(&scr.pause_width, &scr.pause_height, scr.pause_pic);
 
-    scr.net_pic = R_RegisterPic("net");
-    scr.font_pic = R_RegisterFont(scr_font->string);
+    //scr.loading_pic = R_RegisterPic("loading");
+    //R_GetPicSize(&scr.loading_width, &scr.loading_height, scr.loading_pic);
 
-    scr_crosshair_changed(scr_crosshair);
+    //scr.net_pic = R_RegisterPic("net");
+    //scr.font_pic = R_RegisterFont(scr_font->string);
+
+    //scr_crosshair_changed(scr_crosshair);
 }
 
 static void scr_font_changed(cvar_t *self)
@@ -1218,12 +1221,12 @@ static void scr_scale_changed(cvar_t *self)
 
 static const cmdreg_t scr_cmds[] = {
     { "timerefresh", SCR_TimeRefresh_f },
-    { "sizeup", SCR_SizeUp_f },
-    { "sizedown", SCR_SizeDown_f },
+//    { "sizeup", SCR_SizeUp_f },
+//    { "sizedown", SCR_SizeDown_f },
     { "sky", SCR_Sky_f },
-    { "draw", SCR_Draw_f, SCR_Draw_c },
-    { "undraw", SCR_UnDraw_f, SCR_UnDraw_c },
-    { "clearchathud", SCR_ClearChatHUD_f },
+    //{ "draw", SCR_Draw_f, SCR_Draw_c },
+    //{ "undraw", SCR_UnDraw_f, SCR_UnDraw_c },
+    //{ "clearchathud", SCR_ClearChatHUD_f },
     { NULL }
 };
 
@@ -1235,70 +1238,78 @@ SCR_Init
 void SCR_Init(void)
 {
     scr_viewsize = Cvar_Get("viewsize", "100", CVAR_ARCHIVE);
-    scr_showpause = Cvar_Get("scr_showpause", "1", 0);
-    scr_centertime = Cvar_Get("scr_centertime", "2.5", 0);
-    scr_demobar = Cvar_Get("scr_demobar", "1", 0);
-    scr_font = Cvar_Get("scr_font", "conchars", 0);
-    scr_font->changed = scr_font_changed;
-    scr_scale = Cvar_Get("scr_scale", "0", 0);
-    scr_scale->changed = scr_scale_changed;
-    scr_crosshair = Cvar_Get("crosshair", "0", CVAR_ARCHIVE);
-    scr_crosshair->changed = scr_crosshair_changed;
+//    scr_showpause = Cvar_Get("scr_showpause", "1", 0);
+//    scr_centertime = Cvar_Get("scr_centertime", "2.5", 0);
+//    scr_demobar = Cvar_Get("scr_demobar", "1", 0);
+//    scr_font = Cvar_Get("scr_font", "conchars", 0);
+//    scr_font->changed = scr_font_changed;
+//    scr_scale = Cvar_Get("scr_scale", "0", 0);
+//    scr_scale->changed = scr_scale_changed;
+//    scr_crosshair = Cvar_Get("crosshair", "0", CVAR_ARCHIVE);
+//    scr_crosshair->changed = scr_crosshair_changed;
+//
+//    scr_chathud = Cvar_Get("scr_chathud", "0", 0);
+//    scr_chathud_lines = Cvar_Get("scr_chathud_lines", "4", 0);
+//    scr_chathud_time = Cvar_Get("scr_chathud_time", "0", 0);
+//    scr_chathud_time->changed = cl_timeout_changed;
+//    scr_chathud_time->changed(scr_chathud_time);
+//    scr_chathud_x = Cvar_Get("scr_chathud_x", "8", 0);
+//    scr_chathud_y = Cvar_Get("scr_chathud_y", "-64", 0);
+//
+//    ch_health = Cvar_Get("ch_health", "0", 0);
+//    ch_health->changed = scr_crosshair_changed;
+//    ch_red = Cvar_Get("ch_red", "1", 0);
+//    ch_red->changed = scr_crosshair_changed;
+//    ch_green = Cvar_Get("ch_green", "1", 0);
+//    ch_green->changed = scr_crosshair_changed;
+//    ch_blue = Cvar_Get("ch_blue", "1", 0);
+//    ch_blue->changed = scr_crosshair_changed;
+//    ch_alpha = Cvar_Get("ch_alpha", "1", 0);
+//    ch_alpha->changed = scr_crosshair_changed;
+//
+//    ch_scale = Cvar_Get("ch_scale", "1", 0);
+//    ch_scale->changed = scr_crosshair_changed;
+//    ch_x = Cvar_Get("ch_x", "0", 0);
+//    ch_y = Cvar_Get("ch_y", "0", 0);
+//
+//    scr_draw2d = Cvar_Get("scr_draw2d", "2", 0);
+//    scr_showturtle = Cvar_Get("scr_showturtle", "1", 0);
+//    scr_showitemname = Cvar_Get("scr_showitemname", "1", CVAR_ARCHIVE);
+//    scr_lag_x = Cvar_Get("scr_lag_x", "-1", 0);
+//    scr_lag_y = Cvar_Get("scr_lag_y", "-1", 0);
+//    scr_lag_draw = Cvar_Get("scr_lag_draw", "0", 0);
+//    scr_lag_min = Cvar_Get("scr_lag_min", "0", 0);
+//    scr_lag_max = Cvar_Get("scr_lag_max", "200", 0);
+//	scr_alpha = Cvar_Get("scr_alpha", "1", 0);
+//	#if USE_DEBUG
+//	scr_fps = Cvar_Get( "scr_fps", "2", CVAR_ARCHIVE );
+//	#else
+//	scr_fps = Cvar_Get( "scr_fps", "0", CVAR_ARCHIVE );
+//	#endif
+//#ifdef USE_DEBUG
+//    scr_showstats = Cvar_Get("scr_showstats", "0", 0);
+//    scr_showpmove = Cvar_Get("scr_showpmove", "0", 0);
+//#endif
 
-    scr_chathud = Cvar_Get("scr_chathud", "0", 0);
-    scr_chathud_lines = Cvar_Get("scr_chathud_lines", "4", 0);
-    scr_chathud_time = Cvar_Get("scr_chathud_time", "0", 0);
-    scr_chathud_time->changed = cl_timeout_changed;
-    scr_chathud_time->changed(scr_chathud_time);
-    scr_chathud_x = Cvar_Get("scr_chathud_x", "8", 0);
-    scr_chathud_y = Cvar_Get("scr_chathud_y", "-64", 0);
-
-    ch_health = Cvar_Get("ch_health", "0", 0);
-    ch_health->changed = scr_crosshair_changed;
-    ch_red = Cvar_Get("ch_red", "1", 0);
-    ch_red->changed = scr_crosshair_changed;
-    ch_green = Cvar_Get("ch_green", "1", 0);
-    ch_green->changed = scr_crosshair_changed;
-    ch_blue = Cvar_Get("ch_blue", "1", 0);
-    ch_blue->changed = scr_crosshair_changed;
-    ch_alpha = Cvar_Get("ch_alpha", "1", 0);
-    ch_alpha->changed = scr_crosshair_changed;
-
-    ch_scale = Cvar_Get("ch_scale", "1", 0);
-    ch_scale->changed = scr_crosshair_changed;
-    ch_x = Cvar_Get("ch_x", "0", 0);
-    ch_y = Cvar_Get("ch_y", "0", 0);
-
-    scr_draw2d = Cvar_Get("scr_draw2d", "2", 0);
-    scr_showturtle = Cvar_Get("scr_showturtle", "1", 0);
-    scr_showitemname = Cvar_Get("scr_showitemname", "1", CVAR_ARCHIVE);
-    scr_lag_x = Cvar_Get("scr_lag_x", "-1", 0);
-    scr_lag_y = Cvar_Get("scr_lag_y", "-1", 0);
-    scr_lag_draw = Cvar_Get("scr_lag_draw", "0", 0);
-    scr_lag_min = Cvar_Get("scr_lag_min", "0", 0);
-    scr_lag_max = Cvar_Get("scr_lag_max", "200", 0);
-	scr_alpha = Cvar_Get("scr_alpha", "1", 0);
-	#if USE_DEBUG
-	scr_fps = Cvar_Get( "scr_fps", "2", CVAR_ARCHIVE );
-	#else
-	scr_fps = Cvar_Get( "scr_fps", "0", CVAR_ARCHIVE );
-	#endif
-#ifdef USE_DEBUG
-    scr_showstats = Cvar_Get("scr_showstats", "0", 0);
-    scr_showpmove = Cvar_Get("scr_showpmove", "0", 0);
-#endif
-
+    // Register screen related commands.
     Cmd_Register(scr_cmds);
+    // Give the client game a shot at doing the same (Register commands, create/fetch cvars.).
+    clge->ScreenInit();
+    //scr_scale_changed(scr_scale);
 
-    scr_scale_changed(scr_scale);
-
+    // We're in initialized screen state.
     scr.initialized = true;
 }
 
 void SCR_Shutdown(void)
 {
-    Cmd_Deregister(scr_cmds);
+    // We're in uninitialized screen state again.
     scr.initialized = false;
+    // Deregister any screen related commands.
+    Cmd_Deregister(scr_cmds);
+    // Give the client game a shot at doing the same.
+    clge->ScreenShutdown();
+    
 }
 
 //=============================================================================
@@ -1982,37 +1993,43 @@ static void SCR_Draw2D(void)
 
 static void SCR_DrawActive(void)
 {
-    // if full screen menu is up, do nothing at all
-    if (!UI_IsTransparent())
+    // If a non-transparant fullscreen menu is up, do nothing at all.
+    if ( !UI_IsTransparent() ) {
         return;
+    }
 
-    // draw black background if not active
+    // Draw black background if not active
     if (cls.state < ca_active) {
         R_DrawFill8(0, 0, r_config.width, r_config.height, 0);
         return;
     }
 
+    // If we're in cinematic mode, draw the cinematic and return.
     if (cls.state == ca_cinematic) {
         SCR_DrawCinematic();
         return;
     }
 
-    // start with full screen HUD
+    // Otherwise, start with full screen HUD.
     scr.hud_height = r_config.height;
     scr.hud_width = r_config.width;
 
-    SCR_DrawDemo();
+    // Call into client game for drawing active state.
+    clge->DrawActiveState( &r_config );
+    //// Draw any demo specific data.
+    //SCR_DrawDemo();
 
-    SCR_CalcVrect();
+    //// Calculate actual 'view' rectangle.
+    //SCR_CalcVrect();
 
-    // clear any dirty part of the background
-    SCR_TileClear();
+    //// Clear any dirty part of the background.
+    //SCR_TileClear();
 
-    // draw 3D game view
-    V_RenderView();
+    //// Draw 3D game view.
+    //V_RenderView();
 
-    // draw all 2D elements
-    SCR_Draw2D();
+    //// Draw all 2D elements.
+    //SCR_Draw2D();
 }
 
 //=======================================================
@@ -2070,12 +2087,13 @@ void SCR_UpdateScreen(void)
     recursive--;
 }
 
-qhandle_t SCR_GetFont(void)
+const qhandle_t SCR_GetFont( void )
 {
-	return scr.font_pic;
+    return clge->GetScreenFontHandle();
 }
 
-void SCR_SetHudAlpha(float alpha)
+void SCR_SetHudAlpha( const float alpha )
 {
-	scr.hud_alpha = alpha;
+    //scr.hud_alpha = alpha;
+    clge->SetScreenHUDAlpha( alpha );
 }

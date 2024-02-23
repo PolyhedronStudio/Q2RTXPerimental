@@ -206,6 +206,22 @@ extern "C" {
 //! Color Index Table:
 #include "shared/color_index_table.h"
 
+#define CHAR_WIDTH  8
+#define CHAR_HEIGHT 8
+
+#define UI_LEFT             0x00000001
+#define UI_RIGHT            0x00000002
+#define UI_CENTER           (UI_LEFT | UI_RIGHT)
+#define UI_BOTTOM           0x00000004
+#define UI_TOP              0x00000008
+#define UI_MIDDLE           (UI_BOTTOM | UI_TOP)
+#define UI_DROPSHADOW       0x00000010
+#define UI_ALTCOLOR         0x00000020
+#define UI_IGNORECOLOR      0x00000040
+#define UI_XORCOLOR         0x00000080
+#define UI_AUTOWRAP         0x00000100
+#define UI_MULTILINE        0x00000200
+#define UI_DRAWCURSOR       0x00000400
 
 //! Bit Utilities:
 #include "shared/util_bits.h"
@@ -226,6 +242,8 @@ extern "C" {
 
 //! KeyButton/KeyButton State:
 #include "shared/key_button.h"
+//! Key indices/numbers:
+#include "shared/key_numbers.h"
 
 
 //! CommandBuffers/Console/CVars:
@@ -319,6 +337,12 @@ typedef enum {
 #include "shared/net_command_messages.h"
 //! User Commands( User Input ):
 #include "shared/net_usercommand.h"
+//! Network Frame Flags:
+#define FF_NONE			0
+#define FF_SUPPRESSED   (1<<0)
+#define FF_CLIENTDROP   (1<<1)
+#define FF_CLIENTPRED   (1<<2)	// Set but unused?
+#define FF_RESERVED     (1<<3)	// Literally reserved.
 
 
 /**

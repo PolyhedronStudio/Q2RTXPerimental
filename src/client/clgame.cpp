@@ -24,6 +24,16 @@ extern "C" {
 static const qboolean PF_IsDemoPlayback( ) {
 	return cls.demo.playback;
 }
+const uint64_t PF_GetDemoFramesRead( ) {
+	return cls.demo.frames_read;
+}
+const float PF_GetDemoFileProgress() {
+	return cls.demo.file_progress;
+}
+const int64_t PF_GetDemoFileSize() {
+	return cls.demo.file_size;
+}
+
 /**
 *	@return	The real system time since application boot time.
 **/
@@ -211,6 +221,28 @@ const qhandle_t PF_R_RegisterModel( const char *name ) {
 const qhandle_t PF_R_RegisterSkin( const char *name ) {
 	return R_RegisterSkin( name );
 }
+const qhandle_t PF_R_RegisterImage( const char *name, const imagetype_t type, const imageflags_t flags ) {
+	return R_RegisterImage( name, type, flags );
+}
+
+/**
+*	@brief
+**/
+const qhandle_t PF_R_RegisterFont( const char *name ) {
+	return R_RegisterPic( name );
+}
+/**
+*	@brief	
+**/
+const qhandle_t PF_R_RegisterPic( const char *name ) {
+	return R_RegisterPic( name );
+}
+/**
+*	@brief
+**/
+const qhandle_t PF_R_RegisterPic2( const char *name ) {
+	return R_RegisterPic2( name );
+}
 /**
 *	@brief
 **/
@@ -222,6 +254,71 @@ void PF_R_AddDecal( decal_t *d ) {
 **/
 const uint32_t *PF_R_Get8BitTo24BitTable( void ) {
 	return d_8to24table;
+}
+
+/**
+*
+*
+*	Screen:
+*
+*
+**/
+void PF_R_ClearColor( void ) {
+	R_ClearColor();
+}
+void PF_R_SetAlpha( const float alpha ) {
+	R_SetAlpha( alpha );
+}
+void PF_R_SetAlphaScale( const float alphaScale ) {
+	R_SetAlphaScale( alphaScale );
+}
+void PF_R_SetColor( const uint32_t color ) {
+	R_SetColor( color );
+}
+void PF_R_SetClipRect( const clipRect_t *clipRect ) {
+	R_SetClipRect( clipRect );
+}
+const float PF_R_ClampScale( cvar_t *var ) {
+	return R_ClampScale( var );
+}
+void PF_R_SetScale( const float scale ) {
+	R_SetScale( scale );
+}
+void PF_R_DrawChar( const int32_t x, const int32_t y, const int32_t flags, const int32_t ch, const qhandle_t font ) {
+	R_DrawChar( x, y, flags, ch, font );
+}
+const int32_t PF_R_DrawString( const int32_t x, const int32_t y, const int32_t flags, const size_t maxChars, const char *str, const qhandle_t font ) {
+	return R_DrawString( x, y, flags, maxChars, str, font );
+}
+const qboolean PF_R_GetPicSize( int32_t *w, int32_t *h, const qhandle_t pic ) {
+	return R_GetPicSize( w, h, pic );
+}
+void PF_R_DrawPic( const int32_t x, const int32_t y, const qhandle_t pic ) {
+	R_DrawPic( x, y, pic );
+}
+void PF_R_DrawStretchPic( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic ) {
+	R_DrawStretchPic( x, y, w, h, pic );
+}
+void PF_R_DrawKeepAspectPic( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic ) {
+	R_DrawKeepAspectPic( x, y, w, h, pic );
+}
+void PF_R_DrawStretchRaw( const int32_t x, const const int32_t y, const int32_t w, const int32_t h ) {
+	R_DrawStretchRaw( x, y, w, h );
+}
+void PF_R_TileClear( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic ) {
+	R_TileClear( x, y, w, h, pic );
+}
+void PF_R_DrawFill8( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const int32_t c ) {
+	R_DrawFill8( x, y, w, h, c );
+}
+void PF_R_DrawFill32( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const uint32_t color ) {
+	R_DrawFill32( x, y, w, h, color );
+}
+void PF_R_UpdateRawPic( const int32_t pic_w, const int32_t pic_h, uint32_t *pic ) {
+	R_UpdateRawPic( pic_w, pic_h, pic );
+}
+void PF_R_DiscardRawPic( void ) {
+	R_DiscardRawPic();
 }
 
 
@@ -345,7 +442,6 @@ clgame_export_t *clge;
 // WID: C++20: Typedef this for casting
 typedef clgame_export_t *( GameEntryFunctionPointer( clgame_import_t * ) );
 
-
 /**
 *	@brief	Called when the client disconnects/quits, or has changed to a different game directory.
 **/
@@ -361,6 +457,17 @@ void CL_GM_Shutdown( void ) {
 
 	Z_LeakTest( TAG_FREE );
 }
+
+/**
+*	@brief	Called when the client is about to shutdown, giving us a last minute
+*			shot at accessing possible required data.
+**/
+void CL_GM_PreShutdown( void ) {
+	if ( clge ) {
+		clge->PreShutdown();
+	}
+}
+
 
 /**
 *	@brief	Helper for CL_LoadGameLibrary.
@@ -411,6 +518,9 @@ void CL_GM_LoadProgs( void ) {
 	clgame_import_t   imports;
 	GameEntryFunctionPointer *entry = NULL;
 
+	// Pre shutdown also.
+	CL_GM_PreShutdown();
+
 	// unload anything we have now
 	CL_GM_Shutdown( );
 
@@ -440,10 +550,21 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.client = &cl;
 
+	// Client Static:
 	imports.IsDemoPlayback = PF_IsDemoPlayback;
+	imports.GetDemoFramesRead = PF_GetDemoFramesRead;
+	imports.GetDemoFileProgress = PF_GetDemoFileProgress;
+	imports.GetDemoFileSize = PF_GetDemoFileSize;
+	//
 	imports.GetRealTime = PF_GetRealTime;
 	imports.GetConnectionState = PF_GetConnectionState;
 	imports.GetRefreshType = PF_GetRefreshType;
+	imports.Sys_Milliseconds = Sys_Milliseconds;
+	//
+	imports.GetClientFps = CL_GetClientFps;
+	imports.GetRefreshFps = CL_GetRefreshFps;
+	imports.GetResolutionScale = CL_GetResolutionScale;
+	// End of Client Static.
 
 	imports.Trace = CL_Trace;
 	imports.Clip = CL_Clip;
@@ -465,6 +586,12 @@ void CL_GM_LoadProgs( void ) {
 	imports.Cmd_FindArgForOffset = Cmd_FindArgForOffset;
 	imports.Cmd_RawString = Cmd_RawString; // WID: C++20: Added const.
 	imports.Cmd_Shift = Cmd_Shift;
+	imports.Cmd_Command_g = Cmd_Command_g;
+	imports.Cmd_Alias_g = Cmd_Alias_g;
+	imports.Cmd_Macro_g = Cmd_Macro_g;
+	imports.Cmd_Config_g = Cmd_Config_g;
+	imports.Cmd_FindMacro = Cmd_FindMacro;
+
 	imports.Cmd_AddCommand = PF_Cmd_AddCommand;
 	imports.Cmd_RemoveCommand = PF_Cmd_RemoveCommand;
 	imports.Cmd_Register = PF_Cmd_Register;
@@ -474,14 +601,23 @@ void CL_GM_LoadProgs( void ) {
 	imports.CVar_Get = PF_CVarGet;
 	imports.CVar_Set = Cvar_UserSet;
 	imports.CVar_ForceSet = Cvar_Set;
+	imports.CVar_SetInteger = Cvar_SetInteger;
+	imports.CVar_ClampInteger = Cvar_ClampInteger;
 	imports.CVar_ClampValue = Cvar_ClampValue;
 	imports.CVar_Reset = PF_Cvar_Reset;
+	imports.CVar_WeakGet = Cvar_WeakGet;
+	imports.CVar_Variable_g = Cvar_Variable_g;
+	imports.CVar_Default_g = Cvar_Default_g;
+
+	imports.Con_ClearNotify_f = Con_ClearNotify_f;
 
 	imports.KeyDown = CL_KeyDown;
 	imports.KeyUp = CL_KeyUp;
 	imports.KeyClear = CL_KeyClear;
 	imports.KeyState = CL_KeyState;
 	imports.Key_AnyKeyDown = Key_AnyKeyDown;
+	imports.Key_IsDown = Key_IsDown;
+	imports.Key_GetBinding = Key_GetBinding;
 	imports.SetKeyEventDestination = PF_SetKeyEventDestination;
 	imports.GetKeyEventDestination = PF_GetKeyEventDestination;
 
@@ -509,6 +645,31 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.R_RegisterModel = PF_R_RegisterModel;
 	imports.R_RegisterSkin = PF_R_RegisterSkin;
+	imports.R_RegisterImage= PF_R_RegisterImage;
+	
+	imports.R_RegisterFont = PF_R_RegisterFont;
+	imports.R_RegisterPic = PF_R_RegisterPic;
+	imports.R_RegisterPic2 = PF_R_RegisterPic2;
+
+	imports.R_ClearColor = PF_R_ClearColor;
+	imports.R_SetAlpha = PF_R_SetAlpha;
+	imports.R_SetAlphaScale = PF_R_SetAlphaScale;
+	imports.R_SetColor = PF_R_SetColor;
+	imports.R_SetClipRect = PF_R_SetClipRect;
+	imports.R_ClampScale = PF_R_ClampScale;
+	imports.R_SetScale = PF_R_SetScale;
+	imports.R_DrawChar = PF_R_DrawChar;
+	imports.R_DrawString = PF_R_DrawString;
+	imports.R_GetPicSize = PF_R_GetPicSize;
+	imports.R_DrawPic = PF_R_DrawPic;
+	imports.R_DrawStretchPic = PF_R_DrawStretchPic;
+	imports.R_DrawKeepAspectPic = PF_R_DrawKeepAspectPic;
+	imports.R_DrawStretchRaw = PF_R_DrawStretchRaw;
+	imports.R_TileClear = PF_R_TileClear;
+	imports.R_DrawFill8 = PF_R_DrawFill8;
+	imports.R_DrawFill32 = PF_R_DrawFill32;
+	imports.R_UpdateRawPic = PF_R_UpdateRawPic;
+	imports.R_DiscardRawPic = PF_R_DiscardRawPic;
 	imports.R_AddDecal = PF_R_AddDecal;
 	imports.R_Get8BitTo24BitTable = PF_R_Get8BitTo24BitTable;
 
@@ -526,6 +687,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.TagFree = Z_Free;
 	imports.FreeTags = PF_FreeTags;
 
+	imports.V_RenderView = V_RenderView;
 	imports.V_AddEntity = V_AddEntity;
 	imports.V_AddParticle = V_AddParticle;
 	imports.V_AddSphereLight = V_AddSphereLight;
@@ -533,6 +695,11 @@ void CL_GM_LoadProgs( void ) {
 	imports.V_AddSpotLightTexEmission = V_AddSpotLightTexEmission;
 	imports.V_AddLight = V_AddLight;
 	imports.V_AddLightStyle = V_AddLightStyle;
+
+	imports.Z_Free = Z_Free;
+	imports.Z_Freep = Z_Freep;
+	imports.Z_Malloc = Z_Malloc;
+	imports.Z_Realloc = Z_Realloc;
 
 	imports.Prompt_AddMatch = Prompt_AddMatch;
 	#if USE_DEBUG

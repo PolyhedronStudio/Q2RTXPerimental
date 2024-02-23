@@ -2088,13 +2088,17 @@ static size_t CL_ResolutionScale_m(char *buffer, size_t size)
 {
 	return Q_scnprintf(buffer, size, "%d", cl.refdef.feedback.resolution_scale);
 }
-
-int CL_GetFps(void)
+//!
+const int32_t CL_GetClientFps(void)
 {
 	return C_FPS;
 }
-
-int CL_GetResolutionScale(void)
+//!
+const int32_t CL_GetRefreshFps( void ) {
+    return R_FPS;
+}
+//!
+const int32_t CL_GetResolutionScale(void)
 {
 	return cl.refdef.feedback.resolution_scale;
 }
@@ -3083,7 +3087,7 @@ void CL_Init(void)
     CL_GM_LoadProgs();
 
     // The pre-init phase is there for initializing various submodules.
-    // Do not expect to be able to access any cvars here just yet.
+    // Do not expect to be able to ACCESS any cvars here just yet.
     CL_GM_PreInit();
 
     // all archived variables will now be loaded
@@ -3143,6 +3147,8 @@ void CL_Shutdown(void)
     // Disconnect first. (Unloading server game dll if loopbacked.)
     CL_Disconnect(ERR_FATAL);
     
+    // Pre shutdown also.
+    CL_GM_PreShutdown();
 
 #if USE_ZLIB
     inflateEnd(&cls.z);
@@ -3154,11 +3160,12 @@ void CL_Shutdown(void)
     IN_Shutdown();
     Con_Shutdown();
 
-    // Shutdown the client game module.
-    CL_GM_Shutdown();
 
     CL_ShutdownRefresh();
     CL_WriteConfig();
+
+    // Shutdown the client game module.
+    CL_GM_Shutdown();
 
     memset(&cls, 0, sizeof(cls));
 
