@@ -614,7 +614,7 @@ void CL_Disconnect(error_type_t type)
 
     SCR_EndLoadingPlaque(); // get rid of loading plaque
 
-    SCR_ClearChatHUD_f();   // clear chat HUD on server change
+    //SCR_ClearChatHUD_f();   // clear chat HUD on server change
 
     if (cls.state > ca_disconnected && !cls.demo.playback) {
         EXEC_TRIGGER(cl_disconnectcmd);
@@ -2818,8 +2818,8 @@ static const char *const sync_names[] = {
 };
 #endif
 
-static int ref_msec, phys_msec, main_msec;
-static int ref_extra, phys_extra, main_extra;
+static int64_t ref_msec, phys_msec, main_msec;
+static int64_t ref_extra, phys_extra, main_extra;
 static sync_mode_t sync_mode;
 
 #define MIN_PHYS_HZ 40
@@ -2883,7 +2883,7 @@ CL_Frame
 
 ==================
 */
-unsigned CL_Frame(unsigned msec)
+uint64_t CL_Frame( uint64_t msec )
 {
     bool phys_frame = true, ref_frame = true;
 

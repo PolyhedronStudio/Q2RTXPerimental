@@ -180,6 +180,8 @@ void PF_InitGame( void ) {
 	**/
 	#if USE_DEBUG
 	developer = clgi.CVar_Get( "developer", nullptr, 0 );
+	#else
+	developer = clgi.CVar_Get( "developer", "0", CVAR_NOSET );
 	#endif
 	cl_predict = clgi.CVar_Get( "cl_predict", nullptr, 0 );
 	cl_running = clgi.CVar_Get( "cl_running", nullptr, 0 );
@@ -195,20 +197,23 @@ void PF_InitGame( void ) {
 	cvar_pt_particle_emissive = clgi.CVar( "pt_particle_emissive", nullptr, 0 );
 	cl_particle_num_factor = clgi.CVar( "cl_particle_num_factor", nullptr, 0 );
 
+	// Client effects.
 	cl_footsteps = clgi.CVar_Get( "cl_footsteps", "1", 0 );
 	cl_kickangles = clgi.CVar_Get( "cl_kickangles", "1", CVAR_CHEAT );
 	cl_rollhack = clgi.CVar_Get( "cl_rollhack", "1", 0 );
 	cl_noglow = clgi.CVar_Get( "cl_noglow", "0", 0 );
 
+	// Gibs or no Gibs
 	cl_gibs = clgi.CVar_Get( "cl_gibs", "1", 0 );
 
+	// Gun Debugging CVars:
 	cl_gunalpha = clgi.CVar_Get( "cl_gunalpha", "1", 0 );
 	cl_gunscale = clgi.CVar_Get( "cl_gunscale", "0.25", CVAR_ARCHIVE );
 	cl_gun_x = clgi.CVar_Get( "cl_gun_x", "0", 0 );
 	cl_gun_y = clgi.CVar_Get( "cl_gun_y", "0", 0 );
 	cl_gun_z = clgi.CVar_Get( "cl_gun_z", "0", 0 );
 
-	// Shared with client thirdperson cvars, since refresh modules desire access to it.
+	// Shared with client thirdperson cvars, since refresh modules requires access to it.
 	cl_player_model = clgi.CVar_Get( "cl_player_model", nullptr, 0 );
 	// Client game specific thirdperson cvars.
 	cl_thirdperson_angle = clgi.CVar_Get( "cl_thirdperson_angle", "0", 0 );
@@ -323,6 +328,8 @@ void PF_ClientConnected( void ) {
 *	@brief	Called when the client state has moved into being properly connected to server.
 **/
 void PF_ClientDisconnected( void ) {
+	// Clear chat HUD when disconnected.
+	SCR_ClearChatHUD_f();
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientDisconnected\n" );
 }
 
