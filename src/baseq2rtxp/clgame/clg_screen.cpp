@@ -35,7 +35,7 @@ static struct {
 
     qhandle_t   loading_pic;
     int         loading_width, loading_height;
-    bool        draw_loading;
+    //bool        draw_loading;
 
     qhandle_t   sb_pics[ 2 ][ STAT_PICS ];
     qhandle_t   inven_pic;
@@ -336,14 +336,10 @@ static char     scr_centerstring[ MAX_STRING_CHARS ];
 static unsigned scr_centertime_start;   // for slow victory printing
 static int      scr_center_lines;
 
-/*
-==============
-SCR_CenterPrint
-
-Called for important messages that should stay in the center of the screen
-for a few moments
-==============
-*/
+/**
+*   @brief  Called for important messages that should stay in the center of the screen
+*           for a few moments
+**/
 void SCR_CenterPrint( const char *str ) {
     const char *s;
 
@@ -773,11 +769,17 @@ typedef struct {
 static chatline_t   scr_chatlines[ MAX_CHAT_LINES ];
 static unsigned     scr_chathead;
 
+/**
+*   @brief  Clear the chat HUD.
+**/
 void SCR_ClearChatHUD_f( void ) {
     memset( scr_chatlines, 0, sizeof( scr_chatlines ) );
     scr_chathead = 0;
 }
 
+/**
+*   @brief  Append text to chat HUD.
+**/
 void SCR_AddToChatHUD( const char *text ) {
     chatline_t *line;
     char *p;
@@ -1077,7 +1079,9 @@ SCR_TimeRefresh_f
 
 //============================================================================
 
-
+/**
+*	@brief
+**/
 static void scr_crosshair_changed( cvar_t *self ) {
     char buffer[ 16 ];
     int w, h;
@@ -1109,7 +1113,9 @@ static void scr_crosshair_changed( cvar_t *self ) {
         scr.crosshair_pic = 0;
     }
 }
-
+/**
+*	@brief
+**/
 void PF_SCR_SetCrosshairColor( void ) {
     int health;
 
@@ -1144,7 +1150,9 @@ void PF_SCR_SetCrosshairColor( void ) {
         scr.crosshair_color.u8[ 2 ] = ( 255 * ( health - 66 ) ) / 33;
     }
 }
-
+/**
+*	@brief
+**/
 void PF_SCR_ModeChanged( void ) {
     //IN_Activate();
     //Con_CheckResize();
@@ -1156,11 +1164,9 @@ void PF_SCR_ModeChanged( void ) {
     scr.hud_alpha = 1.f;
 }
 
-/*
-==================
-SCR_RegisterMedia
-==================
-*/
+/**
+*	@brief
+**/
 void PF_SCR_RegisterMedia( void ) {
     int     i, j;
 
@@ -1184,15 +1190,21 @@ void PF_SCR_RegisterMedia( void ) {
 
     scr_crosshair_changed( scr_crosshair );
 }
-
+/**
+*	@brief
+**/
 static void scr_font_changed( cvar_t *self ) {
     scr.font_pic = clgi.R_RegisterFont( self->string );
 }
-
+/**
+*	@brief
+**/
 static void scr_scale_changed( cvar_t *self ) {
     scr.hud_scale = clgi.R_ClampScale( self );
 }
-
+/**
+*	@brief
+**/
 void cl_timeout_changed( cvar_t *self ) {
     self->integer = 1000 * clgi.CVar_ClampValue( self, 0, 24 * 24 * 60 * 60 );
 }
@@ -1208,11 +1220,9 @@ static const cmdreg_t scr_cmds[] = {
     { NULL }
 };
 
-/*
-==================
-SCR_Init
-==================
-*/
+/**
+*	@brief
+**/
 void PF_SCR_Init( void ) {
     // Fetch created by engine CVars.
     scr_viewsize = clgi.CVar_Get( "viewsize", nullptr, 0 );
@@ -1277,64 +1287,22 @@ void PF_SCR_Init( void ) {
 
     scr.initialized = true;
 }
-
+/**
+*	@brief  
+**/
 void PF_SCR_Shutdown( void ) {
     clgi.Cmd_Deregister( scr_cmds );
     scr.initialized = false;
 }
 
+/**
+*	@return	Pointer to the current frame's render "view rectangle".
+**/
 vrect_t *PF_GetScreenVideoRect( void ) {
     return &scr_vrect;
 }
 
 //=============================================================================
-
-///*
-//================
-//SCR_BeginLoadingPlaque
-//================
-//*/
-//void SCR_BeginLoadingPlaque( void ) {
-//    if ( !cls.state ) {
-//        return;
-//    }
-//
-//    S_StopAllSounds();
-//    OGG_Stop();
-//
-//    if ( cls.disable_screen ) {
-//        return;
-//    }
-//
-//    #if USE_DEBUG
-//    if ( developer->integer ) {
-//        return;
-//    }
-//    #endif
-//
-//    // if at console or menu, don't bring up the plaque
-//    if ( cls.key_dest & ( KEY_CONSOLE | KEY_MENU ) ) {
-//        return;
-//    }
-//
-//    scr.draw_loading = true;
-//    SCR_UpdateScreen();
-//
-//    cls.disable_screen = Sys_Milliseconds();
-//}
-//
-///*
-//================
-//SCR_EndLoadingPlaque
-//================
-//*/
-//void SCR_EndLoadingPlaque( void ) {
-//    if ( !clgi.GetConnectionState() ) {
-//        return;
-//    }
-//    cls.disable_screen = 0;
-//    Con_ClearNotify_f();
-//}
 
 // Clear any parts of the tiled background that were drawn on last frame
 static void SCR_TileClear( void ) {
@@ -1976,11 +1944,11 @@ void PF_DrawActiveState( refcfg_t *refcfg ) {
 void PF_DrawLoadState( refcfg_t *refcfg ) {
     int x, y;
 
-    if ( !scr.draw_loading ) {
-        return;
-    }
+    //if ( !scr.draw_loading ) {
+    //    return;
+    //}
 
-    scr.draw_loading = false;
+    //scr.draw_loading = false;
 
     clgi.R_SetScale( scr.hud_scale );
 

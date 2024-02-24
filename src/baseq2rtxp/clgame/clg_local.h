@@ -69,6 +69,10 @@ extern cvar_t *cl_player_model;
 extern cvar_t *cl_thirdperson_angle;
 extern cvar_t *cl_thirdperson_range;
 
+extern cvar_t *cl_chat_notify;
+extern cvar_t *cl_chat_sound;
+extern cvar_t *cl_chat_filter;
+
 extern cvar_t *info_password;
 extern cvar_t *info_spectator;
 extern cvar_t *info_name;
@@ -631,11 +635,42 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 *
 *
 */
+/**
+*   @brief  Called for important messages that should stay in the center of the screen
+*           for a few moments
+**/
+void SCR_CenterPrint( const char *str );
+/**
+*   @brief  Clear the chat HUD.
+**/
+void SCR_ClearChatHUD_f( void );
+/**
+*   @brief  Append text to chat HUD.
+**/
+void SCR_AddToChatHUD( const char *text );
+/**
+*	@brief
+**/
 void PF_SCR_Init( void );
+/**
+*	@brief
+**/
 void PF_SCR_RegisterMedia( void );
+/**
+*	@brief
+**/
 void PF_SCR_ModeChanged( void );
+/**
+*	@brief
+**/
 void PF_SCR_SetCrosshairColor( void );
+/**
+*	@brief
+**/
 void PF_SCR_Shutdown( void );
+/**
+*	@return	Pointer to the current frame's render "view rectangle".
+**/
 vrect_t *PF_GetScreenVideoRect( void );
 /**
 *	@brief	Prepare and draw the current 'active' state's 2D and 3D views.
@@ -654,6 +689,7 @@ const qhandle_t PF_GetScreenFontHandle( void );
 *   @brief  Set the alpha value of the HUD. (Used by ref/vkpt.)
 **/
 void PF_SetScreenHUDAlpha( const float alpha );
+
 
 
 /*

@@ -378,15 +378,16 @@ void Com_LPrintf(print_type_t type, const char *fmt, ...)
     va_list     argptr;
     char        text[MAX_STRING_CHARS];
 
-    if (type == PRINT_DEVELOPER) {
-        return;
-    }
+    //if (type == PRINT_DEVELOPER) {
+    //    return;
+    //}
 
     va_start(argptr, fmt);
     Q_vsnprintf(text, sizeof(text), fmt, argptr);
     va_end(argptr);
 
-    gi.dprintf("%s", text);
+    //gi.dprintf("%s", text);
+    gi.bprintf( type, "%s", text );
 }
 
 void Com_Error(error_type_t type, const char *fmt, ...)

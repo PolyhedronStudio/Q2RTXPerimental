@@ -175,6 +175,83 @@ void CLG_ParseMuzzleFlashPacket( const int32_t mask ) {
 }
 
 /**
+*   @brief  Parse the svc_print packet and print whichever it has to screen.
+**/
+static void CLG_ParsePrint( void ) {
+    int level;
+    char s[ MAX_STRING_CHARS ];
+    const char *fmt;
+
+    level = clgi.MSG_ReadUint8();
+    clgi.MSG_ReadString( s, sizeof( s ) );
+
+    clgi.ShowNet( 2, "    %i \"%s\"\n", level, s );
+
+    if ( level != PRINT_CHAT ) {
+        Com_Printf( "%s", s );
+        if ( !clgi.IsDemoPlayback() ) {
+            COM_strclr( s );
+            clgi.Cmd_ExecTrigger( s );
+        }
+        return;
+    }
+
+    if ( clgi.CheckForIgnore( s ) ) {
+        return;
+    }
+
+    #if USE_AUTOREPLY
+    if ( !clgi.IsDemoPlayback() ) {
+        clgi.CheckForVersion( s );
+    }
+    #endif
+
+    clgi.CheckForIP( s );
+
+    // Disable 'transparant' chat hud notifications.
+    if ( !cl_chat_notify->integer ) {
+        clgi.Con_SkipNotify( true );
+    }
+
+    // filter text
+    if ( cl_chat_filter->integer ) {
+        COM_strclr( s );
+        fmt = "%s\n";
+    } else {
+        fmt = "%s";
+    }
+
+    Com_LPrintf( PRINT_TALK, fmt, s );
+
+    clgi.Con_SkipNotify( false );
+
+    SCR_AddToChatHUD( s );
+
+    // play sound
+    if ( cl_chat_sound->integer > 1 ) {
+        clgi.S_StartLocalSoundOnce( "misc/talk1.wav" );
+    } else if ( cl_chat_sound->integer > 0 ) {
+        clgi.S_StartLocalSoundOnce( "misc/talk.wav" );
+    }
+}
+
+/**
+*   @brief  Parse the Center Print message.
+**/
+static void CLG_ParseCenterPrint( void ) {
+    char s[ MAX_STRING_CHARS ];
+
+    clgi.MSG_ReadString( s, sizeof( s ) );
+    clgi.ShowNet( 2, "    \"%s\"\n", s );
+    SCR_CenterPrint( s );
+
+    if ( !clgi.IsDemoPlayback() ) {
+        COM_strclr( s );
+        clgi.Cmd_ExecTrigger( s );
+    }
+}
+
+/**
 *	@brief	Called by the client when it receives a configstring update, this
 *			allows us to interscept it and respond to it. If not interscepted the
 *			control is passed back to the client again.
@@ -237,9 +314,14 @@ void PF_EndServerMessage( const qboolean isDemoPlayback ) {
 **/
 const qboolean PF_ParseServerMessage( const int32_t serverMessage ) {
 	switch ( serverMessage ) {
-	//case svc_centerprint:
-	//	return true;
-	//	break;
+    case svc_print:
+        CLG_ParsePrint();
+        return true;
+        break;
+	case svc_centerprint:
+        CLG_ParseCenterPrint();
+		return true;
+		break;
 	case svc_inventory:
 		CLG_ParseInventory();
 		return true;

@@ -106,8 +106,7 @@ static cvar_t   *con_timestampscolor;
 Con_SkipNotify
 ================
 */
-void Con_SkipNotify(bool skip)
-{
+void Con_SkipNotify( const qboolean skip ) {
     con.skipNotify = skip;
 }
 

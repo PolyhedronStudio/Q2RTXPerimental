@@ -610,7 +610,7 @@ static void CL_ParseReconnect(void)
 }
 
 #if USE_AUTOREPLY
-static void CL_CheckForVersion(const char *s)
+void CL_CheckForVersion(const char *s)
 {
     const char *p; // WID: C++20: used to be non const.
 
@@ -630,11 +630,15 @@ static void CL_CheckForVersion(const char *s)
     cl.reply_time = cls.realtime;
     cl.reply_delta = 1024 + (Q_rand() & 1023);
 }
+#else
+void CL_CheckForVersion( const char *s ) {
+    // PlaceHolder.
+}
 #endif
 
 // attempt to scan out an IP address in dotted-quad notation and
 // add it into circular array of recent addresses
-static void CL_CheckForIP(const char *s)
+void CL_CheckForIP(const char *s)
 {
     unsigned b1, b2, b3, b4, port;
     netadr_t *a;
@@ -664,78 +668,6 @@ static void CL_CheckForIP(const char *s)
         }
 
         s++;
-    }
-}
-
-static void CL_ParsePrint(void)
-{
-    int level;
-    char s[MAX_STRING_CHARS];
-    const char *fmt;
-
-    level = MSG_ReadUint8();
-    MSG_ReadString(s, sizeof(s));
-
-    SHOWNET(2, "    %i \"%s\"\n", level, s);
-
-    if (level != PRINT_CHAT) {
-        Com_Printf("%s", s);
-        if (!cls.demo.playback) {
-            COM_strclr(s);
-            Cmd_ExecTrigger(s);
-        }
-        return;
-    }
-
-    if (CL_CheckForIgnore(s)) {
-        return;
-    }
-
-#if USE_AUTOREPLY
-    if (!cls.demo.playback) {
-        CL_CheckForVersion(s);
-    }
-#endif
-
-    CL_CheckForIP(s);
-
-    // disable notify
-    if (!cl_chat_notify->integer) {
-        Con_SkipNotify(true);
-    }
-
-    // filter text
-    if (cl_chat_filter->integer) {
-        COM_strclr(s);
-        fmt = "%s\n";
-    } else {
-        fmt = "%s";
-    }
-
-    Com_LPrintf(PRINT_TALK, fmt, s);
-
-    Con_SkipNotify(false);
-
-    SCR_AddToChatHUD(s);
-
-    // play sound
-    if (cl_chat_sound->integer > 1)
-        S_StartLocalSoundOnce("misc/talk1.wav");
-    else if (cl_chat_sound->integer > 0)
-        S_StartLocalSoundOnce("misc/talk.wav");
-}
-
-static void CL_ParseCenterPrint(void)
-{
-    char s[MAX_STRING_CHARS];
-
-    MSG_ReadString(s, sizeof(s));
-    SHOWNET(2, "    \"%s\"\n", s);
-    SCR_CenterPrint(s);
-
-    if (!cls.demo.playback) {
-        COM_strclr(s);
-        Cmd_ExecTrigger(s);
     }
 }
 
@@ -927,13 +859,14 @@ void CL_ParseServerMessage(void)
             CL_ParseReconnect();
             return;
 
-        case svc_print:
-            CL_ParsePrint();
-            break;
-
-        case svc_centerprint:
-            CL_ParseCenterPrint();
-            break;
+        // Moved to Client Game.
+        //case svc_print:
+        //    CL_ParsePrint();
+        //    break;
+        // Moved to Client Game.
+        //case svc_centerprint:
+        //    CL_ParseCenterPrint();
+        //    break;
 
         case svc_stufftext:
             CL_ParseStuffText();

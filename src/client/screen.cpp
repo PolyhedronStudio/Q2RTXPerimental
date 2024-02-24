@@ -1858,138 +1858,131 @@ static void SCR_ExecuteLayoutString(const char *s)
 
 //=============================================================================
 
-static void SCR_DrawPause(void)
-{
-    int x, y;
-
-    if (!sv_paused->integer)
+//static void SCR_DrawPause(void)
+//{
+//    int x, y;
+//
+//    if (!sv_paused->integer)
+//        return;
+//    if (!cl_paused->integer)
+//        return;
+//    if (scr_showpause->integer != 1)
+//        return;
+//
+//    x = (scr.hud_width - scr.pause_width) / 2;
+//    y = (scr.hud_height - scr.pause_height) / 2;
+//
+//    R_DrawPic(x, y, scr.pause_pic);
+//}
+//
+static void SCR_DrawLoading(void) {
+    // Never pass on the draw load state to the client game module if we're not loading.
+    if ( !scr.draw_loading ) {
         return;
-    if (!cl_paused->integer)
-        return;
-    if (scr_showpause->integer != 1)
-        return;
+    }
 
-    x = (scr.hud_width - scr.pause_width) / 2;
-    y = (scr.hud_height - scr.pause_height) / 2;
-
-    R_DrawPic(x, y, scr.pause_pic);
-}
-
-static void SCR_DrawLoading(void)
-{
-    int x, y;
-
-    if (!scr.draw_loading)
-        return;
-
+    // Set to false again.
     scr.draw_loading = false;
 
-    R_SetScale(scr.hud_scale);
-
-    x = (r_config.width * scr.hud_scale - scr.loading_width) / 2;
-    y = (r_config.height * scr.hud_scale - scr.loading_height) / 2;
-
-    R_DrawPic(x, y, scr.loading_pic);
-
-    R_SetScale(1.0f);
+    clge->DrawLoadState( &r_config );
 }
-
-static void SCR_DrawCrosshair(void)
-{
-    int x, y;
-
-    if (!scr_crosshair->integer)
-        return;
-
-    x = (scr.hud_width - scr.crosshair_width) / 2;
-    y = (scr.hud_height - scr.crosshair_height) / 2;
-
-    R_SetColor(scr.crosshair_color.u32);
-
-    R_DrawStretchPic(x + ch_x->integer,
-                     y + ch_y->integer,
-                     scr.crosshair_width,
-                     scr.crosshair_height,
-                     scr.crosshair_pic);
-}
-
-// The status bar is a small layout program that is based on the stats array
-static void SCR_DrawStats(void)
-{
-    if (scr_draw2d->integer <= 1)
-        return;
-
-    SCR_ExecuteLayoutString(cl.configstrings[CS_STATUSBAR]);
-}
-
-static void SCR_DrawLayout(void)
-{
-    if (scr_draw2d->integer == 3 && !Key_IsDown(K_F1))
-        return;     // turn off for GTV
-
-    if (cls.demo.playback && Key_IsDown(K_F1))
-        goto draw;
-
-    if (!(cl.frame.ps.stats[STAT_LAYOUTS] & 1))
-        return;
-
-draw:
-    SCR_ExecuteLayoutString(cl.layout);
-}
-
-static void SCR_Draw2D(void)
-{
-	if (scr_draw2d->integer <= 0)
-		return;     // turn off for screenshots
-
-	if (cls.key_dest & KEY_MENU)
-		return;
-
-	R_SetAlphaScale(scr.hud_alpha);
-
-    R_SetScale(scr.hud_scale);
-
-    scr.hud_height = Q_rint(scr.hud_height * scr.hud_scale);
-    scr.hud_width = Q_rint(scr.hud_width * scr.hud_scale);
-
-    // crosshair has its own color and alpha
-    SCR_DrawCrosshair();
-
-    // the rest of 2D elements share common alpha
-    R_ClearColor();
-    R_SetAlpha(Cvar_ClampValue(scr_alpha, 0, 1));
-
-    SCR_DrawStats();
-
-    SCR_DrawLayout();
-
-    SCR_DrawInventory();
-
-    SCR_DrawCenterString();
-
-    SCR_DrawNet();
-
-    SCR_DrawObjects();
-
-	SCR_DrawFPS();
-
-    SCR_DrawChatHUD();
-
-    SCR_DrawTurtle();
-
-    SCR_DrawPause();
-
-    // debug stats have no alpha
-    R_ClearColor();
-
-#if USE_DEBUG
-    SCR_DrawDebugStats();
-    SCR_DrawDebugPmove();
-#endif
-
-    R_SetScale(1.0f);
-	R_SetAlphaScale(1.0f);
-}
+//
+//static void SCR_DrawCrosshair(void)
+//{
+//    int x, y;
+//
+//    if (!scr_crosshair->integer)
+//        return;
+//
+//    x = (scr.hud_width - scr.crosshair_width) / 2;
+//    y = (scr.hud_height - scr.crosshair_height) / 2;
+//
+//    R_SetColor(scr.crosshair_color.u32);
+//
+//    R_DrawStretchPic(x + ch_x->integer,
+//                     y + ch_y->integer,
+//                     scr.crosshair_width,
+//                     scr.crosshair_height,
+//                     scr.crosshair_pic);
+//}
+//
+//// The status bar is a small layout program that is based on the stats array
+//static void SCR_DrawStats(void)
+//{
+//    if (scr_draw2d->integer <= 1)
+//        return;
+//
+//    SCR_ExecuteLayoutString(cl.configstrings[CS_STATUSBAR]);
+//}
+//
+//static void SCR_DrawLayout(void)
+//{
+//    if (scr_draw2d->integer == 3 && !Key_IsDown(K_F1))
+//        return;     // turn off for GTV
+//
+//    if (cls.demo.playback && Key_IsDown(K_F1))
+//        goto draw;
+//
+//    if (!(cl.frame.ps.stats[STAT_LAYOUTS] & 1))
+//        return;
+//
+//draw:
+//    SCR_ExecuteLayoutString(cl.layout);
+//}
+//
+//static void SCR_Draw2D(void)
+//{
+//	if (scr_draw2d->integer <= 0)
+//		return;     // turn off for screenshots
+//
+//	if (cls.key_dest & KEY_MENU)
+//		return;
+//
+//	R_SetAlphaScale(scr.hud_alpha);
+//
+//    R_SetScale(scr.hud_scale);
+//
+//    scr.hud_height = Q_rint(scr.hud_height * scr.hud_scale);
+//    scr.hud_width = Q_rint(scr.hud_width * scr.hud_scale);
+//
+//    // crosshair has its own color and alpha
+//    SCR_DrawCrosshair();
+//
+//    // the rest of 2D elements share common alpha
+//    R_ClearColor();
+//    R_SetAlpha(Cvar_ClampValue(scr_alpha, 0, 1));
+//
+//    SCR_DrawStats();
+//
+//    SCR_DrawLayout();
+//
+//    SCR_DrawInventory();
+//
+//    SCR_DrawCenterString();
+//
+//    SCR_DrawNet();
+//
+//    SCR_DrawObjects();
+//
+//	SCR_DrawFPS();
+//
+//    SCR_DrawChatHUD();
+//
+//    SCR_DrawTurtle();
+//
+//    SCR_DrawPause();
+//
+//    // debug stats have no alpha
+//    R_ClearColor();
+//
+//#if USE_DEBUG
+//    SCR_DrawDebugStats();
+//    SCR_DrawDebugPmove();
+//#endif
+//
+//    R_SetScale(1.0f);
+//	R_SetAlphaScale(1.0f);
+//}
 
 static void SCR_DrawActive(void)
 {

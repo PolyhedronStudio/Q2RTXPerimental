@@ -493,6 +493,10 @@ void CL_SendCommand(void);
 //
 // parse.cpp
 //
+void CL_CheckForVersion( const char *s );
+// attempt to scan out an IP address in dotted-quad notation and
+// add it into circular array of recent addresses
+void CL_CheckForIP( const char *s );
 void CL_ParseServerMessage(void);
 void CL_SeekDemoMessage(void);
 
@@ -615,7 +619,7 @@ void Con_ToggleConsole_f(void);
 void Con_ClearTyping(void);
 void Con_Close(bool force);
 void Con_Popup(bool force);
-void Con_SkipNotify(bool skip);
+void Con_SkipNotify( const qboolean skip );
 void Con_RegisterMedia(void);
 void Con_CheckResize(void);
 
@@ -661,8 +665,15 @@ float   SCR_FadeAlpha(unsigned startTime, unsigned visTime, unsigned fadeTime);
 int     SCR_DrawStringEx(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
 void    SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
 
-void    SCR_ClearChatHUD_f(void);
-void    SCR_AddToChatHUD(const char *text);
+/**
+*   @brief  Clear the chat HUD.
+**/
+void SCR_ClearChatHUD_f( void );
+/**
+*   @brief  Append text to chat HUD.
+**/
+void SCR_AddToChatHUD( const char *text );
+
 /**
 *   @return A lowercase string matching the textual name of the color for colorIndex.
 **/

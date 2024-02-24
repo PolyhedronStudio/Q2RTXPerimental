@@ -55,9 +55,9 @@ cvar_t  *cl_player_model;
 //cvar_t  *cl_thirdperson_angle;
 //cvar_t  *cl_thirdperson_range;
 
-cvar_t  *cl_chat_notify;
-cvar_t  *cl_chat_sound;
-cvar_t  *cl_chat_filter;
+//cvar_t  *cl_chat_notify;
+//cvar_t  *cl_chat_sound;
+//cvar_t  *cl_chat_filter;
 
 
 cvar_t  *cl_disconnectcmd;
@@ -2524,11 +2524,11 @@ static void CL_InitLocal(void)
     //
     //cl_gibs = Cvar_Get("cl_gibs", "1", 0);
 
-    cl_chat_notify = Cvar_Get("cl_chat_notify", "1", 0);
-    cl_chat_sound = Cvar_Get("cl_chat_sound", "1", 0);
-    cl_chat_sound->changed = cl_chat_sound_changed;
-    cl_chat_sound_changed(cl_chat_sound);
-    cl_chat_filter = Cvar_Get("cl_chat_filter", "0", 0);
+    //cl_chat_notify = Cvar_Get("cl_chat_notify", "1", 0);
+    //cl_chat_sound = Cvar_Get("cl_chat_sound", "1", 0);
+    //cl_chat_sound->changed = cl_chat_sound_changed;
+    //cl_chat_sound_changed(cl_chat_sound);
+    //cl_chat_filter = Cvar_Get("cl_chat_filter", "0", 0);
 
     cl_disconnectcmd = Cvar_Get("cl_disconnectcmd", "", 0);
     cl_changemapcmd = Cvar_Get("cl_changemapcmd", "", 0);

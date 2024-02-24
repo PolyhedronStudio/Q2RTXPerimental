@@ -397,6 +397,27 @@ void PF_ShowMiss( const int32_t level, const char *fmt, ... ) {}
 *
 **/
 /**
+*	@brief	Scans the ignore list for the given nickname.
+*	@return	True if the nickname is found in the ignore list.
+**/
+const qboolean PF_CL_CheckForIgnore( const char *nickname ) {
+	return CL_CheckForIgnore( nickname );
+}
+/**
+*	@brief	Attempt to scan out an IP address in dotted-quad notation and
+*			add it into circular array of recent addresses.
+**/
+void PF_CL_CheckForIP( const char *str ) {
+	CL_CheckForIP( str );
+}
+/**
+*	@brief	
+**/
+void PF_CL_CheckForVersion( const char *str ) {
+	CL_CheckForVersion( str );
+}
+
+/**
 *	@brief
 **/
 void PF_SetSpriteModelVerticality( const qhandle_t spriteHandle ) {
@@ -586,6 +607,9 @@ void CL_GM_LoadProgs( void ) {
 	imports.Cmd_FindArgForOffset = Cmd_FindArgForOffset;
 	imports.Cmd_RawString = Cmd_RawString; // WID: C++20: Added const.
 	imports.Cmd_Shift = Cmd_Shift;
+
+	imports.Cmd_ExecTrigger = Cmd_ExecTrigger;
+
 	imports.Cmd_Command_g = Cmd_Command_g;
 	imports.Cmd_Alias_g = Cmd_Alias_g;
 	imports.Cmd_Macro_g = Cmd_Macro_g;
@@ -710,6 +734,12 @@ void CL_GM_LoadProgs( void ) {
 	// ShowMiss
 	imports.ShowMiss = PF_ShowMiss;
 	#endif
+
+	imports.CheckForIgnore = PF_CL_CheckForIgnore;
+	imports.CheckForIP = PF_CL_CheckForIP;
+	imports.CheckForVersion = PF_CL_CheckForVersion;
+	imports.Con_SkipNotify = Con_SkipNotify;
+
 	imports.SetSpriteModelVerticality = PF_SetSpriteModelVerticality;
 	imports.GetSpriteModelFrameCount = PF_GetSpriteModelFrameCount;
 	imports.IsValidSpriteModelHandle = PF_IsValidSpriteModelHandle;

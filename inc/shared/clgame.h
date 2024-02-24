@@ -206,6 +206,9 @@ typedef struct {
 	char *( *Cmd_RawString )( void ); // WID: C++20: Added const.
 	void ( *Cmd_Shift )( void );
 
+	//! Execute any possible triggers.
+	void ( *Cmd_ExecTrigger )( const char *string );
+
 	// These few functions attempt to find partial matching variable names for command line completetion.
 	void ( *Cmd_Command_g )( genctx_t *ctx );
 	void ( *Cmd_Alias_g )( genctx_t *ctx );
@@ -553,8 +556,36 @@ typedef struct {
 	*	Other:
 	*
 	**/
+	/**
+	*	@brief	Scans the ignore list for the given nickname.
+	*	@return	True if the nickname is found in the ignore list.
+	**/
+	const qboolean ( *CheckForIgnore )( const char *nickname );
+	/**
+	*	@brief	Attempt to scan out an IP address in dotted-quad notation and
+	*			add it into circular array of recent addresses.
+	**/
+	void ( *CheckForIP )( const char *str );
+	/**
+	*	@brief	
+	**/
+	void ( *CheckForVersion )( const char *str );
+	/**
+	*	@brief
+	**/
+	void ( *Con_SkipNotify )( const qboolean skip );
+
+	/**
+	*	@brief
+	**/
 	void ( *SetSpriteModelVerticality )( const qhandle_t spriteHandle );
+	/**
+	*	@brief
+	**/
 	const int32_t( *GetSpriteModelFrameCount )( const qhandle_t spriteHandle );
+	/**
+	*	@brief
+	**/
 	const qboolean ( *IsValidSpriteModelHandle )( const qhandle_t spriteHandle );
 } clgame_import_t;
 
