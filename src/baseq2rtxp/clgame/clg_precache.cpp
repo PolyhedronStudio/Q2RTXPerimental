@@ -14,7 +14,6 @@ precached_media_t precache;
 *	@brief	Called right before loading all received configstring (server-) sounds.
 **/
 void PF_PrecacheClientSounds( void ) {
-    int     i;
     char    name[ MAX_QPATH ];
 
     precache.cl_sfx_ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
@@ -34,7 +33,7 @@ void PF_PrecacheClientSounds( void ) {
     clgi.S_RegisterSound( "player/fall2.wav" );
     clgi.S_RegisterSound( "player/fall1.wav" );
 
-    for ( i = 0; i < 4; i++ ) {
+    for ( int32_t i = 0; i < 4; i++ ) {
         Q_snprintf( name, sizeof( name ), "player/step%i.wav", i + 1 );
         precache.cl_sfx_footsteps[ i ] = clgi.S_RegisterSound( name );
     }
@@ -67,12 +66,147 @@ void PF_PrecacheClientModels( void ) {
     precache.cl_mod_explo4_big = clgi.R_RegisterModel( "models/objects/r_explode2/tris.md2" );
 
     // Enable 'vertical' display for explosion models.
-    for ( int i = 0; i < sizeof( precache.cl_mod_explosions ) / sizeof( *precache.cl_mod_explosions ); i++ ) {
+    for ( int32_t i = 0; i < sizeof( precache.cl_mod_explosions ) / sizeof( *precache.cl_mod_explosions ); i++ ) {
         clgi.SetSpriteModelVerticality( precache.cl_mod_explosions[ i ] );
         //model_t *model = MOD_ForHandle( cl_mod_explosions[ i ] );
 
         //if ( model ) {
         //    model->sprite_vertical = true;
         //}
+    }
+}
+
+/**
+*   @brief  Called to precache/update precache of 'View'-models. (Mainly, weapons.)
+**/
+void PF_PrecacheViewModels( void ) {
+    // Default to at least 1 'view/weapon'-model.
+    precache.numViewModels = 1;
+    strcpy( precache.viewModels[0], "weapon.md2");
+
+    // Only default model when vwep is off.
+    cvar_t *cl_vwep = clgi.CVar_Get( "cl_vwep", 0, 0 );
+    if ( !cl_vwep->integer ) {
+        return;
+    }
+
+    // Otherwise load all view models.
+    for (int32_t i = 2; i < MAX_MODELS; i++) {
+        // Acquire name.
+        const char *name = clgi.client->configstrings[CS_MODELS + i];
+
+        // Need a name, can't be empty.
+        if (!name[0]) {
+            break;
+        }
+        // View Models start with a # in their name.
+        if ( name[0] != '#' ) {
+            continue;
+        }
+
+        // Copy in viewmodels name.
+        // Old Comment: "Special player weapon model."
+        strcpy( precache.viewModels[ precache.numViewModels++ ], name + 1 );
+
+        // Break when we've reached the maximum limit of view models.
+        if ( precache.numViewModels == MAX_CLIENTVIEWMODELS ) {
+            break;
+        }
+    }
+}
+
+/**
+*	@brief	Called to precache client info specific media.
+**/
+void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
+    int         i;
+    char        model_name[ MAX_QPATH ];
+    char        skin_name[ MAX_QPATH ];
+    char        model_filename[ MAX_QPATH ];
+    char        skin_filename[ MAX_QPATH ];
+    char        weapon_filename[ MAX_QPATH ];
+    char        icon_filename[ MAX_QPATH ];
+
+    PF_ParsePlayerSkin( ci->name, model_name, skin_name, s );
+
+    // model file
+    Q_concat( model_filename, sizeof( model_filename ),
+        "players/", model_name, "/tris.md2" );
+    ci->model = clgi.R_RegisterModel( model_filename );
+    if ( !ci->model && Q_stricmp( model_name, "male" ) ) {
+        strcpy( model_name, "male" );
+        strcpy( model_filename, "players/male/tris.md2" );
+        ci->model = clgi.R_RegisterModel( model_filename );
+    }
+
+    // skin file
+    Q_concat( skin_filename, sizeof( skin_filename ),
+        "players/", model_name, "/", skin_name, ".pcx" );
+    ci->skin = clgi.R_RegisterSkin( skin_filename );
+
+    // if we don't have the skin and the model was female,
+    // see if athena skin exists
+    if ( !ci->skin && !Q_stricmp( model_name, "female" ) ) {
+        strcpy( skin_name, "athena" );
+        strcpy( skin_filename, "players/female/athena.pcx" );
+        ci->skin = clgi.R_RegisterSkin( skin_filename );
+    }
+
+    // if we don't have the skin and the model wasn't male,
+    // see if the male has it (this is for CTF's skins)
+    if ( !ci->skin && Q_stricmp( model_name, "male" ) ) {
+        // change model to male
+        strcpy( model_name, "male" );
+        strcpy( model_filename, "players/male/tris.md2" );
+        ci->model = clgi.R_RegisterModel( model_filename );
+
+        // see if the skin exists for the male model
+        Q_concat( skin_filename, sizeof( skin_filename ),
+            "players/male/", skin_name, ".pcx" );
+        ci->skin = clgi.R_RegisterSkin( skin_filename );
+    }
+
+    // if we still don't have a skin, it means that the male model
+    // didn't have it, so default to grunt
+    if ( !ci->skin ) {
+        // see if the skin exists for the male model
+        strcpy( skin_name, "grunt" );
+        strcpy( skin_filename, "players/male/grunt.pcx" );
+        ci->skin = clgi.R_RegisterSkin( skin_filename );
+    }
+
+    // weapon file
+    for ( i = 0; i < precache.numViewModels; i++ ) {
+        Q_concat( weapon_filename, sizeof( weapon_filename ),
+            "players/", model_name, "/", precache.viewModels[ i ] );
+        ci->weaponmodel[ i ] = clgi.R_RegisterModel( weapon_filename );
+        if ( !ci->weaponmodel[ i ] && !Q_stricmp( model_name, "cyborg" ) ) {
+            // try male
+            Q_concat( weapon_filename, sizeof( weapon_filename ),
+                "players/male/", precache.viewModels[ i ] );
+            ci->weaponmodel[ i ] = clgi.R_RegisterModel( weapon_filename );
+        }
+    }
+
+    // icon file
+    Q_concat( icon_filename, sizeof( icon_filename ),
+        "/players/", model_name, "/", skin_name, "_i.pcx" );
+    ci->icon = clgi.R_RegisterPic2( icon_filename );
+
+    strcpy( ci->model_name, model_name );
+    strcpy( ci->skin_name, skin_name );
+
+    // base info should be at least partially valid
+    if ( ci == &clgi.client->baseclientinfo )
+        return;
+
+    // must have loaded all data types to be valid
+    if ( !ci->skin || !ci->icon || !ci->model || !ci->weaponmodel[ 0 ] ) {
+        ci->skin = 0;
+        ci->icon = 0;
+        ci->model = 0;
+        ci->weaponmodel[ 0 ] = 0;
+        ci->model_name[ 0 ] = 0;
+        ci->skin_name[ 0 ] = 0;
     }
 }

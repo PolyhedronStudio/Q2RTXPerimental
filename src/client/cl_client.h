@@ -298,7 +298,7 @@ extern cvar_t    *cl_gunscale;
 //extern cvar_t    *cl_gun_y;
 //extern cvar_t    *cl_gun_z;
 extern cvar_t    *cl_predict;
-extern cvar_t    *cl_noskins;
+//extern cvar_t    *cl_noskins;
 //extern cvar_t    *cl_kickangles;
 extern cvar_t    *cl_rollhack;
 extern cvar_t    *cl_noglow;
@@ -323,7 +323,7 @@ extern cvar_t    *cl_showclamp;
 #define SHOWMISS(...)
 #endif
 
-extern cvar_t    *cl_vwep;
+//extern cvar_t    *cl_vwep;
 
 extern cvar_t    *cl_disable_explosions;
 extern cvar_t    *cl_explosion_sprites;

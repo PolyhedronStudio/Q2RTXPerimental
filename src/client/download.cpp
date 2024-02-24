@@ -673,9 +673,9 @@ static void check_player(const char *name)
     len = Q_concat(fn, sizeof(fn), "players/", model, "/tris.md2");
     check_file_len(fn, len, DL_OTHER);
 
-    // weapon models
-    for (i = 0; i < cl.numWeaponModels; i++) {
-        len = Q_concat(fn, sizeof(fn), "players/", model, "/", cl.weaponModels[i]);
+    // view(-weapon) models
+    for (i = 0; i < clge->GetNumberOfViewModels(); i++) {
+        len = Q_concat(fn, sizeof(fn), "players/", model, "/", clge->GetViewModelFilename( i ) );
         check_file_len(fn, len, DL_OTHER);
     }
 

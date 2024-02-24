@@ -191,7 +191,7 @@ typedef struct server_frame_s {
 #define CL_PLAYER_MODEL_THIRD_PERSON 3
 
 // Max client weapon models.
-#define MAX_CLIENTWEAPONMODELS        20        // PGM -- upped from 16 to fit the chainfist vwep
+#define MAX_CLIENTVIEWMODELS        64        // PGM -- upped from 16 to fit the chainfist vwep
 
 /**
 *   @brief
@@ -203,7 +203,7 @@ typedef struct clientinfo_s {
     char model_name[ MAX_QPATH ];
     char skin_name[ MAX_QPATH ];
     qhandle_t model;
-    qhandle_t weaponmodel[ MAX_CLIENTWEAPONMODELS ];
+    qhandle_t weaponmodel[ MAX_CLIENTVIEWMODELS ];
 } clientinfo_t;
 
 /**
@@ -536,8 +536,8 @@ typedef struct client_state_s {
     //! Baseline client info.
     clientinfo_t baseclientinfo;
 
-    char	weaponModels[ MAX_CLIENTWEAPONMODELS ][ MAX_QPATH ];
-    int32_t	numWeaponModels;
+    //char	viewModels[ MAX_CLIENTVIEWMODELS ][ MAX_QPATH ];
+    //int32_t	numViewModels;
 
     // WID: 40hz - For proper frame lerping for 10hz/custom rate models.
     float	sv_frametime_inv;

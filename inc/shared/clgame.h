@@ -49,6 +49,7 @@ extern "C" {
 
 typedef struct centity_s centity_t;
 typedef struct gclient_s gclient_t;
+typedef struct clientinfo_s clientinfo_t;
 
 // Include needed shared refresh types.
 #include "refresh/shared_types.h"
@@ -616,7 +617,9 @@ typedef struct {
 
 
 	/**
+	* 
 	*	Connecting and State:
+	* 
 	**/
 	//! Called when the client wants to 'clear state', this happens during Disconnecting and when 
 	//! the first server data message, an svc_serverdata(ParsingServerData) event is received..
@@ -649,7 +652,9 @@ typedef struct {
 
 
 	/**
+	* 
 	*	GameModes:
+	* 
 	**/
 	//! Returns the string name of specified game mode ID.
 	const char *( *GetGamemodeName )( const int32_t gameModeID );
@@ -697,7 +702,25 @@ typedef struct {
 	*	@brief	Called right before loading all received configstring (server-) sounds.
 	**/
 	void ( *PrecacheClientSounds )( void );
+	/**
+	*   @brief  Called to precache/update precache of 'View'-models. (Mainly, weapons.)
+	**/
+	void ( *PrecacheViewModels )( void );
+	/**
+	*	@brief	Called to precache client info specific media.
+	**/
+	void ( *PrecacheClientInfo )( clientinfo_t *ci, const char *s );
 
+	/**
+	*	@brief	Used for the client in a scenario where it might have to download view models.
+	*	@return	The number of view models.
+	**/
+	const uint32_t ( *GetNumberOfViewModels )( void );
+	/**
+	*	@brief	Used for the client in a scenario where it might have to download view models.
+	*	@return	The filename of the view model matching index.
+	**/
+	const char *( *GetViewModelFilename )( const uint32_t index );
 
 	/**
 	*
@@ -765,7 +788,10 @@ typedef struct {
 	*	@return	True if the message was handled properly. False otherwise.
 	**/
 	const qboolean ( *SeekDemoMessage )( const int32_t serverMessage );
-
+	/**
+	*	@brief	Parses a clientinfo configstring.
+	**/
+	void( *ParsePlayerSkin )( char *name, char *model, char *skin, const char *s );
 
 
 	/**

@@ -56,6 +56,7 @@ extern cvar_t *cl_footsteps;
 extern cvar_t *cl_kickangles;
 extern cvar_t *cl_rollhack;
 extern cvar_t *cl_noglow;
+extern cvar_t *cl_noskins;
 
 extern cvar_t *cl_gibs;
 
@@ -72,6 +73,8 @@ extern cvar_t *cl_thirdperson_range;
 extern cvar_t *cl_chat_notify;
 extern cvar_t *cl_chat_sound;
 extern cvar_t *cl_chat_filter;
+
+extern cvar_t *cl_vwep;
 
 extern cvar_t *info_password;
 extern cvar_t *info_spectator;
@@ -526,7 +529,10 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage );
 *	@brief	Parsess entity events.
 **/
 void PF_ParseEntityEvent( const int32_t entityNumber );
-
+/**
+*	@brief	Parses a clientinfo configstring.
+**/
+void PF_ParsePlayerSkin( char *name, char *model, char *skin, const char *s );
 
 
 /*
@@ -554,6 +560,7 @@ typedef struct precached_media_s {
 	qhandle_t cl_mod_heatbeam;
 	qhandle_t cl_mod_explo4_big;
 
+
 	// 
 	// Sound Effects:
 	//
@@ -575,6 +582,13 @@ typedef struct precached_media_s {
 	qhandle_t cl_sfx_lightning;
 	qhandle_t cl_sfx_disrexp;
 
+
+	//
+	// View Models: (Moved here from client, was named weapon models but a more generic name is best fit.)
+	//
+	char	viewModels[ MAX_CLIENTVIEWMODELS ][ MAX_QPATH ];
+	int32_t	numViewModels;
+
 	//
 	// Other:
 	//
@@ -594,6 +608,14 @@ void PF_PrecacheClientModels( void );
 *	@brief	Called right before loading all received configstring (server-) sounds.
 **/
 void PF_PrecacheClientSounds( void );
+/**
+*   @brief  Called to precache/update precache of 'View'-models. (Mainly, weapons.)
+**/
+void PF_PrecacheViewModels( void );
+/**
+*	@brief	Called to precache client info specific media.
+**/
+void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s );
 
 
 

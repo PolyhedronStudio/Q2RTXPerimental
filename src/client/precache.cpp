@@ -33,65 +33,67 @@ If model or skin are found to be invalid, replaces them with sane defaults.
 */
 void CL_ParsePlayerSkin(char *name, char *model, char *skin, const char *s)
 {
-    size_t len;
-    const char *t; // WID: C++20: Was without const
+    clge->ParsePlayerSkin( name, model, skin, s );
 
-    // configstring parsing guarantees that playerskins can never
-    // overflow, but still check the length to be entirely fool-proof
-    len = strlen(s);
-    if (len >= MAX_QPATH) {
-        Com_Error(ERR_DROP, "%s: oversize playerskin", __func__);
-    }
-
-    // isolate the player's name
-    t = strchr(s, '\\');
-    if (t) {
-        len = t - s;
-        strcpy(model, t + 1);
-    } else {
-        len = 0;
-        strcpy(model, s);
-    }
-
-    // copy the player's name
-    if (name) {
-        memcpy(name, s, len);
-        name[len] = 0;
-    }
-
-    // isolate the model name
-    t = strchr(model, '/');
-    if (!t)
-        t = strchr(model, '\\');
-    if (!t)
-        goto default_model;
-    *(char*)t = 0; // WID: C++20: NOTE/WARNING: This might be really evil.
-
-    // isolate the skin name
-    strcpy(skin, t + 1);
-
-    // fix empty model to male
-    if (t == model)
-        strcpy(model, "male");
-
-    // apply restrictions on skins
-    if (cl_noskins->integer == 2 || !COM_IsPath(skin))
-        goto default_skin;
-
-    if (cl_noskins->integer || !COM_IsPath(model))
-        goto default_model;
-
-    return;
-
-default_skin:
-    if (!Q_stricmp(model, "female")) {
-        strcpy(model, "female");
-        strcpy(skin, "athena");
-    } else {
-default_model:
-        strcpy(model, "male");
-        strcpy(skin, "grunt");
-    }
+//    size_t len;
+//    const char *t; // WID: C++20: Was without const
+//
+//    // configstring parsing guarantees that playerskins can never
+//    // overflow, but still check the length to be entirely fool-proof
+//    len = strlen(s);
+//    if (len >= MAX_QPATH) {
+//        Com_Error(ERR_DROP, "%s: oversize playerskin", __func__);
+//    }
+//
+//    // isolate the player's name
+//    t = strchr(s, '\\');
+//    if (t) {
+//        len = t - s;
+//        strcpy(model, t + 1);
+//    } else {
+//        len = 0;
+//        strcpy(model, s);
+//    }
+//
+//    // copy the player's name
+//    if (name) {
+//        memcpy(name, s, len);
+//        name[len] = 0;
+//    }
+//
+//    // isolate the model name
+//    t = strchr(model, '/');
+//    if (!t)
+//        t = strchr(model, '\\');
+//    if (!t)
+//        goto default_model;
+//    *(char*)t = 0; // WID: C++20: NOTE/WARNING: This might be really evil.
+//
+//    // isolate the skin name
+//    strcpy(skin, t + 1);
+//
+//    // fix empty model to male
+//    if (t == model)
+//        strcpy(model, "male");
+//
+//    // apply restrictions on skins
+//    if (cl_noskins->integer == 2 || !COM_IsPath(skin))
+//        goto default_skin;
+//
+//    if (cl_noskins->integer || !COM_IsPath(model))
+//        goto default_model;
+//
+//    return;
+//
+//default_skin:
+//    if (!Q_stricmp(model, "female")) {
+//        strcpy(model, "female");
+//        strcpy(skin, "athena");
+//    } else {
+//default_model:
+//        strcpy(model, "male");
+//        strcpy(skin, "grunt");
+//    }
 }
 
 /*
@@ -100,99 +102,100 @@ CL_LoadClientinfo
 
 ================
 */
-void CL_LoadClientinfo(clientinfo_t *ci, const char *s)
-{
-    int         i;
-    char        model_name[MAX_QPATH];
-    char        skin_name[MAX_QPATH];
-    char        model_filename[MAX_QPATH];
-    char        skin_filename[MAX_QPATH];
-    char        weapon_filename[MAX_QPATH];
-    char        icon_filename[MAX_QPATH];
-
-    CL_ParsePlayerSkin(ci->name, model_name, skin_name, s);
-
-    // model file
-    Q_concat(model_filename, sizeof(model_filename),
-             "players/", model_name, "/tris.md2");
-    ci->model = R_RegisterModel(model_filename);
-    if (!ci->model && Q_stricmp(model_name, "male")) {
-        strcpy(model_name, "male");
-        strcpy(model_filename, "players/male/tris.md2");
-        ci->model = R_RegisterModel(model_filename);
-    }
-
-    // skin file
-    Q_concat(skin_filename, sizeof(skin_filename),
-             "players/", model_name, "/", skin_name, ".pcx");
-    ci->skin = R_RegisterSkin(skin_filename);
-
-    // if we don't have the skin and the model was female,
-    // see if athena skin exists
-    if (!ci->skin && !Q_stricmp(model_name, "female")) {
-        strcpy(skin_name, "athena");
-        strcpy(skin_filename, "players/female/athena.pcx");
-        ci->skin = R_RegisterSkin(skin_filename);
-    }
-
-    // if we don't have the skin and the model wasn't male,
-    // see if the male has it (this is for CTF's skins)
-    if (!ci->skin && Q_stricmp(model_name, "male")) {
-        // change model to male
-        strcpy(model_name, "male");
-        strcpy(model_filename, "players/male/tris.md2");
-        ci->model = R_RegisterModel(model_filename);
-
-        // see if the skin exists for the male model
-        Q_concat(skin_filename, sizeof(skin_filename),
-                 "players/male/", skin_name, ".pcx");
-        ci->skin = R_RegisterSkin(skin_filename);
-    }
-
-    // if we still don't have a skin, it means that the male model
-    // didn't have it, so default to grunt
-    if (!ci->skin) {
-        // see if the skin exists for the male model
-        strcpy(skin_name, "grunt");
-        strcpy(skin_filename, "players/male/grunt.pcx");
-        ci->skin = R_RegisterSkin(skin_filename);
-    }
-
-    // weapon file
-    for (i = 0; i < cl.numWeaponModels; i++) {
-        Q_concat(weapon_filename, sizeof(weapon_filename),
-                 "players/", model_name, "/", cl.weaponModels[i]);
-        ci->weaponmodel[i] = R_RegisterModel(weapon_filename);
-        if (!ci->weaponmodel[i] && !Q_stricmp(model_name, "cyborg")) {
-            // try male
-            Q_concat(weapon_filename, sizeof(weapon_filename),
-                     "players/male/", cl.weaponModels[i]);
-            ci->weaponmodel[i] = R_RegisterModel(weapon_filename);
-        }
-    }
-
-    // icon file
-    Q_concat(icon_filename, sizeof(icon_filename),
-             "/players/", model_name, "/", skin_name, "_i.pcx");
-    ci->icon = R_RegisterPic2(icon_filename);
-
-    strcpy(ci->model_name, model_name);
-    strcpy(ci->skin_name, skin_name);
-
-    // base info should be at least partially valid
-    if (ci == &cl.baseclientinfo)
-        return;
-
-    // must have loaded all data types to be valid
-    if (!ci->skin || !ci->icon || !ci->model || !ci->weaponmodel[0]) {
-        ci->skin = 0;
-        ci->icon = 0;
-        ci->model = 0;
-        ci->weaponmodel[0] = 0;
-        ci->model_name[0] = 0;
-        ci->skin_name[0] = 0;
-    }
+void CL_LoadClientinfo( clientinfo_t *ci, const char *s ) {
+    clge->PrecacheClientInfo( ci, s );
 }
+//    int         i;
+//    char        model_name[MAX_QPATH];
+//    char        skin_name[MAX_QPATH];
+//    char        model_filename[MAX_QPATH];
+//    char        skin_filename[MAX_QPATH];
+//    char        weapon_filename[MAX_QPATH];
+//    char        icon_filename[MAX_QPATH];
+//
+//    CL_ParsePlayerSkin(ci->name, model_name, skin_name, s);
+//
+//    // model file
+//    Q_concat(model_filename, sizeof(model_filename),
+//             "players/", model_name, "/tris.md2");
+//    ci->model = R_RegisterModel(model_filename);
+//    if (!ci->model && Q_stricmp(model_name, "male")) {
+//        strcpy(model_name, "male");
+//        strcpy(model_filename, "players/male/tris.md2");
+//        ci->model = R_RegisterModel(model_filename);
+//    }
+//
+//    // skin file
+//    Q_concat(skin_filename, sizeof(skin_filename),
+//             "players/", model_name, "/", skin_name, ".pcx");
+//    ci->skin = R_RegisterSkin(skin_filename);
+//
+//    // if we don't have the skin and the model was female,
+//    // see if athena skin exists
+//    if (!ci->skin && !Q_stricmp(model_name, "female")) {
+//        strcpy(skin_name, "athena");
+//        strcpy(skin_filename, "players/female/athena.pcx");
+//        ci->skin = R_RegisterSkin(skin_filename);
+//    }
+//
+//    // if we don't have the skin and the model wasn't male,
+//    // see if the male has it (this is for CTF's skins)
+//    if (!ci->skin && Q_stricmp(model_name, "male")) {
+//        // change model to male
+//        strcpy(model_name, "male");
+//        strcpy(model_filename, "players/male/tris.md2");
+//        ci->model = R_RegisterModel(model_filename);
+//
+//        // see if the skin exists for the male model
+//        Q_concat(skin_filename, sizeof(skin_filename),
+//                 "players/male/", skin_name, ".pcx");
+//        ci->skin = R_RegisterSkin(skin_filename);
+//    }
+//
+//    // if we still don't have a skin, it means that the male model
+//    // didn't have it, so default to grunt
+//    if (!ci->skin) {
+//        // see if the skin exists for the male model
+//        strcpy(skin_name, "grunt");
+//        strcpy(skin_filename, "players/male/grunt.pcx");
+//        ci->skin = R_RegisterSkin(skin_filename);
+//    }
+//
+//    // weapon file
+//    for (i = 0; i < cl.numViewModels; i++) {
+//        Q_concat(weapon_filename, sizeof(weapon_filename),
+//                 "players/", model_name, "/", cl.viewModels[i]);
+//        ci->weaponmodel[i] = R_RegisterModel(weapon_filename);
+//        if (!ci->weaponmodel[i] && !Q_stricmp(model_name, "cyborg")) {
+//            // try male
+//            Q_concat(weapon_filename, sizeof(weapon_filename),
+//                     "players/male/", cl.viewModels[i]);
+//            ci->weaponmodel[i] = R_RegisterModel(weapon_filename);
+//        }
+//    }
+//
+//    // icon file
+//    Q_concat(icon_filename, sizeof(icon_filename),
+//             "/players/", model_name, "/", skin_name, "_i.pcx");
+//    ci->icon = R_RegisterPic2(icon_filename);
+//
+//    strcpy(ci->model_name, model_name);
+//    strcpy(ci->skin_name, skin_name);
+//
+//    // base info should be at least partially valid
+//    if (ci == &cl.baseclientinfo)
+//        return;
+//
+//    // must have loaded all data types to be valid
+//    if (!ci->skin || !ci->icon || !ci->model || !ci->weaponmodel[0]) {
+//        ci->skin = 0;
+//        ci->icon = 0;
+//        ci->model = 0;
+//        ci->weaponmodel[0] = 0;
+//        ci->model_name[0] = 0;
+//        ci->skin_name[0] = 0;
+//    }
+//}
 
 /*
 =================
@@ -265,33 +268,36 @@ Builds a list of visual weapon models
 */
 void CL_RegisterVWepModels(void)
 {
-    int         i;
-    char        *name;
+    // The client game is in control of these.
+    clge->PrecacheViewModels();
 
-    cl.numWeaponModels = 1;
-    strcpy(cl.weaponModels[0], "weapon.md2");
+    //int         i;
+    //char        *name;
 
-    // only default model when vwep is off
-    if (!cl_vwep->integer) {
-        return;
-    }
+    //cl.numViewModels = 1;
+    //strcpy(cl.viewModels[0], "weapon.md2");
 
-    for (i = 2; i < MAX_MODELS; i++) {
-        name = cl.configstrings[CS_MODELS + i];
-        if (!name[0]) {
-            break;
-        }
-        if (name[0] != '#') {
-            continue;
-        }
+    //// only default model when vwep is off
+    //if (!cl_vwep->integer) {
+    //    return;
+    //}
 
-        // special player weapon model
-        strcpy(cl.weaponModels[cl.numWeaponModels++], name + 1);
+    //for (i = 2; i < MAX_MODELS; i++) {
+    //    name = cl.configstrings[CS_MODELS + i];
+    //    if (!name[0]) {
+    //        break;
+    //    }
+    //    if (name[0] != '#') {
+    //        continue;
+    //    }
 
-        if (cl.numWeaponModels == MAX_CLIENTWEAPONMODELS) {
-            break;
-        }
-    }
+    //    // special player weapon model
+    //    strcpy(cl.viewModels[cl.numViewModels++], name + 1);
+
+    //    if (cl.numViewModels == MAX_CLIENTVIEWMODELS) {
+    //        break;
+    //    }
+    //}
 }
 
 /*
@@ -416,8 +422,9 @@ void CL_UpdateConfigstring( const int32_t index ) {
 
     // Parse the actual map name.
     if (index == CS_MODELS + 1) {
-        if (!Com_ParseMapName(cl.mapname, s, sizeof(cl.mapname)))
-            Com_Error(ERR_DROP, "%s: bad world model: %s", __func__, s);
+        if ( !Com_ParseMapName( cl.mapname, s, sizeof( cl.mapname ) ) ) {
+            Com_Error( ERR_DROP, "%s: bad world model: %s", __func__, s );
+        }
         return;
     }
 

@@ -49,6 +49,7 @@ cvar_t *cl_footsteps = nullptr;
 cvar_t *cl_kickangles = nullptr;
 cvar_t *cl_rollhack = nullptr;
 cvar_t *cl_noglow = nullptr;
+cvar_t *cl_noskins = nullptr;
 
 cvar_t *cl_gibs = nullptr;
 
@@ -65,6 +66,8 @@ cvar_t *cl_thirdperson_range = nullptr;
 cvar_t *cl_chat_notify = nullptr;
 cvar_t *cl_chat_sound = nullptr;
 cvar_t *cl_chat_filter = nullptr;
+
+cvar_t *cl_vwep = nullptr;
 
 cvar_t *info_password = nullptr;
 cvar_t *info_spectator = nullptr;
@@ -117,6 +120,32 @@ static void cl_chat_sound_changed( cvar_t *self ) {
 		self->integer = 2;
 	else if ( !self->integer && !COM_IsUint( self->string ) )
 		self->integer = 1;
+}
+static void cl_noskins_changed( cvar_t *self ) {
+	int i;
+	char *s;
+	clientinfo_t *ci;
+
+	if ( clgi.GetConnectionState() < ca_precached ) {
+		return;
+	}
+
+	for ( i = 0; i < MAX_CLIENTS; i++ ) {
+		s = clgi.client->configstrings[ CS_PLAYERSKINS + i ];
+		if ( !s[ 0 ] )
+			continue;
+		ci = &clgi.client->clientinfo[ i ];
+		PF_PrecacheClientInfo( ci, s );
+	}
+}
+
+static void cl_vwep_changed( cvar_t *self ) {
+	if ( clgi.GetConnectionState() < ca_precached ) {
+		return;
+	}
+
+	PF_PrecacheViewModels();
+	cl_noskins_changed( self );
 }
 
 /**
@@ -202,6 +231,7 @@ void PF_InitGame( void ) {
 	cl_kickangles = clgi.CVar_Get( "cl_kickangles", "1", CVAR_CHEAT );
 	cl_rollhack = clgi.CVar_Get( "cl_rollhack", "1", 0 );
 	cl_noglow = clgi.CVar_Get( "cl_noglow", "0", 0 );
+	cl_noskins = clgi.CVar_Get( "cl_noskins", "0", 0 );
 
 	// Gibs or no Gibs
 	cl_gibs = clgi.CVar_Get( "cl_gibs", "1", 0 );
@@ -225,6 +255,8 @@ void PF_InitGame( void ) {
 	cl_chat_sound_changed( cl_chat_sound );
 	cl_chat_filter = clgi.CVar_Get( "cl_chat_filter", "0", 0 );
 
+	cl_vwep = clgi.CVar_Get( "cl_vwep", "1", CVAR_ARCHIVE );
+	cl_vwep->changed = cl_vwep_changed;
 
 	/**
 	*	UserInfo - Initialized by the client, but we desire access to these user info cvars.
@@ -294,6 +326,9 @@ void PF_InitGame( void ) {
 *	@brief
 **/
 void PF_ClearState( void ) {
+	// Actually reset the number of view models.
+	precache.numViewModels = 0;
+
 	// Clear out client entities array.
 	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
 
@@ -370,6 +405,31 @@ void PF_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 /**
 *
 *
+*	Precache
+*
+*
+**/
+/**
+*	@brief	Used for the client in a scenario where it might have to download view models.
+*	@return	The number of view models.
+**/
+const uint32_t PF_GetNumberOfViewModels( void ) {
+	return precache.numViewModels;
+}
+/**
+*	@brief	Used for the client in a scenario where it might have to download view models.
+*	@return	The filename of the view model matching index.
+**/
+const char *PF_GetViewModelFilename( const uint32_t index ) {
+	if ( index >= 0 && index < MAX_CLIENTVIEWMODELS ) {
+		return "";
+	}
+	return precache.viewModels[ index ];
+}
+
+/**
+*
+*
 *	GetGameAPI
 *
 *
@@ -411,6 +471,10 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.PrecacheClientModels = PF_PrecacheClientModels;
 		globals.PrecacheClientSounds = PF_PrecacheClientSounds;
+		globals.PrecacheViewModels = PF_PrecacheViewModels;
+		globals.PrecacheClientInfo = PF_PrecacheClientInfo;
+		globals.GetNumberOfViewModels = PF_GetNumberOfViewModels;
+		globals.GetViewModelFilename = PF_GetViewModelFilename;
 
 		globals.ScreenInit = PF_SCR_Init;
 		globals.ScreenRegisterMedia = PF_SCR_RegisterMedia;

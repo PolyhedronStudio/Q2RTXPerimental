@@ -559,7 +559,7 @@ void CLG_AddPacketEntities( void ) {
                 // custom weapon
                 clientinfo_t *ci = &clgi.client->clientinfo[ s1->skinnum & 0xff ];
                 i = ( s1->skinnum >> 8 ); // 0 is default weapon model
-                if ( i < 0 || i > clgi.client->numWeaponModels - 1 )
+                if ( i < 0 || i > precache.numViewModels - 1 )
                     i = 0;
                 ent.model = ci->weaponmodel[ i ];
                 if ( !ent.model ) {

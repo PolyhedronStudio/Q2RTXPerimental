@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 cvar_t  *rcon_address;
 
-cvar_t  *cl_noskins;
+//cvar_t  *cl_noskins;
 cvar_t  *cl_timeout;
 cvar_t  *cl_predict;
 //cvar_t  *cl_gunalpha;
@@ -68,7 +68,7 @@ cvar_t  *cl_protocol;
 
 cvar_t  *gender_auto;
 
-cvar_t  *cl_vwep;
+//cvar_t  *cl_vwep;
 
 cvar_t  *cl_cinematics;
 
@@ -1066,34 +1066,34 @@ static void CL_Skins_f(void)
     }
 }
 
-static void cl_noskins_changed(cvar_t *self)
-{
-    int i;
-    char *s;
-    clientinfo_t *ci;
-
-    if (cls.state < ca_precached) {
-        return;
-    }
-
-    for (i = 0; i < MAX_CLIENTS; i++) {
-        s = cl.configstrings[CS_PLAYERSKINS + i];
-        if (!s[0])
-            continue;
-        ci = &cl.clientinfo[i];
-        CL_LoadClientinfo(ci, s);
-    }
-}
-
-static void cl_vwep_changed(cvar_t *self)
-{
-    if (cls.state < ca_precached) {
-        return;
-    }
-
-    CL_RegisterVWepModels();
-    cl_noskins_changed(self);
-}
+//static void cl_noskins_changed(cvar_t *self)
+//{
+//    int i;
+//    char *s;
+//    clientinfo_t *ci;
+//
+//    if (cls.state < ca_precached) {
+//        return;
+//    }
+//
+//    for (i = 0; i < MAX_CLIENTS; i++) {
+//        s = cl.configstrings[CS_PLAYERSKINS + i];
+//        if (!s[0])
+//            continue;
+//        ci = &cl.clientinfo[i];
+//        CL_LoadClientinfo(ci, s);
+//    }
+//}
+//
+//static void cl_vwep_changed(cvar_t *self)
+//{
+//    if (cls.state < ca_precached) {
+//        return;
+//    }
+//
+//    CL_RegisterVWepModels();
+//    cl_noskins_changed(self);
+//}
 
 static void CL_Name_g(genctx_t *ctx)
 {
@@ -2477,8 +2477,8 @@ static void CL_InitLocal(void)
     //cl_gun_x = Cvar_Get("cl_gun_x", "0", 0);
     //cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
     //cl_gun_z = Cvar_Get("cl_gun_z", "0", 0);
-    cl_noskins = Cvar_Get("cl_noskins", "0", 0);
-    cl_noskins->changed = cl_noskins_changed;
+    //cl_noskins = Cvar_Get("cl_noskins", "0", 0);
+    //cl_noskins->changed = cl_noskins_changed;
     cl_predict = Cvar_Get("cl_predict", "1", 0);
     //cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
     cl_warn_on_fps_rounding = Cvar_Get("cl_warn_on_fps_rounding", "1", 0);
@@ -2538,8 +2538,8 @@ static void CL_InitLocal(void)
 
     gender_auto = Cvar_Get("gender_auto", "1", CVAR_ARCHIVE);
 
-    cl_vwep = Cvar_Get("cl_vwep", "1", CVAR_ARCHIVE);
-    cl_vwep->changed = cl_vwep_changed;
+    //cl_vwep = Cvar_Get("cl_vwep", "1", CVAR_ARCHIVE);
+    //cl_vwep->changed = cl_vwep_changed;
 
     cl_cinematics = Cvar_Get("cl_cinematics", "1", CVAR_ARCHIVE);
 
