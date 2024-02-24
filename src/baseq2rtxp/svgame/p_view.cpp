@@ -382,14 +382,16 @@ void SV_CalcViewOffset( edict_t *ent ) {
 		// visual difference in higher tickrates
 		sg_time_t diff = ent->client->fall_time - level.time;
 
-		// slack time remaining
+		// Slack time remaining
 		if ( DAMAGE_TIME_SLACK( ) ) {
-			if ( diff > FALL_TIME( ) - DAMAGE_TIME_SLACK( ) )
+			if ( diff > FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ) {
 				ratio = ( FALL_TIME( ) - diff ).seconds( ) / DAMAGE_TIME_SLACK( ).seconds( );
-			else
-				ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
-		} else
-			ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
+			} else {
+				ratio = diff.seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).seconds();
+			}
+		} else {
+			ratio = diff.seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).seconds();
+		}
 		v[ 2 ] -= ratio * ent->client->fall_value * 0.4f;
 	}
 
@@ -423,7 +425,7 @@ void SV_CalcGunOffset( edict_t *ent ) {
 	int     i;
 	float   delta;
 
-	// gun angles from bobbing
+	// Gun angles from bobbing
 	ent->client->ps.gunangles[ ROLL ] = xyspeed * bobfracsin * 0.005f;
 	ent->client->ps.gunangles[ YAW ] = xyspeed * bobfracsin * 0.01f;
 	if ( bobcycle & 1 ) {
@@ -433,7 +435,7 @@ void SV_CalcGunOffset( edict_t *ent ) {
 
 	ent->client->ps.gunangles[ PITCH ] = xyspeed * bobfracsin * 0.005f;
 
-	// gun angles from delta movement
+	// Gun angles from delta movement
 	for ( i = 0; i < 3; i++ ) {
 		delta = ent->client->oldviewangles[ i ] - ent->client->ps.viewangles[ i ];
 		if ( delta > 180 )

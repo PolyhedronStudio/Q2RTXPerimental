@@ -152,15 +152,15 @@ template<typename T>
 //#define DAMAGE_TIME     0.5f
 //#define FALL_TIME       0.3f
 // view pitching times
-inline sg_time_t DAMAGE_TIME_SLACK( ) {
+static inline constexpr sg_time_t DAMAGE_TIME_SLACK( ) {
 	return ( 100_ms - FRAME_TIME_MS );
 }
 
-inline sg_time_t DAMAGE_TIME( ) {
+static inline constexpr sg_time_t DAMAGE_TIME( ) {
 	return 500_ms + DAMAGE_TIME_SLACK( );
 }
 
-inline sg_time_t FALL_TIME( ) {
+static inline constexpr sg_time_t FALL_TIME( ) {
 	return 300_ms + DAMAGE_TIME_SLACK( );
 }
 

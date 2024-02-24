@@ -53,9 +53,8 @@ typedef struct {
     uint16_t    pm_flags;		//! Ducked, jump_held, etc
     uint16_t	pm_time;		//! Each unit = 8 ms
     int16_t     gravity;
-    Vector3     delta_angles;	//! Add to command angles to get view direction
-    //! changed by spawns, rotating objects, and teleporters
-    int8_t		viewheight;		//! View height, added to origin[2] + viewoffset[2], for crouching
+    Vector3     delta_angles;	//! Add to command angles to get view direction, it is changed by spawns, rotating objects, and teleporters
+    int8_t		viewheight;		//! View height, added to origin[2] + viewoffset[2], for crouching.
 } pmove_state_t;
 
 /**
@@ -137,7 +136,7 @@ typedef struct {
     **/
     //! Actual view angles, clamped to (0 .. 360) and for Pitch(-89 .. 89).
     Vector3 viewangles;
-    //! bounding box size.
+    //! Bounding Box.
     Vector3 mins, maxs;
 
     //! Pointer ot the actual ground entity we are on or not(nullptr).
@@ -145,7 +144,7 @@ typedef struct {
     //! A copy of the plane data from our ground entity.
     cplane_t        groundplane;
     //! The actual BSP 'contents' type we're in.
-    contents_t			watertype;
+    contents_t      watertype;
     //! The depth of the player in the actual water solid.
     water_level_t	waterlevel;
 

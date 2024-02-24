@@ -54,15 +54,24 @@ typedef struct gclient_s gclient_t;
 #include "refresh/shared_types.h"
 
 #ifndef CLGAME_INCLUDE
-//
-typedef struct cclient_s {
-    player_state_t  ps;
-    int             ping;
-	//    // the game dll can add anything it wants after
-	//    // this point in the structure
-	//    //int32_t             clientNum;
-} cclient_t;
-//
+/**
+*	Client 'client' structure definition:
+*	This structure always has to mirror the 'first part' of the structure
+*	defined within the Client Game.
+**/
+//typedef struct cclient_s {
+//    player_state_t  ps;
+//    int32_t			ping;
+//	/**
+//	*	The game dll can add anything it wants after this point in the structure.
+//	**/
+//	//int32_t             clientNum;
+//} cclient_t;
+/**
+*	Client-side entity structure definition:
+*	This structure always has to mirror the 'first part' of the structure
+*	defined within the Client Game.
+**/
 typedef struct centity_s {
 	//! Current(and thus last acknowledged and received) entity state.
 	entity_state_t	current;
@@ -99,39 +108,10 @@ typedef struct centity_s {
 	float	step_height;
 	// WID: 40hz
 
-//    vec3_t      absmin, absmax, size;
-//    solid_t     solid;
-//    int         clipmask;
-//    edict_t     *owner;
-	// The game dll can add anything it wants after this point in the structure.
+	/**
+	*	The game dll can add anything it wants after this point in the structure.
+	**/
 } centity_t;
-//struct edict_s {
-//    entity_state_t  s;
-//    struct gclient_s    *client;
-//    qboolean    inuse;
-//    int         linkcount;
-//
-//    // FIXME: move these fields to a server private sv_entity_t
-//    list_t      area;               // linked to a division node or leaf
-//
-//    int         num_clusters;       // if -1, use headnode instead
-//    int         clusternums[MAX_ENT_CLUSTERS];
-//    int         headnode;           // unused if num_clusters != -1
-//    int         areanum, areanum2;
-//
-//    //================================
-//
-//    int         svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
-//    vec3_t      mins, maxs;
-//    vec3_t      absmin, absmax, size;
-//    solid_t     solid;
-//    int         clipmask;
-//    edict_t     *owner;
-//
-//    // the game dll can add anything it wants after
-//    // this point in the structure
-//};
-//
 #else
 #include "client/client_types.h"
 #endif      // CLGAME_INCLUDE

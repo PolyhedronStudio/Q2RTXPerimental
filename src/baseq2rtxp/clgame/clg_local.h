@@ -193,17 +193,21 @@ template<typename T>
 
 
 /**
-*	ClientGame version of gclient_t:
+*	Client-Game 'client' structure definition:
+*	This structure always has to mirror the 'first part' of the structure
+*	defined within the Client.
 **/
 //typedef struct cclient_s {
-//	player_state_t  ps;
-//	int             ping;
-//	//    // the game dll can add anything it wants after
-//	//    // this point in the structure
-//	//    //int32_t             clientNum;
+//    player_state_t  ps;
+//    int32_t			ping;
+//	// the game dll can add anything it wants after
+//	// this point in the structure
+//	//int32_t             clientNum;
 //} cclient_t;
 /**
-*	ClientGame version of centity_t:
+*	Client-Game entity structure definition:
+*	This structure always has to mirror the 'first part' of the structure
+*	defined within the Client.
 **/
 typedef struct centity_s {
 	//! Current(and thus last acknowledged and received) entity state.
@@ -241,8 +245,9 @@ typedef struct centity_s {
 	float	step_height;
 	// WID: 40hz
 
-	// the game dll can add anything it wants after
-	// this point in the structure
+	/**
+	*	The game dll can add anything it wants after this point in the structure.
+	**/
 	int64_t someTestVar;
 	int64_t someTestVar2;
 } centity_t;

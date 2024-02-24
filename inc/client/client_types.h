@@ -390,17 +390,22 @@ typedef struct client_state_s {
 
     /**
     *
-    *   Entity States:
+    *   Client Side Entities:
     *
     **/
     //! Rebuilt each valid frame:
-    centity_t *solidEntities[ MAX_PACKET_ENTITIES ];
-    int32_t			numSolidEntities;
+    centity_t       *solidEntities[ MAX_PACKET_ENTITIES ];
+    int32_t         numSolidEntities;
+    //! Rebuilt each valid frame.
+    
+
     //! Stores all entity baseline states to use for delta-ing. Sent and received at time of connect.
     entity_state_t	baselines[ MAX_EDICTS ];
+
     //! Stores the actual received delta decoded entity states.
     entity_state_t	entityStates[ MAX_PARSE_ENTITIES ];
     int32_t			numEntityStates;
+
     //! Client entity specific message flags.
     msgEsFlags_t	esFlags;
 

@@ -302,7 +302,7 @@ void PF_R_DrawStretchPic( const int32_t x, const int32_t y, const int32_t w, con
 void PF_R_DrawKeepAspectPic( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic ) {
 	R_DrawKeepAspectPic( x, y, w, h, pic );
 }
-void PF_R_DrawStretchRaw( const int32_t x, const const int32_t y, const int32_t w, const int32_t h ) {
+void PF_R_DrawStretchRaw( const int32_t x, const int32_t y, const int32_t w, const int32_t h ) {
 	R_DrawStretchRaw( x, y, w, h );
 }
 void PF_R_TileClear( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic ) {

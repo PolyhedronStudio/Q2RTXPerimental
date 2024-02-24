@@ -21,7 +21,7 @@ typedef struct entity_state_s {
     vec3_t  origin;
     //! Entity 'view' angles.
     vec3_t  angles;
-    //! For lerping.
+    //! For lerping. Also used for RF_BEAM its termination point.
     vec3_t  old_origin;
     /**
     *   @brief  The following fields are for client side prediction: (solid,clipmask,hullContents,ownerNumber) 
