@@ -54,8 +54,8 @@ mleaf_t     *CM_LeafNum(cm_t *cm, int number);
 #define CM_NumNode(cm, node) ((node) ? ((node) - (cm)->cache->nodes) : -1)
 #define CM_NumLeaf(cm, leaf) ((cm)->cache ? ((leaf) - (cm)->cache->leafs) : 0)
 
-// creates a clipping hull for an arbitrary box
-mnode_t     *CM_HeadnodeForBox(const vec3_t mins, const vec3_t maxs);
+// creates a clipping hull for an arbitrary box.
+mnode_t     *CM_HeadnodeForBox( const vec3_t mins, const vec3_t maxs, const contents_t contents );
 
 // returns an ORed contents mask
 int         CM_PointContents(const vec3_t p, mnode_t *headnode);

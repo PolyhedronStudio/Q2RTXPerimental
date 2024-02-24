@@ -104,9 +104,10 @@ typedef enum dlight_spot_emission_profile_e {
 
 typedef struct dlight_s {
     vec3_t origin;
-    #if USE_REF == REF_GL
+    // WID: Leave it uncommented so memory is aligned properly either way.
+    //#if USE_REF == REF_GL
     vec3_t transformed;
-    #endif
+    //#endif
     vec3_t color;
     float intensity;
     float radius;
@@ -211,7 +212,7 @@ typedef struct {
     int     depthbits;
     int     stencilbits;
     int     multisamples;
-    bool    debug;
+    qboolean debug;
 } r_opengl_config_t;
 
 typedef enum {

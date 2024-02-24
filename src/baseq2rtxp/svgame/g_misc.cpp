@@ -136,7 +136,7 @@ void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
     gi.setmodel(gib, gibname);
     gib->solid = SOLID_NOT;
     gib->s.effects |= EF_GIB;
-    gib->flags |= FL_NO_KNOCKBACK;
+    gib->flags = static_cast<ent_flags_t>( gib->flags | FL_NO_KNOCKBACK );
     gib->takedamage = DAMAGE_YES;
     gib->die = gib_die;
 
@@ -179,7 +179,7 @@ void ThrowHead(edict_t *self, const char *gibname, int damage, int type)
     self->s.effects |= EF_GIB;
     self->s.effects &= ~EF_FLIES;
     self->s.sound = 0;
-    self->flags |= FL_NO_KNOCKBACK;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
     self->svflags &= ~SVF_MONSTER;
     self->takedamage = DAMAGE_YES;
     self->die = gib_die;
@@ -230,7 +230,7 @@ void ThrowClientHead(edict_t *self, int damage)
     self->solid = SOLID_NOT;
     self->s.effects = EF_GIB;
     self->s.sound = 0;
-    self->flags |= FL_NO_KNOCKBACK;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
 
     self->movetype = MOVETYPE_BOUNCE;
     VelocityForDamage(damage, vd);
@@ -279,7 +279,7 @@ void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origi
     chunk->think = G_FreeEdict;
     chunk->nextthink = level.time + random_time( 5_sec, 10_sec );//= level.framenum + (5 + random() * 5) * BASE_FRAMERATE;
     chunk->s.frame = 0;
-    chunk->flags = 0;
+    chunk->flags = FL_NONE;
     chunk->classname = "debris";
     chunk->takedamage = DAMAGE_YES;
     chunk->die = debris_die;
@@ -552,7 +552,7 @@ void func_wall_use(edict_t *self, edict_t *other, edict_t *activator)
     if (self->solid == SOLID_NOT) {
         self->solid = SOLID_BSP;
         self->svflags &= ~SVF_NOCLIENT;
-        KillBox(self);
+        KillBox(self, false);
     } else {
         self->solid = SOLID_NOT;
         self->svflags |= SVF_NOCLIENT;
@@ -632,7 +632,7 @@ void func_object_use(edict_t *self, edict_t *other, edict_t *activator)
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
     self->use = NULL;
-    KillBox(self);
+    KillBox(self, false);
     func_object_release(self);
 }
 
@@ -753,7 +753,7 @@ void func_explosive_spawn(edict_t *self, edict_t *other, edict_t *activator)
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
     self->use = NULL;
-    KillBox(self);
+    KillBox(self, false);
     gi.linkentity(self);
 }
 
@@ -1705,7 +1705,7 @@ void teleporter_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t
     AngleVectors( other->client->v_angle, other->client->v_forward, nullptr, nullptr );
 
     // kill anything at the destination
-    KillBox(other);
+    KillBox(other, !!other->client );
 
     gi.linkentity(other);
 }

@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // g_local.h -- local definitions for ServerGame module
 
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 #include "shared/m_flash.h"
 
 // Define SVGAME_INCLUDE so that game.h does not define the short, server-visible 
@@ -55,13 +55,13 @@ constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64
 // the "gameversion" client command will print this plus compile date
 #define GAMEVERSION "BaseQ2"
 
-// protocol bytes that can be directly added to messages
-#define svc_muzzleflash     1
-#define svc_muzzleflash2    2
-#define svc_temp_entity     3
-#define svc_layout          4
-#define svc_inventory       5
-#define svc_stufftext       11
+//// protocol bytes that can be directly added to messages
+//#define svc_muzzleflash     1
+//#define svc_muzzleflash2    2
+//#define svc_temp_entity     3
+//#define svc_layout          4
+//#define svc_inventory       5
+//#define svc_stufftext       11
 
 
 //==================================================================

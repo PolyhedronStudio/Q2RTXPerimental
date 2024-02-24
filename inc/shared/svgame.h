@@ -25,7 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
-#include "shared/list.h"
+#include "shared/util_list.h"
 
 //
 // svgame.h -- server game dll information visible to server
@@ -35,10 +35,26 @@ extern "C" {
 
 // edict->svflags
 
-#define SVF_NOCLIENT            0x00000001  // Don't send entity to clients, even if it has effects
-#define SVF_DEADMONSTER         0x00000002  // Treat as CONTENTS_DEADMONSTER for collision
-#define SVF_MONSTER             0x00000004  // Treat as CONTENTS_MONSTER for collision
-#define SVF_USE_TRIGGER_HULL	0x00000008	// When touching the trigger's bounding box, perform an additional clip to trigger brush. (Used for G_TouchTriggers)
+// Old Vanilla Q2 flags.
+//#define SVF_NOCLIENT            0x00000001  // Don't send entity to clients, even if it has effects
+//#define SVF_DEADMONSTER         0x00000002  // Treat as CONTENTS_DEADMONSTER for collision
+//#define SVF_MONSTER             0x00000004  // Treat as CONTENTS_MONSTER for collision
+//#define SVF_HULL	0x00000008	// When touching the trigger's bounding box, perform an additional clip to trigger brush. (Used for G_TouchTriggers)
+
+// Some [KEX] flags.
+#define SVF_NONE            0           // No serverflags.
+#define SVF_NOCLIENT        0x00000001    // Don't send entity to clients, even if it has effects.
+#define SVF_DEADMONSTER     BIT( 1 )    // Treat as CONTENTS_DEADMONSTER for collision.
+#define SVF_MONSTER         BIT( 2 )    // Treat as CONTENTS_MONSTER for collision.
+#define SVF_PLAYER          BIT( 3 )    // [Paril-KEX] Treat as CONTENTS_PLAYER for collision.
+//#define SVF_BOT             BIT( 4 )    // Entity is controlled by a bot AI.
+//#define SVF_NOBOTS          BIT( 5 )    // Don't allow bots to use/interact with entity.
+//#define SVF_RESPAWNING      BIT( 6 )    // Entity will respawn on it's next think.
+#define SVF_PROJECTILE      BIT( 7 )    // Treat as CONTENTS_PROJECTILE for collision.
+//#define SVF_INSTANCED       BIT( 8 )    // Entity has different visibility per player.
+#define SVF_DOOR            BIT( 9 )    // Entity is a door of some kind.
+//#define SVF_NOCULL          BIT( 10 )   // Always send, even if we normally wouldn't.
+#define SVF_HULL            BIT( 11 )   // Always use hull when appropriate (triggers, etc; for gi.clip).
 
 // extended features
 
@@ -75,25 +91,28 @@ struct gclient_s {
 
 struct edict_s {
     entity_state_t  s;
-    struct gclient_s    *client;
-    qboolean    inuse;
-    int         linkcount;
+    struct gclient_s *client;   //! NULL if not a player the server expects the first part
+                                //! of gclient_s to be a player_state_t but the rest of it is opaque
+    qboolean inuse;
+    int32_t linkcount;
 
     // FIXME: move these fields to a server private sv_entity_t
-    list_t      area;               // linked to a division node or leaf
+    list_t area;    //! Linked to a division node or leaf
 
-    int         num_clusters;       // if -1, use headnode instead
-    int         clusternums[MAX_ENT_CLUSTERS];
-    int         headnode;           // unused if num_clusters != -1
-    int         areanum, areanum2;
+    int32_t num_clusters;       // If -1, use headnode instead.
+    int32_t clusternums[MAX_ENT_CLUSTERS];
+    int32_t headnode;           // Unused if num_clusters != -1
+    
+    int32_t areanum, areanum2;
 
     //================================
 
-    int         svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
+    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
     vec3_t      mins, maxs;
     vec3_t      absmin, absmax, size;
     solid_t     solid;
-    int         clipmask;
+    contents_t  clipmask;
+    contents_t  hullContents;
     edict_t     *owner;
 
     // the game dll can add anything it wants after
@@ -154,9 +173,9 @@ typedef struct {
 	*	Collision Detection:
 	*
 	**/
-    trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, int contentmask);
-	trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int contentmask );
-    int (*pointcontents)(const vec3_t point);
+    const trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, const contents_t contentmask );
+	const trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentmask );
+    const contents_t (*pointcontents)(const vec3_t point);
     qboolean (*inPVS)(const vec3_t p1, const vec3_t p2);
     qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);
     void (*SetAreaPortalState)(int portalnum, qboolean open);
@@ -217,7 +236,7 @@ typedef struct {
 	*	ClientCommand and ServerCommand parameter access:
 	*
 	**/
-    int (*argc)(void);
+    const int32_t (*argc)(void);
     char *(*argv)(int n);
     char *(*args)(void);     // concatenation of all argv >= 1
 

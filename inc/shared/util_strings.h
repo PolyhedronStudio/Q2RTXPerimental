@@ -1,3 +1,10 @@
+/********************************************************************
+*
+*
+*   String Utilities:
+*
+*
+********************************************************************/
 #pragma once
 
 // fast "C" macros
@@ -120,6 +127,25 @@ int SortStricmp( const void *p1, const void *p2 );
 
 size_t COM_strclr( char *s );
 char *COM_StripQuotes( char *s );
+
+/*
+=================
+Com_WildCmpEx
+
+Wildcard compare. Returns true if string matches the pattern, false otherwise.
+
+- 'term' is handled as an additional filter terminator (besides NUL).
+- '*' matches any substring, including the empty string, but prefers longest
+possible substrings.
+- '?' matches any single character except NUL.
+- '\\' can be used to escape any character, including itself. any special
+characters lose their meaning in this case.
+
+=================
+*/
+bool Com_WildCmpEx( const char *filter, const char *string,
+	int term, bool ignorecase );
+#define Com_WildCmp(filter, string) Com_WildCmpEx(filter, string, 0, false)
 
 // buffer safe operations
 size_t Q_strlcpy( char *dst, const char *src, size_t size );

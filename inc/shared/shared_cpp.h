@@ -1,9 +1,3 @@
-#pragma once
-
-#if HAVE_CONFIG_H
-#include "config_cpp.h"
-#endif // HAVE_CONFIG_H
-
 /********************************************************************
 *
 *
@@ -12,38 +6,7 @@
 *
 *
 ********************************************************************/
-#include <type_traits>
-#include <algorithm>
-#include <array>
-#include <functional>
-#include <map>
-#include <numeric>
-#include <unordered_map>
-#include <set>
-#include <unordered_set>
-#include <random>
-#include <string_view>
-#include <vector>
-#include <chrono>
-
-
-/****
-*
-*	Typedefs/Types.
-*
-****/
-// Byte type remains the same, just included here as well as in the else statement for consistency.
-typedef unsigned char byte;
-
-// QBoolean support(treat it as an int to remain compatible with the C code parts).
-typedef int qboolean;
-#define qfalse false;
-#define qtrue true;
-
-// qhandle_t
-typedef int qhandle_t;
-
-
+#pragma once
 
 /****
 *
@@ -52,16 +15,19 @@ typedef int qhandle_t;
 *
 *
 ****/
-//extern "C" {
+/**
+*	For C++, to use Q_concat_array for its C++ vector container version. See Q_concat below:
+**/
 extern "C" size_t Q_concat_array(char* dest, size_t size, const char** arr);
 static inline size_t Q_concat_stdarray(char* dest, size_t size, std::vector<const char*> arr) {
 	return Q_concat_array(dest, size, arr.data());
 }
-
-// WID: The define replacement is found in shared_cpp.h for C++
+/**
+*	The final define for concat implementation:
+**/
 #define Q_concat(dest, size, ...) \
 	Q_concat_stdarray(dest, size, {__VA_ARGS__, NULL})
-//};
+
 
 /****
 * 

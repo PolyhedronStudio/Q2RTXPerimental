@@ -122,9 +122,12 @@ SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SHAREDGAME
+	baseq2rtxp/sharedgame/sg_cmd_messages.h
 	baseq2rtxp/sharedgame/sg_gamemode.h
+	baseq2rtxp/sharedgame/sg_local.h
 	baseq2rtxp/sharedgame/sg_pmove.h
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.h
+	baseq2rtxp/sharedgame/sg_shared.h
 	baseq2rtxp/sharedgame/sg_time.h
 )
 #	BaseQ2RTXP ClientGame
@@ -133,7 +136,31 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/sharedgame/game_bindings/sg_binding_clgame.cpp
 
 	# ClientGame
+	baseq2rtxp/clgame/clg_effects.cpp
+	baseq2rtxp/clgame/clg_entities.cpp
+	baseq2rtxp/clgame/clg_input.cpp
+	baseq2rtxp/clgame/clg_gamemode.cpp
 	baseq2rtxp/clgame/clg_main.cpp
+	baseq2rtxp/clgame/clg_parse.cpp
+	baseq2rtxp/clgame/clg_precache.cpp
+	baseq2rtxp/clgame/clg_predict.cpp
+	baseq2rtxp/clgame/clg_temp_entities.cpp
+	baseq2rtxp/clgame/clg_screen.cpp
+	baseq2rtxp/clgame/clg_view.cpp
+
+	baseq2rtxp/clgame/effects/clg_fx_classic.cpp
+	baseq2rtxp/clgame/effects/clg_fx_dynamiclights.cpp
+	baseq2rtxp/clgame/effects/clg_fx_lightstyles.cpp
+	baseq2rtxp/clgame/effects/clg_fx_muzzleflash.cpp
+	baseq2rtxp/clgame/effects/clg_fx_muzzleflash2.cpp
+	baseq2rtxp/clgame/effects/clg_fx_particles.cpp
+	baseq2rtxp/clgame/effects/clg_fx_new.cpp
+
+	baseq2rtxp/clgame/temp_entities/clg_te_beams.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_explosions.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_lasers.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_railtrails.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_sustain.cpp
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_local.h
@@ -244,15 +271,16 @@ SET(SRC_CLIENT
 	client/keys.cpp
 	client/locs.cpp
 	client/main.cpp
-	client/newfx.cpp
-#	client/null.cpp
+	#client/newfx.cpp
+	#client/null.cpp
 	client/parse.cpp
 	client/precache.cpp
 	client/predict.cpp
 	client/refresh.cpp
 	client/screen.cpp
-	client/tent.cpp
+	#client/tent.cpp
 	client/view.cpp
+	client/world.cpp
 	client/ui/demos.cpp
 	client/ui/menu.cpp
 	client/ui/playerconfig.cpp
@@ -274,7 +302,7 @@ SET(SRC_CLIENT_HTTP
 )
 
 SET(HEADERS_CLIENT
-	client/client.h
+	client/cl_client.h
 	client/ui/ui.h
 	client/sound/sound.h
 	client/sound/qal/dynamic.h
@@ -395,7 +423,7 @@ SET(HEADERS_SHARED
 	#shared/config_cpp.h
 	#shared/endian.h
 	#shared/info_strings.h
-	#shared/list.h
+	#shared/util_list.h
 	#shared/platform.h
 	#shared/shared.h
 	#shared/shared_cpp.h

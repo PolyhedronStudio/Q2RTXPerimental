@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // console.c
 
-#include "client.h"
+#include "cl_client.h"
 
 #define CON_TIMES       16
 #define CON_TIMES_MASK  (CON_TIMES - 1)
@@ -106,8 +106,7 @@ static cvar_t   *con_timestampscolor;
 Con_SkipNotify
 ================
 */
-void Con_SkipNotify(bool skip)
-{
+void Con_SkipNotify( const qboolean skip ) {
     con.skipNotify = skip;
 }
 
@@ -165,7 +164,7 @@ void Con_Popup(bool force)
         con.mode = CON_POPUP;
     }
 
-    Key_SetDest(static_cast<keydest_t>( cls.key_dest | KEY_CONSOLE ) ); // WID: C++20: Was without a cast...
+    Key_SetDest(static_cast<keydest_e>( cls.key_dest | KEY_CONSOLE ) ); // WID: C++20: Was without a cast...
     Con_RunConsole();
 }
 

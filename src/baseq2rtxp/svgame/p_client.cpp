@@ -483,17 +483,22 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     self->takedamage = DAMAGE_YES;
     self->movetype = MOVETYPE_TOSS;
 
+    // Unset weapon model.
     self->s.modelindex2 = 0;    // remove linked weapon model
 
+    // Clear X and Z angles.
     self->s.angles[0] = 0;
     self->s.angles[2] = 0;
 
+    // Stop playing any sounds.
     self->s.sound = 0;
     self->client->weapon_sound = 0;
 
+    // Set bbox maxs to -8.
     self->maxs[2] = -8;
 
 //  self->solid = SOLID_NOT;
+    // Flag as to be treated as 'deadmonster' collision.
     self->svflags |= SVF_DEADMONSTER;
 
     if (!self->deadflag) {
@@ -514,23 +519,28 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         }
     }
 
-    // remove powerups
+    // Remove powerups.
     self->client->quad_time = 0_ms;
     self->client->invincible_time = 0_ms;
     self->client->breather_time = 0_ms;
     self->client->enviro_time = 0_ms;
-    self->flags &= ~FL_POWER_ARMOR;
+    self->flags = static_cast<ent_flags_t>( self->flags & ~FL_POWER_ARMOR );
 
+    // Gib Death:
     if (self->health < -40) {
-        // gib
+        // Play gib sound.
         gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-        for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
+        //! Throw 4 small meat gibs around.
+        for ( n = 0; n < 4; n++ ) {
+            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC );
+        }
+        // Turn ourself into the thrown head entity.
         ThrowClientHead(self, damage);
 
+        // Gibs don't take damage, but fade away as time passes.
         self->takedamage = DAMAGE_NO;
+    // Normal death:
     } else {
-        // normal death
         if (!self->deadflag) {
             static int i;
 
@@ -657,7 +667,7 @@ void SaveClientData(void)
             continue;
         game.clients[i].pers.health = ent->health;
         game.clients[i].pers.max_health = ent->max_health;
-        game.clients[i].pers.savedFlags = (ent->flags & (FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR));
+        game.clients[i].pers.savedFlags = static_cast<ent_flags_t>(ent->flags & (FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR));
         if (coop->value)
             game.clients[i].pers.score = ent->client->resp.score;
     }
@@ -1160,14 +1170,16 @@ void PutClientInServer(edict_t *ent)
     ent->solid = SOLID_BBOX;
     ent->deadflag = DEAD_NO;
     ent->air_finished_time = level.time + 12_sec;
-    ent->clipmask = MASK_PLAYERSOLID;
+    ent->clipmask = static_cast<contents_t>( MASK_PLAYERSOLID );
     ent->model = "players/male/tris.md2";
     ent->pain = player_pain;
     ent->die = player_die;
     ent->waterlevel = water_level_t::WATER_NONE;;
-    ent->watertype = 0;
-    ent->flags &= ~FL_NO_KNOCKBACK;
+    ent->watertype = CONTENTS_NONE;
+    ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
+
     ent->svflags &= ~SVF_DEADMONSTER;
+    ent->svflags |= SVF_PLAYER;
 
     VectorCopy(mins, ent->mins);
     VectorCopy(maxs, ent->maxs);
@@ -1213,7 +1225,7 @@ void PutClientInServer(edict_t *ent)
     VectorCopy(spawn_origin, temp2);
     temp[2] -= 64;
     temp2[2] += 16;
-    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, MASK_PLAYERSOLID);
+    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, static_cast<contents_t>( MASK_PLAYERSOLID ));
     if (!tr.allsolid && !tr.startsolid && Q_stricmp(level.mapname, "tech5")) {
         VectorCopy(tr.endpos, ent->s.origin);
         ent->groundentity = tr.ent;
@@ -1256,7 +1268,7 @@ void PutClientInServer(edict_t *ent)
     } else
         client->resp.spectator = false;
 
-    if (!KillBox(ent)) {
+    if (!KillBox(ent, true)) {
         // could't spawn in?
     }
 
@@ -1277,7 +1289,11 @@ deathmatch mode, so clear everything out before starting them.
 */
 void ClientBeginDeathmatch(edict_t *ent)
 {
+    // Init Edict.
     G_InitEdict(ent);
+    
+    // Make sure it is recognized as a player.
+    ent->svflags |= SVF_PLAYER;
 
     InitClientRespawnData(ent->client);
 
@@ -1341,6 +1357,8 @@ void ClientBegin(edict_t *ent)
         InitClientRespawnData(ent->client);
         PutClientInServer(ent);
     }
+
+    ent->svflags |= SVF_PLAYER;
 
     if (level.intermission_framenum) {
         MoveClientToIntermission(ent);
@@ -1489,12 +1507,17 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
             InitClientPersistantData( ent, ent->client );
     }
 
+    // make sure we start with known default(s)
+    //ent->svflags = SVF_PLAYER;
+
     ClientUserinfoChanged(ent, userinfo);
 
-    if (game.maxclients > 1)
-        gi.dprintf("%s connected\n", ent->client->pers.netname);
+    if ( game.maxclients > 1 ) {
+        gi.dprintf( "%s connected\n", ent->client->pers.netname );
+    }
 
-    ent->svflags = 0; // make sure we start with known default
+    // make sure we start with known default(s)
+    ent->svflags = SVF_PLAYER;
     ent->client->pers.connected = true;
     return true;
 }
@@ -1531,7 +1554,7 @@ void ClientDisconnect(edict_t *ent)
     ent->s.event = 0;
     ent->s.effects = 0;
     ent->s.renderfx = 0;
-    ent->s.solid = 0;
+    ent->s.solid = SOLID_NOT; // 0
     ent->solid = SOLID_NOT;
     ent->inuse = false;
     ent->classname = "disconnected";
@@ -1549,9 +1572,9 @@ void ClientDisconnect(edict_t *ent)
 //==============================================================
 
 /**
-*   @brief  Wrapper for proper player move trace.
+*   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static trace_t q_gameabi SV_PM_trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, int32_t contentMask ) {
+static const trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
     //if (pm_passent->health > 0)
     //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
     //else
@@ -1559,10 +1582,16 @@ static trace_t q_gameabi SV_PM_trace(const vec3_t start, const vec3_t mins, cons
     return gi.trace( start, mins, maxs, end, (edict_t*)passEntity, contentMask );
 }
 /**
-*   @brief  Wrapper for proper player move clip. Clips against the world only.
+*   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static trace_t q_gameabi SV_PM_clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int32_t contentMask ) {
+static const trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
     return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
+}
+/**
+*   @brief  Player Move specific 'PointContents' wrapper implementation.
+**/
+static const contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
+    return gi.pointcontents( point );
 }
 
 /*
@@ -1675,12 +1704,12 @@ usually be a couple times for each server frame.
 */
 void ClientThink(edict_t *ent, usercmd_t *ucmd)
 {
-    gclient_t   *client;
-    edict_t *other;
+    gclient_t   *client = nullptr;
+    edict_t     *other = nullptr;
     
 	// Configure pmove.
-	pmove_t pm;
-	pmoveParams_t pmp;
+    pmove_t pm = {};
+    pmoveParams_t pmp = {};
 	SG_ConfigurePlayerMoveParameters( &pmp );
 
     level.current_entity = ent;
@@ -1729,8 +1758,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         pm.s = client->ps.pmove;
 
 		// Copy the current entity origin and velocity into our 'pmove movestate'.
-		VectorCopy( ent->s.origin, pm.s.origin );
-		VectorCopy( ent->velocity, pm.s.velocity );
+        pm.s.origin = ent->s.origin;
+        pm.s.velocity = ent->velocity;
 
 		// Determine if it has changed and we should 'resnap' to position.
         if ( memcmp( &client->old_pmove, &pm.s, sizeof(pm.s) ) ) {
@@ -1739,9 +1768,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		// Setup user commands and function pointers.
         pm.cmd = *ucmd;
         pm.player = ent;
-        pm.trace = SV_PM_trace;
-        pm.pointcontents = gi.pointcontents;
-        pm.clip = SV_PM_clip;
+        pm.trace = SV_PM_Trace;
+        pm.pointcontents = SV_PM_PointContents;
+        pm.clip = SV_PM_Clip;
         VectorCopy( ent->client->ps.viewoffset, pm.viewoffset );
 
         // Perform a PMove.
@@ -1751,7 +1780,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         if ( pm.groundentity && ent->groundentity ) {
             float stepsize = fabs( ent->s.origin[ 2 ] - pm.s.origin[ 2 ] );
 
-            if ( stepsize > PM_MIN_STEPSIZE && stepsize < PM_MAX_STEPSIZE ) {
+            if ( stepsize > PM_MIN_STEP_SIZE && stepsize < PM_MAX_STEP_SIZE ) {
                 ent->s.renderfx |= RF_STAIR_STEP;
                 ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
             }
@@ -1781,6 +1810,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         //        }
         //    }
         //}
+        
+        // [Paril-KEX] save old position for G_TouchProjectiles
+        const Vector3 old_origin = ent->s.origin;
 
 		// Copy back into the entity, both the resulting origin and velocity.
 		VectorCopy( pm.s.origin, ent->s.origin );
@@ -1832,7 +1864,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
 		if ( ent->movetype != MOVETYPE_NOCLIP ) {
 			G_TouchTriggers( ent );
-            //G_TouchProjectiles(ent, old_origin);
+            G_TouchProjectiles( ent, old_origin );
 		}
 
         // Touch other objects

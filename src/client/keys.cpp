@@ -16,7 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "client.h"
+#include "cl_client.h"
 
 static keywaitcb_t  key_wait_cb;
 static void         *key_wait_arg;
@@ -201,7 +201,7 @@ Key_IsDown
 Returns key down status: if > 1, it is auto-repeating
 ===================
 */
-int Key_IsDown(int key)
+const int32_t Key_IsDown( const int32_t key)
 {
     if (key < 0 || key > 255) {
         return 0;
@@ -217,8 +217,7 @@ Key_AnyKeyDown
 Returns total number of keys down.
 ===================
 */
-int Key_AnyKeyDown(void)
-{
+const int32_t Key_AnyKeyDown(void) {
     return anykeydown;
 }
 

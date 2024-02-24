@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ui.h"
 #include "client/input.h"
-#include "../client.h"
+#include "../cl_client.h"
 #include "common/prompt.h"
 
 // WID: C++20: Linkage.

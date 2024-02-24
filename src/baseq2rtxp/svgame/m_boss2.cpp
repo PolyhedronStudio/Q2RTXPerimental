@@ -531,7 +531,7 @@ bool Boss2_CheckAttack(edict_t *self)
         VectorCopy(self->enemy->s.origin, spot2);
         spot2[2] += self->enemy->viewheight;
 
-        tr = gi.trace(spot1, NULL, NULL, spot2, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA);
+        tr = gi.trace( spot1, NULL, NULL, spot2, self, static_cast<contents_t>( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA ) );
 
         // do we have a clear shot?
         if (tr.ent != self->enemy)
@@ -621,7 +621,7 @@ void SP_monster_boss2(edict_t *self)
     self->gib_health = -200;
     self->mass = 1000;
 
-    self->flags |= FL_IMMUNE_LASER;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_IMMUNE_LASER );
 
     self->pain = boss2_pain;
     self->die = boss2_die;

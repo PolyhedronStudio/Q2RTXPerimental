@@ -567,7 +567,7 @@ void G_FindTeams(void)
                 chain->teamchain = e2;
                 e2->teammaster = e;
                 chain = e2;
-                e2->flags |= FL_TEAMSLAVE;
+                e2->flags = static_cast<ent_flags_t>( e2->flags | FL_TEAMSLAVE );
             }
         }
     }
@@ -856,11 +856,19 @@ void SP_worldspawn(edict_t *ent)
 
     gi.configstring(CS_MAXCLIENTS, va("%i", (int)(maxclients->value)));
 
+    // Set air acceleration properly.
+    if ( COM_IsUint( sv_airaccelerate->string ) || COM_IsFloat( sv_airaccelerate->string ) ) {
+        gi.configstring( CS_AIRACCEL, sv_airaccelerate->string );
+    } else {
+        gi.configstring( CS_AIRACCEL, "0" );
+    }
+     
     // status bar program
-    if (deathmatch->value)
-        gi.configstring(CS_STATUSBAR, va("%s%s", single_statusbar, dm_statusbar));
-    else
-        gi.configstring(CS_STATUSBAR, single_statusbar);
+    if ( deathmatch->value ) {
+        gi.configstring( CS_STATUSBAR, dm_statusbar );
+    } else {
+        gi.configstring( CS_STATUSBAR, single_statusbar );
+    }
 
     //---------------
 

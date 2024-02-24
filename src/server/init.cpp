@@ -336,7 +336,7 @@ static void SV_InitGame_Init( ) {
 	}
 
 	// Set up default pmove parameters
-	ge->ConfigurePlayerMoveParameters( &sv_pmp );
+	//ge->ConfigurePlayerMoveParameters( &sv_pmp );
 }
 
 /*

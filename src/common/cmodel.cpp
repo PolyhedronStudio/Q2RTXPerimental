@@ -314,8 +314,14 @@ To keep everything totally uniform, bounding boxes are turned into small
 BSP trees instead of being compared directly.
 ===================
 */
-mnode_t *CM_HeadnodeForBox(const vec3_t mins, const vec3_t maxs)
-{
+mnode_t *CM_HeadnodeForBox( const vec3_t mins, const vec3_t maxs, const contents_t contents ) {
+    // Setup its bounding boxes.
+    VectorCopy( mins, box_headnode->mins );
+    VectorCopy( maxs, box_headnode->maxs );
+    VectorCopy( mins, box_leaf.mins );
+    VectorCopy( maxs, box_leaf.maxs );
+
+    // Setup planes.
     box_planes[0].dist = maxs[0];
     box_planes[1].dist = -maxs[0];
     box_planes[2].dist = mins[0];
@@ -328,6 +334,13 @@ mnode_t *CM_HeadnodeForBox(const vec3_t mins, const vec3_t maxs)
     box_planes[9].dist = -maxs[2];
     box_planes[10].dist = mins[2];
     box_planes[11].dist = -mins[2];
+
+    // Setup to CONTENTS_SOLID in case of no contents being passed in.
+    if ( !contents ) {
+        box_leaf.contents = box_brush.contents = CONTENTS_MONSTER;
+    } else {
+        box_leaf.contents = box_brush.contents = contents;
+    }
 
     return box_headnode;
 }
@@ -560,7 +573,7 @@ static void CM_ClipBoxToBrush(const vec3_t p1, const vec3_t p2, trace_t *trace, 
 			if ( !map_allsolid_bug->integer ) {
 				// original Q2 didn't set these
 				trace->fraction = 0;
-				trace->contents = brush->contents;
+				trace->contents = static_cast<contents_t>( brush->contents );
 			}
 		}
 		return;
@@ -571,7 +584,7 @@ static void CM_ClipBoxToBrush(const vec3_t p1, const vec3_t p2, trace_t *trace, 
 			trace->fraction = enterfrac[ 0 ];
 			trace->plane = *clipplane[ 0 ];
 			trace->surface = &( leadside[ 0 ]->texinfo->c );
-			trace->contents = brush->contents;
+            trace->contents = static_cast<contents_t>( brush->contents );
 
 			if ( leadside[ 1 ] ) {
 				trace->plane2 = *clipplane[ 1 ];
@@ -617,7 +630,7 @@ static void CM_TestBoxInBrush(const vec3_t p1, trace_t *trace, mbrush_t *brush)
     // inside this brush
     trace->startsolid = trace->allsolid = true;
     trace->fraction = 0;
-    trace->contents = brush->contents;
+    trace->contents = static_cast<contents_t>( brush->contents );
 }
 
 /*
@@ -898,7 +911,7 @@ void CM_ClipEntity(trace_t *dst, const trace_t *src, struct edict_s *ent)
         VectorCopy(src->endpos, dst->endpos);
         dst->plane = src->plane;
         dst->surface = src->surface;
-        dst->contents |= src->contents;
+        dst->contents = static_cast<contents_t>( dst->contents | src->contents );
         dst->ent = ent;
     }
 }

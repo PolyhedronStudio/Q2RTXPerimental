@@ -28,157 +28,157 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 ==============================================================================
 */
 
-static bool match_raw(int c1, int c2, bool ignorecase)
-{
-    if (c1 != c2) {
-        if (!ignorecase) {
-            return false;
-        }
-#ifdef _WIN32
-        // ugly hack for file listing
-        c1 = c1 == '\\' ? '/' : Q_tolower(c1);
-        c2 = c2 == '\\' ? '/' : Q_tolower(c2);
-#else
-        c1 = Q_tolower(c1);
-        c2 = Q_tolower(c2);
-#endif
-        if (c1 != c2) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-static bool match_char(int c1, int c2, bool ignorecase)
-{
-    if (c1 == '?') {
-        return c2; // match any char except NUL
-    }
-
-    return match_raw(c1, c2, ignorecase);
-}
-
-static bool match_part(const char *filter, const char *string,
-                       size_t len, bool ignorecase)
-{
-    bool match;
-
-    do {
-        // skip over escape character
-        if (*filter == '\\') {
-            filter++;
-            match = match_raw(*filter, *string, ignorecase);
-        } else {
-            match = match_char(*filter, *string, ignorecase);
-        }
-
-        if (!match) {
-            return false;
-        }
-
-        filter++;
-        string++;
-    } while (--len);
-
-    return true;
-}
-
-// match the longest possible part
-static const char *match_filter(const char *filter, const char *string,
-                                size_t len, bool ignorecase)
-{
-    const char *ret = NULL;
-    size_t remaining = strlen(string);
-
-    while (remaining >= len) {
-        if (match_part(filter, string, len, ignorecase)) {
-            string += len;
-            remaining -= len;
-            ret = string;
-            continue;
-        }
-        string++;
-        remaining--;
-    }
-
-    return ret;
-}
-
-/*
-=================
-Com_WildCmpEx
-
-Wildcard compare. Returns true if string matches the pattern, false otherwise.
-
-- 'term' is handled as an additional filter terminator (besides NUL).
-- '*' matches any substring, including the empty string, but prefers longest
-possible substrings.
-- '?' matches any single character except NUL.
-- '\\' can be used to escape any character, including itself. any special
-characters lose their meaning in this case.
-
-=================
-*/
-bool Com_WildCmpEx(const char *filter, const char *string,
-                   int term, bool ignorecase)
-{
-    const char *sub;
-    size_t len;
-    bool match;
-
-    while (*filter && *filter != term) {
-        if (*filter == '*') {
-            // skip consecutive wildcards
-            do {
-                filter++;
-            } while (*filter == '*');
-
-            // scan out filter part to match
-            for (sub = filter, len = 0; *filter && *filter != term && *filter != '*'; filter++, len++) {
-                // skip over escape character
-                if (*filter == '\\') {
-                    filter++;
-                    if (!*filter) {
-                        break;
-                    }
-                }
-            }
-
-            // wildcard at the end matches everything
-            if (!len) {
-                return true;
-            }
-
-            string = match_filter(sub, string, len, ignorecase);
-            if (!string) {
-                return false;
-            }
-        } else {
-            // skip over escape character
-            if (*filter == '\\') {
-                filter++;
-                if (!*filter) {
-                    break;
-                }
-                match = match_raw(*filter, *string, ignorecase);
-            } else {
-                match = match_char(*filter, *string, ignorecase);
-            }
-
-            // match single character
-            if (!match) {
-                return false;
-            }
-
-            filter++;
-            string++;
-        }
-    }
-
-    // match NUL at the end
-    return !*string;
-}
+//static bool match_raw(int c1, int c2, bool ignorecase)
+//{
+//    if (c1 != c2) {
+//        if (!ignorecase) {
+//            return false;
+//        }
+//#ifdef _WIN32
+//        // ugly hack for file listing
+//        c1 = c1 == '\\' ? '/' : Q_tolower(c1);
+//        c2 = c2 == '\\' ? '/' : Q_tolower(c2);
+//#else
+//        c1 = Q_tolower(c1);
+//        c2 = Q_tolower(c2);
+//#endif
+//        if (c1 != c2) {
+//            return false;
+//        }
+//    }
+//
+//    return true;
+//}
+//
+//static bool match_char(int c1, int c2, bool ignorecase)
+//{
+//    if (c1 == '?') {
+//        return c2; // match any char except NUL
+//    }
+//
+//    return match_raw(c1, c2, ignorecase);
+//}
+//
+//static bool match_part(const char *filter, const char *string,
+//                       size_t len, bool ignorecase)
+//{
+//    bool match;
+//
+//    do {
+//        // skip over escape character
+//        if (*filter == '\\') {
+//            filter++;
+//            match = match_raw(*filter, *string, ignorecase);
+//        } else {
+//            match = match_char(*filter, *string, ignorecase);
+//        }
+//
+//        if (!match) {
+//            return false;
+//        }
+//
+//        filter++;
+//        string++;
+//    } while (--len);
+//
+//    return true;
+//}
+//
+//// match the longest possible part
+//static const char *match_filter(const char *filter, const char *string,
+//                                size_t len, bool ignorecase)
+//{
+//    const char *ret = NULL;
+//    size_t remaining = strlen(string);
+//
+//    while (remaining >= len) {
+//        if (match_part(filter, string, len, ignorecase)) {
+//            string += len;
+//            remaining -= len;
+//            ret = string;
+//            continue;
+//        }
+//        string++;
+//        remaining--;
+//    }
+//
+//    return ret;
+//}
+//
+///*
+//=================
+//Com_WildCmpEx
+//
+//Wildcard compare. Returns true if string matches the pattern, false otherwise.
+//
+//- 'term' is handled as an additional filter terminator (besides NUL).
+//- '*' matches any substring, including the empty string, but prefers longest
+//possible substrings.
+//- '?' matches any single character except NUL.
+//- '\\' can be used to escape any character, including itself. any special
+//characters lose their meaning in this case.
+//
+//=================
+//*/
+//bool Com_WildCmpEx(const char *filter, const char *string,
+//                   int term, bool ignorecase)
+//{
+//    const char *sub;
+//    size_t len;
+//    bool match;
+//
+//    while (*filter && *filter != term) {
+//        if (*filter == '*') {
+//            // skip consecutive wildcards
+//            do {
+//                filter++;
+//            } while (*filter == '*');
+//
+//            // scan out filter part to match
+//            for (sub = filter, len = 0; *filter && *filter != term && *filter != '*'; filter++, len++) {
+//                // skip over escape character
+//                if (*filter == '\\') {
+//                    filter++;
+//                    if (!*filter) {
+//                        break;
+//                    }
+//                }
+//            }
+//
+//            // wildcard at the end matches everything
+//            if (!len) {
+//                return true;
+//            }
+//
+//            string = match_filter(sub, string, len, ignorecase);
+//            if (!string) {
+//                return false;
+//            }
+//        } else {
+//            // skip over escape character
+//            if (*filter == '\\') {
+//                filter++;
+//                if (!*filter) {
+//                    break;
+//                }
+//                match = match_raw(*filter, *string, ignorecase);
+//            } else {
+//                match = match_char(*filter, *string, ignorecase);
+//            }
+//
+//            // match single character
+//            if (!match) {
+//                return false;
+//            }
+//
+//            filter++;
+//            string++;
+//        }
+//    }
+//
+//    // match NUL at the end
+//    return !*string;
+//}
 
 /*
 ==============================================================================

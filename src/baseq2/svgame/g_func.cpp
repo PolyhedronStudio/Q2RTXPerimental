@@ -1090,6 +1090,7 @@ void SP_func_door(edict_t *ent)
     G_SetMovedir(ent->s.angles, ent->movedir);
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
+    ent->svflags |= SVF_DOOR;
     gi.setmodel(ent, ent->model);
 
     ent->blocked = door_blocked;
@@ -1223,6 +1224,7 @@ void SP_func_door_rotating(edict_t *ent)
 
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
+    ent->svflags |= SVF_DOOR;
     gi.setmodel(ent, ent->model);
 
     ent->blocked = door_blocked;
@@ -1861,6 +1863,7 @@ void SP_func_door_secret(edict_t *ent)
 
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
+    ent->svflags |= SVF_DOOR;
     gi.setmodel(ent, ent->model);
 
     ent->blocked = door_secret_blocked;

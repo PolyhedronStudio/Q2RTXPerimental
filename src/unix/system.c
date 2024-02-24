@@ -75,11 +75,15 @@ void Sys_DebugBreak(void)
     raise(SIGTRAP);
 }
 
-unsigned Sys_Milliseconds(void)
+//unsigned Sys_Milliseconds(void)
+const uint64_t Sys_Milliseconds( void )
 {
-    struct timespec ts;
-    (void)clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec * 1000UL + ts.tv_nsec / 1000000UL;
+    //struct timespec ts;
+    //(void)clock_gettime(CLOCK_MONOTONIC, &ts);
+    //return ts.tv_sec * 1000UL + ts.tv_nsec / 1000000UL;
+    struct timespec64_t ts;
+    (void)clock_gettime64( CLOCK_MONOTONIC, &ts );
+    return ts.tv_sec * 1000ULL + ts.tv_nsec / 1000000ULL;
 }
 
 /*
@@ -121,7 +125,7 @@ void Sys_AddDefaultConfig(void)
     }
 }
 
-void Sys_Sleep(int64_t msec)
+void Sys_Sleep( const int64_t msec )
 {
     struct timespec req;
 

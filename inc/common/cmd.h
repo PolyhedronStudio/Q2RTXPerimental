@@ -33,25 +33,26 @@ extern "C" {
 
 #define ALIAS_LOOP_COUNT    16
 
-// where did current command come from?
-typedef enum {
-    FROM_STUFFTEXT,
-    FROM_RCON,
-    FROM_MENU,
-    FROM_CONSOLE,
-    FROM_CMDLINE,
-    FROM_CODE
-} from_t;
-
-typedef struct cmdbuf_s {
-    from_t      from;
-    char        *text; // may not be NULL terminated
-    size_t      cursize;
-    size_t      maxsize;
-    int64_t     waitCount;
-	int64_t		aliasCount; // for detecting runaway loops
-    void        (*exec)(struct cmdbuf_s *, const char *);
-} cmdbuf_t;
+// Moved to shared.h
+//// where did current command come from?
+//typedef enum {
+//    FROM_STUFFTEXT,
+//    FROM_RCON,
+//    FROM_MENU,
+//    FROM_CONSOLE,
+//    FROM_CMDLINE,
+//    FROM_CODE
+//} from_t;
+//
+//typedef struct cmdbuf_s {
+//    from_t      from;
+//    char        *text; // may not be NULL terminated
+//    size_t      cursize;
+//    size_t      maxsize;
+//    int64_t     waitCount;
+//	int64_t		aliasCount; // for detecting runaway loops
+//    void        (*exec)(struct cmdbuf_s *, const char *);
+//} cmdbuf_t;
 
 // generic console buffer
 extern char         cmd_buffer_text[CMD_BUFFER_SIZE];
@@ -93,37 +94,38 @@ Command execution takes a null terminated string, breaks it into tokens,
 then searches for a command or variable that matches the first token.
 */
 
-typedef struct genctx_s {
-    const char  *partial;
-    size_t length;
-    int argnum;
-    char **matches;
-    int count, size;
-    void *data;
-    bool ignorecase;
-    bool ignoredups;
-} genctx_t;
+//typedef struct genctx_s {
+//    const char  *partial;
+//    size_t length;
+//    int argnum;
+//    char **matches;
+//    int count, size;
+//    void *data;
+//    bool ignorecase;
+//    bool ignoredups;
+//} genctx_t;
+//
+////typedef void (*xcommand_t)(void); -> Moved to shared.h
+//typedef void (*xcommandex_t)(cmdbuf_t *);
+//typedef size_t (*xmacro_t)(char *, size_t);
+////typedef void (*xcompleter_t)(struct genctx_s *, int); -> Moved to shared.h
 
-typedef void (*xcommand_t)(void);
-typedef void (*xcommandex_t)(cmdbuf_t *);
-typedef size_t (*xmacro_t)(char *, size_t);
-typedef void (*xcompleter_t)(struct genctx_s *, int);
+//typedef struct cmd_macro_s {
+//    struct cmd_macro_s  *next, *hashNext;
+//    const char          *name;
+//    xmacro_t            function;
+//} cmd_macro_t;
+//
+//typedef struct {
+//    const char *sh, *lo, *help;
+//} cmd_option_t;
 
-typedef struct cmd_macro_s {
-    struct cmd_macro_s  *next, *hashNext;
-    const char          *name;
-    xmacro_t            function;
-} cmd_macro_t;
-
-typedef struct {
-    const char *sh, *lo, *help;
-} cmd_option_t;
-
-typedef struct cmdreg_s {
-    const char      *name;
-    xcommand_t      function;
-    xcompleter_t    completer;
-} cmdreg_t;
+// Moved to shared.h
+//typedef struct cmdreg_s {
+//    const char      *name;
+//    xcommand_t      function;
+//    xcompleter_t    completer;
+//} cmdreg_t;
 
 void Cmd_Init(void);
 
@@ -143,23 +145,27 @@ void Cmd_Command_g(genctx_t *ctx);
 void Cmd_Alias_g(genctx_t *ctx);
 void Cmd_Macro_g(genctx_t *ctx);
 void Cmd_Config_g(genctx_t *ctx);
+//! Attempts to match a partial command for automatic command line completion
+//! returns NULL if nothing fits
 void Cmd_Option_c(const cmd_option_t *opt, xgenerator_t g, genctx_t *ctx, int argnum);
-// attempts to match a partial command for automatic command line completion
-// returns NULL if nothing fits
 
+
+//! Takes a null terminated string.  Does not need to be /n terminated.
+//! breaks the string up into arg tokens.
 void Cmd_TokenizeString(const char *text, bool macroExpand);
-// Takes a null terminated string.  Does not need to be /n terminated.
-// breaks the string up into arg tokens.
 
+//! Registers the cmdreg_t command.
+void Cmd_RegCommand( const cmdreg_t *reg );
+
+//! Execute already tokenized string
 void Cmd_ExecuteCommand(cmdbuf_t *buf);
-// execute already tokenized string
 
+//! Parses a single line of text into arguments and tries to execute it
+//! as if it was typed at the console
 void Cmd_ExecuteString(cmdbuf_t *buf, const char *text);
-// Parses a single line of text into arguments and tries to execute it
-// as if it was typed at the console
 
+//! execute a config file
 int Cmd_ExecuteFile(const char *path, unsigned flags);
-// execute a config file
 
 char *Cmd_MacroExpandString(const char *text, bool aliasHack);
 
@@ -175,20 +181,20 @@ void Cmd_RemoveCommand(const char *cmd_name);
 
 void Cmd_AddMacro(const char *name, xmacro_t function);
 
-from_t  Cmd_From(void);
-int     Cmd_Argc(void);
-char    *Cmd_Argv(int arg); // WID: C++20: Added const.
-char    *Cmd_Args(void); // WID: C++20: Added const.
-char    *Cmd_RawArgs(void); // WID: C++20: Added const.
-char    *Cmd_ArgsFrom(int from); // WID: C++20: Added const
-char    *Cmd_RawArgsFrom(int from);
-char    *Cmd_ArgsRange(int from, int to); // WID: C++20: Added const
-size_t  Cmd_ArgsBuffer(char *buffer, size_t size);
-size_t  Cmd_ArgvBuffer(int arg, char *buffer, size_t size);
-int     Cmd_ArgOffset(int arg);
-int     Cmd_FindArgForOffset(int offset);
-char    *Cmd_RawString(void); // WID: C++20: Added const.
-void    Cmd_Shift(void);
+const from_t  Cmd_From( void );
+const int32_t Cmd_Argc( void );
+char    *Cmd_Argv( const int32_t arg );
+char    *Cmd_Args( void );
+char    *Cmd_RawArgs( void );
+char    *Cmd_ArgsFrom( const int32_t from );
+char    *Cmd_RawArgsFrom( const int32_t from );
+char    *Cmd_ArgsRange( const int32_t from, const int32_t to );
+const size_t  Cmd_ArgsBuffer( char *buffer, const size_t size );
+const size_t  Cmd_ArgvBuffer( const int32_t arg, char *buffer, const size_t size );
+const int32_t Cmd_ArgOffset( const int32_t arg );
+const int32_t Cmd_FindArgForOffset( const int32_t offset );
+char    *Cmd_RawString( void ); // WID: C++20: Added const.
+void    Cmd_Shift( void );
 // The functions that execute commands get their parameters with these
 // functions. Cmd_Argv () will return an empty string, not a NULL
 // if arg > argc, so string operations are always safe.

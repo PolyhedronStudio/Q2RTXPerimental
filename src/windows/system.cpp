@@ -876,7 +876,7 @@ void Sys_DebugBreak(void)
     DebugBreak();
 }
 
-uint64_t Sys_Milliseconds(void)
+const uint64_t Sys_Milliseconds(void)
 {
     LARGE_INTEGER tm;
     QueryPerformanceCounter(&tm);
@@ -887,7 +887,7 @@ void Sys_AddDefaultConfig(void)
 {
 }
 
-void Sys_Sleep(int64_t msec)
+void Sys_Sleep( const int64_t msec )
 {
     Sleep(msec);
 }

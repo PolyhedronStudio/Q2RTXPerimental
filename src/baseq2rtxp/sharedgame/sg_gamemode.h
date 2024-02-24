@@ -8,4 +8,4 @@ static constexpr int32_t GAMEMODE_MAX = 3;			//! All gamemode IDs from 0 up to G
 /**
 *	@return	A string representative of the passed in gameModeID.
 **/
-const char *SG_GetGamemodeName( int32_t gameModeID );
+const char *SG_GetGamemodeName( const int32_t gameModeID );

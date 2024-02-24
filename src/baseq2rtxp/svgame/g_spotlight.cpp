@@ -154,6 +154,8 @@ void spotlight_think( edict_t *self ) {
 		if ( Q_isalpha( lightStyle[ currentFrame ] ) ) {
 			self->s.intensity = ( lightStyle[ currentFrame ] - 'a' ) * 100;
 		}
+	} else {
+		self->s.intensity = 'a' * 100.f;
 	}
 
 	// Setup for next frame's 'think'.

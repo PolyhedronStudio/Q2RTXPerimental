@@ -25,12 +25,20 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
-typedef struct {
-    void    *base;
-    size_t  maxsize;
-    size_t  cursize;
-    size_t  mapped;
-} memhunk_t;
+/**
+*
+*
+*	This struct moved to shared/shared.h due to being necessary in case of
+*	various shared format data structures.
+*
+*
+**/
+//typedef struct {
+//    void    *base;
+//    size_t  maxsize;
+//    size_t  cursize;
+//    size_t  mapped;
+//} memhunk_t;
 
 void    Hunk_Init(void);
 void    Hunk_Begin(memhunk_t *hunk, size_t maxsize);

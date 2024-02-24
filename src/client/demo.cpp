@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_demo.c - demo recording and playback
 //
 
-#include "client.h"
+#include "cl_client.h"
 
 #define CS_BITMAP_LONGS         (CS_BITMAP_BYTES / 4)
 
@@ -725,7 +725,7 @@ static void CL_PlayDemo_f(void)
 static void CL_Demo_c(genctx_t *ctx, int argnum)
 {
     if (argnum == 1) {
-        FS_File_g("demos", "*.dm2;*.dm2.gz;*.mvd2;*.mvd2.gz", FS_SEARCH_SAVEPATH | FS_SEARCH_BYFILTER, ctx);
+        FS_File_g("demos", "*.dm2;*.dm2.gz", FS_SEARCH_SAVEPATH | FS_SEARCH_BYFILTER, ctx);
     }
 }
 
@@ -757,7 +757,7 @@ void CL_EmitDemoSnapshot(void)
     if (cl_demosnaps->integer <= 0)
         return;
 
-    if (cls.demo.frames_read < cls.demo.last_snapshot + cl_demosnaps->integer * BASE_FRAMERATE)
+    if (cls.demo.frames_read < cls.demo.last_snapshot + cl_demosnaps->integer * BASE_FRAMETIME)
         return;
 
     if (!cl.frame.valid)
@@ -915,13 +915,15 @@ static void CL_Seek_f(void)
         frames = dest - cls.demo.frames_read;
     }
 
-    if ( !frames )
+    if ( !frames ) {
         // already there
         return;
+    }
 
-    if ( frames > 0 && cls.demo.eof && cl_demowait->integer )
+    if ( frames > 0 && cls.demo.eof && cl_demowait->integer ) {
         // already at end
         return;
+    }
 
     // disable effects processing
     cls.demo.seeking = true;
@@ -1011,8 +1013,8 @@ static void CL_Seek_f(void)
 
     // TODO: Move these two over to client game dll.
     // clear old effects
-    CL_ClearEffects();
-    CL_ClearTEnts();
+    //CL_ClearEffects();
+    //CL_ClearTEnts();
     
     // Clear old local entities and effects.
     clge->ClearState();
@@ -1104,8 +1106,6 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info)
         MSG_ReadString(string, sizeof(string));
         parse_info_string(info, clientNum, index, string);
     }
-
-    info->mvd = false;
 
     FS_CloseFile(f);
     return info;

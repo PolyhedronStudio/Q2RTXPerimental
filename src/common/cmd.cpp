@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cmd.c -- Quake script command processing module
 
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 #include "common/cmd.h"
 #include "common/common.h"
 #include "common/cvar.h"
@@ -827,13 +827,11 @@ int             cmd_optind;
 char            *cmd_optarg; // WID: C++20: Added const.
 char            *cmd_optopt; // WID: C++20: Added const.
 
-from_t Cmd_From(void)
-{
+const from_t Cmd_From(void) {
     return cmd_current->from;
 }
 
-int Cmd_ArgOffset(int arg)
-{
+const int32_t Cmd_ArgOffset( const int32_t arg ) {
     if (arg < 0) {
         return 0;
     }
@@ -843,8 +841,7 @@ int Cmd_ArgOffset(int arg)
     return cmd_offsets[arg];
 }
 
-int Cmd_FindArgForOffset(int offset)
-{
+const int32_t Cmd_FindArgForOffset( const int32_t offset) {
     int i;
 
     if (offset > cmd_string_len)
@@ -863,8 +860,7 @@ int Cmd_FindArgForOffset(int offset)
 Cmd_Argc
 ============
 */
-int Cmd_Argc(void)
-{
+const int32_t Cmd_Argc(void) {
     return cmd_argc;
 }
 
@@ -873,8 +869,7 @@ int Cmd_Argc(void)
 Cmd_Argv
 ============
 */
-char *Cmd_Argv(int arg)
-{
+char *Cmd_Argv( const int32_t arg ) {
     if (arg < 0 || arg >= cmd_argc) {
         return (char*)cmd_null_string; // WID: C++20: I know...
     }
@@ -886,8 +881,7 @@ char *Cmd_Argv(int arg)
 Cmd_ArgvBuffer
 ============
 */
-size_t Cmd_ArgvBuffer(int arg, char *buffer, size_t size)
-{
+const size_t Cmd_ArgvBuffer( const int32_t arg, char *buffer, const size_t size ) {
     return Q_strlcpy(buffer, Cmd_Argv(arg), size);
 }
 
@@ -918,8 +912,7 @@ char *Cmd_RawString(void) // WID: C++20: Added const.
 Cmd_ArgsBuffer
 ============
 */
-size_t Cmd_ArgsBuffer(char *buffer, size_t size)
-{
+const size_t Cmd_ArgsBuffer( char *buffer, const size_t size ) {
     return Q_strlcpy(buffer, Cmd_Args(), size);
 }
 
@@ -1409,12 +1402,12 @@ Cmd_Find
 */
 static cmd_function_t *Cmd_Find(const char *name)
 {
-    cmd_function_t *cmd;
+    cmd_function_t *cmd = nullptr;
     unsigned hash;
 
     hash = Com_HashString(name, CMD_HASH_SIZE);
     FOR_EACH_CMD_HASH(cmd, hash) {
-        if (!strcmp(cmd->name, name)) {
+        if (cmd && !strcmp(cmd->name, name)) {
             return cmd;
         }
     }
@@ -1436,7 +1429,7 @@ static void Cmd_LinkCommand(cmd_function_t *cmd)
     List_Append(&cmd_hash[hash], &cmd->hashEntry);
 }
 
-static void Cmd_RegCommand(const cmdreg_t *reg)
+void Cmd_RegCommand(const cmdreg_t *reg)
 {
     cmd_function_t *cmd;
 

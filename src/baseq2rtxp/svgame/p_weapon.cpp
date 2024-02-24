@@ -148,13 +148,15 @@ bool Pickup_Weapon(edict_t *ent, edict_t *other)
 
         if (!(ent->spawnflags & DROPPED_PLAYER_ITEM)) {
             if (deathmatch->value) {
-                if ((int)(dmflags->value) & DF_WEAPONS_STAY)
-                    ent->flags |= FL_RESPAWN;
-                else
-                    SetRespawn(ent, 30);
+                if ( (int)( dmflags->value ) & DF_WEAPONS_STAY ) {
+                    ent->flags = static_cast<ent_flags_t>( ent->flags | FL_RESPAWN );
+                } else {
+                    SetRespawn( ent, 30 );
+                }
             }
-            if (coop->value)
-                ent->flags |= FL_RESPAWN;
+            if ( coop->value ) {
+                ent->flags = static_cast<ent_flags_t>( ent->flags | FL_RESPAWN );
+            }
         }
     }
 

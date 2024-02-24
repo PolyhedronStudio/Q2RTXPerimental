@@ -143,7 +143,7 @@ void DoRespawn(edict_t *ent)
 
 void SetRespawn(edict_t *ent, float delay)
 {
-    ent->flags |= FL_RESPAWN;
+    ent->flags = static_cast<ent_flags_t>( ent->flags | FL_RESPAWN );
     ent->svflags |= SVF_NOCLIENT;
     ent->solid = SOLID_NOT;
     ent->nextthink = level.time + sg_time_t::from_sec( delay );
@@ -540,7 +540,7 @@ bool Pickup_Health(edict_t *ent, edict_t *other)
         ent->think = MegaHealth_think;
         ent->nextthink = level.time + 5_sec;
         ent->owner = other;
-        ent->flags |= FL_RESPAWN;
+        ent->flags = static_cast<ent_flags_t>( ent->flags | FL_RESPAWN );
         ent->svflags |= SVF_NOCLIENT;
         ent->solid = SOLID_NOT;
     } else {
@@ -667,7 +667,7 @@ void Use_PowerArmor(edict_t *ent, gitem_t *item)
     int     index;
 
     if (ent->flags & FL_POWER_ARMOR) {
-        ent->flags &= ~FL_POWER_ARMOR;
+        ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_POWER_ARMOR );
         gi.sound(ent, CHAN_AUTO, gi.soundindex("misc/power2.wav"), 1, ATTN_NORM, 0);
     } else {
         index = ITEM_INDEX(FindItem("cells"));
@@ -675,7 +675,8 @@ void Use_PowerArmor(edict_t *ent, gitem_t *item)
             gi.cprintf(ent, PRINT_HIGH, "No cells for power armor.\n");
             return;
         }
-        ent->flags |= FL_POWER_ARMOR;
+        ent->flags = static_cast<ent_flags_t>( ent->flags | FL_POWER_ARMOR );
+
         gi.sound(ent, CHAN_AUTO, gi.soundindex("misc/power1.wav"), 1, ATTN_NORM, 0);
     }
 }
@@ -763,7 +764,7 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 
     if (!((coop->value) && (ent->item->flags & IT_STAY_COOP)) || (ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM))) {
         if (ent->flags & FL_RESPAWN)
-            ent->flags &= ~FL_RESPAWN;
+            ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_RESPAWN );
         else
             G_FreeEdict(ent);
     }
@@ -886,7 +887,7 @@ void droptofloor(edict_t *ent)
     VectorCopy(tr.endpos, ent->s.origin);
 
     if (ent->team) {
-        ent->flags &= ~FL_TEAMSLAVE;
+        ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_TEAMSLAVE );
         ent->chain = ent->teamchain;
         ent->teamchain = NULL;
 

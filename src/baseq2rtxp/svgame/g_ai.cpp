@@ -553,22 +553,27 @@ bool FacingIdeal(edict_t *self)
 
 bool M_CheckAttack(edict_t *self)
 {
-    vec3_t  spot1, spot2;
+    Vector3  spot1, spot2;
     float   chance;
     trace_t tr;
 
-    if (self->enemy->health > 0) {
+    //if ( self->enemy->flags & FL_NOVISIBLE )
+    //    return false;
+
+    if ( self->enemy->health > 0 ) {
+        spot1 = self->s.origin;
+        spot1[ 2 ] += self->viewheight;
         // see if any entities are in the way of the shot
-        VectorCopy(self->s.origin, spot1);
-        spot1[2] += self->viewheight;
-        VectorCopy(self->enemy->s.origin, spot2);
-        spot2[2] += self->enemy->viewheight;
+        if ( !self->enemy->client || self->enemy->solid ) {
+            spot2 = self->enemy->s.origin;
+            spot2[ 2 ] += self->enemy->viewheight;
 
-        tr = gi.trace(spot1, NULL, NULL, spot2, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
-
-        // do we have a clear shot?
-        if (tr.ent != self->enemy)
-            return false;
+            tr = gi.trace( &spot1.x, nullptr, nullptr, &spot2.x, self,
+                contents_t( MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA ) );
+        } else {
+            tr.ent = world;
+            tr.fraction = 0;
+        }
     }
 
     // melee attack

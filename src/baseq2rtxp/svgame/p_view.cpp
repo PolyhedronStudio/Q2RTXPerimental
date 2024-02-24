@@ -382,14 +382,16 @@ void SV_CalcViewOffset( edict_t *ent ) {
 		// visual difference in higher tickrates
 		sg_time_t diff = ent->client->fall_time - level.time;
 
-		// slack time remaining
+		// Slack time remaining
 		if ( DAMAGE_TIME_SLACK( ) ) {
-			if ( diff > FALL_TIME( ) - DAMAGE_TIME_SLACK( ) )
+			if ( diff > FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ) {
 				ratio = ( FALL_TIME( ) - diff ).seconds( ) / DAMAGE_TIME_SLACK( ).seconds( );
-			else
-				ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
-		} else
-			ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
+			} else {
+				ratio = diff.seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).seconds();
+			}
+		} else {
+			ratio = diff.seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).seconds();
+		}
 		v[ 2 ] -= ratio * ent->client->fall_value * 0.4f;
 	}
 
@@ -423,7 +425,7 @@ void SV_CalcGunOffset( edict_t *ent ) {
 	int     i;
 	float   delta;
 
-	// gun angles from bobbing
+	// Gun angles from bobbing
 	ent->client->ps.gunangles[ ROLL ] = xyspeed * bobfracsin * 0.005f;
 	ent->client->ps.gunangles[ YAW ] = xyspeed * bobfracsin * 0.01f;
 	if ( bobcycle & 1 ) {
@@ -433,7 +435,7 @@ void SV_CalcGunOffset( edict_t *ent ) {
 
 	ent->client->ps.gunangles[ PITCH ] = xyspeed * bobfracsin * 0.005f;
 
-	// gun angles from delta movement
+	// Gun angles from delta movement
 	for ( i = 0; i < 3; i++ ) {
 		delta = ent->client->oldviewangles[ i ] - ent->client->ps.viewangles[ i ];
 		if ( delta > 180 )
@@ -510,14 +512,17 @@ void SV_CalcBlend( edict_t *ent ) {
 		ent->client->ps.rdflags |= RDF_UNDERWATER;
 	else
 		ent->client->ps.rdflags &= ~RDF_UNDERWATER;
-
-	if ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) )
+	
+	// Prevent it from adding screenblend if we're inside a client entity, by checking
+	// if its brush has CONTENTS_PLAYER set in its clipmask.
+	if ( /*!( contents & CONTENTS_PLAYER ) 
+		&&*/ ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
 		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, ent->client->ps.screen_blend );
-	else if ( contents & CONTENTS_SLIME )
+	} else if ( contents & CONTENTS_SLIME ) {
 		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, ent->client->ps.screen_blend );
-	else if ( contents & CONTENTS_WATER )
+	} else if ( contents & CONTENTS_WATER ) {
 		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, ent->client->ps.screen_blend );
-
+	}
 	// add for powerups
 	if ( ent->client->quad_time > level.time ) {
 		remaining = ent->client->quad_time - level.time;
@@ -546,9 +551,10 @@ void SV_CalcBlend( edict_t *ent ) {
 	}
 
 	// add for damage
-	if ( ent->client->damage_alpha > 0 )
+	if ( ent->client->damage_alpha > 0 ) {
 		SG_AddBlend( ent->client->damage_blend[ 0 ], ent->client->damage_blend[ 1 ]
-					, ent->client->damage_blend[ 2 ], ent->client->damage_alpha, ent->client->ps.screen_blend );
+			, ent->client->damage_blend[ 2 ], ent->client->damage_alpha, ent->client->ps.screen_blend );
+	}
 
 	// [Paril-KEX] drowning visual indicator
 	if ( ent->air_finished_time < level.time + 9_sec ) {
@@ -563,15 +569,17 @@ void SV_CalcBlend( edict_t *ent ) {
 	if ( ent->client->bonus_alpha > 0 )
 		SG_AddBlend( 0.85f, 0.7f, 0.3f, ent->client->bonus_alpha, ent->client->ps.screen_blend );
 #endif
-	// drop the damage value
+	// Drop the damage value
 	ent->client->damage_alpha -= gi.frame_time_s * 0.6f;
-	if ( ent->client->damage_alpha < 0 )
+	if ( ent->client->damage_alpha < 0 ) {
 		ent->client->damage_alpha = 0;
+	}
 
-	// drop the bonus value
+	// Drop the bonus value
 	ent->client->bonus_alpha -= gi.frame_time_s;
-	if ( ent->client->bonus_alpha < 0 )
+	if ( ent->client->bonus_alpha < 0 ) {
 		ent->client->bonus_alpha = 0;
+	}
 }
 
 /*
@@ -607,7 +615,7 @@ void P_WorldEffects( void ) {
 			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
 		else if ( current_player->watertype & CONTENTS_WATER )
 			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
-		current_player->flags |= FL_INWATER;
+		current_player->flags = static_cast<ent_flags_t>( current_player->flags | FL_INWATER );
 
 		// clear damage_debounce, so the pain sound will play immediately
 		current_player->damage_debounce_time = level.time - 1_sec;
@@ -619,7 +627,7 @@ void P_WorldEffects( void ) {
 	if ( old_waterlevel && !waterlevel ) {
 		PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_out.wav" ), 1, ATTN_NORM, 0 );
-		current_player->flags &= ~FL_INWATER;
+		current_player->flags = static_cast<ent_flags_t>( current_player->flags & ~FL_INWATER );
 	}
 
 	//

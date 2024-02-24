@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // bsp.c -- model loading
 
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 #include "common/bsp.h"
 #include "common/cmd.h"
 #include "common/common.h"
@@ -36,6 +36,18 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern mtexinfo_t nulltexinfo;
 
 static cvar_t *map_visibility_patch;
+
+/**
+*   When not compiling with USE_REF defined by CMake, we know we're not dealing
+*   with the client. Since defining USE_REF with CMake will cause other parts of
+*   the code we don't want to compile as well. In order to prevent that, we use
+*   this in-file silly hack. It is undefined afterwards at the end of the file.
+**/
+#ifndef USE_REF
+#define USE_REF_HEADER_HACK
+#define USE_REF 1
+#endif
+
 
 /*
 ===============================================================================
@@ -1647,3 +1659,9 @@ void BSP_Init(void)
     List_Init(&bsp_cache);
 }
 
+/**
+*   The END of USE_REF Header hack.
+**/
+#ifdef USE_REF_HEADER_HACK
+#undef USE_REF
+#endif

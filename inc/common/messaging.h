@@ -63,9 +63,10 @@ extern "C" {
 		vec3_t		angles; // WID: float-movement
 		vec3_t		old_origin; //int16_t     old_origin[3]; // WID: float-movement
 
-		solid_packed_t solid;
-		int32_t clipmask;		//! Clipmask for collision.
-		int32_t ownerNumber;	//! Entity who owns this entity.
+		solid_packed_t solid;	//! Solid for collision prediction.
+		int32_t clipmask;		//! Clipmask for collision prediction.
+		contents_t hullContents;//! Hull Contents for collision prediction.
+		int32_t ownerNumber;	//! Entity which owns this entity, for collision prediction.
 
 		uint32_t	modelindex;
 		uint32_t	modelindex2;
@@ -106,7 +107,7 @@ extern "C" {
 		//uint8_t         damage_blend[ 4 ];
 		uint8_t         screen_blend[4];
 		uint8_t         fov;
-		int32_t        rdflags;
+		int32_t			rdflags;
 		int32_t         stats[MAX_STATS];
 	} player_packed_t;
 
@@ -131,7 +132,7 @@ extern "C" {
 	/**
 	*	@brief	Will decode/unpack the solid_packet_t uint32_t, into the pointers mins/maxs.
 	**/
-	static inline void MSG_UnpackSolidUint32( uint32_t solid, vec3_t mins, vec3_t maxs ) {
+	static inline void MSG_UnpackSolidUint32( const solid_t solid, vec3_t mins, vec3_t maxs ) {
 		solid_packed_t packedSolid;
 		packedSolid.u = solid;
 
@@ -464,7 +465,7 @@ extern "C" {
 		/**
 		*	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
 		**/
-		void    MSG_ReadPos( vec3_t pos, const bool decodeFromShort );
+		void    MSG_ReadPos( vec3_t pos, const qboolean decodeFromShort );
 	#endif
 	/**
 	*   @brief Read a client's delta move command.

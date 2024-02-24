@@ -40,8 +40,8 @@ void    *Sys_LoadLibrary(const char *path, const char *sym, void **handle);
 void    Sys_FreeLibrary(void *handle);
 void    *Sys_GetProcAddress(void *handle, const char *sym);
 
-uint64_t Sys_Milliseconds(void);
-void     Sys_Sleep(int64_t msec);
+const   uint64_t Sys_Milliseconds(void);
+void    Sys_Sleep( const int64_t msec );
 
 void    Sys_Init(void);
 void    Sys_AddDefaultConfig(void);

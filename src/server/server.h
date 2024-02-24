@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // server.h
 
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 #include "shared/svgame.h"
 
 #include "common/bsp.h"
@@ -291,7 +291,7 @@ typedef struct client_s {
     int             protocol;   // major version
     int             version;    // minor version
 
-    pmoveParams_t   pmp;        // spectator speed, etc
+    //pmoveParams_t   pmp;        // spectator speed, etc
     msgEsFlags_t    esFlags;    // entity protocol flags
 
     // packetized messages
@@ -451,14 +451,14 @@ extern list_t       sv_clientlist;  // linked list of non-free clients
 extern server_static_t      svs;        // persistant server info
 extern server_t             sv;         // local server
 
-extern pmoveParams_t    sv_pmp;
+//extern pmoveParams_t    sv_pmp;
 
 extern cvar_t       *sv_hostname;
 extern cvar_t       *sv_maxclients;
 extern cvar_t       *sv_password;
 extern cvar_t       *sv_reserved_slots;
-extern cvar_t       *sv_airaccelerate;        // development tool
-extern cvar_t       *sv_qwmod;                // atu QW Physics modificator
+//extern cvar_t       *sv_airaccelerate;        // development tool
+//extern cvar_t       *sv_qwmod;                // atu QW Physics modificator
 extern cvar_t       *sv_enforcetime;
 extern cvar_t       *sv_force_reconnect;
 extern cvar_t       *sv_iplimit;
@@ -538,7 +538,7 @@ void sv_min_timeout_changed(cvar_t *self);
 void SV_ClientReset(client_t *client);
 void SV_SpawnServer(mapcmd_t *cmd);
 bool SV_ParseMapCmd(mapcmd_t *cmd);
-void SV_PreInitGame( void );
+//void SV_PreInitGame( void );
 void SV_InitGame( void );
 
 //
@@ -657,7 +657,7 @@ int SV_AreaEdicts(const vec3_t mins, const vec3_t maxs, edict_t **list, int maxc
 *	@return	The CONTENTS_* value from the world at the given point.
 *			Quake 2 extends this to also check entities, to allow moving liquids
 **/
-int SV_PointContents( const vec3_t p );
+const contents_t SV_PointContents( const vec3_t p );
 
 
 /**
@@ -671,16 +671,16 @@ int SV_PointContents( const vec3_t p );
 *
 *					passedict is explicitly excluded from clipping checks (normally NULL)
 **/
-trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
+const trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
                            const vec3_t maxs, const vec3_t end,
-                           edict_t *passedict, int contentmask );
+                           edict_t *passedict, const contents_t contentmask );
 
 /**
 *	@brief	Like SV_Trace(), but clip to specified entity only.
 *			Can be used to clip to SOLID_TRIGGER by its BSP tree.
 **/
-trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
-						  const vec3_t maxs, const vec3_t end, int contentmask );
+const trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
+						  const vec3_t maxs, const vec3_t end, const contents_t contentmask );
 #ifdef __cplusplus
 // We extern "C"
 };

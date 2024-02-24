@@ -7,8 +7,8 @@ PLAYER MOVEMENT CODE
 
 ==============================================================
 */
-static constexpr float PM_MIN_STEPSIZE = 4.f;
-static constexpr float PM_MAX_STEPSIZE = 18.f;
+static constexpr float PM_MIN_STEP_SIZE = 4.f;
+static constexpr float PM_MAX_STEP_SIZE = 18.f;
 
 /**
 *	@brief	Shard Game Player Movement code implementation:

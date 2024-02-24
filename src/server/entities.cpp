@@ -80,11 +80,13 @@ static void SV_EmitPacketEntities(client_t         *client,
             // this updates their old_origin always and prevents warping in case
             // of packet loss.
             flags = client->esFlags;
+            // In case of a Player Entity:
             if (newnum <= client->maxclients) {
                 // WID: C++20:
 				//flags |= MSG_ES_NEWENTITY;
 				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_NEWENTITY );
             }
+            // In case this is our own client entity, update the new ent's origin and angles.
             if (newnum == clientEntityNum) {
                 //flags |= MSG_ES_FIRSTPERSON;
 				// WID: C++20:
@@ -117,6 +119,7 @@ static void SV_EmitPacketEntities(client_t         *client,
             } else {
                 oldent = &nullEntityState;
             }
+            // In case this is our own client entity, update the new ent's origin and angles.
             if (newnum == clientEntityNum) {
                 //flags |= MSG_ES_FIRSTPERSON;
 				// WID: C++20:
@@ -275,6 +278,7 @@ void SV_BuildClientFrame(client_t *client)
     // find the client's PVS
     ps = &clent->client->ps;
 	VectorAdd( ps->viewoffset, ps->pmove.origin, org );
+
     // Add the actual viewoffset to the origin.
     org[ 2 ] += ps->pmove.viewheight;
 
@@ -429,11 +433,11 @@ void SV_BuildClientFrame(client_t *client)
 		// don't mark players missiles as solid
         if (ent->owner == clent) {
             state->solid.u = 0;
-        }
-		// WID: netstuff: longsolid
+        // WID: netstuff: longsolid
 		// else if (client->esFlags & MSG_ES_LONGSOLID) {
+        } else {
             state->solid.u = sv.entities[e].solid32;
-        //}
+        }
 
         svs.next_entity++;
 

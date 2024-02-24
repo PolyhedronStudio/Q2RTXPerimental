@@ -18,30 +18,29 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // cl_main.c  -- client main loop
 
-#include "client.h"
+#include "cl_client.h"
 
 cvar_t  *rcon_address;
 
-cvar_t  *cl_noskins;
-cvar_t  *cl_footsteps;
+//cvar_t  *cl_noskins;
 cvar_t  *cl_timeout;
 cvar_t  *cl_predict;
-cvar_t  *cl_gunalpha;
+//cvar_t  *cl_gunalpha;
 // WID: C++20: For linkage with .c
 extern "C" {
 	cvar_t *cl_gunfov;
 }
-cvar_t  *cl_gunscale;
-cvar_t  *cl_gun_x;
-cvar_t  *cl_gun_y;
-cvar_t  *cl_gun_z;
+//cvar_t  *cl_gunscale;
+//cvar_t  *cl_gun_x;
+//cvar_t  *cl_gun_y;
+//cvar_t  *cl_gun_z;
 cvar_t  *cl_warn_on_fps_rounding;
 cvar_t  *cl_maxfps;
 cvar_t  *cl_async;
 cvar_t  *r_maxfps;
 cvar_t  *cl_autopause;
 
-cvar_t  *cl_kickangles;
+//cvar_t  *cl_kickangles;
 cvar_t  *cl_rollhack;
 cvar_t  *cl_noglow;
 cvar_t  *cl_nolerp;
@@ -53,30 +52,23 @@ cvar_t  *cl_showclamp;
 #endif
 
 cvar_t  *cl_player_model;
-cvar_t  *cl_thirdperson_angle;
-cvar_t  *cl_thirdperson_range;
+//cvar_t  *cl_thirdperson_angle;
+//cvar_t  *cl_thirdperson_range;
 
-cvar_t  *cl_disable_particles;
-cvar_t  *cl_disable_explosions;
-cvar_t  *cl_dlight_hacks;
+//cvar_t  *cl_chat_notify;
+//cvar_t  *cl_chat_sound;
+//cvar_t  *cl_chat_filter;
 
-cvar_t  *cl_chat_notify;
-cvar_t  *cl_chat_sound;
-cvar_t  *cl_chat_filter;
-cvar_t  *cl_explosion_sprites;
-cvar_t  *cl_explosion_frametime;
 
 cvar_t  *cl_disconnectcmd;
 cvar_t  *cl_changemapcmd;
 cvar_t  *cl_beginmapcmd;
 
-cvar_t  *cl_gibs;
-
 cvar_t  *cl_protocol;
 
 cvar_t  *gender_auto;
 
-cvar_t  *cl_vwep;
+//cvar_t  *cl_vwep;
 
 cvar_t  *cl_cinematics;
 
@@ -576,16 +568,14 @@ void CL_ClearState(void)
     S_StopAllSounds();
     OGG_Stop();
     SCR_StopCinematic();
-    CL_ClearEffects();
-    CL_ClearTEnts();
+
+    // Let the client game wipe state also.
+    clge->ClearState();
     LOC_FreeLocations();
 
     // wipe the entire cl structure
     BSP_Free(cl.bsp);
     memset(&cl, 0, sizeof(cl));
-
-    // Let the client game wipe state also.
-    clge->ClearState();
 
     if (cls.state > ca_connected) {
         cls.state = ca_connected;
@@ -619,9 +609,12 @@ void CL_Disconnect(error_type_t type)
         return;
     }
 
+    // Let the client game know we're disconnecting.
+    clge->ClientDisconnected();
+
     SCR_EndLoadingPlaque(); // get rid of loading plaque
 
-    SCR_ClearChatHUD_f();   // clear chat HUD on server change
+    //SCR_ClearChatHUD_f();   // clear chat HUD on server change
 
     if (cls.state > ca_disconnected && !cls.demo.playback) {
         EXEC_TRIGGER(cl_disconnectcmd);
@@ -1073,34 +1066,34 @@ static void CL_Skins_f(void)
     }
 }
 
-static void cl_noskins_changed(cvar_t *self)
-{
-    int i;
-    char *s;
-    clientinfo_t *ci;
-
-    if (cls.state < ca_precached) {
-        return;
-    }
-
-    for (i = 0; i < MAX_CLIENTS; i++) {
-        s = cl.configstrings[CS_PLAYERSKINS + i];
-        if (!s[0])
-            continue;
-        ci = &cl.clientinfo[i];
-        CL_LoadClientinfo(ci, s);
-    }
-}
-
-static void cl_vwep_changed(cvar_t *self)
-{
-    if (cls.state < ca_precached) {
-        return;
-    }
-
-    CL_RegisterVWepModels();
-    cl_noskins_changed(self);
-}
+//static void cl_noskins_changed(cvar_t *self)
+//{
+//    int i;
+//    char *s;
+//    clientinfo_t *ci;
+//
+//    if (cls.state < ca_precached) {
+//        return;
+//    }
+//
+//    for (i = 0; i < MAX_CLIENTS; i++) {
+//        s = cl.configstrings[CS_PLAYERSKINS + i];
+//        if (!s[0])
+//            continue;
+//        ci = &cl.clientinfo[i];
+//        CL_LoadClientinfo(ci, s);
+//    }
+//}
+//
+//static void cl_vwep_changed(cvar_t *self)
+//{
+//    if (cls.state < ca_precached) {
+//        return;
+//    }
+//
+//    CL_RegisterVWepModels();
+//    cl_noskins_changed(self);
+//}
 
 static void CL_Name_g(genctx_t *ctx)
 {
@@ -1959,7 +1952,7 @@ static size_t CL_Ups_m(char *buffer, size_t size)
 
     if ( !cls.demo.playback && cl_predict->integer &&
         !( cl.frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
-        VectorCopy(cl.predictedState.velocity, vel);
+        VectorCopy(cl.predictedState.view.velocity, vel);
     } else {
         //VectorScale(cl.frame.ps.pmove.velocity, 0.125f, vel);
 		VectorCopy( cl.frame.ps.pmove.velocity, vel );
@@ -2095,13 +2088,17 @@ static size_t CL_ResolutionScale_m(char *buffer, size_t size)
 {
 	return Q_scnprintf(buffer, size, "%d", cl.refdef.feedback.resolution_scale);
 }
-
-int CL_GetFps(void)
+//!
+const int32_t CL_GetClientFps(void)
 {
 	return C_FPS;
 }
-
-int CL_GetResolutionScale(void)
+//!
+const int32_t CL_GetRefreshFps( void ) {
+    return R_FPS;
+}
+//!
+const int32_t CL_GetResolutionScale(void)
 {
 	return cl.refdef.feedback.resolution_scale;
 }
@@ -2453,15 +2450,12 @@ static void CL_InitLocal(void)
     cls.state = ca_disconnected;
     cls.connect_time -= CONNECT_INSTANT;
 
-    // WID: Initialize CLGame.
-    CL_GM_InitProgs();
-
     CL_RegisterInput();
     CL_InitDemos();
     LOC_Init();
     CL_InitAscii();
-    CL_InitEffects();
-    CL_InitTEnts();
+    //CL_InitEffects();
+    //CL_InitTEnts();
     CL_InitDownloads();
 
     List_Init(&cl_ignore_text);
@@ -2477,17 +2471,16 @@ static void CL_InitLocal(void)
     //
     // register our variables
     //
-    cl_gunalpha = Cvar_Get("cl_gunalpha", "1", 0);
+    //cl_gunalpha = Cvar_Get("cl_gunalpha", "1", 0);
     cl_gunfov = Cvar_Get("cl_gunfov", "75", 0);
-    cl_gunscale = Cvar_Get("cl_gunscale", "0.25", CVAR_ARCHIVE);
-    cl_gun_x = Cvar_Get("cl_gun_x", "0", 0);
-    cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
-    cl_gun_z = Cvar_Get("cl_gun_z", "0", 0);
-    cl_footsteps = Cvar_Get("cl_footsteps", "1", 0);
-    cl_noskins = Cvar_Get("cl_noskins", "0", 0);
-    cl_noskins->changed = cl_noskins_changed;
+    //cl_gunscale = Cvar_Get("cl_gunscale", "0.25", CVAR_ARCHIVE);
+    //cl_gun_x = Cvar_Get("cl_gun_x", "0", 0);
+    //cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
+    //cl_gun_z = Cvar_Get("cl_gun_z", "0", 0);
+    //cl_noskins = Cvar_Get("cl_noskins", "0", 0);
+    //cl_noskins->changed = cl_noskins_changed;
     cl_predict = Cvar_Get("cl_predict", "1", 0);
-    cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
+    //cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
     cl_warn_on_fps_rounding = Cvar_Get("cl_warn_on_fps_rounding", "1", 0);
     cl_maxfps = Cvar_Get("cl_maxfps", "62", 0);
     cl_maxfps->changed = cl_maxfps_changed;
@@ -2496,8 +2489,6 @@ static void CL_InitLocal(void)
     r_maxfps = Cvar_Get("r_maxfps", "0", 0);
     r_maxfps->changed = cl_maxfps_changed;
     cl_autopause = Cvar_Get("cl_autopause", "1", 0);
-    cl_rollhack = Cvar_Get("cl_rollhack", "1", 0);
-    cl_noglow = Cvar_Get("cl_noglow", "0", 0);
     cl_nolerp = Cvar_Get("cl_nolerp", "0", 0);
 
     // hack for timedemo
@@ -2521,22 +2512,23 @@ static void CL_InitLocal(void)
     rcon_address->generator = Com_Address_g;
 
 	cl_player_model = Cvar_Get("cl_player_model", va("%d", CL_PLAYER_MODEL_FIRST_PERSON), CVAR_ARCHIVE);
-    cl_thirdperson_angle = Cvar_Get("cl_thirdperson_angle", "0", 0);
-    cl_thirdperson_range = Cvar_Get("cl_thirdperson_range", "60", 0);
+    //cl_thirdperson_angle = Cvar_Get("cl_thirdperson_angle", "0", 0);
+    //cl_thirdperson_range = Cvar_Get("cl_thirdperson_range", "60", 0);
 
-    cl_disable_particles = Cvar_Get("cl_disable_particles", "0", 0);
-    cl_disable_explosions = Cvar_Get("cl_disable_explosions", "0", 0);
-	cl_explosion_sprites = Cvar_Get("cl_explosion_sprites", "1", 0);
-	cl_explosion_frametime = Cvar_Get("cl_explosion_frametime", "20", 0);
-    cl_dlight_hacks = Cvar_Get("cl_dlight_hacks", "0", 0);
+    // Moved to clgame.
+    //cl_disable_particles = Cvar_Get("cl_disable_particles", "0", 0);
+    //cl_disable_explosions = Cvar_Get("cl_disable_explosions", "0", 0);
+    //cl_explosion_sprites = Cvar_Get("cl_explosion_sprites", "1", 0);
+    //cl_explosion_frametime = Cvar_Get("cl_explosion_frametime", "20", 0);
+    //cl_dlight_hacks = Cvar_Get("cl_dlight_hacks", "0", 0);
+    //
+    //cl_gibs = Cvar_Get("cl_gibs", "1", 0);
 
-    cl_gibs = Cvar_Get("cl_gibs", "1", 0);
-
-    cl_chat_notify = Cvar_Get("cl_chat_notify", "1", 0);
-    cl_chat_sound = Cvar_Get("cl_chat_sound", "1", 0);
-    cl_chat_sound->changed = cl_chat_sound_changed;
-    cl_chat_sound_changed(cl_chat_sound);
-    cl_chat_filter = Cvar_Get("cl_chat_filter", "0", 0);
+    //cl_chat_notify = Cvar_Get("cl_chat_notify", "1", 0);
+    //cl_chat_sound = Cvar_Get("cl_chat_sound", "1", 0);
+    //cl_chat_sound->changed = cl_chat_sound_changed;
+    //cl_chat_sound_changed(cl_chat_sound);
+    //cl_chat_filter = Cvar_Get("cl_chat_filter", "0", 0);
 
     cl_disconnectcmd = Cvar_Get("cl_disconnectcmd", "", 0);
     cl_changemapcmd = Cvar_Get("cl_changemapcmd", "", 0);
@@ -2546,8 +2538,8 @@ static void CL_InitLocal(void)
 
     gender_auto = Cvar_Get("gender_auto", "1", CVAR_ARCHIVE);
 
-    cl_vwep = Cvar_Get("cl_vwep", "1", CVAR_ARCHIVE);
-    cl_vwep->changed = cl_vwep_changed;
+    //cl_vwep = Cvar_Get("cl_vwep", "1", CVAR_ARCHIVE);
+    //cl_vwep->changed = cl_vwep_changed;
 
     cl_cinematics = Cvar_Get("cl_cinematics", "1", CVAR_ARCHIVE);
 
@@ -2569,15 +2561,6 @@ static void CL_InitLocal(void)
     info_gender->modified = false; // clear this so we know when user sets it manually
     info_uf = Cvar_Get("uf", "", CVAR_USERINFO);
 
-	// Generate a random user name to avoid new users being kicked out of MP servers.
-	// The default quake2 config files set the user name to "Player", same as the cvar initialization above.
-	if (Q_strcasecmp(info_name->string, "Player") == 0)
-	{
-		int random_number = Q_rand() % 10000;
-		char buf[MAX_CLIENT_NAME];
-		Q_snprintf(buf, sizeof(buf), "Player-%04d", random_number);
-		Cvar_Set("name", buf);
-	}
 
     //
     // macros
@@ -2606,6 +2589,9 @@ static void CL_InitLocal(void)
 	Cmd_AddMacro("cl_viewdir", CL_ViewDir_m);
 	Cmd_AddMacro("cl_hdr_color", CL_HdrColor_m);
 	Cmd_AddMacro("cl_resolution_scale", CL_ResolutionScale_m);
+
+    // Call the initialize method of client game.
+    CL_GM_Init( );
 }
 
 /*
@@ -2654,6 +2640,17 @@ void CL_Activate(active_t active)
     }
 }
 
+/**
+ * @brief Updates the interpolation fraction for the current client frame.
+ * Because the client often runs at a higher framerate than the server, we
+ * use linear interpolation between the last 2 server frames. We aim to reach
+ * the current server time just as a new packet arrives.
+ *
+ * @remarks The client advances its simulation time each frame, by the elapsed
+ * millisecond delta. Here, we clamp the simulation time to be within the
+ * range of the current frame. Even under ideal conditions, it's likely that
+ * clamping will occur due to e.g. network jitter.
+ */
 static void CL_SetClientTime(void)
 {
     int prevtime;
@@ -2821,8 +2818,8 @@ static const char *const sync_names[] = {
 };
 #endif
 
-static int ref_msec, phys_msec, main_msec;
-static int ref_extra, phys_extra, main_extra;
+static int64_t ref_msec, phys_msec, main_msec;
+static int64_t ref_extra, phys_extra, main_extra;
 static sync_mode_t sync_mode;
 
 #define MIN_PHYS_HZ 40
@@ -2886,7 +2883,7 @@ CL_Frame
 
 ==================
 */
-unsigned CL_Frame(unsigned msec)
+uint64_t CL_Frame( uint64_t msec )
 {
     bool phys_frame = true, ref_frame = true;
 
@@ -2979,25 +2976,25 @@ unsigned CL_Frame(unsigned msec)
     // resend a connection request if necessary
     CL_CheckForResend();
 
-    // read user intentions
-    CL_UpdateCmd(main_extra);
+    // Read user intentions. (Build up the local movement command for prediction.)
+    CL_UpdateCommand(main_extra);
 
-    // finalize pending cmd
-    phys_frame |= cl.sendPacketNow;
+    // Finalize the pending command to be send.
+    phys_frame |= static_cast<bool>( cl.sendPacketNow );
     if (phys_frame) {
-        CL_FinalizeCmd();
+        CL_FinalizeCommand();
         phys_extra -= phys_msec;
         M_FRAMES++;
 
-        // don't let the time go too far off
-        // this can happen due to cl.sendPacketNow
+        // Don't let the time go too far off
+        // this can happen due to cl.sendPacketNow.
         if (phys_extra < -phys_msec * 4) {
             phys_extra = 0;
         }
     }
 
     // send pending cmds
-    CL_SendCmd();
+    CL_SendCommand();
 
     // predict all unacknowledged movements
     CL_PredictMovement();
@@ -3026,7 +3023,7 @@ unsigned CL_Frame(unsigned msec)
         SCR_RunCinematic();
     } else if (sync_mode == SYNC_SLEEP_10) {
         // force audio and effects update if not rendering
-        CL_CalcViewValues();
+        CL_CalculateViewValues();
         S_Update();
     }
 
@@ -3086,6 +3083,13 @@ void CL_Init(void)
         return;
     }
 
+    // Load in the client game module.
+    CL_GM_LoadProgs();
+
+    // The pre-init phase is there for initializing various submodules.
+    // Do not expect to be able to ACCESS any cvars here just yet.
+    CL_GM_PreInit();
+
     // all archived variables will now be loaded
 
     // start with full screen console
@@ -3143,8 +3147,8 @@ void CL_Shutdown(void)
     // Disconnect first. (Unloading server game dll if loopbacked.)
     CL_Disconnect(ERR_FATAL);
     
-    // Shutdown the client game module.
-    CL_GM_Shutdown();
+    // Pre shutdown also.
+    CL_GM_PreShutdown();
 
 #if USE_ZLIB
     inflateEnd(&cls.z);
@@ -3155,8 +3159,13 @@ void CL_Shutdown(void)
     S_Shutdown();
     IN_Shutdown();
     Con_Shutdown();
+
+
     CL_ShutdownRefresh();
     CL_WriteConfig();
+
+    // Shutdown the client game module.
+    CL_GM_Shutdown();
 
     memset(&cls, 0, sizeof(cls));
 

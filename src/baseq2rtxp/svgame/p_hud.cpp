@@ -57,7 +57,7 @@ void MoveClientToIntermission(edict_t *ent)
     ent->client->grenade_blew_up = false;
     ent->client->grenade_time = 0_ms;
 
-    ent->watertype = 0;
+    ent->watertype = CONTENTS_NONE;
     ent->waterlevel = water_level_t::WATER_NONE;;
     ent->viewheight = 0;
     ent->s.modelindex = 0;
@@ -69,7 +69,7 @@ void MoveClientToIntermission(edict_t *ent)
     ent->s.renderfx = RF_NONE;
     ent->s.sound = 0;
     ent->s.event = EV_NONE;
-    ent->s.solid = 0;
+    ent->s.solid = SOLID_NOT; // 0
     ent->solid = SOLID_NOT;
     ent->svflags = SVF_NOCLIENT;
     gi.unlinkentity(ent);
@@ -403,7 +403,7 @@ void G_SetStats(edict_t *ent)
         cells = ent->client->pers.inventory[ITEM_INDEX(FindItem("cells"))];
         if (cells == 0) {
             // ran out of cells for power armor
-            ent->flags &= ~FL_POWER_ARMOR;
+            ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_POWER_ARMOR );
             gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/power2.wav"), 1, ATTN_NORM, 0);
             power_armor_type = 0;
         }

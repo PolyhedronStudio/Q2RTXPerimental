@@ -1,23 +1,12 @@
-/*
-Copyright (C) 2003-2006 Andrey Nazarov
+/********************************************************************
+*
+*
+*   List Utlities:
+*
+*
+********************************************************************/
+#pragma once
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
-
-#ifndef LIST_H
-#define LIST_H
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
@@ -171,5 +160,3 @@ static inline void *List_Index(list_t *list, size_t offset, int index)
 // We extern "C"
 };
 #endif
-
-#endif // LIST_H

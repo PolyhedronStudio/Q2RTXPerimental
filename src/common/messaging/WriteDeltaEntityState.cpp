@@ -29,8 +29,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 **/
 void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	// allow 0 to accomodate empty baselines
-	if ( in->number < 0 || in->number >= MAX_EDICTS )
+	if ( in->number < 0 || in->number >= MAX_EDICTS ) {
 		Com_Error( ERR_DROP, "%s: bad number: %d", __func__, in->number );
+	}
 
 	out->number = in->number;
 	out->origin[ 0 ] = in->origin[ 0 ]; //COORD2SHORT( in->origin[ 0 ] ); // WID: float-movement
@@ -60,7 +61,12 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	out->skinnum = in->skinnum;
 	out->effects = in->effects;
 	out->renderfx = in->renderfx;
+
 	out->solid.u = in->solid;
+	out->clipmask = in->clipmask;
+	out->hullContents = in->hullContents;
+	out->ownerNumber = in->ownerNumber;
+
 	out->frame = in->frame;
 	out->old_frame = in->old_frame;
 	out->sound = in->sound;
@@ -163,6 +169,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	}
 	if ( to->clipmask != from->clipmask ) {
 		bits |= U_CLIPMASK;
+	}
+	if ( to->hullContents != from->hullContents ) {
+		bits |= U_HULL_CONTENTS;
 	}
 	if ( to->ownerNumber != from->ownerNumber ) {
 		bits |= U_OWNER;
@@ -298,6 +307,10 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	if ( bits & U_CLIPMASK ) {
 		// WID: upgr-solid: WriteLong by default.
 		MSG_WriteUintBase128( to->clipmask );
+	}
+	if ( bits & U_HULL_CONTENTS ) {
+		// WID: upgr-solid: WriteLong by default.
+		MSG_WriteUintBase128( to->hullContents );
 	}
 	if ( bits & U_OWNER ) {
 		// WID: upgr-solid: WriteLong by default.

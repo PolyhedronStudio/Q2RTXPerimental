@@ -147,18 +147,18 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 // third byte
 #define U_MODEL3		(1<<16)
 #define U_MODEL4		(1<<17)
-#define U_ENTITY_TYPE	(1<<18)		// TODO: Move to other bit location.
+#define U_ENTITY_TYPE		(1<<18)		// TODO: Move to other bit location.
 #define U_SPOTLIGHT_RGB		(1<<19)
 #define U_SPOTLIGHT_INTENSITY	(1<<20)
 #define U_SPOTLIGHT_ANGLE_WIDTH	(1<<21)
-#define U_SPOTLIGHT_ANGLE_FALLOFF (1<<22)
-#define U_UNUSED46		(1<<23)
+#define U_SPOTLIGHT_ANGLE_FALLOFF	(1<<22)
+#define U_UNUSED46	(1<<23)
 
 // fourth byte
-#define U_CLIPMASK	(1<<24)
-#define U_OWNER 	(1<<25)
-#define U_OLD_FRAME	(1<<26)
-#define U_UNUSED5	(1<<27)
+#define U_CLIPMASK		(1<<24)
+#define U_HULL_CONTENTS	(1<<25)
+#define U_OWNER 		(1<<26)
+#define U_OLD_FRAME	(1<<27)
 #define U_UNUSED6	(1<<28)
 #define U_UNUSED7	(1<<29)
 #define U_UNUSED8	(1<<30)
@@ -206,15 +206,18 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 
 // ==============================================================
 
+// WID: Moved to shared/shared.h
 // a SOLID_BBOX will never create this value
-#define PACKED_BSP      255
+//#define PACKED_BSP      255
 
 // q2pro frame flags sent by the server
 // only SUPPRESSCOUNT_BITS can be used
-#define FF_SUPPRESSED   (1<<0)
-#define FF_CLIENTDROP   (1<<1)
-#define FF_CLIENTPRED   (1<<2)	// Set but unused?
-#define FF_RESERVED     (1<<3)	// Literally reserved.
+// Moved to shared.h
+//#define FF_NONE			0
+//#define FF_SUPPRESSED   (1<<0)
+//#define FF_CLIENTDROP   (1<<1)
+//#define FF_CLIENTPRED   (1<<2)	// Set but unused?
+//#define FF_RESERVED     (1<<3)	// Literally reserved.
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

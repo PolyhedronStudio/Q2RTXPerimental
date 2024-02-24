@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_locs.c
 //
 
-#include "client.h"
+#include "cl_client.h"
 
 typedef struct {
     list_t entry;

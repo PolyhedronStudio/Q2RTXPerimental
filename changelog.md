@@ -18,6 +18,7 @@
 * Brush Shaped Triggers: Triggers can now have a "Clipped" flag set, in which case it only triggers when an actual collision(clip to brush) has occured.
 * Comes with basic vector, matrix and quaternion math utilities derived from raylib1.5, and adds in C++ utilities such as operator support.
 * Modern player movement derived from Q2RE.
+* BoundingBox entities can have their hull contents be set to any CONTENTS_ values._
 ### Client:
 * Does proper lerping for entities that run lower than ``40hz``.
 * Does proper lerping for weapons based on their 'gunrate', defaults to ``10hz``
@@ -43,7 +44,10 @@
 * Brush Triggers can now be set a spawnflag to trigger only when actually clipping with the trigger brush.
 * Basic configurable Spotlight entity that can be given its own ``customLightStyle`` property as well.
 ### Client Game:
-* Currently nothing strictly of its own, only the SharedGame PlayerMove code.
+* Responsible for preparing the view by adding all the packet entities as well as the player viewweapon/thirdperson model.
+* User Input ``KeyButton`` registration and handling of.
+* View/Scene handling, this includes: ``Packet Entities``, ``Entity Events``, ``Temp Entity Events``, ``Particles``, ``Explosions``, ``Beams/Lasers/Trails``, ``Sustains``.
+* Player Movement Prediction.
 ### Shared Game:
 * Contains the shared used ``sg_time_t`` which replaces all the vanilla frametime/framenum work.
 * Customizable PlayerMove code.

@@ -1931,9 +1931,16 @@ void SP_func_door_secret(edict_t *ent)
 /*QUAKED func_killbox (1 0 0) ?
 Kills everything inside when fired, irrespective of protection.
 */
+static constexpr int32_t SPAWNFLAG_KILLBOX_TRIGGER_BRUSH_CLIP = 32;
 void use_killbox(edict_t *self, edict_t *other, edict_t *activator)
 {
-    KillBox(self);
+    self->solid = SOLID_TRIGGER;
+    gi.linkentity( self );
+
+    KillBox(self, self->spawnflags & SPAWNFLAG_KILLBOX_TRIGGER_BRUSH_CLIP );
+
+    self->solid = SOLID_NOT;
+    gi.linkentity( self );
 }
 
 void SP_func_killbox(edict_t *ent)
