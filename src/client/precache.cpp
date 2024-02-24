@@ -261,43 +261,15 @@ void CL_RegisterBspModels(void) {
 
 /*
 =================
-CL_RegisterVWepModels
+CL_PrecacheViewModels
 
 Builds a list of visual weapon models
 =================
 */
-void CL_RegisterVWepModels(void)
+void CL_PrecacheViewModels(void)
 {
     // The client game is in control of these.
     clge->PrecacheViewModels();
-
-    //int         i;
-    //char        *name;
-
-    //cl.numViewModels = 1;
-    //strcpy(cl.viewModels[0], "weapon.md2");
-
-    //// only default model when vwep is off
-    //if (!cl_vwep->integer) {
-    //    return;
-    //}
-
-    //for (i = 2; i < MAX_MODELS; i++) {
-    //    name = cl.configstrings[CS_MODELS + i];
-    //    if (!name[0]) {
-    //        break;
-    //    }
-    //    if (name[0] != '#') {
-    //        continue;
-    //    }
-
-    //    // special player weapon model
-    //    strcpy(cl.viewModels[cl.numViewModels++], name + 1);
-
-    //    if (cl.numViewModels == MAX_CLIENTVIEWMODELS) {
-    //        break;
-    //    }
-    //}
 }
 
 /*

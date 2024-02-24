@@ -415,7 +415,7 @@ void CL_LoadClientinfo(clientinfo_t *ci, const char *s);
 void CL_LoadState(load_state_t state);
 void CL_RegisterSounds(void);
 void CL_RegisterBspModels(void);
-void CL_RegisterVWepModels(void);
+void CL_PrecacheViewModels(void);
 /**
 *   @brief  Called before entering a new level, or after changing dlls
 **/

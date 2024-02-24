@@ -536,9 +536,6 @@ typedef struct client_state_s {
     //! Baseline client info.
     clientinfo_t baseclientinfo;
 
-    //char	viewModels[ MAX_CLIENTVIEWMODELS ][ MAX_QPATH ];
-    //int32_t	numViewModels;
-
     // WID: 40hz - For proper frame lerping for 10hz/custom rate models.
     float	sv_frametime_inv;
     int64_t	sv_frametime;

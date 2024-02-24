@@ -1039,27 +1039,28 @@ CL_Skins_f
 Load or download any custom player skins and models
 =================
 */
-static void CL_Skins_f(void)
-{
-    int i;
-    char *s;
-    clientinfo_t *ci;
-
+static void CL_Skins_f(void) {
     if (cls.state < ca_precached) {
         Com_Printf("Must be in a level to load skins.\n");
         return;
     }
 
-    CL_RegisterVWepModels();
+    CL_PrecacheViewModels();
 
-    for (i = 0; i < MAX_CLIENTS; i++) {
-        s = cl.configstrings[CS_PLAYERSKINS + i];
-        if (!s[0])
+    for (int32_t i = 0; i < MAX_CLIENTS; i++) {
+        // Get a valid config string.
+        const char *s = cl.configstrings[CS_PLAYERSKINS + i];
+        if ( !s[ 0 ] ) {
             continue;
-        ci = &cl.clientinfo[i];
+        }
+        // Load client specific info from the config string.
+        clientinfo_t *ci = &cl.clientinfo[i];
         CL_LoadClientinfo(ci, s);
-        if (!ci->model_name[0] || !ci->skin_name[0])
+
+        // Use the default 'base' client info in case of an invalid model or skin name.
+        if ( !ci->model_name[ 0 ] || !ci->skin_name[ 0 ] ) {
             ci = &cl.baseclientinfo;
+        }
         Com_Printf("client %d: %s --> %s/%s\n", i, s,
                    ci->model_name, ci->skin_name);
         SCR_UpdateScreen();
@@ -1091,7 +1092,7 @@ static void CL_Skins_f(void)
 //        return;
 //    }
 //
-//    CL_RegisterVWepModels();
+//    CL_PrecacheViewModels();
 //    cl_noskins_changed(self);
 //}
 
@@ -1547,7 +1548,7 @@ static void CL_Precache_f(void)
 
     S_StopAllSounds();
 
-    CL_RegisterVWepModels();
+    CL_PrecacheViewModels();
 
     // demos use different precache sequence
     if (cls.demo.playback) {
