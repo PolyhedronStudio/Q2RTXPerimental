@@ -423,8 +423,9 @@ const uint32_t PF_GetNumberOfViewModels( void ) {
 const char *PF_GetViewModelFilename( const uint32_t index ) {
 	if ( index >= 0 && index < MAX_CLIENTVIEWMODELS ) {
 		return "";
+	} else {
+		return precache.viewModels[ index ];
 	}
-	return precache.viewModels[ index ];
 }
 
 /**
