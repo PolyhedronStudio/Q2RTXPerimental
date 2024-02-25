@@ -34,6 +34,7 @@ void SP_target_temp_entity(edict_t *ent)
     ent->use = Use_Target_Tent;
 }
 
+
 //==========================================================
 
 //==========================================================
@@ -106,6 +107,7 @@ void SP_target_speaker(edict_t *ent)
     // the server can determine who to send updates to
     gi.linkentity(ent);
 }
+
 
 //==========================================================
 
@@ -210,6 +212,7 @@ void SP_target_goal(edict_t *ent)
 
 //==========================================================
 
+
 /*QUAKED target_explosion (1 0 0) (-8 -8 -8) (8 8 8)
 Spawns an explosion temporary entity when used.
 
@@ -251,6 +254,7 @@ void SP_target_explosion(edict_t *ent)
     ent->use = use_target_explosion;
     ent->svflags = SVF_NOCLIENT;
 }
+
 
 //==========================================================
 
@@ -302,6 +306,7 @@ void SP_target_changelevel(edict_t *ent)
     ent->svflags = SVF_NOCLIENT;
 }
 
+
 //==========================================================
 
 /*QUAKED target_splash (1 0 0) (-8 -8 -8) (8 8 8)
@@ -345,6 +350,7 @@ void SP_target_splash(edict_t *self)
     self->svflags = SVF_NOCLIENT;
 }
 
+
 //==========================================================
 
 /*QUAKED target_spawner (1 0 0) (-8 -8 -8) (8 8 8)
@@ -371,7 +377,7 @@ void use_target_spawner(edict_t *self, edict_t *other, edict_t *activator)
     VectorCopy(self->s.angles, ent->s.angles);
     ED_CallSpawn(ent);
     gi.unlinkentity(ent);
-    KillBox(ent);
+    KillBox(ent, false);
     gi.linkentity(ent);
     if (self->speed)
         VectorCopy(self->movedir, ent->velocity);
@@ -426,6 +432,7 @@ void SP_target_blaster(edict_t *self)
 
     self->svflags = SVF_NOCLIENT;
 }
+
 
 //==========================================================
 
@@ -503,7 +510,7 @@ void target_laser_think(edict_t *self)
     VectorCopy(self->s.origin, start);
     VectorMA(start, 2048, self->movedir, end);
     while (1) {
-        tr = gi.trace(start, NULL, NULL, end, ignore, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER);
+        tr = gi.trace( start, NULL, NULL, end, ignore, static_cast<contents_t>( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER ) );
 
         if (!tr.ent)
             break;

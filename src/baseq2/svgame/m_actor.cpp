@@ -21,12 +21,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "m_actor.h"
 
 #define MAX_ACTOR_NAMES     8
-<<<<<<<< HEAD:src/baseq2/svgame/m_actor.cpp
 // WID: C++20: Added const.
 const char *actor_names[MAX_ACTOR_NAMES] = {
-========
-static const char *const actor_names[MAX_ACTOR_NAMES] = {
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/m_actor.c
     "Hellrot",
     "Tokay",
     "Killme",
@@ -37,7 +33,8 @@ static const char *const actor_names[MAX_ACTOR_NAMES] = {
     "Bitterman"
 };
 
-static const mframe_t actor_frames_stand[] = {
+
+mframe_t actor_frames_stand [] = {
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL },
@@ -82,7 +79,7 @@ static const mframe_t actor_frames_stand[] = {
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL }
 };
-const mmove_t actor_move_stand = {FRAME_stand101, FRAME_stand140, actor_frames_stand, NULL};
+mmove_t actor_move_stand = {FRAME_stand101, FRAME_stand140, actor_frames_stand, NULL};
 
 void actor_stand(edict_t *self)
 {
@@ -93,7 +90,8 @@ void actor_stand(edict_t *self)
         self->s.frame = self->monsterinfo.currentmove->firstframe + (Q_rand() % (self->monsterinfo.currentmove->lastframe - self->monsterinfo.currentmove->firstframe + 1));
 }
 
-static const mframe_t actor_frames_walk[] = {
+
+mframe_t actor_frames_walk [] = {
     { ai_walk, 0,  NULL },
     { ai_walk, 6,  NULL },
     { ai_walk, 10, NULL },
@@ -106,14 +104,15 @@ static const mframe_t actor_frames_walk[] = {
     { ai_walk, 0,  NULL },
     { ai_walk, 0,  NULL }
 };
-const mmove_t actor_move_walk = {FRAME_walk01, FRAME_walk08, actor_frames_walk, NULL};
+mmove_t actor_move_walk = {FRAME_walk01, FRAME_walk08, actor_frames_walk, NULL};
 
 void actor_walk(edict_t *self)
 {
     M_SetAnimation( self, &actor_move_walk );
 }
 
-static const mframe_t actor_frames_run[] = {
+
+mframe_t actor_frames_run [] = {
     { ai_run, 4,  NULL },
     { ai_run, 15, NULL },
     { ai_run, 15, NULL },
@@ -127,7 +126,7 @@ static const mframe_t actor_frames_run[] = {
     { ai_run, -2, NULL },
     { ai_run, -1, NULL }
 };
-const mmove_t actor_move_run = {FRAME_run02, FRAME_run07, actor_frames_run, NULL};
+mmove_t actor_move_run = {FRAME_run02, FRAME_run07, actor_frames_run, NULL};
 
 void actor_run(edict_t *self)
 {
@@ -147,28 +146,29 @@ void actor_run(edict_t *self)
 	M_SetAnimation( self, &actor_move_run );
 }
 
-static const mframe_t actor_frames_pain1[] = {
+
+mframe_t actor_frames_pain1 [] = {
     { ai_move, -5, NULL },
     { ai_move, 4,  NULL },
     { ai_move, 1,  NULL }
 };
-const mmove_t actor_move_pain1 = {FRAME_pain101, FRAME_pain103, actor_frames_pain1, actor_run};
+mmove_t actor_move_pain1 = {FRAME_pain101, FRAME_pain103, actor_frames_pain1, actor_run};
 
-static const mframe_t actor_frames_pain2[] = {
+mframe_t actor_frames_pain2 [] = {
     { ai_move, -4, NULL },
     { ai_move, 4,  NULL },
     { ai_move, 0,  NULL }
 };
-const mmove_t actor_move_pain2 = {FRAME_pain201, FRAME_pain203, actor_frames_pain2, actor_run};
+mmove_t actor_move_pain2 = {FRAME_pain201, FRAME_pain203, actor_frames_pain2, actor_run};
 
-static const mframe_t actor_frames_pain3[] = {
+mframe_t actor_frames_pain3 [] = {
     { ai_move, -1, NULL },
     { ai_move, 1,  NULL },
     { ai_move, 0,  NULL }
 };
-const mmove_t actor_move_pain3 = {FRAME_pain301, FRAME_pain303, actor_frames_pain3, actor_run};
+mmove_t actor_move_pain3 = {FRAME_pain301, FRAME_pain303, actor_frames_pain3, actor_run};
 
-static const mframe_t actor_frames_flipoff[] = {
+mframe_t actor_frames_flipoff [] = {
     { ai_turn, 0,  NULL },
     { ai_turn, 0,  NULL },
     { ai_turn, 0,  NULL },
@@ -184,9 +184,9 @@ static const mframe_t actor_frames_flipoff[] = {
     { ai_turn, 0,  NULL },
     { ai_turn, 0,  NULL }
 };
-const mmove_t actor_move_flipoff = {FRAME_flip01, FRAME_flip14, actor_frames_flipoff, actor_run};
+mmove_t actor_move_flipoff = {FRAME_flip01, FRAME_flip14, actor_frames_flipoff, actor_run};
 
-static const mframe_t actor_frames_taunt[] = {
+mframe_t actor_frames_taunt [] = {
     { ai_turn, 0,  NULL },
     { ai_turn, 0,  NULL },
     { ai_turn, 0,  NULL },
@@ -205,14 +205,10 @@ static const mframe_t actor_frames_taunt[] = {
     { ai_turn, 0,  NULL },
     { ai_turn, 0,  NULL }
 };
-const mmove_t actor_move_taunt = {FRAME_taunt01, FRAME_taunt17, actor_frames_taunt, actor_run};
+mmove_t actor_move_taunt = {FRAME_taunt01, FRAME_taunt17, actor_frames_taunt, actor_run};
 
-<<<<<<<< HEAD:src/baseq2/svgame/m_actor.cpp
 // WID: C++20: Added const.
 const char *messages[] = {
-========
-static const char *const messages[] = {
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/m_actor.c
     "Watch it",
     "#$@*&",
     "Idiot",
@@ -234,12 +230,8 @@ void actor_pain(edict_t *self, edict_t *other, float kick, int damage)
 
     if ((other->client) && (random() < 0.4f)) {
         vec3_t  v;
-<<<<<<<< HEAD:src/baseq2/svgame/m_actor.cpp
 		// WID: C++20: Added const.
         const char    *name;
-========
-        const char  *name;
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/m_actor.c
 
         VectorSubtract(other->s.origin, self->s.origin, v);
         self->ideal_yaw = QM_Vector3ToYaw(v);
@@ -260,6 +252,7 @@ void actor_pain(edict_t *self, edict_t *other, float kick, int damage)
     else
         M_SetAnimation( self, &actor_move_pain3 );
 }
+
 
 void actorMachineGun(edict_t *self)
 {
@@ -284,6 +277,7 @@ void actorMachineGun(edict_t *self)
     monster_fire_bullet(self, start, forward, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MZ2_ACTOR_MACHINEGUN_1);
 }
 
+
 void actor_dead(edict_t *self)
 {
     VectorSet(self->mins, -16, -16, -24);
@@ -294,7 +288,7 @@ void actor_dead(edict_t *self)
     gi.linkentity(self);
 }
 
-static const mframe_t actor_frames_death1[] = {
+mframe_t actor_frames_death1 [] = {
     { ai_move, 0,   NULL },
     { ai_move, 0,   NULL },
     { ai_move, -13, NULL },
@@ -303,9 +297,9 @@ static const mframe_t actor_frames_death1[] = {
     { ai_move, -2,  NULL },
     { ai_move, 1,   NULL }
 };
-const mmove_t actor_move_death1 = {FRAME_death101, FRAME_death107, actor_frames_death1, actor_dead};
+mmove_t actor_move_death1 = {FRAME_death101, FRAME_death107, actor_frames_death1, actor_dead};
 
-static const mframe_t actor_frames_death2[] = {
+mframe_t actor_frames_death2 [] = {
     { ai_move, 0,   NULL },
     { ai_move, 7,   NULL },
     { ai_move, -6,  NULL },
@@ -320,7 +314,7 @@ static const mframe_t actor_frames_death2[] = {
     { ai_move, -13, NULL },
     { ai_move, 0,   NULL }
 };
-const mmove_t actor_move_death2 = {FRAME_death201, FRAME_death213, actor_frames_death2, actor_dead};
+mmove_t actor_move_death2 = {FRAME_death201, FRAME_death213, actor_frames_death2, actor_dead};
 
 void actor_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
@@ -353,6 +347,7 @@ void actor_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
 		M_SetAnimation( self, &actor_move_death2 );
 }
 
+
 void actor_fire(edict_t *self)
 {
     actorMachineGun(self);
@@ -363,23 +358,22 @@ void actor_fire(edict_t *self)
         self->monsterinfo.aiflags |= AI_HOLD_FRAME;
 }
 
-static const mframe_t actor_frames_attack[] = {
+mframe_t actor_frames_attack [] = {
     { ai_charge, -2,  actor_fire },
     { ai_charge, -2,  NULL },
     { ai_charge, 3,   NULL },
     { ai_charge, 2,   NULL }
 };
-const mmove_t actor_move_attack = {FRAME_attak01, FRAME_attak04, actor_frames_attack, actor_run};
+mmove_t actor_move_attack = {FRAME_attak01, FRAME_attak04, actor_frames_attack, actor_run};
 
 void actor_attack(edict_t *self)
 {
-    int     n;
-
 	M_SetAnimation( self, &actor_move_attack );
-    //n = (Q_rand() & 15) + 3 + 7;
+    //int n = (Q_rand() & 15) + 3 + 7;
     //self->monsterinfo.pause_framenum = level.framenum + n;
 	self->monsterinfo.pause_time = level.time + random_time( 1_sec, 2.6_sec );
 }
+
 
 void actor_use(edict_t *self, edict_t *other, edict_t *activator)
 {
@@ -399,6 +393,7 @@ void actor_use(edict_t *self, edict_t *other, edict_t *activator)
     self->monsterinfo.walk(self);
     self->target = NULL;
 }
+
 
 /*QUAKED misc_actor (1 .5 0) (-16 -16 -24) (16 16 32)
 */
@@ -454,6 +449,7 @@ void SP_misc_actor(edict_t *self)
     // actors always start in a dormant state, they *must* be used to get going
     self->use = actor_use;
 }
+
 
 /*QUAKED target_actor (.5 .3 0) (-8 -8 -8) (8 8 8) JUMP SHOOT ATTACK x HOLD BRUTAL
 JUMP            jump in set direction upon reaching this target

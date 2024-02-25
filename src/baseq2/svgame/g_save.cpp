@@ -69,23 +69,38 @@ typedef struct {
 
 static const save_field_t entityfields[] = {
 #define _OFS FOFS
-    V(s.origin),
-    V(s.angles),
-    V(s.old_origin),
-    I(s.modelindex),
-    I(s.modelindex2),
-    I(s.modelindex3),
-    I(s.modelindex4),
-    I(s.frame),
-    I(s.skinnum),
-    I(s.effects),
-    I(s.renderfx),
-    I(s.solid),
-    I(s.sound),
-    I(s.event),
+    // [entity_state_s]:
+    V( s.origin ),
+    V( s.angles ),
+    V( s.old_origin ),
+
+    I( s.solid ),
+    I( s.clipmask ),
+    I( s.ownerNumber ),
+
+    I( s.modelindex ),
+    I( s.modelindex2 ),
+    I( s.modelindex3 ),
+    I( s.modelindex4 ),
+
+    I( s.skinnum ),
+    I( s.effects ),
+    I( s.renderfx ),
+
+    I( s.frame ),
+    I( s.old_frame ),
+
+    I( s.sound ),
+    I( s.event ),
+
+    // TODO: Do we really need to save this? Perhaps.
+    // For spotlights.
+    V( s.rgb ),
+    F( s.intensity ),
+    F( s.angle_width ),
+    F( s.angle_falloff ),
 
     // [...]
-
     I(svflags),
     V(mins),
     V(maxs),
@@ -96,17 +111,20 @@ static const save_field_t entityfields[] = {
     I(clipmask),
     E(owner),
 
+    I(spawn_count),
     I(movetype),
     I(flags),
 
     L(model),
-	I64(freetime), // WID: 64-bit-frame
+    I64(freetime), // WID: 64-bit-frame
 
     L(message),
     L(classname),
     I(spawnflags),
 
 	I64( timestamp ), // WID: 64-bit-frame FT(timestamp),
+
+    F( angle ),
 
     L(target),
     L(targetname),
@@ -135,7 +153,7 @@ static const save_field_t entityfields[] = {
     F(yaw_speed),
     F(ideal_yaw),
 
-    FT(nextthink),
+    I64(nextthink),
     P(prethink, P_prethink),
     P(think, P_think),
     P(blocked, P_blocked),
@@ -154,9 +172,9 @@ static const save_field_t entityfields[] = {
     I(max_health),
     I(gib_health),
     I(deadflag),
-    F(show_hostile),
+    I64(show_hostile),
 
-    I64(powerarmor_time), // WID: 64-bit-frame
+    I64( powerarmor_time ), // WID: 64-bit-frame
 
     L(map),
 
@@ -165,6 +183,7 @@ static const save_field_t entityfields[] = {
     I(dmg),
     I(radius_dmg),
     F(dmg_radius),
+    F(light),
     I(sounds),
     I(count),
 
@@ -200,6 +219,8 @@ static const save_field_t entityfields[] = {
     I(light_level),
 
     I(style),
+    L(customLightStyle),
+
 
     T(item),
 
@@ -231,7 +252,7 @@ static const save_field_t entityfields[] = {
     P(monsterinfo.currentmove, P_monsterinfo_currentmove),
 	P(monsterinfo.nextmove, P_monsterinfo_nextmove ),
     I(monsterinfo.aiflags),
-	I64( monsterinfo.nextframe ), // WID: 64-bit-frame
+    I64(monsterinfo.nextframe), // WID: 64-bit-frame
     F(monsterinfo.scale),
 
     P(monsterinfo.stand, P_monsterinfo_stand),
@@ -245,17 +266,20 @@ static const save_field_t entityfields[] = {
     P(monsterinfo.sight, P_monsterinfo_sight),
     P(monsterinfo.checkattack, P_monsterinfo_checkattack),
 
-	I64( monsterinfo.pause_time ),// WID: 64-bit-frame FT(monsterinfo.pause_time),
+    I64( monsterinfo.next_move_time ),
+	
+    I64( monsterinfo.pause_time ),// WID: 64-bit-frame FT(monsterinfo.pause_time),
 	I64( monsterinfo.attack_finished ),// WID: 64-bit-frame FT(monsterinfo.attack_finished),
+    I64( monsterinfo.fire_wait ),
 
-    V(monsterinfo.saved_goal),
+	V( monsterinfo.saved_goal ),
 	I64( monsterinfo.search_time ),// WID: 64-bit-frame FT(monsterinfo.search_time),
-	I64( monsterinfo.search_time ),// WID: 64-bit-frame FT(monsterinfo.trail_time),
-    V(monsterinfo.last_sighting),
-    I(monsterinfo.attack_state),
-    I(monsterinfo.lefty),
+	I64( monsterinfo.trail_time ),// WID: 64-bit-frame FT(monsterinfo.trail_time),
+	V( monsterinfo.last_sighting ),
+	I( monsterinfo.attack_state ),
+	I( monsterinfo.lefty ),
 	I64( monsterinfo.idle_time ),// WID: 64-bit-frame FT(monsterinfo.idle_time),
-    I(monsterinfo.linkcount),
+	I( monsterinfo.linkcount ),
 
     I(monsterinfo.power_armor_type),
     I(monsterinfo.power_armor_power),
@@ -270,128 +294,133 @@ static const save_field_t levelfields[] = {
 	I64( framenum ),
 	I64( time ), // WID: 64-bit-frame
 
-    SZ(level_name, MAX_QPATH),
-    SZ(mapname, MAX_QPATH),
-    SZ(nextmap, MAX_QPATH),
+	SZ( level_name, MAX_QPATH ),
+	SZ( mapname, MAX_QPATH ),
+	SZ( nextmap, MAX_QPATH ),
 
-    FT(intermission_framenum),
-    L(changemap),
-    I(exitintermission), // WID: 64-bit-frame
-    V(intermission_origin),
-    V(intermission_angle),
+	I64( intermission_framenum ),
+	L( changemap ),
+	I64( exitintermission ),
+	V( intermission_origin ),
+	V( intermission_angle ),
 
-    E(sight_client),
+	E( sight_client ),
 
-    E(sight_entity),
-    I64(sight_entity_framenum), // WID: 64-bit-frame
-    E(sound_entity),
-    I64(sound_entity_framenum), // WID: 64-bit-frame
-    E(sound2_entity),
-    I64(sound2_entity_framenum),// WID: 64-bit-frame
+	E( sight_entity ),
+	I64( sight_entity_framenum ), // WID: 64-bit-frame
+	E( sound_entity ),
+	I64( sound_entity_framenum ), // WID: 64-bit-frame
+	E( sound2_entity ),
+	I64( sound2_entity_framenum ),// WID: 64-bit-frame
 
-    I(pic_health),
+	I( pic_health ),
 
-    I(total_secrets),
-    I(found_secrets),
+	I( total_secrets ),
+	I( found_secrets ),
 
-    I(total_goals),
-    I(found_goals),
+	I( total_goals ),
+	I( found_goals ),
 
-    I(total_monsters),
-    I(killed_monsters),
+	I( total_monsters ),
+	I( killed_monsters ),
 
-    I(body_que),
+	I( body_que ),
 
-    I(power_cubes),
+	I( power_cubes ),
 
 	// WID: C++20: Replaced {0}
-    {}
+	{}
 #undef _OFS
 };
 
 static const save_field_t clientfields[] = {
 #define _OFS CLOFS
-    I(ps.pmove.pm_type),
+	I( ps.pmove.pm_type ),
 
-    V(ps.pmove.origin),
-    V(ps.pmove.velocity),
-    B(ps.pmove.pm_flags),
-    B(ps.pmove.pm_time),
-    S(ps.pmove.gravity),
-    V(ps.pmove.delta_angles),
+	V( ps.pmove.origin ),
+	V( ps.pmove.velocity ),
+	S( ps.pmove.pm_flags ),
+	S( ps.pmove.pm_time ),
+	S( ps.pmove.gravity ),
+	V( ps.pmove.delta_angles ),
+    B( ps.pmove.viewheight ),
 
-    V(ps.viewangles),
-    V(ps.viewoffset),
-    V(ps.kick_angles),
+	V( ps.viewangles ),
+	V( ps.viewoffset ),
+	V( ps.kick_angles ),
 
-    V(ps.gunangles),
-    V(ps.gunoffset),
-    I(ps.gunindex),
-    I(ps.gunframe),
+	V( ps.gunangles ),
+	V( ps.gunoffset ),
+	I( ps.gunindex ),
+	I( ps.gunframe ),
+    
+    I( ps.gunrate ),
 
-    FA(ps.blend, 4),
+    //FA( ps.damage_blend, 4 ),
+	FA( ps.screen_blend, 4 ),
 
-    F(ps.fov),
+	F( ps.fov ),
 
-    I(ps.rdflags),
+	I( ps.rdflags ),
 
-    SA(ps.stats, MAX_STATS),
+	IA( ps.stats, MAX_STATS ),
 
-    SZ(pers.userinfo, MAX_INFO_STRING),
-    SZ(pers.netname, 16),
-    I(pers.hand),
+	SZ( pers.userinfo, MAX_INFO_STRING ),
+	SZ( pers.netname, 16 ),
+	I( pers.hand ),
 
-    O(pers.connected),
+    O( pers.connected ),
+    O( pers.spawned ),
 
-    I(pers.health),
-    I(pers.max_health),
-    I(pers.savedFlags),
+	I( pers.health ),
+	I( pers.max_health ),
+	I( pers.savedFlags ),
 
-    I(pers.selected_item),
-    IA(pers.inventory, MAX_ITEMS),
+	I( pers.selected_item ),
+	IA( pers.inventory, MAX_ITEMS ),
 
-    I(pers.max_bullets),
-    I(pers.max_shells),
-    I(pers.max_rockets),
-    I(pers.max_grenades),
-    I(pers.max_cells),
-    I(pers.max_slugs),
+	I( pers.max_bullets ),
+	I( pers.max_shells ),
+	I( pers.max_rockets ),
+	I( pers.max_grenades ),
+	I( pers.max_cells ),
+	I( pers.max_slugs ),
 
-    T(pers.weapon),
-    T(pers.lastweapon),
+	T( pers.weapon ),
+	T( pers.lastweapon ),
 
-    I(pers.power_cubes),
-    I(pers.score),
+	I( pers.power_cubes ),
+	I( pers.score ),
 
-    I(pers.game_helpchanged),
-    I(pers.helpchanged),
+	I( pers.game_helpchanged ),
+	I( pers.helpchanged ),
 
-    O(pers.spectator),
+	O( pers.spectator ),
 
-    O(showscores),
-    O(showinventory),
-    O(showhelp),
-    O(showhelpicon),
+	O( showscores ),
+	O( showinventory ),
+	O( showhelp ),
+	O( showhelpicon ),
 
-    I(ammo_index),
+	I( ammo_index ),
 
-    T(newweapon),
+	T( newweapon ),
 
-    I(damage_armor),
-    I(damage_parmor),
-    I(damage_blood),
-    I(damage_knockback),
-    V(damage_from),
+	I( damage_armor ),
+	I( damage_parmor ),
+	I( damage_blood ),
+	I( damage_knockback ),
+	V( damage_from ),
 
-    F(killer_yaw),
+	F( killer_yaw ),
 
-    I(weaponstate),
+	I( weaponstate ),
 
-    V(kick_angles),
-    V(kick_origin),
-    F(v_dmg_roll),
-    F(v_dmg_pitch),
-    F(v_dmg_time),
+	V( kick_angles ),
+	V( kick_origin ),
+	F( v_dmg_roll ),
+	F( v_dmg_pitch ),
+	F( v_dmg_time ),
 	I64( fall_time ), // WID: 64-bit-frame
 	F( fall_value ),
 	F( damage_alpha ),
@@ -401,6 +430,7 @@ static const save_field_t clientfields[] = {
 	F( bobtime ),
 	V( oldviewangles ),
 	V( oldvelocity ),
+    E( oldgroundentity ),
 
 	FT( next_drown_time ),
 	I( old_waterlevel ),
@@ -508,7 +538,7 @@ static void write_vector(gzFile f, vec_t *v)
     write_float(f, v[2]);
 }
 
-static void write_index(gzFile f, void *p, size_t size, const void *start, int max_index)
+static void write_index(gzFile f, void *p, size_t size, void *start, int max_index)
 {
     uintptr_t diff;
 
@@ -582,7 +612,6 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
     case F_VECTOR:
         write_vector(f, (vec_t *)p);
         break;
-
     case F_ZSTRING:
         write_string(f, (char *)p);
         break;
@@ -729,7 +758,7 @@ static void read_vector(gzFile f, vec_t *v)
     v[2] = static_cast<vec_t>( read_float( f ) );
 }
 
-static void *read_index(gzFile f, size_t size, const void *start, int max_index)
+static void *read_index(gzFile f, size_t size, void *start, int max_index)
 {
     int index;
     byte *p;
@@ -769,7 +798,7 @@ static void *read_pointer(game_read_context_t* ctx, ptr_type_t type)
         gi.error("%s: type mismatch", __func__);
     }
 
-    return (void *)ptr->ptr;
+    return ptr->ptr;
 }
 
 static void read_field(game_read_context_t* ctx, const save_field_t *field, void *base)
@@ -804,7 +833,6 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
     case F_VECTOR:
         read_vector(ctx->f, (vec_t *)p);
         break;
-
     case F_LSTRING:
         *(char **)p = read_string(ctx->f);
         break;
@@ -979,6 +1007,7 @@ void ReadGame(const char *filename)
 
 //==========================================================
 
+
 /*
 =================
 WriteLevel
@@ -1014,6 +1043,7 @@ void WriteLevel(const char *filename)
     if (gzclose(f))
         gi.error("Couldn't write %s", filename);
 }
+
 
 /*
 =================
@@ -1096,20 +1126,15 @@ void ReadLevel(const char *filename)
     gzclose(f);
 
     // mark all clients as unconnected
-<<<<<<<< HEAD:src/baseq2/svgame/g_save.cpp
     for ( i = 0; i < maxclients->value; i++ ) {
         ent = &g_edicts[ i + 1 ];
-========
-    for (i = 0; i < maxclients->value; i++) {
-        ent = &g_edicts[i + 1];
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/game/g_save.c
         ent->client = game.clients + i;
         ent->client->pers.connected = false;
         ent->client->pers.spawned = false;
     }
 
     // do any load time things at this point
-    for (i = 0; i < globals.num_edicts; i++) {
+    for (i = 0 ; i < globals.num_edicts ; i++) {
         ent = &g_edicts[i];
 
         if (!ent->inuse)

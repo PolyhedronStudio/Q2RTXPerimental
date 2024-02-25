@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 #include "g_local.h"
 
+
 /*
 =================
 check_dodge
@@ -31,21 +32,22 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
     vec3_t  end;
     vec3_t  v;
     trace_t tr;
-    float   eta;
 
     // easy mode only ducks one quarter the time
     if (skill->value == 0) {
         if (random() > 0.25f)
             return;
     }
+
     VectorMA(start, 8192, dir, end);
     tr = gi.trace(start, NULL, NULL, end, self, MASK_SHOT);
     if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self)) {
         VectorSubtract(tr.endpos, start, v);
-        eta = (VectorLength(v) - tr.ent->maxs[0]) / speed;
-        tr.ent->monsterinfo.dodge(tr.ent, self, eta);
+        sg_time_t eta = sg_time_t::from_sec(VectorLength(v) - tr.ent->maxs[0]) / speed;
+        tr.ent->monsterinfo.dodge(tr.ent, self, eta.seconds() );
     }
 }
+
 
 /*
 =================
@@ -113,6 +115,7 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
     return true;
 }
 
+
 /*
 =================
 fire_lead
@@ -130,7 +133,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
     float       u;
     vec3_t      water_start;
     bool        water = false;
-    int         content_mask = MASK_SHOT | MASK_WATER;
+    contents_t  content_mask = static_cast<contents_t>( MASK_SHOT | MASK_WATER );
 
     tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
     if (!(tr.fraction < 1.0f)) {
@@ -146,7 +149,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
         if (gi.pointcontents(start) & MASK_WATER) {
             water = true;
             VectorCopy(start, water_start);
-            content_mask &= ~MASK_WATER;
+            content_mask = static_cast<contents_t>( content_mask & ~MASK_WATER ); // content_mask &= ~MASK_WATER
         }
 
         tr = gi.trace(start, NULL, NULL, end, self, content_mask);
@@ -240,6 +243,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
     }
 }
 
+
 /*
 =================
 fire_bullet
@@ -252,6 +256,7 @@ void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kic
 {
     fire_lead(self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, mod);
 }
+
 
 /*
 =================
@@ -267,6 +272,7 @@ void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int ki
     for (i = 0; i < count; i++)
         fire_lead(self, start, aimdir, damage, kick, TE_SHOTGUN, hspread, vspread, mod);
 }
+
 
 /*
 =================
@@ -310,6 +316,15 @@ void blaster_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
     G_FreeEdict(self);
 }
 
+static const bool G_ShouldPlayersCollideProjectile( edict_t *self ) {
+    // In Coop they don't.
+    if ( G_GetActiveGamemodeID() == GAMEMODE_COOPERATIVE ) {
+        return false;
+    }
+
+    // Otherwise they do.
+    return true;
+}
 void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect, bool hyper)
 {
     edict_t *bolt;
@@ -318,7 +333,8 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
     VectorNormalize(dir);
 
     bolt = G_Spawn();
-    bolt->svflags = SVF_DEADMONSTER;
+    bolt->svflags = SVF_PROJECTILE; // Special net code for projectiles. 
+    // SVF_DEADMONSTER; // The following is now irrelevant:
     // yes, I know it looks weird that projectiles are deadmonsters
     // what this means is that when prediction is used against the object
     // (blaster/hyperblaster shots), the player won't be solid clipped against
@@ -329,7 +345,11 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
     QM_Vector3ToAngles(dir, bolt->s.angles);
     VectorScale(dir, speed, bolt->velocity);
     bolt->movetype = MOVETYPE_FLYMISSILE;
-    bolt->clipmask = MASK_SHOT;
+    bolt->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        bolt->clipmask = static_cast<contents_t>( bolt->clipmask & ~CONTENTS_PLAYER );
+    }
+    bolt->flags = static_cast<ent_flags_t>( bolt->flags | FL_DODGE );
     bolt->solid = SOLID_BBOX;
     bolt->s.effects |= effect;
     bolt->s.renderfx |= RF_NOSHADOW;
@@ -356,6 +376,7 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
         bolt->touch(bolt, tr.ent, NULL, NULL);
     }
 }
+
 
 /*
 =================
@@ -460,7 +481,12 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     VectorMA(grenade->velocity, scale, right, grenade->velocity);
     VectorSet(grenade->avelocity, 300, 300, 300);
     grenade->movetype = MOVETYPE_BOUNCE;
-    grenade->clipmask = MASK_SHOT;
+    grenade->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        grenade->clipmask = static_cast<contents_t>( grenade->clipmask & ~CONTENTS_PLAYER );
+    }
+    grenade->flags = static_cast<ent_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */);
+    grenade->svflags |= SVF_PROJECTILE;
     grenade->solid = SOLID_BBOX;
     grenade->s.effects |= EF_GRENADE;
     VectorClear(grenade->mins);
@@ -496,7 +522,12 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
     VectorMA(grenade->velocity, scale, right, grenade->velocity);
     VectorSet(grenade->avelocity, 300, 300, 300);
     grenade->movetype = MOVETYPE_BOUNCE;
-    grenade->clipmask = MASK_SHOT;
+    grenade->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        grenade->clipmask = static_cast<contents_t>( grenade->clipmask & ~CONTENTS_PLAYER );
+    }
+    grenade->flags = static_cast<ent_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */ );
+    grenade->svflags |= SVF_PROJECTILE;
     grenade->solid = SOLID_BBOX;
     grenade->s.effects |= EF_GRENADE;
     VectorClear(grenade->mins);
@@ -522,6 +553,7 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
         gi.linkentity(grenade);
     }
 }
+
 
 /*
 =================
@@ -583,7 +615,12 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
     QM_Vector3ToAngles(dir, rocket->s.angles);
     VectorScale(dir, speed, rocket->velocity);
     rocket->movetype = MOVETYPE_FLYMISSILE;
-    rocket->clipmask = MASK_SHOT;
+    rocket->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        rocket->clipmask = static_cast<contents_t>( rocket->clipmask & ~CONTENTS_PLAYER );
+    }
+    rocket->flags = static_cast<ent_flags_t>( rocket->flags | FL_DODGE /*| FL_TRAP */ );
+    rocket->svflags |= SVF_PROJECTILE;
     rocket->solid = SOLID_BBOX;
     rocket->s.effects |= EF_ROCKET;
     VectorClear(rocket->mins);
@@ -605,6 +642,7 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
     gi.linkentity(rocket);
 }
 
+
 /*
 =================
 fire_rail
@@ -616,7 +654,7 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
     vec3_t      end;
     trace_t     tr;
     edict_t     *ignore;
-    int         mask;
+    contents_t  mask;
     bool        water;
     float       lastfrac;
 
@@ -624,13 +662,13 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
     VectorCopy(start, from);
     ignore = self;
     water = false;
-    mask = MASK_SHOT | CONTENTS_SLIME | CONTENTS_LAVA;
+    mask = static_cast<contents_t>( MASK_SHOT | CONTENTS_SLIME | CONTENTS_LAVA );
     lastfrac = 1;
     while (ignore) {
         tr = gi.trace(from, NULL, NULL, end, ignore, mask);
 
         if (tr.contents & (CONTENTS_SLIME | CONTENTS_LAVA)) {
-            mask &= ~(CONTENTS_SLIME | CONTENTS_LAVA);
+            mask = static_cast<contents_t>( ~( CONTENTS_SLIME | CONTENTS_LAVA ) );
             water = true;
         } else {
             //ZOID--added so rail goes through SOLID_BBOX entities (gibs, etc)
@@ -666,6 +704,7 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
     if (self->client)
         PlayerNoise(self, tr.endpos, PNOISE_IMPACT);
 }
+
 
 /*
 =================
@@ -751,6 +790,7 @@ void bfg_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
 }
 
+
 void bfg_think(edict_t *self)
 {
     edict_t *ent;
@@ -790,7 +830,7 @@ void bfg_think(edict_t *self)
         VectorCopy(self->s.origin, start);
         VectorMA(start, 2048, dir, end);
         while (1) {
-            tr = gi.trace(start, NULL, NULL, end, ignore, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER);
+            tr = gi.trace( start, NULL, NULL, end, ignore, static_cast<contents_t>( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER ) );
 
             if (!tr.ent)
                 break;
@@ -825,6 +865,7 @@ void bfg_think(edict_t *self)
     self->nextthink = level.time + 10_hz;
 }
 
+
 void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius)
 {
     edict_t *bfg;
@@ -835,7 +876,12 @@ void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, fl
     QM_Vector3ToAngles(dir, bfg->s.angles);
     VectorScale(dir, speed, bfg->velocity);
     bfg->movetype = MOVETYPE_FLYMISSILE;
-    bfg->clipmask = MASK_SHOT;
+    bfg->clipmask = MASK_PROJECTILE;
+    bfg->svflags = SVF_PROJECTILE;
+    // [Paril-KEX]
+    if ( self->client && !G_ShouldPlayersCollideProjectile( self ) ) {
+        bfg->clipmask = static_cast<contents_t>( bfg->clipmask & ~CONTENTS_PLAYER );
+    }
     bfg->solid = SOLID_BBOX;
     bfg->s.effects |= EF_BFG | EF_ANIM_ALLFAST;
     VectorClear(bfg->mins);

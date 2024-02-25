@@ -12,18 +12,8 @@
 #define VER_FILEFLAGS   0x0L
 #endif
 
-<<<<<<<< HEAD:src/windows/res/baseq2_clgame.rc
 #define VER_FILEDESCRIPTION_STR     "Q2RTXPerimental BaseQ2 ClientGame Module " LONG_VERSION_STRING
 #define VER_ORIGINALFILENAME_STR    "clgamex86_64.dll"
-========
-#ifdef _WIN64
-#define VER_FILEDESCRIPTION_STR     "Q2RTX game module " LONG_VERSION_STRING " (64-bit)"
-#else
-#define VER_FILEDESCRIPTION_STR     "Q2RTX game module " LONG_VERSION_STRING
-#endif
-
-#define VER_ORIGINALFILENAME_STR    "game" CPUSTRING ".dll"
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/windows/res/game.rc
 
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
@@ -44,15 +34,9 @@ BEGIN
             VALUE "FileDescription", VER_FILEDESCRIPTION_STR
             VALUE "OriginalFilename", VER_ORIGINALFILENAME_STR
             VALUE "FileVersion", VERSION_STRING
-<<<<<<<< HEAD:src/windows/res/baseq2_clgame.rc
             VALUE "InternalName", "baseq2_clgame"
             VALUE "LegalCopyright", "Copyright (C) 2019-2020, NVIDIA CORPORATION. All rights reserved."
             VALUE "ProductName", "Quake II RTXPerimental"
-========
-            VALUE "InternalName", "game"
-            VALUE "LegalCopyright", "Copyright (C) 2019-2023, NVIDIA CORPORATION. All rights reserved."
-            VALUE "ProductName", "Quake II RTX"
->>>>>>>> 32d0fe4cb25722ded82c772b022dcafe9ad01cb6:src/windows/res/game.rc
             VALUE "ProductVersion", VERSION_STRING
         END
     END

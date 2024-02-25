@@ -73,7 +73,8 @@ void monster_fire_rocket( edict_t *self, vec3_t start, vec3_t dir, int damage, i
 }
 
 void monster_fire_railgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int flashtype ) {
-	if ( gi.pointcontents( start ) & MASK_SOLID )
+	contents_t contents = gi.pointcontents( start );
+	if ( contents & (const contents_t)MASK_SOLID )
 		return;
 
 	fire_rail( self, start, aimdir, damage, kick );
@@ -131,28 +132,31 @@ void AttackFinished(edict_t *self, sg_time_t time)
 }
 
 
-void M_CheckGround( edict_t *ent ) {
+void M_CheckGround( edict_t *ent, const contents_t mask ) {
 	vec3_t      point;
 	trace_t     trace;
 
-	if ( ent->flags & ( FL_SWIM | FL_FLY ) )
-		return;
-
-	if ( ent->velocity[ 2 ] > 100 ) {
-		ent->groundentity = NULL;
+	// Swimming and flying monsters don't check for ground.
+	if ( ent->flags & ( FL_SWIM | FL_FLY ) ) {
 		return;
 	}
 
-// if the hull point one-quarter unit down is solid the entity is on ground
+	// Too high of a velocity, we're moving upwards rapidly.
+	if ( ent->velocity[ 2 ] > 100 ) {
+		ent->groundentity = nullptr;
+		return;
+	}
+
+	// If the hull point one-quarter unit down is solid the entity is on ground.
 	point[ 0 ] = ent->s.origin[ 0 ];
 	point[ 1 ] = ent->s.origin[ 1 ];
 	point[ 2 ] = ent->s.origin[ 2 ] - 0.25f;
 
-	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, point, ent, MASK_MONSTERSOLID );
+	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, point, ent, mask );
 
 	// check steepness
 	if ( trace.plane.normal[ 2 ] < 0.7f && !trace.startsolid ) {
-		ent->groundentity = NULL;
+		ent->groundentity = nullptr;
 		return;
 	}
 
@@ -169,36 +173,33 @@ void M_CheckGround( edict_t *ent ) {
 }
 
 
-void M_CatagorizePosition( edict_t *ent ) {
-	vec3_t      point;
-	int         cont;
-
-//
-// get waterlevel
-//
-	point[ 0 ] = ent->s.origin[ 0 ];
-	point[ 1 ] = ent->s.origin[ 1 ];
-	point[ 2 ] = ent->s.origin[ 2 ] + ent->mins[ 2 ] + 1;
-	cont = gi.pointcontents( point );
+void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, water_level_t &waterlevel, contents_t &watertype ) {
+	//
+	// get waterlevel
+	//
+	Vector3 point = in_point + Vector3{ 0.f, 0.f, ent->mins[ 2 ] + 1 };
+	contents_t cont = gi.pointcontents( &point.x );
 
 	if ( !( cont & MASK_WATER ) ) {
-		ent->waterlevel = 0;
-		ent->watertype = 0;
+		waterlevel = water_level_t::WATER_NONE;
+		watertype = CONTENTS_NONE;
 		return;
 	}
 
-	ent->watertype = cont;
-	ent->waterlevel = 1;
-	point[ 2 ] += 26;
-	cont = gi.pointcontents( point );
-	if ( !( cont & MASK_WATER ) )
+	watertype = cont;
+	waterlevel = water_level_t::WATER_FEET;
+	point.z += 26;
+	cont = gi.pointcontents( &point.x );
+	if ( !( cont & MASK_WATER ) ) {
 		return;
+	}
 
-	ent->waterlevel = 2;
+	waterlevel = water_level_t::WATER_WAIST;
 	point[ 2 ] += 22;
-	cont = gi.pointcontents( point );
-	if ( cont & MASK_WATER )
-		ent->waterlevel = 3;
+	cont = gi.pointcontents( &point.x );
+	if ( cont & MASK_WATER ) {
+		waterlevel = water_level_t::WATER_UNDER;
+	}
 }
 
 
@@ -238,7 +239,7 @@ void M_WorldEffects( edict_t *ent ) {
 	if ( ent->waterlevel == 0 ) {
 		if ( ent->flags & FL_INWATER ) {
 			gi.sound( ent, CHAN_BODY, gi.soundindex( "player/watr_out.wav" ), 1, ATTN_NORM, 0 );
-			ent->flags &= ~FL_INWATER;
+			ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_INWATER );
 		}
 		return;
 	}
@@ -269,7 +270,8 @@ void M_WorldEffects( edict_t *ent ) {
 				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
 		}
 
-        ent->flags |= FL_INWATER;
+		ent->flags = static_cast<ent_flags_t>( ent->flags | FL_INWATER );
+
         ent->damage_debounce_time = 0_ms;
     }
 }
@@ -279,20 +281,23 @@ void M_droptofloor( edict_t *ent ) {
 	vec3_t      end;
 	trace_t     trace;
 
+	contents_t mask = G_GetClipMask( ent );
+
 	ent->s.origin[ 2 ] += 1;
 	VectorCopy( ent->s.origin, end );
 	end[ 2 ] -= 256;
 
-	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, end, ent, MASK_MONSTERSOLID );
+	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, end, ent, mask );
 
-	if ( trace.fraction == 1 || trace.allsolid )
+	if ( trace.fraction == 1 || trace.allsolid ) {
 		return;
+	}
 
 	VectorCopy( trace.endpos, ent->s.origin );
 
 	gi.linkentity( ent );
-	M_CheckGround( ent );
-	M_CatagorizePosition( ent );
+	M_CheckGround( ent, mask );
+	M_CatagorizePosition( ent, ent->s.origin, ent->waterlevel, ent->watertype );
 }
 
 
@@ -462,15 +467,15 @@ void M_MoveFrame(edict_t *self)
 
 
 void monster_think( edict_t *self ) {
-	// Ensure to remove RF_OLD_FRAME_LERP.
+	// Ensure to remove RF_STAIR_STEP and RF_OLD_FRAME_LERP.
 	self->s.renderfx &= ~( RF_STAIR_STEP | RF_OLD_FRAME_LERP );
 
 	M_MoveFrame( self );
 	if ( self->linkcount != self->monsterinfo.linkcount ) {
 		self->monsterinfo.linkcount = self->linkcount;
-		M_CheckGround( self );
+		M_CheckGround( self, G_GetClipMask( self ) );
 	}
-	M_CatagorizePosition( self );
+	M_CatagorizePosition( self, self->s.origin, self->waterlevel, self->watertype );
 	M_WorldEffects( self );
 	M_SetEffects( self );
 }
@@ -506,7 +511,7 @@ void monster_start_go( edict_t *self );
 
 void monster_triggered_spawn( edict_t *self ) {
 	self->s.origin[ 2 ] += 1;
-	KillBox( self );
+	KillBox( self, false );
 
     self->solid = SOLID_BBOX;
     self->movetype = MOVETYPE_STEP;
@@ -552,7 +557,7 @@ enemy as activator.
 ================
 */
 void monster_death_use( edict_t *self ) {
-	self->flags &= ~( FL_FLY | FL_SWIM );
+	self->flags = static_cast<ent_flags_t>( self->flags & ~( FL_FLY |  FL_SWIM ) );
 	self->monsterinfo.aiflags &= AI_GOOD_GUY;
 
 	if ( self->item ) {
@@ -669,7 +674,7 @@ void monster_start_go( edict_t *self ) {
             self->monsterinfo.stand(self);
         } else if (strcmp(self->movetarget->classname, "path_corner") == 0) {
             VectorSubtract(self->goalentity->s.origin, self->s.origin, v);
-            self->ideal_yaw = self->s.angles[YAW] = QM_Vector3ToAngles(v);
+            self->ideal_yaw = self->s.angles[YAW] = QM_Vector3ToYaw(v);
             self->monsterinfo.walk(self);
             self->target = NULL;
         } else {
@@ -729,7 +734,7 @@ void flymonster_start_go( edict_t *self ) {
 
 
 void flymonster_start( edict_t *self ) {
-	self->flags |= FL_FLY;
+	self->flags = static_cast<ent_flags_t>( self->flags | FL_FLY );
 	self->think = flymonster_start_go;
 	monster_start( self );
 }
@@ -747,7 +752,7 @@ void swimmonster_start_go( edict_t *self ) {
 }
 
 void swimmonster_start( edict_t *self ) {
-	self->flags |= FL_SWIM;
+	self->flags = static_cast<ent_flags_t>( self->flags | FL_SWIM );
 	self->think = swimmonster_start_go;
 	monster_start( self );
 }

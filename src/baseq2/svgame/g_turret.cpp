@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "g_local.h"
 
+
 void AnglesNormalize(vec3_t vec)
 {
     while (vec[0] > 360)
@@ -42,6 +43,7 @@ const float SnapToEights(const float x)
     //return 0.125f * (int)x;
 	return x;
 }
+
 
 void turret_blocked(edict_t *self, edict_t *other)
 {
@@ -241,6 +243,7 @@ void SP_turret_breach(edict_t *self)
     gi.linkentity(self);
 }
 
+
 /*QUAKED turret_base (0 0 0) ?
 This portion of the turret changes yaw only.
 MUST be teamed with a turret_breach.
@@ -254,6 +257,7 @@ void SP_turret_base(edict_t *self)
     self->blocked = turret_blocked;
     gi.linkentity(self);
 }
+
 
 /*QUAKED turret_driver (1 .5 0) (-16 -16 -24) (16 16 32)
 Must NOT be on the team with the rest of the turret parts.
@@ -276,7 +280,7 @@ void turret_driver_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int
         ;
     ent->teamchain = NULL;
     self->teammaster = NULL;
-    self->flags &= ~FL_TEAMSLAVE;
+    self->flags = static_cast<ent_flags_t>( self->flags & ~FL_TEAMSLAVE );
 
     self->target_ent->owner = NULL;
     self->target_ent->teammaster->owner = NULL;
@@ -359,7 +363,7 @@ void turret_driver_link(edict_t *self)
         ;
     ent->teamchain = self;
     self->teammaster = self->target_ent->teammaster;
-    self->flags |= FL_TEAMSLAVE;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_TEAMSLAVE );
 }
 
 void SP_turret_driver(edict_t *self)
@@ -383,7 +387,7 @@ void SP_turret_driver(edict_t *self)
     self->die = turret_driver_die;
     self->monsterinfo.stand = infantry_stand;
 
-    self->flags |= FL_NO_KNOCKBACK;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
 
     level.total_monsters++;
 

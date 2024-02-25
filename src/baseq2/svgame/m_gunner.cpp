@@ -26,6 +26,7 @@ GUNNER
 #include "g_local.h"
 #include "m_gunner.h"
 
+
 static int  sound_pain;
 static int  sound_pain2;
 static int  sound_death;
@@ -33,6 +34,7 @@ static int  sound_idle;
 static int  sound_open;
 static int  sound_search;
 static int  sound_sight;
+
 
 void gunner_idlesound(edict_t *self)
 {
@@ -49,15 +51,17 @@ void gunner_search(edict_t *self)
     gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 }
 
+
 bool visible(edict_t *self, edict_t *other);
 void GunnerGrenade(edict_t *self);
 void GunnerFire(edict_t *self);
 void gunner_fire_chain(edict_t *self);
 void gunner_refire_chain(edict_t *self);
 
+
 void gunner_stand(edict_t *self);
 
-static const mframe_t gunner_frames_fidget[] = {
+mframe_t gunner_frames_fidget [] = {
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL },
@@ -112,7 +116,7 @@ static const mframe_t gunner_frames_fidget[] = {
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL }
 };
-const mmove_t gunner_move_fidget = {FRAME_stand31, FRAME_stand70, gunner_frames_fidget, gunner_stand};
+mmove_t gunner_move_fidget = {FRAME_stand31, FRAME_stand70, gunner_frames_fidget, gunner_stand};
 
 void gunner_fidget(edict_t *self)
 {
@@ -122,7 +126,7 @@ void gunner_fidget(edict_t *self)
         M_SetAnimation( self, &gunner_move_fidget );
 }
 
-static const mframe_t gunner_frames_stand[] = {
+mframe_t gunner_frames_stand [] = {
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL },
@@ -156,14 +160,15 @@ static const mframe_t gunner_frames_stand[] = {
     { ai_stand, 0, NULL },
     { ai_stand, 0, gunner_fidget }
 };
-const mmove_t gunner_move_stand = {FRAME_stand01, FRAME_stand30, gunner_frames_stand, NULL};
+mmove_t gunner_move_stand = {FRAME_stand01, FRAME_stand30, gunner_frames_stand, NULL};
 
 void gunner_stand(edict_t *self)
 {
 	M_SetAnimation( self, &gunner_move_stand );
 }
 
-static const mframe_t gunner_frames_walk[] = {
+
+mframe_t gunner_frames_walk [] = {
     { ai_walk, 0, NULL },
     { ai_walk, 3, NULL },
     { ai_walk, 4, NULL },
@@ -178,14 +183,14 @@ static const mframe_t gunner_frames_walk[] = {
     { ai_walk, 7, NULL },
     { ai_walk, 4, NULL }
 };
-const mmove_t gunner_move_walk = {FRAME_walk07, FRAME_walk19, gunner_frames_walk, NULL};
+mmove_t gunner_move_walk = {FRAME_walk07, FRAME_walk19, gunner_frames_walk, NULL};
 
 void gunner_walk(edict_t *self)
 {
 	M_SetAnimation( self, &gunner_move_walk );
 }
 
-static const mframe_t gunner_frames_run[] = {
+mframe_t gunner_frames_run [] = {
     { ai_run, 26, NULL },
     { ai_run, 9,  NULL },
     { ai_run, 9,  NULL },
@@ -196,7 +201,7 @@ static const mframe_t gunner_frames_run[] = {
     { ai_run, 6,  NULL }
 };
 
-const mmove_t gunner_move_run = {FRAME_run01, FRAME_run08, gunner_frames_run, NULL};
+mmove_t gunner_move_run = {FRAME_run01, FRAME_run08, gunner_frames_run, NULL};
 
 void gunner_run(edict_t *self)
 {
@@ -206,7 +211,7 @@ void gunner_run(edict_t *self)
 		M_SetAnimation( self, &gunner_move_run );
 }
 
-static const mframe_t gunner_frames_runandshoot[] = {
+mframe_t gunner_frames_runandshoot [] = {
     { ai_run, 32, NULL },
     { ai_run, 15, NULL },
     { ai_run, 10, NULL },
@@ -215,23 +220,23 @@ static const mframe_t gunner_frames_runandshoot[] = {
     { ai_run, 20, NULL }
 };
 
-const mmove_t gunner_move_runandshoot = {FRAME_runs01, FRAME_runs06, gunner_frames_runandshoot, NULL};
+mmove_t gunner_move_runandshoot = {FRAME_runs01, FRAME_runs06, gunner_frames_runandshoot, NULL};
 
 void gunner_runandshoot(edict_t *self)
 {
 	M_SetAnimation( self, &gunner_move_runandshoot );
 }
 
-static const mframe_t gunner_frames_pain3[] = {
+mframe_t gunner_frames_pain3 [] = {
     { ai_move, -3, NULL },
     { ai_move, 1,  NULL },
     { ai_move, 1,  NULL },
     { ai_move, 0,  NULL },
     { ai_move, 1,  NULL }
 };
-const mmove_t gunner_move_pain3 = {FRAME_pain301, FRAME_pain305, gunner_frames_pain3, gunner_run};
+mmove_t gunner_move_pain3 = {FRAME_pain301, FRAME_pain305, gunner_frames_pain3, gunner_run};
 
-static const mframe_t gunner_frames_pain2[] = {
+mframe_t gunner_frames_pain2 [] = {
     { ai_move, -2, NULL },
     { ai_move, 11, NULL },
     { ai_move, 6,  NULL },
@@ -241,9 +246,9 @@ static const mframe_t gunner_frames_pain2[] = {
     { ai_move, -2, NULL },
     { ai_move, -7, NULL }
 };
-const mmove_t gunner_move_pain2 = {FRAME_pain201, FRAME_pain208, gunner_frames_pain2, gunner_run};
+mmove_t gunner_move_pain2 = {FRAME_pain201, FRAME_pain208, gunner_frames_pain2, gunner_run};
 
-static const mframe_t gunner_frames_pain1[] = {
+mframe_t gunner_frames_pain1 [] = {
     { ai_move, 2,  NULL },
     { ai_move, 0,  NULL },
     { ai_move, -5, NULL },
@@ -263,7 +268,7 @@ static const mframe_t gunner_frames_pain1[] = {
     { ai_move, 0,  NULL },
     { ai_move, 0,  NULL }
 };
-const mmove_t gunner_move_pain1 = {FRAME_pain101, FRAME_pain118, gunner_frames_pain1, gunner_run};
+mmove_t gunner_move_pain1 = {FRAME_pain101, FRAME_pain118, gunner_frames_pain1, gunner_run};
 
 void gunner_pain(edict_t *self, edict_t *other, float kick, int damage)
 {
@@ -301,7 +306,7 @@ void gunner_dead(edict_t *self)
     gi.linkentity(self);
 }
 
-static const mframe_t gunner_frames_death[] = {
+mframe_t gunner_frames_death [] = {
     { ai_move, 0,  NULL },
     { ai_move, 0,  NULL },
     { ai_move, 0,  NULL },
@@ -314,7 +319,7 @@ static const mframe_t gunner_frames_death[] = {
     { ai_move, 0,  NULL },
     { ai_move, 0,  NULL }
 };
-const mmove_t gunner_move_death = {FRAME_death01, FRAME_death11, gunner_frames_death, gunner_dead};
+mmove_t gunner_move_death = {FRAME_death01, FRAME_death11, gunner_frames_death, gunner_dead};
 
 void gunner_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
@@ -341,6 +346,7 @@ void gunner_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     self->takedamage = DAMAGE_YES;
     M_SetAnimation( self, &gunner_move_death );
 }
+
 
 void gunner_duck_down(edict_t *self)
 {
@@ -374,7 +380,7 @@ void gunner_duck_up(edict_t *self)
     gi.linkentity(self);
 }
 
-static const mframe_t gunner_frames_duck[] = {
+mframe_t gunner_frames_duck [] = {
     { ai_move, 1,  gunner_duck_down },
     { ai_move, 1,  NULL },
     { ai_move, 1,  gunner_duck_hold },
@@ -384,7 +390,7 @@ static const mframe_t gunner_frames_duck[] = {
     { ai_move, 0,  gunner_duck_up },
     { ai_move, -1, NULL }
 };
-const mmove_t gunner_move_duck = {FRAME_duck01, FRAME_duck08, gunner_frames_duck, gunner_run};
+mmove_t gunner_move_duck = {FRAME_duck01, FRAME_duck08, gunner_frames_duck, gunner_run};
 
 void gunner_dodge(edict_t *self, edict_t *attacker, float eta)
 {
@@ -396,6 +402,7 @@ void gunner_dodge(edict_t *self, edict_t *attacker, float eta)
 
     M_SetAnimation( self, &gunner_move_duck );
 }
+
 
 void gunner_opengun(edict_t *self)
 {
@@ -450,7 +457,17 @@ void GunnerGrenade(edict_t *self)
     monster_fire_grenade(self, start, aim, 50, 600, flash_number);
 }
 
-static const mframe_t gunner_frames_attack_chain[] = {
+mframe_t gunner_frames_attack_chain [] = {
+    /*
+    { ai_charge, 0, NULL },
+    { ai_charge, 0, NULL },
+    { ai_charge, 0, NULL },
+    { ai_charge, 0, NULL },
+    { ai_charge, 0, NULL },
+    { ai_charge, 0, NULL },
+    { ai_charge, 0, NULL },
+    { ai_charge, 0, NULL },
+    */
     { ai_charge, 0, gunner_opengun },
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL },
@@ -459,9 +476,9 @@ static const mframe_t gunner_frames_attack_chain[] = {
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL }
 };
-const mmove_t gunner_move_attack_chain = {FRAME_attak209, FRAME_attak215, gunner_frames_attack_chain, gunner_fire_chain};
+mmove_t gunner_move_attack_chain = {FRAME_attak209, FRAME_attak215, gunner_frames_attack_chain, gunner_fire_chain};
 
-static const mframe_t gunner_frames_fire_chain[] = {
+mframe_t gunner_frames_fire_chain [] = {
     { ai_charge,   0, GunnerFire },
     { ai_charge,   0, GunnerFire },
     { ai_charge,   0, GunnerFire },
@@ -471,9 +488,9 @@ static const mframe_t gunner_frames_fire_chain[] = {
     { ai_charge,   0, GunnerFire },
     { ai_charge,   0, GunnerFire }
 };
-const mmove_t gunner_move_fire_chain = {FRAME_attak216, FRAME_attak223, gunner_frames_fire_chain, gunner_refire_chain};
+mmove_t gunner_move_fire_chain = {FRAME_attak216, FRAME_attak223, gunner_frames_fire_chain, gunner_refire_chain};
 
-static const mframe_t gunner_frames_endfire_chain[] = {
+mframe_t gunner_frames_endfire_chain [] = {
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL },
@@ -482,9 +499,9 @@ static const mframe_t gunner_frames_endfire_chain[] = {
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL }
 };
-const mmove_t gunner_move_endfire_chain = {FRAME_attak224, FRAME_attak230, gunner_frames_endfire_chain, gunner_run};
+mmove_t gunner_move_endfire_chain = {FRAME_attak224, FRAME_attak230, gunner_frames_endfire_chain, gunner_run};
 
-static const mframe_t gunner_frames_attack_grenade[] = {
+mframe_t gunner_frames_attack_grenade [] = {
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL },
@@ -507,7 +524,7 @@ static const mframe_t gunner_frames_attack_grenade[] = {
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL }
 };
-const mmove_t gunner_move_attack_grenade = {FRAME_attak101, FRAME_attak121, gunner_frames_attack_grenade, gunner_run};
+mmove_t gunner_move_attack_grenade = {FRAME_attak101, FRAME_attak121, gunner_frames_attack_grenade, gunner_run};
 
 void gunner_attack(edict_t *self)
 {

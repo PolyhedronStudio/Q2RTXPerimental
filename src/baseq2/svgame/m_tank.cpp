@@ -26,6 +26,7 @@ TANK
 #include "g_local.h"
 #include "m_tank.h"
 
+
 void tank_refire_rocket(edict_t *self);
 void tank_doattack_rocket(edict_t *self);
 void tank_reattack_blaster(edict_t *self);
@@ -48,6 +49,7 @@ void tank_sight(edict_t *self, edict_t *other)
     gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
+
 void tank_footstep(edict_t *self)
 {
     gi.sound(self, CHAN_BODY, sound_step, 1, ATTN_NORM, 0);
@@ -68,11 +70,12 @@ void tank_idle(edict_t *self)
     gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_IDLE, 0);
 }
 
+
 //
 // stand
 //
 
-static const mframe_t tank_frames_stand[] = {
+mframe_t tank_frames_stand [] = {
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL },
@@ -104,12 +107,13 @@ static const mframe_t tank_frames_stand[] = {
     { ai_stand, 0, NULL },
     { ai_stand, 0, NULL }
 };
-const mmove_t tank_move_stand = {FRAME_stand01, FRAME_stand30, tank_frames_stand, NULL};
+mmove_t tank_move_stand = {FRAME_stand01, FRAME_stand30, tank_frames_stand, NULL};
 
 void tank_stand(edict_t *self)
 {
 	M_SetAnimation( self, &tank_move_stand );
 }
+
 
 //
 // walk
@@ -117,15 +121,15 @@ void tank_stand(edict_t *self)
 
 void tank_walk(edict_t *self);
 
-static const mframe_t tank_frames_start_walk[] = {
+mframe_t tank_frames_start_walk [] = {
     { ai_walk,  0, NULL },
     { ai_walk,  6, NULL },
     { ai_walk,  6, NULL },
     { ai_walk, 11, tank_footstep }
 };
-const mmove_t tank_move_start_walk = {FRAME_walk01, FRAME_walk04, tank_frames_start_walk, tank_walk};
+mmove_t tank_move_start_walk = {FRAME_walk01, FRAME_walk04, tank_frames_start_walk, tank_walk};
 
-static const mframe_t tank_frames_walk[] = {
+mframe_t tank_frames_walk [] = {
     { ai_walk, 4, NULL },
     { ai_walk, 5, NULL },
     { ai_walk, 3, NULL },
@@ -143,21 +147,22 @@ static const mframe_t tank_frames_walk[] = {
     { ai_walk, 6, NULL },
     { ai_walk, 6, tank_footstep }
 };
-const mmove_t tank_move_walk = {FRAME_walk05, FRAME_walk20, tank_frames_walk, NULL};
+mmove_t tank_move_walk = {FRAME_walk05, FRAME_walk20, tank_frames_walk, NULL};
 
-static const mframe_t tank_frames_stop_walk[] = {
+mframe_t tank_frames_stop_walk [] = {
     { ai_walk,  3, NULL },
     { ai_walk,  3, NULL },
     { ai_walk,  2, NULL },
     { ai_walk,  2, NULL },
     { ai_walk,  4, tank_footstep }
 };
-const mmove_t tank_move_stop_walk = {FRAME_walk21, FRAME_walk25, tank_frames_stop_walk, tank_stand};
+mmove_t tank_move_stop_walk = {FRAME_walk21, FRAME_walk25, tank_frames_stop_walk, tank_stand};
 
 void tank_walk(edict_t *self)
 {
 	M_SetAnimation( self, &tank_move_walk );
 }
+
 
 //
 // run
@@ -165,15 +170,15 @@ void tank_walk(edict_t *self)
 
 void tank_run(edict_t *self);
 
-static const mframe_t tank_frames_start_run[] = {
+mframe_t tank_frames_start_run [] = {
     { ai_run,  0, NULL },
     { ai_run,  6, NULL },
     { ai_run,  6, NULL },
     { ai_run, 11, tank_footstep }
 };
-const mmove_t tank_move_start_run = {FRAME_walk01, FRAME_walk04, tank_frames_start_run, tank_run};
+mmove_t tank_move_start_run = {FRAME_walk01, FRAME_walk04, tank_frames_start_run, tank_run};
 
-static const mframe_t tank_frames_run[] = {
+mframe_t tank_frames_run [] = {
     { ai_run, 4,  NULL },
     { ai_run, 5,  NULL },
     { ai_run, 3,  NULL },
@@ -191,16 +196,16 @@ static const mframe_t tank_frames_run[] = {
     { ai_run, 6,  NULL },
     { ai_run, 6,  tank_footstep }
 };
-const mmove_t tank_move_run = {FRAME_walk05, FRAME_walk20, tank_frames_run, NULL};
+mmove_t tank_move_run = {FRAME_walk05, FRAME_walk20, tank_frames_run, NULL};
 
-static const mframe_t tank_frames_stop_run[] = {
+mframe_t tank_frames_stop_run [] = {
     { ai_run,  3, NULL },
     { ai_run,  3, NULL },
     { ai_run,  2, NULL },
     { ai_run,  2, NULL },
     { ai_run,  4, tank_footstep }
 };
-const mmove_t tank_move_stop_run = {FRAME_walk21, FRAME_walk25, tank_frames_stop_run, tank_walk};
+mmove_t tank_move_stop_run = {FRAME_walk21, FRAME_walk25, tank_frames_stop_run, tank_walk};
 
 void tank_run(edict_t *self)
 {
@@ -226,24 +231,24 @@ void tank_run(edict_t *self)
 // pain
 //
 
-static const mframe_t tank_frames_pain1[] = {
+mframe_t tank_frames_pain1 [] = {
     { ai_move, 0, NULL },
     { ai_move, 0, NULL },
     { ai_move, 0, NULL },
     { ai_move, 0, NULL }
 };
-const mmove_t tank_move_pain1 = {FRAME_pain101, FRAME_pain104, tank_frames_pain1, tank_run};
+mmove_t tank_move_pain1 = {FRAME_pain101, FRAME_pain104, tank_frames_pain1, tank_run};
 
-static const mframe_t tank_frames_pain2[] = {
+mframe_t tank_frames_pain2 [] = {
     { ai_move, 0, NULL },
     { ai_move, 0, NULL },
     { ai_move, 0, NULL },
     { ai_move, 0, NULL },
     { ai_move, 0, NULL }
 };
-const mmove_t tank_move_pain2 = {FRAME_pain201, FRAME_pain205, tank_frames_pain2, tank_run};
+mmove_t tank_move_pain2 = {FRAME_pain201, FRAME_pain205, tank_frames_pain2, tank_run};
 
-static const mframe_t tank_frames_pain3[] = {
+mframe_t tank_frames_pain3 [] = {
     { ai_move, -7, NULL },
     { ai_move, 0,  NULL },
     { ai_move, 0,  NULL },
@@ -261,7 +266,8 @@ static const mframe_t tank_frames_pain3[] = {
     { ai_move, 0,  NULL },
     { ai_move, 0,  tank_footstep }
 };
-const mmove_t tank_move_pain3 = {FRAME_pain301, FRAME_pain316, tank_frames_pain3, tank_run};
+mmove_t tank_move_pain3 = {FRAME_pain301, FRAME_pain316, tank_frames_pain3, tank_run};
+
 
 void tank_pain(edict_t *self, edict_t *other, float kick, int damage)
 {
@@ -299,6 +305,7 @@ void tank_pain(edict_t *self, edict_t *other, float kick, int damage)
     else
         M_SetAnimation( self, &tank_move_pain3 );
 }
+
 
 //
 // attacks
@@ -393,7 +400,8 @@ void TankMachineGun(edict_t *self)
     monster_fire_bullet(self, start, forward, 20, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 }
 
-static const mframe_t tank_frames_attack_blast[] = {
+
+mframe_t tank_frames_attack_blast [] = {
     { ai_charge, 0,   NULL },
     { ai_charge, 0,   NULL },
     { ai_charge, 0,   NULL },
@@ -411,9 +419,9 @@ static const mframe_t tank_frames_attack_blast[] = {
     { ai_charge, 0,   NULL },
     { ai_charge, 0,   TankBlaster }     // 16
 };
-const mmove_t tank_move_attack_blast = {FRAME_attak101, FRAME_attak116, tank_frames_attack_blast, tank_reattack_blaster};
+mmove_t tank_move_attack_blast = {FRAME_attak101, FRAME_attak116, tank_frames_attack_blast, tank_reattack_blaster};
 
-static const mframe_t tank_frames_reattack_blast[] = {
+mframe_t tank_frames_reattack_blast [] = {
     { ai_charge, 0,   NULL },
     { ai_charge, 0,   NULL },
     { ai_charge, 0,   TankBlaster },
@@ -421,9 +429,9 @@ static const mframe_t tank_frames_reattack_blast[] = {
     { ai_charge, 0,   NULL },
     { ai_charge, 0,   TankBlaster }     // 16
 };
-const mmove_t tank_move_reattack_blast = {FRAME_attak111, FRAME_attak116, tank_frames_reattack_blast, tank_reattack_blaster};
+mmove_t tank_move_reattack_blast = {FRAME_attak111, FRAME_attak116, tank_frames_reattack_blast, tank_reattack_blaster};
 
-static const mframe_t tank_frames_attack_post_blast[] = {
+mframe_t tank_frames_attack_post_blast [] = {
     { ai_move, 0,     NULL },           // 17
     { ai_move, 0,     NULL },
     { ai_move, 2,     NULL },
@@ -431,7 +439,7 @@ static const mframe_t tank_frames_attack_post_blast[] = {
     { ai_move, 2,     NULL },
     { ai_move, -2,    tank_footstep }   // 22
 };
-const mmove_t tank_move_attack_post_blast = {FRAME_attak117, FRAME_attak122, tank_frames_attack_post_blast, tank_run};
+mmove_t tank_move_attack_post_blast = {FRAME_attak117, FRAME_attak122, tank_frames_attack_post_blast, tank_run};
 
 void tank_reattack_blaster(edict_t *self)
 {
@@ -445,13 +453,14 @@ void tank_reattack_blaster(edict_t *self)
 	M_SetAnimation( self, &tank_move_attack_post_blast );
 }
 
+
 void tank_poststrike(edict_t *self)
 {
     self->enemy = NULL;
     tank_run(self);
 }
 
-static const mframe_t tank_frames_attack_strike[] = {
+mframe_t tank_frames_attack_strike [] = {
     { ai_move, 3,   NULL },
     { ai_move, 2,   NULL },
     { ai_move, 2,   NULL },
@@ -491,9 +500,9 @@ static const mframe_t tank_frames_attack_strike[] = {
     { ai_move, -3,  NULL },
     { ai_move, -2,  tank_footstep }
 };
-const mmove_t tank_move_attack_strike = {FRAME_attak201, FRAME_attak238, tank_frames_attack_strike, tank_poststrike};
+mmove_t tank_move_attack_strike = {FRAME_attak201, FRAME_attak238, tank_frames_attack_strike, tank_poststrike};
 
-static const mframe_t tank_frames_attack_pre_rocket[] = {
+mframe_t tank_frames_attack_pre_rocket [] = {
     { ai_charge, 0,  NULL },
     { ai_charge, 0,  NULL },
     { ai_charge, 0,  NULL },
@@ -518,9 +527,9 @@ static const mframe_t tank_frames_attack_pre_rocket[] = {
 
     { ai_charge, -3, NULL }
 };
-const mmove_t tank_move_attack_pre_rocket = {FRAME_attak301, FRAME_attak321, tank_frames_attack_pre_rocket, tank_doattack_rocket};
+mmove_t tank_move_attack_pre_rocket = {FRAME_attak301, FRAME_attak321, tank_frames_attack_pre_rocket, tank_doattack_rocket};
 
-static const mframe_t tank_frames_attack_fire_rocket[] = {
+mframe_t tank_frames_attack_fire_rocket [] = {
     { ai_charge, -3, NULL },            // Loop Start   22
     { ai_charge, 0,  NULL },
     { ai_charge, 0,  TankRocket },      // 24
@@ -531,9 +540,9 @@ static const mframe_t tank_frames_attack_fire_rocket[] = {
     { ai_charge, 0,  NULL },
     { ai_charge, -1, TankRocket }       // 30   Loop End
 };
-const mmove_t tank_move_attack_fire_rocket = {FRAME_attak322, FRAME_attak330, tank_frames_attack_fire_rocket, tank_refire_rocket};
+mmove_t tank_move_attack_fire_rocket = {FRAME_attak322, FRAME_attak330, tank_frames_attack_fire_rocket, tank_refire_rocket};
 
-static const mframe_t tank_frames_attack_post_rocket[] = {
+mframe_t tank_frames_attack_post_rocket [] = {
     { ai_charge, 0,  NULL },            // 31
     { ai_charge, -1, NULL },
     { ai_charge, -1, NULL },
@@ -560,9 +569,9 @@ static const mframe_t tank_frames_attack_post_rocket[] = {
     { ai_charge, 0,  NULL },
     { ai_charge, 0,  NULL }
 };
-const mmove_t tank_move_attack_post_rocket = {FRAME_attak331, FRAME_attak353, tank_frames_attack_post_rocket, tank_run};
+mmove_t tank_move_attack_post_rocket = {FRAME_attak331, FRAME_attak353, tank_frames_attack_post_rocket, tank_run};
 
-static const mframe_t tank_frames_attack_chain[] = {
+mframe_t tank_frames_attack_chain [] = {
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL },
@@ -593,7 +602,7 @@ static const mframe_t tank_frames_attack_chain[] = {
     { ai_charge, 0, NULL },
     { ai_charge, 0, NULL }
 };
-const mmove_t tank_move_attack_chain = {FRAME_attak401, FRAME_attak429, tank_frames_attack_chain, tank_run};
+mmove_t tank_move_attack_chain = {FRAME_attak401, FRAME_attak429, tank_frames_attack_chain, tank_run};
 
 void tank_refire_rocket(edict_t *self)
 {
@@ -651,6 +660,7 @@ void tank_attack(edict_t *self)
     }
 }
 
+
 //
 // death
 //
@@ -665,7 +675,7 @@ void tank_dead(edict_t *self)
     gi.linkentity(self);
 }
 
-static const mframe_t tank_frames_death1[] = {
+mframe_t tank_frames_death1 [] = {
     { ai_move, -7,  NULL },
     { ai_move, -2,  NULL },
     { ai_move, -2,  NULL },
@@ -699,7 +709,7 @@ static const mframe_t tank_frames_death1[] = {
     { ai_move, 0,   NULL },
     { ai_move, 0,   NULL }
 };
-const mmove_t tank_move_death = {FRAME_death101, FRAME_death132, tank_frames_death1, tank_dead};
+mmove_t tank_move_death = {FRAME_death101, FRAME_death132, tank_frames_death1, tank_dead};
 
 void tank_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
@@ -729,6 +739,7 @@ void tank_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
 	M_SetAnimation( self, &tank_move_death );
 
 }
+
 
 //
 // monster_tank

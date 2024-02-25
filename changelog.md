@@ -45,9 +45,11 @@
 * Basic configurable Spotlight entity that can be given its own ``customLightStyle`` property as well.
 ### Client Game:
 * Responsible for preparing the view by adding all the packet entities as well as the player viewweapon/thirdperson model.
-* User Input ``KeyButton`` registration and handling of.
+* Can now do custom User Input ``KeyButton`` registration and handling of.
 * View/Scene handling, this includes: ``Packet Entities``, ``Entity Events``, ``Temp Entity Events``, ``Particles``, ``Explosions``, ``Beams/Lasers/Trails``, ``Sustains``.
 * Player Movement Prediction.
+* Parse and precache clientinfo data.
+* Owner and in control of svc_print, svc_centerprint, and even the chat HUD.
 ### Shared Game:
 * Contains the shared used ``sg_time_t`` which replaces all the vanilla frametime/framenum work.
 * Customizable PlayerMove code.

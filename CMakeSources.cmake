@@ -3,28 +3,57 @@
 #	Game: BaseQ2
 #
 #
-# BaseQ2 SharedGame
+# BaseQ2RTXP SharedGame
 SET(SRC_BASEQ2_SHAREDGAME
 	baseq2/sharedgame/sg_gamemode.cpp
 	baseq2/sharedgame/sg_pmove.cpp
+	baseq2/sharedgame/sg_pmove_slidemove.cpp
 )
 SET(HEADERS_BASEQ2_SHAREDGAME
+	baseq2/sharedgame/sg_cmd_messages.h
 	baseq2/sharedgame/sg_gamemode.h
+	baseq2/sharedgame/sg_local.h
 	baseq2/sharedgame/sg_pmove.h
+	baseq2/sharedgame/sg_pmove_slidemove.h
+	baseq2/sharedgame/sg_shared.h
 	baseq2/sharedgame/sg_time.h
 )
-#	BaseQ2 ClientGame
+#	BaseQ2RTXP ClientGame
 SET(SRC_BASEQ2_CLGAME
 	# SharedGame API Bindings
 	baseq2/sharedgame/game_bindings/sg_binding_clgame.cpp
 
 	# ClientGame
+	baseq2/clgame/clg_effects.cpp
+	baseq2/clgame/clg_entities.cpp
+	baseq2/clgame/clg_input.cpp
+	baseq2/clgame/clg_gamemode.cpp
 	baseq2/clgame/clg_main.cpp
+	baseq2/clgame/clg_parse.cpp
+	baseq2/clgame/clg_precache.cpp
+	baseq2/clgame/clg_predict.cpp
+	baseq2/clgame/clg_temp_entities.cpp
+	baseq2/clgame/clg_screen.cpp
+	baseq2/clgame/clg_view.cpp
+
+	baseq2/clgame/effects/clg_fx_classic.cpp
+	baseq2/clgame/effects/clg_fx_dynamiclights.cpp
+	baseq2/clgame/effects/clg_fx_lightstyles.cpp
+	baseq2/clgame/effects/clg_fx_muzzleflash.cpp
+	baseq2/clgame/effects/clg_fx_muzzleflash2.cpp
+	baseq2/clgame/effects/clg_fx_particles.cpp
+	baseq2/clgame/effects/clg_fx_new.cpp
+
+	baseq2/clgame/temp_entities/clg_te_beams.cpp
+	baseq2/clgame/temp_entities/clg_te_explosions.cpp
+	baseq2/clgame/temp_entities/clg_te_lasers.cpp
+	baseq2/clgame/temp_entities/clg_te_railtrails.cpp
+	baseq2/clgame/temp_entities/clg_te_sustain.cpp
 )
 SET(HEADERS_BASEQ2_CLGAME
 	baseq2/clgame/clg_local.h
 )
-# BaseQ2 ServerGame
+# BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2_SVGAME
 	# SharedGame API Bindings
 	baseq2/sharedgame/game_bindings/sg_binding_svgame.cpp
@@ -44,6 +73,7 @@ SET(SRC_BASEQ2_SVGAME
 	baseq2/svgame/g_ptrs.cpp
 	baseq2/svgame/g_save.cpp
 	baseq2/svgame/g_spawn.cpp
+	baseq2/svgame/g_spotlight.cpp
 	baseq2/svgame/g_svcmds.cpp
 	baseq2/svgame/g_target.cpp
 	baseq2/svgame/g_trigger.cpp

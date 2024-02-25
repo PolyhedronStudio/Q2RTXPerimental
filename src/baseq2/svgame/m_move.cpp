@@ -46,8 +46,8 @@ bool M_CheckBottom(edict_t *ent)
 // with the tougher checks
 // the corners must be within 16 of the midpoint
     start[2] = mins[2] - 1;
-    for (x = 0; x <= 1; x++)
-        for (y = 0; y <= 1; y++) {
+    for (x = 0 ; x <= 1 ; x++)
+        for (y = 0 ; y <= 1 ; y++) {
             start[0] = x ? maxs[0] : mins[0];
             start[1] = y ? maxs[1] : mins[1];
             if (gi.pointcontents(start) != CONTENTS_SOLID)
@@ -75,8 +75,8 @@ realcheck:
     mid = bottom = trace.endpos[2];
 
 // the corners must be within 16 of the midpoint
-    for (x = 0; x <= 1; x++)
-        for (y = 0; y <= 1; y++) {
+    for (x = 0 ; x <= 1 ; x++)
+        for (y = 0 ; y <= 1 ; y++) {
             start[0] = stop[0] = x ? maxs[0] : mins[0];
             start[1] = stop[1] = y ? maxs[1] : mins[1];
 
@@ -92,6 +92,7 @@ realcheck:
     return true;
 }
 
+
 /*
 =============
 SV_movestep
@@ -104,7 +105,7 @@ pr_global_struct->trace_normal is set to the normal of the blocking wall
 */
 //FIXME since we need to test end position contents here, can we avoid doing
 //it again later in catagorize position?
-bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
+static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
 {
     float       dz;
     vec3_t      oldorg, neworg, end;
@@ -121,7 +122,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 // flying monsters don't step up
     if (ent->flags & (FL_SWIM | FL_FLY)) {
         // try one move with vertical motion, then one without
-        for (i = 0; i < 2; i++) {
+        for (i = 0 ; i < 2 ; i++) {
             VectorAdd(ent->s.origin, move, neworg);
             if (i == 0 && ent->enemy) {
                 if (!ent->goalentity)
@@ -208,6 +209,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
             return false;
     }
 
+
     // don't go in to water
     if (ent->waterlevel == 0) {
         test[0] = trace.endpos[0];
@@ -239,7 +241,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 	if ( fabs( (float)ent->s.origin[ 2 ] - (float)(trace.endpos[ 2 ] )) > 8.f ) {
 		stepped = true;
 	}
-// check point traces down for dangling corners
+    // check point traces down for dangling corners
     VectorCopy(trace.endpos, ent->s.origin);
 
     if (!M_CheckBottom(ent)) {
@@ -257,7 +259,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
     }
 
     if (ent->flags & FL_PARTIALGROUND) {
-        ent->flags &= ~FL_PARTIALGROUND;
+        ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_PARTIALGROUND );
     }
     ent->groundentity = trace.ent;
     ent->groundentity_linkcount = trace.ent->linkcount;
@@ -274,6 +276,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
     return true;
 }
 
+
 //============================================================================
 
 /*
@@ -284,36 +287,47 @@ M_ChangeYaw
 */
 void M_ChangeYaw(edict_t *ent)
 {
-    float   ideal;
-    float   current;
-    float   move;
-    float   speed;
+    // Get angle modded angles.
+    const float current = AngleMod(ent->s.angles[YAW]);
+    // Get ideal desired for yaw angle.
+    const float ideal = ent->ideal_yaw;
 
-    current = AngleMod(ent->s.angles[YAW]);
-    ideal = ent->ideal_yaw;
-
-    if (current == ideal)
+    // If we're already facing ideal yaw, escape.
+    if ( current == ideal ) {
         return;
-
-    move = ideal - current;
-    speed = ent->yaw_speed;
-    if (ideal > current) {
-        if (move >= 180)
-            move = move - 360;
-    } else {
-        if (move <= -180)
-            move = move + 360;
-    }
-    if (move > 0) {
-        if (move > speed)
-            move = speed;
-    } else {
-        if (move < -speed)
-            move = -speed;
     }
 
-    ent->s.angles[YAW] = AngleMod(current + move);
+    float move = ideal - current;
+    const float speed = ent->yaw_speed;
+
+    // Prevent the monster from rotating a full circle around the yaw.
+    // Do so by keeping angles between -180/+180, depending on whether ideal yaw is higher or lower than current.
+    move = QM_Wrapf( move, -180.f, 180.f );
+    //if (ideal > current) {
+    //    if ( move >= 180 ) {
+    //        move = move - 360;
+    //    }
+    //} else {
+    //    if ( move <= -180 ) {
+    //        move = move + 360;
+    //    }
+    //}
+    // Clamp the yaw move speed.
+    move = QM_Clampf( move, -speed, speed );
+    //if (move > 0) {
+    //    if ( move > speed ) {
+    //        move = speed;
+    //    }
+    //} else {
+    //    if ( move < -speed ) {
+    //        move = -speed;
+    //    }
+    //}
+
+    // AngleMod the final resulting angles.
+    ent->s.angles[YAW] = AngleMod( current + move );
 }
+
 
 /*
 ======================
@@ -324,32 +338,31 @@ facing it.
 
 ======================
 */
-bool SV_StepDirection(edict_t *ent, float yaw, float dist)
-{
-    vec3_t      move, oldorigin;
-    float       delta;
-
+bool SV_StepDirection( edict_t *ent, float yaw, float dist ) {
     ent->ideal_yaw = yaw;
-    M_ChangeYaw(ent);
+    M_ChangeYaw( ent );
 
     yaw = DEG2RAD(yaw);
-    move[0] = cos(yaw) * dist;
-    move[1] = sin(yaw) * dist;
-    move[2] = 0;
+    const Vector3 move = {
+        cos( yaw ) * dist,
+        sin( yaw ) * dist,
+        0
+    };
 
-    VectorCopy(ent->s.origin, oldorigin);
-    if (SV_movestep(ent, move, false)) {
-        delta = ent->s.angles[YAW] - ent->ideal_yaw;
-        if (delta > 45 && delta < 315) {
+    const Vector3 oldorigin = ent->s.origin;
+    if ( SV_movestep( ent, move, false ) ) {
+        const float delta = ent->s.angles[ YAW ] - ent->ideal_yaw;
+        if ( delta > 45 && delta < 315 ) {
             // not turned far enough, so don't take the step
-            VectorCopy(oldorigin, ent->s.origin);
+            VectorCopy( oldorigin, ent->s.origin );
         }
-        gi.linkentity(ent);
-        G_TouchTriggers(ent);
+        gi.linkentity( ent );
+        G_TouchTriggers( ent );
+        G_TouchProjectiles( ent, oldorigin );
         return true;
     }
-    gi.linkentity(ent);
-    G_TouchTriggers(ent);
+    gi.linkentity( ent );
+    G_TouchTriggers( ent );
     return false;
 }
 
@@ -361,8 +374,10 @@ SV_FixCheckBottom
 */
 void SV_FixCheckBottom(edict_t *ent)
 {
-    ent->flags |= FL_PARTIALGROUND;
+    ent->flags = static_cast<ent_flags_t>( ent->flags | FL_PARTIALGROUND );
 }
+
+
 
 /*
 ================
@@ -431,11 +446,11 @@ void SV_NewChaseDir(edict_t *actor, edict_t *enemy, float dist)
         return;
 
     if (Q_rand() & 1) { /*randomly determine direction of search*/
-        for (tdir = 0; tdir <= 315; tdir += 45)
+        for (tdir = 0 ; tdir <= 315 ; tdir += 45)
             if (tdir != turnaround && SV_StepDirection(actor, tdir, dist))
                 return;
     } else {
-        for (tdir = 315; tdir >= 0; tdir -= 45)
+        for (tdir = 315 ; tdir >= 0 ; tdir -= 45)
             if (tdir != turnaround && SV_StepDirection(actor, tdir, dist))
                 return;
     }
@@ -462,7 +477,7 @@ bool SV_CloseEnough(edict_t *ent, edict_t *goal, float dist)
 {
     int     i;
 
-    for (i = 0; i < 3; i++) {
+    for (i = 0 ; i < 3 ; i++) {
         if (goal->absmin[i] > ent->absmax[i] + dist)
             return false;
         if (goal->absmax[i] < ent->absmin[i] - dist)
@@ -470,6 +485,7 @@ bool SV_CloseEnough(edict_t *ent, edict_t *goal, float dist)
     }
     return true;
 }
+
 
 /*
 ======================
@@ -495,6 +511,7 @@ void M_MoveToGoal(edict_t *ent, float dist)
             SV_NewChaseDir(ent, goal, dist);
     }
 }
+
 
 /*
 ===============

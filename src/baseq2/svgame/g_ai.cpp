@@ -31,6 +31,7 @@ float       enemy_yaw;
 
 //============================================================================
 
+
 /*
 =================
 AI_SetSightClient
@@ -88,6 +89,7 @@ void ai_move(edict_t *self, float dist)
     M_walkmove(self, self->s.angles[YAW], dist);
 }
 
+
 /*
 =============
 ai_stand
@@ -106,7 +108,7 @@ void ai_stand(edict_t *self, float dist)
     if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
         if (self->enemy) {
             VectorSubtract(self->enemy->s.origin, self->s.origin, v);
-            self->ideal_yaw = QM_Vector3ToAngles(v);
+            self->ideal_yaw = QM_Vector3ToYaw(v);
             if (self->s.angles[YAW] != self->ideal_yaw && self->monsterinfo.aiflags & AI_TEMP_STAND_GROUND) {
                 self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
                 self->monsterinfo.run(self);
@@ -137,6 +139,7 @@ void ai_stand(edict_t *self, float dist)
     }
 }
 
+
 /*
 =============
 ai_walk
@@ -162,6 +165,7 @@ void ai_walk(edict_t *self, float dist)
     }
 }
 
+
 /*
 =============
 ai_charge
@@ -175,12 +179,13 @@ void ai_charge(edict_t *self, float dist)
     vec3_t  v;
 
     VectorSubtract(self->enemy->s.origin, self->s.origin, v);
-    self->ideal_yaw = QM_Vector3ToAngles(v);
+    self->ideal_yaw = QM_Vector3ToYaw(v);
     M_ChangeYaw(self);
 
     if (dist)
         M_walkmove(self, self->s.angles[YAW], dist);
 }
+
 
 /*
 =============
@@ -200,6 +205,7 @@ void ai_turn(edict_t *self, float dist)
 
     M_ChangeYaw(self);
 }
+
 
 /*
 
@@ -278,6 +284,7 @@ bool visible(edict_t *self, edict_t *other)
     return false;
 }
 
+
 /*
 =============
 infront
@@ -301,6 +308,7 @@ bool infront(edict_t *self, edict_t *other)
     return false;
 }
 
+
 //============================================================================
 
 void HuntTarget(edict_t *self, bool animate_state = true )
@@ -315,7 +323,7 @@ void HuntTarget(edict_t *self, bool animate_state = true )
 			self->monsterinfo.run( self );
 	}
 	VectorSubtract( self->enemy->s.origin, self->s.origin, vec );
-	self->ideal_yaw = QM_Vector3ToAngles( vec );
+	self->ideal_yaw = QM_Vector3ToYaw( vec );
 }
 
 void FoundTarget(edict_t *self)
@@ -356,6 +364,7 @@ void FoundTarget(edict_t *self)
     // run for it
     self->monsterinfo.run(self);
 }
+
 
 /*
 ===========
@@ -501,7 +510,7 @@ bool FindTarget(edict_t *self)
             if (!gi.AreasConnected(self->areanum, client->areanum))
                 return false;
 
-        self->ideal_yaw = QM_Vector3ToAngles(temp);
+        self->ideal_yaw = QM_Vector3ToYaw(temp);
         M_ChangeYaw(self);
 
         // hunt the sound for a bit; hopefully find the real player
@@ -519,6 +528,7 @@ bool FindTarget(edict_t *self)
 
     return true;
 }
+
 
 //=============================================================================
 
@@ -538,26 +548,32 @@ bool FacingIdeal(edict_t *self)
     return true;
 }
 
+
 //=============================================================================
 
 bool M_CheckAttack(edict_t *self)
 {
-    vec3_t  spot1, spot2;
+    Vector3  spot1, spot2;
     float   chance;
     trace_t tr;
 
-    if (self->enemy->health > 0) {
+    //if ( self->enemy->flags & FL_NOVISIBLE )
+    //    return false;
+
+    if ( self->enemy->health > 0 ) {
+        spot1 = self->s.origin;
+        spot1[ 2 ] += self->viewheight;
         // see if any entities are in the way of the shot
-        VectorCopy(self->s.origin, spot1);
-        spot1[2] += self->viewheight;
-        VectorCopy(self->enemy->s.origin, spot2);
-        spot2[2] += self->enemy->viewheight;
+        if ( !self->enemy->client || self->enemy->solid ) {
+            spot2 = self->enemy->s.origin;
+            spot2[ 2 ] += self->enemy->viewheight;
 
-        tr = gi.trace(spot1, NULL, NULL, spot2, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
-
-        // do we have a clear shot?
-        if (tr.ent != self->enemy)
-            return false;
+            tr = gi.trace( &spot1.x, nullptr, nullptr, &spot2.x, self,
+                contents_t( MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA ) );
+        } else {
+            tr.ent = world;
+            tr.fraction = 0;
+        }
     }
 
     // melee attack
@@ -615,6 +631,7 @@ bool M_CheckAttack(edict_t *self)
     return false;
 }
 
+
 /*
 =============
 ai_run_melee
@@ -632,6 +649,7 @@ void ai_run_melee(edict_t *self)
         self->monsterinfo.attack_state = AS_STRAIGHT;
     }
 }
+
 
 /*
 =============
@@ -651,6 +669,7 @@ void ai_run_missile(edict_t *self)
     }
 }
 
+
 /*
 =============
 ai_run_slide
@@ -668,7 +687,7 @@ void ai_run_slide(edict_t *self, float distance)
     if (self->monsterinfo.lefty)
         ofs = 90;
     else
-        ofs = -90;
+        ofs = 270;
 
     if (M_walkmove(self, self->ideal_yaw + ofs, distance))
         return;
@@ -676,6 +695,7 @@ void ai_run_slide(edict_t *self, float distance)
     self->monsterinfo.lefty = 1 - self->monsterinfo.lefty;
     M_walkmove(self, self->ideal_yaw - ofs, distance);
 }
+
 
 /*
 =============
@@ -775,7 +795,8 @@ bool ai_checkattack(edict_t *self, float dist)
 
     enemy_range = range(self, self->enemy);
     VectorSubtract(self->enemy->s.origin, self->s.origin, temp);
-    enemy_yaw = QM_Vector3ToAngles(temp);
+    enemy_yaw = QM_Vector3ToYaw(temp);
+
 
     // JDC self->ideal_yaw = enemy_yaw;
 
@@ -794,6 +815,7 @@ bool ai_checkattack(edict_t *self, float dist)
 
     return self->monsterinfo.checkattack(self);
 }
+
 
 /*
 =============
@@ -925,7 +947,7 @@ void ai_run(edict_t *self, float dist)
             d1 = VectorLength(v);
             center = tr.fraction;
             d2 = d1 * ((center + 1) / 2);
-            self->s.angles[YAW] = self->ideal_yaw = QM_Vector3ToAngles(v);
+            self->s.angles[YAW] = self->ideal_yaw = QM_Vector3ToYaw(v);
             AngleVectors(self->s.angles, v_forward, v_right, NULL);
 
             VectorSet(v, d2, -16, 0);
@@ -949,7 +971,7 @@ void ai_run(edict_t *self, float dist)
                 VectorCopy(left_target, self->goalentity->s.origin);
                 VectorCopy(left_target, self->monsterinfo.last_sighting);
                 VectorSubtract(self->goalentity->s.origin, self->s.origin, v);
-                self->s.angles[YAW] = self->ideal_yaw = QM_Vector3ToAngles(v);
+                self->s.angles[YAW] = self->ideal_yaw = QM_Vector3ToYaw(v);
             } else if (right >= center && right > left) {
                 if (right < 1) {
                     VectorSet(v, d2 * right * 0.5f, 16, 0);
@@ -960,7 +982,7 @@ void ai_run(edict_t *self, float dist)
                 VectorCopy(right_target, self->goalentity->s.origin);
                 VectorCopy(right_target, self->monsterinfo.last_sighting);
                 VectorSubtract(self->goalentity->s.origin, self->s.origin, v);
-                self->s.angles[YAW] = self->ideal_yaw = QM_Vector3ToAngles(v);
+                self->s.angles[YAW] = self->ideal_yaw = QM_Vector3ToYaw(v);
             }
         }
     }

@@ -284,20 +284,23 @@ IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 		target_link_options(baseq2_svgame PRIVATE "-static-libgcc")
 	ENDIF() #IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
 
+	# Add appropriate definition so the sharedgame code knows what binding it operates with.
+	target_compile_definitions(baseq2_clgame PRIVATE CLGAME_INCLUDE=1)
+	target_compile_definitions(baseq2_svgame PRIVATE SVGAME_INCLUDE=1)
+
 	# WIN32 Specifics:
 	IF( WIN32 )
 		target_include_directories(baseq2_svgame PRIVATE ../VC/inc)
 		target_include_directories(baseq2_clgame PRIVATE ../VC/inc)
+
 		target_sources(baseq2_svgame PRIVATE windows/res/baseq2_svgame.rc)
 		target_sources(baseq2_clgame PRIVATE windows/res/baseq2_clgame.rc)
 		# macro redefinition, deprecation
-		target_compile_options(baseq2_svgame PRIVATE /wd4996)
+		target_compile_options(baseq2_svgame PRIVATE /wd4996 )
 		target_compile_options(baseq2_svgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
-
 		#target_compile_options(baseq2_svgame PRIVATE /wd4005 /wd4996)
-		target_compile_options(baseq2_clgame PRIVATE /wd4996)
+		target_compile_options(baseq2_clgame PRIVATE /wd4996 )
 		target_compile_options(baseq2_clgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
-
 		#target_compile_options(baseq2_svgame PRIVATE /wd4005 /wd4996)
 	ENDIF() #IF( WIN32 ) 
 

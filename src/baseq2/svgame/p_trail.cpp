@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 #include "g_local.h"
 
+
 /*
 ==============================================================================
 
@@ -32,6 +33,7 @@ the player has been recently.  It is used by monsters for pursuit.
 .aiment     backward link
 */
 
+
 #define TRAIL_LENGTH    8
 
 edict_t     *trail[TRAIL_LENGTH];
@@ -40,6 +42,7 @@ bool        trail_active = false;
 
 #define NEXT(n)     (((n) + 1) & (TRAIL_LENGTH - 1))
 #define PREV(n)     (((n) - 1) & (TRAIL_LENGTH - 1))
+
 
 void PlayerTrail_Init(void)
 {
@@ -56,6 +59,7 @@ void PlayerTrail_Init(void)
     trail_head = 0;
     trail_active = true;
 }
+
 
 void PlayerTrail_Add(vec3_t spot)
 {
@@ -74,6 +78,7 @@ void PlayerTrail_Add(vec3_t spot)
     trail_head = NEXT(trail_head);
 }
 
+
 void PlayerTrail_New(vec3_t spot)
 {
     if (!trail_active)
@@ -82,6 +87,7 @@ void PlayerTrail_New(vec3_t spot)
     PlayerTrail_Init();
     PlayerTrail_Add(spot);
 }
+
 
 edict_t *PlayerTrail_PickFirst(edict_t *self)
 {

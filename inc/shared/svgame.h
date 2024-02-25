@@ -76,20 +76,19 @@ extern "C" {
 typedef struct edict_s edict_t;
 typedef struct gclient_s gclient_t;
 
-
 #ifndef SVGAME_INCLUDE
 
-struct gclient_s {
+typedef struct gclient_s {
     player_state_t  ps;     // communicated by server to clients
     int             ping;
 
     // the game dll can add anything it wants after
     // this point in the structure
     int             clientNum;
-};
+} gclient_t;
 
 
-struct edict_s {
+typedef struct edict_s {
     entity_state_t  s;
     struct gclient_s *client;   //! NULL if not a player the server expects the first part
                                 //! of gclient_s to be a player_state_t but the rest of it is opaque
@@ -117,7 +116,8 @@ struct edict_s {
 
     // the game dll can add anything it wants after
     // this point in the structure
-};
+} edict_t;
+#else
 
 #endif      // SVGAME_INCLUDE
 
