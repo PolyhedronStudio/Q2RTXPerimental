@@ -196,12 +196,14 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
     strcpy( ci->model_name, model_name );
     strcpy( ci->skin_name, skin_name );
 
-    // base info should be at least partially valid
-    if ( ci == &clgi.client->baseclientinfo )
+    // base info is expected/should be at least partially valid.
+    if ( ci == &clgi.client->baseclientinfo ) {
         return;
+    }
 
-    // must have loaded all data types to be valid
+    // Otherwise make sure it loaded all data types to be valid.
     if ( !ci->skin || !ci->icon || !ci->model || !ci->weaponmodel[ 0 ] ) {
+        // If we got here, it was invalid data.
         ci->skin = 0;
         ci->icon = 0;
         ci->model = 0;

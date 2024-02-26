@@ -311,6 +311,7 @@ SET(SRC_CLIENT
 	#client/tent.cpp
 	client/view.cpp
 	client/world.cpp
+	client/ui/_scoreboard.cpp
 	client/ui/demos.cpp
 	client/ui/menu.cpp
 	client/ui/playerconfig.cpp

@@ -402,7 +402,7 @@ void CL_SendRcon(const netadr_t *adr, const char *pass, const char *cmd);
 const char *CL_Server_g(const char *partial, int argnum, int state);
 void CL_CheckForPause(void);
 void CL_UpdateFrameTimes(void);
-bool CL_CheckForIgnore(const char *s);
+qboolean CL_CheckForIgnore(const char *s);
 void CL_WriteConfig(void);
 
 void cl_timeout_changed(cvar_t *self);

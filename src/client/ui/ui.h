@@ -375,6 +375,7 @@ void        Menu_Free(menuFrameWork_t *menu);
 void M_Menu_PlayerConfig(void);
 void M_Menu_Demos(void);
 void M_Menu_Servers(void);
+void M_Menu_Scoreboard( void );
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

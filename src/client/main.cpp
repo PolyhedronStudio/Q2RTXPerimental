@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_main.c  -- client main loop
 
 #include "cl_client.h"
+#include "client/ui/ui.h"
 
 cvar_t  *rcon_address;
 
@@ -1744,8 +1745,14 @@ static bool match_ignore_nick_2(const char *nick, const char *s)
 
 static bool match_ignore_nick(const char *nick, const char *s)
 {
-    if (match_ignore_nick_2(nick, s))
+    // WID: It seems this function was abit rigged? It never did a proper comparison in the first place.
+    if ( strlen(nick) != 0 && strlen(s) != 0 && strcmp( nick, s ) == 0 ) {
         return true;
+    }
+
+    if ( match_ignore_nick_2( nick, s ) ) {
+        return true;
+    }
 
     if (*s == '[') {
         const char *p = strstr(s + 1, "] "); // WID: C++20: Was non const
@@ -1761,10 +1768,15 @@ static bool match_ignore_nick(const char *nick, const char *s)
 CL_CheckForIgnore
 =================
 */
-bool CL_CheckForIgnore(const char *s)
+qboolean CL_CheckForIgnore(const char *s)
 {
     char buffer[MAX_STRING_CHARS];
     ignore_t *ignore;
+
+    // WID: To prevent crashing if called before creation of said cvars below.
+    if ( cls.state < ca_active ) {
+        return false;
+    }
 
     if (LIST_EMPTY(&cl_ignore_text) && LIST_EMPTY(&cl_ignore_nick)) {
         return false;
@@ -2391,6 +2403,18 @@ void cl_timeout_changed(cvar_t *self)
     self->integer = 1000 * Cvar_ClampValue(self, 0, 24 * 24 * 60 * 60);
 }
 
+// TEST FOR SCOREBOARD:
+void CL_ToggleScoreboard_f() {
+    menuFrameWork_t *currentMenu = uis.activeMenu;
+    menuFrameWork_t *scoreboardMenu = UI_FindMenu( "scoreboard" );
+
+    if ( currentMenu != scoreboardMenu ) {
+        scoreboardMenu->expose( scoreboardMenu );
+    } else {
+        UI_ForceMenuOff();
+    }
+}
+// END OF TEST:
 static const cmdreg_t c_client[] = {
     { "cmd", CL_ForwardToServer_f },
     { "pause", CL_Pause_f },
@@ -2420,6 +2444,7 @@ static const cmdreg_t c_client[] = {
     { "vid_restart", CL_RestartRefresh_f },
     { "r_reload", CL_ReloadRefresh_f },
 
+    { "scoreboard", CL_ToggleScoreboard_f },
     //
     // forward to server commands
     //
