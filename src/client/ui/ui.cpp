@@ -661,7 +661,7 @@ void UI_Init(void)
     uis.color.selection.u32     = MakeColor(15, 128, 235, 100);
     uis.color.disabled.u32      = MakeColor(127, 127, 127, 255);
 
-    strcpy(uis.weaponModel, "w_railgun.md2");
+    strcpy(uis.weaponModel, "#w_blaster.md2");
 
     // load custom menus
     UI_LoadScript();

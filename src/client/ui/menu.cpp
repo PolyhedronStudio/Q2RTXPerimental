@@ -2490,7 +2490,7 @@ menuCommon_t *Menu_HitTest(menuFrameWork_t *menu)
     menuCommon_t *item;
 
     if (menu->keywait) {
-        return NULL;
+        return nullptr;
     }
 
     for (i = 0; i < menu->nitems; i++) {
@@ -2504,7 +2504,7 @@ menuCommon_t *Menu_HitTest(menuFrameWork_t *menu)
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 bool Menu_Push(menuFrameWork_t *menu)

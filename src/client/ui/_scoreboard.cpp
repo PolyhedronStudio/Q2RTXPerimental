@@ -163,19 +163,22 @@ static m_scoreboard_t    m_scoreboard;
 **/
 /**
 *   @brief  Will toggle ignore/unignore for client name.
+*   @return True if the client is ignored.
 **/
 extern "C" {
     qboolean CL_CheckForIgnore( const char *s );
 }
-static void ToggleClientIgnore( const char *clientName ) {
+static qboolean ToggleClientIgnore( const char *clientName ) {
     if ( CL_CheckForIgnore( clientName ) ) {
         char command_str[ 1024 ];
         Q_scnprintf( command_str, 1024, "%s \"%s\"\n", "unignorenick", clientName );
         Cmd_ExecuteString( cmd_current, command_str );
         
-        
+        // Update last action notification message.
         Q_scnprintf( m_scoreboard.lastActionStatus, sizeof( m_scoreboard.lastActionStatus ), "Unignored player \"%s\"\n", clientName );
         Com_LPrintf( PRINT_NOTICE, "%s", m_scoreboard.lastActionStatus );
+
+        return false;
     } else {
         char command_str[ 1024 ];
         Q_scnprintf( command_str, 1024, "%s \"%s\"\n", "ignorenick", clientName );
@@ -183,7 +186,12 @@ static void ToggleClientIgnore( const char *clientName ) {
                 
         Q_scnprintf( m_scoreboard.lastActionStatus, sizeof( m_scoreboard.lastActionStatus ), "Ignored player \"%s\"\n", clientName );
         Com_LPrintf( PRINT_NOTICE, "%s", m_scoreboard.lastActionStatus );
+
+        return true;
     }
+
+    // Shouldn't happen.
+    return false;
 }
 
 /**
@@ -282,12 +290,12 @@ static menuSound_t Change( menuCommon_t *self ) {
     e = static_cast<client_list_entry_t*>( m_scoreboard.list.items[ m_scoreboard.list.curvalue ] ); // WID: C++20: Was without cast.
 
     if ( e && e->clientName ) {
-        const qboolean isIgnored = CL_CheckForIgnore( e->clientName );
+        const bool isIgnored = CL_CheckForIgnore( e->clientName );
 
         // Clear list status buffer.
         memset( listStatusBuffer, 0, sizeof( listStatusBuffer ) );
         // Insert appropriate text:
-        if ( isIgnored ) {
+        if ( !isIgnored ) {
             Q_scnprintf( listStatusBuffer, sizeof( listStatusBuffer ), "Press 'Enter' to ignore/mute player(%s).", e->clientName );
         } else {
             Q_scnprintf( listStatusBuffer, sizeof( listStatusBuffer ), "Press 'Enter' to unignore/unmute player(%s).", e->clientName );
@@ -312,7 +320,18 @@ static menuSound_t Activate( menuCommon_t *self ) {
 
     e = static_cast<client_list_entry_t *>( static_cast<m_scoreboard_t>( m_scoreboard ).list.items[ m_scoreboard.list.curvalue ] ); // WID: C++20: Was without cast.
     if ( e->isValidSlot ) {
-        ToggleClientIgnore( e->clientName );
+        // Update the actual list status buffer 
+        bool isIgnored = ( ToggleClientIgnore( e->clientName ) );
+
+        // Clear list status buffer.
+        memset( listStatusBuffer, 0, sizeof( listStatusBuffer ) );
+        // Update with what the action would be right now.
+        Q_scnprintf( listStatusBuffer, sizeof( listStatusBuffer ), "Press 'Enter' to %s player(%s).", 
+            ( isIgnored ? "unignore/unmute" : "ignore/mute" ),
+            e->clientName );
+        // Assign updated status to menu.
+        m_scoreboard.menu.status = listStatusBuffer;
+        // Return tha beeeeep.
         return QMS_BEEP;
     }
     //if ( e->clientName )
@@ -346,28 +365,32 @@ static menuSound_t Keydown( menuFrameWork_t *self, int key ) {
 **/
 static void Draw( menuFrameWork_t *self ) {
     Menu_Draw( self );
-    if ( uis.width >= 640 ) {
+    //if ( uis.width >= 640 ) {
         //UI_DrawString( uis.width, uis.height - CHAR_HEIGHT,
         //    UI_RIGHT, m_scoreboard.lastActionStatus );
-        UI_DrawString( CHAR_WIDTH, CHAR_HEIGHT,
+    
+    // Draw the last action performed status.
+    UI_DrawString( CHAR_WIDTH, CHAR_HEIGHT,
             UI_LEFT, m_scoreboard.lastActionStatus );
-    }
+    //}
 }
 
 /**
 *   @brief
 **/
 static void Size( menuFrameWork_t *self ) {
-    int32_t _x = ( uis.width / 2 );// -SCOREBOARD_HALF_WIDTH;
-    int32_t _y = ( uis.height / 2 );// -SCOREBOARD_HALF_HEIGHT;
+    // Get the center points of our uis screen.
+    int32_t screenCenterX = ( uis.width / 2 );
+    int32_t screenCenterY = ( uis.height / 2 );
     
 
-    // Generate scoreboard list.
-    int32_t _w = 32 * CHAR_WIDTH + MLIST_PADDING;
-    _w += ( 4 * CHAR_WIDTH + MLIST_PADDING ) * 3;
+    // Calculate the exact width to be for the client display list item.
+    int32_t _w = 32 * CHAR_WIDTH + MLIST_PADDING; // For the name column.
+    _w += ( 4 * CHAR_WIDTH + MLIST_PADDING ) * 3; // For the numeric remaining columns, time, score, ping.
+    _w += MLIST_SCROLLBAR_WIDTH; // For the scrollbar.
 
-    m_scoreboard.list.generic.x = _x - (_w / 2);// _x - SCOREBOARD_HALF_WIDTH;//( uis.width / 2 ) - 320;
-    m_scoreboard.list.generic.y = _y - (SCOREBOARD_HALF_HEIGHT / 2);//( uis.height / 2 ) - 240;//CHAR_HEIGHT;
+    m_scoreboard.list.generic.x = screenCenterX - (_w / 2); // Center the list to screen on X-Axis.
+    m_scoreboard.list.generic.y = screenCenterY - (SCOREBOARD_HALF_HEIGHT / 2);//( uis.height / 2 ) - 240;//CHAR_HEIGHT;
     m_scoreboard.list.generic.height = SCOREBOARD_HEIGHT / 2;// uis.height - CHAR_HEIGHT * 2 - 1;
     m_scoreboard.list.generic.width = _w;
     
@@ -381,8 +404,8 @@ static void Size( menuFrameWork_t *self ) {
     m_scoreboard.list.columns[ 2 ].width = 4 * CHAR_WIDTH + MLIST_PADDING;//m_scoreboard.widest_score * CHAR_WIDTH + MLIST_PADDING;
     m_scoreboard.list.columns[ 3 ].width = 4 * CHAR_WIDTH + MLIST_PADDING;//m_scoreboard.widest_name * CHAR_WIDTH + MLIST_PADDING;
 
-    m_scoreboard.menu.y1 = 240;
-    m_scoreboard.menu.y2 = uis.height - 240;
+    m_scoreboard.menu.y1 = screenCenterY - ( SCOREBOARD_HALF_HEIGHT );
+    m_scoreboard.menu.y2 = screenCenterY + ( SCOREBOARD_HALF_HEIGHT );
 }
 
 /**
@@ -442,7 +465,7 @@ void M_Menu_Scoreboard( void ) {
     m_scoreboard.list.sortcol = COL_SCORE;
     m_scoreboard.list.extrasize = CLIENT_ENTRY_EXTRASIZE;
     m_scoreboard.list.sort = Sort;
-    m_scoreboard.list.mlFlags = MLF_HEADER/* | MLF_COLOR*/;// | MLF_SCROLLBAR;
+    m_scoreboard.list.mlFlags = MLF_HEADER | MLF_SCROLLBAR/* | MLF_COLOR*/;// | MLF_SCROLLBAR;
 
     m_scoreboard.list.columns[ 0 ].name = "Name";
     m_scoreboard.list.columns[ 0 ].uiFlags = UI_LEFT;
