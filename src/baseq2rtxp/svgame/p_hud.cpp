@@ -168,85 +168,118 @@ DeathmatchScoreboardMessage
 */
 void DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 {
-    char    entry[1024];
-    char    string[1400];
-    int     stringlength;
-    int     i, j, k;
-    int     sorted[MAX_CLIENTS];
-    int     sortedscores[MAX_CLIENTS];
-    int     score, total;
-    int     x, y;
-    gclient_t   *cl;
-    edict_t     *cl_ent;
-	// WID: C++20: Added const.
-    const char    *tag;
+ //   char    entry[1024];
+ //   char    string[1400];
+ //   int     stringlength;
+ //   int     i, j, k;
+ //   int     sorted[MAX_CLIENTS];
+ //   int     sortedscores[MAX_CLIENTS];
+ //   int     score, total;
+ //   int     x, y;
+ //   gclient_t   *cl;
+ //   edict_t     *cl_ent;
+	//// WID: C++20: Added const.
+ //   const char    *tag;
 
-    // sort the clients by score
-    total = 0;
-    for (i = 0 ; i < game.maxclients ; i++) {
-        cl_ent = g_edicts + 1 + i;
-        if (!cl_ent->inuse || game.clients[i].resp.spectator)
+ //   // sort the clients by score
+ //   total = 0;
+ //   for (i = 0 ; i < game.maxclients ; i++) {
+ //       cl_ent = g_edicts + 1 + i;
+ //       if (!cl_ent->inuse || game.clients[i].resp.spectator)
+ //           continue;
+ //       score = game.clients[i].resp.score;
+ //       for (j = 0 ; j < total ; j++) {
+ //           if (score > sortedscores[j])
+ //               break;
+ //       }
+ //       for (k = total ; k > j ; k--) {
+ //           sorted[k] = sorted[k - 1];
+ //           sortedscores[k] = sortedscores[k - 1];
+ //       }
+ //       sorted[j] = i;
+ //       sortedscores[j] = score;
+ //       total++;
+ //   }
+
+ //   // print level name and exit rules
+ //   string[0] = 0;
+
+ //   stringlength = strlen(string);
+
+ //   // add the clients in sorted order
+ //   if (total > 12)
+ //       total = 12;
+
+ //   for (i = 0 ; i < total ; i++) {
+ //       cl = &game.clients[sorted[i]];
+ //       cl_ent = g_edicts + 1 + sorted[i];
+
+ //       x = (i >= 6) ? 160 : 0;
+ //       y = 32 + 32 * (i % 6);
+
+ //       // add a dogtag
+ //       if (cl_ent == ent)
+ //           tag = "tag1";
+ //       else if (cl_ent == killer)
+ //           tag = "tag2";
+ //       else
+ //           tag = NULL;
+ //       if (tag) {
+ //           Q_snprintf(entry, sizeof(entry),
+ //                      "xv %i yv %i picn %s ", x + 32, y, tag);
+ //           j = strlen(entry);
+ //           if (stringlength + j > 1024)
+ //               break;
+ //           strcpy(string + stringlength, entry);
+ //           stringlength += j;
+ //       }
+
+ //       // send the layout
+ //       Q_snprintf(entry, sizeof(entry),
+ //                  "client %i %i %i %i %i %li ",
+ //                  x, y, sorted[i], cl->resp.score, cl->ping, (level.framenum - cl->resp.enterframe) / 600);
+ //       j = strlen(entry);
+ //       if (stringlength + j > 1024)
+ //           break;
+ //       strcpy(string + stringlength, entry);
+ //       stringlength += j;
+ //   }
+
+//    gi.WriteUint8(svc_layout);
+ //   gi.WriteString(string);
+    gi.WriteUint8( svc_scoreboard );
+
+    // First count the total of clients we got in-game.
+    int32_t numberOfClients = 0;
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        edict_t *cl_ent = g_edicts + 1 + i;
+        if ( !cl_ent->inuse || game.clients[ i ].resp.spectator 
+            /*|| !cl_ent->client->pers.connected*/ ) {
             continue;
-        score = game.clients[i].resp.score;
-        for (j = 0 ; j < total ; j++) {
-            if (score > sortedscores[j])
-                break;
         }
-        for (k = total ; k > j ; k--) {
-            sorted[k] = sorted[k - 1];
-            sortedscores[k] = sortedscores[k - 1];
-        }
-        sorted[j] = i;
-        sortedscores[j] = score;
-        total++;
+        numberOfClients++;
     }
+    // Now send the number of clients.
+    gi.WriteUint8( numberOfClients );
 
-    // print level name and exit rules
-    string[0] = 0;
-
-    stringlength = strlen(string);
-
-    // add the clients in sorted order
-    if (total > 12)
-        total = 12;
-
-    for (i = 0 ; i < total ; i++) {
-        cl = &game.clients[sorted[i]];
-        cl_ent = g_edicts + 1 + sorted[i];
-
-        x = (i >= 6) ? 160 : 0;
-        y = 32 + 32 * (i % 6);
-
-        // add a dogtag
-        if (cl_ent == ent)
-            tag = "tag1";
-        else if (cl_ent == killer)
-            tag = "tag2";
-        else
-            tag = NULL;
-        if (tag) {
-            Q_snprintf(entry, sizeof(entry),
-                       "xv %i yv %i picn %s ", x + 32, y, tag);
-            j = strlen(entry);
-            if (stringlength + j > 1024)
-                break;
-            strcpy(string + stringlength, entry);
-            stringlength += j;
+    // Now, for each client, send index, time, score, and ping.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        edict_t *cl_ent = g_edicts + 1 + i;
+        if ( !cl_ent->inuse || game.clients[ i ].resp.spectator 
+            /*|| !cl_ent->client->pers.connected*/ ) {
+            continue;
         }
 
-        // send the layout
-        Q_snprintf(entry, sizeof(entry),
-                   "client %i %i %i %i %i %li ",
-                   x, y, sorted[i], cl->resp.score, cl->ping, (level.framenum - cl->resp.enterframe) / 600);
-        j = strlen(entry);
-        if (stringlength + j > 1024)
-            break;
-        strcpy(string + stringlength, entry);
-        stringlength += j;
-    }
+        int64_t score = game.clients[ i ].resp.score;
+        sg_time_t time = level.time - game.clients[ i ].resp.entertime;
+        int16_t ping = game.clients[ i ].ping;
 
-    gi.WriteUint8(svc_layout);
-    gi.WriteString(string);
+        // Client name is already known by client infos, so just send the index instead.
+        gi.WriteUint8( i );
+        gi.WriteIntBase128( time.seconds() );
+        gi.WriteIntBase128( score );
+        gi.WriteUint16( ping );
+    }
 }
 
 
@@ -496,6 +529,18 @@ void G_SetStats(edict_t *ent)
             ent->client->ps.stats[STAT_LAYOUTS] |= 1;
         if (ent->client->showinventory && ent->client->pers.health > 0)
             ent->client->ps.stats[STAT_LAYOUTS] |= 2;
+    }
+
+    //
+    // GUI
+    //
+    ent->client->ps.stats[ STAT_SHOW_SCORES ] = 0;
+    if ( gamemode->integer != GAMEMODE_SINGLEPLAYER ) {
+        if ( ent->client->showscores ) {
+            ent->client->ps.stats[ STAT_SHOW_SCORES ] |= 1;
+        } else {
+            ent->client->ps.stats[ STAT_SHOW_SCORES ] &= ~1;
+        }
     }
 
     //

@@ -373,6 +373,7 @@ static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *
 *           Will switch the clientstatic state to 'ca_active' if it is the first
 *           parsed valid frame and the client is done precaching all data.
 **/
+void CL_Scoreboard_CheckVisibility( void );
 void CL_DeltaFrame(void)
 {
     // Getting a valid frame message ends the connection process

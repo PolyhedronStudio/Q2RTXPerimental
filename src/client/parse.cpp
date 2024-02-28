@@ -18,6 +18,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_parse.c  -- parse a message received from the server
 
 #include "cl_client.h"
+#include "client/ui/ui.h"
+
 
 /*
 =====================================================================
@@ -794,6 +796,37 @@ static void CL_ParseSetting(void)
 //    }
 }
 
+void CL_Scoreboard_ClearFrame( void );
+void CL_Scoreboard_AddEntry( const int64_t clientNumber, const int64_t clientTime, const int64_t clientScore, const int64_t clientPing );
+void CL_Scoreboard_RebuildFrame( const uint8_t totalClients );
+static int64_t scoreBoardFrame = 0;
+
+static void CL_ParseScoreboard( void ) {
+    // Add it to the client scoreboard list.
+    CL_Scoreboard_ClearFrame();
+
+    // Read in amount of clients to enlist.
+    int32_t numClients = MSG_ReadUint8();
+
+    // Iterate over all clients and add their entry.
+    for ( int32_t i = 0; i < numClients; i++ ) {
+        // Read in data.
+        int32_t clientNumber = MSG_ReadUint8();
+        int64_t clientTime = MSG_ReadIntBase128();
+        int64_t clientScore = MSG_ReadIntBase128();
+        uint16_t clientPing = MSG_ReadUint16();
+
+        // Add in the entry.
+        CL_Scoreboard_AddEntry( clientNumber, clientTime, clientScore, clientPing );
+    }
+
+    // Regenerate scoreboard.
+    CL_Scoreboard_RebuildFrame( numClients );
+
+    Com_LPrintf( PRINT_DEVELOPER, "Parsing scoreboard(clients: %i) and frame(%i)\n",
+        numClients, cl.frame.number );
+}
+
 /*
 =====================
 CL_ParseServerMessage
@@ -918,6 +951,10 @@ void CL_ParseServerMessage(void)
             CL_ParseFrame();
             continue;
 
+
+        case svc_scoreboard:
+            CL_ParseScoreboard();
+            continue;
         //case svc_inventory:
         //    CL_ParseInventory();
         //    break;

@@ -2235,11 +2235,13 @@ void CL_RestartRefresh(bool total)
 
     S_StopAllSounds();
 
+    // Whether to do a total restart of the refresh system:
     if (total) {
         IN_Shutdown();
         CL_ShutdownRefresh();
         CL_InitRefresh();
         IN_Init();
+    // Or just flush its data and reload it:
     } else {
         UI_Shutdown();
         R_Shutdown(false);
@@ -2249,12 +2251,15 @@ void CL_RestartRefresh(bool total)
         UI_Init();
     }
 
+    // We're not even connected so the first logical thing is opening the menu.
     if (cls_state == ca_disconnected) {
         UI_OpenMenu(UIMENU_DEFAULT);
+    // Reload all refresh related data.
     } else if (cls_state >= ca_loading && cls_state <= ca_active) {
         CL_LoadState(LOAD_MAP);
         CL_PrepRefresh();
         CL_LoadState(LOAD_NONE);
+    // Reload cinematic:
     } else if (cls_state == ca_cinematic) {
         SCR_ReloadCinematic();
     }
@@ -2405,14 +2410,22 @@ void cl_timeout_changed(cvar_t *self)
 
 // TEST FOR SCOREBOARD:
 void CL_ToggleScoreboard_f() {
-    menuFrameWork_t *currentMenu = uis.activeMenu;
-    menuFrameWork_t *scoreboardMenu = UI_FindMenu( "scoreboard" );
+    //// Determine if we're the active menu, if not, expose us to be active.
+    //menuFrameWork_t *currentMenu = uis.activeMenu;
 
-    if ( currentMenu != scoreboardMenu ) {
-        scoreboardMenu->expose( scoreboardMenu );
-    } else {
-        UI_ForceMenuOff();
-    }
+    CL_ForwardToServer();
+
+    ////// Start showing this as the default UI.
+    //////if ( showScoreSequence ) {
+    //menuFrameWork_t *scoreboardMenu = UI_FindMenu( "scoreboard" );
+    //if ( currentMenu != scoreboardMenu ) {
+    ////    // Forward to server so it'll start/stop sending us svc_scoreboard messages.
+    ////    //scoreboardMenu->expose( scoreboardMenu );
+    //    UI_PushMenu( scoreboardMenu );
+    ////// Otherwise, assume we're already visible, so hide all UI:
+    //} else {
+    //    UI_ForceMenuOff();
+    //}
 }
 // END OF TEST:
 static const cmdreg_t c_client[] = {
@@ -2444,7 +2457,7 @@ static const cmdreg_t c_client[] = {
     { "vid_restart", CL_RestartRefresh_f },
     { "r_reload", CL_ReloadRefresh_f },
 
-    { "scoreboard", CL_ToggleScoreboard_f },
+    
     //
     // forward to server commands
     //
@@ -2453,6 +2466,8 @@ static const cmdreg_t c_client[] = {
     // forwarded to the server
     { "say", NULL, CL_Say_c },
     { "say_team", NULL, CL_Say_c },
+
+    { "score" }, //, CL_ToggleScoreboard_f },
 
     { "wave" }, { "inven" }, { "kill" }, { "use" },
     { "drop" }, { "info" }, { "prog" },

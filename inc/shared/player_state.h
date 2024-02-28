@@ -34,8 +34,9 @@
 #define STAT_FLASHES            15      // cleared each frame, 1 = health, 2 = armor
 #define STAT_CHASE              16
 #define STAT_SPECTATOR          17
+#define STAT_SHOW_SCORES        19
 //! Use this as the start offset for game specific player stats types.
-#define STATS_GAME_OFFSET       18
+#define STATS_GAME_OFFSET       19
 
 //! Maximum number of stats we compile with.
 #define MAX_STATS               64
