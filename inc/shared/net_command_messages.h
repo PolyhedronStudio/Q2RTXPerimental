@@ -42,7 +42,7 @@ typedef enum {
     svc_temp_entity,
     svc_layout,
     svc_inventory,
-    svc_scoreboard,
+    //svc_scoreboard,
 
     svc_svgame                 // The server game is allowed to add custom commands after this. Max limit is a byte, 255.
 } server_command_t;

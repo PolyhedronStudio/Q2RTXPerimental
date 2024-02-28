@@ -86,8 +86,11 @@ typedef struct m_scoreboard_s {
 
     //! Number of clients.
     int32_t numClients;
+
     //! For when re-entering the menu, auto select last selected item.
     int32_t selection;
+    int32_t sortcol;
+    int32_t sortdir;
 
     //! Stores the last action executed on the client list. (This can be muting, or..)
     char lastActionStatus[128];
@@ -109,6 +112,9 @@ static void BuildClientList( const uint8_t totalClients );
 void CL_Scoreboard_ClearFrame( void ) {
     // Clear entries.
     memset( client_entries, 0, sizeof( client_list_entry_t ) * MAX_CLIENTS );
+
+    m_scoreboard.sortcol = m_scoreboard.list.sortcol;
+    m_scoreboard.sortdir = m_scoreboard.list.sortdir;
 }
 
 /**
@@ -136,6 +142,10 @@ void CL_Scoreboard_RebuildFrame( const uint8_t totalClients ) {
     // Rebuild(re-allocate) the client list items.
     BuildClientList( totalClients );
 
+    // Sort col mofuckahs
+    m_scoreboard.list.sortcol = m_scoreboard.sortcol;
+    m_scoreboard.list.sortdir = m_scoreboard.sortdir;
+
     // Sort the client list items.
     m_scoreboard.list.sort( &m_scoreboard.list );
 
@@ -150,6 +160,7 @@ void CL_Scoreboard_CheckVisibility() {
     // First determine whether the menu is already active or not.
     menuFrameWork_t *scoreboardMenu = UI_FindMenu( "scoreboard" );
 
+    #if 0
     // Show if the lastFrame is equals(or impossibly, higher than current frame.)
     if ( ( cl.frame.ps.stats[ STAT_SHOW_SCORES ] & 1 ) ) {
         if ( uis.activeMenu != scoreboardMenu ) {
@@ -163,6 +174,7 @@ void CL_Scoreboard_CheckVisibility() {
             UI_ForceMenuOff();
         }
     }
+    #endif
 }
 
 /**
@@ -216,7 +228,7 @@ static void BuildClientList( const uint8_t numClients ) {
     m_scoreboard.numClients = numClients;
     m_scoreboard.list.items = static_cast<void **>( UI_Malloc( sizeof( client_list_entry_t * ) * ( numClients + 1 ) ) ); // WID: C++20: Added cast.
     m_scoreboard.list.numItems = 0;
-    m_scoreboard.list.curvalue = 0;
+    m_scoreboard.list.curvalue = m_scoreboard.selection;
     m_scoreboard.list.prestep = 0;
 
     //
@@ -237,12 +249,6 @@ static void BuildClientList( const uint8_t numClients ) {
             m_scoreboard.list.items[ m_scoreboard.list.numItems++ ] = e;
         }
     }
-
-
-    MenuList_SetValue( &m_scoreboard.list, m_scoreboard.selection );
-
-    // Update status line and sort
-    Change( &m_scoreboard.list.generic );
 
     //// Set ascending sort order.
     //m_scoreboard.list.sortdir = 1;
@@ -547,45 +553,66 @@ static int scorecmp( const void *p1, const void *p2 ) {
     client_list_entry_t *e1 = *(client_list_entry_t **)p1;
     client_list_entry_t *e2 = *(client_list_entry_t **)p2;
 
-    int n1 = atoi( UI_GetColumn( e1->name, COL_SCORE ) );
-    int n2 = atoi( UI_GetColumn( e2->name, COL_SCORE ) );
+    //int n1 = atoi( UI_GetColumn( e1->name, COL_SCORE ) );
+    //int n2 = atoi( UI_GetColumn( e2->name, COL_SCORE ) );
 
-    if ( n1 == 0 && n2 == 0 ) {
-        return 0;
+    //if ( n1 == 0 && n2 == 0 ) {
+    //    return 1 * -m_scoreboard.list.sortdir;
+    //}
+
+    //return ( n1 - n2 ) * -m_scoreboard.list.sortdir;
+    if ( e1->clientScore > e2->clientScore ) {
+        return m_scoreboard.list.sortdir;
     }
-
-    return ( n1 - n2 ) * -m_scoreboard.list.sortdir;
+    if ( e1->clientScore < e2->clientScore ) {
+        return -m_scoreboard.list.sortdir;
+    }
+    return 0;
 }
 //!
 static int pingcmp( const void *p1, const void *p2 ) {
     client_list_entry_t *e1 = *(client_list_entry_t **)p1;
     client_list_entry_t *e2 = *(client_list_entry_t **)p2;
 
-    int n1 = atoi( UI_GetColumn( e1->name, COL_PING ) );
-    int n2 = atoi( UI_GetColumn( e2->name, COL_PING ) );
-    
-    if ( n1 == 0 && n2 == 0 ) {
-        return 0;
-    }
+    //int n1 = atoi( UI_GetColumn( e1->name, COL_PING ) );
+    //int n2 = atoi( UI_GetColumn( e2->name, COL_PING ) );
+    //
+    //if ( n1 == 0 && n2 == 0 ) {
+    //    return 1 * -m_scoreboard.list.sortdir;
+    //}
 
-    return ( n1 - n2 ) * m_scoreboard.list.sortdir;
+    //return ( n1 - n2 ) * -m_scoreboard.list.sortdir;
+    if ( e1->clientPing > e2->clientPing ) {
+        return m_scoreboard.list.sortdir;
+    }
+    if ( e1->clientPing < e2->clientPing ) {
+        return -m_scoreboard.list.sortdir;
+    }
+    return 0;
 }
 //!
 static int timecmp( const void *p1, const void *p2 ) {
     client_list_entry_t *e1 = *(client_list_entry_t **)p1;
     client_list_entry_t *e2 = *(client_list_entry_t **)p2;
 
-    int n1 = atoi( UI_GetColumn( e1->name, COL_TIME ) );
-    int n2 = atoi( UI_GetColumn( e2->name, COL_TIME ) );
+    //int n1 = atoi( UI_GetColumn( e1->name, COL_TIME ) );
+    //int n2 = atoi( UI_GetColumn( e2->name, COL_TIME ) );
 
-    return ( n1 - n2 ) * -m_scoreboard.list.sortdir;
+    //return ( n1 - n2 ) * -m_scoreboard.list.sortdir;
+    if ( e1->clientTime > e2->clientTime ) {
+        return m_scoreboard.list.sortdir;
+    }
+    if ( e1->clientTime < e2->clientTime ) {
+        return -m_scoreboard.list.sortdir;
+    }
+    return 0;
 }
 //!
 static int namecmp( const void *p1, const void *p2 ) {
     client_list_entry_t *e1 = *(client_list_entry_t **)p1;
     client_list_entry_t *e2 = *(client_list_entry_t **)p2;
-    char *s1 = UI_GetColumn( e1->clientName, m_scoreboard.list.sortcol );
-    char *s2 = UI_GetColumn( e2->clientName, m_scoreboard.list.sortcol );
+    char *s1 = UI_GetColumn( e1->name, m_scoreboard.list.sortcol );
+    char *s2 = UI_GetColumn( e2->name, m_scoreboard.list.sortcol );
 
     return Q_stricmp( s1, s2 ) * m_scoreboard.list.sortdir;
 }
@@ -595,18 +622,18 @@ static int namecmp( const void *p1, const void *p2 ) {
 **/
 static menuSound_t Sort( menuList_t *self ) {
     switch ( m_scoreboard.list.sortcol ) {
-    case COL_NAME:
-        MenuList_Sort( &m_scoreboard.list, q_offsetof( client_list_entry_t, clientName ), namecmp );
-        break;
-    case COL_TIME:
-        MenuList_Sort( &m_scoreboard.list, 0, timecmp );
-        break;
+    //case COL_NAME:
+    //    MenuList_Sort( &m_scoreboard.list, 0, scorecmp );
+    //    break;
+    //case COL_TIME:
+    //    MenuList_Sort( &m_scoreboard.list, 0, scorecmp );
+    //    break;
     case COL_SCORE:
         MenuList_Sort( &m_scoreboard.list, 0, scorecmp );
         break;
-    case COL_PING:
-        MenuList_Sort( &m_scoreboard.list, 0, pingcmp );
-        break;
+    //case COL_PING:
+    //    MenuList_Sort( &m_scoreboard.list, 0, scorecmp );
+    //    break;
     }
 
     return QMS_SILENT;

@@ -952,9 +952,9 @@ void CL_ParseServerMessage(void)
             continue;
 
 
-        case svc_scoreboard:
-            CL_ParseScoreboard();
-            continue;
+        //case svc_scoreboard:
+        //    CL_ParseScoreboard();
+        //    continue;
         //case svc_inventory:
         //    CL_ParseInventory();
         //    break;
