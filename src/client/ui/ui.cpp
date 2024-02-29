@@ -672,7 +672,7 @@ void UI_Init(void)
     M_Menu_Demos();
 
     // Client Score Menu Test:
-    M_Menu_Scoreboard();
+    //M_Menu_Scoreboard();
 
     Com_DPrintf("Registered %d menus.\n", List_Count(&ui_menus));
 

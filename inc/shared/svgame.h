@@ -43,7 +43,7 @@ extern "C" {
 
 // Some [KEX] flags.
 #define SVF_NONE            0           // No serverflags.
-#define SVF_NOCLIENT        0x00000001    // Don't send entity to clients, even if it has effects.
+#define SVF_NOCLIENT        BIT( 0 )    // Don't send entity to clients, even if it has effects.
 #define SVF_DEADMONSTER     BIT( 1 )    // Treat as CONTENTS_DEADMONSTER for collision.
 #define SVF_MONSTER         BIT( 2 )    // Treat as CONTENTS_MONSTER for collision.
 #define SVF_PLAYER          BIT( 3 )    // [Paril-KEX] Treat as CONTENTS_PLAYER for collision.
