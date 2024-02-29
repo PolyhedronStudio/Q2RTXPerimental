@@ -1180,12 +1180,18 @@ void BSP_Free(bsp_t *bsp)
     }
     Q_assert(bsp->refcount > 0);
     if (--bsp->refcount == 0) {
+        // 
 		if (bsp->pvs2_matrix)
 		{
 			// free the PVS2 matrix separately - it's not part of the hunk
 			Z_Free(bsp->pvs2_matrix);
 			bsp->pvs2_matrix = NULL;
 		}
+
+        // Clear entity data, it is like pvs2_matrix, not part of the bsp memory hunk.
+        if ( bsp->entities ) {
+            Z_Freep( (void **)( bsp->entities ) );
+        }
 
         Hunk_Free(&bsp->hunk);
         List_Remove(&bsp->entry);
