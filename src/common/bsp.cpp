@@ -744,150 +744,10 @@ LOAD(Areas)
     return Q_ERR_SUCCESS;
 }
 
-
-
-
-
-//static bool BSP_ParseKeyValueType( cm_entity_t *pair, const char *key, const char *value ) {
-//    if ( !pair ) {
-//        return false;
-//    }
-//
-//    // Copy in the key and value of the pair.
-//    Q_strlcpy( pair->key, key, MAX_KEY );
-//    Q_strlcpy( pair->string, value, MAX_VALUE );
-//
-//    // We have a string type for sure.
-//    if ( Q_strnlen( pair->string, MAX_VALUE ) ) {
-//        pair->parsed_type = static_cast<cm_entity_parsed_type_t>( pair->parsed_type | ENTITY_STRING );
-//        pair->nullable_string = pair->string;
-//    }
-//
-//    // TODO:
-//    // TODO: Determine integer, float, and after vector2/3/4.
-//    // TODO:
-//
-//    return true;
-//}
-//static bool BSP_ParseKeyValuePair( const char **data, cm_entity_t *pair ) {
-//    bool        init;
-//    char *key, *value;
-//
-//    init = false;
-//
-//    // go through all the dictionary pairs
-//    while ( 1 ) {
-//        // Parse Key.
-//        key = COM_Parse( data );
-//        if ( key[ 0 ] == '}' ) {
-//            break;
-//        }
-//        if ( !*data ) {
-//            Com_Error( ERR_DROP, "%s: EOF without closing brace", __func__ );
-//        }
-//
-//        // Parse Value.
-//        value = COM_Parse( data );
-//        if ( !*data ) {
-//            Com_Error( ERR_DROP, "%s: EOF without closing brace", __func__ );
-//        }
-//
-//        if ( value[ 0 ] == '}' ) {
-//            Com_Error( ERR_DROP, "%s: closing brace without data", __func__ );
-//        }
-//
-//        init = true;
-//
-//        // keynames with a leading underscore are used for utility comments,
-//        // and are immediately discarded by quake
-//        if ( key[ 0 ] == '_' ) {
-//            continue;
-//        }
-//
-//        // Copy in the key and value of the pair.
-//        Q_strlcpy( pair->key, key, MAX_KEY );
-//        Q_strlcpy( pair->string, value, MAX_VALUE );
-//
-//        // We have a string type for sure.
-//        if ( Q_strnlen( pair->string, MAX_VALUE ) ) {
-//            pair->parsed_type = static_cast<cm_entity_parsed_type_t>( pair->parsed_type | ENTITY_STRING );
-//            pair->nullable_string = pair->string;
-//        }
-//        
-//        // TODO:
-//        // TODO: Determine integer, float, and after vector2/3/4.
-//        // TODO:
-//
-//        Com_LPrintf( PRINT_DEVELOPER, "Parsed key(%s), value(%s)\n", key, value );
-//
-//        //if ( !ED_ParseField( spawn_fields, key, value, (byte *)ent ) ) {
-//        //    if ( !ED_ParseField( temp_fields, key, value, (byte *)&st ) ) {
-//        //        gi.dprintf( "%s: %s is not a field\n", __func__, key );
-//        //    }
-//        //}
-//    }
-//
-//    //if ( !init ) {
-//    //    memset( pair, 0, sizeof( *pair ) );
-//    //}
-//
-//    return init;
-//}
-//
-//static const std::list<cm_entity_t *> BSP_EntityDictionariesFromString( bsp_t *bsp ) {
-//    // Actual list of entities parsed from string.
-//    std::list<cm_entity_t *> entities;
-//
-//    // The whole entity string.
-//    const char *entityString = bsp->entitystring;
-//
-//    // Parse ents.
-//    char *com_token = nullptr;
-//    while ( 1 ) {
-//        // parse the opening brace
-//        com_token = COM_Parse( &entityString );
-//        if ( !entityString ) {
-//            break;
-//        }
-//        if ( com_token[ 0 ] != '{' ) {
-//            Com_Error( ERR_DROP, "BSP_EntityDictionariesFromString: found %s when expecting {", com_token );
-//        }
-//
-//        //if ( )
-//        //if ( !ent )
-//        //    ent = g_edicts;
-//        //else
-//        //    ent = G_Spawn();
-//        
-//        // Allocate a new entity.
-//        cm_entity_t *entity = nullptr;//static_cast<cm_entity_t *>( ALLOC( sizeof( cm_entity_t ) ) );
-//
-//        // Keep on parsing key/value pairs.
-//        bool parsingEntity = true;
-//        while ( 1 ) { //
-//            // Allocate BSP model entity pair.
-//            cm_entity_t *pair = static_cast<cm_entity_t *>( Z_TagMallocz( sizeof( cm_entity_t ), TAG_CMODEL ) /*ALLOC( sizeof( cm_entity_t ) )*/ );
-//            parsingEntity = BSP_ParseKeyValuePair( &entityString, pair );
-//
-//            if ( !parsingEntity ) {
-//                break;
-//            }
-//
-//            // Setup next.
-//            //if ( parsingEntity ) {
-//            pair->next = entity;
-//            entity = pair;
-//            //} else {
-//        }
-//
-//        // Push it back onto the entities list.
-//        entities.push_back( entity );
-//    }
-//
-//    entities.reverse();
-//
-//    return entities;
-//}
+/**
+*   @brief  Parse and set the appropriate pair value flags, as well as the value itself for the types
+*           it can be represented by.
+**/
 static cm_entity_parsed_type_t BSP_ParseKeyValueType( cm_entity_t *pair ) {
     // Bitflags of what types were successfully parsed and represented by the pair its value.
     cm_entity_parsed_type_t parsed_types = static_cast<cm_entity_parsed_type_t>( 0 );
@@ -980,7 +840,7 @@ static cm_entity_t *BSP_ParseKeyValuePair( const char **entityString ) {
         cm_entity_t *pair = static_cast<cm_entity_t *>( Z_TagMallocz( sizeof( cm_entity_t ), TAG_CMODEL ) );
 
         // Key:
-        const char *key = com_token;// COM_Parse( entityString );
+        const char *key = com_token;
         if ( key[ 0 ] == '}' ) {
             break;
         }
@@ -1075,12 +935,27 @@ LOAD(EntString)
     // a list each containing their own separate list of key:value sets.
     //
     // We'll parse the BSP entity string into a list of cm_entity_t key:value sets per entity.
-    std::list<cm_entity_t*> entities = BSP_EntityDictionariesFromString( bsp );
+    typedef std::list<cm_entity_t *> cm_entity_list_t;
+    cm_entity_list_t entities = BSP_EntityDictionariesFromString( bsp );
+
+    // Actually allocate the BSP entities array and fill it with the entities from our generated list.
+    bsp->numentities = entities.size();
+    bsp->entities = static_cast<cm_entity_t **>( Z_TagMallocz( sizeof( cm_entity_t* ) * bsp->numentities, TAG_CMODEL ) );
+
+    cm_entity_t **out = bsp->entities;
+    for ( cm_entity_list_t::const_iterator list = entities.cbegin(); list != entities.cend(); ++list, out++ ) {
+        *out = *list;
+    }
+
+    // Clear the list from memory.
+    entities.clear();
 
 // DEBUG OUTPUT.
-//#if 0
+#if 1
     int32_t entityID = 0;
-    for ( auto *ent : entities ) {
+    cm_entity_t *ent = nullptr;
+    for ( size_t i = 0; i < bsp->numentities; i++) {
+        ent = bsp->entities[ i ];
         Com_LPrintf( PRINT_DEVELOPER, "Entity(#%i) {\n", entityID );
         cm_entity_t *kv = ent;
             while ( kv ) {
@@ -1107,7 +982,7 @@ LOAD(EntString)
         Com_LPrintf( PRINT_DEVELOPER, "}\n" );
         entityID++;
     }
-//#endif
+#endif
 
     return Q_ERR_SUCCESS;
 }
