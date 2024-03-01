@@ -423,7 +423,7 @@ void CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
     VectorSubtract( end, origin, end_l );
 
     // rotate start and end into the models frame of reference
-    rotated = headnode != cm->hull_boundingbox.headnode && !VectorEmpty( angles );
+    rotated = headnode != cm->hull_boundingbox->headnode && !VectorEmpty( angles );
     if ( rotated ) {
         AnglesToAxis( angles, axis );
         RotatePoint( start_l, axis );

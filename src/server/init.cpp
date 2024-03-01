@@ -156,8 +156,7 @@ void SV_SpawnServer(mapcmd_t *cmd)
     //
     SV_ClearWorld();
 
-    // Reinitialize the collision model, since it got cleared with memsetting(&sv ... );
-    CM_InitCollisionModel( &sv.cm );
+
 
     //
     // spawn the rest of the entities on the map

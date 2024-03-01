@@ -1999,11 +1999,7 @@ SV_Init
 Only called at quake2.exe startup, not for each game
 ===============
 */
-void SV_Init(void)
-{
-    // First initialize collision model.
-    //CM_InitCollisionModel( &sv.cm );
-
+void SV_Init(void) {
     SV_InitOperatorCommands();
 
     SV_RegisterSavegames();

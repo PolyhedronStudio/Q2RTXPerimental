@@ -579,7 +579,6 @@ void CL_ClearState(void)
 
     // Wipe the entire cl structure.
     memset(&cl, 0, sizeof(cl));
-    CM_InitCollisionModel( &cl.collisionModel );
 
     if (cls.state > ca_connected) {
         cls.state = ca_connected;
@@ -2493,9 +2492,6 @@ static void CL_InitLocal(void)
 
     cls.state = ca_disconnected;
     cls.connect_time -= CONNECT_INSTANT;
-
-    // Initialize the collision model.
-    CM_InitCollisionModel( &cl.collisionModel );
 
     CL_RegisterInput();
     CL_InitDemos();

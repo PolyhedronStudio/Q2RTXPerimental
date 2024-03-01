@@ -55,7 +55,7 @@ const contents_t  CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t
     VectorSubtract( p, origin, p_l );
 
     // rotate start and end into the models frame of reference
-    if ( headnode != cm->hull_boundingbox.headnode && !VectorEmpty( angles ) ) {
+    if ( headnode != cm->hull_boundingbox->headnode && !VectorEmpty( angles ) ) {
         AnglesToAxis( angles, axis );
         RotatePoint( p_l, axis );
     }

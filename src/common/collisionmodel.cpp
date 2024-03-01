@@ -52,7 +52,7 @@ void CM_InitCollisionModel( cm_t *cm ) {
 const int32_t CM_LoadMap( cm_t *cm, const char *name ) {
     int ret;
 
-    // Initialize the collision model.
+    // Prepare the collision model, including the BSP 'hull' for bounding box entities.
     CM_InitCollisionModel( cm );
 
     // Load in the actual BSP file.
@@ -100,6 +100,9 @@ void CM_FreeMap( cm_t *cm ) {
 
     //if (cm->override_bits & OVERRIDE_ENTS)
     //    Z_Free(cm->entitystring);
+    
+    // Free hull bounding box.
+    Z_Free( cm->hull_boundingbox );
 
     // Free BSP models.
     BSP_Free( cm->cache );

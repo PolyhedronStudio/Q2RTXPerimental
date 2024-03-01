@@ -50,5 +50,5 @@ typedef struct cm_s {
     //mtexinfo_t nullTextureInfo;
 
     //! Collision Model's bounding box hull.
-    hull_boundingbox_t hull_boundingbox;
+    hull_boundingbox_t *hull_boundingbox;
 } cm_t;
