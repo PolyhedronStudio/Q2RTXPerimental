@@ -39,6 +39,10 @@ void CM_Init() {
 *   @brief
 **/
 void CM_InitCollisionModel( cm_t *cm ) {
+    if ( !cm ) {
+        return;
+    }
+
     // Initialize box hull for the specified collision model.
     CM_InitBoxHull( cm );
 
@@ -52,14 +56,15 @@ void CM_InitCollisionModel( cm_t *cm ) {
 const int32_t CM_LoadMap( cm_t *cm, const char *name ) {
     int ret;
 
-    // Prepare the collision model, including the BSP 'hull' for bounding box entities.
-    CM_InitCollisionModel( cm );
 
     // Load in the actual BSP file.
     ret = BSP_Load( name, &cm->cache );
     if ( !cm->cache ) {
         return ret;
     }
+
+    // Prepare the collision model, including the BSP 'hull' for bounding box entities.
+    CM_InitCollisionModel( cm );
 
     // Set map file checksum.
     cm->checksum = cm->cache->checksum;
@@ -92,11 +97,10 @@ void CM_FreeMap( cm_t *cm ) {
     Z_Free( cm->portalopen );
     Z_Free( cm->floodnums );
 
-    //// Clear entity data, not part of the bsp memory hunk.
+    // Clear entity data, not part of the bsp memory hunk.
     if ( cm->entities ) {
         Z_Freep( (void **)( cm->entities ) );
     }
-    //Z_FreeTags( memtag_t::TAG_CMODEL );
 
     //if (cm->override_bits & OVERRIDE_ENTS)
     //    Z_Free(cm->entitystring);

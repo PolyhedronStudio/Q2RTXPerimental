@@ -149,7 +149,17 @@ const int32_t CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t ma
 *           describing the types it got validly parsed for.
 **/
 void CM_ParseEntityString( cm_t *cm );
+/**
+*   @brief  Used to check whether CM_EntityValue was able/unable to find a matching key in the cm_entity_t.
+*   @return Pointer to the collision model system's 'null' entity key/pair.
+**/
+const cm_entity_t *CM_GetNullEntity( void );
 
+/**
+*   @brief  Looks up the key/value cm_entity_t pair in the list for the cm_entity_t entity.
+*   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity'.
+**/
+const cm_entity_t *CM_EntityValue( const cm_entity_t *entity, const char *key );
 
 
 //

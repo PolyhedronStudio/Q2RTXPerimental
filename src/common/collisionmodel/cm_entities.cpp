@@ -19,6 +19,9 @@
 
 
 
+//! Used to check whether CM_EntityValue was able/unable to find a matching key in the cm_entity_t.
+static cm_entity_t cm_null_entity = {};
+
 /**
 *   @brief  Parse and set the appropriate pair value flags, as well as the value itself for the types
 *           it can be represented by.
@@ -58,22 +61,22 @@ static cm_entity_parsed_type_t CM_ParseKeyValueType( cm_entity_t *pair ) {
         for ( int32_t i = 2; i <= components; i++ ) {
             switch ( i ) {
             case 2:
-                pair->vec2.x = pair->vec3.x = pair->vec4.x = parsedVector.x;
-                pair->vec2.y = pair->vec3.y = pair->vec4.y = parsedVector.y;
+                pair->vec2[ 0 ] = pair->vec3[ 0 ] = pair->vec4[ 0 ] = parsedVector[ 0 ];
+                pair->vec2[ 1 ] = pair->vec3[ 1 ] = pair->vec4[ 1 ] = parsedVector[ 1 ];
                 pair->parsed_type = static_cast<cm_entity_parsed_type_t>( pair->parsed_type | cm_entity_parsed_type_t::ENTITY_VECTOR2 );
                 break;
             case 3:
-                pair->vec2.x = pair->vec3.x = pair->vec4.x = parsedVector.x;
-                pair->vec2.y = pair->vec3.y = pair->vec4.y = parsedVector.y;
-                pair->vec3.z = pair->vec4.z = parsedVector.z;
+                pair->vec2[ 0 ] = pair->vec3[ 0 ] = pair->vec4[ 0 ] = parsedVector[ 0 ];
+                pair->vec2[ 1 ] = pair->vec3[ 1 ] = pair->vec4[ 1 ] = parsedVector[ 1 ];
+                pair->vec3[ 2 ] = pair->vec4[ 2 ] = parsedVector[ 2 ];
                 pair->parsed_type = static_cast<cm_entity_parsed_type_t>( pair->parsed_type | cm_entity_parsed_type_t::ENTITY_VECTOR2
                     | cm_entity_parsed_type_t::ENTITY_VECTOR3 );
                 break;
             case 4:
-                pair->vec2.x = pair->vec3.x = pair->vec4.x = parsedVector.x;
-                pair->vec2.y = pair->vec3.y = pair->vec4.y = parsedVector.y;
-                pair->vec3.z = pair->vec4.z = parsedVector.z;
-                pair->vec4.w = parsedVector.w;
+                pair->vec2[ 0 ] = pair->vec3[ 0 ] = pair->vec4[ 0 ] = parsedVector[ 0 ];
+                pair->vec2[ 1 ] = pair->vec3[ 1 ] = pair->vec4[ 1 ] = parsedVector[ 1 ];
+                pair->vec3[ 2 ] = pair->vec4[ 2 ] = parsedVector[ 2 ];
+                pair->vec4[ 3 ] = parsedVector[ 3 ];
                 pair->parsed_type = static_cast<cm_entity_parsed_type_t>( pair->parsed_type | cm_entity_parsed_type_t::ENTITY_VECTOR2
                     | cm_entity_parsed_type_t::ENTITY_VECTOR3 | cm_entity_parsed_type_t::ENTITY_VECTOR4 );
                 break;
@@ -81,7 +84,7 @@ static cm_entity_parsed_type_t CM_ParseKeyValueType( cm_entity_t *pair ) {
         }
         // Otherwise, make sure its value is zerod out.
     } else {
-        pair->vec4 = {};
+        Vector4Set( pair->vec4, 0, 0, 0, 0 );
     }
 
     // We're done, return the parsed type flag(s).
@@ -257,4 +260,48 @@ void CM_ParseEntityString( cm_t *cm ) {
         entityID++;
     }
     #endif // #if 0
+}
+
+/**
+ * @brief
+ */
+const int32_t CM_EntityNumber( const cm_t *cm, const cm_entity_t *entity ) {
+    // This should technically never happen, but prevent crashing if it did.
+    if ( !cm || !cm->cache ) {
+        return -1;
+    }
+    // Iterate over number of entities until we find the one that matches to our entity pointer,
+    // then return its index.
+    for ( int32_t i = 0; i < cm->numentities; i++ ) {
+        if ( cm->entities[ i ] == entity ) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+/**
+*   @brief  Used to check whether CM_EntityValue was able/unable to find a matching key in the cm_entity_t.
+*   @return Pointer to the collision model system's 'null' entity key/pair.
+**/
+const cm_entity_t *CM_GetNullEntity( void ) {
+    return &cm_null_entity;
+}
+
+/**
+*   @brief  Looks up the key/value cm_entity_t pair in the list for the cm_entity_t entity.
+*   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity'.
+**/
+const cm_entity_t *CM_EntityValue( const cm_entity_t *entity, const char *key ) {
+    if ( !key ) {
+        return CM_GetNullEntity();
+    }
+    for ( const cm_entity_t *e = entity; e; e = e->next ) {
+        if ( !Q_stricmp( e->key, key ) ) {
+            return e;
+        }
+    }
+
+    return CM_GetNullEntity();
 }

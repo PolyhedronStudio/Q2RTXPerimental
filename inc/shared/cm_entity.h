@@ -64,14 +64,13 @@ typedef struct cm_entity_s {
         // !The entity pair value, as a float.
         float value;
         //! The entity pair value, as a two component vector.
-        Vector2 vec2;
+        vec2_t vec2;
         //! The entity pair value, as a three component vector.
-        Vector3 vec3;
+        vec3_t vec3;
         //! The entity pair value, as a four component vector.
-        Vector4 vec4;
+        vec4_t vec4;
     };
 
     //! The next entity pair in this entity, or `NULL`.
     struct cm_entity_s *next;
-
 } cm_entity_t;
