@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *   @brief  Clips the trace to all entities currently in-frame.
 **/
-static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const int32_t contentmask ) {
+static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask ) {
     trace_t     trace = {};
 
     mnode_t *headnode = nullptr;
@@ -92,16 +92,16 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
             headnode = cmodel->headnode;
             // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
         } else {
-            headnode = CM_HeadnodeForBox( ent->mins, ent->maxs, ent->current.hullContents );
+            headnode = CM_HeadnodeForBox( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
         }
 
         // Perform the BSP box sweep.
-        CM_TransformedBoxTrace( &trace, start, end,
+        CM_TransformedBoxTrace( &cl.collisionModel, &trace, start, end,
             mins, maxs, headnode, contentmask,
             ent->current.origin, ent->current.angles );
 
         // Determine clipped entity trace result.
-        CM_ClipEntity( tr, &trace, (struct edict_s *)ent );
+        CM_ClipEntity( &cl.collisionModel, tr, &trace, (struct edict_s *)ent );
     }
 }
 
@@ -113,8 +113,8 @@ const trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const v
     trace_t trace = {};
 
     // Clip against world.
-    if ( cl.bsp ) {
-        CM_BoxTrace( &trace, start, end, mins, maxs, cl.bsp->nodes, contentmask );
+    if ( cl.collisionModel.cache ) {
+        CM_BoxTrace( &cl.collisionModel, &trace, start, end, mins, maxs, cl.collisionModel.cache->nodes, contentmask );
         trace.ent = (struct edict_s *)cl_entities;
         if ( trace.fraction == 0 ) {
             return trace; // Blocked by world.
@@ -145,9 +145,9 @@ const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const ve
     }
 
     // Clip against World:
-    if ( cl.bsp ) {
+    if ( cl.collisionModel.cache ) {
         if ( clipEntity == nullptr || clipEntity == cl_entities ) {
-            CM_BoxTrace( &trace, start, end, mins, maxs, cl.bsp->nodes, contentmask );
+            CM_BoxTrace( &cl.collisionModel, &trace, start, end, mins, maxs, cl.collisionModel.cache->nodes, contentmask );
             // Clip against Client Entity:
         } else {
             mnode_t *headNode = nullptr;
@@ -162,16 +162,16 @@ const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const ve
                 headNode = cmodel->headnode;
                 // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
             } else {
-                headNode = CM_HeadnodeForBox( clipEntity->mins, clipEntity->maxs, clipEntity->current.hullContents );
+                headNode = CM_HeadnodeForBox( &cl.collisionModel, clipEntity->mins, clipEntity->maxs, clipEntity->current.hullContents );
             }
 
             // Perform clip.
             trace_t tr;
-            CM_TransformedBoxTrace( &tr, start, end, mins, maxs, headNode, contentmask,
+            CM_TransformedBoxTrace( &cl.collisionModel, &tr, start, end, mins, maxs, headNode, contentmask,
                 clipEntity->current.origin, clipEntity->current.angles );
 
             // Determine clipped entity trace result.
-            CM_ClipEntity( &trace, &tr, (struct edict_s *)clipEntity );
+            CM_ClipEntity( &cl.collisionModel, &trace, &tr, (struct edict_s *)clipEntity );
         }
     }
     return trace;
@@ -182,7 +182,7 @@ const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const ve
 **/
 const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
     // Perform point contents against world.
-    contents_t contents = static_cast<contents_t>( CM_PointContents( point, cl.bsp->nodes ) );
+    contents_t contents = static_cast<contents_t>( CM_PointContents( &cl.collisionModel, point, cl.collisionModel.cache->nodes ) );
 
     for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
         // Clip against all brush entity models.
@@ -208,11 +208,11 @@ const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
             headNode = cmodel->headnode;
             // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
         } else {
-            headNode = CM_HeadnodeForBox( ent->mins, ent->maxs, ent->current.hullContents );
+            headNode = CM_HeadnodeForBox( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
         }
 
         // Might intersect, so do an exact clip.
-        contents = static_cast<contents_t>( contents | CM_TransformedPointContents( point, headNode, ent->current.origin, ent->current.angles ) );
+        contents = static_cast<contents_t>( contents | CM_TransformedPointContents( &cl.collisionModel, point, headNode, ent->current.origin, ent->current.angles ) );
     }
 
     // Et voila.

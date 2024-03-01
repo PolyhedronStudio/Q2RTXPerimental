@@ -520,7 +520,9 @@ typedef struct client_state_s {
     // - image_precache
     //
     //! Pointer to the current map's BSP data.
-    bsp_t *bsp;
+    cm_t collisionModel;
+
+    //bsp_t *bsp;
     //! Collision brush models.
     mmodel_t *model_clip[ MAX_MODELS ];
     //! Refresh handle buffer for all precached models.

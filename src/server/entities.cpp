@@ -373,7 +373,7 @@ void SV_BuildClientFrame(client_t *client)
                     if (cull_nonvisible_entities) {
                         if (ent->num_clusters == -1) {
                             // too many leafs for individual check, go by headnode
-                            if (!CM_HeadnodeVisible(CM_NodeNum(client->cm, ent->headnode), clientpvs))
+                            if (!CM_HeadnodeVisible(CM_NodeForNumber(client->cm, ent->headnode), clientpvs))
                                 ent_visible = false;
                         } else {
                             // check individual leafs

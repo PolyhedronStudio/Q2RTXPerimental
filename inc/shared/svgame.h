@@ -176,10 +176,10 @@ typedef struct {
     const trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, const contents_t contentmask );
 	const trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentmask );
     const contents_t (*pointcontents)(const vec3_t point);
-    qboolean (*inPVS)(const vec3_t p1, const vec3_t p2);
-    qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);
-    void (*SetAreaPortalState)(int portalnum, qboolean open);
-    qboolean (*AreasConnected)(int area1, int area2);
+    const qboolean (*inPVS)(const vec3_t p1, const vec3_t p2);
+    const qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);
+    void (*SetAreaPortalState)( const int32_t portalnum, const qboolean open);
+    const qboolean (*AreasConnected)(const int32_t area1, const int32_t area2);
 
 	/**
     *	An entity will never be sent to a client or used for collision

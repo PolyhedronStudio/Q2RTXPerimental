@@ -156,6 +156,9 @@ void SV_SpawnServer(mapcmd_t *cmd)
     //
     SV_ClearWorld();
 
+    // Reinitialize the collision model, since it got cleared with memsetting(&sv ... );
+    CM_InitCollisionModel( &sv.cm );
+
     //
     // spawn the rest of the entities on the map
     //
@@ -234,7 +237,7 @@ static bool check_server(mapcmd_t *cmd, const char *server, bool nextserver)
         cmd->state = ss_cinematic;
     }
     else {
-        CM_LoadOverrides(&cmd->cm, cmd->server, sizeof(cmd->server));
+        //CM_LoadOverrides(&cmd->cm, cmd->server, sizeof(cmd->server));
         if (Q_concat(expanded, sizeof(expanded), "maps/", s, ".bsp") < sizeof(expanded)) {
             ret = CM_LoadMap(&cmd->cm, expanded);
         }

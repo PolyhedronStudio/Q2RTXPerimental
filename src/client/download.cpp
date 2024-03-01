@@ -885,8 +885,8 @@ void CL_RequestNextDownload(void)
         CL_RegisterBspModels();
 
         if (allow_download_textures->integer) {
-            for (i = 0; i < cl.bsp->numtexinfo; i++) {
-                len = Q_concat(fn, sizeof(fn), "textures/", cl.bsp->texinfo[i].name, ".wal");
+            for (i = 0; i < cl.collisionModel.cache->numtexinfo; i++) {
+                len = Q_concat(fn, sizeof(fn), "textures/", cl.collisionModel.cache->texinfo[i].name, ".wal");
                 check_file_len(fn, len, DL_OTHER);
             }
         }

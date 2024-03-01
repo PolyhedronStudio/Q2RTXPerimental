@@ -252,9 +252,8 @@ extern "C" {
 #include "shared/command_print.h"
 
 
-//! Collision Detection:
+//! Collision: 
 #include "shared/collision.h"
-
 
 //! BSP Format Data Structure:
 typedef struct {
@@ -265,6 +264,11 @@ typedef struct {
 } memhunk_t;
 
 #include "shared/format_bsp.h"
+
+
+//! Collision Model:
+#include "shared/cm_entity.h"
+#include "shared/cm_model.h"
 
 
 //!	Entity Muzzleflashes/Player Effects:

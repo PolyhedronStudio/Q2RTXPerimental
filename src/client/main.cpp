@@ -574,9 +574,12 @@ void CL_ClearState(void)
     clge->ClearState();
     LOC_FreeLocations();
 
-    // wipe the entire cl structure
-    BSP_Free(cl.bsp);
+    // Unload the collision models.
+    CM_FreeMap( &cl.collisionModel ); //BSP_Free(cl.bsp);
+
+    // Wipe the entire cl structure.
     memset(&cl, 0, sizeof(cl));
+    CM_InitCollisionModel( &cl.collisionModel );
 
     if (cls.state > ca_connected) {
         cls.state = ca_connected;
@@ -2491,6 +2494,9 @@ static void CL_InitLocal(void)
     cls.state = ca_disconnected;
     cls.connect_time -= CONNECT_INSTANT;
 
+    // Initialize the collision model.
+    CM_InitCollisionModel( &cl.collisionModel );
+
     CL_RegisterInput();
     CL_InitDemos();
     LOC_Init();
@@ -3116,6 +3122,8 @@ CL_Init
 */
 void CL_Init(void)
 {
+
+
     if (dedicated->integer) {
         return; // nothing running on the client
     }

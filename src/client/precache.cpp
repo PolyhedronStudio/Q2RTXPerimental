@@ -232,18 +232,20 @@ void CL_RegisterBspModels(void) {
     if ( !name[ 0 ] ) {
         Com_Error( ERR_DROP, "%s: no map set", __func__ );
     }
-    ret = BSP_Load( name, &cl.bsp );
-    if ( cl.bsp == NULL ) {
+    //ret = BSP_Load( name, &cl.collisionModel->cache );
+    ret = CM_LoadMap( &cl.collisionModel, name );
+
+    if ( cl.collisionModel.cache == nullptr ) {
         Com_Error( ERR_DROP, "Couldn't load %s: %s", name, BSP_ErrorString( ret ) );
     }
 
-    if (cl.bsp->checksum != atoi(cl.configstrings[CS_MAPCHECKSUM])) {
+    if ( cl.collisionModel.cache->checksum != atoi( cl.configstrings[ CS_MAPCHECKSUM ] ) ) {
         if (cls.demo.playback) {
             Com_WPrintf("Local map version differs from demo: %i != %s\n",
-                        cl.bsp->checksum, cl.configstrings[CS_MAPCHECKSUM]);
+                        cl.collisionModel.cache->checksum, cl.configstrings[CS_MAPCHECKSUM]);
         } else {
             Com_Error(ERR_DROP, "Local map version differs from server: %i != %s",
-                      cl.bsp->checksum, cl.configstrings[CS_MAPCHECKSUM]);
+                      cl.collisionModel.cache->checksum, cl.configstrings[CS_MAPCHECKSUM]);
         }
     }
 
@@ -253,7 +255,7 @@ void CL_RegisterBspModels(void) {
             break;
         }
         if (name[0] == '*')
-            cl.model_clip[i] = BSP_InlineModel(cl.bsp, name);
+            cl.model_clip[i] = BSP_InlineModel( cl.collisionModel.cache, name );
         else
             cl.model_clip[i] = NULL;
     }
@@ -426,7 +428,7 @@ void CL_UpdateConfigstring( const int32_t index ) {
 
         cl.model_draw[i] = R_RegisterModel(s);
         if (*s == '*')
-            cl.model_clip[i] = BSP_InlineModel(cl.bsp, s);
+            cl.model_clip[i] = BSP_InlineModel( cl.collisionModel.cache, s);
         else
             cl.model_clip[i] = NULL;
         return;

@@ -372,7 +372,13 @@ SET(SRC_COMMON
 	common/async.c
 	common/bsp.cpp
 	common/cmd.cpp
-	common/cmodel.cpp
+	common/collisionmodel/cm_areaportals.cpp
+	common/collisionmodel/cm_boxleafs.cpp
+	common/collisionmodel/cm_entities.cpp
+	common/collisionmodel/cm_hull_boundingbox.cpp
+	common/collisionmodel/cm_pointcontents.cpp
+	common/collisionmodel/cm_trace.cpp
+	common/collisionmodel.cpp
 	common/common.cpp
 	common/cvar.cpp
 	common/error.cpp

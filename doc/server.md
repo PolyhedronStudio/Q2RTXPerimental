@@ -591,25 +591,6 @@ logging server stdout with systemd(1). Default value is empty (no prefix).
 
 ### Miscellaneous
 
-#### `map_override_path`
-Specifies the directory from which override files with extensions `.ent` or
-`.bsp.override` are loaded. Default value is empty (don't try to override
-entity strings). Typical value for this is `maps`, but can be customized
-per server port.
-
-#### Entity overrides
-Override files with `.ent` extension allow the entity string of the map being
-loaded to be replaced by a custom data supplied by server operator. This makes
-it possible to change the layout of entities on the map (thus creating a new
-version of the map) without requiring clients to download anything. Entity
-string can be dumped from the current map using `dumpents` server command and
-later changed with a text editor.
-
-Override files with `.bsp.override` extension are more complex: they are binary
-files that can replace map entity string or checksum. They can also create an
-alias for the map. How to create such files is out of scope of this manual
-(search the internet for ‘r1q2 map override file generator’).
-
 #### `map_visibility_patch`
 Attempt to patch miscalculated visibility data for some well-known maps
 (`q2dm1`, `q2dm3` and `q2dm8` are patched so far), fixing disappearing walls and

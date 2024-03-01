@@ -192,7 +192,7 @@ void SV_LinkEdict(cm_t *cm, edict_t *ent)
     if (num_leafs >= MAX_TOTAL_ENT_LEAFS) {
         // assume we missed some leafs, and mark by headnode
         ent->num_clusters = -1;
-        ent->headnode = CM_NumNode(cm, topnode);
+        ent->headnode = CM_NumberForNode(cm, topnode);
     } else {
         ent->num_clusters = 0;
         for (i = 0; i < num_leafs; i++) {
@@ -205,7 +205,7 @@ void SV_LinkEdict(cm_t *cm, edict_t *ent)
                 if (ent->num_clusters == MAX_ENT_CLUSTERS) {
                     // assume we missed some leafs, and mark by headnode
                     ent->num_clusters = -1;
-                    ent->headnode = CM_NumNode(cm, topnode);
+                    ent->headnode = CM_NumberForNode(cm, topnode);
                     break;
                 }
 
@@ -411,14 +411,14 @@ static mnode_t *SV_HullForEntity(edict_t *ent, const bool includeSolidTriggers =
     }
 
     // Create a temp hull from entity bounding box which's contents are set to its clipmask.
-    return CM_HeadnodeForBox( ent->mins, ent->maxs, ent->s.hullContents );
+    return CM_HeadnodeForBox( &sv.cm, ent->mins, ent->maxs, ent->s.hullContents );
 }
 
 /**
 *	@brief	SV_WorldNodes
 **/
 static mnode_t *SV_WorldNodes( void ) {
-	return sv.cm.cache ? sv.cm.cache->nodes : NULL;
+	return sv.cm.cache ? sv.cm.cache->nodes : nullptr;
 }
 
 /**
@@ -429,12 +429,17 @@ const contents_t SV_PointContents( const vec3_t p ) {
 	int         i, num;
     contents_t  contents;
 
+
 	if ( !sv.cm.cache ) {
 		Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
 	}
 
+    if ( !p ) {
+        return CONTENTS_NONE;
+    }
+
 	// get base contents from world
-    contents = static_cast<contents_t>( CM_PointContents( p, SV_WorldNodes() ) );
+    contents = static_cast<contents_t>( CM_PointContents( &sv.cm, p, SV_WorldNodes() ) );
 
 	// or in contents from all the other entities
 	num = SV_AreaEdicts( p, p, touch, MAX_EDICTS, AREA_SOLID );
@@ -448,7 +453,7 @@ const contents_t SV_PointContents( const vec3_t p ) {
         }
 
 		// might intersect, so do an exact clip
-		contents = static_cast<contents_t>( contents | CM_TransformedPointContents(p, SV_HullForEntity(hit),
+		contents = static_cast<contents_t>( contents | CM_TransformedPointContents( &sv.cm, p, SV_HullForEntity(hit),
 												hit->s.origin, hit->s.angles ) );
 	}
 
@@ -460,7 +465,7 @@ const contents_t SV_PointContents( const vec3_t p ) {
 **/
 static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
                                   const vec3_t maxs, const vec3_t end,
-                                  edict_t *passedict, int contentmask, trace_t *tr)
+                                  edict_t *passedict, const contents_t contentmask, trace_t *tr)
 {
     vec3_t      boxmins, boxmaxs;
     int         i, num;
@@ -515,11 +520,11 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
         }
 
         // might intersect, so do an exact clip
-        CM_TransformedBoxTrace(&trace, start, end, mins, maxs,
+        CM_TransformedBoxTrace( &sv.cm, &trace, start, end, mins, maxs,
                                SV_HullForEntity(touch), contentmask,
                                touch->s.origin, touch->s.angles);
 
-        CM_ClipEntity(tr, &trace, touch);
+        CM_ClipEntity( &sv.cm, tr, &trace, touch);
     }
 }
 
@@ -543,7 +548,7 @@ const trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
         maxs = vec3_origin;
 
     // clip to world
-    CM_BoxTrace(&trace, start, end, mins, maxs, SV_WorldNodes( ), contentmask );
+    CM_BoxTrace( &sv.cm, &trace, start, end, mins, maxs, SV_WorldNodes( ), contentmask );
     trace.ent = ge->edicts;
     if (trace.fraction == 0) {
         return trace;   // blocked by the world
@@ -563,15 +568,19 @@ const trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t
                             const contents_t contentmask ) {
 	trace_t     trace;
 
+    if ( !sv.cm.cache ) {
+        Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
+    }
+
 	if ( !mins )
 		mins = vec3_origin;
 	if ( !maxs )
 		maxs = vec3_origin;
 
 	if ( clip == ge->edicts )
-		CM_BoxTrace( &trace, start, end, mins, maxs, SV_WorldNodes( ), contentmask );
+		CM_BoxTrace( &sv.cm, &trace, start, end, mins, maxs, SV_WorldNodes( ), contentmask );
 	else
-		CM_TransformedBoxTrace( &trace, start, end, mins, maxs,
+		CM_TransformedBoxTrace( &sv.cm, &trace, start, end, mins, maxs,
 							   SV_HullForEntity( clip, true ), contentmask,
 							   clip->s.origin, clip->s.angles );
 	trace.ent = clip;
