@@ -127,7 +127,7 @@ void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
     vec3_t  size;
     float   vscale;
 
-    gib = G_Spawn();
+    gib = G_AllocateEdict();
 
     VectorScale(self->size, 0.5f, size);
     VectorAdd(self->absmin, size, origin);
@@ -264,7 +264,7 @@ void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origi
     edict_t *chunk;
     vec3_t  v;
 
-    chunk = G_Spawn();
+    chunk = G_AllocateEdict();
     VectorCopy(origin, chunk->s.origin);
     gi.setmodel(chunk, modelname);
     v[0] = 100 * crandom();
@@ -1734,7 +1734,7 @@ void SP_misc_teleporter(edict_t *ent)
     VectorSet(ent->maxs, 32, 32, -16);
     gi.linkentity(ent);
 
-    trig = G_Spawn();
+    trig = G_AllocateEdict();
     trig->touch = teleporter_touch;
     trig->solid = SOLID_TRIGGER;
     trig->target = ent->target;

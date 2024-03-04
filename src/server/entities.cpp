@@ -41,21 +41,26 @@ Writes a delta update of an entity_packed_t list to the message.
 static void SV_EmitPacketEntities(client_t         *client,
                                   client_frame_t   *from,
                                   client_frame_t   *to,
-                                  int              clientEntityNum)
-{
-    entity_packed_t *newent;
-    const entity_packed_t *oldent;
-    int i, oldnum, newnum, oldindex, newindex, from_num_entities;
-    msgEsFlags_t flags;
+                                  const int32_t     clientEntityNumber) {
+    // Defines the new state indices.
+    int32_t newindex = 0;
+    int32_t oldindex = 0;
 
-    if (!from)
-        from_num_entities = 0;
-    else
-        from_num_entities = from->num_entities;
+    // Old entity numbers.
+    int32_t oldnum = 0;
+    int32_t newnum = 0;
 
-    newindex = 0;
-    oldindex = 0;
-    oldent = newent = NULL;
+    // Pointer to old and new states.
+    entity_packed_t *newent = nullptr;
+    const entity_packed_t *oldent = nullptr;
+    
+    // Flags.
+    msgEsFlags_t flags = static_cast<msgEsFlags_t>( 0 );
+    // Iterator.
+    int32_t i = 0;
+    // Fetch where in the circular buffer we start from.
+    const int32_t from_num_entities = ( !from ? 0 : from->num_entities );
+
     while (newindex < to->num_entities || oldindex < from_num_entities) {
         if (newindex >= to->num_entities) {
             newnum = 9999;
@@ -87,7 +92,7 @@ static void SV_EmitPacketEntities(client_t         *client,
 				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_NEWENTITY );
             }
             // In case this is our own client entity, update the new ent's origin and angles.
-            if (newnum == clientEntityNum) {
+            if (newnum == clientEntityNumber) {
                 //flags |= MSG_ES_FIRSTPERSON;
 				// WID: C++20:
 				//flags |= MSG_ES_NEWENTITY;
@@ -120,7 +125,7 @@ static void SV_EmitPacketEntities(client_t         *client,
                 oldent = &nullEntityState;
             }
             // In case this is our own client entity, update the new ent's origin and angles.
-            if (newnum == clientEntityNum) {
+            if (newnum == clientEntityNumber) {
                 //flags |= MSG_ES_FIRSTPERSON;
 				// WID: C++20:
 				//flags |= MSG_ES_NEWENTITY;
@@ -140,14 +145,14 @@ static void SV_EmitPacketEntities(client_t         *client,
         }
 
         if (newnum > oldnum) {
-            // the old entity isn't present in the new message
+            // The old entity isn't present in the new message
             MSG_WriteDeltaEntity(oldent, NULL, MSG_ES_FORCE);
             oldindex++;
             continue;
         }
     }
 
-    MSG_WriteInt16(0);      // end of packetentities
+    MSG_WriteInt16(0);      // End Of 'svc_packetentities'.
 }
 
 static client_frame_t *get_last_frame(client_t *client)

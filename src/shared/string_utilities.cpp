@@ -123,13 +123,19 @@ bool COM_IsFloat( const char *s ) {
 **/
 bool COM_IsInt( const char *s ) {
 	int c;
+	
+	bool isSigned = false; // Whether it is a negative value or not.
 
 	if ( !*s ) {
 		return false;
 	}
 
 	// If s[0] == non numeric, test for plus(+) and minus(-) sign, return false if neither of these conditions were met.
-	if ( !Q_isdigit( *s ) && !( *s == '+' || *s == '-' ) ) {
+	if ( ( *s == '+' || *s == '-' ) ) {
+		c = *s++;
+	}
+
+	if ( !Q_isdigit( *s ) ) {
 		return false;
 	}
 

@@ -219,7 +219,7 @@ void Cmd_Give_f(edict_t *ent)
 
     if (give_all || Q_stricmp(name, "Power Shield") == 0) {
         it = FindItem("Power Shield");
-        it_ent = G_Spawn();
+        it_ent = G_AllocateEdict();
         it_ent->classname = it->classname;
         SpawnItem(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);
@@ -265,7 +265,7 @@ void Cmd_Give_f(edict_t *ent)
         else
             ent->client->pers.inventory[index] += it->quantity;
     } else {
-        it_ent = G_Spawn();
+        it_ent = G_AllocateEdict();
         it_ent->classname = it->classname;
         SpawnItem(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);

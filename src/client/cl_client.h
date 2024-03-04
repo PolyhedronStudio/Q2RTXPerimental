@@ -97,7 +97,7 @@ static inline centity_t *ENTITY_FOR_NUMBER( const int32_t number ) {
 **/
 static inline const int32_t NUMBER_OF_ENTITY( const centity_t *cent ) {
     //#define NUM_FOR_CENTITY(e) ((int)(((byte *)(e) - (byte *)cl_entities) / clge->entity_size))
-    return ( (int32_t)( ( (byte *)(cent)-(byte *)cl_entities ) / clge->entity_size ) );
+    return ( (int32_t)( ((byte *)(cent) - (byte *)cl_entities) / clge->entity_size ) );
 }
 
 

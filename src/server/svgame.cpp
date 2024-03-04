@@ -818,6 +818,9 @@ void SV_InitGameProgs(void) {
     import.centerprintf = PF_centerprintf;
     import.error = PF_error;
 
+    import.CM_EntityKeyValue = CM_EntityKeyValue;
+    import.CM_GetNullEntity = CM_GetNullEntity;
+
     import.linkentity = PF_LinkEdict;
     import.unlinkentity = PF_UnlinkEdict;
 

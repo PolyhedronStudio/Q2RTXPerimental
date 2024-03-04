@@ -630,7 +630,7 @@ void SpawnEntities(const char *mapname, const char *entities, const char *spawnp
         if (!ent)
             ent = g_edicts;
         else
-            ent = G_Spawn();
+            ent = G_AllocateEdict();
         ED_ParseEdict(&entities, ent);
 
         // yet another map hack
@@ -817,7 +817,7 @@ void SP_worldspawn(edict_t *ent)
 {
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
-    ent->inuse = true;          // since the world doesn't use G_Spawn()
+    ent->inuse = true;          // since the world doesn't use G_AllocateEdict()
     ent->s.modelindex = 1;      // world model is always index 1
 
     //---------------

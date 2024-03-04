@@ -375,8 +375,8 @@ static void SV_AreaEdicts_r(areanode_t *node)
 /**
 *	@brief	SV_AreaEdicts
 **/
-int SV_AreaEdicts(const vec3_t mins, const vec3_t maxs,
-                  edict_t **list, int maxcount, int areatype)
+const int32_t SV_AreaEdicts(const vec3_t mins, const vec3_t maxs,
+                  edict_t **list, const int32_t maxcount, const int32_t areatype)
 {
     area_mins = mins;
     area_maxs = maxs;

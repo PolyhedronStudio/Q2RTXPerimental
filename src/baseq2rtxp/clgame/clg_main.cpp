@@ -326,12 +326,17 @@ void PF_InitGame( void ) {
 *	@brief
 **/
 void PF_ClearState( void ) {
+	// Reset the number of local entity models and sounds.
+	precache.numLocalModels = 0;
+	precache.numLocalSounds = 0;
+
 	// Actually reset the number of view models.
 	precache.numViewModels = 0;
 
 	// Clear out client entities array.
 	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
 
+	// Clear Temporary Entity FX and other Effects.
 	CLG_ClearTEnts();
 	CLG_ClearEffects();
 }
@@ -458,6 +463,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ClientConnected = PF_ClientConnected;
 		globals.ClientDisconnected = PF_ClientDisconnected;
 
+		globals.SpawnEntities = PF_SpawnEntities;
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
 

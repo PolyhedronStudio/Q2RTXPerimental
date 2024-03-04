@@ -13,6 +13,8 @@
 typedef struct entity_state_s {
     //! Server edict index.
     int32_t	number;
+    //! The entity client info index. -1 for other entities.
+    //int16_t client;
 
     //! The specific type of entity.
     int32_t	entityType; // ET_GENERIC, ET_PLAYER, ET_MONSTER_PLAYER, ET_SPOTLIGHT etc..

@@ -60,9 +60,11 @@ typedef struct cm_entity_s {
     /**
     *   Float and Vector pair value members.Use a union to save space.
     **/
+    // !The entity pair value, as a float.
+    float value;
+
+    //! The entity pair value represented as floating point component vectors.
     union {
-        // !The entity pair value, as a float.
-        float value;
         //! The entity pair value, as a two component vector.
         vec2_t vec2;
         //! The entity pair value, as a three component vector.

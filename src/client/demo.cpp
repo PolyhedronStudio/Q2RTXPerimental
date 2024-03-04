@@ -397,7 +397,7 @@ static void CL_Record_f(void)
     MSG_WriteInt32(0x10000 + cl.servercount);
     MSG_WriteUint8(1);      // demos are always attract loops
     MSG_WriteString(cl.gamedir);
-    MSG_WriteInt16(cl.clientNum);
+    MSG_WriteInt16(cl.clientNumber);
     MSG_WriteString(cl.configstrings[CS_NAME]);
 
     // configstrings

@@ -558,12 +558,9 @@ static void CL_Rcon_c(genctx_t *ctx, int argnum)
     Com_Generic_c(ctx, argnum - 1);
 }
 
-/*
-=====================
-CL_ClearState
-
-=====================
-*/
+/**
+*   @brief  Clear any state that should not persist over multiple server connections.
+**/
 void CL_ClearState(void)
 {
     S_StopAllSounds();
@@ -1511,6 +1508,15 @@ static void CL_PlaySound_f(void)
 
 static int precache_spawncount;
 
+/**
+*   @brief  Called from CL_Begin only. Used to let the client game spawn local
+*           entities from the parsed entity dictionaries. This is done just in
+*           time before the actual refresh and sound precaching processes start.
+**/
+void CL_SpawnClientEntities() {
+    clge->SpawnEntities();
+}
+
 /*
 =================
 CL_Begin
@@ -1521,6 +1527,9 @@ Called after all downloads are done. Not used for demos.
 void CL_Begin(void)
 {
     Cvar_FixCheats();
+
+    // Spawn local client entities and allow them to register precache data.
+    CL_SpawnClientEntities();
 
     CL_PrepRefresh();
     CL_LoadState(LOAD_SOUNDS);
@@ -2438,13 +2447,15 @@ static const cmdreg_t c_client[] = {
     { "userinfo", CL_Userinfo_f },
     { "snd_restart", CL_RestartSound_f },
     { "play", CL_PlaySound_f, CL_PlaySound_c },
-    //{ "changing", CL_Changing_f },
+    // Considered 'private', and handled in: exec_server_string
+    // //{ "changing", CL_Changing_f },
     { "disconnect", CL_Disconnect_f },
     { "connect", CL_Connect_f, CL_Connect_c },
     { "followip", CL_FollowIP_f },
     { "passive", CL_PassiveConnect_f },
     { "reconnect", CL_Reconnect_f },
     { "rcon", CL_Rcon_f, CL_Rcon_c },
+    // Considered 'private', and handled in: exec_server_string
     //{ "precache", CL_Precache_f },
     { "serverstatus", CL_ServerStatus_f, CL_ServerStatus_c },
     { "ignoretext", CL_IgnoreText_f },

@@ -767,7 +767,7 @@ void    G_UseTargets(edict_t *ent, edict_t *activator);
 void    G_SetMovedir(vec3_t angles, vec3_t movedir);
 
 void    G_InitEdict(edict_t *e);
-edict_t *G_Spawn(void);
+edict_t *G_AllocateEdict(void);
 void    G_FreeEdict(edict_t *e);
 
 void    G_TouchTriggers(edict_t *ent);
@@ -1178,6 +1178,7 @@ struct edict_s {
     // DO NOT MODIFY ANYTHING ABOVE THIS, THE SERVER
     // EXPECTS THE FIELDS IN THAT ORDER!
 
+    const cm_entity_t *entityDictionary;
     //================================
     int32_t     spawn_count;
     int32_t     movetype;

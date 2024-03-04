@@ -104,7 +104,7 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
 *	@remarks	(Can be the one we're chasing, instead of the player himself.)
 **/
 centity_t *CLG_Self( void ) {
-	int32_t index = clgi.client->clientNum;
+	int32_t index = clgi.client->clientNumber;
 
 	if ( clgi.client->frame.ps.stats[ STAT_CHASE ] ) {
 		index = clgi.client->frame.ps.stats[ STAT_CHASE ] - CS_PLAYERSKINS;

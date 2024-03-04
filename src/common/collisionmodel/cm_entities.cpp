@@ -20,7 +20,7 @@
 
 
 //! Used to check whether CM_EntityValue was able/unable to find a matching key in the cm_entity_t.
-static cm_entity_t cm_null_entity = {};
+static cm_entity_t cm_null_entity = { /*.nullable_string = nullptr*/ };
 
 /**
 *   @brief  Parse and set the appropriate pair value flags, as well as the value itself for the types
@@ -39,16 +39,19 @@ static cm_entity_parsed_type_t CM_ParseKeyValueType( cm_entity_t *pair ) {
             //Com_Error( ERR_DROP, "%s: EOF without closing brace", __func__ );
         }
     }
-    // Test for and parse the float.
-    if ( COM_IsFloat( pair->nullable_string ) ) {
-        // Succesfully parsed integer value, 
-        if ( ( sscanf( pair->nullable_string, "%f", &pair->value ) == 1 ) ) {
-            pair->parsed_type = static_cast<cm_entity_parsed_type_t>( pair->parsed_type | cm_entity_parsed_type_t::ENTITY_FLOAT );
-        } else {
-            //Com_Error( ERR_DROP, "%s: EOF without closing brace", __func__ );
-        }
-    }
-    // Test and for and parse the types: Vector2, Vector3, Vector4.
+    //// Test for and parse the float.
+    //if ( COM_IsFloat( pair->nullable_string ) ) {
+    //    // Succesfully parsed float value, 
+    //    if ( ( sscanf( pair->nullable_string, "%f", &pair->value ) == 1 ) ) {
+    //        pair->parsed_type = static_cast<cm_entity_parsed_type_t>( pair->parsed_type | cm_entity_parsed_type_t::ENTITY_FLOAT );
+    //    } else {
+    //        Com_Error( ERR_DROP, "%s: EOF without closing brace", __func__ );
+    //    }
+    //    //pair->value = atof( pair->nullable_string );
+    //    //pair->parsed_type = static_cast<cm_entity_parsed_type_t>( pair->parsed_type | cm_entity_parsed_type_t::ENTITY_FLOAT );
+    //}
+    
+    // Test and for and parse the types: float, Vector2, Vector3, Vector4.
     // 
     // Perform a full sscanf on a Vector 4. The return value will know what vector types are contestant
     // for having their value set, and being flagged for valid parsing.
@@ -57,9 +60,18 @@ static cm_entity_parsed_type_t CM_ParseKeyValueType( cm_entity_t *pair ) {
         &parsedVector.x, &parsedVector.y, &parsedVector.z, &parsedVector.w );
 
     // We need at least 2 components.
-    if ( components > 1 ) {
-        for ( int32_t i = 2; i <= components; i++ ) {
+    if ( components >= 1 ) {
+        for ( int32_t i = 1; i <= components; i++ ) {
             switch ( i ) {
+            case 1:
+                //if ( parsedVector[ 0 ] < 0 ) {
+                //    Com_LPrintf( PRINT_DEVELOPER, "Found a float that is negative %f\n", parsedVector[ 0 ] );
+                //}
+                pair->value = /*pair->vec2[ 0 ] = pair->vec3[ 0 ] = pair->vec4[ 0 ] = */parsedVector[ 0 ];
+                pair->integer = static_cast<int32_t>( pair->value );
+                pair->parsed_type = static_cast<cm_entity_parsed_type_t>( pair->parsed_type | cm_entity_parsed_type_t::ENTITY_FLOAT );
+                pair->parsed_type = static_cast<cm_entity_parsed_type_t>( pair->parsed_type | cm_entity_parsed_type_t::ENTITY_INTEGER );
+                break;
             case 2:
                 pair->vec2[ 0 ] = pair->vec3[ 0 ] = pair->vec4[ 0 ] = parsedVector[ 0 ];
                 pair->vec2[ 1 ] = pair->vec3[ 1 ] = pair->vec4[ 1 ] = parsedVector[ 1 ];
@@ -82,8 +94,10 @@ static cm_entity_parsed_type_t CM_ParseKeyValueType( cm_entity_t *pair ) {
                 break;
             }
         }
-        // Otherwise, make sure its value is zerod out.
+    // Otherwise, make sure its value is zerod out.
     } else {
+        // Since it is shared memory using a union, ensure that pair->value is emplaced
+        // instead of zero-ed out.
         Vector4Set( pair->vec4, 0, 0, 0, 0 );
     }
 
@@ -196,7 +210,7 @@ static const std::list<cm_entity_t *> CM_EntityDictionariesFromString( cm_t *cm 
     }
 
     // Reverse.
-    entities.reverse();
+    //entities.reverse();
 
     // Return.
     return entities;
@@ -216,12 +230,21 @@ void CM_ParseEntityString( cm_t *cm ) {
     cm_entity_list_t entities = CM_EntityDictionariesFromString( cm );
 
     // Actually allocate the BSP entities array and fill it with the entities from our generated list.
-    cm->numentities = entities.size();
-    cm->entities = static_cast<cm_entity_t **>( Z_TagMallocz( sizeof( cm_entity_t * ) * cm->numentities, TAG_CMODEL ) );
+    //cm->numentities = entities.size();
+    //cm->entities = static_cast<const cm_entity_t **>( Z_TagMallocz( sizeof( cm_entity_t * ) * cm->numentities, TAG_CMODEL ) );
 
-    cm_entity_t **out = cm->entities;
-    for ( cm_entity_list_t::const_iterator list = entities.cbegin(); list != entities.cend(); ++list, out++ ) {
-        *out = *list;
+    //const cm_entity_t **out = cm->entities;
+
+    //for ( cm_entity_list_t::const_iterator list = entities.cbegin(); list != entities.cend(); ++list, out++ ) {
+    //    *out = *list;
+    //}
+    cm->numentities = entities.size();
+    cm->entities = static_cast<const cm_entity_t **>( Z_TagMallocz( sizeof( cm_entity_t * ) * cm->numentities, TAG_CMODEL ) );
+
+    const cm_entity_t **out = cm->entities;
+    int32_t i = 0;
+    for ( cm_entity_list_t::const_iterator list = entities.cbegin(); list != entities.cend(); ++list, i++ ) {
+        cm->entities[i] = *list;
     }
 
     // Clear the list from memory.
@@ -291,17 +314,24 @@ const cm_entity_t *CM_GetNullEntity( void ) {
 
 /**
 *   @brief  Looks up the key/value cm_entity_t pair in the list for the cm_entity_t entity.
-*   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity'.
+*   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity', 
+*           which will have a nullptr value set for its 'nullable_string'.
 **/
-const cm_entity_t *CM_EntityValue( const cm_entity_t *entity, const char *key ) {
+const cm_entity_t *CM_EntityKeyValue( const cm_entity_t *entity, const char *key ) {
+    // Can't seek for a key if it is invalid.
     if ( !key ) {
+        // Return a pointer to the 'null entity'.
         return CM_GetNullEntity();
     }
+
+    // Iterate over all key/value pairs of this entity dictionary.
     for ( const cm_entity_t *e = entity; e; e = e->next ) {
+        // If the key matches the one we sought for, return a pointer to the cm_entity_t key/value pair entry.
         if ( !Q_stricmp( e->key, key ) ) {
             return e;
         }
     }
 
+    // Return a pointer to the 'null entity'.
     return CM_GetNullEntity();
 }

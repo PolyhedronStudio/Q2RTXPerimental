@@ -88,7 +88,7 @@ void PlayerNoise(edict_t *who, const vec3_t where, int type)
 
 
     if (!who->mynoise) {
-        noise = G_Spawn();
+        noise = G_AllocateEdict();
         noise->classname = "player_noise";
         VectorSet(noise->mins, -8, -8, -8);
         VectorSet(noise->maxs, 8, 8, 8);
@@ -96,7 +96,7 @@ void PlayerNoise(edict_t *who, const vec3_t where, int type)
         noise->svflags = SVF_NOCLIENT;
         who->mynoise = noise;
 
-        noise = G_Spawn();
+        noise = G_AllocateEdict();
         noise->classname = "player_noise";
         VectorSet(noise->mins, -8, -8, -8);
         VectorSet(noise->maxs, 8, 8, 8);

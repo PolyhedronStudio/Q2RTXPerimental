@@ -635,6 +635,9 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.Con_ClearNotify_f = Con_ClearNotify_f;
 
+	imports.CM_EntityKeyValue = CM_EntityKeyValue;
+	imports.CM_GetNullEntity = CM_GetNullEntity;
+
 	imports.KeyDown = CL_KeyDown;
 	imports.KeyUp = CL_KeyUp;
 	imports.KeyClear = CL_KeyClear;

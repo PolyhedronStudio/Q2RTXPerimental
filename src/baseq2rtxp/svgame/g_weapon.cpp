@@ -332,7 +332,7 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 
     VectorNormalize(dir);
 
-    bolt = G_Spawn();
+    bolt = G_AllocateEdict();
     bolt->svflags = SVF_PROJECTILE; // Special net code for projectiles. 
     // SVF_DEADMONSTER; // The following is now irrelevant:
     // yes, I know it looks weird that projectiles are deadmonsters
@@ -472,7 +472,7 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     QM_Vector3ToAngles(aimdir, dir);
     AngleVectors(dir, forward, right, up);
 
-    grenade = G_Spawn();
+    grenade = G_AllocateEdict();
     VectorCopy(start, grenade->s.origin);
     VectorScale(aimdir, speed, grenade->velocity);
     scale = 200 + crandom() * 10.0f;
@@ -513,7 +513,7 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
     QM_Vector3ToAngles(aimdir, dir);
     AngleVectors(dir, forward, right, up);
 
-    grenade = G_Spawn();
+    grenade = G_AllocateEdict();
     VectorCopy(start, grenade->s.origin);
     VectorScale(aimdir, speed, grenade->velocity);
     scale = 200 + crandom() * 10.0f;
@@ -609,7 +609,7 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 {
     edict_t *rocket;
 
-    rocket = G_Spawn();
+    rocket = G_AllocateEdict();
     VectorCopy(start, rocket->s.origin);
     VectorCopy(dir, rocket->movedir);
     QM_Vector3ToAngles(dir, rocket->s.angles);
@@ -870,7 +870,7 @@ void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, fl
 {
     edict_t *bfg;
 
-    bfg = G_Spawn();
+    bfg = G_AllocateEdict();
     VectorCopy(start, bfg->s.origin);
     VectorCopy(dir, bfg->movedir);
     QM_Vector3ToAngles(dir, bfg->s.angles);
@@ -1009,7 +1009,7 @@ void fire_flaregun(edict_t *self, vec3_t start, vec3_t aimdir,
 	QM_Vector3ToAngles(aimdir, dir);
 	AngleVectors(dir, forward, right, up);
 
-	flare = G_Spawn();
+	flare = G_AllocateEdict();
 	VectorCopy(start, flare->s.origin);
 	VectorScale(aimdir, speed, flare->velocity);
 	VectorSet(flare->avelocity, 300, 300, 300);

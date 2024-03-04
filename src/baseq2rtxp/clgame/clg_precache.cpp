@@ -124,9 +124,10 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
     char        skin_name[ MAX_QPATH ];
     char        model_filename[ MAX_QPATH ];
     char        skin_filename[ MAX_QPATH ];
-    char        weapon_filename[ MAX_QPATH ];
+    char        view_model_filename[ MAX_QPATH ];
     char        icon_filename[ MAX_QPATH ];
 
+    // Parse client info's player skin data.
     PF_ParsePlayerSkin( ci->name, model_name, skin_name, s );
 
     // model file
@@ -175,16 +176,18 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
         ci->skin = clgi.R_RegisterSkin( skin_filename );
     }
 
-    // weapon file
+    // Viewmodel files:
     for ( i = 0; i < precache.numViewModels; i++ ) {
-        Q_concat( weapon_filename, sizeof( weapon_filename ),
+        // Load weapon view model from player model_name directory.
+        Q_concat( view_model_filename, sizeof( view_model_filename ),
             "players/", model_name, "/", precache.viewModels[ i ] );
-        ci->weaponmodel[ i ] = clgi.R_RegisterModel( weapon_filename );
+        ci->weaponmodel[ i ] = clgi.R_RegisterModel( view_model_filename );
+
+        // try male if not cyborg(genderless?)
         if ( !ci->weaponmodel[ i ] && !Q_stricmp( model_name, "cyborg" ) ) {
-            // try male
-            Q_concat( weapon_filename, sizeof( weapon_filename ),
+            Q_concat( view_model_filename, sizeof( view_model_filename ),
                 "players/male/", precache.viewModels[ i ] );
-            ci->weaponmodel[ i ] = clgi.R_RegisterModel( weapon_filename );
+            ci->weaponmodel[ i ] = clgi.R_RegisterModel( view_model_filename );
         }
     }
 

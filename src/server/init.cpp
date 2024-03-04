@@ -85,37 +85,36 @@ void SV_SpawnServer(mapcmd_t *cmd)
 
     SCR_BeginLoadingPlaque();           // for local system
 
-    Com_Printf("------- Server Initialization -------\n");
-    Com_Printf("SpawnServer: %s\n", cmd->server);
+    Com_Printf( "------- Server Initialization -------\n" );
+    Com_Printf( "SpawnServer: %s\n", cmd->server );
 
-	static bool warning_printed = false;
-	if (dedicated->integer && !SV_NoSaveGames() && !warning_printed)
-	{
-		Com_Printf("\nWARNING: Dedicated coop servers save game state into the same place as single player game by default (currently '%s/%s'). "
-			"To override that, set the 'sv_savedir' console variable. To host multiple dedicated coop servers on one machine, set that cvar "
-			"to different values on different instances of the server.\n\n", fs_gamedir, Cvar_WeakGet("sv_savedir")->string);
+    static bool warning_printed = false;
+    if ( dedicated->integer && !SV_NoSaveGames() && !warning_printed ) {
+        Com_Printf( "\nWARNING: Dedicated coop servers save game state into the same place as single player game by default (currently '%s/%s'). "
+            "To override that, set the 'sv_savedir' console variable. To host multiple dedicated coop servers on one machine, set that cvar "
+            "to different values on different instances of the server.\n\n", fs_gamedir, Cvar_WeakGet( "sv_savedir" )->string );
 
-		warning_printed = true;
-	}
-
-    // everyone needs to reconnect
-    FOR_EACH_CLIENT(client) {
-        SV_ClientReset(client);
+        warning_printed = true;
     }
 
-    SV_BroadcastCommand("changing map=%s\n", cmd->server);
+    // everyone needs to reconnect
+    FOR_EACH_CLIENT( client ) {
+        SV_ClientReset( client );
+    }
+
+    SV_BroadcastCommand( "changing map=%s\n", cmd->server );
     SV_SendClientMessages();
     SV_SendAsyncPackets();
 
     // free current level
-    CM_FreeMap(&sv.cm);
+    CM_FreeMap( &sv.cm );
 
     // wipe the entire per-level structure
-    memset(&sv, 0, sizeof(sv));
+    memset( &sv, 0, sizeof( sv ) );
     sv.spawncount = Q_rand() & 0x7fffffff;
 
     // set legacy spawncounts
-    FOR_EACH_CLIENT(client) {
+    FOR_EACH_CLIENT( client ) {
         client->spawncount = sv.spawncount;
     }
 
@@ -123,9 +122,9 @@ void SV_SpawnServer(mapcmd_t *cmd)
     svs.next_entity = 0;
 
     // save name for levels that don't set message
-    Q_strlcpy(sv.configstrings[CS_NAME], cmd->server, MAX_CS_STRING_LENGTH );
-    Q_strlcpy(sv.name, cmd->server, sizeof(sv.name));
-    Q_strlcpy(sv.mapcmd, cmd->buffer, sizeof(sv.mapcmd));
+    Q_strlcpy( sv.configstrings[ CS_NAME ], cmd->server, MAX_CS_STRING_LENGTH );
+    Q_strlcpy( sv.name, cmd->server, sizeof( sv.name ) );
+    Q_strlcpy( sv.mapcmd, cmd->buffer, sizeof( sv.mapcmd ) );
 
     //if (Cvar_VariableInteger("deathmatch")) {
     //    sprintf(sv.configstrings[CS_AIRACCEL], "%d", sv_airaccelerate->integer);
@@ -135,20 +134,22 @@ void SV_SpawnServer(mapcmd_t *cmd)
 
     resolve_masters();
 
-    if (cmd->state == ss_game) {
+    if ( cmd->state == ss_game ) {
+        // Copy over the mapcmd_t collision model into the server's collision model.
         sv.cm = cmd->cm;
-        sprintf(sv.configstrings[CS_MAPCHECKSUM], "%d", sv.cm.checksum);
+        // Set checksum comparisong configstring.
+        sprintf( sv.configstrings[ CS_MAPCHECKSUM ], "%d", sv.cm.checksum );
 
-        // set inline model names
-        Q_concat(sv.configstrings[CS_MODELS + 1], MAX_CS_STRING_LENGTH, "maps/", cmd->server, ".bsp");
-        for (i = 1; i < sv.cm.cache->nummodels; i++) {
-            sprintf(sv.configstrings[CS_MODELS + 1 + i], "*%d", i);
+        // Set inline BSP model names
+        Q_concat( sv.configstrings[ CS_MODELS + 1 ], MAX_CS_STRING_LENGTH, "maps/", cmd->server, ".bsp" );
+        for ( i = 1; i < sv.cm.cache->nummodels; i++ ) {
+            sprintf( sv.configstrings[ CS_MODELS + 1 + i ], "*%d", i );
         }
     } else {
         // no real map
-        strcpy(sv.configstrings[CS_MAPCHECKSUM], "0");
+        strcpy( sv.configstrings[ CS_MAPCHECKSUM ], "0" );
         //sv.cm.entitystring = "";
-		strcpy(sv.cm.entitystring, "" );
+        strcpy( sv.cm.entitystring, "" );
     }
 
     //
@@ -167,22 +168,29 @@ void SV_SpawnServer(mapcmd_t *cmd)
     sv.state = ss_loading;
 
     // load and spawn all other entities
-    ge->SpawnEntities(sv.name, sv.cm.entitystring, cmd->spawnpoint);
+    ge->SpawnEntities( sv.name, cmd->spawnpoint, sv.cm.entities, sv.cm.numentities );
 
-    // run two frames to allow everything to settle
-    ge->RunFrame(); sv.framenum++;
-    ge->RunFrame(); sv.framenum++;
+    // WID: This was proper at 10hz.
+    //// Run two frames to allow everything to settle.
+    //ge->RunFrame(); sv.framenum++;
+    //ge->RunFrame(); sv.framenum++;
+    // WID: Make it hz independant.
+    // Run two frames times framediv to allow everything to settle.
+    for ( int32_t r = 0; r < ( BASE_FRAMERATE / 10 ); r++ ) {
+        ge->RunFrame();
+        ge->RunFrame();
+    }
 
-    // make sure maxclients string is correct
-    sprintf(sv.configstrings[CS_MAXCLIENTS], "%d", sv_maxclients->integer);
+    // Mke sure maxclients string is correct.
+    sprintf( sv.configstrings[ CS_MAXCLIENTS ], "%d", sv_maxclients->integer );
 
-    // check for a savegame
-    SV_CheckForSavegame(cmd);
+    // Check for a savegame.
+    SV_CheckForSavegame( cmd );
 
-    // all precaches are complete
+    // All precaches are complete.
     sv.state = cmd->state;
 
-    // set serverinfo variable
+    // Set serverinfo variables.
     SV_InfoSet("mapname", sv.name);
     SV_InfoSet("port", net_port->string);
 

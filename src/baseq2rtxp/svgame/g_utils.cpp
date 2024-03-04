@@ -173,7 +173,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->delay) {
         // create a temp object to fire at a later time
-        t = G_Spawn();
+        t = G_AllocateEdict();
         t->classname = "DelayedUse";
         t->nextthink = level.time + sg_time_t::from_sec(ent->delay);
         t->think = Think_Delay;
@@ -280,7 +280,7 @@ void G_InitEdict(edict_t *e)
 
 /*
 =================
-G_Spawn
+G_AllocateEdict
 
 Either finds a free edict, or allocates a new one.
 Try to avoid reusing an entity that was recently freed, because it
@@ -289,7 +289,7 @@ instead of being removed and recreated, which can cause interpolated
 angles and bad trails.
 =================
 */
-edict_t *G_Spawn(void)
+edict_t *G_AllocateEdict(void)
 {
     int         i;
     edict_t     *e;

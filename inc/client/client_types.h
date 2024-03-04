@@ -398,17 +398,19 @@ typedef struct client_state_s {
     int32_t         numSolidEntities;
     //! Rebuilt each valid frame.
     
-
     //! Stores all entity baseline states to use for delta-ing. Sent and received at time of connect.
     entity_state_t	baselines[ MAX_EDICTS ];
 
-    //! Stores the actual received delta decoded entity states.
+    /**
+    *   @brief  Each frame maintains an index into this buffer.Entity states are parsed
+    *           from the frame into this buffer, and then copied into the relevant entities.
+    **/
     entity_state_t	entityStates[ MAX_PARSE_ENTITIES ];
+    //! Number of total current entity states.
     int32_t			numEntityStates;
 
     //! Client entity specific message flags.
     msgEsFlags_t	esFlags;
-
 
     /**
     *
@@ -446,7 +448,7 @@ typedef struct client_state_s {
     //! Set when refdef.angles is set.
     vec3_t      v_forward, v_right, v_up;
     //! Whether in thirdperson view or not.
-    qboolean        thirdPersonView;
+    qboolean    thirdPersonView;
     //! Predicted values, used for smooth player entity movement in thirdperson view.
     vec3_t      playerEntityOrigin;
     vec3_t      playerEntityAngles;
@@ -491,12 +493,18 @@ typedef struct client_state_s {
     int32_t		servercount;
     //! Directory name of the current game(dir) that is in-use.
     char		gamedir[ MAX_QPATH ];
-    //! Never changed during gameplay, set by serverdata packet.
-    int32_t		clientNum;
-    //! Always points to the client entity itself.
-    centity_t   *clientEntity;
     //! Maximum number of clients that the current connected game accepts.
     int32_t		maxclients;
+    /**
+    *   @brief      Our local client slot number, acts as our personal private index into `CS_PLAYERSKINS`.
+    *               Never changed during gameplay, set by serverdata packet which is sent during connecting phase from SV_New_F.
+    **/
+    int32_t		clientNumber;
+    /**
+    *   @brief      The server entity which represents our local client view.
+    *               This is a pointer into `clg_entities`, and may point to an entity we are chasing.
+    **/
+    centity_t *clientEntity;
 
     // Received pmove configuration.
     //pmoveParams_t pmp;
@@ -519,10 +527,9 @@ typedef struct client_state_s {
     // - sound_precache
     // - image_precache
     //
-    //! Pointer to the current map's BSP data.
-    cm_t collisionModel;
+    //! The current map's BSP (collision-)models data.
+    cm_t collisionModel; // Once was: bsp_t *bsp;
 
-    //bsp_t *bsp;
     //! Collision brush models.
     mmodel_t *model_clip[ MAX_MODELS ];
     //! Refresh handle buffer for all precached models.

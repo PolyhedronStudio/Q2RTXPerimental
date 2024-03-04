@@ -451,15 +451,17 @@ void CLG_CheckEntityPresent( int32_t entityNumber, const char *what );
 *           information, so entities can be dynamically re-spatialized.
 **/
 void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
-/**
-*	@return		The entity bound to the client's view.
-*	@remarks	(Can be the one we're chasing, instead of the player himself.)
-**/
-centity_t *CLG_Self( void );
-/**
- * @return True if the specified entity is bound to the local client's view.
- */
-const bool CLG_IsSelf( const centity_t *ent );
+///**
+//*	@return		A pointer to the entity bound to the client game's view. Unless STAT_CHASE is set this
+//*               will return a pointer to the client's own private corresponding entity number slot entity.
+//*
+//*               (Can be the one we're chasing, instead of the player himself.)Otherwise it'll point
+//**/
+//centity_t *CLG_Self( void );
+///**
+//*   @return True if the specified entity is the one that is currently bound to the current local client's view.
+//**/
+//const bool CLG_IsSelf( const centity_t *ent );
 /**
 *	@brief	
 **/
@@ -491,6 +493,13 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand );
 **/
 void PF_ClearMoveCommand( client_movecmd_t *moveCommand );
 
+
+/**
+*
+*	clg_local_entities.cpp
+*
+**/
+void PF_SpawnEntities();
 
 /*
 *
@@ -541,6 +550,24 @@ void PF_ParsePlayerSkin( char *name, char *model, char *skin, const char *s );
 *
 */
 typedef struct precached_media_s {
+	//
+	//	Local Entities:
+	//
+	//! Acts as a local 'configstring'. The client entities are spawned at the very start of the
+	//! Begin command. This leaves us with room to detect if there are any local entities that
+	//! should be spawned. This is where the actual paths of those models are stored so we can
+	//! load these later on in PF_PrecacheClientModels.
+	char localModelPaths[ MAX_MODELS ][ MAX_QPATH ];
+	char localSoundPaths[ MAX_SOUNDS ][ MAX_QPATH ];
+
+	//! Stores the model indexes for each local client entity precached model.
+	qhandle_t localModels[ MAX_MODELS ];
+	int32_t numLocalModels;
+	//! Stores the sound indexes for each local client entity precached sound.
+	qhandle_t localSoundss[ MAX_SOUNDS ];
+	int32_t numLocalSounds;
+
+
 	//
 	// Models:
 	//

@@ -371,7 +371,7 @@ void use_target_spawner(edict_t *self, edict_t *other, edict_t *activator)
 {
     edict_t *ent;
 
-    ent = G_Spawn();
+    ent = G_AllocateEdict();
     ent->classname = self->target;
     VectorCopy(self->s.origin, ent->s.origin);
     VectorCopy(self->s.angles, ent->s.angles);

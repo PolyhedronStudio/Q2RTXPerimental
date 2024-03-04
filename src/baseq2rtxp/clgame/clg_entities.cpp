@@ -100,59 +100,31 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
 }
 
 /**
-*	@return		The entity bound to the client's view. 
-*	@remarks	(Can be the one we're chasing, instead of the player himself.)
+*	@return		A pointer to the entity bound to the client game's view. Unless STAT_CHASE is set to
+*               a specific client number the current received frame, this'll point to the entity that
+*               is of the local client player himself.
 **/
-centity_t *CLG_Self( void ) {
-	int32_t index = clgi.client->clientNum;
+centity_t *CLG_ViewBoundEntity( void ) {
+    // Default to clgi.client->clientNumberl.
+	int32_t index = clgi.client->clientNumber;
 
+    // Chase entity.
 	if ( clgi.client->frame.ps.stats[ STAT_CHASE ] ) {
 		index = clgi.client->frame.ps.stats[ STAT_CHASE ] - CS_PLAYERSKINS;
 	}
 
+    // + 1, because 0 == world.
 	return &clg_entities[ index + 1 ];
-}
-
-/**
- * @return True if the specified entity is bound to the local client's view.
- */
-const bool CLG_IsSelf( const centity_t *ent ) {
-	if ( ent == clgi.client->clientEntity ) {
-		return true;
-	}
-	if ( ent->current.modelindex == MODELINDEX_PLAYER ) {
-		return true;
-	}
-
-	//if ( clgi.client->frame.ps.stats[ STAT_HEALTH ] > 0 ) {
-	//if ( ( ent->current.effects & EF_CORPSE ) == 0 ) {
-
-	//	if ( ent->current.model1 == MODELINDEX_PLAYER ) {
-
-	//		if ( ent->current.client == cgi.client->client_num ) {
-	//			return true;
-	//		}
-
-	//		const int16_t chase = cgi.client->frame.ps.stats[ STAT_CHASE ] - CS_CLIENTS;
-
-	//		if ( ent->current.client == chase ) {
-	//			return true;
-	//		}
-	//	}
-	//}
-
-	return false;
 }
 
 
 /*
-===============
-CL_AddPacketEntities
-
-===============
+*
+*
+*   CL_AddPacketEntities
+*
+* 
 */
-
-
 static int adjust_shell_fx( int renderfx ) {
     return renderfx;
 }
@@ -204,6 +176,9 @@ void CL_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state_
 
 
 void CLG_AddPacketEntities( void ) {
+    // Get the current local client's player view entity. (Can be one we're chasing.)
+    clgi.client->clientEntity = CLG_ViewBoundEntity();
+
     int32_t base_entity_flags = 0;
 
     // bonus items rotate at a fixed rate

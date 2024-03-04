@@ -364,6 +364,11 @@ void ED_CallSpawn(edict_t *ent)
         return;
     }
 
+    if ( strcmp( ent->classname, "noclass" ) == 0 ) {
+        //gi.dprintf( "ED_CallSpawn: 'noclass' classname for entity(#%d).\n", ent->s.number );
+        return;
+    }
+
     // check item spawn functions
     for (i = 0, item = itemlist ; i < game.num_items ; i++, item++) {
         if (!item->classname)
@@ -384,6 +389,56 @@ void ED_CallSpawn(edict_t *ent)
         }
     }
     gi.dprintf("%s doesn't have a spawn function\n", ent->classname);
+}
+
+
+
+/*
+================
+G_FindTeams
+
+Chain together all entities with a matching team field.
+
+All but the first will have the FL_TEAMSLAVE flag set.
+All but the last will have the teamchain field set to the next one
+================
+*/
+void G_FindTeams( void ) {
+    edict_t *e, *e2, *chain;
+    int     i, j;
+    int     c, c2;
+
+    c = 0;
+    c2 = 0;
+    for ( i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++ ) {
+        if ( !e->inuse )
+            continue;
+        if ( !e->team )
+            continue;
+        if ( e->flags & FL_TEAMSLAVE )
+            continue;
+        chain = e;
+        e->teammaster = e;
+        c++;
+        c2++;
+        for ( j = i + 1, e2 = e + 1; j < globals.num_edicts; j++, e2++ ) {
+            if ( !e2->inuse )
+                continue;
+            if ( !e2->team )
+                continue;
+            if ( e2->flags & FL_TEAMSLAVE )
+                continue;
+            if ( !strcmp( e->team, e2->team ) ) {
+                c2++;
+                chain->teamchain = e2;
+                e2->teammaster = e;
+                chain = e2;
+                e2->flags = static_cast<ent_flags_t>( e2->flags | FL_TEAMSLAVE );
+            }
+        }
+    }
+
+    gi.dprintf( "%i teams with %i entities\n", c, c2 );
 }
 
 /*
@@ -428,41 +483,108 @@ Takes a key/value pair and sets the binary values
 in an edict
 ===============
 */
-static bool ED_ParseField(const spawn_field_t *fields, const char *key, const char *value, byte *b)
-{
+//static bool ED_ParseField(const spawn_field_t *fields, const char *key, const char *value, byte *b)
+//{
+//    const spawn_field_t *f;
+//    float   v;
+//    vec3_t  vec;
+//
+//    for (f = fields ; f->name ; f++) {
+//        if (!Q_stricmp(f->name, key)) {
+//            // found it
+//            switch (f->type) {
+//            case F_LSTRING:
+//                *(char **)(b + f->ofs) = ED_NewString(value);
+//                break;
+//            case F_VECTOR:
+//                if (sscanf(value, "%f %f %f", &vec[0], &vec[1], &vec[2]) != 3) {
+//                    gi.dprintf("%s: couldn't parse '%s'\n", __func__, key);
+//                    VectorClear(vec);
+//                }
+//                ((float *)(b + f->ofs))[0] = vec[0];
+//                ((float *)(b + f->ofs))[1] = vec[1];
+//                ((float *)(b + f->ofs))[2] = vec[2];
+//                break;
+//            case F_INT:
+//                *(int *)(b + f->ofs) = atoi(value);
+//                break;
+//            case F_FLOAT:
+//                *(float *)(b + f->ofs) = atof(value);
+//                break;
+//            case F_ANGLEHACK:
+//                v = atof(value);
+//                ((float *)(b + f->ofs))[0] = 0;
+//                ((float *)(b + f->ofs))[1] = v;
+//                ((float *)(b + f->ofs))[2] = 0;
+//                break;
+//            case F_IGNORE:
+//                break;
+//            default:
+//                break;
+//            }
+//            return true;
+//        }
+//    }
+//    return false;
+//}
+static bool ED_AssignField( const spawn_field_t *fieldList, const cm_entity_t *pair, byte *b ) {
     const spawn_field_t *f;
-    float   v;
-    vec3_t  vec;
 
-    for (f = fields ; f->name ; f++) {
-        if (!Q_stricmp(f->name, key)) {
+    for ( f = fieldList; f->name; f++ ) {
+        if ( !Q_stricmp( f->name, pair->key ) ) {
             // found it
-            switch (f->type) {
-            case F_LSTRING:
-                *(char **)(b + f->ofs) = ED_NewString(value);
-                break;
-            case F_VECTOR:
-                if (sscanf(value, "%f %f %f", &vec[0], &vec[1], &vec[2]) != 3) {
-                    gi.dprintf("%s: couldn't parse '%s'\n", __func__, key);
-                    VectorClear(vec);
-                }
-                ((float *)(b + f->ofs))[0] = vec[0];
-                ((float *)(b + f->ofs))[1] = vec[1];
-                ((float *)(b + f->ofs))[2] = vec[2];
+            switch ( f->type ) {
+            case F_IGNORE:
                 break;
             case F_INT:
-                *(int *)(b + f->ofs) = atoi(value);
+                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+                    *(int *)( b + f->ofs ) = pair->integer;
+                } else {
+                    gi.dprintf( "%s: couldn't parse field '%s' as integer type.\n", __func__, pair->key );
+                }
                 break;
             case F_FLOAT:
-                *(float *)(b + f->ofs) = atof(value);
+                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+                    *(float *)( b + f->ofs ) = pair->value;
+                } else {
+                    gi.dprintf( "%s: couldn't parse field '%s' as float type.\n", __func__, pair->key );
+                }
                 break;
             case F_ANGLEHACK:
-                v = atof(value);
-                ((float *)(b + f->ofs))[0] = 0;
-                ((float *)(b + f->ofs))[1] = v;
-                ((float *)(b + f->ofs))[2] = 0;
+                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+                    ( (float *)( b + f->ofs ) )[ 0 ] = 0;
+                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->value;
+                    ( (float *)( b + f->ofs ) )[ 2 ] = 0;
+                } else {
+                    gi.dprintf( "%s: couldn't parse field '%s' as yaw angle(float) type.\n", __func__, pair->key );
+                }
                 break;
-            case F_IGNORE:
+            case F_LSTRING:
+                *(char **)( b + f->ofs ) = ED_NewString( pair->nullable_string );
+                break;
+            case F_VECTOR:
+                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR4 ) {
+                    ( (float *)( b + f->ofs ) )[ 0 ] = pair->vec4[ 0 ];
+                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->vec4[ 1 ];
+                    ( (float *)( b + f->ofs ) )[ 2 ] = pair->vec4[ 2 ];
+                    // TODO: We don't support vector4 yet, so just behave as if it were a Vector3 for now.
+                    //( (float *)( b + f->ofs ) )[ 3 ] = pair->vec4[ 3 ];
+                } else if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
+                    ( (float *)( b + f->ofs ) )[ 0 ] = pair->vec3[ 0 ];
+                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->vec3[ 1 ];
+                    ( (float *)( b + f->ofs ) )[ 2 ] = pair->vec3[ 2 ];
+                } else if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR2 ) {
+                    ( (float *)( b + f->ofs ) )[ 0 ] = pair->vec2[ 0 ];
+                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->vec2[ 1 ];
+                    ( (float *)( b + f->ofs ) )[ 2 ] = 0;
+                    //( (float *)( b + f->ofs ) )[ 2 ] = vec[ 2 ];
+                } else {
+                    ( (float *)( b + f->ofs ) )[ 0 ] = 0;
+                    ( (float *)( b + f->ofs ) )[ 1 ] = 0;
+                    ( (float *)( b + f->ofs ) )[ 2 ] = 0;
+                    gi.dprintf( "%s: couldn't parse field '%s' as vector type.\n", __func__, pair->key );
+                }
+
                 break;
             default:
                 break;
@@ -470,6 +592,7 @@ static bool ED_ParseField(const spawn_field_t *fields, const char *key, const ch
             return true;
         }
     }
+
     return false;
 }
 
@@ -481,194 +604,203 @@ Parses an edict out of the given string, returning the new position
 ed should be a properly initialized empty edict.
 ====================
 */
-void ED_ParseEdict(const char **data, edict_t *ent)
-{
-    bool        init;
-    char        *key, *value;
+//void ED_ParseEdict(const char **data, edict_t *ent)
+//{
+//    bool        init;
+//    char        *key, *value;
+//
+//    init = false;
+//    memset(&st, 0, sizeof(st));
+//    st.skyautorotate = 1;
+//
+//// go through all the dictionary pairs
+//    while (1) {
+//        // parse key
+//        key = COM_Parse(data);
+//        if (key[0] == '}')
+//            break;
+//        if (!*data)
+//            gi.error("%s: EOF without closing brace", __func__);
+//
+//        // parse value
+//        value = COM_Parse(data);
+//        if (!*data)
+//            gi.error("%s: EOF without closing brace", __func__);
+//
+//        if (value[0] == '}')
+//            gi.error("%s: closing brace without data", __func__);
+//
+//        init = true;
+//
+//        // keynames with a leading underscore are used for utility comments,
+//        // and are immediately discarded by quake
+//        if (key[0] == '_')
+//            continue;
+//
+//        if (!ED_ParseField(spawn_fields, key, value, (byte *)ent)) {
+//            if (!ED_ParseField(temp_fields, key, value, (byte *)&st)) {
+//                gi.dprintf("%s: %s is not a field\n", __func__, key);
+//            }
+//        }
+//    }
+//
+//    if (!init)
+//        memset(ent, 0, sizeof(*ent));
+//}
 
-    init = false;
-    memset(&st, 0, sizeof(st));
-    st.skyautorotate = 1;
-
-// go through all the dictionary pairs
-    while (1) {
-        // parse key
-        key = COM_Parse(data);
-        if (key[0] == '}')
-            break;
-        if (!*data)
-            gi.error("%s: EOF without closing brace", __func__);
-
-        // parse value
-        value = COM_Parse(data);
-        if (!*data)
-            gi.error("%s: EOF without closing brace", __func__);
-
-        if (value[0] == '}')
-            gi.error("%s: closing brace without data", __func__);
-
-        init = true;
-
-        // keynames with a leading underscore are used for utility comments,
-        // and are immediately discarded by quake
-        if (key[0] == '_')
-            continue;
-
-        if (!ED_ParseField(spawn_fields, key, value, (byte *)ent)) {
-            if (!ED_ParseField(temp_fields, key, value, (byte *)&st)) {
-                gi.dprintf("%s: %s is not a field\n", __func__, key);
-            }
-        }
-    }
-
-    if (!init)
-        memset(ent, 0, sizeof(*ent));
-}
-
-
-/*
-================
-G_FindTeams
-
-Chain together all entities with a matching team field.
-
-All but the first will have the FL_TEAMSLAVE flag set.
-All but the last will have the teamchain field set to the next one
-================
-*/
-void G_FindTeams(void)
-{
-    edict_t *e, *e2, *chain;
-    int     i, j;
-    int     c, c2;
-
-    c = 0;
-    c2 = 0;
-    for (i = 1, e = g_edicts + i ; i < globals.num_edicts ; i++, e++) {
-        if (!e->inuse)
-            continue;
-        if (!e->team)
-            continue;
-        if (e->flags & FL_TEAMSLAVE)
-            continue;
-        chain = e;
-        e->teammaster = e;
-        c++;
-        c2++;
-        for (j = i + 1, e2 = e + 1 ; j < globals.num_edicts ; j++, e2++) {
-            if (!e2->inuse)
-                continue;
-            if (!e2->team)
-                continue;
-            if (e2->flags & FL_TEAMSLAVE)
-                continue;
-            if (!strcmp(e->team, e2->team)) {
-                c2++;
-                chain->teamchain = e2;
-                e2->teammaster = e;
-                chain = e2;
-                e2->flags = static_cast<ent_flags_t>( e2->flags | FL_TEAMSLAVE );
-            }
-        }
-    }
-
-    gi.dprintf("%i teams with %i entities\n", c, c2);
-}
-
-/*
-==============
-SpawnEntities
-
-Creates a server's entity / program execution context by
-parsing textual entity definitions out of an ent file.
-==============
-*/
-void SpawnEntities(const char *mapname, const char *entities, const char *spawnpoint)
-{
-    edict_t     *ent;
-    int         inhibit;
-    char        *com_token;
-    int         i;
+/**
+*   @brief  Loads in the map name and iterates over the collision model's parsed key/value
+*           pairs in order to spawn entities appropriately matching the pair dictionary fields
+*           of each entity.
+**/
+void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities ) {
+    //edict_t     *ent;
+    //int         inhibit;
+    //char        *com_token;
+    //int         i;
+    
+    // Acquire the 'skill' level cvar value in order to exlude various entities for various
+    // skill levels.
     float       skill_level;
 
-    skill_level = floor(skill->value);
-    clamp(skill_level, 0, 3);
-    if (skill->value != skill_level)
-        gi.cvar_forceset("skill", va("%f", skill_level));
+    skill_level = floor( skill->value );
+    clamp( skill_level, 0, 3 );
+    if ( skill->value != skill_level )
+        gi.cvar_forceset( "skill", va( "%f", skill_level ) );
 
+    // If it is an out of bounds cvar, force set skill level within the clamped bounds.
+    //if ( skill->value != skill_level ) {
+    //    gi.cvar_forceset( "skill", va( "%f", skill_level ) );
+    //}
+
+    // If we were running a previous session, make sure to save the session's client data.
     SaveClientData();
 
+    // Free up all SVGAME_LEVEL tag memory.
     gi.FreeTags(TAG_SVGAME_LEVEL);
 
+    // Zero out all level struct data as well as all the entities(edicts).
     memset(&level, 0, sizeof(level));
     memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
 
+    // Copy over the mapname and the spawn point. (Optionally set by appending a map name with a $spawntarget)
     Q_strlcpy(level.mapname, mapname, sizeof(level.mapname));
     Q_strlcpy(game.spawnpoint, spawnpoint, sizeof(game.spawnpoint));
 
-    // set client fields on player ents
-    for ( i = 0; i < game.maxclients; i++ ) {
+    // Set client fields on player entities.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        // Assign this entity to the designated client.
         g_edicts[ i + 1 ].client = game.clients + i;
 
         // Set their states as disconnected, unspawned, since the level is switching.
         game.clients[ i ].pers.connected = false;
         game.clients[ i ].pers.spawned = false;
     }
+    
+    //! Keep score of the total 'inhibited' entities. (Those that got removed for distinct reasons.)
+    int32_t numInhibitedEntities = 0;
 
-    ent = NULL;
-    inhibit = 0;
+    //! Start off with a nullptr, which'll lead us right to g_edicts first, then
+    //! any iteration after G_AllocateEdict will pick the next first free slot(s).
+    edict_t *spawnEntity = nullptr;
 
-// parse ents
-    while (1) {
-        // parse the opening brace
-        com_token = COM_Parse(&entities);
-        if (!entities)
-            break;
-        if (com_token[0] != '{')
-            gi.error("ED_LoadFromFile: found %s when expecting {", com_token);
+    // Iterate, inspect pair fields, allocate and spawn the matching edict.
+    for ( int32_t i = 0; i < numEntities; i++ ) {
+        // Clear temporary spawn fields:
+        memset( &st, 0, sizeof( spawn_temp_t ) );
 
-        if (!ent)
-            ent = g_edicts;
-        else
-            ent = G_Spawn();
-        ED_ParseEdict(&entities, ent);
+        // Allocate a free edict to use for this entity.
+        spawnEntity = ( spawnEntity == nullptr ? g_edicts : G_AllocateEdict() );
 
-        // yet another map hack
-        if (!Q_stricmp(level.mapname, "command") && !Q_stricmp(ent->classname, "trigger_once") && !Q_stricmp(ent->model, "*27"))
-            ent->spawnflags &= ~SPAWNFLAG_NOT_HARD;
+        // Assign its pointer to the matching entity key/value pair dictionary.
+        spawnEntity->entityDictionary = entities[ i ];
 
-        // remove things (except the world) from different skill levels or deathmatch
-        if (ent != g_edicts) {
-			if (nomonsters->value && (strstr(ent->classname, "monster") || strstr(ent->classname, "misc_deadsoldier") || strstr(ent->classname, "misc_insane"))) {
-				G_FreeEdict(ent);
-				inhibit++;
-				continue;
-			}
-            if (deathmatch->value) {
-                if (ent->spawnflags & SPAWNFLAG_NOT_DEATHMATCH) {
-                    G_FreeEdict(ent);
-                    inhibit++;
+        // Debug print:
+        gi.dprintf( "iterating over entity(#%d) {\n", spawnEntity->s.number );
+
+        // Iterate over entity dictionary.
+        const cm_entity_t *keyValuePair = spawnEntity->entityDictionary;
+        
+        // Used to memset the entity back to 0 in case of not initializing it with a pair at all.
+        bool init = false;
+
+        // Iterate the key value pairs for this entity.
+        while ( keyValuePair != gi.CM_GetNullEntity() && keyValuePair != nullptr ) {
+            // We initialized the entity.
+            init = true;
+
+            // Skip fields starting with a _, these are for the BSP tools only.
+            if ( keyValuePair->key[ 0 ] == '_' ) {
+                // Move to the next key value pair.
+                keyValuePair = keyValuePair->next;
+                continue;
+            }
+
+            
+            // Iterate over the spawn fields offset structure to look for a matching
+            // field key in order to assign it our parsed value.
+            if ( !ED_AssignField( spawn_fields, keyValuePair, (byte *)spawnEntity ) ) {
+                // Iterate over the 'temporary' spawn fields offset structure to look for a matching
+                // field key in order to assign it our parsed value.
+                if ( !ED_AssignField( temp_fields, keyValuePair, (byte *)&st ) ) {
+                    gi.dprintf( "%s: %s is not a field\n", __func__, keyValuePair->key );
+                }
+            }
+
+            // Move to the next key value pair.
+            keyValuePair = keyValuePair->next;
+        }
+
+        if ( !init && spawnEntity != nullptr ) {
+            memset( spawnEntity, 0, sizeof( edict_t ) );
+        }
+
+        // MAP HACK: Yet another map hack
+        if ( !Q_stricmp( level.mapname, "command" ) && !Q_stricmp( spawnEntity->classname, "trigger_once" ) && !Q_stricmp( spawnEntity->model, "*27" ) ) {
+            spawnEntity->spawnflags &= ~SPAWNFLAG_NOT_HARD;
+        }
+
+        // See if we need to remove things (except the world) from different skill levels or game mode.
+        if ( spawnEntity != g_edicts ) {
+            if ( nomonsters->value && ( strstr( spawnEntity->classname, "monster" )
+                || strstr( spawnEntity->classname, "misc_deadsoldier" )
+                || strstr( spawnEntity->classname, "misc_insane" ) ) ) {
+                G_FreeEdict( spawnEntity );
+                numInhibitedEntities++;
+                continue;
+            }
+
+            if ( deathmatch->value ) {
+                if ( spawnEntity->spawnflags & SPAWNFLAG_NOT_DEATHMATCH ) {
+                    G_FreeEdict( spawnEntity );
+                    numInhibitedEntities++;
                     continue;
                 }
             } else {
                 if ( /* ((coop->value) && (ent->spawnflags & SPAWNFLAG_NOT_COOP)) || */
-                    ((skill->value == 0) && (ent->spawnflags & SPAWNFLAG_NOT_EASY)) ||
-                    ((skill->value == 1) && (ent->spawnflags & SPAWNFLAG_NOT_MEDIUM)) ||
-                    (((skill->value == 2) || (skill->value == 3)) && (ent->spawnflags & SPAWNFLAG_NOT_HARD))
-                ) {
-                    G_FreeEdict(ent);
-                    inhibit++;
+                    ( ( skill->value == 0 ) && ( spawnEntity->spawnflags & SPAWNFLAG_NOT_EASY ) ) ||
+                    ( ( skill->value == 1 ) && ( spawnEntity->spawnflags & SPAWNFLAG_NOT_MEDIUM ) ) ||
+                    ( ( ( skill->value == 2 ) || ( skill->value == 3 ) ) && ( spawnEntity->spawnflags & SPAWNFLAG_NOT_HARD ) )
+                    ) {
+                    G_FreeEdict( spawnEntity );
+                    numInhibitedEntities++;
                     continue;
                 }
-            }
 
-            ent->spawnflags &= ~(SPAWNFLAG_NOT_EASY | SPAWNFLAG_NOT_MEDIUM | SPAWNFLAG_NOT_HARD | SPAWNFLAG_NOT_COOP | SPAWNFLAG_NOT_DEATHMATCH);
+                // Remove the spawnflags for save/load games. 
+                spawnEntity->spawnflags &= ~( SPAWNFLAG_NOT_EASY | SPAWNFLAG_NOT_MEDIUM | SPAWNFLAG_NOT_HARD | SPAWNFLAG_NOT_COOP | SPAWNFLAG_NOT_DEATHMATCH );
+            }
         }
 
-        ED_CallSpawn(ent);
+        // Last but not least, seek and call the actual spawn function for this entity 'classname' type.
+        ED_CallSpawn( spawnEntity );
+
+        // Done with this entity.
+        gi.dprintf( "}\n" );
     }
 
-    gi.dprintf("%i entities inhibited\n", inhibit);
+    // Developer print the inhibited entities.
+    gi.dprintf( "%i entities inhibited\n", numInhibitedEntities );
 
 #ifdef DEBUG
     i = 1;
@@ -817,7 +949,7 @@ void SP_worldspawn(edict_t *ent)
 {
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
-    ent->inuse = true;          // since the world doesn't use G_Spawn()
+    ent->inuse = true;          // since the world doesn't use G_AllocateEdict()
     ent->s.modelindex = 1;      // world model is always index 1
 
     //---------------

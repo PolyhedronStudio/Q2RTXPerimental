@@ -119,7 +119,7 @@ cvar_t  *allow_download_others;
 cvar_t  *rcon_password;
 
 const char  com_version_string[] =
-    APPLICATION " " VERSION_STRING " " __DATE__ " " BUILDSTRING " " CPUSTRING;
+    APPLICATION " " VERSION_STRING " Build: " BUILDSTRING " " CPUSTRING " " __DATE__ " " __TIME__;
 
 uint64_t	com_framenum;
 uint64_t	com_eventTime;
@@ -980,7 +980,7 @@ void Qcommon_Init(int argc, char **argv)
 
     // Print the engine version early so that it's definitely included in the console log.
     // The log file is opened during the execution of one of the config files above.
-    Com_LPrintf(PRINT_NOTICE, "\nEngine version: " APPLICATION " " LONG_VERSION_STRING ", built on " __DATE__ "\n\n");
+    Com_LPrintf(PRINT_NOTICE, "\nEngine version: " APPLICATION " " LONG_VERSION_STRING ", built on " __DATE__ " " __TIME__ "\n\n");
 
     Netchan_Init();
     NET_Init();

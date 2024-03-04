@@ -758,10 +758,11 @@ void CL_RequestNextDownload(void)
         if (allow_download_models->integer) {
             for (i = 2; i < MAX_MODELS; i++) {
                 name = cl.configstrings[CS_MODELS + i];
+                // Don't download the 'player model' index.
                 if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
                     break;
                 }
-                // Skip if inlined bsp or view weapon model.
+                // Skip if inlined bsp, view weapon model, or empty.
                 if ( name[ 0 ] == '*' || name[ 0 ] == '#' || name[ 0 ] == 0 ) {
                     continue;
                 }

@@ -39,7 +39,7 @@ typedef struct cm_s {
 
     //! WID: 'Collision Model' Entities: contain all the key/value definitions of the entity 'dictionaries' that are parsed from the entity string.
     int32_t numentities;
-    cm_entity_t **entities;
+    const cm_entity_t **entities;
 
     // Valid floods and check count:
     int32_t floodValid;

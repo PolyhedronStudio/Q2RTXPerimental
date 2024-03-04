@@ -169,6 +169,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_effects.cpp
 	baseq2rtxp/clgame/clg_entities.cpp
 	baseq2rtxp/clgame/clg_input.cpp
+	baseq2rtxp/clgame/clg_local_entities.cpp
 	baseq2rtxp/clgame/clg_gamemode.cpp
 	baseq2rtxp/clgame/clg_main.cpp
 	baseq2rtxp/clgame/clg_parse.cpp

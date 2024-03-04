@@ -12,7 +12,7 @@
 //
 // development tools for weapons
 //
-//qhandle_t gun;
+qhandle_t gun;
 
 /**
 *
@@ -24,7 +24,7 @@
 //void CLG_AddTestModel( void ) {
 //    static float frame = 0.f;
 //    static int prevtime = 0;
-//
+////
 //    if ( cl_testmodel_handle != -1 ) {
 //        model_t *model = MOD_ForHandle( cl_testmodel_handle );
 //

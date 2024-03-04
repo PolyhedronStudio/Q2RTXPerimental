@@ -34,66 +34,6 @@ If model or skin are found to be invalid, replaces them with sane defaults.
 void CL_ParsePlayerSkin(char *name, char *model, char *skin, const char *s)
 {
     clge->ParsePlayerSkin( name, model, skin, s );
-
-//    size_t len;
-//    const char *t; // WID: C++20: Was without const
-//
-//    // configstring parsing guarantees that playerskins can never
-//    // overflow, but still check the length to be entirely fool-proof
-//    len = strlen(s);
-//    if (len >= MAX_QPATH) {
-//        Com_Error(ERR_DROP, "%s: oversize playerskin", __func__);
-//    }
-//
-//    // isolate the player's name
-//    t = strchr(s, '\\');
-//    if (t) {
-//        len = t - s;
-//        strcpy(model, t + 1);
-//    } else {
-//        len = 0;
-//        strcpy(model, s);
-//    }
-//
-//    // copy the player's name
-//    if (name) {
-//        memcpy(name, s, len);
-//        name[len] = 0;
-//    }
-//
-//    // isolate the model name
-//    t = strchr(model, '/');
-//    if (!t)
-//        t = strchr(model, '\\');
-//    if (!t)
-//        goto default_model;
-//    *(char*)t = 0; // WID: C++20: NOTE/WARNING: This might be really evil.
-//
-//    // isolate the skin name
-//    strcpy(skin, t + 1);
-//
-//    // fix empty model to male
-//    if (t == model)
-//        strcpy(model, "male");
-//
-//    // apply restrictions on skins
-//    if (cl_noskins->integer == 2 || !COM_IsPath(skin))
-//        goto default_skin;
-//
-//    if (cl_noskins->integer || !COM_IsPath(model))
-//        goto default_model;
-//
-//    return;
-//
-//default_skin:
-//    if (!Q_stricmp(model, "female")) {
-//        strcpy(model, "female");
-//        strcpy(skin, "athena");
-//    } else {
-//default_model:
-//        strcpy(model, "male");
-//        strcpy(skin, "grunt");
-//    }
 }
 
 /*
@@ -329,9 +269,11 @@ void CL_PrepRefresh(void)
 
     for (i = 2; i < MAX_MODELS; i++) {
         name = cl.configstrings[CS_MODELS + i];
+        // Ignore MODELINDEX_PLAYER slot.
         if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
             break;
         }
+        // Ignore view models here.
         if ( name[ 0 ] == '#' ) {
             continue;
         }

@@ -81,6 +81,9 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		return;
 	}
 
+	//if ( bits & U_CLIENT ) {
+	//	to->client = MSG_ReadInt16();
+	//}
 	if ( bits & U_ORIGIN1 ) {
 		to->origin[ 0 ] = MSG_ReadFloat( );// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement 
 	}

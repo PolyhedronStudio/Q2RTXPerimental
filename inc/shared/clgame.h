@@ -256,6 +256,8 @@ typedef struct {
 	void ( *CVar_Variable_g )( genctx_t *ctx );
 	void ( *CVar_Default_g )( genctx_t *ctx );
 	
+
+
 	/**
 	*
 	*	Console:
@@ -263,6 +265,23 @@ typedef struct {
 	**/
 	void ( *Con_ClearNotify_f )( void );
 
+
+
+	/**
+	*
+	*	(Collision Model-) Entities:
+	*
+	**/
+	/**
+	*   @brief  Looks up the key/value cm_entity_t pair in the list for the cm_entity_t entity.
+	*   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity'.
+	**/
+	const cm_entity_t *( *CM_EntityKeyValue )( const cm_entity_t *edict, const char *key );
+	/**
+	*   @brief  Used to check whether CM_EntityValue was able/unable to find a matching key in the cm_entity_t.
+	*   @return Pointer to the collision model system's 'null' entity key/pair.
+	**/
+	const cm_entity_t *( *CM_GetNullEntity )( void );
 
 
 	/**
@@ -622,7 +641,9 @@ typedef struct {
 	* 
 	**/
 	//! Called when the client wants to 'clear state', this happens during Disconnecting and when 
-	//! the first server data message, an svc_serverdata(ParsingServerData) event is received..
+	//! the first server data message, an svc_serverdata(ParsingServerData) event is received.
+	//! 
+	//! Used to lear any state that should not persist over multiple server connections.
 	void ( *ClearState ) ( void );
 	//! Called when the client state has moved into being active and the game begins.
 	void ( *ClientBegin ) ( void );
@@ -639,6 +660,12 @@ typedef struct {
 	*	Entities:
 	*
 	**/
+	/**
+	*	@brief	Called from the client's Begin command, gives the client game a shot at
+	*			spawning local client entities so they can join in the image/model/sound
+	*			precaching context.
+	**/
+	void ( *SpawnEntities )( );
 	/**
 	*   @brief  The sound code makes callbacks to the client for entitiy position
 	*           information, so entities can be dynamically re-spatialized.

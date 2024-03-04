@@ -180,16 +180,33 @@ typedef struct {
     const qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);
     void (*SetAreaPortalState)( const int32_t portalnum, const qboolean open);
     const qboolean (*AreasConnected)(const int32_t area1, const int32_t area2);
-
-	/**
-    *	An entity will never be sent to a client or used for collision
-    *	if it is not passed to linkentity.  If the size, position, or
-    *	solidity changes, it must be relinked.
+    /**
+    *	An entity will never be sent to a client or used for collision if it is not passed to linkentity.  
+    *   If the size, position, solidity, clipmask, hullContents, or owner changes, it must be relinked.
 	**/
     void (*linkentity)(edict_t *ent);
-    void (*unlinkentity)(edict_t *ent);     // call before removing an interactive edict
-    int (*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_t **list, int maxcount, int areatype);
-    //void (*Pmove)(pmove_t *pmove);          // player movement code common with client prediction
+    void (*unlinkentity)(edict_t *ent);     
+    const int32_t(*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_t **list, const int32_t maxcount, const int32_t areatype);
+    
+
+
+    /**
+    *
+    *	(Collision Model-) Entities:
+    *
+    **/
+    /**
+    *   @brief  Looks up the key/value cm_entity_t pair in the list for the cm_entity_t entity.
+    *   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity'.
+    **/
+    const cm_entity_t *( *CM_EntityKeyValue )( const cm_entity_t *edict, const char *key );
+    /**
+    *   @brief  Used to check whether CM_EntityValue was able/unable to find a matching key in the cm_entity_t.
+    *   @return Pointer to the collision model system's 'null' entity key/pair.
+    **/
+    const cm_entity_t *( *CM_GetNullEntity )( void );
+
+
 
 	/**
 	*
@@ -267,7 +284,7 @@ typedef struct {
     void (*Shutdown)(void);
 
     //! Each new level entered will cause a call to SpawnEntities
-    void (*SpawnEntities)(const char *mapname, const char *entstring, const char *spawnpoint);
+    void (*SpawnEntities)( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 
 	/**
 	*	GameModes:
