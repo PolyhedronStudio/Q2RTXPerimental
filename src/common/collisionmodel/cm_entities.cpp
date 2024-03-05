@@ -252,7 +252,7 @@ void CM_ParseEntityString( cm_t *cm ) {
     entities.clear();
 
     // DEBUG OUTPUT.
-    #if 1
+    #if 0
     int32_t entityID = 0;
     const cm_entity_t *ent = nullptr;
     for ( size_t i = 0; i < cm->numentities; i++ ) {

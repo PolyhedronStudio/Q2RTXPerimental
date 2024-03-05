@@ -527,74 +527,74 @@ in an edict
 //    }
 //    return false;
 //}
-static bool ED_AssignField( const spawn_field_t *fieldList, const cm_entity_t *pair, byte *b ) {
-    const spawn_field_t *f;
-
-    for ( f = fieldList; f->name; f++ ) {
-        if ( !Q_stricmp( f->name, pair->key ) ) {
-            // found it
-            switch ( f->type ) {
-            case F_IGNORE:
-                break;
-            case F_INT:
-                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
-                    *(int *)( b + f->ofs ) = pair->integer;
-                } else {
-                    gi.dprintf( "%s: couldn't parse field '%s' as integer type.\n", __func__, pair->key );
-                }
-                break;
-            case F_FLOAT:
-                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
-                    *(float *)( b + f->ofs ) = pair->value;
-                } else {
-                    gi.dprintf( "%s: couldn't parse field '%s' as float type.\n", __func__, pair->key );
-                }
-                break;
-            case F_ANGLEHACK:
-                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
-                    ( (float *)( b + f->ofs ) )[ 0 ] = 0;
-                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->value;
-                    ( (float *)( b + f->ofs ) )[ 2 ] = 0;
-                } else {
-                    gi.dprintf( "%s: couldn't parse field '%s' as yaw angle(float) type.\n", __func__, pair->key );
-                }
-                break;
-            case F_LSTRING:
-                *(char **)( b + f->ofs ) = ED_NewString( pair->nullable_string );
-                break;
-            case F_VECTOR:
-                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR4 ) {
-                    ( (float *)( b + f->ofs ) )[ 0 ] = pair->vec4[ 0 ];
-                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->vec4[ 1 ];
-                    ( (float *)( b + f->ofs ) )[ 2 ] = pair->vec4[ 2 ];
-                    // TODO: We don't support vector4 yet, so just behave as if it were a Vector3 for now.
-                    //( (float *)( b + f->ofs ) )[ 3 ] = pair->vec4[ 3 ];
-                } else if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
-                    ( (float *)( b + f->ofs ) )[ 0 ] = pair->vec3[ 0 ];
-                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->vec3[ 1 ];
-                    ( (float *)( b + f->ofs ) )[ 2 ] = pair->vec3[ 2 ];
-                } else if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR2 ) {
-                    ( (float *)( b + f->ofs ) )[ 0 ] = pair->vec2[ 0 ];
-                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->vec2[ 1 ];
-                    ( (float *)( b + f->ofs ) )[ 2 ] = 0;
-                    //( (float *)( b + f->ofs ) )[ 2 ] = vec[ 2 ];
-                } else {
-                    ( (float *)( b + f->ofs ) )[ 0 ] = 0;
-                    ( (float *)( b + f->ofs ) )[ 1 ] = 0;
-                    ( (float *)( b + f->ofs ) )[ 2 ] = 0;
-                    gi.dprintf( "%s: couldn't parse field '%s' as vector type.\n", __func__, pair->key );
-                }
-
-                break;
-            default:
-                break;
-            }
-            return true;
-        }
-    }
-
-    return false;
-}
+//static bool ED_AssignField( const spawn_field_t *fieldList, const cm_entity_t *pair, byte *b ) {
+//    const spawn_field_t *f;
+//
+//    for ( f = fieldList; f->name; f++ ) {
+//        if ( !Q_stricmp( f->name, pair->key ) ) {
+//            // found it
+//            switch ( f->type ) {
+//            case F_IGNORE:
+//                break;
+//            case F_INT:
+//                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+//                    *(int *)( b + f->ofs ) = pair->integer;
+//                } else {
+//                    gi.dprintf( "%s: couldn't parse field '%s' as integer type.\n", __func__, pair->key );
+//                }
+//                break;
+//            case F_FLOAT:
+//                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+//                    *(float *)( b + f->ofs ) = pair->value;
+//                } else {
+//                    gi.dprintf( "%s: couldn't parse field '%s' as float type.\n", __func__, pair->key );
+//                }
+//                break;
+//            case F_ANGLEHACK:
+//                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+//                    ( (float *)( b + f->ofs ) )[ 0 ] = 0;
+//                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->value;
+//                    ( (float *)( b + f->ofs ) )[ 2 ] = 0;
+//                } else {
+//                    gi.dprintf( "%s: couldn't parse field '%s' as yaw angle(float) type.\n", __func__, pair->key );
+//                }
+//                break;
+//            case F_LSTRING:
+//                *(char **)( b + f->ofs ) = ED_NewString( pair->nullable_string );
+//                break;
+//            case F_VECTOR:
+//                if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR4 ) {
+//                    ( (float *)( b + f->ofs ) )[ 0 ] = pair->vec4[ 0 ];
+//                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->vec4[ 1 ];
+//                    ( (float *)( b + f->ofs ) )[ 2 ] = pair->vec4[ 2 ];
+//                    // TODO: We don't support vector4 yet, so just behave as if it were a Vector3 for now.
+//                    //( (float *)( b + f->ofs ) )[ 3 ] = pair->vec4[ 3 ];
+//                } else if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
+//                    ( (float *)( b + f->ofs ) )[ 0 ] = pair->vec3[ 0 ];
+//                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->vec3[ 1 ];
+//                    ( (float *)( b + f->ofs ) )[ 2 ] = pair->vec3[ 2 ];
+//                } else if ( pair->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR2 ) {
+//                    ( (float *)( b + f->ofs ) )[ 0 ] = pair->vec2[ 0 ];
+//                    ( (float *)( b + f->ofs ) )[ 1 ] = pair->vec2[ 1 ];
+//                    ( (float *)( b + f->ofs ) )[ 2 ] = 0;
+//                    //( (float *)( b + f->ofs ) )[ 2 ] = vec[ 2 ];
+//                } else {
+//                    ( (float *)( b + f->ofs ) )[ 0 ] = 0;
+//                    ( (float *)( b + f->ofs ) )[ 1 ] = 0;
+//                    ( (float *)( b + f->ofs ) )[ 2 ] = 0;
+//                    gi.dprintf( "%s: couldn't parse field '%s' as vector type.\n", __func__, pair->key );
+//                }
+//
+//                break;
+//            default:
+//                break;
+//            }
+//            return true;
+//        }
+//    }
+//
+//    return false;
+//}
 
 /*
 ====================
@@ -648,6 +648,90 @@ ed should be a properly initialized empty edict.
 //        memset(ent, 0, sizeof(*ent));
 //}
 
+static const spawn_field_t *GetSpawnFieldByKey( const char *key ) {
+    const spawn_field_t *f = nullptr;
+
+    for ( f = spawn_fields; f->name; f++ ) {
+        if ( !Q_stricmp( f->name, key ) ) {
+            return f;
+        }
+    }
+
+    return nullptr;
+}
+static const spawn_field_t *GetTempFieldByKey( const char *key ) {
+    const spawn_field_t *f = nullptr;
+
+    for ( f = temp_fields; f->name; f++ ) {
+        if ( !Q_stricmp( f->name, key ) ) {
+            return f;
+        }
+    }
+
+    return nullptr;
+}
+
+static void WritePairToEdictKeyField( byte *writeAddress, const spawn_field_t *keyOffsetField, const cm_entity_t *kv ) {
+    // Look up the kind of field type we're dealing with.
+    switch ( keyOffsetField->type ) {
+        case F_IGNORE:
+            break;
+        case F_INT:
+            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+                *(int *)( writeAddress + keyOffsetField->ofs ) = kv->integer;
+            } else {
+                gi.dprintf( "%s: couldn't parse field '%s' as integer type.\n", __func__, kv->key );
+            }
+            break;
+        case F_FLOAT:
+            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+                *(float *)( writeAddress + keyOffsetField->ofs ) = kv->value;
+            } else {
+                gi.dprintf( "%s: couldn't parse field '%s' as float type.\n", __func__, kv->key );
+            }
+            break;
+        case F_ANGLEHACK:
+            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = 0;
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->value;
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = 0;
+            } else {
+                gi.dprintf( "%s: couldn't parse field '%s' as yaw angle(float) type.\n", __func__, kv->key );
+            }
+            break;
+        case F_LSTRING:
+            *(char **)( writeAddress + keyOffsetField->ofs ) = ED_NewString( kv->string );
+            break;
+        case F_VECTOR:
+            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR4 ) {
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec4[ 0 ];
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec4[ 1 ];
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = kv->vec4[ 2 ];
+                // TODO: We don't support vector4 yet, so just behave as if it were a Vector3 for now.
+                //( (float *)( b + f->ofs ) )[ 3 ] = pair->vec4[ 3 ];
+            } else if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec3[ 0 ];
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec3[ 1 ];
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = kv->vec3[ 2 ];
+            } else if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR2 ) {
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec2[ 0 ];
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec2[ 1 ];
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = 0;
+                //( (float *)( b + f->ofs ) )[ 2 ] = vec[ 2 ];
+            } else {
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = 0;
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = 0;
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = 0;
+                gi.dprintf( "%s: couldn't parse field '%s' as vector type.\n", __func__, kv->key );
+            }
+            break;
+        default:
+        //if ( edict ) {
+        //    gi.dprintf( "Unhandled key/value pair(%s, %s) for cm_entity(%d) and edict(%d)\n", kv->key, kv->string, i, edict->s.number );
+        //}
+        break;
+    }
+}
 /**
 *   @brief  Loads in the map name and iterates over the collision model's parsed key/value
 *           pairs in order to spawn entities appropriately matching the pair dictionary fields
@@ -696,103 +780,179 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
     //! Keep score of the total 'inhibited' entities. (Those that got removed for distinct reasons.)
     int32_t numInhibitedEntities = 0;
 
-    //! Start off with a nullptr, which'll lead us right to g_edicts first, then
-    //! any iteration after G_AllocateEdict will pick the next first free slot(s).
-    edict_t *spawnEntity = nullptr;
-
-    // Iterate, inspect pair fields, allocate and spawn the matching edict.
-    for ( int32_t i = 0; i < numEntities; i++ ) {
-        // Clear temporary spawn fields:
+    int32_t entityID = 0;
+    const cm_entity_t *cm_entity = nullptr;
+    edict_t *spawnEdict = nullptr;
+    for ( size_t i = 0; i < numEntities; i++ ) {
+        // For each entity we clear the temporary spawn fields.
         memset( &st, 0, sizeof( spawn_temp_t ) );
 
-        // Allocate a free edict to use for this entity.
-        spawnEntity = ( spawnEntity == nullptr ? g_edicts : G_AllocateEdict() );
+        // Pointer to the worldspawn edict in first instance, after that the first free entity
+        // we can acquire.
+        spawnEdict = ( !spawnEdict ? g_edicts : G_AllocateEdict() );
 
-        // Assign its pointer to the matching entity key/value pair dictionary.
-        spawnEntity->entityDictionary = entities[ i ];
+        // Get the incremental index entity.
+        cm_entity = entities[ i ];
 
-        // Debug print:
-        //gi.dprintf( "iterating over i=(%d), entity=(#%d) {\n", i, spawnEntity->s.number );
+        // DEBUG: Open brace for this entity we're parsing.
+        gi.dprintf( "Entity(#%i) {\n", entityID );
 
-        // Iterate over entity dictionary.
-        const cm_entity_t *keyValuePair = spawnEntity->entityDictionary;
-        
-        // Used to memset the entity back to 0 in case of not initializing it with a pair at all.
-        bool init = false;
+        // Get the first key value.
+        const cm_entity_t *kv = cm_entity;
+        while ( kv ) {
+            // The eventual field address we'll be dealing with.
+            const spawn_field_t *keyField = nullptr;
 
-        // Iterate the key value pairs for this entity.
-        while ( keyValuePair != nullptr ) {
-            // We initialized the entity.
-            init = true;
+            // Try and find the spawn_field_t* that has a matching kv->key value.
+            const spawn_field_t *spf = GetSpawnFieldByKey( kv->key );
 
-            // Skip fields starting with a _, these are for the BSP tools only.
-            if ( keyValuePair->key[ 0 ] == '_' ) {
-                // Move to the next key value pair.
-                keyValuePair = keyValuePair->next;
-                continue;
+            // Didn't find it in spawn fields, so check if the temporary entity fields got the matching key.
+            const spawn_field_t *tpf = GetTempFieldByKey( kv->key );
+
+            byte *writeAddress = nullptr;
+            if ( spf ) {
+                writeAddress = (byte*)spawnEdict;
+                keyField = spf;
+            } else if ( tpf ) {
+                writeAddress = (byte *)&st;
+                keyField = tpf;
             }
+            if ( writeAddress ) {
 
-            
-            // Iterate over the spawn fields offset structure to look for a matching
-            // field key in order to assign it our parsed value.
-            if ( !ED_AssignField( spawn_fields, keyValuePair, (byte *)spawnEntity ) ) {
-                // Iterate over the 'temporary' spawn fields offset structure to look for a matching
-                // field key in order to assign it our parsed value.
-                if ( !ED_AssignField( temp_fields, keyValuePair, (byte *)&st ) ) {
-                    gi.dprintf( "%s: %s is not a field\n", __func__, keyValuePair->key );
+                WritePairToEdictKeyField( writeAddress, keyField, kv );
+                //// Look up the kind of field type we're dealing with.
+                //switch ( keyField->type ) {
+                //    case F_IGNORE:
+                //        break;
+                //    case F_INT:
+                //        if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+                //            *(int *)( writeAddress + keyField->ofs ) = kv->integer;
+                //        } else {
+                //            gi.dprintf( "%s: couldn't parse field '%s' as integer type.\n", __func__, kv->key );
+                //        }
+                //        break;
+                //    case F_FLOAT:
+                //        if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+                //            *(float *)( writeAddress + keyField->ofs ) = kv->value;
+                //        } else {
+                //            gi.dprintf( "%s: couldn't parse field '%s' as float type.\n", __func__, kv->key );
+                //        }
+                //        break;
+                //    case F_ANGLEHACK:
+                //        if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 0 ] = 0;
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 1 ] = kv->value;
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 2 ] = 0;
+                //        } else {
+                //            gi.dprintf( "%s: couldn't parse field '%s' as yaw angle(float) type.\n", __func__, kv->key );
+                //        }
+                //        break;
+                //    case F_LSTRING:
+                //        *(char **)( writeAddress + keyField->ofs ) = ED_NewString( kv->string );
+                //        break;
+                //    case F_VECTOR:
+                //        if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR4 ) {
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 0 ] = kv->vec4[ 0 ];
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 1 ] = kv->vec4[ 1 ];
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 2 ] = kv->vec4[ 2 ];
+                //            // TODO: We don't support vector4 yet, so just behave as if it were a Vector3 for now.
+                //            //( (float *)( b + f->ofs ) )[ 3 ] = pair->vec4[ 3 ];
+                //        } else if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 0 ] = kv->vec3[ 0 ];
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 1 ] = kv->vec3[ 1 ];
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 2 ] = kv->vec3[ 2 ];
+                //        } else if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR2 ) {
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 0 ] = kv->vec2[ 0 ];
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 1 ] = kv->vec2[ 1 ];
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 2 ] = 0;
+                //            //( (float *)( b + f->ofs ) )[ 2 ] = vec[ 2 ];
+                //        } else {
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 0 ] = 0;
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 1 ] = 0;
+                //            ( (float *)( writeAddress + keyField->ofs ) )[ 2 ] = 0;
+                //            gi.dprintf( "%s: couldn't parse field '%s' as vector type.\n", __func__, kv->key );
+                //        }
+                //        break;
+                //    default:
+                //        gi.dprintf( "Unhandled key/value pair(%s, %s) for cm_entity(%d) and edict(%d)\n", kv->key, kv->string, i, spawnEdict->s.number );
+                //        break;
+                //}
+
+                #if 0
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_STRING ) {
+                    gi.dprintf( "\"%s\":\"%s\" parsed for type(string) value=(%s) \n", kv->key, kv->string, kv->nullable_string );
+                }
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+                    gi.dprintf( "\"%s\":\"%s\" parsed for type(integer) value=(%d) \n", kv->key, kv->string, kv->integer );
+                }
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+                    gi.dprintf( "\"%s\":\"%s\" parsed for type(float) value=(%f) \n", kv->key, kv->string, kv->value );
+                }
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR2 ) {
+                    gi.dprintf( "\"%s\":\"%s\" parsed for type(Vector2) value=(%f, %f) \n", kv->key, kv->string, kv->vec2[ 0 ], kv->vec2[ 1 ] );
+                }
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
+                    gi.dprintf( "\"%s\":\"%s\" parsed for type(Vector3) value=(%f, %f, %f) \n", kv->key, kv->string, kv->vec3[ 0 ], kv->vec3[ 1 ], kv->vec3[ 2 ] );
+                }
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR4 ) {
+                    gi.dprintf( "\"%s\":\"%s\" parsed for type(Vector4) value=(%f, %f, %f, %f) \n", kv->key, kv->vec4[ 0 ], kv->vec4[ 1 ], kv->vec4[ 2 ], kv->vec4[ 3 ] );
+                }
+                #endif
+            } else {
+                if ( spawnEdict ) {
+                    gi.dprintf( "Unhandled key/value pair(%s, %s) for cm_entity(%d) and edict(%d)\n", kv->key, kv->string, i, spawnEdict->s.number );
+                } else {
+                    gi.dprintf( "Unhandled key/value pair(%s, %s) for cm_entity(%d) and edict(nullptr)\n", kv->key, kv->string, i );
                 }
             }
 
-            // Move to the next key value pair.
-            keyValuePair = keyValuePair->next;
+            // Get the next key/value pair of this entity.
+            kv = kv->next;
         }
 
-        if ( !init && spawnEntity != nullptr ) {
-            memset( spawnEntity, 0, sizeof( edict_t ) );
-        }
-
-        // MAP HACK: Yet another map hack
-        if ( !Q_stricmp( level.mapname, "command" ) && !Q_stricmp( spawnEntity->classname, "trigger_once" ) && !Q_stricmp( spawnEntity->model, "*27" ) ) {
-            spawnEntity->spawnflags &= ~SPAWNFLAG_NOT_HARD;
-        }
 
         // See if we need to remove things (except the world) from different skill levels or game mode.
-        if ( spawnEntity != g_edicts ) {
-            if ( nomonsters->value && ( strstr( spawnEntity->classname, "monster" )
-                || strstr( spawnEntity->classname, "misc_deadsoldier" )
-                || strstr( spawnEntity->classname, "misc_insane" ) ) ) {
-                G_FreeEdict( spawnEntity );
+        if ( spawnEdict != g_edicts ) {
+            if ( nomonsters->value && ( strstr( spawnEdict->classname, "monster" )
+                || strstr( spawnEdict->classname, "misc_deadsoldier" )
+                || strstr( spawnEdict->classname, "misc_insane" ) ) ) {
+                G_FreeEdict( spawnEdict );
                 numInhibitedEntities++;
                 continue;
             }
 
             if ( deathmatch->value ) {
-                if ( spawnEntity->spawnflags & SPAWNFLAG_NOT_DEATHMATCH ) {
-                    G_FreeEdict( spawnEntity );
+                if ( spawnEdict->spawnflags & SPAWNFLAG_NOT_DEATHMATCH ) {
+                    G_FreeEdict( spawnEdict );
                     numInhibitedEntities++;
                     continue;
                 }
             } else {
                 if ( /* ((coop->value) && (ent->spawnflags & SPAWNFLAG_NOT_COOP)) || */
-                    ( ( skill->value == 0 ) && ( spawnEntity->spawnflags & SPAWNFLAG_NOT_EASY ) ) ||
-                    ( ( skill->value == 1 ) && ( spawnEntity->spawnflags & SPAWNFLAG_NOT_MEDIUM ) ) ||
-                    ( ( ( skill->value == 2 ) || ( skill->value == 3 ) ) && ( spawnEntity->spawnflags & SPAWNFLAG_NOT_HARD ) )
+                    ( ( skill->value == 0 ) && ( spawnEdict->spawnflags & SPAWNFLAG_NOT_EASY ) ) ||
+                    ( ( skill->value == 1 ) && ( spawnEdict->spawnflags & SPAWNFLAG_NOT_MEDIUM ) ) ||
+                    ( ( ( skill->value == 2 ) || ( skill->value == 3 ) ) && ( spawnEdict->spawnflags & SPAWNFLAG_NOT_HARD ) )
                     ) {
-                    G_FreeEdict( spawnEntity );
+                    G_FreeEdict( spawnEdict );
                     numInhibitedEntities++;
                     continue;
                 }
 
                 // Remove the spawnflags for save/load games. 
-                spawnEntity->spawnflags &= ~( SPAWNFLAG_NOT_EASY | SPAWNFLAG_NOT_MEDIUM | SPAWNFLAG_NOT_HARD | SPAWNFLAG_NOT_COOP | SPAWNFLAG_NOT_DEATHMATCH );
+                spawnEdict->spawnflags &= ~( SPAWNFLAG_NOT_EASY | SPAWNFLAG_NOT_MEDIUM | SPAWNFLAG_NOT_HARD | SPAWNFLAG_NOT_COOP | SPAWNFLAG_NOT_DEATHMATCH );
             }
         }
+            
+        // Call spawn on this edict.
+        if ( entityID >= 0 ) {
+            ED_CallSpawn( spawnEdict );
+        }
 
-        // Last but not least, seek and call the actual spawn function for this entity 'classname' type.
-        ED_CallSpawn( spawnEntity );
+        // End of entity closing brace.
+        gi.dprintf( "}\n" );
 
-        // Done with this entity.
-        //gi.dprintf( "}\n" );
+        // Increment entityID.
+        entityID++;
     }
 
     // Developer print the inhibited entities.
