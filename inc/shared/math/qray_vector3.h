@@ -657,20 +657,23 @@ RMAPI const float QM_Vector3ToYaw( vec3_t vec ) {
 }
 #else
 RMAPI const float QM_Vector3ToYaw( vec3_t vec ) {
-    float   yaw;
+    float	tmp, yaw, pitch;
 
-    if (/*vec[YAW] == 0 &&*/ vec[ PITCH ] == 0 ) {
+    if ( /*vec[ YAW ] == 0 &&*/ vec[ PITCH ] == 0 ) {
         yaw = 0;
-        if ( vec[ YAW ] > 0 ) {
+        if ( vec[ YAW ] > 0 )
             yaw = 270;
-        } else if ( vec[ YAW ] < 0 ) {
+        else
             yaw = 90;
-        }
     } else {
-        yaw = ( atan2( vec[ YAW ], vec[ PITCH ] ) * QM_RAD2DEG );
-        if ( yaw < 0 ) {
+        yaw = ( atan2( vec[ YAW ], vec[ PITCH ] ) * 180 / M_PI );
+        if ( yaw < 0 )
             yaw += 360;
-        }
+
+        //tmp = sqrt( vec[ PITCH ] * vec[ PITCH ] + vec[ YAW ] * vec[ YAW ] );
+        //pitch = ( atan2( -vec[ ROLL ], tmp ) * 180 / M_PI );
+        //if ( pitch < 0 )
+        //    pitch += 360;
     }
 
     return yaw;
@@ -719,26 +722,50 @@ void QM_Vector3ToAngles( vec3_t value1, vec3_t angles ) {
 *   @param angles   The output vector3 euler angles.
 **/
 RMAPI void QM_Vector3ToAngles( const Vector3 forward, vec3_t angles ) {
-    float tmp, yaw, pitch;
-    if ( forward.y/*YAW*/ == 0 && forward.x/*PITCH*/ == 0 ) {
+    //float forwardsqrt = 0;
+    //float yaw = 0;
+    //float pitch = 0;
+    //if ( forward.y/*YAW*/ == 0 && forward.x/*PITCH*/ == 0 ) {
+    //    yaw = 0;
+    //    if ( forward.z/*ROLL*/ > 0 ) {
+    //        pitch = 270;
+    //    } else {
+    //        pitch = 90;
+    //    }
+    //} else {
+    //    yaw = ( atan2( forward.y/*YAW*/, forward.x/*PITCH*/) * QM_RAD2DEG );
+    //    if ( yaw < 0 ) {
+    //        yaw += 360;
+    //    }
+    //    forwardsqrt = sqrt( forward.x/*PITCH*/ * forward.x/*PITCH*/ + forward.y/*YAW*/ * forward.y/*YAW*/ );
+    //    pitch = ( atan2( -forward.z/*ROLL*/, forwardsqrt ) * QM_RAD2DEG );
+    //    if ( pitch < 0 ) {
+    //        pitch += 360;
+    //    }
+    //}
+    //angles[ 0 ] = pitch; angles[ 1 ] = yaw; angles[ 2 ] = 0;
+    float	tmp, yaw, pitch;
+
+    if ( forward.y == 0 && forward.x == 0 ) {
         yaw = 0;
-        if ( forward.z/*ROLL*/ > 0 ) {
+        if ( forward.z > 0 )
             pitch = 270;
-        } else {
+        else
             pitch = 90;
-        }
     } else {
-        yaw = ( atan2( forward.y/*YAW*/, forward.x/*PITCH*/) * QM_RAD2DEG );
-        if ( yaw < 0 ) {
+        yaw = ( atan2( forward.y, forward.x ) * 180 / M_PI );
+        if ( yaw < 0 )
             yaw += 360;
-        }
-        tmp = sqrt( forward.x/*PITCH*/ * forward.x/*PITCH*/ + forward.y/*YAW*/ * forward.y/*YAW*/ );
-        pitch = ( atan2( -forward.z/*ROLL*/, tmp) * QM_RAD2DEG );
-        if ( pitch < 0 ) {
+
+        tmp = sqrt( forward.x * forward.x + forward.y * forward.y );
+        pitch = ( atan2( -forward.z, tmp ) * 180 / M_PI );
+        if ( pitch < 0 )
             pitch += 360;
-        }
     }
-    angles[ 0 ] = pitch; angles[ 1 ] = yaw; angles[ 2 ] = 0;
+
+    angles[ 0 ] = pitch;
+    angles[ 1 ] = yaw;
+    angles[ 2 ] = 0;
 }
 #endif
 
