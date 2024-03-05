@@ -18,8 +18,10 @@
 * Brush Shaped Triggers: Triggers can now have a "Clipped" flag set, in which case it only triggers when an actual collision(clip to brush) has occured.
 * Comes with basic vector, matrix and quaternion math utilities derived from raylib1.5, and adds in C++ utilities such as operator support.
 * Modern player movement derived from Q2RE.
-* BoundingBox entities can have their hull contents be set to any CONTENTS_ values._
+* BoundingBox entities can have their hull contents be set to any CONTENTS_ values.
+* The ``entityString`` is now parsed into a list of key/value pairs by the ``Collision Model``.
 ### Client:
+* The client now also makes use of the ``cm_t``(Collision Model) struct for its ``BSP`` and ``inline brush models``.
 * Does proper lerping for entities that run lower than ``40hz``.
 * Does proper lerping for weapons based on their 'gunrate', defaults to ``10hz``
 * Added RF_OLD_FRAME_LERP support: ``[Paril-KEX] force model to lerp from oldframe in entity state; otherwise it uses last frame client received``
@@ -43,6 +45,7 @@
 * Guns can operate at a varying tick rate, default is ``10hz``
 * Brush Triggers can now be set a spawnflag to trigger only when actually clipping with the trigger brush.
 * Basic configurable Spotlight entity that can be given its own ``customLightStyle`` property as well.
+* Now spawns entities based on the key/value pairs retreived from the ``Collision Model``.
 ### Client Game:
 * Responsible for preparing the view by adding all the packet entities as well as the player viewweapon/thirdperson model.
 * Can now do custom User Input ``KeyButton`` registration and handling of.
