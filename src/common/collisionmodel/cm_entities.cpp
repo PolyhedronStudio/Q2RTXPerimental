@@ -230,34 +230,35 @@ void CM_ParseEntityString( cm_t *cm ) {
     cm_entity_list_t entities = CM_EntityDictionariesFromString( cm );
 
     // Actually allocate the BSP entities array and fill it with the entities from our generated list.
-    //cm->numentities = entities.size();
-    //cm->entities = static_cast<const cm_entity_t **>( Z_TagMallocz( sizeof( cm_entity_t * ) * cm->numentities, TAG_CMODEL ) );
-
-    //const cm_entity_t **out = cm->entities;
-
-    //for ( cm_entity_list_t::const_iterator list = entities.cbegin(); list != entities.cend(); ++list, out++ ) {
-    //    *out = *list;
-    //}
     cm->numentities = entities.size();
     cm->entities = static_cast<const cm_entity_t **>( Z_TagMallocz( sizeof( cm_entity_t * ) * cm->numentities, TAG_CMODEL ) );
 
     const cm_entity_t **out = cm->entities;
-    int32_t i = 0;
-    for ( cm_entity_list_t::const_iterator list = entities.cbegin(); list != entities.cend(); ++list, i++ ) {
-        cm->entities[i] = *list;
+
+    for ( cm_entity_list_t::const_iterator list = entities.cbegin(); list != entities.cend(); ++list, out++ ) {
+        *out = *list;
     }
+    //cm->numentities = entities.size();
+    //cm->entities = static_cast<const cm_entity_t **>( Z_TagMallocz( sizeof( cm_entity_t * ) * cm->numentities, TAG_CMODEL ) );
+
+    //const cm_entity_t **out = cm->entities;
+    //int32_t i = 0;
+    //for ( cm_entity_list_t::const_iterator list = entities.cbegin(); list != entities.cend(); ++list, out++ ) {
+    //    //cm->entities[i] = *list;
+    //    *out = *list;
+    //}
 
     // Clear the list from memory.
     entities.clear();
 
     // DEBUG OUTPUT.
-    #if 0
+    #if 1
     int32_t entityID = 0;
-    cm_entity_t *ent = nullptr;
+    const cm_entity_t *ent = nullptr;
     for ( size_t i = 0; i < cm->numentities; i++ ) {
         ent = cm->entities[ i ];
         Com_LPrintf( PRINT_DEVELOPER, "Entity(#%i) {\n", entityID );
-        cm_entity_t *kv = ent;
+        const cm_entity_t *kv = ent;
         while ( kv ) {
             if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_STRING ) {
                 Com_LPrintf( PRINT_DEVELOPER, "\"%s\":\"%s\" parsed for type(string) value=(%s) \n", kv->key, kv->string, kv->nullable_string );
@@ -269,13 +270,13 @@ void CM_ParseEntityString( cm_t *cm ) {
                 Com_LPrintf( PRINT_DEVELOPER, "\"%s\":\"%s\" parsed for type(float) value=(%f) \n", kv->key, kv->string, kv->value );
             }
             if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR2 ) {
-                Com_LPrintf( PRINT_DEVELOPER, "\"%s\":\"%s\" parsed for type(Vector2) value=(%f, %f) \n", kv->key, kv->string, kv->vec2.x, kv->vec2.y );
+                Com_LPrintf( PRINT_DEVELOPER, "\"%s\":\"%s\" parsed for type(Vector2) value=(%f, %f) \n", kv->key, kv->string, kv->vec2[0], kv->vec2[ 1 ] );
             }
             if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
-                Com_LPrintf( PRINT_DEVELOPER, "\"%s\":\"%s\" parsed for type(Vector3) value=(%f, %f, %f) \n", kv->key, kv->string, kv->vec3.x, kv->vec3.y, kv->vec3.z );
+                Com_LPrintf( PRINT_DEVELOPER, "\"%s\":\"%s\" parsed for type(Vector3) value=(%f, %f, %f) \n", kv->key, kv->string, kv->vec3[ 0 ], kv->vec3[ 1 ], kv->vec3[ 2 ] );
             }
             if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR4 ) {
-                Com_LPrintf( PRINT_DEVELOPER, "\"%s\":\"%s\" parsed for type(Vector4) value=(%f, %f, %f, %f) \n", kv->key, kv->string, kv->vec4.x, kv->vec4.y, kv->vec4.z, kv->vec4.w );
+                Com_LPrintf( PRINT_DEVELOPER, "\"%s\":\"%s\" parsed for type(Vector4) value=(%f, %f, %f, %f) \n", kv->key, kv->vec4[ 0 ], kv->vec4[ 1 ], kv->vec4[ 2 ], kv->vec4[ 3 ] );
             }
             kv = kv->next;
         }

@@ -661,17 +661,13 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
     
     // Acquire the 'skill' level cvar value in order to exlude various entities for various
     // skill levels.
-    float       skill_level;
-
-    skill_level = floor( skill->value );
-    clamp( skill_level, 0, 3 );
-    if ( skill->value != skill_level )
-        gi.cvar_forceset( "skill", va( "%f", skill_level ) );
-
+    float skill_level = floor( skill->value );
+    skill_level = constclamp( skill_level, 0, 3 );
+    
     // If it is an out of bounds cvar, force set skill level within the clamped bounds.
-    //if ( skill->value != skill_level ) {
-    //    gi.cvar_forceset( "skill", va( "%f", skill_level ) );
-    //}
+    if ( skill->value != skill_level ) {
+        gi.cvar_forceset( "skill", va( "%f", skill_level ) );
+    }
 
     // If we were running a previous session, make sure to save the session's client data.
     SaveClientData();
@@ -680,12 +676,12 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
     gi.FreeTags(TAG_SVGAME_LEVEL);
 
     // Zero out all level struct data as well as all the entities(edicts).
-    memset(&level, 0, sizeof(level));
-    memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
+    memset( &level, 0, sizeof( level ) );
+    memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
 
     // Copy over the mapname and the spawn point. (Optionally set by appending a map name with a $spawntarget)
-    Q_strlcpy(level.mapname, mapname, sizeof(level.mapname));
-    Q_strlcpy(game.spawnpoint, spawnpoint, sizeof(game.spawnpoint));
+    Q_strlcpy( level.mapname, mapname, sizeof( level.mapname ) );
+    Q_strlcpy( game.spawnpoint, spawnpoint, sizeof( game.spawnpoint ) );
 
     // Set client fields on player entities.
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
@@ -716,7 +712,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
         spawnEntity->entityDictionary = entities[ i ];
 
         // Debug print:
-        gi.dprintf( "iterating over entity(#%d) {\n", spawnEntity->s.number );
+        //gi.dprintf( "iterating over i=(%d), entity=(#%d) {\n", i, spawnEntity->s.number );
 
         // Iterate over entity dictionary.
         const cm_entity_t *keyValuePair = spawnEntity->entityDictionary;
@@ -725,7 +721,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
         bool init = false;
 
         // Iterate the key value pairs for this entity.
-        while ( keyValuePair != gi.CM_GetNullEntity() && keyValuePair != nullptr ) {
+        while ( keyValuePair != nullptr ) {
             // We initialized the entity.
             init = true;
 
@@ -796,7 +792,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
         ED_CallSpawn( spawnEntity );
 
         // Done with this entity.
-        gi.dprintf( "}\n" );
+        //gi.dprintf( "}\n" );
     }
 
     // Developer print the inhibited entities.
