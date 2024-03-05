@@ -22,9 +22,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 /**
 *
-*   Entity Spawn Debug Configuration:
+*   Entity Spawn (Debug-) Configurations:
 *
 **/
+//! Whether to exit early from ED_Spawn in case an entity has the reserved "noclass" or "freed" set as its classname.
+#define ENTITY_SPAWN_EXIT_EARLY_ON_RESERVED_NAMES 1 // Uncomment to disable exiting early on reserved names.
 //! Whether to properly debug output the collision model entity key/value iteration process:
 //#define DEBUG_ENTITY_SPAWN_PROCESS 1 // Uncomment to enable.
 //! Whether to show what data types the key/value pair's value got parsed for:
@@ -399,6 +401,7 @@ void ED_CallSpawn(edict_t *ent)
         return;
     }
 
+    #ifdef ENTITY_SPAWN_EXIT_EARLY_ON_RESERVED_NAMES
     if ( strcmp( ent->classname, "noclass" ) == 0 ) {
         #ifdef DEBUG_ENTITY_SPAWN_PROCESS
         gi.dprintf( "%s: 'noclass' classname for entity(#%d).\n", __func__, ent->s.number );
@@ -411,6 +414,7 @@ void ED_CallSpawn(edict_t *ent)
         #endif
         return;
     }
+    #endif
 
     // Check item spawn functions.
     for (i = 0, item = itemlist ; i < game.num_items ; i++, item++) {
