@@ -6,7 +6,10 @@
 *
 ********************************************************************/
 #include "../clg_local.h"
+
 #include "clg_local_entities.h"
+
+
 
 /**
 *
@@ -16,37 +19,62 @@
 *
 **/
 /**
+*	@brief	Precache function for 'client_misc_te' entity class type.
+**/
+void CLG_misc_model_Precache( clg_local_entity_t *self, const cm_entity_t *keyValues ) {
+	// Get class locals.
+	clg_misc_model_locals_t *classLocals = static_cast<clg_misc_model_locals_t *>( self->classLocals );
+
+	// Key/Value: 'model':
+	if ( const cm_entity_t *modelKv = clgi.CM_EntityKeyValue( keyValues, "model" ) ) {
+		if ( modelKv->parsed_type & cm_entity_parsed_type_t::ENTITY_STRING ) {
+			Q_strlcpy( classLocals->modelname, modelKv->string, MAX_QPATH);
+		} else {
+			classLocals->model = {};
+		}
+	}
+
+	// Key/Value: 'frame':
+	if ( const cm_entity_t *frameKv = clgi.CM_EntityKeyValue( keyValues, "frame" ) ) {
+		if ( frameKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+			classLocals->frame = frameKv->integer;
+		} else {
+			classLocals->frame = 0;
+		}
+	}
+
+	// Key/Value: 'skin':
+	if ( const cm_entity_t *skinKv = clgi.CM_EntityKeyValue( keyValues, "skin" ) ) {
+		if ( skinKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+			classLocals->skinNumber = skinKv->integer;
+		} else {
+			classLocals->skinNumber = 0;
+		}
+	}
+
+	// DEBNUG PRINT:
+	clgi.Print( PRINT_DEVELOPER, "CLG_misc_model_Precache: model(%s), frame(%d), skin(%d)\n", classLocals->modelname, classLocals->frame, classLocals->skinNumber );
+}
+
+/**
 *	@brief	Sets up the local client model entity.
 **/
 void CLG_misc_model_Spawn( clg_local_entity_t *self ) {
 
 }
+
 /**
 *	@brief	Think once per local game tick.
 **/
 void CLG_misc_model_Think( clg_local_entity_t *self ) {
 
 }
+
 /**
 *	@brief	Called each refresh frame.
 **/
 void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
 
-}
-/**
-*	@brief	Precache function for 'client_misc_te' entity class type.
-**/
-void CLG_misc_model_Precache( clg_local_entity_t *self, const cm_entity_t *keyValues ) {
-	// Acquire origin.
-	if ( const cm_entity_t *originKv = clgi.CM_EntityKeyValue( keyValues, "origin" ) ) {
-		if ( originKv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
-			self->locals.origin = originKv->vec3;
-		}
-	}
-
-	Vector3 origin = self->locals.origin;
-	const char *classname = client_misc_model.classname;
-	clgi.Print( PRINT_NOTICE, "CLGame: Spawned local entity(classname: %s) at origin(%f %f %f)\n", classname, origin[ 0 ], origin[ 1 ], origin[ 2 ] );
 }
 
 // Class definition.
@@ -60,6 +88,7 @@ const clg_local_entity_class_t client_misc_model = {
 };
 
 
+
 /**
 *
 *
@@ -71,17 +100,22 @@ const clg_local_entity_class_t client_misc_model = {
 *	@brief	Precache function for 'client_misc_te' entity class type.
 **/
 void CLG_misc_te_Precache( clg_local_entity_t *self, const cm_entity_t *keyValues ) {
-	// Acquire origin.
-	if ( const cm_entity_t *originKv = clgi.CM_EntityKeyValue( keyValues, "origin" ) ) {
-		if ( originKv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
-			self->locals.origin = originKv->vec3;
+	// Get class locals.
+	clg_misc_te_locals_t *classLocals = static_cast<clg_misc_te_locals_t *>( self->classLocals );
+
+	// Key/Value: 'event':
+	if ( const cm_entity_t *eventTypeKv = clgi.CM_EntityKeyValue( keyValues, "event" ) ) {
+		if ( eventTypeKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+			classLocals->teEvent = static_cast<temp_event_t>( eventTypeKv->integer );
+		} else {
+			classLocals->teEvent = static_cast<temp_event_t>( 0 );
 		}
 	}
 
-	// Debug print.
-	Vector3 origin = self->locals.origin;
-	const char *classname = client_misc_model.classname;
-	clgi.Print( PRINT_NOTICE, "CLGame: Spawned local entity(classname: %s) at origin(%f %f %f)\n", classname, origin[ 0 ], origin[ 1 ], origin[ 2 ] );
+	// TODO: Other key values for Temp Event Entity.
+
+	// DEBNUG PRINT:
+	clgi.Print( PRINT_DEVELOPER, "CLG_misc_te_Precache: event(%d)\n", classLocals->teEvent );
 }
 
 /**

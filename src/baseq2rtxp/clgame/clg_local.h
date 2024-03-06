@@ -540,12 +540,12 @@ typedef struct clg_local_entity_class_s {
 typedef struct clg_local_entity_s {
 	//! Unique identifier for each entity.
 	uint32_t id;
+	
+	//! A pointer to the entity's class specific data.
+	const clg_local_entity_class_t *entityClass;
 
 	//! Points right to the collision model's entity dictionary.
 	const cm_entity_t *entityDictionary;
-
-	//! A pointer to the entity's class specific data.
-	clg_local_entity_class_t *entityClass;
 
 	struct {
 		//! The classname.
@@ -569,14 +569,14 @@ typedef struct clg_local_entity_s {
 	//! Think callback.
 	//void ( *Think )( clg_local_entity_t *self );
 
-	//! Will be allocated by spawning for storing classname type specific data.
+	//! Will be allocated by precaching for storing classname type specific data.
 	void *classLocals;
 } clg_local_entity_t;
 
 //! Actual array of local client entities.
 extern clg_local_entity_t clg_local_entities[ MAX_CLIENT_ENTITIES ];
 //! Current number of local client entities.
-extern int32_t clg_num_local_entities;
+extern uint32_t clg_num_local_entities;
 
 /**
 *	@brief	Called from the client's Begin command, gives the client game a shot at

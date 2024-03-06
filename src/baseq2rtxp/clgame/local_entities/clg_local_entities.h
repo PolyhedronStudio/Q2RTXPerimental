@@ -7,6 +7,10 @@
 ********************************************************************/
 #pragma once
 
+//! All local entity classname type descriptors.
+extern const clg_local_entity_class_t *local_entity_classes[];
+
+
 
 /**
 *
@@ -18,7 +22,7 @@ extern const clg_local_entity_class_t client_misc_model;
 //! Class locals for: client_misc_model 
 typedef struct clg_misc_model_locals_s {
 	//! Actual model filename.
-	const char modelname[ MAX_QPATH ];
+	char modelname[ MAX_QPATH ];
 
 	//! Model frame.
 	int32_t frame;
@@ -38,7 +42,7 @@ typedef struct clg_misc_model_locals_s {
 *
 **/
 //! Extern the 'client_misc_model' entity class type.
-extern const clg_local_entity_class_t client_misc_model;
+extern const clg_local_entity_class_t client_misc_te;
 //! Class locals for: client_misc_te
 typedef struct clg_misc_te_locals_s {
 	//! Temp Entity Event
