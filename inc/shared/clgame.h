@@ -47,8 +47,11 @@ extern "C" {
 //#define MAX_ENT_CLUSTERS    16
 
 
+//! Client Packet Entities:
 typedef struct centity_s centity_t;
+//! Client Clients Struct:
 typedef struct gclient_s gclient_t;
+//! Client Info Type(name, model, skin, etc):
 typedef struct clientinfo_s clientinfo_t;
 
 // Include needed shared refresh types.
@@ -56,9 +59,8 @@ typedef struct clientinfo_s clientinfo_t;
 
 #ifndef CLGAME_INCLUDE
 /**
-*	Client 'client' structure definition:
-*	This structure always has to mirror the 'first part' of the structure
-*	defined within the Client Game.
+*	Client-side 'client' structure definition: This structure always has to
+*	mirror the 'first part' of the structure defined within the Client-Game.
 **/
 //typedef struct cclient_s {
 //    player_state_t  ps;
@@ -69,9 +71,8 @@ typedef struct clientinfo_s clientinfo_t;
 //	//int32_t             clientNum;
 //} cclient_t;
 /**
-*	Client-side entity structure definition:
-*	This structure always has to mirror the 'first part' of the structure
-*	defined within the Client Game.
+*	Client-side Packet Entity structure definition: This structure always has to 
+*	mirror the 'first part' of the structure defined within the Client-Game.
 **/
 typedef struct centity_s {
 	//! Current(and thus last acknowledged and received) entity state.
@@ -665,7 +666,7 @@ typedef struct {
 	*			spawning local client entities so they can join in the image/model/sound
 	*			precaching context.
 	**/
-	void ( *SpawnEntities )( );
+	void ( *SpawnEntities )( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 	/**
 	*   @brief  The sound code makes callbacks to the client for entitiy position
 	*           information, so entities can be dynamically re-spatialized.

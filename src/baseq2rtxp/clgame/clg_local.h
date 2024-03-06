@@ -200,9 +200,8 @@ template<typename T>
 
 
 /**
-*	Client-Game 'client' structure definition:
-*	This structure always has to mirror the 'first part' of the structure
-*	defined within the Client.
+*	Client-Game 'client' structure definition: This structure always has to 
+*	mirror the 'first part' of the structure defined within the Client.
 **/
 //typedef struct cclient_s {
 //    player_state_t  ps;
@@ -212,9 +211,8 @@ template<typename T>
 //	//int32_t             clientNum;
 //} cclient_t;
 /**
-*	Client-Game entity structure definition:
-*	This structure always has to mirror the 'first part' of the structure
-*	defined within the Client.
+*	Client-Game Packet Entity structure definition: This structure always has to
+*	mirror the 'first part' of the structure defined within the Client.
 **/
 typedef struct centity_s {
 	//! Current(and thus last acknowledged and received) entity state.
@@ -494,12 +492,100 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand );
 void PF_ClearMoveCommand( client_movecmd_t *moveCommand );
 
 
+
 /**
 *
 *	clg_local_entities.cpp
 *
 **/
-void PF_SpawnEntities();
+// Predeclare, defined a little later.
+typedef struct clg_local_entity_s clg_local_entity_t;
+//! 'Spawn' local entity class function pointer callback.
+typedef void ( *LocalEntity_Precache )( clg_local_entity_t *self, const cm_entity_t *keyValues );
+//! 'Spawn' local entity class function pointer callback.
+typedef void ( *LocalEntity_Spawn )( clg_local_entity_t *self );
+//! 'Think' local entity class function pointer callback.
+typedef void ( *LocalEntity_Think )( clg_local_entity_t *self );
+//! 'Refresh Frame' local entity class function pointer callback.
+typedef void ( *LocalEntity_RefreshFrame )( clg_local_entity_t *self );
+
+/**
+*	@brief	Describes the local entity's class type, default callbacks and the 
+*			class' specific locals data size.
+**/
+typedef struct clg_local_entity_class_s {
+	//! The actual classname, has to match with the worldspawn's classname key/value in order to spawn.
+	const char *classname;
+
+	//! The precache function, called during map load.
+	LocalEntity_Precache precache;
+	//! The spawn function, called once during spawn time(When Begin_f() has finished.).
+	LocalEntity_Spawn spawn;
+	//! The 'think' method gets called for each client game logic frame.
+	LocalEntity_Think think;
+	//! The 'rframe' method gets called for each client refresh frame.
+	LocalEntity_RefreshFrame rframe;
+
+	//! The sizeof the class_data.
+	size_t class_locals_size;
+} clg_local_entity_class_t;
+
+/**
+*	@brief	Data structure defined for the client game's own local entity world. The local entities are
+*			used to relax the network protocol by allowing them to be used for example:
+*				- decorating(using meshes) the world.
+*				- emitting particle and/or sounds.
+*				- gibs/debris.
+**/
+typedef struct clg_local_entity_s {
+	//! Unique identifier for each entity.
+	uint32_t id;
+
+	//! Points right to the collision model's entity dictionary.
+	const cm_entity_t *entityDictionary;
+
+	//! A pointer to the entity's class specific data.
+	clg_local_entity_class_t *entityClass;
+
+	struct {
+		//! The classname.
+		const char *classname;
+		//! The entity's origin.
+		Vector3 origin;
+		//! The entity's angles.
+		Vector3 angles;
+
+		////! The entities mins/maxs.
+		//Vector3 mins, maxs;
+		////! The entity's absolute mins maxs and size.
+		//Vector3 absMins, absMaxs, size;
+		qhandle_t modelIndex;
+	} locals;
+
+	//! Precache callback.
+	//void ( *Precache )( clg_local_entity_t *self );
+	//! Spawn callback.
+	//void ( *Spawn )( clg_local_entity_t *self );
+	//! Think callback.
+	//void ( *Think )( clg_local_entity_t *self );
+
+	//! Will be allocated by spawning for storing classname type specific data.
+	void *classLocals;
+} clg_local_entity_t;
+
+//! Actual array of local client entities.
+extern clg_local_entity_t clg_local_entities[ MAX_CLIENT_ENTITIES ];
+//! Current number of local client entities.
+extern int32_t clg_num_local_entities;
+
+/**
+*	@brief	Called from the client's Begin command, gives the client game a shot at
+*			spawning local client entities so they can join in the image/model/sound
+*			precaching context.
+**/
+void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
+
+
 
 /*
 *

@@ -207,6 +207,17 @@ typedef struct Vector3 {
             this->x = v3[ 0 ];
             this->y = v3[ 1 ];
             this->z = v3[ 2 ];
+        } else {
+            this->x = this->y = this->z = 0;
+        }
+    }
+    [[nodiscard]] inline Vector3( const vec3_t v3 ) {
+        if ( v3 ) {
+            this->x = v3[ 0 ];
+            this->y = v3[ 1 ];
+            this->z = v3[ 2 ];
+        } else {
+            this->x = this->y = this->z = 0;
         }
     }
     /**

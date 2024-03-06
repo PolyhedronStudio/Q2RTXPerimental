@@ -410,7 +410,7 @@ RMAPI Quaternion QM_QuaternionFromEuler( float pitch, float yaw, float roll ) {
 // Get the Euler angles equivalent to quaternion (roll, pitch, yaw)
 // NOTE: Angles are returned in a Vector3 struct in radians
 RMAPI Vector3 QM_QuaternionToEuler( Quaternion q ) {
-    Vector3 result = { 0 };
+    Vector3 result = { 0.f, 0.f, 0.f };
 
     // Roll (x-axis rotation)
     float x0 = 2.0f * ( q.w * q.x + q.y * q.z );

@@ -1019,10 +1019,10 @@ static void CL_Seek_f(void)
     // Clear old local entities and effects.
     clge->ClearState();
 
-    // fix time delta
+    // Fix time delta
     cl.serverdelta += cl.frame.number - prev;
 
-    // fire up destination frame
+    // Fire up destination frame
     CL_DeltaFrame();
 
     if ( cls.demo.recording && !cls.demo.paused ) {

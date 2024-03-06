@@ -1514,7 +1514,17 @@ static int precache_spawncount;
 *           time before the actual refresh and sound precaching processes start.
 **/
 void CL_SpawnClientEntities() {
-    clge->SpawnEntities();
+    // Refresh ain't initialized, we need it:
+    if ( !cls.ref_initialized ) {
+        return;
+    }
+    // No map loaded:
+    if ( !cl.mapname[ 0 ] ) {
+        return;     // no map loaded
+    }
+
+    // Call upon the client games SpawnEntities so it can appropriately spawn local client side entities.
+    clge->SpawnEntities( cl.mapname, "", cl.collisionModel.entities, cl.collisionModel.numentities );
 }
 
 /*
