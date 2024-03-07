@@ -436,9 +436,9 @@ void CLG_AddParticles( void );
 */
 // Use a static entity ID on some things because the renderer relies on eid to match between meshes
 // on the current and previous frames.
-static constexpr int32_t RESERVED_ENTITIY_GUN = 1;
-static constexpr int32_t RESERVED_ENTITIY_TESTMODEL = 2;
-static constexpr int32_t RESERVED_ENTITIY_COUNT = 3;
+static constexpr int32_t RENTITIY_RESERVED_GUN = 1;
+static constexpr int32_t RENTITIY_RESERVED_TESTMODEL = 2;
+static constexpr int32_t RENTITIY_RESERVED_COUNT = 3;
 
 /**
 *   @brief  For debugging problems when out-of-date entity origin is referenced.

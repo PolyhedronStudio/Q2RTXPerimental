@@ -8,9 +8,9 @@
 #include "clg_local.h"
 
 
-#define RESERVED_ENTITIY_GUN 1
-#define RESERVED_ENTITIY_TESTMODEL 2
-#define RESERVED_ENTITIY_COUNT 3
+#define RENTITIY_RESERVED_GUN 1
+#define RENTITIY_RESERVED_TESTMODEL 2
+#define RENTITIY_RESERVED_COUNT 3
 
 /**
 *
@@ -86,11 +86,11 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
         // from listener to the bmodel's aabb:
     } else {
         if ( ent->current.solid == PACKED_BSP ) {
-            mmodel_t *cm = clgi.client->model_clip[ ent->current.modelindex ];
-            if ( cm ) {
+            mmodel_t *brushModel = clgi.client->model_clip[ ent->current.modelindex ];
+            if ( brushModel ) {
                 Vector3 absmin = org, absmax = org;
-                absmin += cm->mins;
-                absmax += cm->maxs;
+                absmin += brushModel->mins;
+                absmax += brushModel->maxs;
 
                 const Vector3 closestPoint = QM_Vector3ClosestPointToBox( clgi.client->playerEntityOrigin, absmin, absmax );
                 VectorCopy( closestPoint, org );
@@ -220,7 +220,7 @@ void CLG_AddPacketEntities( void ) {
         entity_state_t *s1 = &clgi.client->entityStates[ i ];
 
         centity_t *cent = &clg_entities[ s1->number ];//cent = &cl_entities[s1->number];
-        ent.id = cent->id + RESERVED_ENTITIY_COUNT;
+        ent.id = cent->id + RENTITIY_RESERVED_COUNT;
 
         uint32_t effects = s1->effects;
         int32_t renderfx = s1->renderfx;

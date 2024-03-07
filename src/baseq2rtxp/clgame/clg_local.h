@@ -434,9 +434,11 @@ void CLG_AddParticles( void );
 */
 // Use a static entity ID on some things because the renderer relies on eid to match between meshes
 // on the current and previous frames.
-static constexpr int32_t RESERVED_ENTITIY_GUN = 1;
-static constexpr int32_t RESERVED_ENTITIY_TESTMODEL = 2;
-static constexpr int32_t RESERVED_ENTITIY_COUNT = 3;
+static constexpr int32_t RENTITIY_RESERVED_GUN = 1;
+static constexpr int32_t RENTITIY_RESERVED_TESTMODEL = 2;
+static constexpr int32_t RENTITIY_RESERVED_COUNT = 3;
+
+static constexpr int32_t RENTITIY_OFFSET_LOCALENTITIES = MAX_MODELS / 2; // TODO: Increase MAX_MODELS * 2 for refresh and all that.
 
 /**
 *   @brief  For debugging problems when out-of-date entity origin is referenced.
@@ -449,23 +451,16 @@ void CLG_CheckEntityPresent( int32_t entityNumber, const char *what );
 *           information, so entities can be dynamically re-spatialized.
 **/
 void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
-///**
-//*	@return		A pointer to the entity bound to the client game's view. Unless STAT_CHASE is set this
-//*               will return a pointer to the client's own private corresponding entity number slot entity.
-//*
-//*               (Can be the one we're chasing, instead of the player himself.)Otherwise it'll point
-//**/
-//centity_t *CLG_Self( void );
-///**
-//*   @return True if the specified entity is the one that is currently bound to the current local client's view.
-//**/
-//const bool CLG_IsSelf( const centity_t *ent );
 /**
-*	@brief	
+*	@return		A pointer to the entity bound to the client game's view. Unless STAT_CHASE is set to
+*               a specific client number the current received frame, this'll point to the entity that
+*               is of the local client player himself.
 **/
-void CLG_AddPacketEntities( void );
-
-
+centity_t *CLG_ViewBoundEntity( void );
+/**
+*	@brief	Add local client entities that are 'in-frame' to the view's refdef entities list.
+**/
+void CLG_AddLocalEntities( void );
 
 /**
 *
@@ -500,6 +495,7 @@ void PF_ClearMoveCommand( client_movecmd_t *moveCommand );
 **/
 // Predeclare, defined a little later.
 typedef struct clg_local_entity_s clg_local_entity_t;
+
 //! 'Spawn' local entity class function pointer callback.
 typedef void ( *LocalEntity_Precache )( clg_local_entity_t *self, const cm_entity_t *keyValues );
 //! 'Spawn' local entity class function pointer callback.
@@ -540,26 +536,40 @@ typedef struct clg_local_entity_class_s {
 typedef struct clg_local_entity_s {
 	//! Unique identifier for each entity.
 	uint32_t id;
-	
-	//! A pointer to the entity's class specific data.
-	const clg_local_entity_class_t *entityClass;
+	//! Used to differentiate different entities that may be in the same slot
+	uint32_t spawn_count;
+	//! Whether this local entity is 'in-use' or not.
+	qboolean inuse;
+	//! Client game level time at which this entity was freed.
+	sg_time_t freetime;
+
+	//! The classname.
+	const char *classname;
+	//! Name of the model(if any).
+	const char *model;
 
 	//! Points right to the collision model's entity dictionary.
 	const cm_entity_t *entityDictionary;
+	//! A pointer to the entity's class specific data.
+	const clg_local_entity_class_t *entityClass;
 
 	struct {
-		//! The classname.
-		const char *classname;
 		//! The entity's origin.
 		Vector3 origin;
 		//! The entity's angles.
 		Vector3 angles;
 
-		////! The entities mins/maxs.
-		//Vector3 mins, maxs;
-		////! The entity's absolute mins maxs and size.
-		//Vector3 absMins, absMaxs, size;
-		qhandle_t modelIndex;
+		//! Modelspace Mins/Maxs of Bounding Box.
+		Vector3	mins, maxs;
+		//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
+		Vector3	absmin, absmax, size;
+
+		//! Model/Sprite frame.
+		int32_t frame;
+		//! Model skin number.
+		int32_t skinNumber;
+		//! ModelIndex #1 handle.
+		qhandle_t modelindex;
 	} locals;
 
 	//! Precache callback.
@@ -584,6 +594,17 @@ extern uint32_t clg_num_local_entities;
 *			precaching context.
 **/
 void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
+
+
+/*
+*
+*	clg_packet_entities.cpp
+*
+*/
+/**
+*	@brief	Will add all packet entities to the current frame's view refdef
+**/
+void CLG_AddPacketEntities( void );
 
 
 
@@ -639,19 +660,22 @@ typedef struct precached_media_s {
 	//
 	//	Local Entities:
 	//
-	//! Acts as a local 'configstring'. The client entities are spawned at the very start of the
-	//! Begin command. This leaves us with room to detect if there are any local entities that
-	//! should be spawned. This is where the actual paths of those models are stored so we can
-	//! load these later on in PF_PrecacheClientModels.
-	char localModelPaths[ MAX_MODELS ][ MAX_QPATH ];
-	char localSoundPaths[ MAX_SOUNDS ][ MAX_QPATH ];
+	//! Acts as a local 'configstring'. When a client entity's precache callback
+	//! is called, the CLG_RegisterLocalModel/CL_RegisterLocalSound functions
+	//! will store the model/sound name in the designated array.
+	//! 
+	//! This allows for them to be reloaded at the time of a possible restart of
+	//! the audio/video subsystems and have their handles be (re-)stored at the
+	//! same index.
+	char model_paths[ MAX_MODELS ][ MAX_QPATH ];
+	char sound_paths[ MAX_SOUNDS ][ MAX_QPATH ];
 
 	//! Stores the model indexes for each local client entity precached model.
-	qhandle_t localModels[ MAX_MODELS ];
-	int32_t numLocalModels;
+	qhandle_t local_draw_models[ MAX_MODELS ];
+	int32_t num_local_draw_models;
 	//! Stores the sound indexes for each local client entity precached sound.
-	qhandle_t localSoundss[ MAX_SOUNDS ];
-	int32_t numLocalSounds;
+	qhandle_t local_sounds[ MAX_SOUNDS ];
+	int32_t num_local_sounds;
 
 
 	//
@@ -714,11 +738,11 @@ typedef struct precached_media_s {
 extern precached_media_t precache;
 
 /**
-*	@brief	Called right before loading all received configstring (server-) models.
+*	@brief	Called right after the client finished loading all received configstring (server-) models.
 **/
 void PF_PrecacheClientModels( void );
 /**
-*	@brief	Called right before loading all received configstring (server-) sounds.
+*	@brief	Called right after the client finished loading all received configstring (server-) sounds.
 **/
 void PF_PrecacheClientSounds( void );
 /**
@@ -729,6 +753,17 @@ void PF_PrecacheViewModels( void );
 *	@brief	Called to precache client info specific media.
 **/
 void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s );
+
+/**
+*   @brief  Registers a model for local entity usage.
+*   @return -1 on failure, otherwise a handle to the model index of the precache.local_models array.
+**/
+const qhandle_t CLG_RegisterLocalModel( const char *name );
+/**
+*   @brief  Registers a sound for local entity usage.
+*   @return -1 on failure, otherwise a handle to the sounds index of the precache.local_sounds array.
+**/
+const qhandle_t CLG_RegisterLocalSound( const char *name );
 
 
 
@@ -1043,6 +1078,8 @@ void PF_PrepareViewEntites( void );
 **/
 /**
 *	@brief	Stores data that remains accross level switches.
+* 
+*	@todo	In the future, look into saving its state in: client.clsv
 **/
 struct game_locals_t {
 	//! Stores state of the view weapon.
@@ -1053,7 +1090,7 @@ struct game_locals_t {
 		int64_t last_frame;
 		//! Received server frame time of the weapon's frame.
 		int64_t server_time;
-	} viewWeapon;//cclient_t *clients;
+	} viewWeapon;
 
 	//! Generated by CLG_InitEffects, cached up regular angular velocity values for particles 'n shit..
 	vec3_t avelocities[ NUMVERTEXNORMALS ];
@@ -1069,8 +1106,15 @@ extern game_locals_t game;
 /**
 *	@brief	This structure is cleared as each map is entered, it stores data for 
 *			the current level session.
+* 
+*	@todo	In the future, look into saving its state in: level.clsv
 **/
 struct level_locals_t {
+	//! Frame number, starts incrementing when the level session has begun..
+	int64_t		framenum;
+	//! Time passed, also starts incrementing when the level session has begun.
+	sg_time_t	time;
+
 	//! For storing parsed message data that is handled later on during 
 	//! the frame by corresponding said event/effect functions.
 	struct {

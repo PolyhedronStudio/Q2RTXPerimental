@@ -40,6 +40,19 @@ void PF_PrecacheClientSounds( void ) {
 
     precache.cl_sfx_lightning = clgi.S_RegisterSound( "weapons/tesla.wav" );
     precache.cl_sfx_disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
+
+    // Iterate over the local sound path 'config' strings.
+    for ( int32_t i = 0; i < precache.num_local_sounds; i++ ) {
+        // Ensure that its name is valid.
+        const char *name = precache.model_paths[ i ];
+        if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
+            precache.local_sounds[ i ] = 0; // TODO: should be -1?
+            continue;
+        }
+
+        // Precache the actual model, retreive the qhandle_t and store it.
+        precache.local_sounds[ i ] = clgi.S_RegisterSound( name );
+    }
 }
 
 /**
@@ -73,6 +86,19 @@ void PF_PrecacheClientModels( void ) {
         //if ( model ) {
         //    model->sprite_vertical = true;
         //}
+    }
+
+    // Iterate over the local model path 'config' strings.
+    for ( int32_t i = 0; i < precache.num_local_draw_models; i++ ) {
+        // Ensure that its name is valid.
+        const char *name = precache.model_paths[ i ];
+        if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
+            precache.local_draw_models[ i ] = 0; // TODO: should be -1?
+            continue;
+        }
+
+        // Precache the actual model, retreive the qhandle_t and store it.
+        precache.local_draw_models[ i ] = clgi.R_RegisterModel( name );
     }
 }
 
@@ -214,4 +240,53 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
         ci->model_name[ 0 ] = 0;
         ci->skin_name[ 0 ] = 0;
     }
+}
+
+/**
+*   @brief  Registers a model for local entity usage.
+*   @return -1 on failure, otherwise a handle to the model index of the precache.local_models array.
+**/
+const qhandle_t CLG_RegisterLocalModel( const char *name ) {
+    // Throw it into the localModelPaths array.
+    if ( precache.num_local_draw_models >= MAX_MODELS ) {
+        clgi.Error( "%s: num_local_draw_models > MAX_MODELS!\n", __func__ );
+        return -1;
+    }
+
+    // Make sure name isn't empty.
+    if ( !name || name[0] == 0 || strlen( name ) == 0 ) {
+        clgi.Print( PRINT_WARNING, "%s: empty model name detected!\n", __func__ );
+        return -1;
+    }
+
+    // Copy the model name inside the next model_paths slot.
+    Q_strlcpy( precache.model_paths[ precache.num_local_draw_models ], name, MAX_QPATH );
+
+    // Success.
+    const int32_t index = precache.num_local_draw_models;
+    precache.num_local_draw_models += 1;
+    return index;
+}
+
+/**
+*   @brief  Registers a sound for local entity usage.
+*   @return -1 on failure, otherwise a handle to the sounds index of the precache.local_sounds array.
+**/
+const qhandle_t CLG_RegisterLocalSound( const char *name ) {
+    // Throw it into the localSoundPaths array.
+    if ( precache.num_local_sounds >= MAX_SOUNDS ) {
+        clgi.Error( "%s: num_local_sounds > MAX_SOUNDS!\n", __func__ );
+        return -1;
+    }
+
+    // Make sure name isn't empty.
+    if ( !name || name[ 0 ] == 0 || strlen( name ) == 0 ) {
+        clgi.Print( PRINT_WARNING, "%s: empty sound name detected!\n", __func__ );
+        return -1;
+    }
+
+    // Copy the model name inside the next sound_paths slot.
+    Q_strlcpy( precache.sound_paths[ precache.num_local_sounds++ ], name, MAX_QPATH );
+    // Success.
+    return precache.num_local_sounds;
 }

@@ -641,19 +641,35 @@ typedef struct {
 	*	Connecting and State:
 	* 
 	**/
-	//! Called when the client wants to 'clear state', this happens during Disconnecting and when 
-	//! the first server data message, an svc_serverdata(ParsingServerData) event is received.
-	//! 
-	//! Used to lear any state that should not persist over multiple server connections.
+	/**
+	*	@brief	Called when the client wants to 'clear state', this happens during Disconnecting and when 
+	*			the first server data message, an svc_serverdata(ParsingServerData) event is received.
+	*			
+	*			Used to clear any state data that should not persist over multiple server connections.
+	**/
 	void ( *ClearState ) ( void );
-	//! Called when the client state has moved into being active and the game begins.
+	/**
+	*	@brief	Called when the client state has moved into being active and the game begins.
+	**/
 	void ( *ClientBegin ) ( void );
-	//! Called when the client state has moved into being properly connected to server.
+	/**
+	*	@brief	Called when the client state has moved into being properly connected to server.
+	**/
 	void ( *ClientConnected ) ( void );
-	//! Called when the client state has moved into a disconnected state. Before ending
-	//! the loading plague and starting to clear its state. (So it is still accessible.)
+	/**
+	*	@brief	Called when the client state has moved into a disconnected state, before ending
+	*			the loading plague and starting to clear its state. (So it is still accessible.)
+	**/
 	void ( *ClientDisconnected ) ( void );
-
+	/**
+	*	@brief	Called to update the client's local game entities, it runs at the same framerate
+	*			as the server game logic does.
+	**/
+	void ( *ClientLocalFrame ) ( void );
+	/**
+	*	@brief	Called at the rate equal to that of the refresh frames.
+	**/
+	void ( *ClientRefreshFrame ) ( void );
 
 
 	/**

@@ -187,8 +187,10 @@ typedef struct client_static_s {
     int64_t     framecount;
     //! Time since application boot, always increasing, no clamping, etc.
     uint64_t    realtime;
+    //! Seconds delta since last frame.
+    double      realdelta;
     //! Seconds since last frame.
-    double      frametime;          // seconds since last frame
+    double      frametime;
 
 // preformance measurement
 #define C_FPS   cls.measure.fps[0]

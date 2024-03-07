@@ -133,6 +133,23 @@ typedef struct cl_sustain_s {
 /**
 *
 *
+*   Client Events/Frames/Messages:
+*
+* 
+**/
+/**
+*   @brief  Stores
+**/
+typedef struct client_frame_s {
+    //! Sequential identifier, incremented each client game's 'local' frame.
+    int64_t number;
+} client_frame_t;
+
+
+
+/**
+*
+*
 *   Server Events/Frames/Messages:
 *
 * 
@@ -171,10 +188,6 @@ typedef struct server_frame_s {
 #define FF_OLDENT       (1<<7)
 #define FF_NODELTA      (1<<8)
 
-// Variable client FPS
-#define CL_FRAMETIME    BASE_FRAMETIME
-#define CL_1_FRAMETIME  BASE_1_FRAMETIME
-
 
 
 /**
@@ -184,6 +197,10 @@ typedef struct server_frame_s {
 *
 *
 **/
+// Variable client FPS
+#define CL_FRAMETIME    BASE_FRAMETIME
+#define CL_1_FRAMETIME  BASE_1_FRAMETIME
+
 //! These are constants for cl_player_model cvar.
 #define CL_PLAYER_MODEL_DISABLED     0
 #define CL_PLAYER_MODEL_ONLY_GUN     1
@@ -412,6 +429,7 @@ typedef struct client_state_s {
     //! Client entity specific message flags.
     msgEsFlags_t	esFlags;
 
+
     /**
     *
     *   Server Frames:
@@ -432,8 +450,25 @@ typedef struct client_state_s {
     //! This is the 'moment-in-time' value that the client is interpolating at.
     //! Always <= cl.servertime
     int64_t     time;
-    //! The current "lerp" -fraction between 'oldframe' and 'frame'
-    double      lerpfrac;
+    //! Linear interpolation fraction between cl.oldframe and cl.frame.
+    double		lerpfrac;
+
+
+    /**
+    *
+    *   Client Frames:
+    *
+    **/
+    //! Stores the client game's current frame data.
+    client_frame_t clientFrame;
+
+    //! This is the 'extrapolated moment in time' value of the client's game state.
+    //! Always >= cl.serverTime and <= cl.serverTime + FRAMERATE_MS
+    int64_t extrapolatedTime;
+
+    //! We always extrapolate only a single frame ahead. Linear extrapolation fraction between cl.oldframe and cl.frame.
+    double  xerpFraction;
+
 
     /**
     *
@@ -469,6 +504,7 @@ typedef struct client_state_s {
         //! Refresh lightstyles.
         lightstyle_t    r_lightstyles[ MAX_LIGHTSTYLES ];
     } viewScene;
+
 
     /**
     *
@@ -509,10 +545,11 @@ typedef struct client_state_s {
     // Received pmove configuration.
     //pmoveParams_t pmp;
 
-    // Configstrings.
+    //! Configstrings.
     configstring_t baseconfigstrings[ MAX_CONFIGSTRINGS ];
     configstring_t configstrings[ MAX_CONFIGSTRINGS ];
-    char		mapname[ MAX_QPATH ]; // short format - q2dm1, etc
+    //! short format - q2dm1, etc.
+    char mapname[ MAX_QPATH ];
 
     //#if USE_AUTOREPLY // Removed ifdef for memory alignment consistency sake.
     uint64_t	reply_time;
@@ -549,18 +586,6 @@ typedef struct client_state_s {
     float	sv_frametime_inv;
     int64_t	sv_frametime;
     int64_t	sv_framediv;
-
-    // Data for view weapon
-    struct {
-        int64_t frame, last_frame;
-        int64_t server_time;
-
-        //qhandle_t muzzle_model;
-        //int32_t muzzle_time;
-        //float muzzle_roll, muzzle_scale;
-        //int32_t muzzle_skin;
-        //vec3_t muzzle_offset;
-    } weapon;
     // WID: 40hz
 } client_state_t;
 

@@ -131,8 +131,10 @@ time_t      com_startTime;
 cvar_t  *host_speeds;
 
 // host_speeds times
-uint64_t	time_before_game;
-uint64_t	time_after_game;
+uint64_t    time_before_clgame;
+uint64_t    time_after_clgame;
+uint64_t	time_before_svgame;
+uint64_t	time_after_svgame;
 uint64_t	time_before_ref;
 uint64_t	time_after_ref;
 #endif
@@ -1137,7 +1139,7 @@ void Qcommon_Frame(void)
         ev = time_event - time_before;
         sv = time_between - time_event;
         cl = time_after - time_between;
-        gm = time_after_game - time_before_game;
+        gm = time_after_svgame - time_before_svgame;
         rf = time_after_ref - time_before_ref;
         sv -= gm;
         cl -= rf;

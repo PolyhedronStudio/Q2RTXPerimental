@@ -31,7 +31,7 @@
 //        if ( model != NULL && model->meshes != NULL ) {
 //            entity_t entity = { 0 };
 //            entity.model = cl_testmodel_handle;
-//            entity.id = RESERVED_ENTITIY_TESTMODEL;
+//            entity.id = RENTITIY_RESERVED_TESTMODEL;
 //
 //            VectorCopy( cl_testmodel_position, entity.origin );
 //            VectorCopy( cl_testmodel_position, entity.oldorigin );
@@ -142,7 +142,7 @@ static void CLG_AddViewWeapon( void ) {
         return;
     }
 
-    gun.id = RESERVED_ENTITIY_GUN;
+    gun.id = RENTITIY_RESERVED_GUN;
 
     // set up gun position
     for ( i = 0; i < 3; i++ ) {

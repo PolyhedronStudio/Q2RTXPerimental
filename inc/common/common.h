@@ -174,8 +174,10 @@ extern cvar_t   *rcon_password;
 
 #if USE_CLIENT
 // host_speeds times
-extern uint64_t		time_before_game;
-extern uint64_t		time_after_game;
+extern uint64_t     time_before_clgame;
+extern uint64_t     time_after_clgame;
+extern uint64_t		time_before_svgame;
+extern uint64_t		time_after_svgame;
 extern uint64_t		time_before_ref;
 extern uint64_t		time_after_ref;
 #endif

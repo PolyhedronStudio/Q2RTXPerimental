@@ -326,19 +326,27 @@ void PF_InitGame( void ) {
 *	@brief
 **/
 void PF_ClearState( void ) {
-	// Reset the number of local entity models and sounds.
-	precache.numLocalModels = 0;
-	precache.numLocalSounds = 0;
+	// Reset the local precache paths.
+	precache.num_local_draw_models = 0;
+	memset( precache.model_paths, 0, MAX_MODELS * MAX_QPATH );
+	precache.num_local_sounds = 0;
+	memset( precache.sound_paths, 0, MAX_SOUNDS * MAX_QPATH );
 
-	// Actually reset the number of view models.
+	// Reset the number of view models.
 	precache.numViewModels = 0;
+	memset( precache.viewModels, 0, MAX_CLIENTVIEWMODELS * MAX_QPATH );
 
+	// Clear out local entities array.
+	memset( clg_local_entities, 0, sizeof( clg_local_entities ) );
 	// Clear out client entities array.
 	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
 
 	// Clear Temporary Entity FX and other Effects.
 	CLG_ClearTEnts();
 	CLG_ClearEffects();
+
+	// Clear out level locals.
+	level = {};
 }
 
 
@@ -365,14 +373,34 @@ void PF_ClientConnected( void ) {
 }
 
 /**
-*	@brief	Called when the client state has moved into being properly connected to server.
+*	@brief	Called when the client state has moved into a disconnected state, before ending
+*			the loading plague and starting to clear its state. (So it is still accessible.)
 **/
 void PF_ClientDisconnected( void ) {
 	// Clear chat HUD when disconnected.
 	SCR_ClearChatHUD_f();
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientDisconnected\n" );
 }
+/**
+*	@brief	Called to update the client's local game entities, it runs at the same framerate
+*			as the server game logic does.
+**/
+void PF_ClientLocalFrame( void ) {
+	// Increase the frame number we're in for this level..
+	level.framenum++;
+	// Increase the amount of time that has passed for this level.
+	level.time += FRAME_TIME_MS;
 
+	// Debug print.
+	//clgi.Print( PRINT_DEVELOPER, "%s: framenum(%ld), time(%ld)\n", 
+	//	__func__, level.framenum, level.time.milliseconds() );
+}
+/**
+*	@brief	Called at the rate equal to that of the refresh frames.
+**/
+void PF_ClientRefreshFrame( void ) {
+	//clgi.Print( PRINT_NOTICE, "%s\n", __func__ );
+}
 
 
 /**
@@ -427,9 +455,9 @@ const uint32_t PF_GetNumberOfViewModels( void ) {
 **/
 const char *PF_GetViewModelFilename( const uint32_t index ) {
 	if ( index >= 0 && index < MAX_CLIENTVIEWMODELS ) {
-		return "";
-	} else {
 		return precache.viewModels[ index ];
+	} else {
+		return "";
 	}
 }
 
@@ -462,6 +490,8 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ClientBegin = PF_ClientBegin;
 		globals.ClientConnected = PF_ClientConnected;
 		globals.ClientDisconnected = PF_ClientDisconnected;
+		globals.ClientLocalFrame = PF_ClientLocalFrame;
+		globals.ClientRefreshFrame = PF_ClientRefreshFrame;
 
 		globals.SpawnEntities = PF_SpawnEntities;
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;

@@ -24,14 +24,12 @@ typedef struct clg_misc_model_locals_s {
 	//! Actual model filename.
 	char modelname[ MAX_QPATH ];
 
-	//! Model frame.
-	int32_t frame;
-
-	//! Skin number.
-	int32_t skinNumber;
-
-	//! Model handle.
-	qhandle_t model;
+	////! Model frame.
+	//int32_t frame;
+	////! Skin number.
+	//int32_t skinNumber;
+	////! Model handle.
+	//qhandle_t model;
 } clg_misc_model_locals_t;
 
 

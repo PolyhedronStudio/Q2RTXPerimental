@@ -1653,14 +1653,14 @@ static void SV_RunGameFrame(void)
     // save the entire world state if recording a serverdemo
 #if USE_CLIENT
     if (host_speeds->integer)
-        time_before_game = Sys_Milliseconds();
+        time_before_svgame = Sys_Milliseconds();
 #endif
 
     ge->RunFrame();
 
 #if USE_CLIENT
     if (host_speeds->integer)
-        time_after_game = Sys_Milliseconds();
+        time_after_svgame = Sys_Milliseconds();
 #endif
 
     if (msg_write.cursize) {
@@ -1768,7 +1768,7 @@ Returns amount of extra frametime available for sleeping on IO.
 uint64_t SV_Frame(uint64_t msec)
 {
 #if USE_CLIENT
-    time_before_game = time_after_game = 0;
+    time_before_svgame = time_after_svgame = 0;
 #endif
 
     // advance local server time

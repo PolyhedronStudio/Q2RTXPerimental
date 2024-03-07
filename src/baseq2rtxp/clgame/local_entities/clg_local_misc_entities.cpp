@@ -30,37 +30,47 @@ void CLG_misc_model_Precache( clg_local_entity_t *self, const cm_entity_t *keyVa
 		if ( modelKv->parsed_type & cm_entity_parsed_type_t::ENTITY_STRING ) {
 			Q_strlcpy( classLocals->modelname, modelKv->string, MAX_QPATH);
 		} else {
-			classLocals->model = {};
+			memset( classLocals->modelname, 0, MAX_QPATH );
 		}
 	}
 
 	// Key/Value: 'frame':
 	if ( const cm_entity_t *frameKv = clgi.CM_EntityKeyValue( keyValues, "frame" ) ) {
 		if ( frameKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
-			classLocals->frame = frameKv->integer;
+			self->locals.frame = frameKv->integer;
 		} else {
-			classLocals->frame = 0;
+			self->locals.frame = 0;
 		}
 	}
 
 	// Key/Value: 'skin':
 	if ( const cm_entity_t *skinKv = clgi.CM_EntityKeyValue( keyValues, "skin" ) ) {
 		if ( skinKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
-			classLocals->skinNumber = skinKv->integer;
+			self->locals.skinNumber = skinKv->integer;
 		} else {
-			classLocals->skinNumber = 0;
+			self->locals.skinNumber = 0;
 		}
 	}
 
+	// Set up the modelname for precaching the model with.
+	if ( classLocals->modelname[ 0 ] != '\0' ) {
+		self->locals.modelindex = CLG_RegisterLocalModel( classLocals->modelname );
+	}
+
 	// DEBNUG PRINT:
-	clgi.Print( PRINT_DEVELOPER, "CLG_misc_model_Precache: model(%s), frame(%d), skin(%d)\n", classLocals->modelname, classLocals->frame, classLocals->skinNumber );
+	clgi.Print( PRINT_DEVELOPER, "CLG_misc_model_Precache: model(%s), local_draw_model_handle(%d) frame(%d), skin(%d)\n", classLocals->modelname, self->locals.modelindex, self->locals.frame, self->locals.skinNumber );
 }
 
 /**
 *	@brief	Sets up the local client model entity.
 **/
 void CLG_misc_model_Spawn( clg_local_entity_t *self ) {
-
+	// Setup appropriate mins, maxs, absmins, absmaxs, size
+	VectorCopy( self->locals.origin, self->locals.mins );
+	VectorCopy( self->locals.origin, self->locals.maxs );
+	VectorCopy( self->locals.origin, self->locals.absmax );
+	VectorCopy( self->locals.origin, self->locals.absmin );
+	VectorCopy( self->locals.origin, self->locals.size );
 }
 
 /**
@@ -113,6 +123,7 @@ void CLG_misc_te_Precache( clg_local_entity_t *self, const cm_entity_t *keyValue
 	}
 
 	// TODO: Other key values for Temp Event Entity.
+	self->locals.modelindex = -1;
 
 	// DEBNUG PRINT:
 	clgi.Print( PRINT_DEVELOPER, "CLG_misc_te_Precache: event(%d)\n", classLocals->teEvent );
