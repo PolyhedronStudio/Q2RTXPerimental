@@ -497,13 +497,13 @@ void PF_ClearMoveCommand( client_movecmd_t *moveCommand );
 typedef struct clg_local_entity_s clg_local_entity_t;
 
 //! 'Spawn' local entity class function pointer callback.
-typedef void ( *LocalEntity_Precache )( clg_local_entity_t *self, const cm_entity_t *keyValues );
+typedef void ( *LocalEntityCallback_Precache )( clg_local_entity_t *self, const cm_entity_t *keyValues );
 //! 'Spawn' local entity class function pointer callback.
-typedef void ( *LocalEntity_Spawn )( clg_local_entity_t *self );
+typedef void ( *LocalEntityCallback_Spawn )( clg_local_entity_t *self );
 //! 'Think' local entity class function pointer callback.
-typedef void ( *LocalEntity_Think )( clg_local_entity_t *self );
+typedef void ( *LocalEntityCallback_Think )( clg_local_entity_t *self );
 //! 'Refresh Frame' local entity class function pointer callback.
-typedef void ( *LocalEntity_RefreshFrame )( clg_local_entity_t *self );
+typedef void ( *LocalEntityCallback_RefreshFrame )( clg_local_entity_t *self );
 
 /**
 *	@brief	Describes the local entity's class type, default callbacks and the 
@@ -514,13 +514,13 @@ typedef struct clg_local_entity_class_s {
 	const char *classname;
 
 	//! The precache function, called during map load.
-	LocalEntity_Precache precache;
+	LocalEntityCallback_Precache precache;
 	//! The spawn function, called once during spawn time(When Begin_f() has finished.).
-	LocalEntity_Spawn spawn;
+	LocalEntityCallback_Spawn spawn;
 	//! The 'think' method gets called for each client game logic frame.
-	LocalEntity_Think think;
+	LocalEntityCallback_Think think;
 	//! The 'rframe' method gets called for each client refresh frame.
-	LocalEntity_RefreshFrame rframe;
+	LocalEntityCallback_RefreshFrame rframe;
 
 	//! The sizeof the class_data.
 	size_t class_locals_size;
@@ -543,14 +543,12 @@ typedef struct clg_local_entity_s {
 	//! Client game level time at which this entity was freed.
 	sg_time_t freetime;
 
-	//! The classname.
-	const char *classname;
 	//! Name of the model(if any).
 	const char *model;
 
 	//! Points right to the collision model's entity dictionary.
 	const cm_entity_t *entityDictionary;
-	//! A pointer to the entity's class specific data.
+	//! A pointer to the entity's 'classname type' specifics.
 	const clg_local_entity_class_t *entityClass;
 
 	struct {
@@ -566,20 +564,18 @@ typedef struct clg_local_entity_s {
 
 		//! Model/Sprite frame.
 		int32_t frame;
-		//! Model skin number.
+		//! Model/Sprite old frame.
+		int32_t oldframe;
+
+		//! Model skin.
+		int32_t skin;
+		//! Model skin index number.
 		int32_t skinNumber;
 		//! ModelIndex #1 handle.
 		qhandle_t modelindex;
 	} locals;
 
-	//! Precache callback.
-	//void ( *Precache )( clg_local_entity_t *self );
-	//! Spawn callback.
-	//void ( *Spawn )( clg_local_entity_t *self );
-	//! Think callback.
-	//void ( *Think )( clg_local_entity_t *self );
-
-	//! Will be allocated by precaching for storing classname type specific data.
+	//! Will be allocated by precaching for storing 'classname type' specific data.
 	void *classLocals;
 } clg_local_entity_t;
 
@@ -595,6 +591,29 @@ extern uint32_t clg_num_local_entities;
 **/
 void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 
+/**
+*	@return	The casted pointer to the entity's class type.
+**/
+template<typename T> auto CLG_LocalEntity_GetClass( clg_local_entity_t *self ) -> T* {
+	return static_cast<T*>( self->classLocals );
+}
+
+/**
+*	@brief	Calls the localClass 'Precache' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchPrecache( clg_local_entity_t *lent, const cm_entity_t *keyValues );
+/**
+*	@brief	Calls the localClass 'Spawn' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchSpawn( clg_local_entity_t *lent );
+/**
+*	@brief	Calls the localClass 'Think' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchThink( clg_local_entity_t *lent );
+//template<typename T, typename U>
+//auto add( const T &x, const U &y ) -> decltype( x + y ) {
+//	return x + y;
+//}
 
 /*
 *

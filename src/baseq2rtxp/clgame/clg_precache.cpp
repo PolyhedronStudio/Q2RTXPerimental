@@ -42,11 +42,11 @@ void PF_PrecacheClientSounds( void ) {
     precache.cl_sfx_disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
 
     // Iterate over the local sound path 'config' strings.
-    for ( int32_t i = 0; i < precache.num_local_sounds; i++ ) {
+    for ( int32_t i = 1; i < precache.num_local_sounds; i++ ) {
         // Ensure that its name is valid.
         const char *name = precache.model_paths[ i ];
         if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
-            precache.local_sounds[ i ] = 0; // TODO: should be -1?
+            precache.local_sounds[ i ] = 0;
             continue;
         }
 
@@ -91,9 +91,9 @@ void PF_PrecacheClientModels( void ) {
     // Iterate over the local model path 'config' strings.
     for ( int32_t i = 1; i <= precache.num_local_draw_models; i++ ) {
         // Ensure that its name is valid.
-        const char *name = precache.model_paths[ i  ];
+        const char *name = precache.model_paths[ i ];
         if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
-            precache.local_draw_models[ i ] = 0; // TODO: should be -1?
+            precache.local_draw_models[ i ] = 0;
             continue;
         }
 

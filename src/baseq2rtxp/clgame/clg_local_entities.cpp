@@ -26,6 +26,8 @@ uint32_t clg_num_local_entities = 0;
 const clg_local_entity_class_t *local_entity_classes[] = {
 	// "client_misc_model" - Model Decorating Entity.
 	&client_misc_model,
+	// "client_misc_playerholo" - Mirrors a client's entity model.
+	&client_misc_playerholo,
 	// "client_misc_te" - Temp Event Entity.
 	&client_misc_te,
 
@@ -47,7 +49,7 @@ const clg_local_entity_class_t *local_entity_classes[] = {
 **/
 const clg_local_entity_t *CLG_InitLocalEntity( clg_local_entity_t *lent ) {
 	lent->inuse = true;
-	lent->classname = "noclass";
+	//lent->classname = "noclass";
 	//lent->locals.gravity = 1.0f;
 	lent->id = lent - clg_local_entities;
 
@@ -60,7 +62,7 @@ const clg_local_entity_t *CLG_InitLocalEntity( clg_local_entity_t *lent ) {
 *			for a new entity using an identical slot, as well as storing the
 *			actual freed time. This'll prevent lerp issues etc.
 **/
-static void CLG_FreeLocalEntity( clg_local_entity_t *lent ) {
+static void CLG_LocalEntity_Free( clg_local_entity_t *lent ) {
 	if ( !lent ) {
 		return;
 	}
@@ -80,7 +82,7 @@ static void CLG_FreeLocalEntity( clg_local_entity_t *lent ) {
 		.inuse = false,
 		.freetime = level.time,
 
-		.classname = "freed",
+		//.classname = "freed",
 		.model = "",
 
 		.locals = { }
@@ -91,7 +93,7 @@ static void CLG_FreeLocalEntity( clg_local_entity_t *lent ) {
 *	@brief	Will always return a valid pointer to a free local entity slot, and
 *			errors out in case of no available slots to begin with.
 **/
-static clg_local_entity_t *CLG_AllocateLocalEntity() {
+static clg_local_entity_t *CLG_LocalEntity_Allocate() {
 	// Total iterations taken at finding a previously freed up slot.
 	int32_t i = 0;
 	
@@ -126,19 +128,36 @@ static clg_local_entity_t *CLG_AllocateLocalEntity() {
 void CLG_FreeLocalEntities() {
 	// Free local entities.
 	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
-		CLG_FreeLocalEntity( &clg_local_entities[ i ] );
+		CLG_LocalEntity_Free( &clg_local_entities[ i ] );
 	}
 
 	// Zero out the local entities array and reset number of local entities.
 	memset( clg_local_entities, 0, sizeof( clg_local_entities ) );
 	clg_num_local_entities = 0;
 }
+
 /**
-*	@brief	Looks up the local entities classname and calls upon its spawn function.
+*	@brief	Calls the localClass 'Precache' function pointer.
 **/
-static const bool CLG_SpawnLocalEntity( clg_local_entity_t *lent ) {
-	// Need a valid lent.
-	if ( !lent ) {
+const bool CLG_LocalEntity_DispatchPrecache( clg_local_entity_t *lent, const cm_entity_t *keyValues ) {
+	// Need a valid lent and class.
+	if ( !lent || !lent->classLocals ) {
+		return false;
+	}
+
+	// Spawn.
+	if ( lent->entityClass->precache ) {
+		lent->entityClass->precache( lent, keyValues );
+	}
+
+	return true;
+}
+/**
+*	@brief	Calls the localClass 'Spawn' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchSpawn( clg_local_entity_t *lent ) {
+	// Need a valid lent and class.
+	if ( !lent || !lent->classLocals ) {
 		return false;
 	}
 
@@ -150,9 +169,25 @@ static const bool CLG_SpawnLocalEntity( clg_local_entity_t *lent ) {
 	return true;
 }
 /**
+*	@brief	Calls the localClass 'Think' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchThink( clg_local_entity_t *lent ) {
+	// Need a valid lent and class.
+	if ( !lent || !lent->classLocals ) {
+		return false;
+	}
+
+	// Spawn.
+	if ( lent->entityClass->think ) {
+		lent->entityClass->think( lent );
+	}
+
+	return true;
+}
+/**
 *	@brief	Will do the key/value dictionary pair iteration for all 'classless/class irrelevant' entity locals variables.
 **/
-void CLG_ParseEntityLocals( clg_local_entity_t *lent, const cm_entity_t *keyValues ) {
+void CLG_LocalEntity_ParseLocals( clg_local_entity_t *lent, const cm_entity_t *keyValues ) {
 	// Origin:
 	if ( const cm_entity_t *originKv = clgi.CM_EntityKeyValue( keyValues, "origin" ) ) {
 		if ( originKv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
@@ -188,7 +223,7 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 	// Iterate over its entities.
 	for ( int32_t i = 0; i < numEntities; i++ ) {
 		// Try and allocate a new local entity.
-		clg_local_entity_t *localEntity = CLG_AllocateLocalEntity();
+		clg_local_entity_t *localEntity = CLG_LocalEntity_Allocate();
 
 		// Break if it is a nullptr, it indicates the limit has been reached.
 		if ( localEntity == nullptr ) {
@@ -207,7 +242,7 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 			// Debug print:
 			clgi.Print( PRINT_DEVELOPER, "%s: %s\n", __func__, "entity dictionary without classname found." );
 			// Free up the previously reserved slot, allowing a re-use.
-			CLG_FreeLocalEntity( localEntity );
+			CLG_LocalEntity_Free( localEntity );
 			// Continue iterating over the rest of the collision model entities.
 			continue;
 		} // if ( !strlen( entityClassname ) ...
@@ -222,7 +257,7 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 				// Debug print:
 				clgi.Print( PRINT_DEVELOPER, "%s: failed to find classType for classname '%s'\n", __func__, entityClassname );
 				// Free entity up.
-				CLG_FreeLocalEntity( localEntity );
+				CLG_LocalEntity_Free( localEntity );
 				break;
 			} // if ( classType ...
 
@@ -233,15 +268,13 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 				localEntity->entityDictionary = edict;
 
 				// Iterate and parse the dictionary for the entity's local member key/values data.
-				CLG_ParseEntityLocals( localEntity, localEntity->entityDictionary );
+				CLG_LocalEntity_ParseLocals( localEntity, localEntity->entityDictionary );
 
 				// Allocate the classLocals memory.
 				localEntity->classLocals = clgi.TagMalloc( classType->class_locals_size, TAG_CLGAME_LEVEL );
-				
-				if ( localEntity->entityClass && localEntity->entityClass->precache ) {
-					// Call upon the entity's class precache method.
-					localEntity->entityClass->precache( localEntity, localEntity->entityDictionary );
-				}
+
+				// Dispatch precache callback.
+				CLG_LocalEntity_DispatchPrecache( localEntity, localEntity->entityDictionary );
 
 				// Break out of the local entity classes type loop.
 				break;
@@ -252,15 +285,12 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 
 	} // for ( int32_t i = 0; i < numEntities; i++ ) {
 
-	// Now that all entities have been precached properly, call their spawn functions.
+	// Now that all entities have been precached properly, dispatch their spawn callback functions.
 	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
 		// Get local entity ptr
 		clg_local_entity_t *localEntity = &clg_local_entities[ i ];
-
-		// Make sure it has an entity class.
-		if ( localEntity->entityClass && localEntity->entityClass->spawn ) {
-			localEntity->entityClass->spawn( localEntity );
-		} // if ( localEntity->entityClass && localEntity->entityClass->spawn ) {
+		// Dispatch spawn.
+		CLG_LocalEntity_DispatchSpawn( localEntity );
 	} // for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
 }
 
@@ -299,24 +329,44 @@ void CLG_AddLocalEntities( void ) {
 		VectorCopy( lent->locals.angles, rent.angles );
 
 		// Copy model information.
-		if ( lent->locals.modelindex ) {
+		if ( lent->locals.modelindex == MODELINDEX_PLAYER ) {
+			rent.model = clgi.client->baseclientinfo.model;
+			rent.skin = clgi.client->baseclientinfo.skin;
+			rent.skinnum = 0;
+		} else if ( lent->locals.modelindex ) {
 			rent.model = precache.local_draw_models[ lent->locals.modelindex ];
+			// Copy skin information.
+			rent.skin = 0; // inline skin, -1 would use rgba.
+			rent.skinnum = lent->locals.skinNumber;
 		} else {
 			rent.model = 0;
+			rent.skin = 0; // inline skin, -1 would use rgba.
+			rent.skinnum = 0;
 		}
-
-		// Copy skin information.
-		rent.skin = 0; // inline skin, -1 would use rgba.
-		rent.skinnum = lent->locals.skinNumber;
 		rent.rgba.u32 = MakeColor( 255, 255, 255, 255 );
+
 		// Copy general render properties.
 		rent.alpha = 1.0f;
 		rent.scale = 1.0f;
 
 		// Copy animation data.
-		rent.frame = lent->locals.frame;
-		rent.oldframe = rent.frame;
-		rent.backlerp = 1.0f - clgi.client->lerpfrac;
+		if ( lent->locals.modelindex == MODELINDEX_PLAYER ) {
+			auto *lentClass = CLG_LocalEntity_GetClass<clg_misc_playerholo_locals_t>( lent );
+			// Calculate back lerpfraction. (10hz.)
+			rent.backlerp = 1.0f - ( ( clgi.client->time - ( (float)lentClass->frame_servertime - BASE_FRAMETIME ) ) / 100.f );
+			clamp( rent.backlerp, 0.0f, 1.0f );
+			rent.frame = lent->locals.frame;
+			rent.oldframe = lent->locals.oldframe;
+
+			// Add entity
+			clgi.V_AddEntity( &rent );
+
+			// Now prepare its weapon entity, to be added later on also.
+			rent.model = clgi.client->baseclientinfo.weaponmodel[ 0 ]; //clgi.R_RegisterModel( "players/male/weapon.md2" );
+		} else {
+			rent.frame = lent->locals.frame;
+			rent.oldframe = lent->locals.oldframe;
+		}
 		
 		// Add it to the view.
 		clgi.V_AddEntity( &rent );

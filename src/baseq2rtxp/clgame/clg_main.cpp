@@ -391,6 +391,16 @@ void PF_ClientLocalFrame( void ) {
 	// Increase the amount of time that has passed for this level.
 	level.time += FRAME_TIME_MS;
 
+	// Let all local entities think
+	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
+		clg_local_entity_t *lent = &clg_local_entities[ i ];
+
+		if ( !lent || !lent->inuse || !lent->classLocals ) {
+			continue;
+		}
+
+		CLG_LocalEntity_DispatchThink( lent );
+	}
 	// Debug print.
 	//clgi.Print( PRINT_DEVELOPER, "%s: framenum(%ld), time(%ld)\n", 
 	//	__func__, level.framenum, level.time.milliseconds() );
