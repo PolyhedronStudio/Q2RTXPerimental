@@ -55,6 +55,8 @@ void CLG_misc_model_Precache( clg_local_entity_t *self, const cm_entity_t *keyVa
 	// Set up the modelname for precaching the model with.
 	if ( classLocals->modelname[ 0 ] != '\0' ) {
 		self->locals.modelindex = CLG_RegisterLocalModel( classLocals->modelname );
+	} else {
+		clgi.Print( PRINT_DEVELOPER, "%s: empty 'model' field. Unable to register local entity model.\n", __func__ );
 	}
 
 	// DEBNUG PRINT:

@@ -89,9 +89,9 @@ void PF_PrecacheClientModels( void ) {
     }
 
     // Iterate over the local model path 'config' strings.
-    for ( int32_t i = 0; i < precache.num_local_draw_models; i++ ) {
+    for ( int32_t i = 1; i <= precache.num_local_draw_models; i++ ) {
         // Ensure that its name is valid.
-        const char *name = precache.model_paths[ i ];
+        const char *name = precache.model_paths[ i  ];
         if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
             precache.local_draw_models[ i ] = 0; // TODO: should be -1?
             continue;
@@ -247,24 +247,27 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
 *   @return -1 on failure, otherwise a handle to the model index of the precache.local_models array.
 **/
 const qhandle_t CLG_RegisterLocalModel( const char *name ) {
-    // Throw it into the localModelPaths array.
-    if ( precache.num_local_draw_models >= MAX_MODELS ) {
-        clgi.Error( "%s: num_local_draw_models > MAX_MODELS!\n", __func__ );
-        return -1;
+    // Make sure name isn't empty.
+    if ( !name || name[0] == 0 || name[0] == '\0' || strlen(name) == 0 ) {
+        clgi.Print( PRINT_WARNING, "%s: empty model name detected!\n", __func__ );
+        return 0;
     }
 
-    // Make sure name isn't empty.
-    if ( !name || name[0] == 0 || strlen( name ) == 0 ) {
-        clgi.Print( PRINT_WARNING, "%s: empty model name detected!\n", __func__ );
-        return -1;
+    // Increment here directly, the 0 indexed value of model_paths
+    // will always be an empty string, it is left unused so we can
+    // deal with modelindex == 0 being a non visible model.
+    const int32_t index = precache.num_local_draw_models += 1;
+
+    // Throw it into the localModelPaths array.
+    if ( precache.num_local_draw_models >= MAX_MODELS ) {
+        clgi.Error( "%s: num_local_draw_models >= MAX_MODELS!\n", __func__ );
+        return 0;
     }
 
     // Copy the model name inside the next model_paths slot.
-    Q_strlcpy( precache.model_paths[ precache.num_local_draw_models ], name, MAX_QPATH );
+    Q_strlcpy( precache.model_paths[ index ], name, MAX_QPATH );
 
     // Success.
-    const int32_t index = precache.num_local_draw_models;
-    precache.num_local_draw_models += 1;
     return index;
 }
 
@@ -273,20 +276,26 @@ const qhandle_t CLG_RegisterLocalModel( const char *name ) {
 *   @return -1 on failure, otherwise a handle to the sounds index of the precache.local_sounds array.
 **/
 const qhandle_t CLG_RegisterLocalSound( const char *name ) {
-    // Throw it into the localSoundPaths array.
-    if ( precache.num_local_sounds >= MAX_SOUNDS ) {
-        clgi.Error( "%s: num_local_sounds > MAX_SOUNDS!\n", __func__ );
-        return -1;
+    // Make sure name isn't empty.
+    if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' || strlen( name ) == 0 ) {
+        clgi.Print( PRINT_WARNING, "%s: empty sound name detected!\n", __func__ );
+        return 0;
     }
 
-    // Make sure name isn't empty.
-    if ( !name || name[ 0 ] == 0 || strlen( name ) == 0 ) {
-        clgi.Print( PRINT_WARNING, "%s: empty sound name detected!\n", __func__ );
-        return -1;
+    // Increment here directly, the 0 indexed value of sound_paths
+    // will always be an empty string, it is left unused so we can
+    // deal with sound == 0 being a non visible model.
+    const int32_t index = precache.num_local_sounds += 1;
+
+    // Throw it into the localSoundPaths array.
+    if ( precache.num_local_sounds >= MAX_SOUNDS ) {
+        clgi.Error( "%s: num_local_sounds >= MAX_SOUNDS!\n", __func__ );
+        return 0;
     }
 
     // Copy the model name inside the next sound_paths slot.
-    Q_strlcpy( precache.sound_paths[ precache.num_local_sounds++ ], name, MAX_QPATH );
+    Q_strlcpy( precache.sound_paths[ index ], name, MAX_QPATH );
+
     // Success.
-    return precache.num_local_sounds;
+    return index;
 }

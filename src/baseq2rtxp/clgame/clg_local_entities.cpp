@@ -299,7 +299,7 @@ void CLG_AddLocalEntities( void ) {
 		VectorCopy( lent->locals.angles, rent.angles );
 
 		// Copy model information.
-		if ( lent->locals.modelindex != -1 ) {
+		if ( lent->locals.modelindex ) {
 			rent.model = precache.local_draw_models[ lent->locals.modelindex ];
 		} else {
 			rent.model = 0;
