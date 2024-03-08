@@ -185,6 +185,38 @@ const bool CLG_LocalEntity_DispatchThink( clg_local_entity_t *lent ) {
 	return true;
 }
 /**
+*	@brief	Calls the localClass 'RefreshFrame' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchRefreshFrame( clg_local_entity_t *lent ) {
+	// Need a valid lent and class.
+	if ( !lent || !lent->classLocals ) {
+		return false;
+	}
+
+	// Spawn.
+	if ( lent->entityClass->rframe) {
+		lent->entityClass->rframe( lent );
+	}
+
+	return true;
+}
+/**
+*	@brief	Calls the localClass 'RefreshFrame' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchPrepareRefreshEntity( clg_local_entity_t *lent ) {
+	// Need a valid lent and class.
+	if ( !lent || !lent->classLocals ) {
+		return false;
+	}
+
+	// Spawn.
+	if ( lent->entityClass->prepareRefreshEntity ) {
+		lent->entityClass->prepareRefreshEntity( lent );
+	}
+
+	return true;
+}
+/**
 *	@brief	Will do the key/value dictionary pair iteration for all 'classless/class irrelevant' entity locals variables.
 **/
 void CLG_LocalEntity_ParseLocals( clg_local_entity_t *lent, const cm_entity_t *keyValues ) {
@@ -312,63 +344,68 @@ void CLG_AddLocalEntities( void ) {
 		// Pointer to local entity.
 		clg_local_entity_t *lent = &clg_local_entities[ i ];
 
+		// Get its class locals.
+		CLG_LocalEntity_DispatchPrepareRefreshEntity( lent );
+
 		// We need a model index otherwise there is nothing to render.
 		//if ( !lent->locals.modelindex ) {
 		//	continue;
 		//}
 
-		// Clean slate refresh entity.
-		entity_t rent = {};
+		//// Clean slate refresh entity.
+		//entity_t rent = {};
 
-		// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
-		rent.id = RENTITIY_OFFSET_LOCALENTITIES + lent->id;
+		//// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
+		//rent.id = RENTITIY_OFFSET_LOCALENTITIES + lent->id;
 
-		// Copy spatial information over into the refresh entity.
-		VectorCopy( lent->locals.origin, rent.origin );
-		VectorCopy( lent->locals.origin, rent.oldorigin );
-		VectorCopy( lent->locals.angles, rent.angles );
+		//// Copy spatial information over into the refresh entity.
+		//VectorCopy( lent->locals.origin, rent.origin );
+		//VectorCopy( lent->locals.origin, rent.oldorigin );
+		//VectorCopy( lent->locals.angles, rent.angles );
 
-		// Copy model information.
-		if ( lent->locals.modelindex == MODELINDEX_PLAYER ) {
-			rent.model = clgi.client->baseclientinfo.model;
-			rent.skin = clgi.client->baseclientinfo.skin;
-			rent.skinnum = 0;
-		} else if ( lent->locals.modelindex ) {
-			rent.model = precache.local_draw_models[ lent->locals.modelindex ];
-			// Copy skin information.
-			rent.skin = 0; // inline skin, -1 would use rgba.
-			rent.skinnum = lent->locals.skinNumber;
-		} else {
-			rent.model = 0;
-			rent.skin = 0; // inline skin, -1 would use rgba.
-			rent.skinnum = 0;
-		}
-		rent.rgba.u32 = MakeColor( 255, 255, 255, 255 );
+		//// Copy model information.
+		//if ( lent->locals.modelindex == MODELINDEX_PLAYER ) {
+		//	rent.model = clgi.client->baseclientinfo.model;
+		//	rent.skin = clgi.client->baseclientinfo.skin;
+		//	rent.skinnum = 0;
+		//	clgi.Print( PRINT_DEVELOPER, "%s: model(%d), skin(%d), skinnum(%d)\n", __func__, rent.model, rent.skin, rent.skinnum );
+		//} else if ( lent->locals.modelindex ) {
+		//	rent.model = precache.local_draw_models[ lent->locals.modelindex ];
+		//	// Copy skin information.
+		//	rent.skin = 0; // inline skin, -1 would use rgba.
+		//	rent.skinnum = lent->locals.skinNumber;
+		//} else {
+		//	rent.model = 0;
+		//	rent.skin = 0; // inline skin, -1 would use rgba.
+		//	rent.skinnum = 0;
+		//}
+		//rent.rgba.u32 = MakeColor( 255, 255, 255, 255 );
 
-		// Copy general render properties.
-		rent.alpha = 1.0f;
-		rent.scale = 1.0f;
+		//// Copy general render properties.
+		//rent.alpha = 1.0f;
+		//rent.scale = 1.0f;
 
-		// Copy animation data.
-		if ( lent->locals.modelindex == MODELINDEX_PLAYER ) {
-			auto *lentClass = CLG_LocalEntity_GetClass<clg_misc_playerholo_locals_t>( lent );
-			// Calculate back lerpfraction. (10hz.)
-			rent.backlerp = 1.0f - ( ( clgi.client->time - ( (float)lentClass->frame_servertime - BASE_FRAMETIME ) ) / 100.f );
-			clamp( rent.backlerp, 0.0f, 1.0f );
-			rent.frame = lent->locals.frame;
-			rent.oldframe = lent->locals.oldframe;
+		//// Copy animation data.
+		//if ( lent->locals.modelindex == MODELINDEX_PLAYER ) {
+		//	auto *lentClass = CLG_LocalEntity_GetClass<clg_misc_playerholo_locals_t>( lent );
+		//	// Calculate back lerpfraction. (10hz.)
+		//	rent.backlerp = 1.0f - ( ( clgi.client->time - ( (float)lentClass->frame_servertime - BASE_FRAMETIME ) ) / 100.f );
+		//	clamp( rent.backlerp, 0.0f, 1.0f );
+		//	rent.frame = lent->locals.frame;
+		//	rent.oldframe = lent->locals.oldframe;
 
-			// Add entity
-			clgi.V_AddEntity( &rent );
+		//	// Add entity
+		//	clgi.V_AddEntity( &rent );
 
-			// Now prepare its weapon entity, to be added later on also.
-			rent.model = clgi.client->baseclientinfo.weaponmodel[ 0 ]; //clgi.R_RegisterModel( "players/male/weapon.md2" );
-		} else {
-			rent.frame = lent->locals.frame;
-			rent.oldframe = lent->locals.oldframe;
-		}
-		
-		// Add it to the view.
-		clgi.V_AddEntity( &rent );
+		//	// Now prepare its weapon entity, to be added later on also.
+		//	rent.skin = 0;
+		//	rent.model = clgi.client->baseclientinfo.weaponmodel[ 0 ]; //clgi.R_RegisterModel( "players/male/weapon.md2" );
+		//} else {
+		//	rent.frame = lent->locals.frame;
+		//	rent.oldframe = lent->locals.oldframe;
+		//}
+		//
+		//// Add it to the view.
+		//clgi.V_AddEntity( &rent );
 	}
 }

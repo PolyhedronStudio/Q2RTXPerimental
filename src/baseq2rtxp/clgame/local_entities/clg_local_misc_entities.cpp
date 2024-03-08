@@ -89,6 +89,62 @@ void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
 
 }
 
+/**
+*	@brief	Gives the chance to prepare and add a 'refresh entity' for this client local's frame view.
+**/
+void CLG_misc_model_PrepareRefreshEntity( clg_local_entity_t *self ) {
+	// Clean slate refresh entity.
+	entity_t rent = {};
+
+	// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
+	rent.id = RENTITIY_OFFSET_LOCALENTITIES + self->id;
+
+	// Copy spatial information over into the refresh entity.
+	VectorCopy( self->locals.origin, rent.origin );
+	VectorCopy( self->locals.origin, rent.oldorigin );
+	VectorCopy( self->locals.angles, rent.angles );
+
+	// Copy model information.
+	if ( self->locals.modelindex ) {
+		rent.model = precache.local_draw_models[ self->locals.modelindex ];
+		// Copy skin information.
+		rent.skin = 0; // inline skin, -1 would use rgba.
+		rent.skinnum = self->locals.skinNumber;
+	} else {
+		rent.model = 0;
+		rent.skin = 0; // inline skin, -1 would use rgba.
+		rent.skinnum = 0;
+	}
+	rent.rgba.u32 = MakeColor( 255, 255, 255, 255 );
+
+	// Copy general render properties.
+	rent.alpha = 1.0f;
+	rent.scale = 1.0f;
+
+	//// Copy animation data.
+	//if ( self->locals.modelindex == MODELINDEX_PLAYER ) {
+	//	auto *lentClass = CLG_LocalEntity_GetClass<clg_misc_playerholo_locals_t>( self );
+	//	// Calculate back lerpfraction. (10hz.)
+	//	rent.backlerp = 1.0f - ( ( clgi.client->time - ( (float)lentClass->frame_servertime - BASE_FRAMETIME ) ) / 100.f );
+	//	clamp( rent.backlerp, 0.0f, 1.0f );
+	//	rent.frame = self->locals.frame;
+	//	rent.oldframe = self->locals.oldframe;
+
+	//	// Add entity
+	//	clgi.V_AddEntity( &rent );
+
+	//	// Now prepare its weapon entity, to be added later on also.
+	//	rent.skin = 0;
+	//	rent.model = clgi.client->baseclientinfo.weaponmodel[ 0 ]; //clgi.R_RegisterModel( "players/male/weapon.md2" );
+	//} else {
+		rent.frame = self->locals.frame;
+		rent.oldframe = self->locals.oldframe;
+	//}
+
+	// Add it to the view.
+	clgi.V_AddEntity( &rent );
+}
+
 // Class definition.
 const clg_local_entity_class_t client_misc_model = {
 	.classname = "client_misc_model",
@@ -96,6 +152,7 @@ const clg_local_entity_class_t client_misc_model = {
 	.spawn = CLG_misc_model_Spawn,
 	.think = CLG_misc_model_Think,
 	.rframe = CLG_misc_model_RefreshFrame,
+	.prepareRefreshEntity = CLG_misc_model_PrepareRefreshEntity,
 	.class_locals_size = sizeof( clg_misc_model_locals_t )
 };
 
@@ -149,7 +206,12 @@ void CLG_misc_te_Think( clg_local_entity_t *self ) {
 void CLG_misc_te_RefreshFrame( clg_local_entity_t *self ) {
 
 }
+/**
+*	@brief	Gives the chance to prepare and add a 'refresh entity' for this client local's frame view.
+**/
+void CLG_misc_te_PrepareRefreshEntity( clg_local_entity_t *self ) {
 
+}
 
 // Class definition.
 const clg_local_entity_class_t client_misc_te = {
@@ -158,6 +220,7 @@ const clg_local_entity_class_t client_misc_te = {
 	.spawn = CLG_misc_te_Spawn,
 	.think = CLG_misc_te_Think,
 	.rframe = CLG_misc_te_RefreshFrame,
+	.prepareRefreshEntity = CLG_misc_te_PrepareRefreshEntity,
 	.class_locals_size = sizeof( clg_misc_te_locals_t )
 };
 
@@ -206,7 +269,7 @@ void CLG_misc_playerholo_Precache( clg_local_entity_t *self, const cm_entity_t *
 
 	// Set up the modelname for precaching the model with.
 	self->locals.modelindex = MODELINDEX_PLAYER;// CLG_RegisterLocalModel( self->model );
-	self->locals.skin = clgi.R_RegisterSkin( "models/playerholo/skin.pcx" );
+	self->locals.skin = 0; //clgi.R_RegisterSkin( "models/playerholo/skin.pcx" );
 	self->locals.skinNumber = 0;
 
 	//if ( self->model && self->model[ 0 ] != '\0' ) {
@@ -259,6 +322,50 @@ void CLG_misc_playerholo_RefreshFrame( clg_local_entity_t *self ) {
 
 }
 
+/**
+*	@brief	Gives the chance to prepare and add a 'refresh entity' for this client local's frame view.
+**/
+void CLG_misc_playerholo_PrepareRefreshEntity( clg_local_entity_t *self ) {
+	// Get class.
+	auto *selfClass = CLG_LocalEntity_GetClass<clg_misc_playerholo_locals_t>( self );
+
+	// Clean slate refresh entity.
+	entity_t rent = {};
+
+	// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
+	rent.id = RENTITIY_OFFSET_LOCALENTITIES + self->id;
+
+	// Copy spatial information over into the refresh entity.
+	VectorCopy( self->locals.origin, rent.origin );
+	VectorCopy( self->locals.origin, rent.oldorigin );
+	VectorCopy( self->locals.angles, rent.angles );
+
+	// Copy model information.
+	rent.model = clgi.client->clientinfo[ selfClass->clientNumber ].model;
+	rent.skin = clgi.client->clientinfo[ selfClass->clientNumber ].skin;
+	rent.skinnum = 0;
+	rent.rgba.u32 = MakeColor( 255, 255, 255, 255 );
+
+	// Copy general render properties.
+	rent.alpha = 1.0f;
+	rent.scale = 1.0f;
+
+	// Calculate back lerpfraction. (10hz.)
+	rent.backlerp = 1.0f - ( ( clgi.client->time - ( (float)selfClass->frame_servertime - BASE_FRAMETIME ) ) / 100.f );
+	clamp( rent.backlerp, 0.0f, 1.0f );
+	rent.frame = self->locals.frame;
+	rent.oldframe = self->locals.oldframe;
+
+	// Add entity
+	clgi.V_AddEntity( &rent );
+
+	// Now prepare its weapon entity, to be added later on also.
+	rent.skin = 0;
+	rent.model = clgi.client->baseclientinfo.weaponmodel[ 0 ]; //clgi.R_RegisterModel( "players/male/weapon.md2" );
+	// Add it to the view.
+	clgi.V_AddEntity( &rent );
+}
+
 // Class definition.
 const clg_local_entity_class_t client_misc_playerholo = {
 	.classname = "client_misc_playerholo",
@@ -266,5 +373,6 @@ const clg_local_entity_class_t client_misc_playerholo = {
 	.spawn = CLG_misc_playerholo_Spawn,
 	.think = CLG_misc_playerholo_Think,
 	.rframe = CLG_misc_playerholo_RefreshFrame,
+	.prepareRefreshEntity = CLG_misc_playerholo_PrepareRefreshEntity,
 	.class_locals_size = sizeof( clg_misc_playerholo_locals_t )
 };

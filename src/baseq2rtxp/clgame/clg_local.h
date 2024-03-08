@@ -496,14 +496,23 @@ void PF_ClearMoveCommand( client_movecmd_t *moveCommand );
 // Predeclare, defined a little later.
 typedef struct clg_local_entity_s clg_local_entity_t;
 
-//! 'Spawn' local entity class function pointer callback.
+//! 'Precache' local entity class function pointer callback.
+//! Used to parse the entity dictionary, apply values, and
+//! precache any required render/sound data.
 typedef void ( *LocalEntityCallback_Precache )( clg_local_entity_t *self, const cm_entity_t *keyValues );
 //! 'Spawn' local entity class function pointer callback.
+//! Called to spawn(prepare) the entity for gameplay.
 typedef void ( *LocalEntityCallback_Spawn )( clg_local_entity_t *self );
 //! 'Think' local entity class function pointer callback.
+//! Used for game tick rate logic.
 typedef void ( *LocalEntityCallback_Think )( clg_local_entity_t *self );
 //! 'Refresh Frame' local entity class function pointer callback.
+//! Used for effects updating.
 typedef void ( *LocalEntityCallback_RefreshFrame )( clg_local_entity_t *self );
+//! 'Prepare Refresh Entity' local entity class function pointer callback.
+//! Used to setup a refresh entity for the client's current frame.
+typedef void ( *LocalEntityCallback_PrepareRefreshEntity)( clg_local_entity_t *self );
+
 
 /**
 *	@brief	Describes the local entity's class type, default callbacks and the 
@@ -521,6 +530,9 @@ typedef struct clg_local_entity_class_s {
 	LocalEntityCallback_Think think;
 	//! The 'rframe' method gets called for each client refresh frame.
 	LocalEntityCallback_RefreshFrame rframe;
+	//! The 'prepare refresh entity' method gets called each time the current
+	//! scene to be rendered needs to be setup.
+	LocalEntityCallback_PrepareRefreshEntity prepareRefreshEntity;
 
 	//! The sizeof the class_data.
 	size_t class_locals_size;
@@ -610,6 +622,15 @@ const bool CLG_LocalEntity_DispatchSpawn( clg_local_entity_t *lent );
 *	@brief	Calls the localClass 'Think' function pointer.
 **/
 const bool CLG_LocalEntity_DispatchThink( clg_local_entity_t *lent );
+/**
+*	@brief	Calls the localClass 'RefreshFrame' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchRefreshFrame( clg_local_entity_t *lent );
+/**
+*	@brief	Calls the localClass 'RefreshFrame' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchPrepareRefreshEntity( clg_local_entity_t *lent );
+
 //template<typename T, typename U>
 //auto add( const T &x, const U &y ) -> decltype( x + y ) {
 //	return x + y;
