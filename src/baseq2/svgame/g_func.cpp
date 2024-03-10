@@ -334,8 +334,8 @@ void Think_AccelMove(edict_t *ent)
         return;
     }
 
-    VectorScale(ent->moveinfo.dir, ent->moveinfo.current_speed * 40, ent->velocity);
-	ent->nextthink = level.time + 40_hz;
+    VectorScale(ent->moveinfo.dir, ent->moveinfo.current_speed * 10, ent->velocity);
+	ent->nextthink = level.time + 10_hz;
 
     ent->think = Think_AccelMove;
 }

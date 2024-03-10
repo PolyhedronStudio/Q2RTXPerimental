@@ -757,14 +757,16 @@ typedef struct {
 
 	/**
 	*	@brief	Used for the client in a scenario where it might have to download view models.
-	*	@return	The number of view models.
+	*	@return	The number of precached view models.
 	**/
 	const uint32_t ( *GetNumberOfViewModels )( void );
 	/**
 	*	@brief	Used for the client in a scenario where it might have to download view models.
-	*	@return	The filename of the view model matching index.
+	*	@return	The filename of the precached view model that has the matching index.
 	**/
 	const char *( *GetViewModelFilename )( const uint32_t index );
+
+
 
 	/**
 	*

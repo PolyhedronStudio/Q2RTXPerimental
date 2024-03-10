@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "clg_local.h"
+#include "clg_predict.h"
 
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.

@@ -22,15 +22,8 @@ extern const clg_local_entity_class_t *local_entity_classes[];
 extern const clg_local_entity_class_t client_misc_model;
 //! Class locals for: client_misc_model 
 typedef struct clg_misc_model_locals_s {
-	//! Actual model filename.
-	//char modelname[ MAX_QPATH ];
-
-	////! Model frame.
-	//int32_t frame;
-	////! Skin number.
-	//int32_t skinNumber;
-	////! Model handle.
-	//qhandle_t model;
+	//! Time at which the frame is at on the server.
+	uint64_t frame_servertime;
 } clg_misc_model_locals_t;
 
 
@@ -65,5 +58,6 @@ typedef struct clg_misc_playerholo_locals_s {
 	//! Client to mirror. (Disabled, for now, we take the player himself.)
 	int32_t clientNumber;
 
+	//! Time at which the frame is at on the server.
 	uint64_t frame_servertime;
 } clg_misc_playerholo_locals_t;

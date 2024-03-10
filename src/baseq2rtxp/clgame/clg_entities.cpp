@@ -6,7 +6,7 @@
 *
 ********************************************************************/
 #include "clg_local.h"
-
+#include "clg_entities.h"
 
 /**
 *   @brief  For debugging problems when out-of-date entity origin is referenced.

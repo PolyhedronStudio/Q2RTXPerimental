@@ -6,18 +6,18 @@
 *
 ********************************************************************/
 #include "../clg_local.h"
-
+#include "../clg_effects.h"
 
 #define MAX_SUSTAINS    32
 
-static cl_sustain_t     clg_sustains[ MAX_SUSTAINS ];
+static clg_sustain_t     clg_sustains[ MAX_SUSTAINS ];
 
 void CLG_ClearSustains( void ) {
     memset( clg_sustains, 0, sizeof( clg_sustains ) );
 }
 
-cl_sustain_t *CLG_AllocSustain( void ) {
-    cl_sustain_t *s;
+clg_sustain_t *CLG_AllocSustain( void ) {
+    clg_sustain_t *s;
     int             i;
 
     for ( i = 0, s = clg_sustains; i < MAX_SUSTAINS; i++, s++ ) {
@@ -29,7 +29,7 @@ cl_sustain_t *CLG_AllocSustain( void ) {
 }
 
 void CLG_ProcessSustain( void ) {
-    cl_sustain_t *s;
+    clg_sustain_t *s;
     int             i;
 
     for ( i = 0, s = clg_sustains; i < MAX_SUSTAINS; i++, s++ ) {
@@ -43,7 +43,7 @@ void CLG_ProcessSustain( void ) {
 }
 
 void CLG_ParseSteam( void ) {
-    cl_sustain_t *s;
+    clg_sustain_t *s;
 
     if ( level.parsedMessage.events.tempEntity.entity1 == -1 ) {
         CLG_ParticleSteamEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color & 0xff, level.parsedMessage.events.tempEntity.count, level.parsedMessage.events.tempEntity.entity2 );
@@ -66,7 +66,7 @@ void CLG_ParseSteam( void ) {
 }
 
 void CLG_ParseWidow( void ) {
-    cl_sustain_t *s;
+    clg_sustain_t *s;
 
     s = CLG_AllocSustain();
     if ( !s )
@@ -80,7 +80,7 @@ void CLG_ParseWidow( void ) {
 }
 
 void CLG_ParseNuke( void ) {
-    cl_sustain_t *s;
+    clg_sustain_t *s;
 
     s = CLG_AllocSustain();
     if ( !s )

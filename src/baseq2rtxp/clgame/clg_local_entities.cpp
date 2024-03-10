@@ -6,8 +6,8 @@
 *
 ********************************************************************/
 #include "clg_local.h"
-
-#include "local_entities/clg_local_entities.h"
+#include "clg_local_entities.h"
+#include "local_entities/clg_local_entity_classes.h"
 
 
 /**
@@ -81,7 +81,7 @@ static void CLG_LocalEntity_Free( clg_local_entity_t *lent ) {
 		.spawn_count = spawn_count,
 		.inuse = false,
 		.freetime = level.time,
-
+		.nextthink = 0_ms,
 		//.classname = "freed",
 		.model = "",
 
@@ -217,9 +217,17 @@ const bool CLG_LocalEntity_DispatchPrepareRefreshEntity( clg_local_entity_t *len
 	return true;
 }
 /**
-*	@brief	Will do the key/value dictionary pair iteration for all 'classless/class irrelevant' entity locals variables.
+*	@brief	Executed by default for each local entity during SpawnEntities. Will do the key/value dictionary pair 
+*			iteration for all entity and entity locals variables. Excluding the class specifics.
 **/
 void CLG_LocalEntity_ParseLocals( clg_local_entity_t *lent, const cm_entity_t *keyValues ) {
+	// Spawnflags:
+	if ( const cm_entity_t *originKv = clgi.CM_EntityKeyValue( keyValues, "spawnflags" ) ) {
+		if ( originKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+			lent->spawnflags = originKv->integer;
+		}
+	}
+
 	// Origin:
 	if ( const cm_entity_t *originKv = clgi.CM_EntityKeyValue( keyValues, "origin" ) ) {
 		if ( originKv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
@@ -247,7 +255,7 @@ void CLG_LocalEntity_ParseLocals( clg_local_entity_t *lent, const cm_entity_t *k
 **/
 void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities ) {
 	// Notify.
-	clgi.Print( PRINT_NOTICE, "ClientGame: PF_SpawnEntities!\n" );
+	clgi.Print( PRINT_NOTICE, "ClientGame: %s\n", __func__ );
 
 	// Be sure to clear any previous entities that might still be out there.
 	CLG_FreeLocalEntities();
@@ -341,8 +349,13 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 void CLG_AddLocalEntities( void ) {
 	// Iterate over all entities.
 	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
-		// Pointer to local entity.
+		// Get local entity pointer.
 		clg_local_entity_t *lent = &clg_local_entities[ i ];
+
+		// Skip iteration if entity is not in use, or not properly class allocated.
+		if ( !lent || !lent->inuse || !lent->classLocals ) {
+			continue;
+		}
 
 		// Get its class locals.
 		CLG_LocalEntity_DispatchPrepareRefreshEntity( lent );

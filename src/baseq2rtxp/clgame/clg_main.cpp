@@ -6,10 +6,27 @@
 *
 ********************************************************************/
 #include "clg_local.h"
+#include "clg_client.h"
+#include "clg_effects.h"
+#include "clg_entities.h"
+#include "clg_input.h"
+#include "clg_local_entities.h"
+#include "clg_packet_entities.h"
+#include "clg_parse.h"
+#include "clg_precache.h"
+#include "clg_predict.h"
+#include "clg_temp_entities.h"
+#include "clg_screen.h"
+#include "clg_view.h"
 
+
+//! Stores data that remains accross level switches.
 game_locals_t   game;
+//! This structure is cleared as each map is entered, it stores data for the current level session.
 level_locals_t  level;
+//! Function pointers and variables imported from the Client.
 clgame_import_t clgi;
+//! Function pointers and variables meant to export to the Client.
 clgame_export_t	globals;
 
 
@@ -147,6 +164,8 @@ static void cl_vwep_changed( cvar_t *self ) {
 	PF_PrecacheViewModels();
 	cl_noskins_changed( self );
 }
+
+
 
 /**
 *
@@ -338,6 +357,7 @@ void PF_ClearState( void ) {
 
 	// Clear out local entities array.
 	memset( clg_local_entities, 0, sizeof( clg_local_entities ) );
+	clg_num_local_entities = 0;
 	// Clear out client entities array.
 	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
 
@@ -349,68 +369,6 @@ void PF_ClearState( void ) {
 	level = {};
 }
 
-
-
-/**
-*
-*
-*	The player's 'Client':
-*
-*
-**/
-/**
-*	@brief	Called when the client state has moved into being active and the game begins.
-**/
-void PF_ClientBegin( void ) {
-	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientBegin\n" );
-}
-
-/**
-*	@brief	Called when the client state has moved into being properly connected to server.
-**/
-void PF_ClientConnected( void ) {
-	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientConnected\n" );
-}
-
-/**
-*	@brief	Called when the client state has moved into a disconnected state, before ending
-*			the loading plague and starting to clear its state. (So it is still accessible.)
-**/
-void PF_ClientDisconnected( void ) {
-	// Clear chat HUD when disconnected.
-	SCR_ClearChatHUD_f();
-	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientDisconnected\n" );
-}
-/**
-*	@brief	Called to update the client's local game entities, it runs at the same framerate
-*			as the server game logic does.
-**/
-void PF_ClientLocalFrame( void ) {
-	// Increase the frame number we're in for this level..
-	level.framenum++;
-	// Increase the amount of time that has passed for this level.
-	level.time += FRAME_TIME_MS;
-
-	// Let all local entities think
-	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
-		clg_local_entity_t *lent = &clg_local_entities[ i ];
-
-		if ( !lent || !lent->inuse || !lent->classLocals ) {
-			continue;
-		}
-
-		CLG_LocalEntity_DispatchThink( lent );
-	}
-	// Debug print.
-	//clgi.Print( PRINT_DEVELOPER, "%s: framenum(%ld), time(%ld)\n", 
-	//	__func__, level.framenum, level.time.milliseconds() );
-}
-/**
-*	@brief	Called at the rate equal to that of the refresh frames.
-**/
-void PF_ClientRefreshFrame( void ) {
-	//clgi.Print( PRINT_NOTICE, "%s\n", __func__ );
-}
 
 
 /**
@@ -470,6 +428,8 @@ const char *PF_GetViewModelFilename( const uint32_t index ) {
 		return "";
 	}
 }
+
+
 
 /**
 *

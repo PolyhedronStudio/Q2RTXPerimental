@@ -6,9 +6,10 @@
 *
 ********************************************************************/
 #include "../clg_local.h"
+#include "../clg_effects.h"
 
 //!
-static cdlight_t       cl_dlights[ MAX_DLIGHTS ];
+static clg_dlight_t       cl_dlights[ MAX_DLIGHTS ];
 
 /**
 *   @brief
@@ -20,9 +21,9 @@ void CLG_ClearDlights( void ) {
 /**
 *   @brief  
 **/
-cdlight_t *CLG_AllocDlight( const int32_t key ) {
+clg_dlight_t *CLG_AllocDlight( const int32_t key ) {
     int     i;
-    cdlight_t *dl;
+    clg_dlight_t *dl;
 
     // first look for an exact key match
     if ( key ) {
@@ -57,7 +58,7 @@ cdlight_t *CLG_AllocDlight( const int32_t key ) {
 **/
 void CLG_AddDLights( void ) {
     int         i;
-    cdlight_t *dl;
+    clg_dlight_t *dl;
 
     dl = cl_dlights;
     for ( i = 0; i < MAX_DLIGHTS; i++, dl++ ) {

@@ -192,13 +192,13 @@ template<typename T>
 
 
 
-/******************************************************************
-* 
-* GameMode
-* 
-*******************************************************************/
-
-
+/**
+*
+*
+*   Client:
+*
+*
+**/
 /**
 *	Client-Game 'client' structure definition: This structure always has to 
 *	mirror the 'first part' of the structure defined within the Client.
@@ -210,6 +210,16 @@ template<typename T>
 //	// this point in the structure
 //	//int32_t             clientNum;
 //} cclient_t;
+
+
+
+/**
+*
+*
+*   (Client/Packet-) Entities:
+*
+*
+**/
 /**
 *	Client-Game Packet Entity structure definition: This structure always has to
 *	mirror the 'first part' of the structure defined within the Client.
@@ -265,11 +275,13 @@ typedef struct centity_s {
 
 
 
-/*
+/**
 *
-*	clg_effects.cpp	
-* 
-*/
+*
+*   Temporary Entity Parameters:
+*
+*
+**/
 /**
 *   @brief  Stores temp entity data from the last parsed svc_temp_entity message.
 **/
@@ -286,211 +298,13 @@ typedef struct {
 	int64_t time;
 } tent_params_t;
 
-/**
-*   @brief
-**/
-void CLG_ClearEffects( void );
-/**
-*   @brief
-**/
-void CLG_InitEffects( void );
-
-// Wall Impact Puffs.
-void CLG_ParticleEffect( const vec3_t org, const vec3_t dir, int color, int count );
-void CLG_ParticleEffectWaterSplash( const vec3_t org, const vec3_t dir, int color, int count );
-void CLG_BloodParticleEffect( const vec3_t org, const vec3_t dir, int color, int count );
-void CLG_ParticleEffect2( const vec3_t org, const vec3_t dir, int color, int count );
-void CLG_TeleporterParticles( const vec3_t org );
-void CLG_LogoutEffect( const vec3_t org, int type );
-void CLG_ItemRespawnParticles( const vec3_t org );
-void CLG_ExplosionParticles( const vec3_t org );
-void CLG_BigTeleportParticles( const vec3_t org );
-void CLG_BlasterParticles( const vec3_t org, const vec3_t dir );
-void CLG_BlasterTrail( const vec3_t start, const vec3_t end );
-void CLG_FlagTrail( const vec3_t start, const vec3_t end, int color );
-void CLG_DiminishingTrail( const vec3_t start, const vec3_t end, centity_t *old, int flags );
-void CLG_RocketTrail( const vec3_t start, const vec3_t end, centity_t *old );
-void CLG_OldRailTrail( void );
-void CLG_BubbleTrail( const vec3_t start, const vec3_t end );
-//static void CL_FlyParticles( const vec3_t origin, int count );
-void CLG_FlyEffect( centity_t *ent, const vec3_t origin );
-void CLG_BfgParticles( entity_t *ent );
-//FIXME combined with CL_ExplosionParticles
-void CLG_BFGExplosionParticles( const vec3_t org );
-void CLG_TeleportParticles( const vec3_t org );
-
-
-
-/*
-*
-*	effects/clg_fx_dynamiclights.cpp
-*
-*/
-/**
-*   @brief
-**/
-void CLG_ClearDlights( void );
-/**
-*   @brief
-**/
-cdlight_t *CLG_AllocDlight( const int32_t key );
-/**
-*   @brief
-**/
-void CLG_AddDLights( void );
-
-
-
-/*
-*
-*	effects/clg_fx_lightstyles.cpp
-*
-*/
-/**
-*	@brief
-**/
-void CLG_ClearLightStyles( void );
-/**
-*   @brief
-**/
-void CLG_SetLightStyle( const int32_t index, const char *s );
-/**
-*   @brief
-**/
-void CLG_AddLightStyles( void );
-
-
-
-/*
-*
-*	effects/clg_fx_muzzleflash.cpp & effects/clg_fx_muzzleflash2.cpp
-*
-*/
-/**
-*   @brief  Handles the parsed client muzzleflash effects.
-**/
-void CLG_MuzzleFlash( void );
-/**
-*   @brief  Handles the parsed entities/monster muzzleflash effects.
-**/
-void CLG_MuzzleFlash2( void );
-
-
-
-/*
-*
-*	effects/clg_fx_newfx.cpp
-*
-*/
-void CLG_Flashlight( int ent, const vec3_t pos );
-void CLG_ColorFlash( const vec3_t pos, int ent, int intensity, float r, float g, float b );
-void CLG_DebugTrail( const vec3_t start, const vec3_t end );
-void CLG_ForceWall( const vec3_t start, const vec3_t end, int color );
-void CLG_BubbleTrail2( const vec3_t start, const vec3_t end, int dist );
-void CLG_Heatbeam( const vec3_t start, const vec3_t forward );
-void CLG_ParticleSteamEffect( const vec3_t org, const vec3_t dir, int color, int count, int magnitude );
-void CLG_ParticleSteamEffect2( cl_sustain_t *self );
-void CLG_TrackerTrail( const vec3_t start, const vec3_t end, int particleColor );
-void CLG_Tracker_Shell( const vec3_t origin );
-void CLG_MonsterPlasma_Shell( const vec3_t origin );
-void CLG_Widowbeamout( cl_sustain_t *self );
-void CLG_Nukeblast( cl_sustain_t *self );
-void CLG_WidowSplash( void );
-void CLG_TagTrail( const vec3_t start, const vec3_t end, int color );
-void CLG_ColorExplosionParticles( const vec3_t org, int color, int run );
-void CLG_ParticleSmokeEffect( const vec3_t org, const vec3_t dir, int color, int count, int magnitude );
-void CLG_BlasterParticles2( const vec3_t org, const vec3_t dir, unsigned int color );
-void CLG_BlasterTrail2( const vec3_t start, const vec3_t end );
-void CLG_IonripperTrail( const vec3_t start, const vec3_t ent );
-void CLG_TrapParticles( centity_t *ent, const vec3_t origin );
-void CLG_ParticleEffect3( const vec3_t org, const vec3_t dir, int color, int count );
-
-
-
-/*
-*
-*	effects/clg_fx_particles.cpp
-*
-*/
-/**
-*   @brief
-**/
-void CLG_ClearParticles( void );
-/**
-*   @brief
-**/
-cparticle_t *CLG_AllocParticle( void );
-/**
-*	@brief
-**/
-void CLG_AddParticles( void );
-
-
-
-/*
-*
-*	clg_entities.cpp
-*
-*/
-// Use a static entity ID on some things because the renderer relies on eid to match between meshes
-// on the current and previous frames.
-static constexpr int32_t RENTITIY_RESERVED_GUN = 1;
-static constexpr int32_t RENTITIY_RESERVED_TESTMODEL = 2;
-static constexpr int32_t RENTITIY_RESERVED_COUNT = 3;
-
-static constexpr int32_t RENTITIY_OFFSET_LOCALENTITIES = MAX_MODELS / 2; // TODO: Increase MAX_MODELS * 2 for refresh and all that.
-
-/**
-*   @brief  For debugging problems when out-of-date entity origin is referenced.
-**/
-#if USE_DEBUG
-void CLG_CheckEntityPresent( int32_t entityNumber, const char *what );
-#endif
-/**
-*   @brief  The sound code makes callbacks to the client for entitiy position
-*           information, so entities can be dynamically re-spatialized.
-**/
-void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
-/**
-*	@return		A pointer to the entity bound to the client game's view. Unless STAT_CHASE is set to
-*               a specific client number the current received frame, this'll point to the entity that
-*               is of the local client player himself.
-**/
-centity_t *CLG_ViewBoundEntity( void );
-/**
-*	@brief	Add local client entities that are 'in-frame' to the view's refdef entities list.
-**/
-void CLG_AddLocalEntities( void );
-
-/**
-*
-*	clg_input.cpp
-*
-**/
-//! Called upon when mouse movement is detected.
-void PF_MouseMove( const float deltaX, const float deltaY, const float moveX, const float moveY, const float speed );
-//! Called upon to register movement commands.
-void PF_RegisterUserInput( void );
-/**
-*   @brief  Updates msec, angles and builds the interpolated movement vector for local movement prediction.
-*           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
-**/
-void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, client_mouse_motion_t *mouseMotion );
-/**
-*   @brief  Builds the actual movement vector for sending to server. Assumes that msec
-*           and angles are already set for this frame by CL_UpdateCommand.
-**/
-void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand );
-/**
-*   @brief
-**/
-void PF_ClearMoveCommand( client_movecmd_t *moveCommand );
-
 
 
 /**
 *
-*	clg_local_entities.cpp
+*
+*   Local Entities:
+*
 *
 **/
 // Predeclare, defined a little later.
@@ -554,15 +368,21 @@ typedef struct clg_local_entity_s {
 	qboolean inuse;
 	//! Client game level time at which this entity was freed.
 	sg_time_t freetime;
+	//! Client game level time at which this entity is allowed to 'think' again.
+	sg_time_t nextthink;
 
 	//! Name of the model(if any).
 	const char *model;
+	//! Spawnflags parsed(if any).
+	uint32_t spawnflags;
 
 	//! Points right to the collision model's entity dictionary.
 	const cm_entity_t *entityDictionary;
 	//! A pointer to the entity's 'classname type' specifics.
 	const clg_local_entity_class_t *entityClass;
 
+	//! Meant for non 'classname type' specifically related data,
+	//! which is generally shared across all entities.
 	struct {
 		//! The entity's origin.
 		Vector3 origin;
@@ -574,6 +394,15 @@ typedef struct clg_local_entity_s {
 		//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
 		Vector3	absmin, absmax, size;
 
+		//! ModelIndex #1 handle.
+		qhandle_t modelindex;
+		//! ModelIndex #2 handle.
+		qhandle_t modelindex2;
+		//! ModelIndex #3 handle.
+		qhandle_t modelindex3;
+		//! ModelIndex #4 handle.
+		qhandle_t modelindex4;
+
 		//! Model/Sprite frame.
 		int32_t frame;
 		//! Model/Sprite old frame.
@@ -583,8 +412,6 @@ typedef struct clg_local_entity_s {
 		int32_t skin;
 		//! Model skin index number.
 		int32_t skinNumber;
-		//! ModelIndex #1 handle.
-		qhandle_t modelindex;
 	} locals;
 
 	//! Will be allocated by precaching for storing 'classname type' specific data.
@@ -596,106 +423,15 @@ extern clg_local_entity_t clg_local_entities[ MAX_CLIENT_ENTITIES ];
 //! Current number of local client entities.
 extern uint32_t clg_num_local_entities;
 
-/**
-*	@brief	Called from the client's Begin command, gives the client game a shot at
-*			spawning local client entities so they can join in the image/model/sound
-*			precaching context.
-**/
-void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
+
 
 /**
-*	@return	The casted pointer to the entity's class type.
-**/
-template<typename T> auto CLG_LocalEntity_GetClass( clg_local_entity_t *self ) -> T* {
-	return static_cast<T*>( self->classLocals );
-}
-
-/**
-*	@brief	Calls the localClass 'Precache' function pointer.
-**/
-const bool CLG_LocalEntity_DispatchPrecache( clg_local_entity_t *lent, const cm_entity_t *keyValues );
-/**
-*	@brief	Calls the localClass 'Spawn' function pointer.
-**/
-const bool CLG_LocalEntity_DispatchSpawn( clg_local_entity_t *lent );
-/**
-*	@brief	Calls the localClass 'Think' function pointer.
-**/
-const bool CLG_LocalEntity_DispatchThink( clg_local_entity_t *lent );
-/**
-*	@brief	Calls the localClass 'RefreshFrame' function pointer.
-**/
-const bool CLG_LocalEntity_DispatchRefreshFrame( clg_local_entity_t *lent );
-/**
-*	@brief	Calls the localClass 'RefreshFrame' function pointer.
-**/
-const bool CLG_LocalEntity_DispatchPrepareRefreshEntity( clg_local_entity_t *lent );
-
-//template<typename T, typename U>
-//auto add( const T &x, const U &y ) -> decltype( x + y ) {
-//	return x + y;
-//}
-
-/*
 *
-*	clg_packet_entities.cpp
 *
-*/
-/**
-*	@brief	Will add all packet entities to the current frame's view refdef
-**/
-void CLG_AddPacketEntities( void );
-
-
-
-/*
+*   Precache.
 *
-*	clg_parse.cpp
 *
-*/
-/**
-*	@brief	Called by the client when it receives a configstring update, this
-*			allows us to interscept it and respond to it. If not interscepted the 
-*			control is passed back to the client again.
-* 
-*	@return	True if we interscepted one succesfully, false otherwise.
 **/
-const qboolean PF_UpdateConfigString( const int32_t index );
-/**
-*	@brief	Called by the client BEFORE all server messages have been parsed.
-**/
-void PF_StartServerMessage( const qboolean isDemoPlayback );
-/**
-*	@brief	Called by the client AFTER all server messages have been parsed.
-**/
-void PF_EndServerMessage( const qboolean isDemoPlayback );
-/**
-*	@brief	Called by the client when it does not recognize the server message itself,
-*			so it gives the client game a chance to handle and respond to it.
-*	@return	True if the message was handled properly. False otherwise.
-**/
-const qboolean PF_ParseServerMessage( const int32_t serverMessage );
-/**
-*	@brief	A variant of ParseServerMessage that skips over non-important action messages,
-*			used for seeking in demos.
-*	@return	True if the message was handled properly. False otherwise.
-**/
-const qboolean PF_SeekDemoMessage( const int32_t serverMessage );
-/**
-*	@brief	Parsess entity events.
-**/
-void PF_ParseEntityEvent( const int32_t entityNumber );
-/**
-*	@brief	Parses a clientinfo configstring.
-**/
-void PF_ParsePlayerSkin( char *name, char *model, char *skin, const char *s );
-
-
-/*
-*
-*	clg_precache.cpp
-*
-*/
 typedef struct precached_media_s {
 	//
 	//	Local Entities:
@@ -777,348 +513,18 @@ typedef struct precached_media_s {
 //! Stores qhandles to all precached client game media.
 extern precached_media_t precache;
 
-/**
-*	@brief	Called right after the client finished loading all received configstring (server-) models.
-**/
-void PF_PrecacheClientModels( void );
-/**
-*	@brief	Called right after the client finished loading all received configstring (server-) sounds.
-**/
-void PF_PrecacheClientSounds( void );
-/**
-*   @brief  Called to precache/update precache of 'View'-models. (Mainly, weapons.)
-**/
-void PF_PrecacheViewModels( void );
-/**
-*	@brief	Called to precache client info specific media.
-**/
-void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s );
-
-/**
-*   @brief  Registers a model for local entity usage.
-*   @return -1 on failure, otherwise a handle to the model index of the precache.local_models array.
-**/
-const qhandle_t CLG_RegisterLocalModel( const char *name );
-/**
-*   @brief  Registers a sound for local entity usage.
-*   @return -1 on failure, otherwise a handle to the sounds index of the precache.local_sounds array.
-**/
-const qhandle_t CLG_RegisterLocalSound( const char *name );
 
 
-
-/*
-*
-*	clg_predict.cpp
-*
-*/
 /**
-*   @brief  Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
-**/
-void PF_AdjustViewHeight( const int32_t viewHeight );
-/**
-*   @brief  Checks for prediction if desired. Will determine the error margin
-*           between our predicted state and the server returned state. In case
-*           the margin is too high, snap back to server provided player state.
-**/
-void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIndex, const pmove_state_t *in, struct client_movecmd_s *moveCommand, client_predicted_state_t *out );
-/**
-*   @brief  Sets the predicted view angles.
-**/
-void PF_PredictAngles( );
-/**
-*	@return	False if prediction is not desired for. True if it is.
-**/
-const qboolean PF_UsePrediction( );
-/**
-*   @brief  Performs player movement over the yet unacknowledged 'move command' frames, as well
-*           as the pending user move command. To finally store the predicted outcome
-*           into the cl.predictedState struct.
-**/
-void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber );
-
-
-
-/*
-*
-*	clg_screen.cpp
 *
 *
-*/
-/**
-*   @brief  Called for important messages that should stay in the center of the screen
-*           for a few moments
-**/
-void SCR_CenterPrint( const char *str );
-/**
-*   @brief  Clear the chat HUD.
-**/
-void SCR_ClearChatHUD_f( void );
-/**
-*   @brief  Append text to chat HUD.
-**/
-void SCR_AddToChatHUD( const char *text );
-/**
-*	@brief
-**/
-void PF_SCR_Init( void );
-/**
-*	@brief
-**/
-void PF_SCR_RegisterMedia( void );
-/**
-*	@brief
-**/
-void PF_SCR_ModeChanged( void );
-/**
-*	@brief
-**/
-void PF_SCR_SetCrosshairColor( void );
-/**
-*	@brief
-**/
-void PF_SCR_Shutdown( void );
-/**
-*	@return	Pointer to the current frame's render "view rectangle".
-**/
-vrect_t *PF_GetScreenVideoRect( void );
-/**
-*	@brief	Prepare and draw the current 'active' state's 2D and 3D views.
-**/
-void PF_DrawActiveState( refcfg_t *refcfg );
-/**
-*	@brief	Prepare and draw the loading screen's 2D state.
-**/
-void PF_DrawLoadState( refcfg_t *refcfg );
-
-/**
-*   @return The current active handle to the font image. (Used by ref/vkpt.)
-**/
-const qhandle_t PF_GetScreenFontHandle( void );
-/**
-*   @brief  Set the alpha value of the HUD. (Used by ref/vkpt.)
-**/
-void PF_SetScreenHUDAlpha( const float alpha );
-
-
-
-/*
-*
-*	clg_temp_entities.cpp
-*
-*/
-/**
-*   @brief
-**/
-void CLG_InitTEnts( void );
-/**
-*   @brief
-**/
-void CLG_ClearTEnts( void );
-/**
-*   @brief
-**/
-void CLG_ParseTEnt( void );
-/**
-*   @brief
-**/
-void CLG_AddTEnts( void );
-
-
-
-/*
-*
-*	temp_entities/clg_te_beams.cpp
-*
-*/
-/**
-*   @brief
-**/
-void CLG_ClearBeams( void );
-/**
-*   @brief
-**/
-void CLG_ParseBeam( const qhandle_t model );
-/**
-*   @brief
-**/
-void CLG_ParsePlayerBeam( const qhandle_t model );
-/**
-*   @brief
-**/
-void CLG_AddBeams( void );
-/**
-*   @brief  Draw player locked beams. Currently only used by the plasma beam.
-**/
-void CLG_AddPlayerBeams( void );
-
-
-
-/*
-*
-*	temp_entities/clg_te_explosions.cpp
-*
-*/
-extern cvar_t *cl_disable_particles;
-extern cvar_t *cl_disable_explosions;
-extern cvar_t *cl_explosion_sprites;
-extern cvar_t *cl_explosion_frametime;
-extern cvar_t *cl_dlight_hacks;
-
-extern cvar_t *gibs;
-
-/**
-*   @brief
-**/
-void CLG_ClearExplosions( void );
-/**
-*   @brief
-**/
-explosion_t *CLG_AllocExplosion( void );
-/**
-*   @brief
-**/
-explosion_t *CLG_PlainExplosion( bool big );
-/**
-*   @brief
-**/
-void CLG_SmokeAndFlash( const vec3_t origin );
-/**
-*   @brief
-**/
-//static void CL_AddExplosionLight( explosion_t *ex, float phase );
-/**
-*   @brief
-**/
-void CLG_AddExplosions( void );
-
-
-
-/*
-*
-*	temp_entities/clg_te_lasers.cpp
-*
-*/
-//!
-typedef struct {
-	vec3_t      start;
-	vec3_t      end;
-
-	int32_t     color;
-	color_t     rgba;
-	int32_t     width;
-
-	int64_t     lifetime, starttime;
-} laser_t;
-/**
-*   @brief
-**/
-void CLG_ClearLasers( void );
-/**
-*   @brief
-**/
-laser_t *CLG_AllocLaser( void );
-/**
-*   @brief
-**/
-void CLG_AddLasers( void );
-/**
-*   @brief
-**/
-void CLG_ParseLaser( const int32_t colors );
-
-
-
-/*
-*
-*	temp_entities/clg_te_railtrails.cpp
-*
-*/
-/**
-*   @brief
-**/
-void CLG_RailCore( void );
-/**
-*   @brief
-**/
-void CLG_RailSpiral( void );
-/**
-*   @brief
-**/
-void CLG_RailLights( const color_t color );
-/**
-*   @brief
-**/
-void CLG_RailTrail( void );
-
-
-
-/*
-*
-*	temp_entities/clg_te_sustain.cpp
-*
-*/
-/**
-*   @brief
-**/
-void CLG_ClearSustains( void );
-/**
-*   @brief
-**/
-cl_sustain_t *CLG_AllocSustain( void );
-/**
-*   @brief
-**/
-void CLG_ProcessSustain( void );
-/**
-*   @brief
-**/
-void CLG_ParseSteam( void );
-/**
-*   @brief
-**/
-void CLG_ParseWidow( void );
-/**
-*   @brief
-**/
-void CLG_ParseNuke( void );
-
-
-
-/*
-*
-*	clg_view.cpp
-*
-*/
-/**
-*   @brief
-**/
-const float PF_CalculateFieldOfView( const float fov_x, const float width, const float height );
-/**
-*   @brief  Sets clgi.client->refdef view values and sound spatialization params.
-*           Usually called from CL_PrepareViewEntities, but may be directly called from the main
-*           loop if rendering is disabled but sound is running.
-**/
-void PF_CalculateViewValues( void );
-/**
-*   @brief
-**/
-void PF_ClearViewScene( void );
-/**
-*   @brief
-**/
-void PF_PrepareViewEntites( void );
-
-
-
-/**
-*	
 *	Game/Level Locals:
-* 
+*
+*
 **/
 /**
 *	@brief	Stores data that remains accross level switches.
-* 
+*
 *	@todo	In the future, look into saving its state in: client.clsv
 **/
 struct game_locals_t {
@@ -1144,9 +550,9 @@ struct game_locals_t {
 extern game_locals_t game;
 
 /**
-*	@brief	This structure is cleared as each map is entered, it stores data for 
+*	@brief	This structure is cleared as each map is entered, it stores data for
 *			the current level session.
-* 
+*
 *	@todo	In the future, look into saving its state in: level.clsv
 **/
 struct level_locals_t {
@@ -1167,3 +573,151 @@ struct level_locals_t {
 	} parsedMessage;
 };
 extern level_locals_t level;
+
+
+
+/**
+*
+*
+*   Dynamic Lights:
+*
+*
+**/
+typedef struct clg_dlight_s {
+	int32_t key;        // so entities can reuse same entry
+	vec3_t  color;
+	vec3_t  origin;
+	float   radius;
+	float   die;        // stop lighting after this time
+	float   decay;      // drop this each second
+	vec3_t  velosity;     // move this far each second
+} clg_dlight_t;
+
+#define DLHACK_ROCKET_COLOR         1
+#define DLHACK_SMALLER_EXPLOSION    2
+#define DLHACK_NO_MUZZLEFLASH       4
+
+
+
+/**
+*
+*
+*   Explosions.
+*
+*
+**/
+#define MAX_EXPLOSIONS  32
+
+#define NOEXP_GRENADE   1
+#define NOEXP_ROCKET    2
+
+/**
+*   @brief  Explosion struct for varying explosion type effects.
+*/
+typedef struct clg_explosion_s {
+	//! Explosion Type.
+	enum {
+		ex_free,
+		//ex_explosion, Somehow unused. lol. TODO: Probably implement some day? xD
+		ex_misc,
+		ex_flash,
+		ex_mflash,
+		ex_poly,
+		ex_poly2,
+		ex_light,
+		ex_blaster,
+		ex_flare
+	} explosion_type;
+	int32_t     type;
+
+	//! Render Entity.
+	entity_t    ent;
+	//! Amount of sprite frames.
+	int         frames;
+	//! Light intensity.
+	float       light;
+	//! Light RGB color.
+	vec3_t      lightcolor;
+	//! 
+	float       start;
+	//! Frame offset into the sprite.
+	int64_t     baseframe;
+	//! Frametime in miliseconds.
+	int64_t     frametime;
+} clg_explosion_t;
+
+#define NOPART_GRENADE_EXPLOSION    1
+#define NOPART_GRENADE_TRAIL        2
+#define NOPART_ROCKET_EXPLOSION     4
+#define NOPART_ROCKET_TRAIL         8
+#define NOPART_BLOOD                16
+
+
+
+/**
+*
+*
+*   Particles:
+*
+*
+**/
+#define PARTICLE_GRAVITY        120
+#define BLASTER_PARTICLE_COLOR  0xe0
+#define INSTANT_PARTICLE    -10000.0f
+
+typedef struct clg_particle_s {
+	struct clg_particle_s *next;
+
+	double   time;
+
+	vec3_t  org;
+	vec3_t  vel;
+	vec3_t  accel;
+	int     color;      // -1 => use rgba
+	float   alpha;
+	float   alphavel;
+	color_t rgba;
+	float   brightness;
+} clg_particle_t;
+
+
+
+/**
+*
+*
+*   Lasers:
+*
+*
+**/
+typedef struct laser_s {
+	vec3_t      start;
+	vec3_t      end;
+
+	int32_t     color;
+	color_t     rgba;
+	int32_t     width;
+
+	int64_t     lifetime, starttime;
+} laser_t;
+
+
+
+/**
+*
+*
+*   Sustains:
+*
+*
+**/
+typedef struct clg_sustain_s {
+	int     id;
+	int     type;
+	int64_t endtime;
+	int64_t nextthink;
+	vec3_t  org;
+	vec3_t  dir;
+	int     color;
+	int     count;
+	int     magnitude;
+	void    ( *think )( struct clg_sustain_s *self );
+} clg_sustain_t;

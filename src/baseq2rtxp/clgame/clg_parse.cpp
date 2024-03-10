@@ -6,6 +6,10 @@
 *
 ********************************************************************/
 #include "clg_local.h"
+#include "clg_effects.h"
+#include "clg_parse.h"
+#include "clg_screen.h"
+#include "clg_temp_entities.h"
 
 /**
 *	@brief	Parses the layout string for server cmd: svc_inventory.

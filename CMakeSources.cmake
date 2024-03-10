@@ -24,11 +24,14 @@ SET(SRC_BASEQ2_CLGAME
 	baseq2/sharedgame/game_bindings/sg_binding_clgame.cpp
 
 	# ClientGame
+	baseq2/clgame/clg_client.cpp
 	baseq2/clgame/clg_effects.cpp
 	baseq2/clgame/clg_entities.cpp
 	baseq2/clgame/clg_input.cpp
+	baseq2/clgame/clg_local_entities.cpp
 	baseq2/clgame/clg_gamemode.cpp
 	baseq2/clgame/clg_main.cpp
+	baseq2/clgame/clg_packet_entities.cpp
 	baseq2/clgame/clg_parse.cpp
 	baseq2/clgame/clg_precache.cpp
 	baseq2/clgame/clg_predict.cpp
@@ -43,6 +46,8 @@ SET(SRC_BASEQ2_CLGAME
 	baseq2/clgame/effects/clg_fx_muzzleflash2.cpp
 	baseq2/clgame/effects/clg_fx_particles.cpp
 	baseq2/clgame/effects/clg_fx_new.cpp
+	
+	baseq2/clgame/local_entities/clg_local_misc_entities.cpp
 
 	baseq2/clgame/temp_entities/clg_te_beams.cpp
 	baseq2/clgame/temp_entities/clg_te_explosions.cpp
@@ -52,6 +57,7 @@ SET(SRC_BASEQ2_CLGAME
 )
 SET(HEADERS_BASEQ2_CLGAME
 	baseq2/clgame/clg_local.h
+	baseq2/clgame/local_entities/clg_local_entities.h
 )
 # BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2_SVGAME
@@ -166,6 +172,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/sharedgame/game_bindings/sg_binding_clgame.cpp
 
 	# ClientGame
+	baseq2rtxp/clgame/clg_client.cpp
 	baseq2rtxp/clgame/clg_effects.cpp
 	baseq2rtxp/clgame/clg_entities.cpp
 	baseq2rtxp/clgame/clg_input.cpp
@@ -197,8 +204,21 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/temp_entities/clg_te_sustain.cpp
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME
+	baseq2rtxp/clgame/clg_client.h
+	baseq2rtxp/clgame/clg_effects.h
+	baseq2rtxp/clgame/clg_entities.h
+	baseq2rtxp/clgame/clg_input.h
 	baseq2rtxp/clgame/clg_local.h
-	baseq2rtxp/clgame/local_entities/clg_local_entities.h
+	baseq2rtxp/clgame/clg_local_entities.h
+	baseq2rtxp/clgame/clg_packet_entities.h
+	baseq2rtxp/clgame/clg_parse.h
+	baseq2rtxp/clgame/clg_precache.h
+	baseq2rtxp/clgame/clg_predict.h
+	baseq2rtxp/clgame/clg_screen.h
+	baseq2rtxp/clgame/clg_temp_entities.h
+	baseq2rtxp/clgame/clg_view.h
+
+	baseq2rtxp/clgame/local_entities/clg_local_entity_classes.h
 )
 # BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2RTXP_SVGAME

@@ -12,7 +12,7 @@
 //
 // development tools for weapons
 //
-//qhandle_t gun;
+qhandle_t gun;
 
 /**
 *
@@ -24,7 +24,7 @@
 //void CLG_AddTestModel( void ) {
 //    static float frame = 0.f;
 //    static int prevtime = 0;
-//
+////
 //    if ( cl_testmodel_handle != -1 ) {
 //        model_t *model = MOD_ForHandle( cl_testmodel_handle );
 //
@@ -85,15 +85,23 @@ static qhandle_t   gun_model;
 static const int32_t shell_effect_hack( void ) {
     int32_t flags = 0;
 
+    // Oh noes.
+    if ( clgi.client->frame.clientNum == CLIENTNUM_NONE ) {
+        return 0;
+    }
+
+    // Determine whether the entity was in the current frame or not.
     centity_t *ent = &clg_entities[ clgi.client->frame.clientNum + 1 ]; //ent = ENTITY_FOR_NUMBER( clgi.client->frame.clientNum + 1 );//ent = &cl_entities[clgi.client->frame.clientNum + 1];
     if ( ent->serverframe != clgi.client->frame.number ) {
         return 0;
     }
 
+    // We need a model index to continue.
     if ( !ent->current.modelindex ) {
         return 0;
     }
 
+    // Determine distinct shell effect.
     if ( ent->current.effects & EF_PENT ) {
         flags |= RF_SHELL_RED;
     }
@@ -207,21 +215,20 @@ static void CLG_AddViewWeapon( void ) {
     // add shell effect from player entity
     shell_flags = shell_effect_hack();
 
-    // same entity in rtx mode
+    // Shells are applied to the entity itself in rtx mode
     if ( clgi.GetRefreshType() == REF_TYPE_VKPT ) {
         gun.flags |= shell_flags;
     }
-
-    //model_t *model = MOD_ForHandle( gun.model );
-    //if ( model && strstr( model->name, "v_flareg" ) )
-    //    gun.scale *= 0.3f; // The flare gun is modeled too large, scale it down to match other weapons
-
+    // Add gun entity.
     clgi.V_AddEntity( &gun );
 
-    // separate entity in non-rtx mode
+    // Shells are applied to another separate entity in non-rtx mode
     if ( shell_flags && clgi.GetRefreshType() != REF_TYPE_VKPT ) {
+        // Apply alpha to the shell entity.
         gun.alpha = 0.30f * cl_gunalpha->value;
+        // Apply shell flags, and translucency.
         gun.flags |= shell_flags | RF_TRANSLUCENT;
+        // Add gun shell entity.
         clgi.V_AddEntity( &gun );
     }
 }
@@ -541,10 +548,13 @@ void PF_PrepareViewEntites( void ) {
     // Finish it off by determing third or first -person view, and the required thirdperson/firstperson view model.
     CLG_FinishViewValues();
 
-    // Add all 'in-frame' entities, also known as packet entities, to the rendered view.
+    // Add all 'in-frame' received packet entities to the rendered view.
     CLG_AddPacketEntities();
 
-    // Add any and all other special FX.
+    // Add all 'in-frame' local entities to the rendered view.
+    CLG_AddLocalEntities();
+
+    // Add special effects 'refresh entities'.
     CLG_AddTEnts();
     CLG_AddParticles();
     CLG_AddDLights();

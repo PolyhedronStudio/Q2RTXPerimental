@@ -70,6 +70,9 @@ typedef struct {
 static const save_field_t entityfields[] = {
 #define _OFS FOFS
     // [entity_state_s]:
+    I( s.number ),
+    //S( s.client ),
+    I( s.entityType ),
     V( s.origin ),
     V( s.angles ),
     V( s.old_origin ),
@@ -1052,8 +1055,7 @@ ReadLevel
 SpawnEntities will allready have been called on the
 level the same way it was when the level was saved.
 
-That is necessary to get the baselines
-set up identically.
+That is necessary to get the baselines set up identically.
 
 The server will have cleared all of the world links before
 calling ReadLevel.

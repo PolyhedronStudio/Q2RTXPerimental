@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "../clg_local.h"
+#include "../clg_effects.h"
+#include "../clg_temp_entities.h"
 
 static color_t  railcore_color;
 static color_t  railspiral_color;
@@ -55,7 +57,7 @@ void CLG_RailSpiral( void ) {
     vec3_t      vec;
     float       len;
     int         j;
-    cparticle_t *p;
+    clg_particle_t *p;
     vec3_t      right, up;
     int         i;
     float       d, c, s;
@@ -118,7 +120,7 @@ void CLG_RailLights( const color_t color ) {
         vec3_t pos;
         VectorMA( move, offset, vec, pos );
 
-        cdlight_t *dl = CLG_AllocDlight( 0 );
+        clg_dlight_t *dl = CLG_AllocDlight( 0 );
         VectorScale( fcolor, 0.25f, dl->color );
         VectorCopy( pos, dl->origin );
         dl->radius = 400;

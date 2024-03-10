@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "../clg_local.h"
+#include "../clg_effects.h"
+#include "../clg_entities.h"
 
 // Need it here.
 extern cvar_t *cl_dlight_hacks;
@@ -15,7 +17,7 @@ extern cvar_t *cl_dlight_hacks;
 **/
 void CLG_MuzzleFlash( void ) {
     vec3_t      fv, rv;
-    cdlight_t *dl;
+    clg_dlight_t *dl;
     centity_t *pl;
     float       volume;
     char        soundname[ MAX_QPATH ];

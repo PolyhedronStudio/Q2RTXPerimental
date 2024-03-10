@@ -6,7 +6,9 @@
 *
 ********************************************************************/
 #include "clg_local.h"
-
+#include "clg_effects.h"
+#include "clg_entities.h"
+#include "clg_temp_entities.h"
 
 static const int32_t adjust_shell_fx( const int32_t renderfx ) {
     return renderfx;
