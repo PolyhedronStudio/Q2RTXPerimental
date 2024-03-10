@@ -54,13 +54,13 @@ void PF_ClientLocalFrame( void ) {
 		clg_local_entity_t *lent = &clg_local_entities[ i ];
 
 		// Skip iteration if entity is not in use, or not properly class allocated.
-		if ( !lent || !lent->inuse || !lent->classLocals ) {
+		if ( !lent || !lent->inuse || !lent->classLocals || !lent->islinked ) {
 			continue;
 		}
 
 		// Dispatch think callback since the entity is in-use and properly class allocated.
-
-		CLG_LocalEntity_DispatchThink( lent );
+		CLG_LocalEntity_RunThink( lent );
+		//CLG_LocalEntity_DispatchThink( lent );
 	}
 	// Debug print.
 	//clgi.Print( PRINT_DEVELOPER, "%s: framenum(%ld), time(%ld)\n", 

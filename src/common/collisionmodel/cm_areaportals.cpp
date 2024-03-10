@@ -112,7 +112,7 @@ const bool CM_AreasConnected( cm_t *cm, const int32_t area1, const int32_t area2
 *
 *           This is used by the client refreshes to cull visibility
 **/
-const int32_t  CM_WriteAreaBits( cm_t *cm, byte *buffer, const int32_t  area ) {
+const int32_t  CM_WriteAreaBits( cm_t *cm, byte *buffer, const int32_t area ) {
     bsp_t *cache = cm->cache;
     int     i;
     int     floodnum;

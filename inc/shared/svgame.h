@@ -47,13 +47,13 @@ extern "C" {
 #define SVF_DEADMONSTER     BIT( 1 )    // Treat as CONTENTS_DEADMONSTER for collision.
 #define SVF_MONSTER         BIT( 2 )    // Treat as CONTENTS_MONSTER for collision.
 #define SVF_PLAYER          BIT( 3 )    // [Paril-KEX] Treat as CONTENTS_PLAYER for collision.
-//#define SVF_BOT             BIT( 4 )    // Entity is controlled by a bot AI.
-//#define SVF_NOBOTS          BIT( 5 )    // Don't allow bots to use/interact with entity.
-//#define SVF_RESPAWNING      BIT( 6 )    // Entity will respawn on it's next think.
+//#define SVF_BOT           BIT( 4 )    // Entity is controlled by a bot AI.
+//#define SVF_NOBOTS        BIT( 5 )    // Don't allow bots to use/interact with entity.
+//#define SVF_RESPAWNING    BIT( 6 )    // Entity will respawn on it's next think.
 #define SVF_PROJECTILE      BIT( 7 )    // Treat as CONTENTS_PROJECTILE for collision.
-//#define SVF_INSTANCED       BIT( 8 )    // Entity has different visibility per player.
+//#define SVF_INSTANCED     BIT( 8 )    // Entity has different visibility per player.
 #define SVF_DOOR            BIT( 9 )    // Entity is a door of some kind.
-//#define SVF_NOCULL          BIT( 10 )   // Always send, even if we normally wouldn't.
+//#define SVF_NOCULL        BIT( 10 )   // Always send, even if we normally wouldn't.
 #define SVF_HULL            BIT( 11 )   // Always use hull when appropriate (triggers, etc; for gi.clip).
 
 // extended features
@@ -69,9 +69,6 @@ extern "C" {
 #define GMF_IPV6_ADDRESS_AWARE      0x00002000
 
 //===============================================================
-
-#define MAX_ENT_CLUSTERS    16
-
 
 typedef struct edict_s edict_t;
 typedef struct gclient_s gclient_t;

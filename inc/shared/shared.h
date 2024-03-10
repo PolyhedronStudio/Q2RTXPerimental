@@ -253,6 +253,8 @@ extern "C" {
 
 
 //! Collision: 
+#define MAX_ENT_CLUSTERS    16
+#define MAX_TOTAL_ENT_LEAFS 128 //! Maximum total entity leafs.
 #include "shared/collision.h"
 
 //! BSP Format Data Structure:

@@ -359,6 +359,9 @@ typedef struct client_state_s {
     //! Predicted values, used for smooth player entity movement in thirdperson view.
     vec3_t      playerEntityOrigin;
     vec3_t      playerEntityAngles;
+    //! Local PVS
+    byte localPVS[ VIS_MAX_BYTES ];
+    int32_t localLastValidCluster;
     /**
     *   @brief  Gets properly configured by the client game, when V_RenderView is called upon,
     *           and then passes on the data to the refresh render module.
@@ -389,6 +392,7 @@ typedef struct client_state_s {
     int32_t		inventory[ MAX_ITEMS ];
     //! Parsed sound event parameters.
     snd_params_t     snd;
+
 
     /**
     *

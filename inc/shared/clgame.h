@@ -44,9 +44,6 @@ extern "C" {
 //
 ////===============================================================
 //
-//#define MAX_ENT_CLUSTERS    16
-
-
 //! Client Packet Entities:
 typedef struct centity_s centity_t;
 //! Client Clients Struct:
@@ -267,6 +264,43 @@ typedef struct {
 	void ( *Con_ClearNotify_f )( void );
 
 
+	
+	/**
+	*
+	*	Collision Model (BSP):
+	* 
+	**/
+	/**
+	*   @return A pointer to nullleaf if there is no BSP model cached up, or the number is out of bounds.
+	*           A pointer to the 'special case for solid leaf' if number == -1
+	*           A pointer to the BSP Node that matched with 'number'.
+	**/
+	mnode_t *( *CM_NodeForNumber )( cm_t *cm, const int32_t number );
+	/**
+	*   @return The number that matched the node's pointer. -1 if node was a nullptr.
+	**/
+	const int32_t( *CM_NumberForNode )( cm_t *cm, mnode_t *node );
+	/**
+	*   @return A pointer to nullleaf if there is no BSP model cached up.
+	*           A pointer to the BSP Leaf that matched with 'number'.
+	**/
+	mleaf_t *( *CM_LeafForNumber )( cm_t *cm, const int32_t number );
+
+	/**
+	*   @return The number that matched the leaf's pointer. 0 if leaf was a nullptr.
+	**/
+	const int32_t( *CM_NumberForLeaf )( cm_t *cm, mleaf_t *leaf );
+	/**
+	*   @Return True if any leaf under headnode has a cluster that
+	*           is potentially visible
+	**/
+	const qboolean( *CM_HeadnodeVisible )( mnode_t *headnode, byte *visbits );
+
+	const int32_t ( *CM_BoxLeafs )( cm_t *cm, const vec3_t mins, const vec3_t maxs,
+		mleaf_t **list, const int32_t listsize, mnode_t **topnode );
+	const int32_t ( *CM_BoxLeafs_headnode )( cm_t *cm, const vec3_t mins, const vec3_t maxs,
+		mleaf_t **list, int listsize,
+		mnode_t *headnode, mnode_t **topnode );
 
 	/**
 	*
@@ -283,6 +317,7 @@ typedef struct {
 	*   @return Pointer to the collision model system's 'null' entity key/pair.
 	**/
 	const cm_entity_t *( *CM_GetNullEntity )( void );
+
 
 
 	/**

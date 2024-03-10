@@ -337,16 +337,16 @@ typedef struct clg_local_entity_class_s {
 	const char *classname;
 
 	//! The precache function, called during map load.
-	LocalEntityCallback_Precache precache;
+	LocalEntityCallback_Precache callbackPrecache;
 	//! The spawn function, called once during spawn time(When Begin_f() has finished.).
-	LocalEntityCallback_Spawn spawn;
+	LocalEntityCallback_Spawn callbackSpawn;
 	//! The 'think' method gets called for each client game logic frame.
-	LocalEntityCallback_Think think;
+	LocalEntityCallback_Think callbackThink;
 	//! The 'rframe' method gets called for each client refresh frame.
-	LocalEntityCallback_RefreshFrame rframe;
+	LocalEntityCallback_RefreshFrame callbackRFrame;
 	//! The 'prepare refresh entity' method gets called each time the current
 	//! scene to be rendered needs to be setup.
-	LocalEntityCallback_PrepareRefreshEntity prepareRefreshEntity;
+	LocalEntityCallback_PrepareRefreshEntity callbackPrepareRefreshEntity;
 
 	//! The sizeof the class_data.
 	size_t class_locals_size;
@@ -366,6 +366,15 @@ typedef struct clg_local_entity_s {
 	uint32_t spawn_count;
 	//! Whether this local entity is 'in-use' or not.
 	qboolean inuse;
+	//! Whether this entity is linked or not.
+	qboolean islinked;
+
+	int32_t areanum, areanum2;
+	int32_t num_clusters;
+	int32_t clusternums[ MAX_ENT_CLUSTERS ];
+	int32_t headnode;
+
+
 	//! Client game level time at which this entity was freed.
 	sg_time_t freetime;
 	//! Client game level time at which this entity is allowed to 'think' again.
@@ -380,6 +389,20 @@ typedef struct clg_local_entity_s {
 	const cm_entity_t *entityDictionary;
 	//! A pointer to the entity's 'classname type' specifics.
 	const clg_local_entity_class_t *entityClass;
+
+	//! Callback Function Pointers:
+	//! The precache function, called during map load.
+	LocalEntityCallback_Precache precache;
+	//! The spawn function, called once during spawn time(When Begin_f() has finished.).
+	LocalEntityCallback_Spawn spawn;
+	//! The 'think' method gets called for each client game logic frame.
+	LocalEntityCallback_Think think;
+	//! The 'rframe' method gets called for each client refresh frame.
+	LocalEntityCallback_RefreshFrame rframe;
+	//! The 'prepare refresh entity' method gets called each time the current
+	//! scene to be rendered needs to be setup.
+	LocalEntityCallback_PrepareRefreshEntity prepareRefreshEntity;
+	//! 
 
 	//! Meant for non 'classname type' specifically related data,
 	//! which is generally shared across all entities.

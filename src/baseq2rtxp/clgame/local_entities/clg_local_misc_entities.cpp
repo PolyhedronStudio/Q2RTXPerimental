@@ -71,12 +71,15 @@ void CLG_misc_model_Precache( clg_local_entity_t *self, const cm_entity_t *keyVa
 *	@brief	Sets up the local client model entity.
 **/
 void CLG_misc_model_Spawn( clg_local_entity_t *self ) {
-	// Setup appropriate mins, maxs, absmins, absmaxs, size
-	VectorCopy( self->locals.origin, self->locals.mins );
-	VectorCopy( self->locals.origin, self->locals.maxs );
-	VectorCopy( self->locals.origin, self->locals.absmax );
-	VectorCopy( self->locals.origin, self->locals.absmin );
-	VectorCopy( self->locals.origin, self->locals.size );
+	// Setup appropriate mins, maxs.
+	self->locals.mins = { -16, -16, 0 };
+	self->locals.maxs = { 16, 16, 40 };
+
+	// Link entity for this frame.
+	CLG_LocalEntity_Link( self );
+
+	// Setup nextthink.
+	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
 /**
@@ -90,6 +93,8 @@ void CLG_misc_model_Think( clg_local_entity_t *self ) {
 		self->locals.frame = 0;
 	}
 
+	// Setup nextthink.
+	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
 /**
@@ -149,11 +154,11 @@ void CLG_misc_model_PrepareRefreshEntity( clg_local_entity_t *self ) {
 // Class definition.
 const clg_local_entity_class_t client_misc_model = {
 	.classname = "client_misc_model",
-	.precache = CLG_misc_model_Precache,
-	.spawn = CLG_misc_model_Spawn,
-	.think = CLG_misc_model_Think,
-	.rframe = CLG_misc_model_RefreshFrame,
-	.prepareRefreshEntity = CLG_misc_model_PrepareRefreshEntity,
+	.callbackPrecache = CLG_misc_model_Precache,
+	.callbackSpawn = CLG_misc_model_Spawn,
+	.callbackThink = CLG_misc_model_Think,
+	.callbackRFrame = CLG_misc_model_RefreshFrame,
+	.callbackPrepareRefreshEntity = CLG_misc_model_PrepareRefreshEntity,
 	.class_locals_size = sizeof( clg_misc_model_locals_t )
 };
 
@@ -193,13 +198,22 @@ void CLG_misc_te_Precache( clg_local_entity_t *self, const cm_entity_t *keyValue
 *	@brief	Sets up the local client temp entity event entity.
 **/
 void CLG_misc_te_Spawn( clg_local_entity_t *self ) {
+	// Setup appropriate mins, maxs.
+	self->locals.mins = { -4, -4, -4 };
+	self->locals.maxs = { 4, 4, 4 };
 
+	// Link entity for this frame.
+	CLG_LocalEntity_Link( self );
+
+	// Setup nextthink.
+	self->nextthink = level.time + FRAME_TIME_MS;
 }
 /**
 *	@brief	Think once per local game tick.
 **/
 void CLG_misc_te_Think( clg_local_entity_t *self ) {
-
+	// Setup nextthink.
+	self->nextthink = level.time + FRAME_TIME_MS;
 }
 /**
 *	@brief	Called each refresh frame.
@@ -217,11 +231,11 @@ void CLG_misc_te_PrepareRefreshEntity( clg_local_entity_t *self ) {
 // Class definition.
 const clg_local_entity_class_t client_misc_te = {
 	.classname = "client_misc_te",
-	.precache = CLG_misc_te_Precache,
-	.spawn = CLG_misc_te_Spawn,
-	.think = CLG_misc_te_Think,
-	.rframe = CLG_misc_te_RefreshFrame,
-	.prepareRefreshEntity = CLG_misc_te_PrepareRefreshEntity,
+	.callbackPrecache = CLG_misc_te_Precache,
+	.callbackSpawn = CLG_misc_te_Spawn,
+	.callbackThink = CLG_misc_te_Think,
+	.callbackRFrame = CLG_misc_te_RefreshFrame,
+	.callbackPrepareRefreshEntity = CLG_misc_te_PrepareRefreshEntity,
 	.class_locals_size = sizeof( clg_misc_te_locals_t )
 };
 
@@ -264,11 +278,14 @@ void CLG_misc_playerholo_Precache( clg_local_entity_t *self, const cm_entity_t *
 **/
 void CLG_misc_playerholo_Spawn( clg_local_entity_t *self ) {
 	// Setup appropriate mins, maxs, absmins, absmaxs, size
-	VectorCopy( self->locals.origin, self->locals.mins );
-	VectorCopy( self->locals.origin, self->locals.maxs );
-	VectorCopy( self->locals.origin, self->locals.absmax );
-	VectorCopy( self->locals.origin, self->locals.absmin );
-	VectorCopy( self->locals.origin, self->locals.size );
+	self->locals.mins = { -16, -16, -24 };
+	self->locals.maxs = { 16, 16, 32 };
+
+	// Link entity for this frame.
+	CLG_LocalEntity_Link( self );
+
+	// Setup nextthink.
+	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
 /**
@@ -291,6 +308,9 @@ void CLG_misc_playerholo_Think( clg_local_entity_t *self ) {
 
 	// Negate angles so we face the client entity always.
 	self->locals.angles = QM_Vector3Negate( clgi.client->playerEntityAngles );
+
+	// Setup nextthink.
+	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
 /**
@@ -343,7 +363,7 @@ void CLG_misc_playerholo_PrepareRefreshEntity( clg_local_entity_t *self ) {
 	VectorCopy( self->locals.origin, rent.origin );
 	VectorCopy( self->locals.origin, rent.oldorigin );
 	VectorCopy( self->locals.angles, rent.angles );
-
+	
 	// Copy model information.
 	rent.model = clientInfo->model; //clgi.client->clientinfo[ selfClass->clientNumber ].model;
 	rent.skin = clientInfo->skin; //clgi.client->clientinfo[ selfClass->clientNumber ].skin;
@@ -374,10 +394,10 @@ void CLG_misc_playerholo_PrepareRefreshEntity( clg_local_entity_t *self ) {
 // Class definition.
 const clg_local_entity_class_t client_misc_playerholo = {
 	.classname = "client_misc_playerholo",
-	.precache = CLG_misc_playerholo_Precache,
-	.spawn = CLG_misc_playerholo_Spawn,
-	.think = CLG_misc_playerholo_Think,
-	.rframe = CLG_misc_playerholo_RefreshFrame,
-	.prepareRefreshEntity = CLG_misc_playerholo_PrepareRefreshEntity,
+	.callbackPrecache = CLG_misc_playerholo_Precache,
+	.callbackSpawn = CLG_misc_playerholo_Spawn,
+	.callbackThink = CLG_misc_playerholo_Think,
+	.callbackRFrame = CLG_misc_playerholo_RefreshFrame,
+	.callbackPrepareRefreshEntity = CLG_misc_playerholo_PrepareRefreshEntity,
 	.class_locals_size = sizeof( clg_misc_playerholo_locals_t )
 };

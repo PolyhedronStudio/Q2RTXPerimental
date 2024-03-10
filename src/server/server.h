@@ -140,7 +140,7 @@ static inline const int32_t NUMBER_OF_EDICT( const edict_t *ent ) {
 }
 
 //! Maximum total entity leafs.
-#define MAX_TOTAL_ENT_LEAFS        128
+//#define MAX_TOTAL_ENT_LEAFS        128
 
 // hack for smooth BSP model rotation
 //#define Q2PRO_SHORTANGLES(c, e) \

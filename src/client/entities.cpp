@@ -73,7 +73,7 @@ static inline void entity_update_new( centity_t *ent, const entity_state_t *stat
     ent->prev = *state;
 
     // WID: 40hz
-        // Update the animation frames and time.
+    // Update the animation frames and time.
     ent->current_frame = ent->last_frame = state->frame;
     ent->frame_servertime = cl.servertime;
     // WID: 40hz
@@ -395,7 +395,7 @@ void CL_DeltaFrame(void)
     int64_t framenum = cl.frame.number - cl.serverdelta;
     cl.servertime = framenum * CL_FRAMETIME;
 
-    // rebuild the list of solid entities for this frame
+    // Rebuild the list of solid entities for this frame
     cl.numSolidEntities = 0;
 
     // Initialize position of the player's own entity from playerstate.
@@ -473,12 +473,40 @@ void CL_CheckEntityPresent( const int32_t entityNumber, const char *what)
 }
 #endif
 
+
+/**
+*   @brief  Calculate the client's PVS which is a necessity for culling out
+*           local client entities.
+**/
+static void CL_CalculatePVS( void ) {
+    mleaf_t *leaf = BSP_PointLeaf( cl.collisionModel.cache->nodes, cl.refdef.vieworg );
+
+    if ( !leaf ) {
+        // TODO: What do?
+        Com_LPrintf( PRINT_DEVELOPER, "%s: warning, no BSP leaf returned for vieworg(%f, %f, %f)\n",
+            __func__, cl.refdef.vieworg[ 0 ], cl.refdef.vieworg[ 1 ], cl.refdef.vieworg[ 2 ] );
+        return;
+    }
+
+    // Calculate the PVS bits.
+    const int32_t clientArea = leaf->area;
+    const int32_t clientCluster = leaf->cluster;
+
+    if ( clientCluster >= 0 ) {
+        CM_FatPVS( &cl.collisionModel, cl.localPVS, cl.refdef.vieworg, DVIS_PVS /*DVIS_PVS2*/ );
+        cl.localLastValidCluster = clientCluster;
+    } else {
+        BSP_ClusterVis( cl.collisionModel.cache, cl.localPVS, cl.localLastValidCluster, DVIS_PVS /*DVIS_PVS2*/ );
+    }
+}
+
 /**
 *   @brief  Sets cl.refdef view values and sound spatialization params.
 *           Usually called from CL_PrepareViewEntities, but may be directly called from the main
 *           loop if rendering is disabled but sound is running.
 **/
 void CL_CalculateViewValues( void ) {
+    // Update view values.
     clge->CalculateViewValues();
 }
 
@@ -487,8 +515,11 @@ void CL_CalculateViewValues( void ) {
 *           emitting all frame data(entities, particles, dynamic lights, lightstyles,
 *           and temp entities) to the refresh definition.
 **/
-void CL_PrepareViewEntities(void)
-{
+void CL_PrepareViewEntities(void) {
+    // Rebuild the client's local PVS.
+    CL_CalculatePVS();
+
+    // Let the Client Game prepare view entities.
     clge->PrepareViewEntities();
 
     LOC_AddLocationsToScene();
