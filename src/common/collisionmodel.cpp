@@ -79,8 +79,8 @@ const int32_t CM_LoadMap( cm_t *cm, const char *name ) {
 
     // Floodnums and Portals:
     cm->floodnums = static_cast<int *>( Z_TagMallocz( sizeof( cm->floodnums[ 0 ] ) * cm->cache->numareas, TAG_CMODEL ) );
-    cm->portalopen = static_cast<qboolean *>( Z_TagMallocz( sizeof( cm->portalopen[ 0 ] ) * cm->cache->numportals, TAG_CMODEL ) );
-    FloodAreaConnections( cm );
+    cm->portalopen = static_cast<bool *>( Z_TagMallocz( sizeof( cm->portalopen[ 0 ] ) * cm->cache->numportals, TAG_CMODEL ) );
+    CM_FloodAreaConnections( cm );
 
     // Successfully loaded the map.
     return Q_ERR_SUCCESS;

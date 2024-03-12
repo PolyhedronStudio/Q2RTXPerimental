@@ -46,7 +46,7 @@ static void FloodArea_r( cm_t *cm, const int32_t number, const int32_t floodnum 
 /**
 *   @brief
 **/
-void FloodAreaConnections( cm_t *cm ) {
+void CM_FloodAreaConnections( cm_t *cm ) {
     int     i;
     marea_t *area;
     int     floodnum;
@@ -66,7 +66,7 @@ void FloodAreaConnections( cm_t *cm ) {
     }
 }
 /**
-*   @brief
+*   @brief  Set the portal nums matching portal to open/closed state.
 **/
 void CM_SetAreaPortalState( cm_t *cm, const int32_t portalnum, const bool open ) {
     if ( !cm->cache ) {
@@ -79,10 +79,25 @@ void CM_SetAreaPortalState( cm_t *cm, const int32_t portalnum, const bool open )
     }
 
     cm->portalopen[ portalnum ] = open;
-    FloodAreaConnections( cm );
+    CM_FloodAreaConnections( cm );
 }
 /**
-*   @brief
+*   @return False(0) if the portal nums matching portal is closed, true(1) otherwise.
+**/
+const int32_t CM_GetAreaPortalState( cm_t *cm, const int32_t portalnum ) {
+    if ( !cm->cache ) {
+        return 0;
+    }
+
+    if ( portalnum < 0 || portalnum >= cm->cache->numportals ) {
+        Com_DPrintf( "%s: portalnum %d is out of range\n", __func__, portalnum );
+        return 0;
+    }
+
+    return cm->portalopen[ portalnum ];
+}
+/**
+*   @return True if the two areas are connected, false if not(or possibly blocked by a door for example.)
 **/
 const bool CM_AreasConnected( cm_t *cm, const int32_t area1, const int32_t area2 ) {
     bsp_t *cache = cm->cache;
@@ -181,7 +196,7 @@ void CM_SetPortalStates( cm_t *cm, byte *buffer, const int32_t bytes ) {
         cm->portalopen[ i ] = true;
     }
 
-    FloodAreaConnections( cm );
+    CM_FloodAreaConnections( cm );
 }
 /**
 *   @Return True if any leaf under headnode has a cluster that

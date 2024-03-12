@@ -220,9 +220,24 @@ void SV_WriteFrameToClient( client_t *client ) {
 	client->suppress_count = 0;
 	client->frameflags = 0;
 
-	// send over the areabits
+	// Send over the areabits.
 	MSG_WriteUint8( frame->areabytes );
 	MSG_WriteData( frame->areabits, frame->areabytes );
+
+    // Send over entire frame's portal bits if this is the very first frame
+    // or the client required a full on retransmit.
+    if ( oldframe == nullptr ) {
+        // PortalBits frame message.
+        MSG_WriteUint8( svc_portalbits );
+        // Clean zeroed memory portal bits buffer for writing.
+        byte portalBits[ MAX_MAP_PORTAL_BYTES ];// = { 0 };
+        memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
+        // Write the current portal bit states to the portalBits buffer.
+        int32_t numPortalBits = CM_WritePortalBits( &sv.cm, portalBits );
+        // Write data to message.
+        MSG_WriteUint8( numPortalBits );
+        MSG_WriteData( portalBits, numPortalBits );
+    }
 
 	// delta encode the playerstate
 	MSG_WriteUint8( svc_playerinfo );

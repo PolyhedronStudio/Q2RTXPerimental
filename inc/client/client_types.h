@@ -31,6 +31,7 @@ typedef struct client_frame_s {
 *           entity_state_t entities that were in the current frame.
 **/
 typedef struct server_frame_s {
+    //! The frame is valid if all parsing went well.
     qboolean        valid;
 
     //! Sequential identifier, used for delta.
@@ -172,14 +173,20 @@ typedef struct client_predicted_state_s {
 *           move command generation process.
 **/
 typedef struct client_mouse_motion_s {
+    //! False if there was no mouse motion for this (client) frame.
     qboolean hasMotion;
 
+    //! X-Axis Delta Movement.
     int32_t deltaX;
+    //! Y-Axis Delta Movement.
     int32_t deltaY;
 
+    //! Floating point X-axis move distance.
     float moveX;
+    //! Floating point Y-axis move distance.
     float moveY;
 
+    //! Mouse speed.
     float speed;
 } client_mouse_motion_t;
 
@@ -360,8 +367,27 @@ typedef struct client_state_s {
     vec3_t      playerEntityOrigin;
     vec3_t      playerEntityAngles;
     //! Local PVS
-    byte localPVS[ VIS_MAX_BYTES ];
-    int32_t localLastValidCluster;
+    //byte localPVS[ VIS_MAX_BYTES ];
+    //int32_t localLastValidCluster;
+    //! Client Possible Visibility Set, used for local entities.
+    struct LocalPVS {
+        // PVS Set.
+        byte pvs[ 8192 ];
+        // Last valid cluster.
+        int32_t lastValidCluster;// = -1;
+
+        //! Leaf, Area, and Current Cluster.
+        mleaf_t *leaf;// = nullptr;
+        int32_t leafArea;// = -1;
+        int32_t leafCluster;// = -1;
+
+        //// Area Bits.
+        //byte areaBits[ 32 ];
+        //// Area Btes.
+        //int32_t areaBytes;
+    } localPVS;
+
+
     /**
     *   @brief  Gets properly configured by the client game, when V_RenderView is called upon,
     *           and then passes on the data to the refresh render module.

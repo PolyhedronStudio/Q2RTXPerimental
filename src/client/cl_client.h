@@ -548,6 +548,11 @@ void CL_CheckEntityPresent( const int32_t entityNumber, const char *what );
 void V_Init(void);
 void V_Shutdown(void);
 void V_RenderView(void);
+/**
+*   @brief  Calculate the client's PVS which is a necessity for culling out
+*           local client entities.
+**/
+void V_CalculateLocalPVS( const vec3_t viewOrigin );
 void V_AddEntity(entity_t *ent);
 void V_AddParticle(particle_t *p);
 void V_AddLight(const vec3_t org, float intensity, float r, float g, float b);

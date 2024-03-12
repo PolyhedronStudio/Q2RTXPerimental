@@ -674,12 +674,32 @@ static void PF_AddCommandString(const char *string)
     Cbuf_AddText(&cmd_buffer, string);
 }
 
-static void PF_SetAreaPortalState( const int32_t portalnum, const qboolean open)
-{
+void SV_SendSetPortalBitMessage( const int32_t portalnum, const bool open ) {
+    // Wirte Set Portal Bit command.
+    MSG_WriteUint8( svc_set_portalbit );
+    // Send a portal number update message
+    MSG_WriteInt32( portalnum );
+    MSG_WriteUint8( open ? true : false );
+    // Multicast to all clients.
+    SV_Multicast( NULL, MULTICAST_ALL, CHAN_RELIABLE );
+    // Clear multicast buffer
+    SZ_Clear( &msg_write );
+}
+static void PF_SetAreaPortalState( const int32_t portalnum, const bool open) {
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
     }
+    // Set server side, collision model's area portal state.
     CM_SetAreaPortalState(&sv.cm, portalnum, open);
+    // Multicast a set portal bit notification to all connected clients.
+    SV_SendSetPortalBitMessage( portalnum, open );
+}
+
+static const int32_t PF_GetAreaPortalState( const int32_t portalnum ) {
+    if ( !sv.cm.cache ) {
+        Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
+    }
+    return CM_GetAreaPortalState( &sv.cm, portalnum );
 }
 
 static const qboolean PF_AreasConnected(const int32_t area1, const int32_t area2)
@@ -874,6 +894,7 @@ void SV_InitGameProgs(void) {
 
     import.DebugGraph = PF_DebugGraph;
     import.SetAreaPortalState = PF_SetAreaPortalState;
+    import.GetAreaPortalState = PF_GetAreaPortalState;
     import.AreasConnected = PF_AreasConnected;
 
     ge = entry(&import);

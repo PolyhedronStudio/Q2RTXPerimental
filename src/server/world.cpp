@@ -99,17 +99,21 @@ void SV_ClearWorld(void)
     edict_t *ent;
     int i;
 
+    // Clear area node data.
     memset(sv_areanodes, 0, sizeof(sv_areanodes));
     sv_numareanodes = 0;
 
+    // Recreate a new area node list based on the current precached world model's mins/maxs.
     if (sv.cm.cache) {
         cm = &sv.cm.cache->models[0];
         SV_CreateAreaNode(0, cm->mins, cm->maxs);
     }
 
-    // make sure all entities are unlinked
+    // Make sure all entities are unlinked.
     for (i = 0; i < ge->max_edicts; i++) {
+        // Get edict pointer.s
         ent = EDICT_FOR_NUMBER(i);
+        // Unlink.
         ent->area.prev = ent->area.next = NULL;
     }
 }
@@ -120,42 +124,42 @@ void SV_ClearWorld(void)
 **/
 void SV_LinkEdict(cm_t *cm, edict_t *ent)
 {
-    mleaf_t     *leafs[MAX_TOTAL_ENT_LEAFS];
-    int         clusters[MAX_TOTAL_ENT_LEAFS];
-    int         num_leafs;
-    int         i, j;
-    int         area;
+    mleaf_t *leafs[MAX_TOTAL_ENT_LEAFS];
+    int32_t clusters[MAX_TOTAL_ENT_LEAFS];
+    int32_t num_leafs;
+    int32_t i, j;
+    int32_t area;
     mnode_t     *topnode;
 
     // set the size
     VectorSubtract(ent->maxs, ent->mins, ent->size);
 
     // set the abs box
-    if (ent->solid == SOLID_BSP && !VectorEmpty(ent->s.angles)) {
+    if ( ent->solid == SOLID_BSP && !VectorEmpty( ent->s.angles ) ) {
         // expand for rotation
         float   max, v;
 
         max = 0;
-        for (i = 0; i < 3; i++) {
-            v = fabsf(ent->mins[i]);
-            if (v > max)
+        for ( i = 0; i < 3; i++ ) {
+            v = fabsf( ent->mins[ i ] );
+            if ( v > max )
                 max = v;
-            v = fabsf(ent->maxs[i]);
-            if (v > max)
+            v = fabsf( ent->maxs[ i ] );
+            if ( v > max )
                 max = v;
         }
-        for (i = 0; i < 3; i++) {
-            ent->absmin[i] = ent->s.origin[i] - max;
-            ent->absmax[i] = ent->s.origin[i] + max;
+        for ( i = 0; i < 3; i++ ) {
+            ent->absmin[ i ] = ent->s.origin[ i ] - max;
+            ent->absmax[ i ] = ent->s.origin[ i ] + max;
         }
     } else {
         // normal
-        VectorAdd(ent->s.origin, ent->mins, ent->absmin);
-        VectorAdd(ent->s.origin, ent->maxs, ent->absmax);
+        VectorAdd( ent->s.origin, ent->mins, ent->absmin );
+        VectorAdd( ent->s.origin, ent->maxs, ent->absmax );
     }
 
-    // because movement is clipped an epsilon away from an actual edge,
-    // we must fully check even when bounding boxes don't quite touch
+    // Because movement is clipped an epsilon away from an actual edge,
+    // we must fully check even when bounding boxes don't quite touch.
     ent->absmin[0] -= 1;
     ent->absmin[1] -= 1;
     ent->absmin[2] -= 1;
@@ -163,7 +167,7 @@ void SV_LinkEdict(cm_t *cm, edict_t *ent)
     ent->absmax[1] += 1;
     ent->absmax[2] += 1;
 
-// link to PVS leafs
+    // Link to PVS leafs.
     ent->num_clusters = 0;
     ent->areanum = 0;
     ent->areanum2 = 0;
@@ -173,15 +177,15 @@ void SV_LinkEdict(cm_t *cm, edict_t *ent)
                             leafs, MAX_TOTAL_ENT_LEAFS, &topnode);
 
     // set areas
-    for (i = 0; i < num_leafs; i++) {
-        clusters[i] = leafs[i]->cluster;
-        area = leafs[i]->area;
-        if (area) {
+    for ( i = 0; i < num_leafs; i++ ) {
+        clusters[ i ] = leafs[ i ]->cluster;
+        area = leafs[ i ]->area;
+        if ( area ) {
             // doors may legally straggle two areas,
             // but nothing should evern need more than that
-            if (ent->areanum && ent->areanum != area) {
-                if (ent->areanum2 && ent->areanum2 != area && sv.state == ss_loading) {
-                    Com_DPrintf("Object touching 3 areas at %s\n", vtos(ent->absmin));
+            if ( ent->areanum && ent->areanum != area ) {
+                if ( ent->areanum2 && ent->areanum2 != area && sv.state == ss_loading ) {
+                    Com_DPrintf( "Object touching 3 areas at %s\n", vtos( ent->absmin ) );
                 }
                 ent->areanum2 = area;
             } else
@@ -189,27 +193,27 @@ void SV_LinkEdict(cm_t *cm, edict_t *ent)
         }
     }
 
-    if (num_leafs >= MAX_TOTAL_ENT_LEAFS) {
-        // assume we missed some leafs, and mark by headnode
+    if ( num_leafs >= MAX_TOTAL_ENT_LEAFS ) {
+        // Assume we missed some leafs, and mark by headnode.
         ent->num_clusters = -1;
-        ent->headnode = CM_NumberForNode(cm, topnode);
+        ent->headnode = CM_NumberForNode( cm, topnode );
     } else {
         ent->num_clusters = 0;
-        for (i = 0; i < num_leafs; i++) {
-            if (clusters[i] == -1)
+        for ( i = 0; i < num_leafs; i++ ) {
+            if ( clusters[ i ] == -1 )
                 continue;        // not a visible leaf
-            for (j = 0; j < i; j++)
-                if (clusters[j] == clusters[i])
+            for ( j = 0; j < i; j++ )
+                if ( clusters[ j ] == clusters[ i ] )
                     break;
-            if (j == i) {
-                if (ent->num_clusters == MAX_ENT_CLUSTERS) {
-                    // assume we missed some leafs, and mark by headnode
+            if ( j == i ) {
+                if ( ent->num_clusters == MAX_ENT_CLUSTERS ) {
+                    // Assume we missed some leafs, and mark by headnode.
                     ent->num_clusters = -1;
-                    ent->headnode = CM_NumberForNode(cm, topnode);
+                    ent->headnode = CM_NumberForNode( cm, topnode );
                     break;
                 }
 
-                ent->clusternums[ent->num_clusters++] = clusters[i];
+                ent->clusternums[ ent->num_clusters++ ] = clusters[ i ];
             }
         }
     }
@@ -235,22 +239,30 @@ void PF_LinkEdict(edict_t *ent)
     server_entity_t *sent;
     int entnum;
 
-    if (ent->area.prev)
-        PF_UnlinkEdict(ent);     // unlink from old position
+    // If it has been linked previously(possibly to an other position), unlink first.
+    if ( ent->area.prev ) {
+        PF_UnlinkEdict( ent );
+    }
 
-    if (ent == ge->edicts)
+    // Do not try and add the world.
+    if ( ent == ge->edicts ) {
         return;        // don't add the world
+    }
 
+    // Entity has to be in-use.
     if (!ent->inuse) {
         Com_DPrintf("%s: entity %d is not in use\n", __func__, NUMBER_OF_EDICT(ent));
         return;
     }
 
+    // Can't link of no world has been precached yet.
     if (!sv.cm.cache) {
         return;
     }
 
+    // Get entity number.
     entnum = NUMBER_OF_EDICT(ent);
+    // Specific server entity data pointer.
     sent = &sv.entities[entnum];
 
     // encode the size into the entity_state for client prediction
@@ -293,21 +305,26 @@ void PF_LinkEdict(edict_t *ent)
         ent->s.ownerNumber = 0;
     }
 
+    // Link edit in.
     SV_LinkEdict(&sv.cm, ent);
 
-    // if first time, make sure old_origin is valid
-    if (!ent->linkcount) {
-        if (!(ent->s.renderfx & RF_BEAM))
-            VectorCopy(ent->s.origin, ent->s.old_origin);
+    // If its the entity's first time, make sure old_origin is valid, unless a BEAM which handles it by itself.
+    if ( !ent->linkcount ) {
+        if ( !( ent->s.renderfx & RF_BEAM ) ) {
+            VectorCopy( ent->s.origin, ent->s.old_origin );
+        }
     }
+
+    // Increment link count.
     ent->linkcount++;
 
+    // Solid NOT won't have any contents either.
     if ( ent->solid == SOLID_NOT ) {
         ent->s.hullContents = CONTENTS_NONE;
         return;
     }
 
-// find the first node that the ent's box crosses
+    // Find the first node that the ent's box crosses.
     node = sv_areanodes;
     while (1) {
         if (node->axis == -1)
@@ -452,7 +469,7 @@ const contents_t SV_PointContents( const vec3_t p ) {
             continue;
         }
 
-		// might intersect, so do an exact clip
+		// Might intersect, so do an exact clip.
 		contents = static_cast<contents_t>( contents | CM_TransformedPointContents( &sv.cm, p, SV_HullForEntity(hit),
 												hit->s.origin, hit->s.angles ) );
 	}

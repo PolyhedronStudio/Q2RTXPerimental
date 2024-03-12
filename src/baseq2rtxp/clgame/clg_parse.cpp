@@ -366,11 +366,11 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
     case svc_inventory:
         CLG_ParseInventory();
         return true;
-        break;
+    break;
     case svc_layout:
         CLG_ParseLayout();
         return true;
-        break;
+    break;
     case svc_temp_entity:
         CLG_ParseTEntPacket();
         return true;

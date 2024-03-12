@@ -667,6 +667,11 @@ void CL_GM_LoadProgs( void ) {
 	imports.CM_LeafForNumber = CM_LeafForNumber;
 	imports.CM_NumberForLeaf = PF_CM_NumberForLeaf;
 	imports.CM_HeadnodeVisible = PF_CM_HeadnodeVisible;
+
+	imports.CM_SetAreaPortalState = CM_SetAreaPortalState;
+	imports.CM_GetAreaPortalState = CM_GetAreaPortalState;
+	imports.CM_AreasConnected = CM_AreasConnected;
+
 	imports.CM_BoxLeafs = CM_BoxLeafs;
 	imports.CM_BoxLeafs_headnode = CM_BoxLeafs_headnode;
 
@@ -750,6 +755,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.FreeTags = PF_FreeTags;
 
 	imports.V_RenderView = V_RenderView;
+	imports.V_CalculateLocalPVS = V_CalculateLocalPVS;
 	imports.V_AddEntity = V_AddEntity;
 	imports.V_AddParticle = V_AddParticle;
 	imports.V_AddSphereLight = V_AddSphereLight;

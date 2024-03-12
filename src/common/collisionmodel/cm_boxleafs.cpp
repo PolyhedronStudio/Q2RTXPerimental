@@ -25,7 +25,8 @@ static const vec_t *leaf_mins, *leaf_maxs;
 static mnode_t *leaf_topnode;
 
 /**
-*   @brief  Fills in a list of all the leafs touched
+*   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
+*           given box occupies in the data structure.
 **/
 static void CM_BoxLeafs_r( cm_t *cm, mnode_t *node ) {
     int     s;
@@ -52,33 +53,36 @@ static void CM_BoxLeafs_r( cm_t *cm, mnode_t *node ) {
 }
 
 /**
-*   @brief
+*   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
+*           given box occupies in the data structure.
 **/
-const int32_t CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t maxs,
-    mleaf_t **list, int listsize,
-    mnode_t *headnode, mnode_t **topnode ) {
+const int32_t CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode ) {
     leaf_list = list;
     leaf_count = 0;
     leaf_maxcount = listsize;
     leaf_mins = mins;
     leaf_maxs = maxs;
 
+    // Ensure we start with a null leaf_topnode.
     leaf_topnode = NULL;
 
+    // Recursively 
     CM_BoxLeafs_r( cm, headnode );
 
-    if ( topnode )
+    // Copy over the leaf_topnode value into the topnode pointer value if it was set.
+    if ( topnode ) {
         *topnode = leaf_topnode;
+    }
 
     return leaf_count;
 }
 
 /**
-*   @brief  Call with topnode set to the headnode, returns with topnode
-*           set to the first node that splits the box
+*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not 
+*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully 
+*           contains the box.
 **/
-const int32_t CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs,
-    mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
+const int32_t CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
     // Map not loaded.
     if ( !cm->cache ) {
         return 0;
@@ -86,3 +90,16 @@ const int32_t CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs,
 
     return CM_BoxLeafs_headnode( cm, mins, maxs, list, listsize, cm->cache->nodes, topnode );
 }
+
+//int32_t Cm_BoxContents( const box3_t bounds, int32_t head_node ) {
+//    cm_box_leafnum_data data = {
+//        .bounds = bounds,
+//        .list = NULL,
+//        .length = 0,
+//        .top_node = -1
+//    };
+//
+//    Cm_BoxLeafnums_r( &data, head_node );
+//
+//    return data.contents;
+//}

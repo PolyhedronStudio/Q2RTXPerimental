@@ -62,6 +62,7 @@ Specifies the model that will be used as the world
 ====================
 */
 static void V_ClearScene( void ) {
+    // Clear the viewScene of dlights, entities, and particles.
     cl.viewScene.r_numdlights = 0;
     cl.viewScene.r_numentities = 0;
     cl.viewScene.r_numparticles = 0;
@@ -69,6 +70,35 @@ static void V_ClearScene( void ) {
     clge->ClearViewScene();
 }
 
+/**
+*   @brief  Calculate the client's PVS which is a necessity for culling out
+*           local client entities.
+**/
+void V_CalculateLocalPVS( const vec3_t viewOrigin ) {
+    if ( !cl.collisionModel.cache ) {
+        return;
+    }
+
+    cl.localPVS.leaf = BSP_PointLeaf( cl.collisionModel.cache->nodes, viewOrigin );
+
+    if ( !cl.localPVS.leaf ) {
+        // TODO: What do?
+        Com_LPrintf( PRINT_DEVELOPER, "%s: warning, no BSP leaf returned for vieworg(%f, %f, %f)\n",
+            __func__, viewOrigin[ 0 ], viewOrigin[ 1 ], viewOrigin[ 2 ] );
+        return;
+    }
+
+    // Calculate the PVS bits.
+    cl.localPVS.leafArea = cl.localPVS.leaf->area;
+    cl.localPVS.leafCluster = cl.localPVS.leaf->cluster;
+
+    if ( cl.localPVS.leafCluster >= 0 ) {
+        CM_FatPVS( &cl.collisionModel, cl.localPVS.pvs, viewOrigin, DVIS_PVS );
+        cl.localPVS.lastValidCluster = cl.localPVS.leafCluster;
+    } else {
+        BSP_ClusterVis( cl.collisionModel.cache, cl.localPVS.pvs, cl.localPVS.lastValidCluster, DVIS_PVS /*DVIS_PVS2*/ );
+    }
+}
 
 /*
 =====================

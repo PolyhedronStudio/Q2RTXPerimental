@@ -553,6 +553,9 @@ void PF_PrepareViewEntites( void ) {
     // Finish it off by determing third or first -person view, and the required thirdperson/firstperson view model.
     CLG_FinishViewValues();
 
+    // Now calculate the client's local PVS.
+    clgi.V_CalculateLocalPVS( clgi.client->refdef.vieworg );
+
     // Add all 'in-frame' received packet entities to the rendered view.
     CLG_AddPacketEntities();
 

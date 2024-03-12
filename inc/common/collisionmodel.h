@@ -84,13 +84,17 @@ static inline const int32_t CM_NumberForLeaf( cm_t *cm, mleaf_t *leaf ) {
 /**
 *   @brief
 **/
-void FloodAreaConnections( cm_t *cm );
+void CM_FloodAreaConnections( cm_t *cm );
 /**
-*   @brief
+*   @brief  Set the portal nums matching portal to open/closed state.
 **/
 void        CM_SetAreaPortalState( cm_t *cm, const int32_t portalnum, const bool open );
 /**
-*   @brief
+*   @return False(0) if the portal nums matching portal is closed, true(1) otherwise.
+**/
+const int32_t CM_GetAreaPortalState( cm_t *cm, const int32_t portalnum );
+/**
+*   @return True if the two areas are connected, false if not(or possibly blocked by a door for example.)
 **/
 const bool  CM_AreasConnected( cm_t *cm, const int32_t area1, const int32_t area2 );
 /**
@@ -126,13 +130,15 @@ byte *CM_FatPVS( cm_t *cm, byte *mask, const vec3_t org, const int32_t vis );
 // common/collisionmodel/cm_boxleafs.cpp
 //
 /**
-*   @brief  Call with topnode set to the headnode, returns with topnode
-*           set to the first node that splits the box
+*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
+*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
+*           contains the box.
 **/
 const int32_t   CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs,
                             mleaf_t **list, const int32_t listsize, mnode_t **topnode );
 /**
-*   @brief
+*   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
+*           given box occupies in the data structure.
 **/
 const int32_t CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t maxs,
                                     mleaf_t **list, int listsize,

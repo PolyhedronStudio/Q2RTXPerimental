@@ -175,7 +175,8 @@ typedef struct {
     const contents_t (*pointcontents)(const vec3_t point);
     const qboolean (*inPVS)(const vec3_t p1, const vec3_t p2);
     const qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);
-    void (*SetAreaPortalState)( const int32_t portalnum, const qboolean open);
+    void (*SetAreaPortalState)( const int32_t portalnum, const bool open);
+    const int32_t ( *GetAreaPortalState )( const int32_t portalnum );
     const qboolean (*AreasConnected)(const int32_t area1, const int32_t area2);
     /**
     *	An entity will never be sent to a client or used for collision if it is not passed to linkentity.  

@@ -475,32 +475,6 @@ void CL_CheckEntityPresent( const int32_t entityNumber, const char *what)
 
 
 /**
-*   @brief  Calculate the client's PVS which is a necessity for culling out
-*           local client entities.
-**/
-static void CL_CalculatePVS( void ) {
-    mleaf_t *leaf = BSP_PointLeaf( cl.collisionModel.cache->nodes, cl.refdef.vieworg );
-
-    if ( !leaf ) {
-        // TODO: What do?
-        Com_LPrintf( PRINT_DEVELOPER, "%s: warning, no BSP leaf returned for vieworg(%f, %f, %f)\n",
-            __func__, cl.refdef.vieworg[ 0 ], cl.refdef.vieworg[ 1 ], cl.refdef.vieworg[ 2 ] );
-        return;
-    }
-
-    // Calculate the PVS bits.
-    const int32_t clientArea = leaf->area;
-    const int32_t clientCluster = leaf->cluster;
-
-    if ( clientCluster >= 0 ) {
-        CM_FatPVS( &cl.collisionModel, cl.localPVS, cl.refdef.vieworg, DVIS_PVS /*DVIS_PVS2*/ );
-        cl.localLastValidCluster = clientCluster;
-    } else {
-        BSP_ClusterVis( cl.collisionModel.cache, cl.localPVS, cl.localLastValidCluster, DVIS_PVS /*DVIS_PVS2*/ );
-    }
-}
-
-/**
 *   @brief  Sets cl.refdef view values and sound spatialization params.
 *           Usually called from CL_PrepareViewEntities, but may be directly called from the main
 *           loop if rendering is disabled but sound is running.
@@ -516,9 +490,6 @@ void CL_CalculateViewValues( void ) {
 *           and temp entities) to the refresh definition.
 **/
 void CL_PrepareViewEntities(void) {
-    // Rebuild the client's local PVS.
-    CL_CalculatePVS();
-
     // Let the Client Game prepare view entities.
     clge->PrepareViewEntities();
 

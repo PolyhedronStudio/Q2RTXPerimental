@@ -514,29 +514,54 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 *	@return	True if entity is inside the local client's PVS and should be processed to
 *			prepare a refresh entity.			
 **/
-const bool CLG_LocalEntity_IsInsideLocalPVS( clg_local_entity_t *lent ) {
-	if ( lent->num_clusters == -1 ) {
-		// Too many leafs for individual check, go by headnode instead.
-		if ( !clgi.CM_HeadnodeVisible( clgi.CM_NodeForNumber( &clgi.client->collisionModel, lent->headnode ), clgi.client->localPVS ) )
-			return false; //continue;
-	} else {
-		int i;
-		// Check individual leafs
-		for ( i = 0; i < lent->num_clusters; i++ ) {
-			// Break if potentially visible.
-			if ( Q_IsBitSet( clgi.client->localPVS, lent->clusternums[ i ] ) ) {
-				break;
-			}
-		}
-		// Not visible:
-		if ( i == lent->num_clusters ) {
-			return false; // continue; 
+const bool CLG_LocalEntity_InLocalPVS( clg_local_entity_t *lent ) {
+	// Default to visible so all code below only has to check for it being invsiible(thus only sets it to false.)
+	bool isVisible = true;
+
+	// Area Checks:
+	if ( clgi.client->localPVS.lastValidCluster >= 0 && !clgi.CM_AreasConnected( &clgi.client->collisionModel, clgi.client->localPVS.leaf->area, lent->areanum ) ) {
+		// Doors can legally straddle two areas, so we may need to check another one
+		if ( !clgi.CM_AreasConnected( &clgi.client->collisionModel, clgi.client->localPVS.leaf->area, lent->areanum2 ) ) {
+			// Blocked by a door:
+			return false;
 		}
 	}
 
-	// Visible.
-	return true;
+	// If area checks succeeded and it is vissible, test the cluster or go by head node.
+	if ( isVisible ) {
+		// beams just check one point for PHS
+		//if ( ent->s.renderfx & RF_BEAM ) {
+		//	if ( !Q_IsBitSet( clientphs, ent->clusternums[ 0 ] ) )
+		//		ent_visible = false;
+		//} else {
+			//if ( cull_nonvisible_clientgame_entities ) {
+				int i = 0;
+				// Too many leafs for individual check, go by headnode:
+				if ( lent->num_clusters == -1 ) {
+					if ( !clgi.CM_HeadnodeVisible( clgi.CM_NodeForNumber( &clgi.client->collisionModel, lent->headnode ), clgi.client->localPVS.pvs ) ) {
+						isVisible = false;
+					}
+				} else {
+					// Check the cluster's individual leafs.
+					for ( i = 0; i < lent->num_clusters; i++ ) {
+						if ( Q_IsBitSet( clgi.client->localPVS.pvs, lent->clusternums[ i ] ) ) {
+							// Possibly visible.
+							break;
+						}
+					}
+					// Not visible:
+					if ( i == lent->num_clusters ) {
+						isVisible = false;
+					}
+				}
+			//} //if ( cull_nonvisible_clientgame_entities ) {
+		//}
+	}
+
+	// Return the final result, visible or not.
+	return isVisible;
 }
+
 /**
 *	@brief	Add local client entities that are 'in-frame' to the view's refdef entities list.
 **/
@@ -552,7 +577,7 @@ void CLG_AddLocalEntities( void ) {
 		}
 
 		// Determine whether it is visible at all.
-		if ( CLG_LocalEntity_IsInsideLocalPVS( lent ) ) {
+		if ( CLG_LocalEntity_InLocalPVS( lent ) ) {
 			// Get its class locals.
 			CLG_LocalEntity_DispatchPrepareRefreshEntity( lent );
 			// Debug print it ain't visible.

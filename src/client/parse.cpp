@@ -283,6 +283,35 @@ static void CL_ParseFrame()
         frame.areabytes = 0;
     }
 
+    // Expect svc_portalbits or bail out.
+    if ( ( cl.frameflags & FF_NODELTA ) ) {
+        if ( MSG_ReadUint8() != svc_portalbits ) {
+            Com_Error( ERR_DROP, "%s: not svc_portalbits", __func__ );
+        }
+
+        // Acquire length of portal bits.
+        uint8_t lengthPortalBits = MSG_ReadUint8();
+        // Ensure it is sane, otherwise bail out.
+        if ( lengthPortalBits > MAX_MAP_PORTAL_BYTES ) {
+            Com_Error( ERR_DROP, "%s: svc_frame -> svc_portalbits: Portalbits number too high(%d), must be below(%d)\n",
+                __func__, lengthPortalBits, MAX_MAP_PORTAL_BYTES );
+            return;
+        }
+        // Clean zerod out portal bits buffer.
+        byte portalBits[ MAX_MAP_PORTAL_BYTES ];
+        memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
+        // Pointer to the read buffer's portal bit part.
+        byte *receivedPortalBits = MSG_ReadData( lengthPortalBits );
+        // Copy over the received portal bits into the zeroed out portal bits buffer.
+        //memcpy( portalBits, receivedPortalBits, lengthPortalBits );
+        for ( int32_t i = 0; i < lengthPortalBits; i++ ) {
+            portalBits[ i ] = receivedPortalBits[ i ];
+        }
+        // Set the entire of the portal states with the newly received portal state bit data.
+        CM_SetPortalStates( &cl.collisionModel, portalBits, lengthPortalBits );
+        CM_FloodAreaConnections( &cl.collisionModel );
+    }
+
     //if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         if (MSG_ReadUint8() != svc_playerinfo) {
             Com_Error(ERR_DROP, "%s: not playerinfo", __func__);
@@ -827,6 +856,26 @@ static void CL_ParseSetting(void)
 //        numClients, cl.frame.number );
 //}
 
+/**
+*   @brief
+**/
+static void CL_ParseSetAreaPortalBit() {
+    // Read in the specific portal number to set the bit of.
+    int32_t portalNumber = MSG_ReadInt32();
+    // Read its state
+    bool stateIsOpen = MSG_ReadUint8();
+
+    // Set the area portal bit.
+    CM_SetAreaPortalState( &cl.collisionModel, portalNumber, stateIsOpen );
+
+    // Flood update area connections.
+    CM_FloodAreaConnections( &cl.collisionModel );
+
+    // Developer print.
+    Com_LPrintf( PRINT_DEVELOPER, "%s: svc_set_portalbit: portalNumber(#%d), isOpen(%s)\n",
+        __func__, portalNumber, stateIsOpen ? "true" : "false" );
+}
+
 /*
 =====================
 CL_ParseServerMessage
@@ -949,6 +998,9 @@ void CL_ParseServerMessage(void)
 
         case svc_frame:
             CL_ParseFrame();
+            continue;
+        case svc_set_portalbit:
+            CL_ParseSetAreaPortalBit();
             continue;
 
 
@@ -1098,6 +1150,9 @@ void CL_SeekDemoMessage(void)
 
         case svc_frame:
             CL_ParseFrame();
+            continue;
+        case svc_set_portalbit:
+            CL_ParseSetAreaPortalBit();
             continue;
 
         // Moved to Client Game.
