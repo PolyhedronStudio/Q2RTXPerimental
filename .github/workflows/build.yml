@@ -2,9 +2,9 @@ name: Build Master-Release
 
 on:
   push:
-    branches: [ master ]
+    branches: [ development ]
   pull_request:
-    branches: [ master ]
+    branches: [ development ]
   
 env:
   BUILD_TYPE: Release
