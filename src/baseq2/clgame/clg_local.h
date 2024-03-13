@@ -313,19 +313,19 @@ typedef struct clg_local_entity_s clg_local_entity_t;
 //! 'Precache' local entity class function pointer callback.
 //! Used to parse the entity dictionary, apply values, and
 //! precache any required render/sound data.
-typedef void ( *LocalEntityCallback_Precache )( clg_local_entity_t *self, const cm_entity_t *keyValues );
+typedef void ( *LocalEntityCallback_Precache )( clg_local_entity_s *self, const cm_entity_t *keyValues );
 //! 'Spawn' local entity class function pointer callback.
 //! Called to spawn(prepare) the entity for gameplay.
-typedef void ( *LocalEntityCallback_Spawn )( clg_local_entity_t *self );
+typedef void ( *LocalEntityCallback_Spawn )( clg_local_entity_s *self );
 //! 'Think' local entity class function pointer callback.
 //! Used for game tick rate logic.
-typedef void ( *LocalEntityCallback_Think )( clg_local_entity_t *self );
+typedef void ( *LocalEntityCallback_Think )( clg_local_entity_s *self );
 //! 'Refresh Frame' local entity class function pointer callback.
 //! Used for effects updating.
-typedef void ( *LocalEntityCallback_RefreshFrame )( clg_local_entity_t *self );
+typedef void ( *LocalEntityCallback_RefreshFrame )( clg_local_entity_s *self );
 //! 'Prepare Refresh Entity' local entity class function pointer callback.
 //! Used to setup a refresh entity for the client's current frame.
-typedef void ( *LocalEntityCallback_PrepareRefreshEntity)( clg_local_entity_t *self );
+typedef void ( *LocalEntityCallback_PrepareRefreshEntity)( clg_local_entity_s *self );
 
 
 /**

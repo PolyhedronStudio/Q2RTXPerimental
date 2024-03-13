@@ -107,8 +107,10 @@ void CLG_LocalEntity_Free( clg_local_entity_t *lent ) {
 	const uint32_t spawn_count = lent->spawn_count + 1;
 
 	// Zero out memory.
+	const uint32_t new_id = static_cast<uint32_t>( lent - clg_local_entities );
+
 	*lent = {
-		.id = static_cast<uint32_t>( lent - clg_local_entities ),
+		.id = new_id,
 		.spawn_count = spawn_count,
 		.inuse = false,
 		.islinked = false,
