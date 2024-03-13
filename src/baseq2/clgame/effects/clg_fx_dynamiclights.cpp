@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "../clg_local.h"
+#include "../clg_effects.h"
 
 //!
 static clg_dlight_t       cl_dlights[ MAX_DLIGHTS ];

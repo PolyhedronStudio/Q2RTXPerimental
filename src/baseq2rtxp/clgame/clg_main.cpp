@@ -229,7 +229,7 @@ void PF_InitGame( void ) {
 	#if USE_DEBUG
 	developer = clgi.CVar_Get( "developer", nullptr, 0 );
 	#else
-	developer = clgi.CVar_Get( "developer", "0", CVAR_NOSET );
+	//developer = clgi.CVar_Get( "developer", "0", CVAR_NOSET );
 	#endif
 	cl_predict = clgi.CVar_Get( "cl_predict", nullptr, 0 );
 	cl_running = clgi.CVar_Get( "cl_running", nullptr, 0 );

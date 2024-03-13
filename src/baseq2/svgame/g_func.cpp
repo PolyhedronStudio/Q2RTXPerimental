@@ -831,6 +831,10 @@ void door_use_areaportals(edict_t *self, bool open)
     while ((t = G_Find(t, FOFS(targetname), self->target))) {
         if (Q_stricmp(t->classname, "func_areaportal") == 0) {
             gi.SetAreaPortalState(t->style, open);
+
+            //self->s.event = ( open ? EV_AREAPORTAL_OPEN : EV_AREAPORTAL_CLOSE );
+            //self->s.event[ 1 ] = t->style;
+            //self->s.event[ 2 ] = open;
         }
     }
 }
@@ -1086,6 +1090,14 @@ void door_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf
     gi.sound(other, CHAN_AUTO, gi.soundindex("misc/talk1.wav"), 1, ATTN_NORM, 0);
 }
 
+void door_postspawn( edict_t *self ) {
+    //if ( self->spawnflags & DOOR_START_OPEN ) {
+    //    //G_UseTargets( self, self );
+    //    door_use_areaportals( self, true );
+    //    //self->moveinfo.state = STATE_TOP;
+    //}
+}
+
 void SP_func_door(edict_t *ent)
 {
     vec3_t  abs_movedir;
@@ -1101,6 +1113,7 @@ void SP_func_door(edict_t *ent)
     ent->solid = SOLID_BSP;
     gi.setmodel(ent, ent->model);
 
+    ent->postspawn = door_postspawn;
     ent->blocked = door_blocked;
     ent->use = door_use;
 

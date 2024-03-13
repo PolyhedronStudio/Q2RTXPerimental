@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "../clg_local.h"
+#include "../clg_effects.h"
 
 static clg_particle_t *active_particles, *free_particles;
 

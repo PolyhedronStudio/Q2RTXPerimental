@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "clg_local.h"
+#include "clg_parse.h"
+#include "clg_precache.h"
 
 //! Stores qhandles to all precached client game media.
 precached_media_t precache;

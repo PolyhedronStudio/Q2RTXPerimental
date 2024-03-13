@@ -28,9 +28,11 @@ Used to group brushes together just for editor convenience.
 
 void Use_Areaportal(edict_t *ent, edict_t *other, edict_t *activator)
 {
-    ent->count ^= 1;        // toggle state
+    //ent->count ^= 1;        // toggle state
+    int32_t areaPortalState = gi.GetAreaPortalState( ent->style );
+    areaPortalState ^= 1;
 //  gi.dprintf ("portalstate: %i = %i\n", ent->style, ent->count);
-    gi.SetAreaPortalState(ent->style, ent->count);
+    gi.SetAreaPortalState(ent->style, areaPortalState );
 }
 
 /*QUAKED func_areaportal (0 0 0) ?
@@ -42,7 +44,8 @@ Usually enclosed in the middle of a door.
 void SP_func_areaportal(edict_t *ent)
 {
     ent->use = Use_Areaportal;
-    ent->count = 0;     // always start closed;
+    // always start closed;
+    ent->count = 0; // gi.GetAreaPortalState( ent->style );     
 }
 
 //=====================================================

@@ -4,7 +4,7 @@ import re
 import sys
 
 pointers = [
-    'prethink', 'think', 'blocked', 'touch', 'use', 'pain', 'die',
+    'postspawn', 'prethink', 'think', 'postthink' 'blocked', 'touch', 'use', 'pain', 'die',
     'moveinfo_endfunc', 'monsterinfo_currentmove', 'monsterinfo_stand',
     'monsterinfo_idle', 'monsterinfo_search', 'monsterinfo_walk',
     'monsterinfo_run', 'monsterinfo_dodge', 'monsterinfo_attack',

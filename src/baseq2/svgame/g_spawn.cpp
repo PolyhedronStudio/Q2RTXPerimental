@@ -818,8 +818,21 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
         entityID++;
     }
 
+    // Give entities a chance to 'post spawn'.
+    int32_t numPostSpawnedEntities = 0;
+    for ( int32_t i = 0; i < globals.num_edicts; i++ ) {
+        edict_t *ent = &g_edicts[ i ];
+
+        if ( ent && ent->postspawn ) {
+            ent->postspawn( ent );
+            numPostSpawnedEntities++;
+        }
+    }
+
     // Developer print the inhibited entities.
     gi.dprintf( "%i entities inhibited\n", numInhibitedEntities );
+    // Developer print the post spawned entities.
+    gi.dprintf( "%i entities post spanwed\n", numPostSpawnedEntities );
 
 #ifdef DEBUG
     i = 1;

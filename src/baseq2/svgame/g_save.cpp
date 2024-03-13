@@ -157,8 +157,10 @@ static const save_field_t entityfields[] = {
     F(ideal_yaw),
 
     I64(nextthink),
+    P(postspawn, P_postspawn),
     P(prethink, P_prethink),
     P(think, P_think),
+    P(postthink, P_postthink),
     P(blocked, P_blocked),
     P(touch, P_touch),
     P(use, P_use),

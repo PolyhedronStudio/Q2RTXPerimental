@@ -6,6 +6,10 @@
 *
 ********************************************************************/
 #include "clg_local.h"
+#include "clg_effects.h"
+#include "clg_parse.h"
+#include "clg_screen.h"
+#include "clg_temp_entities.h"
 
 /**
 *	@brief	Parses the layout string for server cmd: svc_inventory.
@@ -362,11 +366,11 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
     case svc_inventory:
         CLG_ParseInventory();
         return true;
-        break;
+    break;
     case svc_layout:
         CLG_ParseLayout();
         return true;
-        break;
+    break;
     case svc_temp_entity:
         CLG_ParseTEntPacket();
         return true;
