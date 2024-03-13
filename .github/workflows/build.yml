@@ -1,4 +1,4 @@
-name: Build
+name: Build Master-Release
 
 on:
   push:
@@ -39,15 +39,17 @@ jobs:
     - name: Upload
       uses: actions/upload-artifact@v3
       with:
-        name: q2rtx-windows-${{env.GITHUB_SHA_SHORT}}
+        name: q2rtxp-windows-${{env.GITHUB_SHA_SHORT}}
         path: |
-          q2rtx.exe
-          q2rtxded.exe
-          q2rtxded-x86.exe
+          q2rtxp.exe
+          q2rtxpded.exe
+          q2rtxpded-x86.exe
           baseq2/
-          rogue/
+          baseq2rtxp/
           license.txt
           notice.txt
+          changelog.md
+          readme.md
 
   build-linux-x86_64:
     runs-on: ubuntu-latest
@@ -73,11 +75,14 @@ jobs:
     - name: Upload
       uses: actions/upload-artifact@v3
       with:
-        name: q2rtx-linux-x86_64-${{env.GITHUB_SHA_SHORT}}
+        name: q2rtxp-linux-x86_64-${{env.GITHUB_SHA_SHORT}}
         path: |
-          q2rtx
-          q2rtxded
+          q2rtxp
+          q2rtxpded
           baseq2/
+          baseq2rtx/
           rogue/
           license.txt
           notice.txt
+          changelog.md
+          readme.md
