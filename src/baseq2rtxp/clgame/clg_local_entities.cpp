@@ -67,6 +67,7 @@ static clg_local_entity_t *CLG_LocalEntity_Allocate() {
 	if ( i >= MAX_CLIENT_ENTITIES ) { //if ( lent == game.maxentities ) {
 		// TODO: Do we want to error out on this? Why not return nullptr instead?
 		clgi.Error( "%s: no free local entity slots to allocate.", __func__ );
+		return nullptr;
 	}
 
 	// Increment count.

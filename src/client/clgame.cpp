@@ -674,6 +674,7 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.CM_BoxLeafs = CM_BoxLeafs;
 	imports.CM_BoxLeafs_headnode = CM_BoxLeafs_headnode;
+	imports.CM_BoxContents = CM_BoxContents;
 
 	imports.CM_EntityKeyValue = CM_EntityKeyValue;
 	imports.CM_GetNullEntity = CM_GetNullEntity;

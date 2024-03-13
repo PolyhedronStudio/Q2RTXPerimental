@@ -134,16 +134,16 @@ byte *CM_FatPVS( cm_t *cm, byte *mask, const vec3_t org, const int32_t vis );
 *           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
 *           contains the box.
 **/
-const int32_t   CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs,
-                            mleaf_t **list, const int32_t listsize, mnode_t **topnode );
+const int32_t CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode );
 /**
 *   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
 *           given box occupies in the data structure.
 **/
-const int32_t CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t maxs,
-                                    mleaf_t **list, int listsize,
-                                    mnode_t *headnode, mnode_t **topnode );
-
+const int32_t CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode );
+/**
+*   @return The contents mask of all leafs within the absolute bounds.
+**/
+const contents_t CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
 
 
 //

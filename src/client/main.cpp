@@ -573,6 +573,10 @@ void CL_ClearState(void)
 
     // Unload the collision models.
     CM_FreeMap( &cl.collisionModel ); //BSP_Free(cl.bsp);
+    
+    // Wipe local PVS.
+    //memset( &cl.localPVS, 0, sizeof( cl.localPVS ) / sizeof(char) );
+    cl.localPVS = { 0 };
 
     // Wipe the entire cl structure.
     memset(&cl, 0, sizeof(cl));
@@ -609,11 +613,12 @@ void CL_Disconnect(error_type_t type)
         return;
     }
 
+    // Get rid of loading plaque.
+    SCR_EndLoadingPlaque();
+
     // Let the client game know we're disconnecting.
     clge->ClientDisconnected();
-
-    SCR_EndLoadingPlaque(); // get rid of loading plaque
-
+    // Moved the following into clge->ClientDisconnected();
     //SCR_ClearChatHUD_f();   // clear chat HUD on server change
 
     if (cls.state > ca_disconnected && !cls.demo.playback) {
@@ -637,15 +642,17 @@ void CL_Disconnect(error_type_t type)
 		NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
 		NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
 
+        // Clear write buffer.
         SZ_Clear(&msg_write);
 
+        // Close netchan.
         Netchan_Close(&cls.netchan);
     }
 
-    // stop playback and/or recording
+    // Stop playback and/or recording.
     CL_CleanupDemos();
 
-    // stop download
+    // Stop download.
     CL_CleanupDownloads();
 
     // Clear state.
@@ -661,7 +668,6 @@ void CL_Disconnect(error_type_t type)
     }
 
     CL_CheckForPause();
-
     CL_UpdateFrameTimes();
 }
 
