@@ -521,7 +521,7 @@ SET(SRC_LINUX
 )
 SET(SRC_LINUX_CLIENT
 	unix/sound/sdl.c
-	unix/video.c
+	unix/video.cpp
 )
 
 
