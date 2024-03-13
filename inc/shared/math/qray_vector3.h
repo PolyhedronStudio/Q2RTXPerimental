@@ -802,7 +802,8 @@ RMAPI const Vector3 QM_Vector3Down( void ) {
         return y;
     else if ( i == 2 )
         return z;
-    throw std::out_of_range( "i" );
+    else
+        throw std::out_of_range( "i" );
 }
 /**
 *   @brief  Access Vector3 members by their index instead.
@@ -815,7 +816,8 @@ RMAPI const Vector3 QM_Vector3Down( void ) {
         return y;
     else if ( i == 2 )
         return z;
-    throw std::out_of_range( "i" );
+    else
+        throw std::out_of_range( "i" );
 }
 
 /**

@@ -294,7 +294,8 @@ RMAPI int QM_Vector2Equals( Vector2 p, Vector2 q ) {
         return x;
     else if ( i == 1 )
         return y;
-    throw std::out_of_range( "i" );
+    else
+        throw std::out_of_range( "i" );
 }
 /**
 *   @brief  Access Vector2 members by their index instead.
@@ -305,7 +306,8 @@ RMAPI int QM_Vector2Equals( Vector2 p, Vector2 q ) {
         return x;
     else if ( i == 1 )
         return y;
-    throw std::out_of_range( "i" );
+    else
+        throw std::out_of_range( "i" );
 }
 
 /**

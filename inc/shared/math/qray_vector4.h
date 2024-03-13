@@ -30,8 +30,8 @@
         return z;
     else if ( i == 3 )
         return w;
-
-    throw std::out_of_range( "i" );
+    else
+        throw std::out_of_range( "i" );
 }
 /**
 *   @brief  Access Vector4 members by their index instead.
@@ -46,8 +46,8 @@
         return z;
     else if ( i == 3 )
         return w;
-
-    throw std::out_of_range( "i" );
+    else
+        throw std::out_of_range( "i" );
 }
 
 ///**
