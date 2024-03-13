@@ -14,7 +14,7 @@ void CLG_MuzzleFlash2( void ) {
     centity_t *ent;
     vec3_t      origin;
     const vec_t *ofs;
-    cdlight_t *dl;
+    clg_dlight_t *dl;
     vec3_t      forward, right;
     char        soundname[ MAX_QPATH ];
 

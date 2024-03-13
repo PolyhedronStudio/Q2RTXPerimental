@@ -7,19 +7,19 @@
 ********************************************************************/
 #include "../clg_local.h"
 
-explosion_t  clg_explosions[ MAX_EXPLOSIONS ];
+clg_explosion_t  clg_explosions[ MAX_EXPLOSIONS ];
 
 void CLG_ClearExplosions( void ) {
     memset( clg_explosions, 0, sizeof( clg_explosions ) );
 }
 
-explosion_t *CLG_AllocExplosion( void ) {
-    explosion_t *e, *oldest;
+clg_explosion_t *CLG_AllocExplosion( void ) {
+    clg_explosion_t *e, *oldest;
     int     i;
     int     time;
 
     for ( i = 0, e = clg_explosions; i < MAX_EXPLOSIONS; i++, e++ ) {
-        if ( e->type == explosion_t::ex_free ) { // WID: C++20: Was without explosion_t::
+        if ( e->type == clg_explosion_t::ex_free ) { // WID: C++20: Was without clg_explosion_t::
             memset( e, 0, sizeof( *e ) );
             return e;
         }
@@ -38,12 +38,12 @@ explosion_t *CLG_AllocExplosion( void ) {
     return oldest;
 }
 
-explosion_t *CLG_PlainExplosion( bool big ) {
-    explosion_t *ex;
+clg_explosion_t *CLG_PlainExplosion( bool big ) {
+    clg_explosion_t *ex;
 
     ex = CLG_AllocExplosion();
     VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
-    ex->type = explosion_t::ex_poly; // WID: C++20: Was without explosion_t::
+    ex->type = clg_explosion_t::ex_poly; // WID: C++20: Was without clg_explosion_t::
     ex->ent.flags = RF_FULLBRIGHT;
     ex->start = clgi.client->servertime - CL_FRAMETIME;
     ex->light = 350;
@@ -74,11 +74,11 @@ CL_SmokeAndFlash
 =================
 */
 void CLG_SmokeAndFlash( const vec3_t origin ) {
-    explosion_t *ex;
+    clg_explosion_t *ex;
 
     ex = CLG_AllocExplosion();
     VectorCopy( origin, ex->ent.origin );
-    ex->type = explosion_t::ex_misc; // WID: C++20: Was without explosion_t::
+    ex->type = clg_explosion_t::ex_misc; // WID: C++20: Was without clg_explosion_t::
     ex->frames = 4;
     ex->ent.flags = RF_TRANSLUCENT | RF_NOSHADOW;
     ex->start = clgi.client->servertime - clgi.frame_time_ms;
@@ -86,7 +86,7 @@ void CLG_SmokeAndFlash( const vec3_t origin ) {
 
     ex = CLG_AllocExplosion();
     VectorCopy( origin, ex->ent.origin );
-    ex->type = explosion_t::ex_flash;
+    ex->type = clg_explosion_t::ex_flash;
     ex->ent.flags = RF_FULLBRIGHT;
     ex->frames = 2;
     ex->start = clgi.client->servertime - clgi.frame_time_ms;
@@ -125,16 +125,16 @@ static light_curve_t ex_blaster_light[] = {
     { { 0.04f,      0.02f,      0.0f      },  5.f, 15.00f },
 };
 
-static void CLG_AddExplosionLight( explosion_t *ex, float phase ) {
+static void CLG_AddExplosionLight( clg_explosion_t *ex, float phase ) {
     int curve_size;
     light_curve_t *curve;
 
     switch ( ex->type ) {
-    case explosion_t::ex_poly: // WID: C++20: Used to be without explosion_t::
+    case clg_explosion_t::ex_poly: // WID: C++20: Used to be without clg_explosion_t::
         curve = ex_poly_light;
         curve_size = LENGTH( ex_poly_light );
         break;
-    case explosion_t::ex_blaster:
+    case clg_explosion_t::ex_blaster:
         curve = ex_blaster_light;
         curve_size = LENGTH( ex_blaster_light );
         break;
@@ -171,12 +171,12 @@ static void CLG_AddExplosionLight( explosion_t *ex, float phase ) {
 void CLG_AddExplosions( void ) {
     entity_t *ent;
     int         i;
-    explosion_t *ex;
+    clg_explosion_t *ex;
     float       frac;
     int         f;
 
     for ( i = 0, ex = clg_explosions; i < MAX_EXPLOSIONS; i++, ex++ ) {
-        if ( ex->type == explosion_t::ex_free )
+        if ( ex->type == clg_explosion_t::ex_free )
             continue;
         float inv_frametime = ex->frametime ? 1.f / (float)ex->frametime : BASE_1_FRAMETIME;
         frac = ( clgi.client->time - ex->start ) * inv_frametime;
@@ -185,30 +185,30 @@ void CLG_AddExplosions( void ) {
         ent = &ex->ent;
 
         switch ( ex->type ) {
-        case explosion_t::ex_mflash: // WID: C++20: This was without explosion_t::
+        case clg_explosion_t::ex_mflash: // WID: C++20: This was without clg_explosion_t::
             if ( f >= ex->frames - 1 )
-                ex->type = explosion_t::ex_free;
+                ex->type = clg_explosion_t::ex_free;
             break;
-        case explosion_t::ex_misc:
-        case explosion_t::ex_blaster:
-        case explosion_t::ex_flare:
-        case explosion_t::ex_light:
+        case clg_explosion_t::ex_misc:
+        case clg_explosion_t::ex_blaster:
+        case clg_explosion_t::ex_flare:
+        case clg_explosion_t::ex_light:
             if ( f >= ex->frames - 1 ) {
-                ex->type = explosion_t::ex_free;
+                ex->type = clg_explosion_t::ex_free;
                 break;
             }
             ent->alpha = 1.0f - frac / ( ex->frames - 1 );
             break;
-        case explosion_t::ex_flash:
+        case clg_explosion_t::ex_flash:
             if ( f >= 1 ) {
-                ex->type = explosion_t::ex_free;
+                ex->type = clg_explosion_t::ex_free;
                 break;
             }
             ent->alpha = 1.0f;
             break;
-        case explosion_t::ex_poly:
+        case clg_explosion_t::ex_poly:
             if ( f >= ex->frames - 1 ) {
-                ex->type = explosion_t::ex_free;
+                ex->type = clg_explosion_t::ex_free;
                 break;
             }
 
@@ -228,9 +228,9 @@ void CLG_AddExplosions( void ) {
                     ent->skinnum = 6;
             }
             break;
-        case explosion_t::ex_poly2:
+        case clg_explosion_t::ex_poly2:
             if ( f >= ex->frames - 1 ) {
-                ex->type = explosion_t::ex_free;
+                ex->type = clg_explosion_t::ex_free;
                 break;
             }
 
@@ -242,7 +242,7 @@ void CLG_AddExplosions( void ) {
             break;
         }
 
-        if ( ex->type == explosion_t::ex_free )
+        if ( ex->type == clg_explosion_t::ex_free )
             continue;
 
         if ( clgi.GetRefreshType() == REF_TYPE_VKPT )
@@ -253,7 +253,7 @@ void CLG_AddExplosions( void ) {
                     ex->lightcolor[ 0 ], ex->lightcolor[ 1 ], ex->lightcolor[ 2 ] );
         }
 
-        if ( ex->type != explosion_t::ex_light ) {
+        if ( ex->type != clg_explosion_t::ex_light ) {
             VectorCopy( ent->origin, ent->oldorigin );
 
             if ( f < 0 )

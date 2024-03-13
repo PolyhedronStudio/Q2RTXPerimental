@@ -767,7 +767,7 @@ void    G_UseTargets(edict_t *ent, edict_t *activator);
 void    G_SetMovedir(vec3_t angles, vec3_t movedir);
 
 void    G_InitEdict(edict_t *e);
-edict_t *G_Spawn(void);
+edict_t *G_AllocateEdict(void);
 void    G_FreeEdict(edict_t *e);
 
 void    G_TouchTriggers(edict_t *ent);
@@ -1178,6 +1178,7 @@ struct edict_s {
     // DO NOT MODIFY ANYTHING ABOVE THIS, THE SERVER
     // EXPECTS THE FIELDS IN THAT ORDER!
 
+    const cm_entity_t *entityDictionary;
     //================================
     int32_t     spawn_count;
     int32_t     movetype;
@@ -1225,13 +1226,15 @@ struct edict_s {
     float       ideal_yaw;
 
     sg_time_t         nextthink;
-    void        (*prethink)(edict_t *ent);
-    void        (*think)(edict_t *self);
-    void        (*blocked)(edict_t *self, edict_t *other);         // move to moveinfo?
-    void        (*touch)(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf);
-    void        (*use)(edict_t *self, edict_t *other, edict_t *activator);
-    void        (*pain)(edict_t *self, edict_t *other, float kick, int damage);
-    void        (*die)(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point);
+    void        ( *postspawn )( edict_t *ent );
+    void        ( *prethink )( edict_t *ent );
+    void        ( *think )( edict_t *self );
+    void        ( *postthink )( edict_t *ent );
+    void        ( *blocked )( edict_t *self, edict_t *other );         // move to moveinfo?
+    void        ( *touch )( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+    void        ( *use )( edict_t *self, edict_t *other, edict_t *activator );
+    void        ( *pain )( edict_t *self, edict_t *other, float kick, int damage );
+    void        ( *die )( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 
 	sg_time_t		touch_debounce_time;        // are all these legit?  do we need more/less of them?
 	sg_time_t		pain_debounce_time;

@@ -56,7 +56,8 @@ extern "C" {
 	**/
 	typedef struct {
 		uint16_t    number;
-		
+		//int16_t		client;
+
 		uint8_t		entityType;
 
 		vec3_t		origin;//int16_t     origin[3]; // WID: float-movement

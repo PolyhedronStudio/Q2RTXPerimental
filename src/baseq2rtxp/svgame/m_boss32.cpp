@@ -667,7 +667,7 @@ void makron_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     self->deadflag = DEAD_DEAD;
     self->takedamage = DAMAGE_YES;
 
-    tempent = G_Spawn();
+    tempent = G_AllocateEdict();
     VectorCopy(self->s.origin, tempent->s.origin);
     VectorCopy(self->s.angles, tempent->s.angles);
     tempent->s.origin[1] -= 84;
@@ -858,7 +858,7 @@ void MakronToss(edict_t *self)
 {
     edict_t *ent;
 
-    ent = G_Spawn();
+    ent = G_AllocateEdict();
     ent->nextthink = level.time + 0.8_sec;
     ent->think = MakronSpawn;
     ent->target = self->target;

@@ -44,11 +44,11 @@ extern "C" {
 //
 ////===============================================================
 //
-//#define MAX_ENT_CLUSTERS    16
-
-
+//! Client Packet Entities:
 typedef struct centity_s centity_t;
+//! Client Clients Struct:
 typedef struct gclient_s gclient_t;
+//! Client Info Type(name, model, skin, etc):
 typedef struct clientinfo_s clientinfo_t;
 
 // Include needed shared refresh types.
@@ -56,9 +56,8 @@ typedef struct clientinfo_s clientinfo_t;
 
 #ifndef CLGAME_INCLUDE
 /**
-*	Client 'client' structure definition:
-*	This structure always has to mirror the 'first part' of the structure
-*	defined within the Client Game.
+*	Client-side 'client' structure definition: This structure always has to
+*	mirror the 'first part' of the structure defined within the Client-Game.
 **/
 //typedef struct cclient_s {
 //    player_state_t  ps;
@@ -69,9 +68,8 @@ typedef struct clientinfo_s clientinfo_t;
 //	//int32_t             clientNum;
 //} cclient_t;
 /**
-*	Client-side entity structure definition:
-*	This structure always has to mirror the 'first part' of the structure
-*	defined within the Client Game.
+*	Client-side Packet Entity structure definition: This structure always has to 
+*	mirror the 'first part' of the structure defined within the Client-Game.
 **/
 typedef struct centity_s {
 	//! Current(and thus last acknowledged and received) entity state.
@@ -256,12 +254,93 @@ typedef struct {
 	void ( *CVar_Variable_g )( genctx_t *ctx );
 	void ( *CVar_Default_g )( genctx_t *ctx );
 	
+
+
 	/**
 	*
 	*	Console:
 	* 
 	**/
 	void ( *Con_ClearNotify_f )( void );
+
+
+	
+	/**
+	*
+	*	Collision Model (BSP):
+	* 
+	**/
+	/**
+	*   @return A pointer to nullleaf if there is no BSP model cached up, or the number is out of bounds.
+	*           A pointer to the 'special case for solid leaf' if number == -1
+	*           A pointer to the BSP Node that matched with 'number'.
+	**/
+	mnode_t *( *CM_NodeForNumber )( cm_t *cm, const int32_t number );
+	/**
+	*   @return The number that matched the node's pointer. -1 if node was a nullptr.
+	**/
+	const int32_t( *CM_NumberForNode )( cm_t *cm, mnode_t *node );
+	/**
+	*   @return A pointer to nullleaf if there is no BSP model cached up.
+	*           A pointer to the BSP Leaf that matched with 'number'.
+	**/
+	mleaf_t *( *CM_LeafForNumber )( cm_t *cm, const int32_t number );
+
+	/**
+	*   @return The number that matched the leaf's pointer. 0 if leaf was a nullptr.
+	**/
+	const int32_t( *CM_NumberForLeaf )( cm_t *cm, mleaf_t *leaf );
+	/**
+	*   @Return True if any leaf under headnode has a cluster that
+	*           is potentially visible
+	**/
+	const qboolean( *CM_HeadnodeVisible )( mnode_t *headnode, byte *visbits );
+
+	/**
+	*   @brief  Set the portal nums matching portal to open/closed state.
+	**/
+	void ( *CM_SetAreaPortalState )( cm_t *cm, const int32_t portalnum, const bool open );
+	/**
+	*   @return False(0) if the portal nums matching portal is closed, true(1) otherwise.
+	**/
+	const int32_t ( *CM_GetAreaPortalState )( cm_t *cm, const int32_t portalnum );
+	/**
+	*   @return True if the two areas are connected, false if not(or possibly blocked by a door for example.)
+	**/
+	const bool  ( *CM_AreasConnected )( cm_t *cm, const int32_t area1, const int32_t area2 );
+
+	/**
+	*   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
+	*           given box occupies in the data structure.
+	**/
+	const int32_t ( *CM_BoxLeafs )( cm_t *cm, const vec3_t mins, const vec3_t maxs,	mleaf_t **list, const int32_t listsize, mnode_t **topnode );
+	/**
+	*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
+	*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
+	*           contains the box.
+	**/
+	const int32_t ( *CM_BoxLeafs_headnode )( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode );
+	/**
+	*   @return The contents mask of all leafs within the absolute bounds.
+	**/
+	const contents_t( *CM_BoxContents )( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
+
+
+	/**
+	*
+	*	(Collision Model-) Entities:
+	*
+	**/
+	/**
+	*   @brief  Looks up the key/value cm_entity_t pair in the list for the cm_entity_t entity.
+	*   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity'.
+	**/
+	const cm_entity_t *( *CM_EntityKeyValue )( const cm_entity_t *edict, const char *key );
+	/**
+	*   @brief  Used to check whether CM_EntityValue was able/unable to find a matching key in the cm_entity_t.
+	*   @return Pointer to the collision model system's 'null' entity key/pair.
+	**/
+	const cm_entity_t *( *CM_GetNullEntity )( void );
 
 
 
@@ -490,6 +569,11 @@ typedef struct {
 	*
 	**/
 	void ( *V_RenderView )( void );
+	/**
+	*   @brief  Calculate the client's PVS which is a necessity for culling out
+	*           local client entities.
+	**/
+	void ( *V_CalculateLocalPVS )( const vec3_t viewOrigin );
 	void ( *V_AddEntity )( entity_t *ent );
 	void ( *V_AddParticle )( particle_t *p );
 	void ( *V_AddSphereLight )( const vec3_t org, float intensity, float r, float g, float b, float radius );
@@ -621,17 +705,35 @@ typedef struct {
 	*	Connecting and State:
 	* 
 	**/
-	//! Called when the client wants to 'clear state', this happens during Disconnecting and when 
-	//! the first server data message, an svc_serverdata(ParsingServerData) event is received..
+	/**
+	*	@brief	Called when the client wants to 'clear state', this happens during Disconnecting and when 
+	*			the first server data message, an svc_serverdata(ParsingServerData) event is received.
+	*			
+	*			Used to clear any state data that should not persist over multiple server connections.
+	**/
 	void ( *ClearState ) ( void );
-	//! Called when the client state has moved into being active and the game begins.
+	/**
+	*	@brief	Called when the client state has moved into being active and the game begins.
+	**/
 	void ( *ClientBegin ) ( void );
-	//! Called when the client state has moved into being properly connected to server.
+	/**
+	*	@brief	Called when the client state has moved into being properly connected to server.
+	**/
 	void ( *ClientConnected ) ( void );
-	//! Called when the client state has moved into a disconnected state. Before ending
-	//! the loading plague and starting to clear its state. (So it is still accessible.)
+	/**
+	*	@brief	Called when the client state has moved into a disconnected state, before ending
+	*			the loading plague and starting to clear its state. (So it is still accessible.)
+	**/
 	void ( *ClientDisconnected ) ( void );
-
+	/**
+	*	@brief	Called to update the client's local game entities, it runs at the same framerate
+	*			as the server game logic does.
+	**/
+	void ( *ClientLocalFrame ) ( void );
+	/**
+	*	@brief	Called at the rate equal to that of the refresh frames.
+	**/
+	void ( *ClientRefreshFrame ) ( void );
 
 
 	/**
@@ -639,6 +741,12 @@ typedef struct {
 	*	Entities:
 	*
 	**/
+	/**
+	*	@brief	Called from the client's Begin command, gives the client game a shot at
+	*			spawning local client entities so they can join in the image/model/sound
+	*			precaching context.
+	**/
+	void ( *SpawnEntities )( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 	/**
 	*   @brief  The sound code makes callbacks to the client for entitiy position
 	*           information, so entities can be dynamically re-spatialized.
@@ -713,14 +821,16 @@ typedef struct {
 
 	/**
 	*	@brief	Used for the client in a scenario where it might have to download view models.
-	*	@return	The number of view models.
+	*	@return	The number of precached view models.
 	**/
 	const uint32_t ( *GetNumberOfViewModels )( void );
 	/**
 	*	@brief	Used for the client in a scenario where it might have to download view models.
-	*	@return	The filename of the view model matching index.
+	*	@return	The filename of the precached view model that has the matching index.
 	**/
 	const char *( *GetViewModelFilename )( const uint32_t index );
+
+
 
 	/**
 	*

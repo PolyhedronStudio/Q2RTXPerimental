@@ -34,6 +34,7 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	}
 
 	out->number = in->number;
+	//out->client = in->client;
 	out->origin[ 0 ] = in->origin[ 0 ]; //COORD2SHORT( in->origin[ 0 ] ); // WID: float-movement
 	out->origin[ 1 ] = in->origin[ 1 ]; //COORD2SHORT( in->origin[ 1 ] ); // WID: float-movement
 	out->origin[ 2 ] = in->origin[ 2 ]; //COORD2SHORT( in->origin[ 2 ] ); // WID: float-movement
@@ -119,6 +120,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 // send an update
 	bits = 0;
 
+	//if ( to->client != from->client ) {
+	//	bits |= U_CLIENT;
+	//}
 	if ( !( flags & MSG_ES_FIRSTPERSON ) ) {
 		if ( to->origin[ 0 ] != from->origin[ 0 ] ) {
 			bits |= U_ORIGIN1;
@@ -238,6 +242,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 
 	MSG_WriteEntityNumber( to->number, false, bits );
 
+	//if ( bits & U_CLIENT ) {
+	//	MSG_WriteInt16( to->client );
+	//}
 
 	if ( bits & U_ORIGIN1 ) {
 		MSG_WriteFloat( to->origin[ 0 ] );

@@ -58,6 +58,33 @@ static const ref_type_t PF_GetRefreshType() {
 /**
 *
 *
+*	Collision (Model):
+* 
+*
+**/
+/**
+*   @return The number that matched the node's pointer. -1 if node was a nullptr.
+**/
+static const int32_t PF_CM_NumberForNode( cm_t *cm, mnode_t *node ) {
+	return CM_NumberForNode( cm, node );
+}
+/**
+*   @return The number that matched the leaf's pointer. 0 if leaf was a nullptr.
+**/
+static const int32_t PF_CM_NumberForLeaf( cm_t *cm, mleaf_t *leaf ) {
+	return CM_NumberForLeaf( cm, leaf );
+}
+/**
+*   @Return True if any leaf under headnode has a cluster that is potentially visible
+**/
+const qboolean PF_CM_HeadnodeVisible( mnode_t *headnode, byte *visbits ) {
+	return CM_HeadnodeVisible( headnode, visbits );
+}
+
+
+/**
+*
+*
 *	Commands:
 *
 *
@@ -635,6 +662,23 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.Con_ClearNotify_f = Con_ClearNotify_f;
 
+	imports.CM_NodeForNumber = CM_NodeForNumber;
+	imports.CM_NumberForNode = PF_CM_NumberForNode;
+	imports.CM_LeafForNumber = CM_LeafForNumber;
+	imports.CM_NumberForLeaf = PF_CM_NumberForLeaf;
+	imports.CM_HeadnodeVisible = PF_CM_HeadnodeVisible;
+
+	imports.CM_SetAreaPortalState = CM_SetAreaPortalState;
+	imports.CM_GetAreaPortalState = CM_GetAreaPortalState;
+	imports.CM_AreasConnected = CM_AreasConnected;
+
+	imports.CM_BoxLeafs = CM_BoxLeafs;
+	imports.CM_BoxLeafs_headnode = CM_BoxLeafs_headnode;
+	imports.CM_BoxContents = CM_BoxContents;
+
+	imports.CM_EntityKeyValue = CM_EntityKeyValue;
+	imports.CM_GetNullEntity = CM_GetNullEntity;
+
 	imports.KeyDown = CL_KeyDown;
 	imports.KeyUp = CL_KeyUp;
 	imports.KeyClear = CL_KeyClear;
@@ -712,6 +756,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.FreeTags = PF_FreeTags;
 
 	imports.V_RenderView = V_RenderView;
+	imports.V_CalculateLocalPVS = V_CalculateLocalPVS;
 	imports.V_AddEntity = V_AddEntity;
 	imports.V_AddParticle = V_AddParticle;
 	imports.V_AddSphereLight = V_AddSphereLight;

@@ -18,6 +18,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_parse.c  -- parse a message received from the server
 
 #include "cl_client.h"
+#include "client/ui/ui.h"
+
 
 /*
 =====================================================================
@@ -192,7 +194,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
 
 static void CL_ParseFrame()
 {
-    uint64_t bits;
+    uint64_t bits = 0;
     // Current frame being parsed.
     server_frame_t  frame = { };
     // Previous old frame.
@@ -281,6 +283,35 @@ static void CL_ParseFrame()
         frame.areabytes = 0;
     }
 
+    // Expect svc_portalbits or bail out.
+    if ( ( cl.frameflags & FF_NODELTA ) ) {
+        if ( MSG_ReadUint8() != svc_portalbits ) {
+            Com_Error( ERR_DROP, "%s: not svc_portalbits", __func__ );
+        }
+
+        // Acquire length of portal bits.
+        uint8_t lengthPortalBits = MSG_ReadUint8();
+        // Ensure it is sane, otherwise bail out.
+        if ( lengthPortalBits > MAX_MAP_PORTAL_BYTES ) {
+            Com_Error( ERR_DROP, "%s: svc_frame -> svc_portalbits: Portalbits number too high(%d), must be below(%d)\n",
+                __func__, lengthPortalBits, MAX_MAP_PORTAL_BYTES );
+            return;
+        }
+        // Clean zerod out portal bits buffer.
+        byte portalBits[ MAX_MAP_PORTAL_BYTES ];
+        memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
+        // Pointer to the read buffer's portal bit part.
+        byte *receivedPortalBits = MSG_ReadData( lengthPortalBits );
+        // Copy over the received portal bits into the zeroed out portal bits buffer.
+        //memcpy( portalBits, receivedPortalBits, lengthPortalBits );
+        for ( int32_t i = 0; i < lengthPortalBits; i++ ) {
+            portalBits[ i ] = receivedPortalBits[ i ];
+        }
+        // Set the entire of the portal states with the newly received portal state bit data.
+        CM_SetPortalStates( &cl.collisionModel, portalBits, lengthPortalBits );
+        CM_FloodAreaConnections( &cl.collisionModel );
+    }
+
     //if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
         if (MSG_ReadUint8() != svc_playerinfo) {
             Com_Error(ERR_DROP, "%s: not playerinfo", __func__);
@@ -298,7 +329,7 @@ static void CL_ParseFrame()
             Com_LPrintf(PRINT_DEVELOPER, "\n");
         }
 #endif
-	frame.clientNum = cl.clientNum;
+	frame.clientNum = cl.clientNumber;
 
     // parse packetentities
     if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
@@ -493,7 +524,7 @@ static void CL_ParseServerData(void)
     }
 
     // parse player entity number
-    cl.clientNum = MSG_ReadInt16();
+    cl.clientNumber = MSG_ReadInt16();
 
     // get the full level name
     MSG_ReadString(levelname, sizeof(levelname));
@@ -509,7 +540,7 @@ static void CL_ParseServerData(void)
 // 
     // setup default server state
     cl.serverstate = ss_game;
-    cinematic = cl.clientNum == -1;
+    cinematic = cl.clientNumber == -1;
 
     if (cinematic) {
         SCR_PlayCinematic(levelname);
@@ -527,9 +558,9 @@ static void CL_ParseServerData(void)
         Com_SetColor(COLOR_NONE);
 
         // make sure clientNum is in range
-        if (!VALIDATE_CLIENTNUM(cl.clientNum)) {
-            Com_WPrintf("Serverdata has invalid playernum %d\n", cl.clientNum);
-            cl.clientNum = -1;
+        if (!VALIDATE_CLIENTNUM(cl.clientNumber)) {
+            Com_WPrintf("Serverdata has invalid playernum %d\n", cl.clientNumber);
+            cl.clientNumber = -1;
         }
     }
 }
@@ -794,6 +825,57 @@ static void CL_ParseSetting(void)
 //    }
 }
 
+//void CL_Scoreboard_ClearFrame( void );
+//void CL_Scoreboard_AddEntry( const int64_t clientNumber, const int64_t clientTime, const int64_t clientScore, const int64_t clientPing );
+//void CL_Scoreboard_RebuildFrame( const uint8_t totalClients );
+//static int64_t scoreBoardFrame = 0;
+//
+//static void CL_ParseScoreboard( void ) {
+//    // Add it to the client scoreboard list.
+//    CL_Scoreboard_ClearFrame();
+//
+//    // Read in amount of clients to enlist.
+//    int32_t numClients = MSG_ReadUint8();
+//
+//    // Iterate over all clients and add their entry.
+//    for ( int32_t i = 0; i < numClients; i++ ) {
+//        // Read in data.
+//        int32_t clientNumber = MSG_ReadUint8();
+//        int64_t clientTime = MSG_ReadIntBase128();
+//        int64_t clientScore = MSG_ReadIntBase128();
+//        uint16_t clientPing = MSG_ReadUint16();
+//
+//        // Add in the entry.
+//        CL_Scoreboard_AddEntry( clientNumber, clientTime, clientScore, clientPing );
+//    }
+//
+//    // Regenerate scoreboard.
+//    CL_Scoreboard_RebuildFrame( numClients );
+//
+//    Com_LPrintf( PRINT_DEVELOPER, "Parsing scoreboard(clients: %i) and frame(%i)\n",
+//        numClients, cl.frame.number );
+//}
+
+/**
+*   @brief
+**/
+static void CL_ParseSetAreaPortalBit() {
+    // Read in the specific portal number to set the bit of.
+    int32_t portalNumber = MSG_ReadInt32();
+    // Read its state
+    bool stateIsOpen = MSG_ReadUint8();
+
+    // Set the area portal bit.
+    CM_SetAreaPortalState( &cl.collisionModel, portalNumber, stateIsOpen );
+
+    // Flood update area connections.
+    CM_FloodAreaConnections( &cl.collisionModel );
+
+    // Developer print.
+    Com_LPrintf( PRINT_DEVELOPER, "%s: svc_set_portalbit: portalNumber(#%d), isOpen(%s)\n",
+        __func__, portalNumber, stateIsOpen ? "true" : "false" );
+}
+
 /*
 =====================
 CL_ParseServerMessage
@@ -917,7 +999,14 @@ void CL_ParseServerMessage(void)
         case svc_frame:
             CL_ParseFrame();
             continue;
+        case svc_set_portalbit:
+            CL_ParseSetAreaPortalBit();
+            continue;
 
+
+        //case svc_scoreboard:
+        //    CL_ParseScoreboard();
+        //    continue;
         //case svc_inventory:
         //    CL_ParseInventory();
         //    break;
@@ -1061,6 +1150,9 @@ void CL_SeekDemoMessage(void)
 
         case svc_frame:
             CL_ParseFrame();
+            continue;
+        case svc_set_portalbit:
+            CL_ParseSetAreaPortalBit();
             continue;
 
         // Moved to Client Game.

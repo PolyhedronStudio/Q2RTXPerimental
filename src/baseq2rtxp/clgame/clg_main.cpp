@@ -6,10 +6,27 @@
 *
 ********************************************************************/
 #include "clg_local.h"
+#include "clg_client.h"
+#include "clg_effects.h"
+#include "clg_entities.h"
+#include "clg_input.h"
+#include "clg_local_entities.h"
+#include "clg_packet_entities.h"
+#include "clg_parse.h"
+#include "clg_precache.h"
+#include "clg_predict.h"
+#include "clg_temp_entities.h"
+#include "clg_screen.h"
+#include "clg_view.h"
 
+
+//! Stores data that remains accross level switches.
 game_locals_t   game;
+//! This structure is cleared as each map is entered, it stores data for the current level session.
 level_locals_t  level;
+//! Function pointers and variables imported from the Client.
 clgame_import_t clgi;
+//! Function pointers and variables meant to export to the Client.
 clgame_export_t	globals;
 
 
@@ -148,6 +165,8 @@ static void cl_vwep_changed( cvar_t *self ) {
 	cl_noskins_changed( self );
 }
 
+
+
 /**
 *
 *
@@ -163,7 +182,7 @@ void PF_PreShutdownGame( void ) {
 	clgi.Print( print_type_t::PRINT_ALL, "==== PreShutdown ClientGame ====\n" );
 
 	// Uncomment after we actually allocate anything using this.
-	//clgi.FreeTags( TAG_CLGAME_LEVEL );
+	clgi.FreeTags( TAG_CLGAME_LEVEL );
 	clgi.FreeTags( TAG_CLGAME );
 }
 
@@ -177,7 +196,7 @@ void PF_ShutdownGame( void ) {
 	clgi.Print( print_type_t::PRINT_ALL, "==== Shutdown ClientGame ====\n" );
 
 	// Uncomment after we actually allocate anything using this.
-	//clgi.FreeTags( TAG_CLGAME_LEVEL );
+	clgi.FreeTags( TAG_CLGAME_LEVEL );
 	clgi.FreeTags( TAG_CLGAME );
 }
 
@@ -326,46 +345,28 @@ void PF_InitGame( void ) {
 *	@brief
 **/
 void PF_ClearState( void ) {
-	// Actually reset the number of view models.
-	precache.numViewModels = 0;
+	// Reset the local precache paths.
+	precache.num_local_draw_models = 0;
+	memset( precache.model_paths, 0, MAX_MODELS * MAX_QPATH );
+	precache.num_local_sounds = 0;
+	memset( precache.sound_paths, 0, MAX_SOUNDS * MAX_QPATH );
 
+	// Reset the number of view models.
+	precache.numViewModels = 0;
+	memset( precache.viewModels, 0, MAX_CLIENTVIEWMODELS * MAX_QPATH );
+
+	// Clear out local entities array.
+	memset( clg_local_entities, 0, sizeof( clg_local_entities ) );
+	clg_num_local_entities = 0;
 	// Clear out client entities array.
 	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
 
+	// Clear Temporary Entity FX and other Effects.
 	CLG_ClearTEnts();
 	CLG_ClearEffects();
-}
 
-
-
-/**
-*
-*
-*	The player's 'Client':
-*
-*
-**/
-/**
-*	@brief	Called when the client state has moved into being active and the game begins.
-**/
-void PF_ClientBegin( void ) {
-	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientBegin\n" );
-}
-
-/**
-*	@brief	Called when the client state has moved into being properly connected to server.
-**/
-void PF_ClientConnected( void ) {
-	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientConnected\n" );
-}
-
-/**
-*	@brief	Called when the client state has moved into being properly connected to server.
-**/
-void PF_ClientDisconnected( void ) {
-	// Clear chat HUD when disconnected.
-	SCR_ClearChatHUD_f();
-	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientDisconnected\n" );
+	// Clear out level locals.
+	level = {};
 }
 
 
@@ -422,11 +423,13 @@ const uint32_t PF_GetNumberOfViewModels( void ) {
 **/
 const char *PF_GetViewModelFilename( const uint32_t index ) {
 	if ( index >= 0 && index < MAX_CLIENTVIEWMODELS ) {
-		return "";
-	} else {
 		return precache.viewModels[ index ];
+	} else {
+		return "";
 	}
 }
+
+
 
 /**
 *
@@ -457,7 +460,10 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ClientBegin = PF_ClientBegin;
 		globals.ClientConnected = PF_ClientConnected;
 		globals.ClientDisconnected = PF_ClientDisconnected;
+		globals.ClientLocalFrame = PF_ClientLocalFrame;
+		globals.ClientRefreshFrame = PF_ClientRefreshFrame;
 
+		globals.SpawnEntities = PF_SpawnEntities;
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
 
@@ -493,6 +499,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ParseServerMessage = PF_ParseServerMessage;
 		globals.EndServerMessage = PF_EndServerMessage;
 		globals.SeekDemoMessage = PF_SeekDemoMessage;
+		globals.ParsePlayerSkin = PF_ParsePlayerSkin;
 
 		globals.MouseMove = PF_MouseMove;
 		globals.RegisterUserInput = PF_RegisterUserInput;

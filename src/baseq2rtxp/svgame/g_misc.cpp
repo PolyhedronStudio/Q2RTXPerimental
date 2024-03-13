@@ -28,9 +28,11 @@ Used to group brushes together just for editor convenience.
 
 void Use_Areaportal(edict_t *ent, edict_t *other, edict_t *activator)
 {
-    ent->count ^= 1;        // toggle state
+    //ent->count ^= 1;        // toggle state
+    int32_t areaPortalState = gi.GetAreaPortalState( ent->style );
+    areaPortalState ^= 1;
 //  gi.dprintf ("portalstate: %i = %i\n", ent->style, ent->count);
-    gi.SetAreaPortalState(ent->style, ent->count);
+    gi.SetAreaPortalState(ent->style, areaPortalState );
 }
 
 /*QUAKED func_areaportal (0 0 0) ?
@@ -42,7 +44,8 @@ Usually enclosed in the middle of a door.
 void SP_func_areaportal(edict_t *ent)
 {
     ent->use = Use_Areaportal;
-    ent->count = 0;     // always start closed;
+    // always start closed;
+    ent->count = 0; // gi.GetAreaPortalState( ent->style );     
 }
 
 //=====================================================
@@ -127,7 +130,7 @@ void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
     vec3_t  size;
     float   vscale;
 
-    gib = G_Spawn();
+    gib = G_AllocateEdict();
 
     VectorScale(self->size, 0.5f, size);
     VectorAdd(self->absmin, size, origin);
@@ -264,7 +267,7 @@ void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origi
     edict_t *chunk;
     vec3_t  v;
 
-    chunk = G_Spawn();
+    chunk = G_AllocateEdict();
     VectorCopy(origin, chunk->s.origin);
     gi.setmodel(chunk, modelname);
     v[0] = 100 * crandom();
@@ -1734,7 +1737,7 @@ void SP_misc_teleporter(edict_t *ent)
     VectorSet(ent->maxs, 32, 32, -16);
     gi.linkentity(ent);
 
-    trig = G_Spawn();
+    trig = G_AllocateEdict();
     trig->touch = teleporter_touch;
     trig->solid = SOLID_TRIGGER;
     trig->target = ent->target;

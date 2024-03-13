@@ -198,6 +198,7 @@ typedef struct menuSlider_s {
 #define MLF_HEADER      0x00000001
 #define MLF_SCROLLBAR   0x00000002
 #define MLF_COLOR       0x00000004
+#define MLF_COLUMN_SCROLLDIR_CHANGE 0x00000008
 
 typedef struct menuListColumn_s {
     const char *name;
@@ -375,6 +376,7 @@ void        Menu_Free(menuFrameWork_t *menu);
 void M_Menu_PlayerConfig(void);
 void M_Menu_Demos(void);
 void M_Menu_Servers(void);
+void M_Menu_Scoreboard( void );
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

@@ -1,132 +1,21 @@
 #pragma once
 
 
+
 /**
+*
+*
+*   Client Events/Frames/Messages:
 *
 * 
-*   Explosions.
-* 
-* 
 **/
-#define MAX_EXPLOSIONS  32
-
-#define NOEXP_GRENADE   1
-#define NOEXP_ROCKET    2
-
 /**
-*   @brief  Explosion struct for varying explosion type effects.
-*/
-typedef struct explosion_s {
-    //! Explosion Type.
-    enum {
-        ex_free,
-        //ex_explosion, Somehow unused. lol. TODO: Probably implement some day? xD
-        ex_misc,
-        ex_flash,
-        ex_mflash,
-        ex_poly,
-        ex_poly2,
-        ex_light,
-        ex_blaster,
-        ex_flare
-    } explosion_type;
-    int32_t     type;
-
-    //! Render Entity.
-    entity_t    ent;
-    //! Amount of sprite frames.
-    int         frames;
-    //! Light intensity.
-    float       light;
-    //! Light RGB color.
-    vec3_t      lightcolor;
-    //! 
-    float       start;
-    //! Frame offset into the sprite.
-    int64_t     baseframe;
-    //! Frametime in miliseconds.
-    int64_t     frametime;
-} explosion_t;
-
-#define NOPART_GRENADE_EXPLOSION    1
-#define NOPART_GRENADE_TRAIL        2
-#define NOPART_ROCKET_EXPLOSION     4
-#define NOPART_ROCKET_TRAIL         8
-#define NOPART_BLOOD                16
-
-
-
-/**
-*
-*
-*   Particles:
-*
-*
+*   @brief  Stores
 **/
-#define PARTICLE_GRAVITY        120
-#define BLASTER_PARTICLE_COLOR  0xe0
-#define INSTANT_PARTICLE    -10000.0f
-
-typedef struct cparticle_s {
-    struct cparticle_s *next;
-
-    double   time;
-
-    vec3_t  org;
-    vec3_t  vel;
-    vec3_t  accel;
-    int     color;      // -1 => use rgba
-    float   alpha;
-    float   alphavel;
-    color_t rgba;
-    float   brightness;
-} cparticle_t;
-
-
-
-/**
-*
-*
-*   Dynamic Lights:
-*
-*
-**/
-typedef struct cdlight_s {
-    int32_t key;        // so entities can reuse same entry
-    vec3_t  color;
-    vec3_t  origin;
-    float   radius;
-    float   die;        // stop lighting after this time
-    float   decay;      // drop this each second
-    vec3_t  velosity;     // move this far each second
-} cdlight_t;
-
-#define DLHACK_ROCKET_COLOR         1
-#define DLHACK_SMALLER_EXPLOSION    2
-#define DLHACK_NO_MUZZLEFLASH       4
-//extern explosion_t  cl_explosions[ MAX_EXPLOSIONS ];
-
-
-
-/**
-*
-*
-*   Sustains:
-*
-*
-**/
-typedef struct cl_sustain_s {
-    int     id;
-    int     type;
-    int64_t endtime;
-    int64_t nextthink;
-    vec3_t  org;
-    vec3_t  dir;
-    int     color;
-    int     count;
-    int     magnitude;
-    void    ( *think )( struct cl_sustain_s *self );
-} cl_sustain_t;
+typedef struct client_frame_s {
+    //! Sequential identifier, incremented each client game's 'local' frame.
+    int64_t number;
+} client_frame_t;
 
 
 
@@ -142,6 +31,7 @@ typedef struct cl_sustain_s {
 *           entity_state_t entities that were in the current frame.
 **/
 typedef struct server_frame_s {
+    //! The frame is valid if all parsing went well.
     qboolean        valid;
 
     //! Sequential identifier, used for delta.
@@ -171,10 +61,6 @@ typedef struct server_frame_s {
 #define FF_OLDENT       (1<<7)
 #define FF_NODELTA      (1<<8)
 
-// Variable client FPS
-#define CL_FRAMETIME    BASE_FRAMETIME
-#define CL_1_FRAMETIME  BASE_1_FRAMETIME
-
 
 
 /**
@@ -184,6 +70,10 @@ typedef struct server_frame_s {
 *
 *
 **/
+// Variable client FPS
+#define CL_FRAMETIME    BASE_FRAMETIME
+#define CL_1_FRAMETIME  BASE_1_FRAMETIME
+
 //! These are constants for cl_player_model cvar.
 #define CL_PLAYER_MODEL_DISABLED     0
 #define CL_PLAYER_MODEL_ONLY_GUN     1
@@ -283,14 +173,20 @@ typedef struct client_predicted_state_s {
 *           move command generation process.
 **/
 typedef struct client_mouse_motion_s {
+    //! False if there was no mouse motion for this (client) frame.
     qboolean hasMotion;
 
+    //! X-Axis Delta Movement.
     int32_t deltaX;
+    //! Y-Axis Delta Movement.
     int32_t deltaY;
 
+    //! Floating point X-axis move distance.
     float moveX;
+    //! Floating point Y-axis move distance.
     float moveY;
 
+    //! Mouse speed.
     float speed;
 } client_mouse_motion_t;
 
@@ -398,12 +294,15 @@ typedef struct client_state_s {
     int32_t         numSolidEntities;
     //! Rebuilt each valid frame.
     
-
     //! Stores all entity baseline states to use for delta-ing. Sent and received at time of connect.
     entity_state_t	baselines[ MAX_EDICTS ];
 
-    //! Stores the actual received delta decoded entity states.
+    /**
+    *   @brief  Each frame maintains an index into this buffer.Entity states are parsed
+    *           from the frame into this buffer, and then copied into the relevant entities.
+    **/
     entity_state_t	entityStates[ MAX_PARSE_ENTITIES ];
+    //! Number of total current entity states.
     int32_t			numEntityStates;
 
     //! Client entity specific message flags.
@@ -430,8 +329,25 @@ typedef struct client_state_s {
     //! This is the 'moment-in-time' value that the client is interpolating at.
     //! Always <= cl.servertime
     int64_t     time;
-    //! The current "lerp" -fraction between 'oldframe' and 'frame'
-    double      lerpfrac;
+    //! Linear interpolation fraction between cl.oldframe and cl.frame.
+    double		lerpfrac;
+
+
+    /**
+    *
+    *   Client Frames:
+    *
+    **/
+    //! Stores the client game's current frame data.
+    client_frame_t clientFrame;
+
+    //! This is the 'extrapolated moment in time' value of the client's game state.
+    //! Always >= cl.serverTime and <= cl.serverTime + FRAMERATE_MS
+    int64_t extrapolatedTime;
+
+    //! We always extrapolate only a single frame ahead. Linear extrapolation fraction between cl.oldframe and cl.frame.
+    double  xerpFraction;
+
 
     /**
     *
@@ -446,10 +362,32 @@ typedef struct client_state_s {
     //! Set when refdef.angles is set.
     vec3_t      v_forward, v_right, v_up;
     //! Whether in thirdperson view or not.
-    qboolean        thirdPersonView;
+    qboolean    thirdPersonView;
     //! Predicted values, used for smooth player entity movement in thirdperson view.
     vec3_t      playerEntityOrigin;
     vec3_t      playerEntityAngles;
+    //! Local PVS
+    //byte localPVS[ VIS_MAX_BYTES ];
+    //int32_t localLastValidCluster;
+    //! Client Possible Visibility Set, used for local entities.
+    struct LocalPVS {
+        // PVS Set.
+        byte pvs[ 8192 ];
+        // Last valid cluster.
+        int32_t lastValidCluster;// = -1;
+
+        //! Leaf, Area, and Current Cluster.
+        mleaf_t *leaf;// = nullptr;
+        int32_t leafArea;// = -1;
+        int32_t leafCluster;// = -1;
+
+        //// Area Bits.
+        //byte areaBits[ 32 ];
+        //// Area Btes.
+        //int32_t areaBytes;
+    } localPVS;
+
+
     /**
     *   @brief  Gets properly configured by the client game, when V_RenderView is called upon,
     *           and then passes on the data to the refresh render module.
@@ -468,6 +406,7 @@ typedef struct client_state_s {
         lightstyle_t    r_lightstyles[ MAX_LIGHTSTYLES ];
     } viewScene;
 
+
     /**
     *
     *   Transient data from server.
@@ -480,6 +419,7 @@ typedef struct client_state_s {
     //! Parsed sound event parameters.
     snd_params_t     snd;
 
+
     /**
     *
     *   Server State Information:
@@ -491,20 +431,27 @@ typedef struct client_state_s {
     int32_t		servercount;
     //! Directory name of the current game(dir) that is in-use.
     char		gamedir[ MAX_QPATH ];
-    //! Never changed during gameplay, set by serverdata packet.
-    int32_t		clientNum;
-    //! Always points to the client entity itself.
-    centity_t   *clientEntity;
     //! Maximum number of clients that the current connected game accepts.
     int32_t		maxclients;
+    /**
+    *   @brief      Our local client slot number, acts as our personal private index into `CS_PLAYERSKINS`.
+    *               Never changed during gameplay, set by serverdata packet which is sent during connecting phase from SV_New_F.
+    **/
+    int32_t		clientNumber;
+    /**
+    *   @brief      The server entity which represents our local client view.
+    *               This is a pointer into `clg_entities`, and may point to an entity we are chasing.
+    **/
+    centity_t *clientEntity;
 
     // Received pmove configuration.
     //pmoveParams_t pmp;
 
-    // Configstrings.
+    //! Configstrings.
     configstring_t baseconfigstrings[ MAX_CONFIGSTRINGS ];
     configstring_t configstrings[ MAX_CONFIGSTRINGS ];
-    char		mapname[ MAX_QPATH ]; // short format - q2dm1, etc
+    //! short format - q2dm1, etc.
+    char mapname[ MAX_QPATH ];
 
     //#if USE_AUTOREPLY // Removed ifdef for memory alignment consistency sake.
     uint64_t	reply_time;
@@ -519,8 +466,9 @@ typedef struct client_state_s {
     // - sound_precache
     // - image_precache
     //
-    //! Pointer to the current map's BSP data.
-    bsp_t *bsp;
+    //! The current map's BSP (collision-)models data.
+    cm_t collisionModel; // Once was: bsp_t *bsp;
+
     //! Collision brush models.
     mmodel_t *model_clip[ MAX_MODELS ];
     //! Refresh handle buffer for all precached models.
@@ -540,18 +488,6 @@ typedef struct client_state_s {
     float	sv_frametime_inv;
     int64_t	sv_frametime;
     int64_t	sv_framediv;
-
-    // Data for view weapon
-    struct {
-        int64_t frame, last_frame;
-        int64_t server_time;
-
-        //qhandle_t muzzle_model;
-        //int32_t muzzle_time;
-        //float muzzle_roll, muzzle_scale;
-        //int32_t muzzle_skin;
-        //vec3_t muzzle_offset;
-    } weapon;
     // WID: 40hz
 } client_state_t;
 

@@ -247,6 +247,41 @@ void DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 
     gi.WriteUint8(svc_layout);
     gi.WriteString(string);
+#if 0
+    gi.WriteUint8( svc_scoreboard );
+
+    // First count the total of clients we got in-game.
+    int32_t numberOfClients = 0;
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        edict_t *cl_ent = g_edicts + 1 + i;
+        if ( !cl_ent->inuse || game.clients[ i ].resp.spectator 
+            /*|| !cl_ent->client->pers.connected*/ ) {
+            continue;
+        }
+        numberOfClients++;
+    }
+    // Now send the number of clients.
+    gi.WriteUint8( numberOfClients );
+
+    // Now, for each client, send index, time, score, and ping.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        edict_t *cl_ent = g_edicts + 1 + i;
+        if ( !cl_ent->inuse || game.clients[ i ].resp.spectator 
+            /*|| !cl_ent->client->pers.connected*/ ) {
+            continue;
+        }
+
+        int64_t score = game.clients[ i ].resp.score;
+        sg_time_t time = level.time - game.clients[ i ].resp.entertime;
+        int16_t ping = game.clients[ i ].ping;
+
+        // Client name is already known by client infos, so just send the index instead.
+        gi.WriteUint8( i );
+        gi.WriteIntBase128( time.seconds() );
+        gi.WriteIntBase128( score );
+        gi.WriteUint16( ping );
+    }
+#endif
 }
 
 
@@ -497,6 +532,18 @@ void G_SetStats(edict_t *ent)
         if (ent->client->showinventory && ent->client->pers.health > 0)
             ent->client->ps.stats[STAT_LAYOUTS] |= 2;
     }
+
+    //
+    // GUI
+    //
+    //ent->client->ps.stats[ STAT_SHOW_SCORES ] = 0;
+    //if ( gamemode->integer != GAMEMODE_SINGLEPLAYER ) {
+    //    if ( ent->client->showscores ) {
+    //        ent->client->ps.stats[ STAT_SHOW_SCORES ] |= 1;
+    //    } else {
+    //        ent->client->ps.stats[ STAT_SHOW_SCORES ] &= ~1;
+    //    }
+    //}
 
     //
     // frags

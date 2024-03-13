@@ -113,7 +113,18 @@ char *COM_FileExtension( const char *in );
 #define COM_CompareExtension(in, ext) \
     Q_strcasecmp(COM_FileExtension(in), ext)
 
+/**
+*	@return	True if the given string is valid representation
+*			of floating point number.
+**/
 bool COM_IsFloat( const char *s );
+/**
+*	@return	True if the string is a legitimate SIGNED integer. (So plus(+) and minus(-) allowed at s[0].)
+**/
+bool COM_IsInt( const char *s );
+/**
+*	@return	True if the string is a legitimate UNSIGNED integer. (So now minus(-) allowed at s[0].)
+**/
 bool COM_IsUint( const char *s );
 bool COM_IsPath( const char *s );
 bool COM_IsWhite( const char *s );

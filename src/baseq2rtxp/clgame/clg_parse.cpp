@@ -6,6 +6,10 @@
 *
 ********************************************************************/
 #include "clg_local.h"
+#include "clg_effects.h"
+#include "clg_parse.h"
+#include "clg_screen.h"
+#include "clg_temp_entities.h"
 
 /**
 *	@brief	Parses the layout string for server cmd: svc_inventory.
@@ -362,11 +366,11 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
     case svc_inventory:
         CLG_ParseInventory();
         return true;
-        break;
+    break;
     case svc_layout:
         CLG_ParseLayout();
         return true;
-        break;
+    break;
     case svc_temp_entity:
         CLG_ParseTEntPacket();
         return true;
@@ -401,27 +405,27 @@ void PF_ParseEntityEvent( const int32_t entityNumber ) {
     }
 
     switch ( cent->current.event ) {
-    case EV_ITEM_RESPAWN:
-        clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "items/respawn1.wav" ), 1, ATTN_IDLE, 0 );
-        CLG_ItemRespawnParticles( cent->current.origin );
-        break;
-    case EV_PLAYER_TELEPORT:
-        clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/tele1.wav" ), 1, ATTN_IDLE, 0 );
-        CLG_TeleportParticles( cent->current.origin );
-        break;
-    case EV_FOOTSTEP:
-        if ( cl_footsteps->integer )
-            clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, precache.cl_sfx_footsteps[ Q_rand() & 3 ], 1, ATTN_NORM, 0 );
-        break;
-    case EV_FALLSHORT:
-        clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land1.wav" ), 1, ATTN_NORM, 0 );
-        break;
-    case EV_FALL:
-        clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "*fall2.wav" ), 1, ATTN_NORM, 0 );
-        break;
-    case EV_FALLFAR:
-        clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "*fall1.wav" ), 1, ATTN_NORM, 0 );
-        break;
+        case EV_ITEM_RESPAWN:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "items/respawn1.wav" ), 1, ATTN_IDLE, 0 );
+            CLG_ItemRespawnParticles( cent->current.origin );
+            break;
+        case EV_PLAYER_TELEPORT:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/tele1.wav" ), 1, ATTN_IDLE, 0 );
+            CLG_TeleportParticles( cent->current.origin );
+            break;
+        case EV_FOOTSTEP:
+            if ( cl_footsteps->integer )
+                clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, precache.cl_sfx_footsteps[ Q_rand() & 3 ], 1, ATTN_NORM, 0 );
+            break;
+        case EV_FALLSHORT:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land1.wav" ), 1, ATTN_NORM, 0 );
+            break;
+        case EV_FALL:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "*fall2.wav" ), 1, ATTN_NORM, 0 );
+            break;
+        case EV_FALLFAR:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "*fall1.wav" ), 1, ATTN_NORM, 0 );
+            break;
     }
 }
 
@@ -452,33 +456,38 @@ void PF_ParsePlayerSkin( char *name, char *model, char *skin, const char *s ) {
         strcpy( model, s );
     }
 
-    // copy the player's name
+    // Copy the player's name
     if ( name ) {
         memcpy( name, s, len );
         name[ len ] = 0;
     }
 
-    // isolate the model name
+    // Isolate the model name.
     t = strchr( model, '/' );
-    if ( !t )
+    if ( !t ) {
         t = strchr( model, '\\' );
-    if ( !t )
+    }
+    if ( !t ) {
         goto default_model;
+    }
     *(char *)t = 0; // WID: C++20: NOTE/WARNING: This might be really evil.
 
     // isolate the skin name
     strcpy( skin, t + 1 );
 
     // fix empty model to male
-    if ( t == model )
+    if ( t == model ) {
         strcpy( model, "male" );
+    }
 
     // apply restrictions on skins
-    if ( cl_noskins->integer == 2 || !COM_IsPath( skin ) )
+    if ( cl_noskins->integer == 2 || !COM_IsPath( skin ) ) {
         goto default_skin;
+    }
 
-    if ( cl_noskins->integer || !COM_IsPath( model ) )
+    if ( cl_noskins->integer || !COM_IsPath( model ) ) {
         goto default_model;
+    }
 
     return;
 
@@ -487,7 +496,7 @@ default_skin:
         strcpy( model, "female" );
         strcpy( skin, "athena" );
     } else {
-    default_model:
+default_model:
         strcpy( model, "male" );
         strcpy( skin, "grunt" );
     }

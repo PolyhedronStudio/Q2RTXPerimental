@@ -34,7 +34,7 @@ the player has been recently.  It is used by monsters for pursuit.
 */
 
 
-#define TRAIL_LENGTH    8
+#define TRAIL_LENGTH    128
 
 edict_t     *trail[TRAIL_LENGTH];
 int         trail_head;
@@ -52,7 +52,7 @@ void PlayerTrail_Init(void)
         return;
 
     for (n = 0; n < TRAIL_LENGTH; n++) {
-        trail[n] = G_Spawn();
+        trail[n] = G_AllocateEdict();
         trail[n]->classname = "player_trail";
     }
 

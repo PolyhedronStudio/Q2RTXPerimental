@@ -541,7 +541,7 @@ void jorg_dead(edict_t *self)
     self->nextthink = 0;
     gi.linkentity(self);
 
-    tempent = G_Spawn();
+    tempent = G_AllocateEdict();
     VectorCopy(self->s.origin, tempent->s.origin);
     VectorCopy(self->s.angles, tempent->s.angles);
     tempent->killtarget = self->killtarget;

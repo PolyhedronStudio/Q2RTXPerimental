@@ -896,7 +896,7 @@ static menuSound_t Change(menuCommon_t *self)
 
 static void SizeCompact(void)
 {
-    int w = uis.width - MLIST_SCROLLBAR_WIDTH;
+    int w = uis.width - ( ( 8 ) + ( 8 ) / 4 );
 
 //
 // server list

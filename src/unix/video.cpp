@@ -385,10 +385,13 @@ static bool init(graphics_api_t api)
 		for (int x = 0; x < q2icon_height; x++)
 		{
 			byte b = q2icon_bits[(y * q2icon_width + x) / 8];
-			if ((b >> (x & 7)) & 1)
-				icon_rgb[y][x] = 0xFF7AB632; // NVIDIA green color
+            if ( ( b >> ( x & 7 ) ) & 1 )
+                //icon_rgb[ y ][ x ] = 0xff3ec4c6; // Q2RTXP Blue
+				//icon_rgb[y][x] = 0xFF7AB632; // NVIDIA green color
+                icon_rgb[ y ][ x ] = 0x00000000;
 			else
-				icon_rgb[y][x] = 0x00000000;
+                icon_rgb[ y ][ x ] = 0xff3ec4c6;
+				
 		}
 	}
 

@@ -43,17 +43,17 @@ extern "C" {
 
 // Some [KEX] flags.
 #define SVF_NONE            0           // No serverflags.
-#define SVF_NOCLIENT        0x00000001    // Don't send entity to clients, even if it has effects.
+#define SVF_NOCLIENT        BIT( 0 )    // Don't send entity to clients, even if it has effects.
 #define SVF_DEADMONSTER     BIT( 1 )    // Treat as CONTENTS_DEADMONSTER for collision.
 #define SVF_MONSTER         BIT( 2 )    // Treat as CONTENTS_MONSTER for collision.
 #define SVF_PLAYER          BIT( 3 )    // [Paril-KEX] Treat as CONTENTS_PLAYER for collision.
-//#define SVF_BOT             BIT( 4 )    // Entity is controlled by a bot AI.
-//#define SVF_NOBOTS          BIT( 5 )    // Don't allow bots to use/interact with entity.
-//#define SVF_RESPAWNING      BIT( 6 )    // Entity will respawn on it's next think.
+//#define SVF_BOT           BIT( 4 )    // Entity is controlled by a bot AI.
+//#define SVF_NOBOTS        BIT( 5 )    // Don't allow bots to use/interact with entity.
+//#define SVF_RESPAWNING    BIT( 6 )    // Entity will respawn on it's next think.
 #define SVF_PROJECTILE      BIT( 7 )    // Treat as CONTENTS_PROJECTILE for collision.
-//#define SVF_INSTANCED       BIT( 8 )    // Entity has different visibility per player.
+//#define SVF_INSTANCED     BIT( 8 )    // Entity has different visibility per player.
 #define SVF_DOOR            BIT( 9 )    // Entity is a door of some kind.
-//#define SVF_NOCULL          BIT( 10 )   // Always send, even if we normally wouldn't.
+//#define SVF_NOCULL        BIT( 10 )   // Always send, even if we normally wouldn't.
 #define SVF_HULL            BIT( 11 )   // Always use hull when appropriate (triggers, etc; for gi.clip).
 
 // extended features
@@ -69,9 +69,6 @@ extern "C" {
 #define GMF_IPV6_ADDRESS_AWARE      0x00002000
 
 //===============================================================
-
-#define MAX_ENT_CLUSTERS    16
-
 
 typedef struct edict_s edict_t;
 typedef struct gclient_s gclient_t;
@@ -176,20 +173,38 @@ typedef struct {
     const trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, const contents_t contentmask );
 	const trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentmask );
     const contents_t (*pointcontents)(const vec3_t point);
-    qboolean (*inPVS)(const vec3_t p1, const vec3_t p2);
-    qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);
-    void (*SetAreaPortalState)(int portalnum, qboolean open);
-    qboolean (*AreasConnected)(int area1, int area2);
-
-	/**
-    *	An entity will never be sent to a client or used for collision
-    *	if it is not passed to linkentity.  If the size, position, or
-    *	solidity changes, it must be relinked.
+    const qboolean (*inPVS)(const vec3_t p1, const vec3_t p2);
+    const qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);
+    void (*SetAreaPortalState)( const int32_t portalnum, const bool open);
+    const int32_t ( *GetAreaPortalState )( const int32_t portalnum );
+    const qboolean (*AreasConnected)(const int32_t area1, const int32_t area2);
+    /**
+    *	An entity will never be sent to a client or used for collision if it is not passed to linkentity.  
+    *   If the size, position, solidity, clipmask, hullContents, or owner changes, it must be relinked.
 	**/
     void (*linkentity)(edict_t *ent);
-    void (*unlinkentity)(edict_t *ent);     // call before removing an interactive edict
-    int (*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_t **list, int maxcount, int areatype);
-    //void (*Pmove)(pmove_t *pmove);          // player movement code common with client prediction
+    void (*unlinkentity)(edict_t *ent);     
+    const int32_t(*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_t **list, const int32_t maxcount, const int32_t areatype);
+    
+
+
+    /**
+    *
+    *	(Collision Model-) Entities:
+    *
+    **/
+    /**
+    *   @brief  Looks up the key/value cm_entity_t pair in the list for the cm_entity_t entity.
+    *   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity'.
+    **/
+    const cm_entity_t *( *CM_EntityKeyValue )( const cm_entity_t *edict, const char *key );
+    /**
+    *   @brief  Used to check whether CM_EntityValue was able/unable to find a matching key in the cm_entity_t.
+    *   @return Pointer to the collision model system's 'null' entity key/pair.
+    **/
+    const cm_entity_t *( *CM_GetNullEntity )( void );
+
+
 
 	/**
 	*
@@ -267,7 +282,7 @@ typedef struct {
     void (*Shutdown)(void);
 
     //! Each new level entered will cause a call to SpawnEntities
-    void (*SpawnEntities)(const char *mapname, const char *entstring, const char *spawnpoint);
+    void (*SpawnEntities)( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 
 	/**
 	*	GameModes:

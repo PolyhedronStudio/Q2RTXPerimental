@@ -92,14 +92,10 @@ size_t COM_DefaultExtension( char *path, const char *ext, size_t size ) {
 		return Q_strlcat( path, ext, size );
 }
 
-/*
-==================
-COM_IsFloat
-
-Returns true if the given string is valid representation
-of floating point number.
-==================
-*/
+/**
+*	@return	True if the given string is valid representation
+*			of floating point number.
+**/
 bool COM_IsFloat( const char *s ) {
 	int c, dot = '.';
 
@@ -122,6 +118,40 @@ bool COM_IsFloat( const char *s ) {
 	return true;
 }
 
+/**
+*	@return	True if the string is a legitimate SIGNED integer. (So plus(+) and minus(-) allowed at s[0].)
+**/
+bool COM_IsInt( const char *s ) {
+	int c;
+	
+	bool isSigned = false; // Whether it is a negative value or not.
+
+	if ( !*s ) {
+		return false;
+	}
+
+	// If s[0] == non numeric, test for plus(+) and minus(-) sign, return false if neither of these conditions were met.
+	if ( ( *s == '+' || *s == '-' ) ) {
+		c = *s++;
+	}
+
+	if ( !Q_isdigit( *s ) ) {
+		return false;
+	}
+
+	do {
+		c = *s++;
+		if ( !Q_isdigit( c ) ) {
+			return false;
+		}
+	} while ( *s );
+
+	return true;
+}
+
+/**
+*	@return	True if the string is a legitimate UNSIGNED integer. (So now minus(-) allowed at s[0].)
+**/
 bool COM_IsUint( const char *s ) {
 	int c;
 

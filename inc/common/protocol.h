@@ -159,6 +159,7 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define U_HULL_CONTENTS	(1<<25)
 #define U_OWNER 		(1<<26)
 #define U_OLD_FRAME	(1<<27)
+//#define U_CLIENT	(1<<28)
 #define U_UNUSED6	(1<<28)
 #define U_UNUSED7	(1<<29)
 #define U_UNUSED8	(1<<30)

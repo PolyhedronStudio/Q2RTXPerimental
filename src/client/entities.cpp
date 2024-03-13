@@ -61,9 +61,10 @@ static inline bool entity_is_optimized(const entity_state_t *state)
     return true;
 }
 
-static inline void
-entity_update_new(centity_t *ent, const entity_state_t *state, const vec_t *origin)
-{
+/**
+*   @brief  Will update a new 'in-frame' entity and initialize it according to that.
+**/
+static inline void entity_update_new( centity_t *ent, const entity_state_t *state, const vec_t *origin ) {
     static int entity_ctr;
     ent->id = ++entity_ctr;
     ent->trailcount = 1024;     // for diminishing rocket / grenade trails
@@ -71,78 +72,82 @@ entity_update_new(centity_t *ent, const entity_state_t *state, const vec_t *orig
     // duplicate the current state so lerping doesn't hurt anything
     ent->prev = *state;
 
-// WID: 40hz
-	ent->current_frame = ent->last_frame = state->frame;
-	ent->frame_servertime = cl.servertime;
-// WID: 40hz
+    // WID: 40hz
+    // Update the animation frames and time.
+    ent->current_frame = ent->last_frame = state->frame;
+    ent->frame_servertime = cl.servertime;
+    // WID: 40hz
 
-    if (state->event == EV_PLAYER_TELEPORT ||
+        // No lerping if teleported, or a BEAM effect entity.
+    if ( state->event == EV_PLAYER_TELEPORT ||
         state->event == EV_OTHER_TELEPORT ||
-        (state->renderfx & RF_BEAM)) {
+        ( state->renderfx & RF_BEAM ) ) {
         // no lerping if teleported
-        VectorCopy(origin, ent->lerp_origin);
+        VectorCopy( origin, ent->lerp_origin );
         return;
     }
 
     // old_origin is valid for new entities,
     // so use it as starting point for interpolating between
-    VectorCopy(state->old_origin, ent->prev.origin);
-    VectorCopy(state->old_origin, ent->lerp_origin);
+    VectorCopy( state->old_origin, ent->prev.origin );
+    VectorCopy( state->old_origin, ent->lerp_origin );
 }
 
-static inline void
-entity_update_old(centity_t *ent, const entity_state_t *state, const vec_t *origin)
-{
-    int event = state->event;
+/**
+*   @brief  Will update an entity which was in the previous frame also.
+**/
+static inline void entity_update_old( centity_t *ent, const entity_state_t *state, const vec_t *origin ) {
+    const int32_t event = state->event;
 
-    if (state->modelindex != ent->current.modelindex
+    // Handle proper lerping for animated entities by Hz.
+    if ( ent->current_frame != state->frame ) {
+        if ( state->renderfx & RF_OLD_FRAME_LERP ) {
+            ent->last_frame = ent->current.old_frame;
+        } else {
+            ent->last_frame = ent->current.frame;
+        }
+        ent->current_frame = state->frame;
+        ent->frame_servertime = cl.servertime;
+    }
+
+    // Set step height, and server time, if caught stair stepping.
+    if ( state->renderfx & RF_STAIR_STEP ) {
+        ent->step_height = state->origin[ 2 ] - ent->current.origin[ 2 ];
+        ent->step_servertime = cl.servertime;
+    }
+
+    if ( state->modelindex != ent->current.modelindex
         || state->modelindex2 != ent->current.modelindex2
         || state->modelindex3 != ent->current.modelindex3
         || state->modelindex4 != ent->current.modelindex4
         || event == EV_PLAYER_TELEPORT
         || event == EV_OTHER_TELEPORT
-        || fabsf(origin[0] - ent->current.origin[0]) > 512
-        || fabsf(origin[1] - ent->current.origin[1]) > 512
-        || fabsf(origin[2] - ent->current.origin[2]) > 512
-        || cl_nolerp->integer == 1) {
+        || fabsf( origin[ 0 ] - ent->current.origin[ 0 ] ) > 64//512
+        || fabsf( origin[ 1 ] - ent->current.origin[ 1 ] ) > 64//512
+        || fabsf( origin[ 2 ] - ent->current.origin[ 2 ] ) > 64//512
+        || cl_nolerp->integer == 1 ) {
         // some data changes will force no lerping
         ent->trailcount = 1024;     // for diminishing rocket / grenade trails
 
         // duplicate the current state so lerping doesn't hurt anything
         ent->prev = *state;
 
-		// WID: 40hz
-		ent->last_frame = state->frame;
-		// WID: 40hz
+        // WID: 40hz
+        ent->last_frame = state->frame;
+        // WID: 40hz
 
-		// no lerping if teleported or morphed
-        VectorCopy(origin, ent->lerp_origin);
+        // no lerping if teleported or morphed
+        VectorCopy( origin, ent->lerp_origin );
         return;
-    }
-
-    // Handle proper lerping for animated entities by Hz.
-	if ( ent->current_frame != state->frame ) {
-		if ( state->renderfx & RF_OLD_FRAME_LERP ) {
-			ent->last_frame = ent->current.old_frame;
-		} else {
-			ent->last_frame = ent->current.frame;
-		}
-		ent->current_frame = state->frame;
-		ent->frame_servertime = cl.servertime;
-	}
-
-    // Set step height, and server time, if caught stair stepping.
-    if ( state->renderfx & RF_STAIR_STEP ) {
-        ent->step_height = state->origin[ 2 ] - ent->current.origin[ 2 ];
-        ent->step_servertime = cl.servertime;
-
-        Com_LPrintf( PRINT_DEVELOPER, "RF_STAIR_STEP for Monster(%d) step_height(%f), step_servertime(%zu)\n", state->number, ent->step_height, ent->step_servertime );
     }
 
     // shuffle the last state to previous
     ent->prev = ent->current;
 }
 
+/**
+*   @return True if the SAME entity was NOT IN the PREVIOUS frame.
+**/
 static inline bool entity_is_new(const centity_t *ent) {
     // Last received frame was invalid.
     if ( !cl.oldframe.valid ) {
@@ -177,28 +182,28 @@ static void parse_entity_update(const entity_state_t *state)
     // If entity is solid, and not our client entity, add it to the solid entity list.
     if ( state->solid && state->number != cl.frame.clientNum + 1 && cl.numSolidEntities < MAX_PACKET_ENTITIES) {
         // Add it to the solids entity list.
-        cl.solidEntities[cl.numSolidEntities++] = ent;
+        cl.solidEntities[ cl.numSolidEntities++ ] = ent;
 
         // If not a brush bsp entity, decode its mins and maxs.
-        if (state->solid != PACKED_BSP) {
-			// WID: upgr-solid: Q2RE Approach.
-			MSG_UnpackSolidUint32( state->solid, ent->mins, ent->maxs );
+        if ( state->solid != PACKED_BSP ) {
+            // WID: upgr-solid: Q2RE Approach.
+            MSG_UnpackSolidUint32( state->solid, ent->mins, ent->maxs );
         }
     }
 
     // Work around Q2PRO server bandwidth optimization.
-    if (entity_is_optimized(state)) {
-		VectorCopy(cl.frame.ps.pmove.origin, origin_v );
+    if ( entity_is_optimized( state ) ) {
+        VectorCopy( cl.frame.ps.pmove.origin, origin_v );
         origin = origin_v;
     } else {
         origin = state->origin;
     }
 
-    if (entity_is_new(ent)) {
+    if ( entity_is_new( ent ) ) {
         // Wasn't in last update, so initialize some things.
-        entity_update_new(ent, state, origin);
+        entity_update_new( ent, state, origin );
     } else {
-        entity_update_old(ent, state, origin);
+        entity_update_old( ent, state, origin );
     }
 
     // Assign last received server frame.
@@ -207,12 +212,14 @@ static void parse_entity_update(const entity_state_t *state)
     ent->current = *state;
 
     // Work around Q2PRO server bandwidth optimization.
-    if (entity_is_optimized(state)) {
-        Com_PlayerToEntityState(&cl.frame.ps, &ent->current);
+    if ( entity_is_optimized( state ) ) {
+        Com_PlayerToEntityState( &cl.frame.ps, &ent->current );
     }
 }
 
-// an entity has just been parsed that has an event value
+/**
+*   @brief  An entity has just been parsed that has an event value.
+**/
 static void parse_entity_event(const int32_t entityNumber ) {
     clge->ParseEntityEvent( entityNumber );
 }
@@ -225,10 +232,12 @@ static void CL_SetActiveState(void)
 {
     cls.state = ca_active;
 
+    // Delta  
     cl.serverdelta = Q_align(cl.frame.number, 1);
-    cl.time = cl.servertime = 0; // set time, needed for demos
+    // Set time, needed for demos
+    cl.time = cl.servertime = 0; 
 
-    // initialize oldframe so lerping doesn't hurt anything
+    // Initialize oldframe so lerping doesn't hurt anything.
     cl.oldframe.valid = false;
     cl.oldframe.ps = cl.frame.ps;
 
@@ -332,6 +341,7 @@ static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *
 
     // No lerping if player entity was teleported (event check).
     centity_t *clent = ENTITY_FOR_NUMBER( frame->clientNum + 1 );//ent = &cl_entities[frame->clientNum + 1];
+
     // If the player entity was within the range of lastFrameNumber and frame->number,
     // and had any teleport events going on, duplicate the player state into the old player state,
     // to prevent it from lerping afar distance.
@@ -385,7 +395,7 @@ void CL_DeltaFrame(void)
     int64_t framenum = cl.frame.number - cl.serverdelta;
     cl.servertime = framenum * CL_FRAMETIME;
 
-    // rebuild the list of solid entities for this frame
+    // Rebuild the list of solid entities for this frame
     cl.numSolidEntities = 0;
 
     // Initialize position of the player's own entity from playerstate.
@@ -463,12 +473,14 @@ void CL_CheckEntityPresent( const int32_t entityNumber, const char *what)
 }
 #endif
 
+
 /**
 *   @brief  Sets cl.refdef view values and sound spatialization params.
 *           Usually called from CL_PrepareViewEntities, but may be directly called from the main
 *           loop if rendering is disabled but sound is running.
 **/
 void CL_CalculateViewValues( void ) {
+    // Update view values.
     clge->CalculateViewValues();
 }
 
@@ -477,8 +489,8 @@ void CL_CalculateViewValues( void ) {
 *           emitting all frame data(entities, particles, dynamic lights, lightstyles,
 *           and temp entities) to the refresh definition.
 **/
-void CL_PrepareViewEntities(void)
-{
+void CL_PrepareViewEntities(void) {
+    // Let the Client Game prepare view entities.
     clge->PrepareViewEntities();
 
     LOC_AddLocationsToScene();

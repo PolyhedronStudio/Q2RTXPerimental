@@ -1074,8 +1074,9 @@ void G_RunEntity(edict_t *ent)
         isMoveStepper = true;
     }
 
-    if (ent->prethink)
-        ent->prethink(ent);
+    if ( ent->prethink ) {
+        ent->prethink( ent );
+    }
 
     switch (ent->movetype) {
     case MOVETYPE_PUSH:
@@ -1108,5 +1109,9 @@ void G_RunEntity(edict_t *ent)
             if ( trace.allsolid || trace.startsolid )
                 VectorCopy( previousOrigin, ent->s.origin ); // = previous_origin;
         }
+    }
+
+    if ( ent->postthink ) {
+        ent->postthink( ent );
     }
 }

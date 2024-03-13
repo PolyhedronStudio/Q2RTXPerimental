@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "common/bsp.h"
 #include "common/cmd.h"
-#include "common/cmodel.h"
+#include "common/collisionmodel.h"
 #include "common/common.h"
 #include "common/cvar.h"
 #include "common/error.h"
@@ -140,7 +140,7 @@ static inline const int32_t NUMBER_OF_EDICT( const edict_t *ent ) {
 }
 
 //! Maximum total entity leafs.
-#define MAX_TOTAL_ENT_LEAFS        128
+//#define MAX_TOTAL_ENT_LEAFS        128
 
 // hack for smooth BSP model rotation
 //#define Q2PRO_SHORTANGLES(c, e) \
@@ -640,7 +640,7 @@ void PF_LinkEdict(edict_t *ent);
 // sets ent->leafnums[] for pvs determination even if the entity
 // is not solid
 
-int SV_AreaEdicts(const vec3_t mins, const vec3_t maxs, edict_t **list, int maxcount, int areatype);
+const int32_t SV_AreaEdicts(const vec3_t mins, const vec3_t maxs, edict_t **list, const int32_t maxcount, const int32_t areatype);
 // fills in a table of edict pointers with edicts that have bounding boxes
 // that intersect the given area.  It is possible for a non-axial bmodel
 // to be returned that doesn't actually intersect the area on an exact

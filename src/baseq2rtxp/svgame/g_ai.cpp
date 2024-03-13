@@ -888,7 +888,7 @@ void ai_run(edict_t *self, float dist)
     }
 
     save = self->goalentity;
-    tempgoal = G_Spawn();
+    tempgoal = G_AllocateEdict();
     self->goalentity = tempgoal;
 
     _new = false;

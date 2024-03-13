@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "clg_local.h"
+#include "clg_effects.h"
+#include "clg_temp_entities.h"
 
 static color_t  railcore_color;
 static color_t  railspiral_color;
@@ -94,7 +96,7 @@ static const byte splash_color[] = { 0x00, 0xe0, 0xb0, 0x50, 0xd0, 0xe0, 0xe8 };
 *   @brief   
 **/
 void CLG_ParseTEnt( void ) {
-    explosion_t *ex;
+    clg_explosion_t *ex;
     int r;
 
     switch ( level.parsedMessage.events.tempEntity.type ) {
@@ -175,7 +177,7 @@ void CLG_ParseTEnt( void ) {
         ex = CLG_AllocExplosion();
         VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
         QM_Vector3ToAngles( Vector3( 0, 1.f, 0.f ), ex->ent.angles ); //dirtoangles( ex->ent.angles );
-        ex->type = explosion_t::ex_blaster;
+        ex->type = clg_explosion_t::ex_blaster;
         ex->ent.flags = RF_FULLBRIGHT | RF_TRANSLUCENT;
         ex->ent.tent_type = level.parsedMessage.events.tempEntity.type;
         switch ( level.parsedMessage.events.tempEntity.type ) {
@@ -200,7 +202,7 @@ void CLG_ParseTEnt( void ) {
             CLG_BlasterParticles2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xd0 );
             ex->lightcolor[ 0 ] = 1;
             ex->lightcolor[ 1 ] = 1;
-            ex->type = explosion_t::ex_flare;
+            ex->type = clg_explosion_t::ex_flare;
             break;
         }
         ex->start = clgi.client->servertime - clgi.frame_time_ms;
@@ -230,7 +232,7 @@ void CLG_ParseTEnt( void ) {
             ex->baseframe = 30;
         }
         if ( cl_disable_explosions->integer & NOEXP_GRENADE )
-            ex->type = explosion_t::ex_light; // WID: C++20: Was without explosion_t::
+            ex->type = clg_explosion_t::ex_light; // WID: C++20: Was without clg_explosion_t::
 
         if ( !( cl_disable_particles->integer & NOPART_GRENADE_EXPLOSION ) )
             CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
@@ -264,7 +266,7 @@ void CLG_ParseTEnt( void ) {
     case TE_ROCKET_EXPLOSION_WATER:
         ex = CLG_PlainExplosion( false );
         if ( cl_disable_explosions->integer & NOEXP_ROCKET )
-            ex->type = explosion_t::ex_light; // WID: C++20: This was without explosion_t::
+            ex->type = clg_explosion_t::ex_light; // WID: C++20: This was without clg_explosion_t::
 
         if ( !( cl_disable_particles->integer & NOPART_ROCKET_EXPLOSION ) )
             CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
@@ -297,7 +299,7 @@ void CLG_ParseTEnt( void ) {
     case TE_BFG_EXPLOSION:
         ex = CLG_AllocExplosion();
         VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
-        ex->type = explosion_t::ex_poly;
+        ex->type = clg_explosion_t::ex_poly;
         ex->ent.flags = RF_FULLBRIGHT;
         ex->start = clgi.client->servertime - clgi.frame_time_ms;
         ex->light = 350;
@@ -344,7 +346,7 @@ void CLG_ParseTEnt( void ) {
 
         ex = CLG_AllocExplosion();
         VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
-        ex->type = explosion_t::ex_flash;
+        ex->type = clg_explosion_t::ex_flash;
         // note to self
         // we need a better no draw flag
         ex->ent.flags = RF_BEAM;

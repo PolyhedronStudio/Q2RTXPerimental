@@ -342,7 +342,7 @@ static void PF_setmodel(edict_t *ent, const char *name)
 
 // if it is an inline model, get the size information for it
     if (name[0] == '*') {
-        mod = CM_InlineModel(&sv.cm, name);
+        mod = BSP_InlineModel( sv.cm.cache, name);
         VectorCopy(mod->mins, ent->mins);
         VectorCopy(mod->maxs, ent->maxs);
         PF_LinkEdict(ent);
@@ -433,7 +433,7 @@ static configstring_t *PF_GetConfigString( const int32_t configStringIndex ) {
 /**
 *   @return True if the points p1 to p2 are within the specified vis type.
 **/
-static qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, int vis)
+static const qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, const int32_t vis)
 {
     mleaf_t *leaf1, *leaf2;
     byte mask[VIS_MAX_BYTES];
@@ -459,7 +459,7 @@ static qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, int vis)
 /**
 *   @brief  Also checks portalareas so that doors block sight
 **/
-static qboolean PF_inPVS(const vec3_t p1, const vec3_t p2)
+static const qboolean PF_inPVS(const vec3_t p1, const vec3_t p2)
 {
     return PF_inVIS(p1, p2, DVIS_PVS);
 }
@@ -467,7 +467,7 @@ static qboolean PF_inPVS(const vec3_t p1, const vec3_t p2)
 /**
 *   @brief  Also checks portalareas so that doors block sound
 **/
-static qboolean PF_inPHS(const vec3_t p1, const vec3_t p2)
+static const qboolean PF_inPHS(const vec3_t p1, const vec3_t p2)
 {
     return PF_inVIS(p1, p2, DVIS_PHS);
 }
@@ -674,15 +674,35 @@ static void PF_AddCommandString(const char *string)
     Cbuf_AddText(&cmd_buffer, string);
 }
 
-static void PF_SetAreaPortalState(int portalnum, qboolean open)
-{
+void SV_SendSetPortalBitMessage( const int32_t portalnum, const bool open ) {
+    // Wirte Set Portal Bit command.
+    MSG_WriteUint8( svc_set_portalbit );
+    // Send a portal number update message
+    MSG_WriteInt32( portalnum );
+    MSG_WriteUint8( open ? true : false );
+    // Multicast to all clients.
+    SV_Multicast( NULL, MULTICAST_ALL, CHAN_RELIABLE );
+    // Clear multicast buffer
+    SZ_Clear( &msg_write );
+}
+static void PF_SetAreaPortalState( const int32_t portalnum, const bool open) {
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
     }
+    // Set server side, collision model's area portal state.
     CM_SetAreaPortalState(&sv.cm, portalnum, open);
+    // Multicast a set portal bit notification to all connected clients.
+    SV_SendSetPortalBitMessage( portalnum, open );
 }
 
-static qboolean PF_AreasConnected(int area1, int area2)
+static const int32_t PF_GetAreaPortalState( const int32_t portalnum ) {
+    if ( !sv.cm.cache ) {
+        Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
+    }
+    return CM_GetAreaPortalState( &sv.cm, portalnum );
+}
+
+static const qboolean PF_AreasConnected(const int32_t area1, const int32_t area2)
 {
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
@@ -818,6 +838,9 @@ void SV_InitGameProgs(void) {
     import.centerprintf = PF_centerprintf;
     import.error = PF_error;
 
+    import.CM_EntityKeyValue = CM_EntityKeyValue;
+    import.CM_GetNullEntity = CM_GetNullEntity;
+
     import.linkentity = PF_LinkEdict;
     import.unlinkentity = PF_UnlinkEdict;
 
@@ -871,6 +894,7 @@ void SV_InitGameProgs(void) {
 
     import.DebugGraph = PF_DebugGraph;
     import.SetAreaPortalState = PF_SetAreaPortalState;
+    import.GetAreaPortalState = PF_GetAreaPortalState;
     import.AreasConnected = PF_AreasConnected;
 
     ge = entry(&import);

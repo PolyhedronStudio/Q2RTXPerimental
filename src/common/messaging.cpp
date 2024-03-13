@@ -292,13 +292,14 @@ void MSG_WriteIntBase128( const int64_t c ) {
 *   @brief Writes a full precision float. (Transfered over the wire as an int32_t).
 **/
 void MSG_WriteFloat( const float f ) {
-	union {
-		float f;
-		int32_t l;
-	} dat;
+	//union {
+	//	float f;
+	//	int32_t l;
+	//} dat;
 
-	dat.f = f;
-	MSG_WriteInt32( dat.l );
+	//dat.f = f;
+	//MSG_WriteInt32( dat.l );
+	MSG_WriteInt32( std::bit_cast<std::int32_t>( f ) );
 }
 /**
 *   @brief Writes a half float, lesser precision. (Transfered over the wire as an uint16_t)
@@ -498,16 +499,17 @@ const int64_t MSG_ReadIntBase128( ) {
 *   @return The full precision float.
 **/
 const float MSG_ReadFloat( ) {
-	union {
-		float f;
-		int32_t   l;
-	} dat;
+	//union {
+	//	float f;
+	//	int32_t   l;
+	//} dat;
 
-	dat.l = MSG_ReadInt32( );
-	if ( msg_read.readcount > msg_read.cursize) {
-		dat.f = -1;
-	}
-	return dat.f;
+	//dat.l = MSG_ReadInt32( );
+	//if ( msg_read.readcount > msg_read.cursize) {
+	//	dat.f = -1;
+	//}
+	//return dat.f;
+	return std::bit_cast<float>( MSG_ReadInt32() );
 }
 /**
 *   @return A half float, converted to float, keep in mind that half floats have less precision.

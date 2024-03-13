@@ -1,8 +1,8 @@
 [Desktop Entry]
 Name=Quake II RTXPerimental
-GenericName=Quake 2 client
-Exec=q2rtx
-Icon=q2rtx
+GenericName=Q2RTXPerimental Client
+Exec=q2rtxp
+Icon=q2rtxp
 Terminal=false
 Type=Application
 Categories=Game;ActionGame;

@@ -7,9 +7,9 @@
 ********************************************************************/
 #include "../clg_local.h"
 
-static cparticle_t *active_particles, *free_particles;
+static clg_particle_t *active_particles, *free_particles;
 
-static cparticle_t particles[ MAX_PARTICLES ];
+static clg_particle_t particles[ MAX_PARTICLES ];
 
 /**
 *   @brief  
@@ -29,8 +29,8 @@ void CLG_ClearParticles( void ) {
 /**
 *   @brief
 **/
-cparticle_t *CLG_AllocParticle( void ) {
-    cparticle_t *p;
+clg_particle_t *CLG_AllocParticle( void ) {
+    clg_particle_t *p;
 
     if ( !free_particles ) {
         return nullptr;
@@ -51,11 +51,11 @@ cparticle_t *CLG_AllocParticle( void ) {
 *   @brief
 **/
 void CLG_AddParticles( void ) {
-    cparticle_t *p, *next;
+    clg_particle_t *p, *next;
     float           alpha;
     float           time = 0, time2;
     int             color;
-    cparticle_t *active, *tail;
+    clg_particle_t *active, *tail;
     particle_t *part;
 
     active = NULL;

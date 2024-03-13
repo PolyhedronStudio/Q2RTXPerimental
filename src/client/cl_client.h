@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "common/bsp.h"
 #include "common/cmd.h"
-#include "common/cmodel.h"
+#include "common/collisionmodel.h"
 #include "common/common.h"
 #include "common/cvar.h"
 #include "common/field.h"
@@ -97,7 +97,7 @@ static inline centity_t *ENTITY_FOR_NUMBER( const int32_t number ) {
 **/
 static inline const int32_t NUMBER_OF_ENTITY( const centity_t *cent ) {
     //#define NUM_FOR_CENTITY(e) ((int)(((byte *)(e) - (byte *)cl_entities) / clge->entity_size))
-    return ( (int32_t)( ( (byte *)(cent)-(byte *)cl_entities ) / clge->entity_size ) );
+    return ( (int32_t)( ((byte *)(cent) - (byte *)cl_entities) / clge->entity_size ) );
 }
 
 
@@ -187,8 +187,10 @@ typedef struct client_static_s {
     int64_t     framecount;
     //! Time since application boot, always increasing, no clamping, etc.
     uint64_t    realtime;
+    //! Seconds delta since last frame.
+    double      realdelta;
     //! Seconds since last frame.
-    double      frametime;          // seconds since last frame
+    double      frametime;
 
 // preformance measurement
 #define C_FPS   cls.measure.fps[0]
@@ -402,7 +404,7 @@ void CL_SendRcon(const netadr_t *adr, const char *pass, const char *cmd);
 const char *CL_Server_g(const char *partial, int argnum, int state);
 void CL_CheckForPause(void);
 void CL_UpdateFrameTimes(void);
-bool CL_CheckForIgnore(const char *s);
+qboolean CL_CheckForIgnore(const char *s);
 void CL_WriteConfig(void);
 
 void cl_timeout_changed(cvar_t *self);
@@ -546,6 +548,11 @@ void CL_CheckEntityPresent( const int32_t entityNumber, const char *what );
 void V_Init(void);
 void V_Shutdown(void);
 void V_RenderView(void);
+/**
+*   @brief  Calculate the client's PVS which is a necessity for culling out
+*           local client entities.
+**/
+void V_CalculateLocalPVS( const vec3_t viewOrigin );
 void V_AddEntity(entity_t *ent);
 void V_AddParticle(particle_t *p);
 void V_AddLight(const vec3_t org, float intensity, float r, float g, float b);

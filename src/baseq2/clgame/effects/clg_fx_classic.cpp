@@ -32,7 +32,7 @@ void CLG_ParticleEffect( const vec3_t org, const vec3_t dir, int color, int coun
     const float spark_rand_velocity = 130.0f;
 
     for ( int i = 0; i < count; i++ ) {
-        cparticle_t *p = CLG_AllocParticle();
+        clg_particle_t *p = CLG_AllocParticle();
         if ( !p )
             return;
 
@@ -61,7 +61,7 @@ void CLG_ParticleEffect( const vec3_t org, const vec3_t dir, int color, int coun
     }
 
     for ( int i = 0; i < spark_count; i++ ) {
-        cparticle_t *p = CLG_AllocParticle();
+        clg_particle_t *p = CLG_AllocParticle();
         if ( !p )
             return;
 
@@ -107,7 +107,7 @@ void CLG_ParticleEffectWaterSplash( const vec3_t org, const vec3_t dir, int colo
     const float water_rand_velocity = 150.0f;
 
     for ( int i = 0; i < count; i++ ) {
-        cparticle_t *p = CLG_AllocParticle();
+        clg_particle_t *p = CLG_AllocParticle();
         if ( !p )
             return;
 
@@ -138,7 +138,7 @@ void CLG_ParticleEffectWaterSplash( const vec3_t org, const vec3_t dir, int colo
 
 void CLG_BloodParticleEffect( const vec3_t org, const vec3_t dir, int color, int count ) {
     int         i, j;
-    cparticle_t *p;
+    clg_particle_t *p;
     float       d;
 
     // add decal:
@@ -192,7 +192,7 @@ CLG_ParticleEffect2
 */
 void CLG_ParticleEffect2( const vec3_t org, const vec3_t dir, int color, int count ) {
     int         i, j;
-    cparticle_t *p;
+    clg_particle_t *p;
     float       d;
 
     count *= cl_particle_num_factor->value;
@@ -229,7 +229,7 @@ CLG_TeleporterParticles
 */
 void CLG_TeleporterParticles( const vec3_t org ) {
     int         i, j;
-    cparticle_t *p;
+    clg_particle_t *p;
 
     const int count = 8 * cl_particle_num_factor->value;
 
@@ -268,7 +268,7 @@ CLG_LogoutEffect
 */
 void CLG_LogoutEffect( const vec3_t org, int type ) {
     int         i, j;
-    cparticle_t *p;
+    clg_particle_t *p;
 
     for ( i = 0; i < 500; i++ ) {
         p = CLG_AllocParticle();
@@ -312,7 +312,7 @@ CLG_ItemRespawnParticles
 */
 void CLG_ItemRespawnParticles( const vec3_t org ) {
     int         i, j;
-    cparticle_t *p;
+    clg_particle_t *p;
 
     const int count = 64 * cl_particle_num_factor->value;
 
@@ -349,7 +349,7 @@ CLG_ExplosionParticles
 */
 void CLG_ExplosionParticles( const vec3_t org ) {
     int         i, j;
-    cparticle_t *p;
+    clg_particle_t *p;
 
     const int count = 256 * cl_particle_num_factor->value;
 
@@ -384,7 +384,7 @@ CLG_BigTeleportParticles
 void CLG_BigTeleportParticles( const vec3_t org ) {
     static const byte   colortable[ 4 ] = { 2 * 8, 13 * 8, 21 * 8, 18 * 8 };
     int         i;
-    cparticle_t *p;
+    clg_particle_t *p;
     float       angle, dist;
 
     for ( i = 0; i < 4096; i++ ) {
@@ -426,7 +426,7 @@ Wall impact puffs
 */
 void CLG_BlasterParticles( const vec3_t org, const vec3_t dir ) {
     int         i, j;
-    cparticle_t *p;
+    clg_particle_t *p;
     float       d;
 
     const int count = 40 * cl_particle_num_factor->value;
@@ -467,7 +467,7 @@ void CLG_BlasterTrail( const vec3_t start, const vec3_t end ) {
     vec3_t      vec;
     float       len;
     int         j;
-    cparticle_t *p;
+    clg_particle_t *p;
     int         dec;
 
     VectorCopy( start, move );
@@ -515,7 +515,7 @@ void CLG_FlagTrail( const vec3_t start, const vec3_t end, int color ) {
     vec3_t      vec;
     float       len;
     int         j;
-    cparticle_t *p;
+    clg_particle_t *p;
     int         dec;
 
     VectorCopy( start, move );
@@ -562,7 +562,7 @@ void CLG_DiminishingTrail( const vec3_t start, const vec3_t end, centity_t *old,
     vec3_t      vec;
     float       len;
     int         j;
-    cparticle_t *p;
+    clg_particle_t *p;
     float       dec;
     float       orgscale;
     float       velscale;
@@ -656,7 +656,7 @@ void CLG_RocketTrail( const vec3_t start, const vec3_t end, centity_t *old ) {
     vec3_t      vec;
     float       len;
     int         j;
-    cparticle_t *p;
+    clg_particle_t *p;
     float       dec;
 
     // smoke
@@ -708,7 +708,7 @@ void CLG_OldRailTrail( void ) {
     vec3_t      vec;
     float       len;
     int         j;
-    cparticle_t *p;
+    clg_particle_t *p;
     float       dec;
     vec3_t      right, up;
     int         i;
@@ -793,7 +793,7 @@ void CLG_BubbleTrail( const vec3_t start, const vec3_t end ) {
     vec3_t      vec;
     float       len;
     int         i, j;
-    cparticle_t *p;
+    clg_particle_t *p;
     float       dec;
 
     VectorCopy( start, move );
@@ -838,7 +838,7 @@ CLG_FlyParticles
 
 static void CLG_FlyParticles( const vec3_t origin, int count ) {
     int         i;
-    cparticle_t *p;
+    clg_particle_t *p;
     float       angle;
     float       sp, sy, cp, cy;
     vec3_t      forward;
@@ -916,7 +916,7 @@ CLG_BfgParticles
 */
 void CLG_BfgParticles( entity_t *ent ) {
     int         i;
-    cparticle_t *p;
+    clg_particle_t *p;
     float       angle;
     float       sp, sy, cp, cy;
     vec3_t      forward;
@@ -970,7 +970,7 @@ CLG_BFGExplosionParticles
 //FIXME combined with CLG_ExplosionParticles
 void CLG_BFGExplosionParticles( const vec3_t org ) {
     int         i, j;
-    cparticle_t *p;
+    clg_particle_t *p;
 
     const int count = 256 * cl_particle_num_factor->value;
 
@@ -1006,7 +1006,7 @@ CLG_TeleportParticles
 */
 void CLG_TeleportParticles( const vec3_t org ) {
     int         i, j, k;
-    cparticle_t *p;
+    clg_particle_t *p;
     float       vel;
     vec3_t      dir;
 

@@ -20,6 +20,8 @@
 #define USE_REF 1
 #endif
 
+
+
 /**
 *
 *
@@ -43,10 +45,10 @@
 // QBSP stuff
 #define QBSPHEADER    (('P'<<24)+('S'<<16)+('B'<<8)+'Q')
 
+// Moved up:
 // key / value pair sizes
-
-#define     MAX_KEY         32
-#define     MAX_VALUE       1024
+//#define     MAX_KEY         32
+//#define     MAX_VALUE       1024
 
 #define     MAX_TEXNAME     32
 

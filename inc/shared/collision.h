@@ -7,6 +7,7 @@
 ********************************************************************/
 #pragma once
 
+
 // edict->solid values
 /**
 *   @brief  The actual 'solid' type of an entity, determines how to behave when colliding with other objects.

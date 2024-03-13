@@ -14,12 +14,14 @@
 * Enabled ``USE_SMOOTH_DELTA_ANGLES`` by default.
 * Adjusted stair **Step Smoothing** to ``BASE_FRAMETIME // (25ms for 40hz)`` instead of its old hard values: ``100ms at 10hz``.
 * Entity origins and player origin are ``wired/transferred`` as full floating point precision values.
-* Client-Side awareness of the gamemode that is being played. Totally Q2RTXPerimental allows for up to 255 different gamemodes to be implemented.
+* Client-Side awareness of the gamemode that is being played.
 * Brush Shaped Triggers: Triggers can now have a "Clipped" flag set, in which case it only triggers when an actual collision(clip to brush) has occured.
 * Comes with basic vector, matrix and quaternion math utilities derived from raylib1.5, and adds in C++ utilities such as operator support.
 * Modern player movement derived from Q2RE.
-* BoundingBox entities can have their hull contents be set to any CONTENTS_ values._
+* BoundingBox entities can have their hull contents be set to any CONTENTS_ values.
+* The ``entityString`` is now parsed into a list of key/value pairs, the so called ``Collision Model Entities``.
 ### Client:
+* The client now also makes use of the ``cm_t``(Collision Model) struct for its ``BSP`` and ``inline brush models``.
 * Does proper lerping for entities that run lower than ``40hz``.
 * Does proper lerping for weapons based on their 'gunrate', defaults to ``10hz``
 * Added RF_OLD_FRAME_LERP support: ``[Paril-KEX] force model to lerp from oldframe in entity state; otherwise it uses last frame client received``
@@ -43,13 +45,16 @@
 * Guns can operate at a varying tick rate, default is ``10hz``
 * Brush Triggers can now be set a spawnflag to trigger only when actually clipping with the trigger brush.
 * Basic configurable Spotlight entity that can be given its own ``customLightStyle`` property as well.
+* Now spawns entities based on the key/value pairs retreived from the ``Collision Model``.
 ### Client Game:
 * Responsible for preparing the view by adding all the packet entities as well as the player viewweapon/thirdperson model.
-* Can now do custom User Input ``KeyButton`` registration and handling of.
-* View/Scene handling, this includes: ``Packet Entities``, ``Entity Events``, ``Temp Entity Events``, ``Particles``, ``Explosions``, ``Beams/Lasers/Trails``, ``Sustains``.
+* Control over the user input, including the capability of adding new custom User Input ``KeyButton`` registration and handling thereof.
 * Player Movement Prediction.
-* Parse and precache clientinfo data.
-* Owner and in control of svc_print, svc_centerprint, and even the chat HUD.
+* Parse, precache, or modify the clientinfo data.
+* Control over the layout string system.
+* Control over the implementations of ``Temp Entity Events``, ``Particles``, ``Explosions``, ``Beams/Lasers/Trails``, ``Sustains``.
+* A ``local entity`` system that has a class struct like implementation. Its main intended use is for client only specific entities, think of decorating or certain particle emitters that you do not want to clutter the network with.
+* View/Scene handling, this includes: ``Packet Entities``, ``Local Entities``, ``Temp Entity Events``, ``Particles``, ``Explosions``, ``Beams/Lasers/Trails``, ``Sustains``.
 ### Shared Game:
 * Contains the shared used ``sg_time_t`` which replaces all the vanilla frametime/framenum work.
 * Customizable PlayerMove code.

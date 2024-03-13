@@ -371,7 +371,7 @@ void use_target_spawner(edict_t *self, edict_t *other, edict_t *activator)
 {
     edict_t *ent;
 
-    ent = G_Spawn();
+    ent = G_AllocateEdict();
     ent->classname = self->target;
     VectorCopy(self->s.origin, ent->s.origin);
     VectorCopy(self->s.angles, ent->s.angles);
@@ -732,41 +732,25 @@ void target_earthquake_think(edict_t *self)
 		self->last_move_time = level.time + 6.5_sec;
     }
 
-	for ( i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++ ) {
-		if ( !e->inuse )
-			continue;
-		if ( !e->client )
-			break;
-
-		e->client->quake_time = level.time + 1000_ms;
-	}
-
-	if ( level.time < self->timestamp )
-		self->nextthink = level.time + 10_hz;
-    for (i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++) {
-        if (!e->inuse)
+    for ( i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++ ) {
+        if ( !e->inuse )
             continue;
-        if (!e->client)
-            continue;
-        if (!e->groundentity)
-            continue;
+        if ( !e->client )
+            break;
 
-        e->groundentity = NULL;
-        e->velocity[0] += crandom() * 150;
-        e->velocity[1] += crandom() * 150;
-        e->velocity[2] = self->speed * (100.0f / e->mass);
+        e->client->quake_time = level.time + 1000_ms;
     }
 
-	//if ( level.time < self->timestamp )
-	//	self->nextthink = level.time + 10_hz;
+    if ( level.time < self->timestamp )
+        self->nextthink = level.time + 10_hz;
 }
 
 void target_earthquake_use(edict_t *self, edict_t *other, edict_t *activator)
 {
-	self->timestamp = level.time + sg_time_t::from_sec( self->count );
-	self->nextthink = level.time + FRAME_TIME_S;
-	self->last_move_time = 0_ms;
-    self->activator = activator;
+	//self->timestamp = level.time + sg_time_t::from_sec( self->count );
+	//self->nextthink = level.time + FRAME_TIME_S;
+	//self->last_move_time = 0_ms;
+ //   self->activator = activator;
 	if ( self->spawnflags & 8 /*.has( SPAWNFLAGS_EARTHQUAKE_ONE_SHOT )*/ ) {
 		uint32_t i;
 		edict_t *e;

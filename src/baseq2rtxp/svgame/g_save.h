@@ -54,8 +54,10 @@ enum ptr_type_t : int32_t {
 	//
 	// edict-><methodname> function pointer addresses.
 	//
+	P_postspawn,
     P_prethink,
     P_think,
+	P_postthink,
     P_blocked,
     P_touch,
     P_use,

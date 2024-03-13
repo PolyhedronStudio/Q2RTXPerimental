@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "clg_local.h"
+#include "clg_parse.h"
+#include "clg_precache.h"
 
 //! Stores qhandles to all precached client game media.
 precached_media_t precache;
@@ -40,6 +42,19 @@ void PF_PrecacheClientSounds( void ) {
 
     precache.cl_sfx_lightning = clgi.S_RegisterSound( "weapons/tesla.wav" );
     precache.cl_sfx_disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
+
+    // Iterate over the local sound path 'config' strings.
+    for ( int32_t i = 1; i < precache.num_local_sounds; i++ ) {
+        // Ensure that its name is valid.
+        const char *name = precache.model_paths[ i ];
+        if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
+            precache.local_sounds[ i ] = 0;
+            continue;
+        }
+
+        // Precache the actual model, retreive the qhandle_t and store it.
+        precache.local_sounds[ i ] = clgi.S_RegisterSound( name );
+    }
 }
 
 /**
@@ -73,6 +88,19 @@ void PF_PrecacheClientModels( void ) {
         //if ( model ) {
         //    model->sprite_vertical = true;
         //}
+    }
+
+    // Iterate over the local model path 'config' strings.
+    for ( int32_t i = 1; i <= precache.num_local_draw_models; i++ ) {
+        // Ensure that its name is valid.
+        const char *name = precache.model_paths[ i ];
+        if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
+            precache.local_draw_models[ i ] = 0;
+            continue;
+        }
+
+        // Precache the actual model, retreive the qhandle_t and store it.
+        precache.local_draw_models[ i ] = clgi.R_RegisterModel( name );
     }
 }
 
@@ -124,9 +152,10 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
     char        skin_name[ MAX_QPATH ];
     char        model_filename[ MAX_QPATH ];
     char        skin_filename[ MAX_QPATH ];
-    char        weapon_filename[ MAX_QPATH ];
+    char        view_model_filename[ MAX_QPATH ];
     char        icon_filename[ MAX_QPATH ];
 
+    // Parse client info's player skin data.
     PF_ParsePlayerSkin( ci->name, model_name, skin_name, s );
 
     // model file
@@ -175,16 +204,18 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
         ci->skin = clgi.R_RegisterSkin( skin_filename );
     }
 
-    // weapon file
+    // Viewmodel files:
     for ( i = 0; i < precache.numViewModels; i++ ) {
-        Q_concat( weapon_filename, sizeof( weapon_filename ),
+        // Load weapon view model from player model_name directory.
+        Q_concat( view_model_filename, sizeof( view_model_filename ),
             "players/", model_name, "/", precache.viewModels[ i ] );
-        ci->weaponmodel[ i ] = clgi.R_RegisterModel( weapon_filename );
+        ci->weaponmodel[ i ] = clgi.R_RegisterModel( view_model_filename );
+
+        // try male if not cyborg(genderless?)
         if ( !ci->weaponmodel[ i ] && !Q_stricmp( model_name, "cyborg" ) ) {
-            // try male
-            Q_concat( weapon_filename, sizeof( weapon_filename ),
+            Q_concat( view_model_filename, sizeof( view_model_filename ),
                 "players/male/", precache.viewModels[ i ] );
-            ci->weaponmodel[ i ] = clgi.R_RegisterModel( weapon_filename );
+            ci->weaponmodel[ i ] = clgi.R_RegisterModel( view_model_filename );
         }
     }
 
@@ -196,12 +227,14 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
     strcpy( ci->model_name, model_name );
     strcpy( ci->skin_name, skin_name );
 
-    // base info should be at least partially valid
-    if ( ci == &clgi.client->baseclientinfo )
+    // base info is expected/should be at least partially valid.
+    if ( ci == &clgi.client->baseclientinfo ) {
         return;
+    }
 
-    // must have loaded all data types to be valid
+    // Otherwise make sure it loaded all data types to be valid.
     if ( !ci->skin || !ci->icon || !ci->model || !ci->weaponmodel[ 0 ] ) {
+        // If we got here, it was invalid data.
         ci->skin = 0;
         ci->icon = 0;
         ci->model = 0;
@@ -209,4 +242,62 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
         ci->model_name[ 0 ] = 0;
         ci->skin_name[ 0 ] = 0;
     }
+}
+
+/**
+*   @brief  Registers a model for local entity usage.
+*   @return -1 on failure, otherwise a handle to the model index of the precache.local_models array.
+**/
+const qhandle_t CLG_RegisterLocalModel( const char *name ) {
+    // Make sure name isn't empty.
+    if ( !name || name[0] == 0 || name[0] == '\0' || strlen(name) == 0 ) {
+        clgi.Print( PRINT_WARNING, "%s: empty model name detected!\n", __func__ );
+        return 0;
+    }
+
+    // Increment here directly, the 0 indexed value of model_paths
+    // will always be an empty string, it is left unused so we can
+    // deal with modelindex == 0 being a non visible model.
+    const int32_t index = precache.num_local_draw_models += 1;
+
+    // Throw it into the localModelPaths array.
+    if ( precache.num_local_draw_models >= MAX_MODELS ) {
+        clgi.Error( "%s: num_local_draw_models >= MAX_MODELS!\n", __func__ );
+        return 0;
+    }
+
+    // Copy the model name inside the next model_paths slot.
+    Q_strlcpy( precache.model_paths[ index ], name, MAX_QPATH );
+
+    // Success.
+    return index;
+}
+
+/**
+*   @brief  Registers a sound for local entity usage.
+*   @return -1 on failure, otherwise a handle to the sounds index of the precache.local_sounds array.
+**/
+const qhandle_t CLG_RegisterLocalSound( const char *name ) {
+    // Make sure name isn't empty.
+    if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' || strlen( name ) == 0 ) {
+        clgi.Print( PRINT_WARNING, "%s: empty sound name detected!\n", __func__ );
+        return 0;
+    }
+
+    // Increment here directly, the 0 indexed value of sound_paths
+    // will always be an empty string, it is left unused so we can
+    // deal with sound == 0 being a non visible model.
+    const int32_t index = precache.num_local_sounds += 1;
+
+    // Throw it into the localSoundPaths array.
+    if ( precache.num_local_sounds >= MAX_SOUNDS ) {
+        clgi.Error( "%s: num_local_sounds >= MAX_SOUNDS!\n", __func__ );
+        return 0;
+    }
+
+    // Copy the model name inside the next sound_paths slot.
+    Q_strlcpy( precache.sound_paths[ index ], name, MAX_QPATH );
+
+    // Success.
+    return index;
 }

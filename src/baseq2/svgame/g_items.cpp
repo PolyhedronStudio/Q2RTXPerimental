@@ -795,7 +795,7 @@ edict_t *Drop_Item(edict_t *ent, gitem_t *item)
     vec3_t  forward, right;
     vec3_t  offset;
 
-    dropped = G_Spawn();
+    dropped = G_AllocateEdict();
 
     dropped->classname = item->classname;
     dropped->item = item;

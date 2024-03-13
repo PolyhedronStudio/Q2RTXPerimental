@@ -758,10 +758,11 @@ void CL_RequestNextDownload(void)
         if (allow_download_models->integer) {
             for (i = 2; i < MAX_MODELS; i++) {
                 name = cl.configstrings[CS_MODELS + i];
+                // Don't download the 'player model' index.
                 if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
                     break;
                 }
-                // Skip if inlined bsp or view weapon model.
+                // Skip if inlined bsp, view weapon model, or empty.
                 if ( name[ 0 ] == '*' || name[ 0 ] == '#' || name[ 0 ] == 0 ) {
                     continue;
                 }
@@ -885,8 +886,8 @@ void CL_RequestNextDownload(void)
         CL_RegisterBspModels();
 
         if (allow_download_textures->integer) {
-            for (i = 0; i < cl.bsp->numtexinfo; i++) {
-                len = Q_concat(fn, sizeof(fn), "textures/", cl.bsp->texinfo[i].name, ".wal");
+            for (i = 0; i < cl.collisionModel.cache->numtexinfo; i++) {
+                len = Q_concat(fn, sizeof(fn), "textures/", cl.collisionModel.cache->texinfo[i].name, ".wal");
                 check_file_len(fn, len, DL_OTHER);
             }
         }

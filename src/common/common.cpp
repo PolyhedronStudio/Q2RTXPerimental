@@ -26,7 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/async.h"
 #include "common/bsp.h"
 #include "common/cmd.h"
-#include "common/cmodel.h"
+#include "common/collisionmodel.h"
 #include "common/common.h"
 #include "common/cvar.h"
 #include "common/error.h"
@@ -119,7 +119,7 @@ cvar_t  *allow_download_others;
 cvar_t  *rcon_password;
 
 const char  com_version_string[] =
-    APPLICATION " " VERSION_STRING " " __DATE__ " " BUILDSTRING " " CPUSTRING;
+    APPLICATION " " VERSION_STRING " Build: " BUILDSTRING " " CPUSTRING " " __DATE__ " " __TIME__;
 
 uint64_t	com_framenum;
 uint64_t	com_eventTime;
@@ -131,8 +131,10 @@ time_t      com_startTime;
 cvar_t  *host_speeds;
 
 // host_speeds times
-uint64_t	time_before_game;
-uint64_t	time_after_game;
+uint64_t    time_before_clgame;
+uint64_t    time_after_clgame;
+uint64_t	time_before_svgame;
+uint64_t	time_after_svgame;
 uint64_t	time_before_ref;
 uint64_t	time_after_ref;
 #endif
@@ -980,7 +982,7 @@ void Qcommon_Init(int argc, char **argv)
 
     // Print the engine version early so that it's definitely included in the console log.
     // The log file is opened during the execution of one of the config files above.
-    Com_LPrintf(PRINT_NOTICE, "\nEngine version: " APPLICATION " " LONG_VERSION_STRING ", built on " __DATE__ "\n\n");
+    Com_LPrintf(PRINT_NOTICE, "\nEngine version: " APPLICATION " " LONG_VERSION_STRING ", built on " __DATE__ " " __TIME__ "\n\n");
 
     Netchan_Init();
     NET_Init();
@@ -989,7 +991,7 @@ void Qcommon_Init(int argc, char **argv)
     SV_Init();
     CL_Init();
     TST_Init();
-
+    
     Sys_RunConsole();
 
     // add + commands from command line
@@ -1137,7 +1139,7 @@ void Qcommon_Frame(void)
         ev = time_event - time_before;
         sv = time_between - time_event;
         cl = time_after - time_between;
-        gm = time_after_game - time_before_game;
+        gm = time_after_svgame - time_before_svgame;
         rf = time_after_ref - time_before_ref;
         sv -= gm;
         cl -= rf;

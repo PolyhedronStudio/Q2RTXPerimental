@@ -200,9 +200,8 @@ template<typename T>
 
 
 /**
-*	Client-Game 'client' structure definition:
-*	This structure always has to mirror the 'first part' of the structure
-*	defined within the Client.
+*	Client-Game 'client' structure definition: This structure always has to 
+*	mirror the 'first part' of the structure defined within the Client.
 **/
 //typedef struct cclient_s {
 //    player_state_t  ps;
@@ -212,9 +211,8 @@ template<typename T>
 //	//int32_t             clientNum;
 //} cclient_t;
 /**
-*	Client-Game entity structure definition:
-*	This structure always has to mirror the 'first part' of the structure
-*	defined within the Client.
+*	Client-Game Packet Entity structure definition: This structure always has to
+*	mirror the 'first part' of the structure defined within the Client.
 **/
 typedef struct centity_s {
 	//! Current(and thus last acknowledged and received) entity state.
@@ -335,7 +333,7 @@ void CLG_ClearDlights( void );
 /**
 *   @brief
 **/
-cdlight_t *CLG_AllocDlight( const int32_t key );
+clg_dlight_t *CLG_AllocDlight( const int32_t key );
 /**
 *   @brief
 **/
@@ -391,12 +389,12 @@ void CLG_ForceWall( const vec3_t start, const vec3_t end, int color );
 void CLG_BubbleTrail2( const vec3_t start, const vec3_t end, int dist );
 void CLG_Heatbeam( const vec3_t start, const vec3_t forward );
 void CLG_ParticleSteamEffect( const vec3_t org, const vec3_t dir, int color, int count, int magnitude );
-void CLG_ParticleSteamEffect2( cl_sustain_t *self );
+void CLG_ParticleSteamEffect2( clg_sustain_t *self );
 void CLG_TrackerTrail( const vec3_t start, const vec3_t end, int particleColor );
 void CLG_Tracker_Shell( const vec3_t origin );
 void CLG_MonsterPlasma_Shell( const vec3_t origin );
-void CLG_Widowbeamout( cl_sustain_t *self );
-void CLG_Nukeblast( cl_sustain_t *self );
+void CLG_Widowbeamout( clg_sustain_t *self );
+void CLG_Nukeblast( clg_sustain_t *self );
 void CLG_WidowSplash( void );
 void CLG_TagTrail( const vec3_t start, const vec3_t end, int color );
 void CLG_ColorExplosionParticles( const vec3_t org, int color, int run );
@@ -421,7 +419,7 @@ void CLG_ClearParticles( void );
 /**
 *   @brief
 **/
-cparticle_t *CLG_AllocParticle( void );
+clg_particle_t *CLG_AllocParticle( void );
 /**
 *	@brief
 **/
@@ -436,9 +434,11 @@ void CLG_AddParticles( void );
 */
 // Use a static entity ID on some things because the renderer relies on eid to match between meshes
 // on the current and previous frames.
-static constexpr int32_t RESERVED_ENTITIY_GUN = 1;
-static constexpr int32_t RESERVED_ENTITIY_TESTMODEL = 2;
-static constexpr int32_t RESERVED_ENTITIY_COUNT = 3;
+static constexpr int32_t RENTITIY_RESERVED_GUN = 1;
+static constexpr int32_t RENTITIY_RESERVED_TESTMODEL = 2;
+static constexpr int32_t RENTITIY_RESERVED_COUNT = 3;
+
+static constexpr int32_t RENTITIY_OFFSET_LOCALENTITIES = MAX_MODELS / 2; // TODO: Increase MAX_MODELS * 2 for refresh and all that.
 
 /**
 *   @brief  For debugging problems when out-of-date entity origin is referenced.
@@ -452,20 +452,15 @@ void CLG_CheckEntityPresent( int32_t entityNumber, const char *what );
 **/
 void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
 /**
-*	@return		The entity bound to the client's view.
-*	@remarks	(Can be the one we're chasing, instead of the player himself.)
+*	@return		A pointer to the entity bound to the client game's view. Unless STAT_CHASE is set to
+*               a specific client number the current received frame, this'll point to the entity that
+*               is of the local client player himself.
 **/
-centity_t *CLG_Self( void );
+centity_t *CLG_ViewBoundEntity( void );
 /**
- * @return True if the specified entity is bound to the local client's view.
- */
-const bool CLG_IsSelf( const centity_t *ent );
-/**
-*	@brief	
+*	@brief	Add local client entities that are 'in-frame' to the view's refdef entities list.
 **/
-void CLG_AddPacketEntities( void );
-
-
+void CLG_AddLocalEntities( void );
 
 /**
 *
@@ -490,6 +485,180 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand );
 *   @brief
 **/
 void PF_ClearMoveCommand( client_movecmd_t *moveCommand );
+
+
+
+/**
+*
+*	clg_local_entities.cpp
+*
+**/
+// Predeclare, defined a little later.
+typedef struct clg_local_entity_s clg_local_entity_t;
+
+//! 'Precache' local entity class function pointer callback.
+//! Used to parse the entity dictionary, apply values, and
+//! precache any required render/sound data.
+typedef void ( *LocalEntityCallback_Precache )( clg_local_entity_t *self, const cm_entity_t *keyValues );
+//! 'Spawn' local entity class function pointer callback.
+//! Called to spawn(prepare) the entity for gameplay.
+typedef void ( *LocalEntityCallback_Spawn )( clg_local_entity_t *self );
+//! 'Think' local entity class function pointer callback.
+//! Used for game tick rate logic.
+typedef void ( *LocalEntityCallback_Think )( clg_local_entity_t *self );
+//! 'Refresh Frame' local entity class function pointer callback.
+//! Used for effects updating.
+typedef void ( *LocalEntityCallback_RefreshFrame )( clg_local_entity_t *self );
+//! 'Prepare Refresh Entity' local entity class function pointer callback.
+//! Used to setup a refresh entity for the client's current frame.
+typedef void ( *LocalEntityCallback_PrepareRefreshEntity)( clg_local_entity_t *self );
+
+
+/**
+*	@brief	Describes the local entity's class type, default callbacks and the 
+*			class' specific locals data size.
+**/
+typedef struct clg_local_entity_class_s {
+	//! The actual classname, has to match with the worldspawn's classname key/value in order to spawn.
+	const char *classname;
+
+	//! The precache function, called during map load.
+	LocalEntityCallback_Precache precache;
+	//! The spawn function, called once during spawn time(When Begin_f() has finished.).
+	LocalEntityCallback_Spawn spawn;
+	//! The 'think' method gets called for each client game logic frame.
+	LocalEntityCallback_Think think;
+	//! The 'rframe' method gets called for each client refresh frame.
+	LocalEntityCallback_RefreshFrame rframe;
+	//! The 'prepare refresh entity' method gets called each time the current
+	//! scene to be rendered needs to be setup.
+	LocalEntityCallback_PrepareRefreshEntity prepareRefreshEntity;
+
+	//! The sizeof the class_data.
+	size_t class_locals_size;
+} clg_local_entity_class_t;
+
+/**
+*	@brief	Data structure defined for the client game's own local entity world. The local entities are
+*			used to relax the network protocol by allowing them to be used for example:
+*				- decorating(using meshes) the world.
+*				- emitting particle and/or sounds.
+*				- gibs/debris.
+**/
+typedef struct clg_local_entity_s {
+	//! Unique identifier for each entity.
+	uint32_t id;
+	//! Used to differentiate different entities that may be in the same slot
+	uint32_t spawn_count;
+	//! Whether this local entity is 'in-use' or not.
+	qboolean inuse;
+	//! Client game level time at which this entity was freed.
+	sg_time_t freetime;
+	//! Client game level time at which this entity is allowed to 'think' again.
+	sg_time_t nextThink;
+
+	//! Name of the model(if any).
+	const char *model;
+	//! Spawnflags parsed(if any).
+	uint32_t spawnflags;
+
+	//! Points right to the collision model's entity dictionary.
+	const cm_entity_t *entityDictionary;
+	//! A pointer to the entity's 'classname type' specifics.
+	const clg_local_entity_class_t *entityClass;
+
+	//! Meant for non 'classname type' specifically related data,
+	//! which is generally shared across all entities.
+	struct {
+		//! The entity's origin.
+		Vector3 origin;
+		//! The entity's angles.
+		Vector3 angles;
+
+		//! Modelspace Mins/Maxs of Bounding Box.
+		Vector3	mins, maxs;
+		//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
+		Vector3	absmin, absmax, size;
+
+		//! ModelIndex #1 handle.
+		qhandle_t modelindex;
+		//! ModelIndex #2 handle.
+		qhandle_t modelindex2;
+		//! ModelIndex #3 handle.
+		qhandle_t modelindex3;
+		//! ModelIndex #4 handle.
+		qhandle_t modelindex4;
+
+		//! Model/Sprite frame.
+		int32_t frame;
+		//! Model/Sprite old frame.
+		int32_t oldframe;
+
+		//! Model skin.
+		int32_t skin;
+		//! Model skin index number.
+		int32_t skinNumber;
+	} locals;
+
+	//! Will be allocated by precaching for storing 'classname type' specific data.
+	void *classLocals;
+} clg_local_entity_t;
+
+//! Actual array of local client entities.
+extern clg_local_entity_t clg_local_entities[ MAX_CLIENT_ENTITIES ];
+//! Current number of local client entities.
+extern uint32_t clg_num_local_entities;
+
+/**
+*	@brief	Called from the client's Begin command, gives the client game a shot at
+*			spawning local client entities so they can join in the image/model/sound
+*			precaching context.
+**/
+void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
+
+/**
+*	@return	The casted pointer to the entity's class type.
+**/
+template<typename T> auto CLG_LocalEntity_GetClass( clg_local_entity_t *self ) -> T* {
+	return static_cast<T*>( self->classLocals );
+}
+
+/**
+*	@brief	Calls the localClass 'Precache' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchPrecache( clg_local_entity_t *lent, const cm_entity_t *keyValues );
+/**
+*	@brief	Calls the localClass 'Spawn' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchSpawn( clg_local_entity_t *lent );
+/**
+*	@brief	Calls the localClass 'Think' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchThink( clg_local_entity_t *lent );
+/**
+*	@brief	Calls the localClass 'RefreshFrame' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchRefreshFrame( clg_local_entity_t *lent );
+/**
+*	@brief	Calls the localClass 'RefreshFrame' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchPrepareRefreshEntity( clg_local_entity_t *lent );
+
+//template<typename T, typename U>
+//auto add( const T &x, const U &y ) -> decltype( x + y ) {
+//	return x + y;
+//}
+
+/*
+*
+*	clg_packet_entities.cpp
+*
+*/
+/**
+*	@brief	Will add all packet entities to the current frame's view refdef
+**/
+void CLG_AddPacketEntities( void );
+
 
 
 /*
@@ -541,6 +710,27 @@ void PF_ParsePlayerSkin( char *name, char *model, char *skin, const char *s );
 *
 */
 typedef struct precached_media_s {
+	//
+	//	Local Entities:
+	//
+	//! Acts as a local 'configstring'. When a client entity's precache callback
+	//! is called, the CLG_RegisterLocalModel/CL_RegisterLocalSound functions
+	//! will store the model/sound name in the designated array.
+	//! 
+	//! This allows for them to be reloaded at the time of a possible restart of
+	//! the audio/video subsystems and have their handles be (re-)stored at the
+	//! same index.
+	char model_paths[ MAX_MODELS ][ MAX_QPATH ];
+	char sound_paths[ MAX_SOUNDS ][ MAX_QPATH ];
+
+	//! Stores the model indexes for each local client entity precached model.
+	qhandle_t local_draw_models[ MAX_MODELS ];
+	int32_t num_local_draw_models;
+	//! Stores the sound indexes for each local client entity precached sound.
+	qhandle_t local_sounds[ MAX_SOUNDS ];
+	int32_t num_local_sounds;
+
+
 	//
 	// Models:
 	//
@@ -601,11 +791,11 @@ typedef struct precached_media_s {
 extern precached_media_t precache;
 
 /**
-*	@brief	Called right before loading all received configstring (server-) models.
+*	@brief	Called right after the client finished loading all received configstring (server-) models.
 **/
 void PF_PrecacheClientModels( void );
 /**
-*	@brief	Called right before loading all received configstring (server-) sounds.
+*	@brief	Called right after the client finished loading all received configstring (server-) sounds.
 **/
 void PF_PrecacheClientSounds( void );
 /**
@@ -616,6 +806,17 @@ void PF_PrecacheViewModels( void );
 *	@brief	Called to precache client info specific media.
 **/
 void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s );
+
+/**
+*   @brief  Registers a model for local entity usage.
+*   @return -1 on failure, otherwise a handle to the model index of the precache.local_models array.
+**/
+const qhandle_t CLG_RegisterLocalModel( const char *name );
+/**
+*   @brief  Registers a sound for local entity usage.
+*   @return -1 on failure, otherwise a handle to the sounds index of the precache.local_sounds array.
+**/
+const qhandle_t CLG_RegisterLocalSound( const char *name );
 
 
 
@@ -786,11 +987,11 @@ void CLG_ClearExplosions( void );
 /**
 *   @brief
 **/
-explosion_t *CLG_AllocExplosion( void );
+clg_explosion_t *CLG_AllocExplosion( void );
 /**
 *   @brief
 **/
-explosion_t *CLG_PlainExplosion( bool big );
+clg_explosion_t *CLG_PlainExplosion( bool big );
 /**
 *   @brief
 **/
@@ -798,7 +999,7 @@ void CLG_SmokeAndFlash( const vec3_t origin );
 /**
 *   @brief
 **/
-//static void CL_AddExplosionLight( explosion_t *ex, float phase );
+//static void CL_AddExplosionLight( clg_explosion_t *ex, float phase );
 /**
 *   @brief
 **/
@@ -877,7 +1078,7 @@ void CLG_ClearSustains( void );
 /**
 *   @brief
 **/
-cl_sustain_t *CLG_AllocSustain( void );
+clg_sustain_t *CLG_AllocSustain( void );
 /**
 *   @brief
 **/
@@ -930,6 +1131,8 @@ void PF_PrepareViewEntites( void );
 **/
 /**
 *	@brief	Stores data that remains accross level switches.
+* 
+*	@todo	In the future, look into saving its state in: client.clsv
 **/
 struct game_locals_t {
 	//! Stores state of the view weapon.
@@ -940,7 +1143,7 @@ struct game_locals_t {
 		int64_t last_frame;
 		//! Received server frame time of the weapon's frame.
 		int64_t server_time;
-	} viewWeapon;//cclient_t *clients;
+	} viewWeapon;
 
 	//! Generated by CLG_InitEffects, cached up regular angular velocity values for particles 'n shit..
 	vec3_t avelocities[ NUMVERTEXNORMALS ];
@@ -956,8 +1159,15 @@ extern game_locals_t game;
 /**
 *	@brief	This structure is cleared as each map is entered, it stores data for 
 *			the current level session.
+* 
+*	@todo	In the future, look into saving its state in: level.clsv
 **/
 struct level_locals_t {
+	//! Frame number, starts incrementing when the level session has begun..
+	int64_t		framenum;
+	//! Time passed, also starts incrementing when the level session has begun.
+	sg_time_t	time;
+
 	//! For storing parsed message data that is handled later on during 
 	//! the frame by corresponding said event/effect functions.
 	struct {

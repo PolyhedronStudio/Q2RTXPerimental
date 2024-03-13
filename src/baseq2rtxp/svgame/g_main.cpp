@@ -106,7 +106,7 @@ cvar_t *g_instant_weapon_switch;
 //
 // Func Declarations:
 //
-void SpawnEntities(const char *mapname, const char *entities, const char *spawnpoint);
+void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 void ClientThink(edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect(edict_t *ent, char *userinfo);
 void ClientUserinfoChanged(edict_t *ent, char *userinfo);
@@ -438,7 +438,7 @@ edict_t *CreateTargetChangeLevel(char *map)
 {
     edict_t *ent;
 
-    ent = G_Spawn();
+    ent = G_AllocateEdict();
     ent->classname = "target_changelevel";
     if (map != level.nextmap)
         Q_strlcpy(level.nextmap, map, sizeof(level.nextmap));

@@ -66,6 +66,10 @@ void CL_PredictAngles(void) {
 *           into the cl.predictedState struct.
 **/
 void CL_PredictMovement(void) {
+    if ( !cl.collisionModel.cache ) {
+        return;
+    }
+
     // Can't predict anything without being in 'active client state' first.
     if ( cls.state != ca_active ) {
         return;

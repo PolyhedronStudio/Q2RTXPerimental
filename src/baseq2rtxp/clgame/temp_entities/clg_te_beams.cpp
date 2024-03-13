@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "../clg_local.h"
+#include "../clg_effects.h"
 
 
 #define MAX_BEAMS   32

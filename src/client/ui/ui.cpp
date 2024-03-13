@@ -220,6 +220,8 @@ void UI_OpenMenu(uiMenu_t type)
 
     switch (type) {
     case UIMENU_DEFAULT:
+        // Specifies if menu is automatically opened on startup, instead of full
+        // screen console.Default value is 1 ( open menu ).
         if (ui_open->integer) {
             menu = UI_FindMenu("main");
         }
@@ -462,6 +464,16 @@ void UI_Draw(unsigned realtime)
     if (ui_debug->integer) {
         UI_DrawString(uis.width - 4, 4, UI_RIGHT,
                       va("%3i %3i", uis.mouseCoords[0], uis.mouseCoords[1]));
+
+        if ( uis.activeMenu ) {
+            UI_DrawString( uis.width - 4, 4 + CHAR_HEIGHT, UI_RIGHT,
+                va( "activeMenu(mins.x:%4i, mins.y:%4i, maxs.x:%4i, maxs.y:%4i)", uis.activeMenu->mins[0], uis.activeMenu->mins[ 1 ], uis.activeMenu->maxs[ 0 ], uis.activeMenu->maxs[ 1 ] ));
+        }
+        if ( uis.mouseTracker ) {
+            UI_DrawString( uis.width - 4, 4 + (CHAR_HEIGHT * 2), UI_RIGHT,
+                va( "mouseTracker(x:%4i, y:%4i, width:%4i, height:%4i)", uis.mouseTracker->x, uis.mouseTracker->y, uis.mouseTracker->width, uis.mouseTracker->height ) );
+        }
+        
     }
 
     // delay playing the enter sound until after the
@@ -649,7 +661,7 @@ void UI_Init(void)
     uis.color.selection.u32     = MakeColor(15, 128, 235, 100);
     uis.color.disabled.u32      = MakeColor(127, 127, 127, 255);
 
-    strcpy(uis.weaponModel, "w_railgun.md2");
+    strcpy(uis.weaponModel, "#w_blaster.md2");
 
     // load custom menus
     UI_LoadScript();
@@ -658,6 +670,9 @@ void UI_Init(void)
     M_Menu_PlayerConfig();
     M_Menu_Servers();
     M_Menu_Demos();
+
+    // Client Score Menu Test:
+    //M_Menu_Scoreboard();
 
     Com_DPrintf("Registered %d menus.\n", List_Count(&ui_menus));
 

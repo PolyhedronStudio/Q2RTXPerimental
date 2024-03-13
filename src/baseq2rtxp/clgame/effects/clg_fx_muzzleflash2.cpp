@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "../clg_local.h"
+#include "../clg_effects.h"
+#include "../clg_temp_entities.h"
 
 /**
 *   @brief  Handles the parsed entities/monster muzzleflash effects.
@@ -14,7 +16,7 @@ void CLG_MuzzleFlash2( void ) {
     centity_t *ent;
     vec3_t      origin;
     const vec_t *ofs;
-    cdlight_t *dl;
+    clg_dlight_t *dl;
     vec3_t      forward, right;
     char        soundname[ MAX_QPATH ];
 
