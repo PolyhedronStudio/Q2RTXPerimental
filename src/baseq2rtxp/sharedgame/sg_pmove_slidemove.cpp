@@ -76,7 +76,7 @@ const trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
 *			this function adds the trace into the touchTraceList array and increases the numberOfTraces.
 **/
-inline void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_t &trace ) {
+void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_t &trace ) {
 	// Escape function if we are exceeding maximum touch traces.
 	if ( touchTraceList.numberOfTraces >= MAX_TOUCH_TRACES ) {
 		return;

@@ -22,7 +22,7 @@ void PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, co
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
 *			this function adds the trace into the touchTraceList array and increases the numberOfTraces.
 **/
-inline void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_t &trace );
+void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_t &trace );
 
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
