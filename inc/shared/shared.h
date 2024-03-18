@@ -57,6 +57,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     #include <type_traits>
     #include <algorithm>
     #include <array>
+    #include <list>
     #include <functional>
     #include <map>
     #include <numeric>
