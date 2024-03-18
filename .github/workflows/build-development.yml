@@ -51,6 +51,9 @@ jobs:
   build-linux-x86_64:
     runs-on: ubuntu-latest
     container: registry.gitlab.steamos.cloud/steamrt/soldier/sdk:latest
+    env:
+        CC: gcc-11
+        CXX: g++11
 
     steps:
     - name: Setup variables
