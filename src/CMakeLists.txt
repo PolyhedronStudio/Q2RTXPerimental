@@ -89,7 +89,6 @@ endif()
 IF( CONFIG_BUILD_CLIENT_TARGET )
 	# Add Build Target:
 	IF( WIN32 )
-		message( ${SRC_CLIENT} )
 		add_executable(client WIN32 
 			${SRC_CLIENT} ${HEADERS_CLIENT} 
 			${SRC_COMMON} ${HEADERS_COMMON} 

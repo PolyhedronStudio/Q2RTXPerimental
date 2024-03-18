@@ -435,8 +435,8 @@ typedef struct clg_local_entity_s {
 		int32_t skin;
 		//! Model skin index number.
 		int32_t skinNumber;
-	} locals;
-
+	} locals = { };
+	
 	//! Will be allocated by precaching for storing 'classname type' specific data.
 	void *classLocals;
 } clg_local_entity_t;

@@ -502,6 +502,5 @@ void CL_PrepareViewEntities(void) {
 **/
 void CL_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
     clge->GetEntitySoundOrigin( entityNumber, org );
-    return;
 }
 
