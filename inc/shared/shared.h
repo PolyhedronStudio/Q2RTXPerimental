@@ -54,6 +54,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     #include <cstring>
     #include <ctime>
     // C++ STL Headers:
+    #include <bit>
     #include <type_traits>
     #include <algorithm>
     #include <array>
