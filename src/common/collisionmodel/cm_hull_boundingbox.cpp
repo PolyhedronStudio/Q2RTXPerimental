@@ -19,15 +19,6 @@
 
 
 
-//static cplane_t cm->hull_boundingbox->planes[ 12 ];
-//static mnode_t  cm->hull_boundingbox->nodes[ 6 ];
-//mnode_t *cm->hull_boundingbox->headnode;
-//static mbrush_t cm->hull_boundingbox->brush;
-//static mbrush_t *cm->hull_boundingbox->leafbrush;
-//static mbrushside_t cm->hull_boundingbox->brushsides[ 6 ];
-//static mleaf_t  cm->hull_boundingbox->leaf;
-//static mleaf_t  cm->hull_boundingbox->emptyleaf;
-
 /**
 *   Set up the planes and nodes so that the six floats of a bounding box
 *   can just be stored out and get a proper BSP clipping hull structure.
