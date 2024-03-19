@@ -188,6 +188,25 @@ mnode_t *CM_HeadnodeForBox( cm_t *cm, const vec3_t mins, const vec3_t maxs, cons
 
 
 //
+// collisionmodel/cm_hull_octagonbox.cpp
+//
+/**
+*   Set up the planes and nodes so that the ten floats of a Bounding 'Octagon' Box
+*   can just be stored out and get a proper BSP clipping hull structure.
+**/
+void CM_InitOctagonHull( cm_t *cm );
+/**
+*   @brief  To keep everything totally uniform, Bounding 'Octagon' Boxes are turned into small
+*           BSP trees instead of being compared directly.
+*
+*           The BSP trees' octagon box will match with the bounds(mins, maxs) and have appointed
+*           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
+**/
+mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const contents_t contents );
+
+
+
+//
 //  common/collisionmodel/cm_pointcontents.cpp
 //
 /**

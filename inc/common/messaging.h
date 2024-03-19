@@ -39,7 +39,7 @@ extern "C" {
 	/**
 	*	@brief	union struct, for packing the bounds as uint32_t.
 	**/
-	typedef union solid_packed_u {
+	typedef union bounds_packed_u {
 		struct p {
 			uint8_t x;
 			uint8_t y;
@@ -48,7 +48,7 @@ extern "C" {
 		} p;
 
 		uint32_t u;
-	} solid_packed_t;
+	} bounds_packed_t;
 
 	/**
 	*	@brief	entity and player states are pre-quantized before sending to make delta
@@ -64,7 +64,8 @@ extern "C" {
 		vec3_t		angles; // WID: float-movement
 		vec3_t		old_origin; //int16_t     old_origin[3]; // WID: float-movement
 
-		solid_packed_t solid;	//! Solid for collision prediction.
+		solid_t solid;	//! Solid for collision prediction.
+		bounds_packed_t bounds;	//! The bounding box for the solid's hull type, also needed for collision prediction.
 		int32_t clipmask;		//! Clipmask for collision prediction.
 		contents_t hullContents;//! Hull Contents for collision prediction.
 		int32_t ownerNumber;	//! Entity which owns this entity, for collision prediction.
@@ -120,27 +121,23 @@ extern "C" {
 	/**
 	*	@brief	Will encode/pack the mins/maxs bounds into the solid_packet_t uint32_t.
 	**/
-	static inline solid_packed_t MSG_PackSolidUint32( const vec3_t mins, const vec3_t maxs ) {
-		solid_packed_t packedSolid;
+	static inline const bounds_packed_t MSG_PackBoundsUint32( const vec3_t mins, const vec3_t maxs ) {
+		bounds_packed_t packedBounds;
 
-		packedSolid.p.x = maxs[ 0 ];
-		packedSolid.p.y = maxs[ 1 ];
-		packedSolid.p.zd = -mins[ 2 ];
-		packedSolid.p.zu = maxs[ 2 ] + 32;
+		packedBounds.p.x = maxs[ 0 ];
+		packedBounds.p.y = maxs[ 1 ];
+		packedBounds.p.zd = -mins[ 2 ];
+		packedBounds.p.zu = maxs[ 2 ] + 32;
 
-		return packedSolid;
+		return packedBounds;
 	}
 	/**
 	*	@brief	Will decode/unpack the solid_packet_t uint32_t, into the pointers mins/maxs.
 	**/
-	static inline void MSG_UnpackSolidUint32( const solid_t solid, vec3_t mins, vec3_t maxs ) {
-		solid_packed_t packedSolid;
-		packedSolid.u = solid;
-
-		//packed.u = state->solid;
-		mins[ 0 ] = -packedSolid.p.x;  maxs[ 0 ] = packedSolid.p.x;
-		mins[ 1 ] = -packedSolid.p.y;  maxs[ 1 ] = packedSolid.p.y;
-		mins[ 2 ] = -packedSolid.p.zd; maxs[ 2 ] = packedSolid.p.zu - 32;
+	static inline void MSG_UnpackBoundsUint32( const bounds_packed_t packedBounds, vec3_t mins, vec3_t maxs ) {
+		mins[ 0 ] = -packedBounds.p.x;  maxs[ 0 ] = packedBounds.p.x;
+		mins[ 1 ] = -packedBounds.p.y;  maxs[ 1 ] = packedBounds.p.y;
+		mins[ 2 ] = -packedBounds.p.zd; maxs[ 2 ] = packedBounds.p.zu - 32;
 	}
 
 	/**

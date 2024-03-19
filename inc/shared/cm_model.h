@@ -22,6 +22,20 @@ typedef struct hull_boundingbox_s {
     mleaf_t  emptyleaf;
 } hull_boundingbox_t;
 
+/**
+*   @brief  Contains the 'Octagon' hull BSP structure.
+**/
+typedef struct hull_octagonbox_s {
+    cplane_t planes[ 20 ];
+    mnode_t  nodes[ 10 ];
+    mnode_t *headnode;
+    mbrush_t brush;
+    mbrush_t *leafbrush;
+    mbrushside_t brushsides[ 10 ];
+    mleaf_t  leaf;
+    mleaf_t  emptyleaf;
+} hull_octagonbox_t;
+
 
 /**
 *   @brief  The actual 'collision model', storing the current BSP model(s),
@@ -51,4 +65,6 @@ typedef struct cm_s {
 
     //! Collision Model's bounding box hull.
     hull_boundingbox_t *hull_boundingbox;
+    //! Collision Model's octagon box hull.
+    hull_octagonbox_t *hull_octagonbox;
 } cm_t;

@@ -268,14 +268,21 @@ void PF_LinkEdict(edict_t *ent)
     // encode the size into the entity_state for client prediction
     switch (ent->solid) {
     case SOLID_BBOX:
-        if ((ent->svflags & SVF_DEADMONSTER) || VectorCompare(ent->mins, ent->maxs)) {
+        if ( ( ent->svflags & SVF_DEADMONSTER ) || VectorCompare( ent->mins, ent->maxs ) ) {
             ent->s.solid = SOLID_NOT;   // 0
             sent->solid32 = SOLID_NOT;  // 0
         } else {
-			// WID: upgr-solid: Q2RE Approach.
-			ent->s.solid = static_cast<solid_t>( sent->solid32 = MSG_PackSolidUint32( ent->mins, ent->maxs ).u );
-            //ent->s.solid = MSG_PackSolid16(ent->mins, ent->maxs);
-            //sent->solid32 = MSG_PackSolid32(ent->mins, ent->maxs);
+            ent->s.solid = static_cast<solid_t>( sent->solid32 = ent->solid );
+            ent->s.boundingBox = static_cast<uint32_t>( MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
+        }
+        break;
+    case SOLID_OCTAGONBOX:
+        if ( ( ent->svflags & SVF_DEADMONSTER ) || VectorCompare( ent->mins, ent->maxs ) ) {
+            ent->s.solid = SOLID_NOT;   // 0
+            sent->solid32 = SOLID_NOT;  // 0
+        } else {
+            ent->s.solid = static_cast<solid_t>( sent->solid32 = ent->solid );
+            ent->s.boundingBox = static_cast<uint32_t>( MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
         }
         break;
     case SOLID_BSP:
@@ -411,14 +418,14 @@ const int32_t SV_AreaEdicts(const vec3_t mins, const vec3_t maxs,
 //===========================================================================
 
 /**
-*	@return	A headnode that can be used for testing or clipping an
-*			object of mins/maxs size.
+*	@return	A headnode that can be used for testing and/or clipping an
+*			object 'hull' of mins/maxs size for the entity's said 'solid'.
 **/
 static mnode_t *SV_HullForEntity(edict_t *ent, const bool includeSolidTriggers = false ) {
     if ( ent->solid == SOLID_BSP || ( includeSolidTriggers && ent->solid == SOLID_TRIGGER ) ){
-        int i = ent->s.modelindex - 1;
+        const int32_t i = ent->s.modelindex - 1;
 
-        // explicit hulls in the BSP model
+        // Explicit hulls in the BSP model.
         if ( i <= 0 || i >= sv.cm.cache->nummodels ) {
             Com_Error( ERR_DROP, "%s: inline model %d out of range", __func__, i );
             return nullptr;
@@ -427,8 +434,12 @@ static mnode_t *SV_HullForEntity(edict_t *ent, const bool includeSolidTriggers =
         return sv.cm.cache->models[i].headnode;
     }
 
-    // Create a temp hull from entity bounding box which's contents are set to its clipmask.
-    return CM_HeadnodeForBox( &sv.cm, ent->mins, ent->maxs, ent->s.hullContents );
+    // Create a temp hull from entity bounds and contents clipmask for the specific type of 'solid'.
+    if ( ent->solid == SOLID_OCTAGONBOX ) {
+        return CM_HeadnodeForOctagon( &sv.cm, ent->mins, ent->maxs, ent->hullContents );
+    } else {
+        return CM_HeadnodeForBox( &sv.cm, ent->mins, ent->maxs, ent->hullContents );
+    }
 }
 
 /**

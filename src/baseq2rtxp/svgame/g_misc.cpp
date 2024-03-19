@@ -888,7 +888,7 @@ void SP_misc_explobox(edict_t *self)
     gi.modelindex("models/objects/debris2/tris.md2");
     gi.modelindex("models/objects/debris3/tris.md2");
 
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_OCTAGONBOX;
     self->movetype = MOVETYPE_STEP;
 
     self->model = "models/objects/barrels/tris.md2";

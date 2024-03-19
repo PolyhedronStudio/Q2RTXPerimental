@@ -15,7 +15,8 @@
 typedef enum {
     SOLID_NOT,          //! No interaction with other objects.
     SOLID_TRIGGER,      //! Only touch when inside, after moving. (Optional BSP Brush clip when SVF_HULL is set.)
-    SOLID_BBOX,         //! Touch on edge.
+    SOLID_BBOX,         //! Touch on bounding box edge.
+    SOLID_OCTAGONBOX,   //! Touch on its 8 edges.
     SOLID_BSP           //! BSP clip, touch on edge.
 } solid_t;
 

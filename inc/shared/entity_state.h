@@ -31,6 +31,8 @@ typedef struct entity_state_s {
     **/
     //! The actual 'solid' type of entity.
     solid_t solid;
+    //! The actual 'bounding box' mins/maxs for the solid type in question.
+    uint32_t boundingBox;
     //! Clipmask for collision.
     contents_t clipmask;
     //! The actual temporary hull's leaf and brush contents of this entity in case it is a SOLID_BBOX.

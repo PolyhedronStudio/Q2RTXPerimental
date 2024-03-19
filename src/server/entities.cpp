@@ -452,11 +452,11 @@ void SV_BuildClientFrame(client_t *client)
 
 		// don't mark players missiles as solid
         if (ent->owner == clent) {
-            state->solid.u = 0;
+            state->solid = static_cast<solid_t>( 0 );
         // WID: netstuff: longsolid
 		// else if (client->esFlags & MSG_ES_LONGSOLID) {
         } else {
-            state->solid.u = sv.entities[e].solid32;
+            state->solid = static_cast<solid_t>( sv.entities[ e ].solid32 );
         }
 
         svs.next_entity++;

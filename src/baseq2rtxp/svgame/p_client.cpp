@@ -1167,7 +1167,7 @@ void PutClientInServer(edict_t *ent)
     ent->inuse = true;
     ent->classname = "player";
     ent->mass = 200;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_OCTAGONBOX;
     ent->deadflag = DEAD_NO;
     ent->air_finished_time = level.time + 12_sec;
     ent->clipmask = static_cast<contents_t>( MASK_PLAYERSOLID );

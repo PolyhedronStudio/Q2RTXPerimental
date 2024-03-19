@@ -24,12 +24,6 @@
 *   can just be stored out and get a proper BSP clipping hull structure.
 **/
 void CM_InitBoxHull( cm_t *cm ) {
-    int         i;
-    int         side;
-    mnode_t *c;
-    cplane_t *p;
-    mbrushside_t *s;
-
     // Moved hull_boundingbox from heap memory to stack allocated memory, 
     // this so that we can properly call initialize only during CM_LoadMap.
     // 
@@ -49,32 +43,34 @@ void CM_InitBoxHull( cm_t *cm ) {
 
     cm->hull_boundingbox->leafbrush = &cm->hull_boundingbox->brush;
 
-    for ( i = 0; i < 6; i++ ) {
-        side = i & 1;
+    for ( int32_t i = 0; i < 6; i++ ) {
+        // Brush Side Index:
+        const int32_t side = i & 1;
 
-        // brush sides
-        s = &cm->hull_boundingbox->brushsides[ i ];
-        s->plane = &cm->hull_boundingbox->planes[ i * 2 + side ];
-        s->texinfo = &nulltexinfo;
+        // Brush Sides:
+        mbrushside_t *brushSide = &cm->hull_boundingbox->brushsides[ i ];
+        brushSide->plane = &cm->hull_boundingbox->planes[ i * 2 + side ];
+        brushSide->texinfo = &nulltexinfo;
 
-        // nodes
-        c = &cm->hull_boundingbox->nodes[ i ];
-        c->plane = &cm->hull_boundingbox->planes[ i * 2 ];
-        c->children[ side ] = (mnode_t *)&cm->hull_boundingbox->emptyleaf;
-        if ( i != 5 )
-            c->children[ side ^ 1 ] = &cm->hull_boundingbox->nodes[ i + 1 ];
-        else
-            c->children[ side ^ 1 ] = (mnode_t *)&cm->hull_boundingbox->leaf;
+        // Clipping Nodes:
+        mnode_t *clipNode = &cm->hull_boundingbox->nodes[ i ];
+        clipNode->plane = &cm->hull_boundingbox->planes[ i * 2 ];
+        clipNode->children[ side ] = (mnode_t *)&cm->hull_boundingbox->emptyleaf;
+        if ( i != 5 ) {
+            clipNode->children[ side ^ 1 ] = &cm->hull_boundingbox->nodes[ i + 1 ];
+        } else {
+            clipNode->children[ side ^ 1 ] = (mnode_t *)&cm->hull_boundingbox->leaf;
+        }
 
-        // planes
-        p = &cm->hull_boundingbox->planes[ i * 2 ];
-        p->type = i >> 1;
-        p->normal[ i >> 1 ] = 1;
+        // Planes:
+        cplane_t *plane = &cm->hull_boundingbox->planes[ i * 2 ];
+        plane->type = i >> 1;
+        plane->normal[ i >> 1 ] = 1;
 
-        p = &cm->hull_boundingbox->planes[ i * 2 + 1 ];
-        p->type = 3 + ( i >> 1 );
-        p->signbits = 1 << ( i >> 1 );
-        p->normal[ i >> 1 ] = -1;
+        plane = &cm->hull_boundingbox->planes[ i * 2 + 1 ];
+        plane->type = 3 + ( i >> 1 );
+        plane->signbits = 1 << ( i >> 1 );
+        plane->normal[ i >> 1 ] = -1;
     }
 }
 
@@ -86,6 +82,13 @@ void CM_InitBoxHull( cm_t *cm ) {
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
 mnode_t *CM_HeadnodeForBox( cm_t *cm, const vec3_t mins, const vec3_t maxs, const contents_t contents ) {
+    // Setup to CONTENTS_MONSTER in case of no contents being passed in.
+    if ( contents == CONTENTS_NONE ) {
+        cm->hull_boundingbox->leaf.contents = cm->hull_boundingbox->brush.contents = CONTENTS_MONSTER;
+    } else {
+        cm->hull_boundingbox->leaf.contents = cm->hull_boundingbox->brush.contents = contents;
+    }
+
     // Setup its bounding boxes.
     VectorCopy( mins, cm->hull_boundingbox->headnode->mins );
     VectorCopy( maxs, cm->hull_boundingbox->headnode->maxs );
@@ -106,12 +109,6 @@ mnode_t *CM_HeadnodeForBox( cm_t *cm, const vec3_t mins, const vec3_t maxs, cons
     cm->hull_boundingbox->planes[ 10 ].dist = mins[ 2 ];
     cm->hull_boundingbox->planes[ 11 ].dist = -mins[ 2 ];
 
-    // Setup to CONTENTS_SOLID in case of no contents being passed in.
-    if ( !contents ) {
-        cm->hull_boundingbox->leaf.contents = cm->hull_boundingbox->brush.contents = CONTENTS_MONSTER;
-    } else {
-        cm->hull_boundingbox->leaf.contents = cm->hull_boundingbox->brush.contents = contents;
-    }
-
+    // Return boundingbox' headnode pointer.
     return cm->hull_boundingbox->headnode;
 }

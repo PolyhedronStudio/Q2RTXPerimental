@@ -187,7 +187,7 @@ static void parse_entity_update(const entity_state_t *state)
         // If not a brush bsp entity, decode its mins and maxs.
         if ( state->solid != PACKED_BSP ) {
             // WID: upgr-solid: Q2RE Approach.
-            MSG_UnpackSolidUint32( state->solid, ent->mins, ent->maxs );
+            MSG_UnpackBoundsUint32( bounds_packed_t{ .u = state->boundingBox }, ent->mins, ent->maxs);
         }
     }
 

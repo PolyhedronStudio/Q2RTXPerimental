@@ -19,13 +19,36 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "cl_client.h"
 
 /**
+*	@return	A headnode that can be used for testing and/or clipping an
+*			object 'hull' of mins/maxs size for the entity's said 'solid'.
+**/
+static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSolidTriggers = false */) {
+    if ( ent->current.solid == PACKED_BSP /*|| ( includeSolidTriggers && ent->current.solid == SOLID_TRIGGER )*/ ) {
+        const int32_t i = ent->current.modelindex - 1;
+
+        // explicit hulls in the BSP model
+        if ( i <= 0 || i >= cl.collisionModel.cache->nummodels ) {
+            Com_Error( ERR_DROP, "%s: inline model %d out of range", __func__, i );
+            return nullptr;
+        }
+
+        return cl.collisionModel.cache->models[ i ].headnode;
+    }
+
+    // Create a temp hull from entity bounds and contents clipmask for the specific type of 'solid'.
+    if ( ent->current.solid == SOLID_OCTAGONBOX ) {
+        return CM_HeadnodeForOctagon( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
+    } else {
+        return CM_HeadnodeForBox( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
+    }
+}
+
+
+/**
 *   @brief  Clips the trace to all entities currently in-frame.
 **/
 static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask ) {
     trace_t     trace = {};
-
-    mnode_t *headnode = nullptr;
-    mmodel_t *cmodel = nullptr;
 
     for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
         // Acquire the entity state.
@@ -83,21 +106,29 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
         //}
 
         // BSP Brush Model Entity:
-        if ( ent->current.solid == PACKED_BSP ) {
-            // special value for bmodel
-            cmodel = cl.model_clip[ ent->current.modelindex ];
-            if ( !cmodel ) {
-                continue;
-            }
-            headnode = cmodel->headnode;
-            // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
-        } else {
-            headnode = CM_HeadnodeForBox( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
-        }
+        mnode_t *headNode = CL_HullForEntity( ent );
+        //if ( ent->current.solid == PACKED_BSP ) {
+        //    // special value for bmodel
+        //    cmodel = cl.model_clip[ ent->current.modelindex ];
+        //    if ( !cmodel ) {
+        //        continue;
+        //    }
+        //    headnode = cmodel->headnode;
+        //    // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
+        //} else {
+        //    if ( ent->current.solid == SOLID_OCTAGONBOX ) {
+        //        vec3_t _mins;
+        //        vec3_t _maxs;
+        //        MSG_UnpackSolidUint32( static_cast<solid_t>(ent->current.boundingBox), _mins, _maxs );
+        //        headnode = CM_HeadnodeForOctagon( &cl.collisionModel, _mins, _maxs, ent->current.hullContents );
+        //    } else {
+        //        headnode = CM_HeadnodeForBox( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
+        //    }
+        //}
 
         // Perform the BSP box sweep.
         CM_TransformedBoxTrace( &cl.collisionModel, &trace, start, end,
-            mins, maxs, headnode, contentmask,
+            mins, maxs, headNode, contentmask,
             ent->current.origin, ent->current.angles );
 
         // Determine clipped entity trace result.
@@ -150,20 +181,29 @@ const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const ve
             CM_BoxTrace( &cl.collisionModel, &trace, start, end, mins, maxs, cl.collisionModel.cache->nodes, contentmask );
             // Clip against Client Entity:
         } else {
-            mnode_t *headNode = nullptr;
+            mnode_t *headNode = CL_HullForEntity( clipEntity );
 
-            // BSP Brush Model Entity:
-            if ( clipEntity->current.solid == PACKED_BSP ) {
-                // special value for bmodel
-                mmodel_t *cmodel = cl.model_clip[ clipEntity->current.modelindex ];
-                if ( !cmodel ) {
-                    return trace;
-                }
-                headNode = cmodel->headnode;
-                // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
-            } else {
-                headNode = CM_HeadnodeForBox( &cl.collisionModel, clipEntity->mins, clipEntity->maxs, clipEntity->current.hullContents );
-            }
+            //// BSP Brush Model Entity:
+            //if ( clipEntity->current.solid == PACKED_BSP ) {
+            //    // special value for bmodel
+            //    mmodel_t *cmodel = cl.model_clip[ clipEntity->current.modelindex ];
+            //    if ( !cmodel ) {
+            //        return trace;
+            //    }
+            //    headNode = cmodel->headnode;
+            //// Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
+            //} else {
+            //    if ( clipEntity->current.solid == SOLID_OCTAGONBOX ) {
+            //        //headNode = CM_HeadnodeForOctagon( &cl.collisionModel, clipEntity->mins, clipEntity->maxs, clipEntity->current.hullContents );
+            //        vec3_t _mins;
+            //        vec3_t _maxs;
+            //        MSG_UnpackBoundsUint32( bounds_packed_t{ .u = clipEntity->current.boundingBox }, _mins, _maxs );
+            //        headNode = CM_HeadnodeForOctagon( &cl.collisionModel, _mins, _maxs, clipEntity->current.hullContents );
+            //    } else {
+            //        headNode = CM_HeadnodeForBox( &cl.collisionModel, clipEntity->mins, clipEntity->maxs, clipEntity->current.hullContents );
+            //    }
+            //    //headNode = CM_HeadnodeForBox( &cl.collisionModel, clipEntity->mins, clipEntity->maxs, clipEntity->current.hullContents );
+            //}
 
             // Perform clip.
             trace_t tr;
@@ -198,18 +238,28 @@ const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
         //    continue;
         //}
         // BSP Brush Model Entity:
-        mnode_t *headNode = nullptr;
-        if ( ent->current.solid == PACKED_BSP ) {
-            // special value for bmodel
-            mmodel_t *cmodel = cl.model_clip[ ent->current.modelindex ];
-            if ( !cmodel ) {
-                continue;
-            }
-            headNode = cmodel->headnode;
-            // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
-        } else {
-            headNode = CM_HeadnodeForBox( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
-        }
+        mnode_t *headNode = CL_HullForEntity( ent );
+        //mnode_t *headNode = nullptr;
+        //if ( ent->current.solid == PACKED_BSP ) {
+        //    // special value for bmodel
+        //    mmodel_t *cmodel = cl.model_clip[ ent->current.modelindex ];
+        //    if ( !cmodel ) {
+        //        continue;
+        //    }
+        //    headNode = cmodel->headnode;
+        //    // Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
+        //} else {
+        //    if ( ent->current.solid == SOLID_OCTAGONBOX ) {
+        //        //headNode = CM_HeadnodeForOctagon( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
+        //        vec3_t _mins;
+        //        vec3_t _maxs;
+        //        MSG_UnpackSolidUint32( static_cast<solid_t>( ent->current.boundingBox ), _mins, _maxs );
+        //        headNode = CM_HeadnodeForOctagon( &cl.collisionModel, _mins, _maxs, ent->current.hullContents );
+        //    } else {
+        //        headNode = CM_HeadnodeForBox( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
+        //    }
+        //    //headNode = CM_HeadnodeForBox( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
+        //}
 
         // Might intersect, so do an exact clip.
         contents = static_cast<contents_t>( contents | CM_TransformedPointContents( &cl.collisionModel, point, headNode, ent->current.origin, ent->current.angles ) );

@@ -401,6 +401,7 @@ SET(SRC_COMMON
 	common/collisionmodel/cm_boxleafs.cpp
 	common/collisionmodel/cm_entities.cpp
 	common/collisionmodel/cm_hull_boundingbox.cpp
+	common/collisionmodel/cm_hull_octagonbox.cpp
 	common/collisionmodel/cm_pointcontents.cpp
 	common/collisionmodel/cm_trace.cpp
 	common/collisionmodel.cpp

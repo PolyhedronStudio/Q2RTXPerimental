@@ -79,7 +79,7 @@ static void SV_CreateBaselines(void)
 		// WID: netstuff: This is actually where we should be assigning stuff to our internal local server entities.
 		// WID: netstuff: longsolid
 		//if (sv_client->esFlags & MSG_ES_LONGSOLID) {
-            base->solid.u = sv.entities[i].solid32;
+            base->solid = static_cast<solid_t>( sv.entities[i].solid32 );
         //}
     }
 }

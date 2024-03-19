@@ -63,7 +63,8 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	out->effects = in->effects;
 	out->renderfx = in->renderfx;
 
-	out->solid.u = in->solid;
+	out->solid = in->solid;
+	out->bounds.u = in->boundingBox;
 	out->clipmask = in->clipmask;
 	out->hullContents = in->hullContents;
 	out->ownerNumber = in->ownerNumber;
@@ -168,8 +169,11 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 		bits |= U_EFFECTS;
 	}
 
-	if ( to->solid.u != from->solid.u ) {
+	if ( to->solid != from->solid ) {
 		bits |= U_SOLID;
+	}
+	if ( to->bounds.u != from->bounds.u ) {
+		bits |= U_BOUNDINGBOX;
 	}
 	if ( to->clipmask != from->clipmask ) {
 		bits |= U_CLIPMASK;
@@ -309,7 +313,10 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: WriteLong by default.
-		MSG_WriteUintBase128( to->solid.u );
+		MSG_WriteUintBase128( to->solid );
+	}
+	if ( bits & U_BOUNDINGBOX ) {
+		MSG_WriteUintBase128( to->bounds.u );
 	}
 	if ( bits & U_CLIPMASK ) {
 		// WID: upgr-solid: WriteLong by default.

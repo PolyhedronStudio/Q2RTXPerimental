@@ -45,6 +45,8 @@ void CM_InitCollisionModel( cm_t *cm ) {
 
     // Initialize box hull for the specified collision model.
     CM_InitBoxHull( cm );
+    // Initialize octagon hull for the specified collision model.
+    CM_InitOctagonHull( cm );
 
     // Set null leaf cluster to -1.
     cm->nullLeaf.cluster = -1;
