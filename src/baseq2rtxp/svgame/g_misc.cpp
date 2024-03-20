@@ -806,18 +806,26 @@ Large exploding box.  You can override its mass (100),
 health (80), and dmg (150).
 */
 
-void barrel_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf )
 
 {
     float   ratio;
     vec3_t  v;
 
-    if ((!other->groundentity) || (other->groundentity == self))
+    if ( ( !other->groundentity ) || ( other->groundentity == self ) )
         return;
 
     ratio = (float)other->mass / (float)self->mass;
-    VectorSubtract(self->s.origin, other->s.origin, v);
-    M_walkmove(self, QM_Vector3ToYaw(v), 20 * ratio * FRAMETIME);
+    //VectorSubtract(self->s.origin, other->s.origin, v);
+    if ( plane ) {
+        VectorCopy( plane->normal, v );
+        VectorNegate( v, v );
+
+        Com_LPrintf( PRINT_DEVELOPER, "plane->normal( %s ), v( %s )\n", vtos( plane->normal ), vtos( v ) );
+    }/* else {
+        VectorSubtract( self->s.origin, other->s.origin, v );
+    }*/
+    M_walkmove(self, QM_Vector3ToYaw(v), 5 * ratio * FRAMETIME);
 }
 
 void barrel_explode(edict_t *self)

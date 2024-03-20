@@ -371,7 +371,15 @@ end
 begin singleplayer
     background #212F3CD0
     style --compact
-    banner m_banner_game
+    //banner m_banner_game
+    title "Test Maps:""
+    action "local_entities" "skill 0; gamemode 0; maxclients 1; map local_entities"
+    action "local_pvs" "skill 0; gamemode 0; maxclients 1; map local_pvs"
+    action "misc_explobox" "skill 0; gamemode 0; maxclients 1; map misc_explobox"
+    action "spotlights" "skill 0; gamemode 0; maxclients 1; map spotlights"
+    action "trigger_brushclip" "skill 0; gamemode 0; maxclients 1; map trigger_brushclip"
+    blank
+    title "Q2 Game:"
     action easy "skill 0; gamemode 0; maxclients 1; newgame"
     action medium "skill 1; gamemode 0; maxclients 1; newgame"
     action hard "skill 2; gamemode 0; maxclients 1; newgame"
