@@ -333,7 +333,7 @@ typedef enum {
     //! Multicast to all clients inside of PVS(Possible Visibility Set).
     MULTICAST_PVS
 } multicast_t;
-// a SOLID_BBOX will never create this value
+// a SOLID_BOUNDS_BOX will never create this value
 #define PACKED_BSP      255
 /***
 * 	Config Strings: A general means of communication from the server to all connected clients.

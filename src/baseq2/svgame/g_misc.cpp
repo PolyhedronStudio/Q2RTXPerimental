@@ -466,7 +466,7 @@ void SP_viewthing(edict_t *ent)
     gi.dprintf("viewthing spawned\n");
 
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     ent->s.renderfx = RF_FRAMELERP;
     VectorSet(ent->mins, -16, -16, -24);
     VectorSet(ent->maxs, 16, 16, 32);
@@ -888,7 +888,7 @@ void SP_misc_explobox(edict_t *self)
     gi.modelindex("models/objects/debris2/tris.md2");
     gi.modelindex("models/objects/debris3/tris.md2");
 
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->movetype = MOVETYPE_STEP;
 
     self->model = "models/objects/barrels/tris.md2";
@@ -981,7 +981,7 @@ void misc_eastertank_think(edict_t *self)
 void SP_misc_eastertank(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     VectorSet(ent->mins, -32, -32, -16);
     VectorSet(ent->maxs, 32, 32, 32);
     ent->s.modelindex = gi.modelindex("models/monsters/tank/tris.md2");
@@ -1008,7 +1008,7 @@ void misc_easterchick_think(edict_t *self)
 void SP_misc_easterchick(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     VectorSet(ent->mins, -32, -32, 0);
     VectorSet(ent->maxs, 32, 32, 32);
     ent->s.modelindex = gi.modelindex("models/monsters/bitch/tris.md2");
@@ -1035,7 +1035,7 @@ void misc_easterchick2_think(edict_t *self)
 void SP_misc_easterchick2(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     VectorSet(ent->mins, -32, -32, 0);
     VectorSet(ent->maxs, 32, 32, 32);
     ent->s.modelindex = gi.modelindex("models/monsters/bitch/tris.md2");
@@ -1078,7 +1078,7 @@ void commander_body_drop(edict_t *self)
 void SP_monster_commander_body(edict_t *self)
 {
     self->movetype = MOVETYPE_NONE;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->model = "models/monsters/commandr/tris.md2";
     self->s.modelindex = gi.modelindex(self->model);
     VectorSet(self->mins, -32, -32, 0);
@@ -1145,7 +1145,7 @@ void SP_misc_deadsoldier(edict_t *ent)
     }
 
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     ent->s.modelindex = gi.modelindex("models/deadbods/dude/tris.md2");
 
     // Defaults to frame 0
@@ -1224,7 +1224,7 @@ This is a large stationary viper as seen in Paul's intro
 void SP_misc_bigviper(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     VectorSet(ent->mins, -176, -120, -24);
     VectorSet(ent->maxs, 176, 120, 72);
     ent->s.modelindex = gi.modelindex("models/ships/bigviper/tris.md2");
@@ -1266,7 +1266,7 @@ void misc_viper_bomb_use(edict_t *self, edict_t *other, edict_t *activator)
 {
     edict_t *viper;
 
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->svflags &= ~SVF_NOCLIENT;
     self->s.effects |= EF_ROCKET;
     self->use = NULL;
@@ -1366,7 +1366,7 @@ void misc_satellite_dish_use(edict_t *self, edict_t *other, edict_t *activator)
 void SP_misc_satellite_dish(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     VectorSet(ent->mins, -64, -64, 0);
     VectorSet(ent->maxs, 64, 64, 128);
     ent->s.modelindex = gi.modelindex("models/objects/satellite/tris.md2");
@@ -1380,7 +1380,7 @@ void SP_misc_satellite_dish(edict_t *ent)
 void SP_light_mine1(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     ent->s.modelindex = gi.modelindex("models/objects/minelite/light1/tris.md2");
     gi.linkentity(ent);
 }
@@ -1391,7 +1391,7 @@ void SP_light_mine1(edict_t *ent)
 void SP_light_mine2(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     ent->s.modelindex = gi.modelindex("models/objects/minelite/light2/tris.md2");
     gi.linkentity(ent);
 }
@@ -1731,7 +1731,7 @@ void SP_misc_teleporter(edict_t *ent)
     ent->s.effects = EF_TELEPORTER;
     ent->s.renderfx = RF_NOSHADOW;
     ent->s.sound = gi.soundindex("world/amb10.wav");
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
 
     VectorSet(ent->mins, -32, -32, -24);
     VectorSet(ent->maxs, 32, 32, -16);
@@ -1756,7 +1756,7 @@ void SP_misc_teleporter_dest(edict_t *ent)
 {
     gi.setmodel(ent, "models/objects/dmspot/tris.md2");
     ent->s.skinnum = 0;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
 //  ent->s.effects |= EF_FLIES;
     ent->s.renderfx |= RF_NOSHADOW;
     VectorSet(ent->mins, -32, -32, -24);

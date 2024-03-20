@@ -56,7 +56,7 @@ void SP_monster_boss3_stand(edict_t *self)
     }
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->model = "models/monsters/boss3/rider/tris.md2";
     self->s.modelindex = gi.modelindex(self->model);
     self->s.frame = FRAME_stand201;

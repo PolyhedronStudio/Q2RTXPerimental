@@ -615,7 +615,7 @@ void SP_monster_chick(edict_t *self)
     sound_search            = gi.soundindex("chick/chksrch1.wav");
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/bitch/tris.md2");
     VectorSet(self->mins, -16, -16, 0);
     VectorSet(self->maxs, 16, 16, 56);

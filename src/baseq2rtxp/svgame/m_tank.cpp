@@ -760,7 +760,7 @@ void SP_monster_tank(edict_t *self)
     VectorSet(self->mins, -32, -32, -16);
     VectorSet(self->maxs, 32, 32, 72);
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
 
     sound_pain = gi.soundindex("tank/tnkpain2.wav");
     sound_thud = gi.soundindex("tank/tnkdeth2.wav");

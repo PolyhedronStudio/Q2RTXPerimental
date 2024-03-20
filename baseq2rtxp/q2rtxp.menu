@@ -372,7 +372,8 @@ begin singleplayer
     background #212F3CD0
     style --compact
     //banner m_banner_game
-    title "Test Maps:""
+    title "Test Maps:"
+    action "func_plat" "skill 0; gamemode 0; maxclients 1; map func_plat"
     action "local_entities" "skill 0; gamemode 0; maxclients 1; map local_entities"
     action "local_pvs" "skill 0; gamemode 0; maxclients 1; map local_pvs"
     action "misc_explobox" "skill 0; gamemode 0; maxclients 1; map misc_explobox"

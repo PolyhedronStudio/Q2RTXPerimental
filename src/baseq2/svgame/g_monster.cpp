@@ -513,7 +513,7 @@ void monster_triggered_spawn( edict_t *self ) {
 	self->s.origin[ 2 ] += 1;
 	KillBox( self, false );
 
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->movetype = MOVETYPE_STEP;
     self->svflags &= ~SVF_NOCLIENT;
     self->air_finished_time = level.time + 12_sec;

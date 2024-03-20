@@ -350,7 +350,7 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
         bolt->clipmask = static_cast<contents_t>( bolt->clipmask & ~CONTENTS_PLAYER );
     }
     bolt->flags = static_cast<ent_flags_t>( bolt->flags | FL_DODGE );
-    bolt->solid = SOLID_BBOX;
+    bolt->solid = SOLID_BOUNDS_BOX;
     bolt->s.effects |= effect;
     bolt->s.renderfx |= RF_NOSHADOW;
     VectorClear(bolt->mins);
@@ -487,7 +487,7 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     }
     grenade->flags = static_cast<ent_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */);
     grenade->svflags |= SVF_PROJECTILE;
-    grenade->solid = SOLID_BBOX;
+    grenade->solid = SOLID_BOUNDS_BOX;
     grenade->s.effects |= EF_GRENADE;
     VectorClear(grenade->mins);
     VectorClear(grenade->maxs);
@@ -528,7 +528,7 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
     }
     grenade->flags = static_cast<ent_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */ );
     grenade->svflags |= SVF_PROJECTILE;
-    grenade->solid = SOLID_BBOX;
+    grenade->solid = SOLID_BOUNDS_BOX;
     grenade->s.effects |= EF_GRENADE;
     VectorClear(grenade->mins);
     VectorClear(grenade->maxs);
@@ -621,7 +621,7 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
     }
     rocket->flags = static_cast<ent_flags_t>( rocket->flags | FL_DODGE /*| FL_TRAP */ );
     rocket->svflags |= SVF_PROJECTILE;
-    rocket->solid = SOLID_BBOX;
+    rocket->solid = SOLID_BOUNDS_BOX;
     rocket->s.effects |= EF_ROCKET;
     VectorClear(rocket->mins);
     VectorClear(rocket->maxs);
@@ -671,9 +671,9 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
             mask = static_cast<contents_t>( ~( CONTENTS_SLIME | CONTENTS_LAVA ) );
             water = true;
         } else {
-            //ZOID--added so rail goes through SOLID_BBOX entities (gibs, etc)
+            //ZOID--added so rail goes through SOLID_BOUNDS_BOX entities (gibs, etc)
             if (((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client) ||
-                (tr.ent->solid == SOLID_BBOX)) && (lastfrac + tr.fraction > 0))
+                (tr.ent->solid == SOLID_BOUNDS_BOX)) && (lastfrac + tr.fraction > 0))
                 ignore = tr.ent;
             else
                 ignore = NULL;
@@ -882,7 +882,7 @@ void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, fl
     if ( self->client && !G_ShouldPlayersCollideProjectile( self ) ) {
         bfg->clipmask = static_cast<contents_t>( bfg->clipmask & ~CONTENTS_PLAYER );
     }
-    bfg->solid = SOLID_BBOX;
+    bfg->solid = SOLID_BOUNDS_BOX;
     bfg->s.effects |= EF_BFG | EF_ANIM_ALLFAST;
     VectorClear(bfg->mins);
     VectorClear(bfg->maxs);
@@ -1015,7 +1015,7 @@ void fire_flaregun(edict_t *self, vec3_t start, vec3_t aimdir,
 	VectorSet(flare->avelocity, 300, 300, 300);
 	flare->movetype = MOVETYPE_BOUNCE;
 	flare->clipmask = MASK_SHOT;
-	flare->solid = SOLID_BBOX;
+	flare->solid = SOLID_BOUNDS_BOX;
 
 	const float size = 4;
 	VectorSet(flare->mins, -size, -size, -size);

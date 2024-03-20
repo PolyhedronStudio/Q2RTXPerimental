@@ -267,26 +267,26 @@ void PF_LinkEdict(edict_t *ent)
 
     // encode the size into the entity_state for client prediction
     switch (ent->solid) {
-    case SOLID_BBOX:
+    case SOLID_BOUNDS_BOX:
         if ( ( ent->svflags & SVF_DEADMONSTER ) || VectorCompare( ent->mins, ent->maxs ) ) {
             ent->s.solid = SOLID_NOT;   // 0
             sent->solid32 = SOLID_NOT;  // 0
         } else {
             ent->s.solid = static_cast<solid_t>( sent->solid32 = ent->solid );
-            ent->s.boundingBox = static_cast<uint32_t>( MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
+            ent->s.bounds = static_cast<uint32_t>( MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
         }
         break;
-    case SOLID_OCTAGONBOX:
+    case SOLID_BOUNDS_OCTAGON:
         if ( ( ent->svflags & SVF_DEADMONSTER ) || VectorCompare( ent->mins, ent->maxs ) ) {
             ent->s.solid = SOLID_NOT;   // 0
             sent->solid32 = SOLID_NOT;  // 0
         } else {
             ent->s.solid = static_cast<solid_t>( sent->solid32 = ent->solid );
-            ent->s.boundingBox = static_cast<uint32_t>( MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
+            ent->s.bounds = static_cast<uint32_t>( MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
         }
         break;
     case SOLID_BSP:
-        ent->s.solid = static_cast<solid_t>(PACKED_BSP);      // a SOLID_BBOX will never create this value
+        ent->s.solid = static_cast<solid_t>(PACKED_BSP);      // a SOLID_BOUNDS_BOX will never create this value
         sent->solid32 = PACKED_BSP;                           // FIXME: use 255? NOTICE: We do now :-)
         break;
     default:
@@ -435,7 +435,7 @@ static mnode_t *SV_HullForEntity(edict_t *ent, const bool includeSolidTriggers =
     }
 
     // Create a temp hull from entity bounds and contents clipmask for the specific type of 'solid'.
-    if ( ent->solid == SOLID_OCTAGONBOX ) {
+    if ( ent->solid == SOLID_BOUNDS_OCTAGON ) {
         return CM_HeadnodeForOctagon( &sv.cm, ent->mins, ent->maxs, ent->hullContents );
     } else {
         return CM_HeadnodeForBox( &sv.cm, ent->mins, ent->maxs, ent->hullContents );

@@ -153,7 +153,7 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->solid = static_cast<solid_t>( MSG_ReadUintBase128() );
 	}
 	if ( bits & U_BOUNDINGBOX ) {
-		to->boundingBox = static_cast<uint32_t>( MSG_ReadUintBase128() );
+		to->bounds = static_cast<uint32_t>( MSG_ReadUintBase128() );
 	}
 	if ( bits & U_CLIPMASK ) {
 		to->clipmask = static_cast<contents_t>( MSG_ReadUintBase128( ) );

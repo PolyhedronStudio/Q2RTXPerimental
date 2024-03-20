@@ -841,7 +841,7 @@ void Use_Item(edict_t *ent, edict_t *other, edict_t *activator)
     ent->use = NULL;
 
     if (ent->spawnflags & ITEM_NO_TOUCH) {
-        ent->solid = SOLID_BBOX;
+        ent->solid = SOLID_BOUNDS_BOX;
         ent->touch = NULL;
     } else {
         ent->solid = SOLID_TRIGGER;
@@ -900,7 +900,7 @@ void droptofloor(edict_t *ent)
     }
 
     if (ent->spawnflags & ITEM_NO_TOUCH) {
-        ent->solid = SOLID_BBOX;
+        ent->solid = SOLID_BOUNDS_BOX;
         ent->touch = NULL;
         ent->s.effects &= ~EF_ROTATE;
         ent->s.renderfx &= ~RF_GLOW;

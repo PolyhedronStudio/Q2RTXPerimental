@@ -32,10 +32,10 @@ typedef struct entity_state_s {
     //! The actual 'solid' type of entity.
     solid_t solid;
     //! The actual 'bounding box' mins/maxs for the solid type in question.
-    uint32_t boundingBox;
+    uint32_t bounds;
     //! Clipmask for collision.
     contents_t clipmask;
-    //! The actual temporary hull's leaf and brush contents of this entity in case it is a SOLID_BBOX.
+    //! The actual temporary hull's leaf and brush contents of this entity in case it is a SOLID_BOUNDS_BOX.
     contents_t hullContents;
     //! Entity who owns this entity.
     int32_t ownerNumber;
@@ -44,7 +44,7 @@ typedef struct entity_state_s {
     int32_t	modelindex;
     //! Used for weapons, CTF flags, etc
     int32_t	modelindex2, modelindex3, modelindex4;
-    //! Skinnumber, in case of clients, packs model index and weapon model.
+    //! Skinnumber, in case of clients, packs player (client)number index and weapon model index.
     int32_t	skinnum;
     //! Render Effect Flags: RF_NOSHADOW etc.
     int32_t	renderfx;

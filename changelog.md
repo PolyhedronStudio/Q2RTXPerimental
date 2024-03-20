@@ -30,7 +30,7 @@
 * ``EF_SPOTLIGHT`` support.
 ### Net Code:
 * Uses its own protocol, partially based on Q2 Protocol #34 and Q2PRO its own. This supports proper fragmenting, allowing for far more in-vis entities to be transfered over ``The Wire``. This does come with the drawback of needing a proper ``25ms`` ping in order to have a smooth gameplay flow.
-* Changed Solids from ``int32_t`` to ``uint32_t``, so that ``SOLID_BBOX`` can now have **BoundingBox** sizes up to those of **Q2RE/Q3**.
+* Changed Solids from ``int32_t`` to ``uint32_t``, so that ``SOLID_BOUNDS_BOX`` can now have **BoundingBox** sizes up to those of **Q2RE/Q3**.
 * Network origins using full floating point precision, angles are half-floats.
 * Use ReadBase128 message read/write functions where applicable.
 ### Refresh(VKPT):

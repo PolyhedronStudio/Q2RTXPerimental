@@ -504,7 +504,7 @@ void SP_monster_parasite(edict_t *self)
     VectorSet(self->mins, -16, -16, -24);
     VectorSet(self->maxs, 16, 16, 24);
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
 
     self->health = 175;
     self->gib_health = -50;

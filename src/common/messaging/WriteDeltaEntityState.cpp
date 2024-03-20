@@ -64,7 +64,7 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	out->renderfx = in->renderfx;
 
 	out->solid = in->solid;
-	out->bounds.u = in->boundingBox;
+	out->bounds.u = in->bounds;
 	out->clipmask = in->clipmask;
 	out->hullContents = in->hullContents;
 	out->ownerNumber = in->ownerNumber;

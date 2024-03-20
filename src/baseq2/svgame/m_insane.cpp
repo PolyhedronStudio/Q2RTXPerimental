@@ -608,7 +608,7 @@ void SP_misc_insane(edict_t *self)
     sound_scream[7] = gi.soundindex("insane/insane10.wav");
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/insane/tris.md2");
 
     VectorSet(self->mins, -16, -16, -24);

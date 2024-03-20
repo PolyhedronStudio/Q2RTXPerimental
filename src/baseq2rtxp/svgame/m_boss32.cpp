@@ -791,7 +791,7 @@ void SP_monster_makron(edict_t *self)
     MakronPrecache();
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/boss3/rider/tris.md2");
     VectorSet(self->mins, -30, -30, 0);
     VectorSet(self->maxs, 30, 30, 90);
