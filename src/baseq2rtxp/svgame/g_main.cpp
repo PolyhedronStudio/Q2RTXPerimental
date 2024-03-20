@@ -662,32 +662,27 @@ void G_RunFrame(void)
             if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {
                 ent->groundentity = nullptr;
                 M_CheckGround( ent, mask );
-            // All other entities use this route instead:
-            } else {
-                // If the ground entity is still 1 unit below us, we're good.
-                Vector3 endPoint = Vector3( ent->s.origin ) - Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
-                trace_t tr = gi.trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
-
-                if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundentity ) {
-                    ent->groundentity = nullptr;
-                } else {
-                    ent->groundentity_linkcount = ent->groundentity->linkcount;
-                }
             }
+            //// All other entities use this route instead:
+            //} else {
+            //    // If the ground entity is still 1 unit below us, we're good.
+            //    Vector3 endPoint = Vector3( ent->s.origin ) - Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
+            //    trace_t tr = gi.trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
+
+            //    if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundentity ) {
+            //        ent->groundentity = nullptr;
+            //    } else {
+            //        ent->groundentity_linkcount = ent->groundentity->linkcount;
+            //    }
+            //}
         }
 
         if ( i > 0 && i <= maxclients->value ) {
             ClientBeginServerFrame( ent );
             continue;
+        } else {
+            G_RunEntity( ent );
         }
-
-        G_RunEntity( ent );
-    }
-
-    // exit intermission right now to avoid annoying fov change
-    if ( level.exitintermission ) {
-        ExitLevel();
-        return;
     }
 
     // see if it is time to end a deathmatch

@@ -960,6 +960,7 @@ void ClientEndServerFrame( edict_t *ent ) {
 
 	// no player exists yet (load game)
 	if ( !ent->client->pers.spawned ) {
+		gi.dprintf( "%s: !ent->client->pers.spawned\n", __func__ );
 		return;
 	}
 
