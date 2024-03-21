@@ -167,6 +167,7 @@ mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, 
         QM_Vector3Scale( maxs, 0.5f ),
     };
 
+
     //// Calculate half size for mins and maxs.
     //const Vector3 offset = QM_Vector3Scale( Vector3( mins ) +  Vector3( maxs ), 0.5f );
 
@@ -176,8 +177,8 @@ mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, 
     //};
 
     // Calculate actual up to scale normals for the non axial planes.
-    const float a = halfSize[ 1 ].x; // Half-X
-    const float b = halfSize[ 1 ].y; // Half-Y
+    const float a = maxs[ 0 ];//halfSize[ 1 ].x; // Half-X
+    const float b = maxs[ 1 ];//halfSize[ 1 ].y; // Half-Y
 
     float dist = sqrtf( a * a + b * b ); // Hypothenuse
 
@@ -187,37 +188,45 @@ mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, 
     // Calculate and set distances for each non axial plane.
     // Outer Plane:
     VectorSet( cm->hull_octagonbox->planes[ 12 ].normal, cosa, sina, 0.f );
+    SetPlaneSignbits( &cm->hull_octagonbox->planes[ 12 ] );
     cm->hull_octagonbox->planes[ 12 ].dist = CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 12 ], halfSize[ 0 ], halfSize[ 1 ] );
     //cm->hull_octagonbox->planes[12].dist     = CalculateOctagonPlaneDist(cm->hull_octagonbox->planes[12], mins, maxs );
     // (Inner-)Negated Plane:
     VectorSet( cm->hull_octagonbox->planes[ 13 ].normal, cosa, sina, 0.f );
-    cm->hull_octagonbox->planes[ 13 ].dist = -CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 13 ], halfSize[ 0 ], halfSize[ 1 ], true );
+    SetPlaneSignbits( &cm->hull_octagonbox->planes[ 13 ] );
+    cm->hull_octagonbox->planes[ 13 ].dist = CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 13 ], halfSize[ 0 ], halfSize[ 1 ], true );//-CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 13 ], halfSize[ 0 ], halfSize[ 1 ], true );
     //cm->hull_octagonbox->planes[13].dist     = CalculateOctagonPlaneDist(cm->hull_octagonbox->planes[13], mins, maxs, true);
 
     // Outer Plane:
     VectorSet( cm->hull_octagonbox->planes[ 14 ].normal, -cosa, sina, 0.f );
-    cm->hull_octagonbox->planes[ 14 ].dist = -CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 14 ], halfSize[ 0 ], halfSize[ 1 ], true );
+    SetPlaneSignbits( &cm->hull_octagonbox->planes[ 14 ] );
+    cm->hull_octagonbox->planes[ 14 ].dist = CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 14 ], halfSize[ 0 ], halfSize[ 1 ], true );//-CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 14 ], halfSize[ 0 ], halfSize[ 1 ], true );
     //cm->hull_octagonbox->planes[14].dist     = -CalculateOctagonPlaneDist(cm->hull_octagonbox->planes[14], mins, maxs, true);
     // (Inner-)Negated Plane:
     VectorSet( cm->hull_octagonbox->planes[ 15 ].normal, -cosa, sina, 0.f );
+    SetPlaneSignbits( &cm->hull_octagonbox->planes[ 15 ] );
     cm->hull_octagonbox->planes[ 15 ].dist = CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 15 ], halfSize[ 0 ], halfSize[ 1 ] );
     //cm->hull_octagonbox->planes[15].dist     = CalculateOctagonPlaneDist(cm->hull_octagonbox->planes[15], mins, maxs);
 
     // Outer Plane:
     VectorSet( cm->hull_octagonbox->planes[ 16 ].normal, -cosa, -sina, 0.f ); //cm->hull_octagonbox->planes[ 16 ].normal = vec3_t{ -cosa, -sina, 0.f };
+    SetPlaneSignbits( &cm->hull_octagonbox->planes[ 16 ] );
     cm->hull_octagonbox->planes[ 16 ].dist = CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 16 ], halfSize[ 0 ], halfSize[ 1 ] );
     //cm->hull_octagonbox->planes[16].dist     = CalculateOctagonPlaneDist(cm->hull_octagonbox->planes[16], mins, maxs);
     // (Inner-)Negated Plane:
     VectorSet( cm->hull_octagonbox->planes[ 17 ].normal, -cosa, -sina, 0.f ); //cm->hull_octagonbox->planes[ 17 ].normal = vec3_t{ -cosa, -sina, 0.f };
-    cm->hull_octagonbox->planes[ 17 ].dist = -CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 17 ], halfSize[ 0 ], halfSize[ 1 ], true );
+    SetPlaneSignbits( &cm->hull_octagonbox->planes[ 17 ] );
+    cm->hull_octagonbox->planes[ 17 ].dist = CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 17 ], halfSize[ 0 ], halfSize[ 1 ], true );//-CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 17 ], halfSize[ 0 ], halfSize[ 1 ], true );
     //cm->hull_octagonbox->planes[17].dist     = CalculateOctagonPlaneDist(cm->hull_octagonbox->planes[17], mins, maxs, true);
 
     // Outer Plane:
     VectorSet( cm->hull_octagonbox->planes[ 18 ].normal, cosa, -sina, 0.f ); //cm->hull_octagonbox->planes[ 18 ].normal = vec3_t{ cosa, -sina, 0.f };
-    cm->hull_octagonbox->planes[ 18 ].dist = -CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 18 ], halfSize[ 0 ], halfSize[ 1 ], true );
+    SetPlaneSignbits( &cm->hull_octagonbox->planes[ 18 ] );
+    cm->hull_octagonbox->planes[ 18 ].dist = CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 18 ], halfSize[ 0 ], halfSize[ 1 ], true );//-CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 18 ], halfSize[ 0 ], halfSize[ 1 ], true );
     //cm->hull_octagonbox->planes[18].dist     = -CalculateOctagonPlaneDist(cm->hull_octagonbox->planes[18], mins, maxs, true);
     // (Inner-)Negated Plane:
     VectorSet( cm->hull_octagonbox->planes[ 19 ].normal, cosa, -sina, 0.f ); //cm->hull_octagonbox->planes[ 19 ].normal = vec3_t{ cosa, -sina, 0.f };
+    SetPlaneSignbits( &cm->hull_octagonbox->planes[ 19 ] );
     cm->hull_octagonbox->planes[ 19 ].dist = CalculateOctagonPlaneDist( cm->hull_octagonbox->planes[ 19 ], halfSize[ 0 ], halfSize[ 1 ] );
     //cm->hull_octagonbox->planes[19].dist     = CalculateOctagonPlaneDist(cm->hull_octagonbox->planes[19], mins, maxs);
 

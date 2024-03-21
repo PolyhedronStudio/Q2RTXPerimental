@@ -153,7 +153,7 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 	float time_left = 0.f;
 
 	int32_t bumpcount = 0;
-	int32_t numbumps = 4;
+	int32_t numbumps = MAX_CLIP_PLANES;
 
 	Vector3 primal_velocity = velocity;
 	int32_t numplanes = 0;

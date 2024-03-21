@@ -116,6 +116,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
             out->view.origin = in->origin;
             out->view.viewOffset = clgi.client->frame.ps.viewoffset;
             out->view.angles = clgi.client->frame.ps.viewangles;
+            out->view_height = clgi.client->frame.ps.pmove.viewheight;
             out->view.velocity = in->velocity;
             out->error = {};
 
@@ -176,7 +177,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     pm.s = clgi.client->frame.ps.pmove;
     // Apply client delta_angles.
     pm.s.delta_angles = clgi.client->delta_angles;
-    // Ensure viewoffset is set properly also.
+    // Ensure viewheight is set properly also.
     pm.s.viewheight = predictedState->view_height;
     // Set view offset.
     pm.viewoffset = predictedState->view.viewOffset;
@@ -212,7 +213,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         moveCommand->prediction.time = clgi.client->time;
 
         // Initialize pmove with the proper moveCommand data.
-        pm.cmd = clgi.client->moveCommand.cmd;
+        pm.cmd = moveCommand->cmd;
         pm.cmd.forwardmove = clgi.client->localmove[ 0 ];
         pm.cmd.sidemove = clgi.client->localmove[ 1 ];
         pm.cmd.upmove = clgi.client->localmove[ 2 ];
@@ -224,7 +225,9 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         //clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ].prediction.origin = pm.s.origin;
 
         // Save the now not pending anymore move command as the last entry in our circular buffer.
-        clgi.client->moveCommand.prediction.origin = pm.s.origin;
+        moveCommand->prediction.origin = pm.s.origin;
+
+        //clgi.client->moveCommand.prediction.origin = pm.s.origin;
         clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *moveCommand;
     // Use previous frame if no command is pending.
     } else {

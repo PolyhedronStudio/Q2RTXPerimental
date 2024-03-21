@@ -404,7 +404,14 @@ static void PF_ShowClamp( const int32_t level, const char *fmt, ... ) {
 	SHOWCLAMP( level, "%s", msg );
 }
 static void PF_ShowMiss( const char *fmt, ... ) {
-	
+	char        msg[ MAXPRINTMSG ];
+	va_list     argptr;
+
+	va_start( argptr, fmt );
+	Q_vsnprintf( msg, sizeof( msg ), fmt, argptr );
+	va_end( argptr );
+
+	SHOWMISS( "%s", msg );
 }
 #else
 // Empty placeholders, in case they are used outside of a forgotten #if USE_DEBUG

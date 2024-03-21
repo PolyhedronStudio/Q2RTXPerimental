@@ -661,14 +661,16 @@ RMAPI const float QM_Vector3ToYaw( vec3_t vec ) {
 
     if ( /*vec[ YAW ] == 0 &&*/ vec[ PITCH ] == 0 ) {
         yaw = 0;
-        if ( vec[ YAW ] > 0 )
+        if ( vec[ YAW ] > 0 ) {
             yaw = 270;
-        else
+        } else {
             yaw = 90;
+        }
     } else {
         yaw = ( atan2( vec[ YAW ], vec[ PITCH ] ) * 180 / M_PI );
-        if ( yaw < 0 )
+        if ( yaw < 0 ) {//if ( yaw < -180 )
             yaw += 360;
+        }
 
         //tmp = sqrt( vec[ PITCH ] * vec[ PITCH ] + vec[ YAW ] * vec[ YAW ] );
         //pitch = ( atan2( -vec[ ROLL ], tmp ) * 180 / M_PI );

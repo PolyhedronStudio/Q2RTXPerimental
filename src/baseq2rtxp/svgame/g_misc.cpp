@@ -806,26 +806,36 @@ Large exploding box.  You can override its mass (100),
 health (80), and dmg (150).
 */
 
-void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf )
-
-{
-    float   ratio;
-    vec3_t  v;
-
-    if ( ( !other->groundentity ) || ( other->groundentity == self ) )
+void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+    
+    if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
         return;
+    }
 
-    ratio = (float)other->mass / (float)self->mass;
-    //VectorSubtract(self->s.origin, other->s.origin, v);
+    // Calculate direction.
+    vec3_t v = { };
+    VectorSubtract(self->s.origin, other->s.origin, v);
+
+    // Move ratio(based on their masses).
+    const float ratio = (float)other->mass / (float)self->mass;
+
+    // Yaw direction angle.
+    const float yawAngle = QM_Vector3ToYaw( v );
+    const float direction = yawAngle;
+    // Distance to travel.
+    float distance = 20 * ratio * FRAMETIME;
+
+    // Debug output:
     if ( plane ) {
-        VectorCopy( plane->normal, v );
-        VectorNegate( v, v );
+        Com_LPrintf( PRINT_DEVELOPER, "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+        Com_LPrintf( PRINT_DEVELOPER, "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
+    } else {
+        Com_LPrintf( PRINT_DEVELOPER, "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+        Com_LPrintf( PRINT_DEVELOPER, "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
+    }
 
-        Com_LPrintf( PRINT_DEVELOPER, "plane->normal( %s ), v( %s )\n", vtos( plane->normal ), vtos( v ) );
-    }/* else {
-        VectorSubtract( self->s.origin, other->s.origin, v );
-    }*/
-    M_walkmove(self, QM_Vector3ToYaw(v), 5 * ratio * FRAMETIME);
+    // Perform move.
+    M_walkmove( self, direction, distance );
 }
 
 void barrel_explode(edict_t *self)
