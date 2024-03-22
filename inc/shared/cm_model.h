@@ -34,6 +34,9 @@ typedef struct hull_octagonbox_s {
     mbrushside_t brushsides[ 10 ];
     mleaf_t  leaf;
     mleaf_t  emptyleaf;
+
+    //! Used for transformed trace.
+    Vector3 cylinder_offset;
 } hull_octagonbox_t;
 
 

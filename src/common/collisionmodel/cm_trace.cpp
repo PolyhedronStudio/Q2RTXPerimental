@@ -106,11 +106,17 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace,
                 enterfrac[ 0 ] = f;
                 clipplane[ 0 ] = plane;
                 leadside[ 0 ] = side;
+#ifdef SECOND_PLANE_TRACE
             } else if ( f > enterfrac[ 1 ] ) {
                 enterfrac[ 1 ] = f;
                 clipplane[ 1 ] = plane;
                 leadside[ 1 ] = side;
             }
+#else
+            }
+#endif
+        
+
             // KEX
         } else {
             // leave
@@ -142,11 +148,15 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace,
             trace->plane = *clipplane[ 0 ];
             trace->surface = &( leadside[ 0 ]->texinfo->c );
             trace->contents = static_cast<contents_t>( brush->contents );
-
+#ifdef SECOND_PLANE_TRACE
             if ( leadside[ 1 ] ) {
                 trace->plane2 = *clipplane[ 1 ];
                 trace->surface2 = &( leadside[ 1 ]->texinfo->c );
             }
+#else
+            trace->plane2 = {};
+            trace->surface2 = nullptr;
+#endif
         }
     }
 }
@@ -416,14 +426,29 @@ void CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
     const vec3_t origin, const vec3_t angles ) {
     vec3_t      start_l, end_l;
     vec3_t      axis[ 3 ];
-    bool        rotated;
+
+    bool isBoxHull = ( headnode == cm->hull_boundingbox->headnode );
+    bool isOctagonHull = ( headnode == cm->hull_octagonbox->headnode );
+    bool rotated = ( 
+        ( headnode != cm->hull_boundingbox->headnode ) 
+        && ( headnode != cm->hull_octagonbox->headnode ) 
+        && !VectorEmpty( angles )
+    );
+
+    //if ( isOctagonHull ) {
+    //    // cylinder offset
+    //    VectorSubtract( start, cm->hull_octagonbox->cylinder_offset, start_l );
+    //    VectorSubtract( end, cm->hull_octagonbox->cylinder_offset, end_l );
+    //} else {
+        VectorCopy( start, start_l );
+        VectorCopy( end, end_l );
+    //}
 
     // subtract origin offset
-    VectorSubtract( start, origin, start_l );
-    VectorSubtract( end, origin, end_l );
+    VectorSubtract( start_l, origin, start_l );
+    VectorSubtract( end_l, origin, end_l );
 
     // rotate start and end into the models frame of reference
-    rotated = headnode != cm->hull_boundingbox->headnode && !VectorEmpty( angles );
     if ( rotated ) {
         AnglesToAxis( angles, axis );
         RotatePoint( start_l, axis );
@@ -440,6 +465,7 @@ void CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
     }
 
     // FIXME: offset plane distance?
+    trace->plane.dist += DotProduct( trace->plane.normal, origin );
 
     LerpVector( start, end, trace->fraction, trace->endpos );
 }

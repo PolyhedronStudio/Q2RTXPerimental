@@ -97,37 +97,53 @@ typedef struct box_leaf_test_s {
 //    }
 //}
 static void CM_BoxLeafs_r( box_leaf_test_t &boxLeafTest, mnode_t *node ) {
-    int     s;
+    // Old:
+    //int     s;
+    //while ( true /*node->plane */) {
+    //    if ( !node->plane ) {
+    //        //    // Get leaf.
+    //        mleaf_t *leaf = (mleaf_t*)( node );
+    //        // Accumulate contents flags.
+    //        boxLeafTest.leafs_contents = static_cast<contents_t>( boxLeafTest.leafs_contents | leaf->contents );
+    //        // Add to list if room left.
+    //        if ( boxLeafTest.leaf_count < boxLeafTest.leaf_max_count ) {
+    //            boxLeafTest.leaf_list[ boxLeafTest.leaf_count++ ] = leaf;
+    //        }
+    //        return;
+    //    }
+    //    s = BoxOnPlaneSideFast( boxLeafTest.leaf_mins, boxLeafTest.leaf_maxs, node->plane );
+    //    if ( s == BOX_INFRONT ) {
+    //        node = node->children[ 0 ];
+    //    } else if ( s == BOX_BEHIND ) {
+    //        node = node->children[ 1 ];
+    //    } else {
+    //        // Go down both.
+    //        if ( !boxLeafTest.leaf_topnode ) {
+    //            boxLeafTest.leaf_topnode = node;
+    //        }
+    //        CM_BoxLeafs_r( boxLeafTest, node->children[ 0 ] );
+    //        node = node->children[ 1 ];
+    //    }
+    //}
 
-    while ( true /*node->plane */) {
-        if ( !node->plane ) {
-            //    // Get leaf.
-            mleaf_t *leaf = (mleaf_t*)( node );
-            
-            // Accumulate contents flags.
-            boxLeafTest.leafs_contents = static_cast<contents_t>( boxLeafTest.leafs_contents | leaf->contents );
-
-            // Add to list if room left.
-            if ( boxLeafTest.leaf_count < boxLeafTest.leaf_max_count ) {
-                boxLeafTest.leaf_list[ boxLeafTest.leaf_count++ ] = leaf;
-            }
-
-            return;
-        }
-
-        s = BoxOnPlaneSideFast( boxLeafTest.leaf_mins, boxLeafTest.leaf_maxs, node->plane );
-        if ( s == BOX_INFRONT ) {
+    while ( node->plane ) {
+        const int32_t boxOnPlaneSide = BoxOnPlaneSideFast( boxLeafTest.leaf_mins, boxLeafTest.leaf_maxs, node->plane );
+        if ( boxOnPlaneSide == BOX_INFRONT ) {
             node = node->children[ 0 ];
-        } else if ( s == BOX_BEHIND ) {
+        } else if ( boxOnPlaneSide == BOX_BEHIND ) {
             node = node->children[ 1 ];
         } else {
-            // Go down both.
+            // go down both
             if ( !boxLeafTest.leaf_topnode ) {
                 boxLeafTest.leaf_topnode = node;
             }
             CM_BoxLeafs_r( boxLeafTest, node->children[ 0 ] );
             node = node->children[ 1 ];
         }
+    }
+
+    if ( boxLeafTest.leaf_count < boxLeafTest.leaf_max_count ) {
+        boxLeafTest.leaf_list[ boxLeafTest.leaf_count++ ] = (mleaf_t *)node;
     }
 }
 
