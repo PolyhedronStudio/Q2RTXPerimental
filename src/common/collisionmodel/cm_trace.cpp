@@ -429,10 +429,9 @@ void CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
 
     bool isBoxHull = ( headnode == cm->hull_boundingbox->headnode );
     bool isOctagonHull = ( headnode == cm->hull_octagonbox->headnode );
-    bool rotated = ( 
-        ( headnode != cm->hull_boundingbox->headnode ) 
-        && ( headnode != cm->hull_octagonbox->headnode ) 
-        && !VectorEmpty( angles )
+    bool rotated = ( ( headnode != cm->hull_boundingbox->headnode ) &&
+        ( headnode != cm->hull_octagonbox->headnode ) &&
+        !VectorEmpty( angles )
     );
 
     //if ( isOctagonHull ) {

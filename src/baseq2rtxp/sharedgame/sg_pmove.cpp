@@ -1156,7 +1156,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	pm->touchTraces.numberOfTraces = 0;
 	pm->viewangles = {};
 	pm->s.viewheight = 0;
-	//pm->groundentity = nullptr;
+	pm->groundentity = nullptr;
 	pm->watertype = CONTENTS_NONE;
 	pm->waterlevel = water_level_t::WATER_NONE;
 	pm->screen_blend = {};

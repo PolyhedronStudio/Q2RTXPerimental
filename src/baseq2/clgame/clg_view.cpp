@@ -471,9 +471,9 @@ void PF_CalculateViewValues( void ) {
     }
 
     //#if USE_SMOOTH_DELTA_ANGLES
-    clgi.client->delta_angles[ 0 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 0 ], ps->pmove.delta_angles[ 0 ], lerp ) );
-    clgi.client->delta_angles[ 1 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 1 ], ps->pmove.delta_angles[ 1 ], lerp ) );
-    clgi.client->delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 2 ], ps->pmove.delta_angles[ 2 ], lerp ) );
+    //clgi.client->delta_angles[ 0 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 0 ], ps->pmove.delta_angles[ 0 ], lerp ) );
+    //clgi.client->delta_angles[ 1 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 1 ], ps->pmove.delta_angles[ 1 ], lerp ) );
+    //clgi.client->delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 2 ], ps->pmove.delta_angles[ 2 ], lerp ) );
     //#endif
 
         // interpolate blend colors if the last frame wasn't clear
@@ -504,11 +504,11 @@ void PF_CalculateViewValues( void ) {
     //viewheight_lerp = STEP_TIME - min( viewheight_lerp, STEP_TIME );
     //float predicted_viewheight = clgi.client->viewheight.current + (float)( clgi.client->viewheight.previous - clgi.client->viewheight.current ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
     //viewoffset[ 2 ] += predicted_viewheight;
-    float viewheight_lerp = ( clgi.client->time - clgi.client->predictedState.view_height_time );
-    viewheight_lerp = STEP_TIME - min( viewheight_lerp, STEP_TIME );
-    float predicted_viewheight = clgi.client->predictedState.view_height + (float)( clgi.client->frame.ps.pmove.viewheight - clgi.client->predictedState.view_height ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
-    viewoffset[ 2 ] += predicted_viewheight;
-    AngleVectors( clgi.client->refdef.viewangles, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
+    //float viewheight_lerp = ( clgi.client->time - clgi.client->predictedState.view_height_time );
+    //viewheight_lerp = STEP_TIME - min( viewheight_lerp, STEP_TIME );
+    //float predicted_viewheight = clgi.client->predictedState.view_height + (float)( clgi.client->frame.ps.pmove.viewheight - clgi.client->predictedState.view_height ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
+    //viewoffset[ 2 ] += predicted_viewheight;
+    //AngleVectors( clgi.client->refdef.viewangles, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
 
     VectorCopy( clgi.client->refdef.vieworg, clgi.client->playerEntityOrigin );
     VectorCopy( clgi.client->refdef.viewangles, clgi.client->playerEntityAngles );

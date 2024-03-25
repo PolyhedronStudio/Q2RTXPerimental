@@ -141,7 +141,7 @@ static inline void entity_update_old( centity_t *ent, const entity_state_t *stat
         return;
     }
 
-    // shuffle the last state to previous
+    // Shuffle the last 'current' state to previous
     ent->prev = ent->current;
 }
 
@@ -149,11 +149,11 @@ static inline void entity_update_old( centity_t *ent, const entity_state_t *stat
 *   @return True if the SAME entity was NOT IN the PREVIOUS frame.
 **/
 static inline bool entity_is_new(const centity_t *ent) {
-    // Last received frame was invalid.
+    // Last received frame was invalid, so this entity is new to the current frame.
     if ( !cl.oldframe.valid ) {
         return true;
     }
-    // Wasn't in last received frame.
+    // Wasn't in last received frame, so this entity is new to the current frame.
     if ( ent->serverframe != cl.oldframe.number ) {
         return true;
     }
@@ -165,7 +165,7 @@ static inline bool entity_is_new(const centity_t *ent) {
     if ( cl_nolerp->integer == 3 ) {
         return false;
     }
-    //! Previous server frame was dropped.
+    //! Previous server frame was dropped, so we're new
     if ( cl.oldframe.number != cl.frame.number - 1 ) {
         return true;
     }
@@ -180,15 +180,17 @@ static void parse_entity_update(const entity_state_t *state)
     vec3_t origin_v;
 
     // If entity is solid, and not our client entity, add it to the solid entity list.
-    if ( state->solid && state->number != cl.frame.clientNum + 1 && cl.numSolidEntities < MAX_PACKET_ENTITIES) {
+    if ( state->solid && state->number != cl.frame.clientNum + 1 && cl.numSolidEntities < MAX_PACKET_ENTITIES ) {
         // Add it to the solids entity list.
         cl.solidEntities[ cl.numSolidEntities++ ] = ent;
+    }
 
+    if ( state->solid && state->solid != PACKED_BSP ) {
         // If not a brush bsp entity, decode its mins and maxs.
-        if ( state->solid != PACKED_BSP ) {
-            // WID: upgr-solid: Q2RE Approach.
-            MSG_UnpackBoundsUint32( bounds_packed_t{ .u = state->bounds }, ent->mins, ent->maxs);
-        }
+        MSG_UnpackBoundsUint32( bounds_packed_t{ .u = state->bounds }, ent->mins, ent->maxs);
+    } else {
+        VectorClear( ent->mins );
+        VectorClear( ent->maxs );
     }
 
     // Work around Q2PRO server bandwidth optimization.
@@ -268,14 +270,15 @@ static void CL_SetActiveState(void)
         // Copy predicted rdflags.
         cl.predictedState.view.rdflags = cl.frame.ps.rdflags;
         // Copy current viewheight into prev and current viewheights.
-        cl.predictedState.view_height = cl.frame.ps.pmove.viewheight;
-        // Reset local time of viewheight changes.
-        cl.predictedState.view_height_time = cl.time;
-
-        // Reset ground information.
-        cl.predictedState.groundEntity = nullptr;
-        cl.predictedState.groundPlane = { };
+        cl.predictedState.view_current_height = cl.predictedState.view_previous_height = cl.frame.ps.pmove.viewheight;
     }
+
+    // Reset local time of viewheight changes.
+    cl.predictedState.view_height_time = 0;
+
+    // Reset ground information.
+    cl.predictedState.groundEntity = nullptr;
+    cl.predictedState.groundPlane = { };
 
     // Fire the ClientBegin callback of the client game module.
     clge->ClientBegin();
@@ -332,9 +335,9 @@ static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *
     }
 
     // No lerping if player entity was teleported (origin check).
-    if ( abs( ops->pmove.origin[ 0 ] - ps->pmove.origin[ 0 ] ) > 256 || // * 8 || // WID: float-movement
-        abs( ops->pmove.origin[ 1 ] - ps->pmove.origin[ 1 ] ) > 256 || // * 8 || // WID: float-movement
-        abs( ops->pmove.origin[ 2 ] - ps->pmove.origin[ 2 ] ) > 256 ) {// * 8) { // WID: float-movement
+    if ( fabsf( ops->pmove.origin[ 0 ] - ps->pmove.origin[ 0 ] ) > 256 || // * 8 || // WID: float-movement
+        fabsf( ops->pmove.origin[ 1 ] - ps->pmove.origin[ 1 ] ) > 256 || // * 8 || // WID: float-movement
+        fabsf( ops->pmove.origin[ 2 ] - ps->pmove.origin[ 2 ] ) > 256 ) {// * 8) { // WID: float-movement
         duplicate_player_state( ps, ops );
         return;
     }

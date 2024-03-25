@@ -475,10 +475,10 @@ const contents_t SV_PointContents( const vec3_t p ) {
 	for ( i = 0; i < num; i++ ) {
 		hit = touch[ i ];
 
-        // Skip client entiteis if their SVF_PLAYER flag is set.
-        if ( hit->s.number <= sv_maxclients->integer && ( hit->svflags & SVF_PLAYER ) ) {
-            continue;
-        }
+        //// Skip client entiteis if their SVF_PLAYER flag is set.
+        //if ( hit->s.number <= sv_maxclients->integer && ( hit->svflags & SVF_PLAYER ) ) {
+        //    continue;
+        //}
 
 		// Might intersect, so do an exact clip.
 		contents = static_cast<contents_t>( contents | CM_TransformedPointContents( &sv.cm, p, SV_HullForEntity(hit),
@@ -498,8 +498,7 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
     vec3_t      boxmins, boxmaxs;
     int         i, num;
     edict_t     *touchlist[MAX_EDICTS], *touch;
-    trace_t     trace;
-
+    trace_t     trace = {};
     // create the bounding box of the entire move
     for (i = 0; i < 3; i++) {
         if (end[i] > start[i]) {

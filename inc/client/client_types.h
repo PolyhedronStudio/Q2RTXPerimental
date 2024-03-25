@@ -140,8 +140,9 @@ typedef struct client_predicted_state_s {
     double step;
 
     // Viewheight.
-    float view_height;
     uint64_t view_height_time;
+    double view_previous_height;
+    double view_current_height;
 
     //! Origin, angles and velocity of current frame pmove's results.
     struct {
@@ -155,7 +156,7 @@ typedef struct client_predicted_state_s {
         Vector3 velocity;
         Vector3 angles;
 
-        // Predicted view offset.
+        // Predicted view offset and height.
         Vector3 viewOffset;
     } view;
 

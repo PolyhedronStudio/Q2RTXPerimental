@@ -40,8 +40,9 @@ static const contents_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
 **/
 void PF_AdjustViewHeight( const int32_t viewHeight ) {
     // Record viewheight changes.
-    if ( clgi.client->predictedState.view_height != viewHeight ) {
-        clgi.client->predictedState.view_height = viewHeight;
+    if ( clgi.client->predictedState.view_current_height != viewHeight ) {
+        clgi.client->predictedState.view_previous_height = clgi.client->predictedState.view_current_height;
+        clgi.client->predictedState.view_current_height = viewHeight;
         clgi.client->predictedState.view_height_time = clgi.client->time;
     }
 }
@@ -85,16 +86,26 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
 
     // If it is the first frame, we got nothing to predict yet.
     if ( moveCommand->prediction.time == 0 ) {
-        out->view.origin = in->origin;
+        out->view.origin = in->origin;//in->origin;
         out->view.viewOffset = clgi.client->frame.ps.viewoffset;
         out->view.angles = clgi.client->frame.ps.viewangles;
         out->view.velocity = in->velocity;
+        out->view.rdflags = 0;
+        out->view.screen_blend = {};
         out->error = {};
+
+        out->view_current_height = out->view_previous_height = clgi.client->frame.ps.pmove.viewheight;
+        out->view_height_time = 0;
 
         out->step_time = 0;
         out->step = 0;
-        out->view.rdflags = 0;
-        out->view.screen_blend = {};
+
+        #if USE_DEBUG
+        clgi.Print( PRINT_NOTICE, "First frame(%" PRIi64 "). Nothing to predict yet.\n",
+            clgi.client->frame.number );
+        //clgi.ShowMiss( "First frame(%" PRIi64 ") frame #(%i). Nothing to predict yet.\n",
+        //    clgi.client->frame.number );
+        #endif
         return;
     }
 
@@ -110,25 +121,27 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
         if ( len > MAX_DELTA_ORIGIN ) {
             // Debug misses:
             #if USE_DEBUG
-                clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%i): len(%f) (%f %f %f)\n",
+                clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
                     clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
             #endif
-            out->view.origin = in->origin;
+            out->view.origin = in->origin; // clgi.client->frame.ps.pmove.origin;
             out->view.viewOffset = clgi.client->frame.ps.viewoffset;
             out->view.angles = clgi.client->frame.ps.viewangles;
-            out->view_height = clgi.client->frame.ps.pmove.viewheight;
-            out->view.velocity = in->velocity;
+            out->view_current_height = out->view_previous_height = in->viewheight;// clgi.client->frame.ps.pmove.viewheight;
+            out->view_height_time = clgi.client->time; // clgi.GetRealTime();
+            out->view.velocity = in->velocity; // clgi.client->frame.ps.pmove.velocity;
             out->error = {};
 
             out->step_time = 0;
             out->step = 0;
+
             out->view.rdflags = 0;
             out->view.screen_blend = {};
             // In case of a minor distance, only report if cl_showmiss is enabled:
         } else {
             // Debug misses:
             #if USE_DEBUG
-                clgi.ShowMiss( "Prediction miss on frame #(%i): len(%f) (%f %f %f)\n",
+                clgi.ShowMiss( "Prediction miss on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
                     clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
             #endif
         }
@@ -167,6 +180,13 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Last predicted state.
     client_predicted_state_t *predictedState = &clgi.client->predictedState;
 
+    // Some debug stuff.
+    //if ( clgi.client->predictedState.groundEntity ) {
+    //    clgi.Print( PRINT_DEVELOPER, "predictedState.groundEntity(#%d)\n", clgi.client->predictedState.groundEntity->current.number );
+    //} else {
+    //    clgi.Print( PRINT_DEVELOPER, "predictedState.groundEntity(%s)\n", " NONE " );
+    //}
+
     // Prepare our player move, setup the client side trace function pointers.
     pmove_t pm = {};
     pm.trace = CLG_PM_Trace;
@@ -178,9 +198,11 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Apply client delta_angles.
     pm.s.delta_angles = clgi.client->delta_angles;
     // Ensure viewheight is set properly also.
-    pm.s.viewheight = predictedState->view_height;
+    pm.s.viewheight = predictedState->view_current_height;
+    // Set view angles.
+    pm.viewangles = clgi.client->viewangles;
     // Set view offset.
-    pm.viewoffset = predictedState->view.viewOffset;
+    pm.viewoffset = predictedState->view.viewOffset;//clgi.client->frame.ps.viewoffset;// predictedState->view.viewOffset
     // Set ground entity to last predicted one.
     pm.groundentity = (edict_s*)predictedState->groundEntity;
     // Set ground plane to last predicted one.
@@ -192,17 +214,18 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         client_movecmd_t *moveCommand = &clgi.client->moveCommands[ acknowledgedCommandNumber & CMD_MASK ];
 
         // Only simulate it if it had movement.
-        if ( moveCommand->cmd.msec ) {
+        //if ( moveCommand->cmd.msec ) {
             // Timestamp it so the client knows we have valid results.
-            moveCommand->prediction.time = clgi.client->time;
+            moveCommand->prediction.time = clgi.client->time;//clgi.client->time;
 
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
             SG_PlayerMove( &pm, &pmp );
-        }
+        //}
 
         // Save for prediction checking.
         moveCommand->prediction.origin = pm.s.origin;
+        moveCommand->prediction.velocity = pm.s.velocity;
     }
 
     // Now run the pending command number.
@@ -226,6 +249,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
         // Save the now not pending anymore move command as the last entry in our circular buffer.
         moveCommand->prediction.origin = pm.s.origin;
+        moveCommand->prediction.velocity = pm.s.velocity;
 
         //clgi.client->moveCommand.prediction.origin = pm.s.origin;
         clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *moveCommand;
@@ -234,40 +258,40 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         frameNumber = currentCommandNumber - 1;
     }
 
-    // Stair Stepping:
-    const float oldZ = clgi.client->moveCommands[ frameNumber & CMD_MASK ].prediction.origin[ 2 ];
-    const float step = pm.s.origin[ 2 ] - oldZ;
-    const float fabsStep = fabsf( step );
+    //// Stair Stepping:
+    //const float oldZ = clgi.client->moveCommands[ frameNumber & CMD_MASK ].prediction.origin[ 2 ];
+    //const float step = pm.s.origin[ 2 ] - oldZ;
+    //const float fabsStep = fabsf( step );
 
-    // Consider a Z change being "stepping" if...
-    const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range
-        && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // And we started off on the ground
-        && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground
-        && ( memcmp( &predictedState->groundPlane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
-            || predictedState->groundEntity != (centity_t *)pm.groundentity ); // we stand on another plane or entity
+    //// Consider a Z change being "stepping" if...
+    //const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range
+    //    && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // And we started off on the ground
+    //    && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground
+    //    && ( memcmp( &predictedState->groundPlane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
+    //        || predictedState->groundEntity != (centity_t *)pm.groundentity ); // we stand on another plane or entity
 
-    // Code below adapted from Q3A. Smoothes out stair step.
-    if ( step_detected ) {
-        // check for stepping up before a previous step is completed
-        const float delta = clgi.GetRealTime() - predictedState->step_time;
-        float old_step = 0.f;
-        if ( delta < PM_STEP_TIME ) {
-            old_step = predictedState->step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
-        } else {
-            old_step = 0;
-        }
+    //// Code below adapted from Q3A. Smoothes out stair step.
+    //if ( step_detected ) {
+    //    // check for stepping up before a previous step is completed
+    //    const float delta = clgi.GetRealTime() - predictedState->step_time;
+    //    float old_step = 0.f;
+    //    if ( delta < PM_STEP_TIME ) {
+    //        old_step = predictedState->step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
+    //    } else {
+    //        old_step = 0;
+    //    }
 
-        // add this amount
-        predictedState->step = constclamp( old_step + step, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
-        predictedState->step_time = clgi.GetRealTime();
-    }
+    //    // add this amount
+    //    predictedState->step = constclamp( old_step + step, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
+    //    predictedState->step_time = clgi.GetRealTime();
+    //}
 
     // Copy results out into the current predicted state.
     predictedState->view.origin = pm.s.origin;
     predictedState->view.velocity = pm.s.velocity;
     predictedState->view.angles = pm.viewangles;
     predictedState->view.viewOffset = pm.viewoffset;
-
+    
     predictedState->view.screen_blend = pm.screen_blend; // // To be merged with server screen blend.
     predictedState->view.rdflags = pm.rdflags; // To be merged with server rdflags.
     

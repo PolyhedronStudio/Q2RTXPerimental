@@ -263,8 +263,8 @@ typedef struct centity_s {
 	/**
 	*	The game dll can add anything it wants after this point in the structure.
 	**/
-	int64_t someTestVar;
-	int64_t someTestVar2;
+	//int64_t someTestVar;
+	//int64_t someTestVar2;
 } centity_t;
 
 /**

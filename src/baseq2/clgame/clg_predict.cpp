@@ -39,11 +39,11 @@ static const contents_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
 *   @brief  Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
 **/
 void PF_AdjustViewHeight( const int32_t viewHeight ) {
-    // Record viewheight changes.
-    if ( clgi.client->predictedState.view_height != viewHeight ) {
-        clgi.client->predictedState.view_height = viewHeight;
-        clgi.client->predictedState.view_height_time = clgi.client->time;
-    }
+    //// Record viewheight changes.
+    //if ( clgi.client->predictedState.view_height != viewHeight ) {
+    //    clgi.client->predictedState.view_height = viewHeight;
+    //    clgi.client->predictedState.view_height_time = clgi.client->time;
+    //}
 }
 
 /**
@@ -174,10 +174,10 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
     // Copy over the current client state data into pmove.
     pm.s = clgi.client->frame.ps.pmove;
-    // Apply client delta_angles.
-    pm.s.delta_angles = clgi.client->delta_angles;
-    // Ensure viewoffset is set properly also.
-    pm.s.viewheight = predictedState->view_height;
+    //// Apply client delta_angles.
+    //pm.s.delta_angles = clgi.client->frame.ps.pmove.delta_angles//clgi.client->delta_angles;
+    //// Ensure viewoffset is set properly also.
+    pm.s.viewheight = predictedState->view_current_height;
     // Set view offset.
     pm.viewoffset = predictedState->view.viewOffset;
     // Set ground entity to last predicted one.

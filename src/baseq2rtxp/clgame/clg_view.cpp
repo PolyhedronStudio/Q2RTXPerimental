@@ -407,7 +407,7 @@ void PF_CalculateViewValues( void ) {
     player_state_t *ps = &clgi.client->frame.ps;
     player_state_t *ops = &clgi.client->oldframe.ps;
 
-    const float lerp = clgi.client->lerpfrac;
+    const double lerpFrac = clgi.client->lerpfrac;
 
     // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_.. values from SharedGame.
     static constexpr int32_t STEP_TIME = 100;
@@ -427,12 +427,12 @@ void PF_CalculateViewValues( void ) {
 
         // use predicted values
         uint64_t delta = clgi.GetRealTime() - clgi.client->predictedState.step_time;
-        float backlerp = lerp - 1.0f;
+        const double backLerp = 1.0 - lerpFrac;
 
-        VectorMA( clgi.client->predictedState.view.origin, backlerp, clgi.client->predictedState.error, clgi.client->refdef.vieworg );
+        VectorMA( clgi.client->predictedState.view.origin, backLerp, clgi.client->predictedState.error, clgi.client->refdef.vieworg );
 
         // smooth out stair climbing
-        if ( fabs( clgi.client->predictedState.step ) < STEP_HEIGHT ) {
+        if ( fabsf( clgi.client->predictedState.step ) < STEP_HEIGHT ) {
             delta <<= 1; // small steps
         }
 
@@ -446,39 +446,42 @@ void PF_CalculateViewValues( void ) {
         //    clgi.client->refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
         //        lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
         //}
-        Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerp );
+        Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
         VectorCopy( viewOrg, clgi.client->refdef.vieworg );
-
     }
 
     // if not running a demo or on a locked frame, add the local angle movement
     if ( clgi.IsDemoPlayback() ) {
-        LerpAngles( ops->viewangles, ps->viewangles, lerp, clgi.client->refdef.viewangles );
-    } else if ( ps->pmove.pm_type < PM_DEAD ) {
+        LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
+    } else if ( ps->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
         // use predicted values
         VectorCopy( clgi.client->predictedState.view.angles, clgi.client->refdef.viewangles );
-    } else if ( ops->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
+    } else if ( ops->pmove.pm_type < PM_DEAD /*&& !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )*/ ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
         // lerp from predicted angles, since enhanced servers
         // do not send viewangles each frame
-        LerpAngles( clgi.client->predictedState.view.angles, ps->viewangles, lerp, clgi.client->refdef.viewangles );
+        LerpAngles( clgi.client->predictedState.view.angles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
     } else {
         //if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
         // just use interpolated values
-        //LerpAngles( ops->viewangles, ps->viewangles, lerp, clgi.client->refdef.viewangles );
+        LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
         //} else {
-        VectorCopy( ps->viewangles, clgi.client->refdef.viewangles );
+        //VectorCopy( ps->viewangles, clgi.client->refdef.viewangles );
         //}
     }
 
     //#if USE_SMOOTH_DELTA_ANGLES
-    clgi.client->delta_angles[ 0 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 0 ], ps->pmove.delta_angles[ 0 ], lerp ) );
-    clgi.client->delta_angles[ 1 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 1 ], ps->pmove.delta_angles[ 1 ], lerp ) );
-    clgi.client->delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 2 ], ps->pmove.delta_angles[ 2 ], lerp ) );
+    clgi.client->delta_angles[ 0 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 0 ], ps->pmove.delta_angles[ 0 ], lerpFrac ) );
+    clgi.client->delta_angles[ 1 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 1 ], ps->pmove.delta_angles[ 1 ], lerpFrac ) );
+    clgi.client->delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 2 ], ps->pmove.delta_angles[ 2 ], lerpFrac ) );
     //#endif
 
-        // interpolate blend colors if the last frame wasn't clear
-    float blendfrac = ops->screen_blend[ 3 ] ? clgi.client->lerpfrac : 1;
-    Vector4Lerp( ops->screen_blend, ps->screen_blend, blendfrac, clgi.client->refdef.screen_blend );
+    // interpolate blend colors if the last frame wasn't clear
+    if ( !ops->screen_blend[ 3 ] ) {
+        Vector4Copy( ps->screen_blend, clgi.client->refdef.screen_blend );
+    } else {
+        float blendfrac = ops->screen_blend[ 3 ] ? clgi.client->lerpfrac : 1;
+        Vector4Lerp( ops->screen_blend, ps->screen_blend, blendfrac, clgi.client->refdef.screen_blend );
+    }
     //float damageblendfrac = ops->damage_blend[ 3 ] ? clgi.client->lerpfrac : 1;
     //Vector4Lerp( ops->damage_blend, ps->damage_blend, damageblendfrac, clgi.client->refdef.damage_blend );
 
@@ -494,19 +497,25 @@ void PF_CalculateViewValues( void ) {
 
 
     // interpolate field of view
-    clgi.client->fov_x = lerp_client_fov( ops->fov, ps->fov, lerp );
+    clgi.client->fov_x = lerp_client_fov( ops->fov, ps->fov, lerpFrac );
     clgi.client->fov_y = PF_CalculateFieldOfView( clgi.client->fov_x, 4, 3 );
 
-    LerpVector( ops->viewoffset, ps->viewoffset, lerp, viewoffset );
+    LerpVector( ops->viewoffset, ps->viewoffset, lerpFrac, viewoffset );
+    //if ( clgi.client->frame.valid ) {
+    //    LerpVector( ops->viewoffset, clgi.client->predictedState.view.viewOffset, lerpFrac, viewoffset );
+    //} else {
+    //    VectorCopy( ops->viewoffset, viewoffset );
+    //    //LerpVector( ops->viewoffset, clgi.client->predictedState.view.viewOffset, lerpFrac, viewoffset );
+    //}
 
     // Smooth out view height over 100ms
     //float viewheight_lerp = ( clgi.client->time - clgi.client->viewheight.change_time );
     //viewheight_lerp = STEP_TIME - min( viewheight_lerp, STEP_TIME );
     //float predicted_viewheight = clgi.client->viewheight.current + (float)( clgi.client->viewheight.previous - clgi.client->viewheight.current ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
     //viewoffset[ 2 ] += predicted_viewheight;
-    float viewheight_lerp = ( clgi.client->time - clgi.client->predictedState.view_height_time );
+    double viewheight_lerp = ( clgi.client->time - clgi.client->predictedState.view_height_time );
     viewheight_lerp = STEP_TIME - min( viewheight_lerp, STEP_TIME );
-    float predicted_viewheight = clgi.client->predictedState.view_height + (float)( clgi.client->frame.ps.pmove.viewheight - clgi.client->predictedState.view_height ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
+    double predicted_viewheight = clgi.client->predictedState.view_current_height + (double)( clgi.client->predictedState.view_previous_height - clgi.client->predictedState.view_current_height ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
     viewoffset[ 2 ] += predicted_viewheight;
     AngleVectors( clgi.client->refdef.viewangles, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
 

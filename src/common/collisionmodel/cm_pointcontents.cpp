@@ -51,11 +51,18 @@ const contents_t  CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t
         return CONTENTS_NONE;
     }
 
+    bool isBoxHull = ( headnode == cm->hull_boundingbox->headnode );
+    bool isOctagonHull = ( headnode == cm->hull_octagonbox->headnode );
+    bool rotated = ( ( headnode != cm->hull_boundingbox->headnode ) &&
+        ( headnode != cm->hull_octagonbox->headnode ) &&
+        !VectorEmpty( angles )
+    );
+
     // subtract origin offset
     VectorSubtract( p, origin, p_l );
 
     // rotate start and end into the models frame of reference
-    if ( headnode != cm->hull_boundingbox->headnode && !VectorEmpty( angles ) ) {
+    if ( rotated ) {
         AnglesToAxis( angles, axis );
         RotatePoint( p_l, axis );
     }

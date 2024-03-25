@@ -374,12 +374,16 @@ begin singleplayer
     //banner m_banner_game
     title "Test Maps:"
     action "func_plat" "skill 0; gamemode 0; maxclients 1; map func_plat"
+    action "func_rotating" "skill 0; gamemode 0; maxclients 1; map func_rotating"
+    blank
     action "local_entities" "skill 0; gamemode 0; maxclients 1; map local_entities"
     action "local_pvs" "skill 0; gamemode 0; maxclients 1; map local_pvs"
+    blank
     action "octagonhull_test" "skill 0; gamemode 0; maxclients 1; map octagonhull_test"
+    action "trigger_brushclip" "skill 0; gamemode 0; maxclients 1; map trigger_brushclip"
+    blank
     action "makkon retrotexture pbr" "skill 0; gamemode 0; maxclients 1; map makkon"
     action "spotlights" "skill 0; gamemode 0; maxclients 1; map spotlights"
-    action "trigger_brushclip" "skill 0; gamemode 0; maxclients 1; map trigger_brushclip"
     blank
     title "Q2 Game:"
     action easy "skill 0; gamemode 0; maxclients 1; newgame"

@@ -48,9 +48,10 @@ static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSoli
 *   @brief  Clips the trace to all entities currently in-frame.
 **/
 static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask ) {
-    trace_t     trace = {};
 
     for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
+        trace_t     trace = {};
+
         // Acquire the entity state.
         centity_t *ent = cl.solidEntities[ i ];
 
@@ -146,9 +147,10 @@ const trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const v
     // Clip against world.
     if ( cl.collisionModel.cache ) {
         CM_BoxTrace( &cl.collisionModel, &trace, start, end, mins, maxs, cl.collisionModel.cache->nodes, contentmask );
-        trace.ent = (struct edict_s *)cl_entities;
-        if ( trace.fraction == 0 ) {
-            return trace; // Blocked by world.
+        
+        if ( trace.fraction < 1.0 ) {
+            trace.ent = (struct edict_s *)cl_entities;
+            //return trace; // Blocked by world.
         }
 
         // Clip to all other solid entities.
