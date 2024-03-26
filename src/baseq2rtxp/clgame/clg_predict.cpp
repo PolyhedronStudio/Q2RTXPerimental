@@ -178,7 +178,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Time in miliseconds to lerp the step with.
     static constexpr int32_t PM_STEP_TIME = 100;
     // Maximum -/+ change we allow in step lerps.
-    static constexpr int32_t PM_MAX_STEP_CHANGE = 32;
+    static constexpr int32_t PM_MAX_STEP_CHANGE = 128;
 
     // Prepare the player move parameters.
     pmoveParams_t pmp;
@@ -205,11 +205,11 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Apply client delta_angles.
     pm.s.delta_angles = clgi.client->delta_angles;
     // Ensure viewheight is set properly also.
-    //pm.s.viewheight = predictedState->view_current_height;
+    pm.s.viewheight = /*predictedState->view_current_height;*/clgi.client->frame.ps.pmove.viewheight;
     // Set view angles.
-    pm.viewangles = clgi.client->viewangles;
+    //pm.viewangles = clgi.client->viewangles; // This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
     // Set view offset.
-    //pm.viewoffset = predictedState->view.viewOffset;//clgi.client->frame.ps.viewoffset;// predictedState->view.viewOffset
+    pm.viewoffset = /*predictedState->view.viewOffset;*/clgi.client->frame.ps.viewoffset;
     // Set ground entity to last predicted one.
     pm.groundentity = (edict_s*)predictedState->groundEntity;
     // Set ground plane to last predicted one.
@@ -265,33 +265,33 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         frameNumber = currentCommandNumber - 1;
     }
 
-    //// Stair Stepping:
-    //const float oldZ = clgi.client->moveCommands[ frameNumber & CMD_MASK ].prediction.origin[ 2 ];
-    //const float step = pm.s.origin[ 2 ] - oldZ;
-    //const float fabsStep = fabsf( step );
+    // Stair Stepping:
+    const float oldZ = clgi.client->moveCommands[ frameNumber & CMD_MASK ].prediction.origin[ 2 ];
+    const float step = pm.s.origin[ 2 ] - oldZ;
+    const float fabsStep = fabsf( step );
 
-    //// Consider a Z change being "stepping" if...
-    //const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range
-    //    && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // And we started off on the ground
-    //    && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground
-    //    && ( memcmp( &predictedState->groundPlane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
-    //        || predictedState->groundEntity != (centity_t *)pm.groundentity ); // we stand on another plane or entity
+    // Consider a Z change being "stepping" if...
+    const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range
+        && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // And we started off on the ground
+        && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground
+        && ( memcmp( &predictedState->groundPlane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
+            || predictedState->groundEntity != (centity_t *)pm.groundentity ); // we stand on another plane or entity
 
-    //// Code below adapted from Q3A. Smoothes out stair step.
-    //if ( step_detected ) {
-    //    // check for stepping up before a previous step is completed
-    //    const float delta = clgi.GetRealTime() - predictedState->step_time;
-    //    float old_step = 0.f;
-    //    if ( delta < PM_STEP_TIME ) {
-    //        old_step = predictedState->step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
-    //    } else {
-    //        old_step = 0;
-    //    }
+    // Code below adapted from Q3A. Smoothes out stair step.
+    if ( step_detected ) {
+        // check for stepping up before a previous step is completed
+        const uint64_t delta = clgi.GetRealTime() - predictedState->step_time;
+        double old_step = 0.f;
+        if ( delta < PM_STEP_TIME ) {
+            old_step = predictedState->step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
+        } else {
+            old_step = 0;
+        }
 
-    //    // add this amount
-    //    predictedState->step = constclamp( old_step + step, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
-    //    predictedState->step_time = clgi.GetRealTime();
-    //}
+        // add this amount
+        predictedState->step = constclamp( old_step + step, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
+        predictedState->step_time = clgi.GetRealTime();
+    }
 
     // Copy results out into the current predicted state.
     predictedState->view.origin = pm.s.origin;

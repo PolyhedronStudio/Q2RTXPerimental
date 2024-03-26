@@ -1155,8 +1155,8 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	// Clear out several member variables which require a fresh state before performing the move.
 	pm->touchTraces.numberOfTraces = 0;
 	pm->viewangles = {};
-	pm->s.viewheight = 0;
-	pm->groundentity = nullptr;
+	//pm->s.viewheight = 0;
+	//pm->groundentity = nullptr;
 	pm->watertype = CONTENTS_NONE;
 	pm->waterlevel = water_level_t::WATER_NONE;
 	pm->screen_blend = {};
