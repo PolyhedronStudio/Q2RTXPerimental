@@ -49,6 +49,8 @@ void PF_AdjustViewHeight( const int32_t viewHeight ) {
 
 /**
 *	@return	False if prediction is not desired for. True if it is.
+* 
+*   @todo   Have it return flags for what to predict, and rename it to PF_CurrentPredictionFlags or something similar.
 **/
 const qboolean PF_UsePrediction( void ) {
     // We're playing a demo, there is nothing to predict.
@@ -61,17 +63,21 @@ const qboolean PF_UsePrediction( void ) {
         clgi.client->predictedState.error = {};
         return false;
     }
-
-    // Player state demands no prediction.
-    if ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) {
-        return false;
-    }
-
     // Prediction is disabled by user.
     if ( !cl_predict->integer ) {
         return false;
     }
-
+    // Player state demands no positional('origin') prediction.
+    if ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) {
+        return false;
+    }
+    // Player state demands no angular('viewangles') prediction.
+    if ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) {
+        // TODO: 
+        return false;
+    }
+    
+    // We want predicting.
     return true;
 }
 
@@ -127,8 +133,9 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
             out->view.origin = in->origin; // clgi.client->frame.ps.pmove.origin;
             out->view.viewOffset = clgi.client->frame.ps.viewoffset;
             out->view.angles = clgi.client->frame.ps.viewangles;
-            out->view_current_height = out->view_previous_height = in->viewheight;// clgi.client->frame.ps.pmove.viewheight;
-            out->view_height_time = clgi.client->time; // clgi.GetRealTime();
+            //out->view_current_height = out->view_previous_height = in->viewheight;// clgi.client->frame.ps.pmove.viewheight;
+            //out->view_height_time = clgi.client->time; // clgi.GetRealTime();
+            PF_AdjustViewHeight( in->viewheight );
             out->view.velocity = in->velocity; // clgi.client->frame.ps.pmove.velocity;
             out->error = {};
 
@@ -198,11 +205,11 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Apply client delta_angles.
     pm.s.delta_angles = clgi.client->delta_angles;
     // Ensure viewheight is set properly also.
-    pm.s.viewheight = predictedState->view_current_height;
+    //pm.s.viewheight = predictedState->view_current_height;
     // Set view angles.
     pm.viewangles = clgi.client->viewangles;
     // Set view offset.
-    pm.viewoffset = predictedState->view.viewOffset;//clgi.client->frame.ps.viewoffset;// predictedState->view.viewOffset
+    //pm.viewoffset = predictedState->view.viewOffset;//clgi.client->frame.ps.viewoffset;// predictedState->view.viewOffset
     // Set ground entity to last predicted one.
     pm.groundentity = (edict_s*)predictedState->groundEntity;
     // Set ground plane to last predicted one.

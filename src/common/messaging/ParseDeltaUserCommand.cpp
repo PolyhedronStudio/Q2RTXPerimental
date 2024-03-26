@@ -72,5 +72,5 @@ void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *to ) {
 	to->msec = MSG_ReadUint8( );
 
 	// Read in the current frame number, for possibly deterministics.
-	to->frameNumber = MSG_ReadUintBase128();
+	to->frameNumber = MSG_ReadIntBase128();
 }

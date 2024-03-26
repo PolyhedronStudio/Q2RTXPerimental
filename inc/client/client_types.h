@@ -101,7 +101,7 @@ typedef struct clientinfo_s {
 *	        it was sent as well as when it was received. Used for calculating pings.
 **/
 typedef struct client_usercmd_history_s {
-    //! Command Number indexing into the cl.predictedStates.
+    //! Command Number indexing into the cl.moveCommands.
     uint64_t commandNumber;
     //! Time sent, for calculating pings.
     uint64_t timeSent;
@@ -113,19 +113,26 @@ typedef struct client_usercmd_history_s {
 *   @brief  
 **/
 typedef struct client_movecmd_s {
+    //! The command number.
+    //uint64_t commandNumber;
+
     //! The user input command data.
     usercmd_t cmd;
 
-    //! Simulation time when the command was sent.
-    uint64_t simulationTime;
-    //! System time when the command was sent.
-    uint64_t systemTime;
+    //! Simulation time when the command was sent. (cls.realtime)
+    //uint64_t timeSent;
+    //! System time when the command was received. (cls.realtime)
+    //uint64_t timeReceived;
 
     struct {
-        uint64_t time;  // The simulation time when prediction was run.
-        Vector3 origin; // The predicted origin for this command.
-        Vector3 velocity;// Velocity.
-        Vector3 error;  // The prediction error for this command.
+        // The simulation time(cl.time) when prediction was run.
+        uint64_t time;
+        // The predicted origin for this command.
+        Vector3 origin;
+        //! Predicted velocity for this command.
+        Vector3 velocity;
+        //! The prediction error for this command.
+        Vector3 error;
     } prediction;
 } client_movecmd_t;
 

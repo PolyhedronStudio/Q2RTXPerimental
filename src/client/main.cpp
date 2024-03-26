@@ -3036,7 +3036,7 @@ uint64_t CL_Frame( uint64_t msec ) {
     time_after_clgame = time_before_clgame = 0;
 
     if ( !cl_running->integer ) {
-        return UINT_MAX;
+        return UINT64_MAX;
     }
 
     main_extra += msec;

@@ -28,7 +28,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *   @brief Write a client's delta move command.
 **/
 int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int version ) {
-	int     bits, buttons = cmd->buttons & BUTTON_MASK;
 
 	if ( !from ) {
 		from = &nullUserCmd;
@@ -37,7 +36,8 @@ int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int 
 //
 // send the movement message
 //
-	bits = 0;
+	int32_t bits = 0;
+
 	if ( cmd->angles[ 0 ] != from->angles[ 0 ] ) {
 		bits |= CM_ANGLE1;
 	}
@@ -99,7 +99,7 @@ int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int 
 	MSG_WriteUint8( cmd->msec );
 
 	// Read out the current frame number, for possibly deterministics.
-	MSG_WriteUintBase128( cmd->frameNumber );
+	MSG_WriteIntBase128( cmd->frameNumber );
 
 	return bits;
 }

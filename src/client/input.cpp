@@ -424,8 +424,8 @@ void CL_UpdateCommand( int64_t msec ) {
     cl.moveCommand.cmd.frameNumber = cl.frame.number;
 
     // Store times.
-    cl.moveCommand.simulationTime = cl.time;
-    cl.moveCommand.systemTime = cls.realtime;
+    cl.moveCommand.prediction.time = cl.time;//cl.moveCommand.simulationTime = cl.time;
+    //cl.moveCommand.systemTime = cls.realtime;
 
     // Catch mouse input data to pass into updateCommand.
     client_mouse_motion_t mouseMotion = CL_MouseMove();
@@ -515,8 +515,8 @@ void CL_FinalizeCommand( void ) {
     cl.moveCommand.cmd.frameNumber = cl.frame.number;
 
     // Store times.
-    cl.moveCommand.simulationTime = cl.time;
-    cl.moveCommand.systemTime = cls.realtime;
+    cl.moveCommand.prediction.time = cl.time;
+    //cl.moveCommand.systemTime = cls.realtime;
 
     // save this command off for prediction
     cl.currentUserCommandNumber++;

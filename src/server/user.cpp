@@ -967,7 +967,7 @@ static inline void SV_ClientThink(usercmd_t *cmd)
     ge->ClientThink(sv_player, cmd);
 }
 
-static void SV_SetLastFrame(int lastframe)
+static void SV_SetLastFrame(int64_t lastframe)
 {
     client_frame_t *frame;
 

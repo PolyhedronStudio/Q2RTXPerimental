@@ -415,7 +415,8 @@ void PF_CalculateViewValues( void ) {
 
     // calculate the origin
     //if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
-    if ( PF_UsePrediction() ) {
+    const int32_t usePrediction = PF_UsePrediction();
+    if ( usePrediction && !( ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
         // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_.. values from SharedGame.
         // TODO: Is this accurate?
         // PM_MAX_STEP_HEIGHT = 18
