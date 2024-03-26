@@ -19,6 +19,7 @@ enum fieldtype_t : int32_t {
 	F_BYTE,
 	F_SHORT,
 	F_INT,
+
 	F_BOOL,
 	F_FLOAT,
 
@@ -53,8 +54,10 @@ enum ptr_type_t : int32_t {
 	//
 	// edict-><methodname> function pointer addresses.
 	//
+	P_postspawn,
     P_prethink,
     P_think,
+	P_postthink,
     P_blocked,
     P_touch,
     P_use,

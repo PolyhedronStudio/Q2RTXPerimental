@@ -661,7 +661,7 @@ void SP_monster_supertank(edict_t *self)
     tread_sound = gi.soundindex("bosstank/btkengn1.wav");
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/boss1/tris.md2");
     VectorSet(self->mins, -64, -64, 0);
     VectorSet(self->maxs, 64, 64, 112);

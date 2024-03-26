@@ -29,8 +29,8 @@ extern "C" {
 #include "common/net/net.h"
 #include "common/utils.h"
 
-#define CHAR_WIDTH  8
-#define CHAR_HEIGHT 8
+//#define CHAR_WIDTH  8
+//#define CHAR_HEIGHT 8
 
 #if USE_CLIENT
 
@@ -52,7 +52,7 @@ typedef struct {
 typedef struct {
     char map[MAX_QPATH];
     char pov[MAX_CLIENT_NAME];
-    bool mvd;
+    //qboolean mvd;
 } demoInfo_t;
 
 typedef enum {
@@ -68,7 +68,7 @@ void CL_ErrorEvent(netadr_t *from);
 void CL_Init(void);
 void CL_Disconnect(error_type_t type);
 void CL_Shutdown(void);
-unsigned CL_Frame(unsigned msec);
+uint64_t CL_Frame( uint64_t msec );
 void CL_RestartFilesystem(bool total);
 void CL_Activate(active_t active);
 void CL_UpdateUserinfo(cvar_t *var, from_t from);
@@ -76,6 +76,9 @@ void CL_SendStatusRequest(const netadr_t *address);
 demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info);
 bool CL_CheatsOK(void);
 void CL_SetSky(void);
+const int32_t CL_GetClientFps( void );
+const int32_t CL_GetRefreshFps( void );
+const int32_t CL_GetResolutionScale( void );
 
 #if USE_CURL
 int HTTP_FetchFile(const char *url, void **data);
@@ -97,34 +100,36 @@ void SCR_EndLoadingPlaque(void);
 void SCR_ModeChanged(void);
 void SCR_UpdateScreen(void);
 
-#define U32_BLACK   MakeColor(  0,   0,   0, 255)
-#define U32_RED     MakeColor(255,   0,   0, 255)
-#define U32_GREEN   MakeColor(  0, 255,   0, 255)
-#define U32_YELLOW  MakeColor(255, 255,   0, 255)
-#define U32_BLUE    MakeColor(  0,   0, 255, 255)
-#define U32_CYAN    MakeColor(  0, 255, 255, 255)
-#define U32_MAGENTA MakeColor(255,   0, 255, 255)
-#define U32_WHITE   MakeColor(255, 255, 255, 255)
+// Moved to shared.h
+//#define U32_BLACK   MakeColor(  0,   0,   0, 255)
+//#define U32_RED     MakeColor(255,   0,   0, 255)
+//#define U32_GREEN   MakeColor(  0, 255,   0, 255)
+//#define U32_YELLOW  MakeColor(255, 255,   0, 255)
+//#define U32_BLUE    MakeColor(  0,   0, 255, 255)
+//#define U32_CYAN    MakeColor(  0, 255, 255, 255)
+//#define U32_MAGENTA MakeColor(255,   0, 255, 255)
+//#define U32_WHITE   MakeColor(255, 255, 255, 255)
 
-#define UI_LEFT             0x00000001
-#define UI_RIGHT            0x00000002
-#define UI_CENTER           (UI_LEFT | UI_RIGHT)
-#define UI_BOTTOM           0x00000004
-#define UI_TOP              0x00000008
-#define UI_MIDDLE           (UI_BOTTOM | UI_TOP)
-#define UI_DROPSHADOW       0x00000010
-#define UI_ALTCOLOR         0x00000020
-#define UI_IGNORECOLOR      0x00000040
-#define UI_XORCOLOR         0x00000080
-#define UI_AUTOWRAP         0x00000100
-#define UI_MULTILINE        0x00000200
-#define UI_DRAWCURSOR       0x00000400
+// Moved to shared.h
+//#define UI_LEFT             0x00000001
+//#define UI_RIGHT            0x00000002
+//#define UI_CENTER           (UI_LEFT | UI_RIGHT)
+//#define UI_BOTTOM           0x00000004
+//#define UI_TOP              0x00000008
+//#define UI_MIDDLE           (UI_BOTTOM | UI_TOP)
+//#define UI_DROPSHADOW       0x00000010
+//#define UI_ALTCOLOR         0x00000020
+//#define UI_IGNORECOLOR      0x00000040
+//#define UI_XORCOLOR         0x00000080
+//#define UI_AUTOWRAP         0x00000100
+//#define UI_MULTILINE        0x00000200
+//#define UI_DRAWCURSOR       0x00000400
 
 extern const uint32_t   colorTable[8];
 
-bool SCR_ParseColor(const char *s, color_t *color);
+const qboolean SCR_ParseColor(const char *s, color_t *color);
 
-float V_CalcFov(float fov_x, float width, float height);
+const float V_CalcFov( const float fov_x, const float width, const float height );
 
 #else // USE_CLIENT
 

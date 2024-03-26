@@ -28,7 +28,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *   @brief Write a client's delta move command.
 **/
 int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int version ) {
-	int     bits, buttons = cmd->buttons & BUTTON_MASK;
 
 	if ( !from ) {
 		from = &nullUserCmd;
@@ -37,78 +36,70 @@ int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int 
 //
 // send the movement message
 //
-	bits = 0;
-	if ( cmd->angles[ 0 ] != from->angles[ 0 ] )
+	int32_t bits = 0;
+
+	if ( cmd->angles[ 0 ] != from->angles[ 0 ] ) {
 		bits |= CM_ANGLE1;
-	if ( cmd->angles[ 1 ] != from->angles[ 1 ] )
+	}
+	if ( cmd->angles[ 1 ] != from->angles[ 1 ] ) {
 		bits |= CM_ANGLE2;
-	if ( cmd->angles[ 2 ] != from->angles[ 2 ] )
+	}
+	if ( cmd->angles[ 2 ] != from->angles[ 2 ] ) {
 		bits |= CM_ANGLE3;
-	if ( cmd->forwardmove != from->forwardmove )
+	}
+	if ( cmd->forwardmove != from->forwardmove ) {
 		bits |= CM_FORWARD;
-	if ( cmd->sidemove != from->sidemove )
+	}
+	if ( cmd->sidemove != from->sidemove ) {
 		bits |= CM_SIDE;
-	if ( cmd->upmove != from->upmove )
+	}
+	if ( cmd->upmove != from->upmove ) {
 		bits |= CM_UP;
-	if ( cmd->buttons != from->buttons )
+	}
+	if ( cmd->buttons != from->buttons ) {
 		bits |= CM_BUTTONS;
-	if ( cmd->impulse != from->impulse )
+	}
+	if ( cmd->impulse != from->impulse ) {
 		bits |= CM_IMPULSE;
+	}
 
-	MSG_WriteUint8( bits );
+	MSG_WriteUintBase128( bits );
 
-	//if ( version >= PROTOCOL_VERSION_R1Q2_UCMD ) {
-	//	if ( bits & CM_BUTTONS ) {
-	//		if ( ( bits & CM_FORWARD ) && !( cmd->forwardmove % 5 ) ) {
-	//			buttons |= BUTTON_FORWARD;
-	//		}
-	//		if ( ( bits & CM_SIDE ) && !( cmd->sidemove % 5 ) ) {
-	//			buttons |= BUTTON_SIDE;
-	//		}
-	//		if ( ( bits & CM_UP ) && !( cmd->upmove % 5 ) ) {
-	//			buttons |= BUTTON_UP;
-	//		}
-	//		MSG_WriteUint8( buttons );
-	//	}
-	//}
+	// Write current angles.
+	if ( bits & CM_ANGLE1 ) {
+		MSG_WriteFloat( AngleMod( cmd->angles[ 0 ] ) );
+	}
+	if ( bits & CM_ANGLE2 ) {
+		MSG_WriteFloat( AngleMod( cmd->angles[ 1 ] ) );
+	}
+	if ( bits & CM_ANGLE3 ) {
+		MSG_WriteFloat( AngleMod( cmd->angles[ 2 ] ) );
+	}
 
-	if ( bits & CM_ANGLE1 )
-		MSG_WriteInt16( cmd->angles[ 0 ] );
-	if ( bits & CM_ANGLE2 )
-		MSG_WriteInt16( cmd->angles[ 1 ] );
-	if ( bits & CM_ANGLE3 )
-		MSG_WriteInt16( cmd->angles[ 2 ] );
-
+	// Write movement.
 	if ( bits & CM_FORWARD ) {
-		if ( buttons & BUTTON_FORWARD ) {
-			MSG_WriteInt8( cmd->forwardmove / 5 );
-		} else {
-			MSG_WriteInt16( cmd->forwardmove );
-		}
+		MSG_WriteFloat( cmd->forwardmove );
 	}
 	if ( bits & CM_SIDE ) {
-		if ( buttons & BUTTON_SIDE ) {
-			MSG_WriteInt8( cmd->sidemove / 5 );
-		} else {
-			MSG_WriteInt16( cmd->sidemove );
-		}
+		MSG_WriteFloat( cmd->sidemove );
 	}
 	if ( bits & CM_UP ) {
-		if ( buttons & BUTTON_UP ) {
-			MSG_WriteInt8( cmd->upmove / 5 );
-		} else {
-			MSG_WriteInt16( cmd->upmove );
-		}
+		MSG_WriteFloat( cmd->upmove );
 	}
 
-	//if ( version < PROTOCOL_VERSION_R1Q2_UCMD ) {
-		if ( bits & CM_BUTTONS )
-			MSG_WriteUint8( cmd->buttons );
-	//}
-	if ( bits & CM_IMPULSE )
+	// Write buttons.
+	if ( bits & CM_BUTTONS ) {
+		MSG_WriteUint16( cmd->buttons );
+	}
+	if ( bits & CM_IMPULSE ) {
 		MSG_WriteUint8( cmd->impulse );
+	}
 
+	// Write command ran time.
 	MSG_WriteUint8( cmd->msec );
+
+	// Read out the current frame number, for possibly deterministics.
+	MSG_WriteIntBase128( cmd->frameNumber );
 
 	return bits;
 }

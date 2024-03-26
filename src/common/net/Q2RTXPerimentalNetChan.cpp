@@ -218,7 +218,7 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const vo
 	sizebuf_t   send;
 	byte        send_buf[ MAX_PACKETLEN ];
 	bool        send_reliable;
-	int         i, w1, w2;
+	int         w1, w2;
 
 // check for message overflow
 	if ( chan->message.overflowed ) {

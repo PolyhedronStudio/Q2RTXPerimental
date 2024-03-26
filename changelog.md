@@ -1,6 +1,12 @@
-# Quake II RTXPerimental Change Log
+# Quake II RTXPerimental Changelogs
 
-## Q2RTXPerimental Engine Changes:
+## Q2RTXPerimental Changes(New):
+Changes will from now on be listed as additions per version. 
+## V0.0.3:
+
+
+## Q2RTXPerimental Changes(Old):
+These changes spawn from v0.0.0 up to 0.0.2
 ### General:
 * **CPP-ify the codebase, meaning that it now compiles using a CPP compiler** 
 	* The only exception being the **VKPT** code, to make life easy merging in any new **Q2RTX VKPT** features.
@@ -9,28 +15,30 @@
 * Customizable Tick Rate (``40hz`` is the current default).
 * Removed MVD, and GTV, although 'luxury' features, make things harder to maintain and I doubt it is within most target audience interest rates.
 * Removed Anti-Cheat, OS specific and h4x0rz are going to h4x anyway. Makes life easier to maintain this project.
-* Adjusted stair **Step Smoothing** to ``BASE_FRAMETIME // (25ms for 40hz)`` instead of its old hard values: ``100ms at 10hz``.
 * Increased ``MAX_EDICTS(8192)``, ``MAX_MODELS(8192)``, ``MAX_SOUNDS(2048)``, ``MAX_IMAGES(512)``.
 * Increased maximum ConfigString length ``(96)``.
+* Enabled ``USE_SMOOTH_DELTA_ANGLES`` by default.
+* Adjusted stair **Step Smoothing** to ``BASE_FRAMETIME // (25ms for 40hz)`` instead of its old hard values: ``100ms at 10hz``.
 * Entity origins and player origin are ``wired/transferred`` as full floating point precision values.
-* Enabled ``USE_SMOOTH_DELTA_ANGLES``.
-* Allows for up to 255 different gamemodes to be implemented. The client is also made aware of the actual game mode the server is running.
-* Brush Shaped Triggers: Triggers can now have a "Clipped" flag set, in which case it only triggers when an actual collision(clip to brush) occured.
-
+* Client-Side awareness of the gamemode that is being played.
+* Brush Shaped Triggers: Triggers can now have a "Clipped" flag set, in which case it only triggers when an actual collision(clip to brush) has occured.
+* Comes with basic vector, matrix and quaternion math utilities derived from raylib1.5, and adds in C++ utilities such as operator support.
+* Modern player movement derived from Q2RE.
+* BoundingBox entities can have their hull contents be set to any CONTENTS_ values.
+* The ``entityString`` is now parsed into a list of key/value pairs, the so called ``Collision Model Entities``.
 ### Client:
+* The client now also makes use of the ``cm_t``(Collision Model) struct for its ``BSP`` and ``inline brush models``.
 * Does proper lerping for entities that run lower than ``40hz``.
 * Does proper lerping for weapons based on their 'gunrate', defaults to ``10hz``
 * Added RF_OLD_FRAME_LERP support: ``[Paril-KEX] force model to lerp from oldframe in entity state; otherwise it uses last frame client received``
 * Added support for monster 'step' Z-Axis lerping when RenderFlag ``RF_STAIR_STEP`` is set.
 * Added support to lerp from old entity state frame when RenderFlag ``RF_OLD_FRAME_LERP`` is set.
 * ``EF_SPOTLIGHT`` support.
-
 ### Net Code:
 * Uses its own protocol, partially based on Q2 Protocol #34 and Q2PRO its own. This supports proper fragmenting, allowing for far more in-vis entities to be transfered over ``The Wire``. This does come with the drawback of needing a proper ``25ms`` ping in order to have a smooth gameplay flow.
-* Changed Solids from ``int32_t`` to ``uint32_t``, so that ``SOLID_BBOX`` can now have **BoundingBox** sizes up to those of **Q2RE/Q3**.
+* Changed Solids from ``int32_t`` to ``uint32_t``, so that ``SOLID_BOUNDS_BOX`` can now have **BoundingBox** sizes up to those of **Q2RE/Q3**.
 * Network origins using full floating point precision, angles are half-floats.
 * Use ReadBase128 message read/write functions where applicable.
-
 ### Refresh(VKPT):
 * BSP maps compiled with ``texinfos`` such as: ``textures/test/01.tga`` now will load with their proper dimensions, meaning one does not need low-res .wal textures to substitute for any of these.
 * RF_NOSHADOW is now respected for both, regular and brush entities.
@@ -42,11 +50,17 @@
 * AI now has the option to run at ``tick rate``(defaults to ``40hz``), when the ``AI_HIGH_TICK_RATE`` flag is set.
 * Guns can operate at a varying tick rate, default is ``10hz``
 * Brush Triggers can now be set a spawnflag to trigger only when actually clipping with the trigger brush.
-* Very rough and basic ``Spotlight`` entity.
-
+* Basic configurable Spotlight entity that can be given its own ``customLightStyle`` property as well.
+* Now spawns entities based on the key/value pairs retreived from the ``Collision Model``.
 ### Client Game:
-* Currently nothing strictly of its own, only the SharedGame PlayerMove code.
-
+* Responsible for preparing the view by adding all the packet entities as well as the player viewweapon/thirdperson model.
+* Control over the user input, including the capability of adding new custom User Input ``KeyButton`` registration and handling thereof.
+* Player Movement Prediction.
+* Parse, precache, or modify the clientinfo data.
+* Control over the layout string system.
+* Control over the implementations of ``Temp Entity Events``, ``Particles``, ``Explosions``, ``Beams/Lasers/Trails``, ``Sustains``.
+* A ``local entity`` system that has a class struct like implementation. Its main intended use is for client only specific entities, think of decorating or certain particle emitters that you do not want to clutter the network with.
+* View/Scene handling, this includes: ``Packet Entities``, ``Local Entities``, ``Temp Entity Events``, ``Particles``, ``Explosions``, ``Beams/Lasers/Trails``, ``Sustains``.
 ### Shared Game:
 * Contains the shared used ``sg_time_t`` which replaces all the vanilla frametime/framenum work.
 * Customizable PlayerMove code.

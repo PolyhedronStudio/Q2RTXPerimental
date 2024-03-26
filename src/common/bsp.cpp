@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // bsp.c -- model loading
 
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 #include "common/bsp.h"
 #include "common/cmd.h"
 #include "common/common.h"
@@ -33,9 +33,23 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/utils.h"
 #include "system/hunk.h"
 
-extern mtexinfo_t nulltexinfo;
+extern "C" {
+    extern mtexinfo_t nulltexinfo;
+};
 
 static cvar_t *map_visibility_patch;
+
+/**
+*   When not compiling with USE_REF defined by CMake, we know we're not dealing
+*   with the client. Since defining USE_REF with CMake will cause other parts of
+*   the code we don't want to compile as well. In order to prevent that, we use
+*   this in-file silly hack. It is undefined afterwards at the end of the file.
+**/
+#ifndef USE_REF
+#define USE_REF_HEADER_HACK
+#define USE_REF 1
+#endif
+
 
 /*
 ===============================================================================
@@ -561,7 +575,7 @@ LOAD(Nodes)
     }
 
     bsp->numnodes = count;
-    bsp->nodes = static_cast<mnode_t*>( ALLOC(sizeof(*out) * count) ); // WID: C++20: Added cast.
+    bsp->nodes = static_cast<mnode_t *>( ALLOC( sizeof( *out ) * count ) ); // WID: C++20: Added cast.
 
     out = bsp->nodes;
     for (i = 0; i < count; i++, out++) {
@@ -751,6 +765,12 @@ LOAD(EntString)
 */
 
 typedef struct {
+    const char *name;
+    void (*load)(bsp_t *, const byte *, size_t);
+    size_t (*parse_header)(bsp_t *, const byte *, size_t);
+} xlump_info_t;
+
+typedef struct {
     int (*load)(bsp_t *, const byte *, size_t);
     const char *name;
     uint8_t lump;
@@ -929,12 +949,14 @@ void BSP_Free(bsp_t *bsp)
     }
     Q_assert(bsp->refcount > 0);
     if (--bsp->refcount == 0) {
+        // 
 		if (bsp->pvs2_matrix)
 		{
 			// free the PVS2 matrix separately - it's not part of the hunk
 			Z_Free(bsp->pvs2_matrix);
 			bsp->pvs2_matrix = NULL;
 		}
+
 
         Hunk_Free(&bsp->hunk);
         List_Remove(&bsp->entry);
@@ -1069,37 +1091,7 @@ bool BSP_SavePatchedPVS(bsp_t *bsp)
 }
 
 #if USE_REF
-static bool BSP_FindBspxLump(const byte *buf, uint32_t pos, uint32_t filelen, const char* name, const void** pLump, uint32_t* pLumpSize)
-{
-    pos = ALIGN(pos, 4);
-    if (pos > filelen - 8)
-        return false;
-    if (RL32(buf + pos) != BSPXHEADER)
-        return false;
-    pos += 8;
-
-    uint32_t numlumps = RL32(buf + pos - 4);
-    if (numlumps > (filelen - pos) / sizeof(xlump_t))
-        return false;
-
-    xlump_t *l = (xlump_t *)(buf + pos);
-    for (int i = 0; i < numlumps; i++, l++) {
-        uint32_t ofs = LittleLong(l->fileofs);
-        uint32_t len = LittleLong(l->filelen);
-        uint32_t end = ofs + len;
-        if (end < ofs || end > filelen)
-            continue;
-
-        if (!strcmp(l->name, name)) {
-            *pLump = buf + ofs;
-            *pLumpSize = len;
-            return true;
-        }
-    }
-    return false;
-}
-
-static void BSP_LoadBspxNormals(bsp_t* bsp, const byte* in, uint32_t data_size)
+static void BSP_LoadBspxNormals(bsp_t* bsp, const byte* in, size_t data_size)
 {
 	if (data_size < sizeof(uint32_t))
 		return;
@@ -1150,7 +1142,12 @@ static void BSP_LoadBspxNormals(bsp_t* bsp, const byte* in, uint32_t data_size)
 	}
 }
 
-static void BSP_ParseDecoupledLM(bsp_t *bsp, const byte *in, uint32_t filelen)
+static size_t BSP_ParseNormalsHeader(bsp_t* bsp, const byte* in, size_t data_size)
+{
+    return data_size;
+}
+
+static void BSP_ParseDecoupledLM(bsp_t *bsp, const byte *in, size_t filelen)
 {
     mface_t *out;
     uint32_t offset;
@@ -1180,35 +1177,52 @@ static void BSP_ParseDecoupledLM(bsp_t *bsp, const byte *in, uint32_t filelen)
     bsp->lm_decoupled = true;
 }
 
-static void BSP_ParseExtensions(bsp_t *bsp, const byte *buf, uint32_t pos, uint32_t filelen)
+static const xlump_info_t bspx_lumps[] = {
+    { "DECOUPLED_LM", BSP_ParseDecoupledLM },
+    { "FACENORMALS", BSP_LoadBspxNormals, BSP_ParseNormalsHeader }
+};
+
+// returns amount of extra data to allocate
+static size_t BSP_ParseExtensionHeader(bsp_t *bsp, lump_t *out, const byte *buf, uint32_t pos, uint32_t filelen)
 {
     pos = ALIGN(pos, 4);
     if (pos > filelen - 8)
-        return;
+        return 0;
     if (RL32(buf + pos) != BSPXHEADER)
-        return;
+        return 0;
     pos += 8;
 
     uint32_t numlumps = RL32(buf + pos - 4);
-    if (numlumps > (filelen - pos) / sizeof(xlump_t))
-        return;
+    if (numlumps > (filelen - pos) / sizeof(xlump_t)) {
+        Com_WPrintf("Bad BSPX header\n");
+        return 0;
+    }
 
+    size_t extrasize = 0;
     xlump_t *l = (xlump_t *)(buf + pos);
     for (int i = 0; i < numlumps; i++, l++) {
         uint32_t ofs = LittleLong(l->fileofs);
         uint32_t len = LittleLong(l->filelen);
         uint32_t end = ofs + len;
-        if (end < ofs || end > filelen)
+        if (end <= ofs || end > filelen)
             continue;
-
-        if (!strcmp(l->name, "DECOUPLED_LM")) {
-            BSP_ParseDecoupledLM(bsp, buf + ofs, len);
-            continue;
-        } else if (!strcmp(l->name, "FACENORMALS")) {
-            BSP_LoadBspxNormals(bsp, buf + ofs, len);
-            continue;
+        for (int j = 0; j < q_countof(bspx_lumps); j++) {
+            const xlump_info_t *e = &bspx_lumps[j];
+            if (strcmp(l->name, e->name))
+                continue;
+            if (out[j].filelen) {
+                Com_WPrintf("Duplicate %s lump\n", e->name);
+                break;
+            }
+            if (e->parse_header)
+                extrasize += e->parse_header(bsp, buf + ofs, len);
+            out[j].fileofs = ofs;
+            out[j].filelen = len;
+            break;
         }
     }
+
+    return extrasize;
 }
 
 #endif
@@ -1232,10 +1246,10 @@ int BSP_Load(const char *name, bsp_t **bsp_p)
     uint32_t        lump_count[q_countof(bsp_lumps)];
     size_t          memsize;
     bool            extended = false;
-	
-	// WID: Need to be here otherwise C++ complains about skipping 'goto fail2'.
-	const void *normal_lump_data = NULL;
-	uint32_t normal_lump_size = 0;
+
+    #if USE_REF
+    lump_t ext[ q_countof( bspx_lumps ) ] = { 0 };
+    #endif
 
     Q_assert(name);
     Q_assert(bsp_p);
@@ -1310,20 +1324,16 @@ int BSP_Load(const char *name, bsp_t **bsp_p)
         maxpos = max(maxpos, end);
     }
 
-#if USE_REF
-
-    if (BSP_FindBspxLump(buf, maxpos, filelen, "FACENORMALS", &normal_lump_data, &normal_lump_size))
-    {
-        memsize += normal_lump_size;
-    }
-#endif
-
     // load into hunk
     len = strlen(name);
     bsp = static_cast<bsp_t*>( Z_Mallocz(sizeof(*bsp) + len) ); // WID: C++20: Added cast.
     memcpy(bsp->name, name, len + 1);
     bsp->refcount = 1;
     bsp->extended = extended;
+
+#if USE_REF
+    memsize += BSP_ParseExtensionHeader(bsp, ext, buf, maxpos, filelen);
+#endif
 
     Hunk_Begin(&bsp->hunk, memsize);
 
@@ -1358,7 +1368,12 @@ int BSP_Load(const char *name, bsp_t **bsp_p)
 	}
 
 #if USE_REF
-    BSP_ParseExtensions(bsp, buf, maxpos, filelen);
+    // load extension lumps
+    for (i = 0; i < q_countof(bspx_lumps); i++) {
+        if (ext[i].filelen) {
+            bspx_lumps[i].load(bsp, buf + ext[i].fileofs, ext[i].filelen);
+        }
+    }
 #endif
 
     Hunk_End(&bsp->hunk);
@@ -1603,16 +1618,15 @@ overrun:
     return mask;
 }
 
-mleaf_t *BSP_PointLeaf(mnode_t *node, const vec3_t p)
-{
+mleaf_t *BSP_PointLeaf( mnode_t *node, const vec3_t p ) {
     float d;
 
-    while (node->plane) {
-        d = PlaneDiffFast(p, node->plane);
-        if (d < 0)
-            node = node->children[1];
+    while ( node->plane ) {
+        d = PlaneDiffFast( p, node->plane );
+        if ( d < 0 )
+            node = node->children[ 1 ];
         else
-            node = node->children[0];
+            node = node->children[ 0 ];
     }
 
     return (mleaf_t *)node;
@@ -1648,3 +1662,9 @@ void BSP_Init(void)
     List_Init(&bsp_cache);
 }
 
+/**
+*   The END of USE_REF Header hack.
+**/
+#ifdef USE_REF_HEADER_HACK
+#undef USE_REF
+#endif

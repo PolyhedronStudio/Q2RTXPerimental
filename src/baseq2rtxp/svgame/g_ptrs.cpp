@@ -327,6 +327,7 @@ extern void door_go_down( edict_t *self );
 extern void door_hit_bottom( edict_t *self );
 extern void door_hit_top( edict_t *self );
 extern void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
+extern void door_postspawn( edict_t *self );
 extern void door_secret_blocked( edict_t *self, edict_t *other );
 extern void door_secret_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void door_secret_done( edict_t *self );
@@ -611,6 +612,7 @@ extern void use_target_splash( edict_t *self, edict_t *other, edict_t *activator
 extern void Use_Target_Tent( edict_t *self, edict_t *other, edict_t *activator );
 extern void walkmonster_start_go( edict_t *self );
 const save_ptr_t save_ptrs[] = {
+{ P_postspawn, (void *)door_postspawn },
 { P_prethink, (void*)misc_viper_bomb_prethink },
 { P_think,  (void*)AngleMove_Begin },
 { P_think,  (void*)AngleMove_Done },

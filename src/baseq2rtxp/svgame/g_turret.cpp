@@ -280,7 +280,7 @@ void turret_driver_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int
         ;
     ent->teamchain = NULL;
     self->teammaster = NULL;
-    self->flags &= ~FL_TEAMSLAVE;
+    self->flags = static_cast<ent_flags_t>( self->flags & ~FL_TEAMSLAVE );
 
     self->target_ent->owner = NULL;
     self->target_ent->teammaster->owner = NULL;
@@ -321,7 +321,7 @@ void turret_driver_think(edict_t *self)
     VectorCopy(self->enemy->s.origin, target);
     target[2] += self->enemy->viewheight;
     VectorSubtract(target, self->target_ent->s.origin, dir);
-    vectoangles(dir, self->target_ent->move_angles);
+    QM_Vector3ToAngles(dir, self->target_ent->move_angles);
 
     // decide if we should shoot
 	sg_time_t reaction_time = sg_time_t::from_sec( 3 - skill->integer );
@@ -352,7 +352,7 @@ void turret_driver_link(edict_t *self)
     self->move_origin[0] = VectorLength(vec);
 
     VectorSubtract(self->s.origin, self->target_ent->s.origin, vec);
-    vectoangles(vec, vec);
+    QM_Vector3ToAngles(vec, vec);
     AnglesNormalize(vec);
     self->move_origin[1] = vec[1];
 
@@ -363,7 +363,7 @@ void turret_driver_link(edict_t *self)
         ;
     ent->teamchain = self;
     self->teammaster = self->target_ent->teammaster;
-    self->flags |= FL_TEAMSLAVE;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_TEAMSLAVE );
 }
 
 void SP_turret_driver(edict_t *self)
@@ -374,7 +374,7 @@ void SP_turret_driver(edict_t *self)
     }
 
     self->movetype = MOVETYPE_PUSH;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/infantry/tris.md2");
     VectorSet(self->mins, -16, -16, -24);
     VectorSet(self->maxs, 16, 16, 32);
@@ -387,7 +387,7 @@ void SP_turret_driver(edict_t *self)
     self->die = turret_driver_die;
     self->monsterinfo.stand = infantry_stand;
 
-    self->flags |= FL_NO_KNOCKBACK;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
 
     level.total_monsters++;
 

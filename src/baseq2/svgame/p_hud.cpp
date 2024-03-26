@@ -31,17 +31,23 @@ INTERMISSION
 
 void MoveClientToIntermission(edict_t *ent)
 {
-    if (deathmatch->value || coop->value)
+    if ( deathmatch->value || coop->value ) {
         ent->client->showscores = true;
+    } else {
+        ent->client->showscores = false;
+    }
+    ent->client->showhelp = false;
+
     VectorCopy(level.intermission_origin, ent->s.origin);
-    ent->client->ps.pmove.origin[0] = level.intermission_origin[0];//COORD2SHORT(level.intermission_origin[0]); // WID: float-movement
-    ent->client->ps.pmove.origin[1] = level.intermission_origin[1];//COORD2SHORT(level.intermission_origin[1]); // WID: float-movement
-    ent->client->ps.pmove.origin[2] = level.intermission_origin[2];//COORD2SHORT(level.intermission_origin[2]); // WID: float-movement
+    VectorCopy( level.intermission_origin, ent->client->ps.pmove.origin );
     VectorCopy(level.intermission_angle, ent->client->ps.viewangles);
+    ent->client->ps.viewangles[ 0 ] = AngleMod( level.intermission_angle[ 0 ] );
+    ent->client->ps.viewangles[ 1 ] = AngleMod( level.intermission_angle[ 1 ] );
+    ent->client->ps.viewangles[ 2 ] = AngleMod( level.intermission_angle[ 2 ] );
     ent->client->ps.pmove.pm_type = PM_FREEZE;
     ent->client->ps.gunindex = 0;
-    ent->client->ps.blend[3] = 0;
-    ent->client->ps.rdflags &= ~RDF_UNDERWATER;
+    /*ent->client->ps.damage_blend[3] = */ent->client->ps.screen_blend[ 3 ] = 0; // damageblend?
+    ent->client->ps.rdflags = RDF_NONE;
 
     // clean up powerup info
     ent->client->quad_time = 0_ms;
@@ -51,18 +57,19 @@ void MoveClientToIntermission(edict_t *ent)
     ent->client->grenade_blew_up = false;
     ent->client->grenade_time = 0_ms;
 
-    ent->watertype = 0;
-    ent->waterlevel = 0;
+    ent->watertype = CONTENTS_NONE;
+    ent->waterlevel = water_level_t::WATER_NONE;;
     ent->viewheight = 0;
     ent->s.modelindex = 0;
     ent->s.modelindex2 = 0;
     ent->s.modelindex3 = 0;
     ent->s.modelindex4 = 0;
-    ent->s.effects = 0;
-    ent->s.renderfx = 0;
+
+    ent->s.effects = EF_NONE;
+    ent->s.renderfx = RF_NONE;
     ent->s.sound = 0;
-    ent->s.event = 0;
-    ent->s.solid = 0;
+    ent->s.event = EV_NONE;
+    ent->s.solid = SOLID_NOT; // 0
     ent->solid = SOLID_NOT;
     ent->svflags = SVF_NOCLIENT;
     gi.unlinkentity(ent);
@@ -240,6 +247,41 @@ void DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 
     gi.WriteUint8(svc_layout);
     gi.WriteString(string);
+#if 0
+    gi.WriteUint8( svc_scoreboard );
+
+    // First count the total of clients we got in-game.
+    int32_t numberOfClients = 0;
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        edict_t *cl_ent = g_edicts + 1 + i;
+        if ( !cl_ent->inuse || game.clients[ i ].resp.spectator 
+            /*|| !cl_ent->client->pers.connected*/ ) {
+            continue;
+        }
+        numberOfClients++;
+    }
+    // Now send the number of clients.
+    gi.WriteUint8( numberOfClients );
+
+    // Now, for each client, send index, time, score, and ping.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        edict_t *cl_ent = g_edicts + 1 + i;
+        if ( !cl_ent->inuse || game.clients[ i ].resp.spectator 
+            /*|| !cl_ent->client->pers.connected*/ ) {
+            continue;
+        }
+
+        int64_t score = game.clients[ i ].resp.score;
+        sg_time_t time = level.time - game.clients[ i ].resp.entertime;
+        int16_t ping = game.clients[ i ].ping;
+
+        // Client name is already known by client infos, so just send the index instead.
+        gi.WriteUint8( i );
+        gi.WriteIntBase128( time.seconds() );
+        gi.WriteIntBase128( score );
+        gi.WriteUint16( ping );
+    }
+#endif
 }
 
 
@@ -396,7 +438,7 @@ void G_SetStats(edict_t *ent)
         cells = ent->client->pers.inventory[ITEM_INDEX(FindItem("cells"))];
         if (cells == 0) {
             // ran out of cells for power armor
-            ent->flags &= ~FL_POWER_ARMOR;
+            ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_POWER_ARMOR );
             gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/power2.wav"), 1, ATTN_NORM, 0);
             power_armor_type = 0;
         }
@@ -490,6 +532,18 @@ void G_SetStats(edict_t *ent)
         if (ent->client->showinventory && ent->client->pers.health > 0)
             ent->client->ps.stats[STAT_LAYOUTS] |= 2;
     }
+
+    //
+    // GUI
+    //
+    //ent->client->ps.stats[ STAT_SHOW_SCORES ] = 0;
+    //if ( gamemode->integer != GAMEMODE_SINGLEPLAYER ) {
+    //    if ( ent->client->showscores ) {
+    //        ent->client->ps.stats[ STAT_SHOW_SCORES ] |= 1;
+    //    } else {
+    //        ent->client->ps.stats[ STAT_SHOW_SCORES ] &= ~1;
+    //    }
+    //}
 
     //
     // frags

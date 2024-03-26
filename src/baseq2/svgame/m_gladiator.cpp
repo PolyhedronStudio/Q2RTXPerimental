@@ -344,7 +344,7 @@ void SP_monster_gladiator(edict_t *self)
     sound_sight = gi.soundindex("gladiator/sight.wav");
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/gladiatr/tris.md2");
     VectorSet(self->mins, -32, -32, -24);
     VectorSet(self->maxs, 32, 32, 64);

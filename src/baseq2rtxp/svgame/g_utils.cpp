@@ -173,7 +173,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->delay) {
         // create a temp object to fire at a later time
-        t = G_Spawn();
+        t = G_AllocateEdict();
         t->classname = "DelayedUse";
         t->nextthink = level.time + sg_time_t::from_sec(ent->delay);
         t->think = Think_Delay;
@@ -256,59 +256,6 @@ void G_SetMovedir(vec3_t angles, vec3_t movedir)
     VectorClear(angles);
 }
 
-
-float vectoyaw(vec3_t vec)
-{
-    float   yaw;
-
-    if (/*vec[YAW] == 0 &&*/ vec[PITCH] == 0) {
-        yaw = 0;
-        if (vec[YAW] > 0)
-            yaw = 90;
-        else if (vec[YAW] < 0)
-            yaw = -90;
-    } else {
-        yaw = (int)RAD2DEG(atan2(vec[YAW], vec[PITCH]));
-        if (yaw < 0)
-            yaw += 360;
-    }
-
-    return yaw;
-}
-
-
-void vectoangles(vec3_t value1, vec3_t angles)
-{
-    float   forward;
-    float   yaw, pitch;
-
-    if (value1[1] == 0 && value1[0] == 0) {
-        yaw = 0;
-        if (value1[2] > 0)
-            pitch = 90;
-        else
-            pitch = 270;
-    } else {
-        if (value1[0])
-            yaw = (int)RAD2DEG(atan2(value1[1], value1[0]));
-        else if (value1[1] > 0)
-            yaw = 90;
-        else
-            yaw = -90;
-        if (yaw < 0)
-            yaw += 360;
-
-        forward = sqrtf(value1[0] * value1[0] + value1[1] * value1[1]);
-        pitch = (int)RAD2DEG(atan2(value1[2], forward));
-        if (pitch < 0)
-            pitch += 360;
-    }
-
-    angles[PITCH] = -pitch;
-    angles[YAW] = yaw;
-    angles[ROLL] = 0;
-}
-
 char *G_CopyString(char *in)
 {
     char    *out;
@@ -333,7 +280,7 @@ void G_InitEdict(edict_t *e)
 
 /*
 =================
-G_Spawn
+G_AllocateEdict
 
 Either finds a free edict, or allocates a new one.
 Try to avoid reusing an entity that was recently freed, because it
@@ -342,7 +289,7 @@ instead of being removed and recreated, which can cause interpolated
 angles and bad trails.
 =================
 */
-edict_t *G_Spawn(void)
+edict_t *G_AllocateEdict(void)
 {
     int         i;
     edict_t     *e;
@@ -358,7 +305,7 @@ edict_t *G_Spawn(void)
     }
 
     if (i == game.maxentities)
-        gi.error("ED_Alloc: no free edicts");
+        gi.error("G_AllocateEdict: no free edicts");
 
     globals.num_edicts++;
     G_InitEdict(e);
@@ -377,14 +324,19 @@ void G_FreeEdict(edict_t *ed)
     gi.unlinkentity(ed);        // unlink from world
 
     if ((ed - g_edicts) <= (maxclients->value + BODY_QUEUE_SIZE)) {
-//      gi.dprintf("tried to free special edict\n");
+        #ifdef _DEBUG
+            gi.dprintf("tried to free special edict(#%d) within special edict range(%d)\n", ed - g_edicts, maxclients->value + BODY_QUEUE_SIZE );
+        #endif
         return;
     }
 
-    memset(ed, 0, sizeof(*ed));
+    int32_t id = ed->spawn_count + 1;
+    memset( ed, 0, sizeof( *ed ) );
+    ed->s.number = ed - g_edicts;
     ed->classname = "freed";
     ed->freetime = level.time;
     ed->inuse = false;
+    ed->spawn_count = id;
 }
 
 
@@ -449,7 +401,50 @@ void    G_TouchSolids(edict_t *ent)
 }
 
 
+// [Paril-KEX] scan for projectiles between our movement positions
+// to see if we need to collide against them
+void G_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
+    struct skipped_projectile {
+        edict_t *projectile;
+        int32_t spawn_count;
+    };
+    // a bit ugly, but we'll store projectiles we are ignoring here.
+    static std::vector<skipped_projectile> skipped;
 
+    while ( true ) {
+        trace_t tr = gi.trace( &previous_origin.x, ent->mins, ent->maxs, ent->s.origin, ent, static_cast<contents_t>( ent->clipmask | CONTENTS_PROJECTILE ) );
+
+        if ( tr.fraction == 1.0f ) {
+            break;
+        }
+        else if ( !( tr.ent->svflags & SVF_PROJECTILE ) ) {
+            break;
+        }
+
+        // always skip this projectile since certain conditions may cause the projectile
+        // to not disappear immediately
+        tr.ent->svflags &= ~SVF_PROJECTILE;
+        skipped.push_back( { tr.ent, tr.ent->spawn_count } );
+
+        // Q2RE: if we're both players and it's coop, allow the projectile to "pass" through
+        // However, we got no methods like them, but we do have an optional check for no friendly fire.
+        if ( ent->client && tr.ent->owner && tr.ent->owner->client 
+            && OnSameTeam( ent, tr.ent->owner ) && !( dmflags->integer & DF_NO_FRIENDLY_FIRE ) ) {
+            continue;
+        }
+
+        // Call impact(touch) triggers.
+        SV_Impact( ent, &tr );
+    }
+
+    for ( auto &skip : skipped ) {
+        if ( skip.projectile->inuse && skip.projectile->spawn_count == skip.spawn_count ) {
+            skip.projectile->svflags |= SVF_PROJECTILE;
+        }
+    }
+
+    skipped.clear();
+}
 
 /*
 ==============================================================================
@@ -467,21 +462,44 @@ Kills all entities that would touch the proposed new positioning
 of ent.  Ent should be unlinked before calling this!
 =================
 */
-bool KillBox(edict_t *ent)
-{
-    trace_t     tr;
+const bool KillBox(edict_t *ent, const bool bspClipping ) {
+    // don't telefrag as spectator... or in noclip
+    if ( ent->movetype == MOVETYPE_NOCLIP ) {
+        return true;
+    }
 
-    while (1) {
-        tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, NULL, MASK_PLAYERSOLID);
-        if (!tr.ent)
-            break;
+    contents_t mask = static_cast<contents_t>( CONTENTS_MONSTER | CONTENTS_PLAYER );
+
+    //// [Paril-KEX] don't gib other players in coop if we're not colliding
+    //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
+    //    mask &= ~CONTENTS_PLAYER;
+    static edict_t *touchedEdicts[ MAX_EDICTS ];
+    int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
+    for ( int32_t i = 0; i < num; i++ ) {
+        edict_t *hit = touchedEdicts[ i ];
+
+        if ( hit == ent ) {
+            continue;
+        } else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP ) {
+            continue;
+        } else if ( hit->client && !( mask & CONTENTS_PLAYER ) ) {
+            continue;
+        }
+
+        if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
+            trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, G_GetClipMask( hit ) );
+
+            if ( clip.fraction == 1.0f ) {
+                continue;
+            }
+        }
 
         // nail it
-        T_Damage(tr.ent, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+        T_Damage(hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
 
-        // if we didn't kill it, fail
-        if (tr.ent->solid)
-            return false;
+        //// if we didn't kill it, fail
+        //if (tr.ent->solid)
+        //    return false;
     }
 
     return true;        // all clear

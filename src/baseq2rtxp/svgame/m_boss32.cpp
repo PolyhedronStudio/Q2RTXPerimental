@@ -518,7 +518,7 @@ void MakronHyperblaster(edict_t *self)
         VectorCopy(self->enemy->s.origin, vec);
         vec[2] += self->enemy->viewheight;
         VectorSubtract(vec, start, vec);
-        vectoangles(vec, vec);
+        QM_Vector3ToAngles(vec, vec);
         dir[0] = vec[0];
     } else {
         dir[0] = 0;
@@ -667,7 +667,7 @@ void makron_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     self->deadflag = DEAD_DEAD;
     self->takedamage = DAMAGE_YES;
 
-    tempent = G_Spawn();
+    tempent = G_AllocateEdict();
     VectorCopy(self->s.origin, tempent->s.origin);
     VectorCopy(self->s.angles, tempent->s.angles);
     tempent->s.origin[1] -= 84;
@@ -693,7 +693,7 @@ bool Makron_CheckAttack(edict_t *self)
         VectorCopy(self->enemy->s.origin, spot2);
         spot2[2] += self->enemy->viewheight;
 
-        tr = gi.trace(spot1, NULL, NULL, spot2, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA);
+        tr = gi.trace( spot1, NULL, NULL, spot2, self, static_cast<contents_t>( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA ) );
 
         // do we have a clear shot?
         if (tr.ent != self->enemy)
@@ -702,7 +702,7 @@ bool Makron_CheckAttack(edict_t *self)
 
     enemy_range = range(self, self->enemy);
     VectorSubtract(self->enemy->s.origin, self->s.origin, temp);
-    enemy_yaw = vectoyaw(temp);
+    enemy_yaw = QM_Vector3ToYaw(temp);
 
     self->ideal_yaw = enemy_yaw;
 
@@ -791,7 +791,7 @@ void SP_monster_makron(edict_t *self)
     MakronPrecache();
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/boss3/rider/tris.md2");
     VectorSet(self->mins, -30, -30, 0);
     VectorSet(self->maxs, 30, 30, 90);
@@ -840,7 +840,7 @@ void MakronSpawn(edict_t *self)
         return;
 
     VectorSubtract(player->s.origin, self->s.origin, vec);
-    self->s.angles[YAW] = vectoyaw(vec);
+    self->s.angles[YAW] = QM_Vector3ToYaw(vec);
     VectorNormalize(vec);
     VectorScale(vec, 400, self->velocity);
     self->velocity[2] = 200;
@@ -858,7 +858,7 @@ void MakronToss(edict_t *self)
 {
     edict_t *ent;
 
-    ent = G_Spawn();
+    ent = G_AllocateEdict();
     ent->nextthink = level.time + 0.8_sec;
     ent->think = MakronSpawn;
     ent->target = self->target;

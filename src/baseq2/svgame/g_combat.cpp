@@ -475,8 +475,9 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
         targ->health = targ->health - take;
 
         if (targ->health <= 0) {
-            if ((targ->svflags & SVF_MONSTER) || (client))
-                targ->flags |= FL_NO_KNOCKBACK;
+            if ( ( targ->svflags & SVF_MONSTER ) || ( client ) ) {
+                targ->flags = static_cast<ent_flags_t>( targ->flags | FL_NO_KNOCKBACK );
+            }
             Killed(targ, inflictor, attacker, take, point);
             return;
         }

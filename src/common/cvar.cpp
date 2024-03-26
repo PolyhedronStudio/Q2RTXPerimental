@@ -119,7 +119,7 @@ int Cvar_VariableInteger(const char *var_name)
 Cvar_VariableString
 ============
 */
-char *Cvar_VariableString(const char *var_name)
+const char *Cvar_VariableString(const char *var_name)
 {
 	static char* nullstr = {};
     cvar_t *var;
@@ -763,7 +763,7 @@ with the archive flag set to true.
 void Cvar_WriteVariables(qhandle_t f, int mask, bool modified)
 {
     cvar_t  *var;
-    const char    *s, *a; // WID: C++20: Added const.
+    const char  *s, *a;
 
     for (var = cvar_vars; var; var = var->next) {
         if (var->flags & CVAR_NOARCHIVEMASK)

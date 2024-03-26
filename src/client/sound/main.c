@@ -32,11 +32,11 @@ sndstarted_t    s_started;
 bool            s_active;
 sndapi_t        s_api;
 
-vec3_t      listener_origin;
-vec3_t      listener_forward;
-vec3_t      listener_right;
-vec3_t      listener_up;
-int         listener_entnum;
+//vec3_t      listener_origin;
+//vec3_t      listener_forward;
+//vec3_t      listener_right;
+//vec3_t      listener_up;
+//int         listener_entnum;
 
 bool        s_registering;
 
@@ -421,7 +421,7 @@ S_RegisterSexedSound
 static sfx_t *S_RegisterSexedSound(int entnum, const char *base)
 {
     sfx_t           *sfx;
-    char            *model;
+    const char      *model;
     char            buffer[MAX_QPATH];
 
     // determine what model the client is using
@@ -553,7 +553,7 @@ channel_t *S_PickChannel(int entnum, int entchannel)
         }
 
         // don't let monster sounds override player sounds
-        if (ch->entnum == listener_entnum && entnum != listener_entnum && ch->sfx)
+        if (ch->entnum == cl.listener_spatialize.entnum && entnum != cl.listener_spatialize.entnum && ch->sfx)
             continue;
 
         if (ch->end - s_paintedtime < life_left) {
@@ -660,18 +660,12 @@ void S_IssuePlaysound(playsound_t *ps)
 // =======================================================================
 // Start a sound effect
 // =======================================================================
-
-/*
-====================
-S_StartSound
-
-Validates the parms and ques the sound up
-if pos is NULL, the sound will be dynamically sourced from the entity
-Entchannel 0 will never override a playing sound
-====================
-*/
-void S_StartSound(const vec3_t origin, int entnum, int entchannel, qhandle_t hSfx, float vol, float attenuation, float timeofs)
-{
+/**
+*   @brief  Validates the parms and ques the sound up
+*           if pos is NULL, the sound will be dynamically sourced from the entity
+*           Entchannel 0 will never override a playing sound
+**/
+void S_StartSound(const vec3_t origin, const int32_t entnum, const int32_t entchannel, const qhandle_t hSfx, const float vol, const float attenuation, const float timeofs) {
     sfxcache_t  *sc;
     playsound_t *ps, *sort;
     sfx_t       *sfx;
@@ -723,19 +717,20 @@ void S_StartSound(const vec3_t origin, int entnum, int entchannel, qhandle_t hSf
 
 void S_ParseStartSound(void)
 {
-    qhandle_t handle = cl.sound_precache[snd.index];
+    qhandle_t handle = cl.sound_precache[ cl.snd.index ];
 
-    if (!handle)
+    if ( !handle )
         return;
 
 #if USE_DEBUG
-    if (developer->integer && !(snd.flags & SND_POS))
-        CL_CheckEntityPresent(snd.entity, "sound");
+    if ( developer->integer && !( cl.snd.flags & SND_POS ) ) {
+        CL_CheckEntityPresent( cl.snd.entity, "sound" );
+    }
 #endif
 
-    S_StartSound((snd.flags & SND_POS) ? snd.pos : NULL,
-                 snd.entity, snd.channel, handle,
-                 snd.volume, snd.attenuation, snd.timeofs);
+    S_StartSound( ( cl.snd.flags & SND_POS ) ? cl.snd.pos : NULL,
+        cl.snd.entity, cl.snd.channel, handle,
+        cl.snd.volume, cl.snd.attenuation, cl.snd.timeofs );
 }
 
 /*
@@ -747,7 +742,7 @@ void S_StartLocalSound(const char *sound)
 {
     if (s_started) {
         qhandle_t sfx = S_RegisterSound(sound);
-        S_StartSound(NULL, listener_entnum, 0, sfx, 1, ATTN_NONE, 0);
+        S_StartSound(NULL, cl.listener_spatialize.entnum, 0, sfx, 1, ATTN_NONE, 0);
     }
 }
 
@@ -755,7 +750,7 @@ void S_StartLocalSoundOnce(const char *sound)
 {
     if (s_started) {
         qhandle_t sfx = S_RegisterSound(sound);
-        S_StartSound(NULL, listener_entnum, 256, sfx, 1, ATTN_NONE, 0);
+        S_StartSound(NULL, cl.listener_spatialize.entnum, 256, sfx, 1, ATTN_NONE, 0);
     }
 }
 
@@ -807,12 +802,22 @@ void S_BuildSoundList(int *sounds)
         ent = &cl.entityStates[num];
         if (s_ambient->integer == 2 && !ent->modelindex) {
             sounds[i] = 0;
-        } else if (s_ambient->integer == 3 && ent->number != listener_entnum) {
+        } else if (s_ambient->integer == 3 && ent->number != cl.listener_spatialize.entnum) {
             sounds[i] = 0;
         } else {
             sounds[i] = ent->sound;
         }
     }
+}
+
+// =======================================================================
+// Update Spatial Listener Positioning
+// =======================================================================
+void S_SetupSpatialListener( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp ) {
+    VectorCopy( viewOrigin, cl.listener_spatialize.origin );
+    VectorCopy( vForward, cl.listener_spatialize.v_forward );
+    VectorCopy( vRight, cl.listener_spatialize.v_right );
+    VectorCopy( vUp, cl.listener_spatialize.v_up );
 }
 
 /*
@@ -843,10 +848,10 @@ void S_Update(void)
 
     // set listener entity number
     // other parameters should be already set up by CL_CalcViewValues
-    if (cls.state != ca_active || cl.clientNum == -1) {
-        listener_entnum = -1;
+    if (cls.state != ca_active) {
+        cl.listener_spatialize.entnum = -1;
     } else {
-        listener_entnum = cl.frame.clientNum + 1;
+        cl.listener_spatialize.entnum = cl.frame.clientNum + 1;
     }
 
     OGG_Update();

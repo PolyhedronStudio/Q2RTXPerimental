@@ -64,26 +64,46 @@ typedef struct {
 #define E(name) _F(F_EDICT, name)
 #define P(name, type) _FA(F_POINTER, name, type)
 #define FT(name) _F(F_FRAMETIME, name)
+#define I64A(name, size) _FA(F_INT64, name, size)
+#define I64(name) IA(name, 1)
 
 static const save_field_t entityfields[] = {
 #define _OFS FOFS
-    V(s.origin),
-    V(s.angles),
-    V(s.old_origin),
-    I(s.modelindex),
-    I(s.modelindex2),
-    I(s.modelindex3),
-    I(s.modelindex4),
-    I(s.frame),
-    I(s.skinnum),
-    I(s.effects),
-    I(s.renderfx),
-    I(s.solid),
-    I(s.sound),
-    I(s.event),
+    // [entity_state_s]:
+    I( s.number ),
+    //S( s.client ),
+    I( s.entityType ),
+    V( s.origin ),
+    V( s.angles ),
+    V( s.old_origin ),
+
+    I( s.solid ),
+    I( s.clipmask ),
+    I( s.ownerNumber ),
+
+    I( s.modelindex ),
+    I( s.modelindex2 ),
+    I( s.modelindex3 ),
+    I( s.modelindex4 ),
+
+    I( s.skinnum ),
+    I( s.effects ),
+    I( s.renderfx ),
+
+    I( s.frame ),
+    I( s.old_frame ),
+
+    I( s.sound ),
+    I( s.event ),
+
+    // TODO: Do we really need to save this? Perhaps.
+    // For spotlights.
+    V( s.rgb ),
+    F( s.intensity ),
+    F( s.angle_width ),
+    F( s.angle_falloff ),
 
     // [...]
-
     I(svflags),
     V(mins),
     V(maxs),
@@ -94,17 +114,20 @@ static const save_field_t entityfields[] = {
     I(clipmask),
     E(owner),
 
+    I(spawn_count),
     I(movetype),
     I(flags),
 
     L(model),
-    F(freetime),
+    I64(freetime), // WID: 64-bit-frame
 
     L(message),
     L(classname),
     I(spawnflags),
 
-    FT(timestamp),
+	I64( timestamp ), // WID: 64-bit-frame FT(timestamp),
+
+    F( angle ),
 
     L(target),
     L(targetname),
@@ -125,7 +148,7 @@ static const save_field_t entityfields[] = {
     V(velocity),
     V(avelocity),
     I(mass),
-    FT(air_finished_time),
+	I64( air_finished_time ), // WID: 64-bit-frame FT(air_finished_time), FT(air_finished_time),
     F(gravity),
 
     E(goalentity),
@@ -133,28 +156,30 @@ static const save_field_t entityfields[] = {
     F(yaw_speed),
     F(ideal_yaw),
 
-    FT(nextthink),
+    I64(nextthink),
+    P(postspawn, P_postspawn),
     P(prethink, P_prethink),
     P(think, P_think),
+    P(postthink, P_postthink),
     P(blocked, P_blocked),
     P(touch, P_touch),
     P(use, P_use),
     P(pain, P_pain),
     P(die, P_die),
 
-    FT(touch_debounce_time),
-    FT(pain_debounce_time),
-    FT(damage_debounce_time),
-    FT(fly_sound_debounce_time),
-    FT(last_move_time),
+	I64( touch_debounce_time ),		// WID: 64-bit-frame FT(touch_debounce_time),
+	I64( pain_debounce_time ),		// WID: 64-bit-frame FT(pain_debounce_time),
+	I64( damage_debounce_time ),	// WID: 64-bit-frame FT(damage_debounce_time),
+	I64( fly_sound_debounce_time ),	// WID: 64-bit-frame FT(fly_sound_debounce_time),
+	I64( last_move_time ),			// WID: 64-bit-frame FT(last_move_time),
 
     I(health),
     I(max_health),
     I(gib_health),
     I(deadflag),
-    F(show_hostile),
+    I64(show_hostile),
 
-    FT(powerarmor_time),
+    I64( powerarmor_time ), // WID: 64-bit-frame
 
     L(map),
 
@@ -163,6 +188,7 @@ static const save_field_t entityfields[] = {
     I(dmg),
     I(radius_dmg),
     F(dmg_radius),
+    F(light),
     I(sounds),
     I(count),
 
@@ -187,7 +213,7 @@ static const save_field_t entityfields[] = {
     F(delay),
     F(random),
 
-    FT(last_sound_time),
+	I64( last_sound_time ), // WID: 64-bit-frame  FT(last_sound_time),
 
     I(watertype),
     I(waterlevel),
@@ -198,6 +224,8 @@ static const save_field_t entityfields[] = {
     I(light_level),
 
     I(style),
+    L(customLightStyle),
+
 
     T(item),
 
@@ -229,7 +257,7 @@ static const save_field_t entityfields[] = {
     P(monsterinfo.currentmove, P_monsterinfo_currentmove),
 	P(monsterinfo.nextmove, P_monsterinfo_nextmove ),
     I(monsterinfo.aiflags),
-    I(monsterinfo.nextframe),
+    I64(monsterinfo.nextframe), // WID: 64-bit-frame
     F(monsterinfo.scale),
 
     P(monsterinfo.stand, P_monsterinfo_stand),
@@ -243,17 +271,20 @@ static const save_field_t entityfields[] = {
     P(monsterinfo.sight, P_monsterinfo_sight),
     P(monsterinfo.checkattack, P_monsterinfo_checkattack),
 
-    FT(monsterinfo.pause_time),
-    FT(monsterinfo.attack_finished),
+    I64( monsterinfo.next_move_time ),
+	
+    I64( monsterinfo.pause_time ),// WID: 64-bit-frame FT(monsterinfo.pause_time),
+	I64( monsterinfo.attack_finished ),// WID: 64-bit-frame FT(monsterinfo.attack_finished),
+    I64( monsterinfo.fire_wait ),
 
-    V(monsterinfo.saved_goal),
-    FT(monsterinfo.search_time),
-    FT(monsterinfo.trail_time),
-    V(monsterinfo.last_sighting),
-    I(monsterinfo.attack_state),
-    I(monsterinfo.lefty),
-    FT(monsterinfo.idle_time),
-    I(monsterinfo.linkcount),
+	V( monsterinfo.saved_goal ),
+	I64( monsterinfo.search_time ),// WID: 64-bit-frame FT(monsterinfo.search_time),
+	I64( monsterinfo.trail_time ),// WID: 64-bit-frame FT(monsterinfo.trail_time),
+	V( monsterinfo.last_sighting ),
+	I( monsterinfo.attack_state ),
+	I( monsterinfo.lefty ),
+	I64( monsterinfo.idle_time ),// WID: 64-bit-frame FT(monsterinfo.idle_time),
+	I( monsterinfo.linkcount ),
 
     I(monsterinfo.power_armor_type),
     I(monsterinfo.power_armor_power),
@@ -265,167 +296,173 @@ static const save_field_t entityfields[] = {
 
 static const save_field_t levelfields[] = {
 #define _OFS LLOFS
-    I(framenum),
-    F(time),
+	I64( framenum ),
+	I64( time ), // WID: 64-bit-frame
 
-    SZ(level_name, MAX_QPATH),
-    SZ(mapname, MAX_QPATH),
-    SZ(nextmap, MAX_QPATH),
+	SZ( level_name, MAX_QPATH ),
+	SZ( mapname, MAX_QPATH ),
+	SZ( nextmap, MAX_QPATH ),
 
-    FT(intermission_framenum),
-    L(changemap),
-    I(exitintermission),
-    V(intermission_origin),
-    V(intermission_angle),
+	I64( intermission_framenum ),
+	L( changemap ),
+	I64( exitintermission ),
+	V( intermission_origin ),
+	V( intermission_angle ),
 
-    E(sight_client),
+	E( sight_client ),
 
-    E(sight_entity),
-    I(sight_entity_framenum),
-    E(sound_entity),
-    I(sound_entity_framenum),
-    E(sound2_entity),
-    I(sound2_entity_framenum),
+	E( sight_entity ),
+	I64( sight_entity_framenum ), // WID: 64-bit-frame
+	E( sound_entity ),
+	I64( sound_entity_framenum ), // WID: 64-bit-frame
+	E( sound2_entity ),
+	I64( sound2_entity_framenum ),// WID: 64-bit-frame
 
-    I(pic_health),
+	I( pic_health ),
 
-    I(total_secrets),
-    I(found_secrets),
+	I( total_secrets ),
+	I( found_secrets ),
 
-    I(total_goals),
-    I(found_goals),
+	I( total_goals ),
+	I( found_goals ),
 
-    I(total_monsters),
-    I(killed_monsters),
+	I( total_monsters ),
+	I( killed_monsters ),
 
-    I(body_que),
+	I( body_que ),
 
-    I(power_cubes),
+	I( power_cubes ),
 
 	// WID: C++20: Replaced {0}
-    {}
+	{}
 #undef _OFS
 };
 
 static const save_field_t clientfields[] = {
 #define _OFS CLOFS
-    I(ps.pmove.pm_type),
+	I( ps.pmove.pm_type ),
 
-    SA(ps.pmove.origin, 3),
-    SA(ps.pmove.velocity, 3),
-    B(ps.pmove.pm_flags),
-    B(ps.pmove.pm_time),
-    S(ps.pmove.gravity),
-    SA(ps.pmove.delta_angles, 3),
+	V( ps.pmove.origin ),
+	V( ps.pmove.velocity ),
+	S( ps.pmove.pm_flags ),
+	S( ps.pmove.pm_time ),
+	S( ps.pmove.gravity ),
+	V( ps.pmove.delta_angles ),
+    B( ps.pmove.viewheight ),
 
-    V(ps.viewangles),
-    V(ps.viewoffset),
-    V(ps.kick_angles),
+	V( ps.viewangles ),
+	V( ps.viewoffset ),
+	V( ps.kick_angles ),
 
-    V(ps.gunangles),
-    V(ps.gunoffset),
-    I(ps.gunindex),
-    I(ps.gunframe),
+	V( ps.gunangles ),
+	V( ps.gunoffset ),
+	I( ps.gunindex ),
+	I( ps.gunframe ),
+    
+    I( ps.gunrate ),
 
-    FA(ps.blend, 4),
+    //FA( ps.damage_blend, 4 ),
+	FA( ps.screen_blend, 4 ),
 
-    F(ps.fov),
+	F( ps.fov ),
 
-    I(ps.rdflags),
+	I( ps.rdflags ),
 
-    SA(ps.stats, MAX_STATS),
+	IA( ps.stats, MAX_STATS ),
 
-    SZ(pers.userinfo, MAX_INFO_STRING),
-    SZ(pers.netname, 16),
-    I(pers.hand),
+	SZ( pers.userinfo, MAX_INFO_STRING ),
+	SZ( pers.netname, 16 ),
+	I( pers.hand ),
 
-    O(pers.connected),
+    O( pers.connected ),
+    O( pers.spawned ),
 
-    I(pers.health),
-    I(pers.max_health),
-    I(pers.savedFlags),
+	I( pers.health ),
+	I( pers.max_health ),
+	I( pers.savedFlags ),
 
-    I(pers.selected_item),
-    IA(pers.inventory, MAX_ITEMS),
+	I( pers.selected_item ),
+	IA( pers.inventory, MAX_ITEMS ),
 
-    I(pers.max_bullets),
-    I(pers.max_shells),
-    I(pers.max_rockets),
-    I(pers.max_grenades),
-    I(pers.max_cells),
-    I(pers.max_slugs),
+	I( pers.max_bullets ),
+	I( pers.max_shells ),
+	I( pers.max_rockets ),
+	I( pers.max_grenades ),
+	I( pers.max_cells ),
+	I( pers.max_slugs ),
 
-    T(pers.weapon),
-    T(pers.lastweapon),
+	T( pers.weapon ),
+	T( pers.lastweapon ),
 
-    I(pers.power_cubes),
-    I(pers.score),
+	I( pers.power_cubes ),
+	I( pers.score ),
 
-    I(pers.game_helpchanged),
-    I(pers.helpchanged),
+	I( pers.game_helpchanged ),
+	I( pers.helpchanged ),
 
-    O(pers.spectator),
+	O( pers.spectator ),
 
-    O(showscores),
-    O(showinventory),
-    O(showhelp),
-    O(showhelpicon),
+	O( showscores ),
+	O( showinventory ),
+	O( showhelp ),
+	O( showhelpicon ),
 
-    I(ammo_index),
+	I( ammo_index ),
 
-    T(newweapon),
+	T( newweapon ),
 
-    I(damage_armor),
-    I(damage_parmor),
-    I(damage_blood),
-    I(damage_knockback),
-    V(damage_from),
+	I( damage_armor ),
+	I( damage_parmor ),
+	I( damage_blood ),
+	I( damage_knockback ),
+	V( damage_from ),
 
-    F(killer_yaw),
+	F( killer_yaw ),
 
-    I(weaponstate),
+	I( weaponstate ),
 
-    V(kick_angles),
-    V(kick_origin),
-    F(v_dmg_roll),
-    F(v_dmg_pitch),
-    F(v_dmg_time),
-    F(fall_time),
-    F(fall_value),
-    F(damage_alpha),
-    F(bonus_alpha),
-    V(damage_blend),
-    V(v_angle),
-    F(bobtime),
-    V(oldviewangles),
-    V(oldvelocity),
+	V( kick_angles ),
+	V( kick_origin ),
+	F( v_dmg_roll ),
+	F( v_dmg_pitch ),
+	F( v_dmg_time ),
+	I64( fall_time ), // WID: 64-bit-frame
+	F( fall_value ),
+	F( damage_alpha ),
+	F( bonus_alpha ),
+	V( damage_blend ),
+	V( v_angle ),
+	F( bobtime ),
+	V( oldviewangles ),
+	V( oldvelocity ),
+    E( oldgroundentity ),
 
-    FT(next_drown_time),
-    I(old_waterlevel),
-    I(breather_sound),
+	FT( next_drown_time ),
+	I( old_waterlevel ),
+	I( breather_sound ),
 
-    I(machinegun_shots),
+	I( machinegun_shots ),
 
-    I(anim_end),
-    I(anim_priority),
-    O(anim_duck),
-    O(anim_run),
+	I( anim_end ),
+	I( anim_priority ),
+	O( anim_duck ),
+	O( anim_run ),
 
-    // powerup timers
-    FT(quad_time),
-    FT(invincible_time),
-    FT(breather_time),
-    FT(enviro_time),
+	// powerup timers
+	I64( quad_time ), // WID: 64-bit-frame
+	I64( invincible_time ), // WID: 64-bit-frame
+	I64( breather_time ), // WID: 64-bit-frame
+	I64( enviro_time ), // WID: 64-bit-frame
 
-    O(grenade_blew_up),
-    FT(grenade_time),
-    I(silencer_shots),
-    I(weapon_sound),
+	O( grenade_blew_up ),
+	I64( grenade_time ), // WID: 64-bit-frame
+	I( silencer_shots ),
+	I( weapon_sound ),
 
-    FT(pickup_msg_time),
+	I64( pickup_msg_time ), // WID: 64-bit-frame
 
 	// WID: C++20: Replaced {0}
-    {}
+	{}
 #undef _OFS
 };
 
@@ -1020,8 +1057,7 @@ ReadLevel
 SpawnEntities will allready have been called on the
 level the same way it was when the level was saved.
 
-That is necessary to get the baselines
-set up identically.
+That is necessary to get the baselines set up identically.
 
 The server will have cleared all of the world links before
 calling ReadLevel.
@@ -1094,10 +1130,11 @@ void ReadLevel(const char *filename)
     gzclose(f);
 
     // mark all clients as unconnected
-    for (i = 0 ; i < maxclients->value ; i++) {
-        ent = &g_edicts[i + 1];
+    for ( i = 0; i < maxclients->value; i++ ) {
+        ent = &g_edicts[ i + 1 ];
         ent->client = game.clients + i;
         ent->client->pers.connected = false;
+        ent->client->pers.spawned = false;
     }
 
     // do any load time things at this point

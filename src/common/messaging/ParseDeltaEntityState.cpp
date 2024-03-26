@@ -64,20 +64,26 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		Com_Error( ERR_DROP, "%s: bad entity number: %d", __func__, number );
 	}
 
-	// set everything to the state we are delta'ing from
+	// Set everything to the state we are delta'ing from.
 	if ( !from ) {
 		memset( to, 0, sizeof( *to ) );
 	} else if ( to != from ) {
 		memcpy( to, from, sizeof( *to ) );
 	}
 
+	// Ensure its number is set.
 	to->number = number;
+	// Always reset the event to begin with.
 	to->event = 0;
 
+	// Don't proceed reading if no other bits were present.
 	if ( !bits ) {
 		return;
 	}
 
+	//if ( bits & U_CLIENT ) {
+	//	to->client = MSG_ReadInt16();
+	//}
 	if ( bits & U_ORIGIN1 ) {
 		to->origin[ 0 ] = MSG_ReadFloat( );// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement 
 	}
@@ -89,13 +95,13 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 
 	if ( bits & U_ANGLE1 ) {
-		to->angles[ 0 ] = MSG_ReadAngle16( );
+		to->angles[ 0 ] = MSG_ReadHalfFloat( );
 	}
 	if ( bits & U_ANGLE2 ) {
-		to->angles[ 1 ] = MSG_ReadAngle16( );
+		to->angles[ 1 ] = MSG_ReadHalfFloat( );
 	}
 	if ( bits & U_ANGLE3 ) {
-		to->angles[ 2 ] = MSG_ReadAngle16( );
+		to->angles[ 2 ] = MSG_ReadHalfFloat( );
 	}
 
 	if ( bits & U_OLDORIGIN ) {
@@ -120,6 +126,10 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	if ( bits & U_FRAME ) {
 		to->frame = MSG_ReadUintBase128( );
 	}
+	if ( bits & U_OLD_FRAME ) {
+		to->old_frame = MSG_ReadUintBase128();
+	}
+
 	if ( bits & U_SKIN ) {
 		to->skinnum = MSG_ReadUintBase128( );
 	}
@@ -140,7 +150,19 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: ReadLong by default.
-		to->solid = MSG_ReadUintBase128( );
+		to->solid = static_cast<solid_t>( MSG_ReadUintBase128() );
+	}
+	if ( bits & U_BOUNDINGBOX ) {
+		to->bounds = static_cast<uint32_t>( MSG_ReadUintBase128() );
+	}
+	if ( bits & U_CLIPMASK ) {
+		to->clipmask = static_cast<contents_t>( MSG_ReadUintBase128( ) );
+	}
+	if ( bits & U_HULL_CONTENTS ) {
+		to->hullContents = static_cast<contents_t>( MSG_ReadUintBase128() );
+	}
+	if ( bits & U_OWNER ) {
+		to->ownerNumber = MSG_ReadUintBase128( );
 	}
 
 	// START ET_SPOTLIGHT:

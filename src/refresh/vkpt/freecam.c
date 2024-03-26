@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "vkpt.h"
-#include "../../client/client.h"
+#include "../../client/cl_client.h"
 
 /*
 The FreeCam system activates when the user pauses the game.
@@ -67,12 +67,10 @@ static void vkpt_freecam_mousemove(void)
 	float mx, my;
 	float speed;
 
-	const inputAPI_t* api = IN_GetAPI();
-
-	if (!api->GetMotion)
+	if (!vid.get_mouse_motion)
 		return;
 
-	if (!api->GetMotion(&dx, &dy))
+	if (!vid.get_mouse_motion(&dx, &dy))
 		return;
 
 	mx = dx;

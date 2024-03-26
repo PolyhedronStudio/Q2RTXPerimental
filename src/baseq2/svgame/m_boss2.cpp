@@ -531,7 +531,7 @@ bool Boss2_CheckAttack(edict_t *self)
         VectorCopy(self->enemy->s.origin, spot2);
         spot2[2] += self->enemy->viewheight;
 
-        tr = gi.trace(spot1, NULL, NULL, spot2, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA);
+        tr = gi.trace( spot1, NULL, NULL, spot2, self, static_cast<contents_t>( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA ) );
 
         // do we have a clear shot?
         if (tr.ent != self->enemy)
@@ -540,7 +540,7 @@ bool Boss2_CheckAttack(edict_t *self)
 
     enemy_range = range(self, self->enemy);
     VectorSubtract(self->enemy->s.origin, self->s.origin, temp);
-    enemy_yaw = vectoyaw(temp);
+    enemy_yaw = QM_Vector3ToYaw(temp);
 
     self->ideal_yaw = enemy_yaw;
 
@@ -612,7 +612,7 @@ void SP_monster_boss2(edict_t *self)
     self->s.sound = gi.soundindex("bosshovr/bhvengn1.wav");
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/boss2/tris.md2");
     VectorSet(self->mins, -56, -56, 0);
     VectorSet(self->maxs, 56, 56, 80);
@@ -621,7 +621,7 @@ void SP_monster_boss2(edict_t *self)
     self->gib_health = -200;
     self->mass = 1000;
 
-    self->flags |= FL_IMMUNE_LASER;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_IMMUNE_LASER );
 
     self->pain = boss2_pain;
     self->die = boss2_die;

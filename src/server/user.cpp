@@ -50,10 +50,9 @@ static void SV_CreateBaselines(void)
     // clear baselines from previous level
     for (i = 0; i < SV_BASELINES_CHUNKS; i++) {
         base = sv_client->baselines[i];
-        if (!base) {
-            continue;
+        if (base) {
+            memset( base, 0, sizeof( *base ) * SV_BASELINES_PER_CHUNK );
         }
-        memset(base, 0, sizeof(*base) * SV_BASELINES_PER_CHUNK);
     }
 
     for (i = 1; i < sv_client->pool->num_edicts; i++) {
@@ -75,12 +74,12 @@ static void SV_CreateBaselines(void)
         }
 
         base = *chunk + (i & SV_BASELINES_MASK);
-        MSG_PackEntity(base, &ent->s, Q2PRO_SHORTANGLES(sv_client, i));
+        MSG_PackEntity( base, &ent->s );
 
 		// WID: netstuff: This is actually where we should be assigning stuff to our internal local server entities.
 		// WID: netstuff: longsolid
 		//if (sv_client->esFlags & MSG_ES_LONGSOLID) {
-            base->solid.u = sv.entities[i].solid32;
+            base->solid = static_cast<solid_t>( sv.entities[i].solid32 );
         //}
     }
 }
@@ -98,11 +97,11 @@ static bool maybe_flush_msg(size_t size)
 static void write_baseline( entity_packed_t *base ) {
 	msgEsFlags_t flags = static_cast<msgEsFlags_t>( sv_client->esFlags | MSG_ES_FORCE ); // WID: C++20: Added cast.
 
-  if (Q2PRO_SHORTANGLES(sv_client, base->number)) {
-		//// WID: C++20:
-        //flags |= MSG_ES_SHORTANGLES;
-		flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
-    }
+    //if (Q2PRO_SHORTANGLES(sv_client, base->number)) {
+    ////// WID: C++20:
+    ////flags |= MSG_ES_SHORTANGLES;
+    //    flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
+    //}
 
 	MSG_WriteDeltaEntity( NULL, base, flags );
 }
@@ -195,8 +194,6 @@ static void write_baseline_stream( void ) {
 			if ( !base->number ) {
 				continue;
 			}
-
-			static constexpr int32_t MAX_PACKETENTITY_BYTES = 64;
 
 			// check if this baseline will overflow
 			if ( msg_write.cursize + MAX_PACKETENTITY_BYTES > msg_write.maxsize ) {
@@ -319,7 +316,7 @@ void SV_New_f(void)
     MSG_WriteInt32(sv_client->protocol);
     MSG_WriteInt32(sv_client->spawncount);
     MSG_WriteUint8(0);   // no attract loop
-	MSG_WriteUint8( ge->GetGamemodeID( ) );
+	MSG_WriteUint8( ge->GetActiveGamemodeID( ) );
 
     MSG_WriteString(sv_client->gamedir);
 
@@ -553,11 +550,11 @@ static void SV_BeginDownload_f(void)
     }
 
     maxdownloadsize = MAX_LOADFILE;
-#if 0
+//#if 0
     if (sv_max_download_size->integer) {
         maxdownloadsize = Cvar_ClampInteger(sv_max_download_size, 1, MAX_LOADFILE);
     }
-#endif
+//#endif
 
     if (downloadsize == 0) {
         Com_DPrintf("Refusing empty download of %s to %s\n", name, sv_client->name);
@@ -970,7 +967,7 @@ static inline void SV_ClientThink(usercmd_t *cmd)
     ge->ClientThink(sv_player, cmd);
 }
 
-static void SV_SetLastFrame(int lastframe)
+static void SV_SetLastFrame(int64_t lastframe)
 {
     client_frame_t *frame;
 
@@ -1006,8 +1003,8 @@ SV_ClientExecuteMove
 static void SV_ClientExecuteMove(void)
 {
     usercmd_t   oldest, oldcmd, newcmd;
-    int         lastframe;
-    int         net_drop;
+    int64_t     lastframe;
+	int64_t		net_drop;
 
     if (moveIssued) {
         SV_DropClient(sv_client, "multiple clc_move commands in packet");
@@ -1020,7 +1017,7 @@ static void SV_ClientExecuteMove(void)
         MSG_ReadUint8();    // skip over checksum
     }
 
-    lastframe = MSG_ReadInt32();
+    lastframe = MSG_ReadIntBase128();
 
     // read all cmds
 	MSG_ParseDeltaUserCommand(NULL, &oldest);
@@ -1067,10 +1064,10 @@ SV_NewClientExecuteMove
 static void SV_NewClientExecuteMove( int c ) {
 	usercmd_t   cmds[ MAX_PACKET_FRAMES ][ MAX_PACKET_USERCMDS ];
 	usercmd_t *lastcmd, *cmd;
-	int         lastframe;
-	int         numCmds[ MAX_PACKET_FRAMES ], numDups;
-	int         i, j;
-	int         net_drop;
+	int64_t     lastframe;
+	int64_t     numCmds[ MAX_PACKET_FRAMES ], numDups;
+	int64_t     i, j;
+	int64_t     net_drop;
 
 	if ( moveIssued ) {
 		SV_DropClient( sv_client, "multiple clc_move commands in packet" );
@@ -1081,12 +1078,11 @@ static void SV_NewClientExecuteMove( int c ) {
 
 	if ( c == clc_move_nodelta ) {
 		lastframe = -1;
-		numDups = MSG_ReadUint8( );
 	} else {
-		numDups = MSG_ReadUint8( );
-		lastframe = MSG_ReadInt32( );
+		lastframe = MSG_ReadIntBase128( );
 	}
 
+    numDups = MSG_ReadUint8();
 
 	if ( numDups >= MAX_PACKET_FRAMES ) {
 		SV_DropClient( sv_client, "too many frames in packet" );
@@ -1343,7 +1339,7 @@ The current net_message is parsed for the given client
 */
 void SV_ExecuteClientMessage(client_t *client)
 {
-    int c;
+    int32_t c = -1, last_cmd = -1;
 
     sv_client = client;
     sv_player = sv_client->edict;
@@ -1363,10 +1359,18 @@ void SV_ExecuteClientMessage(client_t *client)
         if (c == -1)
             break;
 
+        switch ( c ) {
+        case clc_move_nodelta:
+        case clc_move_batched:
+            SV_NewClientExecuteMove( c );
+            last_cmd = c;
+            goto nextcmd;
+        }
+
         switch (c) {
         default:
-badbyte:
-            SV_DropClient(client, "unknown command byte");
+//badbyte:
+            SV_DropClient(client, va( "unknown command byte, last was %i", last_cmd ) );
             break;
 
         case clc_nop:
@@ -1384,10 +1388,10 @@ badbyte:
             SV_ParseClientCommand();
             break;
 
-		case clc_move_nodelta:
-		case clc_move_batched:
-			SV_NewClientExecuteMove( c );
-			break;
+		//case clc_move_nodelta:
+		//case clc_move_batched:
+		//	SV_NewClientExecuteMove( c );
+		//	break;
         case clc_userinfo_delta:
             //if (client->protocol != PROTOCOL_VERSION_Q2PRO)
             //    goto badbyte;
@@ -1396,8 +1400,14 @@ badbyte:
             break;
         }
 
-        if (client->state <= cs_zombie)
-            break;    // disconnect command
+nextcmd:
+        // Break out, this happens by a disconnect command eventually leading to a cs_zombie state.
+        if ( client->state <= cs_zombie ) {
+            // Disconnect command.
+            break;
+        }
+
+        last_cmd = c;
     }
 
     sv_client = NULL;

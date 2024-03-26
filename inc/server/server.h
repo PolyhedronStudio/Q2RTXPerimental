@@ -41,7 +41,6 @@ typedef enum {
     ss_loading,         // spawning level edicts
     ss_game,            // actively running
     ss_pic,             // showing static picture
-    ss_broadcast,       // running MVD client
     ss_cinematic,       // playing a cinematic
 } server_state_t;
 
@@ -50,7 +49,7 @@ void SV_ErrorEvent(netadr_t *from, int ee_errno, int ee_info);
 #endif
 void SV_Init(void);
 void SV_Shutdown(const char *finalmsg, error_type_t type);
-unsigned SV_Frame(unsigned msec);
+uint64_t SV_Frame( uint64_t msec );
 #if USE_SYSCON
 void SV_SetConsoleTitle(void);
 #endif

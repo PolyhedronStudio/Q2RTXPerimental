@@ -23,9 +23,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "shared/shared.h"
 
+#include "common/async.h"
 #include "common/bsp.h"
 #include "common/cmd.h"
-#include "common/cmodel.h"
+#include "common/collisionmodel.h"
 #include "common/common.h"
 #include "common/cvar.h"
 #include "common/error.h"
@@ -68,6 +69,7 @@ static int      com_printEntered;
 
 static qhandle_t    com_logFile;
 static bool         com_logNewline;
+static bool         com_conNewline;
 
 static char     **com_argv;
 static int      com_argc;
@@ -89,6 +91,7 @@ cvar_t  *logfile_enable;    // 1 = create new, 2 = append to existing
 cvar_t  *logfile_flush;     // 1 = flush after each print
 cvar_t  *logfile_name;
 cvar_t  *logfile_prefix;
+cvar_t  *console_prefix;
 
 #if USE_CLIENT
 cvar_t  *cl_running;
@@ -116,11 +119,11 @@ cvar_t  *allow_download_others;
 cvar_t  *rcon_password;
 
 const char  com_version_string[] =
-    APPLICATION " " VERSION_STRING " " __DATE__ " " BUILDSTRING " " CPUSTRING;
+    APPLICATION " " VERSION_STRING " Build: " BUILDSTRING " " CPUSTRING " " __DATE__ " " __TIME__;
 
-unsigned    com_framenum;
-unsigned    com_eventTime;
-unsigned    com_localTime;
+uint64_t	com_framenum;
+uint64_t	com_eventTime;
+uint64_t	com_localTime;
 bool        com_initialized;
 time_t      com_startTime;
 
@@ -128,10 +131,12 @@ time_t      com_startTime;
 cvar_t  *host_speeds;
 
 // host_speeds times
-unsigned    time_before_game;
-unsigned    time_after_game;
-unsigned    time_before_ref;
-unsigned    time_after_ref;
+uint64_t    time_before_clgame;
+uint64_t    time_after_clgame;
+uint64_t	time_before_svgame;
+uint64_t	time_after_svgame;
+uint64_t	time_before_ref;
+uint64_t	time_after_ref;
 #endif
 
 /*
@@ -237,7 +242,7 @@ static void logfile_open(void)
     }
 
     com_logFile = f;
-    com_logNewline = true;
+    com_logNewline = false;
     Com_Printf("Logging console to %s\n", buffer);
 }
 
@@ -257,103 +262,90 @@ static void logfile_param_changed(cvar_t *self)
     }
 }
 
-size_t Com_FormatLocalTime(char *buffer, size_t size, const char *fmt)
+static size_t prefix_lines(char *buf, size_t size, const char *text, const char *prefix, bool *state)
 {
-    static struct tm cached_tm;
-    static time_t cached_time;
-    time_t now;
-    struct tm *tm;
-    size_t ret;
-
-    if (!size)
-        return 0;
-
-    now = time(NULL);
-    if (now == cached_time) {
-        // avoid calling localtime() too often since it is not that cheap
-        tm = &cached_tm;
-    } else {
-        tm = localtime(&now);
-        if (!tm)
-            goto fail;
-        cached_time = now;
-        cached_tm = *tm;
-    }
-
-    ret = strftime(buffer, size, fmt, tm);
-    if (ret)
-        return ret;
-fail:
-    buffer[0] = 0;
-    return 0;
-}
-
-static void logfile_write(print_type_t type, const char *s)
-{
-    char text[MAXPRINTMSG];
-    char buf[MAX_QPATH];
     char *p, *maxp;
-    size_t len;
-    int ret;
+    size_t len = strlen(prefix);
     int c;
 
-    if (logfile_prefix->string[0]) {
-        p = strchr(logfile_prefix->string, '@');
-        if (p) {
-            // expand it in place, hacky
-            switch (type) {
-            case PRINT_TALK:      *p = 'T'; break;
-            case PRINT_DEVELOPER: *p = 'D'; break;
-            case PRINT_WARNING:   *p = 'W'; break;
-            case PRINT_ERROR:     *p = 'E'; break;
-            case PRINT_NOTICE:    *p = 'N'; break;
-            default:              *p = 'A'; break;
-            }
-        }
-        len = Com_FormatLocalTime(buf, sizeof(buf), logfile_prefix->string);
-        if (p) {
-            *p = '@';
-        }
-    } else {
-        len = 0;
-    }
-
-    p = text;
-    maxp = text + sizeof(text) - 1;
-    while (*s) {
-        if (com_logNewline) {
-            if (len > 0 && p + len < maxp) {
-                memcpy(p, buf, len);
+    p = buf;
+    maxp = buf + size;
+    while (*text) {
+        if (!*state) {
+            if (len > 0 && len < maxp - p) {
+                memcpy(p, prefix, len);
                 p += len;
             }
-            com_logNewline = false;
+            *state = true;
         }
 
         if (p == maxp) {
             break;
         }
 
-        c = *s++;
+        c = *text++;
         if (c == '\n') {
-            com_logNewline = true;
+            *state = false;
         } else {
             c = Q_charascii(c);
         }
 
         *p++ = c;
     }
-    *p = 0;
 
-    len = p - text;
-    ret = FS_Write(text, len, com_logFile);
-    if (ret != len) {
-        // zero handle BEFORE doing anything else to avoid recursion
-        qhandle_t tmp = com_logFile;
-        com_logFile = 0;
-        FS_CloseFile(tmp);
-        Com_EPrintf("Couldn't write console log: %s\n", Q_ErrorString(ret));
-        Cvar_Set("logfile", "0");
+    return p - buf;
+}
+
+static void format_prefix(print_type_t type, char *prefix, size_t size)
+{
+    char *p;
+#ifndef _WIN32
+    if (!strncmp(prefix, "<?>", 3)) {
+        prefix[1] = "657435"[type];
     }
+#endif
+    if ((p = strchr(prefix, '@'))) {
+        *p = "ATDWEN"[type];
+    }
+    if (strchr(prefix, '%')) {
+        char tmp[MAX_QPATH];
+        Com_FormatLocalTime(tmp, sizeof(tmp), prefix);
+        Q_strlcpy(prefix, tmp, size);
+    }
+}
+
+static void logfile_write(print_type_t type, const char *text)
+{
+    char buf[MAXPRINTMSG];
+    char prefix[MAX_QPATH];
+
+    Q_strlcpy(prefix, logfile_prefix->string, sizeof(prefix));
+    format_prefix(type, prefix, sizeof(prefix));
+
+    size_t len = prefix_lines(buf, sizeof(buf), text, prefix, &com_logNewline);
+    int ret = FS_Write(buf, len, com_logFile);
+    if (ret == len) {
+        return;
+    }
+
+    // zero handle BEFORE doing anything else to avoid recursion
+    qhandle_t tmp = com_logFile;
+    com_logFile = 0;
+    FS_CloseFile(tmp);
+    Com_EPrintf("Couldn't write console log: %s\n", Q_ErrorString(ret));
+    Cvar_Set("logfile", "0");
+}
+
+static void console_write(print_type_t type, const char *text)
+{
+    char buf[MAXPRINTMSG];
+    char prefix[MAX_QPATH];
+
+    Q_strlcpy(prefix, console_prefix->string, sizeof(prefix));
+    format_prefix(type, prefix, sizeof(prefix));
+
+    size_t len = prefix_lines(buf, sizeof(buf), text, prefix, &com_conNewline);
+    Sys_ConsoleOutput(buf, len);
 }
 
 #ifndef _WIN32
@@ -438,6 +430,8 @@ void Com_LPrintf(print_type_t type, const char *fmt, ...)
         Com_Redirect(msg, len);
     } else {
         switch (type) {
+        case PRINT_ALL:
+            break;
         case PRINT_TALK:
             Com_SetColor(COLOR_ALT);
             break;
@@ -454,14 +448,14 @@ void Com_LPrintf(print_type_t type, const char *fmt, ...)
             Com_SetColor(COLOR_CYAN);
             break;
         default:
-            break;
+            Q_assert(!"bad type");
         }
 
         // graphical console
         Con_Print(msg);
 
         // debugging console
-        Sys_ConsoleOutput(msg);
+        console_write(type, msg);
 
 #ifdef _WIN32
 		OutputDebugStringA(msg);
@@ -621,6 +615,7 @@ void Com_Quit(const char *reason, error_type_t type)
     NET_Shutdown();
     logfile_close();
     FS_Shutdown();
+    Com_ShutdownAsyncWork();
 
     Sys_Quit();
     // doesn't get there
@@ -755,7 +750,7 @@ void Com_Color_g(genctx_t *ctx)
 {
     int color;
 
-    for (color = 0; color < 8; color++)
+    for (color = 0; color < COLOR_ALT; color++)
         Prompt_AddMatch(ctx, colorNames[color]);
 }
 #endif
@@ -902,6 +897,7 @@ void Qcommon_Init(int argc, char **argv)
     logfile_flush = Cvar_Get("logfile_flush", "1", 0);
     logfile_name = Cvar_Get("logfile_name", "console", 0);
     logfile_prefix = Cvar_Get("logfile_prefix", "[%Y-%m-%d %H:%M] ", 0);
+    console_prefix = Cvar_Get("console_prefix", "", 0);
 #if USE_CLIENT
     dedicated = Cvar_Get("dedicated", "0", CVAR_NOSET);
 	backdoor = Cvar_Get("backdoor", "0", CVAR_ARCHIVE);
@@ -973,13 +969,7 @@ void Qcommon_Init(int argc, char **argv)
     logfile_name->changed = logfile_param_changed;
     logfile_enable_changed(logfile_enable);
 
-    // execute configs: default.cfg and q2rtx.cfg may come from the packfile, but config.cfg
-    // and autoexec.cfg must be real files within the game directory
-	Com_AddConfigFile(COM_DEFAULT_CFG, 0);
-	Com_AddConfigFile(COM_Q2RTX_CFG, 0);
-    Com_AddConfigFile(COM_CONFIG_CFG, FS_TYPE_REAL | FS_PATH_GAME);
-    Com_AddConfigFile(COM_AUTOEXEC_CFG, FS_TYPE_REAL | FS_PATH_GAME);
-    Com_AddConfigFile(COM_POSTEXEC_CFG, FS_TYPE_REAL);
+    FS_AddConfigFiles(true);
 
     Com_AddEarlyCommands(true);
 
@@ -992,7 +982,7 @@ void Qcommon_Init(int argc, char **argv)
 
     // Print the engine version early so that it's definitely included in the console log.
     // The log file is opened during the execution of one of the config files above.
-    Com_LPrintf(PRINT_NOTICE, "\nEngine version: " APPLICATION " " LONG_VERSION_STRING ", built on " __DATE__ "\n\n");
+    Com_LPrintf(PRINT_NOTICE, "\nEngine version: " APPLICATION " " LONG_VERSION_STRING ", built on " __DATE__ " " __TIME__ "\n\n");
 
     Netchan_Init();
     NET_Init();
@@ -1001,13 +991,14 @@ void Qcommon_Init(int argc, char **argv)
     SV_Init();
     CL_Init();
     TST_Init();
-
+    
     Sys_RunConsole();
 
     // add + commands from command line
     if (!Com_AddLateCommands()) {
         // if the user didn't give any commands, run default action
-        const char *cmd = COM_DEDICATED ? "dedicated_start" : "client_start"; // WID: C++20: Added const.
+        //const char *cmd = COM_DEDICATED ? "dedicated_start" : "client_start"; // WID: C++20: Added const.
+        const char *cmd = COM_DEDICATED ? "dedicated_start" : "client_start";
 
         if ((cmd = Cmd_AliasCommand(cmd)) != NULL) {
             Cbuf_AddText(&cmd_buffer, cmd);
@@ -1052,16 +1043,18 @@ Qcommon_Frame
 void Qcommon_Frame(void)
 {
 #if USE_CLIENT
-    unsigned time_before, time_event, time_between, time_after;
-    unsigned clientrem;
+    uint64_t time_before, time_event, time_between, time_after;
+	uint64_t clientrem;
 #endif
-    unsigned oldtime, msec;
-    static unsigned remaining;
-    static float frac;
+	uint64_t oldtime, msec;
+    static uint64_t remaining;
+    static double frac;
 
     if (setjmp(com_abortframe)) {
         return;            // an ERR_DROP was thrown
     }
+
+    Com_CompleteAsyncWork();
 
 #if USE_CLIENT
     time_before = time_event = time_between = time_after = 0;
@@ -1095,7 +1088,8 @@ void Qcommon_Frame(void)
     }
 #endif
 
-    if (msec > 250) {
+	// WID: 64-bit-frame: Should we messabout with this?
+    if (msec > 75) { // Was: > 250
         Com_DPrintf("Hitch warning: %u msec frame time\n", msec);
         msec = BASE_FRAMETIME; // time was unreasonable,
         // host OS was hibernated or something
@@ -1139,18 +1133,18 @@ void Qcommon_Frame(void)
         time_after = Sys_Milliseconds();
 
     if (host_speeds->integer) {
-        int all, ev, sv, gm, cl, rf;
+        int64_t all, ev, sv, gm, cl, rf;
 
         all = time_after - time_before;
         ev = time_event - time_before;
         sv = time_between - time_event;
         cl = time_after - time_between;
-        gm = time_after_game - time_before_game;
+        gm = time_after_svgame - time_before_svgame;
         rf = time_after_ref - time_before_ref;
         sv -= gm;
         cl -= rf;
 
-        Com_Printf("all:%3i ev:%3i sv:%3i gm:%3i cl:%3i rf:%3i\n",
+        Com_Printf("all:%3" PRId64 " ev:%3" PRId64 " sv:%3" PRId64 " gm:%3" PRId64 " cl:%3" PRId64 " rf:%3" PRId64 "\n",
                    all, ev, sv, gm, cl, rf);
     }
 #endif

@@ -23,6 +23,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "shared/shared.h"
 #include "common/zone.h"
 #include "client/sound/dma.h"
+// Defined to prevent a warning C4005: 'M_PI': macro redefinition
+#define HAVE_M_PI
 #include "SDL.h"
 
 static void Filler(void *userdata, Uint8 *stream, int len)

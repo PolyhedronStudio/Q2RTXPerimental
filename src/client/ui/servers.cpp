@@ -70,12 +70,12 @@ typedef struct {
     menuList_t      players;
     void            *names[MAX_STATUS_SERVERS];
     char            *args;
-    unsigned        timestamp;
+    uint64_t        timestamp;
     int             pingstage;
     int             pingindex;
     int             pingtime;
     int             pingextra;
-    const char            *status_c; // WID: C++20: Added const.
+    const char      *status_c;
     char            status_r[32];
 } m_servers_t;
 
@@ -213,7 +213,8 @@ A server status response has been received, validated and parsed.
 void UI_StatusEvent(const serverStatus_t *status)
 {
     serverslot_t *slot;
-    const char *hostname, *host, *mod, *map, *maxclients; // WID: C++20: Added const.
+    const char *hostname;
+    const char *host, *mod, *map, *maxclients;
     unsigned timestamp, ping;
     const char *info = status->infostring;
     char key[MAX_INFO_STRING];
@@ -396,7 +397,8 @@ static menuSound_t CopyAddress(void)
 
     slot = static_cast<serverslot_t*>( m_servers.list.items[m_servers.list.curvalue] ); // WID: C++20: Added cast.
 
-    VID_SetClipboardData(slot->hostname);
+    if (vid.set_clipboard_data)
+        vid.set_clipboard_data(slot->hostname);
     return QMS_OUT;
 }
 
@@ -601,7 +603,7 @@ static void ParseMasterArgs(netadr_t *broadcast)
             if (len < 0)
                 continue;
             (*parse)(data, len, chunk);
-            Z_Free(data);
+            free(data);
 #else
             Com_Printf("Can't fetch '%s', no HTTP support compiled in.\n", s);
 #endif
@@ -894,7 +896,7 @@ static menuSound_t Change(menuCommon_t *self)
 
 static void SizeCompact(void)
 {
-    int w = uis.width - MLIST_SCROLLBAR_WIDTH;
+    int w = uis.width - ( ( 8 ) + ( 8 ) / 4 );
 
 //
 // server list
@@ -914,7 +916,7 @@ static void SizeCompact(void)
 //
     m_servers.players.generic.x         = 0;
     m_servers.players.generic.y         = uis.height / 2 + 1;
-    m_servers.players.generic.height    = uis.height / 2 - CHAR_HEIGHT - 2;
+    m_servers.players.generic.height    = (uis.height + 1) / 2 - CHAR_HEIGHT - 2;
 
     m_servers.players.columns[0].width  = 3 * CHAR_WIDTH + MLIST_PADDING;
     m_servers.players.columns[1].width  = 3 * CHAR_WIDTH + MLIST_PADDING;
@@ -945,7 +947,7 @@ static void SizeFull(void)
 //
     m_servers.info.generic.x            = 0;
     m_servers.info.generic.y            = uis.height / 2 + 1;
-    m_servers.info.generic.height       = uis.height / 2 - CHAR_HEIGHT - 2;
+    m_servers.info.generic.height       = (uis.height + 1) / 2 - CHAR_HEIGHT - 2;
 
     m_servers.info.columns[0].width     = w / 3;
     m_servers.info.columns[1].width     = w - w / 3;

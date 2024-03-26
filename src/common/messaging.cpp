@@ -292,13 +292,14 @@ void MSG_WriteIntBase128( const int64_t c ) {
 *   @brief Writes a full precision float. (Transfered over the wire as an int32_t).
 **/
 void MSG_WriteFloat( const float f ) {
-	union {
-		float f;
-		int32_t l;
-	} dat;
+	//union {
+	//	float f;
+	//	int32_t l;
+	//} dat;
 
-	dat.f = f;
-	MSG_WriteInt32( dat.l );
+	//dat.f = f;
+	//MSG_WriteInt32( dat.l );
+	MSG_WriteInt32( std::bit_cast<std::int32_t>( f ) );
 }
 /**
 *   @brief Writes a half float, lesser precision. (Transfered over the wire as an uint16_t)
@@ -437,16 +438,31 @@ const int32_t MSG_ReadInt32( void ) {
 	return c;
 }
 /**
-*   @return Signed 32 bit int.
+*   @return Signed 64 bit int.
 **/
 const int64_t MSG_ReadInt64( void ) {
 	byte *buf = MSG_ReadData( 8 );
-	int c;
+	int64_t c;
 
 	if ( !buf ) {
 		c = -1;
 	} else {
 		c = (int64_t)RL64( buf );
+	}
+
+	return c;
+}
+/**
+*   @return UnSigned 64 bit int.
+**/
+const uint64_t MSG_ReadUint64( void ) {
+	byte *buf = MSG_ReadData( 8 );
+	uint64_t c;
+
+	if ( !buf ) {
+		c = -1;
+	} else {
+		c = (uint64_t)RL64( buf );
 	}
 
 	return c;
@@ -483,16 +499,17 @@ const int64_t MSG_ReadIntBase128( ) {
 *   @return The full precision float.
 **/
 const float MSG_ReadFloat( ) {
-	union {
-		float f;
-		int32_t   l;
-	} dat;
+	//union {
+	//	float f;
+	//	int32_t   l;
+	//} dat;
 
-	dat.l = MSG_ReadInt32( );
-	if ( msg_read.readcount > msg_read.cursize) {
-		dat.f = -1;
-	}
-	return dat.f;
+	//dat.l = MSG_ReadInt32( );
+	//if ( msg_read.readcount > msg_read.cursize) {
+	//	dat.f = -1;
+	//}
+	//return dat.f;
+	return std::bit_cast<float>( MSG_ReadInt32() );
 }
 /**
 *   @return A half float, converted to float, keep in mind that half floats have less precision.
@@ -581,7 +598,7 @@ void MSG_ReadDir8( vec3_t dir ) {
 /**
 *	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
 **/
-void MSG_ReadPos( vec3_t pos, const bool decodeFromShort = false ) {
+void MSG_ReadPos( vec3_t pos, const qboolean decodeFromShort = false ) {
 	if ( decodeFromShort ) {
 		pos[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) );
 		pos[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) );
@@ -601,7 +618,6 @@ void MSG_ReadPos( vec3_t pos, const bool decodeFromShort = false ) {
 *
 *****************************************************************************/
 #if USE_DEBUG
-
 //#define SHOWBITS(x) Com_LPrintf(PRINT_DEVELOPER, x " ")
 static inline void SHOWBITS( const char *x ) {
 	Com_LPrintf( PRINT_DEVELOPER, "%s ", x );
@@ -651,7 +667,7 @@ void MSG_ShowDeltaPlayerstateBits( const uint64_t flags ) {
 	S( WEAPONINDEX, "gunindex" );
 	S( WEAPONFRAME, "gunframe" );
 	S( WEAPONRATE, "gunrate" );
-	S( BLEND, "blend" );
+	S( BLEND, "screen_blend" );
 	S( FOV, "fov" );
 	S( RDFLAGS, "rdflags" );
 	#undef S
@@ -702,7 +718,7 @@ const char *MSG_ServerCommandString( const int32_t cmd ) {
 				S( zpacket )
 				S( zdownload )
 				S( gamestate )
-				#undef S
+			#undef S
 	}
 }
 

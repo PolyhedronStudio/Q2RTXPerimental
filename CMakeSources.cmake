@@ -3,25 +3,68 @@
 #	Game: BaseQ2
 #
 #
-# BaseQ2 SharedGame
+# BaseQ2RTXP SharedGame
 SET(SRC_BASEQ2_SHAREDGAME
 	baseq2/sharedgame/sg_gamemode.cpp
 	baseq2/sharedgame/sg_pmove.cpp
+	baseq2/sharedgame/sg_pmove_slidemove.cpp
 )
 SET(HEADERS_BASEQ2_SHAREDGAME
+	baseq2/sharedgame/sg_cmd_messages.h
 	baseq2/sharedgame/sg_gamemode.h
+	baseq2/sharedgame/sg_local.h
 	baseq2/sharedgame/sg_pmove.h
+	baseq2/sharedgame/sg_pmove_slidemove.h
+	baseq2/sharedgame/sg_shared.h
 	baseq2/sharedgame/sg_time.h
 )
-#	BaseQ2 ClientGame
+#	BaseQ2RTXP ClientGame
 SET(SRC_BASEQ2_CLGAME
+	# SharedGame API Bindings
+	baseq2/sharedgame/game_bindings/sg_binding_clgame.cpp
+
+	# ClientGame
+	baseq2/clgame/clg_client.cpp
+	baseq2/clgame/clg_effects.cpp
+	baseq2/clgame/clg_entities.cpp
+	baseq2/clgame/clg_input.cpp
+	baseq2/clgame/clg_local_entities.cpp
+	baseq2/clgame/clg_gamemode.cpp
 	baseq2/clgame/clg_main.cpp
+	baseq2/clgame/clg_packet_entities.cpp
+	baseq2/clgame/clg_parse.cpp
+	baseq2/clgame/clg_precache.cpp
+	baseq2/clgame/clg_predict.cpp
+	baseq2/clgame/clg_temp_entities.cpp
+	baseq2/clgame/clg_screen.cpp
+	baseq2/clgame/clg_view.cpp
+
+	baseq2/clgame/effects/clg_fx_classic.cpp
+	baseq2/clgame/effects/clg_fx_dynamiclights.cpp
+	baseq2/clgame/effects/clg_fx_lightstyles.cpp
+	baseq2/clgame/effects/clg_fx_muzzleflash.cpp
+	baseq2/clgame/effects/clg_fx_muzzleflash2.cpp
+	baseq2/clgame/effects/clg_fx_particles.cpp
+	baseq2/clgame/effects/clg_fx_new.cpp
+	
+	baseq2/clgame/local_entities/clg_local_misc_entities.cpp
+
+	baseq2/clgame/temp_entities/clg_te_beams.cpp
+	baseq2/clgame/temp_entities/clg_te_explosions.cpp
+	baseq2/clgame/temp_entities/clg_te_lasers.cpp
+	baseq2/clgame/temp_entities/clg_te_railtrails.cpp
+	baseq2/clgame/temp_entities/clg_te_sustain.cpp
 )
 SET(HEADERS_BASEQ2_CLGAME
 	baseq2/clgame/clg_local.h
+	baseq2/clgame/local_entities/clg_local_entities.h
 )
-# BaseQ2 ServerGame
+# BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2_SVGAME
+	# SharedGame API Bindings
+	baseq2/sharedgame/game_bindings/sg_binding_svgame.cpp
+
+	# SererGame
 	baseq2/svgame/g_ai.cpp
 	baseq2/svgame/g_chase.cpp
 	baseq2/svgame/g_cmds.cpp
@@ -36,6 +79,7 @@ SET(SRC_BASEQ2_SVGAME
 	baseq2/svgame/g_ptrs.cpp
 	baseq2/svgame/g_save.cpp
 	baseq2/svgame/g_spawn.cpp
+	baseq2/svgame/g_spotlight.cpp
 	baseq2/svgame/g_svcmds.cpp
 	baseq2/svgame/g_target.cpp
 	baseq2/svgame/g_trigger.cpp
@@ -111,21 +155,77 @@ SET(HEADERS_BASEQ2_SVGAME
 SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_gamemode.cpp
 	baseq2rtxp/sharedgame/sg_pmove.cpp
+	baseq2rtxp/sharedgame/sg_pmove_slidemove.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SHAREDGAME
+	baseq2rtxp/sharedgame/sg_cmd_messages.h
 	baseq2rtxp/sharedgame/sg_gamemode.h
+	baseq2rtxp/sharedgame/sg_local.h
 	baseq2rtxp/sharedgame/sg_pmove.h
+	baseq2rtxp/sharedgame/sg_pmove_slidemove.h
+	baseq2rtxp/sharedgame/sg_shared.h
 	baseq2rtxp/sharedgame/sg_time.h
 )
 #	BaseQ2RTXP ClientGame
 SET(SRC_BASEQ2RTXP_CLGAME
+	# SharedGame API Bindings
+	baseq2rtxp/sharedgame/game_bindings/sg_binding_clgame.cpp
+
+	# ClientGame
+	baseq2rtxp/clgame/clg_client.cpp
+	baseq2rtxp/clgame/clg_effects.cpp
+	baseq2rtxp/clgame/clg_entities.cpp
+	baseq2rtxp/clgame/clg_input.cpp
+	baseq2rtxp/clgame/clg_local_entities.cpp
+	baseq2rtxp/clgame/clg_gamemode.cpp
 	baseq2rtxp/clgame/clg_main.cpp
+	baseq2rtxp/clgame/clg_packet_entities.cpp
+	baseq2rtxp/clgame/clg_parse.cpp
+	baseq2rtxp/clgame/clg_precache.cpp
+	baseq2rtxp/clgame/clg_predict.cpp
+	baseq2rtxp/clgame/clg_temp_entities.cpp
+	baseq2rtxp/clgame/clg_screen.cpp
+	baseq2rtxp/clgame/clg_view.cpp
+
+	baseq2rtxp/clgame/effects/clg_fx_classic.cpp
+	baseq2rtxp/clgame/effects/clg_fx_dynamiclights.cpp
+	baseq2rtxp/clgame/effects/clg_fx_lightstyles.cpp
+	baseq2rtxp/clgame/effects/clg_fx_muzzleflash.cpp
+	baseq2rtxp/clgame/effects/clg_fx_muzzleflash2.cpp
+	baseq2rtxp/clgame/effects/clg_fx_particles.cpp
+	baseq2rtxp/clgame/effects/clg_fx_new.cpp
+	
+	baseq2rtxp/clgame/local_entities/clg_local_misc_entities.cpp
+
+	baseq2rtxp/clgame/temp_entities/clg_te_beams.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_explosions.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_lasers.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_railtrails.cpp
+	baseq2rtxp/clgame/temp_entities/clg_te_sustain.cpp
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME
+	baseq2rtxp/clgame/clg_client.h
+	baseq2rtxp/clgame/clg_effects.h
+	baseq2rtxp/clgame/clg_entities.h
+	baseq2rtxp/clgame/clg_input.h
 	baseq2rtxp/clgame/clg_local.h
+	baseq2rtxp/clgame/clg_local_entities.h
+	baseq2rtxp/clgame/clg_packet_entities.h
+	baseq2rtxp/clgame/clg_parse.h
+	baseq2rtxp/clgame/clg_precache.h
+	baseq2rtxp/clgame/clg_predict.h
+	baseq2rtxp/clgame/clg_screen.h
+	baseq2rtxp/clgame/clg_temp_entities.h
+	baseq2rtxp/clgame/clg_view.h
+
+	baseq2rtxp/clgame/local_entities/clg_local_entity_classes.h
 )
 # BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2RTXP_SVGAME
+	# SharedGame API Bindings
+	baseq2rtxp/sharedgame/game_bindings/sg_binding_svgame.cpp
+
+	# SererGame
 	baseq2rtxp/svgame/g_ai.cpp
 	baseq2rtxp/svgame/g_chase.cpp
 	baseq2rtxp/svgame/g_cmds.cpp
@@ -226,15 +326,17 @@ SET(SRC_CLIENT
 	client/keys.cpp
 	client/locs.cpp
 	client/main.cpp
-	client/newfx.cpp
-#	client/null.cpp
+	#client/newfx.cpp
+	#client/null.cpp
 	client/parse.cpp
 	client/precache.cpp
 	client/predict.cpp
 	client/refresh.cpp
 	client/screen.cpp
-	client/tent.cpp
+	#client/tent.cpp
 	client/view.cpp
+	client/world.cpp
+	client/ui/_scoreboard.cpp
 	client/ui/demos.cpp
 	client/ui/menu.cpp
 	client/ui/playerconfig.cpp
@@ -256,7 +358,7 @@ SET(SRC_CLIENT_HTTP
 )
 
 SET(HEADERS_CLIENT
-	client/client.h
+	client/cl_client.h
 	client/ui/ui.h
 	client/sound/sound.h
 	client/sound/qal/dynamic.h
@@ -292,9 +394,17 @@ SET(HEADERS_SERVER
 #
 #
 SET(SRC_COMMON
+	common/async.c
 	common/bsp.cpp
 	common/cmd.cpp
-	common/cmodel.cpp
+	common/collisionmodel/cm_areaportals.cpp
+	common/collisionmodel/cm_boxleafs.cpp
+	common/collisionmodel/cm_entities.cpp
+	common/collisionmodel/cm_hull_boundingbox.cpp
+	common/collisionmodel/cm_hull_octagonbox.cpp
+	common/collisionmodel/cm_pointcontents.cpp
+	common/collisionmodel/cm_trace.cpp
+	common/collisionmodel.cpp
 	common/common.cpp
 	common/cvar.cpp
 	common/error.cpp
@@ -370,9 +480,33 @@ SET(HEADERS_GL
 # Shared
 #
 #
+SET(HEADERS_SHARED
+	#shared/clgame.h
+	#shared/config.h
+	#shared/config_cpp.h
+	#shared/endian.h
+	#shared/info_strings.h
+	#shared/util_list.h
+	#shared/platform.h
+	#shared/shared.h
+	#shared/shared_cpp.h
+	#shared/string_utilities.h
+	#inc/shared/svgame.h
+
+	#inc/shared/math/qray_math.h
+	#inc/shared/math/qray_matrix4x4.h
+	#inc/shared/math/qray_quaternion.h
+	#inc/shared/math/qray_utils.h
+	#inc/shared/math/qray_vector2.h
+	#inc/shared/math/qray_vector3.h
+	#inc/shared/math/qray_vector4.h
+)
 SET(SRC_SHARED
+	shared/info_strings.cpp
+	shared/math.cpp
 	shared/m_flash.c
 	shared/shared.cpp
+	shared/string_utilities.cpp
 )
 
 
@@ -388,7 +522,7 @@ SET(SRC_LINUX
 )
 SET(SRC_LINUX_CLIENT
 	unix/sound/sdl.c
-	unix/video.c
+	unix/video.cpp
 )
 
 
@@ -409,8 +543,8 @@ SET(SRC_WINDOWS_CLIENT
 	unix/video.cpp
 )
 SET(HEADERS_WINDOWS
-	windows/wgl.h
-	windows/glimp.h
+	#windows/wgl.h
+	#windows/glimp.h
 	windows/client.h
 	windows/threads/threads.h
 )

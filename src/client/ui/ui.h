@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 #include "common/cmd.h"
 #include "common/common.h"
 #include "common/cvar.h"
@@ -198,9 +198,10 @@ typedef struct menuSlider_s {
 #define MLF_HEADER      0x00000001
 #define MLF_SCROLLBAR   0x00000002
 #define MLF_COLOR       0x00000004
+#define MLF_COLUMN_SCROLLDIR_CHANGE 0x00000008
 
 typedef struct menuListColumn_s {
-    const char *name; // WID: C++20: Was without const
+    const char *name;
     int width;
     int uiFlags;
 } menuListColumn_t;
@@ -214,13 +215,15 @@ typedef struct menuList_s {
     int         mlFlags;
     int         extrasize;
 
-    int        prestep;
-    int        curvalue;
-    int        clickTime;
+    int         prestep;
+    int         curvalue;
+    unsigned    clickTime;
 
-    char    scratch[8];
-    int     scratchCount;
-    int     scratchTime;
+#if 0
+    char        scratch[8];
+    int         scratchCount;
+    unsigned    scratchTime;
+#endif
 
     int     drag_y;
 
@@ -293,7 +296,7 @@ void PlayerModel_Free(void);
 
 typedef struct uiStatic_s {
     bool initialized;
-    int realtime;
+    unsigned realtime;
     int width, height; // scaled
     float scale;
     int menuDepth;
@@ -373,6 +376,7 @@ void        Menu_Free(menuFrameWork_t *menu);
 void M_Menu_PlayerConfig(void);
 void M_Menu_Demos(void);
 void M_Menu_Servers(void);
+void M_Menu_Scoreboard( void );
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

@@ -30,7 +30,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
-#include "shared/list.h"
+#include "shared/util_list.h"
 #include "common/files.h"
 #include "common/zone.h"
 #include "common/error.h"
@@ -87,6 +87,7 @@ typedef struct image_s {
     unsigned        texnum; // gl texture binding
     float           sl, sh, tl, th;
 #endif
+    float           aspect;
 #if REF_VKPT
     byte            *pix_data; // todo: add miplevels
     pixelformat_t   pixel_format; // pixel format (only supported by VKPT renderer)

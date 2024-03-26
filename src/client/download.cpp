@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_download.c -- queue manager and UDP downloads
 //
 
-#include "client.h"
+#include "cl_client.h"
 #include "format/md2.h"
 #include "format/sp2.h"
 
@@ -54,15 +54,13 @@ int CL_QueueDownload(const char *path, dltype_t type)
     FOR_EACH_DLQ(q) {
         // avoid sending duplicate requests
         if (!FS_pathcmp(path, q->path)) {
-            Com_DPrintf("%s: %s [DUP]\n", __func__, path);
+            Com_DDPrintf("%s: %s [DUP]\n", __func__, path);
             return Q_ERR(EEXIST);
         }
     }
 
     len = strlen(path);
-    if (len >= MAX_QPATH) {
-        Com_Error(ERR_DROP, "%s: oversize quake path", __func__);
-    }
+    Q_assert(len < MAX_QPATH);
 
     q = static_cast<dlqueue_t*>( Z_Malloc(sizeof(*q) + len) ); // WID: C++20: Was without cast.
     memcpy(q->path, path, len + 1);
@@ -120,12 +118,9 @@ Mark the queue entry as done, decrementing pending count.
 */
 void CL_FinishDownload(dlqueue_t *q)
 {
-    if (q->state == DL_DONE) {
-        Com_Error(ERR_DROP, "%s: already done", __func__);
-    }
-    if (!cls.download.pending) {
-        Com_Error(ERR_DROP, "%s: bad pending count", __func__);
-    }
+    Q_assert(q);
+    Q_assert(q->state == DL_PENDING || q->state == DL_RUNNING);
+    Q_assert(cls.download.pending > 0);
 
     q->state = DL_DONE;
     cls.download.pending--;
@@ -245,9 +240,7 @@ static bool start_udp_download(dlqueue_t *q)
     int64_t ret;
 
     len = strlen(q->path);
-    if (len >= MAX_QPATH) {
-        Com_Error(ERR_DROP, "%s: oversize quake path", __func__);
-    }
+    Q_assert(len < MAX_QPATH);
 
     // download to a temp name, and only rename
     // to the real name when done, so if interrupted
@@ -267,7 +260,7 @@ static bool start_udp_download(dlqueue_t *q)
         cls.download.position = ret;
         // give the server an offset to start the download
         Com_DPrintf("[UDP] Resuming %s\n", q->path);
-#if USE_ZLIB == 1 w
+#if USE_ZLIB == 1
         //if (cls.serverProtocol == PROTOCOL_VERSION_R1Q2)
             CL_ClientCommand(va("download \"%s\" %d udp-zlib", q->path, (int)ret));
         //else
@@ -500,12 +493,11 @@ to prevent the server from uploading arbitrary files.
 bool CL_CheckDownloadExtension(const char *ext)
 {
     static const char allowed[][4] = {
-        "pcx", "wal", "wav", "md2", "sp2", "tga", "png",
-        "jpg", "bsp", "ent", "txt", "dm2", "loc", "md3"
+        "bsp", "dm2", "ent", "jpg", "loc", "md2", "md3", "ogg", "pcx", "png",
+        "sp2", "tga", "txt", "wal", "wav",
     };
-    int i;
 
-    for (i = 0; i < q_countof(allowed); i++)
+    for (int i = 0; i < q_countof(allowed); i++)
         if (!Q_stricmp(ext, allowed[i]))
             return true;
 
@@ -681,9 +673,9 @@ static void check_player(const char *name)
     len = Q_concat(fn, sizeof(fn), "players/", model, "/tris.md2");
     check_file_len(fn, len, DL_OTHER);
 
-    // weapon models
-    for (i = 0; i < cl.numWeaponModels; i++) {
-        len = Q_concat(fn, sizeof(fn), "players/", model, "/", cl.weaponModels[i]);
+    // view(-weapon) models
+    for (i = 0; i < clge->GetNumberOfViewModels(); i++) {
+        len = Q_concat(fn, sizeof(fn), "players/", model, "/", clge->GetViewModelFilename( i ) );
         check_file_len(fn, len, DL_OTHER);
     }
 
@@ -766,10 +758,12 @@ void CL_RequestNextDownload(void)
         if (allow_download_models->integer) {
             for (i = 2; i < MAX_MODELS; i++) {
                 name = cl.configstrings[CS_MODELS + i];
-                if (!name[0]) {
+                // Don't download the 'player model' index.
+                if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
                     break;
                 }
-                if (name[0] == '*' || name[0] == '#') {
+                // Skip if inlined bsp, view weapon model, or empty.
+                if ( name[ 0 ] == '*' || name[ 0 ] == '#' || name[ 0 ] == 0 ) {
                     continue;
                 }
                 check_file(name, DL_MODEL);
@@ -789,14 +783,31 @@ void CL_RequestNextDownload(void)
 
             for (i = 2; i < MAX_MODELS; i++) {
                 name = cl.configstrings[CS_MODELS + i];
-                if (!name[0]) {
+                if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
                     break;
                 }
-                if (name[0] == '*' || name[0] == '#') {
+                if ( name[ 0 ] == '*' || name[ 0 ] == '#' || name[ 0 ] == 0 ) {
                     continue;
                 }
                 check_skins(name);
             }
+
+            //// check skins for RF_CUSTOMSKIN
+            //if ( cl.csr.extended ) {
+            //    for ( i = 1; i < cl.csr.max_images; i++ ) {
+            //        name = cl.configstrings[ cl.csr.images + i ];
+            //        if ( !name[ 0 ] ) {
+            //            break;
+            //        }
+            //        if ( name[ 0 ] == '/' || name[ 0 ] == '\\' ) {
+            //            continue;
+            //        }
+            //        if ( !*COM_FileExtension( name ) || !strchr( name, '/' ) ) {
+            //            continue;
+            //        }
+            //        check_file( name, DL_OTHER );
+            //    }
+            //}
         }
 
         if (allow_download_sounds->integer) {
@@ -875,8 +886,8 @@ void CL_RequestNextDownload(void)
         CL_RegisterBspModels();
 
         if (allow_download_textures->integer) {
-            for (i = 0; i < cl.bsp->numtexinfo; i++) {
-                len = Q_concat(fn, sizeof(fn), "textures/", cl.bsp->texinfo[i].name, ".wal");
+            for (i = 0; i < cl.collisionModel.cache->numtexinfo; i++) {
+                len = Q_concat(fn, sizeof(fn), "textures/", cl.collisionModel.cache->texinfo[i].name, ".wal");
                 check_file_len(fn, len, DL_OTHER);
             }
         }
@@ -896,7 +907,7 @@ void CL_RequestNextDownload(void)
         break;
 
     default:
-        Com_Error(ERR_DROP, "%s: bad precache_check\n", __func__);
+        Q_assert(!"bad precache_check");
     }
 }
 

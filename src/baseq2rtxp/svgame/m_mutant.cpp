@@ -601,7 +601,7 @@ void SP_monster_mutant(edict_t *self)
     sound_thud = gi.soundindex("mutant/thud1.wav");
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/mutant/tris.md2");
     VectorSet(self->mins, -32, -32, -24);
     VectorSet(self->maxs, 32, 32, 48);

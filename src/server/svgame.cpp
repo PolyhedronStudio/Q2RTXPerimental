@@ -24,6 +24,9 @@ svgame_export_t    *ge;
 
 static void PF_configstring(int index, const char *val);
 
+static const int64_t PF_GetServerFrameNumber() {
+    return sv.framenum;
+}
 /*
 ================
 PF_FindIndex
@@ -95,7 +98,7 @@ static void PF_Unicast(edict_t *ent, bool reliable)
 		goto clear;
 	}
 
-	clientNum = NUM_FOR_EDICT( ent ) - 1;
+	clientNum = NUMBER_OF_EDICT( ent ) - 1;
 	if ( clientNum < 0 || clientNum >= sv_maxclients->integer ) {
 		Com_WPrintf( "%s to a non-client %d\n", __func__, clientNum );
 		goto clear;
@@ -202,19 +205,12 @@ static void PF_dprintf(const char *fmt, ...)
     char        msg[MAXPRINTMSG];
     va_list     argptr;
 
-#if USE_CLIENT
-    // detect YQ2 game lib by unique first two messages
-    if (!sv.gamedetecthack)
-        sv.gamedetecthack = 1 + !strcmp(fmt, "Game is starting up.\n");
-    else if (sv.gamedetecthack == 2)
-        sv.gamedetecthack = 3 + !strcmp(fmt, "Game is %s built on %s.\n");
-#endif
-
     va_start(argptr, fmt);
     Q_vsnprintf(msg, sizeof(msg), fmt, argptr);
     va_end(argptr);
 
-    Com_Printf("%s", msg);
+    Com_LPrintf( print_type_t::PRINT_DEVELOPER, "%s", msg );
+    //Com_Printf("%s", msg);
 }
 
 /*
@@ -247,7 +243,7 @@ static void PF_cprintf(edict_t *ent, int level, const char *fmt, ...)
         return;
     }
 
-    clientNum = NUM_FOR_EDICT(ent) - 1;
+    clientNum = NUMBER_OF_EDICT(ent) - 1;
     if (clientNum < 0 || clientNum >= sv_maxclients->integer) {
         Com_Error(ERR_DROP, "%s to a non-client %d", __func__, clientNum);
     }
@@ -288,7 +284,7 @@ static void PF_centerprintf(edict_t *ent, const char *fmt, ...)
         return;
     }
 
-    n = NUM_FOR_EDICT(ent);
+    n = NUMBER_OF_EDICT(ent);
     if (n < 1 || n > sv_maxclients->integer) {
         Com_WPrintf("%s to a non-client %d\n", __func__, n - 1);
         return;
@@ -346,37 +342,35 @@ static void PF_setmodel(edict_t *ent, const char *name)
 
 // if it is an inline model, get the size information for it
     if (name[0] == '*') {
-        mod = CM_InlineModel(&sv.cm, name);
+        mod = BSP_InlineModel( sv.cm.cache, name);
         VectorCopy(mod->mins, ent->mins);
         VectorCopy(mod->maxs, ent->maxs);
         PF_LinkEdict(ent);
     }
 }
 
-/*
-===============
-PF_configstring
-
-If game is actively running, broadcasts configstring change.
-Archived in MVD stream.
-===============
-*/
+/**
+*	@brief	If game is actively running, broadcasts configstring change.
+**/
 static void PF_configstring(int index, const char *val)
 {
 	size_t len, maxlen;
 	client_t *client;
 	char *dst;
 
-	if ( index < 0 || index >= MAX_CONFIGSTRINGS )
-		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, index );
+    if ( index < 0 || index >= MAX_CONFIGSTRINGS ) {
+        Com_Error( ERR_DROP, "%s: bad index: %d", __func__, index );
+    }
 
+    // Commented out so it can be used in the Game's PreInit function.
 	//if ( sv.state == ss_dead ) {
 	//	Com_WPrintf( "%s: not yet initialized\n", __func__ );
 	//	return;
 	//}
 
-	if ( !val )
-		val = "";
+    if ( !val ) {
+        val = "";
+    }
 
 	// error out entirely if it exceedes array bounds
 	len = strlen( val );
@@ -425,7 +419,21 @@ static void PF_configstring(int index, const char *val)
 	SZ_Clear( &msg_write );
 }
 
-static qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, int vis)
+/**
+*	@brief	Returns the given configstring that sits at index.
+**/
+static configstring_t *PF_GetConfigString( const int32_t configStringIndex ) {
+	if ( configStringIndex < 0 || configStringIndex > MAX_CONFIGSTRINGS ) {
+		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, configStringIndex );
+		return nullptr;
+	}
+	return &sv.configstrings[ configStringIndex ];
+}
+
+/**
+*   @return True if the points p1 to p2 are within the specified vis type.
+**/
+static const qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, const int32_t vis)
 {
     mleaf_t *leaf1, *leaf2;
     byte mask[VIS_MAX_BYTES];
@@ -448,56 +456,44 @@ static qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, int vis)
     return true;
 }
 
-/*
-=================
-PF_inPVS
-
-Also checks portalareas so that doors block sight
-=================
-*/
-static qboolean PF_inPVS(const vec3_t p1, const vec3_t p2)
+/**
+*   @brief  Also checks portalareas so that doors block sight
+**/
+static const qboolean PF_inPVS(const vec3_t p1, const vec3_t p2)
 {
     return PF_inVIS(p1, p2, DVIS_PVS);
 }
 
-/*
-=================
-PF_inPHS
-
-Also checks portalareas so that doors block sound
-=================
-*/
-static qboolean PF_inPHS(const vec3_t p1, const vec3_t p2)
+/**
+*   @brief  Also checks portalareas so that doors block sound
+**/
+static const qboolean PF_inPHS(const vec3_t p1, const vec3_t p2)
 {
     return PF_inVIS(p1, p2, DVIS_PHS);
 }
 
-/*
-==================
-SV_StartSound
-
-Each entity can have eight independant sound sources, like voice,
-weapon, feet, etc.
-
-If channel & 8, the sound will be sent to everyone, not just
-things in the PHS.
-
-FIXME: if entity isn't in PHS, they must be forced to be sent or
-have the origin explicitly sent.
-
-Channel 0 is an auto-allocate channel, the others override anything
-already running on that entity/channel pair.
-
-An attenuation of 0 will play full volume everywhere in the level.
-Larger attenuations will drop off.  (max 4 attenuation)
-
-Timeofs can range from 0.0 to 0.1 to cause sounds to be started
-later in the frame than they normally would.
-
-If origin is NULL, the origin is determined from the entity origin
-or the midpoint of the entity box for bmodels.
-==================
-*/
+/**
+*   @description    Each entity can have eight independant sound sources, like voice,
+*                   weapon, feet, etc.
+*
+*                   If channel & 8, the sound will be sent to everyone, not just
+*                   things in the PHS.
+*
+*                   FIXME: if entity isn't in PHS, they must be forced to be sent or
+*                   have the origin explicitly sent.
+*
+*                   Channel 0 is an auto-allocate channel, the others override anything
+*                   already running on that entity/channel pair.
+*
+*                   An attenuation of 0 will play full volume everywhere in the level.
+*                   Larger attenuations will drop off.  (max 4 attenuation)
+*
+*                   Timeofs can range from 0.0 to 0.1 to cause sounds to be started
+*                   later in the frame than they normally would.
+*
+*                   If origin is NULL, the origin is determined from the entity origin
+*                   or the midpoint of the entity box for bmodels.
+**/
 static void SV_StartSound(const vec3_t origin, edict_t *edict,
                           int channel, int soundindex, float volume,
                           float attenuation, float timeofs)
@@ -525,7 +521,7 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
 	att = min( attenuation * 64, 255 );   // need to clip due to check above
 	ofs = timeofs * 1000;
 
-	ent = NUM_FOR_EDICT( edict );
+	ent = NUMBER_OF_EDICT( edict );
 
 	sendchan = ( ent << 3 ) | ( channel & 7 );
 
@@ -678,15 +674,35 @@ static void PF_AddCommandString(const char *string)
     Cbuf_AddText(&cmd_buffer, string);
 }
 
-static void PF_SetAreaPortalState(int portalnum, qboolean open)
-{
+void SV_SendSetPortalBitMessage( const int32_t portalnum, const bool open ) {
+    // Wirte Set Portal Bit command.
+    MSG_WriteUint8( svc_set_portalbit );
+    // Send a portal number update message
+    MSG_WriteInt32( portalnum );
+    MSG_WriteUint8( open ? true : false );
+    // Multicast to all clients.
+    SV_Multicast( NULL, MULTICAST_ALL, CHAN_RELIABLE );
+    // Clear multicast buffer
+    SZ_Clear( &msg_write );
+}
+static void PF_SetAreaPortalState( const int32_t portalnum, const bool open) {
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
     }
+    // Set server side, collision model's area portal state.
     CM_SetAreaPortalState(&sv.cm, portalnum, open);
+    // Multicast a set portal bit notification to all connected clients.
+    SV_SendSetPortalBitMessage( portalnum, open );
 }
 
-static qboolean PF_AreasConnected(int area1, int area2)
+static const int32_t PF_GetAreaPortalState( const int32_t portalnum ) {
+    if ( !sv.cm.cache ) {
+        Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
+    }
+    return CM_GetAreaPortalState( &sv.cm, portalnum );
+}
+
+static const qboolean PF_AreasConnected(const int32_t area1, const int32_t area2)
 {
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
@@ -736,7 +752,7 @@ void SV_ShutdownGameProgs(void)
     }
     Cvar_Set("g_features", "0");
 
-    Z_LeakTest(TAG_FREE);
+    //Z_LeakTest(TAG_FREE);
 }
 
 static GameEntryFunctionPointer *_SV_LoadGameLibrary(const char *path)
@@ -779,9 +795,7 @@ SV_InitGameProgs
 Init the game subsystem for a new map
 ===============
 */
-void SV_InitGameProgs(void)
-{
-	
+void SV_InitGameProgs(void) {
     svgame_import_t   import;
 	GameEntryFunctionPointer *entry = NULL;
 
@@ -789,57 +803,63 @@ void SV_InitGameProgs(void)
     SV_ShutdownGameProgs();
 
     // for debugging or `proxy' mods
-    if (sys_forcesvgamelib->string[0])
-        entry = _SV_LoadGameLibrary(sys_forcesvgamelib->string); // WID: C++20: Added cast.
-
-    // try game first
-    if (!entry && fs_game->string[0]) {
-        entry = SV_LoadGameLibrary(fs_game->string, "q2pro_"); // WID: C++20: Added cast.
-        if (!entry)
-            entry = SV_LoadGameLibrary(fs_game->string, ""); // WID: C++20: Added cast.
+    if ( sys_forcesvgamelib->string[0] ) {
+        entry = _SV_LoadGameLibrary( sys_forcesvgamelib->string ); // WID: C++20: Added cast.
     }
-
+    // try game first ( DEFAULT_GAME unless cvar has been modified. )
+    if ( !entry && fs_game->string[0] ) {
+		entry = SV_LoadGameLibrary( fs_game->string, "" ); // WID: C++20: Added cast.
+    }
     // then try baseq2
-    if (!entry) {
-        entry = SV_LoadGameLibrary(BASEGAME, "q2pro_"); // WID: C++20: Added cast.
-        if (!entry)
-            entry = SV_LoadGameLibrary(BASEGAME, ""); // WID: C++20: Added cast.
+    if ( !entry ) {
+		entry = SV_LoadGameLibrary( BASEGAME, "" ); // WID: C++20: Added cast.
     }
 
-    // all paths failed
-    if (!entry)
-        Com_Error(ERR_DROP, "Failed to load game library");
+    // All paths failed.
+    if ( !entry ) {
+        Com_Error( ERR_DROP, "Failed to load game library" );
+        return;
+    }
 
 	// Setup import frametime related values so the GameDLL knows about it.
 	import.tick_rate = BASE_FRAMERATE;
 	import.frame_time_s = BASE_FRAMETIME_1000;
 	import.frame_time_ms = BASE_FRAMETIME;
 
+    import.GetServerFrameNumber = PF_GetServerFrameNumber;
+
     // load a new game dll
     import.multicast = PF_Multicast;
     import.unicast = PF_Unicast;
+
     import.bprintf = PF_bprintf;
     import.dprintf = PF_dprintf;
     import.cprintf = PF_cprintf;
     import.centerprintf = PF_centerprintf;
     import.error = PF_error;
 
+    import.CM_EntityKeyValue = CM_EntityKeyValue;
+    import.CM_GetNullEntity = CM_GetNullEntity;
+
     import.linkentity = PF_LinkEdict;
     import.unlinkentity = PF_UnlinkEdict;
+
     import.BoxEdicts = SV_AreaEdicts;
     import.trace = SV_Trace;
 	import.clip = SV_Clip;
     import.pointcontents = SV_PointContents;
     import.setmodel = PF_setmodel;
+
     import.inPVS = PF_inPVS;
     import.inPHS = PF_inPHS;
-    //import.Pmove = PF_Pmove;
 
     import.modelindex = PF_ModelIndex;
     import.soundindex = PF_SoundIndex;
     import.imageindex = PF_ImageIndex;
 
+	import.GetConfigString = PF_GetConfigString;
     import.configstring = PF_configstring;
+
     import.sound = PF_StartSound;
     import.positioned_sound = SV_StartSound;
 
@@ -874,6 +894,7 @@ void SV_InitGameProgs(void)
 
     import.DebugGraph = PF_DebugGraph;
     import.SetAreaPortalState = PF_SetAreaPortalState;
+    import.GetAreaPortalState = PF_GetAreaPortalState;
     import.AreasConnected = PF_AreasConnected;
 
     ge = entry(&import);

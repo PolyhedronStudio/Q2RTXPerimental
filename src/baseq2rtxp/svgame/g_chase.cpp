@@ -33,7 +33,7 @@ void UpdateChaseCam(edict_t *ent)
         ChaseNext(ent);
         if (ent->client->chase_target == old) {
             ent->client->chase_target = NULL;
-            ent->client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
+			ent->client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION ); // WID: pmove_new
             return;
         }
     }
@@ -88,7 +88,7 @@ void UpdateChaseCam(edict_t *ent)
 
     VectorCopy(goal, ent->s.origin);
     for (i = 0 ; i < 3 ; i++)
-        ent->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(targ->client->v_angle[i] - ent->client->resp.cmd_angles[i]);
+        ent->client->ps.pmove.delta_angles[i] = /*ANGLE2SHORT*/(targ->client->v_angle[i] - ent->client->resp.cmd_angles[i]);
 
     if (targ->deadflag) {
         ent->client->ps.viewangles[ROLL] = 40;
@@ -97,10 +97,11 @@ void UpdateChaseCam(edict_t *ent)
     } else {
         VectorCopy(targ->client->v_angle, ent->client->ps.viewangles);
         VectorCopy(targ->client->v_angle, ent->client->v_angle);
+        AngleVectors( ent->client->v_angle, ent->client->v_forward, nullptr, nullptr );
     }
 
     ent->viewheight = 0;
-    ent->client->ps.pmove.pm_flags |= PMF_NO_PREDICTION;
+    ent->client->ps.pmove.pm_flags |= ( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION ); // WID: pmove_new
     gi.linkentity(ent);
 }
 

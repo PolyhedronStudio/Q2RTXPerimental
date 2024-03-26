@@ -18,12 +18,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // server.h
 
 #include "shared/shared.h"
-#include "shared/list.h"
+#include "shared/util_list.h"
 #include "shared/svgame.h"
 
 #include "common/bsp.h"
 #include "common/cmd.h"
-#include "common/cmodel.h"
+#include "common/collisionmodel.h"
 #include "common/common.h"
 #include "common/cvar.h"
 #include "common/error.h"
@@ -87,15 +87,15 @@ extern "C" {
                      GMF_EXTRA_USERINFO | GMF_IPV6_ADDRESS_AWARE )
 
 typedef struct {
-    int         number;
-    int         num_entities;
-    unsigned    first_entity;
+    int64_t		number;
+	int32_t		num_entities;
+    uint32_t	first_entity;
     player_packed_t ps;
-    int         clientNum;
-    int         areabytes;
+    int32_t		clientNum;
+	int32_t		areabytes;
     byte        areabits[MAX_MAP_AREA_BYTES];	// portalarea visibility bits
-    unsigned    sentTime;						// for ping calculations
-    int         latency;
+    uint64_t	sentTime;						// for ping calculations
+    int64_t		latency;
 } client_frame_t;
 
 typedef struct {
@@ -110,14 +110,10 @@ typedef struct {
 
 typedef struct {
     server_state_t  state;      // precache commands are only valid during load
-    int             spawncount; // random number generated each server spawn
+    int64_t			spawncount; // random number generated each server spawn
 
-#if USE_CLIENT || USE_SERVER
-    int         gamedetecthack;
-#endif
-
-    int         framenum;
-    unsigned    frameresidual;
+    int64_t     framenum;
+    uint64_t    frameresidual;
 
     char        mapcmd[MAX_QPATH];          // ie: *intro.cin+base
 
@@ -129,12 +125,22 @@ typedef struct {
     server_entity_t entities[MAX_EDICTS];
 } server_t;
 
-#define EDICT_POOL(c, n) ((edict_t *)((byte *)(c)->pool->edicts + (c)->pool->edict_size*(n)))
+//! Access all over.
+extern svgame_export_t *ge;
 
-#define EDICT_NUM(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
-#define NUM_FOR_EDICT(e) ((int)(((byte *)(e) - (byte *)ge->edicts) / ge->edict_size))
+//! Returns a pointer to the edict matching the number.
+static inline edict_t *EDICT_FOR_NUMBER( const int32_t number ) {
+    //#define EDICT_FOR_NUMBER(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
+    return ( (edict_t *)( (byte *)ge->edicts + ge->edict_size * ( number ) ) );
+}
+//! Returns the number of the pointer entity.
+static inline const int32_t NUMBER_OF_EDICT( const edict_t *ent ) {
+    //#define EDICT_NUM(e) ((int)(((byte *)(e) - (byte *)ge->edicts) / ge->edict_size))
+    return ( (int32_t)( ( (byte *)(ent)-(byte *)ge->edicts ) / ge->edict_size ) );
+}
 
-#define MAX_TOTAL_ENT_LEAFS        128
+//! Maximum total entity leafs.
+//#define MAX_TOTAL_ENT_LEAFS        128
 
 // hack for smooth BSP model rotation
 //#define Q2PRO_SHORTANGLES(c, e) \
@@ -143,7 +149,7 @@ typedef struct {
 //     sv.state == ss_game && \
 //     EDICT_POOL(c, e)->solid == SOLID_BSP)
 // WID: Just use proper angles everywhere instead:
-#define Q2PRO_SHORTANGLES(c, e) true
+//#define Q2PRO_SHORTANGLES(c, e) true
 
 typedef enum {
     cs_free,        // can be reused for a new connection
@@ -202,10 +208,10 @@ typedef struct {
     cl->avg_ping_time / cl->avg_ping_count : cl->ping)
 
 typedef struct {
-    unsigned    time;
-    unsigned    credit;
-    unsigned    credit_cap;
-    unsigned    cost;
+    uint64_t    time;
+	uint64_t	credit;
+	uint64_t	credit_cap;
+	uint64_t	cost;
 } ratelimit_t;
 
 typedef struct {
@@ -220,7 +226,7 @@ typedef struct client_s {
 
     // core info
     clstate_t       state;
-    edict_t         *edict;     // EDICT_NUM(clientnum+1)
+    edict_t         *edict;     // EDICT_FOR_NUMBER(clientnum+1)
     int             number;     // client slot number
 
     // client flags
@@ -237,7 +243,7 @@ typedef struct client_s {
     char            userinfo[MAX_INFO_STRING];  // name, etc
     char            name[MAX_CLIENT_NAME];      // extracted from userinfo, high bits masked
     int             messagelevel;               // for filtering printed messages
-    unsigned        rate;
+	uint64_t		rate;
     ratelimit_t     ratelimit_namechange;       // for suppressing "foo changed name" flood
 
     // console var probes
@@ -247,30 +253,30 @@ typedef struct client_s {
     int             console_queries;
 
     // usercmd stuff
-    unsigned        lastmessage;    // svs.realtime when packet was last received
-    unsigned        lastactivity;   // svs.realtime when user activity was last seen
-    int             lastframe;      // for delta compression
+	uint64_t		lastmessage;    // svs.realtime when packet was last received
+	uint64_t		lastactivity;   // svs.realtime when user activity was last seen
+    int64_t			lastframe;      // for delta compression
     usercmd_t       lastcmd;        // for filling in big drops
     int             command_msec;   // every seconds this is reset, if user
                                     // commands exhaust it, assume time cheating
-    int             num_moves;      // reset every 10 seconds
-    int             moves_per_sec;  // average movement FPS
+    int64_t         num_moves;      // reset every 10 seconds
+    int64_t         moves_per_sec;  // average movement FPS
     int             cmd_msec_used;
-    float           timescale;
+    double          timescale;
 
-    int             ping, min_ping, max_ping;
-    int             avg_ping_time, avg_ping_count;
+    int64_t			ping, min_ping, max_ping;
+    int64_t			avg_ping_time, avg_ping_count;
 
     // frame encoding
     client_frame_t  frames[UPDATE_BACKUP];    // updates can be delta'd from here
-    unsigned        frames_sent, frames_acked, frames_nodelta;
-    int             framenum;
-    unsigned        frameflags;
+    uint64_t		frames_sent, frames_acked, frames_nodelta;
+    int64_t			framenum;
+    uint64_t		frameflags;
 
     // rate dropping
     unsigned        message_size[RATE_MESSAGES];    // used to rate drop normal packets
-    int             suppress_count;                 // number of messages rate suppressed
-    unsigned        send_time, send_delta;          // used to rate drop async packets
+    int64_t         suppress_count;                 // number of messages rate suppressed
+    uint64_t		send_time, send_delta;          // used to rate drop async packets
 
     // current download
     byte            *download;      // file being downloaded
@@ -285,7 +291,7 @@ typedef struct client_s {
     int             protocol;   // major version
     int             version;    // minor version
 
-    pmoveParams_t   pmp;        // spectator speed, etc
+    //pmoveParams_t   pmp;        // spectator speed, etc
     msgEsFlags_t    esFlags;    // entity protocol flags
 
     // packetized messages
@@ -315,6 +321,12 @@ typedef struct client_s {
     time_t          connect_time; // time of initial connect
 	int             last_valid_cluster;
 } client_t;
+
+//! Returns the edict for the client entity pool matching the number.
+static inline edict_t *EDICT_POOL( client_s *client, const int32_t number ) {
+    //#define EDICT_POOL(c, n) ((edict_t *)((byte *)(c)->pool->edicts + (c)->pool->edict_size*(n)))
+    return ( (edict_t *)( (byte *)( client )->pool->edicts + ( client )->pool->edict_size * ( number ) ) );
+}
 
 // a client can leave the server in one of four ways:
 // dropping properly by quiting or disconnecting
@@ -379,7 +391,7 @@ typedef struct {
 
 typedef struct {
     netadr_t        adr;
-    unsigned        last_ack;
+    uint64_t        last_ack;
     time_t          last_resolved;
     char            *name;
 } master_t;
@@ -396,7 +408,7 @@ typedef struct {
 
 typedef struct server_static_s {
     bool        initialized;        // sv_init has completed
-    unsigned    realtime;           // always increasing, no clamping, etc
+    uint64_t    realtime;           // always increasing, no clamping, etc
 
     client_t    *client_pool;   // [maxclients]
 
@@ -410,10 +422,10 @@ typedef struct server_static_s {
 	size_t          z_buffer_size;
 #endif
 
-    unsigned        last_heartbeat;
-    unsigned        last_timescale_check;
+    uint64_t        last_heartbeat;
+    uint64_t		last_timescale_check;
 
-    unsigned        heartbeat_index;
+    uint64_t		heartbeat_index;
 
     ratelimit_t     ratelimit_status;
     ratelimit_t     ratelimit_auth;
@@ -439,14 +451,14 @@ extern list_t       sv_clientlist;  // linked list of non-free clients
 extern server_static_t      svs;        // persistant server info
 extern server_t             sv;         // local server
 
-extern pmoveParams_t    sv_pmp;
+//extern pmoveParams_t    sv_pmp;
 
 extern cvar_t       *sv_hostname;
 extern cvar_t       *sv_maxclients;
 extern cvar_t       *sv_password;
 extern cvar_t       *sv_reserved_slots;
-extern cvar_t       *sv_airaccelerate;        // development tool
-extern cvar_t       *sv_qwmod;                // atu QW Physics modificator
+//extern cvar_t       *sv_airaccelerate;        // development tool
+//extern cvar_t       *sv_qwmod;                // atu QW Physics modificator
 extern cvar_t       *sv_enforcetime;
 extern cvar_t       *sv_force_reconnect;
 extern cvar_t       *sv_iplimit;
@@ -459,6 +471,8 @@ extern cvar_t       *sv_novis;
 extern cvar_t       *sv_lan_force_rate;
 extern cvar_t       *sv_calcpings_method;
 extern cvar_t       *sv_changemapcmd;
+extern cvar_t       *sv_max_download_size;
+extern cvar_t       *sv_max_packet_entities;
 
 extern cvar_t       *sv_strafejump_hack;
 
@@ -524,7 +538,7 @@ void sv_min_timeout_changed(cvar_t *self);
 void SV_ClientReset(client_t *client);
 void SV_SpawnServer(mapcmd_t *cmd);
 bool SV_ParseMapCmd(mapcmd_t *cmd);
-void SV_PreInitGame( void );
+//void SV_PreInitGame( void );
 void SV_InitGame( void );
 
 //
@@ -626,7 +640,7 @@ void PF_LinkEdict(edict_t *ent);
 // sets ent->leafnums[] for pvs determination even if the entity
 // is not solid
 
-int SV_AreaEdicts(const vec3_t mins, const vec3_t maxs, edict_t **list, int maxcount, int areatype);
+const int32_t SV_AreaEdicts(const vec3_t mins, const vec3_t maxs, edict_t **list, const int32_t maxcount, const int32_t areatype);
 // fills in a table of edict pointers with edicts that have bounding boxes
 // that intersect the given area.  It is possible for a non-axial bmodel
 // to be returned that doesn't actually intersect the area on an exact
@@ -643,7 +657,7 @@ int SV_AreaEdicts(const vec3_t mins, const vec3_t maxs, edict_t **list, int maxc
 *	@return	The CONTENTS_* value from the world at the given point.
 *			Quake 2 extends this to also check entities, to allow moving liquids
 **/
-int SV_PointContents( const vec3_t p );
+const contents_t SV_PointContents( const vec3_t p );
 
 
 /**
@@ -657,16 +671,16 @@ int SV_PointContents( const vec3_t p );
 *
 *					passedict is explicitly excluded from clipping checks (normally NULL)
 **/
-trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
+const trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
                            const vec3_t maxs, const vec3_t end,
-                           edict_t *passedict, int contentmask );
+                           edict_t *passedict, const contents_t contentmask );
 
 /**
 *	@brief	Like SV_Trace(), but clip to specified entity only.
 *			Can be used to clip to SOLID_TRIGGER by its BSP tree.
 **/
-trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
-						  const vec3_t maxs, const vec3_t end, int contentmask );
+const trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
+						  const vec3_t maxs, const vec3_t end, const contents_t contentmask );
 #ifdef __cplusplus
 // We extern "C"
 };

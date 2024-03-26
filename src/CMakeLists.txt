@@ -93,17 +93,19 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
 			${SRC_CLIENT} ${HEADERS_CLIENT} 
 			${SRC_COMMON} ${HEADERS_COMMON} 
 			${SRC_REFRESH} ${SRC_SHADERS} 
-			${SRC_SHARED} 
+			${SRC_SHARED} ${HEADERS_SHARED}
 			${SRC_WINDOWS} ${SRC_WINDOWS_CLIENT} ${HEADERS_WINDOWS}
 			${SRC_SERVER} ${HEADERS_SERVER}
 			windows/res/q2rtxp.rc
+			windows/threads/threads.c
+			windows/pthread.c
 		)
 	ELSE()
 		add_executable(client
 			${SRC_CLIENT} ${HEADERS_CLIENT} 
 			${SRC_COMMON} ${HEADERS_COMMON} 
 			${SRC_REFRESH} ${SRC_SHADERS} 
-			${SRC_SHARED} 
+			${SRC_SHARED} ${HEADERS_SHARED}
 			${SRC_LINUX} ${SRC_LINUX_CLIENT}
 			${SRC_SERVER} ${HEADERS_SERVER}
 		)
@@ -170,6 +172,7 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
         set_target_properties(client PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
         # macro redefinition, deprecation
         target_compile_options(client PRIVATE /wd4996) 
+		target_compile_options(client PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
 		#TARGET_COMPILE_OPTIONS(client PRIVATE /wd4005 /wd4996)
 	ENDIF()
 
@@ -199,16 +202,17 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 	IF( WIN32 )
 		ADD_EXECUTABLE(server 
 			${SRC_COMMON} ${HEADERS_COMMON} 
-			${SRC_SHARED} 
+			${SRC_SHARED} ${HEADERS_SHARED}
 			${SRC_WINDOWS} ${HEADERS_WINDOWS}
 			${SRC_SERVER} ${HEADERS_SERVER}
 			client/null.cpp
 			windows/res/q2rtxpded.rc
+			windows/threads/threads.c
 		)
 	ELSE()
 		ADD_EXECUTABLE(server
 			${SRC_COMMON} ${HEADERS_COMMON} 
-			${SRC_SHARED} 
+			${SRC_SHARED} ${HEADERS_SHARED}
 			${SRC_LINUX}
 			${SRC_SERVER} ${HEADERS_SERVER}
 			client/null.cpp
@@ -225,6 +229,8 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 
 		# macro redefinition, deprecation
 		target_compile_options(server PRIVATE /wd4996)
+		target_compile_options(server PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
+
 		#TARGET_COMPILE_OPTIONS(server PRIVATE /wd4005 /wd4996)
 	ENDIF()#IF(WIN32)
 
@@ -262,13 +268,13 @@ IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 	add_library(baseq2_svgame SHARED 
 		${SRC_BASEQ2_SVGAME} ${HEADERS_BASEQ2_SVGAME} 
 		${SRC_BASEQ2_SHAREDGAME} ${HEADERS_BASEQ2_SHAREDGAME} 
-		${SRC_SHARED}
+		${SRC_SHARED} ${HEADERS_SHARED}
 	)
 	# Client Game:
 	add_library(baseq2_clgame SHARED 
 		${SRC_BASEQ2_CLGAME} ${HEADERS_BASEQ2_CLGAME} 
 		${SRC_BASEQ2_SHAREDGAME} ${HEADERS_BASEQ2_SHAREDGAME} 
-		${SRC_SHARED}
+		${SRC_SHARED} ${HEADERS_SHARED}
 	)
 
 	IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
@@ -277,16 +283,23 @@ IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 		target_link_options(baseq2_svgame PRIVATE "-static-libgcc")
 	ENDIF() #IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
 
+	# Add appropriate definition so the sharedgame code knows what binding it operates with.
+	target_compile_definitions(baseq2_clgame PRIVATE CLGAME_INCLUDE=1)
+	target_compile_definitions(baseq2_svgame PRIVATE SVGAME_INCLUDE=1)
+
 	# WIN32 Specifics:
 	IF( WIN32 )
 		target_include_directories(baseq2_svgame PRIVATE ../VC/inc)
 		target_include_directories(baseq2_clgame PRIVATE ../VC/inc)
+
 		target_sources(baseq2_svgame PRIVATE windows/res/baseq2_svgame.rc)
 		target_sources(baseq2_clgame PRIVATE windows/res/baseq2_clgame.rc)
 		# macro redefinition, deprecation
-		target_compile_options(baseq2_svgame PRIVATE /wd4996)
+		target_compile_options(baseq2_svgame PRIVATE /wd4996 )
+		target_compile_options(baseq2_svgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
 		#target_compile_options(baseq2_svgame PRIVATE /wd4005 /wd4996)
-		target_compile_options(baseq2_clgame PRIVATE /wd4996)
+		target_compile_options(baseq2_clgame PRIVATE /wd4996 )
+		target_compile_options(baseq2_clgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
 		#target_compile_options(baseq2_svgame PRIVATE /wd4005 /wd4996)
 	ENDIF() #IF( WIN32 ) 
 
@@ -382,13 +395,13 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 	add_library(baseq2rtxp_svgame SHARED 
 		${SRC_BASEQ2RTXP_SVGAME} ${HEADERS_BASEQ2RTXP_SVGAME} 
 		${SRC_BASEQ2RTXP_SHAREDGAME} ${HEADERS_BASEQ2RTXP_SHAREDGAME} 
-		${SRC_SHARED}
+		${SRC_SHARED} ${HEADERS_SHARED}
 	)
 	# Client Game:
 	add_library(baseq2rtxp_clgame SHARED 
 		${SRC_BASEQ2RTXP_CLGAME} ${HEADERS_BASEQ2RTXP_CLGAME} 
 		${SRC_BASEQ2RTXP_SHAREDGAME} ${HEADERS_BASEQ2RTXP_SHAREDGAME} 
-		${SRC_SHARED}
+		${SRC_SHARED} ${HEADERS_SHARED}
 	)
 
 	IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
@@ -397,16 +410,23 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 		target_link_options(baseq2rtxp_svgame PRIVATE "-static-libgcc")
 	ENDIF() #IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
 
+	# Add appropriate definition so the sharedgame code knows what binding it operates with.
+	target_compile_definitions(baseq2rtxp_clgame PRIVATE CLGAME_INCLUDE=1)
+	target_compile_definitions(baseq2rtxp_svgame PRIVATE SVGAME_INCLUDE=1)
+
 	# WIN32 Specifics:
 	IF( WIN32 )
 		target_include_directories(baseq2rtxp_svgame PRIVATE ../VC/inc)
 		target_include_directories(baseq2rtxp_clgame PRIVATE ../VC/inc)
+
 		target_sources(baseq2rtxp_svgame PRIVATE windows/res/baseq2rtxp_svgame.rc)
 		target_sources(baseq2rtxp_clgame PRIVATE windows/res/baseq2rtxp_clgame.rc)
 		# macro redefinition, deprecation
-		target_compile_options(baseq2rtxp_svgame PRIVATE /wd4996)
+		target_compile_options(baseq2rtxp_svgame PRIVATE /wd4996 )
+		target_compile_options(baseq2rtxp_svgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
 		#target_compile_options(baseq2rtxp_svgame PRIVATE /wd4005 /wd4996)
-		target_compile_options(baseq2rtxp_clgame PRIVATE /wd4996)
+		target_compile_options(baseq2rtxp_clgame PRIVATE /wd4996 )
+		target_compile_options(baseq2rtxp_clgame PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
 		#target_compile_options(baseq2rtxp_svgame PRIVATE /wd4005 /wd4996)
 	ENDIF() #IF( WIN32 ) 
 

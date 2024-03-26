@@ -28,9 +28,11 @@ Used to group brushes together just for editor convenience.
 
 void Use_Areaportal(edict_t *ent, edict_t *other, edict_t *activator)
 {
-    ent->count ^= 1;        // toggle state
+    //ent->count ^= 1;        // toggle state
+    int32_t areaPortalState = gi.GetAreaPortalState( ent->style );
+    areaPortalState ^= 1;
 //  gi.dprintf ("portalstate: %i = %i\n", ent->style, ent->count);
-    gi.SetAreaPortalState(ent->style, ent->count);
+    gi.SetAreaPortalState(ent->style, areaPortalState );
 }
 
 /*QUAKED func_areaportal (0 0 0) ?
@@ -42,7 +44,8 @@ Usually enclosed in the middle of a door.
 void SP_func_areaportal(edict_t *ent)
 {
     ent->use = Use_Areaportal;
-    ent->count = 0;     // always start closed;
+    // always start closed;
+    ent->count = 0; // gi.GetAreaPortalState( ent->style );     
 }
 
 //=====================================================
@@ -101,9 +104,9 @@ void gib_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
     if (plane) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/fhit3.wav"), 1, ATTN_NORM, 0);
 
-        vectoangles(plane->normal, normal_angles);
+        QM_Vector3ToAngles(plane->normal, normal_angles);
         AngleVectors(normal_angles, NULL, right, NULL);
-        vectoangles(right, self->s.angles);
+        QM_Vector3ToAngles(right, self->s.angles);
 
         if (self->s.modelindex == sm_meat_index) {
             self->s.frame++;
@@ -127,7 +130,7 @@ void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
     vec3_t  size;
     float   vscale;
 
-    gib = G_Spawn();
+    gib = G_AllocateEdict();
 
     VectorScale(self->size, 0.5f, size);
     VectorAdd(self->absmin, size, origin);
@@ -136,7 +139,7 @@ void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
     gi.setmodel(gib, gibname);
     gib->solid = SOLID_NOT;
     gib->s.effects |= EF_GIB;
-    gib->flags |= FL_NO_KNOCKBACK;
+    gib->flags = static_cast<ent_flags_t>( gib->flags | FL_NO_KNOCKBACK );
     gib->takedamage = DAMAGE_YES;
     gib->die = gib_die;
 
@@ -179,7 +182,7 @@ void ThrowHead(edict_t *self, const char *gibname, int damage, int type)
     self->s.effects |= EF_GIB;
     self->s.effects &= ~EF_FLIES;
     self->s.sound = 0;
-    self->flags |= FL_NO_KNOCKBACK;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
     self->svflags &= ~SVF_MONSTER;
     self->takedamage = DAMAGE_YES;
     self->die = gib_die;
@@ -230,7 +233,7 @@ void ThrowClientHead(edict_t *self, int damage)
     self->solid = SOLID_NOT;
     self->s.effects = EF_GIB;
     self->s.sound = 0;
-    self->flags |= FL_NO_KNOCKBACK;
+    self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
 
     self->movetype = MOVETYPE_BOUNCE;
     VelocityForDamage(damage, vd);
@@ -264,7 +267,7 @@ void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origi
     edict_t *chunk;
     vec3_t  v;
 
-    chunk = G_Spawn();
+    chunk = G_AllocateEdict();
     VectorCopy(origin, chunk->s.origin);
     gi.setmodel(chunk, modelname);
     v[0] = 100 * crandom();
@@ -279,7 +282,7 @@ void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origi
     chunk->think = G_FreeEdict;
     chunk->nextthink = level.time + random_time( 5_sec, 10_sec );//= level.framenum + (5 + random() * 5) * BASE_FRAMERATE;
     chunk->s.frame = 0;
-    chunk->flags = 0;
+    chunk->flags = FL_NONE;
     chunk->classname = "debris";
     chunk->takedamage = DAMAGE_YES;
     chunk->die = debris_die;
@@ -362,7 +365,7 @@ void path_corner_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_
         other->monsterinfo.stand(other);
     } else {
         VectorSubtract(other->goalentity->s.origin, other->s.origin, v);
-        other->ideal_yaw = vectoyaw(v);
+        other->ideal_yaw = QM_Vector3ToYaw(v);
     }
 }
 
@@ -463,7 +466,7 @@ void SP_viewthing(edict_t *ent)
     gi.dprintf("viewthing spawned\n");
 
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     ent->s.renderfx = RF_FRAMELERP;
     VectorSet(ent->mins, -16, -16, -24);
     VectorSet(ent->maxs, 16, 16, 32);
@@ -552,7 +555,7 @@ void func_wall_use(edict_t *self, edict_t *other, edict_t *activator)
     if (self->solid == SOLID_NOT) {
         self->solid = SOLID_BSP;
         self->svflags &= ~SVF_NOCLIENT;
-        KillBox(self);
+        KillBox(self, false);
     } else {
         self->solid = SOLID_NOT;
         self->svflags |= SVF_NOCLIENT;
@@ -632,7 +635,7 @@ void func_object_use(edict_t *self, edict_t *other, edict_t *activator)
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
     self->use = NULL;
-    KillBox(self);
+    KillBox(self, false);
     func_object_release(self);
 }
 
@@ -753,7 +756,7 @@ void func_explosive_spawn(edict_t *self, edict_t *other, edict_t *activator)
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
     self->use = NULL;
-    KillBox(self);
+    KillBox(self, false);
     gi.linkentity(self);
 }
 
@@ -803,18 +806,36 @@ Large exploding box.  You can override its mass (100),
 health (80), and dmg (150).
 */
 
-void barrel_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
-
-{
-    float   ratio;
-    vec3_t  v;
-
-    if ((!other->groundentity) || (other->groundentity == self))
+void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+    
+    if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
         return;
+    }
 
-    ratio = (float)other->mass / (float)self->mass;
+    // Calculate direction.
+    vec3_t v = { };
     VectorSubtract(self->s.origin, other->s.origin, v);
-    M_walkmove(self, vectoyaw(v), 20 * ratio * FRAMETIME);
+
+    // Move ratio(based on their masses).
+    const float ratio = (float)other->mass / (float)self->mass;
+
+    // Yaw direction angle.
+    const float yawAngle = QM_Vector3ToYaw( v );
+    const float direction = yawAngle;
+    // Distance to travel.
+    float distance = 20 * ratio * FRAMETIME;
+
+    // Debug output:
+    if ( plane ) {
+        Com_LPrintf( PRINT_DEVELOPER, "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+        Com_LPrintf( PRINT_DEVELOPER, "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
+    } else {
+        Com_LPrintf( PRINT_DEVELOPER, "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+        Com_LPrintf( PRINT_DEVELOPER, "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
+    }
+
+    // Perform move.
+    M_walkmove( self, direction, distance );
 }
 
 void barrel_explode(edict_t *self)
@@ -885,7 +906,7 @@ void SP_misc_explobox(edict_t *self)
     gi.modelindex("models/objects/debris2/tris.md2");
     gi.modelindex("models/objects/debris3/tris.md2");
 
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_OCTAGON;
     self->movetype = MOVETYPE_STEP;
 
     self->model = "models/objects/barrels/tris.md2";
@@ -978,7 +999,7 @@ void misc_eastertank_think(edict_t *self)
 void SP_misc_eastertank(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     VectorSet(ent->mins, -32, -32, -16);
     VectorSet(ent->maxs, 32, 32, 32);
     ent->s.modelindex = gi.modelindex("models/monsters/tank/tris.md2");
@@ -1005,7 +1026,7 @@ void misc_easterchick_think(edict_t *self)
 void SP_misc_easterchick(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     VectorSet(ent->mins, -32, -32, 0);
     VectorSet(ent->maxs, 32, 32, 32);
     ent->s.modelindex = gi.modelindex("models/monsters/bitch/tris.md2");
@@ -1032,7 +1053,7 @@ void misc_easterchick2_think(edict_t *self)
 void SP_misc_easterchick2(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     VectorSet(ent->mins, -32, -32, 0);
     VectorSet(ent->maxs, 32, 32, 32);
     ent->s.modelindex = gi.modelindex("models/monsters/bitch/tris.md2");
@@ -1075,7 +1096,7 @@ void commander_body_drop(edict_t *self)
 void SP_monster_commander_body(edict_t *self)
 {
     self->movetype = MOVETYPE_NONE;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->model = "models/monsters/commandr/tris.md2";
     self->s.modelindex = gi.modelindex(self->model);
     VectorSet(self->mins, -32, -32, 0);
@@ -1142,7 +1163,7 @@ void SP_misc_deadsoldier(edict_t *ent)
     }
 
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     ent->s.modelindex = gi.modelindex("models/deadbods/dude/tris.md2");
 
     // Defaults to frame 0
@@ -1221,7 +1242,7 @@ This is a large stationary viper as seen in Paul's intro
 void SP_misc_bigviper(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     VectorSet(ent->mins, -176, -120, -24);
     VectorSet(ent->maxs, 176, 120, 72);
     ent->s.modelindex = gi.modelindex("models/ships/bigviper/tris.md2");
@@ -1255,7 +1276,7 @@ void misc_viper_bomb_prethink(edict_t *self)
     v[2] = diff;
 
     diff = self->s.angles[2];
-    vectoangles(v, self->s.angles);
+    QM_Vector3ToAngles(v, self->s.angles);
     self->s.angles[2] = diff + 10;
 }
 
@@ -1263,7 +1284,7 @@ void misc_viper_bomb_use(edict_t *self, edict_t *other, edict_t *activator)
 {
     edict_t *viper;
 
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->svflags &= ~SVF_NOCLIENT;
     self->s.effects |= EF_ROCKET;
     self->use = NULL;
@@ -1363,7 +1384,7 @@ void misc_satellite_dish_use(edict_t *self, edict_t *other, edict_t *activator)
 void SP_misc_satellite_dish(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     VectorSet(ent->mins, -64, -64, 0);
     VectorSet(ent->maxs, 64, 64, 128);
     ent->s.modelindex = gi.modelindex("models/objects/satellite/tris.md2");
@@ -1377,7 +1398,7 @@ void SP_misc_satellite_dish(edict_t *ent)
 void SP_light_mine1(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     ent->s.modelindex = gi.modelindex("models/objects/minelite/light1/tris.md2");
     gi.linkentity(ent);
 }
@@ -1388,7 +1409,7 @@ void SP_light_mine1(edict_t *ent)
 void SP_light_mine2(edict_t *ent)
 {
     ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     ent->s.modelindex = gi.modelindex("models/objects/minelite/light2/tris.md2");
     gi.linkentity(ent);
 }
@@ -1696,15 +1717,16 @@ void teleporter_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t
 
     // set angles
     for (i = 0 ; i < 3 ; i++) {
-        other->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(dest->s.angles[i] - other->client->resp.cmd_angles[i]);
+        other->client->ps.pmove.delta_angles[i] = /*ANGLE2SHORT*/(dest->s.angles[i] - other->client->resp.cmd_angles[i]);
     }
 
     VectorClear(other->s.angles);
     VectorClear(other->client->ps.viewangles);
     VectorClear(other->client->v_angle);
+    AngleVectors( other->client->v_angle, other->client->v_forward, nullptr, nullptr );
 
     // kill anything at the destination
-    KillBox(other);
+    KillBox(other, !!other->client );
 
     gi.linkentity(other);
 }
@@ -1727,13 +1749,13 @@ void SP_misc_teleporter(edict_t *ent)
     ent->s.effects = EF_TELEPORTER;
     ent->s.renderfx = RF_NOSHADOW;
     ent->s.sound = gi.soundindex("world/amb10.wav");
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
 
     VectorSet(ent->mins, -32, -32, -24);
     VectorSet(ent->maxs, 32, 32, -16);
     gi.linkentity(ent);
 
-    trig = G_Spawn();
+    trig = G_AllocateEdict();
     trig->touch = teleporter_touch;
     trig->solid = SOLID_TRIGGER;
     trig->target = ent->target;
@@ -1752,7 +1774,7 @@ void SP_misc_teleporter_dest(edict_t *ent)
 {
     gi.setmodel(ent, "models/objects/dmspot/tris.md2");
     ent->s.skinnum = 0;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
 //  ent->s.effects |= EF_FLIES;
     ent->s.renderfx |= RF_NOSHADOW;
     VectorSet(ent->mins, -32, -32, -24);

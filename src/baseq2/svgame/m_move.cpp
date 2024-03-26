@@ -105,7 +105,7 @@ pr_global_struct->trace_normal is set to the normal of the blocking wall
 */
 //FIXME since we need to test end position contents here, can we avoid doing
 //it again later in catagorize position?
-bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
+static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
 {
     float       dz;
     vec3_t      oldorg, neworg, end;
@@ -241,7 +241,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 	if ( fabs( (float)ent->s.origin[ 2 ] - (float)(trace.endpos[ 2 ] )) > 8.f ) {
 		stepped = true;
 	}
-// check point traces down for dangling corners
+    // check point traces down for dangling corners
     VectorCopy(trace.endpos, ent->s.origin);
 
     if (!M_CheckBottom(ent)) {
@@ -259,7 +259,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
     }
 
     if (ent->flags & FL_PARTIALGROUND) {
-        ent->flags &= ~FL_PARTIALGROUND;
+        ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_PARTIALGROUND );
     }
     ent->groundentity = trace.ent;
     ent->groundentity_linkcount = trace.ent->linkcount;
@@ -287,35 +287,45 @@ M_ChangeYaw
 */
 void M_ChangeYaw(edict_t *ent)
 {
-    float   ideal;
-    float   current;
-    float   move;
-    float   speed;
+    // Get angle modded angles.
+    const float current = AngleMod(ent->s.angles[YAW]);
+    // Get ideal desired for yaw angle.
+    const float ideal = ent->ideal_yaw;
 
-    current = AngleMod(ent->s.angles[YAW]);
-    ideal = ent->ideal_yaw;
-
-    if (current == ideal)
+    // If we're already facing ideal yaw, escape.
+    if ( current == ideal ) {
         return;
-
-    move = ideal - current;
-    speed = ent->yaw_speed;
-    if (ideal > current) {
-        if (move >= 180)
-            move = move - 360;
-    } else {
-        if (move <= -180)
-            move = move + 360;
-    }
-    if (move > 0) {
-        if (move > speed)
-            move = speed;
-    } else {
-        if (move < -speed)
-            move = -speed;
     }
 
-    ent->s.angles[YAW] = AngleMod(current + move);
+    float move = ideal - current;
+    const float speed = ent->yaw_speed;
+
+    // Prevent the monster from rotating a full circle around the yaw.
+    // Do so by keeping angles between -180/+180, depending on whether ideal yaw is higher or lower than current.
+    move = QM_Wrapf( move, -180.f, 180.f );
+    //if (ideal > current) {
+    //    if ( move >= 180 ) {
+    //        move = move - 360;
+    //    }
+    //} else {
+    //    if ( move <= -180 ) {
+    //        move = move + 360;
+    //    }
+    //}
+    // Clamp the yaw move speed.
+    move = QM_Clampf( move, -speed, speed );
+    //if (move > 0) {
+    //    if ( move > speed ) {
+    //        move = speed;
+    //    }
+    //} else {
+    //    if ( move < -speed ) {
+    //        move = -speed;
+    //    }
+    //}
+
+    // AngleMod the final resulting angles.
+    ent->s.angles[YAW] = AngleMod( current + move );
 }
 
 
@@ -328,32 +338,31 @@ facing it.
 
 ======================
 */
-bool SV_StepDirection(edict_t *ent, float yaw, float dist)
-{
-    vec3_t      move, oldorigin;
-    float       delta;
-
+bool SV_StepDirection( edict_t *ent, float yaw, float dist ) {
     ent->ideal_yaw = yaw;
-    M_ChangeYaw(ent);
+    M_ChangeYaw( ent );
 
     yaw = DEG2RAD(yaw);
-    move[0] = cos(yaw) * dist;
-    move[1] = sin(yaw) * dist;
-    move[2] = 0;
+    const Vector3 move = {
+        cos( yaw ) * dist,
+        sin( yaw ) * dist,
+        0
+    };
 
-    VectorCopy(ent->s.origin, oldorigin);
-    if (SV_movestep(ent, move, false)) {
-        delta = ent->s.angles[YAW] - ent->ideal_yaw;
-        if (delta > 45 && delta < 315) {
+    const Vector3 oldorigin = ent->s.origin;
+    if ( SV_movestep( ent, move, false ) ) {
+        const float delta = ent->s.angles[ YAW ] - ent->ideal_yaw;
+        if ( delta > 45 && delta < 315 ) {
             // not turned far enough, so don't take the step
-            VectorCopy(oldorigin, ent->s.origin);
+            VectorCopy( oldorigin, ent->s.origin );
         }
-        gi.linkentity(ent);
-        G_TouchTriggers(ent);
+        gi.linkentity( ent );
+        G_TouchTriggers( ent );
+        G_TouchProjectiles( ent, oldorigin );
         return true;
     }
-    gi.linkentity(ent);
-    G_TouchTriggers(ent);
+    gi.linkentity( ent );
+    G_TouchTriggers( ent );
     return false;
 }
 
@@ -365,7 +374,7 @@ SV_FixCheckBottom
 */
 void SV_FixCheckBottom(edict_t *ent)
 {
-    ent->flags |= FL_PARTIALGROUND;
+    ent->flags = static_cast<ent_flags_t>( ent->flags | FL_PARTIALGROUND );
 }
 
 

@@ -103,8 +103,6 @@ void        Com_Generic_c(genctx_t *ctx, int argnum);
 void        Com_Color_g(genctx_t *ctx);
 #endif
 
-size_t      Com_FormatLocalTime(char *buffer, size_t size, const char *fmt);
-
 size_t      Com_Time_m(char *buffer, size_t size);
 size_t      Com_Uptime_m(char *buffer, size_t size);
 size_t      Com_UptimeLong_m(char *buffer, size_t size);
@@ -176,17 +174,19 @@ extern cvar_t   *rcon_password;
 
 #if USE_CLIENT
 // host_speeds times
-extern unsigned     time_before_game;
-extern unsigned     time_after_game;
-extern unsigned     time_before_ref;
-extern unsigned     time_after_ref;
+extern uint64_t     time_before_clgame;
+extern uint64_t     time_after_clgame;
+extern uint64_t		time_before_svgame;
+extern uint64_t		time_after_svgame;
+extern uint64_t		time_before_ref;
+extern uint64_t		time_after_ref;
 #endif
 
 extern const char   com_version_string[];
 
-extern unsigned     com_framenum;
-extern unsigned     com_eventTime; // system time of the last event
-extern unsigned     com_localTime; // milliseconds since Q2 startup
+extern uint64_t		com_framenum;
+extern uint64_t		com_eventTime; // system time of the last event
+extern uint64_t		com_localTime; // milliseconds since Q2 startup
 extern bool         com_initialized;
 extern time_t       com_startTime;
 

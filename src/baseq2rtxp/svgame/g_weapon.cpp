@@ -32,19 +32,19 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
     vec3_t  end;
     vec3_t  v;
     trace_t tr;
-    float   eta;
 
     // easy mode only ducks one quarter the time
     if (skill->value == 0) {
         if (random() > 0.25f)
             return;
     }
+
     VectorMA(start, 8192, dir, end);
     tr = gi.trace(start, NULL, NULL, end, self, MASK_SHOT);
     if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self)) {
         VectorSubtract(tr.endpos, start, v);
-        eta = (VectorLength(v) - tr.ent->maxs[0]) / speed;
-        tr.ent->monsterinfo.dodge(tr.ent, self, eta);
+        sg_time_t eta = sg_time_t::from_sec(VectorLength(v) - tr.ent->maxs[0]) / speed;
+        tr.ent->monsterinfo.dodge(tr.ent, self, eta.seconds() );
     }
 }
 
@@ -133,11 +133,11 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
     float       u;
     vec3_t      water_start;
     bool        water = false;
-    int         content_mask = MASK_SHOT | MASK_WATER;
+    contents_t  content_mask = static_cast<contents_t>( MASK_SHOT | MASK_WATER );
 
     tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
     if (!(tr.fraction < 1.0f)) {
-        vectoangles(aimdir, dir);
+        QM_Vector3ToAngles(aimdir, dir);
         AngleVectors(dir, forward, right, up);
 
         r = crandom() * hspread;
@@ -149,7 +149,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
         if (gi.pointcontents(start) & MASK_WATER) {
             water = true;
             VectorCopy(start, water_start);
-            content_mask &= ~MASK_WATER;
+            content_mask = static_cast<contents_t>( content_mask & ~MASK_WATER ); // content_mask &= ~MASK_WATER
         }
 
         tr = gi.trace(start, NULL, NULL, end, self, content_mask);
@@ -186,7 +186,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
 
                 // change bullet's course when it enters water
                 VectorSubtract(end, start, dir);
-                vectoangles(dir, dir);
+                QM_Vector3ToAngles(dir, dir);
                 AngleVectors(dir, forward, right, up);
                 r = crandom() * hspread * 2;
                 u = crandom() * vspread * 2;
@@ -316,6 +316,15 @@ void blaster_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
     G_FreeEdict(self);
 }
 
+static const bool G_ShouldPlayersCollideProjectile( edict_t *self ) {
+    // In Coop they don't.
+    if ( G_GetActiveGamemodeID() == GAMEMODE_COOPERATIVE ) {
+        return false;
+    }
+
+    // Otherwise they do.
+    return true;
+}
 void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect, bool hyper)
 {
     edict_t *bolt;
@@ -323,8 +332,9 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 
     VectorNormalize(dir);
 
-    bolt = G_Spawn();
-    bolt->svflags = SVF_DEADMONSTER;
+    bolt = G_AllocateEdict();
+    bolt->svflags = SVF_PROJECTILE; // Special net code for projectiles. 
+    // SVF_DEADMONSTER; // The following is now irrelevant:
     // yes, I know it looks weird that projectiles are deadmonsters
     // what this means is that when prediction is used against the object
     // (blaster/hyperblaster shots), the player won't be solid clipped against
@@ -332,11 +342,15 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
     // is very jerky since you are predicted 'against' the shots.
     VectorCopy(start, bolt->s.origin);
     VectorCopy(start, bolt->s.old_origin);
-    vectoangles(dir, bolt->s.angles);
+    QM_Vector3ToAngles(dir, bolt->s.angles);
     VectorScale(dir, speed, bolt->velocity);
     bolt->movetype = MOVETYPE_FLYMISSILE;
-    bolt->clipmask = MASK_SHOT;
-    bolt->solid = SOLID_BBOX;
+    bolt->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        bolt->clipmask = static_cast<contents_t>( bolt->clipmask & ~CONTENTS_PLAYER );
+    }
+    bolt->flags = static_cast<ent_flags_t>( bolt->flags | FL_DODGE );
+    bolt->solid = SOLID_BOUNDS_BOX;
     bolt->s.effects |= effect;
     bolt->s.renderfx |= RF_NOSHADOW;
     VectorClear(bolt->mins);
@@ -455,10 +469,10 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     vec3_t  forward, right, up;
     float   scale;
 
-    vectoangles(aimdir, dir);
+    QM_Vector3ToAngles(aimdir, dir);
     AngleVectors(dir, forward, right, up);
 
-    grenade = G_Spawn();
+    grenade = G_AllocateEdict();
     VectorCopy(start, grenade->s.origin);
     VectorScale(aimdir, speed, grenade->velocity);
     scale = 200 + crandom() * 10.0f;
@@ -467,8 +481,13 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     VectorMA(grenade->velocity, scale, right, grenade->velocity);
     VectorSet(grenade->avelocity, 300, 300, 300);
     grenade->movetype = MOVETYPE_BOUNCE;
-    grenade->clipmask = MASK_SHOT;
-    grenade->solid = SOLID_BBOX;
+    grenade->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        grenade->clipmask = static_cast<contents_t>( grenade->clipmask & ~CONTENTS_PLAYER );
+    }
+    grenade->flags = static_cast<ent_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */);
+    grenade->svflags |= SVF_PROJECTILE;
+    grenade->solid = SOLID_BOUNDS_BOX;
     grenade->s.effects |= EF_GRENADE;
     VectorClear(grenade->mins);
     VectorClear(grenade->maxs);
@@ -491,10 +510,10 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
     vec3_t  forward, right, up;
     float   scale;
 
-    vectoangles(aimdir, dir);
+    QM_Vector3ToAngles(aimdir, dir);
     AngleVectors(dir, forward, right, up);
 
-    grenade = G_Spawn();
+    grenade = G_AllocateEdict();
     VectorCopy(start, grenade->s.origin);
     VectorScale(aimdir, speed, grenade->velocity);
     scale = 200 + crandom() * 10.0f;
@@ -503,8 +522,13 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
     VectorMA(grenade->velocity, scale, right, grenade->velocity);
     VectorSet(grenade->avelocity, 300, 300, 300);
     grenade->movetype = MOVETYPE_BOUNCE;
-    grenade->clipmask = MASK_SHOT;
-    grenade->solid = SOLID_BBOX;
+    grenade->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        grenade->clipmask = static_cast<contents_t>( grenade->clipmask & ~CONTENTS_PLAYER );
+    }
+    grenade->flags = static_cast<ent_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */ );
+    grenade->svflags |= SVF_PROJECTILE;
+    grenade->solid = SOLID_BOUNDS_BOX;
     grenade->s.effects |= EF_GRENADE;
     VectorClear(grenade->mins);
     VectorClear(grenade->maxs);
@@ -585,14 +609,19 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
 {
     edict_t *rocket;
 
-    rocket = G_Spawn();
+    rocket = G_AllocateEdict();
     VectorCopy(start, rocket->s.origin);
     VectorCopy(dir, rocket->movedir);
-    vectoangles(dir, rocket->s.angles);
+    QM_Vector3ToAngles(dir, rocket->s.angles);
     VectorScale(dir, speed, rocket->velocity);
     rocket->movetype = MOVETYPE_FLYMISSILE;
-    rocket->clipmask = MASK_SHOT;
-    rocket->solid = SOLID_BBOX;
+    rocket->clipmask = MASK_PROJECTILE;
+    if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
+        rocket->clipmask = static_cast<contents_t>( rocket->clipmask & ~CONTENTS_PLAYER );
+    }
+    rocket->flags = static_cast<ent_flags_t>( rocket->flags | FL_DODGE /*| FL_TRAP */ );
+    rocket->svflags |= SVF_PROJECTILE;
+    rocket->solid = SOLID_BOUNDS_BOX;
     rocket->s.effects |= EF_ROCKET;
     VectorClear(rocket->mins);
     VectorClear(rocket->maxs);
@@ -625,7 +654,7 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
     vec3_t      end;
     trace_t     tr;
     edict_t     *ignore;
-    int         mask;
+    contents_t  mask;
     bool        water;
     float       lastfrac;
 
@@ -633,18 +662,18 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
     VectorCopy(start, from);
     ignore = self;
     water = false;
-    mask = MASK_SHOT | CONTENTS_SLIME | CONTENTS_LAVA;
+    mask = static_cast<contents_t>( MASK_SHOT | CONTENTS_SLIME | CONTENTS_LAVA );
     lastfrac = 1;
     while (ignore) {
         tr = gi.trace(from, NULL, NULL, end, ignore, mask);
 
         if (tr.contents & (CONTENTS_SLIME | CONTENTS_LAVA)) {
-            mask &= ~(CONTENTS_SLIME | CONTENTS_LAVA);
+            mask = static_cast<contents_t>( ~( CONTENTS_SLIME | CONTENTS_LAVA ) );
             water = true;
         } else {
-            //ZOID--added so rail goes through SOLID_BBOX entities (gibs, etc)
+            //ZOID--added so rail goes through SOLID_BOUNDS_BOX entities (gibs, etc)
             if (((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client) ||
-                (tr.ent->solid == SOLID_BBOX)) && (lastfrac + tr.fraction > 0))
+                (tr.ent->solid == SOLID_BOUNDS_BOX)) && (lastfrac + tr.fraction > 0))
                 ignore = tr.ent;
             else
                 ignore = NULL;
@@ -801,7 +830,7 @@ void bfg_think(edict_t *self)
         VectorCopy(self->s.origin, start);
         VectorMA(start, 2048, dir, end);
         while (1) {
-            tr = gi.trace(start, NULL, NULL, end, ignore, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER);
+            tr = gi.trace( start, NULL, NULL, end, ignore, static_cast<contents_t>( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER ) );
 
             if (!tr.ent)
                 break;
@@ -841,14 +870,19 @@ void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, fl
 {
     edict_t *bfg;
 
-    bfg = G_Spawn();
+    bfg = G_AllocateEdict();
     VectorCopy(start, bfg->s.origin);
     VectorCopy(dir, bfg->movedir);
-    vectoangles(dir, bfg->s.angles);
+    QM_Vector3ToAngles(dir, bfg->s.angles);
     VectorScale(dir, speed, bfg->velocity);
     bfg->movetype = MOVETYPE_FLYMISSILE;
-    bfg->clipmask = MASK_SHOT;
-    bfg->solid = SOLID_BBOX;
+    bfg->clipmask = MASK_PROJECTILE;
+    bfg->svflags = SVF_PROJECTILE;
+    // [Paril-KEX]
+    if ( self->client && !G_ShouldPlayersCollideProjectile( self ) ) {
+        bfg->clipmask = static_cast<contents_t>( bfg->clipmask & ~CONTENTS_PLAYER );
+    }
+    bfg->solid = SOLID_BOUNDS_BOX;
     bfg->s.effects |= EF_BFG | EF_ANIM_ALLFAST;
     VectorClear(bfg->mins);
     VectorClear(bfg->maxs);
@@ -899,7 +933,7 @@ void flare_sparks(edict_t *self)
 	 // 
 	if (VectorLength(self->velocity) > 0.0)
 	{
-		vectoangles(self->velocity, dir);
+		QM_Vector3ToAngles(self->velocity, dir);
 		AngleVectors(dir, forward, right, up);
 
 		gi.WriteDir8(up);
@@ -972,16 +1006,16 @@ void fire_flaregun(edict_t *self, vec3_t start, vec3_t aimdir,
 	vec3_t dir;
 	vec3_t forward, right, up;
 
-	vectoangles(aimdir, dir);
+	QM_Vector3ToAngles(aimdir, dir);
 	AngleVectors(dir, forward, right, up);
 
-	flare = G_Spawn();
+	flare = G_AllocateEdict();
 	VectorCopy(start, flare->s.origin);
 	VectorScale(aimdir, speed, flare->velocity);
 	VectorSet(flare->avelocity, 300, 300, 300);
 	flare->movetype = MOVETYPE_BOUNCE;
 	flare->clipmask = MASK_SHOT;
-	flare->solid = SOLID_BBOX;
+	flare->solid = SOLID_BOUNDS_BOX;
 
 	const float size = 4;
 	VectorSet(flare->mins, -size, -size, -size);

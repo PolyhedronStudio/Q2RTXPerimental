@@ -41,21 +41,26 @@ Writes a delta update of an entity_packed_t list to the message.
 static void SV_EmitPacketEntities(client_t         *client,
                                   client_frame_t   *from,
                                   client_frame_t   *to,
-                                  int              clientEntityNum)
-{
-    entity_packed_t *newent;
-    const entity_packed_t *oldent;
-    int i, oldnum, newnum, oldindex, newindex, from_num_entities;
-    msgEsFlags_t flags;
+                                  const int32_t     clientEntityNumber) {
+    // Defines the new state indices.
+    int32_t newindex = 0;
+    int32_t oldindex = 0;
 
-    if (!from)
-        from_num_entities = 0;
-    else
-        from_num_entities = from->num_entities;
+    // Old entity numbers.
+    int32_t oldnum = 0;
+    int32_t newnum = 0;
 
-    newindex = 0;
-    oldindex = 0;
-    oldent = newent = NULL;
+    // Pointer to old and new states.
+    entity_packed_t *newent = nullptr;
+    const entity_packed_t *oldent = nullptr;
+    
+    // Flags.
+    msgEsFlags_t flags = static_cast<msgEsFlags_t>( 0 );
+    // Iterator.
+    int32_t i = 0;
+    // Fetch where in the circular buffer we start from.
+    const int32_t from_num_entities = ( !from ? 0 : from->num_entities );
+
     while (newindex < to->num_entities || oldindex < from_num_entities) {
         if (newindex >= to->num_entities) {
             newnum = 9999;
@@ -80,12 +85,14 @@ static void SV_EmitPacketEntities(client_t         *client,
             // this updates their old_origin always and prevents warping in case
             // of packet loss.
             flags = client->esFlags;
+            // In case of a Player Entity:
             if (newnum <= client->maxclients) {
                 // WID: C++20:
 				//flags |= MSG_ES_NEWENTITY;
 				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_NEWENTITY );
             }
-            if (newnum == clientEntityNum) {
+            // In case this is our own client entity, update the new ent's origin and angles.
+            if (newnum == clientEntityNumber) {
                 //flags |= MSG_ES_FIRSTPERSON;
 				// WID: C++20:
 				//flags |= MSG_ES_NEWENTITY;
@@ -93,12 +100,12 @@ static void SV_EmitPacketEntities(client_t         *client,
                 VectorCopy(oldent->origin, newent->origin);
                 VectorCopy(oldent->angles, newent->angles);
             }
-            if (Q2PRO_SHORTANGLES(client, newnum)) {
-                //flags |= MSG_ES_SHORTANGLES;
-				// WID: C++20:
-				//flags |= MSG_ES_NEWENTITY;
-				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
-			}
+            //if (Q2PRO_SHORTANGLES(client, newnum)) {
+            //  //flags |= MSG_ES_SHORTANGLES;
+			//	// WID: C++20:
+			//	//flags |= MSG_ES_NEWENTITY;
+			//	flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
+			//}
             MSG_WriteDeltaEntity(oldent, newent, flags);
             oldindex++;
             newindex++;
@@ -117,7 +124,8 @@ static void SV_EmitPacketEntities(client_t         *client,
             } else {
                 oldent = &nullEntityState;
             }
-            if (newnum == clientEntityNum) {
+            // In case this is our own client entity, update the new ent's origin and angles.
+            if (newnum == clientEntityNumber) {
                 //flags |= MSG_ES_FIRSTPERSON;
 				// WID: C++20:
 				//flags |= MSG_ES_NEWENTITY;
@@ -125,26 +133,26 @@ static void SV_EmitPacketEntities(client_t         *client,
                 VectorCopy(oldent->origin, newent->origin);
                 VectorCopy(oldent->angles, newent->angles);
             }
-            if (Q2PRO_SHORTANGLES(client, newnum)) {
-                //flags |= MSG_ES_SHORTANGLES;
-				// WID: C++20:
-				//flags |= MSG_ES_NEWENTITY;
-				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
-            }
+            //if (Q2PRO_SHORTANGLES(client, newnum)) {
+            //  //flags |= MSG_ES_SHORTANGLES;
+	        //  // WID: C++20:
+	        //  //flags |= MSG_ES_NEWENTITY;
+	        //  //flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
+            //}
             MSG_WriteDeltaEntity(oldent, newent, flags);
             newindex++;
             continue;
         }
 
         if (newnum > oldnum) {
-            // the old entity isn't present in the new message
+            // The old entity isn't present in the new message
             MSG_WriteDeltaEntity(oldent, NULL, MSG_ES_FORCE);
             oldindex++;
             continue;
         }
     }
 
-    MSG_WriteInt16(0);      // end of packetentities
+    MSG_WriteInt16(0);      // End Of 'svc_packetentities'.
 }
 
 static client_frame_t *get_last_frame(client_t *client)
@@ -206,15 +214,30 @@ void SV_WriteFrameToClient( client_t *client ) {
 	}
 
 	MSG_WriteUint8( svc_frame );
-	MSG_WriteInt32( client->framenum );
-	MSG_WriteInt32( lastframe );   // what we are delta'ing from
+	MSG_WriteIntBase128( client->framenum ); // WID: 64-bit-frame MSG_WriteInt32( client->framenum );
+	MSG_WriteIntBase128( lastframe ); // WID: 64-bit-frame MSG_WriteInt32( lastframe );   // what we are delta'ing from
 	MSG_WriteUint8( client->suppress_count );  // rate dropped packets
 	client->suppress_count = 0;
 	client->frameflags = 0;
 
-	// send over the areabits
+	// Send over the areabits.
 	MSG_WriteUint8( frame->areabytes );
 	MSG_WriteData( frame->areabits, frame->areabytes );
+
+    // Send over entire frame's portal bits if this is the very first frame
+    // or the client required a full on retransmit.
+    if ( oldframe == nullptr ) {
+        // PortalBits frame message.
+        MSG_WriteUint8( svc_portalbits );
+        // Clean zeroed memory portal bits buffer for writing.
+        byte portalBits[ MAX_MAP_PORTAL_BYTES ];// = { 0 };
+        memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
+        // Write the current portal bit states to the portalBits buffer.
+        int32_t numPortalBits = CM_WritePortalBits( &sv.cm, portalBits );
+        // Write data to message.
+        MSG_WriteUint8( numPortalBits );
+        MSG_WriteData( portalBits, numPortalBits );
+    }
 
 	// delta encode the playerstate
 	MSG_WriteUint8( svc_playerinfo );
@@ -275,7 +298,9 @@ void SV_BuildClientFrame(client_t *client)
     // find the client's PVS
     ps = &clent->client->ps;
 	VectorAdd( ps->viewoffset, ps->pmove.origin, org );
-    //VectorMA(ps->viewoffset, 1, ps->pmove.origin, org); // WID: floating-point
+
+    // Add the actual viewoffset to the origin.
+    org[ 2 ] += ps->pmove.viewheight;
 
     leaf = CM_PointLeaf(client->cm, org);
     clientarea = leaf->area;
@@ -368,7 +393,7 @@ void SV_BuildClientFrame(client_t *client)
                     if (cull_nonvisible_entities) {
                         if (ent->num_clusters == -1) {
                             // too many leafs for individual check, go by headnode
-                            if (!CM_HeadnodeVisible(CM_NodeNum(client->cm, ent->headnode), clientpvs))
+                            if (!CM_HeadnodeVisible(CM_NodeForNumber(client->cm, ent->headnode), clientpvs))
                                 ent_visible = false;
                         } else {
                             // check individual leafs
@@ -412,7 +437,7 @@ void SV_BuildClientFrame(client_t *client)
 
         // add it to the circular client_entities array
         state = &svs.entities[svs.next_entity % svs.num_entities];
-        MSG_PackEntity(state, &es, Q2PRO_SHORTANGLES(client, e));
+        MSG_PackEntity( state, &es );
 
         // clear footsteps
         //if (state->event == EV_FOOTSTEP && client->settings[CLS_NOFOOTSTEPS]) {
@@ -427,16 +452,16 @@ void SV_BuildClientFrame(client_t *client)
 
 		// don't mark players missiles as solid
         if (ent->owner == clent) {
-            state->solid.u = 0;
-        }
-		// WID: netstuff: longsolid
+            state->solid = static_cast<solid_t>( 0 );
+        // WID: netstuff: longsolid
 		// else if (client->esFlags & MSG_ES_LONGSOLID) {
-            state->solid.u = sv.entities[e].solid32;
-        //}
+        } else {
+            state->solid = static_cast<solid_t>( sv.entities[ e ].solid32 );
+        }
 
         svs.next_entity++;
 
-        if (++frame->num_entities == MAX_PACKET_ENTITIES) {
+        if (++frame->num_entities == sv_max_packet_entities->integer ) {
             break;
         }
     }

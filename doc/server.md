@@ -6,12 +6,18 @@ Copyright (c) 2019, NVIDIA Corporation. All right reserved.
 
 About
 -----
-Q2RTX is built upon Q2VKPT and Q2PRO source ports of Quake 2 and inherits
+**Quake II RTXPerimental** is my 'playing field' and an attempt to improve
+the engine in various parts where I see fit. This can range from implementing
+possible scripting language as a game replacement, improving the 
+actual network protocol to support fragmenting, implement an API to deal with
+skeletal models, etc..
+
+**Q2RTX** is built upon Q2VKPT and Q2PRO source ports of Quake 2 and inherits
 most of their settings and commands, listed in this manual. It also adds
 many settings and commands of its own, also listed here. Many of them
 are primarily intended for renderer development and debugging.
 
-Q2PRO is an enhanced, multiplayer oriented Quake 2 server, compatible
+**Q2PRO** is an enhanced, multiplayer oriented Quake 2 client, compatible
 with existing Quake 2 ports and licensed under GPLv2. This document provides
 descriptions of console variables and commands added to or modified by Q2PRO
 since the original Quake 2 release. Cvars and commands inherited from original
@@ -131,6 +137,12 @@ Otherwise clients will be unable to connect.
 If set to 0, server will skip cinematics even if they exist. Default value
 is 1.
 
+#### `sv_max_packet_entities`
+Maximum number of entities in client frame. 0 means unlimited. Default
+value is 128. Some non-standard maps with large open areas may need this
+value increased. Consider however that default Quake 2 client can only
+render 128 entities maximum. Other clients may support more.
+
 #### `sv_reserved_slots`
 Number of client slots reserved for clients who know `sv_reserved_password`
 or `sv_password`. Must be less than `maxclients` value. Default value is 0
@@ -156,6 +168,15 @@ Locks the server, preventing new clients from connecting. Default value is
 When enabled, do not enforce any rate limits on clients whose IP is from
 private address space (`127.x.x.x`, `10.x.x.x`, `192.168.x.x`, `172.16.x.x`).
 Default value is 0 (disabled).
+
+#### `sv_min_rate``
+Server clamps minimum value of `rate` userinfo parameter to this value.
+Default value is 1500 bytes/sec. This parameter can't be greater than
+`sv_max_rate` value or less than 1500 bytes/sec.
+
+#### `sv_max_rate``
+Server clamps maximum value of `rate` userinfo parameter to this value.
+Default value is 15000 bytes/sec.
 
 #### `sv_calcpings_method`
 Specifies the way client pings are calculated. Default ping calculation
@@ -298,6 +319,10 @@ Default value is 1.
 #### `allow_download_others`
 Enables downloading of files from any subdirectory other than those listed
 above. Default value is 0.
+
+#### `sv_max_download_size`
+Maximum size of UDP download in bytes. Value of 0 disables the limit.
+Default value is 8388608 (8 MiB).
 
 
 ### MVD/GTV server
@@ -476,17 +501,42 @@ advantage over non-Q2PRO clients.
 ### System
 
 #### `sys_console`
-On UNIX-like systems, specifies the way system console is used, as well as
-"daemonization" level of the process. Default value is 2 if both stdin and
-stdout descriptors refer to a TTY, and 0 otherwise.
+On UNIX-like systems, specifies how system console is initialized. Default
+value is 2 if both stdin and stdout descriptors refer to a TTY, 1 if
+running a dedicated server and 0 otherwise.
+- 0 — don't write anything to stdout and don't read anything from stdin
+- 1 — print to stdout and read commands from stdin, but don't assume it is a terminal
+- 2 — enable command line editing and colored text output
 
-- 0 — run daemonized, don't output anything on stdout and don't read
-    anything from stdin, handle SIGHUP to reopen log files
-- 1 — enable "dumb" system console mode: print to stdout and read
-    commands from stdin, but don't assume it is a terminal, don't handle
-    SIGHUP
-- 2 — enable "smart" system console mode: handle it as a terminal, enable
-    command completion and colored text output, don't handle SIGHUPc
+##### System console key bindings
+The following key bindings are available in Windows console and in TTY console
+when command line editing is enabled:
+
+* HOME, Ctrl+A — move cursor to start of line
+* END, Ctrl+E — move cursor to end of line
+* Left arrow, Ctrl+B — move cursor one character left
+* Right arrow, Ctrl+F — move cursor one character right
+* Alt+B — move cursor one word left
+* Alt+F — move cursor one word right
+* DEL, Ctrl+D — delete character under cursor
+* Backspace, Ctrl+H — delete character left of cursor
+* Ctrl+W — delete word left of cursor
+* Ctrl+U — delete all characters left of cursor
+* Ctrl+K — delete all characters right of cursor
+* Ctrl+L — erase screen
+* Ctrl+C — quit
+* Down arrow, Ctrl+N — next line in command history
+* Up arrow, Ctrl+P — previous line in command history
+* Ctrl+R — reverse search in command history
+* Ctrl+S — forward search in command history
+* Tab — complete command
+
+In Windows console additional key bindings are supported:
+
+* PGUP — scroll console buffer up
+* PGDN — scroll console buffer down
+* Ctrl+PGUP — scroll to console top
+* Ctrl+PGDN — scroll to console bottom
 
 #### `sys_parachute`
 On UNIX-like systems, specifies if a fatal termination handler is
@@ -533,27 +583,13 @@ syntax description. In addition, the first `@` character in the template,
 if found, is replaced with a single character representing message type
 (T — talk, D — developer, W — warning, E — error, N — notice, A — default).
 
+#### `console_prefix`
+Analogous to `logfile_prefix`, but for system console. Additionally,
+sequence `<?>`, if present at the beginning of prefix, is replaced with
+printk()-style severity level based on message type. This is intended for
+logging server stdout with systemd(1). Default value is empty (no prefix).
 
 ### Miscellaneous
-
-#### `map_override_path`
-Specifies the directory from which override files with extensions `.ent` or
-`.bsp.override` are loaded. Default value is empty (don't try to override
-entity strings). Typical value for this is `maps`, but can be customized
-per server port.
-
-#### Entity overrides
-Override files with `.ent` extension allow the entity string of the map being
-loaded to be replaced by a custom data supplied by server operator. This makes
-it possible to change the layout of entities on the map (thus creating a new
-version of the map) without requiring clients to download anything. Entity
-string can be dumped from the current map using `dumpents` server command and
-later changed with a text editor.
-
-Override files with `.bsp.override` extension are more complex: they are binary
-files that can replace map entity string or checksum. They can also create an
-alias for the map. How to create such files is out of scope of this manual
-(search the internet for ‘r1q2 map override file generator’).
 
 #### `map_visibility_patch`
 Attempt to patch miscalculated visibility data for some well-known maps
@@ -625,8 +661,9 @@ console once a reply is received. More than one variable can be specified on
 command line.
 
 #### `dumpents [filename]`
-Dumps the entity string of current map into ‘maps/_filename_.ent’ file. See
-also `map_override_path` variable description.
+Dumps the entity string of current map into `entdumps/_filename_.ent` file.
+Original map entity string is dumped, even if override is in effect.
+See also `map_override_path`s variable description.
 
 #### `pickclient <address:port>`
 Send `passive_connect` packet to the client at specified _address_ and

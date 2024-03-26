@@ -234,7 +234,7 @@ void actor_pain(edict_t *self, edict_t *other, float kick, int damage)
         const char    *name;
 
         VectorSubtract(other->s.origin, self->s.origin, v);
-        self->ideal_yaw = vectoyaw(v);
+        self->ideal_yaw = QM_Vector3ToYaw(v);
         if (random() < 0.5f)
 			M_SetAnimation( self, &actor_move_flipoff );
         else
@@ -368,10 +368,8 @@ mmove_t actor_move_attack = {FRAME_attak01, FRAME_attak04, actor_frames_attack, 
 
 void actor_attack(edict_t *self)
 {
-    int     n;
-
 	M_SetAnimation( self, &actor_move_attack );
-    //n = (Q_rand() & 15) + 3 + 7;
+    //int n = (Q_rand() & 15) + 3 + 7;
     //self->monsterinfo.pause_framenum = level.framenum + n;
 	self->monsterinfo.pause_time = level.time + random_time( 1_sec, 2.6_sec );
 }
@@ -391,7 +389,7 @@ void actor_use(edict_t *self, edict_t *other, edict_t *activator)
     }
 
     VectorSubtract(self->goalentity->s.origin, self->s.origin, v);
-    self->ideal_yaw = self->s.angles[YAW] = vectoyaw(v);
+    self->ideal_yaw = self->s.angles[YAW] = QM_Vector3ToYaw(v);
     self->monsterinfo.walk(self);
     self->target = NULL;
 }
@@ -420,7 +418,7 @@ void SP_misc_actor(edict_t *self)
     }
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("players/male/tris.md2");
     VectorSet(self->mins, -16, -16, -24);
     VectorSet(self->maxs, 16, 16, 32);
@@ -538,7 +536,7 @@ void target_actor_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface
         other->monsterinfo.stand(other);
     } else if (other->movetarget == other->goalentity) {
         VectorSubtract(other->movetarget->s.origin, other->s.origin, v);
-        other->ideal_yaw = vectoyaw(v);
+        other->ideal_yaw = QM_Vector3ToYaw(v);
     }
 }
 

@@ -571,7 +571,7 @@ void medic_cable_attack(edict_t *self)
         return;
 
     // check for min/max pitch
-    vectoangles(dir, angles);
+    QM_Vector3ToAngles(dir, angles);
     if (angles[0] < -180)
         angles[0] += 360;
     if (fabsf(angles[0]) > 45)
@@ -704,7 +704,7 @@ void SP_monster_medic(edict_t *self)
     gi.soundindex("medic/medatck1.wav");
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/medic/tris.md2");
     VectorSet(self->mins, -24, -24, -24);
     VectorSet(self->maxs, 24, 24, 32);

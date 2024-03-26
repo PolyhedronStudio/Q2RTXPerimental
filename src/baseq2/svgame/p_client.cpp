@@ -68,7 +68,7 @@ void SP_CreateCoopSpots(edict_t *self)
     edict_t *spot;
 
     if (Q_stricmp(level.mapname, "security") == 0) {
-        spot = G_Spawn();
+        spot = G_AllocateEdict();
         spot->classname = "info_player_coop";
         spot->s.origin[0] = 188 - 64;
         spot->s.origin[1] = -164;
@@ -76,7 +76,7 @@ void SP_CreateCoopSpots(edict_t *self)
         spot->targetname = "jail3";
         spot->s.angles[1] = 90;
 
-        spot = G_Spawn();
+        spot = G_AllocateEdict();
         spot->classname = "info_player_coop";
         spot->s.origin[0] = 188 + 64;
         spot->s.origin[1] = -164;
@@ -84,7 +84,7 @@ void SP_CreateCoopSpots(edict_t *self)
         spot->targetname = "jail3";
         spot->s.angles[1] = 90;
 
-        spot = G_Spawn();
+        spot = G_AllocateEdict();
         spot->classname = "info_player_coop";
         spot->s.origin[0] = 188 + 128;
         spot->s.origin[1] = -164;
@@ -461,7 +461,7 @@ void LookAtKiller(edict_t *self, edict_t *inflictor, edict_t *attacker)
         if (dir[1] > 0)
             self->client->killer_yaw = 90;
         else if (dir[1] < 0)
-            self->client->killer_yaw = -90;
+            self->client->killer_yaw = 270; // WID: pitch-fix.
     }
     if (self->client->killer_yaw < 0)
         self->client->killer_yaw += 360;
@@ -483,17 +483,22 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     self->takedamage = DAMAGE_YES;
     self->movetype = MOVETYPE_TOSS;
 
+    // Unset weapon model.
     self->s.modelindex2 = 0;    // remove linked weapon model
 
+    // Clear X and Z angles.
     self->s.angles[0] = 0;
     self->s.angles[2] = 0;
 
+    // Stop playing any sounds.
     self->s.sound = 0;
     self->client->weapon_sound = 0;
 
+    // Set bbox maxs to -8.
     self->maxs[2] = -8;
 
 //  self->solid = SOLID_NOT;
+    // Flag as to be treated as 'deadmonster' collision.
     self->svflags |= SVF_DEADMONSTER;
 
     if (!self->deadflag) {
@@ -514,23 +519,28 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         }
     }
 
-    // remove powerups
+    // Remove powerups.
     self->client->quad_time = 0_ms;
     self->client->invincible_time = 0_ms;
     self->client->breather_time = 0_ms;
     self->client->enviro_time = 0_ms;
-    self->flags &= ~FL_POWER_ARMOR;
+    self->flags = static_cast<ent_flags_t>( self->flags & ~FL_POWER_ARMOR );
 
+    // Gib Death:
     if (self->health < -40) {
-        // gib
+        // Play gib sound.
         gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-        for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
+        //! Throw 4 small meat gibs around.
+        for ( n = 0; n < 4; n++ ) {
+            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC );
+        }
+        // Turn ourself into the thrown head entity.
         ThrowClientHead(self, damage);
 
+        // Gibs don't take damage, but fade away as time passes.
         self->takedamage = DAMAGE_NO;
+    // Normal death:
     } else {
-        // normal death
         if (!self->deadflag) {
             static int i;
 
@@ -569,18 +579,20 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 
 /*
 ==============
-InitClientPersistant
+InitClientPersistantData
 
 This is only called when the game first initializes in single player,
 but is called after each death and level change in deathmatch
 ==============
 */
-void InitClientPersistant(gclient_t *client)
+void InitClientPersistantData(edict_t *ent, gclient_t *client)
 {
 	gitem_t     *item;
 
-	memset(&client->pers, 0, sizeof(client->pers));
+    // Clear out persistent data.
+    client->pers = {};
 
+    // Find the blaster item, add it to our inventory and appoint it as the selected weapon.
 	item = FindItem("Blaster");
 	client->pers.selected_item = ITEM_INDEX(item);
 	client->pers.inventory[client->pers.selected_item] = 1;
@@ -615,13 +627,22 @@ void InitClientPersistant(gclient_t *client)
     client->pers.max_slugs      = 50;
 
     client->pers.connected = true;
+    client->pers.spawned = true;
 }
 
 
-void InitClientResp(gclient_t *client)
+void InitClientRespawnData(gclient_t *client)
 {
-    memset(&client->resp, 0, sizeof(client->resp));
+    // Clear out respawn data.
+    client->resp = {};
+
+    // Save the moment in time.
     client->resp.enterframe = level.framenum;
+    client->resp.entertime = level.time;
+
+    // In case of a coop game mode, we make sure to store the 
+    // 'persistent across level changes' data into the client's
+    // respawn field, so we can restore it.
     client->resp.coop_respawn = client->pers;
 }
 
@@ -646,7 +667,7 @@ void SaveClientData(void)
             continue;
         game.clients[i].pers.health = ent->health;
         game.clients[i].pers.max_health = ent->max_health;
-        game.clients[i].pers.savedFlags = (ent->flags & (FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR));
+        game.clients[i].pers.savedFlags = static_cast<ent_flags_t>(ent->flags & (FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR));
         if (coop->value)
             game.clients[i].pers.score = ent->client->resp.score;
     }
@@ -894,7 +915,7 @@ void InitBodyQue(void)
 
     level.body_que = 0;
     for (i = 0; i < BODY_QUEUE_SIZE ; i++) {
-        ent = G_Spawn();
+        ent = G_AllocateEdict();
         ent->classname = "bodyque";
     }
 }
@@ -1106,7 +1127,7 @@ void PutClientInServer(edict_t *ent)
     // deathmatch wipes most client data every spawn
     if (deathmatch->value) {
         resp = client->resp;
-        InitClientPersistant(client);
+        InitClientPersistantData( ent, client );
     } else {
 //      int         n;
 
@@ -1131,7 +1152,7 @@ void PutClientInServer(edict_t *ent)
     memset(client, 0, sizeof(*client));
     client->pers = saved;
     if (client->pers.health <= 0)
-        InitClientPersistant(client);
+        InitClientPersistantData( ent, client );
     client->resp = resp;
 
     // copy some data from the client to the entity
@@ -1146,17 +1167,19 @@ void PutClientInServer(edict_t *ent)
     ent->inuse = true;
     ent->classname = "player";
     ent->mass = 200;
-    ent->solid = SOLID_BBOX;
+    ent->solid = SOLID_BOUNDS_BOX;
     ent->deadflag = DEAD_NO;
     ent->air_finished_time = level.time + 12_sec;
-    ent->clipmask = MASK_PLAYERSOLID;
+    ent->clipmask = static_cast<contents_t>( MASK_PLAYERSOLID );
     ent->model = "players/male/tris.md2";
     ent->pain = player_pain;
     ent->die = player_die;
-    ent->waterlevel = 0;
-    ent->watertype = 0;
-    ent->flags &= ~FL_NO_KNOCKBACK;
+    ent->waterlevel = water_level_t::WATER_NONE;;
+    ent->watertype = CONTENTS_NONE;
+    ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
+
     ent->svflags &= ~SVF_DEADMONSTER;
+    ent->svflags |= SVF_PLAYER;
 
     VectorCopy(mins, ent->mins);
     VectorCopy(maxs, ent->maxs);
@@ -1175,7 +1198,15 @@ void PutClientInServer(edict_t *ent)
             client->ps.fov = 160;
     }
 
-    client->ps.gunindex = gi.modelindex(client->pers.weapon->view_model);
+    // Set viewheight for player state pmove.
+    ent->client->ps.pmove.viewheight = ent->viewheight;
+
+    // Proper gunindex.
+    if ( client->pers.weapon ) {
+        client->ps.gunindex = gi.modelindex( client->pers.weapon->view_model );
+    } else {
+        client->ps.gunindex = 0;
+    }    
 
     // clear entity state values
     ent->s.sound = 0;
@@ -1187,13 +1218,14 @@ void PutClientInServer(edict_t *ent)
     // weapon number will be added in changeweapon
     ent->s.skinnum = ent - g_edicts - 1;
     ent->s.frame = 0;
+    ent->s.old_frame = 0;
 
     // try to properly clip to the floor / spawn
     VectorCopy(spawn_origin, temp);
     VectorCopy(spawn_origin, temp2);
     temp[2] -= 64;
     temp2[2] += 16;
-    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, MASK_PLAYERSOLID);
+    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, static_cast<contents_t>( MASK_PLAYERSOLID ));
     if (!tr.allsolid && !tr.startsolid && Q_stricmp(level.mapname, "tech5")) {
         VectorCopy(tr.endpos, ent->s.origin);
         ent->groundentity = tr.ent;
@@ -1213,12 +1245,13 @@ void PutClientInServer(edict_t *ent)
 
     // set the delta angle
     for (i = 0 ; i < 3 ; i++) {
-        client->ps.pmove.delta_angles[i] = ANGLE2SHORT(spawn_angles[i] - client->resp.cmd_angles[i]);
+        client->ps.pmove.delta_angles[i] = /*ANGLE2SHORT*/AngleMod( (spawn_angles[i] - client->resp.cmd_angles[i]) );
     }
 
     VectorCopy(spawn_angles, ent->s.angles);
     VectorCopy(spawn_angles, client->ps.viewangles);
     VectorCopy(spawn_angles, client->v_angle);
+    AngleVectors( client->v_angle, client->v_forward, nullptr, nullptr );
 
     // spawn a spectator
     if (client->pers.spectator) {
@@ -1235,7 +1268,7 @@ void PutClientInServer(edict_t *ent)
     } else
         client->resp.spectator = false;
 
-    if (!KillBox(ent)) {
+    if (!KillBox(ent, true)) {
         // could't spawn in?
     }
 
@@ -1256,9 +1289,13 @@ deathmatch mode, so clear everything out before starting them.
 */
 void ClientBeginDeathmatch(edict_t *ent)
 {
+    // Init Edict.
     G_InitEdict(ent);
+    
+    // Make sure it is recognized as a player.
+    ent->svflags |= SVF_PLAYER;
 
-    InitClientResp(ent->client);
+    InitClientRespawnData(ent->client);
 
     // locate ent at a spawn point
     PutClientInServer(ent);
@@ -1299,24 +1336,29 @@ void ClientBegin(edict_t *ent)
         return;
     }
 
+    ent->client->pers.spawned = true;
+
     // if there is already a body waiting for us (a loadgame), just
     // take it, otherwise spawn one from scratch
-    if (ent->inuse == true) {
+    if (ent->inuse == (qboolean)true) {
         // the client has cleared the client side viewangles upon
         // connecting to the server, which is different than the
         // state when the game is saved, so we need to compensate
         // with deltaangles
-        for (i = 0 ; i < 3 ; i++)
-            ent->client->ps.pmove.delta_angles[i] = ANGLE2SHORT(ent->client->ps.viewangles[i]);
+        for ( i = 0; i < 3; i++ ) {
+            ent->client->ps.pmove.delta_angles[ i ] = /*ANGLE2SHORT*/AngleMod( ent->client->ps.viewangles[ i ] );
+        }
     } else {
         // a spawn point will completely reinitialize the entity
         // except for the persistant data that was initialized at
         // ClientConnect() time
         G_InitEdict(ent);
         ent->classname = "player";
-        InitClientResp(ent->client);
+        InitClientRespawnData(ent->client);
         PutClientInServer(ent);
     }
+
+    ent->svflags |= SVF_PLAYER;
 
     if (level.intermission_framenum) {
         MoveClientToIntermission(ent);
@@ -1460,17 +1502,22 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
     // take it, otherwise spawn one from scratch
     if (ent->inuse == false) {
         // clear the respawning variables
-        InitClientResp(ent->client);
+        InitClientRespawnData(ent->client);
         if (!game.autosaved || !ent->client->pers.weapon)
-            InitClientPersistant(ent->client);
+            InitClientPersistantData( ent, ent->client );
     }
+
+    // make sure we start with known default(s)
+    //ent->svflags = SVF_PLAYER;
 
     ClientUserinfoChanged(ent, userinfo);
 
-    if (game.maxclients > 1)
-        gi.dprintf("%s connected\n", ent->client->pers.netname);
+    if ( game.maxclients > 1 ) {
+        gi.dprintf( "%s connected\n", ent->client->pers.netname );
+    }
 
-    ent->svflags = 0; // make sure we start with known default
+    // make sure we start with known default(s)
+    ent->svflags = SVF_PLAYER;
     ent->client->pers.connected = true;
     return true;
 }
@@ -1507,12 +1554,15 @@ void ClientDisconnect(edict_t *ent)
     ent->s.event = 0;
     ent->s.effects = 0;
     ent->s.renderfx = 0;
-    ent->s.solid = 0;
+    ent->s.solid = SOLID_NOT; // 0
     ent->solid = SOLID_NOT;
     ent->inuse = false;
     ent->classname = "disconnected";
+    ent->client->pers.spawned = false;
     ent->client->pers.connected = false;
+    ent->timestamp = level.time + 1_sec;
 
+    // WID: This is now residing in RunFrame
     // FIXME: don't break skins on corpses, etc
     //playernum = ent-g_edicts-1;
     //gi.configstring (CS_PLAYERSKINS+playernum, "");
@@ -1521,16 +1571,127 @@ void ClientDisconnect(edict_t *ent)
 
 //==============================================================
 
+/**
+*   @brief  Player Move specific 'Trace' wrapper implementation.
+**/
+static const trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
+    //if (pm_passent->health > 0)
+    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
+    //else
+    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
+    return gi.trace( start, mins, maxs, end, (edict_t*)passEntity, contentMask );
+}
+/**
+*   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
+**/
+static const trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
+    return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
+}
+/**
+*   @brief  Player Move specific 'PointContents' wrapper implementation.
+**/
+static const contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
+    return gi.pointcontents( point );
+}
 
-edict_t *pm_passent;
+/*
+=================
+P_FallingDamage
 
-// pmove doesn't need to know about passent and contentmask
-trace_t q_gameabi PM_trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end)
-{
-    if (pm_passent->health > 0)
-        return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
-    else
-        return gi.trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
+Paril-KEX: this is moved here and now reacts directly
+to ClientThink rather than being delayed.
+=================
+*/
+void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
+    int	   damage;
+    vec3_t dir;
+
+    // dead stuff can't crater
+    if ( ent->health <= 0 || ent->deadflag ) {
+        return;
+    }
+
+    if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
+        return; // not in the player model
+    }
+
+    if ( ent->movetype == MOVETYPE_NOCLIP ) {
+        return;
+    }
+
+    // never take falling damage if completely underwater
+    if ( pm.waterlevel == WATER_UNDER ) {
+        return;
+    }
+
+    // ZOID
+    //  never take damage if just release grapple or on grapple
+    //if ( ent->client->ctf_grapplereleasetime >= level.time ||
+    //    ( ent->client->ctf_grapple &&
+    //        ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY ) )
+    //    return;
+    // ZOID
+
+    float delta = pm.impact_delta;
+
+    delta = delta * delta * 0.0001f;
+
+    if ( pm.waterlevel == WATER_WAIST ) {
+        delta *= 0.25f;
+    }
+    if ( pm.waterlevel == WATER_FEET ) {
+        delta *= 0.5f;
+    }
+
+    if ( delta < 1 )
+        return;
+
+    // restart footstep timer
+    ent->client->bobtime = 0;
+
+    //if ( ent->client->landmark_free_fall ) {
+    //    delta = min( 30.f, delta );
+    //    ent->client->landmark_free_fall = false;
+    //    ent->client->landmark_noise_time = level.time + 100_ms;
+    //}
+
+    if ( delta < 15 ) {
+        if ( !( pm.s.pm_flags & PMF_ON_LADDER ) ) {
+            ent->s.event = EV_FOOTSTEP;
+        }
+        return;
+    }
+
+    ent->client->fall_value = delta * 0.5f;
+    if ( ent->client->fall_value > 40 ) {
+        ent->client->fall_value = 40;
+    }
+    ent->client->fall_time = level.time + FALL_TIME();
+
+    if ( delta > 30 ) {
+        if ( delta >= 55 ) {
+            ent->s.event = EV_FALLFAR;
+        } else {
+            ent->s.event = EV_FALL;
+        }
+
+        ent->pain_debounce_time = level.time + FRAME_TIME_S; // no normal pain sound
+        damage = (int)( ( delta - 30 ) / 2 );
+        if ( damage < 1 ) {
+            damage = 1;
+        }
+        VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
+
+        if ( !deathmatch->integer /*|| !g_dm_no_fall_damage->integer*/ ) {
+            T_Damage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING );
+        }
+    } else {
+        ent->s.event = EV_FALLSHORT;
+    }
+
+    // Paril: falling damage noises alert monsters
+    if ( ent->health )
+        PlayerNoise( ent, &pm.s.origin[ 0 ], PNOISE_SELF);
 }
 
 /*
@@ -1543,13 +1704,12 @@ usually be a couple times for each server frame.
 */
 void ClientThink(edict_t *ent, usercmd_t *ucmd)
 {
-    gclient_t   *client;
-    edict_t *other;
-    int     i, j;
+    gclient_t   *client = nullptr;
+    edict_t     *other = nullptr;
     
 	// Configure pmove.
-	pmove_t pm;
-	pmoveParams_t pmp;
+    pmove_t pm = {};
+    pmoveParams_t pmp = {};
 	SG_ConfigurePlayerMoveParameters( &pmp );
 
     level.current_entity = ent;
@@ -1557,109 +1717,166 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
     if (level.intermission_framenum) {
         client->ps.pmove.pm_type = PM_FREEZE;
+
         // can exit intermission after five seconds
-        if (level.framenum > level.intermission_framenum + 5.0f * BASE_FRAMERATE
-            && (ucmd->buttons & BUTTON_ANY))
+        if ( ( level.framenum > level.intermission_framenum + 5.0f * BASE_FRAMERATE ) && ( ucmd->buttons & BUTTON_ANY ) ) {
             level.exitintermission = true;
+        }
+
+        client->ps.pmove.viewheight = ent->viewheight = 22;
+
         return;
     }
 
-    pm_passent = ent;
-
     if (ent->client->chase_target) {
-
-        client->resp.cmd_angles[0] = SHORT2ANGLE(ucmd->angles[0]);
-        client->resp.cmd_angles[1] = SHORT2ANGLE(ucmd->angles[1]);
-        client->resp.cmd_angles[2] = SHORT2ANGLE(ucmd->angles[2]);
-
+		VectorCopy( ucmd->angles, client->resp.cmd_angles );
     } else {
 
         // set up for pmove
-        memset(&pm, 0, sizeof(pm));
+		pm = {};
 
-        if (ent->movetype == MOVETYPE_NOCLIP)
-            client->ps.pmove.pm_type = PM_SPECTATOR;
-        else if (ent->s.modelindex != 255)
-            client->ps.pmove.pm_type = PM_GIB;
-        else if (ent->deadflag)
-            client->ps.pmove.pm_type = PM_DEAD;
-        else
-            client->ps.pmove.pm_type = PM_NORMAL;
+        // NoClip/Spectator:
+		if ( ent->movetype == MOVETYPE_NOCLIP ) {
+			if ( ent->client->resp.spectator ) {
+				client->ps.pmove.pm_type = PM_SPECTATOR;
+			} else {
+				client->ps.pmove.pm_type = PM_NOCLIP;
+			}
+        // If our model index differs, we're gibbing out:
+		} else if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
+			client->ps.pmove.pm_type = PM_GIB;
+        // Dead:
+		} else if ( ent->deadflag ) {
+			client->ps.pmove.pm_type = PM_DEAD;
+        // Otherwise, default, normal movement behavior:
+		} else {
+			client->ps.pmove.pm_type = PM_NORMAL;
+		}
 
-        client->ps.pmove.gravity = sv_gravity->value;
+        // PGM	trigger_gravity support
+        client->ps.pmove.gravity = (short)( sv_gravity->value * ent->gravity );
         pm.s = client->ps.pmove;
 
-        for (i = 0 ; i < 3 ; i++) {
-            pm.s.origin[i] = ent->s.origin[i]; // COORD2SHORT(ent->s.origin[i]); // WID: float-movement
-            pm.s.velocity[i] = ent->velocity[i]; // COORD2SHORT(ent->velocity[i]); // WID: float-movement
-        }
+		// Copy the current entity origin and velocity into our 'pmove movestate'.
+        pm.s.origin = ent->s.origin;
+        pm.s.velocity = ent->velocity;
 
-        if (memcmp(&client->old_pmove, &pm.s, sizeof(pm.s))) {
-            pm.snapinitial = true;
-            //      gi.dprintf ("pmove changed!\n");
+		// Determine if it has changed and we should 'resnap' to position.
+        if ( memcmp( &client->old_pmove, &pm.s, sizeof(pm.s) ) ) {
+            pm.snapinitial = true; // gi.dprintf ("pmove changed!\n");
         }
-
+		// Setup user commands and function pointers.
         pm.cmd = *ucmd;
+        pm.player = ent;
+        pm.trace = SV_PM_Trace;
+        pm.pointcontents = SV_PM_PointContents;
+        pm.clip = SV_PM_Clip;
+        VectorCopy( ent->client->ps.viewoffset, pm.viewoffset );
 
-        pm.trace = PM_trace;    // adds default parms
-        pm.pointcontents = gi.pointcontents;
-
-        // perform a pmove
+        // Perform a PMove.
         SG_PlayerMove( &pm, &pmp );
 
-        for (i = 0 ; i < 3 ; i++) {
-            ent->s.origin[i] = pm.s.origin[ i ]; // SHORT2COORD(pm.s.origin[i]); // WID: float-movement
-            ent->velocity[i] = pm.s.velocity[ i ]; // SHORT2COORD(pm.s.velocity[i]); // WID: float-movement
+        // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those.
+        if ( pm.groundentity && ent->groundentity ) {
+            float stepsize = fabs( ent->s.origin[ 2 ] - pm.s.origin[ 2 ] );
+
+            if ( stepsize > PM_MIN_STEP_SIZE && stepsize < PM_MAX_STEP_SIZE ) {
+                ent->s.renderfx |= RF_STAIR_STEP;
+                ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
+            }
         }
 
-        VectorCopy(pm.mins, ent->mins);
-        VectorCopy(pm.maxs, ent->maxs);
+        // Apply falling damage directly.
+        P_FallingDamage( ent, pm );
 
-        client->resp.cmd_angles[0] = SHORT2ANGLE(ucmd->angles[0]);
-        client->resp.cmd_angles[1] = SHORT2ANGLE(ucmd->angles[1]);
-        client->resp.cmd_angles[2] = SHORT2ANGLE(ucmd->angles[2]);
+        //if ( ent->client->landmark_free_fall && pm.groundentity ) {
+        //    ent->client->landmark_free_fall = false;
+        //    ent->client->landmark_noise_time = level.time + 100_ms;
+        //}
 
-        if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.waterlevel == 0) {
-            gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
-            PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
-        }
+        //// [Paril-KEX] save old position for G_TouchProjectiles
+        //vec3_t old_origin = ent->s.origin;
+        
+        // [Paril-KEX] if we stepped onto/off of a ladder, reset the
+        // last ladder pos
+        //if ( ( pm.s.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
+        //    client->last_ladder_pos = ent->s.origin;
 
-        // save results of pmove
+        //    if ( pm.s.pm_flags & PMF_ON_LADDER ) {
+        //        if ( !deathmatch->integer &&
+        //            client->last_ladder_sound < level.time ) {
+        //            ent->s.event = EV_LADDER_STEP;
+        //            client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
+        //        }
+        //    }
+        //}
+        
+        // [Paril-KEX] save old position for G_TouchProjectiles
+        const Vector3 old_origin = ent->s.origin;
+
+		// Copy back into the entity, both the resulting origin and velocity.
+		VectorCopy( pm.s.origin, ent->s.origin );
+		VectorCopy( pm.s.velocity, ent->velocity );
+
+		// Copy back in bounding box results. (Player might've crouched for example.)
+        VectorCopy( pm.mins, ent->mins );
+        VectorCopy( pm.maxs, ent->maxs );
+        
+        // Save into the client pointer, the resulting move states pmove
         client->ps.pmove = pm.s;
         client->old_pmove = pm.s;
 
-        ent->viewheight = pm.viewheight;
+		// Backup the command angles given from ast command.
+		VectorCopy( ucmd->angles, client->resp.cmd_angles );
+
+
+        if ( pm.jump_sound && !( pm.s.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.waterlevel == 0) {
+            gi.sound( ent, CHAN_VOICE, gi.soundindex( "*jump1.wav" ), 1, ATTN_NORM, 0 );
+            // Paril: removed to make ambushes more effective and to
+            // not have monsters around corners come to jumps
+            // PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
+        }
+
+		// Update the entity's other properties.
+        ent->viewheight = (int32_t)pm.s.viewheight;
         ent->waterlevel = pm.waterlevel;
         ent->watertype = pm.watertype;
         ent->groundentity = pm.groundentity;
-        if (pm.groundentity)
+        if ( pm.groundentity ) {
             ent->groundentity_linkcount = pm.groundentity->linkcount;
+        }
 
-        if (ent->deadflag) {
+        if ( ent->deadflag ) {
             client->ps.viewangles[ROLL] = 40;
             client->ps.viewangles[PITCH] = -15;
             client->ps.viewangles[YAW] = client->killer_yaw;
         } else {
-            VectorCopy(pm.viewangles, client->v_angle);
-            VectorCopy(pm.viewangles, client->ps.viewangles);
+            VectorCopy( pm.viewangles, client->v_angle );
+            VectorCopy( pm.viewangles, client->ps.viewangles );
+            AngleVectors( client->v_angle, client->v_forward, nullptr, nullptr );
         }
 
-        gi.linkentity(ent);
+        gi.linkentity( ent );
 
-        if (ent->movetype != MOVETYPE_NOCLIP)
-            G_TouchTriggers(ent);
+        // PGM trigger_gravity support
+        ent->gravity = 1.0;
+        // PGM
 
-        // touch other objects
-        for (i = 0 ; i < pm.numtouch ; i++) {
-            other = pm.touchents[i];
-            for (j = 0 ; j < i ; j++)
-                if (pm.touchents[j] == other)
-                    break;
-            if (j != i)
-                continue;   // duplicated
-            if (!other->touch)
-                continue;
-            other->touch(other, ent, NULL, NULL);
+		if ( ent->movetype != MOVETYPE_NOCLIP ) {
+			G_TouchTriggers( ent );
+            G_TouchProjectiles( ent, old_origin );
+		}
+
+        // Touch other objects
+        for ( int32_t i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
+            trace_t &tr = pm.touchTraces.traces[ i ];
+            edict_t *other = tr.ent;
+
+            if ( other->touch ) {
+                // TODO: Q2RE has these for last 2 args: const trace_t &tr, bool other_touching_self
+                // What the??
+                other->touch( other, ent, &tr.plane, tr.surface );
+            }
         }
 
     }
@@ -1673,41 +1890,54 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 	ent->light_level = 255;//ucmd->lightlevel;
 
     // fire weapon from final position if needed
-    if (client->latched_buttons & BUTTON_ATTACK) {
-        if (client->resp.spectator) {
+    if ( client->latched_buttons & BUTTON_ATTACK ) {
+        if ( client->resp.spectator ) {
 
-            client->latched_buttons = 0;
+            client->latched_buttons = BUTTON_NONE;
 
-            if (client->chase_target) {
-                client->chase_target = NULL;
-                client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;
-            } else
-                GetChaseTarget(ent);
+            if ( client->chase_target ) {
+                client->chase_target = nullptr;
+                client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
+			} else {
+				GetChaseTarget( ent );
+			}
 
-        } else if (!client->weapon_thunk) {
-            client->weapon_thunk = true;
-            Think_Weapon(ent);
+        } else if ( !client->weapon_thunk ) {
+			// we can only do this during a ready state and
+			// if enough time has passed from last fire
+			if ( ent->client->weaponstate == WEAPON_READY ) {
+				ent->client->weapon_fire_buffered = true;
+
+				if ( ent->client->weapon_fire_finished <= level.time ) {
+					ent->client->weapon_thunk = true;
+					Think_Weapon( ent );
+				}
+			}
         }
     }
 
-    if (client->resp.spectator) {
-        if (ucmd->upmove >= 10) {
-            if (!(client->ps.pmove.pm_flags & PMF_JUMP_HELD)) {
+    if ( client->resp.spectator ) {
+        if ( ucmd->upmove >= 10 ) {
+            if ( !( client->ps.pmove.pm_flags & PMF_JUMP_HELD ) ) {
                 client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
-                if (client->chase_target)
-                    ChaseNext(ent);
-                else
-                    GetChaseTarget(ent);
+
+				if ( client->chase_target ) {
+					ChaseNext( ent );
+				} else {
+					GetChaseTarget( ent );
+				}
             }
-        } else
+		} else {
             client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
+		}
     }
 
     // update chase cam if being followed
-    for (i = 1; i <= maxclients->value; i++) {
+    for ( int32_t i = 1; i <= maxclients->value; i++ ) {
         other = g_edicts + i;
-        if (other->inuse && other->client->chase_target == ent)
-            UpdateChaseCam(other);
+        if ( other->inuse && other->client->chase_target == ent ) {
+			UpdateChaseCam( other );
+		}
     }
 }
 
@@ -1725,46 +1955,54 @@ void ClientBeginServerFrame(edict_t *ent)
     gclient_t   *client;
     int         buttonMask;
 
-    if (level.intermission_framenum)
+    // Remove RF_STAIR_STEP if we're in a new frame, not stepping.
+    if ( gi.GetServerFrameNumber() != ent->client->last_stair_step_frame ) {
+        ent->s.renderfx &= ~RF_STAIR_STEP;
+    }
+
+    if ( level.intermission_framenum )
         return;
 
     client = ent->client;
 
-    if (deathmatch->value &&
+    if ( deathmatch->value &&
         client->pers.spectator != client->resp.spectator &&
-        (level.time - client->respawn_time) >= 5_sec) {
-        spectator_respawn(ent);
+        ( level.time - client->respawn_time ) >= 5_sec ) {
+        spectator_respawn( ent );
         return;
     }
 
     // run weapon animations if it hasn't been done by a ucmd_t
-    if (!client->weapon_thunk && !client->resp.spectator)
+    if ( !client->weapon_thunk && !client->resp.spectator ) {
         Think_Weapon(ent);
-    else
+    } else {
         client->weapon_thunk = false;
+    }
 
-    if (ent->deadflag) {
+    if ( ent->deadflag ) {
         // wait for any button just going down
-        if (level.time > client->respawn_time) {
+        if ( level.time > client->respawn_time ) {
             // in deathmatch, only wait for attack button
-            if (deathmatch->value)
+            if ( deathmatch->value ) {
                 buttonMask = BUTTON_ATTACK;
-            else
+            } else {
                 buttonMask = -1;
+            }
 
-            if ((client->latched_buttons & buttonMask) ||
-                (deathmatch->value && ((int)dmflags->value & DF_FORCE_RESPAWN))) {
-                respawn(ent);
-                client->latched_buttons = 0;
+            if ( ( client->latched_buttons & buttonMask ) ||
+                ( deathmatch->value && ( (int)dmflags->value & DF_FORCE_RESPAWN ) ) ) {
+                respawn( ent );
+                client->latched_buttons = BUTTON_NONE;
             }
         }
         return;
     }
 
     // add player trail so monsters can follow
-    if (!deathmatch->value)
-        if (!visible(ent, PlayerTrail_LastSpot()))
-            PlayerTrail_Add(ent->s.old_origin);
-
-    client->latched_buttons = 0;
+    if ( !deathmatch->value ) {
+        if ( !visible( ent, PlayerTrail_LastSpot() ) ) {
+            PlayerTrail_Add( ent->s.old_origin );
+        }
+    }
+    client->latched_buttons = BUTTON_NONE;
 }

@@ -613,7 +613,7 @@ void SP_monster_brain(edict_t *self) {
     sound_melee3 = gi.soundindex("brain/melee3.wav");
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/brain/tris.md2");
     VectorSet(self->mins, -16, -16, -24);
     VectorSet(self->maxs, 16, 16, 32);

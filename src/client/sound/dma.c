@@ -659,7 +659,7 @@ static void SpatializeOrigin(const vec3_t origin, float master_vol, float dist_m
     vec3_t      source_vec;
 
 // calculate stereo seperation and distance attenuation
-    VectorSubtract(origin, listener_origin, source_vec);
+    VectorSubtract(origin, cl.listener_spatialize.origin, source_vec);
 
     dist = VectorNormalize(source_vec);
     dist -= SOUND_FULLVOLUME;
@@ -671,7 +671,7 @@ static void SpatializeOrigin(const vec3_t origin, float master_vol, float dist_m
         rscale = 1.0f;
         lscale = 1.0f;
     } else {
-        dot = DotProduct(listener_right, source_vec);
+        dot = DotProduct( cl.listener_spatialize.v_right, source_vec);
         rscale = 0.5f * (1.0f + dot);
         lscale = 0.5f * (1.0f - dot);
     }

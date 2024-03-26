@@ -186,7 +186,7 @@ void Netchan_OutOfBand(netsrc_t sock, const netadr_t *address, const char *forma
 Netchan_Setup
 ==============
 */
-void Netchan_Setup(netchan_t *chan, netsrc_t sock, netchan_type_t type,
+void Netchan_Setup(netchan_t *chan, netsrc_t sock, /*netchan_type_t type,*/
                    const netadr_t *adr, int qport, size_t maxpacketlen, int protocol)
 {
     memtag_t tag = sock == NS_SERVER ? TAG_SERVER : TAG_GENERAL;
@@ -197,7 +197,7 @@ void Netchan_Setup(netchan_t *chan, netsrc_t sock, netchan_type_t type,
     Q_assert(maxpacketlen >= MIN_PACKETLEN);
     Q_assert(maxpacketlen <= MAX_PACKETLEN_WRITABLE);
 
-    chan->type = type;
+    //chan->type = type;
     chan->protocol = protocol;
     chan->sock = sock;
     chan->remote_address = *adr;

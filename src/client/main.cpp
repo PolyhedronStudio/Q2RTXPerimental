@@ -18,30 +18,30 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // cl_main.c  -- client main loop
 
-#include "client.h"
+#include "cl_client.h"
+#include "client/ui/ui.h"
 
 cvar_t  *rcon_address;
 
-cvar_t  *cl_noskins;
-cvar_t  *cl_footsteps;
+//cvar_t  *cl_noskins;
 cvar_t  *cl_timeout;
 cvar_t  *cl_predict;
-cvar_t  *cl_gunalpha;
+//cvar_t  *cl_gunalpha;
 // WID: C++20: For linkage with .c
 extern "C" {
 	cvar_t *cl_gunfov;
 }
-cvar_t  *cl_gunscale;
-cvar_t  *cl_gun_x;
-cvar_t  *cl_gun_y;
-cvar_t  *cl_gun_z;
+//cvar_t  *cl_gunscale;
+//cvar_t  *cl_gun_x;
+//cvar_t  *cl_gun_y;
+//cvar_t  *cl_gun_z;
 cvar_t  *cl_warn_on_fps_rounding;
 cvar_t  *cl_maxfps;
 cvar_t  *cl_async;
 cvar_t  *r_maxfps;
 cvar_t  *cl_autopause;
 
-cvar_t  *cl_kickangles;
+//cvar_t  *cl_kickangles;
 cvar_t  *cl_rollhack;
 cvar_t  *cl_noglow;
 cvar_t  *cl_nolerp;
@@ -53,30 +53,23 @@ cvar_t  *cl_showclamp;
 #endif
 
 cvar_t  *cl_player_model;
-cvar_t  *cl_thirdperson_angle;
-cvar_t  *cl_thirdperson_range;
+//cvar_t  *cl_thirdperson_angle;
+//cvar_t  *cl_thirdperson_range;
 
-cvar_t  *cl_disable_particles;
-cvar_t  *cl_disable_explosions;
-cvar_t  *cl_dlight_hacks;
+//cvar_t  *cl_chat_notify;
+//cvar_t  *cl_chat_sound;
+//cvar_t  *cl_chat_filter;
 
-cvar_t  *cl_chat_notify;
-cvar_t  *cl_chat_sound;
-cvar_t  *cl_chat_filter;
-cvar_t  *cl_explosion_sprites;
-cvar_t  *cl_explosion_frametime;
 
 cvar_t  *cl_disconnectcmd;
 cvar_t  *cl_changemapcmd;
 cvar_t  *cl_beginmapcmd;
 
-cvar_t  *cl_gibs;
-
 cvar_t  *cl_protocol;
 
 cvar_t  *gender_auto;
 
-cvar_t  *cl_vwep;
+//cvar_t  *cl_vwep;
 
 cvar_t  *cl_cinematics;
 
@@ -107,7 +100,7 @@ extern "C" {
 client_static_t cls;
 client_state_t  cl;
 
-centity_t   cl_entities[MAX_EDICTS];
+centity_t   *cl_entities = nullptr;
 
 // used for executing stringcmds
 cmdbuf_t    cl_cmdbuf;
@@ -384,12 +377,6 @@ static void CL_Connect_c(genctx_t *ctx, int argnum)
     if (argnum == 1) {
         CL_RecentIP_g(ctx);
         Com_Address_g(ctx);
-    } else if (argnum == 2) {
-        if (!ctx->partial[0] || (ctx->partial[0] == '3' && !ctx->partial[1])) {
-            Prompt_AddMatch(ctx, "34");
-            Prompt_AddMatch(ctx, "35");
-            Prompt_AddMatch(ctx, "36");
-        }
     }
 }
 
@@ -403,13 +390,10 @@ static void CL_Connect_f(void)
 {
     char    *server, *p;
     netadr_t    address;
-    int protocol;
-    int argc = Cmd_Argc();
 
 
-    if (argc < 2) {
-usage:
-        Com_Printf("Usage: %s <server> [34|35|36]\n", Cmd_Argv(0));
+    if (Cmd_Argc() < 2) {
+        Com_Printf("Usage: %s <server>\n", Cmd_Argv(0));
         return;
     }
 
@@ -423,7 +407,7 @@ usage:
     //    protocol = cl_protocol->integer;
     //    if (!protocol) {
 			// WID: net-code: We want to default to Q2RTXPerimental protocol my man.
-            protocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
+            int32_t protocol = PROTOCOL_VERSION_Q2RTXPERIMENTAL;
     //    }
     //}
 
@@ -453,8 +437,7 @@ usage:
     CL_Disconnect(ERR_RECONNECT);
 
     cls.serverAddress = address;
-    cls.serverProtocol = protocol;
-    cls.protocolVersion = 0;
+    cls.serverProtocol = cl_protocol->integer;
     cls.passive = false;
     cls.state = ca_challenging;
     cls.connect_time -= CONNECT_FAST;
@@ -575,25 +558,28 @@ static void CL_Rcon_c(genctx_t *ctx, int argnum)
     Com_Generic_c(ctx, argnum - 1);
 }
 
-/*
-=====================
-CL_ClearState
-
-=====================
-*/
+/**
+*   @brief  Clear any state that should not persist over multiple server connections.
+**/
 void CL_ClearState(void)
 {
     S_StopAllSounds();
     OGG_Stop();
     SCR_StopCinematic();
-    CL_ClearEffects();
-    CL_ClearTEnts();
+
+    // Let the client game wipe state also.
+    clge->ClearState();
     LOC_FreeLocations();
 
-    // wipe the entire cl structure
-    BSP_Free(cl.bsp);
+    // Unload the collision models.
+    CM_FreeMap( &cl.collisionModel ); //BSP_Free(cl.bsp);
+    
+    // Wipe local PVS.
+    //memset( &cl.localPVS, 0, sizeof( cl.localPVS ) / sizeof(char) );
+    cl.localPVS = { 0 };
+
+    // Wipe the entire cl structure.
     memset(&cl, 0, sizeof(cl));
-    memset(&cl_entities, 0, sizeof(cl_entities));
 
     if (cls.state > ca_connected) {
         cls.state = ca_connected;
@@ -627,9 +613,13 @@ void CL_Disconnect(error_type_t type)
         return;
     }
 
-    SCR_EndLoadingPlaque(); // get rid of loading plaque
+    // Get rid of loading plaque.
+    SCR_EndLoadingPlaque();
 
-    SCR_ClearChatHUD_f();   // clear chat HUD on server change
+    // Let the client game know we're disconnecting.
+    clge->ClientDisconnected();
+    // Moved the following into clge->ClientDisconnected();
+    //SCR_ClearChatHUD_f();   // clear chat HUD on server change
 
     if (cls.state > ca_disconnected && !cls.demo.playback) {
         EXEC_TRIGGER(cl_disconnectcmd);
@@ -652,17 +642,20 @@ void CL_Disconnect(error_type_t type)
 		NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
 		NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
 
+        // Clear write buffer.
         SZ_Clear(&msg_write);
 
+        // Close netchan.
         Netchan_Close(&cls.netchan);
     }
 
-    // stop playback and/or recording
+    // Stop playback and/or recording.
     CL_CleanupDemos();
 
-    // stop download
+    // Stop download.
     CL_CleanupDownloads();
 
+    // Clear state.
     CL_ClearState();
 
     cls.state = ca_disconnected;
@@ -675,7 +668,6 @@ void CL_Disconnect(error_type_t type)
     }
 
     CL_CheckForPause();
-
     CL_UpdateFrameTimes();
 }
 
@@ -944,16 +936,18 @@ The server is changing levels
 */
 static void CL_Reconnect_f(void)
 {
-    if (cls.state >= ca_precached) {
+    if (cls.demo.playback) {
+        Com_Printf("No server to reconnect to.\n");
+        return;
+    }
+
+    if (cls.state >= ca_precached || Cmd_From() != FROM_STUFFTEXT) {
         CL_Disconnect(ERR_RECONNECT);
     }
 
     if (cls.state >= ca_connected) {
         cls.state = ca_connected;
 
-        if (cls.demo.playback) {
-            return;
-        }
         if (cls.download.file) {
             return; // if we are downloading, we don't change!
         }
@@ -969,13 +963,14 @@ static void CL_Reconnect_f(void)
         Com_Printf("No server to reconnect to.\n");
         return;
     }
-    if (cls.serverAddress.type == NA_LOOPBACK) {
+    if (cls.serverAddress.type == NA_LOOPBACK && !sv_running->integer) {
         Com_Printf("Can not reconnect to loopback.\n");
         return;
     }
 
     Com_Printf("Reconnecting...\n");
 
+    cls.serverProtocol = cl_protocol->integer;
     cls.state = ca_challenging;
     cls.connect_time -= CONNECT_FAST;
     cls.connect_count = 0;
@@ -983,7 +978,7 @@ static void CL_Reconnect_f(void)
     SCR_UpdateScreen();
 }
 
-#ifdef USE_UI
+#if USE_UI
 /*
 =================
 CL_SendStatusRequest
@@ -1050,68 +1045,69 @@ CL_Skins_f
 Load or download any custom player skins and models
 =================
 */
-static void CL_Skins_f(void)
-{
-    int i;
-    char *s;
-    clientinfo_t *ci;
-
-    if (cls.state < ca_loading) {
+static void CL_Skins_f(void) {
+    if (cls.state < ca_precached) {
         Com_Printf("Must be in a level to load skins.\n");
         return;
     }
 
-    CL_RegisterVWepModels();
+    CL_PrecacheViewModels();
 
-    for (i = 0; i < MAX_CLIENTS; i++) {
-        s = cl.configstrings[CS_PLAYERSKINS + i];
-        if (!s[0])
+    for (int32_t i = 0; i < MAX_CLIENTS; i++) {
+        // Get a valid config string.
+        const char *s = cl.configstrings[CS_PLAYERSKINS + i];
+        if ( !s[ 0 ] ) {
             continue;
-        ci = &cl.clientinfo[i];
+        }
+        // Load client specific info from the config string.
+        clientinfo_t *ci = &cl.clientinfo[i];
         CL_LoadClientinfo(ci, s);
-        if (!ci->model_name[0] || !ci->skin_name[0])
+
+        // Use the default 'base' client info in case of an invalid model or skin name.
+        if ( !ci->model_name[ 0 ] || !ci->skin_name[ 0 ] ) {
             ci = &cl.baseclientinfo;
+        }
         Com_Printf("client %d: %s --> %s/%s\n", i, s,
                    ci->model_name, ci->skin_name);
         SCR_UpdateScreen();
     }
 }
 
-static void cl_noskins_changed(cvar_t *self)
-{
-    int i;
-    char *s;
-    clientinfo_t *ci;
-
-    if (cls.state < ca_loading) {
-        return;
-    }
-
-    for (i = 0; i < MAX_CLIENTS; i++) {
-        s = cl.configstrings[CS_PLAYERSKINS + i];
-        if (!s[0])
-            continue;
-        ci = &cl.clientinfo[i];
-        CL_LoadClientinfo(ci, s);
-    }
-}
-
-static void cl_vwep_changed(cvar_t *self)
-{
-    if (cls.state < ca_loading) {
-        return;
-    }
-
-    CL_RegisterVWepModels();
-    cl_noskins_changed(self);
-}
+//static void cl_noskins_changed(cvar_t *self)
+//{
+//    int i;
+//    char *s;
+//    clientinfo_t *ci;
+//
+//    if (cls.state < ca_precached) {
+//        return;
+//    }
+//
+//    for (i = 0; i < MAX_CLIENTS; i++) {
+//        s = cl.configstrings[CS_PLAYERSKINS + i];
+//        if (!s[0])
+//            continue;
+//        ci = &cl.clientinfo[i];
+//        CL_LoadClientinfo(ci, s);
+//    }
+//}
+//
+//static void cl_vwep_changed(cvar_t *self)
+//{
+//    if (cls.state < ca_precached) {
+//        return;
+//    }
+//
+//    CL_PrecacheViewModels();
+//    cl_noskins_changed(self);
+//}
 
 static void CL_Name_g(genctx_t *ctx)
 {
     int i;
     char buffer[MAX_CLIENT_NAME];
 
-    if (cls.state < ca_loading) {
+    if (cls.state < ca_precached) {
         return;
     }
 
@@ -1134,7 +1130,7 @@ static void CL_ConnectionlessPacket(void)
 {
     char    string[MAX_STRING_CHARS];
     char    *s, *c;
-    int     i, j, k;
+    int     i, j;
 
     MSG_BeginReading();
     MSG_ReadInt32(); // skip the -1
@@ -1206,7 +1202,7 @@ static void CL_ConnectionlessPacket(void)
 
     // Action: Server Connection: Connect command received.
     if (!strcmp(c, "client_connect")) {
-        netchan_type_t type;
+        //netchan_type_t type;
         char mapname[MAX_QPATH];
         bool got_server = false;
 
@@ -1253,13 +1249,16 @@ static void CL_ConnectionlessPacket(void)
         Com_Printf("Connected to %s (protocol %d).\n",
                    NET_AdrToString(&cls.serverAddress), cls.serverProtocol);
         Netchan_Close(&cls.netchan);
-        Netchan_Setup(&cls.netchan, NS_CLIENT, NETCHAN_Q2RTXPERIMENTAL, &cls.serverAddress,
+        Netchan_Setup(&cls.netchan, NS_CLIENT, /*NETCHAN_Q2RTXPERIMENTAL, */&cls.serverAddress,
                       cls.quakePort, 1024, cls.serverProtocol);
 
         CL_ClientCommand("new");
         cls.state = ca_connected;
         cls.connect_count = 0;
         strcpy(cl.mapname, mapname);   // for levelshot screen
+
+        // Let the client game know we connected.
+        clge->ClientConnected();
         return;
     }
 
@@ -1306,6 +1305,10 @@ CL_PacketEvent
 */
 static void CL_PacketEvent(void)
 {
+    if (msg_read.cursize < 4) {
+        return;
+    }
+
     //
     // remote command packet
     //
@@ -1511,16 +1514,34 @@ static void CL_PlaySound_f(void)
 
 static int precache_spawncount;
 
-/*
-=================
-CL_Begin
+/**
+*   @brief  Called from CL_Begin only. Used to let the client game spawn local
+*           entities from the parsed entity dictionaries. This is done just in
+*           time before the actual refresh and sound precaching processes start.
+**/
+void CL_SpawnClientEntities() {
+    // Refresh ain't initialized, we need it:
+    if ( !cls.ref_initialized ) {
+        return;
+    }
+    // No map loaded:
+    if ( !cl.mapname[ 0 ] ) {
+        return;     // no map loaded
+    }
 
-Called after all downloads are done. Not used for demos.
-=================
-*/
+    // Call upon the client games SpawnEntities so it can appropriately spawn local client side entities.
+    clge->SpawnEntities( cl.mapname, "", cl.collisionModel.entities, cl.collisionModel.numentities );
+}
+
+/**
+*   @brief  Called after all downloads are done. Not used for demos.
+**/
 void CL_Begin(void)
 {
     Cvar_FixCheats();
+
+    // Spawn local client entities and allow them to register precache data.
+    CL_SpawnClientEntities();
 
     CL_PrepRefresh();
     CL_LoadState(LOAD_SOUNDS);
@@ -1532,14 +1553,9 @@ void CL_Begin(void)
     CL_ClientCommand(va("begin %i\n", precache_spawncount));
 }
 
-/*
-=================
-CL_Precache_f
-
-The server will send this command right
-before allowing the client into the server
-=================
-*/
+/**
+*   @brief  The server will send this command right before allowing the client into the server
+**/
 static void CL_Precache_f(void)
 {
     if (cls.state < ca_connected) {
@@ -1551,7 +1567,7 @@ static void CL_Precache_f(void)
 
     S_StopAllSounds();
 
-    CL_RegisterVWepModels();
+    CL_PrecacheViewModels();
 
     // demos use different precache sequence
     if (cls.demo.playback) {
@@ -1747,8 +1763,14 @@ static bool match_ignore_nick_2(const char *nick, const char *s)
 
 static bool match_ignore_nick(const char *nick, const char *s)
 {
-    if (match_ignore_nick_2(nick, s))
+    // WID: It seems this function was abit rigged? It never did a proper comparison in the first place.
+    if ( strlen(nick) != 0 && strlen(s) != 0 && strcmp( nick, s ) == 0 ) {
         return true;
+    }
+
+    if ( match_ignore_nick_2( nick, s ) ) {
+        return true;
+    }
 
     if (*s == '[') {
         const char *p = strstr(s + 1, "] "); // WID: C++20: Was non const
@@ -1764,10 +1786,15 @@ static bool match_ignore_nick(const char *nick, const char *s)
 CL_CheckForIgnore
 =================
 */
-bool CL_CheckForIgnore(const char *s)
+qboolean CL_CheckForIgnore(const char *s)
 {
     char buffer[MAX_STRING_CHARS];
     ignore_t *ignore;
+
+    // WID: To prevent crashing if called before creation of said cvars below.
+    if ( cls.state < ca_active ) {
+        return false;
+    }
 
     if (LIST_EMPTY(&cl_ignore_text) && LIST_EMPTY(&cl_ignore_nick)) {
         return false;
@@ -1954,9 +1981,9 @@ static size_t CL_Ups_m(char *buffer, size_t size)
 {
     vec3_t vel;
 
-    if (!cls.demo.playback && cl.frame.clientNum == cl.clientNum &&
-        cl_predict->integer) {
-        VectorCopy(cl.predicted_velocity, vel);
+    if ( !cls.demo.playback && cl_predict->integer &&
+        !( cl.frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
+        VectorCopy(cl.predictedState.view.velocity, vel);
     } else {
         //VectorScale(cl.frame.ps.pmove.velocity, 0.125f, vel);
 		VectorCopy( cl.frame.ps.pmove.velocity, vel );
@@ -1991,8 +2018,7 @@ static size_t CL_DemoPos_m(char *buffer, size_t size)
     sec = framenum / 10; framenum %= 10;
     min = sec / 60; sec %= 60;
 
-    return Q_scnprintf(buffer, size,
-                       "%d:%02d.%d", min, sec, framenum);
+    return Q_scnprintf(buffer, size, "%d:%02d.%d", min, sec, framenum);
 }
 
 static size_t CL_Fps_m(char *buffer, size_t size)
@@ -2093,13 +2119,17 @@ static size_t CL_ResolutionScale_m(char *buffer, size_t size)
 {
 	return Q_scnprintf(buffer, size, "%d", cl.refdef.feedback.resolution_scale);
 }
-
-int CL_GetFps(void)
+//!
+const int32_t CL_GetClientFps(void)
 {
 	return C_FPS;
 }
-
-int CL_GetResolutionScale(void)
+//!
+const int32_t CL_GetRefreshFps( void ) {
+    return R_FPS;
+}
+//!
+const int32_t CL_GetResolutionScale(void)
 {
 	return cl.refdef.feedback.resolution_scale;
 }
@@ -2132,13 +2162,9 @@ void CL_WriteConfig(void)
         Com_EPrintf("Error writing %s\n", COM_CONFIG_CFG);
 }
 
-/*
-====================
-CL_RestartFilesystem
-
-Flush caches and restart the VFS.
-====================
-*/
+/**
+*   @brief  Flush caches and restart the VFS.
+**/
 void CL_RestartFilesystem(bool total)
 {
     int cls_state;
@@ -2223,11 +2249,13 @@ void CL_RestartRefresh(bool total)
 
     S_StopAllSounds();
 
+    // Whether to do a total restart of the refresh system:
     if (total) {
         IN_Shutdown();
         CL_ShutdownRefresh();
         CL_InitRefresh();
         IN_Init();
+    // Or just flush its cache and reload anew fresh cache.
     } else {
         UI_Shutdown();
         R_Shutdown(false);
@@ -2237,12 +2265,15 @@ void CL_RestartRefresh(bool total)
         UI_Init();
     }
 
+    // We're not even connected so the first logical thing is opening the menu.
     if (cls_state == ca_disconnected) {
         UI_OpenMenu(UIMENU_DEFAULT);
+    // Reload all refresh related data.
     } else if (cls_state >= ca_loading && cls_state <= ca_active) {
         CL_LoadState(LOAD_MAP);
         CL_PrepRefresh();
         CL_LoadState(LOAD_NONE);
+    // Reload cinematic:
     } else if (cls_state == ca_cinematic) {
         SCR_ReloadCinematic();
     }
@@ -2318,8 +2349,7 @@ static void exec_server_string(cmdbuf_t *buf, const char *text)
     Cmd_ExecuteCommand(buf);
 }
 
-static inline int fps_to_msec(int fps)
-{
+static inline const int64_t fps_to_msec( const int64_t fps ) {
 #if 0
     return (1000 + fps / 2) / fps;
 #else
@@ -2330,24 +2360,29 @@ static inline int fps_to_msec(int fps)
 static void warn_on_fps_rounding(cvar_t *cvar)
 {
     static bool warned = false;
-    int msec, real_maxfps;
+    int64_t msec, real_maxfps;
 
-    if (cvar->integer <= 0 || cl_warn_on_fps_rounding->integer <= 0)
+    if ( cvar->integer <= 0 || cl_warn_on_fps_rounding->integer <= 0 ) {
         return;
+    }
 
-    msec = fps_to_msec(cvar->integer);
-    if (!msec)
+    msec = fps_to_msec( cvar->integer );
+    if ( !msec ) {
         return;
+    }
 
     real_maxfps = 1000 / msec;
-    if (cvar->integer == real_maxfps)
+    if ( cvar->integer == real_maxfps ) {
         return;
+    }
 
-    Com_WPrintf("%s value `%d' is inexact, using `%d' instead.\n",
-                cvar->name, cvar->integer, real_maxfps);
-    if (!warned) {
-        Com_Printf("(Set `%s' to `0' to disable this warning.)\n",
-                   cl_warn_on_fps_rounding->name);
+    Com_WPrintf( "%s value `%d' is inexact, using `%d' instead.\n",
+        cvar->name, cvar->integer, real_maxfps );
+
+    if ( !warned ) {
+        Com_Printf( "(Set `%s' to `0' to disable this warning.)\n",
+            cl_warn_on_fps_rounding->name );
+
         warned = true;
     }
 }
@@ -2391,6 +2426,26 @@ void cl_timeout_changed(cvar_t *self)
     self->integer = 1000 * Cvar_ClampValue(self, 0, 24 * 24 * 60 * 60);
 }
 
+// TEST FOR SCOREBOARD:
+void CL_ToggleScoreboard_f() {
+    //// Determine if we're the active menu, if not, expose us to be active.
+    //menuFrameWork_t *currentMenu = uis.activeMenu;
+
+    CL_ForwardToServer();
+
+    ////// Start showing this as the default UI.
+    //////if ( showScoreSequence ) {
+    //menuFrameWork_t *scoreboardMenu = UI_FindMenu( "scoreboard" );
+    //if ( currentMenu != scoreboardMenu ) {
+    ////    // Forward to server so it'll start/stop sending us svc_scoreboard messages.
+    ////    //scoreboardMenu->expose( scoreboardMenu );
+    //    UI_PushMenu( scoreboardMenu );
+    ////// Otherwise, assume we're already visible, so hide all UI:
+    //} else {
+    //    UI_ForceMenuOff();
+    //}
+}
+// END OF TEST:
 static const cmdreg_t c_client[] = {
     { "cmd", CL_ForwardToServer_f },
     { "pause", CL_Pause_f },
@@ -2399,13 +2454,15 @@ static const cmdreg_t c_client[] = {
     { "userinfo", CL_Userinfo_f },
     { "snd_restart", CL_RestartSound_f },
     { "play", CL_PlaySound_f, CL_PlaySound_c },
-    //{ "changing", CL_Changing_f },
+    // Considered 'private', and handled in: exec_server_string
+    // //{ "changing", CL_Changing_f },
     { "disconnect", CL_Disconnect_f },
     { "connect", CL_Connect_f, CL_Connect_c },
     { "followip", CL_FollowIP_f },
     { "passive", CL_PassiveConnect_f },
     { "reconnect", CL_Reconnect_f },
     { "rcon", CL_Rcon_f, CL_Rcon_c },
+    // Considered 'private', and handled in: exec_server_string
     //{ "precache", CL_Precache_f },
     { "serverstatus", CL_ServerStatus_f, CL_ServerStatus_c },
     { "ignoretext", CL_IgnoreText_f },
@@ -2420,6 +2477,7 @@ static const cmdreg_t c_client[] = {
     { "vid_restart", CL_RestartRefresh_f },
     { "r_reload", CL_ReloadRefresh_f },
 
+    
     //
     // forward to server commands
     //
@@ -2428,6 +2486,8 @@ static const cmdreg_t c_client[] = {
     // forwarded to the server
     { "say", NULL, CL_Say_c },
     { "say_team", NULL, CL_Say_c },
+
+    { "score" }, //, CL_ToggleScoreboard_f },
 
     { "wave" }, { "inven" }, { "kill" }, { "use" },
     { "drop" }, { "info" }, { "prog" },
@@ -2455,8 +2515,8 @@ static void CL_InitLocal(void)
     CL_InitDemos();
     LOC_Init();
     CL_InitAscii();
-    CL_InitEffects();
-    CL_InitTEnts();
+    //CL_InitEffects();
+    //CL_InitTEnts();
     CL_InitDownloads();
 
     List_Init(&cl_ignore_text);
@@ -2472,17 +2532,16 @@ static void CL_InitLocal(void)
     //
     // register our variables
     //
-    cl_gunalpha = Cvar_Get("cl_gunalpha", "1", 0);
+    //cl_gunalpha = Cvar_Get("cl_gunalpha", "1", 0);
     cl_gunfov = Cvar_Get("cl_gunfov", "75", 0);
-    cl_gunscale = Cvar_Get("cl_gunscale", "0.25", CVAR_ARCHIVE);
-    cl_gun_x = Cvar_Get("cl_gun_x", "0", 0);
-    cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
-    cl_gun_z = Cvar_Get("cl_gun_z", "0", 0);
-    cl_footsteps = Cvar_Get("cl_footsteps", "1", 0);
-    cl_noskins = Cvar_Get("cl_noskins", "0", 0);
-    cl_noskins->changed = cl_noskins_changed;
+    //cl_gunscale = Cvar_Get("cl_gunscale", "0.25", CVAR_ARCHIVE);
+    //cl_gun_x = Cvar_Get("cl_gun_x", "0", 0);
+    //cl_gun_y = Cvar_Get("cl_gun_y", "0", 0);
+    //cl_gun_z = Cvar_Get("cl_gun_z", "0", 0);
+    //cl_noskins = Cvar_Get("cl_noskins", "0", 0);
+    //cl_noskins->changed = cl_noskins_changed;
     cl_predict = Cvar_Get("cl_predict", "1", 0);
-    cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
+    //cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
     cl_warn_on_fps_rounding = Cvar_Get("cl_warn_on_fps_rounding", "1", 0);
     cl_maxfps = Cvar_Get("cl_maxfps", "62", 0);
     cl_maxfps->changed = cl_maxfps_changed;
@@ -2491,8 +2550,6 @@ static void CL_InitLocal(void)
     r_maxfps = Cvar_Get("r_maxfps", "0", 0);
     r_maxfps->changed = cl_maxfps_changed;
     cl_autopause = Cvar_Get("cl_autopause", "1", 0);
-    cl_rollhack = Cvar_Get("cl_rollhack", "1", 0);
-    cl_noglow = Cvar_Get("cl_noglow", "0", 0);
     cl_nolerp = Cvar_Get("cl_nolerp", "0", 0);
 
     // hack for timedemo
@@ -2516,33 +2573,34 @@ static void CL_InitLocal(void)
     rcon_address->generator = Com_Address_g;
 
 	cl_player_model = Cvar_Get("cl_player_model", va("%d", CL_PLAYER_MODEL_FIRST_PERSON), CVAR_ARCHIVE);
-    cl_thirdperson_angle = Cvar_Get("cl_thirdperson_angle", "0", 0);
-    cl_thirdperson_range = Cvar_Get("cl_thirdperson_range", "60", 0);
+    //cl_thirdperson_angle = Cvar_Get("cl_thirdperson_angle", "0", 0);
+    //cl_thirdperson_range = Cvar_Get("cl_thirdperson_range", "60", 0);
 
-    cl_disable_particles = Cvar_Get("cl_disable_particles", "0", 0);
-    cl_disable_explosions = Cvar_Get("cl_disable_explosions", "0", 0);
-	cl_explosion_sprites = Cvar_Get("cl_explosion_sprites", "1", 0);
-	cl_explosion_frametime = Cvar_Get("cl_explosion_frametime", "20", 0);
-    cl_dlight_hacks = Cvar_Get("cl_dlight_hacks", "0", 0);
+    // Moved to clgame.
+    //cl_disable_particles = Cvar_Get("cl_disable_particles", "0", 0);
+    //cl_disable_explosions = Cvar_Get("cl_disable_explosions", "0", 0);
+    //cl_explosion_sprites = Cvar_Get("cl_explosion_sprites", "1", 0);
+    //cl_explosion_frametime = Cvar_Get("cl_explosion_frametime", "20", 0);
+    //cl_dlight_hacks = Cvar_Get("cl_dlight_hacks", "0", 0);
+    //
+    //cl_gibs = Cvar_Get("cl_gibs", "1", 0);
 
-    cl_gibs = Cvar_Get("cl_gibs", "1", 0);
-
-    cl_chat_notify = Cvar_Get("cl_chat_notify", "1", 0);
-    cl_chat_sound = Cvar_Get("cl_chat_sound", "1", 0);
-    cl_chat_sound->changed = cl_chat_sound_changed;
-    cl_chat_sound_changed(cl_chat_sound);
-    cl_chat_filter = Cvar_Get("cl_chat_filter", "0", 0);
+    //cl_chat_notify = Cvar_Get("cl_chat_notify", "1", 0);
+    //cl_chat_sound = Cvar_Get("cl_chat_sound", "1", 0);
+    //cl_chat_sound->changed = cl_chat_sound_changed;
+    //cl_chat_sound_changed(cl_chat_sound);
+    //cl_chat_filter = Cvar_Get("cl_chat_filter", "0", 0);
 
     cl_disconnectcmd = Cvar_Get("cl_disconnectcmd", "", 0);
     cl_changemapcmd = Cvar_Get("cl_changemapcmd", "", 0);
     cl_beginmapcmd = Cvar_Get("cl_beginmapcmd", "", 0);
 
-    cl_protocol = Cvar_Get("cl_protocol", "0", 0);
+    cl_protocol = Cvar_Get("cl_protocol", std::to_string( PROTOCOL_VERSION_Q2RTXPERIMENTAL).c_str(), 0);
 
     gender_auto = Cvar_Get("gender_auto", "1", CVAR_ARCHIVE);
 
-    cl_vwep = Cvar_Get("cl_vwep", "1", CVAR_ARCHIVE);
-    cl_vwep->changed = cl_vwep_changed;
+    //cl_vwep = Cvar_Get("cl_vwep", "1", CVAR_ARCHIVE);
+    //cl_vwep->changed = cl_vwep_changed;
 
     cl_cinematics = Cvar_Get("cl_cinematics", "1", CVAR_ARCHIVE);
 
@@ -2564,15 +2622,6 @@ static void CL_InitLocal(void)
     info_gender->modified = false; // clear this so we know when user sets it manually
     info_uf = Cvar_Get("uf", "", CVAR_USERINFO);
 
-	// Generate a random user name to avoid new users being kicked out of MP servers.
-	// The default quake2 config files set the user name to "Player", same as the cvar initialization above.
-	if (Q_strcasecmp(info_name->string, "Player") == 0)
-	{
-		int random_number = Q_rand() % 10000;
-		char buf[MAX_CLIENT_NAME];
-		Q_snprintf(buf, sizeof(buf), "Player-%04d", random_number);
-		Cvar_Set("name", buf);
-	}
 
     //
     // macros
@@ -2601,6 +2650,9 @@ static void CL_InitLocal(void)
 	Cmd_AddMacro("cl_viewdir", CL_ViewDir_m);
 	Cmd_AddMacro("cl_hdr_color", CL_HdrColor_m);
 	Cmd_AddMacro("cl_resolution_scale", CL_ResolutionScale_m);
+
+    // Call the initialize method of client game.
+    CL_GM_Init( );
 }
 
 /*
@@ -2610,21 +2662,25 @@ CL_CheatsOK
 */
 bool CL_CheatsOK(void)
 {
-    // can cheat when disconnected or playing a demo
-    if (cls.state < ca_connected || cls.demo.playback)
+    // Can cheat when disconnected or playing a demo.
+    if ( cls.state < ca_connected || cls.demo.playback ) {
         return true;
+    }
 
     // can't cheat on remote servers
-    if (!sv_running->integer)
+    if ( !sv_running->integer ) {
         return false;
+    }
 
     // developer option
-    if (Cvar_VariableInteger("cheats"))
+    if ( Cvar_VariableInteger( "cheats" ) ) {
         return true;
+    }
 
-    // single player can cheat
-    if (cls.state > ca_connected && cl.maxclients == 1)
+    // Single player can cheat.
+    if ( cls.state > ca_connected && cl.maxclients == 1 ) {
         return true;
+    }
 
     return false;
 }
@@ -2636,10 +2692,9 @@ bool CL_CheatsOK(void)
 CL_Activate
 ==================
 */
-void CL_Activate(active_t active)
-{
-    if (cls.active != active) {
-        Com_DDDPrintf("%s: %u\n", __func__, active);
+void CL_Activate( active_t active ) {
+    if ( cls.active != active ) {
+        Com_DDDPrintf( "%s: %u\n", __func__, active );
         cls.active = active;
         cls.disable_screen = 0;
         Key_ClearStates();
@@ -2649,6 +2704,17 @@ void CL_Activate(active_t active)
     }
 }
 
+/**
+ * @brief Updates the interpolation fraction for the current client frame.
+ * Because the client often runs at a higher framerate than the server, we
+ * use linear interpolation between the last 2 server frames. We aim to reach
+ * the current server time just as a new packet arrives.
+ *
+ * @remarks The client advances its simulation time each frame, by the elapsed
+ * millisecond delta. Here, we clamp the simulation time to be within the
+ * range of the current frame. Even under ideal conditions, it's likely that
+ * clamping will occur due to e.g. network jitter.
+ */
 static void CL_SetClientTime(void)
 {
     int prevtime;
@@ -2670,6 +2736,28 @@ static void CL_SetClientTime(void)
         cl.lerpfrac = 0;
     } else {
         cl.lerpfrac = (cl.time - prevtime) * CL_1_FRAMETIME;
+    }
+
+    /**
+    *	Maintain our extrapolated time to be between frame and nextframe so we can keep
+    *	track of an estimated time of where our server is at.
+    *
+    *	And calculate the linear extrapolated frame fraction.
+    **/
+    // Calculate linear extrapolation fraction, between frame and nextframe first, so we can correct it
+    // afterwards based on our extrapolated time.
+    int64_t prevServerTime = ( cl.oldframe.number - cl.serverdelta ) * CL_FRAMETIME;
+    int64_t nextServerTime = prevServerTime + CL_FRAMETIME;
+    cl.xerpFraction = (double)( cl.extrapolatedTime - prevServerTime ) / ( nextServerTime - prevServerTime );
+
+    // Correct the calculated extrapolated time and fraction.
+    const int64_t nextFrameTime = prevServerTime + CL_FRAMETIME;
+    if ( cl.extrapolatedTime >= nextFrameTime ) {
+        cl.extrapolatedTime = nextFrameTime;
+        cl.xerpFraction = 1.0f;
+    } else if ( cl.extrapolatedTime < prevServerTime ) {
+        cl.extrapolatedTime = prevServerTime;
+        cl.xerpFraction = 0.f;
     }
 
     SHOWCLAMP(2, "time %d %d, lerpfrac %.3f\n",
@@ -2695,9 +2783,9 @@ static void CL_MeasureStats(void)
             i = cl.initialSeq;
         }
         for (j = i; j <= ack; j++) {
-            client_history_t *h = &cl.history[j & CMD_MASK];
-            if (h->rcvd > h->sent) {
-                ping += h->rcvd - h->sent;
+            client_usercmd_history_t *h = &cl.history[j & CMD_MASK];
+            if (h->timeReceived > h->timeSent) {
+                ping += h->timeReceived - h->timeSent;
                 k++;
             }
         }
@@ -2715,41 +2803,39 @@ static void CL_MeasureStats(void)
 }
 
 #if USE_AUTOREPLY
-static void CL_CheckForReply(void)
-{
-    if (!cl.reply_delta) {
+static void CL_CheckForReply(void) {
+    if ( !cl.reply_delta ) {
         return;
     }
 
-    if (cls.realtime - cl.reply_time < cl.reply_delta) {
+    if ( cls.realtime - cl.reply_time < cl.reply_delta ) {
         return;
     }
 
-    CL_ClientCommand(va("say \"%s\"", com_version->string));
+    CL_ClientCommand( va( "say \"%s\"", com_version->string ) );
 
     cl.reply_delta = 0;
 }
 #endif
 
-static void CL_CheckTimeout(void)
-{
-    if (!cls.netchan.protocol) {
+static void CL_CheckTimeout(void) {
+    if ( !cls.netchan.protocol ) {
         return;
     }
-    if (NET_IsLocalAddress(&cls.netchan.remote_address)) {
+    if ( NET_IsLocalAddress( &cls.netchan.remote_address ) ) {
         return;
     }
 
-#if USE_ICMP
-    if (cls.errorReceived && com_localTime - cls.netchan.last_received > 5000) {
-        Com_Error(ERR_DISCONNECT, "Server connection was reset.");
+    #if USE_ICMP
+    if ( cls.errorReceived && com_localTime - cls.netchan.last_received > 5000 ) {
+        Com_Error( ERR_DISCONNECT, "Server connection was reset." );
     }
-#endif
+    #endif
 
-    if (cl_timeout->integer && com_localTime - cls.netchan.last_received > cl_timeout->integer) {
+    if ( cl_timeout->integer && com_localTime - cls.netchan.last_received > cl_timeout->integer ) {
         // timeoutcount saves debugger
-        if (++cl.timeoutcount > 5) {
-            Com_Error(ERR_DISCONNECT, "Server connection timed out.");
+        if ( ++cl.timeoutcount > 5 ) {
+            Com_Error( ERR_DISCONNECT, "Server connection timed out." );
         }
     } else {
         cl.timeoutcount = 0;
@@ -2762,36 +2848,35 @@ CL_CheckForPause
 
 =================
 */
-void CL_CheckForPause(void)
-{
-    if (cls.state != ca_active) {
+void CL_CheckForPause(void) {
+    if ( cls.state != ca_active ) {
         // only pause when active
-        Cvar_Set("cl_paused", "0");
-        Cvar_Set("sv_paused", "0");
+        Cvar_Set( "cl_paused", "0" );
+        Cvar_Set( "sv_paused", "0" );
         return;
     }
 
-    if (cls.key_dest & (KEY_CONSOLE | KEY_MENU)) {
+    if ( cls.key_dest & ( KEY_CONSOLE | KEY_MENU ) ) {
         // only pause in single player
-        if (cl_paused->integer == 0 && cl_autopause->integer) {
-            Cvar_Set("cl_paused", "1");
+        if ( cl_paused->integer == 0 && cl_autopause->integer ) {
+            Cvar_Set( "cl_paused", "1" );
         }
-    } else if (cl_paused->integer == 1) {
+    } else if ( cl_paused->integer == 1 ) {
         // only resume after automatic pause
-        Cvar_Set("cl_paused", "0");
+        Cvar_Set( "cl_paused", "0" );
     }
 
-    // hack for demo playback pause/unpause
-    if (cls.demo.playback) {
-        // don't pause when running timedemo!
-        if (cl_paused->integer && !com_timedemo->integer) {
-            if (!sv_paused->integer) {
-                Cvar_Set("sv_paused", "1");
+    // Hack for demo playback pause/unpause
+    if ( cls.demo.playback ) {
+        // Don't pause when running timedemo!
+        if ( cl_paused->integer && !com_timedemo->integer ) {
+            if ( !sv_paused->integer ) {
+                Cvar_Set( "sv_paused", "1" );
                 IN_Activate();
             }
         } else {
-            if (sv_paused->integer) {
-                Cvar_Set("sv_paused", "0");
+            if ( sv_paused->integer ) {
+                Cvar_Set( "sv_paused", "0" );
                 IN_Activate();
             }
         }
@@ -2816,8 +2901,9 @@ static const char *const sync_names[] = {
 };
 #endif
 
-static int ref_msec, phys_msec, main_msec;
-static int ref_extra, phys_extra, main_extra;
+static int64_t clientgame_msec = 0, clientgame_extra = 0; // WID: clgame
+static int64_t ref_msec = 0, phys_msec = 0, main_msec = 0;
+static int64_t ref_extra = 0, phys_extra = 0, main_extra = 0;
 static sync_mode_t sync_mode;
 
 #define MIN_PHYS_HZ 40
@@ -2825,117 +2911,192 @@ static sync_mode_t sync_mode;
 #define MIN_REF_HZ MIN_PHYS_HZ
 #define MAX_REF_HZ 1000
 
-static int fps_to_clamped_msec(cvar_t *cvar, int min, int max)
-{
-    if (cvar->integer == 0)
-        return fps_to_msec(max);
+static int fps_to_clamped_msec( cvar_t *cvar, int min, int max ) {
+    if ( cvar->integer == 0 )
+        return fps_to_msec( max );
     else
-        return fps_to_msec(Cvar_ClampInteger(cvar, min, max));
+        return fps_to_msec( Cvar_ClampInteger( cvar, min, max ) );
 }
 
-/*
-==================
-CL_UpdateFrameTimes
-
-Called whenever async/fps cvars change, but not every frame
-==================
-*/
+/**
+*   @brief  Called whenever async/fps cvars change, but not every frame
+**/
 void CL_UpdateFrameTimes(void)
 {
-    if (!cls.state) {
+    if ( !cls.state ) {
         return; // not yet fully initialized
     }
+
+    // WID: clgame
+    clientgame_msec = 0;
+    clientgame_extra = 0;
 
     phys_msec = ref_msec = main_msec = 0;
     ref_extra = phys_extra = main_extra = 0;
 
-    if (com_timedemo->integer) {
-        // timedemo just runs at full speed
+    // Timedemo just runs at full speed:
+    if ( com_timedemo->integer ) {
         sync_mode = SYNC_TIMEDEMO;
-    } else if (cls.active == ACT_MINIMIZED) {
-        // run at 10 fps if minimized
-        main_msec = fps_to_msec(10);
+    // Run at 10 fps if minimized:
+    } else if ( cls.active == ACT_MINIMIZED ) {
+        clientgame_msec = main_msec = fps_to_msec( 10 );
         sync_mode = SYNC_SLEEP_10;
-    } else if (cls.active == ACT_RESTORED || cls.state != ca_active) {
-        // run at 60 fps if not active
-            main_msec = fps_to_msec(60);
-            sync_mode = SYNC_SLEEP_60;
-    } else if (cl_async->integer > 0) {
-        // run physics and refresh separately
-        phys_msec = fps_to_clamped_msec(cl_maxfps, MIN_PHYS_HZ, MAX_PHYS_HZ);
-        ref_msec = fps_to_clamped_msec(r_maxfps, MIN_REF_HZ, MAX_REF_HZ);
-            sync_mode = ASYNC_FULL;
+    // Run at 60 fps if not active:
+    } else if ( cls.active == ACT_RESTORED || cls.state != ca_active ) {
+        clientgame_msec = main_msec = fps_to_msec( 60 );
+        sync_mode = SYNC_SLEEP_60;
+    // Run client game, physics and refresh separately:
+    } else if ( cl_async->integer > 0 ) {
+        clientgame_msec = fps_to_msec( BASE_FRAMERATE );
+        phys_msec = fps_to_clamped_msec( cl_maxfps, MIN_PHYS_HZ, MAX_PHYS_HZ );
+        ref_msec = fps_to_clamped_msec( r_maxfps, MIN_REF_HZ, MAX_REF_HZ );
+        sync_mode = ASYNC_FULL;
+    // Everything ticks in sync with refresh:
     } else {
-        // everything ticks in sync with refresh
-        main_msec = fps_to_clamped_msec(cl_maxfps, MIN_PHYS_HZ, MAX_PHYS_HZ);
-            sync_mode = SYNC_MAXFPS;
-        }
+        clientgame_msec = fps_to_msec( BASE_FRAMERATE );
+        main_msec = fps_to_clamped_msec( cl_maxfps, MIN_PHYS_HZ, MAX_PHYS_HZ );
+        sync_mode = SYNC_MAXFPS;
+    }
 
-    Com_DDPrintf("%s: mode=%s main_msec=%d ref_msec=%d, phys_msec=%d\n",
-                  __func__, sync_names[sync_mode], main_msec, ref_msec, phys_msec);
+    Com_DDPrintf( "%s: mode=%s main_msec=%d ref_msec=%d, phys_msec=%d, clientgame_msec=%d\n",
+        __func__, sync_names[ sync_mode ], main_msec, ref_msec, phys_msec, clientgame_msec );
 }
 
-/*
-==================
-CL_Frame
+/**
+*   @brief  Advances the Client Game for another frame.
+**/
+static int64_t cl_frame_residual = 0;
+int64_t CL_ClientGameFrame( uint64_t msec ) {
+    // Don't run any client game frame if the server isn't running frames.
+    // (Happens if the server is paused.)
+    if ( cls.state == connstate_t::ca_active && sv_paused->integer ) {
+        return 0;
+    }
 
-==================
-*/
-unsigned CL_Frame(unsigned msec)
-{
-    bool phys_frame = true, ref_frame = true;
+    #if USE_CLIENT
+    if ( host_speeds->integer ) {
+        time_before_clgame = Sys_Milliseconds();
+    }
+    #endif
+
+    // Move autonomous things around if enough time has passed.
+    cl_frame_residual += msec;
+    if ( cl_frame_residual < CL_FRAMETIME ) {
+        return CL_FRAMETIME - cl_frame_residual;
+    }
+
+    // We'll be processing local entities here:
+    if ( clge ) {
+        clge->ClientLocalFrame();
+    }
+
+    // Iterate over all entity states to see if we need to take care of preventing any lerp issues.
+    for ( int32_t i = 0; i < MAX_CLIENT_ENTITIES; i++ ) {
+        // Update local entity.
+        //clge->LocalEntities_Update();
+
+        // Fire local entity events.
+        //clge->LocalEntities_Event();
+    }
+
+    // Check for prediction errors.
+    //CL_CheckPredictionError();
+
+    // Increment client local frame number.
+    cl.clientFrame.number++;
+
+    #if USE_CLIENT
+    if ( host_speeds->integer ) {
+        time_after_clgame = Sys_Milliseconds();
+    }
+    #endif
+
+    // Decide how long to sleep next frame.
+    cl_frame_residual -= CL_FRAMETIME;
+    if ( cl_frame_residual < CL_FRAMETIME ) {
+        return CL_FRAMETIME - cl_frame_residual;
+    }
+
+    // Don't accumulate bogus residual.
+    if ( cl_frame_residual > 75 ) { // WID: 40hz: Was > 250
+        Com_DDDPrintf( "Reset client game residual %u\n", cl_frame_residual );
+        cl_frame_residual = CL_FRAMETIME; // WID: 40hz: Was 100
+    }
+
+    return 0;
+}
+
+/**
+*   @brief  Advances the client for yet another frame.
+**/
+uint64_t CL_Frame( uint64_t msec ) {
+    bool clientgame_frame = true, phys_frame = true, ref_frame = true;
 
     time_after_ref = time_before_ref = 0;
+    time_after_clgame = time_before_clgame = 0;
 
-    if (!cl_running->integer) {
-        return UINT_MAX;
+    if ( !cl_running->integer ) {
+        return UINT64_MAX;
     }
 
     main_extra += msec;
-    cls.realtime += msec;
+    //cls.realtime += msec;
+    const uint64_t current = cls.realtime + msec;
+    cls.realdelta = ( current - cls.realtime ) / 1000.f;
+    cls.realtime = current;
 
     CL_ProcessEvents();
 
-    switch (sync_mode) {
+    switch ( sync_mode ) {
+    // Timedemo just runs at full speed:
     case SYNC_TIMEDEMO:
-        // timedemo just runs at full speed
         break;
+    // Don't run refresh at all:
     case SYNC_SLEEP_10:
-        // don't run refresh at all
         ref_frame = false;
-        // fall through
+    // Fall through:
     case SYNC_SLEEP_60:
-        // run at limited fps if not active
-        if (main_extra < main_msec) {
+        // Run at limited fps if not active
+        if ( main_extra < main_msec ) {
             return main_msec - main_extra;
         }
         break;
+    // Run clientgame, physics, and refresh separately:
     case ASYNC_FULL:
-        // run physics and refresh separately
+        clientgame_extra += msec;
         phys_extra += msec;
         ref_extra += msec;
 
-        if (phys_extra < phys_msec) {
+        // Check for client game frame:
+        if ( clientgame_extra < clientgame_msec ) {
+            clientgame_frame = false;
+        } else if ( clientgame_extra > clientgame_msec * 4 ) {
+            clientgame_extra = clientgame_msec;
+        }
+
+        // Check for physics frame.
+        if ( phys_extra < phys_msec ) {
             phys_frame = false;
-        } else if (phys_extra > phys_msec * 4) {
+        } else if ( phys_extra > phys_msec * 4 ) {
             phys_extra = phys_msec;
         }
 
-        if (ref_extra < ref_msec) {
+        // Check for refresh frame.
+        if ( ref_extra < ref_msec ) {
             ref_frame = false;
-        } else if (ref_extra > ref_msec * 4) {
+        } else if ( ref_extra > ref_msec * 4 ) {
             ref_extra = ref_msec;
         }
 
-        // Return immediately if neither physics or refresh are scheduled
-        if(!phys_frame && !ref_frame) {
-            return min(phys_msec - phys_extra, ref_msec - ref_extra);
+        // Return immediately if neither clientgame, physics or refresh are scheduled:
+        if ( !phys_frame && !ref_frame && !clientgame_frame ) {
+            return min( phys_msec - phys_extra, ref_msec - ref_extra );
         }
         break;
+    // Everything ticks in sync with refresh:
     case SYNC_MAXFPS:
-        // everything ticks in sync with refresh
-        if (main_extra < main_msec) {
-            if (!cl.sendPacketNow) {
+        if ( main_extra < main_msec ) {
+            if ( !cl.sendPacketNow ) {
                 return 0;
             }
             ref_frame = false;
@@ -2943,86 +3104,111 @@ unsigned CL_Frame(unsigned msec)
         break;
     }
 
-    Com_DDDDPrintf("main_extra=%d ref_frame=%d ref_extra=%d "
-                   "phys_frame=%d phys_extra=%d\n",
-                   main_extra, ref_frame, ref_extra,
-                   phys_frame, phys_extra);
+    Com_DDDDPrintf( "main_extra=%d ref_frame=%d ref_extra=%d "
+        "phys_frame=%d phys_extra=%d"
+        "clientgame_frame=%d, clientgame_extra=%d\n",
+        main_extra, ref_frame, ref_extra,
+        phys_frame, phys_extra,
+        clientgame_frame, clientgame_extra );
 
-    // decide the simulation time
+    // Decide the simulation time.
     cls.frametime = main_extra * 0.001f;
 
-    if (cls.frametime > 1.0f / 5)
-        cls.frametime = 1.0f / 5;
-
-    if (!sv_paused->integer) {
-        cl.time += main_extra;
+    // This should prevent frameTime overload which might happen if the application 
+    // has been unresponsive for more than 2 frames.
+    if ( cls.frametime > ( BASE_1_FRAMETIME * 2 ) ) {//if ( cls.frametime > 1.0f / 5 ) {
+        cls.frametime = ( BASE_1_FRAMETIME * 2 );//    cls.frametime = 1.0f / 5;
     }
 
-    // read next demo frame
-    if (cls.demo.playback)
-        CL_DemoFrame(main_extra);
+    if ( !sv_paused->integer ) {
+        cl.time += main_extra;
+        cl.extrapolatedTime += main_extra;
+    }
 
-    // calculate local time
-    if (cls.state == ca_active && !sv_paused->integer)
+    // Read next demo frame.
+    if ( cls.demo.playback ) {
+        CL_DemoFrame( main_extra );
+    }
+
+    // Calculate local time.
+    if ( cls.state == ca_active && !sv_paused->integer ) {
         CL_SetClientTime();
 
-#if USE_AUTOREPLY
+        // Let the client game run for another GAME frame.
+        if ( clientgame_frame ) {
+            clientgame_extra -= CL_ClientGameFrame( clientgame_msec );
+        }
+    }
+
+    #if USE_AUTOREPLY
     // check for version reply
     CL_CheckForReply();
-#endif
+    #endif
 
     // resend a connection request if necessary
     CL_CheckForResend();
 
-    // read user intentions
-    CL_UpdateCmd(main_extra);
+    // Read user intentions. (Build up the local movement command for prediction.)
+    CL_UpdateCommand( main_extra );
 
-    // finalize pending cmd
-    phys_frame |= cl.sendPacketNow;
-    if (phys_frame) {
-        CL_FinalizeCmd();
+    // Finalize the pending command to be send.
+    phys_frame |= static_cast<bool>( cl.sendPacketNow );
+
+    if ( phys_frame ) {
+        CL_FinalizeCommand();
         phys_extra -= phys_msec;
         M_FRAMES++;
 
-        // don't let the time go too far off
-        // this can happen due to cl.sendPacketNow
-        if (phys_extra < -phys_msec * 4) {
+        // Don't let the time go too far off this can happen due to cl.sendPacketNow.
+        if ( phys_extra < -phys_msec * 4 ) {
             phys_extra = 0;
         }
     }
 
-    // send pending cmds
-    CL_SendCmd();
+    // Send pending cmds.
+    CL_SendCommand();
 
-    // predict all unacknowledged movements
+    // Predict all unacknowledged movements.
     CL_PredictMovement();
 
+    // Run any console commands right now.
     Con_RunConsole();
 
+    // Run cinematic if any.
     SCR_RunCinematic();
 
-    UI_Frame(main_extra);
+    // Update the UI.
+    UI_Frame( main_extra );
 
-    if (ref_frame) {
-        // update the screen
-        if (host_speeds->integer)
+    if ( ref_frame ) {
+        // Update the screen.
+        if ( host_speeds->integer )
             time_before_ref = Sys_Milliseconds();
 
         SCR_UpdateScreen();
 
-        if (host_speeds->integer)
+        if ( host_speeds->integer )
             time_after_ref = Sys_Milliseconds();
 
         ref_extra -= ref_msec;
         R_FRAMES++;
 
-        // update audio after the 3D view was drawn
+run_fx:
+        // Advance local game effects for next frame.
+        if ( clge ) {
+            clge->ClientRefreshFrame();
+        }
+
+        // Update audio after the 3D view was drawn.
         S_Update();
+
+        // Update screen cinematic.
         SCR_RunCinematic();
-    } else if (sync_mode == SYNC_SLEEP_10) {
-        // force audio and effects update if not rendering
-        CL_CalcViewValues();
-        S_Update();
+    } else if ( sync_mode == SYNC_SLEEP_10 ) {
+        // Force audio and effects update if not rendering.
+        CL_CalculateViewValues();
+        goto run_fx;
+        //S_Update();
     }
 
     // check connection timeout
@@ -3073,6 +3259,8 @@ CL_Init
 */
 void CL_Init(void)
 {
+
+
     if (dedicated->integer) {
         return; // nothing running on the client
     }
@@ -3081,14 +3269,17 @@ void CL_Init(void)
         return;
     }
 
+    // Load in the client game module.
+    CL_GM_LoadProgs();
+
+    // The pre-init phase is there for initializing various submodules.
+    // Do not expect to be able to ACCESS any cvars here just yet.
+    CL_GM_PreInit();
+
     // all archived variables will now be loaded
 
     // start with full screen console
     cls.key_dest = KEY_CONSOLE;
-
-	// WID: Initialize CLGame.
-	CL_GM_InitProgs( );
-
     CL_InitRefresh();
     S_Init();   // sound must be initialized after window is created
 
@@ -3138,10 +3329,12 @@ void CL_Shutdown(void)
     if (!cl_running || !cl_running->integer) {
         return;
     }
-	// Shutdown the RMLUI
-	CL_GM_Shutdown( );
 
+    // Disconnect first. (Unloading server game dll if loopbacked.)
     CL_Disconnect(ERR_FATAL);
+    
+    // Pre shutdown also.
+    CL_GM_PreShutdown();
 
 #if USE_ZLIB
     inflateEnd(&cls.z);
@@ -3152,8 +3345,13 @@ void CL_Shutdown(void)
     S_Shutdown();
     IN_Shutdown();
     Con_Shutdown();
+
+
     CL_ShutdownRefresh();
     CL_WriteConfig();
+
+    // Shutdown the client game module.
+    CL_GM_Shutdown();
 
     memset(&cls, 0, sizeof(cls));
 

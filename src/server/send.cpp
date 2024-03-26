@@ -36,6 +36,7 @@ void SV_FlushRedirect(int redirected, char *outputbuf, size_t len)
     byte    buffer[MAX_PACKETLEN_DEFAULT];
 
     if (redirected == RD_PACKET) {
+		Q_assert( len <= sizeof( buffer ) - 10 );
         memcpy(buffer, "\xff\xff\xff\xffprint\n", 10);
         memcpy(buffer + 10, outputbuf, len);
         NET_SendPacket(NS_SERVER, buffer, len + 10, &net_from);
@@ -266,12 +267,12 @@ void SV_Multicast(const vec3_t origin, multicast_t to, bool reliable) {
 			break;
 		case MULTICAST_PHS:
 			leaf1 = CM_PointLeaf( &sv.cm, origin );
-			leafnum = CM_NumLeaf( &sv.cm, leaf1 );
+			leafnum = CM_NumberForLeaf( &sv.cm, leaf1 );
 			BSP_ClusterVis( sv.cm.cache, mask, leaf1->cluster, DVIS_PHS );
 			break;
 		case MULTICAST_PVS:
 			leaf1 = CM_PointLeaf( &sv.cm, origin );
-			leafnum = CM_NumLeaf( &sv.cm, leaf1 );
+			leafnum = CM_NumberForLeaf( &sv.cm, leaf1 );
 			BSP_ClusterVis( sv.cm.cache, mask, leaf1->cluster, DVIS_PVS );
 			break;
 		default:
@@ -344,12 +345,17 @@ static int compress_message( client_t *client ) {
 	}
 
 	// write the packet header
+	//hdr = svs.z_buffer;
+	//hdr[ 0 ] = svc_zpacket;
+	//hdr[ 1 ] = len & 255;
+	//hdr[ 2 ] = ( len >> 8 ) & 255;
+	//hdr[ 3 ] = msg_write.cursize & 255;
+	//hdr[ 4 ] = ( msg_write.cursize >> 8 ) & 255;
+	// write the packet header
 	hdr = svs.z_buffer;
 	hdr[ 0 ] = svc_zpacket;
-	hdr[ 1 ] = len & 255;
-	hdr[ 2 ] = ( len >> 8 ) & 255;
-	hdr[ 3 ] = msg_write.cursize & 255;
-	hdr[ 4 ] = ( msg_write.cursize >> 8 ) & 255;
+	WL16( &hdr[ 1 ], len );
+	WL16( &hdr[ 3 ], msg_write.cursize );
 
 	return len + ZPACKET_HEADER;
 }
@@ -604,7 +610,7 @@ static inline void write_unreliables( client_t *client, size_t maxsize ) {
 }
 
 static void SV_WriteDatagram( client_t *client ) {
-	message_packet_t *msg;
+	//message_packet_t *msg;
 	size_t cursize;
 
 	// determine how much space is left for unreliable data

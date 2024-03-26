@@ -541,7 +541,7 @@ void jorg_dead(edict_t *self)
     self->nextthink = 0;
     gi.linkentity(self);
 
-    tempent = G_Spawn();
+    tempent = G_AllocateEdict();
     VectorCopy(self->s.origin, tempent->s.origin);
     VectorCopy(self->s.angles, tempent->s.angles);
     tempent->killtarget = self->killtarget;
@@ -580,7 +580,7 @@ bool Jorg_CheckAttack(edict_t *self)
         VectorCopy(self->enemy->s.origin, spot2);
         spot2[2] += self->enemy->viewheight;
 
-        tr = gi.trace(spot1, NULL, NULL, spot2, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA);
+        tr = gi.trace( spot1, NULL, NULL, spot2, self, static_cast<contents_t>( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA ) );
 
         // do we have a clear shot?
         if (tr.ent != self->enemy)
@@ -589,7 +589,7 @@ bool Jorg_CheckAttack(edict_t *self)
 
     enemy_range = range(self, self->enemy);
     VectorSubtract(self->enemy->s.origin, self->s.origin, temp);
-    enemy_yaw = vectoyaw(temp);
+    enemy_yaw = QM_Vector3ToYaw(temp);
 
     self->ideal_yaw = enemy_yaw;
 
@@ -671,7 +671,7 @@ void SP_monster_jorg(edict_t *self)
     MakronPrecache();
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/boss3/jorg/tris.md2");
     self->s.modelindex2 = gi.modelindex("models/monsters/boss3/rider/tris.md2");
     VectorSet(self->mins, -80, -80, 0);

@@ -34,7 +34,7 @@ the player has been recently.  It is used by monsters for pursuit.
 */
 
 
-#define TRAIL_LENGTH    8
+#define TRAIL_LENGTH    128
 
 edict_t     *trail[TRAIL_LENGTH];
 int         trail_head;
@@ -52,7 +52,7 @@ void PlayerTrail_Init(void)
         return;
 
     for (n = 0; n < TRAIL_LENGTH; n++) {
-        trail[n] = G_Spawn();
+        trail[n] = G_AllocateEdict();
         trail[n]->classname = "player_trail";
     }
 
@@ -73,7 +73,7 @@ void PlayerTrail_Add(vec3_t spot)
     trail[trail_head]->timestamp = level.time;
 
     VectorSubtract(spot, trail[PREV(trail_head)]->s.origin, temp);
-    trail[trail_head]->s.angles[1] = vectoyaw(temp);
+    trail[trail_head]->s.angles[1] = QM_Vector3ToYaw(temp);
 
     trail_head = NEXT(trail_head);
 }

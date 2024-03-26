@@ -27,19 +27,24 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *   @brief	Pack an entity state(in) encoding it into entity_packed_t(out)
 **/
-void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_angles ) {
+void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	// allow 0 to accomodate empty baselines
-	if ( in->number < 0 || in->number >= MAX_EDICTS )
+	if ( in->number < 0 || in->number >= MAX_EDICTS ) {
 		Com_Error( ERR_DROP, "%s: bad number: %d", __func__, in->number );
+	}
 
 	out->number = in->number;
+	//out->client = in->client;
 	out->origin[ 0 ] = in->origin[ 0 ]; //COORD2SHORT( in->origin[ 0 ] ); // WID: float-movement
 	out->origin[ 1 ] = in->origin[ 1 ]; //COORD2SHORT( in->origin[ 1 ] ); // WID: float-movement
 	out->origin[ 2 ] = in->origin[ 2 ]; //COORD2SHORT( in->origin[ 2 ] ); // WID: float-movement
 	//if ( short_angles ) {
-		out->angles[ 0 ] = ANGLE2SHORT( in->angles[ 0 ] );
-		out->angles[ 1 ] = ANGLE2SHORT( in->angles[ 1 ] );
-		out->angles[ 2 ] = ANGLE2SHORT( in->angles[ 2 ] );
+		//out->angles[ 0 ] = ANGLE2SHORT( in->angles[ 0 ] );
+		//out->angles[ 1 ] = ANGLE2SHORT( in->angles[ 1 ] );
+		//out->angles[ 2 ] = ANGLE2SHORT( in->angles[ 2 ] );
+		out->angles[ 0 ] = AngleMod( in->angles[ 0 ] );
+		out->angles[ 1 ] = AngleMod( in->angles[ 1 ] );
+		out->angles[ 2 ] = AngleMod( in->angles[ 2 ] );
 	//} else {
 	//	// pack angles8 akin to angles16 to make delta compression happy when
 	//	// precision suddenly changes between entity updates
@@ -57,8 +62,15 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in, bool short_
 	out->skinnum = in->skinnum;
 	out->effects = in->effects;
 	out->renderfx = in->renderfx;
-	out->solid.u = in->solid;
+
+	out->solid = in->solid;
+	out->bounds.u = in->bounds;
+	out->clipmask = in->clipmask;
+	out->hullContents = in->hullContents;
+	out->ownerNumber = in->ownerNumber;
+
 	out->frame = in->frame;
+	out->old_frame = in->old_frame;
 	out->sound = in->sound;
 	out->event = in->event;
 
@@ -109,6 +121,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 // send an update
 	bits = 0;
 
+	//if ( to->client != from->client ) {
+	//	bits |= U_CLIENT;
+	//}
 	if ( !( flags & MSG_ES_FIRSTPERSON ) ) {
 		if ( to->origin[ 0 ] != from->origin[ 0 ] ) {
 			bits |= U_ORIGIN1;
@@ -140,28 +155,34 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	else
 		mask = 0xffff8000;  // don't confuse old clients
 
-	if ( to->skinnum != from->skinnum ) {
-		bits |= U_SKIN;
-	}
-
 	if ( to->frame != from->frame ) {
 		bits |= U_FRAME;
 	}
-
-	if ( to->effects != from->effects ) {
-		bits |= U_EFFECTS;
+	if ( to->old_frame != from->old_frame ) {
+		bits |= U_OLD_FRAME;
 	}
 
 	if ( to->renderfx != from->renderfx ) {
 		bits |= U_RENDERFX;
 	}
+	if ( to->effects != from->effects ) {
+		bits |= U_EFFECTS;
+	}
 
-	if ( to->solid.u != from->solid.u )
+	if ( to->solid != from->solid ) {
 		bits |= U_SOLID;
-
-	// event is not delta compressed, just 0 compressed
-	if ( to->event ) {
-		bits |= U_EVENT;
+	}
+	if ( to->bounds.u != from->bounds.u ) {
+		bits |= U_BOUNDINGBOX;
+	}
+	if ( to->clipmask != from->clipmask ) {
+		bits |= U_CLIPMASK;
+	}
+	if ( to->hullContents != from->hullContents ) {
+		bits |= U_HULL_CONTENTS;
+	}
+	if ( to->ownerNumber != from->ownerNumber ) {
+		bits |= U_OWNER;
 	}
 
 	if ( to->modelindex != from->modelindex ) {
@@ -176,9 +197,16 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	if ( to->modelindex4 != from->modelindex4 ) {
 		bits |= U_MODEL4;
 	}
+	if ( to->skinnum != from->skinnum ) {
+		bits |= U_SKIN;
+	}
 
 	if ( to->sound != from->sound ) {
 		bits |= U_SOUND;
+	}
+	// event is not delta compressed, just 0 compressed
+	if ( to->event ) {
+		bits |= U_EVENT;
 	}
 
 	if ( to->renderfx & RF_FRAMELERP ) {
@@ -218,25 +246,28 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 
 	MSG_WriteEntityNumber( to->number, false, bits );
 
+	//if ( bits & U_CLIENT ) {
+	//	MSG_WriteInt16( to->client );
+	//}
 
 	if ( bits & U_ORIGIN1 ) {
-		MSG_WriteFloat( to->origin[ 0 ] ); //MSG_WriteInt16( to->origin[ 0 ] ); // WID: float-movement
+		MSG_WriteFloat( to->origin[ 0 ] );
 	}
 	if ( bits & U_ORIGIN2 ) {
-		MSG_WriteFloat( to->origin[ 1 ] );// MSG_WriteInt16( to->origin[ 1 ] ); // WID: float-movement
+		MSG_WriteFloat( to->origin[ 1 ] );
 	}
 	if ( bits & U_ORIGIN3 ) {
-		MSG_WriteFloat( to->origin[ 2 ] );// MSG_WriteInt16( to->origin[ 2 ] ); // WID: float-movement
+		MSG_WriteFloat( to->origin[ 2 ] );
 	}
 
 	if ( bits & U_ANGLE1 ) {
-		MSG_WriteInt16( to->angles[ 0 ] );
+		MSG_WriteHalfFloat( to->angles[ 0 ] );
 	}
 	if ( bits & U_ANGLE2 ) {
-		MSG_WriteInt16( to->angles[ 1 ] );
+		MSG_WriteHalfFloat( to->angles[ 1 ] );
 	}
 	if ( bits & U_ANGLE3 ) {
-		MSG_WriteInt16( to->angles[ 2 ] );
+		MSG_WriteHalfFloat( to->angles[ 2 ] );
 	}
 
 	if ( bits & U_OLDORIGIN ) {
@@ -261,6 +292,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	if ( bits & U_FRAME ) {
 		MSG_WriteUintBase128( to->frame );
 	}
+	if ( bits & U_OLD_FRAME ) {
+		MSG_WriteUintBase128( to->old_frame );
+	}
 	if ( bits & U_SKIN ) {
 		MSG_WriteUintBase128( to->skinnum );
 	}
@@ -279,7 +313,22 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: WriteLong by default.
-		MSG_WriteUintBase128( to->solid.u );
+		MSG_WriteUintBase128( to->solid );
+	}
+	if ( bits & U_BOUNDINGBOX ) {
+		MSG_WriteUintBase128( to->bounds.u );
+	}
+	if ( bits & U_CLIPMASK ) {
+		// WID: upgr-solid: WriteLong by default.
+		MSG_WriteUintBase128( to->clipmask );
+	}
+	if ( bits & U_HULL_CONTENTS ) {
+		// WID: upgr-solid: WriteLong by default.
+		MSG_WriteUintBase128( to->hullContents );
+	}
+	if ( bits & U_OWNER ) {
+		// WID: upgr-solid: WriteLong by default.
+		MSG_WriteUintBase128( to->ownerNumber );
 	}
 
 	// START ET_SPOTLIGHT:

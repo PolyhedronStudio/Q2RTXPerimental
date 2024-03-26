@@ -28,12 +28,16 @@ extern "C" {
 void S_Init(void);
 void S_Shutdown(void);
 
-// if origin is NULL, the sound will be dynamically sourced from the entity
-void S_StartSound(const vec3_t origin, int entnum, int entchannel,
-                  qhandle_t sfx, float fvol, float attenuation, float timeofs);
+/**
+*   @brief  Validates the parms and ques the sound up.
+*           if origin is NULL, the sound will be dynamically sourced from the entityNumber matching entity instead.
+*           Entchannel 0 will never override a playing sound.
+**/
+void S_StartSound( const vec3_t origin, const int32_t entnum, const int32_t entchannel, const qhandle_t hSfx, const float vol, const float attenuation, const float timeofs );
 void S_ParseStartSound(void);
 void S_StartLocalSound(const char *s);
 void S_StartLocalSoundOnce(const char *s);
+void S_StopAllSounds( void );
 
 void S_FreeAllSounds(void);
 void S_StopAllSounds(void);
@@ -44,6 +48,8 @@ void S_Activate(void);
 void S_BeginRegistration(void);
 qhandle_t S_RegisterSound(const char *sample);
 void S_EndRegistration(void);
+void S_SetupSpatialListener( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp );
+
 
 void OGG_Play(void);
 void OGG_Stop(void);
@@ -70,11 +76,11 @@ typedef enum {
 
 extern sndstarted_t s_started;
 
-extern vec3_t   listener_origin;
-extern vec3_t   listener_forward;
-extern vec3_t   listener_right;
-extern vec3_t   listener_up;
-extern int      listener_entnum;
+//extern vec3_t   listener_origin;
+//extern vec3_t   listener_forward;
+//extern vec3_t   listener_right;
+//extern vec3_t   listener_up;
+//extern int      listener_entnum;
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

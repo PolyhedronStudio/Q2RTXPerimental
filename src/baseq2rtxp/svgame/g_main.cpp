@@ -54,55 +54,59 @@ int meansOfDeath;
 edict_t	*g_edicts;
 
 // WID: gamemode support:
-cvar_t	*gamemode;
-cvar_t  *deathmatch;
-cvar_t  *coop;
-cvar_t  *dmflags;
-cvar_t  *skill;
-cvar_t  *fraglimit;
-cvar_t  *timelimit;
-cvar_t  *password;
-cvar_t  *spectator_password;
-cvar_t  *needpass;
-cvar_t  *maxclients;
-cvar_t  *maxspectators;
-cvar_t  *maxentities;
-cvar_t  *g_select_empty;
-cvar_t	*g_instant_weapon_switch;
-cvar_t  *dedicated;
-cvar_t  *nomonsters;
-cvar_t  *aimfix;
+cvar_t *dedicated;
+cvar_t *password;
+cvar_t *spectator_password;
+cvar_t *needpass;
+cvar_t *filterban;
 
-cvar_t  *filterban;
+cvar_t *maxclients;
+cvar_t *maxspectators;
+cvar_t *maxentities;
+cvar_t *nomonsters;
+cvar_t *aimfix;
 
-cvar_t  *sv_maxvelocity;
-cvar_t  *sv_gravity;
+cvar_t *gamemode;
+cvar_t *deathmatch;
+cvar_t *coop;
+cvar_t *dmflags;
+cvar_t *skill;
+cvar_t *fraglimit;
+cvar_t *timelimit;
 
-cvar_t  *sv_rollspeed;
-cvar_t  *sv_rollangle;
-cvar_t  *gun_x;
-cvar_t  *gun_y;
-cvar_t  *gun_z;
+cvar_t *sv_cheats;
+cvar_t *sv_flaregun;
+cvar_t *sv_maplist;
+cvar_t *sv_features;
 
-cvar_t  *run_pitch;
-cvar_t  *run_roll;
-cvar_t  *bob_up;
-cvar_t  *bob_pitch;
-cvar_t  *bob_roll;
+cvar_t *sv_airaccelerate;
+cvar_t *sv_maxvelocity;
+cvar_t *sv_gravity;
 
-cvar_t  *sv_cheats;
+cvar_t *sv_rollspeed;
+cvar_t *sv_rollangle;
 
-cvar_t  *flood_msgs;
-cvar_t  *flood_persecond;
-cvar_t  *flood_waitdelay;
+cvar_t *gun_x;
+cvar_t *gun_y;
+cvar_t *gun_z;
 
-cvar_t  *sv_maplist;
+cvar_t *run_pitch;
+cvar_t *run_roll;
+cvar_t *bob_up;
+cvar_t *bob_pitch;
+cvar_t *bob_roll;
 
-cvar_t  *sv_features;
+cvar_t *flood_msgs;
+cvar_t *flood_persecond;
+cvar_t *flood_waitdelay;
 
-cvar_t  *sv_flaregun;
+cvar_t *g_select_empty;
+cvar_t *g_instant_weapon_switch;
 
-void SpawnEntities(const char *mapname, const char *entities, const char *spawnpoint);
+//
+// Func Declarations:
+//
+void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 void ClientThink(edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect(edict_t *ent, char *userinfo);
 void ClientUserinfoChanged(edict_t *ent, char *userinfo);
@@ -116,9 +120,20 @@ void WriteLevel(const char *filename);
 void ReadLevel(const char *filename);
 void InitGame(void);
 void G_RunFrame(void);
-
-
 //===================================================================
+/**
+*
+*
+*   CVar Changed Callbacks:
+* 
+*
+**/
+static void sv_airaccelerate_changed( cvar_t *self ) {
+    // Update air acceleration config string.
+    if ( COM_IsUint( self->string ) || COM_IsFloat( self->string ) ) {
+        gi.configstring( CS_AIRACCEL, self->string );
+    }
+}
 
 /**
 *	@brief	This will be called when the dll is first loaded, which
@@ -163,9 +178,11 @@ void PreInitGame( void ) {
 	dmflags = gi.cvar( "dmflags", "0", CVAR_SERVERINFO );
 	fraglimit = gi.cvar( "fraglimit", "0", CVAR_SERVERINFO );
 	timelimit = gi.cvar( "timelimit", "0", CVAR_SERVERINFO );
-
+    sv_airaccelerate = gi.cvar( "sv_airaccelerate", "0", CVAR_SERVERINFO | CVAR_LATCH );
+    // Force set its value so the config string gets updated accordingly.
+    //gi.cvar_forceset( "sv_airaccelerate", "0" );
 	// Air acceleration defaults to 0 and is only set for DM mode.
-	gi.configstring( CS_AIRACCEL, "0" );
+	//gi.configstring( CS_AIRACCEL, "0" );
 
 	// Deathmatch:
 	if ( gamemode->integer == GAMEMODE_DEATHMATCH ) {
@@ -178,10 +195,7 @@ void PreInitGame( void ) {
 		} else if ( maxclients->integer > CLIENTNUM_RESERVED ) {
 			gi.cvar_forceset( "maxclients", std::to_string( CLIENTNUM_RESERVED ).c_str() );
 		}
-
-		// Deathmatch specific, set air acceleration properly.
-		cvar_t *sv_airaccelerate = gi.cvar( "sv_airaccelerate", 0, 0 );
-		gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
+        gi.dprintf( "[GameMode(#%d): Deathmatch][maxclients=%d]\n", gamemode->integer, maxclients->integer );
 	// Cooperative:
 	} else if ( gamemode->integer == GAMEMODE_COOPERATIVE ) {
 		gi.cvar_forceset( "coop", "1" );
@@ -267,6 +281,15 @@ void InitGame( void )
 
     // export our own features
     gi.cvar_forceset("g_features", va("%d", G_FEATURES));
+    
+    // In case we've modified air acceleration, update the config string.
+    //gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
+    // Update air acceleration config string.
+    //if ( COM_IsUint( sv_airaccelerate->string ) || COM_IsFloat( sv_airaccelerate->string ) ) {
+    //    gi.configstring( CS_AIRACCEL, sv_airaccelerate->string );
+    //} else {
+    //    gi.configstring( CS_AIRACCEL, "0" );
+    //}
 
     // items
     InitItems();
@@ -307,7 +330,10 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Shutdown = ShutdownGame;
 		globals.SpawnEntities = SpawnEntities;
 
-		globals.GetGamemodeID = G_GetGamemodeID;
+		globals.GetActiveGamemodeID = G_GetActiveGamemodeID;
+        globals.IsGamemodeIDValid = G_IsGamemodeIDValid;
+        globals.IsMultiplayerGameMode = G_IsMultiplayerGameMode;
+        globals.GetDefaultMultiplayerGamemodeID = G_GetDefaultMultiplayerGamemodeID;
 		globals.GetGamemodeName = SG_GetGamemodeName;
 		globals.GamemodeNoSaveGames = G_GetGamemodeNoSaveGames;
 
@@ -352,15 +378,16 @@ void Com_LPrintf(print_type_t type, const char *fmt, ...)
     va_list     argptr;
     char        text[MAX_STRING_CHARS];
 
-    if (type == PRINT_DEVELOPER) {
-        return;
-    }
+    //if (type == PRINT_DEVELOPER) {
+    //    return;
+    //}
 
     va_start(argptr, fmt);
     Q_vsnprintf(text, sizeof(text), fmt, argptr);
     va_end(argptr);
 
-    gi.dprintf("%s", text);
+    //gi.dprintf("%s", text);
+    gi.bprintf( type, "%s", text );
 }
 
 void Com_Error(error_type_t type, const char *fmt, ...)
@@ -411,7 +438,7 @@ edict_t *CreateTargetChangeLevel(char *map)
 {
     edict_t *ent;
 
-    ent = G_Spawn();
+    ent = G_AllocateEdict();
     ent->classname = "target_changelevel";
     if (map != level.nextmap)
         Q_strlcpy(level.nextmap, map, sizeof(level.nextmap));
@@ -584,14 +611,19 @@ void G_RunFrame(void)
     int     i;
     edict_t *ent;
 
-    level.framenum++;
-	level.time += FRAME_TIME_MS;
+    // Check for cvars that demand a configstring update if they've changed.
+    //G_CheckCVarConfigStrings();
 
-    // choose a client for monsters to target this frame
+    // Increase the frame number we're in for this level..
+    level.framenum++;
+    // Increase the amount of time that has passed for this level.
+    level.time += FRAME_TIME_MS;
+
+    // Choose a client for monsters to target this frame.
     AI_SetSightClient();
 
-    // exit intermissions
-    if (level.exitintermission) {
+    // Exit intermissions.
+    if ( level.exitintermission ) {
         ExitLevel();
         return;
     }
@@ -600,36 +632,57 @@ void G_RunFrame(void)
     // treat each object in turn
     // even the world gets a chance to think
     //
-    ent = &g_edicts[0];
-    for (i = 0 ; i < globals.num_edicts ; i++, ent++) {
-        if (!ent->inuse)
+    ent = &g_edicts[ 0 ];
+    for ( i = 0; i < globals.num_edicts; i++, ent++ ) {
+        if ( !ent->inuse ) {
+            // "Defer removing client info so that disconnected, etc works."
+            if ( i > 0 && i <= game.maxclients ) {
+                if ( ent->timestamp && level.time < ent->timestamp ) {
+                    const int32_t playernum = ent - g_edicts - 1;
+                    gi.configstring( CS_PLAYERSKINS + playernum, "" );
+                    ent->timestamp = 0_sec;
+                }
+            }
             continue;
+        }
 
+        // Set the current entity being processed for the current frame.
         level.current_entity = ent;
 
-        if (!(ent->s.renderfx & RF_BEAM))
-            VectorCopy(ent->s.origin, ent->s.old_origin);
+        // RF Beam Entities update their old_origin by hand.
+        if ( !( ent->s.renderfx & RF_BEAM ) ) {
+            VectorCopy( ent->s.origin, ent->s.old_origin );
+        }
 
-        // if the ground entity moved, make sure we are still on it
-        if ((ent->groundentity) && (ent->groundentity->linkcount != ent->groundentity_linkcount)) {
-            ent->groundentity = NULL;
-            if (!(ent->flags & (FL_SWIM | FL_FLY)) && (ent->svflags & SVF_MONSTER)) {
-                M_CheckGround(ent);
+        // If the ground entity moved, make sure we are still on it.
+        if ( ( ent->groundentity ) && ( ent->groundentity->linkcount != ent->groundentity_linkcount ) ) {
+            contents_t mask = G_GetClipMask( ent );
+
+            // Monsters that don't SWIM or FLY, got their own unique ground check.
+            if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {
+                ent->groundentity = nullptr;
+                M_CheckGround( ent, mask );
             }
+            //// All other entities use this route instead:
+            //} else {
+            //    // If the ground entity is still 1 unit below us, we're good.
+            //    Vector3 endPoint = Vector3( ent->s.origin ) - Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
+            //    trace_t tr = gi.trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
+
+            //    if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundentity ) {
+            //        ent->groundentity = nullptr;
+            //    } else {
+            //        ent->groundentity_linkcount = ent->groundentity->linkcount;
+            //    }
+            //}
         }
 
-        if (i > 0 && i <= maxclients->value) {
-            ClientBeginServerFrame(ent);
+        if ( i > 0 && i <= maxclients->value ) {
+            ClientBeginServerFrame( ent );
             continue;
+        } else {
+            G_RunEntity( ent );
         }
-
-        G_RunEntity(ent);
-    }
-
-    // exit intermission right now to avoid annoying fov change
-    if (level.exitintermission) {
-        ExitLevel();
-        return;
     }
 
     // see if it is time to end a deathmatch

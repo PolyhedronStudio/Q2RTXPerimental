@@ -25,7 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
-#include "shared/list.h"
+#include "shared/util_list.h"
 
 //
 // svgame.h -- server game dll information visible to server
@@ -35,18 +35,26 @@ extern "C" {
 
 // edict->svflags
 
-#define SVF_NOCLIENT            0x00000001  // Don't send entity to clients, even if it has effects
-#define SVF_DEADMONSTER         0x00000002  // Treat as CONTENTS_DEADMONSTER for collision
-#define SVF_MONSTER             0x00000004  // Treat as CONTENTS_MONSTER for collision
-#define SVF_USE_TRIGGER_HULL	0x00000008	// When touching the trigger's bounding box, perform an additional clip to trigger brush. (Used for G_TouchTriggers)
-// edict->solid values
+// Old Vanilla Q2 flags.
+//#define SVF_NOCLIENT            0x00000001  // Don't send entity to clients, even if it has effects
+//#define SVF_DEADMONSTER         0x00000002  // Treat as CONTENTS_DEADMONSTER for collision
+//#define SVF_MONSTER             0x00000004  // Treat as CONTENTS_MONSTER for collision
+//#define SVF_HULL	0x00000008	// When touching the trigger's bounding box, perform an additional clip to trigger brush. (Used for G_TouchTriggers)
 
-typedef enum {
-    SOLID_NOT,          // no interaction with other objects
-    SOLID_TRIGGER,      // only touch when inside, after moving
-    SOLID_BBOX,         // touch on edge
-    SOLID_BSP           // bsp clip, touch on edge
-} solid_t;
+// Some [KEX] flags.
+#define SVF_NONE            0           // No serverflags.
+#define SVF_NOCLIENT        BIT( 0 )    // Don't send entity to clients, even if it has effects.
+#define SVF_DEADMONSTER     BIT( 1 )    // Treat as CONTENTS_DEADMONSTER for collision.
+#define SVF_MONSTER         BIT( 2 )    // Treat as CONTENTS_MONSTER for collision.
+#define SVF_PLAYER          BIT( 3 )    // [Paril-KEX] Treat as CONTENTS_PLAYER for collision.
+//#define SVF_BOT           BIT( 4 )    // Entity is controlled by a bot AI.
+//#define SVF_NOBOTS        BIT( 5 )    // Don't allow bots to use/interact with entity.
+//#define SVF_RESPAWNING    BIT( 6 )    // Entity will respawn on it's next think.
+#define SVF_PROJECTILE      BIT( 7 )    // Treat as CONTENTS_PROJECTILE for collision.
+//#define SVF_INSTANCED     BIT( 8 )    // Entity has different visibility per player.
+#define SVF_DOOR            BIT( 9 )    // Entity is a door of some kind.
+//#define SVF_NOCULL        BIT( 10 )   // Always send, even if we normally wouldn't.
+#define SVF_HULL            BIT( 11 )   // Always use hull when appropriate (triggers, etc; for gi.clip).
 
 // extended features
 
@@ -62,51 +70,51 @@ typedef enum {
 
 //===============================================================
 
-#define MAX_ENT_CLUSTERS    16
-
-
 typedef struct edict_s edict_t;
 typedef struct gclient_s gclient_t;
 
-
 #ifndef SVGAME_INCLUDE
 
-struct gclient_s {
+typedef struct gclient_s {
     player_state_t  ps;     // communicated by server to clients
     int             ping;
 
     // the game dll can add anything it wants after
     // this point in the structure
     int             clientNum;
-};
+} gclient_t;
 
 
-struct edict_s {
+typedef struct edict_s {
     entity_state_t  s;
-    struct gclient_s    *client;
-    qboolean    inuse;
-    int         linkcount;
+    struct gclient_s *client;   //! NULL if not a player the server expects the first part
+                                //! of gclient_s to be a player_state_t but the rest of it is opaque
+    qboolean inuse;
+    int32_t linkcount;
 
     // FIXME: move these fields to a server private sv_entity_t
-    list_t      area;               // linked to a division node or leaf
+    list_t area;    //! Linked to a division node or leaf
 
-    int         num_clusters;       // if -1, use headnode instead
-    int         clusternums[MAX_ENT_CLUSTERS];
-    int         headnode;           // unused if num_clusters != -1
-    int         areanum, areanum2;
+    int32_t num_clusters;       // If -1, use headnode instead.
+    int32_t clusternums[MAX_ENT_CLUSTERS];
+    int32_t headnode;           // Unused if num_clusters != -1
+    
+    int32_t areanum, areanum2;
 
     //================================
 
-    int         svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
+    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
     vec3_t      mins, maxs;
     vec3_t      absmin, absmax, size;
     solid_t     solid;
-    int         clipmask;
+    contents_t  clipmask;
+    contents_t  hullContents;
     edict_t     *owner;
 
     // the game dll can add anything it wants after
     // this point in the structure
-};
+} edict_t;
+#else
 
 #endif      // SVGAME_INCLUDE
 
@@ -123,6 +131,8 @@ typedef struct {
 	float       frame_time_s;
 	uint32_t    frame_time_ms;
 
+    const int64_t ( *GetServerFrameNumber )( void );
+
 	/**
 	*
 	*	Special Messages:
@@ -136,16 +146,19 @@ typedef struct {
     void (*positioned_sound)(const vec3_t origin, edict_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs);
 
 	/**
-    *	Config strings hold all the index strings, the lightstyles,
-    *	and misc data like the sky definition and cdtrack.
-    *	All of the current configstrings are sent to clients when
-    *	they connect, and changes are sent to all connected clients.
+    *	Config strings hold all the index strings, the lightstyles, the models that are in-use,
+    *	and also misc data like the sky definition and cdtrack.
+	* 
+    *	All of the current configstrings are sent to clients when they connect, 
+	*	and in case of any changes, which too are sent to all connected clients.
 	**/
+	configstring_t *(*GetConfigString)( const int32_t index );
     void (*configstring)(int num, const char *string);
 
     void (* q_noreturn q_printf(1, 2) error)(const char *fmt, ...);
 
-    // the *index functions create configstrings and some internal server state
+    // the *index functions create configstrings and some internal server state.
+	// these are sent over to the client 
     int (*modelindex)(const char *name);
     int (*soundindex)(const char *name);
     int (*imageindex)(const char *name);
@@ -157,46 +170,63 @@ typedef struct {
 	*	Collision Detection:
 	*
 	**/
-
-    trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, int contentmask);
-	trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int contentmask );
-    int (*pointcontents)(const vec3_t point);
-    qboolean (*inPVS)(const vec3_t p1, const vec3_t p2);
-    qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);
-    void (*SetAreaPortalState)(int portalnum, qboolean open);
-    qboolean (*AreasConnected)(int area1, int area2);
-
-	/**
-    *	An entity will never be sent to a client or used for collision
-    *	if it is not passed to linkentity.  If the size, position, or
-    *	solidity changes, it must be relinked.
+    const trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, const contents_t contentmask );
+	const trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentmask );
+    const contents_t (*pointcontents)(const vec3_t point);
+    const qboolean (*inPVS)(const vec3_t p1, const vec3_t p2);
+    const qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);
+    void (*SetAreaPortalState)( const int32_t portalnum, const bool open);
+    const int32_t ( *GetAreaPortalState )( const int32_t portalnum );
+    const qboolean (*AreasConnected)(const int32_t area1, const int32_t area2);
+    /**
+    *	An entity will never be sent to a client or used for collision if it is not passed to linkentity.  
+    *   If the size, position, solidity, clipmask, hullContents, or owner changes, it must be relinked.
 	**/
     void (*linkentity)(edict_t *ent);
-    void (*unlinkentity)(edict_t *ent);     // call before removing an interactive edict
-    int (*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_t **list, int maxcount, int areatype);
-    //void (*Pmove)(pmove_t *pmove);          // player movement code common with client prediction
+    void (*unlinkentity)(edict_t *ent);     
+    const int32_t(*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_t **list, const int32_t maxcount, const int32_t areatype);
+    
+
+
+    /**
+    *
+    *	(Collision Model-) Entities:
+    *
+    **/
+    /**
+    *   @brief  Looks up the key/value cm_entity_t pair in the list for the cm_entity_t entity.
+    *   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity'.
+    **/
+    const cm_entity_t *( *CM_EntityKeyValue )( const cm_entity_t *edict, const char *key );
+    /**
+    *   @brief  Used to check whether CM_EntityValue was able/unable to find a matching key in the cm_entity_t.
+    *   @return Pointer to the collision model system's 'null' entity key/pair.
+    **/
+    const cm_entity_t *( *CM_GetNullEntity )( void );
+
+
 
 	/**
 	*
 	*	Network Messaging:
 	*
 	**/
-    void (*multicast)(const vec3_t origin, multicast_t to, bool reliable);
-    void (*unicast)(edict_t *ent, bool reliable);
-    void (*WriteInt8)( const int32_t c);
-    void (*WriteUint8)( const int32_t c);
-    void (*WriteInt16)( const int32_t c);
-	void (*WriteUint16)( const int32_t c );
-    void (*WriteInt32)( const int32_t c);
-	void (*WriteInt64)( const int64_t c );
-	void (*WriteIntBase128 )( int64_t c );
-	void ( *WriteUintBase128 )( uint64_t c );
-    void (*WriteFloat)( const float f );
-    void (*WriteString)(const char *s);
-    void (*WritePosition)(const vec3_t pos, const bool encodeAsShort );    // some fractional bits
-    void (*WriteDir8)(const vec3_t pos);         // single byte encoded, very coarse
-    void (*WriteAngle8)( const float f);
-	void (*WriteAngle16)( const float f );
+    void ( *multicast )( const vec3_t origin, multicast_t to, bool reliable );
+    void ( *unicast )( edict_t *ent, bool reliable );
+    void ( *WriteInt8 )( const int32_t c );
+    void ( *WriteUint8 )( const int32_t c );
+    void ( *WriteInt16 )( const int32_t c );
+    void ( *WriteUint16 )( const int32_t c );
+    void ( *WriteInt32 )( const int32_t c );
+    void ( *WriteInt64 )( const int64_t c );
+    void ( *WriteIntBase128 )( int64_t c );
+    void ( *WriteUintBase128 )( uint64_t c );
+    void ( *WriteFloat )( const float f );
+    void ( *WriteString )( const char *s );
+    void ( *WritePosition )( const vec3_t pos, const bool encodeAsShort );    // some fractional bits
+    void ( *WriteDir8 )( const vec3_t pos );         // single byte encoded, very coarse
+    void ( *WriteAngle8 )( const float f );
+    void ( *WriteAngle16 )( const float f );
 
 	/**
 	*
@@ -221,7 +251,7 @@ typedef struct {
 	*	ClientCommand and ServerCommand parameter access:
 	*
 	**/
-    int (*argc)(void);
+    const int32_t (*argc)(void);
     char *(*argv)(int n);
     char *(*args)(void);     // concatenation of all argv >= 1
 
@@ -251,15 +281,37 @@ typedef struct {
 	void (*Init)(void);
     void (*Shutdown)(void);
 
-    // Each new level entered will cause a call to SpawnEntities
-    void (*SpawnEntities)(const char *mapname, const char *entstring, const char *spawnpoint);
+    //! Each new level entered will cause a call to SpawnEntities
+    void (*SpawnEntities)( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 
 	/**
 	*	GameModes:
 	**/
-	const int32_t (*GetGamemodeID)( );
-	const char *(*GetGamemodeName)( const int32_t gameModeID );
-	const bool (*GamemodeNoSaveGames)( const bool isDedicated );
+    /**
+    *	@return	True if the game mode is a legitimate existing one.
+    **/
+    const bool ( *IsGamemodeIDValid )( const int32_t gameModeID );
+    /**
+    *   @return True if the game mode is multiplayer.
+    **/
+    const bool ( *IsMultiplayerGameMode ) ( const int32_t gameModeID );
+    /**
+    *	@return	The current active game mode ID.
+    **/
+    const int32_t( *GetActiveGamemodeID )( void );
+    /**
+    *	@return	The default game mode which is to be set. Used in case of booting a dedicated server without gamemode args.
+    **/
+    const int32_t( *GetDefaultMultiplayerGamemodeID )( void );
+    /**
+    *	@return	The actual ID of the current gamemode.
+    **/
+    const char *( *GetGamemodeName )( const int32_t gameModeID );
+    /**
+    *	@return	True in case the current gamemode allows for saving the game.
+    *			(This should only be true for single and cooperative play modes.)
+    **/
+    const bool ( *GamemodeNoSaveGames )( const bool isDedicated );
 
 	/**
 	*	Read/Write Game: 
@@ -297,7 +349,9 @@ typedef struct {
 	*	Player Movement:
 	*
 	**/
+    //! Perform a frame's worth of player movement using specified pmoveParams configuration.
 	void ( *PlayerMove )( pmove_t *pmove, pmoveParams_t *params );
+    //! Setup the basic player move configuration parameters. (Used by server for new clients.)
 	void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
 
     /**
@@ -306,6 +360,7 @@ typedef struct {
 	* 
 	* 
     **/
+    //! Runs a single frame of the server game.
     void (*RunFrame)(void);
 
 	/**
@@ -313,10 +368,10 @@ typedef struct {
 	*	ServerCommand:
 	*
 	**/
-    // ServerCommand will be called when an "sv <command>" command is issued on the
-    // server console.
-    // The game can issue gi.argc() / gi.argv() commands to get the rest
-    // of the parameters
+    //! ServerCommand will be called when an "sv <command>" command is issued on the
+    //! server console.
+    //! The game can issue gi.argc() / gi.argv() commands to get the rest
+    //! of the parameters
     void (*ServerCommand)(void);
 
     /**
@@ -328,9 +383,9 @@ typedef struct {
     *	The size will be fixed when ge->Init() is called
 	**/
     struct edict_s  *edicts;
-    int         edict_size;
-    int         num_edicts;     // current number, <= max_edicts
-    int         max_edicts;
+    int32_t edict_size;
+    int32_t num_edicts;     // current number, <= max_edicts
+    int32_t max_edicts;
 } svgame_export_t;
 
 // WID: C++20: In case of C++ including this..

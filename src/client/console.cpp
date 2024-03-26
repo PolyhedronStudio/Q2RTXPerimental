@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // console.c
 
-#include "client.h"
+#include "cl_client.h"
 
 #define CON_TIMES       16
 #define CON_TIMES_MASK  (CON_TIMES - 1)
@@ -106,8 +106,7 @@ static cvar_t   *con_timestampscolor;
 Con_SkipNotify
 ================
 */
-void Con_SkipNotify(bool skip)
-{
+void Con_SkipNotify( const qboolean skip ) {
     con.skipNotify = skip;
 }
 
@@ -165,7 +164,7 @@ void Con_Popup(bool force)
         con.mode = CON_POPUP;
     }
 
-    Key_SetDest(static_cast<keydest_t>( cls.key_dest | KEY_CONSOLE ) ); // WID: C++20: Was without a cast...
+    Key_SetDest(static_cast<keydest_e>( cls.key_dest | KEY_CONSOLE ) ); // WID: C++20: Was without a cast...
     Con_RunConsole();
 }
 
@@ -386,8 +385,8 @@ void Con_CheckResize(void)
 
     con.scale = R_ClampScale(con_scale);
 
-    con.vidWidth = r_config.width * con.scale;
-    con.vidHeight = r_config.height * con.scale;
+    con.vidWidth = Q_rint(r_config.width * con.scale);
+    con.vidHeight = Q_rint(r_config.height * con.scale);
 
     width = con.vidWidth / CHAR_WIDTH - 2;
 
@@ -584,7 +583,8 @@ void CL_LoadState(load_state_t state)
 {
     con.loadstate = state;
     SCR_UpdateScreen();
-    VID_PumpEvents();
+    if (vid.pump_events)
+        vid.pump_events();
 }
 
 /*
@@ -741,7 +741,7 @@ Draws the last few lines of output transparently over the game top
 static void Con_DrawNotify(void)
 {
     int     v;
-    const char    *text; // WID: C++20: Had no const.
+    const char  *text;
     int     i, j;
     unsigned    time;
     int     skip;
@@ -813,7 +813,7 @@ static void Con_DrawSolidConsole(void)
 {
     int             i, x, y;
     int             rows;
-    const char            *text; // WID: C++20: Had no const.
+    const char      *text;
     int             row;
     char            buffer[CON_LINEWIDTH];
     int             vislines;
@@ -835,8 +835,8 @@ static void Con_DrawSolidConsole(void)
 
 // draw the background
     if (cls.state < ca_active || (cls.key_dest & KEY_MENU) || con_alpha->value) {
-        R_DrawStretchPic(0, vislines - con.vidHeight,
-                         con.vidWidth, con.vidHeight, con.backImage);
+        R_DrawKeepAspectPic(0, vislines - con.vidHeight,
+                            con.vidWidth, con.vidHeight, con.backImage);
     }
 
 // draw the text
@@ -877,6 +877,7 @@ static void Con_DrawSolidConsole(void)
 
     // draw the download bar
     if (cls.download.current) {
+        char pos[16], suf[32];
         int n, j;
 
         if ((text = strrchr(cls.download.current->path, '/')) != NULL)
@@ -884,13 +885,16 @@ static void Con_DrawSolidConsole(void)
         else
             text = cls.download.current->path;
 
+        Com_FormatSizeLong(pos, sizeof(pos), cls.download.position);
+        n = 4 + Q_scnprintf(suf, sizeof(suf), " %d%% (%s)", cls.download.percent, pos);
+
         // figure out width
         x = con.linewidth;
-        y = x - strlen(text) - 18;
+        y = x - strlen(text) - n;
         i = x / 3;
         if (strlen(text) > i) {
-            y = x - i - 21;
-            strncpy(buffer, text, i);
+            y = x - i - n - 3;
+            memcpy(buffer, text, i);
             buffer[i] = 0;
             strcat(buffer, "...");
         } else {
@@ -911,8 +915,7 @@ static void Con_DrawSolidConsole(void)
         buffer[i++] = '\x82';
         buffer[i] = 0;
 
-        Q_snprintf(buffer + i, sizeof(buffer) - i, " %02d%% (%d kB)",
-                   cls.download.percent, cls.download.position / 1000);
+        Q_strlcat(buffer, suf, sizeof(buffer));
 
         // draw it
         y = vislines - CON_PRESTEP + CHAR_HEIGHT * 2;
@@ -1130,13 +1133,13 @@ static void Con_Action(void)
     }
 }
 
-static void Con_Paste(void)
+static void Con_Paste(char *(*func)(void))
 {
     char *cbd, *s;
 
     Con_InteractiveMode();
 
-    if ((cbd = VID_GetClipboardData()) == NULL) {
+    if (!func || !(cbd = func())) {
         return;
     }
 
@@ -1188,9 +1191,13 @@ void Key_Console(int key)
         goto scroll;
     }
 
-    if ((key == 'v' && Key_IsDown(K_CTRL)) ||
-        (key == K_INS && Key_IsDown(K_SHIFT)) || key == K_MOUSE3) {
-        Con_Paste();
+    if (key == 'v' && Key_IsDown(K_CTRL)) {
+        Con_Paste(vid.get_clipboard_data);
+        goto scroll;
+    }
+
+    if ((key == K_INS && Key_IsDown(K_SHIFT)) || key == K_MOUSE3) {
+        Con_Paste(vid.get_selection_data);
         goto scroll;
     }
 

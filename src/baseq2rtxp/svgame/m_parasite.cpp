@@ -291,7 +291,7 @@ static bool parasite_drain_attack_ok(vec3_t start, vec3_t end)
         return false;
 
     // check for min/max pitch
-    vectoangles(dir, angles);
+    QM_Vector3ToAngles(dir, angles);
     if (angles[0] < -180)
         angles[0] += 360;
     if (fabsf(angles[0]) > 30)
@@ -504,7 +504,7 @@ void SP_monster_parasite(edict_t *self)
     VectorSet(self->mins, -16, -16, -24);
     VectorSet(self->maxs, 16, 16, 24);
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
 
     self->health = 175;
     self->gib_health = -50;

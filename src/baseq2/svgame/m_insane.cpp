@@ -538,7 +538,7 @@ void insane_stand(edict_t *self)
 void insane_dead(edict_t *self)
 {
     if (self->spawnflags & 8) {
-        self->flags |= FL_FLY;
+        self->flags = static_cast<ent_flags_t>( self->flags | FL_FLY );
     } else {
         VectorSet(self->mins, -16, -16, -24);
         VectorSet(self->maxs, 16, 16, -8);
@@ -608,7 +608,7 @@ void SP_misc_insane(edict_t *self)
     sound_scream[7] = gi.soundindex("insane/insane10.wav");
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/insane/tris.md2");
 
     VectorSet(self->mins, -16, -16, -24);
@@ -648,7 +648,7 @@ void SP_misc_insane(edict_t *self)
     if (self->spawnflags & 8) {                 // Crucified ?
         VectorSet(self->mins, -16, 0, 0);
         VectorSet(self->maxs, 16, 8, 32);
-        self->flags |= FL_NO_KNOCKBACK;
+        self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
         flymonster_start(self);
     } else {
         walkmonster_start(self);

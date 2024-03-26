@@ -36,12 +36,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "cameras.h"
 #include "physical_sky.h"
 #include "conversion.h"
-#include "../../client/client.h"
+#include "../../client/cl_client.h"
 #include "../../client/ui/ui.h"
 
 #include "shader/vertex_buffer.h"
 
 #include <vulkan/vulkan.h>
+// Defined to prevent a warning C4005: 'M_PI': macro redefinition
+#define HAVE_M_PI
 #include <SDL.h>
 #include <SDL_vulkan.h>
 
@@ -159,7 +161,7 @@ VkptInit_t vkpt_initialization[] = {
 	{ "pt",       vkpt_pt_init,                        vkpt_pt_destroy,                      VKPT_INIT_DEFAULT,            0 },
 	{ "pt|",      vkpt_pt_create_pipelines,            vkpt_pt_destroy_pipelines,            VKPT_INIT_RELOAD_SHADER,      0 },
 	{ "draw|",    vkpt_draw_create_pipelines,          vkpt_draw_destroy_pipelines,          VKPT_INIT_SWAPCHAIN_RECREATE
-	                                                                                       | VKPT_INIT_RELOAD_SHADER,      0 },
+																						   | VKPT_INIT_RELOAD_SHADER,      0 },
 	{ "vbo|",     vkpt_vertex_buffer_create_pipelines, vkpt_vertex_buffer_destroy_pipelines, VKPT_INIT_RELOAD_SHADER,      0 },
 	{ "asvgf",    vkpt_asvgf_initialize,               vkpt_asvgf_destroy,                   VKPT_INIT_DEFAULT,            0 },
 	{ "asvgf|",   vkpt_asvgf_create_pipelines,         vkpt_asvgf_destroy_pipelines,         VKPT_INIT_RELOAD_SHADER,      0 },
@@ -587,7 +589,7 @@ static bool pick_surface_format_sdr(picked_surface_format_t* picked_fmt, const V
 VkResult
 create_swapchain(void)
 {
-    num_accumulated_frames = 0;
+	num_accumulated_frames = 0;
 
 	/* create swapchain (query details and ignore them afterwards :-) )*/
 	VkSurfaceCapabilitiesKHR surf_capabilities;
@@ -1646,16 +1648,21 @@ static material_and_shell_t compute_mesh_material_flags(const entity_t* entity, 
 			mat_shell.shell = cvar_pt_test_shell->integer;
 	#endif
 
-		if (entity->flags & RF_SHELL_HALF_DAM)
-			mat_shell.shell |= SHELL_HALF_DAM;
-		if (entity->flags & RF_SHELL_DOUBLE)
-			mat_shell.shell |= SHELL_DOUBLE;
-		if (entity->flags & RF_SHELL_RED)
+		if ((entity->flags & RF_IR_VISIBLE) && (vkpt_refdef.fd->rdflags & RDF_IRGOGGLES)) {
+			// IR googgles: force red shell
 			mat_shell.shell |= SHELL_RED;
-		if (entity->flags & RF_SHELL_GREEN)
-			mat_shell.shell |= SHELL_GREEN;
-		if (entity->flags & RF_SHELL_BLUE)
-			mat_shell.shell |= SHELL_BLUE;
+		} else {
+			if (entity->flags & RF_SHELL_HALF_DAM)
+				mat_shell.shell |= SHELL_HALF_DAM;
+			if (entity->flags & RF_SHELL_DOUBLE)
+				mat_shell.shell |= SHELL_DOUBLE;
+			if (entity->flags & RF_SHELL_RED)
+				mat_shell.shell |= SHELL_RED;
+			if (entity->flags & RF_SHELL_GREEN)
+				mat_shell.shell |= SHELL_GREEN;
+			if (entity->flags & RF_SHELL_BLUE)
+				mat_shell.shell |= SHELL_BLUE;
+		}
 	}
 
 	if (mesh->handedness)
@@ -2659,16 +2666,40 @@ prepare_ubo(refdef_t *fd, mleaf_t* viewleaf, const reference_mode_t* ref_mode, c
 	memcpy(ubo->invV, vkpt_refdef.view_matrix_inv, sizeof(float) * 16);
 	inverse(P, *ubo->invP);
 
-	if (cvar_pt_projection->integer == 1 && render_world)
+	float vfov = fd->fov_y * (float)M_PI / 180.f;
+	float unscaled_aspect = (float)qvk.extent_unscaled.width / (float)qvk.extent_unscaled.height;
+	float rad_per_pixel;
+	float fov_scale[2] = { 0.f, 0.f };
+
+	switch (cvar_pt_projection->integer)
 	{
-		float rad_per_pixel = atanf(tanf(fd->fov_y * M_PI / 360.0f) / ((float)qvk.extent_unscaled.height * 0.5f));
+	case PROJECTION_PANINI:
+		fov_scale[1] = tanf(vfov / 2.f);
+		fov_scale[0] = fov_scale[1] * unscaled_aspect;
+		break;
+	case PROJECTION_STEREOGRAPHIC:
+		fov_scale[1] = tanf(vfov / 2.f * STEREOGRAPHIC_ANGLE);
+		fov_scale[0] = fov_scale[1] * unscaled_aspect;
+		break;
+	case PROJECTION_CYLINDRICAL:
+		rad_per_pixel = atanf(tanf(fd->fov_y * (float)M_PI / 360.f) / ((float)qvk.extent_unscaled.height * 0.5f));
 		ubo->cylindrical_hfov = rad_per_pixel * (float)qvk.extent_unscaled.width;
+		break;
+	case PROJECTION_EQUIRECTANGULAR:
+		fov_scale[1] = vfov / 2.f;
+		fov_scale[0] = fov_scale[1] * unscaled_aspect;
+		break;
+	case PROJECTION_MERCATOR:
+		fov_scale[1] = logf(tanf((float)M_PI * 0.25f + (vfov / 2.f) * 0.5f));
+		fov_scale[0] = fov_scale[1] * unscaled_aspect;
+		break;
 	}
-	else
-	{
-		ubo->cylindrical_hfov = 0.f;
-	}
-	
+
+	ubo->projection_fov_scale_prev[0] = ubo->projection_fov_scale[0];
+	ubo->projection_fov_scale_prev[1] = ubo->projection_fov_scale[1];
+	ubo->projection_fov_scale[0] = fov_scale[0];
+	ubo->projection_fov_scale[1] = fov_scale[1];
+	ubo->pt_projection = render_world ? cvar_pt_projection->integer : 0; // always use rectilinear projection when rendering the player setup view
 	ubo->current_frame_idx = qvk.frame_counter;
 	ubo->width = qvk.extent_render.width;
 	ubo->height = qvk.extent_render.height;
@@ -2938,11 +2969,16 @@ R_RenderFrame_RTX(refdef_t *fd)
 	ubo->prev_adapted_luminance = prev_adapted_luminance;
 
 	if (cvar_tm_blend_enable->integer)
-		Vector4Copy(fd->blend, ubo->fs_blend_color);
+		Vector4Copy(fd->screen_blend, ubo->fs_blend_color);
 	else
 		Vector4Set(ubo->fs_blend_color, 0.f, 0.f, 0.f, 0.f);
 
 	ubo->weapon_left_handed = upload_info.weapon_left_handed;
+
+	if (vkpt_refdef.fd->rdflags & RDF_IRGOGGLES)
+		Vector4Set(ubo->fs_colorize, 1.f, 0.f, 0.f, 0.8f);
+	else
+		Vector4Set(ubo->fs_colorize, 0.f, 0.f, 0.f, 0.f);
 
 	vkpt_physical_sky_update_ubo(ubo, &sun_light, render_world);
 	vkpt_bloom_update(ubo, frame_time, ubo->medium != MEDIUM_NONE, qvk.frame_menu_mode);
@@ -3552,7 +3588,7 @@ R_EndFrame_RTX(void)
 }
 
 void
-R_ModeChanged_RTX(int width, int height, int flags, int rowbytes, void *pixels)
+R_ModeChanged_RTX(int width, int height, int flags)
 {
 	Com_DPrintf("mode changed %d %d\n", width, height);
 
@@ -3608,13 +3644,13 @@ R_Init_RTX(bool total)
 {
 	registration_sequence = 1;
 
-	if (!VID_Init(GAPI_VULKAN)) {
+	if (!vid.init(GAPI_VULKAN)) {
 		Com_Error(ERR_FATAL, "VID_Init failed\n");
 		return REF_TYPE_NONE;
 	}
 
-	extern SDL_Window *sdl_window;
-	qvk.window = sdl_window;
+    extern SDL_Window *get_sdl_window(void);
+    qvk.window = get_sdl_window();
 
 	cvar_profiler = Cvar_Get("profiler", "0", 0);
 	cvar_profiler_samples = Cvar_Get("profiler_samples", "60", CVAR_ARCHIVE);
@@ -3828,7 +3864,7 @@ R_Shutdown_RTX(bool total)
 
 	IMG_Shutdown();
 	MOD_Shutdown(); // todo: currently leaks memory, need to clear submeshes
-	VID_Shutdown();
+	vid.shutdown();
 }
 
 // for screenshots
@@ -4442,6 +4478,7 @@ void R_RegisterFunctionsRTX()
 	R_DrawStretchRaw = R_DrawStretchRaw_RTX;
 	R_UpdateRawPic = R_UpdateRawPic_RTX;
 	R_DiscardRawPic = R_DiscardRawPic_RTX;
+	R_DrawKeepAspectPic = R_DrawKeepAspectPic_RTX;
 	R_TileClear = R_TileClear_RTX;
 	R_DrawFill8 = R_DrawFill8_RTX;
 	R_DrawFill32 = R_DrawFill32_RTX;

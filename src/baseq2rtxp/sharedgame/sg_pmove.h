@@ -1,4 +1,3 @@
-
 #pragma once
 
 /*
@@ -6,10 +5,11 @@
 
 PLAYER MOVEMENT CODE
 
-Common between server and client so prediction matches
-
 ==============================================================
 */
+static constexpr float PM_MIN_STEP_SIZE = 4.f;
+static constexpr float PM_MAX_STEP_SIZE = 18.f;
+
 /**
 *	@brief	Shard Game Player Movement code implementation:
 **/

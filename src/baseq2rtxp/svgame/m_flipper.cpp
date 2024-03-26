@@ -360,7 +360,7 @@ void SP_monster_flipper(edict_t *self)
     sound_sight     = gi.soundindex("flipper/flpsght1.wav");
 
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
     self->s.modelindex = gi.modelindex("models/monsters/flipper/tris.md2");
     VectorSet(self->mins, -16, -16, 0);
     VectorSet(self->maxs, 16, 16, 32);

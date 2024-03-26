@@ -466,7 +466,7 @@ void soldier_fire(edict_t *self, int flash_number)
         VectorCopy(self->enemy->s.origin, end);
         end[2] += self->enemy->viewheight;
         VectorSubtract(end, start, aim);
-        vectoangles(aim, dir);
+        QM_Vector3ToAngles(aim, dir);
         AngleVectors(dir, forward, right, up);
 
         r = crandom() * 1000;
@@ -1156,7 +1156,7 @@ void SP_monster_soldier_x(edict_t *self)
     VectorSet(self->mins, -16, -16, -24);
     VectorSet(self->maxs, 16, 16, 32);
     self->movetype = MOVETYPE_STEP;
-    self->solid = SOLID_BBOX;
+    self->solid = SOLID_BOUNDS_BOX;
 
     sound_idle =    gi.soundindex("soldier/solidle1.wav");
     sound_sight1 =  gi.soundindex("soldier/solsght1.wav");

@@ -219,7 +219,7 @@ void Cmd_Give_f(edict_t *ent)
 
     if (give_all || Q_stricmp(name, "Power Shield") == 0) {
         it = FindItem("Power Shield");
-        it_ent = G_Spawn();
+        it_ent = G_AllocateEdict();
         it_ent->classname = it->classname;
         SpawnItem(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);
@@ -265,7 +265,7 @@ void Cmd_Give_f(edict_t *ent)
         else
             ent->client->pers.inventory[index] += it->quantity;
     } else {
-        it_ent = G_Spawn();
+        it_ent = G_AllocateEdict();
         it_ent->classname = it->classname;
         SpawnItem(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);
@@ -291,7 +291,7 @@ void Cmd_God_f(edict_t *ent)
         return;
     }
 
-    ent->flags ^= FL_GODMODE;
+    ent->flags = static_cast<ent_flags_t>( ent->flags ^ FL_GODMODE );
     if (!(ent->flags & FL_GODMODE))
         gi.cprintf(ent, PRINT_HIGH, "godmode OFF\n");
     else
@@ -315,7 +315,7 @@ void Cmd_Notarget_f(edict_t *ent)
         return;
     }
 
-    ent->flags ^= FL_NOTARGET;
+    ent->flags = static_cast<ent_flags_t>( ent->flags ^ FL_NOTARGET );
     if (!(ent->flags & FL_NOTARGET))
         gi.cprintf(ent, PRINT_HIGH, "notarget OFF\n");
     else
@@ -437,7 +437,7 @@ void Cmd_Inven_f(edict_t *ent)
 
     gi.WriteUint8(svc_inventory);
     for (i = 0 ; i < MAX_ITEMS ; i++) {
-        gi.WriteInt16(cl->pers.inventory[i]);
+        gi.WriteIntBase128(cl->pers.inventory[i]);
     }
     gi.unicast(ent, true);
 }
@@ -615,7 +615,7 @@ void Cmd_Kill_f(edict_t *ent)
 {
     if ((level.time - ent->client->respawn_time) < 5_sec)
         return;
-    ent->flags &= ~FL_GODMODE;
+    ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_GODMODE );
     ent->health = 0;
     meansOfDeath = MOD_SUICIDE;
     player_die(ent, ent, ent, 100000, ent->s.origin);
@@ -747,8 +747,8 @@ void Cmd_Wave_f(edict_t *ent)
 static bool FloodProtect(edict_t *ent)
 {
 	int     i;
-	edict_t *other;
-	char    text[ 2048 ];
+	//edict_t *other;
+	//char    text[ 2048 ];
 	gclient_t *cl;
 
 	if ( flood_msgs->value ) {
@@ -760,10 +760,12 @@ static bool FloodProtect(edict_t *ent)
 			return true;
 		}
 		i = cl->flood_whenhead - flood_msgs->value + 1;
-		if ( i < 0 )
-			i = ( sizeof( cl->flood_when ) / sizeof( cl->flood_when[ 0 ] ) ) + i;
-		if ( i >= q_countof( cl->flood_when ) )
-			i = 0;
+        if ( i < 0 ) {
+            i = ( sizeof( cl->flood_when ) / sizeof( cl->flood_when[ 0 ] ) ) + i;
+        }
+        if ( i >= q_countof( cl->flood_when ) ) {
+            i = 0;
+        }
 		if ( cl->flood_when[ i ] &&
 			level.time - cl->flood_when[ i ] < sg_time_t::from_sec( flood_persecond->value ) ) {
 			cl->flood_locktill = level.time + sg_time_t::from_sec( flood_waitdelay->value );

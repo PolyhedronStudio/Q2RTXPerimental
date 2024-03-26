@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "shared/shared.h"
+#include "common/common.h"
 #include "common/utils.h"
 
 /*
@@ -27,157 +28,157 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 ==============================================================================
 */
 
-static bool match_raw(int c1, int c2, bool ignorecase)
-{
-    if (c1 != c2) {
-        if (!ignorecase) {
-            return false;
-        }
-#ifdef _WIN32
-        // ugly hack for file listing
-        c1 = c1 == '\\' ? '/' : Q_tolower(c1);
-        c2 = c2 == '\\' ? '/' : Q_tolower(c2);
-#else
-        c1 = Q_tolower(c1);
-        c2 = Q_tolower(c2);
-#endif
-        if (c1 != c2) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-static bool match_char(int c1, int c2, bool ignorecase)
-{
-    if (c1 == '?') {
-        return c2; // match any char except NUL
-    }
-
-    return match_raw(c1, c2, ignorecase);
-}
-
-static bool match_part(const char *filter, const char *string,
-                       size_t len, bool ignorecase)
-{
-    bool match;
-
-    do {
-        // skip over escape character
-        if (*filter == '\\') {
-            filter++;
-            match = match_raw(*filter, *string, ignorecase);
-        } else {
-            match = match_char(*filter, *string, ignorecase);
-        }
-
-        if (!match) {
-            return false;
-        }
-
-        filter++;
-        string++;
-    } while (--len);
-
-    return true;
-}
-
-// match the longest possible part
-static const char *match_filter(const char *filter, const char *string,
-                                size_t len, bool ignorecase)
-{
-    const char *ret = NULL;
-    size_t remaining = strlen(string);
-
-    while (remaining >= len) {
-        if (match_part(filter, string, len, ignorecase)) {
-            string += len;
-            remaining -= len;
-            ret = string;
-            continue;
-        }
-        string++;
-        remaining--;
-    }
-
-    return ret;
-}
-
-/*
-=================
-Com_WildCmpEx
-
-Wildcard compare. Returns true if string matches the pattern, false otherwise.
-
-- 'term' is handled as an additional filter terminator (besides NUL).
-- '*' matches any substring, including the empty string, but prefers longest
-possible substrings.
-- '?' matches any single character except NUL.
-- '\\' can be used to escape any character, including itself. any special
-characters lose their meaning in this case.
-
-=================
-*/
-bool Com_WildCmpEx(const char *filter, const char *string,
-                   int term, bool ignorecase)
-{
-    const char *sub;
-    size_t len;
-    bool match;
-
-    while (*filter && *filter != term) {
-        if (*filter == '*') {
-            // skip consecutive wildcards
-            do {
-                filter++;
-            } while (*filter == '*');
-
-            // scan out filter part to match
-            for (sub = filter, len = 0; *filter && *filter != term && *filter != '*'; filter++, len++) {
-                // skip over escape character
-                if (*filter == '\\') {
-                    filter++;
-                    if (!*filter) {
-                        break;
-                    }
-                }
-            }
-
-            // wildcard at the end matches everything
-            if (!len) {
-                return true;
-            }
-
-            string = match_filter(sub, string, len, ignorecase);
-            if (!string) {
-                return false;
-            }
-        } else {
-            // skip over escape character
-            if (*filter == '\\') {
-                filter++;
-                if (!*filter) {
-                    break;
-                }
-                match = match_raw(*filter, *string, ignorecase);
-            } else {
-                match = match_char(*filter, *string, ignorecase);
-            }
-
-            // match single character
-            if (!match) {
-                return false;
-            }
-
-            filter++;
-            string++;
-        }
-    }
-
-    // match NUL at the end
-    return !*string;
-}
+//static bool match_raw(int c1, int c2, bool ignorecase)
+//{
+//    if (c1 != c2) {
+//        if (!ignorecase) {
+//            return false;
+//        }
+//#ifdef _WIN32
+//        // ugly hack for file listing
+//        c1 = c1 == '\\' ? '/' : Q_tolower(c1);
+//        c2 = c2 == '\\' ? '/' : Q_tolower(c2);
+//#else
+//        c1 = Q_tolower(c1);
+//        c2 = Q_tolower(c2);
+//#endif
+//        if (c1 != c2) {
+//            return false;
+//        }
+//    }
+//
+//    return true;
+//}
+//
+//static bool match_char(int c1, int c2, bool ignorecase)
+//{
+//    if (c1 == '?') {
+//        return c2; // match any char except NUL
+//    }
+//
+//    return match_raw(c1, c2, ignorecase);
+//}
+//
+//static bool match_part(const char *filter, const char *string,
+//                       size_t len, bool ignorecase)
+//{
+//    bool match;
+//
+//    do {
+//        // skip over escape character
+//        if (*filter == '\\') {
+//            filter++;
+//            match = match_raw(*filter, *string, ignorecase);
+//        } else {
+//            match = match_char(*filter, *string, ignorecase);
+//        }
+//
+//        if (!match) {
+//            return false;
+//        }
+//
+//        filter++;
+//        string++;
+//    } while (--len);
+//
+//    return true;
+//}
+//
+//// match the longest possible part
+//static const char *match_filter(const char *filter, const char *string,
+//                                size_t len, bool ignorecase)
+//{
+//    const char *ret = NULL;
+//    size_t remaining = strlen(string);
+//
+//    while (remaining >= len) {
+//        if (match_part(filter, string, len, ignorecase)) {
+//            string += len;
+//            remaining -= len;
+//            ret = string;
+//            continue;
+//        }
+//        string++;
+//        remaining--;
+//    }
+//
+//    return ret;
+//}
+//
+///*
+//=================
+//Com_WildCmpEx
+//
+//Wildcard compare. Returns true if string matches the pattern, false otherwise.
+//
+//- 'term' is handled as an additional filter terminator (besides NUL).
+//- '*' matches any substring, including the empty string, but prefers longest
+//possible substrings.
+//- '?' matches any single character except NUL.
+//- '\\' can be used to escape any character, including itself. any special
+//characters lose their meaning in this case.
+//
+//=================
+//*/
+//bool Com_WildCmpEx(const char *filter, const char *string,
+//                   int term, bool ignorecase)
+//{
+//    const char *sub;
+//    size_t len;
+//    bool match;
+//
+//    while (*filter && *filter != term) {
+//        if (*filter == '*') {
+//            // skip consecutive wildcards
+//            do {
+//                filter++;
+//            } while (*filter == '*');
+//
+//            // scan out filter part to match
+//            for (sub = filter, len = 0; *filter && *filter != term && *filter != '*'; filter++, len++) {
+//                // skip over escape character
+//                if (*filter == '\\') {
+//                    filter++;
+//                    if (!*filter) {
+//                        break;
+//                    }
+//                }
+//            }
+//
+//            // wildcard at the end matches everything
+//            if (!len) {
+//                return true;
+//            }
+//
+//            string = match_filter(sub, string, len, ignorecase);
+//            if (!string) {
+//                return false;
+//            }
+//        } else {
+//            // skip over escape character
+//            if (*filter == '\\') {
+//                filter++;
+//                if (!*filter) {
+//                    break;
+//                }
+//                match = match_raw(*filter, *string, ignorecase);
+//            } else {
+//                match = match_char(*filter, *string, ignorecase);
+//            }
+//
+//            // match single character
+//            if (!match) {
+//                return false;
+//            }
+//
+//            filter++;
+//            string++;
+//        }
+//    }
+//
+//    // match NUL at the end
+//    return !*string;
+//}
 
 /*
 ==============================================================================
@@ -187,7 +188,7 @@ bool Com_WildCmpEx(const char *filter, const char *string,
 ==============================================================================
 */
 
-const char *const colorNames[10] = {
+const char *const colorNames[COLOR_COUNT] = {
     "black", "red", "green", "yellow",
     "blue", "cyan", "magenta", "white",
     "alt", "none"
@@ -197,20 +198,23 @@ const char *const colorNames[10] = {
 ================
 Com_ParseColor
 
-Parses color name or index up to the maximum allowed index.
+Parses color name or index.
 Returns COLOR_NONE in case of error.
 ================
 */
-color_index_t Com_ParseColor(const char *s, color_index_t last)
+color_index_t Com_ParseColor(const char *s)
 {
     int i; // WID: C++20: was color_index_t
 
     if (COM_IsUint(s)) {
-        i = strtoul(s, NULL, 10);
-        return static_cast<color_index_t>( i > last ? COLOR_NONE : i ); // WID: C++20: Added cast.
+        i = atoi(s);
+        if (i < 0 || i >= COLOR_COUNT) {
+            return COLOR_NONE;
+        }
+        return static_cast<color_index_t>( i );
     }
 
-    for (i = 0; i <= last; i++) {
+    for (i = 0; i < COLOR_COUNT; i++) {
         if (!strcmp(colorNames[i], s)) {
             return static_cast<color_index_t>( i ); // WID: C++20: Added cast.
         }
@@ -245,6 +249,7 @@ unsigned Com_ParseExtensionString(const char *s, const char *const extnames[])
         for (i = 0; extnames[i]; i++) {
             l2 = strlen(extnames[i]);
             if (l1 == l2 && !memcmp(s, extnames[i], l1)) {
+                Com_DPrintf("Found %s\n", extnames[i]);
                 mask |= 1U << i;
                 break;
             }
@@ -407,6 +412,38 @@ void Com_PageInMemory(void *buffer, size_t size)
         paged_total += ((byte *)buffer)[i];
 }
 
+size_t Com_FormatLocalTime(char *buffer, size_t size, const char *fmt)
+{
+    static struct tm cached_tm;
+    static time_t cached_time;
+    time_t now;
+    struct tm *tm;
+    size_t ret;
+
+    if (!size)
+        return 0;
+
+    now = time(NULL);
+    if (now == cached_time) {
+        // avoid calling localtime() too often since it is not that cheap
+        tm = &cached_tm;
+    } else {
+        tm = localtime(&now);
+        if (!tm)
+            goto fail;
+        cached_time = now;
+        cached_tm = *tm;
+    }
+
+    ret = strftime(buffer, size, fmt, tm);
+    Q_assert(ret < size);
+    if (ret)
+        return ret;
+fail:
+    buffer[0] = 0;
+    return 0;
+}
+
 size_t Com_FormatTime(char *buffer, size_t size, time_t t)
 {
     int     sec, min, hour, day;
@@ -483,6 +520,9 @@ size_t Com_TimeDiffLong(char *buffer, size_t size, time_t *p, time_t now)
 
 size_t Com_FormatSize(char *dest, size_t destsize, int64_t bytes)
 {
+    if (bytes >= 1000000000) {
+        return Q_scnprintf(dest, destsize, "%.1fG", bytes * 1e-9);
+    }
     if (bytes >= 10000000) {
         return Q_scnprintf(dest, destsize, "%" PRId64 "M", bytes / 1000000);
     }
@@ -500,6 +540,9 @@ size_t Com_FormatSize(char *dest, size_t destsize, int64_t bytes)
 
 size_t Com_FormatSizeLong(char *dest, size_t destsize, int64_t bytes)
 {
+    if (bytes >= 1000000000) {
+        return Q_scnprintf(dest, destsize, "%.1f GB", bytes * 1e-9);
+    }
     if (bytes >= 10000000) {
         return Q_scnprintf(dest, destsize, "%" PRId64 " MB", bytes / 1000000);
     }

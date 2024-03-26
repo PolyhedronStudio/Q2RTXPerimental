@@ -44,19 +44,9 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 
 //=========================================
 
-#define UPDATE_BACKUP   512 //16	// copies of entity_state_t to keep buffered must be power of two
-#define UPDATE_MASK     (UPDATE_BACKUP - 1)
+#define MAX_PACKETENTITY_BYTES 64
 
-#define CMD_BACKUP      512 //128	// allow a lot of command backups for very fast systems increased from 64
-#define CMD_MASK        (CMD_BACKUP - 1)
-
-// Max entities stuffed per packet.
-#define MAX_PACKET_ENTITIES     1024
-#define MAX_PARSE_ENTITIES      (MAX_PACKET_ENTITIES * UPDATE_BACKUP)
-#define PARSE_ENTITIES_MASK     (MAX_PARSE_ENTITIES - 1)
-
-
-#define MAX_PACKET_USERCMDS     32
+#define MAX_PACKET_USERCMDS     120
 #define MAX_PACKET_FRAMES       4
 
 // Malicious users may try using too many string commands
@@ -66,75 +56,11 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 // Define a capped limit to prevent doing so.
 #define MAX_PACKET_USERINFOS    8
 
-#define CS_BITMAP_BYTES         (MAX_CONFIGSTRINGS / 8) // 260
-#define CS_BITMAP_LONGS         (CS_BITMAP_BYTES / 4)
 
-#define MVD_MAGIC               MakeRawLong('M','V','D','2')
 
-//
-// server to client
-//
-typedef enum {
-    svc_bad,
 
-    // these ops are known to the game dll
-    svc_muzzleflash,
-    svc_muzzleflash2,
-    svc_temp_entity,
-    svc_layout,
-    svc_inventory,
-
-    // the rest are private to the client and server
-    svc_nop,
-    svc_disconnect,
-    svc_reconnect,
-    svc_sound,                  // <see code>
-    svc_print,                  // [byte] id [string] null terminated string
-    svc_stufftext,              // [string] stuffed into client's console buffer
-                                // should be \n terminated
-    svc_serverdata,             // [long] protocol ...
-    svc_configstring,           // [short] [string]
-    svc_spawnbaseline,
-    svc_centerprint,            // [string] to put in center of the screen
-    svc_download,               // [short] size [size bytes]
-    svc_playerinfo,             // variable
-    svc_packetentities,         // [...]
-    svc_deltapacketentities,    // [...]
-    svc_frame,
-	    
-    svc_zpacket,
-    svc_zdownload,
-    svc_gamestate,
-	svc_configstringstream,
-	svc_baselinestream,
-	svc_setting,
-	
-	svc_num_types
-} svc_ops_t;
-
-//==============================================
-
-//
-// client to server
-//
-typedef enum {
-    clc_bad,
-    clc_nop,
-    
-	clc_move,               // [usercmd_t]
-	clc_move_nodelta,		// [usercmd_t]
-	clc_move_batched,		// [batched_usercmd_t]
-
-    clc_userinfo,           // [userinfo string]
-	clc_userinfo_delta,		// [userinfo_key][userinfo_value]
-	
-	clc_stringcmd,          // [string] message
-} clc_ops_t;
-
-//==============================================
 
 // player_state_t communication
-
 #define PS_M_TYPE           (1<<0)
 #define PS_M_ORIGIN         (1<<1)
 #define PS_M_VELOCITY       (1<<2)
@@ -144,17 +70,19 @@ typedef enum {
 #define PS_M_DELTA_ANGLES   (1<<6)
 
 #define PS_VIEWOFFSET       (1<<7)
-#define PS_VIEWANGLES       (1<<8)
-#define PS_KICKANGLES       (1<<9)
-#define PS_BLEND            (1<<10)
-#define PS_FOV              (1<<11)
-#define PS_WEAPONINDEX      (1<<12)
-#define PS_WEAPONFRAME      (1<<13)
-#define PS_RDFLAGS          (1<<14)
-#define PS_WEAPONRATE       (1<<15)
+#define PS_VIEWHEIGHT		(1<<8)
+#define PS_VIEWANGLES       (1<<9)
+#define PS_KICKANGLES       (1<<10)
+#define PS_BLEND            (1<<11)
+#define PS_FOV              (1<<12)
+#define PS_WEAPONINDEX      (1<<13)
+#define PS_WEAPONFRAME      (1<<14)
+#define PS_RDFLAGS          (1<<15)
+#define PS_WEAPONRATE       (1<<16)
 
-#define PS_BITS             16
-#define PS_MASK             ((1<<PS_BITS)-1)
+
+//#define PS_BITS             16
+//#define PS_MASK             ((1<<PS_BITS)-1)
 
 //==============================================
 
@@ -202,37 +130,39 @@ typedef enum {
 #define U_ANGLE3    (1<<3)
 #define U_FRAME     (1<<4)			// 
 #define U_EVENT     (1<<5)
-#define U_SKIN		(1<<6)//#define U_UNUSGED    (1<<6)			// REMOVE this entity, don't add it
-#define U_SOLID		(1<<7)//#define U_UNUSED0   (1<<7)			//#define U_MOREBITS1 (1<<7)        // read one additional byte
+#define U_SKIN		(1<<6)
+#define U_SOLID		(1<<7)
 
 
 // second byte
-#define U_SOUND		(1<<8)			// NUMBER8 is implicit if not set
+#define U_SOUND		(1<<8)
 #define U_ORIGIN3   (1<<9)
 #define U_ANGLE1    (1<<10)
 #define U_MODEL     (1<<11)
 #define U_RENDERFX  (1<<12)			// fullbright, etc
-#define U_EFFECTS	(1<<13)			//
+#define U_EFFECTS	(1<<13)
 #define U_OLDORIGIN	(1<<14)			// autorotate, trails, etc
-#define U_MODEL2	(1<<15)			//
+#define U_MODEL2	(1<<15)
 
 // third byte
 #define U_MODEL3		(1<<16)
 #define U_MODEL4		(1<<17)
-#define U_ENTITY_TYPE	(1<<18)		// TODO: Move to other bit location.
+#define U_ENTITY_TYPE		(1<<18)		// TODO: Move to other bit location.
 #define U_SPOTLIGHT_RGB		(1<<19)
 #define U_SPOTLIGHT_INTENSITY	(1<<20)
 #define U_SPOTLIGHT_ANGLE_WIDTH	(1<<21)
-#define U_SPOTLIGHT_ANGLE_FALLOFF (1<<22)
-#define U_UNUSED46		(1<<23)
+#define U_SPOTLIGHT_ANGLE_FALLOFF	(1<<22)
+#define U_UNUSED46	(1<<23)
 
 // fourth byte
-#define U_UNUSED2	(1<<24)
-#define U_UNUSED3	(1<<25)
-#define U_UNUSED4	(1<<26)
-#define U_UNUSED5	(1<<27)
+#define U_CLIPMASK		(1<<24)
+#define U_HULL_CONTENTS	(1<<25)
+#define U_OWNER 		(1<<26)
+#define U_OLD_FRAME	(1<<27)
+//#define U_CLIENT	(1<<28)
 #define U_UNUSED6	(1<<28)
-#define U_UNUSED7	(1<<29)
+//#define U_UNUSED7	(1<<29)
+#define U_BOUNDINGBOX (1<<29)
 #define U_UNUSED8	(1<<30)
 #define U_UNUSED9	(1<<31)
 
@@ -278,15 +208,18 @@ typedef enum {
 
 // ==============================================================
 
-// a SOLID_BBOX will never create this value
-#define PACKED_BSP      255
+// WID: Moved to shared/shared.h
+// a SOLID_BOUNDS_BOX will never create this value
+//#define PACKED_BSP      255
 
 // q2pro frame flags sent by the server
 // only SUPPRESSCOUNT_BITS can be used
-#define FF_SUPPRESSED   (1<<0)
-#define FF_CLIENTDROP   (1<<1)
-#define FF_CLIENTPRED   (1<<2)	// Set but unused?
-#define FF_RESERVED     (1<<3)	// Literally reserved.
+// Moved to shared.h
+//#define FF_NONE			0
+//#define FF_SUPPRESSED   (1<<0)
+//#define FF_CLIENTDROP   (1<<1)
+//#define FF_CLIENTPRED   (1<<2)	// Set but unused?
+//#define FF_RESERVED     (1<<3)	// Literally reserved.
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
