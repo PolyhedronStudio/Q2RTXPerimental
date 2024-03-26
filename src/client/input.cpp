@@ -551,6 +551,18 @@ static inline bool ready_to_send( void ) {
         return true;
     }
 
+    // WID: Batched Cmds seem to break prediction and I am unsure if it is the prediction
+    // itself or the fact that the server might be doing an extra ClienThink(move) for the
+    // last use command. However if we allow cl_maxpackets to interfere with cl_batchcmds
+    // we end up with pushers that give 'odd' spikes in their move direction.
+    //
+    // Eventually ended up with a solution, and that is to not care for cl_maxpackets when
+    // one is using cl_batchcmds :-) Not content about it, but it works for now.
+    if ( cl_batchcmds->integer ) {
+        //Com_DPrintf( "%s\n", "client_ready_to_send (cl_batchcmds->integer): true" );
+        return true;
+    }
+
     // WID: netstuff: Changed from 10, to actually, 40.
     if ( cl_maxpackets->integer < BASE_FRAMERATE ) {
         Cvar_Set( "cl_maxpackets", std::to_string( BASE_FRAMERATE ).c_str() );
@@ -696,20 +708,19 @@ static void CL_SendBatchedCmd( void ) {
     MSG_BeginWriting();
     //Cvar_ClampInteger( cl_packetdup, 0, MAX_PACKET_FRAMES - 1 );
     //numDups = cl_packetdup->integer;
-    numDups = MAX_PACKET_FRAMES - 1;
+    numDups = 2;// MAX_PACKET_FRAMES - 1;
 
     // Check whether cl_nodelta is wished for, or in case of an invalid frame, so we can
     // let the server know what the last frame we got was, which in return allows
     // the next message to be delta compressed
     if ( cl_nodelta->integer || !cl.frame.valid /*|| cls.demowaiting*/ ) {
         MSG_WriteUint8( clc_move_nodelta );
-        MSG_WriteUint8( numDups );
     } else {
         MSG_WriteUint8( clc_move_batched );
-        MSG_WriteUint8( numDups );
         MSG_WriteIntBase128( cl.frame.number );
     }
 
+    MSG_WriteUint8( numDups );
 
     // send this and the previous cmds in the message, so
     // if the last packet was dropped, it can be recovered
@@ -743,7 +754,7 @@ static void CL_SendBatchedCmd( void ) {
     }
 
     //MSG_FlushTo( &msg_write );
-    //MSG_FlushBits( );
+    MSG_FlushBits( );
 
     P_FRAMES++;
 
@@ -753,11 +764,11 @@ static void CL_SendBatchedCmd( void ) {
     cursize = NetchanQ2RTXPerimental_Transmit( &cls.netchan, msg_write.cursize, msg_write.data );
     #if USE_DEBUG
     if ( cl_showpackets->integer == 1 ) {
-        Com_Printf( "%zu(%i) ", cursize, totalCmds );
+        Com_Printf( "%zu(%i) \n", cursize, totalCmds );
     } else if ( cl_showpackets->integer == 2 ) {
-        Com_Printf( "%zu(%i) ", cursize, totalMsec );
+        Com_Printf( "%zu(%i) \n", cursize, totalMsec );
     } else if ( cl_showpackets->integer == 3 ) {
-        Com_Printf( " | " );
+        Com_Printf( " | \n" );
     }
     #endif
 

@@ -1,6 +1,12 @@
-# Quake II RTXPerimental Change Log
+# Quake II RTXPerimental Changelogs
 
-## Q2RTXPerimental Engine Changes:
+## Q2RTXPerimental Changes(New):
+Changes will from now on be listed as additions per version. 
+## V0.0.3:
+
+
+## Q2RTXPerimental Changes(Old):
+These changes spawn from v0.0.0 up to 0.0.2
 ### General:
 * **CPP-ify the codebase, meaning that it now compiles using a CPP compiler** 
 	* The only exception being the **VKPT** code, to make life easy merging in any new **Q2RTX VKPT** features.

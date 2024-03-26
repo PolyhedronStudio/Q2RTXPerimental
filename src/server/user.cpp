@@ -1078,12 +1078,11 @@ static void SV_NewClientExecuteMove( int c ) {
 
 	if ( c == clc_move_nodelta ) {
 		lastframe = -1;
-		numDups = MSG_ReadUint8( );
 	} else {
-		numDups = MSG_ReadUint8( );
 		lastframe = MSG_ReadIntBase128( );
 	}
 
+    numDups = MSG_ReadUint8();
 
 	if ( numDups >= MAX_PACKET_FRAMES ) {
 		SV_DropClient( sv_client, "too many frames in packet" );
@@ -1340,7 +1339,7 @@ The current net_message is parsed for the given client
 */
 void SV_ExecuteClientMessage(client_t *client)
 {
-    int c;
+    int32_t c = -1, last_cmd = -1;
 
     sv_client = client;
     sv_player = sv_client->edict;
@@ -1360,10 +1359,18 @@ void SV_ExecuteClientMessage(client_t *client)
         if (c == -1)
             break;
 
+        switch ( c ) {
+        case clc_move_nodelta:
+        case clc_move_batched:
+            SV_NewClientExecuteMove( c );
+            last_cmd = c;
+            goto nextcmd;
+        }
+
         switch (c) {
         default:
 //badbyte:
-            SV_DropClient(client, "unknown command byte");
+            SV_DropClient(client, va( "unknown command byte, last was %i", last_cmd ) );
             break;
 
         case clc_nop:
@@ -1381,10 +1388,10 @@ void SV_ExecuteClientMessage(client_t *client)
             SV_ParseClientCommand();
             break;
 
-		case clc_move_nodelta:
-		case clc_move_batched:
-			SV_NewClientExecuteMove( c );
-			break;
+		//case clc_move_nodelta:
+		//case clc_move_batched:
+		//	SV_NewClientExecuteMove( c );
+		//	break;
         case clc_userinfo_delta:
             //if (client->protocol != PROTOCOL_VERSION_Q2PRO)
             //    goto badbyte;
@@ -1393,8 +1400,14 @@ void SV_ExecuteClientMessage(client_t *client)
             break;
         }
 
-        if (client->state <= cs_zombie)
-            break;    // disconnect command
+nextcmd:
+        // Break out, this happens by a disconnect command eventually leading to a cs_zombie state.
+        if ( client->state <= cs_zombie ) {
+            // Disconnect command.
+            break;
+        }
+
+        last_cmd = c;
     }
 
     sv_client = NULL;

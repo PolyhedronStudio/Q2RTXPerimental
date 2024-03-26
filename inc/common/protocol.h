@@ -46,7 +46,7 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 
 #define MAX_PACKETENTITY_BYTES 64
 
-#define MAX_PACKET_USERCMDS     32
+#define MAX_PACKET_USERCMDS     120
 #define MAX_PACKET_FRAMES       4
 
 // Malicious users may try using too many string commands
