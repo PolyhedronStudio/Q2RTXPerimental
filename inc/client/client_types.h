@@ -142,9 +142,11 @@ typedef struct client_movecmd_s {
 typedef struct client_predicted_state_s {
     //! User Command Input for this frame.
     //usercmd_t cmd;
-    // for stair up smoothing
-    uint64_t step_time;
+    
+    // For stair up smoothing:
     double step;
+    uint64_t step_time;
+    //uint64_t step_frame;
 
     // Viewheight.
     uint64_t view_height_time;
@@ -277,17 +279,16 @@ typedef struct client_state_s {
     //! The delta of the current frames move angles.
     Vector3     delta_angles;
 
-    //! The current command its numerical index.
-    uint64_t currentUserCommandNumber;
-    //! Current client move command that is being processed.
+    //! Current client move command that user input is enacting on.
     client_movecmd_t moveCommand;
-    //! Circular client buffer of (predicted-) move commands.
+    //! The current user command its numerical index.
+    uint64_t currentUserCommandNumber;    //! Circular client buffer of (predicted-) move commands.
     client_movecmd_t moveCommands[ CMD_BACKUP ];
+    //! Circular client history buffer that stores the user command index, its time sent, and time received.
+    client_usercmd_history_t history[ CMD_BACKUP ];
 
     //! The current pmove state to be predicted this frame.
     client_predicted_state_t predictedState;
-    //! Circular client history buffer, of time sent, and received, for user commands.
-    client_usercmd_history_t history[ CMD_BACKUP ];
 
     //! Clien't s audio spatialized data.
     client_listener_spatialization_t listener_spatialize;

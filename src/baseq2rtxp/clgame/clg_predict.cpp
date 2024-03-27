@@ -144,7 +144,9 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
 
             out->view.rdflags = 0;
             out->view.screen_blend = {};
-            // In case of a minor distance, only report if cl_showmiss is enabled:
+
+            return;
+        // In case of a minor distance, only report if cl_showmiss is enabled:
         } else {
             // Debug misses:
             #if USE_DEBUG
@@ -178,7 +180,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Time in miliseconds to lerp the step with.
     static constexpr int32_t PM_STEP_TIME = 100;
     // Maximum -/+ change we allow in step lerps.
-    static constexpr int32_t PM_MAX_STEP_CHANGE = 128;
+    static constexpr int32_t PM_MAX_STEP_CHANGE = 32;
 
     // Prepare the player move parameters.
     pmoveParams_t pmp;
@@ -265,33 +267,54 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         frameNumber = currentCommandNumber - 1;
     }
 
-    // Stair Stepping:
-    const float oldZ = clgi.client->moveCommands[ frameNumber & CMD_MASK ].prediction.origin[ 2 ];
-    const float step = pm.s.origin[ 2 ] - oldZ;
-    const float fabsStep = fabsf( step );
+    //// Stair Stepping:
+    //const float oldZ = clgi.client->moveCommands[ frameNumber & CMD_MASK ].prediction.origin[ 2 ];
+    //const float step = pm.s.origin[ 2 ] - oldZ;
+    const float fabsStep = fabsf( pm.step_height );
 
-    // Consider a Z change being "stepping" if...
+    //// Consider a Z change being "stepping" if...
     const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range
         && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // And we started off on the ground
         && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground
         && ( memcmp( &predictedState->groundPlane, &pm.groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
             || predictedState->groundEntity != (centity_t *)pm.groundentity ); // we stand on another plane or entity
 
-    // Code below adapted from Q3A. Smoothes out stair step.
+    //// Code below adapted from Q3A. Smoothes out stair step.
+    //if ( step_detected ) {
+    //    // check for stepping up before a previous step is completed
+    //    const uint64_t delta = clgi.GetRealTime() - predictedState->step_time;
+    //    double old_step = 0.f;
+    //    if ( delta < PM_STEP_TIME ) {
+    //        old_step = predictedState->step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
+    //    } else {
+    //        old_step = 0;
+    //    }
+
+    //    // Add this amount
+    //    predictedState->step = constclamp( old_step + step, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
+    //    predictedState->step_time = clgi.GetRealTime();
+    //}
+    
+    // We stepped.
+    //const float fabs_step_height = fabs( pm.step_height );
+    //const bool onGround = ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm.step_clip ) // And we started off on the ground
+    //    && ( ( pm.s.pm_flags & PMF_ON_GROUND ) && pm.s.pm_type <= PM_GRAPPLE ); // And are still predicted to be on the ground
+
     if ( step_detected ) {
         // check for stepping up before a previous step is completed
         const uint64_t delta = clgi.GetRealTime() - predictedState->step_time;
         double old_step = 0.f;
         if ( delta < PM_STEP_TIME ) {
-            old_step = predictedState->step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
+            old_step = pm.step_height * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
         } else {
             old_step = 0;
         }
 
-        // add this amount
-        predictedState->step = constclamp( old_step + step, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
+        // Add this amount
+        predictedState->step = constclamp( old_step + pm.step_height, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
         predictedState->step_time = clgi.GetRealTime();
     }
+    //predictedState->step = pm.step_height;
 
     // Copy results out into the current predicted state.
     predictedState->view.origin = pm.s.origin;

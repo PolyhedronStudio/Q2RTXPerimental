@@ -46,26 +46,36 @@
 // but the number of pmove_state_t changes will be reletive to client
 // frame rates
 typedef struct {
+    // Communicate BIT precise.
     pmove_state_t   pmove;      // for prediction
 
-    // these fields do not need to be communicated bit-precise
-    vec3_t viewangles;		// for fixed views
-    vec3_t viewoffset;		// add to pmovestate->origin
-    vec3_t kick_angles;		// add to view direction to get render angles
-    // set by weapon kicks, pain effects, etc
+    // These fields do not need to be communicated bit-precise
+    vec3_t viewangles;		//! For fixed views.
+    vec3_t viewoffset;		//! Add to pmovestate->origin
+    vec3_t kick_angles;		//! Add to view direction to get render angles
+                            //! set by weapon kicks, pain effects, etc
 
+    //! Gun Angles on-screen.
     vec3_t gunangles;
+    //! Gun offset on-screen.
     vec3_t gunoffset;
+    //! Weapon(gun model) index.
     uint32_t gunindex;
+    //! Current weapon model's frame.
     uint32_t gunframe;
 
+    //! hz tickrate for gun logic which is coupled to animation frames.
     int32_t gunrate;
 
     //float damage_blend[ 4 ];      // rgba full screen damage blend effect
-    float screen_blend[ 4 ];          // rgba full screen general blend effect
-    float fov;            // horizontal field of view
+    //! RGBA full screen general blend effect
+    float screen_blend[ 4 ];
+    //! horizontal field of view
+    float fov;
 
-    int32_t rdflags;        // refdef flags
+    //! Refdef flags.
+    int32_t rdflags;
 
-    int32_t stats[ MAX_STATS ];       // fast status bar updates
+    //! Numerical player stats storage. ( fast status bar updates etc. )
+    int32_t stats[ MAX_STATS ];
 } player_state_t;

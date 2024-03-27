@@ -411,7 +411,7 @@ void PF_CalculateViewValues( void ) {
 
     // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_.. values from SharedGame.
     static constexpr int32_t STEP_TIME = 100;
-    static constexpr float STEP_BASE_1_FRAMETIME = 0.01f;
+    static constexpr double STEP_BASE_1_FRAMETIME = ( 1. / STEP_TIME );
 
     // calculate the origin
     //if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
@@ -424,7 +424,7 @@ void PF_CalculateViewValues( void ) {
         //
         // However, the original code was 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_HEIGHT
         //static constexpr float STEP_HEIGHT = PM_MAX_STEP_HEIGHT - PM_MIN_STEP_HEIGHT // This seems like what would be more accurate?
-        static constexpr float STEP_HEIGHT = 15.875;
+        static constexpr double STEP_HEIGHT = 15.875;
 
         // use predicted values
         uint64_t delta = clgi.GetRealTime() - clgi.client->predictedState.step_time;
@@ -439,7 +439,7 @@ void PF_CalculateViewValues( void ) {
 
         // WID: Prediction: Was based on old 10hz, 100ms.
         if ( delta < STEP_TIME ) {
-            clgi.client->refdef.vieworg[ 2 ] -= clgi.client->predictedState.step * ( STEP_TIME - delta ) * ( 1.f / STEP_TIME );
+            clgi.client->refdef.vieworg[ 2 ] -= clgi.client->predictedState.step * ( STEP_TIME - delta ) * STEP_BASE_1_FRAMETIME;
         }
     } else {
         // just use interpolated values

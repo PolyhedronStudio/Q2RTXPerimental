@@ -121,8 +121,9 @@ typedef struct {
     **/
     //! The player's move command.
     usercmd_t	cmd;
-    qboolean    snapinitial;    // if s has been changed outside pmove
-
+    //! Set to 'true' if player state 's' has been changed outside of pmove.
+    qboolean    snapinitial;
+    //! Opaque pointer to the player entity.
     struct edict_s *player;
 
     /**
@@ -176,6 +177,8 @@ typedef struct {
     qboolean jump_sound;
     //! We clipped on top of an object from below.
     qboolean step_clip;
+    //! Step taken, used for smooth lerping stair transitions.
+    float step_height;
     //! Impact delta, for falling damage.
     float impact_delta;
 } pmove_t;

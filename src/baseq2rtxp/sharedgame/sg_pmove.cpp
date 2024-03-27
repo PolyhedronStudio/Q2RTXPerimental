@@ -94,6 +94,40 @@ typedef struct default_pmoveParams_s {
 } default_pmoveParams_t;
 
 /**
+*	@return True if the trace yielded a step, false otherwise.
+**/
+static bool PM_CheckStep( const trace_t *trace ) {
+	// If not solid:
+	if ( !trace->allsolid ) {
+		// If trace clipped to an entity and the plane we hit its normal is sane for stepping:
+		if ( trace->ent && trace->plane.normal[2] >= MIN_STEP_NORMAL) {
+			// We just traversed a step of sorts.
+			return true;
+		}
+	}
+
+	// It wasn't a step, return false.
+	return false;
+}
+
+/**
+*	@brief	Will step to the trace its end position, calculating the height difference and
+*			setting it as our step_height if it is equal or above the minimal step size.
+**/
+static void PM_StepDown( const trace_t *trace ) {
+	// Apply the trace endpos as the new origin.
+	pml.origin = trace->endpos;
+
+	// Determine the step height based on the new, and previous origin.
+	const float step_height = pml.origin.z - pml.previousOrigin.z;
+
+	// If its absolute(-/+) value >= 4.0 then we got an official step.
+	if ( fabsf( step_height ) >= PM_MIN_STEP_SIZE ) {
+		pm->step_height = step_height;
+	}
+}
+
+/**
 *	@brief	Each intersection will try to step over the obstruction instead of
 *			sliding along it.
 * 
@@ -143,11 +177,16 @@ static void PM_StepSlideMove() {
 	if ( !trace.allsolid ) {
 		// [Paril-KEX] from above, do the proper trace now
 		trace_t real_trace = PM_Trace( pml.origin, pm->mins, pm->maxs, original_down );
-		pml.origin = real_trace.endpos;
+		//pml.origin = real_trace.endpos;
 
-		// Only an upwards jump is a stair clip.
-		if ( pml.velocity.z > 0.f ) {
-			pm->step_clip = true;
+		// WID: Use proper stair step checking.
+		if ( PM_CheckStep( &trace ) ) {
+			// Only an upwards jump is a stair clip.
+			if ( pml.velocity.z > 0.f ) {
+				pm->step_clip = true;
+			}
+			// Step down to the new found ground.
+			PM_StepDown( &real_trace );
 		}
 	}
 
@@ -172,9 +211,16 @@ static void PM_StepSlideMove() {
 	// Paril: step down stairs/slopes
 	if ( ( pm->s.pm_flags & PMF_ON_GROUND ) && !( pm->s.pm_flags & PMF_ON_LADDER ) &&
 		( pm->waterlevel < water_level_t::WATER_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity.z <= 0 ) ) ) {
-		Vector3 down = pml.origin - Vector3{ 0.f, 0.f, PM_MAX_STEP_SIZE }; // { pml.origin.x, pml.origin.y, pml.origin.z - PM_MAX_STEP_SIZE };
+		Vector3 down = pml.origin - Vector3{ 0.f, 0.f, PM_MAX_STEP_SIZE };
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
-		if ( trace.fraction < 1.f ) {
+
+		// WID: Use proper stair step checking.
+		// Check for stairs:
+		if ( PM_CheckStep( &trace ) ) {
+			// Step down stairs:
+			PM_StepDown( &trace );
+		// We're expecting it to be a slope, step down the slope instead:
+		} else if ( trace.fraction < 1.f ) {
 			pml.origin = trace.endpos;
 		}
 	}
@@ -262,7 +308,6 @@ static void PM_AirAccelerate( const Vector3 &wishDirection, const float wishSpee
 *	@brief	Handles the velocities for 'ladders', as well as water and conveyor belt by applying their 'currents'.
 **/
 static void PM_AddCurrents( Vector3 &wishVelocity ) {
-
 	// Account for ladders.
 	if ( pm->s.pm_flags & PMF_ON_LADDER ) {
 		if ( pm->cmd.buttons & ( BUTTON_JUMP | BUTTON_CROUCH ) ) {
@@ -430,6 +475,7 @@ static void PM_AirMove() {
 	if ( pm->s.pm_flags & PMF_ON_LADDER ) {
 		PM_Accelerate( wishDirection, wishSpeed, pmp->pm_accelerate );
 		if ( !wishVelocity.z ) {
+			// Apply gravity as a form of 'friction' to prevent 'racing/sliding' against the ladder.
 			if ( pml.velocity.z > 0 ) {
 				pml.velocity.z -= pm->s.gravity * pml.frameTime;
 				if ( pml.velocity.z < 0 ) {
@@ -1097,10 +1143,15 @@ static void PM_ClampAngles() {
 		pm->viewangles = QM_Vector3AngleMod( pm->cmd.angles + pm->s.delta_angles );
 
 		// Don't let the player look up or down more than 90 degrees.
-		if ( pm->viewangles[ PITCH ] >= 90 && pm->viewangles[ PITCH ] <= 180 ) {
+		//if ( pm->viewangles[ PITCH ] >= 90 && pm->viewangles[ PITCH ] <= 180 ) {
+		//	pm->viewangles[ PITCH ] = 90;
+		//} else if ( pm->viewangles[ PITCH ] <= 270 && pm->viewangles[ PITCH ] >= 180 ) {
+		//	pm->viewangles[ PITCH ] = 270;
+		//}
+		if ( pm->viewangles[ PITCH ] > 90 && pm->viewangles[ PITCH ] < 270 ) {
 			pm->viewangles[ PITCH ] = 90;
-		} else if ( pm->viewangles[ PITCH ] <= 270 && pm->viewangles[ PITCH ] >= 180 ) {
-			pm->viewangles[ PITCH ] = 270;
+		} else if ( pm->viewangles[ PITCH ] <= 360 && pm->viewangles[ PITCH ] >= 270 ) {
+			pm->viewangles[ PITCH ] -= 360;
 		}
 	}
 
@@ -1163,6 +1214,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	pm->rdflags = 0;
 	pm->jump_sound = false;
 	pm->step_clip = false;
+	pm->step_height = 0;
 	pm->impact_delta = 0;
 
 	// Clear all pmove local vars
