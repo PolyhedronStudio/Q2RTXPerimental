@@ -806,18 +806,36 @@ Large exploding box.  You can override its mass (100),
 health (80), and dmg (150).
 */
 
-void barrel_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
-
-{
-    float   ratio;
-    vec3_t  v;
-
-    if ((!other->groundentity) || (other->groundentity == self))
+void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+    
+    if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
         return;
+    }
 
-    ratio = (float)other->mass / (float)self->mass;
+    // Calculate direction.
+    vec3_t v = { };
     VectorSubtract(self->s.origin, other->s.origin, v);
-    M_walkmove(self, QM_Vector3ToYaw(v), 20 * ratio * FRAMETIME);
+
+    // Move ratio(based on their masses).
+    const float ratio = (float)other->mass / (float)self->mass;
+
+    // Yaw direction angle.
+    const float yawAngle = QM_Vector3ToYaw( v );
+    const float direction = yawAngle;
+    // Distance to travel.
+    float distance = 20 * ratio * FRAMETIME;
+
+    // Debug output:
+    if ( plane ) {
+        Com_LPrintf( PRINT_DEVELOPER, "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+        Com_LPrintf( PRINT_DEVELOPER, "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
+    } else {
+        Com_LPrintf( PRINT_DEVELOPER, "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+        Com_LPrintf( PRINT_DEVELOPER, "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
+    }
+
+    // Perform move.
+    M_walkmove( self, direction, distance );
 }
 
 void barrel_explode(edict_t *self)
@@ -888,7 +906,7 @@ void SP_misc_explobox(edict_t *self)
     gi.modelindex("models/objects/debris2/tris.md2");
     gi.modelindex("models/objects/debris3/tris.md2");
 
-    self->solid = SOLID_BOUNDS_BOX;
+    self->solid = SOLID_BOUNDS_OCTAGON;
     self->movetype = MOVETYPE_STEP;
 
     self->model = "models/objects/barrels/tris.md2";

@@ -74,7 +74,7 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
         // Calculate origin for BSP models to be closest point
         // from listener to the bmodel's aabb:
     } else {
-        if ( ent->current.solid == PACKED_BSP ) {
+        if ( ent->current.solid == BOUNDS_BRUSHMODEL ) {
             mmodel_t *brushModel = clgi.client->model_clip[ ent->current.modelindex ];
             if ( brushModel ) {
                 Vector3 absmin = org, absmax = org;

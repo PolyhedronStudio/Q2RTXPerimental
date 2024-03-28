@@ -39,7 +39,7 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
             return;
     }
 
-    VectorMA(start, 8192, dir, end);
+    VectorMA(start, CM_MAX_WORLD_SIZE, dir, end);
     tr = gi.trace(start, NULL, NULL, end, self, MASK_SHOT);
     if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self)) {
         VectorSubtract(tr.endpos, start, v);
@@ -142,7 +142,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
 
         r = crandom() * hspread;
         u = crandom() * vspread;
-        VectorMA(start, 8192, forward, end);
+        VectorMA(start, CM_MAX_WORLD_SIZE, forward, end);
         VectorMA(end, r, right, end);
         VectorMA(end, u, up, end);
 
@@ -190,7 +190,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
                 AngleVectors(dir, forward, right, up);
                 r = crandom() * hspread * 2;
                 u = crandom() * vspread * 2;
-                VectorMA(water_start, 8192, forward, end);
+                VectorMA(water_start, CM_MAX_WORLD_SIZE, forward, end);
                 VectorMA(end, r, right, end);
                 VectorMA(end, u, up, end);
             }
@@ -658,7 +658,7 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
     bool        water;
     float       lastfrac;
 
-    VectorMA(start, 8192, aimdir, end);
+    VectorMA(start, CM_MAX_WORLD_SIZE, aimdir, end);
     VectorCopy(start, from);
     ignore = self;
     water = false;

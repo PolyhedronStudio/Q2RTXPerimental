@@ -153,7 +153,7 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 	float time_left = 0.f;
 
 	int32_t bumpcount = 0;
-	int32_t numbumps = 4;
+	int32_t numbumps = MAX_CLIP_PLANES - 1;
 
 	Vector3 primal_velocity = velocity;
 	int32_t numplanes = 0;
@@ -178,6 +178,7 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 		// [Paril-KEX] experimental attempt to fix stray collisions on curved
 		// surfaces; easiest to see on q2dm1 by running/jumping against the sides
 		// of the curved map.
+#ifdef SECOND_PLANE_TRACE
 		if ( trace.surface2 ) {
 			Vector3 clipped_a = QM_Vector3Zero();
 			Vector3 clipped_b = QM_Vector3Zero();
@@ -198,6 +199,7 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 				trace.surface = trace.surface2;
 			}
 		}
+#endif
 
 		if ( trace.fraction > 0 ) {
 			// actually covered some distance

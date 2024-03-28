@@ -1102,7 +1102,6 @@ a deathmatch.
 */
 void PutClientInServer(edict_t *ent)
 {
-    char    userinfo[MAX_INFO_STRING];
     vec3_t  mins = { -16, -16, -24};
     vec3_t  maxs = {16, 16, 32};
     int     index;
@@ -1122,16 +1121,18 @@ void PutClientInServer(edict_t *ent)
     index = ent - g_edicts - 1;
     client = ent->client;
 
-    memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
-
     // deathmatch wipes most client data every spawn
     if (deathmatch->value) {
+        char        userinfo[ MAX_INFO_STRING ];
         resp = client->resp;
+        memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
         InitClientPersistantData( ent, client );
+        ClientUserinfoChanged( ent, userinfo );
     } else {
 //      int         n;
-
+        char        userinfo[ MAX_INFO_STRING ];
         resp = client->resp;
+        memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
         // this is kind of ugly, but it's how we want to handle keys in coop
 //      for (n = 0; n < game.num_items; n++)
 //      {
@@ -1141,11 +1142,11 @@ void PutClientInServer(edict_t *ent)
         resp.coop_respawn.game_helpchanged = client->pers.game_helpchanged;
         resp.coop_respawn.helpchanged = client->pers.helpchanged;
         client->pers = resp.coop_respawn;
+        ClientUserinfoChanged( ent, userinfo );
         if (resp.score > client->pers.score)
             client->pers.score = resp.score;
     } 
 
-    ClientUserinfoChanged(ent, userinfo);
 
     // clear everything but the persistant data
     saved = client->pers;
@@ -1158,6 +1159,9 @@ void PutClientInServer(edict_t *ent)
     // copy some data from the client to the entity
     FetchClientEntData(ent);
 
+    // fix level switch issue
+    ent->client->pers.connected = true;
+
     // clear entity values
     ent->groundentity = NULL;
     ent->client = &game.clients[index];
@@ -1167,7 +1171,7 @@ void PutClientInServer(edict_t *ent)
     ent->inuse = true;
     ent->classname = "player";
     ent->mass = 200;
-    ent->solid = SOLID_BOUNDS_BOX;
+    ent->solid = SOLID_BOUNDS_OCTAGON;
     ent->deadflag = DEAD_NO;
     ent->air_finished_time = level.time + 12_sec;
     ent->clipmask = static_cast<contents_t>( MASK_PLAYERSOLID );
@@ -1179,6 +1183,7 @@ void PutClientInServer(edict_t *ent)
     ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
     ent->svflags &= ~SVF_DEADMONSTER;
+    ent->svflags &= ~FL_NO_KNOCKBACK;
     ent->svflags |= SVF_PLAYER;
 
     VectorCopy(mins, ent->mins);
@@ -1216,7 +1221,7 @@ void PutClientInServer(edict_t *ent)
     ent->s.modelindex2 = 255;       // custom gun model
     // sknum is player num and weapon number
     // weapon number will be added in changeweapon
-    ent->s.skinnum = ent - g_edicts - 1;
+    ent->s.skinnum = ent - globals.edicts - 1;
     ent->s.frame = 0;
     ent->s.old_frame = 0;
 
@@ -1330,6 +1335,9 @@ void ClientBegin(edict_t *ent)
     int     i;
 
     ent->client = game.clients + (ent - g_edicts - 1);
+
+    // [Paril-KEX] we're always connected by this point...
+    ent->client->pers.connected = true;
 
     if (deathmatch->value) {
         ClientBeginDeathmatch(ent);

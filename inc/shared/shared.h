@@ -340,8 +340,11 @@ typedef enum {
     //! Multicast to all clients inside of PVS(Possible Visibility Set).
     MULTICAST_PVS
 } multicast_t;
-// a SOLID_BOUNDS_BOX will never create this value
-#define PACKED_BSP      255
+
+// Used for identifying brush model solids with so that it uses the internal BSP bounding box.
+// An otherwise SOLID_BOUNDS_BOX etc, will never create this value(Used to be 255):
+#define BOUNDS_BRUSHMODEL      0xffffffff
+
 /***
 * 	Config Strings: A general means of communication from the server to all connected clients.
 *                   Each config string can be at most MAX_QPATH characters.

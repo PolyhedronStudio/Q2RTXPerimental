@@ -3,7 +3,7 @@
 #	Game: BaseQ2
 #
 #
-# BaseQ2RTXP SharedGame
+# BaseQ2 SharedGame
 SET(SRC_BASEQ2_SHAREDGAME
 	baseq2/sharedgame/sg_gamemode.cpp
 	baseq2/sharedgame/sg_pmove.cpp
@@ -18,7 +18,7 @@ SET(HEADERS_BASEQ2_SHAREDGAME
 	baseq2/sharedgame/sg_shared.h
 	baseq2/sharedgame/sg_time.h
 )
-#	BaseQ2RTXP ClientGame
+# BaseQ2 ClientGame
 SET(SRC_BASEQ2_CLGAME
 	# SharedGame API Bindings
 	baseq2/sharedgame/game_bindings/sg_binding_clgame.cpp
@@ -59,7 +59,7 @@ SET(HEADERS_BASEQ2_CLGAME
 	baseq2/clgame/clg_local.h
 	baseq2/clgame/local_entities/clg_local_entities.h
 )
-# BaseQ2RTXP ServerGame
+# BaseQ2 ServerGame
 SET(SRC_BASEQ2_SVGAME
 	# SharedGame API Bindings
 	baseq2/sharedgame/game_bindings/sg_binding_svgame.cpp

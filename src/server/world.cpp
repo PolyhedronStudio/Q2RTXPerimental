@@ -286,8 +286,8 @@ void PF_LinkEdict(edict_t *ent)
         }
         break;
     case SOLID_BSP:
-        ent->s.solid = static_cast<solid_t>(PACKED_BSP);      // a SOLID_BOUNDS_BOX will never create this value
-        sent->solid32 = PACKED_BSP;                           // FIXME: use 255? NOTICE: We do now :-)
+        ent->s.solid = static_cast<solid_t>(BOUNDS_BRUSHMODEL);      // a SOLID_BOUNDS_BOX will never create this value
+        sent->solid32 = BOUNDS_BRUSHMODEL;                           // FIXME: use 255? NOTICE: We do now :-)
         break;
     default:
         ent->s.solid = SOLID_NOT;   // 0

@@ -388,7 +388,7 @@ ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 
 
 ####
-##	Build Targets: "BaseQ2 Game":
+##	Build Targets: "BaseQ2RTXP Game":
 ####
 IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 	# Server Game:

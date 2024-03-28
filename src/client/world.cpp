@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *			object 'hull' of mins/maxs size for the entity's said 'solid'.
 **/
 static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSolidTriggers = false */) {
-    if ( ent->current.solid == PACKED_BSP /*|| ( includeSolidTriggers && ent->current.solid == SOLID_TRIGGER )*/ ) {
+    if ( ent->current.solid == BOUNDS_BRUSHMODEL /*|| ( includeSolidTriggers && ent->current.solid == SOLID_TRIGGER )*/ ) {
         const int32_t i = ent->current.modelindex - 1;
 
         // explicit hulls in the BSP model
@@ -108,7 +108,7 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
 
         // BSP Brush Model Entity:
         mnode_t *headNode = CL_HullForEntity( ent );
-        //if ( ent->current.solid == PACKED_BSP ) {
+        //if ( ent->current.solid == BOUNDS_BRUSHMODEL ) {
         //    // special value for bmodel
         //    cmodel = cl.model_clip[ ent->current.modelindex ];
         //    if ( !cmodel ) {
@@ -186,7 +186,7 @@ const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const ve
             mnode_t *headNode = CL_HullForEntity( clipEntity );
 
             //// BSP Brush Model Entity:
-            //if ( clipEntity->current.solid == PACKED_BSP ) {
+            //if ( clipEntity->current.solid == BOUNDS_BRUSHMODEL ) {
             //    // special value for bmodel
             //    mmodel_t *cmodel = cl.model_clip[ clipEntity->current.modelindex ];
             //    if ( !cmodel ) {
@@ -230,7 +230,7 @@ const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
         // Clip against all brush entity models.
         centity_t *ent = cl.solidEntities[ i ];
 
-        //if ( ent->current.solid != PACKED_BSP ) { // special value for bmodel
+        //if ( ent->current.solid != BOUNDS_BRUSHMODEL ) { // special value for bmodel
         //    continue;
         //}
 
@@ -242,7 +242,7 @@ const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
         // BSP Brush Model Entity:
         mnode_t *headNode = CL_HullForEntity( ent );
         //mnode_t *headNode = nullptr;
-        //if ( ent->current.solid == PACKED_BSP ) {
+        //if ( ent->current.solid == BOUNDS_BRUSHMODEL ) {
         //    // special value for bmodel
         //    mmodel_t *cmodel = cl.model_clip[ ent->current.modelindex ];
         //    if ( !cmodel ) {

@@ -185,7 +185,7 @@ static void parse_entity_update(const entity_state_t *state)
         cl.solidEntities[ cl.numSolidEntities++ ] = ent;
     }
 
-    if ( state->solid && state->solid != PACKED_BSP ) {
+    if ( state->solid && state->solid != BOUNDS_BRUSHMODEL ) {
         // If not a brush bsp entity, decode its mins and maxs.
         MSG_UnpackBoundsUint32( bounds_packed_t{ .u = state->bounds }, ent->mins, ent->maxs);
     } else {
