@@ -144,6 +144,54 @@ static void emit_packet_entities(server_frame_t *from, server_frame_t *to)
     MSG_WriteInt16(0);      // end of packetentities
 }
 
+// TODO: Look into this, its additional, not a requirement. Nice to have, but sometimes it rains and sometimes it don't.
+// WID: So stair smoothing and crouching works.
+//static void emit_predicted_state() {
+//    static cplane_t last_predicted_plane = cl.predictedState.groundPlane;
+//
+//    // Emit the 'predicted state'.
+//    MSG_WriteUint8( svc_demo_predicted_state );
+//    // Error:
+//    //MSG_WriteFloat( cl.predictedState.error[ 0 ] );
+//    //MSG_WriteFloat( cl.predictedState.error[ 1 ] );
+//    //MSG_WriteFloat( cl.predictedState.error[ 2 ] );
+//    
+//    // Ground Entity ( Needed for client side test with smooth stepping ):
+//    // -1 if nullptr.
+//    if ( cl.predictedState.groundEntity == nullptr ) {
+//        MSG_WriteInt32( -1 );
+//    } else {
+//        MSG_WriteInt32( cl.predictedState.groundEntity->current.number );
+//    }
+//    // Ground Plane ( Needed for client side test with smooth stepping ):
+//    if ( memcmp( &last_predicted_plane, &cl.predictedState.groundPlane, sizeof( cplane_t ) ) == 0 ) {
+//        // Signifies no plane message written.
+//        MSG_WriteInt8( -1 );
+//        MSG_WriteFloat( cl.predictedState.step );
+//        MSG_WriteUintBase128( cl.predictedState.step_time );
+//    } else {
+//        // Signifies a plane message has to be read.
+//        MSG_WriteInt8( 1 );
+//        cplane_t *p = &cl.predictedState.groundPlane;
+//        MSG_WriteFloat( p->dist );
+//        MSG_WriteFloat( p->normal[ 0 ] );
+//        MSG_WriteFloat( p->normal[ 1 ] );
+//        MSG_WriteFloat( p->normal[ 2 ] );
+//        MSG_WriteInt8( p->signbits );
+//        MSG_WriteInt8( p->type );
+//
+//        MSG_WriteFloat( cl.predictedState.step );
+//        MSG_WriteUintBase128( cl.predictedState.step_time );
+//        
+//        MSG_WriteFloat( cl.predictedState.view_current_height );
+//        MSG_WriteFloat( cl.predictedState.view_previous_height );
+//        MSG_WriteUintBase128( cl.predictedState.view_height_time - cls.realtime );
+//    }
+//
+//    // Keep track of actual ground plane changes so we can write them out.
+//    last_predicted_plane = cl.predictedState.groundPlane;
+//}
+
 static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
                              int64_t fromnum, int64_t tonum)
 {
@@ -158,6 +206,21 @@ static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
     MSG_WriteUint8(to->areabytes);
     MSG_WriteData(to->areabits, to->areabytes);
 
+    // Send over entire frame's portal bits if this is the very first frame
+    // or the client required a full on retransmit.
+    if ( from == nullptr ) {
+        // PortalBits frame message.
+        MSG_WriteUint8( svc_portalbits );
+        // Clean zeroed memory portal bits buffer for writing.
+        byte portalBits[ MAX_MAP_PORTAL_BYTES ];// = { 0 };
+        memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
+        // Write the current portal bit states to the portalBits buffer.
+        int32_t numPortalBits = CM_WritePortalBits( &cl.collisionModel, portalBits );
+        // Write data to message.
+        MSG_WriteUint8( numPortalBits );
+        MSG_WriteData( portalBits, numPortalBits );
+    }
+
     // delta encode the playerstate
     MSG_WriteUint8(svc_playerinfo);
     MSG_PackPlayer(&newpack, &to->ps);
@@ -170,6 +233,8 @@ static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
 
     // delta encode the entities
     MSG_WriteUint8(svc_packetentities);
+
+    // Also sends the end of command message.
     emit_packet_entities(from, to);
 }
 

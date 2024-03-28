@@ -1069,6 +1069,49 @@ A variant of ParseServerMessage that skips over non-important action messages,
 used for seeking in demos.
 =====================
 */
+//// WID: So stair smoothing and crouching works.
+//static void read_predicted_state() {
+//    static cplane_t last_predicted_plane = cl.predictedState.groundPlane;
+//
+//    // Emit the 'predicted state'.
+//    MSG_ReadUint8(); //MSG_ReadUint8( svc_demo_predicted_state );
+//    // Error:
+//    //MSG_ReadFloat( cl.predictedState.error[ 0 ] );
+//    //MSG_ReadFloat( cl.predictedState.error[ 1 ] );
+//    //MSG_ReadFloat( cl.predictedState.error[ 2 ] );
+//
+//    // Ground Entity ( Needed for client side test with smooth stepping ):
+//    // -1 if nullptr.
+//    const int32_t groundEntity = MSG_ReadInt32();
+//    if ( groundEntity != -1 ) {
+//        cl.predictedState.groundEntity = &clge->entities[ groundEntity ];
+//    }
+//    // Ground Plane ( Needed for client side test with smooth stepping ):
+//    const int32_t groundPlaneMessage = MSG_ReadInt8();
+//    if ( groundPlaneMessage == -1 ) {
+//        cl.predictedState.step = MSG_ReadFloat();
+//        cl.predictedState.step_time = MSG_ReadUintBase128();
+//    } else if ( groundPlaneMessage == 1 ) {
+//        cplane_t *p = &cl.predictedState.groundPlane;
+//        p->dist = MSG_ReadFloat( );
+//        p->normal[ 0 ] = MSG_ReadFloat();
+//        p->normal[ 1 ] = MSG_ReadFloat();
+//        p->normal[ 2 ] = MSG_ReadFloat();
+//        p->signbits = MSG_ReadInt8();
+//        p->type = MSG_ReadInt8();
+//
+//        cl.predictedState.step = MSG_ReadFloat();
+//        cl.predictedState.step_time = MSG_ReadUintBase128();
+//
+//        cl.predictedState.view_current_height = MSG_ReadFloat();
+//        cl.predictedState.view_previous_height = MSG_ReadFloat();
+//        cl.predictedState.view_height_time = cls.realtime + MSG_ReadIntBase128();
+//    }
+//
+//    // Keep track of actual ground plane changes so we can write them out.
+//    last_predicted_plane = cl.predictedState.groundPlane;
+//}
+
 void CL_SeekDemoMessage(void)
 {
     int         cmd;

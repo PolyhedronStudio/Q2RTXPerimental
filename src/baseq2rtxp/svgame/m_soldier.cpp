@@ -471,7 +471,7 @@ void soldier_fire(edict_t *self, int flash_number)
 
         r = crandom() * 1000;
         u = crandom() * 500;
-        VectorMA(start, 8192, forward, end);
+        VectorMA(start, CM_MAX_WORLD_SIZE, forward, end);
         VectorMA(end, r, right, end);
         VectorMA(end, u, up, end);
 

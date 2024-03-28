@@ -256,8 +256,15 @@ extern "C" {
 
 
 //! Collision: 
+//! Maximum World 'Half-Size'. Now 8 times(+/- 32768) larger than the old Q2 Vanilla 'Half-Size': (+/- 4096).
+#define CM_MAX_WORLD_HALF_SIZE 32768
+//! Maximum World Size, used for calculating various trace distance end point vectors. ( 32768 * 2 == 65536 )
+#define CM_MAX_WORLD_SIZE ( CM_MAX_WORLD_HALF_SIZE * 2 )
+//! Maximum amount of entity clusters.
 #define MAX_ENT_CLUSTERS    16
-#define MAX_TOTAL_ENT_LEAFS 128 //! Maximum total entity leafs.
+//! Maximum total entity leafs.
+#define MAX_TOTAL_ENT_LEAFS 128
+//! Collision(-Model) Shared Subsystem Stuff:
 #include "shared/collision.h"
 
 //! BSP Format Data Structure:

@@ -174,7 +174,7 @@ void PreInitGame( void ) {
 	// These are possibily game mode related also.
 	nomonsters = gi.cvar( "nomonsters", "0", 0 );
 	skill = gi.cvar( "skill", "1", CVAR_LATCH );
-	maxentities = gi.cvar( "maxentities", "8192", CVAR_LATCH );
+	maxentities = gi.cvar( "maxentities", std::to_string( 8192 ), CVAR_LATCH);
 	dmflags = gi.cvar( "dmflags", "0", CVAR_SERVERINFO );
 	fraglimit = gi.cvar( "fraglimit", "0", CVAR_SERVERINFO );
 	timelimit = gi.cvar( "timelimit", "0", CVAR_SERVERINFO );

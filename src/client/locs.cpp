@@ -247,7 +247,7 @@ static size_t LOC_There_m(char *buffer, size_t size)
         return ret;
     }
 
-    VectorMA(cl.playerEntityOrigin, 8192, cl.v_forward, pos);
+    VectorMA(cl.playerEntityOrigin, CM_MAX_WORLD_SIZE, cl.v_forward, pos);
     CM_BoxTrace( &cl.collisionModel, &trace, cl.playerEntityOrigin, pos, vec3_origin, vec3_origin,
                 cl.collisionModel.cache->nodes, MASK_SOLID);
 

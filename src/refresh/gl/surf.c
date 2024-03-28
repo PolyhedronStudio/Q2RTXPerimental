@@ -865,7 +865,7 @@ static void set_world_size(void)
     }
 
     if (size > 4096)
-        gl_static.world.size = 8192;
+        gl_static.world.size = CM_MAX_WORLD_SIZE;
     else if (size > 2048)
         gl_static.world.size = 4096;
     else

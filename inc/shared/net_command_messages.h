@@ -37,7 +37,6 @@ typedef enum {
     svc_baselinestream,
     svc_setting,
 
-
     // These are also known to the game dlls, however, also needed by the engine.
     svc_muzzleflash,
     svc_muzzleflash2,
