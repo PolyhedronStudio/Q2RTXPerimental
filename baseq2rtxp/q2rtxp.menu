@@ -368,24 +368,28 @@ begin multiplayer
     action "disconnect" disconnect
 end
 
-begin singleplayer
+begin developer_stuff
+    title "Developer Test Maps"
     background #212F3CD0
     style --compact
-    //banner m_banner_game
-    title "Test Maps:"
-    action "func_plat" "skill 0; gamemode 0; maxclients 1; map func_plat"
-    action "func_rotating" "skill 0; gamemode 0; maxclients 1; map func_rotating"
     blank
-    action "local_entities" "skill 0; gamemode 0; maxclients 1; map local_entities"
-    action "local_pvs" "skill 0; gamemode 0; maxclients 1; map local_pvs"
+    action "func_plat & func_rotating" "skill 0; gamemode 0; maxclients 1; map func_plat_n_rot force"
     blank
-    action "octagonhull_test" "skill 0; gamemode 0; maxclients 1; map octagonhull_test"
-    action "trigger_brushclip" "skill 0; gamemode 0; maxclients 1; map trigger_brushclip"
+    action "local_entities" "skill 0; gamemode 0; maxclients 1; map local_entities force"
+    action "local_pvs" "skill 0; gamemode 0; maxclients 1; map local_pvs force"
     blank
-    action "makkon retrotexture pbr" "skill 0; gamemode 0; maxclients 1; map makkon"
-    action "spotlights" "skill 0; gamemode 0; maxclients 1; map spotlights"
+    action "octagonhull_test" "skill 0; gamemode 0; maxclients 1; map octagonhull_test force"
+    action "spotlights" "skill 0; gamemode 0; maxclients 1; map spotlights force"
+    action "trigger_brushclip" "skill 0; gamemode 0; maxclients 1; map trigger_brushclip force"
     blank
-    title "Q2 Game:"
+    action "makkon (oldschool textures+pbr)" "skill 0; gamemode 0; maxclients 1; map makkon force"
+end
+
+begin singleplayer
+    title "Singleplayer"
+    background #212F3CD0
+    style --compact
+    blank
     action easy "skill 0; gamemode 0; maxclients 1; newgame"
     action medium "skill 1; gamemode 0; maxclients 1; newgame"
     action hard "skill 2; gamemode 0; maxclients 1; newgame"
@@ -448,26 +452,37 @@ begin quit
 end
 
 begin main
-    //title "Main Menu"
-    plaque m_main_plaque m_main_logo
+    title "Main Menu"
+    background #212F3CD0
+    style --compact
+    blank
+    action "singleplayer" "pushmenu singleplayer"
+    action "multiplayer" "pushmenu multiplayer"
+    action "developer stuff" "pushmenu developer_stuff"
+    action "options" "pushmenu options"
+    action "video settings" "pushmenu video"
+    action "quit" "pushmenu quit"
+    //plaque m_main_plaque m_main_logo
     footer m_main_footer 0.5
-    bitmap m_main_game pushmenu singleplayer
-    bitmap m_main_multiplayer pushmenu multiplayer
-    bitmap m_main_options pushmenu options
-    bitmap m_main_video pushmenu video
-    bitmap m_main_quit pushmenu quit
+    //bitmap m_main_game pushmenu singleplayer
+    //bitmap m_main_multiplayer pushmenu multiplayer
+    //bitmap m_main_options pushmenu options
+    //bitmap m_main_video pushmenu video
+    //bitmap m_main_quit pushmenu quit
 end
 
 begin game
+    title "In-Game Menu"
     background #212F3CD0
     style --compact
-    plaque m_main_plaque m_main_logo
+    blank
+    action "singleplayer" "pushmenu singleplayer"
+    action "multiplayer" "pushmenu multiplayer"
+    action "developer stuff" "pushmenu developer_stuff"
+    action "options" "pushmenu options"
+    action "video settings" "pushmenu video"
+    action "quit" "pushmenu quit"
     footer m_main_footer 0.5
-    bitmap m_main_game pushmenu singleplayer
-    bitmap m_main_multiplayer pushmenu multiplayer
-    bitmap m_main_options pushmenu options
-    bitmap m_main_video pushmenu video
-    bitmap m_main_quit pushmenu quit
 end
 
 begin addressbook
