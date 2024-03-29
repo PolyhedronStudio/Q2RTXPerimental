@@ -3,7 +3,9 @@
 ## Q2RTXPerimental Changes(New):
 Changes will from now on be listed as additions per version. 
 ## V0.0.3:
-
+* Fixed problems with stair step smoothing interfering with pushers.
+* Fixed pushers not acting properly, causing jitters/lag.
+* Added a 'Developer Stuff' menu which currently allows you to select maps that showcase specific (new/updated-)features.
 
 ## Q2RTXPerimental Changes(Old):
 These changes spawn from v0.0.0 up to 0.0.2

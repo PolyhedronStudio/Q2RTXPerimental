@@ -54,7 +54,7 @@ begin <menuname>
 end
 */
 
-background black
+background "conback.png"
 font conchars
 cursor ch1
 weapon w_railgun.md2
@@ -123,10 +123,10 @@ begin photomode
 end
 
 begin video
-    //title "Video Setup"
+    title "Video Setup"
     background #212F3CD0
     style --compact
-    banner m_banner_video
+    //banner m_banner_video
 	pairs "renderer" vid_rtx opengl 0 rtx 1
     values -s "use LEFT and RIGHT keys to select" "video mode" vid_fullscreen windowed $$vid_modelist
     values "aspect ratio" cl_adjustfov 4:3 auto
@@ -188,10 +188,10 @@ begin video
 end
 
 begin options
-    //title "Options"
+    title "Options"
     background #212F3CD0
     style --compact
-    banner m_banner_options
+    //banner m_banner_options
     ifeq vid_rtx 1
         action "environment setup" pushmenu environment
     endif
@@ -340,8 +340,8 @@ end
 begin startserver
     background #212F3CD0
     style --compact
-    //title "Start Server"
-    banner m_banner_start_server
+    title "Start Server"
+    //banner m_banner_start_server
     strings "initial map" _ui_nextserver $$com_maplist
     //values "rules" coop deathmatch cooperative
     //values "game mode" gamemode Deathmatch Cooperative
@@ -359,7 +359,7 @@ end
 begin multiplayer
     background #212F3CD0
     style --compact
-    banner m_banner_multiplayer
+    title "Multiplayer" //banner m_banner_multiplayer
     action "browse q2servers.com" pushmenu servers "+http://q2servers.com/?raw=2"
     action "browse address book" pushmenu servers "favorites://" "file:///servers.lst" "broadcast://"
     action "browse demos" pushmenu demos
@@ -388,7 +388,10 @@ end
 begin singleplayer
     title "Singleplayer"
     background #212F3CD0
+    //background "conback.png"
     style --compact
+    style --transparent
+    //style --compact
     blank
     action easy "skill 0; gamemode 0; maxclients 1; newgame"
     action medium "skill 1; gamemode 0; maxclients 1; newgame"
@@ -402,7 +405,7 @@ end
 begin loadgame
     background #212F3CD0
     style --compact
-    banner m_banner_load_game
+    title "Load Game" //banner m_banner_load_game
     loadgame save0
     blank
     loadgame quick
@@ -427,7 +430,7 @@ end
 begin savegame
     background #212F3CD0
     style --compact
-    banner m_banner_save_game
+    title "Save Game"//banner m_banner_save_game
     savegame save1
     savegame save2
     savegame save3
@@ -446,7 +449,9 @@ end
 
 begin quit
     background #212F3CD0
+    //background "conback.png"
     style --compact
+    title "Quit Game?"
     action "quit game" quit
     action "cancel" popmenu
 end
@@ -463,7 +468,7 @@ begin main
     action "video settings" "pushmenu video"
     action "quit" "pushmenu quit"
     //plaque m_main_plaque m_main_logo
-    footer m_main_footer 0.5
+    //footer m_main_footer 0.5
     //bitmap m_main_game pushmenu singleplayer
     //bitmap m_main_multiplayer pushmenu multiplayer
     //bitmap m_main_options pushmenu options
@@ -482,14 +487,14 @@ begin game
     action "options" "pushmenu options"
     action "video settings" "pushmenu video"
     action "quit" "pushmenu quit"
-    footer m_main_footer 0.5
+    //footer m_main_footer 0.5
 end
 
 begin addressbook
     background #212F3CD0
     style --compact
-    //title "Address Book"
-    banner m_banner_addressbook
+    title "Address Book"
+    //banner m_banner_addressbook
     field --width 32 --center adr0
     field --width 32 --center adr1
     field --width 32 --center adr2

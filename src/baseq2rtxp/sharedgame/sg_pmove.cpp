@@ -25,6 +25,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // TODO: FIX CLAMP BEING NAMED CLAMP... preventing std::clamp
 #undef clamp
 
+//! Defining this will keep the player's viewangles always >= 0 && < 360.
+//! Also affects the pitch angle for ladders, since it is then determined differently.
+//#define PM_CLAMP_VIEWANGLES_0_TO_360
 
 /**
 *	@brief	Actual in-moment local move variables.
@@ -322,11 +325,19 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 			// [Paril-KEX] clamp the speed a bit so we're not too fast
 			const float ladder_speed = std::clamp( (float)pm->cmd.forwardmove, -pmp->pm_ladder_speed, pmp->pm_ladder_speed );
 			if ( pm->cmd.forwardmove > 0 ) {
+				#ifdef PM_CLAMP_VIEWANGLES_0_TO_360
 				if ( pm->viewangles[ PITCH ] >= 271 && pm->viewangles[ PITCH ] < 345 ) {
 					wishVelocity.z = ladder_speed;
 				} else if ( pm->viewangles[ PITCH ] < 271 && pm->viewangles[ PITCH ] >= 15 ) {
 					wishVelocity.z = -ladder_speed;
 				}
+				#else
+				if ( pm->viewangles[ PITCH ] < 15 ) {
+					wishVelocity.z = ladder_speed;
+				} else if ( pm->viewangles[ PITCH ] < 271 && pm->viewangles[ PITCH ] >= 15 ) {
+					wishVelocity.z = -ladder_speed;
+				}
+				#endif
 			}
 			// [Paril-KEX] allow using "back" arrow to go down on ladder
 			else if ( pm->cmd.forwardmove < 0 ) {
@@ -1143,16 +1154,19 @@ static void PM_ClampAngles() {
 		pm->viewangles = QM_Vector3AngleMod( pm->cmd.angles + pm->s.delta_angles );
 
 		// Don't let the player look up or down more than 90 degrees.
-		//if ( pm->viewangles[ PITCH ] >= 90 && pm->viewangles[ PITCH ] <= 180 ) {
-		//	pm->viewangles[ PITCH ] = 90;
-		//} else if ( pm->viewangles[ PITCH ] <= 270 && pm->viewangles[ PITCH ] >= 180 ) {
-		//	pm->viewangles[ PITCH ] = 270;
-		//}
+		#ifdef PM_CLAMP_VIEWANGLES_0_TO_360
+		if ( pm->viewangles[ PITCH ] >= 90 && pm->viewangles[ PITCH ] <= 180 ) {
+			pm->viewangles[ PITCH ] = 90;
+		} else if ( pm->viewangles[ PITCH ] <= 270 && pm->viewangles[ PITCH ] >= 180 ) {
+			pm->viewangles[ PITCH ] = 270;
+		}
+		#else
 		if ( pm->viewangles[ PITCH ] > 90 && pm->viewangles[ PITCH ] < 270 ) {
 			pm->viewangles[ PITCH ] = 90;
 		} else if ( pm->viewangles[ PITCH ] <= 360 && pm->viewangles[ PITCH ] >= 270 ) {
 			pm->viewangles[ PITCH ] -= 360;
 		}
+		#endif
 	}
 
 	// Calculate angle vectors derived from current viewing angles.

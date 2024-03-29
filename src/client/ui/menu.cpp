@@ -18,6 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "ui.h"
+#include "../cl_client.h"
 #include "server/server.h"
 
 /*
@@ -2209,14 +2210,25 @@ void Menu_Draw(menuFrameWork_t *menu)
 //
 // draw background
 //
-    if (menu->image) {
-        R_DrawKeepAspectPic(0, menu->y1, uis.width,
-                            menu->y2 - menu->y1, menu->image);
-    } else {
+
+    //if (menu->image) {
+        //R_DrawKeepAspectPic(0, menu->y1, uis.width,
+        //                    menu->y2 - menu->y1, menu->image);
+    if ( cls.state != connstate_t::ca_active ) {
+        R_DrawKeepAspectPic( 0, 0, uis.width,
+            uis.height, R_RegisterPic( "conback.png" )/*menu->image*/ );
+    }
+    //} else {
         R_DrawFill32(0, menu->y1, uis.width,
                      menu->y2 - menu->y1, menu->color.u32);
-    }
+    //}
 
+//
+// Draw specific menu overlay 
+//
+    const int32_t overlayColor = MakeColor( 33, 47, 60, 192 );
+    R_DrawFill32( 0, menu->y1, uis.width,
+        menu->y2 - menu->y1, overlayColor );
 //
 // draw title bar
 //

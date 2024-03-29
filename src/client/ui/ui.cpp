@@ -434,6 +434,12 @@ void UI_Draw(unsigned realtime)
         return;
     }
 
+    if ( cls.active == ca_active ) {
+        uis.transparent = true;
+    } else {
+        uis.transparent = false;
+    }
+
     R_ClearColor();
     R_SetScale(uis.scale);
 
