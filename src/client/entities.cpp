@@ -445,6 +445,17 @@ void CL_DeltaFrame(void)
     // or snap 'to'.
     CL_LerpOrSnapPlayerState( &cl.oldframe, &cl.frame, 1 );
 
+    if ( cls.demo.playback ) {
+        // this delta has nothing to do with local viewangles,
+        // clear it to avoid interfering with demo freelook hack
+        VectorClear( cl.frame.ps.pmove.delta_angles );
+
+        // TODO: Proper stair smoothing.
+
+        // Record time of changing and adjusting viewheight if it differs from previous time.
+        CL_AdjustViewHeight( cl.frame.ps.pmove.viewheight );
+    }
+
     // See if we had any prediction errors.
     CL_CheckPredictionError();
 
