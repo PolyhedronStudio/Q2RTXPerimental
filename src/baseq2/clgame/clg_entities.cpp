@@ -24,11 +24,11 @@ void CLG_CheckEntityPresent( int32_t entityNumber, const char *what ) {
 		return; // current
 	}
 
-	if ( e && e->serverframe ) {
-		Com_LPrintf( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d last seen %d frames ago\n", what, entityNumber, frame->number - e->serverframe );
-	} else {
-		Com_LPrintf( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d never seen before\n", what, entityNumber );
-	}
+    if ( e && e->serverframe ) {
+        clgi.Print( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d last seen %d frames ago\n", what, entityNumber, frame->number - e->serverframe );
+    } else {
+        clgi.Print( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d never seen before\n", what, entityNumber );
+    }
 }
 #endif
 

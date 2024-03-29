@@ -225,7 +225,8 @@ static void CLG_ParsePrint( void ) {
         fmt = "%s";
     }
 
-    Com_LPrintf( PRINT_TALK, fmt, s );
+    clgi.Print( PRINT_TALK, fmt, s );
+    //Com_LPrintf( PRINT_TALK, fmt, s );
 
     clgi.Con_SkipNotify( false );
 

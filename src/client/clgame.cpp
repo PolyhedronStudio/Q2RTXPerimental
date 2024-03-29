@@ -416,9 +416,36 @@ static void PF_ShowMiss( const char *fmt, ... ) {
 #else
 // Empty placeholders, in case they are used outside of a forgotten #if USE_DEBUG
 // so we can prevent anything from crashing.
-void PF_ShowNet( const int32_t level, const char *fmt, ... ) {}
-void PF_ShowClamp( const int32_t level, const char *fmt, ... ) {}
-void PF_ShowMiss( const int32_t level, const char *fmt, ... ) {}
+static void PF_ShowNet( const int32_t level, const char *fmt, ... ) {
+	char        msg[ MAXPRINTMSG ];
+	va_list     argptr;
+
+	va_start( argptr, fmt );
+	Q_vsnprintf( msg, sizeof( msg ), fmt, argptr );
+	va_end( argptr );
+
+	//SHOWNET( level, "%s", msg );
+}
+static void PF_ShowClamp( const int32_t level, const char *fmt, ... ) {
+	char        msg[ MAXPRINTMSG ];
+	va_list     argptr;
+
+	va_start( argptr, fmt );
+	Q_vsnprintf( msg, sizeof( msg ), fmt, argptr );
+	va_end( argptr );
+
+	//SHOWNET( level, "%s", msg );
+}
+static void PF_ShowMiss( const char *fmt, ... ) {
+	char        msg[ MAXPRINTMSG ];
+	va_list     argptr;
+
+	va_start( argptr, fmt );
+	Q_vsnprintf( msg, sizeof( msg ), fmt, argptr );
+	va_end( argptr );
+
+	SHOWNET( level, "%s", msg );
+}
 #endif
 
 
@@ -778,14 +805,14 @@ void CL_GM_LoadProgs( void ) {
 	imports.Z_Realloc = Z_Realloc;
 
 	imports.Prompt_AddMatch = Prompt_AddMatch;
-	#if USE_DEBUG
+	//#if USE_DEBUG
 	// ShowNet
 	imports.ShowNet = PF_ShowNet;
 	// ShowClamp
 	imports.ShowClamp = PF_ShowClamp;
 	// ShowMiss
 	imports.ShowMiss = PF_ShowMiss;
-	#endif
+	//#endif
 
 	imports.CheckForIgnore = PF_CL_CheckForIgnore;
 	imports.CheckForIP = PF_CL_CheckForIP;

@@ -827,11 +827,11 @@ void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
 
     // Debug output:
     if ( plane ) {
-        Com_LPrintf( PRINT_DEVELOPER, "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
-        Com_LPrintf( PRINT_DEVELOPER, "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
+        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+        gi.dprintf( "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
     } else {
-        Com_LPrintf( PRINT_DEVELOPER, "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
-        Com_LPrintf( PRINT_DEVELOPER, "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
+        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+        gi.dprintf( "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
     }
 
     // Perform move.
