@@ -75,12 +75,13 @@ void CLG_SmoothOutStairStep( pmove_t *pm, client_predicted_state_t *predictedSta
         // If the delta timefor the previous step, up till the current step frame is smaller than PM_STEP_TIME.
         if ( delta < PM_STEP_TIME ) {
             // Calculate how far we've come.
-            old_step = stepHeight * ( PM_STEP_TIME - delta) / PM_STEP_TIME;
+            //old_step = stepHeight * ( PM_STEP_TIME - delta) / PM_STEP_TIME;
+            old_step = predictedState->step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
         }
 
         // Add the stepHeight amount.
         predictedState->step = constclamp( old_step + stepHeight, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
-        // Set the new last step_time.
+        // Set the new step_time.
         predictedState->step_time = clgi.GetRealTime();
     }
 }
@@ -184,7 +185,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
             out->view.screen_blend = {};
 
             return;
-        // In case of a minor distance, only report if cl_showmiss is enabled:
+        // In case of a minor distance, when cl_showmiss is enabled, report:
         } else {
             // Debug misses:
             #if USE_DEBUG
@@ -272,13 +273,13 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
     // Now run the pending command number.
     uint64_t frameNumber = currentCommandNumber; //! Default to current frame, expected behavior for if we got msec in predicedState.cmd
-    client_movecmd_t *moveCommand = &clgi.client->moveCommand;
-    if ( moveCommand->cmd.msec ) {
+    client_movecmd_t *pendingMoveCommand = &clgi.client->moveCommand;
+    if ( pendingMoveCommand->cmd.msec ) {
         // Store time of prediction.
-        moveCommand->prediction.time = clgi.client->time;
+        pendingMoveCommand->prediction.time = clgi.client->time;
 
         // Initialize pmove with the proper moveCommand data.
-        pm.cmd = moveCommand->cmd;
+        pm.cmd = pendingMoveCommand->cmd;
         pm.cmd.forwardmove = clgi.client->localmove[ 0 ];
         pm.cmd.sidemove = clgi.client->localmove[ 1 ];
         pm.cmd.upmove = clgi.client->localmove[ 2 ];
@@ -286,15 +287,12 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         // Perform movement.
         SG_PlayerMove( &pm, &pmp );
 
-        // Save for prediction checking.
-        //clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ].prediction.origin = pm.s.origin;
-
         // Save the now not pending anymore move command as the last entry in our circular buffer.
-        moveCommand->prediction.origin = pm.s.origin;
-        moveCommand->prediction.velocity = pm.s.velocity;
+        pendingMoveCommand->prediction.origin = pm.s.origin;
+        pendingMoveCommand->prediction.velocity = pm.s.velocity;
 
-        //clgi.client->moveCommand.prediction.origin = pm.s.origin;
-        clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *moveCommand;
+        // Save for prediction checking.
+        clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *pendingMoveCommand;
     // Use previous frame if no command is pending.
     } else {
         frameNumber = currentCommandNumber - 1;

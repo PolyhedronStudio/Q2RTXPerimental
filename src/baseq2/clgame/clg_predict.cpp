@@ -75,19 +75,20 @@ void CLG_SmoothOutStairStep( pmove_t *pm, client_predicted_state_t *predictedSta
         // If the delta timefor the previous step, up till the current step frame is smaller than PM_STEP_TIME.
         if ( delta < PM_STEP_TIME ) {
             // Calculate how far we've come.
-            old_step = stepHeight * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
+            //old_step = stepHeight * ( PM_STEP_TIME - delta) / PM_STEP_TIME;
+            old_step = predictedState->step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
         }
 
         // Add the stepHeight amount.
         predictedState->step = constclamp( old_step + stepHeight, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
-        // Set the new last step_time.
+        // Set the new step_time.
         predictedState->step_time = clgi.GetRealTime();
     }
 }
 
 /**
 *	@return	False if prediction is not desired for. True if it is.
-*
+* 
 *   @todo   Have it return flags for what to predict, and rename it to PF_CurrentPredictionFlags or something similar.
 **/
 const qboolean PF_UsePrediction( void ) {
@@ -114,7 +115,7 @@ const qboolean PF_UsePrediction( void ) {
         // TODO: 
         return false;
     }
-
+    
     // We want predicting.
     return true;
 }
@@ -165,8 +166,8 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
         if ( len > MAX_DELTA_ORIGIN ) {
             // Debug misses:
             #if USE_DEBUG
-            clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
-                clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+                clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
+                    clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
             #endif
             out->view.origin = in->origin; // clgi.client->frame.ps.pmove.origin;
             out->view.viewOffset = clgi.client->frame.ps.viewoffset;
@@ -184,12 +185,12 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
             out->view.screen_blend = {};
 
             return;
-            // In case of a minor distance, only report if cl_showmiss is enabled:
+        // In case of a minor distance, when cl_showmiss is enabled, report:
         } else {
             // Debug misses:
             #if USE_DEBUG
-            clgi.ShowMiss( "Prediction miss on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
-                clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+                clgi.ShowMiss( "Prediction miss on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
+                    clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
             #endif
         }
     }
@@ -206,7 +207,7 @@ void PF_PredictAngles( void ) {
     }
 
     // This is done even with cl_predict == 0.
-    VectorAdd( clgi.client->viewangles, clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.view.angles );
+	VectorAdd( clgi.client->viewangles, clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.view.angles );
 }
 
 /**
@@ -246,7 +247,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Set view offset.
     pm.viewoffset = /*predictedState->view.viewOffset;*/clgi.client->frame.ps.viewoffset;
     // Set ground entity to last predicted one.
-    pm.groundentity = (edict_s *)predictedState->groundEntity;
+    pm.groundentity = (edict_s*)predictedState->groundEntity;
     // Set ground plane to last predicted one.
     pm.groundplane = predictedState->groundPlane;
 
@@ -258,11 +259,11 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         // Only simulate it if it had movement.
         //if ( moveCommand->cmd.msec ) {
             // Timestamp it so the client knows we have valid results.
-        moveCommand->prediction.time = clgi.client->time;//clgi.client->time;
+            moveCommand->prediction.time = clgi.client->time;//clgi.client->time;
 
-        // Simulate the movement.
-        pm.cmd = moveCommand->cmd;
-        SG_PlayerMove( &pm, &pmp );
+            // Simulate the movement.
+            pm.cmd = moveCommand->cmd;
+            SG_PlayerMove( &pm, &pmp );
         //}
 
         // Save for prediction checking.
@@ -272,13 +273,13 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
     // Now run the pending command number.
     uint64_t frameNumber = currentCommandNumber; //! Default to current frame, expected behavior for if we got msec in predicedState.cmd
-    client_movecmd_t *moveCommand = &clgi.client->moveCommand;
-    if ( moveCommand->cmd.msec ) {
+    client_movecmd_t *pendingMoveCommand = &clgi.client->moveCommand;
+    if ( pendingMoveCommand->cmd.msec ) {
         // Store time of prediction.
-        moveCommand->prediction.time = clgi.client->time;
+        pendingMoveCommand->prediction.time = clgi.client->time;
 
         // Initialize pmove with the proper moveCommand data.
-        pm.cmd = moveCommand->cmd;
+        pm.cmd = pendingMoveCommand->cmd;
         pm.cmd.forwardmove = clgi.client->localmove[ 0 ];
         pm.cmd.sidemove = clgi.client->localmove[ 1 ];
         pm.cmd.upmove = clgi.client->localmove[ 2 ];
@@ -286,16 +287,13 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         // Perform movement.
         SG_PlayerMove( &pm, &pmp );
 
-        // Save for prediction checking.
-        //clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ].prediction.origin = pm.s.origin;
-
         // Save the now not pending anymore move command as the last entry in our circular buffer.
-        moveCommand->prediction.origin = pm.s.origin;
-        moveCommand->prediction.velocity = pm.s.velocity;
+        pendingMoveCommand->prediction.origin = pm.s.origin;
+        pendingMoveCommand->prediction.velocity = pm.s.velocity;
 
-        //clgi.client->moveCommand.prediction.origin = pm.s.origin;
-        clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *moveCommand;
-        // Use previous frame if no command is pending.
+        // Save for prediction checking.
+        clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *pendingMoveCommand;
+    // Use previous frame if no command is pending.
     } else {
         frameNumber = currentCommandNumber - 1;
     }
@@ -308,10 +306,10 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     predictedState->view.velocity = pm.s.velocity;
     predictedState->view.angles = pm.viewangles;
     predictedState->view.viewOffset = pm.viewoffset;
-
+    
     predictedState->view.screen_blend = pm.screen_blend; // // To be merged with server screen blend.
     predictedState->view.rdflags = pm.rdflags; // To be merged with server rdflags.
-
+    
     predictedState->groundEntity = (centity_t *)pm.groundentity;
     predictedState->groundPlane = pm.groundplane;
 
