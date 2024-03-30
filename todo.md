@@ -4,7 +4,7 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ## Features:
 Features being looked forward on implementation.
 ### Highest Priority:
-* [ ] Resolve the myster of stair stepping and pushers, it has to have a distinct awareness of these or it'll bug out on pushers.
+* [X] Resolve the myster of stair stepping and pushers, it has to have a distinct awareness of these or it'll bug out on pushers.
 
 ### High Priority:
 * [ ] Move player animation code/task into the player move code for proper synchronisity and consistency reasons.
@@ -12,6 +12,7 @@ Features being looked forward on implementation.
 
 ### Medium Priority:
 * [ ] Calculate the proper entity matrixes/quaternions during Link time.
+* [ ] Internal representation of skeletal poses and an API for use by both, client and server, thus residing in /common/
 
 * [ ] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
 * [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.
@@ -21,7 +22,11 @@ Features being looked forward on implementation.
 	* [x] So far this is only in existence for the client game's ``clg_local_entity_t`` type.
 	* [ ] Finish the implementation/style of it, make sure it is save game compatible, and implement it all-round.
 
+* [ ] When materials are in, look into implementing audio reverb effects for material surrounding types.
+* [ ] Footsteps/ViewBob to PMove?
+
 ### Low Priority:
+* [ ] More OpenAL control for use after materials are in.
 * [ ] Modify the code so it does not generate ``hulls`` on the fly, but instead set them at ``LinkEntity`` time. 
 	* [ ] Generate and store entity ``hulls`` in their server-side counterpart for later ``collision model`` rework.
 	* [ ] Then for tracing, retreives them from their **client/server** counterpart. In case of the **client** they will be regenerated in case of a ``new`` entity, or general ``bounds changes`` has occured for the **client** entity.

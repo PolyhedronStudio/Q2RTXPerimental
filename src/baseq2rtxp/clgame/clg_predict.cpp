@@ -56,27 +56,31 @@ void CLG_SmoothOutStairStep( pmove_t *pm, client_predicted_state_t *predictedSta
     // Maximum -/+ change we allow in step lerps.
     static constexpr int32_t PM_MAX_STEP_CHANGE = 32;
 
+    // Get the absolute step's height value for testing against.
     const float fabsStep = fabsf( stepHeight );
 
     // Consider a Z change being "stepping" if...
-    const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range
-        && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) // And we started off on the ground
-        && ( ( pm->s.pm_flags & PMF_ON_GROUND ) && pm->s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground
-        && ( memcmp( &predictedState->groundPlane, &pm->groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, or
-            || predictedState->groundEntity != (centity_t *)pm->groundentity ); // we stand on another plane or entity
+    const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range.
+        && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) // And we started off on the ground.
+        && ( ( pm->s.pm_flags & PMF_ON_GROUND ) && pm->s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
+        && ( memcmp( &predictedState->groundPlane, &pm->groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, OR..
+            || predictedState->groundEntity != (centity_t *)pm->groundentity ); // we stand on another plane or entity.
 
     if ( step_detected ) {
         // check for stepping up before a previous step is completed
         const uint64_t delta = clgi.GetRealTime() - predictedState->step_time;
+
+        // Default old step to 0.
         double old_step = 0.f;
+        // If the delta timefor the previous step, up till the current step frame is smaller than PM_STEP_TIME.
         if ( delta < PM_STEP_TIME ) {
-            old_step = stepHeight * ( PM_STEP_TIME - delta + 25 ) / PM_STEP_TIME;
-        } else {
-            old_step = 0;
+            // Calculate how far we've come.
+            old_step = stepHeight * ( PM_STEP_TIME - delta) / PM_STEP_TIME;
         }
 
-        // Add this amount
+        // Add the stepHeight amount.
         predictedState->step = constclamp( old_step + stepHeight, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
+        // Set the new last step_time.
         predictedState->step_time = clgi.GetRealTime();
     }
 }

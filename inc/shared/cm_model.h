@@ -48,8 +48,8 @@ typedef struct cm_s {
     bsp_t *cache;
     int32_t *floodnums;     // if two areas have equal floodnums,
                             // they are connected
-    bool      *portalopen;
-    int32_t     checksum;
+    bool    *portalopen;
+    int32_t checksum;
 
     //! Entity String:
     char *entitystring;

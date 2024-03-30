@@ -142,8 +142,12 @@ typedef struct {
 
     //! Pointer ot the actual ground entity we are on or not(nullptr).
     struct edict_s *groundentity;
-    //! A copy of the plane data from our ground entity.
+    //! A copy of the plane data from the ground entity.
     cplane_t        groundplane;
+    //! A copy of the surface data from the ground entity.(May be none, in which case, it has a 0 name.)
+    csurface_t      groundsurface;
+    //! A copy of the contents data from the ground entity brush.
+    contents_t      groundcontents;
     //! The actual BSP 'contents' type we're in.
     contents_t      watertype;
     //! The depth of the player in the actual water solid.

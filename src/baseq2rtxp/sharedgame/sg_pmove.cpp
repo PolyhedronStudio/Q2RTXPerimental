@@ -124,7 +124,7 @@ static void PM_StepDown( const trace_t *trace ) {
 	// Determine the step height based on the new, and previous origin.
 	const float step_height = pml.origin.z - pml.previousOrigin.z;
 
-	// If its absolute(-/+) value >= 4.0 then we got an official step.
+	// If its absolute(-/+) value >= PM_MIN_STEP_SIZE(4.0) then we got an official step.
 	if ( fabsf( step_height ) >= PM_MIN_STEP_SIZE ) {
 		pm->step_height = step_height;
 	}
@@ -636,11 +636,15 @@ static void PM_CategorizePosition() {
 	if ( pml.velocity.z > 180 || pm->s.pm_type == PM_GRAPPLE ) { //!!ZOID changed from 100 to 180 (ramp accel)
 		pm->s.pm_flags &= ~PMF_ON_GROUND;
 		pm->groundentity = nullptr;
+		//pm->groundsurface = {};
+		//pm->groundcontents = CONTENTS_NONE;
 	} else {
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, point );
 		pm->groundplane = trace.plane;
 		pml.groundSurface = trace.surface;
 		pml.groundContents = trace.contents;
+		//pm->groundsurface = *( pml.groundSurface = trace.surface );
+		//pm->groundcontents = (contents_t)( pml.groundContents = trace.contents );
 
 		// [Paril-KEX] to attempt to fix edge cases where you get stuck
 		// wedged between a slope and a wall (which is irrecoverable
@@ -659,10 +663,19 @@ static void PM_CategorizePosition() {
 
 		if ( trace.fraction == 1.0f || ( slanted_ground && !trace.startsolid ) ) {
 			pm->groundentity = nullptr;
+			//if ( trace.fraction == 1.0f ) {
+			//	pm->groundplane = { };
+			//} else {
+			//	pm->groundplane = trace.plane;
+			//}
+			//pm->groundsurface = {};
+			//pm->groundcontents = CONTENTS_NONE;
 			pm->s.pm_flags &= ~PMF_ON_GROUND;
 		} else {
 			pm->groundentity = trace.ent;
 			pm->groundplane = trace.plane;
+			//pm->groundsurface = *trace.surface;
+			//pm->groundcontents = trace.contents;
 
 			// hitting solid ground will end a waterjump
 			if ( pm->s.pm_flags & PMF_TIME_WATERJUMP ) {
