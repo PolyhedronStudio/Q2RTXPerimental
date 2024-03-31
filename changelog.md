@@ -1,13 +1,15 @@
-# Quake II RTXPerimental Changelogs
+# Quake II RTXPerimental Changelogs:
 
-## Q2RTXPerimental Changes(New):
+## Q2RTXPerimental Changes(New, listed per version):
 Changes will from now on be listed as additions per version. 
-## V0.0.3:
+## (v0.0.4):
+* Something something
+## (v0.0.3):
 * Fixed problems with stair step smoothing interfering with pushers.
 * Fixed pushers not acting properly, causing jitters/lag.
 * Added a 'Developer Stuff' menu which currently allows you to select maps that showcase specific (new/updated-)features.
 
-## Q2RTXPerimental Changes(Old):
+## Q2RTXPerimental Changes(Before listing them per version):
 These changes spawn from v0.0.0 up to 0.0.2
 ### General:
 * **CPP-ify the codebase, meaning that it now compiles using a CPP compiler** 

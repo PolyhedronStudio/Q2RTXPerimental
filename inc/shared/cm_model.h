@@ -39,6 +39,32 @@ typedef struct hull_octagonbox_s {
     Vector3 cylinder_offset;
 } hull_octagonbox_t;
 
+//#define MAX_MATERIAL_NAME MAX_TEXNAME
+//typedef uint32_t cm_material_physical_type;
+//typedef struct cm_material_s {
+//    /**
+//    *   Texture Info:
+//    **/
+//    //! The unique material index corresponding to its matching texture into bsp->texinfos.
+//    uint32_t texinfoID;
+//    //! The name of the material( identical to that of mtexinfo, but stored separately for now. ).
+//    char name[ MAX_MATERIAL_NAME ];
+//    //! A pointer to the matching texinfo_t.
+//    mtexinfo_t *mtexinfo;
+//    //! A pointer to the matching textures csurface_t
+//    csurface_t *csurface;
+//
+//    /**
+//    *   Physical Properties:
+//    **/
+//    struct cm_material_physical_properties_s {
+//        //! Material.
+//        cm_material_physical_type type;   // Can match cm_material_type enum values.
+//        //! Friction.
+//        float friction;
+//    } physical;
+//} cm_material_t;
+typedef struct cm_material_s cm_material_t;
 
 /**
 *   @brief  The actual 'collision model', storing the current BSP model(s),
@@ -70,4 +96,9 @@ typedef struct cm_s {
     hull_boundingbox_t *hull_boundingbox;
     //! Collision Model's octagon box hull.
     hull_octagonbox_t *hull_octagonbox;
+
+    //! Material types, array index equals their typeID. The zero index(0) is used as the default material type.
+    cm_material_t *materials;
+    int32_t num_materials;
+
 } cm_t;

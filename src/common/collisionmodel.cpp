@@ -7,18 +7,18 @@
 **/
 #include "shared/shared.h"
 #include "common/bsp.h"
-#include "common/cmd.h"
 #include "common/collisionmodel.h"
 #include "common/common.h"
 #include "common/cvar.h"
-#include "common/files.h"
-#include "common/math.h"
-#include "common/sizebuf.h"
 #include "common/zone.h"
-#include "system/hunk.h"
 
 extern "C" {
-    mtexinfo_t nulltexinfo;
+    mtexinfo_t nulltexinfo = {
+        .c = {
+            .name = "nulltexinfo",
+        },
+        .name = "nulltexinfo"
+    };
 };
 
 cvar_t       *map_noareas;
@@ -38,7 +38,7 @@ void CM_Init() {
 /**
 *   @brief
 **/
-void CM_InitCollisionModel( cm_t *cm ) {
+static void CM_InitCollisionModelHulls( cm_t *cm ) {
     if ( !cm ) {
         return;
     }
@@ -58,24 +58,23 @@ void CM_InitCollisionModel( cm_t *cm ) {
 const int32_t CM_LoadMap( cm_t *cm, const char *name ) {
     int ret;
 
-
     // Load in the actual BSP file.
     ret = BSP_Load( name, &cm->cache );
     if ( !cm->cache ) {
         return ret;
     }
 
-    // Prepare the collision model, including the BSP 'hull' for bounding box entities.
-    CM_InitCollisionModel( cm );
+    // Iterate all BSP texinfos and load in their matching corresponding material file equivelants.
+    CM_LoadMaterials( cm );
+
+    // Generate the collision model hulls for entity clipping.
+    CM_InitCollisionModelHulls( cm );
 
     // Set map file checksum.
     cm->checksum = cm->cache->checksum;
 
-    // We don't really want this.
-    //if (!(cm->override_bits & OVERRIDE_ENTS)) {
+    // Set entity string to use.
     cm->entitystring = cm->cache->entitystring;
-    //} We really don't.
-
     // Parse the entity string, creating the entity key/value dictionary list.
     CM_ParseEntityString( cm );
 
@@ -96,6 +95,7 @@ void CM_FreeMap( cm_t *cm ) {
         return;
     }
 
+    // Clear portal/area -state related stack memory.
     Z_Free( cm->portalopen );
     Z_Free( cm->floodnums );
 
@@ -104,16 +104,17 @@ void CM_FreeMap( cm_t *cm ) {
         Z_Freep( (void **)( cm->entities ) );
     }
 
-    //if (cm->override_bits & OVERRIDE_ENTS)
-    //    Z_Free(cm->entitystring);
+    // Clear material data.
+    Z_Free( cm->materials );
     
-    // Free hull bounding box.
+    // Free hull type BSPs.
     Z_Free( cm->hull_boundingbox );
+    Z_Free( cm->hull_octagonbox );
 
-    // Free BSP models.
+    // Free BSP World and its Models.
     BSP_Free( cm->cache );
 
-    // Reset collision model.
+    // Zero out all collision model memory for an optional new re-use.
     memset( cm, 0, sizeof( *cm ) );
 }
 

@@ -242,6 +242,21 @@ static void PM_Friction() {
 		return;
 	}
 
+#ifndef PMOVE_USE_MATERIAL_FRICTION
+	// Apply ground friction if on-ground.
+	float drop = 0;
+	if ( ( pm->groundentity && pml.groundSurface && !( pml.groundSurface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
+		// Get the material to fetch friction from.
+		cm_material_t *groundSurfaceMaterial = pml.groundSurface->material;
+		float friction = pmp->pm_friction;
+		if ( groundSurfaceMaterial ) {
+			friction = groundSurfaceMaterial->physical.friction;
+		}
+		//const float friction = pmp->pm_friction;
+		const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+		drop += control * friction * pml.frameTime;
+	}
+#else
 	// Apply ground friction if on-ground.
 	float drop = 0;
 	if ( ( pm->groundentity && pml.groundSurface && !( pml.groundSurface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
@@ -249,7 +264,7 @@ static void PM_Friction() {
 		const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
 		drop += control * friction * pml.frameTime;
 	}
-
+#endif
 	// Apply water friction, and not off-ground yet on a ladder.
 	if ( pm->waterlevel && !( pm->s.pm_flags & PMF_ON_LADDER ) ) {
 		drop += speed * pmp->pm_water_friction * (float)pm->waterlevel * pml.frameTime;
@@ -643,7 +658,7 @@ static void PM_CategorizePosition() {
 		pm->groundplane = trace.plane;
 		pml.groundSurface = trace.surface;
 		pml.groundContents = trace.contents;
-		//pm->groundsurface = *( pml.groundSurface = trace.surface );
+		pm->groundsurface = *( pml.groundSurface = trace.surface );
 		//pm->groundcontents = (contents_t)( pml.groundContents = trace.contents );
 
 		// [Paril-KEX] to attempt to fix edge cases where you get stuck
@@ -674,7 +689,7 @@ static void PM_CategorizePosition() {
 		} else {
 			pm->groundentity = trace.ent;
 			pm->groundplane = trace.plane;
-			//pm->groundsurface = *trace.surface;
+			pm->groundsurface = *trace.surface;
 			//pm->groundcontents = trace.contents;
 
 			// hitting solid ground will end a waterjump

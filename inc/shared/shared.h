@@ -280,6 +280,7 @@ typedef struct {
 
 //! Collision Model:
 #include "shared/cm_entity.h"
+#include "shared/cm_material.h"
 #include "shared/cm_model.h"
 
 

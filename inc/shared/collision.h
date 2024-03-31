@@ -148,9 +148,17 @@ typedef struct cplane_s {
 *   integral 'value' which was commonly used for light flagged surfaces.
 **/
 typedef struct csurface_s {
-    char        name[ 16 ];
-    int         flags;
-    int         value;
+    //! Texture/Material name for the surface.
+    char name[ 32 ]; // WID: materials: Was 16, but what for?
+    //! Special specific surface flags such as transparent etc.
+    int32_t flags;
+    //! BSP surface value(Usually set for 'light' flagged surfaces.)
+    int32_t value;
+
+    // WID: materials: Index into the cm_materials_t array.
+    int32_t materialID;
+    // WID: materials: Pointer into the cm_materials_t array.
+    struct cm_material_s *material;
 } csurface_t;
 
 /**
@@ -166,6 +174,7 @@ typedef struct trace_s {
     vec3_t      endpos;     // final position
     cplane_t    plane;      // surface normal at impact
     csurface_t *surface;   // surface hit
+    struct cm_material_s *material; // collision model material pointer.
     contents_t  contents;   // contents on other side of surface hit
     struct edict_s *ent;       // not set by CM_*() functions
 

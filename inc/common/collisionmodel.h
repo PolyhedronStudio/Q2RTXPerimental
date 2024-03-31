@@ -33,22 +33,20 @@ extern "C" {
 //  common/collisionmodel.cpp
 //
 extern mtexinfo_t nulltexinfo;
+extern cm_material_t cm_default_material;
+
 /**
 *   @brief
 **/
-void        CM_Init(void);
-/**
-*   @brief
-**/
-void CM_InitCollisionModel( cm_t *cm );
+void CM_Init(void);
 /**
 *   @brief  Loads in the map, all of its submodels, and the entity key/value dictionaries.
 **/
-const int32_t     CM_LoadMap( cm_t *cm, const char *name );
+const int32_t CM_LoadMap( cm_t *cm, const char *name );
 /**
 *   @brief  Frees up all of the collision model's data.
 **/
-void        CM_FreeMap( cm_t *cm );
+void CM_FreeMap( cm_t *cm );
 
 /**
 *   @return A pointer to nullleaf if there is no BSP model cached up, or the number is out of bounds.
@@ -88,7 +86,7 @@ void CM_FloodAreaConnections( cm_t *cm );
 /**
 *   @brief  Set the portal nums matching portal to open/closed state.
 **/
-void        CM_SetAreaPortalState( cm_t *cm, const int32_t portalnum, const bool open );
+void CM_SetAreaPortalState( cm_t *cm, const int32_t portalnum, const bool open );
 /**
 *   @return False(0) if the portal nums matching portal is closed, true(1) otherwise.
 **/
@@ -96,28 +94,28 @@ const int32_t CM_GetAreaPortalState( cm_t *cm, const int32_t portalnum );
 /**
 *   @return True if the two areas are connected, false if not(or possibly blocked by a door for example.)
 **/
-const bool  CM_AreasConnected( cm_t *cm, const int32_t area1, const int32_t area2 );
+const bool CM_AreasConnected( cm_t *cm, const int32_t area1, const int32_t area2 );
 /**
 *   @brief  Writes a length byte followed by a bit vector of all the areas
 *           that area in the same flood as the area parameter
 *
 *           This is used by the client refreshes to cull visibility
 **/
-const int32_t   CM_WriteAreaBits( cm_t *cm, byte *buffer, const int32_t area );
+const int32_t CM_WriteAreaBits( cm_t *cm, byte *buffer, const int32_t area );
 /**
 *   @brief
 **/
-const int32_t   CM_WritePortalBits( cm_t *cm, byte *buffer );
+const int32_t CM_WritePortalBits( cm_t *cm, byte *buffer );
 /**
 *   @brief
 **/
-void        CM_SetPortalStates( cm_t *cm, byte *buffer, const int32_t bytes );
+void CM_SetPortalStates( cm_t *cm, byte *buffer, const int32_t bytes );
 
 /**
 *   @Return True if any leaf under headnode has a cluster that
 *           is potentially visible
 **/
-const bool        CM_HeadnodeVisible( mnode_t *headnode, byte *visbits );
+const bool CM_HeadnodeVisible( mnode_t *headnode, byte *visbits );
 /**
 *   @brief  The client will interpolate the view position,
 *           so we can't use a single PVS point
@@ -203,6 +201,20 @@ void CM_InitOctagonHull( cm_t *cm );
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
 mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const contents_t contents );
+
+
+
+//
+//  common/collisionmodel/cm_pointcontents.cpp
+//
+/**
+*   @brief  Iterate all BSP texinfos and loads in their matching corresponding material file equivelants
+*           into the 'collision model' data.
+*
+*   @return The number of materials loaded for the BSP's texinfos. In case of any errors
+*           it'll return 0 instead.
+**/
+const int32_t CM_LoadMaterials( cm_t *cm );
 
 
 

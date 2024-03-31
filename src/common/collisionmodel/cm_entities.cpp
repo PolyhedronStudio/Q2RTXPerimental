@@ -7,13 +7,9 @@
 **/
 #include "shared/shared.h"
 #include "common/bsp.h"
-#include "common/cmd.h"
 #include "common/collisionmodel.h"
 #include "common/common.h"
-#include "common/cvar.h"
-#include "common/files.h"
 #include "common/math.h"
-#include "common/sizebuf.h"
 #include "common/zone.h"
 #include "system/hunk.h"
 
@@ -238,15 +234,6 @@ void CM_ParseEntityString( cm_t *cm ) {
     for ( cm_entity_list_t::const_iterator list = entities.cbegin(); list != entities.cend(); ++list, out++ ) {
         *out = *list;
     }
-    //cm->numentities = entities.size();
-    //cm->entities = static_cast<const cm_entity_t **>( Z_TagMallocz( sizeof( cm_entity_t * ) * cm->numentities, TAG_CMODEL ) );
-
-    //const cm_entity_t **out = cm->entities;
-    //int32_t i = 0;
-    //for ( cm_entity_list_t::const_iterator list = entities.cbegin(); list != entities.cend(); ++list, out++ ) {
-    //    //cm->entities[i] = *list;
-    //    *out = *list;
-    //}
 
     // Clear the list from memory.
     entities.clear();
