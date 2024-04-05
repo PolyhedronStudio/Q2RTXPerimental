@@ -144,35 +144,49 @@ typedef struct client_predicted_state_s {
     //usercmd_t cmd;
     
     // For stair up smoothing:
-    double step;
-    uint64_t step_time;
+    //double step;
+    //uint64_t step_time;
     //uint64_t step_frame;
 
-    // Viewheight.
-    uint64_t view_height_time;
-    double view_previous_height;
-    double view_current_height;
+    // Viewheight, for ducking:
+    //double view_previous_height;
+    //double view_current_height;
+    //uint64_t view_height_time;
 
-    //! Origin, angles and velocity of current frame pmove's results.
+    //! Origin, angles and velocity and several other values of current frame pmove's predicted results.
     struct {
-        //! Total accumulated screen blend.
-        Vector4 screen_blend;
-        //! Refdef Flags.
-        int32_t rdflags;
-
         // Predicted origin, velocity and angles.
         Vector3 origin;
         Vector3 velocity;
         Vector3 angles;
+        //! Predicted step, for stair up smoothing. Lerped over 100ms and subtracted from local origin when prediction is enabled.
+        double step;
 
         // Predicted view offset and height.
-        Vector3 viewOffset;
+        //Vector3 viewOffset;
+
+        //! Predicted view offset. (Without the height addition.)
+        Vector3 offset;
+        //! Predicted view height. (To add on to the viewOffset to get the complete view offset.)
+        //! Slot 0 is always the newly set viewheight, slot 1 is for storing the local previous viewheight, this gives us a smoother lerp.
+        double height[2];
+
+        //! Total accumulated screen blend.
+        Vector4 screen_blend;
+        //! Refdef Flags.
+        int32_t rdflags;
     } view;
 
-    //! Ground entity we're predicted to hit.
-    centity_t *groundEntity;
-    //! Ground plane we predicted to hit.
-    cplane_t groundPlane;
+    //! Times when a view value has changed.
+    struct {
+        //! local clgi.client->time of a(and the last) view height change.
+        uint64_t height_changed;
+        //! local clgi.client->time of a(and the last) step height change.
+        uint64_t step_changed;
+    } time;
+
+    //! Stores the ground information. If there is no actual active, valid, ground, then ground.entity will be nullptr.
+    pm_ground_info_t ground;
 
     //! Margin of error for this frame.
     Vector3 error;

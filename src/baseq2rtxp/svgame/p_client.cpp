@@ -1785,7 +1785,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         SG_PlayerMove( &pm, &pmp );
 
         // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those.
-        if ( pm.groundentity && ent->groundentity ) {
+        if ( pm.ground.entity && ent->groundentity ) {
             float stepsize = fabs( ent->s.origin[ 2 ] - pm.s.origin[ 2 ] );
 
             if ( stepsize > PM_MIN_STEP_SIZE && stepsize < PM_MAX_STEP_SIZE ) {
@@ -1849,9 +1849,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         ent->viewheight = (int32_t)pm.s.viewheight;
         ent->waterlevel = pm.waterlevel;
         ent->watertype = pm.watertype;
-        ent->groundentity = pm.groundentity;
-        if ( pm.groundentity ) {
-            ent->groundentity_linkcount = pm.groundentity->linkcount;
+        ent->groundentity = pm.ground.entity;
+        if ( pm.ground.entity ) {
+            ent->groundentity_linkcount = pm.ground.entity->linkcount;
         }
 
         if ( ent->deadflag ) {

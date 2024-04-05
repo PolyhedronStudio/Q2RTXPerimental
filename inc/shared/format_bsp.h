@@ -126,6 +126,11 @@ typedef struct mtexinfo_s {  // used internally due to name len probs //ZOID
     int                 numframes;
     struct mtexinfo_s *next; // used for animation
     #endif
+
+    // WID: materials:
+    //! Stores a unique ID to the texinfo surface. (ID == 0, is for nulltexinfo! :-) )
+    //! (each brush surface has its own copy of a certain texinfo, this ID allows to identify specific texinfo surfaces with.)
+    uint32_t texInfoID; 
 } mtexinfo_t;
 
 #if USE_REF

@@ -23,6 +23,7 @@
 //#define _DEBUG_MAT_PRINT_JSONWAL_COULDNOTREAD 1
 
 //! Default material to apply properties from instead when no specific material json was found.
+//! NOTE: 
 cm_material_t cm_default_material = {
     // Appoint to nulltexinfo.
     .materialID = 0,
@@ -47,33 +48,6 @@ cm_material_t cm_nulltexinfo_material = {
 };
 
 /**
-*   @brief  Inserts data into the materials array.
-**/
-//static const int32_t CM_InsertNewMaterial( cm_t *cm, const int32_t materialID, mtexinfo_t *texinfo, csurface_t *csurface ) {
-//    // In case of nulltexinfo, special handling:
-//    if ( texinfo == &nulltexinfo || materialID == 0 ) {
-//        cm->materials[ 0 ] = cm_default_material;
-//        return 0;
-//    }
-//
-//    // Get material pointer.
-//    cm_material_t *material = &cm->materials[ materialID ];
-//
-//    // Setup its default values first.
-//    *material = cm_default_material;
-//
-//    // Setup its ID and link its pointers to the designated texinfo and texinfo surface.
-//    material->materialID = materialID;
-//
-//    // Copy over the texinfo name to serve as the material name.
-//    memcpy( material->name, texinfo->name, sizeof( texinfo->name ) - 1 );
-//
-//    // Debug print.
-//    Com_LPrintf( PRINT_DEVELOPER, "%s: Inserted new material[materialID(#%d), name(\"%s\"), kind(%s), friction(%f)]\n",
-//        __func__, material->materialID, material->name, material->physical.kind, material->physical.friction );
-//}
-
-/**
 *   @return -1 if non existent. The materialID otherwise.
 **/
 const int32_t CM_MaterialExists( cm_t *cm, const char *name ) {
@@ -93,6 +67,11 @@ const int32_t CM_MaterialExists( cm_t *cm, const char *name ) {
 }
 
 static const int32_t jsoneq( const char *json, jsmntok_t *tok, const char *s ) {
+    // Need a valid token ptr.
+    if ( tok == nullptr ) {
+        return -1;
+    }
+
     if ( tok->type == JSMN_STRING && (int)strlen( s ) == tok->end - tok->start &&
         strncmp( json + tok->start, s, tok->end - tok->start ) == 0 ) {
         return 0;
@@ -129,9 +108,9 @@ const int32_t CM_LoadMaterialFromJSON( cm_t *cm, const char *name, const char *j
     jsmn_parser parser;
     jsmn_init( &parser );
 
-    // Parse JSON into tokens.
-    jsmntok_t tokens[ 128 ]; /* We expect no more than 128 tokens */
-    int32_t numTokensParsed = jsmn_parse( &parser, jsonBuffer, strlen( jsonBuffer ), tokens,
+    // Parse JSON into tokens. ( We aren't expecting more than 128 tokens, can be increased if needed though. )
+    jsmntok_t tokens[ 128 ]; 
+    const int32_t numTokensParsed = jsmn_parse( &parser, jsonBuffer, strlen( jsonBuffer ), tokens,
         sizeof( tokens ) / sizeof( tokens[ 0 ] ) );
 
     // If lesser than 0 we failed to parse the json properly.
@@ -218,20 +197,25 @@ const int32_t CM_LoadMaterials( cm_t *cm ) {
     bsp_t *bsp = cm->cache;
 
     // Allocate for the collision model, an array the size equal to numtexinfo's with an additional slot for the nulltexinfo..
-    const uint32_t num_materials = ( cm->cache->numtexinfo + 1 );
-    cm->materials = static_cast<cm_material_t *>( Z_TagMallocz( sizeof( cm->materials[ 0 ] ) * num_materials, TAG_CMODEL ) );    // Memset them.
-    memset( cm->materials, 0, sizeof( cm->materials[ 0 ] ) * num_materials );
+    const uint32_t material_allocation_count = ( cm->cache->numtexinfo + 1 );
+    cm->materials = static_cast<cm_material_t *>( Z_TagMallocz( sizeof( cm->materials[ 0 ] ) * material_allocation_count, TAG_CMODEL ) );    // Memset them.
+    memset( cm->materials, 0, sizeof( cm->materials[ 0 ] ) * material_allocation_count);
 
-    // MaterialID(#0) is intended for nulltexinfo.
-    cm->materials[ 0 ] = cm_default_material;
-    nulltexinfo.c.material = &cm->materials[ 0 ];
-    nulltexinfo.c.materialID = 0;
+    // MaterialID(#0) is intended for nulltexinfo and as the 'base defaults' for all other materials.
+    const uint32_t default_material_id = cm->num_materials;
+    cm->materials[ default_material_id ] = cm_default_material;
+    nulltexinfo.c.material = &cm->materials[ default_material_id ];
+    nulltexinfo.c.materialID = default_material_id;
+    // Increase material count.
+    cm->num_materials++;
 
     // Iterate over the bsp's texinfos, keeping score of its ID for use with materials.
     mtexinfo_t *texinfo = bsp->texinfo;
     // Start off at index 1, since index 0 is used for nulltexinfo.
-    uint32_t texinfoID = 1;
-    for ( texinfoID = 1; texinfoID <= bsp->numtexinfo; texinfoID++, texinfo++ ) {
+    for ( uint32_t texInfoID = 1; texInfoID <= bsp->numtexinfo; texInfoID++, texinfo++ ) {
+        // Make sure to assign the texinfoID properly.
+        texinfo->texInfoID = texInfoID;
+
         // See if a material matching the texinfo's texture name already exists, if so, acquire its ID.
         int32_t materialID = CM_MaterialExists( cm, texinfo->name );
 

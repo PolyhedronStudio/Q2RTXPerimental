@@ -29,6 +29,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //! Also affects the pitch angle for ladders, since it is then determined differently.
 //#define PM_CLAMP_VIEWANGLES_0_TO_360
 
+//! Defining this will enable 'material physics' such as per example: Taking the friction value from the ground material.
+#define PMOVE_USE_MATERIAL_FRICTION
+
 /**
 *	@brief	Actual in-moment local move variables.
 *
@@ -42,13 +45,23 @@ struct pml_t {
 
 	//! Forward, right and up vectors.
 	Vector3	forward = {}, right = {}, up = {};
+
 	//! Move frameTime.
 	float	frameTime = 0.f;
 
-	//! Ground information.
-	csurface_t *groundSurface = nullptr;
-	//! Contents of ground brush.
-	int32_t		groundContents = 0;
+	struct pml_ground_info_s {
+		//! Pointer to the actual ground entity we are on. (nullptr if none).
+		//struct edict_s *entity;
+
+		//! A copy of the plane data from the ground entity.
+		//cplane_t	plane;
+		//! A pointer to the ground plane's surface data. (nullptr if none).
+		csurface_t	*surface;
+		//! A copy of the contents data from the ground entity's brush.
+		contents_t	contents;
+		////! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
+		//cm_material_t *material;
+	} ground;
 
 	//! Used to reset ourselves in case we are truly stuck.
 	Vector3		previousOrigin = {};
@@ -56,12 +69,16 @@ struct pml_t {
 	Vector3		startVelocity = {};
 };
 
+
+
 //! An actual pointer to the pmove object that we're moving.
 pmove_t *pm;
 //! An actual pointer to the pmove parameters object for use with moving.
 static pmoveParams_t *pmp;
 //! Contains our local in-moment move variables.
 static pml_t pml;
+
+
 
 typedef struct default_pmoveParams_s {
 	//! Stop speed.
@@ -96,6 +113,31 @@ typedef struct default_pmoveParams_s {
 	static constexpr float pm_water_friction = 1.f;
 } default_pmoveParams_t;
 
+/**
+*	@brief	Updates the player move ground info based on the trace results.
+**/
+static void PM_UpdateGroundFromTrace( const trace_t *trace ) {
+	if ( trace == nullptr || trace->ent == nullptr ) {
+		pm->ground.entity = nullptr;
+		pm->ground.plane = {};
+		pm->ground.surface = {};
+		pm->ground.contents = CONTENTS_NONE;
+		pm->ground.material = nullptr;
+	} else {
+		pm->ground.entity = trace->ent;
+		pm->ground.plane = trace->plane;
+		pm->ground.surface = *trace->surface;
+		pm->ground.contents = trace->contents;
+		pm->ground.material = trace->material;
+	}
+}
+/**
+*
+*
+*	Step Slide Move:
+*
+*
+**/
 /**
 *	@return True if the trace yielded a step, false otherwise.
 **/
@@ -155,6 +197,7 @@ static void PM_StepSlideMove() {
 		return; // can't step up
 	}
 
+	// Determine step size to test with.
 	const float stepSize = trace.endpos[ 2 ] - startOrigin.z;
 
 	// We can step up. Try sliding above.
@@ -242,10 +285,10 @@ static void PM_Friction() {
 		return;
 	}
 
-#ifndef PMOVE_USE_MATERIAL_FRICTION
 	// Apply ground friction if on-ground.
+#ifndef PMOVE_USE_MATERIAL_FRICTION
 	float drop = 0;
-	if ( ( pm->groundentity && pml.groundSurface && !( pml.groundSurface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
+	if ( ( pm->groundEntity != nullptr && pml.groundSurface != nullptr && !( pml.groundSurface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
 		// Get the material to fetch friction from.
 		cm_material_t *groundSurfaceMaterial = pml.groundSurface->material;
 		float friction = pmp->pm_friction;
@@ -259,7 +302,7 @@ static void PM_Friction() {
 #else
 	// Apply ground friction if on-ground.
 	float drop = 0;
-	if ( ( pm->groundentity && pml.groundSurface && !( pml.groundSurface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
+	if ( ( pm->ground.entity && pml.ground.surface && !( pml.ground.surface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
 		const float friction = pmp->pm_friction;
 		const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
 		drop += control * friction * pml.frameTime;
@@ -358,7 +401,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 			else if ( pm->cmd.forwardmove < 0 ) {
 				// if we haven't touched ground yet, remove x/y so we don't
 				// slide off of the ladder
-				if ( !pm->groundentity ) {
+				if ( !pm->ground.entity ) {
 					wishVelocity.x = wishVelocity.y = 0;
 				}
 
@@ -370,7 +413,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 
 		// limit horizontal speed when on a ladder
 		// [Paril-KEX] unless we're on the ground
-		if ( !pm->groundentity ) {
+		if ( !pm->ground.entity ) {
 			// [Paril-KEX] instead of left/right not doing anything,
 			// have them move you perpendicular to the ladder plane
 			if ( pm->cmd.sidemove ) {
@@ -436,7 +479,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 
 		float speed = pmp->pm_water_speed;
 		// Walking in water, against a current, so slow down our 
-		if ( ( pm->waterlevel == water_level_t::WATER_FEET ) && ( pm->groundentity ) ) {
+		if ( ( pm->waterlevel == water_level_t::WATER_FEET ) && ( pm->ground.entity ) ) {
 			speed /= 2;
 		}
 
@@ -444,25 +487,25 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 	}
 
 	// Add conveyor belt velocities.
-	if ( pm->groundentity ) {
+	if ( pm->ground.entity ) {
 		Vector3 velocity = QM_Vector3Zero();
 
-		if ( pml.groundContents & CONTENTS_CURRENT_0 ) {
+		if ( pml.ground.contents & CONTENTS_CURRENT_0 ) {
 			velocity.x += 1;
 		}
-		if ( pml.groundContents & CONTENTS_CURRENT_90 ) {
+		if ( pml.ground.contents & CONTENTS_CURRENT_90 ) {
 			velocity.y += 1;
 		}
-		if ( pml.groundContents & CONTENTS_CURRENT_180 ) {
+		if ( pml.ground.contents & CONTENTS_CURRENT_180 ) {
 			velocity.x -= 1;
 		}
-		if ( pml.groundContents & CONTENTS_CURRENT_270 ) {
+		if ( pml.ground.contents & CONTENTS_CURRENT_270 ) {
 			velocity.y -= 1;
 		}
-		if ( pml.groundContents & CONTENTS_CURRENT_UP ) {
+		if ( pml.ground.contents & CONTENTS_CURRENT_UP ) {
 			velocity.z += 1;
 		}
-		if ( pml.groundContents & CONTENTS_CURRENT_DOWN ) {
+		if ( pml.ground.contents & CONTENTS_CURRENT_DOWN ) {
 			velocity.z -= 1;
 		}
 
@@ -516,7 +559,7 @@ static void PM_AirMove() {
 		}
 		PM_StepSlideMove();
 	// Perform ground movement. (Walking on-ground):
-	} else if ( pm->groundentity ) {
+	} else if ( pm->ground.entity ) {
 		// Erase Z before accelerating.
 		pml.velocity.z = 0; //!!! this is before the accel
 		PM_Accelerate( wishDirection, wishSpeed, pmp->pm_accelerate );
@@ -566,7 +609,7 @@ static void PM_WaterMove() {
 	Vector3 wishVelocity = pml.forward * pm->cmd.forwardmove + pml.right * pm->cmd.sidemove;
 
 	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove && !( pm->cmd.buttons & ( BUTTON_JUMP | BUTTON_CROUCH ) ) ) {
-		if ( !pm->groundentity ) {
+		if ( !pm->ground.entity ) {
 			wishVelocity.z -= 60; // drift towards bottom
 		}
 	} else {
@@ -641,25 +684,27 @@ static inline void PM_GetWaterLevel( const Vector3 &position, water_level_t &lev
 static void PM_CategorizePosition() {
 	trace_t	   trace;
 
-	// 
-	// if the player hull point one unit down is solid, the player
-	// is on ground
-
-	// see if standing on something solid
+	// If the player hull point is 0.25 units down is solid, the player is on ground.
+	// See if standing on something solid
 	Vector3 point = pml.origin + Vector3{ 0.f, 0.f, -0.25f };
 
 	if ( pml.velocity.z > 180 || pm->s.pm_type == PM_GRAPPLE ) { //!!ZOID changed from 100 to 180 (ramp accel)
+		// We are going off-ground due to a too high velocit.
 		pm->s.pm_flags &= ~PMF_ON_GROUND;
-		pm->groundentity = nullptr;
-		//pm->groundsurface = {};
-		//pm->groundcontents = CONTENTS_NONE;
+
+		// Ensure the player move ground data is updated accordingly.
+		pm->ground.entity = nullptr;
+		pm->ground.plane = {};
+		pm->ground.surface = {};
+		pm->ground.contents = CONTENTS_NONE;
+		pm->ground.material = nullptr;
 	} else {
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, point );
-		pm->groundplane = trace.plane;
-		pml.groundSurface = trace.surface;
-		pml.groundContents = trace.contents;
-		pm->groundsurface = *( pml.groundSurface = trace.surface );
-		//pm->groundcontents = (contents_t)( pml.groundContents = trace.contents );
+		pm->ground.plane = trace.plane;
+		//pml.groundSurface = trace.surface;
+		pm->ground.surface = *( pml.ground.surface = trace.surface );
+		//pml.groundContents = trace.contents;
+		pm->ground.contents = (contents_t)( pml.ground.contents = trace.contents );
 
 		// [Paril-KEX] to attempt to fix edge cases where you get stuck
 		// wedged between a slope and a wall (which is irrecoverable
@@ -677,20 +722,29 @@ static void PM_CategorizePosition() {
 		}
 
 		if ( trace.fraction == 1.0f || ( slanted_ground && !trace.startsolid ) ) {
-			pm->groundentity = nullptr;
 			//if ( trace.fraction == 1.0f ) {
 			//	pm->groundplane = { };
 			//} else {
 			//	pm->groundplane = trace.plane;
 			//}
-			//pm->groundsurface = {};
-			//pm->groundcontents = CONTENTS_NONE;
+			pml.ground.surface = nullptr;
+			pml.ground.contents = CONTENTS_NONE;
+
+			PM_UpdateGroundFromTrace( nullptr );
+			//pm->ground.entity = nullptr;
+			//pm->ground.plane = {};
+			//pm->ground.surface = {}; 
+			//pm->ground.contents = CONTENTS_NONE;
+			//pm->ground.material = nullptr;
+
 			pm->s.pm_flags &= ~PMF_ON_GROUND;
 		} else {
-			pm->groundentity = trace.ent;
-			pm->groundplane = trace.plane;
-			pm->groundsurface = *trace.surface;
-			//pm->groundcontents = trace.contents;
+			PM_UpdateGroundFromTrace( &trace );
+			//pm->ground.entity = trace.ent;
+			//pm->ground.plane = trace.plane;
+			//pm->ground.surface = *trace.surface;
+			//pm->ground.contents = trace.contents;
+			//pm->ground.material = trace.material;
 
 			// hitting solid ground will end a waterjump
 			if ( pm->s.pm_flags & PMF_TIME_WATERJUMP ) {
@@ -702,14 +756,14 @@ static void PM_CategorizePosition() {
 				// just hit the ground
 
 				// [Paril-KEX]
-				if ( /*!pm_config.n64_physics &&*/ pml.velocity.z >= 100.f && pm->groundplane.normal[ 2 ] >= 0.9f && !( pm->s.pm_flags & PMF_DUCKED ) ) {
+				if ( /*!pm_config.n64_physics &&*/ pml.velocity.z >= 100.f && pm->ground.plane.normal[ 2 ] >= 0.9f && !( pm->s.pm_flags & PMF_DUCKED ) ) {
 					pm->s.pm_flags |= PMF_TIME_TRICK_JUMP;
 					pm->s.pm_time = 64;
 				}
 
 				// [Paril-KEX] calculate impact delta; this also fixes triple jumping
 				Vector3 clipped_velocity = QM_Vector3Zero();
-				PM_ClipVelocity( pml.velocity, pm->groundplane.normal, clipped_velocity, 1.01f );
+				PM_ClipVelocity( pml.velocity, pm->ground.plane.normal, clipped_velocity, 1.01f );
 
 				pm->impact_delta = pml.startVelocity.z - clipped_velocity.z;
 
@@ -763,20 +817,24 @@ static void PM_CheckJump() {
 
 	// We're swimming, not jumping, so unset ground entity.
 	if ( pm->waterlevel >= water_level_t::WATER_WAIST ) { 
-		pm->groundentity = nullptr;
+		//pm->ground.entity = nullptr;
+		// Unset ground.
+		PM_UpdateGroundFromTrace( nullptr );
 		return;
 	}
 
 	// In-air/liquid, so no effect, can't re-jump without ground.
-	if ( pm->groundentity == nullptr ) {
+	if ( pm->ground.entity == nullptr ) {
 		return;
 	}
 
 	// Adjust our pmove state to engage in the act of jumping.
 	pm->s.pm_flags |= PMF_JUMP_HELD;
 	pm->jump_sound = true;
-	pm->groundentity = nullptr;
-	pm->groundplane = {};
+	//pm->groundEntity = nullptr;
+	//pm->groundPlane = {};
+		// Unset ground.
+	PM_UpdateGroundFromTrace( nullptr );
 	pm->s.pm_flags &= ~PMF_ON_GROUND;
 
 	const float jump_height = pmp->pm_jump_height;
@@ -873,7 +931,7 @@ static void PM_CheckSpecialMovement() {
 	}
 
 	// We're currently standing on ground, and the snapped position is a step.
-	if ( pm->groundentity && fabsf( pml.origin.z - trace.endpos[2] ) <= PM_MAX_STEP_SIZE ) {
+	if ( pm->ground.entity && fabsf( pml.origin.z - trace.endpos[2] ) <= PM_MAX_STEP_SIZE ) {
 		return;
 	}
 
@@ -998,7 +1056,7 @@ static void PM_SetDimensions() {
 	// Mins for standing/crouching/dead.
 	pm->mins.z = -24;
 
-	// Dead, or ducked bbox:
+	// Dead, and Ducked bbox:
 	if ( ( pm->s.pm_flags & PMF_DUCKED ) || pm->s.pm_type == PM_DEAD ) {
 		pm->maxs.z = 4;
 		pm->s.viewheight = -2;
@@ -1054,7 +1112,7 @@ static inline const bool PM_CheckDuck() {
 	// Duck:
 	} else if (
 		( pm->cmd.buttons & BUTTON_CROUCH ) &&
-		( pm->groundentity || ( pm->waterlevel <= water_level_t::WATER_FEET && !PM_AboveWater() ) ) &&
+		( pm->ground.entity || ( pm->waterlevel <= water_level_t::WATER_FEET && !PM_AboveWater() ) ) &&
 		!( pm->s.pm_flags & PMF_ON_LADDER ) ) { 
 		if ( !( pm->s.pm_flags & PMF_DUCKED ) ) {
 			// check that duck won't be blocked
@@ -1097,7 +1155,7 @@ static inline const bool PM_CheckDuck() {
 static void PM_DeadMove() {
 	float forward;
 
-	if ( !pm->groundentity ) {
+	if ( !pm->ground.entity ) {
 		return;
 	}
 
@@ -1123,7 +1181,7 @@ static inline const bool PM_GoodPosition() {
 		return true;
 	}
 
-	trace_t trace = PM_Trace( pm->s.origin, pm->mins, pm->maxs, pm->s.origin );
+	const trace_t trace = PM_Trace( pm->s.origin, pm->mins, pm->maxs, pm->s.origin );
 	return !trace.allsolid;
 }
 

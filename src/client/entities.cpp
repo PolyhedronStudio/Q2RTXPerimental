@@ -270,15 +270,17 @@ static void CL_SetActiveState(void)
         // Copy predicted rdflags.
         cl.predictedState.view.rdflags = cl.frame.ps.rdflags;
         // Copy current viewheight into prev and current viewheights.
-        cl.predictedState.view_current_height = cl.predictedState.view_previous_height = cl.frame.ps.pmove.viewheight;
+        cl.predictedState.view.height[ 0 ] = cl.predictedState.view.height[ 1 ] = cl.frame.ps.pmove.viewheight;
     }
 
     // Reset local time of viewheight changes.
-    cl.predictedState.view_height_time = 0;
+    cl.predictedState.time.height_changed = 0;
+    cl.predictedState.time.step_changed = 0;
 
     // Reset ground information.
-    cl.predictedState.groundEntity = nullptr;
-    cl.predictedState.groundPlane = { };
+    cl.predictedState.ground = {};
+    //cl.predictedState.groundEntity = nullptr;
+    //cl.predictedState.groundPlane = { };
 
     // Fire the ClientBegin callback of the client game module.
     clge->ClientBegin();
@@ -407,14 +409,21 @@ void CL_DeltaFrame(void)
     centity_t *clent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );
     Com_PlayerToEntityState( &cl.frame.ps, &clent->current );
 
-    // Iterate over the current frame entity states.
+    // Iterate over the current frame entity states and update them accordingly.
     for ( int32_t i = 0; i < cl.frame.numEntities; i++ ) {
         int32_t j = ( cl.frame.firstEntity + i ) & PARSE_ENTITIES_MASK;
         entity_state_t *state = &cl.entityStates[ j ];
 
         // Set the current and previous entity state.
         parse_entity_update( state );
+    }
 
+    // Re-Iterate over the current frame entity states in order to safely launch their events.
+    // (Events might need data of other entities, which if we called them in the previous iteration, might not have been updated yet.)
+    for ( int32_t i = 0; i < cl.frame.numEntities; i++ ) {
+        int32_t j = ( cl.frame.firstEntity + i ) & PARSE_ENTITIES_MASK;
+        entity_state_t *state = &cl.entityStates[ j ];
+        
         // Fire any needed entity events.
         parse_entity_event( state->number );
     }

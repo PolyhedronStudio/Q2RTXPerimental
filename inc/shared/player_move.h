@@ -47,14 +47,16 @@ typedef enum {  // : uint8_t {
 **/
 typedef struct {
     pmtype_t    pm_type;
-
-    Vector3		origin;
-    Vector3		velocity;
     uint16_t    pm_flags;		//! Ducked, jump_held, etc
     uint16_t	pm_time;		//! Each unit = 8 ms
+
     int16_t     gravity;
-    Vector3     delta_angles;	//! Add to command angles to get view direction, it is changed by spawns, rotating objects, and teleporters
+
+    Vector3		origin;
     int8_t		viewheight;		//! View height, added to origin[2] + viewoffset[2], for crouching.
+    Vector3     delta_angles;	//! Add to command angles to get view direction, it is changed by spawns, rotating objects, and teleporters
+
+    Vector3		velocity;
 } pmove_state_t;
 
 /**
@@ -107,6 +109,23 @@ typedef struct pm_touch_trace_list_s {
 } pm_touch_trace_list_t;
 
 /**
+*   @brief  Stores ground trace results.
+**/
+typedef struct pm_ground_info_s {
+    //! Pointer to the actual ground entity we are on.(nullptr if none).
+    struct edict_s *entity;
+
+    //! A copy of the plane data from the ground entity.
+    cplane_t        plane;
+    //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
+    csurface_t      surface;
+    //! A copy of the contents data from the ground entity's brush.
+    contents_t      contents;
+    //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
+    cm_material_t *material;
+} pm_ground_info_t;
+
+/**
 *   @brief  Object storing data such as the player's move state, in order to perform another
 *           frame of movement on its data.
 **/
@@ -140,14 +159,20 @@ typedef struct {
     //! Bounding Box.
     Vector3 mins, maxs;
 
-    //! Pointer ot the actual ground entity we are on or not(nullptr).
-    struct edict_s *groundentity;
-    //! A copy of the plane data from the ground entity.
-    cplane_t        groundplane;
-    //! A copy of the surface data from the ground entity.(May be none, in which case, it has a 0 name.)
-    csurface_t      groundsurface;
-    //! A copy of the contents data from the ground entity brush.
-    contents_t      groundcontents;
+    //! Stores the ground information. If there is no actual ground, ground.entity will be nullptr.
+    pm_ground_info_t ground;
+
+    ////! Pointer ot the actual ground entity we are on or not(nullptr).
+    //struct edict_s *groundEntity;
+    ////! A copy of the plane data from the ground entity.
+    //cplane_t        groundPlane;
+    ////! A copy of the surface data from the ground entity.(May be none, in which case, it has a 0 name.)
+    //csurface_t      groundSurface;
+    ////! A copy of the contents data from the ground entity brush.
+    //contents_t      groundContents;
+    ////! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
+    //cm_material_t   *groundMaterial;
+
     //! The actual BSP 'contents' type we're in.
     contents_t      watertype;
     //! The depth of the player in the actual water solid.

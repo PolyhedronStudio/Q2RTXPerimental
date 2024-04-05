@@ -12,12 +12,14 @@
 #include "common/cvar.h"
 #include "common/zone.h"
 
+// C Linkage, required for GL/VKPT C refresh codes.
 extern "C" {
     mtexinfo_t nulltexinfo = {
         .c = {
             .name = "nulltexinfo",
         },
-        .name = "nulltexinfo"
+        .name = "nulltexinfo",
+        .texInfoID = 0
     };
 };
 

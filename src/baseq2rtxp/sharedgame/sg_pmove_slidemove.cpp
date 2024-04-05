@@ -214,6 +214,7 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 		// Save entity for contact.
 		PM_RegisterTouchTrace( touch_traces, trace );
 		
+		// Subtract the fraction of time used, from the whole fraction of the move.
 		time_left -= time_left * trace.fraction;
 
 		// slide along this plane

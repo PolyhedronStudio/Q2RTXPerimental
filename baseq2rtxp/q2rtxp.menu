@@ -373,6 +373,8 @@ begin developer_stuff
     background #212F3CD0
     style --compact
     blank
+    action "cm_materials(CollisionModel Materials)" "skill 0; gamemode 0; maxclients 1; map cm_materials force"
+    blank
     action "func_plat & func_rotating" "skill 0; gamemode 0; maxclients 1; map func_plat_n_rot force"
     blank
     action "local_entities" "skill 0; gamemode 0; maxclients 1; map local_entities force"
@@ -461,9 +463,12 @@ begin main
     background #212F3CD0
     style --compact
     blank
+    ifeq developer 1
+        action "developer stuff" "pushmenu developer_stuff"
+        blank
+    endif
     action "singleplayer" "pushmenu singleplayer"
     action "multiplayer" "pushmenu multiplayer"
-    action "developer stuff" "pushmenu developer_stuff"
     action "options" "pushmenu options"
     action "video settings" "pushmenu video"
     action "quit" "pushmenu quit"
