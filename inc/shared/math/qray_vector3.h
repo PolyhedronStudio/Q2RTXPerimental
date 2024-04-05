@@ -667,7 +667,7 @@ RMAPI const float QM_Vector3ToYaw( vec3_t vec ) {
             yaw = 90;
         }
     } else {
-        yaw = ( atan2( vec[ YAW ], vec[ PITCH ] ) * 180 / M_PI );
+        yaw = ( atan2f( vec[ YAW ], vec[ PITCH ] ) * 180 / M_PI );
         if ( yaw < 0 ) {//if ( yaw < -180 )
             yaw += 360;
         }
@@ -755,12 +755,12 @@ RMAPI void QM_Vector3ToAngles( const Vector3 forward, vec3_t angles ) {
         else
             pitch = 90;
     } else {
-        yaw = ( atan2( forward.y, forward.x ) * 180 / M_PI );
+        yaw = ( atan2f( forward.y, forward.x ) * 180 / M_PI );
         if ( yaw < 0 )
             yaw += 360;
 
-        tmp = sqrt( forward.x * forward.x + forward.y * forward.y );
-        pitch = ( atan2( -forward.z, tmp ) * 180 / M_PI );
+        tmp = sqrtf( forward.x * forward.x + forward.y * forward.y );
+        pitch = ( atan2f( -forward.z, tmp ) * 180 / M_PI );
         if ( pitch < 0 )
             pitch += 360;
     }
@@ -780,7 +780,7 @@ RMAPI const Vector3 QM_Vector3Up( void ) {
 
 // Vector with z component value -1.0f, pointing downwards in Quake Space.
 RMAPI const Vector3 QM_Vector3Down( void ) {
-    Vector3 result = { 0.0f, 0.0f, 1.0f };
+    Vector3 result = { 0.0f, 0.0f, -1.0f };
 
     return result;
 }

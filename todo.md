@@ -8,7 +8,9 @@ Features being looked forward on implementation.
 
 ### High Priority:
 * [ ] Move player animation code/task into the player move code for proper synchronisity and consistency reasons.
-* [ ] Add in ``cm_material_t`` accompanied by an actual json based client and server sided material properties file. Allowing for setting material contents type, acceleration/friction influences, footsteps, posisble future 'reverb effects'.
+* [X] Add in ``cm_material_t`` accompanied by an actual json based client and server sided material properties file. Allowing for setting material contents type, acceleration/friction influences, footsteps, posisble future 'reverb effects'.
+	* [ ] Acquire some proper footstep audio files and add in material specific footstep audio.
+	* [ ] Have bullet impact display material ``kind`` specific puffs?
 
 ### Medium Priority:
 * [ ] Calculate the proper entity matrixes/quaternions during Link time.

@@ -3,7 +3,11 @@
 ## Q2RTXPerimental Changes(New, listed per version):
 Changes will from now on be listed as additions per version. 
 ## (v0.0.4):
-* Something something
+* The ``collision model`` code now has ``material awareness``, for now still separated from the refresh material system. Currently this allows you to set a material its 'kind' as well as the friction.
+* In accordance to the above, each ``mtexinfo_t`` now has its own unique ID, as well as its ``csurface_t`` member pointing to the corresponding material pointer as well as having the proper ``materialID`` set for it._
+* Player Move code now has an optional ``PMOVE_USE_MATERIAL_FRICTION`` define which when defined has the Player Move code respond to the ground material's friction.
+* Restructured and cleaned up the Player Move prediction code as well as corresponding view calculation code.
+
 ## (v0.0.3):
 * Fixed problems with stair step smoothing interfering with pushers.
 * Fixed pushers not acting properly, causing jitters/lag.

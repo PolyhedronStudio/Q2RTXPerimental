@@ -23,8 +23,10 @@ modernized version of the Quake II engine. Consequently, many of the settings
 and console variables that work for Q2PRO also work for Quake II RTX.
 
 ## **Quake II RTXPerimental** Features/Todo/Contending Features:
-[Changelog](changelog.md)
+[Changelog](changelog.md) 
+
 [Todo](todo.md)
+
 [Contending Todo Features](todo_future.md)
 
 ## License

@@ -286,16 +286,12 @@ static void PM_Friction() {
 	}
 
 	// Apply ground friction if on-ground.
-#ifndef PMOVE_USE_MATERIAL_FRICTION
+#ifdef PMOVE_USE_MATERIAL_FRICTION
 	float drop = 0;
-	if ( ( pm->groundEntity != nullptr && pml.groundSurface != nullptr && !( pml.groundSurface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
+	if ( ( pm->ground.entity != nullptr && pml.ground.surface != nullptr && !( pml.ground.surface->flags & SURF_SLICK ) ) || ( pm->s.pm_flags & PMF_ON_LADDER ) ) {
 		// Get the material to fetch friction from.
-		cm_material_t *groundSurfaceMaterial = pml.groundSurface->material;
-		float friction = pmp->pm_friction;
-		if ( groundSurfaceMaterial ) {
-			friction = groundSurfaceMaterial->physical.friction;
-		}
-		//const float friction = pmp->pm_friction;
+		cm_material_t *ground_material = ( pml.ground.surface != nullptr ? pml.ground.surface->material : nullptr );
+		float friction = ( ground_material ? ground_material->physical.friction : pmp->pm_friction );
 		const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
 		drop += control * friction * pml.frameTime;
 	}
