@@ -28,7 +28,7 @@ extern "C" {
 	/**
 	*	@brief	"SizeBuffer", used as a safe memory buffer(mainly for net-code).
 	**/
-	typedef struct {
+	typedef struct sizebuf_s {
 		bool        allowoverflow;
 		bool        allowunderflow;
 		bool        overflowed;     // set to true if the buffer size failed

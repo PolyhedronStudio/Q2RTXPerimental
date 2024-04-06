@@ -412,6 +412,7 @@ SET(SRC_COMMON
 	common/field.cpp
 	common/fifo.cpp
 	common/files.cpp
+	common/huffman.cpp
 	common/math.cpp
 	common/mdfour.cpp
 	common/messaging.cpp
