@@ -249,6 +249,10 @@ extern "C" {
 	**/
 	void MSG_BeginWriting( void );
 	/**
+	*   @brief	Resets the "Write" message buffer for a new write session.
+	**/
+	void MSG_BeginWritingOOB( void );
+	/**
 	*	@brief	Will copy(by appending) the 'data' memory into the "Write" message buffer.
 	*
 	*			Triggers Com_Errors in case of trouble such as 'Overflowing'.
@@ -267,6 +271,10 @@ extern "C" {
 	**/
 	void MSG_BeginReading( void );
 	/**
+	*   @brief	OOB variant.
+	**/
+	void MSG_BeginReadingOOB( void );
+	/**
 	*   @brief
 	**/
 	byte *MSG_ReadData( const size_t len );
@@ -275,11 +283,11 @@ extern "C" {
 	///**
 	//*	@brief
 	//**/
-	//void MSG_WriteBits( const int32_t value, int32_t bits );
+	void MSG_WriteBits( int32_t value, int32_t bits );
 	///**
 	//*	@brief
 	//**/
-	//const int32_t MSG_ReadBits( int32_t bits );
+	const int32_t MSG_ReadBits( int32_t bits );
 	///**
 	//*	@brief
 	//**/

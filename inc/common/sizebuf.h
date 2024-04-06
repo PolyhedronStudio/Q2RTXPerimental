@@ -29,16 +29,26 @@ extern "C" {
 	*	@brief	"SizeBuffer", used as a safe memory buffer(mainly for net-code).
 	**/
 	typedef struct sizebuf_s {
-		bool        allowoverflow;
-		bool        allowunderflow;
-		bool        overflowed;     // set to true if the buffer size failed
-		byte        *data;
-		size_t      maxsize;
-		size_t      cursize;
-		size_t      readcount;
-		uint32_t    bits_buf;
-		uint32_t    bits_left;
-		const char  *tag;           // for debugging
+		//bool        allowoverflow;
+		//bool        allowunderflow;
+		//bool        overflowed;     // set to true if the buffer size failed
+		//byte        *data;
+		//size_t      maxsize;
+		//size_t      cursize;
+		//size_t      readcount;
+		//uint32_t    bits_buf;
+		//uint32_t    bits_left;
+		//const char  *tag;			// for debugging
+		qboolean	allowoverflow;	// if false, do a Com_Error
+		qboolean	allowunderflow;	// This seems silly but still.
+		byte		*data;
+		qboolean	overflowed;		// set to true if the buffer size failed (with allowoverflow set)
+		qboolean	oob;			// set to true if the buffer size failed (with allowoverflow set)
+		int32_t		maxsize;
+		int32_t		cursize;
+		int32_t		readcount;
+		int32_t		bit;				// for bitwise reads and writes
+		const char *tag;				// for debugging
 	} sizebuf_t;
 
 

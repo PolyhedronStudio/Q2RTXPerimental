@@ -41,6 +41,8 @@ void SZ_Clear( sizebuf_t *buf ) {
 	buf->cursize = 0;
 	buf->readcount = 0;
 	buf->overflowed = false;
+
+	buf->bit = 0;					//<- in bits
 }
 
 void *SZ_GetSpace( sizebuf_t *buf, const size_t len ) {

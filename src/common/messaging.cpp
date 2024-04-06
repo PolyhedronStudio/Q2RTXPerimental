@@ -87,10 +87,25 @@ void MSG_BeginWriting( void ) {
 	}
 
 	msg_write.cursize = 0;
-	msg_write.bits_buf = 0;
-	msg_write.bits_left = 32;
+	msg_write.bit = 0;
+	msg_write.oob = false;
 	msg_write.overflowed = false;
 }
+/**
+*   @brief	Resets the "Write" message buffer for a new write session.
+**/
+void MSG_BeginWritingOOB( void ) {
+	// First initialize Huffman if we haven't already.
+	if ( !msgInit ) {
+		MSG_initHuffman();
+	}
+
+	msg_write.cursize = 0;
+	msg_write.bit = 0;
+	msg_write.oob = true;
+	msg_write.overflowed = false;
+}
+
 /**
 *	@brief	Will copy(by appending) the 'data' memory into the "Write" message buffer.
 *
@@ -128,9 +143,23 @@ void MSG_BeginReading( void ) {
 	}
 
 	msg_read.readcount = 0;
-	msg_read.bits_buf = 0;
-	msg_read.bits_left = 0;
+	msg_read.bit = 0;
+	msg_read.oob = false;
 }
+/**
+*   @brief
+**/
+void MSG_BeginReadingOOB( void ) {
+	// First initialize Huffman if we haven't already.
+	if ( !msgInit ) {
+		MSG_initHuffman();
+	}
+
+	msg_read.readcount = 0;
+	msg_read.bit = 0;
+	msg_read.oob = true;
+}
+
 /**
 *   @brief
 **/
@@ -141,84 +170,189 @@ byte *MSG_ReadData( const size_t len ) {
 
 
 
-///**
-//*	@brief
-//**/
-//void MSG_WriteBits( const int32_t value, int32_t bits ) {
-//	if ( bits == 0 || bits < -31 || bits > 31 ) {
-//		Com_Error( ERR_FATAL, "MSG_WriteBits: bad bits: %d", bits );
-//	}
-//
-//	if ( bits < 0 ) {
-//		bits = -bits;
-//	}
-//
-//	uint32_t bits_buf = msg_write.bits_buf;
-//	uint32_t bits_left = msg_write.bits_left;
-//	uint32_t v = value & ( ( 1U << bits ) - 1 );
-//
-//	bits_buf |= v << ( 32 - bits_left );
-//	if ( bits >= bits_left ) {
-//		MSG_WriteInt32( bits_buf );
-//		bits_buf = v >> bits_left;
-//		bits_left += 32;
-//	}
-//	bits_left -= bits;
-//
-//	msg_write.bits_buf = bits_buf;
-//	msg_write.bits_left = bits_left;
-//}
-//
-///**
-//*	@brief
-//**/
-//const int32_t MSG_ReadBits( int32_t bits ) {
-//	bool sgn = false;
-//
-//	if ( bits == 0 || bits < -25 || bits > 25 ) {
-//		Com_Error( ERR_FATAL, "MSG_ReadBits: bad bits: %d", bits );
-//	}
-//
-//	if ( bits < 0 ) {
-//		bits = -bits;
-//		sgn = true;
-//	}
-//
-//	uint32_t bits_buf = msg_read.bits_buf;
-//	uint32_t bits_left = msg_read.bits_left;
-//
-//	while ( bits > bits_left ) {
-//		bits_buf |= (uint32_t)MSG_ReadUint8( ) << bits_left;
-//		bits_left += 8;
-//	}
-//
-//	uint32_t value = bits_buf & ( ( 1U << bits ) - 1 );
-//
-//	msg_read.bits_buf = bits_buf >> bits;
-//	msg_read.bits_left = bits_left - bits;
-//
-//	if ( sgn ) {
-//		return (int32_t)( value << ( 32 - bits ) ) >> ( 32 - bits );
-//	}
-//
-//	return value;
-//}
-//
+/**
+*	@brief
+**/
+void MSG_WriteBits( int32_t value, int32_t bits ) {
+	int	i;
+
+	// TODO: Just apply msg_write but testing this for now.
+	sizebuf_t *msg = &msg_write;
+
+	oldsize += bits;
+
+	if ( msg->overflowed ) {
+		return;
+	}
+
+	if ( bits == 0 || bits < -31 || bits > 32 ) {
+		Com_Error( ERR_DROP, "MSG_WriteBits: bad bits %i", bits );
+	}
+
+	if ( bits < 0 ) {
+		bits = -bits;
+	}
+
+	if ( msg->oob ) {
+		if ( msg->cursize + ( bits >> 3 ) > msg->maxsize ) {
+			msg->overflowed = qtrue;
+			return;
+		}
+
+		if ( bits == 8 ) {
+			msg->data[ msg->cursize ] = value;
+			msg->cursize += 1;
+			msg->bit += 8;
+		} else if ( bits == 16 ) {
+			short temp = value;
+
+			//CopyLittleShort( &msg->data[ msg->cursize ], &temp );
+			LittleBlock( &msg->data[ msg->cursize ], &temp, 2 );
+			msg->cursize += 2;
+			msg->bit += 16;
+		} else if ( bits == 32 ) {
+			//CopyLittleLong( &msg->data[ msg->cursize ], &value );
+			LittleBlock( &msg->data[ msg->cursize ], &value, 4 );
+
+			msg->cursize += 4;
+			msg->bit += 32;
+		} else {
+			Com_Error( ERR_DROP, "can't write %d bits", bits );
+		}
+	} else {
+		value &= ( 0xffffffff >> ( 32 - bits ) );
+		if ( bits & 7 ) {
+			int nbits;
+			nbits = bits & 7;
+			if ( msg->bit + nbits > msg->maxsize << 3 ) {
+				msg->overflowed = qtrue;
+				return;
+			}
+			for ( i = 0; i < nbits; i++ ) {
+				Huff_putBit( ( value & 1 ), msg->data, &msg->bit );
+				value = ( value >> 1 );
+			}
+			bits = bits - nbits;
+		}
+		if ( bits ) {
+			for ( i = 0; i < bits; i += 8 ) {
+				Huff_offsetTransmit( &msgHuff.compressor, ( value & 0xff ), msg->data, &msg->bit, msg->maxsize << 3 );
+				value = ( value >> 8 );
+
+				if ( msg->bit > msg->maxsize << 3 ) {
+					msg->overflowed = qtrue;
+					return;
+				}
+			}
+		}
+		msg->cursize = ( msg->bit >> 3 ) + 1;
+	}
+}
+
+/**
+*	@brief
+**/
+const int32_t MSG_ReadBits( int32_t bits ) {
+	int			value;
+	int			get;
+	qboolean	sgn;
+	int			i, nbits;
+	//	FILE*	fp;
+
+	// TODO: Just apply msg_write but testing this for now.
+	sizebuf_t *msg = &msg_write;
+
+	if ( msg->readcount > msg->cursize ) {
+		return 0;
+	}
+
+	value = 0;
+
+	if ( bits < 0 ) {
+		bits = -bits;
+		sgn = qtrue;
+	} else {
+		sgn = qfalse;
+	}
+
+	if ( msg->oob ) {
+		if ( msg->readcount + ( bits >> 3 ) > msg->cursize ) {
+			msg->readcount = msg->cursize + 1;
+			return 0;
+		}
+
+		if ( bits == 8 ) {
+			value = msg->data[ msg->readcount ];
+			msg->readcount += 1;
+			msg->bit += 8;
+		} else if ( bits == 16 ) {
+			short temp;
+
+			//CopyLittleShort( &temp, &msg->data[ msg->readcount ] );
+			LittleBlock( &temp, &msg->data[ msg->readcount ], 2 );
+			value = temp;
+			msg->readcount += 2;
+			msg->bit += 16;
+		} else if ( bits == 32 ) {
+			//CopyLittleLong( &value, &msg->data[ msg->readcount ] );
+			LittleBlock( &value, &msg->data[ msg->readcount ], 4 );
+			msg->readcount += 4;
+			msg->bit += 32;
+		} else
+			Com_Error( ERR_DROP, "can't read %d bits", bits );
+	} else {
+		nbits = 0;
+		if ( bits & 7 ) {
+			nbits = bits & 7;
+			if ( msg->bit + nbits > msg->cursize << 3 ) {
+				msg->readcount = msg->cursize + 1;
+				return 0;
+			}
+			for ( i = 0; i < nbits; i++ ) {
+				value |= ( Huff_getBit( msg->data, &msg->bit ) << i );
+			}
+			bits = bits - nbits;
+		}
+		if ( bits ) {
+			//			fp = fopen("c:\\netchan.bin", "a");
+			for ( i = 0; i < bits; i += 8 ) {
+				Huff_offsetReceive( msgHuff.decompressor.tree, &get, msg->data, &msg->bit, msg->cursize << 3 );
+				//				fwrite(&get, 1, 1, fp);
+				value = (unsigned int)value | ( (unsigned int)get << ( i + nbits ) );
+
+				if ( msg->bit > msg->cursize << 3 ) {
+					msg->readcount = msg->cursize + 1;
+					return 0;
+				}
+			}
+			//			fclose(fp);
+		}
+		msg->readcount = ( msg->bit >> 3 ) + 1;
+	}
+	if ( sgn && bits > 0 && bits < 32 ) {
+		if ( value & ( 1 << ( bits - 1 ) ) ) {
+			value |= -1 ^ ( ( 1 << bits ) - 1 );
+		}
+	}
+
+	return value;
+}
+
 /**
 *	@brief	
 **/
 void MSG_FlushBits( void ) {
-	uint32_t bits_buf = msg_write.bits_buf;
-	uint32_t bits_left = msg_write.bits_left;
+	//uint32_t bits_buf = msg_write.bits_buf;
+	//uint32_t bits_left = msg_write.bits_left;
 
-	while ( bits_left < 32 ) {
-		MSG_WriteUint8( bits_buf & 255 );
-		bits_buf >>= 8;
-		bits_left += 8;
-	}
+	//while ( bits_left < 32 ) {
+	//	MSG_WriteUint8( bits_buf & 255 );
+	//	bits_buf >>= 8;
+	//	bits_left += 8;
+	//}
 
-	msg_write.bits_buf = 0;
-	msg_write.bits_left = 32;
+	//msg_write.bits_buf = 0;
+	//msg_write.bits_left = 32;
 }
 
 
