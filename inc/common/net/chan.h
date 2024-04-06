@@ -96,8 +96,16 @@ extern cvar_t       *net_chantype;
 
 const char *Netchan_SocketString( netsrc_t socket );
 void Netchan_Init(void);
-void Netchan_OutOfBand(netsrc_t sock, const netadr_t *adr,
+/**
+*  @brief  Sends a text message in an out-of-band datagram
+**/
+void Netchan_OutOfBandPrint(netsrc_t sock, const netadr_t *adr,
                        const char *format, ...) q_printf(3, 4);
+/**
+*  @brief  Sends a data message in an out-of-band datagram (only used for "connect")
+**/
+void Netchan_OutOfBandData( netsrc_t sock, const netadr_t *address, byte *format, const int32_t len );
+
 void Netchan_Setup(netchan_t *netchan, netsrc_t sock, /*netchan_type_t type,*/
                    const netadr_t *adr, int qport, size_t maxpacketlen, int protocol);
 void Netchan_Close(netchan_t *netchan);

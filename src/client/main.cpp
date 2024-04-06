@@ -269,6 +269,7 @@ void CL_CheckForResend(void)
 {
     char tail[MAX_QPATH];
     char userinfo[MAX_INFO_STRING];
+    char data[ MAX_INFO_STRING + 10 ]; // Used for sprintf-ing.
     int maxmsglen;
 
     if (cls.demo.playback) {
@@ -350,9 +351,14 @@ void CL_CheckForResend(void)
     }
 
     Cvar_BitInfo(userinfo, CVAR_USERINFO);
-    Netchan_OutOfBand(NS_CLIENT, &cls.serverAddress,
-                      "connect %i %i %i \"%s\"%s\n", cls.serverProtocol, cls.quakePort,
-                      cls.challenge, userinfo, tail);
+
+    sprintf( data, "connect %i %i %i \"%s\"%s\n", cls.serverProtocol, cls.quakePort,
+        cls.challenge, userinfo, tail );
+
+    Netchan_OutOfBandData( NS_CLIENT, &cls.serverAddress, (byte *)data, strlen( data ) );
+    //Netchan_OutOfBand(NS_CLIENT, &cls.serverAddress,
+    //                  "connect %i %i %i \"%s\"%s\n", cls.serverProtocol, cls.quakePort,
+    //                  cls.challenge, userinfo, tail);
 }
 
 static void CL_RecentIP_g(genctx_t *ctx)
@@ -509,7 +515,7 @@ void CL_SendRcon(const netadr_t *adr, const char *pass, const char *cmd)
 
     CL_AddRequest(adr, REQ_RCON);
 
-    Netchan_OutOfBand(NS_CLIENT, adr, "rcon \"%s\" %s", pass, cmd);
+    Netchan_OutOfBandPrint(NS_CLIENT, adr, "rcon \"%s\" %s", pass, cmd);
 }
 
 
@@ -1128,7 +1134,7 @@ Responses to broadcasts, etc
 */
 static void CL_ConnectionlessPacket(void)
 {
-    char    string[MAX_STRING_CHARS];
+    char    string[ MAX_STRING_CHARS ] = {};
     char    *s, *c;
     int     i, j;
 

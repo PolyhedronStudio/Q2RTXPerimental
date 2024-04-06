@@ -18,6 +18,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "server.h"
 #include "client/input.h"
+#include "common/sizebuf.h"
+#include "common/huffman.h"
 #include "common/intreadwrite.h"
 
 //pmoveParams_t   sv_pmp;
@@ -541,10 +543,10 @@ static void SVC_GetChallenge(void)
 {
     int         i, oldest;
     unsigned    challenge;
-    unsigned    oldestTime;
+    uint64_t    oldestTime;
 
     oldest = 0;
-    oldestTime = 0xffffffff;
+    oldestTime = 0xffffffffffffffff;
 
     // see if we already have a challenge for this ip
     for (i = 0; i < MAX_CHALLENGES; i++) {
@@ -571,8 +573,10 @@ static void SVC_GetChallenge(void)
     }
 
     // send it back
-    Netchan_OutOfBand(NS_SERVER, &net_from,
-                      "challenge %u p=34,35,36", challenge);
+    //Netchan_OutOfBand(NS_SERVER, &net_from,
+    //                  "challenge %u p=34,35,36", challenge);
+    Netchan_OutOfBandPrint( NS_SERVER, &net_from,
+        "challenge %u p=%u", challenge, PROTOCOL_VERSION_Q2RTXPERIMENTAL );
 }
 
 /*
@@ -599,7 +603,7 @@ typedef struct {
 } conn_params_t;
 
 #define reject_printf(...) \
-    Netchan_OutOfBand(NS_SERVER, &net_from, "print\n" __VA_ARGS__)
+    Netchan_OutOfBandPrint(NS_SERVER, &net_from, "print\n" __VA_ARGS__)
 
 // small hack to permit one-line return statement :)
 #define reject(...) reject_printf(__VA_ARGS__), false
@@ -861,7 +865,7 @@ static bool parse_userinfo(conn_params_t *params, char *userinfo)
 
 static client_t *redirect(const char *addr)
 {
-    Netchan_OutOfBand(NS_SERVER, &net_from, "client_connect");
+    Netchan_OutOfBandPrint(NS_SERVER, &net_from, "client_connect");
 
     // set up a fake server netchan
     MSG_WriteInt32(1);
@@ -942,7 +946,7 @@ static void SV_SendConnectPacket(client_t *newcl)
         dlstring2 = sv_downloadserver->string;
     }
 
-    Netchan_OutOfBand(NS_SERVER, &net_from, "client_connect%s%s map=%s",
+    Netchan_OutOfBandPrint(NS_SERVER, &net_from, "client_connect%s%s map=%s",
 					  dlstring1, dlstring2, newcl->mapname );
 }
 
@@ -1190,6 +1194,10 @@ static void SV_ConnectionlessPacket(void)
     MSG_BeginReading();
     MSG_ReadInt32();        // skip the -1 marker
 
+    if ( !Q_strncasecmp( "connect", (char *)&msg_read.data[ 4 ], 7 ) ) {
+        Huff_Decompress( &msg_read, 12 );
+    }
+
     if (MSG_ReadStringLine(string, sizeof(string)) >= sizeof(string)) {
         Com_DPrintf("ignored oversize connectionless packet\n");
         return;
@@ -1398,7 +1406,7 @@ static void SV_PacketEvent(void)
         return;
     }
 
-    // check for packets from connected clients
+    // check for packets from connected clients, by finding which client the message is from.
     FOR_EACH_CLIENT(client) {
         netchan = &client->netchan;
         if (!NET_IsEqualBaseAdr(&net_from, &netchan->remote_address)) {
@@ -1407,6 +1415,9 @@ static void SV_PacketEvent(void)
 
         // read the qport out of the message so we can fix up
         // stupid address translating routers
+        //
+        // it is possible to have multiple clients from a single IP
+        // address, so they are differentiated by the qport variable
         if (client->protocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
             if ( msg_read.cursize < PACKET_HEADER ) {
                 continue;
@@ -1429,15 +1440,22 @@ static void SV_PacketEvent(void)
             }
         }
 
+        // the IP port can't be used to differentiate them, because
+        // some address translating routers periodically change UDP
+        // port assignments
         if (netchan->remote_address.port != net_from.port) {
             Com_DPrintf("Fixing up a translated port for %s: %d --> %d\n",
                         client->name, netchan->remote_address.port, net_from.port);
             netchan->remote_address.port = net_from.port;
         }
 
+        // make sure it is a valid, in sequence packet
         if ( !NetchanQ2RTXPerimental_Process( netchan ) )
             break;
 
+        // zombie clients still had to do the Netchan_Process
+        // to make sure they don't need to retransmit the final
+        // reliable message, but they don't do any other processing
         if (client->state == cs_zombie)
             break;
 

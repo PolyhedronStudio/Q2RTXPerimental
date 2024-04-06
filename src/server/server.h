@@ -344,7 +344,7 @@ static inline edict_t *EDICT_POOL( client_s *client, const int32_t number ) {
 typedef struct {
     netadr_t    adr;
     unsigned    challenge;
-    unsigned    time;
+    uint64_t    time;
 } challenge_t;
 
 typedef struct {

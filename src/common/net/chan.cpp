@@ -25,6 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/net/net.h"
 #include "common/protocol.h"
 #include "common/sizebuf.h"
+#include "common/huffman.h"
 #include "common/zone.h"
 #include "system/system.h"
 
@@ -146,14 +147,10 @@ void Netchan_Init(void)
     net_chantype = Cvar_Get("net_chantype", "1", 0);
 }
 
-/*
-===============
-Netchan_OutOfBand
-
-Sends a text message in an out-of-band datagram
-================
-*/
-void Netchan_OutOfBand(netsrc_t sock, const netadr_t *address, const char *format, ...)
+/**
+*  @brief  Sends a text message in an out-of-band datagram
+**/
+void Netchan_OutOfBandPrint(netsrc_t sock, const netadr_t *address, const char *format, ...)
 {
     va_list     argptr;
     char        data[MAX_PACKETLEN_DEFAULT];
@@ -173,6 +170,34 @@ void Netchan_OutOfBand(netsrc_t sock, const netadr_t *address, const char *forma
 
     // send the datagram
     NET_SendPacket(sock, data, len + 4, address);
+}
+
+/**
+*  @brief  Sends a data message in an out-of-band datagram (only used for "connect")
+**/
+void Netchan_OutOfBandData( netsrc_t sock, const netadr_t *address, byte *format, const int32_t len ) {
+    // Made static to make the 'heap' happy.
+    static byte string[ MAX_MSGLEN * 2 ];
+    // Make sure however, that previous data is zerod out.
+    memset( string, 0, MAX_MSGLEN * 2 );
+
+    // set the header
+    string[ 0 ] = 0xff;
+    string[ 1 ] = 0xff;
+    string[ 2 ] = 0xff;
+    string[ 3 ] = 0xff;
+
+    for ( int32_t i = 0; i < len; i++ ) {
+        string[ i + 4 ] = format[ i ];
+    }
+    
+    sizebuf_t   szbuf;
+    szbuf.data = string;
+    szbuf.cursize = len + 4;
+    Huff_Compress( &szbuf, 12 );
+
+    // send the datagram
+    NET_SendPacket( sock, szbuf.data, szbuf.cursize, address );
 }
 
 // ============================================================================
