@@ -796,6 +796,7 @@ static void CL_ParseZPacket(void)
     temp = msg_read;
     SZ_Init(&msg_read, buffer, outlen);
     msg_read.cursize = outlen;
+    msg_read.bit = outlen * 8;
 
     CL_ParseServerMessage();
 

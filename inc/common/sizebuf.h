@@ -67,12 +67,13 @@ extern "C" {
 	void SZ_WriteUint64( sizebuf_t *sb, const uint64_t c );
 	void SZ_WriteString( sizebuf_t *sb, const char *s );
 
-	static inline void *SZ_Write(sizebuf_t *buf, const void *data, const size_t len)
-	{
-		return memcpy(SZ_GetSpace(buf, len), data, len);
+	static inline void *SZ_Write( sizebuf_t *buf, const void *data, const size_t len ) {
+		return memcpy( SZ_GetSpace( buf, len ), data, len );
 	}
-	void *SZ_ReadData(sizebuf_t *buf, size_t len);
+	void *SZ_ReadData( sizebuf_t *buf, size_t len );
 
+	void SZ_WriteBits( sizebuf_t *sb, int32_t value, int32_t bits );
+	const int32_t SZ_ReadBits( sizebuf_t *sb, int32_t bits );
 
 	const int32_t SZ_ReadInt8( sizebuf_t *sb );
 	const int32_t SZ_ReadUint8( sizebuf_t *sb );

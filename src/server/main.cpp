@@ -1192,7 +1192,7 @@ static void SV_ConnectionlessPacket(void)
     }
 
     MSG_BeginReadingOOB();
-    int32_t skipByte = MSG_ReadInt32(); // skip the -1 marker
+    int32_t skipByte = MSG_ReadBits( 32 );//MSG_ReadInt32(); // skip the -1 marker
 
     // Use Huffman for "connect":
     if ( !Q_strncasecmp( "connect", (char *)&msg_read.data[ 4 ], 7 ) ) {

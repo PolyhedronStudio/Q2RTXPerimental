@@ -1139,7 +1139,7 @@ static void CL_ConnectionlessPacket(void)
     int     i, j;
 
     MSG_BeginReadingOOB();
-    MSG_ReadInt32(); // skip the -1
+    int32_t skipInt = MSG_ReadBits( 32 );//MSG_ReadInt32(); // skip the -1
 
     if (MSG_ReadStringLine(string, sizeof(string)) >= sizeof(string)) {
         Com_DPrintf("Oversize message received.  Ignored.\n");
