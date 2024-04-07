@@ -321,9 +321,17 @@ extern "C" {
 	**/
 	void MSG_WriteInt32( const int32_t c );
 	/**
+	*   @brief Writes a 32 bit integer.
+	**/
+	void MSG_WriteUint32( const uint32_t c );
+	/**
 	*   @brief Writes a 64 bit integer.
 	**/
 	void MSG_WriteInt64( const int64_t c );
+	/**
+	*   @brief Writes a 64 bit integer.
+	**/
+	void MSG_WriteUint64( const uint64_t c );
 	/**
 	*   @brief Writes an unsigned LEB 128(base 128 encoded) integer.
 	**/
@@ -415,11 +423,15 @@ extern "C" {
 	**/
 	const int32_t MSG_ReadInt32( void );
 	/**
+	*   @return Unsigned 32 bit int.
+	**/
+	const int32_t MSG_ReadUint32( void );
+	/**
 	*   @return Signed 64 bit int.
 	**/
 	const int64_t MSG_ReadInt64( void );
 	/**
-	*   @return UnSigned 64 bit int.
+	*   @return Unsigned 64 bit int.
 	**/
 	const uint64_t MSG_ReadUint64( void );
 	/**

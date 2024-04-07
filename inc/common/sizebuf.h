@@ -56,6 +56,7 @@ extern "C" {
 	void SZ_TagInit( sizebuf_t *buf, void *data, const size_t size, const char *tag );
 	void SZ_Clear( sizebuf_t *buf );
 	void *SZ_GetSpace( sizebuf_t *buf, size_t len );
+
 	void SZ_WriteInt8( sizebuf_t *sb, const int32_t c );
 	void SZ_WriteUint8( sizebuf_t *sb, const uint32_t c );
 	void SZ_WriteInt16( sizebuf_t *sb, const int32_t c );
@@ -70,11 +71,22 @@ extern "C" {
 	{
 		return memcpy(SZ_GetSpace(buf, len), data, len);
 	}
-
 	void *SZ_ReadData(sizebuf_t *buf, size_t len);
-	const int32_t SZ_ReadUint8(sizebuf_t *sb);
-	const int32_t SZ_ReadInt16(sizebuf_t *sb);
-	const int32_t SZ_ReadInt32(sizebuf_t *sb);
+
+	//const int32_t SZ_ReadUint8(sizebuf_t *sb);
+	//const int32_t SZ_ReadInt16(sizebuf_t *sb);
+	//const int32_t SZ_ReadInt32(sizebuf_t *sb);
+/**
+*	@brief
+**/
+	const int32_t SZ_ReadInt8( sizebuf_t *sb );
+	const int32_t SZ_ReadUint8( sizebuf_t *sb );
+	const int32_t SZ_ReadInt16( sizebuf_t *sb );
+	const int32_t SZ_ReadUint16( sizebuf_t *sb );
+	const int32_t SZ_ReadInt32( sizebuf_t *sb );
+	const int32_t SZ_ReadUint32( sizebuf_t *sb );
+	const int64_t SZ_ReadInt64( sizebuf_t *sb );
+	const int64_t SZ_ReadUint64( sizebuf_t *sb );
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

@@ -376,62 +376,87 @@ void MSG_FlushBits( void ) {
 *   @brief Writes a signed 8 bit byte.
 **/
 void MSG_WriteInt8( const int32_t c ) {
-	byte *buf;
+	//byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= -128 && c <= 127 );
 	#endif
-	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 1 ) ); // WID: C++20: Added cast.
-	buf[ 0 ] = c;
+	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 1 ) ); // WID: C++20: Added cast.
+	//buf[ 0 ] = c;
+	SZ_WriteInt8( &msg_write, c );
 }
 /**
 *   @brief Writes an unsigned 8 bit byte.
 **/
 void MSG_WriteUint8( const int32_t c ) {
-	byte *buf;
+	//byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= 0 && c <= 255 );
 	#endif
-	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 1 ) );
-	buf[ 0 ] = c;
+	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 1 ) );
+	//buf[ 0 ] = c;
+	SZ_WriteUint8( &msg_write, c );
 }
 /**
 *   @brief Writes a signed 16 bit short.
 **/
 void MSG_WriteInt16( const int32_t c ) {
-	byte *buf;
+	//byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= -0x8000 && c <= 0x7fff );
 	#endif
-	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 2 ) ); // WID: C++20: Added cast.
-	WL16( buf, c );
+	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 2 ) ); // WID: C++20: Added cast.
+	//WL16( buf, c );
+	SZ_WriteInt16( &msg_write, c );
 }
 /**
 *   @brief Writes an unsigned 16 bit short.
 **/
 void MSG_WriteUint16( const int32_t c ) {
-	byte *buf;
+	//byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= 0 && c <= 65535 );
 	#endif
-	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 2 ) ); // WID: C++20: Added cast.
-	WL16( buf, c );
+	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 2 ) ); // WID: C++20: Added cast.
+	//WL16( buf, c );
+	SZ_WriteUint16( &msg_write, c );
 }
 /**
-*   @brief Writes a 32 bit integer.
+*   @brief Writes a signed 32 bit integer.
 **/
 void MSG_WriteInt32( const int32_t c ) {
-	byte *buf;
-	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 4 ) ); // WID: C++20: Added cast.
-	WL32( buf, c );
+	//byte *buf;
+	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 4 ) ); // WID: C++20: Added cast.
+	//WL32( buf, c );
+	SZ_WriteInt32( &msg_write, c );
+}
+/**
+*   @brief Writes an unsigned 32 bit integer.
+**/
+void MSG_WriteUint32( const uint32_t c ) {
+	//byte *buf;
+	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 4 ) ); // WID: C++20: Added cast.
+	//WL32( buf, c );
+	SZ_WriteUint32( &msg_write, c );
 }
 /**
 *   @brief Writes a 64 bit integer.
 **/
 void MSG_WriteInt64( const int64_t c ) {
-	byte *buf;
-	buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 8 ) ); // WID: C++20: Added cast.
-	WL64( buf, c );
+	//byte *buf;
+	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 8 ) ); // WID: C++20: Added cast.
+	//WL64( buf, c );
+	SZ_WriteInt64( &msg_write, c );
 }
+/**
+*   @brief Writes a 64 bit integer.
+**/
+void MSG_WriteUint64( const uint64_t c ) {
+	//byte *buf;
+	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 8 ) ); // WID: C++20: Added cast.
+	//WL64( buf, c );
+	SZ_WriteUint64( &msg_write, c );
+}
+
 /**
 *   @brief Writes an unsigned LEB 128(base 128 encoded) integer.
 **/
@@ -535,31 +560,33 @@ void MSG_WriteDir8( const vec3_t dir ) {
 *   @return Signed 8 bit byte. Returns -1 if no more characters are available
 **/
 const int32_t MSG_ReadInt8( void ) {
-	byte *buf = MSG_ReadData( 1 );
-	int c;
+	//byte *buf = MSG_ReadData( 1 );
+	//int c;
 
-	if ( !buf ) {
-		c = -1;
-	} else {
-		c = (int8_t)buf[ 0 ];
-	}
+	//if ( !buf ) {
+	//	c = -1;
+	//} else {
+	//	c = (int8_t)buf[ 0 ];
+	//}
 
-	return c;
+	//return c;
+	return SZ_ReadInt8( &msg_read );
 }
 /**
 *   @return Unsigned 8 bit byte. Returns -1 if no more characters are available
 **/
 const int32_t MSG_ReadUint8( void ) {
-	byte *buf = MSG_ReadData( 1 );
-	int c;
+	//byte *buf = MSG_ReadData( 1 );
+	//int c;
 
-	if ( !buf ) {
-		c = -1;
-	} else {
-		c = (uint8_t)buf[ 0 ];
-	}
+	//if ( !buf ) {
+	//	c = -1;
+	//} else {
+	//	c = (uint8_t)buf[ 0 ];
+	//}
 
-	return c;
+	//return c;
+	return SZ_ReadUint8( &msg_read );
 }
 
 /**
@@ -579,76 +606,97 @@ int MSG_LookaheadByte( ) {
 *   @return Signed 16 bit short.
 **/
 const int32_t MSG_ReadInt16( void ) {
-	byte *buf = MSG_ReadData( 2 );
-	int c;
+	//byte *buf = MSG_ReadData( 2 );
+	//int c;
 
-	if ( !buf ) {
-		c = -1;
-	} else {
-		c = (int16_t)RL16( buf );
-	}
+	//if ( !buf ) {
+	//	c = -1;
+	//} else {
+	//	c = (int16_t)RL16( buf );
+	//}
 
-	return c;
+	//return c;
+	return SZ_ReadInt16( &msg_read );
 }
 /**
 *   @return Unsigned 16 bit short.
 **/
 const int32_t MSG_ReadUint16( void ) {
-	byte *buf = MSG_ReadData( 2 );
-	int c;
+	//byte *buf = MSG_ReadData( 2 );
+	//int c;
 
-	if ( !buf ) {
-		c = -1;
-	} else {
-		c = (uint16_t)RL16( buf );
-	}
+	//if ( !buf ) {
+	//	c = -1;
+	//} else {
+	//	c = (uint16_t)RL16( buf );
+	//}
 
-	return c;
+	//return c;
+	return SZ_ReadUint16( &msg_read );
 }
 /**
 *   @return Signed 32 bit int.
 **/
 const int32_t MSG_ReadInt32( void ) {
-	byte *buf = MSG_ReadData( 4 );
-	int c;
+	//byte *buf = MSG_ReadData( 4 );
+	//int c;
 
-	if ( !buf ) {
-		c = -1;
-	} else {
-		c = (int32_t)RL32( buf );
-	}
+	//if ( !buf ) {
+	//	c = -1;
+	//} else {
+	//	c = (int32_t)RL32( buf );
+	//}
 
-	return c;
+	//return c;
+	return SZ_ReadInt32( &msg_read );
+}
+/**
+*   @return Unsigned 32 bit int.
+**/
+const int32_t MSG_ReadUint32( void ) {
+	//byte *buf = MSG_ReadData( 4 );
+	//int c;
+
+	//if ( !buf ) {
+	//	c = -1;
+	//} else {
+	//	c = (int32_t)RL32( buf );
+	//}
+
+	//return c;
+	return SZ_ReadUint32( &msg_read );
 }
 /**
 *   @return Signed 64 bit int.
 **/
 const int64_t MSG_ReadInt64( void ) {
-	byte *buf = MSG_ReadData( 8 );
-	int64_t c;
+	//byte *buf = MSG_ReadData( 8 );
+	//int64_t c;
 
-	if ( !buf ) {
-		c = -1;
-	} else {
-		c = (int64_t)RL64( buf );
-	}
+	//if ( !buf ) {
+	//	c = -1;
+	//} else {
+	//	c = (int64_t)RL64( buf );
+	//}
 
-	return c;
+	//return c;
+	return SZ_ReadInt64( &msg_read );
 }
 /**
-*   @return UnSigned 64 bit int.
+*   @return Unsigned 64 bit int.
 **/
 const uint64_t MSG_ReadUint64( void ) {
-	byte *buf = MSG_ReadData( 8 );
-	uint64_t c;
+	//byte *buf = MSG_ReadData( 8 );
+	//uint64_t c;
 
-	if ( !buf ) {
-		c = -1;
-	} else {
-		c = (uint64_t)RL64( buf );
-	}
+	//if ( !buf ) {
+	//	c = -1;
+	//} else {
+	//	c = (uint64_t)RL64( buf );
+	//}
 
-	return c;
+	//return c;
+	return SZ_ReadUint64( &msg_read );
 }
 
 /**

@@ -77,51 +77,41 @@ void *SZ_GetSpace( sizebuf_t *buf, const size_t len ) {
 	return data;
 }
 
+void SZ_WriteInt8( sizebuf_t *sb, const int32_t c ) {
+	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 1 ) ); // WID: C++20: Added cast.
+	buf[ 0 ] = c;
+}
 void SZ_WriteUint8( sizebuf_t *sb, const uint32_t c ) {
-	byte *buf;
-
-	buf = static_cast<byte *>( SZ_GetSpace( sb, 1 ) ); // WID: C++20: Added cast.
+	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 1 ) ); // WID: C++20: Added cast.
 	buf[ 0 ] = c;
 }
 
 void SZ_WriteInt16( sizebuf_t *sb, const int32_t c ) {
-	byte *buf;
-
-	buf = static_cast<byte *>( SZ_GetSpace( sb, 2 ) ); // WID: C++20: Added cast.
+	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 2 ) ); // WID: C++20: Added cast.
 	WL16( buf, c );
 }
 
 void SZ_WriteUint16( sizebuf_t *sb, const uint32_t c ) {
-	byte *buf;
-
-	buf = static_cast<byte *>( SZ_GetSpace( sb, 2 ) ); // WID: C++20: Added cast.
+	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 2 ) ); // WID: C++20: Added cast.
 	WL16( buf, c );
 }
 
 void SZ_WriteInt32( sizebuf_t *sb, const int32_t c ) {
-	byte *buf;
-
-	buf = static_cast<byte *>( SZ_GetSpace( sb, 4 ) );
+	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 4 ) );
 	WL32( buf, c );
 }
 void SZ_WriteUint32( sizebuf_t *sb, const uint32_t c ) {
-	byte *buf;
-
-	buf = static_cast<byte *>( SZ_GetSpace( sb, 4 ) );
+	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 4 ) );
 	WL32( buf, c );
 }
 
 void SZ_WriteInt64( sizebuf_t *sb, const int64_t c ) {
-	byte *buf;
-
-	buf = static_cast<byte *>( SZ_GetSpace( sb, 8 ) );
+	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 8 ) );
 	WL64( buf, c );
 }
 
 void SZ_WriteUint64( sizebuf_t *sb, const uint64_t c ) {
-	byte *buf;
-
-	buf = static_cast<byte *>( SZ_GetSpace( sb, 8 ) );
+	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 8 ) );
 	WL64( buf, c );
 }
 
@@ -159,17 +149,66 @@ void *SZ_ReadData( sizebuf_t *buf, const size_t len ) {
 	return data;
 }
 
+
+/**
+*	@brief
+**/
+const int32_t SZ_ReadInt8( sizebuf_t *sb ) {
+	byte *buf = static_cast<byte *>( SZ_ReadData( sb, 1 ) ); // WID: C++20: Added cast.
+	return buf ? (int8_t)( *buf ) : -1;
+}
+/**
+*	@brief
+**/
 const int32_t SZ_ReadUint8( sizebuf_t *sb ) {
 	byte *buf = static_cast<byte *>( SZ_ReadData( sb, 1 ) ); // WID: C++20: Added cast.
-	return buf ? *buf : -1;
+	return buf ? (uint8_t)( *buf ) : -1;
 }
 
+
+/**
+*	@brief
+**/
 const int32_t SZ_ReadInt16( sizebuf_t *sb ) {
 	byte *buf = static_cast<byte *>( SZ_ReadData( sb, 2 ) ); // WID: C++20: Added cast.
 	return buf ? (int16_t)RL16( buf ) : -1;
 }
+/**
+*	@brief
+**/
+const int32_t SZ_ReadUint16( sizebuf_t *sb ) {
+	byte *buf = static_cast<byte *>( SZ_ReadData( sb, 2 ) ); // WID: C++20: Added cast.
+	return buf ? (uint16_t)RL16( buf ) : -1;
+}
 
+
+/**
+*	@brief
+**/
 const int32_t SZ_ReadInt32( sizebuf_t *sb ) {
 	byte *buf = static_cast<byte *>( SZ_ReadData( sb, 4 ) ); // WID: C++20: Added cast.
 	return buf ? (int32_t)RL32( buf ) : -1;
+}
+/**
+*	@brief
+**/
+const int32_t SZ_ReadUint32( sizebuf_t *sb ) {
+	byte *buf = static_cast<byte *>( SZ_ReadData( sb, 4 ) ); // WID: C++20: Added cast.
+	return buf ? (uint32_t)RL32( buf ) : -1;
+}
+
+
+/**
+*	@brief
+**/
+const int64_t SZ_ReadInt64( sizebuf_t *sb ) {
+	byte *buf = static_cast<byte *>( SZ_ReadData( sb, 8 ) ); // WID: C++20: Added cast.
+	return buf ? (int64_t)RL64( buf ) : -1;
+}
+/**
+*	@brief	
+**/
+const int64_t SZ_ReadUint64( sizebuf_t *sb ) {
+	byte *buf = static_cast<byte *>( SZ_ReadData( sb, 8 ) ); // WID: C++20: Added cast.
+	return buf ? (uint64_t)RL64( buf ) : -1;
 }
