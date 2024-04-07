@@ -28,8 +28,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //////////////////////////////////////////// HUFFMAN /////////////////////////////////////////////
 static huffman_t		msgHuff;
 static qboolean			msgInit = qfalse;
-int pcount[ 256 ];
-int oldsize = 0;
+int32_t pcount[ 256 ];
+int32_t oldsize = 0;
 static void MSG_initHuffman( void );
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -113,6 +113,11 @@ void MSG_BeginWritingOOB( void ) {
 **/
 void *MSG_WriteData( const void *data, const size_t len ) {
 	return memcpy( SZ_GetSpace( &msg_write, len ), data, len );
+	//int i;
+	//for ( i = 0; i < len; i++ ) {
+	//	MSG_WriteUint8( ( (byte *)data )[ i ] );
+	//}
+	//return const_cast<void*>(data);
 }
 /**
 *	@brief	Will copy(by appending) the "Write" message buffer into the 'data' memory.
@@ -163,7 +168,12 @@ void MSG_BeginReadingOOB( void ) {
 /**
 *   @brief
 **/
-byte *MSG_ReadData( const size_t len ) {
+byte* MSG_ReadData( const size_t len ) {
+	//int		i;
+
+	//for ( i = 0; i < len; i++ ) {
+	//	( (byte *)data )[ i ] = MSG_ReadUint8( );
+	//}
 	return static_cast<byte *>( SZ_ReadData( &msg_read, len ) ); // WID: C++20: Added cast.
 }
 
@@ -260,7 +270,7 @@ const int32_t MSG_ReadBits( int32_t bits ) {
 	//	FILE*	fp;
 
 	// TODO: Just apply msg_write but testing this for now.
-	sizebuf_t *msg = &msg_write;
+	sizebuf_t *msg = &msg_read;
 
 	if ( msg->readcount > msg->cursize ) {
 		return 0;
@@ -551,6 +561,20 @@ const int32_t MSG_ReadUint8( void ) {
 
 	return c;
 }
+
+/**
+*	@brief	... TODO ...
+**/
+int MSG_LookaheadByte( ) {
+	const int bloc = Huff_getBloc();
+	const int readcount = msg_read.readcount;
+	const int bit = msg_read.bit;
+	int c = MSG_ReadUint8( );
+	Huff_setBloc( bloc );
+	msg_read.readcount = readcount;
+	msg_read.bit = bit;
+	return c;
+}
 /**
 *   @return Signed 16 bit short.
 **/
@@ -697,7 +721,7 @@ const size_t MSG_ReadString( char *dest, const size_t size ) {
 	if ( size ) {
 		*dest = 0;
 	}
-
+	
 	return len;
 }
 /**

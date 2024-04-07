@@ -1138,7 +1138,7 @@ static void CL_ConnectionlessPacket(void)
     char    *s, *c;
     int     i, j;
 
-    MSG_BeginReading();
+    MSG_BeginReadingOOB();
     MSG_ReadInt32(); // skip the -1
 
     if (MSG_ReadStringLine(string, sizeof(string)) >= sizeof(string)) {

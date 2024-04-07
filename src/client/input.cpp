@@ -553,7 +553,7 @@ static inline bool ready_to_send( void ) {
 
     // WID: Batched Cmds seem to break prediction and I am unsure if it is the prediction
     // itself or the fact that the server might be doing an extra ClienThink(move) for the
-    // last use command. However if we allow cl_maxpackets to interfere with cl_batchcmds
+    // last user command. However if we allow cl_maxpackets to interfere with cl_batchcmds
     // we end up with pushers that give 'odd' spikes in their move direction.
     //
     // Eventually ended up with a solution, and that is to not care for cl_maxpackets when
@@ -640,6 +640,11 @@ static void CL_SendDefaultCmd( void ) {
     } else {
         MSG_WriteIntBase128( cl.frame.number );
     }
+    //if ( cl_nodelta->integer || !cl.frame.valid /*|| cls.demowaiting*/ ) {
+    //    MSG_WriteIntBase128( -1 );   // no compression
+    //} else {
+    //    MSG_WriteIntBase128( cl.frame.number );
+    //}
 
     // send this and the previous cmds in the message, so
     // if the last packet was dropped, it can be recovered

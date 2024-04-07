@@ -51,6 +51,10 @@ void CM_FloodAreaConnections( cm_t *cm ) {
     marea_t *area;
     int     floodnum;
 
+    if ( !cm->cache ) {
+        return;
+    }
+
     // All current floods are now invalid.
     cm->floodValid++;
     floodnum = 0;

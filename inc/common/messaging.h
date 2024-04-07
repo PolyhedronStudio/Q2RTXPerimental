@@ -372,7 +372,7 @@ extern "C" {
 	/**
 	*   @brief Write a client's delta move command.
 	**/
-	int MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, int version );
+	const int32_t MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, const int32_t protocolVersion );
 	#endif
 	/**
 	*   @brief  Writes entity number, remove bit, and the byte mask to buffer.
