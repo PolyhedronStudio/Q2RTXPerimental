@@ -73,12 +73,7 @@ extern "C" {
 	}
 	void *SZ_ReadData(sizebuf_t *buf, size_t len);
 
-	//const int32_t SZ_ReadUint8(sizebuf_t *sb);
-	//const int32_t SZ_ReadInt16(sizebuf_t *sb);
-	//const int32_t SZ_ReadInt32(sizebuf_t *sb);
-/**
-*	@brief
-**/
+
 	const int32_t SZ_ReadInt8( sizebuf_t *sb );
 	const int32_t SZ_ReadUint8( sizebuf_t *sb );
 	const int32_t SZ_ReadInt16( sizebuf_t *sb );

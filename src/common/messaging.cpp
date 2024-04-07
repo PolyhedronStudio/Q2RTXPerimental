@@ -112,7 +112,8 @@ void MSG_BeginWritingOOB( void ) {
 *			Triggers Com_Errors in case of trouble such as 'Overflowing'.
 **/
 void *MSG_WriteData( const void *data, const size_t len ) {
-	return memcpy( SZ_GetSpace( &msg_write, len ), data, len );
+	return SZ_Write( &msg_write, data, len );
+	//return memcpy( SZ_GetSpace( &msg_write, len ), data, len );
 	//int i;
 	//for ( i = 0; i < len; i++ ) {
 	//	MSG_WriteUint8( ( (byte *)data )[ i ] );
