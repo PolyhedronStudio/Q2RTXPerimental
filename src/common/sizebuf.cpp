@@ -20,6 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/protocol.h"
 #include "common/sizebuf.h"
 #include "common/intreadwrite.h"
+#include "common/halffloat.h"
 #include "common/huffman.h"
 
 
@@ -209,7 +210,6 @@ void SZ_WriteInt16( sizebuf_t *sb, const int32_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 2 ) ); // WID: C++20: Added cast.
 	WL16( buf, c );
 }
-
 void SZ_WriteUint16( sizebuf_t *sb, const uint32_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 2 ) ); // WID: C++20: Added cast.
 	WL16( buf, c );
@@ -228,10 +228,27 @@ void SZ_WriteInt64( sizebuf_t *sb, const int64_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 8 ) );
 	WL64( buf, c );
 }
-
 void SZ_WriteUint64( sizebuf_t *sb, const uint64_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 8 ) );
 	WL64( buf, c );
+}
+
+void SZ_WriteHalfFloat( sizebuf_t *sb, const float f ) {
+	SZ_WriteUint16( sb, float_to_half( f ) );
+}
+void SZ_WriteFloat( sizebuf_t *sb, const float f ) {
+	// Conversion trick:
+	union {
+		float f;
+		int32_t l;
+	} dat;
+	dat.f = f;
+	// Wire as int32_t.
+	SZ_WriteInt32( sb, dat.l );
+
+	// TODO: See what is up with gcc/g++ and this.
+	// Incompatible so far with Linux.
+	//SZ_WriteInt32( sb, std::bit_cast<std::int32_t>( f ) );
 }
 
 void SZ_WriteString( sizebuf_t *sb, const char *s ) {
@@ -363,7 +380,7 @@ void *SZ_ReadData( sizebuf_t *buf, const size_t len ) {
 
 	data = buf->data + buf->readcount;
 	buf->readcount += len;
-	//buf->bit += len * 8;
+	buf->bit += len * 8;
 	return data;
 }
 
@@ -429,4 +446,25 @@ const int64_t SZ_ReadInt64( sizebuf_t *sb ) {
 const int64_t SZ_ReadUint64( sizebuf_t *sb ) {
 	byte *buf = static_cast<byte *>( SZ_ReadData( sb, 8 ) ); // WID: C++20: Added cast.
 	return buf ? (uint64_t)RL64( buf ) : -1;
+}
+
+/**
+*	@brief	 
+**/
+const float SZ_ReadHalfFloat( sizebuf_t *sb ) {
+	const uint16_t half = SZ_ReadUint16( sb );
+	return half_to_float( half );
+}
+/**
+*	@brief
+**/
+const float SZ_ReadFloat( sizebuf_t *sb ) {
+	// Conversion trick.
+	union {
+		float f;
+		int32_t l;
+	} dat;
+
+	dat.l = SZ_ReadInt32( sb );
+	return dat.f;
 }

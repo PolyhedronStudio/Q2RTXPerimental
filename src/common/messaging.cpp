@@ -113,7 +113,9 @@ void MSG_BeginWritingOOB( void ) {
 **/
 void *MSG_WriteData( const void *data, const size_t len ) {
 	return SZ_Write( &msg_write, data, len );
+	
 	//return memcpy( SZ_GetSpace( &msg_write, len ), data, len );
+	
 	//int i;
 	//for ( i = 0; i < len; i++ ) {
 	//	MSG_WriteUint8( ( (byte *)data )[ i ] );
@@ -334,24 +336,18 @@ void MSG_WriteIntBase128( const int64_t c ) {
 	const uint64_t cc = (uint64_t)( c << 1 ) ^ (uint64_t)( c >> 63 );
 	MSG_WriteUintBase128( cc );
 }
-/**
-*   @brief Writes a full precision float. (Transfered over the wire as an int32_t).
-**/
-void MSG_WriteFloat( const float f ) {
-	//union {
-	//	float f;
-	//	int32_t l;
-	//} dat;
 
-	//dat.f = f;
-	//MSG_WriteInt32( dat.l );
-	MSG_WriteInt32( std::bit_cast<std::int32_t>( f ) );
-}
 /**
 *   @brief Writes a half float, lesser precision. (Transfered over the wire as an uint16_t)
 **/
 void MSG_WriteHalfFloat( const float f ) {
-	MSG_WriteUint16( float_to_half( f ) );
+	SZ_WriteHalfFloat( &msg_write, f );
+}
+/**
+*   @brief Writes a full precision float. (Transfered over the wire as an int32_t).
+**/
+void MSG_WriteFloat( const float f ) {
+	SZ_WriteFloat( &msg_write, f );
 }
 
 /**
@@ -578,27 +574,18 @@ const int64_t MSG_ReadIntBase128( ) {
 	const uint64_t c = MSG_ReadUintBase128( );
 	return (int64_t)( c >> 1 ) ^ ( -(int64_t)( c & 1 ) );
 }
+
+/**
+*   @return A half float, converted to float, keep in mind that half floats have less precision.
+**/
+const float MSG_ReadHalfFloat() {
+	return SZ_ReadHalfFloat( &msg_read );
+}
 /**
 *   @return The full precision float.
 **/
 const float MSG_ReadFloat( ) {
-	//union {
-	//	float f;
-	//	int32_t   l;
-	//} dat;
-
-	//dat.l = MSG_ReadInt32( );
-	//if ( msg_read.readcount > msg_read.cursize) {
-	//	dat.f = -1;
-	//}
-	//return dat.f;
-	return std::bit_cast<float>( MSG_ReadInt32() );
-}
-/**
-*   @return A half float, converted to float, keep in mind that half floats have less precision.
-**/
-const float MSG_ReadHalfFloat( ) {
-	return half_to_float( MSG_ReadUint16( ) );
+	return SZ_ReadFloat( &msg_read );
 }
 
 /**

@@ -713,7 +713,7 @@ static void CL_SendBatchedCmd( void ) {
     MSG_BeginWriting();
     //Cvar_ClampInteger( cl_packetdup, 0, MAX_PACKET_FRAMES - 1 );
     //numDups = cl_packetdup->integer;
-    numDups = 2;// MAX_PACKET_FRAMES - 1;
+    numDups = MAX_PACKET_FRAMES - 1;// MAX_PACKET_FRAMES - 1;
 
     // Check whether cl_nodelta is wished for, or in case of an invalid frame, so we can
     // let the server know what the last frame we got was, which in return allows
@@ -739,7 +739,8 @@ static void CL_SendBatchedCmd( void ) {
         numCmds = history->commandNumber - oldest->commandNumber;
         if ( numCmds >= MAX_PACKET_USERCMDS ) {
             Com_WPrintf( "%s: MAX_PACKET_USERCMDS exceeded\n", __func__ );
-            SZ_Clear( &msg_write );
+            //SZ_Clear( &msg_write );
+            MSG_BeginWriting();
             break;
         }
         totalCmds += numCmds;
@@ -759,7 +760,7 @@ static void CL_SendBatchedCmd( void ) {
     }
 
     //MSG_FlushTo( &msg_write );
-    MSG_FlushBits( );
+    //MSG_FlushBits( );
 
     P_FRAMES++;
 
