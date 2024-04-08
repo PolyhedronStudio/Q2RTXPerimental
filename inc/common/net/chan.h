@@ -78,10 +78,9 @@ typedef struct netchan_s {
     byte        *reliable_buf;      // unacked reliable message
 
     sizebuf_t   fragment_in;
-    byte        *fragment_in_buf;
-
     sizebuf_t   fragment_out;
-    byte        *fragment_out_buf;
+    //byte        *fragment_in_buf;
+    //byte        *fragment_out_buf;
 
     // common methods
     //size_t      (*Transmit)(struct netchan_s *, size_t, const void *);

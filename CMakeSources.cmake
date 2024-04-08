@@ -317,6 +317,7 @@ SET(SRC_CLIENT
 	client/console.cpp
 	client/cin.cpp
 	client/clgame.cpp
+	client/cl_net_chan.cpp
 	client/crc.cpp
 	client/demo.cpp
 	client/download.cpp
