@@ -807,25 +807,6 @@ static void CL_ParseZPacket(void)
 #endif
 }
 
-static void CL_ParseSetting(void)
-{
-    int index q_unused;
-    int value q_unused;
-
-    index = MSG_ReadInt32();
-    value = MSG_ReadInt32();
-
-//    switch (index) {
-//#if USE_FPS
-//    case SVS_FPS:
-//        set_server_fps(value);
-//        break;
-//#endif
-//    default:
-//        break;
-//    }
-}
-
 //void CL_Scoreboard_ClearFrame( void );
 //void CL_Scoreboard_AddEntry( const int64_t clientNumber, const int64_t clientTime, const int64_t clientScore, const int64_t clientPing );
 //void CL_Scoreboard_RebuildFrame( const uint8_t totalClients );
@@ -1038,12 +1019,6 @@ void CL_ParseServerMessage(void)
             //}
             CL_ParseGamestate( cmd );
 			continue;
-		case svc_setting:
-            //if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
-            //    goto badbyte;
-            //}
-            CL_ParseSetting();
-            continue;
         }
 
         // if recording demos, copy off protocol invariant stuff

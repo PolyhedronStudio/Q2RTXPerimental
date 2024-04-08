@@ -196,37 +196,38 @@ SV_WriteFrameToClient
 ==================
 */
 void SV_WriteFrameToClient( client_t *client ) {
-	client_frame_t *frame, *oldframe;
-	player_packed_t *oldstate;
-	int             lastframe;
+    // Defaults to nullptr, gets set when we found an actual old frame to retreive player state from.
+	player_packed_t *oldPlayerState = nullptr;
+    // Defaults to -1, gets set when we found an actual old frame to delta from.
+	int64_t          lastFrameNumber = -1;
 
 	// this is the frame we are creating
-	frame = &client->frames[ client->framenum & UPDATE_MASK ];
+	client_frame_t *newFrame = &client->frames[ client->framenum & UPDATE_MASK ];
 
 	// this is the frame we are delta'ing from
-	oldframe = get_last_frame( client );
-	if ( oldframe ) {
-		oldstate = &oldframe->ps;
-		lastframe = client->lastframe;
+	client_frame_t *oldFrame = get_last_frame( client );
+	if ( oldFrame ) {
+		oldPlayerState = &oldFrame->ps;
+		lastFrameNumber = client->lastframe;
 	} else {
-		oldstate = NULL;
-		lastframe = -1;
+		oldPlayerState = nullptr;
+        lastFrameNumber = -1;
 	}
 
 	MSG_WriteUint8( svc_frame );
 	MSG_WriteIntBase128( client->framenum ); // WID: 64-bit-frame MSG_WriteInt32( client->framenum );
-	MSG_WriteIntBase128( lastframe ); // WID: 64-bit-frame MSG_WriteInt32( lastframe );   // what we are delta'ing from
+	MSG_WriteIntBase128( lastFrameNumber ); // WID: 64-bit-frame MSG_WriteInt32( lastframe );   // what we are delta'ing from
 	MSG_WriteUint8( client->suppress_count );  // rate dropped packets
 	client->suppress_count = 0;
 	client->frameflags = 0;
 
 	// Send over the areabits.
-	MSG_WriteUint8( frame->areabytes );
-	MSG_WriteData( frame->areabits, frame->areabytes );
+	MSG_WriteUint8( newFrame->areabytes );
+	MSG_WriteData( newFrame->areabits, newFrame->areabytes );
 
     // Send over entire frame's portal bits if this is the very first frame
     // or the client required a full on retransmit.
-    if ( oldframe == nullptr ) {
+    if ( oldFrame == nullptr ) {
         // PortalBits frame message.
         MSG_WriteUint8( svc_portalbits );
         // Clean zeroed memory portal bits buffer for writing.
@@ -241,11 +242,11 @@ void SV_WriteFrameToClient( client_t *client ) {
 
 	// delta encode the playerstate
 	MSG_WriteUint8( svc_playerinfo );
-	MSG_WriteDeltaPlayerstate( oldstate, &frame->ps );
+    MSG_WriteDeltaPlayerstate( oldPlayerState, &newFrame->ps );
 
 	// delta encode the entities
 	MSG_WriteUint8( svc_packetentities );
-	SV_EmitPacketEntities( client, oldframe, frame, 0 );
+	SV_EmitPacketEntities( client, oldFrame, newFrame, 0/*clientEntityNumber*/ );
 }
 
 

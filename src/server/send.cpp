@@ -380,21 +380,26 @@ void SV_ClientAddMessage(client_t *client, int flags)
 {
 	int32_t len = 0;
 
+	// Need the write buffer to be filled up.
 	if ( !msg_write.cursize ) {
 		return;
 	}
 
+	// Determine whether to try and compress the message.
 	if ( ( flags & MSG_COMPRESS_AUTO ) && can_auto_compress( client ) ) {
 		flags |= MSG_COMPRESS;
 	}
 
+	// Only add compressed data in case the result of compression means the message to write is smaller than
+	// its uncompressed variety:
 	if ( ( flags & MSG_COMPRESS ) && ( len = compress_message( client ) ) && len < msg_write.cursize ) {
 		add_message( client, get_compressed_data(), len, flags & MSG_RELIABLE );
-		SV_DPrintf( 0, "Compressed %sreliable message to %s: %zu into %d\n",
+		SV_DPrintf( 0, "Compressed %sreliable message to %s: %d into %d\n",
 				   ( flags & MSG_RELIABLE ) ? "" : "un", client->name, msg_write.cursize, len );
+	// Just add the data, uncompressed:
 	} else {
 		add_message( client, msg_write.data, msg_write.cursize, flags & MSG_RELIABLE );
-		SV_DPrintf( 1, "Added %sreliable message to %s: %zu bytes\n",
+		SV_DPrintf( 1, "Added %sreliable message to %s: %d bytes\n",
 				   ( flags & MSG_RELIABLE ) ? "" : "un", client->name, msg_write.cursize );
 	}
 
