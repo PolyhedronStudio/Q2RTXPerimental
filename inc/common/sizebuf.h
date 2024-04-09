@@ -65,6 +65,8 @@ extern "C" {
 	void SZ_WriteUint32( sizebuf_t *sb, const uint32_t c );
 	void SZ_WriteInt64( sizebuf_t *sb, const int64_t c );
 	void SZ_WriteUint64( sizebuf_t *sb, const uint64_t c );
+	void SZ_WriteUintBase128( sizebuf_t *sb, uint64_t c );
+	void SZ_WriteIntBase128( sizebuf_t *sb, const int64_t c );
 	void SZ_WriteHalfFloat( sizebuf_t *sb, const float f );
 	void SZ_WriteFloat( sizebuf_t *sb, const float f );
 	void SZ_WriteString( sizebuf_t *sb, const char *s );
@@ -85,6 +87,9 @@ extern "C" {
 	const int32_t SZ_ReadUint32( sizebuf_t *sb );
 	const int64_t SZ_ReadInt64( sizebuf_t *sb );
 	const int64_t SZ_ReadUint64( sizebuf_t *sb );
+	const uint64_t SZ_ReadUintBase128( sizebuf_t *sb );
+	const int64_t SZ_ReadIntBase128( sizebuf_t *sb );
+
 	const float SZ_ReadHalfFloat( sizebuf_t *sb );
 	const float SZ_ReadFloat( sizebuf_t *sb );
 
