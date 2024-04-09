@@ -403,25 +403,6 @@ void SV_ClientAddMessage(client_t *client, int flags)
 				   ( flags & MSG_RELIABLE ) ? "" : "un", client->name, msg_write.cursize );
 	}
 
-  //  if ((flags & MSG_COMPRESS_AUTO) && can_compress_message(client)) {
-  //      flags |= MSG_COMPRESS;
-  //  }
-
-  //  if (!(flags & MSG_COMPRESS) || !compress_message(client, flags)) {
-		//add_message(client, msg_write.data, msg_write.cursize, flags & MSG_RELIABLE);
-  //  }
-
-	// How q2pro currently does it though:
-	//if ( ( flags & MSG_COMPRESS ) && ( len = compress_message( client ) ) && len < msg_write.cursize ) {
-	//	client->AddMessage( client, get_compressed_data( ), len, flags & MSG_RELIABLE );
-	//	SV_DPrintf( 0, "Compressed %sreliable message to %s: %zu into %d\n",
-	//			   ( flags & MSG_RELIABLE ) ? "" : "un", client->name, msg_write.cursize, len );
-	//} else {
-	//	client->AddMessage( client, msg_write.data, msg_write.cursize, flags & MSG_RELIABLE );
-	//	SV_DPrintf( 1, "Added %sreliable message to %s: %zu bytes\n",
-	//			   ( flags & MSG_RELIABLE ) ? "" : "un", client->name, msg_write.cursize );
-	//}
-
     if (flags & MSG_CLEAR) {
         SZ_Clear(&msg_write);
     }

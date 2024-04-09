@@ -230,84 +230,60 @@ void MSG_FlushBits( void ) {
 *   @brief Writes a signed 8 bit byte.
 **/
 void MSG_WriteInt8( const int32_t c ) {
-	//byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= -128 && c <= 127 );
 	#endif
-	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 1 ) ); // WID: C++20: Added cast.
-	//buf[ 0 ] = c;
 	SZ_WriteInt8( &msg_write, c );
 }
 /**
 *   @brief Writes an unsigned 8 bit byte.
 **/
 void MSG_WriteUint8( const int32_t c ) {
-	//byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= 0 && c <= 255 );
 	#endif
-	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 1 ) );
-	//buf[ 0 ] = c;
 	SZ_WriteUint8( &msg_write, c );
 }
 /**
 *   @brief Writes a signed 16 bit short.
 **/
 void MSG_WriteInt16( const int32_t c ) {
-	//byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= -0x8000 && c <= 0x7fff );
 	#endif
-	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 2 ) ); // WID: C++20: Added cast.
-	//WL16( buf, c );
 	SZ_WriteInt16( &msg_write, c );
 }
 /**
 *   @brief Writes an unsigned 16 bit short.
 **/
 void MSG_WriteUint16( const int32_t c ) {
-	//byte *buf;
 	#ifdef PARANOID
 	Q_assert( c >= 0 && c <= 65535 );
 	#endif
-	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 2 ) ); // WID: C++20: Added cast.
-	//WL16( buf, c );
 	SZ_WriteUint16( &msg_write, c );
 }
 /**
 *   @brief Writes a signed 32 bit integer.
 **/
 void MSG_WriteInt32( const int32_t c ) {
-	//byte *buf;
-	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 4 ) ); // WID: C++20: Added cast.
-	//WL32( buf, c );
 	SZ_WriteInt32( &msg_write, c );
 }
 /**
 *   @brief Writes an unsigned 32 bit integer.
 **/
 void MSG_WriteUint32( const uint32_t c ) {
-	//byte *buf;
-	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 4 ) ); // WID: C++20: Added cast.
-	//WL32( buf, c );
 	SZ_WriteUint32( &msg_write, c );
 }
 /**
 *   @brief Writes a 64 bit integer.
 **/
 void MSG_WriteInt64( const int64_t c ) {
-	//byte *buf;
-	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 8 ) ); // WID: C++20: Added cast.
-	//WL64( buf, c );
 	SZ_WriteInt64( &msg_write, c );
 }
 /**
 *   @brief Writes a 64 bit integer.
 **/
 void MSG_WriteUint64( const uint64_t c ) {
-	//byte *buf;
-	//buf = static_cast<byte *>( SZ_GetSpace( &msg_write, 8 ) ); // WID: C++20: Added cast.
-	//WL64( buf, c );
 	SZ_WriteUint64( &msg_write, c );
 }
 
@@ -315,26 +291,13 @@ void MSG_WriteUint64( const uint64_t c ) {
 *   @brief Writes an unsigned LEB 128(base 128 encoded) integer.
 **/
 void MSG_WriteUintBase128( uint64_t c ) {
-	uint8_t buf[ 10 ];
-	size_t len = 0;
-
-	do {
-		buf[ len ] = c & 0x7fU;
-		if ( c >>= 7 ) {
-			buf[ len ] |= 0x80U;
-		}
-		len++;
-	} while ( c );
-
-	MSG_WriteData( buf, len );
+	SZ_WriteUintBase128( &msg_write, c );
 }
 /**
 *   @brief Writes a zic-zac encoded signed integer.
 **/
 void MSG_WriteIntBase128( const int64_t c ) {
-	// use Zig-zag encoding for signed integers for more efficient storage
-	const uint64_t cc = (uint64_t)( c << 1 ) ^ (uint64_t)( c >> 63 );
-	MSG_WriteUintBase128( cc );
+	return SZ_WriteIntBase128( &msg_write, c );
 }
 
 /**
@@ -408,32 +371,12 @@ void MSG_WriteDir8( const vec3_t dir ) {
 *   @return Signed 8 bit byte. Returns -1 if no more characters are available
 **/
 const int32_t MSG_ReadInt8( void ) {
-	//byte *buf = MSG_ReadData( 1 );
-	//int c;
-
-	//if ( !buf ) {
-	//	c = -1;
-	//} else {
-	//	c = (int8_t)buf[ 0 ];
-	//}
-
-	//return c;
 	return SZ_ReadInt8( &msg_read );
 }
 /**
 *   @return Unsigned 8 bit byte. Returns -1 if no more characters are available
 **/
 const int32_t MSG_ReadUint8( void ) {
-	//byte *buf = MSG_ReadData( 1 );
-	//int c;
-
-	//if ( !buf ) {
-	//	c = -1;
-	//} else {
-	//	c = (uint8_t)buf[ 0 ];
-	//}
-
-	//return c;
 	return SZ_ReadUint8( &msg_read );
 }
 
@@ -454,96 +397,36 @@ int MSG_LookaheadByte( ) {
 *   @return Signed 16 bit short.
 **/
 const int32_t MSG_ReadInt16( void ) {
-	//byte *buf = MSG_ReadData( 2 );
-	//int c;
-
-	//if ( !buf ) {
-	//	c = -1;
-	//} else {
-	//	c = (int16_t)RL16( buf );
-	//}
-
-	//return c;
 	return SZ_ReadInt16( &msg_read );
 }
 /**
 *   @return Unsigned 16 bit short.
 **/
 const int32_t MSG_ReadUint16( void ) {
-	//byte *buf = MSG_ReadData( 2 );
-	//int c;
-
-	//if ( !buf ) {
-	//	c = -1;
-	//} else {
-	//	c = (uint16_t)RL16( buf );
-	//}
-
-	//return c;
 	return SZ_ReadUint16( &msg_read );
 }
 /**
 *   @return Signed 32 bit int.
 **/
 const int32_t MSG_ReadInt32( void ) {
-	//byte *buf = MSG_ReadData( 4 );
-	//int c;
-
-	//if ( !buf ) {
-	//	c = -1;
-	//} else {
-	//	c = (int32_t)RL32( buf );
-	//}
-
-	//return c;
 	return SZ_ReadInt32( &msg_read );
 }
 /**
 *   @return Unsigned 32 bit int.
 **/
 const int32_t MSG_ReadUint32( void ) {
-	//byte *buf = MSG_ReadData( 4 );
-	//int c;
-
-	//if ( !buf ) {
-	//	c = -1;
-	//} else {
-	//	c = (int32_t)RL32( buf );
-	//}
-
-	//return c;
 	return SZ_ReadUint32( &msg_read );
 }
 /**
 *   @return Signed 64 bit int.
 **/
 const int64_t MSG_ReadInt64( void ) {
-	//byte *buf = MSG_ReadData( 8 );
-	//int64_t c;
-
-	//if ( !buf ) {
-	//	c = -1;
-	//} else {
-	//	c = (int64_t)RL64( buf );
-	//}
-
-	//return c;
 	return SZ_ReadInt64( &msg_read );
 }
 /**
 *   @return Unsigned 64 bit int.
 **/
 const uint64_t MSG_ReadUint64( void ) {
-	//byte *buf = MSG_ReadData( 8 );
-	//uint64_t c;
-
-	//if ( !buf ) {
-	//	c = -1;
-	//} else {
-	//	c = (uint64_t)RL64( buf );
-	//}
-
-	//return c;
 	return SZ_ReadUint64( &msg_read );
 }
 
@@ -551,28 +434,13 @@ const uint64_t MSG_ReadUint64( void ) {
 *   @return Base 128 decoded unsigned integer.
 **/
 const uint64_t MSG_ReadUintBase128( ) {
-	size_t   len = 0;
-	uint64_t i = 0;
-
-	while ( len < 10 ) {
-		const uint8_t c = MSG_ReadUint8( );
-		i |= ( c & 0x7fLL ) << ( 7 * len );
-		len++;
-
-		if ( !( c & 0x80 ) ) {
-			break;
-		}
-	}
-
-	return i;
+	return SZ_ReadUintBase128( &msg_read );
 }
 /**
 *   @return Zig-Zac decoded signed integer.
 **/
 const int64_t MSG_ReadIntBase128( ) {
-	// un-Zig-Zag our value back to a signed integer
-	const uint64_t c = MSG_ReadUintBase128( );
-	return (int64_t)( c >> 1 ) ^ ( -(int64_t)( c & 1 ) );
+	return SZ_ReadIntBase128( &msg_read );
 }
 
 /**

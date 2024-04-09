@@ -233,6 +233,32 @@ void SZ_WriteUint64( sizebuf_t *sb, const uint64_t c ) {
 	WL64( buf, c );
 }
 
+/**
+*   @brief Writes an unsigned LEB 128(base 128 encoded) integer.
+**/
+void SZ_WriteUintBase128( sizebuf_t *sb, uint64_t c ) {
+	uint8_t buf[ 10 ];
+	size_t len = 0;
+
+	do {
+		buf[ len ] = c & 0x7fU;
+		if ( c >>= 7 ) {
+			buf[ len ] |= 0x80U;
+		}
+		len++;
+	} while ( c );
+
+	SZ_Write( sb, buf, len );
+}
+/**
+*   @brief Writes a zic-zac encoded signed integer.
+**/
+void SZ_WriteIntBase128( sizebuf_t *sb, const int64_t c ) {
+	// use Zig-zag encoding for signed integers for more efficient storage
+	const uint64_t cc = (uint64_t)( c << 1 ) ^ (uint64_t)( c >> 63 );
+	SZ_WriteUintBase128( sb, cc );
+}
+
 void SZ_WriteHalfFloat( sizebuf_t *sb, const float f ) {
 	SZ_WriteUint16( sb, float_to_half( f ) );
 }
@@ -446,6 +472,34 @@ const int64_t SZ_ReadInt64( sizebuf_t *sb ) {
 const int64_t SZ_ReadUint64( sizebuf_t *sb ) {
 	byte *buf = static_cast<byte *>( SZ_ReadData( sb, 8 ) ); // WID: C++20: Added cast.
 	return buf ? (uint64_t)RL64( buf ) : -1;
+}
+
+/**
+*   @return Base 128 decoded unsigned integer.
+**/
+const uint64_t SZ_ReadUintBase128( sizebuf_t *sb ) {
+	size_t   len = 0;
+	uint64_t i = 0;
+
+	while ( len < 10 ) {
+		const uint8_t c = SZ_ReadUint8( sb );
+		i |= ( c & 0x7fLL ) << ( 7 * len );
+		len++;
+
+		if ( !( c & 0x80 ) ) {
+			break;
+		}
+	}
+
+	return i;
+}
+/**
+*   @return Zig-Zac decoded signed integer.
+**/
+const int64_t SZ_ReadIntBase128( sizebuf_t *sb ) {
+	// un-Zig-Zag our value back to a signed integer
+	const uint64_t c = SZ_ReadUintBase128( sb );
+	return (int64_t)( c >> 1 ) ^ ( -(int64_t)( c & 1 ) );
 }
 
 /**
