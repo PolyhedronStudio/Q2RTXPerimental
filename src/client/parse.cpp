@@ -540,7 +540,7 @@ static void CL_ParseServerData(void)
 // 
     // setup default server state
     cl.serverstate = ss_game;
-    cinematic = cl.clientNumber == -1;
+    cinematic = ( cl.clientNumber == -1 );
 
     if (cinematic) {
         SCR_PlayCinematic(levelname);

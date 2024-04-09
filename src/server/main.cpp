@@ -1423,7 +1423,8 @@ static void SV_PacketEvent(void)
             if ( msg_read.cursize < PACKET_HEADER ) {
                 continue;
             }
-            qport = RL16(&msg_read.data[8]);
+            // QPort resides at: skip the first sequence(8 bytes), sequence_ack(8 bytes), total: 16 bytes.
+            qport = RL16(&msg_read.data[16]); 
             if (netchan->qport != qport) {
                 continue;
             }
@@ -1431,7 +1432,8 @@ static void SV_PacketEvent(void)
             if ( msg_read.cursize < PACKET_HEADER - 1 ) {
                 continue;
             }
-            qport = msg_read.data[8];
+            // QPort resides at: skip the first sequence(8 bytes), sequence_ack(8 bytes), total: 16 bytes.
+            qport = msg_read.data[16];
             if (netchan->qport != qport) {
                 continue;
             }

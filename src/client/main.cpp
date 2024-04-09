@@ -2460,16 +2460,20 @@ static const cmdreg_t c_client[] = {
     { "userinfo", CL_Userinfo_f },
     { "snd_restart", CL_RestartSound_f },
     { "play", CL_PlaySound_f, CL_PlaySound_c },
+
     // Considered 'private', and handled in: exec_server_string
     // //{ "changing", CL_Changing_f },
+
     { "disconnect", CL_Disconnect_f },
     { "connect", CL_Connect_f, CL_Connect_c },
     { "followip", CL_FollowIP_f },
     { "passive", CL_PassiveConnect_f },
     { "reconnect", CL_Reconnect_f },
     { "rcon", CL_Rcon_f, CL_Rcon_c },
+
     // Considered 'private', and handled in: exec_server_string
     //{ "precache", CL_Precache_f },
+
     { "serverstatus", CL_ServerStatus_f, CL_ServerStatus_c },
     { "ignoretext", CL_IgnoreText_f },
     { "unignoretext", CL_UnIgnoreText_f },

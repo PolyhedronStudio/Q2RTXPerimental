@@ -713,13 +713,12 @@ static void CL_SendBatchedCmd( void ) {
     MSG_BeginWriting();
     //Cvar_ClampInteger( cl_packetdup, 0, MAX_PACKET_FRAMES - 1 );
     //numDups = cl_packetdup->integer;
-    numDups = MAX_PACKET_FRAMES - 1;// MAX_PACKET_FRAMES - 1;
+    numDups = 2;// MAX_PACKET_FRAMES - 1;
 
     // Check whether cl_nodelta is wished for, or in case of an invalid frame, so we can
-    // let the server know what the last frame we got was, which in return allows
-    // the next message to be delta compressed
+    // let the server know we want a full frame/snap, not a delta compressed one.
     if ( cl_nodelta->integer || !cl.frame.valid /*|| cls.demowaiting*/ ) {
-        MSG_WriteUint8( clc_move_nodelta );
+        MSG_WriteUint8( clc_move_nodelta ); // No compression.
     } else {
         MSG_WriteUint8( clc_move_batched );
         MSG_WriteIntBase128( cl.frame.number );

@@ -84,15 +84,6 @@ static void SV_CreateBaselines(void)
     }
 }
 
-static bool maybe_flush_msg(size_t size)
-{
-    size += msg_write.cursize;
-#if USE_ZLIB
-    if (sv_client->has_zlib)
-        size = ZPACKET_HEADER + deflateBound(&svs.z, size);
-#endif
-    return size > sv_client->netchan.maxpacketlen;
-}
 
 static void write_baseline( entity_packed_t *base ) {
 	msgEsFlags_t flags = static_cast<msgEsFlags_t>( sv_client->esFlags | MSG_ES_FORCE ); // WID: C++20: Added cast.
@@ -106,6 +97,13 @@ static void write_baseline( entity_packed_t *base ) {
 	MSG_WriteDeltaEntity( NULL, base, flags );
 }
 
+/**
+*
+*
+*   OldSchool GameState: ConfigStrings and Entity Baselines
+*
+*
+**/
 static void write_gamestate(void)
 {
     entity_packed_t  *base;
@@ -146,7 +144,17 @@ static void write_gamestate(void)
 
     SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
 }
+
 //-----------------------------------------------------------------------------------------------
+/**
+*
+*
+*   Streaming GameState: ConfigStrings and Entity Baselines
+* 
+*   (Will 'blast' with separate packets instead of fragmenting.)
+*
+*
+**/
 static void write_configstring_stream( void ) {
 	int     i;
 	char *string;
@@ -209,7 +217,6 @@ static void write_baseline_stream( void ) {
 	SV_ClientAddMessage( sv_client, MSG_GAMESTATE );
 }
 //--------------------------------------------------------------------------------
-
 static void stuff_cmds(list_t *list)
 {
     stuffcmd_t *stuff;
@@ -266,12 +273,16 @@ static void stuff_junk(void)
     SV_ClientCommand(sv_client, "$%s %s \"\"\n", junk[0], junk[0]);
     SV_ClientCommand(sv_client, "$%s $%s\n", junk[1], junk[4]);
 }
+//--------------------------------------------------------------------------------
+
 
 /*
 ================
-SV_New_f
+SV_New_f ( SV_SendClientGameState )
 
-Sends the first message from the server to a connected client.
+Sends the first message from the server to a connected client. It will contain
+the basic server data as well as the actual 'game state'.
+
 This will be sent on the initial connection and upon each server load.
 ================
 */

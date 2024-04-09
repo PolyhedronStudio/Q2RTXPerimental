@@ -52,6 +52,9 @@ typedef struct server_frame_s {
     int32_t         numEntities;
     //! Non-masked index into cl.entityStates array
     uint32_t        firstEntity;
+
+    //! Stores the parsed entity states for this 'snapshot' frame.
+    //entity_state_t  entities[ MAX_CLIENT_ENTITIES ];
 } server_frame_t;
 
 // locally calculated frame flags for debug display

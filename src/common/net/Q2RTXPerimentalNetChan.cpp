@@ -101,8 +101,8 @@ extern cvar_t *showdrop;
 #define BIT(n)          (1U << (n))
 #define BIT_ULL(n)      (1ULL << (n))
 
-#define REL_BIT     BIT(31)
-#define FRG_BIT     BIT(30)
+#define REL_BIT     BIT_ULL(63) // 32 - 1, 64 - 1
+#define FRG_BIT     BIT_ULL(62) // 32 - 2, 64 - 2
 #define OLD_MASK    (REL_BIT - 1)
 #define NEW_MASK    (FRG_BIT - 1)
 
@@ -114,7 +114,7 @@ size_t NetchanQ2RTXPerimental_TransmitNextFragment( netchan_t *chan ) {
 	sizebuf_t   send;
 	byte        send_buf[ MAX_PACKETLEN ];
 	bool        send_reliable, more_fragments;
-	int         w1, w2, offset;
+	int64_t     w1, w2, offset;
 	size_t      fragment_length;
 
 	send_reliable = chan->reliable_length;
@@ -130,8 +130,8 @@ size_t NetchanQ2RTXPerimental_TransmitNextFragment( netchan_t *chan ) {
 
 	SZ_TagInit( &send, send_buf, sizeof( send_buf ), "nc_send_frg" );
 
-	SZ_WriteInt32( &send, w1 );
-	SZ_WriteInt32( &send, w2 );
+	SZ_WriteInt64( &send, w1 );
+	SZ_WriteInt64( &send, w2 );
 
 	#if USE_CLIENT
 	// send the qport if we are a client
@@ -218,7 +218,7 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const vo
 	sizebuf_t   send;
 	byte        send_buf[ MAX_PACKETLEN ];
 	bool        send_reliable;
-	int         w1, w2;
+	int64_t     w1, w2;
 
 // check for message overflow
 	if ( chan->message.overflowed ) {
@@ -270,8 +270,8 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const vo
 
 	SZ_TagInit( &send, send_buf, sizeof( send_buf ), "nc_send_q2rtxp" );
 
-	SZ_WriteInt32( &send, w1 );
-	SZ_WriteInt32( &send, w2 );
+	SZ_WriteInt64( &send, w1 );
+	SZ_WriteInt64( &send, w2 );
 
 	#if USE_CLIENT
 	// send the qport if we are a client
@@ -319,14 +319,14 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const vo
 *			Modifies net_message so that it points to the packet payload
 **/
 bool NetchanQ2RTXPerimental_Process( netchan_t *chan ) {
-	int         sequence, sequence_ack, fragment_offset;
+	int64_t     sequence, sequence_ack, fragment_offset;
 	bool        reliable_message, reliable_ack, fragmented_message, more_fragments;
 	size_t      length;
 
 // get sequence numbers
 	MSG_BeginReading( );
-	sequence = MSG_ReadInt32( );
-	sequence_ack = MSG_ReadInt32( );
+	sequence = MSG_ReadInt64( );
+	sequence_ack = MSG_ReadInt64( );
 
 	// read the qport if we are a server
 	if ( chan->sock == NS_SERVER && chan->qport ) {
