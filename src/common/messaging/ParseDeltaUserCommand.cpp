@@ -28,7 +28,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *   @brief Read a client's delta move command.
 **/
 void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *to ) {
-	int bits;
+	
 
 	if ( from ) {
 		memcpy( to, from, sizeof( *to ) );
@@ -36,7 +36,7 @@ void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *to ) {
 		memset( to, 0, sizeof( *to ) );
 	}
 
-	bits = MSG_ReadUintBase128( );
+	const int64_t bits = MSG_ReadUintBase128( );
 
 	// Read current angles.
 	if ( bits & CM_ANGLE1 ) {

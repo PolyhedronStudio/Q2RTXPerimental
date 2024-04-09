@@ -280,17 +280,17 @@ extern "C" {
 	byte *MSG_ReadData( const size_t len );
 
 
-	///**
-	//*	@brief
-	//**/
+	/**
+	*	@brief
+	**/
 	void MSG_WriteBits( int32_t value, int32_t bits );
-	///**
-	//*	@brief
-	//**/
+	/**
+	*	@brief
+	**/
 	const int32_t MSG_ReadBits( int32_t bits );
-	///**
-	//*	@brief
-	//**/
+	/**
+	*	@brief
+	**/
 	void MSG_FlushBits( void );
 
 
@@ -380,7 +380,7 @@ extern "C" {
 	/**
 	*   @brief Write a client's delta move command.
 	**/
-	const int32_t MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, const int32_t protocolVersion );
+	const int64_t MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, const int32_t protocolVersion );
 	#endif
 	/**
 	*   @brief  Writes entity number, remove bit, and the byte mask to buffer.

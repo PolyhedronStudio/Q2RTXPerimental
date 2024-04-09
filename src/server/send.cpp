@@ -507,7 +507,7 @@ static void add_message( client_t *client, byte *data,
 							size_t len, int32_t flags ) {
 	if ( flags & MSG_RELIABLE ) {
 		// don't packetize, netchan level will do fragmentation as needed
-		SZ_Write( &client->netchan.message, data, len );
+		SZ_WriteData( &client->netchan.message, data, len );
 	} else {
 		// still have to packetize, relative sounds need special processing
 		add_msg_packet( client, data, len, false );
@@ -745,7 +745,7 @@ static void write_pending_download(client_t *client)
     SZ_WriteUint8(buf, client->downloadcmd);
     SZ_WriteInt16(buf, chunk);
     SZ_WriteUint8(buf, client->downloadcount * 100 / client->downloadsize);
-    SZ_Write(buf, client->download + client->downloadcount - chunk, chunk);
+    SZ_WriteData(buf, client->download + client->downloadcount - chunk, chunk);
 
     if (client->downloadcount == client->downloadsize) {
         SV_CloseDownload(client);

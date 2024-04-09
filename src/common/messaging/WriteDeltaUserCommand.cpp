@@ -27,7 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *   @brief Write a client's delta move command.
 **/
-const int32_t MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, const int32_t protocolVersion ) {
+const int64_t MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t *cmd, const int32_t protocolVersion ) {
 
 	if ( !from ) {
 		from = &nullUserCmd;
@@ -36,7 +36,7 @@ const int32_t MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t 
 //
 // send the movement message
 //
-	int32_t bits = 0;
+	int64_t bits = 0;
 
 	if ( cmd->angles[ 0 ] != from->angles[ 0 ] ) {
 		bits |= CM_ANGLE1;

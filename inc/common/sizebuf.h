@@ -54,8 +54,8 @@ extern "C" {
 
 	void SZ_Init( sizebuf_t *buf, void *data, const size_t size );
 	void SZ_TagInit( sizebuf_t *buf, void *data, const size_t size, const char *tag );
-	void SZ_Clear( sizebuf_t *buf );
 	void *SZ_GetSpace( sizebuf_t *buf, size_t len );
+	void SZ_Clear( sizebuf_t *buf );
 
 	void SZ_WriteInt8( sizebuf_t *sb, const int32_t c );
 	void SZ_WriteUint8( sizebuf_t *sb, const uint32_t c );
@@ -71,7 +71,7 @@ extern "C" {
 	void SZ_WriteFloat( sizebuf_t *sb, const float f );
 	void SZ_WriteString( sizebuf_t *sb, const char *s );
 
-	static inline void *SZ_Write( sizebuf_t *buf, const void *data, const size_t len ) {
+	static inline void *SZ_WriteData( sizebuf_t *buf, const void *data, const size_t len ) {
 		return memcpy( SZ_GetSpace( buf, len ), data, len );
 	}
 	void *SZ_ReadData( sizebuf_t *buf, size_t len );

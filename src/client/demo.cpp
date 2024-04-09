@@ -286,7 +286,7 @@ void CL_EmitDemoFrame(void)
                         "Try to increase 'cl_demomsglen' value and restart recording.\n",
                         cls.demo.buffer.maxsize);
     } else {
-        SZ_Write(&cls.demo.buffer, msg_write.data, msg_write.cursize);
+        SZ_WriteData(&cls.demo.buffer, msg_write.data, msg_write.cursize);
         cls.demo.last_server_frame = cl.frame.number;
         cls.demo.frames_written++;
     }
@@ -537,7 +537,7 @@ static void resume_record(void)
 
             SZ_WriteUint8(&cls.demo.buffer, svc_configstring);
             SZ_WriteInt16(&cls.demo.buffer, index);
-            SZ_Write(&cls.demo.buffer, s, len);
+            SZ_WriteData(&cls.demo.buffer, s, len);
             SZ_WriteUint8(&cls.demo.buffer, 0);
         }
     }

@@ -39,6 +39,9 @@ extern int32_t oldsize;
 *
 *
 **/
+/**
+*	@brief
+**/
 void SZ_TagInit( sizebuf_t *buf, void *data, const size_t size, const char *tag ) {
 	memset( buf, 0, sizeof( *buf ) );
 	buf->data = static_cast<byte *>( data ); // WID: C++20: Added cast.
@@ -46,6 +49,9 @@ void SZ_TagInit( sizebuf_t *buf, void *data, const size_t size, const char *tag 
 	buf->oob = false;
 	buf->tag = tag;
 }
+/**
+*	@brief
+**/
 void SZ_TagInitOOB( sizebuf_t *buf, void *data, const size_t size, const char *tag ) {
 	memset( buf, 0, sizeof( *buf ) );
 	buf->data = static_cast<byte *>( data ); // WID: C++20: Added cast.
@@ -53,7 +59,9 @@ void SZ_TagInitOOB( sizebuf_t *buf, void *data, const size_t size, const char *t
 	buf->oob = true;
 	buf->tag = tag;
 }
-
+/**
+*	@brief
+**/
 void SZ_Init( sizebuf_t *buf, void *data, const size_t size ) {
 	memset( buf, 0, sizeof( *buf ) );
 	buf->data = static_cast<byte *>( data );
@@ -63,6 +71,9 @@ void SZ_Init( sizebuf_t *buf, void *data, const size_t size ) {
 	buf->oob = false;
 	buf->tag = "none";
 }
+/**
+*	@brief
+**/
 void SZ_InitOOB( sizebuf_t *buf, void *data, const size_t size ) {
 	memset( buf, 0, sizeof( *buf ) );
 	buf->data = static_cast<byte *>( data );
@@ -72,118 +83,29 @@ void SZ_InitOOB( sizebuf_t *buf, void *data, const size_t size ) {
 	buf->oob = true;
 	buf->tag = "none";
 }
-
-void SZ_Clear( sizebuf_t *buf ) {
-	buf->cursize = 0;
-	buf->readcount = 0;
-	buf->overflowed = false;
-
-	buf->bit = 0;					//<- in bits
-}
-
 /**
-*
-*
-*	Writing:
-*
-*
+*	@brief	Gets a pointer to the buffer's data for writing, increases its curernt size by len.
 **/
-void SZ_WriteBits( sizebuf_t *sb, int32_t value, int32_t bits ) {
-	int	i;
-
-	// TODO: Just apply msg_write but testing this for now.
-	sizebuf_t *msg = sb;
-
-	oldsize += bits;
-
-	if ( msg->overflowed ) {
-		return;
-	}
-
-	if ( bits == 0 || bits < -31 || bits > 32 ) {
-		Com_Error( ERR_DROP, "%s: bad bits %i", __func__, bits );
-	}
-
-	if ( bits < 0 ) {
-		bits = -bits;
-	}
-
-	if ( msg->oob ) {
-		if ( msg->cursize + ( bits >> 3 ) > msg->maxsize ) {
-			msg->overflowed = qtrue;
-			return;
-		}
-
-		if ( bits == 8 ) {
-			msg->data[ msg->cursize ] = value;
-			msg->cursize += 1;
-			msg->bit += 8;
-		} else if ( bits == 16 ) {
-			short temp = value;
-
-			//CopyLittleShort( &msg->data[ msg->cursize ], &temp );
-			LittleBlock( &msg->data[ msg->cursize ], &temp, 2 );
-			msg->cursize += 2;
-			msg->bit += 16;
-		} else if ( bits == 32 ) {
-			//CopyLittleLong( &msg->data[ msg->cursize ], &value );
-			LittleBlock( &msg->data[ msg->cursize ], &value, 4 );
-
-			msg->cursize += 4;
-			msg->bit += 32;
-		} else {
-			Com_Error( ERR_DROP, "%s: can't write %d bits", __func__, bits );
-		}
-	} else {
-		value &= ( 0xffffffff >> ( 32 - bits ) );
-		if ( bits & 7 ) {
-			int nbits;
-			nbits = bits & 7;
-			if ( msg->bit + nbits > msg->maxsize << 3 ) {
-				msg->overflowed = qtrue;
-				return;
-			}
-			for ( i = 0; i < nbits; i++ ) {
-				Huff_putBit( ( value & 1 ), msg->data, &msg->bit );
-				value = ( value >> 1 );
-			}
-			bits = bits - nbits;
-		}
-		if ( bits ) {
-			for ( i = 0; i < bits; i += 8 ) {
-				Huff_offsetTransmit( &msgHuff.compressor, ( value & 0xff ), msg->data, &msg->bit, msg->maxsize << 3 );
-				value = ( value >> 8 );
-
-				if ( msg->bit > msg->maxsize << 3 ) {
-					msg->overflowed = qtrue;
-					return;
-				}
-			}
-		}
-		msg->cursize = ( msg->bit >> 3 ) + 1;
-	}
-}
-
 void *SZ_GetSpace( sizebuf_t *buf, const size_t len ) {
 	void *data;
 
 	if ( buf->cursize > buf->maxsize ) {
 		Com_Error( ERR_FATAL,
-				  "%s: %s: already overflowed",
-				  __func__, buf->tag );
+			"%s: %s: already overflowed",
+			__func__, buf->tag );
 	}
 
 	if ( len > buf->maxsize - buf->cursize ) {
 		if ( len > buf->maxsize ) {
 			Com_Error( ERR_FATAL,
-					  "%s: %s: %zu is > full buffer size %zu",
-					  __func__, buf->tag, len, buf->maxsize );
+				"%s: %s: %zu is > full buffer size %zu",
+				__func__, buf->tag, len, buf->maxsize );
 		}
 
 		if ( !buf->allowoverflow ) {
 			Com_Error( ERR_FATAL,
-					  "%s: %s: overflow without allowoverflow set",
-					  __func__, buf->tag );
+				"%s: %s: overflow without allowoverflow set",
+				__func__, buf->tag );
 		}
 
 		//Com_DPrintf("%s: %s: overflow\n", __func__, buf->tag);
@@ -193,41 +115,86 @@ void *SZ_GetSpace( sizebuf_t *buf, const size_t len ) {
 
 	data = buf->data + buf->cursize;
 	buf->cursize += len;
-	buf->bit += len * 8;
+	buf->bit = buf->cursize * 8;
+	//buf->bit += len * 8;
+
 	return data;
 }
+/**
+*	@brief	Clears the sizebuffer state as in a reset for read/write.
+**/
+void SZ_Clear( sizebuf_t *buf ) {
+	buf->cursize = 0;
+	buf->readcount = 0;
+	buf->overflowed = false;
 
+	buf->bit = 0;					//<- in bits
+}
+
+
+
+/**
+*
+*
+*	Writing generic types as bytes, using SZ_GetSpace:
+*
+*
+**/
+/**
+*	@brief	
+**/
 void SZ_WriteInt8( sizebuf_t *sb, const int32_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 1 ) ); // WID: C++20: Added cast.
 	buf[ 0 ] = c;
 }
+/**
+*	@brief
+**/
 void SZ_WriteUint8( sizebuf_t *sb, const uint32_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 1 ) ); // WID: C++20: Added cast.
 	buf[ 0 ] = c;
 }
 
+/**
+*	@brief
+**/
 void SZ_WriteInt16( sizebuf_t *sb, const int32_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 2 ) ); // WID: C++20: Added cast.
 	WL16( buf, c );
 }
+/**
+*	@brief
+**/
 void SZ_WriteUint16( sizebuf_t *sb, const uint32_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 2 ) ); // WID: C++20: Added cast.
 	WL16( buf, c );
 }
 
+/**
+*	@brief
+**/
 void SZ_WriteInt32( sizebuf_t *sb, const int32_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 4 ) );
 	WL32( buf, c );
 }
+/**
+*	@brief
+**/
 void SZ_WriteUint32( sizebuf_t *sb, const uint32_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 4 ) );
 	WL32( buf, c );
 }
 
+/**
+*	@brief
+**/
 void SZ_WriteInt64( sizebuf_t *sb, const int64_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 8 ) );
 	WL64( buf, c );
 }
+/**
+*	@brief
+**/
 void SZ_WriteUint64( sizebuf_t *sb, const uint64_t c ) {
 	byte *buf = static_cast<byte *>( SZ_GetSpace( sb, 8 ) );
 	WL64( buf, c );
@@ -248,7 +215,7 @@ void SZ_WriteUintBase128( sizebuf_t *sb, uint64_t c ) {
 		len++;
 	} while ( c );
 
-	SZ_Write( sb, buf, len );
+	SZ_WriteData( sb, buf, len );
 }
 /**
 *   @brief Writes a zic-zac encoded signed integer.
@@ -259,9 +226,15 @@ void SZ_WriteIntBase128( sizebuf_t *sb, const int64_t c ) {
 	SZ_WriteUintBase128( sb, cc );
 }
 
+/**
+*	@brief
+**/
 void SZ_WriteHalfFloat( sizebuf_t *sb, const float f ) {
 	SZ_WriteUint16( sb, float_to_half( f ) );
 }
+/**
+*	@brief
+**/
 void SZ_WriteFloat( sizebuf_t *sb, const float f ) {
 	// Conversion trick:
 	union {
@@ -277,6 +250,9 @@ void SZ_WriteFloat( sizebuf_t *sb, const float f ) {
 	//SZ_WriteInt32( sb, std::bit_cast<std::int32_t>( f ) );
 }
 
+/**
+*	@brief
+**/
 void SZ_WriteString( sizebuf_t *sb, const char *s ) {
 	size_t len;
 
@@ -292,7 +268,7 @@ void SZ_WriteString( sizebuf_t *sb, const char *s ) {
 		return;
 	}
 
-	SZ_Write( sb, s, len + 1 );
+	SZ_WriteData( sb, s, len + 1 );
 }
 
 
@@ -300,117 +276,10 @@ void SZ_WriteString( sizebuf_t *sb, const char *s ) {
 /**
 *
 *
-*	Reading:
+*	Reading Int/Uint 8, 16, 32, 64, Base128, HalfFloat, Float, Str, StrLine:
 * 
 * 
 **/
-/**
-*	@brief
-**/
-const int32_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
-	int			value;
-	int			get;
-	qboolean	sgn;
-	int			i, nbits;
-	//	FILE*	fp;
-
-	// TODO: Just apply msg_write but testing this for now.
-	sizebuf_t *msg = sb;
-
-	if ( msg->readcount > msg->cursize ) {
-		return 0;
-	}
-
-	value = 0;
-
-	if ( bits < 0 ) {
-		bits = -bits;
-		sgn = qtrue;
-	} else {
-		sgn = qfalse;
-	}
-
-	if ( msg->oob ) {
-		if ( msg->readcount + ( bits >> 3 ) > msg->cursize ) {
-			msg->readcount = msg->cursize + 1;
-			return 0;
-		}
-
-		if ( bits == 8 ) {
-			value = msg->data[ msg->readcount ];
-			msg->readcount += 1;
-			msg->bit += 8;
-		} else if ( bits == 16 ) {
-			short temp;
-
-			//CopyLittleShort( &temp, &msg->data[ msg->readcount ] );
-			LittleBlock( &temp, &msg->data[ msg->readcount ], 2 );
-			value = temp;
-			msg->readcount += 2;
-			msg->bit += 16;
-		} else if ( bits == 32 ) {
-			//CopyLittleLong( &value, &msg->data[ msg->readcount ] );
-			LittleBlock( &value, &msg->data[ msg->readcount ], 4 );
-			msg->readcount += 4;
-			msg->bit += 32;
-		} else
-			Com_Error( ERR_DROP, "can't read %d bits", bits );
-	} else {
-		nbits = 0;
-		if ( bits & 7 ) {
-			nbits = bits & 7;
-			if ( msg->bit + nbits > msg->cursize << 3 ) {
-				msg->readcount = msg->cursize + 1;
-				return 0;
-			}
-			for ( i = 0; i < nbits; i++ ) {
-				value |= ( Huff_getBit( msg->data, &msg->bit ) << i );
-			}
-			bits = bits - nbits;
-		}
-		if ( bits ) {
-			//			fp = fopen("c:\\netchan.bin", "a");
-			for ( i = 0; i < bits; i += 8 ) {
-				Huff_offsetReceive( msgHuff.decompressor.tree, &get, msg->data, &msg->bit, msg->cursize << 3 );
-				//				fwrite(&get, 1, 1, fp);
-				value = (unsigned int)value | ( (unsigned int)get << ( i + nbits ) );
-
-				if ( msg->bit > msg->cursize << 3 ) {
-					msg->readcount = msg->cursize + 1;
-					return 0;
-				}
-			}
-			//			fclose(fp);
-		}
-		msg->readcount = ( msg->bit >> 3 ) + 1;
-	}
-	if ( sgn && bits > 0 && bits < 32 ) {
-		if ( value & ( 1 << ( bits - 1 ) ) ) {
-			value |= -1 ^ ( ( 1 << bits ) - 1 );
-		}
-	}
-
-	return value;
-}
-
-void *SZ_ReadData( sizebuf_t *buf, const size_t len ) {
-	void *data;
-
-	if ( buf->readcount > buf->cursize || len > buf->cursize - buf->readcount ) {
-		if ( !buf->allowunderflow ) {
-			Com_Error( ERR_DROP, "%s: read past end of message", __func__ );
-		}
-		buf->readcount = buf->cursize + 1;
-		return NULL;
-	}
-
-	data = buf->data + buf->readcount;
-	buf->readcount += len;
-	buf->bit += len * 8;
-	return data;
-}
-
-
 /**
 *	@brief
 **/
@@ -521,4 +390,214 @@ const float SZ_ReadFloat( sizebuf_t *sb ) {
 
 	dat.l = SZ_ReadInt32( sb );
 	return dat.f;
+}
+
+
+
+
+
+
+
+
+
+
+
+/**
+*
+*
+*	Byte based ReadData/WriteData:
+*
+*
+**/
+void *SZ_ReadData( sizebuf_t *buf, const size_t len ) {
+	void *data = nullptr;
+
+	if ( buf->readcount > buf->cursize || len > buf->cursize - buf->readcount ) {
+		if ( !buf->allowunderflow ) {
+			Com_Error( ERR_DROP, "%s: read past end of message", __func__ );
+		}
+		buf->readcount = buf->cursize + 1;
+		return nullptr;
+	}
+
+	data = buf->data + buf->readcount;
+	buf->readcount += len;
+	buf->bit = buf->readcount * 8;
+	//buf->bit += len * 8;
+	return data;
+}
+
+
+/**
+*
+*
+*	BitStream Read/Write:
+*
+*
+**/
+/**
+*	@brief	Will write the value bits into the size buffer's data pointer + current offset.
+**/
+void SZ_WriteBits( sizebuf_t *sb, int32_t value, int32_t bits ) {
+	int	i;
+
+	// TODO: Just apply msg_write but testing this for now.
+	sizebuf_t *msg = sb;
+
+	oldsize += bits;
+
+	if ( msg->overflowed ) {
+		return;
+	}
+
+	if ( bits == 0 || bits < -31 || bits > 32 ) {
+		Com_Error( ERR_DROP, "%s: bad bits %i", __func__, bits );
+	}
+
+	if ( bits < 0 ) {
+		bits = -bits;
+	}
+
+	if ( msg->oob ) {
+		if ( msg->cursize + ( bits >> 3 ) > msg->maxsize ) {
+			msg->overflowed = qtrue;
+			return;
+		}
+
+		if ( bits == 8 ) {
+			msg->data[ msg->cursize ] = value;
+			msg->cursize += 1;
+			msg->bit += 8;
+		} else if ( bits == 16 ) {
+			short temp = value;
+
+			//CopyLittleShort( &msg->data[ msg->cursize ], &temp );
+			LittleBlock( &msg->data[ msg->cursize ], &temp, 2 );
+			msg->cursize += 2;
+			msg->bit += 16;
+		} else if ( bits == 32 ) {
+			//CopyLittleLong( &msg->data[ msg->cursize ], &value );
+			LittleBlock( &msg->data[ msg->cursize ], &value, 4 );
+
+			msg->cursize += 4;
+			msg->bit += 32;
+		} else {
+			Com_Error( ERR_DROP, "%s: can't write %d bits", __func__, bits );
+		}
+	} else {
+		value &= ( 0xffffffff >> ( 32 - bits ) );
+		if ( bits & 7 ) {
+			int nbits;
+			nbits = bits & 7;
+			if ( msg->bit + nbits > msg->maxsize << 3 ) {
+				msg->overflowed = qtrue;
+				return;
+			}
+			for ( i = 0; i < nbits; i++ ) {
+				Huff_putBit( ( value & 1 ), msg->data, &msg->bit );
+				value = ( value >> 1 );
+			}
+			bits = bits - nbits;
+		}
+		if ( bits ) {
+			for ( i = 0; i < bits; i += 8 ) {
+				Huff_offsetTransmit( &msgHuff.compressor, ( value & 0xff ), msg->data, &msg->bit, msg->maxsize << 3 );
+				value = ( value >> 8 );
+
+				if ( msg->bit > msg->maxsize << 3 ) {
+					msg->overflowed = qtrue;
+					return;
+				}
+			}
+		}
+		msg->cursize = ( msg->bit >> 3 ) + 1;
+	}
+}
+/**
+*	@brief	Will read the requested amount of bits from the sizebuffer's data pointer + offset.
+**/
+const int32_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
+	int			value;
+	int			get;
+	qboolean	sgn;
+	int			i, nbits;
+	//	FILE*	fp;
+
+	// TODO: Just apply msg_write but testing this for now.
+	sizebuf_t *msg = sb;
+
+	if ( msg->readcount > msg->cursize ) {
+		return 0;
+	}
+
+	value = 0;
+
+	if ( bits < 0 ) {
+		bits = -bits;
+		sgn = qtrue;
+	} else {
+		sgn = qfalse;
+	}
+
+	if ( msg->oob ) {
+		if ( msg->readcount + ( bits >> 3 ) > msg->cursize ) {
+			msg->readcount = msg->cursize + 1;
+			return 0;
+		}
+
+		if ( bits == 8 ) {
+			value = msg->data[ msg->readcount ];
+			msg->readcount += 1;
+			msg->bit += 8;
+		} else if ( bits == 16 ) {
+			short temp;
+
+			//CopyLittleShort( &temp, &msg->data[ msg->readcount ] );
+			LittleBlock( &temp, &msg->data[ msg->readcount ], 2 );
+			value = temp;
+			msg->readcount += 2;
+			msg->bit += 16;
+		} else if ( bits == 32 ) {
+			//CopyLittleLong( &value, &msg->data[ msg->readcount ] );
+			LittleBlock( &value, &msg->data[ msg->readcount ], 4 );
+			msg->readcount += 4;
+			msg->bit += 32;
+		} else
+			Com_Error( ERR_DROP, "can't read %d bits", bits );
+	} else {
+		nbits = 0;
+		if ( bits & 7 ) {
+			nbits = bits & 7;
+			if ( msg->bit + nbits > msg->cursize << 3 ) {
+				msg->readcount = msg->cursize + 1;
+				return 0;
+			}
+			for ( i = 0; i < nbits; i++ ) {
+				value |= ( Huff_getBit( msg->data, &msg->bit ) << i );
+			}
+			bits = bits - nbits;
+		}
+		if ( bits ) {
+			//			fp = fopen("c:\\netchan.bin", "a");
+			for ( i = 0; i < bits; i += 8 ) {
+				Huff_offsetReceive( msgHuff.decompressor.tree, &get, msg->data, &msg->bit, msg->cursize << 3 );
+				//				fwrite(&get, 1, 1, fp);
+				value = (unsigned int)value | ( (unsigned int)get << ( i + nbits ) );
+
+				if ( msg->bit > msg->cursize << 3 ) {
+					msg->readcount = msg->cursize + 1;
+					return 0;
+				}
+			}
+			//			fclose(fp);
+		}
+		msg->readcount = ( msg->bit >> 3 ) + 1;
+	}
+	if ( sgn && bits > 0 && bits < 32 ) {
+		if ( value & ( 1 << ( bits - 1 ) ) ) {
+			value |= -1 ^ ( ( 1 << bits ) - 1 );
+		}
+	}
+
+	return value;
 }

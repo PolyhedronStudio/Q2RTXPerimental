@@ -162,7 +162,7 @@ size_t NetchanQ2RTXPerimental_TransmitNextFragment( netchan_t *chan ) {
 	SZ_WriteUint16( &send, offset );
 
 	// write fragment contents
-	SZ_Write( &send, chan->fragment_out.data + chan->fragment_out.readcount, fragment_length );
+	SZ_WriteData( &send, chan->fragment_out.data + chan->fragment_out.readcount, fragment_length );
 
 	SHOWPACKET( "send %4zu : s=%d ack=%d rack=%d "
 			   "fragment_offset=%zu more_fragments=%d",
@@ -249,11 +249,11 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const vo
 		 ( chan->reliable_length + length > chan->maxpacketlen ) ) ) {
 		if ( send_reliable ) {
 			chan->last_reliable_sequence = chan->outgoing_sequence;
-			SZ_Write( &chan->fragment_out, chan->reliable_buf, chan->reliable_length );
+			SZ_WriteData( &chan->fragment_out, chan->reliable_buf, chan->reliable_length );
 		}
 		// add the unreliable part if space is available
 		if ( chan->fragment_out.maxsize - chan->fragment_out.cursize >= length )
-			SZ_Write( &chan->fragment_out, data, length );
+			SZ_WriteData( &chan->fragment_out, data, length );
 		else
 			Com_WPrintf( "%s: dumped unreliable\n", NET_AdrToString( &chan->remote_address ) );
 		return NetchanQ2RTXPerimental_TransmitNextFragment( chan );
@@ -288,11 +288,11 @@ size_t NetchanQ2RTXPerimental_Transmit( netchan_t *chan, size_t length, const vo
 // copy the reliable message to the packet first
 	if ( send_reliable ) {
 		chan->last_reliable_sequence = chan->outgoing_sequence;
-		SZ_Write( &send, chan->reliable_buf, chan->reliable_length );
+		SZ_WriteData( &send, chan->reliable_buf, chan->reliable_length );
 	}
 
 // add the unreliable part
-	SZ_Write( &send, data, length );
+	SZ_WriteData( &send, data, length );
 
 	SHOWPACKET( "send %4zu : s=%d ack=%d rack=%d",
 			   send.cursize,
@@ -423,14 +423,14 @@ bool NetchanQ2RTXPerimental_Process( netchan_t *chan ) {
 			return false;
 		}
 
-		SZ_Write( &chan->fragment_in, msg_read.data + msg_read.readcount, length );
+		SZ_WriteData( &chan->fragment_in, msg_read.data + msg_read.readcount, length );
 		if ( more_fragments ) {
 			return false;
 		}
 
 		// message has been sucessfully assembled
 		SZ_Init( &msg_read, msg_read_buffer, sizeof( msg_read_buffer ) );
-		SZ_Write( &msg_read, chan->fragment_in.data, chan->fragment_in.cursize );
+		SZ_WriteData( &msg_read, chan->fragment_in.data, chan->fragment_in.cursize );
 		SZ_Clear( &chan->fragment_in );
 	}
 

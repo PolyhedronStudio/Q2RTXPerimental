@@ -1029,7 +1029,7 @@ void CL_ParseServerMessage(void)
             // demo frame with modern servers... attempt to preserve
             // reliable messages at least, assuming they come first
             if (cls.demo.buffer.cursize + len < cls.demo.buffer.maxsize) {
-                SZ_Write(&cls.demo.buffer, msg_read.data + readcount, len);
+                SZ_WriteData(&cls.demo.buffer, msg_read.data + readcount, len);
             } else {
                 cls.demo.others_dropped++;
             }
