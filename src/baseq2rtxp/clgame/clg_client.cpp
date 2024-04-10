@@ -17,6 +17,9 @@
 void PF_ClientBegin( void ) {
 	// Debug notify.
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientBegin\n" );
+
+	// Set the default reverb effect.
+	clgi.S_SetActiveReverbEffect( precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_DEFAULT ] );
 }
 
 /**
@@ -83,5 +86,12 @@ void PF_ClientRefreshFrame( void ) {
 
 		// Dispatch think callback since the entity is in-use and properly class allocated.
 		CLG_LocalEntity_DispatchRefreshFrame( lent );
+	}
+
+	if ( clgi.client->predictedState.view.rdflags & RDF_UNDERWATER ) {
+		clgi.S_SetActiveReverbEffect( precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_UNDERWATER ] );
+	} else {
+		clgi.S_SetActiveReverbEffect( precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_DEFAULT ] );
+		//clgi.S_SetActiveReverbEffect( precache.cl_eax_reverb_effects[ level.reverbEffectID ] );
 	}
 }

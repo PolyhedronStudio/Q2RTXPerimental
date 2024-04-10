@@ -47,6 +47,14 @@ void S_Activate(void);
 
 void S_BeginRegistration(void);
 qhandle_t S_RegisterSound(const char *sample);
+/**
+*   @brief  Registers a reverb effect, returning a qhandle, which is -1 on failure, >= 0 otherwise.
+**/
+const qhandle_t S_RegisterReverbEffect( const char *name, sfx_reverb_properties_t *properties );
+/**
+*   @brief  Set the global reverb properties to apply.
+**/
+void S_SetActiveReverbEffect( const qhandle_t reverbEffectID );
 void S_EndRegistration(void);
 void S_SetupSpatialListener( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp );
 

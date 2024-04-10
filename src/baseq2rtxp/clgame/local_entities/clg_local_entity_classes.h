@@ -13,6 +13,16 @@ extern const clg_local_entity_class_t *local_entity_classes[];
 //! Utility function to neaten code up.
 
 
+
+/**
+*
+*	client_env_sound:
+*
+**/
+#include "clg_local_env_sound.h"
+
+
+
 /**
 *
 *	client_misc_model:

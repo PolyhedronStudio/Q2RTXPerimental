@@ -783,7 +783,9 @@ void CL_GM_LoadProgs( void ) {
 	imports.S_StartLocalSoundOnce = S_StartLocalSoundOnce;
 	imports.S_StopAllSounds = S_StopAllSounds;
 	imports.S_RegisterSound = S_RegisterSound;
+	imports.S_RegisterReverbEffect = S_RegisterReverbEffect;
 	imports.S_SetupSpatialListener = S_SetupSpatialListener;
+	imports.S_SetActiveReverbEffect = S_SetActiveReverbEffect;
 
 	imports.TagMalloc = PF_TagMalloc;
 	imports.TagFree = Z_Free;

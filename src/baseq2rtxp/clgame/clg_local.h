@@ -303,6 +303,21 @@ typedef struct {
 /**
 *
 *
+*	Environmental Sound Reverb Effects:
+* 
+*
+**/
+static constexpr int32_t SOUND_EAX_EFFECT_DEFAULT = 0;
+static constexpr int32_t SOUND_EAX_EFFECT_UNDERWATER = 1;
+static constexpr int32_t SOUND_EAX_EFFECT_METAL_S = 2;
+
+static constexpr int32_t SOUND_EAX_EFFECT_MAX = 32;
+
+
+
+/**
+*
+*
 *   Local Entities:
 *
 *
@@ -519,6 +534,10 @@ typedef struct precached_media_s {
 	qhandle_t cl_sfx_disrexp;
 
 
+	// Reverb Effects:
+	qhandle_t cl_eax_reverb_effects[ SOUND_EAX_EFFECT_MAX ];
+
+
 	//
 	// View Models: (Moved here from client, was named weapon models but a more generic name is best fit.)
 	//
@@ -594,6 +613,9 @@ struct level_locals_t {
 			mz_params_t     muzzleFlash;
 		} events;
 	} parsedMessage;
+
+	//! Client active reverb id.
+	qhandle_t reverbEffectID;
 };
 extern level_locals_t level;
 

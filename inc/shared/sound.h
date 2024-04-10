@@ -27,3 +27,39 @@
 #define ATTN_NORM               1
 #define ATTN_IDLE               2
 #define ATTN_STATIC             3   //! Diminish very rapidly with distance.
+
+/**
+*   @brief  Special reverb effect settings, these can be defined by the client game code and
+*           applied to the listener for special effects. (Underwater, hallways, etc.)
+**/
+typedef struct sfx_reverb_properties_s {
+    //! Need this?
+    int32_t registration_sequence;
+
+    //! This structure is based on the OpenAL EAX Reverb effects properties.
+    //struct {
+        float flDensity;
+        float flDiffusion;
+        float flGain;
+        float flGainHF;
+        float flGainLF;
+        float flDecayTime;
+        float flDecayHFRatio;
+        float flDecayLFRatio;
+        float flReflectionsGain;
+        float flReflectionsDelay;
+        float flReflectionsPan[ 3 ];
+        float flLateReverbGain;
+        float flLateReverbDelay;
+        float flLateReverbPan[ 3 ];
+        float flEchoTime;
+        float flEchoDepth;
+        float flModulationTime;
+        float flModulationDepth;
+        float flAirAbsorptionGainHF;
+        float flHFReference;
+        float flLFReference;
+        float flRoomRolloffFactor;
+        int32_t iDecayHFLimit;
+    //} properties;
+} sfx_reverb_properties_t;

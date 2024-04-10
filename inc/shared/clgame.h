@@ -549,8 +549,12 @@ typedef struct {
 	void ( *S_StartLocalSoundOnce )( const char *s );
 	void ( *S_StopAllSounds )( void );
 	qhandle_t( *S_RegisterSound )( const char *sample );
+	/**
+	*   @brief  Registers a reverb effect, returning a qhandle, which is -1 on failure, >= 0 otherwise.
+	**/
+	const qhandle_t ( *S_RegisterReverbEffect )( const char *name, sfx_reverb_properties_t *properties );
 	void ( *S_SetupSpatialListener )( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp );
-
+	void ( *S_SetActiveReverbEffect )( const qhandle_t reverbEffectID );
 
 	/**
 	*

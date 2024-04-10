@@ -30,6 +30,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #define qalEnable alEnable
 #define qalDisable alDisable
+#define qalDeleteEffects alDeleteEffects
+#define qalEffectf alEffectf
+#define qalEffectfv alEffectfv
+#define qalEffecti alEffecti
 #define qalIsEnabled alIsEnabled
 #define qalGetString alGetString
 #define qalGetBooleanv alGetBooleanv
@@ -41,6 +45,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define qalGetFloat alGetFloat
 #define qalGetDouble alGetDouble
 #define qalGetError alGetError
+#define qalGenEffects alGenEffects
 #define qalIsExtensionPresent alIsExtensionPresent
 #define qalGetProcAddress alGetProcAddress
 #define qalGetEnumValue alGetEnumValue
@@ -107,6 +112,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define qalFilterf alFilterf
 #define qalFilteri alFilteri
 #define qalGenFilters alGenFilters
+
+// Auxilery stuff
+#define qalAuxiliaryEffectSloti alAuxiliaryEffectSloti
+#define qalGenAuxiliaryEffectSlots alGenAuxiliaryEffectSlots
+#define qalDeleteAuxiliaryEffectSlots alDeleteAuxiliaryEffectSlots
 
 bool QAL_Init(void);
 void QAL_Shutdown(void);

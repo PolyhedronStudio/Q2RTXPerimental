@@ -86,6 +86,9 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
             }
         }
     }
+
+    // Apply whichever reverb effect is set as active.
+
 }
 
 /**

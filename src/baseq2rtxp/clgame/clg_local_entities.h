@@ -22,7 +22,8 @@ template<typename T> static inline auto CLG_LocalEntity_GetClass( clg_local_enti
 //#include "clg_local.h"
 //#include "local_entities/clg_local_entity_classes.h"
 
-
+//! Extern the 'client_misc_model' entity class type.
+extern const clg_local_entity_class_t client_misc_te;
 /**
 *
 *

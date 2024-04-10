@@ -46,7 +46,8 @@ SET(SRC_BASEQ2_CLGAME
 	baseq2/clgame/effects/clg_fx_muzzleflash2.cpp
 	baseq2/clgame/effects/clg_fx_particles.cpp
 	baseq2/clgame/effects/clg_fx_new.cpp
-	
+
+	baseq2/clgame/local_entities/clg_local_env_sound.cpp	
 	baseq2/clgame/local_entities/clg_local_misc_entities.cpp
 
 	baseq2/clgame/temp_entities/clg_te_beams.cpp
@@ -57,6 +58,7 @@ SET(SRC_BASEQ2_CLGAME
 )
 SET(HEADERS_BASEQ2_CLGAME
 	baseq2/clgame/clg_local.h
+	baseq2/clgame/local_entities/clg_local_env_sound.h
 	baseq2/clgame/local_entities/clg_local_entities.h
 )
 # BaseQ2 ServerGame
@@ -195,6 +197,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/effects/clg_fx_particles.cpp
 	baseq2rtxp/clgame/effects/clg_fx_new.cpp
 	
+	baseq2rtxp/clgame/local_entities/clg_local_env_sound.cpp	
 	baseq2rtxp/clgame/local_entities/clg_local_misc_entities.cpp
 
 	baseq2rtxp/clgame/temp_entities/clg_te_beams.cpp
@@ -218,6 +221,7 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_temp_entities.h
 	baseq2rtxp/clgame/clg_view.h
 
+	baseq2rtxp/clgame/local_entities/clg_local_env_sound.h
 	baseq2rtxp/clgame/local_entities/clg_local_entity_classes.h
 )
 # BaseQ2RTXP ServerGame

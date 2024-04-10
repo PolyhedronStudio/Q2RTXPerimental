@@ -8,6 +8,7 @@
 #include "clg_local.h"
 #include "clg_local_entities.h"
 #include "local_entities/clg_local_entity_classes.h"
+#include "local_entities/clg_local_env_sound.h"
 
 
 /**
@@ -24,6 +25,9 @@ uint32_t clg_num_local_entities = 0;
 
 //! All local entity classname type descriptors.
 const clg_local_entity_class_t *local_entity_classes[] = {
+	// "client_env_sound" - Sound Reverb Effect Entity.
+	&client_env_sound,
+
 	// "client_misc_model" - Model Decorating Entity.
 	&client_misc_model,
 	// "client_misc_playerholo" - Mirrors a client's entity model.
@@ -584,10 +588,10 @@ void CLG_AddLocalEntities( void ) {
 			// Get its class locals.
 			CLG_LocalEntity_DispatchPrepareRefreshEntity( lent );
 			// Debug print it ain't visible.
-			clgi.Print( PRINT_NOTICE, "%s: lent(#%d) PVS VISIBLE.\n", __func__, lent->id );
+			//clgi.Print( PRINT_NOTICE, "%s: lent(#%d) PVS VISIBLE.\n", __func__, lent->id );
 		} else {
 			// Debug print it ain't visible.
-			clgi.Print( PRINT_NOTICE, "%s: lent(#%d) is not PVS visible.\n", __func__, lent->id );
+			//clgi.Print( PRINT_NOTICE, "%s: lent(#%d) is not PVS visible.\n", __func__, lent->id );
 		}
 	}
 }

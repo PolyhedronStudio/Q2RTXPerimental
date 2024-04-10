@@ -66,9 +66,99 @@ cvar_t      *s_underwater_gain_hf;
 static cvar_t   *s_enable;
 static cvar_t   *s_auto_focus;
 
+
+
+/**
+*
+*
+*   EAX Reverb Functionality:
+* 
+*   ( OpenAL only ), we use stub functions for DMA.
+*
+*
+**/
+//! Maximum of reverb properties accepted.
+#define MAX_REVERB_EFFECTS   32
+
+//! Reverb Effect resource data.
+typedef struct reverb_effect_s {
+    //! OpenAL resource ID.
+    qhandle_t resource_id;
+    //! Reverb properties.
+    sfx_reverb_properties_t properties;
+    //! String name.
+    char name[ MAX_MATERIAL_NAME ];
+} reverb_effect_t;
+
+//! Reverb properties cache struct.
+typedef struct reverb_effects_cache_s {
+    //! Reverb effect cache.
+    reverb_effect_t effects[ MAX_REVERB_EFFECTS ];
+
+    //! Number of reverb effects cached.
+    int32_t num_effects;
+} reverb_properties_cache_t;
+
+//! Reverb Cache.
+reverb_properties_cache_t snd_reverb_cache;
+
+/**
+*   @return -1 on failure, otherwise a valid ID to the sound(not internal, openal or dma) API reverb effect resource.
+**/
+const qhandle_t S_UploadReverbEffect( const char *name, sfx_reverb_properties_t *properties ) {
+    // Return -1 if we exceeded cache size.
+    if ( snd_reverb_cache.num_effects >= MAX_REVERB_EFFECTS ) {
+        return -1;
+    }
+
+    // Get effects slot index.
+    const int32_t reverb_effect_id = snd_reverb_cache.num_effects;
+
+    // Try and register it using the sound API.
+    const qhandle_t reverb_resource_id = s_api.upload_reverb_effect( properties );
+    // Failed to upload reverb effect data.
+    if ( reverb_resource_id == -1 ) {
+        return -1;
+    }
+    // Move the reverb resource id into our cache.
+    snd_reverb_cache.effects[ reverb_effect_id ].resource_id = reverb_resource_id;
+    // Move the properties into our cache.
+    snd_reverb_cache.effects[ reverb_effect_id ].properties = *properties;
+    // Copy the name into names cache.
+    memset( snd_reverb_cache.effects[ reverb_effect_id ].name, 0, MAX_MATERIAL_NAME );
+    Q_strlcpy( snd_reverb_cache.effects[ reverb_effect_id ].name, name, MAX_MATERIAL_NAME );
+
+    // Increment the number of properties.
+    snd_reverb_cache.num_effects++;
+
+    // Return reverb effect ID.
+    return reverb_effect_id;
+}
+/**
+*   @brief  Set the global reverb properties to apply.
+**/
+void S_SetActiveReverbEffect( const qhandle_t reverbEffectID ) {
+    // Hue.
+    if ( reverbEffectID <= 0 || reverbEffectID >= snd_reverb_cache.effects ) {
+        // Set the default properties.
+
+        return;
+    }
+
+    // Apply effect ID properties.
+    s_api.set_active_reverb_effect( snd_reverb_cache.effects[ reverbEffectID ].resource_id );
+}
+
 // =======================================================================
 // Console functions
 // =======================================================================
+
+/**
+*   @brief  Show a list of all loaded up EAX effects.
+**/
+static void S_SoundEAXList_f( void ) {
+
+}
 
 static void S_SoundInfo_f(void)
 {
@@ -116,7 +206,7 @@ static const cmdreg_t c_sound[] = {
     { "stopsound", S_StopAllSounds },
     { "soundlist", S_SoundList_f },
     { "soundinfo", S_SoundInfo_f },
-
+    { "soundeaxlist", S_SoundEAXList_f },
     { NULL }
 };
 
@@ -479,6 +569,13 @@ static void S_RegisterSexedSounds(void)
             S_RegisterSexedSound(i, sfx->name);
         }
     }
+}
+
+/**
+*   @brief  Registers a reverb effect, returning a qhandle, which is -1 on failure, >= 0 otherwise.
+**/
+const qhandle_t S_RegisterReverbEffect( const char *name, sfx_reverb_properties_t *properties ) {
+    return S_UploadReverbEffect( name, properties );
 }
 
 /*
@@ -859,6 +956,9 @@ void S_Update(void)
     s_api.update();
 }
 
+/**
+*   @brief   
+**/
 float S_GetLinearVolume(float perceptual)
 {
     float volume = perceptual;
@@ -876,3 +976,4 @@ float S_GetLinearVolume(float perceptual)
 
     return volume;
 }
+

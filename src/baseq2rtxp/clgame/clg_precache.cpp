@@ -9,6 +9,136 @@
 #include "clg_parse.h"
 #include "clg_precache.h"
 
+/**
+*
+*
+*   Reverb Effects Types:
+*
+*
+**/
+//!
+//! Default reverb effect type properties:
+//! 
+sfx_reverb_properties_t cl_eax_default_properties = {
+    .flDensity = 1.0,
+    .flDiffusion = 1.0,
+
+    .flGain = 0.f,
+    .flGainHF = 1.0f,
+    .flGainLF = 1.0f,
+
+    .flDecayTime = 1.0f,
+    .flDecayHFRatio = 1.0f,
+    .flDecayLFRatio = 1.0f,
+
+    .flReflectionsGain = 0.f,
+    .flReflectionsDelay = 0.f,
+    .flReflectionsPan = { 0.f, 0.f, 0.f },
+
+    .flLateReverbGain = 1.f,
+    .flLateReverbDelay = 0.f,
+    .flLateReverbPan = { 0.f, 0.f, 0.f },
+
+    .flEchoTime = 0.25f,
+    .flEchoDepth = 0.f,
+
+    .flModulationTime = 0.25f,
+    .flModulationDepth = 0.f,
+
+    .flAirAbsorptionGainHF = 1.f,
+    .flHFReference = 5000.0f,
+    .flLFReference = 250.f,
+
+    .flRoomRolloffFactor = 0.f,
+
+    // decay_limit
+    .iDecayHFLimit = 1,
+};
+//!
+//! Underwater reverb effect type properties:
+//!
+sfx_reverb_properties_t cl_eax_underwater_properties = {
+    .flDensity = 0.3645,
+    .flDiffusion = 1.0,
+
+    .flGain = 0.316200f,
+    .flGainHF = 0.01f,
+    .flGainLF = 1.0f,
+
+    .flDecayTime = 1.49f,
+    .flDecayHFRatio = 0.1f,
+    .flDecayLFRatio = 1.0f,
+
+    .flReflectionsGain = 0.5963f,
+    .flReflectionsDelay = 0.007f,
+    .flReflectionsPan = { 0.f, 0.f, 0.f },
+
+    .flLateReverbGain = 7.0795f,
+    .flLateReverbDelay = 0.011f,
+    .flLateReverbPan = { 0.f, 0.f, 0.f },
+
+    .flEchoTime = 0.25f,
+    .flEchoDepth = 0.f,
+
+    .flModulationTime = 1.18f,
+    .flModulationDepth = 0.348f,
+
+    .flAirAbsorptionGainHF = 0.9943f,
+    .flHFReference = 5000.0f,
+    .flLFReference = 250.f,
+
+    .flRoomRolloffFactor = 0.f,
+
+    // decay_limit
+    .iDecayHFLimit = 1,
+};
+//!
+//! Underwater reverb effect type properties:
+//!
+sfx_reverb_properties_t cl_eax_metal_s_properties = {
+    .flDensity = 1.0,
+    .flDiffusion = 0.7,
+
+    .flGain = 0.316200f,
+    .flGainHF = 0.4477f,
+    .flGainLF = 1.0f,
+
+    .flDecayTime = 1.51f,
+    .flDecayHFRatio = 1.25f,
+    .flDecayLFRatio = 1.14f,
+
+    .flReflectionsGain = 0.8913f,
+    .flReflectionsDelay = 0.02f,
+    .flReflectionsPan = { 0.f, 0.f, 0.f },
+
+    .flLateReverbGain = 1.4125f,
+    .flLateReverbDelay = 0.03f,
+    .flLateReverbPan = { 0.f, 0.f, 0.f },
+
+    .flEchoTime = 0.179f,
+    .flEchoDepth = 0.15f,
+
+    .flModulationTime = 0.895f,
+    .flModulationDepth = 0.19f,
+
+    .flAirAbsorptionGainHF = 0.992f,
+    .flHFReference = 5000.0f,
+    .flLFReference = 250.f,
+
+    .flRoomRolloffFactor = 0.f,
+
+    // decay_limit
+    .iDecayHFLimit = 0,
+};
+
+
+/**
+*
+*
+*   Precaching:
+*
+*
+**/
 //! Stores qhandles to all precached client game media.
 precached_media_t precache;
 
@@ -18,14 +148,23 @@ precached_media_t precache;
 void PF_PrecacheClientSounds( void ) {
     char    name[ MAX_QPATH ];
 
+    // Reverb Effects:
+    precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_DEFAULT ] = clgi.S_RegisterReverbEffect("default", &cl_eax_default_properties);
+    precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_UNDERWATER ] = clgi.S_RegisterReverbEffect( "underwater", &cl_eax_underwater_properties );
+    precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_METAL_S ] = clgi.S_RegisterReverbEffect( "underwater", &cl_eax_metal_s_properties );
+
+    // Ricochets SFX:
     precache.cl_sfx_ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
     precache.cl_sfx_ric2 = clgi.S_RegisterSound( "world/ric2.wav" );
     precache.cl_sfx_ric3 = clgi.S_RegisterSound( "world/ric3.wav" );
+    // Lasers SFX:
     precache.cl_sfx_lashit = clgi.S_RegisterSound( "weapons/lashit.wav" );
+    // Flare/Sparks SFX:
     precache.cl_sfx_flare = clgi.S_RegisterSound( "weapons/flare.wav" );
     precache.cl_sfx_spark5 = clgi.S_RegisterSound( "world/spark5.wav" );
     precache.cl_sfx_spark6 = clgi.S_RegisterSound( "world/spark6.wav" );
     precache.cl_sfx_spark7 = clgi.S_RegisterSound( "world/spark7.wav" );
+    // Weapon SFX:
     precache.cl_sfx_railg = clgi.S_RegisterSound( "weapons/railgf1a.wav" );
     precache.cl_sfx_rockexp = clgi.S_RegisterSound( "weapons/rocklx1a.wav" );
     precache.cl_sfx_grenexp = clgi.S_RegisterSound( "weapons/grenlx1a.wav" );
