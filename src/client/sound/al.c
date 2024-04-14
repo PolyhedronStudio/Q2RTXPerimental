@@ -36,7 +36,7 @@ static ALuint       s_stream;
 static ALuint       s_stream_buffers;
 static ALboolean    s_loop_points;
 static ALboolean    s_source_spatialize;
-static unsigned     s_framecount;
+static uint64_t     s_framecount;
 
 static ALuint       s_underwater_filter;
 static bool         s_underwater_flag;

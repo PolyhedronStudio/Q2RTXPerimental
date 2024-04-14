@@ -92,18 +92,18 @@ typedef struct channel_s {
     sfx_t       *sfx;           // sfx number
     float       leftvol;        // 0.0-1.0 volume
     float       rightvol;       // 0.0-1.0 volume
-    int         end;            // end time in global paintsamples
-    int         pos;            // sample position in sfx
-    int         entnum;         // to allow overriding a specific sound
-    int         entchannel;     //
+    int32_t     end;            // end time in global paintsamples
+    int32_t     pos;            // sample position in sfx
+    int32_t     entnum;         // to allow overriding a specific sound
+    int32_t     entchannel;     //
     vec3_t      origin;         // only use if fixed_origin is set
     vec_t       dist_mult;      // distance multiplier (attenuation/clipK)
     float       master_vol;     // 0.0-1.0 master volume
     bool        fixed_origin;   // use origin instead of fetching entnum's origin
     bool        autosound;      // from an entity->sound, cleared each frame
 #if USE_OPENAL
-    unsigned    autoframe;
-    unsigned    srcnum;
+    uint64_t    autoframe;
+    uint32_t    srcnum;
 #endif
 } channel_t;
 
@@ -112,12 +112,12 @@ typedef struct channel_s {
 **/
 typedef struct {
     char        *name;
-    int         format;
-    int         channels;
-    int         rate;
-    int         width;
-    int         loopstart;
-    int         samples;
+    int32_t     format;
+    int32_t     channels;
+    int32_t     rate;
+    int32_t     width;
+    int32_t     loopstart;
+    int32_t     samples;
     byte        *data;
 } wavinfo_t;
 

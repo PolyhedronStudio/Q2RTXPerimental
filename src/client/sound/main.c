@@ -139,7 +139,7 @@ const qhandle_t S_UploadReverbEffect( const char *name, sfx_reverb_properties_t 
 **/
 void S_SetActiveReverbEffect( const qhandle_t reverbEffectID ) {
     // Hue.
-    if ( reverbEffectID <= 0 || reverbEffectID >= snd_reverb_cache.effects ) {
+    if ( reverbEffectID < 0 || reverbEffectID >= snd_reverb_cache.num_effects ) {
         // Set the default properties.
 
         return;
@@ -887,7 +887,9 @@ void S_RawSamples(int samples, int rate, int width, int channels, const byte *da
 // =======================================================================
 // Update sound buffer
 // =======================================================================
-
+/**
+*   @brief  Iterates all packet entities and 
+**/
 void S_BuildSoundList(int *sounds)
 {
     int         i;

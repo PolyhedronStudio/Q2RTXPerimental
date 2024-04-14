@@ -151,7 +151,7 @@ void PF_PrecacheClientSounds( void ) {
     // Reverb Effects:
     precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_DEFAULT ] = clgi.S_RegisterReverbEffect("default", &cl_eax_default_properties);
     precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_UNDERWATER ] = clgi.S_RegisterReverbEffect( "underwater", &cl_eax_underwater_properties );
-    precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_METAL_S ] = clgi.S_RegisterReverbEffect( "underwater", &cl_eax_metal_s_properties );
+    precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_METAL_S ] = clgi.S_RegisterReverbEffect( "metal_s", &cl_eax_metal_s_properties );
 
     // Ricochets SFX:
     precache.cl_sfx_ric1 = clgi.S_RegisterSound( "world/ric1.wav" );

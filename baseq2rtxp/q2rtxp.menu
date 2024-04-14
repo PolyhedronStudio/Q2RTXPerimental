@@ -372,6 +372,7 @@ begin developer_stuff
     title "Developer Test Maps"
     background #212F3CD0
     style --compact
+    action "local env_sound(Reverb EAX Effects)" "skill 0; gamemode 0; maxclients 1; map local_env_sound force"
     blank
     action "cm_materials(CollisionModel Materials)" "skill 0; gamemode 0; maxclients 1; map cm_materials force"
     blank
