@@ -518,3 +518,9 @@ void CL_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
     clge->GetEntitySoundOrigin( entityNumber, org );
 }
 
+/**
+*   @brief  Used by the sound code in order to determine the reverb effect to apply for the entity's origin.
+**/
+qhandle_t CL_GetEAXBySoundOrigin( const int32_t entityNumber, vec3_t org ) {
+    return clge->GetEAXBySoundOrigin( entityNumber, org );
+}

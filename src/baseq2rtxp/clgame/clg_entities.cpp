@@ -8,6 +8,13 @@
 #include "clg_local.h"
 #include "clg_entities.h"
 
+//// Needed for EAX spatialization to work:
+//#include "clg_local_entities.h"
+//#include "local_entities/clg_local_entity_classes.h"
+//#include "local_entities/clg_local_env_sound.h"
+
+
+
 /**
 *   @brief  For debugging problems when out-of-date entity origin is referenced.
 **/
@@ -112,8 +119,61 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
         CLG_LerpBrushModelSoundOrigin( ent, org );
     }
 
-    // Determine whichever reverb effect is dominant for the current sound we're spatializing.
+    // TODO: Determine whichever reverb effect is dominant for the current sound we're spatializing??    
+}
+/**
+*   @brief  The sound code makes callbacks to the client for entitiy position
+*           information, so entities can be dynamically re-spatialized.
+**/
+qhandle_t PF_GetEAXBySoundOrigin( const int32_t entityNumber, vec3_t org ) {
+    //if ( entityNumber < 0 || entityNumber >= MAX_EDICTS ) {
+    //    Com_Error( ERR_DROP, "%s: bad entnum: %d", __func__, entityNumber );
+    //}
 
+    //if ( !entityNumber || entityNumber == clgi.client->listener_spatialize.entnum ) {
+    //    // Should this ever happen?
+    //    VectorCopy( clgi.client->listener_spatialize.origin, org );
+    //    return SOUND_EAX_EFFECT_DEFAULT;
+    //}
+
+    //// Get entity pointer.
+    //centity_t *ent = &clg_entities[ entityNumber ]; // ENTITY_FOR_NUMBER( entityNumber );
+
+    //// If for whatever reason it is invalid:
+    //if ( !ent ) {
+    //    Com_Error( ERR_DROP, "%s: nullptr entity for entnum: %d", __func__, entityNumber );
+    //    return SOUND_EAX_EFFECT_DEFAULT;
+    //}
+
+    //// Iterate over the env_sound entities, if we're within their radius, return the appropriate reverb eax id.
+    //float bestDistance = 999999;
+    //clg_local_entity_t *best_sound_scape = nullptr;
+
+    //for ( int32_t i = 0; i < level.env_sound_list_count; i++ ) {
+    //    // Fetch env_sound origin.
+    //    Vector3 env_sound_origin = level.env_sound_list[ i ]->locals.origin;
+
+    //    // Determine distance between 
+    //    const float dist = QM_Vector3Distance( env_sound_origin, org );
+
+    //    clg_local_entity_t *sound_scape_entity = level.env_sound_list[ i ];
+    //    clg_env_sound_locals_t *classLocals = CLG_LocalEntity_GetClass<clg_env_sound_locals_t>( sound_scape_entity );
+
+    //    if ( dist < bestDistance && dist < classLocals->radius ) {
+    //        bestDistance = dist;
+    //        best_sound_scape = level.env_sound_list[ i ];
+    //    }
+    //}
+
+    //// Did we find any specific nearby sound scape? If so, use its reverb properties instead.
+    //qhandle_t reverb_eax_id = SOUND_EAX_EFFECT_DEFAULT;
+    //if ( best_sound_scape ) {
+    //    clg_env_sound_locals_t *classLocals = CLG_LocalEntity_GetClass<clg_env_sound_locals_t>( best_sound_scape );
+    //    reverb_eax_id = classLocals->reverbID;
+    //}
+
+    //return reverb_eax_id;
+    return 0;
 }
 
 /**

@@ -27,7 +27,7 @@
 **/
 void CLG_env_sound_Precache( clg_local_entity_t *self, const cm_entity_t *keyValues ) {
 	// Get class locals.
-	clg_env_sound_locals_t *classLocals = static_cast<clg_env_sound_locals_t *>( self->classLocals );
+	clg_env_sound_locals_t *classLocals = CLG_LocalEntity_GetClass<clg_env_sound_locals_t>( self );
 
 	// Key/Value: 'radius':
 	if ( const cm_entity_t *modelKv = clgi.CM_EntityKeyValue( keyValues, "radius" ) ) {
@@ -82,6 +82,10 @@ void CLG_env_sound_Spawn( clg_local_entity_t *self ) {
 
 	// Setup nextthink.
 	self->nextthink = level.time + FRAME_TIME_MS;
+
+	// Add itself to the array of local env_sound entities.
+	level.env_sound_list[ level.env_sound_list_count ] = self;
+	level.env_sound_list_count++;
 }
 
 /**

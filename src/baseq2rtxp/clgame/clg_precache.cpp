@@ -93,7 +93,7 @@ sfx_reverb_properties_t cl_eax_underwater_properties = {
     .iDecayHFLimit = 1,
 };
 //!
-//! Underwater reverb effect type properties:
+//! Metal - Small - reverb effect type properties:
 //!
 sfx_reverb_properties_t cl_eax_metal_s_properties = {
     .flDensity = 1.0,
@@ -130,6 +130,82 @@ sfx_reverb_properties_t cl_eax_metal_s_properties = {
     // decay_limit
     .iDecayHFLimit = 0,
 };
+//!
+//! Tunnel - Small - reverb effect type properties:
+//!
+sfx_reverb_properties_t cl_eax_tunnel_s_properties = {
+    .flDensity = 1.0,
+    .flDiffusion = 0.690,
+
+    .flGain = 0.316200f,
+    .flGainHF = 0.79430f,
+    .flGainLF = 0.81930f,
+
+    .flDecayTime = 3.28f,
+    .flDecayHFRatio = 1.17f,
+    .flDecayLFRatio = 0.91f,
+
+    .flReflectionsGain = 0.4467f,
+    .flReflectionsDelay = 0.4400f,
+    .flReflectionsPan = { 0.f, 0.f, 0.f },
+
+    .flLateReverbGain = 0.2818f,
+    .flLateReverbDelay = 0.024f,
+    .flLateReverbPan = { 0.f, 0.f, 0.f },
+
+    .flEchoTime = 0.25f,
+    .flEchoDepth = 0.20f,
+
+    .flModulationTime = 0.25f,
+    .flModulationDepth = 0.0f,
+
+    .flAirAbsorptionGainHF = 0.9966f,
+    .flHFReference = 5000.0f,
+    .flLFReference = 250.f,
+
+    .flRoomRolloffFactor = 0.f,
+
+    // decay_limit
+    .iDecayHFLimit = 1,
+};
+//!
+//! Tunnel - Large - reverb effect type properties:
+//!
+sfx_reverb_properties_t cl_eax_tunnel_l_properties = {
+    .flDensity = 1.0,
+    .flDiffusion = 0.820,
+
+    .flGain = 0.316200f,
+    .flGainHF = 0.44670f,
+    .flGainLF = 0.89130f,
+
+    .flDecayTime = 3.57f,
+    .flDecayHFRatio = 1.12f,
+    .flDecayLFRatio = 0.91f,
+
+    .flReflectionsGain = 0.3981f,
+    .flReflectionsDelay = 0.0590f,
+    .flReflectionsPan = { 0.f, 0.f, 0.f },
+
+    .flLateReverbGain = 0.89130f,
+    .flLateReverbDelay = 0.037f,
+    .flLateReverbPan = { 0.f, 0.f, 0.f },
+
+    .flEchoTime = 0.25f,
+    .flEchoDepth = 0.14f,
+
+    .flModulationTime = 0.25f,
+    .flModulationDepth = 0.0f,
+
+    .flAirAbsorptionGainHF = 0.992f,
+    .flHFReference = 5000.0f,
+    .flLFReference = 250.f,
+
+    .flRoomRolloffFactor = 0.f,
+
+    // decay_limit
+    .iDecayHFLimit = 1,
+};
 
 
 /**
@@ -152,6 +228,9 @@ void PF_PrecacheClientSounds( void ) {
     precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_DEFAULT ] = clgi.S_RegisterReverbEffect("default", &cl_eax_default_properties);
     precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_UNDERWATER ] = clgi.S_RegisterReverbEffect( "underwater", &cl_eax_underwater_properties );
     precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_METAL_S ] = clgi.S_RegisterReverbEffect( "metal_s", &cl_eax_metal_s_properties );
+    precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_TUNNEL_S ] = clgi.S_RegisterReverbEffect( "tunnel_s", &cl_eax_tunnel_s_properties );
+    precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_TUNNEL_L ] = clgi.S_RegisterReverbEffect( "tunnel_s", &cl_eax_tunnel_l_properties );    // We loaded 3 reverb effects, make sure the cache is aware of this.
+    precache.cl_num_eax_reverb_effects = 4;
 
     // Ricochets SFX:
     precache.cl_sfx_ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
@@ -191,7 +270,7 @@ void PF_PrecacheClientSounds( void ) {
             continue;
         }
 
-        // Precache the actual model, retreive the qhandle_t and store it.
+        // Precache the actual sound, retreive the qhandle_t and store it.
         precache.local_sounds[ i ] = clgi.S_RegisterSound( name );
     }
 }

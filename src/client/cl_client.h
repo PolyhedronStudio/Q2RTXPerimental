@@ -535,6 +535,10 @@ void CL_CalculateViewValues( void );
 **/
 void CL_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t origin );
 /**
+*   @brief  Used by the sound code in order to determine the reverb effect to apply for the entity's origin.
+**/
+qhandle_t CL_GetEAXBySoundOrigin( const int32_t entityNumber, vec3_t org );
+/**
 *   @brief  For debugging problems when out-of-date entity origin is referenced.
 **/
 #if USE_DEBUG

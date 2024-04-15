@@ -310,6 +310,8 @@ typedef struct {
 static constexpr int32_t SOUND_EAX_EFFECT_DEFAULT = 0;
 static constexpr int32_t SOUND_EAX_EFFECT_UNDERWATER = 1;
 static constexpr int32_t SOUND_EAX_EFFECT_METAL_S = 2;
+static constexpr int32_t SOUND_EAX_EFFECT_TUNNEL_S = 3;
+static constexpr int32_t SOUND_EAX_EFFECT_TUNNEL_L = 4;
 
 static constexpr int32_t SOUND_EAX_EFFECT_MAX = 32;
 
@@ -492,6 +494,7 @@ typedef struct precached_media_s {
 	int32_t num_local_sounds;
 
 
+
 	//
 	// Models:
 	//
@@ -510,6 +513,15 @@ typedef struct precached_media_s {
 	qhandle_t cl_mod_lightning;
 	qhandle_t cl_mod_heatbeam;
 	qhandle_t cl_mod_explo4_big;
+
+
+
+	//
+	// Sound EAX:
+	// 
+	//! Stores all the loaded up Reverb Effects:
+	qhandle_t cl_eax_reverb_effects[ SOUND_EAX_EFFECT_MAX ];
+	int32_t cl_num_eax_reverb_effects;
 
 
 	// 
@@ -534,24 +546,20 @@ typedef struct precached_media_s {
 	qhandle_t cl_sfx_disrexp;
 
 
-	// Reverb Effects:
-	qhandle_t cl_eax_reverb_effects[ SOUND_EAX_EFFECT_MAX ];
 
-
-	//
-	// View Models: (Moved here from client, was named weapon models but a more generic name is best fit.)
-	//
+	//!
+	//! View Models: (Moved here from client, was named weapon models but a more generic name is best fit.)
+	//!
 	char	viewModels[ MAX_CLIENTVIEWMODELS ][ MAX_QPATH ];
 	int32_t	numViewModels;
 
-	//
-	// Other:
-	//
 
+
+	//!
+	//! Other:
+	//!
 	// ...
-
 } precached_media_t;
-
 //! Stores qhandles to all precached client game media.
 extern precached_media_t precache;
 
@@ -614,7 +622,18 @@ struct level_locals_t {
 		} events;
 	} parsedMessage;
 
-	//! Client active reverb id.
+
+
+	//! A list of all 'client_env_sound' entities present in the current map. Used as a performance
+	//! saver to prevent having to iterate ALL entities each time around.
+	//! 
+	//! NOTE: These are not indexed or sorted by their actual local entity ID, we just keep a huge
+	//! buffer for simplicity.
+	clg_local_entity_t *env_sound_list[ MAX_CLIENT_ENTITIES ];
+	//! Keeps track of how many env_sound are actually stored in the list.
+	uint32_t env_sound_list_count;
+
+	//! Active client reverb EAX effect ID.
 	qhandle_t reverbEffectID;
 };
 extern level_locals_t level;

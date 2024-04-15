@@ -465,6 +465,7 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.SpawnEntities = PF_SpawnEntities;
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
+		globals.GetEAXBySoundOrigin = PF_GetEAXBySoundOrigin;
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
 
 		globals.GetGamemodeName = PF_GetGamemodeName;

@@ -323,32 +323,39 @@ static void AL_DeleteSfx(sfx_t *s)
     }
 }
 
-static int AL_GetBeginofs(float timeofs)
-{
+static int AL_GetBeginofs( float timeofs ) {
     return s_paintedtime + timeofs * 1000;
 }
 
-static void AL_Spatialize(channel_t *ch)
-{
+static void AL_Spatialize( channel_t *ch ) {
+    // Actual origin to apply for AL_POSITION.
     vec3_t      origin;
 
-    // anything coming from the view entity will always be full volume
-    // no attenuation = no spatialization
-    if (S_IsFullVolume(ch)) {
+    //qhandle_t reverb_resource_id = 0;
+
+    // Anything coming from the view entity will always be full volume:
+    // 'NO' Attenuation == 'NO' Spatialization.
+    if ( S_IsFullVolume(ch) ) {
         VectorCopy( cl.listener_spatialize.origin, origin);
-    } else if (ch->fixed_origin) {
-        VectorCopy(ch->origin, origin);
+    // Used channel origin in case of a fixed set origin:
+    } else if ( ch->fixed_origin ) {
+        VectorCopy( ch->origin, origin );
+    // Otherwise, retreive exact interpolated origin for the entity:
     } else {
-        CL_GetEntitySoundOrigin(ch->entnum, origin);
+        CL_GetEntitySoundOrigin( ch->entnum, origin );
+        
+        // Apply the current reverb properties.
+        //reverb_resource_id = CL_GetEAXBySoundOrigin( ch->entnum, origin );
     }
 
+    // 'Software' spatialization:
     if (s_source_spatialize) {
-        qalSourcei(ch->srcnum, AL_SOURCE_SPATIALIZE_SOFT, !S_IsFullVolume(ch));
+        qalSourcei(ch->srcnum, AL_SOURCE_SPATIALIZE_SOFT, !S_IsFullVolume(ch) );
     }
 
-    qalSource3f(ch->srcnum, AL_POSITION, AL_UnpackVector(origin));
-
-    // Apply the current reverb properties.
+    // Spatialize(Set position) for the channel audio effect to play from.
+    qalSource3f( ch->srcnum, AL_POSITION, AL_UnpackVector(origin));
+    // Make sure to apply the reverb effect slot to the sound channel.
     qalSource3i( ch->srcnum, AL_AUXILIARY_SEND_FILTER, s_auxiliary_effect_slot, 0, AL_FILTER_NULL );
 }
 

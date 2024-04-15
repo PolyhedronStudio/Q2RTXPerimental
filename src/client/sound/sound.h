@@ -41,7 +41,7 @@ typedef struct {
 *   @brief
 **/
 typedef struct sfxcache_s {
-    int         length;
+    int64_t     length;
     int         loopstart;
     int         width;
     int         channels;
@@ -92,7 +92,7 @@ typedef struct channel_s {
     sfx_t       *sfx;           // sfx number
     float       leftvol;        // 0.0-1.0 volume
     float       rightvol;       // 0.0-1.0 volume
-    int32_t     end;            // end time in global paintsamples
+    int64_t     end;            // end time in global paintsamples
     int32_t     pos;            // sample position in sfx
     int32_t     entnum;         // to allow overriding a specific sound
     int32_t     entchannel;     //
@@ -190,7 +190,7 @@ extern int          s_numchannels;
 /**
 *   Sound Painting:
 **/
-extern int          s_paintedtime;
+extern int64_t      s_paintedtime;
 extern list_t       s_pendingplays;
 
 extern wavinfo_t    s_info;

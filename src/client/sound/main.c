@@ -40,7 +40,7 @@ sndapi_t        s_api;
 
 bool        s_registering;
 
-int         s_paintedtime;  // sample PAIRS
+int64_t     s_paintedtime;  // sample PAIRS
 
 // during registration it is possible to have more sounds
 // than could actually be referenced during gameplay,
@@ -138,14 +138,15 @@ const qhandle_t S_UploadReverbEffect( const char *name, sfx_reverb_properties_t 
 *   @brief  Set the global reverb properties to apply.
 **/
 void S_SetActiveReverbEffect( const qhandle_t reverbEffectID ) {
-    // Hue.
+    // When we got an invalid ID..
     if ( reverbEffectID < 0 || reverbEffectID >= snd_reverb_cache.num_effects ) {
-        // Set the default properties.
-
+        // Revert to default the default properties.
+        s_api.set_active_reverb_effect( snd_reverb_cache.effects[ 0 ].resource_id );
+        // And exit.
         return;
     }
 
-    // Apply effect ID properties.
+    // Oetherwise, apply the ID matching effect's properties.
     s_api.set_active_reverb_effect( snd_reverb_cache.effects[ reverbEffectID ].resource_id );
 }
 
@@ -632,7 +633,7 @@ channel_t *S_PickChannel(int entnum, int entchannel)
 {
     int         ch_idx;
     int         first_to_die;
-    int         life_left;
+    int64_t     life_left;
     channel_t   *ch;
 
 // Check for replacement sound, or find the best one to replace

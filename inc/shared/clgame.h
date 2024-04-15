@@ -757,6 +757,10 @@ typedef struct {
 	**/
 	void ( *GetEntitySoundOrigin )( const int32_t entityNumber, vec3_t origin );
 	/**
+	*	@brief	Returns a qhandle_t to the loaded EAX reverb effect profile resource.
+	**/
+	qhandle_t ( *GetEAXBySoundOrigin )( const int32_t entityNumber, vec3_t origin );
+	/**
 	*	@brief	Parsess entity events.
 	**/
 	void ( *ParseEntityEvent )( const int32_t entityNumber );

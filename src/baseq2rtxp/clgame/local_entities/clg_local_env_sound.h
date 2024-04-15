@@ -24,6 +24,6 @@ typedef struct clg_env_sound_local_s {
 
 	//! The radius of the environmental eax reverb effecet.
 	float radius;
-	//! The reverb type ID, set by the style value at spawn time.
+	//! The reverb type ID, set by the 'reverb_effect_id' key/value at spawn time.
 	qhandle_t reverbID;
 } clg_env_sound_locals_t;

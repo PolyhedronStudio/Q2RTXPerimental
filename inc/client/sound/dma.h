@@ -51,7 +51,7 @@ typedef struct {
 } snddma_driver_t;
 
 extern dma_t    dma;
-extern int      s_paintedtime;
+extern int64_t  s_paintedtime;
 
 extern cvar_t   *s_khz;
 

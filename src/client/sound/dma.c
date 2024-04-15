@@ -431,7 +431,7 @@ static void PaintChannels(int endtime)
 
     while (s_paintedtime < endtime) {
         // if paintbuffer is smaller than DMA buffer
-        int end = min(endtime, s_paintedtime + PAINTBUFFER_SIZE);
+        int64_t end = min(endtime, s_paintedtime + PAINTBUFFER_SIZE);
 
         // start any playsounds
         while (1) {
@@ -455,7 +455,7 @@ static void PaintChannels(int endtime)
 
         // paint in the channels.
         for (i = 0, ch = s_channels; i < s_numchannels; i++, ch++) {
-            int ltime = s_paintedtime;
+            int64_t ltime = s_paintedtime;
 
             while (ltime < end) {
                 if (!ch->sfx || (!ch->leftvol && !ch->rightvol))
@@ -469,7 +469,7 @@ static void PaintChannels(int endtime)
                 Q_assert(sc->channels == 1 || sc->channels == 2);
 
                 // max painting is to the end of the buffer
-                int count = min(end, ch->end) - ltime;
+                int64_t count = min(end, ch->end) - ltime;
 
                 if (count > 0) {
                     int func = (sc->width - 1) * 3 + (sc->channels - 1) * (S_IsFullVolume(ch) + 1);
