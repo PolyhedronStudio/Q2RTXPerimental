@@ -6,17 +6,17 @@ Features being looked forward on implementation.
 ### Highest Priority:
 * [ ] ...
 ### High Priority:
-* [X] Add in ``cm_material_t`` accompanied by an actual json based client and server sided material properties file. Allowing for setting material contents type, acceleration/friction influences, footsteps, posisble future 'reverb effects'.
+* [X] Add in ``cm_material_t`` accompanied by an actual json based client and server sided material properties file. Allowing for setting material contents ``kind``, acceleration/friction influences, footsteps, etc.
 	* [ ] Acquire some proper footstep audio files and add in material specific footstep audio.
 	* [ ] Have bullet impact display material ``kind`` specific puffs?
-### Medium Priority:
 * [ ] Move player animation code/task into the player move code for proper synchronisity and consistency reasons.
+* [ ] Footsteps/ViewBob to Client Game, PMove?
+### Medium Priority:
 * [ ] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
 * [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.
 * [x] Add some way of having entity 'class' like type support. (At the least, eliminate a need for having such a large edict_t type that holds all sorts of object-type specific variables.)
 	* [x] So far this is only in existence for the client game's ``clg_local_entity_t`` type.
 	* [ ] Finish the implementation/style of it, make sure it is save game compatible, and implement it all-round.
-* [ ] Footsteps/ViewBob to Client Game, PMove?
 ### Low Priority:
 * [ ] Rid all places where ``coop`` and ``deathmatch`` cvars are checked by actual individual gamemode related counterparts.
 * [ ] Calculate the proper entity matrixes/quaternions during Link time.
