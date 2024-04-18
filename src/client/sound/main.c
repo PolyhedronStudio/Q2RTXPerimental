@@ -140,7 +140,7 @@ const qhandle_t S_UploadReverbEffect( const char *name, sfx_reverb_properties_t 
 void S_SetActiveReverbEffect( const qhandle_t reverbEffectID ) {
     // When we got an invalid ID..
     if ( reverbEffectID < 0 || reverbEffectID >= snd_reverb_cache.num_effects ) {
-        // Revert to default the default properties.
+        // Revert to the 'hard loaded' default properties.
         s_api.set_active_reverb_effect( snd_reverb_cache.effects[ 0 ].resource_id );
         // And exit.
         return;

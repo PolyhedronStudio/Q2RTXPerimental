@@ -175,6 +175,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 
 	# ClientGame
 	baseq2rtxp/clgame/clg_client.cpp
+	baseq2rtxp/clgame/clg_eax.cpp
 	baseq2rtxp/clgame/clg_effects.cpp
 	baseq2rtxp/clgame/clg_entities.cpp
 	baseq2rtxp/clgame/clg_input.cpp
@@ -208,6 +209,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 )
 SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_client.h
+	baseq2rtxp/clgame/clg_eax.h
 	baseq2rtxp/clgame/clg_effects.h
 	baseq2rtxp/clgame/clg_entities.h
 	baseq2rtxp/clgame/clg_input.h

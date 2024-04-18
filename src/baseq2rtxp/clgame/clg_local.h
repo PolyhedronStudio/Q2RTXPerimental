@@ -633,8 +633,14 @@ struct level_locals_t {
 	//! Keeps track of how many env_sound are actually stored in the list.
 	uint32_t env_sound_list_count;
 
-	//! Active client reverb EAX effect ID.
-	qhandle_t reverbEffectID;
+	struct {
+		//! Active client reverb EAX effect ID.
+		qhandle_t currentID;
+		//! Previous client reverb EAX effect ID: Used for lerping it smoothly to the new current one.
+		qhandle_t previousID;
+		//! Total frametiem for eax lerp.
+		//float lerpFraction;
+	} eaxEffect;
 };
 extern level_locals_t level;
 

@@ -219,17 +219,37 @@ sfx_reverb_properties_t cl_eax_tunnel_l_properties = {
 precached_media_t precache;
 
 /**
-*	@brief	Called right before loading all received configstring (server-) sounds.
+*   @brief  Precaches('to load') all local 'sound path' registered files.
+**/
+void CLG_PrecacheLocalSounds() {
+    // Iterate over the local sound path 'config' strings.
+    for ( int32_t i = 1; i < precache.num_local_sounds; i++ ) {
+        // Ensure that its name is valid.
+        const char *name = precache.model_paths[ i ];
+        if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
+            precache.local_sounds[ i ] = 0;
+            continue;
+        }
+
+        // Precache the actual sound, retreive the qhandle_t and store it.
+        precache.local_sounds[ i ] = clgi.S_RegisterSound( name );
+    }
+}
+/**
+*	@brief	Called right before loading all received configstring (server-) sounds, allowing us to load in
+*           the client's own local(-entity 'precached' sound paths) sounds first.
 **/
 void PF_PrecacheClientSounds( void ) {
     char    name[ MAX_QPATH ];
 
-    // Reverb Effects:
+    // Required Reverb Effects, expected to be ('hard loaded'):
     precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_DEFAULT ] = clgi.S_RegisterReverbEffect("default", &cl_eax_default_properties);
     precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_UNDERWATER ] = clgi.S_RegisterReverbEffect( "underwater", &cl_eax_underwater_properties );
+    // Remaining Reverb Effects:
     precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_METAL_S ] = clgi.S_RegisterReverbEffect( "metal_s", &cl_eax_metal_s_properties );
     precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_TUNNEL_S ] = clgi.S_RegisterReverbEffect( "tunnel_s", &cl_eax_tunnel_s_properties );
-    precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_TUNNEL_L ] = clgi.S_RegisterReverbEffect( "tunnel_s", &cl_eax_tunnel_l_properties );    // We loaded 3 reverb effects, make sure the cache is aware of this.
+    precache.cl_eax_reverb_effects[ SOUND_EAX_EFFECT_TUNNEL_L ] = clgi.S_RegisterReverbEffect( "tunnel_l", &cl_eax_tunnel_l_properties );
+    // We loaded 4 reverb effects, make sure the cache is aware of this.
     precache.cl_num_eax_reverb_effects = 4;
 
     // Ricochets SFX:
@@ -261,20 +281,27 @@ void PF_PrecacheClientSounds( void ) {
     precache.cl_sfx_lightning = clgi.S_RegisterSound( "weapons/tesla.wav" );
     precache.cl_sfx_disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
 
-    // Iterate over the local sound path 'config' strings.
-    for ( int32_t i = 1; i < precache.num_local_sounds; i++ ) {
+    // Precaches all local 'sound path' registered files.
+    CLG_PrecacheLocalSounds();
+}
+
+/**
+*   @brief  Precaches('to load') all local 'model path' registered files.
+**/
+void CLG_PrecacheLocalModels() {
+    // Iterate over the local model path 'config' strings.
+    for ( int32_t i = 1; i <= precache.num_local_draw_models; i++ ) {
         // Ensure that its name is valid.
         const char *name = precache.model_paths[ i ];
         if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
-            precache.local_sounds[ i ] = 0;
+            precache.local_draw_models[ i ] = 0;
             continue;
         }
 
-        // Precache the actual sound, retreive the qhandle_t and store it.
-        precache.local_sounds[ i ] = clgi.S_RegisterSound( name );
+        // Precache the actual model, retreive the qhandle_t and store it.
+        precache.local_draw_models[ i ] = clgi.R_RegisterModel( name );
     }
 }
-
 /**
 *	@brief	Called right before loading all received configstring (server-) models.
 **/
@@ -308,18 +335,8 @@ void PF_PrecacheClientModels( void ) {
         //}
     }
 
-    // Iterate over the local model path 'config' strings.
-    for ( int32_t i = 1; i <= precache.num_local_draw_models; i++ ) {
-        // Ensure that its name is valid.
-        const char *name = precache.model_paths[ i ];
-        if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
-            precache.local_draw_models[ i ] = 0;
-            continue;
-        }
-
-        // Precache the actual model, retreive the qhandle_t and store it.
-        precache.local_draw_models[ i ] = clgi.R_RegisterModel( name );
-    }
+    // Precaches all local 'model path' registered files.
+    CLG_PrecacheLocalModels();
 }
 
 /**
