@@ -30,7 +30,3 @@ Think that to set forward for whichever project I might see fit with this, the m
 * RMLUI for 2D.
 * At the very least, decent humanoid skeletal model animation support. I think I did actually nail this right with Polyhedron.
 * A rewrite of the collision code(for additional other hull shape types, and to just get rotating objects act properly) and/or actual physics.
-* Somewhat related to number 4 and that includes actual proper "materials", which currently do not exist. Q2RTX only has .mat files that are refresh VKPT code related.
-* That cool audio shit, somewhat related to number 5, like HL1 has. When inside of a vent, audio goes all vent like. This is doable since OpenAL is already implemented.
-
-So I suppose I'm trying to sort of round up what I got right now as a release 0.0.2

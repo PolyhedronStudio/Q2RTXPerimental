@@ -7,6 +7,7 @@ Changes will from now on be listed as additions per version.
 * In accordance to the above, each ``mtexinfo_t`` now has its own unique ID, as well as its ``csurface_t`` member pointing to the corresponding material pointer as well as having the proper ``materialID`` set for it._
 * Player Move code now has an optional ``PMOVE_USE_MATERIAL_FRICTION`` define which when defined has the Player Move code respond to the ground material's friction.
 * Restructured and cleaned up the Player Move prediction code as well as corresponding view calculation code.
+* Added ``EAX`` support and a ``client_env_sound`` entity to accomodate with it. This allows for reverb effect zones, where the ``client_env_sound`` entity performs a clipping trace to the (predicted-)player origin, where if successful and within radius the specific reverb environment is set. 
 
 ## (v0.0.3):
 * Fixed problems with stair step smoothing interfering with pushers.
