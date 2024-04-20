@@ -8,6 +8,11 @@
 #pragma once
 
 /**
+*	@brief	Will 'hard set' instantly, the designated EAX reverb properties. Used when clearing state,
+*			as well as on ClientBegin calls.
+**/
+void CLG_EAX_HardSetEnvironment( const qhandle_t id );
+/**
 *	@brief	Will cache the current eax effect as its previous before assigning the new one, so that
 *			a smooth lerp may engage.
 **/
@@ -19,12 +24,9 @@ void CLG_EAX_ActivateCurrentEnvironment();
 /**
 *	@brief	Interpolates the EAX reverb effect properties into the destinated mixedProperties.
 **/
-void CLG_EAX_Interpolate( const qhandle_t fromID, const qhandle_t toID, const float lerpFraction, sfx_eax_properties_t *mixedProperties );
+void CLG_EAX_Interpolate( /*const qhandle_t fromID,*/ const qhandle_t toID, const float lerpFraction, sfx_eax_properties_t *mixedProperties );
 /**
-*	@brief
+*	@brief	Will scan for all 'client_env_sound' entities and test them for appliance. If none is found, the
+*			effect resorts to the 'default' instead.
 **/
 void CLG_EAX_DetermineEffect();
-/**
-*	@brief	Interpolates the EAX reverb effect properties into the destinated mixedProperties.
-**/
-//void CLG_EAX_Interpolate( const qhandle_t fromID, const qhandle_t toID, const float lerpFraction, sfx_eax_properties_t *mixedProperties );

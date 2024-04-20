@@ -351,13 +351,8 @@ void PF_InitGame( void ) {
 *	@brief
 **/
 void PF_ClearState( void ) {
-	// (Re-)Initializes the EAX Environment back to basics:
-	CLG_EAX_SetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
-	// Immediately interpolate fully.
-	level.eaxEffect.lerpFraction = 1.0f;
-	CLG_EAX_Interpolate( SOUND_EAX_EFFECT_DEFAULT, SOUND_EAX_EFFECT_DEFAULT, level.eaxEffect.lerpFraction, &level.eaxEffect.mixedProperties );
-	// Now apply the 'reset' environment.
-	CLG_EAX_ActivateCurrentEnvironment();
+	// Hard reset the sound EAX environment.
+	CLG_EAX_HardSetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
 
 	// Reset the local precache paths.
 	precache.num_local_draw_models = 0;

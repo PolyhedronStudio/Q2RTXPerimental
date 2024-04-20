@@ -13,7 +13,22 @@
 #include "local_entities/clg_local_env_sound.h"
 
 /**
-*	@brief	
+*	@brief	Will 'Hard Set' instantly, to the passed in EAX reverb properties. Used when clearing state,
+*			as well as on ClientBegin calls.
+**/
+void CLG_EAX_HardSetEnvironment( const qhandle_t id ) {
+	// (Re-)Initializes the EAX Environment back to basics:
+	CLG_EAX_SetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
+	// Immediately interpolate fully.
+	level.eaxEffect.lerpFraction = 1.0f;
+	CLG_EAX_Interpolate( SOUND_EAX_EFFECT_DEFAULT, level.eaxEffect.lerpFraction, &level.eaxEffect.mixedProperties );
+	// Now apply the 'reset' environment.
+	CLG_EAX_ActivateCurrentEnvironment();
+}
+
+/**
+*	@brief	Will cache the current eax effect as its previous before assigning the new one, so that
+*			a smooth lerp may engage.
 **/
 void CLG_EAX_SetEnvironment( const qhandle_t id ) {
 	// OOB, skip.
@@ -45,7 +60,8 @@ void CLG_EAX_ActivateCurrentEnvironment() {
 }
 
 /**
-*	@brief
+*	@brief	Will scan for all 'client_env_sound' entities and test them for appliance. If none is found, the
+*			effect resorts to the 'default' instead.
 **/
 void CLG_EAX_DetermineEffect() {
 	static qhandle_t old_dsp = SOUND_EAX_EFFECT_DEFAULT;
@@ -106,7 +122,7 @@ void CLG_EAX_DetermineEffect() {
 	// Lerp mix them otherwise:
 	if ( level.eaxEffect.lerpFraction < 1.0 ) {
 		// Lerp mix the old and current eax effects' properties.
-		CLG_EAX_Interpolate( level.eaxEffect.previousID, level.eaxEffect.currentID, level.eaxEffect.lerpFraction, &level.eaxEffect.mixedProperties );
+		CLG_EAX_Interpolate( level.eaxEffect.currentID, level.eaxEffect.lerpFraction, &level.eaxEffect.mixedProperties );
 		
 		// Apply the mixed EAX properties.
 		CLG_EAX_ActivateCurrentEnvironment( );
@@ -122,11 +138,12 @@ void CLG_EAX_DetermineEffect() {
 /**
 *	@brief	Interpolates the EAX reverb effect properties into the destinated mixedProperties.
 **/
-void CLG_EAX_Interpolate( const qhandle_t fromID, const qhandle_t toID, const float lerpFraction, sfx_eax_properties_t *mixedProperties ) {
-	if ( fromID >= precache.cl_num_eax_effects || toID >= precache.cl_num_eax_effects ) {
+void CLG_EAX_Interpolate( /*const qhandle_t fromID, */ const qhandle_t toID, const float lerpFraction, sfx_eax_properties_t *mixedProperties ) {
+	if ( /*fromID >= precache.cl_num_eax_effects ||*/ toID < 0 || toID >= precache.cl_num_eax_effects ) {
+		clgi.Print( PRINT_WARNING, "%s: Invalid toID(%i)!\n", __func__, toID );
 		return;
 	}
-	const sfx_eax_properties_t *fromProperties = precache.cl_eax_effects[ fromID ];
+	//const sfx_eax_properties_t *fromProperties = precache.cl_eax_effects[ fromID ];
 	const sfx_eax_properties_t *toProperites = precache.cl_eax_effects[ toID ];
 
 	mixedProperties->flDensity = QM_Lerp( mixedProperties->flDensity, toProperites->flDensity, lerpFraction );

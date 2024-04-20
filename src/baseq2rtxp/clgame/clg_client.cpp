@@ -23,7 +23,7 @@ void PF_ClientBegin( void ) {
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientBegin\n" );
 
 	// Set the default environment reverb effect.
-	CLG_EAX_SetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
+	CLG_EAX_HardSetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
 }
 
 /**
@@ -73,15 +73,16 @@ void PF_ClientLocalFrame( void ) {
 	// Figure out the exact 'reverb' effect for our client to use.
 	CLG_EAX_DetermineEffect();
 
-	// Debug print.
-	//clgi.Print( PRINT_DEVELOPER, "%s: framenum(%ld), time(%ld)\n", 
-	//	__func__, level.framenum, level.time.milliseconds() );
+// Debug print: framenum, level time.
+#if 0
+	clgi.Print( PRINT_DEVELOPER, "%s: framenum(%ld), time(%ld)\n", 
+		__func__, level.framenum, level.time.milliseconds() );
+#endif
 }
 /**
 *	@brief	Called at the rate equal to that of the refresh frames.
 **/
 void PF_ClientRefreshFrame( void ) {
-	//clgi.Print( PRINT_NOTICE, "%s\n", __func__ );
 	// Give local entities a chance at being added to the current render frame.
 	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
 		// Get local entity pointer.
@@ -97,13 +98,14 @@ void PF_ClientRefreshFrame( void ) {
 	}
 
 	/**
-	*	We update the reverb effects at the rate of our rendering so it always feels smooth and real-time.
+	*	We update the reverb effect if needed due to client prediction, by the framerate's rate.
 	**/
 	// Force orverride it for underwater flag.
 	if ( clgi.client->predictedState.view.rdflags & RDF_UNDERWATER ) {
+		// Apply underwater reverb.
 		CLG_EAX_SetEnvironment( SOUND_EAX_EFFECT_UNDERWATER );
-	}
 
-	// Persue to now activate eax environment that has been set.
-	CLG_EAX_ActivateCurrentEnvironment();
+		// Persue to now activate eax environment that has been set.
+		CLG_EAX_ActivateCurrentEnvironment();
+	}
 }
