@@ -519,9 +519,9 @@ typedef struct precached_media_s {
 	//
 	// Sound EAX:
 	// 
-	//! Stores all the loaded up Reverb Effects:
-	qhandle_t cl_eax_reverb_effects[ SOUND_EAX_EFFECT_MAX ];
-	int32_t cl_num_eax_reverb_effects;
+	//! Stores all the loaded up EAX Effects:
+	sfx_eax_properties_t *cl_eax_effects[ SOUND_EAX_EFFECT_MAX ];
+	int32_t cl_num_eax_effects;
 
 
 	// 
@@ -634,12 +634,14 @@ struct level_locals_t {
 	uint32_t env_sound_list_count;
 
 	struct {
+		//! Actual lerped sfx reverb eax effect properties.
+		sfx_eax_properties_t mixedProperties;
 		//! Active client reverb EAX effect ID.
 		qhandle_t currentID;
 		//! Previous client reverb EAX effect ID: Used for lerping it smoothly to the new current one.
 		qhandle_t previousID;
 		//! Total frametiem for eax lerp.
-		//float lerpFraction;
+		float lerpFraction;
 	} eaxEffect;
 };
 extern level_locals_t level;

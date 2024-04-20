@@ -32,10 +32,7 @@
 *   @brief  Special reverb effect settings, these can be defined by the client game code and
 *           applied to the listener for special effects. (Underwater, hallways, etc.)
 **/
-typedef struct sfx_reverb_properties_s {
-    //! Need this?
-    int32_t registration_sequence;
-
+typedef struct sfx_eax_properties_s {
     //! This structure is based on the OpenAL EAX Reverb effects properties.
     //struct {
         float flDensity;
@@ -62,4 +59,4 @@ typedef struct sfx_reverb_properties_s {
         float flRoomRolloffFactor;
         int32_t iDecayHFLimit;
     //} properties;
-} sfx_reverb_properties_t;
+} sfx_eax_properties_t;

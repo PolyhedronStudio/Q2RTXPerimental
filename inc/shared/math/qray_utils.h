@@ -15,6 +15,14 @@ RMAPI const float QM_Clampf( const float value, const float min, const float max
     return ( result > max ) ? max : result;
 }
 
+// Clamp int32 value
+RMAPI const int32_t QM_ClampInt32( const int32_t value, const int32_t min, const int32_t max ) {
+    const int32_t result = ( value < min ) ? min : value;
+    //if ( result > max ) result = max;
+    //result;
+    return ( result > max ) ? max : result;
+}
+
 // slightly faster lerp that may not be as precise
 #define FASTLERP(a, b, c)   ((a)+(c)*((b)-(a)))
 // slower lerp, but you specify back & front lerp separately
@@ -31,7 +39,7 @@ RMAPI const float QM_FastLerp( const float start, const float end, const float a
 
 // Slower lerp, but you specify back & front lerp separately.
 RMAPI const float QM_LerpBackFront( const float start, const float end, const float backLerp, const float frontLerp ) {
-    const float result = ( (start) * (backLerp) +  (end) * (frontLerp) );
+    const float result = ( (start) * (backLerp) + (end) * (frontLerp) );
 
     return result;
 }

@@ -17,10 +17,14 @@ void CLG_EAX_SetEnvironment( const qhandle_t id );
 **/
 void CLG_EAX_ActivateCurrentEnvironment();
 /**
+*	@brief	Interpolates the EAX reverb effect properties into the destinated mixedProperties.
+**/
+void CLG_EAX_Interpolate( const qhandle_t fromID, const qhandle_t toID, const float lerpFraction, sfx_eax_properties_t *mixedProperties );
+/**
 *	@brief
 **/
 void CLG_EAX_DetermineEffect();
 /**
 *	@brief	Interpolates the EAX reverb effect properties into the destinated mixedProperties.
 **/
-//void CLG_EAX_Interpolate( const qhandle_t fromID, const qhandle_t toID, const float lerpFraction, sfx_reverb_properties_t *mixedProperties );
+//void CLG_EAX_Interpolate( const qhandle_t fromID, const qhandle_t toID, const float lerpFraction, sfx_eax_properties_t *mixedProperties );

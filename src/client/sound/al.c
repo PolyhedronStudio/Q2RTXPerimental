@@ -45,164 +45,129 @@ static bool         s_underwater_flag;
 /**
 *
 *
-*   EAX Reverb:
+*   EAX Effect:
 *
 *
 **/
+//! OpenAL ID for EAX effect slot.
 static ALuint s_auxiliary_effect_slot;
+struct {
+    ALuint mixer_resource_id;
+    qboolean is_eax;
+} s_eax_mixer;
 
+static void _AL_GenerateEAXMixer( void ) {
+
+    // Allocate a unique reverb effect resource ID.
+    //if ( !s_eax_mixer.mixer_resource_id ) {
+        qalGetError();
+        qalGenEffects( 1, &s_eax_mixer.mixer_resource_id );
+    //}
+
+    //try eax reverb for more settings
+    qalEffecti( s_eax_mixer.mixer_resource_id, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB );
+    if ( !qalGetError() ) {
+        s_eax_mixer.is_eax = true;
+    } else {
+        s_eax_mixer.is_eax = false;
+    }
+}
+
+static void _AL_DeleteEAXMixer( void ) {
+    qalDeleteEffects( 1, &s_eax_mixer.mixer_resource_id );
+    //s_eax_mixer.mixer_resource_id = 0;
+}
 /**
-*   @brief
+*   @brief  Allocate EAX effect slot.
 **/
 static void _AL_GenerateAuxiliaryEffectsSlot(void) {
     qalGenAuxiliaryEffectSlots( 1, &s_auxiliary_effect_slot );
 }
 /**
-*   @brief
+*   @brief  Deallocate, EAX effect slot.
 **/
 static void _AL_DeleteAuxiliaryEffectsSlot( void ) {
     qalDeleteAuxiliaryEffectSlots( 1, &s_auxiliary_effect_slot );
 }
 
 /**
-*   @brief  Will update the reverb effect ID with the given properties.
+*   @brief  Will set the passed eax rever beffect propperties to the eax effect mixer.
 **/
-static const qboolean AL_UpdateReverbEffect( const qhandle_t effect, sfx_reverb_properties_t *reverb ) {
-#ifdef AL_EFFECT_EAXREVERB
-    //try eax reverb for more settings
-    qalEffecti( effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB );
-    if ( !qalGetError() ) {
-        /* EAX Reverb is available. Set the EAX effect type then load the
-         * reverb properties. */
-        qalEffectf( effect, AL_EAXREVERB_DENSITY, reverb->flDensity );
-        qalEffectf( effect, AL_EAXREVERB_DIFFUSION, reverb->flDiffusion );
-        qalEffectf( effect, AL_EAXREVERB_GAIN, reverb->flGain );
-        qalEffectf( effect, AL_EAXREVERB_GAINHF, reverb->flGainHF );
-        qalEffectf( effect, AL_EAXREVERB_GAINLF, reverb->flGainLF );
-        qalEffectf( effect, AL_EAXREVERB_DECAY_TIME, reverb->flDecayTime );
-        qalEffectf( effect, AL_EAXREVERB_DECAY_HFRATIO, reverb->flDecayHFRatio );
-        qalEffectf( effect, AL_EAXREVERB_DECAY_LFRATIO, reverb->flDecayLFRatio );
-        qalEffectf( effect, AL_EAXREVERB_REFLECTIONS_GAIN, reverb->flReflectionsGain );
-        qalEffectf( effect, AL_EAXREVERB_REFLECTIONS_DELAY, reverb->flReflectionsDelay );
+static const qboolean AL_SetEAXEffectProperties( /*const qhandle_t effect, */ const sfx_eax_properties_t *reverb ) {
+    ALuint effect = s_eax_mixer.mixer_resource_id;
+
+    if ( s_eax_mixer.is_eax /*!qalGetError() */ ) {
+        /**
+        *   EAX Reverb is available. Set the EAX effect type then load the reverb properties and make sure to CLAMP them between sane ratios,
+        *   this way we prevent OpenAL-Soft from throwing C++ exceptions should for some reason we exceed min/max limits of said property.
+        **/
+        qalEffecti( effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB );
+
+        qalEffectf( effect, AL_EAXREVERB_DENSITY, QM_Clampf( reverb->flDensity, AL_EAXREVERB_MIN_DENSITY, AL_EAXREVERB_MAX_DENSITY ) );
+        
+        qalEffectf( effect, AL_EAXREVERB_DIFFUSION, QM_Clampf( reverb->flDiffusion, AL_EAXREVERB_MIN_DIFFUSION, AL_EAXREVERB_MAX_DIFFUSION ) );
+        
+        qalEffectf( effect, AL_EAXREVERB_GAIN, QM_Clampf( reverb->flGain, AL_EAXREVERB_MIN_GAIN, AL_EAXREVERB_MAX_GAIN ) );
+        qalEffectf( effect, AL_EAXREVERB_GAINHF, QM_Clampf( reverb->flGainHF, AL_EAXREVERB_MIN_GAINHF, AL_EAXREVERB_MAX_GAINHF ) );
+        qalEffectf( effect, AL_EAXREVERB_GAINLF, QM_Clampf( reverb->flGainLF, AL_EAXREVERB_MIN_GAINLF, AL_EAXREVERB_MAX_GAINLF ) );
+
+        qalEffectf( effect, AL_EAXREVERB_DECAY_TIME, QM_Clampf( reverb->flDecayTime, AL_EAXREVERB_MIN_DECAY_TIME, AL_EAXREVERB_MAX_DECAY_TIME ) );
+        qalEffectf( effect, AL_EAXREVERB_DECAY_HFRATIO, QM_Clampf( reverb->flDecayHFRatio, AL_EAXREVERB_MIN_DECAY_HFRATIO, AL_EAXREVERB_MAX_DECAY_HFRATIO ) );
+        qalEffectf( effect, AL_EAXREVERB_DECAY_LFRATIO, QM_Clampf( reverb->flDecayLFRatio, AL_EAXREVERB_MIN_DECAY_LFRATIO, AL_EAXREVERB_MAX_DECAY_LFRATIO ) );
+        
+        qalEffectf( effect, AL_EAXREVERB_REFLECTIONS_GAIN, QM_Clampf( reverb->flReflectionsGain, AL_EAXREVERB_MIN_REFLECTIONS_GAIN, AL_EAXREVERB_MAX_REFLECTIONS_GAIN ) );
+        qalEffectf( effect, AL_EAXREVERB_REFLECTIONS_DELAY, QM_Clampf( reverb->flReflectionsDelay, AL_EAXREVERB_MIN_REFLECTIONS_DELAY, AL_EAXREVERB_MAX_REFLECTIONS_DELAY ) );
         qalEffectfv( effect, AL_EAXREVERB_REFLECTIONS_PAN, reverb->flReflectionsPan );
-        qalEffectf( effect, AL_EAXREVERB_LATE_REVERB_GAIN, reverb->flLateReverbGain );
-        qalEffectf( effect, AL_EAXREVERB_LATE_REVERB_DELAY, reverb->flLateReverbDelay );
+        
+        qalEffectf( effect, AL_EAXREVERB_LATE_REVERB_GAIN, QM_Clampf( reverb->flLateReverbGain, AL_EAXREVERB_MIN_LATE_REVERB_GAIN, AL_EAXREVERB_MAX_LATE_REVERB_GAIN ) );
+        qalEffectf( effect, AL_EAXREVERB_LATE_REVERB_DELAY, QM_Clampf( reverb->flLateReverbDelay, AL_EAXREVERB_MIN_LATE_REVERB_DELAY, AL_EAXREVERB_MAX_LATE_REVERB_DELAY ) );
         qalEffectfv( effect, AL_EAXREVERB_LATE_REVERB_PAN, reverb->flLateReverbPan );
-        qalEffectf( effect, AL_EAXREVERB_ECHO_TIME, reverb->flEchoTime );
-        qalEffectf( effect, AL_EAXREVERB_ECHO_DEPTH, reverb->flEchoDepth );
-        qalEffectf( effect, AL_EAXREVERB_MODULATION_TIME, reverb->flModulationTime );
-        qalEffectf( effect, AL_EAXREVERB_MODULATION_DEPTH, reverb->flModulationDepth );
-        qalEffectf( effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF, reverb->flAirAbsorptionGainHF );
-        qalEffectf( effect, AL_EAXREVERB_HFREFERENCE, reverb->flHFReference );
-        qalEffectf( effect, AL_EAXREVERB_LFREFERENCE, reverb->flLFReference );
-        qalEffectf( effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR, reverb->flRoomRolloffFactor );
-        qalEffecti( effect, AL_EAXREVERB_DECAY_HFLIMIT, reverb->iDecayHFLimit );
-    } else
-#endif // #ifdef AL_EFFECT_EAXREVERB
-    {
-#ifdef AL_EFFECT_REVERB
+        
+        qalEffectf( effect, AL_EAXREVERB_ECHO_TIME, QM_Clampf( reverb->flEchoTime, AL_EAXREVERB_MIN_ECHO_TIME, AL_EAXREVERB_MAX_ECHO_TIME ) );
+        qalEffectf( effect, AL_EAXREVERB_ECHO_DEPTH, QM_Clampf( reverb->flEchoDepth, AL_EAXREVERB_MIN_ECHO_DEPTH, AL_EAXREVERB_MAX_ECHO_DEPTH ) );
+        
+        qalEffectf( effect, AL_EAXREVERB_MODULATION_TIME, QM_Clampf( reverb->flModulationTime, AL_EAXREVERB_MIN_MODULATION_TIME, AL_EAXREVERB_MAX_MODULATION_TIME ) );
+        qalEffectf( effect, AL_EAXREVERB_MODULATION_DEPTH, QM_Clampf( reverb->flModulationDepth, AL_EAXREVERB_MIN_MODULATION_DEPTH, AL_EAXREVERB_MAX_MODULATION_DEPTH ) );
+        
+        qalEffectf( effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF, QM_Clampf( reverb->flAirAbsorptionGainHF, AL_EAXREVERB_MIN_AIR_ABSORPTION_GAINHF, AL_EAXREVERB_MAX_AIR_ABSORPTION_GAINHF ) );
+        
+        qalEffectf( effect, AL_EAXREVERB_HFREFERENCE, QM_Clampf( reverb->flHFReference, AL_EAXREVERB_MIN_HFREFERENCE, AL_EAXREVERB_MAX_HFREFERENCE ) );
+        qalEffectf( effect, AL_EAXREVERB_LFREFERENCE, QM_Clampf( reverb->flLFReference, AL_EAXREVERB_MIN_LFREFERENCE, AL_EAXREVERB_MAX_LFREFERENCE ) );
+        
+        qalEffectf( effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR, QM_Clampf( reverb->flRoomRolloffFactor, AL_EAXREVERB_MIN_ROOM_ROLLOFF_FACTOR, AL_EAXREVERB_MAX_ROOM_ROLLOFF_FACTOR ) );
+        
+        qalEffecti( effect, AL_EAXREVERB_DECAY_HFLIMIT, QM_ClampInt32( reverb->iDecayHFLimit, AL_EAXREVERB_MIN_DECAY_HFLIMIT, AL_EAXREVERB_MAX_DECAY_HFLIMIT ) );
+    } else {
         /* No EAX Reverb. Set the standard reverb effect type then load the
          * available reverb properties. */
         qalEffecti( effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB );
 
-        qalEffectf( effect, AL_REVERB_DENSITY, reverb->flDensity );
-        qalEffectf( effect, AL_REVERB_DIFFUSION, reverb->flDiffusion );
-        qalEffectf( effect, AL_REVERB_GAIN, reverb->flGain );
-        qalEffectf( effect, AL_REVERB_GAINHF, reverb->flGainHF );
-        qalEffectf( effect, AL_REVERB_DECAY_TIME, reverb->flDecayTime );
-        qalEffectf( effect, AL_REVERB_DECAY_HFRATIO, reverb->flDecayHFRatio );
-        qalEffectf( effect, AL_REVERB_REFLECTIONS_GAIN, reverb->flReflectionsGain );
-        qalEffectf( effect, AL_REVERB_REFLECTIONS_DELAY, reverb->flReflectionsDelay );
-        qalEffectf( effect, AL_REVERB_LATE_REVERB_GAIN, reverb->flLateReverbGain );
-        qalEffectf( effect, AL_REVERB_LATE_REVERB_DELAY, reverb->flLateReverbDelay );
-        qalEffectf( effect, AL_REVERB_AIR_ABSORPTION_GAINHF, reverb->flAirAbsorptionGainHF );
-        qalEffectf( effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, reverb->flRoomRolloffFactor );
-        qalEffecti( effect, AL_REVERB_DECAY_HFLIMIT, reverb->iDecayHFLimit );
-#endif // #ifdef AL_EFFECT_REVERB
+        qalEffectf( effect, AL_REVERB_DENSITY, QM_Clampf( reverb->flDensity, AL_REVERB_MIN_DENSITY, AL_REVERB_MAX_DENSITY ) );
+
+        qalEffectf( effect, AL_REVERB_DIFFUSION, QM_Clampf( reverb->flDiffusion, AL_REVERB_MIN_DIFFUSION, AL_REVERB_MAX_DIFFUSION ) );
+
+        qalEffectf( effect, AL_REVERB_GAIN, QM_Clampf( reverb->flGain, AL_REVERB_MIN_GAIN, AL_REVERB_MAX_GAIN ) );
+        qalEffectf( effect, AL_REVERB_GAINHF, QM_Clampf( reverb->flGainHF, AL_REVERB_MIN_GAINHF, AL_REVERB_MAX_GAINHF ) );
+
+        qalEffectf( effect, AL_REVERB_DECAY_TIME, QM_Clampf( reverb->flDecayTime, AL_REVERB_MIN_DECAY_TIME, AL_REVERB_MAX_DECAY_TIME ) );
+        qalEffectf( effect, AL_REVERB_DECAY_HFRATIO, QM_Clampf( reverb->flDecayHFRatio, AL_REVERB_MIN_DECAY_HFRATIO, AL_REVERB_MAX_DECAY_HFRATIO ) );
+
+        qalEffectf( effect, AL_REVERB_REFLECTIONS_GAIN, QM_Clampf( reverb->flReflectionsGain, AL_REVERB_MIN_REFLECTIONS_GAIN, AL_REVERB_MAX_REFLECTIONS_GAIN ) );
+        qalEffectf( effect, AL_REVERB_REFLECTIONS_DELAY, QM_Clampf( reverb->flReflectionsDelay, AL_REVERB_MIN_REFLECTIONS_DELAY, AL_REVERB_MAX_REFLECTIONS_DELAY ) );
+
+        qalEffectf( effect, AL_REVERB_LATE_REVERB_GAIN, QM_Clampf( reverb->flLateReverbGain, AL_REVERB_MIN_LATE_REVERB_GAIN, AL_REVERB_MAX_LATE_REVERB_GAIN ) );
+        qalEffectf( effect, AL_REVERB_LATE_REVERB_DELAY, QM_Clampf( reverb->flLateReverbDelay, AL_REVERB_MIN_LATE_REVERB_DELAY, AL_REVERB_MAX_LATE_REVERB_DELAY ) );
+
+        qalEffectf( effect, AL_REVERB_AIR_ABSORPTION_GAINHF, QM_Clampf( reverb->flAirAbsorptionGainHF, AL_REVERB_MIN_AIR_ABSORPTION_GAINHF, AL_REVERB_MAX_AIR_ABSORPTION_GAINHF ) );
+
+        qalEffectf( effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, QM_Clampf( reverb->flRoomRolloffFactor, AL_REVERB_MIN_ROOM_ROLLOFF_FACTOR, AL_REVERB_MAX_ROOM_ROLLOFF_FACTOR ) );
+
+        qalEffecti( effect, AL_REVERB_DECAY_HFLIMIT, QM_ClampInt32( reverb->iDecayHFLimit, AL_REVERB_MIN_DECAY_HFLIMIT, AL_REVERB_MAX_DECAY_HFLIMIT ) );
     }
 
     return true;
 }
 
-/**
-*   @brief  Returns if succesful, the newly allocated reverb effect ID.
-**/
-static qhandle_t AL_UploadReverbEffect( sfx_reverb_properties_t *reverb ) {
-    ALuint effect = 0;
-
-    // Allocate a unique reverb effect resource ID.
-    qalGetError();
-    qalGenEffects( 1, &effect );
-
-    // Update the reverb effect properties.
-    AL_UpdateReverbEffect( effect, reverb );
-//    //try eax reverb for more settings
-//    qalEffecti( effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB );
-//    if ( !qalGetError() ) {
-//        /* EAX Reverb is available. Set the EAX effect type then load the
-//         * reverb properties. */
-//        qalEffectf( effect, AL_EAXREVERB_DENSITY, reverb->flDensity );
-//        qalEffectf( effect, AL_EAXREVERB_DIFFUSION, reverb->flDiffusion );
-//        qalEffectf( effect, AL_EAXREVERB_GAIN, reverb->flGain );
-//        qalEffectf( effect, AL_EAXREVERB_GAINHF, reverb->flGainHF );
-//        qalEffectf( effect, AL_EAXREVERB_GAINLF, reverb->flGainLF );
-//        qalEffectf( effect, AL_EAXREVERB_DECAY_TIME, reverb->flDecayTime );
-//        qalEffectf( effect, AL_EAXREVERB_DECAY_HFRATIO, reverb->flDecayHFRatio );
-//        qalEffectf( effect, AL_EAXREVERB_DECAY_LFRATIO, reverb->flDecayLFRatio );
-//        qalEffectf( effect, AL_EAXREVERB_REFLECTIONS_GAIN, reverb->flReflectionsGain );
-//        qalEffectf( effect, AL_EAXREVERB_REFLECTIONS_DELAY, reverb->flReflectionsDelay );
-//        qalEffectfv( effect, AL_EAXREVERB_REFLECTIONS_PAN, reverb->flReflectionsPan );
-//        qalEffectf( effect, AL_EAXREVERB_LATE_REVERB_GAIN, reverb->flLateReverbGain );
-//        qalEffectf( effect, AL_EAXREVERB_LATE_REVERB_DELAY, reverb->flLateReverbDelay );
-//        qalEffectfv( effect, AL_EAXREVERB_LATE_REVERB_PAN, reverb->flLateReverbPan );
-//        qalEffectf( effect, AL_EAXREVERB_ECHO_TIME, reverb->flEchoTime );
-//        qalEffectf( effect, AL_EAXREVERB_ECHO_DEPTH, reverb->flEchoDepth );
-//        qalEffectf( effect, AL_EAXREVERB_MODULATION_TIME, reverb->flModulationTime );
-//        qalEffectf( effect, AL_EAXREVERB_MODULATION_DEPTH, reverb->flModulationDepth );
-//        qalEffectf( effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF, reverb->flAirAbsorptionGainHF );
-//        qalEffectf( effect, AL_EAXREVERB_HFREFERENCE, reverb->flHFReference );
-//        qalEffectf( effect, AL_EAXREVERB_LFREFERENCE, reverb->flLFReference );
-//        qalEffectf( effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR, reverb->flRoomRolloffFactor );
-//        qalEffecti( effect, AL_EAXREVERB_DECAY_HFLIMIT, reverb->iDecayHFLimit );
-//    } else
-//#endif // #ifdef AL_EFFECT_EAXREVERB
-//    {
-//#ifdef AL_EFFECT_REVERB
-//        /* No EAX Reverb. Set the standard reverb effect type then load the
-//         * available reverb properties. */
-//        qalEffecti( effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB );
-//
-//        qalEffectf( effect, AL_REVERB_DENSITY, reverb->flDensity );
-//        qalEffectf( effect, AL_REVERB_DIFFUSION, reverb->flDiffusion );
-//        qalEffectf( effect, AL_REVERB_GAIN, reverb->flGain );
-//        qalEffectf( effect, AL_REVERB_GAINHF, reverb->flGainHF );
-//        qalEffectf( effect, AL_REVERB_DECAY_TIME, reverb->flDecayTime );
-//        qalEffectf( effect, AL_REVERB_DECAY_HFRATIO, reverb->flDecayHFRatio );
-//        qalEffectf( effect, AL_REVERB_REFLECTIONS_GAIN, reverb->flReflectionsGain );
-//        qalEffectf( effect, AL_REVERB_REFLECTIONS_DELAY, reverb->flReflectionsDelay );
-//        qalEffectf( effect, AL_REVERB_LATE_REVERB_GAIN, reverb->flLateReverbGain );
-//        qalEffectf( effect, AL_REVERB_LATE_REVERB_DELAY, reverb->flLateReverbDelay );
-//        qalEffectf( effect, AL_REVERB_AIR_ABSORPTION_GAINHF, reverb->flAirAbsorptionGainHF );
-//        qalEffectf( effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, reverb->flRoomRolloffFactor );
-//        qalEffecti( effect, AL_REVERB_DECAY_HFLIMIT, reverb->iDecayHFLimit );
-//#endif // #ifdef AL_EFFECT_REVERB
-//    }
-    return effect;
-}
-
-/**
-*   @brief  Deletes the reverb resource IDs data.
-**/
-static void AL_DeleteReverbEffect( const qhandle_t resourceID ) {
-    // Delete the reverb effect from memory.
-    qalDeleteEffects( 1, &resourceID );
-}
-/**
-*   @brief  Apply the reverb resource IDs data.
-**/
-static void AL_SetReverbEffect( const qhandle_t resourceID ) {
-    qalAuxiliaryEffectSloti( s_auxiliary_effect_slot, AL_EFFECTSLOT_EFFECT, resourceID );
-}
 
 /**
 *
@@ -276,6 +241,8 @@ static bool AL_Init(void)
     if (s_source_spatialize)
         qalSourcei(s_stream, AL_SOURCE_SPATIALIZE_SOFT, AL_FALSE);
 
+    // Generate the global 'eax mixer'.
+    _AL_GenerateEAXMixer();
     // Generate the global auxiliary effects slot, we use this to apply reverb effects on.
     _AL_GenerateAuxiliaryEffectsSlot();
 
@@ -305,6 +272,9 @@ static void AL_Shutdown(void)
         qalDeleteSources(1, &s_stream);
         s_stream = 0;
     }
+
+    // Delete the mixer.
+    _AL_DeleteEAXMixer();
 
     // Delete the global auxiliary effects slot.
     _AL_DeleteAuxiliaryEffectsSlot();
@@ -393,7 +363,9 @@ static void AL_Spatialize( channel_t *ch ) {
     // Spatialize(Set position) for the channel audio effect to play from.
     qalSource3f( ch->srcnum, AL_POSITION, AL_UnpackVector(origin));
 
-    // Make sure to apply the reverb effect slot to the sound channel.
+    // Make sure to apply the current mixed eax to the auxiliary effect slot.
+    qalAuxiliaryEffectSloti( s_auxiliary_effect_slot, AL_EFFECTSLOT_EFFECT, s_eax_mixer.mixer_resource_id );
+    // Make sure to apply the eax effect slot to the sound channel.
     qalSource3i( ch->srcnum, AL_AUXILIARY_SEND_FILTER, s_auxiliary_effect_slot, 0, AL_FILTER_NULL );
 }
 
@@ -683,9 +655,7 @@ const sndapi_t snd_openal = {
     .sound_info = AL_SoundInfo,
     .upload_sfx = AL_UploadSfx,
     .delete_sfx = AL_DeleteSfx,
-    .upload_reverb_effect = AL_UploadReverbEffect,
-    .delete_reverb_effect = AL_DeleteReverbEffect,
-    .set_active_reverb_effect = AL_SetReverbEffect,
+    .set_eax_effect_properties = AL_SetEAXEffectProperties,
     .raw_samples = AL_RawSamples,
     .need_raw_samples = AL_NeedRawSamples,
     .drop_raw_samples = AL_StreamStop,

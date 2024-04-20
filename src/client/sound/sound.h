@@ -140,9 +140,7 @@ typedef struct {
     sfxcache_t *(*upload_sfx)(sfx_t *s);
     void (*delete_sfx)(sfx_t *s);
     void (*page_in_sfx)(sfx_t *s);
-    qhandle_t( *upload_reverb_effect )( sfx_reverb_properties_t *properties );
-    void ( *delete_reverb_effect )( const qhandle_t reverb_resource_id );
-    void ( *set_active_reverb_effect )( const qhandle_t reverb_effect_id );
+    const qboolean ( *set_eax_effect_properties )( const sfx_eax_properties_t *eax_properties );
     bool (*raw_samples)(int samples, int rate, int width, int channels, const byte *data, float volume);
     bool (*need_raw_samples)(void);
     void (*drop_raw_samples)(void);
@@ -237,7 +235,6 @@ void S_BuildSoundList(int *sounds);
 void S_SetupSpatialListener( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp );
 
 // EAX Reverb Funcs:
-const qhandle_t S_UploadReverbEffect( const char *name, sfx_reverb_properties_t *properties );
-void S_SetActiveReverbEffect( const qhandle_t reverbEffectID );
+const qboolean S_SetEAXEnvironmentProperties( const sfx_eax_properties_t *properties );
 
 bool OGG_Load(sizebuf_t *sz);

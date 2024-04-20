@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "clg_local.h"
 #include "clg_client.h"
+#include "clg_eax.h"
 #include "clg_effects.h"
 #include "clg_entities.h"
 #include "clg_input.h"
@@ -308,6 +309,11 @@ void PF_InitGame( void ) {
 	CLG_InitTEnts();
 
 	/**
+	*	Default EAX Environment:
+	**/
+
+
+	/**
 	*	Allocate space for entities.
 	**/
 	// Initialize all entities for this game.
@@ -345,6 +351,11 @@ void PF_InitGame( void ) {
 *	@brief
 **/
 void PF_ClearState( void ) {
+	CLG_EAX_SetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
+	level.eaxEffect.lerpFraction = 1.0f;
+	CLG_EAX_Interpolate( SOUND_EAX_EFFECT_DEFAULT, SOUND_EAX_EFFECT_DEFAULT, level.eaxEffect.lerpFraction, &level.eaxEffect.mixedProperties );
+	CLG_EAX_ActivateCurrentEnvironment();
+
 	// Reset the local precache paths.
 	precache.num_local_draw_models = 0;
 	memset( precache.model_paths, 0, MAX_MODELS * MAX_QPATH );

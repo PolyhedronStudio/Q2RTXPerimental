@@ -85,19 +85,8 @@ static sfxcache_t *DMA_UploadSfx(sfx_t *sfx)
 /**
 *   @brief  STUB
 **/
-static qhandle_t DMA_UploadReverbEffect( sfx_reverb_properties_t *properties ) {
-    return -1;
-}
-/**
-*   @brief  STUB
-**/
-static void DMA_DeleteReverbEffect( const qhandle_t id ) {
-}
-/**
-*   @brief  STUB
-**/
-static void DMA_SetReverbEffect( const qhandle_t id ) {
-
+static const qboolean DMA_SetEAXEFfectProperties( const sfx_eax_properties_t *eax_properties ) {
+    return false;
 }
 
 #undef RESAMPLE
@@ -908,9 +897,7 @@ const sndapi_t snd_dma = {
     .activate = DMA_Activate,
     .sound_info = DMA_SoundInfo,
     .upload_sfx = DMA_UploadSfx,
-    .upload_reverb_effect = DMA_UploadReverbEffect,
-    .delete_reverb_effect = DMA_DeleteReverbEffect,
-    .set_active_reverb_effect = DMA_SetReverbEffect,
+    .set_eax_effect_properties = DMA_SetEAXEFfectProperties,
     .page_in_sfx = DMA_PageInSfx,
     .raw_samples = DMA_RawSamples,
     .need_raw_samples = DMA_NeedRawSamples,
