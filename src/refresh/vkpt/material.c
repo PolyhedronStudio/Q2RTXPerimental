@@ -532,7 +532,13 @@ static uint32_t load_material_file(const char* file_name, pbr_material_t* dest, 
 	{
 		++lineno;
 		
-		{ char* t = strchr(linebuf, '#'); if (t) *t = 0; }   // remove comments
+		{
+			char *t = strchr( linebuf, '#' );
+			// remove comments, in case it actually IS a comment...
+			if ( t && ( t + 1 < sizeof(linebuf) && (t + 1) == ' ' ) ) {
+				*t = 0;
+			}   
+		}
 		
 		size_t len = strlen(linebuf);
 
