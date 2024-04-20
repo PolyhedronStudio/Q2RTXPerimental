@@ -535,7 +535,7 @@ static uint32_t load_material_file(const char* file_name, pbr_material_t* dest, 
 		{
 			char *t = strchr( linebuf, '#' );
 			// remove comments, in case it actually IS a comment...
-			if ( t && ( t + 1 < sizeof(linebuf) && (t + 1) == ' ' ) ) {
+			if ( t && ( (t + 1) < sizeof(linebuf) && *(t + 1) == ' ' ) ) {
 				*t = 0;
 			}   
 		}

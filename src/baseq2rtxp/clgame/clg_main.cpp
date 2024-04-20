@@ -351,9 +351,12 @@ void PF_InitGame( void ) {
 *	@brief
 **/
 void PF_ClearState( void ) {
+	// (Re-)Initializes the EAX Environment back to basics:
 	CLG_EAX_SetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
+	// Immediately interpolate fully.
 	level.eaxEffect.lerpFraction = 1.0f;
 	CLG_EAX_Interpolate( SOUND_EAX_EFFECT_DEFAULT, SOUND_EAX_EFFECT_DEFAULT, level.eaxEffect.lerpFraction, &level.eaxEffect.mixedProperties );
+	// Now apply the 'reset' environment.
 	CLG_EAX_ActivateCurrentEnvironment();
 
 	// Reset the local precache paths.
@@ -377,7 +380,8 @@ void PF_ClearState( void ) {
 	CLG_ClearEffects();
 
 	// Clear out level locals.
-	level = {};
+	//level = {};
+	memset( &level, 0, sizeof( level ) );
 }
 
 
