@@ -7,7 +7,8 @@
 Anyone familiar with my previous/other project [Polyhedron](https://github.com/PolyhedronStudio/Polyhedron-Engine) will likely notice that I've enlisted features that can already be found there.
 For various reasons I wish to actually reimplement these properly in this codebase.
 
-For any questions, and/or following progress, feel free to join the **Polyhedron/Q2RTXPerimental** [Discord](https://discord.gg/6Qc6wfmFMR)
+For any questions, and/or following progress, feel free to join the [**Polyhedron/Q2RTXPerimental**](https://discord.gg/6Qc6wfmFMR) Discord.
+Alternatively, there is also the QuakeDev [**QuakeDev**](https://discord.gg/csCBGXVUmv) Discord channel.
 
 **Quake II RTX** is NVIDIA's attempt at implementing a fully functional 
 version of Id Software's 1997 hit game **Quake II** with RTX path-traced 
