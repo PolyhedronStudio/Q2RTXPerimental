@@ -307,13 +307,47 @@ typedef struct {
 * 
 *
 **/
+//! These two, 'default', and 'underwater' are hard-coded:
 static constexpr int32_t SOUND_EAX_EFFECT_DEFAULT = 0;
 static constexpr int32_t SOUND_EAX_EFFECT_UNDERWATER = 1;
-static constexpr int32_t SOUND_EAX_EFFECT_METAL_S = 2;
-static constexpr int32_t SOUND_EAX_EFFECT_TUNNEL_S = 3;
-static constexpr int32_t SOUND_EAX_EFFECT_TUNNEL_L = 4;
 
-static constexpr int32_t SOUND_EAX_EFFECT_MAX = 32;
+//! The following are loaded from their respective .json property defining files.
+static constexpr int32_t SOUND_EAX_EFFECT_ABANDONED = 2;
+static constexpr int32_t SOUND_EAX_EFFECT_ALLEY = 3;
+static constexpr int32_t SOUND_EAX_EFFECT_ARENA = 4;
+static constexpr int32_t SOUND_EAX_EFFECT_AUDITORIUM = 5;
+static constexpr int32_t SOUND_EAX_EFFECT_BATHROOM = 6;
+static constexpr int32_t SOUND_EAX_EFFECT_CARPETED_HALLWAY = 7;
+static constexpr int32_t SOUND_EAX_EFFECT_CAVE = 8;
+static constexpr int32_t SOUND_EAX_EFFECT_CHAPEL = 9;
+static constexpr int32_t SOUND_EAX_EFFECT_CITY = 10;
+static constexpr int32_t SOUND_EAX_EFFECT_CITY_STREETS = 11;
+static constexpr int32_t SOUND_EAX_EFFECT_CONCERT_HALL = 12;
+static constexpr int32_t SOUND_EAX_EFFECT_DIZZY = 13;
+static constexpr int32_t SOUND_EAX_EFFECT_DRUGGED = 14;
+static constexpr int32_t SOUND_EAX_EFFECT_DUSTYROOM = 15;
+static constexpr int32_t SOUND_EAX_EFFECT_FOREST = 16;
+static constexpr int32_t SOUND_EAX_EFFECT_HALLWAY = 17;
+static constexpr int32_t SOUND_EAX_EFFECT_HANGAR = 18;
+static constexpr int32_t SOUND_EAX_EFFECT_LIBRARY = 19;
+static constexpr int32_t SOUND_EAX_EFFECT_LIVINGROOM = 20;
+static constexpr int32_t SOUND_EAX_EFFECT_MOUNTAINS = 21;
+static constexpr int32_t SOUND_EAX_EFFECT_MUSEUM = 22;
+static constexpr int32_t SOUND_EAX_EFFECT_PADDED_CELL = 23;
+static constexpr int32_t SOUND_EAX_EFFECT_PARKINGLOT = 24;
+static constexpr int32_t SOUND_EAX_EFFECT_PLAIN = 25;
+static constexpr int32_t SOUND_EAX_EFFECT_PSYCHOTIC = 26;
+static constexpr int32_t SOUND_EAX_EFFECT_QUARRY = 27;
+static constexpr int32_t SOUND_EAX_EFFECT_ROOM = 28;
+static constexpr int32_t SOUND_EAX_EFFECT_SEWERPIPE = 29;
+static constexpr int32_t SOUND_EAX_EFFECT_SMALL_WATERROOM = 30;
+static constexpr int32_t SOUND_EAX_EFFECT_STONE_CORRIDOR = 31;
+static constexpr int32_t SOUND_EAX_EFFECT_STONE_ROOM = 32;
+static constexpr int32_t SOUND_EAX_EFFECT_SUBWAY = 33;
+static constexpr int32_t SOUND_EAX_EFFECT_UNDERPASS = 34;
+
+//! NOTE: Determines the size of the actual array storing these effects, so make sure to adjust it if needed.
+static constexpr int32_t SOUND_EAX_EFFECT_MAX = 35;
 
 
 
@@ -520,7 +554,7 @@ typedef struct precached_media_s {
 	// Sound EAX:
 	// 
 	//! Stores all the loaded up EAX Effects:
-	sfx_eax_properties_t *cl_eax_effects[ SOUND_EAX_EFFECT_MAX ];
+	sfx_eax_properties_t cl_eax_effects[ SOUND_EAX_EFFECT_MAX ];
 	int32_t cl_num_eax_effects;
 
 

@@ -145,33 +145,6 @@ qhandle_t PF_GetEAXBySoundOrigin( const int32_t entityNumber, vec3_t org ) {
     //    return SOUND_EAX_EFFECT_DEFAULT;
     //}
 
-    //// Iterate over the env_sound entities, if we're within their radius, return the appropriate reverb eax id.
-    //float bestDistance = 999999;
-    //clg_local_entity_t *best_sound_scape = nullptr;
-
-    //for ( int32_t i = 0; i < level.env_sound_list_count; i++ ) {
-    //    // Fetch env_sound origin.
-    //    Vector3 env_sound_origin = level.env_sound_list[ i ]->locals.origin;
-
-    //    // Determine distance between 
-    //    const float dist = QM_Vector3Distance( env_sound_origin, org );
-
-    //    clg_local_entity_t *sound_scape_entity = level.env_sound_list[ i ];
-    //    clg_env_sound_locals_t *classLocals = CLG_LocalEntity_GetClass<clg_env_sound_locals_t>( sound_scape_entity );
-
-    //    if ( dist < bestDistance && dist < classLocals->radius ) {
-    //        bestDistance = dist;
-    //        best_sound_scape = level.env_sound_list[ i ];
-    //    }
-    //}
-
-    //// Did we find any specific nearby sound scape? If so, use its reverb properties instead.
-    //qhandle_t reverb_eax_id = SOUND_EAX_EFFECT_DEFAULT;
-    //if ( best_sound_scape ) {
-    //    clg_env_sound_locals_t *classLocals = CLG_LocalEntity_GetClass<clg_env_sound_locals_t>( best_sound_scape );
-    //    reverb_eax_id = classLocals->reverbID;
-    //}
-
     //return reverb_eax_id;
     return 0;
 }

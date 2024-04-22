@@ -152,7 +152,7 @@ void CLG_EAX_Interpolate( /*const qhandle_t fromID, */ const qhandle_t toID, con
 		return;
 	}
 	//const sfx_eax_properties_t *fromProperties = precache.cl_eax_effects[ fromID ];
-	const sfx_eax_properties_t *toProperites = precache.cl_eax_effects[ toID ];
+	const sfx_eax_properties_t *toProperites = &precache.cl_eax_effects[ toID ];
 
 	mixedProperties->flDensity = QM_Lerp( mixedProperties->flDensity, toProperites->flDensity, lerpFraction );
 	mixedProperties->flDiffusion = QM_Lerp( mixedProperties->flDiffusion, toProperites->flDiffusion, lerpFraction);
@@ -299,16 +299,7 @@ sfx_eax_properties_t CLG_EAX_LoadReverbPropertiesFromJSON( const char *filename 
 	for ( int32_t tokenID = 1; tokenID < numTokensParsed; tokenID++ ) {
 		// density:
 		if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "density" ) == 0 ) {
-			//// Value
-			//char fieldValue[ MAX_QPATH ] = { };
-			//// Fetch field value string size.
-			//const int32_t size = constclamp( tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start, 0, MAX_QPATH );
-			//// Parse field value into buffer.
-			//Q_snprintf( fieldValue, size, jsonBuffer + tokens[ tokenID + 1 ].start );
-			// Try and convert it to a float for our eax effect.
 			eax_reverb_properties.flDensity = json_token_to_float( jsonBuffer, tokens, tokenID );
-			// Try and convert it to a float for our eax effect.
-			//eax_reverb_properties.flDensity = atof( fieldValue );
 		// diffusion:
 		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "diffusion" ) == 0 ) {
 			eax_reverb_properties.flDiffusion = json_token_to_float( jsonBuffer, tokens, tokenID );
@@ -439,7 +430,16 @@ sfx_eax_properties_t CLG_EAX_LoadReverbPropertiesFromJSON( const char *filename 
 			// Try and convert it to a float for our eax effect.
 			eax_reverb_properties.iDecayHFLimit = json_token_to_int32( jsonBuffer, tokens, tokenID );
 		} else {
-			// TODO DEBUG ERROR.
+		//#ifdef _DEBUG_EAX_PRINT_JSON_FAILURES
+		//	// Field Key
+		//	char keyValue[ MAX_QPATH ] = { };
+		//	// Fetch field key string size.
+		//	const int32_t size = constclamp( tokens[ tokenID ].end - tokens[ tokenID ].start, 0, MAX_QPATH );
+		//	// Parse field key into buffer.
+		//	Q_snprintf( keyValue, size, jsonBuffer + tokens[ tokenID ].start );
+		//	// TODO DEBUG ERROR.
+		//	clgi.Print( PRINT_DEVELOPER, "%s: found unknown key: '%s' in file: 'eax/%s.json'\n", __func__, keyValue, filename );
+		//#endif
 		}
 	}
 

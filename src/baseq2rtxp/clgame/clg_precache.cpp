@@ -49,20 +49,47 @@ static sfx_eax_properties_t abandoned_eax;
 void PF_PrecacheClientSounds( void ) {
     char    name[ MAX_QPATH ] = {};
 
-    // Required EAX Effects, expected to be ('hard loaded'):
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_DEFAULT ] = &cl_eax_default_properties;
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_UNDERWATER ] = &cl_eax_underwater_properties;
-    // Remaining EAX Effects:
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_METAL_S ] = &cl_eax_metal_s_properties;
+    // Required by default and should NOT be REMOVED!!
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_DEFAULT ] = cl_eax_default_properties;
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_UNDERWATER ] = cl_eax_underwater_properties;
 
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_TUNNEL_S ] = &cl_eax_tunnel_s_properties;
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_TUNNEL_L ] =  &cl_eax_tunnel_l_properties;
-
-    abandoned_eax = CLG_EAX_LoadReverbPropertiesFromJSON( "abandoned" );
-    precache.cl_eax_effects[ 5 ] = &abandoned_eax;
+    // Any of the EAX effects below can be replaced by whatever suits your needs.
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_ABANDONED ] = CLG_EAX_LoadReverbPropertiesFromJSON( "abandoned" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_ALLEY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "alley" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_ARENA ] = CLG_EAX_LoadReverbPropertiesFromJSON( "arena" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_AUDITORIUM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "auditorium" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_BATHROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "bathroom" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CARPETED_HALLWAY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "carpetedhallway" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CAVE ] = CLG_EAX_LoadReverbPropertiesFromJSON( "cave" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CHAPEL ] = CLG_EAX_LoadReverbPropertiesFromJSON( "chapel" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CITY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "city" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CITY_STREETS ] = CLG_EAX_LoadReverbPropertiesFromJSON( "citystreets" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CONCERT_HALL ] = CLG_EAX_LoadReverbPropertiesFromJSON( "concerthall" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_DIZZY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "dizzy" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_DRUGGED ] = CLG_EAX_LoadReverbPropertiesFromJSON( "drugged" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_DUSTYROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "dustyroom" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_FOREST ] = CLG_EAX_LoadReverbPropertiesFromJSON( "forest" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_HALLWAY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "hallway" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_HANGAR ] = CLG_EAX_LoadReverbPropertiesFromJSON( "hangar" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_LIBRARY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "library" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_LIVINGROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "livingroom" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_MOUNTAINS ] = CLG_EAX_LoadReverbPropertiesFromJSON( "mountains" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_MUSEUM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "museum" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_PADDED_CELL ] = CLG_EAX_LoadReverbPropertiesFromJSON( "paddedcell" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_PARKINGLOT ] = CLG_EAX_LoadReverbPropertiesFromJSON( "parkinglot" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_PLAIN ] = CLG_EAX_LoadReverbPropertiesFromJSON( "plain" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_PSYCHOTIC ] = CLG_EAX_LoadReverbPropertiesFromJSON( "psychotic" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_QUARRY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "quarry" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_ROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "room" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_SEWERPIPE ] = CLG_EAX_LoadReverbPropertiesFromJSON( "sewerpipe" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_SMALL_WATERROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "smallwaterroom" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_STONE_CORRIDOR ] = CLG_EAX_LoadReverbPropertiesFromJSON( "stonecorridor" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_STONE_ROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "stoneroom" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_SUBWAY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "subway" );
+    precache.cl_eax_effects[ SOUND_EAX_EFFECT_UNDERPASS ] = CLG_EAX_LoadReverbPropertiesFromJSON( "underpass" );
 
     // We loaded 4 eax effects, make sure the cache is aware of this.
-    precache.cl_num_eax_effects = 6;
+    precache.cl_num_eax_effects = SOUND_EAX_EFFECT_MAX;
 
     // Ricochets SFX:
     precache.cl_sfx_ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
