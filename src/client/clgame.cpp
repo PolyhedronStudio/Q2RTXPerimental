@@ -174,6 +174,29 @@ static void PF_Cvar_Reset( cvar_t *cvar ) {
 /**
 *
 *
+*	FileSystem:
+*
+*
+**/
+/**
+*	@brief	Returns non 0 in case of existance.
+**/
+const int32_t PF_FS_FileExistsEx( const char *path, const uint32_t flags ) {
+	return FS_FileExistsEx( path, flags );
+}
+/**
+*	@brief	Loads file into designated buffer. A nul buffer will return the file length without loading.
+*	@return	length < 0 indicates error.
+**/
+const int32_t PF_FS_LoadFile( const char *path, void **buffer ) {
+	return FS_LoadFile( path, buffer );
+}
+
+
+
+/**
+*
+*
 *	Key Event destination:
 *
 *
@@ -712,6 +735,9 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.CM_EntityKeyValue = CM_EntityKeyValue;
 	imports.CM_GetNullEntity = CM_GetNullEntity;
+
+	imports.FS_FileExistsEx = PF_FS_FileExistsEx;
+	imports.FS_LoadFile = PF_FS_LoadFile;
 
 	imports.KeyDown = CL_KeyDown;
 	imports.KeyUp = CL_KeyUp;

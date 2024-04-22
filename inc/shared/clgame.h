@@ -346,6 +346,23 @@ typedef struct {
 
 	/**
 	*
+	*	FileSystem:
+	*
+	*
+	**/
+	/**
+	*	@brief	Returns non 0 in case of existance.
+	**/
+	const int32_t ( *FS_FileExistsEx )( const char *path, const uint32_t flags );
+	/**
+	*	@brief	Loads file into designated buffer. A nul buffer will return the file length without loading.
+	*	@return	length < 0 indicates error.
+	**/
+	const int32_t ( *FS_LoadFile )( const char *path, void **buffer );
+
+
+	/**
+	*
 	*	KeyButtons/KeyEvents:
 	*
 	**/

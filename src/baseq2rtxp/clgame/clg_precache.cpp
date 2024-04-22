@@ -44,8 +44,10 @@ void CLG_PrecacheLocalSounds() {
 *	@brief	Called right before loading all received configstring (server-) sounds, allowing us to load in
 *           the client's own local(-entity 'precached' sound paths) sounds first.
 **/
+static sfx_eax_properties_t abandoned_eax;
+
 void PF_PrecacheClientSounds( void ) {
-    char    name[ MAX_QPATH ];
+    char    name[ MAX_QPATH ] = {};
 
     // Required EAX Effects, expected to be ('hard loaded'):
     precache.cl_eax_effects[ SOUND_EAX_EFFECT_DEFAULT ] = &cl_eax_default_properties;
@@ -56,8 +58,11 @@ void PF_PrecacheClientSounds( void ) {
     precache.cl_eax_effects[ SOUND_EAX_EFFECT_TUNNEL_S ] = &cl_eax_tunnel_s_properties;
     precache.cl_eax_effects[ SOUND_EAX_EFFECT_TUNNEL_L ] =  &cl_eax_tunnel_l_properties;
 
+    abandoned_eax = CLG_EAX_LoadReverbPropertiesFromJSON( "abandoned" );
+    precache.cl_eax_effects[ 5 ] = &abandoned_eax;
+
     // We loaded 4 eax effects, make sure the cache is aware of this.
-    precache.cl_num_eax_effects = 5;
+    precache.cl_num_eax_effects = 6;
 
     // Ricochets SFX:
     precache.cl_sfx_ric1 = clgi.S_RegisterSound( "world/ric1.wav" );

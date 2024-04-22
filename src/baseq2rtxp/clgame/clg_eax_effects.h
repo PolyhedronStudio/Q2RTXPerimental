@@ -9,9 +9,34 @@
 ********************************************************************/
 #pragma once
 
-//!
-//! Default reverb effect type properties:
-//!
+//{
+//density: 1.000000,
+//diffusion : 0.690000,
+//gain : 0.316200,
+//gain_hf : 0.794300,
+//gain_lf : 0.891300,
+//decay_time : 3.280000,
+//decay_hf_ratio : 1.170000,
+//decay_lf_ratio : 0.910000,
+//reflections_gain : 0.446700,
+//reflections_delay : 0.044000,
+//reflections_pan : [0 0 0] ,
+//late_reverb_gain : 0.281800,
+//late_reverb_delay : 0.024000,
+//late_reverb_pan : [0 0 0] ,
+//echo_time : 0.250000,
+//echo_depth : 0.200000,
+//modulation_time : 0.250000,
+//modulation_depth : 0.000000,
+//air_absorbtion_hf : 0.996600,
+//hf_reference : 5000.000000,
+//lf_reference : 250.000000,
+//room_rolloff_factor : 0.000000,
+//decay_limit : 1
+//}
+/**
+*   "DEFAULT" reverb effect type properties:
+**/
 static sfx_eax_properties_t cl_eax_default_properties = {
     .flDensity = 1.0,
     .flDiffusion = 1.0,
@@ -47,9 +72,9 @@ static sfx_eax_properties_t cl_eax_default_properties = {
     // decay_limit
     .iDecayHFLimit = 1,
 };
-//!
-//! Underwater reverb effect type properties:
-//!
+/**
+*   "UNDERWATER" reverb effect type properties:
+**/
 static sfx_eax_properties_t cl_eax_underwater_properties = {
     .flDensity = 0.3645,
     .flDiffusion = 1.0,
@@ -85,9 +110,9 @@ static sfx_eax_properties_t cl_eax_underwater_properties = {
     // decay_limit
     .iDecayHFLimit = 1,
 };
-//!
-//! Metal - Small - reverb effect type properties:
-//!
+/**
+*   "METAL_SMALL" reverb effect type properties:
+**/
 static sfx_eax_properties_t cl_eax_metal_s_properties = {
     .flDensity = 1.0,
     .flDiffusion = 0.7,
@@ -123,9 +148,9 @@ static sfx_eax_properties_t cl_eax_metal_s_properties = {
     // decay_limit
     .iDecayHFLimit = 0,
 };
-//!
-//! Tunnel - Small - reverb effect type properties:
-//!
+/**
+*   "TUNNEL_SMALL" reverb effect type properties:
+**/
 static sfx_eax_properties_t cl_eax_tunnel_s_properties = {
     .flDensity = 1.0,
     .flDiffusion = 0.690,
@@ -161,9 +186,9 @@ static sfx_eax_properties_t cl_eax_tunnel_s_properties = {
     // decay_limit
     .iDecayHFLimit = 1,
 };
-//!
-//! Tunnel - Large - reverb effect type properties:
-//!
+/**
+*   "TUNNEL_SMALL" reverb effect type properties:
+**/
 static sfx_eax_properties_t cl_eax_tunnel_l_properties = {
     .flDensity = 1.0,
     .flDiffusion = 0.820,

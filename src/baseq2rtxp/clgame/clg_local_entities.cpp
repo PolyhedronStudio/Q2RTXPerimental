@@ -12,6 +12,16 @@
 
 
 /**
+*	Debug Configuration:
+**/
+//! Uncomment to enable printing of a failure where the entity dictionary has no classname key/value entry.
+//#define PRINT_NO_CLASSTYPE_FAILURE 1
+//! Uncomment to enable printing of a failure while trying to find an entity class type that matches the classname.
+//#define PRINT_CLASSTYPE_FIND_FAILURE 1
+
+
+
+/**
 *
 *
 *	Local Entities:
@@ -442,8 +452,10 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 		// We need a classname to be set in order for us to look it up and possibly spawn this entity.
 		const char *entityClassname = clgi.CM_EntityKeyValue( edict, "classname" )->nullable_string;
 		if ( !entityClassname ) {
+			#ifdef PRINT_NO_CLASSTYPE_FAILURE
 			// Debug print:
 			clgi.Print( PRINT_DEVELOPER, "%s: %s\n", __func__, "entity dictionary without classname found." );
+			#endif
 			// Free up the previously reserved slot, allowing a re-use.
 			CLG_LocalEntity_Free( localEntity );
 			// Continue iterating over the rest of the collision model entities.
@@ -457,8 +469,10 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 
 			// Break if a nullptr.
 			if ( classType == nullptr ) {
+				#ifdef PRINT_CLASSTYPE_FIND_FAILURE
 				// Debug print:
 				clgi.Print( PRINT_DEVELOPER, "%s: failed to find classType for classname '%s'\n", __func__, entityClassname );
+				#endif
 				// Free entity up.
 				CLG_LocalEntity_Free( localEntity );
 				break;
