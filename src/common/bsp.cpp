@@ -1242,7 +1242,7 @@ static void FixLeafContents(bsp_t *bsp) {
         for ( k = 0; k < leaf->numleafbrushes; k++, leafbrush++ ) {
             b = *leafbrush;
             //auto &b = bsp->brushes[ brushnum ];
-            contents |= static_cast<contents_t>( b->contents );
+            contents = static_cast<contents_t>( contents | b->contents );
         }
 
         if ( ( contents | leaf->contents ) != leaf->contents ) {
