@@ -23,6 +23,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //! An actual pointer to the pmove object that we're moving.
 extern pmove_t *pm;
 
+//! Uncomment for enabling second best hit plane tracing results.
+#define SECOND_PLANE_TRACE
 
 /**
 *

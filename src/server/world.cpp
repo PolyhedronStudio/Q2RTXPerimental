@@ -423,12 +423,18 @@ const int32_t SV_AreaEdicts(const vec3_t mins, const vec3_t maxs,
 **/
 static mnode_t *SV_HullForEntity(edict_t *ent, const bool includeSolidTriggers = false ) {
     if ( ent->solid == SOLID_BSP || ( includeSolidTriggers && ent->solid == SOLID_TRIGGER ) ){
-        const int32_t i = ent->s.modelindex - 1;
+        int32_t i = ent->s.modelindex - 1;
+        
+        //// account for "hole" in configstring namespace
+        //if ( i >= MODELINDEX_PLAYER && sv.cm.cache->nummodels >= MODELINDEX_PLAYER )
+        //    i--;
 
         // Explicit hulls in the BSP model.
         if ( i <= 0 || i >= sv.cm.cache->nummodels ) {
-            Com_Error( ERR_DROP, "%s: inline model %d out of range", __func__, i );
-            return nullptr;
+            if ( !includeSolidTriggers ) {
+                Com_Error( ERR_DROP, "%s: inline model %d out of range", __func__, i );
+                return nullptr;
+            }
         }
 
         return sv.cm.cache->models[i].headnode;
@@ -583,6 +589,9 @@ const trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
 
     // clip to other solid entities
     SV_ClipMoveToEntities(start, mins, maxs, end, passedict, contentmask, &trace);
+    if ( contentmask & CONTENTS_LADDER ) {
+        int x = 10;
+    }
     return trace;
 }
 

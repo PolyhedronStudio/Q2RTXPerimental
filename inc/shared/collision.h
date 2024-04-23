@@ -34,7 +34,7 @@ typedef enum {  //: uint8_t {
 /**
 *   @brief  Brush Contents: lower bits are stronger, and will eat weaker brushes completely
 **/
-typedef enum {
+enum {
     CONTENTS_NONE = 0,
     CONTENTS_SOLID = BIT( 0 ),  // An eye is never valid in a solid.
     CONTENTS_WINDOW = BIT( 1 ), // Translucent, but not watery.
@@ -73,7 +73,8 @@ typedef enum {
     CONTENTS_PLAYER = BIT( 30 ), // [Paril-KEX] should never be on a brush, only in game; player
     CONTENTS_PROJECTILE = BIT( 31 )  // [Paril-KEX] should never be on a brush, only in game; projectiles.
     // used to solve deadmonster collision issues.
-} contents_t;
+};// contents_t;
+typedef uint32_t contents_t;
 
 /**
 *   Surface Types:

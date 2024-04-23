@@ -860,7 +860,9 @@ static void PM_CheckSpecialMovement() {
 		0.f
 	} );
 	const Vector3 spot = pml.origin + ( flatforward * 1 );
-	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
+	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CONTENTS_SOLID | CONTENTS_LADDER );
+	// WID: TODO: Technically, the trace below should work, but for some reason it does not. And yet, the above DOES, which is merely by adding CONTENTS_SOLID to it.
+	//trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER);
 	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->waterlevel < water_level_t::WATER_WAIST ) {
 		pm->s.pm_flags |= PMF_ON_LADDER;
 	}

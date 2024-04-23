@@ -17,8 +17,11 @@
 #include "common/zone.h"
 #include "system/hunk.h"
 
-
+//! Needed here.
 extern cvar_t *map_allsolid_bug;
+
+//! Uncomment for enabling second best hit plane tracing results.
+#define SECOND_PLANE_TRACE
 
 /**
 *
@@ -35,7 +38,9 @@ static vec3_t   trace_offsets[ 8 ];
 static vec3_t   trace_extents;
 
 static trace_t *trace_trace;
-static int      trace_contents;
+static uint32_t trace_contents;
+static cm_material_t *trace_material;
+static csurface_t trace_surface;
 static bool     trace_ispoint;      // optimized case
 
 /**
@@ -137,6 +142,7 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace,
                 // original Q2 didn't set these
                 trace->fraction = 0;
                 trace->contents = static_cast<contents_t>( brush->contents );
+                trace->material = nullptr;
             }
         }
         return;
@@ -148,14 +154,19 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace,
             trace->plane = *clipplane[ 0 ];
             trace->surface = &( leadside[ 0 ]->texinfo->c );
             trace->contents = static_cast<contents_t>( brush->contents );
+            trace->material = trace->surface->material;
 #ifdef SECOND_PLANE_TRACE
             if ( leadside[ 1 ] ) {
                 trace->plane2 = *clipplane[ 1 ];
                 trace->surface2 = &( leadside[ 1 ]->texinfo->c );
+                trace->material = trace->surface2->material;
             }
 #else
-            trace->plane2 = {};
-            trace->surface2 = nullptr;
+            trace->plane2 = *clipplane[ 0 ];
+            trace->surface2 = &( leadside[ 0 ]->texinfo->c );
+            trace->material = trace->surface2->material;
+            //trace->plane2 = {};
+            //trace->surface2 = nullptr;
 #endif
         }
     }
@@ -195,6 +206,9 @@ static void CM_TestBoxInBrush( const vec3_t p1, trace_t *trace, mbrush_t *brush 
     trace->startsolid = trace->allsolid = true;
     trace->fraction = 0;
     trace->contents = static_cast<contents_t>( brush->contents );
+    //if ( trace->material ) {
+        trace->material = nullptr;
+    //}
 }
 
 /**
@@ -461,10 +475,10 @@ void CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
     if ( rotated && trace->fraction != 1.0f ) {
         TransposeAxis( axis );
         RotatePoint( trace->plane.normal, axis );
-    }
 
-    // FIXME: offset plane distance?
-    trace->plane.dist += DotProduct( trace->plane.normal, origin );
+        // FIXME: offset plane distance?
+        trace->plane.dist += DotProduct( trace->plane.normal, origin );
+    }
 
     LerpVector( start, end, trace->fraction, trace->endpos );
 }
@@ -479,7 +493,10 @@ void CM_ClipEntity( cm_t *cm, trace_t *dst, const trace_t *src, struct edict_s *
         VectorCopy( src->endpos, dst->endpos );
         dst->plane = src->plane;
         dst->surface = src->surface;
-        dst->contents = static_cast<contents_t>( dst->contents | src->contents );
+        dst->plane2 = src->plane2;
+        dst->surface2 = src->surface2;
+        dst->contents |= src->contents;
         dst->ent = ent;
+        dst->material = src->material;
     }
 }
