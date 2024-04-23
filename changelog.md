@@ -8,6 +8,7 @@ Changes will from now on be listed as additions per version.
 * Player Move code now has an optional ``PMOVE_USE_MATERIAL_FRICTION`` define which when defined has the Player Move code respond to the ground material's friction.
 * Restructured and cleaned up the Player Move prediction code as well as corresponding view calculation code.
 * Added ``EAX`` support for OpenAL and a ``client_env_sound`` entity to accomodate with it. This allows for reverb effect zones, where the ``client_env_sound`` entity performs a clipping trace to the (predicted-)player origin, where if successful and within radius the specific reverb environment is set. 
+* Added what is a temporary fix for ericw-tools-2.0.0-alpha7 bug that does not properly fill leaf node contents.
 
 ## (v0.0.3):
 * Fixed problems with stair step smoothing interfering with pushers.

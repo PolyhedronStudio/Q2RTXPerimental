@@ -33,7 +33,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 ### Highest:
 * [x] None
 ### High Priority:
-* [ ] Ladders from within water, simply isn't working. Likely related to the recent ground entity changes.
+* [X] Ladders from within water, simply isn't working. Likely related to the recent ground entity changes.
 ### Medium Priority:
 * [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
 ### Low Priority:
