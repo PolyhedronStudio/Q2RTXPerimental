@@ -41,6 +41,14 @@
 
 
 /**
+*	In-Engine Fixes:
+**/
+//! This can be uncommented and/or removed when ericw-tools-2.0.0-alpha7 or higher
+//! has fixed the leafcontents issue.
+#define ERICW_TOOLS_LEAF_CONTENTS_FIX 1
+
+
+/**
 *	Engine Tick Rate:
 **/
 // Default server FPS: 10hz

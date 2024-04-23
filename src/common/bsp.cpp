@@ -1227,6 +1227,32 @@ static size_t BSP_ParseExtensionHeader(bsp_t *bsp, lump_t *out, const byte *buf,
 
 #endif
 
+#ifdef ERICW_TOOLS_LEAF_CONTENTS_FIX
+// [Paril-KEX] fixes a bug in old map compilers
+// WID: Used to currently fix ericw-tools from not spitting out proper leaf contents. Breaking ladders.
+static void FixLeafContents(bsp_t *bsp) {
+    int         k;
+    mbrush_t *b, **leafbrush;
+    for ( size_t i = 0; i < bsp->numleafs; i++ ) {
+        mleaf_t *leaf = &bsp->leafs[ i ];
+
+        contents_t contents = CONTENTS_NONE;
+
+        leafbrush = leaf->firstleafbrush;
+        for ( k = 0; k < leaf->numleafbrushes; k++, leafbrush++ ) {
+            b = *leafbrush;
+            //auto &b = bsp->brushes[ brushnum ];
+            contents |= static_cast<contents_t>( b->contents );
+        }
+
+        if ( ( contents | leaf->contents ) != leaf->contents ) {
+            Com_DPrintf("fixed leaf %i contents, %u -> %u\n", i, leaf->contents, contents);
+            leaf->contents |= contents;
+        }
+    }
+}
+#endif 
+
 /*
 ==================
 BSP_Load
@@ -1381,6 +1407,10 @@ int BSP_Load(const char *name, bsp_t **bsp_p)
     List_Append(&bsp_cache, &bsp->entry);
 
     FS_FreeFile(buf);
+
+#ifdef ERICW_TOOLS_LEAF_CONTENTS_FIX
+    FixLeafContents( bsp );
+#endif
 
     *bsp_p = bsp;
     return Q_ERR_SUCCESS;
