@@ -36,7 +36,3 @@ qhandle_t PF_GetEAXBySoundOrigin( const int32_t entityNumber, vec3_t org );
 *               is of the local client player himself.
 **/
 centity_t *CLG_ViewBoundEntity( void );
-/**
-*	@brief	Add local client entities that are 'in-frame' to the view's refdef entities list.
-**/
-void CLG_AddLocalEntities( void );

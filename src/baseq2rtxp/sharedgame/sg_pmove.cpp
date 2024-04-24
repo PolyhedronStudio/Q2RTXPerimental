@@ -880,9 +880,9 @@ static void PM_CheckSpecialMovement() {
 		return;
 	}
 	// [Paril-KEX]
-	//else if ( pm->watertype & CONTENTS_NO_WATERJUMP ) {
-	//	return;
-	//}
+	else if ( pm->watertype & CONTENTS_NO_WATERJUMP ) {
+		return;
+	}
 
 	// Quick check that something is even blocking us forward
 	Vector3 blockTraceEnd = pml.origin + flatforward * 40.f;

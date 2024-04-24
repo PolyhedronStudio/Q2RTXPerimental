@@ -60,8 +60,11 @@ void CLG_LocalEntity_Free( clg_local_entity_t *lent );
 /**
 *	@brief	Frees all local entities.
 **/
-void CLG_FreeLocalEntities();
-
+void CLG_LocalEntity_FreeAllClasses();
+/**
+*	@brief	Used by PF_ClearState.
+**/
+void CLG_LocalEntity_ClearState();
 
 
 /**
@@ -169,3 +172,5 @@ void CLG_AddLocalEntities( void );
 //*	@brief	Calls the localClass 'RefreshFrame' function pointer.
 //**/
 //const bool CLG_LocalEntity_DispatchPrepareRefreshEntity( clg_local_entity_t *lent );
+
+

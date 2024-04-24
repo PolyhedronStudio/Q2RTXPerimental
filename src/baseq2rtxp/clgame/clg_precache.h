@@ -36,3 +36,8 @@ const qhandle_t CLG_RegisterLocalModel( const char *name );
 *   @return -1 on failure, otherwise a handle to the sounds index of the precache.local_sounds array.
 **/
 const qhandle_t CLG_RegisterLocalSound( const char *name );
+
+/**
+*   @brief  Used by PF_ClearState.
+**/
+void CLG_Precache_ClearState();

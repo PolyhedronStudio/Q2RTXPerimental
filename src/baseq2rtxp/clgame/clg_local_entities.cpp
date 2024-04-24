@@ -139,8 +139,8 @@ void CLG_LocalEntity_Free( clg_local_entity_t *lent ) {
 /**
 *	@brief	Frees all local entities.
 **/
-void CLG_FreeLocalEntities() {
-	// Free local entities.
+void CLG_LocalEntity_FreeAllClasses() {
+	// Free local entity classes.
 	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
 		CLG_LocalEntity_Free( &clg_local_entities[ i ] );
 	}
@@ -431,7 +431,7 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 	clgi.Print( PRINT_NOTICE, "ClientGame: %s\n", __func__ );
 
 	// Be sure to clear any previous entities that might still be out there.
-	CLG_FreeLocalEntities();
+	CLG_LocalEntity_FreeAllClasses();
 
 	// Iterate over its entities.
 	for ( int32_t i = 0; i < numEntities; i++ ) {
@@ -608,4 +608,15 @@ void CLG_AddLocalEntities( void ) {
 			//clgi.Print( PRINT_NOTICE, "%s: lent(#%d) is not PVS visible.\n", __func__, lent->id );
 		}
 	}
+}
+
+/**
+*	@brief	Used by PF_ClearState.
+**/
+void CLG_LocalEntity_ClearState() {
+	// Clear all local entity classes as well as zeroing out the array.
+	CLG_LocalEntity_FreeAllClasses();
+
+	// Clear out client entities array.
+	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
 }

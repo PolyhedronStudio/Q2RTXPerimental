@@ -269,14 +269,16 @@ typedef struct client_s {
 
     // frame encoding
     client_frame_t  frames[UPDATE_BACKUP];    // updates can be delta'd from here
-    uint64_t		frames_sent, frames_acked, frames_nodelta;
+    uint64_t		frames_sent; //! Number of frames sent. 
+    uint64_t		frames_acked; //! Number of frames acknowledged.
+    uint64_t        frames_nodelta; //! Number of frames that did not have delta compression.
     int64_t			framenum;
     uint64_t		frameflags;
 
     // rate dropping
-    unsigned        message_size[RATE_MESSAGES];    // used to rate drop normal packets
-    int64_t         suppress_count;                 // number of messages rate suppressed
-    uint64_t		send_time, send_delta;          // used to rate drop async packets
+    unsigned        message_size[RATE_MESSAGES];    // Used to rate drop 'Normal' packets.
+    int64_t         suppress_count;                 // Sumber of messages rate suppressed (rate-dropped).
+    uint64_t		send_time, send_delta;          // Used to rate drop 'Async' packets.
 
     // current download
     byte            *download;      // file being downloaded

@@ -375,3 +375,28 @@ const qhandle_t CLG_RegisterLocalSound( const char *name ) {
     // Success.
     return index;
 }
+
+/**
+*   @brief  Used by PF_ClearState.
+**/
+void CLG_Precache_ClearState() {
+    // Reset the local precache paths.
+    precache.num_local_draw_models = 0;
+    memset( precache.model_paths, 0, MAX_MODELS * MAX_QPATH );
+    precache.num_local_sounds = 0;
+    memset( precache.sound_paths, 0, MAX_SOUNDS * MAX_QPATH );
+
+    // Reset the number of view models.
+    precache.numViewModels = 0;
+    memset( precache.viewModels, 0, MAX_CLIENTVIEWMODELS * MAX_QPATH );
+
+    // Reset the local precache paths.
+    precache.num_local_draw_models = 0;
+    memset( precache.model_paths, 0, MAX_MODELS * MAX_QPATH );
+    precache.num_local_sounds = 0;
+    memset( precache.sound_paths, 0, MAX_SOUNDS * MAX_QPATH );
+
+    // Reset the number of view models.
+    precache.numViewModels = 0;
+    memset( precache.viewModels, 0, MAX_CLIENTVIEWMODELS * MAX_QPATH );
+}

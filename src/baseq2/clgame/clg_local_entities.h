@@ -59,7 +59,7 @@ void CLG_LocalEntity_Free( clg_local_entity_t *lent );
 /**
 *	@brief	Frees all local entities.
 **/
-void CLG_FreeLocalEntities();
+void CLG_LocalEntity_FreeAllClasses();
 
 
 

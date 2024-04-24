@@ -354,28 +354,21 @@ void PF_ClearState( void ) {
 	// Hard reset the sound EAX environment.
 	CLG_EAX_HardSetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
 
-	// Reset the local precache paths.
-	precache.num_local_draw_models = 0;
-	memset( precache.model_paths, 0, MAX_MODELS * MAX_QPATH );
-	precache.num_local_sounds = 0;
-	memset( precache.sound_paths, 0, MAX_SOUNDS * MAX_QPATH );
+	// Clear Precache State.
+	CLG_Precache_ClearState();
 
-	// Reset the number of view models.
-	precache.numViewModels = 0;
-	memset( precache.viewModels, 0, MAX_CLIENTVIEWMODELS * MAX_QPATH );
+	// Clear Local Entity States.
+	CLG_LocalEntity_ClearState();
 
-	// Clear out local entities array.
-	memset( clg_local_entities, 0, sizeof( clg_local_entities ) );
-	clg_num_local_entities = 0;
-	// Clear out client entities array.
+	// Clear out Client Entities array.
 	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
 
-	// Clear Temporary Entity FX and other Effects.
+	// Clear Temporary Entities.
 	CLG_ClearTEnts();
+	// Clear out remaining effect types.
 	CLG_ClearEffects();
 
 	// Clear out level locals.
-	//level = {};
 	memset( &level, 0, sizeof( level ) );
 }
 

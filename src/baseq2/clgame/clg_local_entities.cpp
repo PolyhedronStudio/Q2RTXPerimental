@@ -125,7 +125,7 @@ void CLG_LocalEntity_Free( clg_local_entity_t *lent ) {
 /**
 *	@brief	Frees all local entities.
 **/
-void CLG_FreeLocalEntities() {
+void CLG_LocalEntity_FreeAllClasses() {
 	// Free local entities.
 	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
 		CLG_LocalEntity_Free( &clg_local_entities[ i ] );
@@ -417,7 +417,7 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 	clgi.Print( PRINT_NOTICE, "ClientGame: %s\n", __func__ );
 
 	// Be sure to clear any previous entities that might still be out there.
-	CLG_FreeLocalEntities();
+	CLG_LocalEntity_FreeAllClasses();
 
 	// Iterate over its entities.
 	for ( int32_t i = 0; i < numEntities; i++ ) {

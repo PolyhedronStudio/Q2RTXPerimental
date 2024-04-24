@@ -8,16 +8,21 @@
 #include "clg_local.h"
 #include "clg_effects.h"
 #include "clg_entities.h"
+#include "clg_local_entities.h"
 #include "clg_packet_entities.h"
 #include "clg_predict.h"
 #include "clg_temp_entities.h"
 #include "clg_view.h"
+
+
 
 //=============
 //
 // development tools for weapons
 //
 qhandle_t gun;
+
+
 
 /**
 *
