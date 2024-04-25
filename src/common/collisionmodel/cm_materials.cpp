@@ -161,11 +161,11 @@ const int32_t CM_LoadMaterialFromJSON( cm_t *cm, const char *name, const char *j
             // Fetch field value string size.
             const int32_t size = tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start;// constclamp( , 0, MAX_QPATH );
             // Parse field value into buffer.
-            Q_snprintf( fieldValue, size, jsonBuffer + tokens[ tokenID + 1 ].start );
+            Q_snprintf( fieldValue, size + 1, jsonBuffer + tokens[ tokenID + 1 ].start );
 
             // Copy it over into our material kind string buffer.
             memset( material->physical.kind, 0, MAX_QPATH );
-            Q_strlcpy( material->physical.kind, jsonBuffer + tokens[tokenID].start, size);
+            Q_strlcpy( material->physical.kind, fieldValue, MAX_QPATH );//jsonBuffer + tokens[tokenID].start, size);
         }
     }
     

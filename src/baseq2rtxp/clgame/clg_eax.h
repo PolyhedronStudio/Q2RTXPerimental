@@ -35,3 +35,8 @@ void CLG_EAX_DetermineEffect();
 *	@brief	Will load the reverb effect properties from a json file.
 **/
 sfx_eax_properties_t CLG_EAX_LoadReverbPropertiesFromJSON( const char *filename );
+
+/**
+*	@brief	Called by Precache code to precache all EAX Reverb Effects.
+**/
+void CLG_EAX_Precache();

@@ -8,6 +8,7 @@
 #include "clg_local.h"
 #include "clg_eax.h"
 #include "clg_eax_effects.h"
+#include "clg_effects.h"
 #include "clg_parse.h"
 #include "clg_precache.h"
 
@@ -49,78 +50,40 @@ static sfx_eax_properties_t abandoned_eax;
 void PF_PrecacheClientSounds( void ) {
     char    name[ MAX_QPATH ] = {};
 
-    // Required by default and should NOT be REMOVED!!
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_DEFAULT ] = cl_eax_default_properties;
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_UNDERWATER ] = cl_eax_underwater_properties;
-
-    // Any of the EAX effects below can be replaced by whatever suits your needs.
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_ABANDONED ] = CLG_EAX_LoadReverbPropertiesFromJSON( "abandoned" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_ALLEY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "alley" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_ARENA ] = CLG_EAX_LoadReverbPropertiesFromJSON( "arena" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_AUDITORIUM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "auditorium" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_BATHROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "bathroom" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CARPETED_HALLWAY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "carpetedhallway" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CAVE ] = CLG_EAX_LoadReverbPropertiesFromJSON( "cave" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CHAPEL ] = CLG_EAX_LoadReverbPropertiesFromJSON( "chapel" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CITY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "city" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CITY_STREETS ] = CLG_EAX_LoadReverbPropertiesFromJSON( "citystreets" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_CONCERT_HALL ] = CLG_EAX_LoadReverbPropertiesFromJSON( "concerthall" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_DIZZY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "dizzy" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_DRUGGED ] = CLG_EAX_LoadReverbPropertiesFromJSON( "drugged" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_DUSTYROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "dustyroom" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_FOREST ] = CLG_EAX_LoadReverbPropertiesFromJSON( "forest" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_HALLWAY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "hallway" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_HANGAR ] = CLG_EAX_LoadReverbPropertiesFromJSON( "hangar" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_LIBRARY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "library" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_LIVINGROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "livingroom" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_MOUNTAINS ] = CLG_EAX_LoadReverbPropertiesFromJSON( "mountains" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_MUSEUM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "museum" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_PADDED_CELL ] = CLG_EAX_LoadReverbPropertiesFromJSON( "paddedcell" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_PARKINGLOT ] = CLG_EAX_LoadReverbPropertiesFromJSON( "parkinglot" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_PLAIN ] = CLG_EAX_LoadReverbPropertiesFromJSON( "plain" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_PSYCHOTIC ] = CLG_EAX_LoadReverbPropertiesFromJSON( "psychotic" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_QUARRY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "quarry" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_ROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "room" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_SEWERPIPE ] = CLG_EAX_LoadReverbPropertiesFromJSON( "sewerpipe" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_SMALL_WATERROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "smallwaterroom" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_STONE_CORRIDOR ] = CLG_EAX_LoadReverbPropertiesFromJSON( "stonecorridor" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_STONE_ROOM ] = CLG_EAX_LoadReverbPropertiesFromJSON( "stoneroom" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_SUBWAY ] = CLG_EAX_LoadReverbPropertiesFromJSON( "subway" );
-    precache.cl_eax_effects[ SOUND_EAX_EFFECT_UNDERPASS ] = CLG_EAX_LoadReverbPropertiesFromJSON( "underpass" );
-
-    // We loaded 4 eax effects, make sure the cache is aware of this.
-    precache.cl_num_eax_effects = SOUND_EAX_EFFECT_MAX;
+    // Precache all EAX Reverb Effects.
+    CLG_EAX_Precache();
 
     // Ricochets SFX:
-    precache.cl_sfx_ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
-    precache.cl_sfx_ric2 = clgi.S_RegisterSound( "world/ric2.wav" );
-    precache.cl_sfx_ric3 = clgi.S_RegisterSound( "world/ric3.wav" );
+    precache.sfx.ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
+    precache.sfx.ric2 = clgi.S_RegisterSound( "world/ric2.wav" );
+    precache.sfx.ric3 = clgi.S_RegisterSound( "world/ric3.wav" );
     // Lasers SFX:
-    precache.cl_sfx_lashit = clgi.S_RegisterSound( "weapons/lashit.wav" );
+    precache.sfx.lashit = clgi.S_RegisterSound( "weapons/lashit.wav" );
     // Flare/Sparks SFX:
-    precache.cl_sfx_flare = clgi.S_RegisterSound( "weapons/flare.wav" );
-    precache.cl_sfx_spark5 = clgi.S_RegisterSound( "world/spark5.wav" );
-    precache.cl_sfx_spark6 = clgi.S_RegisterSound( "world/spark6.wav" );
-    precache.cl_sfx_spark7 = clgi.S_RegisterSound( "world/spark7.wav" );
+    precache.sfx.flare = clgi.S_RegisterSound( "weapons/flare.wav" );
+    precache.sfx.spark5 = clgi.S_RegisterSound( "world/spark5.wav" );
+    precache.sfx.spark6 = clgi.S_RegisterSound( "world/spark6.wav" );
+    precache.sfx.spark7 = clgi.S_RegisterSound( "world/spark7.wav" );
     // Weapon SFX:
-    precache.cl_sfx_railg = clgi.S_RegisterSound( "weapons/railgf1a.wav" );
-    precache.cl_sfx_rockexp = clgi.S_RegisterSound( "weapons/rocklx1a.wav" );
-    precache.cl_sfx_grenexp = clgi.S_RegisterSound( "weapons/grenlx1a.wav" );
-    precache.cl_sfx_watrexp = clgi.S_RegisterSound( "weapons/xpld_wat.wav" );
+    precache.sfx.railg = clgi.S_RegisterSound( "weapons/railgf1a.wav" );
+    precache.sfx.rockexp = clgi.S_RegisterSound( "weapons/rocklx1a.wav" );
+    precache.sfx.grenexp = clgi.S_RegisterSound( "weapons/grenlx1a.wav" );
+    precache.sfx.watrexp = clgi.S_RegisterSound( "weapons/xpld_wat.wav" );
 
+    // Precache player land/fall.
     clgi.S_RegisterSound( "player/land1.wav" );
     clgi.S_RegisterSound( "player/fall2.wav" );
     clgi.S_RegisterSound( "player/fall1.wav" );
 
-    for ( int32_t i = 0; i < 4; i++ ) {
-        Q_snprintf( name, sizeof( name ), "player/step%i.wav", i + 1 );
-        precache.cl_sfx_footsteps[ i ] = clgi.S_RegisterSound( name );
-    }
+    // Precache Footsteps:
+    CLG_PrecacheFootsteps();
 
-    precache.cl_sfx_lightning = clgi.S_RegisterSound( "weapons/tesla.wav" );
-    precache.cl_sfx_disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
+    // Precache Elon Musk's Tesla car.
+    precache.sfx.lightning = clgi.S_RegisterSound( "weapons/tesla.wav" );
+    precache.sfx.disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
 
-    // Precaches all local 'sound path' registered files.
+    // Precaches all local 'sound path' registered files. This has to be done after the other local sounds are loaded,
+    // to prevent their indexes from mixing up.
     CLG_PrecacheLocalSounds();
 }
 
@@ -145,28 +108,28 @@ void CLG_PrecacheLocalModels() {
 *	@brief	Called right before loading all received configstring (server-) models.
 **/
 void PF_PrecacheClientModels( void ) {
-    precache.cl_mod_explode = clgi.R_RegisterModel( "models/objects/explode/tris.md2" );
-    precache.cl_mod_smoke = clgi.R_RegisterModel( "models/objects/smoke/tris.md2" );
-    precache.cl_mod_flash = clgi.R_RegisterModel( "models/objects/flash/tris.md2" );
-    precache.cl_mod_parasite_segment = clgi.R_RegisterModel( "models/monsters/parasite/segment/tris.md2" );
-    precache.cl_mod_grapple_cable = clgi.R_RegisterModel( "models/ctf/segment/tris.md2" );
-    precache.cl_mod_explo4 = clgi.R_RegisterModel( "models/objects/r_explode/tris.md2" );
-    precache.cl_mod_explosions[ 0 ] = clgi.R_RegisterModel( "sprites/rocket_0.sp2" );
-    precache.cl_mod_explosions[ 1 ] = clgi.R_RegisterModel( "sprites/rocket_1.sp2" );
-    precache.cl_mod_explosions[ 2 ] = clgi.R_RegisterModel( "sprites/rocket_5.sp2" );
-    precache.cl_mod_explosions[ 3 ] = clgi.R_RegisterModel( "sprites/rocket_6.sp2" );
-    precache.cl_mod_bfg_explo = clgi.R_RegisterModel( "sprites/s_bfg2.sp2" );
-    precache.cl_mod_powerscreen = clgi.R_RegisterModel( "models/items/armor/effect/tris.md2" );
-    precache.cl_mod_laser = clgi.R_RegisterModel( "models/objects/laser/tris.md2" );
-    precache.cl_mod_dmspot = clgi.R_RegisterModel( "models/objects/dmspot/tris.md2" );
+    precache.models.explode = clgi.R_RegisterModel( "models/objects/explode/tris.md2" );
+    precache.models.smoke = clgi.R_RegisterModel( "models/objects/smoke/tris.md2" );
+    precache.models.flash = clgi.R_RegisterModel( "models/objects/flash/tris.md2" );
+    precache.models.parasite_segment = clgi.R_RegisterModel( "models/monsters/parasite/segment/tris.md2" );
+    precache.models.grapple_cable = clgi.R_RegisterModel( "models/ctf/segment/tris.md2" );
+    precache.models.explo4 = clgi.R_RegisterModel( "models/objects/r_explode/tris.md2" );
+    precache.models.explosions[ 0 ] = clgi.R_RegisterModel( "sprites/rocket_0.sp2" );
+    precache.models.explosions[ 1 ] = clgi.R_RegisterModel( "sprites/rocket_1.sp2" );
+    precache.models.explosions[ 2 ] = clgi.R_RegisterModel( "sprites/rocket_5.sp2" );
+    precache.models.explosions[ 3 ] = clgi.R_RegisterModel( "sprites/rocket_6.sp2" );
+    precache.models.bfg_explo = clgi.R_RegisterModel( "sprites/s_bfg2.sp2" );
+    precache.models.powerscreen = clgi.R_RegisterModel( "models/items/armor/effect/tris.md2" );
+    precache.models.laser = clgi.R_RegisterModel( "models/objects/laser/tris.md2" );
+    precache.models.dmspot = clgi.R_RegisterModel( "models/objects/dmspot/tris.md2" );
 
-    precache.cl_mod_lightning = clgi.R_RegisterModel( "models/proj/lightning/tris.md2" );
-    precache.cl_mod_heatbeam = clgi.R_RegisterModel( "models/proj/beam/tris.md2" );
-    precache.cl_mod_explo4_big = clgi.R_RegisterModel( "models/objects/r_explode2/tris.md2" );
+    precache.models.lightning = clgi.R_RegisterModel( "models/proj/lightning/tris.md2" );
+    precache.models.heatbeam = clgi.R_RegisterModel( "models/proj/beam/tris.md2" );
+    precache.models.explo4_big = clgi.R_RegisterModel( "models/objects/r_explode2/tris.md2" );
 
     // Enable 'vertical' display for explosion models.
-    for ( int32_t i = 0; i < sizeof( precache.cl_mod_explosions ) / sizeof( *precache.cl_mod_explosions ); i++ ) {
-        clgi.SetSpriteModelVerticality( precache.cl_mod_explosions[ i ] );
+    for ( int32_t i = 0; i < sizeof( precache.models.explosions ) / sizeof( *precache.models.explosions ); i++ ) {
+        clgi.SetSpriteModelVerticality( precache.models.explosions[ i ] );
         //model_t *model = MOD_ForHandle( cl_mod_explosions[ i ] );
 
         //if ( model ) {

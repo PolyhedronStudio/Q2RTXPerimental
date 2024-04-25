@@ -51,17 +51,17 @@ clg_explosion_t *CLG_PlainExplosion( bool big ) {
     VectorSet( ex->lightcolor, 1.0f, 0.5f, 0.5f );
     ex->ent.angles[ 1 ] = irandom( 360 );
 
-    int model_idx = irandom( sizeof( precache.cl_mod_explosions ) / sizeof( *precache.cl_mod_explosions ) );
-    const qboolean isValidSpriteModel = clgi.IsValidSpriteModelHandle( precache.cl_mod_explosions[ model_idx ] );
+    int model_idx = irandom( sizeof( precache.models.explosions ) / sizeof( *precache.models.explosions ) );
+    const qboolean isValidSpriteModel = clgi.IsValidSpriteModelHandle( precache.models.explosions[ model_idx ] );
     //model_t *sprite_model = MOD_ForHandle( cl_mod_explosions[ model_idx ] );
 
     if ( cl_explosion_sprites->integer && !big && isValidSpriteModel ) {
-        ex->ent.model = precache.cl_mod_explosions[ model_idx ];
+        ex->ent.model = precache.models.explosions[ model_idx ];
         //ex->frames = sprite_model->numframes;
         ex->frames = clgi.GetSpriteModelFrameCount( ex->ent.model );
         ex->frametime = cl_explosion_frametime->integer;
     } else {
-        ex->ent.model = big ? precache.cl_mod_explo4_big : precache.cl_mod_explo4;
+        ex->ent.model = big ? precache.models.explo4_big : precache.models.explo4;
         ex->baseframe = 15 * ( Q_rand() & 1 );
         ex->frames = 15;
     }
@@ -83,7 +83,7 @@ void CLG_SmokeAndFlash( const vec3_t origin ) {
     ex->frames = 4;
     ex->ent.flags = RF_TRANSLUCENT | RF_NOSHADOW;
     ex->start = clgi.client->servertime - clgi.frame_time_ms;
-    ex->ent.model = precache.cl_mod_smoke;
+    ex->ent.model = precache.models.smoke;
 
     ex = CLG_AllocExplosion();
     VectorCopy( origin, ex->ent.origin );
@@ -91,7 +91,7 @@ void CLG_SmokeAndFlash( const vec3_t origin ) {
     ex->ent.flags = RF_FULLBRIGHT;
     ex->frames = 2;
     ex->start = clgi.client->servertime - clgi.frame_time_ms;
-    ex->ent.model = precache.cl_mod_flash;
+    ex->ent.model = precache.models.flash;
 }
 
 #define LENGTH(a) ((sizeof (a)) / (sizeof(*(a))))

@@ -1203,8 +1203,7 @@ static void PM_SnapPosition() {
 *	@brief
 **/
 static void PM_InitialSnapPosition() {
-	//int32_t x, y, z;
-	constexpr int	offset[ 3 ] = { 0, -1, 1 };
+	constexpr int32_t offset[ 3 ] = { 0, -1, 1 };
 	const Vector3 base = pm->s.origin;
 	
 	for ( int32_t z = 0; z < 3; z++ ) {
@@ -1303,7 +1302,8 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	pm->touchTraces.numberOfTraces = 0;
 	pm->viewangles = {};
 	//pm->s.viewheight = 0;
-	//pm->groundentity = nullptr;
+	//pm->ground.entity = nullptr;
+	pm->ground = {};
 	pm->watertype = CONTENTS_NONE;
 	pm->waterlevel = water_level_t::WATER_NONE;
 	pm->screen_blend = {};
@@ -1329,9 +1329,6 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 	// Clamp view angles.
 	PM_ClampAngles( );
-
-	// Remove the ground entity changed flag.
-	//pm->s.pm_flags &= ~PMF_GROUNDENTITY_CHANGED;
 
 	// Performs fly move, only clips in case of spectator mode, noclips otherwise.
 	if ( pm->s.pm_type == PM_SPECTATOR || pm->s.pm_type == PM_NOCLIP ) {

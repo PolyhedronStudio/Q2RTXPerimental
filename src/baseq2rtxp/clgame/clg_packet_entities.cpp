@@ -220,7 +220,7 @@ static void CLG_PacketEntity_SetModelAndSkin( centity_t *cent, entity_t *ent, en
         ent->skinnum = newState->skinnum;
         ent->skin = 0;
         ent->model = clgi.client->model_draw[ newState->modelindex ];
-        if ( ent->model == precache.cl_mod_laser || ent->model == precache.cl_mod_dmspot ) {
+        if ( ent->model == precache.models.laser || ent->model == precache.models.dmspot ) {
             renderfx |= RF_NOSHADOW;
         }
     }
@@ -611,7 +611,7 @@ void CLG_AddPacketEntities( void ) {
         }
 
         if ( effects & EF_POWERSCREEN ) {
-            ent.model = precache.cl_mod_powerscreen;
+            ent.model = precache.models.powerscreen;
             ent.oldframe = 0;
             ent.frame = 0;
             ent.flags |= ( RF_TRANSLUCENT | RF_SHELL_GREEN );

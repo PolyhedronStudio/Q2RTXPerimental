@@ -316,11 +316,8 @@ void PF_InitGame( void ) {
 	/**
 	*	Allocate space for entities.
 	**/
-	// Initialize all entities for this game.
-	//game.maxentities = maxentities->value;
-	//clamp( game.maxentities, (int)maxclients->value + 1, MAX_CLIENT_ENTITIES );
 	game.maxentities = MAX_CLIENT_ENTITIES;
-	clg_entities = (centity_t *)clgi.TagMalloc( game.maxentities * sizeof( clg_entities[ 0 ] ), TAG_CLGAME );
+	clg_entities = static_cast<centity_t *>( clgi.TagMalloc( game.maxentities * sizeof( clg_entities[ 0 ] ), TAG_CLGAME ) );
 	globals.entities = clg_entities;
 	globals.max_entities = game.maxentities;
 

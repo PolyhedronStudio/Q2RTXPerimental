@@ -58,38 +58,38 @@ static void cl_railspiral_color_changed( cvar_t *self ) {
 //!
 static const byte splash_color[] = { 0x00, 0xe0, 0xb0, 0x50, 0xd0, 0xe0, 0xe8 };
 
-//qhandle_t   precache.cl_sfx_ric1;
-//qhandle_t   precache.cl_sfx_ric2;
-//qhandle_t   precache.cl_sfx_ric3;
-//qhandle_t   precache.cl_sfx_lashit;
-//qhandle_t   precache.cl_sfx_flare;
-//qhandle_t   precache.cl_sfx_spark5;
-//qhandle_t   precache.cl_sfx_spark6;
-//qhandle_t   precache.cl_sfx_spark7;
-//qhandle_t   precache.cl_sfx_railg;
-//qhandle_t   precache.cl_sfx_rockexp;
-//qhandle_t   precache.cl_sfx_grenexp;
-//qhandle_t   precache.cl_sfx_watrexp;
-//qhandle_t   precache.cl_sfx_footsteps[ 4 ];
+//qhandle_t   precache.sfx.ric1;
+//qhandle_t   precache.sfx.ric2;
+//qhandle_t   precache.sfx.ric3;
+//qhandle_t   precache.sfx.lashit;
+//qhandle_t   precache.sfx.flare;
+//qhandle_t   precache.sfx.spark5;
+//qhandle_t   precache.sfx.spark6;
+//qhandle_t   precache.sfx.spark7;
+//qhandle_t   precache.sfx.railg;
+//qhandle_t   precache.sfx.rockexp;
+//qhandle_t   precache.sfx.grenexp;
+//qhandle_t   precache.sfx.watrexp;
+//qhandle_t   precache.sfx.footsteps[ 4 ];
 //
-//qhandle_t   precache.cl_sfx_lightning;
-//qhandle_t   precache.cl_sfx_disrexp;
+//qhandle_t   precache.sfx.lightning;
+//qhandle_t   precache.sfx.disrexp;
 //
-//qhandle_t   precache.cl_mod_explode;
-//qhandle_t   precache.cl_mod_smoke;
-//qhandle_t   precache.cl_mod_flash;
-//qhandle_t   precache.cl_mod_parasite_segment;
-//qhandle_t   precache.cl_mod_grapple_cable;
-//qhandle_t   precache.cl_mod_explo4;
-//qhandle_t   precache.cl_mod_bfg_explo;
-//qhandle_t   precache.cl_mod_powerscreen;
-//qhandle_t   precache.cl_mod_laser;
-//qhandle_t   precache.cl_mod_dmspot;
-//qhandle_t   precache.cl_mod_explosions[ 4 ];
+//qhandle_t   precache.models.explode;
+//qhandle_t   precache.models.smoke;
+//qhandle_t   precache.models.flash;
+//qhandle_t   precache.models.parasite_segment;
+//qhandle_t   precache.models.grapple_cable;
+//qhandle_t   precache.models.explo4;
+//qhandle_t   precache.models.bfg_explo;
+//qhandle_t   precache.models.powerscreen;
+//qhandle_t   precache.models.laser;
+//qhandle_t   precache.models.dmspot;
+//qhandle_t   precache.models.explosions[ 4 ];
 //
-//qhandle_t   precache.cl_mod_lightning;
-//qhandle_t   precache.cl_mod_heatbeam;
-//qhandle_t   precache.cl_mod_explo4_big;
+//qhandle_t   precache.models.lightning;
+//qhandle_t   precache.models.heatbeam;
+//qhandle_t   precache.models.explo4_big;
 
 
 /**
@@ -121,11 +121,11 @@ void CLG_ParseTEnt( void ) {
             // impact sound
             r = Q_rand() & 15;
             if ( r == 1 )
-                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_ric1, 1, ATTN_NORM, 0 );
+                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ric1, 1, ATTN_NORM, 0 );
             else if ( r == 2 )
-                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_ric2, 1, ATTN_NORM, 0 );
+                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ric2, 1, ATTN_NORM, 0 );
             else if ( r == 3 )
-                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_ric3, 1, ATTN_NORM, 0 );
+                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ric3, 1, ATTN_NORM, 0 );
         }
         break;
 
@@ -136,7 +136,7 @@ void CLG_ParseTEnt( void ) {
         else
             CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xb0, 40 );
         //FIXME : replace or remove this sound
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 257, precache.cl_sfx_lashit, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 257, precache.sfx.lashit, 1, ATTN_NORM, 0 );
         break;
 
     case TE_SHOTGUN:            // bullet hitting wall
@@ -154,11 +154,11 @@ void CLG_ParseTEnt( void ) {
         if ( level.parsedMessage.events.tempEntity.color == SPLASH_SPARKS ) {
             r = Q_rand() & 3;
             if ( r == 0 )
-                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_spark5, 1, ATTN_STATIC, 0 );
+                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.spark5, 1, ATTN_STATIC, 0 );
             else if ( r == 1 )
-                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_spark6, 1, ATTN_STATIC, 0 );
+                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.spark6, 1, ATTN_STATIC, 0 );
             else
-                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_spark7, 1, ATTN_STATIC, 0 );
+                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.spark7, 1, ATTN_STATIC, 0 );
         }
         break;
 
@@ -207,21 +207,21 @@ void CLG_ParseTEnt( void ) {
         }
         ex->start = clgi.client->servertime - clgi.frame_time_ms;
         ex->light = 150;
-        ex->ent.model = precache.cl_mod_explode;
+        ex->ent.model = precache.models.explode;
         ex->frames = 4;
 
         if ( level.parsedMessage.events.tempEntity.type != TE_FLARE ) {
-            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_lashit, 1, ATTN_NORM, 0 );
+            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.lashit, 1, ATTN_NORM, 0 );
         } else {
             // level.parsedMessage.events.tempEntity.count is set to 1 on the first tick of the flare, 0 afterwards
             if ( level.parsedMessage.events.tempEntity.count != 0 )
-                clgi.S_StartSound( NULL, level.parsedMessage.events.tempEntity.entity1, 0, precache.cl_sfx_flare, 0.5, ATTN_NORM, 0 );
+                clgi.S_StartSound( NULL, level.parsedMessage.events.tempEntity.entity1, 0, precache.sfx.flare, 0.5, ATTN_NORM, 0 );
         }
         break;
 
     case TE_RAILTRAIL:          // railgun effect
         CLG_RailTrail();
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos2, 0, 0, precache.cl_sfx_railg, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos2, 0, 0, precache.sfx.railg, 1, ATTN_NORM, 0 );
         break;
 
     case TE_GRENADE_EXPLOSION:
@@ -241,9 +241,9 @@ void CLG_ParseTEnt( void ) {
             ex->light = 200;
 
         if ( level.parsedMessage.events.tempEntity.type == TE_GRENADE_EXPLOSION_WATER )
-            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_watrexp, 1, ATTN_NORM, 0 );
+            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.watrexp, 1, ATTN_NORM, 0 );
         else
-            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_grenexp, 1, ATTN_NORM, 0 );
+            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.grenexp, 1, ATTN_NORM, 0 );
         break;
 
     case TE_EXPLOSION2:
@@ -253,13 +253,13 @@ void CLG_ParseTEnt( void ) {
             ex->baseframe = 30;
         }
         CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_grenexp, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.grenexp, 1, ATTN_NORM, 0 );
         break;
 
     case TE_PLASMA_EXPLOSION:
         CLG_PlainExplosion( false );
         CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_rockexp, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.rockexp, 1, ATTN_NORM, 0 );
         break;
 
     case TE_ROCKET_EXPLOSION:
@@ -275,25 +275,25 @@ void CLG_ParseTEnt( void ) {
             ex->light = 200;
 
         if ( level.parsedMessage.events.tempEntity.type == TE_ROCKET_EXPLOSION_WATER )
-            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_watrexp, 1, ATTN_NORM, 0 );
+            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.watrexp, 1, ATTN_NORM, 0 );
         else
-            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_rockexp, 1, ATTN_NORM, 0 );
+            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.rockexp, 1, ATTN_NORM, 0 );
         break;
 
     case TE_EXPLOSION1:
         CLG_PlainExplosion( false );
         CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_rockexp, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.rockexp, 1, ATTN_NORM, 0 );
         break;
 
     case TE_EXPLOSION1_NP:
         CLG_PlainExplosion( false );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_rockexp, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.rockexp, 1, ATTN_NORM, 0 );
         break;
 
     case TE_EXPLOSION1_BIG:
         ex = CLG_PlainExplosion( true );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_rockexp, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.rockexp, 1, ATTN_NORM, 0 );
         break;
 
     case TE_BFG_EXPLOSION:
@@ -306,7 +306,7 @@ void CLG_ParseTEnt( void ) {
         ex->lightcolor[ 0 ] = 0.0f;
         ex->lightcolor[ 1 ] = 1.0f;
         ex->lightcolor[ 2 ] = 0.0f;
-        ex->ent.model = precache.cl_mod_bfg_explo;
+        ex->ent.model = precache.models.bfg_explo;
         ex->ent.flags |= RF_TRANSLUCENT;
         ex->ent.alpha = 0.80;
         ex->frames = 4;
@@ -328,7 +328,7 @@ void CLG_ParseTEnt( void ) {
     case TE_MEDIC_CABLE_ATTACK:
         VectorClear( level.parsedMessage.events.tempEntity.offset );
         level.parsedMessage.events.tempEntity.entity2 = 0;
-        CLG_ParseBeam( precache.cl_mod_parasite_segment );
+        CLG_ParseBeam( precache.models.parasite_segment );
         break;
 
     case TE_BOSSTPORT:          // boss teleporting to station
@@ -338,7 +338,7 @@ void CLG_ParseTEnt( void ) {
 
     case TE_GRAPPLE_CABLE:
         level.parsedMessage.events.tempEntity.entity2 = 0;
-        CLG_ParseBeam( precache.cl_mod_grapple_cable );
+        CLG_ParseBeam( precache.models.grapple_cable );
         break;
 
     case TE_WELDING_SPARKS:
@@ -355,7 +355,7 @@ void CLG_ParseTEnt( void ) {
         ex->lightcolor[ 0 ] = 1.0f;
         ex->lightcolor[ 1 ] = 1.0f;
         ex->lightcolor[ 2 ] = 0.3f;
-        ex->ent.model = precache.cl_mod_flash;
+        ex->ent.model = precache.models.flash;
         ex->frames = 2;
         break;
 
@@ -368,9 +368,9 @@ void CLG_ParseTEnt( void ) {
         break;
 
     case TE_LIGHTNING:
-        clgi.S_StartSound( NULL, level.parsedMessage.events.tempEntity.entity1, CHAN_WEAPON, precache.cl_sfx_lightning, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( NULL, level.parsedMessage.events.tempEntity.entity1, CHAN_WEAPON, precache.sfx.lightning, 1, ATTN_NORM, 0 );
         VectorClear( level.parsedMessage.events.tempEntity.offset );
-        CLG_ParseBeam( precache.cl_mod_lightning );
+        CLG_ParseBeam( precache.models.lightning );
         break;
 
     case TE_DEBUGTRAIL:
@@ -391,22 +391,22 @@ void CLG_ParseTEnt( void ) {
 
     case TE_HEATBEAM:
         VectorSet( level.parsedMessage.events.tempEntity.offset, 2, 7, -3 );
-        CLG_ParsePlayerBeam( precache.cl_mod_heatbeam );
+        CLG_ParsePlayerBeam( precache.models.heatbeam );
         break;
 
     case TE_MONSTER_HEATBEAM:
         VectorClear( level.parsedMessage.events.tempEntity.offset );
-        CLG_ParsePlayerBeam( precache.cl_mod_heatbeam );
+        CLG_ParsePlayerBeam( precache.models.heatbeam );
         break;
 
     case TE_HEATBEAM_SPARKS:
         CLG_ParticleSteamEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0x8, 50, 60 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_lashit, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.lashit, 1, ATTN_NORM, 0 );
         break;
 
     case TE_HEATBEAM_STEAM:
         CLG_ParticleSteamEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xE0, 20, 60 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_lashit, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.lashit, 1, ATTN_NORM, 0 );
         break;
 
     case TE_STEAM:
@@ -415,7 +415,7 @@ void CLG_ParseTEnt( void ) {
 
     case TE_BUBBLETRAIL2:
         CLG_BubbleTrail2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2, 8 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_lashit, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.lashit, 1, ATTN_NORM, 0 );
         break;
 
     case TE_MOREBLOOD:
@@ -430,13 +430,13 @@ void CLG_ParseTEnt( void ) {
     case TE_ELECTRIC_SPARKS:
         CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0x75, 40 );
         //FIXME : replace or remove this sound
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_lashit, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.lashit, 1, ATTN_NORM, 0 );
         break;
 
     case TE_TRACKER_EXPLOSION:
         CLG_ColorFlash( level.parsedMessage.events.tempEntity.pos1, 0, 150, -1, -1, -1 );
         CLG_ColorExplosionParticles( level.parsedMessage.events.tempEntity.pos1, 0, 1 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.cl_sfx_disrexp, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.disrexp, 1, ATTN_NORM, 0 );
         break;
 
     case TE_TELEPORT_EFFECT:

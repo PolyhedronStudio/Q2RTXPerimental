@@ -532,66 +532,100 @@ typedef struct precached_media_s {
 	//
 	// Models:
 	//
-	qhandle_t cl_mod_explode;
-	qhandle_t cl_mod_smoke;
-	qhandle_t cl_mod_flash;
-	qhandle_t cl_mod_parasite_segment;
-	qhandle_t cl_mod_grapple_cable;
-	qhandle_t cl_mod_explo4;
-	qhandle_t cl_mod_explosions[ 4 ];
-	qhandle_t cl_mod_bfg_explo;
-	qhandle_t cl_mod_powerscreen;
-	qhandle_t cl_mod_laser;
-	qhandle_t cl_mod_dmspot;
+	struct {
+		qhandle_t explode;
+		qhandle_t smoke;
+		qhandle_t flash;
+		qhandle_t parasite_segment;
+		qhandle_t grapple_cable;
+		qhandle_t explo4;
+		qhandle_t explosions[ 4 ];
+		qhandle_t bfg_explo;
+		qhandle_t powerscreen;
+		qhandle_t laser;
+		qhandle_t dmspot;
 
-	qhandle_t cl_mod_lightning;
-	qhandle_t cl_mod_heatbeam;
-	qhandle_t cl_mod_explo4_big;
-
-
-
-	//
-	// Sound EAX:
-	// 
-	//! Stores all the loaded up EAX Effects:
-	sfx_eax_properties_t cl_eax_effects[ SOUND_EAX_EFFECT_MAX ];
-	int32_t cl_num_eax_effects;
-
+		qhandle_t lightning;
+		qhandle_t heatbeam;
+		qhandle_t explo4_big;
+	} models;
 
 	// 
 	// Sound Effects:
 	//
-	qhandle_t cl_sfx_ric1;
-	qhandle_t cl_sfx_ric2;
-	qhandle_t cl_sfx_ric3;
-	qhandle_t cl_sfx_lashit;
-	qhandle_t cl_sfx_flare;
-	qhandle_t cl_sfx_spark5;
-	qhandle_t cl_sfx_spark6;
-	qhandle_t cl_sfx_spark7;
-	qhandle_t cl_sfx_railg;
-	qhandle_t cl_sfx_rockexp;
-	qhandle_t cl_sfx_grenexp;
-	qhandle_t cl_sfx_watrexp;
+	struct {
+		qhandle_t ric1;
+		qhandle_t ric2;
+		qhandle_t ric3;
+		qhandle_t lashit;
+		qhandle_t flare;
+		qhandle_t spark5;
+		qhandle_t spark6;
+		qhandle_t spark7;
+		qhandle_t railg;
+		qhandle_t rockexp;
+		qhandle_t grenexp;
+		qhandle_t watrexp;
 
-	qhandle_t cl_sfx_footsteps[ 4 ];
+		//qhandle_t footsteps[ 14 ];
 
-	qhandle_t cl_sfx_lightning;
-	qhandle_t cl_sfx_disrexp;
+		qhandle_t lightning;
+		qhandle_t disrexp;
 
+		struct {
+			// Kind - "default"/"floor" (Used as a default, and for "floor" specific materials):
+			static constexpr int32_t NUM_FLOOR_STEPS = 9;
+			qhandle_t floor[ NUM_FLOOR_STEPS ];
 
+			// Kind - "carpet":
+			static constexpr int32_t NUM_CARPET_STEPS = 8;
+			qhandle_t carpet[ NUM_CARPET_STEPS ];
+			// Kind - "dirt":
+			static constexpr int32_t NUM_DIRT_STEPS = 8;
+			qhandle_t dirt[ NUM_DIRT_STEPS ];
+			// Kind - "grass":
+			static constexpr int32_t NUM_GRASS_STEPS = 9;
+			qhandle_t grass[ NUM_GRASS_STEPS ];
+			// Kind - "gravel":
+			static constexpr int32_t NUM_GRAVEL_STEPS = 10;
+			qhandle_t gravel[ NUM_GRAVEL_STEPS ];
+			// Kind - "metal":
+			static constexpr int32_t NUM_METAL_STEPS = 8;
+			qhandle_t metal[ NUM_METAL_STEPS ];
+			// Kind - "snow":
+			static constexpr int32_t NUM_SNOW_STEPS = 8;
+			qhandle_t snow[ NUM_SNOW_STEPS ];
+			// Kind - "tile":
+			static constexpr int32_t NUM_TILE_STEPS = 9;
+			qhandle_t tile[ NUM_TILE_STEPS ];
+			// Kind - "water":
+			static constexpr int32_t NUM_WATER_STEPS = 5;
+			qhandle_t water[ NUM_WATER_STEPS ];
+			// Kind - "wood":
+			static constexpr int32_t NUM_WOOD_STEPS = 9;
+			qhandle_t wood[ NUM_WOOD_STEPS ];
+		} footsteps;
+	} sfx;
 
-	//!
-	//! View Models: (Moved here from client, was named weapon models but a more generic name is best fit.)
-	//!
+	//
+	// Sound EAX:
+	// 
+	struct {
+		//! Stores all the loaded up EAX Effects:
+		sfx_eax_properties_t properties[ SOUND_EAX_EFFECT_MAX ];
+		//! Number of totally loaded eax effects.
+		int32_t num_effects;
+	} eax;
+
+	//
+	// View Models: (Moved here from client, was named weapon models but a more generic name is best fit.)
+	//
 	char	viewModels[ MAX_CLIENTVIEWMODELS ][ MAX_QPATH ];
 	int32_t	numViewModels;
 
-
-
-	//!
-	//! Other:
-	//!
+	//
+	// Other:
+	//
 	// ...
 } precached_media_t;
 //! Stores qhandles to all precached client game media.

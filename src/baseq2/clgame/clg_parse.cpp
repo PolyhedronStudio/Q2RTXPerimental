@@ -416,7 +416,7 @@ void PF_ParseEntityEvent( const int32_t entityNumber ) {
             break;
         case EV_FOOTSTEP:
             if ( cl_footsteps->integer )
-                clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, precache.cl_sfx_footsteps[ Q_rand() & 3 ], 1, ATTN_NORM, 0 );
+                clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, precache.sfx.footsteps[ Q_rand() & 3 ], 1, ATTN_NORM, 0 );
             break;
         case EV_FALLSHORT:
             clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land1.wav" ), 1, ATTN_NORM, 0 );

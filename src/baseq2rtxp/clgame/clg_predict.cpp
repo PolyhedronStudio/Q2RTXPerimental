@@ -325,6 +325,10 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     predictedState->view.rdflags = pm.rdflags; // To be merged with server rdflags.
 
     predictedState->ground = pm.ground;
+
+    predictedState->waterType = pm.watertype;
+    predictedState->waterLevel = pm.waterlevel;
+
     //predictedState->groundEntity = (centity_t *)pm.groundEntity;
     //predictedState->groundPlane = pm.groundPlane;
 

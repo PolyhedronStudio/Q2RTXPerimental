@@ -22,6 +22,22 @@ void CLG_InitEffects( void );
 
 /***
 *
+*	effects/clg_fx_footsteps.cpp
+*
+***/
+/**
+*	@brief  Precaches footstep audio for all material "kinds".
+**/
+void CLG_PrecacheFootsteps( void );
+/**
+*   @brief  Will play an appropriate footstep sound effect depending on the material that we're currently
+*           standing on.
+**/
+void CLG_FootstepEvent( const int32_t entityNumber );
+
+
+/***
+*
 *	effects/clg_fx_classic.cpp
 *
 ***/

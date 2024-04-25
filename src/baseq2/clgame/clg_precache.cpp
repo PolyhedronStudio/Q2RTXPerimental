@@ -18,18 +18,18 @@ precached_media_t precache;
 void PF_PrecacheClientSounds( void ) {
     char    name[ MAX_QPATH ];
 
-    precache.cl_sfx_ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
-    precache.cl_sfx_ric2 = clgi.S_RegisterSound( "world/ric2.wav" );
-    precache.cl_sfx_ric3 = clgi.S_RegisterSound( "world/ric3.wav" );
-    precache.cl_sfx_lashit = clgi.S_RegisterSound( "weapons/lashit.wav" );
-    precache.cl_sfx_flare = clgi.S_RegisterSound( "weapons/flare.wav" );
-    precache.cl_sfx_spark5 = clgi.S_RegisterSound( "world/spark5.wav" );
-    precache.cl_sfx_spark6 = clgi.S_RegisterSound( "world/spark6.wav" );
-    precache.cl_sfx_spark7 = clgi.S_RegisterSound( "world/spark7.wav" );
-    precache.cl_sfx_railg = clgi.S_RegisterSound( "weapons/railgf1a.wav" );
-    precache.cl_sfx_rockexp = clgi.S_RegisterSound( "weapons/rocklx1a.wav" );
-    precache.cl_sfx_grenexp = clgi.S_RegisterSound( "weapons/grenlx1a.wav" );
-    precache.cl_sfx_watrexp = clgi.S_RegisterSound( "weapons/xpld_wat.wav" );
+    precache.sfx.ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
+    precache.sfx.ric2 = clgi.S_RegisterSound( "world/ric2.wav" );
+    precache.sfx.ric3 = clgi.S_RegisterSound( "world/ric3.wav" );
+    precache.sfx.lashit = clgi.S_RegisterSound( "weapons/lashit.wav" );
+    precache.sfx.flare = clgi.S_RegisterSound( "weapons/flare.wav" );
+    precache.sfx.spark5 = clgi.S_RegisterSound( "world/spark5.wav" );
+    precache.sfx.spark6 = clgi.S_RegisterSound( "world/spark6.wav" );
+    precache.sfx.spark7 = clgi.S_RegisterSound( "world/spark7.wav" );
+    precache.sfx.railg = clgi.S_RegisterSound( "weapons/railgf1a.wav" );
+    precache.sfx.rockexp = clgi.S_RegisterSound( "weapons/rocklx1a.wav" );
+    precache.sfx.grenexp = clgi.S_RegisterSound( "weapons/grenlx1a.wav" );
+    precache.sfx.watrexp = clgi.S_RegisterSound( "weapons/xpld_wat.wav" );
 
     clgi.S_RegisterSound( "player/land1.wav" );
     clgi.S_RegisterSound( "player/fall2.wav" );
@@ -37,11 +37,11 @@ void PF_PrecacheClientSounds( void ) {
 
     for ( int32_t i = 0; i < 4; i++ ) {
         Q_snprintf( name, sizeof( name ), "player/step%i.wav", i + 1 );
-        precache.cl_sfx_footsteps[ i ] = clgi.S_RegisterSound( name );
+        precache.sfx.footsteps[ i ] = clgi.S_RegisterSound( name );
     }
 
-    precache.cl_sfx_lightning = clgi.S_RegisterSound( "weapons/tesla.wav" );
-    precache.cl_sfx_disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
+    precache.sfx.lightning = clgi.S_RegisterSound( "weapons/tesla.wav" );
+    precache.sfx.disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
 
     // Iterate over the local sound path 'config' strings.
     for ( int32_t i = 1; i < precache.num_local_sounds; i++ ) {
@@ -61,28 +61,28 @@ void PF_PrecacheClientSounds( void ) {
 *	@brief	Called right before loading all received configstring (server-) models.
 **/
 void PF_PrecacheClientModels( void ) {
-    precache.cl_mod_explode = clgi.R_RegisterModel( "models/objects/explode/tris.md2" );
-    precache.cl_mod_smoke = clgi.R_RegisterModel( "models/objects/smoke/tris.md2" );
-    precache.cl_mod_flash = clgi.R_RegisterModel( "models/objects/flash/tris.md2" );
-    precache.cl_mod_parasite_segment = clgi.R_RegisterModel( "models/monsters/parasite/segment/tris.md2" );
-    precache.cl_mod_grapple_cable = clgi.R_RegisterModel( "models/ctf/segment/tris.md2" );
-    precache.cl_mod_explo4 = clgi.R_RegisterModel( "models/objects/r_explode/tris.md2" );
-    precache.cl_mod_explosions[ 0 ] = clgi.R_RegisterModel( "sprites/rocket_0.sp2" );
-    precache.cl_mod_explosions[ 1 ] = clgi.R_RegisterModel( "sprites/rocket_1.sp2" );
-    precache.cl_mod_explosions[ 2 ] = clgi.R_RegisterModel( "sprites/rocket_5.sp2" );
-    precache.cl_mod_explosions[ 3 ] = clgi.R_RegisterModel( "sprites/rocket_6.sp2" );
-    precache.cl_mod_bfg_explo = clgi.R_RegisterModel( "sprites/s_bfg2.sp2" );
-    precache.cl_mod_powerscreen = clgi.R_RegisterModel( "models/items/armor/effect/tris.md2" );
-    precache.cl_mod_laser = clgi.R_RegisterModel( "models/objects/laser/tris.md2" );
-    precache.cl_mod_dmspot = clgi.R_RegisterModel( "models/objects/dmspot/tris.md2" );
+    precache.models.explode = clgi.R_RegisterModel( "models/objects/explode/tris.md2" );
+    precache.models.smoke = clgi.R_RegisterModel( "models/objects/smoke/tris.md2" );
+    precache.models.flash = clgi.R_RegisterModel( "models/objects/flash/tris.md2" );
+    precache.models.parasite_segment = clgi.R_RegisterModel( "models/monsters/parasite/segment/tris.md2" );
+    precache.models.grapple_cable = clgi.R_RegisterModel( "models/ctf/segment/tris.md2" );
+    precache.models.explo4 = clgi.R_RegisterModel( "models/objects/r_explode/tris.md2" );
+    precache.models.explosions[ 0 ] = clgi.R_RegisterModel( "sprites/rocket_0.sp2" );
+    precache.models.explosions[ 1 ] = clgi.R_RegisterModel( "sprites/rocket_1.sp2" );
+    precache.models.explosions[ 2 ] = clgi.R_RegisterModel( "sprites/rocket_5.sp2" );
+    precache.models.explosions[ 3 ] = clgi.R_RegisterModel( "sprites/rocket_6.sp2" );
+    precache.models.bfg_explo = clgi.R_RegisterModel( "sprites/s_bfg2.sp2" );
+    precache.models.powerscreen = clgi.R_RegisterModel( "models/items/armor/effect/tris.md2" );
+    precache.models.laser = clgi.R_RegisterModel( "models/objects/laser/tris.md2" );
+    precache.models.dmspot = clgi.R_RegisterModel( "models/objects/dmspot/tris.md2" );
 
-    precache.cl_mod_lightning = clgi.R_RegisterModel( "models/proj/lightning/tris.md2" );
-    precache.cl_mod_heatbeam = clgi.R_RegisterModel( "models/proj/beam/tris.md2" );
-    precache.cl_mod_explo4_big = clgi.R_RegisterModel( "models/objects/r_explode2/tris.md2" );
+    precache.models.lightning = clgi.R_RegisterModel( "models/proj/lightning/tris.md2" );
+    precache.models.heatbeam = clgi.R_RegisterModel( "models/proj/beam/tris.md2" );
+    precache.models.explo4_big = clgi.R_RegisterModel( "models/objects/r_explode2/tris.md2" );
 
     // Enable 'vertical' display for explosion models.
-    for ( int32_t i = 0; i < sizeof( precache.cl_mod_explosions ) / sizeof( *precache.cl_mod_explosions ); i++ ) {
-        clgi.SetSpriteModelVerticality( precache.cl_mod_explosions[ i ] );
+    for ( int32_t i = 0; i < sizeof( precache.models.explosions ) / sizeof( *precache.models.explosions ); i++ ) {
+        clgi.SetSpriteModelVerticality( precache.models.explosions[ i ] );
         //model_t *model = MOD_ForHandle( cl_mod_explosions[ i ] );
 
         //if ( model ) {

@@ -41,6 +41,7 @@ SET(SRC_BASEQ2_CLGAME
 
 	baseq2/clgame/effects/clg_fx_classic.cpp
 	baseq2/clgame/effects/clg_fx_dynamiclights.cpp
+	baseq2/clgame/effects/clg_fx_footsteps.cpp
 	baseq2/clgame/effects/clg_fx_lightstyles.cpp
 	baseq2/clgame/effects/clg_fx_muzzleflash.cpp
 	baseq2/clgame/effects/clg_fx_muzzleflash2.cpp
@@ -192,6 +193,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 
 	baseq2rtxp/clgame/effects/clg_fx_classic.cpp
 	baseq2rtxp/clgame/effects/clg_fx_dynamiclights.cpp
+	baseq2rtxp/clgame/effects/clg_fx_footsteps.cpp
 	baseq2rtxp/clgame/effects/clg_fx_lightstyles.cpp
 	baseq2rtxp/clgame/effects/clg_fx_muzzleflash.cpp
 	baseq2rtxp/clgame/effects/clg_fx_muzzleflash2.cpp
