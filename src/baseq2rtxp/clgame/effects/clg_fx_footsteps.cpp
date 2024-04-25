@@ -34,6 +34,8 @@ void CLG_FootstepEvent( const int32_t entityNumber ) {
         material_kind = "water";
         material_num_footsteps = precache.sfx.footsteps.NUM_WATER_STEPS;
         material_footsteps = precache.sfx.footsteps.water;
+
+    // Otherwise determine and adjust based on the predicted ground material:
     } else if ( ground_material ) {
         material_kind = ground_material->physical.kind;
 
@@ -44,6 +46,9 @@ void CLG_FootstepEvent( const int32_t entityNumber ) {
         } else if ( strcmp( "dirt", material_kind ) == 0 ) {
             material_num_footsteps = precache.sfx.footsteps.NUM_DIRT_STEPS;
             material_footsteps = precache.sfx.footsteps.dirt;
+        } else if ( strcmp( "floor", material_kind ) == 0 ) {
+            material_num_footsteps = precache.sfx.footsteps.NUM_FLOOR_STEPS;
+            material_footsteps = precache.sfx.footsteps.floor;
         } else if ( strcmp( "grass", material_kind ) == 0 ) {
             material_num_footsteps = precache.sfx.footsteps.NUM_GRASS_STEPS;
             material_footsteps = precache.sfx.footsteps.grass;
