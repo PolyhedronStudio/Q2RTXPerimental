@@ -29,8 +29,8 @@ void CLG_FootstepEvent( const int32_t entityNumber ) {
     qhandle_t *material_footsteps = precache.sfx.footsteps.floor;
 
     // First determine whether we're stepping into water:
-    if ( predictedState->waterType & CONTENTS_WATER &&
-        predictedState->waterLevel == water_level_t::WATER_FEET ) {
+    if ( predictedState->liquid.type & CONTENTS_WATER &&
+        predictedState->liquid.level == liquid_level_t::LIQUID_FEET ) {
         material_kind = "water";
         material_num_footsteps = precache.sfx.footsteps.NUM_WATER_STEPS;
         material_footsteps = precache.sfx.footsteps.water;

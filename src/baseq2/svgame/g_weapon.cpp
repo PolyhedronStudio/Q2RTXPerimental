@@ -419,7 +419,7 @@ void Grenade_Explode(edict_t *ent)
 
     VectorMA(ent->s.origin, -0.02f, ent->velocity, origin);
     gi.WriteUint8(svc_temp_entity);
-    if (ent->waterlevel) {
+    if (ent->liquidlevel) {
         if (ent->groundentity)
             gi.WriteUint8(TE_GRENADE_EXPLOSION_WATER);
         else
@@ -595,7 +595,7 @@ void rocket_touch(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *sur
     T_RadiusDamage(ent, ent->owner, ent->radius_dmg, other, ent->dmg_radius, MOD_R_SPLASH);
 
     gi.WriteUint8(svc_temp_entity);
-    if (ent->waterlevel)
+    if (ent->liquidlevel)
         gi.WriteUint8(TE_ROCKET_EXPLOSION_WATER);
     else
         gi.WriteUint8(TE_ROCKET_EXPLOSION);

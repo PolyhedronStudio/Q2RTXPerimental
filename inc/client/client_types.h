@@ -191,10 +191,8 @@ typedef struct client_predicted_state_s {
     //! Stores the ground information. If there is no actual active, valid, ground, then ground.entity will be nullptr.
     pm_ground_info_t ground;
 
-    //! The actual BSP 'contents' type we're in.
-    contents_t      waterType;
-    //! The depth of the player in the actual water solid.
-    water_level_t	waterLevel;
+    //! Stores the 'liquid' information. This can be lava, slime, or water.
+    pm_liquid_info_t liquid;
 
     //! Margin of error for this frame.
     Vector3 error;

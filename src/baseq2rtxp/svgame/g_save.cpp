@@ -215,8 +215,8 @@ static const save_field_t entityfields[] = {
 
 	I64( last_sound_time ), // WID: 64-bit-frame  FT(last_sound_time),
 
-    I(watertype),
-    I(waterlevel),
+    I(liquidtype),
+    I(liquidlevel),
 
     V(move_origin),
     V(move_angles),

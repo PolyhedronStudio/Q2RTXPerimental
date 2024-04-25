@@ -590,16 +590,16 @@ P_WorldEffects
 void P_WorldEffects( void ) {
 	bool        breather;
 	bool        envirosuit;
-	water_level_t waterlevel, old_waterlevel;
+	liquid_level_t liquidlevel, old_waterlevel;
 
 	if ( current_player->movetype == MOVETYPE_NOCLIP ) {
 		current_player->air_finished_time = level.time + 12_sec; // don't need air
 		return;
 	}
 
-	waterlevel = current_player->waterlevel;
+	liquidlevel = current_player->liquidlevel;
 	old_waterlevel = current_client->old_waterlevel;
-	current_client->old_waterlevel = waterlevel;
+	current_client->old_waterlevel = liquidlevel;
 
 	breather = current_client->breather_time > level.time;
 	envirosuit = current_client->enviro_time > level.time;
@@ -607,13 +607,13 @@ void P_WorldEffects( void ) {
 	//
 	// if just entered a water volume, play a sound
 	//
-	if ( !old_waterlevel && waterlevel ) {
+	if ( !old_waterlevel && liquidlevel ) {
 		PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
-		if ( current_player->watertype & CONTENTS_LAVA )
+		if ( current_player->liquidtype & CONTENTS_LAVA )
 			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
-		else if ( current_player->watertype & CONTENTS_SLIME )
+		else if ( current_player->liquidtype & CONTENTS_SLIME )
 			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
-		else if ( current_player->watertype & CONTENTS_WATER )
+		else if ( current_player->liquidtype & CONTENTS_WATER )
 			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
 		current_player->flags = static_cast<ent_flags_t>( current_player->flags | FL_INWATER );
 
@@ -624,7 +624,7 @@ void P_WorldEffects( void ) {
 	//
 	// if just completely exited a water volume, play a sound
 	//
-	if ( old_waterlevel && !waterlevel ) {
+	if ( old_waterlevel && !liquidlevel ) {
 		PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_out.wav" ), 1, ATTN_NORM, 0 );
 		current_player->flags = static_cast<ent_flags_t>( current_player->flags & ~FL_INWATER );
@@ -633,14 +633,14 @@ void P_WorldEffects( void ) {
 	//
 	// check for head just going under water
 	//
-	if ( old_waterlevel != 3 && waterlevel == 3 ) {
+	if ( old_waterlevel != 3 && liquidlevel == 3 ) {
 		gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_un.wav" ), 1, ATTN_NORM, 0 );
 	}
 
 	//
 	// check for head just coming out of water
 	//
-	if ( old_waterlevel == 3 && waterlevel != 3 ) {
+	if ( old_waterlevel == 3 && liquidlevel != 3 ) {
 		if ( current_player->air_finished_time < level.time ) {
 			// gasp for air
 			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp1.wav" ), 1, ATTN_NORM, 0 );
@@ -654,7 +654,7 @@ void P_WorldEffects( void ) {
 	//
 	// check for drowning
 	//
-	if ( waterlevel == 3 ) {
+	if ( liquidlevel == 3 ) {
 		// breather or envirosuit give air
 		if ( breather || envirosuit ) {
 			current_player->air_finished_time = level.time + 10_sec;
@@ -703,8 +703,8 @@ void P_WorldEffects( void ) {
 	//
 	// check for sizzle damage
 	//
-	if ( waterlevel && ( current_player->watertype & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
-		if ( current_player->watertype & CONTENTS_LAVA ) {
+	if ( liquidlevel && ( current_player->liquidtype & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
+		if ( current_player->liquidtype & CONTENTS_LAVA ) {
 			if ( current_player->health > 0
 				&& current_player->pain_debounce_time <= level.time
 				&& current_client->invincible_time < level.time ) {
@@ -716,15 +716,15 @@ void P_WorldEffects( void ) {
 			}
 
 			if ( envirosuit ) // take 1/3 damage with envirosuit
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * waterlevel, 0, 0, MOD_LAVA );
+				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_LAVA );
 			else
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * waterlevel, 0, 0, MOD_LAVA );
+				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MOD_LAVA );
 		}
 
-		if ( current_player->watertype & CONTENTS_SLIME ) {
+		if ( current_player->liquidtype & CONTENTS_SLIME ) {
 			if ( !envirosuit ) {
 				// no damage from slime with envirosuit
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * waterlevel, 0, 0, MOD_SLIME );
+				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_SLIME );
 			}
 		}
 	}
@@ -832,7 +832,7 @@ void G_SetClientSound( edict_t *ent ) {
 	else
 		weap = "";
 
-	if ( ent->waterlevel && ( ent->watertype & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) )
+	if ( ent->liquidlevel && ( ent->liquidtype & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) )
 		ent->s.sound = snd_fry;
 	else if ( strcmp( weap, "weapon_railgun" ) == 0 )
 		ent->s.sound = gi.soundindex( "weapons/rg_hum.wav" );

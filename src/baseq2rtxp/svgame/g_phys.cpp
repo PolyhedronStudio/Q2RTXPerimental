@@ -740,14 +740,14 @@ void SV_Physics_Toss(edict_t *ent)
     }
 
 // check for water transition
-    wasinwater = (ent->watertype & MASK_WATER);
-    ent->watertype = gi.pointcontents(ent->s.origin);
-    isinwater = ent->watertype & MASK_WATER;
+    wasinwater = (ent->liquidtype & MASK_WATER);
+    ent->liquidtype = gi.pointcontents(ent->s.origin);
+    isinwater = ent->liquidtype & MASK_WATER;
 
     if (isinwater)
-        ent->waterlevel = water_level_t::WATER_FEET;
+        ent->liquidlevel = liquid_level_t::LIQUID_FEET;
     else
-        ent->waterlevel = water_level_t::WATER_NONE;
+        ent->liquidlevel = liquid_level_t::LIQUID_NONE;
 
     if (!wasinwater && isinwater)
         gi.positioned_sound(old_origin, g_edicts, CHAN_AUTO, gi.soundindex("misc/h2ohit1.wav"), 1, 1, 0);
@@ -846,11 +846,11 @@ void SV_Physics_Step(edict_t *ent)
     //   swimming monsters who are in the water
     if ( !wasonground )
         if ( !( ent->flags & FL_FLY ) )
-            if ( !( ( ent->flags & FL_SWIM ) && ( ent->waterlevel > WATER_WAIST ) ) ) {
+            if ( !( ( ent->flags & FL_SWIM ) && ( ent->liquidlevel > LIQUID_WAIST ) ) ) {
                 //if ( ent->velocity[ 2 ] < level.gravity * -0.1f )
                 if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f )
                     hitsound = true;
-                if ( ent->waterlevel != WATER_UNDER )
+                if ( ent->liquidlevel != LIQUID_UNDER )
                     SV_AddGravity( ent );
             }
 
@@ -872,7 +872,7 @@ void SV_Physics_Step(edict_t *ent)
         speed = fabsf( ent->velocity[ 2 ] );
         //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
         control = speed < sv_stopspeed ? sv_stopspeed : speed;
-        newspeed = speed - ( gi.frame_time_s * control * sv_waterfriction * (float)ent->waterlevel );
+        newspeed = speed - ( gi.frame_time_s * control * sv_waterfriction * (float)ent->liquidlevel );
         if ( newspeed < 0 )
             newspeed = 0;
         newspeed /= speed;
@@ -938,7 +938,7 @@ void SV_Physics_Step(edict_t *ent)
         return;
 
     if ( ent->svflags & SVF_MONSTER ) {
-        M_CatagorizePosition( ent, Vector3( ent->s.origin ), ent->waterlevel, ent->watertype );
+        M_CatagorizePosition( ent, Vector3( ent->s.origin ), ent->liquidlevel, ent->liquidtype );
         M_WorldEffects( ent );
 
         // [Paril-KEX] last minute hack to fix Stalker upside down gravity
@@ -981,10 +981,10 @@ void SV_Physics_Step(edict_t *ent)
 //    //   swimming monsters who are in the water
 //    if (! wasonground)
 //        if (!(ent->flags & FL_FLY))
-//            if (!((ent->flags & FL_SWIM) && (ent->waterlevel > 2))) {
+//            if (!((ent->flags & FL_SWIM) && (ent->liquidlevel > 2))) {
 //                if (ent->velocity[2] < sv_gravity->value * -0.1f)
 //                    hitsound = true;
-//                if (ent->waterlevel == 0)
+//                if (ent->liquidlevel == 0)
 //                    SV_AddGravity(ent);
 //            }
 //
@@ -1004,7 +1004,7 @@ void SV_Physics_Step(edict_t *ent)
 //    if ((ent->flags & FL_SWIM) && (ent->velocity[2] != 0)) {
 //        speed = fabsf(ent->velocity[2]);
 //        control = speed < sv_stopspeed ? sv_stopspeed : speed;
-//        newspeed = speed - (FRAMETIME * control * sv_waterfriction * (float)ent->waterlevel);
+//        newspeed = speed - (FRAMETIME * control * sv_waterfriction * (float)ent->liquidlevel);
 //        if (newspeed < 0)
 //            newspeed = 0;
 //        newspeed /= speed;

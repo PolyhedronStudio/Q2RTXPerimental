@@ -326,8 +326,8 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
     predictedState->ground = pm.ground;
 
-    predictedState->waterType = pm.watertype;
-    predictedState->waterLevel = pm.waterlevel;
+    predictedState->liquid.level = pm.liquid.level;
+    predictedState->liquid.type = pm.liquid.type;
 
     //predictedState->groundEntity = (centity_t *)pm.groundEntity;
     //predictedState->groundPlane = pm.groundPlane;

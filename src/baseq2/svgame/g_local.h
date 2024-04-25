@@ -818,7 +818,7 @@ void swimmonster_start(edict_t *self);
 void flymonster_start(edict_t *self);
 void AttackFinished(edict_t *self, float time);
 void monster_death_use(edict_t *self);
-void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, water_level_t &waterlevel, contents_t &watertype );
+void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype );
 bool M_CheckAttack(edict_t *self);
 void M_FlyCheck(edict_t *self);
 void M_CheckGround(edict_t *ent, const contents_t mask);
@@ -1110,7 +1110,7 @@ struct gclient_s {
     uint64_t    last_stair_step_frame;
 
 	sg_time_t		next_drown_time;
-	water_level_t	old_waterlevel;
+	liquid_level_t	old_waterlevel;
     int				breather_sound;
 
     int         machinegun_shots;   // for weapon raising
@@ -1286,8 +1286,8 @@ struct edict_s {
 
     sg_time_t		last_sound_time;
 
-    contents_t      watertype;
-	water_level_t	waterlevel;
+    contents_t      liquidtype;
+	liquid_level_t	liquidlevel;
 
     vec3_t      move_origin;
     vec3_t      move_angles;

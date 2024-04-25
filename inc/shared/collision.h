@@ -23,13 +23,13 @@ typedef enum {
 /**
 *   @brief  The water 'level' of said entity.
 **/
-// edict->waterlevel values
+// edict->liquidlevel values
 typedef enum {  //: uint8_t {
-    WATER_NONE,
-    WATER_FEET,
-    WATER_WAIST,
-    WATER_UNDER
-} water_level_t;
+    LIQUID_NONE,
+    LIQUID_FEET,
+    LIQUID_WAIST,
+    LIQUID_UNDER
+} liquid_level_t;
 
 /**
 *   @brief  Brush Contents: lower bits are stronger, and will eat weaker brushes completely

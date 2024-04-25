@@ -256,7 +256,7 @@ static void PM_StepSlideMove() {
 
 	// Paril: step down stairs/slopes
 	if ( ( pm->s.pm_flags & PMF_ON_GROUND ) && !( pm->s.pm_flags & PMF_ON_LADDER ) &&
-		( pm->waterlevel < water_level_t::WATER_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity.z <= 0 ) ) ) {
+		( pm->liquid.level < liquid_level_t::LIQUID_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity.z <= 0 ) ) ) {
 		Vector3 down = pml.origin - Vector3{ 0.f, 0.f, PM_MAX_STEP_SIZE };
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
 
@@ -305,8 +305,8 @@ static void PM_Friction() {
 	}
 #endif
 	// Apply water friction, and not off-ground yet on a ladder.
-	if ( pm->waterlevel && !( pm->s.pm_flags & PMF_ON_LADDER ) ) {
-		drop += speed * pmp->pm_water_friction * (float)pm->waterlevel * pml.frameTime;
+	if ( pm->liquid.level && !( pm->s.pm_flags & PMF_ON_LADDER ) ) {
+		drop += speed * pmp->pm_water_friction * (float)pm->liquid.level * pml.frameTime;
 	}
 
 	// Scale the velocity.
@@ -369,7 +369,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 	if ( pm->s.pm_flags & PMF_ON_LADDER ) {
 		if ( pm->cmd.buttons & ( BUTTON_JUMP | BUTTON_CROUCH ) ) {
 			// [Paril-KEX]: if we're underwater, use full speed on ladders
-			const float ladder_speed = pm->waterlevel >= water_level_t::WATER_WAIST ? pmp->pm_max_speed : pmp->pm_ladder_speed;
+			const float ladder_speed = pm->liquid.level >= liquid_level_t::LIQUID_WAIST ? pmp->pm_max_speed : pmp->pm_ladder_speed;
 			if ( pm->cmd.buttons & BUTTON_JUMP ) {
 				wishVelocity.z = ladder_speed;
 			} else if ( pm->cmd.buttons & BUTTON_CROUCH ) {
@@ -416,7 +416,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 				// clamp side speed so it's not jarring...
 				float ladder_speed = std::clamp( (float)pm->cmd.sidemove, -pmp->pm_ladder_sidemove_speed, pmp->pm_ladder_sidemove_speed );
 
-				if ( pm->waterlevel < water_level_t::WATER_WAIST ) {
+				if ( pm->liquid.level < liquid_level_t::LIQUID_WAIST ) {
 					ladder_speed *= pmp->pm_ladder_mod;
 				}
 
@@ -451,31 +451,31 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 	}
 
 	// Add water currents.
-	if ( pm->watertype & MASK_CURRENT ) {
+	if ( pm->liquid.type & MASK_CURRENT ) {
 		Vector3 velocity = QM_Vector3Zero();
 
-		if ( pm->watertype & CONTENTS_CURRENT_0 ) {
+		if ( pm->liquid.type & CONTENTS_CURRENT_0 ) {
 			velocity.x += 1;
 		}
-		if ( pm->watertype & CONTENTS_CURRENT_90 ) {
+		if ( pm->liquid.type & CONTENTS_CURRENT_90 ) {
 			velocity.y += 1;
 		}
-		if ( pm->watertype & CONTENTS_CURRENT_180 ) {
+		if ( pm->liquid.type & CONTENTS_CURRENT_180 ) {
 			velocity.x -= 1;
 		}
-		if ( pm->watertype & CONTENTS_CURRENT_270 ) {
+		if ( pm->liquid.type & CONTENTS_CURRENT_270 ) {
 			velocity.y -= 1;
 		}
-		if ( pm->watertype & CONTENTS_CURRENT_UP ) {
+		if ( pm->liquid.type & CONTENTS_CURRENT_UP ) {
 			velocity.z += 1;
 		}
-		if ( pm->watertype & CONTENTS_CURRENT_DOWN ) {
+		if ( pm->liquid.type & CONTENTS_CURRENT_DOWN ) {
 			velocity.z -= 1;
 		}
 
 		float speed = pmp->pm_water_speed;
 		// Walking in water, against a current, so slow down our 
-		if ( ( pm->waterlevel == water_level_t::WATER_FEET ) && ( pm->ground.entity ) ) {
+		if ( ( pm->liquid.level == liquid_level_t::LIQUID_FEET ) && ( pm->ground.entity ) ) {
 			speed /= 2;
 		}
 
@@ -642,11 +642,11 @@ static void PM_WaterMove() {
 /**
 *	@brief
 **/
-static inline void PM_GetWaterLevel( const Vector3 &position, water_level_t &level, contents_t &type ) {
+static inline void PM_GetWaterLevel( const Vector3 &position, liquid_level_t &level, contents_t &type ) {
 	//
-	// get waterlevel, accounting for ducking
+	// get liquid.level, accounting for ducking
 	//
-	level = water_level_t::WATER_NONE;
+	level = liquid_level_t::LIQUID_NONE;
 	type = CONTENTS_NONE;
 
 	int32_t sample2 = (int)( pm->s.viewheight - pm->mins.z );
@@ -660,15 +660,15 @@ static inline void PM_GetWaterLevel( const Vector3 &position, water_level_t &lev
 
 	if ( contentType & MASK_WATER ) {
 		type = contentType;
-		level = water_level_t::WATER_FEET;
+		level = liquid_level_t::LIQUID_FEET;
 		point.z = pml.origin.z + pm->mins.z + sample1;
 		contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
 		if ( contentType & MASK_WATER ) {
-			level = water_level_t::WATER_WAIST;
+			level = liquid_level_t::LIQUID_WAIST;
 			point.z = pml.origin.z + pm->mins.z + sample2;
 			contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
 			if ( contentType & MASK_WATER ) {
-				level = water_level_t::WATER_UNDER;
+				level = liquid_level_t::LIQUID_UNDER;
 			}
 		}
 	}
@@ -777,8 +777,8 @@ static void PM_CategorizePosition() {
 		PM_RegisterTouchTrace( pm->touchTraces, trace );
 	}
 
-	// Get waterlevel, accounting for ducking.
-	PM_GetWaterLevel( pml.origin, pm->waterlevel, pm->watertype );
+	// Get liquid.level, accounting for ducking.
+	PM_GetWaterLevel( pml.origin, pm->liquid.level, pm->liquid.type );
 }
 
 /**
@@ -812,7 +812,7 @@ static void PM_CheckJump() {
 	}
 
 	// We're swimming, not jumping, so unset ground entity.
-	if ( pm->waterlevel >= water_level_t::WATER_WAIST ) { 
+	if ( pm->liquid.level >= liquid_level_t::LIQUID_WAIST ) { 
 		//pm->ground.entity = nullptr;
 		// Unset ground.
 		PM_UpdateGroundFromTrace( nullptr );
@@ -861,7 +861,7 @@ static void PM_CheckSpecialMovement() {
 	} );
 	const Vector3 spot = pml.origin + ( flatforward * 1 );
 	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
-	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->waterlevel < water_level_t::WATER_WAIST ) {
+	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->liquid.level < liquid_level_t::LIQUID_WAIST ) {
 		pm->s.pm_flags |= PMF_ON_LADDER;
 	}
 
@@ -876,11 +876,11 @@ static void PM_CheckSpecialMovement() {
 		return;
 	}
 
-	if ( pm->waterlevel != water_level_t::WATER_WAIST ) {
+	if ( pm->liquid.level != liquid_level_t::LIQUID_WAIST ) {
 		return;
 	}
 	// [Paril-KEX]
-	else if ( pm->watertype & CONTENTS_NO_WATERJUMP ) {
+	else if ( pm->liquid.type & CONTENTS_NO_WATERJUMP ) {
 		return;
 	}
 
@@ -932,12 +932,12 @@ static void PM_CheckSpecialMovement() {
 	}
 
 	// Get water level.
-	water_level_t level;
+	liquid_level_t level;
 	contents_t type;
 	PM_GetWaterLevel( trace.endpos, level, type );
 
 	// The water jump spot will be under water, so we're probably hitting something weird that isn't important
-	if ( level >= water_level_t::WATER_WAIST ) {
+	if ( level >= liquid_level_t::LIQUID_WAIST ) {
 		return;
 	}
 
@@ -1108,7 +1108,7 @@ static inline const bool PM_CheckDuck() {
 	// Duck:
 	} else if (
 		( pm->cmd.buttons & BUTTON_CROUCH ) &&
-		( pm->ground.entity || ( pm->waterlevel <= water_level_t::WATER_FEET && !PM_AboveWater() ) ) &&
+		( pm->ground.entity || ( pm->liquid.level <= liquid_level_t::LIQUID_FEET && !PM_AboveWater() ) ) &&
 		!( pm->s.pm_flags & PMF_ON_LADDER ) ) { 
 		if ( !( pm->s.pm_flags & PMF_DUCKED ) ) {
 			// check that duck won't be blocked
@@ -1304,8 +1304,8 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	//pm->s.viewheight = 0;
 	//pm->ground.entity = nullptr;
 	pm->ground = {};
-	pm->watertype = CONTENTS_NONE;
-	pm->waterlevel = water_level_t::WATER_NONE;
+	pm->liquid.type = CONTENTS_NONE;
+	pm->liquid.level = liquid_level_t::LIQUID_NONE;
 	pm->screen_blend = {};
 	pm->rdflags = 0;
 	pm->jump_sound = false;
@@ -1377,7 +1377,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		PM_InitialSnapPosition();
 	}
 
-	// Recategorize if we're ducked. ( Set groundentity, watertype, and waterlevel. )
+	// Recategorize if we're ducked. ( Set groundentity, liquid.type, and liquid.level. )
 	if ( PM_CheckDuck() ) {
 		PM_CategorizePosition();
 	}
@@ -1427,7 +1427,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		PM_Friction( );
 
 		// Determine water level and pursue to WaterMove if deep in above waist.
-		if ( pm->waterlevel >= water_level_t::WATER_WAIST ) {
+		if ( pm->liquid.level >= liquid_level_t::LIQUID_WAIST ) {
 			PM_WaterMove( );
 		// Otherwise AirMove(Which, also, does ground move.)
 		} else {
@@ -1446,7 +1446,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		}
 	}
 
-	// Final recategorization: Set groundentity, watertype, and waterlevel for final spot.
+	// Final recategorization: Set groundentity, liquid.type, and liquid.level for final spot.
 	PM_CategorizePosition();
 
 	// Perform Trick Jump.

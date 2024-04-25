@@ -1178,8 +1178,8 @@ void PutClientInServer(edict_t *ent)
     ent->model = "players/male/tris.md2";
     ent->pain = player_pain;
     ent->die = player_die;
-    ent->waterlevel = water_level_t::WATER_NONE;;
-    ent->watertype = CONTENTS_NONE;
+    ent->liquidlevel = liquid_level_t::LIQUID_NONE;;
+    ent->liquidtype = CONTENTS_NONE;
     ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
     ent->svflags &= ~SVF_DEADMONSTER;
@@ -1628,7 +1628,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     }
 
     // never take falling damage if completely underwater
-    if ( pm.waterlevel == WATER_UNDER ) {
+    if ( pm.liquidlevel == LIQUID_UNDER ) {
         return;
     }
 
@@ -1644,10 +1644,10 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
 
     delta = delta * delta * 0.0001f;
 
-    if ( pm.waterlevel == WATER_WAIST ) {
+    if ( pm.liquidlevel == LIQUID_WAIST ) {
         delta *= 0.25f;
     }
-    if ( pm.waterlevel == WATER_FEET ) {
+    if ( pm.liquidlevel == LIQUID_FEET ) {
         delta *= 0.5f;
     }
 
@@ -1838,7 +1838,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		VectorCopy( ucmd->angles, client->resp.cmd_angles );
 
 
-        if ( pm.jump_sound && !( pm.s.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.waterlevel == 0) {
+        if ( pm.jump_sound && !( pm.s.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquidlevel == 0) {
             gi.sound( ent, CHAN_VOICE, gi.soundindex( "*jump1.wav" ), 1, ATTN_NORM, 0 );
             // Paril: removed to make ambushes more effective and to
             // not have monsters around corners come to jumps
@@ -1847,8 +1847,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
 		// Update the entity's other properties.
         ent->viewheight = (int32_t)pm.s.viewheight;
-        ent->waterlevel = pm.waterlevel;
-        ent->watertype = pm.watertype;
+        ent->liquidlevel = pm.liquidlevel;
+        ent->liquidtype = pm.liquidtype;
         ent->groundentity = pm.groundentity;
         if ( pm.groundentity ) {
             ent->groundentity_linkcount = pm.groundentity->linkcount;

@@ -109,7 +109,7 @@ typedef struct pm_touch_trace_list_s {
 } pm_touch_trace_list_t;
 
 /**
-*   @brief  Stores ground trace results.
+*   @brief  Stores the final ground information results.
 **/
 typedef struct pm_ground_info_s {
     //! Pointer to the actual ground entity we are on.(nullptr if none).
@@ -124,6 +124,16 @@ typedef struct pm_ground_info_s {
     //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
     cm_material_t *material;
 } pm_ground_info_t;
+
+/**
+*   @brief  Stores the final 'liquid' information results. This can be lava, slime, or water, or none.
+**/
+typedef struct pm_liquid_info_s {
+    //! The actual BSP liquid 'contents' type we're residing in.
+    contents_t      type;
+    //! The depth of the player in the actual liquid.
+    liquid_level_t	level;
+} pm_liquid_info_t;
 
 /**
 *   @brief  Object storing data such as the player's move state, in order to perform another
@@ -162,6 +172,8 @@ typedef struct {
     //! Stores the ground information. If there is no actual ground, ground.entity will be nullptr.
     pm_ground_info_t ground;
 
+    //! Stores the possible solid liquid type brush we're in(-touch with/inside of)
+    pm_liquid_info_t liquid;
     ////! Pointer ot the actual ground entity we are on or not(nullptr).
     //struct edict_s *groundEntity;
     ////! A copy of the plane data from the ground entity.
@@ -173,10 +185,11 @@ typedef struct {
     ////! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
     //cm_material_t   *groundMaterial;
 
-    //! The actual BSP 'contents' type we're in.
-    contents_t      watertype;
-    //! The depth of the player in the actual water solid.
-    water_level_t	waterlevel;
+    ////! The actual BSP 'contents' type we're in.
+    //contents_t      liquidtype;
+    ////! The depth of the player in the actual water solid.
+    //liquid_level_t	liquidlevel;
+
 
     /**
     *   (Out):

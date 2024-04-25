@@ -107,7 +107,7 @@ void M_FliesOff( edict_t *self ) {
 
 void M_FliesOn(edict_t *self)
 {
-    if (self->waterlevel)
+    if (self->liquidlevel)
         return;
     self->s.effects |= EF_FLIES;
     self->s.sound = gi.soundindex("infantry/inflies1.wav");
@@ -116,7 +116,7 @@ void M_FliesOn(edict_t *self)
 }
 
 void M_FlyCheck( edict_t *self ) {
-	if ( self->waterlevel )
+	if ( self->liquidlevel )
 		return;
 
 	if ( random( ) > 0.5f )
@@ -173,32 +173,32 @@ void M_CheckGround( edict_t *ent, const contents_t mask ) {
 }
 
 
-void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, water_level_t &waterlevel, contents_t &watertype ) {
+void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype ) {
 	//
-	// get waterlevel
+	// get liquidlevel
 	//
 	Vector3 point = in_point + Vector3{ 0.f, 0.f, ent->mins[ 2 ] + 1 };
 	contents_t cont = gi.pointcontents( &point.x );
 
 	if ( !( cont & MASK_WATER ) ) {
-		waterlevel = water_level_t::WATER_NONE;
-		watertype = CONTENTS_NONE;
+		liquidlevel = liquid_level_t::LIQUID_NONE;
+		liquidtype = CONTENTS_NONE;
 		return;
 	}
 
-	watertype = cont;
-	waterlevel = water_level_t::WATER_FEET;
+	liquidtype = cont;
+	liquidlevel = liquid_level_t::LIQUID_FEET;
 	point.z += 26;
 	cont = gi.pointcontents( &point.x );
 	if ( !( cont & MASK_WATER ) ) {
 		return;
 	}
 
-	waterlevel = water_level_t::WATER_WAIST;
+	liquidlevel = liquid_level_t::LIQUID_WAIST;
 	point[ 2 ] += 22;
 	cont = gi.pointcontents( &point.x );
 	if ( cont & MASK_WATER ) {
-		waterlevel = water_level_t::WATER_UNDER;
+		liquidlevel = liquid_level_t::LIQUID_UNDER;
 	}
 }
 
@@ -208,7 +208,7 @@ void M_WorldEffects( edict_t *ent ) {
 
     if (ent->health > 0) {
         if (!(ent->flags & FL_SWIM)) {
-            if (ent->waterlevel < 3) {
+            if (ent->liquidlevel < 3) {
                 ent->air_finished_time = level.time + 12_sec;
             } else if (ent->air_finished_time < level.time) {
                 // drown!
@@ -221,7 +221,7 @@ void M_WorldEffects( edict_t *ent ) {
                 }
             }
         } else {
-            if (ent->waterlevel > 0) {
+            if (ent->liquidlevel > 0) {
                 ent->air_finished_time = level.time + 9_sec;
             } else if (ent->air_finished_time < level.time ) {
                 // suffocate!
@@ -236,7 +236,7 @@ void M_WorldEffects( edict_t *ent ) {
         }
     }
 
-	if ( ent->waterlevel == 0 ) {
+	if ( ent->liquidlevel == 0 ) {
 		if ( ent->flags & FL_INWATER ) {
 			gi.sound( ent, CHAN_BODY, gi.soundindex( "player/watr_out.wav" ), 1, ATTN_NORM, 0 );
 			ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_INWATER );
@@ -244,29 +244,29 @@ void M_WorldEffects( edict_t *ent ) {
 		return;
 	}
 
-    if ((ent->watertype & CONTENTS_LAVA) && !(ent->flags & FL_IMMUNE_LAVA)) {
+    if ((ent->liquidtype & CONTENTS_LAVA) && !(ent->flags & FL_IMMUNE_LAVA)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 0.2_sec;
-            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->waterlevel, 0, 0, MOD_LAVA);
+            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidlevel, 0, 0, MOD_LAVA);
         }
     }
-    if ((ent->watertype & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME)) {
+    if ((ent->liquidtype & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 1_sec;
-            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->waterlevel, 0, 0, MOD_SLIME);
+            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidlevel, 0, 0, MOD_SLIME);
         }
     }
 
 	if ( !( ent->flags & FL_INWATER ) ) {
 		if ( !( ent->svflags & SVF_DEADMONSTER ) ) {
-			if ( ent->watertype & CONTENTS_LAVA )
+			if ( ent->liquidtype & CONTENTS_LAVA )
 				if ( random( ) <= 0.5f )
 					gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava1.wav" ), 1, ATTN_NORM, 0 );
 				else
 					gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava2.wav" ), 1, ATTN_NORM, 0 );
-			else if ( ent->watertype & CONTENTS_SLIME )
+			else if ( ent->liquidtype & CONTENTS_SLIME )
 				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
-			else if ( ent->watertype & CONTENTS_WATER )
+			else if ( ent->liquidtype & CONTENTS_WATER )
 				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
 		}
 
@@ -297,7 +297,7 @@ void M_droptofloor( edict_t *ent ) {
 
 	gi.linkentity( ent );
 	M_CheckGround( ent, mask );
-	M_CatagorizePosition( ent, ent->s.origin, ent->waterlevel, ent->watertype );
+	M_CatagorizePosition( ent, ent->s.origin, ent->liquidlevel, ent->liquidtype );
 }
 
 
@@ -475,7 +475,7 @@ void monster_think( edict_t *self ) {
 		self->monsterinfo.linkcount = self->linkcount;
 		M_CheckGround( self, G_GetClipMask( self ) );
 	}
-	M_CatagorizePosition( self, self->s.origin, self->waterlevel, self->watertype );
+	M_CatagorizePosition( self, self->s.origin, self->liquidlevel, self->liquidtype );
 	M_WorldEffects( self );
 	M_SetEffects( self );
 }
