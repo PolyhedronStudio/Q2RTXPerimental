@@ -13,16 +13,33 @@
 *   @brief  Will play an appropriate footstep sound effect depending on the material that we're currently
 *           standing on.
 **/
-void CLG_FootstepEvent( const int32_t entityNumber ) {
+void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
     // Opt-out in case footsteps are disabled.
     if ( !cl_footsteps->integer ) {
         return;
     }
+
+    // When isLadder is true, we don't need to do any material checks, instead we assume
+    // the ladder is mate out of metal, and apply that material sound instead.
+    if ( isLadder ) {
+        uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_METAL_STEPS;
+        qhandle_t *material_footsteps = precache.sfx.footsteps.metal;
+
+        // Debug print.
+        clgi.Print( PRINT_DEVELOPER, "CLIMBING LADDER(%s), num_footsteps(%i)\n", "metal", material_num_footsteps);
+
+        // Play a randomly appointed footstep from the material_footsteps array.
+        clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, material_footsteps[ Q_rand() & material_num_footsteps - 1 ], 1, ATTN_NORM, 0 );
+
+        return;
+    }
+
+    // Get predicted state.
     client_predicted_state_t *predictedState = &clgi.client->predictedState;
+
     // Determine the material kind to fetch the sound data from.
     cm_material_t *ground_material = predictedState->ground.material;
     const char *material_kind = "floor";
-
 
     // The default type is "floor".
     uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_FLOOR_STEPS;
@@ -73,12 +90,17 @@ void CLG_FootstepEvent( const int32_t entityNumber ) {
         }
     }
 
-
-
     clgi.Print( PRINT_DEVELOPER, "WALKING ON KIND (%s), num_footsteps(%i)\n", material_kind, material_num_footsteps );
 
     // Play a randomly appointed footstep from the material_footsteps array.
     clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, material_footsteps[ Q_rand() & material_num_footsteps - 1 ], 1, ATTN_NORM, 0 );
+}
+
+/**
+*   @brief  Passes on to CLG_FootstepEvent with isLadder beign true. Used by EV_FOOTSTEP_LADDER.
+**/
+void CLG_FootstepLadderEvent( const int32_t entityNumber ) {
+    CLG_FootstepEvent( entityNumber, true );
 }
 
 /**

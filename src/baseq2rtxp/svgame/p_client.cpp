@@ -1807,17 +1807,17 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         
         // [Paril-KEX] if we stepped onto/off of a ladder, reset the
         // last ladder pos
-        //if ( ( pm.s.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
-        //    client->last_ladder_pos = ent->s.origin;
+        if ( ( pm.s.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
+            VectorCopy( ent->s.origin, client->last_ladder_pos );
 
-        //    if ( pm.s.pm_flags & PMF_ON_LADDER ) {
-        //        if ( !deathmatch->integer &&
-        //            client->last_ladder_sound < level.time ) {
-        //            ent->s.event = EV_LADDER_STEP;
-        //            client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
-        //        }
-        //    }
-        //}
+            if ( pm.s.pm_flags & PMF_ON_LADDER ) {
+                if ( !deathmatch->integer &&
+                    client->last_ladder_sound < level.time ) {
+                    ent->s.event = EV_FOOTSTEP_LADDER;
+                    client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
+                }
+            }
+        }
         
         // [Paril-KEX] save old position for G_TouchProjectiles
         const Vector3 old_origin = ent->s.origin;

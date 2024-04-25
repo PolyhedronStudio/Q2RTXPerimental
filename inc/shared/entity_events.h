@@ -21,5 +21,8 @@ typedef enum {
     EV_FALL,
     EV_FALLFAR,
     EV_PLAYER_TELEPORT,
-    EV_OTHER_TELEPORT
+    EV_OTHER_TELEPORT,
+
+    // WID: Ladder Steps.
+    EV_FOOTSTEP_LADDER,
 } entity_event_t;

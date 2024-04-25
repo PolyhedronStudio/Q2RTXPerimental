@@ -1813,7 +1813,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         //    if ( pm.s.pm_flags & PMF_ON_LADDER ) {
         //        if ( !deathmatch->integer &&
         //            client->last_ladder_sound < level.time ) {
-        //            ent->s.event = EV_LADDER_STEP;
+        //            ent->s.event = EV_FOOTSTEP_LADDER;
         //            client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
         //        }
         //    }

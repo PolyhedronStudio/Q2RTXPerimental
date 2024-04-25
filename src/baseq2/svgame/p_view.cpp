@@ -796,7 +796,7 @@ void G_SetClientEvent( edict_t *ent ) {
 		if ( !deathmatch->integer &&
 			current_client->last_ladder_sound < level.time &&
 			( current_client->last_ladder_pos - ent->s.origin ).length() > 48.f ) {
-			ent->s.event = EV_LADDER_STEP;
+			ent->s.event = EV_FOOTSTEP_LADDER;
 			current_client->last_ladder_pos = ent->s.origin;
 			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
 		}

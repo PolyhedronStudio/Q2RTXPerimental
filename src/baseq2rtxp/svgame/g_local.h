@@ -164,6 +164,8 @@ static inline constexpr sg_time_t FALL_TIME( ) {
 	return 300_ms + DAMAGE_TIME_SLACK( );
 }
 
+//! Time between ladder sounds.
+static constexpr sg_time_t LADDER_SOUND_TIME = 375_ms;
 
 //==================================================================
 // 
@@ -1108,6 +1110,9 @@ struct gclient_s {
     vec3_t      oldvelocity;
     edict_t     *oldgroundentity; // [Paril-KEX]
     uint64_t    last_stair_step_frame;
+
+    vec3_t last_ladder_pos; // For ladder step sounds.
+    sg_time_t last_ladder_sound;
 
 	sg_time_t		next_drown_time;
 	liquid_level_t	old_waterlevel;

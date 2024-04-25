@@ -860,7 +860,7 @@ static void PM_CheckSpecialMovement() {
 		0.f
 	} );
 	const Vector3 spot = pml.origin + ( flatforward * 1 );
-	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
+	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, (contents_t)(CONTENTS_WATER | CONTENTS_LADDER ));
 	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->liquid.level < liquid_level_t::LIQUID_WAIST ) {
 		pm->s.pm_flags |= PMF_ON_LADDER;
 	}
