@@ -23,6 +23,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //! An actual pointer to the pmove object that we're moving.
 extern pmove_t *pm;
 
+//! Uncomment for enabling second best hit plane tracing results.
+#define SECOND_PLANE_TRACE
 
 /**
 *
@@ -214,6 +216,7 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 		// Save entity for contact.
 		PM_RegisterTouchTrace( touch_traces, trace );
 		
+		// Subtract the fraction of time used, from the whole fraction of the move.
 		time_left -= time_left * trace.fraction;
 
 		// slide along this plane

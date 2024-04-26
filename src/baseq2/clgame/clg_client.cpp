@@ -8,8 +8,12 @@
 ********************************************************************/
 #include "clg_local.h"
 #include "clg_client.h"
+#include "clg_eax.h"
 #include "clg_local_entities.h"
 #include "clg_screen.h"
+
+#include "local_entities/clg_local_entity_classes.h"
+#include "local_entities/clg_local_env_sound.h"
 
 /**
 *	@brief	Called when the client state has moved into being active and the game begins.
@@ -17,6 +21,9 @@
 void PF_ClientBegin( void ) {
 	// Debug notify.
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientBegin\n" );
+
+	// Set the default environment reverb effect.
+	CLG_EAX_HardSetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
 }
 
 /**
@@ -62,16 +69,21 @@ void PF_ClientLocalFrame( void ) {
 		CLG_LocalEntity_RunThink( lent );
 		//CLG_LocalEntity_DispatchThink( lent );
 	}
-	// Debug print.
-	//clgi.Print( PRINT_DEVELOPER, "%s: framenum(%ld), time(%ld)\n", 
-	//	__func__, level.framenum, level.time.milliseconds() );
+
+	// Figure out the exact 'reverb' effect for our client to use.
+	CLG_EAX_DetermineEffect();
+
+// Debug print: framenum, level time.
+#if 0
+	clgi.Print( PRINT_DEVELOPER, "%s: framenum(%ld), time(%ld)\n", 
+		__func__, level.framenum, level.time.milliseconds() );
+#endif
 }
 /**
 *	@brief	Called at the rate equal to that of the refresh frames.
 **/
 void PF_ClientRefreshFrame( void ) {
-	//clgi.Print( PRINT_NOTICE, "%s\n", __func__ );
-	// Let all local entities think
+	// Give local entities a chance at being added to the current render frame.
 	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
 		// Get local entity pointer.
 		clg_local_entity_t *lent = &clg_local_entities[ i ];
@@ -81,7 +93,19 @@ void PF_ClientRefreshFrame( void ) {
 			continue;
 		}
 
-		// Dispatch think callback since the entity is in-use and properly class allocated.
+		// Dispatch 'refresh frame'.
 		CLG_LocalEntity_DispatchRefreshFrame( lent );
+	}
+
+	/**
+	*	We update the reverb effect if needed due to client prediction, by the framerate's rate.
+	**/
+	// Force orverride it for underwater flag.
+	if ( clgi.client->predictedState.view.rdflags & RDF_UNDERWATER ) {
+		// Apply underwater reverb.
+		CLG_EAX_SetEnvironment( SOUND_EAX_EFFECT_UNDERWATER );
+
+		// Persue to now activate eax environment that has been set.
+		CLG_EAX_ActivateCurrentEnvironment();
 	}
 }

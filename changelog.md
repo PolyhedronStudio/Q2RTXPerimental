@@ -9,6 +9,7 @@ Changes will from now on be listed as additions per version.
 * Restructured and cleaned up the Player Move prediction code as well as corresponding view calculation code.
 * Added ``EAX`` support for OpenAL and a ``client_env_sound`` entity to accomodate with it. This allows for reverb effect zones, where the ``client_env_sound`` entity performs a clipping trace to the (predicted-)player origin, where if successful and within radius the specific reverb environment is set. 
 * Added ``Footsteps`` support on a per ``material`` basis. It operates based on the ``physical_material_kind`` property.
+* Added ``Ladder Footsteps`` which defaults to the ``metal`` material ``kind`` for selecting the footstep sounds from.
 * Added what is a temporary fix for ericw-tools-2.0.0-alpha7 bug that does not properly fill leaf node contents with all brush contents. The fix is thus applying them in-engine.
 
 ## (v0.0.3):

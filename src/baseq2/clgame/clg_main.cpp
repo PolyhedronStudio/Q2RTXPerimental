@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "clg_local.h"
 #include "clg_client.h"
+#include "clg_eax.h"
 #include "clg_effects.h"
 #include "clg_entities.h"
 #include "clg_input.h"
@@ -308,13 +309,15 @@ void PF_InitGame( void ) {
 	CLG_InitTEnts();
 
 	/**
+	*	Default EAX Environment:
+	**/
+
+
+	/**
 	*	Allocate space for entities.
 	**/
-	// Initialize all entities for this game.
-	//game.maxentities = maxentities->value;
-	//clamp( game.maxentities, (int)maxclients->value + 1, MAX_CLIENT_ENTITIES );
 	game.maxentities = MAX_CLIENT_ENTITIES;
-	clg_entities = (centity_t *)clgi.TagMalloc( game.maxentities * sizeof( clg_entities[ 0 ] ), TAG_CLGAME );
+	clg_entities = static_cast<centity_t *>( clgi.TagMalloc( game.maxentities * sizeof( clg_entities[ 0 ] ), TAG_CLGAME ) );
 	globals.entities = clg_entities;
 	globals.max_entities = game.maxentities;
 
@@ -345,28 +348,25 @@ void PF_InitGame( void ) {
 *	@brief
 **/
 void PF_ClearState( void ) {
-	// Reset the local precache paths.
-	precache.num_local_draw_models = 0;
-	memset( precache.model_paths, 0, MAX_MODELS * MAX_QPATH );
-	precache.num_local_sounds = 0;
-	memset( precache.sound_paths, 0, MAX_SOUNDS * MAX_QPATH );
+	// Hard reset the sound EAX environment.
+	CLG_EAX_HardSetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
 
-	// Reset the number of view models.
-	precache.numViewModels = 0;
-	memset( precache.viewModels, 0, MAX_CLIENTVIEWMODELS * MAX_QPATH );
+	// Clear Precache State.
+	CLG_Precache_ClearState();
 
-	// Clear out local entities array.
-	memset( clg_local_entities, 0, sizeof( clg_local_entities ) );
-	clg_num_local_entities = 0;
-	// Clear out client entities array.
+	// Clear Local Entity States.
+	CLG_LocalEntity_ClearState();
+
+	// Clear out Client Entities array.
 	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
 
-	// Clear Temporary Entity FX and other Effects.
+	// Clear Temporary Entities.
 	CLG_ClearTEnts();
+	// Clear out remaining effect types.
 	CLG_ClearEffects();
 
 	// Clear out level locals.
-	level = {};
+	memset( &level, 0, sizeof( level ) );
 }
 
 
@@ -465,6 +465,7 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.SpawnEntities = PF_SpawnEntities;
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
+		globals.GetEAXBySoundOrigin = PF_GetEAXBySoundOrigin;
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
 
 		globals.GetGamemodeName = PF_GetGamemodeName;

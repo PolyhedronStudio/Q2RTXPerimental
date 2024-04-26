@@ -23,9 +23,8 @@ static const trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mi
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentmask ) {
-    trace_t trace;
-    trace = clgi.Clip( start, mins, maxs, end, nullptr, contentmask );
+static const trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
+    const trace_t trace = clgi.Clip( start, mins, maxs, end, nullptr, contentMask );
     return trace;
 }
 /**
@@ -40,10 +39,10 @@ static const contents_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
 **/
 void PF_AdjustViewHeight( const int32_t viewHeight ) {
     // Record viewheight changes.
-    if ( clgi.client->predictedState.view_current_height != viewHeight ) {
-        clgi.client->predictedState.view_previous_height = clgi.client->predictedState.view_current_height;
-        clgi.client->predictedState.view_current_height = viewHeight;
-        clgi.client->predictedState.view_height_time = clgi.client->time;
+    if ( clgi.client->predictedState.view.height[ 0 ] != viewHeight ) {
+        clgi.client->predictedState.view.height[ 1 ] = clgi.client->predictedState.view.height[ 0 ];
+        clgi.client->predictedState.view.height[ 0 ] = viewHeight;
+        clgi.client->predictedState.time.height_changed= clgi.client->time;
     }
 }
 
@@ -63,12 +62,12 @@ void CLG_SmoothOutStairStep( pmove_t *pm, client_predicted_state_t *predictedSta
     const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range.
         && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) // And we started off on the ground.
         && ( ( pm->s.pm_flags & PMF_ON_GROUND ) && pm->s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
-        && ( memcmp( &predictedState->groundPlane, &pm->groundplane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, OR..
-            || predictedState->groundEntity != (centity_t *)pm->groundentity ); // we stand on another plane or entity.
+        && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, OR..
+            || predictedState->ground.entity != pm->ground.entity ); // we stand on another plane or entity.
 
     if ( step_detected ) {
         // check for stepping up before a previous step is completed
-        const uint64_t delta = clgi.GetRealTime() - predictedState->step_time;
+        const uint64_t delta = clgi.GetRealTime() - predictedState->time.step_changed;
 
         // Default old step to 0.
         double old_step = 0.f;
@@ -76,13 +75,13 @@ void CLG_SmoothOutStairStep( pmove_t *pm, client_predicted_state_t *predictedSta
         if ( delta < PM_STEP_TIME ) {
             // Calculate how far we've come.
             //old_step = stepHeight * ( PM_STEP_TIME - delta) / PM_STEP_TIME;
-            old_step = predictedState->step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
+            old_step = predictedState->view.step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
         }
 
         // Add the stepHeight amount.
-        predictedState->step = constclamp( old_step + stepHeight, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
+        predictedState->view.step = constclamp( old_step + stepHeight, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
         // Set the new step_time.
-        predictedState->step_time = clgi.GetRealTime();
+        predictedState->time.step_changed = clgi.GetRealTime();
     }
 }
 
@@ -132,18 +131,18 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
     // If it is the first frame, we got nothing to predict yet.
     if ( moveCommand->prediction.time == 0 ) {
         out->view.origin = in->origin;//in->origin;
-        out->view.viewOffset = clgi.client->frame.ps.viewoffset;
+        out->view.offset = clgi.client->frame.ps.viewoffset;
         out->view.angles = clgi.client->frame.ps.viewangles;
         out->view.velocity = in->velocity;
-        out->view.rdflags = 0;
-        out->view.screen_blend = {};
+        out->view.rdflags = clgi.client->frame.ps.rdflags;
+        out->view.screen_blend = clgi.client->frame.ps.screen_blend;
         out->error = {};
 
-        out->view_current_height = out->view_previous_height = clgi.client->frame.ps.pmove.viewheight;
-        out->view_height_time = 0;
+        out->view.height[ 0 ] = out->view.height[ 1 ] = clgi.client->frame.ps.pmove.viewheight; //out->view_current_height = out->view_previous_height = clgi.client->frame.ps.pmove.viewheight;
+        out->time.height_changed = clgi.client->time;
 
-        out->step_time = 0;
-        out->step = 0;
+        out->view.step = 0;
+        out->time.step_changed = clgi.client->time;
 
         #if USE_DEBUG
         clgi.Print( PRINT_NOTICE, "First frame(%" PRIi64 "). Nothing to predict yet.\n",
@@ -169,20 +168,32 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
                 clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
                     clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
             #endif
-            out->view.origin = in->origin; // clgi.client->frame.ps.pmove.origin;
-            out->view.viewOffset = clgi.client->frame.ps.viewoffset;
+            //out->view.origin = in->origin; // clgi.client->frame.ps.pmove.origin;
+            //out->view.offset = clgi.client->frame.ps.viewoffset;
+            //out->view.angles = clgi.client->frame.ps.viewangles;
+            //out->view.height[0] = out->view.height[ 1 ] = in->viewheight;//out->view_previous_height = in->viewheight; // clgi.client->frame.ps.pmove.viewheight;
+            ////out->view_height_time = clgi.client->time; // clgi.GetRealTime();
+            //out->view.velocity = in->velocity; // clgi.client->frame.ps.pmove.velocity;
+            //out->error = {};
+
+            //out->view.step = 0;
+            //out->time.step_changed = clgi.client->time;
+
+            //out->view.rdflags = 0;
+            //out->view.screen_blend = {};
+            out->view.origin = in->origin;//in->origin;
+            out->view.offset = clgi.client->frame.ps.viewoffset;
             out->view.angles = clgi.client->frame.ps.viewangles;
-            //out->view_current_height = out->view_previous_height = in->viewheight;// clgi.client->frame.ps.pmove.viewheight;
-            //out->view_height_time = clgi.client->time; // clgi.GetRealTime();
-            PF_AdjustViewHeight( in->viewheight );
-            out->view.velocity = in->velocity; // clgi.client->frame.ps.pmove.velocity;
+            out->view.velocity = in->velocity;
+            out->view.rdflags = clgi.client->frame.ps.rdflags;
+            out->view.screen_blend = clgi.client->frame.ps.screen_blend;
             out->error = {};
 
-            out->step_time = 0;
-            out->step = 0;
+            out->view.height[ 0 ] = out->view.height[ 1 ] = clgi.client->frame.ps.pmove.viewheight; //out->view_current_height = out->view_previous_height = clgi.client->frame.ps.pmove.viewheight;
+            out->time.height_changed = clgi.client->time;
 
-            out->view.rdflags = 0;
-            out->view.screen_blend = {};
+            out->view.step = 0;
+            out->time.step_changed = clgi.client->time;
 
             return;
         // In case of a minor distance, when cl_showmiss is enabled, report:
@@ -246,10 +257,12 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     //pm.viewangles = clgi.client->viewangles; // This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
     // Set view offset.
     pm.viewoffset = /*predictedState->view.viewOffset;*/clgi.client->frame.ps.viewoffset;
+
+    pm.ground = predictedState->ground;
     // Set ground entity to last predicted one.
-    pm.groundentity = (edict_s*)predictedState->groundEntity;
-    // Set ground plane to last predicted one.
-    pm.groundplane = predictedState->groundPlane;
+    //pm.ground.entity = (edict_s*)predictedState->groundEntity;
+    //// Set ground plane to last predicted one.
+    //pm.ground.plane = predictedState->groundPlane;
 
     // Run previously stored and acknowledged frames up and including the last one.
     while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
@@ -257,14 +270,14 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         client_movecmd_t *moveCommand = &clgi.client->moveCommands[ acknowledgedCommandNumber & CMD_MASK ];
 
         // Only simulate it if it had movement.
-        //if ( moveCommand->cmd.msec ) {
+        if ( moveCommand->cmd.msec ) {
             // Timestamp it so the client knows we have valid results.
             moveCommand->prediction.time = clgi.client->time;//clgi.client->time;
 
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
             SG_PlayerMove( &pm, &pmp );
-        //}
+        }
 
         // Save for prediction checking.
         moveCommand->prediction.origin = pm.s.origin;
@@ -297,21 +310,27 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     } else {
         frameNumber = currentCommandNumber - 1;
     }
-
-    // Smooth Out Stair Stepping:
+    
+    // Smooth Out Stair Stepping. This is done before updating the ground data so we can test results to the
+    // previously predicted ground data.
     CLG_SmoothOutStairStep( &pm, predictedState, pm.step_height );
 
     // Copy results out into the current predicted state.
     predictedState->view.origin = pm.s.origin;
     predictedState->view.velocity = pm.s.velocity;
     predictedState->view.angles = pm.viewangles;
-    predictedState->view.viewOffset = pm.viewoffset;
+    predictedState->view.offset = pm.viewoffset;
     
     predictedState->view.screen_blend = pm.screen_blend; // // To be merged with server screen blend.
     predictedState->view.rdflags = pm.rdflags; // To be merged with server rdflags.
-    
-    predictedState->groundEntity = (centity_t *)pm.groundentity;
-    predictedState->groundPlane = pm.groundplane;
+
+    predictedState->ground = pm.ground;
+
+    predictedState->liquid.level = pm.liquid.level;
+    predictedState->liquid.type = pm.liquid.type;
+
+    //predictedState->groundEntity = (centity_t *)pm.groundEntity;
+    //predictedState->groundPlane = pm.groundPlane;
 
     // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
     PF_AdjustViewHeight( pm.s.viewheight );

@@ -6,43 +6,28 @@
 *
 ********************************************************************/
 #include "clg_local.h"
+#include "clg_eax.h"
+#include "clg_eax_effects.h"
+#include "clg_effects.h"
 #include "clg_parse.h"
 #include "clg_precache.h"
 
+
+
+/**
+*
+*
+*   Precaching:
+*
+*
+**/
 //! Stores qhandles to all precached client game media.
 precached_media_t precache;
 
 /**
-*	@brief	Called right before loading all received configstring (server-) sounds.
+*   @brief  Precaches('to load') all local 'sound path' registered files.
 **/
-void PF_PrecacheClientSounds( void ) {
-    char    name[ MAX_QPATH ];
-
-    precache.sfx.ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
-    precache.sfx.ric2 = clgi.S_RegisterSound( "world/ric2.wav" );
-    precache.sfx.ric3 = clgi.S_RegisterSound( "world/ric3.wav" );
-    precache.sfx.lashit = clgi.S_RegisterSound( "weapons/lashit.wav" );
-    precache.sfx.flare = clgi.S_RegisterSound( "weapons/flare.wav" );
-    precache.sfx.spark5 = clgi.S_RegisterSound( "world/spark5.wav" );
-    precache.sfx.spark6 = clgi.S_RegisterSound( "world/spark6.wav" );
-    precache.sfx.spark7 = clgi.S_RegisterSound( "world/spark7.wav" );
-    precache.sfx.railg = clgi.S_RegisterSound( "weapons/railgf1a.wav" );
-    precache.sfx.rockexp = clgi.S_RegisterSound( "weapons/rocklx1a.wav" );
-    precache.sfx.grenexp = clgi.S_RegisterSound( "weapons/grenlx1a.wav" );
-    precache.sfx.watrexp = clgi.S_RegisterSound( "weapons/xpld_wat.wav" );
-
-    clgi.S_RegisterSound( "player/land1.wav" );
-    clgi.S_RegisterSound( "player/fall2.wav" );
-    clgi.S_RegisterSound( "player/fall1.wav" );
-
-    for ( int32_t i = 0; i < 4; i++ ) {
-        Q_snprintf( name, sizeof( name ), "player/step%i.wav", i + 1 );
-        precache.sfx.footsteps[ i ] = clgi.S_RegisterSound( name );
-    }
-
-    precache.sfx.lightning = clgi.S_RegisterSound( "weapons/tesla.wav" );
-    precache.sfx.disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
-
+void CLG_PrecacheLocalSounds() {
     // Iterate over the local sound path 'config' strings.
     for ( int32_t i = 1; i < precache.num_local_sounds; i++ ) {
         // Ensure that its name is valid.
@@ -52,11 +37,73 @@ void PF_PrecacheClientSounds( void ) {
             continue;
         }
 
-        // Precache the actual model, retreive the qhandle_t and store it.
+        // Precache the actual sound, retreive the qhandle_t and store it.
         precache.local_sounds[ i ] = clgi.S_RegisterSound( name );
     }
 }
+/**
+*	@brief	Called right before loading all received configstring (server-) sounds, allowing us to load in
+*           the client's own local(-entity 'precached' sound paths) sounds first.
+**/
+static sfx_eax_properties_t abandoned_eax;
 
+void PF_PrecacheClientSounds( void ) {
+    char    name[ MAX_QPATH ] = {};
+
+    // Precache all EAX Reverb Effects.
+    CLG_EAX_Precache();
+
+    // Ricochets SFX:
+    precache.sfx.ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
+    precache.sfx.ric2 = clgi.S_RegisterSound( "world/ric2.wav" );
+    precache.sfx.ric3 = clgi.S_RegisterSound( "world/ric3.wav" );
+    // Lasers SFX:
+    precache.sfx.lashit = clgi.S_RegisterSound( "weapons/lashit.wav" );
+    // Flare/Sparks SFX:
+    precache.sfx.flare = clgi.S_RegisterSound( "weapons/flare.wav" );
+    precache.sfx.spark5 = clgi.S_RegisterSound( "world/spark5.wav" );
+    precache.sfx.spark6 = clgi.S_RegisterSound( "world/spark6.wav" );
+    precache.sfx.spark7 = clgi.S_RegisterSound( "world/spark7.wav" );
+    // Weapon SFX:
+    precache.sfx.railg = clgi.S_RegisterSound( "weapons/railgf1a.wav" );
+    precache.sfx.rockexp = clgi.S_RegisterSound( "weapons/rocklx1a.wav" );
+    precache.sfx.grenexp = clgi.S_RegisterSound( "weapons/grenlx1a.wav" );
+    precache.sfx.watrexp = clgi.S_RegisterSound( "weapons/xpld_wat.wav" );
+
+    // Precache player land/fall.
+    clgi.S_RegisterSound( "player/land1.wav" );
+    clgi.S_RegisterSound( "player/fall2.wav" );
+    clgi.S_RegisterSound( "player/fall1.wav" );
+
+    // Precache Footsteps:
+    CLG_PrecacheFootsteps();
+
+    // Precache Elon Musk's Tesla car.
+    precache.sfx.lightning = clgi.S_RegisterSound( "weapons/tesla.wav" );
+    precache.sfx.disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
+
+    // Precaches all local 'sound path' registered files. This has to be done after the other local sounds are loaded,
+    // to prevent their indexes from mixing up.
+    CLG_PrecacheLocalSounds();
+}
+
+/**
+*   @brief  Precaches('to load') all local 'model path' registered files.
+**/
+void CLG_PrecacheLocalModels() {
+    // Iterate over the local model path 'config' strings.
+    for ( int32_t i = 1; i <= precache.num_local_draw_models; i++ ) {
+        // Ensure that its name is valid.
+        const char *name = precache.model_paths[ i ];
+        if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
+            precache.local_draw_models[ i ] = 0;
+            continue;
+        }
+
+        // Precache the actual model, retreive the qhandle_t and store it.
+        precache.local_draw_models[ i ] = clgi.R_RegisterModel( name );
+    }
+}
 /**
 *	@brief	Called right before loading all received configstring (server-) models.
 **/
@@ -90,18 +137,8 @@ void PF_PrecacheClientModels( void ) {
         //}
     }
 
-    // Iterate over the local model path 'config' strings.
-    for ( int32_t i = 1; i <= precache.num_local_draw_models; i++ ) {
-        // Ensure that its name is valid.
-        const char *name = precache.model_paths[ i ];
-        if ( !name || name[ 0 ] == 0 || name[ 0 ] == '\0' ) {
-            precache.local_draw_models[ i ] = 0;
-            continue;
-        }
-
-        // Precache the actual model, retreive the qhandle_t and store it.
-        precache.local_draw_models[ i ] = clgi.R_RegisterModel( name );
-    }
+    // Precaches all local 'model path' registered files.
+    CLG_PrecacheLocalModels();
 }
 
 /**
@@ -300,4 +337,29 @@ const qhandle_t CLG_RegisterLocalSound( const char *name ) {
 
     // Success.
     return index;
+}
+
+/**
+*   @brief  Used by PF_ClearState.
+**/
+void CLG_Precache_ClearState() {
+    // Reset the local precache paths.
+    precache.num_local_draw_models = 0;
+    memset( precache.model_paths, 0, MAX_MODELS * MAX_QPATH );
+    precache.num_local_sounds = 0;
+    memset( precache.sound_paths, 0, MAX_SOUNDS * MAX_QPATH );
+
+    // Reset the number of view models.
+    precache.numViewModels = 0;
+    memset( precache.viewModels, 0, MAX_CLIENTVIEWMODELS * MAX_QPATH );
+
+    // Reset the local precache paths.
+    precache.num_local_draw_models = 0;
+    memset( precache.model_paths, 0, MAX_MODELS * MAX_QPATH );
+    precache.num_local_sounds = 0;
+    memset( precache.sound_paths, 0, MAX_SOUNDS * MAX_QPATH );
+
+    // Reset the number of view models.
+    precache.numViewModels = 0;
+    memset( precache.viewModels, 0, MAX_CLIENTVIEWMODELS * MAX_QPATH );
 }

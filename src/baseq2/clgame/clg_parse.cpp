@@ -415,8 +415,12 @@ void PF_ParseEntityEvent( const int32_t entityNumber ) {
             CLG_TeleportParticles( cent->current.origin );
             break;
         case EV_FOOTSTEP:
-            if ( cl_footsteps->integer )
-                clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, precache.sfx.footsteps[ Q_rand() & 3 ], 1, ATTN_NORM, 0 );
+            CLG_FootstepEvent( entityNumber );
+            //if ( cl_footsteps->integer )
+            //    clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, precache.sfx.footsteps[ Q_rand() & 8 ], 1, ATTN_NORM, 0 );
+            break;
+        case EV_FOOTSTEP_LADDER:
+            CLG_FootstepLadderEvent( entityNumber );
             break;
         case EV_FALLSHORT:
             clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land1.wav" ), 1, ATTN_NORM, 0 );

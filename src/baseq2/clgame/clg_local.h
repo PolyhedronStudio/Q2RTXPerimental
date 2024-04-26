@@ -303,6 +303,57 @@ typedef struct {
 /**
 *
 *
+*	Environmental Sound Reverb Effects:
+* 
+*
+**/
+//! These two, 'default', and 'underwater' are hard-coded:
+static constexpr int32_t SOUND_EAX_EFFECT_DEFAULT = 0;
+static constexpr int32_t SOUND_EAX_EFFECT_UNDERWATER = 1;
+
+//! The following are loaded from their respective .json property defining files.
+static constexpr int32_t SOUND_EAX_EFFECT_ABANDONED = 2;
+static constexpr int32_t SOUND_EAX_EFFECT_ALLEY = 3;
+static constexpr int32_t SOUND_EAX_EFFECT_ARENA = 4;
+static constexpr int32_t SOUND_EAX_EFFECT_AUDITORIUM = 5;
+static constexpr int32_t SOUND_EAX_EFFECT_BATHROOM = 6;
+static constexpr int32_t SOUND_EAX_EFFECT_CARPETED_HALLWAY = 7;
+static constexpr int32_t SOUND_EAX_EFFECT_CAVE = 8;
+static constexpr int32_t SOUND_EAX_EFFECT_CHAPEL = 9;
+static constexpr int32_t SOUND_EAX_EFFECT_CITY = 10;
+static constexpr int32_t SOUND_EAX_EFFECT_CITY_STREETS = 11;
+static constexpr int32_t SOUND_EAX_EFFECT_CONCERT_HALL = 12;
+static constexpr int32_t SOUND_EAX_EFFECT_DIZZY = 13;
+static constexpr int32_t SOUND_EAX_EFFECT_DRUGGED = 14;
+static constexpr int32_t SOUND_EAX_EFFECT_DUSTYROOM = 15;
+static constexpr int32_t SOUND_EAX_EFFECT_FOREST = 16;
+static constexpr int32_t SOUND_EAX_EFFECT_HALLWAY = 17;
+static constexpr int32_t SOUND_EAX_EFFECT_HANGAR = 18;
+static constexpr int32_t SOUND_EAX_EFFECT_LIBRARY = 19;
+static constexpr int32_t SOUND_EAX_EFFECT_LIVINGROOM = 20;
+static constexpr int32_t SOUND_EAX_EFFECT_MOUNTAINS = 21;
+static constexpr int32_t SOUND_EAX_EFFECT_MUSEUM = 22;
+static constexpr int32_t SOUND_EAX_EFFECT_PADDED_CELL = 23;
+static constexpr int32_t SOUND_EAX_EFFECT_PARKINGLOT = 24;
+static constexpr int32_t SOUND_EAX_EFFECT_PLAIN = 25;
+static constexpr int32_t SOUND_EAX_EFFECT_PSYCHOTIC = 26;
+static constexpr int32_t SOUND_EAX_EFFECT_QUARRY = 27;
+static constexpr int32_t SOUND_EAX_EFFECT_ROOM = 28;
+static constexpr int32_t SOUND_EAX_EFFECT_SEWERPIPE = 29;
+static constexpr int32_t SOUND_EAX_EFFECT_SMALL_WATERROOM = 30;
+static constexpr int32_t SOUND_EAX_EFFECT_STONE_CORRIDOR = 31;
+static constexpr int32_t SOUND_EAX_EFFECT_STONE_ROOM = 32;
+static constexpr int32_t SOUND_EAX_EFFECT_SUBWAY = 33;
+static constexpr int32_t SOUND_EAX_EFFECT_UNDERPASS = 34;
+
+//! NOTE: Determines the size of the actual array storing these effects, so make sure to adjust it if needed.
+static constexpr int32_t SOUND_EAX_EFFECT_MAX = 35;
+
+
+
+/**
+*
+*
 *   Local Entities:
 *
 *
@@ -477,47 +528,94 @@ typedef struct precached_media_s {
 	int32_t num_local_sounds;
 
 
+
 	//
 	// Models:
 	//
-	qhandle_t cl_mod_explode;
-	qhandle_t cl_mod_smoke;
-	qhandle_t cl_mod_flash;
-	qhandle_t cl_mod_parasite_segment;
-	qhandle_t cl_mod_grapple_cable;
-	qhandle_t cl_mod_explo4;
-	qhandle_t cl_mod_explosions[ 4 ];
-	qhandle_t cl_mod_bfg_explo;
-	qhandle_t cl_mod_powerscreen;
-	qhandle_t cl_mod_laser;
-	qhandle_t cl_mod_dmspot;
+	struct {
+		qhandle_t explode;
+		qhandle_t smoke;
+		qhandle_t flash;
+		qhandle_t parasite_segment;
+		qhandle_t grapple_cable;
+		qhandle_t explo4;
+		qhandle_t explosions[ 4 ];
+		qhandle_t bfg_explo;
+		qhandle_t powerscreen;
+		qhandle_t laser;
+		qhandle_t dmspot;
 
-	qhandle_t cl_mod_lightning;
-	qhandle_t cl_mod_heatbeam;
-	qhandle_t cl_mod_explo4_big;
-
+		qhandle_t lightning;
+		qhandle_t heatbeam;
+		qhandle_t explo4_big;
+	} models;
 
 	// 
 	// Sound Effects:
 	//
-	qhandle_t cl_sfx_ric1;
-	qhandle_t cl_sfx_ric2;
-	qhandle_t cl_sfx_ric3;
-	qhandle_t cl_sfx_lashit;
-	qhandle_t cl_sfx_flare;
-	qhandle_t cl_sfx_spark5;
-	qhandle_t cl_sfx_spark6;
-	qhandle_t cl_sfx_spark7;
-	qhandle_t cl_sfx_railg;
-	qhandle_t cl_sfx_rockexp;
-	qhandle_t cl_sfx_grenexp;
-	qhandle_t cl_sfx_watrexp;
+	struct {
+		qhandle_t ric1;
+		qhandle_t ric2;
+		qhandle_t ric3;
+		qhandle_t lashit;
+		qhandle_t flare;
+		qhandle_t spark5;
+		qhandle_t spark6;
+		qhandle_t spark7;
+		qhandle_t railg;
+		qhandle_t rockexp;
+		qhandle_t grenexp;
+		qhandle_t watrexp;
 
-	qhandle_t cl_sfx_footsteps[ 4 ];
+		//qhandle_t footsteps[ 14 ];
 
-	qhandle_t cl_sfx_lightning;
-	qhandle_t cl_sfx_disrexp;
+		qhandle_t lightning;
+		qhandle_t disrexp;
 
+		struct {
+			// Kind - "default"/"floor" (Used as a default, and for "floor" specific materials):
+			static constexpr int32_t NUM_FLOOR_STEPS = 9;
+			qhandle_t floor[ NUM_FLOOR_STEPS ];
+
+			// Kind - "carpet":
+			static constexpr int32_t NUM_CARPET_STEPS = 8;
+			qhandle_t carpet[ NUM_CARPET_STEPS ];
+			// Kind - "dirt":
+			static constexpr int32_t NUM_DIRT_STEPS = 8;
+			qhandle_t dirt[ NUM_DIRT_STEPS ];
+			// Kind - "grass":
+			static constexpr int32_t NUM_GRASS_STEPS = 9;
+			qhandle_t grass[ NUM_GRASS_STEPS ];
+			// Kind - "gravel":
+			static constexpr int32_t NUM_GRAVEL_STEPS = 10;
+			qhandle_t gravel[ NUM_GRAVEL_STEPS ];
+			// Kind - "metal":
+			static constexpr int32_t NUM_METAL_STEPS = 8;
+			qhandle_t metal[ NUM_METAL_STEPS ];
+			// Kind - "snow":
+			static constexpr int32_t NUM_SNOW_STEPS = 8;
+			qhandle_t snow[ NUM_SNOW_STEPS ];
+			// Kind - "tile":
+			static constexpr int32_t NUM_TILE_STEPS = 9;
+			qhandle_t tile[ NUM_TILE_STEPS ];
+			// Kind - "water":
+			static constexpr int32_t NUM_WATER_STEPS = 5;
+			qhandle_t water[ NUM_WATER_STEPS ];
+			// Kind - "wood":
+			static constexpr int32_t NUM_WOOD_STEPS = 9;
+			qhandle_t wood[ NUM_WOOD_STEPS ];
+		} footsteps;
+	} sfx;
+
+	//
+	// Sound EAX:
+	// 
+	struct {
+		//! Stores all the loaded up EAX Effects:
+		sfx_eax_properties_t properties[ SOUND_EAX_EFFECT_MAX ];
+		//! Number of totally loaded eax effects.
+		int32_t num_effects;
+	} eax;
 
 	//
 	// View Models: (Moved here from client, was named weapon models but a more generic name is best fit.)
@@ -528,11 +626,8 @@ typedef struct precached_media_s {
 	//
 	// Other:
 	//
-
 	// ...
-
 } precached_media_t;
-
 //! Stores qhandles to all precached client game media.
 extern precached_media_t precache;
 
@@ -594,6 +689,28 @@ struct level_locals_t {
 			mz_params_t     muzzleFlash;
 		} events;
 	} parsedMessage;
+
+
+
+	//! A list of all 'client_env_sound' entities present in the current map. Used as a performance
+	//! saver to prevent having to iterate ALL entities each time around.
+	//! 
+	//! NOTE: These are not indexed or sorted by their actual local entity ID, we just keep a huge
+	//! buffer for simplicity.
+	clg_local_entity_t *env_sound_list[ MAX_CLIENT_ENTITIES ];
+	//! Keeps track of how many env_sound are actually stored in the list.
+	uint32_t env_sound_list_count;
+
+	struct {
+		//! Actual lerped sfx reverb eax effect properties.
+		sfx_eax_properties_t mixedProperties;
+		//! Active client reverb EAX effect ID.
+		qhandle_t currentID;
+		//! Previous client reverb EAX effect ID: Used for lerping it smoothly to the new current one.
+		qhandle_t previousID;
+		//! Total frametiem for eax lerp.
+		float lerpFraction;
+	} eaxEffect;
 };
 extern level_locals_t level;
 

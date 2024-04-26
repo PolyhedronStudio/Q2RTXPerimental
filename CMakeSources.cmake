@@ -3,7 +3,7 @@
 #	Game: BaseQ2
 #
 #
-# BaseQ2 SharedGame
+# BaseQ2RTXP SharedGame
 SET(SRC_BASEQ2_SHAREDGAME
 	baseq2/sharedgame/sg_gamemode.cpp
 	baseq2/sharedgame/sg_pmove.cpp
@@ -18,13 +18,14 @@ SET(HEADERS_BASEQ2_SHAREDGAME
 	baseq2/sharedgame/sg_shared.h
 	baseq2/sharedgame/sg_time.h
 )
-# BaseQ2 ClientGame
+#	BaseQ2RTXP ClientGame
 SET(SRC_BASEQ2_CLGAME
 	# SharedGame API Bindings
 	baseq2/sharedgame/game_bindings/sg_binding_clgame.cpp
 
 	# ClientGame
 	baseq2/clgame/clg_client.cpp
+	baseq2/clgame/clg_eax.cpp
 	baseq2/clgame/clg_effects.cpp
 	baseq2/clgame/clg_entities.cpp
 	baseq2/clgame/clg_input.cpp
@@ -47,7 +48,7 @@ SET(SRC_BASEQ2_CLGAME
 	baseq2/clgame/effects/clg_fx_muzzleflash2.cpp
 	baseq2/clgame/effects/clg_fx_particles.cpp
 	baseq2/clgame/effects/clg_fx_new.cpp
-
+	
 	baseq2/clgame/local_entities/clg_local_env_sound.cpp	
 	baseq2/clgame/local_entities/clg_local_misc_entities.cpp
 
@@ -58,11 +59,25 @@ SET(SRC_BASEQ2_CLGAME
 	baseq2/clgame/temp_entities/clg_te_sustain.cpp
 )
 SET(HEADERS_BASEQ2_CLGAME
+	baseq2/clgame/clg_client.h
+	baseq2/clgame/clg_eax.h
+	baseq2/clgame/clg_effects.h
+	baseq2/clgame/clg_entities.h
+	baseq2/clgame/clg_input.h
 	baseq2/clgame/clg_local.h
+	baseq2/clgame/clg_local_entities.h
+	baseq2/clgame/clg_packet_entities.h
+	baseq2/clgame/clg_parse.h
+	baseq2/clgame/clg_precache.h
+	baseq2/clgame/clg_predict.h
+	baseq2/clgame/clg_screen.h
+	baseq2/clgame/clg_temp_entities.h
+	baseq2/clgame/clg_view.h
+
 	baseq2/clgame/local_entities/clg_local_env_sound.h
-	baseq2/clgame/local_entities/clg_local_entities.h
+	baseq2/clgame/local_entities/clg_local_entity_classes.h
 )
-# BaseQ2 ServerGame
+# BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2_SVGAME
 	# SharedGame API Bindings
 	baseq2/sharedgame/game_bindings/sg_binding_svgame.cpp

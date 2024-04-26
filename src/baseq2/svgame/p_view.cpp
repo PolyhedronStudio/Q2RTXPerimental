@@ -791,16 +791,18 @@ void G_SetClientEvent( edict_t *ent ) {
 	//	if ( (int)( current_client->bobtime + bobmove ) != bobcycle )
 	//		ent->s.event = EV_FOOTSTEP;
 	//}
+	Vector3 ladderDistVec = QM_Vector3Subtract( current_client->last_ladder_pos, ent->s.origin );
+	float ladderDistance = QM_Vector3LengthSqr( ladderDistVec );
 
-/*	if ( ent->client->ps.pmove.pm_flags & PMF_ON_LADDER ) {
+	if ( ent->client->ps.pmove.pm_flags & PMF_ON_LADDER ) {
 		if ( !deathmatch->integer &&
 			current_client->last_ladder_sound < level.time &&
-			( current_client->last_ladder_pos - ent->s.origin ).length() > 48.f ) {
+			ladderDistance > 48.f ) {
 			ent->s.event = EV_FOOTSTEP_LADDER;
-			current_client->last_ladder_pos = ent->s.origin;
+			VectorCopy( ent->s.origin, current_client->last_ladder_pos );
 			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
 		}
-	} else */if ( ent->groundentity && xyspeed > 225 ) {
+	} else if ( ent->groundentity && xyspeed > 225 ) {
 		if ( (int)( current_client->bobtime + bobmove ) != bobcycle_run )
 			ent->s.event = EV_FOOTSTEP;
 	}

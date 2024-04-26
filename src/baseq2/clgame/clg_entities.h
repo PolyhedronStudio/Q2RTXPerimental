@@ -26,12 +26,13 @@ void CLG_CheckEntityPresent( int32_t entityNumber, const char *what );
 **/
 void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
 /**
+*   @brief  The sound code makes callbacks to the client for entitiy position
+*           information, so entities can be dynamically re-spatialized.
+**/
+qhandle_t PF_GetEAXBySoundOrigin( const int32_t entityNumber, vec3_t org );
+/**
 *	@return		A pointer to the entity bound to the client game's view. Unless STAT_CHASE is set to
 *               a specific client number the current received frame, this'll point to the entity that
 *               is of the local client player himself.
 **/
 centity_t *CLG_ViewBoundEntity( void );
-/**
-*	@brief	Add local client entities that are 'in-frame' to the view's refdef entities list.
-**/
-void CLG_AddLocalEntities( void );

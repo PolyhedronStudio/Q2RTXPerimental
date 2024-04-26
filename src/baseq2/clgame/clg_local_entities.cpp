@@ -8,6 +8,17 @@
 #include "clg_local.h"
 #include "clg_local_entities.h"
 #include "local_entities/clg_local_entity_classes.h"
+#include "local_entities/clg_local_env_sound.h"
+
+
+/**
+*	Debug Configuration:
+**/
+//! Uncomment to enable printing of a failure where the entity dictionary has no classname key/value entry.
+//#define PRINT_NO_CLASSTYPE_FAILURE 1
+//! Uncomment to enable printing of a failure while trying to find an entity class type that matches the classname.
+//#define PRINT_CLASSTYPE_FIND_FAILURE 1
+
 
 
 /**
@@ -24,6 +35,9 @@ uint32_t clg_num_local_entities = 0;
 
 //! All local entity classname type descriptors.
 const clg_local_entity_class_t *local_entity_classes[] = {
+	// "client_env_sound" - Sound Reverb Effect Entity.
+	&client_env_sound,
+
 	// "client_misc_model" - Model Decorating Entity.
 	&client_misc_model,
 	// "client_misc_playerholo" - Mirrors a client's entity model.
@@ -126,7 +140,7 @@ void CLG_LocalEntity_Free( clg_local_entity_t *lent ) {
 *	@brief	Frees all local entities.
 **/
 void CLG_LocalEntity_FreeAllClasses() {
-	// Free local entities.
+	// Free local entity classes.
 	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
 		CLG_LocalEntity_Free( &clg_local_entities[ i ] );
 	}
@@ -438,8 +452,10 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 		// We need a classname to be set in order for us to look it up and possibly spawn this entity.
 		const char *entityClassname = clgi.CM_EntityKeyValue( edict, "classname" )->nullable_string;
 		if ( !entityClassname ) {
+			#ifdef PRINT_NO_CLASSTYPE_FAILURE
 			// Debug print:
 			clgi.Print( PRINT_DEVELOPER, "%s: %s\n", __func__, "entity dictionary without classname found." );
+			#endif
 			// Free up the previously reserved slot, allowing a re-use.
 			CLG_LocalEntity_Free( localEntity );
 			// Continue iterating over the rest of the collision model entities.
@@ -453,8 +469,10 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 
 			// Break if a nullptr.
 			if ( classType == nullptr ) {
+				#ifdef PRINT_CLASSTYPE_FIND_FAILURE
 				// Debug print:
 				clgi.Print( PRINT_DEVELOPER, "%s: failed to find classType for classname '%s'\n", __func__, entityClassname );
+				#endif
 				// Free entity up.
 				CLG_LocalEntity_Free( localEntity );
 				break;
@@ -584,10 +602,21 @@ void CLG_AddLocalEntities( void ) {
 			// Get its class locals.
 			CLG_LocalEntity_DispatchPrepareRefreshEntity( lent );
 			// Debug print it ain't visible.
-			clgi.Print( PRINT_NOTICE, "%s: lent(#%d) PVS VISIBLE.\n", __func__, lent->id );
+			//clgi.Print( PRINT_NOTICE, "%s: lent(#%d) PVS VISIBLE.\n", __func__, lent->id );
 		} else {
 			// Debug print it ain't visible.
-			clgi.Print( PRINT_NOTICE, "%s: lent(#%d) is not PVS visible.\n", __func__, lent->id );
+			//clgi.Print( PRINT_NOTICE, "%s: lent(#%d) is not PVS visible.\n", __func__, lent->id );
 		}
 	}
+}
+
+/**
+*	@brief	Used by PF_ClearState.
+**/
+void CLG_LocalEntity_ClearState() {
+	// Clear all local entity classes as well as zeroing out the array.
+	CLG_LocalEntity_FreeAllClasses();
+
+	// Clear out client entities array.
+	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
 }
