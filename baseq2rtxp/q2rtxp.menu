@@ -464,10 +464,10 @@ begin main
     background #212F3CD0
     style --compact
     blank
-    ifeq developer 1
+    //ifeq developer 1
         action "developer stuff" "pushmenu developer_stuff"
         blank
-    endif
+    //endif
     action "singleplayer" "pushmenu singleplayer"
     action "multiplayer" "pushmenu multiplayer"
     action "options" "pushmenu options"
@@ -487,10 +487,10 @@ begin game
     background #212F3CD0
     style --compact
     blank
-    ifeq developer 1
+    //ifeq developer 1
         action "developer stuff" "pushmenu developer_stuff"
         blank
-    endif
+    //endif
     action "singleplayer" "pushmenu singleplayer"
     action "multiplayer" "pushmenu multiplayer"
     action "developer stuff" "pushmenu developer_stuff"
