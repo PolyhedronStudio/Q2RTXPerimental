@@ -1276,8 +1276,8 @@ static void PM_ScreenEffects() {
 
 	// Prevent it from adding screenblend if we're inside a client entity, by checking
 	// if its brush has CONTENTS_PLAYER set in its clipmask.
-	if ( /*!( contents & CONTENTS_PLAYER )
-		&& */( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
+	if ( !( contents & CONTENTS_PLAYER )
+		&& ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
 		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, &pm->screen_blend.x );
 	} else if ( contents & CONTENTS_SLIME ) {
 		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, &pm->screen_blend.x );

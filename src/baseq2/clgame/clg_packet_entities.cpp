@@ -197,7 +197,9 @@ static void CLG_PacketEntity_SetModelAndSkin( centity_t *cent, entity_t *ent, en
     if ( newState->modelindex == MODELINDEX_PLAYER ) {
         // Parse and use custom player skin.
         ent->skinnum = 0;
+        // Get the client info for this client's entity.
         clientinfo_t *ci = &clgi.client->clientinfo[ newState->skinnum & 0xff ];
+        // Apply skin and model based on the information that we got.
         ent->skin = ci->skin;
         ent->model = ci->model;
 
