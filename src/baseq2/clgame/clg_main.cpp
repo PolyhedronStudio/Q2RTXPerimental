@@ -108,6 +108,7 @@ cvar_t *cl_particle_num_factor = nullptr; // from client FX_Init
 **/
 centity_t *clg_entities = nullptr;
 
+extern const cmdreg_t clg_view_cmds[];
 
 /**
 *	@return	The actual ID of the current gamemode.

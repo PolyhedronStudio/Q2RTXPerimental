@@ -777,7 +777,7 @@ int MOD_LoadIQM_RTX(model_t* model, const void* rawdata, size_t length, const ch
 
 	char base_path[MAX_QPATH];
 	COM_FilePath(mod_name, base_path, sizeof(base_path));
-
+	
 	CHECK(model->meshes = MOD_Malloc(sizeof(maliasmesh_t) * model->iqmData->num_meshes));
 	model->nummeshes = (int)model->iqmData->num_meshes;
 	model->numframes = 1; // these are baked frames, so that the VBO uploader will only make one copy of the vertices
@@ -786,6 +786,9 @@ int MOD_LoadIQM_RTX(model_t* model, const void* rawdata, size_t length, const ch
 	{
 		iqm_mesh_t* iqm_mesh = &model->iqmData->meshes[model_idx];
 		maliasmesh_t* mesh = &model->meshes[model_idx];
+		
+		// WID: It is never allocated elsewhere!
+		CHECK( mesh->materials = MOD_Malloc( sizeof(struct pbr_material_s *) /** model->iqmData->num_meshes*/ ) );
 
 		mesh->indices = iqm_mesh->data->indices ? (int*)iqm_mesh->data->indices + iqm_mesh->first_triangle * 3 : NULL;
 		mesh->positions = iqm_mesh->data->positions ? (vec3_t*)(iqm_mesh->data->positions + iqm_mesh->first_vertex * 3) : NULL;

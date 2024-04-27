@@ -108,6 +108,9 @@ cvar_t *cl_particle_num_factor = nullptr; // from client FX_Init
 **/
 centity_t *clg_entities = nullptr;
 
+//! View Commands.
+extern cmdreg_t clg_view_cmds[];
+
 
 /**
 *	@return	The actual ID of the current gamemode.
@@ -301,6 +304,9 @@ void PF_InitGame( void ) {
 		Q_snprintf( buf, sizeof( buf ), "Q2RTXP-%04d", random_number );
 		clgi.CVar_Set( "name", buf );
 	}
+
+	// Register view command callbacks.
+	clgi.Cmd_Register( clg_view_cmds );
 
 	/**
 	*	Initialize effects and temp entities.

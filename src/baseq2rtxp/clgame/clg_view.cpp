@@ -88,6 +88,38 @@ qhandle_t gun;
 static int32_t     gun_frame;
 static qhandle_t   gun_model;
 
+// Gun frame debugging functions
+static void V_Gun_Next_f( void ) {
+    gun_frame++;
+    Com_Printf( "frame %i\n", gun_frame );
+}
+
+static void V_Gun_Prev_f( void ) {
+    gun_frame--;
+    if ( gun_frame < 0 )
+        gun_frame = 0;
+    Com_Printf( "frame %i\n", gun_frame );
+}
+
+static void V_Gun_Model_f( void ) {
+    char    name[ MAX_QPATH ];
+
+    if ( clgi.Cmd_Argc() != 2 ) {
+        gun_model = 0;
+        return;
+    }
+
+    Q_concat( name, sizeof( name ), "models/", clgi.Cmd_Argv( 1 ) );
+    gun_model = clgi.R_RegisterModel( name );
+}
+
+// Model Debugging Cmds:
+cmdreg_t clg_view_cmds[] = {
+    { "gun_next", V_Gun_Next_f },
+    { "gun_prev", V_Gun_Prev_f },
+    { "gun_model", V_Gun_Model_f },
+    { NULL, NULL }
+};
 
 /**
 *   @brief
@@ -481,7 +513,7 @@ void PF_CalculateViewValues( void ) {
         //
         // However, the original code was 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_HEIGHT
         //static constexpr float STEP_HEIGHT = PM_MAX_STEP_HEIGHT - PM_MIN_STEP_HEIGHT // This seems like what would be more accurate?
-        static constexpr double STEP_HEIGHT = 15.875;
+        static constexpr double STEP_HEIGHT = 18.f;//15.875;
 
         // use predicted values
         uint64_t delta = clgi.GetRealTime() - clgi.client->predictedState.time.step_changed;
