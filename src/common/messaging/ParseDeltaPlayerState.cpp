@@ -83,6 +83,14 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->pmove.delta_angles[ 1 ] = MSG_ReadHalfFloat( ); // WID: float-movement.
 		to->pmove.delta_angles[ 2 ] = MSG_ReadHalfFloat( ); // WID: float-movement.
 	}
+	
+	if ( flags & PS_M_VIEWHEIGHT ) {
+		to->pmove.viewheight = MSG_ReadInt8();
+	}
+
+	if ( flags & PS_M_BOB_CYCLE ) {
+		to->pmove.bob_cycle = MSG_ReadUint8();
+	}
 
 	//
 	// parse the rest of the player_state_t
@@ -91,10 +99,6 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->viewoffset[ 0 ] = MSG_ReadInt16( ) / 16.f;
 		to->viewoffset[ 1 ] = MSG_ReadInt16( ) / 16.f;
 		to->viewoffset[ 2 ] = MSG_ReadInt16( ) / 16.f;
-	}
-
-	if ( flags & PS_VIEWHEIGHT ) {
-		to->pmove.viewheight = MSG_ReadInt8( );
 	}
 
 	if ( flags & PS_VIEWANGLES ) {

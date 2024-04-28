@@ -40,6 +40,8 @@ typedef enum {  // : uint8_t {
 #define PMF_TIME_TRICK_JUMP				1024//! pm_time is the trick jump time.
 //#define PMF_GROUNDENTITY_CHANGED        2048//! Set if the ground entity has changed between previous and current pmove state.
 
+#define MAX_PS_EVENTS 2
+
 /**
 *   This structure needs to be communicated bit-accurate from the server to the client to guarantee that
 *   prediction stays in sync. If any part of the game code modifies this struct, it will result in a
@@ -53,6 +55,9 @@ typedef struct {
     //! Timer value for a specific few of state flags.
     uint16_t	pm_time;		//! Each unit = 8 ms
 
+    //! Bob Cycle.
+    uint8_t bob_cycle;
+
     //! Gravity to apply.
     int16_t     gravity;
 
@@ -65,6 +70,16 @@ typedef struct {
 
     //! State viewheight.
     int8_t		viewheight;		//! View height, added to origin[2] + viewoffset[2], for crouching.
+
+    //! PMove generated state events.
+    int32_t			eventSequence;
+    int32_t			events[ MAX_PS_EVENTS ];
+    int32_t			eventParms[ MAX_PS_EVENTS ];
+
+    // WID: TODO: Just use its entity events instead?
+    //int32_t			externalEvent;	//! Events set on player from another source.
+    //int32_t			externalEventParm;
+    //int32_t			externalEventTime;
 } pmove_state_t;
 
 /**

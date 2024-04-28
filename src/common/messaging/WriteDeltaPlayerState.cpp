@@ -85,68 +85,59 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	//
 	pflags = 0;
 
+	// pmove_state_t:
 	if ( to->pmove.pm_type != from->pmove.pm_type ) {
 		pflags |= PS_M_TYPE;
 	}
-
 	if ( !VectorCompare( to->pmove.origin, from->pmove.origin ) ) {
 		pflags |= PS_M_ORIGIN;
 	}
-
 	if ( !VectorCompare( to->pmove.velocity, from->pmove.velocity ) ) {
 		pflags |= PS_M_VELOCITY;
 	}
-
 	if ( to->pmove.pm_time != from->pmove.pm_time ) {
 		pflags |= PS_M_TIME;
 	}
-
 	if ( to->pmove.pm_flags != from->pmove.pm_flags ) {
 		pflags |= PS_M_FLAGS;
 	}
-
 	if ( to->pmove.gravity != from->pmove.gravity ) {
 		pflags |= PS_M_GRAVITY;
 	}
-
 	if ( !VectorCompare( to->pmove.delta_angles, from->pmove.delta_angles ) ) {
 		pflags |= PS_M_DELTA_ANGLES;
 	}
+	if ( to->pmove.viewheight != from->pmove.viewheight ) {
+		pflags |= PS_M_VIEWHEIGHT;
+	}
+	if ( to->pmove.bob_cycle != from->pmove.bob_cycle ) {
+		pflags |= PS_M_BOB_CYCLE;
+	}
 
+	// rest of the player_state_t:
 	if ( !VectorCompare( to->viewoffset, from->viewoffset ) ) {
 		pflags |= PS_VIEWOFFSET;
 	}
-
 	if ( !VectorCompare( to->viewangles, from->viewangles ) ) {
 		pflags |= PS_VIEWANGLES;
 	}
-
-	if ( to->pmove.viewheight != from->pmove.viewheight ) {
-		pflags |= PS_VIEWHEIGHT;
-	}
-
 	if ( !VectorCompare( to->kick_angles, from->kick_angles ) ) {
 		pflags |= PS_KICKANGLES;
 	}
-
 	if ( !Vector4Compare( to->screen_blend, from->screen_blend ) ) {
 		pflags |= PS_BLEND;
 	}
-
 	if ( to->fov != from->fov ) {
 		pflags |= PS_FOV;
 	}
-
 	if ( to->rdflags != from->rdflags ) {
 		pflags |= PS_RDFLAGS;
 	}
-
 	if ( to->gunframe != from->gunframe ||
 		!VectorCompare( to->gunoffset, from->gunoffset ) ||
 		!VectorCompare( to->gunangles, from->gunangles ) ) {
 		pflags |= PS_WEAPONFRAME;
 	}
-
 	if ( to->gunindex != from->gunindex ) {
 		pflags |= PS_WEAPONINDEX;
 	}
@@ -163,40 +154,38 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	//
 	// write the pmove_state_t
 	//
-	if ( pflags & PS_M_TYPE )
+	if ( pflags & PS_M_TYPE ) {
 		MSG_WriteUint8( to->pmove.pm_type );
-
+	}
 	if ( pflags & PS_M_ORIGIN ) {
 		MSG_WriteFloat( to->pmove.origin[ 0 ] ); //MSG_WriteInt16( to->pmove.origin[ 0 ] ); // WID: float-movement
 		MSG_WriteFloat( to->pmove.origin[ 1 ] ); //MSG_WriteInt16( to->pmove.origin[ 1 ] ); // WID: float-movement
 		MSG_WriteFloat( to->pmove.origin[ 2 ] );//MSG_WriteInt16( to->pmove.origin[ 2 ] ); // WID: float-movement
 	}
-
 	if ( pflags & PS_M_VELOCITY ) {
 		MSG_WriteFloat( to->pmove.velocity[ 0 ] ); //MSG_WriteInt16( to->pmove.velocity[ 0 ] ); // WID: float-movement
 		MSG_WriteFloat( to->pmove.velocity[ 1 ] ); //MSG_WriteInt16( to->pmove.velocity[ 1 ] ); // WID: float-movement
 		MSG_WriteFloat( to->pmove.velocity[ 2 ] ); //MSG_WriteInt16( to->pmove.velocity[ 2 ] ); // WID: float-movement
 	}
-
 	if ( pflags & PS_M_TIME ) {
 		MSG_WriteUint16( to->pmove.pm_time );
 	}
-
 	if ( pflags & PS_M_FLAGS ) {
 		MSG_WriteUintBase128( to->pmove.pm_flags );
 	}
-
 	if ( pflags & PS_M_GRAVITY ) {
 		MSG_WriteInt16( to->pmove.gravity );
 	}
-
 	if ( pflags & PS_M_DELTA_ANGLES ) {
-		//MSG_WriteHalfFloat( to->pmove.delta_angles[ 0 ] );
-		//MSG_WriteHalfFloat( to->pmove.delta_angles[ 1 ] );
-		//MSG_WriteHalfFloat( to->pmove.delta_angles[ 2 ] );
 		MSG_WriteHalfFloat( to->pmove.delta_angles[ 0 ] );
 		MSG_WriteHalfFloat( to->pmove.delta_angles[ 1 ] );
 		MSG_WriteHalfFloat( to->pmove.delta_angles[ 2 ] );
+	}
+	if ( pflags & PS_M_VIEWHEIGHT ) {
+		MSG_WriteInt8( to->pmove.viewheight );
+	}
+	if ( pflags & PS_M_BOB_CYCLE ) {
+		MSG_WriteUint8( to->pmove.bob_cycle );
 	}
 
 	//
@@ -207,26 +196,19 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		MSG_WriteInt16( to->viewoffset[ 1 ] );
 		MSG_WriteInt16( to->viewoffset[ 2 ] );
 	}
-
-	if ( pflags & PS_VIEWHEIGHT ) {
-		MSG_WriteInt8( to->pmove.viewheight );
-	}
-
 	if ( pflags & PS_VIEWANGLES ) {
 		MSG_WriteHalfFloat( to->viewangles[ 0 ] );
 		MSG_WriteHalfFloat( to->viewangles[ 1 ] );
 		MSG_WriteHalfFloat( to->viewangles[ 2 ] );
 	}
-
 	if ( pflags & PS_KICKANGLES ) {
 		MSG_WriteInt16( to->kick_angles[ 0 ] );
 		MSG_WriteInt16( to->kick_angles[ 1 ] );
 		MSG_WriteInt16( to->kick_angles[ 2 ] );
 	}
-
-	if ( pflags & PS_WEAPONINDEX )
+	if ( pflags & PS_WEAPONINDEX ) {
 		MSG_WriteUintBase128( to->gunindex );
-
+	}
 	if ( pflags & PS_WEAPONFRAME ) {
 		MSG_WriteUintBase128( to->gunframe );
 		MSG_WriteInt16( to->gunoffset[ 0 ] );
@@ -236,27 +218,23 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		MSG_WriteInt16( to->gunangles[ 1 ] );
 		MSG_WriteInt16( to->gunangles[ 2 ] );
 	}
-
 	if ( pflags & PS_WEAPONRATE ) {
 		MSG_WriteInt8( to->gunrate );
 	}
-
 	if ( pflags & PS_BLEND ) {
 		MSG_WriteUint8( to->screen_blend[ 0 ] );
 		MSG_WriteUint8( to->screen_blend[ 1 ] );
 		MSG_WriteUint8( to->screen_blend[ 2 ] );
 		MSG_WriteUint8( to->screen_blend[ 3 ] );
 	}
-
 	if ( pflags & PS_FOV ) {
 		MSG_WriteUint8( to->fov );
 	}
-
 	if ( pflags & PS_RDFLAGS ) {
 		MSG_WriteIntBase128( to->rdflags );
 	}
 
-	// send stats
+	// Send stats
 	int64_t statbits = 0;
 	for ( int32_t i = 0; i < MAX_STATS; i++ ) {
 		if ( to->stats[ i ] != from->stats[ i ] ) {
