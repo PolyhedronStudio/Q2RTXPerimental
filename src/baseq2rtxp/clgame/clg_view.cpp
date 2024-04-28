@@ -479,7 +479,7 @@ static void CLG_SmoothStepOffset() {
 /**
 *   @brief  Lerp the view angles if desired.
 **/
-void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_predicted_state_t *predictedState, const float lerpFrac ) {
+static void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_predicted_state_t *predictedState, const float lerpFrac ) {
     if ( clgi.IsDemoPlayback() ) {
         LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
     } else if ( ps->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
@@ -502,7 +502,7 @@ void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_predict
 /**
 *   @brief  Smooth lerp the old and current player state delta angles.
 **/
-void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
+static void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
     // Calculate delta angles between old and current player state.
     clgi.client->delta_angles[ 0 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 0 ], ps->pmove.delta_angles[ 0 ], lerpFrac ) );
     clgi.client->delta_angles[ 1 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 1 ], ps->pmove.delta_angles[ 1 ], lerpFrac ) );
@@ -512,14 +512,14 @@ void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const float l
 /**
 *   @brief  Lerp the client's POV range.
 **/
-void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
+static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
     clgi.client->fov_x = lerp_client_fov( ops->fov, ps->fov, lerpFrac );
     clgi.client->fov_y = PF_CalculateFieldOfView( clgi.client->fov_x, 4, 3 );
 }
 /**
 *   @brief  Lerp the client's viewOffset.
 **/
-void CLG_LerpViewOffset( player_state_t *ops, player_state_t *ps, const float lerpFrac, Vector3 &finalViewOffset ) {
+static void CLG_LerpViewOffset( player_state_t *ops, player_state_t *ps, const float lerpFrac, Vector3 &finalViewOffset ) {
     LerpVector( ops->viewoffset, ps->viewoffset, lerpFrac, finalViewOffset );
     if ( clgi.client->frame.valid ) {
         finalViewOffset = QM_Vector3Lerp( ops->viewoffset, ps->viewoffset, lerpFrac );
@@ -531,7 +531,7 @@ void CLG_LerpViewOffset( player_state_t *ops, player_state_t *ps, const float le
 /**
 *   @brief  Will lerp the screen blend colors between frames. If the frame was invalid, it'll 'hard-set' the values instead.
 **/
-void CLG_LerpScreenBlend( player_state_t *ops, player_state_t *ps, client_predicted_state_t *predictedState ) {
+static void CLG_LerpScreenBlend( player_state_t *ops, player_state_t *ps, client_predicted_state_t *predictedState ) {
     // Interpolate blend colors if the last frame wasn't clear
     if ( !ops->screen_blend[ 3 ] ) {
         Vector4Copy( ps->screen_blend, clgi.client->refdef.screen_blend );
@@ -601,7 +601,6 @@ void PF_CalculateViewValues( void ) {
     CLG_LerpPointOfView( ops, ps, lerpFrac );
     // Lerp the view offset.
     CLG_LerpViewOffset( ops, ps, lerpFrac, finalViewOffset );
-
     // Smooth out the ducking view height change over 100ms
     finalViewOffset.z += CLG_SmoothedOutViewHeightChange();
 
@@ -611,6 +610,7 @@ void PF_CalculateViewValues( void ) {
     // Copy the view origin and angles for the thirdperson(and also shadow casing) entity.
     VectorCopy( clgi.client->refdef.vieworg, clgi.client->playerEntityOrigin );
     VectorCopy( clgi.client->refdef.viewangles, clgi.client->playerEntityAngles );
+    
     // Keep pitch in bounds.
     if ( clgi.client->playerEntityAngles[ PITCH ] > 180 ) {
         clgi.client->playerEntityAngles[ PITCH ] -= 360;
@@ -620,7 +620,6 @@ void PF_CalculateViewValues( void ) {
 
     // Add the resulting final viewOffset to the refdef view origin.
     VectorAdd( clgi.client->refdef.vieworg, finalViewOffset, clgi.client->refdef.vieworg );
-
     // Setup the new position for spatial audio recognition.
     clgi.S_SetupSpatialListener( clgi.client->refdef.vieworg, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
 }

@@ -1825,11 +1825,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		// Copy back into the entity, both the resulting origin and velocity.
 		VectorCopy( pm.s.origin, ent->s.origin );
 		VectorCopy( pm.s.velocity, ent->velocity );
-
-		// Copy back in bounding box results. (Player might've crouched for example.)
+        // Copy back in bounding box results. (Player might've crouched for example.)
         VectorCopy( pm.mins, ent->mins );
         VectorCopy( pm.maxs, ent->maxs );
-        
         // Save into the client pointer, the resulting move states pmove
         client->ps.pmove = pm.s;
         client->old_pmove = pm.s;

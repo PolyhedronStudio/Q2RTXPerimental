@@ -263,11 +263,6 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Use predicted state liquid info.
     pm.liquid = predictedState->liquid;
 
-    // Set ground entity to last predicted one.
-    //pm.ground.entity = (edict_s*)predictedState->groundEntity;
-    //// Set ground plane to last predicted one.
-    //pm.ground.plane = predictedState->groundPlane;
-
     // Run previously stored and acknowledged frames up and including the last one.
     while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
         // Get the acknowledged move command from our circular buffer.
@@ -318,6 +313,9 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Smooth Out Stair Stepping. This is done before updating the ground data so we can test results to the
     // previously predicted ground data.
     CLG_PredictStepOffset( &pm, predictedState, pm.step_height );
+
+    // WID: Experimental, but why not just save the entire pmove we made instead?
+    predictedState->pm = pm;
 
     // Copy results out into the current predicted state.
     predictedState->view.origin = pm.s.origin;
