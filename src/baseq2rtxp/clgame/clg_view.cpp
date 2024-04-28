@@ -480,7 +480,6 @@ static void CLG_SmoothStepOffset() {
 *   @brief  Lerp the view angles if desired.
 **/
 void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_predicted_state_t *predictedState, const float lerpFrac ) {
-    // if not running a demo or on a locked frame, add the local angle movement
     if ( clgi.IsDemoPlayback() ) {
         LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
     } else if ( ps->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
@@ -489,15 +488,14 @@ void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_predict
     } else if ( ops->pmove.pm_type < PM_DEAD /*&& !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )*/ ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
         // lerp from predicted angles, since enhanced servers
         // do not send viewangles each frame
-        LerpAngles( ps->viewangles, clgi.client->predictedState.view.angles, lerpFrac, clgi.client->refdef.viewangles );
-        //LerpAngles( clgi.client->predictedState.view.angles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
+        LerpAngles( clgi.client->predictedState.view.angles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
     } else {
-        if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
-            // Just use interpolated values.
-            LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
-        } else {
-            VectorCopy( ps->viewangles, clgi.client->refdef.viewangles );
-        }
+        //if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
+        // just use interpolated values
+        LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
+        //} else {
+        //VectorCopy( ps->viewangles, clgi.client->refdef.viewangles );
+        //}
     }
 }
 
@@ -522,7 +520,7 @@ void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const float l
 *   @brief  Lerp the client's viewOffset.
 **/
 void CLG_LerpViewOffset( player_state_t *ops, player_state_t *ps, const float lerpFrac, Vector3 &finalViewOffset ) {
-    //LerpVector( ops->viewoffset, ps->viewoffset, lerpFrac, finalViewOffset );
+    LerpVector( ops->viewoffset, ps->viewoffset, lerpFrac, finalViewOffset );
     if ( clgi.client->frame.valid ) {
         finalViewOffset = QM_Vector3Lerp( ops->viewoffset, ps->viewoffset, lerpFrac );
     } else {

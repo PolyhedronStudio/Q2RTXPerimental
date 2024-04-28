@@ -250,7 +250,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Copy over the current client state data into pmove.
     pm.s = clgi.client->frame.ps.pmove;
     // Override with our own client delta_angles.
-    pm.s.delta_angles = clgi.client->frame.ps.pmove.delta_angles;//clgi.client->delta_angles;
+    pm.s.delta_angles = clgi.client->delta_angles;
     // Override with the predicted viewheight.
     pm.s.viewheight = /*predictedState->view_current_height;*/clgi.client->frame.ps.pmove.viewheight;
     // Set view angles.
