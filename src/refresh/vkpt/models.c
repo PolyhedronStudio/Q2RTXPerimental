@@ -787,9 +787,6 @@ int MOD_LoadIQM_RTX(model_t* model, const void* rawdata, size_t length, const ch
 		iqm_mesh_t* iqm_mesh = &model->iqmData->meshes[model_idx];
 		maliasmesh_t* mesh = &model->meshes[model_idx];
 		
-		// WID: It is never allocated elsewhere!
-		CHECK( mesh->materials = MOD_Malloc( sizeof(struct pbr_material_s *) /** model->iqmData->num_meshes*/ ) );
-
 		mesh->indices = iqm_mesh->data->indices ? (int*)iqm_mesh->data->indices + iqm_mesh->first_triangle * 3 : NULL;
 		mesh->positions = iqm_mesh->data->positions ? (vec3_t*)(iqm_mesh->data->positions + iqm_mesh->first_vertex * 3) : NULL;
 		mesh->normals = iqm_mesh->data->normals ? (vec3_t*)(iqm_mesh->data->normals + iqm_mesh->first_vertex * 3) : NULL;
@@ -820,6 +817,10 @@ int MOD_LoadIQM_RTX(model_t* model, const void* rawdata, size_t length, const ch
 		pbr_material_t* mat = MAT_Find(filename, IT_SKIN, IF_NONE);
 		assert(mat); // it's either found or created
 		
+		// WID: Each mesh, has a string name of its "material", these should be listed and counted in order
+		// to acquire the number of materials.
+		// WID: It is never allocated elsewhere!
+		CHECK( mesh->materials = MOD_Malloc( sizeof( struct pbr_material_s * ) /** model->iqmData->num_materials*/ ) );
 		mesh->materials[0] = mat;
 		mesh->numskins = 1; // looks like IQM only supports one skin?
 	}

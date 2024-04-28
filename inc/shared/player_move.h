@@ -46,17 +46,25 @@ typedef enum {  // : uint8_t {
 *   prediction error of some degree.
 **/
 typedef struct {
+    //! The player move type.
     pmtype_t    pm_type;
+    //! The state's flags describing the move's situation.
     uint16_t    pm_flags;		//! Ducked, jump_held, etc
+    //! Timer value for a specific few of state flags.
     uint16_t	pm_time;		//! Each unit = 8 ms
 
+    //! Gravity to apply.
     int16_t     gravity;
 
+    //! State origin.
     Vector3		origin;
-    int8_t		viewheight;		//! View height, added to origin[2] + viewoffset[2], for crouching.
-    Vector3     delta_angles;	//! Add to command angles to get view direction, it is changed by spawns, rotating objects, and teleporters
-
+    //! Add to command angles to get view direction, it is changed by spawns, rotating objects, and teleporters
+    Vector3     delta_angles;
+    //! State Velocity.
     Vector3		velocity;
+
+    //! State viewheight.
+    int8_t		viewheight;		//! View height, added to origin[2] + viewoffset[2], for crouching.
 } pmove_state_t;
 
 /**
@@ -171,25 +179,8 @@ typedef struct {
 
     //! Stores the ground information. If there is no actual ground, ground.entity will be nullptr.
     pm_ground_info_t ground;
-
     //! Stores the possible solid liquid type brush we're in(-touch with/inside of)
     pm_liquid_info_t liquid;
-    ////! Pointer ot the actual ground entity we are on or not(nullptr).
-    //struct edict_s *groundEntity;
-    ////! A copy of the plane data from the ground entity.
-    //cplane_t        groundPlane;
-    ////! A copy of the surface data from the ground entity.(May be none, in which case, it has a 0 name.)
-    //csurface_t      groundSurface;
-    ////! A copy of the contents data from the ground entity brush.
-    //contents_t      groundContents;
-    ////! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
-    //cm_material_t   *groundMaterial;
-
-    ////! The actual BSP 'contents' type we're in.
-    //contents_t      liquidtype;
-    ////! The depth of the player in the actual water solid.
-    //liquid_level_t	liquidlevel;
-
 
     /**
     *   (Out):
@@ -206,7 +197,7 @@ typedef struct {
     *   (In):
     **/
     // [KEX] variables (in)
-    Vector3 viewoffset; // last viewoffset (for accurate calculation of blending)
+    Vector3 viewoffset; // Predicted last viewoffset (for accurate calculation of blending)
 
     /**
     *   (Out):
@@ -215,12 +206,14 @@ typedef struct {
     Vector4 screen_blend;
     //! Merged with rdflags from server.
     int32_t rdflags;
+
     //! Play jump sound.
     qboolean jump_sound;
+    //! Impact delta, for falling damage.
+    float impact_delta;
+
     //! We clipped on top of an object from below.
     qboolean step_clip;
     //! Step taken, used for smooth lerping stair transitions.
     float step_height;
-    //! Impact delta, for falling damage.
-    float impact_delta;
 } pmove_t;

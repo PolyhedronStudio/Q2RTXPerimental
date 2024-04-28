@@ -58,3 +58,29 @@ inline static void SG_AddBlend( const float &r, const float &g, const float &b, 
 	v_blend[ 2 ] = v_blend[ 2 ] * a3 + b * ( 1 - a3 );
 	v_blend[ 3 ] = a2;
 }
+
+
+
+/**
+*
+*
+*	Player State Game 'Stats':
+* 
+* 
+**/
+static constexpr int32_t STAT_HEALTH_ICON = ( STATS_GAME_OFFSET );
+static constexpr int32_t STAT_AMMO_ICON = ( STATS_GAME_OFFSET + 1 );
+static constexpr int32_t STAT_AMMO = ( STATS_GAME_OFFSET + 2 );
+static constexpr int32_t STAT_ARMOR_ICON = ( STATS_GAME_OFFSET + 3 );
+static constexpr int32_t STAT_ARMOR = ( STATS_GAME_OFFSET + 4 );
+static constexpr int32_t STAT_SELECTED_ICON = ( STATS_GAME_OFFSET + 5 );
+static constexpr int32_t STAT_PICKUP_ICON = ( STATS_GAME_OFFSET + 6 );
+static constexpr int32_t STAT_PICKUP_STRING = ( STATS_GAME_OFFSET + 7 );
+static constexpr int32_t STAT_TIMER_ICON = ( STATS_GAME_OFFSET + 8 );
+static constexpr int32_t STAT_TIMER = ( STATS_GAME_OFFSET + 9 );
+static constexpr int32_t STAT_HELPICON = ( STATS_GAME_OFFSET + 10 );
+static constexpr int32_t STAT_SELECTED_ITEM = ( STATS_GAME_OFFSET + 11 );
+static constexpr int32_t STAT_FLASHES = ( STATS_GAME_OFFSET + 12 ); //! Cleared each frame, 1 == health, 2 == armor.
+static constexpr int32_t STAT_CHASE = ( STATS_GAME_OFFSET + 13 );
+static constexpr int32_t STAT_SPECTATOR = ( STATS_GAME_OFFSET + 14 );
+//#define STAT_SHOW_SCORES        19

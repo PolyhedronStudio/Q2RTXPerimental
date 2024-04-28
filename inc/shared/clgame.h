@@ -221,6 +221,10 @@ typedef struct {
 	**/
 	void ( *Cmd_AddCommand )( const char *name, xcommand_t function );
 	/**
+	*	@brief	Registers the specified function pointer as the 'name' macro.
+	**/
+	void ( *Cmd_AddMacro )( const char *name, xmacro_t function );
+	/**
 	*	@brief	Removes the specified 'name' command registration.
 	**/
 	void ( *Cmd_RemoveCommand )( const char *name );

@@ -155,6 +155,7 @@ typedef struct client_predicted_state_s {
     //double view_previous_height;
     //double view_current_height;
     //uint64_t view_height_time;
+    pmove_t pm;
 
     //! Origin, angles and velocity and several other values of current frame pmove's predicted results.
     struct {

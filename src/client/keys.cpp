@@ -662,6 +662,7 @@ void Key_Event(unsigned key, bool down, unsigned time)
         }
 
         if (cls.key_dest == KEY_GAME &&
+            // WID: For layout menus on/off checking I suppose.
             cl.frame.ps.stats[STAT_LAYOUTS] &&
             cls.demo.playback == false) {
             if (keydown[key] == 2) {

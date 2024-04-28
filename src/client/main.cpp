@@ -2059,26 +2059,27 @@ static size_t CL_Lag_m(char *buffer, size_t size)
                         cls.netchan.total_received) * 100.0f);
 }
 
-static size_t CL_Health_m(char *buffer, size_t size)
-{
-    return Q_scnprintf(buffer, size, "%i", cl.frame.ps.stats[STAT_HEALTH]);
-}
-
-static size_t CL_Ammo_m(char *buffer, size_t size)
-{
-    return Q_scnprintf(buffer, size, "%i", cl.frame.ps.stats[STAT_AMMO]);
-}
-
-static size_t CL_Armor_m(char *buffer, size_t size)
-{
-    return Q_scnprintf(buffer, size, "%i", cl.frame.ps.stats[STAT_ARMOR]);
-}
-
-static size_t CL_WeaponModel_m(char *buffer, size_t size)
-{
-    return Q_scnprintf(buffer, size, "%s",
-                       cl.configstrings[cl.frame.ps.gunindex + CS_MODELS]);
-}
+// WID: Moved to CLGame
+//static size_t CL_Health_m(char *buffer, size_t size)
+//{
+//    return Q_scnprintf(buffer, size, "%i", cl.frame.ps.stats[STAT_HEALTH]);
+//}
+//
+//static size_t CL_Ammo_m(char *buffer, size_t size)
+//{
+//    return Q_scnprintf(buffer, size, "%i", cl.frame.ps.stats[STAT_AMMO]);
+//}
+//
+//static size_t CL_Armor_m(char *buffer, size_t size)
+//{
+//    return Q_scnprintf(buffer, size, "%i", cl.frame.ps.stats[STAT_ARMOR]);
+//}
+//
+//static size_t CL_WeaponModel_m(char *buffer, size_t size)
+//{
+//    return Q_scnprintf(buffer, size, "%s",
+//                       cl.configstrings[cl.frame.ps.gunindex + CS_MODELS]);
+//}
 
 static size_t CL_Cluster_m(char *buffer, size_t size)
 {
@@ -2609,6 +2610,7 @@ static void CL_InitLocal(void)
 
     gender_auto = Cvar_Get("gender_auto", "1", CVAR_ARCHIVE);
 
+    // WID: moved to CLGame.
     //cl_vwep = Cvar_Get("cl_vwep", "1", CVAR_ARCHIVE);
     //cl_vwep->changed = cl_vwep_changed;
 
@@ -2647,10 +2649,6 @@ static void CL_InitLocal(void)
     Cmd_AddMacro("cl_pps", CL_Pps_m);   // packets per second
     Cmd_AddMacro("cl_ping", CL_Ping_m);
     Cmd_AddMacro("cl_lag", CL_Lag_m);
-    Cmd_AddMacro("cl_health", CL_Health_m);
-    Cmd_AddMacro("cl_ammo", CL_Ammo_m);
-    Cmd_AddMacro("cl_armor", CL_Armor_m);
-    Cmd_AddMacro("cl_weaponmodel", CL_WeaponModel_m);
 	Cmd_AddMacro("cl_cluster", CL_Cluster_m);
 	Cmd_AddMacro("cl_clusterthere", CL_ClusterThere_m);
 	Cmd_AddMacro("cl_lightpolys", CL_NumLightPolys_m);

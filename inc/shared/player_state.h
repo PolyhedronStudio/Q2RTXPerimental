@@ -16,27 +16,11 @@
 #define RDF_UVGOGGLES       8       //! Render UV Goggles. ( Not implemented in VKPT. )
 
 // player_state->stats[] static indices that are shared with the engine( required for reasons. )
-#define STAT_HEALTH_ICON        0
-#define STAT_HEALTH             1
-#define STAT_AMMO_ICON          2
-#define STAT_AMMO               3
-#define STAT_ARMOR_ICON         4
-#define STAT_ARMOR              5
-#define STAT_SELECTED_ICON      6
-#define STAT_PICKUP_ICON        7
-#define STAT_PICKUP_STRING      8
-#define STAT_TIMER_ICON         9
-#define STAT_TIMER              10
-#define STAT_HELPICON           11
-#define STAT_SELECTED_ITEM      12
-#define STAT_LAYOUTS            13
-#define STAT_FRAGS              14
-#define STAT_FLASHES            15      // cleared each frame, 1 = health, 2 = armor
-#define STAT_CHASE              16
-#define STAT_SPECTATOR          17
-//#define STAT_SHOW_SCORES        19
+#define STAT_HEALTH             0   // Client/Server need this to determine death.
+#define STAT_LAYOUTS            1   //! Key Input needs this to see whether to close a layout string based display.
+#define STAT_FRAGS              2   //! Server status info needs this.
 //! Use this as the start offset for game specific player stats types.
-#define STATS_GAME_OFFSET       19
+#define STATS_GAME_OFFSET       3
 
 //! Maximum number of stats we compile with.
 #define MAX_STATS               64

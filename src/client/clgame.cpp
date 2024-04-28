@@ -99,6 +99,13 @@ void PF_Cmd_AddCommand( const char *name, xcommand_t function ) {
 /**
 *	@brief	Registers the specified function pointer as the 'name' command.
 **/
+void PF_Cmd_AddMacro( const char *name, xmacro_t function ) {
+	Cmd_AddMacro( name, function );
+}
+
+/**
+*	@brief	Registers the specified function pointer as the 'name' command.
+**/
 void PF_Cmd_Register( const cmdreg_t *reg ) {
 	for ( ; reg->name; reg++ )
 		Cmd_RegCommand( reg );
@@ -701,6 +708,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.Cmd_FindMacro = Cmd_FindMacro;
 
 	imports.Cmd_AddCommand = PF_Cmd_AddCommand;
+	imports.Cmd_AddMacro = PF_Cmd_AddMacro;
 	imports.Cmd_RemoveCommand = PF_Cmd_RemoveCommand;
 	imports.Cmd_Register = PF_Cmd_Register;
 	imports.Cmd_Deregister = PF_Cmd_Deregister;

@@ -884,64 +884,64 @@ static const char single_statusbar[] =
 "xv 0 "
 "hnum "
 "xv 50 "
-"pic 0 "
+"pic 3 "
 
 // ammo
-"if 2 "
+"if 4 " // ammo
   "xv 100 "
   "anum "
   "xv 150 "
-  "pic 2 "
+  "pic 4 " // ammo
 "endif "
 
 // armor
-"if 4 "
+"if 6 " // armor_icon
   "xv 200 "
   "rnum "
   "xv 250 "
-  "pic 4 "
+  "pic 6 " // armor_icon
 "endif "
 
 // selected item
-"if 6 "
+"if 8 " // selected icon
   "xv 296 "
-  "pic 6 "
+  "pic 8 "  // selected icon
 "endif "
 
 "yb -50 "
 
 // picked up item
-"if 7 "
+"if 9 "
   "xv 0 "
-  "pic 7 "
+  "pic 9 " // pickup icon.
   "xv 26 "
   "yb -42 "
-  "stat_string 8 "
+  "stat_string 10 " // pickup string.
   "yb -50 "
 "endif "
 
 // timer 1 (quad, enviro, breather)
-"if 9 "
+"if 11 " // timer icon
   "xv 262 "
-  "num 2 10 "
+  "num 2 12 " // timer
   "xv 296 "
-  "pic 9 "
+  "pic 11 "
 "endif "
 
 // timer 2 (pent)
-"if 18 "
-  "yb -76 "
-  "xv 262 "
-  "num 2 19 "
-  "xv 296 "
-  "pic 18 "
-  "yb -50 "
-"endif "
+//"if 18 "
+//  "yb -76 "
+//  "xv 262 "
+//  "num 2 19 "
+//  "xv 296 "
+//  "pic 18 "
+//  "yb -50 "
+//"endif "
 
 // help / weapon icon
-"if 11 "
+"if 13 "
   "xv 148 "
-  "pic 11 "
+  "pic 13 "
 "endif "
 ;
 
@@ -949,17 +949,17 @@ static const char dm_statusbar[] =
 // frags
 "xr -50 "
 "yt 2 "
-"num 3 14 "
+"num 3 2 " // frags
 
 // spectator
-"if 17 "
+"if 17 " // stat_spectator
   "xv 0 "
   "yb -58 "
   "string2 \"SPECTATOR MODE\" "
 "endif "
 
 // chase camera
-"if 16 "
+"if 16 "    // chase camera
   "xv 0 "
   "yb -68 "
   "string \"Chasing\" "

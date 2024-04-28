@@ -127,6 +127,41 @@ extern cmdreg_t clg_view_cmds[];
 /**
 *
 *
+*	Cmd Macros:
+* 
+* 
+**/
+/**
+*	@brief	Health.
+**/
+static size_t CL_Health_m( char *buffer, size_t size ) {
+	return Q_scnprintf( buffer, size, "%i", clgi.client->frame.ps.stats[ STAT_HEALTH ] );
+}
+/**
+*	@brief	Ammo.
+**/
+static size_t CL_Ammo_m( char *buffer, size_t size ) {
+	return Q_scnprintf( buffer, size, "%i", clgi.client->frame.ps.stats[ STAT_AMMO ] );
+}
+/**
+*	@brief	Armor.
+**/
+static size_t CL_Armor_m( char *buffer, size_t size ) {
+	return Q_scnprintf( buffer, size, "%i", clgi.client->frame.ps.stats[ STAT_ARMOR ] );
+}
+/**
+*	@brief	Weapon Model.
+**/
+static size_t CL_WeaponModel_m( char *buffer, size_t size ) {
+	return Q_scnprintf( buffer, size, "%s",
+		clgi.client->configstrings[ clgi.client->frame.ps.gunindex + CS_MODELS ] );
+}
+
+
+
+/**
+*
+*
 *	CVar Changed Callbacks:
 *
 *
@@ -307,6 +342,11 @@ void PF_InitGame( void ) {
 
 	// Register view command callbacks.
 	clgi.Cmd_Register( clg_view_cmds );
+
+	clgi.Cmd_AddMacro( "cl_health", CL_Health_m );
+	clgi.Cmd_AddMacro( "cl_ammo", CL_Ammo_m );
+	clgi.Cmd_AddMacro( "cl_armor", CL_Armor_m );
+	clgi.Cmd_AddMacro( "cl_weaponmodel", CL_WeaponModel_m );
 
 	/**
 	*	Initialize effects and temp entities.
