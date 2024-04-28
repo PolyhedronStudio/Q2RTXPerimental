@@ -2,6 +2,9 @@
 
 ## Q2RTXPerimental Changes(New, listed per version):
 Changes will from now on be listed as additions per version. 
+## (v0.0.5):
+*[General]: Actually isolated the very few player ``STATS_xxx`` indices where all game only moved to the **Shared Game**, starting their index with ``STATS_GAME_OFFSET``_
+*[CLGame]: Different third-person camera.
 ## (v0.0.4):
 * The ``collision model`` code now has ``material awareness``, for now still separated from the refresh material system and operates by loading properties out the ``*.wal_json`` texture name files. These are also supported by recent ericw-tools branches to substitute non ``.wal`` textures with. Currently two extra fields can be added, this allows you to set a material its ``kind``(string) as well as its ``friction``(float).
 * In accordance to the above, each ``mtexinfo_t`` now has its own unique ID, as well as its ``csurface_t`` member pointing to the corresponding material pointer as well as having the proper ``materialID`` set for it.

@@ -249,16 +249,20 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
     // Copy over the current client state data into pmove.
     pm.s = clgi.client->frame.ps.pmove;
-    // Apply client delta_angles.
-    pm.s.delta_angles = clgi.client->delta_angles;
-    // Ensure viewheight is set properly also.
+    // Override with our own client delta_angles.
+    pm.s.delta_angles = clgi.client->frame.ps.pmove.delta_angles;//clgi.client->delta_angles;
+    // Override with the predicted viewheight.
     pm.s.viewheight = /*predictedState->view_current_height;*/clgi.client->frame.ps.pmove.viewheight;
     // Set view angles.
     //pm.viewangles = clgi.client->viewangles; // This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
-    // Set view offset.
+    // Override with the predicted view offset.
     pm.viewoffset = /*predictedState->view.viewOffset;*/clgi.client->frame.ps.viewoffset;
 
+    // Use predicted state ground info.
     pm.ground = predictedState->ground;
+    // Use predicted state liquid info.
+    pm.liquid = predictedState->liquid;
+
     // Set ground entity to last predicted one.
     //pm.ground.entity = (edict_s*)predictedState->groundEntity;
     //// Set ground plane to last predicted one.
@@ -328,9 +332,6 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
     predictedState->liquid.level = pm.liquid.level;
     predictedState->liquid.type = pm.liquid.type;
-
-    //predictedState->groundEntity = (centity_t *)pm.groundEntity;
-    //predictedState->groundPlane = pm.groundPlane;
 
     // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
     PF_AdjustViewHeight( pm.s.viewheight );

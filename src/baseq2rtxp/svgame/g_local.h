@@ -1096,11 +1096,12 @@ struct gclient_s {
     weaponstate_t   weaponstate;
     vec3_t      kick_angles;    // weapon kicks
     vec3_t      kick_origin;
+
     float       v_dmg_roll, v_dmg_pitch;    // damage kicks
 	sg_time_t	v_dmg_time;
 	sg_time_t	quake_time;
     sg_time_t	fall_time;
-	float		fall_value;      // for view drop on fall
+    float		fall_value;      // for view drop on fall
     float       damage_alpha;
     float       bonus_alpha;
     vec3_t      damage_blend;

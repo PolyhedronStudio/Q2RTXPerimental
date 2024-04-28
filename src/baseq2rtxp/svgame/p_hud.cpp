@@ -410,13 +410,18 @@ void G_SetStats(edict_t *ent)
     int         power_armor_type;
 
     //
-    // health
+    // Health
     //
     ent->client->ps.stats[STAT_HEALTH_ICON] = level.pic_health;
     ent->client->ps.stats[STAT_HEALTH] = ent->health;
+    
+    //
+    // Killer Yaw
+    //
+    ent->client->ps.stats[ STAT_KILLER_YAW ] = ent->client->killer_yaw;
 
     //
-    // ammo
+    // Ammo
     //
     if (!ent->client->ammo_index /* || !ent->client->pers.inventory[ent->client->ammo_index] */) {
         ent->client->ps.stats[STAT_AMMO_ICON] = 0;
@@ -428,7 +433,7 @@ void G_SetStats(edict_t *ent)
     }
 
     //
-    // armor
+    // Armor
     //
     power_armor_type = PowerArmorType(ent);
     if (power_armor_type) {
@@ -459,7 +464,7 @@ void G_SetStats(edict_t *ent)
     }
 
     //
-    // pickup message
+    // Pickup Message
     //
     if (level.time > ent->client->pickup_msg_time ) {
         ent->client->ps.stats[STAT_PICKUP_ICON] = 0;
@@ -467,7 +472,7 @@ void G_SetStats(edict_t *ent)
     }
 
     //
-    // timer 1 (quad, enviro, breather)
+    // Timer 1 (quad, enviro, breather)
     //
     if (ent->client->quad_time > level.time) {
         ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_quad");
@@ -488,7 +493,7 @@ void G_SetStats(edict_t *ent)
     }
 
     //
-    // timer 2 (pent)
+    // Timer 2 (pent)
     //
     ent->client->ps.stats[STAT_TIMER2_ICON] = 0;
     ent->client->ps.stats[STAT_TIMER2] = 0;
@@ -503,7 +508,7 @@ void G_SetStats(edict_t *ent)
     }
 
     //
-    // selected item
+    // Selected Item
     //
     if (ent->client->pers.selected_item == -1)
         ent->client->ps.stats[STAT_SELECTED_ICON] = 0;

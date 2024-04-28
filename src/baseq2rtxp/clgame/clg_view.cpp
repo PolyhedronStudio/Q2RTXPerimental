@@ -441,16 +441,41 @@ static inline const float lerp_client_fov( float ofov, float nfov, const float l
 *   @return The predicted and smooth lerped viewheight for the current running prediction frame.
 **/
 const double CLG_SmoothedOutViewHeightChange() {
-    static constexpr int32_t STEP_TIME = 100;
-    static constexpr double STEP_BASE_1_FRAMETIME = ( 1. / STEP_TIME );
-    //float viewheight_lerp = ( clgi.client->time - clgi.client->viewheight.change_time );
-    //viewheight_lerp = STEP_TIME - min( viewheight_lerp, STEP_TIME );
-    //float predicted_viewheight = clgi.client->viewheight.current + (float)( clgi.client->viewheight.previous - clgi.client->viewheight.current ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
-    //viewoffset[ 2 ] += predicted_viewheight;
-    uint64_t timeDelta = STEP_TIME - min( ( clgi.client->time - clgi.client->predictedState.time.height_changed ), STEP_TIME );
-    //double predicted_viewheight = clgi.client->predictedState.view_current_height + (double)( clgi.client->predictedState.view_previous_height - clgi.client->predictedState.view_current_height ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
-    double predicted_viewheight = clgi.client->predictedState.view.height[ 0 ] + (double)( clgi.client->predictedState.view.height[ 1 ] - clgi.client->predictedState.view.height[ 0 ] ) * timeDelta * STEP_BASE_1_FRAMETIME;
-    return predicted_viewheight;
+    static constexpr int32_t HEIGHT_CHANGE__TIME = 100;
+    static constexpr double HEIGHT_CHANGE__BASE_1_FRAMETIME = ( 1. / HEIGHT_CHANGE__TIME );
+    uint64_t timeDelta = HEIGHT_CHANGE__TIME - min( ( clgi.client->time - clgi.client->predictedState.time.height_changed ), HEIGHT_CHANGE__TIME );
+    return clgi.client->predictedState.view.height[ 0 ] + (double)( clgi.client->predictedState.view.height[ 1 ] - clgi.client->predictedState.view.height[ 0 ] ) * timeDelta * HEIGHT_CHANGE__BASE_1_FRAMETIME;
+}
+
+/**
+*   @brief  Smoothly transit the 'step' offset.
+**/
+static void CLG_SmoothStepOffset() {
+    // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_CHANGE_.. values from SharedGame.
+    // TODO: Is this accurate?
+    // PM_MAX_STEP_CHANGE_HEIGHT = 18
+    // PM_MIN_STEP_CHANGE_HEIGHT = 4
+    //
+    // However, the original code was 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_CHANGE_HEIGHT
+    //static constexpr float STEP_CHANGE_HEIGHT = PM_MAX_STEP_CHANGE_HEIGHT - PM_MIN_STEP_CHANGE_HEIGHT // This seems like what would be more accurate?
+    static constexpr double STEP_CHANGE_HEIGHT = 15.f;//15.875;
+    // Time in miliseconds to smooth the view for the step offset with.
+    static constexpr int32_t STEP_CHANGE_TIME = 100;
+    // Base 1 FrameTime.
+    static constexpr double STEP_CHANGE_BASE_1_FRAMETIME = ( 1. / STEP_CHANGE_TIME );
+
+    // Time delta.
+    uint64_t delta = clgi.GetRealTime() - clgi.client->predictedState.time.step_changed;
+
+    // Smooth out stair climbing.
+    if ( fabsf( clgi.client->predictedState.view.step ) < STEP_CHANGE_HEIGHT ) {
+        delta <<= 1; // Small steps.
+    }
+
+    // Adjust view org by step height change.
+    if ( delta < STEP_CHANGE_TIME ) {
+        clgi.client->refdef.vieworg[ 2 ] -= clgi.client->predictedState.view.step * ( STEP_CHANGE_TIME - delta ) * STEP_CHANGE_BASE_1_FRAMETIME;
+    }
 }
 
 /**
@@ -477,16 +502,21 @@ void CLG_LerpScreenBlend( player_state_t *ops, player_state_t *ps, client_predic
         clgi.client->refdef.screen_blend[ 3 ] = a2;
     }
 }
+
+void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
+    // Calculate delta angles between old and current player state.
+    clgi.client->delta_angles[ 0 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 0 ], ps->pmove.delta_angles[ 0 ], lerpFrac ) );
+    clgi.client->delta_angles[ 1 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 1 ], ps->pmove.delta_angles[ 1 ], lerpFrac ) );
+    clgi.client->delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 2 ], ps->pmove.delta_angles[ 2 ], lerpFrac ) );
+    //#endif
+}
+
 /**
 *   @brief  Sets clgi.client->refdef view values and sound spatialization params.
 *           Usually called from CL_PrepareViewEntities, but may be directly called from the main
 *           loop if rendering is disabled but sound is running.
 **/
 void PF_CalculateViewValues( void ) {
-    // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_.. values from SharedGame.
-    static constexpr int32_t STEP_TIME = 100;
-    static constexpr double STEP_BASE_1_FRAMETIME = ( 1. / STEP_TIME );
-
     // Store the final view offset.
     Vector3 finalViewOffset = QM_Vector3Zero();
 
@@ -506,40 +536,18 @@ void PF_CalculateViewValues( void ) {
     //if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
     const int32_t usePrediction = PF_UsePrediction();
     if ( usePrediction && !( ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
-        // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_.. values from SharedGame.
-        // TODO: Is this accurate?
-        // PM_MAX_STEP_HEIGHT = 18
-        // PM_MIN_STEP_HEIGHT = 4
-        //
-        // However, the original code was 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_HEIGHT
-        //static constexpr float STEP_HEIGHT = PM_MAX_STEP_HEIGHT - PM_MIN_STEP_HEIGHT // This seems like what would be more accurate?
-        static constexpr double STEP_HEIGHT = 18.f;//15.875;
-
         // use predicted values
-        uint64_t delta = clgi.GetRealTime() - clgi.client->predictedState.time.step_changed;
         const double backLerp = 1.0 - lerpFrac;
-
         // Take the prediction error into account.
         VectorMA( clgi.client->predictedState.view.origin, backLerp, clgi.client->predictedState.error, clgi.client->refdef.vieworg );
-
-        // Smooth out stair climbing
-        if ( fabsf( clgi.client->predictedState.view.step ) < STEP_HEIGHT ) {
-            delta <<= 1; // small steps
-        }
-
-        // WID: Prediction: Was based on old 10hz, 100ms.
-        if ( delta < STEP_TIME ) {
-            clgi.client->refdef.vieworg[ 2 ] -= clgi.client->predictedState.view.step * ( STEP_TIME - delta ) * STEP_BASE_1_FRAMETIME;
-        }
     } else {
-        // just use interpolated values
-        //for ( int32_t i = 0; i < 3; i++ ) {
-        //    clgi.client->refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
-        //        lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
-        //}
+        // Just use interpolated values.
         Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
         VectorCopy( viewOrg, clgi.client->refdef.vieworg );
     }
+
+    // Smooth out step offset.
+    CLG_SmoothStepOffset();
 
     // if not running a demo or on a locked frame, add the local angle movement
     if ( clgi.IsDemoPlayback() ) {
@@ -552,38 +560,33 @@ void PF_CalculateViewValues( void ) {
         // do not send viewangles each frame
         LerpAngles( clgi.client->predictedState.view.angles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
     } else {
-        //if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
-        // just use interpolated values
-        LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
-        //} else {
-        //VectorCopy( ps->viewangles, clgi.client->refdef.viewangles );
-        //}
+        if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
+            // Just use interpolated values.
+            LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
+        } else {
+            VectorCopy( ps->viewangles, clgi.client->refdef.viewangles );
+        }
     }
 
-    //#if USE_SMOOTH_DELTA_ANGLES
-    clgi.client->delta_angles[ 0 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 0 ], ps->pmove.delta_angles[ 0 ], lerpFrac ) );
-    clgi.client->delta_angles[ 1 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 1 ], ps->pmove.delta_angles[ 1 ], lerpFrac ) );
-    clgi.client->delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 2 ], ps->pmove.delta_angles[ 2 ], lerpFrac ) );
-    //#endif
+    // Interpolate old and current player state delta angles.
+    CLG_LerpDeltaAngles( ops, ps, lerpFrac );
 
-    // interpolate blend colors if the last frame wasn't clear
+    // Interpolate blend colors if the last frame wasn't clear.
     CLG_LerpScreenBlend( ops, ps, &clgi.client->predictedState );
 
-    // interpolate field of view
+    // Interpolate Field of View.
     clgi.client->fov_x = lerp_client_fov( ops->fov, ps->fov, lerpFrac );
     clgi.client->fov_y = PF_CalculateFieldOfView( clgi.client->fov_x, 4, 3 );
 
     // Lerp the view offset.
     LerpVector( ops->viewoffset, ps->viewoffset, lerpFrac, finalViewOffset );
-    //if ( clgi.client->frame.valid ) {
-    //    LerpVector( ops->viewoffset, clgi.client->predictedState.view.viewOffset, lerpFrac, viewoffset );
-    //} else {
-    //    VectorCopy( ops->viewoffset, viewoffset );
-    //    //LerpVector( ops->viewoffset, clgi.client->predictedState.view.viewOffset, lerpFrac, viewoffset );
-    //}
-
-    // Smooth out view height change over 100ms
-    finalViewOffset[ 2 ] += CLG_SmoothedOutViewHeightChange();
+    if ( clgi.client->frame.valid ) {
+        finalViewOffset = QM_Vector3Lerp( ops->viewoffset, ps->viewoffset, lerpFrac );
+    } else {
+        finalViewOffset = ops->viewoffset; //finalViewOffset = QM_Vector3Lerp( ops->viewoffset, ps->viewoffset, lerpFrac );
+    }
+    // Smooth out the ducking view height change over 100ms
+    finalViewOffset.z += CLG_SmoothedOutViewHeightChange();
 
     // Calculate the angle vectors for the current view angles.
     AngleVectors( clgi.client->refdef.viewangles, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
@@ -598,9 +601,10 @@ void PF_CalculateViewValues( void ) {
     // Adjust pitch slightly.
     clgi.client->playerEntityAngles[ PITCH ] = clgi.client->playerEntityAngles[ PITCH ] / 3;
 
-    // Now last but not least, add the resulting final view offset on to the view origin.
+    // Add the resulting final viewOffset to the refdef view origin.
     VectorAdd( clgi.client->refdef.vieworg, finalViewOffset, clgi.client->refdef.vieworg );
 
+    // Setup the new position for spatial audio recognition.
     clgi.S_SetupSpatialListener( clgi.client->refdef.vieworg, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
 }
 
