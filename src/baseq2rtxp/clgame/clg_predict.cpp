@@ -47,9 +47,9 @@ void PF_AdjustViewHeight( const int32_t viewHeight ) {
 }
 
 /**
-*   @brief  Will calculate and smooth the player move 'stair step' if traversed.
+*   @brief  Will determine if we're stepping, and smooth out the step height in case of traversing multiple steps in a row.
 **/
-void CLG_SmoothOutStairStep( pmove_t *pm, client_predicted_state_t *predictedState, const float stepHeight ) {
+void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedState, const float stepHeight ) {
     // Time in miliseconds to lerp the step with.
     static constexpr int32_t PM_STEP_TIME = 100;
     // Maximum -/+ change we allow in step lerps.
@@ -314,10 +314,10 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     } else {
         frameNumber = currentCommandNumber - 1;
     }
-    
+
     // Smooth Out Stair Stepping. This is done before updating the ground data so we can test results to the
     // previously predicted ground data.
-    CLG_SmoothOutStairStep( &pm, predictedState, pm.step_height );
+    CLG_PredictStepOffset( &pm, predictedState, pm.step_height );
 
     // Copy results out into the current predicted state.
     predictedState->view.origin = pm.s.origin;
