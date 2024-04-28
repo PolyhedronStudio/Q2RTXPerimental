@@ -18,8 +18,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "g_local.h"
 
-#define STAT_TIMER2_ICON        18
-#define STAT_TIMER2             19
 
 /*
 ======================================================================
@@ -38,9 +36,9 @@ void MoveClientToIntermission(edict_t *ent)
     }
     ent->client->showhelp = false;
 
-    VectorCopy(level.intermission_origin, ent->s.origin);
+    VectorCopy( level.intermission_origin, ent->s.origin );
     VectorCopy( level.intermission_origin, ent->client->ps.pmove.origin );
-    VectorCopy(level.intermission_angle, ent->client->ps.viewangles);
+    VectorCopy( level.intermission_angle, ent->client->ps.viewangles );
     ent->client->ps.viewangles[ 0 ] = AngleMod( level.intermission_angle[ 0 ] );
     ent->client->ps.viewangles[ 1 ] = AngleMod( level.intermission_angle[ 1 ] );
     ent->client->ps.viewangles[ 2 ] = AngleMod( level.intermission_angle[ 2 ] );
@@ -75,7 +73,6 @@ void MoveClientToIntermission(edict_t *ent)
     gi.unlinkentity(ent);
 
     // add the layout
-
     if (deathmatch->value || coop->value) {
         DeathmatchScoreboardMessage(ent, NULL);
         gi.unicast(ent, true);
@@ -546,12 +543,12 @@ void G_SetStats(edict_t *ent)
     //}
 
     //
-    // frags
+    // Frags
     //
     ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
     //
-    // help icon / current weapon if not shown
+    // Help icon / Current weapon if not shown
     //
     if (ent->client->pers.helpchanged && (level.framenum & 8))
         ent->client->ps.stats[STAT_HELPICON] = gi.imageindex("i_help");
@@ -561,6 +558,7 @@ void G_SetStats(edict_t *ent)
     else
         ent->client->ps.stats[STAT_HELPICON] = 0;
 
+    // If this function was called, disable spectator mode stats.
     ent->client->ps.stats[STAT_SPECTATOR] = 0;
 }
 
@@ -595,6 +593,7 @@ void G_SetSpectatorStats(edict_t *ent)
     if (!cl->chase_target)
         G_SetStats(ent);
 
+    // If this function was called, enable spectator mode stats.
     cl->ps.stats[STAT_SPECTATOR] = 1;
 
     // layouts are independant in spectator

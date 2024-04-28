@@ -83,4 +83,6 @@ static constexpr int32_t STAT_SELECTED_ITEM = ( STATS_GAME_OFFSET + 11 );
 static constexpr int32_t STAT_FLASHES = ( STATS_GAME_OFFSET + 12 ); //! Cleared each frame, 1 == health, 2 == armor.
 static constexpr int32_t STAT_CHASE = ( STATS_GAME_OFFSET + 13 );
 static constexpr int32_t STAT_SPECTATOR = ( STATS_GAME_OFFSET + 14 );
+static constexpr int32_t STAT_TIMER2_ICON = ( STATS_GAME_OFFSET + 15 );
+static constexpr int32_t STAT_TIMER2 = ( STATS_GAME_OFFSET + 16 );
 //#define STAT_SHOW_SCORES        19

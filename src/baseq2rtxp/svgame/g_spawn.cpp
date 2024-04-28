@@ -929,14 +929,14 @@ static const char single_statusbar[] =
 "endif "
 
 // timer 2 (pent)
-//"if 18 "
-//  "yb -76 "
-//  "xv 262 "
-//  "num 2 19 "
-//  "xv 296 "
-//  "pic 18 "
-//  "yb -50 "
-//"endif "
+"if 18 "
+  "yb -76 "
+  "xv 262 "
+  "num 2 19 "
+  "xv 296 "
+  "pic 18 "
+  "yb -50 "
+"endif "
 
 // help / weapon icon
 "if 13 "
