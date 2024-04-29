@@ -187,6 +187,23 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	if ( pflags & PS_M_BOB_CYCLE ) {
 		MSG_WriteUint8( to->pmove.bob_cycle );
 	}
+	// Sequenced Events:
+	if ( pflags & PS_M_EVENT_SEQUENCE ) {
+		MSG_WriteUint8( to->pmove.eventSequence );
+	}
+	if ( pflags & PS_M_EVENT_FIRST ) {
+		MSG_WriteUint8( to->pmove.events[ 0 ] );
+	}
+	if ( pflags & PS_M_EVENT_FIRST_PARM ) {
+		MSG_WriteUint8( to->pmove.eventParms[ 0 ] );
+	}
+	if ( pflags & PS_M_EVENT_SECOND ) {
+		MSG_WriteUint8( to->pmove.events[ 1 ] );
+	}
+	if ( pflags & PS_M_EVENT_SECOND_PARM ) {
+		MSG_WriteUint8( to->pmove.eventParms[ 1 ] );
+	}
+
 
 	//
 	// write the rest of the player_state_t

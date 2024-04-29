@@ -1598,7 +1598,7 @@ static void SV_CheckTimeouts(void)
             continue;
         }
 
-        if (client->frames_nodelta > 64 && !sv_allow_nodelta->integer) {
+        if (client->frames_nodelta > UPDATE_BACKUP /* used to be: 64, matching the old UPDATE_BACKUP*/&& !sv_allow_nodelta->integer ) {
             SV_DropClient(client, "too many nodelta frames");
             continue;
         }

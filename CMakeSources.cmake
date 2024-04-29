@@ -172,6 +172,7 @@ SET(HEADERS_BASEQ2_SVGAME
 # BaseQ2RTXP SharedGame
 SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_gamemode.cpp
+	baseq2rtxp/sharedgame/sg_misc.cpp
 	baseq2rtxp/sharedgame/sg_pmove.cpp
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.cpp
 )
@@ -179,6 +180,7 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_cmd_messages.h
 	baseq2rtxp/sharedgame/sg_gamemode.h
 	baseq2rtxp/sharedgame/sg_local.h
+	baseq2rtxp/sharedgame/sg_misc.h
 	baseq2rtxp/sharedgame/sg_pmove.h
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.h
 	baseq2rtxp/sharedgame/sg_shared.h

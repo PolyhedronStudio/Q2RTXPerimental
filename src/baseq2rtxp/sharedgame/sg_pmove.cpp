@@ -1,24 +1,14 @@
-/*
-Copyright (C) 1997-2001 Id Software, Inc.
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
-
+/********************************************************************
+*
+*
+*	SharedGame: Player Movement
+*
+*
+********************************************************************/
 #include "shared/shared.h"
 
 #include "sg_shared.h"
+#include "sg_misc.h"
 #include "sg_pmove.h"
 #include "sg_pmove_slidemove.h"
 
@@ -79,7 +69,9 @@ static pmoveParams_t *pmp;
 static pml_t pml;
 
 
-
+/**
+*	@brief	Default player movement parameter constants.
+**/
 typedef struct default_pmoveParams_s {
 	//! Stop speed.
 	static constexpr float pm_stop_speed = 100.f;
@@ -113,6 +105,15 @@ typedef struct default_pmoveParams_s {
 	static constexpr float pm_water_friction = 1.f;
 } default_pmoveParams_t;
 
+
+
+/**
+*
+*
+*	Misc:
+* 
+* 
+**/
 /**
 *	@brief	Updates the player move ground info based on the trace results.
 **/
@@ -131,6 +132,15 @@ static void PM_UpdateGroundFromTrace( const trace_t *trace ) {
 		pm->ground.material = trace->material;
 	}
 }
+/**
+*	@brief	Inline-wrapper to for convenience.
+**/
+void PM_AddEvent( const uint8_t newEvent ) {
+	SG_PMoveState_AddPredictableEvent( newEvent, 0, &pm->s );
+}
+
+
+
 /**
 *
 *
@@ -168,7 +178,11 @@ static void PM_StepDown( const trace_t *trace ) {
 
 	// If its absolute(-/+) value >= PM_MIN_STEP_SIZE(4.0) then we got an official step.
 	if ( fabsf( step_height ) >= PM_MIN_STEP_SIZE ) {
+		// Store non absolute but exact step height.
 		pm->step_height = step_height;
+
+		// Add predicted step event.
+		SG_PMoveState_AddPredictableEvent( 1 /*PM_EVENT_STEP*/, fabs( step_height ), &pm->s );
 	}
 }
 

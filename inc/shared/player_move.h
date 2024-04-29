@@ -56,7 +56,7 @@ typedef struct {
     uint16_t	pm_time;		//! Each unit = 8 ms
 
     //! Bob Cycle.
-    uint8_t bob_cycle;
+    uint8_t     bob_cycle;
 
     //! Gravity to apply.
     int16_t     gravity;
@@ -72,14 +72,14 @@ typedef struct {
     int8_t		viewheight;		//! View height, added to origin[2] + viewoffset[2], for crouching.
 
     //! PMove generated state events.
-    int32_t			eventSequence;
-    int32_t			events[ MAX_PS_EVENTS ];
-    int32_t			eventParms[ MAX_PS_EVENTS ];
+    int32_t     eventSequence;
+    int32_t     events[ MAX_PS_EVENTS ];
+    int32_t     eventParms[ MAX_PS_EVENTS ];
 
     // WID: TODO: Just use its entity events instead?
-    //int32_t			externalEvent;	//! Events set on player from another source.
-    //int32_t			externalEventParm;
-    //int32_t			externalEventTime;
+    //int32_t   externalEvent;	//! Events set on player from another source.
+    //int32_t   externalEventParm;
+    //int32_t   externalEventTime;
 } pmove_state_t;
 
 /**

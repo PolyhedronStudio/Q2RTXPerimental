@@ -179,9 +179,9 @@ typedef struct {
     union {
         uint8_t         data[MSG_TRESHOLD];
         struct {
-            uint8_t     flags;
-            uint8_t     index;
+            uint16_t    index;
             uint16_t    sendchan;
+            uint8_t     flags;
             uint8_t     volume;
             uint8_t     attenuation;
             uint8_t     timeofs;

@@ -1,3 +1,10 @@
+/********************************************************************
+*
+*
+*	SharedGame: Player SlideBox Implementation
+*
+*
+********************************************************************/
 #pragma once
 
 static constexpr float MIN_STEP_NORMAL = 0.7f;    // can't step up onto very steep slopes

@@ -52,45 +52,54 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	if ( flags & PS_M_TYPE ) {
 		to->pmove.pm_type = static_cast<pmtype_t>( MSG_ReadUint8( ) ); // WID: C++20: Added cast.
 	}
-
 	if ( flags & PS_M_ORIGIN ) {
 		// WID: float-movement MSG_ReadFloat();
 		to->pmove.origin[ 0 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 		to->pmove.origin[ 1 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 		to->pmove.origin[ 2 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 	}
-
 	if ( flags & PS_M_VELOCITY ) {
 		to->pmove.velocity[ 0 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 		to->pmove.velocity[ 1 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 		to->pmove.velocity[ 2 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 	}
-
 	if ( flags & PS_M_TIME ) {
 		to->pmove.pm_time = MSG_ReadUint16( );
 	}
-
 	if ( flags & PS_M_FLAGS ) {
 		to->pmove.pm_flags = MSG_ReadUintBase128( );
 	}
-
 	if ( flags & PS_M_GRAVITY ) {
 		to->pmove.gravity = MSG_ReadInt16( );
 	}
-
 	if ( flags & PS_M_DELTA_ANGLES ) {
 		to->pmove.delta_angles[ 0 ] = MSG_ReadHalfFloat( ); // WID: float-movement.
 		to->pmove.delta_angles[ 1 ] = MSG_ReadHalfFloat( ); // WID: float-movement.
 		to->pmove.delta_angles[ 2 ] = MSG_ReadHalfFloat( ); // WID: float-movement.
 	}
-	
 	if ( flags & PS_M_VIEWHEIGHT ) {
 		to->pmove.viewheight = MSG_ReadInt8();
 	}
-
 	if ( flags & PS_M_BOB_CYCLE ) {
 		to->pmove.bob_cycle = MSG_ReadUint8();
 	}
+	// Sequenced Events:
+	if ( flags & PS_M_EVENT_SEQUENCE ) {
+		to->pmove.eventSequence = MSG_ReadUint8();
+	}
+	if ( flags & PS_M_EVENT_FIRST ) {
+		to->pmove.events[ 0 ] = MSG_ReadUint8();
+	}
+	if ( flags & PS_M_EVENT_FIRST_PARM ) {
+		to->pmove.eventParms[ 0 ] = MSG_ReadUint8();
+	}
+	if ( flags & PS_M_EVENT_SECOND ) {
+		to->pmove.events[ 1 ] = MSG_ReadUint8();
+	}
+	if ( flags & PS_M_EVENT_SECOND_PARM ) {
+		to->pmove.eventParms[ 1 ] = MSG_ReadUint8();
+	}
+
 
 	//
 	// parse the rest of the player_state_t
@@ -100,23 +109,19 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->viewoffset[ 1 ] = MSG_ReadInt16( ) / 16.f;
 		to->viewoffset[ 2 ] = MSG_ReadInt16( ) / 16.f;
 	}
-
 	if ( flags & PS_VIEWANGLES ) {
 		to->viewangles[ 0 ] = MSG_ReadHalfFloat( );
 		to->viewangles[ 1 ] = MSG_ReadHalfFloat( );
 		to->viewangles[ 2 ] = MSG_ReadHalfFloat( );
 	}
-
 	if ( flags & PS_KICKANGLES ) {
 		to->kick_angles[ 0 ] = MSG_ReadInt16( ) / 1024.f;
 		to->kick_angles[ 1 ] = MSG_ReadInt16( ) / 1024.f;
 		to->kick_angles[ 2 ] = MSG_ReadInt16( ) / 1024.f;
 	}
-
 	if ( flags & PS_WEAPONINDEX ) {
 		to->gunindex = MSG_ReadUintBase128( );
 	}
-
 	if ( flags & PS_WEAPONFRAME ) {
 		to->gunframe = MSG_ReadUintBase128( );
 		to->gunoffset[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
@@ -126,27 +131,23 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->gunangles[ 1 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
 		to->gunangles[ 2 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
 	}
-
 	if ( flags & PS_WEAPONRATE ) {
 		to->gunrate = MSG_ReadUint8( );
 	}
-
 	if ( flags & PS_BLEND ) {
 		to->screen_blend[ 0 ] = MSG_ReadUint8( ) / 255.0f;
 		to->screen_blend[ 1 ] = MSG_ReadUint8( ) / 255.0f;
 		to->screen_blend[ 2 ] = MSG_ReadUint8( ) / 255.0f;
 		to->screen_blend[ 3 ] = MSG_ReadUint8( ) / 255.0f;
 	}
-
 	if ( flags & PS_FOV ) {
 		to->fov = MSG_ReadUint8( );
-	}
-	
+	}	
 	if ( flags & PS_RDFLAGS ) {
 		to->rdflags = MSG_ReadIntBase128( );
 	}
 
-	// parse stats
+	// Parse stats
 	statbits = MSG_ReadIntBase128( );
 	for ( i = 0; i < MAX_STATS; i++ ) {
 		if ( statbits & ( 1ULL << i ) ) {

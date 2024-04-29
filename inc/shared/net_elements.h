@@ -9,18 +9,18 @@
 
 
 //! Can't be increased without changing network protocol.
-#define MAX_MAP_AREAS       256
+#define MAX_MAP_AREAS           256
 //! Bitmasks communicated by server
 #define MAX_MAP_AREA_BYTES      (MAX_MAP_AREAS / 8)
 #define MAX_MAP_PORTAL_BYTES    MAX_MAP_AREA_BYTES
 
 //! Circular update array.
-#define UPDATE_BACKUP   512 //! 16	//! copies of entity_state_t to keep buffered must be power of two
-#define UPDATE_MASK     (UPDATE_BACKUP - 1)
+#define UPDATE_BACKUP           512 //! 16	//! copies of entity_state_t to keep buffered must be power of two
+#define UPDATE_MASK             (UPDATE_BACKUP - 1)
 
 //! Circular command array.
-#define CMD_BACKUP      512 //! 128	//! allow a lot of command backups for very fast systems increased from 64
-#define CMD_MASK        (CMD_BACKUP - 1)
+#define CMD_BACKUP              512 //! 128	//! allow a lot of command backups for very fast systems increased from 64
+#define CMD_MASK                (CMD_BACKUP - 1)
 
 //! Max entities stuffed per packet.
 #define MAX_PACKET_ENTITIES     1024

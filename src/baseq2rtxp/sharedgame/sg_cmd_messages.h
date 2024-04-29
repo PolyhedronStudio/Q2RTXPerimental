@@ -1,3 +1,10 @@
+/********************************************************************
+*
+*
+*	SharedGame: Command Messages
+*
+*
+********************************************************************/
 #pragma once
 
 // protocol bytes that can be directly added to messages
