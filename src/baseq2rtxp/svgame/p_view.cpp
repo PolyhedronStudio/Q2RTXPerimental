@@ -803,8 +803,10 @@ void G_SetClientEvent( edict_t *ent ) {
 			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
 		}
 	} else if ( ent->groundentity && xyspeed > 225 ) {
-		if ( (int)( current_client->bobtime + bobmove ) != bobcycle_run )
+		if ( (int)( current_client->bobtime + bobmove ) != bobcycle_run ) {
 			ent->s.event = EV_FOOTSTEP;
+			//gi.dprintf( "%s: EV_FOOTSTEP ent->ground xyspeed > 225\n", __func__ );
+		}
 	}
 }
 

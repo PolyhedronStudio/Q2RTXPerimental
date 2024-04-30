@@ -1666,6 +1666,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     if ( delta < 15 ) {
         if ( !( pm.s.pm_flags & PMF_ON_LADDER ) ) {
             ent->s.event = EV_FOOTSTEP;
+            gi.dprintf( "%s: delta < 15 footstep\n", __func__ );
         }
         return;
     }
@@ -1779,7 +1780,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         pm.trace = SV_PM_Trace;
         pm.pointcontents = SV_PM_PointContents;
         pm.clip = SV_PM_Clip;
-        VectorCopy( ent->client->ps.viewoffset, pm.viewoffset );
+        pm.viewoffset = ent->client->ps.viewoffset;
 
         // Perform a PMove.
         SG_PlayerMove( &pm, &pmp );

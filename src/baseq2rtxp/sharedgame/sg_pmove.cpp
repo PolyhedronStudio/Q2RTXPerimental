@@ -715,6 +715,8 @@ static void PM_CategorizePosition() {
 		pm->ground.surface = *( pml.ground.surface = trace.surface );
 		//pml.groundContents = trace.contents;
 		pm->ground.contents = (contents_t)( pml.ground.contents = trace.contents );
+		//pml.groundMaterial = trace.material;
+		pm->ground.material = trace.material;
 
 		// [Paril-KEX] to attempt to fix edge cases where you get stuck
 		// wedged between a slope and a wall (which is irrecoverable
@@ -732,29 +734,10 @@ static void PM_CategorizePosition() {
 		}
 
 		if ( trace.fraction == 1.0f || ( slanted_ground && !trace.startsolid ) ) {
-			//if ( trace.fraction == 1.0f ) {
-			//	pm->groundplane = { };
-			//} else {
-			//	pm->groundplane = trace.plane;
-			//}
-			pml.ground.surface = nullptr;
-			pml.ground.contents = CONTENTS_NONE;
-
-			PM_UpdateGroundFromTrace( nullptr );
-			//pm->ground.entity = nullptr;
-			//pm->ground.plane = {};
-			//pm->ground.surface = {}; 
-			//pm->ground.contents = CONTENTS_NONE;
-			//pm->ground.material = nullptr;
-
+			pm->ground.entity = nullptr;
 			pm->s.pm_flags &= ~PMF_ON_GROUND;
 		} else {
 			PM_UpdateGroundFromTrace( &trace );
-			//pm->ground.entity = trace.ent;
-			//pm->ground.plane = trace.plane;
-			//pm->ground.surface = *trace.surface;
-			//pm->ground.contents = trace.contents;
-			//pm->ground.material = trace.material;
 
 			// hitting solid ground will end a waterjump
 			if ( pm->s.pm_flags & PMF_TIME_WATERJUMP ) {
@@ -762,11 +745,11 @@ static void PM_CategorizePosition() {
 				pm->s.pm_time = 0;
 			}
 
+			// Just hit the ground.
 			if ( !( pm->s.pm_flags & PMF_ON_GROUND ) ) {
-				// just hit the ground
 
 				// [Paril-KEX]
-				if ( /*!pm_config.n64_physics &&*/ pml.velocity.z >= 100.f && pm->ground.plane.normal[ 2 ] >= 0.9f && !( pm->s.pm_flags & PMF_DUCKED ) ) {
+				if ( pml.velocity.z >= 100.f && pm->ground.plane.normal[ 2 ] >= 0.9f && !( pm->s.pm_flags & PMF_DUCKED ) ) {
 					pm->s.pm_flags |= PMF_TIME_TRICK_JUMP;
 					pm->s.pm_time = 64;
 				}
@@ -779,9 +762,7 @@ static void PM_CategorizePosition() {
 
 				pm->s.pm_flags |= PMF_ON_GROUND;
 
-				// WID: Commenting this allows to jump again after having done a jump + crouch.
-				// really weird.
-				if ( /*pm_config.n64_physics ||*/ ( pm->s.pm_flags & PMF_DUCKED ) ) {
+				if ( ( pm->s.pm_flags & PMF_DUCKED ) ) {
 					pm->s.pm_flags |= PMF_TIME_LAND;
 					pm->s.pm_time = 128;
 				}
@@ -827,9 +808,9 @@ static void PM_CheckJump() {
 
 	// We're swimming, not jumping, so unset ground entity.
 	if ( pm->liquid.level >= liquid_level_t::LIQUID_WAIST ) { 
-		//pm->ground.entity = nullptr;
+		pm->ground.entity = nullptr;
 		// Unset ground.
-		PM_UpdateGroundFromTrace( nullptr );
+		//PM_UpdateGroundFromTrace( nullptr );
 		return;
 	}
 
@@ -841,10 +822,9 @@ static void PM_CheckJump() {
 	// Adjust our pmove state to engage in the act of jumping.
 	pm->s.pm_flags |= PMF_JUMP_HELD;
 	pm->jump_sound = true;
-	//pm->groundEntity = nullptr;
-	//pm->groundPlane = {};
+	pm->ground.entity = nullptr;
 		// Unset ground.
-	PM_UpdateGroundFromTrace( nullptr );
+	//PM_UpdateGroundFromTrace( nullptr );
 	pm->s.pm_flags &= ~PMF_ON_GROUND;
 
 	const float jump_height = pmp->pm_jump_height;

@@ -36,25 +36,47 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
 
     // Get predicted state.
     client_predicted_state_t *predictedState = &clgi.client->predictedState;
-
+    
+    // The default type is "floor".
+    uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_FLOOR_STEPS;
+    qhandle_t *material_footsteps = precache.sfx.footsteps.floor;
     // Determine the material kind to fetch the sound data from.
     cm_material_t *ground_material = predictedState->ground.material;
     const char *material_kind = "floor";
 
-    // The default type is "floor".
-    uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_FLOOR_STEPS;
-    qhandle_t *material_footsteps = precache.sfx.footsteps.floor;
-
-    // First determine whether we're stepping into water:
+    // Special water feet level footsteps:
     if ( predictedState->liquid.type & CONTENTS_WATER &&
         predictedState->liquid.level == liquid_level_t::LIQUID_FEET ) {
         material_kind = "water";
         material_num_footsteps = precache.sfx.footsteps.NUM_WATER_STEPS;
         material_footsteps = precache.sfx.footsteps.water;
 
-    // Otherwise determine and adjust based on the predicted ground material:
-    } else if ( ground_material ) {
-        material_kind = ground_material->physical.kind;
+        clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, material_footsteps[ Q_rand() & material_num_footsteps - 1 ], 1, ATTN_NORM, 0 );
+        clgi.Print( PRINT_DEVELOPER, "%s: Water Path(material_kind(%s))\n", __func__, material_kind );
+
+        return;
+    // Default behavior: Adjust footstep material kind based on the predicted ground material:
+    } else {//if ( ground_material ) {
+        if ( ground_material ) {
+            material_kind = ground_material->physical.kind;
+        }
+
+        // See if we're trick jumping, if so, perform a step height + ground offset trace for
+        // finding a proper material sound to play while 'landing'.
+        if ( predictedState->pm.s.pm_flags & PMF_TIME_TRICK_JUMP || predictedState->view.velocity.z > 100 ) {
+            centity_t *traceSkipEntity = &clg_entities[ clgi.client->clientNumber + 1 ];
+            Vector3 traceStart = predictedState->pm.s.origin;
+            Vector3 traceEnd = traceStart + Vector3{ 0, 0, -( PM_MAX_STEP_SIZE + 0.25 ) };
+            Vector3 traceMins = predictedState->pm.mins;
+            Vector3 traceMaxs = predictedState->pm.maxs;
+            trace_t groundTrace = clgi.Trace( &traceStart.x, &traceMins.x, &traceMaxs.x, &traceEnd.x, traceSkipEntity, MASK_SOLID );
+
+            if ( groundTrace.material ) {
+                ground_material = groundTrace.material;
+                material_kind = groundTrace.material->physical.kind;
+                //clgi.Print( PRINT_DEVELOPER, "%s: Trick Jump Path(material_kind(%s))\n", __func__, material_kind );
+            }
+        }
 
         // Determine if we're on a different type of material, and if so, adjust the above variables accordingly.
         if ( strcmp( "carpet", material_kind ) == 0 ) {
@@ -88,12 +110,17 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
             material_num_footsteps = precache.sfx.footsteps.NUM_WOOD_STEPS;
             material_footsteps = precache.sfx.footsteps.wood;
         }
+
+        // Play a randomly appointed footstep from the material_footsteps array.
+        //if ( ground_material ) {
+            clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, material_footsteps[ Q_rand() & material_num_footsteps - 1 ], 1, ATTN_NORM, 0 );
+            //clgi.Print( PRINT_DEVELOPER, "%s: Default Path(material_kind(%s), num_footsteps(%i))\n", __func__, material_kind, material_num_footsteps );
+        //}
     }
 
-    //clgi.Print( PRINT_DEVELOPER, "WALKING ON KIND (%s), num_footsteps(%i)\n", material_kind, material_num_footsteps );
+    
 
-    // Play a randomly appointed footstep from the material_footsteps array.
-    clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, material_footsteps[ Q_rand() & material_num_footsteps - 1 ], 1, ATTN_NORM, 0 );
+
 }
 
 /**
