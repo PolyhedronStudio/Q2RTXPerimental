@@ -128,10 +128,23 @@ void G_RunFrame(void);
 * 
 *
 **/
-static void sv_airaccelerate_changed( cvar_t *self ) {
+static void cvar_sv_airaccelerate_changed( cvar_t *self ) {
     // Update air acceleration config string.
     if ( COM_IsUint( self->string ) || COM_IsFloat( self->string ) ) {
         gi.configstring( CS_AIRACCEL, self->string );
+    }
+}
+
+static void cvar_sv_gamemode_changed( cvar_t *self ) {
+    // Is it valid?
+    const bool isValidGamemode = G_IsGamemodeIDValid( self->integer );
+
+    if ( !isValidGamemode ) {
+        gi.cvar_forceset( "gamemode", std::to_string( GAMEMODE_SINGLEPLAYER ).c_str() );
+
+        // Invalid somehow.
+        gi.bprintf( PRINT_WARNING, "%s: tried to assign a non valid gamemode ID(#%i), resorting to default(#%i, %s)\n",
+            __func__, gamemode->integer, GAMEMODE_SINGLEPLAYER, SG_GetGamemodeName( GAMEMODE_SINGLEPLAYER ) );
     }
 }
 
@@ -164,6 +177,7 @@ void PreInitGame( void ) {
 
 	// 0 = SinglePlayer, 1 = Deathmatch, 2 = Coop.
 	gamemode = gi.cvar( "gamemode", 0, CVAR_SERVERINFO | CVAR_LATCH );
+    gamemode->changed = cvar_sv_gamemode_changed;
 
 	// The following is to for now keep code compatability.
 	deathmatch = gi.cvar( "deathmatch", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ROM );
@@ -179,6 +193,7 @@ void PreInitGame( void ) {
 	fraglimit = gi.cvar( "fraglimit", "0", CVAR_SERVERINFO );
 	timelimit = gi.cvar( "timelimit", "0", CVAR_SERVERINFO );
     sv_airaccelerate = gi.cvar( "sv_airaccelerate", "0", CVAR_SERVERINFO | CVAR_LATCH );
+    sv_airaccelerate->changed = cvar_sv_airaccelerate_changed;
     // Force set its value so the config string gets updated accordingly.
     //gi.cvar_forceset( "sv_airaccelerate", "0" );
 	// Air acceleration defaults to 0 and is only set for DM mode.
@@ -220,6 +235,10 @@ void InitGame( void )
 	// Notify 
     gi.dprintf("==== Init ServerGame(Gamemode: \"%s\", maxclients=%d, maxspectators=%d, maxentities=%d) ====\n",
 				SG_GetGamemodeName( gamemode->integer ), maxclients->integer, maxspectators->integer, maxentities->integer );
+
+    game.gamemode = gamemode->integer;
+    game.maxclients = maxclients->integer;
+    game.maxentities = maxentities->integer;
 
 	// C Random time initializing.
     Q_srand(time(NULL));

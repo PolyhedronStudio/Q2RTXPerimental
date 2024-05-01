@@ -47,7 +47,7 @@ extern "C" {
 //! Client Packet Entities:
 typedef struct centity_s centity_t;
 //! Client Clients Struct:
-typedef struct gclient_s gclient_t;
+typedef struct cclient_s cclient_t;
 //! Client Info Type(name, model, skin, etc):
 typedef struct clientinfo_s clientinfo_t;
 
@@ -59,14 +59,14 @@ typedef struct clientinfo_s clientinfo_t;
 *	Client-side 'client' structure definition: This structure always has to
 *	mirror the 'first part' of the structure defined within the Client-Game.
 **/
-//typedef struct cclient_s {
+typedef struct cclient_s {
 //    player_state_t  ps;
 //    int32_t			ping;
 //	/**
 //	*	The game dll can add anything it wants after this point in the structure.
 //	**/
-//	//int32_t             clientNum;
-//} cclient_t;
+	int32_t             clientNum;
+} cclient_t;
 /**
 *	Client-side Packet Entity structure definition: This structure always has to 
 *	mirror the 'first part' of the structure defined within the Client-Game.

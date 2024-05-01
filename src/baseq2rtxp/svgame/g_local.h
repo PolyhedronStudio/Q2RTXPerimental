@@ -407,7 +407,7 @@ typedef struct {
     // store latched cvars here that we want to get at often
     int         maxclients;
     int         maxentities;
-
+    int         gamemode;
     // cross level triggers
     int         serverflags;
 

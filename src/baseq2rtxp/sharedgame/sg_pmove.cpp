@@ -1242,6 +1242,13 @@ static void PM_InitialSnapPosition() {
 *	@brief	Clamp view angles within range (0, 360).
 **/
 static void PM_ClampAngles() {
+	if ( pm->s.pm_type == PM_INTERMISSION || pm->s.pm_type == PM_SPINTERMISSION ) {
+		return;		// no view changes at all
+	}
+	//if ( ps->pm_type != PM_SPECTATOR && ps->stats[ STAT_HEALTH ] <= 0 ) {
+	//	return;		// no view changes at all
+	//}
+
 	if ( pm->s.pm_flags & PMF_TIME_TELEPORT ) {
 		pm->viewangles[ YAW ] = AngleMod( pm->cmd.angles[ YAW ] + pm->s.delta_angles[ YAW ] );
 		pm->viewangles[ PITCH ] = 0;
@@ -1316,6 +1323,23 @@ static void PM_ScreenEffects() {
 }
 
 /**
+*
+**/
+static void PM_DropTimers() {
+	if ( pm->s.pm_time ) {
+		const int32_t msec = pm->cmd.msec;
+
+		if ( msec >= pm->s.pm_time ) {
+			// Somehow need this, Q2RE does not. If we don't do so, the code piece in this comment that resides above in PM_CategorizePosition
+			// causes us to remain unable to jump.
+			pm->s.pm_flags &= ~PMF_ALL_TIMES;
+			pm->s.pm_time = 0;
+		} else {
+			pm->s.pm_time -= msec;
+		}
+	}
+}
+/**
 *	@brief	Can be called by either the server or the client game codes.
 **/
 void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
@@ -1387,6 +1411,12 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	if ( pm->s.pm_type == PM_FREEZE ) {
 		return;     // no movement at all
 	}
+	/**
+	*	PM_FREEZE:
+	**/
+	if ( pm->s.pm_type == PM_INTERMISSION || pm->s.pm_type == PM_SPINTERMISSION ) {
+		return;		// no movement at all
+	}
 
 	/**
 	*	PM_DEAD:
@@ -1416,25 +1446,14 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	PM_CheckSpecialMovement();
 
 	/**
-	*	Now all that is settled, start dropping the input command timing counter.
+	*	Now all that is settled, start dropping the input command timing counter(s).
 	**/
-	if ( pm->s.pm_time ) {
-		const int32_t msec = pm->cmd.msec;
+	PM_DropTimers();
 
-		if ( msec >= pm->s.pm_time ) {
-			// Somehow need this, Q2RE does not. If we don't do so, the code piece in this comment that resides above in PM_CategorizePosition
-			// causes us to remain unable to jump.
-			pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
-			pm->s.pm_time = 0;
-		} else {
-			pm->s.pm_time -= msec;
-		}
-	}
-
-	// Teleport pause stays exactly in place:
+	// Do Nothing ( Teleport pause stays exactly in place ):
 	if ( pm->s.pm_flags & PMF_TIME_TELEPORT ) {
-	// DO NOTHING.
-	// WaterJump Move has no control, but falls by gravity influences:
+		// ...
+	// WaterJump Move ( Has no control, but falls by gravity influences ):
 	} else if ( pm->s.pm_flags & PMF_TIME_WATERJUMP ) {
 		PM_WaterJumpMove();
 	// Generic Move & Water Move:

@@ -42,7 +42,11 @@ void MoveClientToIntermission(edict_t *ent)
     ent->client->ps.viewangles[ 0 ] = AngleMod( level.intermission_angle[ 0 ] );
     ent->client->ps.viewangles[ 1 ] = AngleMod( level.intermission_angle[ 1 ] );
     ent->client->ps.viewangles[ 2 ] = AngleMod( level.intermission_angle[ 2 ] );
-    ent->client->ps.pmove.pm_type = PM_FREEZE;
+    if ( !G_IsMultiplayerGameMode( game.gamemode ) ) {
+        ent->client->ps.pmove.pm_type = PM_SPINTERMISSION;
+    } else {
+        ent->client->ps.pmove.pm_type = PM_INTERMISSION;
+    }
     ent->client->ps.gunindex = 0;
     /*ent->client->ps.damage_blend[3] = */ent->client->ps.screen_blend[ 3 ] = 0; // damageblend?
     ent->client->ps.rdflags = RDF_NONE;

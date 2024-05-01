@@ -472,7 +472,7 @@ typedef struct client_state_s {
     *   @brief      The server entity which represents our local client view.
     *               This is a pointer into `clg_entities`, and may point to an entity we are chasing.
     **/
-    centity_t *clientEntity;
+    centity_t   *clientEntity;
 
     // Received pmove configuration.
     //pmoveParams_t pmp;

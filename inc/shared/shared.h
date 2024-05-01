@@ -160,7 +160,7 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 //! Maximum amount of server entities, must change protocol to increase more.
 #define MAX_EDICTS          8192    
 //! Maximum amount of client entities.
-#define MAX_CLIENT_ENTITIES 8192
+#define MAX_CLIENT_ENTITIES ( MAX_EDICTS ) /*8192*/
 
 //! Maximum lightstyles.
 #define MAX_LIGHTSTYLES     256

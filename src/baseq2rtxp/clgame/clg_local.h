@@ -203,13 +203,13 @@ template<typename T>
 *	Client-Game 'client' structure definition: This structure always has to 
 *	mirror the 'first part' of the structure defined within the Client.
 **/
-//typedef struct cclient_s {
+typedef struct cclient_s {
 //    player_state_t  ps;
 //    int32_t			ping;
 //	// the game dll can add anything it wants after
 //	// this point in the structure
-//	//int32_t             clientNum;
-//} cclient_t;
+	int32_t             clientNum;
+} cclient_t;
 
 
 
@@ -646,6 +646,11 @@ extern precached_media_t precache;
 *	@todo	In the future, look into saving its state in: client.clsv
 **/
 struct game_locals_t {
+	//! Stores zone allocated clients[maxclients];
+	cclient_t *clients;
+	//! Stores zone allocated entities[maxentities];
+	centity_t *entities;
+
 	//! Stores state of the view weapon.
 	struct {
 		//! Current frame on-screen.

@@ -17,6 +17,8 @@ typedef enum {  // : uint8_t {
     PM_GRAPPLE,     //! No gravity. Pull towards velocity.
     PM_NOCLIP,      //! No gravity. Don't clip against entities/world at all. 
     PM_SPECTATOR,   //! No gravity. Only clip against walls.
+    PM_INTERMISSION,//! No movement or status bar.
+    PM_SPINTERMISSION,//! No movement or status bar.
 
     // Types with no acceleration or turning support:
     PM_DEAD,
@@ -39,7 +41,9 @@ typedef enum {  // : uint8_t {
 #define PMF_IGNORE_PLAYER_COLLISION		512	//! Don't collide with other players.
 #define PMF_TIME_TRICK_JUMP				1024//! pm_time is the trick jump time.
 //#define PMF_GROUNDENTITY_CHANGED        2048//! Set if the ground entity has changed between previous and current pmove state.
+#define	PMF_ALL_TIMES                   ( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP )
 
+//! Maximum number of player state events.
 #define MAX_PS_EVENTS 2
 
 /**
@@ -221,6 +225,9 @@ typedef struct {
     Vector4 screen_blend;
     //! Merged with rdflags from server.
     int32_t rdflags;
+
+    //! XY Speed:
+    float xySpeed;
 
     //! Play jump sound.
     qboolean jump_sound;
