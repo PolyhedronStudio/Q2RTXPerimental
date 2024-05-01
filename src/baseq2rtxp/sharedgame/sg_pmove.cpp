@@ -325,13 +325,13 @@ static void PM_Friction() {
 
 	// Scale the velocity.
 	float newspeed = speed - drop;
-	if ( newspeed < 0 ) {
+	if ( newspeed <= 0 ) {
 		newspeed = 0;
+		pml.velocity = {};
+	} else {
+		newspeed /= speed;
+		pml.velocity *= newspeed;
 	}
-	newspeed /= speed;
-
-	// Apply newspeed to gain our new velocity.
-	pml.velocity *= newspeed;
 }
 
 /**
@@ -527,7 +527,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 /**
 *	@brief
 **/
-static void PM_AirMove() {
+static void PM_GenericMove() {
 	const float forwardMove = pm->cmd.forwardmove;
 	const float sidewardMove = pm->cmd.sidemove;
 
@@ -610,7 +610,7 @@ static void PM_AirMove() {
 }
 
 /**
-*	@brief
+*	@brief	Performs in-water movement.
 **/
 static void PM_WaterMove() {
 	//
@@ -650,6 +650,22 @@ static void PM_WaterMove() {
 	PM_Accelerate( wishDirection, wishspeed, pmp->pm_water_accelerate );
 
 	// Step Slide.
+	PM_StepSlideMove();
+}
+/**
+*	@brief	Performs out of water jump movement. Apply gravity, check whether to cancel water jump mode, and slide move right after.
+**/
+static void PM_WaterJumpMove() {
+	// Apply downwards gravity to the velocity.
+	pml.velocity.z -= pm->s.gravity * pml.frameTime;
+
+	// Cancel the WaterJump mode as soon as we are falling down again. (Velocity < 0).
+	if ( pml.velocity.z < 0 ) { // cancel as soon as we are falling down again
+		pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
+		pm->s.pm_time = 0;
+	}
+
+	// Step slide move.
 	PM_StepSlideMove();
 }
 
@@ -808,9 +824,8 @@ static void PM_CheckJump() {
 
 	// We're swimming, not jumping, so unset ground entity.
 	if ( pm->liquid.level >= liquid_level_t::LIQUID_WAIST ) { 
-		pm->ground.entity = nullptr;
 		// Unset ground.
-		//PM_UpdateGroundFromTrace( nullptr );
+		pm->ground.entity = nullptr;
 		return;
 	}
 
@@ -854,7 +869,7 @@ static void PM_CheckSpecialMovement() {
 		0.f
 	} );
 	const Vector3 spot = pml.origin + ( flatforward * 1 );
-	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, (contents_t)(CONTENTS_WATER | CONTENTS_LADDER ));
+	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, (contents_t)(CONTENTS_LADDER ));
 	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->liquid.level < liquid_level_t::LIQUID_WAIST ) {
 		pm->s.pm_flags |= PMF_ON_LADDER;
 	}
@@ -935,10 +950,10 @@ static void PM_CheckSpecialMovement() {
 		return;
 	}
 
-	// Valid waterjump! Jump out of water
+	// Valid waterjump! Set velocity to Jump out of water
 	pml.velocity = flatforward * 50;
 	pml.velocity.z = 350;
-
+	// Engage PMF_TIME_WATERJUMP timer mode.
 	pm->s.pm_flags |= PMF_TIME_WATERJUMP;
 	pm->s.pm_time = 2048;
 }
@@ -964,13 +979,22 @@ static void PM_FlyMove( bool doclip ) {
 		drop += control * friction * pml.frameTime;
 
 		// Scale the velocity
-		float newspeed = speed - drop;
-		if ( newspeed < 0 ) {
-			newspeed = 0;
-		}
-		newspeed /= speed;
+		//float newspeed = speed - drop;
+		//if ( newspeed < 0 ) {
+		//	newspeed = 0;
+		//}
+		//newspeed /= speed;
 
-		pml.velocity *= newspeed;
+		//pml.velocity *= newspeed;
+		// Scale the velocity.
+		float newspeed = speed - drop;
+		if ( newspeed <= 0 ) {
+			newspeed = 0;
+			pml.velocity = {};
+		} else {
+			newspeed /= speed;
+			pml.velocity *= newspeed;
+		}
 	}
 
 	// Accelerate
@@ -1170,7 +1194,7 @@ static inline const bool PM_GoodPosition() {
 	if ( pm->s.pm_type == PM_NOCLIP ) {
 		return true;
 	}
-
+	// Perform the solid trace.
 	const trace_t trace = PM_Trace( pm->s.origin, pm->mins, pm->maxs, pm->s.origin );
 	return !trace.allsolid;
 }
@@ -1182,11 +1206,9 @@ static inline const bool PM_GoodPosition() {
 static void PM_SnapPosition() {
 	pm->s.velocity = pml.velocity;
 	pm->s.origin = pml.origin;
-
 	if ( PM_GoodPosition() ) {
 		return;
 	}
-
 	//if ( G_FixStuckObject_Generic( pm->s.origin, pm->mins, pm->maxs  ) == stuck_result_t::NO_GOOD_POSITION ) {
 	//	pm->s.origin = pml.previousOrigin;
 	//	return;
@@ -1194,7 +1216,7 @@ static void PM_SnapPosition() {
 }
 
 /**
-*	@brief
+*	@brief	Try and find, then snap, to a valid non solid position.
 **/
 static void PM_InitialSnapPosition() {
 	constexpr int32_t offset[ 3 ] = { 0, -1, 1 };
@@ -1217,7 +1239,7 @@ static void PM_InitialSnapPosition() {
 }
 
 /**
-*	@brief	
+*	@brief	Clamp view angles within range (0, 360).
 **/
 static void PM_ClampAngles() {
 	if ( pm->s.pm_flags & PMF_TIME_TELEPORT ) {
@@ -1249,7 +1271,20 @@ static void PM_ClampAngles() {
 }
 
 /**
-*	@brief	
+*	@brief	Used by >= PM_DEAD movetypes, ensure user input is cleared so it has no further influence.
+**/
+static void PM_EraseInputCommandState() {
+	// Idle our directional user input.
+	pm->cmd.forwardmove = 0;
+	pm->cmd.sidemove = 0;
+	pm->cmd.upmove = 0;
+	// Unset these two buttons so other code won't respond to it.
+	pm->cmd.buttons &= ~( BUTTON_JUMP | BUTTON_CROUCH );
+}
+
+/**
+*	@brief	Determine the vieworg's brush contents, apply Blend effect based on results.
+*			Also determines whether the view is underwater and to render it as such.
 **/
 static void PM_ScreenEffects() {
 	// Add for contents
@@ -1280,26 +1315,23 @@ static void PM_ScreenEffects() {
 	}
 }
 
-/*
-================
-Pmove
-
-Can be called by either the server or the client
-================
-*/
+/**
+*	@brief	Can be called by either the server or the client game codes.
+**/
 void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	// Store pointers to the pmove object and the parameters supplied for this move.
 	pm = pmove;
 	pmp = params;
 
 	// Clear out several member variables which require a fresh state before performing the move.
-	pm->touchTraces.numberOfTraces = 0;
+	pm->touchTraces = {};
 	pm->viewangles = {};
 	//pm->s.viewheight = 0;
-	//pm->ground.entity = nullptr;
 	pm->ground = {};
-	pm->liquid.type = CONTENTS_NONE;
-	pm->liquid.level = liquid_level_t::LIQUID_NONE;
+	pm->liquid = {
+		.type = CONTENTS_NONE,
+		.level = liquid_level_t::LIQUID_NONE
+	},
 	pm->screen_blend = {};
 	pm->rdflags = 0;
 	pm->jump_sound = false;
@@ -1324,6 +1356,9 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	// Clamp view angles.
 	PM_ClampAngles( );
 
+	/**
+	*	PM_SPECTATOR/PM_NOCLIP:
+	**/
 	// Performs fly move, only clips in case of spectator mode, noclips otherwise.
 	if ( pm->s.pm_type == PM_SPECTATOR || pm->s.pm_type == PM_NOCLIP ) {
 		// Re-ensure no flags are set anymore.
@@ -1346,45 +1381,43 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		return;
 	}
 
-	// Erase all input command state when dead, we don't want to allow moving our dead body.
-	if ( pm->s.pm_type >= PM_DEAD ) {
-		// Idle our directional user input.
-		pm->cmd.forwardmove = 0;
-		pm->cmd.sidemove = 0;
-		pm->cmd.upmove = 0;
-		// Unset these two buttons so other code won't respond to it.
-		pm->cmd.buttons &= ~( BUTTON_JUMP | BUTTON_CROUCH );
-	}
-
+	/**
+	*	PM_FREEZE:
+	**/
 	if ( pm->s.pm_type == PM_FREEZE ) {
 		return;     // no movement at all
 	}
 
+	/**
+	*	PM_DEAD:
+	**/
+	// Erase all input command state when dead, we don't want to allow moving our dead body.
+	if ( pm->s.pm_type >= PM_DEAD ) {
+		PM_EraseInputCommandState();
+	}
+
 	// Set mins, maxs, and viewheight.
 	PM_SetDimensions();
-
 	// General position categorize.
 	PM_CategorizePosition();
-
 	// If pmove values were changed outside of the pmove code, resnap to position first before continuing.
 	if ( pm->snapinitial ) {
 		PM_InitialSnapPosition();
 	}
-
 	// Recategorize if we're ducked. ( Set groundentity, liquid.type, and liquid.level. )
 	if ( PM_CheckDuck() ) {
 		PM_CategorizePosition();
 	}
-
 	// When dead, perform dead movement.
 	if ( pm->s.pm_type == PM_DEAD ) {
 		PM_DeadMove();
 	}
-
-	// Currently performs the water jump.
+	// Performs the 'on-ladder' check as well as when to engage into the out of Water Jump movement.
 	PM_CheckSpecialMovement();
 
-	// Drop timing counter.
+	/**
+	*	Now all that is settled, start dropping the input command timing counter.
+	**/
 	if ( pm->s.pm_time ) {
 		const int32_t msec = pm->cmd.msec;
 
@@ -1400,20 +1433,11 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 	// Teleport pause stays exactly in place:
 	if ( pm->s.pm_flags & PMF_TIME_TELEPORT ) {
-		
-	// Waterjump has no control, but falls:
+	// DO NOTHING.
+	// WaterJump Move has no control, but falls by gravity influences:
 	} else if ( pm->s.pm_flags & PMF_TIME_WATERJUMP ) {
-		// Apply downwards gravity to the velocity.
-		pml.velocity.z -= pm->s.gravity * pml.frameTime;
-
-		// Cancel as soon as we are falling down again.
-		if ( pml.velocity.z < 0 ) { // cancel as soon as we are falling down again
-			pm->s.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
-			pm->s.pm_time = 0;
-		}
-
-		// Step slide move.
-		PM_StepSlideMove();
+		PM_WaterJumpMove();
+	// Generic Move & Water Move:
 	} else {
 		// Check for jumping.
 		PM_CheckJump( );
@@ -1423,7 +1447,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		// Determine water level and pursue to WaterMove if deep in above waist.
 		if ( pm->liquid.level >= liquid_level_t::LIQUID_WAIST ) {
 			PM_WaterMove( );
-		// Otherwise AirMove(Which, also, does ground move.)
+		// Otherwise default to generic move code.
 		} else {
 			// Different pitch handling.
 			Vector3 angles = pm->viewangles;
@@ -1435,22 +1459,20 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 			// Recalculate angle vectors.
 			QM_AngleVectors( angles, &pml.forward, &pml.right, &pml.up );
 			
-			// Regular 'air move'. Uses air acceleration/regular acceleration based on on-ground.
-			PM_AirMove( );
+			// Regular 'generic move'. Determines whether on-ladder, on-ground, or in-air, and
+			// performs the move to that accordingly.
+			PM_GenericMove( );
 		}
 	}
 
-	// Final recategorization: Set groundentity, liquid.type, and liquid.level for final spot.
+	// Recategorize position for contents, ground, and/or liquid since we've made a move.
 	PM_CategorizePosition();
-
-	// Perform Trick Jump.
+	// Determine whether we can pull a trick jump, and if so, perform the jump.
 	if ( pm->s.pm_flags & PMF_TIME_TRICK_JUMP ) {
- 		PM_CheckJump();
+		PM_CheckJump();
 	}
-
-	// Apply screen effects. (Predicted partially if compiled for client-side.)
+	// Apply contents and other screen effects.
 	PM_ScreenEffects();
-
 	// Snap us back into a validated position.
 	PM_SnapPosition();
 }

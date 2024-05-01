@@ -133,7 +133,7 @@ Does not modify any world state?
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time ) {
+const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time ) {
 	Vector3 dir = {};
 
 	Vector3 planes[ MAX_CLIP_PLANES ] = {};
@@ -148,9 +148,14 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 	int32_t numbumps = MAX_CLIP_PLANES - 1;
 
 	Vector3 primal_velocity = velocity;
+	Vector3 last_valid_origin = origin;
 	int32_t numplanes = 0;
 
+	int32_t blockedMask = 0;
+
 	time_left = frametime;
+
+
 
 	for ( bumpcount = 0; bumpcount < numbumps; bumpcount++ ) {
 		VectorMA( origin, time_left, velocity, end );
@@ -159,12 +164,12 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 		trace = PM_Trace( origin, mins, maxs, end );
 
 		if ( trace.allsolid ) {
-			// entity is trapped in another solid
-			velocity[ 2 ] = 0;    // don't build up falling damage
-
+			// Entity is trapped in another solid, DON'T build up falling damage.
+			velocity[ 2 ] = 0;    
 			// Save entity for contact.
 			PM_RegisterTouchTrace( touch_traces, trace );
-			return;
+			// Return trapped mask.
+			return PM_SLIDEMOVEFLAG_TRAPPED;
 		}
 
 		// [Paril-KEX] experimental attempt to fix stray collisions on curved
@@ -196,23 +201,34 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 		if ( trace.fraction > 0 ) {
 			// actually covered some distance
 			origin = trace.endpos;
-			numplanes = 0;
+			last_valid_origin = trace.endpos;
+
+			//numplanes = 0;
 		}
 
 		if ( trace.fraction == 1 ) {
+			blockedMask = PM_SLIDEMOVEFLAG_MOVED;
 			break;     // moved the entire distance
 		}
 
 		// Save entity for contact.
 		PM_RegisterTouchTrace( touch_traces, trace );
 		
+		// At this point we are blocked but not trapped.
+		blockedMask |= PM_SLIDEMOVEFLAG_BLOCKED;
+		// Is it a vertical wall?
+		if ( trace.plane.normal[ 2 ] < 0.03125 ) {
+			blockedMask |= PM_SLIDEMOVEFLAG_WALL_BLOCKED;
+		}
+
 		// Subtract the fraction of time used, from the whole fraction of the move.
 		time_left -= time_left * trace.fraction;
 
-		// slide along this plane
+		// Slide along this plane
 		if ( numplanes >= MAX_CLIP_PLANES ) {
 			// Zero out velocity. This should never happen though.
 			velocity = {};
+			blockedMask = PM_SLIDEMOVEFLAG_TRAPPED;
 			break;
 		}
 
@@ -264,4 +280,6 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 	if ( has_time ) {
 		velocity = primal_velocity;
 	}
+
+	return blockedMask;
 }
