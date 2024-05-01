@@ -608,12 +608,14 @@ demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info);
 //
 // locs.cpp
 //
+// Location stuff is disabled since if I do want it, I want it implemented differently. Move to CLGame.
+#if 0
 void LOC_Init(void);
 void LOC_LoadLocations(void);
 void LOC_FreeLocations(void);
 void LOC_UpdateCvars(void);
 void LOC_AddLocationsToScene(void);
-
+#endif
 
 
 //

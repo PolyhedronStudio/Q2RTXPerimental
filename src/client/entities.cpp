@@ -507,7 +507,7 @@ void CL_PrepareViewEntities(void) {
     // Let the Client Game prepare view entities.
     clge->PrepareViewEntities();
 
-    LOC_AddLocationsToScene();
+    // WID: disable LOC: LOC_AddLocationsToScene();
 }
 
 /**

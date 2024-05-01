@@ -22,6 +22,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "cl_client.h"
 
+// Location stuff is disabled since if I do want it, I want it implemented differently. Move to CLGame.
+#if 0
+
 typedef struct {
     list_t entry;
     vec3_t origin;
@@ -383,3 +386,4 @@ void LOC_Init(void)
     Cmd_AddCommand("loc_write", LOC_Write_f);
 }
 
+#endif

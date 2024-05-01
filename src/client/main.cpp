@@ -575,7 +575,7 @@ void CL_ClearState(void)
 
     // Let the client game wipe state also.
     clge->ClearState();
-    LOC_FreeLocations();
+    // WID: disable LOC: LOC_FreeLocations();
 
     // Unload the collision models.
     CM_FreeMap( &cl.collisionModel ); //BSP_Free(cl.bsp);
@@ -1552,7 +1552,7 @@ void CL_Begin(void)
     CL_PrepRefresh();
     CL_LoadState(LOAD_SOUNDS);
     CL_RegisterSounds();
-    LOC_LoadLocations();
+    // WID: disable LOC: LOC_LoadLocations();
     CL_LoadState(LOAD_NONE);
     cls.state = ca_precached;
 
@@ -2524,7 +2524,7 @@ static void CL_InitLocal(void)
 
     CL_RegisterInput();
     CL_InitDemos();
-    LOC_Init();
+    // WID: disable LOC: LOC_Init();
     CL_InitAscii();
     //CL_InitEffects();
     //CL_InitTEnts();
