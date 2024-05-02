@@ -33,7 +33,6 @@ void PF_ClientConnected( void ) {
 	// Debug notify.
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientConnected\n" );
 }
-
 /**
 *	@brief	Called when the client state has moved into a disconnected state, before ending
 *			the loading plague and starting to clear its state. (So it is still accessible.)
@@ -45,6 +44,22 @@ void PF_ClientDisconnected( void ) {
 	// Debug notify.
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientDisconnected\n" );
 }
+
+/**
+*	@brief	Simulate similar the server side, a ClientBeginFrame function.
+**/
+static void CLG_ClientBeginLocalFrame( void ) {
+
+}
+
+/**
+*	@brief	Simulate similar the server side, a ClientEndFrame function.
+**/
+static void CLG_ClientEndLocalFrame( void ) {
+	// Figure out the exact 'reverb' effect for our client to use.
+	CLG_EAX_DetermineEffect();
+}
+
 /**
 *	@brief	Called to update the client's local game entities, it runs at the same framerate
 *			as the server game logic does.
@@ -54,6 +69,9 @@ void PF_ClientLocalFrame( void ) {
 	level.framenum++;
 	// Increase the amount of time that has passed for this level.
 	level.time += FRAME_TIME_MS;
+
+	// Call upon ClientBeginFrame.
+	CLG_ClientBeginLocalFrame();
 
 	// Let all local entities think
 	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
@@ -67,11 +85,10 @@ void PF_ClientLocalFrame( void ) {
 
 		// Dispatch think callback since the entity is in-use and properly class allocated.
 		CLG_LocalEntity_RunThink( lent );
-		//CLG_LocalEntity_DispatchThink( lent );
 	}
 
-	// Figure out the exact 'reverb' effect for our client to use.
-	CLG_EAX_DetermineEffect();
+	// The client's frame ending functionality.
+	CLG_ClientEndLocalFrame();
 
 // Debug print: framenum, level time.
 #if 0

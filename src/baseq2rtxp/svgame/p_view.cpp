@@ -238,7 +238,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 //===================================
 
 	// base angles
-	angles = ent->client->ps.kick_angles;
+	angles = &ent->client->ps.kick_angles.x;
 
 	// if dead, fix the angle and don't add any kick
 	if ( ent->deadflag ) {

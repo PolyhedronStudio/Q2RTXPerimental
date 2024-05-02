@@ -61,7 +61,7 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
     // Consider a Z change being "stepping" if...
     const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range.
         && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) // And we started off on the ground.
-        && ( ( pm->s.pm_flags & PMF_ON_GROUND ) && pm->s.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
+        && ( ( pm->playerState.pmove.pm_flags & PMF_ON_GROUND ) && pm->playerState.pmove.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
         && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, OR..
             || predictedState->ground.entity != pm->ground.entity ); // we stand on another plane or entity.
 
@@ -132,7 +132,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
     if ( moveCommand->prediction.time == 0 ) {
         out->view.origin = in->origin;//in->origin;
         out->view.offset = clgi.client->frame.ps.viewoffset;
-        out->view.angles = clgi.client->frame.ps.viewangles;
+        out->view.angles = clgi.client->frame.ps.viewangles/* + moveCommand->cmd.angles*/;
         out->view.velocity = in->velocity;
         out->view.rdflags = clgi.client->frame.ps.rdflags;
         out->view.screen_blend = clgi.client->frame.ps.screen_blend;
@@ -183,7 +183,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
             //out->view.screen_blend = {};
             out->view.origin = in->origin;//in->origin;
             out->view.offset = clgi.client->frame.ps.viewoffset;
-            out->view.angles = clgi.client->frame.ps.viewangles;
+            out->view.angles = clgi.client->frame.ps.viewangles/* + moveCommand->cmd.angles*/;
             out->view.velocity = in->velocity;
             out->view.rdflags = clgi.client->frame.ps.rdflags;
             out->view.screen_blend = clgi.client->frame.ps.screen_blend;
@@ -242,26 +242,32 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     //}
 
     // Prepare our player move, setup the client side trace function pointers.
-    pmove_t pm = {};
+    player_state_t predictionState = clgi.client->frame.ps;// { };
+    
+    pmove_t pm = {
+        .playerState = clgi.client->frame.ps
+    };
     pm.trace = CLG_PM_Trace;
     pm.pointcontents = CLG_PM_PointContents;
     pm.clip = CLG_PM_Clip;
 
-    // Copy over the current client state data into pmove.
-    pm.s = clgi.client->frame.ps.pmove;
-    // Override with our own client delta_angles.
-    pm.s.delta_angles = clgi.client->delta_angles;
-    // Override with the predicted viewheight.
-    pm.s.viewheight = /*predictedState->view_current_height;*/clgi.client->frame.ps.pmove.viewheight;
+    //// Copy over the current client state data into pmove.
+    predictionState = clgi.client->frame.ps;// .pmove;
+    // Apply client delta_angles.
+    pm.playerState.pmove.delta_angles = clgi.client->delta_angles;
+    // Ensure viewheight is set properly also.
+    //predictionState.pmove.s.viewheight = /*predictedState->view_current_height;*/clgi.client->frame.ps.pmove.viewheight;
     // Set view angles.
-    //pm.viewangles = clgi.client->viewangles; // This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
-    // Override with the predicted view offset.
-    pm.viewoffset = /*predictedState->view.viewOffset;*/clgi.client->frame.ps.viewoffset;
+    pm.playerState.viewangles = clgi.client->viewangles; // This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
+    // Set view offset.
+    pm.playerState.viewoffset = clgi.client->frame.ps.viewoffset;
+    //predictionState.viewoffset = predictedState->view.viewOffset; //clgi.client->frame.ps.viewoffset;
 
-    // Use predicted state ground info.
+    // Setup ground.
     pm.ground = predictedState->ground;
-    // Use predicted state liquid info.
+    // Setup liquid.
     pm.liquid = predictedState->liquid;
+
 
     // Run previously stored and acknowledged frames up and including the last one.
     while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
@@ -279,8 +285,8 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         }
 
         // Save for prediction checking.
-        moveCommand->prediction.origin = pm.s.origin;
-        moveCommand->prediction.velocity = pm.s.velocity;
+        moveCommand->prediction.origin = pm.playerState.pmove.origin;
+        moveCommand->prediction.velocity = pm.playerState.pmove.velocity;
     }
 
     // Now run the pending command number.
@@ -289,7 +295,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     if ( pendingMoveCommand->cmd.msec ) {
         // Store time of prediction.
         pendingMoveCommand->prediction.time = clgi.client->time;
-
+        
         // Initialize pmove with the proper moveCommand data.
         pm.cmd = pendingMoveCommand->cmd;
         pm.cmd.forwardmove = clgi.client->localmove[ 0 ];
@@ -300,12 +306,12 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         SG_PlayerMove( &pm, &pmp );
 
         // Save the now not pending anymore move command as the last entry in our circular buffer.
-        pendingMoveCommand->prediction.origin = pm.s.origin;
-        pendingMoveCommand->prediction.velocity = pm.s.velocity;
+        pendingMoveCommand->prediction.origin = pm.playerState.pmove.origin;
+        pendingMoveCommand->prediction.velocity = pm.playerState.pmove.velocity;
 
         // Save for prediction checking.
         clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *pendingMoveCommand;
-    // Use previous frame if no command is pending.
+        // Use previous frame if no command is pending.
     } else {
         frameNumber = currentCommandNumber - 1;
     }
@@ -314,17 +320,14 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // previously predicted ground data.
     CLG_PredictStepOffset( &pm, predictedState, pm.step_height );
 
-    // WID: Experimental, but why not just save the entire pmove we made instead?
-    predictedState->pm = pm;
-
     // Copy results out into the current predicted state.
-    predictedState->view.origin = pm.s.origin;
-    predictedState->view.velocity = pm.s.velocity;
-    predictedState->view.angles = pm.viewangles;
-    predictedState->view.offset = pm.viewoffset;
-    
-    predictedState->view.screen_blend = pm.screen_blend; // // To be merged with server screen blend.
-    predictedState->view.rdflags = pm.rdflags; // To be merged with server rdflags.
+    predictedState->view.origin = pm.playerState.pmove.origin;
+    predictedState->view.velocity = pm.playerState.pmove.velocity;
+    predictedState->view.angles = pm.playerState.viewangles;
+    predictedState->view.offset = pm.playerState.viewoffset;
+
+    predictedState->view.screen_blend = pm.playerState.screen_blend; // // To be merged with server screen blend.
+    predictedState->view.rdflags = pm.playerState.rdflags; // To be merged with server rdflags.
 
     predictedState->ground = pm.ground;
 
@@ -332,5 +335,5 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     predictedState->liquid.type = pm.liquid.type;
 
     // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
-    PF_AdjustViewHeight( pm.s.viewheight );
+    PF_AdjustViewHeight( pm.playerState.pmove.viewheight );
 }

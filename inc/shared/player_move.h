@@ -8,83 +8,6 @@
 #pragma once
 
 
-/**
-*   pmove_state_t is the information necessary for client side movement prediction.
-**/
-typedef enum {  // : uint8_t {
-    // Types that can accelerate and turn:
-    PM_NORMAL,      //! Gravity. Clips to world and its entities.
-    PM_GRAPPLE,     //! No gravity. Pull towards velocity.
-    PM_NOCLIP,      //! No gravity. Don't clip against entities/world at all. 
-    PM_SPECTATOR,   //! No gravity. Only clip against walls.
-    PM_INTERMISSION,//! No movement or status bar.
-    PM_SPINTERMISSION,//! No movement or status bar.
-
-    // Types with no acceleration or turning support:
-    PM_DEAD,
-    PM_GIB,         //! Different bounding box for when the player is 'gibbing out'.
-    PM_FREEZE       //! Does not respond to any movement inputs.
-} pmtype_t;
-
-// pmove->pm_flags
-#define PMF_NONE						0   //! No flags.
-#define PMF_DUCKED						1   //! Player is ducked.
-#define PMF_JUMP_HELD					2   //! Player is keeping jump button pressed.
-#define PMF_ON_GROUND					4   //! Player is on-ground.
-#define PMF_TIME_WATERJUMP				8   //! pm_time is waterjump.
-#define PMF_TIME_LAND					16  //! pm_time is time before rejump.
-#define PMF_TIME_TELEPORT				32  //! pm_time is non-moving time.
-#define PMF_NO_POSITIONAL_PREDICTION	64  //! Temporarily disables prediction (used for grappling hook).
-//#define PMF_TELEPORT_BIT				128 //! used by q2pro
-#define PMF_ON_LADDER					128	//! Signal to game that we are on a ladder.
-#define PMF_NO_ANGULAR_PREDICTION		256 //! Temporary disables angular prediction.
-#define PMF_IGNORE_PLAYER_COLLISION		512	//! Don't collide with other players.
-#define PMF_TIME_TRICK_JUMP				1024//! pm_time is the trick jump time.
-//#define PMF_GROUNDENTITY_CHANGED        2048//! Set if the ground entity has changed between previous and current pmove state.
-#define	PMF_ALL_TIMES                   ( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP )
-
-//! Maximum number of player state events.
-#define MAX_PS_EVENTS 2
-
-/**
-*   This structure needs to be communicated bit-accurate from the server to the client to guarantee that
-*   prediction stays in sync. If any part of the game code modifies this struct, it will result in a
-*   prediction error of some degree.
-**/
-typedef struct {
-    //! The player move type.
-    pmtype_t    pm_type;
-    //! The state's flags describing the move's situation.
-    uint16_t    pm_flags;		//! Ducked, jump_held, etc
-    //! Timer value for a specific few of state flags.
-    uint16_t	pm_time;		//! Each unit = 8 ms
-
-    //! Bob Cycle.
-    uint8_t     bob_cycle;
-
-    //! Gravity to apply.
-    int16_t     gravity;
-
-    //! State origin.
-    Vector3		origin;
-    //! Add to command angles to get view direction, it is changed by spawns, rotating objects, and teleporters
-    Vector3     delta_angles;
-    //! State Velocity.
-    Vector3		velocity;
-
-    //! State viewheight.
-    int8_t		viewheight;		//! View height, added to origin[2] + viewoffset[2], for crouching.
-
-    //! PMove generated state events.
-    int32_t     eventSequence;
-    int32_t     events[ MAX_PS_EVENTS ];
-    int32_t     eventParms[ MAX_PS_EVENTS ];
-
-    // WID: TODO: Just use its entity events instead?
-    //int32_t   externalEvent;	//! Events set on player from another source.
-    //int32_t   externalEventParm;
-    //int32_t   externalEventTime;
-} pmove_state_t;
 
 /**
 *	@brief	Used to configure player movement with, it is set by SG_ConfigurePlayerMoveParameters.
@@ -170,7 +93,7 @@ typedef struct {
     /**
     *   (In/Out):
     **/
-    pmove_state_t s;
+    player_state_t playerState; //pmove_state_t s;
 
     /**
     *   (In):
@@ -192,7 +115,7 @@ typedef struct {
     *   (In/Out):
     **/
     //! Actual view angles, clamped to (0 .. 360) and for Pitch(-89 .. 89).
-    Vector3 viewangles;
+    //Vector3 viewangles;
     //! Bounding Box.
     Vector3 mins, maxs;
 

@@ -366,14 +366,13 @@ typedef enum {
 
 
 /**
-*	Player Movement:
-**/
-#include "shared/player_move.h"
-/**
 *	Player State:
 **/
 #include "shared/player_state.h"
-
+/**
+*	Player Movement:
+**/
+#include "shared/player_move.h"
 
 
 // WID: C++20: In case of C++ including this..

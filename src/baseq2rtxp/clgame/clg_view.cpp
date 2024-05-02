@@ -303,12 +303,74 @@ const float PF_CalculateFieldOfView( const float fov_x, const float width, const
 }
 
 /**
-*   @brief
+*   @brief  Calculate final client sided view offset.
+**/
+static void CLG_CalcViewOffset( ) {
+
+}
+
+/**
+*   @brief  Setup a first person scene view.
 **/
 static void CLG_SetupFirstPersonView( void ) {
+    /**
+    *   calculate speed and cycle to be used for
+    *   all cyclic walking effects
+    **/
+    //// TODO: Get data from predictedState, requires PM_FootStep PMove stuff.
+    ////level.viewBob.xySpeed = clgi.client->predictedState.pm.xySpeed;
+    //level.viewBob.xySpeed = sqrtf( 
+    //    clgi.client->predictedState.view.velocity[ 0 ] * clgi.client->predictedState.view.velocity[ 0 ] + clgi.client->predictedState.view.velocity[ 1 ] * clgi.client->predictedState.view.velocity[ 1 ] 
+    //);
+
+    //if ( level.viewBob.xySpeed < 5 ) {
+    //    level.viewBob.move = 0;
+    //    level.viewBob.time = 0;    // Retart at the beginning of a cycle again.
+    //} else if ( clgi.client->predictedState.pm.playerState.pmove.pm_flags & PMF_ON_GROUND ) {
+    //    // So bobbing only cycles when on ground
+    //    //if ( xyspeed > 210 )
+    //    //	bobmove = 0.25f;
+    //    //else if ( xyspeed > 100 )
+    //    //	bobmove = 0.125f;
+    //    //else
+    //    //	bobmove = 0.0625f;
+    //    if ( level.viewBob.xySpeed > 210 ) {
+    //        level.viewBob.move = clgi.frame_time_ms / 400.f;
+    //    } else if ( level.viewBob.xySpeed > 100 ) {
+    //        level.viewBob.move = clgi.frame_time_ms / 800.f;
+    //    } else {
+    //        level.viewBob.move = clgi.frame_time_ms / 1600.f;
+    //    }
+    //} else {
+    //    level.viewBob.move = 0;
+    //}
+
+    //double bobtime = ( level.viewBob.time += level.viewBob.move );
+    //const double bobtime_run = bobtime;
+
+    //// Account for ducking.
+    //if ( ( clgi.client->predictedState.pm.playerState.pmove.pm_flags & PMF_DUCKED ) &&
+    //    clgi.client->predictedState.pm.ground.entity != nullptr ) {
+    //    bobtime *= 4;
+    //}
+
+    //level.viewBob.cycle = (int64_t)bobtime;
+    //level.viewBob.cycle_run = (int64_t)bobtime_run;
+    //level.viewBob.fracSin = fabs( sin( bobtime * M_PI ) );
+
+    ////// Apply all the damage taken this frame
+    ////CLG_DamageFeedback( ent );
+
+    ////// determine the view offsets
+    //CLG_CalcViewOffset( );
+
+    //// determine the gun offsets
+    //CLG_CalcGunOffset( ent );
+
+    // Lerp fraction.
     const float lerp = clgi.client->lerpfrac;
 
-    // Add kick angles
+    // Add server sided frame kick angles.
     if ( cl_kickangles->integer ) {
         player_state_t *ps = &clgi.client->frame.ps;
         player_state_t *ops = &clgi.client->oldframe.ps;
@@ -316,9 +378,6 @@ static void CLG_SetupFirstPersonView( void ) {
         const Vector3 kickAngles = QM_Vector3LerpAngles( ops->kick_angles, ps->kick_angles, lerp );
         VectorAdd( clgi.client->refdef.viewangles, kickAngles, clgi.client->refdef.viewangles );
     }
-
-    // Add the view weapon model.
-    CLG_AddViewWeapon();
 
     // Inform client state we're not in third-person view.
     clgi.client->thirdPersonView = false;
@@ -338,6 +397,7 @@ static void CLG_SetupThirdPersionView( void ) {
     if ( clgi.client->frame.ps.stats[ STAT_HEALTH ] <= 0 ) {
         clgi.client->refdef.viewangles[ ROLL ] = 0;
         clgi.client->refdef.viewangles[ PITCH ] = 10;
+        clgi.client->refdef.viewangles[ YAW ] = clgi.client->frame.ps.stats[ STAT_KILLER_YAW ];
     }
 
     VectorMA( clgi.client->refdef.vieworg, 512, clgi.client->v_forward, focus );
@@ -667,6 +727,9 @@ void PF_PrepareViewEntites( void ) {
     CLG_AddParticles();
     CLG_AddDLights();
     CLG_AddLightStyles();
+
+    // Add the view weapon model.
+    CLG_AddViewWeapon();
 
     // Add in .md2/.md3/.iqm model 'debugger' entity.
     //CLG_AddTestModel();
