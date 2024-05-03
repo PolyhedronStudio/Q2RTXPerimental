@@ -396,15 +396,15 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 			const float ladder_speed = std::clamp( (float)pm->cmd.forwardmove, -pmp->pm_ladder_speed, pmp->pm_ladder_speed );
 			if ( pm->cmd.forwardmove > 0 ) {
 				#ifdef PM_CLAMP_VIEWANGLES_0_TO_360
-				if ( pm->playerState.viewangles[ PITCH ] >= 271 && pm->playerState.viewangles[ PITCH ] < 345 ) {
+				if ( ps->viewangles[ PITCH ] >= 271 && ps->viewangles[ PITCH ] < 345 ) {
 					wishVelocity.z = ladder_speed;
-				} else if ( pm->playerState.viewangles[ PITCH ] < 271 && pm->playerState.viewangles[ PITCH ] >= 15 ) {
+				} else if ( ps->viewangles[ PITCH ] < 271 && ps->viewangles[ PITCH ] >= 15 ) {
 					wishVelocity.z = -ladder_speed;
 				}
 				#else
-				if ( pm->playerState.viewangles[ PITCH ] < 15 ) {
+				if ( ps->viewangles[ PITCH ] < 15 ) {
 					wishVelocity.z = ladder_speed;
-				} else if ( pm->playerState.viewangles[ PITCH ] < 271 && pm->playerState.viewangles[ PITCH ] >= 15 ) {
+				} else if ( ps->viewangles[ PITCH ] < 271 && ps->viewangles[ PITCH ] >= 15 ) {
 					wishVelocity.z = -ladder_speed;
 				}
 				#endif
@@ -1347,7 +1347,7 @@ static void PM_DropTimers() {
 void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	// Store pointers to the pmove object and the parameters supplied for this move.
 	pm = pmove;
-	ps = &pm->playerState;
+	ps = pm->playerState;
 	pmp = params;
 
 	// Clear out several member variables which require a fresh state before performing the move.
@@ -1381,7 +1381,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	pml.frameTime = pm->cmd.msec * 0.001f;
 
 	// Clamp view angles.
-	PM_UpdateViewAngles( &pm->playerState, &pm->cmd );
+	PM_UpdateViewAngles( ps, &pm->cmd );
 
 	/**
 	*	PM_SPECTATOR/PM_NOCLIP:
@@ -1472,7 +1472,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		// Otherwise default to generic move code.
 		} else {
 			// Different pitch handling.
-			Vector3 angles = pm->playerState.viewangles;
+			Vector3 angles = ps->viewangles;
 			if ( angles[ PITCH ] > 180 ) {
 				angles[ PITCH ] = angles[ PITCH ] - 360;
 			}

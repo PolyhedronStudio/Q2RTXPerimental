@@ -93,7 +93,7 @@ typedef struct {
     /**
     *   (In/Out):
     **/
-    player_state_t playerState; //pmove_state_t s;
+    player_state_t *playerState; //pmove_state_t s;
 
     /**
     *   (In):

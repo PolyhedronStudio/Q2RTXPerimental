@@ -530,7 +530,7 @@ void V_RenderView(void) {
         cl.refdef.dlights = cl.viewScene.r_dlights;
         cl.refdef.lightstyles = cl.viewScene.r_lightstyles;
 
-        cl.refdef.rdflags = cl.frame.ps.rdflags | cl.predictedState.view.rdflags;
+        cl.refdef.rdflags = cl.frame.ps.rdflags | cl.predictedState.playerState.rdflags;
 
         // sort entities for better cache locality
         qsort( cl.refdef.entities, cl.refdef.num_entities, sizeof( cl.refdef.entities[ 0 ] ), entitycmpfnc );

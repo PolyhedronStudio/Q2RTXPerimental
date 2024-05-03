@@ -251,26 +251,18 @@ static void CL_SetActiveState(void)
         CL_FirstDemoFrame();
     } else {
         // Set the initial client predicted state values.
-        VectorCopy(cl.frame.ps.pmove.origin, cl.predictedState.view.origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
-        VectorCopy(cl.frame.ps.pmove.velocity, cl.predictedState.view.velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
+        cl.predictedState.playerState = cl.frame.ps;
+        cl.predictedState.lastPlayerState = cl.frame.ps;
+        //VectorCopy(cl.frame.ps.pmove.origin, cl.predictedState.view.origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
+        //VectorCopy(cl.frame.ps.pmove.velocity, cl.predictedState.view.velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
         if (cl.frame.ps.pmove.pm_type < PM_DEAD &&
             cls.serverProtocol >= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
             // enhanced servers don't send viewangles
             CL_PredictAngles();
         } else {
             // just use what server provided
-            VectorCopy(cl.frame.ps.viewangles, cl.predictedState.view.angles);
+            VectorCopy( cl.frame.ps.viewangles, cl.predictedState.playerState.viewangles );
         }
-
-        // Copy predicted screen blend, renderflags and viewheight.
-        cl.predictedState.view.screen_blend.x = cl.frame.ps.screen_blend[ 0 ];
-        cl.predictedState.view.screen_blend.y = cl.frame.ps.screen_blend[ 1 ];
-        cl.predictedState.view.screen_blend.z = cl.frame.ps.screen_blend[ 2 ];
-        cl.predictedState.view.screen_blend.w = cl.frame.ps.screen_blend[ 3 ];
-        // Copy predicted rdflags.
-        cl.predictedState.view.rdflags = cl.frame.ps.rdflags;
-        // Copy current viewheight into prev and current viewheights.
-        cl.predictedState.view.height[ 0 ] = cl.predictedState.view.height[ 1 ] = cl.frame.ps.pmove.viewheight;
     }
 
     // Reset local time of viewheight changes.
@@ -279,8 +271,7 @@ static void CL_SetActiveState(void)
 
     // Reset ground information.
     cl.predictedState.ground = {};
-    //cl.predictedState.groundEntity = nullptr;
-    //cl.predictedState.groundPlane = { };
+    cl.predictedState.liquid = {};
 
     // Fire the ClientBegin callback of the client game module.
     clge->ClientBegin();

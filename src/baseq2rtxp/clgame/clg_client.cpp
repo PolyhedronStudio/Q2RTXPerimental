@@ -118,7 +118,7 @@ void PF_ClientRefreshFrame( void ) {
 	*	We update the reverb effect if needed due to client prediction, by the framerate's rate.
 	**/
 	// Force orverride it for underwater flag.
-	if ( clgi.client->predictedState.view.rdflags & RDF_UNDERWATER ) {
+	if ( clgi.client->predictedState.playerState.rdflags & RDF_UNDERWATER ) {
 		// Apply underwater reverb.
 		CLG_EAX_SetEnvironment( SOUND_EAX_EFFECT_UNDERWATER );
 

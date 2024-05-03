@@ -148,4 +148,13 @@ typedef struct {
 
     //! Numerical player stats storage. ( fast status bar updates etc. )
     int32_t stats[ MAX_STATS ];
+
+    /**
+    *   Not communicated over the net at all.
+    **/
+    //! server to game info for scoreboard			
+    //int32_t ping; 
+    //int64_t pmove_framecount;
+    //int32_t	jumppad_frame;
+    //int64_t	entityEventSequence;
 } player_state_t;

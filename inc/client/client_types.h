@@ -155,45 +155,59 @@ typedef struct client_predicted_state_s {
     //double view_previous_height;
     //double view_current_height;
     //uint64_t view_height_time;
-    pmove_t pm;
+    //pmove_t pm;
 
-    //! Origin, angles and velocity and several other values of current frame pmove's predicted results.
-    struct {
-        // Predicted origin, velocity and angles.
-        Vector3 origin;
-        Vector3 velocity;
-        Vector3 angles;
-        //! Predicted step, for stair up smoothing. Lerped over 100ms and subtracted from local origin when prediction is enabled.
-        double step;
+    ////! Origin, angles and velocity and several other values of current frame pmove's predicted results.
+    //struct {
+    //    // Predicted origin, velocity and angles.
+    //    Vector3 origin;
+    //    Vector3 velocity;
+    //    Vector3 angles;
+    //    //! Predicted step, for stair up smoothing. Lerped over 100ms and subtracted from local origin when prediction is enabled.
+    //    double step;
 
-        // Predicted view offset and height.
-        //Vector3 viewOffset;
+    //    // Predicted view offset and height.
+    //    //Vector3 viewOffset;
 
-        //! Predicted view offset. (Without the height addition.)
-        Vector3 offset;
-        //! Predicted view height. (To add on to the viewOffset to get the complete view offset.)
-        //! Slot 0 is always the newly set viewheight, slot 1 is for storing the local previous viewheight, this gives us a smoother lerp.
-        double height[2];
+    //    //! Predicted view offset. (Without the height addition.)
+    //    Vector3 offset;
+    //    //! Predicted view height. (To add on to the viewOffset to get the complete view offset.)
+    //    //! Slot 0 is always the newly set viewheight, slot 1 is for storing the local previous viewheight, this gives us a smoother lerp.
+    //    double height[2];
 
-        //! Total accumulated screen blend.
-        Vector4 screen_blend;
-        //! Refdef Flags.
-        int32_t rdflags;
-    } view;
+    //    //! Total accumulated screen blend.
+    //    Vector4 screen_blend;
+    //    //! Refdef Flags.
+    //    int32_t rdflags;
+    //} view;
 
-    //! Times when a view value has changed.
-    struct {
-        //! local clgi.client->time of a(and the last) view height change.
-        uint64_t height_changed;
-        //! local clgi.client->time of a(and the last) step height change.
-        uint64_t step_changed;
-    } time;
+    //! This is always set at receiving a new valid frame, where after that it'll contain the predicted
+    //! player state for the next amount of frames until receiving yet another valid frame.
+    player_state_t playerState;
+    //! This is always the last valid frame's playerState.
+    player_state_t lastPlayerState;
+
+    //! Bounding Box.
+    Vector3 mins, maxs;
 
     //! Stores the ground information. If there is no actual active, valid, ground, then ground.entity will be nullptr.
     pm_ground_info_t ground;
 
     //! Stores the 'liquid' information. This can be lava, slime, or water.
     pm_liquid_info_t liquid;
+
+    //! Stair transitions.
+    float step;
+    //! Viewheight transition.
+    float viewheight[ 2 ];
+
+    //! Times for when certain view values have last changed.
+    struct {
+        //! local clgi.client->time of a(and the last) view height change.
+        uint64_t height_changed;
+        //! local clgi.client->time of a(and the last) step height change.
+        uint64_t step_changed;
+    } time;
 
     //! Margin of error for this frame.
     Vector3 error;
@@ -265,7 +279,7 @@ typedef struct {
 typedef struct client_state_s {
     //! Used for chats, for possible time-outs.
     int64_t     timeoutcount;
-    //! Dirty demo configstrings.
+    //! 'Dirty', so said the old q2rtx comment, demo configstrings. Idk why 'Dirty', someone, go clean them plz.
     byte        dcs[ CS_BITMAP_BYTES ];
 
     /**
@@ -273,7 +287,7 @@ typedef struct client_state_s {
     *   Client User Command Related:
     *
     **/
-    //! The initiali client frame sequence.
+    //! The initial client frame sequence.
     int64_t initialSeq;
 
     //! Immediately send the 'command' packet, or not.
@@ -310,6 +324,9 @@ typedef struct client_state_s {
 
     //! The current pmove state to be predicted this frame.
     client_predicted_state_t predictedState;
+    //! This is always set at receiving a new valid frame, where after that it'll contain the predicted
+    //! player state for the next amount of frames until receiving yet another valid frame.
+    //player_state_t predictedPlayerState;
 
     //! Clien't s audio spatialized data.
     client_listener_spatialization_t listener_spatialize;

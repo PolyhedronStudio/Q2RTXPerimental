@@ -1667,7 +1667,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     //}
 
     if ( delta < 15 ) {
-        if ( !( pm.playerState.pmove.pm_flags & PMF_ON_LADDER ) ) {
+        if ( !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) {
             ent->s.event = EV_FOOTSTEP;
             gi.dprintf( "%s: delta < 15 footstep\n", __func__ );
         }
@@ -1703,7 +1703,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
 
     // Paril: falling damage noises alert monsters
     if ( ent->health )
-        PlayerNoise( ent, &pm.playerState.pmove.origin[ 0 ], PNOISE_SELF);
+        PlayerNoise( ent, &pm.playerState->pmove.origin[ 0 ], PNOISE_SELF);
 }
 
 /*
@@ -1777,14 +1777,14 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         client->ps.pmove.gravity = (short)( sv_gravity->value * ent->gravity );
         
         //pm.playerState = client->ps;
-        pm.playerState = client->ps;
+        pm.playerState = &client->ps;
 
 		// Copy the current entity origin and velocity into our 'pmove movestate'.
-        pm.playerState.pmove.origin = ent->s.origin;
-        pm.playerState.pmove.velocity = ent->velocity;
+        pm.playerState->pmove.origin = ent->s.origin;
+        pm.playerState->pmove.velocity = ent->velocity;
 
 		// Determine if it has changed and we should 'resnap' to position.
-        if ( memcmp( &client->old_pmove, &pm.playerState.pmove, sizeof( pm.playerState.pmove ) ) ) {
+        if ( memcmp( &client->old_pmove, &pm.playerState->pmove, sizeof( pm.playerState->pmove ) ) ) {
             pm.snapinitial = true; // gi.dprintf ("pmove changed!\n");
         }
 		// Setup user commands and function pointers.
@@ -1799,15 +1799,15 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         SG_PlayerMove( &pm, &pmp );
 
         // Save into the client pointer, the resulting move states pmove
-        client->ps = pm.playerState;
+        client->ps = *pm.playerState;
         //client->ps = pm.playerState;
-        client->old_pmove = pm.playerState.pmove;
+        client->old_pmove = pm.playerState->pmove;
         // Backup the command angles given from ast command.
         VectorCopy( ucmd->angles, client->resp.cmd_angles );
 
         // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those.
         if ( pm.ground.entity && ent->groundentity ) {
-            float stepsize = fabs( ent->s.origin[ 2 ] - pm.playerState.pmove.origin[ 2 ] );
+            float stepsize = fabs( ent->s.origin[ 2 ] - pm.playerState->pmove.origin[ 2 ] );
 
             if ( stepsize > PM_MIN_STEP_SIZE && stepsize < PM_MAX_STEP_SIZE ) {
                 ent->s.renderfx |= RF_STAIR_STEP;
@@ -1828,10 +1828,10 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         
         // [Paril-KEX] if we stepped onto/off of a ladder, reset the
         // last ladder pos
-        if ( ( pm.playerState.pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
+        if ( ( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
             VectorCopy( ent->s.origin, client->last_ladder_pos );
 
-            if ( pm.playerState.pmove.pm_flags & PMF_ON_LADDER ) {
+            if ( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) {
                 if ( !deathmatch->integer &&
                     client->last_ladder_sound < level.time ) {
                     ent->s.event = EV_FOOTSTEP_LADDER;
@@ -1844,15 +1844,15 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         const Vector3 old_origin = ent->s.origin;
 
 		// Copy back into the entity, both the resulting origin and velocity.
-		VectorCopy( pm.playerState.pmove.origin, ent->s.origin );
-		VectorCopy( pm.playerState.pmove.velocity, ent->velocity );
+		VectorCopy( pm.playerState->pmove.origin, ent->s.origin );
+		VectorCopy( pm.playerState->pmove.velocity, ent->velocity );
         // Copy back in bounding box results. (Player might've crouched for example.)
         VectorCopy( pm.mins, ent->mins );
         VectorCopy( pm.maxs, ent->maxs );
 
 
 
-        if ( pm.jump_sound && !( pm.playerState.pmove.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquid.level == 0) {
+        if ( pm.jump_sound && !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquid.level == 0) {
             gi.sound( ent, CHAN_VOICE, gi.soundindex( "*jump1.wav" ), 1, ATTN_NORM, 0 );
             // Paril: removed to make ambushes more effective and to
             // not have monsters around corners come to jumps
@@ -1860,7 +1860,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         }
 
 		// Update the entity's other properties.
-        ent->viewheight = (int32_t)pm.playerState.pmove.viewheight;
+        ent->viewheight = (int32_t)pm.playerState->pmove.viewheight;
         ent->liquidlevel = pm.liquid.level;
         ent->liquidtype = pm.liquid.type;
         ent->groundentity = pm.ground.entity;
@@ -1873,7 +1873,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             client->ps.viewangles[PITCH] = -15;
             client->ps.viewangles[YAW] = client->killer_yaw;
         } else {
-            VectorCopy( pm.playerState.viewangles, client->ps.viewangles );
+            VectorCopy( pm.playerState->viewangles, client->ps.viewangles );
             VectorCopy( client->ps.viewangles, client->v_angle );
             AngleVectors( client->v_angle, client->v_forward, nullptr, nullptr );
         }

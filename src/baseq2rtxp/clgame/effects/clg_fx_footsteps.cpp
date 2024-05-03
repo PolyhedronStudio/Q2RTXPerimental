@@ -36,7 +36,7 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
 
     // Get predicted state.
     client_predicted_state_t *predictedState = &clgi.client->predictedState;
-    
+    //player_state_t *predictedPlayerState = &clgi.client->predictedState;
     // The default type is "floor".
     uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_FLOOR_STEPS;
     qhandle_t *material_footsteps = precache.sfx.footsteps.floor;
@@ -63,12 +63,12 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
 
         // See if we're trick jumping, if so, perform a step height + ground offset trace for
         // finding a proper material sound to play while 'landing'.
-        if ( predictedState->pm.playerState.pmove.pm_flags & PMF_TIME_TRICK_JUMP || predictedState->view.velocity.z > 100 ) {
+        if ( predictedState->playerState.pmove.pm_flags & PMF_TIME_TRICK_JUMP || predictedState->playerState.pmove.velocity.z > 100 ) {
             centity_t *traceSkipEntity = &clg_entities[ clgi.client->clientNumber + 1 ];
-            Vector3 traceStart = predictedState->pm.playerState.pmove.origin;
+            Vector3 traceStart = predictedState->playerState.pmove.origin;
             Vector3 traceEnd = traceStart + Vector3{ 0, 0, -( PM_MAX_STEP_SIZE + 0.25 ) };
-            Vector3 traceMins = predictedState->pm.mins;
-            Vector3 traceMaxs = predictedState->pm.maxs;
+            Vector3 traceMins = predictedState->mins;
+            Vector3 traceMaxs = predictedState->maxs;
             trace_t groundTrace = clgi.Trace( &traceStart.x, &traceMins.x, &traceMaxs.x, &traceEnd.x, traceSkipEntity, MASK_SOLID );
 
             if ( groundTrace.material ) {
