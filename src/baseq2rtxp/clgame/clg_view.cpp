@@ -548,11 +548,11 @@ static void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_
         LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
     } else if ( ps->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
         // use predicted values
-        VectorCopy( clgi.client->predictedState.playerState.viewangles, clgi.client->refdef.viewangles );
+        VectorCopy( clgi.client->predictedState.currentPs.viewangles, clgi.client->refdef.viewangles );
     } else if ( ops->pmove.pm_type < PM_DEAD /*&& !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )*/ ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
         // lerp from predicted angles, since enhanced servers
         // do not send viewangles each frame
-        LerpAngles( clgi.client->predictedState.playerState.viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
+        LerpAngles( clgi.client->predictedState.currentPs.viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
     } else {
         //if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
         // just use interpolated values
@@ -608,11 +608,11 @@ static void CLG_LerpScreenBlend( player_state_t *ops, player_state_t *ps, client
 
     // Mix in screen_blend from cgame pmove
     // FIXME: Should also be interpolated?...
-    if ( predictedState->playerState.screen_blend[ 3 ] > 0 ) {
-        float a2 = clgi.client->refdef.screen_blend[ 3 ] + ( 1 - clgi.client->refdef.screen_blend[ 3 ] ) * predictedState->playerState.screen_blend[ 3 ]; // new total alpha
+    if ( predictedState->currentPs.screen_blend[ 3 ] > 0 ) {
+        float a2 = clgi.client->refdef.screen_blend[ 3 ] + ( 1 - clgi.client->refdef.screen_blend[ 3 ] ) * predictedState->currentPs.screen_blend[ 3 ]; // new total alpha
         float a3 = clgi.client->refdef.screen_blend[ 3 ] / a2; // fraction of color from old
 
-        LerpVector( predictedState->playerState.screen_blend, clgi.client->refdef.screen_blend, a3, clgi.client->refdef.screen_blend );
+        LerpVector( predictedState->currentPs.screen_blend, clgi.client->refdef.screen_blend, a3, clgi.client->refdef.screen_blend );
         clgi.client->refdef.screen_blend[ 3 ] = a2;
     }
 }
@@ -645,7 +645,7 @@ void PF_CalculateViewValues( void ) {
         // use predicted values
         const double backLerp = 1.0 - lerpFrac;
         // Take the prediction error into account.
-        VectorMA( clgi.client->predictedState.playerState.pmove.origin, backLerp, clgi.client->predictedState.error, clgi.client->refdef.vieworg );
+        VectorMA( clgi.client->predictedState.currentPs.pmove.origin, backLerp, clgi.client->predictedState.error, clgi.client->refdef.vieworg );
     } else {
         // Just use interpolated values.
         Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );

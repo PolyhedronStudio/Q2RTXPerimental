@@ -183,9 +183,9 @@ typedef struct client_predicted_state_s {
 
     //! This is always set at receiving a new valid frame, where after that it'll contain the predicted
     //! player state for the next amount of frames until receiving yet another valid frame.
-    player_state_t playerState;
+    player_state_t currentPs;
     //! This is always the last valid frame's playerState.
-    player_state_t lastPlayerState;
+    player_state_t lastPs;
 
     //! Bounding Box.
     Vector3 mins, maxs;

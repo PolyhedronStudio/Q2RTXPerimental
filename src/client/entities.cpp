@@ -251,8 +251,8 @@ static void CL_SetActiveState(void)
         CL_FirstDemoFrame();
     } else {
         // Set the initial client predicted state values.
-        cl.predictedState.playerState = cl.frame.ps;
-        cl.predictedState.lastPlayerState = cl.frame.ps;
+        cl.predictedState.currentPs = cl.frame.ps;
+        cl.predictedState.lastPs = cl.frame.ps;
         //VectorCopy(cl.frame.ps.pmove.origin, cl.predictedState.view.origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
         //VectorCopy(cl.frame.ps.pmove.velocity, cl.predictedState.view.velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
         if (cl.frame.ps.pmove.pm_type < PM_DEAD &&
@@ -261,7 +261,8 @@ static void CL_SetActiveState(void)
             CL_PredictAngles();
         } else {
             // just use what server provided
-            VectorCopy( cl.frame.ps.viewangles, cl.predictedState.playerState.viewangles );
+            VectorCopy( cl.frame.ps.viewangles, cl.predictedState.currentPs.viewangles );
+            VectorCopy( cl.frame.ps.viewangles, cl.predictedState.lastPs.viewangles );
         }
     }
 

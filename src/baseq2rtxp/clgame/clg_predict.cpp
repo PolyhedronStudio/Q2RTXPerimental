@@ -138,11 +138,11 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
         //out->view.velocity = in->velocity;
         //out->view.rdflags = clgi.client->frame.ps.rdflags;
         //out->view.screen_blend = clgi.client->frame.ps.screen_blend;
-        out->lastPlayerState = clgi.client->frame.ps;
-        out->playerState = clgi.client->frame.ps;
-        //out->playerState.pmove.origin = in->origin;
-        //out->playerState.pmove.velocity = in->velocity;
-        out->playerState.pmove = *in;
+        out->lastPs = clgi.client->frame.ps;
+        out->currentPs = clgi.client->frame.ps;
+        //out->currentPs.pmove.origin = in->origin;
+        //out->currentPs.pmove.velocity = in->velocity;
+        out->currentPs.pmove = *in;
         out->error = {};
 
         out->viewheight[ 0 ] = out->viewheight[ 1 ] = clgi.client->frame.ps.pmove.viewheight; //out->view_current_height = out->view_previous_height = clgi.client->frame.ps.pmove.viewheight;
@@ -186,11 +186,11 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
 
             //out->view.rdflags = 0;
             //out->view.screen_blend = {};
-            out->lastPlayerState = clgi.client->frame.ps;
-            out->playerState = clgi.client->frame.ps;
-            //out->playerState.pmove.origin = in->origin;
-            //out->playerState.pmove.velocity = in->velocity;
-            out->playerState.pmove = *in;
+            out->lastPs = clgi.client->frame.ps;
+            out->currentPs = clgi.client->frame.ps;
+            //out->currentPs.pmove.origin = in->origin;
+            //out->currentPs.pmove.velocity = in->velocity;
+            out->currentPs.pmove = *in;
             out->error = {};
 
             out->viewheight[ 0 ] = out->viewheight[ 1 ] = clgi.client->frame.ps.pmove.viewheight; //out->view_current_height = out->view_previous_height = clgi.client->frame.ps.pmove.viewheight;
@@ -218,12 +218,12 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
 void PF_PredictAngles( void ) {
     // Don't predict angles if the pmove asks so specifically.
     if ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )/* || !cl_predict->integer*/ ) {
-        VectorCopy( clgi.client->frame.ps.viewangles, clgi.client->predictedState.playerState.viewangles );
+        VectorCopy( clgi.client->frame.ps.viewangles, clgi.client->predictedState.currentPs.viewangles );
         return;
     }
 
     // This is done even with cl_predict == 0.
-	VectorAdd( clgi.client->viewangles, clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.playerState.viewangles );
+	VectorAdd( clgi.client->viewangles, clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.currentPs.viewangles );
 }
 
 /**
@@ -246,8 +246,11 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     //    clgi.Print( PRINT_DEVELOPER, "predictedState.groundEntity(%s)\n", " NONE " );
     //}
 
+    // Shuffle current to last playerState.
+    predictedState->lastPs = predictedState->currentPs;
+
     // Start off with the latest valid frame player state.
-    player_state_t pmPlayerState = predictedState->playerState = clgi.client->frame.ps;
+    player_state_t pmPlayerState = predictedState->currentPs = clgi.client->frame.ps;
 
     // Prepare our player move, setup the client side trace function pointers.
     pmove_t pm = {
@@ -345,9 +348,8 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
     PF_AdjustViewHeight( pm.playerState->pmove.viewheight );
 
-    // Swap into last player state.
-    predictedState->lastPlayerState = predictedState->playerState;
-    predictedState->playerState = pmPlayerState;
+    // Swap in the resulting new pmove player state.
+    predictedState->currentPs = pmPlayerState;
     //// Start off with the latest valid frame player state.
-    //player_state_t pmPlayerState = predictedState->playerState = clgi.client->frame.ps;
+    //player_state_t pmPlayerState = predictedState->currentPs = clgi.client->frame.ps;
 }

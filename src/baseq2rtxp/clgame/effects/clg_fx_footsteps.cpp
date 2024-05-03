@@ -63,9 +63,11 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
 
         // See if we're trick jumping, if so, perform a step height + ground offset trace for
         // finding a proper material sound to play while 'landing'.
-        if ( predictedState->playerState.pmove.pm_flags & PMF_TIME_TRICK_JUMP || predictedState->playerState.pmove.velocity.z > 100 ) {
+        player_state_t *currentPs = &predictedState->currentPs;
+
+        if ( currentPs->pmove.pm_flags & PMF_TIME_TRICK_JUMP || currentPs->pmove.velocity.z > 100 ) {
             centity_t *traceSkipEntity = &clg_entities[ clgi.client->clientNumber + 1 ];
-            Vector3 traceStart = predictedState->playerState.pmove.origin;
+            Vector3 traceStart = currentPs->pmove.origin;
             Vector3 traceEnd = traceStart + Vector3{ 0, 0, -( PM_MAX_STEP_SIZE + 0.25 ) };
             Vector3 traceMins = predictedState->mins;
             Vector3 traceMaxs = predictedState->maxs;
