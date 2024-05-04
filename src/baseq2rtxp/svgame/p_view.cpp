@@ -240,27 +240,20 @@ void SV_CalcViewOffset( edict_t *ent ) {
 	// base angles
 	angles = &ent->client->ps.kick_angles.x;
 
-	// if dead, fix the angle and don't add any kick
+	// If dead, fix the angle and don't add any kicks
 	if ( ent->deadflag ) {
+		// Clear out weapon kick angles.
 		VectorClear( angles );
 
+		// Apply death view angles.
 		ent->client->ps.viewangles[ ROLL ] = 40;
 		ent->client->ps.viewangles[ PITCH ] = -15;
 		ent->client->ps.viewangles[ YAW ] = ent->client->killer_yaw;
 	} else {
-		// add angles based on weapon kick
+		// Start the angles based on weapon kick
 		VectorCopy( ent->client->kick_angles, angles );
 
-		// add angles based on damage kick
-		//ratio = (ent->client->v_dmg_time - level.time).seconds() / DAMAGE_TIME().seconds();
-		//if (ratio < 0) {
-		//    ratio = 0;
-		//    ent->client->v_dmg_pitch = 0;
-		//    ent->client->v_dmg_roll = 0;
-		//}
-		//angles[PITCH] += ratio * ent->client->v_dmg_pitch;
-		//angles[ROLL] += ratio * ent->client->v_dmg_roll;
-		// add angles based on damage kick
+		// Add angles based on the damage kick
 		if ( ent->client->v_dmg_time > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
@@ -279,11 +272,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 			angles[ ROLL ] += ratio * ent->client->v_dmg_roll;
 		}
 
-		// add pitch based on fall kick
-		//ratio = (ent->client->fall_time - level.time).seconds() / FALL_TIME().seconds( );
-		//if (ratio < 0)
-		//    ratio = 0;
-		//angles[PITCH] += ratio * ent->client->fall_value;
+		// Add pitch based on the fall kick.
 		if ( ent->client->fall_time > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
@@ -300,7 +289,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 			angles[ PITCH ] += ratio * ent->client->fall_value;
 		}
 
-		// add angles based on velocity
+		// Add angles based on the entity's velocity.
 		if ( /*!ent->client->pers.bob_skip &&*/ !SkipViewModifiers( ) ) {
 			//delta = ent->velocity.dot( forward );
 			delta = DotProduct( ent->velocity, ( forward ) );
@@ -310,7 +299,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 			delta = DotProduct( ent->velocity, ( right ) );
 			angles[ ROLL ] += delta * run_roll->value;
 
-			// add angles based on bob
+			// Add angles based on bob fractional sin value.
 			delta = bobfracsin * bob_pitch->value * xyspeed;
 			if ( ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity )
 				delta *= 6; // crouching

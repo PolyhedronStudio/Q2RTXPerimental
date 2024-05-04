@@ -161,6 +161,58 @@ static const int32_t shell_effect_hack( void ) {
 }
 
 /**
+*   
+**/
+static void CLG_CalculateViewWeaponDrag( player_state_t *ops, player_state_t *ps, entity_t *weaponModelEntity ) {
+    // Last facing direction.
+    static Vector3 lastFacingAngles = QM_Vector3Zero();
+    // Actual lag we allow to stay behind.
+    static constexpr float maxViewModelLag = 1.15f;
+
+    //Calculate the difference between current and last facing forward angles.
+    Vector3 difference = clgi.client->v_forward - lastFacingAngles;
+
+    // Actual speed to move at.
+    constexpr float constSpeed = 12.15;
+    float speed = constSpeed;
+
+    // When the yaw is rotating too fast, it'll get choppy and "lag" behind. Interpolate to neatly catch up,
+    // gives a more realism effect to go along with it.
+    const float distance = QM_Vector3Length( difference );
+    if ( distance > maxViewModelLag ) {
+        speed *= distance / maxViewModelLag;
+    }
+
+    //lastFacingAngles = QM_Vector3MultiplyAdd( lastFacingAngles, 1, difference );
+    lastFacingAngles = QM_Vector3MultiplyAdd( lastFacingAngles, speed * clgi.GetFrameTime(), difference );
+    lastFacingAngles = QM_Vector3Normalize( lastFacingAngles );
+
+    difference = QM_Vector3Negate( difference );
+    Vector3 gunOrigin = weaponModelEntity->origin;
+    Vector3 draggedGunOrigin = QM_Vector3MultiplyAdd( gunOrigin, constSpeed, difference );
+
+    // Calculate Pitch.
+    float pitch = QM_AngleMod( weaponModelEntity->angles[ PITCH ] );
+    if ( pitch > 180.0f ) {
+        pitch -= 360.0f;
+    } else if ( pitch < -180.0f ) {
+        pitch += 360.0f;
+    }
+
+    // Now apply to our origin.
+    draggedGunOrigin = QM_Vector3MultiplyAdd( draggedGunOrigin, -pitch * 0.035f, clgi.client->v_forward );
+    draggedGunOrigin = QM_Vector3MultiplyAdd( draggedGunOrigin, -pitch * 0.03f, clgi.client->v_right );
+    draggedGunOrigin = QM_Vector3MultiplyAdd( draggedGunOrigin, -pitch * 0.02f, clgi.client->v_up );
+
+    // Copy back into refresh entity vec3_t origin.
+    VectorCopy( draggedGunOrigin, weaponModelEntity->origin );
+
+    // Debug...
+    clgi.Print( PRINT_DEVELOPER, "%s: ps->gunorgin[%f, %f, %f], draggedGunOrigin[ %f, %f, %f] \n",
+        __func__, gunOrigin[ 0 ], gunOrigin[ 1 ], gunOrigin[ 2 ], draggedGunOrigin[ 0 ], draggedGunOrigin[ 1 ], draggedGunOrigin[ 2 ] );
+}
+
+/**
 *   @brief  Adds the first person view its weapon model entity.
 **/
 static void CLG_AddViewWeapon( void ) {
@@ -194,13 +246,18 @@ static void CLG_AddViewWeapon( void ) {
 
     gun.id = RENTITIY_RESERVED_GUN;
 
-    // set up gun position
-    for ( i = 0; i < 3; i++ ) {
-        gun.origin[ i ] = clgi.client->refdef.vieworg[ i ] + ops->gunoffset[ i ] +
-            clgi.client->lerpfrac * ( ps->gunoffset[ i ] - ops->gunoffset[ i ] );
-        gun.angles[ i ] = clgi.client->refdef.viewangles[ i ] + LerpAngle( ops->gunangles[ i ],
-            ps->gunangles[ i ], clgi.client->lerpfrac );
-    }
+    // Calculate the lerped gun position.
+    Vector3 gunOrigin = clgi.client->refdef.vieworg + QM_Vector3Lerp( ops->gunoffset, ps->gunoffset, clgi.client->lerpfrac );
+    // Calculate the lerped gun angles.
+    Vector3 gunAngles = clgi.client->refdef.viewangles + QM_Vector3LerpAngles( ops->gunangles, ps->gunangles, clgi.client->lerpfrac );
+    // Copy the calculated gun position and angles into vec3_t's from refresh 'entity_t'.
+    VectorCopy( gunOrigin, gun.origin );
+    VectorCopy( gunAngles, gun.angles );
+
+    // Calculate view weapon drag to prevent origin jumps when yaw changes rapidly.
+    //CLG_CalculateViewWeaponDrag( ops, ps, &gun );
+    //gunOrigin = QM_Vector3Lerp( gunOrigin, gun.origin, clgi.client->lerpfrac );
+    //VectorCopy( gunOrigin, gun.origin );
 
     // Adjust the gun scale so that the gun doesn't intersect with walls.
     // The gun models are not exactly centered at the camera, so adjusting its scale makes them
@@ -211,6 +268,8 @@ static void CLG_AddViewWeapon( void ) {
     VectorMA( gun.origin, cl_gun_y->value * gun.scale, clgi.client->v_forward, gun.origin );
     VectorMA( gun.origin, cl_gun_x->value * gun.scale, clgi.client->v_right, gun.origin );
     VectorMA( gun.origin, cl_gun_z->value * gun.scale, clgi.client->v_up, gun.origin );
+
+
 
     VectorCopy( gun.origin, gun.oldorigin );      // don't lerp at all
 

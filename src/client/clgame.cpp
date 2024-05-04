@@ -41,6 +41,12 @@ static const uint64_t PF_GetRealTime() {
 	return cls.realtime;
 }
 /**
+*	@return	Seconds since last frame.
+**/
+static const double PF_GetFrameTime() {
+	return cls.frametime;
+}
+/**
 *	@return	Client's actual current 'connection' state.
 **/
 static const int32_t PF_GetConnectionState() {
@@ -669,6 +675,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.GetDemoFileSize = PF_GetDemoFileSize;
 	//
 	imports.GetRealTime = PF_GetRealTime;
+	imports.GetFrameTime = PF_GetFrameTime;
 	imports.GetConnectionState = PF_GetConnectionState;
 	imports.GetRefreshType = PF_GetRefreshType;
 	imports.Sys_Milliseconds = Sys_Milliseconds;

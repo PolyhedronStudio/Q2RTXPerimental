@@ -152,6 +152,7 @@ typedef struct {
 	const int64_t( *GetDemoFileSize )( );
 	// Time/State:
 	const uint64_t ( *GetRealTime )( );
+	const double ( *GetFrameTime )( );
 	const int32_t ( *GetConnectionState )( );
 	const ref_type_t( *GetRefreshType )( );
 	// Actually from Sys_... :
