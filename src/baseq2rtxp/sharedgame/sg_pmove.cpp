@@ -137,9 +137,9 @@ static void PM_UpdateGroundFromTrace( const trace_t *trace ) {
 /**
 *	@brief	Inline-wrapper to for convenience.
 **/
-void PM_AddEvent( const uint8_t newEvent ) {
-	SG_PMoveState_AddPredictableEvent( newEvent, 0, &ps->pmove );
-}
+//void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
+//	SG_PMoveState_AddPredictableEvent( newEvent, parameter, &ps->pmove );
+//}
 
 
 
@@ -184,7 +184,7 @@ static void PM_StepDown( const trace_t *trace ) {
 		pm->step_height = step_height;
 
 		// Add predicted step event.
-		SG_PMoveState_AddPredictableEvent( 1 /*PM_EVENT_STEP*/, fabs( step_height ), &ps->pmove );
+		//PM_AddEvent( 1 /*PM_EVENT_STEP*/, fabs( step_height ) );
 	}
 }
 

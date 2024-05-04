@@ -58,12 +58,12 @@ typedef struct entity_state_s {
 
     int32_t	sound;  //! For looping sounds, to guarantee shutoff
     int32_t	event;  //! Impulse events -- muzzle flashes, footsteps, etc.
-    //! Events only go out for a single frame, and they are automatically cleared after that.
+                    //! Events only go out for a single frame, and they are automatically cleared after that.
 
 //
 //! Spotlights
 //
-//! RGB Color of spotlight.
+    //! RGB Color of spotlight.
     vec3_t rgb;
     //! Intensity of the spotlight.
     float intensity;

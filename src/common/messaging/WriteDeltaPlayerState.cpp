@@ -110,9 +110,9 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	if ( to->pmove.viewheight != from->pmove.viewheight ) {
 		pflags |= PS_M_VIEWHEIGHT;
 	}
-	if ( to->pmove.bob_cycle != from->pmove.bob_cycle ) {
-		pflags |= PS_M_BOB_CYCLE;
-	}
+	//if ( to->pmove.bob_cycle != from->pmove.bob_cycle ) {
+	//	pflags |= PS_M_BOB_CYCLE;
+	//}
 
 	// rest of the player_state_t:
 	if ( !VectorCompare( to->viewoffset, from->viewoffset ) ) {
@@ -184,25 +184,25 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	if ( pflags & PS_M_VIEWHEIGHT ) {
 		MSG_WriteInt8( to->pmove.viewheight );
 	}
-	if ( pflags & PS_M_BOB_CYCLE ) {
-		MSG_WriteUint8( to->pmove.bob_cycle );
-	}
-	// Sequenced Events:
-	if ( pflags & PS_M_EVENT_SEQUENCE ) {
-		MSG_WriteUint8( to->pmove.eventSequence );
-	}
-	if ( pflags & PS_M_EVENT_FIRST ) {
-		MSG_WriteUint8( to->pmove.events[ 0 ] );
-	}
-	if ( pflags & PS_M_EVENT_FIRST_PARM ) {
-		MSG_WriteUint8( to->pmove.eventParms[ 0 ] );
-	}
-	if ( pflags & PS_M_EVENT_SECOND ) {
-		MSG_WriteUint8( to->pmove.events[ 1 ] );
-	}
-	if ( pflags & PS_M_EVENT_SECOND_PARM ) {
-		MSG_WriteUint8( to->pmove.eventParms[ 1 ] );
-	}
+	//if ( pflags & PS_M_BOB_CYCLE ) {
+	//	MSG_WriteUint8( to->pmove.bob_cycle );
+	//}
+	//// Sequenced Events:
+	//if ( pflags & PS_M_EVENT_SEQUENCE ) {
+	//	MSG_WriteUint8( to->pmove.eventSequence );
+	//}
+	//if ( pflags & PS_M_EVENT_FIRST ) {
+	//	MSG_WriteUint8( to->pmove.events[ 0 ] );
+	//}
+	//if ( pflags & PS_M_EVENT_FIRST_PARM ) {
+	//	MSG_WriteUint8( to->pmove.eventParms[ 0 ] );
+	//}
+	//if ( pflags & PS_M_EVENT_SECOND ) {
+	//	MSG_WriteUint8( to->pmove.events[ 1 ] );
+	//}
+	//if ( pflags & PS_M_EVENT_SECOND_PARM ) {
+	//	MSG_WriteUint8( to->pmove.eventParms[ 1 ] );
+	//}
 
 
 	//
