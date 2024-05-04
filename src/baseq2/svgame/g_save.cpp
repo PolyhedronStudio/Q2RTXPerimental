@@ -417,7 +417,7 @@ static const save_field_t clientfields[] = {
 	I( damage_knockback ),
 	V( damage_from ),
 
-	F( killer_yaw ),
+	//F( killer_yaw ),
 
 	I( weaponstate ),
 

@@ -3,23 +3,25 @@
 #	Game: BaseQ2
 #
 #
-# BaseQ2RTXP SharedGame
-SET(SRC_BASEQ2_SHAREDGAME
+# BaseQ2 SharedGame
+SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2/sharedgame/sg_gamemode.cpp
+	baseq2/sharedgame/sg_misc.cpp
 	baseq2/sharedgame/sg_pmove.cpp
 	baseq2/sharedgame/sg_pmove_slidemove.cpp
 )
-SET(HEADERS_BASEQ2_SHAREDGAME
+SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2/sharedgame/sg_cmd_messages.h
 	baseq2/sharedgame/sg_gamemode.h
 	baseq2/sharedgame/sg_local.h
+	baseq2/sharedgame/sg_misc.h
 	baseq2/sharedgame/sg_pmove.h
 	baseq2/sharedgame/sg_pmove_slidemove.h
 	baseq2/sharedgame/sg_shared.h
 	baseq2/sharedgame/sg_time.h
 )
-#	BaseQ2RTXP ClientGame
-SET(SRC_BASEQ2_CLGAME
+#	BaseQ2 ClientGame
+SET(SRC_BASEQ2RTXP_CLGAME
 	# SharedGame API Bindings
 	baseq2/sharedgame/game_bindings/sg_binding_clgame.cpp
 
@@ -58,7 +60,7 @@ SET(SRC_BASEQ2_CLGAME
 	baseq2/clgame/temp_entities/clg_te_railtrails.cpp
 	baseq2/clgame/temp_entities/clg_te_sustain.cpp
 )
-SET(HEADERS_BASEQ2_CLGAME
+SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2/clgame/clg_client.h
 	baseq2/clgame/clg_eax.h
 	baseq2/clgame/clg_effects.h
@@ -77,8 +79,8 @@ SET(HEADERS_BASEQ2_CLGAME
 	baseq2/clgame/local_entities/clg_local_env_sound.h
 	baseq2/clgame/local_entities/clg_local_entity_classes.h
 )
-# BaseQ2RTXP ServerGame
-SET(SRC_BASEQ2_SVGAME
+# BaseQ2 ServerGame
+SET(SRC_BASEQ2RTXP_SVGAME
 	# SharedGame API Bindings
 	baseq2/sharedgame/game_bindings/sg_binding_svgame.cpp
 
@@ -133,7 +135,7 @@ SET(SRC_BASEQ2_SVGAME
 	baseq2/svgame/p_view.cpp
 	baseq2/svgame/p_weapon.cpp
 )
-SET(HEADERS_BASEQ2_SVGAME
+SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2/svgame/g_local.h
 	baseq2/svgame/g_save.h
 

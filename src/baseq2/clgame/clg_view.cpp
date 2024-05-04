@@ -88,6 +88,38 @@ qhandle_t gun;
 static int32_t     gun_frame;
 static qhandle_t   gun_model;
 
+// Gun frame debugging functions
+static void V_Gun_Next_f( void ) {
+    gun_frame++;
+    Com_Printf( "frame %i\n", gun_frame );
+}
+
+static void V_Gun_Prev_f( void ) {
+    gun_frame--;
+    if ( gun_frame < 0 )
+        gun_frame = 0;
+    Com_Printf( "frame %i\n", gun_frame );
+}
+
+static void V_Gun_Model_f( void ) {
+    char    name[ MAX_QPATH ];
+
+    if ( clgi.Cmd_Argc() != 2 ) {
+        gun_model = 0;
+        return;
+    }
+
+    Q_concat( name, sizeof( name ), "models/", clgi.Cmd_Argv( 1 ) );
+    gun_model = clgi.R_RegisterModel( name );
+}
+
+// Model Debugging Cmds:
+cmdreg_t clg_view_cmds[] = {
+    { "gun_next", V_Gun_Next_f },
+    { "gun_prev", V_Gun_Prev_f },
+    { "gun_model", V_Gun_Model_f },
+    { NULL, NULL }
+};
 
 /**
 *   @brief
@@ -271,12 +303,74 @@ const float PF_CalculateFieldOfView( const float fov_x, const float width, const
 }
 
 /**
-*   @brief
+*   @brief  Calculate final client sided view offset.
+**/
+static void CLG_CalcViewOffset( ) {
+
+}
+
+/**
+*   @brief  Setup a first person scene view.
 **/
 static void CLG_SetupFirstPersonView( void ) {
+    /**
+    *   calculate speed and cycle to be used for
+    *   all cyclic walking effects
+    **/
+    //// TODO: Get data from predictedState, requires PM_FootStep PMove stuff.
+    ////level.viewBob.xySpeed = clgi.client->predictedState.pm.xySpeed;
+    //level.viewBob.xySpeed = sqrtf( 
+    //    clgi.client->predictedState.view.velocity[ 0 ] * clgi.client->predictedState.view.velocity[ 0 ] + clgi.client->predictedState.view.velocity[ 1 ] * clgi.client->predictedState.view.velocity[ 1 ] 
+    //);
+
+    //if ( level.viewBob.xySpeed < 5 ) {
+    //    level.viewBob.move = 0;
+    //    level.viewBob.time = 0;    // Retart at the beginning of a cycle again.
+    //} else if ( clgi.client->predictedState.pm.playerState.pmove.pm_flags & PMF_ON_GROUND ) {
+    //    // So bobbing only cycles when on ground
+    //    //if ( xyspeed > 210 )
+    //    //	bobmove = 0.25f;
+    //    //else if ( xyspeed > 100 )
+    //    //	bobmove = 0.125f;
+    //    //else
+    //    //	bobmove = 0.0625f;
+    //    if ( level.viewBob.xySpeed > 210 ) {
+    //        level.viewBob.move = clgi.frame_time_ms / 400.f;
+    //    } else if ( level.viewBob.xySpeed > 100 ) {
+    //        level.viewBob.move = clgi.frame_time_ms / 800.f;
+    //    } else {
+    //        level.viewBob.move = clgi.frame_time_ms / 1600.f;
+    //    }
+    //} else {
+    //    level.viewBob.move = 0;
+    //}
+
+    //double bobtime = ( level.viewBob.time += level.viewBob.move );
+    //const double bobtime_run = bobtime;
+
+    //// Account for ducking.
+    //if ( ( clgi.client->predictedState.pm.playerState.pmove.pm_flags & PMF_DUCKED ) &&
+    //    clgi.client->predictedState.pm.ground.entity != nullptr ) {
+    //    bobtime *= 4;
+    //}
+
+    //level.viewBob.cycle = (int64_t)bobtime;
+    //level.viewBob.cycle_run = (int64_t)bobtime_run;
+    //level.viewBob.fracSin = fabs( sin( bobtime * M_PI ) );
+
+    ////// Apply all the damage taken this frame
+    ////CLG_DamageFeedback( ent );
+
+    ////// determine the view offsets
+    //CLG_CalcViewOffset( );
+
+    //// determine the gun offsets
+    //CLG_CalcGunOffset( ent );
+
+    // Lerp fraction.
     const float lerp = clgi.client->lerpfrac;
 
-    // Add kick angles
+    // Add server sided frame kick angles.
     if ( cl_kickangles->integer ) {
         player_state_t *ps = &clgi.client->frame.ps;
         player_state_t *ops = &clgi.client->oldframe.ps;
@@ -284,9 +378,6 @@ static void CLG_SetupFirstPersonView( void ) {
         const Vector3 kickAngles = QM_Vector3LerpAngles( ops->kick_angles, ps->kick_angles, lerp );
         VectorAdd( clgi.client->refdef.viewangles, kickAngles, clgi.client->refdef.viewangles );
     }
-
-    // Add the view weapon model.
-    CLG_AddViewWeapon();
 
     // Inform client state we're not in third-person view.
     clgi.client->thirdPersonView = false;
@@ -306,6 +397,7 @@ static void CLG_SetupThirdPersionView( void ) {
     if ( clgi.client->frame.ps.stats[ STAT_HEALTH ] <= 0 ) {
         clgi.client->refdef.viewangles[ ROLL ] = 0;
         clgi.client->refdef.viewangles[ PITCH ] = 10;
+        clgi.client->refdef.viewangles[ YAW ] = clgi.client->frame.ps.stats[ STAT_KILLER_YAW ];
     }
 
     VectorMA( clgi.client->refdef.vieworg, 512, clgi.client->v_forward, focus );
@@ -408,23 +500,102 @@ static inline const float lerp_client_fov( float ofov, float nfov, const float l
 /**
 *   @return The predicted and smooth lerped viewheight for the current running prediction frame.
 **/
-const double CLG_SmoothedOutViewHeightChange() {
-    static constexpr int32_t STEP_TIME = 100;
-    static constexpr double STEP_BASE_1_FRAMETIME = ( 1. / STEP_TIME );
-    //float viewheight_lerp = ( clgi.client->time - clgi.client->viewheight.change_time );
-    //viewheight_lerp = STEP_TIME - min( viewheight_lerp, STEP_TIME );
-    //float predicted_viewheight = clgi.client->viewheight.current + (float)( clgi.client->viewheight.previous - clgi.client->viewheight.current ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
-    //viewoffset[ 2 ] += predicted_viewheight;
-    uint64_t timeDelta = STEP_TIME - min( ( clgi.client->time - clgi.client->predictedState.time.height_changed ), STEP_TIME );
-    //double predicted_viewheight = clgi.client->predictedState.view_current_height + (double)( clgi.client->predictedState.view_previous_height - clgi.client->predictedState.view_current_height ) * viewheight_lerp * STEP_BASE_1_FRAMETIME;
-    double predicted_viewheight = clgi.client->predictedState.view.height[ 0 ] + (double)( clgi.client->predictedState.view.height[ 1 ] - clgi.client->predictedState.view.height[ 0 ] ) * timeDelta * STEP_BASE_1_FRAMETIME;
-    return predicted_viewheight;
+const double CLG_SmoothViewHeight() {
+    //! Miliseconds for smoothing out over.
+    static constexpr int32_t HEIGHT_CHANGE__TIME = 100;
+    //! Base 1 Frametime.
+    static constexpr double HEIGHT_CHANGE__BASE_1_FRAMETIME = ( 1. / HEIGHT_CHANGE__TIME );
+    //! Determine delta time.
+    uint64_t timeDelta = HEIGHT_CHANGE__TIME - min( ( clgi.client->time - clgi.client->predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE__TIME );
+    //! Return the frame's adjustment for viewHeight which is added on top of the final vieworigin + viweoffset.
+    return clgi.client->predictedState.transition.view.height[ 0 ] + (double)( clgi.client->predictedState.transition.view.height[ 1 ] - clgi.client->predictedState.transition.view.height[ 0 ] ) * timeDelta * HEIGHT_CHANGE__BASE_1_FRAMETIME;
+}
+
+/**
+*   @brief  Smoothly transit the 'step' offset.
+**/
+static void CLG_SmoothStepOffset() {
+    // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_CHANGE_.. values from SharedGame.
+    // TODO: Is this accurate?
+    // PM_MAX_STEP_CHANGE_HEIGHT = 18
+    // PM_MIN_STEP_CHANGE_HEIGHT = 4
+    //
+    // However, the original code was 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_CHANGE_HEIGHT
+    //static constexpr float STEP_CHANGE_HEIGHT = PM_MAX_STEP_CHANGE_HEIGHT - PM_MIN_STEP_CHANGE_HEIGHT // This seems like what would be more accurate?
+    static constexpr double STEP_SMALL_HEIGHT = 15.f;//15.875;
+    // Time in miliseconds to smooth the view for the step offset with.
+    static constexpr int32_t STEP_CHANGE_TIME = 100;
+    // Base 1 FrameTime.
+    static constexpr double STEP_CHANGE_BASE_1_FRAMETIME = ( 1. / STEP_CHANGE_TIME );
+
+    // Time delta.
+    uint64_t delta = clgi.GetRealTime() - clgi.client->predictedState.transition.step.timeChanged;
+    // Smooth out stair climbing.
+    if ( fabsf( clgi.client->predictedState.transition.step.height ) < STEP_SMALL_HEIGHT ) {
+        delta <<= 1; // Small steps.
+    }
+    // Adjust view org by step height change.
+    if ( delta < STEP_CHANGE_TIME ) {
+        clgi.client->refdef.vieworg[ 2 ] -= clgi.client->predictedState.transition.step.height * ( STEP_CHANGE_TIME - delta ) * STEP_CHANGE_BASE_1_FRAMETIME;
+    }
+}
+
+/**
+*   @brief  Lerp the view angles if desired.
+**/
+static void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_predicted_state_t *predictedState, const float lerpFrac ) {
+    if ( clgi.IsDemoPlayback() ) {
+        LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
+    } else if ( ps->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
+        // use predicted values
+        VectorCopy( clgi.client->predictedState.currentPs.viewangles, clgi.client->refdef.viewangles );
+    } else if ( ops->pmove.pm_type < PM_DEAD /*&& !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )*/ ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
+        // lerp from predicted angles, since enhanced servers
+        // do not send viewangles each frame
+        LerpAngles( clgi.client->predictedState.currentPs.viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
+    } else {
+        //if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
+        // just use interpolated values
+        LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
+        //} else {
+        //VectorCopy( ps->viewangles, clgi.client->refdef.viewangles );
+        //}
+    }
+}
+
+/**
+*   @brief  Smooth lerp the old and current player state delta angles.
+**/
+static void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
+    // Calculate delta angles between old and current player state.
+    clgi.client->delta_angles[ 0 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 0 ], ps->pmove.delta_angles[ 0 ], lerpFrac ) );
+    clgi.client->delta_angles[ 1 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 1 ], ps->pmove.delta_angles[ 1 ], lerpFrac ) );
+    clgi.client->delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 2 ], ps->pmove.delta_angles[ 2 ], lerpFrac ) );
+}
+
+/**
+*   @brief  Lerp the client's POV range.
+**/
+static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
+    clgi.client->fov_x = lerp_client_fov( ops->fov, ps->fov, lerpFrac );
+    clgi.client->fov_y = PF_CalculateFieldOfView( clgi.client->fov_x, 4, 3 );
+}
+/**
+*   @brief  Lerp the client's viewOffset.
+**/
+static void CLG_LerpViewOffset( player_state_t *ops, player_state_t *ps, const float lerpFrac, Vector3 &finalViewOffset ) {
+    LerpVector( ops->viewoffset, ps->viewoffset, lerpFrac, finalViewOffset );
+    if ( clgi.client->frame.valid ) {
+        finalViewOffset = QM_Vector3Lerp( ops->viewoffset, ps->viewoffset, lerpFrac );
+    } else {
+        finalViewOffset = ops->viewoffset; //finalViewOffset = QM_Vector3Lerp( ops->viewoffset, ps->viewoffset, lerpFrac );
+    }
 }
 
 /**
 *   @brief  Will lerp the screen blend colors between frames. If the frame was invalid, it'll 'hard-set' the values instead.
 **/
-void CLG_LerpScreenBlend( player_state_t *ops, player_state_t *ps, client_predicted_state_t *predictedState ) {
+static void CLG_LerpScreenBlend( player_state_t *ops, player_state_t *ps, client_predicted_state_t *predictedState ) {
     // Interpolate blend colors if the last frame wasn't clear
     if ( !ops->screen_blend[ 3 ] ) {
         Vector4Copy( ps->screen_blend, clgi.client->refdef.screen_blend );
@@ -437,24 +608,21 @@ void CLG_LerpScreenBlend( player_state_t *ops, player_state_t *ps, client_predic
 
     // Mix in screen_blend from cgame pmove
     // FIXME: Should also be interpolated?...
-    if ( predictedState->view.screen_blend.z > 0 ) {
-        float a2 = clgi.client->refdef.screen_blend[ 3 ] + ( 1 - clgi.client->refdef.screen_blend[ 3 ] ) * predictedState->view.screen_blend.z; // new total alpha
+    if ( predictedState->currentPs.screen_blend[ 3 ] > 0 ) {
+        float a2 = clgi.client->refdef.screen_blend[ 3 ] + ( 1 - clgi.client->refdef.screen_blend[ 3 ] ) * predictedState->currentPs.screen_blend[ 3 ]; // new total alpha
         float a3 = clgi.client->refdef.screen_blend[ 3 ] / a2; // fraction of color from old
 
-        LerpVector( predictedState->view.screen_blend, clgi.client->refdef.screen_blend, a3, clgi.client->refdef.screen_blend );
+        LerpVector( predictedState->currentPs.screen_blend, clgi.client->refdef.screen_blend, a3, clgi.client->refdef.screen_blend );
         clgi.client->refdef.screen_blend[ 3 ] = a2;
     }
 }
+
 /**
 *   @brief  Sets clgi.client->refdef view values and sound spatialization params.
 *           Usually called from CL_PrepareViewEntities, but may be directly called from the main
 *           loop if rendering is disabled but sound is running.
 **/
 void PF_CalculateViewValues( void ) {
-    // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_.. values from SharedGame.
-    static constexpr int32_t STEP_TIME = 100;
-    static constexpr double STEP_BASE_1_FRAMETIME = ( 1. / STEP_TIME );
-
     // Store the final view offset.
     Vector3 finalViewOffset = QM_Vector3Zero();
 
@@ -474,84 +642,32 @@ void PF_CalculateViewValues( void ) {
     //if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
     const int32_t usePrediction = PF_UsePrediction();
     if ( usePrediction && !( ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
-        // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_.. values from SharedGame.
-        // TODO: Is this accurate?
-        // PM_MAX_STEP_HEIGHT = 18
-        // PM_MIN_STEP_HEIGHT = 4
-        //
-        // However, the original code was 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_HEIGHT
-        //static constexpr float STEP_HEIGHT = PM_MAX_STEP_HEIGHT - PM_MIN_STEP_HEIGHT // This seems like what would be more accurate?
-        static constexpr double STEP_HEIGHT = 15.875;
-
         // use predicted values
-        uint64_t delta = clgi.GetRealTime() - clgi.client->predictedState.time.step_changed;
         const double backLerp = 1.0 - lerpFrac;
-
         // Take the prediction error into account.
-        VectorMA( clgi.client->predictedState.view.origin, backLerp, clgi.client->predictedState.error, clgi.client->refdef.vieworg );
-
-        // Smooth out stair climbing
-        if ( fabsf( clgi.client->predictedState.view.step ) < STEP_HEIGHT ) {
-            delta <<= 1; // small steps
-        }
-
-        // WID: Prediction: Was based on old 10hz, 100ms.
-        if ( delta < STEP_TIME ) {
-            clgi.client->refdef.vieworg[ 2 ] -= clgi.client->predictedState.view.step * ( STEP_TIME - delta ) * STEP_BASE_1_FRAMETIME;
-        }
+        VectorMA( clgi.client->predictedState.currentPs.pmove.origin, backLerp, clgi.client->predictedState.error, clgi.client->refdef.vieworg );
     } else {
-        // just use interpolated values
-        //for ( int32_t i = 0; i < 3; i++ ) {
-        //    clgi.client->refdef.vieworg[ i ] = ops->pmove.origin[ i ] +
-        //        lerp * ( ps->pmove.origin[ i ] - ops->pmove.origin[ i ] );
-        //}
+        // Just use interpolated values.
         Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
         VectorCopy( viewOrg, clgi.client->refdef.vieworg );
     }
 
-    // if not running a demo or on a locked frame, add the local angle movement
-    if ( clgi.IsDemoPlayback() ) {
-        LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
-    } else if ( ps->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
-        // use predicted values
-        VectorCopy( clgi.client->predictedState.view.angles, clgi.client->refdef.viewangles );
-    } else if ( ops->pmove.pm_type < PM_DEAD /*&& !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )*/ ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
-        // lerp from predicted angles, since enhanced servers
-        // do not send viewangles each frame
-        LerpAngles( clgi.client->predictedState.view.angles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
-    } else {
-        //if ( !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
-        // just use interpolated values
-        LerpAngles( ops->viewangles, ps->viewangles, lerpFrac, clgi.client->refdef.viewangles );
-        //} else {
-        //VectorCopy( ps->viewangles, clgi.client->refdef.viewangles );
-        //}
-    }
+    // Smooth out step offset.
+    CLG_SmoothStepOffset();
 
-    //#if USE_SMOOTH_DELTA_ANGLES
-    clgi.client->delta_angles[ 0 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 0 ], ps->pmove.delta_angles[ 0 ], lerpFrac ) );
-    clgi.client->delta_angles[ 1 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 1 ], ps->pmove.delta_angles[ 1 ], lerpFrac ) );
-    clgi.client->delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 2 ], ps->pmove.delta_angles[ 2 ], lerpFrac ) );
-    //#endif
-
-    // interpolate blend colors if the last frame wasn't clear
+    // Lerp View Angles.
+    CLG_LerpViewAngles( ops, ps, &clgi.client->predictedState, lerpFrac );
+    // Interpolate old and current player state delta angles.
+    CLG_LerpDeltaAngles( ops, ps, lerpFrac );
+    // Interpolate blend colors if the last frame wasn't clear.
     CLG_LerpScreenBlend( ops, ps, &clgi.client->predictedState );
-
-    // interpolate field of view
-    clgi.client->fov_x = lerp_client_fov( ops->fov, ps->fov, lerpFrac );
-    clgi.client->fov_y = PF_CalculateFieldOfView( clgi.client->fov_x, 4, 3 );
-
+    // Interpolate Field of View.
+    CLG_LerpPointOfView( ops, ps, lerpFrac );
     // Lerp the view offset.
-    LerpVector( ops->viewoffset, ps->viewoffset, lerpFrac, finalViewOffset );
-    //if ( clgi.client->frame.valid ) {
-    //    LerpVector( ops->viewoffset, clgi.client->predictedState.view.viewOffset, lerpFrac, viewoffset );
-    //} else {
-    //    VectorCopy( ops->viewoffset, viewoffset );
-    //    //LerpVector( ops->viewoffset, clgi.client->predictedState.view.viewOffset, lerpFrac, viewoffset );
-    //}
+    CLG_LerpViewOffset( ops, ps, lerpFrac, finalViewOffset );
 
-    // Smooth out view height change over 100ms
-    finalViewOffset[ 2 ] += CLG_SmoothedOutViewHeightChange();
+    // Smooth out the ducking view height change over 100ms
+    finalViewOffset.z += CLG_SmoothViewHeight();
 
     // Calculate the angle vectors for the current view angles.
     AngleVectors( clgi.client->refdef.viewangles, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
@@ -559,16 +675,17 @@ void PF_CalculateViewValues( void ) {
     // Copy the view origin and angles for the thirdperson(and also shadow casing) entity.
     VectorCopy( clgi.client->refdef.vieworg, clgi.client->playerEntityOrigin );
     VectorCopy( clgi.client->refdef.viewangles, clgi.client->playerEntityAngles );
-    // Keep pitch in bounds.
+        // Keep pitch in bounds.
     if ( clgi.client->playerEntityAngles[ PITCH ] > 180 ) {
         clgi.client->playerEntityAngles[ PITCH ] -= 360;
     }
     // Adjust pitch slightly.
     clgi.client->playerEntityAngles[ PITCH ] = clgi.client->playerEntityAngles[ PITCH ] / 3;
 
-    // Now last but not least, add the resulting final view offset on to the view origin.
+    // Add the resulting final viewOffset to the refdef view origin.
     VectorAdd( clgi.client->refdef.vieworg, finalViewOffset, clgi.client->refdef.vieworg );
 
+    // Setup the new position for spatial audio recognition.
     clgi.S_SetupSpatialListener( clgi.client->refdef.vieworg, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
 }
 
@@ -615,6 +732,9 @@ void PF_PrepareViewEntites( void ) {
     CLG_AddParticles();
     CLG_AddDLights();
     CLG_AddLightStyles();
+
+    // Add the view weapon model.
+    CLG_AddViewWeapon();
 
     // Add in .md2/.md3/.iqm model 'debugger' entity.
     //CLG_AddTestModel();

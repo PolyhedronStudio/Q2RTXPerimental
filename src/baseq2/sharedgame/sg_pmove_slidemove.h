@@ -1,7 +1,14 @@
+/********************************************************************
+*
+*
+*	SharedGame: Player SlideBox Implementation
+*
+*
+********************************************************************/
 #pragma once
 
 static constexpr float MIN_STEP_NORMAL = 0.7f;    // can't step up onto very steep slopes
-static constexpr int32_t MAX_CLIP_PLANES = 20;
+static constexpr int32_t MAX_CLIP_PLANES = 16;
 
 /**
 *	@brief	Clips trace against world only.
@@ -27,4 +34,4 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_t &trac
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time );
+const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time );

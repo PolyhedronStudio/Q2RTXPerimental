@@ -58,10 +58,10 @@ cvar_t *cl_running = nullptr;
 cvar_t *cl_paused = nullptr;
 cvar_t *sv_running = nullptr;
 cvar_t *sv_paused = nullptr;
-//cvar_t *gamemode = nullptr;
-//cvar_t *maxclients = nullptr;
+cvar_t *gamemode = nullptr;
+cvar_t *maxclients = nullptr;
 //cvar_t *maxspectators = nullptr;
-//cvar_t *maxentities = nullptr;
+cvar_t *maxentities = nullptr;
 cvar_t *cl_footsteps = nullptr;
 
 cvar_t *cl_kickangles = nullptr;
@@ -108,19 +108,45 @@ cvar_t *cl_particle_num_factor = nullptr; // from client FX_Init
 **/
 centity_t *clg_entities = nullptr;
 
-extern const cmdreg_t clg_view_cmds[];
+//! View Commands.
+extern cmdreg_t clg_view_cmds[];
+
+
 
 /**
-*	@return	The actual ID of the current gamemode.
+*
+*
+*	Cmd Macros:
+* 
+* 
 **/
-//const int32_t G_GetActiveGamemodeID() {
-//	if ( gamemode && gamemode->integer >= GAMEMODE_SINGLEPLAYER && gamemode->integer <= GAMEMODE_COOPERATIVE ) {
-//		return gamemode->integer;
-//	}
-//
-//	// Unknown gamemode.
-//	return -1;
-//}
+/**
+*	@brief	Health.
+**/
+static size_t CL_Health_m( char *buffer, size_t size ) {
+	return Q_scnprintf( buffer, size, "%i", clgi.client->frame.ps.stats[ STAT_HEALTH ] );
+}
+/**
+*	@brief	Ammo.
+**/
+static size_t CL_Ammo_m( char *buffer, size_t size ) {
+	return Q_scnprintf( buffer, size, "%i", clgi.client->frame.ps.stats[ STAT_AMMO ] );
+}
+/**
+*	@brief	Armor.
+**/
+static size_t CL_Armor_m( char *buffer, size_t size ) {
+	return Q_scnprintf( buffer, size, "%i", clgi.client->frame.ps.stats[ STAT_ARMOR ] );
+}
+/**
+*	@brief	Weapon Model.
+**/
+static size_t CL_WeaponModel_m( char *buffer, size_t size ) {
+	return Q_scnprintf( buffer, size, "%s",
+		clgi.client->configstrings[ clgi.client->frame.ps.gunindex + CS_MODELS ] );
+}
+
+
 
 /**
 *
@@ -239,9 +265,11 @@ void PF_InitGame( void ) {
 	sv_running = clgi.CVar_Get( "cl_running", nullptr, 0 );
 	sv_paused = clgi.CVar_Get( "cl_paused", nullptr, 0 );
 	
-	//gamemode = clgi.CVar( "gamemode", nullptr, 0 );
-	//maxclients = clgi.CVar( "maxclients", nullptr, 0 );
-	//maxspectators = clgi.CVar( "maxspectators", nullptr, 0 );
+	// Get cvars we'll latch at often.
+	gamemode = clgi.CVar( "gamemode", nullptr, 0 );
+	game.gamemode = gamemode->integer;
+	maxclients = clgi.CVar( "maxclients", nullptr, 0 );
+	game.maxclients = maxclients->integer;
 	//maxentities = clgi.CVar( "maxentities", nullptr, 0 );
 
 	cvar_pt_particle_emissive = clgi.CVar( "pt_particle_emissive", nullptr, 0 );
@@ -303,6 +331,14 @@ void PF_InitGame( void ) {
 		clgi.CVar_Set( "name", buf );
 	}
 
+	// Register view command callbacks.
+	clgi.Cmd_Register( clg_view_cmds );
+
+	clgi.Cmd_AddMacro( "cl_health", CL_Health_m );
+	clgi.Cmd_AddMacro( "cl_ammo", CL_Ammo_m );
+	clgi.Cmd_AddMacro( "cl_armor", CL_Armor_m );
+	clgi.Cmd_AddMacro( "cl_weaponmodel", CL_WeaponModel_m );
+
 	/**
 	*	Initialize effects and temp entities.
 	**/
@@ -318,7 +354,7 @@ void PF_InitGame( void ) {
 	*	Allocate space for entities.
 	**/
 	game.maxentities = MAX_CLIENT_ENTITIES;
-	clg_entities = static_cast<centity_t *>( clgi.TagMalloc( game.maxentities * sizeof( clg_entities[ 0 ] ), TAG_CLGAME ) );
+	game.entities = clg_entities = static_cast<centity_t *>( clgi.TagMalloc( game.maxentities * sizeof( clg_entities[ 0 ] ), TAG_CLGAME ) );
 	globals.entities = clg_entities;
 	globals.max_entities = game.maxentities;
 
@@ -328,7 +364,7 @@ void PF_InitGame( void ) {
 	// initialize all clients for this game
 	//game.maxclients = maxclients->value;
 	// WID: C++20: Addec cast.
-	//game.clients = (cclient_t *)clgi.TagMalloc( game.maxclients * sizeof( game.clients[ 0 ] ), TAG_CLGAME );
+	game.clients = (cclient_t *)clgi.TagMalloc( game.maxclients * sizeof( game.clients[ 0 ] ), TAG_CLGAME );
 	//globals.num_edicts = game.maxclients + 1;
 	//globals.num_entities = game.maxclients + 1;
 

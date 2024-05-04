@@ -118,7 +118,7 @@ void CLG_EAX_DetermineEffect() {
 	}
 
 	// If no env_sound scape was found nearby, and we're not underwater either, resort to the default.
-	if ( best_sound_scape == nullptr && !( clgi.client->predictedState.view.rdflags & RDF_UNDERWATER ) ) {
+	if ( best_sound_scape == nullptr && !( clgi.client->predictedState.currentPs.rdflags & RDF_UNDERWATER ) ) {
 		CLG_EAX_SetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
 	}
 

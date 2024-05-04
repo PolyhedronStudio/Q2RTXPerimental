@@ -238,7 +238,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 //===================================
 
 	// base angles
-	angles = ent->client->ps.kick_angles;
+	angles = &ent->client->ps.kick_angles.x;
 
 	// if dead, fix the angle and don't add any kick
 	if ( ent->deadflag ) {
@@ -803,8 +803,10 @@ void G_SetClientEvent( edict_t *ent ) {
 			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
 		}
 	} else if ( ent->groundentity && xyspeed > 225 ) {
-		if ( (int)( current_client->bobtime + bobmove ) != bobcycle_run )
+		if ( (int)( current_client->bobtime + bobmove ) != bobcycle_run ) {
 			ent->s.event = EV_FOOTSTEP;
+			//gi.dprintf( "%s: EV_FOOTSTEP ent->ground xyspeed > 225\n", __func__ );
+		}
 	}
 }
 

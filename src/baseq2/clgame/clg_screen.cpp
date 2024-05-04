@@ -22,7 +22,7 @@
 *   Screen Struct:
 *
 **/
-static constexpr int32_t STAT_PICS = STAT_HELPICON;
+static constexpr int32_t STAT_PICS = 11;
 static constexpr int32_t STAT_MINUS = ( STAT_PICS - 1 );  // num frame for '-' stats digit
 
 static struct {

@@ -18,8 +18,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "g_local.h"
 
-#define STAT_TIMER2_ICON        18
-#define STAT_TIMER2             19
 
 /*
 ======================================================================
@@ -38,13 +36,17 @@ void MoveClientToIntermission(edict_t *ent)
     }
     ent->client->showhelp = false;
 
-    VectorCopy(level.intermission_origin, ent->s.origin);
+    VectorCopy( level.intermission_origin, ent->s.origin );
     VectorCopy( level.intermission_origin, ent->client->ps.pmove.origin );
-    VectorCopy(level.intermission_angle, ent->client->ps.viewangles);
+    VectorCopy( level.intermission_angle, ent->client->ps.viewangles );
     ent->client->ps.viewangles[ 0 ] = AngleMod( level.intermission_angle[ 0 ] );
     ent->client->ps.viewangles[ 1 ] = AngleMod( level.intermission_angle[ 1 ] );
     ent->client->ps.viewangles[ 2 ] = AngleMod( level.intermission_angle[ 2 ] );
-    ent->client->ps.pmove.pm_type = PM_FREEZE;
+    if ( !G_IsMultiplayerGameMode( game.gamemode ) ) {
+        ent->client->ps.pmove.pm_type = PM_SPINTERMISSION;
+    } else {
+        ent->client->ps.pmove.pm_type = PM_INTERMISSION;
+    }
     ent->client->ps.gunindex = 0;
     /*ent->client->ps.damage_blend[3] = */ent->client->ps.screen_blend[ 3 ] = 0; // damageblend?
     ent->client->ps.rdflags = RDF_NONE;
@@ -75,7 +77,6 @@ void MoveClientToIntermission(edict_t *ent)
     gi.unlinkentity(ent);
 
     // add the layout
-
     if (deathmatch->value || coop->value) {
         DeathmatchScoreboardMessage(ent, NULL);
         gi.unicast(ent, true);
@@ -413,13 +414,18 @@ void G_SetStats(edict_t *ent)
     int         power_armor_type;
 
     //
-    // health
+    // Health
     //
     ent->client->ps.stats[STAT_HEALTH_ICON] = level.pic_health;
     ent->client->ps.stats[STAT_HEALTH] = ent->health;
+    
+    //
+    // Killer Yaw
+    //
+    ent->client->ps.stats[ STAT_KILLER_YAW ] = ent->client->killer_yaw;
 
     //
-    // ammo
+    // Ammo
     //
     if (!ent->client->ammo_index /* || !ent->client->pers.inventory[ent->client->ammo_index] */) {
         ent->client->ps.stats[STAT_AMMO_ICON] = 0;
@@ -431,7 +437,7 @@ void G_SetStats(edict_t *ent)
     }
 
     //
-    // armor
+    // Armor
     //
     power_armor_type = PowerArmorType(ent);
     if (power_armor_type) {
@@ -462,7 +468,7 @@ void G_SetStats(edict_t *ent)
     }
 
     //
-    // pickup message
+    // Pickup Message
     //
     if (level.time > ent->client->pickup_msg_time ) {
         ent->client->ps.stats[STAT_PICKUP_ICON] = 0;
@@ -470,7 +476,7 @@ void G_SetStats(edict_t *ent)
     }
 
     //
-    // timer 1 (quad, enviro, breather)
+    // Timer 1 (quad, enviro, breather)
     //
     if (ent->client->quad_time > level.time) {
         ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_quad");
@@ -491,7 +497,7 @@ void G_SetStats(edict_t *ent)
     }
 
     //
-    // timer 2 (pent)
+    // Timer 2 (pent)
     //
     ent->client->ps.stats[STAT_TIMER2_ICON] = 0;
     ent->client->ps.stats[STAT_TIMER2] = 0;
@@ -506,7 +512,7 @@ void G_SetStats(edict_t *ent)
     }
 
     //
-    // selected item
+    // Selected Item
     //
     if (ent->client->pers.selected_item == -1)
         ent->client->ps.stats[STAT_SELECTED_ICON] = 0;
@@ -546,12 +552,12 @@ void G_SetStats(edict_t *ent)
     //}
 
     //
-    // frags
+    // Frags
     //
     ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
     //
-    // help icon / current weapon if not shown
+    // Help icon / Current weapon if not shown
     //
     if (ent->client->pers.helpchanged && (level.framenum & 8))
         ent->client->ps.stats[STAT_HELPICON] = gi.imageindex("i_help");
@@ -561,6 +567,7 @@ void G_SetStats(edict_t *ent)
     else
         ent->client->ps.stats[STAT_HELPICON] = 0;
 
+    // If this function was called, disable spectator mode stats.
     ent->client->ps.stats[STAT_SPECTATOR] = 0;
 }
 
@@ -595,6 +602,7 @@ void G_SetSpectatorStats(edict_t *ent)
     if (!cl->chase_target)
         G_SetStats(ent);
 
+    // If this function was called, enable spectator mode stats.
     cl->ps.stats[STAT_SPECTATOR] = 1;
 
     // layouts are independant in spectator

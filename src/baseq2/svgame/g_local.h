@@ -57,7 +57,7 @@ constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64
 #define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS)
 
 // the "gameversion" client command will print this plus compile date
-#define GAMEVERSION "BaseQ2RTXP"
+#define GAMEVERSION "BaseQ2"
 
 
 //==================================================================
@@ -407,7 +407,7 @@ typedef struct {
     // store latched cvars here that we want to get at often
     int         maxclients;
     int         maxentities;
-
+    int         gamemode;
     // cross level triggers
     int         serverflags;
 
@@ -1094,31 +1094,51 @@ struct gclient_s {
     float       killer_yaw;         // when dead, look at killer
 
     weaponstate_t   weaponstate;
+
+    /**
+    *   View Movement:
+    **/
+    vec3_t      v_angle, v_forward; // aiming direction
+
     vec3_t      kick_angles;    // weapon kicks
     vec3_t      kick_origin;
-    float       v_dmg_roll, v_dmg_pitch;    // damage kicks
-	sg_time_t	v_dmg_time;
-	sg_time_t	quake_time;
+
+    // view movement:
+    sg_time_t	v_dmg_time;
     sg_time_t	fall_time;
-	float		fall_value;      // for view drop on fall
+    sg_time_t	quake_time;
+    float       v_dmg_roll, v_dmg_pitch;    // damage kicks
+    float		fall_value;      // for view drop on fall
+
+    /**
+    *   View Blends:
+    **/
     float       damage_alpha;
     float       bonus_alpha;
+    
     vec3_t      damage_blend;
-    vec3_t      v_angle, v_forward; // aiming direction
+    
     float       bobtime;            // Store it, so we know where we're at (To Prevent off-ground from changing it).
-    vec3_t      oldviewangles;
-    vec3_t      oldvelocity;
-    edict_t     *oldgroundentity; // [Paril-KEX]
+    
+    /**
+    *   Old/Previous frames data:
+    **/
     uint64_t    last_stair_step_frame;
 
     vec3_t last_ladder_pos; // For ladder step sounds.
     sg_time_t last_ladder_sound;
 
-	sg_time_t		next_drown_time;
-	liquid_level_t	old_waterlevel;
-    int				breather_sound;
+    vec3_t      oldviewangles;
+    vec3_t      oldvelocity;
+    edict_t     *oldgroundentity; // [Paril-KEX]
+    liquid_level_t	old_waterlevel;
 
-    int         machinegun_shots;   // for weapon raising
+	/**
+	*   Misc:
+	**/
+	sg_time_t		next_drown_time;
+    int32_t         breather_sound;
+    int32_t         machinegun_shots;   // for weapon raising
 
 	/**
     *	Animation Related:

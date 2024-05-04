@@ -1,22 +1,12 @@
-/*
-Copyright (C) 1997-2001 Id Software, Inc.
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
-
+/********************************************************************
+*
+*
+*	SharedGame: Player SlideBox Implementation
+*
+*
+********************************************************************/
 #include "shared/shared.h"
+
 #include "sg_pmove.h"
 #include "sg_pmove_slidemove.h"
 
@@ -45,14 +35,14 @@ const trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 
 **/
 const trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, contents_t contentMask ) {
 	// Spectators only clip against world, so use clip instead.
-	if ( pm->s.pm_type == PM_SPECTATOR ) {
+	if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
 		return PM_Clip( start, mins, maxs, end, MASK_SOLID );
 	}
 
 	if ( contentMask == CONTENTS_NONE ) {
-		if ( pm->s.pm_type == PM_DEAD || pm->s.pm_type == PM_GIB ) {
+		if ( pm->playerState->pmove.pm_type == PM_DEAD || pm->playerState->pmove.pm_type == PM_GIB ) {
 			contentMask = MASK_DEADSOLID;
-		} else if ( pm->s.pm_type == PM_SPECTATOR ) {
+		} else if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
 			contentMask = MASK_SOLID;
 		} else {
 			contentMask = MASK_PLAYERSOLID;
@@ -143,7 +133,7 @@ Does not modify any world state?
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time ) {
+const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time ) {
 	Vector3 dir = {};
 
 	Vector3 planes[ MAX_CLIP_PLANES ] = {};
@@ -154,13 +144,19 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 	float d = 0;
 	float time_left = 0.f;
 
+	int i = 0, j = 0;
 	int32_t bumpcount = 0;
 	int32_t numbumps = MAX_CLIP_PLANES - 1;
 
 	Vector3 primal_velocity = velocity;
+	Vector3 last_valid_origin = origin;
 	int32_t numplanes = 0;
 
+	int32_t blockedMask = 0;
+
 	time_left = frametime;
+
+
 
 	for ( bumpcount = 0; bumpcount < numbumps; bumpcount++ ) {
 		VectorMA( origin, time_left, velocity, end );
@@ -169,12 +165,12 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 		trace = PM_Trace( origin, mins, maxs, end );
 
 		if ( trace.allsolid ) {
-			// entity is trapped in another solid
-			velocity[ 2 ] = 0;    // don't build up falling damage
-
+			// Entity is trapped in another solid, DON'T build up falling damage.
+			velocity[ 2 ] = 0;    
 			// Save entity for contact.
 			PM_RegisterTouchTrace( touch_traces, trace );
-			return;
+			// Return trapped mask.
+			return PM_SLIDEMOVEFLAG_TRAPPED;
 		}
 
 		// [Paril-KEX] experimental attempt to fix stray collisions on curved
@@ -206,25 +202,65 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 		if ( trace.fraction > 0 ) {
 			// actually covered some distance
 			origin = trace.endpos;
-			numplanes = 0;
+			last_valid_origin = trace.endpos;
+
+			//numplanes = 0;
 		}
 
 		if ( trace.fraction == 1 ) {
+			blockedMask = PM_SLIDEMOVEFLAG_MOVED;
 			break;     // moved the entire distance
 		}
 
 		// Save entity for contact.
 		PM_RegisterTouchTrace( touch_traces, trace );
 		
+		// At this point we are blocked but not trapped.
+		blockedMask |= PM_SLIDEMOVEFLAG_BLOCKED;
+		// Is it a vertical wall?
+		if ( trace.plane.normal[ 2 ] < 0.03125 ) {
+			blockedMask |= PM_SLIDEMOVEFLAG_WALL_BLOCKED;
+		}
+
 		// Subtract the fraction of time used, from the whole fraction of the move.
 		time_left -= time_left * trace.fraction;
 
-		// slide along this plane
+		// if this is a plane we have touched before, try clipping
+		// the velocity along it's normal and repeat.
+		for ( i = 0; i < numplanes; i++ ) {
+			if ( DotProduct( trace.plane.normal, planes[ i ] ) > 0.99f ) {/*( 1.0f - SLIDEMOVE_PLANEINTERACT_EPSILON )*/  
+				VectorAdd( trace.plane.normal, velocity, velocity );
+				break;
+			}
+		}
+		if ( i < numplanes ) { // found a repeated plane, so don't add it, just repeat the trace
+			continue;
+		}
+
+		// Slide along this plane
 		if ( numplanes >= MAX_CLIP_PLANES ) {
 			// Zero out velocity. This should never happen though.
 			velocity = {};
+			blockedMask = PM_SLIDEMOVEFLAG_TRAPPED;
 			break;
 		}
+
+		//
+		// if this is the same plane we hit before, nudge origin
+		// out along it, which fixes some epsilon issues with
+		// non-axial planes (xswamp, q2dm1 sometimes...)
+		//
+		//for ( i = 0; i < numplanes; i++ ) {
+		//	if ( QM_Vector3DotProduct( trace.plane.normal, planes[ i ] ) > 0.99f ) {
+		//		pml.origin.x += trace.plane.normal.x * 0.01f;
+		//		pml.origin.y += trace.plane.normal.y * 0.01f;
+		//		G_FixStuckObject_Generic( pml.origin, mins, maxs, trace_func );
+		//		break;
+		//	}
+		//}
+
+		//if ( i < numplanes )
+		//	continue;
 
 		planes[ numplanes ] = trace.plane.normal;
 		numplanes++;
@@ -274,4 +310,6 @@ void PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float f
 	if ( has_time ) {
 		velocity = primal_velocity;
 	}
+
+	return blockedMask;
 }

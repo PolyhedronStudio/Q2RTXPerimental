@@ -1,3 +1,10 @@
+/********************************************************************
+*
+*
+*	SharedGame: Client Game SG Function Implementations.
+*
+*
+********************************************************************/
 #include "shared/shared.h"
 #include "shared/util_list.h"
 

@@ -291,25 +291,36 @@ angles and bad trails.
 */
 edict_t *G_AllocateEdict(void)
 {
-    int         i;
-    edict_t     *e;
+    int32_t i = game.maxclients + 1;
+    edict_t *entity = &g_edicts[ game.maxclients + 1 ];
+    edict_t *freedEntity = nullptr;
 
-    e = &g_edicts[game.maxclients + 1];
-    for (i = game.maxclients + 1 ; i < globals.num_edicts ; i++, e++) {
+    for ( i; i < globals.num_edicts; i++, entity++ ) {
         // the first couple seconds of server time can involve a lot of
         // freeing and allocating, so relax the replacement policy
-        if (!e->inuse && (e->freetime < 2_sec || level.time - e->freetime > 500_ms)) {
-            G_InitEdict(e);
-            return e;
+        if ( !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
+            G_InitEdict( entity );
+            return entity;
+        }
+
+        // this is going to be our second chance to spawn an entity in case all free
+        // entities have been freed only recently
+        if ( !freedEntity ) {
+            freedEntity = entity;
         }
     }
 
-    if (i == game.maxentities)
-        gi.error("G_AllocateEdict: no free edicts");
+    if ( i == game.maxentities ) {
+        if ( freedEntity ) {
+            G_InitEdict( freedEntity );
+            return freedEntity;
+        }
+        gi.error( "G_AllocateEdict: no free edicts" );
+    }
 
     globals.num_edicts++;
-    G_InitEdict(e);
-    return e;
+    G_InitEdict(entity);
+    return entity;
 }
 
 /*
