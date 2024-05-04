@@ -3011,7 +3011,7 @@ int64_t CL_ClientGameFrame( uint64_t msec ) {
     //CL_CheckPredictionError();
 
     // Increment client local frame number.
-    cl.clientFrame.number++;
+    //cl.clientFrame.number++;
 
     #if USE_CLIENT
     if ( host_speeds->integer ) {

@@ -278,7 +278,7 @@ typedef struct centity_s {
 /**
 *
 *
-*   Temporary Entity Parameters:
+*   Temporary Event/Entity Parameters:
 *
 *
 **/
@@ -297,6 +297,15 @@ typedef struct {
 	int32_t entity2;
 	int64_t time;
 } tent_params_t;
+
+/**
+*   @brief  Stores muzzleflash data from the last parsed svc_muzzleflash message.
+**/
+typedef struct {
+	int32_t entity;
+	int32_t weapon;
+	qboolean silenced;
+} mz_params_t;
 
 
 
@@ -736,9 +745,12 @@ extern level_locals_t level;
 /**
 *
 *
-*   Dynamic Lights:
+*   Special Effects Data Structures:
 *
 *
+**/
+/**
+*	Dynamic Lights:
 **/
 typedef struct clg_dlight_s {
 	int32_t key;        // so entities can reuse same entry
@@ -754,14 +766,8 @@ typedef struct clg_dlight_s {
 #define DLHACK_SMALLER_EXPLOSION    2
 #define DLHACK_NO_MUZZLEFLASH       4
 
-
-
 /**
-*
-*
-*   Explosions.
-*
-*
+*	Explosions:
 **/
 #define MAX_EXPLOSIONS  32
 
@@ -809,14 +815,8 @@ typedef struct clg_explosion_s {
 #define NOPART_ROCKET_TRAIL         8
 #define NOPART_BLOOD                16
 
-
-
 /**
-*
-*
-*   Particles:
-*
-*
+*	Particles:
 **/
 #define PARTICLE_GRAVITY        120
 #define BLASTER_PARTICLE_COLOR  0xe0
@@ -837,14 +837,8 @@ typedef struct clg_particle_s {
 	float   brightness;
 } clg_particle_t;
 
-
-
 /**
-*
-*
-*   Lasers:
-*
-*
+*	Lasers:
 **/
 typedef struct laser_s {
 	vec3_t      start;
@@ -857,14 +851,8 @@ typedef struct laser_s {
 	int64_t     lifetime, starttime;
 } laser_t;
 
-
-
 /**
-*
-*
-*   Sustains:
-*
-*
+*	Sustains:
 **/
 typedef struct clg_sustain_s {
 	int     id;

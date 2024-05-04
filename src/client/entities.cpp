@@ -266,9 +266,10 @@ static void CL_SetActiveState(void)
         }
     }
 
-    // Reset local time of viewheight changes.
-    cl.predictedState.time.height_changed = 0;
-    cl.predictedState.time.step_changed = 0;
+    // Reset local (view-)transitions.
+    cl.predictedState.transition = {};
+    //cl.predictedState.time.height_changed = 0;
+    //cl.predictedState.time.step_changed = 0;
 
     // Reset ground information.
     cl.predictedState.ground = {};

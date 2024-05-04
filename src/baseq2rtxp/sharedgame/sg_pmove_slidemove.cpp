@@ -144,6 +144,7 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 	float d = 0;
 	float time_left = 0.f;
 
+	int i = 0, j = 0;
 	int32_t bumpcount = 0;
 	int32_t numbumps = MAX_CLIP_PLANES - 1;
 
@@ -224,6 +225,18 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 		// Subtract the fraction of time used, from the whole fraction of the move.
 		time_left -= time_left * trace.fraction;
 
+		// if this is a plane we have touched before, try clipping
+		// the velocity along it's normal and repeat.
+		for ( i = 0; i < numplanes; i++ ) {
+			if ( DotProduct( trace.plane.normal, planes[ i ] ) > 0.99f ) {/*( 1.0f - SLIDEMOVE_PLANEINTERACT_EPSILON )*/  
+				VectorAdd( trace.plane.normal, velocity, velocity );
+				break;
+			}
+		}
+		if ( i < numplanes ) { // found a repeated plane, so don't add it, just repeat the trace
+			continue;
+		}
+
 		// Slide along this plane
 		if ( numplanes >= MAX_CLIP_PLANES ) {
 			// Zero out velocity. This should never happen though.
@@ -231,6 +244,23 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 			blockedMask = PM_SLIDEMOVEFLAG_TRAPPED;
 			break;
 		}
+
+		//
+		// if this is the same plane we hit before, nudge origin
+		// out along it, which fixes some epsilon issues with
+		// non-axial planes (xswamp, q2dm1 sometimes...)
+		//
+		//for ( i = 0; i < numplanes; i++ ) {
+		//	if ( QM_Vector3DotProduct( trace.plane.normal, planes[ i ] ) > 0.99f ) {
+		//		pml.origin.x += trace.plane.normal.x * 0.01f;
+		//		pml.origin.y += trace.plane.normal.y * 0.01f;
+		//		G_FixStuckObject_Generic( pml.origin, mins, maxs, trace_func );
+		//		break;
+		//	}
+		//}
+
+		//if ( i < numplanes )
+		//	continue;
 
 		planes[ numplanes ] = trace.plane.normal;
 		numplanes++;

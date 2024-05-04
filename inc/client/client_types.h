@@ -86,8 +86,32 @@ typedef struct server_frame_s {
 // Max client weapon models.
 #define MAX_CLIENTVIEWMODELS        64        // PGM -- upped from 16 to fit the chainfist vwep
 
+
+
 /**
-*   @brief
+*   @brief  Stores captured mouse motion data for (later) use in the
+*           move command generation process.
+**/
+typedef struct client_mouse_motion_s {
+    //! False if there was no mouse motion for this (client) frame.
+    qboolean hasMotion;
+
+    //! X-Axis Delta Movement.
+    int32_t deltaX;
+    //! Y-Axis Delta Movement.
+    int32_t deltaY;
+
+    //! Floating point X-axis move distance.
+    float moveX;
+    //! Floating point Y-axis move distance.
+    float moveY;
+
+    //! Mouse speed.
+    float speed;
+} client_mouse_motion_t;
+
+/**
+*   @brief  Stores a received, minimally needed data of a client residing in the server.
 **/
 typedef struct clientinfo_s {
     char name[ MAX_QPATH ];
@@ -98,19 +122,6 @@ typedef struct clientinfo_s {
     qhandle_t model;
     qhandle_t weaponmodel[ MAX_CLIENTVIEWMODELS ];
 } clientinfo_t;
-
-/**
-*	@brief  Data needed for storing a 'client user input' command history. Store its time at which
-*	        it was sent as well as when it was received. Used for calculating pings.
-**/
-typedef struct client_usercmd_history_s {
-    //! Command Number indexing into the cl.moveCommands.
-    uint64_t commandNumber;
-    //! Time sent, for calculating pings.
-    uint64_t timeSent;
-    //! Time rcvd, for calculating pings.
-    uint64_t timeReceived;
-} client_usercmd_history_t;
 
 /**
 *   @brief  
@@ -140,100 +151,58 @@ typedef struct client_movecmd_s {
 } client_movecmd_t;
 
 /**
+*	@brief  Data needed for storing a 'client user input' command history. Store its time at which
+*	        it was sent as well as when it was received. Used for calculating pings.
+**/
+typedef struct client_usercmd_history_s {
+    //! Command Number indexing into the cl.moveCommands.
+    uint64_t commandNumber;
+    //! Time sent, for calculating pings.
+    uint64_t timeSent;
+    //! Time rcvd, for calculating pings.
+    uint64_t timeReceived;
+} client_usercmd_history_t;
+
+/**
 *   @brief  Stores client-side predicted player_state_t information.
 **/
 typedef struct client_predicted_state_s {
-    //! User Command Input for this frame.
-    //usercmd_t cmd;
-    
-    // For stair up smoothing:
-    //double step;
-    //uint64_t step_time;
-    //uint64_t step_frame;
+    //! Last processed client move command.
+    client_movecmd_t cmd;
 
-    // Viewheight, for ducking:
-    //double view_previous_height;
-    //double view_current_height;
-    //uint64_t view_height_time;
-    //pmove_t pm;
-
-    ////! Origin, angles and velocity and several other values of current frame pmove's predicted results.
-    //struct {
-    //    // Predicted origin, velocity and angles.
-    //    Vector3 origin;
-    //    Vector3 velocity;
-    //    Vector3 angles;
-    //    //! Predicted step, for stair up smoothing. Lerped over 100ms and subtracted from local origin when prediction is enabled.
-    //    double step;
-
-    //    // Predicted view offset and height.
-    //    //Vector3 viewOffset;
-
-    //    //! Predicted view offset. (Without the height addition.)
-    //    Vector3 offset;
-    //    //! Predicted view height. (To add on to the viewOffset to get the complete view offset.)
-    //    //! Slot 0 is always the newly set viewheight, slot 1 is for storing the local previous viewheight, this gives us a smoother lerp.
-    //    double height[2];
-
-    //    //! Total accumulated screen blend.
-    //    Vector4 screen_blend;
-    //    //! Refdef Flags.
-    //    int32_t rdflags;
-    //} view;
-
-    //! This is always set at receiving a new valid frame, where after that it'll contain the predicted
-    //! player state for the next amount of frames until receiving yet another valid frame.
+    //! Reset each time we receive a new server frame. Keeps track of the local client's player_state_t
+    //! until yet receiving another new server frame.
     player_state_t currentPs;
-    //! This is always the last valid frame's playerState.
+    //! This is always the previous client's frame player_state_t.
     player_state_t lastPs;
 
-    //! Bounding Box.
+    //! Player(-Entity) Bounding Box.
     Vector3 mins, maxs;
 
     //! Stores the ground information. If there is no actual active, valid, ground, then ground.entity will be nullptr.
     pm_ground_info_t ground;
-
     //! Stores the 'liquid' information. This can be lava, slime, or water.
     pm_liquid_info_t liquid;
 
-    //! Stair transitions.
-    float step;
-    //! Viewheight transition.
-    float viewheight[ 2 ];
-
-    //! Times for when certain view values have last changed.
+    //! Stores data for player origin/view transitions.
     struct {
-        //! local clgi.client->time of a(and the last) view height change.
-        uint64_t height_changed;
-        //! local clgi.client->time of a(and the last) step height change.
-        uint64_t step_changed;
-    } time;
+        struct {
+            //! Stores the stepheight.
+            float height;
+            //! Stores cl.realtime of when the step was last changed.
+            uint64_t timeChanged;
+        } step;
+        struct {
+            //! Stores the previous view height[#1] and the current[#0] height.
+            float height[ 2 ];
+            //! Stores cl.time of when the height was last changed.
+            uint64_t timeHeightChanged;
+        } view;
+    } transition;
 
-    //! Margin of error for this frame.
+    //! Margin of origin error to correct for this frame.
     Vector3 error;
 } client_predicted_state_t;
-
-/**
-*   @brief  Stores captured mouse motion data for (later) use in the
-*           move command generation process.
-**/
-typedef struct client_mouse_motion_s {
-    //! False if there was no mouse motion for this (client) frame.
-    qboolean hasMotion;
-
-    //! X-Axis Delta Movement.
-    int32_t deltaX;
-    //! Y-Axis Delta Movement.
-    int32_t deltaY;
-
-    //! Floating point X-axis move distance.
-    float moveX;
-    //! Floating point Y-axis move distance.
-    float moveY;
-
-    //! Mouse speed.
-    float speed;
-} client_mouse_motion_t;
 
 /**
 *   @brief  Used to store the client's audio 'spatial awareness'.
@@ -242,21 +211,18 @@ typedef struct client_mouse_motion_s {
 *           is disabled, yet sound is running.
 **/
 typedef struct client_listener_spatialization_s {
+    //! View origin.
     vec3_t      origin;
+
+    //! View vectors.
     vec3_t      v_forward;
     vec3_t      v_right;
     vec3_t      v_up;
+
+    //! Entity number of which we're spatialized to.
     int32_t     entnum;
 } client_listener_spatialization_t;
 
-/**
-*   @brief  Stores muzzleflash data from the last parsed svc_muzzleflash message.
-**/
-typedef struct {
-    int32_t entity;
-    int32_t weapon;
-    qboolean silenced;
-} mz_params_t;
 
 /**
 *   @brief  Stores sound data from the last parsed svc_sound message.
@@ -284,7 +250,7 @@ typedef struct client_state_s {
 
     /**
     *
-    *   Client User Command Related:
+    *   Client User Commands:
     *
     **/
     //! The initial client frame sequence.
@@ -299,37 +265,61 @@ typedef struct client_state_s {
     //! Real last command number that actually got transmitted.
     uint64_t	lastTransmitCmdNumberReal;
 
-    //! The client maintains its own idea of view angles, which are
-    //! sent to the server each frame.  It is cleared to 0 upon entering each level.
-    //! the server sends a delta each frame which is added to the locally
-    //! tracked view angles to account for standing on rotating objects,
-    //! and teleport direction changes.
-    Vector3      viewangles;
+    //! Current client move command that user input is enacting on.
+    client_movecmd_t moveCommand;
+    //! Circular client buffer of (predicted-)move commands.
+    client_movecmd_t moveCommands[ CMD_BACKUP ];
+
+    //! The current user command its numerical index.
+    uint64_t currentUserCommandNumber;
+    //! Circular client history buffer that stores the user command index, its time sent, and time received.
+    client_usercmd_history_t history[ CMD_BACKUP ];
+    
+    
+
+    /**
+    *
+    *   Local Client Movement State:
+    *
+    **/
     //! Interpolated movement vector used for local prediction,
     //! never sent to server, rebuilt each client frame.
     Vector3     localmove;
     //! Accumulated mouse forward/side movement, added to both
     //! localmove and pending cmd, cleared each time cmd is finalized.
     Vector2     mousemove;
+
+    //! The client maintains its own idea of view angles, which are
+    //! sent to the server each frame.  It is cleared to 0 upon entering each level.
+    //! the server sends a delta each frame which is added to the locally
+    //! tracked view angles to account for standing on rotating objects,
+    //! and teleport direction changes.
+    Vector3     viewangles;
     //! The delta of the current frames move angles.
     Vector3     delta_angles;
 
-    //! Current client move command that user input is enacting on.
-    client_movecmd_t moveCommand;
-    //! The current user command its numerical index.
-    uint64_t currentUserCommandNumber;    //! Circular client buffer of (predicted-) move commands.
-    client_movecmd_t moveCommands[ CMD_BACKUP ];
-    //! Circular client history buffer that stores the user command index, its time sent, and time received.
-    client_usercmd_history_t history[ CMD_BACKUP ];
 
-    //! The current pmove state to be predicted this frame.
+
+    /**
+    *
+    *   Local Predicted Frame State:
+    *
+    **/
+    //! This always has its value reset to the latest received frame's data. For all the time in-between the
+    //! received frames, it maintains track of the predicted client states.
+    //! (Currently though, player_state_t only.)
     client_predicted_state_t predictedState;
-    //! This is always set at receiving a new valid frame, where after that it'll contain the predicted
-    //! player state for the next amount of frames until receiving yet another valid frame.
-    //player_state_t predictedPlayerState;
-
     //! Clien't s audio spatialized data.
     client_listener_spatialization_t listener_spatialize;
+
+    //! This is the 'extrapolated moment in time' value of the client's game state.
+    //! Always >= cl.serverTime and <= cl.serverTime + FRAMERATE_MS
+    int64_t extrapolatedTime;
+
+    //! We always extrapolate only a single frame ahead. Linear extrapolation fraction between cl.oldframe and cl.frame.
+    double  xerpFraction;
+
+
 
     /**
     *
@@ -356,6 +346,7 @@ typedef struct client_state_s {
     msgEsFlags_t	esFlags;
 
 
+
     /**
     *
     *   Server Frames:
@@ -379,21 +370,6 @@ typedef struct client_state_s {
     //! Linear interpolation fraction between cl.oldframe and cl.frame.
     double		lerpfrac;
 
-
-    /**
-    *
-    *   Client Frames:
-    *
-    **/
-    //! Stores the client game's current frame data.
-    client_frame_t clientFrame;
-
-    //! This is the 'extrapolated moment in time' value of the client's game state.
-    //! Always >= cl.serverTime and <= cl.serverTime + FRAMERATE_MS
-    int64_t extrapolatedTime;
-
-    //! We always extrapolate only a single frame ahead. Linear extrapolation fraction between cl.oldframe and cl.frame.
-    double  xerpFraction;
 
 
     /**
@@ -460,11 +436,11 @@ typedef struct client_state_s {
     *
     **/
     //! Parsed layout event data, this is a general 2D overlay cmd script.
-    char		layout[ MAX_NET_STRING ];
+    char            layout[ MAX_NET_STRING ];
     //! Parsed inventory event data.
-    int32_t		inventory[ MAX_ITEMS ];
+    int32_t         inventory[ MAX_ITEMS ];
     //! Parsed sound event parameters.
-    snd_params_t     snd;
+    snd_params_t    snd;
 
 
     /**

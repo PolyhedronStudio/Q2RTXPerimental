@@ -39,10 +39,10 @@ static const contents_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
 **/
 void PF_AdjustViewHeight( const int32_t viewHeight ) {
     // Record viewheight changes.
-    if ( clgi.client->predictedState.viewheight[ 0 ] != viewHeight ) {
-        clgi.client->predictedState.viewheight[ 1 ] = clgi.client->predictedState.viewheight[ 0 ];
-        clgi.client->predictedState.viewheight[ 0 ] = viewHeight;
-        clgi.client->predictedState.time.height_changed = clgi.client->time;
+    if ( clgi.client->predictedState.transition.view.height[ 0 ] != viewHeight ) {
+        clgi.client->predictedState.transition.view.height[ 1 ] = clgi.client->predictedState.transition.view.height[ 0 ];
+        clgi.client->predictedState.transition.view.height[ 0 ] = viewHeight;
+        clgi.client->predictedState.transition.view.timeHeightChanged = clgi.client->time;
     }
 }
 
@@ -67,7 +67,7 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
 
     if ( step_detected ) {
         // check for stepping up before a previous step is completed
-        const uint64_t delta = clgi.GetRealTime() - predictedState->time.step_changed;
+        const uint64_t delta = clgi.GetRealTime() - predictedState->transition.step.timeChanged;
 
         // Default old step to 0.
         double old_step = 0.f;
@@ -75,14 +75,14 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
         if ( delta < PM_STEP_TIME ) {
             // Calculate how far we've come.
             //old_step = stepHeight * ( PM_STEP_TIME - delta) / PM_STEP_TIME;
-            old_step = predictedState->step * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
+            old_step = predictedState->transition.step.height * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
         }
 
         // Add the stepHeight amount.
-        predictedState->step = constclamp( old_step + stepHeight, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
+        predictedState->transition.step.height = constclamp( old_step + stepHeight, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
 
         // Set the new step_time.
-        predictedState->time.step_changed = clgi.GetRealTime();
+        predictedState->transition.step.timeChanged = clgi.GetRealTime();
     }
 
 }
@@ -132,25 +132,24 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
 
     // If it is the first frame, we got nothing to predict yet.
     if ( moveCommand->prediction.time == 0 ) {
-        //out->view.origin = in->origin;//in->origin;
-        //out->view.offset = clgi.client->frame.ps.viewoffset;
-        //out->view.angles = clgi.client->frame.ps.viewangles/* + moveCommand->cmd.angles*/;
-        //out->view.velocity = in->velocity;
-        //out->view.rdflags = clgi.client->frame.ps.rdflags;
-        //out->view.screen_blend = clgi.client->frame.ps.screen_blend;
         out->lastPs = clgi.client->frame.ps;
         out->currentPs = clgi.client->frame.ps;
-        //out->currentPs.pmove.origin = in->origin;
-        //out->currentPs.pmove.velocity = in->velocity;
         out->currentPs.pmove = *in;
         out->error = {};
 
-        out->viewheight[ 0 ] = out->viewheight[ 1 ] = clgi.client->frame.ps.pmove.viewheight; //out->view_current_height = out->view_previous_height = clgi.client->frame.ps.pmove.viewheight;
-        //out->viewheight = clgi.client->frame.ps.pmove.viewheight;
-        out->time.height_changed = clgi.client->time;
-
-        out->step = 0;
-        out->time.step_changed = clgi.GetRealTime();
+        out->transition = {
+            .step = {
+                .height = 0,
+                .timeChanged = clgi.GetRealTime()
+            },
+            .view = {
+                .height = {
+                    (float)clgi.client->frame.ps.pmove.viewheight,
+                    (float)clgi.client->frame.ps.pmove.viewheight
+                },
+                .timeHeightChanged = (uint64_t)clgi.client->time
+            }
+        };
 
         #if USE_DEBUG
         clgi.Print( PRINT_NOTICE, "First frame(%" PRIi64 "). Nothing to predict yet.\n",
@@ -176,29 +175,24 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
                 clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
                     clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
             #endif
-            //out->view.origin = in->origin; // clgi.client->frame.ps.pmove.origin;
-            //out->view.offset = clgi.client->frame.ps.viewoffset;
-            //out->view.angles = clgi.client->frame.ps.viewangles;
-            //out->view.height[0] = out->view.height[ 1 ] = in->viewheight;//out->view_previous_height = in->viewheight; // clgi.client->frame.ps.pmove.viewheight;
-            ////out->view_height_time = clgi.client->time; // clgi.GetRealTime();
-            //out->view.velocity = in->velocity; // clgi.client->frame.ps.pmove.velocity;
-            //out->error = {};
-
-            //out->view.rdflags = 0;
-            //out->view.screen_blend = {};
             out->lastPs = clgi.client->frame.ps;
             out->currentPs = clgi.client->frame.ps;
-            //out->currentPs.pmove.origin = in->origin;
-            //out->currentPs.pmove.velocity = in->velocity;
             out->currentPs.pmove = *in;
             out->error = {};
 
-            out->viewheight[ 0 ] = out->viewheight[ 1 ] = clgi.client->frame.ps.pmove.viewheight; //out->view_current_height = out->view_previous_height = clgi.client->frame.ps.pmove.viewheight;
-            //out->viewheight = clgi.client->frame.ps.pmove.viewheight;
-            out->time.height_changed = clgi.client->time;
-
-            out->step = 0;
-            out->time.step_changed = clgi.GetRealTime();
+            out->transition = {
+                .step = {
+                    .height = 0,
+                    .timeChanged = clgi.GetRealTime()
+                },
+                .view = {
+                    .height = {
+                        (float)clgi.client->frame.ps.pmove.viewheight,
+                        (float)clgi.client->frame.ps.pmove.viewheight
+                    },
+                    .timeHeightChanged = (uint64_t)clgi.client->time
+                }
+            };
 
             return;
         // In case of a minor distance, when cl_showmiss is enabled, report:
@@ -252,7 +246,8 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Start off with the latest valid frame player state.
     player_state_t pmPlayerState = predictedState->currentPs = clgi.client->frame.ps;
 
-    // Prepare our player move, setup the client side trace function pointers.
+    // Prepare our player move, pointer to the player state, and setup the 
+    // client side trace function pointers.
     pmove_t pm = {
         .playerState = &pmPlayerState,
 
@@ -261,21 +256,16 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         .pointcontents = CLG_PM_PointContents,
     };
 
+    // Setup client predicted ground data.
+    pm.ground = predictedState->ground;
+    // Setup client predicted liquid data.
+    pm.liquid = predictedState->liquid;
 
     // Apply client delta_angles.
     pm.playerState->pmove.delta_angles = clgi.client->delta_angles;
-    // Ensure viewheight is set properly also.
-    pm.playerState->pmove.viewheight = /*predictedState->view_current_height;*/clgi.client->frame.ps.pmove.viewheight;
     // Set view angles.
-    pm.playerState->viewangles = clgi.client->viewangles; // This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
-    // Set view offset.
-    pm.playerState->viewoffset = /*predictedState->pmove.viewOffset*/clgi.client->frame.ps.viewoffset;
-    //predictionState.viewoffset = predictedState->view.viewOffset; //clgi.client->frame.ps.viewoffset;
-
-    // Setup ground.
-    pm.ground = predictedState->ground;
-    // Setup liquid.
-    pm.liquid = predictedState->liquid;
+    // [NO-NEED]: This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
+    //pm.playerState->viewangles = clgi.client->viewangles; 
 
     // Run previously stored and acknowledged frames up and including the last one.
     while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
@@ -298,7 +288,6 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     }
 
     // Now run the pending command number.
-    uint64_t frameNumber = currentCommandNumber; //! Default to current frame, expected behavior for if we got msec in predicedState.cmd
     client_movecmd_t *pendingMoveCommand = &clgi.client->moveCommand;
     if ( pendingMoveCommand->cmd.msec ) {
         // Store time of prediction.
@@ -319,9 +308,8 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
         // Save for prediction checking.
         clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *pendingMoveCommand;
-        // Use previous frame if no command is pending.
-    } else {
-        frameNumber = currentCommandNumber - 1;
+
+        clgi.client->predictedState.cmd = *pendingMoveCommand;
     }
 
 
@@ -329,27 +317,16 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // previously predicted ground data.
     CLG_PredictStepOffset( &pm, predictedState, pm.step_height );
 
-    // Copy results out into the current predicted state.
-    //predictedState->view.origin = pm.playerState.pmove.origin;
-    //predictedState->view.velocity = pm.playerState.pmove.velocity;
-    //predictedState->view.angles = pm.playerState.viewangles;
-    //predictedState->view.offset = pm.playerState.viewoffset;
-
-    //predictedState->view.screen_blend = pm.playerState.screen_blend; // // To be merged with server screen blend.
-    //predictedState->view.rdflags = pm.playerState.rdflags; // To be merged with server rdflags.
+    // Copy ground and liquid results out into the current predicted state.
     predictedState->ground = pm.ground;
-    predictedState->liquid.level = pm.liquid.level;
-    predictedState->liquid.type = pm.liquid.type;
-
+    predictedState->liquid = pm.liquid;
+    // Same for mins/maxs.
     predictedState->mins = pm.mins;
     predictedState->maxs = pm.maxs;
-
 
     // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
     PF_AdjustViewHeight( pm.playerState->pmove.viewheight );
 
     // Swap in the resulting new pmove player state.
     predictedState->currentPs = pmPlayerState;
-    //// Start off with the latest valid frame player state.
-    //player_state_t pmPlayerState = predictedState->currentPs = clgi.client->frame.ps;
 }

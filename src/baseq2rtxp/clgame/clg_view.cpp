@@ -506,9 +506,9 @@ const double CLG_SmoothViewHeight() {
     //! Base 1 Frametime.
     static constexpr double HEIGHT_CHANGE__BASE_1_FRAMETIME = ( 1. / HEIGHT_CHANGE__TIME );
     //! Determine delta time.
-    uint64_t timeDelta = HEIGHT_CHANGE__TIME - min( ( clgi.client->time - clgi.client->predictedState.time.height_changed ), HEIGHT_CHANGE__TIME );
+    uint64_t timeDelta = HEIGHT_CHANGE__TIME - min( ( clgi.client->time - clgi.client->predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE__TIME );
     //! Return the frame's adjustment for viewHeight which is added on top of the final vieworigin + viweoffset.
-    return clgi.client->predictedState.viewheight[ 0 ] + (double)( clgi.client->predictedState.viewheight[ 1 ] - clgi.client->predictedState.viewheight[ 0 ] ) * timeDelta * HEIGHT_CHANGE__BASE_1_FRAMETIME;
+    return clgi.client->predictedState.transition.view.height[ 0 ] + (double)( clgi.client->predictedState.transition.view.height[ 1 ] - clgi.client->predictedState.transition.view.height[ 0 ] ) * timeDelta * HEIGHT_CHANGE__BASE_1_FRAMETIME;
 }
 
 /**
@@ -522,21 +522,21 @@ static void CLG_SmoothStepOffset() {
     //
     // However, the original code was 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_CHANGE_HEIGHT
     //static constexpr float STEP_CHANGE_HEIGHT = PM_MAX_STEP_CHANGE_HEIGHT - PM_MIN_STEP_CHANGE_HEIGHT // This seems like what would be more accurate?
-    static constexpr double STEP_CHANGE_HEIGHT = 15.f;//15.875;
+    static constexpr double STEP_SMALL_HEIGHT = 15.f;//15.875;
     // Time in miliseconds to smooth the view for the step offset with.
     static constexpr int32_t STEP_CHANGE_TIME = 100;
     // Base 1 FrameTime.
     static constexpr double STEP_CHANGE_BASE_1_FRAMETIME = ( 1. / STEP_CHANGE_TIME );
 
     // Time delta.
-    uint64_t delta = clgi.GetRealTime() - clgi.client->predictedState.time.step_changed;
+    uint64_t delta = clgi.GetRealTime() - clgi.client->predictedState.transition.step.timeChanged;
     // Smooth out stair climbing.
-    if ( fabsf( clgi.client->predictedState.step ) < STEP_CHANGE_HEIGHT ) {
+    if ( fabsf( clgi.client->predictedState.transition.step.height ) < STEP_SMALL_HEIGHT ) {
         delta <<= 1; // Small steps.
     }
     // Adjust view org by step height change.
     if ( delta < STEP_CHANGE_TIME ) {
-        clgi.client->refdef.vieworg[ 2 ] -= clgi.client->predictedState.step * ( STEP_CHANGE_TIME - delta ) * STEP_CHANGE_BASE_1_FRAMETIME;
+        clgi.client->refdef.vieworg[ 2 ] -= clgi.client->predictedState.transition.step.height * ( STEP_CHANGE_TIME - delta ) * STEP_CHANGE_BASE_1_FRAMETIME;
     }
 }
 
@@ -665,6 +665,7 @@ void PF_CalculateViewValues( void ) {
     CLG_LerpPointOfView( ops, ps, lerpFrac );
     // Lerp the view offset.
     CLG_LerpViewOffset( ops, ps, lerpFrac, finalViewOffset );
+
     // Smooth out the ducking view height change over 100ms
     finalViewOffset.z += CLG_SmoothViewHeight();
 
@@ -674,8 +675,7 @@ void PF_CalculateViewValues( void ) {
     // Copy the view origin and angles for the thirdperson(and also shadow casing) entity.
     VectorCopy( clgi.client->refdef.vieworg, clgi.client->playerEntityOrigin );
     VectorCopy( clgi.client->refdef.viewangles, clgi.client->playerEntityAngles );
-    
-    // Keep pitch in bounds.
+        // Keep pitch in bounds.
     if ( clgi.client->playerEntityAngles[ PITCH ] > 180 ) {
         clgi.client->playerEntityAngles[ PITCH ] -= 360;
     }
@@ -684,6 +684,7 @@ void PF_CalculateViewValues( void ) {
 
     // Add the resulting final viewOffset to the refdef view origin.
     VectorAdd( clgi.client->refdef.vieworg, finalViewOffset, clgi.client->refdef.vieworg );
+
     // Setup the new position for spatial audio recognition.
     clgi.S_SetupSpatialListener( clgi.client->refdef.vieworg, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
 }
