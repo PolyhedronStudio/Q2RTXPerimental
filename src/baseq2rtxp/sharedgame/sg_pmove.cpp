@@ -140,6 +140,37 @@ static void PM_UpdateGroundFromTrace( const trace_t *trace ) {
 //void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
 //	SG_PMoveState_AddPredictableEvent( newEvent, parameter, &ps->pmove );
 //}
+/**
+*	@brief	Sets the player's movement bounding box depending on various state factors.
+**/
+static void PM_SetDimensions() {
+	// Start with a {-16,-16, 0}, {16,16, 0}, and set Z after.
+	pm->mins.x = -16;
+	pm->mins.y = -16;
+	pm->maxs.x = 16;
+	pm->maxs.y = 16;
+
+	// Specifical gib treatment.
+	if ( ps->pmove.pm_type == PM_GIB ) {
+		pm->mins.z = 0;
+		pm->maxs.z = 16;
+		ps->pmove.viewheight = 8;
+		return;
+	}
+
+	// Mins for standing/crouching/dead.
+	pm->mins.z = -24;
+
+	// Dead, and Ducked bbox:
+	if ( ( ps->pmove.pm_flags & PMF_DUCKED ) || ps->pmove.pm_type == PM_DEAD ) {
+		pm->maxs.z = 4;
+		ps->pmove.viewheight = -2;
+		// Alive and kicking bbox:
+	} else {
+		pm->maxs.z = 32;
+		ps->pmove.viewheight = 22;
+	}
+}
 
 
 
@@ -166,7 +197,6 @@ static bool PM_CheckStep( const trace_t *trace ) {
 	// It wasn't a step, return false.
 	return false;
 }
-
 /**
 *	@brief	Will step to the trace its end position, calculating the height difference and
 *			setting it as our step_height if it is equal or above the minimal step size.
@@ -187,7 +217,6 @@ static void PM_StepDown( const trace_t *trace ) {
 		//PM_AddEvent( 1 /*PM_EVENT_STEP*/, fabs( step_height ) );
 	}
 }
-
 /**
 *	@brief	Each intersection will try to step over the obstruction instead of
 *			sliding along it.
@@ -288,6 +317,54 @@ static void PM_StepSlideMove() {
 	}
 }
 
+
+
+/**
+*
+*
+*	Acceleration/Friction/Currents:
+*
+*
+**/
+/**
+*	@brief	Handles user intended acceleration.
+**/
+static void PM_Accelerate( const Vector3 &wishDirection, const float wishSpeed, const float acceleration ) {
+	const float currentspeed = QM_Vector3DotProduct( pml.velocity, wishDirection );
+	const float addSpeed = wishSpeed - currentspeed;
+	if ( addSpeed <= 0 ) {
+		return;
+	}
+
+	float accelerationSpeed = acceleration * pml.frameTime * wishSpeed;
+	if ( accelerationSpeed > addSpeed ) {
+		accelerationSpeed = addSpeed;
+	}
+
+	pml.velocity = QM_Vector3MultiplyAdd( pml.velocity, accelerationSpeed, wishDirection );
+}
+/**
+*	@brief	Handles user intended 'mid-air' acceleration.
+**/
+static void PM_AirAccelerate( const Vector3 &wishDirection, const float wishSpeed, const float acceleration ) {
+	float wishspd = wishSpeed;
+	if ( wishspd > 30 ) {
+		wishspd = 30;
+	}
+
+	const float currentspeed = QM_Vector3DotProduct( pml.velocity, wishDirection );
+	const float addSpeed = wishspd - currentspeed;
+	if ( addSpeed <= 0 ) {
+		return;
+	}
+
+	float accelerationSpeed = acceleration * wishSpeed * pml.frameTime;
+	if ( accelerationSpeed > addSpeed ) {
+		accelerationSpeed = addSpeed;
+	}
+
+	pml.velocity = QM_Vector3MultiplyAdd( pml.velocity, accelerationSpeed, wishDirection );
+}
 /**
 *	@brief	Handles both ground friction and water friction
 **/
@@ -335,48 +412,6 @@ static void PM_Friction() {
 		pml.velocity *= newspeed;
 	}
 }
-
-/**
-*	@brief	Handles user intended acceleration.
-**/
-static void PM_Accelerate( const Vector3 &wishDirection, const float wishSpeed, const float acceleration ) {
-	const float currentspeed = QM_Vector3DotProduct( pml.velocity, wishDirection );
-	const float addSpeed = wishSpeed - currentspeed;
-	if ( addSpeed <= 0 ) {
-		return;
-	}
-
-	float accelerationSpeed = acceleration * pml.frameTime * wishSpeed;
-	if ( accelerationSpeed > addSpeed ) {
-		accelerationSpeed = addSpeed;
-	}
-
-	pml.velocity = QM_Vector3MultiplyAdd( pml.velocity, accelerationSpeed, wishDirection );
-}
-
-/**
-*	@brief	Handles user intended 'mid-air' acceleration.
-**/
-static void PM_AirAccelerate( const Vector3 &wishDirection, const float wishSpeed, const float acceleration ) {
-	float wishspd = wishSpeed;
-	if ( wishspd > 30 ) {
-		wishspd = 30;
-	}
-
-	const float currentspeed = QM_Vector3DotProduct( pml.velocity, wishDirection );
-	const float addSpeed = wishspd - currentspeed;
-	if ( addSpeed <= 0 ) {
-		return;
-	}
-
-	float accelerationSpeed = acceleration * wishSpeed * pml.frameTime;
-	if ( accelerationSpeed > addSpeed ) {
-		accelerationSpeed = addSpeed;
-	}
-
-	pml.velocity = QM_Vector3MultiplyAdd( pml.velocity, accelerationSpeed, wishDirection );
-}
-
 /**
 *	@brief	Handles the velocities for 'ladders', as well as water and conveyor belt by applying their 'currents'.
 **/
@@ -526,6 +561,14 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 }
 
 
+
+/**
+*
+*
+*	Various MoveType Specific Implementations:
+*
+*
+**/
 /**
 *	@brief
 **/
@@ -610,7 +653,6 @@ static void PM_GenericMove() {
 		PM_StepSlideMove();
 	}
 }
-
 /**
 *	@brief	Performs in-water movement.
 **/
@@ -670,7 +712,129 @@ static void PM_WaterJumpMove() {
 	// Step slide move.
 	PM_StepSlideMove();
 }
+/**
+*	@brief
+**/
+static void PM_FlyMove( bool doclip ) {
+	float drop = 0.f;
 
+	// When clipping don 't adjust viewheight, if no-clipping, default a viewheight of 22.
+	ps->pmove.viewheight = doclip ? 0 : 22;
+
+	// Calculate friction
+	const float speed = QM_Vector3Length( pml.velocity );
+	if ( speed < 1 ) {
+		pml.velocity = QM_Vector3Zero();
+	} else {
+		drop = 0;
+
+		const float friction = pmp->pm_friction * 1.5f; // extra friction
+		const float control = speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed;
+		drop += control * friction * pml.frameTime;
+
+		// Scale the velocity
+		//float newspeed = speed - drop;
+		//if ( newspeed < 0 ) {
+		//	newspeed = 0;
+		//}
+		//newspeed /= speed;
+
+		//pml.velocity *= newspeed;
+		// Scale the velocity.
+		float newspeed = speed - drop;
+		if ( newspeed <= 0 ) {
+			newspeed = 0;
+			pml.velocity = {};
+		} else {
+			newspeed /= speed;
+			pml.velocity *= newspeed;
+		}
+	}
+
+	// Accelerate
+	const float forwardMove = pm->cmd.forwardmove;
+	const float sidewardMove = pm->cmd.sidemove;
+	pml.forward = QM_Vector3Normalize( pml.forward );
+	pml.right = QM_Vector3Normalize( pml.right );
+	Vector3 wishvel = pml.forward * forwardMove + pml.right * sidewardMove;
+
+	if ( pm->cmd.buttons & BUTTON_JUMP ) {
+		wishvel.z += ( pmp->pm_fly_speed * 0.5f );
+	}
+	if ( pm->cmd.buttons & BUTTON_CROUCH ) {
+		wishvel.z -= ( pmp->pm_fly_speed * 0.5f );
+	}
+
+	Vector3 wishdir = wishvel;
+	float wishspeed = QM_Vector3NormalizeLength( wishdir );
+
+	// Clamp to server defined max speed.
+	if ( wishspeed > pmp->pm_max_speed ) {
+		wishvel *= pmp->pm_max_speed / wishspeed;
+		wishspeed = pmp->pm_max_speed;
+	}
+
+	// Paril: newer clients do this.
+	wishspeed *= 2;
+
+	const float currentspeed = QM_Vector3DotProduct( pml.velocity, wishdir );
+	float addspeed = wishspeed - currentspeed;
+
+	if ( addspeed > 0 ) {
+		float accelspeed = pmp->pm_accelerate * pml.frameTime * wishspeed;
+		if ( accelspeed > addspeed ) {
+			accelspeed = addspeed;
+		}
+		pml.velocity += accelspeed * wishdir;
+	}
+
+	if ( doclip ) {
+		/*for (i = 0; i < 3; i++)
+			end[i] = pml.origin[i] + pml.frameTime * pml.velocity[i];
+
+		trace = PM_Trace(pml.origin, pm->mins, pm->maxs, end);
+
+		pml.origin = trace.endpos;*/
+		// Step Slide.
+		PM_StepSlideMove();
+	} else {
+		// Hard set origin in order to move.
+		pml.origin += ( pml.velocity * pml.frameTime );
+	}
+}
+/**
+*	@brief	No control over movement, just go where velocity brings us.
+*			Apply extra friction of the dead body is on-ground.
+**/
+static void PM_DeadMove() {
+	float forward;
+
+	if ( !pm->ground.entity ) {
+		return;
+	}
+
+	// Add extra friction for our dead body.
+	forward = QM_Vector3Length( pml.velocity );
+	forward -= 20;
+	if ( forward <= 0 ) {
+		pml.velocity = QM_Vector3Zero();
+	} else {
+		// Normalize.
+		pml.velocity = QM_Vector3Normalize( pml.velocity );
+		// Scale by old velocity derived length.
+		pml.velocity *= forward;
+	}
+}
+
+
+
+/**
+*
+*
+*	(Brush Contents-)Position Categorization:
+*
+*
+**/
 /**
 *	@brief
 **/
@@ -705,7 +869,6 @@ static inline void PM_GetWaterLevel( const Vector3 &position, liquid_level_t &le
 		}
 	}
 }
-
 /**
 *	@brief
 **/
@@ -793,65 +956,69 @@ static void PM_CategorizePosition() {
 	// Get liquid.level, accounting for ducking.
 	PM_GetWaterLevel( pml.origin, pm->liquid.level, pm->liquid.type );
 }
-
 /**
-*	@brief
+*	@brief	Determine whether we're above water, or not.
 **/
-static void PM_CheckJump() {
-	// Hasn't been long enough since landing to jump again.
-	if ( ps->pmove.pm_flags & PMF_TIME_LAND ) {
-		return;
+static inline const bool PM_AboveWater() {
+	// Testing point.
+	const Vector3 below = pml.origin + Vector3{ 0, 0, -8 };
+	// We got solid below, not water:
+	bool solid_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, MASK_SOLID ).fraction < 1.0f;
+	if ( solid_below ) {
+		return false;
 	}
 
-	// Can't jump while ducked.
-	if ( ps->pmove.pm_flags & PMF_DUCKED ) {
-		return;
+	// We're above water:
+	bool water_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, MASK_WATER ).fraction < 1.0f;
+	if ( water_below ) {
+		return true;
 	}
 
-	// Player has let go of jump button.
-	if ( !( pm->cmd.buttons & BUTTON_JUMP ) ) { 
-		ps->pmove.pm_flags &= ~PMF_JUMP_HELD;
-		return;
+	// No water below.
+	return false;
+}
+/**
+*	@brief	Determine the vieworg's brush contents, apply Blend effect based on results.
+*			Also determines whether the view is underwater and to render it as such.
+**/
+static void PM_ScreenEffects() {
+	// Add for contents
+	Vector3 vieworg = {
+		pml.origin.x + pm->viewoffset.x,
+		pml.origin.y + pm->viewoffset.y,
+		pml.origin.z + pm->viewoffset.z + (float)ps->pmove.viewheight
+	};
+	const int32_t contents = pm->pointcontents( QM_Vector3ToQFloatV( vieworg ).v );//contents_t contents = pm->pointcontents( vieworg );
+
+	// Under a 'water' like solid:
+	if ( contents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) ) {
+		pm->rdflags |= RDF_UNDERWATER;
+		// Or not:
+	} else {
+		pm->rdflags &= ~RDF_UNDERWATER;
 	}
 
-	// Player must wait for jump to be released.
-	if ( ps->pmove.pm_flags & PMF_JUMP_HELD ) {
-		return;
-	}
-
-	// Can't jump while dead.
-	if ( ps->pmove.pm_type == PM_DEAD ) {
-		return;
-	}
-
-	// We're swimming, not jumping, so unset ground entity.
-	if ( pm->liquid.level >= liquid_level_t::LIQUID_WAIST ) { 
-		// Unset ground.
-		pm->ground.entity = nullptr;
-		return;
-	}
-
-	// In-air/liquid, so no effect, can't re-jump without ground.
-	if ( pm->ground.entity == nullptr ) {
-		return;
-	}
-
-	// Adjust our pmove state to engage in the act of jumping.
-	ps->pmove.pm_flags |= PMF_JUMP_HELD;
-	pm->jump_sound = true;
-	pm->ground.entity = nullptr;
-		// Unset ground.
-	//PM_UpdateGroundFromTrace( nullptr );
-	ps->pmove.pm_flags &= ~PMF_ON_GROUND;
-
-	const float jump_height = pmp->pm_jump_height;
-
-	pml.velocity.z += jump_height;
-	if ( pml.velocity.z < jump_height ) {
-		pml.velocity.z = jump_height;
+	// Prevent it from adding screenblend if we're inside a client entity, by checking
+	// if its brush has CONTENTS_PLAYER set in its clipmask.
+	if ( !( contents & CONTENTS_PLAYER )
+		&& ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
+		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, &pm->screen_blend.x );
+	} else if ( contents & CONTENTS_SLIME ) {
+		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, &pm->screen_blend.x );
+	} else if ( contents & CONTENTS_WATER ) {
+		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, &pm->screen_blend.x );
 	}
 }
 
+
+
+/**
+*
+*
+*	Checks for: Ducking, (Trick-)Jumping, Out of Water Jumping, and Ladder movement.
+*
+*
+**/
 /**
 *	@brief
 **/
@@ -869,9 +1036,9 @@ static void PM_CheckSpecialMovement() {
 		pml.forward.x,
 		pml.forward.y,
 		0.f
-	} );
+		} );
 	const Vector3 spot = pml.origin + ( flatforward * 1 );
-	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, (contents_t)(CONTENTS_LADDER ));
+	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, (contents_t)( CONTENTS_LADDER ) );
 	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->liquid.level < liquid_level_t::LIQUID_WAIST ) {
 		ps->pmove.pm_flags |= PMF_ON_LADDER;
 	}
@@ -883,7 +1050,7 @@ static void PM_CheckSpecialMovement() {
 
 	// check for water jump
 	// [Paril-KEX] don't try waterjump if we're moving against where we'll hop
-	if ( !( pm->cmd.buttons & BUTTON_JUMP )	&& pm->cmd.forwardmove <= 0 ) {
+	if ( !( pm->cmd.buttons & BUTTON_JUMP ) && pm->cmd.forwardmove <= 0 ) {
 		return;
 	}
 
@@ -938,7 +1105,7 @@ static void PM_CheckSpecialMovement() {
 	}
 
 	// We're currently standing on ground, and the snapped position is a step.
-	if ( pm->ground.entity && fabsf( pml.origin.z - trace.endpos[2] ) <= PM_MAX_STEP_SIZE ) {
+	if ( pm->ground.entity && fabsf( pml.origin.z - trace.endpos[ 2 ] ) <= PM_MAX_STEP_SIZE ) {
 		return;
 	}
 
@@ -959,152 +1126,63 @@ static void PM_CheckSpecialMovement() {
 	ps->pmove.pm_flags |= PMF_TIME_WATERJUMP;
 	ps->pmove.pm_time = 2048;
 }
-
 /**
 *	@brief
 **/
-static void PM_FlyMove( bool doclip ) {
-	float drop = 0.f;
-
-	// When clipping don 't adjust viewheight, if no-clipping, default a viewheight of 22.
-	ps->pmove.viewheight = doclip ? 0 : 22;
-
-	// Calculate friction
-	const float speed = QM_Vector3Length( pml.velocity );
-	if ( speed < 1 ) {
-		pml.velocity = QM_Vector3Zero();
-	} else {
-		drop = 0;
-
-		const float friction = pmp->pm_friction * 1.5f; // extra friction
-		const float control = speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed;
-		drop += control * friction * pml.frameTime;
-
-		// Scale the velocity
-		//float newspeed = speed - drop;
-		//if ( newspeed < 0 ) {
-		//	newspeed = 0;
-		//}
-		//newspeed /= speed;
-
-		//pml.velocity *= newspeed;
-		// Scale the velocity.
-		float newspeed = speed - drop;
-		if ( newspeed <= 0 ) {
-			newspeed = 0;
-			pml.velocity = {};
-		} else {
-			newspeed /= speed;
-			pml.velocity *= newspeed;
-		}
-	}
-
-	// Accelerate
-	const float forwardMove = pm->cmd.forwardmove;
-	const float sidewardMove = pm->cmd.sidemove;
-	pml.forward	= QM_Vector3Normalize( pml.forward );
-	pml.right	= QM_Vector3Normalize( pml.right );
-	Vector3 wishvel = pml.forward * forwardMove + pml.right * sidewardMove;
-
-	if ( pm->cmd.buttons & BUTTON_JUMP ) {
-		wishvel.z += ( pmp->pm_fly_speed * 0.5f );
-	}
-	if ( pm->cmd.buttons & BUTTON_CROUCH ) {
-		wishvel.z -= ( pmp->pm_fly_speed * 0.5f );
-	}
-
-	Vector3 wishdir = wishvel;
-	float wishspeed = QM_Vector3NormalizeLength( wishdir );
-
-	// Clamp to server defined max speed.
-	if ( wishspeed > pmp->pm_max_speed ) {
-		wishvel *= pmp->pm_max_speed / wishspeed;
-		wishspeed = pmp->pm_max_speed;
-	}
-
-	// Paril: newer clients do this.
-	wishspeed *= 2;
-
-	const float currentspeed = QM_Vector3DotProduct( pml.velocity, wishdir );
-	float addspeed = wishspeed - currentspeed;
-
-	if ( addspeed > 0 ) {
-		float accelspeed = pmp->pm_accelerate * pml.frameTime * wishspeed;
-		if ( accelspeed > addspeed ) {
-			accelspeed = addspeed;
-		}
-		pml.velocity += accelspeed * wishdir;
-	}
-
-	if ( doclip ) {
-		/*for (i = 0; i < 3; i++)
-			end[i] = pml.origin[i] + pml.frameTime * pml.velocity[i];
-
-		trace = PM_Trace(pml.origin, pm->mins, pm->maxs, end);
-
-		pml.origin = trace.endpos;*/
-		// Step Slide.
-		PM_StepSlideMove();
-	} else {
-		// Hard set origin in order to move.
-		pml.origin += ( pml.velocity * pml.frameTime );
-	}
-}
-
-/**
-*	@brief	Sets the player's movement bounding box depending on various state factors.
-**/
-static void PM_SetDimensions() {
-	// Start with a {-16,-16, 0}, {16,16, 0}, and set Z after.
-	pm->mins.x = -16;
-	pm->mins.y = -16;
-	pm->maxs.x = 16;
-	pm->maxs.y = 16;
-
-	// Specifical gib treatment.
-	if ( ps->pmove.pm_type == PM_GIB ) {
-		pm->mins.z = 0;
-		pm->maxs.z = 16;
-		ps->pmove.viewheight = 8;
+static void PM_CheckJump() {
+	// Hasn't been long enough since landing to jump again.
+	if ( ps->pmove.pm_flags & PMF_TIME_LAND ) {
 		return;
 	}
 
-	// Mins for standing/crouching/dead.
-	pm->mins.z = -24;
+	// Can't jump while ducked.
+	if ( ps->pmove.pm_flags & PMF_DUCKED ) {
+		return;
+	}
 
-	// Dead, and Ducked bbox:
-	if ( ( ps->pmove.pm_flags & PMF_DUCKED ) || ps->pmove.pm_type == PM_DEAD ) {
-		pm->maxs.z = 4;
-		ps->pmove.viewheight = -2;
-	// Alive and kicking bbox:
-	} else {
-		pm->maxs.z = 32;
-		ps->pmove.viewheight = 22;
+	// Player has let go of jump button.
+	if ( !( pm->cmd.buttons & BUTTON_JUMP ) ) {
+		ps->pmove.pm_flags &= ~PMF_JUMP_HELD;
+		return;
+	}
+
+	// Player must wait for jump to be released.
+	if ( ps->pmove.pm_flags & PMF_JUMP_HELD ) {
+		return;
+	}
+
+	// Can't jump while dead.
+	if ( ps->pmove.pm_type == PM_DEAD ) {
+		return;
+	}
+
+	// We're swimming, not jumping, so unset ground entity.
+	if ( pm->liquid.level >= liquid_level_t::LIQUID_WAIST ) {
+		// Unset ground.
+		pm->ground.entity = nullptr;
+		return;
+	}
+
+	// In-air/liquid, so no effect, can't re-jump without ground.
+	if ( pm->ground.entity == nullptr ) {
+		return;
+	}
+
+	// Adjust our pmove state to engage in the act of jumping.
+	ps->pmove.pm_flags |= PMF_JUMP_HELD;
+	pm->jump_sound = true;
+	pm->ground.entity = nullptr;
+	// Unset ground.
+//PM_UpdateGroundFromTrace( nullptr );
+	ps->pmove.pm_flags &= ~PMF_ON_GROUND;
+
+	const float jump_height = pmp->pm_jump_height;
+
+	pml.velocity.z += jump_height;
+	if ( pml.velocity.z < jump_height ) {
+		pml.velocity.z = jump_height;
 	}
 }
-
-/**
-*	@brief	Determine whether we're above water, or not.
-**/
-static inline const bool PM_AboveWater() {
-	// Testing point.
-	const Vector3 below = pml.origin + Vector3{ 0, 0, -8 };
-	// We got solid below, not water:
-	bool solid_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, MASK_SOLID ).fraction < 1.0f;
-	if ( solid_below ) {
-		return false;
-	}
-
-	// We're above water:
-	bool water_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, MASK_WATER ).fraction < 1.0f;
-	if ( water_below ) {
-		return true;
-	}
-
-	// No water below.
-	return false;
-}
-
 /**
 *	@brief	Decide whether to duck, and/or unduck.
 **/
@@ -1164,30 +1242,15 @@ static inline const bool PM_CheckDuck() {
 	return true;
 }
 
+
+
 /**
-*	@brief	No control over movement, just go where velocity brings us.
-*			Apply extra friction of the dead body is on-ground.
+*
+*
+*	Position (Initial-)Snapping and Validation:
+*
+*
 **/
-static void PM_DeadMove() {
-	float forward;
-
-	if ( !pm->ground.entity ) {
-		return;
-	}
-
-	// Add extra friction for our dead body.
-	forward = QM_Vector3Length( pml.velocity );
-	forward -= 20;
-	if ( forward <= 0 ) {
-		pml.velocity = QM_Vector3Zero();
-	} else {
-		// Normalize.
-		pml.velocity = QM_Vector3Normalize( pml.velocity );
-		// Scale by old velocity derived length.
-		pml.velocity *= forward;
-	}
-}
-
 /**
 *	@brief	True if we're standing in a legitimate non solid position.
 **/
@@ -1200,7 +1263,6 @@ static inline const bool PM_GoodPosition() {
 	const trace_t trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, ps->pmove.origin );
 	return !trace.allsolid;
 }
-
 /**
 *	@brief	On exit, the origin will have a value that is pre-quantized to the PMove
 *			precision of the network channel and in a valid position.
@@ -1216,7 +1278,6 @@ static void PM_SnapPosition() {
 	//	return;
 	//}
 }
-
 /**
 *	@brief	Try and find, then snap, to a valid non solid position.
 **/
@@ -1240,6 +1301,15 @@ static void PM_InitialSnapPosition() {
 	}
 }
 
+
+
+/**
+*
+*
+*	Core Logic and Entry Points:
+*
+*
+**/
 /**
 *	@brief	Clamp view angles within range (0, 360).
 **/
@@ -1278,7 +1348,6 @@ static void PM_UpdateViewAngles( player_state_t *playerState, const usercmd_t *u
 	// Calculate angle vectors derived from current viewing angles.
 	QM_AngleVectors( playerState->viewangles, &pml.forward, &pml.right, &pml.up );
 }
-
 /**
 *	@brief	Used by >= PM_DEAD movetypes, ensure user input is cleared so it has no further influence.
 **/
@@ -1290,40 +1359,6 @@ static void PM_EraseInputCommandState() {
 	// Unset these two buttons so other code won't respond to it.
 	pm->cmd.buttons &= ~( BUTTON_JUMP | BUTTON_CROUCH );
 }
-
-/**
-*	@brief	Determine the vieworg's brush contents, apply Blend effect based on results.
-*			Also determines whether the view is underwater and to render it as such.
-**/
-static void PM_ScreenEffects() {
-	// Add for contents
-	Vector3 vieworg = {
-		pml.origin.x + pm->viewoffset.x,
-		pml.origin.y + pm->viewoffset.y,
-		pml.origin.z + pm->viewoffset.z + (float)ps->pmove.viewheight
-	};
-	const int32_t contents = pm->pointcontents( QM_Vector3ToQFloatV( vieworg ).v );//contents_t contents = pm->pointcontents( vieworg );
-
-	// Under a 'water' like solid:
-	if ( contents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) ) {
-		pm->rdflags |= RDF_UNDERWATER;
-	// Or not:
-	} else {
-		pm->rdflags &= ~RDF_UNDERWATER;
-	}
-
-	// Prevent it from adding screenblend if we're inside a client entity, by checking
-	// if its brush has CONTENTS_PLAYER set in its clipmask.
-	if ( !( contents & CONTENTS_PLAYER )
-		&& ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
-		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, &pm->screen_blend.x );
-	} else if ( contents & CONTENTS_SLIME ) {
-		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, &pm->screen_blend.x );
-	} else if ( contents & CONTENTS_WATER ) {
-		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, &pm->screen_blend.x );
-	}
-}
-
 /**
 *
 **/
