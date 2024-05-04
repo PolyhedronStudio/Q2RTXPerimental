@@ -71,19 +71,19 @@ RMAPI const Vector3 QM_Vector3Multiply( ConstVector3Ref v1, ConstVector3Ref v2 )
     return result;
 }
 
-// Multiply vector by vector
-RMAPI const Vector3 QM_Vector3MultiplyAdd( ConstVector3Ref v1, const float multiply, ConstVector3Ref v2 ) {
+// Returns The vector 'v' + ('add' * 'multiply').
+RMAPI const Vector3 QM_Vector3MultiplyAdd( ConstVector3Ref v, const float multiply, ConstVector3Ref add ) {
     #ifdef __cplusplus
     Vector3 result = { 
-        std::fmaf( v1.x, multiply, v2.x ), 
-        std::fmaf( v1.y, multiply, v2.y ),
-        std::fmaf( v1.z, multiply, v2.z ),
+        std::fmaf( add.x, multiply, v.x ), 
+        std::fmaf( add.y, multiply, v.y ),
+        std::fmaf( add.z, multiply, v.z ),
     };
     #else
     Vector3 result = {
-        fmaf( v1.x, multiply, v2.x ),
-        fmaf( v1.y, multiply, v2.y ),
-        fmaf( v1.z, multiply, v2.z ),
+        fmaf( add.x, multiply, v.x ),
+        fmaf( add.y, multiply, v.y ),
+        fmaf( add.z, multiply, v.z ),
     };
     #endif
 
