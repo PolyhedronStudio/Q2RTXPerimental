@@ -47,6 +47,23 @@ void PF_AdjustViewHeight( const int32_t viewHeight ) {
 }
 
 /**
+*   @brief  Will predict the bobcycle to be for the next server frame.
+**/
+void CLG_PredictNextBobCycle( pmove_t *pm ) {
+    // Predict next bobcycle.
+    const float bobCycleFraction = (float)( clgi.client->time - clgi.client->servertime )
+        / ( ( clgi.client->time + clgi.frame_time_ms ) - clgi.client->servertime );
+    int32_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->playerState->bobCycle;// nextframe->ps.bobCycle;
+    // Handle wraparound:
+    if ( bobCycle < pm->playerState->bobCycle ) {
+        bobCycle += 256;
+    }
+    pm->playerState->bobCycle = pm->playerState->bobCycle + bobCycleFraction * ( bobCycle - clgi.client->frame.ps.bobCycle );
+
+    clgi.Print( PRINT_DEVELOPER, "%s: bobCycle(%i), bobCycleFraction(%f)\n", __func__, pm->playerState->bobCycle, bobCycleFraction );
+}
+
+/**
 *   @brief  Will determine if we're stepping, and smooth out the step height in case of traversing multiple steps in a row.
 **/
 void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedState, const float stepHeight ) {
@@ -233,13 +250,6 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Last predicted state.
     client_predicted_state_t *predictedState = &clgi.client->predictedState;
 
-    // Some debug stuff.
-    //if ( clgi.client->predictedState.groundEntity ) {
-    //    clgi.Print( PRINT_DEVELOPER, "predictedState.groundEntity(#%d)\n", clgi.client->predictedState.groundEntity->current.number );
-    //} else {
-    //    clgi.Print( PRINT_DEVELOPER, "predictedState.groundEntity(%s)\n", " NONE " );
-    //}
-
     // Shuffle current to last playerState.
     predictedState->lastPs = predictedState->currentPs;
 
@@ -312,6 +322,8 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         clgi.client->predictedState.cmd = *pendingMoveCommand;
     }
 
+    // Predict the next bobCycle for the frame.
+    //CLG_PredictNextBobCycle( &pm );
 
     // Smooth Out Stair Stepping. This is done before updating the ground data so we can test results to the
     // previously predicted ground data.

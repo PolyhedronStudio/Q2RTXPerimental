@@ -35,9 +35,9 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 	int i;
 
 	out->pmove = in->pmove;
-	//out->viewangles[ 0 ] = ANGLE2SHORT( in->viewangles[ 0 ] );
-	//out->viewangles[ 1 ] = ANGLE2SHORT( in->viewangles[ 1 ] );
-	//out->viewangles[ 2 ] = ANGLE2SHORT( in->viewangles[ 2 ] );
+
+	out->bobCycle = (uint8_t)in->bobCycle;
+
 	out->viewangles[ 0 ] = AngleMod( in->viewangles[ 0 ] );
 	out->viewangles[ 1 ] = AngleMod( in->viewangles[ 1 ] );
 	out->viewangles[ 2 ] = AngleMod( in->viewangles[ 2 ] );
@@ -47,6 +47,7 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 	out->kick_angles[ 0 ] = scaled_short( in->kick_angles[ 0 ], 1024 ); // WID: new-pmove OFFSET2CHAR( in->kick_angles[ 0 ] );
 	out->kick_angles[ 1 ] = scaled_short( in->kick_angles[ 1 ], 1024 ); // WID: new-pmove OFFSET2CHAR( in->kick_angles[ 1 ] );
 	out->kick_angles[ 2 ] = scaled_short( in->kick_angles[ 2 ], 1024 ); // WID: new-pmove OFFSET2CHAR( in->kick_angles[ 2 ] );
+
 	out->gunoffset[ 0 ] = COORD2SHORT( in->gunoffset[ 0 ] );
 	out->gunoffset[ 1 ] = COORD2SHORT( in->gunoffset[ 1 ] );
 	out->gunoffset[ 2 ] = COORD2SHORT( in->gunoffset[ 2 ] );
@@ -55,15 +56,15 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 	out->gunangles[ 2 ] = ANGLE2SHORT( in->gunangles[ 2 ] );// WID: new-pmove OFFSET2CHAR( in->gunangles[ 2 ] );
 	out->gunindex = in->gunindex;
 	out->gunframe = in->gunframe;
-	// WID: 40hz.
 	out->gunrate = ( in->gunrate == 10 ) ? 0 : in->gunrate;
-	// WID: 40hz.
+
 	out->screen_blend[ 0 ] = BLEND2BYTE( in->screen_blend[ 0 ] );
 	out->screen_blend[ 1 ] = BLEND2BYTE( in->screen_blend[ 1 ] );
 	out->screen_blend[ 2 ] = BLEND2BYTE( in->screen_blend[ 2 ] );
 	out->screen_blend[ 3 ] = BLEND2BYTE( in->screen_blend[ 3 ] );
-	out->fov = (int)in->fov;
 	out->rdflags = in->rdflags;
+	out->fov = (int)in->fov;
+
 	for ( i = 0; i < MAX_STATS; i++ )
 		out->stats[ i ] = in->stats[ i ];
 }
@@ -110,9 +111,9 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	if ( to->pmove.viewheight != from->pmove.viewheight ) {
 		pflags |= PS_M_VIEWHEIGHT;
 	}
-	//if ( to->pmove.bob_cycle != from->pmove.bob_cycle ) {
-	//	pflags |= PS_M_BOB_CYCLE;
-	//}
+	if ( to->bobCycle != from->bobCycle ) {
+		pflags |= PS_BOB_CYCLE;
+	}
 
 	// rest of the player_state_t:
 	if ( !VectorCompare( to->viewoffset, from->viewoffset ) ) {
@@ -184,9 +185,9 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	if ( pflags & PS_M_VIEWHEIGHT ) {
 		MSG_WriteInt8( to->pmove.viewheight );
 	}
-	//if ( pflags & PS_M_BOB_CYCLE ) {
-	//	MSG_WriteUint8( to->pmove.bob_cycle );
-	//}
+	if ( pflags & PS_BOB_CYCLE ) {
+		MSG_WriteUint8( to->bobCycle );
+	}
 	//// Sequenced Events:
 	//if ( pflags & PS_M_EVENT_SEQUENCE ) {
 	//	MSG_WriteUint8( to->pmove.eventSequence );

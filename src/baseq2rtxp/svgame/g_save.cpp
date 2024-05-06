@@ -421,8 +421,8 @@ static const save_field_t clientfields[] = {
 
 	I( weaponstate ),
 
-	V( kick_angles ),
-	V( kick_origin ),
+	V( weaponKicks.offsetAngles ),
+	V( weaponKicks.offsetOrigin ),
 	F( v_dmg_roll ),
 	F( v_dmg_pitch ),
 	F( v_dmg_time ),

@@ -228,32 +228,32 @@ Auto pitching on slopes?
 ===============
 */
 void SV_CalcViewOffset( edict_t *ent ) {
-	float *angles;
+	//float *angles;
 	float       bob;
 	float       ratio;
 	float       delta;
-	vec3_t      v;
 
-
-//===================================
-
-	// base angles
-	angles = &ent->client->ps.kick_angles.x;
+	Vector3 viewOriginOffset = QM_Vector3Zero();
+	Vector3 viewAnglesOffset = QM_Vector3Zero();//ent->client->ps.kick_angles;
 
 	// If dead, fix the angle and don't add any kicks
 	if ( ent->deadflag ) {
 		// Clear out weapon kick angles.
-		VectorClear( angles );
+		VectorClear( ent->client->ps.kick_angles );
 
 		// Apply death view angles.
 		ent->client->ps.viewangles[ ROLL ] = 40;
 		ent->client->ps.viewangles[ PITCH ] = -15;
 		ent->client->ps.viewangles[ YAW ] = ent->client->killer_yaw;
+	
+	/**
+	*	Add view angle kicks for: Damage, Falling, Velocity and EarthQuakes.
+	**/
 	} else {
-		// Start the angles based on weapon kick
-		VectorCopy( ent->client->kick_angles, angles );
+		// First apply weapon angle kicks.
+		VectorCopy( ent->client->weaponKicks.offsetAngles, viewAnglesOffset );
 
-		// Add angles based on the damage kick
+		// Add angles based on the damage impackt kick.
 		if ( ent->client->v_dmg_time > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
@@ -268,11 +268,11 @@ void SV_CalcViewOffset( edict_t *ent ) {
 			} else
 				ratio = diff.seconds( ) / ( DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
 
-			angles[ PITCH ] += ratio * ent->client->v_dmg_pitch;
-			angles[ ROLL ] += ratio * ent->client->v_dmg_roll;
+			viewAnglesOffset[ PITCH ] += ratio * ent->client->v_dmg_pitch;
+			viewAnglesOffset[ ROLL ] += ratio * ent->client->v_dmg_roll;
 		}
 
-		// Add pitch based on the fall kick.
+		// Add pitch angles based on the fall impact kick.
 		if ( ent->client->fall_time > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
@@ -286,86 +286,55 @@ void SV_CalcViewOffset( edict_t *ent ) {
 					ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
 			} else
 				ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
-			angles[ PITCH ] += ratio * ent->client->fall_value;
+			viewAnglesOffset[ PITCH ] += ratio * ent->client->fall_value;
 		}
 
 		// Add angles based on the entity's velocity.
 		if ( /*!ent->client->pers.bob_skip &&*/ !SkipViewModifiers( ) ) {
-			//delta = ent->velocity.dot( forward );
-			delta = DotProduct( ent->velocity, ( forward ) );
-			angles[ PITCH ] += delta * run_pitch->value;
+			////delta = ent->velocity.dot( forward );
+			//delta = DotProduct( ent->velocity, ( forward ) );
+			//angles[ PITCH ] += delta * run_pitch->value;
 
-			//delta = ent->velocity.dot( right );
-			delta = DotProduct( ent->velocity, ( right ) );
-			angles[ ROLL ] += delta * run_roll->value;
+			////delta = ent->velocity.dot( right );
+			//delta = DotProduct( ent->velocity, ( right ) );
+			//angles[ ROLL ] += delta * run_roll->value;
 
-			// Add angles based on bob fractional sin value.
-			delta = bobfracsin * bob_pitch->value * xyspeed;
-			if ( ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity )
-				delta *= 6; // crouching
-			delta = min( delta, 1.2f );
-			angles[ PITCH ] += delta;
-			delta = bobfracsin * bob_roll->value * xyspeed;
-			if ( ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity )
-				delta *= 6; // crouching
-			delta = min( delta, 1.2f );
-			if ( bobcycle & 1 )
-				delta = -delta;
-			angles[ ROLL ] += delta;
+			//// Add angles based on bob fractional sin value.
+			//delta = bobfracsin * bob_pitch->value * xyspeed;
+			//if ( ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity )
+			//	delta *= 6; // crouching
+			//delta = min( delta, 1.2f );
+			//angles[ PITCH ] += delta;
+			//delta = bobfracsin * bob_roll->value * xyspeed;
+			//if ( ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity )
+			//	delta *= 6; // crouching
+			//delta = min( delta, 1.2f );
+			//if ( bobcycle & 1 )
+			//	delta = -delta;
+			//angles[ ROLL ] += delta;
 		}
 
-		// add earthquake angles
+		// Add earthquake view offset angles
 		if ( ent->client->quake_time > level.time ) {
 			float factor = min( 1.0f, ( ent->client->quake_time.seconds( ) / level.time.seconds( ) ) * 0.25f );
 
-			angles[ 0 ] += crandom_open( ) * factor;
-			angles[ 1 ] += crandom_open( ) * factor;
-			angles[ 2 ] += crandom_open( ) * factor;
+			viewAnglesOffset.x += crandom_open( ) * factor;
+			viewAnglesOffset.y += crandom_open( ) * factor;
+			viewAnglesOffset.z += crandom_open( ) * factor;
 		}
-
-		//// add angles based on velocity
-		//delta = DotProduct(ent->velocity, forward);
-		//angles[PITCH] += delta * run_pitch->value;
-
-		//delta = DotProduct(ent->velocity, right);
-		//angles[ROLL] += delta * run_roll->value;
-
-		// add angles based on bob
-		//delta = bobfracsin * bob_pitch->value * xyspeed;
-		//if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-		//    delta *= 6;     // crouching
-		//angles[PITCH] += delta;
-		//delta = bobfracsin * bob_roll->value * xyspeed;
-		//if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-		//    delta *= 6;     // crouching
-		//if (bobcycle & 1)
-		//    delta = -delta;
-		//angles[ROLL] += delta;
-
-		//delta = bobfracsin * bob_pitch->value * xyspeed;
-		//if ( ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity )
-		//	delta *= 6; // crouching
-		//delta = min( delta, 1.2f );
-		//angles[ PITCH ] += delta;
-		//delta = bobfracsin * bob_roll->value * xyspeed;
-		//if ( ( ent->client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity )
-		//	delta *= 6; // crouching
-		//delta = min( delta, 1.2f );
-		//if ( bobcycle & 1 )
-		//	delta = -delta;
-		//angles[ ROLL ] += delta;
+	}
+	// [Paril-KEX] Clamp view offset angles within a pleasant realistic range.
+	for ( int32_t i = 0; i < 3; i++ ) {
+		viewAnglesOffset[ i ] = clamp( viewAnglesOffset[ i ], -31.f, 31.f );
 	}
 
-	// [Paril-KEX] clamp angles
-	for ( int i = 0; i < 3; i++ ) {
-		angles[ i ] = clamp( angles[ i ], -31.f, 31.f );
-	}
-//===================================
+	/**
+	*	View Offset.
+	**/
+	// Base origin for view offset.
+	VectorClear( viewOriginOffset );
 
-	// base origin
-	VectorClear( v );
-
-	// add fall height
+	// Add fall height landing impact to the final view originOffset.
 	if ( ent->client->fall_time > level.time ) {
 		// [Paril-KEX] 100ms of slack is added to account for
 		// visual difference in higher tickrates
@@ -381,28 +350,27 @@ void SV_CalcViewOffset( edict_t *ent ) {
 		} else {
 			ratio = diff.seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).seconds();
 		}
-		v[ 2 ] -= ratio * ent->client->fall_value * 0.4f;
+		viewOriginOffset.z -= ratio * ent->client->fall_value * 0.4f;
 	}
 
-	// add bob height
+	// Add bob height to the viewOffset.
+	//bob = bobfracsin * xyspeed * bob_up->value;
+	//if ( bob > 6 )
+	//	bob = 6;
+	////gi.DebugGraph (bob *2, 255);
+	//viewOffset[ 2 ] += bob;
 
-	bob = bobfracsin * xyspeed * bob_up->value;
-	if ( bob > 6 )
-		bob = 6;
-	//gi.DebugGraph (bob *2, 255);
-	v[ 2 ] += bob;
+	// Add weapon kicks offset into the final viewOffset.
+	viewOriginOffset += ent->client->weaponKicks.offsetOrigin;
 
-	// add kick offset
-	VectorAdd( v, ent->client->kick_origin, v );
+	// Clamp the viewOffset values to remain within the player bounding box.
+	clamp( viewOriginOffset[ 0 ], -14, 14 );
+	clamp( viewOriginOffset[ 1 ], -14, 14 );
+	clamp( viewOriginOffset[ 2 ], -22, 30 );
 
-	// absolutely bound offsets
-	// so the view can never be outside the player box
-
-	clamp( v[ 0 ], -14, 14 );
-	clamp( v[ 1 ], -14, 14 );
-	clamp( v[ 2 ], -22, 30 );
-
-	VectorCopy( v, ent->client->ps.viewoffset );
+	// Store the viewOriginOffset and viewAnglesOffset in the client's playerState.
+	VectorCopy( viewOriginOffset, ent->client->ps.viewoffset );
+	VectorCopy( viewAnglesOffset, ent->client->ps.viewangles );
 }
 
 /*
@@ -985,6 +953,7 @@ void ClientEndServerFrame( edict_t *ent ) {
 		return;
 	}
 
+	// Calculate angle vectors.
 	AngleVectors( ent->client->v_angle, forward, right, up );
 
 	// burn from lava, etc
@@ -994,10 +963,11 @@ void ClientEndServerFrame( edict_t *ent ) {
 	// set model angles from view angles so other things in
 	// the world can tell which direction you are looking
 	//
-	if ( ent->client->v_angle[ PITCH ] > 180 )
+	if ( ent->client->v_angle[ PITCH ] > 180 ) {
 		ent->s.angles[ PITCH ] = ( -360 + ent->client->v_angle[ PITCH ] ) / 3;
-	else
+	} else {
 		ent->s.angles[ PITCH ] = ent->client->v_angle[ PITCH ] / 3;
+	}
 	ent->s.angles[ YAW ] = ent->client->v_angle[ YAW ];
 	ent->s.angles[ ROLL ] = 0;
 	ent->s.angles[ ROLL ] = SV_CalcRoll( ent->s.angles, ent->velocity ) * 4;
@@ -1076,9 +1046,10 @@ void ClientEndServerFrame( edict_t *ent ) {
 	VectorCopy( ent->client->ps.viewangles, ent->client->oldviewangles );
 	ent->client->oldgroundentity = ent->groundentity;
 
-	// clear weapon kicks
-	VectorClear( ent->client->kick_origin );
-	VectorClear( ent->client->kick_angles );
+	// Clear out the weapon kicks.
+	ent->client->weaponKicks = {};
+	//VectorClear( ent->client->kick_origin );
+	//VectorClear( ent->client->kick_angles );
 
 	// if the scoreboard is up, update it
 	if ( ent->client->showscores && !( level.framenum & 31 ) ) {

@@ -80,9 +80,9 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	if ( flags & PS_M_VIEWHEIGHT ) {
 		to->pmove.viewheight = MSG_ReadInt8();
 	}
-	//if ( flags & PS_M_BOB_CYCLE ) {
-	//	to->pmove.bob_cycle = MSG_ReadUint8();
-	//}
+	if ( flags & PS_BOB_CYCLE ) {
+		to->bobCycle = MSG_ReadUint8();
+	}
 	//// Sequenced Events:
 	//if ( flags & PS_M_EVENT_SEQUENCE ) {
 	//	to->pmove.eventSequence = MSG_ReadUint8();

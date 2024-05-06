@@ -173,10 +173,11 @@ void PF_MouseMove( const float deltaX, const float deltaY, const float moveX, co
 static void CLG_AdjustAngles( const int64_t msec ) {
     double speed;
 
-    if ( in_speed.state & BUTTON_STATE_HELD )
+    if ( in_speed.state & BUTTON_STATE_HELD ) {
         speed = msec * cl_anglespeedkey->value * 0.001f;
-    else
+    } else {
         speed = msec * 0.001f;
+    }
 
     if ( !( in_strafe.state & BUTTON_STATE_HELD ) ) {
         clgi.client->viewangles[ YAW ] -= speed * cl_yawspeed->value * clgi.KeyState( &in_right );
@@ -260,6 +261,12 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, cl
     }
     if ( in_down.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_CROUCH;
+    }
+    if ( in_speed.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+        moveCommand->cmd.buttons |= BUTTON_WALK;
+    }
+    if ( in_strafe.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+        moveCommand->cmd.buttons |= BUTTON_STRAFE;
     }
 
     // Allow mice to add to the move

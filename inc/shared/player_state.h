@@ -62,9 +62,6 @@ typedef struct pmove_state_s {
     //! Timer value for a specific few of state flags.
     uint16_t	pm_time;		//! Each unit = 8 ms
 
-    //! Bob Cycle.
-    //uint8_t     bob_cycle;
-
     //! Gravity to apply.
     int16_t     gravity;
 
@@ -77,16 +74,6 @@ typedef struct pmove_state_s {
 
     //! State viewheight.
     int8_t		viewheight;		//! View height, added to origin[2] + viewoffset[2], for crouching.
-
-    //! PMove generated state events.
-    //int32_t     eventSequence;
-    //int32_t     events[ MAX_PS_EVENTS ];
-    //int32_t     eventParms[ MAX_PS_EVENTS ];
-
-    // WID: TODO: Just use its entity events instead?
-    //int32_t   externalEvent;	//! Events set on player from another source.
-    //int32_t   externalEventParm;
-    //int32_t   externalEventTime;
 } pmove_state_t;
 
 
@@ -111,20 +98,28 @@ typedef struct pmove_state_s {
 #define MAX_STATS               64  //! Maximum number of stats we compile with.
 
 
-// player_state_t is the information needed in addition to pmove_state_t
-// to rendered a view.  There will only be 40(since we're running 40hz) player_state_t sent each second,
-// but the number of pmove_state_t changes will be reletive to client
-// frame rates
+// pmove_state_t is the information needed in addition to player_state_t
+// to rendered a view. These are sent from client to server in an amount relative
+// to the client's (optionally set) frame rate limit.
+// 
+// player_state_t is sent at a rate of 40hz:
+// (So, one time for each frame, meaning 40 times a second.)
 typedef struct {
     // Communicate BIT precise.
     pmove_state_t   pmove;      // for prediction
 
+    /**
+    *   View State:
+    **/
     // These fields do not need to be communicated bit-precise
     Vector3 viewangles;		//! For fixed views.
     Vector3 viewoffset;		//! Add to pmovestate->origin
     Vector3 kick_angles;    //! Add to view direction to get render angles
                             //! set by weapon kicks, pain effects, etc
 
+    /**
+    *   Gun State:
+    **/
     //! Gun Angles on-screen.
     Vector3 gunangles;
     //! Gun offset on-screen.
@@ -133,21 +128,40 @@ typedef struct {
     uint32_t gunindex;
     //! Current weapon model's frame.
     uint32_t gunframe;
-
     //! hz tickrate for gun logic which is coupled to animation frames.
     int32_t gunrate;
 
+    /**
+    *   Screen State:
+    **/
     //float damage_blend[ 4 ];      // rgba full screen damage blend effect
     //! RGBA full screen general blend effect
     float screen_blend[ 4 ];
     //! horizontal field of view
     float fov;
-
     //! Refdef flags.
     int32_t rdflags;
 
+    /**
+    *   Misc State:
+    **/
+    //! The bob cycle, which is wrapped around to uint8_t limit.
+    int32_t bobCycle;
     //! Numerical player stats storage. ( fast status bar updates etc. )
     int32_t stats[ MAX_STATS ];
+
+    /**
+    *   (Predicted-)Events:
+    **/
+    //! PMove generated state events.
+    //int32_t     eventSequence;
+    //int32_t     events[ MAX_PS_EVENTS ];
+    //int32_t     eventParms[ MAX_PS_EVENTS ];
+
+    // WID: TODO: Just use its entity events instead?
+    //int32_t   externalEvent;	//! Events set on player from another source.
+    //int32_t   externalEventParm;
+    //int32_t   externalEventTime;
 
     /**
     *   Not communicated over the net at all.

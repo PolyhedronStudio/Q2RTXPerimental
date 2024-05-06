@@ -1100,8 +1100,13 @@ struct gclient_s {
     **/
     vec3_t      v_angle, v_forward; // aiming direction
 
-    vec3_t      kick_angles;    // weapon kicks
-    vec3_t      kick_origin;
+    //! Summed Weapon Kicks, to be applied to client vieworigin and viewangles.
+    struct {
+        //! Kick effect angles.
+        vec3_t offsetAngles;
+        //! Kick effect origin offset.
+        vec3_t offsetOrigin;
+    } weaponKicks;
 
     // view movement:
     sg_time_t	v_dmg_time;

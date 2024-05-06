@@ -824,8 +824,8 @@ void weapon_grenadelauncher_fire(edict_t *ent)
     AngleVectors(ent->client->v_angle, forward, right, NULL);
     P_ProjectSource(ent, ent->s.origin, offset, forward, right, start);
 
-    VectorScale(forward, -2, ent->client->kick_origin);
-    ent->client->kick_angles[0] = -1;
+    VectorScale(forward, -2, ent->client->weaponKicks.offsetOrigin);
+    ent->client->weaponKicks.offsetAngles[0] = -1;
 
     fire_grenade(ent, start, forward, damage, 600, 2.5_sec, radius);
 
@@ -876,8 +876,8 @@ void Weapon_RocketLauncher_Fire(edict_t *ent)
 
     AngleVectors(ent->client->v_angle, forward, right, NULL);
 
-    VectorScale(forward, -2, ent->client->kick_origin);
-    ent->client->kick_angles[0] = -1;
+    VectorScale(forward, -2, ent->client->weaponKicks.offsetOrigin);
+    ent->client->weaponKicks.offsetAngles[0] = -1;
 
     VectorSet(offset, 8, 8, ent->viewheight - 8);
     P_ProjectSource(ent, ent->s.origin, offset, forward, right, start);
@@ -927,8 +927,8 @@ void Blaster_Fire(edict_t *ent, const vec3_t g_offset, int damage, bool hyper, i
     VectorAdd(offset, g_offset, offset);
     P_ProjectSource(ent, ent->s.origin, offset, forward, right, start);
 
-    VectorScale(forward, -2, ent->client->kick_origin);
-    ent->client->kick_angles[0] = -1;
+    VectorScale(forward, -2, ent->client->weaponKicks.offsetOrigin);
+    ent->client->weaponKicks.offsetAngles[0] = -1;
 
     fire_blaster(ent, start, forward, damage, 1000, effect, hyper);
 
@@ -1085,15 +1085,15 @@ void Machinegun_Fire(edict_t *ent)
     }
 
     for (i = 1 ; i < 3 ; i++) {
-        ent->client->kick_origin[i] = crandom() * 0.35f;
-        ent->client->kick_angles[i] = crandom() * 0.7f;
+        ent->client->weaponKicks.offsetOrigin[i] = crandom() * 0.35f;
+        ent->client->weaponKicks.offsetAngles[i] = crandom() * 0.7f;
     }
     // WID: 40hz replaced with:
-	ent->client->kick_origin[ 0 ] = crandom( ) * 0.35f;
-	ent->client->kick_origin[ 2 ] = crandom( ) * 0.25f;
+	ent->client->weaponKicks.offsetOrigin[ 0 ] = crandom( ) * 0.35f;
+	ent->client->weaponKicks.offsetOrigin[ 2 ] = crandom( ) * 0.25f;
 	// WID: 40hz: Removed since it's non compatible to 40hz
-	//ent->client->kick_origin[0] = crandom() * 0.35f;
-	//ent->client->kick_angles[0] = ent->client->machinegun_shots * -1.5f;
+	//ent->client->weaponKicks.offsetOrigin[0] = crandom() * 0.35f;
+	//ent->client->weaponKicks.offsetAngles[0] = ent->client->machinegun_shots * -1.5f;
 
     //// raise the gun as it is firing
     //if (!deathmatch->value) {
@@ -1103,7 +1103,7 @@ void Machinegun_Fire(edict_t *ent)
     //}
 
     // get start / end positions
-    VectorAdd(ent->client->v_angle, ent->client->kick_angles, angles);
+    VectorAdd(ent->client->v_angle, ent->client->weaponKicks.offsetAngles, angles);
     AngleVectors(angles, forward, right, NULL);
     VectorSet(offset, 0, 8, ent->viewheight - 8);
     P_ProjectSource(ent, ent->s.origin, offset, forward, right, start);
@@ -1224,8 +1224,8 @@ void Chaingun_Fire(edict_t *ent)
     }
 
     for (i = 0 ; i < 3 ; i++) {
-        ent->client->kick_origin[i] = crandom() * 0.35f;
-        ent->client->kick_angles[i] = crandom() * 0.7f;
+        ent->client->weaponKicks.offsetOrigin[i] = crandom() * 0.35f;
+        ent->client->weaponKicks.offsetAngles[i] = crandom() * 0.7f;
     }
 
     for (i = 0 ; i < shots ; i++) {
@@ -1283,8 +1283,8 @@ void weapon_shotgun_fire(edict_t *ent)
 
     AngleVectors(ent->client->v_angle, forward, right, NULL);
 
-    VectorScale(forward, -2, ent->client->kick_origin);
-    ent->client->kick_angles[0] = -2;
+    VectorScale(forward, -2, ent->client->weaponKicks.offsetOrigin);
+    ent->client->weaponKicks.offsetAngles[0] = -2;
 
     VectorSet(offset, 0, 8,  ent->viewheight - 8);
     P_ProjectSource(ent, ent->s.origin, offset, forward, right, start);
@@ -1332,8 +1332,8 @@ void weapon_supershotgun_fire(edict_t *ent)
 
     AngleVectors(ent->client->v_angle, forward, right, NULL);
 
-    VectorScale(forward, -2, ent->client->kick_origin);
-    ent->client->kick_angles[0] = -2;
+    VectorScale(forward, -2, ent->client->weaponKicks.offsetOrigin);
+    ent->client->weaponKicks.offsetAngles[0] = -2;
 
     VectorSet(offset, 0, 8,  ent->viewheight - 8);
     P_ProjectSource(ent, ent->s.origin, offset, forward, right, start);
@@ -1352,8 +1352,8 @@ void weapon_supershotgun_fire(edict_t *ent)
     {
         AngleVectors(v, forward, right, NULL);
 
-        VectorScale(forward, -2, ent->client->kick_origin);
-        ent->client->kick_angles[0] = -2;
+        VectorScale(forward, -2, ent->client->weaponKicks.offsetOrigin);
+        ent->client->weaponKicks.offsetAngles[0] = -2;
 
         VectorSet(offset, 0, 8, ent->viewheight - 8);
         P_ProjectSource(ent, ent->s.origin, offset, forward, right, start);
@@ -1367,8 +1367,8 @@ void weapon_supershotgun_fire(edict_t *ent)
     {
         AngleVectors(v, forward, right, NULL);
 
-        VectorScale(forward, -2, ent->client->kick_origin);
-        ent->client->kick_angles[0] = -2;
+        VectorScale(forward, -2, ent->client->weaponKicks.offsetOrigin);
+        ent->client->weaponKicks.offsetAngles[0] = -2;
 
         VectorSet(offset, 0, 8, ent->viewheight - 8);
         P_ProjectSource(ent, ent->s.origin, offset, forward, right, start);
@@ -1431,8 +1431,8 @@ void weapon_railgun_fire(edict_t *ent)
 
     AngleVectors(ent->client->v_angle, forward, right, NULL);
 
-    VectorScale(forward, -3, ent->client->kick_origin);
-    ent->client->kick_angles[0] = -3;
+    VectorScale(forward, -3, ent->client->weaponKicks.offsetOrigin);
+    ent->client->weaponKicks.offsetAngles[0] = -3;
 
     VectorSet(offset, 0, 7,  ent->viewheight - 8);
     P_ProjectSource(ent, ent->s.origin, offset, forward, right, start);
@@ -1506,7 +1506,7 @@ void weapon_bfg_fire(edict_t *ent)
 
     AngleVectors(ent->client->v_angle, forward, right, NULL);
 
-    VectorScale(forward, -2, ent->client->kick_origin);
+    VectorScale(forward, -2, ent->client->weaponKicks.offsetOrigin);
 
     // make a big pitch kick with an inverse fall
     ent->client->v_dmg_pitch = -40;
@@ -1562,8 +1562,8 @@ void weapon_flaregun_fire(edict_t *ent)
 	AngleVectors(ent->client->v_angle, forward, right, NULL);
 	P_ProjectSource(ent, ent->s.origin, offset, forward, right, start);
 
-	VectorScale(forward, -2, ent->client->kick_origin);
-	ent->client->kick_angles[0] = -1;
+	VectorScale(forward, -2, ent->client->weaponKicks.offsetOrigin);
+	ent->client->weaponKicks.offsetAngles[0] = -1;
 
 	// Make the flaregun actually shoot the flare 
 	 // 

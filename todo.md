@@ -1,13 +1,20 @@
 # Quake II RTXPerimental Todo Lists:
 These are mainly my personal notes/ideas/interests, and do not per se reflect the actual changes to be made.
 
+## Notes:
+* Is the hard coded speed value limit of 400.0f in CLG_ClampSpeed matching that to pmove's maxspeed? No I don't think so.
+* View bob height offset needs debugging.
+* Is the actual bobCycle predicting working or necessary? We can do this in PMove right?
+
+
+
 ## Features:
 Features being looked forward on implementation.
 ### Highest Priority:
 * [ ] ...
 ### High Priority:
 * [X] Add in ``cm_material_t`` accompanied by an actual json based client and server sided material properties file. Allowing for setting material contents ``kind``, acceleration/friction influences, footsteps, etc.
-	* [ ] Acquire some proper footstep audio files and add in material specific footstep audio.
+	* [X] Acquire some proper footstep audio files and add in material specific footstep audio.
 	* [ ] Have bullet impact display material ``kind`` specific puffs?
 * [ ] Move player animation code/task into the player move code for proper synchronisity and consistency reasons.
 * [ ] Footsteps/ViewBob to Client Game, PMove?

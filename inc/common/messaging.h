@@ -111,6 +111,7 @@ extern "C" {
 		uint8_t         fov;
 		int32_t			rdflags;
 		int32_t         stats[MAX_STATS];
+		uint8_t			bobCycle;
 	} player_packed_t;
 
 	//! Extern access to the 'NULL Baseline' states of entity, player, and user commands.

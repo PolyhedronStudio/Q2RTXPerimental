@@ -75,16 +75,16 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 //#define PS_M_EVENT_FIRST_PARM	(1<<11)
 //#define PS_M_EVENT_SECOND		(1<<12)
 //#define PS_M_EVENT_SECOND_PARM	(1<<13)
-
-#define PS_VIEWOFFSET       (1<<8)
+#define PS_BOB_CYCLE		(1<<8)
 #define PS_VIEWANGLES       (1<<9)
 #define PS_KICKANGLES       (1<<10)
-#define PS_BLEND            (1<<11)
-#define PS_FOV              (1<<12)
-#define PS_WEAPONINDEX      (1<<13)
+#define PS_VIEWOFFSET       (1<<11)
+#define PS_BLEND            (1<<12)
+#define PS_RDFLAGS          (1<<13)
 #define PS_WEAPONFRAME      (1<<14)
-#define PS_RDFLAGS          (1<<15)
-#define PS_WEAPONRATE       (1<<16)
+#define PS_WEAPONRATE       (1<<15)
+#define PS_WEAPONINDEX      (1<<16)
+#define PS_FOV              (1<<17)
 
 
 //==============================================

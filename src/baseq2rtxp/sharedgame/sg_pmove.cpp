@@ -135,12 +135,6 @@ static void PM_UpdateGroundFromTrace( const trace_t *trace ) {
 	}
 }
 /**
-*	@brief	Inline-wrapper to for convenience.
-**/
-//void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
-//	SG_PMoveState_AddPredictableEvent( newEvent, parameter, &ps->pmove );
-//}
-/**
 *	@brief	Sets the player's movement bounding box depending on various state factors.
 **/
 static void PM_SetDimensions() {
@@ -171,6 +165,122 @@ static void PM_SetDimensions() {
 		ps->pmove.viewheight = 22;
 	}
 }
+/**
+*	@brief	Keeps track of the player's xySpeed and bobCycle:  
+**/
+//static void PM_Footsteps( void ) {
+static void PM_CycleBob() {
+	float		bobMove = 0.f;
+	int32_t		oldBobCycle = 0;
+	// Defaults to false and checked for later on:
+	qboolean	footStep = false;
+
+	//
+	// Calculate the speed and cycle to be used for all cyclic walking effects.
+	//
+	pm->xySpeed = sqrtf( ps->pmove.velocity[ 0 ] * ps->pmove.velocity[ 0 ]
+		+ ps->pmove.velocity[ 1 ] * ps->pmove.velocity[ 1 ] );
+
+	// Airborne leaves cycle intact, but doesn't advance either.
+	if ( pm->ground.entity == nullptr ) {
+
+		//if ( ps->powerups[ PW_INVULNERABILITY ] ) {
+		//	PM_ContinueLegsAnim( LEGS_IDLECR );
+		//}
+		//// Airborne leaves position in cycle intact, but doesn't advance:
+		//if ( pm->liquid.level > LIQUID_FEET ) {
+		//	PM_ContinueLegsAnim( LEGS_SWIM );
+		//}
+		return;
+	}
+
+	// If not trying to move:
+	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove ) {
+		if ( pm->xySpeed < 5 ) {
+			// Start at beginning of cycle again:
+			ps->bobCycle = 0;
+			//if ( ps->pmove.pm_flags & PMF_DUCKED ) {
+			//	PM_ContinueLegsAnim( LEGS_IDLECR );
+			//} else {
+			//	PM_ContinueLegsAnim( LEGS_IDLE );
+			//}
+		}
+		return;
+	}
+
+	// Default to no footstep:
+	footStep = false;
+
+	if ( ps->pmove.pm_flags & PMF_DUCKED ) {
+		// Ducked characters bob much faster:
+		bobMove = 0.5;	
+		//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
+		//	PM_ContinueLegsAnim( LEGS_BACKCR );
+		//} else {
+		//	PM_ContinueLegsAnim( LEGS_WALKCR );
+		//}
+		// Ducked characters never play footsteps.
+	//*
+	//} else 	if ( pm->ps->pm_flags & PMF_BACKWARDS_RUN ) {
+	//	if ( !( pm->cmd.buttons & BUTTON_WALKING ) ) {
+	//		bobMove = 0.4;	// faster speeds bob faster
+	//		footStep = true;
+	//	} else {
+	//		bobMove = 0.3;
+	//	}
+	//	PM_ContinueLegsAnim( LEGS_BACK );
+	//*/
+	} else {
+		if ( !( pm->cmd.buttons & BUTTON_WALK ) ) {
+			// Faster speeds bob faster:
+			bobMove = 0.4f;
+			//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
+			//	PM_ContinueLegsAnim( LEGS_BACK );
+			//} else {
+			//	PM_ContinueLegsAnim( LEGS_RUN );
+			//}
+			footStep = true;
+		} else {
+			// Walking bobs slow:
+			bobMove = 0.3f;
+			//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
+			//	PM_ContinueLegsAnim( LEGS_BACKWALK );
+			//} else {
+			//	PM_ContinueLegsAnim( LEGS_WALK );
+			//}
+		}
+	}
+
+	// check for footstep / splash sounds
+	oldBobCycle = ps->bobCycle;
+	ps->bobCycle = (int32_t)( (oldBobCycle + bobMove * pm->cmd.msec) /* pml.msec */) & 255;
+	
+	SG_DPrintf( "%s: ps->bobCycle(%i), oldBobCycle(%i), bobMove(%f)\n", __func__, ps->bobCycle, oldBobCycle, bobMove );
+	// if we just crossed a cycle boundary, play an appropriate footstep event
+	//if ( ( ( oldBobCycle + 64 ) ^ ( ps->bobCycle + 64 ) ) & 128 ) {
+	//	// On-ground will only play sounds if running:
+	//	if ( pm->liquid.level == LIQUID_NONE ) {
+	//		if ( footStep && !pm->noFootsteps ) {
+	//			PM_AddEvent( PM_FootstepForSurface() );
+	//		}
+	//	// Splashing:
+	//	} else if ( pm->liquid.level == LIQUID_FEET ) {
+	//		PM_AddEvent( EV_FOOTSPLASH );
+	//	// Wading / Swimming at surface.
+	//	} else if ( pm->liquid.level == LIQUID_WAIST ) {
+	//		PM_AddEvent( EV_SWIM );
+	//	// None:
+	//	} else if ( pm->liquid.level == LIQUID_UNDER ) {
+	//		// No sound when completely underwater. Lol.
+	//	}
+	//}
+}
+/**
+*	@brief	Inline-wrapper to for convenience.
+**/
+//void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
+//	SG_PMoveState_AddPredictableEvent( newEvent, parameter, &ps->pmove );
+//}
 
 
 
@@ -1528,8 +1638,20 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	if ( ps->pmove.pm_flags & PMF_TIME_TRICK_JUMP ) {
 		PM_CheckJump();
 	}
+
 	// Apply contents and other screen effects.
 	PM_ScreenEffects();
+
+	// Weapons.
+	//PM_Weapon();
+	// Torso animation.
+	//PM_TorsoAnimation();
+	// Bob Cycle / Footstep events / legs animations.
+	//PM_Footsteps();
+	PM_CycleBob();
+	//// Entering / Leaving water splashes.
+	//PM_WaterEvents();
+
 	// Snap us back into a validated position.
 	PM_SnapPosition();
 }
