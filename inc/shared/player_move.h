@@ -139,7 +139,7 @@ typedef struct {
     *   (In):
     **/
     // [KEX] variables (in)
-    Vector3 viewoffset; // Predicted last viewoffset (for accurate calculation of blending)
+    //Vector3 viewoffset; // Predicted last viewoffset (for accurate calculation of blending)
 
     /**
     *   (Out):

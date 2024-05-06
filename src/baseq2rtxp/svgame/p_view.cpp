@@ -234,7 +234,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 	float       delta;
 
 	Vector3 viewOriginOffset = QM_Vector3Zero();
-	Vector3 viewAnglesOffset = QM_Vector3Zero();//ent->client->ps.kick_angles;
+	Vector3 viewAnglesOffset = ent->client->weaponKicks.offsetAngles;//ent->client->ps.kick_angles;
 
 	// If dead, fix the angle and don't add any kicks
 	if ( ent->deadflag ) {
@@ -289,6 +289,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 			viewAnglesOffset[ PITCH ] += ratio * ent->client->fall_value;
 		}
 
+		// WID: Moved this to CLGame!
 		// Add angles based on the entity's velocity.
 		if ( /*!ent->client->pers.bob_skip &&*/ !SkipViewModifiers( ) ) {
 			////delta = ent->velocity.dot( forward );
@@ -353,6 +354,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 		viewOriginOffset.z -= ratio * ent->client->fall_value * 0.4f;
 	}
 
+	// WID: Moved this to CLGame!
 	// Add bob height to the viewOffset.
 	//bob = bobfracsin * xyspeed * bob_up->value;
 	//if ( bob > 6 )
@@ -364,13 +366,13 @@ void SV_CalcViewOffset( edict_t *ent ) {
 	viewOriginOffset += ent->client->weaponKicks.offsetOrigin;
 
 	// Clamp the viewOffset values to remain within the player bounding box.
-	clamp( viewOriginOffset[ 0 ], -14, 14 );
-	clamp( viewOriginOffset[ 1 ], -14, 14 );
-	clamp( viewOriginOffset[ 2 ], -22, 30 );
+	viewOriginOffset[ 0 ] = clamp( viewOriginOffset[ 0 ], -14, 14 );
+	viewOriginOffset[ 1 ] = clamp( viewOriginOffset[ 1 ], -14, 14 );
+	viewOriginOffset[ 2 ] = clamp( viewOriginOffset[ 2 ], -22, 30 );
 
-	// Store the viewOriginOffset and viewAnglesOffset in the client's playerState.
+	// Store the viewOriginOffset and viewAnglesOffset(as KickAngles in the client's playerState.
 	VectorCopy( viewOriginOffset, ent->client->ps.viewoffset );
-	VectorCopy( viewAnglesOffset, ent->client->ps.viewangles );
+	VectorCopy( viewAnglesOffset, ent->client->ps.kick_angles );
 }
 
 /*
@@ -378,44 +380,45 @@ void SV_CalcViewOffset( edict_t *ent ) {
 SV_CalcGunOffset
 ==============
 */
-void SV_CalcGunOffset( edict_t *ent ) {
-	int     i;
-	float   delta;
-
-	// Gun angles from bobbing
-	ent->client->ps.gunangles[ ROLL ] = xyspeed * bobfracsin * 0.005f;
-	ent->client->ps.gunangles[ YAW ] = xyspeed * bobfracsin * 0.01f;
-	if ( bobcycle & 1 ) {
-		ent->client->ps.gunangles[ ROLL ] = -ent->client->ps.gunangles[ ROLL ];
-		ent->client->ps.gunangles[ YAW ] = -ent->client->ps.gunangles[ YAW ];
-	}
-
-	ent->client->ps.gunangles[ PITCH ] = xyspeed * bobfracsin * 0.005f;
-
-	// Gun angles from delta movement
-	for ( i = 0; i < 3; i++ ) {
-		delta = ent->client->oldviewangles[ i ] - ent->client->ps.viewangles[ i ];
-		if ( delta > 180 )
-			delta -= 360;
-		if ( delta < -180 )
-			delta += 360;
-		clamp( delta, -45, 45 );
-		if ( i == YAW )
-			ent->client->ps.gunangles[ ROLL ] += 0.1f * delta;
-		ent->client->ps.gunangles[ i ] += 0.2f * delta;
-	}
-
-	// gun height
-	VectorClear( ent->client->ps.gunoffset );
-//  ent->ps->gunorigin[2] += bob;
-
-	// gun_x / gun_y / gun_z are development tools
-	for ( i = 0; i < 3; i++ ) {
-		ent->client->ps.gunoffset[ i ] += forward[ i ] * ( gun_y->value );
-		ent->client->ps.gunoffset[ i ] += right[ i ] * gun_x->value;
-		ent->client->ps.gunoffset[ i ] += up[ i ] * ( -gun_z->value );
-	}
-}
+// WID: Moved to CLGame.
+//void SV_CalcGunOffset( edict_t *ent ) {
+//	int     i;
+//	float   delta;
+//
+//	// Gun angles from bobbing
+//	ent->client->ps.gunangles[ ROLL ] = xyspeed * bobfracsin * 0.005f;
+//	ent->client->ps.gunangles[ YAW ] = xyspeed * bobfracsin * 0.01f;
+//	if ( bobcycle & 1 ) {
+//		ent->client->ps.gunangles[ ROLL ] = -ent->client->ps.gunangles[ ROLL ];
+//		ent->client->ps.gunangles[ YAW ] = -ent->client->ps.gunangles[ YAW ];
+//	}
+//
+//	ent->client->ps.gunangles[ PITCH ] = xyspeed * bobfracsin * 0.005f;
+//
+//	// Gun angles from delta movement
+//	for ( i = 0; i < 3; i++ ) {
+//		delta = ent->client->oldviewangles[ i ] - ent->client->ps.viewangles[ i ];
+//		if ( delta > 180 )
+//			delta -= 360;
+//		if ( delta < -180 )
+//			delta += 360;
+//		clamp( delta, -45, 45 );
+//		if ( i == YAW )
+//			ent->client->ps.gunangles[ ROLL ] += 0.1f * delta;
+//		ent->client->ps.gunangles[ i ] += 0.2f * delta;
+//	}
+//
+//	// gun height
+//	VectorClear( ent->client->ps.gunoffset );
+////  ent->ps->gunorigin[2] += bob;
+//
+//	// gun_x / gun_y / gun_z are development tools
+//	for ( i = 0; i < 3; i++ ) {
+//		ent->client->ps.gunoffset[ i ] += forward[ i ] * ( gun_y->value );
+//		ent->client->ps.gunoffset[ i ] += right[ i ] * gun_x->value;
+//		ent->client->ps.gunoffset[ i ] += up[ i ] * ( -gun_z->value );
+//	}
+//}
 
 
 /*
@@ -1017,8 +1020,9 @@ void ClientEndServerFrame( edict_t *ent ) {
 	// determine the view offsets
 	SV_CalcViewOffset( ent );
 
+	// WID: Moved to CLGame.
 	// determine the gun offsets
-	SV_CalcGunOffset( ent );
+	//SV_CalcGunOffset( ent );
 
 	// determine the full screen color blend
 	// must be after viewoffset, so eye contents can be

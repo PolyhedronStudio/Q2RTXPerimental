@@ -98,11 +98,15 @@ extern "C" {
 	**/
 	typedef struct {
 		pmove_state_t   pmove;
+
 		vec3_t			viewangles;
-		int16_t			viewoffset[3];// WID: new-pmove int8_t          viewoffset[3];
-		int16_t			kick_angles[3]; // WID: new-pmove int8_t          kick_angles[3];
-		int16_t			gunangles[3]; // WID: new-pmove //int8_t          gunangles[3];
-		int16_t         gunoffset[3]; // WID: new-pmove //int8_t          gunoffset[3];
+
+		int16_t			viewoffset[3];	// WID: new-pmove int8_t          viewoffset[3];
+		int16_t			kick_angles[3];	// WID: new-pmove int8_t          kick_angles[3];
+		// WID: Moved to CLGame.
+		//int16_t		gunangles[3]; // WID: new-pmove //int8_t          gunangles[3];
+		// WID: Moved to CLGame.
+		//int16_t		gunoffset[3]; // WID: new-pmove //int8_t          gunoffset[3];
 		uint32_t		gunindex;
 		uint32_t		gunframe;
 		int8_t			gunrate;
@@ -111,6 +115,7 @@ extern "C" {
 		uint8_t         fov;
 		int32_t			rdflags;
 		int32_t         stats[MAX_STATS];
+
 		uint8_t			bobCycle;
 	} player_packed_t;
 

@@ -687,6 +687,7 @@ void weapon_grenade_fire(edict_t *ent, bool held)
 
 	sg_time_t timer = ent->client->grenade_time - level.time;
 	speed = (int)( ent->health <= 0 ? GRENADE_MINSPEED : min( GRENADE_MINSPEED + ( GRENADE_TIMER - timer ).seconds( ) * ( ( GRENADE_MAXSPEED - GRENADE_MINSPEED ) / GRENADE_TIMER.seconds( ) ), GRENADE_MAXSPEED ) );
+    speed += QM_Vector3Length( ent->client->ps.pmove.velocity );
     fire_grenade2(ent, start, forward, damage, speed, timer, radius, held);
 
     if (!((int)dmflags->value & DF_INFINITE_AMMO))

@@ -86,9 +86,9 @@ cvar_t *sv_gravity;
 cvar_t *sv_rollspeed;
 cvar_t *sv_rollangle;
 
-cvar_t *gun_x;
-cvar_t *gun_y;
-cvar_t *gun_z;
+//cvar_t *gun_x;
+//cvar_t *gun_y;
+//cvar_t *gun_z;
 
 cvar_t *run_pitch;
 cvar_t *run_roll;
@@ -246,9 +246,9 @@ void InitGame( void )
 	// seed RNG
 	mt_rand.seed( (uint32_t)std::chrono::system_clock::now( ).time_since_epoch( ).count( ) );
 
-    gun_x = gi.cvar("gun_x", "0", 0);
-    gun_y = gi.cvar("gun_y", "0", 0);
-    gun_z = gi.cvar("gun_z", "0", 0);
+    //gun_x = gi.cvar("gun_x", "0", 0);
+    //gun_y = gi.cvar("gun_y", "0", 0);
+    //gun_z = gi.cvar("gun_z", "0", 0);
 
     //FIXME: sv_ prefix is wrong for these
     sv_rollspeed = gi.cvar("sv_rollspeed", "200", 0);

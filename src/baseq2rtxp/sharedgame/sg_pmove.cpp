@@ -1094,9 +1094,9 @@ static inline const bool PM_AboveWater() {
 static void PM_ScreenEffects() {
 	// Add for contents
 	Vector3 vieworg = {
-		pml.origin.x + pm->viewoffset.x,
-		pml.origin.y + pm->viewoffset.y,
-		pml.origin.z + pm->viewoffset.z + (float)ps->pmove.viewheight
+		pml.origin.x + ps->viewoffset.x,
+		pml.origin.y + ps->viewoffset.y,
+		pml.origin.z + ps->viewoffset.z + (float)ps->pmove.viewheight
 	};
 	const int32_t contents = pm->pointcontents( QM_Vector3ToQFloatV( vieworg ).v );//contents_t contents = pm->pointcontents( vieworg );
 

@@ -124,12 +124,13 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	}
 	if ( flags & PS_WEAPONFRAME ) {
 		to->gunframe = MSG_ReadUintBase128( );
-		to->gunoffset[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
-		to->gunoffset[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmoveMSG_ReadInt8( ) * 0.25f;
-		to->gunoffset[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmoveMSG_ReadInt8( ) * 0.25f;
-		to->gunangles[ 0 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
-		to->gunangles[ 1 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
-		to->gunangles[ 2 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
+		// WID: Moved to client game.
+		//to->gunoffset[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
+		//to->gunoffset[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmoveMSG_ReadInt8( ) * 0.25f;
+		//to->gunoffset[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmoveMSG_ReadInt8( ) * 0.25f;
+		//to->gunangles[ 0 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
+		//to->gunangles[ 1 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
+		//to->gunangles[ 2 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
 	}
 	if ( flags & PS_WEAPONRATE ) {
 		to->gunrate = MSG_ReadUint8( );

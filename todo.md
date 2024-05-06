@@ -3,9 +3,10 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 
 ## Notes:
 * Is the hard coded speed value limit of 400.0f in CLG_ClampSpeed matching that to pmove's maxspeed? No I don't think so.
-* View bob height offset needs debugging.
 * Is the actual bobCycle predicting working or necessary? We can do this in PMove right?
-
+* If we have event entities and 'morphentity', a blaster bullet could convert to an entity, eliminating
+the need for temp_entity_t behavior. For hit trace based weapons I suppose the hits could be done client side but that'd require
+simulating a frame ahead for all things. Either way, weapon could looks like it might be better off to go to shared some day.
 
 
 ## Features:

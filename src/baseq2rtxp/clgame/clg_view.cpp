@@ -247,9 +247,12 @@ static void CLG_AddViewWeapon( void ) {
     gun.id = RENTITIY_RESERVED_GUN;
 
     // Calculate the lerped gun position.
-    Vector3 gunOrigin = clgi.client->refdef.vieworg + QM_Vector3Lerp( ops->gunoffset, ps->gunoffset, clgi.client->lerpfrac );
+    //Vector3 gunOrigin = clgi.client->refdef.vieworg + QM_Vector3Lerp( ops->gunoffset, ps->gunoffset, clgi.client->lerpfrac );
+    //// Calculate the lerped gun angles.
+    //Vector3 gunAngles = clgi.client->refdef.viewangles + QM_Vector3LerpAngles( ops->gunangles, ps->gunangles, clgi.client->lerpfrac );
+    Vector3 gunOrigin = clgi.client->refdef.vieworg + QM_Vector3Lerp( clgi.client->predictedState.lastPs.gunoffset, clgi.client->predictedState.currentPs.gunoffset, clgi.client->lerpfrac );
     // Calculate the lerped gun angles.
-    Vector3 gunAngles = clgi.client->refdef.viewangles + QM_Vector3LerpAngles( ops->gunangles, ps->gunangles, clgi.client->lerpfrac );
+    Vector3 gunAngles = clgi.client->refdef.viewangles + QM_Vector3LerpAngles( clgi.client->predictedState.lastPs.gunangles, clgi.client->predictedState.currentPs.gunangles, clgi.client->lerpfrac );
     // Copy the calculated gun position and angles into vec3_t's from refresh 'entity_t'.
     VectorCopy( gunOrigin, gun.origin );
     VectorCopy( gunAngles, gun.angles );
@@ -270,8 +273,8 @@ static void CLG_AddViewWeapon( void ) {
     VectorMA( gun.origin, cl_gun_z->value * gun.scale, clgi.client->v_up, gun.origin );
 
 
-
-    VectorCopy( gun.origin, gun.oldorigin );      // don't lerp at all
+    // Don't lerp at all.
+    VectorCopy( gun.origin, gun.oldorigin );
 
     if ( gun_frame ) {
         gun.frame = gun_frame;  // development tool
@@ -369,7 +372,59 @@ static void CLG_CycleViewBob( player_state_t *ps ) {
     level.viewBob.cycle = ( ps->bobCycle & 128 ) >> 7;
     level.viewBob.fracSin = fabs( sin( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
     level.viewBob.xySpeed = sqrtf( ps->pmove.velocity[ 0 ] * ps->pmove.velocity[ 0 ] + ps->pmove.velocity[ 1 ] * ps->pmove.velocity[ 1 ] );
+}
 
+/**
+*   @brief  Calculates the gun offset as well as the gun angles based on the bobCycle.
+**/
+void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
+    int     i;
+    float   delta;
+
+    // Gun angles from bobbing
+    ps->gunangles[ ROLL ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005f;
+    ps->gunangles[ YAW ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.01f;
+    if ( level.viewBob.cycle & 1 ) {
+        ps->gunangles[ ROLL ] = -ps->gunangles[ ROLL ];
+        ps->gunangles[ YAW ] = -ps->gunangles[ YAW ];
+    }
+
+    ps->gunangles[ PITCH ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005f;
+
+    // Gun angles from delta movement
+    for ( i = 0; i < 3; i++ ) {
+        delta = ops->viewangles[ i ] - ps->viewangles[ i ];
+        if ( delta > 180 ) {
+            delta -= 360;
+        }
+        if ( delta < -180 ) {
+            delta += 360;
+        }
+        clamp( delta, -45, 45 );
+
+        if ( i == YAW ) {
+            ps->gunangles[ ROLL ] += 0.1f * delta;
+        }
+        ps->gunangles[ i ] += 0.2f * delta;
+    }
+
+    // gun height
+    VectorClear( ps->gunoffset );
+    //  ent->ps->gunorigin[2] += bob;
+
+    // gun_x / gun_y / gun_z are development tools
+    for ( int32_t i = 0; i < 3; i++ ) {
+        ps->gunoffset[ i ] += clgi.client->v_forward[ i ] * ( cl_gun_y->value );
+        ps->gunoffset[ i ] += clgi.client->v_right[ i ] * cl_gun_x->value;
+        ps->gunoffset[ i ] += clgi.client->v_up[ i ] * ( -cl_gun_z->value );
+    }
+}
+
+/**
+*   @brief  Calculates additional offsets based on the bobCycle for both 
+*           viewOrigin and viewAngles(thus, additional client side kickangles).
+**/
+static void CLG_CalculateViewOffset( player_state_t *ps ) {
     //clgi.Print( PRINT_DEVELOPER, "%s: cycle(%i), fracSin(%f), xySpeed(%f)\n", __func__, ps->bobCycle, level.viewBob.fracSin, level.viewBob.xySpeed );
 
     //run_pitch = gi.cvar( "run_pitch", "0.002", 0 );
@@ -400,34 +455,34 @@ static void CLG_CycleViewBob( player_state_t *ps ) {
     // make sure the bob is visible even at low speeds
     const float speed = level.viewBob.xySpeed > 200 ? level.viewBob.xySpeed : 200;
     // Pitch:
-    delta = level.viewBob.fracSin * clg_bob_pitch /*cg_bobpitch.value */* speed;
+    float pitchDelta = level.viewBob.fracSin * clg_bob_pitch /*cg_bobpitch.value */* speed;
     if ( ps->pmove.pm_flags & PMF_DUCKED ) {
         // Crouching:
-        delta *= 3;
+        pitchDelta *= 3;
     }
-    viewAngles[ PITCH ] += delta;
+    pitchDelta = min( pitchDelta, 1.2f );
+    viewAngles[ PITCH ] += pitchDelta;
     // Roll:
-    delta = level.viewBob.fracSin * clg_bob_roll /*cg_bobroll.value */* speed;
+    float rollDelta = level.viewBob.fracSin * clg_bob_roll /*cg_bobroll.value */* speed;
     if ( ps->pmove.pm_flags & PMF_DUCKED ) {
         // Crouching accentuates roll:
-        delta *= 3;		
+        rollDelta *= 3;
     }
+    rollDelta = min( rollDelta, 1.2f );
     if ( level.viewBob.cycle & 1 ) {
-        delta = -delta;
+        rollDelta = -rollDelta;
     }
-    viewAngles[ ROLL ] += delta;
+    viewAngles[ ROLL ] += rollDelta;
 
     // Add bob height
     float bobHeight = level.viewBob.fracSin * level.viewBob.xySpeed * clg_bob_up;/*cg_bobup.value*/;
     if ( bobHeight > 6 ) {
         bobHeight = 6;
     }
-    clgi.Print( PRINT_NOTICE, "%s: bob=%f\n", __func__, bobHeight );
-
     clgi.client->refdef.vieworg[ 2 ] += bobHeight;
 
-    // [Paril-KEX] clamp angles
-    for ( int i = 0; i < 3; i++ ) {
+    // Clamp angles.
+    for ( int32_t i = 0; i < 3; i++ ) {
         viewAngles[ i ] = clamp( viewAngles[ i ], -31.f, 31.f );
     }
 
@@ -490,33 +545,40 @@ static void CLG_SetupFirstPersonView( void ) {
     //// determine the gun offsets
     //CLG_CalcGunOffset( ent );
 
-    // Player States:
-    player_state_t *ps = &clgi.client->frame.ps;
-    player_state_t *ops = &clgi.client->oldframe.ps;
+    // Server received frame Player States:
+    player_state_t *serverFramePlayerState = &clgi.client->frame.ps;
+    player_state_t *lastServerFramePlayerState = &clgi.client->oldframe.ps;
 
-    // Get the player_state_t pointer to actually work with in case of prediction needs:
-    player_state_t *predictedPs = ( PF_UsePrediction() ? &clgi.client->predictedState.currentPs : ps );
+    // Client predicted/predicting frame Player States:
+    client_predicted_state_t *predictedState = &clgi.client->predictedState;
+    player_state_t *predictingPlayerState = ( PF_UsePrediction() ? &predictedState->currentPs : serverFramePlayerState );
+    player_state_t *lastPredictingPlayerState = ( PF_UsePrediction() ? &predictedState->lastPs : lastServerFramePlayerState );
 
     // Lerp fraction.
     const float lerp = clgi.client->lerpfrac;
 
-    // Apply the
+    // Cycle the view bob on our predicted state.
+    CLG_CycleViewBob( predictingPlayerState );
 
+    // WID: TODO: This requires proper player state damage summing and 'wiring' as well as proper
+    // player event predicting.
     // Apply all the damage taken this frame
     //CLG_DamageFeedback( ent );
-    // Determine the view offsets.
-    //CLG_CalculateViewOffset( );
-    // Determine the gun offsets.
-    //CLG_CalculateViewGunOffset( ent );
+    
+    // Determine the view offsets for the current predicting player state.
+    CLG_CalculateViewOffset( predictingPlayerState );
+
+    // Determine the gun origin and angle offsets.based on the bobCycles of the predicted player states.
+    CLG_CalculateViewWeaponOffset( lastPredictingPlayerState, predictingPlayerState );
 
     // Add server sided frame kick angles.
     if ( cl_kickangles->integer ) {
-        const Vector3 kickAngles = QM_Vector3LerpAngles( ops->kick_angles, ps->kick_angles, lerp );
+        const Vector3 kickAngles = QM_Vector3LerpAngles( lastServerFramePlayerState->kick_angles, serverFramePlayerState->kick_angles, lerp );
         VectorAdd( clgi.client->refdef.viewangles, kickAngles, clgi.client->refdef.viewangles );
     }
 
-    // Calculate bob cycle.    
-    CLG_CycleViewBob( predictedPs );
+    // Calculate bob cycle on the current predicting player state.    
+    //CLG_CycleViewBob( currentPredictingPlayerState );
 
     // Inform client state we're not in third-person view.
     clgi.client->thirdPersonView = false;

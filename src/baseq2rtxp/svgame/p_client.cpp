@@ -1787,13 +1787,13 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         if ( memcmp( &client->old_pmove, &pm.playerState->pmove, sizeof( pm.playerState->pmove ) ) ) {
             pm.snapinitial = true; // gi.dprintf ("pmove changed!\n");
         }
-		// Setup user commands and function pointers.
+		// Setup 'User Command', 'Player Skip Entity' and Function Pointers.
         pm.cmd = *ucmd;
         pm.player = ent;
         pm.trace = SV_PM_Trace;
         pm.pointcontents = SV_PM_PointContents;
         pm.clip = SV_PM_Clip;
-        pm.viewoffset = ent->client->ps.viewoffset;
+        //pm.viewoffset = ent->client->ps.viewoffset;
 
         // Perform a PMove.
         SG_PlayerMove( &pm, &pmp );

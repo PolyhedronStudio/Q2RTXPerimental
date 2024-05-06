@@ -672,9 +672,9 @@ extern cvar_t *sv_gravity;
 extern cvar_t *sv_rollspeed;
 extern cvar_t *sv_rollangle;
 
-extern cvar_t *gun_x;
-extern cvar_t *gun_y;
-extern cvar_t *gun_z;
+//extern cvar_t *gun_x;
+//extern cvar_t *gun_y;
+//extern cvar_t *gun_z;
 
 extern cvar_t *run_pitch;
 extern cvar_t *run_roll;
@@ -1100,11 +1100,11 @@ struct gclient_s {
     **/
     vec3_t      v_angle, v_forward; // aiming direction
 
-    //! Summed Weapon Kicks, to be applied to client vieworigin and viewangles.
+    //! Summed Weapon Kicks, to be applied to client 'viewoffset' and 'kick_angles'.
     struct {
-        //! Kick effect angles.
+        //! Additional weapon 'Kick Effect' angles to be added to playerState.kick_angles.
         vec3_t offsetAngles;
-        //! Kick effect origin offset.
+        //! Additional weapon 'Kick Effect' origin to be added to viewOffset.
         vec3_t offsetOrigin;
     } weaponKicks;
 
