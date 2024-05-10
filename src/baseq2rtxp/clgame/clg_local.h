@@ -66,6 +66,12 @@ extern cvar_t *cl_gun_x;
 extern cvar_t *cl_gun_y;
 extern cvar_t *cl_gun_z;
 
+extern cvar_t *cl_run_pitch;
+extern cvar_t *cl_run_roll;
+extern cvar_t *cl_bob_up;
+extern cvar_t *cl_bob_pitch;
+extern cvar_t *cl_bob_roll;
+
 extern cvar_t *cl_player_model;
 extern cvar_t *cl_thirdperson_angle;
 extern cvar_t *cl_thirdperson_range;

@@ -90,11 +90,12 @@ cvar_t *sv_rollangle;
 //cvar_t *gun_y;
 //cvar_t *gun_z;
 
-cvar_t *run_pitch;
-cvar_t *run_roll;
-cvar_t *bob_up;
-cvar_t *bob_pitch;
-cvar_t *bob_roll;
+// Moved to CLGame.
+//cvar_t *run_pitch;
+//cvar_t *run_roll;
+//cvar_t *bob_up;
+//cvar_t *bob_pitch;
+//cvar_t *bob_roll;
 
 cvar_t *flood_msgs;
 cvar_t *flood_persecond;

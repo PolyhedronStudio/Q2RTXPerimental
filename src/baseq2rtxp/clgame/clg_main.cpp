@@ -77,6 +77,12 @@ cvar_t *cl_gun_x = nullptr;
 cvar_t *cl_gun_y = nullptr;
 cvar_t *cl_gun_z = nullptr;
 
+cvar_t *cl_run_pitch = nullptr;
+cvar_t *cl_run_roll = nullptr;
+cvar_t *cl_bob_up = nullptr;
+cvar_t *cl_bob_pitch = nullptr;
+cvar_t *cl_bob_roll = nullptr;
+
 cvar_t *cl_player_model = nullptr;
 cvar_t *cl_thirdperson_angle = nullptr;
 cvar_t *cl_thirdperson_range = nullptr;
@@ -291,6 +297,13 @@ void PF_InitGame( void ) {
 	cl_gun_x = clgi.CVar_Get( "cl_gun_x", "0", 0 );
 	cl_gun_y = clgi.CVar_Get( "cl_gun_y", "0", 0 );
 	cl_gun_z = clgi.CVar_Get( "cl_gun_z", "0", 0 );
+
+	// View Bob CVars, Read Only:
+	cl_run_pitch = clgi.CVar_Get( "run_pitch", "0.002", CVAR_ROM );
+	cl_run_roll = clgi.CVar_Get( "run_roll", "0.005", CVAR_ROM );
+	cl_bob_up = clgi.CVar_Get( "bob_up", "0.005", CVAR_ROM );
+	cl_bob_pitch = clgi.CVar_Get( "bob_pitch", "0.002", CVAR_ROM );
+	cl_bob_roll = clgi.CVar_Get( "bob_roll", "0.002", CVAR_ROM );
 
 	// Shared with client thirdperson cvars, since refresh modules requires access to it.
 	cl_player_model = clgi.CVar_Get( "cl_player_model", nullptr, 0 );

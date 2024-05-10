@@ -163,17 +163,17 @@ static const int32_t shell_effect_hack( void ) {
 /**
 *   
 **/
-static void CLG_CalculateViewWeaponDrag( player_state_t *ops, player_state_t *ps, entity_t *weaponModelEntity ) {
+static void CLG_ApplyViewWeaponDrag( player_state_t *ops, player_state_t *ps, entity_t *weaponModelEntity ) {
     // Last facing direction.
     static Vector3 lastFacingAngles = QM_Vector3Zero();
     // Actual lag we allow to stay behind.
-    static constexpr float maxViewModelLag = 1.15f;
+    static constexpr float maxViewModelLag = 0.15f;
 
     //Calculate the difference between current and last facing forward angles.
     Vector3 difference = clgi.client->v_forward - lastFacingAngles;
 
     // Actual speed to move at.
-    constexpr float constSpeed = 12.15;
+    constexpr float constSpeed = 1.5;
     float speed = constSpeed;
 
     // When the yaw is rotating too fast, it'll get choppy and "lag" behind. Interpolate to neatly catch up,
@@ -258,9 +258,10 @@ static void CLG_AddViewWeapon( void ) {
     VectorCopy( gunAngles, gun.angles );
 
     // Calculate view weapon drag to prevent origin jumps when yaw changes rapidly.
-    //CLG_CalculateViewWeaponDrag( ops, ps, &gun );
+    //if ( !sv_paused->integer ) {
+    //    CLG_ApplyViewWeaponDrag( &clgi.client->predictedState.lastPs, &clgi.client->predictedState.currentPs, &gun );
+    //}
     //gunOrigin = QM_Vector3Lerp( gunOrigin, gun.origin, clgi.client->lerpfrac );
-    //VectorCopy( gunOrigin, gun.origin );
 
     // Adjust the gun scale so that the gun doesn't intersect with walls.
     // The gun models are not exactly centered at the camera, so adjusting its scale makes them
@@ -271,7 +272,6 @@ static void CLG_AddViewWeapon( void ) {
     VectorMA( gun.origin, cl_gun_y->value * gun.scale, clgi.client->v_forward, gun.origin );
     VectorMA( gun.origin, cl_gun_x->value * gun.scale, clgi.client->v_right, gun.origin );
     VectorMA( gun.origin, cl_gun_z->value * gun.scale, clgi.client->v_up, gun.origin );
-
 
     // Don't lerp at all.
     VectorCopy( gun.origin, gun.oldorigin );
@@ -393,7 +393,7 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
 
     // Gun angles from delta movement
     for ( i = 0; i < 3; i++ ) {
-        delta = ops->viewangles[ i ] - ps->viewangles[ i ];
+        delta = AngleMod( ops->viewangles[ i ] - ps->viewangles[ i ] );
         if ( delta > 180 ) {
             delta -= 360;
         }
@@ -434,11 +434,11 @@ static void CLG_CalculateViewOffset( player_state_t *ps ) {
     //bob_roll = gi.cvar( "bob_roll", "0.002", 0 );
 
     // TODO: Turn into cvars.
-    constexpr float clg_run_pitch = 0.002f;
-    constexpr float clg_run_roll = 0.005f;
-    constexpr float clg_bob_up = 0.015f;
-    constexpr float clg_bob_pitch = 0.002f;
-    constexpr float clg_bob_roll = 0.002f;
+    const float clg_run_pitch = cl_run_pitch->value;
+    const float clg_run_roll = cl_run_roll->value;
+    const float clg_bob_up = cl_bob_up->value;
+    const float clg_bob_pitch = cl_bob_pitch->value;
+    const float clg_bob_roll = cl_bob_roll->value;
     // TODO: Make vector, assign result later?
     //float *viewAngles = clgi.client->refdef.viewangles;
     Vector3 viewAngles = QM_Vector3Zero();
@@ -551,8 +551,8 @@ static void CLG_SetupFirstPersonView( void ) {
 
     // Client predicted/predicting frame Player States:
     client_predicted_state_t *predictedState = &clgi.client->predictedState;
-    player_state_t *predictingPlayerState = ( PF_UsePrediction() ? &predictedState->currentPs : serverFramePlayerState );
-    player_state_t *lastPredictingPlayerState = ( PF_UsePrediction() ? &predictedState->lastPs : lastServerFramePlayerState );
+    player_state_t *predictingPlayerState = &predictedState->currentPs; //( PF_UsePrediction() ? &predictedState->currentPs : serverFramePlayerState );
+    player_state_t *lastPredictingPlayerState = &predictedState->lastPs; //( PF_UsePrediction() ? &predictedState->lastPs : lastServerFramePlayerState );
 
     // Lerp fraction.
     const float lerp = clgi.client->lerpfrac;
@@ -569,7 +569,7 @@ static void CLG_SetupFirstPersonView( void ) {
     CLG_CalculateViewOffset( predictingPlayerState );
 
     // Determine the gun origin and angle offsets.based on the bobCycles of the predicted player states.
-    CLG_CalculateViewWeaponOffset( lastPredictingPlayerState, predictingPlayerState );
+    CLG_CalculateViewWeaponOffset( &predictedState->lastPs, &predictedState->currentPs );
 
     // Add server sided frame kick angles.
     if ( cl_kickangles->integer ) {
