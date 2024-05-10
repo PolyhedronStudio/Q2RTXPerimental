@@ -255,7 +255,8 @@ static void PM_CycleBob() {
 	oldBobCycle = ps->bobCycle;
 	ps->bobCycle = (int32_t)( (oldBobCycle + bobMove * pm->cmd.msec) /* pml.msec */) & 255;
 	
-	SG_DPrintf( "%s: ps->bobCycle(%i), oldBobCycle(%i), bobMove(%f)\n", __func__, ps->bobCycle, oldBobCycle, bobMove );
+	//SG_DPrintf( "%s: ps->bobCycle(%i), oldBobCycle(%i), bobMove(%f)\n", __func__, ps->bobCycle, oldBobCycle, bobMove );
+	
 	// if we just crossed a cycle boundary, play an appropriate footstep event
 	//if ( ( ( oldBobCycle + 64 ) ^ ( ps->bobCycle + 64 ) ) & 128 ) {
 	//	// On-ground will only play sounds if running:

@@ -471,7 +471,7 @@ typedef struct {
 	/**
 	*	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
 	**/
-	void ( *MSG_ReadPos )( vec3_t pos, const qboolean decodeFromShort );
+	void ( *MSG_ReadPos )( vec3_t pos, const msgPositionEncoding_t encoding );
 
 
 

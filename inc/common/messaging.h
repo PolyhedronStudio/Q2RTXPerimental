@@ -351,6 +351,10 @@ extern "C" {
 	**/
 	void MSG_WriteFloat( const float f );
 	/**
+	*   @return The first 13 bits of what was a full precision float. Hence, 'truncated' float.
+	**/
+	void MSG_WriteTruncatedFloat( const float f);
+	/**
 	*   @brief Writes a half float, lesser precision. (Transfered over the wire as an uint16_t)
 	**/
 	void MSG_WriteHalfFloat( const float f );
@@ -376,7 +380,7 @@ extern "C" {
 	/**
 	*   @brief Writes an optional 'short' encoded coordinate position vector.
 	**/
-	void MSG_WritePos( const vec3_t pos, const bool encodeAsShort );
+	void MSG_WritePos( const vec3_t pos, const msgPositionEncoding_t encoding );
 	/**
 	*	@brief	Writes an 8 bit byte, table index encoded direction vector.
 	**/
@@ -453,6 +457,10 @@ extern "C" {
 	**/
 	const float MSG_ReadFloat( );
 	/**
+	*   @return The first 13 bits of what was a full precision float. Hence, 'truncated' float.
+	**/
+	const float MSG_ReadTruncatedFloat( );
+	/**
 	*   @return A half float, converted to float, keep in mind that half floats have less precision.
 	**/
 	const float MSG_ReadHalfFloat( );
@@ -489,7 +497,7 @@ extern "C" {
 		/**
 		*	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
 		**/
-		void    MSG_ReadPos( vec3_t pos, const qboolean decodeFromShort );
+		void    MSG_ReadPos( vec3_t pos, const msgPositionEncoding_t encoding );
 	#endif
 	/**
 	*   @brief Read a client's delta move command.

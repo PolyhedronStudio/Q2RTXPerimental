@@ -672,15 +672,17 @@ extern cvar_t *sv_gravity;
 extern cvar_t *sv_rollspeed;
 extern cvar_t *sv_rollangle;
 
+// Moved to CLGame.
 //extern cvar_t *gun_x;
 //extern cvar_t *gun_y;
 //extern cvar_t *gun_z;
 
-extern cvar_t *run_pitch;
-extern cvar_t *run_roll;
-extern cvar_t *bob_up;
-extern cvar_t *bob_pitch;
-extern cvar_t *bob_roll;
+// Moved to CLGame.
+//extern cvar_t *run_pitch;
+//extern cvar_t *run_roll;
+//extern cvar_t *bob_up;
+//extern cvar_t *bob_pitch;
+//extern cvar_t *bob_roll;
 
 extern cvar_t *flood_msgs;
 extern cvar_t *flood_persecond;

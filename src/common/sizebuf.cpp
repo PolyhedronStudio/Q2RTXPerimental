@@ -31,6 +31,9 @@ extern huffman_t		msgHuff;
 extern int32_t oldsize;
 /////////////////////////////////////////////////////////////////////////
 
+static constexpr int32_t FLOAT_INT_BITS = 13;
+static constexpr int32_t FLOAT_INT_BIAS = ( 1 << ( FLOAT_INT_BITS - 1 ) );
+
 
 /**
 *
@@ -249,6 +252,21 @@ void SZ_WriteFloat( sizebuf_t *sb, const float f ) {
 	// Incompatible so far with Linux.
 	//SZ_WriteInt32( sb, std::bit_cast<std::int32_t>( f ) );
 }
+/**
+*	@brief	Uses the first 13 bits.
+**/
+void SZ_WriteTruncatedFloat( sizebuf_t *sb, const float f ) {
+	// Conversion trick:
+	union {
+		float f;
+		int32_t l;
+	} dat;
+	dat.f = (int32_t)f; // Truncate it. First 13 bits are float bits.
+	// Allows sending it as a small integer.
+	dat.l += FLOAT_INT_BIAS;
+	// Wire as int32_t.
+	SZ_WriteIntBase128( sb, dat.l );
+}
 
 /**
 *	@brief
@@ -389,6 +407,21 @@ const float SZ_ReadFloat( sizebuf_t *sb ) {
 	} dat;
 
 	dat.l = SZ_ReadInt32( sb );
+	return dat.f;
+}
+/**
+*	@brief	Uses the first 13 bits.
+**/
+const float SZ_ReadTruncatedFloat( sizebuf_t *sb ) {
+	// Conversion trick.
+	union {
+		float f;
+		int32_t l;
+	} dat;
+
+	dat.l = SZ_ReadIntBase128( sb );
+	// bias to allow equal parts positive and negative
+	dat.l -= FLOAT_INT_BIAS;
 	return dat.f;
 }
 

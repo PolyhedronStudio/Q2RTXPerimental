@@ -562,7 +562,7 @@ static void emit_snd( client_t *client, message_packet_t *msg ) {
 	MSG_WriteUint16( msg->sendchan );
 
 	if ( flags & SND_POS ) {
-		MSG_WritePos( msg->pos, false );
+		MSG_WritePos( msg->pos, MSG_POSITION_ENCODING_NONE );
 	}
 }
 

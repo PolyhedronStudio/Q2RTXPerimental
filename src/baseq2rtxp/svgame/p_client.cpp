@@ -951,7 +951,7 @@ void CopyToBodyQue(edict_t *ent)
     if (body->s.modelindex) {
         gi.WriteUint8(svc_temp_entity);
         gi.WriteUint8(TE_BLOOD);
-        gi.WritePosition( body->s.origin, false );
+        gi.WritePosition( body->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         gi.WriteDir8(vec3_origin);
         gi.multicast( body->s.origin, MULTICAST_PVS, false );
     }

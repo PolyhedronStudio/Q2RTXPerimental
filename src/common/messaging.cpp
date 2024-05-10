@@ -312,6 +312,12 @@ void MSG_WriteHalfFloat( const float f ) {
 void MSG_WriteFloat( const float f ) {
 	SZ_WriteFloat( &msg_write, f );
 }
+/**
+*   @return The first 13 bits of what was a full precision float. Hence, 'truncated' float.
+**/
+void MSG_WriteTruncatedFloat( const float f ) {
+	SZ_WriteTruncatedFloat( &msg_write, f );
+}
 
 /**
 *   @brief Writes a character string.
@@ -342,11 +348,15 @@ void MSG_WriteAngleHalfFloat( const vec_t f ) {
 /**
 *   @brief Writes out the position/coordinate, optionally 'short' encoded. (Limits us between range -4096/4096+)
 **/
-void MSG_WritePos( const vec3_t pos, const bool encodeAsShort = false ) {
-	if ( encodeAsShort ) {
+void MSG_WritePos( const vec3_t pos, const msgPositionEncoding_t encoding = MSG_POSITION_ENCODING_NONE ) {
+	if ( encoding == MSG_POSITION_ENCODING_SHORT ) {
 		MSG_WriteInt16( COORD2SHORT( pos[ 0 ] ) );
 		MSG_WriteInt16( COORD2SHORT( pos[ 1 ] ) );
 		MSG_WriteInt16( COORD2SHORT( pos[ 2 ] ) );
+	} else if ( encoding == MSG_POSITION_ENCODING_TRUNCATED_FLOAT ) {
+		MSG_WriteTruncatedFloat( pos[ 0 ] );
+		MSG_WriteTruncatedFloat( pos[ 1 ] );
+		MSG_WriteTruncatedFloat( pos[ 2 ] );
 	} else {
 		MSG_WriteFloat( pos[ 0 ] );
 		MSG_WriteFloat( pos[ 1 ] );
@@ -455,6 +465,12 @@ const float MSG_ReadHalfFloat() {
 const float MSG_ReadFloat( ) {
 	return SZ_ReadFloat( &msg_read );
 }
+/**
+*   @return The first 13 bits of what was a full precision float. Hence, 'truncated' float.
+**/
+const float MSG_ReadTruncatedFloat() {
+	return SZ_ReadTruncatedFloat( &msg_read );
+}
 
 /**
 *   @return The full string until its end.
@@ -536,11 +552,15 @@ void MSG_ReadDir8( vec3_t dir ) {
 /**
 *	@return The read positional coordinate. Optionally from 'short' to float. (Limiting in the range of -4096/+4096
 **/
-void MSG_ReadPos( vec3_t pos, const qboolean decodeFromShort = false ) {
-	if ( decodeFromShort ) {
-		pos[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) );
-		pos[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) );
-		pos[ 2 ] = SHORT2COORD( MSG_ReadInt16( ) );
+void MSG_ReadPos( vec3_t pos, const msgPositionEncoding_t encoding = MSG_POSITION_ENCODING_NONE ) {
+	if ( encoding == MSG_POSITION_ENCODING_SHORT ) {
+		pos[ 0 ] = SHORT2COORD( MSG_ReadInt16() );
+		pos[ 1 ] = SHORT2COORD( MSG_ReadInt16() );
+		pos[ 2 ] = SHORT2COORD( MSG_ReadInt16() );
+	} else if ( encoding == MSG_POSITION_ENCODING_TRUNCATED_FLOAT ) {
+		pos[ 0 ] = MSG_ReadTruncatedFloat();
+		pos[ 1 ] = MSG_ReadTruncatedFloat();
+		pos[ 2 ] = MSG_ReadTruncatedFloat();
 	} else {
 		pos[ 0 ] = MSG_ReadFloat( );
 		pos[ 1 ] = MSG_ReadFloat( );

@@ -294,7 +294,7 @@ void BecomeExplosion1(edict_t *self)
 {
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_EXPLOSION1);
-    gi.WritePosition( self->s.origin, false );
+    gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
 
     G_FreeEdict(self);
@@ -305,7 +305,7 @@ void BecomeExplosion2(edict_t *self)
 {
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_EXPLOSION2);
-    gi.WritePosition( self->s.origin, false );	
+    gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
 
     G_FreeEdict(self);

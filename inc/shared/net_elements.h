@@ -39,3 +39,10 @@ typedef enum {
     MSG_ES_BEAMORIGIN = ( 1 << 5 ),
     MSG_ES_REMOVE = ( 1 << 7 )
 } msgEsFlags_t;
+
+//! Optional (Read/Write-)Position Encoding Types:
+typedef enum {
+    MSG_POSITION_ENCODING_NONE = 0,           //! Writes out as a full float.
+    MSG_POSITION_ENCODING_SHORT = 1,           //! Encodes to short coordinate, -4096/+4096 range.
+    MSG_POSITION_ENCODING_TRUNCATED_FLOAT = 2, //! Writes out 13 bits + float bias.
+} msgPositionEncoding_t;

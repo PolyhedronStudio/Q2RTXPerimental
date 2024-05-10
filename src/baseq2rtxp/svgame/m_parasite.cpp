@@ -337,8 +337,8 @@ void parasite_drain_attack(edict_t *self)
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_PARASITE_ATTACK);
     gi.WriteInt16(self - g_edicts);
-    gi.WritePosition( start, false );
-    gi.WritePosition( end, false );
+    gi.WritePosition( start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    gi.WritePosition( end, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
 
     VectorSubtract(start, end, dir);

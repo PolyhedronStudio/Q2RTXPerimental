@@ -69,6 +69,7 @@ extern "C" {
 	void SZ_WriteIntBase128( sizebuf_t *sb, const int64_t c );
 	void SZ_WriteHalfFloat( sizebuf_t *sb, const float f );
 	void SZ_WriteFloat( sizebuf_t *sb, const float f );
+	void SZ_WriteTruncatedFloat( sizebuf_t *sb, const float f );
 	void SZ_WriteString( sizebuf_t *sb, const char *s );
 
 	static inline void *SZ_WriteData( sizebuf_t *buf, const void *data, const size_t len ) {
@@ -92,6 +93,7 @@ extern "C" {
 
 	const float SZ_ReadHalfFloat( sizebuf_t *sb );
 	const float SZ_ReadFloat( sizebuf_t *sb );
+	const float SZ_ReadTruncatedFloat( sizebuf_t *sb );
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus

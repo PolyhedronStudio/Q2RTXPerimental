@@ -567,7 +567,7 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
 		MSG_WriteUint8( ofs );
 
 	MSG_WriteUint16( sendchan );
-	MSG_WritePos( origin, false );
+	MSG_WritePos( origin, MSG_POSITION_ENCODING_NONE );
 	
 	// if the sound doesn't attenuate, send it to everyone
 	// (global radio chatter, voiceovers, etc)
