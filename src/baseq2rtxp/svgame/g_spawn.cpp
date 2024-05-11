@@ -888,10 +888,14 @@ static const char single_statusbar[] =
 
 // ammo
 "if 4 " // ammo
-  "xv 100 "
+  "yb -40 "
+  "xr -70 "
   "anum "
-  "xv 150 "
-  "pic 4 " // ammo
+  "xr -95 "
+  "pic 4 " // ammo icon.
+  // Clip ammo.
+  "xr -135 "
+  "cnum "
 "endif "
 
 // armor

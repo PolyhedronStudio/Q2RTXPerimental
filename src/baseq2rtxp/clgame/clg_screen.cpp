@@ -1677,6 +1677,7 @@ static void SCR_ExecuteLayoutString( const char *s ) {
             continue;
         }
 
+        // carrying ammo.
         if ( !strcmp( token, "anum" ) ) {
             // ammo number
             int     color;
@@ -1689,6 +1690,27 @@ static void SCR_ExecuteLayoutString( const char *s ) {
                 color = ( ( clgi.client->frame.number ) >> 2 ) & 1;     // flash
             else
                 continue;   // negative number = don't show
+
+            if ( clgi.client->frame.ps.stats[ STAT_FLASHES ] & 4 )
+                clgi.R_DrawPic( x, y, scr.field_pic );
+
+            HUD_DrawNumber( x, y, color, width, value );
+            continue;
+        }
+        // clip ammo.
+        if ( !strcmp( token, "cnum" ) ) {
+            // ammo number
+            int     color;
+
+            width = 2;
+            value = clgi.client->frame.ps.stats[ STAT_CLIP_AMMO ];
+            if ( value > 3 ) {
+                color = 0;  // green
+            } else if ( value >= 0 ) {
+                color = ( ( clgi.client->frame.number ) >> 2 ) & 1;     // flash 
+            } else {
+                continue;   // negative number = don't show
+            }
 
             if ( clgi.client->frame.ps.stats[ STAT_FLASHES ] & 4 )
                 clgi.R_DrawPic( x, y, scr.field_pic );

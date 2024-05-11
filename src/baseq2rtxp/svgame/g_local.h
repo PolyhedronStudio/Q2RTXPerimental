@@ -389,12 +389,14 @@ typedef struct gitem_s {
 
     //! For ammo how much is acquired when picking up, for weapons how much is used per shot.
     int32_t     quantity;
-    //! For weapons.
+    //! Limit of this weapon's capacity per 'clip'.
+    int32_t     clip_capacity;
+    //! For weapons, the name referring to the used Ammo Item type.
 	const char	*ammo;
     // IT_* specific flags.
     int32_t     flags;
-    //! Weapon model index (for weapons)
-    int32_t     weapmodel; 
+    //! Weapon ('model'-)index (For weapons):
+    int32_t     weapon_index;
 
 
     //! 
@@ -993,39 +995,59 @@ void GetChaseTarget(edict_t *ent);
 
 // client data that stays across multiple level loads
 typedef struct {
+    //! String buffer of the client's user info.
     char        userinfo[MAX_INFO_STRING];
+    //! The 'nickname' this client has for display.
     char        netname[16];
-    int         hand;
+    //! The 'hand' we're holding our weapon with.
+    int32_t     hand;
 
-    bool        connected;  // A loadgame will leave valid entities that just don't have a connection yet.
-    bool        spawned;    // Stores whether spawned or not. 
+    //! A loadgame will leave valid entities that just don't have a connection yet.
+    bool        connected;
+    //! Stores whether spawned or not. 
+    bool        spawned;
 
-    // values saved and restored from edicts when changing levels
-    int         health;
-    int         max_health;
-    ent_flags_t savedFlags;
+    /**
+    *   Values saved and restored from edicts when changing levels
+    **/
+    //! Current health.
+    int32_t         health;
+    //! Maximum allowed health.
+    int32_t         max_health;
+    //! Saved entity flags.
+    ent_flags_t     savedFlags;
 
-    int         selected_item;
-    int         inventory[MAX_ITEMS];
+    //! The currently selected item.
+    int32_t         selected_item;
+    //! A simple integer count for inventory of all item IDs.
+    int32_t         inventory[MAX_ITEMS];
 
-    // ammo capacities
-    int         max_bullets;
-    int         max_shells;
-    int         max_rockets;
-    int         max_grenades;
-    int         max_cells;
-    int         max_slugs;
 
-    gitem_t     *weapon;
-    gitem_t     *lastweapon;
+    //! A pointer to the item matching the currently 'used' ACTIVE weapon.
+    gitem_t *weapon;
+    //! A pointer to the last(previously used) matching weapon item.
+    gitem_t *lastweapon;
+    //! Stores the current clip ammo for each weapon that uses it.
+    int32_t weapon_clip_ammo[ MAX_ITEMS ];
 
-    int         power_cubes;    // used for tracking the cubes in coop games
-    int         score;          // for calculating total unit score in coop games
+    //! Maximum carry ammo capacities.
+    int32_t     max_bullets;
+    int32_t     max_shells;
+    int32_t     max_rockets;
+    int32_t     max_grenades;
+    int32_t     max_cells;
+    int32_t     max_slugs;
 
-    int         game_helpchanged;
-    int         helpchanged;
+    //! Used for tracking the cubes in coop games.
+    int32_t     power_cubes;
+    //! For calculating total unit score in coop games.
+    int32_t     score;
 
-    bool        spectator;      // client is a spectator
+    int32_t     game_helpchanged;
+    int32_t     helpchanged;
+
+    //! If true, this client is engaged in 'Spectator' mode.
+    bool        spectator;
 } client_persistant_t;
 
 // Client data that stays across deathmatch respawns

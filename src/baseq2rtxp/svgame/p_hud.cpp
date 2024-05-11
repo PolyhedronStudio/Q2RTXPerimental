@@ -402,13 +402,10 @@ void Cmd_Help_f(edict_t *ent)
 
 //=======================================================================
 
-/*
-===============
-G_SetStats
-===============
-*/
-void G_SetStats(edict_t *ent)
-{
+/**
+*   @brief  Will update the client's player_state_t stats array with the current client entity's values.
+**/
+void G_SetStats(edict_t *ent) {
     gitem_t     *item;
     int         index, cells;
     int         power_armor_type;
@@ -425,16 +422,33 @@ void G_SetStats(edict_t *ent)
     ent->client->ps.stats[ STAT_KILLER_YAW ] = ent->client->killer_yaw;
 
     //
-    // Ammo
+    // Type of ammo to display the total carrying amount of.
     //
     if (!ent->client->ammo_index /* || !ent->client->pers.inventory[ent->client->ammo_index] */) {
         ent->client->ps.stats[STAT_AMMO_ICON] = 0;
         ent->client->ps.stats[STAT_AMMO] = 0;
     } else {
+        // Acquire the item for fetching the current ammo_index type icon from.
         item = &itemlist[ent->client->ammo_index];
+        // Assign icon.
         ent->client->ps.stats[STAT_AMMO_ICON] = gi.imageindex(item->icon);
+        // Assign amount of total carrying ammo of said ammo_index.
         ent->client->ps.stats[STAT_AMMO] = ent->client->pers.inventory[ent->client->ammo_index];
     }
+    //
+    // Clip Ammo
+    //
+    if ( !ent->client->pers.weapon /* || !ent->client->pers.inventory[ent->client->ammo_index] */ ) {
+        //ent->client->ps.stats[ STAT_CLIP_AMMO_ICON ] = 0;
+        ent->client->ps.stats[ STAT_CLIP_AMMO ] = 0;
+    } else {
+        // Find the item matching the 
+        int32_t clip_ammo_item_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->pickup_name ) );
+        //item = &itemlist[ ent->client->ammo_index ];
+        //ent->client->ps.stats[ STAT_CLIP_AMMO_ICON ] = gi.imageindex( item->icon );
+        ent->client->ps.stats[ STAT_CLIP_AMMO ] = ent->client->pers.weapon_clip_ammo[ clip_ammo_item_index ];
+    }
+
 
     //
     // Armor

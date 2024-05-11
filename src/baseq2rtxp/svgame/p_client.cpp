@@ -588,19 +588,23 @@ This is only called when the game first initializes in single player,
 but is called after each death and level change in deathmatch
 ==============
 */
-void InitClientPersistantData(edict_t *ent, gclient_t *client)
-{
-	gitem_t     *item;
-
+void InitClientPersistantData(edict_t *ent, gclient_t *client) {
     // Clear out persistent data.
     client->pers = {};
 
-    // Find the blaster item, add it to our inventory and appoint it as the selected weapon.
-	item = FindItem("Pistol");
-	client->pers.selected_item = ITEM_INDEX(item);
+    // Find the Pistol item, add it to our inventory and appoint it as the selected weapon.
+    gitem_t *item_weapon = FindItem("Pistol");
+	client->pers.selected_item = ITEM_INDEX( item_weapon );
 	client->pers.inventory[client->pers.selected_item] = 1;
+    
+    // Assign it as our selected weapon.
+    client->pers.weapon = item_weapon;
 
-	client->pers.weapon = item;
+    // Give it a single full clip of ammo.
+    client->pers.weapon_clip_ammo[ client->pers.selected_item ] = item_weapon->clip_capacity;
+    // And some extra bullets to reload with.
+    ent->client->ammo_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->ammo ) );
+    client->pers.inventory[ ent->client->ammo_index ] = 78;
 
 	//if (sv_flaregun->value > 0)
 	//{
@@ -1850,8 +1854,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         VectorCopy( pm.mins, ent->mins );
         VectorCopy( pm.maxs, ent->maxs );
 
-
-
+        // Play 'Jump' sound if pmove inquired so.
         if ( pm.jump_sound && !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquid.level == 0) {
             gi.sound( ent, CHAN_VOICE, gi.soundindex( "*jump1.wav" ), 1, ATTN_NORM, 0 );
             // Paril: removed to make ambushes more effective and to
@@ -1859,7 +1862,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             // PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
         }
 
-		// Update the entity's other properties.
+		// Update the entity's remaining viewheight, liquid and ground information:
         ent->viewheight = (int32_t)pm.playerState->pmove.viewheight;
         ent->liquidlevel = pm.liquid.level;
         ent->liquidtype = pm.liquid.type;
@@ -1868,28 +1871,32 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             ent->groundentity_linkcount = pm.ground.entity->linkcount;
         }
 
+        // Apply a specific view angle if dead:
         if ( ent->deadflag ) {
             client->ps.viewangles[ROLL] = 40;
             client->ps.viewangles[PITCH] = -15;
             client->ps.viewangles[YAW] = client->killer_yaw;
+        // Otherwise, apply the player move state view angles:
         } else {
             VectorCopy( pm.playerState->viewangles, client->ps.viewangles );
             VectorCopy( client->ps.viewangles, client->v_angle );
             AngleVectors( client->v_angle, client->v_forward, nullptr, nullptr );
         }
 
+        // Finally link the entity back in.
         gi.linkentity( ent );
 
         // PGM trigger_gravity support
         ent->gravity = 1.0;
         // PGM
 
+        // If we're not 'No-Clipping', or 'Spectating', touch triggers and projectfiles.
 		if ( ent->movetype != MOVETYPE_NOCLIP ) {
 			G_TouchTriggers( ent );
             G_TouchProjectiles( ent, old_origin );
 		}
 
-        // Touch other objects
+        // Dispatch touch callbacks on all the remaining 'Solid' traced objects during our PMove.
         for ( int32_t i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
             trace_t &tr = pm.touchTraces.traces[ i ];
             edict_t *other = tr.ent;
@@ -1903,8 +1910,11 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
     }
 
+    // Store what were the current previous buttons as old buttons.
     client->oldbuttons = client->buttons;
+    // Assign the latest user command buttons as the now current buttons.
     client->buttons = ucmd->buttons;
+    // Update latched buttons.
     client->latched_buttons |= client->buttons & ~client->oldbuttons;
 
 	// save light level the player is standing on for

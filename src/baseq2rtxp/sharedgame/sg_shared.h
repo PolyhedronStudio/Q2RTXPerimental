@@ -95,4 +95,9 @@ static constexpr int32_t STAT_TIMER2_ICON = ( STATS_GAME_OFFSET + 15 );
 static constexpr int32_t STAT_TIMER2 = ( STATS_GAME_OFFSET + 16 );
 static constexpr int32_t STAT_KILLER_YAW = ( STATS_GAME_OFFSET + 17 );
 
+// TODO: WID: Resort all Stats logically, however, this means readjusting the
+// layout strings. Not in a mood for this right now.
+static constexpr int32_t STAT_CLIP_AMMO = ( STATS_GAME_OFFSET + 18 );
+static constexpr int32_t STAT_CLIP_AMMO_ICON = ( STATS_GAME_OFFSET + 19 );
+
 //#define STAT_SHOW_SCORES        19

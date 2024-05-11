@@ -196,7 +196,7 @@ void ChangeWeapon(edict_t *ent)
     // Set visible weapon model.
     if (ent->s.modelindex == MODELINDEX_PLAYER ) {
         if ( ent->client->pers.weapon ) {
-            i = ( ( ent->client->pers.weapon->weapmodel & 0xff ) << 8 );
+            i = ( ( ent->client->pers.weapon->weapon_index & 0xff ) << 8 );
         } else {
             i = 0;
         }
@@ -283,7 +283,7 @@ inline sg_time_t Weapon_AnimationTime( edict_t *ent ) {
 	//	( ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING ) )
 	//	ent->client->ps.gunrate = 20;
 	//else
-    if ( ent->client->pers.weapon && ent->client->pers.weapon->weapmodel == WEAP_PISTOL ) {
+    if ( ent->client->pers.weapon && ent->client->pers.weapon->weapon_index == WEAP_PISTOL ) {
         ent->client->ps.gunrate = 40;
         return sg_time_t::from_ms( ( 1.f / ent->client->ps.gunrate ) * 1000 );
         //return 25_ms;
