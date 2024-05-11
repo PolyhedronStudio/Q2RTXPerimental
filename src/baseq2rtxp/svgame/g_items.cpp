@@ -22,19 +22,19 @@ bool        Pickup_Weapon(edict_t *ent, edict_t *other);
 void        Use_Weapon(edict_t *ent, gitem_t *inv);
 void        Drop_Weapon(edict_t *ent, gitem_t *inv);
 
-void Weapon_Blaster(edict_t *ent);
-void Weapon_Shotgun(edict_t *ent);
+//void Weapon_Blaster(edict_t *ent);
+//void Weapon_Shotgun(edict_t *ent);
 void Weapon_Pistol( edict_t *ent );
-void Weapon_SuperShotgun(edict_t *ent);
-void Weapon_Machinegun(edict_t *ent);
-void Weapon_Chaingun(edict_t *ent);
-void Weapon_HyperBlaster(edict_t *ent);
-void Weapon_RocketLauncher(edict_t *ent);
-void Weapon_Grenade(edict_t *ent);
-void Weapon_GrenadeLauncher(edict_t *ent);
-void Weapon_Railgun(edict_t *ent);
-void Weapon_BFG(edict_t *ent);
-void Weapon_FlareGun(edict_t *ent);
+//void Weapon_SuperShotgun(edict_t *ent);
+//void Weapon_Machinegun(edict_t *ent);
+//void Weapon_Chaingun(edict_t *ent);
+//void Weapon_HyperBlaster(edict_t *ent);
+//void Weapon_RocketLauncher(edict_t *ent);
+//void Weapon_Grenade(edict_t *ent);
+//void Weapon_GrenadeLauncher(edict_t *ent);
+//void Weapon_Railgun(edict_t *ent);
+//void Weapon_BFG(edict_t *ent);
+//void Weapon_FlareGun(edict_t *ent);
 
 gitem_armor_t jacketarmor_info  = { 25,  50, .30f, .00f, ARMOR_JACKET};
 gitem_armor_t combatarmor_info  = { 50, 100, .60f, .30f, ARMOR_COMBAT};
@@ -1357,29 +1357,29 @@ gitem_t itemlist[] = {
     //    /* precache */ "weapons/chngnu1a.wav weapons/chngnl1a.wav weapons/machgf3b.wav weapons/chngnd1a.wav"
     //},
 
-    /*QUAKED ammo_grenades (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "ammo_grenades",
-        Pickup_Ammo,
-        Use_Weapon,
-        Drop_Ammo,
-        Weapon_Grenade,
-        "misc/am_pkup.wav",
-        "models/items/ammo/grenades/medium/tris.md2", 0,
-        "models/weapons/v_handgr/tris.md2",
-        /* icon */      "a_grenades",
-        /* pickup */    "Grenades",
-        /* width */     3,
-        5,
-        0,
-        "grenades",
-        IT_AMMO | IT_WEAPON,
-        WEAP_GRENADES,
-        NULL,
-        AMMO_GRENADES,
-        /* precache */ "models/objects/grenade2/tris.md2 weapons/hgrent1a.wav weapons/hgrena1b.wav weapons/hgrenc1b.wav weapons/hgrenb1a.wav weapons/hgrenb2a.wav"
-    },
+    ///*QUAKED ammo_grenades (.3 .3 1) (-16 -16 -16) (16 16 16)
+    //*/
+    //{
+    //    "ammo_grenades",
+    //    Pickup_Ammo,
+    //    Use_Weapon,
+    //    Drop_Ammo,
+    //    Weapon_Grenade,
+    //    "misc/am_pkup.wav",
+    //    "models/items/ammo/grenades/medium/tris.md2", 0,
+    //    "models/weapons/v_handgr/tris.md2",
+    //    /* icon */      "a_grenades",
+    //    /* pickup */    "Grenades",
+    //    /* width */     3,
+    //    5,
+    //    0,
+    //    "grenades",
+    //    IT_AMMO | IT_WEAPON,
+    //    WEAP_GRENADES,
+    //    NULL,
+    //    AMMO_GRENADES,
+    //    /* precache */ "models/objects/grenade2/tris.md2 weapons/hgrent1a.wav weapons/hgrena1b.wav weapons/hgrenc1b.wav weapons/hgrenb1a.wav weapons/hgrenb2a.wav"
+    //},
 
  //   /*QUAKED weapon_grenadelauncher (.3 .3 1) (-16 -16 -16) (16 16 16)
  //   */

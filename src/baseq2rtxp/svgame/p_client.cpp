@@ -1739,6 +1739,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     //client->oldbuttons
     //client->cmd = *ucmd;
 
+    /**
+    *   Level Intermission Path:
+    **/
     if (level.intermission_framenum) {
         client->ps.pmove.pm_type = PM_FREEZE;
 
@@ -1752,8 +1755,14 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         return;
     }
 
+    /**
+    *   Chase Target:
+    **/
     if (ent->client->chase_target) {
 		VectorCopy( ucmd->angles, client->resp.cmd_angles );
+    /**
+    *   Player Move, and other 'Thinking' logic:
+    **/
     } else {
 
         // set up for pmove
@@ -1782,12 +1791,10 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         
         //pm.playerState = client->ps;
         pm.playerState = &client->ps;
-
-		// Copy the current entity origin and velocity into our 'pmove movestate'.
+        // Copy the current entity origin and velocity into our 'pmove movestate'.
         pm.playerState->pmove.origin = ent->s.origin;
         pm.playerState->pmove.velocity = ent->velocity;
-
-		// Determine if it has changed and we should 'resnap' to position.
+        // Determine if it has changed and we should 'resnap' to position.
         if ( memcmp( &client->old_pmove, &pm.playerState->pmove, sizeof( pm.playerState->pmove ) ) ) {
             pm.snapinitial = true; // gi.dprintf ("pmove changed!\n");
         }
@@ -1809,10 +1816,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         // Backup the command angles given from ast command.
         VectorCopy( ucmd->angles, client->resp.cmd_angles );
 
-        // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those.
+        // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those:
         if ( pm.ground.entity && ent->groundentity ) {
-            float stepsize = fabs( ent->s.origin[ 2 ] - pm.playerState->pmove.origin[ 2 ] );
-
+            const float stepsize = fabs( ent->s.origin[ 2 ] - pm.playerState->pmove.origin[ 2 ] );
             if ( stepsize > PM_MIN_STEP_SIZE && stepsize < PM_MAX_STEP_SIZE ) {
                 ent->s.renderfx |= RF_STAIR_STEP;
                 ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
@@ -1826,12 +1832,10 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         //    ent->client->landmark_free_fall = false;
         //    ent->client->landmark_noise_time = level.time + 100_ms;
         //}
-
-        //// [Paril-KEX] save old position for G_TouchProjectiles
+        // [Paril-KEX] save old position for G_TouchProjectiles
         //vec3_t old_origin = ent->s.origin;
         
-        // [Paril-KEX] if we stepped onto/off of a ladder, reset the
-        // last ladder pos
+        // [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
         if ( ( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
             VectorCopy( ent->s.origin, client->last_ladder_pos );
 
@@ -1870,7 +1874,6 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         if ( pm.ground.entity ) {
             ent->groundentity_linkcount = pm.ground.entity->linkcount;
         }
-
         // Apply a specific view angle if dead:
         if ( ent->deadflag ) {
             client->ps.viewangles[ROLL] = 40;
@@ -1917,29 +1920,36 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     // Update latched buttons.
     client->latched_buttons |= client->buttons & ~client->oldbuttons;
 
-	// save light level the player is standing on for
-	// monster sighting AI
-	ent->light_level = 255;//ucmd->lightlevel;
 
-    // fire weapon from final position if needed
+    // WID: TODO: Remove this nonsense(at least, in RTX it is.)
+	// Save light level the player is standing on for monster sighting AI
+	ent->light_level = 255;
+
+    /**
+    *   Handle the 'attack' button.
+    **/
     if ( client->latched_buttons & BUTTON_ATTACK ) {
+        // Spectator 'Attack Button' Path:
         if ( client->resp.spectator ) {
-
+            // Zero out latched buttons.
             client->latched_buttons = BUTTON_NONE;
 
+            // Switch from chase target to no chase target:
             if ( client->chase_target ) {
                 client->chase_target = nullptr;
                 client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
+            // Otherwise, get an active chase target:
 			} else {
 				GetChaseTarget( ent );
 			}
 
+        // Weapon 'Attack Button' Path. Fire weapon from final position if needed:
         } else if ( !client->weapon_thunk ) {
-			// we can only do this during a ready state and
-			// if enough time has passed from last fire
+			// We can only do this during a ready state:
 			if ( ent->client->weaponstate == WEAPON_READY ) {
 				ent->client->weapon_fire_buffered = true;
 
+                // And if enough time has passed from last fire.
 				if ( ent->client->weapon_fire_finished <= level.time ) {
 					ent->client->weapon_thunk = true;
 					Think_Weapon( ent );
@@ -1948,6 +1958,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         }
     }
 
+    /**
+    *   Spectator/Chase-Cam specific behaviors:
+    **/
     if ( client->resp.spectator ) {
         if ( ucmd->upmove >= 10 ) {
             if ( !( client->ps.pmove.pm_flags & PMF_JUMP_HELD ) ) {
@@ -1964,7 +1977,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		}
     }
 
-    // update chase cam if being followed
+    // Update chase cam if being followed.
     for ( int32_t i = 1; i <= maxclients->value; i++ ) {
         other = g_edicts + i;
         if ( other->inuse && other->client->chase_target == ent ) {

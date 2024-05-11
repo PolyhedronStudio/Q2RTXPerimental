@@ -1137,13 +1137,16 @@ struct gclient_s {
 
     float       killer_yaw;         // when dead, look at killer
 
+    /**
+    *   Weapon State:
+    **/
     weaponstate_t   weaponstate;
 
     /**
-    *   View Movement:
+    *   View Angles/Movement/Offset:
     **/
-    vec3_t      v_angle, v_forward; // aiming direction
-
+    //! Aiming direction.
+    vec3_t v_angle, v_forward; 
     //! Summed Weapon Kicks, to be applied to client 'viewoffset' and 'kick_angles'.
     struct {
         //! Additional weapon 'Kick Effect' angles to be added to playerState.kick_angles.
@@ -1152,12 +1155,14 @@ struct gclient_s {
         vec3_t offsetOrigin;
     } weaponKicks;
 
-    // view movement:
+    // View Movement Timers:
     sg_time_t	v_dmg_time;
     sg_time_t	fall_time;
     sg_time_t	quake_time;
-    float       v_dmg_roll, v_dmg_pitch;    // damage kicks
-    float		fall_value;      // for view drop on fall
+    //! View Damage Kicks.
+    float       v_dmg_roll, v_dmg_pitch;    
+    //! For view drop on fall.
+    float		fall_value;
 
     /**
     *   View Blends:
