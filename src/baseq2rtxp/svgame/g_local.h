@@ -359,31 +359,50 @@ typedef struct {
 #define WEAP_FLAREGUN           13
 
 typedef struct gitem_s {
-	const char        *classname; // spawning name
+	//! Classname.
+    const char  *classname; // spawning name
+    //! Pickup Callback.
     bool        (*pickup)(struct edict_s *ent, struct edict_s *other);
+    //! Use Callback.
     void        (*use)(struct edict_s *ent, struct gitem_s *item);
+    //! Drop Callback.
     void        (*drop)(struct edict_s *ent, struct gitem_s *item);
+    //! WeaponThink Callback.
     void        (*weaponthink)(struct edict_s *ent);
+
+    //! Path: Pickup Sound.
 	const char	*pickup_sound; // WID: C++20: Added const.
+    //! Path: World Model
 	const char	*world_model; // WID: C++20: Added const.
-    int         world_model_flags;
-	const char	*view_model; // WID: C++20: Added const.
+    //! World Model Entity Flags.
+    int32_t     world_model_flags;
+    //! Path: View Weapon Model.
+	const char	*view_model;
 
-    // client side info
-	const char	*icon; // WID: C++20: Added const.
-	const char	*pickup_name;   // for printing on pickup	// WID: C++20: Added const.
-    int         count_width;    // number of digits to display by icon
+    //! Client Side Info:
+	const char	*icon;
+    //! For printing on 'pickup'.
+	const char	*pickup_name;
+    //! Number of digits to display by icon
+    int         count_width;
 
-    int         quantity;       // for ammo how much, for weapons how much is used per shot
-	const char	*ammo;          // for weapons	// WID: C++20: Added const.
-    int         flags;          // IT_* flags
 
-    int         weapmodel;      // weapon model index (for weapons)
+    //! For ammo how much is acquired when picking up, for weapons how much is used per shot.
+    int32_t     quantity;
+    //! For weapons.
+	const char	*ammo;
+    // IT_* specific flags.
+    int32_t     flags;
+    //! Weapon model index (for weapons)
+    int32_t     weapmodel; 
 
+
+    //! 
     void        *info;
-    int         tag;
+    int32_t     tag;
 
-    const char	*precaches;     // string of all models, sounds, and images this item will use	// WID: C++20: Added const.
+    //! String of all models, sounds, and images this item will use and needs to precache.
+    const char	*precaches;
 } gitem_t;
 
 

@@ -1232,24 +1232,30 @@ gitem_t itemlist[] = {
 
     //*QUAKED weapon_pistol (.3 .3 1) (-16 -16 -16) (16 16 16)     
     {
-        "weapon_pistol",
-        Pickup_Weapon,
-        Use_Weapon,
-        Drop_Weapon,
-        Weapon_Pistol,
-        "misc/w_pkup.wav",
-        "models/g_wep/pistol/tris.iqm", EF_ROTATE,
-        "models/v_wep/pistol/tris.iqm",
-        /* icon */      "w_shotgun",
-        /* pickup */    "Pistol",
-        0,
-        1,
-        "Bullets",
-        IT_WEAPON | IT_STAY_COOP,
-        WEAP_PISTOL,
-        NULL,
-        0,
-        /* precache */ "weapons/shotgf1b.wav weapons/shotgr1b.wav"
+        .classname = "weapon_pistol",
+        .pickup = Pickup_Weapon,
+        .use =  Use_Weapon,
+        .drop = Drop_Weapon,
+        .weaponthink = Weapon_Pistol,
+        
+        .pickup_sound = "misc/w_pkup.wav",
+        .world_model = "models/g_wep/pistol/tris.iqm", 
+        .world_model_flags = EF_ROTATE,
+        .view_model = "models/v_wep/pistol/tris.iqm",
+        
+        .icon = "w_shotgun",
+        .pickup_name = "Pistol",
+        
+        .count_width = 2,
+        .quantity = 1,
+        .ammo = "Bullets",
+        .flags = IT_WEAPON | IT_STAY_COOP,
+        .weapmodel = WEAP_PISTOL,
+
+        .info = NULL,
+        .tag = 0,
+
+        .precaches = "models/g_wep/pistol/tris.iqm models/v_wep/pistol/tris.iqm weapons/shotgf1b.wav weapons/shotgr1b.wav"
     },
 
     ///*QUAKED weapon_shotgun (.3 .3 1) (-16 -16 -16) (16 16 16)
