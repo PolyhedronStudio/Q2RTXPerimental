@@ -86,15 +86,17 @@ cvar_t *sv_gravity;
 cvar_t *sv_rollspeed;
 cvar_t *sv_rollangle;
 
-cvar_t *gun_x;
-cvar_t *gun_y;
-cvar_t *gun_z;
+// Moved to CLGame.
+//cvar_t *gun_x;
+//cvar_t *gun_y;
+//cvar_t *gun_z;
 
-cvar_t *run_pitch;
-cvar_t *run_roll;
-cvar_t *bob_up;
-cvar_t *bob_pitch;
-cvar_t *bob_roll;
+// Moved to CLGame.
+//cvar_t *run_pitch;
+//cvar_t *run_roll;
+//cvar_t *bob_up;
+//cvar_t *bob_pitch;
+//cvar_t *bob_roll;
 
 cvar_t *flood_msgs;
 cvar_t *flood_persecond;
@@ -246,10 +248,6 @@ void InitGame( void )
 	// seed RNG
 	mt_rand.seed( (uint32_t)std::chrono::system_clock::now( ).time_since_epoch( ).count( ) );
 
-    gun_x = gi.cvar("gun_x", "0", 0);
-    gun_y = gi.cvar("gun_y", "0", 0);
-    gun_z = gi.cvar("gun_z", "0", 0);
-
     //FIXME: sv_ prefix is wrong for these
     sv_rollspeed = gi.cvar("sv_rollspeed", "200", 0);
     sv_rollangle = gi.cvar("sv_rollangle", "2", 0);
@@ -274,12 +272,6 @@ void InitGame( void )
 
 	g_instant_weapon_switch = gi.cvar( "g_instant_weapon_switch", "0", CVAR_LATCH );
     g_select_empty = gi.cvar("g_select_empty", "0", CVAR_ARCHIVE);
-
-    run_pitch = gi.cvar("run_pitch", "0.002", 0);
-    run_roll = gi.cvar("run_roll", "0.005", 0);
-    bob_up  = gi.cvar("bob_up", "0.005", 0);
-    bob_pitch = gi.cvar("bob_pitch", "0.002", 0);
-    bob_roll = gi.cvar("bob_roll", "0.002", 0);
 
     // flood control
     flood_msgs = gi.cvar("flood_msgs", "4", 0);

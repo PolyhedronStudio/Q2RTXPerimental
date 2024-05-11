@@ -951,7 +951,7 @@ void CopyToBodyQue(edict_t *ent)
     if (body->s.modelindex) {
         gi.WriteUint8(svc_temp_entity);
         gi.WriteUint8(TE_BLOOD);
-        gi.WritePosition( body->s.origin, false );
+        gi.WritePosition( body->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         gi.WriteDir8(vec3_origin);
         gi.multicast( body->s.origin, MULTICAST_PVS, false );
     }
@@ -1787,13 +1787,13 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         if ( memcmp( &client->old_pmove, &pm.playerState->pmove, sizeof( pm.playerState->pmove ) ) ) {
             pm.snapinitial = true; // gi.dprintf ("pmove changed!\n");
         }
-		// Setup user commands and function pointers.
+		// Setup 'User Command', 'Player Skip Entity' and Function Pointers.
         pm.cmd = *ucmd;
         pm.player = ent;
         pm.trace = SV_PM_Trace;
         pm.pointcontents = SV_PM_PointContents;
         pm.clip = SV_PM_Clip;
-        pm.viewoffset = ent->client->ps.viewoffset;
+        //pm.viewoffset = ent->client->ps.viewoffset;
 
         // Perform a PMove.
         SG_PlayerMove( &pm, &pmp );
