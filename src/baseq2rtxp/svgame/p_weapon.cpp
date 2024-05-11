@@ -283,6 +283,11 @@ inline sg_time_t Weapon_AnimationTime( edict_t *ent ) {
 	//	( ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING ) )
 	//	ent->client->ps.gunrate = 20;
 	//else
+    if ( ent->client->pers.weapon && ent->client->pers.weapon->weapmodel == WEAP_PISTOL ) {
+        ent->client->ps.gunrate = 40;
+        return sg_time_t::from_ms( ( 1.f / ent->client->ps.gunrate ) * 1000 );
+        //return 25_ms;
+    }
     if ( ( gi.tick_rate == 20 || gi.tick_rate == 40 ) &&
         ( ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING ) ) {
         ent->client->ps.gunrate = 20;
@@ -1259,6 +1264,71 @@ void Weapon_Chaingun(edict_t *ent)
 
 	Weapon_Repeating( ent, 4, 31, 61, 64, pause_frames, Chaingun_Fire );
 }
+
+
+/*
+======================================================================
+
+SHOTGUN / SUPERSHOTGUN
+
+======================================================================
+*/
+
+void weapon_pistol_fire( edict_t *ent ) {
+    vec3_t      start;
+    vec3_t      forward, right;
+    vec3_t      offset;
+    int         damage = 4;
+    int         kick = 8;
+
+    if ( ent->client->ps.gunframe == 9 ) {
+        ent->client->ps.gunframe++;
+        return;
+    }
+
+    AngleVectors( ent->client->v_angle, forward, right, NULL );
+
+    VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
+    ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
+
+    VectorSet( offset, 0, 8, ent->viewheight - 8 );
+    P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+
+    if ( is_quad ) {
+        damage *= 4;
+        kick *= 4;
+    }
+
+    //if ( deathmatch->value )
+    //    fire_shotgun( ent, start, forward, damage, kick, 500, 500, DEFAULT_DEATHMATCH_SHOTGUN_COUNT, MOD_SHOTGUN );
+    //else
+    //    fire_shotgun( ent, start, forward, damage, kick, 500, 500, DEFAULT_SHOTGUN_COUNT, MOD_SHOTGUN );
+    fire_bullet( ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN );
+
+    // send muzzle flash
+    gi.WriteUint8( svc_muzzleflash );
+    gi.WriteInt16( ent - g_edicts );
+    gi.WriteUint8( MZ_SHOTGUN | is_silenced );
+    gi.multicast( ent->s.origin, MULTICAST_PVS, false );
+
+    ent->client->ps.gunframe++;
+    PlayerNoise( ent, start, PNOISE_WEAPON );
+
+    if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
+        ent->client->pers.inventory[ ent->client->ammo_index ]--;
+}
+
+void Weapon_Pistol( edict_t *ent ) {
+    static int  pause_frames[] = { 0 };
+    static int  fire_frames[] = { 85, 94 };
+
+    static constexpr int32_t FRAME_ACTIVATE_LAST = 25;
+    static constexpr int32_t FRAME_FIRE_LAST = 94;
+    static constexpr int32_t FRAME_IDLE_LAST = 0;
+    static constexpr int32_t FRAME_DEACTIVATE_LAST = 20;
+    Weapon_Generic( ent, FRAME_ACTIVATE_LAST, FRAME_FIRE_LAST, FRAME_IDLE_LAST, FRAME_DEACTIVATE_LAST, pause_frames, fire_frames, weapon_pistol_fire );
+}
+
 
 
 /*

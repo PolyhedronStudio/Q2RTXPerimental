@@ -1057,7 +1057,7 @@ void SP_worldspawn(edict_t *ent)
     gi.soundindex("player/burn2.wav");
     gi.soundindex("player/drown1.wav");
 
-    PrecacheItem(FindItem("Blaster"));
+    PrecacheItem(FindItem("Pistol"));
 
     gi.soundindex("player/lava1.wav");
     gi.soundindex("player/lava2.wav");
@@ -1094,6 +1094,7 @@ void SP_worldspawn(edict_t *ent)
     // THIS ORDER MUST MATCH THE DEFINES IN g_local.h
     // you can add more, max 15
     gi.modelindex("#w_blaster.md2");
+    gi.modelindex("#w_pistol.iqm");
     gi.modelindex("#w_shotgun.md2");
     gi.modelindex("#w_sshotgun.md2");
     gi.modelindex("#w_machinegun.md2");

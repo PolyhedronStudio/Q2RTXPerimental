@@ -345,17 +345,18 @@ typedef struct {
 
 // gitem_t->weapmodel for weapons indicates model index
 #define WEAP_BLASTER            1
-#define WEAP_SHOTGUN            2
-#define WEAP_SUPERSHOTGUN       3
-#define WEAP_MACHINEGUN         4
-#define WEAP_CHAINGUN           5
-#define WEAP_GRENADES           6
-#define WEAP_GRENADELAUNCHER    7
-#define WEAP_ROCKETLAUNCHER     8
-#define WEAP_HYPERBLASTER       9
-#define WEAP_RAILGUN            10
-#define WEAP_BFG                11
-#define WEAP_FLAREGUN           12
+#define WEAP_PISTOL             2
+#define WEAP_SHOTGUN            3
+#define WEAP_SUPERSHOTGUN       4
+#define WEAP_MACHINEGUN         5
+#define WEAP_CHAINGUN           6
+#define WEAP_GRENADES           7
+#define WEAP_GRENADELAUNCHER    8
+#define WEAP_ROCKETLAUNCHER     9
+#define WEAP_HYPERBLASTER       10
+#define WEAP_RAILGUN            11
+#define WEAP_BFG                12
+#define WEAP_FLAREGUN           13
 
 typedef struct gitem_s {
 	const char        *classname; // spawning name

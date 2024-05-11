@@ -596,28 +596,28 @@ void InitClientPersistantData(edict_t *ent, gclient_t *client)
     client->pers = {};
 
     // Find the blaster item, add it to our inventory and appoint it as the selected weapon.
-	item = FindItem("Blaster");
+	item = FindItem("Pistol");
 	client->pers.selected_item = ITEM_INDEX(item);
 	client->pers.inventory[client->pers.selected_item] = 1;
 
 	client->pers.weapon = item;
 
-	if (sv_flaregun->value > 0)
-	{
-		// Q2RTX: Spawn with a flare gun and some grenades to use with it.
-		// Flare gun is new and not found anywhere in the game as a pickup item.
-		gitem_t* item_flareg = FindItem("Flare Gun");
-		if (item_flareg)
-		{
-			client->pers.inventory[ITEM_INDEX(item_flareg)] = 1;
+	//if (sv_flaregun->value > 0)
+	//{
+	//	// Q2RTX: Spawn with a flare gun and some grenades to use with it.
+	//	// Flare gun is new and not found anywhere in the game as a pickup item.
+	//	gitem_t* item_flareg = FindItem("Flare Gun");
+	//	if (item_flareg)
+	//	{
+	//		client->pers.inventory[ITEM_INDEX(item_flareg)] = 1;
 
-			if (sv_flaregun->value == 2)
-			{
-				gitem_t* item_grenades = FindItem("Grenades");
-				client->pers.inventory[ITEM_INDEX(item_grenades)] = 5;
-			}
-		}
-	}
+	//		if (sv_flaregun->value == 2)
+	//		{
+	//			gitem_t* item_grenades = FindItem("Grenades");
+	//			client->pers.inventory[ITEM_INDEX(item_grenades)] = 5;
+	//		}
+	//	}
+	//}
 
     client->pers.health         = 100;
     client->pers.max_health     = 100;
