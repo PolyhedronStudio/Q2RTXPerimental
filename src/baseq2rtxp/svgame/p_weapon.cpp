@@ -402,27 +402,27 @@ weapon_mode_frames_t modeAnimationFrames[ WEAPON_MODE_MAX ] = {
     },
     // Mode Animation: DRAWING
     /*modeAnimationFrames[ WEAPON_MODE_DRAWING ] = */{
-        .startFrame = 83,
-        .endFrame = 108,
-        .durationFrames = ( 108 - 83 )
+        .startFrame = 86,
+        .endFrame = 111,
+        .durationFrames = ( 111 - 86 )
     },
     // Mode Animation: HOLSTERING
     /*modeAnimationFrames[ WEAPON_MODE_HOLSTERING ] = */{
-        .startFrame = 51,
-        .endFrame = 82,
-        .durationFrames = ( 82 - 51 )
+        .startFrame = 54,
+        .endFrame = 85,
+        .durationFrames = ( 85 - 54 )
     },
     // Mode Animation: PRIMARY_FIRING
     /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
         .startFrame = 1,
-        .endFrame = 10,
-        .durationFrames = ( 10 - 1 )
+        .endFrame = 13,
+        .durationFrames = ( 13 - 1 )
     },
     // Mode Animation: RELOADING
     /*modeAnimationFrames[ WEAPON_MODE_RELOADING ] = */{
-        .startFrame = 10,
-        .endFrame = 51,
-        .durationFrames = ( 51 - 10 )
+        .startFrame = 13,
+        .endFrame = 54,
+        .durationFrames = ( 54 - 13 )
     }
 };
 
@@ -475,15 +475,6 @@ void P_Weapon_Think( edict_t *ent ) {
 }
 
 /**
-*   @brief  Processes responses to the user input.
-**/
-static void P_Weapon_ProcessUserInput( edict_t *ent ) {
-    if ( !(ent->client->latched_buttons & BUTTON_ATTACK) && ( ent->client->buttons & BUTTON_ATTACK ) ) {
-        P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING );
-    }
-}
-
-/**
 *   @brief  Advances the animation of the 'mode' we're currently in.
 **/
 static const bool P_Weapon_ProcessModeAnimation( edict_t *ent, weapon_mode_frames_t *weaponModeFrames ) {
@@ -497,7 +488,7 @@ static const bool P_Weapon_ProcessModeAnimation( edict_t *ent, weapon_mode_frame
     // Increment.
     gunFrame++;
     // Debug
-    gi.dprintf( "%s: gunFrame(%i)\n", __func__, gunFrame );
+    //gi.dprintf( "%s: gunFrame(%i)\n", __func__, gunFrame );
 
     // Determine whether we are finished processing the mode.
     if ( gunFrame > ent->client->weaponState.animation.endFrame ) {
@@ -534,46 +525,65 @@ void weapon_pistol_fire( edict_t *ent ) {
     vec3_t      start;
     vec3_t      forward, right;
     vec3_t      offset;
-    int         damage = 4;
+    int         damage = 8;
     int         kick = 8;
 
-    if ( ent->client->ps.gunframe == 9 ) {
-        ent->client->ps.gunframe++;
-        return;
-    }
-
+    // TODO: These are already calculated, right?
+    // Calculate angle vectors.
     AngleVectors( ent->client->v_angle, forward, right, NULL );
-
+    // Determine shot kick offset.
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
-
-    VectorSet( offset, 0, 8, ent->viewheight - 8 );
+    // Project from source to shot destination.
+    VectorSet( offset, 0, 10, (float)ent->viewheight - 5.5f ); // VectorSet( offset, 0, 8, ent->viewheight - 8 );
     P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
-    if ( is_quad ) {
-        damage *= 4;
-        kick *= 4;
-    }
-
-    //if ( deathmatch->value )
-    //    fire_shotgun( ent, start, forward, damage, kick, 500, 500, DEFAULT_DEATHMATCH_SHOTGUN_COUNT, MOD_SHOTGUN );
-    //else
-    //    fire_shotgun( ent, start, forward, damage, kick, 500, 500, DEFAULT_SHOTGUN_COUNT, MOD_SHOTGUN );
+    // Fire the actual bullet itself.
     fire_bullet( ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN );
 
-    // send muzzle flash
+    // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
     gi.WriteInt16( ent - g_edicts );
-    gi.WriteUint8( MZ_SHOTGUN | is_silenced );
+    gi.WriteUint8( MZ_MACHINEGUN | is_silenced );
     gi.multicast( ent->s.origin, MULTICAST_PVS, false );
 
-    ent->client->ps.gunframe++;
+    // Notify we're making noise.
     P_PlayerNoise( ent, start, PNOISE_WEAPON );
 
-    if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
-        ent->client->pers.inventory[ ent->client->ammo_index ]--;
+    // Decrease clip ammo.
+    ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ]--;
+    //if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
+    //    ent->client->pers.inventory[ ent->client->ammo_index ]--;
+
 }
 
+/**
+*   @brief  Processes responses to the user input.
+**/
+static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
+    if ( ( ent->client->latched_buttons & BUTTON_ATTACK ) /*&& ( ent->client->buttons & BUTTON_ATTACK )*/ ) {
+        // We need to have clip ammo.
+        if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
+            P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING );
+        // Otherwise, reload:
+        } else {
+            // Ammo amount to subtract.
+            int32_t subtractAmmo = 13;
+            // Get total ammo amount.
+            int32_t totalAmmo = ent->client->pers.inventory[ ent->client->ammo_index ];
+            if ( totalAmmo < 13 ) {
+                subtractAmmo = totalAmmo;
+            }
+            if ( totalAmmo <= 0 ) {
+                return;
+            }
+
+            ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] = subtractAmmo;
+            ent->client->pers.inventory[ ent->client->ammo_index ] -= subtractAmmo;
+            
+        }
+    }
+}
 /**
 *   @brief  Pistol Weapon State Machine.
 **/
@@ -581,10 +591,28 @@ void Weapon_Pistol( edict_t *ent ) {
     // Process the animation frames of the mode we're in.
     const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &modeAnimationFrames[ ent->client->weaponState.mode ] );
 
+    //// If done animating, switch back to idle mode.
+    //if ( isDoneAnimating ) {
+    //    P_Weapon_SwitchMode( ent, WEAPON_MODE_IDLE );
+    //}
+
+    // If IDLE or NOT ANIMATING, process user input.
     if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE || isDoneAnimating ) {
         // Respond to user input, which determines whether 
-        P_Weapon_ProcessUserInput( ent );
+        Weapon_Pistol_ProcessUserInput( ent );
     }
+
+    // Process logic for state specific frames.
+    if ( ent->client->weaponState.mode == WEAPON_MODE_PRIMARY_FIRING ) {
+        if ( ent->client->weaponState.timers.lastShot <= ( level.time + 325_ms ) ) {
+            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 3 ) {
+                weapon_pistol_fire( ent );
+                ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ]--;
+                ent->client->weaponState.timers.lastShot = level.time;
+            }
+        }
+    }
+
     //static int  pause_frames[] = { 0 };
     //static int  fire_frames[] = { 85, 94 };
 

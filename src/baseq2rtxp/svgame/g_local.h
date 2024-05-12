@@ -1184,6 +1184,12 @@ struct gclient_s {
             //! The frame we want to be at by the end of the animation.
             int32_t endFrame;
         } animation;
+
+        //! Timers
+        struct {
+            //! Used to prevent firing 
+            sg_time_t lastShot;
+        } timers;
     } weaponState;
     
 
