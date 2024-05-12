@@ -18,9 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "g_local.h"
 
 
-bool        Pickup_Weapon(edict_t *ent, edict_t *other);
-void        Use_Weapon(edict_t *ent, gitem_t *inv);
-void        Drop_Weapon(edict_t *ent, gitem_t *inv);
+
 
 //void Weapon_Blaster(edict_t *ent);
 //void Weapon_Shotgun(edict_t *ent);
@@ -52,31 +50,26 @@ static int  power_shield_index;
 void Use_Quad(edict_t *ent, gitem_t *item);
 static sg_time_t  quad_drop_timeout_hack;
 
-//======================================================================
-
-/*
-===============
-GetItemByIndex
-===============
-*/
-gitem_t *GetItemByIndex(int index)
-{
+/**
+*
+*
+*   Item Inventory:
+*
+*
+**/
+/**
+*   @brief
+**/
+gitem_t *GetItemByIndex(int index) {
     if (index == 0 || index >= game.num_items)
         return NULL;
 
     return &itemlist[index];
 }
-
-
-/*
-===============
-FindItemByClassname
-
-===============
-*/
-// WID: C++20: added const.
-gitem_t *FindItemByClassname(const char *classname)
-{
+/**
+*   @brief
+**/
+gitem_t *FindItemByClassname(const char *classname) {
     int     i;
     gitem_t *it;
 
@@ -90,16 +83,10 @@ gitem_t *FindItemByClassname(const char *classname)
 
     return NULL;
 }
-
-/*
-===============
-FindItem
-
-===============
-*/
-// WID: C++20: added const.
-gitem_t *FindItem(const char *pickup_name)
-{
+/**
+*   @brief
+**/
+gitem_t *FindItem(const char *pickup_name) {
     int     i;
     gitem_t *it;
 
@@ -115,7 +102,13 @@ gitem_t *FindItem(const char *pickup_name)
 }
 
 //======================================================================
-
+/**
+*
+*
+*   Item Respawning:
+*
+*
+**/
 void DoRespawn(edict_t *ent)
 {
     if (ent->team) {
@@ -152,35 +145,9 @@ void SetRespawn(edict_t *ent, float delay)
     gi.linkentity(ent);
 }
 
-
-//======================================================================
-
-bool Pickup_Powerup(edict_t *ent, edict_t *other)
-{
-    int     quantity;
-
-    quantity = other->client->pers.inventory[ITEM_INDEX(ent->item)];
-    if ((skill->value == 1 && quantity >= 2) || (skill->value >= 2 && quantity >= 1))
-        return false;
-
-    if ((coop->value) && (ent->item->flags & IT_STAY_COOP) && (quantity > 0))
-        return false;
-
-    other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
-
-    if (deathmatch->value) {
-        if (!(ent->spawnflags & DROPPED_ITEM))
-            SetRespawn(ent, ent->item->quantity);
-        if (((int)dmflags->value & DF_INSTANT_ITEMS) || ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM))) {
-            if ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM))
-                quad_drop_timeout_hack = ent->nextthink - level.time;
-            ent->item->use(other, ent->item);
-        }
-    }
-
-    return true;
-}
-
+/**
+*   @brief
+**/
 void Drop_General(edict_t *ent, gitem_t *item)
 {
     Drop_Item(ent, item);
@@ -189,9 +156,45 @@ void Drop_General(edict_t *ent, gitem_t *item)
 }
 
 
-//======================================================================
 
-bool Pickup_Adrenaline(edict_t *ent, edict_t *other)
+/**
+*
+*
+*   Misc Item specific Pickup Callbacks:
+*
+*
+**/
+/**
+*   @brief
+**/
+const bool Pickup_Powerup( edict_t *ent, edict_t *other ) {
+    int     quantity;
+
+    quantity = other->client->pers.inventory[ ITEM_INDEX( ent->item ) ];
+    if ( ( skill->value == 1 && quantity >= 2 ) || ( skill->value >= 2 && quantity >= 1 ) )
+        return false;
+
+    if ( ( coop->value ) && ( ent->item->flags & IT_STAY_COOP ) && ( quantity > 0 ) )
+        return false;
+
+    other->client->pers.inventory[ ITEM_INDEX( ent->item ) ]++;
+
+    if ( deathmatch->value ) {
+        if ( !( ent->spawnflags & DROPPED_ITEM ) )
+            SetRespawn( ent, ent->item->quantity );
+        if ( ( (int)dmflags->value & DF_INSTANT_ITEMS ) || ( ( ent->item->use == Use_Quad ) && ( ent->spawnflags & DROPPED_PLAYER_ITEM ) ) ) {
+            if ( ( ent->item->use == Use_Quad ) && ( ent->spawnflags & DROPPED_PLAYER_ITEM ) )
+                quad_drop_timeout_hack = ent->nextthink - level.time;
+            ent->item->use( other, ent->item );
+        }
+    }
+
+    return true;
+}
+/**
+*   @brief
+**/
+const bool Pickup_Adrenaline(edict_t *ent, edict_t *other)
 {
     if (!deathmatch->value)
         other->max_health += 1;
@@ -204,8 +207,10 @@ bool Pickup_Adrenaline(edict_t *ent, edict_t *other)
 
     return true;
 }
-
-bool Pickup_AncientHead(edict_t *ent, edict_t *other)
+/**
+*   @brief
+**/
+const bool Pickup_AncientHead(edict_t *ent, edict_t *other)
 {
     other->max_health += 2;
 
@@ -214,8 +219,10 @@ bool Pickup_AncientHead(edict_t *ent, edict_t *other)
 
     return true;
 }
-
-bool Pickup_Bandolier(edict_t *ent, edict_t *other)
+/**
+*   @brief
+**/
+const bool Pickup_Bandolier(edict_t *ent, edict_t *other)
 {
     gitem_t *item;
     int     index;
@@ -250,8 +257,10 @@ bool Pickup_Bandolier(edict_t *ent, edict_t *other)
 
     return true;
 }
-
-bool Pickup_Pack(edict_t *ent, edict_t *other)
+/**
+*   @brief  
+**/
+const bool Pickup_Pack(edict_t *ent, edict_t *other)
 {
     gitem_t *item;
     int     index;
@@ -322,6 +331,8 @@ bool Pickup_Pack(edict_t *ent, edict_t *other)
 
     return true;
 }
+
+
 
 //======================================================================
 
@@ -396,7 +407,7 @@ void    Use_Silencer(edict_t *ent, gitem_t *item)
 
 //======================================================================
 
-bool Pickup_Key(edict_t *ent, edict_t *other)
+const bool Pickup_Key(edict_t *ent, edict_t *other)
 {
     if (coop->value) {
         if (strcmp(ent->classname, "key_power_cube") == 0) {
@@ -415,8 +426,15 @@ bool Pickup_Key(edict_t *ent, edict_t *other)
     return true;
 }
 
-//======================================================================
 
+
+/**
+*
+*
+*   Ammo:
+*
+*
+**/
 bool Add_Ammo(edict_t *ent, gitem_t *item, int count)
 {
     int         index;
@@ -453,7 +471,7 @@ bool Add_Ammo(edict_t *ent, gitem_t *item, int count)
     return true;
 }
 
-bool Pickup_Ammo(edict_t *ent, edict_t *other)
+const bool Pickup_Ammo(edict_t *ent, edict_t *other)
 {
     int         oldcount;
     int         count;
@@ -508,8 +526,13 @@ void Drop_Ammo(edict_t *ent, gitem_t *item)
 }
 
 
-//======================================================================
-
+/**
+*
+*
+*   Health:
+*
+*
+**/
 void MegaHealth_think(edict_t *self)
 {
     if (self->owner->health > self->owner->max_health) {
@@ -524,7 +547,7 @@ void MegaHealth_think(edict_t *self)
         G_FreeEdict(self);
 }
 
-bool Pickup_Health(edict_t *ent, edict_t *other)
+const bool Pickup_Health(edict_t *ent, edict_t *other)
 {
     if (!(ent->style & HEALTH_IGNORE_MAX))
         if (other->health >= other->max_health)
@@ -552,8 +575,15 @@ bool Pickup_Health(edict_t *ent, edict_t *other)
     return true;
 }
 
-//======================================================================
 
+
+/**
+*
+*
+*   Armor:
+*
+*
+**/
 int ArmorIndex(edict_t *ent)
 {
     if (!ent->client)
@@ -571,7 +601,7 @@ int ArmorIndex(edict_t *ent)
     return 0;
 }
 
-bool Pickup_Armor(edict_t *ent, edict_t *other)
+const bool Pickup_Armor(edict_t *ent, edict_t *other)
 {
     int             old_armor_index;
     gitem_armor_t   *oldinfo;
@@ -644,8 +674,15 @@ bool Pickup_Armor(edict_t *ent, edict_t *other)
     return true;
 }
 
-//======================================================================
 
+
+/**
+*
+* 
+*   Power Armor: 
+* 
+* 
+**/
 int PowerArmorType(edict_t *ent)
 {
     if (!ent->client)
@@ -682,7 +719,7 @@ void Use_PowerArmor(edict_t *ent, gitem_t *item)
     }
 }
 
-bool Pickup_PowerArmor(edict_t *ent, edict_t *other)
+const bool Pickup_PowerArmor(edict_t *ent, edict_t *other)
 {
     int     quantity;
 
@@ -708,13 +745,18 @@ void Drop_PowerArmor(edict_t *ent, gitem_t *item)
     Drop_General(ent, item);
 }
 
-//======================================================================
 
-/*
-===============
-Touch_Item
-===============
-*/
+
+/**
+*
+*
+*   Item Entity:
+*
+*
+**/
+/**
+*   @brief  
+**/
 void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
     bool    taken;
@@ -771,8 +813,9 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
     }
 }
 
-//======================================================================
-
+/**
+*   @brief
+**/
 void drop_temp_touch(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
     if (other == ent->owner)
@@ -780,7 +823,9 @@ void drop_temp_touch(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *
 
     Touch_Item(ent, other, plane, surf);
 }
-
+/**
+*   @brief
+**/
 void drop_make_touchable(edict_t *ent)
 {
     ent->touch = Touch_Item;
@@ -789,7 +834,9 @@ void drop_make_touchable(edict_t *ent)
         ent->think = G_FreeEdict;
     }
 }
-
+/**
+*   @brief
+**/
 edict_t *Drop_Item(edict_t *ent, gitem_t *item)
 {
     edict_t *dropped;
@@ -835,7 +882,9 @@ edict_t *Drop_Item(edict_t *ent, gitem_t *item)
 
     return dropped;
 }
-
+/**
+*   @brief
+**/
 void Use_Item(edict_t *ent, edict_t *other, edict_t *activator)
 {
     ent->svflags &= ~SVF_NOCLIENT;
@@ -854,11 +903,9 @@ void Use_Item(edict_t *ent, edict_t *other, edict_t *activator)
 
 //======================================================================
 
-/*
-================
-droptofloor
-================
-*/
+/**
+*   @brief
+**/
 void droptofloor(edict_t *ent)
 {
     trace_t     tr;
@@ -917,15 +964,11 @@ void droptofloor(edict_t *ent)
 }
 
 
-/*
-===============
-PrecacheItem
-
-Precaches all data needed for a given item.
-This will be called for each item spawned in a level,
-and for each item in each client's inventory.
-===============
-*/
+/**
+*   @brief  Precaches all data needed for a given item.
+*           This will be called for each item spawned in a level,
+*           and for each item in each client's inventory.
+**/
 void PrecacheItem(gitem_t *it)
 {
 	// WID: C++20: Added const.
@@ -984,16 +1027,12 @@ void PrecacheItem(gitem_t *it)
     }
 }
 
-/*
-============
-SpawnItem
-
-Sets the clipping size and plants the object on the floor.
-
-Items can't be immediately dropped to floor, because they might
-be on an entity that hasn't spawned yet.
-============
-*/
+/**
+*   @brief  Sets the clipping size and plants the object on the floor.
+*
+*           Items can't be immediately dropped to floor, because they might
+*           be on an entity that hasn't spawned yet.
+**/
 void SpawnItem(edict_t *ent, gitem_t *item)
 {
     PrecacheItem(item);
@@ -1052,8 +1091,13 @@ void SpawnItem(edict_t *ent, gitem_t *item)
         gi.modelindex(ent->model);
 }
 
-//======================================================================
-
+/**
+* 
+* 
+*   Item List:
+* 
+* 
+**/
 gitem_t itemlist[] = {
     {
         NULL
@@ -1239,9 +1283,9 @@ gitem_t itemlist[] = {
     //*QUAKED weapon_pistol (.3 .3 1) (-16 -16 -16) (16 16 16)     
     {
         .classname = "weapon_pistol",
-        .pickup = Pickup_Weapon,
-        .use =  Use_Weapon,
-        .drop = Drop_Weapon,
+        .pickup = P_Weapon_Pickup,
+        .use =  P_Weapon_Use,
+        .drop = P_Weapon_Drop,
         .weaponthink = Weapon_Pistol,
         
         .pickup_sound = "misc/w_pkup.wav",

@@ -216,12 +216,31 @@ typedef enum {
     DAMAGE_AIM          // auto targeting recognizes this
 } damage_t;
 
+//typedef enum {
+//    WEAPON_READY,
+//    WEAPON_ACTIVATING,
+//    WEAPON_DROPPING,
+//    WEAPON_FIRING
+//} weaponstate_t;
+/**
+*   @brief  Describes a weapon's current state.
+**/
 typedef enum {
-    WEAPON_READY,
-    WEAPON_ACTIVATING,
-    WEAPON_DROPPING,
-    WEAPON_FIRING
-} weaponstate_t;
+    //! The weapon is not doing anything else but sitting there, waiting for use.
+    WEAPON_MODE_IDLE,
+    //! The weapon is being 'Drawn'.
+    WEAPON_MODE_DRAWING,
+    //! The weapon is being 'Holstered'.
+    WEAPON_MODE_HOLSTERING,
+    //! The weapon is actively 'Primary' firing a shot.
+    WEAPON_MODE_PRIMARY_FIRING,
+
+    //! The weapon is actively 'Reloading' its clip.
+    WEAPON_MODE_RELOADING,
+
+    //! Maximum weapon modes available.
+    WEAPON_MODE_MAX,
+} weapon_mode_t;
 
 typedef enum {
     AMMO_BULLETS,
@@ -336,14 +355,14 @@ typedef struct {
 
 
 // gitem_t->flags
-#define IT_WEAPON       1       // use makes active weapon
+#define IT_WEAPON       1       //! "+use" makes active weapon
 #define IT_AMMO         2
 #define IT_ARMOR        4
 #define IT_STAY_COOP    8
 #define IT_KEY          16
 #define IT_POWERUP      32
 
-// gitem_t->weapmodel for weapons indicates model index
+// gitem_t->weapon_index for weapons indicates model index.
 #define WEAP_BLASTER            1
 #define WEAP_PISTOL             2
 #define WEAP_SHOTGUN            3
@@ -362,7 +381,7 @@ typedef struct gitem_s {
 	//! Classname.
     const char  *classname; // spawning name
     //! Pickup Callback.
-    bool        (*pickup)(struct edict_s *ent, struct edict_s *other);
+    const bool  (*pickup)(struct edict_s *ent, struct edict_s *other);
     //! Use Callback.
     void        (*use)(struct edict_s *ent, struct gitem_s *item);
     //! Drop Callback.
@@ -772,9 +791,7 @@ gitem_t *FindItemByClassname(const char *classname);
 #define ITEM_INDEX(x) ((x)-itemlist)
 edict_t *Drop_Item(edict_t *ent, gitem_t *item);
 void SetRespawn(edict_t *ent, float delay);
-void ChangeWeapon(edict_t *ent);
 void SpawnItem(edict_t *ent, gitem_t *item);
-void Think_Weapon(edict_t *ent);
 int ArmorIndex(edict_t *ent);
 int PowerArmorType(edict_t *ent);
 gitem_t *GetItemByIndex(int index);
@@ -950,7 +967,12 @@ void DeathmatchScoreboardMessage(edict_t *client, edict_t *killer);
 //
 // g_pweapon.c
 //
-void PlayerNoise(edict_t *who, const vec3_t where, int type);
+void P_PlayerNoise(edict_t *who, const vec3_t where, int type);
+const bool P_Weapon_Pickup( edict_t *ent, edict_t *other );
+void P_Weapon_Drop( edict_t *ent, gitem_t *inv );
+void P_Weapon_Use( edict_t *ent, gitem_t *inv );
+void P_Weapon_Change( edict_t *ent );
+void P_Weapon_Think( edict_t *ent );
 
 //
 // m_move.c
@@ -1104,17 +1126,19 @@ struct gclient_s {
 	// Set when we want to switch weapons.
 	gitem_t *newweapon;
 
-	// weapon cannot fire until this time is up
+	//! Weapon cannot fire until this time is up.
 	sg_time_t weapon_fire_finished;
-	// time between processing individual animation frames
+	//! Time between processing individual animation frames.
 	sg_time_t weapon_think_time;
-	// if we latched fire between server frames but before
-	// the weapon fire finish has elapsed, we'll "press" it
-	// automatically when we have a chance
+	//! If we latched fire between server frames but before
+	//! the weapon fire finish has elapsed, we'll "press" it
+	//! automatically when we have a chance.
 	bool weapon_fire_buffered;
+    //! If true, the weapon thinking process has been executed by a 
+    //! usercmd_t in ClientThink.
 	bool weapon_thunk;
 
-	// Last time we played an 'empty weapon click' sound.
+	//! Last time we played an 'empty weapon click' sound.
 	sg_time_t	empty_weapon_click_sound;
 
 	sg_time_t	grenade_time;
@@ -1140,7 +1164,25 @@ struct gclient_s {
     /**
     *   Weapon State:
     **/
-    weaponstate_t   weaponstate;
+    struct {
+        //! The 'mode' is what the weapon is actually doing during its current 'state'.
+        weapon_mode_t mode;
+        //! Determines if the weapon can change 'mode'.
+        qboolean canChangeMode;
+
+        //! Stores the 'Weapon Animation' data, which if still actively being processed
+        //! prevents the weapon from changing 'mode'.
+        struct {
+            //! The amount of time processed so far for the animation.
+            int32_t currentFrame;
+
+            //! The starting frame.
+            int32_t startFrame;
+            //! The frame we want to be at by the end of the animation.
+            int32_t endFrame;
+        } animation;
+    } weaponState;
+    
 
     /**
     *   View Angles/Movement/Offset:

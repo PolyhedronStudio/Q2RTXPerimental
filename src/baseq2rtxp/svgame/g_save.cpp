@@ -417,9 +417,13 @@ static const save_field_t clientfields[] = {
 	I( damage_knockback ),
 	V( damage_from ),
 
-	//F( killer_yaw ),
+	F( killer_yaw ),
 
-	I( weaponstate ),
+	I( weaponState.mode ),
+    I( weaponState.canChangeMode ),
+    I( weaponState.animation.currentFrame ),
+    I( weaponState.animation.startFrame ),
+    I( weaponState.animation.endFrame ),
 
 	V( weaponKicks.offsetAngles ),
 	V( weaponKicks.offsetOrigin ),

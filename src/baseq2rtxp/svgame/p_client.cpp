@@ -1103,8 +1103,7 @@ void spectator_respawn(edict_t *ent)
 ===========
 PutClientInServer
 
-Called when a player connects to a server or respawns in
-a deathmatch.
+Called either when a player connects to a server, OR respawns in a deathmatch.
 ============
 */
 void PutClientInServer(edict_t *ent)
@@ -1288,7 +1287,7 @@ void PutClientInServer(edict_t *ent)
 
     // force the current weapon up
     client->newweapon = client->pers.weapon;
-    ChangeWeapon(ent);
+    P_Weapon_Change(ent);
 }
 
 /*
@@ -1706,8 +1705,9 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     }
 
     // Paril: falling damage noises alert monsters
-    if ( ent->health )
-        PlayerNoise( ent, &pm.playerState->pmove.origin[ 0 ], PNOISE_SELF);
+    if ( ent->health ) {
+        P_PlayerNoise( ent, &pm.playerState->pmove.origin[ 0 ], PNOISE_SELF );
+    }
 }
 
 /*
@@ -1944,19 +1944,37 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 			}
 
         // Weapon 'Attack Button' Path. Fire weapon from final position if needed:
-        } else if ( !client->weapon_thunk ) {
-			// We can only do this during a ready state:
-			if ( ent->client->weaponstate == WEAPON_READY ) {
-				ent->client->weapon_fire_buffered = true;
+        } else/* if ( !client->weapon_thunk ) */{
+			// We can only do this during an 'idle' mode state:
+			//if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE ) {
+				// Buffer firing.
+                //ent->client->weapon_fire_buffered = true;
 
                 // And if enough time has passed from last fire.
-				if ( ent->client->weapon_fire_finished <= level.time ) {
-					ent->client->weapon_thunk = true;
-					Think_Weapon( ent );
-				}
-			}
+				//if ( ent->client->weapon_fire_finished <= level.time ) {
+                    // Store that we already processed 'weapon thinking' for this frame, so we make sure
+                    // to not run it at the end of the frame. This is normally the case if we did not handle
+                    // the 'attack' input here.
+					//ent->client->weapon_thunk = true;
+     //               // Process weapon thinking.
+					//P_Weapon_Think( ent );
+				//}
+			//}
         }
     }
+
+    /**
+    *   Weapon Thinking:
+    **/
+    // Check whether to engage switching to a new weapon.
+    if ( client->newweapon && !client->resp.spectator ) {
+        //if ( client->weaponState.mode == WEAPON_MODE_IDLE ) {
+            P_Weapon_Change( ent );
+        //}
+    }
+
+    // Process weapon thinking.
+    P_Weapon_Think( ent );
 
     /**
     *   Spectator/Chase-Cam specific behaviors:
@@ -2000,30 +2018,43 @@ void ClientBeginServerFrame(edict_t *ent)
     gclient_t   *client;
     int         buttonMask;
 
-    // Remove RF_STAIR_STEP if we're in a new frame, not stepping.
+    /**
+    *   Remove RF_STAIR_STEP if we're in a new frame, not stepping.
+    **/
     if ( gi.GetServerFrameNumber() != ent->client->last_stair_step_frame ) {
         ent->s.renderfx &= ~RF_STAIR_STEP;
     }
 
-    if ( level.intermission_framenum )
+    /**
+    *   Opt out of function if we're in intermission mode.
+    **/
+    if ( level.intermission_framenum ) {
         return;
+    }
 
+    /**
+    *   Handle respawning as a spectating client:
+    **/
     client = ent->client;
 
-    if ( deathmatch->value &&
-        client->pers.spectator != client->resp.spectator &&
+    if ( deathmatch->value && client->pers.spectator != client->resp.spectator &&
         ( level.time - client->respawn_time ) >= 5_sec ) {
         spectator_respawn( ent );
         return;
     }
 
-    // run weapon animations if it hasn't been done by a ucmd_t
-    if ( !client->weapon_thunk && !client->resp.spectator ) {
-        Think_Weapon(ent);
-    } else {
+    /**
+    *   Run weapon animations if it hasn't been done by a usercmd_t in ClientThink.
+    **/
+    if ( client->newweapon && !client->resp.spectator ) {
+        P_Weapon_Change(ent);
+    }/* else {
         client->weapon_thunk = false;
-    }
+    }*/
 
+    /**
+    *   If dead, check for any user input after the client's respawn_time has expired.
+    **/
     if ( ent->deadflag ) {
         // wait for any button just going down
         if ( level.time > client->respawn_time ) {
@@ -2043,11 +2074,17 @@ void ClientBeginServerFrame(edict_t *ent)
         return;
     }
 
-    // add player trail so monsters can follow
+    /**
+    *   Add player trail so monsters can follow
+    **/
     if ( !deathmatch->value ) {
         if ( !visible( ent, PlayerTrail_LastSpot() ) ) {
             PlayerTrail_Add( ent->s.old_origin );
         }
     }
+
+    /**
+    *   UNLATCH ALL LATCHED BUTTONS:
+    **/
     client->latched_buttons = BUTTON_NONE;
 }
