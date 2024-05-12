@@ -201,10 +201,11 @@ void P_Weapon_Change(edict_t *ent) {
 
     //ent->client->weaponstate = WEAPON_ACTIVATING;
     // Enforce 'Draw' weapon mode.
-    ent->client->weaponState.mode = WEAPON_MODE_DRAWING;
-    // Reset the gunframe.
-    ent->client->ps.gunframe = 25;
+    //ent->client->weaponState.mode = WEAPON_MODE_DRAWING;
+    //// Reset the gunframe.
+    //ent->client->ps.gunframe = 25;
     ent->client->ps.gunindex = gi.modelindex( ent->client->pers.weapon->view_model );
+    P_Weapon_SwitchMode( ent, WEAPON_MODE_DRAWING, true );
 
     ent->client->anim_priority = ANIM_PAIN;
     if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
@@ -255,8 +256,8 @@ static void P_NoAmmoWeaponChange( edict_t *ent, bool sound = false ) {
 *   @brief  Make the weapon ready for switching to as the new weapon, IF, it has enough ammo.
 **/
 void P_Weapon_Use( edict_t *ent, gitem_t *item ) {
-    int         ammo_index;
-    gitem_t *ammo_item;
+    int32_t ammo_index = 0;
+    gitem_t *ammo_item = nullptr;
 
     // Escape if we're already using it
     if ( item == ent->client->pers.weapon ) {
@@ -428,13 +429,15 @@ weapon_mode_frames_t modeAnimationFrames[ WEAPON_MODE_MAX ] = {
 /**
 *   @brief  Will prepare the weapon to engage in a new 'mode'(activity).
 **/
-void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode ) {
+void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const bool force = false ) {
     // Only switch if we're allowed to.
-    if ( ent->client->weaponState.canChangeMode ) {
+    if ( ( ent->client->weaponState.canChangeMode || force ) /* &&
+        ( ent->client->weaponState.mode != ent->client->weaponState.oldMode )*/ ) {
         // We can switch, fetch animation data for the new mode.
         weapon_mode_frames_t *weaponModeFrames = &modeAnimationFrames[ newMode ];
 
         // Assign the new state's new mode.
+        ent->client->weaponState.oldMode = ent->client->weaponState.mode;
         ent->client->weaponState.mode = newMode;
 
         // Setup the new animation frames to work from.
@@ -472,45 +475,47 @@ void P_Weapon_Think( edict_t *ent ) {
 }
 
 /**
+*   @brief  Processes responses to the user input.
+**/
+static void P_Weapon_ProcessUserInput( edict_t *ent ) {
+    if ( !(ent->client->latched_buttons & BUTTON_ATTACK) && ( ent->client->buttons & BUTTON_ATTACK ) ) {
+        P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING );
+    }
+}
+
+/**
 *   @brief  Advances the animation of the 'mode' we're currently in.
 **/
-static void P_Weapon_ProcessModeAnimation( edict_t *ent, weapon_mode_frames_t *weaponModeFrames ) {
+static const bool P_Weapon_ProcessModeAnimation( edict_t *ent, weapon_mode_frames_t *weaponModeFrames ) {
     if ( !ent->client->pers.weapon ) {
         gi.dprintf( "%s: if ( !ent->client->pers.weapon) {..\n", __func__ );
-        return;
+        return false;
     }
 
     // Get current gunframe.
     int32_t gunFrame = ent->client->weaponState.animation.currentFrame;
     // Increment.
     gunFrame++;
+    // Debug
+    gi.dprintf( "%s: gunFrame(%i)\n", __func__, gunFrame );
 
     // Determine whether we are finished processing the mode.
     if ( gunFrame > ent->client->weaponState.animation.endFrame ) {
         // Enable mode switching again.
         ent->client->weaponState.canChangeMode = true;
         // Keep gun frame in check.
-        gunFrame = gunFrame > ent->client->weaponState.animation.endFrame;
+        gunFrame = ent->client->ps.gunframe = ent->client->weaponState.animation.endFrame;
+        // Finished animating.
+        return true;
+    } else {
+        // Store current gun frame.
+        ent->client->weaponState.animation.currentFrame = gunFrame;
+        // Assign newly calculated frame to player state.
+        ent->client->ps.gunframe = gunFrame;
     }
 
-    // Assign newly calculated frame to player state.
-    ent->client->ps.gunframe = gunFrame;
-
-    // Debug
-    gi.dprintf( "%s: gunFrame(%i)\n", __func__, gunFrame );
-
-
-    //// The frame is behind our start frame.
-    //if ( gunFrame < weaponModeFrames->startFrame ) {
-    //    gunFrame = weaponModeFrames->startFrame;
-    //// The frame is ahead of our endframe.
-    //} else if ( gunFrame > weaponModeFrames->endFrame ) {
-    //    // call finish callback?
-    //    gunFrame = weaponModeFrames->endFrame;
-    //} else {
-    //    gunFrame++;
-    //}
-
+    // Still animating.
+    return false;
 }
 
 
@@ -573,11 +578,13 @@ void weapon_pistol_fire( edict_t *ent ) {
 *   @brief  Pistol Weapon State Machine.
 **/
 void Weapon_Pistol( edict_t *ent ) {
-    // Respond to user input, which determines whether 
-
     // Process the animation frames of the mode we're in.
-    P_Weapon_ProcessModeAnimation( ent, &modeAnimationFrames[ ent->client->weaponState.mode ] );
+    const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &modeAnimationFrames[ ent->client->weaponState.mode ] );
 
+    if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE || isDoneAnimating ) {
+        // Respond to user input, which determines whether 
+        P_Weapon_ProcessUserInput( ent );
+    }
     //static int  pause_frames[] = { 0 };
     //static int  fire_frames[] = { 85, 94 };
 

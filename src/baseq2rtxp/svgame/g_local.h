@@ -972,6 +972,7 @@ const bool P_Weapon_Pickup( edict_t *ent, edict_t *other );
 void P_Weapon_Drop( edict_t *ent, gitem_t *inv );
 void P_Weapon_Use( edict_t *ent, gitem_t *inv );
 void P_Weapon_Change( edict_t *ent );
+void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const bool force );
 void P_Weapon_Think( edict_t *ent );
 
 //
@@ -1167,6 +1168,8 @@ struct gclient_s {
     struct {
         //! The 'mode' is what the weapon is actually doing during its current 'state'.
         weapon_mode_t mode;
+        //! The 'old mode' is what the weapon was actually doing during its previous 'state'.
+        weapon_mode_t oldMode;
         //! Determines if the weapon can change 'mode'.
         qboolean canChangeMode;
 
