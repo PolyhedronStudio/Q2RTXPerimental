@@ -293,7 +293,7 @@ static void CLG_AddViewWeapon( void ) {
         }
 
         const int32_t playerstate_gun_rate = ps->gunrate;
-        const float gun_ms = 1.f / ( !playerstate_gun_rate ? 10 : playerstate_gun_rate ) * 1000.f;
+        const float gun_ms = 1.f / ( !playerstate_gun_rate ? 40 : playerstate_gun_rate ) * 1000.f;
         gun.backlerp = 1.f - ( ( clgi.client->time - ( (float)game.viewWeapon.server_time - clgi.client->sv_frametime ) ) / gun_ms );
         clamp( gun.backlerp, 0.0f, 1.f );
         gun.frame = game.viewWeapon.frame;

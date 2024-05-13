@@ -53,6 +53,11 @@ void CLG_MuzzleFlash( void ) {
         VectorSet( dl->color, 1, 1, 0 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "weapons/hyprbf1a.wav" ), volume, ATTN_NORM, 0 );
         break;
+    case MZ_PISTOL:
+        VectorSet( dl->color, 1, 1, 0 );
+        Q_snprintf( soundname, sizeof( soundname ), "weapons/pistol/fire%i.wav", ( irandom( 2 ) ) + 1 );
+        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0 );
+        break;
     case MZ_MACHINEGUN:
         VectorSet( dl->color, 1, 1, 0 );
         Q_snprintf( soundname, sizeof( soundname ), "weapons/machgf%ib.wav", ( irandom( 5 ) ) + 1 );

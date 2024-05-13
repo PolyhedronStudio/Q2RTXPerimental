@@ -146,12 +146,13 @@ const bool P_Weapon_Pickup( edict_t *ent, edict_t *other ) {
 }
 
 
+
 /**
 *   @brief  Called when the 'Old Weapon' has been dropped all the way. This function will
 *           make the 'newweapon' as the client's current weapon.
 **/
 void P_Weapon_Change(edict_t *ent) {
-    int i;
+    int32_t i = 0;
 
     //if (ent->client->grenade_time) {
     //    ent->client->grenade_time = level.time;
@@ -160,10 +161,33 @@ void P_Weapon_Change(edict_t *ent) {
     //    ent->client->grenade_time = 0_ms;
     //}
 
+    /**
+    *   Bit of an ugly ... approach, I'll admit that, but it still beats the OG vanilla code.
+    **/
+    // If we have an active weapon.
+    if ( ent->client->pers.weapon ) {
+        // We only want to engage into a change if the state allows us to.
+        if ( ent->client->weaponState.canChangeMode ) {
+            P_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_frames_t *)ent->client->pers.weapon->info, true );
+            return;
+        }
+
+        // We know this function will continue to be called if newweapon is not nulled out.
+        // So if we are finished holstering, allow the actual change to take place. This should provide us
+        // with a smooth transition of holster/draw weaponry.
+        else if ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING &&
+            ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame ) ) {
+            // Allow the change to take place.
+            goto allowchange;
+        }
+        return;
+    // Also allow the change to take place.
+    }
+
+allowchange:
     ent->client->pers.lastweapon = ent->client->pers.weapon;
     ent->client->pers.weapon = ent->client->newweapon;
     ent->client->newweapon = nullptr;
-    ent->client->machinegun_shots = 0;
 
     // Set visible weapon model.
     if (ent->s.modelindex == MODELINDEX_PLAYER ) {
@@ -276,6 +300,11 @@ void P_Weapon_Use( edict_t *ent, gitem_t *item ) {
         }
     }
 
+    // Holster current weapon item first. 
+    if ( item->info ) {
+        P_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_frames_t *)item->info, false );
+    }
+
     // change to this weapon when down
     ent->client->newweapon = item;
 }
@@ -334,41 +363,6 @@ void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forwar
     }
 }
 
-// [Paril-KEX] get time per animation frame
-static inline sg_time_t P_Weapon_AnimationTime( edict_t *ent ) {
-    ////if ( g_quick_weapon_switch->integer && ( gi.tick_rate == 20 || gi.tick_rate == 40 ) &&
-    ////	( ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING ) )
-    ////	ent->client->ps.gunrate = 20;
-    ////else
-    //if ( ent->client->pers.weapon && ent->client->pers.weapon->weapon_index == WEAP_PISTOL ) {
-    //    ent->client->ps.gunrate = 40;
-    //    return sg_time_t::from_ms( ( 1.f / ent->client->ps.gunrate ) * 1000 );
-    //    //return 25_ms;
-    //}
-    //if ( ( gi.tick_rate == 20 || gi.tick_rate == 40 ) &&
-    //    ( ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING ) ) {
-    //    ent->client->ps.gunrate = 20;
-    //} else {
-    //    ent->client->ps.gunrate = 10;
-    //}
-    //
-    ////if ( ent->client->ps.gunframe != 0 && ( !( ent->client->pers.weapon->flags & IF_NO_HASTE ) || ent->client->weaponstate != WEAPON_FIRING ) ) {
-    ////	if ( is_quadfire )
-    ////		ent->client->ps.gunrate *= 2;
-    ////	if ( CTFApplyHaste( ent ) )
-    ////		ent->client->ps.gunrate *= 2;
-    ////}
-    //// network optimization...
-    //if ( ent->client->ps.gunrate == 10 ) {
-    //	ent->client->ps.gunrate = 0;
-    //	return 100_ms;
-    //}
-    
-    // Default to 40hz.
-    ent->client->ps.gunrate = 40;
-	return sg_time_t::from_ms( ( 1.f / ent->client->ps.gunrate ) * 1000 );
-}
-
 
 
 /**
@@ -379,7 +373,7 @@ static inline sg_time_t P_Weapon_AnimationTime( edict_t *ent ) {
 * 
 **/
 /**
-*   @brief  Will prepare the weapon to engage in a new 'mode'(activity).
+*   @brief  Will switch the weapon to its 'newMode' if it can, unless enforced(force == true).
 **/
 void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_frames_t *weaponModeFrames, const bool force = false ) {
     // Only switch if we're allowed to.
@@ -407,12 +401,15 @@ void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapo
 *           called by ClientBeginServerFrame or ClientThink.
 **/
 void P_Weapon_Think( edict_t *ent ) {
-    // If just died, put the weapon away.
+    // If we just died, put the weapon away.
     if ( ent->health < 1 ) {
         // Select no weapon.
         ent->client->newweapon = nullptr;
         // Apply the change.
         P_Weapon_Change( ent );
+
+        // Escape?
+        return;
     }
 
     // Call active weapon think routine.

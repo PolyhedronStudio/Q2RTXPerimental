@@ -15,8 +15,10 @@
 //! Set when the 'use' button is pressed. (Use item, not actually 'use targetting entity')
 //! TODO: Probably rename to USE_ITEM instead later when this moves to the client game.
 #define BUTTON_USE          BIT(2)
-//! Set when the holster button is pressed.
-#define BUTTON_HOLSTER      BIT(3)
+////! Set when the holster button is pressed.
+//#define BUTTON_HOLSTER      BIT(3)
+//! Set when the reload button is pressed.
+#define BUTTON_RELOAD     BIT(3)
 //! Set when the jump key is held/pressed.
 #define BUTTON_JUMP         BIT(4)
 //! Set when the crouch/duck key is held/pressed.

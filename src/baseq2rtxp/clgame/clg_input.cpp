@@ -63,10 +63,12 @@ static keybutton_t    in_left, in_right, in_forward, in_back;
 //! Look up/down and X/Y movement.
 static keybutton_t    in_lookup, in_lookdown, in_moveleft, in_moveright;
 //! Strafe and movement modifiers.
-static keybutton_t    in_strafe, in_speed, in_use, in_attack;
+static keybutton_t    in_strafe, in_speed;
 //! Up/Down directional Z movement.
 static keybutton_t    in_up, in_down;
 //static keybutton_t    in_holster;
+//! Weapon modifiers.
+static keybutton_t    in_use, in_attack, in_reload;
 
 //! Impulses.
 static int32_t	in_impulse;
@@ -131,6 +133,18 @@ static void IN_UseDown( void ) {
 
 static void IN_UseUp( void ) {
     clgi.KeyUp( &in_use );
+}
+
+static void IN_ReloadDown( void ) {
+    clgi.KeyDown( &in_reload );
+
+    if ( cl_instantpacket->integer && clgi.GetConnectionState() == ca_active && !clgi.IsDemoPlayback() ) {
+        clgi.client->sendPacketNow = true;
+    }
+}
+
+static void IN_ReloadUp( void ) {
+    clgi.KeyUp( &in_reload );
 }
 
 static void IN_Impulse( void ) {
@@ -314,6 +328,9 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
     if ( in_use.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_USE;
     }
+    if ( in_reload.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+        moveCommand->cmd.buttons |= BUTTON_RELOAD;
+    }
     if ( in_up.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_JUMP;
     }
@@ -322,6 +339,7 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
     }
     in_attack.state = static_cast<keybutton_state_t>( in_attack.state & ~BUTTON_STATE_DOWN );
     in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
+    in_reload.state = static_cast<keybutton_state_t>( in_reload.state & ~BUTTON_STATE_DOWN );
 
     in_up.state = static_cast<keybutton_state_t>( in_up.state & ~BUTTON_STATE_DOWN );
     in_down.state = static_cast<keybutton_state_t>( in_down.state & ~BUTTON_STATE_DOWN );
@@ -366,6 +384,7 @@ void PF_ClearMoveCommand( client_movecmd_t *moveCommand ) {
 
     in_attack.state = static_cast<keybutton_state_t>( in_attack.state & ~BUTTON_STATE_DOWN );
     in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
+    in_reload.state = static_cast<keybutton_state_t>( in_reload.state & ~BUTTON_STATE_DOWN );
 
     in_up.state = static_cast<keybutton_state_t>( in_up.state & ~BUTTON_STATE_DOWN );
     in_down.state = static_cast<keybutton_state_t>( in_down.state & ~BUTTON_STATE_DOWN );
@@ -423,6 +442,8 @@ void PF_RegisterUserInput( void ) {
     clgi.Cmd_AddCommand( "-attack", IN_AttackUp );
     clgi.Cmd_AddCommand( "+use", IN_UseDown );
     clgi.Cmd_AddCommand( "-use", IN_UseUp );
+    clgi.Cmd_AddCommand( "+reload", IN_ReloadDown );
+    clgi.Cmd_AddCommand( "-reload", IN_ReloadUp );
     clgi.Cmd_AddCommand( "impulse", IN_Impulse );
     clgi.Cmd_AddCommand( "+klook", IN_KLookDown );
     clgi.Cmd_AddCommand( "-klook", IN_KLookUp );

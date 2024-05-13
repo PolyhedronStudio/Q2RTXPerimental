@@ -601,7 +601,7 @@ void InitClientPersistantData(edict_t *ent, gclient_t *client) {
     client->pers.weapon = item_weapon;
 
     // Give it a single full clip of ammo.
-    client->pers.weapon_clip_ammo[ client->pers.selected_item ] = item_weapon->clip_capacity;
+    client->pers.weapon_clip_ammo[ client->pers.weapon->weapon_index ] = item_weapon->clip_capacity;
     // And some extra bullets to reload with.
     ent->client->ammo_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->ammo ) );
     client->pers.inventory[ ent->client->ammo_index ] = 78;
@@ -1975,6 +1975,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
     // Process weapon thinking.
     P_Weapon_Think( ent );
+    // Store that we thought for this frame.
+    ent->client->weapon_thunk = true;
 
     /**
     *   Spectator/Chase-Cam specific behaviors:
@@ -2044,13 +2046,13 @@ void ClientBeginServerFrame(edict_t *ent)
     }
 
     /**
-    *   Run weapon animations if it hasn't been done by a usercmd_t in ClientThink.
+    *   Run weapon logic if it hasn't been done by a usercmd_t in ClientThink.
     **/
-    if ( client->newweapon && !client->resp.spectator ) {
-        P_Weapon_Change(ent);
-    }/* else {
+    if ( client->weapon_thunk == false ) {
+        P_Weapon_Think( ent );
+    } else {
         client->weapon_thunk = false;
-    }*/
+    }
 
     /**
     *   If dead, check for any user input after the client's respawn_time has expired.

@@ -10,6 +10,7 @@
 
 enum {
     MZ_BLASTER,
+    MZ_PISTOL,
     MZ_MACHINEGUN,
     MZ_SHOTGUN,
     MZ_CHAINGUN1,

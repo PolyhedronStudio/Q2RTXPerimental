@@ -445,8 +445,6 @@ static const save_field_t clientfields[] = {
 	I( old_waterlevel ),
 	I( breather_sound ),
 
-	I( machinegun_shots ),
-
 	I( anim_end ),
 	I( anim_priority ),
 	O( anim_duck ),

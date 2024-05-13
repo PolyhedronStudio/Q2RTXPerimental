@@ -272,7 +272,7 @@ static void SV_Map(bool restart)
     SV_AutoSaveBegin(&cmd);
 
     // any error will drop from this point
-	if ( sv.state < ss_game ||restart ) {
+	if ( sv.state < ss_game || restart ) {
 		SV_InitGame( );    // the game is just starting
 	}
 

@@ -897,7 +897,7 @@ static const char single_statusbar[] =
   "xr -135 "
   "cnum "
 "endif "
-
+"yb +40 "
 // armor
 "if 6 " // armor_icon
   "xv 200 "

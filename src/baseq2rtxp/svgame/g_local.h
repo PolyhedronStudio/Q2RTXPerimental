@@ -1004,7 +1004,7 @@ void P_Weapon_Use( edict_t *ent, gitem_t *inv );
 **/
 void P_Weapon_Change( edict_t *ent );
 /**
-*   @brief 
+*   @brief  Will switch the weapon to its 'newMode' if it can, unless enforced(force == true).
 **/
 void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_frames_t *weaponModeFrames, const bool force );
 /**
@@ -1162,7 +1162,7 @@ struct gclient_s {
 	/**
 	*	Weapon Related:
 	**/
-	// Actual current 'weapon', based on 'ammo_index'.
+	// Actual current weapon ammo type, inventory index.
 	int	ammo_index;
 
 	// Set when we want to switch weapons.
@@ -1224,6 +1224,9 @@ struct gclient_s {
             int32_t startFrame;
             //! The frame we want to be at by the end of the animation.
             int32_t endFrame;
+
+            //! Optional callback function pointer.
+            //void ( *finished_animating )( edict_t *ent );
         } animation;
 
         //! Timers
@@ -1284,7 +1287,6 @@ struct gclient_s {
 	**/
 	sg_time_t		next_drown_time;
     int32_t         breather_sound;
-    int32_t         machinegun_shots;   // for weapon raising
 
 	/**
     *	Animation Related:
