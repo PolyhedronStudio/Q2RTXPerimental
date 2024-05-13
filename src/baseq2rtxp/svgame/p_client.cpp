@@ -599,6 +599,8 @@ void InitClientPersistantData(edict_t *ent, gclient_t *client) {
     
     // Assign it as our selected weapon.
     client->pers.weapon = item_weapon;
+    // Obviously we need to allow this.
+    client->weaponState.canChangeMode = true;
 
     // Give it a single full clip of ammo.
     client->pers.weapon_clip_ammo[ client->pers.weapon->weapon_index ] = item_weapon->clip_capacity;

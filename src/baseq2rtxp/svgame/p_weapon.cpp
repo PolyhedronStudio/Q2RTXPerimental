@@ -165,7 +165,7 @@ void P_Weapon_Change(edict_t *ent) {
     *   Bit of an ugly ... approach, I'll admit that, but it still beats the OG vanilla code.
     **/
     // If we have an active weapon.
-    if ( ent->client->pers.weapon ) {
+    if ( ent->client->pers.weapon != ent->client->newweapon ) {
         // We only want to engage into a change if the state allows us to.
         if ( ent->client->weaponState.canChangeMode ) {
             P_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_frames_t *)ent->client->pers.weapon->info, true );
@@ -179,8 +179,9 @@ void P_Weapon_Change(edict_t *ent) {
             ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame ) ) {
             // Allow the change to take place.
             goto allowchange;
+        } else {
+            return;
         }
-        return;
     // Also allow the change to take place.
     }
 
@@ -212,14 +213,12 @@ allowchange:
         return;
     }
 
-    //ent->client->weaponstate = WEAPON_ACTIVATING;
-    // Enforce 'Draw' weapon mode.
-    //ent->client->weaponState.mode = WEAPON_MODE_DRAWING;
-    //// Reset the gunframe.
-    //ent->client->ps.gunframe = 25;
+    // Now switch the actual model up for the player state.
     ent->client->ps.gunindex = gi.modelindex( ent->client->pers.weapon->view_model );
+    // Engage into "Drawing" weapon mode.
     P_Weapon_SwitchMode( ent, WEAPON_MODE_DRAWING, (const weapon_mode_frames_t*)ent->client->pers.weapon->info, true );
 
+    // ADjust player client animation.
     ent->client->anim_priority = ANIM_PAIN;
     if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
         ent->s.frame = FRAME_crpain1;
