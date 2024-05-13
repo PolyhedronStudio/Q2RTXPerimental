@@ -443,7 +443,8 @@ void G_SetStats(edict_t *ent) {
         ent->client->ps.stats[ STAT_CLIP_AMMO ] = 0;
     } else {
         // Find the item matching the 
-        int32_t clip_ammo_item_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->pickup_name ) );
+        //int32_t clip_ammo_item_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->pickup_name ) );
+        int32_t clip_ammo_item_index = ent->client->pers.weapon->weapon_index;
         //item = &itemlist[ ent->client->ammo_index ];
         //ent->client->ps.stats[ STAT_CLIP_AMMO_ICON ] = gi.imageindex( item->icon );
         ent->client->ps.stats[ STAT_CLIP_AMMO ] = ent->client->pers.weapon_clip_ammo[ clip_ammo_item_index ];
