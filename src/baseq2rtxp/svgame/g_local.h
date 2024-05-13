@@ -242,6 +242,21 @@ typedef enum {
     WEAPON_MODE_MAX,
 } weapon_mode_t;
 
+/**
+*   @brief  Used for constructing each weapon's 'mode' animation configuration.
+**/
+typedef struct weapon_mode_frames_s {
+    //! Objective start frame index.
+    int32_t startFrame;
+    //! Objective end frame index.
+    int32_t endFrame;
+    //! Relative frame duration( endFrame - startFrame ).
+    int32_t durationFrames;
+} weapon_mode_frames_t;
+
+/**
+*   @brief  Simply describes the type of AMMO.
+**/
 typedef enum {
     AMMO_BULLETS,
     AMMO_SHELLS,
@@ -416,7 +431,6 @@ typedef struct gitem_s {
     int32_t     flags;
     //! Weapon ('model'-)index (For weapons):
     int32_t     weapon_index;
-
 
     //! 
     void        *info;
@@ -967,12 +981,39 @@ void DeathmatchScoreboardMessage(edict_t *client, edict_t *killer);
 //
 // g_pweapon.c
 //
+/**
+*   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
+**/
+void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
 void P_PlayerNoise(edict_t *who, const vec3_t where, int type);
+
+/**
+*   @brief
+**/
 const bool P_Weapon_Pickup( edict_t *ent, edict_t *other );
+/**
+*   @brief
+**/
 void P_Weapon_Drop( edict_t *ent, gitem_t *inv );
+/**
+*   @brief
+**/
 void P_Weapon_Use( edict_t *ent, gitem_t *inv );
+/**
+*   @brief
+**/
 void P_Weapon_Change( edict_t *ent );
-void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const bool force );
+/**
+*   @brief 
+**/
+void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_frames_t *weaponModeFrames, const bool force );
+/**
+*   @brief  Advances the animation of the 'mode' we're currently in.
+**/
+const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_frames_t *weaponModeFrames );
+/**
+*   @brief
+**/
 void P_Weapon_Think( edict_t *ent );
 
 //
@@ -1188,7 +1229,7 @@ struct gclient_s {
         //! Timers
         struct {
             //! Used to prevent firing 
-            sg_time_t lastShot;
+            sg_time_t lastPrimaryFire;
         } timers;
     } weaponState;
     

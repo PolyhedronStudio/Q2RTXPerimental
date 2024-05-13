@@ -34,9 +34,12 @@ void Weapon_Pistol( edict_t *ent );
 //void Weapon_BFG(edict_t *ent);
 //void Weapon_FlareGun(edict_t *ent);
 
+// for passing into *info member of gitem_t.
 gitem_armor_t jacketarmor_info  = { 25,  50, .30f, .00f, ARMOR_JACKET};
 gitem_armor_t combatarmor_info  = { 50, 100, .60f, .30f, ARMOR_COMBAT};
 gitem_armor_t bodyarmor_info    = {100, 200, .80f, .60f, ARMOR_BODY};
+
+extern weapon_mode_frames_t pistolAnimationFrames[ WEAPON_MODE_MAX ];
 
 static int  jacket_armor_index;
 static int  combat_armor_index;
@@ -1110,25 +1113,26 @@ gitem_t itemlist[] = {
     /*QUAKED item_armor_body (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "item_armor_body",
-        Pickup_Armor,
-        NULL,
-        NULL,
-        NULL,
-        "misc/ar1_pkup.wav",
-        "models/items/armor/body/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_bodyarmor",
-        /* pickup */    "Body Armor",
-        /* width */     3,
-        0,
-        0,
-        NULL,
-        IT_ARMOR,
-        0,
-        &bodyarmor_info,
-        ARMOR_BODY,
-        /* precache */ ""
+        .classname = "item_armor_body",
+        .pickup = Pickup_Armor,
+        .use = NULL,
+        .drop = NULL,
+        .weaponthink = NULL,
+        .pickup_sound = "misc/ar1_pkup.wav",
+        .world_model = "models/items/armor/body/tris.md2", 
+        .world_model_flags = EF_ROTATE,
+        .view_model = NULL,
+        /* icon */      .icon = "i_bodyarmor",
+        /* pickup */    .pickup_name = "Body Armor",
+        /* width */     .count_width = 3,
+        .quantity = 0,
+        .clip_capacity = 0,
+        .ammo = NULL,
+        .flags = IT_ARMOR,
+        .weapon_index = 0,
+        .info = &bodyarmor_info,
+        .tag = ARMOR_BODY,
+        /* precache */ .precaches = ""
     },
 
     /*QUAKED item_armor_combat (.3 .3 1) (-16 -16 -16) (16 16 16)
@@ -1303,7 +1307,7 @@ gitem_t itemlist[] = {
         .flags = IT_WEAPON | IT_STAY_COOP,
         .weapon_index = WEAP_PISTOL,
 
-        .info = NULL,
+        .info = &pistolAnimationFrames,
         .tag = 0,
 
         .precaches = "models/g_wep/pistol/tris.iqm models/v_wep/pistol/tris.iqm weapons/shotgf1b.wav weapons/shotgr1b.wav"
