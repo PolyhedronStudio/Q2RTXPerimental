@@ -1,67 +1,60 @@
-/*
-Copyright (C) 1997-2001 Id Software, Inc.
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
-// g_weapon.c
-
+/********************************************************************
+*
+*
+*	SVGame: Pistol Weapon Implementation.
+*
+*
+********************************************************************/
 #include "../g_local.h"
+
 
 
 /**
 *
 *
-*	Core Weapon Mechanics:
+*	Pistol Item Configuration:
 *
 *
 **/
 /**
 *   Pistol Weapon Mode Animation Frames.
 **/
-weapon_mode_frames_t pistolAnimationFrames[ WEAPON_MODE_MAX ] = {
+weapon_item_info_t pistolItemInfo = {
+    .modeFrames/*[ WEAPON_MODE_MAX ]*/ = {
 
-    // Mode Animation: IDLE
-    /*modeAnimationFrames[ WEAPON_MODE_IDLE ] = */{
-        .startFrame = 0,
-        .endFrame = 1,
-        .durationFrames = 1
+        // Mode Animation: IDLE
+        /*modeAnimationFrames[ WEAPON_MODE_IDLE ] = */{
+            .startFrame = 0,
+            .endFrame = 1,
+            .durationFrames = 1
+        },
+        // Mode Animation: DRAWING
+        /*modeAnimationFrames[ WEAPON_MODE_DRAWING ] = */{
+            .startFrame = 86,
+            .endFrame = 111,
+            .durationFrames = ( 111 - 86 )
+        },
+        // Mode Animation: HOLSTERING
+        /*modeAnimationFrames[ WEAPON_MODE_HOLSTERING ] = */{
+            .startFrame = 54,
+            .endFrame = 85,
+            .durationFrames = ( 85 - 54 )
+        },
+        // Mode Animation: PRIMARY_FIRING
+        /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
+            .startFrame = 1,
+            .endFrame = 13,
+            .durationFrames = ( 13 - 1 )
+        },
+        // Mode Animation: RELOADING
+        /*modeAnimationFrames[ WEAPON_MODE_RELOADING ] = */{
+            .startFrame = 13,
+            .endFrame = 54,
+            .durationFrames = ( 54 - 13 )
+        }
     },
-    // Mode Animation: DRAWING
-    /*modeAnimationFrames[ WEAPON_MODE_DRAWING ] = */{
-        .startFrame = 86,
-        .endFrame = 111,
-        .durationFrames = ( 111 - 86 )
-    },
-    // Mode Animation: HOLSTERING
-    /*modeAnimationFrames[ WEAPON_MODE_HOLSTERING ] = */{
-        .startFrame = 54,
-        .endFrame = 85,
-        .durationFrames = ( 85 - 54 )
-    },
-    // Mode Animation: PRIMARY_FIRING
-    /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
-        .startFrame = 1,
-        .endFrame = 13,
-        .durationFrames = ( 13 - 1 )
-    },
-    // Mode Animation: RELOADING
-    /*modeAnimationFrames[ WEAPON_MODE_RELOADING ] = */{
-        .startFrame = 13,
-        .endFrame = 54,
-        .durationFrames = ( 54 - 13 )
-    }
+
+    // TODO: Move quantity etc from gitem_t into this struct.
 };
 
 
@@ -69,12 +62,12 @@ weapon_mode_frames_t pistolAnimationFrames[ WEAPON_MODE_MAX ] = {
 /**
 *
 *
-*   PISTOL
+*   Pistol Function Implementations:
 *
 *
 **/
 /**
-*   @brief  Pistol weapon 'fire' method:
+*   @brief  Supplements the Primary Firing routine by actually performing a 'single bullet' shot.
 **/
 void weapon_pistol_fire( edict_t *ent ) {
     vec3_t      start;
@@ -148,12 +141,12 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
     if ( ( ent->client->latched_buttons & BUTTON_ATTACK ) /*&& ( ent->client->buttons & BUTTON_ATTACK )*/ ) {
         // Switch to Firing mode if we have Clip Ammo:
         if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
-            P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolAnimationFrames, false );
+            P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, false );
         // Attempt to reload otherwise:
         } else {
             // We need to have enough ammo left to reload with.
             if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
-                P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolAnimationFrames, false );
+                P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
             } else {
                 // TODO: Play out of ammo sound, switch weapon?
             }
@@ -165,18 +158,18 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
     if ( ent->client->latched_buttons & BUTTON_RELOAD ) {
         // We need to have enough ammo left to reload with.
         if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
-            P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolAnimationFrames, false );
+            P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
         } else {
             // TODO: Play out of ammo sound, switch weapon?
         }
     }
 }
 /**
-*   @brief  Pistol Weapon State Machine.
+*   @brief  Pistol Weapon 'State Machine'.
 **/
 void Weapon_Pistol( edict_t *ent ) {
     // Process the animation frames of the mode we're in.
-    const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &pistolAnimationFrames[ ent->client->weaponState.mode ] );
+    const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &pistolItemInfo.modeFrames[ ent->client->weaponState.mode ] );
 
     // If done animating, switch back to idle mode.
     //if ( isDoneAnimating ) {
@@ -190,6 +183,7 @@ void Weapon_Pistol( edict_t *ent ) {
     }
 
     // Process logic for state specific modes and their frames.
+    // Primary Fire:
     if ( ent->client->weaponState.mode == WEAPON_MODE_PRIMARY_FIRING ) {
         // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
         // any earlier/double firing.
@@ -202,6 +196,7 @@ void Weapon_Pistol( edict_t *ent ) {
                 ent->client->weaponState.timers.lastPrimaryFire = level.time;
             }
         }
+    // Reload Weapon:
     } else if ( ent->client->weaponState.mode == WEAPON_MODE_RELOADING ) {
         // Start playing clip reload sound. (Takes about the same duration as a pistol reload, 1 second.)
         if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
@@ -211,6 +206,28 @@ void Weapon_Pistol( edict_t *ent ) {
         if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame - 1 ) {
             ent->client->weapon_sound = 0;
             weapon_pistol_reload_clip( ent );
+       }
+    // Draw Weapon:
+    } else if ( ent->client->weaponState.mode == WEAPON_MODE_DRAWING ) {
+        // Start playing drawing weapon sound at the very first frame.
+        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
+            ent->client->weapon_sound = gi.soundindex( "weapons/pistol/draw.wav" );
+            ent->client->weaponState.timers.lastDrawn = level.time;
+        }
+        // Enough time has passed, shutdown the sound.
+        if ( ent->client->weaponState.timers.lastDrawn <= level.time + 250_ms ) {
+            ent->client->weapon_sound = 0;
+        }
+    // Holster Weapon:
+    } else if ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING ) {
+        // Start playing holster weapon sound at the very first frame.
+        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
+            ent->client->weapon_sound = gi.soundindex( "weapons/pistol/holster.wav" );
+            ent->client->weaponState.timers.lastHolster = level.time;
+        }
+        // Enough time has passed, shutdown the sound.
+        if ( ent->client->weaponState.timers.lastHolster <= level.time + 250_ms ) {
+            ent->client->weapon_sound = 0;
         }
     }
 }

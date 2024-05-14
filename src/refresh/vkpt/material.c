@@ -1069,6 +1069,10 @@ pbr_material_t* MAT_ForSkin(image_t* image_base)
 	if (mat->image_emissive)
 		mat->image_emissive->registration_sequence = rseq;
 
+	if ( mat->image_mask ) {
+		mat->image_mask->registration_sequence = rseq;
+	}
+
 	mat->registration_sequence = rseq;
 
 	return mat;

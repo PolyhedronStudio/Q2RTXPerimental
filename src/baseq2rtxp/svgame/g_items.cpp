@@ -39,7 +39,8 @@ gitem_armor_t jacketarmor_info  = { 25,  50, .30f, .00f, ARMOR_JACKET};
 gitem_armor_t combatarmor_info  = { 50, 100, .60f, .30f, ARMOR_COMBAT};
 gitem_armor_t bodyarmor_info    = {100, 200, .80f, .60f, ARMOR_BODY};
 
-extern weapon_mode_frames_t pistolAnimationFrames[ WEAPON_MODE_MAX ];
+//extern weapon_mode_frames_t pistolAnimationFrames[ WEAPON_MODE_MAX ];
+extern weapon_item_info_t pistolItemInfo;
 
 static int  jacket_armor_index;
 static int  combat_armor_index;
@@ -1102,9 +1103,11 @@ void SpawnItem(edict_t *ent, gitem_t *item)
 * 
 **/
 gitem_t itemlist[] = {
+    // Leave index 0 alone
+    // WID: I have no clue why.
     {
         NULL
-    },  // leave index 0 alone
+    },
 
     //
     // ARMOR
@@ -1307,10 +1310,10 @@ gitem_t itemlist[] = {
         .flags = IT_WEAPON | IT_STAY_COOP,
         .weapon_index = WEAP_PISTOL,
 
-        .info = &pistolAnimationFrames,
+        .info = &pistolItemInfo,
         .tag = 0,
 
-        .precaches = "models/g_wep/pistol/tris.iqm models/v_wep/pistol/tris.iqm weapons/shotgf1b.wav weapons/shotgr1b.wav"
+        .precaches = "models/g_wep/pistol/tris.iqm models/v_wep/pistol/tris.iqm weapons/pistol/draw.wav weapons/pistol/holster.wav weapons/pistol/fire1.wav weapons/pistol/fire2.wav weapons/pistol/fire3.wav weapons/pistol/reload.wav"
     },
 
     ///*QUAKED weapon_shotgun (.3 .3 1) (-16 -16 -16) (16 16 16)

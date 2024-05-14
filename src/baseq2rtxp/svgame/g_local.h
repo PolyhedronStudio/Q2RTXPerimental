@@ -243,7 +243,7 @@ typedef enum {
 } weapon_mode_t;
 
 /**
-*   @brief  Used for constructing each weapon's 'mode' animation configuration.
+*   @brief  Used for constructing a weapon's 'mode' animation setup.
 **/
 typedef struct weapon_mode_frames_s {
     //! Objective start frame index.
@@ -253,6 +253,16 @@ typedef struct weapon_mode_frames_s {
     //! Relative frame duration( endFrame - startFrame ).
     int32_t durationFrames;
 } weapon_mode_frames_t;
+
+/**
+*   @brief  Used as an item's internal 'info' pointer for describing the actual
+*           weapon's properties.
+**/
+typedef struct weapon_item_info_s {
+    //! Mode frames.
+    weapon_mode_frames_t modeFrames[ WEAPON_MODE_MAX ];
+    //! TODO: Other info.
+} weapon_item_info_t;
 
 /**
 *   @brief  Simply describes the type of AMMO.
@@ -1233,6 +1243,10 @@ struct gclient_s {
         struct {
             //! Used to prevent firing 
             sg_time_t lastPrimaryFire;
+            //! Time the weapon was drawn. (Used for sound).
+            sg_time_t lastDrawn;
+            //! Time the weapon was holstered. (Used for sound).
+            sg_time_t lastHolster;
         } timers;
     } weaponState;
     
