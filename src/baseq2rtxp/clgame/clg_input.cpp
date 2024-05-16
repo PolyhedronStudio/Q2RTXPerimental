@@ -125,7 +125,7 @@ static void IN_PrimaryFireUp( void ) {
 
 static void IN_SecondaryFireDown( void ) {
     clgi.KeyDown( &in_secondary_fire );
-
+    
     if ( cl_instantpacket->integer && clgi.GetConnectionState() == ca_active && !clgi.IsDemoPlayback() ) {
         clgi.client->sendPacketNow = true;
     }

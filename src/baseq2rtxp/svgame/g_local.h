@@ -262,8 +262,8 @@ typedef struct weapon_mode_frames_s {
     int32_t startFrame;
     //! Objective end frame index.
     int32_t endFrame;
-    //! Relative frame duration( endFrame - startFrame ).
-    int32_t durationFrames;
+    //! Relative animation frame duration( endFrame - startFrame ).
+    sg_time_t durationMsec;
 } weapon_mode_frames_t;
 
 /**
@@ -1006,6 +1006,7 @@ void DeathmatchScoreboardMessage(edict_t *client, edict_t *killer);
 /**
 *   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
 **/
+void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
 void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
 void P_PlayerNoise(edict_t *who, const vec3_t where, int type);
 

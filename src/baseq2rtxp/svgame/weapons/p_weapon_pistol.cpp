@@ -26,65 +26,69 @@ weapon_item_info_t pistolItemInfo = {
         /*modeAnimationFrames[ WEAPON_MODE_IDLE ] = */{
             .startFrame = 0,
             .endFrame = 1,
-            .durationFrames = 1
+            .durationMsec = sg_time_t::from_hz( 1 )
         },
         // Mode Animation: DRAWING
         /*modeAnimationFrames[ WEAPON_MODE_DRAWING ] = */{
-            .startFrame = 86,
-            .endFrame = 111,
-            .durationFrames = ( 111 - 86 )
+            .startFrame = 87,
+            .endFrame = 112,
+            .durationMsec = sg_time_t::from_hz( 112 - 87 )
         },
         // Mode Animation: HOLSTERING
         /*modeAnimationFrames[ WEAPON_MODE_HOLSTERING ] = */{
-            .startFrame = 54,
-            .endFrame = 85,
-            .durationFrames = ( 85 - 54 )
+            .startFrame = 56,
+            .endFrame = 86,
+            .durationMsec = sg_time_t::from_hz( 86 - 56 )
         },
         // Mode Animation: PRIMARY_FIRING
         /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
             .startFrame = 1,
-            .endFrame = 13,
-            .durationFrames = ( 13 - 1 )
+            .endFrame = 14,
+            .durationMsec = sg_time_t::from_hz( 14 - 1 )
         },
         // Mode Animation: SECONDARY_FIRING -- UNUSED FOR PISTOL LOGIC.
         /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
             .startFrame = 1,
-            .endFrame = 13,
-            .durationFrames = ( 13 - 1 )
+            .endFrame = 14,
+            .durationMsec = sg_time_t::from_hz( 14 - 1 )
         },
         // Mode Animation: RELOADING
         /*modeAnimationFrames[ WEAPON_MODE_RELOADING ] = */{
-            .startFrame = 13,
-            .endFrame = 54,
-            .durationFrames = ( 54 - 13 )
+            .startFrame = 15,
+            .endFrame = 55,
+            .durationMsec = sg_time_t::from_hz( 55 - 15 )
         },
         // Mode Animation: AIMING IN
         /*modeAnimationFrames[ WEAPON_MODE_AIM_IN ] = */
         {
-            .startFrame = 111,
-            .endFrame = 126,
-            .durationFrames = ( 126 - 111 )
+            .startFrame = 113,
+            .endFrame = 127,
+            .durationMsec = sg_time_t::from_hz( 127 - 113 )
         },
         // Mode Animation: AIMING FIRE
         /*modeAnimationFrames[ WEAPON_MODE_AIM_FIRE ] = */
         {
-            .startFrame = 126,
-            .endFrame = 143,
-            .durationFrames = ( 143 - 126 )
+            .startFrame = 128,
+            .endFrame = 141,
+            .durationMsec = sg_time_t::from_hz( 141 - 128 )
         },
         // Mode Animation: AIMING OUT
         /*modeAnimationFrames[ WEAPON_MODE_AIM_OUT ] = */
         {
-            .startFrame = 143,
+            .startFrame = 142,
             .endFrame = 156,
-            .durationFrames = ( 156 - 143 )
+            .durationMsec = sg_time_t::from_hz( 156 - 142 )
         }
     },
 
     // TODO: Move quantity etc from gitem_t into this struct.
 };
 
+static constexpr float PRIMARY_FIRE_BULLET_HSPREAD = 300.f;
+static constexpr float PRIMARY_FIRE_BULLET_VSPREAD = 300.f;
 
+static constexpr float SECONDARY_FIRE_BULLET_HSPREAD = 50.f;
+static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
 
 /**
 *
@@ -111,10 +115,11 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
     VectorSet( offset, 0, 10, (float)ent->viewheight - 5.5f ); // VectorSet( offset, 0, 8, ent->viewheight - 8 );
-    P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    P_ProjectDistance( ent, ent->s.origin, offset, forward, right, start );
 
     // Fire the actual bullet itself.
-    fire_bullet( ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN );
+    fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
@@ -152,7 +157,7 @@ void weapon_pistol_secondary_fire( edict_t *ent ) {
     P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Fire the actual bullet itself.
-    fire_bullet( ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD / 3, DEFAULT_BULLET_VSPREAD / 3, MOD_CHAINGUN );
+    fire_bullet( ent, start, forward, damage, kick, SECONDARY_FIRE_BULLET_HSPREAD, SECONDARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );

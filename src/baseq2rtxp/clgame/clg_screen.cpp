@@ -1891,8 +1891,12 @@ static void SCR_Draw2D( void ) {
     scr.hud_height = Q_rint( scr.hud_height * scr.hud_scale );
     scr.hud_width = Q_rint( scr.hud_width * scr.hud_scale );
 
-    // Crosshair has its own color and alpha.
-    SCR_DrawCrosshair();
+    // WID: TODO: Very ugly hack for now. This needs to be a callback to the weapon code itself.
+    // P_Weapon_DrawCrosshair?
+    if ( clgi.Key_IsDown( K_MOUSE2 ) < 1 ) {
+        // Crosshair has its own color and alpha.
+        SCR_DrawCrosshair();
+    }
 
     // The rest of 2D elements share common alpha.
     clgi.R_ClearColor();

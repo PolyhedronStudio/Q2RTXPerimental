@@ -337,6 +337,54 @@ void P_Weapon_Drop( edict_t *ent, gitem_t *item ) {
 /**
 *   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
 **/
+//void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
+//    vec3_t  _distance;
+//
+//    VectorCopy( distance, _distance );
+//    if ( ent->client->pers.hand == LEFT_HANDED )
+//        _distance[ 1 ] *= -1;
+//    else if ( ent->client->pers.hand == CENTER_HANDED )
+//        _distance[ 1 ] = 0;
+//    G_ProjectSource( point, _distance, forward, right, result );
+//
+//    // Aim fix from Yamagi Quake 2.
+//    // Now the projectile hits exactly where the scope is pointing.
+//    if ( aimfix->value ) {
+//        vec3_t start, end;
+//        VectorSet( start, ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + (float)ent->viewheight );
+//        VectorMA( start, CM_MAX_WORLD_SIZE, forward, end );
+//
+//        trace_t	tr = gi.trace( start, NULL, NULL, end, ent, MASK_SHOT );
+//        if ( tr.fraction < 1 ) {
+//            VectorSubtract( tr.endpos, result, forward );
+//            VectorNormalize( forward );
+//        }
+//    }
+//}
+void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
+    vec3_t  _distance;
+
+    VectorCopy( distance, _distance );
+    if ( ent->client->pers.hand == LEFT_HANDED )
+        _distance[ 1 ] *= -1;
+    else if ( ent->client->pers.hand == CENTER_HANDED )
+        _distance[ 1 ] = 0;
+    G_ProjectSource( point, _distance, forward, right, result );
+
+    // Aim fix from Yamagi Quake 2.
+    // Now the projectile hits exactly where the scope is pointing.
+    //if ( aimfix->value ) {
+    //    vec3_t start, end;
+    //    VectorSet( start, ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + (float)ent->viewheight );
+    //    VectorMA( start, CM_MAX_WORLD_SIZE, forward, end );
+
+    //    trace_t	tr = gi.trace( start, NULL, NULL, end, ent, MASK_SHOT );
+    //    if ( tr.fraction < 1 ) {
+    //        VectorSubtract( tr.endpos, result, forward );
+    //        VectorNormalize( forward );
+    //    }
+    //}
+}
 void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
     vec3_t  _distance;
 
@@ -349,9 +397,10 @@ void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forwar
 
     // Aim fix from Yamagi Quake 2.
     // Now the projectile hits exactly where the scope is pointing.
-    if ( aimfix->value ) {
+    //if ( aimfix->value ) {
         vec3_t start, end;
         VectorSet( start, ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + (float)ent->viewheight );
+        //VectorCopy( point, start );
         VectorMA( start, CM_MAX_WORLD_SIZE, forward, end );
 
         trace_t	tr = gi.trace( start, NULL, NULL, end, ent, MASK_SHOT );
@@ -359,7 +408,7 @@ void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forwar
             VectorSubtract( tr.endpos, result, forward );
             VectorNormalize( forward );
         }
-    }
+    //}
 }
 
 
