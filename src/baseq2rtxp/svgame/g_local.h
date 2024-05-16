@@ -228,15 +228,27 @@ typedef enum {
 typedef enum {
     //! The weapon is not doing anything else but sitting there, waiting for use.
     WEAPON_MODE_IDLE,
+
     //! The weapon is being 'Drawn'.
     WEAPON_MODE_DRAWING,
     //! The weapon is being 'Holstered'.
     WEAPON_MODE_HOLSTERING,
+
     //! The weapon is actively 'Primary' firing a shot.
     WEAPON_MODE_PRIMARY_FIRING,
 
+    //! The weapon is actively 'Secondary' firing a shot.
+    WEAPON_MODE_SECONDARY_FIRING,
+
     //! The weapon is actively 'Reloading' its clip.
     WEAPON_MODE_RELOADING,
+
+    //! The weapon is 'aiming in' to the center of screen.
+    WEAPON_MODE_AIM_IN,
+    //! The weapon is 'firing' in 'Aimed' mode.
+    WEAPON_MODE_AIM_FIRE,
+    //! The weapon is 'aiming out' to the center of screen.
+    WEAPON_MODE_AIM_OUT,
 
     //! Maximum weapon modes available.
     WEAPON_MODE_MAX,
@@ -1224,6 +1236,9 @@ struct gclient_s {
         //! Determines if the weapon can change 'mode'.
         qboolean canChangeMode;
 
+        //! If true, the weapon is using secondary fire to engage in 'aim' mode.
+        qboolean isAiming;
+
         //! Stores the 'Weapon Animation' data, which if still actively being processed
         //! prevents the weapon from changing 'mode'.
         struct {
@@ -1241,8 +1256,10 @@ struct gclient_s {
 
         //! Timers
         struct {
-            //! Used to prevent firing 
+            //! Used to prevent firing too rapidly
             sg_time_t lastPrimaryFire;
+            //! Used to prevent firing too rapidly.
+            sg_time_t lastAimedFire;
             //! Time the weapon was drawn. (Used for sound).
             sg_time_t lastDrawn;
             //! Time the weapon was holstered. (Used for sound).

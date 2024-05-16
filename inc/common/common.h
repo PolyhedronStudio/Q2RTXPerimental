@@ -42,6 +42,8 @@ extern "C" {
 
 #define COM_DEFAULT_CFG     "default.cfg"
 #define COM_Q2RTX_CFG       "q2rtx.cfg"
+#define COM_Q2RTXP_CFG       "q2rtxp.cfg"
+
 #define COM_AUTOEXEC_CFG    "autoexec.cfg"
 #define COM_POSTEXEC_CFG    "postexec.cfg"
 #define COM_POSTINIT_CFG    "postinit.cfg"

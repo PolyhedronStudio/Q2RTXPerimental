@@ -542,7 +542,9 @@ begin keys
     style --compact
     title "Action Key Bindings"
     blank
-    bind "attack" +attack
+    bind "primary fire" +fire_prim
+    bind "secondary fire" +fire_sec
+    bind "reload weapon" +reload
     bind "next weapon" weapnext
     bind "previous weapon" weapprev
     bind "walk forward" +forward

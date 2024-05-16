@@ -2951,7 +2951,8 @@ void CL_UpdateFrameTimes(void)
         sync_mode = SYNC_SLEEP_10;
     // Run at 60 fps if not active:
     } else if ( cls.active == ACT_RESTORED || cls.state != ca_active ) {
-        clientgame_msec = main_msec = fps_to_msec( 60 );
+        clientgame_msec = fps_to_msec( BASE_FRAMERATE );
+        main_msec = fps_to_msec( 60 );
         sync_mode = SYNC_SLEEP_60;
     // Run client game, physics and refresh separately:
     } else if ( cl_async->integer > 0 ) {
@@ -2999,13 +3000,13 @@ int64_t CL_ClientGameFrame( uint64_t msec ) {
     }
 
     // Iterate over all entity states to see if we need to take care of preventing any lerp issues.
-    for ( int32_t i = 0; i < MAX_CLIENT_ENTITIES; i++ ) {
-        // Update local entity.
-        //clge->LocalEntities_Update();
+    //for ( int32_t i = 0; i < MAX_CLIENT_ENTITIES; i++ ) {
+    //    // Update local entity.
+    //    //clge->LocalEntities_Update();
 
-        // Fire local entity events.
-        //clge->LocalEntities_Event();
-    }
+    //    // Fire local entity events.
+    //    //clge->LocalEntities_Event();
+    //}
 
     // Check for prediction errors.
     //CL_CheckPredictionError();
@@ -3031,7 +3032,7 @@ int64_t CL_ClientGameFrame( uint64_t msec ) {
         cl_frame_residual = CL_FRAMETIME; // WID: 40hz: Was 100
     }
 
-    return 0;
+    return cl_frame_residual;
 }
 
 /**

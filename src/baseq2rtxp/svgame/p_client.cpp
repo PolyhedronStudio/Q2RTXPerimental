@@ -1930,7 +1930,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     /**
     *   Handle the 'attack' button.
     **/
-    if ( client->latched_buttons & BUTTON_ATTACK ) {
+    if ( client->latched_buttons & BUTTON_PRIMARY_FIRE ) {
         // Spectator 'Attack Button' Path:
         if ( client->resp.spectator ) {
             // Zero out latched buttons.
@@ -2064,7 +2064,7 @@ void ClientBeginServerFrame(edict_t *ent)
         if ( level.time > client->respawn_time ) {
             // in deathmatch, only wait for attack button
             if ( deathmatch->value ) {
-                buttonMask = BUTTON_ATTACK;
+                buttonMask = BUTTON_PRIMARY_FIRE;
             } else {
                 buttonMask = -1;
             }

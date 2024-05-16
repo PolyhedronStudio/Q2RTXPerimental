@@ -68,7 +68,7 @@ static keybutton_t    in_strafe, in_speed;
 static keybutton_t    in_up, in_down;
 //static keybutton_t    in_holster;
 //! Weapon modifiers.
-static keybutton_t    in_use, in_attack, in_reload;
+static keybutton_t    in_use, in_primary_fire, in_secondary_fire, in_reload;
 
 //! Impulses.
 static int32_t	in_impulse;
@@ -111,17 +111,30 @@ static void IN_SpeedUp( void ) { clgi.KeyUp( &in_speed ); }
 static void IN_StrafeDown( void ) { clgi.KeyDown( &in_strafe ); }
 static void IN_StrafeUp( void ) { clgi.KeyUp( &in_strafe ); }
 
-static void IN_AttackDown( void ) {
-    clgi.KeyDown( &in_attack );
+static void IN_PrimaryFireDown( void ) {
+    clgi.KeyDown( &in_primary_fire );
 
     if ( cl_instantpacket->integer && clgi.GetConnectionState() == ca_active && !clgi.IsDemoPlayback() ) {
         clgi.client->sendPacketNow = true;
     }
 }
 
-static void IN_AttackUp( void ) {
-    clgi.KeyUp( &in_attack );
+static void IN_PrimaryFireUp( void ) {
+    clgi.KeyUp( &in_primary_fire );
 }
+
+static void IN_SecondaryFireDown( void ) {
+    clgi.KeyDown( &in_secondary_fire );
+
+    if ( cl_instantpacket->integer && clgi.GetConnectionState() == ca_active && !clgi.IsDemoPlayback() ) {
+        clgi.client->sendPacketNow = true;
+    }
+}
+
+static void IN_SecondaryFireUp( void ) {
+    clgi.KeyUp( &in_secondary_fire );
+}
+
 
 static void IN_UseDown( void ) {
     clgi.KeyDown( &in_use );
@@ -322,11 +335,14 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
     //
     // figure button bits
     //
-    if ( in_attack.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
-        moveCommand->cmd.buttons |= BUTTON_ATTACK;
+    if ( in_primary_fire.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+        moveCommand->cmd.buttons |= BUTTON_PRIMARY_FIRE;
+    }
+    if ( in_secondary_fire.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+        moveCommand->cmd.buttons |= BUTTON_SECONDARY_FIRE;
     }
     if ( in_use.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
-        moveCommand->cmd.buttons |= BUTTON_USE;
+        moveCommand->cmd.buttons |= BUTTON_USE_ITEM;
     }
     if ( in_reload.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_RELOAD;
@@ -337,7 +353,8 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
     if ( in_down.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_CROUCH;
     }
-    in_attack.state = static_cast<keybutton_state_t>( in_attack.state & ~BUTTON_STATE_DOWN );
+    in_primary_fire.state = static_cast<keybutton_state_t>( in_primary_fire.state & ~BUTTON_STATE_DOWN );
+    in_secondary_fire.state = static_cast<keybutton_state_t>( in_secondary_fire.state & ~BUTTON_STATE_DOWN );
     in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
     in_reload.state = static_cast<keybutton_state_t>( in_reload.state & ~BUTTON_STATE_DOWN );
 
@@ -382,7 +399,8 @@ void PF_ClearMoveCommand( client_movecmd_t *moveCommand ) {
     // clear pending cmd
     moveCommand->cmd = {};
 
-    in_attack.state = static_cast<keybutton_state_t>( in_attack.state & ~BUTTON_STATE_DOWN );
+    in_primary_fire.state = static_cast<keybutton_state_t>( in_primary_fire.state & ~BUTTON_STATE_DOWN );
+    in_secondary_fire.state = static_cast<keybutton_state_t>( in_secondary_fire.state & ~BUTTON_STATE_DOWN );
     in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
     in_reload.state = static_cast<keybutton_state_t>( in_reload.state & ~BUTTON_STATE_DOWN );
 
@@ -438,8 +456,10 @@ void PF_RegisterUserInput( void ) {
     clgi.Cmd_AddCommand( "-moveright", IN_MoverightUp );
     clgi.Cmd_AddCommand( "+speed", IN_SpeedDown );
     clgi.Cmd_AddCommand( "-speed", IN_SpeedUp );
-    clgi.Cmd_AddCommand( "+attack", IN_AttackDown );
-    clgi.Cmd_AddCommand( "-attack", IN_AttackUp );
+    clgi.Cmd_AddCommand( "+fire_prim", IN_PrimaryFireDown );
+    clgi.Cmd_AddCommand( "-fire_prim", IN_PrimaryFireUp );
+    clgi.Cmd_AddCommand( "+fire_sec", IN_SecondaryFireDown );
+    clgi.Cmd_AddCommand( "-fire_sec", IN_SecondaryFireUp );
     clgi.Cmd_AddCommand( "+use", IN_UseDown );
     clgi.Cmd_AddCommand( "-use", IN_UseUp );
     clgi.Cmd_AddCommand( "+reload", IN_ReloadDown );
