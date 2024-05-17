@@ -54,7 +54,7 @@ void CLG_MuzzleFlash( void ) {
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "weapons/hyprbf1a.wav" ), volume, ATTN_NORM, 0 );
         break;
     case MZ_PISTOL:
-        VectorSet( dl->color, 1, 1, 0 );
+        VectorSet( dl->color, 0.93, 0.82, 0.71 );
         Q_snprintf( soundname, sizeof( soundname ), "weapons/pistol/fire%i.wav", ( irandom( 2 ) ) + 1 );
         clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0 );
         break;
@@ -188,7 +188,7 @@ void CLG_MuzzleFlash( void ) {
 
     if ( clgi.GetRefreshType() == REF_TYPE_VKPT ) {
         // don't add muzzle flashes in RTX mode
-        dl->radius = 0;
+        //dl->radius = 0;
     }
 
     if ( cl_dlight_hacks->integer & DLHACK_NO_MUZZLEFLASH ) {

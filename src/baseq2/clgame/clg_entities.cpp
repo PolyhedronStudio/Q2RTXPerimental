@@ -121,33 +121,6 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
 
     // TODO: Determine whichever reverb effect is dominant for the current sound we're spatializing??    
 }
-/**
-*   @brief  The sound code makes callbacks to the client for entitiy position
-*           information, so entities can be dynamically re-spatialized.
-**/
-qhandle_t PF_GetEAXBySoundOrigin( const int32_t entityNumber, vec3_t org ) {
-    //if ( entityNumber < 0 || entityNumber >= MAX_EDICTS ) {
-    //    Com_Error( ERR_DROP, "%s: bad entnum: %d", __func__, entityNumber );
-    //}
-
-    //if ( !entityNumber || entityNumber == clgi.client->listener_spatialize.entnum ) {
-    //    // Should this ever happen?
-    //    VectorCopy( clgi.client->listener_spatialize.origin, org );
-    //    return SOUND_EAX_EFFECT_DEFAULT;
-    //}
-
-    //// Get entity pointer.
-    //centity_t *ent = &clg_entities[ entityNumber ]; // ENTITY_FOR_NUMBER( entityNumber );
-
-    //// If for whatever reason it is invalid:
-    //if ( !ent ) {
-    //    Com_Error( ERR_DROP, "%s: nullptr entity for entnum: %d", __func__, entityNumber );
-    //    return SOUND_EAX_EFFECT_DEFAULT;
-    //}
-
-    //return reverb_eax_id;
-    return 0;
-}
 
 /**
 *	@return		A pointer to the entity bound to the client game's view. Unless STAT_CHASE is set to

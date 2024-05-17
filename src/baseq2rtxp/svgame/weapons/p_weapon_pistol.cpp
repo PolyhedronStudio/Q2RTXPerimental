@@ -104,8 +104,8 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     vec3_t      start;
     vec3_t      forward, right;
     vec3_t      offset;
-    int         damage = 14;
-    int         kick = 8;
+    int         damage = 8;
+    int         kick = 12;
 
     // TODO: These are already calculated, right?
     // Calculate angle vectors.
@@ -157,10 +157,17 @@ void weapon_pistol_secondary_fire( edict_t *ent ) {
     P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Determine the amount to multiply bullet spread with based on the player's velocity.
-
+    // TODO: Use stats array or so for storing the actual move speed limit, since this
+    // may vary.
+    constexpr float moveThreshold = 300.0f;
+    // Don't spread multiply if we're pretty much standing still. This allows for a precise shot.
+    const float hSpreadMultiplier = ( ent->client->ps.xyzSpeed > 5 ? moveThreshold * ent->client->ps.bobMove : 0 );
+    float vSpreadMultiplier = ( ent->client->ps.xyzSpeed > 5 ? moveThreshold * ent->client->ps.bobMove : 0 );
+    gi.dprintf( " ----- ----- ----- \n" );
+    gi.dprintf( "%s: hSpreadMultiplier(%f) vSpreadMultiplier(%f)\n", __func__, hSpreadMultiplier, vSpreadMultiplier );
 
     // Fire the actual bullet itself.
-    fire_bullet( ent, start, forward, damage, kick, SECONDARY_FIRE_BULLET_HSPREAD, SECONDARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
+    fire_bullet( ent, start, forward, damage, kick, SECONDARY_FIRE_BULLET_HSPREAD + hSpreadMultiplier, SECONDARY_FIRE_BULLET_VSPREAD + vSpreadMultiplier, MOD_CHAINGUN );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );

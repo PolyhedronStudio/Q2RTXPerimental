@@ -349,19 +349,24 @@ static void CLG_AddViewWeapon( void ) {
 *   @brief  Calculates the client's field of view.
 **/
 const float PF_CalculateFieldOfView( const float fov_x, const float width, const float height ) {
-    float    a;
-    float    x;
-
     if ( fov_x <= 0 || fov_x > 179 ) {
         Com_Error( ERR_DROP, "%s: bad fov: %f", __func__, fov_x );
     }
 
-    x = width / tan( fov_x * ( M_PI / 360 ) );
+    // WID: Quake 3 Method:
+    const float x = width / tan( fov_x / 360 * M_PI );
+    float fov_y = atan2( height, x );
+    fov_y = fov_y * 360 / M_PI;
 
-    a = atan( height / x );
-    a = a * ( 360 / M_PI );
+    return fov_y;
 
-    return a;
+    // Q2RTX/Q2PRO Method:
+    //const float x = width / tan( fov_x * ( M_PI / 360 ) );
+
+    //float a = atan( height / x );
+    //a = a * ( 360 / M_PI );
+    // 
+    //return a;   
 }
 
 /**
@@ -785,11 +790,9 @@ static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const 
     *   Determine whether the FOV changed, whether it is zoomed(lower or higher than previous FOV), and
     *   store the old FOV as well as the realtime of change.
     **/
-    static uint64_t fov_change_time = 0; // Time of when FOV between states changed.
-    static float old_fov = ps->fov; // The initiali FOV we want to lerp out of.
     static float isZooming = false; // Whether we're zooming in or out.
-    static uint64_t zoom_time; // The time at which the change was detected.
-    float new_fov = ps->fov; // The FOV we want to lerp to.
+    static uint64_t zoom_time = 0; // The time at which the change was detected.
+    static float old_fov = ps->fov; // The initiali FOV we want to lerp out of.
     if ( ops->fov != ps->fov ) {
         if ( ops->fov > ps->fov ) {
             isZooming = false;
@@ -818,6 +821,9 @@ static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const 
         lerpfrac = 0.f;
     }
 
+    /**
+    *   Calculate appropriate fov for use.
+    **/
     clgi.client->fov_x = lerp_client_fov( old_fov, ps->fov, lerpfrac );
     clgi.client->fov_y = PF_CalculateFieldOfView( clgi.client->fov_x, 4, 3 );
 }

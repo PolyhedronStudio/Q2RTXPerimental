@@ -56,12 +56,29 @@ RMAPI float QM_Vector2Length( Vector2 v ) {
     return result;
 }
 
+#ifdef __cplusplus // Only compatible with C++
+// Calculate vector length
+RMAPI float QM_Vector2Length( Vector3 v ) {
+    float result = sqrtf( ( v.x * v.x ) + ( v.y * v.y ) );
+
+    return result;
+}
+#endif // #ifdef __cplusplus
+
 // Calculate vector square length
 RMAPI float QM_Vector2LengthSqr( Vector2 v ) {
     float result = ( v.x * v.x ) + ( v.y * v.y );
 
     return result;
 }
+#ifdef __cplusplus // Only compatible with C++
+// Calculate vector square length
+RMAPI float QM_Vector2LengthSqr( Vector3 v ) {
+    float result = ( v.x * v.x ) + ( v.y * v.y );
+
+    return result;
+}
+#endif // #ifdef __cplusplus
 
 // Calculate two vectors dot product
 RMAPI float QM_Vector2DotProduct( Vector2 v1, Vector2 v2 ) {

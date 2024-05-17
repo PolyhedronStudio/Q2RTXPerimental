@@ -170,7 +170,7 @@ static void PM_SetDimensions() {
 **/
 //static void PM_Footsteps( void ) {
 static void PM_CycleBob() {
-	float		bobMove = 0.f;
+	//float		bobMove = 0.f;
 	int32_t		oldBobCycle = 0;
 	// Defaults to false and checked for later on:
 	qboolean	footStep = false;
@@ -178,12 +178,17 @@ static void PM_CycleBob() {
 	//
 	// Calculate the speed and cycle to be used for all cyclic walking effects.
 	//
-	pm->xySpeed = sqrtf( ps->pmove.velocity[ 0 ] * ps->pmove.velocity[ 0 ]
-		+ ps->pmove.velocity[ 1 ] * ps->pmove.velocity[ 1 ] );
+	ps->xySpeed = QM_Vector2Length( ps->pmove.velocity );
+	ps->xyzSpeed = QM_Vector3Length( ps->pmove.velocity );
+
+	//ps->xySpeed = sqrtf( ps->pmove.velocity[ 0 ] * ps->pmove.velocity[ 0 ]
+	//	+ ps->pmove.velocity[ 1 ] * ps->pmove.velocity[ 1 ] );
+	//QM_Vector2Length
+	// Reset bobmove.
+	//ps->bobMove = 0.f;
 
 	// Airborne leaves cycle intact, but doesn't advance either.
 	if ( pm->ground.entity == nullptr ) {
-
 		//if ( ps->powerups[ PW_INVULNERABILITY ] ) {
 		//	PM_ContinueLegsAnim( LEGS_IDLECR );
 		//}
@@ -195,8 +200,8 @@ static void PM_CycleBob() {
 	}
 
 	// If not trying to move:
-	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove ) {
-		if ( pm->xySpeed < 5 ) {
+	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove && !pm->cmd.upmove ) {
+		if ( ps->xySpeed < 5 ) {
 			// Start at beginning of cycle again:
 			ps->bobCycle = 0;
 			//if ( ps->pmove.pm_flags & PMF_DUCKED ) {
@@ -213,7 +218,7 @@ static void PM_CycleBob() {
 
 	if ( ps->pmove.pm_flags & PMF_DUCKED ) {
 		// Ducked characters bob much faster:
-		bobMove = 0.5;	
+		ps->bobMove = 0.5;	
 		//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
 		//	PM_ContinueLegsAnim( LEGS_BACKCR );
 		//} else {
@@ -233,7 +238,7 @@ static void PM_CycleBob() {
 	} else {
 		if ( !( pm->cmd.buttons & BUTTON_WALK ) ) {
 			// Faster speeds bob faster:
-			bobMove = 0.4f;
+			ps->bobMove = 0.4f;
 			//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
 			//	PM_ContinueLegsAnim( LEGS_BACK );
 			//} else {
@@ -242,7 +247,7 @@ static void PM_CycleBob() {
 			footStep = true;
 		} else {
 			// Walking bobs slow:
-			bobMove = 0.3f;
+			ps->bobMove = 0.3f;
 			//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
 			//	PM_ContinueLegsAnim( LEGS_BACKWALK );
 			//} else {
@@ -253,7 +258,7 @@ static void PM_CycleBob() {
 
 	// check for footstep / splash sounds
 	oldBobCycle = ps->bobCycle;
-	ps->bobCycle = (int32_t)( (oldBobCycle + bobMove * pm->cmd.msec) /* pml.msec */) & 255;
+	ps->bobCycle = (int32_t)( (oldBobCycle + ps->bobMove * pm->cmd.msec) /* pml.msec */) & 255;
 	
 	//SG_DPrintf( "%s: ps->bobCycle(%i), oldBobCycle(%i), bobMove(%f)\n", __func__, ps->bobCycle, oldBobCycle, bobMove );
 	

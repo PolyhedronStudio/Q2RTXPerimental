@@ -273,16 +273,21 @@ static void CLG_ClampPitch( void ) {
 }
 
 /**
-*   @brief  Updates msec, angles and builds the interpolated movement vector for local movement prediction.
-*           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
+*   @brief  Figures the button bits.
 **/
-void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, client_mouse_motion_t *mouseMotion ) {
-    // adjust viewangles
-    CLG_AdjustAngles( msec );
-
-    // get basic movement from keyboard, including jump/crouch.
-    CLG_BaseMove( clgi.client->localmove );
-
+static void CLG_FigureButtonBits( client_movecmd_t *moveCommand ) {
+    if ( in_primary_fire.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+        moveCommand->cmd.buttons |= BUTTON_PRIMARY_FIRE;
+    }
+    if ( in_secondary_fire.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+        moveCommand->cmd.buttons |= BUTTON_SECONDARY_FIRE;
+    }
+    if ( in_use.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+        moveCommand->cmd.buttons |= BUTTON_USE_ITEM;
+    }
+    if ( in_reload.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+        moveCommand->cmd.buttons |= BUTTON_RELOAD;
+    }
     if ( in_up.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_JUMP;
     }
@@ -295,6 +300,22 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, cl
     if ( in_strafe.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_STRAFE;
     }
+}
+/**
+*   @brief  Updates msec, angles and builds the interpolated movement vector for local movement prediction.
+*           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
+**/
+void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, client_mouse_motion_t *mouseMotion ) {
+    // adjust viewangles
+    CLG_AdjustAngles( msec );
+
+    // get basic movement from keyboard, including jump/crouch.
+    CLG_BaseMove( clgi.client->localmove );
+
+    //
+    // Figure button bits.
+    //
+    CLG_FigureButtonBits( moveCommand );
 
     // Allow mice to add to the move
     if ( mouseMotion->hasMotion ) {
@@ -333,34 +354,21 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
     Vector3 move;
 
     //
-    // figure button bits
+    // Figure button bits.
     //
-    if ( in_primary_fire.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
-        moveCommand->cmd.buttons |= BUTTON_PRIMARY_FIRE;
-    }
-    if ( in_secondary_fire.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
-        moveCommand->cmd.buttons |= BUTTON_SECONDARY_FIRE;
-    }
-    if ( in_use.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
-        moveCommand->cmd.buttons |= BUTTON_USE_ITEM;
-    }
-    if ( in_reload.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
-        moveCommand->cmd.buttons |= BUTTON_RELOAD;
-    }
-    if ( in_up.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
-        moveCommand->cmd.buttons |= BUTTON_JUMP;
-    }
-    if ( in_down.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
-        moveCommand->cmd.buttons |= BUTTON_CROUCH;
-    }
+    CLG_FigureButtonBits( moveCommand );
+
     in_primary_fire.state = static_cast<keybutton_state_t>( in_primary_fire.state & ~BUTTON_STATE_DOWN );
     in_secondary_fire.state = static_cast<keybutton_state_t>( in_secondary_fire.state & ~BUTTON_STATE_DOWN );
     in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
+    in_speed.state = static_cast<keybutton_state_t>( in_speed.state & ~BUTTON_STATE_DOWN );
+    in_strafe.state = static_cast<keybutton_state_t>( in_strafe.state & ~BUTTON_STATE_DOWN );
     in_reload.state = static_cast<keybutton_state_t>( in_reload.state & ~BUTTON_STATE_DOWN );
 
     in_up.state = static_cast<keybutton_state_t>( in_up.state & ~BUTTON_STATE_DOWN );
     in_down.state = static_cast<keybutton_state_t>( in_down.state & ~BUTTON_STATE_DOWN );
 
+    // Any key down flag.
     if ( clgi.GetKeyEventDestination() == KEY_GAME && clgi.Key_AnyKeyDown() ) {
         moveCommand->cmd.buttons |= BUTTON_ANY;
     }
@@ -368,6 +376,10 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
     if ( moveCommand->cmd.msec > 75 ) { // Was: > 250
         // Time was unreasonable.
         moveCommand->cmd.msec = BASE_FRAMERATE; // Was: 100
+        // Debug display.
+        #if USE_DEBUG
+        clgi.Print( PRINT_DEVELOPER, "%s: moveCommand->cmd.msec(%i) was unreasonable(max is 75)!\n", __func__, moveCommand->cmd.msec );
+        #endif
     }
 
     // rebuild the movement vector

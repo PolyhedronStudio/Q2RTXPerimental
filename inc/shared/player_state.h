@@ -164,8 +164,15 @@ typedef struct {
     //int32_t   externalEventTime;
 
     /**
-    *   Not communicated over the net at all.
+    *   Not communicated over the net at all, and are calculated locally
+    *   for both Client AND Server Game(s).
     **/
+    //! Calculated bobMove value.
+    double bobMove;
+    //! XYSpeed.
+    double xySpeed;
+    //! XYSpeed.
+    double xyzSpeed;
     //! server to game info for scoreboard			
     //int32_t ping; 
     //int64_t pmove_framecount;
