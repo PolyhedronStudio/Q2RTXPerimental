@@ -282,11 +282,16 @@ static void CLG_FigureButtonBits( client_movecmd_t *moveCommand ) {
     if ( in_secondary_fire.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_SECONDARY_FIRE;
     }
+
     if ( in_use.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_USE_ITEM;
     }
     if ( in_reload.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_RELOAD;
+    }
+
+    if ( in_strafe.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+        moveCommand->cmd.buttons |= BUTTON_STRAFE;
     }
     if ( in_up.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_JUMP;
@@ -297,10 +302,24 @@ static void CLG_FigureButtonBits( client_movecmd_t *moveCommand ) {
     if ( in_speed.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_WALK;
     }
-    if ( in_strafe.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
-        moveCommand->cmd.buttons |= BUTTON_STRAFE;
-    }
 }
+
+/**
+*   @brief  Clear state_down flags for various in_ keys.
+**/
+void CLG_ClearStateDownFlags( client_movecmd_t *moveCommand ) {
+    in_primary_fire.state = static_cast<keybutton_state_t>( in_primary_fire.state & ~BUTTON_STATE_DOWN );
+    in_secondary_fire.state = static_cast<keybutton_state_t>( in_secondary_fire.state & ~BUTTON_STATE_DOWN );
+    
+    in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
+    in_reload.state = static_cast<keybutton_state_t>( in_reload.state & ~BUTTON_STATE_DOWN );
+
+    in_speed.state = static_cast<keybutton_state_t>( in_speed.state & ~BUTTON_STATE_DOWN );
+    in_strafe.state = static_cast<keybutton_state_t>( in_strafe.state & ~BUTTON_STATE_DOWN );
+    in_up.state = static_cast<keybutton_state_t>( in_up.state & ~BUTTON_STATE_DOWN );
+    in_down.state = static_cast<keybutton_state_t>( in_down.state & ~BUTTON_STATE_DOWN );
+}
+
 /**
 *   @brief  Updates msec, angles and builds the interpolated movement vector for local movement prediction.
 *           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
@@ -316,6 +335,11 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, cl
     // Figure button bits.
     //
     CLG_FigureButtonBits( moveCommand );
+
+    //
+    // Clear Various Down States.
+    //
+    CLG_ClearStateDownFlags( moveCommand );
 
     // Allow mice to add to the move
     if ( mouseMotion->hasMotion ) {
@@ -351,22 +375,16 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, cl
 *           and angles are already set for this frame by CL_UpdateCommand.
 **/
 void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
-    Vector3 move;
 
     //
     // Figure button bits.
     //
     CLG_FigureButtonBits( moveCommand );
 
-    in_primary_fire.state = static_cast<keybutton_state_t>( in_primary_fire.state & ~BUTTON_STATE_DOWN );
-    in_secondary_fire.state = static_cast<keybutton_state_t>( in_secondary_fire.state & ~BUTTON_STATE_DOWN );
-    in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
-    in_speed.state = static_cast<keybutton_state_t>( in_speed.state & ~BUTTON_STATE_DOWN );
-    in_strafe.state = static_cast<keybutton_state_t>( in_strafe.state & ~BUTTON_STATE_DOWN );
-    in_reload.state = static_cast<keybutton_state_t>( in_reload.state & ~BUTTON_STATE_DOWN );
-
-    in_up.state = static_cast<keybutton_state_t>( in_up.state & ~BUTTON_STATE_DOWN );
-    in_down.state = static_cast<keybutton_state_t>( in_down.state & ~BUTTON_STATE_DOWN );
+    //
+    // Clear Various Down States.
+    //
+    CLG_ClearStateDownFlags( moveCommand );
 
     // Any key down flag.
     if ( clgi.GetKeyEventDestination() == KEY_GAME && clgi.Key_AnyKeyDown() ) {
@@ -383,22 +401,22 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
     }
 
     // rebuild the movement vector
-    VectorClear( move );
+    Vector3 move = QM_Vector3Zero();
 
     // get basic movement from keyboard
     CLG_BaseMove( move );
 
     // add mouse forward/side movement
-    move[ 0 ] += clgi.client->mousemove[ 0 ];
-    move[ 1 ] += clgi.client->mousemove[ 1 ];
+    move.x += clgi.client->mousemove.x;
+    move.y += clgi.client->mousemove.y;
 
     // clamp to server defined max speed
     CLG_ClampSpeed( move );
 
     // Store the movement vector
-    moveCommand->cmd.forwardmove = move[ 0 ];
-    moveCommand->cmd.sidemove = move[ 1 ];
-    moveCommand->cmd.upmove = move[ 2 ];
+    moveCommand->cmd.forwardmove = move.x;
+    moveCommand->cmd.sidemove = move.y;
+    moveCommand->cmd.upmove = move.z;
 
     // Store impulse.
     moveCommand->cmd.impulse = in_impulse;
@@ -411,14 +429,7 @@ void PF_ClearMoveCommand( client_movecmd_t *moveCommand ) {
     // clear pending cmd
     moveCommand->cmd = {};
 
-    in_primary_fire.state = static_cast<keybutton_state_t>( in_primary_fire.state & ~BUTTON_STATE_DOWN );
-    in_secondary_fire.state = static_cast<keybutton_state_t>( in_secondary_fire.state & ~BUTTON_STATE_DOWN );
-    in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
-    in_reload.state = static_cast<keybutton_state_t>( in_reload.state & ~BUTTON_STATE_DOWN );
-
-    in_up.state = static_cast<keybutton_state_t>( in_up.state & ~BUTTON_STATE_DOWN );
-    in_down.state = static_cast<keybutton_state_t>( in_down.state & ~BUTTON_STATE_DOWN );
-    //in_holster.state &= ~BUTTON_STATE_DOWN;
+    CLG_ClearStateDownFlags( moveCommand );
 
     clgi.KeyClear( &in_right );
     clgi.KeyClear( &in_left );

@@ -200,8 +200,10 @@ static void PM_CycleBob() {
 	}
 
 	// If not trying to move:
-	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove && !pm->cmd.upmove ) {
-		if ( ps->xySpeed < 5 ) {
+	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove ) {
+		// Check both xySpeed, and xyzSpeed. The last one is to prevent
+		// view wobbling when crouched, yet idle.
+		if ( ps->xySpeed < 5 && ps->xyzSpeed < 5 ) {
 			// Start at beginning of cycle again:
 			ps->bobCycle = 0;
 			//if ( ps->pmove.pm_flags & PMF_DUCKED ) {
