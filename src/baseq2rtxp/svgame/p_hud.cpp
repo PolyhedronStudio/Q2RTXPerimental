@@ -449,7 +449,14 @@ void G_SetStats(edict_t *ent) {
         //ent->client->ps.stats[ STAT_CLIP_AMMO_ICON ] = gi.imageindex( item->icon );
         ent->client->ps.stats[ STAT_CLIP_AMMO ] = ent->client->pers.weapon_clip_ammo[ clip_ammo_item_index ];
     }
-
+    //
+    // IsAiming
+    //
+    //if ( ent->client->weaponState.aimState.isAiming == true ) {
+    //    ent->client->ps.stats[ STAT_AIMING_FOV ] = ent->client->weaponState.aimState.isAimingFov;
+    //} else {
+    //    ent->client->ps.stats[ STAT_AIMING_FOV ] = 0;
+    //}
 
     //
     // Armor

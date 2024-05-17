@@ -156,6 +156,9 @@ void weapon_pistol_secondary_fire( edict_t *ent ) {
     VectorSet( offset, 0, 0, (float)ent->viewheight - 5.5f ); // VectorSet( offset, 0, 8, ent->viewheight - 8 );
     P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
+    // Determine the amount to multiply bullet spread with based on the player's velocity.
+
+
     // Fire the actual bullet itself.
     fire_bullet( ent, start, forward, damage, kick, SECONDARY_FIRE_BULLET_HSPREAD, SECONDARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
 
@@ -208,13 +211,16 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
     /**
     *   isAiming Behavior Path:
     **/
-    if ( ent->client->weaponState.isAiming == true ) {
+    if ( ent->client->weaponState.aimState.isAiming == true ) {
         /**
         *   Letting go of 'Secondary Fire': "Aim Out" of isAiming Mode:
         **/
         if ( !( ent->client->buttons & BUTTON_SECONDARY_FIRE ) ) {
             P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeFrames, false );
             gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
+
+            // Restore the original FOV.
+            ent->client->ps.fov = ent->client->weaponState.clientFieldOfView;
         }
         /**
         *   Firing 'Primary Fire' of isAiming Mode:
@@ -245,6 +251,8 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         if ( ( ent->client->buttons & BUTTON_SECONDARY_FIRE ) ) {
             P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeFrames, false );
             gi.dprintf( "%s: NOT isAiming -> SwitchMode( WEAPON_MODE_AIM_IN )\n", __func__ );
+            ent->client->ps.fov = 45;
+
             return;
         }
 
@@ -301,7 +309,7 @@ void Weapon_Pistol( edict_t *ent ) {
     /**
     *   isAiming Behavior Path:
     **/
-    if ( ent->client->weaponState.isAiming == true ) {
+    if ( ent->client->weaponState.aimState.isAiming == true ) {
         // isAiming -> Fire:
         if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_FIRE ) {
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
@@ -320,7 +328,8 @@ void Weapon_Pistol( edict_t *ent ) {
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
             // any earlier/double firing.
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame ) {
-                ent->client->weaponState.isAiming = false;
+                // Disengage aiming state.
+                ent->client->weaponState.aimState = {};
             }
         }
     } else {
@@ -341,7 +350,10 @@ void Weapon_Pistol( edict_t *ent ) {
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN ) {
             // Set the isAiming state value for aiming specific behavior to true.
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame ) {
-                ent->client->weaponState.isAiming = true;
+                //! Engage aiming mode.
+                ent->client->weaponState.aimState.isAiming = true;
+                //! Set a FOV of 45 for pistol.
+                ent->client->weaponState.aimState.aimFov = 45;
             }
         // Reload Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_RELOADING ) {
@@ -353,7 +365,7 @@ void Weapon_Pistol( edict_t *ent ) {
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame - 1 ) {
                 ent->client->weapon_sound = 0;
                 weapon_pistol_reload_clip( ent );
-           }
+            }
         // Draw Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_DRAWING ) {
             // Start playing drawing weapon sound at the very first frame.
@@ -364,6 +376,9 @@ void Weapon_Pistol( edict_t *ent ) {
             // Enough time has passed, shutdown the sound.
             if ( ent->client->weaponState.timers.lastDrawn <= level.time + 250_ms ) {
                 ent->client->weapon_sound = 0;
+
+                // Store the client's fieldOfView.
+                ent->client->weaponState.clientFieldOfView = ent->client->ps.fov;
             }
         // Holster Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING ) {

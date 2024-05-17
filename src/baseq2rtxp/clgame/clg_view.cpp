@@ -778,7 +778,47 @@ static void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const 
 *   @brief  Lerp the client's POV range.
 **/
 static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
-    clgi.client->fov_x = lerp_client_fov( ops->fov, ps->fov, lerpFrac );
+    // Amount of MS to lerp FOV over.
+    static constexpr int32_t ZOOM_TIME = 100;
+
+    /**
+    *   Determine whether the FOV changed, whether it is zoomed(lower or higher than previous FOV), and
+    *   store the old FOV as well as the realtime of change.
+    **/
+    static uint64_t fov_change_time = 0; // Time of when FOV between states changed.
+    static float old_fov = ps->fov; // The initiali FOV we want to lerp out of.
+    static float isZooming = false; // Whether we're zooming in or out.
+    static uint64_t zoom_time; // The time at which the change was detected.
+    float new_fov = ps->fov; // The FOV we want to lerp to.
+    if ( ops->fov != ps->fov ) {
+        if ( ops->fov > ps->fov ) {
+            isZooming = false;
+            old_fov = ops->fov;
+            zoom_time = clgi.GetRealTime();
+        } else {
+            isZooming = true;
+            old_fov = ops->fov;
+            zoom_time = clgi.GetRealTime();
+        }
+    }
+
+    /**
+    *   Determine the lerp fraction for the FOV to lerp by.
+    **/
+    float lerpfrac = 1;
+    if ( isZooming ) {
+        lerpfrac = (float)( clgi.GetRealTime() - zoom_time ) / (float)ZOOM_TIME;
+    } else if ( zoom_time >= clgi.GetRealTime() - ZOOM_TIME ) {
+        lerpfrac = (float)( clgi.GetRealTime() - zoom_time ) / (float)ZOOM_TIME;
+    }
+    if ( lerpfrac >= 1.0 ) {
+        lerpfrac = 1.0f;
+    }
+    if ( lerpfrac <= 0.0f ) {
+        lerpfrac = 0.f;
+    }
+
+    clgi.client->fov_x = lerp_client_fov( old_fov, ps->fov, lerpfrac );
     clgi.client->fov_y = PF_CalculateFieldOfView( clgi.client->fov_x, 4, 3 );
 }
 /**

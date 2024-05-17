@@ -1230,6 +1230,11 @@ struct gclient_s {
     *   Weapon State:
     **/
     struct {
+        //! Stores the client's original FOV.
+        float clientFieldOfView;
+        //! Stores the weapon's actual FOV.
+        float aimFieldOfView;
+
         //! The 'mode' is what the weapon is actually doing during its current 'state'.
         weapon_mode_t mode;
         //! The 'old mode' is what the weapon was actually doing during its previous 'state'.
@@ -1237,8 +1242,16 @@ struct gclient_s {
         //! Determines if the weapon can change 'mode'.
         qboolean canChangeMode;
 
-        //! If true, the weapon is using secondary fire to engage in 'aim' mode.
-        qboolean isAiming;
+        ////! If true, the weapon is using secondary fire to engage in 'aim' mode.
+        //qboolean isAiming;
+        ////! The aiming field of view.
+        //qboolean isAimingFov;
+        struct {
+            //! If true, the weapon is using secondary fire to engage in 'aim' mode.
+            qboolean isAiming;
+            //! The aiming field of view.
+            float aimFov;
+        } aimState;
 
         //! Stores the 'Weapon Animation' data, which if still actively being processed
         //! prevents the weapon from changing 'mode'.
