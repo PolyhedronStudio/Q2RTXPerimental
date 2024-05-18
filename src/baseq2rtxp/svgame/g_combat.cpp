@@ -162,52 +162,6 @@ dflags      these flags are used to control how T_Damage works
     DAMAGE_NO_PROTECTION    kills godmode, armor, everything
 ============
 */
-static int CheckPowerArmor(edict_t *ent, const vec3_t point, const vec3_t normal, int damage, int dflags)
-{
-
-    return 0;
-}
-
-static int CheckArmor(edict_t *ent, const vec3_t point, const vec3_t normal, int damage, int te_sparks, int dflags)
-{
-    gclient_t   *client;
-    int         save;
-    int         index;
-    gitem_t     *armor;
-
-    if (!damage)
-        return 0;
-
-    client = ent->client;
-
-    if (!client)
-        return 0;
-
-    if (dflags & DAMAGE_NO_ARMOR)
-        return 0;
-
-    index = ArmorIndex(ent);
-    if (!index)
-        return 0;
-
-    armor = GetItemByIndex(index);
-
-    if (dflags & DAMAGE_ENERGY)
-        save = ceil(((gitem_armor_t *)armor->info)->energy_protection * damage);
-    else
-        save = ceil(((gitem_armor_t *)armor->info)->normal_protection * damage);
-    if (save >= client->pers.inventory[index])
-        save = client->pers.inventory[index];
-
-    if (!save)
-        return 0;
-
-    client->pers.inventory[index] -= save;
-    SpawnDamage(te_sparks, point, normal, save);
-
-    return save;
-}
-
 void M_ReactToDamage(edict_t *targ, edict_t *attacker)
 {
     if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
@@ -290,11 +244,11 @@ bool CheckTeamDamage(edict_t *targ, edict_t *attacker)
 
 void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int mod)
 {
-    gclient_t   *client;
-    int         take;
-    int         save;
-    int         asave;
-    int         te_sparks;
+    gclient_t   *client = nullptr;
+    int32_t take = 0;
+    int32_t save = 0;
+    int32_t asave = 0;
+    int32_t te_sparks = 0;
 
     if (!targ->takedamage)
         return;
@@ -374,9 +328,6 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
     //    take = 0;
     //    save = damage;
     //}
-
-    asave = CheckArmor(targ, point, normal, take, te_sparks, dflags);
-    take -= asave;
 
     //treat cheat/powerup savings the same as armor
     asave += save;

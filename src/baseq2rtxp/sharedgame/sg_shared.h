@@ -100,4 +100,12 @@ static constexpr int32_t STAT_KILLER_YAW = ( STATS_GAME_OFFSET + 17 );
 static constexpr int32_t STAT_CLIP_AMMO = ( STATS_GAME_OFFSET + 18 );
 static constexpr int32_t STAT_CLIP_AMMO_ICON = ( STATS_GAME_OFFSET + 19 );
 
+static constexpr int32_t STAT_WEAPON_FLAGS = ( STATS_GAME_OFFSET + 20 );
+
 //#define STAT_SHOW_SCORES        19
+
+
+/**
+*	@brief	Actual flags we can set for STAT_WEAPON_FLAGS stats.
+**/
+static constexpr int32_t STAT_WEAPON_FLAGS_IS_AIMING = BIT( 0 );

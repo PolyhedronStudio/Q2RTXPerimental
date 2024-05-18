@@ -1829,13 +1829,17 @@ static void SCR_DrawPause( void ) {
 }
 
 static void SCR_DrawCrosshair( void ) {
-    int x, y;
-
-    if ( !scr_crosshair->integer )
+    if ( !scr_crosshair->integer ) {
         return;
+    }
 
-    x = ( scr.hud_width - scr.crosshair_width ) / 2;
-    y = ( scr.hud_height - scr.crosshair_height ) / 2;
+    // Don't show when 'is aiming' weapon mode is true.
+    if ( clgi.client->predictedState.currentPs.stats[ STAT_WEAPON_FLAGS ] & STAT_WEAPON_FLAGS_IS_AIMING ) {
+        return;
+    }
+
+    const int32_t x = ( scr.hud_width - scr.crosshair_width ) / 2;
+    const int32_t y = ( scr.hud_height - scr.crosshair_height ) / 2;
 
     clgi.R_SetColor( scr.crosshair_color.u32 );
 
@@ -1893,10 +1897,10 @@ static void SCR_Draw2D( void ) {
 
     // WID: TODO: Very ugly hack for now. This needs to be a callback to the weapon code itself.
     // P_Weapon_DrawCrosshair?
-    if ( clgi.Key_IsDown( K_MOUSE2 ) < 1 ) {
+    //if ( clgi.Key_IsDown( K_MOUSE2 ) < 1 ) {
         // Crosshair has its own color and alpha.
         SCR_DrawCrosshair();
-    }
+    //}
 
     // The rest of 2D elements share common alpha.
     clgi.R_ClearColor();

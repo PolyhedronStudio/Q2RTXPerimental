@@ -631,8 +631,6 @@ void SP_monster_brain(edict_t *self) {
     self->monsterinfo.search = brain_search;
     self->monsterinfo.idle = brain_idle;
 
-    self->monsterinfo.power_armor_power = 100;
-
     gi.linkentity(self);
 
     M_SetAnimation( self, &brain_move_stand );

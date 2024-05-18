@@ -665,9 +665,6 @@ typedef struct {
     int         lefty;
     sg_time_t	idle_time;
     int         linkcount;
-
-    int         power_armor_type;
-    int         power_armor_power;
 } monsterinfo_t;
 
 
@@ -846,7 +843,6 @@ gitem_t *FindItemByClassname(const char *classname);
 edict_t *Drop_Item(edict_t *ent, gitem_t *item);
 void SetRespawn(edict_t *ent, float delay);
 void SpawnItem(edict_t *ent, gitem_t *item);
-int ArmorIndex(edict_t *ent);
 int PowerArmorType(edict_t *ent);
 gitem_t *GetItemByIndex(int index);
 const bool Add_Ammo(edict_t *ent, gitem_t *item, int count);
@@ -1221,14 +1217,14 @@ struct gclient_s {
 	// Set when we want to switch weapons.
 	gitem_t *newweapon;
 
-	//! Weapon cannot fire until this time is up.
-	sg_time_t weapon_fire_finished;
-	//! Time between processing individual animation frames.
-	sg_time_t weapon_think_time;
-	//! If we latched fire between server frames but before
-	//! the weapon fire finish has elapsed, we'll "press" it
-	//! automatically when we have a chance.
-	bool weapon_fire_buffered;
+	////! Weapon cannot fire until this time is up.
+	//sg_time_t weapon_fire_finished;
+	////! Time between processing individual animation frames.
+	//sg_time_t weapon_think_time;
+	////! If we latched fire between server frames but before
+	////! the weapon fire finish has elapsed, we'll "press" it
+	////! automatically when we have a chance.
+	//bool weapon_fire_buffered;
     //! If true, the weapon thinking process has been executed by a 
     //! usercmd_t in ClientThink.
 	bool weapon_thunk;
@@ -1262,8 +1258,6 @@ struct gclient_s {
     struct {
         //! Stores the client's original FOV.
         float clientFieldOfView;
-        //! Stores the weapon's actual FOV.
-        float aimFieldOfView;
 
         //! The 'mode' is what the weapon is actually doing during its current 'state'.
         weapon_mode_t mode;
@@ -1279,8 +1273,6 @@ struct gclient_s {
         struct {
             //! If true, the weapon is using secondary fire to engage in 'aim' mode.
             qboolean isAiming;
-            //! The aiming field of view.
-            float aimFov;
         } aimState;
 
         //! Stores the 'Weapon Animation' data, which if still actively being processed
@@ -1339,9 +1331,7 @@ struct gclient_s {
     **/
     float       damage_alpha;
     float       bonus_alpha;
-    
     vec3_t      damage_blend;
-    
     float       bobtime;            // Store it, so we know where we're at (To Prevent off-ground from changing it).
     
     /**
@@ -1361,7 +1351,6 @@ struct gclient_s {
 	*   Misc:
 	**/
 	sg_time_t		next_drown_time;
-    int32_t         breather_sound;
 
 	/**
     *	Animation Related:
@@ -1457,9 +1446,12 @@ struct edict_s {
     char        *combattarget;
     edict_t     *target_ent;
 
-    float       speed, accel, decel;
+    float       speed;
+    float       accel;
+    float       decel;
     vec3_t      movedir;
-    vec3_t      pos1, pos2;
+    vec3_t      pos1;
+    vec3_t      pos2;
 
     vec3_t      velocity;
     vec3_t      avelocity;
@@ -1473,7 +1465,7 @@ struct edict_s {
     float       yaw_speed;
     float       ideal_yaw;
 
-    sg_time_t         nextthink;
+    sg_time_t   nextthink;
     void        ( *postspawn )( edict_t *ent );
     void        ( *prethink )( edict_t *ent );
     void        ( *think )( edict_t *self );
@@ -1484,11 +1476,11 @@ struct edict_s {
     void        ( *pain )( edict_t *self, edict_t *other, float kick, int damage );
     void        ( *die )( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 
-	sg_time_t		touch_debounce_time;        // are all these legit?  do we need more/less of them?
-	sg_time_t		pain_debounce_time;
-	sg_time_t		damage_debounce_time;
-    sg_time_t		fly_sound_debounce_time;    // move to clientinfo
-	sg_time_t		last_move_time;
+	sg_time_t   touch_debounce_time;        // are all these legit?  do we need more/less of them?
+	sg_time_t   pain_debounce_time;
+	sg_time_t   damage_debounce_time;
+    sg_time_t   fly_sound_debounce_time;    // move to clientinfo
+	sg_time_t   last_move_time;
 
     int32_t     health;
     int32_t     max_health;

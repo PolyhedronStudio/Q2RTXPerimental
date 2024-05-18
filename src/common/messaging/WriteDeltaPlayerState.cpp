@@ -57,7 +57,6 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 	//out->gunangles[ 2 ] = ANGLE2SHORT( in->gunangles[ 2 ] );// WID: new-pmove OFFSET2CHAR( in->gunangles[ 2 ] );
 	out->gunindex = in->gunindex;
 	out->gunframe = in->gunframe;
-	out->gunrate = ( in->gunrate == 10 ) ? 0 : in->gunrate;
 
 	out->screen_blend[ 0 ] = BLEND2BYTE( in->screen_blend[ 0 ] );
 	out->screen_blend[ 1 ] = BLEND2BYTE( in->screen_blend[ 1 ] );
@@ -143,9 +142,6 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	}
 	if ( to->gunindex != from->gunindex ) {
 		pflags |= PS_WEAPONINDEX;
-	}
-	if ( to->gunrate != from->gunrate ) {
-		pflags |= PS_WEAPONRATE;
 	}
 
 
@@ -238,9 +234,6 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		//MSG_WriteInt16( to->gunangles[ 0 ] );
 		//MSG_WriteInt16( to->gunangles[ 1 ] );
 		//MSG_WriteInt16( to->gunangles[ 2 ] );
-	}
-	if ( pflags & PS_WEAPONRATE ) {
-		MSG_WriteInt8( to->gunrate );
 	}
 	if ( pflags & PS_BLEND ) {
 		MSG_WriteUint8( to->screen_blend[ 0 ] );

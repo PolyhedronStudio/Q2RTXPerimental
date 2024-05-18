@@ -128,8 +128,7 @@ typedef struct {
     uint32_t gunindex;
     //! Current weapon model's frame.
     uint32_t gunframe;
-    //! hz tickrate for gun logic which is coupled to animation frames.
-    int32_t gunrate;
+
 
     /**
     *   Screen State:

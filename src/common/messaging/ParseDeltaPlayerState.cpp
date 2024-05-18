@@ -132,9 +132,6 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		//to->gunangles[ 1 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
 		//to->gunangles[ 2 ] = MSG_ReadAngle16( ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
 	}
-	if ( flags & PS_WEAPONRATE ) {
-		to->gunrate = MSG_ReadUint8( );
-	}
 	if ( flags & PS_BLEND ) {
 		to->screen_blend[ 0 ] = MSG_ReadUint8( ) / 255.0f;
 		to->screen_blend[ 1 ] = MSG_ReadUint8( ) / 255.0f;

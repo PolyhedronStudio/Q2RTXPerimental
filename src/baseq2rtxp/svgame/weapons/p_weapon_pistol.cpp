@@ -356,8 +356,6 @@ void Weapon_Pistol( edict_t *ent ) {
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame ) {
                 //! Engage aiming mode.
                 ent->client->weaponState.aimState.isAiming = true;
-                //! Set a FOV of 45 for pistol.
-                ent->client->weaponState.aimState.aimFov = 45;
             }
         // Reload Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_RELOADING ) {

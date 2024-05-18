@@ -446,26 +446,30 @@ void G_SetStats(edict_t *ent) {
         ent->client->ps.stats[ STAT_CLIP_AMMO ] = ent->client->pers.weapon_clip_ammo[ clip_ammo_item_index ];
     }
     //
-    // IsAiming
+    // WeaponFlags/IsAiming
     //
-    //if ( ent->client->weaponState.aimState.isAiming == true ) {
-    //    ent->client->ps.stats[ STAT_AIMING_FOV ] = ent->client->weaponState.aimState.isAimingFov;
-    //} else {
-    //    ent->client->ps.stats[ STAT_AIMING_FOV ] = 0;
-    //}
-
+    int32_t stat_weapon_flags = 0;
+    // Apply IS_AIMING flag if we're weaponStating as AIMING IN or isAiming == true.
+    if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN || ent->client->weaponState.aimState.isAiming == true ) {
+        stat_weapon_flags |= STAT_WEAPON_FLAGS_IS_AIMING;
+        //ent->client->ps.stats[ STAT_WEAPON_FLAGS ] = 1;
+    }
+    ent->client->ps.stats[ STAT_WEAPON_FLAGS ] = stat_weapon_flags;
+    
     //
     // Armor
     //
-    index = ArmorIndex(ent);
-    if (index) {
-        item = GetItemByIndex(index);
-        ent->client->ps.stats[STAT_ARMOR_ICON] = gi.imageindex(item->icon);
-        ent->client->ps.stats[STAT_ARMOR] = ent->client->pers.inventory[index];
-    } else {
+    //index = ArmorIndex(ent);
+    //if (index) {
+    //    item = GetItemByIndex(index);
+    //    if ( item && item->flags == ITEM_FLAG_ARMOR ) {
+    //        ent->client->ps.stats[ STAT_ARMOR_ICON ] = gi.imageindex( item->icon );
+    //        ent->client->ps.stats[ STAT_ARMOR ] = ent->client->pers.inventory[ index ];
+    //    }
+    //} else {
         ent->client->ps.stats[STAT_ARMOR_ICON] = 0;
         ent->client->ps.stats[STAT_ARMOR] = 0;
-    }
+    //}
 
     //
     // Pickup Message

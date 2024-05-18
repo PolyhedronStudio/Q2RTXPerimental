@@ -109,7 +109,6 @@ extern "C" {
 		//int16_t		gunoffset[3]; // WID: new-pmove //int8_t          gunoffset[3];
 		uint32_t		gunindex;
 		uint32_t		gunframe;
-		int8_t			gunrate;
 		//uint8_t         damage_blend[ 4 ];
 		uint8_t         screen_blend[4];
 		uint8_t         fov;

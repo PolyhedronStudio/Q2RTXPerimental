@@ -73,12 +73,15 @@ static const save_field_t entityfields[] = {
     I( s.number ),
     //S( s.client ),
     I( s.entityType ),
+
     V( s.origin ),
     V( s.angles ),
     V( s.old_origin ),
 
     I( s.solid ),
     I( s.clipmask ),
+    I( s.clipmask ),
+    I( s.hullContents ),
     I( s.ownerNumber ),
 
     I( s.modelindex ),
@@ -112,6 +115,7 @@ static const save_field_t entityfields[] = {
     V(size),
     I(solid),
     I(clipmask),
+    I(hullContents),
     E(owner),
 
     I(spawn_count),
@@ -222,7 +226,6 @@ static const save_field_t entityfields[] = {
     I(style),
     L(customLightStyle),
 
-
     T(item),
 
     V(moveinfo.start_origin),
@@ -282,9 +285,6 @@ static const save_field_t entityfields[] = {
 	I64( monsterinfo.idle_time ),// WID: 64-bit-frame FT(monsterinfo.idle_time),
 	I( monsterinfo.linkcount ),
 
-    I(monsterinfo.power_armor_type),
-    I(monsterinfo.power_armor_power),
-
 	// WID: C++20: Replaced {0}
     {}
 #undef _OFS
@@ -300,6 +300,7 @@ static const save_field_t levelfields[] = {
 	SZ( nextmap, MAX_QPATH ),
 
 	I64( intermission_framenum ),
+
 	L( changemap ),
 	I64( exitintermission ),
 	V( intermission_origin ),
@@ -325,6 +326,8 @@ static const save_field_t levelfields[] = {
 	I( total_monsters ),
 	I( killed_monsters ),
 
+    E( current_entity ),
+
 	I( body_que ),
 
 	I( power_cubes ),
@@ -337,13 +340,12 @@ static const save_field_t levelfields[] = {
 static const save_field_t clientfields[] = {
 #define _OFS CLOFS
 	I( ps.pmove.pm_type ),
-
+    S( ps.pmove.pm_flags ),
+    S( ps.pmove.pm_time ),
+    S( ps.pmove.gravity ),
 	V( ps.pmove.origin ),
+    V( ps.pmove.delta_angles ),
 	V( ps.pmove.velocity ),
-	S( ps.pmove.pm_flags ),
-	S( ps.pmove.pm_time ),
-	S( ps.pmove.gravity ),
-	V( ps.pmove.delta_angles ),
     B( ps.pmove.viewheight ),
 
 	V( ps.viewangles ),
@@ -354,16 +356,12 @@ static const save_field_t clientfields[] = {
 	V( ps.gunoffset ),
 	I( ps.gunindex ),
 	I( ps.gunframe ),
-    
-    I( ps.gunrate ),
 
     //FA( ps.damage_blend, 4 ),
 	FA( ps.screen_blend, 4 ),
-
 	F( ps.fov ),
-
 	I( ps.rdflags ),
-
+    I( ps.bobCycle ),
 	IA( ps.stats, MAX_STATS ),
 
 	SZ( pers.userinfo, MAX_INFO_STRING ),
@@ -379,16 +377,16 @@ static const save_field_t clientfields[] = {
 
 	I( pers.selected_item ),
 	IA( pers.inventory, MAX_ITEMS ),
+    
+    T( pers.weapon ),
+    T( pers.lastweapon ),
+    IA( pers.weapon_clip_ammo, MAX_ITEMS ),
 
 	I( pers.ammoCapacities.pistol ),
 	I( pers.ammoCapacities.rifle ),
 	I( pers.ammoCapacities.smg ),
 	I( pers.ammoCapacities.sniper ),
 	I( pers.ammoCapacities.shotgun ),
-
-	T( pers.weapon ),
-	T( pers.lastweapon ),
-    IA( pers.weapon_clip_ammo, MAX_ITEMS ),
 
 	I( pers.power_cubes ),
 	I( pers.score ),
@@ -403,9 +401,22 @@ static const save_field_t clientfields[] = {
 	O( showhelp ),
 	O( showhelpicon ),
 
+    //I( buttons ),
+    //I( oldbuttons ),
+    //I( latched_buttons ),
+
 	I( ammo_index ),
 
 	T( newweapon ),
+
+    O( weapon_thunk ),
+
+    I64( empty_weapon_click_sound ),
+    O( grenade_blew_up ),
+    I64( grenade_time ),
+    I64( grenade_finished_time ),
+    I( silencer_shots ),
+    I( weapon_sound ),
 
 	I( damage_armor ),
 	I( damage_parmor ),
@@ -415,51 +426,51 @@ static const save_field_t clientfields[] = {
 
 	F( killer_yaw ),
 
+    F( weaponState.clientFieldOfView ),
 	I( weaponState.mode ),
     I( weaponState.canChangeMode ),
+    I( weaponState.aimState.isAiming ),
     I( weaponState.animation.currentFrame ),
     I( weaponState.animation.startFrame ),
     I( weaponState.animation.endFrame ),
+    I64( weaponState.timers.lastPrimaryFire ),
+    I64( weaponState.timers.lastAimedFire ),
+    I64( weaponState.timers.lastDrawn ),
+    I64( weaponState.timers.lastHolster ),
 
-	V( weaponKicks.offsetAngles ),
+    V( v_angle ), V( v_forward ),
+    V( weaponKicks.offsetAngles ),
 	V( weaponKicks.offsetOrigin ),
-	F( v_dmg_roll ),
-	F( v_dmg_pitch ),
-	F( v_dmg_time ),
-	I64( fall_time ), // WID: 64-bit-frame
+
+    I64( v_dmg_time ),
+    I64( fall_time ),
+    I64( quake_time ),
+	F( v_dmg_roll ), F( v_dmg_pitch ),
 	F( fall_value ),
+
 	F( damage_alpha ),
 	F( bonus_alpha ),
 	V( damage_blend ),
-	V( v_angle ),
 	F( bobtime ),
+    I64( last_stair_step_frame ),
+    V( last_ladder_pos ),
+    I64( last_ladder_sound ),
+
 	V( oldviewangles ),
 	V( oldvelocity ),
     E( oldgroundentity ),
-
-	FT( next_drown_time ),
-	I( old_waterlevel ),
-	I( breather_sound ),
+    I( old_waterlevel ),
+	I64( next_drown_time ),
 
 	I( anim_end ),
 	I( anim_priority ),
 	O( anim_duck ),
 	O( anim_run ),
+    I64( anim_time ),
 
-	// powerup timers
-	//I64( quad_time ), // WID: 64-bit-frame
-	//I64( invincible_time ), // WID: 64-bit-frame
-	//I64( breather_time ), // WID: 64-bit-frame
-	//I64( enviro_time ), // WID: 64-bit-frame
     I64( pickup_msg_time ), // WID: 64-bit-frame
 
-	O( grenade_blew_up ),
-	I64( grenade_time ), // WID: 64-bit-frame
-	I( silencer_shots ),
-	I( weapon_sound ),
-
-
-	// WID: C++20: Replaced {0}
+    // WID: C++20: Replaced {0}
 	{}
 #undef _OFS
 };
@@ -468,9 +479,11 @@ static const save_field_t gamefields[] = {
 #define _OFS GLOFS
     SZ(helpmessage1, 512),
     SZ(helpmessage2, 512),
+    I( helpchanged ),
 
     I(maxclients),
     I(maxentities),
+    I(gamemode),
 
     I(serverflags),
 

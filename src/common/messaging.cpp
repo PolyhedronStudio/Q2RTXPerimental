@@ -583,31 +583,39 @@ static inline void SHOWBITS( const char *x ) {
 #if USE_CLIENT
 void MSG_ShowDeltaEntityBits( const uint64_t bits ) {
 	#define S(b,s) if(bits&U_##b) SHOWBITS(s)
+	S( ORIGIN1, "origin[0]" );
+	S( ORIGIN2, "origin[1]" );
+	S( ANGLE2, "angles[1]" );
+	if ( bits & U_FRAME )
+		SHOWBITS( "frame" );
+	S( EVENT, "event" );
+	if ( bits & U_SKIN )
+		SHOWBITS( "skinnum" );
+	S( SOLID, "solid" );
+	if ( bits & U_SOUND )
+		SHOWBITS( "sound" );
+	S( ORIGIN3, "origin[2]" );
+	S( ANGLE1, "angles[0]" );
 	S( MODEL, "modelindex" );
+	if ( bits & U_RENDERFX )
+		SHOWBITS( "renderfx" );
+	if ( bits & U_EFFECTS )
+		SHOWBITS( "effects" );
+	S( OLDORIGIN, "old_origin" );
 	S( MODEL2, "modelindex2" );
 	S( MODEL3, "modelindex3" );
 	S( MODEL4, "modelindex4" );
+	S( ENTITY_TYPE, "entityType" );
+	S( SPOTLIGHT_RGB, "spotlight_rgb" );
+	S( SPOTLIGHT_INTENSITY, "spotlight_intensity" );
+	S( SPOTLIGHT_ANGLE_WIDTH, "spotlight_angle_width" );
+	S( SPOTLIGHT_ANGLE_FALLOFF, "spotlight_angle_falloff" );
+	S( CLIPMASK, "clipMask" );
+	S( HULL_CONTENTS, "hullContents" );
+	S( OWNER, "owner" );
+	S( OLD_FRAME, "old_frame" );
+	S( BOUNDINGBOX, "boundingbox" );
 
-	if ( bits & U_FRAME )
-		SHOWBITS( "frame" );
-	if ( bits & U_SKIN )
-		SHOWBITS( "skinnum" );
-	if ( bits & U_EFFECTS )
-		SHOWBITS( "effects" );
-	if ( bits & U_RENDERFX )
-		SHOWBITS( "renderfx" );
-
-	S( ORIGIN1, "origin[0]" );
-	S( ORIGIN2, "origin[1]" );
-	S( ORIGIN3, "origin[2]" );
-	S( ANGLE1, "angles[0]" );
-	S( ANGLE2, "angles[1]" );
-	S( ANGLE3, "angles[2]" );
-	S( OLDORIGIN, "old_origin" );
-	if ( bits & U_SOUND )
-		SHOWBITS( "sound" );
-	S( EVENT, "event" );
-	S( SOLID, "solid" );
 	#undef S
 }
 void MSG_ShowDeltaPlayerstateBits( const uint64_t flags ) {
@@ -619,15 +627,16 @@ void MSG_ShowDeltaPlayerstateBits( const uint64_t flags ) {
 	S( M_FLAGS, "pmove.pm_flags" );
 	S( M_GRAVITY, "pmove.gravity" );
 	S( M_DELTA_ANGLES, "pmove.delta_angles" );
-	S( VIEWOFFSET, "viewoffset" );
+	S( M_VIEWHEIGHT, "viewheight" );
+	S( BOB_CYCLE, "bobCycle" );
 	S( VIEWANGLES, "viewangles" );
 	S( KICKANGLES, "kick_angles" );
-	S( WEAPONINDEX, "gunindex" );
-	S( WEAPONFRAME, "gunframe" );
-	S( WEAPONRATE, "gunrate" );
+	S( VIEWOFFSET, "viewoffset" );
 	S( BLEND, "screen_blend" );
-	S( FOV, "fov" );
 	S( RDFLAGS, "rdflags" );
+	S( WEAPONFRAME, "gunframe" );
+	S( WEAPONINDEX, "gunindex" );
+	S( FOV, "fov" );
 	#undef S
 }
 void MSG_ShowDeltaUserCommandBits( const int32_t bits ) {
@@ -653,11 +662,6 @@ const char *MSG_ServerCommandString( const int32_t cmd ) {
 		default: return "UNKNOWN COMMAND";
 			#define S(x) case svc_##x: return "svc_" #x;
 			S( bad )
-				S( muzzleflash )
-				S( muzzleflash2 )
-				S( temp_entity )
-				S( layout )
-				S( inventory )
 				S( nop )
 				S( disconnect )
 				S( reconnect )
@@ -673,9 +677,19 @@ const char *MSG_ServerCommandString( const int32_t cmd ) {
 				S( packetentities )
 				S( deltapacketentities )
 				S( frame )
+				S( portalbits )
+				S( set_portalbit )
 				S( zpacket )
 				S( zdownload )
 				S( gamestate )
+				S( configstringstream )
+				S( baselinestream )
+				S( muzzleflash )
+				S( muzzleflash2 )
+				S( temp_entity )
+				S( layout )
+				S( inventory )
+				S( svgame )
 			#undef S
 	}
 }

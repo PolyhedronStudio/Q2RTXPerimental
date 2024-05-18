@@ -296,6 +296,9 @@ void Drop_Ammo(edict_t *ent, gitem_t *item) {
 *
 *
 **/
+/**
+*   @brief
+**/
 void MegaHealth_think(edict_t *self)
 {
     if (self->owner->health > self->owner->max_health) {
@@ -309,7 +312,9 @@ void MegaHealth_think(edict_t *self)
     else
         G_FreeEdict(self);
 }
-
+/**
+*   @brief
+**/
 const bool Pickup_Health(edict_t *ent, edict_t *other)
 {
     if (!(ent->style & HEALTH_IGNORE_MAX))
@@ -336,177 +341,6 @@ const bool Pickup_Health(edict_t *ent, edict_t *other)
     }
 
     return true;
-}
-
-
-
-/**
-*
-*
-*   Armor:
-*
-*
-**/
-int ArmorIndex(edict_t *ent)
-{
-    if (!ent->client)
-        return 0;
-
-    if (ent->client->pers.inventory[jacket_armor_index] > 0)
-        return jacket_armor_index;
-
-    if (ent->client->pers.inventory[combat_armor_index] > 0)
-        return combat_armor_index;
-
-    if (ent->client->pers.inventory[body_armor_index] > 0)
-        return body_armor_index;
-
-    return 0;
-}
-
-const bool Pickup_Armor(edict_t *ent, edict_t *other)
-{
-    int             old_armor_index;
-    gitem_armor_t   *oldinfo;
-    gitem_armor_t   *newinfo;
-    int             newcount;
-    float           salvage;
-    int             salvagecount;
-
-    // get info on new armor
-    newinfo = (gitem_armor_t *)ent->item->info;
-
-    old_armor_index = ArmorIndex(other);
-
-    // handle armor shards specially
-    if (ent->item->tag == ITEM_TAG_ARMOR_SHARD) {
-        if (!old_armor_index)
-            other->client->pers.inventory[jacket_armor_index] = 2;
-        else
-            other->client->pers.inventory[old_armor_index] += 2;
-    }
-
-    // if player has no armor, just use it
-    else if (!old_armor_index) {
-        other->client->pers.inventory[ITEM_INDEX(ent->item)] = newinfo->base_count;
-    }
-
-    // use the better armor
-    else {
-        // get info on old armor
-        if (old_armor_index == jacket_armor_index)
-            oldinfo = &jacketarmor_info;
-        else if (old_armor_index == combat_armor_index)
-            oldinfo = &combatarmor_info;
-        else // (old_armor_index == body_armor_index)
-            oldinfo = &bodyarmor_info;
-
-        if (newinfo->normal_protection > oldinfo->normal_protection) {
-            // calc new armor values
-            salvage = oldinfo->normal_protection / newinfo->normal_protection;
-            salvagecount = salvage * other->client->pers.inventory[old_armor_index];
-            newcount = newinfo->base_count + salvagecount;
-            if (newcount > newinfo->max_count)
-                newcount = newinfo->max_count;
-
-            // zero count of old armor so it goes away
-            other->client->pers.inventory[old_armor_index] = 0;
-
-            // change armor to new item with computed value
-            other->client->pers.inventory[ITEM_INDEX(ent->item)] = newcount;
-        } else {
-            // calc new armor values
-            salvage = newinfo->normal_protection / oldinfo->normal_protection;
-            salvagecount = salvage * newinfo->base_count;
-            newcount = other->client->pers.inventory[old_armor_index] + salvagecount;
-            if (newcount > oldinfo->max_count)
-                newcount = oldinfo->max_count;
-
-            // if we're already maxed out then we don't need the new armor
-            if (other->client->pers.inventory[old_armor_index] >= newcount)
-                return false;
-
-            // update current armor value
-            other->client->pers.inventory[old_armor_index] = newcount;
-        }
-    }
-
-    if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SetRespawn(ent, 20);
-
-    return true;
-}
-
-
-
-/**
-*
-* 
-*   Power Armor: 
-* 
-* 
-**/
-int PowerArmorType(edict_t *ent)
-{
-    //if (!ent->client)
-    //    return POWER_ARMOR_NONE;
-
-    //if (!(ent->flags & FL_POWER_ARMOR))
-    //    return POWER_ARMOR_NONE;
-
-    //if (ent->client->pers.inventory[power_shield_index] > 0)
-    //    return POWER_ARMOR_SHIELD;
-
-    //if (ent->client->pers.inventory[power_screen_index] > 0)
-    //    return POWER_ARMOR_SCREEN;
-
-    //return POWER_ARMOR_NONE;
-    return 0;
-}
-
-void Use_PowerArmor(edict_t *ent, gitem_t *item)
-{
-    //int     index;
-
-    //if (ent->flags & FL_POWER_ARMOR) {
-    //    ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_POWER_ARMOR );
-    //    gi.sound(ent, CHAN_AUTO, gi.soundindex("misc/power2.wav"), 1, ATTN_NORM, 0);
-    //} else {
-    //    index = ITEM_INDEX(FindItem("cells"));
-    //    if (!ent->client->pers.inventory[index]) {
-    //        gi.cprintf(ent, PRINT_HIGH, "No cells for power armor.\n");
-    //        return;
-    //    }
-    //    ent->flags = static_cast<ent_flags_t>( ent->flags | FL_POWER_ARMOR );
-
-    //    gi.sound(ent, CHAN_AUTO, gi.soundindex("misc/power1.wav"), 1, ATTN_NORM, 0);
-    //}
-}
-
-const bool Pickup_PowerArmor(edict_t *ent, edict_t *other)
-{
-    //int     quantity;
-
-    //quantity = other->client->pers.inventory[ITEM_INDEX(ent->item)];
-
-    //other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
-
-    //if (deathmatch->value) {
-    //    if (!(ent->spawnflags & DROPPED_ITEM))
-    //        SetRespawn(ent, ent->item->quantity);
-    //    // auto-use for DM only if we didn't already have one
-    //    if (!quantity)
-    //        ent->item->use(other, ent->item);
-    //}
-
-    return true;
-}
-
-void Drop_PowerArmor(edict_t *ent, gitem_t *item)
-{
-    //if ((ent->flags & FL_POWER_ARMOR) && (ent->client->pers.inventory[ITEM_INDEX(item)] == 1))
-    //    Use_PowerArmor(ent, item);
-    //Drop_General(ent, item);
 }
 
 
@@ -815,18 +649,18 @@ void SpawnItem(edict_t *ent, gitem_t *item)
 
     // some items will be prevented in deathmatch
     if (deathmatch->value) {
-        if ((int)dmflags->value & DF_NO_ARMOR) {
-            if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor) {
-                G_FreeEdict(ent);
-                return;
-            }
-        }
-        if ((int)dmflags->value & DF_NO_ITEMS) {
-            //if (item->pickup == Pickup_Powerup) {
-            //    G_FreeEdict(ent);
-            //    return;
-            //}
-        }
+        //if ((int)dmflags->value & DF_NO_ARMOR) {
+        //    if ( item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor) {
+        //        G_FreeEdict(ent);
+        //        return;
+        //    }
+        //}
+        //if ((int)dmflags->value & DF_NO_ITEMS) {
+        //    if (item->pickup == Pickup_Powerup) {
+        //        G_FreeEdict(ent);
+        //        return;
+        //    }
+        //}
         if ((int)dmflags->value & DF_NO_HEALTH) {
             if (item->pickup == Pickup_Health ) {
                 G_FreeEdict(ent);
@@ -878,156 +712,34 @@ gitem_t itemlist[] = {
     // ARMOR
     //
 
-    /*QUAKED item_armor_body (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        .classname = "item_armor_body",
-        .pickup = Pickup_Armor,
-        .use = NULL,
-        .drop = NULL,
-        .weaponthink = NULL,
-        .pickup_sound = "misc/ar1_pkup.wav",
-        .world_model = "models/items/armor/body/tris.md2", 
-        .world_model_flags = EF_ROTATE,
-        .view_model = NULL,
-        /* icon */      .icon = "i_bodyarmor",
-        /* pickup */    .pickup_name = "Body Armor",
-        /* width */     .count_width = 3,
-        .quantity = 0,
-        .clip_capacity = 0,
-        .ammo = NULL,
-        .flags = ITEM_FLAG_ARMOR,
-        .weapon_index = 0,
-        .info = &bodyarmor_info,
-        .tag = ITEM_TAG_ARMOR_BODY,
-        /* precache */ .precaches = ""
-    },
-
-    /*QUAKED item_armor_combat (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "item_armor_combat",
-        Pickup_Armor,
-        NULL,
-        NULL,
-        NULL,
-        "misc/ar1_pkup.wav",
-        "models/items/armor/combat/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_combatarmor",
-        /* pickup */    "Combat Armor",
-        /* width */     3,
-        0,
-        0,
-        NULL,
-        ITEM_FLAG_ARMOR,
-        0,
-        &combatarmor_info,
-        ITEM_TAG_ARMOR_COMBAT,
-        /* precache */ ""
-    },
-
-    /*QUAKED item_armor_jacket (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "item_armor_jacket",
-        Pickup_Armor,
-        NULL,
-        NULL,
-        NULL,
-        "misc/ar1_pkup.wav",
-        "models/items/armor/jacket/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_jacketarmor",
-        /* pickup */    "Jacket Armor",
-        /* width */     3,
-        0,
-        0,
-        NULL,
-        ITEM_FLAG_ARMOR,
-        0,
-        &jacketarmor_info,
-        ITEM_TAG_ARMOR_JACKET,
-        /* precache */ ""
-    },
-
-    /*QUAKED item_armor_shard (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "item_armor_shard",
-        Pickup_Armor,
-        NULL,
-        NULL,
-        NULL,
-        "misc/ar2_pkup.wav",
-        "models/items/armor/shard/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_jacketarmor",
-        /* pickup */    "Armor Shard",
-        /* width */     3,
-        0,
-        0,
-        NULL,
-        ITEM_FLAG_ARMOR,
-        0,
-        NULL,
-        ITEM_TAG_ARMOR_SHARD,
-        /* precache */ ""
-    },
-
-
-    /*QUAKED item_power_screen (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "item_power_screen",
-        Pickup_PowerArmor,
-        Use_PowerArmor,
-        Drop_PowerArmor,
-        NULL,
-        "misc/ar3_pkup.wav",
-        "models/items/armor/screen/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_powerscreen",
-        /* pickup */    "Power Screen",
-        /* width */     0,
-        60,
-        0,
-        NULL,
-        ITEM_FLAG_ARMOR,
-        0,
-        NULL,
-        ITEM_TAG_NONE,
-        /* precache */ ""
-    },
-
-    /*QUAKED item_power_shield (.3 .3 1) (-16 -16 -16) (16 16 16)     */
-    {
-        "item_power_shield",
-        Pickup_PowerArmor,
-        Use_PowerArmor,
-        Drop_PowerArmor,
-        NULL,
-        "misc/ar3_pkup.wav",
-        "models/items/armor/shield/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_powershield",
-        /* pickup */    "Power Shield",
-        /* width */     0,
-        60,
-        0,
-        NULL,
-        ITEM_FLAG_ARMOR,
-        0,
-        NULL,
-        ITEM_TAG_NONE,
-        /* precache */ "misc/power2.wav misc/power1.wav"
-    },
+    // QUAKED item_armor_body (.3 .3 1) (-16 -16 -16) (16 16 16)
+    //{
+    //    .classname = "item_armor_body",
+    //    .pickup = Pickup_Armor,
+    //    .use = NULL,
+    //    .drop = NULL,
+    //    .weaponthink = NULL,
+    //    .pickup_sound = "misc/ar1_pkup.wav",
+    //    .world_model = "models/items/armor/body/tris.md2", 
+    //    .world_model_flags = EF_ROTATE,
+    //    .view_model = NULL,
+    //    /* icon */      .icon = "i_bodyarmor",
+    //    /* pickup */    .pickup_name = "Body Armor",
+    //    /* width */     .count_width = 3,
+    //    .quantity = 0,
+    //    .clip_capacity = 0,
+    //    .ammo = NULL,
+    //    .flags = ITEM_FLAG_ARMOR,
+    //    .weapon_index = 0,
+    //    .info = &bodyarmor_info,
+    //    .tag = ITEM_TAG_ARMOR_BODY,
+    //    /* precache */ .precaches = ""
+    //},
 
 
     //
     // WEAPONS
     //
-
     ///* weapon_blaster (.3 .3 1) (-16 -16 -16) (16 16 16)
     //always owned, never in the world
     //*/
@@ -1060,7 +772,7 @@ gitem_t itemlist[] = {
         .drop = P_Weapon_Drop,
         .weaponthink = Weapon_Pistol,
         
-        .pickup_sound = "misc/w_pkup.wav",
+        .pickup_sound = "items/weaponry_pickup.wav",
         .world_model = "models/g_wep/pistol/tris.iqm", 
         .world_model_flags = EF_ROTATE,
         .view_model = "models/v_wep/pistol/tris.iqm",
@@ -1079,7 +791,7 @@ gitem_t itemlist[] = {
         .info = &pistolItemInfo,
         .tag = ITEM_TAG_WEAPON_PISTOL,
 
-        .precaches = "models/g_wep/pistol/tris.iqm models/v_wep/pistol/tris.iqm weapons/pistol/draw.wav weapons/pistol/holster.wav weapons/pistol/fire1.wav weapons/pistol/fire2.wav weapons/pistol/fire3.wav weapons/pistol/reload.wav"
+        .precaches = "models/g_wep/pistol/tris.iqm models/v_wep/pistol/tris.iqm items/weaponry_pickup.wav weapons/pistol/draw.wav weapons/pistol/holster.wav weapons/pistol/fire1.wav weapons/pistol/fire2.wav weapons/pistol/fire3.wav weapons/pistol/reload.wav"
     },
 
 
@@ -1093,7 +805,7 @@ gitem_t itemlist[] = {
         NULL,
         Drop_Ammo,
         NULL,
-        "misc/am_pkup.wav",
+        "items/weaponry_pickup.wav",
         "models/items/ammo/bullets_pistol/tris.iqm", 0,
         NULL,
         /* icon */      "a_bullets",
@@ -1107,7 +819,7 @@ gitem_t itemlist[] = {
         NULL,
         ITEM_TAG_AMMO_BULLETS_PISTOL,
         // Precache.
-        "models/items/ammo/bullets_pistol/tris.iqm misc/am_pkup.wav"
+        "models/items/ammo/bullets_pistol/tris.iqm items/weaponry_pickup.wav"
     },
     // QUAKED ammo_bullets_rifle (.3 .3 1) (-8 -8 -8) (8 8 8)
     {
@@ -1116,7 +828,7 @@ gitem_t itemlist[] = {
         NULL,
         Drop_Ammo,
         NULL,
-        "misc/am_pkup.wav",
+        "items/weaponry_pickup.wav",
         "models/items/ammo/bullets_rifle/tris.iqm", 0,
         NULL,
         /* icon */      "a_bullets",
@@ -1130,7 +842,7 @@ gitem_t itemlist[] = {
         NULL,
         ITEM_TAG_AMMO_BULLETS_RIFLE,
         // Precache
-        "models/items/ammo/bullets_rifle/tris.iqm misc/am_pkup.wav"
+        "models/items/ammo/bullets_rifle/tris.iqm items/weaponry_pickup.wav"
     },
     
     // QUAKED ammo_bullets_smg (.3 .3 1) (-8 -8 -8) (8 8 8)
@@ -1140,7 +852,7 @@ gitem_t itemlist[] = {
         NULL,
         Drop_Ammo,
         NULL,
-        "misc/am_pkup.wav",
+        "items/weaponry_pickup.wav",
         "models/items/ammo/bullets_smg/tris.iqm", 0,
         NULL,
         /* icon */      "a_bullets",
@@ -1154,7 +866,7 @@ gitem_t itemlist[] = {
         NULL,
         ITEM_TAG_AMMO_BULLETS_SMG,
         // Precache.
-        "models/items/ammo/bullets_smg/tris.iqm misc/am_pkup.wav"
+        "models/items/ammo/bullets_smg/tris.iqm items/weaponry_pickup.wav"
     },
 
     // QUAKED ammo_bullets_sniper (.3 .3 1) (-8 -8 -8) (8 8 8)
@@ -1164,7 +876,7 @@ gitem_t itemlist[] = {
         NULL,
         Drop_Ammo,
         NULL,
-        "misc/am_pkup.wav",
+        "items/weaponry_pickup.wav",
         "models/items/ammo/bullets_sniper/tris.iqm", 0,
         NULL,
         /* icon */      "a_bullets",
@@ -1178,7 +890,7 @@ gitem_t itemlist[] = {
         NULL,
         ITEM_TAG_AMMO_BULLETS_SNIPER,
         // Precache.
-        "models/items/ammo/bullets_sniper/tris.iqm misc/am_pkup.wav"
+        "models/items/ammo/bullets_sniper/tris.iqm items/weaponry_pickup.wav"
     },
 
     /*QUAKED ammo_shells_shotgun (.3 .3 1) (-16 -16 -16) (16 16 16)
@@ -1189,7 +901,7 @@ gitem_t itemlist[] = {
         NULL,
         Drop_Ammo,
         NULL,
-        "misc/am_pkup.wav",
+        "items/weaponry_pickup.wav",
         "models/items/ammo/shells_shotgun/tris.iqm", 0,
         NULL,
         /* icon */      "a_shells",
@@ -1204,7 +916,7 @@ gitem_t itemlist[] = {
         ITEM_TAG_AMMO_SHELLS_SHOTGUN,
         
         // Precache
-        "models/items/ammo/shells_shotgun/tris.iqm misc/am_pkup.wav"
+        "models/items/ammo/shells_shotgun/tris.iqm items/weaponry_pickup.wav"
     },
 
     //

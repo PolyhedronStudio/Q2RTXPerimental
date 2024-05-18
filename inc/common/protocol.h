@@ -82,9 +82,8 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define PS_BLEND            (1<<12)
 #define PS_RDFLAGS          (1<<13)
 #define PS_WEAPONFRAME      (1<<14)
-#define PS_WEAPONRATE       (1<<15)
-#define PS_WEAPONINDEX      (1<<16)
-#define PS_FOV              (1<<17)
+#define PS_WEAPONINDEX      (1<<15)
+#define PS_FOV              (1<<16)
 
 
 //==============================================
@@ -100,14 +99,6 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define CM_UP       (1<<5)
 #define CM_BUTTONS  (1<<6)
 #define CM_IMPULSE  (1<<7)
-
-// r1q2 button byte hacks
-#define BUTTON_MASK     (BUTTON_ATTACK|BUTTON_USE|BUTTON_ANY)
-#define BUTTON_FORWARD  4
-#define BUTTON_SIDE     8
-#define BUTTON_UP       16
-#define BUTTON_ANGLE1   32
-#define BUTTON_ANGLE2   64
 
 //==============================================
 
@@ -148,66 +139,64 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define U_MODEL2	(1<<15)
 
 // third byte
-#define U_MODEL3		(1<<16)
-#define U_MODEL4		(1<<17)
-#define U_ENTITY_TYPE		(1<<18)		// TODO: Move to other bit location.
-#define U_SPOTLIGHT_RGB		(1<<19)
-#define U_SPOTLIGHT_INTENSITY	(1<<20)
-#define U_SPOTLIGHT_ANGLE_WIDTH	(1<<21)
+#define U_MODEL3					(1<<16)
+#define U_MODEL4					(1<<17)
+#define U_ENTITY_TYPE				(1<<18)		// TODO: Move to other bit location.
+#define U_SPOTLIGHT_RGB				(1<<19)
+#define U_SPOTLIGHT_INTENSITY		(1<<20)
+#define U_SPOTLIGHT_ANGLE_WIDTH		(1<<21)
 #define U_SPOTLIGHT_ANGLE_FALLOFF	(1<<22)
-#define U_UNUSED46	(1<<23)
+#define U_CLIPMASK					(1<<23)
 
 // fourth byte
-#define U_CLIPMASK		(1<<24)
-#define U_HULL_CONTENTS	(1<<25)
-#define U_OWNER 		(1<<26)
-#define U_OLD_FRAME	(1<<27)
-//#define U_CLIENT	(1<<28)
-#define U_UNUSED6	(1<<28)
-//#define U_UNUSED7	(1<<29)
-#define U_BOUNDINGBOX (1<<29)
-#define U_UNUSED8	(1<<30)
-#define U_UNUSED9	(1<<31)
+#define U_HULL_CONTENTS	(1<<24)
+#define U_OWNER 		(1<<25)
+#define U_OLD_FRAME		(1<<26)
+#define U_BOUNDINGBOX	(1<<27)
+#define U_UNUSED1		(1<<28)
+#define U_UNUSED2		(1<<29)
+#define U_UNUSED3		(1<<30)
+#define U_UNUSED4		(1<<31)
 
 // fifth byte
-#define U_UNUSED40		(1<<32)
-#define U_UNUSED41		(1<<33)
-#define U_UNUSED10		(1<<34)
-#define U_UNUSED11		(1<<35)
-#define U_UNUSED12		(1<<36)
-#define U_UNUSED13		(1<<37)
-#define U_UNUSED14		(1<<38)
-#define U_UNUSED15		(1<<39)
+#define U_UNUSED5		(1<<32)
+#define U_UNUSED6		(1<<33)
+#define U_UNUSED7		(1<<34)
+#define U_UNUSED8		(1<<35)
+#define U_UNUSED9		(1<<36)
+#define U_UNUSED10		(1<<37)
+#define U_UNUSED11		(1<<38)
+#define U_UNUSED12		(1<<39)
 
 // sixth byte
-#define U_UNUSED16		(1<<40)
-#define U_UNUSED17		(1<<41)
-#define U_UNUSED18		(1<<42)
-#define U_UNUSED19		(1<<43)
-#define U_UNUSED20		(1<<44)
-#define U_UNUSED21		(1<<45)
-#define U_UNUSED22		(1<<46)
-#define U_UNUSED23		(1<<47)
+#define U_UNUSED13		(1<<40)
+#define U_UNUSED14		(1<<41)
+#define U_UNUSED15		(1<<42)
+#define U_UNUSED16		(1<<43)
+#define U_UNUSED17		(1<<44)
+#define U_UNUSED18		(1<<45)
+#define U_UNUSED19		(1<<46)
+#define U_UNUSED20		(1<<47)
 
 // seventh byte
-#define U_UNUSED24		(1<<48)
-#define U_UNUSED25		(1<<49)
-#define U_UNUSED26		(1<<50)
-#define U_UNUSED27		(1<<51)
-#define U_UNUSED28		(1<<52)
-#define U_UNUSED29		(1<<53)
-#define U_UNUSED30		(1<<54)
-#define U_UNUSED31		(1<<55)
+#define U_UNUSED21		(1<<48)
+#define U_UNUSED22		(1<<49)
+#define U_UNUSED23		(1<<50)
+#define U_UNUSED24		(1<<51)
+#define U_UNUSED25		(1<<52)
+#define U_UNUSED26		(1<<53)
+#define U_UNUSED27		(1<<54)
+#define U_UNUSED28		(1<<55)
 
 // eigth byte
-#define U_UNUSED32		(1<<56)
-#define U_UNUSED33		(1<<57)
-#define U_UNUSED34		(1<<58)
-#define U_UNUSED35		(1<<59)
-#define U_UNUSED36		(1<<60)
-#define U_UNUSED37		(1<<61)
-#define U_UNUSED38		(1<<62)
-#define U_UNUSED39		(1<<63)
+#define U_UNUSED29		(1<<56)
+#define U_UNUSED30		(1<<57)
+#define U_UNUSED31		(1<<58)
+#define U_UNUSED32		(1<<59)
+#define U_UNUSED33		(1<<60)
+#define U_UNUSED34		(1<<61)
+#define U_UNUSED35		(1<<62)
+#define U_UNUSED36		(1<<63)
 
 // ==============================================================
 
