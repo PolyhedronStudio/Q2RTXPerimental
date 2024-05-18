@@ -219,8 +219,6 @@ static const save_field_t entityfields[] = {
     V(move_origin),
     V(move_angles),
 
-    I(light_level),
-
     I(style),
     L(customLightStyle),
 

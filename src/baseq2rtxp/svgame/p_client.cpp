@@ -1900,10 +1900,6 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     client->latched_buttons |= client->buttons & ~client->oldbuttons;
 
 
-    // WID: TODO: Remove this nonsense(at least, in RTX it is.)
-	// Save light level the player is standing on for monster sighting AI
-	ent->light_level = 255;
-
     /**
     *   Handle the 'attack' button.
     **/

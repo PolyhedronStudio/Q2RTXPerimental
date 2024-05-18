@@ -82,8 +82,9 @@ void MoveClientToIntermission(edict_t *ent)
 
 void BeginIntermission(edict_t *targ)
 {
-    int     i, n;
-    edict_t *ent, *client;
+    int     i = 0;
+    edict_t *ent = nullptr;
+    edict_t *client = nullptr;
 
     if (level.intermission_framenum)
         return;     // already activated
@@ -403,8 +404,7 @@ void Cmd_Help_f(edict_t *ent)
 **/
 void G_SetStats(edict_t *ent) {
     gitem_t     *item;
-    int         index, cells;
-    int         power_armor_type;
+    int         index;
 
     //
     // Health

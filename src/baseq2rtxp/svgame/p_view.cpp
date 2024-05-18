@@ -229,9 +229,9 @@ Auto pitching on slopes?
 */
 void SV_CalcViewOffset( edict_t *ent ) {
 	//float *angles;
-	float       bob;
+	//float       bob;
 	float       ratio;
-	float       delta;
+	//float       delta;
 
 	Vector3 viewOriginOffset = QM_Vector3Zero();
 	Vector3 viewAnglesOffset = ent->client->weaponKicks.offsetAngles;//ent->client->ps.kick_angles;
@@ -522,8 +522,6 @@ P_WorldEffects
 =============
 */
 void P_WorldEffects( void ) {
-	bool        breather;
-	bool        envirosuit;
 	liquid_level_t liquidlevel, old_waterlevel;
 
 	if ( current_player->movetype == MOVETYPE_NOCLIP ) {
@@ -630,17 +628,11 @@ void P_WorldEffects( void ) {
 				current_player->pain_debounce_time = level.time + 1_sec;
 			}
 
-			if ( envirosuit ) // take 1/3 damage with envirosuit
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_LAVA );
-			else
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MOD_LAVA );
+			T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MOD_LAVA );
 		}
 
 		if ( current_player->liquidtype & CONTENTS_SLIME ) {
-			if ( !envirosuit ) {
-				// no damage from slime with envirosuit
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_SLIME );
-			}
+			T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_SLIME );
 		}
 	}
 }
@@ -652,14 +644,12 @@ G_SetClientEffects
 ===============
 */
 void G_SetClientEffects( edict_t *ent ) {
-	int     pa_type;
-	//int     remaining;
-
 	ent->s.effects = 0;
 	ent->s.renderfx = 0;
 
-	if ( ent->health <= 0 || level.intermission_framenum )
+	if ( ent->health <= 0 || level.intermission_framenum ) {
 		return;
+	}
 
 	// show cheaters!!!
 	if ( ent->flags & FL_GODMODE ) {

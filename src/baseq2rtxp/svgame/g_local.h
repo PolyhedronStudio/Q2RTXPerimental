@@ -1496,11 +1496,11 @@ struct edict_s {
     int32_t     deadflag;
     sg_time_t   show_hostile;
 
+    //! Used for target_changelevel.
+    const char  *map;
 
-	// WID: C++20: Added const.
-    const char  *map;           // target_changelevel
-
-    int32_t     viewheight;     // height above origin where eyesight is determined
+    //! The entity's height above its 'origin', used to state where eyesight is determined.
+    int32_t     viewheight;
     int32_t     takedamage;
     int32_t     dmg;
     int32_t     radius_dmg;
@@ -1520,13 +1520,13 @@ struct edict_s {
 
     edict_t     *mynoise;       // can go in client only
     edict_t     *mynoise2;
-
     int32_t     noise_index;
     int32_t     noise_index2;
+    
     float       volume;
     float       attenuation;
 
-    // timing variables
+    // Timing variables.
     float       wait;
     float       delay;          // before firing targets
     float       random;
@@ -1538,9 +1538,6 @@ struct edict_s {
 
     vec3_t      move_origin;
     vec3_t      move_angles;
-
-    // move this to clientinfo?
-    int32_t     light_level;
 
     int32_t     style;          // also used as areaportal number
 	const char *customLightStyle;	// It is as it says.
