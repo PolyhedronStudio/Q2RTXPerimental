@@ -376,7 +376,7 @@ static void CLG_CycleViewBob( player_state_t *ps ) {
     // Calculate base bob data.
     level.viewBob.cycle = ( ps->bobCycle & 128 ) >> 7;
     level.viewBob.fracSin = fabs( sin( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
-    level.viewBob.xySpeed = sqrtf( ps->pmove.velocity[ 0 ] * ps->pmove.velocity[ 0 ] + ps->pmove.velocity[ 1 ] * ps->pmove.velocity[ 1 ] );
+    level.viewBob.xySpeed = ps->xySpeed;//sqrtf( ps->pmove.velocity[ 0 ] * ps->pmove.velocity[ 0 ] + ps->pmove.velocity[ 1 ] * ps->pmove.velocity[ 1 ] );
 }
 
 /**
@@ -498,63 +498,11 @@ static void CLG_CalculateViewOffset( player_state_t *ps ) {
 *   @brief  Setup a first person scene view.
 **/
 static void CLG_SetupFirstPersonView( void ) {
-    /**
-    *   calculate speed and cycle to be used for
-    *   all cyclic walking effects
-    **/
-    //level.viewBob.xySpeed = sqrtf( 
-    //    clgi.client->predictedState.view.velocity[ 0 ] * clgi.client->predictedState.view.velocity[ 0 ] + clgi.client->predictedState.view.velocity[ 1 ] * clgi.client->predictedState.view.velocity[ 1 ] 
-    //);
-
-    //if ( level.viewBob.xySpeed < 5 ) {
-    //    level.viewBob.move = 0;
-    //    level.viewBob.time = 0;    // Retart at the beginning of a cycle again.
-    //} else if ( clgi.client->predictedState.pm.playerState.pmove.pm_flags & PMF_ON_GROUND ) {
-    //    // So bobbing only cycles when on ground
-    //    //if ( xyspeed > 210 )
-    //    //	bobmove = 0.25f;
-    //    //else if ( xyspeed > 100 )
-    //    //	bobmove = 0.125f;
-    //    //else
-    //    //	bobmove = 0.0625f;
-    //    if ( level.viewBob.xySpeed > 210 ) {
-    //        level.viewBob.move = clgi.frame_time_ms / 400.f;
-    //    } else if ( level.viewBob.xySpeed > 100 ) {
-    //        level.viewBob.move = clgi.frame_time_ms / 800.f;
-    //    } else {
-    //        level.viewBob.move = clgi.frame_time_ms / 1600.f;
-    //    }
-    //} else {
-    //    level.viewBob.move = 0;
-    //}
-
-    //double bobtime = ( level.viewBob.time += level.viewBob.move );
-    //const double bobtime_run = bobtime;
-
-    //// Account for ducking.
-    //if ( ( clgi.client->predictedState.pm.playerState.pmove.pm_flags & PMF_DUCKED ) &&
-    //    clgi.client->predictedState.pm.ground.entity != nullptr ) {
-    //    bobtime *= 4;
-    //}
-
-    //level.viewBob.cycle = (int64_t)bobtime;
-    //level.viewBob.cycle_run = (int64_t)bobtime_run;
-    //level.viewBob.fracSin = fabs( sin( bobtime * M_PI ) );
-
-    ////// Apply all the damage taken this frame
-    ////CLG_DamageFeedback( ent );
-
-    ////// determine the view offsets
-    //CLG_CalcViewOffset( );
-
-    //// determine the gun offsets
-    //CLG_CalcGunOffset( ent );
-
-    // Server received frame Player States:
+    // Server received frames Player States:
     player_state_t *serverFramePlayerState = &clgi.client->frame.ps;
     player_state_t *lastServerFramePlayerState = &clgi.client->oldframe.ps;
 
-    // Client predicted/predicting frame Player States:
+    // Client predicting and predicted frames Player States:
     client_predicted_state_t *predictedState = &clgi.client->predictedState;
     player_state_t *predictingPlayerState = &predictedState->currentPs; //( PF_UsePrediction() ? &predictedState->currentPs : serverFramePlayerState );
     player_state_t *lastPredictingPlayerState = &predictedState->lastPs; //( PF_UsePrediction() ? &predictedState->lastPs : lastServerFramePlayerState );

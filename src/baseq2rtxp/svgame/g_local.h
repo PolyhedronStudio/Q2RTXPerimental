@@ -277,16 +277,37 @@ typedef struct weapon_item_info_s {
 } weapon_item_info_t;
 
 /**
-*   @brief  Simply describes the type of AMMO.
+*   @brief  Specific 'Item Tags' so we can identify what item category/type
+*           we are dealing with.
 **/
 typedef enum {
-    AMMO_BULLETS,
-    AMMO_SHELLS,
-    AMMO_ROCKETS,
-    AMMO_GRENADES,
-    AMMO_CELLS,
-    AMMO_SLUGS
-} ammo_t;
+    //! Default for non tagged items.
+    ITEM_TAG_NONE = 0,
+
+    // Ammo Types:
+    ITEM_TAG_AMMO_BULLETS_PISTOL,
+    ITEM_TAG_AMMO_BULLETS_RIFLE,
+    ITEM_TAG_AMMO_BULLETS_SMG,
+    ITEM_TAG_AMMO_BULLETS_SNIPER,
+    ITEM_TAG_AMMO_SHELLS_SHOTGUN,
+
+    // Armor Types:
+    ITEM_TAG_ARMOR_NONE,
+    ITEM_TAG_ARMOR_JACKET,
+    ITEM_TAG_ARMOR_COMBAT,
+    ITEM_TAG_ARMOR_BODY,
+    ITEM_TAG_ARMOR_SHARD,
+
+    // Weapon Types:
+    ITEM_TAG_WEAPON_PISTOL
+
+    //AMMO_BULLETS,
+    //AMMO_SHELLS,
+    //AMMO_ROCKETS,
+    //AMMO_GRENADES,
+    //AMMO_CELLS,
+    //AMMO_SLUGS
+} gitem_tag_t;
 
 
 //deadflag
@@ -329,12 +350,7 @@ typedef enum {
 #define AS_MELEE                3
 #define AS_MISSILE              4
 
-// armor types
-#define ARMOR_NONE              0
-#define ARMOR_JACKET            1
-#define ARMOR_COMBAT            2
-#define ARMOR_BODY              3
-#define ARMOR_SHARD             4
+
 
 // power armor types
 #define POWER_ARMOR_NONE        0
@@ -383,21 +399,22 @@ typedef enum {
 
 
 typedef struct {
-    int     base_count;
-    int     max_count;
+    int32_t base_count;
+    int32_t max_count;
     float   normal_protection;
     float   energy_protection;
-    int     armor;
+    int32_t armor;
 } gitem_armor_t;
 
 
 // gitem_t->flags
-#define IT_WEAPON       1       //! "+use" makes active weapon
-#define IT_AMMO         2
-#define IT_ARMOR        4
-#define IT_STAY_COOP    8
-#define IT_KEY          16
-#define IT_POWERUP      32
+#define ITEM_FLAG_WEAPON       1       //! "+use" makes active weapon
+#define ITEM_FLAG_AMMO         2
+#define ITEM_FLAG_ARMOR        4
+#define ITEM_FLAG_STAY_COOP    8
+// WID: These don't exist anymore, but can still be reused of course.
+//#define IT_KEY          16
+//#define IT_POWERUP      32
 
 // gitem_t->weapon_index for weapons indicates model index.
 #define WEAP_BLASTER            1
@@ -454,9 +471,10 @@ typedef struct gitem_s {
     //! Weapon ('model'-)index (For weapons):
     int32_t     weapon_index;
 
-    //! 
+    //! Pointer to item category/type specific info.
     void        *info;
-    int32_t     tag;
+    //! Identifier for the item's category/type.
+    gitem_tag_t tag;
 
     //! String of all models, sounds, and images this item will use and needs to precache.
     const char	*precaches;
@@ -831,7 +849,7 @@ void SpawnItem(edict_t *ent, gitem_t *item);
 int ArmorIndex(edict_t *ent);
 int PowerArmorType(edict_t *ent);
 gitem_t *GetItemByIndex(int index);
-bool Add_Ammo(edict_t *ent, gitem_t *item, int count);
+const bool Add_Ammo(edict_t *ent, gitem_t *item, int count);
 void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
 
 //
@@ -1118,12 +1136,24 @@ typedef struct {
     int32_t weapon_clip_ammo[ MAX_ITEMS ];
 
     //! Maximum carry ammo capacities.
-    int32_t     max_bullets;
-    int32_t     max_shells;
-    int32_t     max_rockets;
-    int32_t     max_grenades;
-    int32_t     max_cells;
-    int32_t     max_slugs;
+    struct {
+        //! Pistol Bullets.
+        int32_t pistol;
+        //! Rifle Bullets.
+        int32_t rifle;
+        //! SMG Bullets.
+        int32_t smg;
+        //! Sniper Bullets.
+        int32_t sniper;
+        //! Shotgun Shells.
+        int32_t shotgun;
+    } ammoCapacities;
+    //int32_t     max_bullets;
+    //int32_t     max_shells;
+    //int32_t     max_rockets;
+    //int32_t     max_grenades;
+    //int32_t     max_cells;
+    //int32_t     max_slugs;
 
     //! Used for tracking the cubes in coop games.
     int32_t     power_cubes;
@@ -1178,15 +1208,15 @@ struct gclient_s {
     /**
     *	User Imput:
     **/
-    int         buttons;
-    int         oldbuttons;
-    int         latched_buttons;
+    int32_t         buttons;
+    int32_t         oldbuttons;
+    int32_t         latched_buttons;
 
 	/**
 	*	Weapon Related:
 	**/
 	// Actual current weapon ammo type, inventory index.
-	int	ammo_index;
+    int32_t	ammo_index;
 
 	// Set when we want to switch weapons.
 	gitem_t *newweapon;
@@ -1210,18 +1240,18 @@ struct gclient_s {
 	sg_time_t	grenade_finished_time;
 	bool        grenade_blew_up;
 
-	int         silencer_shots;
-	int         weapon_sound;
+    int32_t         silencer_shots;
+    int32_t         weapon_sound;
 
 	/**
 	*	Damage Related:
 	**/
     // sum up damage over an entire frame, so
     // shotgun blasts give a single big kick
-    int         damage_armor;       // damage absorbed by armor
-    int         damage_parmor;      // damage absorbed by power armor
-    int         damage_blood;       // damage taken out of health
-    int         damage_knockback;   // impact damage
+    int32_t         damage_armor;       // damage absorbed by armor
+    int32_t         damage_parmor;      // damage absorbed by power armor
+    int32_t         damage_blood;       // damage taken out of health
+    int32_t         damage_knockback;   // impact damage
     vec3_t      damage_from;        // origin for vector calculation
 
     float       killer_yaw;         // when dead, look at killer
@@ -1336,8 +1366,8 @@ struct gclient_s {
 	/**
     *	Animation Related:
 	**/
-    int			anim_end;
-    int			anim_priority;
+    int32_t     anim_end;
+    int32_t     anim_priority;
     bool		anim_duck;
     bool		anim_run;
 	sg_time_t	anim_time;

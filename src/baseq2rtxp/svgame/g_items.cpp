@@ -35,9 +35,9 @@ void Weapon_Pistol( edict_t *ent );
 //void Weapon_FlareGun(edict_t *ent);
 
 // for passing into *info member of gitem_t.
-gitem_armor_t jacketarmor_info  = { 25,  50, .30f, .00f, ARMOR_JACKET};
-gitem_armor_t combatarmor_info  = { 50, 100, .60f, .30f, ARMOR_COMBAT};
-gitem_armor_t bodyarmor_info    = {100, 200, .80f, .60f, ARMOR_BODY};
+gitem_armor_t jacketarmor_info  = { 25,  50, .30f, .00f, ITEM_TAG_ARMOR_JACKET};
+gitem_armor_t combatarmor_info  = { 50, 100, .60f, .30f, ITEM_TAG_ARMOR_COMBAT};
+gitem_armor_t bodyarmor_info    = {100, 200, .80f, .60f, ITEM_TAG_ARMOR_BODY};
 
 //extern weapon_mode_frames_t pistolAnimationFrames[ WEAPON_MODE_MAX ];
 extern weapon_item_info_t pistolItemInfo;
@@ -178,7 +178,7 @@ const bool Pickup_Powerup( edict_t *ent, edict_t *other ) {
     if ( ( skill->value == 1 && quantity >= 2 ) || ( skill->value >= 2 && quantity >= 1 ) )
         return false;
 
-    if ( ( coop->value ) && ( ent->item->flags & IT_STAY_COOP ) && ( quantity > 0 ) )
+    if ( ( coop->value ) && ( ent->item->flags & ITEM_FLAG_STAY_COOP ) && ( quantity > 0 ) )
         return false;
 
     other->client->pers.inventory[ ITEM_INDEX( ent->item ) ]++;
@@ -231,33 +231,33 @@ const bool Pickup_Bandolier(edict_t *ent, edict_t *other)
     gitem_t *item;
     int     index;
 
-    if (other->client->pers.max_bullets < 250)
-        other->client->pers.max_bullets = 250;
-    if (other->client->pers.max_shells < 150)
-        other->client->pers.max_shells = 150;
-    if (other->client->pers.max_cells < 250)
-        other->client->pers.max_cells = 250;
-    if (other->client->pers.max_slugs < 75)
-        other->client->pers.max_slugs = 75;
+    //if (other->client->pers.max_bullets < 250)
+    //    other->client->pers.max_bullets = 250;
+    //if (other->client->pers.max_shells < 150)
+    //    other->client->pers.max_shells = 150;
+    //if (other->client->pers.max_cells < 250)
+    //    other->client->pers.max_cells = 250;
+    //if (other->client->pers.max_slugs < 75)
+    //    other->client->pers.max_slugs = 75;
 
-    item = FindItem("Bullets");
-    if (item) {
-        index = ITEM_INDEX(item);
-        other->client->pers.inventory[index] += item->quantity;
-        if (other->client->pers.inventory[index] > other->client->pers.max_bullets)
-            other->client->pers.inventory[index] = other->client->pers.max_bullets;
-    }
+    //item = FindItem("Bullets");
+    //if (item) {
+    //    index = ITEM_INDEX(item);
+    //    other->client->pers.inventory[index] += item->quantity;
+    //    if (other->client->pers.inventory[index] > other->client->pers.max_bullets)
+    //        other->client->pers.inventory[index] = other->client->pers.max_bullets;
+    //}
 
-    item = FindItem("Shells");
-    if (item) {
-        index = ITEM_INDEX(item);
-        other->client->pers.inventory[index] += item->quantity;
-        if (other->client->pers.inventory[index] > other->client->pers.max_shells)
-            other->client->pers.inventory[index] = other->client->pers.max_shells;
-    }
+    //item = FindItem("Shells");
+    //if (item) {
+    //    index = ITEM_INDEX(item);
+    //    other->client->pers.inventory[index] += item->quantity;
+    //    if (other->client->pers.inventory[index] > other->client->pers.max_shells)
+    //        other->client->pers.inventory[index] = other->client->pers.max_shells;
+    //}
 
-    if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SetRespawn(ent, ent->item->quantity);
+    //if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
+    //    SetRespawn(ent, ent->item->quantity);
 
     return true;
 }
@@ -269,69 +269,69 @@ const bool Pickup_Pack(edict_t *ent, edict_t *other)
     gitem_t *item;
     int     index;
 
-    if (other->client->pers.max_bullets < 300)
-        other->client->pers.max_bullets = 300;
-    if (other->client->pers.max_shells < 200)
-        other->client->pers.max_shells = 200;
-    if (other->client->pers.max_rockets < 100)
-        other->client->pers.max_rockets = 100;
-    if (other->client->pers.max_grenades < 100)
-        other->client->pers.max_grenades = 100;
-    if (other->client->pers.max_cells < 300)
-        other->client->pers.max_cells = 300;
-    if (other->client->pers.max_slugs < 100)
-        other->client->pers.max_slugs = 100;
+    //if (other->client->pers.max_bullets < 300)
+    //    other->client->pers.max_bullets = 300;
+    //if (other->client->pers.max_shells < 200)
+    //    other->client->pers.max_shells = 200;
+    //if (other->client->pers.max_rockets < 100)
+    //    other->client->pers.max_rockets = 100;
+    //if (other->client->pers.max_grenades < 100)
+    //    other->client->pers.max_grenades = 100;
+    //if (other->client->pers.max_cells < 300)
+    //    other->client->pers.max_cells = 300;
+    //if (other->client->pers.max_slugs < 100)
+    //    other->client->pers.max_slugs = 100;
 
-    item = FindItem("Bullets");
-    if (item) {
-        index = ITEM_INDEX(item);
-        other->client->pers.inventory[index] += item->quantity;
-        if (other->client->pers.inventory[index] > other->client->pers.max_bullets)
-            other->client->pers.inventory[index] = other->client->pers.max_bullets;
-    }
+    //item = FindItem("Bullets");
+    //if (item) {
+    //    index = ITEM_INDEX(item);
+    //    other->client->pers.inventory[index] += item->quantity;
+    //    if (other->client->pers.inventory[index] > other->client->pers.max_bullets)
+    //        other->client->pers.inventory[index] = other->client->pers.max_bullets;
+    //}
 
-    item = FindItem("Shells");
-    if (item) {
-        index = ITEM_INDEX(item);
-        other->client->pers.inventory[index] += item->quantity;
-        if (other->client->pers.inventory[index] > other->client->pers.max_shells)
-            other->client->pers.inventory[index] = other->client->pers.max_shells;
-    }
+    //item = FindItem("Shells");
+    //if (item) {
+    //    index = ITEM_INDEX(item);
+    //    other->client->pers.inventory[index] += item->quantity;
+    //    if (other->client->pers.inventory[index] > other->client->pers.max_shells)
+    //        other->client->pers.inventory[index] = other->client->pers.max_shells;
+    //}
 
-    item = FindItem("Cells");
-    if (item) {
-        index = ITEM_INDEX(item);
-        other->client->pers.inventory[index] += item->quantity;
-        if (other->client->pers.inventory[index] > other->client->pers.max_cells)
-            other->client->pers.inventory[index] = other->client->pers.max_cells;
-    }
+    //item = FindItem("Cells");
+    //if (item) {
+    //    index = ITEM_INDEX(item);
+    //    other->client->pers.inventory[index] += item->quantity;
+    //    if (other->client->pers.inventory[index] > other->client->pers.max_cells)
+    //        other->client->pers.inventory[index] = other->client->pers.max_cells;
+    //}
 
-    item = FindItem("Grenades");
-    if (item) {
-        index = ITEM_INDEX(item);
-        other->client->pers.inventory[index] += item->quantity;
-        if (other->client->pers.inventory[index] > other->client->pers.max_grenades)
-            other->client->pers.inventory[index] = other->client->pers.max_grenades;
-    }
+    //item = FindItem("Grenades");
+    //if (item) {
+    //    index = ITEM_INDEX(item);
+    //    other->client->pers.inventory[index] += item->quantity;
+    //    if (other->client->pers.inventory[index] > other->client->pers.max_grenades)
+    //        other->client->pers.inventory[index] = other->client->pers.max_grenades;
+    //}
 
-    item = FindItem("Rockets");
-    if (item) {
-        index = ITEM_INDEX(item);
-        other->client->pers.inventory[index] += item->quantity;
-        if (other->client->pers.inventory[index] > other->client->pers.max_rockets)
-            other->client->pers.inventory[index] = other->client->pers.max_rockets;
-    }
+    //item = FindItem("Rockets");
+    //if (item) {
+    //    index = ITEM_INDEX(item);
+    //    other->client->pers.inventory[index] += item->quantity;
+    //    if (other->client->pers.inventory[index] > other->client->pers.max_rockets)
+    //        other->client->pers.inventory[index] = other->client->pers.max_rockets;
+    //}
 
-    item = FindItem("Slugs");
-    if (item) {
-        index = ITEM_INDEX(item);
-        other->client->pers.inventory[index] += item->quantity;
-        if (other->client->pers.inventory[index] > other->client->pers.max_slugs)
-            other->client->pers.inventory[index] = other->client->pers.max_slugs;
-    }
+    //item = FindItem("Slugs");
+    //if (item) {
+    //    index = ITEM_INDEX(item);
+    //    other->client->pers.inventory[index] += item->quantity;
+    //    if (other->client->pers.inventory[index] > other->client->pers.max_slugs)
+    //        other->client->pers.inventory[index] = other->client->pers.max_slugs;
+    //}
 
-    if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SetRespawn(ent, ent->item->quantity);
+    //if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
+    //    SetRespawn(ent, ent->item->quantity);
 
     return true;
 }
@@ -430,7 +430,7 @@ const bool Pickup_Key(edict_t *ent, edict_t *other)
     return true;
 }
 
-
+static constexpr int32_t testvar = 6 / 2 * ( 2 + 1 );
 
 /**
 *
@@ -439,91 +439,111 @@ const bool Pickup_Key(edict_t *ent, edict_t *other)
 *
 *
 **/
-bool Add_Ammo(edict_t *ent, gitem_t *item, int count)
+/**
+*   @brief  Will attempt to add 'count' of item ammo to the entity's client inventory.
+**/
+const bool Add_Ammo(edict_t *ent, gitem_t *item, int count)
 {
-    int         index;
-    int         max;
-
     if (!ent->client)
         return false;
 
-    if (item->tag == AMMO_BULLETS)
-        max = ent->client->pers.max_bullets;
-    else if (item->tag == AMMO_SHELLS)
-        max = ent->client->pers.max_shells;
-    else if (item->tag == AMMO_ROCKETS)
-        max = ent->client->pers.max_rockets;
-    else if (item->tag == AMMO_GRENADES)
-        max = ent->client->pers.max_grenades;
-    else if (item->tag == AMMO_CELLS)
-        max = ent->client->pers.max_cells;
-    else if (item->tag == AMMO_SLUGS)
-        max = ent->client->pers.max_slugs;
-    else
+    int32_t max = 0;
+    if ( item->tag == ITEM_TAG_AMMO_BULLETS_PISTOL ) {
+        max = ent->client->pers.ammoCapacities.pistol;
+    } else if ( item->tag == ITEM_TAG_AMMO_BULLETS_RIFLE ) {
+        max = ent->client->pers.ammoCapacities.rifle;
+    } else if ( item->tag == ITEM_TAG_AMMO_BULLETS_SMG ) {
+        max = ent->client->pers.ammoCapacities.smg;
+    } else if ( item->tag == ITEM_TAG_AMMO_BULLETS_SNIPER ) {
+        max = ent->client->pers.ammoCapacities.sniper;
+    } else if ( item->tag == ITEM_TAG_AMMO_SHELLS_SHOTGUN ) {
+        max = ent->client->pers.ammoCapacities.shotgun;
+    } else {
         return false;
-
-    index = ITEM_INDEX(item);
-
-    if (ent->client->pers.inventory[index] == max)
-        return false;
-
-    ent->client->pers.inventory[index] += count;
-
-    if (ent->client->pers.inventory[index] > max)
-        ent->client->pers.inventory[index] = max;
-
-    return true;
-}
-
-const bool Pickup_Ammo(edict_t *ent, edict_t *other)
-{
-    int         oldcount;
-    int         count;
-    bool        weapon;
-
-    weapon = (ent->item->flags & IT_WEAPON);
-    if ((weapon) && ((int)dmflags->value & DF_INFINITE_AMMO))
-        count = 1000;
-    else if (ent->count)
-        count = ent->count;
-    else
-        count = ent->item->quantity;
-
-    oldcount = other->client->pers.inventory[ITEM_INDEX(ent->item)];
-
-    if (!Add_Ammo(other, ent->item, count))
-        return false;
-
-    if (weapon && !oldcount) {
-        if (other->client->pers.weapon != ent->item && (!deathmatch->value || other->client->pers.weapon == FindItem("blaster")))
-            other->client->newweapon = ent->item;
     }
 
-    if (!(ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)) && (deathmatch->value))
-        SetRespawn(ent, 30);
+    // Acquire the item's inventory slot index.
+    const int32_t index = ITEM_INDEX(item);
+
+    // Return false if we're already at the max limit capacity.
+    if ( ent->client->pers.inventory[ index ] == max ) {
+        return false;
+    }
+
+    // Not at our limit yet, add the extra ammo count.
+    ent->client->pers.inventory[index] += count;
+
+    // Do a check and adjust to keep it within max limit capacity.
+    if ( ent->client->pers.inventory[ index ] > max ) {
+        ent->client->pers.inventory[ index ] = max;
+    }
+
+    // Succesfully added the extra ammo count.
     return true;
 }
 
-void Drop_Ammo(edict_t *ent, gitem_t *item)
-{
-    edict_t *dropped;
-    int     index;
+/**
+*   @brief  Will (try to) 'pickup' the specified ammo item 'ent' and add it to the 'other' entity client's inventory.
+**/
+const bool Pickup_Ammo(edict_t *itemEntity, edict_t *other) {
+    // Count that is picked up.
+    int32_t count = 0;
+    
+    // Special treatment for weapons with Deathmatch Flag Infinite Ammo.
+    const bool isWeapon = ( itemEntity->item->flags & ITEM_FLAG_WEAPON );
+    if ( ( isWeapon ) && ( (int)dmflags->value & DF_INFINITE_AMMO ) ) {
+        count = 1000;
+    // Use the entity's 'count' key field's value and override ent->item->quantity.
+    } else if ( itemEntity->count ) {
+        count = itemEntity->count;
+    // Otherwise, use the specified item quantity.
+    } else {
+        count = itemEntity->item->quantity;
+    }
 
-    index = ITEM_INDEX(item);
-    dropped = Drop_Item(ent, item);
+    // Acquire the old inventory item count score.
+    int32_t oldCount = other->client->pers.inventory[ ITEM_INDEX( itemEntity->item ) ];
+
+    // Couldn't add ammo.
+    if ( !Add_Ammo( other, itemEntity->item, count ) ) {
+        return false;
+    }
+
+    // If it is a weapon and we did NOT have it in our inventory yet:
+    if (isWeapon && !oldCount) {
+        //if (other->client->pers.weapon != itemEntity->item && (!deathmatch->value || other->client->pers.weapon == FindItem("blaster")))
+        //    other->client->newweapon = itemEntity->item;
+        if ( other->client->pers.weapon != itemEntity->item ) {
+            other->client->newweapon = itemEntity->item;
+        }
+    }
+
+    // Set an item respawn for DM mode.
+    if ( !( itemEntity->spawnflags & ( DROPPED_ITEM | DROPPED_PLAYER_ITEM ) ) && ( deathmatch->value ) ) {
+        SetRespawn( itemEntity, 30 );
+    }
+    return true;
+}
+
+/**
+*   @brief  Drops ammo.
+**/
+void Drop_Ammo(edict_t *ent, gitem_t *item) {
+    int32_t index = ITEM_INDEX(item);
+    edict_t *dropped = Drop_Item(ent, item);
     if (ent->client->pers.inventory[index] >= item->quantity)
         dropped->count = item->quantity;
     else
         dropped->count = ent->client->pers.inventory[index];
 
-    if (ent->client->pers.weapon &&
-        ent->client->pers.weapon->tag == AMMO_GRENADES &&
-        item->tag == AMMO_GRENADES &&
-        ent->client->pers.inventory[index] - dropped->count <= 0) {
-        gi.cprintf(ent, PRINT_HIGH, "Can't drop current weapon\n");
-        G_FreeEdict(dropped);
-        return;
-    }
+    //if (ent->client->pers.weapon &&
+    //    ent->client->pers.weapon->tag == AMMO_GRENADES &&
+    //    item->tag == AMMO_GRENADES &&
+    //    ent->client->pers.inventory[index] - dropped->count <= 0) {
+    //    gi.cprintf(ent, PRINT_HIGH, "Can't drop current weapon\n");
+    //    G_FreeEdict(dropped);
+    //    return;
+    //}
 
     ent->client->pers.inventory[index] -= dropped->count;
     ValidateSelectedItem(ent);
@@ -620,7 +640,7 @@ const bool Pickup_Armor(edict_t *ent, edict_t *other)
     old_armor_index = ArmorIndex(other);
 
     // handle armor shards specially
-    if (ent->item->tag == ARMOR_SHARD) {
+    if (ent->item->tag == ITEM_TAG_ARMOR_SHARD) {
         if (!old_armor_index)
             other->client->pers.inventory[jacket_armor_index] = 2;
         else
@@ -809,7 +829,7 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
     if (!taken)
         return;
 
-    if (!((coop->value) && (ent->item->flags & IT_STAY_COOP)) || (ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM))) {
+    if (!((coop->value) && (ent->item->flags & ITEM_FLAG_STAY_COOP)) || (ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM))) {
         if (ent->flags & FL_RESPAWN)
             ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_RESPAWN );
         else
@@ -915,8 +935,13 @@ void droptofloor(edict_t *ent)
     trace_t     tr;
     vec3_t      dest;
 
-    VectorSet(ent->mins, -15, -15, -15);
-    VectorSet(ent->maxs, 15, 15, 15);
+    if ( ent->item && ent->item->tag >= ITEM_TAG_AMMO_BULLETS_PISTOL && ent->item->tag <= ITEM_TAG_AMMO_SHELLS_SHOTGUN ) {
+        VectorSet( ent->mins, -8, -8, -8 );
+        VectorSet( ent->maxs, 8, 8, 8 );
+    } else if ( ent->item ) {
+        VectorSet( ent->mins, -16, -16, -16 );
+        VectorSet( ent->maxs, 16, 16, 16 );
+    }
 
     if (ent->model)
         gi.setmodel(ent, ent->model);
@@ -1069,7 +1094,7 @@ void SpawnItem(edict_t *ent, gitem_t *item)
             }
         }
         if ((int)dmflags->value & DF_INFINITE_AMMO) {
-            if ((item->flags == IT_AMMO) || (strcmp(ent->classname, "weapon_bfg") == 0)) {
+            if ((item->flags == ITEM_FLAG_AMMO) || (strcmp(ent->classname, "weapon_bfg") == 0)) {
                 G_FreeEdict(ent);
                 return;
             }
@@ -1082,7 +1107,7 @@ void SpawnItem(edict_t *ent, gitem_t *item)
     }
 
     // don't let them drop items that stay in a coop game
-    if ((coop->value) && (item->flags & IT_STAY_COOP)) {
+    if ((coop->value) && (item->flags & ITEM_FLAG_STAY_COOP)) {
         item->drop = NULL;
     }
 
@@ -1131,10 +1156,10 @@ gitem_t itemlist[] = {
         .quantity = 0,
         .clip_capacity = 0,
         .ammo = NULL,
-        .flags = IT_ARMOR,
+        .flags = ITEM_FLAG_ARMOR,
         .weapon_index = 0,
         .info = &bodyarmor_info,
-        .tag = ARMOR_BODY,
+        .tag = ITEM_TAG_ARMOR_BODY,
         /* precache */ .precaches = ""
     },
 
@@ -1155,10 +1180,10 @@ gitem_t itemlist[] = {
         0,
         0,
         NULL,
-        IT_ARMOR,
+        ITEM_FLAG_ARMOR,
         0,
         &combatarmor_info,
-        ARMOR_COMBAT,
+        ITEM_TAG_ARMOR_COMBAT,
         /* precache */ ""
     },
 
@@ -1179,10 +1204,10 @@ gitem_t itemlist[] = {
         0,
         0,
         NULL,
-        IT_ARMOR,
+        ITEM_FLAG_ARMOR,
         0,
         &jacketarmor_info,
-        ARMOR_JACKET,
+        ITEM_TAG_ARMOR_JACKET,
         /* precache */ ""
     },
 
@@ -1203,10 +1228,10 @@ gitem_t itemlist[] = {
         0,
         0,
         NULL,
-        IT_ARMOR,
+        ITEM_FLAG_ARMOR,
         0,
         NULL,
-        ARMOR_SHARD,
+        ITEM_TAG_ARMOR_SHARD,
         /* precache */ ""
     },
 
@@ -1228,10 +1253,10 @@ gitem_t itemlist[] = {
         60,
         0,
         NULL,
-        IT_ARMOR,
+        ITEM_FLAG_ARMOR,
         0,
         NULL,
-        0,
+        ITEM_TAG_NONE,
         /* precache */ ""
     },
 
@@ -1251,10 +1276,10 @@ gitem_t itemlist[] = {
         60,
         0,
         NULL,
-        IT_ARMOR,
+        ITEM_FLAG_ARMOR,
         0,
         NULL,
-        0,
+        ITEM_TAG_NONE,
         /* precache */ "misc/power2.wav misc/power1.wav"
     },
 
@@ -1280,7 +1305,7 @@ gitem_t itemlist[] = {
     //    0,
     //    0,
     //    NULL,
-    //    IT_WEAPON | IT_STAY_COOP,
+    //    ITEM_FLAG_WEAPON | ITEM_FLAG_STAY_COOP,
     //    WEAP_BLASTER,
     //    NULL,
     //    0,
@@ -1306,844 +1331,151 @@ gitem_t itemlist[] = {
         .count_width = 0,
         .quantity = 1,
         .clip_capacity = 13,
-        .ammo = "Bullets",
-        .flags = IT_WEAPON | IT_STAY_COOP,
+
+        .ammo = "Pistol Bullets",
+        .flags = ITEM_FLAG_WEAPON | ITEM_FLAG_STAY_COOP,
         .weapon_index = WEAP_PISTOL,
 
         .info = &pistolItemInfo,
-        .tag = 0,
+        .tag = ITEM_TAG_WEAPON_PISTOL,
 
         .precaches = "models/g_wep/pistol/tris.iqm models/v_wep/pistol/tris.iqm weapons/pistol/draw.wav weapons/pistol/holster.wav weapons/pistol/fire1.wav weapons/pistol/fire2.wav weapons/pistol/fire3.wav weapons/pistol/reload.wav"
     },
 
-    ///*QUAKED weapon_shotgun (.3 .3 1) (-16 -16 -16) (16 16 16)
-    //*/
-    //{
-    //    "weapon_shotgun",
-    //    Pickup_Weapon,
-    //    Use_Weapon,
-    //    Drop_Weapon,
-    //    Weapon_Shotgun,
-    //    "misc/w_pkup.wav",
-    //    "models/weapons/g_shotg/tris.md2", EF_ROTATE,
-    //    "models/weapons/v_shotg/tris.md2",
-    //    /* icon */      "w_shotgun",
-    //    /* pickup */    "Shotgun",
-    //    0,
-    //    1,
-    //    "Shells",
-    //    IT_WEAPON | IT_STAY_COOP,
-    //    WEAP_SHOTGUN,
-    //    NULL,
-    //    0,
-    //    /* precache */ "weapons/shotgf1b.wav weapons/shotgr1b.wav"
-    //},
-
-    ///*QUAKED weapon_supershotgun (.3 .3 1) (-16 -16 -16) (16 16 16)
-    //*/
-    //{
-    //    "weapon_supershotgun",
-    //    Pickup_Weapon,
-    //    Use_Weapon,
-    //    Drop_Weapon,
-    //    Weapon_SuperShotgun,
-    //    "misc/w_pkup.wav",
-    //    "models/weapons/g_shotg2/tris.md2", EF_ROTATE,
-    //    "models/weapons/v_shotg2/tris.md2",
-    //    /* icon */      "w_sshotgun",
-    //    /* pickup */    "Super Shotgun",
-    //    0,
-    //    2,
-    //    "Shells",
-    //    IT_WEAPON | IT_STAY_COOP,
-    //    WEAP_SUPERSHOTGUN,
-    //    NULL,
-    //    0,
-    //    /* precache */ "weapons/sshotf1b.wav"
-    //},
-
-    ///*QUAKED weapon_machinegun (.3 .3 1) (-16 -16 -16) (16 16 16)
-    //*/
-    //{
-    //    "weapon_machinegun",
-    //    Pickup_Weapon,
-    //    Use_Weapon,
-    //    Drop_Weapon,
-    //    Weapon_Machinegun,
-    //    "misc/w_pkup.wav",
-    //    "models/weapons/g_machn/tris.md2", EF_ROTATE,
-    //    "models/weapons/v_machn/tris.md2",
-    //    /* icon */      "w_machinegun",
-    //    /* pickup */    "Machinegun",
-    //    0,
-    //    1,
-    //    "Bullets",
-    //    IT_WEAPON | IT_STAY_COOP,
-    //    WEAP_MACHINEGUN,
-    //    NULL,
-    //    0,
-    //    /* precache */ "weapons/machgf1b.wav weapons/machgf2b.wav weapons/machgf3b.wav weapons/machgf4b.wav weapons/machgf5b.wav"
-    //},
-
-    ///*QUAKED weapon_chaingun (.3 .3 1) (-16 -16 -16) (16 16 16)
-    //*/
-    //{
-    //    "weapon_chaingun",
-    //    Pickup_Weapon,
-    //    Use_Weapon,
-    //    Drop_Weapon,
-    //    Weapon_Chaingun,
-    //    "misc/w_pkup.wav",
-    //    "models/weapons/g_chain/tris.md2", EF_ROTATE,
-    //    "models/weapons/v_chain/tris.md2",
-    //    /* icon */      "w_chaingun",
-    //    /* pickup */    "Chaingun",
-    //    0,
-    //    1,
-    //    "Bullets",
-    //    IT_WEAPON | IT_STAY_COOP,
-    //    WEAP_CHAINGUN,
-    //    NULL,
-    //    0,
-    //    /* precache */ "weapons/chngnu1a.wav weapons/chngnl1a.wav weapons/machgf3b.wav weapons/chngnd1a.wav"
-    //},
-
-    ///*QUAKED ammo_grenades (.3 .3 1) (-16 -16 -16) (16 16 16)
-    //*/
-    //{
-    //    "ammo_grenades",
-    //    Pickup_Ammo,
-    //    Use_Weapon,
-    //    Drop_Ammo,
-    //    Weapon_Grenade,
-    //    "misc/am_pkup.wav",
-    //    "models/items/ammo/grenades/medium/tris.md2", 0,
-    //    "models/weapons/v_handgr/tris.md2",
-    //    /* icon */      "a_grenades",
-    //    /* pickup */    "Grenades",
-    //    /* width */     3,
-    //    5,
-    //    0,
-    //    "grenades",
-    //    IT_AMMO | IT_WEAPON,
-    //    WEAP_GRENADES,
-    //    NULL,
-    //    AMMO_GRENADES,
-    //    /* precache */ "models/objects/grenade2/tris.md2 weapons/hgrent1a.wav weapons/hgrena1b.wav weapons/hgrenc1b.wav weapons/hgrenb1a.wav weapons/hgrenb2a.wav"
-    //},
-
- //   /*QUAKED weapon_grenadelauncher (.3 .3 1) (-16 -16 -16) (16 16 16)
- //   */
- //   {
- //       "weapon_grenadelauncher",
- //       Pickup_Weapon,
- //       Use_Weapon,
- //       Drop_Weapon,
- //       Weapon_GrenadeLauncher,
- //       "misc/w_pkup.wav",
- //       "models/weapons/g_launch/tris.md2", EF_ROTATE,
- //       "models/weapons/v_launch/tris.md2",
- //       /* icon */      "w_glauncher",
- //       /* pickup */    "Grenade Launcher",
- //       0,
- //       1,
- //       "Grenades",
- //       IT_WEAPON | IT_STAY_COOP,
- //       WEAP_GRENADELAUNCHER,
- //       NULL,
- //       0,
- //       /* precache */ "models/objects/grenade/tris.md2 weapons/grenlf1a.wav weapons/grenlr1b.wav weapons/grenlb1b.wav"
- //   },
-
- //   /*QUAKED weapon_rocketlauncher (.3 .3 1) (-16 -16 -16) (16 16 16)
- //   */
- //   {
- //       "weapon_rocketlauncher",
- //       Pickup_Weapon,
- //       Use_Weapon,
- //       Drop_Weapon,
- //       Weapon_RocketLauncher,
- //       "misc/w_pkup.wav",
- //       "models/weapons/g_rocket/tris.md2", EF_ROTATE,
- //       "models/weapons/v_rocket/tris.md2",
- //       /* icon */      "w_rlauncher",
- //       /* pickup */    "Rocket Launcher",
- //       0,
- //       1,
- //       "Rockets",
- //       IT_WEAPON | IT_STAY_COOP,
- //       WEAP_ROCKETLAUNCHER,
- //       NULL,
- //       0,
- //       /* precache */ "models/objects/rocket/tris.md2 weapons/rockfly.wav weapons/rocklf1a.wav weapons/rocklr1b.wav models/objects/debris2/tris.md2"
- //   },
-
- //   /*QUAKED weapon_hyperblaster (.3 .3 1) (-16 -16 -16) (16 16 16)
- //   */
- //   {
- //       "weapon_hyperblaster",
- //       Pickup_Weapon,
- //       Use_Weapon,
- //       Drop_Weapon,
- //       Weapon_HyperBlaster,
- //       "misc/w_pkup.wav",
- //       "models/weapons/g_hyperb/tris.md2", EF_ROTATE,
- //       "models/weapons/v_hyperb/tris.md2",
- //       /* icon */      "w_hyperblaster",
- //       /* pickup */    "HyperBlaster",
- //       0,
- //       1,
- //       "Cells",
- //       IT_WEAPON | IT_STAY_COOP,
- //       WEAP_HYPERBLASTER,
- //       NULL,
- //       0,
- //       /* precache */ "models/objects/laser/tris.md2 weapons/hyprbu1a.wav weapons/hyprbl1a.wav weapons/hyprbf1a.wav weapons/hyprbd1a.wav misc/lasfly.wav"
- //   },
-
- //   /*QUAKED weapon_railgun (.3 .3 1) (-16 -16 -16) (16 16 16)
- //   */
- //   {
- //       "weapon_railgun",
- //       Pickup_Weapon,
- //       Use_Weapon,
- //       Drop_Weapon,
- //       Weapon_Railgun,
- //       "misc/w_pkup.wav",
- //       "models/weapons/g_rail/tris.md2", EF_ROTATE,
- //       "models/weapons/v_rail/tris.md2",
- //       /* icon */      "w_railgun",
- //       /* pickup */    "Railgun",
- //       0,
- //       1,
- //       "Slugs",
- //       IT_WEAPON | IT_STAY_COOP,
- //       WEAP_RAILGUN,
- //       NULL,
- //       0,
- //       /* precache */ "weapons/rg_hum.wav"
- //   },
-
- //   /*QUAKED weapon_bfg (.3 .3 1) (-16 -16 -16) (16 16 16)
- //   */
- //   {
- //       "weapon_bfg",
- //       Pickup_Weapon,
- //       Use_Weapon,
- //       Drop_Weapon,
- //       Weapon_BFG,
- //       "misc/w_pkup.wav",
- //       "models/weapons/g_bfg/tris.md2", EF_ROTATE,
- //       "models/weapons/v_bfg/tris.md2",
- //       /* icon */      "w_bfg",
- //       /* pickup */    "BFG10K",
- //       0,
- //       50,
- //       "Cells",
- //       IT_WEAPON | IT_STAY_COOP,
- //       WEAP_BFG,
- //       NULL,
- //       0,
- //       /* precache */ "sprites/s_bfg1.sp2 sprites/s_bfg2.sp2 sprites/s_bfg3.sp2 weapons/bfg__f1y.wav weapons/bfg__l1a.wav weapons/bfg__x1b.wav weapons/bfg_hum.wav"
- //   },
-
-	///*QUAKED weapon_flaregun (.3 .3 1) (-16 -16 -16) (16 16 16)*/
-	//{ 
-	//	"weapon_flaregun", // class name 
-	//	Pickup_Weapon, // Function to use to pickup weapon 
-	//	Use_Weapon,  // Function to use to use weapon 
-	//	Drop_Weapon, // Function to use to drop weapon 
-	//	Weapon_FlareGun, // Function called every frame this weapon is active 
-	//	"misc/w_pkup.wav",// Sound to play when picked up 
-	//	"models/weapons/g_flareg/tris.md2", // Item model for placement on maps 
-	//	EF_ROTATE,//Flags 
-	//	"models/weapons/v_flareg/tris.md3",//Model player sees 
-	//	"w_flareg", //name of item icon in item list (minus .pcx) 
-	//	"Flare Gun", //Item name (ie use flare gun) 
-	//	0, // Count width (for timed things like quad) 
-	//	1, // Ammo per shot 
-	//	"Grenades", // Type of ammo to use 
-	//	IT_WEAPON, // IT_WEAPON, IT_ARMOR, or IT_AMMO 
-	//	WEAP_FLAREGUN,
-	//	NULL, // userinfo? (void*) 
-	//	0, // tag 
-	//	"" //things to precache 
-	//},
 
     //
     // AMMO ITEMS
     //
-
-    /*QUAKED ammo_shells (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
+    // QUAKED ammo_bullets_pistol (.3 .3 1) (-8 -8 -8) (8 8 8)
     {
-        "ammo_shells",
+        "ammo_bullets_pistol",
         Pickup_Ammo,
         NULL,
         Drop_Ammo,
         NULL,
         "misc/am_pkup.wav",
-        "models/items/ammo/shells/medium/tris.md2", 0,
-        NULL,
-        /* icon */      "a_shells",
-        /* pickup */    "Shells",
-        /* width */     3,
-        10,
-        0,
-        NULL,
-        IT_AMMO,
-        0,
-        NULL,
-        AMMO_SHELLS,
-        /* precache */ ""
-    },
-
-    /*QUAKED ammo_bullets (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "ammo_bullets",
-        Pickup_Ammo,
-        NULL,
-        Drop_Ammo,
-        NULL,
-        "misc/am_pkup.wav",
-        "models/items/ammo/bullets/medium/tris.md2", 0,
+        "models/items/ammo/bullets_pistol/tris.iqm", 0,
         NULL,
         /* icon */      "a_bullets",
-        /* pickup */    "Bullets",
+        /* pickup */    "Pistol Bullets",
         /* width */     3,
         50,
         0,
         NULL,
-        IT_AMMO,
+        ITEM_FLAG_AMMO,
         0,
         NULL,
-        AMMO_BULLETS,
-        /* precache */ ""
+        ITEM_TAG_AMMO_BULLETS_PISTOL,
+        // Precache.
+        "models/items/ammo/bullets_pistol/tris.iqm misc/am_pkup.wav"
     },
-
-    /*QUAKED ammo_cells (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
+    // QUAKED ammo_bullets_rifle (.3 .3 1) (-8 -8 -8) (8 8 8)
     {
-        "ammo_cells",
+        "ammo_bullets_rifle",
         Pickup_Ammo,
         NULL,
         Drop_Ammo,
         NULL,
         "misc/am_pkup.wav",
-        "models/items/ammo/cells/medium/tris.md2", 0,
+        "models/items/ammo/bullets_rifle/tris.iqm", 0,
         NULL,
-        /* icon */      "a_cells",
-        /* pickup */    "Cells",
+        /* icon */      "a_bullets",
+        /* pickup */    "Rifle Bullets",
         /* width */     3,
         50,
         0,
         NULL,
-        IT_AMMO,
+        ITEM_FLAG_AMMO,
         0,
         NULL,
-        AMMO_CELLS,
-        /* precache */ ""
+        ITEM_TAG_AMMO_BULLETS_RIFLE,
+        // Precache
+        "models/items/ammo/bullets_rifle/tris.iqm misc/am_pkup.wav"
     },
-
-    /*QUAKED ammo_rockets (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
+    
+    // QUAKED ammo_bullets_smg (.3 .3 1) (-8 -8 -8) (8 8 8)
     {
-        "ammo_rockets",
+        "ammo_bullets_smg",
         Pickup_Ammo,
         NULL,
         Drop_Ammo,
         NULL,
         "misc/am_pkup.wav",
-        "models/items/ammo/rockets/medium/tris.md2", 0,
+        "models/items/ammo/bullets_smg/tris.iqm", 0,
         NULL,
-        /* icon */      "a_rockets",
-        /* pickup */    "Rockets",
+        /* icon */      "a_bullets",
+        /* pickup */    "SMG Bullets",
         /* width */     3,
-        5,
+        50,
         0,
         NULL,
-        IT_AMMO,
+        ITEM_FLAG_AMMO,
         0,
         NULL,
-        AMMO_ROCKETS,
-        /* precache */ ""
+        ITEM_TAG_AMMO_BULLETS_SMG,
+        // Precache.
+        "models/items/ammo/bullets_smg/tris.iqm misc/am_pkup.wav"
     },
 
-    /*QUAKED ammo_slugs (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
+    // QUAKED ammo_bullets_sniper (.3 .3 1) (-8 -8 -8) (8 8 8)
     {
-        "ammo_slugs",
+        "ammo_bullets_sniper",
         Pickup_Ammo,
         NULL,
         Drop_Ammo,
         NULL,
         "misc/am_pkup.wav",
-        "models/items/ammo/slugs/medium/tris.md2", 0,
+        "models/items/ammo/bullets_sniper/tris.iqm", 0,
         NULL,
-        /* icon */      "a_slugs",
-        /* pickup */    "Slugs",
+        /* icon */      "a_bullets",
+        /* pickup */    "Sniper Bullets",
+        /* width */     3,
+        50,
+        0,
+        NULL,
+        ITEM_FLAG_AMMO,
+        0,
+        NULL,
+        ITEM_TAG_AMMO_BULLETS_SNIPER,
+        // Precache.
+        "models/items/ammo/bullets_sniper/tris.iqm misc/am_pkup.wav"
+    },
+
+    /*QUAKED ammo_shells_shotgun (.3 .3 1) (-16 -16 -16) (16 16 16)
+    */
+    {
+        "ammo_shells_shotgun",
+        Pickup_Ammo,
+        NULL,
+        Drop_Ammo,
+        NULL,
+        "misc/am_pkup.wav",
+        "models/items/ammo/shells_shotgun/tris.iqm", 0,
+        NULL,
+        /* icon */      "a_shells",
+        /* pickup */    "Shotgun Shells",
         /* width */     3,
         10,
         0,
         NULL,
-        IT_AMMO,
+        ITEM_FLAG_AMMO,
         0,
         NULL,
-        AMMO_SLUGS,
-        /* precache */ ""
+        ITEM_TAG_AMMO_SHELLS_SHOTGUN,
+        
+        // Precache
+        "models/items/ammo/shells_shotgun/tris.iqm misc/am_pkup.wav"
     },
-
 
     //
     // POWERUP ITEMS
     //
-    /*QUAKED item_quad (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "item_quad",
-        Pickup_Powerup,
-        Use_Quad,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/quaddama/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_quad",
-        /* pickup */    "Quad Damage",
-        /* width */     2,
-        60,
-        0,
-        NULL,
-        IT_POWERUP,
-        0,
-        NULL,
-        0,
-        /* precache */ "items/damage.wav items/damage2.wav items/damage3.wav"
-    },
 
-    /*QUAKED item_invulnerability (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "item_invulnerability",
-        Pickup_Powerup,
-        Use_Invulnerability,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/invulner/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_invulnerability",
-        /* pickup */    "Invulnerability",
-        /* width */     2,
-        300,
-        0,
-        NULL,
-        IT_POWERUP,
-        0,
-        NULL,
-        0,
-        /* precache */ "items/protect.wav items/protect2.wav items/protect4.wav"
-    },
 
-    /*QUAKED item_silencer (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "item_silencer",
-        Pickup_Powerup,
-        Use_Silencer,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/silencer/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_silencer",
-        /* pickup */    "Silencer",
-        /* width */     2,
-        60,
-        0,
-        NULL,
-        IT_POWERUP,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED item_breather (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "item_breather",
-        Pickup_Powerup,
-        Use_Breather,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/breather/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_rebreather",
-        /* pickup */    "Rebreather",
-        /* width */     2,
-        60,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_POWERUP,
-        0,
-        NULL,
-        0,
-        /* precache */ "items/airout.wav"
-    },
-
-    /*QUAKED item_enviro (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "item_enviro",
-        Pickup_Powerup,
-        Use_Envirosuit,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/enviro/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_envirosuit",
-        /* pickup */    "Environment Suit",
-        /* width */     2,
-        60,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_POWERUP,
-        0,
-        NULL,
-        0,
-        /* precache */ "items/airout.wav"
-    },
-
-    /*QUAKED item_ancient_head (.3 .3 1) (-16 -16 -16) (16 16 16)
-    Special item that gives +2 to maximum health
-    */
-    {
-        "item_ancient_head",
-        Pickup_AncientHead,
-        NULL,
-        NULL,
-        NULL,
-        "items/pkup.wav",
-        "models/items/c_head/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_fixme",
-        /* pickup */    "Ancient Head",
-        /* width */     2,
-        60,
-        0,
-        NULL,
-        0,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED item_adrenaline (.3 .3 1) (-16 -16 -16) (16 16 16)
-    gives +1 to maximum health
-    */
-    {
-        "item_adrenaline",
-        Pickup_Adrenaline,
-        NULL,
-        NULL,
-        NULL,
-        "items/pkup.wav",
-        "models/items/adrenal/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_adrenaline",
-        /* pickup */    "Adrenaline",
-        /* width */     2,
-        60,
-        0,
-        NULL,
-        0,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED item_bandolier (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "item_bandolier",
-        Pickup_Bandolier,
-        NULL,
-        NULL,
-        NULL,
-        "items/pkup.wav",
-        "models/items/band/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "p_bandolier",
-        /* pickup */    "Bandolier",
-        /* width */     2,
-        60,
-        0,
-        NULL,
-        0,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED item_pack (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
-    {
-        "item_pack",
-        Pickup_Pack,
-        NULL,
-        NULL,
-        NULL,
-        "items/pkup.wav",
-        "models/items/pack/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_pack",
-        /* pickup */    "Ammo Pack",
-        /* width */     2,
-        180,
-        0,
-        NULL,
-        0,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
 
     //
-    // KEYS
+    //  Health
     //
-    /*QUAKED key_data_cd (0 .5 .8) (-16 -16 -16) (16 16 16)
-    key for computer centers
-    */
-    {
-        "key_data_cd",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/data_cd/tris.md2", EF_ROTATE,
-        NULL,
-        "k_datacd",
-        "Data CD",
-        2,
-        0,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED key_power_cube (0 .5 .8) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN NO_TOUCH
-    warehouse circuits
-    */
-    {
-        "key_power_cube",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/power/tris.md2", EF_ROTATE,
-        NULL,
-        "k_powercube",
-        "Power Cube",
-        2,
-        0,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED key_pyramid (0 .5 .8) (-16 -16 -16) (16 16 16)
-    key for the entrance of jail3
-    */
-    {
-        "key_pyramid",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/pyramid/tris.md2", EF_ROTATE,
-        NULL,
-        "k_pyramid",
-        "Pyramid Key",
-        2,
-        0,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED key_data_spinner (0 .5 .8) (-16 -16 -16) (16 16 16)
-    key for the city computer
-    */
-    {
-        "key_data_spinner",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/spinner/tris.md2", EF_ROTATE,
-        NULL,
-        "k_dataspin",
-        "Data Spinner",
-        2,
-        0,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED key_pass (0 .5 .8) (-16 -16 -16) (16 16 16)
-    security pass for the security level
-    */
-    {
-        "key_pass",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/pass/tris.md2", EF_ROTATE,
-        NULL,
-        "k_security",
-        "Security Pass",
-        2,
-        0,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED key_blue_key (0 .5 .8) (-16 -16 -16) (16 16 16)
-    normal door key - blue
-    */
-    {
-        "key_blue_key",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/key/tris.md2", EF_ROTATE,
-        NULL,
-        "k_bluekey",
-        "Blue Key",
-        2,
-        0,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED key_red_key (0 .5 .8) (-16 -16 -16) (16 16 16)
-    normal door key - red
-    */
-    {
-        "key_red_key",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/red_key/tris.md2", EF_ROTATE,
-        NULL,
-        "k_redkey",
-        "Red Key",
-        2,
-        0,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED key_commander_head (0 .5 .8) (-16 -16 -16) (16 16 16)
-    tank commander's head
-    */
-    {
-        "key_commander_head",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/monsters/commandr/head/tris.md2", EF_GIB,
-        NULL,
-        /* icon */      "k_comhead",
-        /* pickup */    "Commander's Head",
-        /* width */     2,
-        0,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
-    /*QUAKED key_airstrike_target (0 .5 .8) (-16 -16 -16) (16 16 16)
-    tank commander's head
-    */
-    {
-        "key_airstrike_target",
-        Pickup_Key,
-        NULL,
-        Drop_General,
-        NULL,
-        "items/pkup.wav",
-        "models/items/keys/target/tris.md2", EF_ROTATE,
-        NULL,
-        /* icon */      "i_airstrike",
-        /* pickup */    "Airstrike Marker",
-        /* width */     2,
-        0,
-        0,
-        NULL,
-        IT_STAY_COOP | IT_KEY,
-        0,
-        NULL,
-        0,
-        /* precache */ ""
-    },
-
     {
         NULL,
         Pickup_Health,
@@ -2162,8 +1494,8 @@ gitem_t itemlist[] = {
         0,
         0,
         NULL,
-        0,
-        /* precache */ "items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
+        ITEM_TAG_NONE,
+        /* precache */ "items/pkup.wav items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
     },
 
     // end of list marker

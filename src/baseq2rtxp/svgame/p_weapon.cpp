@@ -284,7 +284,7 @@ void P_Weapon_Use( edict_t *ent, gitem_t *item ) {
             }
         }
     }
-    if ( item->ammo && !g_select_empty->value && !( item->flags & IT_AMMO ) ) {
+    if ( item->ammo && !g_select_empty->value && !( item->flags & ITEM_FLAG_AMMO ) ) {
         ammo_item = FindItem( item->ammo );
         ammo_index = ITEM_INDEX( ammo_item );
 

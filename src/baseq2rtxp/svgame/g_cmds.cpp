@@ -179,7 +179,7 @@ void Cmd_Give_f(edict_t *ent)
             it = itemlist + i;
             if (!it->pickup)
                 continue;
-            if (!(it->flags & IT_WEAPON))
+            if (!(it->flags & ITEM_FLAG_WEAPON))
                 continue;
             ent->client->pers.inventory[i] += 1;
         }
@@ -192,7 +192,7 @@ void Cmd_Give_f(edict_t *ent)
             it = itemlist + i;
             if (!it->pickup)
                 continue;
-            if (!(it->flags & IT_AMMO))
+            if (!(it->flags & ITEM_FLAG_AMMO))
                 continue;
             Add_Ammo(ent, it, 1000);
         }
@@ -235,7 +235,7 @@ void Cmd_Give_f(edict_t *ent)
             it = itemlist + i;
             if (!it->pickup)
                 continue;
-            if (it->flags & (IT_ARMOR | IT_WEAPON | IT_AMMO))
+            if (it->flags & (ITEM_FLAG_ARMOR | ITEM_FLAG_WEAPON | ITEM_FLAG_AMMO))
                 continue;
             ent->client->pers.inventory[i] = 1;
         }
@@ -259,7 +259,7 @@ void Cmd_Give_f(edict_t *ent)
 
     index = ITEM_INDEX(it);
 
-    if (it->flags & IT_AMMO) {
+    if (it->flags & ITEM_FLAG_AMMO) {
         if (gi.argc() == 3)
             ent->client->pers.inventory[index] = atoi(gi.argv(2));
         else
@@ -493,7 +493,7 @@ void Cmd_WeapPrev_f(edict_t *ent)
         it = &itemlist[index];
         if (!it->use)
             continue;
-        if (!(it->flags & IT_WEAPON))
+        if (!(it->flags & ITEM_FLAG_WEAPON))
             continue;
         it->use(ent, it);
         if (cl->pers.weapon == it)
@@ -528,7 +528,7 @@ void Cmd_WeapNext_f(edict_t *ent)
         it = &itemlist[index];
         if (!it->use)
             continue;
-        if (!(it->flags & IT_WEAPON))
+        if (!(it->flags & ITEM_FLAG_WEAPON))
             continue;
         it->use(ent, it);
         if (cl->pers.weapon == it)
@@ -558,7 +558,7 @@ void Cmd_WeapLast_f(edict_t *ent)
     it = &itemlist[index];
     if (!it->use)
         return;
-    if (!(it->flags & IT_WEAPON))
+    if (!(it->flags & ITEM_FLAG_WEAPON))
         return;
     it->use(ent, it);
 }
@@ -908,52 +908,64 @@ void ClientCommand(edict_t *ent)
     if (level.intermission_framenum)
         return;
 
-    if (Q_stricmp(cmd, "use") == 0)
-        Cmd_Use_f(ent);
-    else if (Q_stricmp(cmd, "drop") == 0)
-        Cmd_Drop_f(ent);
-    else if (Q_stricmp(cmd, "give") == 0)
-        Cmd_Give_f(ent);
-    else if (Q_stricmp(cmd, "god") == 0)
-        Cmd_God_f(ent);
-    else if (Q_stricmp(cmd, "notarget") == 0)
-        Cmd_Notarget_f(ent);
-    else if (Q_stricmp(cmd, "noclip") == 0)
+    //
+    // ??
+    //
+    if ( Q_stricmp( cmd, "use" ) == 0 ) {
+        Cmd_Use_f( ent );
+    } else if ( Q_stricmp( cmd, "drop" ) == 0 ) {
+        Cmd_Drop_f( ent );
+    //
+    // 'Cheats':
+    //
+    } else if ( Q_stricmp( cmd, "give" ) == 0 ) {
+        Cmd_Give_f( ent );
+    } else if ( Q_stricmp( cmd, "god" ) == 0 ) {
+        Cmd_God_f( ent );
+    } else if ( Q_stricmp( cmd, "notarget" ) == 0 ) {
+        Cmd_Notarget_f( ent );
+    } else if ( Q_stricmp( cmd, "noclip" ) == 0 ) {
         Cmd_Noclip_f(ent);
-    else if (Q_stricmp(cmd, "inven") == 0)
-        Cmd_Inven_f(ent);
-    else if (Q_stricmp(cmd, "invnext") == 0)
-        SelectNextItem(ent, -1);
-    else if (Q_stricmp(cmd, "invprev") == 0)
-        SelectPrevItem(ent, -1);
-    else if (Q_stricmp(cmd, "invnextw") == 0)
-        SelectNextItem(ent, IT_WEAPON);
-    else if (Q_stricmp(cmd, "invprevw") == 0)
-        SelectPrevItem(ent, IT_WEAPON);
-    else if (Q_stricmp(cmd, "invnextp") == 0)
-        SelectNextItem(ent, IT_POWERUP);
-    else if (Q_stricmp(cmd, "invprevp") == 0)
-        SelectPrevItem(ent, IT_POWERUP);
-    else if (Q_stricmp(cmd, "invuse") == 0)
-        Cmd_InvUse_f(ent);
-    else if (Q_stricmp(cmd, "invdrop") == 0)
-        Cmd_InvDrop_f(ent);
-    else if (Q_stricmp(cmd, "weapprev") == 0)
-        Cmd_WeapPrev_f(ent);
-    else if (Q_stricmp(cmd, "weapnext") == 0)
-        Cmd_WeapNext_f(ent);
-    else if (Q_stricmp(cmd, "weaplast") == 0)
-        Cmd_WeapLast_f(ent);
-    else if (Q_stricmp(cmd, "kill") == 0)
-        Cmd_Kill_f(ent);
-    else if (Q_stricmp(cmd, "putaway") == 0)
-        Cmd_PutAway_f(ent);
-    else if (Q_stricmp(cmd, "wave") == 0)
-        Cmd_Wave_f(ent);
-    else if (Q_stricmp(cmd, "playerlist") == 0)
-        Cmd_PlayerList_f(ent);
-    else if (Q_stricmp(cmd, "weapflare") == 0)
-        Cmd_WeapFlare_f(ent);
-    else    // anything that doesn't match a command will be a chat
-        Cmd_Say_f(ent, false, true);
+    //
+    // Inventory:
+    //
+    } else if ( Q_stricmp( cmd, "inven" ) == 0 ) {
+        Cmd_Inven_f( ent );
+    } else if ( Q_stricmp( cmd, "invnext" ) == 0 ) {
+        SelectNextItem( ent, -1 );
+    } else if ( Q_stricmp( cmd, "invprev" ) == 0 ) {
+        SelectPrevItem( ent, -1 );
+    } else if ( Q_stricmp( cmd, "invnextw" ) == 0 ) {
+        SelectNextItem( ent, ITEM_FLAG_WEAPON );
+    } else if ( Q_stricmp( cmd, "invprevw" ) == 0 ) {
+        SelectPrevItem( ent, ITEM_FLAG_WEAPON );
+    } else if ( Q_stricmp( cmd, "invuse" ) == 0 ) {
+        Cmd_InvUse_f( ent );
+    } else if ( Q_stricmp( cmd, "invdrop" ) == 0 ) {
+        Cmd_InvDrop_f( ent );
+    } else if ( Q_stricmp( cmd, "weapprev" ) == 0 ) {
+        Cmd_WeapPrev_f( ent );
+    } else if ( Q_stricmp( cmd, "weapnext" ) == 0 ) {
+        Cmd_WeapNext_f( ent );
+    } else if ( Q_stricmp( cmd, "weaplast" ) == 0 ) {
+        Cmd_WeapLast_f( ent );
+    } else if ( Q_stricmp( cmd, "putaway" ) == 0 ) {
+        Cmd_PutAway_f( ent );
+    //
+    // Other:
+    //
+    } else if ( Q_stricmp( cmd, "kill" ) == 0 ) {
+        Cmd_Kill_f( ent );
+    } else if ( Q_stricmp( cmd, "wave" ) == 0 ) {
+        Cmd_Wave_f( ent );
+    } else if ( Q_stricmp( cmd, "playerlist" ) == 0 ) {
+        Cmd_PlayerList_f( ent );
+    } else if ( Q_stricmp( cmd, "weapflare" ) == 0 ) {
+        Cmd_WeapFlare_f( ent );
+    //
+    // Anything that doesn't match a command will be a chat.
+    //
+    } else {
+        Cmd_Say_f( ent, false, true );
+    }
 }

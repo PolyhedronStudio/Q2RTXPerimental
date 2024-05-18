@@ -515,11 +515,11 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 
         // clear inventory
         // this is kind of ugly, but it's how we want to handle keys in coop
-        for (n = 0; n < game.num_items; n++) {
-            if (coop->value && itemlist[n].flags & IT_KEY)
-                self->client->resp.coop_respawn.inventory[n] = self->client->pers.inventory[n];
-            self->client->pers.inventory[n] = 0;
-        }
+        //for (n = 0; n < game.num_items; n++) {
+        //    if (coop->value && itemlist[n].flags & IT_KEY)
+        //        self->client->resp.coop_respawn.inventory[n] = self->client->pers.inventory[n];
+        //    self->client->pers.inventory[n] = 0;
+        //}
     }
 
     // Remove powerups.
@@ -628,12 +628,11 @@ void InitClientPersistantData(edict_t *ent, gclient_t *client) {
     client->pers.health         = 100;
     client->pers.max_health     = 100;
 
-    client->pers.max_bullets    = 200;
-    client->pers.max_shells     = 100;
-    client->pers.max_rockets    = 50;
-    client->pers.max_grenades   = 50;
-    client->pers.max_cells      = 200;
-    client->pers.max_slugs      = 50;
+    client->pers.ammoCapacities.pistol  = 120;
+    client->pers.ammoCapacities.rifle   = 180;
+    client->pers.ammoCapacities.smg     = 250;
+    client->pers.ammoCapacities.sniper  = 80;
+    client->pers.ammoCapacities.shotgun = 100;
 
     client->pers.connected = true;
     client->pers.spawned = true;

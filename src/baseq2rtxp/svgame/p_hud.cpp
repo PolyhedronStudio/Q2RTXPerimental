@@ -112,11 +112,11 @@ void BeginIntermission(edict_t *targ)
                 client = g_edicts + 1 + i;
                 if (!client->inuse)
                     continue;
-                // strip players of all keys between units
-                for (n = 0; n < game.num_items; n++) {
-                    if (itemlist[n].flags & IT_KEY)
-                        client->client->pers.inventory[n] = 0;
-                }
+                //// strip players of all keys between units
+                //for (n = 0; n < game.num_items; n++) {
+                //    if (itemlist[n].flags & ITEM_FLAG_KEY)
+                //        client->client->pers.inventory[n] = 0;
+                //}
                 client->client->pers.power_cubes = 0;
             }
         }

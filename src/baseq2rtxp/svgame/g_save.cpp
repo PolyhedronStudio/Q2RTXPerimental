@@ -384,15 +384,15 @@ static const save_field_t clientfields[] = {
 	I( pers.selected_item ),
 	IA( pers.inventory, MAX_ITEMS ),
 
-	I( pers.max_bullets ),
-	I( pers.max_shells ),
-	I( pers.max_rockets ),
-	I( pers.max_grenades ),
-	I( pers.max_cells ),
-	I( pers.max_slugs ),
+	I( pers.ammoCapacities.pistol ),
+	I( pers.ammoCapacities.rifle ),
+	I( pers.ammoCapacities.smg ),
+	I( pers.ammoCapacities.sniper ),
+	I( pers.ammoCapacities.shotgun ),
 
 	T( pers.weapon ),
 	T( pers.lastweapon ),
+    IA( pers.weapon_clip_ammo, MAX_ITEMS ),
 
 	I( pers.power_cubes ),
 	I( pers.score ),

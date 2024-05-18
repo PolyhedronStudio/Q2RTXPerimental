@@ -104,8 +104,8 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     vec3_t      start;
     vec3_t      forward, right;
     vec3_t      offset;
-    int         damage = 8;
-    int         kick = 12;
+    int         damage = 10;
+    int         kick = 8;
 
     // TODO: These are already calculated, right?
     // Calculate angle vectors.
@@ -115,8 +115,7 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
     VectorSet( offset, 0, 10, (float)ent->viewheight - 5.5f ); // VectorSet( offset, 0, 8, ent->viewheight - 8 );
-    //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
-    P_ProjectDistance( ent, ent->s.origin, offset, forward, right, start );
+    P_ProjectDistance( ent, ent->s.origin, offset, forward, right, start ); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Fire the actual bullet itself.
     fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
@@ -131,9 +130,8 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     P_PlayerNoise( ent, start, PNOISE_WEAPON );
 
     // Decrease clip ammo.
-    ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ]--;
     //if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
-    //    ent->client->pers.inventory[ ent->client->ammo_index ]--;
+    ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ]--;
 
 }
 /**
@@ -144,7 +142,7 @@ void weapon_pistol_secondary_fire( edict_t *ent ) {
     vec3_t      forward, right;
     vec3_t      offset;
     int         damage = 14;
-    int         kick = 8;
+    int         kick = 10;
 
     // TODO: These are already calculated, right?
     // Calculate angle vectors.
@@ -153,7 +151,7 @@ void weapon_pistol_secondary_fire( edict_t *ent ) {
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
-    VectorSet( offset, 0, 0, (float)ent->viewheight - 5.5f ); // VectorSet( offset, 0, 8, ent->viewheight - 8 );
+    VectorSet( offset, 0, 0, (float)ent->viewheight ); // VectorSet( offset, 0, 8, ent->viewheight - 8 );
     P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Determine the amount to multiply bullet spread with based on the player's velocity.
@@ -163,8 +161,8 @@ void weapon_pistol_secondary_fire( edict_t *ent ) {
     // Don't spread multiply if we're pretty much standing still. This allows for a precise shot.
     const float hSpreadMultiplier = ( ent->client->ps.xyzSpeed > 5 ? moveThreshold * ent->client->ps.bobMove : 0 );
     float vSpreadMultiplier = ( ent->client->ps.xyzSpeed > 5 ? moveThreshold * ent->client->ps.bobMove : 0 );
-    gi.dprintf( " ----- ----- ----- \n" );
-    gi.dprintf( "%s: hSpreadMultiplier(%f) vSpreadMultiplier(%f)\n", __func__, hSpreadMultiplier, vSpreadMultiplier );
+    //gi.dprintf( " ----- ----- ----- \n" );
+    //gi.dprintf( "%s: hSpreadMultiplier(%f) vSpreadMultiplier(%f)\n", __func__, hSpreadMultiplier, vSpreadMultiplier );
 
     // Fire the actual bullet itself.
     fire_bullet( ent, start, forward, damage, kick, SECONDARY_FIRE_BULLET_HSPREAD + hSpreadMultiplier, SECONDARY_FIRE_BULLET_VSPREAD + vSpreadMultiplier, MOD_CHAINGUN );
@@ -179,9 +177,8 @@ void weapon_pistol_secondary_fire( edict_t *ent ) {
     P_PlayerNoise( ent, start, PNOISE_WEAPON );
 
     // Decrease clip ammo.
-    ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ]--;
     //if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
-    //    ent->client->pers.inventory[ ent->client->ammo_index ]--;
+    ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ]--;
 
 }
 /**
