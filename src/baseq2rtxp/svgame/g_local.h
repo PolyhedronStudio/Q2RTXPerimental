@@ -182,20 +182,20 @@ static constexpr sg_time_t LADDER_SOUND_TIME = 375_ms;
 typedef enum {
     FL_NONE                 = 0,
     FL_FLY                  = BIT( 1 ),
-    FL_SWIM                 = BIT( 2 ),// implied immunity to drowining
+    FL_SWIM                 = BIT( 2 ), //! Implied immunity to drowining.
     FL_IMMUNE_LASER         = BIT( 3 ),
     FL_INWATER              = BIT( 4 ),
     FL_GODMODE              = BIT( 5 ),
     FL_NOTARGET             = BIT( 6 ),
-    FL_DODGE                = BIT( 7 ), // monster should try to dodge this
+    FL_DODGE                = BIT( 7 ), //! Monster should try to dodge this.
     FL_IMMUNE_SLIME         = BIT( 8 ),
     FL_IMMUNE_LAVA          = BIT( 9 ),
-    FL_PARTIALGROUND        = BIT( 10 ),// not all corners are valid
-    FL_WATERJUMP            = BIT( 11 ),// player jumping out of water
-    FL_TEAMSLAVE            = BIT( 12 ),// not the first on the team
+    FL_PARTIALGROUND        = BIT( 10 ),//! Not all corners are valid.
+    FL_WATERJUMP            = BIT( 11 ),//! Player jumping out of water.
+    FL_TEAMSLAVE            = BIT( 12 ),//! Not the first on the team.
     FL_NO_KNOCKBACK         = BIT( 13 ),
-    FL_POWER_ARMOR          = BIT( 14 ),// power armor (if any) is active
-    FL_RESPAWN              = BIT( 15 ) // used for item respawning
+    FL_RESPAWN              = BIT( 14 ) //! Used for item respawning.
+    //FL_POWER_ARMOR          = BIT( 15 ),//! Power armor (if any) is active
 } ent_flags_t;
 
 
@@ -352,10 +352,10 @@ typedef enum {
 
 
 
-// power armor types
-#define POWER_ARMOR_NONE        0
-#define POWER_ARMOR_SCREEN      1
-#define POWER_ARMOR_SHIELD      2
+//// power armor types
+//#define POWER_ARMOR_NONE        0
+//#define POWER_ARMOR_SCREEN      1
+//#define POWER_ARMOR_SHIELD      2
 
 // handedness values
 #define RIGHT_HANDED            0
@@ -1373,12 +1373,12 @@ struct gclient_s {
 	sg_time_t	anim_time;
 
 	/**
-	*	Powerup Timers:
+	*	Item/Use Event Timers:
 	**/
-	sg_time_t	quad_time;
-	sg_time_t	invincible_time;
-	sg_time_t	breather_time;
-	sg_time_t	enviro_time;
+	//sg_time_t	quad_time;
+	//sg_time_t	invincible_time;
+	//sg_time_t	breather_time;
+	//sg_time_t	enviro_time;
 
     sg_time_t	pickup_msg_time;
 
@@ -1496,7 +1496,6 @@ struct edict_s {
     int32_t     deadflag;
     sg_time_t   show_hostile;
 
-	sg_time_t   powerarmor_time;
 
 	// WID: C++20: Added const.
     const char  *map;           // target_changelevel

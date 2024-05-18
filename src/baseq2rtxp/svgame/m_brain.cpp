@@ -441,7 +441,6 @@ mmove_t brain_move_attack1 = {FRAME_attak101, FRAME_attak118, brain_frames_attac
 
 void brain_chest_open(edict_t *self) {
     self->spawnflags &= ~65536;
-    self->monsterinfo.power_armor_type = POWER_ARMOR_NONE;
     gi.sound(self, CHAN_BODY, sound_chest_open, 1, ATTN_NORM, 0);
 }
 
@@ -455,7 +454,6 @@ void brain_tentacle_attack(edict_t *self) {
 }
 
 void brain_chest_closed(edict_t *self) {
-    self->monsterinfo.power_armor_type = POWER_ARMOR_SCREEN;
     if (self->spawnflags & 65536) {
         self->spawnflags &= ~65536;
         M_SetAnimation( self, &brain_move_attack1 );
@@ -513,7 +511,6 @@ mframe_t brain_frames_run [] =
 mmove_t brain_move_run = {FRAME_walk101, FRAME_walk111, brain_frames_run, NULL};
 
 void brain_run(edict_t *self) {
-    self->monsterinfo.power_armor_type = POWER_ARMOR_SCREEN;
     if (self->monsterinfo.aiflags & AI_STAND_GROUND)
         M_SetAnimation( self, &brain_move_stand );
     else
@@ -562,7 +559,6 @@ void brain_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
     int     n;
 
     self->s.effects = 0;
-    self->monsterinfo.power_armor_type = POWER_ARMOR_NONE;
 
 // check for gib
     if (self->health <= self->gib_health) {
@@ -635,7 +631,6 @@ void SP_monster_brain(edict_t *self) {
     self->monsterinfo.search = brain_search;
     self->monsterinfo.idle = brain_idle;
 
-    self->monsterinfo.power_armor_type = POWER_ARMOR_SCREEN;
     self->monsterinfo.power_armor_power = 100;
 
     gi.linkentity(self);

@@ -52,10 +52,6 @@ void MoveClientToIntermission(edict_t *ent)
     ent->client->ps.rdflags = RDF_NONE;
 
     // clean up powerup info
-    ent->client->quad_time = 0_ms;
-    ent->client->invincible_time = 0_ms;
-    ent->client->breather_time = 0_ms;
-    ent->client->enviro_time = 0_ms;
     ent->client->grenade_blew_up = false;
     ent->client->grenade_time = 0_ms;
 
@@ -461,26 +457,8 @@ void G_SetStats(edict_t *ent) {
     //
     // Armor
     //
-    power_armor_type = PowerArmorType(ent);
-    if (power_armor_type) {
-        cells = ent->client->pers.inventory[ITEM_INDEX(FindItem("cells"))];
-        if (cells == 0) {
-            // ran out of cells for power armor
-            ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_POWER_ARMOR );
-            gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/power2.wav"), 1, ATTN_NORM, 0);
-            power_armor_type = 0;
-        }
-    }
-
     index = ArmorIndex(ent);
-    if (power_armor_type && (!index || (level.framenum & 8))) {
-        // flash between power armor and other armor icon
-        if (power_armor_type == POWER_ARMOR_SHIELD)
-            ent->client->ps.stats[STAT_ARMOR_ICON] = gi.imageindex("i_powershield");
-        else
-            ent->client->ps.stats[STAT_ARMOR_ICON] = gi.imageindex("i_powerscreen");
-        ent->client->ps.stats[STAT_ARMOR] = cells;
-    } else if (index) {
+    if (index) {
         item = GetItemByIndex(index);
         ent->client->ps.stats[STAT_ARMOR_ICON] = gi.imageindex(item->icon);
         ent->client->ps.stats[STAT_ARMOR] = ent->client->pers.inventory[index];
@@ -500,47 +478,39 @@ void G_SetStats(edict_t *ent) {
     //
     // Timer 1 (quad, enviro, breather)
     //
-    if (ent->client->quad_time > level.time) {
-        ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_quad");
-        ent->client->ps.stats[STAT_TIMER] = (ent->client->quad_time - level.time).seconds( ) / BASE_FRAMERATE;
-    } else if (ent->client->invincible_time > level.time) {
-        ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_invulnerability");
-        ent->client->ps.stats[STAT_TIMER] = (ent->client->invincible_time - level.time).seconds( ) / BASE_FRAMERATE;
-    } else if (ent->client->enviro_time > level.time) {
-        ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_envirosuit");
-        ent->client->ps.stats[STAT_TIMER] = (ent->client->enviro_time - level.time).seconds( ) / BASE_FRAMERATE;
-    } else if (ent->client->breather_time > level.time) {
-        ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_rebreather");
-        ent->client->ps.stats[STAT_TIMER] = (ent->client->breather_time - level.time).seconds() / BASE_FRAMERATE;
-		//ent->client->ps.stats[ STAT_TIMER ] = ( ent->client->breather_time - level.time ) / 10;
-    } else {
+    //if (ent->client->quad_time > level.time) {
+    //    ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_quad");
+    //    ent->client->ps.stats[STAT_TIMER] = (ent->client->quad_time - level.time).seconds( ) / BASE_FRAMERATE;
+    //} else if (ent->client->invincible_time > level.time) {
+    //    ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_invulnerability");
+    //    ent->client->ps.stats[STAT_TIMER] = (ent->client->invincible_time - level.time).seconds( ) / BASE_FRAMERATE;
+    //} else if (ent->client->enviro_time > level.time) {
+    //    ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_envirosuit");
+    //    ent->client->ps.stats[STAT_TIMER] = (ent->client->enviro_time - level.time).seconds( ) / BASE_FRAMERATE;
+    //} else if (ent->client->breather_time > level.time) {
+    //    ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_rebreather");
+    //    ent->client->ps.stats[STAT_TIMER] = (ent->client->breather_time - level.time).seconds() / BASE_FRAMERATE;
+    //	//ent->client->ps.stats[ STAT_TIMER ] = ( ent->client->breather_time - level.time ) / 10;
+    //} else {
         ent->client->ps.stats[STAT_TIMER_ICON] = 0;
         ent->client->ps.stats[STAT_TIMER] = 0;
-    }
+    //}
 
     //
     // Timer 2 (pent)
     //
     ent->client->ps.stats[STAT_TIMER2_ICON] = 0;
     ent->client->ps.stats[STAT_TIMER2] = 0;
-	if ( ent->client->invincible_time > level.time ) {
-        if (ent->client->ps.stats[STAT_TIMER_ICON]) {
-            ent->client->ps.stats[STAT_TIMER2_ICON] = gi.imageindex("p_invulnerability");
-			ent->client->ps.stats[ STAT_TIMER2 ] = ( ent->client->invincible_time - level.time ).seconds( ) / BASE_FRAMERATE;
-        } else {
-            ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_invulnerability");
-			ent->client->ps.stats[ STAT_TIMER ] = ( ent->client->invincible_time - level.time ).seconds( ) / BASE_FRAMERATE;
-        }
-    }
+
 
     //
     // Selected Item
     //
-    if (ent->client->pers.selected_item == -1)
-        ent->client->ps.stats[STAT_SELECTED_ICON] = 0;
-    else
-        ent->client->ps.stats[STAT_SELECTED_ICON] = gi.imageindex(itemlist[ent->client->pers.selected_item].icon);
-
+    if ( ent->client->pers.selected_item == -1 ) {
+        ent->client->ps.stats[ STAT_SELECTED_ICON ] = 0;
+    } else {
+        ent->client->ps.stats[ STAT_SELECTED_ICON ] = gi.imageindex( itemlist[ ent->client->pers.selected_item ].icon );
+    }
     ent->client->ps.stats[STAT_SELECTED_ITEM] = ent->client->pers.selected_item;
 
     //

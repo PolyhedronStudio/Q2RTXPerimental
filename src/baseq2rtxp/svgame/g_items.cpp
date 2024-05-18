@@ -168,269 +168,8 @@ void Drop_General(edict_t *ent, gitem_t *item)
 *
 *
 **/
-/**
-*   @brief
-**/
-const bool Pickup_Powerup( edict_t *ent, edict_t *other ) {
-    int     quantity;
-
-    quantity = other->client->pers.inventory[ ITEM_INDEX( ent->item ) ];
-    if ( ( skill->value == 1 && quantity >= 2 ) || ( skill->value >= 2 && quantity >= 1 ) )
-        return false;
-
-    if ( ( coop->value ) && ( ent->item->flags & ITEM_FLAG_STAY_COOP ) && ( quantity > 0 ) )
-        return false;
-
-    other->client->pers.inventory[ ITEM_INDEX( ent->item ) ]++;
-
-    if ( deathmatch->value ) {
-        if ( !( ent->spawnflags & DROPPED_ITEM ) )
-            SetRespawn( ent, ent->item->quantity );
-        if ( ( (int)dmflags->value & DF_INSTANT_ITEMS ) || ( ( ent->item->use == Use_Quad ) && ( ent->spawnflags & DROPPED_PLAYER_ITEM ) ) ) {
-            if ( ( ent->item->use == Use_Quad ) && ( ent->spawnflags & DROPPED_PLAYER_ITEM ) )
-                quad_drop_timeout_hack = ent->nextthink - level.time;
-            ent->item->use( other, ent->item );
-        }
-    }
-
-    return true;
-}
-/**
-*   @brief
-**/
-const bool Pickup_Adrenaline(edict_t *ent, edict_t *other)
-{
-    if (!deathmatch->value)
-        other->max_health += 1;
-
-    if (other->health < other->max_health)
-        other->health = other->max_health;
-
-    if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SetRespawn(ent, ent->item->quantity);
-
-    return true;
-}
-/**
-*   @brief
-**/
-const bool Pickup_AncientHead(edict_t *ent, edict_t *other)
-{
-    other->max_health += 2;
-
-    if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SetRespawn(ent, ent->item->quantity);
-
-    return true;
-}
-/**
-*   @brief
-**/
-const bool Pickup_Bandolier(edict_t *ent, edict_t *other)
-{
-    gitem_t *item;
-    int     index;
-
-    //if (other->client->pers.max_bullets < 250)
-    //    other->client->pers.max_bullets = 250;
-    //if (other->client->pers.max_shells < 150)
-    //    other->client->pers.max_shells = 150;
-    //if (other->client->pers.max_cells < 250)
-    //    other->client->pers.max_cells = 250;
-    //if (other->client->pers.max_slugs < 75)
-    //    other->client->pers.max_slugs = 75;
-
-    //item = FindItem("Bullets");
-    //if (item) {
-    //    index = ITEM_INDEX(item);
-    //    other->client->pers.inventory[index] += item->quantity;
-    //    if (other->client->pers.inventory[index] > other->client->pers.max_bullets)
-    //        other->client->pers.inventory[index] = other->client->pers.max_bullets;
-    //}
-
-    //item = FindItem("Shells");
-    //if (item) {
-    //    index = ITEM_INDEX(item);
-    //    other->client->pers.inventory[index] += item->quantity;
-    //    if (other->client->pers.inventory[index] > other->client->pers.max_shells)
-    //        other->client->pers.inventory[index] = other->client->pers.max_shells;
-    //}
-
-    //if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-    //    SetRespawn(ent, ent->item->quantity);
-
-    return true;
-}
-/**
-*   @brief  
-**/
-const bool Pickup_Pack(edict_t *ent, edict_t *other)
-{
-    gitem_t *item;
-    int     index;
-
-    //if (other->client->pers.max_bullets < 300)
-    //    other->client->pers.max_bullets = 300;
-    //if (other->client->pers.max_shells < 200)
-    //    other->client->pers.max_shells = 200;
-    //if (other->client->pers.max_rockets < 100)
-    //    other->client->pers.max_rockets = 100;
-    //if (other->client->pers.max_grenades < 100)
-    //    other->client->pers.max_grenades = 100;
-    //if (other->client->pers.max_cells < 300)
-    //    other->client->pers.max_cells = 300;
-    //if (other->client->pers.max_slugs < 100)
-    //    other->client->pers.max_slugs = 100;
-
-    //item = FindItem("Bullets");
-    //if (item) {
-    //    index = ITEM_INDEX(item);
-    //    other->client->pers.inventory[index] += item->quantity;
-    //    if (other->client->pers.inventory[index] > other->client->pers.max_bullets)
-    //        other->client->pers.inventory[index] = other->client->pers.max_bullets;
-    //}
-
-    //item = FindItem("Shells");
-    //if (item) {
-    //    index = ITEM_INDEX(item);
-    //    other->client->pers.inventory[index] += item->quantity;
-    //    if (other->client->pers.inventory[index] > other->client->pers.max_shells)
-    //        other->client->pers.inventory[index] = other->client->pers.max_shells;
-    //}
-
-    //item = FindItem("Cells");
-    //if (item) {
-    //    index = ITEM_INDEX(item);
-    //    other->client->pers.inventory[index] += item->quantity;
-    //    if (other->client->pers.inventory[index] > other->client->pers.max_cells)
-    //        other->client->pers.inventory[index] = other->client->pers.max_cells;
-    //}
-
-    //item = FindItem("Grenades");
-    //if (item) {
-    //    index = ITEM_INDEX(item);
-    //    other->client->pers.inventory[index] += item->quantity;
-    //    if (other->client->pers.inventory[index] > other->client->pers.max_grenades)
-    //        other->client->pers.inventory[index] = other->client->pers.max_grenades;
-    //}
-
-    //item = FindItem("Rockets");
-    //if (item) {
-    //    index = ITEM_INDEX(item);
-    //    other->client->pers.inventory[index] += item->quantity;
-    //    if (other->client->pers.inventory[index] > other->client->pers.max_rockets)
-    //        other->client->pers.inventory[index] = other->client->pers.max_rockets;
-    //}
-
-    //item = FindItem("Slugs");
-    //if (item) {
-    //    index = ITEM_INDEX(item);
-    //    other->client->pers.inventory[index] += item->quantity;
-    //    if (other->client->pers.inventory[index] > other->client->pers.max_slugs)
-    //        other->client->pers.inventory[index] = other->client->pers.max_slugs;
-    //}
-
-    //if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-    //    SetRespawn(ent, ent->item->quantity);
-
-    return true;
-}
 
 
-
-//======================================================================
-
-void Use_Quad(edict_t *ent, gitem_t *item)
-{
-    sg_time_t     timeout;
-
-    ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
-
-    if (quad_drop_timeout_hack) {
-        timeout = quad_drop_timeout_hack;
-        quad_drop_timeout_hack = 0_ms;
-    } else {
-        timeout = 300_ms;
-    }
-
-    if (ent->client->quad_time > level.time)
-        ent->client->quad_time += timeout;
-    else
-        ent->client->quad_time = level.time + timeout;
-
-    gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
-}
-
-//======================================================================
-
-void Use_Breather(edict_t *ent, gitem_t *item)
-{
-    ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
-
-	ent->client->breather_time = std::max( level.time, ent->client->breather_time ) + 30_sec;
-
-//  gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
-}
-
-//======================================================================
-
-void Use_Envirosuit(edict_t *ent, gitem_t *item)
-{
-    ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
-
-	ent->client->enviro_time = std::max( level.time, ent->client->enviro_time ) + 30_sec;
-
-//  gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
-}
-
-//======================================================================
-
-void    Use_Invulnerability(edict_t *ent, gitem_t *item)
-{
-    ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
-
-	ent->client->invincible_time = std::max( level.time, ent->client->invincible_time ) + 30_sec;
-
-    gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect.wav"), 1, ATTN_NORM, 0);
-}
-
-//======================================================================
-
-void    Use_Silencer(edict_t *ent, gitem_t *item)
-{
-    ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
-    ent->client->silencer_shots += 30;
-
-//  gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
-}
-
-//======================================================================
-
-const bool Pickup_Key(edict_t *ent, edict_t *other)
-{
-    if (coop->value) {
-        if (strcmp(ent->classname, "key_power_cube") == 0) {
-            if (other->client->pers.power_cubes & ((ent->spawnflags & 0x0000ff00) >> 8))
-                return false;
-            other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
-            other->client->pers.power_cubes |= ((ent->spawnflags & 0x0000ff00) >> 8);
-        } else {
-            if (other->client->pers.inventory[ITEM_INDEX(ent->item)])
-                return false;
-            other->client->pers.inventory[ITEM_INDEX(ent->item)] = 1;
-        }
-        return true;
-    }
-    other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
-    return true;
-}
-
-static constexpr int32_t testvar = 6 / 2 * ( 2 + 1 );
 
 /**
 *
@@ -709,64 +448,65 @@ const bool Pickup_Armor(edict_t *ent, edict_t *other)
 **/
 int PowerArmorType(edict_t *ent)
 {
-    if (!ent->client)
-        return POWER_ARMOR_NONE;
+    //if (!ent->client)
+    //    return POWER_ARMOR_NONE;
 
-    if (!(ent->flags & FL_POWER_ARMOR))
-        return POWER_ARMOR_NONE;
+    //if (!(ent->flags & FL_POWER_ARMOR))
+    //    return POWER_ARMOR_NONE;
 
-    if (ent->client->pers.inventory[power_shield_index] > 0)
-        return POWER_ARMOR_SHIELD;
+    //if (ent->client->pers.inventory[power_shield_index] > 0)
+    //    return POWER_ARMOR_SHIELD;
 
-    if (ent->client->pers.inventory[power_screen_index] > 0)
-        return POWER_ARMOR_SCREEN;
+    //if (ent->client->pers.inventory[power_screen_index] > 0)
+    //    return POWER_ARMOR_SCREEN;
 
-    return POWER_ARMOR_NONE;
+    //return POWER_ARMOR_NONE;
+    return 0;
 }
 
 void Use_PowerArmor(edict_t *ent, gitem_t *item)
 {
-    int     index;
+    //int     index;
 
-    if (ent->flags & FL_POWER_ARMOR) {
-        ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_POWER_ARMOR );
-        gi.sound(ent, CHAN_AUTO, gi.soundindex("misc/power2.wav"), 1, ATTN_NORM, 0);
-    } else {
-        index = ITEM_INDEX(FindItem("cells"));
-        if (!ent->client->pers.inventory[index]) {
-            gi.cprintf(ent, PRINT_HIGH, "No cells for power armor.\n");
-            return;
-        }
-        ent->flags = static_cast<ent_flags_t>( ent->flags | FL_POWER_ARMOR );
+    //if (ent->flags & FL_POWER_ARMOR) {
+    //    ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_POWER_ARMOR );
+    //    gi.sound(ent, CHAN_AUTO, gi.soundindex("misc/power2.wav"), 1, ATTN_NORM, 0);
+    //} else {
+    //    index = ITEM_INDEX(FindItem("cells"));
+    //    if (!ent->client->pers.inventory[index]) {
+    //        gi.cprintf(ent, PRINT_HIGH, "No cells for power armor.\n");
+    //        return;
+    //    }
+    //    ent->flags = static_cast<ent_flags_t>( ent->flags | FL_POWER_ARMOR );
 
-        gi.sound(ent, CHAN_AUTO, gi.soundindex("misc/power1.wav"), 1, ATTN_NORM, 0);
-    }
+    //    gi.sound(ent, CHAN_AUTO, gi.soundindex("misc/power1.wav"), 1, ATTN_NORM, 0);
+    //}
 }
 
 const bool Pickup_PowerArmor(edict_t *ent, edict_t *other)
 {
-    int     quantity;
+    //int     quantity;
 
-    quantity = other->client->pers.inventory[ITEM_INDEX(ent->item)];
+    //quantity = other->client->pers.inventory[ITEM_INDEX(ent->item)];
 
-    other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
+    //other->client->pers.inventory[ITEM_INDEX(ent->item)]++;
 
-    if (deathmatch->value) {
-        if (!(ent->spawnflags & DROPPED_ITEM))
-            SetRespawn(ent, ent->item->quantity);
-        // auto-use for DM only if we didn't already have one
-        if (!quantity)
-            ent->item->use(other, ent->item);
-    }
+    //if (deathmatch->value) {
+    //    if (!(ent->spawnflags & DROPPED_ITEM))
+    //        SetRespawn(ent, ent->item->quantity);
+    //    // auto-use for DM only if we didn't already have one
+    //    if (!quantity)
+    //        ent->item->use(other, ent->item);
+    //}
 
     return true;
 }
 
 void Drop_PowerArmor(edict_t *ent, gitem_t *item)
 {
-    if ((ent->flags & FL_POWER_ARMOR) && (ent->client->pers.inventory[ITEM_INDEX(item)] == 1))
-        Use_PowerArmor(ent, item);
-    Drop_General(ent, item);
+    //if ((ent->flags & FL_POWER_ARMOR) && (ent->client->pers.inventory[ITEM_INDEX(item)] == 1))
+    //    Use_PowerArmor(ent, item);
+    //Drop_General(ent, item);
 }
 
 
@@ -1082,13 +822,13 @@ void SpawnItem(edict_t *ent, gitem_t *item)
             }
         }
         if ((int)dmflags->value & DF_NO_ITEMS) {
-            if (item->pickup == Pickup_Powerup) {
-                G_FreeEdict(ent);
-                return;
-            }
+            //if (item->pickup == Pickup_Powerup) {
+            //    G_FreeEdict(ent);
+            //    return;
+            //}
         }
         if ((int)dmflags->value & DF_NO_HEALTH) {
-            if (item->pickup == Pickup_Health || item->pickup == Pickup_Adrenaline || item->pickup == Pickup_AncientHead) {
+            if (item->pickup == Pickup_Health ) {
                 G_FreeEdict(ent);
                 return;
             }

@@ -179,8 +179,6 @@ static const save_field_t entityfields[] = {
     I(deadflag),
     I64(show_hostile),
 
-    I64( powerarmor_time ), // WID: 64-bit-frame
-
     L(map),
 
     I(viewheight),
@@ -451,17 +449,17 @@ static const save_field_t clientfields[] = {
 	O( anim_run ),
 
 	// powerup timers
-	I64( quad_time ), // WID: 64-bit-frame
-	I64( invincible_time ), // WID: 64-bit-frame
-	I64( breather_time ), // WID: 64-bit-frame
-	I64( enviro_time ), // WID: 64-bit-frame
+	//I64( quad_time ), // WID: 64-bit-frame
+	//I64( invincible_time ), // WID: 64-bit-frame
+	//I64( breather_time ), // WID: 64-bit-frame
+	//I64( enviro_time ), // WID: 64-bit-frame
+    I64( pickup_msg_time ), // WID: 64-bit-frame
 
 	O( grenade_blew_up ),
 	I64( grenade_time ), // WID: 64-bit-frame
 	I( silencer_shots ),
 	I( weapon_sound ),
 
-	I64( pickup_msg_time ), // WID: 64-bit-frame
 
 	// WID: C++20: Replaced {0}
 	{}

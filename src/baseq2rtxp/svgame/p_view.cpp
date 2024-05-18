@@ -98,7 +98,7 @@ void P_DamageFeedback( edict_t *player ) {
 	client->ps.stats[ STAT_FLASHES ] = 0;
 	if ( client->damage_blood )
 		client->ps.stats[ STAT_FLASHES ] |= 1;
-	if ( client->damage_armor && !( player->flags & FL_GODMODE ) && ( client->invincible_time <= level.time ) )
+	if ( client->damage_armor && !( player->flags & FL_GODMODE ) )
 		client->ps.stats[ STAT_FLASHES ] |= 2;
 
 	// total points of damage shot at the player this frame
@@ -140,7 +140,7 @@ void P_DamageFeedback( edict_t *player ) {
 		count = 10; // always make a visible effect
 
 	// play an apropriate pain sound
-	if ( ( level.time > player->pain_debounce_time ) && !( player->flags & FL_GODMODE ) && ( client->invincible_time <= level.time ) ) {
+	if ( ( level.time > player->pain_debounce_time ) && !( player->flags & FL_GODMODE ) ) {
 		r = 1 + ( Q_rand( ) & 1 );
 		player->pain_debounce_time = level.time + 0.7_sec;
 		if ( player->health < 25 )
@@ -483,32 +483,6 @@ void SV_CalcBlend( edict_t *ent ) {
 	} else if ( contents & CONTENTS_WATER ) {
 		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, ent->client->ps.screen_blend );
 	}
-	// add for powerups
-	if ( ent->client->quad_time > level.time ) {
-		remaining = ent->client->quad_time - level.time;
-		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
-			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/damage2.wav" ), 1, ATTN_NORM, 0 );
-		if ( G_PowerUpExpiringRelative( remaining ) )
-			SG_AddBlend( 0, 0, 1, 0.08f, ent->client->ps.screen_blend );
-	} else if ( ent->client->invincible_time > level.time ) {
-		remaining = ent->client->invincible_time - level.time;
-		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
-			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/protect2.wav" ), 1, ATTN_NORM, 0 );
-		if ( G_PowerUpExpiringRelative( remaining ) )
-			SG_AddBlend( 1, 1, 0, 0.08f, ent->client->ps.screen_blend );
-	} else if ( ent->client->enviro_time > level.time ) {
-		remaining = ent->client->enviro_time - level.time;
-		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
-			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/airout.wav" ), 1, ATTN_NORM, 0 );
-		if ( G_PowerUpExpiringRelative( remaining ) )
-			SG_AddBlend( 0, 1, 0, 0.08f, ent->client->ps.screen_blend );
-	} else if ( ent->client->breather_time > level.time ) {
-		remaining = ent->client->breather_time - level.time;
-		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
-			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/airout.wav" ), 1, ATTN_NORM, 0 );
-		if ( G_PowerUpExpiringRelative( remaining ) )
-			SG_AddBlend( 0.4f, 1, 0.4f, 0.04f, ent->client->ps.screen_blend );
-	}
 
 	// add for damage
 	if ( ent->client->damage_alpha > 0 ) {
@@ -561,9 +535,6 @@ void P_WorldEffects( void ) {
 	old_waterlevel = current_client->old_waterlevel;
 	current_client->old_waterlevel = liquidlevel;
 
-	breather = current_client->breather_time > level.time;
-	envirosuit = current_client->enviro_time > level.time;
-
 	//
 	// if just entered a water volume, play a sound
 	//
@@ -615,21 +586,6 @@ void P_WorldEffects( void ) {
 	// check for drowning
 	//
 	if ( liquidlevel == 3 ) {
-		// breather or envirosuit give air
-		if ( breather || envirosuit ) {
-			current_player->air_finished_time = level.time + 10_sec;
-
-			if ( ( ( current_client->breather_time - level.time ).milliseconds( ) % 2500 ) == 0 ) {
-				if ( !current_client->breather_sound )
-					gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/u_breath1.wav" ), 1, ATTN_NORM, 0 );
-				else
-					gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/u_breath2.wav" ), 1, ATTN_NORM, 0 );
-				current_client->breather_sound ^= 1;
-				P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
-				//FIXME: release a bubble?
-			}
-		}
-
 		// if out of air, start drowning
 		if ( current_player->air_finished_time < level.time ) {
 			// drown!
@@ -666,8 +622,7 @@ void P_WorldEffects( void ) {
 	if ( liquidlevel && ( current_player->liquidtype & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
 		if ( current_player->liquidtype & CONTENTS_LAVA ) {
 			if ( current_player->health > 0
-				&& current_player->pain_debounce_time <= level.time
-				&& current_client->invincible_time < level.time ) {
+				&& current_player->pain_debounce_time <= level.time ) {
 				if ( Q_rand( ) & 1 )
 					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/burn1.wav" ), 1, ATTN_NORM, 0 );
 				else
@@ -705,30 +660,6 @@ void G_SetClientEffects( edict_t *ent ) {
 
 	if ( ent->health <= 0 || level.intermission_framenum )
 		return;
-
-	if ( ent->powerarmor_time > level.time ) {
-		pa_type = PowerArmorType( ent );
-		if ( pa_type == POWER_ARMOR_SCREEN ) {
-			ent->s.effects |= EF_POWERSCREEN;
-		} else if ( pa_type == POWER_ARMOR_SHIELD ) {
-			ent->s.effects |= EF_COLOR_SHELL;
-			ent->s.renderfx |= RF_SHELL_GREEN;
-		}
-	}
-
-	if ( ent->client->quad_time > level.time ) {
-		//remaining = ent->client->quad_framenum - level.framenum;
-		//if (remaining > 30 || (remaining & 4))
-		if ( G_PowerUpExpiring( ent->client->quad_time ) )
-			ent->s.effects |= EF_QUAD;
-	}
-
-	if ( ent->client->invincible_time > level.time ) {
-		//remaining = ent->client->invincible_framenum - level.framenum;
-		//if (remaining > 30 || (remaining & 4))
-		if ( G_PowerUpExpiring( ent->client->invincible_time ) )
-			ent->s.effects |= EF_PENT;
-	}
 
 	// show cheaters!!!
 	if ( ent->flags & FL_GODMODE ) {

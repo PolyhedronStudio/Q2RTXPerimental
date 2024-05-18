@@ -394,7 +394,6 @@ void TossClientWeapon(edict_t *self)
 {
     gitem_t     *item;
     edict_t     *drop;
-    bool        quad;
     float       spread;
 
     if (!deathmatch->value)
@@ -406,14 +405,9 @@ void TossClientWeapon(edict_t *self)
     if (item && (strcmp(item->pickup_name, "Blaster") == 0))
         item = NULL;
 
-    if (!((int)(dmflags->value) & DF_QUAD_DROP))
-        quad = false;
-    else
-		quad = ( self->client->quad_time > ( level.time + 1_sec ) );
-
-    if (item && quad)
-        spread = 22.5f;
-    else
+    //if (item && quad)
+    //    spread = 22.5f;
+    //else
         spread = 0.0f;
 
     if (item) {
@@ -421,17 +415,6 @@ void TossClientWeapon(edict_t *self)
         drop = Drop_Item(self, item);
         self->client->v_angle[YAW] += spread;
         drop->spawnflags = DROPPED_PLAYER_ITEM;
-    }
-
-    if (quad) {
-        self->client->v_angle[YAW] += spread;
-        drop = Drop_Item(self, FindItemByClassname("item_quad"));
-        self->client->v_angle[YAW] -= spread;
-        drop->spawnflags |= DROPPED_PLAYER_ITEM;
-
-        drop->touch = Touch_Item;
-        drop->nextthink = self->client->quad_time;
-        drop->think = G_FreeEdict;
     }
 }
 
@@ -521,13 +504,6 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         //    self->client->pers.inventory[n] = 0;
         //}
     }
-
-    // Remove powerups.
-    self->client->quad_time = 0_ms;
-    self->client->invincible_time = 0_ms;
-    self->client->breather_time = 0_ms;
-    self->client->enviro_time = 0_ms;
-    self->flags = static_cast<ent_flags_t>( self->flags & ~FL_POWER_ARMOR );
 
     // Gib Death:
     if (self->health < -40) {
@@ -671,13 +647,15 @@ void SaveClientData(void)
 
     for (i = 0 ; i < game.maxclients ; i++) {
         ent = &g_edicts[1 + i];
-        if (!ent->inuse)
+        if ( !ent->inuse ) {
             continue;
+        }
         game.clients[i].pers.health = ent->health;
         game.clients[i].pers.max_health = ent->max_health;
-        game.clients[i].pers.savedFlags = static_cast<ent_flags_t>(ent->flags & (FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR));
-        if (coop->value)
-            game.clients[i].pers.score = ent->client->resp.score;
+        game.clients[i].pers.savedFlags = static_cast<ent_flags_t>( ent->flags & (FL_GODMODE | FL_NOTARGET /*| FL_POWER_ARMOR*/ ) );
+        if ( coop->value ) {
+            game.clients[ i ].pers.score = ent->client->resp.score;
+        }
     }
 }
 

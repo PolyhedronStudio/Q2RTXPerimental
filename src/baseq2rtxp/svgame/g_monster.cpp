@@ -312,15 +312,6 @@ void M_SetEffects( edict_t *ent ) {
 
 	if ( ent->health <= 0 )
 		return;
-
-    if (ent->powerarmor_time > level.time ) {
-        if (ent->monsterinfo.power_armor_type == POWER_ARMOR_SCREEN) {
-            ent->s.effects |= EF_POWERSCREEN;
-        } else if (ent->monsterinfo.power_armor_type == POWER_ARMOR_SHIELD) {
-            ent->s.effects |= EF_COLOR_SHELL;
-            ent->s.renderfx |= RF_SHELL_GREEN;
-        }
-    }
 }
 
 void M_SetAnimation( edict_t *self, mmove_t *move, bool instant ) {
