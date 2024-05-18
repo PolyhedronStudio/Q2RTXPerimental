@@ -945,18 +945,17 @@ void ClientEndServerFrame( edict_t *ent ) {
 	// determine the gun offsets
 	//SV_CalcGunOffset( ent );
 
-	// determine the full screen color blend
-	// must be after viewoffset, so eye contents can be
-	// accurately determined
-	// FIXME: with client prediction, the contents
-	// should be determined by the client
+	// Determine the full screen color blend which must happen after applying viewoffset, 
+	// so eye contents can be accurately determined.
+	// FIXME: with client prediction, the contents should be determined by the client.
 	SV_CalcBlend( ent );
 
 	// chase cam stuff
-	if ( ent->client->resp.spectator )
+	if ( ent->client->resp.spectator ) {
 		G_SetSpectatorStats( ent );
-	else
+	} else {
 		G_SetStats( ent );
+	}
 	G_CheckChaseStats( ent );
 
 	G_SetClientEvent( ent );

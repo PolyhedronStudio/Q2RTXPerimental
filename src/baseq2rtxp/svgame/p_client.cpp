@@ -1599,7 +1599,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     int	   damage;
     vec3_t dir;
 
-    // dead stuff can't crater
+    // Dead stuff can't crater.
     if ( ent->health <= 0 || ent->deadflag ) {
         return;
     }
@@ -1612,7 +1612,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
         return;
     }
 
-    // never take falling damage if completely underwater
+    // Never take falling damage if completely underwater.
     if ( pm.liquid.level == LIQUID_UNDER ) {
         return;
     }
@@ -1636,8 +1636,9 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
         delta *= 0.5f;
     }
 
-    if ( delta < 1 )
+    if ( delta < 1 ) {
         return;
+    }
 
     // restart footstep timer
     ent->client->bobtime = 0;
@@ -1651,7 +1652,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     if ( delta < 15 ) {
         if ( !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) {
             ent->s.event = EV_FOOTSTEP;
-            gi.dprintf( "%s: delta < 15 footstep\n", __func__ );
+            //gi.dprintf( "%s: delta < 15 footstep\n", __func__ );
         }
         return;
     }
@@ -1676,7 +1677,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
         }
         VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
 
-        if ( !deathmatch->integer /*|| !g_dm_no_fall_damage->integer*/ ) {
+        if ( !deathmatch->integer ) {
             T_Damage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING );
         }
     } else {
@@ -1892,20 +1893,11 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
     }
 
-    // Store what were the current previous buttons as old buttons.
-    client->oldbuttons = client->buttons;
-    // Assign the latest user command buttons as the now current buttons.
-    client->buttons = ucmd->buttons;
-    // Update latched buttons.
-    client->latched_buttons |= client->buttons & ~client->oldbuttons;
-
-
     /**
-    *   Handle the 'attack' button.
+    *   Spectator Path:
     **/
-    if ( client->latched_buttons & BUTTON_PRIMARY_FIRE ) {
-        // Spectator 'Attack Button' Path:
-        if ( client->resp.spectator ) {
+    if ( client->resp.spectator ) {
+        if ( client->latched_buttons & BUTTON_PRIMARY_FIRE ) {
             // Zero out latched buttons.
             client->latched_buttons = BUTTON_NONE;
 
@@ -1913,50 +1905,37 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             if ( client->chase_target ) {
                 client->chase_target = nullptr;
                 client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
-            // Otherwise, get an active chase target:
-			} else {
-				GetChaseTarget( ent );
-			}
-
-        // Weapon 'Attack Button' Path. Fire weapon from final position if needed:
-        } else/* if ( !client->weapon_thunk ) */{
-			// We can only do this during an 'idle' mode state:
-			//if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE ) {
-				// Buffer firing.
-                //ent->client->weapon_fire_buffered = true;
-
-                // And if enough time has passed from last fire.
-				//if ( ent->client->weapon_fire_finished <= level.time ) {
-                    // Store that we already processed 'weapon thinking' for this frame, so we make sure
-                    // to not run it at the end of the frame. This is normally the case if we did not handle
-                    // the 'attack' input here.
-					//ent->client->weapon_thunk = true;
-     //               // Process weapon thinking.
-					//P_Weapon_Think( ent );
-				//}
-			//}
+                // Otherwise, get an active chase target:
+            } else {
+                GetChaseTarget( ent );
+            }
         }
-    }
 
     /**
-    *   Weapon Thinking:
+    *   Regular (Weapon-)Path:
     **/
-    // Check whether to engage switching to a new weapon.
-    if ( client->newweapon && !client->resp.spectator ) {
-        //if ( client->weaponState.mode == WEAPON_MODE_IDLE ) {
+    } else {
+        // Check whether to engage switching to a new weapon.
+        if ( client->newweapon && !client->resp.spectator ) {
+            //if ( client->weaponState.mode == WEAPON_MODE_IDLE ) {
             P_Weapon_Change( ent );
+            //}
+        }
+
+        // Process weapon thinking.
+        //if ( ent->client->weapon_thunk == false ) {
+        P_Weapon_Think( ent );
+        // Store that we thought for this frame.
+        ent->client->weapon_thunk = true;
         //}
     }
 
-    // Process weapon thinking.
-    P_Weapon_Think( ent );
-    // Store that we thought for this frame.
-    ent->client->weapon_thunk = true;
 
     /**
     *   Spectator/Chase-Cam specific behaviors:
     **/
     if ( client->resp.spectator ) {
+        // Switch to next chase target (or the first in-line if not chasing any).
         if ( ucmd->upmove >= 10 ) {
             if ( !( client->ps.pmove.pm_flags & PMF_JUMP_HELD ) ) {
                 client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
@@ -1967,6 +1946,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 					GetChaseTarget( ent );
 				}
             }
+        // Untoggle button state.
 		} else {
             client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
 		}

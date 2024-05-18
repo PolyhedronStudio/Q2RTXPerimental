@@ -221,7 +221,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         **/
         if ( !( ent->client->buttons & BUTTON_SECONDARY_FIRE ) ) {
             P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeFrames, false );
-            gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
+            //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
 
             // Restore the original FOV.
             ent->client->ps.fov = ent->client->weaponState.clientFieldOfView;
@@ -243,7 +243,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     // TODO: Play out of ammo sound, switch weapon?
                 }
             }
-            gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
+            //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
         }
     /**
     *   Regular Behavior Path:
@@ -254,7 +254,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         **/
         if ( ( ent->client->buttons & BUTTON_SECONDARY_FIRE ) ) {
             P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeFrames, false );
-            gi.dprintf( "%s: NOT isAiming -> SwitchMode( WEAPON_MODE_AIM_IN )\n", __func__ );
+            //gi.dprintf( "%s: NOT isAiming -> SwitchMode( WEAPON_MODE_AIM_IN )\n", __func__ );
             ent->client->ps.fov = 45;
 
             return;
