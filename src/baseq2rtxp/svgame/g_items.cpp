@@ -35,24 +35,12 @@ void Weapon_Pistol( edict_t *ent );
 //void Weapon_FlareGun(edict_t *ent);
 
 // for passing into *info member of gitem_t.
-gitem_armor_t jacketarmor_info  = { 25,  50, .30f, .00f, ITEM_TAG_ARMOR_JACKET};
-gitem_armor_t combatarmor_info  = { 50, 100, .60f, .30f, ITEM_TAG_ARMOR_COMBAT};
-gitem_armor_t bodyarmor_info    = {100, 200, .80f, .60f, ITEM_TAG_ARMOR_BODY};
-
-//extern weapon_mode_frames_t pistolAnimationFrames[ WEAPON_MODE_MAX ];
 extern weapon_item_info_t pistolItemInfo;
 
-static int  jacket_armor_index;
-static int  combat_armor_index;
-static int  body_armor_index;
-static int  power_screen_index;
-static int  power_shield_index;
 
-#define HEALTH_IGNORE_MAX   1
-#define HEALTH_TIMED        2
+static constexpr int32_t HEALTH_IGNORE_MAX = 1;
+static constexpr int32_t HEALTH_TIMED = 2;
 
-void Use_Quad(edict_t *ent, gitem_t *item);
-static sg_time_t  quad_drop_timeout_hack;
 
 /**
 *
@@ -62,47 +50,42 @@ static sg_time_t  quad_drop_timeout_hack;
 *
 **/
 /**
-*   @brief
+*   @brief  Will return a pointer to the matching index item, nullptr on failure.
 **/
-gitem_t *GetItemByIndex(int index) {
-    if (index == 0 || index >= game.num_items)
-        return NULL;
+const gitem_t *GetItemByIndex(int index) {
+    if ( index == 0 || index >= game.num_items ) {
+        return nullptr;
+    }
 
     return &itemlist[index];
 }
 /**
-*   @brief
+*   @brief  Will return a pointer to the matching classname item, nullptr on failure.
 **/
-gitem_t *FindItemByClassname(const char *classname) {
-    int     i;
-    gitem_t *it;
-
-    it = itemlist;
-    for (i = 0 ; i < game.num_items ; i++, it++) {
+const gitem_t *FindItemByClassname(const char *classname) {
+    const gitem_t *it = itemlist;
+    for ( int32_t i = 0 ; i < game.num_items ; i++, it++) {
         if (!it->classname)
             continue;
         if (!Q_stricmp(it->classname, classname))
             return it;
     }
 
-    return NULL;
+    return nullptr;
 }
 /**
-*   @brief
+*   @brief  Will return a pointer to the matching pickup_name item, nullptr on failure.
 **/
-gitem_t *FindItem(const char *pickup_name) {
-    int     i;
-    gitem_t *it;
-
-    it = itemlist;
-    for (i = 0 ; i < game.num_items ; i++, it++) {
+const gitem_t *FindItem(const char *pickup_name) {
+    gitem_t *it = itemlist;
+    for ( int32_t i = 0 ; i < game.num_items ; i++, it++ ) {
         if (!it->pickup_name)
             continue;
         if (!Q_stricmp(it->pickup_name, pickup_name))
             return it;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 //======================================================================
@@ -181,7 +164,7 @@ void Drop_General(edict_t *ent, gitem_t *item)
 /**
 *   @brief  Will attempt to add 'count' of item ammo to the entity's client inventory.
 **/
-const bool Add_Ammo(edict_t *ent, gitem_t *item, int count)
+const bool Add_Ammo(edict_t *ent, const gitem_t *item, const int32_t count)
 {
     if (!ent->client)
         return false;
@@ -267,7 +250,7 @@ const bool Pickup_Ammo(edict_t *itemEntity, edict_t *other) {
 /**
 *   @brief  Drops ammo.
 **/
-void Drop_Ammo(edict_t *ent, gitem_t *item) {
+void Drop_Ammo(edict_t *ent, const gitem_t *item) {
     int32_t index = ITEM_INDEX(item);
     edict_t *dropped = Drop_Item(ent, item);
     if (ent->client->pers.inventory[index] >= item->quantity)
@@ -435,7 +418,7 @@ void drop_make_touchable(edict_t *ent)
 /**
 *   @brief
 **/
-edict_t *Drop_Item(edict_t *ent, gitem_t *item)
+edict_t *Drop_Item(edict_t *ent, const gitem_t *item)
 {
     edict_t *dropped;
     vec3_t  forward, right;
@@ -572,14 +555,13 @@ void droptofloor(edict_t *ent)
 *           This will be called for each item spawned in a level,
 *           and for each item in each client's inventory.
 **/
-void PrecacheItem(gitem_t *it)
+void PrecacheItem( const gitem_t *it)
 {
 	// WID: C++20: Added const.
     const char    *s;
 	const char *start;
     char    data[MAX_QPATH];
     int     len;
-    gitem_t *ammo;
 
     if (!it)
         return;
@@ -595,7 +577,7 @@ void PrecacheItem(gitem_t *it)
 
     // parse everything for its ammo
     if (it->ammo && it->ammo[0]) {
-        ammo = FindItem(it->ammo);
+        const gitem_t *ammo = FindItem(it->ammo);
         if (ammo != it)
             PrecacheItem(ammo);
     }
@@ -619,14 +601,15 @@ void PrecacheItem(gitem_t *it)
             s++;
 
         // determine type based on extension
-        if (!strcmp(data + len - 3, "md2"))
-            gi.modelindex(data);
-        else if (!strcmp(data + len - 3, "sp2"))
-            gi.modelindex(data);
-        else if (!strcmp(data + len - 3, "wav"))
-            gi.soundindex(data);
-        else if (!strcmp(data + len - 3, "pcx"))
-            gi.imageindex(data);
+        const char *extension = data + len - 3;
+        if ( !strcmp( extension, "iqm" ) || !strcmp( extension, "md3" ) || !strcmp( extension, "md2" ) )
+            gi.modelindex( data );
+        else if ( !strcmp( extension, "sp2" ) )
+            gi.modelindex( data );
+        else if ( !strcmp( extension, "wav" ) )
+            gi.soundindex( data );
+        else if ( !strcmp( extension, "png" ) || !strcmp( extension, "tga" ) || !strcmp( extension, "jpg" ) || !strcmp( extension, "pcx" ) )
+            gi.imageindex( data );
     }
 }
 
@@ -636,7 +619,7 @@ void PrecacheItem(gitem_t *it)
 *           Items can't be immediately dropped to floor, because they might
 *           be on an entity that hasn't spawned yet.
 **/
-void SpawnItem(edict_t *ent, gitem_t *item)
+void SpawnItem(edict_t *ent, const gitem_t *item)
 {
     PrecacheItem(item);
 
@@ -668,22 +651,17 @@ void SpawnItem(edict_t *ent, gitem_t *item)
             }
         }
         if ((int)dmflags->value & DF_INFINITE_AMMO) {
-            if ((item->flags == ITEM_FLAG_AMMO) || (strcmp(ent->classname, "weapon_bfg") == 0)) {
+            if ((item->flags == ITEM_FLAG_AMMO) /*|| (strcmp(ent->classname, "weapon_bfg") == 0 )*/) {
                 G_FreeEdict(ent);
                 return;
             }
         }
     }
 
-    if (coop->value && (strcmp(ent->classname, "key_power_cube") == 0)) {
-        ent->spawnflags |= (1 << (8 + level.power_cubes));
-        level.power_cubes++;
-    }
-
-    // don't let them drop items that stay in a coop game
-    if ((coop->value) && (item->flags & ITEM_FLAG_STAY_COOP)) {
-        item->drop = NULL;
-    }
+    // Don't let them drop items that stay in a coop game.
+    //if ((coop->value) && (item->flags & ITEM_FLAG_STAY_COOP)) {
+    //    item->drop = NULL;
+    //}
 
     ent->item = item;
     ent->nextthink = level.time + 20_hz;    // items start after other solids
@@ -800,123 +778,128 @@ gitem_t itemlist[] = {
     //
     // QUAKED ammo_bullets_pistol (.3 .3 1) (-8 -8 -8) (8 8 8)
     {
-        "ammo_bullets_pistol",
-        Pickup_Ammo,
-        NULL,
-        Drop_Ammo,
-        NULL,
-        "items/weaponry_pickup.wav",
-        "models/items/ammo/bullets_pistol/tris.iqm", 0,
-        NULL,
-        /* icon */      "a_bullets",
-        /* pickup */    "Pistol Bullets",
-        /* width */     3,
-        50,
-        0,
-        NULL,
-        ITEM_FLAG_AMMO,
-        0,
-        NULL,
-        ITEM_TAG_AMMO_BULLETS_PISTOL,
+        .classname = "ammo_bullets_pistol",
+        .pickup = Pickup_Ammo,
+        .use = NULL,
+        .drop = Drop_Ammo,
+        .weaponthink = NULL,
+        .pickup_sound = "items/weaponry_pickup.wav",
+        .world_model = "models/items/ammo/bullets_pistol/tris.iqm",
+        .world_model_flags = 0,
+        .view_model = nullptr,
+        .icon = "a_bullets",
+        .pickup_name = "Pistol Bullets",
+        .count_width = 3,
+        .quantity = 50,
+        .clip_capacity = 0,
+        .ammo = nullptr,
+        .flags = ITEM_FLAG_AMMO,
+        .weapon_index = 0,
+        .info = nullptr,
+        .tag = ITEM_TAG_AMMO_BULLETS_PISTOL,
         // Precache.
-        "models/items/ammo/bullets_pistol/tris.iqm items/weaponry_pickup.wav"
+        .precaches = "models/items/ammo/bullets_pistol/tris.iqm items/weaponry_pickup.wav"
     },
     // QUAKED ammo_bullets_rifle (.3 .3 1) (-8 -8 -8) (8 8 8)
     {
-        "ammo_bullets_rifle",
-        Pickup_Ammo,
-        NULL,
-        Drop_Ammo,
-        NULL,
-        "items/weaponry_pickup.wav",
-        "models/items/ammo/bullets_rifle/tris.iqm", 0,
-        NULL,
-        /* icon */      "a_bullets",
-        /* pickup */    "Rifle Bullets",
-        /* width */     3,
-        50,
-        0,
-        NULL,
-        ITEM_FLAG_AMMO,
-        0,
-        NULL,
-        ITEM_TAG_AMMO_BULLETS_RIFLE,
+        .classname = "ammo_bullets_rifle",
+        .pickup = Pickup_Ammo,
+        .use = nullptr,
+        .drop = Drop_Ammo,
+        .weaponthink = nullptr,
+        .pickup_sound = "items/weaponry_pickup.wav",
+        .world_model = "models/items/ammo/bullets_rifle/tris.iqm", 
+        .world_model_flags = 0,
+        .view_model = nullptr,
+        .icon = "a_bullets",
+        .pickup_name = "Rifle Bullets",
+        .count_width = 3,
+        .quantity = 50,
+        .clip_capacity = 0,
+        .ammo = nullptr,
+        .flags = ITEM_FLAG_AMMO,
+        .weapon_index = 0,
+        .info = nullptr,
+        .tag = ITEM_TAG_AMMO_BULLETS_RIFLE,
         // Precache
-        "models/items/ammo/bullets_rifle/tris.iqm items/weaponry_pickup.wav"
+        .precaches = "models/items/ammo/bullets_rifle/tris.iqm items/weaponry_pickup.wav"
     },
     
     // QUAKED ammo_bullets_smg (.3 .3 1) (-8 -8 -8) (8 8 8)
     {
-        "ammo_bullets_smg",
-        Pickup_Ammo,
-        NULL,
-        Drop_Ammo,
-        NULL,
-        "items/weaponry_pickup.wav",
-        "models/items/ammo/bullets_smg/tris.iqm", 0,
-        NULL,
-        /* icon */      "a_bullets",
-        /* pickup */    "SMG Bullets",
-        /* width */     3,
-        50,
-        0,
-        NULL,
-        ITEM_FLAG_AMMO,
-        0,
-        NULL,
-        ITEM_TAG_AMMO_BULLETS_SMG,
+        .classname = "ammo_bullets_smg",
+        .pickup = Pickup_Ammo,
+        .use = nullptr,
+        .drop = Drop_Ammo,
+        .weaponthink = nullptr,
+        .pickup_sound = "items/weaponry_pickup.wav",
+        .world_model = "models/items/ammo/bullets_smg/tris.iqm", 
+        .world_model_flags = 0,
+        .view_model = nullptr,
+        .icon = "a_bullets",
+        .pickup_name = "SMG Bullets",
+        .count_width = 3,
+        .quantity = 50,
+        .clip_capacity = 0,
+        .ammo = nullptr,
+        .flags = ITEM_FLAG_AMMO,
+        .weapon_index = 0,
+        .info = nullptr,
+        .tag = ITEM_TAG_AMMO_BULLETS_SMG,
         // Precache.
-        "models/items/ammo/bullets_smg/tris.iqm items/weaponry_pickup.wav"
+        .precaches = "models/items/ammo/bullets_smg/tris.iqm items/weaponry_pickup.wav"
     },
 
     // QUAKED ammo_bullets_sniper (.3 .3 1) (-8 -8 -8) (8 8 8)
     {
-        "ammo_bullets_sniper",
-        Pickup_Ammo,
-        NULL,
-        Drop_Ammo,
-        NULL,
-        "items/weaponry_pickup.wav",
-        "models/items/ammo/bullets_sniper/tris.iqm", 0,
-        NULL,
-        /* icon */      "a_bullets",
-        /* pickup */    "Sniper Bullets",
-        /* width */     3,
-        50,
-        0,
-        NULL,
-        ITEM_FLAG_AMMO,
-        0,
-        NULL,
-        ITEM_TAG_AMMO_BULLETS_SNIPER,
+        .classname = "ammo_bullets_sniper",
+        .pickup = Pickup_Ammo,
+        .use = nullptr,
+        .drop = Drop_Ammo,
+        .weaponthink = nullptr,
+        .pickup_sound = "items/weaponry_pickup.wav",
+        .world_model = "models/items/ammo/bullets_sniper/tris.iqm", 
+        .world_model_flags = 0,
+        .view_model = nullptr,
+        .icon = "a_bullets",
+        .pickup_name = "Sniper Bullets",
+        .count_width = 3,
+        .quantity = 50,
+        .clip_capacity = 0,
+        .ammo = nullptr,
+        .flags = ITEM_FLAG_AMMO,
+        .weapon_index = 0,
+        .info = nullptr,
+        .tag = ITEM_TAG_AMMO_BULLETS_SNIPER,
         // Precache.
-        "models/items/ammo/bullets_sniper/tris.iqm items/weaponry_pickup.wav"
+        .precaches = "models/items/ammo/bullets_sniper/tris.iqm items/weaponry_pickup.wav"
     },
 
     /*QUAKED ammo_shells_shotgun (.3 .3 1) (-16 -16 -16) (16 16 16)
     */
     {
-        "ammo_shells_shotgun",
-        Pickup_Ammo,
-        NULL,
-        Drop_Ammo,
-        NULL,
-        "items/weaponry_pickup.wav",
-        "models/items/ammo/shells_shotgun/tris.iqm", 0,
-        NULL,
-        /* icon */      "a_shells",
-        /* pickup */    "Shotgun Shells",
-        /* width */     3,
-        10,
-        0,
-        NULL,
-        ITEM_FLAG_AMMO,
-        0,
-        NULL,
-        ITEM_TAG_AMMO_SHELLS_SHOTGUN,
+        .classname = "ammo_shells_shotgun",
+        .pickup = Pickup_Ammo,
+        .use = NULL,
+        .drop = Drop_Ammo,
+        .weaponthink = NULL,
+        .pickup_sound = "items/weaponry_pickup.wav",
+        .world_model = "models/items/ammo/shells_shotgun/tris.iqm", 
+        .world_model_flags = 0,
+        .view_model = nullptr,
+        .icon = "a_shells",
+        .pickup_name = "Shotgun Shells",
+        .count_width = 3,
+        .quantity = 10,
+        .clip_capacity = 0,
+        .ammo = nullptr,
+        .flags = ITEM_FLAG_AMMO,
+        .weapon_index = 0,
+        .info = nullptr,
+        .tag = ITEM_TAG_AMMO_SHELLS_SHOTGUN,
         
         // Precache
-        "models/items/ammo/shells_shotgun/tris.iqm items/weaponry_pickup.wav"
+        .precaches = "models/items/ammo/shells_shotgun/tris.iqm items/weaponry_pickup.wav"
     },
 
     //
@@ -926,28 +909,29 @@ gitem_t itemlist[] = {
 
 
     //
-    //  Health
+    //  Health: Are spawned by spawn functions, see below:
     //
     {
-        NULL,
-        Pickup_Health,
-        NULL,
-        NULL,
-        NULL,
-        "items/pkup.wav",
-        NULL, 0,
-        NULL,
-        /* icon */      "i_health",
-        /* pickup */    "Health",
-        /* width */     3,
-        0,
-        0,
-        NULL,
-        0,
-        0,
-        NULL,
-        ITEM_TAG_NONE,
-        /* precache */ "items/pkup.wav items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
+        .classname = NULL,
+        .pickup = Pickup_Health,
+        .use = nullptr,
+        .drop = nullptr,
+        .weaponthink = nullptr,
+        .pickup_sound = "items/pkup.wav",
+        .world_model = nullptr, 
+        .world_model_flags = 0,
+        .view_model = nullptr,
+        .icon = "i_health",
+        .pickup_name = "Health",
+        .count_width = 3,
+        .quantity = 0,
+        .clip_capacity = 0,
+        .ammo = nullptr,
+        .flags = 0,
+        .weapon_index = 0,
+        .info = nullptr,
+        .tag = ITEM_TAG_NONE,
+        .precaches = "items/pkup.wav items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
     },
 
     // end of list marker
@@ -955,8 +939,9 @@ gitem_t itemlist[] = {
 };
 
 
-/*QUAKED item_health (.3 .3 1) (-16 -16 -16) (16 16 16)
-*/
+/**
+*   @brief  item_health (.3 .3 1) ( -16 - 16 - 16 ) ( 16 16 16 )
+**/
 void SP_item_health(edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
@@ -970,8 +955,9 @@ void SP_item_health(edict_t *self)
     gi.soundindex("items/n_health.wav");
 }
 
-/*QUAKED item_health_small (.3 .3 1) (-16 -16 -16) (16 16 16)
-*/
+/**
+*   @brief  item_health_small (.3 .3 1) ( -16 - 16 - 16 ) ( 16 16 16 )
+**/
 void SP_item_health_small(edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
@@ -986,8 +972,9 @@ void SP_item_health_small(edict_t *self)
     gi.soundindex("items/s_health.wav");
 }
 
-/*QUAKED item_health_large (.3 .3 1) (-16 -16 -16) (16 16 16)
-*/
+/**
+*   @brief  item_health_large (.3 .3 1) ( -16 - 16 - 16 ) ( 16 16 16 )
+**/
 void SP_item_health_large(edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
@@ -1001,8 +988,9 @@ void SP_item_health_large(edict_t *self)
     gi.soundindex("items/l_health.wav");
 }
 
-/*QUAKED item_health_mega (.3 .3 1) (-16 -16 -16) (16 16 16)
-*/
+/**
+*   @brief  item_health_mega (.3 .3 1) ( -16 - 16 - 16 ) ( 16 16 16 )
+**/
 void SP_item_health_mega(edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
@@ -1017,7 +1005,9 @@ void SP_item_health_mega(edict_t *self)
     self->style = HEALTH_IGNORE_MAX | HEALTH_TIMED;
 }
 
-
+/**
+*   @brief  Calculate the number of items value.
+**/
 void InitItems(void)
 {
     game.num_items = sizeof(itemlist) / sizeof(itemlist[0]) - 1;
@@ -1042,9 +1032,9 @@ void SetItemNames(void)
         gi.configstring(CS_ITEMS + i, it->pickup_name);
     }
 
-    jacket_armor_index = ITEM_INDEX(FindItem("Jacket Armor"));
-    combat_armor_index = ITEM_INDEX(FindItem("Combat Armor"));
-    body_armor_index   = ITEM_INDEX(FindItem("Body Armor"));
-    power_screen_index = ITEM_INDEX(FindItem("Power Screen"));
-    power_shield_index = ITEM_INDEX(FindItem("Power Shield"));
+    //jacket_armor_index = ITEM_INDEX(FindItem("Jacket Armor"));
+    //combat_armor_index = ITEM_INDEX(FindItem("Combat Armor"));
+    //body_armor_index   = ITEM_INDEX(FindItem("Body Armor"));
+    //power_screen_index = ITEM_INDEX(FindItem("Power Screen"));
+    //power_shield_index = ITEM_INDEX(FindItem("Power Shield"));
 }

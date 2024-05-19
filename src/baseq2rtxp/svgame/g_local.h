@@ -437,9 +437,9 @@ typedef struct gitem_s {
     //! Pickup Callback.
     const bool  (*pickup)(struct edict_s *ent, struct edict_s *other);
     //! Use Callback.
-    void        (*use)(struct edict_s *ent, struct gitem_s *item);
+    void        (*use)(struct edict_s *ent, const struct gitem_s *item);
     //! Drop Callback.
-    void        (*drop)(struct edict_s *ent, struct gitem_s *item);
+    void        (*drop)(struct edict_s *ent, const struct gitem_s *item);
     //! WeaponThink Callback.
     void        (*weaponthink)(struct edict_s *ent);
 
@@ -834,18 +834,18 @@ void Cmd_Score_f(edict_t *ent);
 //
 // g_items.c
 //
-void PrecacheItem(gitem_t *it);
+void PrecacheItem( const gitem_t *it);
 void InitItems(void);
 void SetItemNames(void);
-gitem_t *FindItem(const char *pickup_name);
-gitem_t *FindItemByClassname(const char *classname);
+const gitem_t *FindItem(const char *pickup_name);
+const gitem_t *FindItemByClassname(const char *classname);
 #define ITEM_INDEX(x) ((x)-itemlist)
-edict_t *Drop_Item(edict_t *ent, gitem_t *item);
+edict_t *Drop_Item(edict_t *ent, const gitem_t *item);
 void SetRespawn(edict_t *ent, float delay);
-void SpawnItem(edict_t *ent, gitem_t *item);
+void SpawnItem(edict_t *ent, const gitem_t *item);
 int PowerArmorType(edict_t *ent);
-gitem_t *GetItemByIndex(int index);
-const bool Add_Ammo(edict_t *ent, gitem_t *item, int count);
+const gitem_t *GetItemByIndex(int index);
+const bool Add_Ammo(edict_t *ent, const gitem_t *item, const int32_t count);
 void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
 
 //
@@ -1031,11 +1031,11 @@ const bool P_Weapon_Pickup( edict_t *ent, edict_t *other );
 /**
 *   @brief
 **/
-void P_Weapon_Drop( edict_t *ent, gitem_t *inv );
+void P_Weapon_Drop( edict_t *ent, const gitem_t *inv );
 /**
 *   @brief
 **/
-void P_Weapon_Use( edict_t *ent, gitem_t *inv );
+void P_Weapon_Use( edict_t *ent, const gitem_t *inv );
 /**
 *   @brief
 **/
@@ -1125,9 +1125,9 @@ typedef struct {
 
 
     //! A pointer to the item matching the currently 'used' ACTIVE weapon.
-    gitem_t *weapon;
+    const gitem_t *weapon;
     //! A pointer to the last(previously used) matching weapon item.
-    gitem_t *lastweapon;
+    const gitem_t *lastweapon;
     //! Stores the current clip ammo for each weapon that uses it.
     int32_t weapon_clip_ammo[ MAX_ITEMS ];
 
@@ -1215,7 +1215,7 @@ struct gclient_s {
     int32_t	ammo_index;
 
 	// Set when we want to switch weapons.
-	gitem_t *newweapon;
+	const gitem_t *newweapon;
 
 	////! Weapon cannot fire until this time is up.
 	//sg_time_t weapon_fire_finished;
@@ -1534,7 +1534,7 @@ struct edict_s {
     int32_t     style;          // also used as areaportal number
 	const char *customLightStyle;	// It is as it says.
 
-    gitem_t     *item;          // for bonus items
+    const gitem_t     *item;          // for bonus items
 
     // common data blocks
     moveinfo_t      moveinfo;

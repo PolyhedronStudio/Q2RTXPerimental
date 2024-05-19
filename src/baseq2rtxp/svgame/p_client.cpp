@@ -392,14 +392,11 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 
 void TossClientWeapon(edict_t *self)
 {
-    gitem_t     *item;
-    edict_t     *drop;
-    float       spread;
 
     if (!deathmatch->value)
         return;
 
-    item = self->client->pers.weapon;
+    const gitem_t *item = self->client->pers.weapon;
     if (! self->client->pers.inventory[self->client->ammo_index])
         item = NULL;
     if (item && (strcmp(item->pickup_name, "Blaster") == 0))
@@ -408,11 +405,11 @@ void TossClientWeapon(edict_t *self)
     //if (item && quad)
     //    spread = 22.5f;
     //else
-        spread = 0.0f;
+    float spread = 0.0f;
 
     if (item) {
         self->client->v_angle[YAW] -= spread;
-        drop = Drop_Item(self, item);
+        edict_t *drop = Drop_Item(self, item);
         self->client->v_angle[YAW] += spread;
         drop->spawnflags = DROPPED_PLAYER_ITEM;
     }
@@ -569,7 +566,7 @@ void InitClientPersistantData(edict_t *ent, gclient_t *client) {
     client->pers = {};
 
     // Find the Pistol item, add it to our inventory and appoint it as the selected weapon.
-    gitem_t *item_weapon = FindItem("Pistol");
+    const gitem_t *item_weapon = FindItem("Pistol");
 	client->pers.selected_item = ITEM_INDEX( item_weapon );
 	client->pers.inventory[client->pers.selected_item] = 1;
     

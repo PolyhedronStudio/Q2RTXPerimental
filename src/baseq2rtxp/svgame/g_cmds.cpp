@@ -147,7 +147,7 @@ Give items to a client
 void Cmd_Give_f(edict_t *ent)
 {
     char        *name;
-    gitem_t     *it;
+    const gitem_t     *it;
     int         index;
     int         i;
     bool        give_all;
@@ -200,35 +200,35 @@ void Cmd_Give_f(edict_t *ent)
             return;
     }
 
-    if (give_all || Q_stricmp(name, "armor") == 0) {
-        gitem_armor_t   *info;
+    //if (give_all || Q_stricmp(name, "armor") == 0) {
+    //    gitem_armor_t   *info;
 
-        it = FindItem("Jacket Armor");
-        ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
+    //    it = FindItem("Jacket Armor");
+    //    ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-        it = FindItem("Combat Armor");
-        ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
+    //    it = FindItem("Combat Armor");
+    //    ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-        it = FindItem("Body Armor");
-        info = (gitem_armor_t *)it->info;
-        ent->client->pers.inventory[ITEM_INDEX(it)] = info->max_count;
+    //    it = FindItem("Body Armor");
+    //    info = (gitem_armor_t *)it->info;
+    //    ent->client->pers.inventory[ITEM_INDEX(it)] = info->max_count;
 
-        if (!give_all)
-            return;
-    }
+    //    if (!give_all)
+    //        return;
+    //}
 
-    if (give_all || Q_stricmp(name, "Power Shield") == 0) {
-        it = FindItem("Power Shield");
-        it_ent = G_AllocateEdict();
-        it_ent->classname = it->classname;
-        SpawnItem(it_ent, it);
-        Touch_Item(it_ent, ent, NULL, NULL);
-        if (it_ent->inuse)
-            G_FreeEdict(it_ent);
+    //if (give_all || Q_stricmp(name, "Power Shield") == 0) {
+    //    it = FindItem("Power Shield");
+    //    it_ent = G_AllocateEdict();
+    //    it_ent->classname = it->classname;
+    //    SpawnItem(it_ent, it);
+    //    Touch_Item(it_ent, ent, NULL, NULL);
+    //    if (it_ent->inuse)
+    //        G_FreeEdict(it_ent);
 
-        if (!give_all)
-            return;
-    }
+    //    if (!give_all)
+    //        return;
+    //}
 
     if (give_all) {
         for (i = 0 ; i < game.num_items ; i++) {
@@ -354,14 +354,9 @@ Cmd_Use_f
 Use an inventory item
 ==================
 */
-void Cmd_Use_f(edict_t *ent)
-{
-    int         index;
-    gitem_t     *it;
-    char        *s;
-
-    s = gi.args();
-    it = FindItem(s);
+void Cmd_Use_f(edict_t *ent) {
+    const char *s = gi.args();
+    const gitem_t *it = FindItem(s);
     if (!it) {
         gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
         return;
@@ -370,7 +365,7 @@ void Cmd_Use_f(edict_t *ent)
         gi.cprintf(ent, PRINT_HIGH, "Item is not usable.\n");
         return;
     }
-    index = ITEM_INDEX(it);
+    const int32_t index = ITEM_INDEX(it);
     if (!ent->client->pers.inventory[index]) {
         gi.cprintf(ent, PRINT_HIGH, "Out of item: %s\n", s);
         return;
@@ -387,14 +382,9 @@ Cmd_Drop_f
 Drop an inventory item
 ==================
 */
-void Cmd_Drop_f(edict_t *ent)
-{
-    int         index;
-    gitem_t     *it;
-    char        *s;
-
-    s = gi.args();
-    it = FindItem(s);
+void Cmd_Drop_f(edict_t *ent) {
+    const char *s = gi.args();
+    const gitem_t *it = FindItem(s);
     if (!it) {
         gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
         return;
@@ -403,7 +393,7 @@ void Cmd_Drop_f(edict_t *ent)
         gi.cprintf(ent, PRINT_HIGH, "Item is not dropable.\n");
         return;
     }
-    index = ITEM_INDEX(it);
+    const int32_t index = ITEM_INDEX(it);
     if (!ent->client->pers.inventory[index]) {
         gi.cprintf(ent, PRINT_HIGH, "Out of item: %s\n", s);
         return;
@@ -568,16 +558,12 @@ void Cmd_WeapLast_f(edict_t *ent)
 Cmd_WeapFlare_f
 =================
 */
-void Cmd_WeapFlare_f(edict_t* ent)
-{
-    gclient_t* cl;
-    gitem_t* it;
-
-    cl = ent->client;
+void Cmd_WeapFlare_f(edict_t* ent) {
+    gclient_t *cl = ent->client;
     if (cl->pers.weapon && strcmp(cl->pers.weapon->pickup_name, "Flare Gun") == 0) {
         Cmd_WeapLast_f(ent);
     } else {
-        it = FindItem("Flare Gun");
+        const gitem_t *it = FindItem("Flare Gun");
         it->use(ent, it);
     }
 }
@@ -587,8 +573,7 @@ void Cmd_WeapFlare_f(edict_t* ent)
 Cmd_InvDrop_f
 =================
 */
-void Cmd_InvDrop_f(edict_t *ent)
-{
+void Cmd_InvDrop_f(edict_t *ent) {
     gitem_t     *it;
 
     ValidateSelectedItem(ent);

@@ -106,7 +106,7 @@ const bool P_Weapon_Pickup( edict_t *ent, edict_t *other ) {
 
     if (!(ent->spawnflags & DROPPED_ITEM)) {
         // Pointer to ammo type.
-        gitem_t *ammo;
+        const gitem_t *ammo;
         // give them some ammo with it
         ammo = FindItem(ent->item->ammo);
         if ( (int)dmflags->value & DF_INFINITE_AMMO ) {
@@ -267,9 +267,9 @@ static void P_NoAmmoWeaponChange( edict_t *ent, bool sound = false ) {
 /**
 *   @brief  Make the weapon ready for switching to as the new weapon, IF, it has enough ammo.
 **/
-void P_Weapon_Use( edict_t *ent, gitem_t *item ) {
+void P_Weapon_Use( edict_t *ent, const gitem_t *item ) {
     int32_t ammo_index = 0;
-    gitem_t *ammo_item = nullptr;
+    const gitem_t *ammo_item = nullptr;
 
     // Escape if we're already using it
     if ( item == ent->client->pers.weapon ) {
@@ -310,7 +310,7 @@ void P_Weapon_Use( edict_t *ent, gitem_t *item ) {
 /**
 *   @brief  Called if the weapon item is wanted to be dropped by the player.
 **/
-void P_Weapon_Drop( edict_t *ent, gitem_t *item ) {
+void P_Weapon_Drop( edict_t *ent, const gitem_t *item ) {
     int     index;
 
     // Don't allow dropping in WEAPONS_STAY Deathmatch mode.
