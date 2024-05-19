@@ -714,16 +714,22 @@ struct level_locals_t {
 
 	//! For client-side view bobbing.
 	struct {
-		//! Timer.
-		uint64_t time;
 		//! Flattened speed.
 		double	xySpeed;
-		//! move.
-		double	move;
 		//! Odd cycles are right foot going forward.
-		int64_t cycle, cycle_run;
+		int64_t cycle/*, cycle_run*/;
 		//! sin(bobfrac*M_PI)
 		double	fracSin;
+		#if 0
+		//! Timer.
+		//double time;
+		//! Old Time of Bob.
+		//double oldTime;
+		//! move.
+		//double	move;
+		//! Scale.
+		//double bobScale;
+		#endif
 	} viewBob;
 
 	//! A list of all 'client_env_sound' entities present in the current map. Used as a performance

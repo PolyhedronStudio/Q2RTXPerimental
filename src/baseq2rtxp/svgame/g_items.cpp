@@ -500,10 +500,11 @@ void droptofloor(edict_t *ent)
         VectorSet( ent->maxs, 16, 16, 16 );
     }
 
-    if (ent->model)
-        gi.setmodel(ent, ent->model);
-    else
-        gi.setmodel(ent, ent->item->world_model);
+    if ( ent->model ) {
+        gi.setmodel( ent, ent->model );
+    } else if ( ent->item && ent->item->world_model ) {
+        gi.setmodel( ent, ent->item->world_model );
+    }
     ent->solid = SOLID_TRIGGER;
     ent->movetype = MOVETYPE_TOSS;
     ent->touch = Touch_Item;

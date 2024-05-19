@@ -365,10 +365,37 @@ const float PF_CalculateFieldOfView( const float fov_x, const float width, const
 *   @brief  Calculate the bob cycle and apply bob angles as well as a view offset.
 **/
 static void CLG_CycleViewBob( player_state_t *ps ) {
-    // Calculate base bob data.
+    //// Calculate base bob data.
     level.viewBob.cycle = ( ps->bobCycle & 128 ) >> 7;
     level.viewBob.fracSin = fabs( sin( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
-    level.viewBob.xySpeed = ps->xySpeed;//sqrtf( ps->pmove.velocity[ 0 ] * ps->pmove.velocity[ 0 ] + ps->pmove.velocity[ 1 ] * ps->pmove.velocity[ 1 ] );
+    level.viewBob.xySpeed = ps->xySpeed;
+    #if 0
+    // calculate speed and cycle to be used for all cyclic walking effects
+    level.viewBob.xySpeed = ps->xySpeed; // sqrt( cg.predictedPlayerState.pmove.velocity[ 0 ] * cg.predictedPlayerState.pmove.velocity[ 0 ] + cg.predictedPlayerState.pmove.velocity[ 1 ] * cg.predictedPlayerState.pmove.velocity[ 1 ] );
+
+    level.viewBob.bobScale = 0;
+    if ( level.viewBob.xySpeed < 0.1 ) {
+        level.viewBob.move = 0;
+        level.viewBob.oldTime = 0;  // start at beginning of cycle again
+    } else if ( ps->pmove.pm_flags & PMF_ON_GROUND )/*if ( cg_gunbob->integer ) */ {
+        if ( level.viewBob.xySpeed > 210 ) {
+            level.viewBob.move = clgi.frame_time_ms / 400.f;
+        } else if ( level.viewBob.xySpeed > 100 ) {
+            level.viewBob.move = clgi.frame_time_ms / 800.f;
+        } else {
+            level.viewBob.move = clgi.frame_time_ms / 1600.f;
+       }
+    } else {
+        level.viewBob.move = 0;
+    }
+
+    //level.viewBob.move = clgi.frame_time_ms * level.viewBob.bobScale * 0.001f;
+    level.viewBob.time = ( level.viewBob.oldTime += level.viewBob.move );
+    //level.viewBob.timeRun = level.viewBob.time;
+    level.viewBob.cycle = (int64_t)level.viewBob.time;
+    level.viewBob.cycle_run = (int64_t)level.viewBob.time;
+    level.viewBob.fracSin = fabs( sin( level.viewBob.time * M_PI ) );
+#endif
 }
 
 /**
@@ -421,7 +448,7 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
 *   @brief  Calculates additional offsets based on the bobCycle for both 
 *           viewOrigin and viewAngles(thus, additional client side kickangles).
 **/
-static void CLG_CalculateViewOffset( player_state_t *ps ) {
+static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, const float lerpFraction ) {
     //clgi.Print( PRINT_DEVELOPER, "%s: cycle(%i), fracSin(%f), xySpeed(%f)\n", __func__, ps->bobCycle, level.viewBob.fracSin, level.viewBob.xySpeed );
 
     //run_pitch = gi.cvar( "run_pitch", "0.002", 0 );
@@ -440,17 +467,21 @@ static void CLG_CalculateViewOffset( player_state_t *ps ) {
     //float *viewAngles = clgi.client->refdef.viewangles;
     Vector3 viewAngles = QM_Vector3Zero();
 
-    // add angles based on velocity
-    float delta = QM_Vector3DotProduct( ps->pmove.velocity, clgi.client->v_forward );
+    // Lerp the velocity so it doesn't just "snap" back to nothing when we suddenly are standing idle.
+    Vector3 velocityLerp = QM_Vector3Lerp( ops->pmove.velocity, ps->pmove.velocity, lerpFraction );
+
+    // Add angles based on velocity.
+    float delta = QM_Vector3DotProduct( velocityLerp, clgi.client->v_forward );
     viewAngles[ PITCH ] += delta * clg_run_pitch;/*cg_runpitch.value*/;
 
-    delta = QM_Vector3DotProduct( ps->pmove.velocity, clgi.client->v_right );
+    delta = QM_Vector3DotProduct( velocityLerp, clgi.client->v_right );
     viewAngles[ ROLL ] += delta * clg_run_roll;/*cg_runroll.value*/;
-    //viewAngles[ ROLL ] += delta * clg_run_roll;/*cg_runroll.value*/;
 
     // Add angles based on bob.
-    // make sure the bob is visible even at low speeds
-    const float speed = level.viewBob.xySpeed > 200 ? level.viewBob.xySpeed : 200;
+    // WID: make sure the bob is visible even at low speeds
+    //----
+    // Now is just done in pmove itself.
+    const float speed = level.viewBob.xySpeed;
     // Pitch:
     float pitchDelta = level.viewBob.fracSin * clg_bob_pitch /*cg_bobpitch.value */* speed;
     if ( ps->pmove.pm_flags & PMF_DUCKED ) {
@@ -511,7 +542,7 @@ static void CLG_SetupFirstPersonView( void ) {
     //CLG_DamageFeedback( ent );
     
     // Determine the view offsets for the current predicting player state.
-    CLG_CalculateViewOffset( predictingPlayerState );
+    CLG_CalculateViewOffset( lastPredictingPlayerState, predictingPlayerState, lerp );
 
     // Determine the gun origin and angle offsets.based on the bobCycles of the predicted player states.
     CLG_CalculateViewWeaponOffset( &predictedState->lastPs, &predictedState->currentPs );
