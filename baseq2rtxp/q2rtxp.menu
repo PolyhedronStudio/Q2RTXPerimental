@@ -372,13 +372,14 @@ begin developer_stuff
     title "Developer Test Maps"
     background #212F3CD0
     style --compact
-    action "local env_sound(Reverb EAX Effects)" "skill 0; gamemode 0; maxclients 1; map local_env_sound force"
+    action "Target Range(Weaponry)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_target_range force"
     blank
     action "cm_materials(CollisionModel Materials)" "skill 0; gamemode 0; maxclients 1; map cm_materials force"
     blank
     action "func_plat & func_rotating" "skill 0; gamemode 0; maxclients 1; map func_plat_n_rot force"
     blank
     action "local_entities" "skill 0; gamemode 0; maxclients 1; map local_entities force"
+    action "local env_sound(Reverb EAX Effects)" "skill 0; gamemode 0; maxclients 1; map local_env_sound force"
     action "local_pvs" "skill 0; gamemode 0; maxclients 1; map local_pvs force"
     blank
     action "octagonhull_test" "skill 0; gamemode 0; maxclients 1; map octagonhull_test force"
@@ -608,25 +609,6 @@ begin weapons
     style --compact
     title "Weapon and Item Bindings"
     blank
-    bind "blaster" "use Blaster"
-    bind "shotgun" "use Shotgun"
-    bind "super shotgun" "use Super Shotgun"
-    bind "machinegun" "use Machinegun"
-    bind "chaingun" "use Chaingun"
-    bind "grenade launcher" "use Grenade Launcher"
-    bind "rocket launcher" "use Rocket Launcher"
-    bind "hyperblaster" "use HyperBlaster"
-    bind "railgun" "use Railgun"
-    bind "bfg10k" "use BFG10K"
-    bind "flare gun" "use Flare Gun"
-    bind "switch to flare gun" "weapflare"
-    bind "grenades" "use Grenades"
-    blank
-    bind "quad damage" "use quad damage"
-    bind "silencer" "use silencer"
-    bind "rebreather" "use rebreather"
-    bind "environment suit" "use environment suit"
-    bind "invulnerability" "use invulnerability"
-    bind "power shield" "use power shield"
-    bind "flashlight" "toggle cl_flashlight"
+    bind "fists" "use Fists"
+    bind "pistol" "use Pistol"
 end

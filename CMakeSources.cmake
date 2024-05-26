@@ -253,6 +253,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/sharedgame/game_bindings/sg_binding_svgame.cpp
 
 	# SererGame
+	baseq2rtxp/svgame/weapons/p_weapon_fists.cpp
 	baseq2rtxp/svgame/weapons/p_weapon_pistol.cpp
 
 	baseq2rtxp/svgame/g_ai.cpp

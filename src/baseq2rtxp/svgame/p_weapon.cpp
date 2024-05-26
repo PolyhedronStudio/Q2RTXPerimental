@@ -161,30 +161,35 @@ void P_Weapon_Change(edict_t *ent) {
     //    ent->client->grenade_time = 0_ms;
     //}
 
+    // Can we already change modes at all? (Is our weapon occupied still performing some other mode of action?)
+    const bool canChangeMode = ent->client->weaponState.canChangeMode;
+    // Determine some other needed things.
+    const bool isAiming = ent->client->weaponState.aimState.isAiming;
+    const bool isHolsterMode = ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING );
+    const bool isAnimationFinished = ( ent->client->weaponState.animation.currentFrame >= ent->client->weaponState.animation.endFrame );
+
     /**
     *   Bit of an ugly ... approach, I'll admit that, but it still beats the OG vanilla code.
     **/
     // If we have an active weapon.
     if ( ent->client->pers.weapon != ent->client->newweapon ) {
-        // We only want to engage into a change if the state allows us to.
-        if ( ent->client->weaponState.canChangeMode ) {
+        // Engage into holster if:
+        if ( canChangeMode && ( !isHolsterMode && !isAiming ) ) {
             P_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_frames_t *)ent->client->pers.weapon->info, true );
             return;
         }
-
         // We know this function will continue to be called if newweapon is not nulled out.
-        // So if we are finished holstering, allow the actual change to take place. This should provide us
-        // with a smooth transition of holster/draw weaponry.
-        else if ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING &&
-            ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame ) ) {
+        // So if we are finished holstering, only then allow the actual switch change to take place. 
+        // This should provide us with a smooth transition of holster/draw weaponry.
+        if ( isHolsterMode && isAnimationFinished ) {
             // Allow the change to take place.
             goto allowchange;
         } else {
             return;
         }
-    // Also allow the change to take place.
+        // Also allow the change to take place.
     }
-
+    //return;
 allowchange:
     ent->client->pers.lastweapon = ent->client->pers.weapon;
     ent->client->pers.weapon = ent->client->newweapon;
@@ -215,6 +220,7 @@ allowchange:
 
     // Now switch the actual model up for the player state.
     ent->client->ps.gunindex = gi.modelindex( ent->client->pers.weapon->view_model );
+
     // Engage into "Drawing" weapon mode.
     P_Weapon_SwitchMode( ent, WEAPON_MODE_DRAWING, (const weapon_mode_frames_t*)ent->client->pers.weapon->info, true );
 
@@ -265,7 +271,7 @@ static void P_NoAmmoWeaponChange( edict_t *ent, bool sound = false ) {
 
 
 /**
-*   @brief  Make the weapon ready for switching to as the new weapon, IF, it has enough ammo.
+*   @brief  Will prepare a switch to the newly passed weapon.
 **/
 void P_Weapon_Use( edict_t *ent, const gitem_t *item ) {
     int32_t ammo_index = 0;
@@ -301,11 +307,12 @@ void P_Weapon_Use( edict_t *ent, const gitem_t *item ) {
 
     // Holster current weapon item first. 
     if ( item->info ) {
-        P_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_frames_t *)item->info, false );
-    }
+        const weapon_mode_frames_t *modeFrames = static_cast<const weapon_mode_frames_t *>( item->info );
+        //P_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_frames_t *)item->info, false );
 
-    // change to this weapon when down
-    ent->client->newweapon = item;
+        // change to this weapon when down
+        ent->client->newweapon = item;
+    }
 }
 /**
 *   @brief  Called if the weapon item is wanted to be dropped by the player.
@@ -434,40 +441,16 @@ void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapo
         ent->client->weaponState.oldMode = ent->client->weaponState.mode;
         ent->client->weaponState.mode = newMode;
 
-        // Setup the new animation frames to work from.
+        // Setup the new animation frames for the state work with.
         ent->client->weaponState.animation.startFrame = modeFrames->startFrame;
         ent->client->weaponState.animation.currentFrame = modeFrames->startFrame;
         ent->client->weaponState.animation.endFrame = modeFrames->endFrame;
 
+        // Make sure that the client's player state frame is adjusted also.
+        //ent->client->ps.gunframe = modeFrames->startFrame;
+
         // Enforce a wait to finish animating mode before allowing yet another change.
         ent->client->weaponState.canChangeMode = false;
-    }
-}
-
-/**
-*   @brief  Perform the weapon's logical 'think' routine. This is Is either
-*           called by ClientBeginServerFrame or ClientThink.
-**/
-void P_Weapon_Think( edict_t *ent ) {
-    // If we just died, put the weapon away.
-    if ( ent->health < 1 ) {
-        // Select no weapon.
-        ent->client->newweapon = nullptr;
-        // Apply the change.
-        P_Weapon_Change( ent );
-
-        // Escape?
-        return;
-    }
-
-    // Call active weapon think routine.
-    if ( ent->client->pers.weapon && ent->client->pers.weapon->weaponthink ) {
-        //is_quad = (ent->client->quad_time > level.time);
-        //if (ent->client->silencer_shots)
-        //    is_silenced = MZ_SILENCED;
-        //else
-        //    is_silenced = 0;
-        ent->client->pers.weapon->weaponthink( ent );
     }
 }
 
@@ -504,4 +487,28 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_frames
 
     // Still animating.
     return false;
+}
+
+/**
+*   @brief  Perform the weapon's logical 'think' routine. This is Is either
+*           called by ClientBeginServerFrame or ClientThink.
+**/
+void P_Weapon_Think( edict_t *ent ) {
+    // If we just died, put the weapon away.
+    if ( ent->health < 1 ) {
+        // Select no weapon.
+        ent->client->newweapon = nullptr;
+        // Apply an instant change since we're dead.
+        P_Weapon_Change( ent );
+        
+        // Escape, since we won't be performing any more weapon thinking from this point on until we respawn properly.
+        return;
+    }
+
+    // Call active weapon think routine if any at all.
+    const bool hasActiveWeapon = ( ent->client->pers.weapon != nullptr ? true : false );
+    const bool hasThinkRoutine = ( hasActiveWeapon && ent->client->pers.weapon->weaponthink != nullptr ? true : false );
+    if ( hasActiveWeapon && hasThinkRoutine ) {
+        ent->client->pers.weapon->weaponthink( ent );
+    }
 }

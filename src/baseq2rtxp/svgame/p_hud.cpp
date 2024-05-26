@@ -400,36 +400,22 @@ void Cmd_Help_f(edict_t *ent)
 //=======================================================================
 
 /**
-*   @brief  Will update the client's player_state_t stats array with the current client entity's values.
+*   @brief  Specific 'Weaponry' substitute function for G_SetStats.
 **/
-void G_SetStats(edict_t *ent) {
-    gitem_t     *item;
-    int         index;
-
-    //
-    // Health
-    //
-    ent->client->ps.stats[STAT_HEALTH_ICON] = level.pic_health;
-    ent->client->ps.stats[STAT_HEALTH] = ent->health;
-    
-    //
-    // Killer Yaw
-    //
-    ent->client->ps.stats[ STAT_KILLER_YAW ] = ent->client->killer_yaw;
-
+void G_SetWeaponStats( edict_t *ent ) {
     //
     // Type of ammo to display the total carrying amount of.
     //
-    if (!ent->client->ammo_index /* || !ent->client->pers.inventory[ent->client->ammo_index] */) {
-        ent->client->ps.stats[STAT_AMMO_ICON] = 0;
-        ent->client->ps.stats[STAT_AMMO] = 0;
+    if ( !ent->client->ammo_index /* || !ent->client->pers.inventory[ent->client->ammo_index] */ ) {
+        ent->client->ps.stats[ STAT_AMMO_ICON ] = 0;
+        ent->client->ps.stats[ STAT_AMMO ] = 0;
     } else {
         // Acquire the item for fetching the current ammo_index type icon from.
-        item = &itemlist[ent->client->ammo_index];
+        const gitem_t *item = &itemlist[ ent->client->ammo_index ];
         // Assign icon.
-        ent->client->ps.stats[STAT_AMMO_ICON] = gi.imageindex(item->icon);
+        ent->client->ps.stats[ STAT_AMMO_ICON ] = gi.imageindex( item->icon );
         // Assign amount of total carrying ammo of said ammo_index.
-        ent->client->ps.stats[STAT_AMMO] = ent->client->pers.inventory[ent->client->ammo_index];
+        ent->client->ps.stats[ STAT_AMMO ] = ent->client->pers.inventory[ ent->client->ammo_index ];
     }
     //
     // Clip Ammo
@@ -452,9 +438,29 @@ void G_SetStats(edict_t *ent) {
     // Apply IS_AIMING flag if we're weaponStating as AIMING IN or isAiming == true.
     if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN || ent->client->weaponState.aimState.isAiming == true ) {
         stat_weapon_flags |= STAT_WEAPON_FLAGS_IS_AIMING;
-        //ent->client->ps.stats[ STAT_WEAPON_FLAGS ] = 1;
     }
     ent->client->ps.stats[ STAT_WEAPON_FLAGS ] = stat_weapon_flags;
+}
+
+/**
+*   @brief  Will update the client's player_state_t stats array with the current client entity's values.
+**/
+void G_SetStats(edict_t *ent) {
+    //
+    // Health
+    //
+    ent->client->ps.stats[STAT_HEALTH_ICON] = level.pic_health;
+    ent->client->ps.stats[STAT_HEALTH] = ent->health;
+    
+    //
+    // Killer Yaw
+    //
+    ent->client->ps.stats[ STAT_KILLER_YAW ] = ent->client->killer_yaw;
+
+    //
+    //  (Clip-)Ammo and Weapon(-Stats).
+    //
+    G_SetWeaponStats( ent );
     
     //
     // Armor

@@ -22,6 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 //void Weapon_Blaster(edict_t *ent);
 //void Weapon_Shotgun(edict_t *ent);
+void Weapon_Fists( edict_t *ent );
 void Weapon_Pistol( edict_t *ent );
 //void Weapon_SuperShotgun(edict_t *ent);
 //void Weapon_Machinegun(edict_t *ent);
@@ -35,6 +36,7 @@ void Weapon_Pistol( edict_t *ent );
 //void Weapon_FlareGun(edict_t *ent);
 
 // for passing into *info member of gitem_t.
+extern weapon_item_info_t fistsItemInfo;
 extern weapon_item_info_t pistolItemInfo;
 
 
@@ -722,26 +724,32 @@ gitem_t itemlist[] = {
     ///* weapon_blaster (.3 .3 1) (-16 -16 -16) (16 16 16)
     //always owned, never in the world
     //*/
-    //{
-    //    "weapon_blaster",
-    //    NULL,
-    //    Use_Weapon,
-    //    NULL,
-    //    Weapon_Blaster,
-    //    "misc/w_pkup.wav",
-    //    NULL, 0,
-    //    "models/weapons/v_blast/tris.md2",
-    //    /* icon */      "w_blaster",
-    //    /* pickup */    "Blaster",
-    //    0,
-    //    0,
-    //    NULL,
-    //    ITEM_FLAG_WEAPON | ITEM_FLAG_STAY_COOP,
-    //    WEAP_BLASTER,
-    //    NULL,
-    //    0,
-    //    /* precache */ "models/objects/laser/tris.md2 weapons/blastf1a.wav misc/lasfly.wav"
-    //},
+    {
+        .classname = "weapon_fists",
+        .pickup = P_Weapon_Pickup,
+        .use = P_Weapon_Use,
+        .drop = P_Weapon_Drop,
+        .weaponthink = Weapon_Fists,
+
+        .pickup_sound = "items/weaponry_pickup.wav",
+        .world_model = nullptr, 
+        .world_model_flags = 0,
+        .view_model = "models/v_wep/fists/tris.iqm",
+        .icon = "w_blaster",
+        .pickup_name = "Fists",
+
+        .count_width = 0,
+        .quantity = 0,
+        .clip_capacity = 0,
+
+        .ammo = nullptr,
+        .flags = ITEM_FLAG_WEAPON | ITEM_FLAG_STAY_COOP,
+        .weapon_index = WEAP_FISTS,
+
+        .info = &fistsItemInfo,
+        .tag = ITEM_TAG_WEAPON_FISTS,
+        .precaches = "models/v_wep/fists/tris.iqm"
+    },
 
     //*QUAKED weapon_pistol (.3 .3 1) (-16 -16 -16) (16 16 16)     
     {

@@ -371,6 +371,7 @@ void Cmd_Use_f(edict_t *ent) {
         return;
     }
 
+    gi.dprintf( "%s: WE ARE USING %s\n", __func__, s );
     it->use(ent, it);
 }
 

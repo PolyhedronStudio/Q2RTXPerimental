@@ -224,6 +224,14 @@ typedef enum {
 //} weaponstate_t;
 /**
 *   @brief  Describes a weapon's current state.
+Exported anim "idle" with global_frames(0-1) ]
+Exported anim "fire" with global_frames(1-14) ]
+Exported anim "reload" with global_frames(15-55) ]
+Exported anim "holster" with global_frames(56-81) ]
+Exported anim "draw" with global_frames(82-107) ]
+Exported anim "aim_in" with global_frames(108-122) ]
+Exported anim "aim_fire" with global_frames(123-136) ]
+Exported anim "aim_out" with global_frames(137-151) ]
 **/
 typedef enum {
     //! The weapon is not doing anything else but sitting there, waiting for use.
@@ -299,6 +307,7 @@ typedef enum {
     ITEM_TAG_ARMOR_SHARD,
 
     // Weapon Types:
+    ITEM_TAG_WEAPON_FISTS,
     ITEM_TAG_WEAPON_PISTOL
 
     //AMMO_BULLETS,
@@ -417,7 +426,7 @@ typedef struct {
 //#define IT_POWERUP      32
 
 // gitem_t->weapon_index for weapons indicates model index.
-#define WEAP_BLASTER            1
+#define WEAP_FISTS              1
 #define WEAP_PISTOL             2
 #define WEAP_SHOTGUN            3
 #define WEAP_SUPERSHOTGUN       4
@@ -981,6 +990,10 @@ edict_t *PlayerTrail_LastSpot(void);
 //
 void respawn(edict_t *ent);
 void BeginIntermission(edict_t *targ);
+/**
+*   @brief  Will reset the entity client's 'Field of View' back to its defaults.
+**/
+void P_ResetPlayerStateFOV( gclient_t *client );
 void PutClientInServer(edict_t *ent);
 void InitClientPersistantData(edict_t *ent, gclient_t *client);
 void InitClientRespawnData(gclient_t *client);
@@ -1094,7 +1107,9 @@ void GetChaseTarget(edict_t *ent);
 #define ANIM_REVERSED   6		// animation is played in reverse.
 
 
-// client data that stays across multiple level loads
+/**
+*   @brief  Client data that stays across multiple level loads
+**/
 typedef struct {
     //! String buffer of the client's user info.
     char        userinfo[MAX_INFO_STRING];

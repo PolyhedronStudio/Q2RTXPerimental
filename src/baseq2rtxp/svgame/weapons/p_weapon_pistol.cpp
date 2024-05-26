@@ -30,15 +30,15 @@ weapon_item_info_t pistolItemInfo = {
         },
         // Mode Animation: DRAWING
         /*modeAnimationFrames[ WEAPON_MODE_DRAWING ] = */{
-            .startFrame = 87,
-            .endFrame = 112,
-            .durationMsec = sg_time_t::from_hz( 112 - 87 )
+            .startFrame = 82,
+            .endFrame = 107,
+            .durationMsec = sg_time_t::from_hz( 107 - 82 )
         },
         // Mode Animation: HOLSTERING
         /*modeAnimationFrames[ WEAPON_MODE_HOLSTERING ] = */{
             .startFrame = 56,
-            .endFrame = 86,
-            .durationMsec = sg_time_t::from_hz( 86 - 56 )
+            .endFrame = 81,
+            .durationMsec = sg_time_t::from_hz( 81 - 56 )
         },
         // Mode Animation: PRIMARY_FIRING
         /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
@@ -61,23 +61,23 @@ weapon_item_info_t pistolItemInfo = {
         // Mode Animation: AIMING IN
         /*modeAnimationFrames[ WEAPON_MODE_AIM_IN ] = */
         {
-            .startFrame = 113,
-            .endFrame = 127,
-            .durationMsec = sg_time_t::from_hz( 127 - 113 )
+            .startFrame = 108,
+            .endFrame = 122,
+            .durationMsec = sg_time_t::from_hz( 122 - 108 )
         },
         // Mode Animation: AIMING FIRE
         /*modeAnimationFrames[ WEAPON_MODE_AIM_FIRE ] = */
         {
-            .startFrame = 128,
-            .endFrame = 141,
-            .durationMsec = sg_time_t::from_hz( 141 - 128 )
+            .startFrame = 123,
+            .endFrame = 136,
+            .durationMsec = sg_time_t::from_hz( 136 - 123 )
         },
         // Mode Animation: AIMING OUT
         /*modeAnimationFrames[ WEAPON_MODE_AIM_OUT ] = */
         {
-            .startFrame = 142,
-            .endFrame = 156,
-            .durationMsec = sg_time_t::from_hz( 156 - 142 )
+            .startFrame = 137,
+            .endFrame = 151,
+            .durationMsec = sg_time_t::from_hz( 151 - 137 )
         }
     },
 
@@ -224,7 +224,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
             //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
 
             // Restore the original FOV.
-            ent->client->ps.fov = ent->client->weaponState.clientFieldOfView;
+            P_ResetPlayerStateFOV( ent->client );
         }
         /**
         *   Firing 'Primary Fire' of isAiming Mode:
@@ -352,7 +352,7 @@ void Weapon_Pistol( edict_t *ent ) {
                 }
             }
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN ) {
-            // Set the isAiming state value for aiming specific behavior to true.
+            // Set the isAiming state value for aiming specific behavior to true right at the end of its animation.
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame ) {
                 //! Engage aiming mode.
                 ent->client->weaponState.aimState.isAiming = true;

@@ -390,16 +390,16 @@ void ClientObituary(edict_t *self, edict_t *inflictor, edict_t *attacker)
 
 void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
 
-void TossClientWeapon(edict_t *self)
-{
-
+void TossClientWeapon(edict_t *self) {
     if (!deathmatch->value)
         return;
 
+    // Need to have actual ammo to toss.
     const gitem_t *item = self->client->pers.weapon;
     if (! self->client->pers.inventory[self->client->ammo_index])
         item = NULL;
-    if (item && (strcmp(item->pickup_name, "Blaster") == 0))
+    // Can't toss away your fists.
+    if (item && (strcmp(item->pickup_name, "Fists") == 0))
         item = NULL;
 
     //if (item && quad)
@@ -565,21 +565,26 @@ void InitClientPersistantData(edict_t *ent, gclient_t *client) {
     // Clear out persistent data.
     client->pers = {};
 
-    // Find the Pistol item, add it to our inventory and appoint it as the selected weapon.
-    const gitem_t *item_weapon = FindItem("Pistol");
-	client->pers.selected_item = ITEM_INDEX( item_weapon );
-	client->pers.inventory[client->pers.selected_item] = 1;
-    
-    // Assign it as our selected weapon.
-    client->pers.weapon = item_weapon;
-    // Obviously we need to allow this.
-    client->weaponState.canChangeMode = true;
+    // Find the fists item, add it to our inventory.
+    const gitem_t *item_fists = FindItem( "Fists" );
+    client->pers.selected_item = ITEM_INDEX( item_fists );
+    client->pers.inventory[ client->pers.selected_item ] = 1;
 
+    // Find the Pistol item, add it to our inventory and appoint it as the selected weapon.
+    const gitem_t *item_pistol = FindItem("Pistol");
+	client->pers.selected_item = ITEM_INDEX( item_pistol );
+	client->pers.inventory[client->pers.selected_item] = 1;    
+    // Assign it as our selected weapon.
+    client->pers.weapon = item_pistol;
     // Give it a single full clip of ammo.
-    client->pers.weapon_clip_ammo[ client->pers.weapon->weapon_index ] = item_weapon->clip_capacity;
+    client->pers.weapon_clip_ammo[ client->pers.weapon->weapon_index ] = item_pistol->clip_capacity;
     // And some extra bullets to reload with.
     ent->client->ammo_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->ammo ) );
     client->pers.inventory[ ent->client->ammo_index ] = 78;
+
+    // Obviously we need to allow this.
+    client->weaponState.canChangeMode = false;
+
 
 	//if (sv_flaregun->value > 0)
 	//{
@@ -1074,6 +1079,25 @@ void spectator_respawn(edict_t *ent)
 
 //==============================================================
 
+/**
+*   @brief  Will reset the entity client's 'Field of View' back to its defaults.
+**/
+void P_ResetPlayerStateFOV( gclient_t *client ) {
+    // For DM Mode, possibly fixed FOV is set.
+    if ( deathmatch->value && ( (int)dmflags->value & DF_FIXED_FOV ) ) {
+        client->ps.fov = 90;
+    // Otherwise:
+    } else {
+        // Get the actual integral FOV value.
+        client->ps.fov = atoi( Info_ValueForKey( client->pers.userinfo, "fov" ) );
+        // Make sure it is sane and within 'bounds'.
+        if ( client->ps.fov < 1 ) {
+            client->ps.fov = 90;
+        } else if ( client->ps.fov > 160 ) {
+            client->ps.fov = 160;
+        }
+    }
+}
 
 /*
 ===========
@@ -1160,7 +1184,7 @@ void PutClientInServer(edict_t *ent)
     ent->model = "players/male/tris.md2";
     ent->pain = player_pain;
     ent->die = player_die;
-    ent->liquidlevel = liquid_level_t::LIQUID_NONE;;
+    ent->liquidlevel = liquid_level_t::LIQUID_NONE;
     ent->liquidtype = CONTENTS_NONE;
     ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
@@ -1172,18 +1196,11 @@ void PutClientInServer(edict_t *ent)
     VectorCopy(maxs, ent->maxs);
     VectorClear(ent->velocity);
 
-    // clear playerstate values
+    // Clear playerstate values.
     memset(&ent->client->ps, 0, sizeof(client->ps));
+    // Reset the Field of View for the player state.
+    P_ResetPlayerStateFOV( ent->client );
 
-    if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV)) {
-        client->ps.fov = 90;
-    } else {
-        client->ps.fov = atoi(Info_ValueForKey(client->pers.userinfo, "fov"));
-        if (client->ps.fov < 1)
-            client->ps.fov = 90;
-        else if (client->ps.fov > 160)
-            client->ps.fov = 160;
-    }
 
     // Set viewheight for player state pmove.
     ent->client->ps.pmove.viewheight = ent->viewheight;
