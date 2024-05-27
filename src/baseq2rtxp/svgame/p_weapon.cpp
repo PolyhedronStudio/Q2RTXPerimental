@@ -286,33 +286,32 @@ void P_Weapon_Use( edict_t *ent, const gitem_t *item ) {
     }
 
     // See if the weapon we're going to use has any ammo in its clip.
+    bool hasClipAmmo = false;
     if ( ent->client->pers.weapon ) {
         if ( ent->client->pers.weapon->weapon_index ) {
-            if ( !ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
-
+            if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] >= 1 ) {
+                hasClipAmmo = true;
             }
         }
     }
+
     if ( item->ammo && !g_select_empty->value && !( item->flags & ITEM_FLAG_AMMO ) ) {
         ammo_item = FindItem( item->ammo );
         ammo_index = ITEM_INDEX( ammo_item );
 
-        if ( !ent->client->pers.inventory[ ammo_index ] ) {
+        if ( !hasClipAmmo && !ent->client->pers.inventory[ ammo_index ] ) {
             gi.cprintf( ent, PRINT_HIGH, "No %s for %s.\n", ammo_item->pickup_name, item->pickup_name );
             return;
         }
 
-        if ( ent->client->pers.inventory[ ammo_index ] < item->quantity ) {
+        if ( !hasClipAmmo && ent->client->pers.inventory[ ammo_index ] < item->quantity ) {
             gi.cprintf( ent, PRINT_HIGH, "Not enough %s for %s.\n", ammo_item->pickup_name, item->pickup_name );
             return;
         }
     }
 
-    // Holster current weapon item first. 
+    // Weapons require the info pointer to be set to their specific description struct.
     if ( item->info ) {
-        const weapon_mode_frames_t *modeFrames = static_cast<const weapon_mode_frames_t *>( item->info );
-        //P_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_frames_t *)item->info, false );
-
         // change to this weapon when down
         ent->client->newweapon = item;
     }
@@ -344,42 +343,26 @@ void P_Weapon_Drop( edict_t *ent, const gitem_t *item ) {
 }
 
 
+
+/**
+*
+*
+*	Weapon Target Projecting:
+*
+*
+**/
 /**
 *   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
 **/
-//void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
-//    vec3_t  _distance;
-//
-//    VectorCopy( distance, _distance );
-//    if ( ent->client->pers.hand == LEFT_HANDED )
-//        _distance[ 1 ] *= -1;
-//    else if ( ent->client->pers.hand == CENTER_HANDED )
-//        _distance[ 1 ] = 0;
-//    G_ProjectSource( point, _distance, forward, right, result );
-//
-//    // Aim fix from Yamagi Quake 2.
-//    // Now the projectile hits exactly where the scope is pointing.
-//    if ( aimfix->value ) {
-//        vec3_t start, end;
-//        VectorSet( start, ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + (float)ent->viewheight );
-//        VectorMA( start, CM_MAX_WORLD_SIZE, forward, end );
-//
-//        trace_t	tr = gi.trace( start, NULL, NULL, end, ent, MASK_SHOT );
-//        if ( tr.fraction < 1 ) {
-//            VectorSubtract( tr.endpos, result, forward );
-//            VectorNormalize( forward );
-//        }
-//    }
-//}
 void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
-    vec3_t  _distance;
-
-    VectorCopy( distance, _distance );
-    if ( ent->client->pers.hand == LEFT_HANDED )
+    // Adjust distance to handedness.
+    Vector3 _distance = distance;
+    if ( ent->client->pers.hand == LEFT_HANDED ) {
         _distance[ 1 ] *= -1;
-    else if ( ent->client->pers.hand == CENTER_HANDED )
+    } else if ( ent->client->pers.hand == CENTER_HANDED ) {
         _distance[ 1 ] = 0;
-    G_ProjectSource( point, _distance, forward, right, result );
+    }
+    G_ProjectSource( point, &_distance.x, forward, right, result );
 
     // Aim fix from Yamagi Quake 2.
     // Now the projectile hits exactly where the scope is pointing.
@@ -395,30 +378,30 @@ void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forw
     //    }
     //}
 }
+/**
+*   @brief Project the 'ray of fire' from the source, and then target the crosshair/scope's center screen
+*          point as the final destination.
+*   @note   The forward vector is normalized.
+**/
 void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
-    vec3_t  _distance;
-
-    VectorCopy( distance, _distance );
-    if ( ent->client->pers.hand == LEFT_HANDED )
+    // Adjust distance to handedness.
+    Vector3 _distance = distance;
+    if ( ent->client->pers.hand == LEFT_HANDED ) {
         _distance[ 1 ] *= -1;
-    else if ( ent->client->pers.hand == CENTER_HANDED )
+    } else if ( ent->client->pers.hand == CENTER_HANDED ) {
         _distance[ 1 ] = 0;
-    G_ProjectSource( point, _distance, forward, right, result );
+    }
+    G_ProjectSource( point, &_distance.x, forward, right, result );
 
     // Aim fix from Yamagi Quake 2.
     // Now the projectile hits exactly where the scope is pointing.
-    //if ( aimfix->value ) {
-        vec3_t start, end;
-        VectorSet( start, ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + (float)ent->viewheight );
-        //VectorCopy( point, start );
-        VectorMA( start, CM_MAX_WORLD_SIZE, forward, end );
-
-        trace_t	tr = gi.trace( start, NULL, NULL, end, ent, MASK_SHOT );
-        if ( tr.fraction < 1 ) {
-            VectorSubtract( tr.endpos, result, forward );
-            VectorNormalize( forward );
-        }
-    //}
+    const Vector3 start = { ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + (float)ent->viewheight };
+    const Vector3 end = QM_Vector3MultiplyAdd( start, CM_MAX_WORLD_SIZE, forward );
+    trace_t	tr = gi.trace( &start.x, NULL, NULL, &end.x, ent, MASK_SHOT );
+    if ( tr.fraction < 1 ) {
+        VectorSubtract( tr.endpos, result, forward );
+        VectorNormalize( forward );
+    }
 }
 
 

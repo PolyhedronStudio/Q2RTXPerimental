@@ -124,14 +124,13 @@ Used for all impact (hit/punch/slash) attacks
 */
 const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_t aimDir, const int32_t damage, const int32_t kick ) {
     static constexpr float HIT_RANGE = 32;
-    trace_t     tr;
-    vec3_t      dir;
-    vec3_t      forward, right, up;
-    vec3_t      end;
+    trace_t     tr = {};
+    vec3_t      dir = {};
+    vec3_t      forward = {}, right = {}, up = {};
+    vec3_t      end = {};
 
-    float       r;
-    float       u;
-    vec3_t      water_start;
+    float       r = 0;
+    float       u = 0;
     bool        water = false;
     contents_t  content_mask = static_cast<contents_t>( MASK_SHOT );
 
@@ -158,10 +157,8 @@ const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_
         QM_Vector3ToAngles( aimDir, dir );
         AngleVectors( dir, forward, right, up );
 
-        //r = crandom() * hspread;
-        //u = crandom() * vspread;
-        r = 1.0f;
-        u = 1.0f;
+        r = 1.0f; //r = crandom() * hspread;
+        u = 1.0f; //u = crandom() * vspread;
         VectorMA( start, HIT_RANGE, forward, end );
         VectorMA( end, r, right, end );
         VectorMA( end, u, up, end );
@@ -230,13 +227,13 @@ This is an internal support routine used for bullet/pellet based weapons.
 */
 static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int te_impact, int hspread, int vspread, int mod)
 {
-    trace_t     tr;
-    vec3_t      dir;
-    vec3_t      forward, right, up;
-    vec3_t      end;
-    float       r;
-    float       u;
-    vec3_t      water_start;
+    trace_t     tr = {};
+    vec3_t      dir = {};
+    vec3_t      forward = {}, right = {}, up = {};
+    vec3_t      end = {};
+    float       r = 0;
+    float       u = 0;
+    vec3_t      water_start = {};
     bool        water = false;
     contents_t  content_mask = static_cast<contents_t>( MASK_SHOT | MASK_WATER );
 
@@ -357,8 +354,7 @@ Fires a single round.  Used for machinegun and chaingun.  Would be fine for
 pistols, rifles, etc....
 =================
 */
-void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int mod)
-{
+void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int mod) {
     fire_lead(self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, mod);
 }
 

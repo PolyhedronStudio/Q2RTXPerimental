@@ -103,7 +103,6 @@ cvar_t *flood_persecond;
 cvar_t *flood_waitdelay;
 
 cvar_t *g_select_empty;
-cvar_t *g_instant_weapon_switch;
 
 //
 // Func Declarations:
@@ -270,7 +269,6 @@ void InitGame( void )
     needpass = gi.cvar("needpass", "0", CVAR_SERVERINFO);
     filterban = gi.cvar("filterban", "1", 0);
 
-	g_instant_weapon_switch = gi.cvar( "g_instant_weapon_switch", "0", CVAR_LATCH );
     g_select_empty = gi.cvar("g_select_empty", "0", CVAR_ARCHIVE);
 
     // flood control

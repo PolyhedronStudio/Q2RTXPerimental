@@ -83,9 +83,6 @@ cvar_t  *sv_changemapcmd;
 cvar_t  *sv_max_download_size;
 cvar_t  *sv_max_packet_entities;
 
-cvar_t  *sv_strafejump_hack;
-cvar_t  *sv_waterjump_hack;
-
 cvar_t  *sv_allow_map;
 cvar_t  *sv_cinematics;
 #if !USE_CLIENT
@@ -2090,9 +2087,6 @@ void SV_Init(void) {
     sv_max_rate->changed(sv_max_rate);
     sv_calcpings_method = Cvar_Get("sv_calcpings_method", "2", 0);
     sv_changemapcmd = Cvar_Get("sv_changemapcmd", "", 0);
-
-    sv_strafejump_hack = Cvar_Get("sv_strafejump_hack", "1", CVAR_LATCH);
-    sv_waterjump_hack = Cvar_Get("sv_waterjump_hack", "0", CVAR_LATCH);
 
     sv_allow_map = Cvar_Get("sv_allow_map", "0", 0);
     sv_cinematics = Cvar_Get("sv_cinematics", "1", 0);

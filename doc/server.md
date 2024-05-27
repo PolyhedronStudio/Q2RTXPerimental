@@ -475,29 +475,6 @@ during MVD playback.  Snapshots enable backward seeking in demo (see `mvdseek`
 command description), and speed up repeated forward seeks. Setting this
 variable to 0 disables snapshotting entirely. Default value is 10.
 
-### Hacks
-
-#### `sv_strafejump_hack`
-Enables FPS-independent strafe jumping mode for clients using R1Q2 and
-Q2PRO protocols. Values higher than 1 will force this mode for all clients,
-regardless of their protocol version. Default value is 1 (enable strafe
-jumping hack only for compatible clients).
-
-#### `sv_waterjump_hack`
-Makes underwater movement speed equal in all directions for clients using
-Q2PRO protocol. Values higher than 1 will force this mode for all clients,
-regardless of their protocol version.  Default value is 0 (disabled).
-
-#### Water jump bug
-Quake 2 player movement code contains a bug that causes surfacing velocity
-produced by holding the jump button underwater to be severely limited,
-comparing to movement in other directions. Even worse, resulting velocity is
-calculated differently on client and server sides and that causes prediction
-errors and jerky movement.  Q2PRO is able to work around this bug and make
-player movement speed equal in all directions underwater. However, this fix is
-disabled by default as it is yet unknown if this can be considered an unfair
-advantage over non-Q2PRO clients.
-
 ### System
 
 #### `sys_console`

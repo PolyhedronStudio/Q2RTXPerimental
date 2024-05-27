@@ -790,7 +790,6 @@ extern cvar_t *flood_persecond;
 extern cvar_t *flood_waitdelay;
 
 extern cvar_t *g_select_empty;
-extern cvar_t *g_instant_weapon_switch;
 
 #define world   (&g_edicts[0])
 

@@ -476,8 +476,6 @@ extern cvar_t       *sv_changemapcmd;
 extern cvar_t       *sv_max_download_size;
 extern cvar_t       *sv_max_packet_entities;
 
-extern cvar_t       *sv_strafejump_hack;
-
 extern cvar_t       *sv_allow_map;
 extern cvar_t       *sv_cinematics;
 #if !USE_CLIENT
