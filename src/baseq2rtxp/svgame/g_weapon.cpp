@@ -115,6 +115,108 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
     return true;
 }
 
+/*
+=================
+fire_hit
+
+Used for all impact (hit/punch/slash) attacks
+=================
+*/
+const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_t aimDir, const int32_t damage, const int32_t kick ) {
+    static constexpr float HIT_RANGE = 32;
+    trace_t     tr;
+    vec3_t      dir;
+    vec3_t      forward, right, up;
+    vec3_t      end;
+
+    float       r;
+    float       u;
+    vec3_t      water_start;
+    bool        water = false;
+    contents_t  content_mask = static_cast<contents_t>( MASK_SHOT );
+
+    ////see if enemy is in range
+    //VectorSubtract( self->enemy->s.origin, self->s.origin, dir );
+    //range = VectorLength( dir );
+    //if ( range > aim[ 0 ] )
+    //    return false;
+
+    //if ( aim[ 1 ] > self->mins[ 0 ] && aim[ 1 ] < self->maxs[ 0 ] ) {
+    //    // the hit is straight on so back the range up to the edge of their bbox
+    //    range -= self->enemy->maxs[ 0 ];
+    //} else {
+    //    // this is a side hit so adjust the "right" value out to the edge of their bbox
+    //    if ( aim[ 1 ] < 0 )
+    //        aim[ 1 ] = self->enemy->mins[ 0 ];
+    //    else
+    //        aim[ 1 ] = self->enemy->maxs[ 0 ];
+    //}
+
+
+    tr = gi.trace( self->s.origin, NULL, NULL, start, self, MASK_SHOT );
+    if ( !( tr.fraction < 1.0f ) ) {
+        QM_Vector3ToAngles( aimDir, dir );
+        AngleVectors( dir, forward, right, up );
+
+        //r = crandom() * hspread;
+        //u = crandom() * vspread;
+        r = 1.0f;
+        u = 1.0f;
+        VectorMA( start, HIT_RANGE, forward, end );
+        VectorMA( end, r, right, end );
+        VectorMA( end, u, up, end );
+
+        tr = gi.trace( start, NULL, NULL, end, self, content_mask );
+    }
+
+    // Make sure we aren't hitting a sky brush.
+    if ( !( ( tr.surface ) && ( tr.surface->flags & SURF_SKY ) ) ) {
+        // We hit something.
+        if ( tr.fraction < 1.0f ) {
+            // It was an entity, if it takes damage, hit it:
+            if ( tr.ent && tr.ent->takedamage ) {
+                T_Damage( tr.ent, self, self, aimDir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MOD_HIT );
+            // Otherwise, display something that shows we are hitting something senselessly.
+            } else {
+                if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
+                    gi.WriteUint8( svc_temp_entity );
+                    gi.WriteUint8( TE_CHAINFIST_SMOKE );
+                    gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+                    //gi.WriteDir8( tr.plane.normal );
+                    gi.multicast( tr.endpos, MULTICAST_PVS, false );
+
+                    if ( self->client )
+                        P_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
+                }
+            }
+        }
+    }
+
+    gi.WriteUint8( svc_temp_entity );
+    gi.WriteUint8( TE_DEBUGTRAIL );
+    gi.WritePosition( start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    gi.multicast( start, MULTICAST_PVS, false );
+
+    if ( !( tr.ent ) || ( !( tr.ent->svflags & SVF_MONSTER ) && ( !tr.ent->client ) ) ) {
+        gi.dprintf( "%s: no monster flag set for '%s' ?!\n", __func__, tr.ent->classname );
+        return false;
+    }
+
+    gi.dprintf( "%s: punched mofuckah '%s' in the sack dawg!\n", __func__, tr.ent->classname );
+    vec3_t      v, point;
+
+    // Do our special form of knockback here
+    VectorMA( tr.ent->absmin, 0.5f, tr.ent->size, v );
+    VectorSubtract( v, point, v );
+    VectorNormalize( v );
+    VectorMA( tr.ent->velocity, kick, v, tr.ent->velocity );
+    if ( tr.ent->velocity[ 2 ] > 0 )
+        tr.ent->groundentity = NULL;
+
+    return true;
+}
+
 
 /*
 =================

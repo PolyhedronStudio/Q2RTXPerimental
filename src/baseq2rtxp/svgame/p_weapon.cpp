@@ -162,7 +162,7 @@ void P_Weapon_Change(edict_t *ent) {
     //}
 
     // Can we already change modes at all? (Is our weapon occupied still performing some other mode of action?)
-    const bool canChangeMode = ent->client->weaponState.canChangeMode;
+    const bool canChangeMode = ( ent->client->weaponState.canChangeMode || ent->client->weaponState.mode == WEAPON_MODE_IDLE );
     // Determine some other needed things.
     const bool isAiming = ent->client->weaponState.aimState.isAiming;
     const bool isHolsterMode = ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING );
@@ -179,11 +179,14 @@ void P_Weapon_Change(edict_t *ent) {
             return;
         }
         // We know this function will continue to be called if newweapon is not nulled out.
-        // So if we are finished holstering, only then allow the actual switch change to take place. 
-        // This should provide us with a smooth transition of holster/draw weaponry.
+        // So make sure not to continue this function unless we are finished with holstering the weapon.
+        //
+        // We will continue with the function when the weapon is fully down, and only then engage into the
+        // actual weapon switch.
         if ( isHolsterMode && isAnimationFinished ) {
             // Allow the change to take place.
             goto allowchange;
+        // We aren't ready to make the switch YET.
         } else {
             return;
         }

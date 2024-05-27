@@ -103,7 +103,6 @@ static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
 void weapon_pistol_primary_fire( edict_t *ent ) {
     vec3_t      start;
     vec3_t      forward, right;
-    vec3_t      offset;
     int         damage = 10;
     int         kick = 8;
 
@@ -114,17 +113,21 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
-    VectorSet( offset, 0, 10, (float)ent->viewheight - 5.5f ); // VectorSet( offset, 0, 8, ent->viewheight - 8 );
-    P_ProjectDistance( ent, ent->s.origin, offset, forward, right, start ); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    vec3_t shotOffset = { 0, 10, (float)ent->viewheight - 5.5f };
+    P_ProjectDistance( ent, ent->s.origin, shotOffset, forward, right, start );
 
     // Fire the actual bullet itself.
     fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
+
+    // Project from source to muzzleflash destination.
+    vec3_t muzzleFlashOffset = { 16, 10, (float)ent->viewheight };
+    P_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, forward, right, start );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
     gi.WriteInt16( ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
-    gi.multicast( ent->s.origin, MULTICAST_PVS, false );
+    gi.multicast( start/*ent->s.origin*/, MULTICAST_PVS, false );
 
     // Notify we're making noise.
     P_PlayerNoise( ent, start, PNOISE_WEAPON );
@@ -140,7 +143,6 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
 void weapon_pistol_secondary_fire( edict_t *ent ) {
     vec3_t      start;
     vec3_t      forward, right;
-    vec3_t      offset;
     int         damage = 14;
     int         kick = 10;
 
@@ -151,8 +153,8 @@ void weapon_pistol_secondary_fire( edict_t *ent ) {
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
-    VectorSet( offset, 0, 0, (float)ent->viewheight ); // VectorSet( offset, 0, 8, ent->viewheight - 8 );
-    P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    vec3_t shotOffset = { 0, 0, (float)ent->viewheight };
+    P_ProjectSource( ent, ent->s.origin, shotOffset, forward, right, start );
 
     // Determine the amount to multiply bullet spread with based on the player's velocity.
     // TODO: Use stats array or so for storing the actual move speed limit, since this
@@ -167,11 +169,15 @@ void weapon_pistol_secondary_fire( edict_t *ent ) {
     // Fire the actual bullet itself.
     fire_bullet( ent, start, forward, damage, kick, SECONDARY_FIRE_BULLET_HSPREAD + hSpreadMultiplier, SECONDARY_FIRE_BULLET_VSPREAD + vSpreadMultiplier, MOD_CHAINGUN );
 
+    // Project from source to muzzleflash destination.
+    vec3_t muzzleFlashOffset = { 16, 0, (float)ent->viewheight };
+    P_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, forward, right, start ); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
     gi.WriteInt16( ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
-    gi.multicast( ent->s.origin, MULTICAST_PVS, false );
+    gi.multicast( start, MULTICAST_PVS, false );
 
     // Notify we're making noise.
     P_PlayerNoise( ent, start, PNOISE_WEAPON );
@@ -371,12 +377,12 @@ void Weapon_Pistol( edict_t *ent ) {
         // Draw Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_DRAWING ) {
             // Start playing drawing weapon sound at the very first frame.
-            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
+            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1 ) {
                 ent->client->weapon_sound = gi.soundindex( "weapons/pistol/draw.wav" );
                 ent->client->weaponState.timers.lastDrawn = level.time;
             }
             // Enough time has passed, shutdown the sound.
-            if ( ent->client->weaponState.timers.lastDrawn <= level.time + 250_ms ) {
+            else if ( ent->client->weaponState.timers.lastDrawn <= level.time - 250_ms ) {
                 ent->client->weapon_sound = 0;
 
                 // Store the client's fieldOfView.
@@ -385,12 +391,12 @@ void Weapon_Pistol( edict_t *ent ) {
         // Holster Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING ) {
             // Start playing holster weapon sound at the very first frame.
-            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
+            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1 ) {
                 ent->client->weapon_sound = gi.soundindex( "weapons/pistol/holster.wav" );
                 ent->client->weaponState.timers.lastHolster = level.time;
             }
             // Enough time has passed, shutdown the sound.
-            if ( ent->client->weaponState.timers.lastHolster <= level.time + 250_ms ) {
+            else if ( ent->client->weaponState.timers.lastHolster <= level.time - 250_ms ) {
                 ent->client->weapon_sound = 0;
             }
         }

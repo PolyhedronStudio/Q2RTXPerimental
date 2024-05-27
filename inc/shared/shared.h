@@ -296,11 +296,6 @@ typedef struct {
 #include "shared/entity_state.h"
 
 
-//! Muzzleflashes:
-#include "shared/muzzleflashes.h"
-//! Monster Muzzleflashes:
-#include "shared/muzzleflashes_monsters.h"
-
 
 //! Sound:
 #include "shared/sound.h"

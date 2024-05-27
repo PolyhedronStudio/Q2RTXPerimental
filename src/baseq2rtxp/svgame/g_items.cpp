@@ -748,7 +748,7 @@ gitem_t itemlist[] = {
 
         .info = &fistsItemInfo,
         .tag = ITEM_TAG_WEAPON_FISTS,
-        .precaches = "models/v_wep/fists/tris.iqm"
+        .precaches = "models/v_wep/fists/tris.iqm weapons/fists/fist1.wav weapons/fists/sway01.wav weapons/fists/sway02.wav weapons/fists/sway03.wav weapons/fists/sway04.wav weapons/fists/sway05.wav"
     },
 
     //*QUAKED weapon_pistol (.3 .3 1) (-16 -16 -16) (16 16 16)     

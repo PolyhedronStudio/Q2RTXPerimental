@@ -336,7 +336,7 @@ const qboolean PF_ParseServerMessage( const int32_t serverMessage ) {
 		return true;
 	break;
     case svc_muzzleflash:
-        CLG_ParseMuzzleFlashPacket( MZ_SILENCED );
+        CLG_ParseMuzzleFlashPacket( 0/*MZ_SILENCED*/ );
         CLG_MuzzleFlash();
         return true;
     break;

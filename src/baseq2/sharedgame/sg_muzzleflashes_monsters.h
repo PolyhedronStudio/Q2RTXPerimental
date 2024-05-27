@@ -123,7 +123,7 @@ enum {
     MZ2_SOLDIER_SHOTGUN_8,
     MZ2_SOLDIER_MACHINEGUN_8,
 
-// --- Xian shit below ---
+    // --- Xian shit below ---
     MZ2_MAKRON_BFG,
     MZ2_MAKRON_BLASTER_1,
     MZ2_MAKRON_BLASTER_2,
@@ -162,7 +162,7 @@ enum {
     MZ2_BOSS2_MACHINEGUN_R4,
     MZ2_BOSS2_MACHINEGUN_R5,
 
-//ROGUE
+    //ROGUE
     MZ2_CARRIER_MACHINEGUN_L1,
     MZ2_CARRIER_MACHINEGUN_R1,
     MZ2_CARRIER_GRENADE,
@@ -236,7 +236,13 @@ enum {
     MZ2_WIDOW2_BEAM_SWEEP_9,
     MZ2_WIDOW2_BEAM_SWEEP_10,
     MZ2_WIDOW2_BEAM_SWEEP_11,
-//ROGUE
+    //ROGUE
 };
 
-extern const vec3_t monster_flash_offset[256];
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern const vec3_t monster_flash_offset[ 256 ];
+#ifdef __cplusplus
+};
+#endif //#ifdef __cplusplus
