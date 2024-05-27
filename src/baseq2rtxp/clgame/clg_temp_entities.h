@@ -70,7 +70,6 @@ extern cvar_t *cl_disable_particles;
 extern cvar_t *cl_disable_explosions;
 extern cvar_t *cl_explosion_sprites;
 extern cvar_t *cl_explosion_frametime;
-extern cvar_t *cl_dlight_hacks;
 
 extern cvar_t *gibs;
 

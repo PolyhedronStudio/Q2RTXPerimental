@@ -278,9 +278,9 @@ void CLG_PacketEntity_AddTrailEffects( centity_t *cent, entity_t *ent, entity_st
             if ( !( cl_disable_particles->integer & NOPART_ROCKET_TRAIL ) ) {
                 CLG_RocketTrail( cent->lerp_origin, ent->origin, cent );
             }
-            if ( cl_dlight_hacks->integer & DLHACK_ROCKET_COLOR )
-                clgi.V_AddLight( ent->origin, 200, 1, 0.23f, 0 );
-            else
+            //if ( cl_dlight_hacks->integer & DLHACK_ROCKET_COLOR )
+            //    clgi.V_AddLight( ent->origin, 200, 1, 0.23f, 0 );
+            //else
                 clgi.V_AddLight( ent->origin, 200, 0.6f, 0.4f, 0.12f );
         } else if ( effects & EF_BLASTER ) {
             if ( effects & EF_TRACKER ) {

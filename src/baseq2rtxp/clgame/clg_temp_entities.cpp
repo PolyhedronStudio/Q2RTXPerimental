@@ -25,7 +25,6 @@ cvar_t *cl_disable_particles = nullptr;
 cvar_t *cl_disable_explosions = nullptr;
 cvar_t *cl_explosion_sprites = nullptr;
 cvar_t *cl_explosion_frametime = nullptr;
-cvar_t *cl_dlight_hacks = nullptr;
 
 
 /**
@@ -237,8 +236,8 @@ void CLG_ParseTEnt( void ) {
         if ( !( cl_disable_particles->integer & NOPART_GRENADE_EXPLOSION ) )
             CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
 
-        if ( cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION )
-            ex->light = 200;
+        //if ( cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION )
+        //    ex->light = 200;
 
         if ( level.parsedMessage.events.tempEntity.type == TE_GRENADE_EXPLOSION_WATER )
             clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.watrexp, 1, ATTN_NORM, 0 );
@@ -271,8 +270,8 @@ void CLG_ParseTEnt( void ) {
         if ( !( cl_disable_particles->integer & NOPART_ROCKET_EXPLOSION ) )
             CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
 
-        if ( cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION )
-            ex->light = 200;
+        //if ( cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION )
+        //    ex->light = 200;
 
         if ( level.parsedMessage.events.tempEntity.type == TE_ROCKET_EXPLOSION_WATER )
             clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.watrexp, 1, ATTN_NORM, 0 );
@@ -513,5 +512,4 @@ void CLG_InitTEnts( void ) {
     cl_disable_explosions = clgi.CVar_Get( "cl_disable_explosions", "0", 0 );
     cl_explosion_sprites = clgi.CVar_Get( "cl_explosion_sprites", "1", 0 );
     cl_explosion_frametime = clgi.CVar_Get( "cl_explosion_frametime", std::to_string(clgi.frame_time_ms).c_str(), 0);
-    cl_dlight_hacks = clgi.CVar_Get( "cl_dlight_hacks", "0", 0 );
 }
