@@ -48,9 +48,9 @@ weapon_item_info_t fistsItemInfo = {
     },
     // Mode Animation: SECONDARY_FIRING -- UNUSED FOR PISTOL LOGIC.
     /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
-        .startFrame = 1,
-        .endFrame = 14,
-        .durationMsec = sg_time_t::from_hz( 14 - 1 )
+        .startFrame = 74,
+        .endFrame = 92,
+        .durationMsec = sg_time_t::from_hz( 92 - 74 )
     },
     // Mode Animation: RELOADING
     /*modeAnimationFrames[ WEAPON_MODE_RELOADING ] = */{
@@ -147,15 +147,15 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
     // Determine shot kick offset.
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
-    ent->client->weaponKicks.offsetAngles[ 1 ] = -2; // Left punch angle.
+    ent->client->weaponKicks.offsetAngles[ 1 ] = 2; // Right punch angle.
 
     // Project from source to shot destination.
-    vec3_t fistOffset = { 0, -10, (float)ent->viewheight - 5.5f }; // VectorSet( offset, 0, 8, ent->viewheight - 8 );
+    vec3_t fistOffset = { 0, 10, (float)ent->viewheight - 5.5f }; // VectorSet( offset, 0, 8, ent->viewheight - 8 );
     P_ProjectDistance( ent, ent->s.origin, fistOffset, forward, right, start ); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Fire the actual bullet itself.
     //fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
-    if ( fire_hit_punch_impact( ent, start, forward, 10, 55 ) ) {
+    if ( fire_hit_punch_impact( ent, start, forward, 20, 85 ) ) {
         // Send a muzzle flash event.
         gi.WriteUint8( svc_muzzleflash );
         gi.WriteInt16( ent - g_edicts );
@@ -173,6 +173,9 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
 static void Weapon_Fists_ProcessUserInput( edict_t *ent ) {
     if ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) {
         P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, fistsItemInfo.modeFrames, false );
+        return;
+    } else if ( ent->client->latched_buttons & BUTTON_SECONDARY_FIRE ) {
+        P_Weapon_SwitchMode( ent, WEAPON_MODE_SECONDARY_FIRING, fistsItemInfo.modeFrames, false );
         return;
     }
 }
@@ -211,6 +214,29 @@ void Weapon_Fists( edict_t *ent ) {
         if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 8 ) {
             // Swing the left fist.
             weapon_fists_primary_fire( ent );
+
+        }
+    // Primary Fire, throws a left punch fist.
+    } else if ( ent->client->weaponState.mode == WEAPON_MODE_SECONDARY_FIRING ) {
+        // Play a sway sound at the start of the animation.
+        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
+            std::string swayFile = "weapons/fists/sway0";
+            swayFile += std::to_string( irandom( 1, 5 ) );
+            swayFile += ".wav";
+            ent->client->weapon_sound = gi.soundindex( swayFile.c_str() );
+            // Store the time we last 'primary fired'.
+            ent->client->weaponState.timers.lastSecondaryFire = level.time;
+        }
+
+        // Since this logic is ran each frame, use a timer to wait out and stop the sway sound after 200ms.
+        if ( ent->client->weaponState.timers.lastSecondaryFire <= ( level.time - 200_ms ) ) {
+            ent->client->weapon_sound = 0;
+        }
+
+        // Fire the hit trace when the model is at its sweet spot for punching.
+        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 14 ) {
+            // Swing the left fist.
+            weapon_fists_secondary_fire( ent );
 
         }
     // Draw Weapon:

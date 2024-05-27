@@ -1309,6 +1309,8 @@ struct gclient_s {
         struct {
             //! Used to prevent firing too rapidly
             sg_time_t lastPrimaryFire;
+            //! Used to prevent firing too rapidly
+            sg_time_t lastSecondaryFire;
             //! Used to prevent firing too rapidly.
             sg_time_t lastAimedFire;
             //! Time the weapon was drawn. (Used for sound).

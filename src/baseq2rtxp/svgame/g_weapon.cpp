@@ -178,27 +178,28 @@ const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_
                 T_Damage( tr.ent, self, self, aimDir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MOD_HIT );
             // Otherwise, display something that shows we are hitting something senselessly.
             } else {
-                if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
-                    gi.WriteUint8( svc_temp_entity );
-                    gi.WriteUint8( TE_CHAINFIST_SMOKE );
-                    gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                    //gi.WriteDir8( tr.plane.normal );
-                    gi.multicast( tr.endpos, MULTICAST_PVS, false );
+                //if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
+                //    gi.WriteUint8( svc_temp_entity );
+                //    gi.WriteUint8( TE_CHAINFIST_SMOKE );
+                //    gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+                //    //gi.WriteDir8( tr.plane.normal );
+                //    gi.multicast( tr.endpos, MULTICAST_PVS, false );
 
-                    if ( self->client )
-                        P_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
-                }
+                //    if ( self->client )
+                //        P_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
+                //}
             }
+
         }
     }
 
-    gi.WriteUint8( svc_temp_entity );
-    gi.WriteUint8( TE_DEBUGTRAIL );
-    gi.WritePosition( start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-    gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-    gi.multicast( start, MULTICAST_PVS, false );
+    //gi.WriteUint8( svc_temp_entity );
+    //gi.WriteUint8( TE_DEBUGTRAIL );
+    //gi.WritePosition( start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    //gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    //gi.multicast( start, MULTICAST_PVS, false );
 
-    if ( !( tr.ent ) || ( !( tr.ent->svflags & SVF_MONSTER ) && ( !tr.ent->client ) ) ) {
+    if ( !( tr.ent ) || ( tr.ent != &g_edicts[ 0 ] ) || ( !( tr.ent->svflags & SVF_MONSTER ) && ( !tr.ent->client ) ) ) {
         gi.dprintf( "%s: no monster flag set for '%s' ?!\n", __func__, tr.ent->classname );
         return false;
     }
@@ -206,13 +207,15 @@ const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_
     gi.dprintf( "%s: punched mofuckah '%s' in the sack dawg!\n", __func__, tr.ent->classname );
     vec3_t      v, point;
 
-    // Do our special form of knockback here
-    VectorMA( tr.ent->absmin, 0.5f, tr.ent->size, v );
-    VectorSubtract( v, point, v );
-    VectorNormalize( v );
-    VectorMA( tr.ent->velocity, kick, v, tr.ent->velocity );
-    if ( tr.ent->velocity[ 2 ] > 0 )
-        tr.ent->groundentity = NULL;
+    if ( ( tr.ent != &g_edicts[ 0 ] ) ) {
+        // Do our special form of knockback here
+        VectorMA( tr.ent->absmin, 0.5f, tr.ent->size, v );
+        VectorSubtract( v, point, v );
+        VectorNormalize( v );
+        VectorMA( tr.ent->velocity, kick, v, tr.ent->velocity );
+        if ( tr.ent->velocity[ 2 ] > 0 )
+            tr.ent->groundentity = NULL;
+    }
 
     return true;
 }
