@@ -242,34 +242,34 @@ allowchange:
 /**
 *   @brief  Callback for when a weapon change is enforced to occure due to having ran out of ammo.
 **/
-static void P_NoAmmoWeaponChange( edict_t *ent, bool sound = false ) {
-	if ( sound ) {
-		if ( level.time >= ent->client->empty_weapon_click_sound ) {
-			gi.sound( ent, CHAN_VOICE, gi.soundindex( "weapons/noammo.wav" ), 1, ATTN_NORM, 0 );
-			ent->client->empty_weapon_click_sound = level.time + 1_sec;
-		}
-	}
-
-    // Find the next best weapon to utilize.
-    //if (ent->client->pers.inventory[ITEM_INDEX(FindItem("bullets"))]
-    //    &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("machinegun"))]) {
-    //    ent->client->newweapon = FindItem("machinegun");
-    //    return;
-    //}
-    //if (ent->client->pers.inventory[ITEM_INDEX(FindItem("shells"))] > 1
-    //    &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("super shotgun"))]) {
-    //    ent->client->newweapon = FindItem("super shotgun");
-    //    return;
-    //}
-    //if (ent->client->pers.inventory[ITEM_INDEX(FindItem("shells"))]
-    //    &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("shotgun"))]) {
-    //    ent->client->newweapon = FindItem("shotgun");
-    //    return;
-    //}
-    
-    // We got no other weapons yet.
-    ent->client->newweapon = nullptr;// FindItem( "blaster" );
-}
+//static void P_NoAmmoWeaponChange( edict_t *ent, bool sound = false ) {
+//	if ( sound ) {
+//		if ( level.time >= ent->client->empty_weapon_click_sound ) {
+//			gi.sound( ent, CHAN_VOICE, gi.soundindex( "weapons/noammo.wav" ), 1, ATTN_NORM, 0 );
+//			ent->client->empty_weapon_click_sound = level.time + 1_sec;
+//		}
+//	}
+//
+//    // Find the next best weapon to utilize.
+//    //if (ent->client->pers.inventory[ITEM_INDEX(FindItem("bullets"))]
+//    //    &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("machinegun"))]) {
+//    //    ent->client->newweapon = FindItem("machinegun");
+//    //    return;
+//    //}
+//    //if (ent->client->pers.inventory[ITEM_INDEX(FindItem("shells"))] > 1
+//    //    &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("super shotgun"))]) {
+//    //    ent->client->newweapon = FindItem("super shotgun");
+//    //    return;
+//    //}
+//    //if (ent->client->pers.inventory[ITEM_INDEX(FindItem("shells"))]
+//    //    &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("shotgun"))]) {
+//    //    ent->client->newweapon = FindItem("shotgun");
+//    //    return;
+//    //}
+//    
+//    // We got no other weapons yet.
+//    ent->client->newweapon = FindItem( "fists" );
+//}
 
 
 

@@ -197,7 +197,7 @@ static const bool weapon_pistol_reload_clip( edict_t *ent ) {
     int32_t clipAmmo = clipCapacity;
     // Get total ammo amount.
     int32_t totalAmmo = ent->client->pers.inventory[ ent->client->ammo_index ];
-    if ( totalAmmo < clipCapacity ) {
+    if ( clipCapacity > totalAmmo ) {
         clipAmmo = totalAmmo;
     }
     // This ends badly for the player, no more ammo to reload with.
@@ -213,6 +213,15 @@ static const bool weapon_pistol_reload_clip( edict_t *ent ) {
     // Return true if we reloaded succesfully.
     return true;
 }
+/**
+*   @brief  Will play out of ammo sound.
+**/
+static void weapon_pistol_no_ammo( edict_t *ent ) {
+    if ( level.time >= ent->client->empty_weapon_click_sound ) {
+        gi.sound( ent, CHAN_VOICE, gi.soundindex( "weapons/pistol/noammo.wav" ), 1, ATTN_NORM, 0 );
+        ent->client->empty_weapon_click_sound = level.time + 75_ms;
+    }
+}
 
 /**
 *   @brief  Processes responses to the user input.
@@ -226,9 +235,8 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         *   Letting go of 'Secondary Fire': "Aim Out" of isAiming Mode:
         **/
         if ( !( ent->client->buttons & BUTTON_SECONDARY_FIRE ) ) {
-            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeFrames, false );
             //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
-
+            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeFrames, false );
             // Restore the original FOV.
             P_ResetPlayerStateFOV( ent->client );
         }
@@ -239,14 +247,27 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
             // Switch to Firing mode if we have Clip Ammo:
             if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
                 P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_FIRE, pistolItemInfo.modeFrames, false );
-                // Attempt to reload otherwise:
+            // Attempt to reload otherwise:
             } else {
                 // We need to have enough ammo left to reload with.
                 if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
-                    gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_RELOADING )\n", __func__ );
-                    //P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
+                    // When enabled, will move out of isAiming mode, reset FOV, and perform a reload, upon
+                    // which if secondary fire is still pressed, it'll return to aiming in.
+                    #if 0
+                    //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_RELOADING )\n", __func__ );
+                    // Exit isAiming mode.
+                    ent->client->weaponState.aimState.isAiming = false;
+                    // Restore the original FOV.
+                    P_ResetPlayerStateFOV( ent->client );
+                    // Screen should be lerping back to FOV, engage into reload mode.
+                    P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
+                    #else
+                    // Play out of ammo click sound.
+                    weapon_pistol_no_ammo( ent );
+                    #endif
                 } else {
-                    // TODO: Play out of ammo sound, switch weapon?
+                    // Play out of ammo click sound.
+                    weapon_pistol_no_ammo( ent );
                 }
             }
             //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
@@ -273,13 +294,14 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
             // Switch to Firing mode if we have Clip Ammo:
             if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
                 P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, false );
-                // Attempt to reload otherwise:
+            // Attempt to reload otherwise:
             } else {
                 // We need to have enough ammo left to reload with.
                 if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
                     P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
                 } else {
-                    // TODO: Play out of ammo sound, switch weapon?
+                    // Play out of ammo click sound.
+                    weapon_pistol_no_ammo( ent );
                 }
             }
             return;
@@ -292,7 +314,8 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
             if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
                 P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
             } else {
-                // TODO: Play out of ammo sound, switch weapon?
+                // Play out of ammo click sound.
+                weapon_pistol_no_ammo( ent );
             }
             return;
         }
