@@ -1854,7 +1854,12 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
         // Play 'Jump' sound if pmove inquired so.
         if ( pm.jump_sound && !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquid.level == 0) {
-            gi.sound( ent, CHAN_VOICE, gi.soundindex( "*jump1.wav" ), 1, ATTN_NORM, 0 );
+            // Jump sound to play.
+            const int32_t sndIndex = irandom( 2 ) + 1;
+            std::string pathJumpSnd = "player/jump0";
+            pathJumpSnd += std::to_string( sndIndex );
+            pathJumpSnd += ".wav";
+            gi.sound( ent, CHAN_VOICE, gi.soundindex( pathJumpSnd.c_str() ), 1, ATTN_NORM, 0 );
             // Paril: removed to make ambushes more effective and to
             // not have monsters around corners come to jumps
             // PlayerNoise(ent, ent->s.origin, PNOISE_SELF);

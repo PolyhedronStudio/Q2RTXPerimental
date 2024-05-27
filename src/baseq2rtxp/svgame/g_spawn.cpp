@@ -1085,6 +1085,7 @@ void SP_worldspawn(edict_t *ent)
     gi.soundindex("*gurp1.wav");        // drowning damage
     gi.soundindex("*gurp2.wav");
     gi.soundindex("*jump1.wav");        // player jump
+    gi.soundindex("*jump2.wav");        // player jump
     gi.soundindex("*pain25_1.wav");
     gi.soundindex("*pain25_2.wav");
     gi.soundindex("*pain50_1.wav");
@@ -1097,7 +1098,7 @@ void SP_worldspawn(edict_t *ent)
     // sexed models
     // THIS ORDER MUST MATCH THE DEFINES IN g_local.h
     // you can add more, max 15
-    gi.modelindex("#w_blaster.md2");
+    gi.modelindex("#w_blaster.md2"); // #w_fists.iqm
     gi.modelindex("#w_pistol.iqm");
     gi.modelindex("#w_shotgun.md2");
     gi.modelindex("#w_sshotgun.md2");
