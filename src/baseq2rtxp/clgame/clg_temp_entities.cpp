@@ -99,7 +99,7 @@ void CLG_ParseTEnt( void ) {
     int r;
 
     switch ( level.parsedMessage.events.tempEntity.type ) {
-    case TE_BLOOD:          // bullet hitting flesh
+    case TE_BLOOD: // bullet hitting flesh
         if ( !( cl_disable_particles->integer & NOPART_BLOOD ) ) {
             // CLG_ParticleEffect(level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 60);
             CLG_BloodParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 1000 );

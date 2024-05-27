@@ -598,11 +598,11 @@ void P_WorldEffects( void ) {
 
 				// play a gurp sound instead of a normal pain sound
 				if ( current_player->health <= current_player->dmg )
-					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown1.wav" ), 1, ATTN_NORM, 0 );
+					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ), 1, ATTN_NORM, 0 );
 				else if ( Q_rand( ) & 1 )
-					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "*gurp1.wav" ), 1, ATTN_NORM, 0 );
+					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gurp01.wav" ), 1, ATTN_NORM, 0 );
 				else
-					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "*gurp2.wav" ), 1, ATTN_NORM, 0 );
+					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gurp02.wav" ), 1, ATTN_NORM, 0 );
 
 				current_player->pain_debounce_time = level.time;
 

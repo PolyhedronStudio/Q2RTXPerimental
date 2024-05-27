@@ -423,13 +423,13 @@ void PF_ParseEntityEvent( const int32_t entityNumber ) {
             CLG_FootstepLadderEvent( entityNumber );
             break;
         case EV_FALLSHORT:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land1.wav" ), 1, ATTN_NORM, 0 );
+            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land01.wav" ), 1, ATTN_NORM, 0 );
             break;
         case EV_FALL:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "*fall2.wav" ), 1, ATTN_NORM, 0 );
+            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall02.wav" ), 1, ATTN_NORM, 0 );
             break;
         case EV_FALLFAR:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "*fall1.wav" ), 1, ATTN_NORM, 0 );
+            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall01.wav" ), 1, ATTN_NORM, 0 );
             break;
     }
 }

@@ -1059,8 +1059,9 @@ void SP_worldspawn(edict_t *ent)
     gi.soundindex("player/lava_in.wav");
     gi.soundindex("player/burn1.wav");
     gi.soundindex("player/burn2.wav");
-    gi.soundindex("player/drown1.wav");
+    gi.soundindex("player/drown01.wav");
 
+    PrecacheItem(FindItem( "Fists" ));
     PrecacheItem(FindItem("Pistol"));
 
     gi.soundindex("player/lava1.wav");
@@ -1076,24 +1077,42 @@ void SP_worldspawn(edict_t *ent)
     gi.soundindex("items/respawn1.wav");
 
     // sexed sounds
-    gi.soundindex("*death1.wav");
-    gi.soundindex("*death2.wav");
-    gi.soundindex("*death3.wav");
-    gi.soundindex("*death4.wav");
-    gi.soundindex("*fall1.wav");
-    gi.soundindex("*fall2.wav");
-    gi.soundindex("*gurp1.wav");        // drowning damage
-    gi.soundindex("*gurp2.wav");
-    gi.soundindex("*jump1.wav");        // player jump
-    gi.soundindex("*jump2.wav");        // player jump
-    gi.soundindex("*pain25_1.wav");
-    gi.soundindex("*pain25_2.wav");
-    gi.soundindex("*pain50_1.wav");
-    gi.soundindex("*pain50_2.wav");
-    gi.soundindex("*pain75_1.wav");
-    gi.soundindex("*pain75_2.wav");
-    gi.soundindex("*pain100_1.wav");
-    gi.soundindex("*pain100_2.wav");
+    //gi.soundindex("*death1.wav");
+    //gi.soundindex("*death2.wav");
+    //gi.soundindex("*death3.wav");
+    //gi.soundindex("*death4.wav");
+    //gi.soundindex("*fall1.wav");
+    //gi.soundindex("*fall2.wav");
+    //gi.soundindex("*gurp1.wav");        // drowning damage
+    //gi.soundindex("*gurp2.wav");
+    //gi.soundindex("*jump1.wav");        // player jump
+    //gi.soundindex("*jump2.wav");        // player jump
+    //gi.soundindex("*pain25_1.wav");
+    //gi.soundindex("*pain25_2.wav");
+    //gi.soundindex("*pain50_1.wav");
+    //gi.soundindex("*pain50_2.wav");
+    //gi.soundindex("*pain75_1.wav");
+    //gi.soundindex("*pain75_2.wav");
+    //gi.soundindex("*pain100_1.wav");
+    //gi.soundindex("*pain100_2.wav");
+    gi.soundindex( "*death1.wav" );
+    gi.soundindex( "*death2.wav" );
+    gi.soundindex( "*death3.wav" );
+    gi.soundindex( "*death4.wav" );
+    gi.soundindex( "*fall1.wav" );
+    gi.soundindex( "*fall2.wav" );
+    gi.soundindex( "player/gurp01.wav" );        // drowning damage
+    gi.soundindex( "player/gurp02.wav" );
+    gi.soundindex( "player/jump01.wav" );        // player jump
+    gi.soundindex( "player/jump02.wav" );        // player jump
+    gi.soundindex( "*pain25_1.wav" );
+    gi.soundindex( "*pain25_2.wav" );
+    gi.soundindex( "*pain50_1.wav" );
+    gi.soundindex( "*pain50_2.wav" );
+    gi.soundindex( "*pain75_1.wav" );
+    gi.soundindex( "*pain75_2.wav" );
+    gi.soundindex( "*pain100_1.wav" );
+    gi.soundindex( "*pain100_2.wav" );
 
     // sexed models
     // THIS ORDER MUST MATCH THE DEFINES IN g_local.h

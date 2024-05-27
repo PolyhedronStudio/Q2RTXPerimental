@@ -71,9 +71,9 @@ void PF_PrecacheClientSounds( void ) {
     precache.sfx.watrexp = clgi.S_RegisterSound( "weapons/xpld_wat.wav" );
 
     // Precache player land/fall.
-    clgi.S_RegisterSound( "player/land1.wav" );
-    clgi.S_RegisterSound( "player/fall2.wav" );
-    clgi.S_RegisterSound( "player/fall1.wav" );
+    clgi.S_RegisterSound( "player/land01.wav" );
+    clgi.S_RegisterSound( "player/fall02.wav" );
+    clgi.S_RegisterSound( "player/fall01.wav" );
 
     // Precache Footsteps:
     CLG_PrecacheFootsteps();

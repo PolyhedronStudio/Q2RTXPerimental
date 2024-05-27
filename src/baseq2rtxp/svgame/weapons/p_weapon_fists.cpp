@@ -121,7 +121,7 @@ void weapon_fists_primary_fire( edict_t *ent ) {
 
     // Fire the actual bullet itself.
     //fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
-    if ( fire_hit_punch_impact( ent, start, forward, 10, 55 ) ) {
+    if ( fire_hit_punch_impact( ent, start, forward, 5, 55 ) ) {
         // Send a muzzle flash event.
         gi.WriteUint8( svc_muzzleflash );
         gi.WriteInt16( ent - g_edicts );
@@ -155,11 +155,11 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
 
     // Fire the actual bullet itself.
     //fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
-    if ( fire_hit_punch_impact( ent, start, forward, 20, 85 ) ) {
+    if ( fire_hit_punch_impact( ent, start, forward, 8, 85 ) ) {
         // Send a muzzle flash event.
         gi.WriteUint8( svc_muzzleflash );
         gi.WriteInt16( ent - g_edicts );
-        gi.WriteUint8( MZ_FIST_LEFT /*| is_silenced*/ );
+        gi.WriteUint8( MZ_FIST_RIGHT /*| is_silenced*/ );
         gi.multicast( ent->s.origin, MULTICAST_PVS, false );
     }
 
@@ -214,7 +214,6 @@ void Weapon_Fists( edict_t *ent ) {
         if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 8 ) {
             // Swing the left fist.
             weapon_fists_primary_fire( ent );
-
         }
     // Primary Fire, throws a left punch fist.
     } else if ( ent->client->weaponState.mode == WEAPON_MODE_SECONDARY_FIRING ) {
@@ -265,78 +264,4 @@ void Weapon_Fists( edict_t *ent ) {
             ent->client->weapon_sound = 0;
         }
     }
-
-    ///**
-    //*   isAiming Behavior Path:
-    //**/
-    //if ( ent->client->weaponState.aimState.isAiming == true ) {
-    //    // isAiming -> Fire:
-    //    if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_FIRE ) {
-    //        // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
-    //        // any earlier/double firing.
-    //        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 3 ) {
-    //            // Wait out until enough time has passed.
-    //            if ( ent->client->weaponState.timers.lastAimedFire <= ( level.time + 325_ms ) ) {
-    //                // Fire the pistol bullet.
-    //                weapon_pistol_secondary_fire( ent );
-    //                // Store the time we last 'primary fired'.
-    //                ent->client->weaponState.timers.lastAimedFire = level.time;
-    //            }
-    //        }
-    //        // isAiming -> "Aim Out":
-    //    } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_OUT ) {
-    //        // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
-    //        // any earlier/double firing.
-    //        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame ) {
-    //            // Disengage aiming state.
-    //            ent->client->weaponState.aimState = {};
-    //        }
-    //    }
-    //} else {
-    //    // Process logic for state specific modes and their frames.
-
-    //    } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN ) {
-    //        // Set the isAiming state value for aiming specific behavior to true.
-    //        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame ) {
-    //            //! Engage aiming mode.
-    //            ent->client->weaponState.aimState.isAiming = true;
-    //        }
-    //        // Reload Weapon:
-    //    } else if ( ent->client->weaponState.mode == WEAPON_MODE_RELOADING ) {
-    //        // Start playing clip reload sound. (Takes about the same duration as a pistol reload, 1 second.)
-    //        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
-    //            ent->client->weapon_sound = gi.soundindex( "weapons/pistol/reload.wav" );
-    //        }
-    //        // Stop audio and actually reload the clip stats at the end of the animation sequence.
-    //        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame - 1 ) {
-    //            ent->client->weapon_sound = 0;
-    //            weapon_pistol_reload_clip( ent );
-    //        }
-    //        // Draw Weapon:
-    //    } else if ( ent->client->weaponState.mode == WEAPON_MODE_DRAWING ) {
-    //        // Start playing drawing weapon sound at the very first frame.
-    //        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
-    //            ent->client->weapon_sound = gi.soundindex( "weapons/pistol/draw.wav" );
-    //            ent->client->weaponState.timers.lastDrawn = level.time;
-    //        }
-    //        // Enough time has passed, shutdown the sound.
-    //        if ( ent->client->weaponState.timers.lastDrawn <= level.time + 250_ms ) {
-    //            ent->client->weapon_sound = 0;
-
-    //            // Store the client's fieldOfView.
-    //            ent->client->weaponState.clientFieldOfView = ent->client->ps.fov;
-    //        }
-    //        // Holster Weapon:
-    //    } else if ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING ) {
-    //        // Start playing holster weapon sound at the very first frame.
-    //        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
-    //            ent->client->weapon_sound = gi.soundindex( "weapons/pistol/holster.wav" );
-    //            ent->client->weaponState.timers.lastHolster = level.time;
-    //        }
-    //        // Enough time has passed, shutdown the sound.
-    //        if ( ent->client->weaponState.timers.lastHolster <= level.time + 250_ms ) {
-    //            ent->client->weapon_sound = 0;
-    //        }
-    //    }
-    //}
 }

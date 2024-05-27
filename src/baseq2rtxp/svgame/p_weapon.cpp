@@ -24,7 +24,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 static bool     is_quad;
 static byte     is_silenced;
 
-//void weapon_grenade_fire(edict_t *ent, bool held);
 /**
 *   @detail Each player can have two noise objects associated with it:
 *           a personal noise (jumping, pain, weapon firing), and a weapon
@@ -82,6 +81,7 @@ void P_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
     VectorSubtract( where, noise->maxs, noise->absmin );
     VectorAdd( where, noise->maxs, noise->absmax );
     noise->last_sound_time = level.time;
+
     gi.linkentity( noise );
 }
 

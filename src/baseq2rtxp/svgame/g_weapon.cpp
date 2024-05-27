@@ -166,25 +166,27 @@ const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_
         tr = gi.trace( start, NULL, NULL, end, self, content_mask );
     }
 
+    bool isTDamaged = false;
     // Make sure we aren't hitting a sky brush.
-    if ( !( ( tr.surface ) && ( tr.surface->flags & SURF_SKY ) ) ) {
+    if ( !(tr.surface && tr.surface->flags & SURF_SKY) ) {
         // We hit something.
         if ( tr.fraction < 1.0f ) {
             // It was an entity, if it takes damage, hit it:
             if ( tr.ent && tr.ent->takedamage ) {
                 T_Damage( tr.ent, self, self, aimDir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MOD_HIT );
+                isTDamaged = true;
             // Otherwise, display something that shows we are hitting something senselessly.
             } else {
-                //if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
-                //    gi.WriteUint8( svc_temp_entity );
-                //    gi.WriteUint8( TE_CHAINFIST_SMOKE );
-                //    gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                //    //gi.WriteDir8( tr.plane.normal );
-                //    gi.multicast( tr.endpos, MULTICAST_PVS, false );
+                if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
+                    gi.WriteUint8( svc_temp_entity );
+                    gi.WriteUint8( TE_BLOOD );
+                    gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+                    gi.WriteDir8( tr.plane.normal );
+                    gi.multicast( tr.endpos, MULTICAST_PVS, false );
 
-                //    if ( self->client )
-                //        P_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
-                //}
+                    if ( self->client )
+                        P_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
+                }
             }
 
         }
@@ -198,13 +200,14 @@ const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_
 
     if ( !( tr.ent ) || ( tr.ent != &g_edicts[ 0 ] ) || ( !( tr.ent->svflags & SVF_MONSTER ) && ( !tr.ent->client ) ) ) {
         gi.dprintf( "%s: no monster flag set for '%s' ?!\n", __func__, tr.ent->classname );
-        return false;
+        //return false;
     }
 
-    gi.dprintf( "%s: punched mofuckah '%s' in the sack dawg!\n", __func__, tr.ent->classname );
     vec3_t      v, point;
 
-    if ( ( tr.ent != &g_edicts[ 0 ] ) ) {
+    if ( tr.ent != nullptr && ( tr.ent != &g_edicts[ 0 ] ) ) {
+        gi.dprintf( "%s: punched mofuckah '%s' in the sack dawg!\n", __func__, tr.ent->classname );
+
         // Do our special form of knockback here
         VectorMA( tr.ent->absmin, 0.5f, tr.ent->size, v );
         VectorSubtract( v, point, v );
@@ -214,7 +217,7 @@ const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_
             tr.ent->groundentity = NULL;
     }
 
-    return true;
+    return isTDamaged;
 }
 
 
