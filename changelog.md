@@ -3,14 +3,16 @@
 ## Q2RTXPerimental Changes(New, listed per version):
 Changes will from now on be listed as additions per version. 
 ## (v0.0.5):
-*[General]: Actually isolated the very few player ``STATS_xxx`` indices where all game only moved to the **Shared Game**, starting their index with ``STATS_GAME_OFFSET``_
-*[General]: Some tweaking in timing for CLGame.
-*[General]: Added q2rtxp.cfg and also made the boot system load it up.
-*[VKPT]: Added support for ``MASKED`` materials for weapon view models, this so we can have a nice muzzleflash.
-*[VKPT]: Added missing proper registration sequencing for masked materials.
-*[CLGame]: Different third-person camera.
-*[BaseQ2RTXP]: Started making a move to 'total conversion', starting by replacing the weapon system. Currently it consists of just a single pistol however.
-*[BaseQ2RTXP]: Added ``+reload``, ``+fire_prim``, ``+fire_sec`` input actions for the new weapon system.
+* [General]: Actually isolated the very few player ``STATS_xxx`` indices where all game only moved to the **Shared Game**, starting their index with ``STATS_GAME_OFFSET``_
+* [General]: Some tweaking in timing for CLGame.
+* [General]: Added q2rtxp.cfg and also made the boot system load it up.
+* [VKPT]: Added support for ``MASKED`` materials for weapon view models, this so we can have a nice muzzleflash.
+* [VKPT]: Added missing proper registration sequencing for masked materials.
+* [CLGame]: Different third-person camera.
+* [BaseQ2RTXP]: Started making a move to 'total conversion'. This includes having removed all items(exception for health), all default weapons, and replaced the weapon system currently consisting of 2 weapon types: Fists and a Pistol. On top of that, items for the new custom game ammo types were added also.
+* [BaseQ2RTXP]: Added ``+reload``, ``+fire_prim``, ``+fire_sec`` input actions for the new weapon system.
+* [BaseQ2RTXP]: Properly finished client side ``gunangles`` and ``view bob``.
+* [BaseQ2RTXP]: Moved temp entity events enumerator as well as stats indices to ``SharedGame``
 
 ## (v0.0.4):
 * The ``collision model`` code now has ``material awareness``, for now still separated from the refresh material system and operates by loading properties out the ``*.wal_json`` texture name files. These are also supported by recent ericw-tools branches to substitute non ``.wal`` textures with. Currently two extra fields can be added, this allows you to set a material its ``kind``(string) as well as its ``friction``(float).

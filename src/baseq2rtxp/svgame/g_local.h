@@ -1126,7 +1126,7 @@ void GetChaseTarget(edict_t *ent);
 
 
 /**
-*   @brief  Client data that stays across multiple level loads
+*   @brief  Client data that persists to exist across multiple level loads.
 **/
 typedef struct {
     //! String buffer of the client's user info.
@@ -1196,7 +1196,9 @@ typedef struct {
     bool        spectator;
 } client_persistant_t;
 
-// Client data that stays across deathmatch respawns
+/**
+*   @brief  Client respawn data that stays across multiplayer mode respawns.
+**/
 typedef struct {
     client_persistant_t coop_respawn;	// what to set client->pers to on a respawn
 

@@ -18,7 +18,7 @@ Features being looked forward on implementation.
 	* [X] Acquire some proper footstep audio files and add in material specific footstep audio.
 	* [ ] Have bullet impact display material ``kind`` specific puffs?
 * [ ] Move player animation code/task into the player move code for proper synchronisity and consistency reasons.
-* [ ] Footsteps/ViewBob to Client Game, PMove?
+* [X] Footsteps/ViewBob to Client Game, PMove?
 ### Medium Priority:
 * [ ] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
 * [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.
@@ -35,6 +35,21 @@ Features being looked forward on implementation.
 
 ### Lowest, nearly redundant Priority:
 * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
+
+## Resources:
+### Audio:
+* [ ] Replace pain25 up to pain100 audio files. (And/or rework its code a bit.)
+* [ ] Replace explosion sounds.
+* [ ] Replace ricochet sounds.
+* [ ] Replace water in/out/head-under sounds.
+* [ ] Replace 'heat' in lava sounds.
+* [ ] Replace UI(menu) sounds.
+### Models:
+* [ ] Replace..??
+* [ ] Get ourselves a basic version of the Mixamo testdummy that works in-game.
+* [ ] Get ourselves some environment props to use for ``client_misc_model`` decorating purposes.
+### Textures:
+* [ ] Find some consistent themed PBR texture set?
 
 ## Bugfixes: 
 Ideally this list would never exist, but in this world we can't have it all so, let me introduce you to a highly most pleasant list of bugs to fix!
