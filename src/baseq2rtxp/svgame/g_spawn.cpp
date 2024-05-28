@@ -1054,25 +1054,13 @@ void SP_worldspawn(edict_t *ent)
     else
         gi.cvar_set("sv_gravity", st.gravity);
 
-    snd_fry = gi.soundindex("player/fry.wav");  // standing in lava / slime
-
-    gi.soundindex("player/lava_in.wav");
-    gi.soundindex("player/burn1.wav");
-    gi.soundindex("player/burn2.wav");
-    gi.soundindex("player/drown01.wav");
-
     PrecacheItem(FindItem( "Fists" ));
     PrecacheItem(FindItem("Pistol"));
-
-    gi.soundindex("player/lava1.wav");
-    gi.soundindex("player/lava2.wav");
 
     gi.soundindex("misc/pc_up.wav");
     gi.soundindex("misc/talk.wav");
     gi.soundindex("misc/talk1.wav");
-
     gi.soundindex("misc/udeath.wav");
-
     // gibs
     gi.soundindex("items/respawn1.wav");
 
@@ -1081,12 +1069,6 @@ void SP_worldspawn(edict_t *ent)
     //gi.soundindex("*death2.wav");
     //gi.soundindex("*death3.wav");
     //gi.soundindex("*death4.wav");
-    //gi.soundindex("*fall1.wav");
-    //gi.soundindex("*fall2.wav");
-    //gi.soundindex("*gurp1.wav");        // drowning damage
-    //gi.soundindex("*gurp2.wav");
-    //gi.soundindex("*jump1.wav");        // player jump
-    //gi.soundindex("*jump2.wav");        // player jump
     //gi.soundindex("*pain25_1.wav");
     //gi.soundindex("*pain25_2.wav");
     //gi.soundindex("*pain50_1.wav");
@@ -1095,64 +1077,58 @@ void SP_worldspawn(edict_t *ent)
     //gi.soundindex("*pain75_2.wav");
     //gi.soundindex("*pain100_1.wav");
     //gi.soundindex("*pain100_2.wav");
-    gi.soundindex( "*death1.wav" );
-    gi.soundindex( "*death2.wav" );
-    gi.soundindex( "*death3.wav" );
-    gi.soundindex( "*death4.wav" );
-    gi.soundindex( "*fall1.wav" );
-    gi.soundindex( "*fall2.wav" );
-    gi.soundindex( "player/gurp01.wav" );        // drowning damage
+    
+    // WID: All of these are now just burn01 and burn02 since the original sounds contained silly screams and all that.
+    //snd_fry = gi.soundindex( "player/fry.wav" );  // standing in lava / slime
+    //gi.soundindex( "player/lava_in.wav" );
+    //gi.soundindex( "player/burn1.wav" );
+    //gi.soundindex( "player/burn2.wav" );
+    //gi.soundindex( "player/lava1.wav" );
+    //gi.soundindex( "player/lava2.wav" );
+    gi.soundindex( "player/burn01.wav" );
+    gi.soundindex( "player/burn02.wav" );
+
+    gi.soundindex( "player/drown01.wav" );
+    gi.soundindex( "player/gurp01.wav" );       // Drowning damage.
     gi.soundindex( "player/gurp02.wav" );
-    gi.soundindex( "player/jump01.wav" );        // player jump
-    gi.soundindex( "player/jump02.wav" );        // player jump
-    gi.soundindex( "*pain25_1.wav" );
-    gi.soundindex( "*pain25_2.wav" );
-    gi.soundindex( "*pain50_1.wav" );
-    gi.soundindex( "*pain50_2.wav" );
-    gi.soundindex( "*pain75_1.wav" );
-    gi.soundindex( "*pain75_2.wav" );
-    gi.soundindex( "*pain100_1.wav" );
-    gi.soundindex( "*pain100_2.wav" );
+
+    gi.soundindex( "player/jump01.wav" );       // Player jump.
+    //gi.soundindex( "player/jump02.wav" );     // Player jump.
+    gi.soundindex( "player/land01.wav" );       // Player jump land sound.
+    gi.soundindex( "player/fall01.wav" );
+    gi.soundindex( "player/fall02.wav" );
+
+    gi.soundindex( "player/gasp01.wav" );   // Gasping for air.
+    gi.soundindex( "player/gasp02.wav" );   // Head breaking surface, not gasping.
+
+    gi.soundindex( "player/water_body_out01.wav" );     // Feet hitting water.
+    gi.soundindex( "player/water_feet_in01.wav" );      // Feet hitting water.
+    gi.soundindex( "player/water_feet_out01.wav" );     // Feet leaving water.
+    gi.soundindex( "player/water_head_under01.wav" );   // Head going underwater.
+    gi.soundindex( "player/water_splash_in01.wav" );    // Head going underwater.
+    gi.soundindex( "player/water_splash_in02.wav" );    // Head going underwater.
+
+    gi.soundindex( "world/land01.wav" );      // Landing thud.
+    gi.soundindex( "world/water_land_splash01.wav" );// Landing splash 01.
+    gi.soundindex( "world/water_land_splash02.wav" );// Landing splash 02.
 
     // sexed models
     // THIS ORDER MUST MATCH THE DEFINES IN g_local.h
     // you can add more, max 15
-    gi.modelindex("#w_blaster.md2"); // #w_fists.iqm
-    gi.modelindex("#w_pistol.iqm");
-    gi.modelindex("#w_shotgun.md2");
-    gi.modelindex("#w_sshotgun.md2");
-    gi.modelindex("#w_machinegun.md2");
-    gi.modelindex("#w_chaingun.md2");
-    gi.modelindex("#a_grenades.md2");
-    gi.modelindex("#w_glauncher.md2");
-    gi.modelindex("#w_rlauncher.md2");
-    gi.modelindex("#w_hyperblaster.md2");
-    gi.modelindex("#w_railgun.md2");
-    gi.modelindex("#w_bfg.md2");
+    gi.modelindex( "#w_fists.iqm" ); // #w_fists.iqm
+    gi.modelindex( "#w_pistol.iqm" );
+    //gi.modelindex( "#w_shotgun.md2" );
+    //gi.modelindex( "#w_sshotgun.md2" );
+    //gi.modelindex( "#w_machinegun.md2" );
+    //gi.modelindex( "#w_chaingun.md2" );
+    //gi.modelindex( "#a_grenades.md2" );
+    //gi.modelindex( "#w_glauncher.md2" );
+    //gi.modelindex( "#w_rlauncher.md2" );
+    //gi.modelindex( "#w_hyperblaster.md2" );
+    //gi.modelindex( "#w_railgun.md2" );
+    //gi.modelindex( "#w_bfg.md2" );
 
     //-------------------
-
-    gi.soundindex("player/gasp1.wav");      // gasping for air
-    gi.soundindex("player/gasp2.wav");      // head breaking surface, not gasping
-
-    gi.soundindex("player/watr_in.wav");    // feet hitting water
-    gi.soundindex("player/watr_out.wav");   // feet leaving water
-
-    gi.soundindex("player/watr_un.wav");    // head going underwater
-
-    gi.soundindex("player/u_breath1.wav");
-    gi.soundindex("player/u_breath2.wav");
-
-    gi.soundindex("items/pkup.wav");        // bonus item pickup
-    gi.soundindex("world/land.wav");        // landing thud
-    gi.soundindex("misc/h2ohit1.wav");      // landing splash
-
-    gi.soundindex("items/damage.wav");
-    gi.soundindex("items/protect.wav");
-    gi.soundindex("items/protect4.wav");
-    gi.soundindex("weapons/noammo.wav");
-
-    gi.soundindex("infantry/inflies1.wav");
 
     sm_meat_index = gi.modelindex("models/objects/gibs/sm_meat/tris.md2");
     gi.modelindex("models/objects/gibs/arm/tris.md2");

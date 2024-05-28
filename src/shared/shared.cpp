@@ -20,9 +20,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 const vec3_t vec3_origin = { 0, 0, 0 };
 
-
-
-//====================================================================================
+/**
+*	Random Number Generator.
+**/
+//! Mersenne Twister random number generator.
+std::mt19937 mt_rand;
 
 
 

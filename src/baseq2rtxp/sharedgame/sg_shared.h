@@ -69,7 +69,25 @@ inline static void SG_AddBlend( const float &r, const float &g, const float &b, 
 	v_blend[ 3 ] = a2;
 }
 
-
+/**
+*	@return	A string path to the designated resource file which is randomly
+*			selected within ranges min-/+max.
+* 
+*	@remarks	Do not use the '.'(dot) for the extension parameter!
+**/
+inline static const std::string SG_RandomResourcePath( const char *path, const char *extension, const int32_t min, const int32_t max ) {
+	// Generate the random file index.
+	const int32_t index = irandom( min, max ) + 1;
+	// Fill the buffer with the final resulting path.
+	char pathBuffer[ MAX_OSPATH ] = {};
+	if ( index < 10 ) {
+		Q_scnprintf( pathBuffer, MAX_OSPATH, "%s0%i.%s", path, index, extension );
+	} else {
+		Q_scnprintf( pathBuffer, MAX_OSPATH, "%s%i.%s", path, index, extension );
+	}
+	// Return the buffer as std::string.
+	return pathBuffer;
+}
 
 /**
 *

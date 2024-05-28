@@ -37,12 +37,6 @@ sg_time_t FRAME_TIME_S;
 sg_time_t FRAME_TIME_MS;
 
 
-/**
-*	Random Number Generator.
-**/
-//! Mersenne Twister random number generator.
-std::mt19937 mt_rand;
-
 
 /**
 *	Cached indexes and global meansOfDeath var.

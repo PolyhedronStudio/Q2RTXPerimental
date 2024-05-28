@@ -109,8 +109,9 @@ void M_FliesOn(edict_t *self)
 {
     if (self->liquidlevel)
         return;
-    self->s.effects |= EF_FLIES;
-    self->s.sound = gi.soundindex("infantry/inflies1.wav");
+	// WID: Silly effect.
+    //self->s.effects |= EF_FLIES;
+    //self->s.sound = gi.soundindex("infantry/inflies1.wav");
     self->think = M_FliesOff;
     self->nextthink = level.time + 60_sec;
 }
@@ -238,7 +239,7 @@ void M_WorldEffects( edict_t *ent ) {
 
 	if ( ent->liquidlevel == 0 ) {
 		if ( ent->flags & FL_INWATER ) {
-			gi.sound( ent, CHAN_BODY, gi.soundindex( "player/watr_out.wav" ), 1, ATTN_NORM, 0 );
+			gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
 			ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_INWATER );
 		}
 		return;
@@ -259,15 +260,18 @@ void M_WorldEffects( edict_t *ent ) {
 
 	if ( !( ent->flags & FL_INWATER ) ) {
 		if ( !( ent->svflags & SVF_DEADMONSTER ) ) {
-			if ( ent->liquidtype & CONTENTS_LAVA )
-				if ( random( ) <= 0.5f )
-					gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava1.wav" ), 1, ATTN_NORM, 0 );
-				else
-					gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava2.wav" ), 1, ATTN_NORM, 0 );
-			else if ( ent->liquidtype & CONTENTS_SLIME )
-				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
-			else if ( ent->liquidtype & CONTENTS_WATER )
-				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
+			if ( ent->liquidtype & CONTENTS_LAVA ) {
+				//if ( random() <= 0.5f )
+				//	gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava1.wav" ), 1, ATTN_NORM, 0 );
+				//else
+				//	gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava2.wav" ), 1, ATTN_NORM, 0 );
+				const std::string burn_sfx_path = SG_RandomResourcePath( "player/burn", "wav", 0, 2 );
+				gi.sound( ent, CHAN_BODY, gi.soundindex( burn_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+			} else if ( ent->liquidtype & CONTENTS_SLIME ) {
+				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+			} else if ( ent->liquidtype & CONTENTS_WATER ) {
+				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+			}
 		}
 
 		ent->flags = static_cast<ent_flags_t>( ent->flags | FL_INWATER );

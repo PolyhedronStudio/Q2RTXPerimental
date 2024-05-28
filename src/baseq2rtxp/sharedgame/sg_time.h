@@ -160,3 +160,19 @@ constexpr sg_time_t operator"" _hz( unsigned long long int s ) {
 extern sg_time_t FRAME_TIME_S;
 extern sg_time_t FRAME_TIME_MS;
 
+/**
+*
+*
+*	Time Extensions for C++ random mt19937.
+*
+*
+**/
+// uniform time [min_inclusive, max_exclusive)
+[[nodiscard]] inline sg_time_t random_time( sg_time_t min_inclusive, sg_time_t max_exclusive ) {
+	return sg_time_t::from_ms( std::uniform_int_distribution<int64_t>( min_inclusive.milliseconds(), max_exclusive.milliseconds() )( mt_rand ) );
+}
+
+// uniform time [0, max_exclusive)
+[[nodiscard]] inline sg_time_t random_time( sg_time_t max_exclusive ) {
+	return sg_time_t::from_ms( std::uniform_int_distribution<int64_t>( 0, max_exclusive.milliseconds() )( mt_rand ) );
+}

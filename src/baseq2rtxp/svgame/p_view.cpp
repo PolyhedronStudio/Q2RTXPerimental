@@ -537,72 +537,92 @@ void P_WorldEffects( void ) {
 	// if just entered a water volume, play a sound
 	//
 	if ( !old_waterlevel && liquidlevel ) {
-		P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
-		if ( current_player->liquidtype & CONTENTS_LAVA )
-			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
-		else if ( current_player->liquidtype & CONTENTS_SLIME )
-			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
-		else if ( current_player->liquidtype & CONTENTS_WATER )
-			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
+		// Feet in.
+		if ( liquidlevel == liquid_level_t::LIQUID_FEET ) {
+			P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+			if ( current_player->liquidtype & CONTENTS_LAVA ) {
+				//gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
+				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
+
+				// clear damage_debounce, so the pain sound will play immediately
+				current_player->damage_debounce_time = level.time - 1_sec;
+			} else if ( current_player->liquidtype & CONTENTS_SLIME ) {
+				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+			} else if ( current_player->liquidtype & CONTENTS_WATER ) {
+				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+			}
+		} else if ( liquidlevel >= liquid_level_t::LIQUID_WAIST ) {
+			P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+			if ( current_player->liquidtype & CONTENTS_LAVA ) {
+				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
+
+				// clear damage_debounce, so the pain sound will play immediately
+				current_player->damage_debounce_time = level.time - 1_sec;
+			} else if ( current_player->liquidtype & CONTENTS_SLIME ) {
+				const std::string splash_sfx_path = SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 );
+				gi.sound( current_player, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+			} else if ( current_player->liquidtype & CONTENTS_WATER ) {
+				const std::string splash_sfx_path = SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 );
+				gi.sound( current_player, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+			}
+		}
 		current_player->flags = static_cast<ent_flags_t>( current_player->flags | FL_INWATER );
 
-		// clear damage_debounce, so the pain sound will play immediately
-		current_player->damage_debounce_time = level.time - 1_sec;
 	}
 
-	//
-	// if just completely exited a water volume, play a sound
-	//
-	if ( old_waterlevel && !liquidlevel ) {
+	// If just completely exited a water volume while only feet in, play a sound.
+	if ( !liquidlevel && old_waterlevel == liquid_level_t::LIQUID_FEET ) {
 		P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
-		gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_out.wav" ), 1, ATTN_NORM, 0 );
+		gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
+
+	}
+	// If just completely exited a water volume waist or head in, play a sound.
+	if ( !liquidlevel && old_waterlevel >= liquid_level_t::LIQUID_WAIST ) {
+		P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+		gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
 		current_player->flags = static_cast<ent_flags_t>( current_player->flags & ~FL_INWATER );
 	}
 
-	//
-	// check for head just going under water
-	//
-	if ( old_waterlevel != 3 && liquidlevel == 3 ) {
-		gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_un.wav" ), 1, ATTN_NORM, 0 );
+	// Check for head just going under water.
+	if ( old_waterlevel < liquid_level_t::LIQUID_UNDER && liquidlevel == liquid_level_t::LIQUID_UNDER ) {
+		gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_head_under01.wav" ), 1, ATTN_NORM, 0 );
 	}
-
 	//
-	// check for head just coming out of water
-	//
-	if ( old_waterlevel == 3 && liquidlevel != 3 ) {
+	// Check for head just coming out of water.
+	if ( old_waterlevel == liquid_level_t::LIQUID_UNDER && liquidlevel != liquid_level_t::LIQUID_UNDER ) {
 		if ( current_player->air_finished_time < level.time ) {
 			// gasp for air
-			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp1.wav" ), 1, ATTN_NORM, 0 );
+			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
 			P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		} else  if ( current_player->air_finished_time < level.time + 11_sec ) {
 			// just break surface
-			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp2.wav" ), 1, ATTN_NORM, 0 );
+			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
 		}
 	}
 
 	//
 	// check for drowning
 	//
-	if ( liquidlevel == 3 ) {
+	if ( liquidlevel == liquid_level_t::LIQUID_UNDER ) {
 		// if out of air, start drowning
 		if ( current_player->air_finished_time < level.time ) {
 			// drown!
 			if ( current_player->client->next_drown_time < level.time
 				&& current_player->health > 0 ) {
-				current_player->client->next_drown_time = level.time + 1_sec;
+				current_player->client->next_drown_time = level.time + 3_sec;
 
 				// take more damage the longer underwater
-				current_player->dmg += 2;
-				if ( current_player->dmg > 15 )
-					current_player->dmg = 15;
+				current_player->dmg += 15;
+				if ( current_player->dmg > 30 )
+					current_player->dmg = 30;
 
-				// play a gurp sound instead of a normal pain sound
-				if ( current_player->health <= current_player->dmg )
+				// Play a gurp sound instead of a normal pain sound
+				if ( current_player->health <= current_player->dmg ) {
 					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ), 1, ATTN_NORM, 0 );
-				else if ( Q_rand( ) & 1 )
-					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gurp01.wav" ), 1, ATTN_NORM, 0 );
-				else
-					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gurp02.wav" ), 1, ATTN_NORM, 0 );
+				} else {
+					const qhandle_t gurp_sfx_index = gi.soundindex( SG_RandomResourcePath( "player/gurp", "wav", 0, 2 ).c_str() );
+					gi.sound( current_player, CHAN_VOICE, gurp_sfx_index, 1, ATTN_NORM, 0 );
+				}
 
 				current_player->pain_debounce_time = level.time;
 
@@ -621,10 +641,12 @@ void P_WorldEffects( void ) {
 		if ( current_player->liquidtype & CONTENTS_LAVA ) {
 			if ( current_player->health > 0
 				&& current_player->pain_debounce_time <= level.time ) {
-				if ( Q_rand( ) & 1 )
-					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/burn1.wav" ), 1, ATTN_NORM, 0 );
-				else
-					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/burn2.wav" ), 1, ATTN_NORM, 0 );
+				//if ( Q_rand( ) & 1 )
+				//	gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/burn1.wav" ), 1, ATTN_NORM, 0 );
+				//else
+				//	gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/burn2.wav" ), 1, ATTN_NORM, 0 );
+				const std::string burn_sfx_path = SG_RandomResourcePath( "player/burn", "wav", 0, 2 );
+				gi.sound( current_player, CHAN_VOICE, gi.soundindex( burn_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
 				current_player->pain_debounce_time = level.time + 1_sec;
 			}
 

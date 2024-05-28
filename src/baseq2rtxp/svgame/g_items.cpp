@@ -926,7 +926,7 @@ gitem_t itemlist[] = {
         .use = nullptr,
         .drop = nullptr,
         .weaponthink = nullptr,
-        .pickup_sound = "items/pkup.wav",
+        .pickup_sound = "items/weaponry_pickup.wav", // TODO: WID: Give custom sound perhaps?
         .world_model = nullptr, 
         .world_model_flags = 0,
         .view_model = nullptr,
@@ -940,7 +940,7 @@ gitem_t itemlist[] = {
         .weapon_index = 0,
         .info = nullptr,
         .tag = ITEM_TAG_NONE,
-        .precaches = "items/pkup.wav items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
+        .precaches = "items/weaponry_pickup.wav items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
     },
 
     // end of list marker
