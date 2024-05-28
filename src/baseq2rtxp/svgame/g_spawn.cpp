@@ -348,10 +348,10 @@ static const spawn_field_t spawn_fields[] = {
 	{"angles", FOFS( s.angles ), F_VECTOR},
 	{"angle", FOFS( s.angles ), F_ANGLEHACK},
 
-	{"rgb", FOFS( s.rgb ), F_VECTOR},
-	{"intensity", FOFS( s.intensity ), F_FLOAT},
-	{"angle_width", FOFS( s.angle_width ), F_FLOAT},
-	{"angle_falloff", FOFS( s.angle_falloff ), F_FLOAT},
+	{"rgb", FOFS( s.spotlight.rgb ), F_VECTOR},
+	{"intensity", FOFS( s.spotlight.intensity ), F_FLOAT},
+	{"angle_width", FOFS( s.spotlight.angle_width ), F_FLOAT},
+	{"angle_falloff", FOFS( s.spotlight.angle_falloff ), F_FLOAT},
 
     {NULL}
 };

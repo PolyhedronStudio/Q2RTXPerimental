@@ -11,23 +11,25 @@
 // in an update message about entities that the client will
 // need to render in some way
 typedef struct entity_state_s {
+    /**
+    *   Core Entity State Data:
+    **/
     //! Server edict index.
     int32_t	number;
-    //! The entity client info index. -1 for other entities.
-    //int16_t client;
-
+    //! The entity's clientinfo index.
+    //uint8_t client;
     //! The specific type of entity.
     int32_t	entityType; // ET_GENERIC, ET_PLAYER, ET_MONSTER_PLAYER, ET_SPOTLIGHT etc..
-
     //! Entity origin.
     vec3_t  origin;
     //! Entity 'view' angles.
     vec3_t  angles;
     //! For lerping. Also used for RF_BEAM its termination point.
     vec3_t  old_origin;
+
     /**
-    *   @brief  The following fields are for client side prediction: (solid,clipmask,hullContents,ownerNumber) 
-    *           gi.linkentity sets these properly.
+    *   The following fields are communicated to the client for prediction needs,
+    *   these are set properly using LinkEntity.
     **/
     //! The actual 'solid' type of entity.
     solid_t solid;
@@ -40,6 +42,9 @@ typedef struct entity_state_s {
     //! Entity who owns this entity.
     int32_t ownerNumber;
 
+    /**
+    *   Model/Effects:
+    **/
     //! Main entity model.
     int32_t	modelindex;
     //! Used for weapons, CTF flags, etc
@@ -51,24 +56,35 @@ typedef struct entity_state_s {
     //! General Effect Flags: EF_ROTATE etc.
     uint32_t effects;
 
+    /**
+    *   Animation:
+    **/
     //! Current animation frame.
     int32_t	frame;
     //! [Paril-KEX] for custom interpolation stuff
     int32_t old_frame;   //! Old animation frame.
 
+    /**
+    *   Sound, Event(s) & Misc:
+    **/
     int32_t	sound;  //! For looping sounds, to guarantee shutoff
     int32_t	event;  //! Impulse events -- muzzle flashes, footsteps, etc.
                     //! Events only go out for a single frame, and they are automatically cleared after that.
 
-//
-//! Spotlights
-//
-    //! RGB Color of spotlight.
-    vec3_t rgb;
-    //! Intensity of the spotlight.
-    float intensity;
-    //! Angle width.
-    float angle_width;
-    //! Angle falloff.
-    float angle_falloff;
+    /**
+    *   ET Specifics:
+    **/
+    union {
+        //! Spotlight:
+        struct {
+            //! RGB Color of spotlight.
+            vec3_t rgb;
+            //! Intensity of the spotlight.
+            float intensity;
+            //! Angle width.
+            float angle_width;
+            //! Angle falloff.
+            float angle_falloff;
+        } spotlight;
+    };
 } entity_state_t;

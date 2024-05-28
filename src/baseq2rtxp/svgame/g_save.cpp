@@ -101,10 +101,10 @@ static const save_field_t entityfields[] = {
 
     // TODO: Do we really need to save this? Perhaps.
     // For spotlights.
-    V( s.rgb ),
-    F( s.intensity ),
-    F( s.angle_width ),
-    F( s.angle_falloff ),
+    V( s.spotlight.rgb ),
+    F( s.spotlight.intensity ),
+    F( s.spotlight.angle_width ),
+    F( s.spotlight.angle_falloff ),
 
     // [...]
     I(svflags),

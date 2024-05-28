@@ -24,12 +24,12 @@ DYNLIGHT ENTITY SUPPORT:
 void CLG_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state_t *s1 ) {
     // Calculate RGB vector.
     vec3_t rgb = { 1.f, 1.f, 1.f };
-    rgb[ 0 ] = ( 1.0f / 255.f ) * s1->rgb[ 0 ];
-    rgb[ 1 ] = ( 1.0f / 255.f ) * s1->rgb[ 1 ];
-    rgb[ 2 ] = ( 1.0f / 255.f ) * s1->rgb[ 2 ];
+    rgb[ 0 ] = ( 1.0f / 255.f ) * s1->spotlight.rgb[ 0 ];
+    rgb[ 1 ] = ( 1.0f / 255.f ) * s1->spotlight.rgb[ 1 ];
+    rgb[ 2 ] = ( 1.0f / 255.f ) * s1->spotlight.rgb[ 2 ];
 
     // Extract light intensity from "frame".
-    float lightIntensity = s1->intensity;
+    float lightIntensity = s1->spotlight.intensity;
 
     // Calculate the spotlight's view direction based on set euler angles.
     vec3_t view_dir, right_dir, up_dir;
@@ -43,14 +43,14 @@ void CLG_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state
         V_AddSpotLightTexEmission( ent->origin, view_dir, lightIntensity,
             // TODO: Multiply the RGB?
             rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
-            s1->angle_width, spotlightPicHandle );
+            s1->spotlight.angle_width, spotlightPicHandle );
     } else
         #endif
     {
         clgi.V_AddSpotLight( ent->origin, view_dir, lightIntensity,
             // TODO: Multiply the RGB?
             rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
-            s1->angle_width, s1->angle_falloff );
+            s1->spotlight.angle_width, s1->spotlight.angle_falloff );
     }
 
     // Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)

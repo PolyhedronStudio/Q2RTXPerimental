@@ -75,12 +75,12 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	out->event = in->event;
 
 	// ET_SPOTLIGHT:
-	out->rgb[ 0 ] = in->rgb[ 0 ];
-	out->rgb[ 1 ] = in->rgb[ 1 ];
-	out->rgb[ 2 ] = in->rgb[ 2 ];
-	out->intensity = in->intensity;
-	out->angle_falloff = in->angle_falloff;
-	out->angle_width = in->angle_width;
+	out->rgb[ 0 ] = in->spotlight.rgb[ 0 ];
+	out->rgb[ 1 ] = in->spotlight.rgb[ 1 ];
+	out->rgb[ 2 ] = in->spotlight.rgb[ 2 ];
+	out->intensity = in->spotlight.intensity;
+	out->angle_falloff = in->spotlight.angle_falloff;
+	out->angle_width = in->spotlight.angle_width;
 }
 
 /**

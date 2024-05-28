@@ -152,10 +152,10 @@ void spotlight_think( edict_t *self ) {
 
 		// Set the current intensity to that of ( ( ASCII - 97 ) * 100 ).
 		if ( Q_isalpha( lightStyle[ currentFrame ] ) ) {
-			self->s.intensity = ( lightStyle[ currentFrame ] - 'a' ) * 100;
+			self->s.spotlight.intensity = ( lightStyle[ currentFrame ] - 'a' ) * 100;
 		}
 	} else {
-		self->s.intensity = 'a' * 100.f;
+		self->s.spotlight.intensity = 'a' * 100.f;
 	}
 
 	// Setup for next frame's 'think'.
@@ -178,7 +178,7 @@ void spotlight_use( edict_t *self, edict_t *other, edict_t *activator ) {
 		self->spawnflags |= START_OFF;
 
 		// Reset its intensity and frame, so it can start anew when turned on again.
-		self->s.intensity = 0;
+		self->s.spotlight.intensity = 0;
 		self->s.frame = 0;
 	}
 }

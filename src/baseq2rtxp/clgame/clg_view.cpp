@@ -534,7 +534,7 @@ static void CLG_SetupFirstPersonView( void ) {
     const float lerp = clgi.client->lerpfrac;
 
     // Cycle the view bob on our predicted state.
-    CLG_CycleViewBob( predictingPlayerState );
+    //CLG_CycleViewBob( predictingPlayerState );
 
     // WID: TODO: This requires proper player state damage summing and 'wiring' as well as proper
     // player event predicting.
@@ -555,6 +555,7 @@ static void CLG_SetupFirstPersonView( void ) {
 
     // Calculate bob cycle on the current predicting player state.    
     //CLG_CycleViewBob( currentPredictingPlayerState );
+    CLG_CycleViewBob( predictingPlayerState );
 
     // Inform client state we're not in third-person view.
     clgi.client->thirdPersonView = false;
