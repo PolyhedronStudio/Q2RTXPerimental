@@ -390,37 +390,34 @@ void Weapon_Pistol( edict_t *ent ) {
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_RELOADING ) {
             // Start playing clip reload sound. (Takes about the same duration as a pistol reload, 1 second.)
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
-                ent->client->weapon_sound = gi.soundindex( "weapons/pistol/reload.wav" );
+                ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/reload.wav" );
             }
             // Stop audio and actually reload the clip stats at the end of the animation sequence.
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame - 1 ) {
-                ent->client->weapon_sound = 0;
+                ent->client->weaponState.activeSound = 0;
                 weapon_pistol_reload_clip( ent );
             }
         // Draw Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_DRAWING ) {
             // Start playing drawing weapon sound at the very first frame.
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1 ) {
-                ent->client->weapon_sound = gi.soundindex( "weapons/pistol/draw.wav" );
+                ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/draw.wav" );
                 ent->client->weaponState.timers.lastDrawn = level.time;
             }
             // Enough time has passed, shutdown the sound.
             else if ( ent->client->weaponState.timers.lastDrawn <= level.time - 250_ms ) {
-                ent->client->weapon_sound = 0;
-
-                // Store the client's fieldOfView.
-                ent->client->weaponState.clientFieldOfView = ent->client->ps.fov;
+                ent->client->weaponState.activeSound = 0;
             }
         // Holster Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING ) {
             // Start playing holster weapon sound at the very first frame.
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1 ) {
-                ent->client->weapon_sound = gi.soundindex( "weapons/pistol/holster.wav" );
+                ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/holster.wav" );
                 ent->client->weaponState.timers.lastHolster = level.time;
             }
             // Enough time has passed, shutdown the sound.
             else if ( ent->client->weaponState.timers.lastHolster <= level.time - 250_ms ) {
-                ent->client->weapon_sound = 0;
+                ent->client->weaponState.activeSound = 0;
             }
         }
     }

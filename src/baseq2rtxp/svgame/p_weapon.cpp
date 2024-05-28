@@ -35,13 +35,6 @@ static byte     is_silenced;
 void P_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
     edict_t *noise;
 
-    if ( type == PNOISE_WEAPON ) {
-        if ( who->client->silencer_shots ) {
-            who->client->silencer_shots--;
-            return;
-        }
-    }
-
     if ( deathmatch->value )
         return;
 

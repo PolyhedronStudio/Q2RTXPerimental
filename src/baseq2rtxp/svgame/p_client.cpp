@@ -475,7 +475,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 
     // Stop playing any sounds.
     self->s.sound = 0;
-    self->client->weapon_sound = 0;
+    self->client->weaponState.activeSound = 0;
 
     // Set bbox maxs to -8.
     self->maxs[2] = -8;

@@ -1228,8 +1228,8 @@ struct gclient_s {
     /**
     *	Layout(s):
     **/
-    bool        showscores;         // set layout stat
-    bool        showinventory;      // set layout stat
+    bool        showscores;         //! Set layout stat
+    bool        showinventory;      //! Set layout stat
     bool        showhelp;
     bool        showhelpicon;
 
@@ -1250,56 +1250,43 @@ struct gclient_s {
 	// Set when we want to switch weapons.
 	const gitem_t *newweapon;
 
-	////! Weapon cannot fire until this time is up.
-	//sg_time_t weapon_fire_finished;
-	////! Time between processing individual animation frames.
-	//sg_time_t weapon_think_time;
-	////! If we latched fire between server frames but before
-	////! the weapon fire finish has elapsed, we'll "press" it
-	////! automatically when we have a chance.
-	//bool weapon_fire_buffered;
     //! If true, the weapon thinking process has been executed by a 
-    //! usercmd_t in ClientThink.
+    //! usercmd_t in ClientThink. Otherwise it'll be dealt with by the
+    //! ClientBeginServerFrame instead.
 	bool weapon_thunk;
 
 	sg_time_t	grenade_time;
 	sg_time_t	grenade_finished_time;
 	bool        grenade_blew_up;
 
-    int32_t         silencer_shots;
-    int32_t         weapon_sound;
 
 	/**
 	*	Damage Related:
 	**/
-    // sum up damage over an entire frame, so
-    // shotgun blasts give a single big kick
-    int32_t         damage_armor;       // damage absorbed by armor
-    int32_t         damage_parmor;      // damage absorbed by power armor
-    int32_t         damage_blood;       // damage taken out of health
-    int32_t         damage_knockback;   // impact damage
-    vec3_t      damage_from;        // origin for vector calculation
+    // sum up damage over an entire frame, so shotgun and/or other blasts 
+    // give a single big kick.
+    int32_t         damage_armor;       //! Damage absorbed by armor.
+    int32_t         damage_parmor;      //! Damage absorbed by power armor.
+    int32_t         damage_blood;       //! Damage taken out of health.
+    int32_t         damage_knockback;   //! Impact damage.
+    vec3_t          damage_from;        //! Origin for vector calculation.
 
-    float       killer_yaw;         // when dead, look at killer
+    float       killer_yaw;         //! When dead, look at killer.
 
     /**
     *   Weapon State:
     **/
     struct {
-        //! Stores the client's original FOV.
-        float clientFieldOfView;
-
         //! The 'mode' is what the weapon is actually doing during its current 'state'.
         weapon_mode_t mode;
         //! The 'old mode' is what the weapon was actually doing during its previous 'state'.
         weapon_mode_t oldMode;
         //! Determines if the weapon can change 'mode'.
         qboolean canChangeMode;
+        //! If set, will be applied to the client entity's state sound member.
+        int32_t activeSound;
 
-        ////! If true, the weapon is using secondary fire to engage in 'aim' mode.
-        //qboolean isAiming;
-        ////! The aiming field of view.
-        //qboolean isAimingFov;
+        //! State for 'Aiming' weapon modes.
         struct {
             //! If true, the weapon is using secondary fire to engage in 'aim' mode.
             qboolean isAiming;
@@ -1349,7 +1336,7 @@ struct gclient_s {
         //! Additional weapon 'Kick Effect' origin to be added to viewOffset.
         Vector3 offsetOrigin;
     } weaponKicks;
-    //! Stores view and movement related information.
+    //! Stores view movement related information.
     struct {
         //! Aiming direction.
         Vector3 viewAngles, viewForward;

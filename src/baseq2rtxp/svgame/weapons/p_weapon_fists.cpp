@@ -200,14 +200,14 @@ void Weapon_Fists( edict_t *ent ) {
             std::string swayFile = "weapons/fists/sway0";
             swayFile += std::to_string( irandom( 1, 5 ) );
             swayFile += ".wav";
-            ent->client->weapon_sound = gi.soundindex( swayFile.c_str() );
+            ent->client->weaponState.activeSound = gi.soundindex( swayFile.c_str() );
             // Store the time we last 'primary fired'.
             ent->client->weaponState.timers.lastPrimaryFire = level.time;
         }
 
         // Since this logic is ran each frame, use a timer to wait out and stop the sway sound after 200ms.
         if ( ent->client->weaponState.timers.lastPrimaryFire <= ( level.time - 200_ms ) ) {
-            ent->client->weapon_sound = 0;
+            ent->client->weaponState.activeSound = 0;
         }
 
         // Fire the hit trace when the model is at its sweet spot for punching.
@@ -222,14 +222,14 @@ void Weapon_Fists( edict_t *ent ) {
             std::string swayFile = "weapons/fists/sway0";
             swayFile += std::to_string( irandom( 1, 5 ) );
             swayFile += ".wav";
-            ent->client->weapon_sound = gi.soundindex( swayFile.c_str() );
+            ent->client->weaponState.activeSound = gi.soundindex( swayFile.c_str() );
             // Store the time we last 'primary fired'.
             ent->client->weaponState.timers.lastSecondaryFire = level.time;
         }
 
         // Since this logic is ran each frame, use a timer to wait out and stop the sway sound after 200ms.
         if ( ent->client->weaponState.timers.lastSecondaryFire <= ( level.time - 200_ms ) ) {
-            ent->client->weapon_sound = 0;
+            ent->client->weaponState.activeSound = 0;
         }
 
         // Fire the hit trace when the model is at its sweet spot for punching.
@@ -242,26 +242,23 @@ void Weapon_Fists( edict_t *ent ) {
     } else if ( ent->client->weaponState.mode == WEAPON_MODE_DRAWING ) {
         // Start playing drawing weapon sound at the very first frame.
         if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1) {
-            ent->client->weapon_sound = gi.soundindex( "weapons/pistol/draw.wav" );
+            ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/draw.wav" );
             ent->client->weaponState.timers.lastDrawn = level.time;
         }
         // Enough time has passed, shutdown the sound.
         if ( ent->client->weaponState.timers.lastDrawn <= level.time - 250_ms ) {
-            ent->client->weapon_sound = 0;
-
-            // Store the client's fieldOfView.
-            ent->client->weaponState.clientFieldOfView = ent->client->ps.fov;
+            ent->client->weaponState.activeSound = 0;
         }
     // Holster Weapon:
     } else if ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING ) {
         // Start playing holster weapon sound at the very first frame.
         if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1) {
-            ent->client->weapon_sound = gi.soundindex( "weapons/pistol/holster.wav" );
+            ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/holster.wav" );
             ent->client->weaponState.timers.lastHolster = level.time;
         }
         // Enough time has passed, shutdown the sound.
         if ( ent->client->weaponState.timers.lastHolster <= level.time - 250_ms ) {
-            ent->client->weapon_sound = 0;
+            ent->client->weaponState.activeSound = 0;
         }
     }
 }

@@ -414,8 +414,6 @@ static const save_field_t clientfields[] = {
     O( grenade_blew_up ),
     I64( grenade_time ),
     I64( grenade_finished_time ),
-    I( silencer_shots ),
-    I( weapon_sound ),
 
 	I( damage_armor ),
 	I( damage_parmor ),
@@ -425,7 +423,6 @@ static const save_field_t clientfields[] = {
 
 	F( killer_yaw ),
 
-    F( weaponState.clientFieldOfView ),
 	I( weaponState.mode ),
     I( weaponState.canChangeMode ),
     I( weaponState.aimState.isAiming ),
