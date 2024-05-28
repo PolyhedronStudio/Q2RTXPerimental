@@ -555,7 +555,7 @@ void insane_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     int     n;
 
     if (self->health <= self->gib_health) {
-        gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_IDLE, 0);
+        gi.sound(self, CHAN_VOICE, gi.soundindex("world/gib01.wav"), 1, ATTN_IDLE, 0);
         for (n = 0; n < 2; n++)
             ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_ORGANIC);
         for (n = 0; n < 4; n++)

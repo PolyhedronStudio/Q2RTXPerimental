@@ -1060,7 +1060,9 @@ void SP_worldspawn(edict_t *ent)
     gi.soundindex("misc/pc_up.wav");
     gi.soundindex("misc/talk.wav");
     gi.soundindex("misc/talk1.wav");
-    gi.soundindex("misc/udeath.wav");
+
+    // Body Gib
+    gi.soundindex("world/gib01.wav");
     // gibs
     gi.soundindex("items/respawn1.wav");
 
@@ -1077,9 +1079,19 @@ void SP_worldspawn(edict_t *ent)
     //gi.soundindex("*pain75_2.wav");
     //gi.soundindex("*pain100_1.wav");
     //gi.soundindex("*pain100_2.wav");
-    
+
+    // Deaths:
+    gi.soundindex( "player/death01.wav" );
+    gi.soundindex( "player/death02.wav" );
+    gi.soundindex( "player/death03.wav" );
+    gi.soundindex( "player/death04.wav" );
+    // Pains:
+    gi.soundindex( "player/pain25_01.wav" );
+    gi.soundindex( "player/pain50_01.wav" );
+    gi.soundindex( "player/pain75_01.wav" );
+    gi.soundindex( "player/pain100_01.wav" );
     // WID: All of these are now just burn01 and burn02 since the original sounds contained silly screams and all that.
-    //snd_fry = gi.soundindex( "player/fry.wav" );  // standing in lava / slime
+    snd_fry = gi.soundindex( "player/burn01.wav" );  // standing in lava / slime
     //gi.soundindex( "player/lava_in.wav" );
     //gi.soundindex( "player/burn1.wav" );
     //gi.soundindex( "player/burn2.wav" );
@@ -1087,31 +1099,38 @@ void SP_worldspawn(edict_t *ent)
     //gi.soundindex( "player/lava2.wav" );
     gi.soundindex( "player/burn01.wav" );
     gi.soundindex( "player/burn02.wav" );
-
-    gi.soundindex( "player/drown01.wav" );
-    gi.soundindex( "player/gurp01.wav" );       // Drowning damage.
-    gi.soundindex( "player/gurp02.wav" );
-
-    gi.soundindex( "player/jump01.wav" );       // Player jump.
-    //gi.soundindex( "player/jump02.wav" );     // Player jump.
-    gi.soundindex( "player/land01.wav" );       // Player jump land sound.
-    gi.soundindex( "player/fall01.wav" );
-    gi.soundindex( "player/fall02.wav" );
-
+    // Kinematics:
+    gi.soundindex( "player/jump01.wav" );   // Player jump.
+    //gi.soundindex( "player/jump02.wav" ); // Player jump.
+    gi.soundindex( "player/fall01.wav" );   // Player fall.
+    gi.soundindex( "player/fall02.wav" );   // Player heavy fall.
+    gi.soundindex( "player/land01.wav" );   // Player jump landing sound.
+    // Water:
+    gi.soundindex( "player/drown01.wav" );  // Drowning last breaths.
     gi.soundindex( "player/gasp01.wav" );   // Gasping for air.
     gi.soundindex( "player/gasp02.wav" );   // Head breaking surface, not gasping.
-
+    gi.soundindex( "player/gurp01.wav" );   // Drowning damage 01.
+    gi.soundindex( "player/gurp02.wav" );   // Drowning damage 02.
     gi.soundindex( "player/water_body_out01.wav" );     // Feet hitting water.
     gi.soundindex( "player/water_feet_in01.wav" );      // Feet hitting water.
     gi.soundindex( "player/water_feet_out01.wav" );     // Feet leaving water.
     gi.soundindex( "player/water_head_under01.wav" );   // Head going underwater.
     gi.soundindex( "player/water_splash_in01.wav" );    // Head going underwater.
     gi.soundindex( "player/water_splash_in02.wav" );    // Head going underwater.
+    gi.soundindex( "world/water_land_splash01.wav" );   // Landing splash 01.
+    gi.soundindex( "world/water_land_splash02.wav" );   // Landing splash 02.
+    // Misc/World(Kinematics):
+    gi.soundindex( "world/land01.wav" );    // Ground landing thud.
 
-    gi.soundindex( "world/land01.wav" );      // Landing thud.
-    gi.soundindex( "world/water_land_splash01.wav" );// Landing splash 01.
-    gi.soundindex( "world/water_land_splash02.wav" );// Landing splash 02.
-
+    //gi.soundindex("*pain25_1.wav");
+    //gi.soundindex("*pain25_2.wav");
+    //gi.soundindex("*pain50_1.wav");
+    //gi.soundindex("*pain50_2.wav");
+    //gi.soundindex("*pain75_1.wav");
+    //gi.soundindex("*pain75_2.wav");
+    //gi.soundindex("*pain100_1.wav");
+    //gi.soundindex("*pain100_2.wav");
+     
     // sexed models
     // THIS ORDER MUST MATCH THE DEFINES IN g_local.h
     // you can add more, max 15

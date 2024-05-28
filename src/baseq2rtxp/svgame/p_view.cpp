@@ -141,17 +141,21 @@ void P_DamageFeedback( edict_t *player ) {
 
 	// play an apropriate pain sound
 	if ( ( level.time > player->pain_debounce_time ) && !( player->flags & FL_GODMODE ) ) {
-		r = 1 + ( Q_rand( ) & 1 );
+		// WID: We only got one sound for each pain level, sadly hehe.
+		r = 1; // r = irandom( 0, 2 ) + 1; // r = 1 + ( Q_rand( ) & 1 );
+
 		player->pain_debounce_time = level.time + 0.7_sec;
-		if ( player->health < 25 )
+		if ( player->health < 25 ) {
 			l = 25;
-		else if ( player->health < 50 )
+		} else if ( player->health < 50 ) {
 			l = 50;
-		else if ( player->health < 75 )
+		} else if ( player->health < 75 ) {
 			l = 75;
-		else
+		} else {
 			l = 100;
-		gi.sound( player, CHAN_VOICE, gi.soundindex( va( "*pain%i_%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
+		}
+		//gi.sound( player, CHAN_VOICE, gi.soundindex( va( "*pain%i_%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
+		gi.sound( player, CHAN_VOICE, gi.soundindex( va( "player/pain%i_0%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
 	}
 
 	// the total alpha of the blend is always proportional to count

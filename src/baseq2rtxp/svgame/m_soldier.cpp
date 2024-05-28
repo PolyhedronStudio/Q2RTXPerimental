@@ -1100,7 +1100,7 @@ void soldier_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 // check for gib
     if (self->health <= self->gib_health) {
-        gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
+        gi.sound(self, CHAN_VOICE, gi.soundindex("world/gib01.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 3; n++)
             ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
         ThrowGib(self, "models/objects/gibs/chest/tris.md2", damage, GIB_ORGANIC);
