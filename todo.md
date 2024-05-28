@@ -7,7 +7,7 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 * If we have event entities and 'morphentity', a blaster bullet could convert to an entity, eliminating
 the need for temp_entity_t behavior. For hit trace based weapons I suppose the hits could be done client side but that'd require
 simulating a frame ahead for all things. Either way, weapon could looks like it might be better off to go to shared some day.
-
+* It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
 
 ## Features:
 Features being looked forward on implementation.
@@ -35,6 +35,9 @@ Features being looked forward on implementation.
 
 ### Lowest, nearly redundant Priority:
 * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
+* [ ] Look into allowing each entity classtype/group-type to have its own baseline states as well as matching custom implementations of Read/Write-EntityDeltaState.
+* [ ] Look into JoltPhysics and see if it's something realistic for Jolt Physics.
+	* [ ] If that fails, look into some library to deal with at least 'tracing' through geometric shapes properly.
 
 ## Resources:
 ### Audio:
