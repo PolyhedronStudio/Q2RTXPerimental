@@ -738,7 +738,7 @@ void target_earthquake_think(edict_t *self)
         if ( !e->client )
             break;
 
-        e->client->quake_time = level.time + 1000_ms;
+        e->client->viewMove.quakeTime = level.time + 1000_ms;
     }
 
     if ( level.time < self->timestamp )
@@ -761,8 +761,8 @@ void target_earthquake_use(edict_t *self, edict_t *other, edict_t *activator)
 			if ( !e->client )
 				break;
 
-			e->client->v_dmg_pitch = -self->speed * 0.1f;
-			e->client->v_dmg_time = level.time + DAMAGE_TIME( );
+			e->client->viewMove.damagePitch = -self->speed * 0.1f;
+			e->client->viewMove.damageTime = level.time + DAMAGE_TIME( );
 		}
 
 		return;

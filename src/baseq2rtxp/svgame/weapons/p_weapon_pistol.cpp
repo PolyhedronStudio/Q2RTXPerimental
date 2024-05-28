@@ -101,36 +101,36 @@ static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
 *   @brief  Supplements the Primary Firing routine by actually performing a 'single bullet' shot.
 **/
 void weapon_pistol_primary_fire( edict_t *ent ) {
-    vec3_t      start;
-    vec3_t      forward, right;
+    Vector3     start;
+    Vector3     forward, right;
     int         damage = 10;
     int         kick = 8;
 
     // TODO: These are already calculated, right?
     // Calculate angle vectors.
-    AngleVectors( ent->client->v_angle, forward, right, NULL );
+    QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
     // Determine shot kick offset.
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
     vec3_t shotOffset = { 0, 10, (float)ent->viewheight - 5.5f };
-    P_ProjectDistance( ent, ent->s.origin, shotOffset, forward, right, start );
+    P_ProjectDistance( ent, ent->s.origin, shotOffset, &forward.x, &right.x, &start.x );
 
     // Fire the actual bullet itself.
-    fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
+    fire_bullet( ent, &start.x, &forward.x, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
 
     // Project from source to muzzleflash destination.
     vec3_t muzzleFlashOffset = { 16, 10, (float)ent->viewheight };
-    P_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, forward, right, start );
+    P_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, &forward.x, &right.x, &start.x );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
     gi.WriteInt16( ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
-    gi.multicast( start/*ent->s.origin*/, MULTICAST_PVS, false );
+    gi.multicast( &start.x/*ent->s.origin*/, MULTICAST_PVS, false );
 
     // Notify we're making noise.
-    P_PlayerNoise( ent, start, PNOISE_WEAPON );
+    P_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
 
     // Decrease clip ammo.
     //if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
@@ -141,20 +141,20 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
 *   @brief  Supplements the Secondary Firing routine by actually performing a more precise 'single bullet' shot.
 **/
 void weapon_pistol_secondary_fire( edict_t *ent ) {
-    vec3_t      start;
-    vec3_t      forward, right;
+    Vector3      start;
+    Vector3      forward, right;
     int         damage = 14;
     int         kick = 10;
 
     // TODO: These are already calculated, right?
     // Calculate angle vectors.
-    AngleVectors( ent->client->v_angle, forward, right, NULL );
+    QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
     // Determine shot kick offset.
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
     vec3_t shotOffset = { 0, 0, (float)ent->viewheight };
-    P_ProjectSource( ent, ent->s.origin, shotOffset, forward, right, start );
+    P_ProjectSource( ent, ent->s.origin, shotOffset, &forward.x, &right.x, &start.x );
 
     // Determine the amount to multiply bullet spread with based on the player's velocity.
     // TODO: Use stats array or so for storing the actual move speed limit, since this
@@ -167,20 +167,20 @@ void weapon_pistol_secondary_fire( edict_t *ent ) {
     //gi.dprintf( "%s: hSpreadMultiplier(%f) vSpreadMultiplier(%f)\n", __func__, hSpreadMultiplier, vSpreadMultiplier );
 
     // Fire the actual bullet itself.
-    fire_bullet( ent, start, forward, damage, kick, SECONDARY_FIRE_BULLET_HSPREAD + hSpreadMultiplier, SECONDARY_FIRE_BULLET_VSPREAD + vSpreadMultiplier, MOD_CHAINGUN );
+    fire_bullet( ent, &start.x, &forward.x, damage, kick, SECONDARY_FIRE_BULLET_HSPREAD + hSpreadMultiplier, SECONDARY_FIRE_BULLET_VSPREAD + vSpreadMultiplier, MOD_CHAINGUN );
 
     // Project from source to muzzleflash destination.
     vec3_t muzzleFlashOffset = { 16, 0, (float)ent->viewheight };
-    P_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, forward, right, start ); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    P_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, &forward.x, &right.x, &start.x ); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
     gi.WriteInt16( ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
-    gi.multicast( start, MULTICAST_PVS, false );
+    gi.multicast( &start.x, MULTICAST_PVS, false );
 
     // Notify we're making noise.
-    P_PlayerNoise( ent, start, PNOISE_WEAPON );
+    P_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
 
     // Decrease clip ammo.
     //if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
@@ -217,9 +217,9 @@ static const bool weapon_pistol_reload_clip( edict_t *ent ) {
 *   @brief  Will play out of ammo sound.
 **/
 static void weapon_pistol_no_ammo( edict_t *ent ) {
-    if ( level.time >= ent->client->empty_weapon_click_sound ) {
+    if ( level.time >= ent->client->weaponState.timers.lastEmptyWeaponClick ) {
         gi.sound( ent, CHAN_VOICE, gi.soundindex( "weapons/pistol/noammo.wav" ), 1, ATTN_NORM, 0 );
-        ent->client->empty_weapon_click_sound = level.time + 75_ms;
+        ent->client->weaponState.timers.lastEmptyWeaponClick = level.time + 75_ms;
     }
 }
 
@@ -246,6 +246,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         if ( ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) ) {
             // Switch to Firing mode if we have Clip Ammo:
             if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
+                //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
                 P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_FIRE, pistolItemInfo.modeFrames, false );
             // Attempt to reload otherwise:
             } else {
@@ -270,7 +271,6 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     weapon_pistol_no_ammo( ent );
                 }
             }
-            //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
         }
     /**
     *   Regular Behavior Path:
@@ -280,8 +280,8 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         *   Pressing 'Secondary Fire': "Aim In" to engage for 'isAiming' Mode:
         **/
         if ( ( ent->client->buttons & BUTTON_SECONDARY_FIRE ) ) {
-            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeFrames, false );
             //gi.dprintf( "%s: NOT isAiming -> SwitchMode( WEAPON_MODE_AIM_IN )\n", __func__ );
+            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeFrames, false );
             ent->client->ps.fov = 45;
 
             return;

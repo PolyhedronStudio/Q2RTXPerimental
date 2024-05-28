@@ -860,7 +860,14 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 // g_utils.c
 //
 const bool    KillBox( edict_t *ent, const bool bspClipping );
+/**
+*   @brief  Wraps up the new more modern G_ProjectSource.
+**/
 void    G_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result);
+/**
+*   @brief  Project vector from source. 
+**/
+const Vector3 G_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
 edict_t *G_Find(edict_t *from, int fieldofs, const char *match); // WID: C++20: Added const.
 edict_t *findradius(edict_t *from, vec3_t org, float rad);
 edict_t *G_PickTarget(char *targetname);
@@ -1030,9 +1037,21 @@ void DeathmatchScoreboardMessage(edict_t *client, edict_t *killer);
 // g_pweapon.c
 //
 /**
-*   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
+*   @brief  Wraps up the new more modern G_ProjectSource.
+**/
+void    G_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
+/**
+*   @brief  Project vector from source.
+**/
+const Vector3 G_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
+/**
+*   @brief  Wraps up the new more modern P_ProjectDistance.
 **/
 void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
+/**
+*   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
+**/
+const Vector3 P_ProjectDistance( edict_t *ent, Vector3 &point, Vector3 &distance, Vector3 &forward, Vector3 &right );
 void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
 void P_PlayerNoise(edict_t *who, const vec3_t where, int type);
 
@@ -1243,9 +1262,6 @@ struct gclient_s {
     //! usercmd_t in ClientThink.
 	bool weapon_thunk;
 
-	//! Last time we played an 'empty weapon click' sound.
-	sg_time_t	empty_weapon_click_sound;
-
 	sg_time_t	grenade_time;
 	sg_time_t	grenade_finished_time;
 	bool        grenade_blew_up;
@@ -1306,6 +1322,9 @@ struct gclient_s {
 
         //! Timers
         struct {
+            //! Last time we played an 'empty weapon click' sound.
+            sg_time_t lastEmptyWeaponClick;
+
             //! Used to prevent firing too rapidly
             sg_time_t lastPrimaryFire;
             //! Used to prevent firing too rapidly
@@ -1323,24 +1342,28 @@ struct gclient_s {
     /**
     *   View Angles/Movement/Offset:
     **/
-    //! Aiming direction.
-    vec3_t v_angle, v_forward; 
     //! Summed Weapon Kicks, to be applied to client 'viewoffset' and 'kick_angles'.
     struct {
         //! Additional weapon 'Kick Effect' angles to be added to playerState.kick_angles.
-        vec3_t offsetAngles;
+        Vector3 offsetAngles;
         //! Additional weapon 'Kick Effect' origin to be added to viewOffset.
-        vec3_t offsetOrigin;
+        Vector3 offsetOrigin;
     } weaponKicks;
+    //! Stores view and movement related information.
+    struct {
+        //! Aiming direction.
+        Vector3 viewAngles, viewForward;
 
-    // View Movement Timers:
-    sg_time_t	v_dmg_time;
-    sg_time_t	fall_time;
-    sg_time_t	quake_time;
-    //! View Damage Kicks.
-    float       v_dmg_roll, v_dmg_pitch;    
-    //! For view drop on fall.
-    float		fall_value;
+        // View Movement Timers:
+        sg_time_t	damageTime;
+        sg_time_t	fallTime;
+        sg_time_t	quakeTime;
+        //! View Damage Kicks.
+        float       damageRoll, damagePitch;
+        //! For view drop on fall.
+        float		fallValue;
+    } viewMove;
+
 
     /**
     *   View Blends:

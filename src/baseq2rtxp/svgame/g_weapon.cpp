@@ -122,7 +122,7 @@ fire_hit
 Used for all impact (hit/punch/slash) attacks
 =================
 */
-const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_t aimDir, const int32_t damage, const int32_t kick ) {
+const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick ) {
     static constexpr float HIT_RANGE = 32;
     trace_t     tr = {};
     vec3_t      dir = {};
@@ -152,7 +152,7 @@ const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_
     //}
 
 
-    tr = gi.trace( self->s.origin, NULL, NULL, start, self, MASK_SHOT );
+    tr = gi.trace( self->s.origin, NULL, NULL, &start.x, self, MASK_SHOT );
     if ( !( tr.fraction < 1.0f ) ) {
         QM_Vector3ToAngles( aimDir, dir );
         AngleVectors( dir, forward, right, up );
@@ -163,7 +163,7 @@ const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_
         VectorMA( end, r, right, end );
         VectorMA( end, u, up, end );
 
-        tr = gi.trace( start, NULL, NULL, end, self, content_mask );
+        tr = gi.trace( &start.x, NULL, NULL, end, self, content_mask );
     }
 
     bool isTDamaged = false;
@@ -173,7 +173,7 @@ const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_
         if ( tr.fraction < 1.0f ) {
             // It was an entity, if it takes damage, hit it:
             if ( tr.ent && tr.ent->takedamage ) {
-                T_Damage( tr.ent, self, self, aimDir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MOD_HIT );
+                T_Damage( tr.ent, self, self, &aimDir.x, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MOD_HIT );
                 isTDamaged = true;
             // Otherwise, display something that shows we are hitting something senselessly.
             } else {

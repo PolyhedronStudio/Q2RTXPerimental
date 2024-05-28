@@ -100,16 +100,16 @@ weapon_item_info_t fistsItemInfo = {
 /**
 *   @brief
 **/
-const bool fire_hit_punch_impact( edict_t *self, const vec3_t start, const vec3_t aimDir, const int32_t damage, const int32_t kick );
+const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick );
 void weapon_fists_primary_fire( edict_t *ent ) {
     vec3_t      start;
-    vec3_t      forward, right;
+    Vector3     forward, right;
     int         damage = 1;
     int         kick = 8;
 
     // TODO: These are already calculated, right?
     // Calculate angle vectors.
-    AngleVectors( ent->client->v_angle, forward, right, NULL );
+    QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
     // Determine shot kick offset.
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
@@ -117,11 +117,11 @@ void weapon_fists_primary_fire( edict_t *ent ) {
 
     // Project from source to shot destination.
     vec3_t fistOffset = { 0, -10, (float)ent->viewheight - 5.5f }; // VectorSet( offset, 0, 8, ent->viewheight - 8 );
-    P_ProjectDistance( ent, ent->s.origin, fistOffset, forward, right, start ); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    P_ProjectDistance( ent, ent->s.origin, fistOffset, &forward.x, &right.x, start ); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Fire the actual bullet itself.
     //fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
-    if ( fire_hit_punch_impact( ent, start, forward, 5, 55 ) ) {
+    if ( fire_hit_punch_impact( ent, start, &forward.x, 5, 55 ) ) {
         // Send a muzzle flash event.
         gi.WriteUint8( svc_muzzleflash );
         gi.WriteInt16( ent - g_edicts );
@@ -136,14 +136,14 @@ void weapon_fists_primary_fire( edict_t *ent ) {
 *   @brief  
 **/
 void weapon_fists_secondary_fire( edict_t *ent ) {
-    vec3_t      start;
-    vec3_t      forward, right;
+    Vector3     start;
+    Vector3     forward, right;
     int         damage = 1;
     int         kick = 8;
 
     // TODO: These are already calculated, right?
     // Calculate angle vectors.
-    AngleVectors( ent->client->v_angle, forward, right, NULL );
+    QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
     // Determine shot kick offset.
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
@@ -151,11 +151,11 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
 
     // Project from source to shot destination.
     vec3_t fistOffset = { 0, 10, (float)ent->viewheight - 5.5f }; // VectorSet( offset, 0, 8, ent->viewheight - 8 );
-    P_ProjectDistance( ent, ent->s.origin, fistOffset, forward, right, start ); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    P_ProjectDistance( ent, ent->s.origin, fistOffset, &forward.x, &right.x, &start.x); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Fire the actual bullet itself.
     //fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
-    if ( fire_hit_punch_impact( ent, start, forward, 8, 85 ) ) {
+    if ( fire_hit_punch_impact( ent, &start.x, &forward.x, 8, 85 ) ) {
         // Send a muzzle flash event.
         gi.WriteUint8( svc_muzzleflash );
         gi.WriteInt16( ent - g_edicts );
@@ -164,7 +164,7 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
     }
 
     // Notify we're making noise.
-    P_PlayerNoise( ent, start, PNOISE_WEAPON );
+    P_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
 }
 
 /**

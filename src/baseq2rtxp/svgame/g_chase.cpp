@@ -44,7 +44,7 @@ void UpdateChaseCam(edict_t *ent)
 
     ownerv[2] += targ->viewheight;
 
-    VectorCopy(targ->client->v_angle, angles);
+    VectorCopy(targ->client->viewMove.viewAngles, angles);
     if (angles[PITCH] > 56)
         angles[PITCH] = 56;
     AngleVectors(angles, forward, right, NULL);
@@ -88,16 +88,16 @@ void UpdateChaseCam(edict_t *ent)
 
     VectorCopy(goal, ent->s.origin);
     for (i = 0 ; i < 3 ; i++)
-        ent->client->ps.pmove.delta_angles[i] = /*ANGLE2SHORT*/(targ->client->v_angle[i] - ent->client->resp.cmd_angles[i]);
+        ent->client->ps.pmove.delta_angles[i] = /*ANGLE2SHORT*/(targ->client->viewMove.viewAngles[i] - ent->client->resp.cmd_angles[i]);
 
     if (targ->deadflag) {
         ent->client->ps.viewangles[ROLL] = 40;
         ent->client->ps.viewangles[PITCH] = -15;
         ent->client->ps.viewangles[YAW] = targ->client->killer_yaw; // targ->client->ps.stats[ STAT_KILLER_YAW ];
     } else {
-        VectorCopy(targ->client->v_angle, ent->client->ps.viewangles);
-        VectorCopy(targ->client->v_angle, ent->client->v_angle);
-        AngleVectors( ent->client->v_angle, ent->client->v_forward, nullptr, nullptr );
+        VectorCopy(targ->client->viewMove.viewAngles, ent->client->ps.viewangles);
+        VectorCopy(targ->client->viewMove.viewAngles, ent->client->viewMove.viewAngles );
+        QM_AngleVectors( ent->client->viewMove.viewAngles, &ent->client->viewMove.viewForward, nullptr, nullptr );
     }
 
     ent->viewheight = 0;

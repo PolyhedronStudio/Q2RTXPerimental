@@ -408,9 +408,9 @@ void TossClientWeapon(edict_t *self) {
     float spread = 0.0f;
 
     if (item) {
-        self->client->v_angle[YAW] -= spread;
+        self->client->viewMove.viewAngles[YAW] -= spread;
         edict_t *drop = Drop_Item(self, item);
-        self->client->v_angle[YAW] += spread;
+        self->client->viewMove.viewAngles[YAW] += spread;
         drop->spawnflags = DROPPED_PLAYER_ITEM;
     }
 }
@@ -1254,8 +1254,8 @@ void PutClientInServer(edict_t *ent)
 
     VectorCopy(spawn_angles, ent->s.angles);
     VectorCopy(spawn_angles, client->ps.viewangles);
-    VectorCopy(spawn_angles, client->v_angle);
-    AngleVectors( client->v_angle, client->v_forward, nullptr, nullptr );
+    VectorCopy(spawn_angles, client->viewMove.viewAngles );
+    AngleVectors( &client->viewMove.viewAngles.x, &client->viewMove.viewForward.x, nullptr, nullptr );
 
     // spawn a spectator
     if (client->pers.spectator) {
@@ -1671,11 +1671,11 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
         return;
     }
 
-    ent->client->fall_value = delta * 0.5f;
-    if ( ent->client->fall_value > 40 ) {
-        ent->client->fall_value = 40;
+    ent->client->viewMove.fallValue = delta * 0.5f;
+    if ( ent->client->viewMove.fallValue > 40 ) {
+        ent->client->viewMove.fallValue = 40;
     }
-    ent->client->fall_time = level.time + FALL_TIME();
+    ent->client->viewMove.fallTime = level.time + FALL_TIME();
 
     if ( delta > 30 ) {
         if ( delta >= 55 ) {
@@ -1881,8 +1881,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         // Otherwise, apply the player move state view angles:
         } else {
             VectorCopy( pm.playerState->viewangles, client->ps.viewangles );
-            VectorCopy( client->ps.viewangles, client->v_angle );
-            AngleVectors( client->v_angle, client->v_forward, nullptr, nullptr );
+            VectorCopy( client->ps.viewangles, client->viewMove.viewAngles );
+            QM_AngleVectors( client->viewMove.viewAngles, &client->viewMove.viewForward, nullptr, nullptr );
         }
 
         // Finally link the entity back in.
@@ -1903,7 +1903,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             trace_t &tr = pm.touchTraces.traces[ i ];
             edict_t *other = tr.ent;
 
-            if ( other->touch ) {
+            if ( other != nullptr && other->touch ) {
                 // TODO: Q2RE has these for last 2 args: const trace_t &tr, bool other_touching_self
                 // What the??
                 other->touch( other, ent, &tr.plane, tr.surface );

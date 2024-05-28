@@ -352,7 +352,7 @@ void P_Weapon_Drop( edict_t *ent, const gitem_t *item ) {
 *
 **/
 /**
-*   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
+*   @brief  Wraps up the new more modern P_ProjectDistance.
 **/
 void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
     // Adjust distance to handedness.
@@ -362,7 +362,23 @@ void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forw
     } else if ( ent->client->pers.hand == CENTER_HANDED ) {
         _distance[ 1 ] = 0;
     }
-    G_ProjectSource( point, &_distance.x, forward, right, result );
+    const Vector3 _result = G_ProjectSource( point, _distance, forward, right );
+    // Copy the resulting values into the result vec3_t array(ptr).
+    VectorCopy( _result, result );
+}
+/**
+*   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
+**/
+const Vector3 P_ProjectDistance( edict_t *ent, Vector3 &point, Vector3 &distance, Vector3 &forward, Vector3 &right ) {
+    // Adjust distance to handedness.
+    Vector3 _distance = distance;
+    if ( ent->client->pers.hand == LEFT_HANDED ) {
+        _distance[ 1 ] *= -1;
+    } else if ( ent->client->pers.hand == CENTER_HANDED ) {
+        _distance[ 1 ] = 0;
+    }
+
+    return G_ProjectSource( point, _distance, forward, right );
 
     // Aim fix from Yamagi Quake 2.
     // Now the projectile hits exactly where the scope is pointing.

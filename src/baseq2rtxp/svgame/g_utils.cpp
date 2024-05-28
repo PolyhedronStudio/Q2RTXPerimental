@@ -19,12 +19,25 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "g_local.h"
 
+/**
+*   @brief  Wraps up the new more modern G_ProjectSource.
+**/
+void G_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result ) {
+    // Call the new more modern G_ProjectSource.
+    const Vector3 _result = G_ProjectSource( point, distance, forward, right );
+    // Copy the resulting values into the result vec3_t array(ptr).
+    VectorCopy( _result, result );
+}
 
-void G_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result)
-{
-    result[0] = point[0] + forward[0] * distance[0] + right[0] * distance[1];
-    result[1] = point[1] + forward[1] * distance[0] + right[1] * distance[1];
-    result[2] = point[2] + forward[2] * distance[0] + right[2] * distance[1] + distance[2];
+/**
+*   @brief  Project vector from source.
+**/
+const Vector3 G_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
+    return {
+        point[ 0 ] + forward[ 0 ] * distance[ 0 ] + right[ 0 ] * distance[ 1 ],
+        point[ 1 ] + forward[ 1 ] * distance[ 0 ] + right[ 1 ] * distance[ 1 ],
+        point[ 2 ] + forward[ 2 ] * distance[ 0 ] + right[ 2 ] * distance[ 1 ] + distance[ 2 ]
+    };
 }
 
 

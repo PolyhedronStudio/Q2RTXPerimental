@@ -444,7 +444,7 @@ edict_t *Drop_Item(edict_t *ent, const gitem_t *item)
     if (ent->client) {
         trace_t trace;
 
-        AngleVectors(ent->client->v_angle, forward, right, NULL);
+        AngleVectors( &ent->client->viewMove.viewAngles.x, forward, right, NULL );
         VectorSet(offset, 24, 0, -16);
         G_ProjectSource(ent->s.origin, offset, forward, right, dropped->s.origin);
         trace = gi.trace(ent->s.origin, dropped->mins, dropped->maxs,

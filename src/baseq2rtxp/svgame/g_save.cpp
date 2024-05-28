@@ -411,7 +411,6 @@ static const save_field_t clientfields[] = {
 
     O( weapon_thunk ),
 
-    I64( empty_weapon_click_sound ),
     O( grenade_blew_up ),
     I64( grenade_time ),
     I64( grenade_finished_time ),
@@ -433,20 +432,21 @@ static const save_field_t clientfields[] = {
     I( weaponState.animation.currentFrame ),
     I( weaponState.animation.startFrame ),
     I( weaponState.animation.endFrame ),
+    I64( weaponState.timers.lastEmptyWeaponClick ),
     I64( weaponState.timers.lastPrimaryFire ),
     I64( weaponState.timers.lastAimedFire ),
     I64( weaponState.timers.lastDrawn ),
     I64( weaponState.timers.lastHolster ),
 
-    V( v_angle ), V( v_forward ),
     V( weaponKicks.offsetAngles ),
-	V( weaponKicks.offsetOrigin ),
+    V( weaponKicks.offsetOrigin ),
 
-    I64( v_dmg_time ),
-    I64( fall_time ),
-    I64( quake_time ),
-	F( v_dmg_roll ), F( v_dmg_pitch ),
-	F( fall_value ),
+    V( viewMove.viewAngles ), V( viewMove.viewForward ),   
+    I64( viewMove.damageTime ),
+    I64( viewMove.fallTime ),
+    I64( viewMove.quakeTime ),
+	F( viewMove.damageRoll ), F( viewMove.damagePitch ),
+	F( viewMove.fallValue ),
 
 	F( damage_alpha ),
 	F( bonus_alpha ),

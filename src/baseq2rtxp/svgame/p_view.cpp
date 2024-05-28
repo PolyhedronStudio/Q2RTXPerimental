@@ -191,12 +191,12 @@ void P_DamageFeedback( edict_t *player ) {
 		VectorNormalize( v );
 
 		side = DotProduct( v, right );
-		client->v_dmg_roll = kick * side * 0.3f;
+		client->viewMove.damageRoll = kick * side * 0.3f;
 
 		side = -DotProduct( v, forward );
-		client->v_dmg_pitch = kick * side * 0.3f;
+		client->viewMove.damagePitch = kick * side * 0.3f;
 
-		client->v_dmg_time = level.time + DAMAGE_TIME( );
+		client->viewMove.damageTime = level.time + DAMAGE_TIME( );
 	}
 
 	//
@@ -254,10 +254,10 @@ void SV_CalcViewOffset( edict_t *ent ) {
 		VectorCopy( ent->client->weaponKicks.offsetAngles, viewAnglesOffset );
 
 		// Add angles based on the damage impackt kick.
-		if ( ent->client->v_dmg_time > level.time ) {
+		if ( ent->client->viewMove.damageTime > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
-			sg_time_t diff = ent->client->v_dmg_time - level.time;
+			sg_time_t diff = ent->client->viewMove.damageTime - level.time;
 
 			// slack time remaining
 			if ( DAMAGE_TIME_SLACK( ) ) {
@@ -268,15 +268,15 @@ void SV_CalcViewOffset( edict_t *ent ) {
 			} else
 				ratio = diff.seconds( ) / ( DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
 
-			viewAnglesOffset[ PITCH ] += ratio * ent->client->v_dmg_pitch;
-			viewAnglesOffset[ ROLL ] += ratio * ent->client->v_dmg_roll;
+			viewAnglesOffset[ PITCH ] += ratio * ent->client->viewMove.damagePitch;
+			viewAnglesOffset[ ROLL ] += ratio * ent->client->viewMove.damageRoll;
 		}
 
 		// Add pitch angles based on the fall impact kick.
-		if ( ent->client->fall_time > level.time ) {
+		if ( ent->client->viewMove.fallTime > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
-			sg_time_t diff = ent->client->fall_time - level.time;
+			sg_time_t diff = ent->client->viewMove.fallTime - level.time;
 
 			// slack time remaining
 			if ( DAMAGE_TIME_SLACK( ) ) {
@@ -286,7 +286,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 					ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
 			} else
 				ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
-			viewAnglesOffset[ PITCH ] += ratio * ent->client->fall_value;
+			viewAnglesOffset[ PITCH ] += ratio * ent->client->viewMove.fallValue;
 		}
 
 		// WID: Moved this to CLGame!
@@ -316,8 +316,8 @@ void SV_CalcViewOffset( edict_t *ent ) {
 		}
 
 		// Add earthquake view offset angles
-		if ( ent->client->quake_time > level.time ) {
-			float factor = min( 1.0f, ( ent->client->quake_time.seconds( ) / level.time.seconds( ) ) * 0.25f );
+		if ( ent->client->viewMove.quakeTime > level.time ) {
+			float factor = min( 1.0f, ( ent->client->viewMove.quakeTime.seconds( ) / level.time.seconds( ) ) * 0.25f );
 
 			viewAnglesOffset.x += crandom_open( ) * factor;
 			viewAnglesOffset.y += crandom_open( ) * factor;
@@ -336,10 +336,10 @@ void SV_CalcViewOffset( edict_t *ent ) {
 	VectorClear( viewOriginOffset );
 
 	// Add fall height landing impact to the final view originOffset.
-	if ( ent->client->fall_time > level.time ) {
+	if ( ent->client->viewMove.fallTime > level.time ) {
 		// [Paril-KEX] 100ms of slack is added to account for
 		// visual difference in higher tickrates
-		sg_time_t diff = ent->client->fall_time - level.time;
+		sg_time_t diff = ent->client->viewMove.fallTime - level.time;
 
 		// Slack time remaining
 		if ( DAMAGE_TIME_SLACK( ) ) {
@@ -351,7 +351,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 		} else {
 			ratio = diff.seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).seconds();
 		}
-		viewOriginOffset.z -= ratio * ent->client->fall_value * 0.4f;
+		viewOriginOffset.z -= ratio * ent->client->viewMove.fallValue * 0.4f;
 	}
 
 	// WID: Moved this to CLGame!
@@ -878,7 +878,7 @@ void ClientEndServerFrame( edict_t *ent ) {
 	}
 
 	// Calculate angle vectors.
-	AngleVectors( ent->client->v_angle, forward, right, up );
+	AngleVectors( &ent->client->viewMove.viewAngles.x, forward, right, up );
 
 	// burn from lava, etc
 	P_WorldEffects( );
@@ -887,12 +887,12 @@ void ClientEndServerFrame( edict_t *ent ) {
 	// set model angles from view angles so other things in
 	// the world can tell which direction you are looking
 	//
-	if ( ent->client->v_angle[ PITCH ] > 180 ) {
-		ent->s.angles[ PITCH ] = ( -360 + ent->client->v_angle[ PITCH ] ) / 3;
+	if ( ent->client->viewMove.viewAngles[ PITCH ] > 180 ) {
+		ent->s.angles[ PITCH ] = ( -360 + ent->client->viewMove.viewAngles[ PITCH ] ) / 3;
 	} else {
-		ent->s.angles[ PITCH ] = ent->client->v_angle[ PITCH ] / 3;
+		ent->s.angles[ PITCH ] = ent->client->viewMove.viewAngles[ PITCH ] / 3;
 	}
-	ent->s.angles[ YAW ] = ent->client->v_angle[ YAW ];
+	ent->s.angles[ YAW ] = ent->client->viewMove.viewAngles[ YAW ];
 	ent->s.angles[ ROLL ] = 0;
 	ent->s.angles[ ROLL ] = SV_CalcRoll( ent->s.angles, ent->velocity ) * 4;
 
