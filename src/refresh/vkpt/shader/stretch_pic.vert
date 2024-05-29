@@ -58,15 +58,46 @@ vec2 positions[4] = vec2[](
 void
 main()
 {
-	StretchPic sp = stretch_pics[gl_InstanceIndex];
-	vec2 pos      = positions[gl_VertexIndex] * vec2(sp.w, sp.h) + vec2(sp.x, sp.y);
+	// Acquire stretch pic structure instance reference we're processing.
+	StretchPic sp = stretch_pics[ gl_InstanceIndex ];
+	// Position is screen-space, so the quad vertices stored in positions are first fetched.
+	vec2 pos      = positions[ gl_VertexIndex ];
+	// Then scaled from their unit normal up to the specified width and height.
+	pos *= vec2(sp.w, sp.h);
+	// And then translated to the specified x and y coordinates.
+	pos += vec2(sp.x, sp.y);
+
+	//
+	// Rotating (ALMOST WORKS)
+	//
+
+	// Pivot point.
+	vec2 pivot = vec2(sp.pivot_x, sp.pivot_y);
+	// Offset by the pivot point out of reference frame.	
+	pos -= pivot;
+
+	// Rotate the position.
+	float s = sin( sp.angle );
+	float c = sin( sp.angle );
+	pos.x += (pos.x * c - pos.y * s);// + sp.x;
+	pos.y += (pos.x * s + pos.y * c);// + sp.y;
+    //*(dst_vert + 0) = (vert_x * c - vert_y * s) + x;
+    //*(dst_vert + 1) = (vert_x * s + vert_y * c) + y;
+	// Translate it back into its old frame of reference origin.
+	pos += pivot;
+	//
+	//
+	//
+
+	// Acquire color to use.
 	color         = unpackUnorm4x8(sp.color);
-	
 	color = pow(color, vec4(2.4));
 
+	// Setup texture information.
 	tex_coord     = vec2(sp.s, sp.t) + positions[gl_VertexIndex] * vec2(sp.w_s, sp.h_t);
 	tex_id        = sp.tex_handle;
 
+	// Output the final screen-space vertex position.
 	gl_Position = vec4(pos, 0.0, 1.0);
 }
 
