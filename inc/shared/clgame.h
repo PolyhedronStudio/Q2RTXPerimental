@@ -139,7 +139,6 @@ typedef struct {
 	struct client_state_s *client;
 
 
-
 	/**
 	*
 	*	Client Static:
@@ -161,6 +160,10 @@ typedef struct {
 	const int32_t ( *GetClientFps )( void );
 	const int32_t ( *GetRefreshFps )( void );
 	const int32_t ( *GetResolutionScale )( void );
+	// Netchan outgoing sequence, incoming acknowledged sequence.
+	const int64_t( *Netchan_GetOutgoingSequence )( void );
+	const int64_t( *Netchan_GetIncomingAcknowledged )( void );
+	const int64_t( *Netchan_GetDropped )( void );
 
 	/**
 	*
@@ -528,6 +531,8 @@ typedef struct {
 	void ( *R_DrawPic )( const int32_t x, const int32_t y, const qhandle_t pic );
 	//!
 	void ( *R_DrawStretchPic )( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic );
+	//!
+	void ( *R_DrawRotateStretchPic )( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const float angle, const int32_t pivot_x, const int32_t pivot_y, const qhandle_t pic );
 	//!
 	void ( *R_DrawKeepAspectPic )( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic );
 	//!

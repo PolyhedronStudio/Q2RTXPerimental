@@ -175,6 +175,9 @@ void R_DrawStretchPic_GL(int x, int y, int w, int h, qhandle_t pic)
     GL_StretchPic(x, y, w, h, image->sl, image->tl, image->sh, image->th,
                   draw.colors[0].u32, image);
 }
+void R_DrawRotateStretchPic_GL( int x, int y, int w, int h, float angle, int pivot_x, int pivot_y, qhandle_t pic ) {
+    // WID: TODO: Implement?
+}
 
 void R_DrawKeepAspectPic_GL(int x, int y, int w, int h, qhandle_t pic)
 {

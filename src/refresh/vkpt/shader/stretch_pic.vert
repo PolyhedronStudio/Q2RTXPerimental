@@ -40,6 +40,7 @@ layout(location = 2) out vec2 tex_coord;
 struct StretchPic {
 	float x, y, w,   h;
 	float s, t, w_s, h_t;
+	float angle, pivot_x, pivot_y;
 	uint color, tex_handle;
 };
 

@@ -22,6 +22,16 @@
 *   Screen Struct:
 *
 **/
+typedef struct {
+    int32_t     damage;
+    Vector3     color;
+    Vector3     dir;
+    int64_t     time;
+} scr_damage_entry_t;
+
+static constexpr int32_t MAX_DAMAGE_ENTRIES = 32;
+static constexpr int32_t DAMAGE_ENTRY_BASE_SIZE = 3;
+
 static constexpr int32_t STAT_PICS = 11;
 static constexpr int32_t STAT_MINUS = ( STAT_PICS - 1 );  // num frame for '-' stats digit
 
@@ -38,6 +48,10 @@ static struct {
     qhandle_t   loading_pic;
     int         loading_width, loading_height;
     //bool        draw_loading;
+
+    qhandle_t   damage_display_pic;
+    int         damage_display_width, damage_display_height;
+    scr_damage_entry_t  damage_entries[ MAX_DAMAGE_ENTRIES ];
 
     qhandle_t   sb_pics[ 2 ][ STAT_PICS ];
     qhandle_t   inven_pic;
@@ -97,6 +111,9 @@ static cvar_t *ch_alpha;
 static cvar_t *ch_scale;
 static cvar_t *ch_x;
 static cvar_t *ch_y;
+
+static cvar_t *scr_damage_indicators;
+static cvar_t *scr_damage_indicator_time;
 
 vrect_t     scr_vrect;      // position of render window on screen
 
@@ -394,109 +411,122 @@ LAGOMETER
 
 ===============================================================================
 */
+#define LAG_WIDTH   48
+#define LAG_HEIGHT  48
 
-//#define LAG_WIDTH   48
-//#define LAG_HEIGHT  48
-//
-//#define LAG_CRIT_BIT    (1U << 31)
-//#define LAG_WARN_BIT    (1U << 30)
-//
-//#define LAG_BASE    0xD5
-//#define LAG_WARN    0xDC
-//#define LAG_CRIT    0xF2
-//
-//static struct {
-//    unsigned samples[ LAG_WIDTH ];
-//    unsigned head;
-//} lag;
-//
-//void SCR_LagClear( void ) {
-//    lag.head = 0;
-//}
-//
-//void SCR_LagSample( void ) {
-//    int i = cls.netchan.incoming_acknowledged & CMD_MASK;
-//    client_usercmd_history_t *h = &clgi.client->history[ i ];
-//    unsigned ping;
-//
-//    h->timeReceived = clgi.GetRealTime();
-//    if ( !h->commandNumber || h->timeReceived < h->timeSent ) {
-//        return;
-//    }
-//
-//    ping = h->timeReceived - h->timeSent;
-//    for ( i = 0; i < cls.netchan.dropped; i++ ) {
-//        lag.samples[ lag.head % LAG_WIDTH ] = ping | LAG_CRIT_BIT;
-//        lag.head++;
-//    }
-//
-//    if ( clgi.client->frameflags & FF_SUPPRESSED ) {
-//        ping |= LAG_WARN_BIT;
-//    }
-//    lag.samples[ lag.head % LAG_WIDTH ] = ping;
-//    lag.head++;
-//}
-//
-//static void SCR_LagDraw( int x, int y ) {
-//    int i, j, v, c, v_min, v_max, v_range;
-//
-//    v_min = clgi.CVar_ClampInteger( scr_lag_min, 0, LAG_HEIGHT * 10 );
-//    v_max = clgi.CVar_ClampInteger( scr_lag_max, 0, LAG_HEIGHT * 10 );
-//
-//    v_range = v_max - v_min;
-//    if ( v_range < 1 )
-//        return;
-//
-//    for ( i = 0; i < LAG_WIDTH; i++ ) {
-//        j = lag.head - i - 1;
-//        if ( j < 0 ) {
-//            break;
-//        }
-//
-//        v = lag.samples[ j % LAG_WIDTH ];
-//
-//        if ( v & LAG_CRIT_BIT ) {
-//            c = LAG_CRIT;
-//        } else if ( v & LAG_WARN_BIT ) {
-//            c = LAG_WARN;
-//        } else {
-//            c = LAG_BASE;
-//        }
-//
-//        v &= ~( LAG_WARN_BIT | LAG_CRIT_BIT );
-//        v = ( v - v_min ) * LAG_HEIGHT / v_range;
-//        clamp( v, 0, LAG_HEIGHT );
-//
-//        clgi.R_DrawFill8( x + LAG_WIDTH - i - 1, y + LAG_HEIGHT - v, 1, v, c );
-//    }
-//}
-//
-//static void SCR_DrawNet( void ) {
-//    int x = scr_lag_x->integer;
-//    int y = scr_lag_y->integer;
-//
-//    if ( x < 0 ) {
-//        x += scr.hud_width - LAG_WIDTH + 1;
-//    }
-//    if ( y < 0 ) {
-//        y += scr.hud_height - LAG_HEIGHT + 1;
-//    }
-//
-//    // draw ping graph
-//    if ( scr_lag_draw->integer ) {
-//        if ( scr_lag_draw->integer > 1 ) {
-//            clgi.R_DrawFill8( x, y, LAG_WIDTH, LAG_HEIGHT, 4 );
-//        }
-//        SCR_LagDraw( x, y );
-//    }
-//
-//    // draw phone jack
-//    if ( cls.netchan.outgoing_sequence - cls.netchan.incoming_acknowledged >= CMD_BACKUP ) {
-//        if ( ( clgi.GetRealTime() >> 8 ) & 3 ) {
-//            clgi.R_DrawStretchPic( x, y, LAG_WIDTH, LAG_HEIGHT, scr.net_pic );
-//        }
-//    }
-//}
+#define LAG_CRIT_BIT    (1U << 31) // BIT_ULL(63)//
+#define LAG_WARN_BIT    (1U << 30) // BIT_ULL(62)//
+
+#define LAG_BASE    0xD5
+#define LAG_WARN    0xDC
+#define LAG_CRIT    0xF2
+
+static struct {
+    unsigned samples[ LAG_WIDTH ];
+    unsigned head;
+} lag;
+
+/**
+*   @brief
+**/
+void SCR_LagClear( void ) {
+    lag.head = 0;
+}
+
+/**
+*   @brief  
+**/
+void SCR_LagSample( void ) {
+    int64_t i = clgi.Netchan_GetIncomingAcknowledged() & CMD_MASK; //cls.netchan.incoming_acknowledged & CMD_MASK;
+    client_usercmd_history_t *h = &clgi.client->history[ i ];
+    int64_t ping;
+
+    h->timeReceived = clgi.GetRealTime();
+    if ( !h->commandNumber || h->timeReceived < h->timeSent ) {
+        return;
+    }
+
+    ping = h->timeReceived - h->timeSent;
+    for ( i = 0; i < clgi.Netchan_GetDropped(); i++ ) {
+        lag.samples[ lag.head % LAG_WIDTH ] = ping | LAG_CRIT_BIT;
+        lag.head++;
+    }
+
+    if ( clgi.client->frameflags & FF_SUPPRESSED ) {
+        ping |= LAG_WARN_BIT;
+    }
+    lag.samples[ lag.head % LAG_WIDTH ] = ping;
+    lag.head++;
+}
+
+/**
+*   @brief
+**/
+static void SCR_LagDraw( int x, int y ) {
+    int64_t i, j, v, c, v_min, v_max, v_range;
+
+    v_min = clgi.CVar_ClampInteger( scr_lag_min, 0, LAG_HEIGHT * 10 );
+    v_max = clgi.CVar_ClampInteger( scr_lag_max, 0, LAG_HEIGHT * 10 );
+
+    v_range = v_max - v_min;
+    if ( v_range < 1 )
+        return;
+
+    for ( i = 0; i < LAG_WIDTH; i++ ) {
+        j = lag.head - i - 1;
+        if ( j < 0 ) {
+            break;
+        }
+
+        v = lag.samples[ j % LAG_WIDTH ];
+
+        if ( v & LAG_CRIT_BIT ) {
+            c = LAG_CRIT;
+        } else if ( v & LAG_WARN_BIT ) {
+            c = LAG_WARN;
+        } else {
+            c = LAG_BASE;
+        }
+
+        v &= ~( LAG_WARN_BIT | LAG_CRIT_BIT );
+        v = ( v - v_min ) * LAG_HEIGHT / v_range;
+        clamp( v, 0, LAG_HEIGHT );
+
+        clgi.R_DrawFill8( x + LAG_WIDTH - i - 1, y + LAG_HEIGHT - v, 1, v, c );
+    }
+}
+
+/**
+*   @brief  
+**/
+static void SCR_DrawNet( void ) {
+    int x = scr_lag_x->integer;
+    int y = scr_lag_y->integer;
+
+    if ( x < 0 ) {
+        x += scr.hud_width - LAG_WIDTH + 1;
+    }
+    if ( y < 0 ) {
+        y += scr.hud_height - LAG_HEIGHT + 1;
+    }
+
+    // draw ping graph
+    if ( scr_lag_draw->integer ) {
+        if ( scr_lag_draw->integer > 1 ) {
+            clgi.R_DrawFill8( x, y, LAG_WIDTH, LAG_HEIGHT, 4 );
+        }
+        SCR_LagDraw( x, y );
+    }
+
+    // draw phone jack
+    const int64_t outgoing_sequence = clgi.Netchan_GetOutgoingSequence();
+    const int64_t incoming_acknowledged = clgi.Netchan_GetIncomingAcknowledged();
+    if ( outgoing_sequence - incoming_acknowledged >= CMD_BACKUP ) {
+        if ( ( clgi.GetRealTime() >> 8 ) & 3 ) {
+            clgi.R_DrawStretchPic( x, y, LAG_WIDTH, LAG_HEIGHT, scr.net_pic );
+        }
+    }
+}
 
 
 /*
@@ -1187,6 +1217,9 @@ void PF_SCR_RegisterMedia( void ) {
     scr.loading_pic = clgi.R_RegisterPic( "loading" );
     clgi.R_GetPicSize( &scr.loading_width, &scr.loading_height, scr.loading_pic );
 
+    scr.damage_display_pic = clgi.R_RegisterPic( "damage_indicator" );
+    clgi.R_GetPicSize( &scr.damage_display_width, &scr.damage_display_height, scr.damage_display_pic );
+
     scr.net_pic = clgi.R_RegisterPic( "net" );
     scr.font_pic = clgi.R_RegisterFont( scr_font->string );
 
@@ -1264,6 +1297,9 @@ void PF_SCR_Init( void ) {
     ch_x = clgi.CVar_Get( "ch_x", "0", 0 );
     ch_y = clgi.CVar_Get( "ch_y", "0", 0 );
 
+    scr_damage_indicators = clgi.CVar_Get( "scr_damage_indicators", "1", 0 );
+    scr_damage_indicator_time = clgi.CVar_Get( "scr_damage_indicator_time", "1000", 0 );
+
     scr_draw2d = clgi.CVar_Get( "scr_draw2d", "2", 0 );
     scr_showturtle = clgi.CVar_Get( "scr_showturtle", "1", 0 );
     scr_showitemname = clgi.CVar_Get( "scr_showitemname", "1", CVAR_ARCHIVE );
@@ -1335,6 +1371,9 @@ STAT PROGRAMS
 #define HUD_DrawAltCenterString(x, y, string) \
     SCR_DrawStringMulti(x, y, UI_CENTER | UI_XORCOLOR, MAX_STRING_CHARS, string, scr.font_pic)
 
+/**
+*	@brief
+**/
 static void HUD_DrawNumber( int x, int y, int color, int width, int value ) {
     char    num[ 16 ], *ptr;
     int     l;
@@ -1368,8 +1407,10 @@ static void HUD_DrawNumber( int x, int y, int color, int width, int value ) {
     }
 }
 
+/**
+*	@brief
+**/
 #define DISPLAY_ITEMS   17
-
 static void SCR_DrawInventory( void ) {
     int     i;
     int     num, selected_num, item;
@@ -1439,7 +1480,9 @@ static void SCR_DrawInventory( void ) {
         y += CHAR_HEIGHT;
     }
 }
-
+/**
+*	@brief
+**/
 static void SCR_DrawSelectedItemName( int x, int y, int item ) {
     static int display_item = -1;
     static int64_t display_start_time = 0;
@@ -1467,7 +1510,9 @@ static void SCR_DrawSelectedItemName( int x, int y, int item ) {
         clgi.R_SetAlpha( scr_alpha->value );
     }
 }
-
+/**
+*	@brief
+**/
 static void SCR_ExecuteLayoutString( const char *s ) {
     char    buffer[ MAX_QPATH ];
     int     x, y;
@@ -1810,8 +1855,106 @@ static void SCR_ExecuteLayoutString( const char *s ) {
     clgi.R_SetAlpha( scr_alpha->value );
 }
 
-//=============================================================================
 
+
+/**
+*
+*
+*   Damage Indicators:
+*
+*
+**/
+/**
+*   @brief
+**/
+static scr_damage_entry_t *SCR_AllocDamageDisplay( const Vector3 &dir ) {
+    scr_damage_entry_t *entry = scr.damage_entries;
+
+    for ( int i = 0; i < MAX_DAMAGE_ENTRIES; i++, entry++ ) {
+        if ( entry->time <= clgi.GetRealTime() ) {
+            goto new_entry;
+        }
+
+        float dot = QM_Vector3DotProduct( entry->dir, dir ); // DotProduct( entry->dir, dir );
+
+        if ( dot >= 0.95f ) {
+            return entry;
+        }
+    }
+
+    entry = scr.damage_entries;
+
+new_entry:
+    entry->damage = 0;
+    VectorClear( entry->color );
+    return entry;
+}
+/**
+*   @brief  Adds a damage indicator for the given damage using the given color pointing at given direction.
+**/
+void SCR_AddToDamageDisplay( const int32_t damage, const Vector3 &color, const Vector3 &dir ) {
+    if ( !scr_damage_indicators->integer ) {
+        return;
+    }
+
+    scr_damage_entry_t *entry = SCR_AllocDamageDisplay( dir );
+
+    entry->damage += damage;
+    entry->color += color;
+    entry->color = QM_Vector3Normalize( entry->color );
+    entry->dir = dir;
+    entry->time = clgi.GetRealTime() + scr_damage_indicator_time->integer;
+}
+/**
+*   @brief  
+**/
+static void SCR_DrawDamageDisplays( void ) {
+    for ( int32_t i = 0; i < MAX_DAMAGE_ENTRIES; i++ ) {
+        scr_damage_entry_t *entry = &scr.damage_entries[ i ];
+
+        if ( entry->time <= clgi.GetRealTime() ) {
+            continue;
+        }
+
+        const float frac = ( entry->time - clgi.GetRealTime() ) / scr_damage_indicator_time->value;
+
+        float my_yaw = clgi.client->predictedState.currentPs.viewangles[ YAW ]; // cl.predicted_angles[YAW];
+        //vec3_t angles;
+        //vectoangles2( entry->dir, angles );
+        Vector3 angles = QM_Vector3ToAngles( entry->dir );
+        float damage_yaw = angles[ YAW ];
+        //float yaw_diff = DEG2RAD( ( my_yaw - damage_yaw ) - 180 );
+        //float yaw_diff = DEG2RAD( AngleMod( ( my_yaw - damage_yaw ) ) - 180 );
+        float yaw_diff = DEG2RAD( ( my_yaw - damage_yaw ) - 180 );
+
+        clgi.R_SetColor( MakeColor(
+            (int)( entry->color[ 0 ] * 255.f ),
+            (int)( entry->color[ 1 ] * 255.f ),
+            (int)( entry->color[ 2 ] * 255.f ),
+            (int)( frac * 255.f ) ) );
+
+        const int32_t x = scr.hud_width / 2;
+        const int32_t y = scr.hud_height / 2;
+
+        const int32_t size = min( scr.damage_display_width, ( DAMAGE_ENTRY_BASE_SIZE * entry->damage ) );
+
+        //clgi.R_DrawStretchPic( x, y, scr.damage_display_height, scr.damage_display_width, scr.damage_display_pic );
+        //clgi.R_DrawRotateStretchPic( x, y, size, scr.damage_display_height, yaw_diff, 0, -( scr.crosshair_height + ( scr.damage_display_height / 2 ) ), scr.damage_display_pic );
+    }
+}
+
+
+
+/***
+*
+*
+*   Misc:
+*
+*
+***/
+/**
+*	@brief
+**/
 static void SCR_DrawPause( void ) {
     int x, y;
 
@@ -1827,7 +1970,9 @@ static void SCR_DrawPause( void ) {
 
     clgi.R_DrawPic( x, y, scr.pause_pic );
 }
-
+/**
+*	@brief
+**/
 static void SCR_DrawCrosshair( void ) {
     if ( !scr_crosshair->integer ) {
         return;
@@ -1848,8 +1993,20 @@ static void SCR_DrawCrosshair( void ) {
         scr.crosshair_width,
         scr.crosshair_height,
         scr.crosshair_pic );
-}
 
+    const int32_t crossWidth = scr.crosshair_width * 2;
+    const int32_t crossHeight = scr.crosshair_height * 2;
+
+    clgi.R_DrawRotateStretchPic( x - ( crossWidth / 2 ), y - 40, 
+        crossWidth, crossHeight,
+        45, crossWidth / 2, crossHeight / 2, scr.crosshair_pic );
+
+    // Draw crosshair damage displays.
+    SCR_DrawDamageDisplays();
+}
+/**
+*	@brief
+**/
 // The status bar is a small layout program that is based on the stats array
 static void SCR_DrawStats( void ) {
     if ( scr_draw2d->integer <= 1 )
@@ -1857,7 +2014,9 @@ static void SCR_DrawStats( void ) {
 
     SCR_ExecuteLayoutString( clgi.client->configstrings[ CS_STATUSBAR ] );
 }
-
+/**
+*	@brief
+**/
 static void SCR_DrawLayout( void ) {
     if ( scr_draw2d->integer == 3 && !clgi.Key_IsDown( K_F1 ) ) {
         return;     // turn off for GTV
@@ -1873,7 +2032,9 @@ static void SCR_DrawLayout( void ) {
 draw:
     SCR_ExecuteLayoutString( clgi.client->layout );
 }
-
+/**
+*	@brief
+**/
 static void SCR_Draw2D( void ) {
     // Turn off for screenshots.
     if ( scr_draw2d->integer <= 0 ) {
@@ -1895,12 +2056,8 @@ static void SCR_Draw2D( void ) {
     scr.hud_height = Q_rint( scr.hud_height * scr.hud_scale );
     scr.hud_width = Q_rint( scr.hud_width * scr.hud_scale );
 
-    // WID: TODO: Very ugly hack for now. This needs to be a callback to the weapon code itself.
-    // P_Weapon_DrawCrosshair?
-    //if ( clgi.Key_IsDown( K_MOUSE2 ) < 1 ) {
-        // Crosshair has its own color and alpha.
-        SCR_DrawCrosshair();
-    //}
+    // Crosshair has its own color and alpha.
+    SCR_DrawCrosshair();
 
     // The rest of 2D elements share common alpha.
     clgi.R_ClearColor();
@@ -1914,7 +2071,7 @@ static void SCR_Draw2D( void ) {
 
     SCR_DrawCenterString();
 
-    //SCR_DrawNet();
+    SCR_DrawNet();
 
     SCR_DrawObjects();
 

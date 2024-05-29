@@ -197,38 +197,40 @@ typedef struct {
     uint8_t         damage : 5;
     bool            health : 1;
     bool            armor : 1;
-} cl_svc_damage_t;
+} clg_svc_damage_t;
 /**
 *   @brief 
 **/
-static void CL_ParseDamage( void ) {
+static void CLG_ParseDamage( void ) {
+    // First get count.
     uint8_t count = clgi.MSG_ReadUint8();
-
+    // Process each indicator.
     for ( uint8_t i = 0; i < count; i++ ) {
         union {
             uint8_t         encoded;
-            cl_svc_damage_t decoded;
+            clg_svc_damage_t decoded;
         } data = { static_cast<uint8_t>( clgi.MSG_ReadUint8() ) };
 
-        // direction that comes in is absolute in world coordinates
-        vec3_t dir;
+        // Direction that comes in is absolute in world coordinates
+        vec3_t dir = {};
         clgi.MSG_ReadDir8( dir );
 
-        vec3_t color = { 0.f, 0.f, 0.f };
-
+        // Blend color.
+        vec3_t colorBlend = { 0.f, 0.f, 0.f };
         if ( data.decoded.health ) {
-            color[ 0 ] += 1.0f;
+            colorBlend[ 0 ] += 1.0f;
         } else if ( data.decoded.armor ) {
-            color[ 0 ] += 1.0f;
-            color[ 1 ] += 1.0f;
-            color[ 2 ] += 1.0f;
+            colorBlend[ 0 ] += 1.0f;
+            colorBlend[ 1 ] += 1.0f;
+            colorBlend[ 2 ] += 1.0f;
         }
 
-        VectorNormalize( color );
+        VectorNormalize( colorBlend );
 
         clgi.Print( PRINT_DEVELOPER, "%s: svc_damage received(damage=%i, color=[%f,%f,%f], dir=[%f,%f,%f])\n",
-            __func__, data.decoded.damage, color[ 0 ], color[ 1 ], color[ 2 ], dir[ 0 ], dir[ 1 ], dir[ 2 ] );
-        //SCR_AddToDamageDisplay( data.decoded.damage, color, dir );
+            __func__, data.decoded.damage, colorBlend[ 0 ], colorBlend[ 1 ], colorBlend[ 2 ], dir[ 0 ], dir[ 1 ], dir[ 2 ] );
+
+        SCR_AddToDamageDisplay( data.decoded.damage, colorBlend, dir );
     }
 }
 
@@ -424,7 +426,7 @@ const qboolean PF_ParseServerMessage( const int32_t serverMessage ) {
 		return true;
     break;
     case svc_damage:
-        CL_ParseDamage();
+        CLG_ParseDamage();
         return true;
     break;
 	case svc_inventory:
@@ -473,7 +475,7 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
 		return true;
     break;
     case svc_damage:
-        CL_ParseDamage();
+        CLG_ParseDamage();
         return true;
     break;
     case svc_inventory:

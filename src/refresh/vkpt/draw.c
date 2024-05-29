@@ -43,8 +43,9 @@ static drawStatic_t draw = {
 
 static int num_stretch_pics = 0;
 typedef struct {
-	float x, y, w,   h;
+	float x, y, w, h;
 	float s, t, w_s, h_t;
+	float angle, pivot_x, pivot_y;
 	uint32_t color, tex_handle;
 } StretchPic_t;
 
@@ -157,6 +158,10 @@ static inline void enqueue_stretch_pic(
 	sp->w = w;
 	sp->h = h;
 
+	sp->angle = 0;
+	sp->pivot_x = 0;
+	sp->pivot_y = 0;
+
 	sp->s   = s1;
 	sp->t   = t1;
 	sp->w_s = s2 - s1;
@@ -174,6 +179,103 @@ static inline void enqueue_stretch_pic(
 	sp->tex_handle = tex_handle;
 	if(tex_handle >= 0 && tex_handle < MAX_RIMAGES
 	&& !r_images[tex_handle].registration_sequence) {
+		sp->tex_handle = TEXNUM_WHITE;
+	}
+}
+
+/**
+*	@brief	WID: Supports rotating around a specified pivot point.
+**/
+static inline void enqueue_stretch_rotate_pic(
+	float x, float y, float w, float h,
+	float s1, float t1, float s2, float t2,
+	float angle, float pivot_x, float pivot_y,
+	uint32_t color, const int32_t tex_handle, const int32_t flags ) {
+
+	if ( draw.alpha_scale == 0.f )
+		return;
+
+	if ( num_stretch_pics == MAX_STRETCH_PICS ) {
+		Com_EPrintf( "Error: stretch pic queue full!\n" );
+		assert( 0 );
+		return;
+	}
+	assert( tex_handle );
+	StretchPic_t *sp = stretch_pic_queue + num_stretch_pics++;
+
+	if ( clip_enable ) {
+		if ( x >= clip_rect.right || x + w <= clip_rect.left || y >= clip_rect.bottom || y + h <= clip_rect.top )
+			return;
+
+		if ( x < clip_rect.left ) {
+			float dw = clip_rect.left - x;
+			s1 += dw / w * ( s2 - s1 );
+			w -= dw;
+			x = clip_rect.left;
+
+			if ( w <= 0 ) return;
+		}
+
+		if ( x + w > clip_rect.right ) {
+			float dw = ( x + w ) - clip_rect.right;
+			s2 -= dw / w * ( s2 - s1 );
+			w -= dw;
+
+			if ( w <= 0 ) return;
+		}
+
+		if ( y < clip_rect.top ) {
+			float dh = clip_rect.top - y;
+			t1 += dh / h * ( t2 - t1 );
+			h -= dh;
+			y = clip_rect.top;
+
+			if ( h <= 0 ) return;
+		}
+
+		if ( y + h > clip_rect.bottom ) {
+			float dh = ( y + h ) - clip_rect.bottom;
+			t2 -= dh / h * ( t2 - t1 );
+			h -= dh;
+
+			if ( h <= 0 ) return;
+		}
+	}
+
+	float width = r_config.width * draw.scale;
+	float height = r_config.height * draw.scale;
+
+	x = 2.0f * x / width - 1.0f;
+	y = 2.0f * y / height - 1.0f;
+
+	w = 2.0f * w / width;
+	h = 2.0f * h / height;
+
+	sp->x = x;
+	sp->y = y;
+	sp->w = w;
+	sp->h = h;
+
+	sp->angle = angle;
+	sp->pivot_x = 0;
+	sp->pivot_y = 0;
+
+	sp->s = s1;
+	sp->t = t1;
+	sp->w_s = s2 - s1;
+	sp->h_t = t2 - t1;
+
+	if ( draw.alpha_scale < 1.f ) {
+		float alpha = ( color >> 24 ) & 0xff;
+		alpha *= draw.alpha_scale;
+		alpha = max( 0.f, min( 255.f, alpha ) );
+		color = ( color & 0xffffff ) | ( (int)( alpha ) << 24 );
+	}
+
+	sp->color = color;
+	sp->tex_handle = tex_handle;
+	if ( tex_handle >= 0 && tex_handle < MAX_RIMAGES
+		&& !r_images[ tex_handle ].registration_sequence ) {
 		sp->tex_handle = TEXNUM_WHITE;
 	}
 }
@@ -801,12 +903,19 @@ R_SetScale_RTX(float scale)
 }
 
 void
-R_DrawStretchPic_RTX(int x, int y, int w, int h, qhandle_t pic)
-{
+R_DrawStretchPic_RTX(int x, int y, int w, int h, qhandle_t pic ) {
 	enqueue_stretch_pic(
 		x,    y,    w,    h,
 		0.0f, 0.0f, 1.0f, 1.0f,
 		draw.colors[0].u32, pic);
+}
+void
+R_DrawRotateStretchPic_RTX( int x, int y, int w, int h, float angle, int pivot_x, int pivot_y, qhandle_t pic ) {
+	enqueue_stretch_rotate_pic(
+		x, y, w, h,
+		0.0f, 0.0f, 1.0f, 1.0f,
+		angle, pivot_x, pivot_y,
+		draw.colors[ 0 ].u32, pic, 0 );
 }
 
 void

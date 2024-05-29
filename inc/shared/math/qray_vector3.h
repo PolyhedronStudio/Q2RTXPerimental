@@ -719,7 +719,7 @@ void QM_Vector3ToAngles( vec3_t value1, vec3_t angles ) {
 // NEW 'vectoangles', taken from https://www.reddit.com/r/HalfLife/comments/6jjhbd/xash_guy_on_stupid_quake_bug/
 
 /**
-*   @brief 
+*   @brief Converts a normalized direction vector(treated as forward) into Euler angles.
 *   @param forward  Forward normalized direction vector.
 *   @param angles   The output vector3 euler angles.
 **/
@@ -769,6 +769,13 @@ RMAPI void QM_Vector3ToAngles( const Vector3 forward, vec3_t angles ) {
     angles[ 1 ] = yaw;
     angles[ 2 ] = 0;
 }
+#ifdef __cplusplus
+RMAPI const Vector3 QM_Vector3ToAngles( const Vector3 &forward ) {
+    Vector3 angles = {};
+    QM_Vector3ToAngles( forward, &angles.x );
+    return angles;
+}
+#endif
 #endif
 
 // Vector with z component value 1.0f, pointing upwards in Quake Space.

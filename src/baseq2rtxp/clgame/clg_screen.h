@@ -23,6 +23,10 @@ void SCR_ClearChatHUD_f( void );
 **/
 void SCR_AddToChatHUD( const char *text );
 /**
+*   @brief  Adds a damage indicator for the given damage using the given color pointing at given direction.
+**/
+void SCR_AddToDamageDisplay( const int32_t damage, const Vector3 &color, const Vector3 &dir );
+/**
 *	@brief
 **/
 void PF_SCR_Init( void );

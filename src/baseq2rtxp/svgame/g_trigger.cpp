@@ -280,27 +280,15 @@ void trigger_key_use( edict_t *self, edict_t *other, edict_t *activator ) {
 		int     player;
 		edict_t *ent;
 
-		if ( strcmp( self->item->classname, "key_power_cube" ) == 0 ) {
-			for ( player = 1; player <= game.maxclients; player++ ) {
-				ent = &g_edicts[ player ];
-				if ( !ent->inuse ) {
-					continue;
-				}
-				if ( !ent->client ) {
-					continue;
-				}
+		for ( player = 1; player <= game.maxclients; player++ ) {
+			ent = &g_edicts[ player ];
+			if ( !ent->inuse ) {
+				continue;
 			}
-		} else {
-			for ( player = 1; player <= game.maxclients; player++ ) {
-				ent = &g_edicts[ player ];
-				if ( !ent->inuse ) {
-					continue;
-				}
-				if ( !ent->client ) {
-					continue;
-				}
-				ent->client->pers.inventory[ index ] = 0;
+			if ( !ent->client ) {
+				continue;
 			}
+			ent->client->pers.inventory[ index ] = 0;
 		}
 	} else {
 		activator->client->pers.inventory[ index ]--;
@@ -406,7 +394,7 @@ This trigger will always fire.  It is activated by the world.
 void SP_trigger_always( edict_t *ent ) {
 	// we must have some delay to make sure our use targets are present
 	if ( !ent->delay ) {
-		ent->delay = 0.2f;
+		ent->delay = 1.f;
 	}
 	G_UseTargets( ent, ent );
 }

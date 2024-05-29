@@ -59,7 +59,16 @@ static const ref_type_t PF_GetRefreshType() {
 	return cls.ref_type;
 }
 
-
+// Netchan outgoing sequence, incoming acknowledged sequence.
+static const int64_t PF_Netchan_GetOutgoingSequence( void ) {
+	return cls.netchan.outgoing_sequence;
+}
+static const int64_t PF_Netchan_GetIncomingAcknowledged( void ) {
+	return cls.netchan.incoming_acknowledged;
+}
+static const int64_t PF_Netchan_GetDropped( void ) {
+	return cls.netchan.dropped;
+}
 
 /**
 *
@@ -361,6 +370,9 @@ void PF_R_DrawPic( const int32_t x, const int32_t y, const qhandle_t pic ) {
 }
 void PF_R_DrawStretchPic( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic ) {
 	R_DrawStretchPic( x, y, w, h, pic );
+}
+void PF_R_DrawRotateStretchPic( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const float angle, const int32_t pivot_x, const int32_t pivot_y, const qhandle_t pic ) {
+	R_DrawRotateStretchPic( x, y, w, h, angle, pivot_x, pivot_y, pic );
 }
 void PF_R_DrawKeepAspectPic( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic ) {
 	R_DrawKeepAspectPic( x, y, w, h, pic );
@@ -683,6 +695,10 @@ void CL_GM_LoadProgs( void ) {
 	imports.GetClientFps = CL_GetClientFps;
 	imports.GetRefreshFps = CL_GetRefreshFps;
 	imports.GetResolutionScale = CL_GetResolutionScale;
+	//
+	imports.Netchan_GetOutgoingSequence = PF_Netchan_GetOutgoingSequence;
+	imports.Netchan_GetIncomingAcknowledged = PF_Netchan_GetIncomingAcknowledged;
+	imports.Netchan_GetDropped = PF_Netchan_GetDropped;
 	// End of Client Static.
 
 	imports.Trace = CL_Trace;
@@ -806,6 +822,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.R_GetPicSize = PF_R_GetPicSize;
 	imports.R_DrawPic = PF_R_DrawPic;
 	imports.R_DrawStretchPic = PF_R_DrawStretchPic;
+	imports.R_DrawRotateStretchPic = PF_R_DrawRotateStretchPic;
 	imports.R_DrawKeepAspectPic = PF_R_DrawKeepAspectPic;
 	imports.R_DrawStretchRaw = PF_R_DrawStretchRaw;
 	imports.R_TileClear = PF_R_TileClear;
