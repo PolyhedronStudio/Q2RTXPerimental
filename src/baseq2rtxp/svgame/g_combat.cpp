@@ -378,10 +378,41 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
     // the total will be turned into screen blends and view angle kicks
     // at the end of the frame
     if (client) {
-        client->damage_armor += asave;
-        client->damage_blood += take;
-        client->damage_knockback += knockback;
-        VectorCopy(point, client->damage_from);
+        client->frameDamage.armor += asave;
+        client->frameDamage.blood += take;
+        client->frameDamage.knockBack += knockback;
+        VectorCopy(point, client->frameDamage.from);
+                //client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
+
+        if ( !( dflags & DAMAGE_NO_INDICATOR ) 
+            && inflictor != world && attacker != world 
+            && ( take || asave ) ) 
+        {
+            damage_indicator_t *indicator = nullptr;
+            size_t i;
+
+            for ( i = 0; i < client->frameDamage.num_damage_indicators; i++ ) {
+                const float length = QM_Vector3Length( point - client->frameDamage.damage_indicators[ i ].from );
+                if ( length < 32.f ) {
+                    indicator = &client->frameDamage.damage_indicators[ i ];
+                    break;
+                }
+            }
+
+            if ( !indicator && i != MAX_DAMAGE_INDICATORS ) {
+                indicator = &client->frameDamage.damage_indicators[ i ];
+                // for projectile direct hits, use the attacker; otherwise
+                // use the inflictor (rocket splash should point to the rocket)
+                indicator->from = ( dflags & DAMAGE_RADIUS ) ? inflictor->s.origin : attacker->s.origin;
+                indicator->health = indicator->armor = 0;
+                client->frameDamage.num_damage_indicators++;
+            }
+
+            if ( indicator ) {
+                indicator->health += take;
+                indicator->armor += asave;
+            }
+        }
     }
 }
 

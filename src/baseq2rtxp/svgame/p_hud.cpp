@@ -114,7 +114,7 @@ void BeginIntermission(edict_t *targ)
                 //    if (itemlist[n].flags & ITEM_FLAG_KEY)
                 //        client->client->pers.inventory[n] = 0;
                 //}
-                client->client->pers.power_cubes = 0;
+                //client->client->pers.power_cubes = 0;
             }
         }
     } else {

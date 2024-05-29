@@ -83,6 +83,21 @@ static inline constexpr sg_time_t FALL_TIME( ) {
 //! Time between ladder sounds.
 static constexpr sg_time_t LADDER_SOUND_TIME = 375_ms;
 
+// max number of individual damage indicators we'll track
+static constexpr size_t MAX_DAMAGE_INDICATORS = 4;
+
+/**
+*   @brief  Stores data indicating where damage came from, and how much it damage it did.
+**/
+struct damage_indicator_t {
+    //! Direction indicated hit came from.
+    Vector3 from;
+    //! Health taken.
+    int32_t health;
+    //! Armor taken.
+    int32_t armor;
+};
+
 //==================================================================
 // 
 //==================================================================
@@ -810,13 +825,14 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod);
 
 // damage flags
-#define DAMAGE_NONE             0x00000000
-#define DAMAGE_RADIUS           0x00000001  // damage was indirect
-#define DAMAGE_NO_ARMOR         0x00000002  // armour does not protect from this damage
-#define DAMAGE_ENERGY           0x00000004  // damage is from an energy based weapon
-#define DAMAGE_NO_KNOCKBACK     0x00000008  // do not affect velocity, just view angles
-#define DAMAGE_BULLET           0x00000010  // damage is from a bullet (used for ricochets)
-#define DAMAGE_NO_PROTECTION    0x00000020  // armor, shields, invulnerability, and godmode have no effect
+#define DAMAGE_NONE             BIT( 0 )
+#define DAMAGE_RADIUS           BIT( 1 )  // Damage was indirect.
+#define DAMAGE_NO_ARMOR         BIT( 2 )  // Armour does not protect from this damage.
+#define DAMAGE_ENERGY           BIT( 3 )  // Damage is from an energy based weapon.
+#define DAMAGE_NO_KNOCKBACK     BIT( 4 )  // Do not affect velocity, just view angles.
+#define DAMAGE_BULLET           BIT( 5 )  // Damage is from a bullet (used for ricochets).
+#define DAMAGE_NO_PROTECTION    BIT( 6 )  // Armor, shields, invulnerability, and godmode have no effect.
+#define DAMAGE_NO_INDICATOR     BIT( 7 )  // For clients: No damage indicators.
 
 #define DEFAULT_BULLET_HSPREAD  300
 #define DEFAULT_BULLET_VSPREAD  500
@@ -1094,18 +1110,11 @@ typedef struct {
         //! Shotgun Shells.
         int32_t shotgun;
     } ammoCapacities;
-    //int32_t     max_bullets;
-    //int32_t     max_shells;
-    //int32_t     max_rockets;
-    //int32_t     max_grenades;
-    //int32_t     max_cells;
-    //int32_t     max_slugs;
 
-    //! Used for tracking the cubes in coop games.
-    int32_t     power_cubes;
     //! For calculating total unit score in coop games.
     int32_t     score;
 
+    //! Did help display change?
     int32_t     game_helpchanged;
     int32_t     helpchanged;
 
@@ -1184,13 +1193,19 @@ struct gclient_s {
 	**/
     // sum up damage over an entire frame, so shotgun and/or other blasts 
     // give a single big kick.
-    int32_t         damage_armor;       //! Damage absorbed by armor.
-    int32_t         damage_parmor;      //! Damage absorbed by power armor.
-    int32_t         damage_blood;       //! Damage taken out of health.
-    int32_t         damage_knockback;   //! Impact damage.
-    vec3_t          damage_from;        //! Origin for vector calculation.
+    struct {
+        int32_t     armor;       //! Damage absorbed by armor.
+        int32_t     blood;       //! Damage taken out of health.
+        int32_t     knockBack;   //! Damage taken out of health
+        Vector3     from;        //! Origin for vector calculation.
+        //! Damage indicators.
+        damage_indicator_t		  damage_indicators[ MAX_DAMAGE_INDICATORS ];
+        //! Number of current frame damage indicators.
+        uint8_t                   num_damage_indicators;
+    } frameDamage;
 
-    float       killer_yaw;         //! When dead, look at killer.
+    //! Yaw direction towards the killer entity.
+    float   killer_yaw;         //! When dead, look at killer.
 
     /**
     *   Weapon State:
@@ -1291,6 +1306,7 @@ struct gclient_s {
     vec3_t      oldvelocity;
     edict_t     *oldgroundentity; // [Paril-KEX]
     liquid_level_t	old_waterlevel;
+    sg_time_t       flash_time; // [Paril-KEX] for high tickrate
 
 	/**
 	*   Misc:

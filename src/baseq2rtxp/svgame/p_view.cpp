@@ -83,28 +83,37 @@ Handles color blends and view kicks
 ===============
 */
 void P_DamageFeedback( edict_t *player ) {
-	gclient_t *client;
 	float   side;
-	float   realcount, count, kick;
-	vec3_t  v;
-	int     r, l;
-	static  vec3_t  power_color = { 0, 1, 0 };
-	static  vec3_t  acolor = { 1, 1, 1 };
-	static  vec3_t  bcolor = { 1, 0, 0 };
+	int32_t   r, l;
+	constexpr Vector3 armor_color = { 1.0, 1.0, 1.0 };
+	constexpr Vector3 power_color = { 0.0, 1.0, 0.0 };
+	constexpr Vector3 blood_color = { 1.0, 0.0, 0.0 };
 
-	client = player->client;
+	gclient_t *client = player->client;
 
 	// flash the backgrounds behind the status numbers
-	client->ps.stats[ STAT_FLASHES ] = 0;
-	if ( client->damage_blood )
-		client->ps.stats[ STAT_FLASHES ] |= 1;
-	if ( client->damage_armor && !( player->flags & FL_GODMODE ) )
-		client->ps.stats[ STAT_FLASHES ] |= 2;
+	int16_t want_flashes = 0;
 
-	// total points of damage shot at the player this frame
-	count = ( client->damage_blood + client->damage_armor + client->damage_parmor );
-	if ( count == 0 )
-		return;     // didn't take any damage
+	if ( client->frameDamage.blood ) {
+		want_flashes |= 1;
+	}
+	if ( client->frameDamage.armor && !( player->flags & FL_GODMODE ) ) {
+		want_flashes |= 2;
+	}
+
+	if ( want_flashes ) {
+		client->flash_time = level.time + 100_ms;
+		client->ps.stats[ STAT_FLASHES ] = want_flashes;
+	} else if ( client->flash_time < level.time ){
+		client->ps.stats[ STAT_FLASHES ] = 0;
+	}
+
+	// Total points of damage shot at the player this frame.
+	float count = (float)( client->frameDamage.blood + client->frameDamage.armor );
+	if ( count == 0 ) {
+		// Didn't take any damage.
+		return;
+	}
 
 	// start a pain animation if still in the player model
 	if ( client->anim_priority < ANIM_PAIN && player->s.modelindex == MODELINDEX_PLAYER ) {
@@ -135,9 +144,21 @@ void P_DamageFeedback( edict_t *player ) {
 		client->anim_time = 0_ms; // WID: 40hz:
 	}
 
-	realcount = count;
-	if ( count < 10 )
-		count = 10; // always make a visible effect
+	const float realcount = count;
+	//if ( count < 10 )
+	//	count = 10; // always make a visible effect
+	// if we took health damage, do a minimum clamp
+	if ( client->frameDamage.blood ) {
+		// Always make a visible effect.
+		if ( count < 10 ) {
+			count = 10;
+		}
+	} else {
+		// Don't go too deep.
+		if ( count > 2 ) {
+			count = 2;
+		}
+	}
 
 	// play an apropriate pain sound
 	if ( ( level.time > player->pain_debounce_time ) && !( player->flags & FL_GODMODE ) ) {
@@ -156,60 +177,106 @@ void P_DamageFeedback( edict_t *player ) {
 		}
 		//gi.sound( player, CHAN_VOICE, gi.soundindex( va( "*pain%i_%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
 		gi.sound( player, CHAN_VOICE, gi.soundindex( va( "player/pain%i_0%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
+		// Paril: pain noises alert monsters
+		P_PlayerNoise( player, player->s.origin, PNOISE_SELF );
 	}
 
 	// the total alpha of the blend is always proportional to count
-	if ( client->damage_alpha < 0 )
+	if ( client->damage_alpha < 0 ) {
 		client->damage_alpha = 0;
-	client->damage_alpha += count * 0.01f;
-	if ( client->damage_alpha < 0.2f )
-		client->damage_alpha = 0.2f;
-	if ( client->damage_alpha > 0.6f )
-		client->damage_alpha = 0.6f;    // don't go too saturated
+	}
+	//client->damage_alpha += count * 0.01f;
+	//if ( client->damage_alpha < 0.2f )
+	//	client->damage_alpha = 0.2f;
+	//if ( client->damage_alpha > 0.6f )
+	//	client->damage_alpha = 0.6f;    // don't go too saturated
+	// [Paril-KEX] tweak the values to rely less on this
+	// and more on damage indicators
+	if ( client->frameDamage.blood || ( client->damage_alpha + count * 0.06f ) < 0.15f ) {
+		client->damage_alpha += count * 0.06f;
 
+		if ( client->damage_alpha < 0.06f )
+			client->damage_alpha = 0.06f;
+		if ( client->damage_alpha > 0.4f )
+			client->damage_alpha = 0.4f; // don't go too saturated
+	}
 	// the color of the blend will vary based on how much was absorbed
 	// by different armors
-	VectorClear( v );
-	if ( client->damage_parmor )
-		VectorMA( v, (float)client->damage_parmor / realcount, power_color, v );
-	if ( client->damage_armor )
-		VectorMA( v, (float)client->damage_armor / realcount, acolor, v );
-	if ( client->damage_blood )
-		VectorMA( v, (float)client->damage_blood / realcount, bcolor, v );
-	VectorCopy( v, client->damage_blend );
+	Vector3 blendColor = {};
+	if ( client->frameDamage.armor ) {
+		blendColor += power_color * ( client->frameDamage.armor / realcount );
+	}
+	if ( client->frameDamage.blood ) {
+		blendColor += blood_color * ( client->frameDamage.blood / realcount );
+	}
+	Vector3 normalizedBlendColor = QM_Vector3Normalize( blendColor );
+	VectorCopy( normalizedBlendColor, client->damage_blend );
 
 
 	//
 	// calculate view angle kicks
 	//
-	kick = abs( client->damage_knockback );
+	float kick = (float)abs( client->frameDamage.knockBack );
 	if ( kick && player->health > 0 ) { // kick of 0 means no view adjust at all
 		kick = kick * 100 / player->health;
 
-		if ( kick < count * 0.5f )
+		if ( kick < count * 0.5f ) {
 			kick = count * 0.5f;
-		if ( kick > 50 )
+		}
+		if ( kick > 50 ) {
 			kick = 50;
+		}
 
-		VectorSubtract( client->damage_from, player->s.origin, v );
-		VectorNormalize( v );
+		VectorSubtract( client->frameDamage.from, player->s.origin, blendColor );
+		blendColor = QM_Vector3Normalize( blendColor );
 
-		side = DotProduct( v, right );
+		side = QM_Vector3DotProduct( blendColor, right );
 		client->viewMove.damageRoll = kick * side * 0.3f;
 
-		side = -DotProduct( v, forward );
+		side = -QM_Vector3DotProduct( blendColor, forward );
 		client->viewMove.damagePitch = kick * side * 0.3f;
 
 		client->viewMove.damageTime = level.time + DAMAGE_TIME( );
 	}
 
+	//// [Paril-KEX] send view indicators
+	if ( client->frameDamage.num_damage_indicators ) {
+		gi.WriteUint8( svc_damage );
+		gi.WriteUint8( client->frameDamage.num_damage_indicators );
+
+		for ( uint8_t i = 0; i < client->frameDamage.num_damage_indicators; i++ ) {
+			auto &indicator = client->frameDamage.damage_indicators[ i ];
+
+			// WID: TODO: This... resolve this shit!
+			#undef clamp
+			// encode total damage into 5 bits
+			uint8_t encoded = std::clamp( ( indicator.health + indicator.armor ) / 2, 1, 0x1F );
+
+			// Encode types in the latter 3 bits.
+			if ( indicator.health )
+				encoded |= BIT( 5 );
+			if ( indicator.armor )
+				encoded |= BIT( 6 );
+	//		if ( indicator.power )
+	//			encoded |= 0x80;
+
+			gi.WriteUint8( encoded );
+			Vector3 damageDir = player->s.origin;
+			damageDir -= indicator.from;
+			const Vector3 normalizedDir = QM_Vector3Normalize( damageDir );
+			gi.WriteDir8( &normalizedDir.x );
+		}
+
+		// Cast damage indicator to player entity.
+		gi.unicast( player, false );
+	}
+
 	//
 	// clear totals
 	//
-	client->damage_blood = 0;
-	client->damage_armor = 0;
-	client->damage_parmor = 0;
-	client->damage_knockback = 0;
+	client->frameDamage.blood = 0;
+	client->frameDamage.armor = 0;
+	client->frameDamage.knockBack = 0;
 }
 
 
@@ -330,7 +397,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 	}
 	// [Paril-KEX] Clamp view offset angles within a pleasant realistic range.
 	for ( int32_t i = 0; i < 3; i++ ) {
-		viewAnglesOffset[ i ] = clamp( viewAnglesOffset[ i ], -31.f, 31.f );
+		viewAnglesOffset[ i ] = std::clamp( viewAnglesOffset[ i ], -31.f, 31.f );
 	}
 
 	/**
@@ -370,9 +437,9 @@ void SV_CalcViewOffset( edict_t *ent ) {
 	viewOriginOffset += ent->client->weaponKicks.offsetOrigin;
 
 	// Clamp the viewOffset values to remain within the player bounding box.
-	viewOriginOffset[ 0 ] = clamp( viewOriginOffset[ 0 ], -14, 14 );
-	viewOriginOffset[ 1 ] = clamp( viewOriginOffset[ 1 ], -14, 14 );
-	viewOriginOffset[ 2 ] = clamp( viewOriginOffset[ 2 ], -22, 30 );
+	viewOriginOffset[ 0 ] = std::clamp( viewOriginOffset[ 0 ], -14.f, 14.f );
+	viewOriginOffset[ 1 ] = std::clamp( viewOriginOffset[ 1 ], -14.f, 14.f );
+	viewOriginOffset[ 2 ] = std::clamp( viewOriginOffset[ 2 ], -22.f, 30.f );
 
 	// Store the viewOriginOffset and viewAnglesOffset(as KickAngles in the client's playerState.
 	VectorCopy( viewOriginOffset, ent->client->ps.viewoffset );
@@ -525,7 +592,7 @@ void SV_CalcBlend( edict_t *ent ) {
 P_WorldEffects
 =============
 */
-void P_WorldEffects( void ) {
+static void P_WorldEffects( void ) {
 	liquid_level_t liquidlevel, old_waterlevel;
 
 	if ( current_player->movetype == MOVETYPE_NOCLIP ) {

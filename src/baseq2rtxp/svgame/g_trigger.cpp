@@ -281,13 +281,6 @@ void trigger_key_use( edict_t *self, edict_t *other, edict_t *activator ) {
 		edict_t *ent;
 
 		if ( strcmp( self->item->classname, "key_power_cube" ) == 0 ) {
-			int cube;
-
-			for ( cube = 0; cube < 8; cube++ ) {
-				if ( activator->client->pers.power_cubes & ( 1 << cube ) ) {
-					break;
-				}
-			}
 			for ( player = 1; player <= game.maxclients; player++ ) {
 				ent = &g_edicts[ player ];
 				if ( !ent->inuse ) {
@@ -295,10 +288,6 @@ void trigger_key_use( edict_t *self, edict_t *other, edict_t *activator ) {
 				}
 				if ( !ent->client ) {
 					continue;
-				}
-				if ( ent->client->pers.power_cubes & ( 1 << cube ) ) {
-					ent->client->pers.inventory[ index ]--;
-					ent->client->pers.power_cubes &= ~( 1 << cube );
 				}
 			}
 		} else {

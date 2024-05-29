@@ -11,6 +11,15 @@
 #include "clg_screen.h"
 #include "clg_temp_entities.h"
 
+
+
+/***
+*
+*
+*   Layout:
+*
+*
+***/
 /**
 *	@brief	Parses the layout string for server cmd: svc_inventory.
 **/
@@ -19,6 +28,15 @@ static void CLG_ParseLayout( void ) {
 	clgi.ShowNet( 2, "    \"%s\"\n", clgi.client->layout );
 }
 
+
+
+/***
+*
+*
+*   Inventory:
+*
+*
+***/
 /**
 *	@brief	Parses the player inventory for server cmd: svc_inventory.
 **/
@@ -163,6 +181,66 @@ static void CLG_ParseTEntPacket( void ) {
     }
 }
 
+
+
+/***
+*
+*
+*   Damage Indicator:
+*
+*
+***/
+/**
+*   @brief  
+**/
+typedef struct {
+    uint8_t         damage : 5;
+    bool            health : 1;
+    bool            armor : 1;
+} cl_svc_damage_t;
+/**
+*   @brief 
+**/
+static void CL_ParseDamage( void ) {
+    uint8_t count = clgi.MSG_ReadUint8();
+
+    for ( uint8_t i = 0; i < count; i++ ) {
+        union {
+            uint8_t         encoded;
+            cl_svc_damage_t decoded;
+        } data = { static_cast<uint8_t>( clgi.MSG_ReadUint8() ) };
+
+        // direction that comes in is absolute in world coordinates
+        vec3_t dir;
+        clgi.MSG_ReadDir8( dir );
+
+        vec3_t color = { 0.f, 0.f, 0.f };
+
+        if ( data.decoded.health ) {
+            color[ 0 ] += 1.0f;
+        } else if ( data.decoded.armor ) {
+            color[ 0 ] += 1.0f;
+            color[ 1 ] += 1.0f;
+            color[ 2 ] += 1.0f;
+        }
+
+        VectorNormalize( color );
+
+        clgi.Print( PRINT_DEVELOPER, "%s: svc_damage received(damage=%i, color=[%f,%f,%f], dir=[%f,%f,%f])\n",
+            __func__, data.decoded.damage, color[ 0 ], color[ 1 ], color[ 2 ], dir[ 0 ], dir[ 1 ], dir[ 2 ] );
+        //SCR_AddToDamageDisplay( data.decoded.damage, color, dir );
+    }
+}
+
+
+
+/***
+*
+*
+*   MuzzleFlash:
+*
+*
+***/
 /**
 *   @brief  Parse the svc_muzzleflash packet(s).
 **/
@@ -178,6 +256,15 @@ void CLG_ParseMuzzleFlashPacket( const int32_t mask ) {
     level.parsedMessage.events.muzzleFlash.entity = entity;
 }
 
+
+
+/***
+*
+*
+*   Printing:
+*
+*
+***/
 /**
 *   @brief  Parse the svc_print packet and print whichever it has to screen.
 **/
@@ -256,6 +343,15 @@ static void CLG_ParseCenterPrint( void ) {
     }
 }
 
+
+
+/***
+*
+*
+*   Parsing of Messages:
+*
+*
+***/
 /**
 *	@brief	Called by the client when it receives a configstring update, this
 *			allows us to interscept it and respond to it. If not interscepted the
@@ -322,11 +418,15 @@ const qboolean PF_ParseServerMessage( const int32_t serverMessage ) {
     case svc_print:
         CLG_ParsePrint();
         return true;
-        break;
+    break;
 	case svc_centerprint:
         CLG_ParseCenterPrint();
 		return true;
-		break;
+    break;
+    case svc_damage:
+        CL_ParseDamage();
+        return true;
+    break;
 	case svc_inventory:
 		CLG_ParseInventory();
 		return true;
@@ -364,6 +464,18 @@ const qboolean PF_ParseServerMessage( const int32_t serverMessage ) {
 **/
 const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
     switch ( serverMessage ) {
+    case svc_print:
+        CLG_ParsePrint();
+        return true;
+    break;
+	case svc_centerprint:
+        CLG_ParseCenterPrint();
+		return true;
+    break;
+    case svc_damage:
+        CL_ParseDamage();
+        return true;
+    break;
     case svc_inventory:
         CLG_ParseInventory();
         return true;
@@ -416,8 +528,6 @@ void PF_ParseEntityEvent( const int32_t entityNumber ) {
             break;
         case EV_FOOTSTEP:
             CLG_FootstepEvent( entityNumber );
-            //if ( cl_footsteps->integer )
-            //    clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, precache.sfx.footsteps[ Q_rand() & 8 ], 1, ATTN_NORM, 0 );
             break;
         case EV_FOOTSTEP_LADDER:
             CLG_FootstepLadderEvent( entityNumber );

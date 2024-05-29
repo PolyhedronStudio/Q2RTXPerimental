@@ -141,7 +141,8 @@ typedef struct Vector2 {
         this->x = 0;
         this->y = 0;
     }
-    [[nodiscard]] inline Vector2( const float x, const float y ) {
+
+    constexpr [[nodiscard]] inline Vector2( const float x, const float y ) {
         this->x = x;
         this->y = y;
     }
@@ -187,7 +188,7 @@ typedef struct Vector3 {
         this->y = 0;
         this->z = 0;
     }
-    [[nodiscard]] inline Vector3( const float x, const float y, const float z ) {
+    [[nodiscard]] constexpr inline Vector3( const float x, const float y, const float z ) {
         this->x = x;
         this->y = y;
         this->z = z;
@@ -251,7 +252,7 @@ typedef struct Vector4 {
         this->z = 0;
         this->w = 0;
     }
-    [[nodiscard]] inline Vector4( const float x, const float y, const float z, const float w ) {
+    [[nodiscard]] inline constexpr Vector4( const float x, const float y, const float z, const float w ) {
         this->x = x;
         this->y = y;
         this->z = z;

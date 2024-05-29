@@ -14,3 +14,5 @@
 //#define svc_layout          4
 //#define svc_inventory       5
 //#define svc_stufftext       11
+//! Damage indicator command.
+static constexpr int32_t svc_damage = svc_svgame;

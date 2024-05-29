@@ -388,7 +388,6 @@ static const save_field_t clientfields[] = {
 	I( pers.ammoCapacities.sniper ),
 	I( pers.ammoCapacities.shotgun ),
 
-	I( pers.power_cubes ),
 	I( pers.score ),
 
 	I( pers.game_helpchanged ),
@@ -415,11 +414,10 @@ static const save_field_t clientfields[] = {
     I64( grenade_time ),
     I64( grenade_finished_time ),
 
-	I( damage_armor ),
-	I( damage_parmor ),
-	I( damage_blood ),
-	I( damage_knockback ),
-	V( damage_from ),
+	I( frameDamage.armor ),
+	I( frameDamage.blood ),
+	I( frameDamage.knockBack ),
+	V( frameDamage.from ),
 
 	F( killer_yaw ),
 
