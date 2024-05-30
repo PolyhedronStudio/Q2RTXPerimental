@@ -30,7 +30,7 @@ typedef struct {
 } scr_damage_entry_t;
 
 static constexpr int32_t MAX_DAMAGE_ENTRIES = 32;
-static constexpr int32_t DAMAGE_ENTRY_BASE_SIZE = 3;
+static constexpr int32_t DAMAGE_ENTRY_BASE_SIZE = 32;
 
 static constexpr int32_t STAT_PICS = 11;
 static constexpr int32_t STAT_MINUS = ( STAT_PICS - 1 );  // num frame for '-' stats digit
@@ -1298,7 +1298,7 @@ void PF_SCR_Init( void ) {
     ch_y = clgi.CVar_Get( "ch_y", "0", 0 );
 
     scr_damage_indicators = clgi.CVar_Get( "scr_damage_indicators", "1", 0 );
-    scr_damage_indicator_time = clgi.CVar_Get( "scr_damage_indicator_time", "1000", 0 );
+    scr_damage_indicator_time = clgi.CVar_Get( "scr_damage_indicator_time", "3000", 0 );
 
     scr_draw2d = clgi.CVar_Get( "scr_draw2d", "2", 0 );
     scr_showturtle = clgi.CVar_Get( "scr_showturtle", "1", 0 );
@@ -1925,7 +1925,14 @@ static void SCR_DrawDamageDisplays( void ) {
         float damage_yaw = angles[ YAW ];
         //float yaw_diff = DEG2RAD( ( my_yaw - damage_yaw ) - 180 );
         //float yaw_diff = DEG2RAD( AngleMod( ( my_yaw - damage_yaw ) ) - 180 );
-        float yaw_diff = DEG2RAD( ( my_yaw - damage_yaw ) - 180 );
+        float yaw_diff = ( my_yaw - damage_yaw ) - 180;
+        //if ( yaw_diff > 180 ) {
+        //    yaw_diff -= 360;
+        //}
+        //if ( yaw_diff < -180 ) {
+        //    yaw_diff += 360;
+        //}
+        //yaw_diff = DEG2RAD( yaw_diff );
 
         clgi.R_SetColor( MakeColor(
             (int)( entry->color[ 0 ] * 255.f ),
@@ -1933,13 +1940,15 @@ static void SCR_DrawDamageDisplays( void ) {
             (int)( entry->color[ 2 ] * 255.f ),
             (int)( frac * 255.f ) ) );
 
-        const int32_t x = scr.hud_width / 2;
-        const int32_t y = scr.hud_height / 2;
+        const int32_t size_x = min( scr.damage_display_width, ( DAMAGE_ENTRY_BASE_SIZE * entry->damage ) );
+        const int32_t size_y = min( scr.damage_display_height, ( DAMAGE_ENTRY_BASE_SIZE * entry->damage ) );
 
-        const int32_t size = min( scr.damage_display_width, ( DAMAGE_ENTRY_BASE_SIZE * entry->damage ) );
+        const int32_t x = ( scr.hud_width - scr.damage_display_width ) / 2;
+        const int32_t y = ( scr.hud_height - scr.damage_display_height ) / 2;
 
         //clgi.R_DrawStretchPic( x, y, scr.damage_display_height, scr.damage_display_width, scr.damage_display_pic );
-        //clgi.R_DrawRotateStretchPic( x, y, size, scr.damage_display_height, yaw_diff, 0, -( scr.crosshair_height + ( scr.damage_display_height / 2 ) ), scr.damage_display_pic );
+        //clgi.R_DrawRotateStretchPic( x, y, size, scr.damage_display_height, yaw_diff, -( scr.crosshair_width + ( scr.damage_display_width / 2 ) ), -( scr.crosshair_height + ( scr.damage_display_height / 2 ) ), scr.damage_display_pic );
+        clgi.R_DrawRotateStretchPic( x, y, scr.damage_display_width, scr.damage_display_height, yaw_diff, size_x / 2, size_y / 2, scr.damage_display_pic );
     }
 }
 
@@ -1994,12 +2003,35 @@ static void SCR_DrawCrosshair( void ) {
         scr.crosshair_height,
         scr.crosshair_pic );
 
-    const int32_t crossWidth = scr.crosshair_width * 2;
-    const int32_t crossHeight = scr.crosshair_height * 2;
+    // prescale
+    int32_t w, h;
+    clgi.R_GetPicSize( &w, &h, scr.crosshair_pic );
+    w *= 8;
+    h *= 8;
+    clgi.R_SetScale( 1.0f );
+    const float scale = clgi.CVar_ClampValue( ch_scale, 0.1f, 9.0f );
+    const int32_t crossWidth = w * scale;
+    const int32_t crossHeight = h * scale;
+    const int32_t halfCrossWidth = crossWidth / 2;
+    const int32_t halfCrossHeight = crossHeight / 2;
 
-    clgi.R_DrawRotateStretchPic( x - ( crossWidth / 2 ), y - 40, 
-        crossWidth, crossHeight,
-        45, crossWidth / 2, crossHeight / 2, scr.crosshair_pic );
+    //clgi.R_DrawRotateStretchPic( x - ( crossWidth / 2 ), y - 40, 
+    //    crossWidth, crossHeight,
+    //    45, crossWidth / 2, crossHeight / 2, scr.crosshair_pic );
+
+    const int32_t cx = ( scr.hud_width - crossWidth ) / 2;
+    const int32_t cy = ( scr.hud_height - crossHeight ) / 2;
+
+    //clgi.Print( PRINT_DEVELOPER, "%s: cx=%i, cy=%i, crossWidth=%i, crossHeight=%i, halfCrossWidth=%i, halfCrossHeight=%i\n", 
+    //    __func__, 
+    //    cx, cy,
+    //    crossWidth, crossHeight,
+    //    halfCrossWidth, halfCrossHeight );
+    //clgi.R_DrawRotateStretchPic( cx, cy,
+    //        crossWidth, crossHeight,
+    //        45, 
+    //        halfCrossWidth, halfCrossHeight,
+    //        scr.crosshair_pic );
 
     // Draw crosshair damage displays.
     SCR_DrawDamageDisplays();

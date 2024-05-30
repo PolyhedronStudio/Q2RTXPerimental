@@ -38,10 +38,15 @@ layout(location = 1) out flat uint tex_id;
 layout(location = 2) out vec2 tex_coord;
 
 struct StretchPic {
-	float x, y, w,   h;
-	float s, t, w_s, h_t;
-	float angle, pivot_x, pivot_y;
+	float x, y;
+	float w, h;
+	float s, t;
+	float w_s, h_t;
 	uint color, tex_handle;
+	float	pivot_x, pivot_y;
+	float	angle, pad01;
+	float	pad02, pad03;
+	mat4 matTransform;
 };
 
 layout(set = 0, binding = 0) buffer SBO {
@@ -55,49 +60,47 @@ vec2 positions[4] = vec2[](
 	vec2(1.0, 0.0)
 );
 
+vec2 rotate(vec2 v, vec2 pivot, float a) {
+	float rangle = -radians( a );
+	float s = sin( rangle );
+	float c = cos( rangle );
+	// Create 2D rotation matrix.
+	mat2 m = mat2( c, s, -s, c );
+	// Rotate around ( v - pivot ) and then 
+	// translate back to ( rotated_v + pivot ).
+	return ( m * ( v - pivot ) ) + pivot;
+}
+
 void
 main()
 {
 	// Acquire stretch pic structure instance reference we're processing.
 	StretchPic sp = stretch_pics[ gl_InstanceIndex ];
-	// Position is screen-space, so the quad vertices stored in positions are first fetched.
-	vec2 pos      = positions[ gl_VertexIndex ];
-	// Then scaled from their unit normal up to the specified width and height.
+	
+	// Position is model-space, so the quad vertices stored in positions are first fetched.
+	vec2 pos = positions[ gl_VertexIndex ];
+	// Get pivot, convert to model space.
+	vec2 model_space_pivot = vec2(
+		( 1.0 / sp.w ) * sp.pivot_x,
+		( 1.0 / sp.h ) * sp.pivot_y
+	);
+	// Rotate 'pos' around the pivot in 'model' space.
+	pos = rotate( pos, model_space_pivot, sp.angle );
+	// Then scaled from their unit normal up to the specified width and height
+	// defining our screen-space 'model' space.
 	pos *= vec2(sp.w, sp.h);
-	// And then translated to the specified x and y coordinates.
+	// Translate to desired screen-space position.
 	pos += vec2(sp.x, sp.y);
 
-	//
-	// Rotating (ALMOST WORKS)
-	//
-
-	// Pivot point.
-	vec2 pivot = vec2(sp.pivot_x, sp.pivot_y);
-	// Offset by the pivot point out of reference frame.	
-	pos -= pivot;
-
-	// Rotate the position.
-	float s = sin( sp.angle );
-	float c = sin( sp.angle );
-	pos.x += (pos.x * c - pos.y * s);// + sp.x;
-	pos.y += (pos.x * s + pos.y * c);// + sp.y;
-    //*(dst_vert + 0) = (vert_x * c - vert_y * s) + x;
-    //*(dst_vert + 1) = (vert_x * s + vert_y * c) + y;
-	// Translate it back into its old frame of reference origin.
-	pos += pivot;
-	//
-	//
-	//
-
 	// Acquire color to use.
-	color         = unpackUnorm4x8(sp.color);
+	color = unpackUnorm4x8(sp.color);
 	color = pow(color, vec4(2.4));
 
 	// Setup texture information.
-	tex_coord     = vec2(sp.s, sp.t) + positions[gl_VertexIndex] * vec2(sp.w_s, sp.h_t);
-	tex_id        = sp.tex_handle;
+	tex_coord	= vec2(sp.s, sp.t) + positions[gl_VertexIndex] * vec2(sp.w_s, sp.h_t);
+	tex_id		= sp.tex_handle;
 
 	// Output the final screen-space vertex position.
-	gl_Position = vec4(pos, 0.0, 1.0);
+	gl_Position = sp.matTransform * vec4(pos, 1.0, 1.0);
 }
 

@@ -43,10 +43,16 @@ static drawStatic_t draw = {
 
 static int num_stretch_pics = 0;
 typedef struct {
-	float x, y, w, h;
-	float s, t, w_s, h_t;
-	float angle, pivot_x, pivot_y;
+	float x, y;
+	float w, h;
+	float s, t;
+	float w_s, h_t;
 	uint32_t color, tex_handle;
+	// These are pads to keep memory properly aligned with GLSL.
+	float	pivot_x, pivot_y;
+	float	angle, pad01;
+	float	pad02, pad03;
+	float	matTransform[16];
 } StretchPic_t;
 
 // Not using global UBO b/c it's only filled when a world is drawn, but here we need it all the time
@@ -78,6 +84,61 @@ static VkDescriptorSet         desc_set_ubo[MAX_FRAMES_IN_FLIGHT];
 extern cvar_t* cvar_ui_hdr_nits;
 extern cvar_t* cvar_tm_hdr_saturation_scale;
 
+
+void Mat4Ortho( Matrix *mat, float l, float r, float b, float t, float znear, float zfar ) {
+	memset( mat, 0, sizeof( Matrix ) );
+	mat->m0/*[ 0 ] */= 2 / ( r - l );
+	mat->m5/*[5] */= 2 / ( t - b );
+	mat->m10/*[10]*/ = -2 / ( zfar - znear );
+	mat->m12/*[ 12 ]*/ = -( ( r + l ) / ( r - l ) );
+	mat->m13/*[ 13 ] */= -( ( t + b ) / ( t - b ) );
+	mat->m14/*[ 14 ] */= -( ( zfar + znear ) / ( zfar - znear ) );
+	mat->m15/*[ 15 ] */= 1;
+	//memset( mat, 0, sizeof( mat4_t ) );
+	//mat[ 0 ] = 2 / ( r - l );
+	//mat[ 5 ] = 2 / ( t - b );
+	//mat[ 10 ] = -2 / ( zfar - znear );
+	//mat[ 12 ] = -( ( r + l ) / ( r - l ) );
+	//mat[ 13 ] = -( ( t + b ) / ( t - b ) );
+	//mat[ 14 ] = -( ( zfar + znear ) / ( zfar - znear ) );
+	//mat[ 15 ] = 1;
+}
+
+void PrepareOrthographicProjectionMatrix( float *mat, float left_plane,
+		float right_plane,
+		float bottom_plane,
+		float top_plane,
+		float near_plane,
+		float far_plane ) {
+	
+	mat[ 0 ] = 2.0f / ( right_plane - left_plane );
+	mat[ 1 ] = 0.0f;
+	mat[ 2 ] = 0.0f;
+	mat[ 3 ] = 0.0f;
+
+	mat[ 4 ] = 0.0f;
+	mat[ 5 ] = 2.0f / ( bottom_plane - top_plane );
+	mat[ 6 ] = 0.0f;
+	mat[ 7 ] = 0.0f;
+
+	mat[ 8 ] = 0.0f;
+	mat[ 9 ] = 0.0f;
+	mat[ 10 ] = 1.0f / ( near_plane - far_plane );
+	mat[ 11 ] = 0.0f;
+
+	mat[ 12 ] = -( right_plane + left_plane ) / ( right_plane - left_plane );
+	mat[ 13 ] = -( bottom_plane + top_plane ) / ( bottom_plane - top_plane );
+	mat[ 14 ] = near_plane / ( near_plane - far_plane );
+	mat[ 15 ] = 1.0f;
+}
+
+/**
+*
+* 
+*	Stretch Pic Enqueue-ing:
+* 
+* 
+**/
 VkExtent2D
 vkpt_draw_get_extent(void)
 {
@@ -100,109 +161,7 @@ static inline void enqueue_stretch_pic(
 	assert(tex_handle);
 	StretchPic_t *sp = stretch_pic_queue + num_stretch_pics++;
 
-	if (clip_enable)
-	{
-		if (x >= clip_rect.right || x + w <= clip_rect.left || y >= clip_rect.bottom || y + h <= clip_rect.top)
-			return;
-
-		if (x < clip_rect.left)
-		{
-			float dw = clip_rect.left - x;
-			s1 += dw / w * (s2 - s1);
-			w -= dw;
-			x = clip_rect.left;
-
-			if (w <= 0) return;
-		}
-
-		if (x + w > clip_rect.right)
-		{
-			float dw = (x + w) - clip_rect.right;
-			s2 -= dw / w * (s2 - s1);
-			w -= dw;
-
-			if (w <= 0) return;
-		}
-
-		if (y < clip_rect.top)
-		{
-			float dh = clip_rect.top - y;
-			t1 += dh / h * (t2 - t1);
-			h -= dh;
-			y = clip_rect.top;
-
-			if (h <= 0) return;
-		}
-
-		if (y + h > clip_rect.bottom)
-		{
-			float dh = (y + h) - clip_rect.bottom;
-			t2 -= dh / h * (t2 - t1);
-			h -= dh;
-
-			if (h <= 0) return;
-		}
-	}
-
-	float width = r_config.width * draw.scale;
-	float height = r_config.height * draw.scale;
-
-	x = 2.0f * x / width - 1.0f;
-	y = 2.0f * y / height - 1.0f;
-
-	w = 2.0f * w / width;
-	h = 2.0f * h / height;
-
-	sp->x = x;
-	sp->y = y;
-	sp->w = w;
-	sp->h = h;
-
-	sp->angle = 0;
-	sp->pivot_x = 0;
-	sp->pivot_y = 0;
-
-	sp->s   = s1;
-	sp->t   = t1;
-	sp->w_s = s2 - s1;
-	sp->h_t = t2 - t1;
-
-	if (draw.alpha_scale < 1.f)
-	{
-		float alpha = (color >> 24) & 0xff;
-		alpha *= draw.alpha_scale;
-		alpha = max(0.f, min(255.f, alpha));
-		color = (color & 0xffffff) | ((int)(alpha) << 24);
-	}
-
-	sp->color = color;
-	sp->tex_handle = tex_handle;
-	if(tex_handle >= 0 && tex_handle < MAX_RIMAGES
-	&& !r_images[tex_handle].registration_sequence) {
-		sp->tex_handle = TEXNUM_WHITE;
-	}
-}
-
-/**
-*	@brief	WID: Supports rotating around a specified pivot point.
-**/
-static inline void enqueue_stretch_rotate_pic(
-	float x, float y, float w, float h,
-	float s1, float t1, float s2, float t2,
-	float angle, float pivot_x, float pivot_y,
-	uint32_t color, const int32_t tex_handle, const int32_t flags ) {
-
-	if ( draw.alpha_scale == 0.f )
-		return;
-
-	if ( num_stretch_pics == MAX_STRETCH_PICS ) {
-		Com_EPrintf( "Error: stretch pic queue full!\n" );
-		assert( 0 );
-		return;
-	}
-	assert( tex_handle );
-	StretchPic_t *sp = stretch_pic_queue + num_stretch_pics++;
-
+	// TODO: Really should be done by using scissoring.
 	if ( clip_enable ) {
 		if ( x >= clip_rect.right || x + w <= clip_rect.left || y >= clip_rect.bottom || y + h <= clip_rect.top )
 			return;
@@ -241,30 +200,170 @@ static inline void enqueue_stretch_rotate_pic(
 			if ( h <= 0 ) return;
 		}
 	}
+	//if ( clip_enable ) {
+	//	scissorRect.offset.x = clip_rect.left;
+	//	scissorRect.offset.y = clip_rect.top;
+	//	scissorRect.extent.width = clip_rect.right;
+	//	scissorRect.extent.height = clip_rect.bottom;// = vkpt_draw_get_extent();
+	//} else {
+	//	scissorRect.offset.x = 0;
+	//	scissorRect.offset.y = 0;
+	//	scissorRect.extent = vkpt_draw_get_extent();
+	//}
 
 	float width = r_config.width * draw.scale;
 	float height = r_config.height * draw.scale;
 
-	x = 2.0f * x / width - 1.0f;
-	y = 2.0f * y / height - 1.0f;
+	// View projection matrix.
+	//create_orthographic_matrix( &sp->matTransform.m0, 0, width, height, 0, 1, -1 );
+	//create_orthographic_matrix( &sp->matTransform.m0, 0, width, height, 0, -1, 1 );
+	// 
+	create_orthographic_matrix( sp->matTransform, 0, width, 0, height, 1, -1 );
+	//Matrix identity = { 1.0f, 0.0f, 0.0f, 0.0f,
+	//				  0.0f, 1.0f, 0.0f, 0.0f,
+	//				  0.0f, 0.0f, 1.0f, 0.0f,
+	//				  0.0f, 0.0f, 0.0f, 1.0f };
+	//sp->matTransform = identity;
+	//Mat4Ortho( &sp->matTransform, 0, width, height, 0, -1, 1 );
+	sp->pivot_x = 0;
+	sp->pivot_y = 0;
+	sp->angle = 0;
 
-	w = 2.0f * w / width;
-	h = 2.0f * h / height;
-
+	// Get Rect.
 	sp->x = x;
 	sp->y = y;
 	sp->w = w;
 	sp->h = h;
 
-	sp->angle = angle;
-	sp->pivot_x = 0;
-	sp->pivot_y = 0;
+	// Setup the UV coordinates to use.
+	sp->s   = s1;
+	sp->t   = t1;
+	sp->w_s = s2 - s1;
+	sp->h_t = t2 - t1;
 
+	// Determine alpha value and apply it to color.
+	if (draw.alpha_scale < 1.f)
+	{
+		float alpha = (color >> 24) & 0xff;
+		alpha *= draw.alpha_scale;
+		alpha = max(0.f, min(255.f, alpha));
+		color = (color & 0xffffff) | ((int)(alpha) << 24);
+	}
+
+	// Store in the color and texture handle. If not available in our current
+	// image registration sequence, apply the 'White' texture instead.
+	sp->color = color;
+	sp->tex_handle = tex_handle;
+	if(tex_handle >= 0 && tex_handle < MAX_RIMAGES
+	&& !r_images[tex_handle].registration_sequence) {
+		sp->tex_handle = TEXNUM_WHITE;
+	}
+}
+
+/**
+*	@brief	WID: Supports rotating around a specified pivot point.
+**/
+static inline void enqueue_stretch_rotate_pic(
+	float x, float y, float w, float h,
+	float s1, float t1, float s2, float t2,
+	float angle, float pivot_x, float pivot_y,
+	uint32_t color, const int32_t tex_handle, const int32_t flags ) {
+
+	//enqueue_stretch_pic( x, y, w, h, s1, t1, s2, t2, color, tex_handle );
+	//return;
+
+	if ( draw.alpha_scale == 0.f )
+		return;
+
+	if ( num_stretch_pics == MAX_STRETCH_PICS ) {
+		Com_EPrintf( "Error: stretch pic queue full!\n" );
+		assert( 0 );
+		return;
+	}
+	assert( tex_handle );
+	StretchPic_t *sp = stretch_pic_queue + num_stretch_pics++;
+
+	// TODO: Really should be done by using scissoring.
+	if ( clip_enable ) {
+		if ( x >= clip_rect.right || x + w <= clip_rect.left || y >= clip_rect.bottom || y + h <= clip_rect.top )
+			return;
+
+		//if ( x < clip_rect.left ) {
+		//	float dw = clip_rect.left - x;
+		//	s1 += dw / w * ( s2 - s1 );
+		//	w -= dw;
+		//	x = clip_rect.left;
+
+		//	if ( w <= 0 ) return;
+		//}
+
+		//if ( x + w > clip_rect.right ) {
+		//	float dw = ( x + w ) - clip_rect.right;
+		//	s2 -= dw / w * ( s2 - s1 );
+		//	w -= dw;
+
+		//	if ( w <= 0 ) return;
+		//}
+
+		//if ( y < clip_rect.top ) {
+		//	float dh = clip_rect.top - y;
+		//	t1 += dh / h * ( t2 - t1 );
+		//	h -= dh;
+		//	y = clip_rect.top;
+
+		//	if ( h <= 0 ) return;
+		//}
+
+		//if ( y + h > clip_rect.bottom ) {
+		//	float dh = ( y + h ) - clip_rect.bottom;
+		//	t2 -= dh / h * ( t2 - t1 );
+		//	h -= dh;
+
+		//	if ( h <= 0 ) return;
+		//}
+	}
+	//if ( clip_enable ) {
+	//	scissorRect.offset.x = clip_rect.left;
+	//	scissorRect.offset.y = clip_rect.top;
+	//	scissorRect.extent.width = clip_rect.right;
+	//	scissorRect.extent.height = clip_rect.bottom;// = vkpt_draw_get_extent();
+	//} else {
+	//	scissorRect.offset.x = 0;
+	//	scissorRect.offset.y = 0;
+	//	scissorRect.extent = vkpt_draw_get_extent();
+	//}
+
+	float width = r_config.width * draw.scale;
+	float height = r_config.height * draw.scale;
+
+	// View projection matrix.
+	//create_orthographic_matrix( &sp->matTransform.m0, 0, width, height, 0, 1, -1 );
+	//create_orthographic_matrix( &sp->matTransform.m0, 0, width, height, 0, -1, 1 );
+	// 
+	create_orthographic_matrix( sp->matTransform, 0, width, 0, height, 1, -1 );
+	//Matrix identity = { 1.0f, 0.0f, 0.0f, 0.0f,
+	//				  0.0f, 1.0f, 0.0f, 0.0f,
+	//				  0.0f, 0.0f, 1.0f, 0.0f,
+	//				  0.0f, 0.0f, 0.0f, 1.0f };
+	//sp->matTransform = identity;
+	//Mat4Ortho( &sp->matTransform, 0, width, height, 0, -1, 1 );
+	sp->pivot_x = pivot_x;
+	sp->pivot_y = pivot_y;
+	sp->angle = angle;
+
+	// Get Rect.
+	sp->x = x;
+	sp->y = y;
+	sp->w = w;
+	sp->h = h;
+
+	// Setup the UV coordinates to use.
 	sp->s = s1;
 	sp->t = t1;
 	sp->w_s = s2 - s1;
 	sp->h_t = t2 - t1;
 
+	// Determine alpha value and apply it to color.
 	if ( draw.alpha_scale < 1.f ) {
 		float alpha = ( color >> 24 ) & 0xff;
 		alpha *= draw.alpha_scale;
@@ -272,6 +371,8 @@ static inline void enqueue_stretch_rotate_pic(
 		color = ( color & 0xffffff ) | ( (int)( alpha ) << 24 );
 	}
 
+	// Store in the color and texture handle. If not available in our current
+	// image registration sequence, apply the 'White' texture instead.
 	sp->color = color;
 	sp->tex_handle = tex_handle;
 	if ( tex_handle >= 0 && tex_handle < MAX_RIMAGES
@@ -438,7 +539,7 @@ vkpt_draw_initialize()
 		VkDescriptorBufferInfo buf_info = {
 			.buffer = sbo->buffer,
 			.offset = 0,
-			.range  = sizeof(stretch_pic_queue),
+			.range  = sizeof(StretchPic_t) * MAX_STRETCH_PICS,
 		};
 
 		VkWriteDescriptorSet output_buf_write = {
@@ -568,7 +669,7 @@ vkpt_draw_create_pipelines()
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
 		.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 		.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
-		.primitiveRestartEnable = VK_FALSE,
+		.primitiveRestartEnable = VK_FALSE, /* VK_TRUE ?? */
 	};
 
 	VkViewport viewport = {
@@ -576,7 +677,7 @@ vkpt_draw_create_pipelines()
 		.y        = 0.0f,
 		.width    = (float) vkpt_draw_get_extent().width,
 		.height   = (float) vkpt_draw_get_extent().height,
-		.minDepth = 0.0f,
+		.minDepth = -1.0f,
 		.maxDepth = 1.0f,
 	};
 
@@ -586,11 +687,11 @@ vkpt_draw_create_pipelines()
 	};
 
 	VkPipelineViewportStateCreateInfo viewport_state = {
-		.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
 		.viewportCount = 1,
-		.pViewports    = &viewport,
-		.scissorCount  = 1,
-		.pScissors     = &scissor,
+		.pViewports = &viewport,
+		.scissorCount = 1,
+		.pScissors = &scissor,
 	};
 
 	VkPipelineRasterizationStateCreateInfo rasterizer_state = {
@@ -599,12 +700,12 @@ vkpt_draw_create_pipelines()
 		.rasterizerDiscardEnable = VK_FALSE, /* skip rasterizer */
 		.polygonMode             = VK_POLYGON_MODE_FILL,
 		.lineWidth               = 1.0f,
-		.cullMode                = VK_CULL_MODE_BACK_BIT,
-		.frontFace               = VK_FRONT_FACE_CLOCKWISE,
+		.cullMode                = VK_CULL_MODE_NONE/*VK_CULL_MODE_BACK_BIT*/,
+		.frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE,
 		.depthBiasEnable         = VK_FALSE,
 		.depthBiasConstantFactor = 0.0f,
 		.depthBiasClamp          = 0.0f,
-		.depthBiasSlopeFactor    = 0.0f,
+		.depthBiasSlopeFactor    = 0.0f
 	};
 
 	VkPipelineMultisampleStateCreateInfo multisample_state = {
