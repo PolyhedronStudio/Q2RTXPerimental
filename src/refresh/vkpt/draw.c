@@ -109,33 +109,7 @@ extern cvar_t* cvar_ui_hdr_nits;
 extern cvar_t* cvar_tm_hdr_saturation_scale;
 
 
-void PrepareOrthographicProjectionMatrix( float *mat, float left_plane,
-		float right_plane,
-		float bottom_plane,
-		float top_plane,
-		float near_plane,
-		float far_plane ) {
-	
-	mat[ 0 ] = 2.0f / ( right_plane - left_plane );
-	mat[ 1 ] = 0.0f;
-	mat[ 2 ] = 0.0f;
-	mat[ 3 ] = 0.0f;
 
-	mat[ 4 ] = 0.0f;
-	mat[ 5 ] = 2.0f / ( bottom_plane - top_plane );
-	mat[ 6 ] = 0.0f;
-	mat[ 7 ] = 0.0f;
-
-	mat[ 8 ] = 0.0f;
-	mat[ 9 ] = 0.0f;
-	mat[ 10 ] = 1.0f / ( near_plane - far_plane );
-	mat[ 11 ] = 0.0f;
-
-	mat[ 12 ] = -( right_plane + left_plane ) / ( right_plane - left_plane );
-	mat[ 13 ] = -( bottom_plane + top_plane ) / ( bottom_plane - top_plane );
-	mat[ 14 ] = near_plane / ( near_plane - far_plane );
-	mat[ 15 ] = 1.0f;
-}
 
 /**
 *
@@ -166,6 +140,9 @@ static VkResult vkpt_draw_clear_scissor_groups() {
 	return VK_SUCCESS;
 }
 
+/**
+*	@brief	Enqueue a 'stretch pic' draw command.
+**/
 static inline void enqueue_stretch_pic(
 	float x, float y, float w, float h,
 	float s1, float t1, float s2, float t2,
@@ -304,9 +281,17 @@ static inline void enqueue_stretch_rotate_pic(
 	}
 }
 
-static void
-create_render_pass(void)
-{
+/**
+*
+*
+*	(RenderPass-) Initialize/Destroy:
+*
+*
+**/
+/**
+*	@brief	
+**/
+static void create_render_pass(void) {
 	LOG_FUNC();
 	VkAttachmentDescription color_attachment = {
 		.format         = qvk.surf_format.format,
@@ -358,9 +343,10 @@ create_render_pass(void)
 	ATTACH_LABEL_VARIABLE(render_pass_stretch_pic, RENDER_PASS);
 }
 
-VkResult
-vkpt_draw_initialize()
-{
+/**
+*	@brief
+**/
+VkResult vkpt_draw_initialize() {
 	num_stretch_pics = 0;
 	vkpt_draw_clear_scissor_groups();
 
@@ -503,9 +489,10 @@ vkpt_draw_initialize()
 	return VK_SUCCESS;
 }
 
-VkResult
-vkpt_draw_destroy()
-{
+/**
+*	@brief
+**/
+VkResult vkpt_draw_destroy() {
 	LOG_FUNC();
 	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		buffer_destroy(buf_stretch_pic_queue + i);
@@ -520,9 +507,10 @@ vkpt_draw_destroy()
 	return VK_SUCCESS;
 }
 
-VkResult
-vkpt_draw_destroy_pipelines()
-{
+/**
+*	@brief
+**/
+VkResult vkpt_draw_destroy_pipelines() {
 	LOG_FUNC();
 	for(int i = 0; i < STRETCH_PIC_NUM_PIPELINES; i++) {
 		vkDestroyPipeline(qvk.device, pipeline_stretch_pic[i], NULL);
@@ -539,9 +527,10 @@ vkpt_draw_destroy_pipelines()
 	return VK_SUCCESS;
 }
 
-VkResult
-vkpt_draw_create_pipelines()
-{
+/**
+*	@brief
+**/
+VkResult vkpt_draw_create_pipelines() {
 	LOG_FUNC();
 
 	assert(desc_set_layout_sbo);
@@ -751,9 +740,17 @@ vkpt_draw_create_pipelines()
 	return VK_SUCCESS;
 }
 
-VkResult
-vkpt_draw_clear_stretch_pics()
-{
+/**
+*
+*
+*	 Stretch Pic Clearing/Drawing:
+* 
+* 
+**/
+/**
+*	@brief
+**/
+VkResult vkpt_draw_clear_stretch_pics() {
 	// We always resort to the default scissor group.
 	vkpt_draw_clear_scissor_groups();
 
@@ -764,9 +761,10 @@ vkpt_draw_clear_stretch_pics()
 	return VK_SUCCESS;
 }
 
-VkResult
-vkpt_draw_submit_stretch_pics(VkCommandBuffer cmd_buf)
-{
+/**
+*	@brief
+**/
+VkResult vkpt_draw_submit_stretch_pics(VkCommandBuffer cmd_buf) {
 	if (num_stretch_pics == 0)
 		return VK_SUCCESS;
 
@@ -870,9 +868,10 @@ vkpt_draw_submit_stretch_pics(VkCommandBuffer cmd_buf)
 	return VK_SUCCESS;
 }
 
-VkResult
-vkpt_final_blit_simple(VkCommandBuffer cmd_buf, VkImage image, VkExtent2D extent)
-{
+/**
+*	@brief
+**/
+VkResult vkpt_final_blit_simple(VkCommandBuffer cmd_buf, VkImage image, VkExtent2D extent) {
 	VkImageSubresourceRange subresource_range = {
 		.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 		.baseMipLevel = 0,
@@ -939,9 +938,10 @@ vkpt_final_blit_simple(VkCommandBuffer cmd_buf, VkImage image, VkExtent2D extent
 	return VK_SUCCESS;
 }
 
-VkResult
-vkpt_final_blit_filtered(VkCommandBuffer cmd_buf)
-{
+/**
+*	@brief
+**/
+VkResult vkpt_final_blit_filtered(VkCommandBuffer cmd_buf) {
 	VkRenderPassBeginInfo render_pass_info = {
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 		.renderPass = render_pass_stretch_pic,
@@ -986,18 +986,26 @@ vkpt_final_blit_filtered(VkCommandBuffer cmd_buf)
 	return VK_SUCCESS;
 }
 
+
+
+/**
+*
+* 
+*	'Draw' Refresh 'R_***' Function Pointer Implementations:
+*
+*
+**/
 void R_SetClipRect_RTX(const clipRect_t *clip) 
 { 
 	// We're in for another scissor group.
 	const uint32_t scissor_group_index = num_stretch_pic_scissor_groups++;
 
-	if (clip)
-	{
+	// Specify clip rectangle area:
+	if (clip) {
 		clip_enable = true;
 		clip_rect = *clip;
-	}
-	else
-	{
+	// Resort to defaults:
+	} else {
 		clip_enable = false;
 		clip_rect.left = 0;
 		clip_rect.top = 0;
@@ -1005,6 +1013,7 @@ void R_SetClipRect_RTX(const clipRect_t *clip)
 		clip_rect.bottom = vkpt_draw_get_extent().height;
 	}
 
+	// Get scissor group pointer.
 	StretchPic_Scissor_Group *scissor_group = &stretch_pic_scissor_groups[ scissor_group_index ];
 	// Update its scissor rect.
 	scissor_group->clip_rect = clip_rect;
