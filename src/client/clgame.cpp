@@ -620,12 +620,22 @@ static GameEntryFunctionPointer *_CL_LoadGameLibrary( const char *path ) {
 static GameEntryFunctionPointer *CL_LoadGameLibrary( const char *game, const char *prefix ) {
 	char path[ MAX_OSPATH ];
 
+	// The actual module name to load.
+	#if _DEBUG 
 	if ( Q_concat( path, sizeof( path ), sys_libdir->string,
-		 PATH_SEP_STRING, game, PATH_SEP_STRING,
-		 prefix, "clgame" CPUSTRING LIBSUFFIX ) >= sizeof( path ) ) {
+		PATH_SEP_STRING, game, PATH_SEP_STRING,
+		prefix, "clgame" CPUSTRING "_d" LIBSUFFIX ) >= sizeof( path ) ) {
 		Com_EPrintf( "ClientGame library path length exceeded\n" );
 		return NULL;
 	}
+	#else
+	if ( Q_concat( path, sizeof( path ), sys_libdir->string,
+		PATH_SEP_STRING, game, PATH_SEP_STRING,
+		prefix, "clgame" CPUSTRING LIBSUFFIX ) >= sizeof( path ) ) {
+		Com_EPrintf( "ClientGame library path length exceeded\n" );
+		return NULL;
+	}
+	#endif
 
 	if ( os_access( path, F_OK ) ) {
 		if ( !*prefix )

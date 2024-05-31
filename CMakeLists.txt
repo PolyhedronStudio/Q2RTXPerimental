@@ -47,6 +47,7 @@ OPTION(CONFIG_BUILD_CLIENT_TARGET "Build the Client target" ON)
 OPTION(CONFIG_BUILD_SERVER_TARGET "Build the Dedicated Server target" ON)
 OPTION(CONFIG_BUILD_GAME_BASEQ2_TARGETS "Build the BaseQ2 Game Module targets" ON)
 OPTION(CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS "Build the BaseQ2RTXP Game Module targets" ON)
+OPTION(CONFIG_BUILD_FTEQW_IQM_TOOL "Build the fteqw-iqmtool target" ON)
 OPTION(CONFIG_GL_RENDERER "Enable GL renderer" ON)
 OPTION(CONFIG_VKPT_RENDERER "Enable VKPT renderer" ON)
 OPTION(CONFIG_VKPT_ENABLE_DEVICE_GROUPS "Enable device groups (multi-gpu) support" ON)
@@ -170,3 +171,13 @@ include( ${CMAKE_CURRENT_SOURCE_DIR}/CMakeSources.cmake )
 set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/install)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ${CONFIG_BUILD_IPO})
 add_subdirectory(src)
+
+#
+# --------- Add 'Tools' sources subdirectory -----------------
+#
+
+# First include the specific sources. (Put in a separate file to organize things a bit. )
+#set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/tools)
+#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ${CONFIG_BUILD_IPO})
+#add_subdirectory(tools)
+

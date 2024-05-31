@@ -772,12 +772,22 @@ static GameEntryFunctionPointer *SV_LoadGameLibrary(const char *game, const char
 {
     char path[MAX_OSPATH];
 
+    // The actual module name to load.
+    #if _DEBUG 
     if (Q_concat(path, sizeof(path), sys_libdir->string,
                  PATH_SEP_STRING, game, PATH_SEP_STRING,
-                 prefix, "svgame" CPUSTRING LIBSUFFIX) >= sizeof(path)) {
+                 prefix, "svgame" CPUSTRING "_d" LIBSUFFIX) >= sizeof(path) ) {
         Com_EPrintf("ServerGame library path length exceeded\n");
         return NULL;
     }
+    #else
+    if ( Q_concat( path, sizeof( path ), sys_libdir->string,
+        PATH_SEP_STRING, game, PATH_SEP_STRING,
+        prefix, "svgame" CPUSTRING LIBSUFFIX) >= sizeof( path )) {
+        Com_EPrintf( "ServerGame library path length exceeded\n" );
+        return NULL;
+    }
+    #endif
 
     if (os_access(path, F_OK)) {
         if (!*prefix)

@@ -682,3 +682,9 @@ set(SRC_RT_SHADERS
 	refresh/vkpt/shader/path_tracer_explosion.rahit
 	refresh/vkpt/shader/reflect_refract.rgen
 )
+
+set(SRC_TOOLS_FTEQW_IQMTOOL
+	tools/fteqw-iqmtool/iqm.cpp
+	tools/fteqw-iqmtool/iqm.h
+	tools/fteqw-iqmtool/util.h
+)

@@ -87,7 +87,7 @@ static clipRect_t clip_rect;
 //! Each individual time that clip_enable is enabled, a new stretchpic scissor group is added
 //! for the current frame. 
 static bool clip_enable = false;
-
+//! Stretch pic memory queue.
 static StretchPic_t stretch_pic_queue[MAX_STRETCH_PICS];
 
 static VkPipelineLayout        pipeline_layout_stretch_pic;
@@ -118,12 +118,16 @@ extern cvar_t* cvar_tm_hdr_saturation_scale;
 * 
 * 
 **/
-VkExtent2D
-vkpt_draw_get_extent(void)
-{
+/**
+*	@brief
+**/
+VkExtent2D vkpt_draw_get_extent(void) {
 	return qvk.extent_unscaled;
 }
 
+/**
+*	@brief	
+**/
 static VkResult vkpt_draw_clear_scissor_groups() {
 	// We always resort to the default scissor group.
 	num_stretch_pic_scissor_groups = 1;

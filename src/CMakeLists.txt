@@ -188,7 +188,7 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
         RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}"
         RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}"
         RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}"
-        DEBUG_POSTFIX ""
+        DEBUG_POSTFIX "_d"
     )
 ENDIF() #IF( CONFIG_BUILD_CLIENT_TARGET )
 
@@ -254,7 +254,7 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 		RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}"
 		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}"
 		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}"
-		DEBUG_POSTFIX ""
+		DEBUG_POSTFIX "_d"
 	)
 ENDIF()#IF( CONFIG_BUILD_SERVER_TARGET )
 
@@ -326,7 +326,7 @@ IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
 		# No Prefixes.
 		PREFIX ""
-		DEBUG_POSTFIX ""
+		DEBUG_POSTFIX "_d"
 	)
 	# "Client Game" Target Properties:
 	set_target_properties(baseq2_clgame
@@ -345,7 +345,7 @@ IF( CONFIG_BUILD_GAME_BASEQ2_TARGETS )
 		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2"
 		# No Prefixes.
 		PREFIX ""
-		DEBUG_POSTFIX ""
+		DEBUG_POSTFIX "_d"
 	)
 
 	# Base binary output names on actual build architecture.
@@ -453,7 +453,7 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2rtxp"
 		# No Prefixes.
 		PREFIX ""
-		DEBUG_POSTFIX ""
+		DEBUG_POSTFIX "_d"
 	)
 	# "Client Game" Target Properties:
 	set_target_properties(baseq2rtxp_clgame
@@ -472,7 +472,7 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/baseq2rtxp"
 		# No Prefixes.
 		PREFIX ""
-		DEBUG_POSTFIX ""
+		DEBUG_POSTFIX "_d"
 	)
 
 	# Base binary output names on actual build architecture.
@@ -512,7 +512,54 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 	ENDIF()
 ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 
+####
+##	Build Target: "FTEQW-IQMTool":
+####
+IF( CONFIG_BUILD_FTEQW_IQM_TOOL )
+	# Add Build Target:
+	IF( WIN32 )
+		add_executable(fteqw-iqmtool  
+			${SRC_TOOLS_FTEQW_IQMTOOL}
+			#${CMAKE_SOURCE_DIR}/tools/fteqw-iqmtool/iqm.cpp
+	        #${CMAKE_SOURCE_DIR}/tools/fteqw-iqmtool/iqm.h
+	        #${CMAKE_SOURCE_DIR}/tools/fteqw-iqmtool/util.h
+		)
+	ELSE()
+		add_executable(fteqw-iqmtool 
+			${SRC_TOOLS_FTEQW_IQMTOOL}
+	        #${CMAKE_SOURCE_DIR}/tools/fteqw-iqmtool/iqm.cpp
+	        #${CMAKE_SOURCE_DIR}/tools/fteqw-iqmtool/iqm.h
+	        #${CMAKE_SOURCE_DIR}/tools/fteqw-iqmtool/util.h
+		)
+	ENDIF()
 
+	# Compile Definitions:
+    #target_compile_definitions(fteqw-iqmtool PRIVATE USE_CLIENT=1 USE_FIXED_LIBAL=1 USE_SDL=1)
+	# Compile Options:
+    target_compile_options(fteqw-iqmtool PRIVATE "${WARN_MISSING_PROTOTYPES}")
+
+	# Set the actual final binary output properties of the client.
+	set_target_properties(fteqw-iqmtool 
+		PROPERTIES
+        OUTPUT_NAME "fteqw-iqmtool"
+		
+		# Linux:
+		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tools"
+		LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/tools"
+		LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/tools"
+		LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/tools"
+		LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/tools"
+		# Windows:
+		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tools"
+		RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/tools"
+		RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/tools"
+		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/tools"
+		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/tools"
+		# No Prefixes.
+		PREFIX ""
+		DEBUG_POSTFIX "_d"
+    )
+ENDIF() #IF( CONFIG_BUILD_FTEQW_IQM_TOOL )
 
 ####
 ##	MSVC Source Groups support for CMake generated "Solutions":
