@@ -41,6 +41,7 @@ static drawStatic_t draw = {
 	.alpha_scale = 1.0f
 };
 
+//! Total number of stretch pics.
 static int num_stretch_pics = 0;
 typedef struct {
 	float x, y;
@@ -48,20 +49,43 @@ typedef struct {
 	float s, t;
 	float w_s, h_t;
 	uint32_t color, tex_handle;
-	// These are pads to keep memory properly aligned with GLSL.
 	float	pivot_x, pivot_y;
+	// These are pads to keep memory properly aligned with GLSL.
 	float	angle, pad01;
 	float	pad02, pad03;
 	float	matTransform[16];
 } StretchPic_t;
 
-// Not using global UBO b/c it's only filled when a world is drawn, but here we need it all the time
+//! Not using global UBO b/c it's only filled when a world is drawn, but here we need it all the time
 typedef struct {
 	float ui_hdr_nits;
 	float tm_hdr_saturation_scale;
 } StretchPic_UBO_t;
 
+/**
+*	The following struct is a bit of an odd one, however, it will hold state of each
+*	time clipRect has changed. Storing the num_stretch_pic offset and num_stretch_pic_count
+*	in order for each subsequent draw call to apply their own scissor rectangle.
+* 
+*	The num_scissor_groups is rebuild each frame, and reset at the end of that frame.
+**/
+typedef struct {
+	clipRect_t clip_rect;
+
+	//! Offset into the SBO pic buffer.
+	uint32_t num_stretch_pic_offset;
+	//! The count of stretch pics that were added during this scissor's clip rect.
+	uint32_t num_stretch_pic_count;
+} StretchPic_Scissor_Group;
+//! Actual stretch pic scissor groups.
+static StretchPic_Scissor_Group stretch_pic_scissor_groups[ MAX_STRETCH_PICS ]; // WID: TODO: Find a sane number instead to not waste ram? Or just a dynamic buffer/queue of sorts.
+//! Number of scissor groups active in the current frame.
+static uint32_t num_stretch_pic_scissor_groups;
+
+//! This stores the actual clip_rect set by R_ client calls.
 static clipRect_t clip_rect;
+//! Each individual time that clip_enable is enabled, a new stretchpic scissor group is added
+//! for the current frame. 
 static bool clip_enable = false;
 
 static StretchPic_t stretch_pic_queue[MAX_STRETCH_PICS];
@@ -84,25 +108,6 @@ static VkDescriptorSet         desc_set_ubo[MAX_FRAMES_IN_FLIGHT];
 extern cvar_t* cvar_ui_hdr_nits;
 extern cvar_t* cvar_tm_hdr_saturation_scale;
 
-
-void Mat4Ortho( Matrix *mat, float l, float r, float b, float t, float znear, float zfar ) {
-	memset( mat, 0, sizeof( Matrix ) );
-	mat->m0/*[ 0 ] */= 2 / ( r - l );
-	mat->m5/*[5] */= 2 / ( t - b );
-	mat->m10/*[10]*/ = -2 / ( zfar - znear );
-	mat->m12/*[ 12 ]*/ = -( ( r + l ) / ( r - l ) );
-	mat->m13/*[ 13 ] */= -( ( t + b ) / ( t - b ) );
-	mat->m14/*[ 14 ] */= -( ( zfar + znear ) / ( zfar - znear ) );
-	mat->m15/*[ 15 ] */= 1;
-	//memset( mat, 0, sizeof( mat4_t ) );
-	//mat[ 0 ] = 2 / ( r - l );
-	//mat[ 5 ] = 2 / ( t - b );
-	//mat[ 10 ] = -2 / ( zfar - znear );
-	//mat[ 12 ] = -( ( r + l ) / ( r - l ) );
-	//mat[ 13 ] = -( ( t + b ) / ( t - b ) );
-	//mat[ 14 ] = -( ( zfar + znear ) / ( zfar - znear ) );
-	//mat[ 15 ] = 1;
-}
 
 void PrepareOrthographicProjectionMatrix( float *mat, float left_plane,
 		float right_plane,
@@ -145,86 +150,57 @@ vkpt_draw_get_extent(void)
 	return qvk.extent_unscaled;
 }
 
+static VkResult vkpt_draw_clear_scissor_groups() {
+	// We always resort to the default scissor group.
+	num_stretch_pic_scissor_groups = 1;
+	// Clear the first default scissor group back to defaults.
+	clipRect_t defaultClipRect = {
+			.left = 0,
+			.top = 0,
+			.right = (float)vkpt_draw_get_extent().width,
+			.bottom = (float)vkpt_draw_get_extent().height,
+	};
+	stretch_pic_scissor_groups[ 0 ].clip_rect = defaultClipRect;
+	stretch_pic_scissor_groups[ 0 ].num_stretch_pic_count = 0;
+	stretch_pic_scissor_groups[ 0 ].num_stretch_pic_offset = 0;
+	return VK_SUCCESS;
+}
+
 static inline void enqueue_stretch_pic(
-		float x, float y, float w, float h,
-		float s1, float t1, float s2, float t2,
-		uint32_t color, int tex_handle)
-{
-	if (draw.alpha_scale == 0.f)
+	float x, float y, float w, float h,
+	float s1, float t1, float s2, float t2,
+	uint32_t color, int tex_handle ) {
+	if ( draw.alpha_scale == 0.f )
 		return;
 
-	if(num_stretch_pics == MAX_STRETCH_PICS) {
-		Com_EPrintf("Error: stretch pic queue full!\n");
-		assert(0);
+	if ( num_stretch_pics == MAX_STRETCH_PICS ) {
+		Com_EPrintf( "Error: stretch pic queue full!\n" );
+		assert( 0 );
 		return;
 	}
-	assert(tex_handle);
+	assert( tex_handle );
+
+	// Increment the general num_stretch_pics count and fetch a pointer to it in the queue buffer.
 	StretchPic_t *sp = stretch_pic_queue + num_stretch_pics++;
 
-	// TODO: Really should be done by using scissoring.
-	if ( clip_enable ) {
-		if ( x >= clip_rect.right || x + w <= clip_rect.left || y >= clip_rect.bottom || y + h <= clip_rect.top )
-			return;
+	// Increment the current amount of stretch pics in the active scissor group.
+	StretchPic_Scissor_Group *scissor_group = &stretch_pic_scissor_groups[ num_stretch_pic_scissor_groups - 1 ];
+	scissor_group->num_stretch_pic_count = num_stretch_pics - scissor_group->num_stretch_pic_offset;
 
-		if ( x < clip_rect.left ) {
-			float dw = clip_rect.left - x;
-			s1 += dw / w * ( s2 - s1 );
-			w -= dw;
-			x = clip_rect.left;
-
-			if ( w <= 0 ) return;
-		}
-
-		if ( x + w > clip_rect.right ) {
-			float dw = ( x + w ) - clip_rect.right;
-			s2 -= dw / w * ( s2 - s1 );
-			w -= dw;
-
-			if ( w <= 0 ) return;
-		}
-
-		if ( y < clip_rect.top ) {
-			float dh = clip_rect.top - y;
-			t1 += dh / h * ( t2 - t1 );
-			h -= dh;
-			y = clip_rect.top;
-
-			if ( h <= 0 ) return;
-		}
-
-		if ( y + h > clip_rect.bottom ) {
-			float dh = ( y + h ) - clip_rect.bottom;
-			t2 -= dh / h * ( t2 - t1 );
-			h -= dh;
-
-			if ( h <= 0 ) return;
-		}
-	}
+	// Can we prevent another scissor group?
 	//if ( clip_enable ) {
-	//	scissorRect.offset.x = clip_rect.left;
-	//	scissorRect.offset.y = clip_rect.top;
-	//	scissorRect.extent.width = clip_rect.right;
-	//	scissorRect.extent.height = clip_rect.bottom;// = vkpt_draw_get_extent();
-	//} else {
-	//	scissorRect.offset.x = 0;
-	//	scissorRect.offset.y = 0;
-	//	scissorRect.extent = vkpt_draw_get_extent();
+	//	if ( x >= clip_rect.right || x + w <= clip_rect.left || y >= clip_rect.bottom || y + h <= clip_rect.top )
+	//		return;
 	//}
-
+	 
+	// Screen width/height.
 	float width = r_config.width * draw.scale;
 	float height = r_config.height * draw.scale;
 
-	// View projection matrix.
-	//create_orthographic_matrix( &sp->matTransform.m0, 0, width, height, 0, 1, -1 );
-	//create_orthographic_matrix( &sp->matTransform.m0, 0, width, height, 0, -1, 1 );
-	// 
+	// Projection matrix.
 	create_orthographic_matrix( sp->matTransform, 0, width, 0, height, 1, -1 );
-	//Matrix identity = { 1.0f, 0.0f, 0.0f, 0.0f,
-	//				  0.0f, 1.0f, 0.0f, 0.0f,
-	//				  0.0f, 0.0f, 1.0f, 0.0f,
-	//				  0.0f, 0.0f, 0.0f, 1.0f };
-	//sp->matTransform = identity;
-	//Mat4Ortho( &sp->matTransform, 0, width, height, 0, -1, 1 );
+
+	// No rotating here.
 	sp->pivot_x = 0;
 	sp->pivot_y = 0;
 	sp->angle = 0;
@@ -269,9 +245,6 @@ static inline void enqueue_stretch_rotate_pic(
 	float angle, float pivot_x, float pivot_y,
 	uint32_t color, const int32_t tex_handle, const int32_t flags ) {
 
-	//enqueue_stretch_pic( x, y, w, h, s1, t1, s2, t2, color, tex_handle );
-	//return;
-
 	if ( draw.alpha_scale == 0.f )
 		return;
 
@@ -281,72 +254,22 @@ static inline void enqueue_stretch_rotate_pic(
 		return;
 	}
 	assert( tex_handle );
+
+	// Increment the general num_stretch_pics count and fetch a pointer to it in the queue buffer.
 	StretchPic_t *sp = stretch_pic_queue + num_stretch_pics++;
 
-	// TODO: Really should be done by using scissoring.
-	if ( clip_enable ) {
-		if ( x >= clip_rect.right || x + w <= clip_rect.left || y >= clip_rect.bottom || y + h <= clip_rect.top )
-			return;
+	// Increment the current amount of stretch pics in the active scissor group.
+	StretchPic_Scissor_Group *scissor_group = &stretch_pic_scissor_groups[ num_stretch_pic_scissor_groups - 1 ];
+	scissor_group->num_stretch_pic_count = num_stretch_pics - scissor_group->num_stretch_pic_offset;
 
-		//if ( x < clip_rect.left ) {
-		//	float dw = clip_rect.left - x;
-		//	s1 += dw / w * ( s2 - s1 );
-		//	w -= dw;
-		//	x = clip_rect.left;
-
-		//	if ( w <= 0 ) return;
-		//}
-
-		//if ( x + w > clip_rect.right ) {
-		//	float dw = ( x + w ) - clip_rect.right;
-		//	s2 -= dw / w * ( s2 - s1 );
-		//	w -= dw;
-
-		//	if ( w <= 0 ) return;
-		//}
-
-		//if ( y < clip_rect.top ) {
-		//	float dh = clip_rect.top - y;
-		//	t1 += dh / h * ( t2 - t1 );
-		//	h -= dh;
-		//	y = clip_rect.top;
-
-		//	if ( h <= 0 ) return;
-		//}
-
-		//if ( y + h > clip_rect.bottom ) {
-		//	float dh = ( y + h ) - clip_rect.bottom;
-		//	t2 -= dh / h * ( t2 - t1 );
-		//	h -= dh;
-
-		//	if ( h <= 0 ) return;
-		//}
-	}
-	//if ( clip_enable ) {
-	//	scissorRect.offset.x = clip_rect.left;
-	//	scissorRect.offset.y = clip_rect.top;
-	//	scissorRect.extent.width = clip_rect.right;
-	//	scissorRect.extent.height = clip_rect.bottom;// = vkpt_draw_get_extent();
-	//} else {
-	//	scissorRect.offset.x = 0;
-	//	scissorRect.offset.y = 0;
-	//	scissorRect.extent = vkpt_draw_get_extent();
-	//}
-
+	// Screen width/height.
 	float width = r_config.width * draw.scale;
 	float height = r_config.height * draw.scale;
 
-	// View projection matrix.
-	//create_orthographic_matrix( &sp->matTransform.m0, 0, width, height, 0, 1, -1 );
-	//create_orthographic_matrix( &sp->matTransform.m0, 0, width, height, 0, -1, 1 );
-	// 
+	// Projection matrix.
 	create_orthographic_matrix( sp->matTransform, 0, width, 0, height, 1, -1 );
-	//Matrix identity = { 1.0f, 0.0f, 0.0f, 0.0f,
-	//				  0.0f, 1.0f, 0.0f, 0.0f,
-	//				  0.0f, 0.0f, 1.0f, 0.0f,
-	//				  0.0f, 0.0f, 0.0f, 1.0f };
-	//sp->matTransform = identity;
-	//Mat4Ortho( &sp->matTransform, 0, width, height, 0, -1, 1 );
+
+	// Setup rotating.
 	sp->pivot_x = pivot_x;
 	sp->pivot_y = pivot_y;
 	sp->angle = angle;
@@ -439,6 +362,8 @@ VkResult
 vkpt_draw_initialize()
 {
 	num_stretch_pics = 0;
+	vkpt_draw_clear_scissor_groups();
+
 	LOG_FUNC();
 	create_render_pass();
 	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -686,8 +611,17 @@ vkpt_draw_create_pipelines()
 		.extent = vkpt_draw_get_extent(),
 	};
 
+	//VkPipelineViewportStateCreateInfo viewport_state = {
+	//	.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+	//	//.pNext = NULL,
+	//	.viewportCount = 1,
+	//	//.pViewports = &viewport,
+	//	.scissorCount = 1,
+	//	//.pScissors = &scissor,
+	//};
 	VkPipelineViewportStateCreateInfo viewport_state = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+		.pNext = NULL,
 		.viewportCount = 1,
 		.pViewports = &viewport,
 		.scissorCount = 1,
@@ -705,7 +639,7 @@ vkpt_draw_create_pipelines()
 		.depthBiasEnable         = VK_FALSE,
 		.depthBiasConstantFactor = 0.0f,
 		.depthBiasClamp          = 0.0f,
-		.depthBiasSlopeFactor    = 0.0f
+		.depthBiasSlopeFactor    = 0.0f,
 	};
 
 	VkPipelineMultisampleStateCreateInfo multisample_state = {
@@ -741,6 +675,16 @@ vkpt_draw_create_pipelines()
 		.blendConstants  = { 0.0f, 0.0f, 0.0f, 0.0f },
 	};
 
+	// WID: Scissor and Viewport dynamic state.
+	const VkDynamicState dynamic_states_enabled[ 2 ] = { VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_VIEWPORT };
+	const VkPipelineDynamicStateCreateInfo dynamic_state = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+		.pNext = NULL,
+		.pDynamicStates = &dynamic_states_enabled[0],
+		.dynamicStateCount = 2,
+		.flags = 0
+	};
+
 	VkGraphicsPipelineCreateInfo pipeline_info = {
 		.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 		.stageCount          = LENGTH(shader_info_SDR),
@@ -752,7 +696,9 @@ vkpt_draw_create_pipelines()
 		.pMultisampleState   = &multisample_state,
 		.pDepthStencilState  = NULL,
 		.pColorBlendState    = &color_blend_state,
-		.pDynamicState       = NULL,
+		// WID: Add in support for dynamic scissor clip areas.
+		//.pDynamicState       = NULL,
+		.pDynamicState		 = &dynamic_state,
 		
 		.layout              = pipeline_layout_stretch_pic,
 		.renderPass          = render_pass_stretch_pic,
@@ -808,7 +754,13 @@ vkpt_draw_create_pipelines()
 VkResult
 vkpt_draw_clear_stretch_pics()
 {
+	// We always resort to the default scissor group.
+	vkpt_draw_clear_scissor_groups();
+
+	// Clear out number of stretch pics.
 	num_stretch_pics = 0;
+
+	// Success.
 	return VK_SUCCESS;
 }
 
@@ -836,7 +788,7 @@ vkpt_draw_submit_stretch_pics(VkCommandBuffer cmd_buf)
 		.renderPass        = render_pass_stretch_pic,
 		.framebuffer       = framebuffer_stretch_pic[qvk.current_swap_chain_image_index],
 		.renderArea.offset = { 0, 0 },
-		.renderArea.extent = vkpt_draw_get_extent()
+		.renderArea.extent = vkpt_draw_get_extent(),
 	};
 
 	VkDescriptorSet desc_sets[] = {
@@ -845,14 +797,76 @@ vkpt_draw_submit_stretch_pics(VkCommandBuffer cmd_buf)
 		desc_set_ubo[qvk.current_frame_index],
 	};
 
-	vkCmdBeginRenderPass(cmd_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			pipeline_layout_stretch_pic, 0, LENGTH(desc_sets), desc_sets, 0, 0);
-	vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_stretch_pic[qvk.surf_is_hdr ? STRETCH_PIC_HDR : STRETCH_PIC_SDR]);
-	vkCmdDraw(cmd_buf, 4, num_stretch_pics, 0, 0);
-	vkCmdEndRenderPass(cmd_buf);
+	// WID: This does 1 single draw call, for all instances. Effectively not allowing us to clip
+	// by passing in a different scissor area.
+	#if 0
+	//vkCmdBeginRenderPass(cmd_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+	//vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS,
+	//		pipeline_layout_stretch_pic, 0, LENGTH(desc_sets), desc_sets, 0, 0);
+	//vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_stretch_pic[qvk.surf_is_hdr ? STRETCH_PIC_HDR : STRETCH_PIC_SDR]);
+	//vkCmdDraw(cmd_buf, 4, num_stretch_pics, 0, 0);
+	//vkCmdEndRenderPass(cmd_buf);
+	#endif
+	// WID: This will just render all pics in 1 render pass, but with multiple vkCmdDraw calls.
+	#if 0
+	//vkCmdBeginRenderPass( cmd_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE );
+	//for ( int32_t i = 0; i < num_stretch_pics; i++ ) {
+	//	vkCmdBindDescriptorSets( cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS,
+	//		pipeline_layout_stretch_pic, 0, LENGTH( desc_sets ), desc_sets, 0, 0 );
+	//	vkCmdBindPipeline( cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_stretch_pic[ qvk.surf_is_hdr ? STRETCH_PIC_HDR : STRETCH_PIC_SDR ] );
+	//	vkCmdDraw( cmd_buf, 4, 1, 0, i );
+	//}
+	//vkCmdEndRenderPass( cmd_buf );
+	#endif
+	// WID: This does 1 single draw call, for all instances. Effectively not allowing us to clip
+	// by passing in a different scissor area.
+	#if 1
+	// Begin Render Pass.
+	vkCmdBeginRenderPass( cmd_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE );
+	for ( int32_t group_index = 0; group_index < num_stretch_pic_scissor_groups; group_index++ ) {
+		// Apply scissor.
+		StretchPic_Scissor_Group *scissor_group = &stretch_pic_scissor_groups[ group_index ];
+
+		// Apply viewport.
+		VkViewport viewport = {
+			.x = 0.0f,
+			.y = 0.0f,
+			.width = (float)vkpt_draw_get_extent().width,
+			.height = (float)vkpt_draw_get_extent().height,
+			.minDepth = -1.0f,
+			.maxDepth = 1.0f,
+		};
+		vkCmdSetViewport( cmd_buf, 0, 1, &viewport );
+
+		// Bind Descriptor Sets.
+		vkCmdBindDescriptorSets( cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			pipeline_layout_stretch_pic, 0, LENGTH( desc_sets ), desc_sets, 0, 0 );
+		// Bind Pipeline.
+		vkCmdBindPipeline( cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_stretch_pic[ qvk.surf_is_hdr ? STRETCH_PIC_HDR : STRETCH_PIC_SDR ] );
+		// Apply scissor rectangle area.
+		VkRect2D scissor_rect = {
+			.offset = {
+				.x = scissor_group->clip_rect.left,
+				.y = scissor_group->clip_rect.top,
+			},
+			.extent = {
+				.width = scissor_group->clip_rect.right - scissor_group->clip_rect.left,
+				.height = scissor_group->clip_rect.bottom - scissor_group->clip_rect.top
+			}
+		};
+		vkCmdSetScissor( cmd_buf, 0, 1, &scissor_rect );
+		// Draw the group of instances that reside in this area group.
+		vkCmdDraw( cmd_buf, 4, scissor_group->num_stretch_pic_count, 0, scissor_group->num_stretch_pic_offset );
+	}
+	// Finish the render pass.
+	vkCmdEndRenderPass( cmd_buf );
+	#endif
+
+	// We always resort to the default scissor group.
+	vkpt_draw_clear_scissor_groups();
 
 	num_stretch_pics = 0;
+
 	return VK_SUCCESS;
 }
 
@@ -945,6 +959,27 @@ vkpt_final_blit_filtered(VkCommandBuffer cmd_buf)
 	vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS,
 		pipeline_layout_final_blit, 0, LENGTH(desc_sets), desc_sets, 0, 0);
 	vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_final_blit);
+	//// Apply viewport.
+	//VkViewport viewport = {
+	//	.x = 0.0f,
+	//	.y = 0.0f,
+	//	.width = (float)vkpt_draw_get_extent().width,
+	//	.height = (float)vkpt_draw_get_extent().height,
+	//	.minDepth = -1.0f,
+	//	.maxDepth = 1.0f,
+	//};
+	//vkCmdSetViewport( cmd_buf, 0, 1, &viewport );
+	//VkRect2D scissor_rect = {
+	//	.offset = {
+	//		.x = 0,
+	//		.y = 0,
+	//	},
+	//	.extent = {
+	//		.width = (float)vkpt_draw_get_extent().width,
+	//		.height = (float)vkpt_draw_get_extent().height,
+	//	}
+	//};
+	//vkCmdSetScissor( cmd_buf, 0, 1, &scissor_rect );
 	vkCmdDraw(cmd_buf, 4, 1, 0, 0);
 	vkCmdEndRenderPass(cmd_buf);
 
@@ -953,6 +988,9 @@ vkpt_final_blit_filtered(VkCommandBuffer cmd_buf)
 
 void R_SetClipRect_RTX(const clipRect_t *clip) 
 { 
+	// We're in for another scissor group.
+	const uint32_t scissor_group_index = num_stretch_pic_scissor_groups++;
+
 	if (clip)
 	{
 		clip_enable = true;
@@ -961,7 +999,19 @@ void R_SetClipRect_RTX(const clipRect_t *clip)
 	else
 	{
 		clip_enable = false;
+		clip_rect.left = 0;
+		clip_rect.top = 0;
+		clip_rect.right = vkpt_draw_get_extent().width;
+		clip_rect.bottom = vkpt_draw_get_extent().height;
 	}
+
+	StretchPic_Scissor_Group *scissor_group = &stretch_pic_scissor_groups[ scissor_group_index ];
+	// Update its scissor rect.
+	scissor_group->clip_rect = clip_rect;
+	// It has no pics yet.
+	scissor_group->num_stretch_pic_count = 0;
+	// It does have an offset.
+	scissor_group->num_stretch_pic_offset = num_stretch_pics;
 }
 
 void

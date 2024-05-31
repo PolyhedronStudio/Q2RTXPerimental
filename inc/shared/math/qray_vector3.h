@@ -656,7 +656,11 @@ RMAPI const float QM_Vector3ToYaw( vec3_t vec ) {
     return yaw;
 }
 #else
+#ifdef __cplusplus
+RMAPI const float QM_Vector3ToYaw( const Vector3 &vec ) {
+#else
 RMAPI const float QM_Vector3ToYaw( vec3_t vec ) {
+#endif
     float yaw;/*float	tmp, yaw, pitch;*/
 
     if ( /*vec[ YAW ] == 0 &&*/ vec[ PITCH ] == 0 ) {
