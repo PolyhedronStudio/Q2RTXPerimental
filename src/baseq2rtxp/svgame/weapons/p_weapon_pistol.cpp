@@ -30,54 +30,54 @@ weapon_item_info_t pistolItemInfo = {
         },
         // Mode Animation: DRAWING
         /*modeAnimationFrames[ WEAPON_MODE_DRAWING ] = */{
-            .startFrame = 82,
-            .endFrame = 107,
-            .durationMsec = sg_time_t::from_hz( 107 - 82 )
+            .startFrame = 1,
+            .endFrame = 27,
+            .durationMsec = sg_time_t::from_hz( 27 - 1 )
         },
         // Mode Animation: HOLSTERING
         /*modeAnimationFrames[ WEAPON_MODE_HOLSTERING ] = */{
-            .startFrame = 56,
-            .endFrame = 81,
-            .durationMsec = sg_time_t::from_hz( 81 - 56 )
+            .startFrame = 27,
+            .endFrame = 53,
+            .durationMsec = sg_time_t::from_hz( 53 - 27 )
         },
         // Mode Animation: PRIMARY_FIRING
         /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
-            .startFrame = 1,
-            .endFrame = 14,
-            .durationMsec = sg_time_t::from_hz( 14 - 1 )
+            .startFrame = 53,
+            .endFrame = 67,
+            .durationMsec = sg_time_t::from_hz( 67 - 53 )
         },
         // Mode Animation: SECONDARY_FIRING -- UNUSED FOR PISTOL LOGIC.
-        /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
-            .startFrame = 1,
-            .endFrame = 14,
-            .durationMsec = sg_time_t::from_hz( 14 - 1 )
+        /*modeAnimationFrames[ WEAPON_MODE_SECONDARY_FIRING ] =*/ {
+            .startFrame = 53,
+            .endFrame = 67,
+            .durationMsec = sg_time_t::from_hz( 67 - 53 )
         },
         // Mode Animation: RELOADING
         /*modeAnimationFrames[ WEAPON_MODE_RELOADING ] = */{
-            .startFrame = 15,
-            .endFrame = 55,
-            .durationMsec = sg_time_t::from_hz( 55 - 15 )
+            .startFrame = 67,
+            .endFrame = 108,
+            .durationMsec = sg_time_t::from_hz( 108 - 67 )
         },
         // Mode Animation: AIMING IN
         /*modeAnimationFrames[ WEAPON_MODE_AIM_IN ] = */
         {
             .startFrame = 108,
-            .endFrame = 122,
-            .durationMsec = sg_time_t::from_hz( 122 - 108 )
+            .endFrame = 123,
+            .durationMsec = sg_time_t::from_hz( 123 - 108 )
         },
         // Mode Animation: AIMING FIRE
         /*modeAnimationFrames[ WEAPON_MODE_AIM_FIRE ] = */
         {
             .startFrame = 123,
-            .endFrame = 136,
-            .durationMsec = sg_time_t::from_hz( 136 - 123 )
+            .endFrame = 137,
+            .durationMsec = sg_time_t::from_hz( 137 - 123 )
         },
         // Mode Animation: AIMING OUT
         /*modeAnimationFrames[ WEAPON_MODE_AIM_OUT ] = */
         {
             .startFrame = 137,
-            .endFrame = 151,
-            .durationMsec = sg_time_t::from_hz( 151 - 137 )
+            .endFrame = 152,
+            .durationMsec = sg_time_t::from_hz( 152 - 137 )
         }
     },
 

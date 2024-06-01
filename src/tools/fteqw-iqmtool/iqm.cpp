@@ -19,6 +19,7 @@ bool verbose = false;
 bool quiet = false;
 bool stripbones = false; //strip all bone+anim info.
 
+
 struct ejoint
 {
 	const char *name;
@@ -1118,6 +1119,68 @@ void makeneighbors(uint priortris)
 	}
 }
 
+
+
+
+
+
+
+
+
+
+
+
+/**
+*
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+*	WID:	This code is whacked, app logic starts somewhere around here. 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+**/
+/**
+*
+*
+* <ROOTBONE>
+*
+*
+**/
+struct rootbone_info {
+	int id = 0;
+	const char *name = "";
+};
+rootbone_info rootbone;
+
+void Q2RTXP_ConfigureRootBone( const char *name ) {
+	// Store the name.
+	rootbone.name = newstring( name );
+}
+/**
+*
+*
+* </ROOTBONE>
+*
+*
+**/
+
+
+
 Quat erotate;
 double escale = 1;
 Vec3 emeshtrans(0, 0, 0);
@@ -1420,12 +1483,21 @@ void printlastanim(void)
 		return;
 
 	anim &a = anims[anims.length()-1];
-	if (a.numframes == 1)
-		printf("    frame %i:\tname=\"%s\"\tfps=%g, %s\n", anims.length()-1,
-			&stringdata[a.name], a.fps, (a.flags & IQM_LOOP)?"looped":"clamped");
-	else
-		printf("    anim %i:\tname=\"%s\",\tframes=%i, fps=%g, %s\n", anims.length()-1,
-			&stringdata[a.name], a.numframes, a.fps, (a.flags & IQM_LOOP)?"looped":"clamped");
+
+	//WID: We want better animation information output!
+	if ( a.numframes == 1 ) {
+		printf( "    frame %i:\tname=\"%s\"\tfps=%g, %s\n", anims.length() - 1,
+			&stringdata[ a.name ], a.fps, ( a.flags & IQM_LOOP ) ? "looped" : "clamped" );
+	} else {
+		printf( "    anim %i:\tname=\"%s\",\tframes=[%i,%i], fps=%g, %s\n", anims.length() - 1,
+			&stringdata[ a.name ], a.firstframe, a.firstframe + a.numframes, a.fps, ( a.flags & IQM_LOOP ) ? "looped" : "clamped" );
+	}
+	//if (a.numframes == 1)
+	//	printf("    frame %i:\tname=\"%s\"\tfps=%g, %s\n", anims.length()-1,
+	//		&stringdata[a.name], a.fps, (a.flags & IQM_LOOP)?"looped":"clamped");
+	//else
+	//	printf("    anim %i:\tname=\"%s\",\tframes=%i, fps=%g, %s\n", anims.length()-1,
+	//		&stringdata[a.name], a.numframes, a.fps, (a.flags & IQM_LOOP)?"looped":"clamped");
 
 	loopv(events_fte)
 	{
@@ -4494,6 +4566,7 @@ void calcanimdata()
 	vector<joint> oj;
 	joints.swap(oj);
 	bool dodgyorder = false;
+
 	loopv(oj)
 		jointremapinv[jointremap[i]] = i;
 	loopv(oj)
@@ -4521,6 +4594,11 @@ void calcanimdata()
 		loopk(10) { j.offset[k] = 1e16f; j.scale[k] = -1e16f; }
 	}
 
+	// WID: <rootbone>
+	// Find the actual rootbone joint.
+	rootbone.id = findjoint( rootbone.name );
+	// WID: </rootbone>
+
 	loopv(frames)
 	{
 		frame &fr = frames[i];
@@ -4528,6 +4606,8 @@ void calcanimdata()
 		{
 			frame::framepose &p = fr.pose[l];
 			p.remap = -1;
+			// WID: Check whether bone has a valid parent or is root by default.
+			// Otherwise remap to k.
 			loopvk(poses)
 			{
 //				if (poses[k].parent == p.boneparent)
@@ -4544,6 +4624,7 @@ void calcanimdata()
 					break;
 				}
 			}
+			// WID: If 'root'?
 			if(p.remap < 0)
 			{
 				//if we have a mesh, then any extra bones are surplus to requirements.
@@ -4592,6 +4673,74 @@ void calcanimdata()
 
 			pose &j = poses[p.remap];
 			transform &f = p.tr;
+
+			// Output the actual transform vectors for this move.
+			// WID: <rootbone>
+			int framenum = i;
+
+			// Find animation name matching frame number.
+			const char *animationname = "";
+			for ( int i = 0; i < anims.alen; i++ ) {
+				uint ff = anims[ i ].firstframe;
+				uint lf = anims[ i ].firstframe + anims[ i ].numframes;
+				if ( framenum >= ff && framenum < lf ) {
+					animationname = &stringdata[ anims[ i ].name ];
+				}
+			}
+
+
+
+				// Print global rootbone transform for given framenumber.
+				if ( p.remap == rootbone.id || strcmp( p.bonename, rootbone.name ) == 0 ) {
+					// Did it move any at all?
+					bool moved = false;
+					// Calculate movement data.
+					static Vec3 prevpos = { 0, 0, 0 };
+					static float prevDist = 0.f;
+					static int prevframenum = 0;
+					Vec3 dir = Vec3( 0, 0, 0 );
+
+					float distance = p.tr.pos.dist( prevpos ); ;// transform.squaredlen();
+					if ( isnan( distance ) ) {
+						printf( "%s: NOTE %i has isnan( distance )!\n", __func__, framenum );
+						// We moved.
+					} else if ( fabs( distance ) > 0 ) {
+						moved = true;
+						dir = prevpos - p.tr.pos;
+						dir.normalize();
+						distance = distance - prevDist;
+					}
+
+					//if ( framenum != prevframenum && moved ) {
+					//printf( "%s: framenum(%f), moved(%s), dir(%f,%f,%f), distance(%f)\n",
+					//	__func__, framenum, moved ? "true" : "false", dir.x, dir.y, dir.z, distance );
+
+					//printf( "%s: anim(%s) framenum(%i), p.remap == rootbone_id(%i) - transfor(%f,%f,%f)\n",
+					//	__func__, animationname, framenum, rootbone.id, f.pos.x, f.pos.y, f.pos.z );
+
+					//if ( strcmp( p.bonename, rootbone.name ) == 0 ) {
+					//	printf( "%s: anim(%s) framenum(%i), p.remap == rootbone_name(%s) - transfor(%f,%f,%f)\n",
+					//		__func__, animationname, framenum, rootbone.name, f.pos.x, f.pos.y, f.pos.z );
+					//}
+					// Print calculated rootbone transform from previous to current framenumber.
+					if ( moved ) {
+						printf( "%s: anim(%s) framenum(%i), p.remap == rootbone_name(%s) - MOVED -> dir(%f,%f,%f), d(%f)\n",
+							__func__, animationname, framenum, rootbone.name, dir.x, dir.y, dir.z, distance );
+					}
+					// Store as previous position.
+					if ( framenum != 0 ) {
+						prevpos = f.pos;
+						prevDist = distance;
+					}
+					// Prevframenum
+					prevframenum = framenum;
+				}
+
+				// WID: </rootbone>
+			//}
+
+
+
 			loopk(3)
 			{
 				j.offset[k] = min(j.offset[k], float(f.pos[k]));
@@ -5539,6 +5688,13 @@ static void help(bool exitstatus, bool fullhelp)
 "files of the exact same vertex layout and skeleton by supplying them as\n"
 "\"mesh1.iqe,mesh2.iqe,mesh3.iqe\", that is, a comma-separated list of the mesh\n"
 "files (with no spaces) in place of the usual mesh filename.\n"
+// WID: <Q2RTXP Options>
+"Q2RTXP commandline options that affect the mesh metadata export file:\n"
+"	-rootbone			Sets the name of the rootbone which is being tracked for\n"
+"						each animation's frame. The game logic can use this to\n"
+"						move a frame's exact distance. Preventing the models from\n"
+"						'ice skating' while moving.\n"
+// WID: </Q2RTXP Options>
 "\n"
 "Legacy commandline options that affect mesh import for the next file:\n"
 "\n"
@@ -5935,7 +6091,11 @@ void parsecommands(char *filename, const char *outfiles[countof(outputtypes)], v
 		}
 //		else if (!strcasecmp(tok, "outputdir"))
 //			(void)mystrtok(&line);
-		else if (!strcasecmp(tok, "hitbox") || !strcasecmp(tok, "hbox"))
+		// WID: <rootbone>
+		else if ( !strcasecmp( tok, "rootbone" ) ) {
+			Q2RTXP_ConfigureRootBone( mystrtok( &line ) );
+		// WID: </rootbone>
+		} else if ( !strcasecmp( tok, "hitbox" ) || !strcasecmp( tok, "hbox" ) )
 		{
 			hitbox &hb = hitboxes.add();
 			hb.body = strtoul(mystrtok(&line), NULL, 0);
@@ -6271,6 +6431,9 @@ int main(int argc, char **argv)
 			else fatal("failed writing: %s", outfiles[n]);
 		}
 	}
+
+	const char buff[ 2048 ] = {};
+	scanf( "%s\n", buff );
 	return EXIT_SUCCESS;
 }
 
