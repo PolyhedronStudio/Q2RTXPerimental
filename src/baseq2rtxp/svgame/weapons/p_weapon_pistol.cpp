@@ -30,15 +30,15 @@ weapon_item_info_t pistolItemInfo = {
         },
         // Mode Animation: DRAWING
         /*modeAnimationFrames[ WEAPON_MODE_DRAWING ] = */{
-            .startFrame = 1,
-            .endFrame = 27,
-            .durationMsec = sg_time_t::from_hz( 27 - 1 )
-        },
-        // Mode Animation: HOLSTERING
-        /*modeAnimationFrames[ WEAPON_MODE_HOLSTERING ] = */{
             .startFrame = 27,
             .endFrame = 53,
             .durationMsec = sg_time_t::from_hz( 53 - 27 )
+        },
+        // Mode Animation: HOLSTERING
+        /*modeAnimationFrames[ WEAPON_MODE_HOLSTERING ] = */{
+            .startFrame = 1,
+            .endFrame = 27,
+            .durationMsec = sg_time_t::from_hz( 27 - 1 )
         },
         // Mode Animation: PRIMARY_FIRING
         /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {

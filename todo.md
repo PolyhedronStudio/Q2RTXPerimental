@@ -4,7 +4,7 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ## Notes:
 * Is the hard coded speed value limit of 400.0f in CLG_ClampSpeed matching that to pmove's maxspeed? No I don't think so.
 * Is the actual bobCycle predicting working or necessary? We can do this in PMove right?
-* If we have event entities and 'morphentity', a blaster bullet could convert to an entity, eliminating
+* If we had event entities and then 'morphentity' function, for example: a blaster bullet could convert to an entity, eliminating
 the need for temp_entity_t behavior. For hit trace based weapons I suppose the hits could be done client side but that'd require
 simulating a frame ahead for all things. Either way, weapon could looks like it might be better off to go to shared some day.
 * It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
@@ -12,7 +12,8 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 ## Features:
 Features being looked forward on implementation.
 ### Highest Priority:
-* [ ] ...
+* [ ] Get a test dummy model that we can use to replace the current player with.
+* [ ] Get a similar test dummy, however, this one needs to be kept in mind it will serve monster purposes instead.
 ### High Priority:
 * [X] Add in ``cm_material_t`` accompanied by an actual json based client and server sided material properties file. Allowing for setting material contents ``kind``, acceleration/friction influences, footsteps, etc.
 	* [X] Acquire some proper footstep audio files and add in material specific footstep audio.
@@ -20,6 +21,8 @@ Features being looked forward on implementation.
 * [ ] Move player animation code/task into the player move code for proper synchronisity and consistency reasons.
 * [X] Footsteps/ViewBob to Client Game, PMove?
 ### Medium Priority:
+* [ ] Remove all Q2 monsters, keep a few around to use for testing.
+* [ ] Eliminate all other Q2-only specific game entities.
 * [ ] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
 * [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.
 * [x] Add some way of having entity 'class' like type support. (At the least, eliminate a need for having such a large edict_t type that holds all sorts of object-type specific variables.)
