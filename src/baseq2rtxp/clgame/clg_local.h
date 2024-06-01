@@ -549,6 +549,42 @@ typedef struct precached_media_s {
 	int32_t	numViewModels;
 
 	//
+	// 2D Screen Media / HUD Media
+	// 
+	/**
+	*	@brief	Stores all resource ID's for the screen related media.
+	**/
+	struct {
+		//! Reference to the 'Paused' center-screen display picture.
+		qhandle_t   pause_pic;
+		//! Reference to the 'Loading' center-screen display picture.
+		qhandle_t   loading_pic;
+		//! Reference to the damage display indicatore picture.
+		qhandle_t   damage_display_pic;
+
+		//! Status Buffer pics.
+		static constexpr int32_t STAT_PICS = 11;
+		qhandle_t   sb_pics[ 2 ][ STAT_PICS ];
+		//! Inventory pic.
+		qhandle_t   inven_pic;
+		//! Field pic.
+		qhandle_t   field_pic;
+		
+		//! Net pic.
+		qhandle_t   net_pic;
+
+		//! All-round screen font pic.
+		qhandle_t   font_pic;
+	} screen;
+	/**
+	*	@brief Stores all resource ID's for the HUD related media.
+	**/
+	struct {
+		//! Crosshair
+		qhandle_t crosshair_pic;
+	} hud;
+
+	//
 	// Other:
 	//
 	// ...

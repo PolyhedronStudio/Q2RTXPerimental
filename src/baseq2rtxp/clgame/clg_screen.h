@@ -67,3 +67,21 @@ const qhandle_t PF_GetScreenFontHandle( void );
 *   @brief  Set the alpha value of the HUD. (Used by ref/vkpt.)
 **/
 void PF_SetScreenHUDAlpha( const float alpha );
+
+/**
+*   @brief  Draws a string using at x/y up till maxlen.
+**/
+const int32_t SCR_DrawStringEx( const int32_t x, const int32_t y, const int32_t flags, const size_t maxlen, const char *s, const qhandle_t font );
+/**
+*   @brief  Draws a string using SCR_DrawStringEx but using the default screen font.
+**/
+const int32_t SCR_DrawString( const int32_t x, const int32_t y, const int32_t flags, const char *str );
+/**
+*   @brief  Draws a multiline supporting string at location x/y.
+**/
+void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags, const size_t maxlen, const char *s, const qhandle_t font );
+/**
+*   @brief Fades alpha in and out, keeping the alpha visible for 'visTime' amount.
+*   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
+**/
+const float SCR_FadeAlpha( const uint32_t startTime, const uint32_t visTime, const uint32_t fadeTime );
