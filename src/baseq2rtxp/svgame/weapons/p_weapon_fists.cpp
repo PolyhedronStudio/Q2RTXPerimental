@@ -234,6 +234,7 @@ void Weapon_Fists( edict_t *ent ) {
 
         // Fire the hit trace when the model is at its sweet spot for punching.
         if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 14 ) {
+
             // Swing the left fist.
             weapon_fists_secondary_fire( ent );
 

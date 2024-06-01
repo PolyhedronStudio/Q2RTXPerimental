@@ -284,28 +284,9 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/g_utils.cpp
 	baseq2rtxp/svgame/g_weapon.cpp
 	baseq2rtxp/svgame/m_actor.cpp
-	baseq2rtxp/svgame/m_berserk.cpp
-	baseq2rtxp/svgame/m_boss2.cpp
-	baseq2rtxp/svgame/m_boss3.cpp
-	baseq2rtxp/svgame/m_boss31.cpp
-	baseq2rtxp/svgame/m_boss32.cpp
-	baseq2rtxp/svgame/m_brain.cpp
-	baseq2rtxp/svgame/m_chick.cpp
-	baseq2rtxp/svgame/m_flipper.cpp
-	baseq2rtxp/svgame/m_float.cpp
-	baseq2rtxp/svgame/m_flyer.cpp
-	baseq2rtxp/svgame/m_gladiator.cpp
-	baseq2rtxp/svgame/m_gunner.cpp
-	baseq2rtxp/svgame/m_hover.cpp
 	baseq2rtxp/svgame/m_infantry.cpp
-	baseq2rtxp/svgame/m_insane.cpp
-	baseq2rtxp/svgame/m_medic.cpp
 	baseq2rtxp/svgame/m_move.cpp
-	baseq2rtxp/svgame/m_mutant.cpp
-	baseq2rtxp/svgame/m_parasite.cpp
 	baseq2rtxp/svgame/m_soldier.cpp
-	baseq2rtxp/svgame/m_supertank.cpp
-	baseq2rtxp/svgame/m_tank.cpp
 	baseq2rtxp/svgame/p_client.cpp
 	baseq2rtxp/svgame/p_hud.cpp
 	baseq2rtxp/svgame/p_trail.cpp
@@ -317,28 +298,9 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/g_save.h
 
 	baseq2rtxp/svgame/m_actor.h
-	baseq2rtxp/svgame/m_berserk.h
-	baseq2rtxp/svgame/m_boss2.h
-	baseq2rtxp/svgame/m_boss31.h
-	baseq2rtxp/svgame/m_boss32.h
-	baseq2rtxp/svgame/m_brain.h
-	baseq2rtxp/svgame/m_chick.h
-	baseq2rtxp/svgame/m_flipper.h
-	baseq2rtxp/svgame/m_float.h
-	baseq2rtxp/svgame/m_flyer.h
-	baseq2rtxp/svgame/m_gladiator.h
-	baseq2rtxp/svgame/m_gunner.h
-	baseq2rtxp/svgame/m_hover.h
 	baseq2rtxp/svgame/m_infantry.h
-	baseq2rtxp/svgame/m_insane.h
-	baseq2rtxp/svgame/m_medic.h
-	baseq2rtxp/svgame/m_mutant.h
-	baseq2rtxp/svgame/m_parasite.h
 	baseq2rtxp/svgame/m_player.h
-	baseq2rtxp/svgame/m_rider.h
 	baseq2rtxp/svgame/m_soldier.h
-	baseq2rtxp/svgame/m_supertank.h
-	baseq2rtxp/svgame/m_tank.h
 )
 
 

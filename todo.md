@@ -21,7 +21,8 @@ Features being looked forward on implementation.
 * [ ] Move player animation code/task into the player move code for proper synchronisity and consistency reasons.
 * [X] Footsteps/ViewBob to Client Game, PMove?
 ### Medium Priority:
-* [ ] Remove all Q2 monsters, keep a few around to use for testing.
+* [X] Remove all Q2 monsters, keep a few around to use for testing.
+	* Monsters left are: ``monster_actor``, ``monster_infantry``, ``monster_player``, ``monster_solider``.
 * [ ] Eliminate all other Q2-only specific game entities.
 * [ ] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
 * [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.

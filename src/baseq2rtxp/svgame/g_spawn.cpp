@@ -138,7 +138,6 @@ void SP_misc_actor(edict_t *self);
 void SP_misc_gib_arm(edict_t *self);
 void SP_misc_gib_leg(edict_t *self);
 void SP_misc_gib_head(edict_t *self);
-void SP_misc_insane(edict_t *self);
 void SP_misc_deadsoldier(edict_t *self);
 void SP_misc_viper(edict_t *self);
 void SP_misc_viper_bomb(edict_t *self);
@@ -262,7 +261,6 @@ static const spawn_func_t spawn_funcs[] = {
     {"misc_gib_arm", SP_misc_gib_arm},
     {"misc_gib_leg", SP_misc_gib_leg},
     {"misc_gib_head", SP_misc_gib_head},
-    {"misc_insane", SP_misc_insane},
     {"misc_deadsoldier", SP_misc_deadsoldier},
     {"misc_viper", SP_misc_viper},
     {"misc_viper_bomb", SP_misc_viper_bomb},
@@ -275,29 +273,10 @@ static const spawn_func_t spawn_funcs[] = {
     {"misc_easterchick", SP_misc_easterchick},
     {"misc_easterchick2", SP_misc_easterchick2},
 
-    {"monster_berserk", SP_monster_berserk},
-    {"monster_gladiator", SP_monster_gladiator},
-    {"monster_gunner", SP_monster_gunner},
     {"monster_infantry", SP_monster_infantry},
     {"monster_soldier_light", SP_monster_soldier_light},
     {"monster_soldier", SP_monster_soldier},
     {"monster_soldier_ss", SP_monster_soldier_ss},
-    {"monster_tank", SP_monster_tank},
-    {"monster_tank_commander", SP_monster_tank},
-    {"monster_medic", SP_monster_medic},
-    {"monster_flipper", SP_monster_flipper},
-    {"monster_chick", SP_monster_chick},
-    {"monster_parasite", SP_monster_parasite},
-    {"monster_flyer", SP_monster_flyer},
-    {"monster_brain", SP_monster_brain},
-    {"monster_floater", SP_monster_floater},
-    {"monster_hover", SP_monster_hover},
-    {"monster_mutant", SP_monster_mutant},
-    {"monster_supertank", SP_monster_supertank},
-    {"monster_boss2", SP_monster_boss2},
-    {"monster_boss3_stand", SP_monster_boss3_stand},
-    {"monster_makron", SP_monster_makron},
-    {"monster_jorg", SP_monster_jorg},
 
     {"monster_commander_body", SP_monster_commander_body},
 

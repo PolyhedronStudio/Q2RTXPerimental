@@ -20,6 +20,8 @@ typedef struct edict_s sgentity_s;
 
 // Include other shared game headers.
 #include "sg_cmd_messages.h"
+#include "sg_entity_effects.h"
+#include "sg_entity_events.h"
 #include "sg_gamemode.h"
 #include "sg_misc.h"
 #include "sg_muzzleflashes.h"

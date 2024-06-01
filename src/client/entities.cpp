@@ -78,7 +78,7 @@ static inline void entity_update_new( centity_t *ent, const entity_state_t *stat
     ent->frame_servertime = cl.servertime;
     // WID: 40hz
 
-        // No lerping if teleported, or a BEAM effect entity.
+    // No lerping if teleported, or a BEAM effect entity.
     if ( state->event == EV_PLAYER_TELEPORT ||
         state->event == EV_OTHER_TELEPORT ||
         ( state->renderfx & RF_BEAM ) ) {
