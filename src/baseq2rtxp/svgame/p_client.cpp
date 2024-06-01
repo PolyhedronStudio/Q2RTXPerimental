@@ -1174,7 +1174,7 @@ void PutClientInServer(edict_t *ent)
     ent->client = &game.clients[index];
     ent->takedamage = DAMAGE_AIM;
     ent->movetype = MOVETYPE_WALK;
-    ent->viewheight = 22;
+    ent->viewheight = PM_VIEWHEIGHT_STANDUP;
     ent->inuse = true;
     ent->classname = "player";
     ent->mass = 200;
@@ -1747,7 +1747,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             level.exitintermission = true;
         }
 
-        client->ps.pmove.viewheight = ent->viewheight = 22;
+        // WID: Also seems set in p_hud.cpp -> MoveClientToIntermission
+        client->ps.pmove.viewheight = ent->viewheight = PM_VIEWHEIGHT_STANDUP;
 
         return;
     }

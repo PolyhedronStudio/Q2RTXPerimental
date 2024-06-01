@@ -112,7 +112,7 @@ void weapon_fists_primary_fire( edict_t *ent ) {
     QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
     // Determine shot kick offset.
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
-    ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
+    ent->client->weaponKicks.offsetAngles[ 0 ] = 2;
     ent->client->weaponKicks.offsetAngles[ 1 ] = -2; // Left punch angle.
 
     // Project from source to shot destination.
@@ -146,7 +146,7 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
     QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
     // Determine shot kick offset.
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
-    ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
+    ent->client->weaponKicks.offsetAngles[ 0 ] = 2;
     ent->client->weaponKicks.offsetAngles[ 1 ] = 2; // Right punch angle.
 
     // Project from source to shot destination.

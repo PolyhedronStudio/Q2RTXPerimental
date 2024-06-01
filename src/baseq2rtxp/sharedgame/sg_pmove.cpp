@@ -138,31 +138,24 @@ static void PM_UpdateGroundFromTrace( const trace_t *trace ) {
 *	@brief	Sets the player's movement bounding box depending on various state factors.
 **/
 static void PM_SetDimensions() {
-	// Start with a {-16,-16, 0}, {16,16, 0}, and set Z after.
-	pm->mins.x = -16;
-	pm->mins.y = -16;
-	pm->maxs.x = 16;
-	pm->maxs.y = 16;
+	// Start with the default bbox for standing straight up.
+	pm->mins = PM_BBOX_STANDUP_MINS;
+	pm->maxs = PM_BBOX_STANDUP_MAXS;
+	ps->pmove.viewheight = PM_VIEWHEIGHT_STANDUP;
 
 	// Specifical gib treatment.
 	if ( ps->pmove.pm_type == PM_GIB ) {
-		pm->mins.z = 0;
-		pm->maxs.z = 16;
-		ps->pmove.viewheight = 8;
+		pm->mins = PM_BBOX_GIBBED_MINS;
+		pm->maxs = PM_BBOX_GIBBED_MAXS;
+		ps->pmove.viewheight = PM_VIEWHEIGHT_GIBBED;
 		return;
 	}
 
-	// Mins for standing/crouching/dead.
-	pm->mins.z = -24;
-
 	// Dead, and Ducked bbox:
 	if ( ( ps->pmove.pm_flags & PMF_DUCKED ) || ps->pmove.pm_type == PM_DEAD ) {
-		pm->maxs.z = 4;
-		ps->pmove.viewheight = -2;
-		// Alive and kicking bbox:
-	} else {
-		pm->maxs.z = 32;
-		ps->pmove.viewheight = 22;
+		pm->mins = PM_BBOX_DUCKED_MINS;
+		pm->maxs = PM_BBOX_DUCKED_MAXS;
+		ps->pmove.viewheight = PM_VIEWHEIGHT_DUCKED;
 	}
 }
 /**
@@ -838,7 +831,7 @@ static void PM_FlyMove( bool doclip ) {
 	float drop = 0.f;
 
 	// When clipping don 't adjust viewheight, if no-clipping, default a viewheight of 22.
-	ps->pmove.viewheight = doclip ? 0 : 22;
+	ps->pmove.viewheight = doclip ? 0 : PM_VIEWHEIGHT_STANDUP;
 
 	// Calculate friction
 	const float speed = QM_Vector3Length( pml.velocity );
@@ -1679,6 +1672,8 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	// player move stats by adding a 'class' slot, and basing movement parameters
 	// on that.
 	//
+
+
 	pmp->pm_stop_speed = default_pmoveParams_t::pm_stop_speed;
 	pmp->pm_max_speed = default_pmoveParams_t::pm_max_speed;
 	pmp->pm_jump_height = default_pmoveParams_t::pm_jump_height;
