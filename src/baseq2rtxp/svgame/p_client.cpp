@@ -1656,7 +1656,8 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     }
 
     // restart footstep timer
-    ent->client->bobtime = 0;
+    //ent->client->bobtime = 0;
+    //ent->client->ps.bobCycle = 0;
 
     //if ( ent->client->landmark_free_fall ) {
     //    delta = min( 30.f, delta );

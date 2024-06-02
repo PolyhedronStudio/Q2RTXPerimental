@@ -47,13 +47,15 @@ static inline float LongToFloat( uint32_t l ) {
 #define LittleLong(x)     ((uint32_t)(x))
 #define LittleLongLong(x) ((uint64_t)(x))
 #define LittleFloat(x)    ((float)(x))
+#define LittleDouble(x)    ((double)(x))
 #define MakeRawLong(b1,b2,b3,b4) (((unsigned)(b4)<<24)|((b3)<<16)|((b2)<<8)|(b1))
 #define MakeRawShort(b1,b2) (((b2)<<8)|(b1))
 #elif USE_BIG_ENDIAN
 #define BigShort(x)     ((uint16_t)(x))
 #define BigLong(x)      ((uint32_t)(x))
-#define BigLongLong(x)      ((uint32_t)(x))
+#define BigLongLong(x)      ((uint64_t)(x))
 #define BigFloat(x)     ((float)(x))
+#define BigDouble(x)     ((double)(x))
 #define LittleShort ShortSwap
 #define LittleLong  LongSwap
 #define LittleFloat FloatSwap

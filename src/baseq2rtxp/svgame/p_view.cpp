@@ -25,11 +25,11 @@ static  edict_t *current_player;
 static  gclient_t *current_client;
 
 static  vec3_t  forward, right, up;
-float   xyspeed;
 
-float   bobmove;
-int64_t bobcycle, bobcycle_run;       // odd cycles are right foot going forward
-float   bobfracsin;     // sin(bobfrac*M_PI)
+//float   xyspeed;
+//float   bobmove;
+//int64_t bobcycle, bobcycle_run;       // odd cycles are right foot going forward
+//float   bobfracsin;     // sin(bobfrac*M_PI)
 
 
 inline bool SkipViewModifiers( ) {
@@ -776,8 +776,8 @@ void G_SetClientEvent( edict_t *ent ) {
 			VectorCopy( ent->s.origin, current_client->last_ladder_pos );
 			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
 		}
-	} else if ( ent->groundentity && xyspeed > 225 ) {
-		if ( (int)( current_client->bobtime + bobmove ) != bobcycle_run ) {
+	} else if ( ent->groundentity && ent->client->ps.xySpeed > 225 ) {
+		if ( ( current_client->bobCycle != current_client->oldBobCycle ) ) {
 			ent->s.event = EV_FOOTSTEP;
 			//gi.dprintf( "%s: EV_FOOTSTEP ent->ground xyspeed > 225\n", __func__ );
 		}
@@ -822,42 +822,45 @@ void G_SetClientSound( edict_t *ent ) {
 		ent->s.sound = 0;
 }
 
-/*
-===============
-G_SetClientFrame
-===============
-*/
+/**
+*	@brief	Will set the client entity's animation for the current frame.
+**/
 void G_SetClientFrame( edict_t *ent ) {
-	gclient_t *client;
-	bool        duck, run;
-
-	if ( ent->s.modelindex != 255 )
+	// Return if not viewing a player model entity.
+	if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
 		return;     // not in the player model
+	}
 
-	client = ent->client;
+	// Acquire its client info.
+	gclient_t *client = ent->client;
 
-	if ( client->ps.pmove.pm_flags & PMF_DUCKED )
+	// Ducked?
+	bool duck = false;
+	if ( client->ps.pmove.pm_flags & PMF_DUCKED ) {
 		duck = true;
-	else
-		duck = false;
-	if ( xyspeed )
+	}
+
+	// Walk/Running ?
+	bool run = false;
+	if ( client->ps.xySpeed ) {
 		run = true;
-	else
-		run = false;
+	}
 
 	// check for stand/duck and stop/go transitions
-	if ( duck != client->anim_duck && client->anim_priority < ANIM_DEATH )
+	if ( duck != client->anim_duck && client->anim_priority < ANIM_DEATH ) {
 		goto newanim;
-	if ( run != client->anim_run && client->anim_priority == ANIM_BASIC )
+	}
+	if ( run != client->anim_run && client->anim_priority == ANIM_BASIC ) {
 		goto newanim;
-	if ( !ent->groundentity && client->anim_priority <= ANIM_WAVE )
+	}
+	if ( !ent->groundentity && client->anim_priority <= ANIM_WAVE ) {
 		goto newanim;
+	}
 
 	// WID: 40hz:
-	if ( client->anim_time > level.time )
+	if ( client->anim_time > level.time ) {
 		return;
-
-	else if ( client->anim_priority == ANIM_REVERSED ) {
+	} else if ( client->anim_priority == ANIM_REVERSED ) {
 		if ( client->anim_time <= level.time ) {
 			ent->s.frame--;
 			client->anim_time = level.time + 10_hz; // WID: 40hz:
@@ -872,12 +875,20 @@ void G_SetClientFrame( edict_t *ent ) {
 		return;
 	}
 
-	if ( client->anim_priority == ANIM_DEATH )
-		return;     // stay there
+	// If death is prioritized, stay death anim.
+	if ( client->anim_priority == ANIM_DEATH ) {
+		// Stay there.
+		return;
+	}
+	// Jumping.
 	if ( client->anim_priority == ANIM_JUMP ) {
-		if ( !ent->groundentity )
+		// If we're not on-ground we're already jumping.
+		if ( !ent->groundentity ) {
 			return;     // stay there
+		}
+		// I have no clue why this is here.
 		ent->client->anim_priority = ANIM_WAVE;
+
 		// WID: 40hz:
 		if ( duck ) {
 			ent->s.frame = FRAME_jump6;
@@ -993,11 +1004,11 @@ void ClientEndServerFrame( edict_t *ent ) {
 	// calculate speed and cycle to be used for
 	// all cyclic walking effects
 	//
-	xyspeed = sqrtf( ent->velocity[ 0 ] * ent->velocity[ 0 ] + ent->velocity[ 1 ] * ent->velocity[ 1 ] );
+	//xyspeed = sqrtf( ent->velocity[ 0 ] * ent->velocity[ 0 ] + ent->velocity[ 1 ] * ent->velocity[ 1 ] );
 
-	if ( xyspeed < 5 ) {
-		bobmove = 0;
-		current_client->bobtime = 0;    // start at beginning of cycle again
+	if ( ent->client->ps.xySpeed < 5 ) {
+		//bobmove = 0;
+		//current_client->bobtime = 0;    // start at beginning of cycle again
 	} else if ( ent->groundentity ) {
 		// so bobbing only cycles when on ground
 		//if ( xyspeed > 210 )
@@ -1006,28 +1017,34 @@ void ClientEndServerFrame( edict_t *ent ) {
 		//	bobmove = 0.125f;
 		//else
 		//	bobmove = 0.0625f;
-		if ( xyspeed > 210 ) {
-			bobmove = gi.frame_time_ms / 400.f;
-		} else if ( xyspeed > 100 ) {
-			bobmove = gi.frame_time_ms / 800.f;
-		} else {
-			bobmove = gi.frame_time_ms / 1600.f;
-		}
+
+		//if ( xyspeed > 210 ) {
+		//	bobmove = gi.frame_time_ms / 400.f;
+		//} else if ( xyspeed > 100 ) {
+		//	bobmove = gi.frame_time_ms / 800.f;
+		//} else {
+		//	bobmove = gi.frame_time_ms / 1600.f;
+		//}
 	} else {
-		bobmove = 0;
+		//bobmove = 0;
 	}
 
-	float bobtime = ( current_client->bobtime += bobmove );
-	const float bobtime_run = bobtime;
+	//float bobtime = ( current_client->bobtime += current_client->ps.bobMove );
+	//const float bobtime_run = bobtime;
 
 	if ( ( current_client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity ) {
-		bobtime *= 4;
+		//bobtime *= 4;
 	}
 
-	bobcycle = (int)bobtime;
-	bobcycle_run = (int)bobtime_run;
-	bobfracsin = fabs( sin( bobtime * M_PI ) );
+	current_client->oldBobCycle = current_client->bobCycle;
+	current_client->bobCycle = ( current_client->ps.bobCycle & 128 ) >> 7;
+	current_client->bobFracSin = fabs( sin( ( current_client->ps.bobCycle & 127 ) / 127.0 * M_PI ) );
 
+	//bobcycle = (int64_t)bobtime;
+	//bobcycle_run = (int64_t)bobtime_run;
+	//bobfracsin = fabs( sin( bobtime * M_PI ) );
+
+	gi.dprintf( "SVGame(%s): bobCycle(%i), oldBobCycle(%i), bobFracSin(%f) \n", __func__, current_client->bobCycle, current_client->oldBobCycle, current_client->bobFracSin );
 	// apply all the damage taken this frame
 	P_DamageFeedback( ent );
 

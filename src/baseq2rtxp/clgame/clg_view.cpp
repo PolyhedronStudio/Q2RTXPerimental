@@ -365,7 +365,7 @@ const float PF_CalculateFieldOfView( const float fov_x, const float width, const
 *   @brief  Calculate the bob cycle and apply bob angles as well as a view offset.
 **/
 static void CLG_CycleViewBob( player_state_t *ps ) {
-    //// Calculate base bob data.
+    // Calculate base bob data.
     level.viewBob.cycle = ( ps->bobCycle & 128 ) >> 7;
     level.viewBob.fracSin = fabs( sin( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
     level.viewBob.xySpeed = ps->xySpeed;

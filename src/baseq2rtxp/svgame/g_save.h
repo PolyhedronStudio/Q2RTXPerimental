@@ -22,6 +22,7 @@ enum fieldtype_t : int32_t {
 
 	F_BOOL,
 	F_FLOAT,
+	F_DOUBLE,
 
 	F_LSTRING,          // string on disk, pointer in memory, TAG_SVGAME_LEVEL
 	F_GSTRING,          // string on disk, pointer in memory, TAG_SVGAME

@@ -43,8 +43,10 @@ typedef struct {
 
 #if USE_DEBUG
 #define _FA(type, name, size) { type, #name, _OFS(name), size }
+#define _DA(type, name, size) { type, #name, _OFS(name), size }
 #else
 #define _FA(type, name, size) { type, _OFS(name), size }
+#define _DA(type, name, size) { type, _OFS(name), size }
 #endif
 #define _F(type, name) _FA(type, name, 1)
 #define SZ(name, size) _FA(F_ZSTRING, name, size)
@@ -58,6 +60,8 @@ typedef struct {
 #define O(name) OA(name, 1)
 #define FA(name, size) _FA(F_FLOAT, name, size)
 #define F(name) FA(name, 1)
+#define DA(name, size) _DA(F_DOUBLE, name, size)
+#define D(name) DA(name, 1)
 #define L(name) _F(F_LSTRING, name)
 #define V(name) _F(F_VECTOR, name)
 #define T(name) _F(F_ITEM, name)
@@ -446,7 +450,9 @@ static const save_field_t clientfields[] = {
 	F( damage_alpha ),
 	F( bonus_alpha ),
 	V( damage_blend ),
-	F( bobtime ),
+	I64( bobCycle ),
+    I64( oldBobCycle ),
+    D( bobFracSin ),
     I64( last_stair_step_frame ),
     V( last_ladder_pos ),
     I64( last_ladder_sound ),
@@ -522,6 +528,11 @@ static void write_float(gzFile f, float v)
 {
     v = LittleFloat(v);
     write_data(&v, sizeof(v), f);
+}
+
+static void write_double( gzFile f, double v ) {
+    v = LittleDouble( v );
+    write_data( &v, sizeof( v ), f );
 }
 
 static void write_string(gzFile f, char *s)
@@ -618,6 +629,11 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
     case F_FLOAT:
         for (i = 0; i < field->size; i++) {
             write_float(f, ((float *)p)[i]);
+        }
+        break;
+    case F_DOUBLE:
+        for ( i = 0; i < field->size; i++ ) {
+            write_double( f, ( (double *)p )[ i ] );
         }
         break;
     case F_VECTOR:
