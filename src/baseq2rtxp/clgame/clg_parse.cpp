@@ -95,7 +95,6 @@ static void CLG_ParseTEntPacket( void ) {
     case TE_EXPLOSION1_NP:
     case TE_EXPLOSION1_BIG:
     case TE_PLAIN_EXPLOSION:
-    case TE_TRACKER_EXPLOSION:
     case TE_TELEPORT_EFFECT:
     case TE_NUKEBLAST:
         clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );

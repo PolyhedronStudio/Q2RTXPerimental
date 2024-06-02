@@ -66,8 +66,6 @@ void CLG_AddPlayerBeams( void );
 *	temp_entities/clg_te_explosions.cpp
 *
 ***/
-extern cvar_t *cl_disable_particles;
-extern cvar_t *cl_disable_explosions;
 extern cvar_t *cl_explosion_sprites;
 extern cvar_t *cl_explosion_frametime;
 

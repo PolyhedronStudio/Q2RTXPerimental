@@ -54,21 +54,16 @@ void PF_PrecacheClientSounds( void ) {
     CLG_EAX_Precache();
 
     // Ricochets SFX:
-    precache.sfx.ric1 = clgi.S_RegisterSound( "world/ric1.wav" );
-    precache.sfx.ric2 = clgi.S_RegisterSound( "world/ric2.wav" );
-    precache.sfx.ric3 = clgi.S_RegisterSound( "world/ric3.wav" );
+    precache.sfx.ric1 = clgi.S_RegisterSound( "world/ricochet_01.wav" );
+    precache.sfx.ric2 = clgi.S_RegisterSound( "world/ricochet_02.wav" );
+    precache.sfx.ric3 = clgi.S_RegisterSound( "world/ricochet_03.wav" );
     // Lasers SFX:
-    precache.sfx.lashit = clgi.S_RegisterSound( "weapons/lashit.wav" );
-    // Flare/Sparks SFX:
-    precache.sfx.flare = clgi.S_RegisterSound( "weapons/flare.wav" );
-    precache.sfx.spark5 = clgi.S_RegisterSound( "world/spark5.wav" );
-    precache.sfx.spark6 = clgi.S_RegisterSound( "world/spark6.wav" );
-    precache.sfx.spark7 = clgi.S_RegisterSound( "world/spark7.wav" );
+    precache.sfx.lashit = clgi.S_RegisterSound( "world/lashit01.wav" );
     // Weapon SFX:
-    precache.sfx.railg = clgi.S_RegisterSound( "weapons/railgf1a.wav" );
-    precache.sfx.rockexp = clgi.S_RegisterSound( "weapons/rocklx1a.wav" );
-    precache.sfx.grenexp = clgi.S_RegisterSound( "weapons/grenlx1a.wav" );
-    precache.sfx.watrexp = clgi.S_RegisterSound( "weapons/xpld_wat.wav" );
+    precache.sfx.explosion_rocket = clgi.S_RegisterSound( "explosions/expl_rocket01.wav" );
+    precache.sfx.explosion_grenade01 = clgi.S_RegisterSound( "explosions/expl_grenade01.wav" );
+    precache.sfx.explosion_grenade02 = clgi.S_RegisterSound( "explosions/expl_grenade02.wav" );
+    precache.sfx.explosion_water = clgi.S_RegisterSound( "explosions/expl_water01.wav" );
 
     // Precache player land/fall.
     clgi.S_RegisterSound( "player/land01.wav" );
@@ -77,10 +72,6 @@ void PF_PrecacheClientSounds( void ) {
 
     // Precache Footsteps:
     CLG_PrecacheFootsteps();
-
-    // Precache Elon Musk's Tesla car.
-    precache.sfx.lightning = clgi.S_RegisterSound( "weapons/tesla.wav" );
-    precache.sfx.disrexp = clgi.S_RegisterSound( "weapons/disrupthit.wav" );
 
     // Precaches all local 'sound path' registered files. This has to be done after the other local sounds are loaded,
     // to prevent their indexes from mixing up.

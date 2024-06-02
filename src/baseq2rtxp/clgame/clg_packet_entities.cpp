@@ -275,9 +275,9 @@ void CLG_PacketEntity_AddTrailEffects( centity_t *cent, entity_t *ent, entity_st
     // Add automatic particle trails
     if ( effects & ~EF_ROTATE ) {
         if ( effects & EF_ROCKET ) {
-            if ( !( cl_disable_particles->integer & NOPART_ROCKET_TRAIL ) ) {
+            //if ( !( cl_disable_particles->integer & NOPART_ROCKET_TRAIL ) ) {
                 CLG_RocketTrail( cent->lerp_origin, ent->origin, cent );
-            }
+            //}
             //if ( cl_dlight_hacks->integer & DLHACK_ROCKET_COLOR )
             //    clgi.V_AddLight( ent->origin, 200, 1, 0.23f, 0 );
             //else
@@ -298,9 +298,9 @@ void CLG_PacketEntity_AddTrailEffects( centity_t *cent, entity_t *ent, entity_st
         } else if ( effects & EF_GIB ) {
             CLG_DiminishingTrail( cent->lerp_origin, ent->origin, cent, effects );
         } else if ( effects & EF_GRENADE ) {
-            if ( !( cl_disable_particles->integer & NOPART_GRENADE_TRAIL ) ) {
+            //if ( !( cl_disable_particles->integer & NOPART_GRENADE_TRAIL ) ) {
                 CLG_DiminishingTrail( cent->lerp_origin, ent->origin, cent, effects );
-            }
+            //}
         } else if ( effects & EF_FLIES ) {
             CLG_FlyEffect( cent, ent->origin );
         } else if ( effects & EF_BFG ) {

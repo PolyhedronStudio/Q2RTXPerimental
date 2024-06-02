@@ -479,23 +479,17 @@ typedef struct precached_media_s {
 	// Sound Effects:
 	//
 	struct {
+		// Ricochet effects:
 		qhandle_t ric1;
 		qhandle_t ric2;
 		qhandle_t ric3;
+		// Seems 'burn' hit like, was called laser_hit. TODO: Rename burn_hit?
 		qhandle_t lashit;
-		qhandle_t flare;
-		qhandle_t spark5;
-		qhandle_t spark6;
-		qhandle_t spark7;
-		qhandle_t railg;
-		qhandle_t rockexp;
-		qhandle_t grenexp;
-		qhandle_t watrexp;
-
-		//qhandle_t footsteps[ 14 ];
-
-		qhandle_t lightning;
-		qhandle_t disrexp;
+		// Explosions.
+		qhandle_t explosion_rocket;
+		qhandle_t explosion_grenade01;
+		qhandle_t explosion_grenade02;
+		qhandle_t explosion_water;
 
 		struct {
 			// Kind - "default"/"floor" (Used as a default, and for "floor" specific materials):
@@ -769,11 +763,11 @@ typedef struct clg_explosion_s {
 	int64_t     frametime;
 } clg_explosion_t;
 
-#define NOPART_GRENADE_EXPLOSION    1
-#define NOPART_GRENADE_TRAIL        2
-#define NOPART_ROCKET_EXPLOSION     4
-#define NOPART_ROCKET_TRAIL         8
-#define NOPART_BLOOD                16
+//#define NOPART_GRENADE_EXPLOSION    1
+//#define NOPART_GRENADE_TRAIL        2
+//#define NOPART_ROCKET_EXPLOSION     4
+//#define NOPART_ROCKET_TRAIL         8
+//#define NOPART_BLOOD                16
 
 /**
 *	Particles:

@@ -213,25 +213,9 @@ Color of the rail spiral. Default value is "blue".
 #### `cl_railspiral_radius`
 Radius of the rail spiral. Default value is 3.
 
-#### `cl_disable_particles`
-Disables rendering of particles for the following effects. This variable is
-a bitmask. Default value is 0.
-
-- 1 — grenade explosions
-- 2 — grenade trails
-- 4 — rocket explosions
-- 8 — rocket trails
-
 #### Bitmasks
 *TIP*: Bitmask cvars allow multiple features to be enabled. To enable the needed
 set of features, their values need to be summed.
-
-#### `cl_disable_explosions`
-Disables rendering of animated models for the following effects. This
-variable is a bitmask. Default value is 0.
-
-  - 1 — grenade explosions
-  - 2 — rocket explosions
 
 #### `cl_explosion_frametime`
 Specifies the time, in milliseconds, between consecutive animation frames for the

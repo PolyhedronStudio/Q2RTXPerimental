@@ -262,8 +262,8 @@ begin effects
         range -p -f "%.0f%%" "screen blending center strength" tm_blend_scale_center 0 1
         range -p -f "%.0f%%" "screen blending border strength" tm_blend_scale_border 0 1
     endif
-    toggle "grenade explosions" cl_disable_explosions ~0
-    toggle "rocket explosions" cl_disable_explosions ~1
+    //toggle "grenade explosions" cl_disable_explosions ~0
+    //toggle "rocket explosions" cl_disable_explosions ~1
     toggle "explosion sprites" cl_explosion_sprites
     blank
     action --align "railgun trail setup..." pushmenu railtrail
