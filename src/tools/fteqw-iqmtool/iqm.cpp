@@ -1315,7 +1315,7 @@ void makemeshes(const filespec &spec)
 					m.numskins++;
 					skin.firstframe = skinframes.length();
 					skin.countframes = 1;
-					skin.interval = 0.2;
+					skin.interval = 0.2f;
 
 					auto &skinframe = skinframes.add();
 					skinframe.material_idx = sharestring(matname);
@@ -4681,8 +4681,8 @@ void calcanimdata()
 			// Find animation name matching frame number.
 			const char *animationname = "";
 			for ( int i = 0; i < anims.alen; i++ ) {
-				uint ff = anims[ i ].firstframe;
-				uint lf = anims[ i ].firstframe + anims[ i ].numframes;
+				int ff = anims[ i ].firstframe;
+				int lf = anims[ i ].firstframe + anims[ i ].numframes;
 				if ( framenum >= ff && framenum < lf ) {
 					animationname = &stringdata[ anims[ i ].name ];
 				}
@@ -4963,13 +4963,13 @@ bool writeiqm(const char *filename)
 	f->write(&hdr, sizeof(hdr));
 
 	// Move file write position to location specified by ofs_text
-	for(int i = f->tell(); i < hdr.ofs_text; i++) {
+	for(uint i = f->tell(); i < hdr.ofs_text; i++) {
 		f->putchar(0);
 	}
 	if(stringdata.length()) f->write(stringdata.getbuf(), stringdata.length());
 
 	// Move file write position to location specified by ofs_meshes
-	for(int i = f->tell(); i < hdr.ofs_meshes; i++) {
+	for(uint i = f->tell(); i < hdr.ofs_meshes; i++) {
 		f->putchar(0);
 	}
 	loopv(meshes)
@@ -4984,7 +4984,7 @@ bool writeiqm(const char *filename)
 	}
 
 	// Move file write position to location specified by ofs_vertexarrays
-	for(int i = f->tell(); i < hdr.ofs_vertexarrays; i++) {
+	for(uint i = f->tell(); i < hdr.ofs_vertexarrays; i++) {
 		f->putchar(0);
 	}
 	loopv(varrays)
@@ -5001,7 +5001,7 @@ bool writeiqm(const char *filename)
 	f->write(vdata.getbuf(), vdata.length());
 
 	// Move file write position to location specified by ofs_triangles
-	for(int i = f->tell(); i < hdr.ofs_triangles; i++) {
+	for(uint i = f->tell(); i < hdr.ofs_triangles; i++) {
 		f->putchar(0);
 	}
 	loopv(triangles)
@@ -5011,7 +5011,7 @@ bool writeiqm(const char *filename)
 	}
 
 	// Move file write position to location specified by ofs_adjacency
-	for(int i = f->tell(); i < hdr.ofs_adjacency; i++) {
+	for(uint i = f->tell(); i < hdr.ofs_adjacency; i++) {
 		f->putchar(0);
 	}
 	loopv(neighbors)
@@ -5021,7 +5021,7 @@ bool writeiqm(const char *filename)
 	}
 
 	// Move file write position to location specified by ofs_joints
-	for(int i = f->tell(); i < hdr.ofs_joints; i++) {
+	for(uint i = f->tell(); i < hdr.ofs_joints; i++) {
 		f->putchar(0);
 	}
 	loopv(joints)
@@ -5035,7 +5035,7 @@ bool writeiqm(const char *filename)
 	}
 
 	// Move file write position to location specified by ofs_poses
-	for(int i = f->tell(); i < hdr.ofs_poses; i++) {
+	for(uint i = f->tell(); i < hdr.ofs_poses; i++) {
 		f->putchar(0);
 	}
 	loopv(poses)
@@ -5048,7 +5048,7 @@ bool writeiqm(const char *filename)
 	}
 
 	// Move file write position to location specified by ofs_anims
-	for(int i = f->tell(); i < hdr.ofs_anims; i++) {
+	for(uint i = f->tell(); i < hdr.ofs_anims; i++) {
 		f->putchar(0);
 	}
 	loopv(anims)
@@ -5062,13 +5062,13 @@ bool writeiqm(const char *filename)
 	}
 
 	// Move file write position to location specified by ofs_frames
-	for(int i = f->tell(); i < hdr.ofs_frames; i++) {
+	for(uint i = f->tell(); i < hdr.ofs_frames; i++) {
 		f->putchar(0);
 	}
 	loopv(animdata) f->putlil(animdata[i]);
 
 	// Move file write position to location specified by ofs_bounds
-	for(int i = f->tell(); i < hdr.ofs_bounds; i++) {
+	for(uint i = f->tell(); i < hdr.ofs_bounds; i++) {
 		f->putchar(0);
 	}
 	loopv(bounds)
@@ -5083,14 +5083,14 @@ bool writeiqm(const char *filename)
 	if(commentdata.length())
 	{
 		// Move file write position to location specified by ofs_comment
-		for(int i = f->tell(); i < hdr.ofs_comment; i++) {
+		for(uint i = f->tell(); i < hdr.ofs_comment; i++) {
 			f->putchar(0);
 		}
 		f->write(commentdata.getbuf(), commentdata.length());
 	} 
 
 	// Move file write position to location specified by ofs_extensions
-	for(int i = f->tell(); i < hdr.ofs_extensions; i++) {
+	for(uint i = f->tell(); i < hdr.ofs_extensions; i++) {
 		f->putchar(0);
 	}
 	loopv (extensions)
@@ -5108,7 +5108,7 @@ bool writeiqm(const char *filename)
 	if (ext_meshes_fte) 
 	{
 		// Move file write position to location specified by ext_meshes_fte->ofs_data
-		for(int i = f->tell(); i < ext_meshes_fte->ofs_data; i++) {
+		for(uint i = f->tell(); i < ext_meshes_fte->ofs_data; i++) {
 			f->putchar(0);
 		}
 		loopv(meshes_fte)
@@ -5127,7 +5127,7 @@ bool writeiqm(const char *filename)
 	if (ext_events_fte) 
 	{
 		// Move file write position to location specified by ext_events_fte->ofs_data
-		for(int i = f->tell(); i < ext_events_fte->ofs_data; i++) {
+		for(uint i = f->tell(); i < ext_events_fte->ofs_data; i++) {
 			f->putchar(0);
 		}
 		loopv(events_fte)
@@ -5143,7 +5143,7 @@ bool writeiqm(const char *filename)
 	if (ext_skins_fte)
 	{
 		// Move file write position to location specified by ext_skins_fte->ofs_data
-		for(int i = f->tell(); i < ext_skins_fte->ofs_data; i++) {
+		for(uint i = f->tell(); i < ext_skins_fte->ofs_data; i++) {
 			f->putchar(0);
 		}
 		f->putlil(skinframes.length());
@@ -6432,7 +6432,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	const char buff[ 2048 ] = {};
+	char buff[ 2048 ] = {};
 	scanf( "%s\n", buff );
 	return EXIT_SUCCESS;
 }

@@ -718,12 +718,14 @@ gitem_t itemlist[] = {
     //},
 
 
+    //********************************************************
+    //  Weapon Items:                                       **
+    //********************************************************
+    
     //
-    // WEAPONS
+    //   classname(weapon_blaster) bbox(-16 -16 -16) (16 16 16)
+    //   NOTE: It is always 'owned' and never dropped/placed in the world.
     //
-    ///* weapon_blaster (.3 .3 1) (-16 -16 -16) (16 16 16)
-    //always owned, never in the world
-    //*/
     {
         .classname = "weapon_fists",
         .pickup = P_Weapon_Pickup,
@@ -751,7 +753,9 @@ gitem_t itemlist[] = {
         .precaches = "models/v_wep/fists/tris.iqm weapons/fists/fist1.wav weapons/fists/sway01.wav weapons/fists/sway02.wav weapons/fists/sway03.wav weapons/fists/sway04.wav weapons/fists/sway05.wav"
     },
 
-    //*QUAKED weapon_pistol (.3 .3 1) (-16 -16 -16) (16 16 16)     
+    //
+    //   classname(weapon_pistol) bbox(-16 -16 -16) (16 16 16)
+    //
     {
         .classname = "weapon_pistol",
         .pickup = P_Weapon_Pickup,
@@ -782,10 +786,12 @@ gitem_t itemlist[] = {
     },
 
 
+    //********************************************************
+    //  Ammo Items:                                         **
+    //********************************************************
     //
-    // AMMO ITEMS
+    //   classname(ammo_bullets_pistol) bbox(-16 -16 -16) (16 16 16)
     //
-    // QUAKED ammo_bullets_pistol (.3 .3 1) (-8 -8 -8) (8 8 8)
     {
         .classname = "ammo_bullets_pistol",
         .pickup = Pickup_Ammo,
@@ -809,7 +815,10 @@ gitem_t itemlist[] = {
         // Precache.
         .precaches = "models/items/ammo/bullets_pistol/tris.iqm items/weaponry_pickup.wav"
     },
-    // QUAKED ammo_bullets_rifle (.3 .3 1) (-8 -8 -8) (8 8 8)
+
+    //
+    //   classname(ammo_bullets_rifle) bbox(-16 -16 -16) (16 16 16)
+    //
     {
         .classname = "ammo_bullets_rifle",
         .pickup = Pickup_Ammo,
@@ -834,7 +843,9 @@ gitem_t itemlist[] = {
         .precaches = "models/items/ammo/bullets_rifle/tris.iqm items/weaponry_pickup.wav"
     },
     
-    // QUAKED ammo_bullets_smg (.3 .3 1) (-8 -8 -8) (8 8 8)
+    //
+    //   classname(ammo_bullets_smg) bbox(-16 -16 -16) (16 16 16)
+    //
     {
         .classname = "ammo_bullets_smg",
         .pickup = Pickup_Ammo,
@@ -859,7 +870,9 @@ gitem_t itemlist[] = {
         .precaches = "models/items/ammo/bullets_smg/tris.iqm items/weaponry_pickup.wav"
     },
 
-    // QUAKED ammo_bullets_sniper (.3 .3 1) (-8 -8 -8) (8 8 8)
+    //
+    //   classname(ammo_bullets_sniper) bbox(-16 -16 -16) (16 16 16)
+    //
     {
         .classname = "ammo_bullets_sniper",
         .pickup = Pickup_Ammo,
@@ -884,8 +897,9 @@ gitem_t itemlist[] = {
         .precaches = "models/items/ammo/bullets_sniper/tris.iqm items/weaponry_pickup.wav"
     },
 
-    /*QUAKED ammo_shells_shotgun (.3 .3 1) (-16 -16 -16) (16 16 16)
-    */
+    //
+    //   classname(ammo_shells_shotgun) bbox(-16 -16 -16) (16 16 16)
+    //
     {
         .classname = "ammo_shells_shotgun",
         .pickup = Pickup_Ammo,
@@ -911,14 +925,20 @@ gitem_t itemlist[] = {
         .precaches = "models/items/ammo/shells_shotgun/tris.iqm items/weaponry_pickup.wav"
     },
 
-    //
-    // POWERUP ITEMS
-    //
+
+    //********************************************************
+    //  PowerUp Items:                                      **
+    //********************************************************
+    // None as of yet.
 
 
-
+    //********************************************************
+    //  Health: Are spawned by spawn functions, see below:  **
+    //********************************************************
     //
-    //  Health: Are spawned by spawn functions, see below:
+    //   classname(item_health_small)   bbox(-16 -16 -16) (16 16 16)
+    //   classname(item_health_large)   bbox(-16 -16 -16) (16 16 16)
+    //   classname(item_health_mega)    bbox(-16 -16 -16) (16 16 16)
     //
     {
         .classname = NULL,
@@ -943,7 +963,10 @@ gitem_t itemlist[] = {
         .precaches = "items/weaponry_pickup.wav items/s_health.wav items/n_health.wav items/l_health.wav items/m_health.wav"
     },
 
-    // end of list marker
+
+    //********************************************************
+    //  End of list marker:                                 **
+    //********************************************************
     {NULL}
 };
 
