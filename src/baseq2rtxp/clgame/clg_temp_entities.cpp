@@ -100,10 +100,10 @@ void CLG_ParseTEnt( void ) {
 
     switch ( level.parsedMessage.events.tempEntity.type ) {
     case TE_BLOOD: // bullet hitting flesh
-        if ( !( cl_disable_particles->integer & NOPART_BLOOD ) ) {
+        //if ( !( cl_disable_particles->integer & NOPART_BLOOD ) ) {
             // CLG_ParticleEffect(level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 60);
-            CLG_BloodParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 1000 );
-        }
+        CLG_BloodParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 1000 );
+        //}
         break;
 
     case TE_GUNSHOT:            // bullet hitting wall
@@ -128,21 +128,6 @@ void CLG_ParseTEnt( void ) {
         }
         break;
 
-    case TE_SCREEN_SPARKS:
-    case TE_SHIELD_SPARKS:
-        if ( level.parsedMessage.events.tempEntity.type == TE_SCREEN_SPARKS )
-            CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xd0, 40 );
-        else
-            CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xb0, 40 );
-        //FIXME : replace or remove this sound
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 257, precache.sfx.lashit, 1, ATTN_NORM, 0 );
-        break;
-
-    case TE_SHOTGUN:            // bullet hitting wall
-        CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0, 20 );
-        CLG_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
-        break;
-
     case TE_SPLASH:         // bullet hitting water
         if ( level.parsedMessage.events.tempEntity.color < 0 || level.parsedMessage.events.tempEntity.color > 6 )
             r = 0x00;
@@ -165,64 +150,6 @@ void CLG_ParseTEnt( void ) {
         CLG_ParticleEffect2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
         break;
 
-    case TE_BLUEHYPERBLASTER:
-        CLG_BlasterParticles( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir );
-        break;
-
-    case TE_BLASTER:            // blaster hitting wall
-    case TE_BLASTER2:           // green blaster hitting wall
-    case TE_FLECHETTE:          // flechette
-    case TE_FLARE:              // flare
-        ex = CLG_AllocExplosion();
-        VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
-        QM_Vector3ToAngles( Vector3( 0, 1.f, 0.f ), ex->ent.angles ); //dirtoangles( ex->ent.angles );
-        ex->type = clg_explosion_t::ex_blaster;
-        ex->ent.flags = RF_FULLBRIGHT | RF_TRANSLUCENT;
-        ex->ent.tent_type = level.parsedMessage.events.tempEntity.type;
-        switch ( level.parsedMessage.events.tempEntity.type ) {
-        case TE_BLASTER:
-            CLG_BlasterParticles( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir );
-            ex->lightcolor[ 0 ] = 1;
-            ex->lightcolor[ 1 ] = 1;
-            break;
-        case TE_BLASTER2:
-            CLG_BlasterParticles2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xd0 );
-            ex->ent.skinnum = 1;
-            ex->lightcolor[ 1 ] = 1;
-            break;
-        case TE_FLECHETTE:
-            CLG_BlasterParticles2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0x6f );  // 75
-            ex->ent.skinnum = 2;
-            ex->lightcolor[ 0 ] = 0.19f;
-            ex->lightcolor[ 1 ] = 0.41f;
-            ex->lightcolor[ 2 ] = 0.75f;
-            break;
-        case TE_FLARE:
-            CLG_BlasterParticles2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xd0 );
-            ex->lightcolor[ 0 ] = 1;
-            ex->lightcolor[ 1 ] = 1;
-            ex->type = clg_explosion_t::ex_flare;
-            break;
-        }
-        ex->start = clgi.client->servertime - clgi.frame_time_ms;
-        ex->light = 150;
-        ex->ent.model = precache.models.explode;
-        ex->frames = 4;
-
-        if ( level.parsedMessage.events.tempEntity.type != TE_FLARE ) {
-            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.lashit, 1, ATTN_NORM, 0 );
-        } else {
-            // level.parsedMessage.events.tempEntity.count is set to 1 on the first tick of the flare, 0 afterwards
-            if ( level.parsedMessage.events.tempEntity.count != 0 )
-                clgi.S_StartSound( NULL, level.parsedMessage.events.tempEntity.entity1, 0, precache.sfx.flare, 0.5, ATTN_NORM, 0 );
-        }
-        break;
-
-    case TE_RAILTRAIL:          // railgun effect
-        CLG_RailTrail();
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos2, 0, 0, precache.sfx.railg, 1, ATTN_NORM, 0 );
-        break;
-
     case TE_GRENADE_EXPLOSION:
     case TE_GRENADE_EXPLOSION_WATER:
         ex = CLG_PlainExplosion( false );
@@ -230,8 +157,8 @@ void CLG_ParseTEnt( void ) {
             ex->frames = 19;
             ex->baseframe = 30;
         }
-        if ( cl_disable_explosions->integer & NOEXP_GRENADE )
-            ex->type = clg_explosion_t::ex_light; // WID: C++20: Was without clg_explosion_t::
+        //if ( cl_disable_explosions->integer & NOEXP_GRENADE )
+        //    ex->type = clg_explosion_t::ex_light; // WID: C++20: Was without clg_explosion_t::
 
         if ( !( cl_disable_particles->integer & NOPART_GRENADE_EXPLOSION ) )
             CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
@@ -255,17 +182,11 @@ void CLG_ParseTEnt( void ) {
         clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.grenexp, 1, ATTN_NORM, 0 );
         break;
 
-    case TE_PLASMA_EXPLOSION:
-        CLG_PlainExplosion( false );
-        CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.rockexp, 1, ATTN_NORM, 0 );
-        break;
-
     case TE_ROCKET_EXPLOSION:
     case TE_ROCKET_EXPLOSION_WATER:
         ex = CLG_PlainExplosion( false );
-        if ( cl_disable_explosions->integer & NOEXP_ROCKET )
-            ex->type = clg_explosion_t::ex_light; // WID: C++20: This was without clg_explosion_t::
+        //if ( cl_disable_explosions->integer & NOEXP_ROCKET )
+        //    ex->type = clg_explosion_t::ex_light; // WID: C++20: This was without clg_explosion_t::
 
         if ( !( cl_disable_particles->integer & NOPART_ROCKET_EXPLOSION ) )
             CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
@@ -295,44 +216,8 @@ void CLG_ParseTEnt( void ) {
         clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.rockexp, 1, ATTN_NORM, 0 );
         break;
 
-    case TE_BFG_EXPLOSION:
-        ex = CLG_AllocExplosion();
-        VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
-        ex->type = clg_explosion_t::ex_poly;
-        ex->ent.flags = RF_FULLBRIGHT;
-        ex->start = clgi.client->servertime - clgi.frame_time_ms;
-        ex->light = 350;
-        ex->lightcolor[ 0 ] = 0.0f;
-        ex->lightcolor[ 1 ] = 1.0f;
-        ex->lightcolor[ 2 ] = 0.0f;
-        ex->ent.model = precache.models.bfg_explo;
-        ex->ent.flags |= RF_TRANSLUCENT;
-        ex->ent.alpha = 0.80;
-        ex->frames = 4;
-        break;
-
-    case TE_BFG_BIGEXPLOSION:
-        CLG_BFGExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
-        break;
-
-    case TE_BFG_LASER:
-        CLG_ParseLaser( 0xd0d1d2d3 );
-        break;
-
     case TE_BUBBLETRAIL:
         CLG_BubbleTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
-        break;
-
-    case TE_PARASITE_ATTACK:
-    case TE_MEDIC_CABLE_ATTACK:
-        VectorClear( level.parsedMessage.events.tempEntity.offset );
-        level.parsedMessage.events.tempEntity.entity2 = 0;
-        CLG_ParseBeam( precache.models.parasite_segment );
-        break;
-
-    case TE_BOSSTPORT:          // boss teleporting to station
-        CLG_BigTeleportParticles( level.parsedMessage.events.tempEntity.pos1 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, clgi.S_RegisterSound( "misc/bigtele.wav" ), 1, ATTN_NONE, 0 );
         break;
 
     case TE_GRAPPLE_CABLE:
@@ -358,18 +243,8 @@ void CLG_ParseTEnt( void ) {
         ex->frames = 2;
         break;
 
-    case TE_GREENBLOOD:
-        CLG_ParticleEffect2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xdf, 30 );
-        break;
-
     case TE_TUNNEL_SPARKS:
         CLG_ParticleEffect3( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
-        break;
-
-    case TE_LIGHTNING:
-        clgi.S_StartSound( NULL, level.parsedMessage.events.tempEntity.entity1, CHAN_WEAPON, precache.sfx.lightning, 1, ATTN_NORM, 0 );
-        VectorClear( level.parsedMessage.events.tempEntity.offset );
-        CLG_ParseBeam( precache.models.lightning );
         break;
 
     case TE_DEBUGTRAIL:
@@ -386,16 +261,6 @@ void CLG_ParseTEnt( void ) {
 
     case TE_FORCEWALL:
         CLG_ForceWall( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2, level.parsedMessage.events.tempEntity.color );
-        break;
-
-    case TE_HEATBEAM:
-        VectorSet( level.parsedMessage.events.tempEntity.offset, 2, 7, -3 );
-        CLG_ParsePlayerBeam( precache.models.heatbeam );
-        break;
-
-    case TE_MONSTER_HEATBEAM:
-        VectorClear( level.parsedMessage.events.tempEntity.offset );
-        CLG_ParsePlayerBeam( precache.models.heatbeam );
         break;
 
     case TE_HEATBEAM_SPARKS:
@@ -421,11 +286,6 @@ void CLG_ParseTEnt( void ) {
         CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 250 );
         break;
 
-    case TE_CHAINFIST_SMOKE:
-        VectorSet( level.parsedMessage.events.tempEntity.dir, 0, 0, 1 );
-        CLG_ParticleSmokeEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0, 20, 20 );
-        break;
-
     case TE_ELECTRIC_SPARKS:
         CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0x75, 40 );
         //FIXME : replace or remove this sound
@@ -439,21 +299,163 @@ void CLG_ParseTEnt( void ) {
         break;
 
     case TE_TELEPORT_EFFECT:
-    case TE_DBALL_GOAL:
         CLG_TeleportParticles( level.parsedMessage.events.tempEntity.pos1 );
-        break;
-
-    case TE_WIDOWBEAMOUT:
-        CLG_ParseWidow();
         break;
 
     case TE_NUKEBLAST:
         CLG_ParseNuke();
         break;
 
-    case TE_WIDOWSPLASH:
-        CLG_WidowSplash();
-        break;
+        //case TE_SCREEN_SPARKS:
+        //case TE_SHIELD_SPARKS:
+        //    if ( level.parsedMessage.events.tempEntity.type == TE_SCREEN_SPARKS )
+        //        CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xd0, 40 );
+        //    else
+        //        CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xb0, 40 );
+        //    //FIXME : replace or remove this sound
+        //    clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 257, precache.sfx.lashit, 1, ATTN_NORM, 0 );
+        //    break;
+
+        //case TE_SHOTGUN:            // bullet hitting wall
+        //    CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0, 20 );
+        //    CLG_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
+        //    break;
+
+
+        //case TE_BLUEHYPERBLASTER:
+        //    CLG_BlasterParticles( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir );
+        //    break;
+
+        //case TE_BLASTER:            // blaster hitting wall
+        //case TE_BLASTER2:           // green blaster hitting wall
+        //case TE_FLECHETTE:          // flechette
+        //case TE_FLARE:              // flare
+        //    ex = CLG_AllocExplosion();
+        //    VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
+        //    QM_Vector3ToAngles( Vector3( 0, 1.f, 0.f ), ex->ent.angles ); //dirtoangles( ex->ent.angles );
+        //    ex->type = clg_explosion_t::ex_blaster;
+        //    ex->ent.flags = RF_FULLBRIGHT | RF_TRANSLUCENT;
+        //    ex->ent.tent_type = level.parsedMessage.events.tempEntity.type;
+        //    switch ( level.parsedMessage.events.tempEntity.type ) {
+        //    case TE_BLASTER:
+        //        CLG_BlasterParticles( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir );
+        //        ex->lightcolor[ 0 ] = 1;
+        //        ex->lightcolor[ 1 ] = 1;
+        //        break;
+        //    case TE_BLASTER2:
+        //        CLG_BlasterParticles2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xd0 );
+        //        ex->ent.skinnum = 1;
+        //        ex->lightcolor[ 1 ] = 1;
+        //        break;
+        //    case TE_FLECHETTE:
+        //        CLG_BlasterParticles2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0x6f );  // 75
+        //        ex->ent.skinnum = 2;
+        //        ex->lightcolor[ 0 ] = 0.19f;
+        //        ex->lightcolor[ 1 ] = 0.41f;
+        //        ex->lightcolor[ 2 ] = 0.75f;
+        //        break;
+        //    case TE_FLARE:
+        //        CLG_BlasterParticles2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xd0 );
+        //        ex->lightcolor[ 0 ] = 1;
+        //        ex->lightcolor[ 1 ] = 1;
+        //        ex->type = clg_explosion_t::ex_flare;
+        //        break;
+        //    }
+        //    ex->start = clgi.client->servertime - clgi.frame_time_ms;
+        //    ex->light = 150;
+        //    ex->ent.model = precache.models.explode;
+        //    ex->frames = 4;
+
+        //    if ( level.parsedMessage.events.tempEntity.type != TE_FLARE ) {
+        //        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.lashit, 1, ATTN_NORM, 0 );
+        //    } else {
+        //        // level.parsedMessage.events.tempEntity.count is set to 1 on the first tick of the flare, 0 afterwards
+        //        if ( level.parsedMessage.events.tempEntity.count != 0 )
+        //            clgi.S_StartSound( NULL, level.parsedMessage.events.tempEntity.entity1, 0, precache.sfx.flare, 0.5, ATTN_NORM, 0 );
+        //    }
+        //    break;
+
+        //case TE_RAILTRAIL:          // railgun effect
+        //    CLG_RailTrail();
+        //    clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos2, 0, 0, precache.sfx.railg, 1, ATTN_NORM, 0 );
+        //    break;
+
+
+        //case TE_PLASMA_EXPLOSION:
+        //    CLG_PlainExplosion( false );
+        //    CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
+        //    clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.rockexp, 1, ATTN_NORM, 0 );
+        //    break;
+
+
+        //case TE_BFG_EXPLOSION:
+        //    ex = CLG_AllocExplosion();
+        //    VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
+        //    ex->type = clg_explosion_t::ex_poly;
+        //    ex->ent.flags = RF_FULLBRIGHT;
+        //    ex->start = clgi.client->servertime - clgi.frame_time_ms;
+        //    ex->light = 350;
+        //    ex->lightcolor[ 0 ] = 0.0f;
+        //    ex->lightcolor[ 1 ] = 1.0f;
+        //    ex->lightcolor[ 2 ] = 0.0f;
+        //    ex->ent.model = precache.models.bfg_explo;
+        //    ex->ent.flags |= RF_TRANSLUCENT;
+        //    ex->ent.alpha = 0.80;
+        //    ex->frames = 4;
+        //    break;
+
+        //case TE_BFG_BIGEXPLOSION:
+        //    CLG_BFGExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
+        //    break;
+
+        //case TE_BFG_LASER:
+        //    CLG_ParseLaser( 0xd0d1d2d3 );
+        //    break;
+
+        //case TE_PARASITE_ATTACK:
+        //case TE_MEDIC_CABLE_ATTACK:
+        //    VectorClear( level.parsedMessage.events.tempEntity.offset );
+        //    level.parsedMessage.events.tempEntity.entity2 = 0;
+        //    CLG_ParseBeam( precache.models.parasite_segment );
+        //    break;
+
+        //case TE_BOSSTPORT:          // boss teleporting to station
+        //    CLG_BigTeleportParticles( level.parsedMessage.events.tempEntity.pos1 );
+        //    clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, clgi.S_RegisterSound( "misc/bigtele.wav" ), 1, ATTN_NONE, 0 );
+        //    break;
+        //case TE_GREENBLOOD:
+        //    CLG_ParticleEffect2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xdf, 30 );
+        //    break;
+
+        //case TE_LIGHTNING:
+        //    clgi.S_StartSound( NULL, level.parsedMessage.events.tempEntity.entity1, CHAN_WEAPON, precache.sfx.lightning, 1, ATTN_NORM, 0 );
+        //    VectorClear( level.parsedMessage.events.tempEntity.offset );
+        //    CLG_ParseBeam( precache.models.lightning );
+        //    break;
+
+    //case TE_HEATBEAM:
+    //    VectorSet( level.parsedMessage.events.tempEntity.offset, 2, 7, -3 );
+    //    CLG_ParsePlayerBeam( precache.models.heatbeam );
+    //    break;
+
+    //case TE_MONSTER_HEATBEAM:
+    //    VectorClear( level.parsedMessage.events.tempEntity.offset );
+    //    CLG_ParsePlayerBeam( precache.models.heatbeam );
+    //    break;
+
+    //case TE_CHAINFIST_SMOKE:
+    //    VectorSet( level.parsedMessage.events.tempEntity.dir, 0, 0, 1 );
+    //    CLG_ParticleSmokeEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0, 20, 20 );
+    //    break;
+
+    //case TE_WIDOWBEAMOUT:
+    //    CLG_ParseWidow();
+    //    break;
+
+
+    //case TE_WIDOWSPLASH:
+    //    CLG_WidowSplash();
+    //    break;
 
     default:
         Com_Error( ERR_DROP, "%s: bad type", __func__ );

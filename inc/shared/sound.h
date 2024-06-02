@@ -22,11 +22,20 @@
 #define CHAN_NO_PHS_ADD         8   //! Send to all clients, not just ones in PHS (ATTN 0 will also do this)
 #define CHAN_RELIABLE           16  //! Send by reliable message, not datagram.
 
-// Sound attenuation values:
-#define ATTN_NONE               0   //! Full volume the entire level
-#define ATTN_NORM               1
-#define ATTN_IDLE               2
+
+/**
+*   Sound attenuation values:
+*   WID: TODO: Implement support for the commented attenuation values.
+**/
+#define ATTN_NONE               0   //! Full volume the entire level.
+//#define ATTN_DISTANT          0.5     //! Distant sound (most likely explosions).
+#define ATTN_NORM               1   //! Players, Weapons, etc.
+#define ATTN_IDLE               2   //! 'Stuff' around you.
+//#define ATTN_IDLE             2.5     //! 'Stuff' around you.
 #define ATTN_STATIC             3   //! Diminish very rapidly with distance.
+//#define ATTN_STATIC           5       //! Diminish very rapidly with distance.
+//#define ATTN_WHISPER          10      //! Must be very close to hear it.
+
 
 /**
 *   @brief  Special reverb effect settings, these can be defined by the client game code and

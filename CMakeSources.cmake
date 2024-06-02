@@ -192,6 +192,7 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_pmove.h
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.h
 	baseq2rtxp/sharedgame/sg_shared.h
+	baseq2rtxp/sharedgame/sg_tempentity_events.h
 	baseq2rtxp/sharedgame/sg_time.h
 )
 #	BaseQ2RTXP ClientGame

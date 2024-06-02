@@ -44,55 +44,55 @@ void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, int damag
 	gi.multicast( start, MULTICAST_PHS, false );
 }
 
-void monster_fire_blaster( edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect ) {
-	fire_blaster( self, start, dir, damage, speed, effect, false );
+//void monster_fire_blaster( edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype, int effect ) {
+//	fire_blaster( self, start, dir, damage, speed, effect, false );
+//
+//	gi.WriteUint8( svc_muzzleflash2 );
+//	gi.WriteInt16( self - g_edicts );
+//	gi.WriteUint8( flashtype );
+//	gi.multicast( start, MULTICAST_PHS, false );
+//}
 
-	gi.WriteUint8( svc_muzzleflash2 );
-	gi.WriteInt16( self - g_edicts );
-	gi.WriteUint8( flashtype );
-	gi.multicast( start, MULTICAST_PHS, false );
-}
-
-void monster_fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int flashtype)
-{
-    fire_grenade(self, start, aimdir, damage, speed, sg_time_t::from_sec( 2.5f ), damage + 40);
-
-	gi.WriteUint8( svc_muzzleflash2 );
-	gi.WriteInt16( self - g_edicts );
-	gi.WriteUint8( flashtype );
-	gi.multicast( start, MULTICAST_PHS, false );
-}
-
-void monster_fire_rocket( edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype ) {
-	fire_rocket( self, start, dir, damage, speed, damage + 20, damage );
-
-	gi.WriteUint8( svc_muzzleflash2 );
-	gi.WriteInt16( self - g_edicts );
-	gi.WriteUint8( flashtype );
-	gi.multicast( start, MULTICAST_PHS, false );
-}
-
-void monster_fire_railgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int flashtype ) {
-	contents_t contents = gi.pointcontents( start );
-	if ( contents & (const contents_t)MASK_SOLID )
-		return;
-
-	fire_rail( self, start, aimdir, damage, kick );
-
-	gi.WriteUint8( svc_muzzleflash2 );
-	gi.WriteInt16( self - g_edicts );
-	gi.WriteUint8( flashtype );
-	gi.multicast( start, MULTICAST_PHS, false );
-}
-
-void monster_fire_bfg( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int kick, float damage_radius, int flashtype ) {
-	fire_bfg( self, start, aimdir, damage, speed, damage_radius );
-
-	gi.WriteUint8( svc_muzzleflash2 );
-	gi.WriteInt16( self - g_edicts );
-	gi.WriteUint8( flashtype );
-	gi.multicast( start, MULTICAST_PHS, false );
-}
+//void monster_fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int flashtype)
+//{
+//    fire_grenade(self, start, aimdir, damage, speed, sg_time_t::from_sec( 2.5f ), damage + 40);
+//
+//	gi.WriteUint8( svc_muzzleflash2 );
+//	gi.WriteInt16( self - g_edicts );
+//	gi.WriteUint8( flashtype );
+//	gi.multicast( start, MULTICAST_PHS, false );
+//}
+//
+//void monster_fire_rocket( edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int flashtype ) {
+//	fire_rocket( self, start, dir, damage, speed, damage + 20, damage );
+//
+//	gi.WriteUint8( svc_muzzleflash2 );
+//	gi.WriteInt16( self - g_edicts );
+//	gi.WriteUint8( flashtype );
+//	gi.multicast( start, MULTICAST_PHS, false );
+//}
+//
+//void monster_fire_railgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int flashtype ) {
+//	contents_t contents = gi.pointcontents( start );
+//	if ( contents & (const contents_t)MASK_SOLID )
+//		return;
+//
+//	fire_rail( self, start, aimdir, damage, kick );
+//
+//	gi.WriteUint8( svc_muzzleflash2 );
+//	gi.WriteInt16( self - g_edicts );
+//	gi.WriteUint8( flashtype );
+//	gi.multicast( start, MULTICAST_PHS, false );
+//}
+//
+//void monster_fire_bfg( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int kick, float damage_radius, int flashtype ) {
+//	fire_bfg( self, start, aimdir, damage, speed, damage_radius );
+//
+//	gi.WriteUint8( svc_muzzleflash2 );
+//	gi.WriteInt16( self - g_edicts );
+//	gi.WriteUint8( flashtype );
+//	gi.multicast( start, MULTICAST_PHS, false );
+//}
 
 
 

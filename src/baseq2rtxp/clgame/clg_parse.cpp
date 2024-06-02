@@ -61,13 +61,6 @@ static void CLG_ParseTEntPacket( void ) {
     case TE_GUNSHOT:
     case TE_SPARKS:
     case TE_BULLET_SPARKS:
-    case TE_SCREEN_SPARKS:
-    case TE_SHIELD_SPARKS:
-    case TE_SHOTGUN:
-    case TE_BLASTER:
-    case TE_GREENBLOOD:
-    case TE_BLASTER2:
-    case TE_FLECHETTE:
     case TE_HEATBEAM_SPARKS:
     case TE_HEATBEAM_STEAM:
     case TE_MOREBLOOD:
@@ -86,12 +79,9 @@ static void CLG_ParseTEntPacket( void ) {
         level.parsedMessage.events.tempEntity.color = clgi.MSG_ReadUint8();
         break;
 
-    case TE_BLUEHYPERBLASTER:
-    case TE_RAILTRAIL:
     case TE_BUBBLETRAIL:
     case TE_DEBUGTRAIL:
     case TE_BUBBLETRAIL2:
-    case TE_BFG_LASER:
         clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         break;
@@ -99,33 +89,24 @@ static void CLG_ParseTEntPacket( void ) {
     case TE_GRENADE_EXPLOSION:
     case TE_GRENADE_EXPLOSION_WATER:
     case TE_EXPLOSION2:
-    case TE_PLASMA_EXPLOSION:
     case TE_ROCKET_EXPLOSION:
     case TE_ROCKET_EXPLOSION_WATER:
     case TE_EXPLOSION1:
     case TE_EXPLOSION1_NP:
     case TE_EXPLOSION1_BIG:
-    case TE_BFG_EXPLOSION:
-    case TE_BFG_BIGEXPLOSION:
-    case TE_BOSSTPORT:
     case TE_PLAIN_EXPLOSION:
-    case TE_CHAINFIST_SMOKE:
     case TE_TRACKER_EXPLOSION:
     case TE_TELEPORT_EFFECT:
-    case TE_DBALL_GOAL:
-    case TE_WIDOWSPLASH:
     case TE_NUKEBLAST:
         clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         break;
 
-    case TE_PARASITE_ATTACK:
-    case TE_MEDIC_CABLE_ATTACK:
-    case TE_HEATBEAM:
-    case TE_MONSTER_HEATBEAM:
-        level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
-        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        break;
+    //case TE_HEATBEAM:
+    //case TE_MONSTER_HEATBEAM:
+    //    level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
+    //    clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    //    clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    //    break;
 
     case TE_GRAPPLE_CABLE:
         level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
@@ -134,12 +115,12 @@ static void CLG_ParseTEntPacket( void ) {
         clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.offset, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         break;
 
-    case TE_LIGHTNING:
-        level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
-        level.parsedMessage.events.tempEntity.entity2 = clgi.MSG_ReadInt16();
-        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        break;
+    //case TE_LIGHTNING:
+    //    level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
+    //    level.parsedMessage.events.tempEntity.entity2 = clgi.MSG_ReadInt16();
+    //    clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    //    clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    //    break;
 
     case TE_FLASHLIGHT:
         clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
@@ -162,18 +143,6 @@ static void CLG_ParseTEntPacket( void ) {
         if ( level.parsedMessage.events.tempEntity.entity1 != -1 ) {
             level.parsedMessage.events.tempEntity.time = clgi.MSG_ReadInt32();
         }
-        break;
-
-    case TE_WIDOWBEAMOUT:
-        level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
-        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        break;
-
-    case TE_FLARE:
-        level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
-        level.parsedMessage.events.tempEntity.count = clgi.MSG_ReadUint8();
-        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        clgi.MSG_ReadDir8( level.parsedMessage.events.tempEntity.dir );
         break;
 
     default:

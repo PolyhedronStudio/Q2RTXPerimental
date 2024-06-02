@@ -1655,8 +1655,8 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
         return;
     }
 
-    // restart footstep timer
-    //ent->client->bobtime = 0;
+    // WID: restart footstep timer <- NO MORE!! Because doing so causes the weapon bob 
+    // position to insta shift back to start.
     //ent->client->ps.bobCycle = 0;
 
     //if ( ent->client->landmark_free_fall ) {

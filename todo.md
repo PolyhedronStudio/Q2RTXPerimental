@@ -36,6 +36,8 @@ Features being looked forward on implementation.
 * [ ] Modify the code so it does not generate ``hulls`` on the fly, but instead set them at ``LinkEntity`` time. 
 	* [ ] Generate and store entity ``hulls`` in their server-side counterpart for later ``collision model`` rework.
 	* [ ] Then for tracing, retreives them from their **client/server** counterpart. In case of the **client** they will be regenerated in case of a ``new`` entity, or general ``bounds changes`` has occured for the **client** entity.
+* [ ] Look into Q2RE q2pro for svc_sound additions.
+* [ ] Integrate support for now still commented ATTN_ types.
 
 ### Lowest, nearly redundant Priority:
 * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.

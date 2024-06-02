@@ -28,6 +28,7 @@ typedef struct edict_s sgentity_s;
 #include "sg_muzzleflashes_monsters.h"
 #include "sg_pmove.h"
 #include "sg_pmove_slidemove.h"
+#include "sg_tempentity_events.h"
 #include "sg_time.h"
 
 

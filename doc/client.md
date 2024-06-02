@@ -235,7 +235,7 @@ variable is a bitmask. Default value is 0.
 
 #### `cl_explosion_frametime`
 Specifies the time, in milliseconds, between consecutive animation frames for the
-sprite explosion effects. Default value is 20 ms.
+sprite explosion effects. Default value is 25 ms.
 
 #### `cl_explosion_sprites`
 When this variable is set to 1, regular mushroom explosion models are 

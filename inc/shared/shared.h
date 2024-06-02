@@ -295,18 +295,12 @@ typedef struct {
 //! Entity State:
 #include "shared/entity_state.h"
 
-
+//! Gamemode Flags: (TODO: Move into sharedgame and do per gamemode.?)
+#include "shared/gamemode_flags.h"
 
 //! Sound:
 #include "shared/sound.h"
 
-
-//! Temp Entity Events:
-#include "shared/temp_entity_events.h"
-
-
-//! Gamemode Flags: (TODO: Move into sharedgame and do per gamemode.?)
-#include "shared/gamemode_flags.h"
 
 
 /**

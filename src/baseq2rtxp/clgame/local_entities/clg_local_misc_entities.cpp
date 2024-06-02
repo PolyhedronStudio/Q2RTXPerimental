@@ -181,9 +181,9 @@ void CLG_misc_te_Precache( clg_local_entity_t *self, const cm_entity_t *keyValue
 	// Key/Value: 'event':
 	if ( const cm_entity_t *eventTypeKv = clgi.CM_EntityKeyValue( keyValues, "event" ) ) {
 		if ( eventTypeKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
-			selfClass->teEvent = static_cast<temp_event_t>( eventTypeKv->integer );
+			selfClass->teEvent = static_cast<temp_entity_event_t>( eventTypeKv->integer );
 		} else {
-			selfClass->teEvent = static_cast<temp_event_t>( 0 );
+			selfClass->teEvent = static_cast<temp_entity_event_t>( 0 );
 		}
 	}
 

@@ -479,9 +479,10 @@ void soldier_fire(edict_t *self, int flash_number)
         VectorNormalize(aim);
     }
 
-    if (self->s.skinnum <= 1) {
-        monster_fire_blaster(self, start, aim, 5, 600, flash_index, EF_BLASTER);
-    } else if (self->s.skinnum <= 3) {
+    //if (self->s.skinnum <= 1) {
+    //    monster_fire_blaster(self, start, aim, 5, 600, flash_index, EF_BLASTER);
+    //} else if ( self->s.skinnum <= 3 ) {
+    if (self->s.skinnum <= 3) {
         monster_fire_shotgun(self, start, aim, 2, 1, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SHOTGUN_COUNT, flash_index);
     } else {
         if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))

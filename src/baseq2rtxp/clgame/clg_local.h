@@ -756,7 +756,7 @@ typedef struct clg_explosion_s {
 	//! Render Entity.
 	entity_t    ent;
 	//! Amount of sprite frames.
-	int         frames;
+	int32_t     frames;
 	//! Light intensity.
 	float       light;
 	//! Light RGB color.

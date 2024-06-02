@@ -48,7 +48,7 @@ extern const clg_local_entity_class_t client_misc_te;
 //! Class locals for: client_misc_te
 typedef struct clg_misc_te_locals_s {
 	//! Temp Entity Event
-	temp_event_t teEvent;
+	temp_entity_event_t teEvent;
 
 	//! Temp Entity Parameters
 	tent_params_t teParameters;

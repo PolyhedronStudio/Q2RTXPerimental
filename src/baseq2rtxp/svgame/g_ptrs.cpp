@@ -64,10 +64,6 @@ extern void AngleMove_Final( edict_t *ent );
 extern void barrel_delay( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void barrel_explode( edict_t *self );
 extern void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void bfg_explode( edict_t *self );
-extern void bfg_think( edict_t *self );
-extern void bfg_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void blaster_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void body_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void button_done( edict_t *self );
 extern void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
@@ -101,8 +97,6 @@ extern void DoRespawn( edict_t *self );
 extern void drop_make_touchable( edict_t *self );
 extern void drop_temp_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void droptofloor( edict_t *self );
-extern void flare_think( edict_t *self );
-extern void flare_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void flymonster_start_go( edict_t *self );
 extern void func_clock_think( edict_t *self );
 extern void func_clock_use( edict_t *self, edict_t *other, edict_t *activator );
@@ -121,8 +115,6 @@ extern void G_FreeEdict( edict_t *self );
 extern void gib_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void gib_think( edict_t *self );
 extern void gib_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void Grenade_Explode( edict_t *ent );
-extern void Grenade_Touch( edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void hurt_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void hurt_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void infantry_attack( edict_t *self );
@@ -172,7 +164,6 @@ extern void plat_hit_top( edict_t *self );
 extern void player_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void player_pain( edict_t *self, edict_t *other, float kick, int damage );
 extern void point_combat_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void rocket_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void rotating_blocked( edict_t *self, edict_t *other );
 extern void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void rotating_use( edict_t *self, edict_t *other, edict_t *activator );
@@ -251,8 +242,6 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void*)AngleMove_Done },
 { P_think,  (void*)AngleMove_Final },
 { P_think,  (void*)barrel_explode },
-{ P_think,  (void*)bfg_explode },
-{ P_think,  (void*)bfg_think },
 { P_think,  (void*)button_return },
 { P_think,  (void*)commander_body_drop },
 { P_think,  (void*)commander_body_think },
@@ -263,7 +252,6 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void*)DoRespawn },
 { P_think,  (void*)drop_make_touchable },
 { P_think,  (void*)droptofloor },
-{ P_think,  (void*)flare_think },
 { P_think,  (void*)flymonster_start_go },
 { P_think,  (void*)func_clock_think },
 { P_think,  (void*)func_object_release },
@@ -271,7 +259,6 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void*)func_train_find },
 { P_think,  (void*)G_FreeEdict },
 { P_think,  (void*)gib_think },
-{ P_think,  (void*)Grenade_Explode },
 { P_think,  (void*)M_droptofloor },
 { P_think,  (void*)M_FliesOff },
 { P_think,  (void*)M_FliesOn },
@@ -318,20 +305,15 @@ const save_ptr_t save_ptrs[] = {
 { P_blocked, (void*)train_blocked },
 { P_blocked, (void*)turret_blocked },
 { P_touch, (void*)barrel_touch },
-{ P_touch, (void*)bfg_touch },
-{ P_touch, (void*)blaster_touch },
 { P_touch, (void*)button_touch },
 { P_touch, (void*)door_touch },
 { P_touch, (void*)drop_temp_touch },
-{ P_touch, (void*)flare_touch },
 { P_touch, (void*)func_object_touch },
 { P_touch, (void*)gib_touch },
-{ P_touch, (void*)Grenade_Touch },
 { P_touch, (void*)hurt_touch },
 { P_touch, (void*)misc_viper_bomb_touch },
 { P_touch, (void*)path_corner_touch },
 { P_touch, (void*)point_combat_touch },
-{ P_touch, (void*)rocket_touch },
 { P_touch, (void*)rotating_touch },
 { P_touch, (void*)target_actor_touch },
 { P_touch, (void*)teleporter_touch },
