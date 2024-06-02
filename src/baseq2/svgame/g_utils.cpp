@@ -195,7 +195,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
         if (ent->noise_index)
             gi.sound(activator, CHAN_AUTO, ent->noise_index, 1, ATTN_NORM, 0);
         else
-            gi.sound(activator, CHAN_AUTO, gi.soundindex("misc/talk1.wav"), 1, ATTN_NORM, 0);
+            gi.sound(activator, CHAN_AUTO, gi.soundindex("hud/chat01.wav"), 1, ATTN_NORM, 0);
     }
 
 //

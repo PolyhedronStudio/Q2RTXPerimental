@@ -2415,19 +2415,6 @@ static void cl_allow_download_changed(cvar_t *self)
     }
 }
 
-// ugly hack for compatibility
-static void cl_chat_sound_changed(cvar_t *self)
-{
-    if (!*self->string)
-        self->integer = 0;
-    else if (!Q_stricmp(self->string, "misc/talk.wav"))
-        self->integer = 1;
-    else if (!Q_stricmp(self->string, "misc/talk1.wav"))
-        self->integer = 2;
-    else if (!self->integer && !COM_IsUint(self->string))
-        self->integer = 1;
-}
-
 void cl_timeout_changed(cvar_t *self)
 {
     self->integer = 1000 * Cvar_ClampValue(self, 0, 24 * 24 * 60 * 60);

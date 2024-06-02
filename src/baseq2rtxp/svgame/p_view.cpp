@@ -790,8 +790,7 @@ G_SetClientSound
 ===============
 */
 void G_SetClientSound( edict_t *ent ) {
-	// WID: C++20: Added const.
-	const char *weap;
+
 
 	if ( ent->client->pers.game_helpchanged != game.helpchanged ) {
 		ent->client->pers.game_helpchanged = game.helpchanged;
@@ -801,25 +800,18 @@ void G_SetClientSound( edict_t *ent ) {
 	// help beep (no more than ONE time - that's annoying enough)
 	if ( ent->client->pers.helpchanged && ent->client->pers.helpchanged <= 1 && !( level.framenum & 63 ) ) {
 		ent->client->pers.helpchanged++;
-		gi.sound( ent, CHAN_VOICE, gi.soundindex( "misc/pc_up.wav" ), 1, ATTN_STATIC, 0 );
 	}
 
-
-	if ( ent->client->pers.weapon )
-		weap = ent->client->pers.weapon->classname;
-	else
-		weap = "";
-
-	if ( ent->liquidlevel && ( ent->liquidtype & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) )
+	// Override sound with the 'fry' sound in case of being in a 'fryer' liquid, lol.
+	if ( ent->liquidlevel && ( ent->liquidtype & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
 		ent->s.sound = snd_fry;
-	else if ( strcmp( weap, "weapon_railgun" ) == 0 )
-		ent->s.sound = gi.soundindex( "weapons/rg_hum.wav" );
-	else if ( strcmp( weap, "weapon_bfg" ) == 0 )
-		ent->s.sound = gi.soundindex( "weapons/bfg_hum.wav" );
-	else if ( ent->client->weaponState.activeSound )
+	// Override entity sound with that of the weapon's activeSound.
+	} else if ( ent->client->weaponState.activeSound ) {
 		ent->s.sound = ent->client->weaponState.activeSound;
-	else
+	// Default to zeroing out the entity's sound.
+	} else {
 		ent->s.sound = 0;
+	}
 }
 
 /**

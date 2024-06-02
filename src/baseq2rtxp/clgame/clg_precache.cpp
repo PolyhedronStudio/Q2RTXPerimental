@@ -45,14 +45,15 @@ void CLG_PrecacheLocalSounds() {
 *	@brief	Called right before loading all received configstring (server-) sounds, allowing us to load in
 *           the client's own local(-entity 'precached' sound paths) sounds first.
 **/
-static sfx_eax_properties_t abandoned_eax;
-
 void PF_PrecacheClientSounds( void ) {
-    char    name[ MAX_QPATH ] = {};
-
-    // Precache all EAX Reverb Effects.
+    /**
+    *   Precache all EAX Reverb Effects:
+    **/
     CLG_EAX_Precache();
 
+    /**
+    *   (Temp-) Entity Events:
+    **/
     // Ricochets SFX:
     precache.sfx.ric1 = clgi.S_RegisterSound( "world/ricochet_01.wav" );
     precache.sfx.ric2 = clgi.S_RegisterSound( "world/ricochet_02.wav" );
@@ -70,11 +71,15 @@ void PF_PrecacheClientSounds( void ) {
     clgi.S_RegisterSound( "player/fall02.wav" );
     clgi.S_RegisterSound( "player/fall01.wav" );
 
-    // Precache Footsteps:
+    /**
+    *   Material Footsteps:
+    **/
     CLG_PrecacheFootsteps();
 
-    // Precaches all local 'sound path' registered files. This has to be done after the other local sounds are loaded,
-    // to prevent their indexes from mixing up.
+    /**
+    *   Precaches all local entity 'sound path' registered files. This has to be done after the other local sounds are loaded,
+    *   to prevent their indexes from mixing up.
+    **/
     CLG_PrecacheLocalSounds();
 }
 

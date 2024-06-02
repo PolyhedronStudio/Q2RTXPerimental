@@ -82,7 +82,6 @@ cvar_t *cl_thirdperson_angle = nullptr;
 cvar_t *cl_thirdperson_range = nullptr;
 
 cvar_t *cl_chat_notify = nullptr;
-cvar_t *cl_chat_sound = nullptr;
 cvar_t *cl_chat_filter = nullptr;
 
 cvar_t *cl_vwep = nullptr;
@@ -155,17 +154,6 @@ static size_t CL_WeaponModel_m( char *buffer, size_t size ) {
 *
 *
 **/
-// ugly hack for compatibility
-static void cl_chat_sound_changed( cvar_t *self ) {
-	if ( !*self->string )
-		self->integer = 0;
-	else if ( !Q_stricmp( self->string, "misc/talk.wav" ) )
-		self->integer = 1;
-	else if ( !Q_stricmp( self->string, "misc/talk1.wav" ) )
-		self->integer = 2;
-	else if ( !self->integer && !COM_IsUint( self->string ) )
-		self->integer = 1;
-}
 static void cl_noskins_changed( cvar_t *self ) {
 	int i;
 	char *s;
@@ -306,9 +294,6 @@ void PF_InitGame( void ) {
 	cl_thirdperson_range = clgi.CVar_Get( "cl_thirdperson_range", "60", 0 );
 
 	cl_chat_notify = clgi.CVar_Get( "cl_chat_notify", "1", 0 );
-	cl_chat_sound = clgi.CVar_Get( "cl_chat_sound", "1", 0 );
-	cl_chat_sound->changed = cl_chat_sound_changed;
-	cl_chat_sound_changed( cl_chat_sound );
 	cl_chat_filter = clgi.CVar_Get( "cl_chat_filter", "0", 0 );
 
 	cl_vwep = clgi.CVar_Get( "cl_vwep", "1", CVAR_ARCHIVE );

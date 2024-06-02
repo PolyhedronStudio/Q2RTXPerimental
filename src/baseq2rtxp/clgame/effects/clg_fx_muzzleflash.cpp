@@ -93,19 +93,19 @@ void CLG_MuzzleFlash( void ) {
     // Event( Login ) Particles(By having just connected and performing a first spawn):
     case MZ_LOGIN:
         VectorSet( dl->color, 0, 1, 0 );
-        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "weapons/grenlf1a.wav" ), 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "world/mz_login.wav" ), 1, ATTN_NORM, 0 );
         CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
         break;
     // Event( Logout ) Particles(Disconnected UnSpawn):
     case MZ_LOGOUT:
         VectorSet( dl->color, 1, 0, 0 );
-        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "weapons/grenlf1a.wav" ), 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "world/mz_logout.wav" ), 1, ATTN_NORM, 0 );
         CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
         break;
     // Event( Respawn ) Particles:
     case MZ_RESPAWN:
         VectorSet( dl->color, 1, 1, 0 );
-        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "weapons/grenlf1a.wav" ), 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "weapons/mz_respawn.wav" ), 1, ATTN_NORM, 0 );
         CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
         break;
     default:

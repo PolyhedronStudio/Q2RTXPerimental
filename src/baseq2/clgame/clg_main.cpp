@@ -88,7 +88,6 @@ cvar_t *cl_thirdperson_angle = nullptr;
 cvar_t *cl_thirdperson_range = nullptr;
 
 cvar_t *cl_chat_notify = nullptr;
-cvar_t *cl_chat_sound = nullptr;
 cvar_t *cl_chat_filter = nullptr;
 
 cvar_t *cl_vwep = nullptr;
@@ -167,7 +166,7 @@ static void cl_chat_sound_changed( cvar_t *self ) {
 		self->integer = 0;
 	else if ( !Q_stricmp( self->string, "misc/talk.wav" ) )
 		self->integer = 1;
-	else if ( !Q_stricmp( self->string, "misc/talk1.wav" ) )
+	else if ( !Q_stricmp( self->string, "hud/chat01.wav" ) )
 		self->integer = 2;
 	else if ( !self->integer && !COM_IsUint( self->string ) )
 		self->integer = 1;

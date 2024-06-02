@@ -1087,7 +1087,7 @@ void door_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf
     self->touch_debounce_time = level.time + 5_sec;
 
     gi.centerprintf(other, "%s", self->message);
-    gi.sound(other, CHAN_AUTO, gi.soundindex("misc/talk1.wav"), 1, ATTN_NORM, 0);
+    gi.sound(other, CHAN_AUTO, gi.soundindex("hud/chat01.wav"), 1, ATTN_NORM, 0);
 }
 
 void door_postspawn( edict_t *self ) {
@@ -1156,7 +1156,7 @@ void SP_func_door(edict_t *ent)
         ent->die = door_killed;
         ent->max_health = ent->health;
     } else if (ent->targetname && ent->message) {
-        gi.soundindex("misc/talk.wav");
+        gi.soundindex("hud/chat01.wav");
         ent->touch = door_touch;
     }
 
@@ -1284,7 +1284,7 @@ void SP_func_door_rotating(edict_t *ent)
     }
 
     if (ent->targetname && ent->message) {
-        gi.soundindex("misc/talk.wav");
+        gi.soundindex("hud/chat01.wav");
         ent->touch = door_touch;
     }
 
@@ -1931,7 +1931,7 @@ void SP_func_door_secret(edict_t *ent)
         ent->die = door_killed;
         ent->max_health = ent->health;
     } else if (ent->targetname && ent->message) {
-        gi.soundindex("misc/talk.wav");
+        gi.soundindex("hud/chat01.wav");
         ent->touch = door_touch;
     }
 

@@ -487,7 +487,7 @@ void UI_Draw(unsigned realtime)
     // caching images
     if (uis.entersound) {
         uis.entersound = false;
-        S_StartLocalSound("misc/menu1.wav");
+        S_StartLocalSound("ui/menu_in.wav");
     }
 
     R_ClearColor();
@@ -498,16 +498,16 @@ void UI_StartSound(menuSound_t sound)
 {
     switch (sound) {
     case QMS_IN:
-        S_StartLocalSound("misc/menu1.wav");
+        S_StartLocalSound("ui/menu_in.wav");
         break;
     case QMS_MOVE:
-        S_StartLocalSound("misc/menu2.wav");
+        S_StartLocalSound("ui/menu_move.wav");
         break;
     case QMS_OUT:
-        S_StartLocalSound("misc/menu3.wav");
+        S_StartLocalSound("ui/menu_out.wav");
         break;
     case QMS_BEEP:
-        S_StartLocalSound("misc/talk1.wav");
+        S_StartLocalSound("hud/chat01.wav");
         break;
     default:
         break;

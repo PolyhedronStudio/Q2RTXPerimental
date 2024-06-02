@@ -71,9 +71,6 @@ extern void button_return( edict_t *self );
 extern void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void button_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void button_wait( edict_t *self );
-extern void commander_body_drop( edict_t *self );
-extern void commander_body_think( edict_t *self );
-extern void commander_body_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void debris_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void door_blocked( edict_t *self, edict_t *other );
 extern void door_go_down( edict_t *self );
@@ -134,20 +131,7 @@ extern void M_droptofloor( edict_t *self );
 extern void M_FliesOff( edict_t *self );
 extern void M_FliesOn( edict_t *self );
 extern void MegaHealth_think( edict_t *self );
-extern void misc_banner_think( edict_t *self );
-extern void misc_blackhole_think( edict_t *self );
-extern void misc_blackhole_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void misc_deadsoldier_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
-extern void misc_easterchick2_think( edict_t *self );
-extern void misc_easterchick_think( edict_t *self );
-extern void misc_eastertank_think( edict_t *self );
-extern void misc_satellite_dish_think( edict_t *self );
-extern void misc_satellite_dish_use( edict_t *self, edict_t *other, edict_t *activator );
-extern void misc_strogg_ship_use( edict_t *self, edict_t *other, edict_t *activator );
-extern void misc_viper_bomb_prethink( edict_t *self );
-extern void misc_viper_bomb_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void misc_viper_bomb_use( edict_t *self, edict_t *other, edict_t *activator );
-extern void misc_viper_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void monster_think( edict_t *self );
 extern void monster_triggered_spawn( edict_t *self );
 extern void monster_triggered_spawn_use( edict_t *self, edict_t *other, edict_t *activator );
@@ -209,7 +193,6 @@ extern void trigger_elevator_init( edict_t *self );
 extern void trigger_elevator_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void trigger_enable( edict_t *self, edict_t *other, edict_t *activator );
 extern void trigger_gravity_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void trigger_key_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void trigger_monsterjump_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void trigger_relay_use( edict_t *self, edict_t *other, edict_t *activator );
@@ -237,14 +220,11 @@ extern void Use_Target_Tent( edict_t *self, edict_t *other, edict_t *activator )
 extern void walkmonster_start_go( edict_t *self );
 const save_ptr_t save_ptrs[] = {
 { P_postspawn, (void *)door_postspawn },
-{ P_prethink, (void*)misc_viper_bomb_prethink },
 { P_think,  (void*)AngleMove_Begin },
 { P_think,  (void*)AngleMove_Done },
 { P_think,  (void*)AngleMove_Final },
 { P_think,  (void*)barrel_explode },
 { P_think,  (void*)button_return },
-{ P_think,  (void*)commander_body_drop },
-{ P_think,  (void*)commander_body_think },
 { P_think,  (void*)door_go_down },
 { P_think,  (void*)door_secret_move2 },
 { P_think,  (void*)door_secret_move4 },
@@ -263,12 +243,6 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void*)M_FliesOff },
 { P_think,  (void*)M_FliesOn },
 { P_think,  (void*)MegaHealth_think },
-{ P_think,  (void*)misc_banner_think },
-{ P_think,  (void*)misc_blackhole_think },
-{ P_think,  (void*)misc_easterchick2_think },
-{ P_think,  (void*)misc_easterchick_think },
-{ P_think,  (void*)misc_eastertank_think },
-{ P_think,  (void*)misc_satellite_dish_think },
 { P_think,  (void*)monster_think },
 { P_think,  (void*)monster_triggered_spawn },
 { P_think,  (void*)Move_Begin },
@@ -311,7 +285,6 @@ const save_ptr_t save_ptrs[] = {
 { P_touch, (void*)func_object_touch },
 { P_touch, (void*)gib_touch },
 { P_touch, (void*)hurt_touch },
-{ P_touch, (void*)misc_viper_bomb_touch },
 { P_touch, (void*)path_corner_touch },
 { P_touch, (void*)point_combat_touch },
 { P_touch, (void*)rotating_touch },
@@ -326,7 +299,6 @@ const save_ptr_t save_ptrs[] = {
 { P_touch, (void*)trigger_push_touch },
 { P_use, (void*)actor_use },
 { P_use, (void*)button_use },
-{ P_use, (void*)commander_body_use },
 { P_use, (void*)door_secret_use },
 { P_use, (void*)door_use },
 { P_use, (void*)func_clock_use },
@@ -339,11 +311,6 @@ const save_ptr_t save_ptrs[] = {
 { P_use, (void*)hurt_use },
 { P_use, (void*)spotlight_use },
 { P_use, (void*)light_use },
-{ P_use, (void*)misc_blackhole_use },
-{ P_use, (void*)misc_satellite_dish_use },
-{ P_use, (void*)misc_strogg_ship_use },
-{ P_use, (void*)misc_viper_bomb_use },
-{ P_use, (void*)misc_viper_use },
 { P_use, (void*)monster_triggered_spawn_use },
 { P_use, (void*)monster_use },
 { P_use, (void*)rotating_use },
@@ -356,7 +323,6 @@ const save_ptr_t save_ptrs[] = {
 { P_use, (void*)trigger_crosslevel_trigger_use },
 { P_use, (void*)trigger_elevator_use },
 { P_use, (void*)trigger_enable },
-{ P_use, (void*)trigger_key_use },
 { P_use, (void*)trigger_relay_use },
 { P_use, (void*)Use_Areaportal },
 { P_use, (void*)Use_Item },

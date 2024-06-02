@@ -77,7 +77,6 @@ extern cvar_t *cl_thirdperson_angle;
 extern cvar_t *cl_thirdperson_range;
 
 extern cvar_t *cl_chat_notify;
-extern cvar_t *cl_chat_sound;
 extern cvar_t *cl_chat_filter;
 
 extern cvar_t *cl_vwep;

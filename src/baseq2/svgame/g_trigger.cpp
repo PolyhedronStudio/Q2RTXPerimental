@@ -373,14 +373,14 @@ void trigger_counter_use( edict_t *self, edict_t *other, edict_t *activator ) {
 	if ( self->count ) {
 		if ( !( self->spawnflags & SPAWNPFLAG_TRIGGER_COUNTER_NO_MESSAGE ) ) {
 			gi.centerprintf( activator, "%i more to go...", self->count );
-			gi.sound( activator, CHAN_AUTO, gi.soundindex( "misc/talk1.wav" ), 1, ATTN_NORM, 0 );
+			gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
 		}
 		return;
 	}
 
 	if ( !( self->spawnflags & SPAWNPFLAG_TRIGGER_COUNTER_NO_MESSAGE ) ) {
 		gi.centerprintf( activator, "Sequence completed!" );
-		gi.sound( activator, CHAN_AUTO, gi.soundindex( "misc/talk1.wav" ), 1, ATTN_NORM, 0 );
+		gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
 	}
 	self->activator = activator;
 	multi_trigger( self );

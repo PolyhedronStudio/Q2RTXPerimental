@@ -1436,14 +1436,6 @@ set from command line.  See README.lirc file for command syntax description.
 Specifies whether to display chat lines in the notify area. Default value
 is 1 (enabled).
 
-#### `cl_chat_sound`
-Specifies sound effect to play each time chat message is received. Default
-value is 1.
-
-- 0 — don't play chat sound
-- 1 — play normal sound (‘misc/talk.wav’)
-- 2 — play alternative sound (‘misc/talk1.wav’)
-
 #### `cl_chat_filter`
 Specifies if unprintable characters are filtered from incoming chat
 messages, to prevent common exploits like hiding player names. Default

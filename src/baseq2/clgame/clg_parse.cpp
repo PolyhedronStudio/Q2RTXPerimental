@@ -234,7 +234,7 @@ static void CLG_ParsePrint( void ) {
 
     // play sound
     if ( cl_chat_sound->integer > 1 ) {
-        clgi.S_StartLocalSoundOnce( "misc/talk1.wav" );
+        clgi.S_StartLocalSoundOnce( "hud/chat01.wav" );
     } else if ( cl_chat_sound->integer > 0 ) {
         clgi.S_StartLocalSoundOnce( "misc/talk.wav" );
     }

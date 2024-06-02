@@ -290,11 +290,7 @@ static void CLG_ParsePrint( void ) {
     SCR_AddToChatHUD( s );
 
     // play sound
-    if ( cl_chat_sound->integer > 1 ) {
-        clgi.S_StartLocalSoundOnce( "misc/talk1.wav" );
-    } else if ( cl_chat_sound->integer > 0 ) {
-        clgi.S_StartLocalSoundOnce( "misc/talk.wav" );
-    }
+    clgi.S_StartLocalSoundOnce( "hud/chat01.wav" );
 }
 
 /**
@@ -489,11 +485,11 @@ void PF_ParseEntityEvent( const int32_t entityNumber ) {
 
     switch ( cent->current.event ) {
         case EV_ITEM_RESPAWN:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "items/respawn1.wav" ), 1, ATTN_IDLE, 0 );
+            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "items/respawn01.wav" ), 1, ATTN_IDLE, 0 );
             CLG_ItemRespawnParticles( cent->current.origin );
             break;
         case EV_PLAYER_TELEPORT:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/tele1.wav" ), 1, ATTN_IDLE, 0 );
+            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/teleport01.wav" ), 1, ATTN_IDLE, 0 );
             CLG_TeleportParticles( cent->current.origin );
             break;
         case EV_FOOTSTEP:

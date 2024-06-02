@@ -94,7 +94,6 @@ void SP_trigger_multiple(edict_t *ent);
 void SP_trigger_relay(edict_t *ent);
 void SP_trigger_push(edict_t *ent);
 void SP_trigger_hurt(edict_t *ent);
-void SP_trigger_key(edict_t *ent);
 void SP_trigger_counter(edict_t *ent);
 void SP_trigger_elevator(edict_t *ent);
 void SP_trigger_gravity(edict_t *ent);
@@ -132,48 +131,18 @@ void SP_path_corner(edict_t *self);
 void SP_point_combat(edict_t *self);
 
 void SP_misc_explobox(edict_t *self);
-void SP_misc_banner(edict_t *self);
-void SP_misc_satellite_dish(edict_t *self);
 void SP_misc_actor(edict_t *self);
 void SP_misc_gib_arm(edict_t *self);
 void SP_misc_gib_leg(edict_t *self);
 void SP_misc_gib_head(edict_t *self);
 void SP_misc_deadsoldier(edict_t *self);
-void SP_misc_viper(edict_t *self);
-void SP_misc_viper_bomb(edict_t *self);
-void SP_misc_bigviper(edict_t *self);
-void SP_misc_strogg_ship(edict_t *self);
 void SP_misc_teleporter(edict_t *self);
 void SP_misc_teleporter_dest(edict_t *self);
-void SP_misc_blackhole(edict_t *self);
-void SP_misc_eastertank(edict_t *self);
-void SP_misc_easterchick(edict_t *self);
-void SP_misc_easterchick2(edict_t *self);
 
-void SP_monster_berserk(edict_t *self);
-void SP_monster_gladiator(edict_t *self);
-void SP_monster_gunner(edict_t *self);
 void SP_monster_infantry(edict_t *self);
 void SP_monster_soldier_light(edict_t *self);
 void SP_monster_soldier(edict_t *self);
 void SP_monster_soldier_ss(edict_t *self);
-void SP_monster_tank(edict_t *self);
-void SP_monster_medic(edict_t *self);
-void SP_monster_flipper(edict_t *self);
-void SP_monster_chick(edict_t *self);
-void SP_monster_parasite(edict_t *self);
-void SP_monster_flyer(edict_t *self);
-void SP_monster_brain(edict_t *self);
-void SP_monster_floater(edict_t *self);
-void SP_monster_hover(edict_t *self);
-void SP_monster_mutant(edict_t *self);
-void SP_monster_supertank(edict_t *self);
-void SP_monster_boss2(edict_t *self);
-void SP_monster_makron(edict_t *self);
-void SP_monster_jorg(edict_t *self);
-void SP_monster_boss3_stand(edict_t *self);
-
-void SP_monster_commander_body(edict_t *self);
 
 void SP_turret_breach(edict_t *self);
 void SP_turret_base(edict_t *self);
@@ -216,7 +185,6 @@ static const spawn_func_t spawn_funcs[] = {
     {"trigger_relay", SP_trigger_relay},
     {"trigger_push", SP_trigger_push},
     {"trigger_hurt", SP_trigger_hurt},
-    {"trigger_key", SP_trigger_key},
     {"trigger_counter", SP_trigger_counter},
     {"trigger_elevator", SP_trigger_elevator},
     {"trigger_gravity", SP_trigger_gravity},
@@ -255,30 +223,18 @@ static const spawn_func_t spawn_funcs[] = {
     {"point_combat", SP_point_combat},
 
     {"misc_explobox", SP_misc_explobox},
-    {"misc_banner", SP_misc_banner},
-    {"misc_satellite_dish", SP_misc_satellite_dish},
     {"misc_actor", SP_misc_actor},
     {"misc_gib_arm", SP_misc_gib_arm},
     {"misc_gib_leg", SP_misc_gib_leg},
     {"misc_gib_head", SP_misc_gib_head},
     {"misc_deadsoldier", SP_misc_deadsoldier},
-    {"misc_viper", SP_misc_viper},
-    {"misc_viper_bomb", SP_misc_viper_bomb},
-    {"misc_bigviper", SP_misc_bigviper},
-    {"misc_strogg_ship", SP_misc_strogg_ship},
     {"misc_teleporter", SP_misc_teleporter},
     {"misc_teleporter_dest", SP_misc_teleporter_dest},
-    {"misc_blackhole", SP_misc_blackhole},
-    {"misc_eastertank", SP_misc_eastertank},
-    {"misc_easterchick", SP_misc_easterchick},
-    {"misc_easterchick2", SP_misc_easterchick2},
 
     {"monster_infantry", SP_monster_infantry},
     {"monster_soldier_light", SP_monster_soldier_light},
     {"monster_soldier", SP_monster_soldier},
     {"monster_soldier_ss", SP_monster_soldier_ss},
-
-    {"monster_commander_body", SP_monster_commander_body},
 
     {"turret_breach", SP_turret_breach},
     {"turret_base", SP_turret_base},
@@ -1036,14 +992,21 @@ void SP_worldspawn(edict_t *ent)
     PrecacheItem(FindItem( "Fists" ));
     PrecacheItem(FindItem("Pistol"));
 
-    gi.soundindex("misc/pc_up.wav");
-    gi.soundindex("misc/talk.wav");
-    gi.soundindex("misc/talk1.wav");
+    // HUD Chat.
+    gi.soundindex("hud/chat01.wav");
 
-    // Body Gib
-    gi.soundindex("world/gib01.wav");
-    // gibs
-    gi.soundindex("items/respawn1.wav");
+    // Body Gib.
+    gi.soundindex( "world/gib01.wav" );
+    gi.soundindex( "world/gib_drop01.wav" );
+
+    // Item Respawn.
+    gi.soundindex("items/respawn01.wav");
+
+    // Login/Logout/Teleport.
+    gi.soundindex( "world/mz_login.wav" );
+    gi.soundindex( "world/mz_logout.wav" );
+    gi.soundindex( "world/mz_respawn.wav" );
+    gi.soundindex( "world/teleport01.wav" );
 
     // sexed sounds
     //gi.soundindex("*death1.wav");
