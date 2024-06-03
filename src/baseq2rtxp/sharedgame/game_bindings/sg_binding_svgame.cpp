@@ -57,3 +57,10 @@ configstring_t *SG_GetConfigString( const int32_t configStringIndex ) {
 int64_t sg_time_t::frames( ) const {
 	return _ms / gi.frame_time_ms;
 }
+
+/**
+*	@brief	Wraps around CVar_Get
+**/
+cvar_t *SG_CVar_Get( const char *var_name, const char *value, const int32_t flags ) {
+	return gi.cvar( var_name, value, flags );
+}

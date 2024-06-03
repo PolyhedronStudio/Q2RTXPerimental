@@ -394,9 +394,6 @@ static const save_field_t clientfields[] = {
 
 	I( pers.score ),
 
-	I( pers.game_helpchanged ),
-	I( pers.helpchanged ),
-
 	O( pers.spectator ),
 
 	O( showscores ),

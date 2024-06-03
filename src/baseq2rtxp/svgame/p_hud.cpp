@@ -42,7 +42,7 @@ void MoveClientToIntermission(edict_t *ent)
     ent->client->ps.viewangles[ 0 ] = AngleMod( level.intermission_angle[ 0 ] );
     ent->client->ps.viewangles[ 1 ] = AngleMod( level.intermission_angle[ 1 ] );
     ent->client->ps.viewangles[ 2 ] = AngleMod( level.intermission_angle[ 2 ] );
-    if ( !G_IsMultiplayerGameMode( game.gamemode ) ) {
+    if ( !SG_IsMultiplayerGameMode( game.gamemode ) ) {
         ent->client->ps.pmove.pm_type = PM_SPINTERMISSION;
     } else {
         ent->client->ps.pmove.pm_type = PM_INTERMISSION;
@@ -383,17 +383,17 @@ void Cmd_Help_f(edict_t *ent)
         return;
     }
 
-    ent->client->showinventory = false;
-    ent->client->showscores = false;
+    //ent->client->showinventory = false;
+    //ent->client->showscores = false;
 
-    if (ent->client->showhelp && (ent->client->pers.game_helpchanged == game.helpchanged)) {
-        ent->client->showhelp = false;
-        return;
-    }
+    //if (ent->client->showhelp && (ent->client->pers.game_helpchanged == game.helpchanged)) {
+    //    ent->client->showhelp = false;
+    //    return;
+    //}
 
-    ent->client->showhelp = true;
-    ent->client->pers.helpchanged = 0;
-    HelpComputer(ent);
+    //ent->client->showhelp = true;
+    //ent->client->pers.helpchanged = 0;
+    //HelpComputer(ent);
 }
 
 
@@ -559,11 +559,9 @@ void G_SetStats(edict_t *ent) {
     ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
     //
-    // Help icon / Current weapon if not shown
+    // Current weapon if not shown
     //
-    if (ent->client->pers.helpchanged && (level.framenum & 8))
-        ent->client->ps.stats[STAT_HELPICON] = gi.imageindex("i_help");
-    else if ((ent->client->pers.hand == CENTER_HANDED || ent->client->ps.fov > 91)
+    if ((ent->client->pers.hand == CENTER_HANDED || ent->client->ps.fov > 91)
              && ent->client->pers.weapon)
         ent->client->ps.stats[STAT_HELPICON] = gi.imageindex(ent->client->pers.weapon->icon);
     else

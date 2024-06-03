@@ -131,14 +131,15 @@ static void cvar_sv_airaccelerate_changed( cvar_t *self ) {
 
 static void cvar_sv_gamemode_changed( cvar_t *self ) {
     // Is it valid?
-    const bool isValidGamemode = G_IsGamemodeIDValid( self->integer );
+    const bool isValidGamemode = SG_IsValidGameModeType( static_cast<sg_gamemode_type_t>( self->integer ) );
 
     if ( !isValidGamemode ) {
-        gi.cvar_forceset( "gamemode", std::to_string( GAMEMODE_SINGLEPLAYER ).c_str() );
+        // In an invalid situation, resort to single player.
+        gi.cvar_forceset( "gamemode", std::to_string( GAMEMODE_TYPE_SINGLEPLAYER ).c_str() );
 
         // Invalid somehow.
-        gi.bprintf( PRINT_WARNING, "%s: tried to assign a non valid gamemode ID(#%i), resorting to default(#%i, %s)\n",
-            __func__, gamemode->integer, GAMEMODE_SINGLEPLAYER, SG_GetGamemodeName( GAMEMODE_SINGLEPLAYER ) );
+        gi.bprintf( PRINT_WARNING, "%s: tried to assign a non valid gamemode type ID(#%i), resorting to default(#%i, %s)\n",
+            __func__, gamemode->integer, gamemode->integer, SG_GetGameModeName( static_cast<sg_gamemode_type_t>( gamemode->integer ) ) );
     }
 }
 
@@ -193,8 +194,13 @@ void PreInitGame( void ) {
 	// Air acceleration defaults to 0 and is only set for DM mode.
 	//gi.configstring( CS_AIRACCEL, "0" );
 
-	// Deathmatch:
-	if ( gamemode->integer == GAMEMODE_DEATHMATCH ) {
+    // Get the current gamemode type.
+    sg_gamemode_type_t activeGameModeType = SG_GetActiveGameModeType();
+    // And its corresponding name.
+    const char *gameModeName = SG_GetGameModeName( activeGameModeType );
+
+    // Deathmatch:
+    if ( activeGameModeType == GAMEMODE_TYPE_DEATHMATCH ) {
 		// Set the cvar for keeping old code in-tact. TODO: Remove in the future.
 		gi.cvar_forceset( "deathmatch", "1" );
 
@@ -204,21 +210,22 @@ void PreInitGame( void ) {
 		} else if ( maxclients->integer > CLIENTNUM_RESERVED ) {
 			gi.cvar_forceset( "maxclients", std::to_string( CLIENTNUM_RESERVED ).c_str() );
 		}
-        gi.dprintf( "[GameMode(#%d): Deathmatch][maxclients=%d]\n", gamemode->integer, maxclients->integer );
 	// Cooperative:
-	} else if ( gamemode->integer == GAMEMODE_COOPERATIVE ) {
+	} else if ( activeGameModeType == GAMEMODE_TYPE_COOPERATIVE ) {
 		gi.cvar_forceset( "coop", "1" );
 
 		if ( maxclients->integer <= 1 || maxclients->integer > 4 ) {
 			gi.cvar_forceset( "maxclients", "4" ); // Cvar_Set( "maxclients", "4" );
 		}
-		gi.dprintf( "[GameMode(#%d): Cooperative][maxclients=%d]\n", gamemode->integer, maxclients->integer );
 	// Default: Singleplayer.
-	} else {    // non-deathmatch, non-coop is one player
+	} else {    
+        // Non-deathmatch, non-coop is one player.
 		//Cvar_FullSet( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH, FROM_CODE );
 		gi.cvar_forceset( "maxclients", "1" );
-		gi.dprintf( "[GameMode(#%d): Singleplayer][maxclients=%d]\n", gamemode->integer, maxclients->integer );
 	}
+
+    // Output the game mode type, and the maximum clients allowed for this session.
+    gi.dprintf( "[GameMode(#%d): %s][maxclients=%d]\n", activeGameModeType, gameModeName, maxclients->integer );
 }
 
 /**
@@ -228,9 +235,9 @@ void InitGame( void )
 {
 	// Notify 
     gi.dprintf("==== Init ServerGame(Gamemode: \"%s\", maxclients=%d, maxspectators=%d, maxentities=%d) ====\n",
-				SG_GetGamemodeName( gamemode->integer ), maxclients->integer, maxspectators->integer, maxentities->integer );
+				SG_GetGameModeName( static_cast<const sg_gamemode_type_t>( gamemode->integer ) ), maxclients->integer, maxspectators->integer, maxentities->integer );
 
-    game.gamemode = gamemode->integer;
+    game.gamemode = static_cast<sg_gamemode_type_t>( gamemode->integer );
     game.maxclients = maxclients->integer;
     game.maxentities = maxentities->integer;
 
@@ -315,6 +322,46 @@ void InitGame( void )
 }
 
 
+
+/**
+*
+*
+*   Exports Game API / Wrapper for functions to Exports Game API:
+*
+*
+**/
+/**
+*	@return	True if the game mode is a legitimate existing one.
+**/
+const bool _Exports_SG_IsValidGameModeType( const int32_t gameModeType ) {
+    return SG_IsValidGameModeType( static_cast<const sg_gamemode_type_t>( gameModeType ) );
+}
+/**
+*   @return True if the game mode is multiplayer.
+**/
+const bool _Exports_SG_IsMultiplayerGameMode( const int32_t gameModeType ) {
+    return SG_IsMultiplayerGameMode( static_cast<const sg_gamemode_type_t>( gameModeType ) );
+}
+/**
+*	@return	The default game mode which is to be set. Used in case of booting a dedicated server without gamemode args.
+**/
+const int32_t _Exports_SG_GetDefaultMultiplayerGameModeType() {
+    // Default to Deathmatch.
+    return static_cast<const int32_t>( SG_GetDefaultMultiplayerGameModeType() );
+}
+/**
+*	@return	The actual Type of the current gamemode.
+**/
+const int32_t _Exports_SG_GetActiveGameModeType() {
+    return static_cast<const int32_t>( SG_GetActiveGameModeType() );
+}
+/**
+*	@return	A string representative of the passed in gameModeType.
+**/
+const char *_Exports_SG_GetGameModeName( const int32_t gameModeType ) {
+    return SG_GetGameModeName( static_cast<const sg_gamemode_type_t>( gameModeType ) );
+}
+
 /**
 *	@brief	Returns a pointer to the structure with all entry points
 *			and global variables
@@ -332,11 +379,11 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Shutdown = ShutdownGame;
 		globals.SpawnEntities = SpawnEntities;
 
-		globals.GetActiveGamemodeID = G_GetActiveGamemodeID;
-        globals.IsGamemodeIDValid = G_IsGamemodeIDValid;
-        globals.IsMultiplayerGameMode = G_IsMultiplayerGameMode;
-        globals.GetDefaultMultiplayerGamemodeID = G_GetDefaultMultiplayerGamemodeID;
-		globals.GetGamemodeName = SG_GetGamemodeName;
+		globals.GetActiveGameModeType = _Exports_SG_GetActiveGameModeType;
+        globals.IsValidGameModeType = _Exports_SG_IsValidGameModeType;
+        globals.IsMultiplayerGameMode = _Exports_SG_IsMultiplayerGameMode;
+        globals.GetDefaultMultiplayerGamemodeType = _Exports_SG_GetDefaultMultiplayerGameModeType;
+		globals.GetGamemodeName = _Exports_SG_GetGameModeName;
 		globals.GamemodeNoSaveGames = G_GetGamemodeNoSaveGames;
 
 		globals.WriteGame = WriteGame;

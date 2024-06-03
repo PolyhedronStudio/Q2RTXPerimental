@@ -377,7 +377,7 @@ void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int ki
 
 static const bool G_ShouldPlayersCollideProjectile( edict_t *self ) {
     // In Coop they don't.
-    if ( G_GetActiveGamemodeID() == GAMEMODE_COOPERATIVE ) {
+    if ( SG_GetActiveGameModeType() == GAMEMODE_TYPE_COOPERATIVE ) {
         return false;
     }
 

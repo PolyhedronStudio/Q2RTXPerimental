@@ -139,7 +139,7 @@ static void cvar_sv_airaccelerate_changed( cvar_t *self ) {
 
 static void cvar_sv_gamemode_changed( cvar_t *self ) {
     // Is it valid?
-    const bool isValidGamemode = G_IsGamemodeIDValid( self->integer );
+    const bool isValidGamemode = G_IsValidGameModeType( self->integer );
 
     if ( !isValidGamemode ) {
         gi.cvar_forceset( "gamemode", std::to_string( GAMEMODE_SINGLEPLAYER ).c_str() );
@@ -341,10 +341,10 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Shutdown = ShutdownGame;
 		globals.SpawnEntities = SpawnEntities;
 
-		globals.GetActiveGamemodeID = G_GetActiveGamemodeID;
-        globals.IsGamemodeIDValid = G_IsGamemodeIDValid;
+		globals.GetActiveGameModeType = G_GetActiveGameModeType;
+        globals.IsValidGameModeType = G_IsValidGameModeType;
         globals.IsMultiplayerGameMode = G_IsMultiplayerGameMode;
-        globals.GetDefaultMultiplayerGamemodeID = G_GetDefaultMultiplayerGamemodeID;
+        globals.GetDefaultMultiplayerGamemodeType = G_GetDefaultMultiplayerGamemodeType;
 		globals.GetGamemodeName = SG_GetGamemodeName;
 		globals.GamemodeNoSaveGames = G_GetGamemodeNoSaveGames;
 

@@ -10,11 +10,40 @@
 //
 // g_gamemode.cpp
 //
-static constexpr int32_t GAMEMODE_SINGLEPLAYER = 0;	//! Index of SP gamemode.
-static constexpr int32_t GAMEMODE_DEATHMATCH = 1;	//! Index of MP deathmatch mode.
-static constexpr int32_t GAMEMODE_COOPERATIVE = 2;	//! Index of MP cooperative mode.
-static constexpr int32_t GAMEMODE_MAX = 3;			//! All gamemode IDs from 0 up to GAMEMODE_MAX are valid gamemodes for IsGameModeIDValid.
+typedef enum {
+	//! If you ever get this value, something is badly wrong.
+	GAMEMODE_TYPE_UNKNOWN = -1,
+
+	//! Start or load an adventure of your own against monsters.
+	GAMEMODE_TYPE_SINGLEPLAYER = 0,
+
+	//! Play versus other clients.
+	GAMEMODE_TYPE_DEATHMATCH = 1,
+	//! Player with other clients against monsters.
+	GAMEMODE_TYPE_COOPERATIVE = 2,
+
+	//! Total limit of gamemodes. All gamemode IDs from 0 up to GAMEMODE_MAX are valid gamemodes for IsGameModeIDValid.
+	GAMEMODE_TYPE_MAX = 3,
+} sg_gamemode_type_t;
+
 /**
-*	@return	A string representative of the passed in gameModeID.
+*	@return	True if the game mode is a legitimate existing one.
 **/
-const char *SG_GetGamemodeName( const int32_t gameModeID );
+const bool SG_IsValidGameModeType( const sg_gamemode_type_t gameModeType );
+/**
+*   @return True if the game mode is multiplayer.
+**/
+const bool SG_IsMultiplayerGameMode( const sg_gamemode_type_t gameModeType );
+/**
+*	@return	The default game mode which is to be set. Used in case of booting a dedicated server without gamemode args.
+**/
+const sg_gamemode_type_t SG_GetDefaultMultiplayerGameModeType();
+/**
+*	@return	The actual ID of the current gamemode type.
+**/
+const sg_gamemode_type_t SG_GetActiveGameModeType();
+
+/**
+*	@return	A string representative of the passed in gameModeType.
+**/
+const char *SG_GetGameModeName( const sg_gamemode_type_t gameModeType );

@@ -290,7 +290,7 @@ typedef struct {
     /**
     *	@return	True if the game mode is a legitimate existing one.
     **/
-    const bool ( *IsGamemodeIDValid )( const int32_t gameModeID );
+    const bool ( *IsValidGameModeType )( const int32_t gameModeID );
     /**
     *   @return True if the game mode is multiplayer.
     **/
@@ -298,11 +298,11 @@ typedef struct {
     /**
     *	@return	The current active game mode ID.
     **/
-    const int32_t( *GetActiveGamemodeID )( void );
+    const int32_t( *GetActiveGameModeType )( void );
     /**
     *	@return	The default game mode which is to be set. Used in case of booting a dedicated server without gamemode args.
     **/
-    const int32_t( *GetDefaultMultiplayerGamemodeID )( void );
+    const int32_t( *GetDefaultMultiplayerGamemodeType )( void );
     /**
     *	@return	The actual ID of the current gamemode.
     **/

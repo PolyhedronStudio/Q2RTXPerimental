@@ -566,8 +566,8 @@ void InitClientRespawnData(gclient_t *client)
 
     // In case of a coop game mode, we make sure to store the 
     // 'persistent across level changes' data into the client's
-    // respawn field, so we can restore it.
-    client->resp.coop_respawn = client->pers;
+    // respawn field, so we can restore it each respawn.
+    client->resp.pers_respawn = client->pers;
 }
 
 /*
@@ -1036,17 +1036,13 @@ void P_ResetPlayerStateFOV( gclient_t *client ) {
     }
 }
 
-/*
-===========
-PutClientInServer
-
-Called either when a player connects to a server, OR respawns in a deathmatch.
-============
-*/
+/**
+*   @brief  Called either when a player connects to a server, OR respawns in a multiplayer game.
+**/
 void PutClientInServer(edict_t *ent)
 {
-    vec3_t  mins = { -16, -16, -24};
-    vec3_t  maxs = {16, 16, 32};
+    Vector3 mins = PM_BBOX_STANDUP_MINS;
+    Vector3 maxs = PM_BBOX_STANDUP_MAXS;
     int     index;
     vec3_t  spawn_origin, spawn_angles;
     gclient_t   *client;
@@ -1063,31 +1059,47 @@ void PutClientInServer(edict_t *ent)
 
     index = ent - g_edicts - 1;
     client = ent->client;
-
-    // deathmatch wipes most client data every spawn
-    if (deathmatch->value) {
+    
+    if ( SG_IsMultiplayerGameMode( game.gamemode ) ) {
+        // Store userinfo.
         char        userinfo[ MAX_INFO_STRING ];
-        resp = client->resp;
         memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
-        InitClientPersistantData( ent, client );
+        // Store respawn data.
+        resp = client->resp;
+        
+        // DeathMatch: Reinitialize a fresh persistent data.
+        if ( game.gamemode == GAMEMODE_TYPE_DEATHMATCH ) {
+            InitClientPersistantData( ent, client );
+        // Cooperative: 
+        } else if ( game.gamemode == GAMEMODE_TYPE_COOPERATIVE ) {
+            // this is kind of ugly, but it's how we want to handle keys in coop
+            //for (n = 0; n < game.num_items; n++)
+            //{
+            //    if (itemlist[n].flags & IT_KEY)
+            //    resp.coop_respawn.inventory[n] = client->pers.inventory[n];
+            //}
+            //resp.coop_respawn.game_helpchanged = client->pers.game_helpchanged;
+            //resp.coop_respawn.helpchanged = client->pers.helpchanged;
+            client->pers = resp.pers_respawn;
+            // Restore score.
+            if ( resp.score > client->pers.score ) {
+                client->pers.score = resp.score;
+            }
+        }
+        // Administer the user info change.
         ClientUserinfoChanged( ent, userinfo );
     } else {
 //      int         n;
         char        userinfo[ MAX_INFO_STRING ];
-        resp = client->resp;
         memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
-        // this is kind of ugly, but it's how we want to handle keys in coop
-//      for (n = 0; n < game.num_items; n++)
-//      {
-//          if (itemlist[n].flags & IT_KEY)
-//              resp.coop_respawn.inventory[n] = client->pers.inventory[n];
-//      }
-        resp.coop_respawn.game_helpchanged = client->pers.game_helpchanged;
-        resp.coop_respawn.helpchanged = client->pers.helpchanged;
-        client->pers = resp.coop_respawn;
+        // Restore userinfo.
         ClientUserinfoChanged( ent, userinfo );
-        if (resp.score > client->pers.score)
-            client->pers.score = resp.score;
+        // Acquire respawn data.
+        resp = client->resp;
+        // Restore client persistent data.
+        client->pers = resp.pers_respawn;
+        // Fresh SP mode has 0 score.
+        client->pers.score = 0;
     } 
 
 
@@ -1220,14 +1232,12 @@ void PutClientInServer(edict_t *ent)
     P_Weapon_Change(ent);
 }
 
-/*
-=====================
-ClientBeginDeathmatch
-
-A client has just connected to the server in
-deathmatch mode, so clear everything out before starting them.
-=====================
-*/
+/**
+*   @brief Deathmatch mode implementation of ClientBegin.
+*
+*           A client has just connected to the server in deathmatch mode, so clear everything 
+*           out before starting them.
+**/
 void ClientBeginDeathmatch(edict_t *ent)
 {
     // Init Edict.
@@ -1257,15 +1267,10 @@ void ClientBeginDeathmatch(edict_t *ent)
     ClientEndServerFrame(ent);
 }
 
-
-/*
-===========
-ClientBegin
-
-called when a client has finished connecting, and is ready
-to be placed into the game.  This will happen every level load.
-============
-*/
+/**
+*   @brief  Called when a client has finished connecting, and is ready
+*           to be placed into the game. This will happen every level load.
+**/
 void ClientBegin(edict_t *ent)
 {
     int     i;
@@ -1322,16 +1327,12 @@ void ClientBegin(edict_t *ent)
     ClientEndServerFrame(ent);
 }
 
-/*
-===========
-ClientUserInfoChanged
-
-called whenever the player updates a userinfo variable.
-
-The game can override any of the settings in place
-(forcing skins or names, etc) before copying it off.
-============
-*/
+/**
+*   @brief  called whenever the player updates a userinfo variable.
+*
+*           The game can override any of the settings in place
+*           (forcing skins or names, etc) before copying it off.
+**/
 void ClientUserinfoChanged(edict_t *ent, char *userinfo)
 {
     char    *s;
@@ -1349,10 +1350,11 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo)
     // set spectator
     s = Info_ValueForKey(userinfo, "spectator");
     // spectators are only supported in deathmatch
-    if (deathmatch->value && *s && strcmp(s, "0"))
+    if ( deathmatch->value && *s && strcmp( s, "0" ) ) {
         ent->client->pers.spectator = true;
-    else
+    } else {
         ent->client->pers.spectator = false;
+    }
 
     // set skin
     s = Info_ValueForKey(userinfo, "skin");
@@ -1384,18 +1386,17 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo)
 }
 
 
-/*
-===========
-ClientConnect
-
-Called when a player begins connecting to the server.
-The game can refuse entrance to a client by returning false.
-If the client is allowed, the connection process will continue
-and eventually get to ClientBegin()
-Changing levels will NOT cause this to be called again, but
-loadgames will.
-============
-*/
+/**
+*   @details    Called when a player begins connecting to the server.
+*               
+*               The game can refuse entrance to a client by returning false.
+* 
+*               If the client is allowed, the connection process will continue
+*               and eventually get to ClientBegin()
+*               
+*               Changing levels will NOT cause this to be called again, but
+*               loadgames WILL.
+**/
 qboolean ClientConnect(edict_t *ent, char *userinfo)
 {
     char    *value;
@@ -1465,14 +1466,10 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
     return true;
 }
 
-/*
-===========
-ClientDisconnect
-
-Called when a player drops from the server.
-Will not be called between levels.
-============
-*/
+/**
+*   @brief  Called when a player drops from the server.
+*           Will NOT be called between levels.
+**/
 void ClientDisconnect(edict_t *ent)
 {
     //int     playernum;
@@ -1537,14 +1534,9 @@ static const contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
     return gi.pointcontents( point );
 }
 
-/*
-=================
-P_FallingDamage
-
-Paril-KEX: this is moved here and now reacts directly
-to ClientThink rather than being delayed.
-=================
-*/
+/**
+*   @brief  Determine the impacting falling damage to take. Called directly by ClientThink after each PMove.
+**/
 void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     int	   damage;
     vec3_t dir;
@@ -1643,14 +1635,10 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     }
 }
 
-/*
-==============
-ClientThink
-
-This will be called once for each client frame, which will
-usually be a couple times for each server frame.
-==============
-*/
+/**
+*   @brief  This will be called once for each client frame, which will usually 
+*           be a couple times for each server frame.
+**/
 void ClientThink(edict_t *ent, usercmd_t *ucmd)
 {
     gclient_t   *client = nullptr;
@@ -1920,15 +1908,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     }
 }
 
-
-/*
-==============
-ClientBeginServerFrame
-
-This will be called once for each server frame, before running
-any other entities in the world.
-==============
-*/
+/**
+*   @brief  This will be called once for each server frame, before running any other entities in the world.
+**/
 void ClientBeginServerFrame(edict_t *ent)
 {
     gclient_t   *client;

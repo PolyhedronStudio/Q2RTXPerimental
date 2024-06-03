@@ -411,7 +411,7 @@ void PF_ClearState( void ) {
 *	@brief
 **/
 const char *PF_GetGamemodeName( int32_t gameModeID ) {
-	return SG_GetGamemodeName( gameModeID );
+	return SG_GetGameModeName( static_cast<sg_gamemode_type_t>( gameModeID ) );
 }
 
 

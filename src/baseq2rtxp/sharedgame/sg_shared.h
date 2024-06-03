@@ -42,14 +42,21 @@ typedef struct edict_s sgentity_s;
 *	@brief	Wrapper for using the appropriate developer print for the specific game module we're building.
 **/
 void SG_DPrintf( const char *fmt, ... );
-///**
-//*	@brief	Returns the entity number, -1 if invalid(nullptr, or out of bounds).
-//**/
+
+/**
+*	@brief	Returns the entity number, -1 if invalid(nullptr, or out of bounds).
+**/
 const int32_t SG_GetEntityNumber( sgentity_s *sgent );
+
 /**
 *	@brief	Returns the given configstring that sits at index.
 **/
 configstring_t *SG_GetConfigString( const int32_t configStringIndex );
+/**
+*	@brief	Wraps around CVar_Get
+**/
+cvar_t *SG_CVar_Get( const char *var_name, const char *value, const int32_t flags );
+
 
 /**
 *
@@ -93,6 +100,8 @@ inline static const std::string SG_RandomResourcePath( const char *path, const c
 	return pathBuffer;
 }
 
+
+
 /**
 *
 *
@@ -124,11 +133,8 @@ static constexpr int32_t STAT_KILLER_YAW = ( STATS_GAME_OFFSET + 17 );
 static constexpr int32_t STAT_CLIP_AMMO = ( STATS_GAME_OFFSET + 18 );
 static constexpr int32_t STAT_CLIP_AMMO_ICON = ( STATS_GAME_OFFSET + 19 );
 
+
 static constexpr int32_t STAT_WEAPON_FLAGS = ( STATS_GAME_OFFSET + 20 );
-
-//#define STAT_SHOW_SCORES        19
-
-
 /**
 *	@brief	Actual flags we can set for STAT_WEAPON_FLAGS stats.
 **/

@@ -3,7 +3,7 @@
 /**
 *	@return	True if the game mode is a legitimate existing one.
 **/
-const bool G_IsGamemodeIDValid( const int32_t gameModeID ) {
+const bool G_IsValidGameModeType( const int32_t gameModeID ) {
 	if ( gameModeID >= GAMEMODE_SINGLEPLAYER && gameModeID < GAMEMODE_MAX ) {
 		return true;
 	}
@@ -23,7 +23,7 @@ const bool G_IsMultiplayerGameMode( const int32_t gameModeID ) {
 /**
 *	@return	The default game mode which is to be set. Used in case of booting a dedicated server without gamemode args.
 **/
-const int32_t G_GetDefaultMultiplayerGamemodeID() {
+const int32_t G_GetDefaultMultiplayerGamemodeType() {
 	// Default to Deathmatch.
 	return GAMEMODE_DEATHMATCH;
 }
@@ -31,7 +31,7 @@ const int32_t G_GetDefaultMultiplayerGamemodeID() {
 /**
 *	@return	The actual ID of the current gamemode.
 **/
-const int32_t G_GetActiveGamemodeID( ) {
+const int32_t G_GetActiveGameModeType( ) {
 	if ( gamemode->integer >= GAMEMODE_SINGLEPLAYER && gamemode->integer < GAMEMODE_MAX ) {
 		return gamemode->integer;
 	}

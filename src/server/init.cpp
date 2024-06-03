@@ -388,7 +388,7 @@ void SV_InitGame()
 	SV_InitGameProgs( );
 
     // Ensure the gamemode is valid.
-    if ( !ge->IsGamemodeIDValid( Cvar_VariableInteger( "gamemode" ) ) ) {
+    if ( !ge->IsValidGameModeType( Cvar_VariableInteger( "gamemode" ) ) ) {
         // Warn.
         Com_WPrintf( "Invalid gamemode detected, defaulting to %s\n", ge->GetGamemodeName( 0 ) );
 
@@ -400,7 +400,7 @@ void SV_InitGame()
     // Force it to the game API 'default' multiplayer mode.
     if ( COM_DEDICATED ) {
         if ( !ge->IsMultiplayerGameMode( Cvar_VariableInteger( "gamemode" ) ) ) {
-            const int32_t newGameModeID = ge->GetDefaultMultiplayerGamemodeID();
+            const int32_t newGameModeID = ge->GetDefaultMultiplayerGamemodeType();
             // Warn.
             Com_WPrintf( "Can't do %s on a dedicated server. Defaulting to %s\n",
                 ge->GetGamemodeName( Cvar_VariableInteger( "gamemode" ) ),

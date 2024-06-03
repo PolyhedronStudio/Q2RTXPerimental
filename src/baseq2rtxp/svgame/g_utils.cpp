@@ -622,7 +622,7 @@ const bool KillBox( edict_t *ent, const bool bspClipping ) {
             T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
         }
 
-        //// if we didn't kill it, fail
+        // if we didn't kill it, fail
         if ( hit->solid ) {
             return false;
         }

@@ -82,7 +82,7 @@ P_DamageFeedback
 Handles color blends and view kicks
 ===============
 */
-void P_DamageFeedback( edict_t *player ) {
+static void P_DamageFeedback( edict_t *player ) {
 	float   side;
 	int32_t   r, l;
 	constexpr Vector3 armor_color = { 1.0, 1.0, 1.0 };
@@ -284,7 +284,7 @@ void P_DamageFeedback( edict_t *player ) {
 
 /*
 ===============
-SV_CalcViewOffset
+P_CalculateViewOffset
 
 Auto pitching on slopes?
 
@@ -298,7 +298,7 @@ Auto pitching on slopes?
 
 ===============
 */
-void SV_CalcViewOffset( edict_t *ent ) {
+static void P_CalculateViewOffset( edict_t *ent ) {
 	//float *angles;
 	//float       bob;
 	float       ratio;
@@ -448,11 +448,11 @@ void SV_CalcViewOffset( edict_t *ent ) {
 
 /*
 ==============
-SV_CalcGunOffset
+SV_CalculateGunOffset
 ==============
 */
 // WID: Moved to CLGame.
-//void SV_CalcGunOffset( edict_t *ent ) {
+//void SV_CalculateGunOffset( edict_t *ent ) {
 //	int     i;
 //	float   delta;
 //
@@ -514,35 +514,26 @@ void SV_AddBlend( float r, float g, float b, float a, float *v_blend ) {
 
 /*
 =============
-SV_CalcBlend
+P_CalculateBlend
 =============
 */
-// [Paril-KEX] convenience functions that returns true
-// if the powerup should be 'active' (false to disable,
-// will flash at 500ms intervals after 3 sec)
-[[nodiscard]] constexpr bool G_PowerUpExpiringRelative( sg_time_t left ) {
-	return left.milliseconds( ) > 3000 || ( left.milliseconds( ) % 1000 ) < 500;
-}
-
-[[nodiscard]] constexpr bool G_PowerUpExpiring( sg_time_t time ) {
-	return G_PowerUpExpiringRelative( time - level.time );
-}
-
-void SV_CalcBlend( edict_t *ent ) {
+static void P_CalculateBlend( edict_t *ent ) {
 	sg_time_t remaining;
 
+	// Clear player state screen blend.
 	Vector4Clear( ent->client->ps.screen_blend );
 
-	// add for contents
+	// Add for contents specific.
 	vec3_t vieworg = {};
 	VectorAdd( ent->s.origin, ent->client->ps.viewoffset, vieworg );
 	vieworg[ 2 ] += ent->client->ps.pmove.viewheight;
 
 	int32_t contents = gi.pointcontents( vieworg );
-	if ( contents & ( CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA ) )
+	if ( contents & ( CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA ) ) {
 		ent->client->ps.rdflags |= RDF_UNDERWATER;
-	else
+	} else {
 		ent->client->ps.rdflags &= ~RDF_UNDERWATER;
+	}
 	
 	// Prevent it from adding screenblend if we're inside a client entity, by checking
 	// if its brush has CONTENTS_PLAYER set in its clipmask.
@@ -555,7 +546,7 @@ void SV_CalcBlend( edict_t *ent ) {
 		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, ent->client->ps.screen_blend );
 	}
 
-	// add for damage
+	// Add for damage
 	if ( ent->client->damage_alpha > 0 ) {
 		SG_AddBlend( ent->client->damage_blend[ 0 ], ent->client->damage_blend[ 1 ]
 			, ent->client->damage_blend[ 2 ], ent->client->damage_alpha, ent->client->ps.screen_blend );
@@ -589,10 +580,10 @@ void SV_CalcBlend( edict_t *ent ) {
 
 /*
 =============
-P_WorldEffects
+P_CheckWorldEffects
 =============
 */
-static void P_WorldEffects( void ) {
+static void P_CheckWorldEffects( void ) {
 	liquid_level_t liquidlevel, old_waterlevel;
 
 	if ( current_player->movetype == MOVETYPE_NOCLIP ) {
@@ -706,7 +697,7 @@ static void P_WorldEffects( void ) {
 	}
 
 	//
-	// check for sizzle damage
+	// Check for sizzle damage
 	//
 	if ( liquidlevel && ( current_player->liquidtype & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
 		if ( current_player->liquidtype & CONTENTS_LAVA ) {
@@ -758,8 +749,10 @@ G_SetClientEvent
 ===============
 */
 void G_SetClientEvent( edict_t *ent ) {
-	if ( ent->s.event )
+	// We're already occupied by an event.
+	if ( ent->s.event ) {
 		return;
+	}
 
 	//if ( ent->groundentity && xyspeed > 225 ) {
 	//	if ( (int)( current_client->bobtime + bobmove ) != bobcycle )
@@ -790,18 +783,6 @@ G_SetClientSound
 ===============
 */
 void G_SetClientSound( edict_t *ent ) {
-
-
-	if ( ent->client->pers.game_helpchanged != game.helpchanged ) {
-		ent->client->pers.game_helpchanged = game.helpchanged;
-		ent->client->pers.helpchanged = 1;
-	}
-
-	// help beep (no more than ONE time - that's annoying enough)
-	if ( ent->client->pers.helpchanged && ent->client->pers.helpchanged <= 1 && !( level.framenum & 63 ) ) {
-		ent->client->pers.helpchanged++;
-	}
-
 	// Override sound with the 'fry' sound in case of being in a 'fryer' liquid, lol.
 	if ( ent->liquidlevel && ( ent->liquidtype & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
 		ent->s.sound = snd_fry;
@@ -977,7 +958,7 @@ void ClientEndServerFrame( edict_t *ent ) {
 	AngleVectors( &ent->client->viewMove.viewAngles.x, forward, right, up );
 
 	// burn from lava, etc
-	P_WorldEffects( );
+	P_CheckWorldEffects( );
 
 	//
 	// set model angles from view angles so other things in
@@ -993,91 +974,54 @@ void ClientEndServerFrame( edict_t *ent ) {
 	ent->s.angles[ ROLL ] = SV_CalcRoll( ent->s.angles, ent->velocity ) * 4;
 
 	//
-	// calculate speed and cycle to be used for
-	// all cyclic walking effects
+	// Update the client's bob cycle.
 	//
-	//xyspeed = sqrtf( ent->velocity[ 0 ] * ent->velocity[ 0 ] + ent->velocity[ 1 ] * ent->velocity[ 1 ] );
-
-	if ( ent->client->ps.xySpeed < 5 ) {
-		//bobmove = 0;
-		//current_client->bobtime = 0;    // start at beginning of cycle again
-	} else if ( ent->groundentity ) {
-		// so bobbing only cycles when on ground
-		//if ( xyspeed > 210 )
-		//	bobmove = 0.25f;
-		//else if ( xyspeed > 100 )
-		//	bobmove = 0.125f;
-		//else
-		//	bobmove = 0.0625f;
-
-		//if ( xyspeed > 210 ) {
-		//	bobmove = gi.frame_time_ms / 400.f;
-		//} else if ( xyspeed > 100 ) {
-		//	bobmove = gi.frame_time_ms / 800.f;
-		//} else {
-		//	bobmove = gi.frame_time_ms / 1600.f;
-		//}
-	} else {
-		//bobmove = 0;
-	}
-
-	//float bobtime = ( current_client->bobtime += current_client->ps.bobMove );
-	//const float bobtime_run = bobtime;
-
-	if ( ( current_client->ps.pmove.pm_flags & PMF_DUCKED ) && ent->groundentity ) {
-		//bobtime *= 4;
-	}
-
 	current_client->oldBobCycle = current_client->bobCycle;
 	current_client->bobCycle = ( current_client->ps.bobCycle & 128 ) >> 7;
 	current_client->bobFracSin = fabs( sin( ( current_client->ps.bobCycle & 127 ) / 127.0 * M_PI ) );
 
-	//bobcycle = (int64_t)bobtime;
-	//bobcycle_run = (int64_t)bobtime_run;
-	//bobfracsin = fabs( sin( bobtime * M_PI ) );
-
-	gi.dprintf( "SVGame(%s): bobCycle(%i), oldBobCycle(%i), bobFracSin(%f) \n", __func__, current_client->bobCycle, current_client->oldBobCycle, current_client->bobFracSin );
 	// apply all the damage taken this frame
 	P_DamageFeedback( ent );
 
 	// determine the view offsets
-	SV_CalcViewOffset( ent );
+	P_CalculateViewOffset( ent );
 
 	// WID: Moved to CLGame.
 	// determine the gun offsets
-	//SV_CalcGunOffset( ent );
+	//SV_CalculateGunOffset( ent );
 
 	// Determine the full screen color blend which must happen after applying viewoffset, 
 	// so eye contents can be accurately determined.
 	// FIXME: with client prediction, the contents should be determined by the client.
-	SV_CalcBlend( ent );
+	P_CalculateBlend( ent );
 
-	// chase cam stuff
+	// Different layout when spectating.
 	if ( ent->client->resp.spectator ) {
 		G_SetSpectatorStats( ent );
+	// Regular layout.
 	} else {
 		G_SetStats( ent );
 	}
+	// Set stats to that of the entity which we're tracing. (Overriding previously set stats.)
 	G_CheckChaseStats( ent );
-
+	// Events.
 	G_SetClientEvent( ent );
-
+	// Effects.
 	G_SetClientEffects( ent );
-
+	// Sound.
 	G_SetClientSound( ent );
-
+	// Animation Frame.
 	G_SetClientFrame( ent );
 
+	// Backup velocity, viewangles, and ground entity.
 	VectorCopy( ent->velocity, ent->client->oldvelocity );
 	VectorCopy( ent->client->ps.viewangles, ent->client->oldviewangles );
 	ent->client->oldgroundentity = ent->groundentity;
 
 	// Clear out the weapon kicks.
 	ent->client->weaponKicks = {};
-	//VectorClear( ent->client->kick_origin );
-	//VectorClear( ent->client->kick_angles );
-
-	// if the scoreboard is up, update it
+	
+	// If the scoreboard is up, update it.
 	if ( ent->client->showscores && !( level.framenum & 31 ) ) {
 		DeathmatchScoreboardMessage( ent, ent->enemy );
 		gi.unicast( ent, false );

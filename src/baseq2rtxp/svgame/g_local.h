@@ -523,20 +523,22 @@ typedef struct {
 
     gclient_t   *clients;       // [maxclients]
 
-    // can't store spawnpoint in level, because
-    // it would get overwritten by the savegame restore
-    char        spawnpoint[512];    // needed for coop respawns
+    //! Can't store spawnpoint in level, because
+    //! it would get overwritten by the savegame restore.
+    //!
+    //! Needed for coop respawns.
+    char        spawnpoint[512];    
 
-    // store latched cvars here that we want to get at often
-    int         maxclients;
-    int         maxentities;
-    int         gamemode;
-    // cross level triggers
-    int         serverflags;
-
-    // items
-    int         num_items;
-
+    //! Store latched cvars here that we want to get at often.
+    int32_t             maxclients;
+    int32_t             maxentities;
+    sg_gamemode_type_t  gamemode;
+    
+    //! Cross level triggers.
+    int32_t     serverflags;
+    //! Number of items.
+    int32_t     num_items;
+    //! Autosaved.
     bool        autosaved;
 } game_locals_t;
 //! Extern, access all over game dll code.
@@ -801,26 +803,6 @@ extern  gitem_t itemlist[];
 //
 // g_gamemode.cpp
 //
-/**
-*	@return	True if the game mode is a legitimate existing one.
-**/
-const bool G_IsGamemodeIDValid( const int32_t gameModeID );
-/**
-*   @return True if the game mode is multiplayer.
-**/
-const bool G_IsMultiplayerGameMode( const int32_t gameModeID );
-/**
-*	@return	The current active game mode ID.
-**/
-const int32_t G_GetActiveGamemodeID();
-/**
-*	@return	The default game mode which is to be set. Used in case of booting a dedicated server without gamemode args.
-**/
-const int32_t G_GetDefaultMultiplayerGamemodeID();
-/**
-*	@return	The actual ID of the current gamemode.
-**/
-const int32_t G_GetActiveGamemodeID( );
 /**
 *	@return	True in case the current gamemode allows for saving the game.
 *			(This should only be true for single and cooperative play modes.)
@@ -1165,10 +1147,6 @@ typedef struct {
     //! For calculating total unit score in coop games.
     int32_t     score;
 
-    //! Did help display change?
-    int32_t     game_helpchanged;
-    int32_t     helpchanged;
-
     //! If true, this client is engaged in 'Spectator' mode.
     bool        spectator;
 } client_persistant_t;
@@ -1177,7 +1155,7 @@ typedef struct {
 *   @brief  Client respawn data that stays across multiplayer mode respawns.
 **/
 typedef struct {
-    client_persistant_t coop_respawn;	// what to set client->pers to on a respawn
+    client_persistant_t pers_respawn;	// what to set client->pers to on a respawn
 
     int64_t enterframe;     // level.framenum the client entered the game
     sg_time_t entertime;    // the moment in time the client entered the game.

@@ -638,7 +638,7 @@ static void SV_Savegame_f(void)
     //    return;
     //}
 	if ( ge->GamemodeNoSaveGames( dedicated->integer ) == true ) {
-		Com_Printf("The gamemode \"%s\" doesn't support savegames!\n", ge->GetGamemodeName( ge->GetActiveGamemodeID() ) );
+		Com_Printf("The gamemode \"%s\" doesn't support savegames!\n", ge->GetGamemodeName( ge->GetActiveGameModeType() ) );
 		return;
 	}
 
