@@ -1103,9 +1103,9 @@ void SP_func_door(edict_t *ent)
     vec3_t  abs_movedir;
 
     if (ent->sounds != 1) {
-        ent->moveinfo.sound_start = gi.soundindex("doors/dr1_strt.wav");
-        ent->moveinfo.sound_middle = gi.soundindex("doors/dr1_mid.wav");
-        ent->moveinfo.sound_end = gi.soundindex("doors/dr1_end.wav");
+        ent->moveinfo.sound_start = gi.soundindex("doors/door_start_01.wav");
+        ent->moveinfo.sound_middle = gi.soundindex("doors/door_mid_01.wav");
+        ent->moveinfo.sound_end = gi.soundindex("doors/door_end_01.wav");
     }
 
     G_SetMovedir(ent->s.angles, ent->movedir);
@@ -1264,9 +1264,9 @@ void SP_func_door_rotating(edict_t *ent)
         ent->dmg = 2;
 
     if (ent->sounds != 1) {
-        ent->moveinfo.sound_start = gi.soundindex("doors/dr1_strt.wav");
-        ent->moveinfo.sound_middle = gi.soundindex("doors/dr1_mid.wav");
-        ent->moveinfo.sound_end = gi.soundindex("doors/dr1_end.wav");
+        ent->moveinfo.sound_start = gi.soundindex("doors/door_start_01.wav");
+        ent->moveinfo.sound_middle = gi.soundindex("doors/door_mid_01.wav");
+        ent->moveinfo.sound_end = gi.soundindex("doors/door_end_01.wav");
     }
 
     // if it starts open, switch the positions
@@ -1884,9 +1884,9 @@ void SP_func_door_secret(edict_t *ent)
     float   width;
     float   length;
 
-    ent->moveinfo.sound_start = gi.soundindex("doors/dr1_strt.wav");
-    ent->moveinfo.sound_middle = gi.soundindex("doors/dr1_mid.wav");
-    ent->moveinfo.sound_end = gi.soundindex("doors/dr1_end.wav");
+    ent->moveinfo.sound_start = gi.soundindex("doors/door_start_01.wav");
+    ent->moveinfo.sound_middle = gi.soundindex("doors/door_mid_01.wav");
+    ent->moveinfo.sound_end = gi.soundindex("doors/door_end_01.wav");
 
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
