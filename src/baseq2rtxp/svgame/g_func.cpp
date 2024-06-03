@@ -390,16 +390,19 @@ void plat_go_up(edict_t *ent)
 
 void plat_blocked(edict_t *self, edict_t *other)
 {
-    if (!(other->svflags & SVF_MONSTER) && (!other->client)) {
+    if ( !(other->svflags & SVF_MONSTER) && (!other->client) ) {
+        const bool knockBack = true;
         // give it a chance to go away on it's own terms (like gibs)
-        T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MEANS_OF_DEATH_CRUSHED);
+        T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, knockBack, 0, MEANS_OF_DEATH_CRUSHED);
         // if it's still there, nuke it
-        if (other)
-            BecomeExplosion1(other);
+        if ( other ) {
+            BecomeExplosion1( other );
+        }
         return;
     }
 
-    T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED);
+    const bool knockBack = false;
+    T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, knockBack, 0, MEANS_OF_DEATH_CRUSHED);
 
     if (self->moveinfo.state == STATE_UP)
         plat_go_down(self);

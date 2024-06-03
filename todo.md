@@ -29,20 +29,24 @@ Features being looked forward on implementation.
 * [x] Add some way of having entity 'class' like type support. (At the least, eliminate a need for having such a large edict_t type that holds all sorts of object-type specific variables.)
 	* [x] So far this is only in existence for the client game's ``clg_local_entity_t`` type.
 	* [ ] Finish the implementation/style of it, make sure it is save game compatible, and implement it all-round.
+* [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
+
 ### Low Priority:
-* [ ] Why, when func_plat hits ya, it moves you to random origin or such?_
-* [ ] Rid all places where ``coop`` and ``deathmatch`` cvars are checked by actual individual gamemode related counterparts.
-* [ ] Calculate the proper entity matrixes/quaternions during Link time.
+* [X] Why, when func_plat hits ya, it moves you to random origin or such?_
+	* Resolved by what seemed incorrect default behavior? Simply passing a knockback of 0 to the hit entity instead of 1.
 * [ ] Internal representation of skeletal poses and an API for use by both, client and server, thus residing in /common/
+* [ ] Look into Q2RE q2pro for svc_sound additions.
+* [ ] Implement a game mode structure that accepts function pointers, these are configured depending on the gamemode that is active within the game.
+	* [ ] Rid all places where ``coop`` and ``deathmatch`` cvars are checked by actual individual gamemode related counterparts.
+	* [ ] CanDamage and functions alike need to be moved into gamemode.
+
+### Lowest, nearly redundant Priority:
 * [ ] Modify the code so it does not generate ``hulls`` on the fly, but instead set them at ``LinkEntity`` time. 
 	* [ ] Generate and store entity ``hulls`` in their server-side counterpart for later ``collision model`` rework.
 	* [ ] Then for tracing, retreives them from their **client/server** counterpart. In case of the **client** they will be regenerated in case of a ``new`` entity, or general ``bounds changes`` has occured for the **client** entity.
-* [ ] Look into Q2RE q2pro for svc_sound additions.
+* [ ] Calculate the proper entity matrixes/quaternions during Link time.
 * [ ] Integrate support for now still commented ATTN_ types.
-
-### Lowest, nearly redundant Priority:
-* [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
-* [ ] Look into allowing each entity classtype/group-type to have its own baseline states as well as matching custom implementations of Read/Write-EntityDeltaState.
+* [ ] * [ ] Look into allowing each entity classtype/group-type to have its own baseline states as well as matching custom implementations of Read/Write-EntityDeltaState.
 * [ ] Look into JoltPhysics and see if it's something realistic for Jolt Physics.
 	* [ ] If that fails, look into some library to deal with at least 'tracing' through geometric shapes properly.
 
