@@ -603,7 +603,7 @@ void Cmd_Kill_f(edict_t *ent)
         return;
     ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_GODMODE );
     ent->health = 0;
-    meansOfDeath = MOD_SUICIDE;
+    ent->meansOfDeath = MEANS_OF_DEATH_SUICIDE;
     player_die(ent, ent, ent, 100000, ent->s.origin);
 }
 

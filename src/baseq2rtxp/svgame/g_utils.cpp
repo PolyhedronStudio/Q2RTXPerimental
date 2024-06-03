@@ -486,7 +486,79 @@ Kills all entities that would touch the proposed new positioning
 of ent.  Ent should be unlinked before calling this!
 =================
 */
-const bool KillBox(edict_t *ent, const bool bspClipping ) {
+//const bool KillBox(edict_t *ent, const bool bspClipping ) {
+//    // don't telefrag as spectator... or in noclip
+//    if ( ent->movetype == MOVETYPE_NOCLIP ) {
+//        return true;
+//    }
+//
+//    contents_t mask = static_cast<contents_t>( CONTENTS_MONSTER | CONTENTS_PLAYER );
+//
+//    //// [Paril-KEX] don't gib other players in coop if we're not colliding
+//    //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
+//    //    mask &= ~CONTENTS_PLAYER;
+//    static edict_t *touchedEdicts[ MAX_EDICTS ];
+//    memset( touchedEdicts, 0, MAX_EDICTS );
+//
+//    int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
+//    for ( int32_t i = 0; i < num; i++ ) {
+//        // Pointer to touched entity.
+//        edict_t *hit = touchedEdicts[ i ];
+//        // Make sure its valid.
+//        if ( hit == nullptr ) {
+//            continue;
+//        }
+//        // Don't killbox ourselves.
+//        if ( hit == ent ) {
+//            continue;
+//        // Skip entities that are not in use, no takedamage, not solid, or solid_bsp/solid_trigger.
+//        } else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP ) {
+//            continue;
+//        } else if ( hit->client && !( mask & CONTENTS_PLAYER ) ) {
+//            continue;
+//        }
+//
+//        trace_t clip = {};
+//        if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
+//            clip = gi.clip(ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, G_GetClipMask(hit));
+//
+//            if ( clip.fraction == 1.0f ) {
+//                continue;
+//            }
+//        }
+//
+//        // nail it
+//        if ( clip.fraction ) {
+//            if ( clip.ent ) {
+//                vec3_t dir;
+//                VectorSubtract( hit->s.origin, clip.ent->s.origin, dir );
+//                VectorNormalize( dir );
+//
+//                if ( clip.plane.dist ) {
+//                    T_Damage( hit, ent, ent, dir, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+//                } else {
+//                    T_Damage( hit, ent, ent, dir, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+//                }
+//            } else {
+//                if ( clip.plane.dist ) {
+//                    T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+//                } else {
+//                    T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+//                }
+//            }
+//        } else {
+//            T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+//        }
+//
+//        // if we didn't kill it, fail
+//        if ( hit->solid ) {
+//            return false;
+//        }
+//    }
+//
+//    return true;        // all clear
+//}
+const bool KillBox( edict_t *ent, const bool bspClipping ) {
     // don't telefrag as spectator... or in noclip
     if ( ent->movetype == MOVETYPE_NOCLIP ) {
         return true;
@@ -498,20 +570,29 @@ const bool KillBox(edict_t *ent, const bool bspClipping ) {
     //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
     //    mask &= ~CONTENTS_PLAYER;
     static edict_t *touchedEdicts[ MAX_EDICTS ];
+    memset( touchedEdicts, 0, MAX_EDICTS );
+
     int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
     for ( int32_t i = 0; i < num; i++ ) {
+        // Pointer to touched entity.
         edict_t *hit = touchedEdicts[ i ];
-
+        // Make sure its valid.
+        if ( hit == nullptr ) {
+            continue;
+        }
+        // Don't killbox ourselves.
         if ( hit == ent ) {
             continue;
+            // Skip entities that are not in use, no takedamage, not solid, or solid_bsp/solid_trigger.
         } else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP ) {
             continue;
         } else if ( hit->client && !( mask & CONTENTS_PLAYER ) ) {
             continue;
         }
 
+        trace_t clip = {};
         if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
-            trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, G_GetClipMask( hit ) );
+            clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, G_GetClipMask( hit ) );
 
             if ( clip.fraction == 1.0f ) {
                 continue;
@@ -519,11 +600,32 @@ const bool KillBox(edict_t *ent, const bool bspClipping ) {
         }
 
         // nail it
-        T_Damage(hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+        if ( clip.fraction ) {
+            if ( clip.ent ) {
+                vec3_t dir;
+                VectorSubtract( hit->s.origin, clip.ent->s.origin, dir );
+                VectorNormalize( dir );
+
+                if ( clip.plane.dist ) {
+                    T_Damage( hit, ent, ent, dir, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                } else {
+                    T_Damage( hit, ent, ent, dir, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                }
+            } else {
+                if ( clip.plane.dist ) {
+                    T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                } else {
+                    T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                }
+            }
+        } else {
+            T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+        }
 
         //// if we didn't kill it, fail
-        //if (tr.ent->solid)
-        //    return false;
+        if ( hit->solid ) {
+            return false;
+        }
     }
 
     return true;        // all clear

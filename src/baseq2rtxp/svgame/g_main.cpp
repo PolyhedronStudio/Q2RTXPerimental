@@ -43,7 +43,6 @@ sg_time_t FRAME_TIME_MS;
 **/
 int sm_meat_index;
 int snd_fry;
-int meansOfDeath;
 
 edict_t	*g_edicts;
 

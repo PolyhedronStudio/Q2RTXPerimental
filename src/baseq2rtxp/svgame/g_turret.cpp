@@ -54,7 +54,7 @@ void turret_blocked(edict_t *self, edict_t *other)
             attacker = self->teammaster->owner;
         else
             attacker = self->teammaster;
-        T_Damage(other, self, attacker, vec3_origin, other->s.origin, vec3_origin, self->teammaster->dmg, 10, 0, MOD_CRUSH);
+        T_Damage(other, self, attacker, vec3_origin, other->s.origin, vec3_origin, self->teammaster->dmg, 10, 0, MEANS_OF_DEATH_CRUSHED );
     }
 }
 

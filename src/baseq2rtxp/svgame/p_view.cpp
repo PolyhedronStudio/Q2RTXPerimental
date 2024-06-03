@@ -697,7 +697,7 @@ static void P_WorldEffects( void ) {
 
 				current_player->pain_debounce_time = level.time;
 
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MOD_WATER );
+				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
 			}
 		}
 	} else {
@@ -721,11 +721,11 @@ static void P_WorldEffects( void ) {
 				current_player->pain_debounce_time = level.time + 1_sec;
 			}
 
-			T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MOD_LAVA );
+			T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MEANS_OF_DEATH_LAVA );
 		}
 
 		if ( current_player->liquidtype & CONTENTS_SLIME ) {
-			T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_SLIME );
+			T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MEANS_OF_DEATH_SLIME );
 		}
 	}
 }

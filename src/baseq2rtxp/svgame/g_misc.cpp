@@ -615,13 +615,16 @@ This is solid bmodel that will fall if it's support it removed.
 void func_object_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
     // only squash thing we fall on top of
-    if (!plane)
+    if ( !plane ) {
         return;
-    if (plane->normal[2] < 1.0f)
+    }
+    if ( plane->normal[ 2 ] < 1.0f ) {
         return;
-    if (other->takedamage == DAMAGE_NO)
+    }
+    if ( other && other->takedamage == DAMAGE_NO ) {
         return;
-    T_Damage(other, self, self, vec3_origin, self->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    }
+    T_Damage(other, self, self, vec3_origin, self->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
 }
 
 void func_object_release(edict_t *self)
@@ -705,7 +708,7 @@ void func_explosive_explode(edict_t *self, edict_t *inflictor, edict_t *attacker
     self->takedamage = DAMAGE_NO;
 
     if (self->dmg)
-        T_RadiusDamage(self, attacker, self->dmg, NULL, self->dmg + 40, MOD_EXPLOSIVE);
+        T_RadiusDamage(self, attacker, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLOSIVE);
 
     VectorSubtract(self->s.origin, inflictor->s.origin, self->velocity);
     VectorNormalize(self->velocity);
@@ -845,7 +848,7 @@ void barrel_explode(edict_t *self)
     vec3_t  save;
     int     i;
 
-    T_RadiusDamage(self, self->activator, self->dmg, NULL, self->dmg + 40, MOD_BARREL);
+    T_RadiusDamage(self, self->activator, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLODED_BARREL);
 
     VectorCopy(self->s.origin, save);
     VectorMA(self->absmin, 0.5f, self->size, self->s.origin);

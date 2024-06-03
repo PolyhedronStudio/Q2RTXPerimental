@@ -117,7 +117,7 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     P_ProjectDistance( ent, ent->s.origin, shotOffset, &forward.x, &right.x, &start.x );
 
     // Fire the actual bullet itself.
-    fire_bullet( ent, &start.x, &forward.x, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
+    fire_bullet( ent, &start.x, &forward.x, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MEANS_OF_DEATH_HIT_PISTOL );
 
     // Project from source to muzzleflash destination.
     vec3_t muzzleFlashOffset = { 16, 10, (float)ent->viewheight };
@@ -167,7 +167,7 @@ void weapon_pistol_secondary_fire( edict_t *ent ) {
     //gi.dprintf( "%s: hSpreadMultiplier(%f) vSpreadMultiplier(%f)\n", __func__, hSpreadMultiplier, vSpreadMultiplier );
 
     // Fire the actual bullet itself.
-    fire_bullet( ent, &start.x, &forward.x, damage, kick, SECONDARY_FIRE_BULLET_HSPREAD + hSpreadMultiplier, SECONDARY_FIRE_BULLET_VSPREAD + vSpreadMultiplier, MOD_CHAINGUN );
+    fire_bullet( ent, &start.x, &forward.x, damage, kick, SECONDARY_FIRE_BULLET_HSPREAD + hSpreadMultiplier, SECONDARY_FIRE_BULLET_VSPREAD + vSpreadMultiplier, MEANS_OF_DEATH_HIT_PISTOL );
 
     // Project from source to muzzleflash destination.
     vec3_t muzzleFlashOffset = { 16, 0, (float)ent->viewheight };

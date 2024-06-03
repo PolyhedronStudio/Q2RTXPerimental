@@ -100,7 +100,7 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
     VectorSubtract(point, self->enemy->s.origin, dir);
 
     // do the damage
-    T_Damage(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MOD_HIT);
+    T_Damage(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MEANS_OF_DEATH_HIT_FIGHTING );
 
     if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
         return false;
@@ -173,7 +173,7 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
         if ( tr.fraction < 1.0f ) {
             // It was an entity, if it takes damage, hit it:
             if ( tr.ent && tr.ent->takedamage ) {
-                T_Damage( tr.ent, self, self, &aimDir.x, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MOD_HIT );
+                T_Damage( tr.ent, self, self, &aimDir.x, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MEANS_OF_DEATH_HIT_FIGHTING );
                 isTDamaged = true;
             // Otherwise, display something that shows we are hitting something senselessly.
             } else {
@@ -228,8 +228,7 @@ fire_lead
 This is an internal support routine used for bullet/pellet based weapons.
 =================
 */
-static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int te_impact, int hspread, int vspread, int mod)
-{
+static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int te_impact, int hspread, int vspread, const sg_means_of_death_t meansOfDeath ) {
     trace_t     tr = {};
     vec3_t      dir = {};
     vec3_t      forward = {}, right = {}, up = {};
@@ -309,7 +308,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
     if (!((tr.surface) && (tr.surface->flags & SURF_SKY))) {
         if (tr.fraction < 1.0f) {
             if (tr.ent->takedamage) {
-                T_Damage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, mod);
+                T_Damage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, meansOfDeath );
             } else {
                 if (strncmp(tr.surface->name, "sky", 3) != 0) {
                     gi.WriteUint8(svc_temp_entity);
@@ -357,8 +356,8 @@ Fires a single round.  Used for machinegun and chaingun.  Would be fine for
 pistols, rifles, etc....
 =================
 */
-void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int mod) {
-    fire_lead(self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, mod);
+void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, const sg_means_of_death_t meansOfDeath ) {
+    fire_lead(self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
 
@@ -369,12 +368,11 @@ fire_shotgun
 Shoots shotgun pellets.  Used by shotgun and super shotgun.
 =================
 */
-void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int mod)
-{
+void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, const sg_means_of_death_t meansOfDeath ) {
     int     i;
 
     for (i = 0; i < count; i++)
-        fire_lead(self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, mod);
+        fire_lead( self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
 static const bool G_ShouldPlayersCollideProjectile( edict_t *self ) {

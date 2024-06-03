@@ -242,80 +242,87 @@ bool CheckTeamDamage(edict_t *targ, edict_t *attacker)
     return false;
 }
 
-void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int mod)
-{
-    gclient_t   *client = nullptr;
-    int32_t take = 0;
-    int32_t save = 0;
-    int32_t asave = 0;
-    int32_t te_sparks = 0;
-
-    if (!targ->takedamage)
+void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const int32_t dflags, const sg_means_of_death_t meansOfDeath ) {
+    // Final means of death.
+    sg_means_of_death_t finalMeansOfDeath = meansOfDeath;
+    
+    // No use if we aren't accepting damage.
+    if ( !targ->takedamage ) {
         return;
+    }
 
     // easy mode takes half damage
+    int32_t finalDamage = damage;
     if (skill->value == 0 && deathmatch->value == 0 && targ->client) {
-        damage *= 0.5f;
-        if (!damage)
-            damage = 1;
+        finalDamage *= 0.5f;
+        if (!finalDamage )
+            finalDamage = 1;
     }
 
-    // friendly fire avoidance
-    // if enabled you can't hurt teammates (but you can hurt yourself)
-    // knockback still occurs
+    // Friendly fire avoidance.
+    // If enabled you can't hurt teammates (but you can hurt yourself)
+    // Knockback still occurs.
     if ((targ != attacker) && ((deathmatch->value && ((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS))) || (coop->value && targ->client))) {
         if (OnSameTeam(targ, attacker)) {
-            if ((int)(dmflags->value) & DF_NO_FRIENDLY_FIRE)
-                damage = 0;
-            else
-                mod |= MOD_FRIENDLY_FIRE;
+            if ( (int)( dmflags->value ) & DF_NO_FRIENDLY_FIRE ) {
+                finalDamage = 0;
+            } else {
+                finalMeansOfDeath = static_cast<sg_means_of_death_t>( finalMeansOfDeath | MEANS_OF_DEATH_FRIENDLY_FIRE );
+            }
         }
     }
-    meansOfDeath = mod;
 
-    client = targ->client;
+    targ->meansOfDeath = finalMeansOfDeath;
 
-    if (dflags & DAMAGE_BULLET)
+    gclient_t *client = targ->client;
+
+    // Default TE that got us was sparks.
+    int32_t te_sparks = TE_SPARKS;
+    // Special sparks for a bullet.
+    if ( dflags & DAMAGE_BULLET ) {
         te_sparks = TE_BULLET_SPARKS;
-    else
-        te_sparks = TE_SPARKS;
+    }
 
-// bonus damage for suprising a monster
-    if (!(dflags & DAMAGE_RADIUS) && (targ->svflags & SVF_MONSTER) && (attacker->client) && (!targ->enemy) && (targ->health > 0))
-        damage *= 2;
+    // Bonus damage for suprising a monster.
+    if (!(dflags & DAMAGE_RADIUS) && (targ->svflags & SVF_MONSTER) 
+        && (attacker->client) && (!targ->enemy) && (targ->health > 0)) {
+        finalDamage *= 2;
+    }
 
-    if (targ->flags & FL_NO_KNOCKBACK)
-        knockback = 0;
+    // Determine knockback value.
+    const int32_t finalKnockBack = ( targ->flags & FL_NO_KNOCKBACK ? 0 : knockBack );
 
-// figure momentum add
-    if (!(dflags & DAMAGE_NO_KNOCKBACK)) {
-        if ((knockback) && (targ->movetype != MOVETYPE_NONE) && (targ->movetype != MOVETYPE_BOUNCE) && (targ->movetype != MOVETYPE_PUSH) && (targ->movetype != MOVETYPE_STOP)) {
-            vec3_t  kvel;
-            float   mass;
+    // Figure momentum add.
+    if ( !( dflags & DAMAGE_NO_KNOCKBACK ) ) {
+        if ( ( finalKnockBack ) && (targ->movetype != MOVETYPE_NONE) && (targ->movetype != MOVETYPE_BOUNCE) 
+            && (targ->movetype != MOVETYPE_PUSH) && (targ->movetype != MOVETYPE_STOP)) {
+                vec3_t  kvel;
+                float   mass;
 
-            if (targ->mass < 50)
-                mass = 50;
-            else
-                mass = targ->mass;
+                if ( targ->mass < 50 ) {
+                    mass = 50;
+                } else {
+                    mass = targ->mass;
+                }
 
-            VectorNormalize2(dir, kvel);
+                VectorNormalize2(dir, kvel);
 
-            if (targ->client  && attacker == targ)
-                VectorScale(kvel, 1600.0f * (float)knockback / mass, kvel);  // the rocket jump hack...
-            else
-                VectorScale(kvel, 500.0f * (float)knockback / mass, kvel);
-
-            VectorAdd(targ->velocity, kvel, targ->velocity);
+                if ( targ->client && attacker == targ ) {
+                    VectorScale( kvel, 1600.0f * (float)knockBack / mass, kvel );  // the rocket jump hack...
+                } else {
+                    VectorScale( kvel, 500.0f * (float)knockBack / mass, kvel );
+                }
+                VectorAdd(targ->velocity, kvel, targ->velocity);
         }
     }
 
-    take = damage;
-    save = 0;
+    int32_t take = finalDamage;
+    int32_t save = 0;
 
     // check for godmode
     if ((targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION)) {
         take = 0;
-        save = damage;
+        save = finalDamage;
         SpawnDamage(te_sparks, point, normal, save);
     }
 
@@ -330,11 +337,12 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
     //}
 
     //treat cheat/powerup savings the same as armor
-    asave += save;
+    int32_t asave = save;
 
     // team damage avoidance
-    if (!(dflags & DAMAGE_NO_PROTECTION) && CheckTeamDamage(targ, attacker))
+    if ( !( dflags & DAMAGE_NO_PROTECTION ) && CheckTeamDamage( targ, attacker ) ) {
         return;
+    }
 
 // do the damage
     if (take) {
@@ -361,17 +369,17 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
     if (targ->svflags & SVF_MONSTER) {
         M_ReactToDamage(targ, attacker);
         if (!(targ->monsterinfo.aiflags & AI_DUCKED) && (take)) {
-            targ->pain(targ, attacker, knockback, take);
+            targ->pain(targ, attacker, finalKnockBack, take);
             // nightmare mode monsters don't go into pain frames often
             if (skill->value == 3)
                 targ->pain_debounce_time = level.time + 5_sec;
         }
     } else if (client) {
         if (!(targ->flags & FL_GODMODE) && (take))
-            targ->pain(targ, attacker, knockback, take);
+            targ->pain(targ, attacker, finalKnockBack, take);
     } else if (take) {
         if (targ->pain)
-            targ->pain(targ, attacker, knockback, take);
+            targ->pain(targ, attacker, finalKnockBack, take);
     }
 
     // add to the damage inflicted on a player this frame
@@ -380,7 +388,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
     if (client) {
         client->frameDamage.armor += asave;
         client->frameDamage.blood += take;
-        client->frameDamage.knockBack += knockback;
+        client->frameDamage.knockBack += finalKnockBack;
         VectorCopy(point, client->frameDamage.from);
                 //client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
 
@@ -422,7 +430,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 T_RadiusDamage
 ============
 */
-void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod)
+void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath ) 
 {
     float   points;
     edict_t *ent = NULL;
@@ -444,7 +452,7 @@ void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t
         if (points > 0) {
             if (CanDamage(ent, inflictor)) {
                 VectorSubtract(ent->s.origin, inflictor->s.origin, dir);
-                T_Damage(ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, mod);
+                T_Damage(ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, meansOfDeath );
             }
         }
     }

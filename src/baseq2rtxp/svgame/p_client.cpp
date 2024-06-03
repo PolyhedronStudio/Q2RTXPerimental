@@ -201,190 +201,145 @@ bool IsNeutral(edict_t *ent)
 
 void ClientObituary(edict_t *self, edict_t *inflictor, edict_t *attacker)
 {
-    int         mod;
-	// WID: C++20: Added const.
-    const char        *message;
-    const char        *message2;
-    int         ff;
+    sg_means_of_death_t meansOfDeath;
+	
+    // WID: TODO: In the future, use a gamemode callback for testing if it was friendly fire.
+    if ( coop->value && attacker->client ) {
+        self->meansOfDeath = static_cast<sg_means_of_death_t>( self->meansOfDeath | MEANS_OF_DEATH_FRIENDLY_FIRE );
+    }
 
-    if (coop->value && attacker->client)
-        meansOfDeath |= MOD_FRIENDLY_FIRE;
-
+    // WID: TODO: Move to gamemode specific callback.
+    // WID: TODO: Enable for SP? Might be fun. 
+    //! Only perform Means of Death in DM or Coop mode.
     if (deathmatch->value || coop->value) {
-        ff = meansOfDeath & MOD_FRIENDLY_FIRE;
-        mod = meansOfDeath & ~MOD_FRIENDLY_FIRE;
-        message = NULL;
-        message2 = "";
+        // Store whether it was a friendly fire or not.
+        const bool isFriendlyFire = ( self->meansOfDeath & MEANS_OF_DEATH_FRIENDLY_FIRE );
+        // Make sure to remove friendly fire flag so our switch statements actually work.
+        meansOfDeath = static_cast<sg_means_of_death_t>( self->meansOfDeath & ~MEANS_OF_DEATH_FRIENDLY_FIRE );
+        
+        // Main death message.
+        const char *message = nullptr;
+        // Appened to main message when set, after first appending attacker->client->name.
+        const char *message2 = "";
 
-        switch (mod) {
-        case MOD_SUICIDE:
-            message = "suicides";
-            break;
-        case MOD_FALLING:
-            message = "cratered";
-            break;
-        case MOD_CRUSH:
-            message = "was squished";
-            break;
-        case MOD_WATER:
-            message = "sank like a rock";
-            break;
-        case MOD_SLIME:
-            message = "melted";
-            break;
-        case MOD_LAVA:
-            message = "does a back flip into the lava";
-            break;
-        case MOD_EXPLOSIVE:
-        case MOD_BARREL:
-            message = "blew up";
-            break;
-        case MOD_EXIT:
-            message = "found a way out";
-            break;
-        case MOD_TARGET_LASER:
-            message = "saw the light";
-            break;
-        case MOD_TARGET_BLASTER:
-            message = "got blasted";
-            break;
-        case MOD_BOMB:
-        case MOD_SPLASH:
-        case MOD_TRIGGER_HURT:
-            message = "was in the wrong place";
-            break;
+        // Determine message based on 'environmental/external' influencing events:
+        switch ( meansOfDeath ) {
+            case MEANS_OF_DEATH_SUICIDE:
+                message = "suicides";
+                break;
+            case MEANS_OF_DEATH_FALLING:
+                message = "fell to death";
+                break;
+            case MEANS_OF_DEATH_CRUSHED:
+                message = "imploded by crush";
+                break;
+            case MEANS_OF_DEATH_WATER:
+                message = "went to swim with the fishes";
+                break;
+            case MEANS_OF_DEATH_SLIME:
+                message = "took an acid bath";
+                break;
+            case MEANS_OF_DEATH_LAVA:
+                message = "burned to hell by lava";
+                break;
+            case MEANS_OF_DEATH_EXPLOSIVE:
+                message = "exploded to gibs";
+                break;
+            case MEANS_OF_DEATH_EXPLODED_BARREL:
+                message = "bumped into an angry barrel";
+                break;
+            case MEANS_OF_DEATH_EXIT:
+                message = "'found' a way out";
+                break;
+            case MEANS_OF_DEATH_LASER:
+                message = "ran into a laser";
+                break;
+            case MEANS_OF_DEATH_SPLASH:
+            case MEANS_OF_DEATH_TRIGGER_HURT:
+                message = "was in the wrong place";
+                break;
         }
+
+        // Messages for when the attacker is actually ourselves inflicting damage.
         if (attacker == self) {
-            switch (mod) {
-            case MOD_HELD_GRENADE:
-                message = "tried to put the pin back in";
-                break;
-            case MOD_HG_SPLASH:
-            case MOD_G_SPLASH:
-                if (IsNeutral(self))
-                    message = "tripped on its own grenade";
-                else if (IsFemale(self))
-                    message = "tripped on her own grenade";
-                else
-                    message = "tripped on his own grenade";
-                break;
-            case MOD_R_SPLASH:
-                if (IsNeutral(self))
-                    message = "blew itself up";
-                else if (IsFemale(self))
-                    message = "blew herself up";
-                else
-                    message = "blew himself up";
-                break;
-            case MOD_BFG_BLAST:
-                message = "should have used a smaller gun";
-                break;
-            default:
-                if (IsNeutral(self))
-                    message = "killed itself";
-                else if (IsFemale(self))
-                    message = "killed herself";
-                else
-                    message = "killed himself";
-                break;
-            }
+            //switch (meansOfDeath) {
+                // WID: Left as example.
+                //case MOD_HELD_GRENADE:
+                //    message = "tried to put the pin back in";
+                //    break;
+            //    default:
+                    if (IsNeutral(self))
+                        message = "killed itself";
+                    else if (IsFemale(self))
+                        message = "killed herself";
+                    else
+                        message = "killed himself";
+            //        break;
+            // }
         }
+
+        // Print the Obituary Message if we have one.
         if (message) {
             gi.bprintf(PRINT_MEDIUM, "%s %s.\n", self->client->pers.netname, message);
-            if (deathmatch->value)
+            // If in deathmatch, decrement our score.
+            if ( self->client && deathmatch->value ) {
                 self->client->resp.score--;
-            self->enemy = NULL;
+            }
+            // Reset enemy pointer.
+            self->enemy = nullptr;
+            // Exit.
             return;
         }
 
+        // Assign attacker as our enemy.
         self->enemy = attacker;
+        // Messages for whne the attacker is a client:
         if (attacker && attacker->client) {
-            switch (mod) {
-            case MOD_BLASTER:
-                message = "was blasted by";
+            switch (meansOfDeath) {
+            case MEANS_OF_DEATH_HIT_FIGHTING:
+                message = "was fisted by";
                 break;
-            case MOD_SHOTGUN:
-                message = "was gunned down by";
+            case MEANS_OF_DEATH_HIT_PISTOL:
+                message = "was shot down by";
+                message2 = "'s pistol";
                 break;
-            case MOD_SSHOTGUN:
-                message = "was blown away by";
-                message2 = "'s super shotgun";
-                break;
-            case MOD_MACHINEGUN:
-                message = "was machinegunned by";
-                break;
-            case MOD_CHAINGUN:
-                message = "was cut in half by";
-                message2 = "'s chaingun";
-                break;
-            case MOD_GRENADE:
-                message = "was popped by";
-                message2 = "'s grenade";
-                break;
-            case MOD_G_SPLASH:
-                message = "was shredded by";
-                message2 = "'s shrapnel";
-                break;
-            case MOD_ROCKET:
-                message = "ate";
-                message2 = "'s rocket";
-                break;
-            case MOD_R_SPLASH:
-                message = "almost dodged";
-                message2 = "'s rocket";
-                break;
-            case MOD_HYPERBLASTER:
-                message = "was melted by";
-                message2 = "'s hyperblaster";
-                break;
-            case MOD_RAILGUN:
-                message = "was railed by";
-                break;
-            case MOD_BFG_LASER:
-                message = "saw the pretty lights from";
-                message2 = "'s BFG";
-                break;
-            case MOD_BFG_BLAST:
-                message = "was disintegrated by";
-                message2 = "'s BFG blast";
-                break;
-            case MOD_BFG_EFFECT:
-                message = "couldn't hide from";
-                message2 = "'s BFG";
-                break;
-            case MOD_HANDGRENADE:
-                message = "caught";
-                message2 = "'s handgrenade";
-                break;
-            case MOD_HG_SPLASH:
-                message = "didn't see";
-                message2 = "'s handgrenade";
-                break;
-            case MOD_HELD_GRENADE:
-                message = "feels";
-                message2 = "'s pain";
-                break;
-            case MOD_TELEFRAG:
-                message = "tried to invade";
+            case MEANS_OF_DEATH_HIT_SMG:
+                message = "was shot down by";
+                message2 = "'s smg";
+            case MEANS_OF_DEATH_HIT_RIFLE:
+                message = "was shot down by";
+                message2 = "'s rifle";
+            case MEANS_OF_DEATH_HIT_SNIPER:
+                message = "was shot down by";
+                message2 = "'s sniper";
+            case MEANS_OF_DEATH_TELEFRAGGED:
+                message = "got teleport fragged by";
                 message2 = "'s personal space";
                 break;
             }
             if (message) {
-                gi.bprintf(PRINT_MEDIUM, "%s %s %s%s\n", self->client->pers.netname, message, attacker->client->pers.netname, message2);
-                if (deathmatch->value) {
-                    if (ff)
+                const char *netNameSelf = self->client->pers.netname;
+                const char *netNameAttacker = attacker->client->pers.netname;
+                gi.bprintf(PRINT_MEDIUM, "%s %s %s%s.\n", netNameSelf, message, netNameAttacker, message2 );
+                // Make sure to decrement score.
+                if ( coop->value || deathmatch->value ) {
+                    if ( isFriendlyFire ) {
                         attacker->client->resp.score--;
-                    else
+                    } else {
                         attacker->client->resp.score++;
+                    }
                 }
+                // Exit.
                 return;
             }
         }
     }
 
-    gi.bprintf(PRINT_MEDIUM, "%s died.\n", self->client->pers.netname);
-    if (deathmatch->value)
+    // We're unlikely to reach this point, however..
+    gi.bprintf( PRINT_MEDIUM, "%s died.\n", self->client->pers.netname );
+    if ( coop->value || deathmatch->value ) {
         self->client->resp.score--;
+    }
 }
 
 
@@ -586,24 +541,6 @@ void InitClientPersistantData(edict_t *ent, gclient_t *client) {
     // Obviously we need to allow this.
     client->weaponState.canChangeMode = false;
 
-
-	//if (sv_flaregun->value > 0)
-	//{
-	//	// Q2RTX: Spawn with a flare gun and some grenades to use with it.
-	//	// Flare gun is new and not found anywhere in the game as a pickup item.
-	//	gitem_t* item_flareg = FindItem("Flare Gun");
-	//	if (item_flareg)
-	//	{
-	//		client->pers.inventory[ITEM_INDEX(item_flareg)] = 1;
-
-	//		if (sv_flaregun->value == 2)
-	//		{
-	//			gitem_t* item_grenades = FindItem("Grenades");
-	//			client->pers.inventory[ITEM_INDEX(item_grenades)] = 5;
-	//		}
-	//	}
-	//}
-
     client->pers.health         = 100;
     client->pers.max_health     = 100;
 
@@ -680,7 +617,6 @@ void FetchClientEntData(edict_t *ent)
 
 =======================================================================
 */
-
 /*
 ================
 PlayersRangeFromSpot
@@ -688,7 +624,7 @@ PlayersRangeFromSpot
 Returns the distance to the nearest player from the given spot
 ================
 */
-float   PlayersRangeFromSpot(edict_t *spot)
+float PlayersRangeFromSpot(edict_t *spot)
 {
     edict_t *player;
     float   bestplayerdistance;
@@ -1517,7 +1453,6 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
 
     // make sure we start with known default(s)
     //ent->svflags = SVF_PLAYER;
-
     ClientUserinfoChanged(ent, userinfo);
 
     if ( game.maxclients > 1 ) {
@@ -1696,7 +1631,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
         VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
 
         if ( !deathmatch->integer ) {
-            T_Damage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING );
+            T_Damage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
         }
     } else {
         ent->s.event = EV_FALLSHORT;

@@ -496,7 +496,7 @@ void infantry_smack(edict_t *self)
 {
     vec3_t  aim;
 
-    VectorSet(aim, MELEE_DISTANCE, 0, 0);
+    VectorSet(aim, AI_MELEE_DISTANCE, 0, 0);
     if (fire_hit(self, aim, (5 + (Q_rand() % 5)), 50))
         gi.sound(self, CHAN_WEAPON, sound_punch_hit, 1, ATTN_NORM, 0);
 }

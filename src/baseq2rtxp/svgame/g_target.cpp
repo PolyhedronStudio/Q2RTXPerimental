@@ -228,7 +228,7 @@ void target_explosion_explode(edict_t *self)
     gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     gi.multicast( self->s.origin, MULTICAST_PHS, false );
 
-    T_RadiusDamage(self, self->activator, self->dmg, NULL, self->dmg + 40, MOD_EXPLOSIVE);
+    T_RadiusDamage(self, self->activator, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLOSIVE);
 
     save = self->delay;
     self->delay = 0;
@@ -273,7 +273,7 @@ void use_target_changelevel(edict_t *self, edict_t *other, edict_t *activator)
 
     // if noexit, do a ton of damage to other
     if (deathmatch->value && !((int)dmflags->value & DF_ALLOW_EXIT) && other != world) {
-        T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, 0, MOD_EXIT);
+        T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, 0, MEANS_OF_DEATH_EXIT );
         return;
     }
 
@@ -336,7 +336,7 @@ void use_target_splash(edict_t *self, edict_t *other, edict_t *activator)
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
 
     if (self->dmg)
-        T_RadiusDamage(self, activator, self->dmg, NULL, self->dmg + 40, MOD_SPLASH);
+        T_RadiusDamage(self, activator, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_SPLASH );
 }
 
 void SP_target_splash(edict_t *self)
@@ -517,7 +517,7 @@ void target_laser_think(edict_t *self)
 
         // hurt it if we can
         if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER))
-            T_Damage(tr.ent, self, self->activator, self->movedir, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MOD_TARGET_LASER);
+            T_Damage(tr.ent, self, self->activator, self->movedir, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MEANS_OF_DEATH_LASER );
 
         // if we hit something that's not a monster or player or is immune to lasers, we're done
         if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client)) {

@@ -30,6 +30,7 @@ Features being looked forward on implementation.
 	* [x] So far this is only in existence for the client game's ``clg_local_entity_t`` type.
 	* [ ] Finish the implementation/style of it, make sure it is save game compatible, and implement it all-round.
 ### Low Priority:
+* [ ] Why, when func_plat hits ya, it moves you to random origin or such?_
 * [ ] Rid all places where ``coop`` and ``deathmatch`` cvars are checked by actual individual gamemode related counterparts.
 * [ ] Calculate the proper entity matrixes/quaternions during Link time.
 * [ ] Internal representation of skeletal poses and an API for use by both, client and server, thus residing in /common/

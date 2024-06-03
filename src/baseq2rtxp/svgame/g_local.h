@@ -38,6 +38,15 @@ extern svgame_export_t globals;
 // SharedGame includes:
 #include "../sharedgame/sg_shared.h"
 
+
+
+/**
+*
+*
+*   General
+*
+*
+**/
 // extern times.
 extern sg_time_t FRAME_TIME_S;
 extern sg_time_t FRAME_TIME_MS;
@@ -48,44 +57,65 @@ extern sg_time_t FRAME_TIME_MS;
 // TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
 #undef max
 
-// Just to, hold time, forever.
+//! Just to, 'hold time', 'forever and ever'.
 constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64_t>::max( ) );
 
-//==================================================================
-// 
-//==================================================================
-// features this game supports
+//! Features this game supports.
 #define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS)
-
-// the "gameversion" client command will print this plus compile date
+// The "gameversion" client command will print this plus compile date.
 #define GAMEVERSION "BaseQ2RTXP"
 
+/**
+*	Memory tag IDs for specified group memory types, allowing for efficient
+*   cleanup of said group's memory.
+**/
+//! Clear when unloading the dll.
+static constexpr int32_t TAG_SVGAME = 765;
+//! Clear when loading a new level.
+static constexpr int32_t TAG_SVGAME_LEVEL = 766;
+
+/**
+*   Other:
+**/
+//! Actual Melee attack distance used for AI.
+static constexpr float AI_MELEE_DISTANCE = 80.f;
+//! Number of entities reserved for display use of dead player bodies.
+static constexpr int32_t BODY_QUEUE_SIZE = 8;
 
 
-//==================================================================
-// Q2RE View Pitching Times:
-//==================================================================
-//#define DAMAGE_TIME     0.5f
-//#define FALL_TIME       0.3f
-// view pitching times
+/**
+*
+*
+*   Q2RE View Pitching Times:
+*
+*
+**/
+//! View pitching times
 static inline constexpr sg_time_t DAMAGE_TIME_SLACK( ) {
 	return ( 100_ms - FRAME_TIME_MS );
 }
-
+//! Time for damage effect.
 static inline constexpr sg_time_t DAMAGE_TIME( ) {
 	return 500_ms + DAMAGE_TIME_SLACK( );
 }
-
+//! Time for falling.
 static inline constexpr sg_time_t FALL_TIME( ) {
 	return 300_ms + DAMAGE_TIME_SLACK( );
 }
-
 //! Time between ladder sounds.
 static constexpr sg_time_t LADDER_SOUND_TIME = 375_ms;
 
+
+
+/**
+*
+*
+*   Damage Indicator and Means Of Death:
+*
+*
+**/
 // max number of individual damage indicators we'll track
 static constexpr size_t MAX_DAMAGE_INDICATORS = 4;
-
 /**
 *   @brief  Stores data indicating where damage came from, and how much it damage it did.
 **/
@@ -98,18 +128,82 @@ struct damage_indicator_t {
     int32_t armor;
 };
 
-//==================================================================
-// 
-//==================================================================
-// edict->spawnflags
-// these are set with checkboxes on each entity in the map editor
+/**
+*   @brief  Indicates the cause/reason/method of the entity's death.
+**/
+typedef enum {
+    //! Unknown reasons.
+    MEANS_OF_DEATH_UNKNOWN,
+    
+    //! When fists(or possibly in the future kicks) were the means of death.
+    MEANS_OF_DEATH_HIT_FIGHTING,
+    //! Shot down by a Pistol.
+    MEANS_OF_DEATH_HIT_PISTOL,
+    //! Shot down by a SMG.
+    MEANS_OF_DEATH_HIT_SMG,
+    //! Shot down by a rifle.
+    MEANS_OF_DEATH_HIT_RIFLE,
+    //! Shot down by a sniper.
+    MEANS_OF_DEATH_HIT_SNIPER,
+
+    //! Environmental drowned by water.
+    MEANS_OF_DEATH_WATER,
+    //! Environmental killed by slime.
+    MEANS_OF_DEATH_SLIME,
+    //! Environmental killed by lava.
+    MEANS_OF_DEATH_LAVA,
+    //! Environmental killed by a crusher.
+    MEANS_OF_DEATH_CRUSHED,
+    //! Environmental killed by someone teleporting to your location.
+    MEANS_OF_DEATH_TELEFRAGGED,
+
+    //! Entity suicide.
+    MEANS_OF_DEATH_SUICIDE,
+    //! Entity fell too harsh.
+    MEANS_OF_DEATH_FALLING,
+
+    //! Death by explosive.
+    MEANS_OF_DEATH_EXPLOSIVE,
+    //! Death by exploding misc_barrel.
+    MEANS_OF_DEATH_EXPLODED_BARREL,
+
+    //! Hit by a laser.
+    MEANS_OF_DEATH_LASER,
+
+    //! Hurt by a 'splash' particles of temp entity.
+    MEANS_OF_DEATH_SPLASH,
+    //! Hurt by a 'trigger_hurt' entity.
+    MEANS_OF_DEATH_TRIGGER_HURT,
+
+    //! Killed by bumping into a target_change_level while the gamemode does not allow/support it.
+    MEANS_OF_DEATH_EXIT,
+
+    //! Caused by a friendly fire.
+    MEANS_OF_DEATH_FRIENDLY_FIRE
+} sg_means_of_death_t;
+
+
+
+/**
+*
+*
+*   Entity (Spawn-)Flags
+* 
+* 
+**/
+/**
+*   @brief  edict->spawnflags T
+*           These are set with checkboxes on each entity in the map editor.
+**/
 #define SPAWNFLAG_NOT_EASY          0x00000100
 #define SPAWNFLAG_NOT_MEDIUM        0x00000200
 #define SPAWNFLAG_NOT_HARD          0x00000400
 #define SPAWNFLAG_NOT_DEATHMATCH    0x00000800
 #define SPAWNFLAG_NOT_COOP          0x00001000
 
-// edict->flags
+/**
+*   @brief  edict->flags
+**/
 typedef enum {
     FL_NONE                 = 0,
     FL_FLY                  = BIT( 1 ),
@@ -130,16 +224,7 @@ typedef enum {
 } ent_flags_t;
 
 
-/**
-*	Memory tag IDs to allow dynamic memory to be cleaned up.
-**/
-#define TAG_SVGAME			765 // Clear when unloading the dll.
-#define TAG_SVGAME_LEVEL	766 // Clear when loading a new level.
 
-
-#define MELEE_DISTANCE  80
-
-#define BODY_QUEUE_SIZE     8
 
 typedef enum {
     DAMAGE_NO,
@@ -372,6 +457,10 @@ typedef struct {
 //#define WEAP_BFG                12
 //#define WEAP_FLAREGUN           13
 
+/**
+*   @brief  Used to create the items array, where each gitem_t is assigned its
+*           descriptive item values.
+**/
 typedef struct gitem_s {
 	//! Classname.
     const char  *classname; // spawning name
@@ -421,13 +510,11 @@ typedef struct gitem_s {
     const char	*precaches;
 } gitem_t;
 
-
-
-//
-// this structure is left intact through an entire game
-// it should be initialized at dll load time, and read/written to
-// the server.ssv file for savegames
-//
+/**
+*   @brief  This structure is left intact through an entire game
+*           it should be initialized at dll load time, and read/written to
+*           the server.ssv file for savegames
+**/
 typedef struct {
     char        helpmessage1[512];
     char        helpmessage2[512];
@@ -452,12 +539,16 @@ typedef struct {
 
     bool        autosaved;
 } game_locals_t;
+//! Extern, access all over game dll code.
+extern  game_locals_t   game;
 
+extern  int sm_meat_index;
+extern  int snd_fry;
 
-//
-// this structure is cleared as each map is entered
-// it is read/written to the level.sav file for savegames
-//
+/**
+*   @brief  This structure is cleared as each map is entered
+*           it is read/written to the level.sav file for savegames
+**/
 typedef struct {
     int64_t         framenum;
     sg_time_t		time;
@@ -500,11 +591,14 @@ typedef struct {
 
     int         power_cubes;        // ugly necessity for coop
 } level_locals_t;
+//! Extern, access all over game dll code.
+extern level_locals_t level;
 
-
-// spawn_temp_t is only used to hold entity field values that
-// can be set from the editor, but aren't actualy present
-// in edict_t during gameplay
+/**
+*   @brief  spawn_temp_t is only used to hold entity field values that
+*           can be set from the editor, but aren't actualy present
+*           in edict_t during gameplay
+**/
 typedef struct {
     // world vars
     char        *sky;
@@ -528,8 +622,21 @@ typedef struct {
     float       minpitch;
     float       maxpitch;
 } spawn_temp_t;
+//! Extern, access all over game dll code.
+extern spawn_temp_t st;
 
 
+
+/**
+*
+*
+*   (Monster-)Move Info Data Structures:
+*
+*
+**/
+/**
+*   @brief  Stores movement info for 'Pushers(also known as Movers)'.
+***/
 typedef struct {
     // fixed data
     vec3_t      start_origin;
@@ -559,7 +666,9 @@ typedef struct {
     void        (*endfunc)(edict_t *);
 } moveinfo_t;
 
-
+/**
+*   @brief  Data for each 'movement' frame of a monster.
+**/
 struct mframe_t {
     void    (*aifunc)(edict_t *self, float dist);
     float   dist = 0;
@@ -567,6 +676,9 @@ struct mframe_t {
 	int64_t lerp_frame = -1;
 };
 
+/**
+*   @brief  Monster movement information.
+**/
 typedef struct {
     int64_t     firstframe;
     int64_t     lastframe;
@@ -574,6 +686,9 @@ typedef struct {
     void        (*endfunc)(edict_t *self);
 } mmove_t;
 
+/**
+*   @brief  Monster Info :-)
+**/
 typedef struct {
     mmove_t     *currentmove;
 	mmove_t		*nextmove;
@@ -608,60 +723,7 @@ typedef struct {
     int         linkcount;
 } monsterinfo_t;
 
-
-
-extern  game_locals_t   game;
-extern  level_locals_t  level;
-extern  spawn_temp_t    st;
-
-extern  int sm_meat_index;
-extern  int snd_fry;
-
-//extern  int jacket_armor_index;
-//extern  int combat_armor_index;
-//extern  int body_armor_index;
-
-
-// means of death
-#define MOD_UNKNOWN         0
-#define MOD_BLASTER         1
-#define MOD_SHOTGUN         2
-#define MOD_SSHOTGUN        3
-#define MOD_MACHINEGUN      4
-#define MOD_CHAINGUN        5
-#define MOD_GRENADE         6
-#define MOD_G_SPLASH        7
-#define MOD_ROCKET          8
-#define MOD_R_SPLASH        9
-#define MOD_HYPERBLASTER    10
-#define MOD_RAILGUN         11
-#define MOD_BFG_LASER       12
-#define MOD_BFG_BLAST       13
-#define MOD_BFG_EFFECT      14
-#define MOD_HANDGRENADE     15
-#define MOD_HG_SPLASH       16
-#define MOD_WATER           17
-#define MOD_SLIME           18
-#define MOD_LAVA            19
-#define MOD_CRUSH           20
-#define MOD_TELEFRAG        21
-#define MOD_FALLING         22
-#define MOD_SUICIDE         23
-#define MOD_HELD_GRENADE    24
-#define MOD_EXPLOSIVE       25
-#define MOD_BARREL          26
-#define MOD_BOMB            27
-#define MOD_EXIT            28
-#define MOD_SPLASH          29
-#define MOD_TARGET_LASER    30
-#define MOD_TRIGGER_HURT    31
-#define MOD_HIT             32
-#define MOD_TARGET_BLASTER  33
-#define MOD_FRIENDLY_FIRE   0x8000000
-
-extern  int meansOfDeath;
-
-
+// Extern access.
 extern  edict_t         *g_edicts;
 
 #define FOFS(x) q_offsetof(edict_t, x)
@@ -705,6 +767,12 @@ extern cvar_t *sv_gravity;
 extern cvar_t *sv_rollspeed;
 extern cvar_t *sv_rollangle;
 
+extern cvar_t *flood_msgs;
+extern cvar_t *flood_persecond;
+extern cvar_t *flood_waitdelay;
+
+extern cvar_t *g_select_empty;
+
 // Moved to CLGame.
 //extern cvar_t *gun_x;
 //extern cvar_t *gun_y;
@@ -716,12 +784,6 @@ extern cvar_t *sv_rollangle;
 //extern cvar_t *bob_up;
 //extern cvar_t *bob_pitch;
 //extern cvar_t *bob_roll;
-
-extern cvar_t *flood_msgs;
-extern cvar_t *flood_persecond;
-extern cvar_t *flood_waitdelay;
-
-extern cvar_t *g_select_empty;
 
 #define world   (&g_edicts[0])
 
@@ -821,8 +883,8 @@ char    *G_CopyString(char *in);
 //
 bool OnSameTeam(edict_t *ent1, edict_t *ent2);
 bool CanDamage(edict_t *targ, edict_t *inflictor);
-void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int mod);
-void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod);
+void T_Damage( edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const int32_t dflags, const sg_means_of_death_t meansOfDeath );
+void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath );
 
 // damage flags
 #define DAMAGE_NONE             BIT( 0 )
@@ -900,8 +962,8 @@ bool FacingIdeal(edict_t *self);
 // WID: C++20: Added const.
 void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origin);
 bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick);
-void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int mod);
-void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int mod);
+void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, const sg_means_of_death_t meansOfDeath );
+void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, const sg_means_of_death_t meansOfDeath );
 
 //
 // g_ptrail.c
@@ -1468,6 +1530,9 @@ struct edict_s {
     int32_t     noise_index;
     int32_t     noise_index2;
     
+    //! Set when the entity gets hurt(T_Damage) and might be its cause of death.
+    sg_means_of_death_t meansOfDeath;
+
     float       volume;
     float       attenuation;
 
@@ -1475,18 +1540,21 @@ struct edict_s {
     float       wait;
     float       delay;          // before firing targets
     float       random;
-
     sg_time_t		last_sound_time;
 
+    //! Categorized Liquid Information.
     contents_t      liquidtype;
 	liquid_level_t	liquidlevel;
 
+    //! Move origin and angles.
     vec3_t      move_origin;
     vec3_t      move_angles;
 
+    //! (Light-)Style.
     int32_t     style;          // also used as areaportal number
 	const char *customLightStyle;	// It is as it says.
 
+    //! If not nullptr, will point to one of the items in the itemlist.
     const gitem_t     *item;          // for bonus items
 
     // common data blocks

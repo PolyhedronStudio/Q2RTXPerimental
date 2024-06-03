@@ -27,7 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // and we can tighten or loosen based on skill.  We could muck with
 // the damages too, but I'm not sure that's such a good idea.
 void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, int damage, int kick, int hspread, int vspread, int flashtype ) {
-	fire_bullet( self, start, dir, damage, kick, hspread, vspread, MOD_UNKNOWN );
+	fire_bullet( self, start, dir, damage, kick, hspread, vspread, MEANS_OF_DEATH_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );
 	gi.WriteInt16( self - g_edicts );
@@ -36,7 +36,7 @@ void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, int damage, i
 }
 
 void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int flashtype ) {
-	fire_shotgun( self, start, aimdir, damage, kick, hspread, vspread, count, MOD_UNKNOWN );
+	fire_shotgun( self, start, aimdir, damage, kick, hspread, vspread, count, MEANS_OF_DEATH_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );
 	gi.WriteInt16( self - g_edicts );
@@ -203,7 +203,9 @@ void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t
 	}
 }
 
-
+/**
+*	@brief	Apply world effects to monster entity.
+**/
 void M_WorldEffects( edict_t *ent ) {
 	int     dmg;
 
@@ -217,7 +219,7 @@ void M_WorldEffects( edict_t *ent ) {
 					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).seconds( ) ) );
                     if (dmg > 15)
                         dmg = 15;
-                    T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MOD_WATER);
+                    T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
                     ent->pain_debounce_time = level.time + 1_sec;
                 }
             }
@@ -230,7 +232,7 @@ void M_WorldEffects( edict_t *ent ) {
 					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).seconds( ) ) );
                     if (dmg > 15)
                         dmg = 15;
-                    T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MOD_WATER);
+                    T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
                     ent->pain_debounce_time = level.time + 1_sec;
                 }
             }
@@ -248,13 +250,13 @@ void M_WorldEffects( edict_t *ent ) {
     if ((ent->liquidtype & CONTENTS_LAVA) && !(ent->flags & FL_IMMUNE_LAVA)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 0.2_sec;
-            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidlevel, 0, 0, MOD_LAVA);
+            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidlevel, 0, 0, MEANS_OF_DEATH_LAVA );
         }
     }
     if ((ent->liquidtype & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 1_sec;
-            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidlevel, 0, 0, MOD_SLIME);
+            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidlevel, 0, 0, MEANS_OF_DEATH_SLIME );
         }
     }
 
