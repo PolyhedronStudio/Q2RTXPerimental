@@ -551,9 +551,9 @@ void SP_func_plat(edict_t *ent)
     VectorCopy(ent->pos2, ent->moveinfo.end_origin);
     VectorCopy(ent->s.angles, ent->moveinfo.end_angles);
 
-    ent->moveinfo.sound_start = gi.soundindex("plats/pt1_strt.wav");
-    ent->moveinfo.sound_middle = gi.soundindex("plats/pt1_mid.wav");
-    ent->moveinfo.sound_end = gi.soundindex("plats/pt1_end.wav");
+    ent->moveinfo.sound_start = gi.soundindex("plats/plat_start_01.wav");
+    ent->moveinfo.sound_middle = gi.soundindex("plats/plat_mid_01.wav");
+    ent->moveinfo.sound_end = gi.soundindex("plats/plat_end_01.wav");
 }
 
 //====================================================================
