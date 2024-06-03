@@ -475,10 +475,6 @@ static const save_field_t clientfields[] = {
 
 static const save_field_t gamefields[] = {
 #define _OFS GLOFS
-    SZ(helpmessage1, 512),
-    SZ(helpmessage2, 512),
-    I( helpchanged ),
-
     I(maxclients),
     I(maxentities),
     I(gamemode),

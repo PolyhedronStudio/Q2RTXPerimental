@@ -516,12 +516,8 @@ typedef struct gitem_s {
 *           the server.ssv file for savegames
 **/
 typedef struct {
-    char        helpmessage1[512];
-    char        helpmessage2[512];
-    int         helpchanged;    // flash F1 icon if non 0, play sound
-                                // and increment only if 1, 2, or 3
-
-    gclient_t   *clients;       // [maxclients]
+    //! [maxclients] of client pointers.
+    gclient_t   *clients;
 
     //! Can't store spawnpoint in level, because
     //! it would get overwritten by the savegame restore.
@@ -812,7 +808,6 @@ const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer );
 //
 // g_cmds.c
 //
-void Cmd_Help_f(edict_t *ent);
 void Cmd_Score_f(edict_t *ent);
 
 //

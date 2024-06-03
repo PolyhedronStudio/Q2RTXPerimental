@@ -211,7 +211,6 @@ extern void use_target_blaster( edict_t *self, edict_t *other, edict_t *activato
 extern void use_target_changelevel( edict_t *self, edict_t *other, edict_t *activator );
 extern void use_target_explosion( edict_t *self, edict_t *other, edict_t *activator );
 extern void use_target_goal( edict_t *self, edict_t *other, edict_t *activator );
-extern void Use_Target_Help( edict_t *self, edict_t *other, edict_t *activator );
 extern void use_target_secret( edict_t *self, edict_t *other, edict_t *activator );
 extern void use_target_spawner( edict_t *self, edict_t *other, edict_t *activator );
 extern void Use_Target_Speaker( edict_t *self, edict_t *other, edict_t *activator );
@@ -333,7 +332,6 @@ const save_ptr_t save_ptrs[] = {
 { P_use, (void*)use_target_changelevel },
 { P_use, (void*)use_target_explosion },
 { P_use, (void*)use_target_goal },
-{ P_use, (void*)Use_Target_Help },
 { P_use, (void*)use_target_secret },
 { P_use, (void*)use_target_spawner },
 { P_use, (void*)Use_Target_Speaker },

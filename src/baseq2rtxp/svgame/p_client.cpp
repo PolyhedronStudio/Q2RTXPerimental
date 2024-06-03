@@ -445,8 +445,6 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         self->client->ps.pmove.pm_type = PM_DEAD;
         ClientObituary(self, inflictor, attacker);
         TossClientWeapon(self);
-        if (deathmatch->value)
-            Cmd_Help_f(self);       // show scores
 
         // clear inventory
         // this is kind of ugly, but it's how we want to handle keys in coop

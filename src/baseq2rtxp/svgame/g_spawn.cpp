@@ -111,7 +111,6 @@ void SP_target_blaster(edict_t *ent);
 void SP_target_crosslevel_trigger(edict_t *ent);
 void SP_target_crosslevel_target(edict_t *ent);
 void SP_target_laser(edict_t *self);
-void SP_target_help(edict_t *ent);
 void SP_target_actor(edict_t *ent);
 void SP_target_lightramp(edict_t *self);
 void SP_target_earthquake(edict_t *ent);
@@ -202,7 +201,6 @@ static const spawn_func_t spawn_funcs[] = {
     {"target_crosslevel_trigger", SP_target_crosslevel_trigger},
     {"target_crosslevel_target", SP_target_crosslevel_target},
     {"target_laser", SP_target_laser},
-    {"target_help", SP_target_help},
     {"target_actor", SP_target_actor},
     {"target_lightramp", SP_target_lightramp},
     {"target_earthquake", SP_target_earthquake},
