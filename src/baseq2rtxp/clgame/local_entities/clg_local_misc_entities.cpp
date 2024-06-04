@@ -89,12 +89,16 @@ void CLG_misc_model_Think( clg_local_entity_t *self ) {
 	self->locals.oldframe = self->locals.frame;
 	self->locals.frame++;
 
-	if ( self->locals.frame >= 43 ) {
+	if ( self->locals.frame >= 409 ) {
 		self->locals.frame = 0;
 	}
 
 	// Setup nextthink.
 	self->nextthink = level.time + FRAME_TIME_MS;
+
+	// Get class.
+	auto *selfClass = CLG_LocalEntity_GetClass<clg_misc_model_locals_t>( self );
+	selfClass->frame_realtime = clgi.GetRealTime();
 }
 
 /**
@@ -112,7 +116,8 @@ void CLG_misc_model_PrepareRefreshEntity( clg_local_entity_t *self ) {
 	auto *selfClass = CLG_LocalEntity_GetClass<clg_misc_model_locals_t>( self );
 
 	// Clean slate refresh entity.
-	entity_t rent = {};
+	static entity_t rent = {};
+	static int64_t prevtime = 0;
 
 	// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
 	rent.id = RENTITIY_OFFSET_LOCALENTITIES + self->id;
@@ -142,10 +147,36 @@ void CLG_misc_model_PrepareRefreshEntity( clg_local_entity_t *self ) {
 	// Copy animation data.
 	//if ( self->locals.modelindex == MODELINDEX_PLAYER ) {
 	// Calculate back lerpfraction. (10hz.)
-	rent.backlerp = 1.0f - ( ( clgi.client->time - ( (float)selfClass->frame_servertime - BASE_FRAMETIME ) ) / 100.f );
-	clamp( rent.backlerp, 0.0f, 1.0f );
-	rent.frame = self->locals.frame;
-	rent.oldframe = self->locals.oldframe;
+	//static double frame = 0;
+	// Get class.
+	
+
+	if ( selfClass->frame_realtime != 0 ) {
+		static constexpr double millisecond = 1e-3f;
+
+		int64_t timediff = clgi.GetRealTime() - selfClass->frame_realtime; //clgi.client->time - prevtime;
+		double frame = self->locals.frame + (double)timediff * millisecond * std::max( 40.f, 0.f );
+
+		if ( frame >= (double)415 ) {
+			frame = 415.f;
+		} else if ( frame < 0 ) {
+			frame = 0;
+		}
+
+		double frac = frame - std::floor( frame );
+
+		rent.oldframe = (int)frame;
+		rent.frame = frame + 1;
+		rent.backlerp = 1.f - frac;
+	}
+	//prevtime = clgi.client->time;//clgi.client->time;
+	//rent.backlerp = 1.0f - ( ( clgi.GetRealTime() - ( (float)selfClass->frame_realtime ) / 100.f ) );
+	//clamp( rent.backlerp, 0.0f, 1.0f );
+	//if ( rent.frame != self->locals.frame ) {
+	//	rent.oldframe = rent.frame;
+	//}
+	//selfClass->frame_realtime = clgi.GetRealTime();
+	//rent.frame = self->locals.frame;
 
 	// Add entity
 	clgi.V_AddEntity( &rent );

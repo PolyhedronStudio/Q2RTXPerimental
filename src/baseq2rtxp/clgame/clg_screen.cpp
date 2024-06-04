@@ -1095,10 +1095,16 @@ void PF_SCR_ModeChanged( void ) {
     //Con_CheckResize();
     //UI_ModeChanged();
     //cls.disable_screen = 0;
-    if ( scr.initialized )
+    if ( scr.initialized ) {
+        // Clamp scale.
         scr.hud_scale = clgi.R_ClampScale( scr_scale );
-
+    }
+    // Notify HUD about the scale change.
+    CLG_HUD_ModeChanged( scr.hud_scale );
+    // Now adjust alpha to default.
     scr.hud_alpha = 1.f;
+    // Notify HUD again.
+    CLG_HUD_AlphaChanged( scr.hud_alpha );
 }
 
 /**
@@ -1139,7 +1145,10 @@ static void scr_font_changed( cvar_t *self ) {
 *	@brief
 **/
 static void scr_scale_changed( cvar_t *self ) {
+    // Clamp scale.
     scr.hud_scale = clgi.R_ClampScale( self );
+    // Notify HUD about the scale change.
+    CLG_HUD_ModeChanged( scr.hud_scale );
 }
 /**
 *	@brief
@@ -2010,5 +2019,8 @@ const qhandle_t PF_GetScreenFontHandle( void ) {
 *   @brief  Set the alpha value of the HUD. (Used by ref/vkpt.)
 **/
 void PF_SetScreenHUDAlpha( const float alpha ) {
+    // Adjust our alpha.
     scr.hud_alpha = alpha;
+    // Notify HUD.
+    CLG_HUD_AlphaChanged( scr.hud_alpha );
 }

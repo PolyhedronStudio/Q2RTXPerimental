@@ -34,6 +34,8 @@ extern const clg_local_entity_class_t client_misc_model;
 typedef struct clg_misc_model_locals_s {
 	//! Time at which the frame is at on the server.
 	uint64_t frame_servertime;
+	//! RealTime of when the frame was set.
+	uint64_t frame_realtime;
 } clg_misc_model_locals_t;
 
 

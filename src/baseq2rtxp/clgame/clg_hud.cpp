@@ -35,7 +35,6 @@ static struct {
         int32_t     width, height;
         color_t     color;
     } crosshair;
-    
 
     //! Real hud screen size.
     int32_t     hud_real_width, hud_real_height;
@@ -151,6 +150,19 @@ void CLG_HUD_Initialize( void ) {
 
     hud_crosshair = clgi.CVar_Get( "crosshair", "0", CVAR_ARCHIVE );
     hud_crosshair->changed = scr_crosshair_changed;
+}
+/**
+*   @brief  Called by PF_SCR_ModeChanged(video mode changed), or scr_scale_changed, in order to
+*           notify about the new HUD scale.
+**/
+void CLG_HUD_ModeChanged( const float newHudScale ) {
+    hud.hud_scale = newHudScale;
+}
+/**
+*   @brief  Called by PF_SetScreenHUDAlpha, in order to notify about the new HUD alpha.
+**/
+void CLG_HUD_AlphaChanged( const float newHudAlpha ) {
+    hud.hud_alpha = newHudAlpha;
 }
 /**
 *	@brief	Called when the screen module registers media.

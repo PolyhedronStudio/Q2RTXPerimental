@@ -32,6 +32,7 @@ Features being looked forward on implementation.
 * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
 
 ### Low Priority:
+* [ ] Name cvars for game modules respectively ``clg_`` and ``svg_``, also server cvars missing ``sv_`` and client cvars missing ``cl_``
 * [X] Why, when func_plat hits ya, it moves you to random origin or such?_
 	* Resolved by what seemed incorrect default behavior? Simply passing a knockback of 0 to the hit entity instead of 1.
 * [ ] Internal representation of skeletal poses and an API for use by both, client and server, thus residing in /common/

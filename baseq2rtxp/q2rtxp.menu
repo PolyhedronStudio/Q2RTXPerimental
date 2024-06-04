@@ -543,23 +543,23 @@ begin keys
     style --compact
     title "Action Key Bindings"
     blank
-    bind "primary fire" +fire_prim
-    bind "secondary fire" +fire_sec
-    bind "reload weapon" +reload
-    bind "next weapon" weapnext
-    bind "previous weapon" weapprev
+    bind "Primary Fire" +fire_prim
+    bind "Secondary Fire" +fire_sec
+    bind "Reload Weapon" +reload
+    bind "Next Weapon" weapnext
+    bind "Previous Weapon" weapprev
     bind "walk forward" +forward
-    bind "backpedal" +back
-    bind "run" +speed
-    bind "step left" +moveleft
-    bind "step right" +moveright
-    bind "up / jump" +moveup
-    bind "down / crouch" +movedown
-    bind "inventory" inven
-    bind "use item" invuse
-    bind "drop item" invdrop
-    bind "prev item" invprev
-    bind "next item" invnext
+    bind "Walk Backward" +back
+    bind "Run" +speed
+    bind "Step Left" +moveleft
+    bind "Step Right" +moveright
+    bind "Up/Jump" +moveup
+    bind "Down/Crouch" +movedown
+    bind "Inventory" inven
+    bind "Use Item" invuse
+    bind "Drop Item" invdrop
+    bind "Prev Item" invprev
+    bind "Next Item" invnext
     blank
     action "legacy keys..." pushmenu keys_legacy
 end
