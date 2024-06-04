@@ -1041,7 +1041,7 @@ void SP_worldspawn(edict_t *ent)
     gi.soundindex( "player/burn02.wav" );
     // Kinematics:
     gi.soundindex( "player/jump01.wav" );   // Player jump.
-    //gi.soundindex( "player/jump02.wav" ); // Player jump.
+    gi.soundindex( "player/jump02.wav" ); // Player jump.
     gi.soundindex( "player/fall01.wav" );   // Player fall.
     gi.soundindex( "player/fall02.wav" );   // Player heavy fall.
     gi.soundindex( "player/land01.wav" );   // Player jump landing sound.

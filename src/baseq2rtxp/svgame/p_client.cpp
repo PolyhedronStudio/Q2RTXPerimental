@@ -432,25 +432,30 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     self->s.sound = 0;
     self->client->weaponState.activeSound = 0;
 
-    // Set bbox maxs to -8.
-    self->maxs[2] = -8;
+    // Set bbox maxs to PM_BBOX_DUCKED_MAXS.
+    self->maxs[2] = PM_BBOX_DUCKED_MAXS.z;
 
 //  self->solid = SOLID_NOT;
     // Flag as to be treated as 'deadmonster' collision.
     self->svflags |= SVF_DEADMONSTER;
 
     if (!self->deadflag) {
+        // Determine respawn time.
 		self->client->respawn_time = ( level.time + 1_sec );
-        LookAtKiller(self, inflictor, attacker);
+        // Make sure the playerstate its pmove knows we're dead.
         self->client->ps.pmove.pm_type = PM_DEAD;
+        // Set the look at killer yaw.
+        LookAtKiller( self, inflictor, attacker );
+        // Notify the obituary.
         ClientObituary(self, inflictor, attacker);
+        // Toss away weaponry.
         TossClientWeapon(self);
 
         // clear inventory
         // this is kind of ugly, but it's how we want to handle keys in coop
         //for (n = 0; n < game.num_items; n++) {
         //    if (coop->value && itemlist[n].flags & IT_KEY)
-        //        self->client->resp.coop_respawn.inventory[n] = self->client->pers.inventory[n];
+        //        self->client->resp.pers_respawn.inventory[n] = self->client->pers.inventory[n];
         //    self->client->pers.inventory[n] = 0;
         //}
     }
@@ -1781,11 +1786,12 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         // Play 'Jump' sound if pmove inquired so.
         if ( pm.jump_sound && !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquid.level == 0) {
             // Jump sound to play.
-            //const int32_t sndIndex = irandom( 2 ) + 1;
-            //std::string pathJumpSnd = "player/jump0"; pathJumpSnd += std::to_string( sndIndex ); pathJumpSnd += ".wav";
-            //gi.sound( ent, CHAN_VOICE, gi.soundindex( pathJumpSnd.c_str() ), 1, ATTN_NORM, 0 );
+            const int32_t sndIndex = irandom( 2 ) + 1;
+            std::string pathJumpSnd = "player/jump0"; pathJumpSnd += std::to_string( sndIndex ); pathJumpSnd += ".wav";
+            gi.sound( ent, CHAN_VOICE, gi.soundindex( pathJumpSnd.c_str() ), 1, ATTN_NORM, 0 );
             // Jump sound to play.
-            gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/jump01.wav" ), 1, ATTN_NORM, 0 );
+            //gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/jump01.wav" ), 1, ATTN_NORM, 0 );
+            
             // Paril: removed to make ambushes more effective and to
             // not have monsters around corners come to jumps
             // PlayerNoise(ent, ent->s.origin, PNOISE_SELF);

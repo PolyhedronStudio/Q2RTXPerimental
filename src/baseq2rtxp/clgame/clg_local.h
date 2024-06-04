@@ -499,7 +499,7 @@ typedef struct precached_media_s {
 			static constexpr int32_t NUM_CARPET_STEPS = 8;
 			qhandle_t carpet[ NUM_CARPET_STEPS ];
 			// Kind - "dirt":
-			static constexpr int32_t NUM_DIRT_STEPS = 8;
+			static constexpr int32_t NUM_DIRT_STEPS = 7;
 			qhandle_t dirt[ NUM_DIRT_STEPS ];
 			// Kind - "grass":
 			static constexpr int32_t NUM_GRASS_STEPS = 9;
