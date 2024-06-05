@@ -877,7 +877,7 @@ typedef struct {
 	void ( *ScreenShutdown )( void );
 	void ( *ScreenRegisterMedia )( void );
 	void ( *ScreenModeChanged )( void );
-	void ( *ScreenSetCrosshairColor )( void );
+	void ( *ScreenDeltaFrame )( void );
 	vrect_t *( *GetScreenVideoRect )( void );
 
 	/**

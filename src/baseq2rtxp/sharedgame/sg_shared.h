@@ -119,23 +119,32 @@ static constexpr int32_t STAT_PICKUP_ICON = ( STATS_GAME_OFFSET + 6 );
 static constexpr int32_t STAT_PICKUP_STRING = ( STATS_GAME_OFFSET + 7 );
 static constexpr int32_t STAT_TIMER_ICON = ( STATS_GAME_OFFSET + 8 );
 static constexpr int32_t STAT_TIMER = ( STATS_GAME_OFFSET + 9 );
-static constexpr int32_t STAT_HELPICON = ( STATS_GAME_OFFSET + 10 );
 static constexpr int32_t STAT_SELECTED_ITEM = ( STATS_GAME_OFFSET + 11 );
 static constexpr int32_t STAT_FLASHES = ( STATS_GAME_OFFSET + 12 ); //! Cleared each frame, 1 == health, 2 == armor.
-static constexpr int32_t STAT_CHASE = ( STATS_GAME_OFFSET + 13 );
+//! Stores whether we are a spectator or not.
 static constexpr int32_t STAT_SPECTATOR = ( STATS_GAME_OFFSET + 14 );
+//! Indicates who we're spectate chasing.
+static constexpr int32_t STAT_CHASE = ( STATS_GAME_OFFSET + 13 );
+
+//! 2nd timer.
 static constexpr int32_t STAT_TIMER2_ICON = ( STATS_GAME_OFFSET + 15 );
 static constexpr int32_t STAT_TIMER2 = ( STATS_GAME_OFFSET + 16 );
+
+//! Yaw pointing to whichever caused death.
 static constexpr int32_t STAT_KILLER_YAW = ( STATS_GAME_OFFSET + 17 );
 
 // TODO: WID: Resort all Stats logically, however, this means readjusting the
 // layout strings. Not in a mood for this right now.
-static constexpr int32_t STAT_CLIP_AMMO = ( STATS_GAME_OFFSET + 18 );
-static constexpr int32_t STAT_CLIP_AMMO_ICON = ( STATS_GAME_OFFSET + 19 );
 
-
-static constexpr int32_t STAT_WEAPON_FLAGS = ( STATS_GAME_OFFSET + 20 );
+//! ItemID for client needs.
+static constexpr int32_t STAT_WEAPON_ITEM = ( STATS_GAME_OFFSET + 18 );
+//! Amount of ammo left in the weapon's clip.
+static constexpr int32_t STAT_WEAPON_CLIP_AMMO = ( STATS_GAME_OFFSET + 19 );
+//! The icon of the clip ammo to display.
+static constexpr int32_t STAT_WEAPON_CLIP_AMMO_ICON = ( STATS_GAME_OFFSET + 20 );
 /**
-*	@brief	Actual flags we can set for STAT_WEAPON_FLAGS stats.
+*	@brief	Flags of the client's active weapon's st ate.
 **/
+static constexpr int32_t STAT_WEAPON_FLAGS = ( STATS_GAME_OFFSET + 21 );
+//! Indicates that the client has engaged, and is engaging into 'precision aim' mode.
 static constexpr int32_t STAT_WEAPON_FLAGS_IS_AIMING = BIT( 0 );

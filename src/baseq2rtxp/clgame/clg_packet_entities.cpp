@@ -562,7 +562,6 @@ void CLG_AddPacketEntities( void ) {
                     weaponModelIndex = 0;
                 }
                 ent.model = ci->weaponmodel[ weaponModelIndex ];
-
                 if ( !ent.model ) {
                     if ( weaponModelIndex != 0 ) {
                         ent.model = ci->weaponmodel[ 0 ];
@@ -571,7 +570,8 @@ void CLG_AddPacketEntities( void ) {
                         ent.model = clgi.client->baseclientinfo.weaponmodel[ 0 ];
                     }
                 }
-                // Regular 2nd model index.
+
+            // Regular 2nd model index.
             } else {
                 ent.model = clgi.client->model_draw[ s1->modelindex2 ];
             }

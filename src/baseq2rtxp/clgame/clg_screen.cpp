@@ -174,7 +174,7 @@ void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags,
 *   @brief Fades alpha in and out, keeping the alpha visible for 'visTime' amount.
 *   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
 **/
-const float SCR_FadeAlpha( const uint32_t startTime, const uint32_t visTime, const uint32_t fadeTime ) {
+const float SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime ) {
     float alpha;
     unsigned timeLeft, delta = clgi.GetRealTime() - startTime;
 
@@ -1082,9 +1082,11 @@ SCR_TimeRefresh_f
 
 
 /**
-*	@brief
+*	@brief	Called whenever a delta frame has been succesfully dealt with.
+*			It allows a moment for updating HUD/Screen related data.
 **/
-void PF_SCR_SetCrosshairColor( void ) {
+void PF_SCR_DeltaFrame( void ) {
+    // Update crosshair color.
     CLG_HUD_SetCrosshairColor();
 }
 /**
@@ -1098,9 +1100,10 @@ void PF_SCR_ModeChanged( void ) {
     if ( scr.initialized ) {
         // Clamp scale.
         scr.hud_scale = clgi.R_ClampScale( scr_scale );
+        // Notify HUD about the scale change.
+        CLG_HUD_ModeChanged( scr.hud_scale );
     }
-    // Notify HUD about the scale change.
-    CLG_HUD_ModeChanged( scr.hud_scale );
+
     // Now adjust alpha to default.
     scr.hud_alpha = 1.f;
     // Notify HUD again.
@@ -1214,18 +1217,23 @@ void PF_SCR_Init( void ) {
     scr_showpmove = clgi.CVar_Get( "scr_showpmove", "0", 0 );
     #endif
 
+    // Register screen commands.
     clgi.Cmd_Register( scr_cmds );
+    // Notify screen is initialized.
+    scr.initialized = true;
+    // Register scale changed.
     scr_scale_changed( scr_scale );
 
     // Initialize the HUD resources.
     CLG_HUD_Initialize();
-
-    scr.initialized = true;
 }
 /**
 *	@brief  
 **/
 void PF_SCR_Shutdown( void ) {
+    // Notify HUD about Shutdown.
+    CLG_HUD_Shutdown();
+
     clgi.Cmd_Deregister( scr_cmds );
     scr.initialized = false;
 }
@@ -1293,79 +1301,6 @@ static void HUD_DrawNumber( int x, int y, int color, int width, int value ) {
     }
 }
 
-/**
-*	@brief
-**/
-#define DISPLAY_ITEMS   17
-static void SCR_DrawInventory( void ) {
-    int     i;
-    int     num, selected_num, item;
-    int     index[ MAX_ITEMS ];
-    char    string[ MAX_STRING_CHARS ];
-    int     x, y;
-    const char *bind;
-    int     selected;
-    int     top;
-
-    if ( !( clgi.client->frame.ps.stats[ STAT_LAYOUTS ] & 2 ) )
-        return;
-
-    selected = clgi.client->frame.ps.stats[ STAT_SELECTED_ITEM ];
-
-    num = 0;
-    selected_num = 0;
-    for ( i = 0; i < MAX_ITEMS; i++ ) {
-        if ( i == selected ) {
-            selected_num = num;
-        }
-        if ( clgi.client->inventory[ i ] ) {
-            index[ num++ ] = i;
-        }
-    }
-
-    // determine scroll point
-    top = selected_num - DISPLAY_ITEMS / 2;
-    if ( top > num - DISPLAY_ITEMS ) {
-        top = num - DISPLAY_ITEMS;
-    }
-    if ( top < 0 ) {
-        top = 0;
-    }
-
-    x = ( scr.hud_width - 256 ) / 2;
-    y = ( scr.hud_height - 240 ) / 2;
-
-    clgi.R_DrawPic( x, y + 8, precache.screen.inven_pic );
-    y += 24;
-    x += 24;
-
-    HUD_DrawString( x, y, "hotkey ### item" );
-    y += CHAR_HEIGHT;
-
-    HUD_DrawString( x, y, "------ --- ----" );
-    y += CHAR_HEIGHT;
-
-    for ( i = top; i < num && i < top + DISPLAY_ITEMS; i++ ) {
-        item = index[ i ];
-        // search for a binding
-        Q_concat( string, sizeof( string ), "use ", clgi.client->configstrings[ CS_ITEMS + item ] );
-        bind = clgi.Key_GetBinding( string );
-
-        Q_snprintf( string, sizeof( string ), "%6s %3i %s",
-            bind, clgi.client->inventory[ item ], clgi.client->configstrings[ CS_ITEMS + item ] );
-
-        if ( item != selected ) {
-            HUD_DrawAltString( x, y, string );
-        } else {    // draw a blinky cursor by the selected item
-            HUD_DrawString( x, y, string );
-            if ( ( clgi.GetRealTime() >> 8 ) & 1 ) {
-                clgi.R_DrawChar( x - CHAR_WIDTH, y, 0, 15, precache.screen.font_pic );
-            }
-        }
-
-        y += CHAR_HEIGHT;
-    }
-}
 /**
 *	@brief
 **/
@@ -1634,7 +1569,7 @@ static void SCR_ExecuteLayoutString( const char *s ) {
             int     color;
 
             width = 2;
-            value = clgi.client->frame.ps.stats[ STAT_CLIP_AMMO ];
+            value = clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ];
             if ( value > 3 ) {
                 color = 0;  // green
             } else if ( value >= 0 ) {
@@ -1868,8 +1803,9 @@ static void SCR_DrawPause( void ) {
 **/
 // The status bar is a small layout program that is based on the stats array
 static void SCR_DrawStats( void ) {
-    if ( scr_draw2d->integer <= 1 )
+    if ( scr_draw2d->integer <= 1 ) {
         return;
+    }
 
     SCR_ExecuteLayoutString( clgi.client->configstrings[ CS_STATUSBAR ] );
 }
@@ -1915,18 +1851,24 @@ static void SCR_Draw2D( refcfg_t *refcfg ) {
     scr.hud_height = Q_rint( scr.hud_height * scr.hud_scale );
     scr.hud_width = Q_rint( scr.hud_width * scr.hud_scale );
 
+    // Scale HUD.
+    CLG_HUD_ScaleFrame( refcfg );
+
     // Crosshair has its own color and alpha.
-    CLG_HUD_Draw( refcfg );
+    CLG_HUD_DrawCrosshair();
 
     // The rest of 2D elements share common alpha.
     clgi.R_ClearColor();
     clgi.R_SetAlpha( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
 
-    SCR_DrawStats();
+    // Draw the rest of the HUD overlay.
+    CLG_HUD_DrawFrame( refcfg );
+
+    //SCR_DrawStats();
 
     SCR_DrawLayout();
 
-    SCR_DrawInventory();
+    //SCR_DrawInventory();
 
     SCR_DrawCenterString();
 

@@ -21,10 +21,6 @@
 **/
 void CLG_HUD_Initialize( void );
 /**
-*   @brief
-**/
-void CLG_HUD_SetCrosshairColor();
-/**
 *   @brief  Called by PF_SCR_ModeChanged(video mode changed), or scr_scale_changed, in order to
 *           notify about the new HUD scale.
 **/
@@ -41,10 +37,24 @@ void CLG_HUD_RegisterScreenMedia( void );
 *   @brief  Called when screne module shutsdown.
 **/
 void CLG_HUD_Shutdown( void );
+
 /**
-*	@brief	Called when screen module is drawing its 2D overlay.
+*	@brief	Called when screen modfule is drawing its 2D overlay(s).
 **/
-void CLG_HUD_Draw( refcfg_t *refcfg );
+void CLG_HUD_ScaleFrame( refcfg_t *refcfg );
+/**
+*	@brief	Called when screen module is drawing its 2D overlay(s).
+**/
+void CLG_HUD_DrawFrame( refcfg_t *refcfg );
+
+/**
+*   @brief
+**/
+void CLG_HUD_SetCrosshairColor();
+/**
+*	@brief  Renders the crosshair to screen.
+**/
+void CLG_HUD_DrawCrosshair( void );
 
 
 

@@ -39,9 +39,10 @@ void PF_SCR_RegisterMedia( void );
 **/
 void PF_SCR_ModeChanged( void );
 /**
-*	@brief
+*	@brief	Called whenever a delta frame has been succesfully dealt with.
+*			It allows a moment for updating HUD/Screen related data.
 **/
-void PF_SCR_SetCrosshairColor( void );
+void PF_SCR_DeltaFrame( void );
 /**
 *	@brief
 **/
@@ -84,4 +85,4 @@ void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags,
 *   @brief Fades alpha in and out, keeping the alpha visible for 'visTime' amount.
 *   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
 **/
-const float SCR_FadeAlpha( const uint32_t startTime, const uint32_t visTime, const uint32_t fadeTime );
+const float SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime );

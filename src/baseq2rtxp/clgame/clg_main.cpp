@@ -515,7 +515,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ScreenInit = PF_SCR_Init;
 		globals.ScreenRegisterMedia = PF_SCR_RegisterMedia;
 		globals.ScreenModeChanged = PF_SCR_ModeChanged;
-		globals.ScreenSetCrosshairColor = PF_SCR_SetCrosshairColor;
+		globals.ScreenDeltaFrame = PF_SCR_DeltaFrame;
 		globals.ScreenShutdown = PF_SCR_Shutdown;
 		globals.GetScreenVideoRect = PF_GetScreenVideoRect;
 		globals.DrawActiveState = PF_DrawActiveState;

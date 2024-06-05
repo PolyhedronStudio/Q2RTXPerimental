@@ -184,25 +184,23 @@ void SCR_DrawStringMulti( int x, int y, int flags, size_t maxlen,
 }
 
 
-/*
-=================
-SCR_FadeAlpha
-=================
-*/
-float SCR_FadeAlpha( unsigned startTime, unsigned visTime, unsigned fadeTime ) {
-    float alpha;
-    unsigned timeLeft, delta = clgi.GetRealTime()  - startTime;
-
-    if ( delta >= visTime ) {
+/**
+*   @brief Fades alpha in and out, keeping the alpha visible for 'visTime' amount.
+*   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
+**/
+const float SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime ) {
+    // If time delta surpassed visTime, return 0 alpha.
+    uint64_t timeDelta = cls.realtime - startTime;
+    if ( timeDelta >= visTime ) {
         return 0;
     }
 
-    if ( fadeTime > visTime ) {
-        fadeTime = visTime;
-    }
+    // Cap fade time.
+    float cappedFadeTime = ( fadeTime > visTime ? visTime : fadeTime );
 
-    alpha = 1;
-    timeLeft = visTime - delta;
+    //  Determine alpha based on how much time is left for the fade.
+    float alpha = 1.f;
+    uint64_t timeLeft = visTime - timeDelta;
     if ( timeLeft < fadeTime ) {
         alpha = (float)timeLeft / fadeTime;
     }
@@ -1104,7 +1102,7 @@ static void scr_crosshair_changed( cvar_t *self ) {
             scr.crosshair_height = 1;
 
         if ( ch_health->integer ) {
-            PF_SCR_SetCrosshairColor();
+            PF_SCR_DeltaFrame();
         } else {
             scr.crosshair_color.u8[ 0 ] = clgi.CVar_ClampValue( ch_red, 0, 1 ) * 255;
             scr.crosshair_color.u8[ 1 ] = clgi.CVar_ClampValue( ch_green, 0, 1 ) * 255;
@@ -1118,7 +1116,7 @@ static void scr_crosshair_changed( cvar_t *self ) {
 /**
 *	@brief
 **/
-void PF_SCR_SetCrosshairColor( void ) {
+void PF_SCR_DeltaFrame( void ) {
     int health;
 
     if ( !ch_health->integer ) {

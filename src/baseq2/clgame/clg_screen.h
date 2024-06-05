@@ -37,7 +37,7 @@ void PF_SCR_ModeChanged( void );
 /**
 *	@brief
 **/
-void PF_SCR_SetCrosshairColor( void );
+void PF_SCR_DeltaFrame( void );
 /**
 *	@brief
 **/

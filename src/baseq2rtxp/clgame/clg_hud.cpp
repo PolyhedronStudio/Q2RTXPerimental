@@ -222,9 +222,23 @@ void HUD_DrawAltCenterString( const int32_t x, const int32_t y, const char *str 
 *
 **/
 /**
+*   @brief  Does as it says it does.
+**/
+static void CLG_HUD_DrawOutlinedRectangle( const uint32_t backGroundX, const uint32_t backGroundY, const uint32_t backGroundWidth, const uint32_t backGroundHeight, const uint32_t fillColor, const uint32_t outlineColor ) {
+    // Set global color to white
+    clgi.R_SetColor( MakeColor( 255, 255, 255, 255 ) );
+    // Draw bg color.
+    clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, backGroundHeight, fillColor );
+    // Draw outlines:
+    clgi.R_DrawFill32( backGroundX, backGroundY, 1, backGroundHeight, outlineColor ); // Top Line.
+    clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, 1, outlineColor );  // Left Line.
+    clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY, 1, backGroundHeight + 1, outlineColor ); // Right Line.
+    clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor ); // Bottom Line.
+}
+/**
 *	@brief  Renders the crosshair to screen.
 **/
-static void CLG_HUD_DrawCrosshair( void ) {
+void CLG_HUD_DrawCrosshair( void ) {
     // Only display if enabled.
     if ( !hud_crosshair->integer ) {
         return;
@@ -257,9 +271,183 @@ static void CLG_HUD_DrawCrosshair( void ) {
 }
 
 /**
-*	@brief	Called when screen module is drawing its 2D overlay.
+*	@brief  Renders the player's health and armor status to screen.
 **/
-void CLG_HUD_Draw( refcfg_t *refcfg ) {
+static void CLG_HUD_DrawHealthIndicators() {
+    // Colors.
+    constexpr uint32_t colorOrange = MakeColor( 255, 150, 100, 255 );
+    //const uint32_t colorLessWhite = MakeColor( 240, 220, 210, 80 );
+    constexpr uint32_t colorLessWhite = MakeColor( 220, 220, 220, 75 );
+    constexpr uint32_t colorWhite = MakeColor( 255, 255, 255, 255 );
+
+
+    // Health Background:
+    static constexpr int32_t HEALTH_BACKGROUND_WIDTH = 75;
+    static constexpr int32_t HEALTH_BACKGROUND_HEIGHT = 40;
+    static constexpr int32_t HEALTH_BACKGROUND_OFFSET_LEFT = 10;
+    static constexpr int32_t HEALTH_BACKGROUND_OFFSET_BOTTOM = 10;
+    int32_t healthBackGroundX = ( HEALTH_BACKGROUND_OFFSET_LEFT );
+    int32_t healthBackGroundY = ( hud.hud_scaled_height - ( HEALTH_BACKGROUND_HEIGHT + HEALTH_BACKGROUND_OFFSET_BOTTOM ) );
+    // Health Name:
+    const std::string strHealthName = "Health:";
+    // Determine x/y for health name..
+    const int32_t healthNameX = HEALTH_BACKGROUND_OFFSET_LEFT + 10;
+    const int32_t healthNameY = ( hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT * 2 ) - 4;
+    // Health:
+    const std::string strHealth = std::to_string( clgi.client->frame.ps.stats[ STAT_HEALTH ] );
+    // String length.
+    const int32_t strHealthSize = strHealth.length() * CHAR_WIDTH;
+    // Adjust offset.
+    const int32_t healthX = ( 20 );
+    const int32_t healthY = ( hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT );
+
+    // Armor Background:
+    static constexpr int32_t ARMOR_BACKGROUND_WIDTH = 65;
+    static constexpr int32_t ARMOR_BACKGROUND_HEIGHT = 40;
+    static constexpr int32_t ARMOR_BACKGROUND_OFFSET_LEFT = ( 10 + HEALTH_BACKGROUND_OFFSET_LEFT + HEALTH_BACKGROUND_WIDTH );
+    static constexpr int32_t ARMOR_BACKGROUND_OFFSET_BOTTOM = 10;
+    int32_t armorBackGroundX = ( ARMOR_BACKGROUND_OFFSET_LEFT );
+    int32_t armorBackGroundY = ( hud.hud_scaled_height - ( ARMOR_BACKGROUND_HEIGHT + ARMOR_BACKGROUND_OFFSET_BOTTOM ) );
+    // Armor Name:
+    const std::string strArmorName = "Armor:";
+    // Determine x/y for armor name..
+    const int32_t armorNameX = ARMOR_BACKGROUND_OFFSET_LEFT + 10;
+    const int32_t armorNameY = ( hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT * 2 ) - 4;
+    // Armor:
+    const std::string strArmor = std::to_string( clgi.client->frame.ps.stats[ STAT_ARMOR ] );
+    // String length.
+    const int32_t strArmorSize = strArmor.length() * CHAR_WIDTH;
+    // Adjust offset.
+    const int32_t armorX = armorNameX;
+    const int32_t armorY = ( hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT );
+
+    /**
+    *   Draw Health Indicator:
+    **/
+    CLG_HUD_DrawOutlinedRectangle( healthBackGroundX, healthBackGroundY, HEALTH_BACKGROUND_WIDTH, HEALTH_BACKGROUND_HEIGHT, colorLessWhite, colorWhite );
+    // Set text color to orange.
+    clgi.R_SetColor( colorOrange );
+    // Draw health name.
+    HUD_DrawString( healthNameX, healthNameY, strHealthName.c_str() );
+    // Set text color to white.
+    clgi.R_SetColor( colorWhite );
+    // Draw health value.
+    HUD_DrawString( healthX, healthY, strHealth.c_str() );
+
+    /**
+    *   Draw Armor Indicator:
+    **/
+    CLG_HUD_DrawOutlinedRectangle( armorBackGroundX, armorBackGroundY, ARMOR_BACKGROUND_WIDTH, ARMOR_BACKGROUND_HEIGHT, colorLessWhite, colorWhite );
+    // Set text color to orange.
+    clgi.R_SetColor( colorOrange );
+    // Draw armor display name.
+    HUD_DrawString( armorNameX, armorNameY, strArmorName.c_str() );
+    // Set text color to white.
+    clgi.R_SetColor( colorWhite );
+    // Draw armor value.
+    HUD_DrawString( armorX, armorY, strArmor.c_str() );
+}
+
+/**
+*	@brief  Renders the player's weapon name and (clip-)ammo status to screen.
+**/
+static void CLG_HUD_DrawAmmoIndicators() {
+    if ( !clgi.client->frame.ps.gunindex ) {
+        return;
+    }
+
+    // Colors.
+    constexpr uint32_t colorOrange = MakeColor( 255, 150, 100, 255 );
+    //const uint32_t colorLessWhite = MakeColor( 240, 220, 210, 80 );
+    constexpr uint32_t colorLessWhite = MakeColor( 220, 220, 220, 75 );
+    constexpr uint32_t colorWhite = MakeColor( 255, 255, 255, 255 );
+
+    /**
+    *   Calculate position and sizes for each indicator item we render.
+    **/
+    // Ammo Background:
+    static constexpr int32_t AMMO_BACKGROUND_WIDTH = 85;
+    static constexpr int32_t AMMO_BACKGROUND_HEIGHT = 40;
+    static constexpr int32_t AMMO_BACKGROUND_OFFSET_RIGHT = 10;
+    static constexpr int32_t AMMO_BACKGROUND_OFFSET_BOTTOM = 10;
+    int32_t ammoBackGroundX = ( hud.hud_scaled_width - ( AMMO_BACKGROUND_WIDTH + AMMO_BACKGROUND_OFFSET_RIGHT ));
+    int32_t ammoBackGroundY = ( hud.hud_scaled_height - ( AMMO_BACKGROUND_HEIGHT + AMMO_BACKGROUND_OFFSET_BOTTOM ) );
+
+
+    // WeaponName:
+    // Generate weapon display string, defaults to Fists.
+    const int32_t weaponItemID = clgi.client->frame.ps.stats[ STAT_WEAPON_ITEM ];
+    std::string strWeaponName = clgi.client->configstrings[ CS_ITEMS + weaponItemID ];
+    strWeaponName += ":";
+    // Determine x/y for weapon name..
+    const int32_t weaponNameX = ( hud.hud_scaled_width - 20 ) - strWeaponName.length() * CHAR_WIDTH;
+    const int32_t weaponNameY = ( hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT * 2 ) - 2;
+
+    // Ammo:
+    // Display String.
+    const std::string strTotalAmmo = std::to_string( clgi.client->frame.ps.stats[ STAT_AMMO ] );
+    // String length.
+    const int32_t strTotalAmmoSize = strTotalAmmo.length() * CHAR_WIDTH;
+    // Adjust offset.
+    const int32_t totalAmmoX = ( hud.hud_scaled_width - 20 ) - strTotalAmmoSize;
+    const int32_t totalAmmoY = ( hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT );
+    
+    // Separator(/) for 'Clip Ammo / Ammo' Display:
+    // Display String.
+    const std::string strSeparator = " / ";
+    // String length.
+    const int32_t strSeparatorWidth = strSeparator.length() * CHAR_WIDTH;
+    // Screen Position.
+    const int32_t separatorX = totalAmmoX - strSeparatorWidth;
+    const int32_t separatorY = totalAmmoY;
+
+    // Clip Ammo:
+    // Display String.
+    const std::string strClipAmmo = std::to_string( clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] );
+    // Display String length.
+    const int32_t strClipAmmoSize = strClipAmmo.length() * CHAR_WIDTH;
+    // Screen Position.
+    const int32_t clipAmmoX = separatorX - strClipAmmoSize;
+    const int32_t clipAmmoY = separatorY;
+
+    /**
+    *   Draw Ammo Indicator:
+    **/
+    // Set global color to white
+    clgi.R_SetColor( colorWhite );
+    // Draw bg color.
+    clgi.R_DrawFill32( ammoBackGroundX, ammoBackGroundY, AMMO_BACKGROUND_WIDTH, AMMO_BACKGROUND_HEIGHT, colorLessWhite );
+    // Draw outlines:
+    clgi.R_DrawFill32( ammoBackGroundX, ammoBackGroundY, 1, AMMO_BACKGROUND_HEIGHT, colorWhite ); // Top Line.
+    clgi.R_DrawFill32( ammoBackGroundX, ammoBackGroundY, AMMO_BACKGROUND_WIDTH, 1, colorWhite );  // Left Line.
+    clgi.R_DrawFill32( ammoBackGroundX + AMMO_BACKGROUND_WIDTH, ammoBackGroundY, 1, AMMO_BACKGROUND_HEIGHT + 1, colorWhite ); // Right Line.
+    clgi.R_DrawFill32( ammoBackGroundX, ammoBackGroundY + AMMO_BACKGROUND_HEIGHT, AMMO_BACKGROUND_WIDTH, 1, colorWhite ); // Bottom Line.
+
+    // Set text color to orange.
+    clgi.R_SetColor( colorOrange );
+    // Draw weapon name.
+    HUD_DrawString( weaponNameX, weaponNameY, strWeaponName.c_str() );
+
+    // Set text color to white.
+    clgi.R_SetColor( colorWhite );
+    // Draw ammo.
+    HUD_DrawString( totalAmmoX, totalAmmoY, strTotalAmmo.c_str() );
+
+    // Set text color to orange.
+    clgi.R_SetColor( colorOrange );
+    // Draw clip ammo.
+    HUD_DrawString( separatorX, separatorY, strSeparator.c_str() );
+
+    // Set text color to white.
+    clgi.R_SetColor( colorWhite );
+    // Draw Clip Ammo count.
+    HUD_DrawString( clipAmmoX, clipAmmoY, strClipAmmo.c_str() );
+}
+
+/**
+*	@brief	Called when screen module is drawing its 2D overlay(s).
+**/
+void CLG_HUD_ScaleFrame( refcfg_t *refcfg ) {
     // Recalculate hud height/width.
     hud.hud_real_height = refcfg->height;
     hud.hud_real_width = refcfg->width;
@@ -273,11 +461,14 @@ void CLG_HUD_Draw( refcfg_t *refcfg ) {
     // Determine screen width and height based on hud_scale.
     hud.hud_scaled_height = Q_rint( hud.hud_real_height * hud.hud_scale );
     hud.hud_scaled_width = Q_rint( hud.hud_real_width * hud.hud_scale );
+}
 
-    // Crosshair has its own color and alpha.
-    CLG_HUD_DrawCrosshair();
-
-    // The rest of 2D elements share common alpha.
-    clgi.R_ClearColor();
-    clgi.R_SetAlpha( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
+/**
+*	@brief	Called when screen module is drawing its 2D overlay(s).
+**/
+void CLG_HUD_DrawFrame( refcfg_t *refcfg ) {
+    // Draw Weapon and (Clip-)Ammo indicators.
+    CLG_HUD_DrawAmmoIndicators( );
+    // Draw Health and Armor indicators.
+    CLG_HUD_DrawHealthIndicators( );
 }

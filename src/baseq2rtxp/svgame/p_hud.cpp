@@ -343,18 +343,27 @@ void G_SetWeaponStats( edict_t *ent ) {
         ent->client->ps.stats[ STAT_AMMO ] = ent->client->pers.inventory[ ent->client->ammo_index ];
     }
     //
-    // Clip Ammo
+    // Weapon Item ID.
     //
     if ( !ent->client->pers.weapon /* || !ent->client->pers.inventory[ent->client->ammo_index] */ ) {
-        //ent->client->ps.stats[ STAT_CLIP_AMMO_ICON ] = 0;
-        ent->client->ps.stats[ STAT_CLIP_AMMO ] = 0;
+        //ent->client->ps.stats[ STAT_WEAPON_CLIP_AMMO_ICON ] = 0;
+        ent->client->ps.stats[ STAT_WEAPON_ITEM ] = 0;
+    } else {
+        const int32_t weaponItemID = ent->client->pers.weapon->weapon_index;
+        ent->client->ps.stats[ STAT_WEAPON_ITEM ] = weaponItemID;
+    }
+    //
+    // Clip Ammo:
+    //
+    if ( !ent->client->pers.weapon /* || !ent->client->pers.inventory[ent->client->ammo_index] */ ) {
+        ent->client->ps.stats[ STAT_WEAPON_CLIP_AMMO ] = 0;
     } else {
         // Find the item matching the 
         //int32_t clip_ammo_item_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->pickup_name ) );
-        int32_t clip_ammo_item_index = ent->client->pers.weapon->weapon_index;
+        const int32_t clip_ammo_item_index = ent->client->pers.weapon->weapon_index;
         //item = &itemlist[ ent->client->ammo_index ];
-        //ent->client->ps.stats[ STAT_CLIP_AMMO_ICON ] = gi.imageindex( item->icon );
-        ent->client->ps.stats[ STAT_CLIP_AMMO ] = ent->client->pers.weapon_clip_ammo[ clip_ammo_item_index ];
+        //ent->client->ps.stats[ STAT_WEAPON_CLIP_AMMO_ICON ] = gi.imageindex( item->icon );
+        ent->client->ps.stats[ STAT_WEAPON_CLIP_AMMO ] = ent->client->pers.weapon_clip_ammo[ clip_ammo_item_index ];
     }
     //
     // WeaponFlags/IsAiming
@@ -482,15 +491,6 @@ void G_SetStats(edict_t *ent) {
     // Frags
     //
     ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
-
-    //
-    // Current weapon if not shown
-    //
-    if ((ent->client->pers.hand == CENTER_HANDED || ent->client->ps.fov > 91)
-             && ent->client->pers.weapon)
-        ent->client->ps.stats[STAT_HELPICON] = gi.imageindex(ent->client->pers.weapon->icon);
-    else
-        ent->client->ps.stats[STAT_HELPICON] = 0;
 
     // If this function was called, disable spectator mode stats.
     ent->client->ps.stats[STAT_SPECTATOR] = 0;

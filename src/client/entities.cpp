@@ -452,8 +452,8 @@ void CL_DeltaFrame(void)
     // See if we had any prediction errors.
     CL_CheckPredictionError();
 
-    // Last but not least, set crosshair color, lol.
-    SCR_SetCrosshairColor();
+    // Notiy screen about the delta frame, so it may adjust some data if needed.
+    SCR_DeltaFrame();
 }
 
 /**

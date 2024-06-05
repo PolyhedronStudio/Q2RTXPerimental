@@ -670,11 +670,14 @@ void    SCR_RegisterMedia(void);
 void    SCR_ModeChanged(void);
 void    SCR_LagSample(void);
 void    SCR_LagClear(void);
-void    SCR_SetCrosshairColor(void);
+void    SCR_DeltaFrame(void);
 const qhandle_t SCR_GetFont(void);
 void    SCR_SetHudAlpha( const float alpha);
-
-float   SCR_FadeAlpha(unsigned startTime, unsigned visTime, unsigned fadeTime);
+/**
+*   @brief Fades alpha in and out, keeping the alpha visible for 'visTime' amount.
+*   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
+**/
+const float SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime );
 int     SCR_DrawStringEx(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
 void    SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
 
