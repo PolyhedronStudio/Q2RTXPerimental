@@ -296,25 +296,25 @@ void PlayerModel_Free(void);
 
 typedef struct uiStatic_s {
     bool initialized;
-    unsigned realtime;
-    int width, height; // scaled
+    uint64_t realtime;
+    int32_t width, height; // scaled
     float scale;
-    int menuDepth;
+    int32_t menuDepth;
     menuFrameWork_t *layers[MAX_MENU_DEPTH];
     menuFrameWork_t *activeMenu;
     menuCommon_t *mouseTracker;
-    int mouseCoords[2];
+    int32_t mouseCoords[2];
     bool entersound;        // play after drawing a frame, so caching
                             // won't disrupt the sound
     bool transparent;
-    int numPlayerModels;
+    int32_t numPlayerModels;
     playerModelInfo_t pmi[MAX_PLAYERMODELS];
     char weaponModel[32];
 
     qhandle_t backgroundHandle;
     qhandle_t fontHandle;
     qhandle_t cursorHandle;
-    int cursorWidth, cursorHeight;
+    int32_t cursorWidth, cursorHeight;
 
     qhandle_t bitmapCursors[NUM_CURSOR_FRAMES];
 
