@@ -301,7 +301,7 @@ const qhandle_t PF_R_RegisterImage( const char *name, const imagetype_t type, co
 *	@brief
 **/
 const qhandle_t PF_R_RegisterFont( const char *name ) {
-	return R_RegisterPic( name );
+	return R_RegisterFont( name );
 }
 /**
 *	@brief	

@@ -1234,7 +1234,7 @@ struct gclient_s {
     /**
     *   Weapon State:
     **/
-    struct {
+    struct weapon_state_s {
         //! The 'mode' is what the weapon is actually doing during its current 'state'.
         weapon_mode_t mode;
         //! The 'old mode' is what the weapon was actually doing during its previous 'state'.
@@ -1255,7 +1255,6 @@ struct gclient_s {
         struct {
             //! The amount of time processed so far for the animation.
             int32_t currentFrame;
-
             //! The starting frame.
             int32_t startFrame;
             //! The frame we want to be at by the end of the animation.
@@ -1264,6 +1263,14 @@ struct gclient_s {
             //! Optional callback function pointer.
             //void ( *finished_animating )( edict_t *ent );
         } animation;
+
+        //! Recoil.
+        struct {
+            //! Amount
+            float amount;
+            //! Total accumulated 'ms' by rapidly firing.
+            sg_time_t accumulatedTime;
+        } recoil;
 
         //! Timers
         struct {

@@ -118,12 +118,8 @@ typedef struct {
                             //! set by weapon kicks, pain effects, etc
 
     /**
-    *   Gun State:
+    *   (Networked) Gun State:
     **/
-    //! Gun Angles on-screen.
-    Vector3 gunangles;
-    //! Gun offset on-screen.
-    Vector3 gunoffset;
     //! Weapon(gun model) index.
     uint32_t gunindex;
     //! Current weapon model's frame.
@@ -163,15 +159,21 @@ typedef struct {
     //int32_t   externalEventTime;
 
     /**
-    *   Not communicated over the net at all, and are calculated locally
+    *   Not communicated over the net at all, some are calculated locally
     *   for both Client AND Server Game(s).
     **/
-    //! Calculated bobMove value.
+    //! [BOTH] Calculated bobMove value.
     double bobMove;
-    //! XYSpeed.
+    //! [BOTH] XYSpeed.
     double xySpeed;
-    //! XYSpeed.
+    //! [BOTH] XYSpeed.
     double xyzSpeed;
+
+    //! [CLIENT]: Gun Angles on-screen.
+    Vector3 gunangles;
+    //! [CLIENT]: Gun Pffset on-screen.
+    Vector3 gunoffset;
+    
     //! server to game info for scoreboard			
     //int32_t ping; 
     //int64_t pmove_framecount;

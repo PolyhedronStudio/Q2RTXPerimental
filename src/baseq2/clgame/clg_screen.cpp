@@ -80,7 +80,7 @@ static cvar_t *scr_demobar;
 static cvar_t *scr_font;
 static cvar_t *scr_scale;
 
-static cvar_t *scr_crosshair;
+//static cvar_t *scr_crosshair;
 
 static cvar_t *scr_chathud;
 static cvar_t *scr_chathud_lines;
@@ -1082,37 +1082,37 @@ SCR_TimeRefresh_f
 /**
 *	@brief
 **/
-static void scr_crosshair_changed( cvar_t *self ) {
-    char buffer[ 16 ];
-    int w, h;
-    float scale;
-
-    if ( scr_crosshair->integer > 0 ) {
-        Q_snprintf( buffer, sizeof( buffer ), "ch%i", scr_crosshair->integer );
-        scr.crosshair_pic = clgi.R_RegisterPic( buffer );
-        clgi.R_GetPicSize( &w, &h, scr.crosshair_pic );
-
-        // prescale
-        scale = clgi.CVar_ClampValue( ch_scale, 0.1f, 9.0f );
-        scr.crosshair_width = w * scale;
-        scr.crosshair_height = h * scale;
-        if ( scr.crosshair_width < 1 )
-            scr.crosshair_width = 1;
-        if ( scr.crosshair_height < 1 )
-            scr.crosshair_height = 1;
-
-        if ( ch_health->integer ) {
-            PF_SCR_DeltaFrame();
-        } else {
-            scr.crosshair_color.u8[ 0 ] = clgi.CVar_ClampValue( ch_red, 0, 1 ) * 255;
-            scr.crosshair_color.u8[ 1 ] = clgi.CVar_ClampValue( ch_green, 0, 1 ) * 255;
-            scr.crosshair_color.u8[ 2 ] = clgi.CVar_ClampValue( ch_blue, 0, 1 ) * 255;
-        }
-        scr.crosshair_color.u8[ 3 ] = clgi.CVar_ClampValue( ch_alpha, 0, 1 ) * 255;
-    } else {
-        scr.crosshair_pic = 0;
-    }
-}
+//static void scr_crosshair_changed( cvar_t *self ) {
+//    char buffer[ 16 ];
+//    int w, h;
+//    float scale;
+//
+//    if ( scr_crosshair->integer > 0 ) {
+//        Q_snprintf( buffer, sizeof( buffer ), "ch%i", scr_crosshair->integer );
+//        scr.crosshair_pic = clgi.R_RegisterPic( buffer );
+//        clgi.R_GetPicSize( &w, &h, scr.crosshair_pic );
+//
+//        // prescale
+//        scale = clgi.CVar_ClampValue( ch_scale, 0.1f, 9.0f );
+//        scr.crosshair_width = w * scale;
+//        scr.crosshair_height = h * scale;
+//        if ( scr.crosshair_width < 1 )
+//            scr.crosshair_width = 1;
+//        if ( scr.crosshair_height < 1 )
+//            scr.crosshair_height = 1;
+//
+//        if ( ch_health->integer ) {
+//            PF_SCR_DeltaFrame();
+//        } else {
+//            scr.crosshair_color.u8[ 0 ] = clgi.CVar_ClampValue( ch_red, 0, 1 ) * 255;
+//            scr.crosshair_color.u8[ 1 ] = clgi.CVar_ClampValue( ch_green, 0, 1 ) * 255;
+//            scr.crosshair_color.u8[ 2 ] = clgi.CVar_ClampValue( ch_blue, 0, 1 ) * 255;
+//        }
+//        scr.crosshair_color.u8[ 3 ] = clgi.CVar_ClampValue( ch_alpha, 0, 1 ) * 255;
+//    } else {
+//        scr.crosshair_pic = 0;
+//    }
+//}
 /**
 *	@brief
 **/
@@ -1188,7 +1188,7 @@ void PF_SCR_RegisterMedia( void ) {
     scr.net_pic = clgi.R_RegisterPic( "net" );
     scr.font_pic = clgi.R_RegisterFont( scr_font->string );
 
-    scr_crosshair_changed( scr_crosshair );
+    //scr_crosshair_changed( scr_crosshair );
 }
 /**
 *	@brief
@@ -1235,8 +1235,8 @@ void PF_SCR_Init( void ) {
     scr_font->changed = scr_font_changed;
     scr_scale = clgi.CVar_Get( "scr_scale", "0", 0 );
     scr_scale->changed = scr_scale_changed;
-    scr_crosshair = clgi.CVar_Get( "crosshair", "0", CVAR_ARCHIVE );
-    scr_crosshair->changed = scr_crosshair_changed;
+    //scr_crosshair = clgi.CVar_Get( "crosshair", "0", CVAR_ARCHIVE );
+    //scr_crosshair->changed = scr_crosshair_changed;
 
     scr_chathud = clgi.CVar_Get( "scr_chathud", "0", 0 );
     scr_chathud_lines = clgi.CVar_Get( "scr_chathud_lines", "4", 0 );
@@ -1246,16 +1246,16 @@ void PF_SCR_Init( void ) {
     scr_chathud_x = clgi.CVar_Get( "scr_chathud_x", "8", 0 );
     scr_chathud_y = clgi.CVar_Get( "scr_chathud_y", "-64", 0 );
 
-    ch_health = clgi.CVar_Get( "ch_health", "0", 0 );
-    ch_health->changed = scr_crosshair_changed;
-    ch_red = clgi.CVar_Get( "ch_red", "1", 0 );
-    ch_red->changed = scr_crosshair_changed;
-    ch_green = clgi.CVar_Get( "ch_green", "1", 0 );
-    ch_green->changed = scr_crosshair_changed;
-    ch_blue = clgi.CVar_Get( "ch_blue", "1", 0 );
-    ch_blue->changed = scr_crosshair_changed;
-    ch_alpha = clgi.CVar_Get( "ch_alpha", "1", 0 );
-    ch_alpha->changed = scr_crosshair_changed;
+    //ch_health = clgi.CVar_Get( "ch_health", "0", 0 );
+    //ch_health->changed = scr_crosshair_changed;
+    //ch_red = clgi.CVar_Get( "ch_red", "1", 0 );
+    //ch_red->changed = scr_crosshair_changed;
+    //ch_green = clgi.CVar_Get( "ch_green", "1", 0 );
+    //ch_green->changed = scr_crosshair_changed;
+    //ch_blue = clgi.CVar_Get( "ch_blue", "1", 0 );
+    //ch_blue->changed = scr_crosshair_changed;
+    //ch_alpha = clgi.CVar_Get( "ch_alpha", "1", 0 );
+    //ch_alpha->changed = scr_crosshair_changed;
 
     ch_scale = clgi.CVar_Get( "ch_scale", "1", 0 );
     ch_scale->changed = scr_crosshair_changed;

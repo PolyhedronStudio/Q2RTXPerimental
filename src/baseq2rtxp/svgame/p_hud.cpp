@@ -374,6 +374,16 @@ void G_SetWeaponStats( edict_t *ent ) {
         stat_weapon_flags |= STAT_WEAPON_FLAGS_IS_AIMING;
     }
     ent->client->ps.stats[ STAT_WEAPON_FLAGS ] = stat_weapon_flags;
+
+    //
+    // Recoil.
+    //
+    //if ( ent->client->weaponState.recoil.amount ) {
+        ent->client->ps.stats[ STAT_WEAPON_RECOIL ] = BLEND2BYTE( ent->client->weaponState.recoil.amount );
+        //gi.dprintf( "%s: recoil.amount(%llu)\n", __func__, ent->client->ps.stats[ STAT_WEAPON_RECOIL ] );
+    //} else {
+        //ent->client->weaponState.recoil.amount = 0;
+    //}
 }
 
 /**

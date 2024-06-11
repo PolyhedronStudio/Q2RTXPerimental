@@ -145,34 +145,6 @@ extern "C" {
 		mins[ 2 ] = -packedBounds.p.zd; maxs[ 2 ] = packedBounds.p.zu - 32;
 	}
 
-	/**
-	*   @brief	Encodes the float to an int8_t, having a limit of: -32/+32
-	**/
-	static inline const int8_t OFFSET2CHAR( float f ) {
-		clamp( f, -32, 127.0f / 4 );
-		return (int8_t)( f * 4.f );
-	}
-	/**
-	*	@brief	Decodes the byte back into a float, limit is: -32.f/+32.f
-	**/
-	static inline const float BYTE2OFFSET( const int8_t b ) {
-		return (float)( b ) / 255.f;
-	}
-
-	/**
-	*   @brief	Encodes the "blend" float to an uint8_t, range(0 = 0, 1 = 255).
-	**/
-	static inline const uint8_t BLEND2BYTE( float f ) {
-		clamp( f, 0.f, 1.f );
-		return (uint8_t)( f * 255.f );
-	}
-	/**
-	*	@brief	Decodes the byte back into a "blend" float, range(0 = 0, 255 = 1)
-	**/
-	static inline const float BYTE2BLEND( const uint8_t b ) {
-		return (float)( b ) * 0.25f;
-	}
-
 
 	/**
 	*

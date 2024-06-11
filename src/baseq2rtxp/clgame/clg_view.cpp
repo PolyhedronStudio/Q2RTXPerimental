@@ -680,13 +680,13 @@ static inline const float lerp_client_fov( float ofov, float nfov, const float l
 **/
 const double CLG_SmoothViewHeight() {
     //! Miliseconds for smoothing out over.
-    static constexpr int32_t HEIGHT_CHANGE__TIME = 100;
+    static constexpr int32_t HEIGHT_CHANGE_TIME = 100;
     //! Base 1 Frametime.
-    static constexpr double HEIGHT_CHANGE__BASE_1_FRAMETIME = ( 1. / HEIGHT_CHANGE__TIME );
+    static constexpr double HEIGHT_CHANGE_BASE_1_FRAMETIME = ( 1. / HEIGHT_CHANGE_TIME );
     //! Determine delta time.
-    uint64_t timeDelta = HEIGHT_CHANGE__TIME - min( ( clgi.client->time - clgi.client->predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE__TIME );
+    uint64_t timeDelta = HEIGHT_CHANGE_TIME - min( ( clgi.client->time - clgi.client->predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE_TIME );
     //! Return the frame's adjustment for viewHeight which is added on top of the final vieworigin + viweoffset.
-    return clgi.client->predictedState.transition.view.height[ 0 ] + (double)( clgi.client->predictedState.transition.view.height[ 1 ] - clgi.client->predictedState.transition.view.height[ 0 ] ) * timeDelta * HEIGHT_CHANGE__BASE_1_FRAMETIME;
+    return clgi.client->predictedState.transition.view.height[ 0 ] + (double)( clgi.client->predictedState.transition.view.height[ 1 ] - clgi.client->predictedState.transition.view.height[ 0 ] ) * timeDelta * HEIGHT_CHANGE_BASE_1_FRAMETIME;
 }
 
 /**
@@ -781,11 +781,11 @@ static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const 
     *   Determine the lerp fraction for the FOV to lerp by.
     **/
     float lerpfrac = 1;
-    if ( isZooming ) {
+    //if ( isZooming ) {
         lerpfrac = (float)( clgi.GetRealTime() - zoom_time ) / (float)ZOOM_TIME;
-    } else if ( zoom_time >= clgi.GetRealTime() - ZOOM_TIME ) {
-        lerpfrac = (float)( clgi.GetRealTime() - zoom_time ) / (float)ZOOM_TIME;
-    }
+    //} else if ( zoom_time >= clgi.GetRealTime() - ZOOM_TIME ) {
+    //    lerpfrac = (float)( clgi.GetRealTime() - zoom_time ) / (float)ZOOM_TIME;
+    //}
     if ( lerpfrac >= 1.0 ) {
         lerpfrac = 1.0f;
     }

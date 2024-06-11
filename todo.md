@@ -13,7 +13,7 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 Features being looked forward on implementation.
 ### Highest Priority:
 * [ ] Get a test dummy model that we can use to replace the current player with.
-* [ ] Get a similar test dummy, however, this one needs to be kept in mind it will serve monster purposes instead.
+* [X] Get a similar test dummy, however, this one needs to be kept in mind it will serve monster purposes instead.
 ### High Priority:
 * [X] Add in ``cm_material_t`` accompanied by an actual json based client and server sided material properties file. Allowing for setting material contents ``kind``, acceleration/friction influences, footsteps, etc.
 	* [X] Acquire some proper footstep audio files and add in material specific footstep audio.
@@ -53,15 +53,15 @@ Features being looked forward on implementation.
 
 ## Resources:
 ### Audio:
-* [ ] Replace pain25 up to pain100 audio files. (And/or rework its code a bit.)
-* [ ] Replace explosion sounds.
+* [X] Replace pain25 up to pain100 audio files. (And/or rework its code a bit.)
+* [X] Replace explosion sounds.
 * [ ] Replace ricochet sounds.
-* [ ] Replace water in/out/head-under sounds.
-* [ ] Replace 'heat' in lava sounds.
-* [ ] Replace UI(menu) sounds.
+* [X] Replace water in/out/head-under sounds.
+* [X] Replace 'heat' in lava sounds.
+* [X] Replace UI(menu) sounds.
 ### Models:
 * [ ] Replace..??
-* [ ] Get ourselves a basic version of the Mixamo testdummy that works in-game.
+* [X] Get ourselves a basic version of the Mixamo testdummy that works in-game.
 * [ ] Get ourselves some environment props to use for ``client_misc_model`` decorating purposes.
 ### Textures:
 * [ ] Find some consistent themed PBR texture set?
@@ -83,7 +83,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 Content Related:
 - [ ] Figure out how to create textures like those in the makkon 'pbr' sample map(it lacked actual roughness maps though).
 - [ ] Replace the audio with what I seemingly found, Q1 audio replacements.
-- [ ] Get some custom weapon models so we can implement some new gameplay into baseq2rtxp.
+- [X] Get some custom weapon models so we can implement some new gameplay into baseq2rtxp.
 
 And here a list of things that I keep an eye out and/or may (fail multiple times-) try and implement sooner or later:
 - [ ] Implement libRmlUI properly and replace the HUDs, and all menu's with it. This allows for each game to easily adjust their UI to be distinct of its own.
@@ -93,3 +93,11 @@ And here a list of things that I keep an eye out and/or may (fail multiple times
 - [ ] Research and implement Vulkan support for explosion/hit decals.
 - [ ] Research and implement Vulkan support for debug shapes rendering.
 - [ ] Research and implement Vulkan support for textured particle effects.
+
+## General Ideas:
+- [ ] Weapon Recoil Scale Factors:
+	- 1. Each stance has its min/max spread scale variables.
+	- 2. Motion(velocity thus), scaled the spread.
+	- 3. Crouching, does not scale with velocity, and by default lowers the spread scale largely.
+	- 4. Optional: Angular spread, the faster your mouse is, the spread rises.
+	- 5. Gun Weight -> Influence player movement speed scale.

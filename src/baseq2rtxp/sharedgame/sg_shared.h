@@ -142,9 +142,12 @@ static constexpr int32_t STAT_WEAPON_ITEM = ( STATS_GAME_OFFSET + 18 );
 static constexpr int32_t STAT_WEAPON_CLIP_AMMO = ( STATS_GAME_OFFSET + 19 );
 //! The icon of the clip ammo to display.
 static constexpr int32_t STAT_WEAPON_CLIP_AMMO_ICON = ( STATS_GAME_OFFSET + 20 );
+//! Current recoil of the weapon, used to determine crosshair size with.
+static constexpr int32_t STAT_WEAPON_RECOIL = ( STATS_GAME_OFFSET + 21 );
+
 /**
 *	@brief	Flags of the client's active weapon's st ate.
 **/
-static constexpr int32_t STAT_WEAPON_FLAGS = ( STATS_GAME_OFFSET + 21 );
+static constexpr int32_t STAT_WEAPON_FLAGS = ( STATS_GAME_OFFSET + 22 );
 //! Indicates that the client has engaged, and is engaging into 'precision aim' mode.
 static constexpr int32_t STAT_WEAPON_FLAGS_IS_AIMING = BIT( 0 );

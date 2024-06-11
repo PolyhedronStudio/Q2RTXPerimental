@@ -28,3 +28,18 @@ static inline const float SHORT2ANGLE( const int s ) {
 static inline const float SHORT2COORD( const int s ) {
 	return ( ( s ) * ( 1.0f / 8 ) );
 }
+
+/**
+*   @brief	Encodes the float to an int8_t, having a limit of: -32/+32
+**/
+static inline const int8_t OFFSET2CHAR( float f ) {
+	clamp( f, -32, 127.0f / 4 );
+	return (int8_t)( f * 4.f );
+}
+/**
+*   @brief	Encodes the "blend" float to an uint8_t, range(0 = 0, 1 = 255).
+**/
+static inline const uint8_t BLEND2BYTE( float f ) {
+	clamp( f, 0.f, 1.f );
+	return (uint8_t)( f * 255.f );
+}

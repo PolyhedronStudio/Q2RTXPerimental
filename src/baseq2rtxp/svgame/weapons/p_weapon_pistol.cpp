@@ -84,8 +84,10 @@ weapon_item_info_t pistolItemInfo = {
     // TODO: Move quantity etc from gitem_t into this struct.
 };
 
-static constexpr float PRIMARY_FIRE_BULLET_HSPREAD = 300.f;
-static constexpr float PRIMARY_FIRE_BULLET_VSPREAD = 300.f;
+static constexpr float PRIMARY_FIRE_BULLET_MIN_HSPREAD = 225.f;
+static constexpr float PRIMARY_FIRE_BULLET_MIN_VSPREAD = 225.f;
+static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD = 950.f;
+static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD = 950.f;
 
 static constexpr float SECONDARY_FIRE_BULLET_HSPREAD = 50.f;
 static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
@@ -101,27 +103,37 @@ static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
 *   @brief  Supplements the Primary Firing routine by actually performing a 'single bullet' shot.
 **/
 void weapon_pistol_primary_fire( edict_t *ent ) {
-    Vector3     start;
-    Vector3     forward, right;
+    // Default damage value.
     int         damage = 10;
+    // Default kickback force.
     int         kick = 8;
 
     // TODO: These are already calculated, right?
     // Calculate angle vectors.
+    Vector3 forward = {}, right = { };
     QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
     // Determine shot kick offset.
     VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
-    vec3_t shotOffset = { 0, 10, (float)ent->viewheight - 5.5f };
-    P_ProjectDistance( ent, ent->s.origin, shotOffset, &forward.x, &right.x, &start.x );
+    Vector3 shotOffset = { 0, 10, (float)ent->viewheight - 5.5f };
+    Vector3 start = {};
+    P_ProjectDistance( ent, ent->s.origin, &shotOffset.x, &forward.x, &right.x, &start.x );
+
+    // Determine spread value determined by weaponState.
+    gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
+    // Make sure we're not in aiming mode.
+    //if ( weaponState->aimState.isAiming == false ) {
+    const float bulletHSpread = PRIMARY_FIRE_BULLET_MIN_HSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD * weaponState->recoil.amount );
+    const float bulletVSpread = PRIMARY_FIRE_BULLET_MIN_VSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD * weaponState->recoil.amount );
+    //}
 
     // Fire the actual bullet itself.
-    fire_bullet( ent, &start.x, &forward.x, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MEANS_OF_DEATH_HIT_PISTOL );
+    fire_bullet( ent, &start.x, &forward.x, damage, kick, bulletHSpread, bulletVSpread, MEANS_OF_DEATH_HIT_PISTOL );
 
     // Project from source to muzzleflash destination.
-    vec3_t muzzleFlashOffset = { 16, 10, (float)ent->viewheight };
-    P_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, &forward.x, &right.x, &start.x );
+    Vector3 muzzleFlashOffset = { 16.f, 10.f, (float)ent->viewheight };
+    P_ProjectDistance( ent, ent->s.origin, &muzzleFlashOffset.x, &forward.x, &right.x, &start.x );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
@@ -140,7 +152,7 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
 /**
 *   @brief  Supplements the Secondary Firing routine by actually performing a more precise 'single bullet' shot.
 **/
-void weapon_pistol_secondary_fire( edict_t *ent ) {
+void weapon_pistol_aim_fire( edict_t *ent ) {
     Vector3      start;
     Vector3      forward, right;
     int         damage = 14;
@@ -224,13 +236,30 @@ static void weapon_pistol_no_ammo( edict_t *ent ) {
 }
 
 /**
+*   @brief  Helper method for primary fire routine.
+**/
+static void Weapon_Pistol_AddRecoil( gclient_t::weapon_state_s *weaponState, const float amount, sg_time_t accumulatedTime ) {
+    // Add accumulated time.
+    weaponState->recoil.accumulatedTime += accumulatedTime;
+    // Increment recoil heavily.
+    weaponState->recoil.amount += amount;
+    // Make sure we can't exceed 1.0 limit.
+    if ( weaponState->recoil.amount >= 1.0f ) {
+        weaponState->recoil.amount = 1.0f;
+    }
+}
+
+/**
 *   @brief  Processes responses to the user input.
 **/
 static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
+    // Acquire weapon state.
+    gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
+
     /**
     *   isAiming Behavior Path:
     **/
-    if ( ent->client->weaponState.aimState.isAiming == true ) {
+    if ( weaponState->aimState.isAiming == true ) {
         /**
         *   Letting go of 'Secondary Fire': "Aim Out" of isAiming Mode:
         **/
@@ -257,7 +286,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     #if 0
                     //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_RELOADING )\n", __func__ );
                     // Exit isAiming mode.
-                    ent->client->weaponState.aimState.isAiming = false;
+                    weaponState->aimState.isAiming = false;
                     // Restore the original FOV.
                     P_ResetPlayerStateFOV( ent->client );
                     // Screen should be lerping back to FOV, engage into reload mode.
@@ -293,19 +322,63 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         if ( ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) /*&& ( ent->client->buttons & BUTTON_ATTACK )*/ ) {
             // Switch to Firing mode if we have Clip Ammo:
             if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
-                P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, false );
+                // Allow for rapidly firing, causing an increase in recoil.
+                const sg_time_t &timeLastPrimaryFire = weaponState->timers.lastPrimaryFire;
+
+                // When a shot is fired right after 75_ms(first 3 frames of the weapon.)
+                sg_time_t timeRecoilStageA = timeLastPrimaryFire + 100_ms;
+                // When a shot is fired right after 150_ms.(after first 3 frames, up to the 6th frame.)
+                sg_time_t timeRecoilStageB = timeLastPrimaryFire + 175_ms;
+                // When a shot is fired right after 150_ms.(after first 3 frames, up to the 6th frame.)
+                sg_time_t timeRecoilStageC = timeLastPrimaryFire + 250_ms;
+                // When a shot is fired right after 150_ms.(350_ms is the last frame of firing.)
+                sg_time_t timeRecoilStageCap = timeLastPrimaryFire + 350_ms;
+
+                // Fire for stage A:
+                if ( level.time >= timeRecoilStageA && level.time < timeRecoilStageB ) {
+                    // Add recoil.
+                    Weapon_Pistol_AddRecoil( weaponState, 0.35f, level.time - timeRecoilStageA );
+                    // Engage FORCEFULLY in another Primary Firing mode.
+                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, true );
+                    // Output total
+                    gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: A [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
+                // Fire for stage B:
+                } else if ( level.time >= timeRecoilStageB && level.time < timeRecoilStageC ) {
+                    // Add recoil.
+                    Weapon_Pistol_AddRecoil( weaponState, 0.25f, level.time - timeRecoilStageA );
+                    // Engage FORCEFULLY in another Primary Firing mode.
+                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, true );
+                    // Output total
+                    gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: B [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );                // Fire for stage C:
+                } else if ( level.time >= timeRecoilStageC && level.time <= timeRecoilStageCap ) {
+                    // Add recoil.
+                    Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageA );
+                    // Engage FORCEFULLY in another Primary Firing mode.
+                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, true );
+                    // Output total
+                    gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: C [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
+                // The player waited long enough to fire steady again:
+                } else {
+                    // Reset recoil.
+                    weaponState->recoil = {};
+                    gi.dprintf( "%s: Pistol is steady firing! [lastPrimaryFire(%llu), level.time(%llu)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
+                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, false );
+                }
             // Attempt to reload otherwise:
             } else {
-                // We need to have enough ammo left to reload with.
+                // Reset recoil.
+                weaponState->recoil = {};
+                // We need to have enough ammo left to reload with:
                 if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
                     P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
+                // Play out of ammo click sound:
                 } else {
-                    // Play out of ammo click sound.
                     weapon_pistol_no_ammo( ent );
                 }
             }
             return;
         }
+
         /**
         *   Reload Button Implementation:
         **/
@@ -333,8 +406,10 @@ void Weapon_Pistol( edict_t *ent ) {
     //    P_Weapon_SwitchMode( ent, WEAPON_MODE_IDLE, pistolAnimationFrames, true );
     //}
 
-    // If IDLE or NOT ANIMATING, process user input.
-    if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE || isDoneAnimating ) {
+    // If IDLE or NOT ANIMATING, or PRIMARY_FIRING, process user input.
+    if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE
+        || ent->client->weaponState.mode == WEAPON_MODE_PRIMARY_FIRING 
+        || isDoneAnimating ) {
         // Respond to user input, which determines whether 
         Weapon_Pistol_ProcessUserInput( ent );
     }
@@ -351,7 +426,7 @@ void Weapon_Pistol( edict_t *ent ) {
                 // Wait out until enough time has passed.
                 if ( ent->client->weaponState.timers.lastAimedFire <= ( level.time + 325_ms ) ) {
                     // Fire the pistol bullet.
-                    weapon_pistol_secondary_fire( ent );
+                    weapon_pistol_aim_fire( ent );
                     // Store the time we last 'primary fired'.
                     ent->client->weaponState.timers.lastAimedFire = level.time;
                 }
@@ -373,12 +448,19 @@ void Weapon_Pistol( edict_t *ent ) {
             // any earlier/double firing.
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 3 ) {
                 // Wait out until enough time has passed.
-                if ( ent->client->weaponState.timers.lastPrimaryFire <= ( level.time + 325_ms ) ) {
+                //if ( ent->client->weaponState.timers.lastPrimaryFire <= ( level.time + 325_ms ) ) {
+                if ( ent->client->weaponState.timers.lastPrimaryFire < level.time ) {
                     // Fire the pistol bullet.
                     weapon_pistol_primary_fire( ent );
                     // Store the time we last 'primary fired'.
                     ent->client->weaponState.timers.lastPrimaryFire = level.time;
                 }
+            }
+
+            // Reset recoil after enough time has passed.
+            if ( ent->client->weaponState.timers.lastPrimaryFire < level.time - 350_ms ) {
+                ent->client->weaponState.recoil.accumulatedTime = sg_time_t::from_ms( 0 );
+                ent->client->weaponState.recoil.amount = 0.f;
             }
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN ) {
             // Set the isAiming state value for aiming specific behavior to true right at the end of its animation.
