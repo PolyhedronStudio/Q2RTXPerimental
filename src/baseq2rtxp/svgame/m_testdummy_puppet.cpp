@@ -78,11 +78,11 @@ void monster_testdummy_puppet_think( edict_t *self ) {
             if ( self->s.frame >= 811 ) {
                 self->s.frame = 811;
             }
-        } else if ( self->s.frame >= 812 && self->s.frame <= 939 ) {
+        } else if ( self->s.frame >= 812 && self->s.frame <= 938 ) {
             // Backward Death 01.
             self->s.frame++;
-            if ( self->s.frame >= 939 ) {
-                self->s.frame = 939;
+            if ( self->s.frame >= 938 ) {
+                self->s.frame = 938;
             }
         }
     }
@@ -145,7 +145,7 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
     self->activator = attacker;
 
     if ( self->s.frame < 523 ) {
-        int32_t deathanim = irandom( 2 );
+        int32_t deathanim = irandom( 3 );
         if ( deathanim == 0 ) {
             self->s.frame = 523;
         } else if ( deathanim == 1 ) {
