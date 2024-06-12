@@ -76,6 +76,7 @@ static inline void entity_update_new( centity_t *ent, const entity_state_t *stat
     // Update the animation frames and time.
     ent->current_frame = ent->last_frame = state->frame;
     ent->frame_servertime = cl.servertime;
+    ent->frame_realtime = cls.realtime;
     // WID: 40hz
 
     // No lerping if teleported, or a BEAM effect entity.
@@ -108,6 +109,7 @@ static inline void entity_update_old( centity_t *ent, const entity_state_t *stat
         }
         ent->current_frame = state->frame;
         ent->frame_servertime = cl.servertime;
+        ent->frame_realtime = cls.realtime;
     }
 
     // Set step height, and server time, if caught stair stepping.

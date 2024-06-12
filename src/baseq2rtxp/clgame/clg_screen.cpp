@@ -175,9 +175,7 @@ void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags,
 *   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
 **/
 const float SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime ) {
-    float alpha;
-    unsigned timeLeft, delta = clgi.GetRealTime() - startTime;
-
+    int64_t delta = clgi.GetRealTime() - startTime;
     if ( delta >= visTime ) {
         return 0;
     }
@@ -187,8 +185,8 @@ const float SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, con
         definiteFadeTime = visTime;
     }
 
-    alpha = 1;
-    timeLeft = visTime - delta;
+    float alpha = 1;
+    int64_t timeLeft = visTime - delta;
     if ( timeLeft < definiteFadeTime ) {
         alpha = (float)timeLeft / definiteFadeTime;
     }

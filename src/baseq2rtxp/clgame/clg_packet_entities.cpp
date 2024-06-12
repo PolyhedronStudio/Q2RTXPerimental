@@ -93,10 +93,35 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *cent, entity_t *ent, entit
     // Only do this for non-brush models, aka alias models.
     if ( !( ent->model & 0x80000000 ) && cent->last_frame != cent->current_frame ) {
         // Calculate back lerpfraction. (10hz.)
-        ent->backlerp = 1.0f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / 100.f );
+        //ent->backlerp = 1.0f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / 100.f );
+        //clamp( ent->backlerp, 0.0f, 1.0f );
+        //ent->frame = cent->current_frame;
+        //ent->oldframe = cent->last_frame;
+        // Calculate back lerpfraction. (40hz.)
+        ent->backlerp = 1.0f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / 25.f );
         clamp( ent->backlerp, 0.0f, 1.0f );
         ent->frame = cent->current_frame;
         ent->oldframe = cent->last_frame;
+
+        // For Skeletal Models:
+        //if ( cent->frame_realtime != 0 ) {
+        //    static constexpr double millisecond = 1e-3f;
+
+        //    int64_t timediff = clgi.GetRealTime() - cent->frame_realtime; //clgi.client->time - prevtime;
+        //    double frame = cent->current_frame + (double)timediff * millisecond * std::max( 40.f, 0.f );
+
+        //    if ( frame >= (double)415 ) {
+        //        frame = 415.f;
+        //    } else if ( frame < 0 ) {
+        //        frame = 0;
+        //    }
+
+        //    double frac = frame - std::floor( frame );
+
+        //    ent->oldframe = (int)frame;
+        //    ent->frame = frame + 1;
+        //    ent->backlerp = 1.f - frac;
+        //}
     }
     // WID: 40hz
 }

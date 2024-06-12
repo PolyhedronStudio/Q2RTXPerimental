@@ -368,7 +368,8 @@ extern "C" { // WID: C++20: extern "C".
 		gi = *import;
 
 		// From Q2RE:
-		FRAME_TIME_S = FRAME_TIME_MS = sg_time_t::from_ms( gi.frame_time_ms );
+        FRAME_TIME_S = sg_time_t::from_sec( gi.frame_time_s );
+        FRAME_TIME_MS = sg_time_t::from_ms( gi.frame_time_ms );
 
 		globals.apiversion = SVGAME_API_VERSION;
 		globals.PreInit = PreInitGame;

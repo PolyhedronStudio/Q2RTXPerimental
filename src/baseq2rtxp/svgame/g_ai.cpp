@@ -317,10 +317,19 @@ void HuntTarget(edict_t *self, bool animate_state = true )
 
 	self->goalentity = self->enemy;
 	if ( animate_state ) {
-		if ( self->monsterinfo.aiflags & AI_STAND_GROUND )
-			self->monsterinfo.stand( self );
-		else
-			self->monsterinfo.run( self );
+        if ( self->monsterinfo.aiflags & AI_STAND_GROUND ) {
+            if ( self->monsterinfo.stand ) {
+                self->monsterinfo.stand( self );
+            } else {
+                gi.bprintf( PRINT_WARNING, "%s: ( self->monsterinfo.stand == nullptr )!\n", __func__ );
+            }
+        } else {
+            if ( self->monsterinfo.run ) {
+                self->monsterinfo.run( self );
+            } else {
+                gi.bprintf( PRINT_WARNING, "%s: ( self->monsterinfo.run == nullptr )!\n", __func__ );
+            }
+        }
 	}
 	VectorSubtract( self->enemy->s.origin, self->s.origin, vec );
 	self->ideal_yaw = QM_Vector3ToYaw( vec );

@@ -51,6 +51,13 @@ extern mmove_t soldier_move_start_run;
 extern mmove_t soldier_move_walk1;
 extern mmove_t soldier_move_walk2;
 
+// <Q2RTXP>:
+extern void SP_monster_testdummy_puppet( edict_t *self );
+extern void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
+extern void monster_testdummy_puppet_think( edict_t *self );
+extern void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+// </Q2RTXP>
+
 extern void actor_attack( edict_t *self );
 extern void actor_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void actor_pain( edict_t *self, edict_t *other, float kick, int damage );
@@ -218,6 +225,11 @@ extern void use_target_splash( edict_t *self, edict_t *other, edict_t *activator
 extern void Use_Target_Tent( edict_t *self, edict_t *other, edict_t *activator );
 extern void walkmonster_start_go( edict_t *self );
 const save_ptr_t save_ptrs[] = {
+	// <Q2RTXP>
+	{ P_die, (void *)monster_testdummy_puppet_die },
+	{ P_think, (void *)monster_testdummy_puppet_think },
+	{ P_touch, (void *)monster_testdummy_puppet_touch },
+	// </Q2RTXP>
 { P_postspawn, (void *)door_postspawn },
 { P_think,  (void*)AngleMove_Begin },
 { P_think,  (void*)AngleMove_Done },

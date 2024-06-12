@@ -369,17 +369,29 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
     if (targ->svflags & SVF_MONSTER) {
         M_ReactToDamage(targ, attacker);
         if (!(targ->monsterinfo.aiflags & AI_DUCKED) && (take)) {
-            targ->pain(targ, attacker, finalKnockBack, take);
-            // nightmare mode monsters don't go into pain frames often
-            if (skill->value == 3)
-                targ->pain_debounce_time = level.time + 5_sec;
+            if ( targ->pain ) {
+                targ->pain( targ, attacker, finalKnockBack, take );
+                // nightmare mode monsters don't go into pain frames often
+                if ( skill->value == 3 )
+                    targ->pain_debounce_time = level.time + 5_sec;
+            } else {
+                gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
+            }
         }
     } else if (client) {
-        if (!(targ->flags & FL_GODMODE) && (take))
-            targ->pain(targ, attacker, finalKnockBack, take);
+        if ( !( targ->flags & FL_GODMODE ) && ( take ) ) {
+            if ( targ->pain ) {
+                targ->pain( targ, attacker, finalKnockBack, take );
+            } else {
+                gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
+            }
+        }
     } else if (take) {
-        if (targ->pain)
-            targ->pain(targ, attacker, finalKnockBack, take);
+        if ( targ->pain ) {
+            targ->pain( targ, attacker, finalKnockBack, take );
+        } else {
+            gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
+        }
     }
 
     // add to the damage inflicted on a player this frame

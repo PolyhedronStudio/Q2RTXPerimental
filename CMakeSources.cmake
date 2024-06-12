@@ -286,10 +286,13 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/g_turret.cpp
 	baseq2rtxp/svgame/g_utils.cpp
 	baseq2rtxp/svgame/g_weapon.cpp
+
 	baseq2rtxp/svgame/m_actor.cpp
 	baseq2rtxp/svgame/m_infantry.cpp
 	baseq2rtxp/svgame/m_move.cpp
 	baseq2rtxp/svgame/m_soldier.cpp
+	baseq2rtxp/svgame/m_testdummy_puppet.cpp
+
 	baseq2rtxp/svgame/p_client.cpp
 	baseq2rtxp/svgame/p_hud.cpp
 	baseq2rtxp/svgame/p_trail.cpp

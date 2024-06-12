@@ -168,6 +168,8 @@ typedef struct centity_s {
 	int32_t	current_frame, last_frame;
 	// Server Time of receiving the current frame.
 	int64_t	frame_servertime;
+	// Real Time of receiving the current frame.
+	int64_t frame_realtime;
 
 	// Server Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
 	int64_t	step_servertime;

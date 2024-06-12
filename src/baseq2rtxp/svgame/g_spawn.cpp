@@ -61,6 +61,10 @@ typedef struct {
 * 
 * 
 **/
+// <Q2RTXP>:
+void SP_monster_testdummy_puppet( edict_t *self );
+// </Q2RTXP>
+
 void SP_item_health(edict_t *self);
 void SP_item_health_small(edict_t *self);
 void SP_item_health_large(edict_t *self);
@@ -151,6 +155,9 @@ void SP_turret_driver(edict_t *self);
 *   @brief  Hooks up the entity classnames with their corresponding spawn functions.
 **/
 static const spawn_func_t spawn_funcs[] = {
+    // <Q2RTXP>
+    { "monster_testdummy_puppet", SP_monster_testdummy_puppet },
+    // </Q2RTXP>
     {"item_health", SP_item_health},
     {"item_health_small", SP_item_health_small},
     {"item_health_large", SP_item_health_large},

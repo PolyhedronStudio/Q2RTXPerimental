@@ -229,6 +229,9 @@ static const bool weapon_pistol_reload_clip( edict_t *ent ) {
 *   @brief  Will play out of ammo sound.
 **/
 static void weapon_pistol_no_ammo( edict_t *ent ) {
+    // Reset recoil.
+    ent->client->weaponState.recoil = {};
+
     if ( level.time >= ent->client->weaponState.timers.lastEmptyWeaponClick ) {
         gi.sound( ent, CHAN_VOICE, gi.soundindex( "weapons/pistol/noammo.wav" ), 1, ATTN_NORM, 0 );
         ent->client->weaponState.timers.lastEmptyWeaponClick = level.time + 75_ms;
@@ -361,13 +364,15 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                 } else {
                     // Reset recoil.
                     weaponState->recoil = {};
+
                     gi.dprintf( "%s: Pistol is steady firing! [lastPrimaryFire(%llu), level.time(%llu)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
                     P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, false );
                 }
             // Attempt to reload otherwise:
             } else {
                 // Reset recoil.
-                weaponState->recoil = {};
+                ent->client->weaponState.recoil = {};
+
                 // We need to have enough ammo left to reload with:
                 if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
                     P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
@@ -383,6 +388,9 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         *   Reload Button Implementation:
         **/
         if ( ent->client->latched_buttons & BUTTON_RELOAD ) {
+            // Reset recoil.
+            ent->client->weaponState.recoil = {};
+
             // We need to have enough ammo left to reload with.
             if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
                 P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
