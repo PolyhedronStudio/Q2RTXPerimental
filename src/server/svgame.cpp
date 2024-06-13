@@ -24,35 +24,41 @@ svgame_export_t    *ge;
 
 static void PF_configstring(int index, const char *val);
 
-static const int64_t PF_GetServerFrameNumber() {
-    return sv.framenum;
-}
-/*
-================
-PF_FindIndex
+//! Loaded model handles.
+qhandle_t sv_loaded_model_handles[ MAX_MODELS ];
 
-================
-*/
-static int PF_FindIndex( const char *name, int start, int max, int skip, const char *func ) {
+/**
+*   @brief  Will return the index if it was already registered, otherwise determine whether to load server sided
+*           data for it and pass on the configstring registration change to be broadcasted.
+**/
+static int PF_FindLoadIndex( const char *name, int start, int max, int skip, const char *func ) {
 	char *string;
 	int i;
 
-	if ( !name || !name[ 0 ] )
-		return 0;
+    // Ensure we got a valid name to work with.
+    if ( !name || !name[ 0 ] ) {
+        return 0;
+    }
 
+    // Check if it has been 'indexed' before already.
 	for ( i = 1; i < max; i++ ) {
+        // Skip:
 		if ( i == skip ) {
 			continue;
 		}
+        // Fetch string.
 		string = sv.configstrings[ start + i ];
+        // Break if nothing.
 		if ( !string[ 0 ] ) {
 			break;
 		}
+        // Return index in case of a match(It has been 'indexed' and loaded before.)
 		if ( !strcmp( string, name ) ) {
 			return i;
 		}
 	}
 
+    // Error out if we're overloading the configstring cache.
 	if ( i == max ) {
 		//if ( g_features->integer & GMF_ALLOW_INDEX_OVERFLOW ) {
 		//	Com_DPrintf( "%s(%s): overflow\n", func, name );
@@ -61,24 +67,38 @@ static int PF_FindIndex( const char *name, int start, int max, int skip, const c
 		Com_Error( ERR_DROP, "%s(%s): overflow", func, name );
 	}
 
+    // Determine whether we're dealing with a model:
+    if ( start == CS_MODELS ) {
+        if ( name ) {
+            const size_t strl = strlen( name );
+            if ( strl >= 4 && !strcmp( name + ( strl - 4 ), ".iqm" ) ) {
+                sv_loaded_model_handles[ i ] = SV_RegisterModel( name );
+            }
+        }
+    }
+
+    // Proceed to apply(and possibly broadcast) the new config string.
 	PF_configstring( i + start, name );
 
+    // Return index.
 	return i;
 }
 
+
+
 static int PF_ModelIndex(const char *name)
 {
-    return PF_FindIndex(name, CS_MODELS, MAX_MODELS, MODELINDEX_PLAYER,  __func__);
+    return PF_FindLoadIndex(name, CS_MODELS, MAX_MODELS, MODELINDEX_PLAYER,  __func__);
 }
 
 static int PF_SoundIndex(const char *name)
 {
-    return PF_FindIndex(name, CS_SOUNDS, MAX_SOUNDS, 0, __func__);
+    return PF_FindLoadIndex(name, CS_SOUNDS, MAX_SOUNDS, 0, __func__);
 }
 
 static int PF_ImageIndex(const char *name)
 {
-    return PF_FindIndex(name, CS_IMAGES, MAX_IMAGES, 0, __func__);
+    return PF_FindLoadIndex(name, CS_IMAGES, MAX_IMAGES, 0, __func__);
 }
 
 /*
@@ -350,7 +370,7 @@ static void PF_setmodel(edict_t *ent, const char *name)
 }
 
 /**
-*	@brief	If game is actively running, broadcasts configstring change.
+*	@brief	Apply configstring change, and if the game is actively running, broadcasts the configstring change.
 **/
 static void PF_configstring(int index, const char *val)
 {
@@ -726,20 +746,45 @@ static void PF_DebugGraph(float value, int color)
 {
 }
 
-//==============================================
+/**
+*   @return Server Frame Number..
+**/
+static const int64_t PF_GetServerFrameNumber() {
+    return sv.framenum;
+}
 
+/**
+*   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
+**/
+struct model_s *PF_GetModelDataForName( const char *name ) {
+    return SV_Models_Find( name );
+}
+/**
+*   @return Pointer to model data matching the resource handle, otherwise a (nullptr) on failure.
+**/
+struct model_s *PF_GetModelDataForHandle( const qhandle_t handle ) {
+    return SV_Models_ForHandle( sv_loaded_model_handles[ handle ] );
+}
+
+/**
+*
+* 
+* 
+*   Progs Loading:
+* 
+* 
+* 
+**/
+//! Pointer to loaded .dll/.so file.
 static void *game_library;
 
 // WID: C++20: Typedef this for casting
 typedef svgame_export_t*(GameEntryFunctionPointer(svgame_import_t*));
-/*
-===============
-SV_ShutdownGameProgs
 
-Called when either the entire server is being killed, or
-it is changing to a different game directory.
-===============
-*/
+/**
+*   @brief  Called when either the entire server is being killed, or
+*           it is changing to a different game directory.
+**/
 void SV_ShutdownGameProgs(void)
 {
     if (ge) {
@@ -754,7 +799,9 @@ void SV_ShutdownGameProgs(void)
 
     //Z_LeakTest(TAG_FREE);
 }
-
+/**
+*   @brief
+**/
 static GameEntryFunctionPointer *_SV_LoadGameLibrary(const char *path)
 {
     void *entry;
@@ -767,7 +814,9 @@ static GameEntryFunctionPointer *_SV_LoadGameLibrary(const char *path)
 
     return ( GameEntryFunctionPointer* )( entry ); // WID: GCC Linux hates static cast here.
 }
-
+/**
+*   @brief  
+**/
 static GameEntryFunctionPointer *SV_LoadGameLibrary(const char *game, const char *prefix)
 {
     char path[MAX_OSPATH];
@@ -798,13 +847,9 @@ static GameEntryFunctionPointer *SV_LoadGameLibrary(const char *game, const char
     return _SV_LoadGameLibrary(path);
 }
 
-/*
-===============
-SV_InitGameProgs
-
-Init the game subsystem for a new map
-===============
-*/
+/**
+*   @brief  Init the game subsystem for a new map
+**/
 void SV_InitGameProgs(void) {
     svgame_import_t   import;
 	GameEntryFunctionPointer *entry = NULL;
@@ -862,6 +907,9 @@ void SV_InitGameProgs(void) {
 
     import.inPVS = PF_inPVS;
     import.inPHS = PF_inPHS;
+
+    import.GetModelDataForName = PF_GetModelDataForName;
+    import.GetModelDataForHandle = PF_GetModelDataForHandle;
 
     import.modelindex = PF_ModelIndex;
     import.soundindex = PF_SoundIndex;

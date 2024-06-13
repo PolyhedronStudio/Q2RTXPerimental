@@ -88,7 +88,14 @@ static model_t *MOD_Find(const char *name)
 
 static void MOD_List_f(void)
 {
-    static const char types[4] = "FASE";
+    static const char *types[ 5 ] =
+    {
+        "Free",
+        "Alias",
+        "Sprite",
+        "Empty"
+    };
+
     int     i, count;
     model_t *model;
     size_t  bytes;
@@ -100,7 +107,7 @@ static void MOD_List_f(void)
         if (!model->type) {
             continue;
         }
-        Com_Printf("%c %8zu : %s\n", types[model->type],
+        Com_Printf("(Type: %s) %8zu : %s\n", types[model->type],
                    model->hunk.mapped, model->name);
         bytes += model->hunk.mapped;
         count++;
@@ -478,7 +485,7 @@ static void MOD_PutTest_f(void)
 void MOD_Init(void)
 {
     Q_assert(!r_numModels);
-    Cmd_AddCommand("modellist", MOD_List_f);
+    Cmd_AddCommand("r_modellist", MOD_List_f);
     Cmd_AddCommand("puttest", MOD_PutTest_f);
 
     // Path to the test model - can be an .md2, .md3 or .iqm file
@@ -494,7 +501,7 @@ void MOD_Init(void)
 void MOD_Shutdown(void)
 {
     MOD_FreeAll();
-    Cmd_RemoveCommand("modellist");
+    Cmd_RemoveCommand("r_modellist");
     Cmd_RemoveCommand("puttest");
 }
 

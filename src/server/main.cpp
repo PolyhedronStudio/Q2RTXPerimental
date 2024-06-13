@@ -2018,10 +2018,14 @@ Only called at quake2.exe startup, not for each game
 ===============
 */
 void SV_Init(void) {
+    // Initialize operator commands.
     SV_InitOperatorCommands();
-
+    // Register savegames.
     SV_RegisterSavegames();
+    // Initialize model cache system.
+    SV_Models_Init();
 
+    // Initialize core cvars.
     Cvar_Get("protocol", STRINGIFY(PROTOCOL_VERSION_Q2RTXPERIMENTAL), CVAR_SERVERINFO | CVAR_ROM);
     Cvar_Get("skill", "1", CVAR_LATCH);
 	// WID: gamemode
@@ -2127,7 +2131,6 @@ void SV_Init(void) {
 #if USE_SYSCON
     SV_SetConsoleTitle();
 #endif
-
     sv_registered = true;
 }
 
@@ -2207,6 +2210,9 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
     SV_FinalMessage(finalmsg, type);
     SV_MasterShutdown();
     SV_ShutdownGameProgs();
+
+    // Free all models.
+    SV_Models_Shutdown();
 
     // free current level
     CM_FreeMap(&sv.cm);

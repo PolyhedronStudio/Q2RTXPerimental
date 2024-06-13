@@ -157,7 +157,11 @@ typedef struct {
 
     void (* q_noreturn q_printf(1, 2) error)(const char *fmt, ...);
 
-    // the *index functions create configstrings and some internal server state.
+    //! Get access to the actual pointer of a loaded configstring model.
+    struct model_s *( *GetModelDataForName )( const char *name );
+    struct model_s *( *GetModelDataForHandle )( const qhandle_t handle );
+
+    // the *index functions create configstrings(precache iqm models) and some internal server state.
 	// these are sent over to the client 
     int (*modelindex)(const char *name);
     int (*soundindex)(const char *name);

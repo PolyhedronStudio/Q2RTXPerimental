@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "g_local.h"
+#include "refresh/shared_types.h"
 
 //! For when dummy is standing straight up.
 static constexpr Vector3 DUMMY_BBOX_STANDUP_MINS = { -16.f, -16.f, 0.f };
@@ -55,6 +56,58 @@ void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *pl
     M_walkmove( self, direction, distance );
 }
 
+/**
+*   @brief  Thinking routine.
+**/
+void monster_testdummy_puppet_post_spawn( edict_t *self ) {
+    //
+    // Test GetModelData functions:
+    //
+    const char *modelname = self->model;
+    const model_t *model_forname = gi.GetModelDataForName( modelname );
+    const model_t *model_forhandle = gi.GetModelDataForHandle( self->s.modelindex );
+    if ( model_forname ) {
+        gi.dprintf( "%s: testdummy(#%i), model_forname(%s)\n", __func__, self->s.number, model_forname->name );
+    }
+    if ( model_forhandle ) {
+        gi.dprintf( "%s: testdummy(#%i), model_forhandle(#%i, %s)\n", __func__, self->s.number, self->s.modelindex, model_forhandle->name );
+    }
+
+    //
+    // Iterate over all IQM animations and print out its information.
+    //
+
+    if ( model_forname ) {
+        iqm_model_t *iqmModel = model_forname->iqmData;
+        if ( iqmModel ) {
+            // IQM Anim Count.
+            const int32_t numOfAnimations = iqmModel->num_animations;
+            // Iterate anim count times.
+            for ( int32_t i = 0; i < numOfAnimations; i++ ) {
+                iqm_anim_t *iqmAnimation = &iqmModel->animations[ i ];
+
+                if ( iqmAnimation ) {
+                    const char *animationName = iqmAnimation->name;
+                    const int32_t animationFirstFrame = iqmAnimation->first_frame;
+                    const int32_t animationLastFrame = animationFirstFrame + iqmAnimation->num_frames;
+                    const int32_t animationLoop = iqmAnimation->loop;
+                    gi.dprintf( "%s: testdummy(#%i), animation(#%i), [name='%s', firstFrame(%i), lastFrame(%i), loop(%s)]\n", 
+                        __func__, self->s.number, i,
+                        animationName,
+                        animationFirstFrame,
+                        animationLastFrame,
+                        animationLoop ? "true" : "false"
+                        );
+                } else {
+                    gi.dprintf( "%s: testdummy(#%i), animation(#%i), UNKNOWN ANIMATION.\n", __func__, self->s.number, i );
+                }
+            }
+        }
+    }
+}
+/**
+*   @brief  Thinking routine.
+**/
 void monster_testdummy_puppet_think( edict_t *self ) {
     // Make sure to fall to floor.
     M_droptofloor( self );
@@ -213,6 +266,8 @@ void SP_monster_testdummy_puppet( edict_t *self ) {
     // Think:
     self->think = monster_testdummy_puppet_think;
     self->nextthink = level.time + 20_hz;
+    // PostSpawn.
+    self->postspawn = monster_testdummy_puppet_post_spawn;
 
     gi.linkentity( self );
 }

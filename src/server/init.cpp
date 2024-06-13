@@ -106,6 +106,9 @@ void SV_SpawnServer(mapcmd_t *cmd)
     SV_SendClientMessages();
     SV_SendAsyncPackets();
 
+    // Free unused loaded up models.
+    SV_Models_FreeAll();
+
     // free current level
     CM_FreeMap( &sv.cm );
 
@@ -157,7 +160,10 @@ void SV_SpawnServer(mapcmd_t *cmd)
     //
     SV_ClearWorld();
 
-
+    //
+    // Increment registration sequence.
+    //
+    SV_Models_IncrementRegistrationSequence();
 
     //
     // spawn the rest of the entities on the map
@@ -374,6 +380,10 @@ void SV_InitGame()
         CM_FreeMap(&sv.cm);
         memset(&sv, 0, sizeof(sv));
     }
+    
+    // Shutdown and reinitialize model system.
+    SV_Models_Shutdown();
+    SV_Models_Init();
 
 	// Ensure gamemode is properly prepared to be set.
 	Cvar_Get( "gamemode", "0", CVAR_SERVERINFO | CVAR_LATCH );

@@ -376,10 +376,13 @@ SET(HEADERS_CLIENT
 #
 #
 SET(SRC_SERVER
+	refresh/model_iqm.c
+
 	server/commands.cpp
 	server/entities.cpp
 	server/init.cpp
 	server/main.cpp
+	server/models.cpp
 	server/send.cpp
 	server/svgame.cpp
 	server/user.cpp
@@ -420,6 +423,7 @@ SET(SRC_COMMON
 	common/math.cpp
 	common/mdfour.cpp
 	common/messaging.cpp
+	common/modelcache.cpp
 	#common/pmove.cpp
 	common/prompt.cpp
 	common/sizebuf.cpp
@@ -445,6 +449,30 @@ SET(HEADERS_COMMON
 	common/net/inet_ntop.h
 	common/net/inet_pton.h
 	common/net/win.h
+
+	${CMAKE_SOURCE_DIR}/inc/common/async.h
+	${CMAKE_SOURCE_DIR}/inc/common/bsp.h
+	${CMAKE_SOURCE_DIR}/inc/common/cmd.h
+	${CMAKE_SOURCE_DIR}/inc/common/collisionmodel.h
+	${CMAKE_SOURCE_DIR}/inc/common/common.h
+	${CMAKE_SOURCE_DIR}/inc/common/cvar.h
+	${CMAKE_SOURCE_DIR}/inc/common/error.h
+	${CMAKE_SOURCE_DIR}/inc/common/field.h
+	${CMAKE_SOURCE_DIR}/inc/common/fifo.h
+	${CMAKE_SOURCE_DIR}/inc/common/files.h
+	${CMAKE_SOURCE_DIR}/inc/common/halffloat.h
+	${CMAKE_SOURCE_DIR}/inc/common/huffman.h
+	${CMAKE_SOURCE_DIR}/inc/common/intreadwrite.h
+	${CMAKE_SOURCE_DIR}/inc/common/math.h
+	${CMAKE_SOURCE_DIR}/inc/common/mdfour.h
+	${CMAKE_SOURCE_DIR}/inc/common/messaging.h
+	${CMAKE_SOURCE_DIR}/inc/common/modelcache.h
+	${CMAKE_SOURCE_DIR}/inc/common/prompt.h
+	${CMAKE_SOURCE_DIR}/inc/common/protocol.h
+	${CMAKE_SOURCE_DIR}/inc/common/sizebuf.h
+	${CMAKE_SOURCE_DIR}/inc/common/tests.h
+	${CMAKE_SOURCE_DIR}/inc/common/utils.h
+	${CMAKE_SOURCE_DIR}/inc/common/zone.h
 )
 
 

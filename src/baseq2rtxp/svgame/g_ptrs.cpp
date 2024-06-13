@@ -56,6 +56,7 @@ extern void SP_monster_testdummy_puppet( edict_t *self );
 extern void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void monster_testdummy_puppet_think( edict_t *self );
 extern void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+extern void monster_testdummy_puppet_post_spawn( edict_t *self );
 // </Q2RTXP>
 
 extern void actor_attack( edict_t *self );
@@ -229,6 +230,7 @@ const save_ptr_t save_ptrs[] = {
 	{ P_die, (void *)monster_testdummy_puppet_die },
 	{ P_think, (void *)monster_testdummy_puppet_think },
 	{ P_touch, (void *)monster_testdummy_puppet_touch },
+	{ P_postspawn, (void *)monster_testdummy_puppet_post_spawn },
 	// </Q2RTXP>
 { P_postspawn, (void *)door_postspawn },
 { P_think,  (void*)AngleMove_Begin },
