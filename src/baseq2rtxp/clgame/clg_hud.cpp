@@ -439,9 +439,9 @@ void CLG_HUD_DrawLineCrosshair( ) {
 **/
 void CLG_HUD_DrawCrosshair( void ) {
     // Only display if enabled.
-    if ( !hud_crosshair->integer || !precache.hud.crosshair_pic ) {
-        return;
-    }
+    //if ( !hud_crosshair->integer || !precache.hud.crosshair_pic ) {
+    //    return;
+    //}
 
     // Don't show when 'is aiming' weapon mode is true.
     if ( clgi.client->predictedState.currentPs.stats[ STAT_WEAPON_FLAGS ] & STAT_WEAPON_FLAGS_IS_AIMING ) {
@@ -449,11 +449,12 @@ void CLG_HUD_DrawCrosshair( void ) {
     }
 
     // Determine the type of crosshair(pic based, or line based.)
-    #if 1
-    CLG_HUD_DrawLineCrosshair( );
-    #else
-    CLG_HUD_DrawPicCrosshair( );
-    #endif
+    if ( hud_crosshair->integer <= 0 || !precache.hud.crosshair_pic ) {
+        CLG_HUD_DrawLineCrosshair();
+    } else {
+        CLG_HUD_DrawPicCrosshair();
+    }
+
     //! WID: Seemed a cool idea, but, I really do not like it lol.
     #if 0
         // Draw crosshair damage displays.

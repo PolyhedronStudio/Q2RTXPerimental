@@ -103,10 +103,16 @@ static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
 *   @brief  Supplements the Primary Firing routine by actually performing a 'single bullet' shot.
 **/
 void weapon_pistol_primary_fire( edict_t *ent ) {
+    // Get weapon state.
+    gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
     // Default damage value.
-    int         damage = 10;
+    static constexpr int32_t damage = 10;
+    // Additional recoil kick force strength.
+    static constexpr float additionalKick = 2;
+    // Get recoil amount.
+    const float recoilAmount = weaponState->recoil.amount;
     // Default kickback force.
-    int         kick = 8;
+    const float kick = 8 + ( additionalKick * recoilAmount );
 
     // TODO: These are already calculated, right?
     // Calculate angle vectors.
@@ -121,11 +127,10 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     P_ProjectDistance( ent, ent->s.origin, &shotOffset.x, &forward.x, &right.x, &start.x );
 
     // Determine spread value determined by weaponState.
-    gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
     // Make sure we're not in aiming mode.
     //if ( weaponState->aimState.isAiming == false ) {
-    const float bulletHSpread = PRIMARY_FIRE_BULLET_MIN_HSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD * weaponState->recoil.amount );
-    const float bulletVSpread = PRIMARY_FIRE_BULLET_MIN_VSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD * weaponState->recoil.amount );
+    const float bulletHSpread = PRIMARY_FIRE_BULLET_MIN_HSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD * recoilAmount );
+    const float bulletVSpread = PRIMARY_FIRE_BULLET_MIN_VSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD * recoilAmount );
     //}
 
     // Fire the actual bullet itself.
@@ -344,7 +349,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     // Engage FORCEFULLY in another Primary Firing mode.
                     P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, true );
                     // Output total
-                    gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: A [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
+                    //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: A [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
                 // Fire for stage B:
                 } else if ( level.time >= timeRecoilStageB && level.time < timeRecoilStageC ) {
                     // Add recoil.
@@ -352,20 +357,20 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     // Engage FORCEFULLY in another Primary Firing mode.
                     P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, true );
                     // Output total
-                    gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: B [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );                // Fire for stage C:
+                    //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: B [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );                // Fire for stage C:
                 } else if ( level.time >= timeRecoilStageC && level.time <= timeRecoilStageCap ) {
                     // Add recoil.
                     Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
                     P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, true );
                     // Output total
-                    gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: C [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
+                    //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: C [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
                 // The player waited long enough to fire steady again:
                 } else {
                     // Reset recoil.
                     weaponState->recoil = {};
 
-                    gi.dprintf( "%s: Pistol is steady firing! [lastPrimaryFire(%llu), level.time(%llu)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
+                    //gi.dprintf( "%s: Pistol is steady firing! [lastPrimaryFire(%llu), level.time(%llu)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
                     P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, false );
                 }
             // Attempt to reload otherwise:
