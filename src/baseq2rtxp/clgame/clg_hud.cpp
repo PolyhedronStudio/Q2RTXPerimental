@@ -34,12 +34,14 @@ static struct {
     struct {
         // Colors.
         static constexpr uint32_t ORANGE = MakeColor( 255, 150, 100, 255 );
+        static constexpr uint32_t RED = MakeColor( 255, 50, 30, 255 );
         static constexpr uint32_t LESS_WHITE = MakeColor( 220, 220, 220, 75 );
         static constexpr uint32_t WHITE = MakeColor( 255, 255, 255, 255 );
     } colors;
+
     //! Crosshair information.
     struct {
-        int32_t     width = 0, height = 0;
+        int32_t     pic_width = 0, pic_height = 0;
         color_t     color = (color_t)U32_WHITE;
 
         //! For recoil display scaling.
@@ -75,13 +77,11 @@ static struct {
 *   @brief  Will use the amount of health to indicate the crosshair's color.
 **/
 void CLG_HUD_SetCrosshairColorByHealth() {
-    int health;
-
     if ( !ch_health->integer ) {
         return;
     }
 
-    health = clgi.client->frame.ps.stats[ STAT_HEALTH ];
+    const int32_t health = clgi.client->frame.ps.stats[ STAT_HEALTH ];
     if ( health <= 0 ) {
         VectorSet( hud.crosshair.color.u8, 0, 0, 0 );
         return;
@@ -143,14 +143,14 @@ static void scr_crosshair_changed( cvar_t *self ) {
 
         // prescale
         const float crosshairScale = clgi.CVar_ClampValue( ch_scale, 0.1f, 9.0f );
-        hud.crosshair.width = crosshairWidth;// *crosshairScale;
-        hud.crosshair.height = crosshairHeight;// *crosshairScale;
+        hud.crosshair.pic_width = crosshairWidth;// *crosshairScale;
+        hud.crosshair.pic_height = crosshairHeight;// *crosshairScale;
         // Force it to have a width in case GetPicSize fails somehow.
-        if ( hud.crosshair.width < 1 ) {
-            hud.crosshair.width = 1;
+        if ( hud.crosshair.pic_width < 1 ) {
+            hud.crosshair.pic_width = 1;
         }
-        if ( hud.crosshair.height < 1 ) {
-            hud.crosshair.height = 1;
+        if ( hud.crosshair.pic_height < 1 ) {
+            hud.crosshair.pic_height = 1;
         }
 
         // Update crosshair colors.
@@ -298,23 +298,16 @@ static void CLG_HUD_DrawCrosshairLine( const uint32_t backGroundX, const uint32_
 *
 **/
 /**
-*   @brief  Renders a pic based crosshair.
+*   @brief  Updates the hud's recoil status based on old/current frame difference and returns
+*           the lerpFracion to use for scaling the recoil display.
+*   @return Lerpfrac between last and current weapon recoil.
 **/
-void CLG_HUD_DrawPicCrosshair( ) {
-    // This is the 'BASE' scale of the crosshair, which is when it is at rest meaning
-    // it has zero influence of recoil.
-    const float crosshairUserScale = clgi.CVar_ClampValue( ch_scale, 0.1f, 9.0f );
-
-    // Calculate actual base size of crosshair.
-    constexpr float crosshairBaseScale = 0.5f;
-    float crosshairWidth = hud.crosshair.width * ( crosshairBaseScale );
-    float crosshairHeight = hud.crosshair.height * ( crosshairBaseScale );
+const float CLG_HUD_UpdateRecoilScale() {
+    // Miliseconds for lerping to additional scale size.
+    static constexpr int32_t SCALE_TIME = 25;
 
     // Calculate the crosshair scale based on the recoil's value, lerp it over 25ms.
-    static constexpr int32_t SCALE_TIME = 25;
-    //if ( clgi.GetRealTime() - recoilTime <= SCALE_TIME ) {
-    const float lerpFrac = QM_Clampf( (float)( clgi.GetRealTime() - hud.crosshair.recoil.changeTime ) / ( 1.0f / (float)SCALE_TIME ), 0, 1 ); //QM_Clampf( ( (float)( clgi.GetRealTime() - recoilTime ) / ( (float)SCALE_TIME ) ), 0.f, 1.f );
-    //}
+    const float lerpFrac = QM_Clampf( (float)( clgi.GetRealTime() - hud.crosshair.recoil.changeTime ) / ( 1.0f / (float)SCALE_TIME ), 0.f, 1.f );
 
     // Refresh the current frame and old frame recoil values.
     hud.crosshair.recoil.lastStatsValue = clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ];
@@ -329,15 +322,34 @@ void CLG_HUD_DrawPicCrosshair( ) {
     hud.crosshair.recoil.currentScaledValue = BYTE2BLEND( hud.crosshair.recoil.currentStatsValue );
     hud.crosshair.recoil.lastScaledValue = BYTE2BLEND( hud.crosshair.recoil.lastStatsValue );
 
+    // Return lerpfracion.
+    return lerpFrac;
+}
+/**
+*   @brief  Renders a pic based crosshair.
+**/
+void CLG_HUD_DrawPicCrosshair( ) {
+    // This is the 'BASE' scale of the crosshair, which is when it is at rest meaning
+    // it has zero influence of recoil.
+    //const float crosshairUserScale = clgi.CVar_ClampValue( ch_scale, 0.1f, 9.0f );
+
+    // Calculate actual base size of crosshair.
+    constexpr float crosshairBaseScale = 0.5f;
+    float crosshairWidth = hud.crosshair.pic_width * ( crosshairBaseScale );
+    float crosshairHeight = hud.crosshair.pic_height * ( crosshairBaseScale );
+
+    // Lerp fraction of recoil scale.
+    const float lerpFrac = CLG_HUD_UpdateRecoilScale( );
+
     // Additional up/down scaling for recoil effect display.
     const float additionalScaleW = QM_Clampf( ( hud.crosshair.recoil.currentScaledValue + ( lerpFrac * ( hud.crosshair.recoil.currentScaledValue - hud.crosshair.recoil.lastScaledValue ) ) ), 0.f, 1.f );
     const float additionalScaleH = QM_Clampf( ( hud.crosshair.recoil.currentScaledValue + ( lerpFrac * ( hud.crosshair.recoil.currentScaledValue - hud.crosshair.recoil.lastScaledValue ) ) ), 0.f, 1.f );
 
     // Developer Debug:
-    if ( hud.crosshair.recoil.currentStatsValue != hud.crosshair.recoil.lastStatsValue ) {
-        clgi.Print( PRINT_DEVELOPER, "%s: additionalScaleW(%f), additionalScaleH(%f), lastRecoil(%i), currentRecoil(%i), lerpfrac(%f)\n"
-            , __func__, additionalScaleW, additionalScaleH, hud.crosshair.recoil.lastStatsValue, hud.crosshair.recoil.currentStatsValue, lerpFrac );
-    }
+    //if ( hud.crosshair.recoil.currentStatsValue != hud.crosshair.recoil.lastStatsValue ) {
+    //    clgi.Print( PRINT_DEVELOPER, "%s: additionalScaleW(%f), additionalScaleH(%f), lastRecoil(%i), currentRecoil(%i), lerpfrac(%f)\n"
+    //        , __func__, additionalScaleW, additionalScaleH, hud.crosshair.recoil.lastStatsValue, hud.crosshair.recoil.currentStatsValue, lerpFrac );
+    //}
 
     // Calculate final crosshair display width and height.
     //if ( additionalScaleW || additionalScaleH ) {
@@ -369,43 +381,26 @@ void CLG_HUD_DrawLineCrosshair( ) {
 
     // The base scale size of this crosshair.
     static constexpr float crosshairBaseScale = 1.f;
-    // Miliseconds for lerping to additional scale size.
-    static constexpr int32_t SCALE_TIME = 25;
-
-    // Pixel offset from center. ( 12px. )
-    float CROSSHAIR_ABS_CENTER_OFFSET = 6;
+    // Pixel offset from center. ( 4px. )
+    float CROSSHAIR_ABS_CENTER_OFFSET = 4;
     // Default Pixel Height/Width of the Horizontal Lines.
-    float crosshairHorizontalWidth = 10;
+    float crosshairHorizontalWidth = 8;
     float crosshairHorizontalHeight = 2;
     // Default Pixel Height/Width of the Vertical Lines.
     float crosshairVerticalWidth = 2;
-    float crosshairVerticalHeight = 10;
+    float crosshairVerticalHeight = 8;
 
     // Calculate the crosshair scale based on the recoil's value, lerp it over 25ms.
-    const float lerpFrac = QM_Clampf( (float)( clgi.GetRealTime() - hud.crosshair.recoil.changeTime ) / ( 1.0f / (float)SCALE_TIME ), 0.f, 1.f );
-    
-    // Refresh the current frame and old frame recoil values.
-    hud.crosshair.recoil.lastStatsValue = clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ];
-    hud.crosshair.recoil.currentStatsValue = clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ];
-
-    // Update the exact time for lerping crosshair display, which is when the current recoil change took place.
-    if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] != clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
-        hud.crosshair.recoil.changeTime = clgi.GetRealTime();
-    }
-
-    // Decoded floating point recoil scale of current and last frame.
-    hud.crosshair.recoil.currentScaledValue = BYTE2BLEND( hud.crosshair.recoil.currentStatsValue );
-    hud.crosshair.recoil.lastScaledValue = BYTE2BLEND( hud.crosshair.recoil.lastStatsValue );
+    const float lerpFrac = CLG_HUD_UpdateRecoilScale();
 
     // Additional up/down scaling for recoil effect display.
     const float additionalScale = QM_Clampf( ( hud.crosshair.recoil.currentScaledValue + ( lerpFrac * ( hud.crosshair.recoil.currentScaledValue - hud.crosshair.recoil.lastScaledValue ) ) ), 0.f, 1.f );
-    //const float additionalScaleH = QM_Clampf( ( hud.crosshair.recoil.currentScaledValue + ( lerpFrac * ( hud.crosshair.recoil.currentScaledValue - hud.crosshair.recoil.lastScaledValue ) ) ), 0.f, 1.f );
 
-    // Developer Debug:
-    if ( hud.crosshair.recoil.currentStatsValue != hud.crosshair.recoil.lastStatsValue ) {
-        clgi.Print( PRINT_DEVELOPER, "%s: additionalScale(%f), lastRecoil(%i), currentRecoil(%i), lerpfrac(%f)\n"
-            , __func__, additionalScale, hud.crosshair.recoil.lastStatsValue, hud.crosshair.recoil.currentStatsValue, lerpFrac );
-    }
+    //// Developer Debug:
+    //if ( hud.crosshair.recoil.currentStatsValue != hud.crosshair.recoil.lastStatsValue ) {
+    //    clgi.Print( PRINT_DEVELOPER, "%s: additionalScale(%f), lastRecoil(%i), currentRecoil(%i), lerpfrac(%f)\n"
+    //        , __func__, additionalScale, hud.crosshair.recoil.lastStatsValue, hud.crosshair.recoil.currentStatsValue, lerpFrac );
+    //}
 
     // Calculate final crosshair display width and height.
     CROSSHAIR_ABS_CENTER_OFFSET *= 1.f + additionalScale;
@@ -439,7 +434,6 @@ void CLG_HUD_DrawLineCrosshair( ) {
     const int32_t left_y = center_y - ( crosshairHorizontalHeight / 2 ); //center_y - CROSSHAIR_ABS_CENTER_OFFSET + crosshairHorizontalHeight;
     CLG_HUD_DrawCrosshairLine( left_x, left_y, crosshairHorizontalWidth, crosshairHorizontalHeight, hud.colors.LESS_WHITE, hud.colors.WHITE );
 }
-
 /**
 *	@brief  Renders the crosshair to screen.
 **/
@@ -521,7 +515,11 @@ static void CLG_HUD_DrawHealthIndicators() {
     // Draw health name.
     HUD_DrawString( healthNameX, healthNameY, strHealthName.c_str() );
     // Set text color to white.
-    clgi.R_SetColor( hud.colors.WHITE );
+    if ( clgi.client->frame.ps.stats[ STAT_HEALTH ] <= 20 ) {
+        clgi.R_SetColor( hud.colors.RED );
+    } else {
+        clgi.R_SetColor( hud.colors.WHITE );
+    }
     // Draw health value.
     HUD_DrawString( healthX, healthY, strHealth.c_str() );
 
@@ -547,11 +545,6 @@ static void CLG_HUD_DrawAmmoIndicators() {
     if ( !clgi.client->frame.ps.gunindex ) {
         return;
     }
-
-    // Colors.
-    constexpr uint32_t colorOrange = MakeColor( 255, 150, 100, 255 );
-    constexpr uint32_t colorLessWhite = MakeColor( 220, 220, 220, 75 );
-    constexpr uint32_t colorWhite = MakeColor( 255, 255, 255, 255 );
 
     /**
     *   Calculate position and sizes for each indicator item we render.
@@ -605,24 +598,32 @@ static void CLG_HUD_DrawAmmoIndicators() {
     *   Draw Ammo Indicator:
     **/
     // Background with an Outlined Rectangle.
-    CLG_HUD_DrawOutlinedRectangle( ammoBackGroundX, ammoBackGroundY, AMMO_BACKGROUND_WIDTH, AMMO_BACKGROUND_HEIGHT, colorLessWhite, colorWhite );
+    CLG_HUD_DrawOutlinedRectangle( ammoBackGroundX, ammoBackGroundY, AMMO_BACKGROUND_WIDTH, AMMO_BACKGROUND_HEIGHT, hud.colors.LESS_WHITE, hud.colors.WHITE );
     // Set text color to orange.
-    clgi.R_SetColor( colorOrange );
+    clgi.R_SetColor( hud.colors.ORANGE );
     // Draw weapon name.
     HUD_DrawString( weaponNameX, weaponNameY, strWeaponName.c_str() );
 
-    // Set text color to white.
-    clgi.R_SetColor( colorWhite );
+    // Set text color to white/red.
+    if ( clgi.client->frame.ps.stats[ STAT_AMMO ] <= 30 ) {
+        clgi.R_SetColor( hud.colors.RED );
+    } else {
+        clgi.R_SetColor( hud.colors.WHITE );
+    }
     // Draw ammo.
     HUD_DrawString( totalAmmoX, totalAmmoY, strTotalAmmo.c_str() );
 
     // Set text color to orange.
-    clgi.R_SetColor( colorOrange );
+    clgi.R_SetColor( hud.colors.ORANGE );
     // Draw clip ammo.
     HUD_DrawString( separatorX, separatorY, strSeparator.c_str() );
 
-    // Set text color to white.
-    clgi.R_SetColor( colorWhite );
+    // Set text color to white/red.
+    if ( clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] <= 3 ) {
+        clgi.R_SetColor( hud.colors.RED );
+    } else {
+        clgi.R_SetColor( hud.colors.WHITE );
+    }
     // Draw Clip Ammo count.
     HUD_DrawString( clipAmmoX, clipAmmoY, strClipAmmo.c_str() );
 }
