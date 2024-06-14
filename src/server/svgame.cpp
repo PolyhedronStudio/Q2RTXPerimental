@@ -753,16 +753,25 @@ static const int64_t PF_GetServerFrameNumber() {
     return sv.framenum;
 }
 
+
+
+/**
+*
+*
+*   (Skeletal though-) Alias Models:
+*
+*
+**/
 /**
 *   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
 **/
-struct model_s *PF_GetModelDataForName( const char *name ) {
+static struct model_s *PF_GetModelDataForName( const char *name ) {
     return SV_Models_Find( name );
 }
 /**
 *   @return Pointer to model data matching the resource handle, otherwise a (nullptr) on failure.
 **/
-struct model_s *PF_GetModelDataForHandle( const qhandle_t handle ) {
+static struct model_s *PF_GetModelDataForHandle( const qhandle_t handle ) {
     return SV_Models_ForHandle( sv_loaded_model_handles[ handle ] );
 }
 

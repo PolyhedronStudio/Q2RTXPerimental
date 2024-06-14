@@ -332,6 +332,22 @@ const bool CLG_LocalEntity_DispatchSpawn( clg_local_entity_t *lent ) {
 	return true;
 }
 /**
+*	@brief	Calls the localClass 'Spawn' function pointer.
+**/
+const bool CLG_LocalEntity_DispatchPostSpawn( clg_local_entity_t *lent ) {
+	// Need a valid lent and class.
+	if ( !lent || !lent->classLocals ) {
+		return false;
+	}
+
+	// Spawn.
+	if ( lent->postSpawn ) {
+		lent->postSpawn( lent );
+	}
+
+	return true;
+}
+/**
 *	@brief	Calls the localClass 'Think' function pointer.
 **/
 const bool CLG_LocalEntity_DispatchThink( clg_local_entity_t *lent ) {
@@ -493,6 +509,7 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 				// Setup the default entity function callbacks to those supplied by the 'entity class type'.
 				localEntity->precache = classType->callbackPrecache;
 				localEntity->spawn = classType->callbackSpawn;
+				localEntity->postSpawn = classType->callbackPostSpawn;
 				localEntity->think = classType->callbackThink;
 				localEntity->rframe = classType->callbackRFrame;
 				localEntity->prepareRefreshEntity = classType->callbackPrepareRefreshEntity;
@@ -522,6 +539,19 @@ void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_ent
 	} // for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
 }
 
+/**
+*   @brief  Called from CL_Begin, right after finishing precaching. Used for example to access precached data in.
+**/
+void PF_PostSpawnEntities() {
+	// Now that all entities have been precached properly, dispatch their spawn callback functions.
+	for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
+		// Get local entity ptr
+		clg_local_entity_t *localEntity = &clg_local_entities[ i ];
+
+		// Dispatch spawn.
+		CLG_LocalEntity_DispatchPostSpawn( localEntity );
+	} // for ( int32_t i = 0; i < clg_num_local_entities; i++ ) {
+}
 
 
 /**

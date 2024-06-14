@@ -83,6 +83,61 @@ void CLG_misc_model_Spawn( clg_local_entity_t *self ) {
 }
 
 /**
+*	@brief	Sets up the local client model entity.
+**/
+void CLG_misc_model_PostSpawn( clg_local_entity_t *self ) {
+	//
+	// Test GetModelData functions:
+	//
+	const char *modelname = self->model;
+	const qhandle_t model_handle = precache.local_draw_models[ self->locals.modelindex ];
+
+	const model_t *model_forname = clgi.R_GetModelDataForName( modelname );
+	const model_t *model_forhandle = clgi.R_GetModelDataForHandle( model_handle );
+	if ( model_forname ) {
+		clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), model_forname(%s)\n", __func__, self->id, model_forname->name );
+	} else {
+		clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), model_forname(%s) == (nullptr).\n", __func__, self->id, modelname );
+	}
+	if ( model_forhandle ) {
+		clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), model_forhandle(#%i, %s)\n", __func__, self->id, model_handle, model_forhandle->name );
+	} else {
+		clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), model_forhandle(#%i, %s) == (nullptr).\n", __func__, self->id, model_handle, modelname );
+	}
+
+	//
+	// Iterate over all IQM animations and print out its information.
+	//
+	if ( model_forname ) {
+		iqm_model_t *iqmModel = model_forname->iqmData;
+		if ( iqmModel ) {
+			// IQM Anim Count.
+			const int32_t numOfAnimations = iqmModel->num_animations;
+			// Iterate anim count times.
+			for ( int32_t i = 0; i < numOfAnimations; i++ ) {
+				iqm_anim_t *iqmAnimation = &iqmModel->animations[ i ];
+
+				if ( iqmAnimation ) {
+					const char *animationName = iqmAnimation->name;
+					const int32_t animationFirstFrame = iqmAnimation->first_frame;
+					const int32_t animationLastFrame = animationFirstFrame + iqmAnimation->num_frames;
+					const int32_t animationLoop = iqmAnimation->loop;
+					clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), animation(#%i), [name='%s', firstFrame(%i), lastFrame(%i), loop(%s)]\n",
+						__func__, self->id, i,
+						animationName,
+						animationFirstFrame,
+						animationLastFrame,
+						animationLoop ? "true" : "false"
+					);
+				} else {
+					clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), animation(#%i), UNKNOWN ANIMATION.\n", __func__, self->id, i );
+				}
+			}
+		}
+	}
+}
+
+/**
 *	@brief	Think once per local game tick.
 **/
 void CLG_misc_model_Think( clg_local_entity_t *self ) {
@@ -187,6 +242,7 @@ const clg_local_entity_class_t client_misc_model = {
 	.classname = "client_misc_model",
 	.callbackPrecache = CLG_misc_model_Precache,
 	.callbackSpawn = CLG_misc_model_Spawn,
+	.callbackPostSpawn = CLG_misc_model_PostSpawn,
 	.callbackThink = CLG_misc_model_Think,
 	.callbackRFrame = CLG_misc_model_RefreshFrame,
 	.callbackPrepareRefreshEntity = CLG_misc_model_PrepareRefreshEntity,

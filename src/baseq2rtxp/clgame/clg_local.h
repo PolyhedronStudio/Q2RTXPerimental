@@ -294,6 +294,9 @@ typedef void ( *LocalEntityCallback_Precache )( clg_local_entity_t *self, const 
 //! 'Spawn' local entity class function pointer callback.
 //! Called to spawn(prepare) the entity for gameplay.
 typedef void ( *LocalEntityCallback_Spawn )( clg_local_entity_t *self );
+//! 'Spawn' local entity class function pointer callback.
+//! Called to post-spawn(prepare), righta after precaching and spawning.
+typedef void ( *LocalEntityCallback_PostSpawn )( clg_local_entity_t *self );
 //! 'Think' local entity class function pointer callback.
 //! Used for game tick rate logic.
 typedef void ( *LocalEntityCallback_Think )( clg_local_entity_t *self );
@@ -317,6 +320,8 @@ typedef struct clg_local_entity_class_s {
 	LocalEntityCallback_Precache callbackPrecache;
 	//! The spawn function, called once during spawn time(When Begin_f() has finished.).
 	LocalEntityCallback_Spawn callbackSpawn;
+	//! The spawn function, called once during spawn time(When Begin_f() has finished.).
+	LocalEntityCallback_PostSpawn callbackPostSpawn;
 	//! The 'think' method gets called for each client game logic frame.
 	LocalEntityCallback_Think callbackThink;
 	//! The 'rframe' method gets called for each client refresh frame.
@@ -372,6 +377,8 @@ typedef struct clg_local_entity_s {
 	LocalEntityCallback_Precache precache;
 	//! The spawn function, called once during spawn time(When Begin_f() has finished.).
 	LocalEntityCallback_Spawn spawn;
+	//! The spawn function, called once during spawn time(When Begin_f() has finished.).
+	LocalEntityCallback_PostSpawn postSpawn;
 	//! The 'think' method gets called for each client game logic frame.
 	LocalEntityCallback_Think think;
 	//! The 'rframe' method gets called for each client refresh frame.

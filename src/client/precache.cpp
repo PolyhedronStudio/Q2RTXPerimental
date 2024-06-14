@@ -203,6 +203,8 @@ void CL_PrepRefresh(void)
     // the renderer can now free unneeded stuff
     R_EndRegistration();
 
+
+
     // clear any lines of console text
     Con_ClearNotify_f();
 

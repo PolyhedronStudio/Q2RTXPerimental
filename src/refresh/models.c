@@ -69,8 +69,7 @@ static model_t *MOD_Alloc(void)
     return model;
 }
 
-static model_t *MOD_Find(const char *name)
-{
+model_t *MOD_ForName(const char *name) {
     model_t *model;
     int i;
 
@@ -84,6 +83,22 @@ static model_t *MOD_Find(const char *name)
     }
 
     return NULL;
+}
+
+model_t *MOD_ForHandle( qhandle_t h ) {
+    model_t *model;
+
+    if ( !h ) {
+        return NULL;
+    }
+
+    Q_assert( h > 0 && h <= r_numModels );
+    model = &r_models[ h - 1 ];
+    if ( !model->type ) {
+        return NULL;
+    }
+
+    return model;
 }
 
 static void MOD_List_f(void)
@@ -348,7 +363,7 @@ qhandle_t R_RegisterModel(const char *name)
     }
 
     // see if it's already loaded
-    model = MOD_Find(normalized);
+    model = MOD_ForName(normalized);
     if (model) {
         MOD_Reference(model);
         goto done;
@@ -457,23 +472,6 @@ fail2:
 fail1:
     Com_EPrintf("Couldn't load %s: %s\n", normalized, Q_ErrorString(ret));
     return 0;
-}
-
-model_t *MOD_ForHandle(qhandle_t h)
-{
-    model_t *model;
-
-    if (!h) {
-        return NULL;
-    }
-
-    Q_assert(h > 0 && h <= r_numModels);
-    model = &r_models[h - 1];
-    if (!model->type) {
-        return NULL;
-    }
-
-    return model;
 }
 
 static void MOD_PutTest_f(void)

@@ -137,7 +137,10 @@ void CLG_LocalEntity_ParseLocals( clg_local_entity_t *lent, const cm_entity_t *k
 *			precaching context.
 **/
 void PF_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
-
+/**
+*   @brief  Called from CL_Begin, right after finishing precaching. Used for example to access precached data in.
+**/
+void PF_PostSpawnEntities();
 
 
 /**

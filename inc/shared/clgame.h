@@ -691,6 +691,29 @@ typedef struct {
 	**/
 	void ( *Con_SkipNotify )( const qboolean skip );
 
+
+
+	/**
+	*
+	*	(Skeletal though-) Alias Models:
+	*
+	**/
+	/**
+	*   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
+	**/
+	model_t *( *R_GetModelDataForName )( const char *name );
+	/**
+	*   @return Pointer to model data matching the resource handle, otherwise a (nullptr) on failure.
+	**/
+	model_t *( *R_GetModelDataForHandle )( const qhandle_t handle );
+
+
+
+	/**
+	*
+	*	Sprite Models:
+	*
+	**/
 	/**
 	*	@brief
 	**/
@@ -778,6 +801,10 @@ typedef struct {
 	*			precaching context.
 	**/
 	void ( *SpawnEntities )( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
+	/**
+	*   @brief  Called from CL_Begin only, after precache and spawning. Used for example to access precached data with.
+	**/
+	void ( *PostSpawnEntities )( );
 	/**
 	*   @brief  The sound code makes callbacks to the client for entitiy position
 	*           information, so entities can be dynamically re-spatialized.

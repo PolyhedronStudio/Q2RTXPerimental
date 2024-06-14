@@ -1540,6 +1540,23 @@ void CL_SpawnClientEntities() {
 }
 
 /**
+*   @brief  Called from CL_Begin only. Used for example to access precached data in.
+**/
+void CL_PostSpawnClientEntities() {
+    // Refresh ain't initialized, we need it:
+    if ( !cls.ref_initialized ) {
+        return;
+    }
+    // No map loaded:
+    if ( !cl.mapname[ 0 ] ) {
+        return;     // no map loaded
+    }
+
+    // Call upon the client games PostSpawnEntities so it can appropriately post-spawn local client side entities.
+    clge->PostSpawnEntities( );
+}
+
+/**
 *   @brief  Called after all downloads are done. Not used for demos.
 **/
 void CL_Begin(void)
@@ -1552,6 +1569,10 @@ void CL_Begin(void)
     CL_PrepRefresh();
     CL_LoadState(LOAD_SOUNDS);
     CL_RegisterSounds();
+
+    // Post-Spawn local client entities to allow them to access the registered precache data.
+    CL_PostSpawnClientEntities();
+
     // WID: disable LOC: LOC_LoadLocations();
     CL_LoadState(LOAD_NONE);
     cls.state = ca_precached;

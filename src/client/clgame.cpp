@@ -526,6 +526,37 @@ void PF_CL_CheckForVersion( const char *str ) {
 	CL_CheckForVersion( str );
 }
 
+
+
+/**
+*
+*
+*	(Skeletal though-) Alias Models:
+*
+*
+**/
+/**
+*   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
+**/
+static model_t *PF_R_GetModelDataForName( const char *name ) {
+	return MOD_ForName( name );
+}
+/**
+*   @return Pointer to model data matching the resource handle, otherwise a (nullptr) on failure.
+**/
+static model_t *PF_R_GetModelDataForHandle( const qhandle_t handle ) {
+	return MOD_ForHandle( handle );
+}
+
+
+
+/**
+*
+*
+*	Sprite Models:
+*
+*
+**/
 /**
 *	@brief
 **/
@@ -887,6 +918,9 @@ void CL_GM_LoadProgs( void ) {
 	imports.CheckForIP = PF_CL_CheckForIP;
 	imports.CheckForVersion = PF_CL_CheckForVersion;
 	imports.Con_SkipNotify = Con_SkipNotify;
+
+	imports.R_GetModelDataForName = PF_R_GetModelDataForName;
+	imports.R_GetModelDataForHandle = PF_R_GetModelDataForHandle;
 
 	imports.SetSpriteModelVerticality = PF_SetSpriteModelVerticality;
 	imports.GetSpriteModelFrameCount = PF_GetSpriteModelFrameCount;

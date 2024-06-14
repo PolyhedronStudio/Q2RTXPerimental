@@ -53,6 +53,7 @@ void MOD_FreeAll(void);
 void MOD_Init(void);
 void MOD_Shutdown(void);
 
+model_t *MOD_ForName( const char *name );
 model_t *MOD_ForHandle(qhandle_t h);
 qhandle_t R_RegisterModel(const char *name);
 

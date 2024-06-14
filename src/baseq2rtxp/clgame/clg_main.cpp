@@ -493,6 +493,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ClientRefreshFrame = PF_ClientRefreshFrame;
 
 		globals.SpawnEntities = PF_SpawnEntities;
+		globals.PostSpawnEntities = PF_PostSpawnEntities;
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
 
