@@ -701,11 +701,11 @@ typedef struct {
 	/**
 	*   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
 	**/
-	model_t *( *R_GetModelDataForName )( const char *name );
+	const model_t *( *R_GetModelDataForName )( const char *name );
 	/**
 	*   @return Pointer to model data matching the resource handle, otherwise a (nullptr) on failure.
 	**/
-	model_t *( *R_GetModelDataForHandle )( const qhandle_t handle );
+	const model_t *( *R_GetModelDataForHandle )( const qhandle_t handle );
 
 
 

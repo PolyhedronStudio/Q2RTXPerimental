@@ -203,14 +203,14 @@ static void PF_Cvar_Reset( cvar_t *cvar ) {
 /**
 *	@brief	Returns non 0 in case of existance.
 **/
-const int32_t PF_FS_FileExistsEx( const char *path, const uint32_t flags ) {
+static const int32_t PF_FS_FileExistsEx( const char *path, const uint32_t flags ) {
 	return FS_FileExistsEx( path, flags );
 }
 /**
 *	@brief	Loads file into designated buffer. A nul buffer will return the file length without loading.
 *	@return	length < 0 indicates error.
 **/
-const int32_t PF_FS_LoadFile( const char *path, void **buffer ) {
+static const int32_t PF_FS_LoadFile( const char *path, void **buffer ) {
 	return FS_LoadFile( path, buffer );
 }
 
@@ -538,13 +538,13 @@ void PF_CL_CheckForVersion( const char *str ) {
 /**
 *   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
 **/
-static model_t *PF_R_GetModelDataForName( const char *name ) {
+static const model_t *PF_R_GetModelDataForName( const char *name ) {
 	return MOD_ForName( name );
 }
 /**
 *   @return Pointer to model data matching the resource handle, otherwise a (nullptr) on failure.
 **/
-static model_t *PF_R_GetModelDataForHandle( const qhandle_t handle ) {
+static const model_t *PF_R_GetModelDataForHandle( const qhandle_t handle ) {
 	return MOD_ForHandle( handle );
 }
 

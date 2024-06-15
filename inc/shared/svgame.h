@@ -27,6 +27,9 @@ extern "C" {
 
 #include "shared/util_list.h"
 
+// Include needed shared refresh types.
+#include "refresh/shared_types.h"
+
 //
 // svgame.h -- server game dll information visible to server
 //
@@ -158,8 +161,8 @@ typedef struct {
     void (* q_noreturn q_printf(1, 2) error)(const char *fmt, ...);
 
     //! Get access to the actual pointer of a loaded configstring model.
-    struct model_s *( *GetModelDataForName )( const char *name );
-    struct model_s *( *GetModelDataForHandle )( const qhandle_t handle );
+    const model_t *( *GetModelDataForName )( const char *name );
+    const model_t *( *GetModelDataForHandle )( const qhandle_t handle );
 
     // the *index functions create configstrings(precache iqm models) and some internal server state.
 	// these are sent over to the client 
@@ -207,6 +210,25 @@ typedef struct {
     *   @return Pointer to the collision model system's 'null' entity key/pair.
     **/
     const cm_entity_t *( *CM_GetNullEntity )( void );
+
+
+
+    /**
+    *
+    * 
+    *	FileSystem:
+    *
+    *
+    **/
+    /**
+    *	@brief	Returns non 0 in case of existance.
+    **/
+    const int32_t( *FS_FileExistsEx )( const char *path, const uint32_t flags );
+    /**
+    *	@brief	Loads file into designated buffer. A nul buffer will return the file length without loading.
+    *	@return	length < 0 indicates error.
+    **/
+    const int32_t( *FS_LoadFile )( const char *path, void **buffer );
 
 
 

@@ -660,7 +660,9 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
 	// clear multicast buffer
 	SZ_Clear( &msg_write );
 }
-
+/**
+*   @brief
+**/
 static void PF_StartSound(edict_t *entity, int channel,
                           int soundindex, float volume,
                           float attenuation, float timeofs)
@@ -678,7 +680,9 @@ static void PF_StartSound(edict_t *entity, int channel,
 //		ge->PlayerMove(pm, &sv_pmp);
 //    }
 //}
-
+/**
+*   @brief
+**/
 static cvar_t *PF_cvar(const char *name, const char *value, int flags)
 {
     if (flags & CVAR_EXTENDED_MASK) {
@@ -688,12 +692,17 @@ static cvar_t *PF_cvar(const char *name, const char *value, int flags)
 
     return Cvar_Get(name, value, flags | CVAR_GAME);
 }
-
+/**
+*   @brief
+**/
 static void PF_AddCommandString(const char *string)
 {
     Cbuf_AddText(&cmd_buffer, string);
 }
 
+/**
+*   @brief
+**/
 void SV_SendSetPortalBitMessage( const int32_t portalnum, const bool open ) {
     // Wirte Set Portal Bit command.
     MSG_WriteUint8( svc_set_portalbit );
@@ -705,6 +714,9 @@ void SV_SendSetPortalBitMessage( const int32_t portalnum, const bool open ) {
     // Clear multicast buffer
     SZ_Clear( &msg_write );
 }
+/**
+*   @brief
+**/
 static void PF_SetAreaPortalState( const int32_t portalnum, const bool open) {
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
@@ -714,14 +726,18 @@ static void PF_SetAreaPortalState( const int32_t portalnum, const bool open) {
     // Multicast a set portal bit notification to all connected clients.
     SV_SendSetPortalBitMessage( portalnum, open );
 }
-
+/**
+*   @brief
+**/
 static const int32_t PF_GetAreaPortalState( const int32_t portalnum ) {
     if ( !sv.cm.cache ) {
         Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
     }
     return CM_GetAreaPortalState( &sv.cm, portalnum );
 }
-
+/**
+*   @brief   
+**/
 static const qboolean PF_AreasConnected(const int32_t area1, const int32_t area2)
 {
     if (!sv.cm.cache) {
@@ -730,6 +746,37 @@ static const qboolean PF_AreasConnected(const int32_t area1, const int32_t area2
     return CM_AreasConnected(&sv.cm, area1, area2);
 }
 
+
+
+/**
+*
+*
+*	FileSystem:
+*
+*
+**/
+/**
+*	@brief	Returns non 0 in case of existance.
+**/
+static const int32_t PF_FS_FileExistsEx( const char *path, const uint32_t flags ) {
+    return FS_FileExistsEx( path, flags );
+}
+/**
+*	@brief	Loads file into designated buffer. A nul buffer will return the file length without loading.
+*	@return	length < 0 indicates error.
+**/
+static const int32_t PF_FS_LoadFile( const char *path, void **buffer ) {
+    return FS_LoadFile( path, buffer );
+}
+
+
+/**
+*
+*
+*   Tag Malloc:
+* 
+* 
+**/
 static void *PF_TagMalloc(unsigned size, unsigned tag)
 {
     Q_assert(tag <= UINT16_MAX - TAG_MAX);
@@ -765,15 +812,17 @@ static const int64_t PF_GetServerFrameNumber() {
 /**
 *   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
 **/
-static struct model_s *PF_GetModelDataForName( const char *name ) {
+static const model_t *PF_GetModelDataForName( const char *name ) {
     return SV_Models_Find( name );
 }
 /**
 *   @return Pointer to model data matching the resource handle, otherwise a (nullptr) on failure.
 **/
-static struct model_s *PF_GetModelDataForHandle( const qhandle_t handle ) {
+static const model_t *PF_GetModelDataForHandle( const qhandle_t handle ) {
     return SV_Models_ForHandle( sv_loaded_model_handles[ handle ] );
 }
+
+
 
 /**
 *
@@ -904,6 +953,9 @@ void SV_InitGameProgs(void) {
 
     import.CM_EntityKeyValue = CM_EntityKeyValue;
     import.CM_GetNullEntity = CM_GetNullEntity;
+
+    import.FS_FileExistsEx = PF_FS_FileExistsEx;
+    import.FS_LoadFile = PF_FS_LoadFile;
 
     import.linkentity = PF_LinkEdict;
     import.unlinkentity = PF_UnlinkEdict;

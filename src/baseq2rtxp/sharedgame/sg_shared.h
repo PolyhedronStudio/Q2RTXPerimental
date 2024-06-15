@@ -10,6 +10,9 @@
 #include "shared/shared.h"
 #include "shared/util_list.h"
 
+// Include needed shared refresh types.
+#include "refresh/shared_types.h"
+
 //! Define the entity type based on from which game module we're compiling.
 #ifdef CLGAME_INCLUDE
 typedef struct centity_s sgentity_s;
@@ -32,30 +35,112 @@ typedef struct edict_s sgentity_s;
 #include "sg_time.h"
 
 
-/**
+
+/*****************************************************************************************************
 *
+* 
+* 
 *	General Game API that is implemented in /sharedgame/game_bindings. Each game module will compile
 *	with the specific binding to implement these functions.
 * 
+* 
+* 
+*****************************************************************************************************/
+/**
+*
+*	Core:
+*
 **/
 /**
 *	@brief	Wrapper for using the appropriate developer print for the specific game module we're building.
 **/
 void SG_DPrintf( const char *fmt, ... );
 
+
+
+/**
+*
+*	Entities:
+*
+**/
 /**
 *	@brief	Returns the entity number, -1 if invalid(nullptr, or out of bounds).
 **/
 const int32_t SG_GetEntityNumber( sgentity_s *sgent );
 
+
+
+/**
+*
+*	ConfigStrings:
+*
+**/
 /**
 *	@brief	Returns the given configstring that sits at index.
 **/
 configstring_t *SG_GetConfigString( const int32_t configStringIndex );
+
+
+
+/**
+*
+*	CVars:
+*
+**/
 /**
 *	@brief	Wraps around CVar_Get
 **/
 cvar_t *SG_CVar_Get( const char *var_name, const char *value, const int32_t flags );
+
+
+
+/**
+*
+*
+*	FileSystem:
+*
+*
+**/
+/**
+*	@brief	Returns non 0 in case of existance.
+**/
+const int32_t SG_FS_FileExistsEx( const char *path, const uint32_t flags );
+/**
+*	@brief	Loads file into designated buffer. A nul buffer will return the file length without loading.
+*	@return	length < 0 indicates error.
+**/
+const int32_t SG_FS_LoadFile( const char *path, void **buffer );
+
+
+
+/**
+*
+*	Skeletal Model:
+*
+**/
+void SG_SKM_CalculateAnimationTranslations( const model_t *skm, const int32_t rootBoneID, const int32_t axisFlags );
+
+
+
+
+/**
+*
+*	Zone (Tag-)Malloc:
+*
+**/
+/**
+*	@brief
+**/
+void *SG_Z_TagMalloc( const uint32_t size, const uint32_t tag );
+/**
+*	@brief
+**/
+void SG_Z_TagFree( void *block );
+/**
+*	@brief	FreeTags
+**/
+void SG_Z_TagFree( const uint32_t tag );
+
 
 
 /**

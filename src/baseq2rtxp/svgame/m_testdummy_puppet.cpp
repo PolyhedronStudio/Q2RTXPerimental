@@ -158,31 +158,32 @@ void monster_testdummy_puppet_post_spawn( edict_t *self ) {
     // Iterate over all IQM animations and print out its information.
     //
     if ( model_forname ) {
-        iqm_model_t *iqmModel = model_forname->iqmData;
-        if ( iqmModel ) {
-            // IQM Anim Count.
-            const int32_t numOfAnimations = iqmModel->num_animations;
-            // Iterate anim count times.
-            for ( int32_t i = 0; i < numOfAnimations; i++ ) {
-                iqm_anim_t *iqmAnimation = &iqmModel->animations[ i ];
+        //iqm_model_t *iqmModel = model_forname->iqmData;
+        //if ( iqmModel ) {
+        //    // IQM Anim Count.
+        //    const int32_t numOfAnimations = iqmModel->num_animations;
+        //    // Iterate anim count times.
+        //    for ( int32_t i = 0; i < numOfAnimations; i++ ) {
+        //        iqm_anim_t *iqmAnimation = &iqmModel->animations[ i ];
 
-                if ( iqmAnimation ) {
-                    const char *animationName = iqmAnimation->name;
-                    const int32_t animationFirstFrame = iqmAnimation->first_frame;
-                    const int32_t animationLastFrame = animationFirstFrame + iqmAnimation->num_frames;
-                    const int32_t animationLoop = iqmAnimation->loop;
-                    gi.dprintf( "%s: testdummy(#%i), animation(#%i), [name='%s', firstFrame(%i), lastFrame(%i), loop(%s)]\n",
-                        __func__, self->s.number, i,
-                        animationName,
-                        animationFirstFrame,
-                        animationLastFrame,
-                        animationLoop ? "true" : "false"
-                    );
-                } else {
-                    gi.dprintf( "%s: testdummy(#%i), animation(#%i), UNKNOWN ANIMATION.\n", __func__, self->s.number, i );
-                }
-            }
-        }
+        //        if ( iqmAnimation ) {
+        //            const char *animationName = iqmAnimation->name;
+        //            const int32_t animationFirstFrame = iqmAnimation->first_frame;
+        //            const int32_t animationLastFrame = animationFirstFrame + iqmAnimation->num_frames;
+        //            const int32_t animationLoop = ( iqmAnimation->flags & (1 << 0) ) != 0;
+        //            gi.dprintf( "%s: testdummy(#%i), animation(#%i), [name='%s', firstFrame(%i), lastFrame(%i), loop(%s)]\n",
+        //                __func__, self->s.number, i,
+        //                animationName,
+        //                animationFirstFrame,
+        //                animationLastFrame,
+        //                animationLoop ? "true" : "false"
+        //            );
+        //        } else {
+        //            gi.dprintf( "%s: testdummy(#%i), animation(#%i), UNKNOWN ANIMATION.\n", __func__, self->s.number, i );
+        //        }
+        //    }
+        //}
+        SG_SKM_CalculateAnimationTranslations( model_forname, 0, 0 );
     }
 }
 

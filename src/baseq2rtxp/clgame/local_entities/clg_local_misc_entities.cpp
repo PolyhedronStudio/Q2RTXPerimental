@@ -121,7 +121,7 @@ void CLG_misc_model_PostSpawn( clg_local_entity_t *self ) {
 					const char *animationName = iqmAnimation->name;
 					const int32_t animationFirstFrame = iqmAnimation->first_frame;
 					const int32_t animationLastFrame = animationFirstFrame + iqmAnimation->num_frames;
-					const int32_t animationLoop = iqmAnimation->loop;
+					const int32_t animationLoop = ( iqmAnimation->flags & ( 1 << 0 ) ) != 0;
 					clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), animation(#%i), [name='%s', firstFrame(%i), lastFrame(%i), loop(%s)]\n",
 						__func__, self->id, i,
 						animationName,

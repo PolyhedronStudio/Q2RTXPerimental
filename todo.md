@@ -42,6 +42,7 @@ Features being looked forward on implementation.
 	* [ ] CanDamage and functions alike need to be moved into gamemode.
 
 ### Lowest, nearly redundant Priority:
+* [ ] model_iqm.c, needs relocating preferably, also use QM_ maths.
 * [ ] Modify the code so it does not generate ``hulls`` on the fly, but instead set them at ``LinkEntity`` time. 
 	* [ ] Generate and store entity ``hulls`` in their server-side counterpart for later ``collision model`` rework.
 	* [ ] Then for tracing, retreives them from their **client/server** counterpart. In case of the **client** they will be regenerated in case of a ``new`` entity, or general ``bounds changes`` has occured for the **client** entity.

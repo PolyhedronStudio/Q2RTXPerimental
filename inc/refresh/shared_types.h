@@ -84,7 +84,9 @@ typedef struct
 	char name[MAX_QPATH];
 	uint32_t first_frame;
 	uint32_t num_frames;
-	bool loop;
+    float framerate;
+    int32_t flags;
+	//bool loop;
 } iqm_anim_t;
 
 // inter-quake-model

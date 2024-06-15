@@ -28,6 +28,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <refresh/models.h>
 #include <refresh/refresh.h>
 
+
+
+/**
+*
+*
+*	Quaternion/(3x4-)Matrix Maths:
+*
+*
+**/
 static bool IQM_CheckRange(const iqmHeader_t* header, uint32_t offset, uint32_t count, size_t size)
 {
 	// return true if the range specified by offset, count and size
@@ -168,15 +177,18 @@ static vec_t QuatNormalize2(const quat_t v, quat_t out)
 	return length;
 }
 
-// ReSharper disable CppClangTidyClangDiagnosticCastAlign
 
-/*
-=================
-MOD_LoadIQM_Base
 
-Load an IQM model and compute the joint poses for every frame.
-=================
-*/
+/**
+*
+*
+*	IQM Loading:
+*
+*
+**/
+/**
+*	@brief	Load an IQM model and compute the joint poses for every frame.
+**/
 int MOD_LoadIQM_Base(model_t* model, const void* rawdata, size_t length, const char* mod_name)
 {
 	iqm_transform_t* transform;
@@ -761,7 +773,9 @@ int MOD_LoadIQM_Base(model_t* model, const void* rawdata, size_t length, const c
 			
 			dst->first_frame = src->first_frame;
 			dst->num_frames = src->num_frames;
-			dst->loop = (src->flags & IQM_LOOP) != 0;
+			dst->framerate = src->framerate;
+			dst->flags = src->flags;
+			//dst->loop = (src->flags & IQM_LOOP) != 0;
 		}
 	}
 
@@ -771,64 +785,93 @@ fail:
 	return ret;
 }
 
-/*
-=================
-R_ComputeIQMTransforms
 
-Compute matrices for this model, returns [model->num_poses] 3x4 matrices in the (pose_matrices) array
-=================
-*/
-bool R_ComputeIQMTransforms(const iqm_model_t* model, const entity_t* entity, float* pose_matrices)
-{
-	iqm_transform_t relativeJoints[IQM_MAX_JOINTS];
 
-	iqm_transform_t* relativeJoint = relativeJoints;
+/**
+*
+*
+*	IQM Pose Lerp/Transforming:
+*
+*
+**/
+/**
+*	@brief	compute pose transformations for the given model + data
+*			'relativeJoints' must have enough room for model->num_poses
+**/
+void IQM_ComputeRelativeJoints( const iqm_model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, iqm_transform_t *relativeJoints ) {
+	// Keep frame within bounds.
+	const int32_t boundFrame = model->num_frames ? frame % (int32_t)model->num_frames : 0;
+	const int32_t boundOldFrame = model->num_frames ? oldFrame % (int32_t)model->num_frames : 0;
+	
+	// Fetch first joint.
+	iqm_transform_t *relativeJoint = relativeJoints;
 
-	const int frame = model->num_frames ? entity->frame % (int)model->num_frames : 0;
-	const int oldframe = model->num_frames ? entity->oldframe % (int)model->num_frames : 0;
-	const float backlerp = entity->backlerp;
-
-	// copy or lerp animation frame pose
-	if (oldframe == frame)
+	// Copy the animation frame pos.
+	if ( boundFrame == boundOldFrame )
 	{
-		const iqm_transform_t* pose = &model->poses[frame * model->num_poses];
+		const iqm_transform_t* pose = &model->poses[ boundFrame * model->num_poses];
 		for (uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, pose++, relativeJoint++)
 		{
+			#if 0
+			if ( pose_idx == 0 /* model_info->animation->root_bone_id */) {
+				relativeJoint->translate[ 0 ] = 0;
+				relativeJoint->translate[ 1 ] = 0;
+				relativeJoint->translate[ 2 ] = pose->translate[ 2 ];
+				QuatCopy( pose->rotate, relativeJoint->rotate );
+				continue;
+			}
+			#endif
+	
 			VectorCopy(pose->translate, relativeJoint->translate);
 			QuatCopy(pose->rotate, relativeJoint->rotate);
 			VectorCopy(pose->scale, relativeJoint->scale);
 		}
-	}
-	else
-	{
-		const float lerp = 1.0f - backlerp;
-		const iqm_transform_t* pose = &model->poses[frame * model->num_poses];
-		const iqm_transform_t* oldpose = &model->poses[oldframe * model->num_poses];
-		for (uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, oldpose++, pose++, relativeJoint++)
+	// Lerp the animation frame pose.
+	} else {
+		//const float lerp = 1.0f - backlerp;
+		const iqm_transform_t* pose = &model->poses[ boundFrame * model->num_poses];
+		const iqm_transform_t* oldPose = &model->poses[ boundOldFrame * model->num_poses];
+		for (uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, oldPose++, pose++, relativeJoint++)
 		{
-			relativeJoint->translate[0] = oldpose->translate[0] * backlerp + pose->translate[0] * lerp;
-			relativeJoint->translate[1] = oldpose->translate[1] * backlerp + pose->translate[1] * lerp;
-			relativeJoint->translate[2] = oldpose->translate[2] * backlerp + pose->translate[2] * lerp;
-
-			relativeJoint->scale[0] = oldpose->scale[0] * backlerp + pose->scale[0] * lerp;
-			relativeJoint->scale[1] = oldpose->scale[1] * backlerp + pose->scale[1] * lerp;
-			relativeJoint->scale[2] = oldpose->scale[2] * backlerp + pose->scale[2] * lerp;
-
-			QuatSlerp(oldpose->rotate, pose->rotate, lerp, relativeJoint->rotate);
+			#if 0
+			if ( pose_idx == 0 /* model_info->animation->root_bone_id */ ) {
+				relativeJoint->translate[ 0 ] = 0;
+				relativeJoint->translate[ 1 ] = 0;
+				relativeJoint->translate[ 2 ] = oldpose->translate[ 2 ] * backlerp + pose->translate[ 2 ] * lerp;
+				VectorCopy( pose->scale, relativeJoint->scale );
+				QuatCopy( pose->rotate, relativeJoint->rotate );
+				continue;
+			}
+			#endif
+	
+			relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp;
+			relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp;
+			relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+	
+			relativeJoint->scale[0] = oldPose->scale[0] * backLerp + oldPose->scale[0] * frontLerp;
+			relativeJoint->scale[1] = oldPose->scale[1] * backLerp + oldPose->scale[1] * frontLerp;
+			relativeJoint->scale[2] = oldPose->scale[2] * backLerp + oldPose->scale[2] * frontLerp;
+	
+			QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate);
 		}
 	}
+}
 
+/**
+*	@brief	Compute "Local/Model-Space" matrices for the given pose transformations. 
+**/
+void IQM_ComputeLocalSpaceMatricesFromRelative( const iqm_model_t *model, const iqm_transform_t *relativeJoints, float *pose_matrices ) {
 	// multiply by inverse of bind pose and parent 'pose mat' (bind pose transform matrix)
-	relativeJoint = relativeJoints;
+	const iqm_transform_t *relativeJoint = relativeJoints;
 	const int* jointParent = model->jointParents;
 	const float* invBindMat = model->invBindJoints;
 	float* poseMat = pose_matrices;
 	for (uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, relativeJoint++, jointParent++, invBindMat += 12, poseMat += 12)
 	{
 		float mat1[12], mat2[12];
-
+	
 		JointToMatrix(relativeJoint->rotate, relativeJoint->scale, relativeJoint->translate, mat1);
-
+	
 		if (*jointParent >= 0)
 		{
 			Matrix34Multiply(&model->bindJoints[(*jointParent) * 12], mat1, mat2);
@@ -840,6 +883,45 @@ bool R_ComputeIQMTransforms(const iqm_model_t* model, const entity_t* entity, fl
 			Matrix34Multiply(mat1, invBindMat, poseMat);
 		}
 	}
+}
+
+/**
+*	@brief	Compute "World-Space" matrices for the given pose transformations.
+*			This is generally a slower procedure, use carefully.
+**/
+void IQM_ComputeWorldSpaceMatricesFromRelative( const iqm_model_t *model, const iqm_transform_t *relativeJoints, float *pose_matrices ) {
+	// First compute local space pose matrices from the relative joints.
+	IQM_ComputeLocalSpaceMatricesFromRelative( model, relativeJoints, pose_matrices );
+
+	// Calculate the world space pose matrices.
+	float *poseMat = model->bindJoints;
+	float *outPose = pose_matrices;
+
+	for ( size_t i = 0; i < model->num_poses; i++, poseMat += 12, outPose += 12 ) {
+		float inPose[ 12 ];
+		memcpy( inPose, outPose, sizeof( inPose ) );
+		Matrix34Multiply( inPose, poseMat, outPose );
+	}
+}
+
+/**
+*	@brief	Compute matrices for this model, returns [model->num_poses] 3x4 matrices in the (pose_matrices) array
+**/
+bool R_ComputeIQMTransforms( const iqm_model_t *model, const entity_t *entity, float *pose_matrices ) {
+	// Temporary 'mix' buffer.
+	iqm_transform_t relativeJoints[ IQM_MAX_JOINTS ];
+
+	// Pointer to first joint.
+	iqm_transform_t *relativeJoint = relativeJoints;
+
+	// Datat to work with.
+	const int32_t frame = entity->frame;
+	const int32_t oldframe = entity->oldframe;
+	const float backLerp = entity->backlerp;
+	const float frontLerp = 1.0f - backLerp;
+
+	IQM_ComputeRelativeJoints( model, frame, oldframe, frontLerp, backLerp, relativeJoints );
+	IQM_ComputeLocalSpaceMatricesFromRelative( model, relativeJoints, pose_matrices );
 
 	return true;
 }
