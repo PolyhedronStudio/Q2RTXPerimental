@@ -24,6 +24,15 @@ static constexpr Vector3 DUMMY_BBOX_DEAD_MAXS = { 16.f, 16.f, 8.f };
 static constexpr float   DUMMY_VIEWHEIGHT_DEAD = 8.f;
 
 
+//---------------------------
+// <TEMPORARY FOR TESTING>
+//---------------------------
+static sg_skm_rootmotion_set_t rootMotionSet;
+static int32_t animationID = 1; // IDLE(0), RUN_FORWARD_PISTOL(1)
+
+//---------------------------
+// </TEMPORARY FOR TESTING>
+//---------------------------
 
 
 /**
@@ -35,6 +44,14 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
     //self->think = barrel_explode;
     // Set activator.
     self->activator = attacker;
+
+    //---------------------------
+    // <TEMPORARY FOR TESTING>
+    //---------------------------
+
+    //---------------------------
+    // </TEMPORARY FOR TESTING>
+    //---------------------------
 
     if ( self->s.frame < 523 ) {
         int32_t deathanim = irandom( 3 );
@@ -66,7 +83,7 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
 *   @brief  Touched.
 **/
 void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-
+    #if 0
     if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
         return;
     }
@@ -95,6 +112,21 @@ void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *pl
 
     // Perform move.
     M_walkmove( self, direction, distance );
+    #endif
+    //---------------------------
+    // <TEMPORARY FOR TESTING>
+    //---------------------------
+    if ( other && other->client ) {
+        // Assign enemy.
+        self->enemy = other;
+        // Get the root motion.
+        sg_skm_rootmotion_t *rootMotion = &rootMotionSet.rootMotions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
+        // Transition to its animation.
+        self->s.frame = rootMotion->firstFrameIndex;
+    }
+    //---------------------------
+    // </TEMPORARY FOR TESTING>
+    //---------------------------
 }
 
 
@@ -107,10 +139,54 @@ void monster_testdummy_puppet_think( edict_t *self ) {
 
     // Animate.
     if ( self->health > 0 ) {
+        #if 0
         self->s.frame++;
         if ( self->s.frame >= 82 ) {
             self->s.frame = 0;
         }
+        #endif
+        //---------------------------
+        // <TEMPORARY FOR TESTING>
+        //---------------------------
+        if ( self->enemy && self->enemy->client ) {
+            // Get the root motion.
+            sg_skm_rootmotion_t *rootMotion = &rootMotionSet.rootMotions[ 3 ]; // [3] == RUN_FORWARD_PISTOL
+            // Calculate the last frame index.
+            // 
+            // Increment animation.
+            self->s.frame++;
+            if ( self->s.frame == rootMotion->lastFrameIndex ) {
+                self->s.frame = rootMotion->firstFrameIndex;
+            }
+
+            // Calculate the index for the rootmotion animation.
+            int32_t rootMotionFrame = self->s.frame - rootMotion->firstFrameIndex;
+
+            // Get the distance for the frame.
+            float distance = rootMotion->distances[ rootMotionFrame ];
+            // Calculate yaw.
+            float yaw = QM_Vector3ToYaw( 
+                QM_Vector3Normalize( Vector3( self->enemy->s.origin ) - Vector3(self->s.origin) )
+            );
+            //float yaw = QM_Vector3ToYaw(
+            //    Vector3( self->enemy->s.origin ) - Vector3( self->s.origin )
+            //);
+
+            // Turn to ideal yaw.
+            self->ideal_yaw = self->s.angles[ YAW ] = yaw;
+            //// Change yaw.
+            //M_ChangeYaw( self );
+            // Move into yaw direction with animation distance.
+            M_walkmove( self, self->ideal_yaw, distance );
+        } else {
+            self->s.frame++;
+            if ( self->s.frame >= 82 ) {
+                self->s.frame = 0;
+            }
+        }
+        //---------------------------
+        // </TEMPORARY FOR TESTING>
+        //---------------------------
     } else {
         if ( self->s.frame >= 523 && self->s.frame <= 652 ) {
             // Forward Death 01.
@@ -144,6 +220,7 @@ void monster_testdummy_puppet_post_spawn( edict_t *self ) {
     //
     // Test GetModelData functions:
     //
+    #if 0
     const char *modelname = self->model;
     const model_t *model_forname = gi.GetModelDataForName( modelname );
     const model_t *model_forhandle = gi.GetModelDataForHandle( self->s.modelindex );
@@ -158,33 +235,24 @@ void monster_testdummy_puppet_post_spawn( edict_t *self ) {
     // Iterate over all IQM animations and print out its information.
     //
     if ( model_forname ) {
-        //iqm_model_t *iqmModel = model_forname->iqmData;
-        //if ( iqmModel ) {
-        //    // IQM Anim Count.
-        //    const int32_t numOfAnimations = iqmModel->num_animations;
-        //    // Iterate anim count times.
-        //    for ( int32_t i = 0; i < numOfAnimations; i++ ) {
-        //        iqm_anim_t *iqmAnimation = &iqmModel->animations[ i ];
-
-        //        if ( iqmAnimation ) {
-        //            const char *animationName = iqmAnimation->name;
-        //            const int32_t animationFirstFrame = iqmAnimation->first_frame;
-        //            const int32_t animationLastFrame = animationFirstFrame + iqmAnimation->num_frames;
-        //            const int32_t animationLoop = ( iqmAnimation->flags & (1 << 0) ) != 0;
-        //            gi.dprintf( "%s: testdummy(#%i), animation(#%i), [name='%s', firstFrame(%i), lastFrame(%i), loop(%s)]\n",
-        //                __func__, self->s.number, i,
-        //                animationName,
-        //                animationFirstFrame,
-        //                animationLastFrame,
-        //                animationLoop ? "true" : "false"
-        //            );
-        //        } else {
-        //            gi.dprintf( "%s: testdummy(#%i), animation(#%i), UNKNOWN ANIMATION.\n", __func__, self->s.number, i );
-        //        }
-        //    }
-        //}
         SG_SKM_CalculateAnimationTranslations( model_forname, 0, 0 );
     }
+    #endif
+
+    //---------------------------
+    // <TEMPORARY FOR TESTING>
+    //---------------------------
+    const char *modelname = self->model;
+    const model_t *model_forname = gi.GetModelDataForName( modelname );
+    if ( model_forname ) {
+        // Load it just once.
+        if ( rootMotionSet.totalRootMotions == 0 ) {
+            rootMotionSet = SG_SKM_CalculateAnimationTranslations( model_forname, 0, 1 );
+        }
+    }
+    //---------------------------
+    // </TEMPORARY FOR TESTING>
+    //---------------------------
 }
 
 /**

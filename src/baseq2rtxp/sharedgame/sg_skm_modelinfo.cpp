@@ -43,7 +43,7 @@ static constexpr int32_t SKM_POSE_TRANSLATE_Z = ( 1 << 2 );
 
 const float SKM_CalculateFramePoseTranslation( const iqm_model_t *iqmModel, const int32_t frame, const int32_t oldFrame, const int32_t rootBoneID, const uint32_t axisFlags, Vector3 &translation ) {
 	// frame == oldFrame Path:
-	if ( oldFrame == frame ) {
+	if ( oldFrame == frame || oldFrame == -1 ) {
 		// No translation took place.
 		translation = QM_Vector3Zero();
 		// No distance was travered.
@@ -75,6 +75,9 @@ const float SKM_CalculateFramePoseTranslation( const iqm_model_t *iqmModel, cons
 						translation.z = 0;
 					}
 				}
+				if ( frame >= 195 && frame <= 236 ) {
+					int x = 10;
+				}
 				// Determine and return the distance between the two translation vectors.
 				return QM_Vector3Length( translation );
 			}
@@ -91,11 +94,16 @@ const float SKM_CalculateFramePoseTranslation( const iqm_model_t *iqmModel, cons
 /**
 *	@brief
 **/
-void SG_SKM_CalculateAnimationTranslations( const model_t *skm, const int32_t rootBoneID, const int32_t axisFlags ) {
+const sg_skm_rootmotion_set_t SG_SKM_CalculateAnimationTranslations( const model_t *skm, const int32_t rootBoneID, const int32_t axisFlags ) {
+	// The root motion set we'll be operating on.
+	sg_skm_rootmotion_set_t rootMotionSet = {};
+
 	// Ensure the model is valid.
 	if ( !skm || !skm->iqmData ) {
+		// Debug Log.
 		SG_DPrintf( "%s: Invalid skm or skm->iqmData pointer.\n", __func__ );
-		return;
+		// Return empty set.
+		return {};
 	}
 
 	// Access IQM Data.
@@ -111,38 +119,83 @@ void SG_SKM_CalculateAnimationTranslations( const model_t *skm, const int32_t ro
 		// Access the animation.
 		const iqm_anim_t *iqmAnimation = &iqmModel->animations[ i ];
 
+		// Prepare the set for filling.
+		sg_skm_rootmotion_t rootMotion = {
+			.name = iqmAnimation->name,
+			.firstFrameIndex = (int32_t)iqmAnimation->first_frame,
+			.lastFrameIndex = (int32_t)( iqmAnimation->first_frame + iqmAnimation->num_frames ),
+			.frameCount = (int32_t)iqmAnimation->num_frames,
+		};
+
 		// Debug print:
 		SG_DPrintf( "%s:---------------------------------------------------\n", __func__ );
+		// This vector is cleared upon each new animation. It serves as a purpose to accumulate the total distance
+		// traversed up till the end animation. This in turn is used to calculate the distance traversed from the
+		// last to the first frame.
+		Vector3 accumulatedTranslation = QM_Vector3Zero();
+		float accumulatedDistance = 0.f;
+
+		// Last calculated translation and distance.
+		Vector3 translation = {};
+		float distance = 0;
+
+		// Iterate over all its frames.
+		for ( int32_t j = 1; j <= iqmAnimation->num_frames; j++ ) {
+			// First get the actual array frame offset.
+			const int32_t unboundFrame = ( iqmAnimation->first_frame + j );
+			const int32_t unboundOldFrame = ( iqmAnimation->first_frame + j ) - 1;
+
+			// Ensure that the frame is safely in bounds for use with our poses data array.
+			const int32_t boundFrame = iqmModel->num_frames ? unboundFrame % (int32_t)iqmModel->num_frames : 0;
+			const int32_t boundOldFrame = iqmModel->num_frames ? unboundOldFrame % (int32_t)iqmModel->num_frames : 0;
+
+			// When we've reached the end of this animation, only push back the last results.
+			if ( j == iqmAnimation->num_frames ) {
+				// Push back the translation and traversed distance of the last frame..
+				rootMotion.translations.push_back( translation );
+				rootMotion.distances.push_back( distance );
+				// Accumulate the totals.
+				rootMotion.totalTranslation += translation;
+				rootMotion.totalDistance += distance;
+			// Otherwise:
+			} else {
+				// Calculate translation and distance between each frame pose:
+				distance = SKM_CalculateFramePoseTranslation( iqmModel, boundFrame, boundOldFrame, rootBoneID, axisFlags, translation );
+				// Push back the translation and traversed distance.
+				rootMotion.translations.push_back( translation );
+				rootMotion.distances.push_back( distance );
+				// Accumulate the totals.
+				rootMotion.totalTranslation += translation;
+				rootMotion.totalDistance += distance;
+			}		
+		}
+
+		// Push the motion data into the list.
+		rootMotionSet.rootMotions.push_back( rootMotion );
 
 		// Iterate over all its frames.
 		for ( int32_t j = 0; j < iqmAnimation->num_frames; j++ ) {
 			// First get the actual array frame offset.
-			const int32_t unboundFrame = ( iqmAnimation->first_frame + j );
+			const int32_t unboundFrame = ( j );
+			const int32_t unboundOldFrame = ( j ) + ( j > 0 ? -1 : 0 );
 
 			// Ensure that the frame is safely in bounds for use with our poses data array.
-			const int32_t boundFrame = iqmModel->num_frames ? unboundFrame % (int32_t)iqmModel->num_frames : 0;
-			// If the unbound frame == 0, then that means the oldFrame == this animation's last frame.
-			// However, it will take the entire sum of all translations together in order to have a value to
-			// subtract with.
-			// 
-			// TODO: Figure this aspect out in a few.
-			int32_t boundOldFrame = boundFrame;
-			if ( boundFrame >= 1 ) {
-				boundOldFrame = iqmModel->num_frames ? ( unboundFrame - 1 ) % (int32_t)iqmModel->num_frames : 0;
-			}
+			const int32_t boundFrame = iqmModel->num_frames ? unboundFrame % (int32_t)( iqmAnimation->num_frames ) : 0;
+			const int32_t boundOldFrame = iqmModel->num_frames ? unboundOldFrame % (int32_t)( iqmAnimation->num_frames ) : 0;
 
-			// Calculate the translation vector and its covering distance to traverse.
-			Vector3 translation = {};
-			const float distance = SKM_CalculateFramePoseTranslation( iqmModel, boundFrame, boundOldFrame, rootBoneID, axisFlags, translation );
+			const Vector3 translation = rootMotion.translations[ boundFrame ];
+			const float distance = rootMotion.distances[ boundFrame ];
 
 			// Debug print:
-			SG_DPrintf( "%s: animation(#%i, %s), frame(#%i), oldFrame(%i), rootBone[name:%s, translation(%f, %f, %f), distance(%f)]\n", 
+			SG_DPrintf( "%s: animation(#%i, %s), boundOldFrame(%i), boundFrame(#%i), rootBone[ name(%s), translation(%f, %f, %f), distance(%f) ]\n",
 				__func__,
 				i, iqmAnimation->name,
-				boundFrame, boundOldFrame,
+				boundOldFrame, boundFrame,
 				rootBoneName,
 				translation.x, translation.y, translation.z,
 				distance );
 		}
 	}
+
+	return rootMotionSet;
 }

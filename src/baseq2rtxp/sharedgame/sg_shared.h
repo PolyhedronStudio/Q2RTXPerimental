@@ -31,6 +31,7 @@ typedef struct edict_s sgentity_s;
 #include "sg_muzzleflashes_monsters.h"
 #include "sg_pmove.h"
 #include "sg_pmove_slidemove.h"
+#include "sg_skm_modelinfo.h"
 #include "sg_tempentity_events.h"
 #include "sg_time.h"
 
@@ -118,7 +119,7 @@ const int32_t SG_FS_LoadFile( const char *path, void **buffer );
 *	Skeletal Model:
 *
 **/
-void SG_SKM_CalculateAnimationTranslations( const model_t *skm, const int32_t rootBoneID, const int32_t axisFlags );
+const sg_skm_rootmotion_set_t SG_SKM_CalculateAnimationTranslations( const model_t *skm, const int32_t rootBoneID, const int32_t axisFlags );
 
 
 
