@@ -206,14 +206,35 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 vel *= QM_Vector3Normalize( entvel );
             }
 
-            mm_touch_trace_list_t touch_traces;
+            //mm_touch_trace_list_t touch_traces;
+            //
+            //int32_t blockedMask = SVG_MMove_StepSlideMove( org, vel, 1, self->mins, self->maxs, self, touch_traces, true );
+            //if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
+            //    VectorCopy( org, self->s.origin );
+            //    VectorCopy( vel, self->velocity );
+            //    gi.linkentity( self );
+            //}
+            mm_move_t monsterMove = {
+                .monsterEntity = self,
+                .origin = self->s.origin,
+                .velocity = vel,
+                .previousOrigin = self->s.origin,
+                .mins = self->mins,
+                .maxs = self->maxs,
+                .frameTime = 1,
+                .moveFlags = ( self->groundentity ? PMF_ON_GROUND : 0 ),
+            };
 
-            int32_t blockedMask = SVG_MMove_StepSlideMove( org, vel, 1, self->mins, self->maxs, self, touch_traces, true );
-            if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
-                VectorCopy( org, self->s.origin );
-                VectorCopy( vel, self->velocity );
-                gi.linkentity( self );
+            SVG_MMove_StepSlideMove( &monsterMove );
+
+            if ( monsterMove.step.height != 0 ) {
+                self->s.renderfx |= RF_STAIR_STEP;
             }
+            //if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
+                VectorCopy( monsterMove.origin, self->s.origin );
+                VectorCopy( monsterMove.velocity, self->velocity );
+                gi.linkentity( self );
+            //}
         } else {
             self->s.frame++;
             if ( self->s.frame >= 82 ) {

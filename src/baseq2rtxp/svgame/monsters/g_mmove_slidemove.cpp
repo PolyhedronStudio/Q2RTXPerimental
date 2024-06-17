@@ -84,7 +84,7 @@ void SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const int32_t SVG_MMove_StepSlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time ) {
+const int32_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time ) {
 	Vector3 dir = {};
 
 	Vector3 planes[ MM_MAX_CLIP_PLANES ] = {};

@@ -63,7 +63,7 @@ static constexpr int32_t MM_SLIDEMOVEFLAG_PLANE_TOUCHED = BIT( 4 );
 /**
 *
 *
-*   Monster Move Touch Traces:
+*   Monster Move:
 *
 *
 **/
@@ -75,6 +75,42 @@ typedef struct mm_touch_trace_list_s {
     uint32_t numberOfTraces;
     trace_t traces[ MM_MAX_TOUCH_TRACES ];
 } mm_touch_trace_list_t;
+
+/**
+*   @brief  Structure going in and out of the monster move process.
+**/
+typedef struct mm_move_s {
+    //! [in]: Monster entity.
+    edict_t *monsterEntity;
+
+    //! [In/Out] Origin.
+    Vector3 origin;
+    //! [In/Out] Velocity.
+    Vector3 velocity;
+    //! [In/Out]:
+    Vector3 previousOrigin;
+    //! [In]: Bounds.
+    Vector3 mins, maxs;
+
+    //! [In]: Frametime.
+    float frameTime;
+
+    //! [In]:
+    qboolean isJumping;
+
+    //! [In/Out]:
+    int32_t moveFlags;
+
+    //! [Out]: Touch Traces.
+    mm_touch_trace_list_t touchTraces;
+    //! [Out]:
+    struct {
+        //! If clipped to stair.
+        qboolean clipped;
+        //! Height of step.
+        float height;
+    } step;
+} mm_move_t;
 
 
 
@@ -103,3 +139,11 @@ const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const 
 *
 *
 **/
+/**
+*	@brief	Each intersection will try to step over the obstruction instead of
+*			sliding along it.
+*
+*			Returns a new origin, velocity, and contact entity
+*			Does not modify any world state?
+**/
+const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove );

@@ -29,4 +29,4 @@ void SVG_MMove_RegisterTouchTrace( mm_touch_trace_list_t &touchTraceList, trace_
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const int32_t SVG_MMove_StepSlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time );
+const int32_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time );
