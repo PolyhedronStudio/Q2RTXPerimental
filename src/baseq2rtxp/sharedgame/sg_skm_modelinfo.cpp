@@ -56,35 +56,29 @@ const float SKM_CalculateFramePoseTranslation( const iqm_model_t *iqmModel, cons
 		return 0.f;
 	// frame != oldFrame Path:
 	} else {
-		// Poses to determine the translation and distance travered from.
-		const iqm_transform_t *pose = &iqmModel->poses[ frame * iqmModel->num_poses ];
-		const iqm_transform_t *oldPose = &iqmModel->poses[ oldFrame * iqmModel->num_poses ];
+		// Pose to determine the translation and distance travered from.
+		const iqm_transform_t *pose = &iqmModel->poses[ frame * iqmModel->num_poses ] + rootBoneID;
+		const iqm_transform_t *oldPose = &iqmModel->poses[ oldFrame * iqmModel->num_poses ] + rootBoneID;
 
-		// Iterate over all 'poses' to find the specific root bone we want to know the translation about.
-		for ( uint32_t pose_idx = 0; pose_idx < iqmModel->num_poses; pose_idx++, oldPose++, pose++ ) {
-			// We found the root bone pose transform(s).
-			if ( pose_idx == rootBoneID ) {
-				// Get their translation vector.
-				const Vector3 poseTranslate = pose->translate;
-				const Vector3 oldPoseTranslate = oldPose->translate;
-				// Determine the actual translation:
-				translation = poseTranslate - oldPoseTranslate;
-				// If we got flags passed in, zero out translation for either of the flags that is missing.
-				if ( axisFlags ) {
-					if ( !( axisFlags & SKM_POSE_TRANSLATE_X ) ) {
-						translation.x = 0;
-					}
-					if ( !( axisFlags & SKM_POSE_TRANSLATE_Y ) ) {
-						translation.y = 0;
-					}
-					if ( !( axisFlags & SKM_POSE_TRANSLATE_Z ) ) {
-						translation.z = 0;
-					}
-				}
-				// Determine and return the distance between the two translation vectors.
-				return QM_Vector3Length( translation );
+		// Get their translation vector.
+		const Vector3 poseTranslate = pose->translate;
+		const Vector3 oldPoseTranslate = oldPose->translate;
+		// Determine the actual translation:
+		translation = poseTranslate - oldPoseTranslate;
+		// If we got flags passed in, zero out translation for either of the flags that is missing.
+		if ( axisFlags ) {
+			if ( !( axisFlags & SKM_POSE_TRANSLATE_X ) ) {
+				translation.x = 0;
+			}
+			if ( !( axisFlags & SKM_POSE_TRANSLATE_Y ) ) {
+				translation.y = 0;
+			}
+			if ( !( axisFlags & SKM_POSE_TRANSLATE_Z ) ) {
+				translation.z = 0;
 			}
 		}
+		// Determine and return the distance between the two translation vectors.
+		return QM_Vector3Length( translation );
 	}
 
 	// No translation was found.
