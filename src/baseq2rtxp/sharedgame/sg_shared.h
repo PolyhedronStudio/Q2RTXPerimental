@@ -119,7 +119,10 @@ const int32_t SG_FS_LoadFile( const char *path, void **buffer );
 *	Skeletal Model:
 *
 **/
-const sg_skm_rootmotion_set_t SG_SKM_CalculateAnimationTranslations( const model_t *skm, const int32_t rootBoneID, const int32_t axisFlags );
+/**
+*	@brief
+**/
+const sg_skm_rootmotion_set_t SG_SKM_GenerateRootMotionSet( const model_t *skm, const int32_t rootBoneID, const int32_t axisFlags );
 
 
 

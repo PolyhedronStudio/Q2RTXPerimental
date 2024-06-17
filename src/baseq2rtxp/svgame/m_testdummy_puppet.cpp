@@ -118,7 +118,7 @@ void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *pl
     //---------------------------
     if ( other && other->client ) {
         // Assign enemy.
-        self->enemy = other;
+        self->activator = other;
         // Get the root motion.
         sg_skm_rootmotion_t *rootMotion = &rootMotionSet.rootMotions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
         // Transition to its animation.
@@ -135,7 +135,9 @@ void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *pl
 **/
 void monster_testdummy_puppet_think( edict_t *self ) {
     // Make sure to fall to floor.
-    M_droptofloor( self );
+    if ( !self->activator ) {
+        M_droptofloor( self );
+    }
 
     // Animate.
     if ( self->health > 0 ) {
@@ -148,7 +150,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
         //---------------------------
         // <TEMPORARY FOR TESTING>
         //---------------------------
-        if ( self->enemy && self->enemy->client ) {
+        if ( self->activator && self->activator->client ) {
             // Get the root motion.
             sg_skm_rootmotion_t *rootMotion = &rootMotionSet.rootMotions[ 3 ]; // [3] == RUN_FORWARD_PISTOL
             // Calculate the last frame index.
@@ -166,11 +168,14 @@ void monster_testdummy_puppet_think( edict_t *self ) {
             float distance = rootMotion->distances[ rootMotionFrame ];
             // Calculate yaw.
             float yaw = QM_Vector3ToYaw( 
-                QM_Vector3Normalize( Vector3( self->enemy->s.origin ) - Vector3(self->s.origin) )
+                QM_Vector3Normalize( Vector3( self->activator->s.origin ) - Vector3(self->s.origin) )
             );
             //float yaw = QM_Vector3ToYaw(
             //    Vector3( self->enemy->s.origin ) - Vector3( self->s.origin )
             //);
+
+            // Scale distance speed a bit.
+            
 
             // Turn to ideal yaw.
             self->ideal_yaw = self->s.angles[ YAW ] = yaw;
@@ -235,7 +240,7 @@ void monster_testdummy_puppet_post_spawn( edict_t *self ) {
     // Iterate over all IQM animations and print out its information.
     //
     if ( model_forname ) {
-        SG_SKM_CalculateAnimationTranslations( model_forname, 0, 0 );
+        SG_SKM_GenerateRootMotionSet( model_forname, 0, 0 );
     }
     #endif
 
@@ -247,7 +252,7 @@ void monster_testdummy_puppet_post_spawn( edict_t *self ) {
     if ( model_forname ) {
         // Load it just once.
         if ( rootMotionSet.totalRootMotions == 0 ) {
-            rootMotionSet = SG_SKM_CalculateAnimationTranslations( model_forname, 0, 1 );
+            rootMotionSet = SG_SKM_GenerateRootMotionSet( model_forname, 0, 1 );
         }
     }
     //---------------------------

@@ -7,7 +7,7 @@
 ********************************************************************/
 #pragma once
 
-static constexpr float MIN_STEP_NORMAL = 0.7f;    // can't step up onto very steep slopes
+static constexpr float PM_MIN_STEP_NORMAL = 0.7f;    // can't step up onto very steep slopes
 static constexpr int32_t MAX_CLIP_PLANES = 16;
 
 /**

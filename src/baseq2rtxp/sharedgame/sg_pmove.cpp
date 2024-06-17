@@ -300,7 +300,7 @@ static bool PM_CheckStep( const trace_t *trace ) {
 	// If not solid:
 	if ( !trace->allsolid ) {
 		// If trace clipped to an entity and the plane we hit its normal is sane for stepping:
-		if ( trace->ent && trace->plane.normal[2] >= MIN_STEP_NORMAL) {
+		if ( trace->ent && trace->plane.normal[2] >= PM_MIN_STEP_NORMAL) {
 			// We just traversed a step of sorts.
 			return true;
 		}
@@ -399,7 +399,7 @@ static void PM_StepSlideMove() {
 	const float down_dist = ( downOrigin.x - startOrigin.x ) * ( downOrigin.y - startOrigin.y ) + ( downOrigin.y - startOrigin.y ) * ( downOrigin.y - startOrigin.y );
 	const float up_dist = ( up.x - startOrigin.x ) * ( up.x - startOrigin.x ) + ( up.y - startOrigin.y ) * ( up.y - startOrigin.y );
 
-	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < MIN_STEP_NORMAL ) {
+	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL ) {
 		pml.origin = downOrigin;
 		pml.velocity = downVelocity;
 	}
@@ -1015,7 +1015,7 @@ static void PM_CategorizePosition() {
 		// wedged between a slope and a wall (which is irrecoverable
 		// most of the time), we'll allow the player to "stand" on
 		// slopes if they are right up against a wall
-		bool slanted_ground = trace.fraction < 1.0f && trace.plane.normal[ 2 ] < MIN_STEP_NORMAL;
+		bool slanted_ground = trace.fraction < 1.0f && trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL;
 
 		if ( slanted_ground ) {
 			Vector3 slantTraceEnd = pml.origin + trace.plane.normal;
@@ -1179,7 +1179,7 @@ static void PM_CheckSpecialMovement() {
 	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, blockTraceEnd, MASK_SOLID );
 
 	// we aren't blocked, or what we're blocked by is something we can walk up
-	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= MIN_STEP_NORMAL ) {
+	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= PM_MIN_STEP_NORMAL ) {
 		return;
 	}
 
@@ -1212,7 +1212,7 @@ static void PM_CheckSpecialMovement() {
 	trace = PM_Trace( waterjump_origin, pm->mins, pm->maxs, snapTraceEnd, MASK_SOLID );
 
 	// Can't stand here.
-	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] < MIN_STEP_NORMAL || trace.endpos[ 2 ] < pml.origin.z ) {
+	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL || trace.endpos[ 2 ] < pml.origin.z ) {
 		return;
 	}
 

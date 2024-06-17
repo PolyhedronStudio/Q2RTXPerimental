@@ -136,7 +136,7 @@ Does not modify any world state?
 const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time ) {
 	Vector3 dir = {};
 
-	Vector3 planes[ MAX_CLIP_PLANES ] = {};
+	Vector3 planes[ PM_MAX_CLIP_PLANES ] = {};
 
 	trace_t	trace = {};
 	Vector3	end = {};
@@ -146,7 +146,7 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 
 	int i = 0, j = 0;
 	int32_t bumpcount = 0;
-	int32_t numbumps = MAX_CLIP_PLANES - 1;
+	int32_t numbumps = PM_MAX_CLIP_PLANES - 1;
 
 	Vector3 primal_velocity = velocity;
 	Vector3 last_valid_origin = origin;
@@ -218,7 +218,7 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 		// At this point we are blocked but not trapped.
 		blockedMask |= PM_SLIDEMOVEFLAG_BLOCKED;
 		// Is it a vertical wall?
-		if ( trace.plane.normal[ 2 ] < 0.03125 ) {
+		if ( trace.plane.normal[ 2 ] < PM_MIN_WALL_NORMAL_Z ) {
 			blockedMask |= PM_SLIDEMOVEFLAG_WALL_BLOCKED;
 		}
 
@@ -228,8 +228,8 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 		// if this is a plane we have touched before, try clipping
 		// the velocity along it's normal and repeat.
 		for ( i = 0; i < numplanes; i++ ) {
-			if ( DotProduct( trace.plane.normal, planes[ i ] ) > 0.99f ) {/*( 1.0f - SLIDEMOVE_PLANEINTERACT_EPSILON )*/  
-				VectorAdd( trace.plane.normal, velocity, velocity );
+			if ( QM_Vector3DotProduct( trace.plane.normal, planes[ i ] ) > ( 1.0f - FLT_EPSILON ) ) {//0.99f ) {/*( 1.0f - SLIDEMOVE_PLANEINTERACT_EPSILON )*/  
+				velocity += trace.plane.normal; // VectorAdd( trace.plane.normal, velocity, velocity );
 				break;
 			}
 		}
@@ -238,7 +238,7 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 		}
 
 		// Slide along this plane
-		if ( numplanes >= MAX_CLIP_PLANES ) {
+		if ( numplanes >= PM_MAX_CLIP_PLANES ) {
 			// Zero out velocity. This should never happen though.
 			velocity = {};
 			blockedMask = PM_SLIDEMOVEFLAG_TRAPPED;

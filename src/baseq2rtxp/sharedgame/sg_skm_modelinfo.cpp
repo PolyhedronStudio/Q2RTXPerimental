@@ -12,9 +12,9 @@
 #include "sg_skm_modelinfo.h"
 
 
-
 //! List of loaded up skeletal model info scripts.
 static sg_skminfo_t skmInfoList;
+
 
 /**
 *	@brief	
@@ -22,11 +22,13 @@ static sg_skminfo_t skmInfoList;
 static sg_skminfo_t *SG_ParseSkeletalModelInfo( const char *filename, const char *info ) {
 	
 }
+
 /**
 *	@brief	Loads and parses the skeletal model info configuration file.
 *	@return	(nullptr) on failure. Otherwise, a pointer to an already existing, or newly created sg_skminfo_t.
 **/
 sg_skminfo_t *SG_LoadAndParseSkeletalModelInfo( const char *filename ) {
+
 
 	return nullptr;
 }
@@ -36,14 +38,18 @@ sg_skminfo_t *SG_LoadAndParseSkeletalModelInfo( const char *filename ) {
 /**
 *	@brief	Support method for calculating the exact translation of the root bone, in between frame poses.
 **/
+//! Calculate it for all axis.
 static constexpr int32_t SKM_POSE_TRANSLATE_ALL = 0;
+//! Calculate translation of the bone's X Axis.
 static constexpr int32_t SKM_POSE_TRANSLATE_X = ( 1 << 0 );
+//! Calculate translation of the bone's Y Axis.
 static constexpr int32_t SKM_POSE_TRANSLATE_Y = ( 1 << 1 );
+//! Calculate translation of the bone's Z Axis.
 static constexpr int32_t SKM_POSE_TRANSLATE_Z = ( 1 << 2 );
 
 const float SKM_CalculateFramePoseTranslation( const iqm_model_t *iqmModel, const int32_t frame, const int32_t oldFrame, const int32_t rootBoneID, const uint32_t axisFlags, Vector3 &translation ) {
 	// frame == oldFrame Path:
-	if ( oldFrame == frame || oldFrame == -1 ) {
+	if ( oldFrame == frame || frame < 0 || oldFrame < 0 ) {
 		// No translation took place.
 		translation = QM_Vector3Zero();
 		// No distance was travered.
@@ -63,7 +69,7 @@ const float SKM_CalculateFramePoseTranslation( const iqm_model_t *iqmModel, cons
 				const Vector3 oldPoseTranslate = oldPose->translate;
 				// Determine the actual translation:
 				translation = poseTranslate - oldPoseTranslate;
-				// Zero out specific axis depending on the flags we got passed in.
+				// If we got flags passed in, zero out translation for either of the flags that is missing.
 				if ( axisFlags ) {
 					if ( !( axisFlags & SKM_POSE_TRANSLATE_X ) ) {
 						translation.x = 0;
@@ -74,9 +80,6 @@ const float SKM_CalculateFramePoseTranslation( const iqm_model_t *iqmModel, cons
 					if ( !( axisFlags & SKM_POSE_TRANSLATE_Z ) ) {
 						translation.z = 0;
 					}
-				}
-				if ( frame >= 195 && frame <= 236 ) {
-					int x = 10;
 				}
 				// Determine and return the distance between the two translation vectors.
 				return QM_Vector3Length( translation );
@@ -92,9 +95,9 @@ const float SKM_CalculateFramePoseTranslation( const iqm_model_t *iqmModel, cons
 
 
 /**
-*	@brief
+*	@brief	
 **/
-const sg_skm_rootmotion_set_t SG_SKM_CalculateAnimationTranslations( const model_t *skm, const int32_t rootBoneID, const int32_t axisFlags ) {
+const sg_skm_rootmotion_set_t SG_SKM_GenerateRootMotionSet( const model_t *skm, const int32_t rootBoneID, const int32_t axisFlags ) {
 	// The root motion set we'll be operating on.
 	sg_skm_rootmotion_set_t rootMotionSet = {};
 
@@ -183,6 +186,7 @@ const sg_skm_rootmotion_set_t SG_SKM_CalculateAnimationTranslations( const model
 			const int32_t boundFrame = iqmModel->num_frames ? unboundFrame % (int32_t)( iqmAnimation->num_frames ) : 0;
 			const int32_t boundOldFrame = iqmModel->num_frames ? unboundOldFrame % (int32_t)( iqmAnimation->num_frames ) : 0;
 
+			// Translation and Distance that was calculated for this frame.
 			const Vector3 translation = rootMotion.translations[ boundFrame ];
 			const float distance = rootMotion.distances[ boundFrame ];
 

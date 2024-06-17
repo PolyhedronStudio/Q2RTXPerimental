@@ -813,12 +813,14 @@ void IQM_ComputeRelativeJoints( const iqm_model_t *model, const int32_t frame, c
 		for (uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, pose++, relativeJoint++)
 		{
 			#if 1
-			if ( pose_idx == 0 /* model_info->animation->root_bone_id */) {
-				relativeJoint->translate[ 0 ] = 0;
-				relativeJoint->translate[ 1 ] = pose->translate[ 1 ];
-				relativeJoint->translate[ 2 ] = pose->translate[ 2 ];
-				QuatCopy( pose->rotate, relativeJoint->rotate );
-				continue;
+			if ( model->num_frames > 900 ) {
+				if ( pose_idx == 0 /* model_info->animation->root_bone_id */ ) {
+					relativeJoint->translate[ 0 ] = 0;
+					relativeJoint->translate[ 1 ] = pose->translate[ 1 ];
+					relativeJoint->translate[ 2 ] = pose->translate[ 2 ];
+					QuatCopy( pose->rotate, relativeJoint->rotate );
+					continue;
+				}
 			}
 			#endif
 	
@@ -834,13 +836,15 @@ void IQM_ComputeRelativeJoints( const iqm_model_t *model, const int32_t frame, c
 		for (uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, oldPose++, pose++, relativeJoint++)
 		{
 			#if 1
-			if ( pose_idx == 0 /* model_info->animation->root_bone_id */ ) {
-				relativeJoint->translate[ 0 ] = 0;// oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0; //relativeJoint->translate[ 0 ] = 0;
-				relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0;
-				relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
-				VectorCopy( pose->scale, relativeJoint->scale );
-				QuatCopy( pose->rotate, relativeJoint->rotate );
-				continue;
+			if ( model->num_frames > 900 ) {
+				if ( pose_idx == 0 /* model_info->animation->root_bone_id */ ) {
+					relativeJoint->translate[ 0 ] = 0;// oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0; //relativeJoint->translate[ 0 ] = 0;
+					relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0;
+					relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+					VectorCopy( pose->scale, relativeJoint->scale );
+					QuatCopy( pose->rotate, relativeJoint->rotate );
+					continue;
+				}
 			}
 			#endif
 	

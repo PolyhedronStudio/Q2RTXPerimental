@@ -3029,10 +3029,11 @@ int64_t CL_ClientGameFrame( uint64_t msec ) {
     #endif
 
     // Decide how long to sleep next frame.
+    //cl_frame_residual -= CL_FRAMETIME;
+    //if ( cl_frame_residual < CL_FRAMETIME ) {
+    //    return CL_FRAMETIME - cl_frame_residual;
+    //}
     cl_frame_residual -= CL_FRAMETIME;
-    if ( cl_frame_residual < CL_FRAMETIME ) {
-        return CL_FRAMETIME - cl_frame_residual;
-    }
 
     // Don't accumulate bogus residual.
     if ( cl_frame_residual > 75 ) { // WID: 40hz: Was > 250
