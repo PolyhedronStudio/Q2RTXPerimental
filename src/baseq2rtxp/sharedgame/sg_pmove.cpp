@@ -289,6 +289,47 @@ static void PM_CycleBob() {
 /**
 *
 *
+*	PM Clip/Trace:
+*
+*
+**/
+/**
+*	@brief	Clips trace against world only.
+**/
+const trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask ) {
+	return pm->clip( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, contentMask );
+}
+
+/**
+*	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
+**/
+const trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, contents_t contentMask ) {
+	// Spectators only clip against world, so use clip instead.
+	if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
+		return PM_Clip( start, mins, maxs, end, MASK_SOLID );
+	}
+
+	if ( contentMask == CONTENTS_NONE ) {
+		if ( pm->playerState->pmove.pm_type == PM_DEAD || pm->playerState->pmove.pm_type == PM_GIB ) {
+			contentMask = MASK_DEADSOLID;
+		} else if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
+			contentMask = MASK_SOLID;
+		} else {
+			contentMask = MASK_PLAYERSOLID;
+		}
+
+		//if ( pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION )
+		//	mask &= ~CONTENTS_PLAYER;
+	}
+
+	return pm->trace( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, pm->player, contentMask );
+}
+
+
+
+/**
+*
+*
 *	Step Slide Move:
 *
 *

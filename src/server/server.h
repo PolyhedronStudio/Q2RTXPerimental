@@ -663,8 +663,6 @@ void SV_InitGameProgs(void);
 void SV_ShutdownGameProgs(void);
 //void SV_InitEdict(edict_t *e);
 
-void PF_Pmove(pmove_t *pm);
-
 //
 // sv_save.c
 //

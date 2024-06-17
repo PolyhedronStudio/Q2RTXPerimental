@@ -300,6 +300,9 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/p_trail.cpp
 	baseq2rtxp/svgame/p_view.cpp
 	baseq2rtxp/svgame/p_weapon.cpp
+
+	baseq2rtxp/svgame/monsters/g_mmove.cpp
+	baseq2rtxp/svgame/monsters/g_mmove_slidemove.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/g_local.h
@@ -309,6 +312,9 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/m_infantry.h
 	baseq2rtxp/svgame/m_player.h
 	baseq2rtxp/svgame/m_soldier.h
+
+	baseq2rtxp/svgame/monsters/g_mmove.h
+	baseq2rtxp/svgame/monsters/g_mmove_slidemove.h
 )
 
 

@@ -6,8 +6,13 @@
 *
 ********************************************************************/
 #include "g_local.h"
+
+// TODO: Move elsewhere.. ?
 #include "refresh/shared_types.h"
 
+// Monster Move
+#include "monsters/g_mmove.h"
+#include "monsters/g_mmove_slidemove.h"
 
 
 //! For when dummy is standing straight up.
@@ -166,10 +171,14 @@ void monster_testdummy_puppet_think( edict_t *self ) {
 
             // Get the distance for the frame.
             float distance = rootMotion->distances[ rootMotionFrame ];
+        
             // Calculate yaw.
             float yaw = QM_Vector3ToYaw( 
                 QM_Vector3Normalize( Vector3( self->activator->s.origin ) - Vector3(self->s.origin) )
             );
+            Vector3 dirAngles = QM_Vector3ToAngles( Vector3( self->activator->s.origin ) - Vector3( self->s.origin ) );
+            //dirAngles[ ROLL ] = 0;
+
             //float yaw = QM_Vector3ToYaw(
             //    Vector3( self->enemy->s.origin ) - Vector3( self->s.origin )
             //);
@@ -179,10 +188,32 @@ void monster_testdummy_puppet_think( edict_t *self ) {
 
             // Turn to ideal yaw.
             self->ideal_yaw = self->s.angles[ YAW ] = yaw;
+            
             //// Change yaw.
-            //M_ChangeYaw( self );
+            M_ChangeYaw( self );
             // Move into yaw direction with animation distance.
-            M_walkmove( self, self->ideal_yaw, distance );
+            //M_walkmove( self, self->ideal_yaw, distance );
+            Vector3 org = self->s.origin;
+            //Vector3 vel = QM_Vector3Normalize( dirAngles ) * distance;
+            yaw = DEG2RAD( yaw );
+            Vector3 vel = {
+                cos( yaw ) * distance,
+                sin( yaw ) * distance,
+                0
+            };
+            Vector3 entvel = self->velocity;
+            if ( QM_Vector3LengthSqr( entvel ) != 0 ) {
+                vel *= QM_Vector3Normalize( entvel );
+            }
+
+            mm_touch_trace_list_t touch_traces;
+
+            int32_t blockedMask = SVG_MMove_StepSlideMove( org, vel, 1, self->mins, self->maxs, self, touch_traces, true );
+            if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
+                VectorCopy( org, self->s.origin );
+                VectorCopy( vel, self->velocity );
+                gi.linkentity( self );
+            }
         } else {
             self->s.frame++;
             if ( self->s.frame >= 82 ) {
