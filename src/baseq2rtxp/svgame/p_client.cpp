@@ -904,7 +904,7 @@ void CopyToBodyQue(edict_t *ent)
     body->clipmask = ent->clipmask;
     body->owner = ent->owner;
     body->movetype = ent->movetype;
-    body->groundentity = ent->groundentity;
+    body->groundInfo.entity = ent->groundInfo.entity;
 
     body->die = body_die;
     body->takedamage = DAMAGE_YES;
@@ -1121,7 +1121,7 @@ void PutClientInServer(edict_t *ent)
     ent->client->pers.connected = true;
 
     // clear entity values
-    ent->groundentity = NULL;
+    ent->groundInfo = {};
     ent->client = &game.clients[index];
     ent->takedamage = DAMAGE_AIM;
     ent->movetype = MOVETYPE_WALK;
@@ -1184,7 +1184,7 @@ void PutClientInServer(edict_t *ent)
     tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, static_cast<contents_t>( MASK_PLAYERSOLID ));
     if (!tr.allsolid && !tr.startsolid && Q_stricmp(level.mapname, "tech5")) {
         VectorCopy(tr.endpos, ent->s.origin);
-        ent->groundentity = tr.ent;
+        ent->groundInfo.entity = tr.ent;
     } else {
         VectorCopy(spawn_origin, ent->s.origin);
         ent->s.origin[2] += 10; // make sure off ground
@@ -1742,7 +1742,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         VectorCopy( ucmd->angles, client->resp.cmd_angles );
 
         // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those:
-        if ( pm.ground.entity && ent->groundentity ) {
+        if ( pm.ground.entity && ent->groundInfo.entity ) {
             const float stepsize = fabs( ent->s.origin[ 2 ] - pm.playerState->pmove.origin[ 2 ] );
             if ( stepsize > PM_MIN_STEP_SIZE && stepsize < PM_MAX_STEP_SIZE ) {
                 ent->s.renderfx |= RF_STAIR_STEP;
@@ -1801,9 +1801,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         ent->viewheight = (int32_t)pm.playerState->pmove.viewheight;
         ent->liquidlevel = pm.liquid.level;
         ent->liquidtype = pm.liquid.type;
-        ent->groundentity = pm.ground.entity;
+        ent->groundInfo.entity = pm.ground.entity;
         if ( pm.ground.entity ) {
-            ent->groundentity_linkcount = pm.ground.entity->linkcount;
+            ent->groundInfo.entityLinkCount = pm.ground.entity->linkcount;
         }
         // Apply a specific view angle if dead:
         if ( ent->deadflag ) {

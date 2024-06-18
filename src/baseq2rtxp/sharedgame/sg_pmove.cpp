@@ -1145,21 +1145,21 @@ static void PM_ScreenEffects() {
 
 	// Under a 'water' like solid:
 	if ( contents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) ) {
-		pm->rdflags |= RDF_UNDERWATER;
+		ps->rdflags |= RDF_UNDERWATER;
 		// Or not:
 	} else {
-		pm->rdflags &= ~RDF_UNDERWATER;
+		ps->rdflags &= ~RDF_UNDERWATER;
 	}
 
 	// Prevent it from adding screenblend if we're inside a client entity, by checking
 	// if its brush has CONTENTS_PLAYER set in its clipmask.
 	if ( !( contents & CONTENTS_PLAYER )
 		&& ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
-		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, &pm->screen_blend.x );
+		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, ps->screen_blend );
 	} else if ( contents & CONTENTS_SLIME ) {
-		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, &pm->screen_blend.x );
+		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, ps->screen_blend );
 	} else if ( contents & CONTENTS_WATER ) {
-		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, &pm->screen_blend.x );
+		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, ps->screen_blend );
 	}
 }
 
@@ -1547,8 +1547,8 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		.type = CONTENTS_NONE,
 		.level = liquid_level_t::LIQUID_NONE
 	},
-	pm->screen_blend = {};
-	pm->rdflags = 0;
+	//pm->screen_blend = {};
+	//pm->rdflags = 0;
 	pm->jump_sound = false;
 	pm->step_clip = false;
 	pm->step_height = 0;

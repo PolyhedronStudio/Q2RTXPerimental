@@ -55,8 +55,9 @@ void UpdateChaseCam(edict_t *ent)
         o[2] = targ->s.origin[2] + 20;
 
     // jump animation lifts
-    if (!targ->groundentity)
-        o[2] += 16;
+    if ( !targ->groundInfo.entity ) {
+        o[ 2 ] += 16;
+    }
 
     trace = gi.trace(ownerv, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
 

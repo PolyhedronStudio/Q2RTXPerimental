@@ -1076,6 +1076,41 @@ void GetChaseTarget(edict_t *ent);
 
 //============================================================================
 
+
+
+/**
+*   @brief  Stores the final ground information results.
+**/
+typedef struct mm_ground_info_s {
+    //! Pointer to the actual ground entity we are on.(nullptr if none).
+    struct edict_s *entity;
+    //! Ground entity link count.
+    int32_t         entityLinkCount;
+
+    //! A copy of the plane data from the ground entity.
+    cplane_t        plane;
+    //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
+    csurface_t      surface;
+    //! A copy of the contents data from the ground entity's brush.
+    contents_t      contents;
+    //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
+    cm_material_t *material;
+} mm_ground_info_t;
+
+/**
+*   @brief  Stores the final 'liquid' information results. This can be lava, slime, or water, or none.
+**/
+typedef struct mm_liquid_info_s {
+    //! The actual BSP liquid 'contents' type we're residing in.
+    contents_t      type;
+    //! The depth of the player in the actual liquid.
+    liquid_level_t	level;
+} mm_liquid_info_t;
+
+
+
+
+//============================================================================
 // client_t->anim_priority
 #define ANIM_BASIC      0       // stand / run
 #define ANIM_WAVE       1
@@ -1500,8 +1535,8 @@ struct edict_s {
     edict_t     *enemy;
     edict_t     *oldenemy;
     edict_t     *activator;
-    edict_t     *groundentity;
-    int32_t     groundentity_linkcount;
+    //edict_t     *groundentity;
+    //int32_t     groundentity_linkcount;
     edict_t     *teamchain;
     edict_t     *teammaster;
 
@@ -1512,7 +1547,7 @@ struct edict_s {
     
     //! Set when the entity gets hurt(T_Damage) and might be its cause of death.
     sg_means_of_death_t meansOfDeath;
-
+    //! Audio.
     float       volume;
     float       attenuation;
 
@@ -1520,11 +1555,13 @@ struct edict_s {
     float       wait;
     float       delay;          // before firing targets
     float       random;
-    sg_time_t		last_sound_time;
+    sg_time_t   last_sound_time;
 
     //! Categorized Liquid Information.
     contents_t      liquidtype;
 	liquid_level_t	liquidlevel;
+    //! Categorized ground information.
+    mm_ground_info_t groundInfo;
 
     //! Move origin and angles.
     vec3_t      move_origin;

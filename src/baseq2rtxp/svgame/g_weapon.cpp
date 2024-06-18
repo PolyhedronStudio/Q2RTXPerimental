@@ -111,7 +111,7 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
     VectorNormalize(v);
     VectorMA(self->enemy->velocity, kick, v, self->enemy->velocity);
     if (self->enemy->velocity[2] > 0)
-        self->enemy->groundentity = NULL;
+        self->enemy->groundInfo.entity = NULL;
     return true;
 }
 
@@ -214,7 +214,7 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
         VectorNormalize( v );
         VectorMA( tr.ent->velocity, kick, v, tr.ent->velocity );
         if ( tr.ent->velocity[ 2 ] > 0 )
-            tr.ent->groundentity = NULL;
+            tr.ent->groundInfo.entity = NULL;
     }
 
     return isTDamaged;

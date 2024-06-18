@@ -96,8 +96,9 @@ void gib_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
     vec3_t  normal_angles, right;
 
-    if (!self->groundentity)
+    if ( !self->groundInfo.entity ) {
         return;
+    }
 
     self->touch = NULL;
 
@@ -811,7 +812,7 @@ health (80), and dmg (150).
 
 void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
     
-    if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
+    if ( ( !other->groundInfo.entity ) || ( other->groundInfo.entity == self ) ) {
         return;
     }
 
@@ -883,10 +884,11 @@ void barrel_explode(edict_t *self)
     }
 
     VectorCopy(save, self->s.origin);
-    if (self->groundentity)
-        BecomeExplosion2(self);
-    else
-        BecomeExplosion1(self);
+    if ( self->groundInfo.entity ) {
+        BecomeExplosion2( self );
+    } else {
+        BecomeExplosion1( self );
+    }
 }
 
 void barrel_delay(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)

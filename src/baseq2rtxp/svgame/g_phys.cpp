@@ -226,7 +226,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
 
     time_left = time;
 
-    ent->groundentity = NULL;
+    ent->groundInfo.entity = nullptr;
     for (bumpcount = 0; bumpcount < numbumps; bumpcount++) {
         for (i = 0; i < 3; i++)
             end[i] = ent->s.origin[i] + time_left * ent->velocity[i];
@@ -254,8 +254,8 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
         if (trace.plane.normal[2] > 0.7f) {
             blocked |= 1;       // floor
             if (hit->solid == SOLID_BSP) {
-                ent->groundentity = hit;
-                ent->groundentity_linkcount = hit->linkcount;
+                ent->groundInfo.entity = hit;
+                ent->groundInfo.entityLinkCount = hit->linkcount;
             }
         }
         if (!trace.plane.normal[2]) {
@@ -463,7 +463,7 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
             continue;       // not linked in anywhere
 
         // if the entity is standing on the pusher, it will definitely be moved
-        if (check->groundentity != pusher) {
+        if (check->groundInfo.entity != pusher) {
             // see if the ent needs to be tested
             if (check->absmin[0] >= maxs[0]
                 || check->absmin[1] >= maxs[1]
@@ -478,7 +478,7 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
                 continue;
         }
 
-        if ((pusher->movetype == MOVETYPE_PUSH) || (check->groundentity == pusher)) {
+        if ((pusher->movetype == MOVETYPE_PUSH) || (check->groundInfo.entity == pusher)) {
             // move this entity
             pushed_p->ent = check;
             VectorCopy(check->s.origin, pushed_p->origin);
@@ -509,8 +509,8 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
             VectorAdd(check->s.origin, move2, check->s.origin);
 
             // may have pushed them off an edge
-            if (check->groundentity != pusher)
-                check->groundentity = NULL;
+            if (check->groundInfo.entity != pusher)
+                check->groundInfo.entity = NULL;
 
             block = SV_TestEntityPosition(check);
             if (!block) {
@@ -681,24 +681,30 @@ void SV_Physics_Toss(edict_t *ent)
 
 // regular thinking
     SV_RunThink(ent);
-    if (!ent->inuse)
+    if ( !ent->inuse ) {
         return;
+    }
 
     // if not a team captain, so movement will be handled elsewhere
-    if (ent->flags & FL_TEAMSLAVE)
+    if ( ent->flags & FL_TEAMSLAVE ) {
         return;
+    }
 
-    if (ent->velocity[2] > 0)
-        ent->groundentity = NULL;
+    if ( ent->velocity[ 2 ] > 0 ) {
+        ent->groundInfo.entity = nullptr;
+    }
 
 // check for the groundentity going away
-    if (ent->groundentity)
-        if (!ent->groundentity->inuse)
-            ent->groundentity = NULL;
+    if ( ent->groundInfo.entity ) {
+        if ( !ent->groundInfo.entity->inuse ) {
+            ent->groundInfo.entity = nullptr;
+        }
+    }
 
 // if onground, return without moving
-    if (ent->groundentity)
+    if ( ent->groundInfo.entity ) {
         return;
+    }
 
     VectorCopy(ent->s.origin, old_origin);
 
@@ -728,8 +734,8 @@ void SV_Physics_Toss(edict_t *ent)
         // stop if on ground
         if (trace.plane.normal[2] > 0.7f) {
             if (ent->velocity[2] < 60 || ent->movetype != MOVETYPE_BOUNCE) {
-                ent->groundentity = trace.ent;
-                ent->groundentity_linkcount = trace.ent->linkcount;
+                ent->groundInfo.entity = trace.ent;
+                ent->groundInfo.entityLinkCount = trace.ent->linkcount;
                 VectorClear(ent->velocity);
                 VectorClear(ent->avelocity);
             }
@@ -820,11 +826,11 @@ void SV_Physics_Step(edict_t *ent)
     contents_t mask = G_GetClipMask( ent );
 
     // airborne monsters should always check for ground
-    if ( !ent->groundentity ) {
+    if ( !ent->groundInfo.entity ) {
         M_CheckGround( ent, mask );
     }
 
-    groundentity = ent->groundentity;
+    groundentity = ent->groundInfo.entity;
 
     SV_CheckVelocity( ent );
 
@@ -924,20 +930,26 @@ void SV_Physics_Step(edict_t *ent)
 
         // [Paril-KEX] this is something N64 does to avoid doors opening
         // at the start of a level, which triggers some monsters to spawn.
-        if ( /*!level.is_n64 || */level.time > FRAME_TIME_S )
+        if ( /*!level.is_n64 || */level.time > FRAME_TIME_S ) {
             G_TouchTriggers( ent );
+        }
 
-        if ( !ent->inuse )
+        if ( !ent->inuse ) {
             return;
+        }
 
-        if ( ent->groundentity )
-            if ( !wasonground )
-                if ( hitsound )
+        if ( ent->groundInfo.entity ) {
+            if ( !wasonground ) {
+                if ( hitsound ) {
                     ent->s.event = EV_FOOTSTEP;
+                }
+            }
+        }
     }
 
-    if ( !ent->inuse ) // PGM g_touchtrigger free problem
+    if ( !ent->inuse ) { // PGM g_touchtrigger free problem
         return;
+    }
 
     if ( ent->svflags & SVF_MONSTER ) {
         M_CatagorizePosition( ent, Vector3( ent->s.origin ), ent->liquidlevel, ent->liquidtype );

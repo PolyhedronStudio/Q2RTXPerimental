@@ -702,12 +702,12 @@ void G_RunFrame(void)
         }
 
         // If the ground entity moved, make sure we are still on it.
-        if ( ( ent->groundentity ) && ( ent->groundentity->linkcount != ent->groundentity_linkcount ) ) {
+        if ( ( ent->groundInfo.entity ) && ( ent->groundInfo.entity->linkcount != ent->groundInfo.entityLinkCount ) ) {
             contents_t mask = G_GetClipMask( ent );
 
             // Monsters that don't SWIM or FLY, got their own unique ground check.
             if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {
-                ent->groundentity = nullptr;
+                ent->groundInfo.entity = nullptr;
                 M_CheckGround( ent, mask );
             }
             //// All other entities use this route instead:

@@ -815,9 +815,13 @@ void IQM_ComputeRelativeJoints( const iqm_model_t *model, const int32_t frame, c
 			#if 1
 			if ( model->num_frames > 900 ) {
 				if ( pose_idx == 0 /* model_info->animation->root_bone_id */ ) {
+					// Copy over translation BUT NOT the X Axis.
 					relativeJoint->translate[ 0 ] = 0;
 					relativeJoint->translate[ 1 ] = pose->translate[ 1 ];
 					relativeJoint->translate[ 2 ] = pose->translate[ 2 ];
+					// Copy in scale as per usual.
+					VectorCopy( pose->scale, relativeJoint->scale );
+					// Copy quat rotation as usual.
 					QuatCopy( pose->rotate, relativeJoint->rotate );
 					continue;
 				}
@@ -838,11 +842,17 @@ void IQM_ComputeRelativeJoints( const iqm_model_t *model, const int32_t frame, c
 			#if 1
 			if ( model->num_frames > 900 ) {
 				if ( pose_idx == 0 /* model_info->animation->root_bone_id */ ) {
+					// Translate all axis BUT the X axis.
 					relativeJoint->translate[ 0 ] = 0;// oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0; //relativeJoint->translate[ 0 ] = 0;
 					relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0;
 					relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
-					VectorCopy( pose->scale, relativeJoint->scale );
-					QuatCopy( pose->rotate, relativeJoint->rotate );
+					
+					// Scale Lerp as usual.
+					relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + oldPose->scale[ 0 ] * frontLerp;
+					relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + oldPose->scale[ 1 ] * frontLerp;
+					relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + oldPose->scale[ 2 ] * frontLerp;
+					// Quat Slerp as usual.
+					QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
 					continue;
 				}
 			}

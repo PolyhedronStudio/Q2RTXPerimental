@@ -494,8 +494,8 @@ void target_actor_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface
         other->velocity[0] = self->movedir[0] * self->speed;
         other->velocity[1] = self->movedir[1] * self->speed;
 
-        if (other->groundentity) {
-            other->groundentity = NULL;
+        if (other->groundInfo.entity ) {
+            other->groundInfo.entity = NULL;
             other->velocity[2] = self->movedir[2];
             gi.sound(other, CHAN_VOICE, gi.soundindex("player/male/jump1.wav"), 1, ATTN_NORM, 0);
         }

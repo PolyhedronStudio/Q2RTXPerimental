@@ -352,7 +352,7 @@ void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurfac
 		if ( other->client ) {
 			// don't take falling damage immediately from this
 			VectorCopy( other->velocity, other->client->oldvelocity );
-			other->client->oldgroundentity = other->groundentity;
+			other->client->oldgroundentity = other->groundInfo.entity;
 
 			if ( other->fly_sound_debounce_time < level.time ) {
 				other->fly_sound_debounce_time = level.time + 1.5_sec;
@@ -582,11 +582,11 @@ void trigger_monsterjump_touch( edict_t *self, edict_t *other, cplane_t *plane, 
 	other->velocity[ 0 ] = self->movedir[ 0 ] * self->speed;
 	other->velocity[ 1 ] = self->movedir[ 1 ] * self->speed;
 
-	if ( !other->groundentity ) {
+	if ( !other->groundInfo.entity ) {
 		return;
 	}
 
-	other->groundentity = NULL;
+	other->groundInfo.entity = nullptr;
 	other->velocity[ 2 ] = self->movedir[ 2 ];
 }
 

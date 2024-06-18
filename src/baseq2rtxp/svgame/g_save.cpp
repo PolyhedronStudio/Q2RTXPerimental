@@ -202,8 +202,8 @@ static const save_field_t entityfields[] = {
     E(enemy),
     E(oldenemy),
     E(activator),
-    E(groundentity),
-    I(groundentity_linkcount),
+    E( groundInfo.entity ),
+    I( groundInfo.entityLinkCount ),
     E(teamchain),
     E(teammaster),
 

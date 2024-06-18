@@ -229,7 +229,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
                 gi.linkentity(ent);
                 G_TouchTriggers(ent);
             }
-            ent->groundentity = NULL;
+            ent->groundInfo.entity = NULL;
             return true;
         }
 
@@ -261,8 +261,8 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
     if (ent->flags & FL_PARTIALGROUND) {
         ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_PARTIALGROUND );
     }
-    ent->groundentity = trace.ent;
-    ent->groundentity_linkcount = trace.ent->linkcount;
+    ent->groundInfo.entity = trace.ent;
+    ent->groundInfo.entityLinkCount = trace.ent->linkcount;
 
 // the move is ok
     if (relink) {
@@ -498,7 +498,7 @@ void M_MoveToGoal(edict_t *ent, float dist)
 
     goal = ent->goalentity;
 
-    if (!ent->groundentity && !(ent->flags & (FL_FLY | FL_SWIM)))
+    if (!ent->groundInfo.entity && !(ent->flags & (FL_FLY | FL_SWIM)))
         return;
 
 // if the next step hits the enemy, return immediately
@@ -522,7 +522,7 @@ bool M_walkmove(edict_t *ent, float yaw, float dist)
 {
     vec3_t  move;
 
-    if (!ent->groundentity && !(ent->flags & (FL_FLY | FL_SWIM)))
+    if (!ent->groundInfo.entity && !(ent->flags & (FL_FLY | FL_SWIM)))
         return false;
 
     yaw = DEG2RAD(yaw);

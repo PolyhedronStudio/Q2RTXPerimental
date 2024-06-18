@@ -169,72 +169,98 @@ void monster_testdummy_puppet_think( edict_t *self ) {
             // Calculate the index for the rootmotion animation.
             int32_t rootMotionFrame = self->s.frame - rootMotion->firstFrameIndex;
 
-            // Get the distance for the frame.
-            float distance = rootMotion->distances[ rootMotionFrame ];
-        
+            // Get the distance for the frame:
+            // WID: This is exact, but looks odd if you want faster paced gameplay.
+            //float distance = rootMotion->distances[ rootMotionFrame ];
+            // WID: This is quite 'average':
+            //float distance = ( rootMotion->totalDistance ) * ( 1.0f / rootMotion->frameCount );
+            // WID: Try and accustom to Velocity 'METHOD':
+            // Base Velocity.
+            constexpr float speed = 350.f;
+            // Determine distance to traverse based on Base Velocity.
+            float distance = ( ( speed / rootMotion->frameCount ) * ( rootMotion->frameCount / rootMotion->totalDistance ) );
+
             // Calculate yaw.
             float yaw = QM_Vector3ToYaw( 
                 QM_Vector3Normalize( Vector3( self->activator->s.origin ) - Vector3(self->s.origin) )
             );
             Vector3 dirAngles = QM_Vector3ToAngles( Vector3( self->activator->s.origin ) - Vector3( self->s.origin ) );
-            //dirAngles[ ROLL ] = 0;
-
-            //float yaw = QM_Vector3ToYaw(
-            //    Vector3( self->enemy->s.origin ) - Vector3( self->s.origin )
-            //);
-
-            // Scale distance speed a bit.
-            
 
             // Turn to ideal yaw.
             self->ideal_yaw = self->s.angles[ YAW ] = yaw;
             
-            //// Change yaw.
+            // Change yaw.
             M_ChangeYaw( self );
-            // Move into yaw direction with animation distance.
-            //M_walkmove( self, self->ideal_yaw, distance );
-            Vector3 org = self->s.origin;
-            //Vector3 vel = QM_Vector3Normalize( dirAngles ) * distance;
-            yaw = DEG2RAD( yaw );
-            Vector3 vel = {
-                cos( yaw ) * distance,
-                sin( yaw ) * distance,
+
+            // Generate frame velocity vector.
+            Vector3 entityVelocity = self->velocity;
+            Vector3 frameVelocity = {
+                cos( yaw * QM_DEG2RAD ) * distance,
+                sin( yaw * QM_DEG2RAD ) * distance,
                 0
             };
-            Vector3 entvel = self->velocity;
-            if ( QM_Vector3LengthSqr( entvel ) != 0 ) {
-                vel *= QM_Vector3Normalize( entvel );
+            // If not onground, zero out the frameVelocity.
+            if ( self->groundInfo.entity == nullptr ) {
+                frameVelocity = QM_Vector3Zero();
             }
-
-            //mm_touch_trace_list_t touch_traces;
-            //
-            //int32_t blockedMask = SVG_MMove_StepSlideMove( org, vel, 1, self->mins, self->maxs, self, touch_traces, true );
-            //if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
-            //    VectorCopy( org, self->s.origin );
-            //    VectorCopy( vel, self->velocity );
-            //    gi.linkentity( self );
+            //// Add actual entity velocity.
+            //if ( QM_Vector3LengthSqr( entityVelocity ) != 0 ) {
+            //    frameVelocity += QM_Vector3Normalize( entityVelocity );
             //}
+
+            // Setup the monster move structure.
             mm_move_t monsterMove = {
-                .monsterEntity = self,
-                .origin = self->s.origin,
-                .velocity = vel,
-                .previousOrigin = self->s.origin,
+                // Pass/Skip-Entity pointer.
+                .monster = self,
+                // Frametime.
+                .frameTime = 1.f,
+                // Bounds
                 .mins = self->mins,
                 .maxs = self->maxs,
-                .frameTime = 1,
-                .moveFlags = ( self->groundentity ? PMF_ON_GROUND : 0 ),
+
+                // Movement state, TODO: Store as part of gedict_t??
+                .state = {
+                    .mm_type = MM_NORMAL,
+                    .mm_flags = ( self->groundInfo.entity != nullptr ? MMF_ON_GROUND : 0 ),
+                    .mm_time = 8,
+
+                    .gravity = (int16_t)sv_gravity->integer,
+
+                    .origin = self->s.origin,
+                    .velocity = frameVelocity,
+
+                    .previousOrigin = self->s.origin,
+                    .previousVelocity = self->velocity,
+                },
+                // Proper ground and liquid information.
+                .ground = self->groundInfo,
+                .liquid = {
+                    .type = self->liquidtype,
+                    .level = self->liquidlevel,
+                },
             };
 
-            SVG_MMove_StepSlideMove( &monsterMove );
+            // Perform a step slide move for the specified monstermove state.
+            const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove );
 
+            // A step was taken, ensure to apply RF_STAIR_STEP renderflag.
             if ( monsterMove.step.height != 0 ) {
                 self->s.renderfx |= RF_STAIR_STEP;
             }
-            //if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
-                VectorCopy( monsterMove.origin, self->s.origin );
-                VectorCopy( monsterMove.velocity, self->velocity );
+            // If the move was succesfull, copy over the state results into the entity's state.
+            if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
+                // Copy over the monster's move state.
+                // self->monsterMove = monsterMove;
+                // Copy over the resulting ground and liquid info.
+                self->groundInfo = monsterMove.ground;
+                self->liquidtype = monsterMove.liquid.type;
+                self->liquidlevel = monsterMove.liquid.level;
+                // Copy over the resulting origin and velocity back into the entity.
+                VectorCopy( monsterMove.state.origin, self->s.origin );
+                VectorCopy( monsterMove.state.velocity, self->velocity );
+                // Last but not least, make sure to link it back in.
                 gi.linkentity( self );
-            //}
+            }
         } else {
             self->s.frame++;
             if ( self->s.frame >= 82 ) {

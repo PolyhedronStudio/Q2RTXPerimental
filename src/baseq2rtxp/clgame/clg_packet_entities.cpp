@@ -97,9 +97,24 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *cent, entity_t *ent, entit
         //clamp( ent->backlerp, 0.0f, 1.0f );
         //ent->frame = cent->current_frame;
         //ent->oldframe = cent->last_frame;
+
+        //// Calculate back lerpfraction. (40hz.)
+        //ent->backlerp = 1.0f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / 25.f );
+        //clamp( ent->backlerp, 0.0f, 1.0f );
+        //ent->frame = cent->current_frame;
+        //ent->oldframe = cent->last_frame;
+
         // Calculate back lerpfraction. (40hz.)
-        ent->backlerp = 1.0f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / 25.f );
-        clamp( ent->backlerp, 0.0f, 1.0f );
+        //ent->backlerp = 1.0f - ( ( clgi.GetRealTime()  - ( (float)cent->frame_realtime - clgi.client->sv_frametime ) ) / 25.f );
+        //clamp( ent->backlerp, 0.0f, 1.0f );
+        //ent->frame = cent->current_frame;
+        //ent->oldframe = cent->last_frame;
+
+        // 40hz gun rate.
+        constexpr int32_t playerstate_gun_rate = 40;
+        const float anim_ms = 1.f / ( playerstate_gun_rate ) * 1000.f;
+        ent->backlerp = 1.f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / anim_ms );
+        clamp( ent->backlerp, 0.0f, 1.f );
         ent->frame = cent->current_frame;
         ent->oldframe = cent->last_frame;
 

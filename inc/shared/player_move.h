@@ -72,7 +72,7 @@ typedef struct pm_ground_info_s {
     //! A copy of the contents data from the ground entity's brush.
     contents_t      contents;
     //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
-    cm_material_t *material;
+    cm_material_t   *material;
 } pm_ground_info_t;
 
 /**
@@ -145,12 +145,12 @@ typedef struct {
     *   (Out):
     **/
     // [KEX] results (out)
-    Vector4 screen_blend;
+    //Vector4 screen_blend;
     //! Merged with rdflags from server.
-    int32_t rdflags;
+    //int32_t rdflags;
 
     //! XY Speed:
-    float xySpeed;
+    //float xySpeed;
 
     //! Play jump sound.
     qboolean jump_sound;

@@ -83,18 +83,15 @@ static bool MM_CheckStep( const trace_t *trace ) {
 **/
 static void MM_StepDown( mm_move_t *monsterMove, const trace_t *trace ) {
 	// Apply the trace endpos as the new origin.
-	monsterMove->origin = trace->endpos;
+	monsterMove->state.origin = trace->endpos;
 
 	// Determine the step height based on the new, and previous origin.
-	const float step_height = monsterMove->origin.z - monsterMove->previousOrigin.z;
+	const float step_height = monsterMove->state.origin.z - monsterMove->state.previousOrigin.z;
 
 	// If its absolute(-/+) value >= PM_MIN_STEP_SIZE(4.0) then we got an official step.
 	if ( fabsf( step_height ) >= MM_MIN_STEP_SIZE ) {
 		// Store non absolute but exact step height.
 		monsterMove->step.height = step_height;
-
-		// Add predicted step event.
-		//PM_AddEvent( 1 /*PM_EVENT_STEP*/, fabs( step_height ) );
 	}
 }
 
@@ -107,19 +104,19 @@ static void MM_StepDown( mm_move_t *monsterMove, const trace_t *trace ) {
 **/
 const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	trace_t trace = {};
-	Vector3 startOrigin = monsterMove->previousOrigin = monsterMove->origin;
-	Vector3 startVelocity = monsterMove->velocity;
+	Vector3 startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
+	Vector3 startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
 
 	// Perform an actual 'Step Slide'.
-	int32_t blockedMask = SVG_MMove_SlideMove( monsterMove->origin, monsterMove->velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monsterEntity, monsterMove->touchTraces, true /* monsterMove->hasTime */ );
+	int32_t blockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, true /* monsterMove->hasTime */ );
 
 	// Store for downward move XY.
-	Vector3 downOrigin = monsterMove->origin;
-	Vector3 downVelocity = monsterMove->velocity;
+	Vector3 downOrigin = monsterMove->state.origin;
+	Vector3 downVelocity = monsterMove->state.velocity;
 
 	// Perform 'up-trace' to see whether we can step up at all.
 	Vector3 up = startOrigin + Vector3{ 0.f, 0.f, MM_MAX_STEP_SIZE };
-	trace = SVG_MMove_Trace( startOrigin, monsterMove->mins, monsterMove->maxs, up, monsterMove->monsterEntity );
+	trace = SVG_MMove_Trace( startOrigin, monsterMove->mins, monsterMove->maxs, up, monsterMove->monster );
 	if ( trace.allsolid ) {
 		return blockedMask; // can't step up
 	}
@@ -128,14 +125,14 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	const float stepSize = trace.endpos[ 2 ] - startOrigin.z;
 
 	// We can step up. Try sliding above.
-	monsterMove->origin = trace.endpos;
-	monsterMove->velocity = startVelocity;
+	monsterMove->state.origin = trace.endpos;
+	monsterMove->state.velocity = startVelocity;
 
 	// Perform an actual 'Step Slide'.
-	blockedMask |= SVG_MMove_SlideMove( monsterMove->origin, monsterMove->velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monsterEntity, monsterMove->touchTraces, true /* monsterMove->hasTime */ );
+	blockedMask |= SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, true /* monsterMove->hasTime */ );
 
 	// Push down the final amount.
-	Vector3 down = monsterMove->origin - Vector3{ 0.f, 0.f, stepSize };
+	Vector3 down = monsterMove->state.origin - Vector3{ 0.f, 0.f, stepSize };
 
 	// [Paril-KEX] jitspoe suggestion for stair clip fix; store
 	// the old down position, and pick a better spot for downwards
@@ -145,16 +142,16 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 		down.z = startOrigin.z - 1.f;
 	}
 
-	trace = SVG_MMove_Trace( monsterMove->origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monsterEntity );
+	trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster );
 	if ( !trace.allsolid ) {
 		// [Paril-KEX] from above, do the proper trace now
-		trace_t real_trace = SVG_MMove_Trace( monsterMove->origin, monsterMove->mins, monsterMove->maxs, original_down, monsterMove->monsterEntity );
+		trace_t real_trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, original_down, monsterMove->monster );
 		//pml.origin = real_trace.endpos;
 
 		// WID: Use proper stair step checking.
 		if ( MM_CheckStep( &trace ) ) {
 			// Only an upwards jump is a stair clip.
-			if ( monsterMove->velocity.z > 0.f ) {
+			if ( monsterMove->state.velocity.z > 0.f ) {
 				monsterMove->step.clipped = true;
 			}
 			// Step down to the new found ground.
@@ -162,38 +159,38 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 		}
 	}
 
-	up = monsterMove->origin;
+	up = monsterMove->state.origin;
 
 	// Decide which one went farther, use 'Vector2Length', ignore the Z axis.
 	const float down_dist = ( downOrigin.x - startOrigin.x ) * ( downOrigin.y - startOrigin.y ) + ( downOrigin.y - startOrigin.y ) * ( downOrigin.y - startOrigin.y );
 	const float up_dist = ( up.x - startOrigin.x ) * ( up.x - startOrigin.x ) + ( up.y - startOrigin.y ) * ( up.y - startOrigin.y );
 
 	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < MM_MIN_STEP_NORMAL ) {
-		monsterMove->origin = downOrigin;
-		monsterMove->velocity = downVelocity;
+		monsterMove->state.origin = downOrigin;
+		monsterMove->state.velocity = downVelocity;
 	}
 	// [Paril-KEX] NB: this line being commented is crucial for ramp-jumps to work.
 	// thanks to Jitspoe for pointing this one out.
 	else {// if (ps->pmove.pm_flags & PMF_ON_GROUND)
 		//!! Special case
 		// if we were walking along a plane, then we need to copy the Z over
-		monsterMove->velocity.z = downVelocity.z;
+		monsterMove->state.velocity.z = downVelocity.z;
 	}
 
 	// Paril: step down stairs/slopes
-	if ( ( monsterMove->moveFlags & PMF_ON_GROUND ) && !( monsterMove->moveFlags & PMF_ON_LADDER ) &&
-		( /*monsterMove->monsterEntity->liquidlevel < liquid_level_t::LIQUID_WAIST ||*/ /*monsterMove->liquid.level < liquid_level_t::LIQUID_WAIST ||*/ ( !( monsterMove->isJumping & BUTTON_JUMP ) && monsterMove->velocity.z <= 0 ) ) ) {
-		Vector3 down = monsterMove->origin - Vector3{ 0.f, 0.f, MM_MAX_STEP_SIZE };
-		trace = SVG_MMove_Trace( monsterMove->origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monsterEntity );
+	if ( ( monsterMove->state.mm_flags & MMF_ON_GROUND ) && !( monsterMove->state.mm_flags & MMF_ON_LADDER ) &&
+		( monsterMove->liquid.level < liquid_level_t::LIQUID_WAIST || ( /*!( pm->cmd.buttons & BUTTON_JUMP ) &&*/ monsterMove->state.velocity.z <= 0 ) ) ) {
+		Vector3 down = monsterMove->state.origin - Vector3{ 0.f, 0.f, MM_MAX_STEP_SIZE };
+		trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster );
 
 		// WID: Use proper stair step checking.
 		// Check for stairs:
 		if ( MM_CheckStep( &trace ) ) {
 			// Step down stairs:
 			MM_StepDown( monsterMove, &trace );
-			// We're expecting it to be a slope, step down the slope instead:
+		// We're expecting it to be a slope, step down the slope instead:
 		} else if ( trace.fraction < 1.f ) {
-			monsterMove->origin = trace.endpos;
+			monsterMove->state.origin = trace.endpos;
 		}
 	}
 

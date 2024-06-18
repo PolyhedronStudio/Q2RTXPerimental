@@ -769,7 +769,7 @@ void G_SetClientEvent( edict_t *ent ) {
 			VectorCopy( ent->s.origin, current_client->last_ladder_pos );
 			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
 		}
-	} else if ( ent->groundentity && ent->client->ps.xySpeed > 225 ) {
+	} else if ( ent->groundInfo.entity && ent->client->ps.xySpeed > 225 ) {
 		if ( ( current_client->bobCycle != current_client->oldBobCycle ) ) {
 			ent->s.event = EV_FOOTSTEP;
 			//gi.dprintf( "%s: EV_FOOTSTEP ent->ground xyspeed > 225\n", __func__ );
@@ -826,7 +826,7 @@ void G_SetClientFrame( edict_t *ent ) {
 	if ( run != client->anim_run && client->anim_priority == ANIM_BASIC ) {
 		goto newanim;
 	}
-	if ( !ent->groundentity && client->anim_priority <= ANIM_WAVE ) {
+	if ( !ent->groundInfo.entity && client->anim_priority <= ANIM_WAVE ) {
 		goto newanim;
 	}
 
@@ -856,7 +856,7 @@ void G_SetClientFrame( edict_t *ent ) {
 	// Jumping.
 	if ( client->anim_priority == ANIM_JUMP ) {
 		// If we're not on-ground we're already jumping.
-		if ( !ent->groundentity ) {
+		if ( !ent->groundInfo.entity ) {
 			return;     // stay there
 		}
 		// I have no clue why this is here.
@@ -882,7 +882,7 @@ newanim:
 	client->anim_run = run;
 	client->anim_time = level.time + 10_hz; // WID: 40hz:
 
-	if ( !ent->groundentity ) {
+	if ( !ent->groundInfo.entity ) {
 		client->anim_priority = ANIM_JUMP;
 		if ( ent->s.frame != FRAME_jump2 )
 			ent->s.frame = FRAME_jump1;
@@ -1016,7 +1016,7 @@ void ClientEndServerFrame( edict_t *ent ) {
 	// Backup velocity, viewangles, and ground entity.
 	VectorCopy( ent->velocity, ent->client->oldvelocity );
 	VectorCopy( ent->client->ps.viewangles, ent->client->oldviewangles );
-	ent->client->oldgroundentity = ent->groundentity;
+	ent->client->oldgroundentity = ent->groundInfo.entity;
 
 	// Clear out the weapon kicks.
 	ent->client->weaponKicks = {};

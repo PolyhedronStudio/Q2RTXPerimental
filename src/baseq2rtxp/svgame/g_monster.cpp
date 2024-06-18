@@ -144,7 +144,7 @@ void M_CheckGround( edict_t *ent, const contents_t mask ) {
 
 	// Too high of a velocity, we're moving upwards rapidly.
 	if ( ent->velocity[ 2 ] > 100 ) {
-		ent->groundentity = nullptr;
+		ent->groundInfo.entity = nullptr;
 		return;
 	}
 
@@ -157,7 +157,7 @@ void M_CheckGround( edict_t *ent, const contents_t mask ) {
 
 	// check steepness
 	if ( trace.plane.normal[ 2 ] < 0.7f && !trace.startsolid ) {
-		ent->groundentity = nullptr;
+		ent->groundInfo.entity = nullptr;
 		return;
 	}
 
@@ -167,8 +167,8 @@ void M_CheckGround( edict_t *ent, const contents_t mask ) {
 //      VectorCopy (trace.endpos, ent->s.origin);
 	if ( !trace.startsolid && !trace.allsolid ) {
 		VectorCopy( trace.endpos, ent->s.origin );
-		ent->groundentity = trace.ent;
-		ent->groundentity_linkcount = trace.ent->linkcount;
+		ent->groundInfo.entity = trace.ent;
+		ent->groundInfo.entityLinkCount = trace.ent->linkcount;
 		ent->velocity[ 2 ] = 0;
 	}
 }
@@ -694,9 +694,11 @@ void walkmonster_start_go(edict_t *self)
     if (!(self->spawnflags & 2) && level.time < 1_sec) {
         M_droptofloor(self);
 
-		if ( self->groundentity )
-			if ( !M_walkmove( self, 0, 0 ) )
+		if ( self->groundInfo.entity ) {
+			if ( !M_walkmove( self, 0, 0 ) ) {
 				gi.dprintf( "%s in solid at %s\n", self->classname, vtos( self->s.origin ) );
+			}
+		}
 	}
 
 	if ( !self->yaw_speed )
