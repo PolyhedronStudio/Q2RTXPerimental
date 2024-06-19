@@ -120,17 +120,22 @@ bool SV_RunThink(edict_t *ent)
     sg_time_t     thinktime;
 
     thinktime = ent->nextthink;
-    if (thinktime <= 0_ms)
+    if ( thinktime <= 0_ms ) {
+        return false;
+    }
+    if ( thinktime > level.time ) {
         return true;
-    if (thinktime > level.time)
-        return true;
+    }
 
     ent->nextthink = 0_ms;
-    if (!ent->think)
-        gi.error("nullptr ent->think");
+    if ( !ent->think ) {
+        gi.error( "nullptr ent->think" );
+        return false;
+    }
+
     ent->think(ent);
 
-    return false;
+    return true;
 }
 
 /*
@@ -579,7 +584,9 @@ void SV_Physics_Pusher(edict_t *ent)
     // make sure all team slaves can move before commiting
     // any moves or calling any think functions
     // if the move is blocked, all moved objects will be backed out
-//retry:
+#if 0
+retry:
+#endif
     pushed_p = pushed;
     for (part = ent; part; part = part->teamchain) {
         if (!VectorEmpty(part->velocity) || !VectorEmpty(part->avelocity)) {
@@ -1071,6 +1078,153 @@ void SV_Physics_Step(edict_t *ent)
 //    SV_RunThink(ent);
 }
 
+/**
+*   @brief  For RootMotion entities.
+**/
+void SV_Physics_RootMotion( edict_t *ent ) {
+    bool	   wasonground;
+    bool	   hitsound = false;
+    float *vel;
+    float	   speed, newspeed, control;
+    float	   friction;
+    edict_t *groundentity;
+    contents_t mask = G_GetClipMask( ent );
+
+    // airborne monsters should always check for ground
+    if ( !ent->groundInfo.entity ) {
+        M_CheckGround( ent, mask );
+    }
+
+    groundentity = ent->groundInfo.entity;
+
+    SV_CheckVelocity( ent );
+
+    if ( groundentity ) {
+        wasonground = true;
+    } else {
+        wasonground = false;
+    }
+
+    if ( ent->avelocity[ 0 ] || ent->avelocity[ 1 ] || ent->avelocity[ 2 ] ) {
+        SV_AddRotationalFriction( ent );
+    }
+
+    // FIXME: figure out how or why this is happening
+    //if ( std::isnan( ent->velocity[ 0 ] ) || std::isnan( ent->velocity[ 1 ] ) || std::isnan( ent->velocity[ 2 ] ) )
+    //if ( std::isnan( ent->velocity[ 0 ] ) || std::isnan( ent->velocity[ 1 ] ) || std::isnan( ent->velocity[ 2 ] ) )
+    //    ent->velocity = {};
+
+    // add gravity except:
+    //   flying monsters
+    //   swimming monsters who are in the water
+    if ( !wasonground )
+        if ( !( ent->flags & FL_FLY ) )
+            if ( !( ( ent->flags & FL_SWIM ) && ( ent->liquidlevel > LIQUID_WAIST ) ) ) {
+                //if ( ent->velocity[ 2 ] < level.gravity * -0.1f )
+                if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f )
+                    hitsound = true;
+                if ( ent->liquidlevel != LIQUID_UNDER )
+                    SV_AddGravity( ent );
+            }
+
+    // friction for flying monsters that have been given vertical velocity
+    if ( ( ent->flags & FL_FLY ) && ( ent->velocity[ 2 ] != 0 ) /*&& !( ent->monsterinfo.aiflags & AI_ALTERNATE_FLY )*/ ) {
+        speed = fabsf( ent->velocity[ 2 ] );
+        //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
+        control = speed < sv_stopspeed ? sv_stopspeed : speed;
+        friction = sv_friction / 3;
+        newspeed = speed - ( gi.frame_time_s * control * friction );
+        if ( newspeed < 0 )
+            newspeed = 0;
+        newspeed /= speed;
+        ent->velocity[ 2 ] *= newspeed;
+    }
+
+    // friction for swimming monsters that have been given vertical velocity
+    if ( ( ent->flags & FL_SWIM ) && ( ent->velocity[ 2 ] != 0 ) /*&& !( ent->monsterinfo.aiflags & AI_ALTERNATE_FLY )*/ ) {
+        speed = fabsf( ent->velocity[ 2 ] );
+        //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
+        control = speed < sv_stopspeed ? sv_stopspeed : speed;
+        newspeed = speed - ( gi.frame_time_s * control * sv_waterfriction * (float)ent->liquidlevel );
+        if ( newspeed < 0 )
+            newspeed = 0;
+        newspeed /= speed;
+        ent->velocity[ 2 ] *= newspeed;
+    }
+
+    if ( ent->velocity[ 2 ] || ent->velocity[ 1 ] || ent->velocity[ 0 ] ) {
+        // apply friction
+        if ( ( wasonground || ( ent->flags & ( FL_SWIM | FL_FLY ) ) ) /*&& !( ent->monsterinfo.aiflags & AI_ALTERNATE_FLY )*/ ) {
+            vel = &ent->velocity[ 0 ];
+            speed = sqrtf( vel[ 0 ] * vel[ 0 ] + vel[ 1 ] * vel[ 1 ] );
+            if ( speed ) {
+                friction = sv_friction;
+
+                // Paril: lower friction for dead monsters
+                if ( ent->deadflag )
+                    friction *= 0.5f;
+
+                //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
+                control = speed < sv_stopspeed ? sv_stopspeed : speed;
+                newspeed = speed - gi.frame_time_s * control * friction;
+
+                if ( newspeed < 0 )
+                    newspeed = 0;
+                newspeed /= speed;
+
+                vel[ 0 ] *= newspeed;
+                vel[ 1 ] *= newspeed;
+            }
+        }
+
+        Vector3 old_origin = ent->s.origin;
+
+        SV_FlyMove( ent, gi.frame_time_s, mask );
+
+        G_TouchProjectiles( ent, old_origin );
+
+        M_CheckGround( ent, mask );
+
+        gi.linkentity( ent );
+
+        // ========
+        // PGM - reset this every time they move.
+        //       G_touchtriggers will set it back if appropriate
+        ent->gravity = 1.0;
+        // ========
+
+        // [Paril-KEX] this is something N64 does to avoid doors opening
+        // at the start of a level, which triggers some monsters to spawn.
+        if ( /*!level.is_n64 || */level.time > FRAME_TIME_S ) {
+            G_TouchTriggers( ent );
+        }
+
+        if ( !ent->inuse ) {
+            return;
+        }
+
+        if ( ent->groundInfo.entity ) {
+            if ( !wasonground ) {
+                if ( hitsound ) {
+                    ent->s.event = EV_FOOTSTEP;
+                }
+            }
+        }
+    }
+
+    if ( !ent->inuse ) { // PGM g_touchtrigger free problem
+        return;
+    }
+
+    if ( ent->svflags & SVF_MONSTER ) {
+        M_CatagorizePosition( ent, Vector3( ent->s.origin ), ent->liquidlevel, ent->liquidtype );
+        M_WorldEffects( ent );
+    }
+
+    // regular thinking
+    SV_RunThink( ent );
+}
+
 //============================================================================
 /*
 ================
@@ -1092,28 +1246,31 @@ void G_RunEntity(edict_t *ent)
         ent->prethink( ent );
     }
 
-    switch (ent->movetype) {
+    switch ( ent->movetype ) {
     case MOVETYPE_PUSH:
     case MOVETYPE_STOP:
-        SV_Physics_Pusher(ent);
+        SV_Physics_Pusher( ent );
         break;
     case MOVETYPE_NONE:
-        SV_Physics_None(ent);
+        SV_Physics_None( ent );
         break;
     case MOVETYPE_NOCLIP:
-        SV_Physics_Noclip(ent);
+        SV_Physics_Noclip( ent );
         break;
     case MOVETYPE_STEP:
-        SV_Physics_Step(ent);
+        SV_Physics_Step( ent );
+        break;
+    case MOVETYPE_ROOTMOTION:
+        SV_Physics_RootMotion( ent );
         break;
     case MOVETYPE_TOSS:
     case MOVETYPE_BOUNCE:
     case MOVETYPE_FLY:
     case MOVETYPE_FLYMISSILE:
-        SV_Physics_Toss(ent);
+        SV_Physics_Toss( ent );
         break;
     default:
-        gi.error("SV_Physics: bad movetype %i", ent->movetype);
+        gi.error( "SV_Physics: bad movetype %i", ent->movetype );
     }
 
     if ( isMoveStepper && ent->movetype == MOVETYPE_STEP ) {

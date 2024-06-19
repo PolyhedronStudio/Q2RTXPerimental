@@ -24,7 +24,7 @@ Features being looked forward on implementation.
 * [X] Remove all Q2 monsters, keep a few around to use for testing.
 	* Monsters left are: ``monster_actor``, ``monster_infantry``, ``monster_player``, ``monster_solider``.
 * [ ] Eliminate all other Q2-only specific game entities.
-* [ ] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
+* [X] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
 * [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.
 * [x] Add some way of having entity 'class' like type support. (At the least, eliminate a need for having such a large edict_t type that holds all sorts of object-type specific variables.)
 	* [x] So far this is only in existence for the client game's ``clg_local_entity_t`` type.
@@ -103,3 +103,41 @@ And here a list of things that I keep an eye out and/or may (fail multiple times
 	- 3. Crouching, does not scale with velocity, and by default lowers the spread scale largely.
 	- 4. Optional: Angular spread, the faster your mouse is, the spread rises.
 	- 5. Gun Weight -> Influence player movement speed scale.
+
+- [ ] The NetCode Mysteries:
+	- [ ] We want bitstreaming to save up massive amounts of packet space.
+		https://github.com/mas-bandwidth/serialize ??
+	- [ ] Add in proper ``Entity Type`` code for ``Packet Entities``
+	- [ ] In combination with all of the below, and having a scenario for specific
+		  entity types.. It makes sense to have a callback into the game dll so it can
+		  determine how to deal with certain fields.
+
+- [ ] The IQM Animation Scenario:
+	- [ ] 0. Add in proper usage of entity type and adjust the client code to handle adding packet entities based on its type.
+			 This will simplify life in the future.
+	- [ ] 1. Weapon code should use ``PlayAnimation("anim_name")``, or precache animIDs ``GetAnimationHandle("anim_name")``.
+	- [ ] 2. Monster code should use Play/Get-Anim, and have actions linked to those consequently.
+	- [ ] 3. If ``entity type == MONSTER || PLAYER`` the net code needs to be adjusted so that 'frame' encodes/decodes animationIDs for each specific
+			 body part. 8 bits per part, means 24 bits and leaves 8 free bits for other uses.
+	- [ ] 4. Client needs to detect animationID, time of change, and playback the animation from there
+			 using the animation info provided in the IQM data.
+
+- [ ] The Skeletal Model Info Scenario:
+	- [ ] 0. For both, client and server, whenever an IQM file is loaded, so will be its matching
+			 .cfg file. This file will contain:
+		- Name of Root Bone.
+		- Bone Names for the ``Joint Controllers``.
+		- Tags assigned to a bone name, with a corresponding ``up/forward/right`` axis set.
+		- Animation Events, ``animevent "(animname)" (animframe) (client/server/both) "(animevent data, can be a string)"``
+		- Animation Root Motion Translate axes, animrootbonetranslate "animname" ``TRANSLATE_X/TRANSLATE_Y/TRANSLATE_Z``
+	- [ ] 1. The shared game code needs and is responsible for a ``Pose API`` which essentially is capable of:
+		- Taking an animation from Pose A, and blend it into Pose B starting from a specified bone.
+		- This'll use a simple memory cache that grows in POW2 size whenever there isn't enough space to be used.
+		  (The more entities there are using a skeletal model, the more space we need.)
+	- [ ] 2. I am most likely forgetting some things, so first finish this entire list.
+
+- [ ] The Monster Scenario:
+	- [ ] 0. We need nav nodes of sorts, probably lets do this KISS first, just use some entities.
+	- [ ] 1. There's more I can think of such as detecting whether to strafe and all that...
+	- [ ] 2. Add mm_move_t as a member of gedict_t, and/or of a different monster struct that becomes part of gedict_t
+	- [ ] I'll continue this list by the time I get there.

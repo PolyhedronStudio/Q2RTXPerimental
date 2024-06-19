@@ -415,6 +415,9 @@ typedef enum {
 
     MOVETYPE_WALK,          // gravity
     MOVETYPE_STEP,          // gravity, special edge handling
+
+    MOVETYPE_ROOTMOTION,    // gravity, animation root motion influences velocities.
+
     MOVETYPE_FLY,
     MOVETYPE_TOSS,          // gravity
     MOVETYPE_FLYMISSILE,    // extra size to monsters
@@ -1492,7 +1495,9 @@ struct edict_s {
 
     edict_t     *goalentity;
     edict_t     *movetarget;
+    //! How many degrees the yaw should rotate per frame in order to reach its 'ideal_yaw'.
     float       yaw_speed;
+    //! Ideal yaw to face to.
     float       ideal_yaw;
 
     sg_time_t   nextthink;

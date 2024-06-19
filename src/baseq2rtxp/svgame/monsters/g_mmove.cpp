@@ -64,7 +64,7 @@ const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const 
 /**
 *	@return True if the trace yielded a step, false otherwise.
 **/
-static bool MM_CheckStep( const trace_t *trace ) {
+static bool MMove_CheckStep( const trace_t *trace ) {
 	// If not solid:
 	if ( !trace->allsolid ) {
 		// If trace clipped to an entity and the plane we hit its normal is sane for stepping:
@@ -81,7 +81,7 @@ static bool MM_CheckStep( const trace_t *trace ) {
 *	@brief	Will step to the trace its end position, calculating the height difference and
 *			setting it as our step_height if it is equal or above the minimal step size.
 **/
-static void MM_StepDown( mm_move_t *monsterMove, const trace_t *trace ) {
+static void MMove_StepDown( mm_move_t *monsterMove, const trace_t *trace ) {
 	// Apply the trace endpos as the new origin.
 	monsterMove->state.origin = trace->endpos;
 
@@ -149,13 +149,13 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 		//pml.origin = real_trace.endpos;
 
 		// WID: Use proper stair step checking.
-		if ( MM_CheckStep( &trace ) ) {
+		if ( MMove_CheckStep( &trace ) ) {
 			// Only an upwards jump is a stair clip.
 			if ( monsterMove->state.velocity.z > 0.f ) {
 				monsterMove->step.clipped = true;
 			}
 			// Step down to the new found ground.
-			MM_StepDown( monsterMove, &real_trace );
+			MMove_StepDown( monsterMove, &real_trace );
 		}
 	}
 
@@ -185,9 +185,9 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 
 		// WID: Use proper stair step checking.
 		// Check for stairs:
-		if ( MM_CheckStep( &trace ) ) {
+		if ( MMove_CheckStep( &trace ) ) {
 			// Step down stairs:
-			MM_StepDown( monsterMove, &trace );
+			MMove_StepDown( monsterMove, &trace );
 		// We're expecting it to be a slope, step down the slope instead:
 		} else if ( trace.fraction < 1.f ) {
 			monsterMove->state.origin = trace.endpos;
@@ -195,4 +195,33 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	}
 
 	return blockedMask;
+}
+
+/**
+*	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.
+**/
+void SVG_MMove_MoveYawToIdealYaw( edict_t *ent, const float idealYaw, const float yawSpeed ) {
+	// Get angle modded angles.
+	const float current = AngleMod( ent->s.angles[ YAW ] );
+
+	// If we're already facing ideal yaw, escape.
+	if ( current == idealYaw ) {
+		return;
+	}
+
+	float move = idealYaw - current;
+
+	// Prevent the monster from rotating a full circle around the yaw.
+	// Do so by keeping angles between -180/+180, depending on whether ideal yaw is higher or lower than current.
+	move = QM_Wrapf( move, -180.f, 180.f );
+	#if 0
+	if (ideal > current) { if ( move >= 180 ) { move = move - 360; } } else { if ( move <= -180 ) { move = move + 360; } }
+	#endif
+	// Clamp the yaw move speed.
+	move = QM_Clampf( move, -yawSpeed, yawSpeed );
+	#if 0
+	if (move > 0) { if ( move > yawSpeed ) { move = yawSpeed; } } else { if ( move < -yawSpeed ) { move = -yawSpeed; }
+	#endif
+	// AngleMod the final resulting angles.
+	ent->s.angles[ YAW ] = AngleMod( current + move );
 }

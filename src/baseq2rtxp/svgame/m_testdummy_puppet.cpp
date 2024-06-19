@@ -180,33 +180,27 @@ void monster_testdummy_puppet_think( edict_t *self ) {
             // Determine distance to traverse based on Base Velocity.
             float distance = ( ( speed / rootMotion->frameCount ) * ( rootMotion->frameCount / rootMotion->totalDistance ) );
 
-            // Calculate yaw.
-            float yaw = QM_Vector3ToYaw( 
+            // Calculate ideal yaw to turn into.
+            self->ideal_yaw = QM_Vector3ToYaw(
                 QM_Vector3Normalize( Vector3( self->activator->s.origin ) - Vector3(self->s.origin) )
             );
-            Vector3 dirAngles = QM_Vector3ToAngles( Vector3( self->activator->s.origin ) - Vector3( self->s.origin ) );
+            // Setup decent yaw speed.
+            self->yaw_speed = 10;
 
-            // Turn to ideal yaw.
-            self->ideal_yaw = self->s.angles[ YAW ] = yaw;
-            
-            // Change yaw.
-            M_ChangeYaw( self );
+            // Move yaw a frame into ideal yaw position.
+            SVG_MMove_MoveYawToIdealYaw( self, self->ideal_yaw, self->yaw_speed );
 
             // Generate frame velocity vector.
             Vector3 entityVelocity = self->velocity;
             Vector3 frameVelocity = {
-                cos( yaw * QM_DEG2RAD ) * distance,
-                sin( yaw * QM_DEG2RAD ) * distance,
+                cos( self->s.angles[ YAW ] * QM_DEG2RAD ) * distance,
+                sin( self->s.angles[ YAW ] * QM_DEG2RAD ) * distance,
                 0
             };
             // If not onground, zero out the frameVelocity.
             if ( self->groundInfo.entity == nullptr ) {
-                frameVelocity = QM_Vector3Zero();
+                frameVelocity = self->velocity;
             }
-            //// Add actual entity velocity.
-            //if ( QM_Vector3LengthSqr( entityVelocity ) != 0 ) {
-            //    frameVelocity += QM_Vector3Normalize( entityVelocity );
-            //}
 
             // Setup the monster move structure.
             mm_move_t monsterMove = {
@@ -232,6 +226,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                     .previousOrigin = self->s.origin,
                     .previousVelocity = self->velocity,
                 },
+
                 // Proper ground and liquid information.
                 .ground = self->groundInfo,
                 .liquid = {
@@ -344,7 +339,7 @@ void monster_testdummy_puppet_post_spawn( edict_t *self ) {
 void SP_monster_testdummy_puppet( edict_t *self ) {
     // Solid/MoveType:
     self->solid = SOLID_BOUNDS_BOX;
-    self->movetype = MOVETYPE_STEP;
+    self->movetype = MOVETYPE_ROOTMOTION;
     //self->monsterinfo.aiflags = AI_NOSTEP;
 
     // Model/BBox:

@@ -213,6 +213,11 @@ const trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const V
 **/
 const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, edict_t *passEntity, contents_t contentMask = CONTENTS_NONE );
 
+/**
+*	@brief	Clips the velocity to surface normal.
+**/
+void SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
+
 
 
 /**
@@ -230,3 +235,8 @@ const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const 
 *			Does not modify any world state?
 **/
 const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove );
+
+/**
+*	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.
+**/
+void SVG_MMove_MoveYawToIdealYaw( edict_t *ent, const float idealYaw, const float yawSpeed );
