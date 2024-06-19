@@ -1206,11 +1206,11 @@ struct edict_s {
     contents_t  hullContents;
     edict_t     *owner;
 
+    const cm_entity_t *entityDictionary;
 
     // DO NOT MODIFY ANYTHING ABOVE THIS, THE SERVER
     // EXPECTS THE FIELDS IN THAT ORDER!
 
-    const cm_entity_t *entityDictionary;
     //================================
     int32_t     spawn_count;
     int32_t     movetype;

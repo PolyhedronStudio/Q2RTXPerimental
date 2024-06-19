@@ -55,8 +55,8 @@ void MoveClientToIntermission(edict_t *ent)
     ent->client->grenade_blew_up = false;
     ent->client->grenade_time = 0_ms;
 
-    ent->liquidtype = CONTENTS_NONE;
-    ent->liquidlevel = liquid_level_t::LIQUID_NONE;;
+    ent->liquidInfo.type = CONTENTS_NONE;
+    ent->liquidInfo.level = liquid_level_t::LIQUID_NONE;;
     ent->viewheight = 0;
     ent->s.modelindex = 0;
     ent->s.modelindex2 = 0;

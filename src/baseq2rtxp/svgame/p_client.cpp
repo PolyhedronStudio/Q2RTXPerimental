@@ -1136,8 +1136,8 @@ void PutClientInServer(edict_t *ent)
     ent->model = "players/male/tris.md2";
     ent->pain = player_pain;
     ent->die = player_die;
-    ent->liquidlevel = liquid_level_t::LIQUID_NONE;
-    ent->liquidtype = CONTENTS_NONE;
+    ent->liquidInfo.level = liquid_level_t::LIQUID_NONE;
+    ent->liquidInfo.type = CONTENTS_NONE;
     ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
     ent->svflags &= ~SVF_DEADMONSTER;
@@ -1799,8 +1799,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
 		// Update the entity's remaining viewheight, liquid and ground information:
         ent->viewheight = (int32_t)pm.playerState->pmove.viewheight;
-        ent->liquidlevel = pm.liquid.level;
-        ent->liquidtype = pm.liquid.type;
+        ent->liquidInfo.level = pm.liquid.level;
+        ent->liquidInfo.type = pm.liquid.type;
         ent->groundInfo.entity = pm.ground.entity;
         if ( pm.ground.entity ) {
             ent->groundInfo.entityLinkCount = pm.ground.entity->linkcount;

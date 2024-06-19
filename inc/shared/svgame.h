@@ -114,6 +114,8 @@ typedef struct edict_s {
     contents_t  hullContents;
     edict_t     *owner;
 
+    const cm_entity_t *entityDictionary;
+
     // the game dll can add anything it wants after
     // this point in the structure
 } edict_t;

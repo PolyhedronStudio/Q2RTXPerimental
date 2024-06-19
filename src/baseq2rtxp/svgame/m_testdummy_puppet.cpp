@@ -229,10 +229,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
 
                 // Proper ground and liquid information.
                 .ground = self->groundInfo,
-                .liquid = {
-                    .type = self->liquidtype,
-                    .level = self->liquidlevel,
-                },
+                .liquid = self->liquidInfo,
             };
 
             // Perform a step slide move for the specified monstermove state.
@@ -248,8 +245,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 // self->monsterMove = monsterMove;
                 // Copy over the resulting ground and liquid info.
                 self->groundInfo = monsterMove.ground;
-                self->liquidtype = monsterMove.liquid.type;
-                self->liquidlevel = monsterMove.liquid.level;
+                self->liquidInfo = monsterMove.liquid;
                 // Copy over the resulting origin and velocity back into the entity.
                 VectorCopy( monsterMove.state.origin, self->s.origin );
                 VectorCopy( monsterMove.state.velocity, self->velocity );

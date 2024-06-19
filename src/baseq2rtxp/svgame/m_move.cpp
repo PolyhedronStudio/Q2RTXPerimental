@@ -131,7 +131,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
                 if (ent->goalentity->client) {
                     if (dz > 40)
                         neworg[2] -= 8;
-                    if (!((ent->flags & FL_SWIM) && (ent->liquidlevel < 2)))
+                    if (!((ent->flags & FL_SWIM) && (ent->liquidInfo.level < 2)))
                         if (dz < 30)
                             neworg[2] += 8;
                 } else {
@@ -149,7 +149,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
 
             // fly monsters don't enter water voluntarily
             if (ent->flags & FL_FLY) {
-                if (!ent->liquidlevel) {
+                if (!ent->liquidInfo.level) {
                     test[0] = trace.endpos[0];
                     test[1] = trace.endpos[1];
                     test[2] = trace.endpos[2] + ent->mins[2] + 1;
@@ -161,7 +161,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
 
             // swim monsters don't exit water voluntarily
             if (ent->flags & FL_SWIM) {
-                if (ent->liquidlevel < 2) {
+                if (ent->liquidInfo.level < 2) {
                     test[0] = trace.endpos[0];
                     test[1] = trace.endpos[1];
                     test[2] = trace.endpos[2] + ent->mins[2] + 1;
@@ -211,7 +211,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
 
 
     // don't go in to water
-    if (ent->liquidlevel == 0) {
+    if (ent->liquidInfo.level == 0) {
         test[0] = trace.endpos[0];
         test[1] = trace.endpos[1];
         test[2] = trace.endpos[2] + ent->mins[2] + 1;

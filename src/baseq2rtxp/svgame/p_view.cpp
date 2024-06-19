@@ -591,7 +591,7 @@ static void P_CheckWorldEffects( void ) {
 		return;
 	}
 
-	liquidlevel = current_player->liquidlevel;
+	liquidlevel = current_player->liquidInfo.level;
 	old_waterlevel = current_client->old_waterlevel;
 	current_client->old_waterlevel = liquidlevel;
 
@@ -602,28 +602,28 @@ static void P_CheckWorldEffects( void ) {
 		// Feet in.
 		if ( liquidlevel == liquid_level_t::LIQUID_FEET ) {
 			P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
-			if ( current_player->liquidtype & CONTENTS_LAVA ) {
+			if ( current_player->liquidInfo.type & CONTENTS_LAVA ) {
 				//gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
 				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
 
 				// clear damage_debounce, so the pain sound will play immediately
 				current_player->damage_debounce_time = level.time - 1_sec;
-			} else if ( current_player->liquidtype & CONTENTS_SLIME ) {
+			} else if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
 				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
-			} else if ( current_player->liquidtype & CONTENTS_WATER ) {
+			} else if ( current_player->liquidInfo.type & CONTENTS_WATER ) {
 				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
 			}
 		} else if ( liquidlevel >= liquid_level_t::LIQUID_WAIST ) {
 			P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
-			if ( current_player->liquidtype & CONTENTS_LAVA ) {
+			if ( current_player->liquidInfo.type & CONTENTS_LAVA ) {
 				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
 
 				// clear damage_debounce, so the pain sound will play immediately
 				current_player->damage_debounce_time = level.time - 1_sec;
-			} else if ( current_player->liquidtype & CONTENTS_SLIME ) {
+			} else if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
 				const std::string splash_sfx_path = SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 );
 				gi.sound( current_player, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
-			} else if ( current_player->liquidtype & CONTENTS_WATER ) {
+			} else if ( current_player->liquidInfo.type & CONTENTS_WATER ) {
 				const std::string splash_sfx_path = SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 );
 				gi.sound( current_player, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
 			}
@@ -699,8 +699,8 @@ static void P_CheckWorldEffects( void ) {
 	//
 	// Check for sizzle damage
 	//
-	if ( liquidlevel && ( current_player->liquidtype & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
-		if ( current_player->liquidtype & CONTENTS_LAVA ) {
+	if ( liquidlevel && ( current_player->liquidInfo.type & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
+		if ( current_player->liquidInfo.type & CONTENTS_LAVA ) {
 			if ( current_player->health > 0
 				&& current_player->pain_debounce_time <= level.time ) {
 				//if ( Q_rand( ) & 1 )
@@ -715,7 +715,7 @@ static void P_CheckWorldEffects( void ) {
 			T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MEANS_OF_DEATH_LAVA );
 		}
 
-		if ( current_player->liquidtype & CONTENTS_SLIME ) {
+		if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
 			T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MEANS_OF_DEATH_SLIME );
 		}
 	}
@@ -784,7 +784,7 @@ G_SetClientSound
 */
 void G_SetClientSound( edict_t *ent ) {
 	// Override sound with the 'fry' sound in case of being in a 'fryer' liquid, lol.
-	if ( ent->liquidlevel && ( ent->liquidtype & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
+	if ( ent->liquidInfo.level && ( ent->liquidInfo.type & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
 		ent->s.sound = snd_fry;
 	// Override entity sound with that of the weapon's activeSound.
 	} else if ( ent->client->weaponState.activeSound ) {

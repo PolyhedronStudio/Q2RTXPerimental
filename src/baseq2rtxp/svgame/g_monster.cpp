@@ -107,7 +107,7 @@ void M_FliesOff( edict_t *self ) {
 
 void M_FliesOn(edict_t *self)
 {
-    if (self->liquidlevel)
+    if (self->liquidInfo.level)
         return;
 	// WID: Silly effect.
     //self->s.effects |= EF_FLIES;
@@ -117,7 +117,7 @@ void M_FliesOn(edict_t *self)
 }
 
 void M_FlyCheck( edict_t *self ) {
-	if ( self->liquidlevel )
+	if ( self->liquidInfo.level )
 		return;
 
 	if ( random( ) > 0.5f )
@@ -211,7 +211,7 @@ void M_WorldEffects( edict_t *ent ) {
 
     if (ent->health > 0) {
         if (!(ent->flags & FL_SWIM)) {
-            if (ent->liquidlevel < 3) {
+            if (ent->liquidInfo.level < 3) {
                 ent->air_finished_time = level.time + 12_sec;
             } else if (ent->air_finished_time < level.time) {
                 // drown!
@@ -224,7 +224,7 @@ void M_WorldEffects( edict_t *ent ) {
                 }
             }
         } else {
-            if (ent->liquidlevel > 0) {
+            if (ent->liquidInfo.level > 0) {
                 ent->air_finished_time = level.time + 9_sec;
             } else if (ent->air_finished_time < level.time ) {
                 // suffocate!
@@ -239,7 +239,7 @@ void M_WorldEffects( edict_t *ent ) {
         }
     }
 
-	if ( ent->liquidlevel == 0 ) {
+	if ( ent->liquidInfo.level == 0 ) {
 		if ( ent->flags & FL_INWATER ) {
 			gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
 			ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_INWATER );
@@ -247,31 +247,31 @@ void M_WorldEffects( edict_t *ent ) {
 		return;
 	}
 
-    if ((ent->liquidtype & CONTENTS_LAVA) && !(ent->flags & FL_IMMUNE_LAVA)) {
+    if ((ent->liquidInfo.type & CONTENTS_LAVA) && !(ent->flags & FL_IMMUNE_LAVA)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 0.2_sec;
-            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidlevel, 0, 0, MEANS_OF_DEATH_LAVA );
+            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidInfo.level, 0, 0, MEANS_OF_DEATH_LAVA );
         }
     }
-    if ((ent->liquidtype & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME)) {
+    if ((ent->liquidInfo.type & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 1_sec;
-            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidlevel, 0, 0, MEANS_OF_DEATH_SLIME );
+            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidInfo.level, 0, 0, MEANS_OF_DEATH_SLIME );
         }
     }
 
 	if ( !( ent->flags & FL_INWATER ) ) {
 		if ( !( ent->svflags & SVF_DEADMONSTER ) ) {
-			if ( ent->liquidtype & CONTENTS_LAVA ) {
+			if ( ent->liquidInfo.type & CONTENTS_LAVA ) {
 				//if ( random() <= 0.5f )
 				//	gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava1.wav" ), 1, ATTN_NORM, 0 );
 				//else
 				//	gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava2.wav" ), 1, ATTN_NORM, 0 );
 				const std::string burn_sfx_path = SG_RandomResourcePath( "player/burn", "wav", 0, 2 );
 				gi.sound( ent, CHAN_BODY, gi.soundindex( burn_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
-			} else if ( ent->liquidtype & CONTENTS_SLIME ) {
+			} else if ( ent->liquidInfo.type & CONTENTS_SLIME ) {
 				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
-			} else if ( ent->liquidtype & CONTENTS_WATER ) {
+			} else if ( ent->liquidInfo.type & CONTENTS_WATER ) {
 				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
 			}
 		}
@@ -303,7 +303,7 @@ void M_droptofloor( edict_t *ent ) {
 
 	gi.linkentity( ent );
 	M_CheckGround( ent, mask );
-	M_CatagorizePosition( ent, ent->s.origin, ent->liquidlevel, ent->liquidtype );
+	M_CatagorizePosition( ent, ent->s.origin, ent->liquidInfo.level, ent->liquidInfo.type );
 }
 
 
@@ -472,7 +472,7 @@ void monster_think( edict_t *self ) {
 		self->monsterinfo.linkcount = self->linkcount;
 		M_CheckGround( self, G_GetClipMask( self ) );
 	}
-	M_CatagorizePosition( self, self->s.origin, self->liquidlevel, self->liquidtype );
+	M_CatagorizePosition( self, self->s.origin, self->liquidInfo.level, self->liquidInfo.type );
 	M_WorldEffects( self );
 	M_SetEffects( self );
 }
