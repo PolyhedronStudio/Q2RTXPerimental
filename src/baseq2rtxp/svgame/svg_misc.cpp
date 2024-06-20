@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // g_misc.c
 
-#include "g_local.h"
+#include "svg_local.h"
 
 
 /*QUAKED func_group (0 0 0) ?

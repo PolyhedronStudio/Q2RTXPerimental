@@ -263,47 +263,47 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	# SharedGame API Bindings
 	baseq2rtxp/sharedgame/game_bindings/sg_binding_svgame.cpp
 
-	# SererGame
-	baseq2rtxp/svgame/weapons/p_weapon_fists.cpp
-	baseq2rtxp/svgame/weapons/p_weapon_pistol.cpp
+	# ServerGame
+	baseq2rtxp/svgame/svg_ai.cpp
+	baseq2rtxp/svgame/svg_chase.cpp
+	baseq2rtxp/svgame/svg_commands.cpp
+	baseq2rtxp/svgame/svg_combat.cpp
+	baseq2rtxp/svgame/svg_gamemode.cpp
+	baseq2rtxp/svgame/svg_items.cpp
+	baseq2rtxp/svgame/svg_main.cpp
+	baseq2rtxp/svgame/svg_misc.cpp
+	baseq2rtxp/svgame/svg_monster.cpp
+	baseq2rtxp/svgame/svg_physics.cpp
+	baseq2rtxp/svgame/svg_save_pointers.cpp
+	baseq2rtxp/svgame/svg_save.cpp
+	baseq2rtxp/svgame/svg_spawn.cpp
+	baseq2rtxp/svgame/svg_spotlight.cpp
+	baseq2rtxp/svgame/svg_server_commands.cpp
+	baseq2rtxp/svgame/svg_target.cpp
+	baseq2rtxp/svgame/svg_trigger.cpp
+	baseq2rtxp/svgame/svg_utils.cpp
+	baseq2rtxp/svgame/svg_weapon.cpp
 
-	baseq2rtxp/svgame/g_ai.cpp
-	baseq2rtxp/svgame/g_chase.cpp
-	baseq2rtxp/svgame/g_cmds.cpp
-	baseq2rtxp/svgame/g_combat.cpp
-	baseq2rtxp/svgame/g_func.cpp
-	baseq2rtxp/svgame/g_gamemode.cpp
-	baseq2rtxp/svgame/g_items.cpp
-	baseq2rtxp/svgame/g_main.cpp
-	baseq2rtxp/svgame/g_misc.cpp
-	baseq2rtxp/svgame/g_monster.cpp
-	baseq2rtxp/svgame/g_phys.cpp
-	baseq2rtxp/svgame/g_ptrs.cpp
-	baseq2rtxp/svgame/g_save.cpp
-	baseq2rtxp/svgame/g_spawn.cpp
-	baseq2rtxp/svgame/g_spotlight.cpp
-	baseq2rtxp/svgame/g_svcmds.cpp
-	baseq2rtxp/svgame/g_target.cpp
-	baseq2rtxp/svgame/g_trigger.cpp
-	baseq2rtxp/svgame/g_utils.cpp
-	baseq2rtxp/svgame/g_weapon.cpp
-
-	baseq2rtxp/svgame/m_testdummy_puppet.cpp
-
-	baseq2rtxp/svgame/p_client.cpp
-	baseq2rtxp/svgame/p_hud.cpp
-	baseq2rtxp/svgame/p_trail.cpp
-	baseq2rtxp/svgame/p_view.cpp
-	baseq2rtxp/svgame/p_weapon.cpp
+	baseq2rtxp/svgame/entities/svg_entities_func.cpp
+	baseq2rtxp/svgame/entities/monsters/svg_monster_testdummy_puppet.cpp
 
 	baseq2rtxp/svgame/monsters/g_mmove.cpp
 	baseq2rtxp/svgame/monsters/g_mmove_slidemove.cpp
+
+	baseq2rtxp/svgame/player/svg_player_client.cpp
+	baseq2rtxp/svgame/player/svg_player_hud.cpp
+	baseq2rtxp/svgame/player/svg_player_trail.cpp
+	baseq2rtxp/svgame/player/svg_player_view.cpp
+	baseq2rtxp/svgame/player/svg_player_weapon.cpp
+
+	baseq2rtxp/svgame/weapons/svg_weapon_fists.cpp
+	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
-	baseq2rtxp/svgame/g_local.h
-	baseq2rtxp/svgame/g_save.h
+	baseq2rtxp/svgame/svg_local.h
+	baseq2rtxp/svgame/svg_save.h
 
-	baseq2rtxp/svgame/m_player.h
+	baseq2rtxp/svgame/player/svg_m_player.h
 
 	baseq2rtxp/svgame/monsters/g_mmove.h
 	baseq2rtxp/svgame/monsters/g_mmove_slidemove.h

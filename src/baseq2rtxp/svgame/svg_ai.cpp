@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // g_ai.c
 
-#include "g_local.h"
+#include "svg_local.h"
 
 //// WID: C++20: Aggressive "extern "C"" for the save system.
 //bool FindTarget(edict_t *self);

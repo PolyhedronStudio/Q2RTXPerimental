@@ -5,7 +5,7 @@
 *
 *
 ********************************************************************/
-#include "../g_local.h"
+#include "../svg_local.h"
 
 #include "g_mmove.h"
 #include "g_mmove_slidemove.h"

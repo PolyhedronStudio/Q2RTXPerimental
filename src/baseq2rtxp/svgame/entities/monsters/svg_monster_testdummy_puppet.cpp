@@ -5,14 +5,14 @@
 *
 *
 ********************************************************************/
-#include "g_local.h"
+#include "../../svg_local.h"
 
 // TODO: Move elsewhere.. ?
 #include "refresh/shared_types.h"
 
 // Monster Move
-#include "monsters/g_mmove.h"
-#include "monsters/g_mmove_slidemove.h"
+#include "../../monsters/g_mmove.h"
+#include "../../monsters/g_mmove_slidemove.h"
 
 
 //! For when dummy is standing straight up.
@@ -202,7 +202,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
             self->yaw_speed = 10;
 
             // Move yaw a frame into ideal yaw position.
-            SVG_MMove_MoveYawToIdealYaw( self, self->ideal_yaw, self->yaw_speed );
+            SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
 
             // Generate frame velocity vector.
             Vector3 entityVelocity = self->velocity;

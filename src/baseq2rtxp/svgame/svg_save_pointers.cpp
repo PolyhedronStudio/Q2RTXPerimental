@@ -1,7 +1,7 @@
 // Game related types.
-#include "g_local.h"
+#include "svg_local.h"
 // Save related types.
-#include "g_save.h"
+#include "svg_save.h"
 
 extern mmove_t actor_move_attack;
 extern mmove_t actor_move_death1;

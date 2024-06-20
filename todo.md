@@ -104,6 +104,9 @@ And here a list of things that I keep an eye out and/or may (fail multiple times
 	- 4. Optional: Angular spread, the faster your mouse is, the spread rises.
 	- 5. Gun Weight -> Influence player movement speed scale.
 
+- [ ] Rename ``svgame/g_*`` to ``svgame/svg_*`` and put ``p_*`` files inside ``svgame/player``, ``m_`` files inside ``svgame/monsters/``
+	  move weapons into player folder as a subfolder.
+
 - [ ] Remove the whole player gender thing. Wtf...
 
 - [ ] The NetCode Mysteries:

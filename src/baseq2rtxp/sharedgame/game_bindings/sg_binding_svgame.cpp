@@ -12,7 +12,7 @@
 // short, server-visible gclient_t and edict_t structures,
 // because we define the full size ones in this file
 #include "shared/svgame.h"
-#include "../../svgame/g_local.h"
+#include "../../svgame/svg_local.h"
 
 // Extern here right after including shared/clgame.h
 extern svgame_import_t gi;

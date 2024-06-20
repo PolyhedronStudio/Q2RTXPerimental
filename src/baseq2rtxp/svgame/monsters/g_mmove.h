@@ -239,4 +239,4 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove );
 /**
 *	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.
 **/
-void SVG_MMove_MoveYawToIdealYaw( edict_t *ent, const float idealYaw, const float yawSpeed );
+void SVG_MMove_FaceIdealYaw( edict_t *ent, const float idealYaw, const float yawSpeed );
