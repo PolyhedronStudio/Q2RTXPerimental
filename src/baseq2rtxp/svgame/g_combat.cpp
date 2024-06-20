@@ -94,15 +94,16 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
     targ->enemy = attacker;
 
     if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD)) {
-//      targ->svflags |= SVF_DEADMONSTER;   // now treat as a different content type
-        if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
+            //targ->svflags |= SVF_DEADMONSTER;   // now treat as a different content type
+            // WID: TODO: Monster Reimplement.        
+            //if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
             level.killed_monsters++;
             if (coop->value && attacker->client)
                 attacker->client->resp.score++;
             // medics won't heal monsters that they kill themselves
             if (strcmp(attacker->classname, "monster_medic") == 0)
                 targ->owner = attacker;
-        }
+        //}
     }
 
     if (targ->movetype == MOVETYPE_PUSH || targ->movetype == MOVETYPE_STOP || targ->movetype == MOVETYPE_NONE) {
@@ -113,7 +114,27 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
 
     if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD)) {
         targ->touch = NULL;
-        monster_death_use(targ);
+        // WID: TODO: Actually trigger death.
+        //monster_death_use(targ);
+        //When a monster dies, it fires all of its targets with the current
+        //enemy as activator.
+        //void monster_death_use( edict_t * self ) {
+        //    self->flags &= ~( FL_FLY | FL_SWIM );
+        //    self->monsterinfo.aiflags &= ( AI_HIGH_TICK_RATE | AI_GOOD_GUY );
+
+        //    if ( self->item ) {
+        //        Drop_Item( self, self->item );
+        //        self->item = NULL;
+        //    }
+
+        //    if ( self->deathtarget )
+        //        self->target = self->deathtarget;
+
+        //    if ( !self->target )
+        //        return;
+
+        //    G_UseTargets( self, self->enemy );
+        //}
     }
 
     targ->die(targ, inflictor, attacker, damage, point);
@@ -177,61 +198,67 @@ void M_ReactToDamage(edict_t *targ, edict_t *attacker)
 
     // if we are a good guy monster and our attacker is a player
     // or another good guy, do not get mad at them
-    if (targ->monsterinfo.aiflags & AI_GOOD_GUY) {
-        if (attacker->client || (attacker->monsterinfo.aiflags & AI_GOOD_GUY))
-            return;
-    }
+    // WID: TODO: Monster Reimplement.
+    //if (targ->monsterinfo.aiflags & AI_GOOD_GUY) {
+    //    if (attacker->client || (attacker->monsterinfo.aiflags & AI_GOOD_GUY))
+    //        return;
+    //}
 
     // we now know that we are not both good guys
 
     // if attacker is a client, get mad at them because he's good and we're not
     if (attacker->client) {
-        targ->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
+        // WID: TODO: Monster Reimplement.
+        //targ->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
 
         // this can only happen in coop (both new and old enemies are clients)
         // only switch if can't see the current enemy
+        // WID: TODO: Monster Reimplement.
         if (targ->enemy && targ->enemy->client) {
-            if (visible(targ, targ->enemy)) {
-                targ->oldenemy = attacker;
-                return;
-            }
+            //if (visible(targ, targ->enemy)) {
+            //    targ->oldenemy = attacker;
+            //    return;
+            //}
             targ->oldenemy = targ->enemy;
         }
         targ->enemy = attacker;
-        if (!(targ->monsterinfo.aiflags & AI_DUCKED))
-            FoundTarget(targ);
+        // WID: TODO: Monster Reimplement
+        //if (!(targ->monsterinfo.aiflags & AI_DUCKED))
+        //    FoundTarget(targ);
         return;
     }
 
     // it's the same base (walk/swim/fly) type and a different classname and it's not a tank
     // (they spray too much), get mad at them
-    if (((targ->flags & (FL_FLY | FL_SWIM)) == (attacker->flags & (FL_FLY | FL_SWIM))) &&
-        (strcmp(targ->classname, attacker->classname) != 0) &&
-        (strcmp(attacker->classname, "monster_tank") != 0) &&
-        (strcmp(attacker->classname, "monster_supertank") != 0) &&
-        (strcmp(attacker->classname, "monster_makron") != 0) &&
-        (strcmp(attacker->classname, "monster_jorg") != 0)) {
-        if (targ->enemy && targ->enemy->client)
+    if ( ( ( targ->flags & (FL_FLY | FL_SWIM) ) == ( attacker->flags & (FL_FLY | FL_SWIM) ) ) &&
+        ( strcmp( targ->classname, attacker->classname ) != 0) ) {
+        if ( targ->enemy && targ->enemy->client ) {
             targ->oldenemy = targ->enemy;
+        }
         targ->enemy = attacker;
-        if (!(targ->monsterinfo.aiflags & AI_DUCKED))
-            FoundTarget(targ);
+        // WID: TODO: Monster Reimplement
+        //if (!(targ->monsterinfo.aiflags & AI_DUCKED))
+        //    FoundTarget(targ);
     }
     // if they *meant* to shoot us, then shoot back
-    else if (attacker->enemy == targ) {
-        if (targ->enemy && targ->enemy->client)
+    else if ( attacker->enemy == targ ) {
+        if ( targ->enemy && targ->enemy->client ) {
             targ->oldenemy = targ->enemy;
+        }
         targ->enemy = attacker;
-        if (!(targ->monsterinfo.aiflags & AI_DUCKED))
-            FoundTarget(targ);
+        // WID: TODO: Monster Reimplement
+        //if (!(targ->monsterinfo.aiflags & AI_DUCKED))
+        //    FoundTarget(targ);
     }
     // otherwise get mad at whoever they are mad at (help our buddy) unless it is us!
-    else if (attacker->enemy && attacker->enemy != targ) {
-        if (targ->enemy && targ->enemy->client)
+    else if ( attacker->enemy && attacker->enemy != targ ) {
+        if ( targ->enemy && targ->enemy->client ) {
             targ->oldenemy = targ->enemy;
+        }
         targ->enemy = attacker->enemy;
-        if (!(targ->monsterinfo.aiflags & AI_DUCKED))
-            FoundTarget(targ);
+        // WID: TODO: Monster Reimplement
+        //if (!(targ->monsterinfo.aiflags & AI_DUCKED))
+        //    FoundTarget(targ);
     }
 }
 
@@ -368,7 +395,8 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 
     if (targ->svflags & SVF_MONSTER) {
         M_ReactToDamage(targ, attacker);
-        if (!(targ->monsterinfo.aiflags & AI_DUCKED) && (take)) {
+        // WID: TODO: Monster Reimplement.
+        //if (!(targ->monsterinfo.aiflags & AI_DUCKED) && (take)) {
             if ( targ->pain ) {
                 targ->pain( targ, attacker, finalKnockBack, take );
                 // nightmare mode monsters don't go into pain frames often
@@ -377,7 +405,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
             } else {
                 gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
             }
-        }
+        //}
     } else if (client) {
         if ( !( targ->flags & FL_GODMODE ) && ( take ) ) {
             if ( targ->pain ) {

@@ -667,7 +667,8 @@ void G_RunFrame(void)
     level.time += FRAME_TIME_MS;
 
     // Choose a client for monsters to target this frame.
-    AI_SetSightClient();
+    // WID: TODO: Monster Reimplement.
+    //AI_SetSightClient();
 
     // Exit intermissions.
     if ( level.exitintermission ) {

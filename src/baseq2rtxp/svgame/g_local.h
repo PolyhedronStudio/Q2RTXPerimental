@@ -888,15 +888,7 @@ void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t
 void monster_fire_bullet(edict_t *self, vec3_t start, vec3_t dir, int damage, int kick, int hspread, int vspread, int flashtype);
 void monster_fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int flashtype);
 void M_droptofloor(edict_t *ent);
-void monster_think(edict_t *self);
-void walkmonster_start(edict_t *self);
-void swimmonster_start(edict_t *self);
-void flymonster_start(edict_t *self);
-void AttackFinished(edict_t *self, sg_time_t time);
-void monster_death_use(edict_t *self);
 void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype );
-bool M_CheckAttack(edict_t *self);
-void M_FlyCheck(edict_t *self);
 void M_CheckGround(edict_t *ent, const contents_t mask);
 void M_WorldEffects( edict_t *ent );
 void M_SetAnimation( edict_t *self, mmove_t *move, bool instant = true );
@@ -919,20 +911,20 @@ void func_clock_use(edict_t *self, edict_t *other, edict_t *activator);
 //
 // g_ai.c
 //
-void AI_SetSightClient(void);
-
-void ai_stand(edict_t *self, float dist);
-void ai_move(edict_t *self, float dist);
-void ai_walk(edict_t *self, float dist);
-void ai_turn(edict_t *self, float dist);
-void ai_run(edict_t *self, float dist);
-void ai_charge(edict_t *self, float dist);
-int range(edict_t *self, edict_t *other);
-
-void FoundTarget(edict_t *self);
-bool infront(edict_t *self, edict_t *other);
-bool visible(edict_t *self, edict_t *other);
-bool FacingIdeal(edict_t *self);
+//void AI_SetSightClient(void);
+//
+//void ai_stand(edict_t *self, float dist);
+//void ai_move(edict_t *self, float dist);
+//void ai_walk(edict_t *self, float dist);
+//void ai_turn(edict_t *self, float dist);
+//void ai_run(edict_t *self, float dist);
+//void ai_charge(edict_t *self, float dist);
+//int range(edict_t *self, edict_t *other);
+//
+//void FoundTarget(edict_t *self);
+//bool infront(edict_t *self, edict_t *other);
+//bool visible(edict_t *self, edict_t *other);
+//bool FacingIdeal(edict_t *self);
 
 //
 // g_weapon.c
@@ -1046,13 +1038,6 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_frames
 **/
 void P_Weapon_Think( edict_t *ent );
 
-//
-// m_move.c
-//
-bool M_CheckBottom(edict_t *ent);
-bool M_walkmove(edict_t *ent, float yaw, float dist);
-void M_MoveToGoal(edict_t *ent, float dist);
-void M_ChangeYaw(edict_t *ent);
 
 //
 // g_phys.c
@@ -1061,11 +1046,13 @@ void SV_Impact( edict_t *e1, trace_t *trace );
 const contents_t G_GetClipMask( edict_t *ent );
 void G_RunEntity(edict_t *ent);
 
+
 //
 // g_main.c
 //
 void SaveClientData(void);
 void FetchClientEntData(edict_t *ent);
+
 
 //
 // g_chase.c
@@ -1540,22 +1527,22 @@ struct edict_s {
     //
     //  Entity Pointers:
     //
-    //! Monster goal entity.
-    edict_t *goalentity;
-    //! Chain Entity.
-    edict_t *chain;
-    //! Enemy.
+    //! Will be nullptr or world if not currently angry at anyone.
     edict_t *enemy;
     //! Previous Enemy.
     edict_t *oldenemy;
-    //! Trigger Activator.
-    edict_t *activator;
-    //edict_t     *groundentity;
-    //int32_t     groundentity_linkcount;
+    //! The next path spot to walk toward.If.enemy, ignore.movetarget. When an enemy is killed, the monster will try to return to it's path.
+    edict_t *goalentity;
+
+    //! Chain Entity.
+    edict_t *chain;
     //! Team Chain.
     edict_t *teamchain;
     //! Team master.
     edict_t *teammaster;
+
+    //! Trigger Activator.
+    edict_t *activator;
 
 
     //
@@ -1647,13 +1634,13 @@ struct edict_s {
     //
     //  Monster Related:
     // 
+    
     //! How many degrees the yaw should rotate per frame in order to reach its 'ideal_yaw'.
     float   yaw_speed;
     //! Ideal yaw to face to.
     float   ideal_yaw;
 
 
-    monsterinfo_t   monsterinfo;
     // Only used for g_turret.cpp - WID: Remove?
     vec3_t      move_origin;
     vec3_t      move_angles;

@@ -356,14 +356,16 @@ void path_corner_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_
     other->goalentity = other->movetarget = next;
 
     if (self->wait) {
-        other->monsterinfo.pause_time = level.time + sg_time_t::from_sec( self->wait );
-        other->monsterinfo.stand(other);
+        // WID: TODO: Monster Reimplement.
+        //other->monsterinfo.pause_time = level.time + sg_time_t::from_sec( self->wait );
+        //other->monsterinfo.stand(other);
         return;
     }
 
     if (!other->movetarget) {
-        other->monsterinfo.pause_time = HOLD_FOREVER;
-        other->monsterinfo.stand(other);
+        // WID: TODO: Monster Reimplement.
+        //other->monsterinfo.pause_time = HOLD_FOREVER;
+        //other->monsterinfo.stand(other);
     } else {
         VectorSubtract(other->goalentity->s.origin, other->s.origin, v);
         other->ideal_yaw = QM_Vector3ToYaw(v);
@@ -407,17 +409,19 @@ void point_combat_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface
             other->movetarget = self;
         }
         self->target = NULL;
-    } else if ((self->spawnflags & 1) && !(other->flags & (FL_SWIM | FL_FLY))) {
-        other->monsterinfo.pause_time = HOLD_FOREVER;
-        other->monsterinfo.aiflags |= AI_STAND_GROUND;
-        other->monsterinfo.stand(other);
-    }
+    // WID: TODO: Monster Reimplement.
+    }// else if ((self->spawnflags & 1) && !(other->flags & (FL_SWIM | FL_FLY))) {
+    //    other->monsterinfo.pause_time = HOLD_FOREVER;
+    //    other->monsterinfo.aiflags |= AI_STAND_GROUND;
+    //    other->monsterinfo.stand(other);
+    //}
 
     if (other->movetarget == self) {
         other->target = NULL;
         other->movetarget = NULL;
         other->goalentity = other->enemy;
-        other->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
+        // WID: TODO: Monster Reimplement.
+        //other->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
     }
 
     if (self->pathtarget) {
@@ -838,8 +842,9 @@ void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
         gi.dprintf( "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
     }
 
+    // WID: TODO: Use new monster walkmove/slidebox implementation.
     // Perform move.
-    M_walkmove( self, direction, distance );
+    //M_walkmove( self, direction, distance );
 }
 
 void barrel_explode(edict_t *self)
@@ -894,7 +899,7 @@ void barrel_explode(edict_t *self)
 void barrel_delay(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
     self->takedamage = DAMAGE_NO;
-    self->nextthink = level.time + 20_hz;
+    self->nextthink = level.time + random_time( 150_ms );
     self->think = barrel_explode;
     self->activator = attacker;
 }
@@ -928,7 +933,7 @@ void SP_misc_explobox(edict_t *self)
 
     self->die = barrel_delay;
     self->takedamage = DAMAGE_YES;
-    self->monsterinfo.aiflags = AI_NOSTEP;
+    //self->monsterinfo.aiflags = AI_NOSTEP;
 
     self->touch = barrel_touch;
 
@@ -991,7 +996,8 @@ void SP_misc_deadsoldier(edict_t *ent)
     ent->takedamage = DAMAGE_YES;
     ent->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
     ent->die = misc_deadsoldier_die;
-    ent->monsterinfo.aiflags |= AI_GOOD_GUY;
+    // WID: TODO: Monster Reimplement.
+    //ent->monsterinfo.aiflags |= AI_GOOD_GUY;
 
     gi.linkentity(ent);
 }

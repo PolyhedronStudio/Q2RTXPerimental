@@ -142,6 +142,9 @@ void monster_testdummy_puppet_think( edict_t *self ) {
         M_droptofloor( self );
     }
 
+    // Ensure to remove RF_STAIR_STEP and RF_OLD_FRAME_LERP.
+    self->s.renderfx &= ~( RF_STAIR_STEP | RF_OLD_FRAME_LERP );
+
     // Animate.
     if ( self->health > 0 ) {
         #if 0

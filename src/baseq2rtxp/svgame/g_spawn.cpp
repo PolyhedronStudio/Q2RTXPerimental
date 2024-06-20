@@ -115,7 +115,6 @@ void SP_target_blaster(edict_t *ent);
 void SP_target_crosslevel_trigger(edict_t *ent);
 void SP_target_crosslevel_target(edict_t *ent);
 void SP_target_laser(edict_t *self);
-void SP_target_actor(edict_t *ent);
 void SP_target_lightramp(edict_t *self);
 void SP_target_earthquake(edict_t *ent);
 void SP_target_character(edict_t *ent);
@@ -134,7 +133,6 @@ void SP_path_corner(edict_t *self);
 void SP_point_combat(edict_t *self);
 
 void SP_misc_explobox(edict_t *self);
-void SP_misc_actor(edict_t *self);
 void SP_misc_gib_arm(edict_t *self);
 void SP_misc_gib_leg(edict_t *self);
 void SP_misc_gib_head(edict_t *self);
@@ -142,14 +140,6 @@ void SP_misc_deadsoldier(edict_t *self);
 void SP_misc_teleporter(edict_t *self);
 void SP_misc_teleporter_dest(edict_t *self);
 
-void SP_monster_infantry(edict_t *self);
-void SP_monster_soldier_light(edict_t *self);
-void SP_monster_soldier(edict_t *self);
-void SP_monster_soldier_ss(edict_t *self);
-
-void SP_turret_breach(edict_t *self);
-void SP_turret_base(edict_t *self);
-void SP_turret_driver(edict_t *self);
 
 /**
 *   @brief  Hooks up the entity classnames with their corresponding spawn functions.
@@ -208,7 +198,6 @@ static const spawn_func_t spawn_funcs[] = {
     {"target_crosslevel_trigger", SP_target_crosslevel_trigger},
     {"target_crosslevel_target", SP_target_crosslevel_target},
     {"target_laser", SP_target_laser},
-    {"target_actor", SP_target_actor},
     {"target_lightramp", SP_target_lightramp},
     {"target_earthquake", SP_target_earthquake},
     {"target_character", SP_target_character},
@@ -228,22 +217,12 @@ static const spawn_func_t spawn_funcs[] = {
     {"point_combat", SP_point_combat},
 
     {"misc_explobox", SP_misc_explobox},
-    {"misc_actor", SP_misc_actor},
     {"misc_gib_arm", SP_misc_gib_arm},
     {"misc_gib_leg", SP_misc_gib_leg},
     {"misc_gib_head", SP_misc_gib_head},
     {"misc_deadsoldier", SP_misc_deadsoldier},
     {"misc_teleporter", SP_misc_teleporter},
     {"misc_teleporter_dest", SP_misc_teleporter_dest},
-
-    {"monster_infantry", SP_monster_infantry},
-    {"monster_soldier_light", SP_monster_soldier_light},
-    {"monster_soldier", SP_monster_soldier},
-    {"monster_soldier_ss", SP_monster_soldier_ss},
-
-    {"turret_breach", SP_turret_breach},
-    {"turret_base", SP_turret_base},
-    {"turret_driver", SP_turret_driver},
 
     {NULL, NULL}
 };

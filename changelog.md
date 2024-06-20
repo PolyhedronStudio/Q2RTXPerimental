@@ -8,11 +8,16 @@ Changes will from now on be listed as additions per version.
 * [General]: Added q2rtxp.cfg and also made the boot system load it up.
 * [VKPT]: Added support for ``MASKED`` materials for weapon view models, this so we can have a nice muzzleflash.
 * [VKPT]: Added missing proper registration sequencing for masked materials.
-* [CLGame]: Different third-person camera.
+* [VKPT]: Added support for R_DrawRotateStretchPic.
+* [BaseQ2RTXP]: Different third-person camera.
 * [BaseQ2RTXP]: Started making a move to 'total conversion'. This includes having removed all items(exception for health), all default weapons, and replaced the weapon system currently consisting of 2 weapon types: Fists and a Pistol. On top of that, items for the new custom game ammo types were added also.
 * [BaseQ2RTXP]: Added ``+reload``, ``+fire_prim``, ``+fire_sec`` input actions for the new weapon system.
 * [BaseQ2RTXP]: Properly finished client side ``gunangles`` and ``view bob``.
 * [BaseQ2RTXP]: Moved temp entity events enumerator as well as stats indices to ``SharedGame``
+* [BaseQ2RTXP]: Removed all default items, monsters, and even weapons.
+* [BaseQ2RTXP]: Added the start of a test dummy monster, and the new monster system.
+* [BaseQ2RTXP]: Added a new weapon system, with ``fists`` and a ``pistol`` as proof of concept for now.
+* [BaseQ2RTXP]: Added the start of a root motion movement system.
 
 ## (v0.0.4):
 * The ``collision model`` code now has ``material awareness``, for now still separated from the refresh material system and operates by loading properties out the ``*.wal_json`` texture name files. These are also supported by recent ericw-tools branches to substitute non ``.wal`` textures with. Currently two extra fields can be added, this allows you to set a material its ``kind``(string) as well as its ``friction``(float).

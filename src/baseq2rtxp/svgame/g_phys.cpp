@@ -405,7 +405,16 @@ pushed_t    pushed[MAX_EDICTS], *pushed_p;
 
 edict_t *obstacle;
 
-const float SnapToEights(const float x);
+const float SnapToEights( const float x ) {
+    // WID: Float-movement.
+    //x *= 8.0f;
+    //if (x > 0.0f)
+    //    x += 0.5f;
+    //else
+    //    x -= 0.5f;
+    //return 0.125f * (int)x;
+    return x;
+}
 
 /*
 ============

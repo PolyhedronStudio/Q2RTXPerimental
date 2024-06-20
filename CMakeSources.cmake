@@ -285,14 +285,9 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/g_svcmds.cpp
 	baseq2rtxp/svgame/g_target.cpp
 	baseq2rtxp/svgame/g_trigger.cpp
-	baseq2rtxp/svgame/g_turret.cpp
 	baseq2rtxp/svgame/g_utils.cpp
 	baseq2rtxp/svgame/g_weapon.cpp
 
-	baseq2rtxp/svgame/m_actor.cpp
-	baseq2rtxp/svgame/m_infantry.cpp
-	baseq2rtxp/svgame/m_move.cpp
-	baseq2rtxp/svgame/m_soldier.cpp
 	baseq2rtxp/svgame/m_testdummy_puppet.cpp
 
 	baseq2rtxp/svgame/p_client.cpp
@@ -308,10 +303,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/g_local.h
 	baseq2rtxp/svgame/g_save.h
 
-	baseq2rtxp/svgame/m_actor.h
-	baseq2rtxp/svgame/m_infantry.h
 	baseq2rtxp/svgame/m_player.h
-	baseq2rtxp/svgame/m_soldier.h
 
 	baseq2rtxp/svgame/monsters/g_mmove.h
 	baseq2rtxp/svgame/monsters/g_mmove_slidemove.h

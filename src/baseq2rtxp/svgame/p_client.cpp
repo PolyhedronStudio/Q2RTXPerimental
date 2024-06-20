@@ -1980,9 +1980,10 @@ void ClientBeginServerFrame(edict_t *ent)
     *   Add player trail so monsters can follow
     **/
     if ( !deathmatch->value ) {
-        if ( !visible( ent, PlayerTrail_LastSpot() ) ) {
+        // WID: TODO: Monster Reimplement.
+        //if ( !visible( ent, PlayerTrail_LastSpot() ) ) {
             PlayerTrail_Add( ent->s.old_origin );
-        }
+        //}
     }
 
     /**
