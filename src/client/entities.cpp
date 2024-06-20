@@ -82,7 +82,7 @@ static inline void entity_update_new( centity_t *ent, const entity_state_t *stat
     // No lerping if teleported, or a BEAM effect entity.
     if ( state->event == EV_PLAYER_TELEPORT ||
         state->event == EV_OTHER_TELEPORT ||
-        ( state->renderfx & RF_BEAM ) ) {
+        ( state->entityType == ET_BEAM || state->renderfx & RF_BEAM ) ) {
         // no lerping if teleported
         VectorCopy( origin, ent->lerp_origin );
         return;
@@ -118,7 +118,8 @@ static inline void entity_update_old( centity_t *ent, const entity_state_t *stat
         ent->step_servertime = cl.servertime;
     }
 
-    if ( state->modelindex != ent->current.modelindex
+    if ( state->entityType != ent->current.entityType
+        || state->modelindex != ent->current.modelindex
         || state->modelindex2 != ent->current.modelindex2
         || state->modelindex3 != ent->current.modelindex3
         || state->modelindex4 != ent->current.modelindex4

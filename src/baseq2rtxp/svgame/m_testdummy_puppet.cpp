@@ -54,6 +54,7 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
     // <TEMPORARY FOR TESTING>
     //---------------------------
     if ( self->s.frame < 523 ) {
+        // Pick a random death animation.
         int32_t deathanim = irandom( 3 );
         if ( deathanim == 0 ) {
             self->s.frame = 523;
@@ -62,23 +63,35 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
         } else {
             self->s.frame = 812;
         }
-        //self->s.frame = 523;
-
+        
         self->deadflag = DEAD_DYING;
+        // Set this here so the entity does not block traces while playing death animation.
         self->svflags |= SVF_DEADMONSTER;
     } else if ( self->s.frame == 652 ) {
+        // Set deadflag.
         self->deadflag = DEAD_DEAD;
+        // Monster Corpse Entity Type:
+        self->s.entityType = ET_MONSTER_CORPSE;
     } else if ( self->s.frame == 811 ) {
+        // Set deadflag.
         self->deadflag = DEAD_DEAD;
+        // Monster Corpse Entity Type:
+        self->s.entityType = ET_MONSTER_CORPSE;
     } else if ( self->s.frame == 938 ) {
+        // Set deadflag.
         self->deadflag = DEAD_DEAD;
+        // Monster Corpse Entity Type:
+        self->s.entityType = ET_MONSTER_CORPSE;
     }
     //---------------------------
     // </TEMPORARY FOR TESTING>
     //---------------------------
-
+    // Stop playing any sounds.
+    self->s.sound = 0;
+    // Setup the death bounding box.
     VectorCopy( DUMMY_BBOX_DEAD_MINS, self->mins );
     VectorCopy( DUMMY_BBOX_DEAD_MAXS, self->maxs );
+    // Make sure to relink.
     gi.linkentity( self );
 }
 
@@ -334,6 +347,9 @@ void monster_testdummy_puppet_post_spawn( edict_t *self ) {
 *   @brief  Spawn routine.
 **/
 void SP_monster_testdummy_puppet( edict_t *self ) {
+    // Entity Type:
+    self->s.entityType = ET_MONSTER;
+    
     // Solid/MoveType:
     self->solid = SOLID_BOUNDS_BOX;
     self->movetype = MOVETYPE_ROOTMOTION;

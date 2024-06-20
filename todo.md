@@ -104,10 +104,12 @@ And here a list of things that I keep an eye out and/or may (fail multiple times
 	- 4. Optional: Angular spread, the faster your mouse is, the spread rises.
 	- 5. Gun Weight -> Influence player movement speed scale.
 
+- [ ] Remove the whole player gender thing. Wtf...
+
 - [ ] The NetCode Mysteries:
 	- [ ] We want bitstreaming to save up massive amounts of packet space.
 		https://github.com/mas-bandwidth/serialize ??
-	- [ ] Add in proper ``Entity Type`` code for ``Packet Entities``
+	- [X] Add in proper ``Entity Type`` code for ``Packet Entities``
 	- [ ] In combination with all of the below, and having a scenario for specific
 		  entity types.. It makes sense to have a callback into the game dll so it can
 		  determine how to deal with certain fields.

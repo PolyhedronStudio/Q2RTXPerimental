@@ -112,7 +112,7 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
     //LerpVector( ent->prev.origin, ent->current.origin, clgi.client->lerpfrac, org );
 
     // Use the closest point on the line for beam entities:
-    if ( ent->current.renderfx & RF_BEAM ) {
+    if ( ent->current.entityType == ET_BEAM || ent->current.renderfx & RF_BEAM ) {
         CLG_LerpBeamSoundOrigin( ent, org );
     // Calculate origin for BSP models to be closest point from listener to the bmodel's aabb:
     } else if ( ent->current.solid == BOUNDS_BRUSHMODEL ) {

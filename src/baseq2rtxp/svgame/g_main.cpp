@@ -698,7 +698,7 @@ void G_RunFrame(void)
         level.current_entity = ent;
 
         // RF Beam Entities update their old_origin by hand.
-        if ( !( ent->s.renderfx & RF_BEAM ) ) {
+        if ( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) ) {
             VectorCopy( ent->s.origin, ent->s.old_origin );
         }
 

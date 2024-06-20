@@ -446,6 +446,7 @@ void plat_spawn_inside_trigger(edict_t *ent)
     trigger->touch = Touch_Plat_Center;
     trigger->movetype = MOVETYPE_NONE;
     trigger->solid = SOLID_TRIGGER;
+    trigger->s.entityType = ET_PUSH_TRIGGER;
     trigger->enemy = ent;
 
     tmin[0] = ent->mins[0] + 25;
@@ -499,7 +500,7 @@ void SP_func_plat(edict_t *ent)
     VectorClear(ent->s.angles);
     ent->solid = SOLID_BSP;
     ent->movetype = MOVETYPE_PUSH;
-
+    ent->s.entityType = ET_PUSHER;
     gi.setmodel(ent, ent->model);
 
     ent->blocked = plat_blocked;
@@ -605,6 +606,8 @@ void SP_func_rotating(edict_t *ent)
         ent->movetype = MOVETYPE_STOP;
     else
         ent->movetype = MOVETYPE_PUSH;
+
+    ent->s.entityType = ET_PUSHER;
 
     // set the axis of rotation
     VectorClear(ent->movedir);
@@ -745,6 +748,7 @@ void SP_func_button(edict_t *ent)
     G_SetMovedir(ent->s.angles, ent->movedir);
     ent->movetype = MOVETYPE_STOP;
     ent->solid = SOLID_BSP;
+    ent->s.entityType = ET_PUSHER;
     gi.setmodel(ent, ent->model);
 
     if (ent->sounds != 1)
@@ -832,7 +836,8 @@ void door_use_areaportals(edict_t *self, bool open)
         return;
 
     while ((t = G_Find(t, FOFS(targetname), self->target))) {
-        if (Q_stricmp(t->classname, "func_areaportal") == 0) {
+        //if (Q_stricmp(t->classname, "func_areaportal") == 0) {
+        if ( t->s.entityType == ET_AREA_PORTAL ) {
             gi.SetAreaPortalState(t->style, open);
 
             //self->s.event = ( open ? EV_AREAPORTAL_OPEN : EV_AREAPORTAL_CLOSE );
@@ -1028,6 +1033,7 @@ void Think_SpawnDoorTrigger(edict_t *ent)
     other->owner = ent;
     other->solid = SOLID_TRIGGER;
     other->movetype = MOVETYPE_NONE;
+    other->s.entityType = ET_PUSH_TRIGGER;
     other->touch = Touch_DoorTrigger;
     gi.linkentity(other);
 
@@ -1114,6 +1120,7 @@ void SP_func_door(edict_t *ent)
     G_SetMovedir(ent->s.angles, ent->movedir);
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
+    ent->s.entityType = ET_PUSHER;
     gi.setmodel(ent, ent->model);
 
     ent->postspawn = door_postspawn;
@@ -1249,6 +1256,7 @@ void SP_func_door_rotating(edict_t *ent)
 
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
+    ent->s.entityType = ET_PUSHER;
     gi.setmodel(ent, ent->model);
 
     ent->blocked = door_blocked;
@@ -1340,6 +1348,7 @@ void SP_func_water(edict_t *self)
     G_SetMovedir(self->s.angles, self->movedir);
     self->movetype = MOVETYPE_PUSH;
     self->solid = SOLID_BSP;
+    self->s.entityType = ET_PUSHER;
     gi.setmodel(self, self->model);
 
     switch (self->sounds) {
@@ -1590,6 +1599,7 @@ void train_use(edict_t *self, edict_t *other, edict_t *activator)
 void SP_func_train(edict_t *self)
 {
     self->movetype = MOVETYPE_PUSH;
+    self->s.entityType = ET_PUSHER;
 
     VectorClear(self->s.angles);
     self->blocked = train_blocked;
@@ -1670,11 +1680,11 @@ void trigger_elevator_init(edict_t *self)
 
     self->use = trigger_elevator_use;
     self->svflags = SVF_NOCLIENT;
-
 }
 
 void SP_trigger_elevator(edict_t *self)
 {
+    self->s.entityType = ET_PUSH_TRIGGER;
     self->think = trigger_elevator_init;
 	self->nextthink = level.time + FRAME_TIME_S;
 }
@@ -1893,6 +1903,7 @@ void SP_func_door_secret(edict_t *ent)
 
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
+    ent->s.entityType = ET_PUSHER;
     gi.setmodel(ent, ent->model);
 
     ent->blocked = door_secret_blocked;

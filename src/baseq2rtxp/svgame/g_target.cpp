@@ -103,6 +103,9 @@ void SP_target_speaker(edict_t *ent)
 
     ent->use = Use_Target_Speaker;
 
+    // Set entity type to ET_TARGET_SPEAKER.
+    ent->s.entityType = ET_TARGET_SPEAKER;
+
     // must link the entity so we get areas and clusters so
     // the server can determine who to send updates to
     gi.linkentity(ent);
@@ -542,6 +545,7 @@ void target_laser_start(edict_t *self)
 
     self->movetype = MOVETYPE_NONE;
     self->solid = SOLID_NOT;
+    self->s.entityType = ET_BEAM;
     self->s.renderfx |= RF_BEAM | RF_TRANSLUCENT;
     self->s.modelindex = 1;         // must be non-zero
 

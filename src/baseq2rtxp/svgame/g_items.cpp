@@ -118,6 +118,7 @@ void DoRespawn(edict_t *ent)
 
     ent->svflags &= ~SVF_NOCLIENT;
     ent->solid = SOLID_TRIGGER;
+    ent->s.entityType = ET_ITEM;
     gi.linkentity(ent);
 
     // send an effect
@@ -431,6 +432,7 @@ edict_t *Drop_Item(edict_t *ent, const gitem_t *item)
     dropped->classname = item->classname;
     dropped->item = item;
     dropped->spawnflags = DROPPED_ITEM;
+    dropped->s.entityType = ET_ITEM;
     dropped->s.effects = item->world_model_flags;
     dropped->s.renderfx = RF_GLOW;
     VectorSet(dropped->mins, -15, -15, -15);
@@ -671,6 +673,7 @@ void SpawnItem(edict_t *ent, const gitem_t *item)
     ent->think = droptofloor;
     ent->s.effects = item->world_model_flags;
     ent->s.renderfx = RF_GLOW;
+    ent->s.entityType = ET_ITEM;
     if (ent->model)
         gi.modelindex(ent->model);
 }

@@ -317,7 +317,7 @@ void PF_LinkEdict(edict_t *ent)
 
     // If its the entity's first time, make sure old_origin is valid, unless a BEAM which handles it by itself.
     if ( !ent->linkcount ) {
-        if ( !( ent->s.renderfx & RF_BEAM ) ) {
+        if ( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) ) {
             VectorCopy( ent->s.origin, ent->s.old_origin );
         }
     }

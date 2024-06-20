@@ -43,6 +43,7 @@ Usually enclosed in the middle of a door.
 */
 void SP_func_areaportal(edict_t *ent)
 {
+    ent->s.entityType = ET_AREA_PORTAL;
     ent->use = Use_Areaportal;
     // always start closed;
     ent->count = 0; // gi.GetAreaPortalState( ent->style );     
@@ -139,6 +140,7 @@ void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
 
     gi.setmodel(gib, gibname);
     gib->solid = SOLID_NOT;
+    gib->s.entityType = ET_GIB;
     gib->s.effects |= EF_GIB;
     gib->flags = static_cast<ent_flags_t>( gib->flags | FL_NO_KNOCKBACK );
     gib->takedamage = DAMAGE_YES;
@@ -574,6 +576,7 @@ void func_wall_use(edict_t *self, edict_t *other, edict_t *activator)
 void SP_func_wall(edict_t *self)
 {
     self->movetype = MOVETYPE_PUSH;
+    self->s.entityType = ET_PUSHER;
     gi.setmodel(self, self->model);
 
     if (self->spawnflags & 8)
@@ -664,11 +667,13 @@ void SP_func_object(edict_t *self)
     if (self->spawnflags == 0) {
         self->solid = SOLID_BSP;
         self->movetype = MOVETYPE_PUSH;
+        self->s.entityType = ET_PUSHER;
         self->think = func_object_release;
 		self->nextthink = level.time + 20_hz;
     } else {
         self->solid = SOLID_NOT;
         self->movetype = MOVETYPE_PUSH;
+        self->s.entityType = ET_PUSHER;
         self->use = func_object_use;
         self->svflags |= SVF_NOCLIENT;
     }
@@ -777,6 +782,7 @@ void SP_func_explosive(edict_t *self)
     }
 
     self->movetype = MOVETYPE_PUSH;
+    self->s.entityType = ET_PUSHER;
 
     gi.modelindex("models/objects/debris1/tris.md2");
     gi.modelindex("models/objects/debris2/tris.md2");
@@ -948,60 +954,6 @@ void SP_misc_explobox(edict_t *self)
 // miscellaneous specialty items
 //
 
-/*QUAKED misc_deadsoldier (1 .5 0) (-16 -16 0) (16 16 16) ON_BACK ON_STOMACH BACK_DECAP FETAL_POS SIT_DECAP IMPALED
-This is the dead player model. Comes in 6 exciting different poses!
-*/
-void misc_deadsoldier_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
-{
-    int     n;
-
-    if (self->health > -80)
-        return;
-
-    gi.sound(self, CHAN_BODY, gi.soundindex("world/gib01.wav"), 1, ATTN_NORM, 0);
-    for (n = 0; n < 4; n++)
-        ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
-    ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_ORGANIC);
-}
-
-void SP_misc_deadsoldier(edict_t *ent)
-{
-    if (deathmatch->value) {
-        // auto-remove for deathmatch
-        G_FreeEdict(ent);
-        return;
-    }
-
-    ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BOUNDS_BOX;
-    ent->s.modelindex = gi.modelindex("models/deadbods/dude/tris.md2");
-
-    // Defaults to frame 0
-    if (ent->spawnflags & 2)
-        ent->s.frame = 1;
-    else if (ent->spawnflags & 4)
-        ent->s.frame = 2;
-    else if (ent->spawnflags & 8)
-        ent->s.frame = 3;
-    else if (ent->spawnflags & 16)
-        ent->s.frame = 4;
-    else if (ent->spawnflags & 32)
-        ent->s.frame = 5;
-    else
-        ent->s.frame = 0;
-
-    VectorSet(ent->mins, -16, -16, 0);
-    VectorSet(ent->maxs, 16, 16, 16);
-    ent->deadflag = DEAD_DEAD;
-    ent->takedamage = DAMAGE_YES;
-    ent->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
-    ent->die = misc_deadsoldier_die;
-    // WID: TODO: Monster Reimplement.
-    //ent->monsterinfo.aiflags |= AI_GOOD_GUY;
-
-    gi.linkentity(ent);
-}
-
 /*QUAKED light_mine1 (0 1 0) (-2 -2 -12) (2 2 12)
 */
 void SP_light_mine1(edict_t *ent)
@@ -1032,6 +984,7 @@ void SP_misc_gib_arm(edict_t *ent)
     gi.setmodel(ent, "models/objects/gibs/arm/tris.md2");
     ent->solid = SOLID_NOT;
     ent->s.effects |= EF_GIB;
+    ent->s.entityType = ET_GIB;
     ent->takedamage = DAMAGE_YES;
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
@@ -1053,6 +1006,7 @@ void SP_misc_gib_leg(edict_t *ent)
     gi.setmodel(ent, "models/objects/gibs/leg/tris.md2");
     ent->solid = SOLID_NOT;
     ent->s.effects |= EF_GIB;
+    ent->s.entityType = ET_GIB;
     ent->takedamage = DAMAGE_YES;
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
@@ -1074,6 +1028,7 @@ void SP_misc_gib_head(edict_t *ent)
     gi.setmodel(ent, "models/objects/gibs/head/tris.md2");
     ent->solid = SOLID_NOT;
     ent->s.effects |= EF_GIB;
+    ent->s.entityType = ET_GIB;
     ent->takedamage = DAMAGE_YES;
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
@@ -1097,6 +1052,7 @@ used with target_string (must be on same "team")
 void SP_target_character(edict_t *self)
 {
     self->movetype = MOVETYPE_PUSH;
+    self->s.entityType = ET_PUSHER;
     gi.setmodel(self, self->model);
     self->solid = SOLID_BSP;
     self->s.frame = 12;
@@ -1367,6 +1323,7 @@ void SP_misc_teleporter(edict_t *ent)
     trig = G_AllocateEdict();
     trig->touch = teleporter_touch;
     trig->solid = SOLID_TRIGGER;
+    trig->s.entityType = ET_TELEPORT_TRIGGER;
     trig->target = ent->target;
     trig->owner = ent;
     VectorCopy(ent->s.origin, trig->s.origin);

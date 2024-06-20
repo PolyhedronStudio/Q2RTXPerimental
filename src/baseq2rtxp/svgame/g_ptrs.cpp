@@ -119,7 +119,6 @@ extern void spotlight_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void light_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void M_droptofloor( edict_t *self );
 extern void MegaHealth_think( edict_t *self );
-extern void misc_deadsoldier_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void Move_Begin( edict_t *ent );
 extern void Move_Done( edict_t *ent );
 extern void Move_Final( edict_t *ent );
@@ -304,7 +303,6 @@ const save_ptr_t save_ptrs[] = {
 { P_die, (void*)door_secret_die },
 { P_die, (void*)func_explosive_explode },
 { P_die, (void*)gib_die },
-{ P_die, (void*)misc_deadsoldier_die },
 { P_die, (void*)player_die },
 
 //

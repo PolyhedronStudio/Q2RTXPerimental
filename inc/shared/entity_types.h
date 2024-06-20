@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*   Entity Types:
+*   Client/Server Entity Types:
 *
 *
 ********************************************************************/
@@ -10,44 +10,25 @@
 
 /**
 *	@description	Determines the actual entity type, in order to allow for appropriate state transmission
-*					and efficient client-side handling. (ET_SPOTLIGHT demands different data than 'generic' entities.
+*					and efficient client-side handling. 
+(					(ET_SPOTLIGHT demands different data than 'generic' entities, and so on..)
 */
-typedef enum {
+enum {
+	//! Types specific to client/server that are too complex requiring the client/server to know about them.
 	ET_ENGINE_TYPES = 0,
+	//! Generic type, defaults for all entities unless specified otherwise.
 	ET_GENERIC = ET_ENGINE_TYPES,
-	ET_SPOTLIGHT,
 
+	//! func_areaportal
+	ET_AREA_PORTAL,
+	//! spotlight
+	ET_SPOTLIGHT,
+	//! Beam Entity.
+	ET_BEAM,
+
+	//! Types that are specific to the game modules only.
 	ET_GAME_TYPES,
 
-	// TODO: Game Types.
-	//ET_PLAYER,
-	//ET_CORPSE,
-	//ET_BEAM,
-	//ET_PORTALSURFACE,
-	//ET_PUSH_TRIGGER,
-
-	//ET_GIB,         // leave a trail
-	//ET_BLASTER,     // redlight + trail
-	//ET_ELECTRO_WEAK,
-	//ET_ROCKET,      // redlight + trail
-	//ET_GRENADE,
-	//ET_PLASMA,
-
-	//ET_SPRITE,
-
-	//ET_ITEM,        // for simple items
-	//ET_LASERBEAM,   // for continuous beams
-	////ET_CURVELASERBEAM, // for curved beams
-
-	//ET_PARTICLES,
-
-	//ET_MONSTER_PLAYER,
-	//ET_MONSTER_CORPSE,
-
-	// eventual entities: types below this will get event treatment
-	//ET_EVENT = EVENT_ENTITIES_START,
-	//ET_SOUNDEVENT,
-
-	//ET_TOTAL_TYPES, // current count
-	MAX_ENTITY_TYPES = 128
-} entity_type_t;
+	//! Maximum types supported.
+	ET_MAX_TYPES = 255
+};

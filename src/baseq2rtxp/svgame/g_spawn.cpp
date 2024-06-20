@@ -136,7 +136,6 @@ void SP_misc_explobox(edict_t *self);
 void SP_misc_gib_arm(edict_t *self);
 void SP_misc_gib_leg(edict_t *self);
 void SP_misc_gib_head(edict_t *self);
-void SP_misc_deadsoldier(edict_t *self);
 void SP_misc_teleporter(edict_t *self);
 void SP_misc_teleporter_dest(edict_t *self);
 
@@ -220,7 +219,6 @@ static const spawn_func_t spawn_funcs[] = {
     {"misc_gib_arm", SP_misc_gib_arm},
     {"misc_gib_leg", SP_misc_gib_leg},
     {"misc_gib_head", SP_misc_gib_head},
-    {"misc_deadsoldier", SP_misc_deadsoldier},
     {"misc_teleporter", SP_misc_teleporter},
     {"misc_teleporter_dest", SP_misc_teleporter_dest},
 
@@ -682,8 +680,8 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
         if ( spawnEdict != g_edicts ) {
             // When nomonsters is set, remove any entities that have the word monster in their classname.
             if ( nomonsters->value && ( strstr( spawnEdict->classname, "monster" )
-                || strstr( spawnEdict->classname, "misc_deadsoldier" )
-                || strstr( spawnEdict->classname, "misc_insane" ) ) ) {
+            /*  || strstr( spawnEdict->classname, "misc_deadsoldier" )
+                || strstr( spawnEdict->classname, "misc_insane" )*/ ) ) {
                 // Free entity.
                 G_FreeEdict( spawnEdict );
                 // Increase the amount of inhibited entities we're keeping track of.

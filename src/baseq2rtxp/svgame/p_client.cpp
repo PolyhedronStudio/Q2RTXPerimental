@@ -905,7 +905,9 @@ void CopyToBodyQue(edict_t *ent)
     body->owner = ent->owner;
     body->movetype = ent->movetype;
     body->groundInfo.entity = ent->groundInfo.entity;
-
+    
+    body->s.entityType = ET_PLAYER_CORPSE;
+    
     body->die = body_die;
     body->takedamage = DAMAGE_YES;
 
@@ -1110,8 +1112,10 @@ void PutClientInServer(edict_t *ent)
     saved = client->pers;
     memset(client, 0, sizeof(*client));
     client->pers = saved;
-    if (client->pers.health <= 0)
+    // If dead at the time of the previous map switching to the current, reinitialize persistent data.
+    if ( client->pers.health <= 0 ) {
         InitClientPersistantData( ent, client );
+    }
     client->resp = resp;
 
     // copy some data from the client to the entity
@@ -1143,6 +1147,8 @@ void PutClientInServer(edict_t *ent)
     ent->svflags &= ~SVF_DEADMONSTER;
     ent->svflags &= ~FL_NO_KNOCKBACK;
     ent->svflags |= SVF_PLAYER;
+    // Player Entity Type:
+    ent->s.entityType = ET_PLAYER;
 
     VectorCopy(mins, ent->mins);
     VectorCopy(maxs, ent->maxs);
@@ -1248,6 +1254,7 @@ void ClientBeginDeathmatch(edict_t *ent)
     
     // Make sure it is recognized as a player.
     ent->svflags |= SVF_PLAYER;
+    ent->s.entityType = ET_PLAYER;
 
     InitClientRespawnData(ent->client);
 
@@ -1306,6 +1313,7 @@ void ClientBegin(edict_t *ent)
         // ClientConnect() time
         G_InitEdict(ent);
         ent->classname = "player";
+        ent->s.entityType = ET_PLAYER;
         InitClientRespawnData(ent->client);
         PutClientInServer(ent);
     }
@@ -1463,8 +1471,11 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
         gi.dprintf( "%s connected\n", ent->client->pers.netname );
     }
 
-    // make sure we start with known default(s)
+    // Make sure we start with known default(s):
+    // We're a player.
     ent->svflags = SVF_PLAYER;
+    ent->s.entityType = ET_PLAYER;
+    // We're connected.
     ent->client->pers.connected = true;
     return true;
 }
@@ -1498,6 +1509,7 @@ void ClientDisconnect(edict_t *ent)
     ent->s.effects = 0;
     ent->s.renderfx = 0;
     ent->s.solid = SOLID_NOT; // 0
+    ent->s.entityType = ET_GENERIC;
     ent->solid = SOLID_NOT;
     ent->inuse = false;
     ent->classname = "disconnected";
