@@ -59,11 +59,7 @@ cvar_t *maxentities = nullptr;
 cvar_t *cl_footsteps = nullptr;
 
 cvar_t *cl_kickangles = nullptr;
-cvar_t *cl_rollhack = nullptr;
-cvar_t *cl_noglow = nullptr;
 cvar_t *cl_noskins = nullptr;
-
-cvar_t *cl_gibs = nullptr;
 
 cvar_t *cl_gunalpha = nullptr;
 cvar_t *cl_gunscale = nullptr;
@@ -266,12 +262,7 @@ void PF_InitGame( void ) {
 	// Client effects.
 	cl_footsteps = clgi.CVar_Get( "cl_footsteps", "1", 0 );
 	cl_kickangles = clgi.CVar_Get( "cl_kickangles", "1", CVAR_CHEAT );
-	cl_rollhack = clgi.CVar_Get( "cl_rollhack", "1", 0 );
-	cl_noglow = clgi.CVar_Get( "cl_noglow", "0", 0 );
 	cl_noskins = clgi.CVar_Get( "cl_noskins", "0", 0 );
-
-	// Gibs or no Gibs
-	cl_gibs = clgi.CVar_Get( "cl_gibs", "1", 0 );
 
 	// Gun Debugging CVars:
 	cl_gunalpha = clgi.CVar_Get( "cl_gunalpha", "1", 0 );

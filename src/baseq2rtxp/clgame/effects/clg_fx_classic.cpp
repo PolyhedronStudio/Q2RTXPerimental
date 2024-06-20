@@ -610,19 +610,6 @@ void CLG_DiminishingTrail( const vec3_t start, const vec3_t end, centity_t *old,
                     p->accel[ j ] = 0;
                 }
                 p->vel[ 2 ] -= PARTICLE_GRAVITY;
-            } else if ( flags & EF_GREENGIB ) {
-                p->alpha = 1.0f;
-                p->alphavel = -1.0f / ( 1 + frand() * 0.4f );
-
-                p->color = 0xdb + ( Q_rand() & 7 );
-                p->brightness = 1.0f;
-
-                for ( j = 0; j < 3; j++ ) {
-                    p->org[ j ] = move[ j ] + crand() * orgscale;
-                    p->vel[ j ] = crand() * velscale;
-                    p->accel[ j ] = 0;
-                }
-                p->vel[ 2 ] -= PARTICLE_GRAVITY;
             } else {
                 p->alpha = 1.0f;
                 p->alphavel = -1.0f / ( 1 + frand() * 0.2f );
@@ -660,7 +647,7 @@ void CLG_RocketTrail( const vec3_t start, const vec3_t end, centity_t *old ) {
     float       dec;
 
     // smoke
-    CLG_DiminishingTrail( start, end, old, EF_ROCKET );
+    CLG_DiminishingTrail( start, end, old, 0/*EF_ROCKET*/ );
 
     // fire
     VectorCopy( start, move );

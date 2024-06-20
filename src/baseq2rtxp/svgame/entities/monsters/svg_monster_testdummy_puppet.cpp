@@ -5,15 +5,14 @@
 *
 *
 ********************************************************************/
-#include "../../svg_local.h"
+#include "svgame/svg_local.h"
 
 // TODO: Move elsewhere.. ?
 #include "refresh/shared_types.h"
 
 // Monster Move
-#include "../../monsters/g_mmove.h"
-#include "../../monsters/g_mmove_slidemove.h"
-
+#include "svgame/monsters/svg_mmove.h"
+#include "svgame/monsters/svg_mmove_slidemove.h"
 
 //! For when dummy is standing straight up.
 static constexpr Vector3 DUMMY_BBOX_STANDUP_MINS = { -16.f, -16.f, 0.f };

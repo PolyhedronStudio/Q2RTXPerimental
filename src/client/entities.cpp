@@ -116,6 +116,7 @@ static inline void entity_update_old( centity_t *ent, const entity_state_t *stat
     if ( state->renderfx & RF_STAIR_STEP ) {
         ent->step_height = state->origin[ 2 ] - ent->current.origin[ 2 ];
         ent->step_servertime = cl.servertime;
+        ent->step_realtime = cls.realtime;
     }
 
     if ( state->entityType != ent->current.entityType

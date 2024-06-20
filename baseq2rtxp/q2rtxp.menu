@@ -253,7 +253,6 @@ begin effects
     ifneq vid_rtx 1
         values "dynamic lighting" gl_dynamic "no" "yes" "only switchable"
         values "entity cel-shading" gl_celshading no 1x 2x 3x
-        toggle "entity glowing" cl_noglow ~
         toggle "ground shadows" gl_shadows
         toggle "screen blending" gl_polyblend
     endif

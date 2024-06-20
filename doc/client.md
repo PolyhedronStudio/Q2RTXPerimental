@@ -225,10 +225,6 @@ sprite explosion effects. Default value is 25 ms.
 When this variable is set to 1, regular mushroom explosion models are 
 replaced with sprites. Affects both OpenGL and RTX renderers. Default value is 1.
 
-#### `cl_noglow`
-Disables the glowing effect on bonus entities like ammo, health, etc.
-Default value is 0 (glowing enabled).
-
 #### `cl_gunalpha`
 Specifies opacity level of the player's own gun model. Default value is 1
 (fully opaque).
@@ -1169,8 +1165,7 @@ the world surface directly beneath the entity. This means any cvar affecting
 lightmaps affects entity lighting as well (with exception of `gl_modulate_world`).
 Cvars that have effect only on the entity lighting are `gl_modulate_entities`
 and `gl_doublelight_entities`. Yet another cvar affecting entity lighting is
-`gl_dotshading`, which typically makes entities look a bit brighter. See also
-`cl_noglow` cvar which removes the pulsing effect (glowing) on bonus entities.
+`gl_dotshading`, which typically makes entities look a bit brighter.
 
 #### `gl_dynamic`
 Controls dynamic lightmap updates. Default value is 1.
@@ -1453,14 +1448,6 @@ Restricts which models and skins players can use. Default value is 0.
 This will not affect model-based TDM gameplay, since any male skin will be
 replaced by `male/grunt` and any female skin will be replaced by
 `female/athena`.
-
-#### `cl_rollhack`
-Default OpenGL renderer in Quake 2 contained a bug that caused `roll` angle
-of 3D models to be inverted during rotation.  Due to this bug, player
-models did lean in the opposite direction when strafing. New Q2PRO renderer
-doesn't have this bug, but since many players got used to it, Q2PRO is able
-to simulate original behavior. This cvar chooses in which direction player
-models will lean. Default value is 1 (invert `roll` angle).
 
 #### `cl_adjustfov`
 Specifies if horizontal field of view is automatically adjusted for screens

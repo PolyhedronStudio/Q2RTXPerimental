@@ -287,9 +287,6 @@ void PF_InitGame( void ) {
 	cl_noglow = clgi.CVar_Get( "cl_noglow", "0", 0 );
 	cl_noskins = clgi.CVar_Get( "cl_noskins", "0", 0 );
 
-	// Gibs or no Gibs
-	cl_gibs = clgi.CVar_Get( "cl_gibs", "1", 0 );
-
 	// Gun Debugging CVars:
 	cl_gunalpha = clgi.CVar_Get( "cl_gunalpha", "1", 0 );
 	cl_gunscale = clgi.CVar_Get( "cl_gunscale", "0.25", CVAR_ARCHIVE );

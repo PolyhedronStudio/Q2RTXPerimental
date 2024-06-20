@@ -183,7 +183,7 @@ void ThrowHead(edict_t *self, const char *gibname, int damage, int type)
     gi.setmodel(self, gibname);
     self->solid = SOLID_NOT;
     self->s.effects |= EF_GIB;
-    self->s.effects &= ~EF_FLIES;
+    //self->s.effects &= ~EF_FLIES;
     self->s.sound = 0;
     self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
     self->svflags &= ~SVF_MONSTER;

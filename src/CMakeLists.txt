@@ -416,7 +416,7 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 
 	# WIN32 Specifics:
 	IF( WIN32 )
-		target_include_directories(baseq2rtxp_svgame PRIVATE ../VC/inc)
+		target_include_directories(baseq2rtxp_svgame PRIVATE ../VC/inc )
 		target_include_directories(baseq2rtxp_clgame PRIVATE ../VC/inc)
 
 		target_sources(baseq2rtxp_svgame PRIVATE windows/res/baseq2rtxp_svgame.rc)
@@ -430,8 +430,10 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 		#target_compile_options(baseq2rtxp_svgame PRIVATE /wd4005 /wd4996)
 	ENDIF() #IF( WIN32 ) 
 
-	target_include_directories(baseq2rtxp_svgame PRIVATE ../inc)
-	target_include_directories(baseq2rtxp_clgame PRIVATE ../inc)
+	#target_include_directories(baseq2rtxp_svgame PRIVATE ../inc baseq2rtxp/svgame baseq2rtxp/sharedgame)
+	#target_include_directories(baseq2rtxp_clgame PRIVATE ../inc baseq2rtxp/clgame baseq2rtxp/sharedgame)
+	target_include_directories(baseq2rtxp_svgame PRIVATE ../inc baseq2rtxp/)
+	target_include_directories(baseq2rtxp_clgame PRIVATE ../inc baseq2rtxp/)
     target_link_libraries(baseq2rtxp_svgame zlibstatic)
 
 	# Specify both LIBRARY and RUNTIME because one works only on Windows,

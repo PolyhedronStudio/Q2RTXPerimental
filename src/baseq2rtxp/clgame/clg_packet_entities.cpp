@@ -168,27 +168,29 @@ static void CLG_PacketEntity_LerpOrigin( centity_t *cent, entity_t *ent, entity_
     }
 
     // Handle the possibility of a stair step occuring.
-    static constexpr int64_t STEP_TIME = 200; // Smooths it out over 200ms, this used to be 100ms.
-    uint64_t stair_step_delta = clgi.GetRealTime() - ( cent->step_servertime - clgi.client->sv_frametime );
+    static constexpr int64_t STEP_TIME = 100; // Smooths it out over 200ms, this used to be 100ms.
+    uint64_t stair_step_delta = clgi.GetRealTime() - cent->step_realtime;
+    //uint64_t stair_step_delta = clgi.client->time - ( cent->step_servertime - clgi.client->sv_frametime );
 
     // Smooth out stair step over 200ms.
     if ( stair_step_delta <= STEP_TIME ) {
         static constexpr float STEP_BASE_1_FRAMETIME = 1.0f / STEP_TIME; // 0.01f;
 
         // Smooth it out further for smaller steps.
-        static constexpr float STEP_MAX_SMALL_STEP_SIZE = 18.f;
-        if ( fabs( cent->step_height ) <= STEP_MAX_SMALL_STEP_SIZE ) {
-            stair_step_delta <<= 1; // small steps
-        }
+        //static constexpr float STEP_MAX_SMALL_STEP_SIZE = 18.f;
+        //if ( fabs( cent->step_height ) <= STEP_MAX_SMALL_STEP_SIZE ) {
+        //    stair_step_delta <<= 1; // small steps
+        //}
 
         // Calculate step time.
-        uint64_t stair_step_time = STEP_TIME - min( stair_step_delta, STEP_TIME );
+        int64_t stair_step_time = STEP_TIME - min( stair_step_delta, STEP_TIME );
 
         // Calculate lerped Z origin.
-        cent->current.origin[ 2 ] = QM_Lerp( cent->prev.origin[ 2 ], cent->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
-
+        //cent->current.origin[ 2 ] = QM_Lerp( cent->prev.origin[ 2 ], cent->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
+        const float cent_origin_z = QM_Lerp( cent->prev.origin[ 2 ], cent->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
+        const Vector3 cent_origin = { cent->current.origin[ 0 ], cent->current.origin[ 1 ], cent_origin_z };
         // Assign to render entity.
-        VectorCopy( cent->current.origin, ent->origin );
+        VectorCopy( cent_origin, ent->origin );
         VectorCopy( cent->current.origin, ent->oldorigin );
     }
 }
@@ -202,31 +204,12 @@ void CLG_PacketEntity_LerpAngles( centity_t *cent, entity_t *ent, entity_state_t
         ent->angles[ 0 ] = 0;
         ent->angles[ 1 ] = autorotate;
         ent->angles[ 2 ] = 0;
-        // For SPINNING LIGHTS:
-    } else if ( effects & EF_SPINNINGLIGHTS ) {
-        vec3_t forward;
-        vec3_t start;
-
-        ent->angles[ 0 ] = 0;
-        ent->angles[ 1 ] = AngleMod( clgi.client->time / 2 ) + newState->angles[ 1 ];
-        ent->angles[ 2 ] = 180;
-
-        AngleVectors( ent->angles, forward, NULL, NULL );
-        VectorMA( ent->origin, 64, forward, start );
-        clgi.V_AddLight( start, 100, 1, 0, 0 );
-
-        // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
+    // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
     } else if ( newState->number == clgi.client->frame.clientNum + 1 ) {
         VectorCopy( clgi.client->playerEntityAngles, ent->angles );      // use predicted angles
-
-        // Reguler entity angle interpolation:
-    } else { // interpolate angles
+    // Reguler entity angle interpolation:
+    } else {
         LerpAngles( cent->prev.angles, cent->current.angles, clgi.client->lerpfrac, ent->angles );
-
-        // mimic original ref_gl "leaning" bug (uuugly!)
-        if ( newState->modelindex == MODELINDEX_PLAYER && cl_rollhack->integer ) {
-            ent->angles[ ROLL ] = -ent->angles[ ROLL ];
-        }
     }
 }
 /**
@@ -290,109 +273,16 @@ static void CLG_PacketEntity_ApplyShellEffects( uint32_t &effects, int32_t rende
         effects |= EF_COLOR_SHELL;
         renderfx |= RF_SHELL_BLUE;
     }
-
-    if ( effects & EF_DOUBLE ) {
-        effects &= ~EF_DOUBLE;
-        effects |= EF_COLOR_SHELL;
-        renderfx |= RF_SHELL_DOUBLE;
-    }
-
-    if ( effects & EF_HALF_DAMAGE ) {
-        effects &= ~EF_HALF_DAMAGE;
-        effects |= EF_COLOR_SHELL;
-        renderfx |= RF_SHELL_HALF_DAM;
-    }
-
-    // optionally remove the glowing effect
-    if ( cl_noglow->integer )
-        renderfx &= ~RF_GLOW;
 }
 
 /**
 *   @brief  Adds trail effects to the entity.
 **/
 void CLG_PacketEntity_AddTrailEffects( centity_t *cent, entity_t *ent, entity_state_t *newState, const uint32_t effects ) {
-    // Add automatic particle trails
+    // If no rotation flag is set, add specified trail flags.
     if ( effects & ~EF_ROTATE ) {
-        if ( effects & EF_ROCKET ) {
-            //if ( !( cl_disable_particles->integer & NOPART_ROCKET_TRAIL ) ) {
-                CLG_RocketTrail( cent->lerp_origin, ent->origin, cent );
-            //}
-            //if ( cl_dlight_hacks->integer & DLHACK_ROCKET_COLOR )
-            //    clgi.V_AddLight( ent->origin, 200, 1, 0.23f, 0 );
-            //else
-                clgi.V_AddLight( ent->origin, 200, 0.6f, 0.4f, 0.12f );
-        } else if ( effects & EF_BLASTER ) {
-            if ( effects & EF_TRACKER ) {
-                CLG_BlasterTrail2( cent->lerp_origin, ent->origin );
-                clgi.V_AddLight( ent->origin, 200, 0.1f, 0.4f, 0.12f );
-            } else {
-                CLG_BlasterTrail( cent->lerp_origin, ent->origin );
-                clgi.V_AddLight( ent->origin, 200, 0.6f, 0.4f, 0.12f );
-            }
-        } else if ( effects & EF_HYPERBLASTER ) {
-            if ( effects & EF_TRACKER )
-                clgi.V_AddLight( ent->origin, 200, 0.1f, 0.4f, 0.12f );
-            else
-                clgi.V_AddLight( ent->origin, 200, 0.6f, 0.4f, 0.12f );
-        } else if ( effects & EF_GIB ) {
+        if ( effects & EF_GIB ) {
             CLG_DiminishingTrail( cent->lerp_origin, ent->origin, cent, effects );
-        } else if ( effects & EF_GRENADE ) {
-            //if ( !( cl_disable_particles->integer & NOPART_GRENADE_TRAIL ) ) {
-                CLG_DiminishingTrail( cent->lerp_origin, ent->origin, cent, effects );
-            //}
-        } else if ( effects & EF_FLIES ) {
-            CLG_FlyEffect( cent, ent->origin );
-        } else if ( effects & EF_BFG ) {
-            int32_t i = 0;
-            if ( effects & EF_ANIM_ALLFAST ) {
-                CLG_BfgParticles( ent );
-                i = 100;
-            } else {
-                static const int bfg_lightramp[ 6 ] = { 300, 400, 600, 300, 150, 75 };
-                i = newState->frame;
-                clamp( i, 0, 5 );
-                i = bfg_lightramp[ i ];
-            }
-            const vec3_t nvgreen = { 0.2716f, 0.5795f, 0.04615f };
-            clgi.V_AddSphereLight( ent->origin, i, nvgreen[ 0 ], nvgreen[ 1 ], nvgreen[ 2 ], 20.f );
-        } else if ( effects & EF_TRAP ) {
-            ent->origin[ 2 ] += 32;
-            CLG_TrapParticles( cent, ent->origin );
-            const int32_t i = ( irandom( 100 ) ) + 100;
-            clgi.V_AddLight( ent->origin, i, 1, 0.8f, 0.1f );
-        } else if ( effects & EF_FLAG1 ) {
-            CLG_FlagTrail( cent->lerp_origin, ent->origin, 242 );
-            clgi.V_AddLight( ent->origin, 225, 1, 0.1f, 0.1f );
-        } else if ( effects & EF_FLAG2 ) {
-            CLG_FlagTrail( cent->lerp_origin, ent->origin, 115 );
-            clgi.V_AddLight( ent->origin, 225, 0.1f, 0.1f, 1 );
-        } else if ( effects & EF_TAGTRAIL ) {
-            CLG_TagTrail( cent->lerp_origin, ent->origin, 220 );
-            clgi.V_AddLight( ent->origin, 225, 1.0f, 1.0f, 0.0f );
-        } else if ( effects & EF_TRACKERTRAIL ) {
-            if ( effects & EF_TRACKER ) {
-                float intensity = 50 + ( 500 * ( sin( clgi.client->time / 500.0f ) + 1.0f ) );
-                clgi.V_AddLight( ent->origin, intensity, -1.0f, -1.0f, -1.0f );
-            } else {
-                CLG_Tracker_Shell( cent->lerp_origin );
-                clgi.V_AddLight( ent->origin, 155, -1.0f, -1.0f, -1.0f );
-            }
-        } else if ( effects & EF_TRACKER ) {
-            CLG_TrackerTrail( cent->lerp_origin, ent->origin, 0 );
-            clgi.V_AddLight( ent->origin, 200, -1, -1, -1 );
-        } else if ( effects & EF_GREENGIB ) {
-            CLG_DiminishingTrail( cent->lerp_origin, ent->origin, cent, effects );
-        } else if ( effects & EF_IONRIPPER ) {
-            CLG_IonripperTrail( cent->lerp_origin, ent->origin );
-            clgi.V_AddLight( ent->origin, 100, 1, 0.5f, 0.5f );
-        } else if ( effects & EF_BLUEHYPERBLASTER ) {
-            clgi.V_AddLight( ent->origin, 200, 0, 0, 1 );
-        } else if ( effects & EF_PLASMA ) {
-            if ( effects & EF_ANIM_ALLFAST ) {
-                CLG_BlasterTrail( cent->lerp_origin, ent->origin );
-            }
-            clgi.V_AddLight( ent->origin, 130, 1, 0.5f, 0.5f );
         }
     }
 }
@@ -416,63 +306,46 @@ void CLG_AddPacketEntities( void ) {
     entity_t ent = { };
 
     // Iterate over this frame's entity states.
-    for ( int32_t pnum = 0; pnum < clgi.client->frame.numEntities; pnum++ ) {
+    for ( int32_t frameEntityNumber = 0; frameEntityNumber < clgi.client->frame.numEntities; frameEntityNumber++ ) {
         // Get the entity state index for the entity's newly received state.
-        int32_t i = ( clgi.client->frame.firstEntity + pnum ) & PARSE_ENTITIES_MASK;
+        const int32_t entityStateIndex = ( clgi.client->frame.firstEntity + frameEntityNumber ) & PARSE_ENTITIES_MASK;
         // Get the pointer to the newly received entity's state.
-        entity_state_t *s1 = &clgi.client->entityStates[ i ];
+        entity_state_t *s1 = &clgi.client->entityStates[ entityStateIndex ];
 
-        // Get a pointer to the client  game entity that matches the state's number.
+        // Get a pointer to the client game entity that matches the state's number.
         centity_t *cent = &clg_entities[ s1->number ];
-
         // Setup the refresh entity ID to match that of the client game entity with the RESERVED_ENTITY_COUNT in mind.
-        ent.id = cent->id + RENTITIY_RESERVED_COUNT;
+        ent.id = RENTITIY_RESERVED_COUNT + cent->id;
 
         // Acquire the state's effects, and render effects.
         uint32_t effects = s1->effects;
         int32_t renderfx = s1->renderfx;
 
-        /**
-        *   Set refresh entity frame:
-        **/
+        // Set refresh entity frame:
         CLG_PacketEntity_AnimateFrame( cent, &ent, s1, effects );
-        /**
-        *   Apply 'Shell' render effects based on various effects that are set:
-        **/
+        // Apply 'Shell' render effects based on various effects that are set:
         CLG_PacketEntity_ApplyShellEffects( effects, renderfx );
-        /**
-        *   Lerp entity origins:
-        **/
+        // Lerp entity origins:
         CLG_PacketEntity_LerpOrigin( cent, &ent, s1 );
 
-        // Goto skip if gibs are disabled.
-        if ( ( effects & EF_GIB ) && !cl_gibs->integer ) {
-            goto skip;
-        }
 
-        // create a new entity
-
+        // Create a new entity
         // Tweak the color of beams
-        if ( renderfx & RF_BEAM ) {
+        if ( s1->entityType == ET_BEAM || renderfx & RF_BEAM ) {
             // the four beam colors are encoded in 32 bits of skinnum (hack)
             ent.alpha = 0.30f;
             ent.skinnum = ( s1->skinnum >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
             ent.model = 0;
-            // Assume that this is thus not a beam, but an alias model entity instead:
+        // Assume that this is thus not a beam, but an alias model entity instead:
         } else {
             CLG_PacketEntity_SetModelAndSkin( cent, &ent, s1, renderfx );
-        }
-
-        // Only used for black hole model right now, FIXME: do better
-        if ( ( renderfx & RF_TRANSLUCENT ) && !( renderfx & RF_BEAM ) ) {
-            ent.alpha = 0.70f;
         }
 
         // Render effects (fullbright, translucent, etc)
         // In case of a shell entity, they are applied to it instead:
         if ( ( effects & EF_COLOR_SHELL ) ) {
             ent.flags = 0;
-            // Any other entities apply renderfx to themselves:
+        // Any other entities apply renderfx to themselves:
         } else {
             ent.flags = renderfx;
         }
@@ -480,25 +353,11 @@ void CLG_AddPacketEntities( void ) {
         // Calculate Angles, lerp if needed.
         CLG_PacketEntity_LerpAngles( cent, &ent, s1, effects, autorotate );
 
-
-        //int base_entity_flags = 0; // WID: C++20: Moved to the top of function.
-
         // Reset the base refresh entity flags.
         base_entity_flags = 0; // WID: C++20: Make sure to however, reset it to 0.
 
         // In case of the state belonging to the frame's viewed client number:
         if ( s1->number == clgi.client->frame.clientNum + 1 ) {
-            // Add various effects.
-            if ( effects & EF_FLAG1 ) {
-                clgi.V_AddLight( ent.origin, 225, 1.0f, 0.1f, 0.1f );
-            } else if ( effects & EF_FLAG2 ) {
-                clgi.V_AddLight( ent.origin, 225, 0.1f, 0.1f, 1.0f );
-            } else if ( effects & EF_TAGTRAIL ) {
-                clgi.V_AddLight( ent.origin, 225, 1.0f, 1.0f, 0.0f );
-            } else if ( effects & EF_TRACKERTRAIL ) {
-                clgi.V_AddLight( ent.origin, 225, -1.0f, -1.0f, -1.0f );
-            }
-
             // When not in third person mode:
             if ( !clgi.client->thirdPersonView ) {
                 // If we're running RTX, we want the player entity to render for shadow/reflection reasons:
@@ -534,28 +393,6 @@ void CLG_AddPacketEntities( void ) {
         if ( !s1->modelindex ) {
             goto skip;
         }
-
-        /**
-        *   BFG and Plasma Effects:
-        **/
-        if ( effects & EF_BFG ) {
-            // Make BFG Effect entities 60% transparent.
-            ent.flags |= RF_TRANSLUCENT;
-            ent.alpha = 0.30f;
-        }
-        if ( effects & EF_PLASMA ) {
-            // Make Plasma Effect entities 60% transparent.
-            ent.flags |= RF_TRANSLUCENT;
-            ent.alpha = 0.6f;
-        }
-        // Make Sphere Trans Effect entities 30% transparent, 60% if it is its trail.
-        //if (effects & EF_SPHERETRANS) {
-        //    ent.flags |= RF_TRANSLUCENT;
-        //    if (effects & EF_TRACKERTRAIL)
-        //        ent.alpha = 0.6f;
-        //    else
-        //        ent.alpha = 0.3f;
-        //}
 
         /**
         *   Colored Shells:
@@ -649,20 +486,10 @@ void CLG_AddPacketEntities( void ) {
             ent.model = clgi.client->model_draw[ s1->modelindex4 ];
             clgi.V_AddEntity( &ent );
         }
-
-        if ( effects & EF_POWERSCREEN ) {
-            ent.model = precache.models.powerscreen;
-            ent.oldframe = 0;
-            ent.frame = 0;
-            ent.flags |= ( RF_TRANSLUCENT | RF_SHELL_GREEN );
-            ent.alpha = 0.30f;
-            clgi.V_AddEntity( &ent );
-        }
-
         // Add automatic particle trails
         CLG_PacketEntity_AddTrailEffects( cent, &ent, s1, effects );
 
-        // 
+    // When the entity is skipped, copy over the origin 
     skip:
         VectorCopy( ent.origin, cent->lerp_origin );
     }

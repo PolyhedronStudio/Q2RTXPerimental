@@ -5,10 +5,10 @@
 *
 *
 ********************************************************************/
-#include "../svg_local.h"
+#include "svgame/svg_local.h"
 
-#include "g_mmove.h"
-#include "g_mmove_slidemove.h"
+#include "svg_mmove.h"
+#include "svg_mmove_slidemove.h"
 
 /**
 *

@@ -124,7 +124,7 @@ cmdreg_t clg_view_cmds[] = {
 /**
 *   @brief
 **/
-static const int32_t shell_effect_hack( void ) {
+static const int32_t weapon_shell_effect( void ) {
     int32_t flags = 0;
 
     // Oh noes.
@@ -149,12 +149,6 @@ static const int32_t shell_effect_hack( void ) {
     }
     if ( ent->current.effects & EF_QUAD ) {
         flags |= RF_SHELL_BLUE;
-    }
-    if ( ent->current.effects & EF_DOUBLE ) {
-        flags |= RF_SHELL_DOUBLE;
-    }
-    if ( ent->current.effects & EF_HALF_DAMAGE ) {
-        flags |= RF_SHELL_HALF_DAM;
     }
 
     return flags;
@@ -309,7 +303,7 @@ static void CLG_AddViewWeapon( void ) {
     }
 
     // add shell effect from player entity
-    shell_flags = shell_effect_hack();
+    shell_flags = weapon_shell_effect();
 
     // Shells are applied to the entity itself in rtx mode
     if ( clgi.GetRefreshType() == REF_TYPE_VKPT ) {

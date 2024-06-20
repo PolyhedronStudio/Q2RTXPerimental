@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // g_weapon.c
 
-#include "../svg_local.h"
+#include "svgame/svg_local.h"
 #include "svg_m_player.h"
 
 

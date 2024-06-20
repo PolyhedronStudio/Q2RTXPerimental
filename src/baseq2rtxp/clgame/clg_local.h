@@ -54,11 +54,7 @@ extern cvar_t *sv_paused;
 extern cvar_t *cl_footsteps;
 
 extern cvar_t *cl_kickangles;
-extern cvar_t *cl_rollhack;
-extern cvar_t *cl_noglow;
 extern cvar_t *cl_noskins;
-
-extern cvar_t *cl_gibs;
 
 extern cvar_t *cl_gunalpha;
 extern cvar_t *cl_gunscale;
@@ -173,6 +169,7 @@ typedef struct centity_s {
 
 	// Server Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
 	int64_t	step_servertime;
+	int64_t	step_realtime;
 	// Actual height of the step taken.
 	float	step_height;
 	// WID: 40hz

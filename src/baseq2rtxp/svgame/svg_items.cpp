@@ -496,6 +496,14 @@ void droptofloor(edict_t *ent)
     trace_t     tr;
     vec3_t      dest;
 
+    // First set model.
+    if ( ent->model ) {
+        gi.setmodel( ent, ent->model );
+    } else if ( ent->item && ent->item->world_model ) {
+        gi.setmodel( ent, ent->item->world_model );
+    }
+    
+    // Then the bbox.
     if ( ent->item && ent->item->tag >= ITEM_TAG_AMMO_BULLETS_PISTOL && ent->item->tag <= ITEM_TAG_AMMO_SHELLS_SHOTGUN ) {
         VectorSet( ent->mins, -8, -8, -8 );
         VectorSet( ent->maxs, 8, 8, 8 );
@@ -504,11 +512,6 @@ void droptofloor(edict_t *ent)
         VectorSet( ent->maxs, 16, 16, 16 );
     }
 
-    if ( ent->model ) {
-        gi.setmodel( ent, ent->model );
-    } else if ( ent->item && ent->item->world_model ) {
-        gi.setmodel( ent, ent->item->world_model );
-    }
     ent->solid = SOLID_TRIGGER;
     ent->movetype = MOVETYPE_TOSS;
     ent->touch = Touch_Item;

@@ -104,6 +104,8 @@ typedef struct centity_s {
 	int64_t frame_realtime;
 	// Server Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
 	int64_t	step_servertime;
+	// Real Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
+	int64_t	step_realtime;
 	// Actual height of the step taken.
 	float	step_height;
 	// WID: 40hz
