@@ -14,22 +14,24 @@ static const int32_t adjust_shell_fx( const int32_t renderfx ) {
     return renderfx;
 }
 
-/*
-==========================================================================
-
-DYNLIGHT ENTITY SUPPORT:
-
-==========================================================================
-*/
-void CLG_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state_t *s1 ) {
+/**
+*
+*
+*
+*   Entity Type:    Generic
+*
+*
+*
+**/
+void CLG_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state_t *newState ) {
     // Calculate RGB vector.
     vec3_t rgb = { 1.f, 1.f, 1.f };
-    rgb[ 0 ] = ( 1.0f / 255.f ) * s1->spotlight.rgb[ 0 ];
-    rgb[ 1 ] = ( 1.0f / 255.f ) * s1->spotlight.rgb[ 1 ];
-    rgb[ 2 ] = ( 1.0f / 255.f ) * s1->spotlight.rgb[ 2 ];
+    rgb[ 0 ] = ( 1.0f / 255.f ) * newState->spotlight.rgb[ 0 ];
+    rgb[ 1 ] = ( 1.0f / 255.f ) * newState->spotlight.rgb[ 1 ];
+    rgb[ 2 ] = ( 1.0f / 255.f ) * newState->spotlight.rgb[ 2 ];
 
     // Extract light intensity from "frame".
-    float lightIntensity = s1->spotlight.intensity;
+    float lightIntensity = newState->spotlight.intensity;
 
     // Calculate the spotlight's view direction based on set euler angles.
     vec3_t view_dir, right_dir, up_dir;
@@ -38,25 +40,25 @@ void CLG_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state
     // Add the spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
     // Use the image based texture profile in case one is set.
     #if 0
-    if ( s1->image_profile ) {
+    if ( newState->image_profile ) {
         qhandle_t spotlightPicHandle = R_RegisterImage( "flashlight_profile_01", IT_PIC, static_cast<imageflags_t>( IF_PERMANENT | IF_BILERP ) );
         V_AddSpotLightTexEmission( ent->origin, view_dir, lightIntensity,
             // TODO: Multiply the RGB?
             rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
-            s1->spotlight.angle_width, spotlightPicHandle );
-    } else
-        #endif
+            newState->spotlight.angle_width, spotlightPicHandle );
+} else
+#endif
     {
         clgi.V_AddSpotLight( ent->origin, view_dir, lightIntensity,
             // TODO: Multiply the RGB?
             rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
-            s1->spotlight.angle_width, s1->spotlight.angle_falloff );
+            newState->spotlight.angle_width, newState->spotlight.angle_falloff );
     }
 
-    // Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
-    //V_AddSpotLight( ent->origin, view_dir, 225.0, 1.f, 0.1f, 0.1f, 45, 0 );
-    //V_AddSphereLight( ent.origin, 500.f, 1.6f, 1.0f, 0.2f, 10.f );
-    //V_AddSpotLightTexEmission( light_pos, view_dir, cl_flashlight_intensity->value, 1.f, 1.f, 1.f, 90.0f, flashlight_profile_tex );
+// Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
+//V_AddSpotLight( ent->origin, view_dir, 225.0, 1.f, 0.1f, 0.1f, 45, 0 );
+//V_AddSphereLight( ent.origin, 500.f, 1.6f, 1.0f, 0.2f, 10.f );
+//V_AddSpotLightTexEmission( light_pos, view_dir, cl_flashlight_intensity->value, 1.f, 1.f, 1.f, 90.0f, flashlight_profile_tex );
 }
 
 /**
@@ -94,49 +96,23 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *cent, entity_t *ent, entit
     if ( !( ent->model & 0x80000000 ) && cent->last_frame != cent->current_frame ) {
         // Calculate back lerpfraction. (10hz.)
         //ent->backlerp = 1.0f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / 100.f );
-        //clamp( ent->backlerp, 0.0f, 1.0f );
+        //ent->backlerp = QM_Clampf( ent->backlerp, 0.0f, 1.f );
         //ent->frame = cent->current_frame;
         //ent->oldframe = cent->last_frame;
 
-        //// Calculate back lerpfraction. (40hz.)
-        //ent->backlerp = 1.0f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / 25.f );
-        //clamp( ent->backlerp, 0.0f, 1.0f );
-        //ent->frame = cent->current_frame;
-        //ent->oldframe = cent->last_frame;
-
-        // Calculate back lerpfraction. (40hz.)
+        // Calculate back lerpfraction using RealTime. (40hz.)
         //ent->backlerp = 1.0f - ( ( clgi.GetRealTime()  - ( (float)cent->frame_realtime - clgi.client->sv_frametime ) ) / 25.f );
-        //clamp( ent->backlerp, 0.0f, 1.0f );
+        //ent->backlerp = QM_Clampf( ent->backlerp, 0.0f, 1.f );
         //ent->frame = cent->current_frame;
         //ent->oldframe = cent->last_frame;
 
-        // 40hz gun rate.
-        constexpr int32_t playerstate_gun_rate = 40;
-        const float anim_ms = 1.f / ( playerstate_gun_rate ) * 1000.f;
-        ent->backlerp = 1.f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / anim_ms );
-        clamp( ent->backlerp, 0.0f, 1.f );
+        // Calculate back lerpfraction using clgi.client->time. (40hz.)
+        constexpr int32_t animationHz = BASE_FRAMERATE;
+        constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
+        ent->backlerp = 1.f - ( ( clgi.client->time - ( (float)cent->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
+        ent->backlerp = QM_Clampf( ent->backlerp, 0.0f, 1.f );
         ent->frame = cent->current_frame;
         ent->oldframe = cent->last_frame;
-
-        // For Skeletal Models:
-        //if ( cent->frame_realtime != 0 ) {
-        //    static constexpr double millisecond = 1e-3f;
-
-        //    int64_t timediff = clgi.GetRealTime() - cent->frame_realtime; //clgi.client->time - prevtime;
-        //    double frame = cent->current_frame + (double)timediff * millisecond * std::max( 40.f, 0.f );
-
-        //    if ( frame >= (double)415 ) {
-        //        frame = 415.f;
-        //    } else if ( frame < 0 ) {
-        //        frame = 0;
-        //    }
-
-        //    double frac = frame - std::floor( frame );
-
-        //    ent->oldframe = (int)frame;
-        //    ent->frame = frame + 1;
-        //    ent->backlerp = 1.f - frac;
-        //}
     }
     // WID: 40hz
 }
@@ -204,63 +180,127 @@ void CLG_PacketEntity_LerpAngles( centity_t *cent, entity_t *ent, entity_state_t
         ent->angles[ 0 ] = 0;
         ent->angles[ 1 ] = autorotate;
         ent->angles[ 2 ] = 0;
-    // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
+        // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
     } else if ( newState->number == clgi.client->frame.clientNum + 1 ) {
         VectorCopy( clgi.client->playerEntityAngles, ent->angles );      // use predicted angles
-    // Reguler entity angle interpolation:
+        // Reguler entity angle interpolation:
     } else {
         LerpAngles( cent->prev.angles, cent->current.angles, clgi.client->lerpfrac, ent->angles );
     }
 }
 /**
-*   @brief  Sets the packet entity's render skin and model correctly.
+*   @brief  Sets the packet entity's render skin and modelindex 1 correctly.
 **/
 static void CLG_PacketEntity_SetModelAndSkin( centity_t *cent, entity_t *ent, entity_state_t *newState, int32_t &renderfx ) {
-    // A client player model index.
-    if ( newState->modelindex == MODELINDEX_PLAYER ) {
-        // Parse and use custom player skin.
-        ent->skinnum = 0;
-        clientinfo_t *ci = &clgi.client->clientinfo[ newState->skinnum & 0xff ];
-        ent->skin = ci->skin;
-        ent->model = ci->model;
-
-        // On failure to find any custom client skin and model, resort to defaults being baseclientinfo.
-        if ( !ent->skin || !ent->model ) {
-            ent->skin = clgi.client->baseclientinfo.skin;
-            ent->model = clgi.client->baseclientinfo.model;
-            ci = &clgi.client->baseclientinfo;
-        }
-
-        // In case of the DISGUISE renderflag set, use the disguise skin.
-        if ( renderfx & RF_USE_DISGUISE ) {
-            char buffer[ MAX_QPATH ];
-
-            Q_concat( buffer, sizeof( buffer ), "players/", ci->model_name, "/disguise.pcx" );
-            ent->skin = clgi.R_RegisterSkin( buffer );
-        }
-        // A regular alias entity model instead:
+    // Special treatment for ET_BEAM/RF_BEAM:
+    if ( newState->entityType == ET_BEAM || renderfx & RF_BEAM ) {
+        // the four beam colors are encoded in 32 bits of skinnum (hack)
+        ent->alpha = 0.30f;
+        ent->skinnum = ( newState->skinnum >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
+        ent->model = 0;
+        // Assume that this is thus not a beam, but an alias model entity instead:
     } else {
-        ent->skinnum = newState->skinnum;
-        ent->skin = 0;
-        ent->model = clgi.client->model_draw[ newState->modelindex ];
-        if ( ent->model == precache.models.laser || ent->model == precache.models.dmspot ) {
-            renderfx |= RF_NOSHADOW;
-        }
-    }
+        // A client player model index.
+        if ( newState->modelindex == MODELINDEX_PLAYER ) {
+            // Parse and use custom player skin.
+            ent->skinnum = 0;
+            clientinfo_t *ci = &clgi.client->clientinfo[ newState->skinnum & 0xff ];
+            ent->skin = ci->skin;
+            ent->model = ci->model;
 
-    // Allow skin override for remaster.
-    if ( renderfx & RF_CUSTOMSKIN && (unsigned)newState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
-        if ( newState->skinnum >= 0 && newState->skinnum < 512 ) {
-            ent->skin = clgi.client->image_precache[ newState->skinnum ];
+            // On failure to find any custom client skin and model, resort to defaults being baseclientinfo.
+            if ( !ent->skin || !ent->model ) {
+                ent->skin = clgi.client->baseclientinfo.skin;
+                ent->model = clgi.client->baseclientinfo.model;
+                ci = &clgi.client->baseclientinfo;
+            }
+
+            // In case of the DISGUISE renderflag set, use the disguise skin.
+            if ( renderfx & RF_USE_DISGUISE ) {
+                char buffer[ MAX_QPATH ];
+
+                Q_concat( buffer, sizeof( buffer ), "players/", ci->model_name, "/disguise.pcx" );
+                ent->skin = clgi.R_RegisterSkin( buffer );
+            }
+            // A regular alias entity model instead:
+        } else {
+            ent->skinnum = newState->skinnum;
+            ent->skin = 0;
+            ent->model = clgi.client->model_draw[ newState->modelindex ];
+            if ( ent->model == precache.models.laser || ent->model == precache.models.dmspot ) {
+                renderfx |= RF_NOSHADOW;
+            }
         }
-        ent->skinnum = 0;
+
+        // Allow skin override for remaster.
+        if ( renderfx & RF_CUSTOMSKIN && (unsigned)newState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
+            if ( newState->skinnum >= 0 && newState->skinnum < 512 ) {
+                ent->skin = clgi.client->image_precache[ newState->skinnum ];
+            }
+            ent->skinnum = 0;
+        }
     }
 }
-
+/**
+*   @brief  Sets the packet entity's render skin and modelindex 2 correctly.
+**/
+static void CLG_PacketEntity_SetModel2AndSkin( centity_t *cent, entity_t *ent, entity_state_t *newState, const int32_t effects, int32_t &renderfx ) {
+    if ( newState->modelindex2 ) {
+        // Client Entity Weapon Model:
+        if ( newState->modelindex2 == MODELINDEX_PLAYER ) {
+            // Fetch client info ID. (encoded in skinnum)
+            clientinfo_t *ci = &clgi.client->clientinfo[ newState->skinnum & 0xff ];
+            // Fetch weapon ID. (encoded in skinnum).
+            int32_t weaponModelIndex = ( newState->skinnum >> 8 ); // 0 is default weapon model
+            if ( weaponModelIndex < 0 || weaponModelIndex > precache.numViewModels - 1 ) {
+                weaponModelIndex = 0;
+            }
+            // See if we got a precached weapon model index for the matching client info.
+            ent->model = ci->weaponmodel[ weaponModelIndex ];
+            // If not:
+            if ( !ent->model ) {
+                // Try using its default index 0 model.
+                if ( weaponModelIndex != 0 ) {
+                    ent->model = ci->weaponmodel[ 0 ];
+                }
+                // If not, use our own baseclient info index 0 weapon model:
+                if ( !ent->model ) {
+                    ent->model = clgi.client->baseclientinfo.weaponmodel[ 0 ];
+                }
+            }
+            // Regular 2nd model index.
+        } else {
+            ent->model = clgi.client->model_draw[ newState->modelindex2 ];
+        }
+        // Add shell effect.
+        if ( effects & EF_COLOR_SHELL ) {
+            ent->flags |= renderfx;
+        }
+        clgi.V_AddEntity( ent );
+    }
+}
+/**
+*   @brief  Sets the packet entity's render skin and modelindex 3 correctly.
+**/
+static void CLG_PacketEntity_SetModel3AndSkin( centity_t *cent, entity_t *ent, entity_state_t *newState, const int32_t effects, const int32_t base_entity_flags, int32_t &renderfx ) {
+    if ( newState->modelindex3 ) {
+        ent->model = clgi.client->model_draw[ newState->modelindex3 ];
+        clgi.V_AddEntity( ent );
+    }
+}
+/**
+*   @brief  Sets the packet entity's render skin and modelindex 4 correctly.
+**/
+static void CLG_PacketEntity_SetModel4AndSkin( centity_t *cent, entity_t *ent, entity_state_t *newState, const int32_t effects, const int32_t base_entity_flags, int32_t &renderfx ) {
+    if ( newState->modelindex4 ) {
+        ent->model = clgi.client->model_draw[ newState->modelindex4 ];
+        clgi.V_AddEntity( ent );
+    }
+}
 /**
 *   @brief  Look for any effects demanding a shell renderfx, and apply where needed.
 **/
-static void CLG_PacketEntity_ApplyShellEffects( uint32_t &effects, int32_t renderfx ) {
+static void CLG_PacketEntity_ApplyShellEffects( uint32_t &effects, int32_t &renderfx ) {
     // quad and pent can do different things on client
     if ( effects & EF_PENT ) {
         effects &= ~EF_PENT;
@@ -310,37 +350,27 @@ void CLG_AddPacketEntities( void ) {
         // Get the entity state index for the entity's newly received state.
         const int32_t entityStateIndex = ( clgi.client->frame.firstEntity + frameEntityNumber ) & PARSE_ENTITIES_MASK;
         // Get the pointer to the newly received entity's state.
-        entity_state_t *s1 = &clgi.client->entityStates[ entityStateIndex ];
-
+        entity_state_t *newState = &clgi.client->entityStates[ entityStateIndex ];
         // Get a pointer to the client game entity that matches the state's number.
-        centity_t *cent = &clg_entities[ s1->number ];
+        centity_t *cent = &clg_entities[ newState->number ];
         // Setup the refresh entity ID to match that of the client game entity with the RESERVED_ENTITY_COUNT in mind.
         ent.id = RENTITIY_RESERVED_COUNT + cent->id;
 
         // Acquire the state's effects, and render effects.
-        uint32_t effects = s1->effects;
-        int32_t renderfx = s1->renderfx;
+        uint32_t effects = newState->effects;
+        int32_t renderfx = newState->renderfx;
 
         // Set refresh entity frame:
-        CLG_PacketEntity_AnimateFrame( cent, &ent, s1, effects );
+        CLG_PacketEntity_AnimateFrame( cent, &ent, newState, effects );
         // Apply 'Shell' render effects based on various effects that are set:
         CLG_PacketEntity_ApplyShellEffects( effects, renderfx );
         // Lerp entity origins:
-        CLG_PacketEntity_LerpOrigin( cent, &ent, s1 );
-
-
-        // Create a new entity
-        // Tweak the color of beams
-        if ( s1->entityType == ET_BEAM || renderfx & RF_BEAM ) {
-            // the four beam colors are encoded in 32 bits of skinnum (hack)
-            ent.alpha = 0.30f;
-            ent.skinnum = ( s1->skinnum >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
-            ent.model = 0;
-        // Assume that this is thus not a beam, but an alias model entity instead:
-        } else {
-            CLG_PacketEntity_SetModelAndSkin( cent, &ent, s1, renderfx );
-        }
-
+        CLG_PacketEntity_LerpOrigin( cent, &ent, newState );
+        // Set model and skin.
+        CLG_PacketEntity_SetModelAndSkin( cent, &ent, newState, renderfx );
+        // Calculate Angles, lerp if needed:
+        CLG_PacketEntity_LerpAngles( cent, &ent, newState, effects, autorotate );
+        
         // Render effects (fullbright, translucent, etc)
         // In case of a shell entity, they are applied to it instead:
         if ( ( effects & EF_COLOR_SHELL ) ) {
@@ -350,21 +380,18 @@ void CLG_AddPacketEntities( void ) {
             ent.flags = renderfx;
         }
 
-        // Calculate Angles, lerp if needed.
-        CLG_PacketEntity_LerpAngles( cent, &ent, s1, effects, autorotate );
-
         // Reset the base refresh entity flags.
         base_entity_flags = 0; // WID: C++20: Make sure to however, reset it to 0.
 
         // In case of the state belonging to the frame's viewed client number:
-        if ( s1->number == clgi.client->frame.clientNum + 1 ) {
+        if ( newState->number == clgi.client->frame.clientNum + 1 ) {
             // When not in third person mode:
             if ( !clgi.client->thirdPersonView ) {
                 // If we're running RTX, we want the player entity to render for shadow/reflection reasons:
                 if ( clgi.GetRefreshType() == REF_TYPE_VKPT ) {
                     // Make it so it isn't seen by the FPS view, only from mirrors.
                     base_entity_flags |= RF_VIEWERMODEL;    // only draw from mirrors
-                    // In OpenGL mode we're already done, so we skip.
+                // In OpenGL mode we're already done, so we skip.
                 } else {
                     goto skip;
                 }
@@ -382,112 +409,41 @@ void CLG_AddPacketEntities( void ) {
             VectorMA( ent.origin, offset, forward, ent.origin );
             VectorMA( ent.oldorigin, offset, forward, ent.oldorigin );
         }
-
         // Spotlight:
-        if ( s1->effects & EF_SPOTLIGHT ) { //if ( s1->entityType == ET_SPOTLIGHT ) {
-            CLG_PacketEntity_AddSpotlight( cent, &ent, s1 );
-            //return;
+        if ( newState->effects & EF_SPOTLIGHT ) {
+            CLG_PacketEntity_AddSpotlight( cent, &ent, newState );
         }
 
         // If set to invisible, skip:
-        if ( !s1->modelindex ) {
+        if ( !newState->modelindex ) {
             goto skip;
         }
 
-        /**
-        *   Colored Shells:
-        **/
+        // Colored Shells:
         // Reapply the aforementioned base_entity_flags to the refresh entity.
         ent.flags |= base_entity_flags;
-        // RTX Path: 
         // The base entity has the renderfx set on it for 'Shell' effect.
-        if ( ( effects & EF_COLOR_SHELL ) && clgi.GetRefreshType() == REF_TYPE_VKPT ) {
-            //renderfx = adjust_shell_fx( renderfx );
+        if ( ( effects & EF_COLOR_SHELL ) ) {
             ent.flags |= renderfx;
         }
         // Add entity to refresh list
         clgi.V_AddEntity( &ent );
-        // OpenGL Path: 
-        // Generate a separate render entity for the 'Shell' effect.
-        if ( ( effects & EF_COLOR_SHELL ) && clgi.GetRefreshType() != REF_TYPE_VKPT ) {
-            //renderfx = adjust_shell_fx( renderfx );
-            ent.flags = renderfx | RF_TRANSLUCENT | base_entity_flags;
-            ent.alpha = 0.30f;
-            // Add the copy.
-            clgi.V_AddEntity( &ent );
-        }
 
-        /**
-        *   #(2nd) Model Index:
-        **/
-        // Reset skin, skinnum, apply base_entity_flags 
-        ent.skin = 0;       // never use a custom skin on others
+        // #(2nd) Model Index: Reset skin, skinnum, apply base_entity_flags       
+        ent.skin = 0;
         ent.skinnum = 0;
         ent.flags = base_entity_flags;
         ent.alpha = 0;
-
-        // 2nd Model Index:
-        // Duplicate for linked models.
-        if ( s1->modelindex2 ) {
-            // Custom weapon:
-            if ( s1->modelindex2 == MODELINDEX_PLAYER ) {
-                // Fetch client info ID. (encoded in skinnum)
-                clientinfo_t *ci = &clgi.client->clientinfo[ s1->skinnum & 0xff ];
-                // Fetch weapon ID. (encoded in skinnum).
-                int32_t weaponModelIndex = ( s1->skinnum >> 8 ); // 0 is default weapon model
-                if ( weaponModelIndex < 0 || weaponModelIndex > precache.numViewModels - 1 ) {
-                    weaponModelIndex = 0;
-                }
-                ent.model = ci->weaponmodel[ weaponModelIndex ];
-                if ( !ent.model ) {
-                    if ( weaponModelIndex != 0 ) {
-                        ent.model = ci->weaponmodel[ 0 ];
-                    }
-                    if ( !ent.model ) {
-                        ent.model = clgi.client->baseclientinfo.weaponmodel[ 0 ];
-                    }
-                }
-
-            // Regular 2nd model index.
-            } else {
-                ent.model = clgi.client->model_draw[ s1->modelindex2 ];
-            }
-
-            //// PMM - check for the defender sphere shell .. make it translucent
-            //if ( !Q_strcasecmp( clgi.client->configstrings[ CS_MODELS + ( s1->modelindex2 ) ], "models/items/shell/tris.md2" ) ) {
-            //    ent.alpha = 0.32f;
-            //    ent.flags = RF_TRANSLUCENT;
-            //}
-
-            if ( ( effects & EF_COLOR_SHELL ) && clgi.GetRefreshType() == REF_TYPE_VKPT ) {
-                ent.flags |= renderfx;
-            }
-
-            clgi.V_AddEntity( &ent );
-
-            //PGM - make sure these get reset.
-            ent.flags = base_entity_flags;
-            ent.alpha = 0;
-        }
-
-        /**
-        *   #(3nd) Model Index:
-        **/
-        // 3nd Model Index:
-        if ( s1->modelindex3 ) {
-            ent.model = clgi.client->model_draw[ s1->modelindex3 ];
-            clgi.V_AddEntity( &ent );
-        }
-        /**
-        *   #(4nd) Model Index:
-        **/
-        // 4nd Model Index:
-        if ( s1->modelindex4 ) {
-            ent.model = clgi.client->model_draw[ s1->modelindex4 ];
-            clgi.V_AddEntity( &ent );
-        }
+        CLG_PacketEntity_SetModel2AndSkin( cent, &ent, newState, effects, renderfx );
+        // Reset these:
+        ent.flags = base_entity_flags;
+        ent.alpha = 0;
+        // #(3nd) Model Index:
+        CLG_PacketEntity_SetModel3AndSkin( cent, &ent, newState, effects, base_entity_flags, renderfx );
+        // #(4nd) Model Index:
+        CLG_PacketEntity_SetModel4AndSkin( cent, &ent, newState, effects, base_entity_flags, renderfx );
         // Add automatic particle trails
-        CLG_PacketEntity_AddTrailEffects( cent, &ent, s1, effects );
+        CLG_PacketEntity_AddTrailEffects( cent, &ent, newState, effects );
 
     // When the entity is skipped, copy over the origin 
     skip:
