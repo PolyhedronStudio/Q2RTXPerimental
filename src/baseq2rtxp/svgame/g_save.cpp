@@ -111,183 +111,183 @@ static const save_field_t entityfields[] = {
     F( s.spotlight.angle_falloff ),
 
     // [...]
-    I(svflags),
-    V(mins),
-    V(maxs),
-    V(absmin),
-    V(absmax),
-    V(size),
-    I(solid),
-    I(clipmask),
-    I(hullContents),
-    E(owner),
+    I( svflags ),
+    V( mins ),
+    V( maxs ),
+    V( absmin ),
+    V( absmax ),
+    V( size ),
+    I( solid ),
+    I( clipmask ),
+    I( hullContents ),
+    E( owner ),
 
-    I(spawn_count),
-    I(movetype),
-    I(flags),
+    I( spawn_count ),
+    I( movetype ),
+    I( flags ),
 
-    L(model),
-    I64(freetime), // WID: 64-bit-frame
+    L( model ),
+    I64( freetime ), // WID: 64-bit-frame
 
-    L(message),
-    L(classname),
-    I(spawnflags),
+    L( message ),
+    L( classname ),
+    I( spawnflags ),
 
-	I64( timestamp ), // WID: 64-bit-frame FT(timestamp),
+    I64( timestamp ), // WID: 64-bit-frame FT(timestamp),
 
     F( angle ),
 
-    L(target),
-    L(targetname),
-    L(killtarget),
-    L(team),
-    L(pathtarget),
-    L(deathtarget),
-    L(combattarget),
-    E(target_ent),
+    L( target ),
+    L( targetname ),
+    L( killtarget ),
+    L( team ),
+    L( pathtarget ),
+    L( deathtarget ),
+    L( combattarget ),
+    E( target_ent ),
 
-    F(speed),
-    F(accel),
-    F(decel),
-    V(movedir),
-    V(pos1),
-    V(pos2),
+    F( speed ),
+    F( accel ),
+    F( decel ),
+    V( movedir ),
+    V( pos1 ),
+    V( pos2 ),
 
-    V(velocity),
-    V(avelocity),
-    I(mass),
-	I64( air_finished_time ), // WID: 64-bit-frame FT(air_finished_time), FT(air_finished_time),
-    F(gravity),
+    V( velocity ),
+    V( avelocity ),
+    I( mass ),
+    I64( air_finished_time ), // WID: 64-bit-frame FT(air_finished_time), FT(air_finished_time),
+    F( gravity ),
 
-    E(goalentity),
-    E(movetarget),
-    F(yaw_speed),
-    F(ideal_yaw),
+    E( goalentity ),
+    E( movetarget ),
+    F( yaw_speed ),
+    F( ideal_yaw ),
 
-    I64(nextthink),
-    P(postspawn, P_postspawn),
-    P(prethink, P_prethink),
-    P(think, P_think),
-    P(postthink, P_postthink),
-    P(blocked, P_blocked),
-    P(touch, P_touch),
-    P(use, P_use),
-    P(pain, P_pain),
-    P(die, P_die),
+    I64( nextthink ),
+    P( postspawn, P_postspawn ),
+    P( prethink, P_prethink ),
+    P( think, P_think ),
+    P( postthink, P_postthink ),
+    P( blocked, P_blocked ),
+    P( touch, P_touch ),
+    P( use, P_use ),
+    P( pain, P_pain ),
+    P( die, P_die ),
 
-	I64( touch_debounce_time ),		// WID: 64-bit-frame FT(touch_debounce_time),
-	I64( pain_debounce_time ),		// WID: 64-bit-frame FT(pain_debounce_time),
-	I64( damage_debounce_time ),	// WID: 64-bit-frame FT(damage_debounce_time),
-	I64( fly_sound_debounce_time ),	// WID: 64-bit-frame FT(fly_sound_debounce_time),
-	I64( last_move_time ),			// WID: 64-bit-frame FT(last_move_time),
+    I64( touch_debounce_time ),		// WID: 64-bit-frame FT(touch_debounce_time),
+    I64( pain_debounce_time ),		// WID: 64-bit-frame FT(pain_debounce_time),
+    I64( damage_debounce_time ),	// WID: 64-bit-frame FT(damage_debounce_time),
+    I64( fly_sound_debounce_time ),	// WID: 64-bit-frame FT(fly_sound_debounce_time),
+    I64( last_move_time ),			// WID: 64-bit-frame FT(last_move_time),
 
-    I(health),
-    I(max_health),
-    I(gib_health),
-    I(deadflag),
-    I64(show_hostile),
+    I( health ),
+    I( max_health ),
+    I( gib_health ),
+    I( deadflag ),
+    I64( show_hostile ),
 
-    L(map),
+    L( map ),
 
-    I(viewheight),
-    I(takedamage),
-    I(dmg),
-    I(radius_dmg),
-    F(dmg_radius),
-    F(light),
-    I(sounds),
-    I(count),
+    I( viewheight ),
+    I( takedamage ),
+    I( dmg ),
+    I( radius_dmg ),
+    F( dmg_radius ),
+    F( light ),
+    I( sounds ),
+    I( count ),
 
-    E(chain),
-    E(enemy),
-    E(oldenemy),
-    E(activator),
+    E( chain ),
+    E( enemy ),
+    E( oldenemy ),
+    E( activator ),
     E( groundInfo.entity ),
     I( groundInfo.entityLinkCount ),
-    E(teamchain),
-    E(teammaster),
+    E( teamchain ),
+    E( teammaster ),
 
-    E(mynoise),
-    E(mynoise2),
+    E( mynoise ),
+    E( mynoise2 ),
 
-    I(noise_index),
-    I(noise_index2),
-    F(volume),
-    F(attenuation),
+    I( noise_index ),
+    I( noise_index2 ),
+    F( volume ),
+    F( attenuation ),
 
-    F(wait),
-    F(delay),
-    F(random),
+    F( wait ),
+    F( delay ),
+    F( random ),
 
-	I64( last_sound_time ), // WID: 64-bit-frame  FT(last_sound_time),
+    I64( last_sound_time ), // WID: 64-bit-frame  FT(last_sound_time),
 
-    I(liquidInfo.type),
-    I(liquidInfo.level),
+    I( liquidInfo.type ),
+    I( liquidInfo.level ),
 
-    V(move_origin),
-    V(move_angles),
+    V( move_origin ),
+    V( move_angles ),
 
-    I(style),
-    L(customLightStyle),
+    I( style ),
+    L( customLightStyle ),
 
-    T(item),
+    T( item ),
 
-    V(moveinfo.start_origin),
-    V(moveinfo.start_angles),
-    V(moveinfo.end_origin),
-    V(moveinfo.end_angles),
+    V( pusherMoveInfo.start_origin ),
+    V( pusherMoveInfo.start_angles ),
+    V( pusherMoveInfo.end_origin ),
+    V( pusherMoveInfo.end_angles ),
 
-    I(moveinfo.sound_start),
-    I(moveinfo.sound_middle),
-    I(moveinfo.sound_end),
+    I( pusherMoveInfo.sound_start ),
+    I( pusherMoveInfo.sound_middle ),
+    I( pusherMoveInfo.sound_end ),
 
-    F(moveinfo.accel),
-    F(moveinfo.speed),
-    F(moveinfo.decel),
-    F(moveinfo.distance),
+    F( pusherMoveInfo.accel ),
+    F( pusherMoveInfo.speed ),
+    F( pusherMoveInfo.decel ),
+    F( pusherMoveInfo.distance ),
 
-    F(moveinfo.wait),
+    F( pusherMoveInfo.wait ),
 
-    I(moveinfo.state),
-    V(moveinfo.dir),
-    F(moveinfo.current_speed),
-    F(moveinfo.move_speed),
-    F(moveinfo.next_speed),
-    F(moveinfo.remaining_distance),
-    F(moveinfo.decel_distance),
-    P(moveinfo.endfunc, P_moveinfo_endfunc),
+    I( pusherMoveInfo.state ),
+    V( pusherMoveInfo.dir ),
+    F( pusherMoveInfo.current_speed ),
+    F( pusherMoveInfo.move_speed ),
+    F( pusherMoveInfo.next_speed ),
+    F( pusherMoveInfo.remaining_distance ),
+    F( pusherMoveInfo.decel_distance ),
+    P( pusherMoveInfo.endfunc, P_pusher_moveinfo_endfunc ),
 
-    P(monsterinfo.currentmove, P_monsterinfo_currentmove),
-	P(monsterinfo.nextmove, P_monsterinfo_nextmove ),
-    I(monsterinfo.aiflags),
-    I64(monsterinfo.nextframe), // WID: 64-bit-frame
-    F(monsterinfo.scale),
+    P( monsterinfo.currentmove, P_monsterinfo_currentmove ),
+    P( monsterinfo.nextmove, P_monsterinfo_nextmove ),
+    I( monsterinfo.aiflags ),
+    I64( monsterinfo.nextframe ), // WID: 64-bit-frame
+    F( monsterinfo.scale ),
 
-    P(monsterinfo.stand, P_monsterinfo_stand),
-    P(monsterinfo.idle, P_monsterinfo_idle),
-    P(monsterinfo.search, P_monsterinfo_search),
-    P(monsterinfo.walk, P_monsterinfo_walk),
-    P(monsterinfo.run, P_monsterinfo_run),
-    P(monsterinfo.dodge, P_monsterinfo_dodge),
-    P(monsterinfo.attack, P_monsterinfo_attack),
-    P(monsterinfo.melee, P_monsterinfo_melee),
-    P(monsterinfo.sight, P_monsterinfo_sight),
-    P(monsterinfo.checkattack, P_monsterinfo_checkattack),
+    P( monsterinfo.stand, P_monsterinfo_stand ),
+    P( monsterinfo.idle, P_monsterinfo_idle ),
+    P( monsterinfo.search, P_monsterinfo_search ),
+    P( monsterinfo.walk, P_monsterinfo_walk ),
+    P( monsterinfo.run, P_monsterinfo_run ),
+    P( monsterinfo.dodge, P_monsterinfo_dodge ),
+    P( monsterinfo.attack, P_monsterinfo_attack ),
+    P( monsterinfo.melee, P_monsterinfo_melee ),
+    P( monsterinfo.sight, P_monsterinfo_sight ),
+    P( monsterinfo.checkattack, P_monsterinfo_checkattack ),
 
     I64( monsterinfo.next_move_time ),
-	
+
     I64( monsterinfo.pause_time ),// WID: 64-bit-frame FT(monsterinfo.pause_time),
-	I64( monsterinfo.attack_finished ),// WID: 64-bit-frame FT(monsterinfo.attack_finished),
+    I64( monsterinfo.attack_finished ),// WID: 64-bit-frame FT(monsterinfo.attack_finished),
     I64( monsterinfo.fire_wait ),
 
-	V( monsterinfo.saved_goal ),
-	I64( monsterinfo.search_time ),// WID: 64-bit-frame FT(monsterinfo.search_time),
-	I64( monsterinfo.trail_time ),// WID: 64-bit-frame FT(monsterinfo.trail_time),
-	V( monsterinfo.last_sighting ),
-	I( monsterinfo.attack_state ),
-	I( monsterinfo.lefty ),
-	I64( monsterinfo.idle_time ),// WID: 64-bit-frame FT(monsterinfo.idle_time),
-	I( monsterinfo.linkcount ),
+    V( monsterinfo.saved_goal ),
+    I64( monsterinfo.search_time ),// WID: 64-bit-frame FT(monsterinfo.search_time),
+    I64( monsterinfo.trail_time ),// WID: 64-bit-frame FT(monsterinfo.trail_time),
+    V( monsterinfo.last_sighting ),
+    I( monsterinfo.attack_state ),
+    I( monsterinfo.lefty ),
+    I64( monsterinfo.idle_time ),// WID: 64-bit-frame FT(monsterinfo.idle_time),
+    I( monsterinfo.linkcount ),
 
 	// WID: C++20: Replaced {0}
     {}
@@ -333,8 +333,6 @@ static const save_field_t levelfields[] = {
     E( current_entity ),
 
 	I( body_que ),
-
-	I( power_cubes ),
 
 	// WID: C++20: Replaced {0}
 	{}
@@ -734,6 +732,15 @@ static float read_float(gzFile f)
     return v;
 }
 
+static double read_double( gzFile f ) {
+    double v;
+
+    read_data( &v, sizeof( v ), f );
+    v = LittleDouble( v );
+
+    return v;
+}
+
 static char *read_string(gzFile f)
 {
     int len;
@@ -848,6 +855,11 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
     case F_FLOAT:
         for (i = 0; i < field->size; i++) {
             ((float *)p)[i] = read_float(ctx->f);
+        }
+        break;
+    case F_DOUBLE:
+        for ( i = 0; i < field->size; i++ ) {
+            ( (double *)p )[ i ] = read_double( ctx->f );
         }
         break;
     case F_VECTOR:

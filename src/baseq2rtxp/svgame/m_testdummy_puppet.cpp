@@ -53,11 +53,6 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
     //---------------------------
     // <TEMPORARY FOR TESTING>
     //---------------------------
-
-    //---------------------------
-    // </TEMPORARY FOR TESTING>
-    //---------------------------
-
     if ( self->s.frame < 523 ) {
         int32_t deathanim = irandom( 3 );
         if ( deathanim == 0 ) {
@@ -78,6 +73,9 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
     } else if ( self->s.frame == 938 ) {
         self->deadflag = DEAD_DEAD;
     }
+    //---------------------------
+    // </TEMPORARY FOR TESTING>
+    //---------------------------
 
     VectorCopy( DUMMY_BBOX_DEAD_MINS, self->mins );
     VectorCopy( DUMMY_BBOX_DEAD_MAXS, self->maxs );

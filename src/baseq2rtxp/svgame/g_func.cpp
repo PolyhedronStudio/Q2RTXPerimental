@@ -74,17 +74,17 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 void Move_Done(edict_t *ent)
 {
     VectorClear(ent->velocity);
-    ent->moveinfo.endfunc(ent);
+    ent->pusherMoveInfo.endfunc(ent);
 }
 
 void Move_Final(edict_t *ent)
 {
-    if (ent->moveinfo.remaining_distance == 0) {
+    if (ent->pusherMoveInfo.remaining_distance == 0) {
         Move_Done(ent);
         return;
     }
 
-    VectorScale(ent->moveinfo.dir, ent->moveinfo.remaining_distance / FRAMETIME, ent->velocity);
+    VectorScale(ent->pusherMoveInfo.dir, ent->pusherMoveInfo.remaining_distance / FRAMETIME, ent->velocity);
 
     ent->think = Move_Done;
     ent->nextthink = level.time + FRAME_TIME_S;
@@ -94,13 +94,13 @@ void Move_Begin(edict_t *ent)
 {
     float   frames;
 
-	if ( ( ent->moveinfo.speed * gi.frame_time_s ) >= ent->moveinfo.remaining_distance ) {
+	if ( ( ent->pusherMoveInfo.speed * gi.frame_time_s ) >= ent->pusherMoveInfo.remaining_distance ) {
         Move_Final(ent);
         return;
     }
-    VectorScale(ent->moveinfo.dir, ent->moveinfo.speed, ent->velocity);
-	frames = floor( ( ent->moveinfo.remaining_distance / ent->moveinfo.speed ) / gi.frame_time_s );
-	ent->moveinfo.remaining_distance -= frames * ent->moveinfo.speed * gi.frame_time_s;
+    VectorScale(ent->pusherMoveInfo.dir, ent->pusherMoveInfo.speed, ent->velocity);
+	frames = floor( ( ent->pusherMoveInfo.remaining_distance / ent->pusherMoveInfo.speed ) / gi.frame_time_s );
+	ent->pusherMoveInfo.remaining_distance -= frames * ent->pusherMoveInfo.speed * gi.frame_time_s;
 	ent->nextthink = level.time + ( FRAME_TIME_S * frames );
 	ent->think = Move_Final;
 }
@@ -110,11 +110,11 @@ void Think_AccelMove(edict_t *ent);
 void Move_Calc(edict_t *ent, const vec3_t dest, void(*func)(edict_t*))
 {
     VectorClear(ent->velocity);
-    VectorSubtract(dest, ent->s.origin, ent->moveinfo.dir);
-    ent->moveinfo.remaining_distance = VectorNormalize(ent->moveinfo.dir);
-    ent->moveinfo.endfunc = func;
+    VectorSubtract(dest, ent->s.origin, ent->pusherMoveInfo.dir);
+    ent->pusherMoveInfo.remaining_distance = VectorNormalize(ent->pusherMoveInfo.dir);
+    ent->pusherMoveInfo.endfunc = func;
 
-    if (ent->moveinfo.speed == ent->moveinfo.accel && ent->moveinfo.speed == ent->moveinfo.decel) {
+    if (ent->pusherMoveInfo.speed == ent->pusherMoveInfo.accel && ent->pusherMoveInfo.speed == ent->pusherMoveInfo.decel) {
         if (level.current_entity == ((ent->flags & FL_TEAMSLAVE) ? ent->teammaster : ent)) {
             Move_Begin(ent);
         } else {
@@ -123,7 +123,7 @@ void Move_Calc(edict_t *ent, const vec3_t dest, void(*func)(edict_t*))
         }
     } else {
         // accelerative
-        ent->moveinfo.current_speed = 0;
+        ent->pusherMoveInfo.current_speed = 0;
         ent->think = Think_AccelMove;
 		ent->nextthink = level.time + FRAME_TIME_S;
     }
@@ -137,17 +137,17 @@ void Move_Calc(edict_t *ent, const vec3_t dest, void(*func)(edict_t*))
 void AngleMove_Done(edict_t *ent)
 {
     VectorClear(ent->avelocity);
-    ent->moveinfo.endfunc(ent);
+    ent->pusherMoveInfo.endfunc(ent);
 }
 
 void AngleMove_Final(edict_t *ent)
 {
     vec3_t  move;
 
-    if (ent->moveinfo.state == STATE_UP)
-        VectorSubtract(ent->moveinfo.end_angles, ent->s.angles, move);
+    if (ent->pusherMoveInfo.state == STATE_UP)
+        VectorSubtract(ent->pusherMoveInfo.end_angles, ent->s.angles, move);
     else
-        VectorSubtract(ent->moveinfo.start_angles, ent->s.angles, move);
+        VectorSubtract(ent->pusherMoveInfo.start_angles, ent->s.angles, move);
 
     if (VectorEmpty(move)) {
         AngleMove_Done(ent);
@@ -168,16 +168,16 @@ void AngleMove_Begin(edict_t *ent)
     float   frames;
 
     // set destdelta to the vector needed to move
-    if (ent->moveinfo.state == STATE_UP)
-        VectorSubtract(ent->moveinfo.end_angles, ent->s.angles, destdelta);
+    if (ent->pusherMoveInfo.state == STATE_UP)
+        VectorSubtract(ent->pusherMoveInfo.end_angles, ent->s.angles, destdelta);
     else
-        VectorSubtract(ent->moveinfo.start_angles, ent->s.angles, destdelta);
+        VectorSubtract(ent->pusherMoveInfo.start_angles, ent->s.angles, destdelta);
 
     // calculate length of vector
     len = VectorLength(destdelta);
 
     // divide by speed to get time to reach dest
-    traveltime = len / ent->moveinfo.speed;
+    traveltime = len / ent->pusherMoveInfo.speed;
 
 	if ( traveltime < gi.frame_time_s ) {
         AngleMove_Final(ent);
@@ -191,7 +191,7 @@ void AngleMove_Begin(edict_t *ent)
 
 	// PGM
 	//  if we're done accelerating, act as a normal rotation
-	if ( ent->moveinfo.speed >= ent->speed ) {
+	if ( ent->pusherMoveInfo.speed >= ent->speed ) {
 		// set nextthink to trigger a think when dest is reached
 		ent->nextthink = level.time + ( FRAME_TIME_S * frames );
 		ent->think = AngleMove_Final;
@@ -205,7 +205,7 @@ void AngleMove_Begin(edict_t *ent)
 void AngleMove_Calc(edict_t *ent, void(*func)(edict_t*))
 {
     VectorClear(ent->avelocity);
-    ent->moveinfo.endfunc = func;
+    ent->pusherMoveInfo.endfunc = func;
     if (level.current_entity == ((ent->flags & FL_TEAMSLAVE) ? ent->teammaster : ent)) {
         AngleMove_Begin(ent);
     } else {
@@ -227,7 +227,7 @@ constexpr float AccelerationDistance( float target, float rate ) {
 	return ( target * ( ( target / rate ) + 1 ) / 2 );
 }
 
-void plat_CalcAcceleratedMove(moveinfo_t *moveinfo)
+void plat_CalcAcceleratedMove( g_pusher_moveinfo_t *moveinfo)
 {
     float   accel_dist;
     float   decel_dist;
@@ -253,7 +253,7 @@ void plat_CalcAcceleratedMove(moveinfo_t *moveinfo)
     moveinfo->decel_distance = decel_dist;
 }
 
-void plat_Accelerate(moveinfo_t *moveinfo)
+void plat_Accelerate( g_pusher_moveinfo_t *moveinfo)
 {
     // are we decelerating?
     if (moveinfo->remaining_distance <= moveinfo->decel_distance) {
@@ -321,20 +321,20 @@ void plat_Accelerate(moveinfo_t *moveinfo)
 
 void Think_AccelMove(edict_t *ent)
 {
-    ent->moveinfo.remaining_distance -= ent->moveinfo.current_speed;
+    ent->pusherMoveInfo.remaining_distance -= ent->pusherMoveInfo.current_speed;
 
-    if (ent->moveinfo.current_speed == 0)       // starting or blocked
-        plat_CalcAcceleratedMove(&ent->moveinfo);
+    if (ent->pusherMoveInfo.current_speed == 0)       // starting or blocked
+        plat_CalcAcceleratedMove(&ent->pusherMoveInfo);
 
-    plat_Accelerate(&ent->moveinfo);
+    plat_Accelerate(&ent->pusherMoveInfo);
 
     // will the entire move complete on next frame?
-    if (ent->moveinfo.remaining_distance <= ent->moveinfo.current_speed) {
+    if (ent->pusherMoveInfo.remaining_distance <= ent->pusherMoveInfo.current_speed) {
         Move_Final(ent);
         return;
     }
 
-    VectorScale(ent->moveinfo.dir, ent->moveinfo.current_speed * 10, ent->velocity);
+    VectorScale(ent->pusherMoveInfo.dir, ent->pusherMoveInfo.current_speed * 10, ent->velocity);
 	ent->nextthink = level.time + 10_hz;
 
     ent->think = Think_AccelMove;
@@ -346,11 +346,11 @@ void plat_go_down(edict_t *ent);
 void plat_hit_top(edict_t *ent)
 {
     if (!(ent->flags & FL_TEAMSLAVE)) {
-        if (ent->moveinfo.sound_end)
-            gi.sound(ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->moveinfo.sound_end, 1, ATTN_STATIC, 0);
+        if (ent->pusherMoveInfo.sound_end)
+            gi.sound(ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pusherMoveInfo.sound_end, 1, ATTN_STATIC, 0);
         ent->s.sound = 0;
     }
-    ent->moveinfo.state = STATE_TOP;
+    ent->pusherMoveInfo.state = STATE_TOP;
 
     ent->think = plat_go_down;
 	ent->nextthink = level.time + 3_sec;
@@ -359,33 +359,33 @@ void plat_hit_top(edict_t *ent)
 void plat_hit_bottom(edict_t *ent)
 {
     if (!(ent->flags & FL_TEAMSLAVE)) {
-        if (ent->moveinfo.sound_end)
-            gi.sound(ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->moveinfo.sound_end, 1, ATTN_STATIC, 0);
+        if (ent->pusherMoveInfo.sound_end)
+            gi.sound(ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pusherMoveInfo.sound_end, 1, ATTN_STATIC, 0);
         ent->s.sound = 0;
     }
-    ent->moveinfo.state = STATE_BOTTOM;
+    ent->pusherMoveInfo.state = STATE_BOTTOM;
 }
 
 void plat_go_down(edict_t *ent)
 {
     if (!(ent->flags & FL_TEAMSLAVE)) {
-        if (ent->moveinfo.sound_start)
-            gi.sound(ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->moveinfo.sound_start, 1, ATTN_STATIC, 0);
-        ent->s.sound = ent->moveinfo.sound_middle;
+        if (ent->pusherMoveInfo.sound_start)
+            gi.sound(ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pusherMoveInfo.sound_start, 1, ATTN_STATIC, 0);
+        ent->s.sound = ent->pusherMoveInfo.sound_middle;
     }
-    ent->moveinfo.state = STATE_DOWN;
-    Move_Calc(ent, ent->moveinfo.end_origin, plat_hit_bottom);
+    ent->pusherMoveInfo.state = STATE_DOWN;
+    Move_Calc(ent, ent->pusherMoveInfo.end_origin, plat_hit_bottom);
 }
 
 void plat_go_up(edict_t *ent)
 {
     if (!(ent->flags & FL_TEAMSLAVE)) {
-        if (ent->moveinfo.sound_start)
-            gi.sound(ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->moveinfo.sound_start, 1, ATTN_STATIC, 0);
-        ent->s.sound = ent->moveinfo.sound_middle;
+        if (ent->pusherMoveInfo.sound_start)
+            gi.sound(ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pusherMoveInfo.sound_start, 1, ATTN_STATIC, 0);
+        ent->s.sound = ent->pusherMoveInfo.sound_middle;
     }
-    ent->moveinfo.state = STATE_UP;
-    Move_Calc(ent, ent->moveinfo.start_origin, plat_hit_top);
+    ent->pusherMoveInfo.state = STATE_UP;
+    Move_Calc(ent, ent->pusherMoveInfo.start_origin, plat_hit_top);
 }
 
 void plat_blocked(edict_t *self, edict_t *other)
@@ -404,9 +404,9 @@ void plat_blocked(edict_t *self, edict_t *other)
     const bool knockBack = false;
     T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, knockBack, 0, MEANS_OF_DEATH_CRUSHED);
 
-    if (self->moveinfo.state == STATE_UP)
+    if (self->pusherMoveInfo.state == STATE_UP)
         plat_go_down(self);
-    else if (self->moveinfo.state == STATE_DOWN)
+    else if (self->pusherMoveInfo.state == STATE_DOWN)
         plat_go_up(self);
 }
 
@@ -428,9 +428,9 @@ void Touch_Plat_Center(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t
         return;
 
     ent = ent->enemy;   // now point at the plat, not the trigger
-    if (ent->moveinfo.state == STATE_BOTTOM)
+    if (ent->pusherMoveInfo.state == STATE_BOTTOM)
         plat_go_up(ent);
-    else if (ent->moveinfo.state == STATE_TOP)
+    else if (ent->pusherMoveInfo.state == STATE_TOP)
 		ent->nextthink = level.time + 1_sec; // the player is still on the plat, so delay going down
 }
 
@@ -538,25 +538,25 @@ void SP_func_plat(edict_t *ent)
     plat_spawn_inside_trigger(ent);     // the "start moving" trigger
 
     if (ent->targetname) {
-        ent->moveinfo.state = STATE_UP;
+        ent->pusherMoveInfo.state = STATE_UP;
     } else {
         VectorCopy(ent->pos2, ent->s.origin);
         gi.linkentity(ent);
-        ent->moveinfo.state = STATE_BOTTOM;
+        ent->pusherMoveInfo.state = STATE_BOTTOM;
     }
 
-    ent->moveinfo.speed = ent->speed;
-    ent->moveinfo.accel = ent->accel;
-    ent->moveinfo.decel = ent->decel;
-    ent->moveinfo.wait = ent->wait;
-    VectorCopy(ent->pos1, ent->moveinfo.start_origin);
-    VectorCopy(ent->s.angles, ent->moveinfo.start_angles);
-    VectorCopy(ent->pos2, ent->moveinfo.end_origin);
-    VectorCopy(ent->s.angles, ent->moveinfo.end_angles);
+    ent->pusherMoveInfo.speed = ent->speed;
+    ent->pusherMoveInfo.accel = ent->accel;
+    ent->pusherMoveInfo.decel = ent->decel;
+    ent->pusherMoveInfo.wait = ent->wait;
+    VectorCopy(ent->pos1, ent->pusherMoveInfo.start_origin);
+    VectorCopy(ent->s.angles, ent->pusherMoveInfo.start_angles);
+    VectorCopy(ent->pos2, ent->pusherMoveInfo.end_origin);
+    VectorCopy(ent->s.angles, ent->pusherMoveInfo.end_angles);
 
-    ent->moveinfo.sound_start = gi.soundindex("plats/plat_start_01.wav");
-    ent->moveinfo.sound_middle = gi.soundindex("plats/plat_mid_01.wav");
-    ent->moveinfo.sound_end = gi.soundindex("plats/plat_end_01.wav");
+    ent->pusherMoveInfo.sound_start = gi.soundindex("plats/plat_start_01.wav");
+    ent->pusherMoveInfo.sound_middle = gi.soundindex("plats/plat_mid_01.wav");
+    ent->pusherMoveInfo.sound_end = gi.soundindex("plats/plat_end_01.wav");
 }
 
 //====================================================================
@@ -591,7 +591,7 @@ void rotating_use(edict_t *self, edict_t *other, edict_t *activator)
         VectorClear(self->avelocity);
         self->touch = NULL;
     } else {
-        self->s.sound = self->moveinfo.sound_middle;
+        self->s.sound = self->pusherMoveInfo.sound_middle;
         VectorScale(self->movedir, self->speed, self->avelocity);
         if (self->spawnflags & 16)
             self->touch = rotating_touch;
@@ -624,7 +624,7 @@ void SP_func_rotating(edict_t *ent)
     if (!ent->dmg)
         ent->dmg = 2;
 
-//  ent->moveinfo.sound_middle = "doors/hydro1.wav";
+//  ent->pusherMoveInfo.sound_middle = "doors/hydro1.wav";
 
     ent->use = rotating_use;
     if (ent->dmg)
@@ -669,16 +669,16 @@ When a button is touched, it moves some distance in the direction of it's angle,
 
 void button_done(edict_t *self)
 {
-    self->moveinfo.state = STATE_BOTTOM;
+    self->pusherMoveInfo.state = STATE_BOTTOM;
     self->s.effects &= ~EF_ANIM23;
     self->s.effects |= EF_ANIM01;
 }
 
 void button_return(edict_t *self)
 {
-    self->moveinfo.state = STATE_DOWN;
+    self->pusherMoveInfo.state = STATE_DOWN;
 
-    Move_Calc(self, self->moveinfo.start_origin, button_done);
+    Move_Calc(self, self->pusherMoveInfo.start_origin, button_done);
 
     self->s.frame = 0;
 
@@ -688,27 +688,27 @@ void button_return(edict_t *self)
 
 void button_wait(edict_t *self)
 {
-    self->moveinfo.state = STATE_TOP;
+    self->pusherMoveInfo.state = STATE_TOP;
     self->s.effects &= ~EF_ANIM01;
     self->s.effects |= EF_ANIM23;
 
     G_UseTargets(self, self->activator);
     self->s.frame = 1;
-    if (self->moveinfo.wait >= 0) {
-		self->nextthink = level.time + sg_time_t::from_sec( self->moveinfo.wait );
+    if (self->pusherMoveInfo.wait >= 0) {
+		self->nextthink = level.time + sg_time_t::from_sec( self->pusherMoveInfo.wait );
         self->think = button_return;
     }
 }
 
 void button_fire(edict_t *self)
 {
-    if (self->moveinfo.state == STATE_UP || self->moveinfo.state == STATE_TOP)
+    if (self->pusherMoveInfo.state == STATE_UP || self->pusherMoveInfo.state == STATE_TOP)
         return;
 
-    self->moveinfo.state = STATE_UP;
-    if (self->moveinfo.sound_start && !(self->flags & FL_TEAMSLAVE))
-        gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->moveinfo.sound_start, 1, ATTN_STATIC, 0);
-    Move_Calc(self, self->moveinfo.end_origin, button_wait);
+    self->pusherMoveInfo.state = STATE_UP;
+    if (self->pusherMoveInfo.sound_start && !(self->flags & FL_TEAMSLAVE))
+        gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_start, 1, ATTN_STATIC, 0);
+    Move_Calc(self, self->pusherMoveInfo.end_origin, button_wait);
 }
 
 void button_use(edict_t *self, edict_t *other, edict_t *activator)
@@ -748,7 +748,7 @@ void SP_func_button(edict_t *ent)
     gi.setmodel(ent, ent->model);
 
     if (ent->sounds != 1)
-        ent->moveinfo.sound_start = gi.soundindex("switches/butn2.wav");
+        ent->pusherMoveInfo.sound_start = gi.soundindex("switches/butn2.wav");
 
     if (!ent->speed)
         ent->speed = 40;
@@ -779,16 +779,16 @@ void SP_func_button(edict_t *ent)
     } else if (! ent->targetname)
         ent->touch = button_touch;
 
-    ent->moveinfo.state = STATE_BOTTOM;
+    ent->pusherMoveInfo.state = STATE_BOTTOM;
 
-    ent->moveinfo.speed = ent->speed;
-    ent->moveinfo.accel = ent->accel;
-    ent->moveinfo.decel = ent->decel;
-    ent->moveinfo.wait = ent->wait;
-    VectorCopy(ent->pos1, ent->moveinfo.start_origin);
-    VectorCopy(ent->s.angles, ent->moveinfo.start_angles);
-    VectorCopy(ent->pos2, ent->moveinfo.end_origin);
-    VectorCopy(ent->s.angles, ent->moveinfo.end_angles);
+    ent->pusherMoveInfo.speed = ent->speed;
+    ent->pusherMoveInfo.accel = ent->accel;
+    ent->pusherMoveInfo.decel = ent->decel;
+    ent->pusherMoveInfo.wait = ent->wait;
+    VectorCopy(ent->pos1, ent->pusherMoveInfo.start_origin);
+    VectorCopy(ent->s.angles, ent->pusherMoveInfo.start_angles);
+    VectorCopy(ent->pos2, ent->pusherMoveInfo.end_origin);
+    VectorCopy(ent->s.angles, ent->pusherMoveInfo.end_angles);
 
     gi.linkentity(ent);
 }
@@ -847,69 +847,69 @@ void door_go_down(edict_t *self);
 void door_hit_top(edict_t *self)
 {
     if (!(self->flags & FL_TEAMSLAVE)) {
-        if (self->moveinfo.sound_end)
-            gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->moveinfo.sound_end, 1, ATTN_STATIC, 0);
+        if (self->pusherMoveInfo.sound_end)
+            gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_end, 1, ATTN_STATIC, 0);
         self->s.sound = 0;
     }
-    self->moveinfo.state = STATE_TOP;
+    self->pusherMoveInfo.state = STATE_TOP;
     if (self->spawnflags & DOOR_TOGGLE)
         return;
-    if (self->moveinfo.wait >= 0) {
+    if (self->pusherMoveInfo.wait >= 0) {
         self->think = door_go_down;
-		self->nextthink = level.time + sg_time_t::from_sec( self->moveinfo.wait );
+		self->nextthink = level.time + sg_time_t::from_sec( self->pusherMoveInfo.wait );
     }
 }
 
 void door_hit_bottom(edict_t *self)
 {
     if (!(self->flags & FL_TEAMSLAVE)) {
-        if (self->moveinfo.sound_end)
-            gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->moveinfo.sound_end, 1, ATTN_STATIC, 0);
+        if (self->pusherMoveInfo.sound_end)
+            gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_end, 1, ATTN_STATIC, 0);
         self->s.sound = 0;
     }
-    self->moveinfo.state = STATE_BOTTOM;
+    self->pusherMoveInfo.state = STATE_BOTTOM;
     door_use_areaportals(self, false);
 }
 
 void door_go_down(edict_t *self)
 {
     if (!(self->flags & FL_TEAMSLAVE)) {
-        if (self->moveinfo.sound_start)
-            gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->moveinfo.sound_start, 1, ATTN_STATIC, 0);
-        self->s.sound = self->moveinfo.sound_middle;
+        if (self->pusherMoveInfo.sound_start)
+            gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_start, 1, ATTN_STATIC, 0);
+        self->s.sound = self->pusherMoveInfo.sound_middle;
     }
     if (self->max_health) {
         self->takedamage = DAMAGE_YES;
         self->health = self->max_health;
     }
 
-    self->moveinfo.state = STATE_DOWN;
+    self->pusherMoveInfo.state = STATE_DOWN;
     if (strcmp(self->classname, "func_door") == 0)
-        Move_Calc(self, self->moveinfo.start_origin, door_hit_bottom);
+        Move_Calc(self, self->pusherMoveInfo.start_origin, door_hit_bottom);
     else if (strcmp(self->classname, "func_door_rotating") == 0)
         AngleMove_Calc(self, door_hit_bottom);
 }
 
 void door_go_up(edict_t *self, edict_t *activator)
 {
-    if (self->moveinfo.state == STATE_UP)
+    if (self->pusherMoveInfo.state == STATE_UP)
         return;     // already going up
 
-    if (self->moveinfo.state == STATE_TOP) {
+    if (self->pusherMoveInfo.state == STATE_TOP) {
         // reset top wait time
-        if (self->moveinfo.wait >= 0)
-			self->nextthink = level.time + sg_time_t::from_sec( self->moveinfo.wait );
+        if (self->pusherMoveInfo.wait >= 0)
+			self->nextthink = level.time + sg_time_t::from_sec( self->pusherMoveInfo.wait );
         return;
     }
 
     if (!(self->flags & FL_TEAMSLAVE)) {
-        if (self->moveinfo.sound_start)
-            gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->moveinfo.sound_start, 1, ATTN_STATIC, 0);
-        self->s.sound = self->moveinfo.sound_middle;
+        if (self->pusherMoveInfo.sound_start)
+            gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_start, 1, ATTN_STATIC, 0);
+        self->s.sound = self->pusherMoveInfo.sound_middle;
     }
-    self->moveinfo.state = STATE_UP;
+    self->pusherMoveInfo.state = STATE_UP;
     if (strcmp(self->classname, "func_door") == 0)
-        Move_Calc(self, self->moveinfo.end_origin, door_hit_top);
+        Move_Calc(self, self->pusherMoveInfo.end_origin, door_hit_top);
     else if (strcmp(self->classname, "func_door_rotating") == 0)
         AngleMove_Calc(self, door_hit_top);
 
@@ -925,7 +925,7 @@ void door_use(edict_t *self, edict_t *other, edict_t *activator)
         return;
 
     if (self->spawnflags & DOOR_TOGGLE) {
-        if (self->moveinfo.state == STATE_UP || self->moveinfo.state == STATE_TOP) {
+        if (self->pusherMoveInfo.state == STATE_UP || self->pusherMoveInfo.state == STATE_TOP) {
             // trigger all paired doors
             for (ent = self ; ent ; ent = ent->teamchain) {
                 ent->message = NULL;
@@ -975,28 +975,28 @@ void Think_CalcMoveSpeed(edict_t *self)
         return;     // only the team master does this
 
     // find the smallest distance any member of the team will be moving
-	minDist = fabsf(self->moveinfo.distance);
+	minDist = fabsf(self->pusherMoveInfo.distance);
     for (ent = self->teamchain; ent; ent = ent->teamchain) {
-        dist = fabsf(ent->moveinfo.distance);
+        dist = fabsf(ent->pusherMoveInfo.distance);
         if (dist < minDist )
 			minDist = dist;
     }
 
-    time = minDist / self->moveinfo.speed;
+    time = minDist / self->pusherMoveInfo.speed;
 
     // adjust speeds so they will all complete at the same time
     for (ent = self; ent; ent = ent->teamchain) {
-        newspeed = fabsf(ent->moveinfo.distance) / time;
-        ratio = newspeed / ent->moveinfo.speed;
-        if (ent->moveinfo.accel == ent->moveinfo.speed)
-            ent->moveinfo.accel = newspeed;
+        newspeed = fabsf(ent->pusherMoveInfo.distance) / time;
+        ratio = newspeed / ent->pusherMoveInfo.speed;
+        if (ent->pusherMoveInfo.accel == ent->pusherMoveInfo.speed)
+            ent->pusherMoveInfo.accel = newspeed;
         else
-            ent->moveinfo.accel *= ratio;
-        if (ent->moveinfo.decel == ent->moveinfo.speed)
-            ent->moveinfo.decel = newspeed;
+            ent->pusherMoveInfo.accel *= ratio;
+        if (ent->pusherMoveInfo.decel == ent->pusherMoveInfo.speed)
+            ent->pusherMoveInfo.decel = newspeed;
         else
-            ent->moveinfo.decel *= ratio;
-        ent->moveinfo.speed = newspeed;
+            ent->pusherMoveInfo.decel *= ratio;
+        ent->pusherMoveInfo.speed = newspeed;
     }
 }
 
@@ -1058,8 +1058,8 @@ void door_blocked(edict_t *self, edict_t *other)
 
 // if a door has a negative wait, it would never come back if blocked,
 // so let it just squash the object to death real fast
-    if (self->moveinfo.wait >= 0) {
-        if (self->moveinfo.state == STATE_DOWN) {
+    if (self->pusherMoveInfo.wait >= 0) {
+        if (self->pusherMoveInfo.state == STATE_DOWN) {
             for (ent = self->teammaster ; ent ; ent = ent->teamchain)
                 door_go_up(ent, ent->activator);
         } else {
@@ -1097,7 +1097,7 @@ void door_postspawn( edict_t *self ) {
     //if ( self->spawnflags & DOOR_START_OPEN ) {
     //    //G_UseTargets( self, self );
     //    door_use_areaportals( self, true );
-    //    //self->moveinfo.state = STATE_TOP;
+    //    //self->pusherMoveInfo.state = STATE_TOP;
     //}
 }
 
@@ -1106,9 +1106,9 @@ void SP_func_door(edict_t *ent)
     vec3_t  abs_movedir;
 
     if (ent->sounds != 1) {
-        ent->moveinfo.sound_start = gi.soundindex("doors/door_start_01.wav");
-        ent->moveinfo.sound_middle = gi.soundindex("doors/door_mid_01.wav");
-        ent->moveinfo.sound_end = gi.soundindex("doors/door_end_01.wav");
+        ent->pusherMoveInfo.sound_start = gi.soundindex("doors/door_start_01.wav");
+        ent->pusherMoveInfo.sound_middle = gi.soundindex("doors/door_mid_01.wav");
+        ent->pusherMoveInfo.sound_end = gi.soundindex("doors/door_end_01.wav");
     }
 
     G_SetMovedir(ent->s.angles, ent->movedir);
@@ -1142,8 +1142,8 @@ void SP_func_door(edict_t *ent)
     abs_movedir[0] = fabsf(ent->movedir[0]);
     abs_movedir[1] = fabsf(ent->movedir[1]);
     abs_movedir[2] = fabsf(ent->movedir[2]);
-    ent->moveinfo.distance = abs_movedir[0] * ent->size[0] + abs_movedir[1] * ent->size[1] + abs_movedir[2] * ent->size[2] - st.lip;
-    VectorMA(ent->pos1, ent->moveinfo.distance, ent->movedir, ent->pos2);
+    ent->pusherMoveInfo.distance = abs_movedir[0] * ent->size[0] + abs_movedir[1] * ent->size[1] + abs_movedir[2] * ent->size[2] - st.lip;
+    VectorMA(ent->pos1, ent->pusherMoveInfo.distance, ent->movedir, ent->pos2);
 
     // if it starts open, switch the positions
     if (ent->spawnflags & DOOR_START_OPEN) {
@@ -1152,7 +1152,7 @@ void SP_func_door(edict_t *ent)
         VectorCopy(ent->s.origin, ent->pos1);
     }
 
-    ent->moveinfo.state = STATE_BOTTOM;
+    ent->pusherMoveInfo.state = STATE_BOTTOM;
 
     if (ent->health) {
         ent->takedamage = DAMAGE_YES;
@@ -1163,14 +1163,14 @@ void SP_func_door(edict_t *ent)
         ent->touch = door_touch;
     }
 
-    ent->moveinfo.speed = ent->speed;
-    ent->moveinfo.accel = ent->accel;
-    ent->moveinfo.decel = ent->decel;
-    ent->moveinfo.wait = ent->wait;
-    VectorCopy(ent->pos1, ent->moveinfo.start_origin);
-    VectorCopy(ent->s.angles, ent->moveinfo.start_angles);
-    VectorCopy(ent->pos2, ent->moveinfo.end_origin);
-    VectorCopy(ent->s.angles, ent->moveinfo.end_angles);
+    ent->pusherMoveInfo.speed = ent->speed;
+    ent->pusherMoveInfo.accel = ent->accel;
+    ent->pusherMoveInfo.decel = ent->decel;
+    ent->pusherMoveInfo.wait = ent->wait;
+    VectorCopy(ent->pos1, ent->pusherMoveInfo.start_origin);
+    VectorCopy(ent->s.angles, ent->pusherMoveInfo.start_angles);
+    VectorCopy(ent->pos2, ent->pusherMoveInfo.end_origin);
+    VectorCopy(ent->s.angles, ent->pusherMoveInfo.end_angles);
 
     if (ent->spawnflags & 16)
         ent->s.effects |= EF_ANIM_ALL;
@@ -1245,7 +1245,7 @@ void SP_func_door_rotating(edict_t *ent)
 
     VectorCopy(ent->s.angles, ent->pos1);
     VectorMA(ent->s.angles, st.distance, ent->movedir, ent->pos2);
-    ent->moveinfo.distance = st.distance;
+    ent->pusherMoveInfo.distance = st.distance;
 
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
@@ -1267,9 +1267,9 @@ void SP_func_door_rotating(edict_t *ent)
         ent->dmg = 2;
 
     if (ent->sounds != 1) {
-        ent->moveinfo.sound_start = gi.soundindex("doors/door_start_01.wav");
-        ent->moveinfo.sound_middle = gi.soundindex("doors/door_mid_01.wav");
-        ent->moveinfo.sound_end = gi.soundindex("doors/door_end_01.wav");
+        ent->pusherMoveInfo.sound_start = gi.soundindex("doors/door_start_01.wav");
+        ent->pusherMoveInfo.sound_middle = gi.soundindex("doors/door_mid_01.wav");
+        ent->pusherMoveInfo.sound_end = gi.soundindex("doors/door_end_01.wav");
     }
 
     // if it starts open, switch the positions
@@ -1291,15 +1291,15 @@ void SP_func_door_rotating(edict_t *ent)
         ent->touch = door_touch;
     }
 
-    ent->moveinfo.state = STATE_BOTTOM;
-    ent->moveinfo.speed = ent->speed;
-    ent->moveinfo.accel = ent->accel;
-    ent->moveinfo.decel = ent->decel;
-    ent->moveinfo.wait = ent->wait;
-    VectorCopy(ent->s.origin, ent->moveinfo.start_origin);
-    VectorCopy(ent->pos1, ent->moveinfo.start_angles);
-    VectorCopy(ent->s.origin, ent->moveinfo.end_origin);
-    VectorCopy(ent->pos2, ent->moveinfo.end_angles);
+    ent->pusherMoveInfo.state = STATE_BOTTOM;
+    ent->pusherMoveInfo.speed = ent->speed;
+    ent->pusherMoveInfo.accel = ent->accel;
+    ent->pusherMoveInfo.decel = ent->decel;
+    ent->pusherMoveInfo.wait = ent->wait;
+    VectorCopy(ent->s.origin, ent->pusherMoveInfo.start_origin);
+    VectorCopy(ent->pos1, ent->pusherMoveInfo.start_angles);
+    VectorCopy(ent->s.origin, ent->pusherMoveInfo.end_origin);
+    VectorCopy(ent->pos2, ent->pusherMoveInfo.end_angles);
 
     if (ent->spawnflags & 16)
         ent->s.effects |= EF_ANIM_ALL;
@@ -1347,13 +1347,13 @@ void SP_func_water(edict_t *self)
         break;
 
     case 1: // water
-        self->moveinfo.sound_start = gi.soundindex("world/mov_watr.wav");
-        self->moveinfo.sound_end = gi.soundindex("world/stp_watr.wav");
+        self->pusherMoveInfo.sound_start = gi.soundindex("world/mov_watr.wav");
+        self->pusherMoveInfo.sound_end = gi.soundindex("world/stp_watr.wav");
         break;
 
     case 2: // lava
-        self->moveinfo.sound_start = gi.soundindex("world/mov_watr.wav");
-        self->moveinfo.sound_end = gi.soundindex("world/stp_watr.wav");
+        self->pusherMoveInfo.sound_start = gi.soundindex("world/mov_watr.wav");
+        self->pusherMoveInfo.sound_end = gi.soundindex("world/stp_watr.wav");
         break;
     }
 
@@ -1362,8 +1362,8 @@ void SP_func_water(edict_t *self)
     abs_movedir[0] = fabsf(self->movedir[0]);
     abs_movedir[1] = fabsf(self->movedir[1]);
     abs_movedir[2] = fabsf(self->movedir[2]);
-    self->moveinfo.distance = abs_movedir[0] * self->size[0] + abs_movedir[1] * self->size[1] + abs_movedir[2] * self->size[2] - st.lip;
-    VectorMA(self->pos1, self->moveinfo.distance, self->movedir, self->pos2);
+    self->pusherMoveInfo.distance = abs_movedir[0] * self->size[0] + abs_movedir[1] * self->size[1] + abs_movedir[2] * self->size[2] - st.lip;
+    VectorMA(self->pos1, self->pusherMoveInfo.distance, self->movedir, self->pos2);
 
     // if it starts open, switch the positions
     if (self->spawnflags & DOOR_START_OPEN) {
@@ -1372,20 +1372,20 @@ void SP_func_water(edict_t *self)
         VectorCopy(self->s.origin, self->pos1);
     }
 
-    VectorCopy(self->pos1, self->moveinfo.start_origin);
-    VectorCopy(self->s.angles, self->moveinfo.start_angles);
-    VectorCopy(self->pos2, self->moveinfo.end_origin);
-    VectorCopy(self->s.angles, self->moveinfo.end_angles);
+    VectorCopy(self->pos1, self->pusherMoveInfo.start_origin);
+    VectorCopy(self->s.angles, self->pusherMoveInfo.start_angles);
+    VectorCopy(self->pos2, self->pusherMoveInfo.end_origin);
+    VectorCopy(self->s.angles, self->pusherMoveInfo.end_angles);
 
-    self->moveinfo.state = STATE_BOTTOM;
+    self->pusherMoveInfo.state = STATE_BOTTOM;
 
     if (!self->speed)
         self->speed = 25;
-    self->moveinfo.accel = self->moveinfo.decel = self->moveinfo.speed = self->speed;
+    self->pusherMoveInfo.accel = self->pusherMoveInfo.decel = self->pusherMoveInfo.speed = self->speed;
 
     if (!self->wait)
         self->wait = -1;
-    self->moveinfo.wait = self->wait;
+    self->pusherMoveInfo.wait = self->wait;
 
     self->use = door_use;
 
@@ -1451,9 +1451,9 @@ void train_wait(edict_t *self)
             return;
     }
 
-    if (self->moveinfo.wait) {
-        if (self->moveinfo.wait > 0) {
-            self->nextthink = level.time + sg_time_t::from_sec( self->moveinfo.wait );
+    if (self->pusherMoveInfo.wait) {
+        if (self->pusherMoveInfo.wait > 0) {
+            self->nextthink = level.time + sg_time_t::from_sec( self->pusherMoveInfo.wait );
             self->think = train_next;
         } else if (self->spawnflags & TRAIN_TOGGLE) { // && wait < 0
             train_next(self);
@@ -1463,8 +1463,8 @@ void train_wait(edict_t *self)
         }
 
         if (!(self->flags & FL_TEAMSLAVE)) {
-            if (self->moveinfo.sound_end)
-                gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->moveinfo.sound_end, 1, ATTN_STATIC, 0);
+            if (self->pusherMoveInfo.sound_end)
+                gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_end, 1, ATTN_STATIC, 0);
             self->s.sound = 0;
         }
     } else {
@@ -1508,19 +1508,19 @@ again:
         goto again;
     }
 
-    self->moveinfo.wait = ent->wait;
+    self->pusherMoveInfo.wait = ent->wait;
     self->target_ent = ent;
 
     if (!(self->flags & FL_TEAMSLAVE)) {
-        if (self->moveinfo.sound_start)
-            gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->moveinfo.sound_start, 1, ATTN_STATIC, 0);
-        self->s.sound = self->moveinfo.sound_middle;
+        if (self->pusherMoveInfo.sound_start)
+            gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_start, 1, ATTN_STATIC, 0);
+        self->s.sound = self->pusherMoveInfo.sound_middle;
     }
 
     VectorSubtract(ent->s.origin, self->mins, dest);
-    self->moveinfo.state = STATE_TOP;
-    VectorCopy(self->s.origin, self->moveinfo.start_origin);
-    VectorCopy(dest, self->moveinfo.end_origin);
+    self->pusherMoveInfo.state = STATE_TOP;
+    VectorCopy(self->s.origin, self->pusherMoveInfo.start_origin);
+    VectorCopy(dest, self->pusherMoveInfo.end_origin);
     Move_Calc(self, dest, train_wait);
     self->spawnflags |= TRAIN_START_ON;
 }
@@ -1533,9 +1533,9 @@ void train_resume(edict_t *self)
     ent = self->target_ent;
 
     VectorSubtract(ent->s.origin, self->mins, dest);
-    self->moveinfo.state = STATE_TOP;
-    VectorCopy(self->s.origin, self->moveinfo.start_origin);
-    VectorCopy(dest, self->moveinfo.end_origin);
+    self->pusherMoveInfo.state = STATE_TOP;
+    VectorCopy(self->s.origin, self->pusherMoveInfo.start_origin);
+    VectorCopy(dest, self->pusherMoveInfo.end_origin);
     Move_Calc(self, dest, train_wait);
     self->spawnflags |= TRAIN_START_ON;
 }
@@ -1603,13 +1603,13 @@ void SP_func_train(edict_t *self)
     gi.setmodel(self, self->model);
 
     if (st.noise)
-        self->moveinfo.sound_middle = gi.soundindex(st.noise);
+        self->pusherMoveInfo.sound_middle = gi.soundindex(st.noise);
 
     if (!self->speed)
         self->speed = 100;
 
-    self->moveinfo.speed = self->speed;
-    self->moveinfo.accel = self->moveinfo.decel = self->moveinfo.speed;
+    self->pusherMoveInfo.speed = self->speed;
+    self->pusherMoveInfo.accel = self->pusherMoveInfo.decel = self->pusherMoveInfo.speed;
 
     self->use = train_use;
 
@@ -1887,9 +1887,9 @@ void SP_func_door_secret(edict_t *ent)
     float   width;
     float   length;
 
-    ent->moveinfo.sound_start = gi.soundindex("doors/door_start_01.wav");
-    ent->moveinfo.sound_middle = gi.soundindex("doors/door_mid_01.wav");
-    ent->moveinfo.sound_end = gi.soundindex("doors/door_end_01.wav");
+    ent->pusherMoveInfo.sound_start = gi.soundindex("doors/door_start_01.wav");
+    ent->pusherMoveInfo.sound_middle = gi.soundindex("doors/door_mid_01.wav");
+    ent->pusherMoveInfo.sound_end = gi.soundindex("doors/door_end_01.wav");
 
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
@@ -1910,9 +1910,9 @@ void SP_func_door_secret(edict_t *ent)
     if (!ent->wait)
         ent->wait = 5;
 
-    ent->moveinfo.accel =
-        ent->moveinfo.decel =
-            ent->moveinfo.speed = 50;
+    ent->pusherMoveInfo.accel =
+        ent->pusherMoveInfo.decel =
+            ent->pusherMoveInfo.speed = 50;
 
     // calculate positions
     AngleVectors(ent->s.angles, forward, right, up);

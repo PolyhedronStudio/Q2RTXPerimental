@@ -373,17 +373,17 @@ const save_ptr_t save_ptrs[] = {
 //
 // MoveInfo_EndFunc
 //
-{ P_moveinfo_endfunc, (void*)button_done },
-{ P_moveinfo_endfunc, (void*)button_wait },
-{ P_moveinfo_endfunc, (void*)door_hit_bottom },
-{ P_moveinfo_endfunc, (void*)door_hit_top },
-{ P_moveinfo_endfunc, (void*)door_secret_done },
-{ P_moveinfo_endfunc, (void*)door_secret_move1 },
-{ P_moveinfo_endfunc, (void*)door_secret_move3 },
-{ P_moveinfo_endfunc, (void*)door_secret_move5 },
-{ P_moveinfo_endfunc, (void*)plat_hit_bottom },
-{ P_moveinfo_endfunc, (void*)plat_hit_top },
-{ P_moveinfo_endfunc, (void*)train_wait },
+{ P_pusher_moveinfo_endfunc, (void*)button_done },
+{ P_pusher_moveinfo_endfunc, (void*)button_wait },
+{ P_pusher_moveinfo_endfunc, (void*)door_hit_bottom },
+{ P_pusher_moveinfo_endfunc, (void*)door_hit_top },
+{ P_pusher_moveinfo_endfunc, (void*)door_secret_done },
+{ P_pusher_moveinfo_endfunc, (void*)door_secret_move1 },
+{ P_pusher_moveinfo_endfunc, (void*)door_secret_move3 },
+{ P_pusher_moveinfo_endfunc, (void*)door_secret_move5 },
+{ P_pusher_moveinfo_endfunc, (void*)plat_hit_bottom },
+{ P_pusher_moveinfo_endfunc, (void*)plat_hit_top },
+{ P_pusher_moveinfo_endfunc, (void*)train_wait },
 
 //
 // MonsterInfo_CurrentMove.

@@ -589,8 +589,6 @@ typedef struct {
 
     edict_t     *current_entity;    // entity running from G_RunFrame
     int         body_que;           // dead bodies
-
-    int         power_cubes;        // ugly necessity for coop
 } level_locals_t;
 //! Extern, access all over game dll code.
 extern level_locals_t level;
@@ -631,7 +629,7 @@ extern spawn_temp_t st;
 /**
 *
 *
-*   (Monster-)Move Info Data Structures:
+*   Pusher/Mover- Move Info Data Structures:
 *
 *
 **/
@@ -665,7 +663,7 @@ typedef struct {
     float       remaining_distance;
     float       decel_distance;
     void        (*endfunc)(edict_t *);
-} moveinfo_t;
+} g_pusher_moveinfo_t;
 
 /**
 *   @brief  Data for each 'movement' frame of a monster.
@@ -1380,6 +1378,7 @@ struct gclient_s {
     liquid_level_t	old_waterlevel;
     sg_time_t       flash_time; // [Paril-KEX] for high tickrate
 
+
 	/**
 	*   Misc:
 	**/
@@ -1459,26 +1458,25 @@ struct edict_s {
     **/
     //! Used for projectile skip checks and in general for checking if the entity has happened to been respawned.
     int32_t     spawn_count;
-    //! Specified physics movetype.
-    int32_t     movetype;
-    //! Entity flags.
-    ent_flags_t flags;
-    //! Path to model.
-    const char *model;
     //! sv.time when the object was freed
     sg_time_t   freetime;
+    //! Used for deferring client info so that disconnected, etc works
+    sg_time_t	timestamp;
 
-
+    //! Entity spawnflags key/value.
+    int32_t     spawnflags;
+    //! Entity classname key/value.
+    const char  *classname;
+    //! Path to model.
+    const char  *model;
     //! Message to display, usually center printed. (When triggers are triggered etc.)
     char        *message;
-    const char	*classname;
-    int32_t     spawnflags;
-
-    //! Used for deferring client info so that disconnected, etc works
-	sg_time_t	timestamp;
-
-    // Key Spawn Angle
+    // Key Spawn Angle.
     float       angle;          // set in qe3, -1 = up, -2 = down
+
+    //! Entity flags.
+    ent_flags_t flags;
+
 
     //
     // Target fields.
@@ -1494,20 +1492,10 @@ struct edict_s {
 
 
     //
-    // Not per se, but mostly used for Pushers(Movers):
-    //
-    float       speed;
-    float       accel;
-    float       decel;
-    vec3_t      movedir;
-    vec3_t      pos1;
-    vec3_t      pos2;
-    edict_t     *movetarget;
-
-
-    //
     // Physics Related:
     //
+    //! Specified physics movetype.
+    int32_t     movetype;
     //! Move velocity.
     vec3_t      velocity;
     //! Angular(Move) Velocity.
@@ -1521,6 +1509,18 @@ struct edict_s {
     //! Categorized ground information.
     mm_ground_info_t groundInfo;
 
+
+    //
+    // Not per se, but mostly used for Pushers(Movers):
+    //
+    g_pusher_moveinfo_t pusherMoveInfo;
+    float   speed;
+    float   accel;
+    float   decel;
+    vec3_t  movedir;
+    vec3_t  pos1;
+    vec3_t  pos2;
+    edict_t *movetarget;
 
     //
     // NextThinkg + Entity Callbacks:
@@ -1538,6 +1538,54 @@ struct edict_s {
 
 
     //
+    //  Entity Pointers:
+    //
+    //! Monster goal entity.
+    edict_t *goalentity;
+    //! Chain Entity.
+    edict_t *chain;
+    //! Enemy.
+    edict_t *enemy;
+    //! Previous Enemy.
+    edict_t *oldenemy;
+    //! Trigger Activator.
+    edict_t *activator;
+    //edict_t     *groundentity;
+    //int32_t     groundentity_linkcount;
+    //! Team Chain.
+    edict_t *teamchain;
+    //! Team master.
+    edict_t *teammaster;
+
+
+    //
+    //  Player Noise/Trail:
+    //
+    //! Pointer to noise entity.
+    edict_t *mynoise;       // can go in client only
+    edict_t *mynoise2;
+    //! Noise indexes.
+    int32_t     noise_index;
+    int32_t     noise_index2;
+
+
+    //
+    //  Sound:
+    //
+    float       volume;
+    float       attenuation;
+    sg_time_t   last_sound_time;
+
+
+    //
+    // Trigger(s):
+    //
+    float       wait;
+    float       delay;          // before firing targets
+    float       random;
+
+
+    //
     // Timers:
     //
     sg_time_t   air_finished_time;
@@ -1547,15 +1595,6 @@ struct edict_s {
 	sg_time_t   touch_debounce_time;        // are all these legit?  do we need more/less of them?
 	sg_time_t   pain_debounce_time;
     sg_time_t   show_hostile;
-
-
-    //
-    // Health Conditions:
-    //
-    int32_t     health;
-    int32_t     max_health;
-    int32_t     gib_health;
-    int32_t     deadflag;
 
 
     //
@@ -1583,78 +1622,37 @@ struct edict_s {
 
 
     //
-    //  Entity Pointers:
+    // Health Conditions:
     //
-    //! Monster goal entity.
-    edict_t *goalentity;
-    //! Chain Entity.
-    edict_t     *chain;
-    //! Enemy.
-    edict_t     *enemy;
-    //! Previous Enemy.
-    edict_t     *oldenemy;
-    //! Trigger Activator.
-    edict_t     *activator;
-    //edict_t     *groundentity;
-    //int32_t     groundentity_linkcount;
-    //! Team Chain.
-    edict_t     *teamchain;
-    //! Team master.
-    edict_t     *teammaster;
-
-
-    //
-    //  Player Noise/Trail:
-    //
-    //! Pointer to noise entity.
-    edict_t     *mynoise;       // can go in client only
-    edict_t     *mynoise2;
-    //! Noise indexes.
-    int32_t     noise_index;
-    int32_t     noise_index2;
-        
-
-    //
-    //  Sound:
-    //
-    float       volume;
-    float       attenuation;
-    sg_time_t   last_sound_time;
-
-
-    //
-    // Trigger(s):
-    //
-    float       wait;
-    float       delay;          // before firing targets
-    float       random;
-
+    int32_t     health;
+    int32_t     max_health;
+    int32_t     gib_health;
+    int32_t     deadflag;
 
     //
     //  Lights:
     // 
     //! (Light-)Style.
     int32_t     style;          // also used as areaportal number
-	const char *customLightStyle;	// It is as it says.
+	const char  *customLightStyle;	// It is as it says.
 
 
     //
     //  Items: 
     // 
     //! If not nullptr, will point to one of the items in the itemlist.
-    const gitem_t     *item;          // for bonus items
+    const gitem_t *item;          // for bonus items
 
 
     //
     //  Monster Related:
     // 
     //! How many degrees the yaw should rotate per frame in order to reach its 'ideal_yaw'.
-    float       yaw_speed;
+    float   yaw_speed;
     //! Ideal yaw to face to.
-    float       ideal_yaw;
+    float   ideal_yaw;
 
-    // common data blocks
-    moveinfo_t      moveinfo;
+
     monsterinfo_t   monsterinfo;
     // Only used for g_turret.cpp - WID: Remove?
     vec3_t      move_origin;
