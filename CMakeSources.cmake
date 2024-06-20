@@ -287,8 +287,8 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/svg_entities_func.cpp
 	baseq2rtxp/svgame/entities/monsters/svg_monster_testdummy_puppet.cpp
 
-	baseq2rtxp/svgame/monsters/g_mmove.cpp
-	baseq2rtxp/svgame/monsters/g_mmove_slidemove.cpp
+	baseq2rtxp/svgame/monsters/svg_mmove.cpp
+	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.cpp
 
 	baseq2rtxp/svgame/player/svg_player_client.cpp
 	baseq2rtxp/svgame/player/svg_player_hud.cpp
@@ -305,8 +305,8 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/player/svg_m_player.h
 
-	baseq2rtxp/svgame/monsters/g_mmove.h
-	baseq2rtxp/svgame/monsters/g_mmove_slidemove.h
+	baseq2rtxp/svgame/monsters/svg_mmove.h
+	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.h
 )
 
 
