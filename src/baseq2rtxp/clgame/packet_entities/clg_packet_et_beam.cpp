@@ -14,5 +14,24 @@
 *	@brief	Will setup the refresh entity for the ET_BEAM centity with the newState.
 **/
 void CLG_PacketEntity_AddBeam( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+    refreshEntity->frame = newState->frame;
+    // Setup the old frame.
+    refreshEntity->oldframe = packetEntity->prev.frame;
+    // Backlerp.
+    refreshEntity->backlerp = 1.0f - clgi.client->lerpfrac;
 
+    // Set model.
+    refreshEntity->model = 0;
+    // The four beam colors are encoded in 32 bits of skinnum.
+    refreshEntity->alpha = 0.30f;
+    refreshEntity->skinnum = ( newState->skinnum >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
+
+    // Interpolate start and end points for beams.
+    Vector3 cent_origin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
+    VectorCopy( cent_origin, refreshEntity->origin );
+    Vector3 cent_old_origin = QM_Vector3Lerp( packetEntity->prev.old_origin, packetEntity->current.old_origin, clgi.client->lerpfrac );
+    VectorCopy( cent_old_origin, refreshEntity->oldorigin );
+
+    // Reguler entity angle interpolation:
+    LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
 }

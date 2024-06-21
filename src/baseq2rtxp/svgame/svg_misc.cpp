@@ -182,6 +182,7 @@ void ThrowHead(edict_t *self, const char *gibname, int damage, int type)
     self->s.modelindex2 = 0;
     gi.setmodel(self, gibname);
     self->solid = SOLID_NOT;
+    self->s.entityType = ET_GIB;
     self->s.effects |= EF_GIB;
     //self->s.effects &= ~EF_FLIES;
     self->s.sound = 0;

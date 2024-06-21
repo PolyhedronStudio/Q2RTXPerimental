@@ -191,10 +191,10 @@ void CLG_PacketEntity_LerpAngles( centity_t *packetEntity, entity_t *refreshEnti
         refreshEntity->angles[ 0 ] = 0;
         refreshEntity->angles[ 1 ] = autorotate;
         refreshEntity->angles[ 2 ] = 0;
-        // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
+    // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
     } else if ( newState->number == clgi.client->frame.clientNum + 1 ) {
         VectorCopy( clgi.client->playerEntityAngles, refreshEntity->angles );      // use predicted angles
-        // Reguler entity angle interpolation:
+    // Reguler entity angle interpolation:
     } else {
         LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
     }
@@ -368,6 +368,15 @@ void CLG_AddPacketEntities( void ) {
         refreshEntity.id = RENTITIY_RESERVED_COUNT + packetEntity->id;
 
         switch ( newState->entityType ) {
+        // Beams:
+        case ET_BEAM:
+            CLG_PacketEntity_AddBeam( packetEntity, &refreshEntity, newState );
+            return;
+            break;
+        case ET_GIB:
+            CLG_PacketEntity_AddGib( packetEntity, &refreshEntity, newState );
+            return;
+            break;
         // Items:
         case ET_ITEM:
             CLG_PacketEntity_AddItem( packetEntity, &refreshEntity, newState );
