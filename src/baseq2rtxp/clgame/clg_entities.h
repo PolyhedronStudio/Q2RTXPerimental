@@ -31,3 +31,13 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
 *               is of the local client player himself.
 **/
 centity_t *CLG_ViewBoundEntity( void );
+
+/**
+*	@brief	Returns true if the entity state's number matches to our client's entity number.
+**/
+static const inline qboolean CLG_IsFrameClientEntity( const entity_state_t *state ) {
+	if ( state->number == clgi.client->frame.clientNum + 1 ) {
+		return true;
+	}
+	return false;
+}

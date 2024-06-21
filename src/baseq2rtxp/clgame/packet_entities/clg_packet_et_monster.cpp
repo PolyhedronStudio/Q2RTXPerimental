@@ -55,6 +55,11 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     }
 
     //
+    // Lerp Angles.
+    //
+    LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
+
+    //
     // Special RF_STAIR_STEP lerp for Z axis.
     // 
     // Handle the possibility of a stair step occuring.
@@ -94,23 +99,44 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
         refreshEntity->skin = 0;
         refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
         refreshEntity->flags = newState->renderfx;
+        
+        // Allow skin override for remaster.
+        if ( newState->renderfx & RF_CUSTOMSKIN && (unsigned)newState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
+            if ( newState->skinnum >= 0 && newState->skinnum < 512 ) {
+                refreshEntity->skin = clgi.client->image_precache[ newState->skinnum ];
+            }
+            refreshEntity->skinnum = 0;
+        }
+
         clgi.V_AddEntity( refreshEntity );
     }
     // Model Index #2:
     if ( newState->modelindex2 ) {
+        // Reset.
+        refreshEntity->skinnum = 0;
+        refreshEntity->skin = 0;
+        // Add Model.
         refreshEntity->model = clgi.client->model_draw[ newState->modelindex2 ];
         clgi.V_AddEntity( refreshEntity );
     }
     // Model Index #3:
     if ( newState->modelindex3 ) {
+        // Reset.
+        refreshEntity->skinnum = 0;
+        refreshEntity->skin = 0;
         refreshEntity->flags = 0;
+        // Add Model.
         refreshEntity->model = clgi.client->model_draw[ newState->modelindex3 ];
         clgi.V_AddEntity( refreshEntity );
     }
     // Model Index #4:
     if ( newState->modelindex4 ) {
+        // Reset.
+        refreshEntity->skinnum = 0;
+        refreshEntity->skin = 0;
         refreshEntity->flags = 0;
         refreshEntity->model = clgi.client->model_draw[ newState->modelindex4 ];
+        // Add Model.
         clgi.V_AddEntity( refreshEntity );
     }
 

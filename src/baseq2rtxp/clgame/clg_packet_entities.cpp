@@ -369,7 +369,13 @@ void CLG_AddPacketEntities( void ) {
 
         switch ( newState->entityType ) {
         // Monsters:
+        case ET_MONSTER:
             CLG_PacketEntity_AddMonster( packetEntity, &refreshEntity, newState );
+            return;
+            break;
+        // Players:
+        case ET_PLAYER:
+            CLG_PacketEntity_AddPlayer( packetEntity, &refreshEntity, newState );
             return;
             break;
         // Spotlights:
