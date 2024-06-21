@@ -32,6 +32,7 @@ Features being looked forward on implementation.
 * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
 
 ### Low Priority:
+* [ ] Implement something utilizing ET_BEAM.
 * [ ] Fix game loop in client main for CLGame so it is 40hz but does not stall either.
 * [ ] Name cvars for game modules respectively ``clg_`` and ``svg_``, also server cvars missing ``sv_`` and client cvars missing ``cl_``
 * [X] Why, when func_plat hits ya, it moves you to random origin or such?_

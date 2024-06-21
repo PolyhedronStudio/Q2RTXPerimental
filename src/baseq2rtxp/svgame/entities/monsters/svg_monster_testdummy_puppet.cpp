@@ -52,31 +52,31 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
     //---------------------------
     // <TEMPORARY FOR TESTING>
     //---------------------------
-    if ( self->s.frame < 523 ) {
+    if ( self->deadflag == DEAD_NO ) {
         // Pick a random death animation.
         int32_t deathanim = irandom( 3 );
         if ( deathanim == 0 ) {
-            self->s.frame = 523;
+            self->s.frame = 512;
         } else if ( deathanim == 1 ) {
-            self->s.frame = 653;
+            self->s.frame = 642;
         } else {
-            self->s.frame = 812;
+            self->s.frame = 801;
         }
-        
+         
         self->deadflag = DEAD_DYING;
         // Set this here so the entity does not block traces while playing death animation.
         self->svflags |= SVF_DEADMONSTER;
-    } else if ( self->s.frame == 652 ) {
+    } else if ( self->s.frame == 643 ) {
         // Set deadflag.
         self->deadflag = DEAD_DEAD;
         // Monster Corpse Entity Type:
         self->s.entityType = ET_MONSTER_CORPSE;
-    } else if ( self->s.frame == 811 ) {
+    } else if ( self->s.frame == 800 ) {
         // Set deadflag.
         self->deadflag = DEAD_DEAD;
         // Monster Corpse Entity Type:
         self->s.entityType = ET_MONSTER_CORPSE;
-    } else if ( self->s.frame == 938 ) {
+    } else if ( self->s.frame == 937 ) {
         // Set deadflag.
         self->deadflag = DEAD_DEAD;
         // Monster Corpse Entity Type:
@@ -265,7 +265,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 // Last but not least, make sure to link it back in.
                 gi.linkentity( self );
             }
-        } else {
+        } else if ( self->deadflag == DEAD_NO ) {
             self->s.frame++;
             if ( self->s.frame >= 82 ) {
                 self->s.frame = 0;
@@ -275,23 +275,25 @@ void monster_testdummy_puppet_think( edict_t *self ) {
         // </TEMPORARY FOR TESTING>
         //---------------------------
     } else {
-        if ( self->s.frame >= 523 && self->s.frame <= 652 ) {
-            // Forward Death 01.
-            self->s.frame++;
-            if ( self->s.frame >= 652 ) {
-                self->s.frame = 652;
-            }
-        } else if ( self->s.frame >= 653 && self->s.frame <= 811 ) {
-            // Forward Death 02.
-            self->s.frame++;
-            if ( self->s.frame >= 811 ) {
-                self->s.frame = 811;
-            }
-        } else if ( self->s.frame >= 812 && self->s.frame <= 938 ) {
-            // Backward Death 01.
-            self->s.frame++;
-            if ( self->s.frame >= 938 ) {
-                self->s.frame = 938;
+        if ( self->deadflag != DEAD_NO ) {
+            if ( self->s.frame >= 512 && self->s.frame < 642 ) {
+                // Forward Death 01.
+                self->s.frame++;
+                if ( self->s.frame >= 642 ) {
+                    self->s.frame = 641;
+                }
+            } else if ( self->s.frame >= 642 && self->s.frame < 801 ) {
+                // Forward Death 02.
+                self->s.frame++;
+                if ( self->s.frame >= 801 ) {
+                    self->s.frame = 800;
+                }
+            } else if ( self->s.frame >= 801 && self->s.frame < 928 ) {
+                // Backward Death 01.
+                self->s.frame++;
+                if ( self->s.frame >= 928 ) {
+                    self->s.frame = 927;
+                }
             }
         }
     }

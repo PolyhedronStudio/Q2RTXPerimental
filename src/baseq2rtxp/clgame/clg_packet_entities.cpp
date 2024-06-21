@@ -368,6 +368,11 @@ void CLG_AddPacketEntities( void ) {
         refreshEntity.id = RENTITIY_RESERVED_COUNT + packetEntity->id;
 
         switch ( newState->entityType ) {
+        // Items:
+        case ET_ITEM:
+            CLG_PacketEntity_AddItem( packetEntity, &refreshEntity, newState );
+            return;
+            break;
         // Monsters:
         case ET_MONSTER:
             CLG_PacketEntity_AddMonster( packetEntity, &refreshEntity, newState );
@@ -376,6 +381,11 @@ void CLG_AddPacketEntities( void ) {
         // Players:
         case ET_PLAYER:
             CLG_PacketEntity_AddPlayer( packetEntity, &refreshEntity, newState );
+            return;
+            break;
+        // Pushers:
+        case ET_PUSHER:
+            CLG_PacketEntity_AddPusher( packetEntity, &refreshEntity, newState );
             return;
             break;
         // Spotlights:

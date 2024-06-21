@@ -19,6 +19,9 @@ void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEn
     VectorCopy( lerpedOrigin, refreshEntity->origin );
     VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
 
+    // Just in case?
+    refreshEntity->flags = newState->renderfx;
+
     // Calculate RGB vector.
     vec3_t rgb = { 1.f, 1.f, 1.f };
     rgb[ 0 ] = ( 1.0f / 255.f ) * newState->spotlight.rgb[ 0 ];
