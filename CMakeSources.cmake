@@ -232,6 +232,15 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/local_entities/clg_local_env_sound.cpp	
 	baseq2rtxp/clgame/local_entities/clg_local_misc_entities.cpp
 
+	baseq2rtxp/clgame/packet_entities/clg_packet_et_beam.cpp
+	baseq2rtxp/clgame/packet_entities/clg_packet_et_generic.cpp
+	baseq2rtxp/clgame/packet_entities/clg_packet_et_gib.cpp
+	baseq2rtxp/clgame/packet_entities/clg_packet_et_item.cpp
+	baseq2rtxp/clgame/packet_entities/clg_packet_et_monster.cpp
+	baseq2rtxp/clgame/packet_entities/clg_packet_et_player.cpp
+	baseq2rtxp/clgame/packet_entities/clg_packet_et_pusher.cpp
+	baseq2rtxp/clgame/packet_entities/clg_packet_et_spotlight.cpp
+
 	baseq2rtxp/clgame/temp_entities/clg_te_beams.cpp
 	baseq2rtxp/clgame/temp_entities/clg_te_explosions.cpp
 	baseq2rtxp/clgame/temp_entities/clg_te_lasers.cpp
