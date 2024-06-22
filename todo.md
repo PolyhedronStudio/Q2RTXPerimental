@@ -64,6 +64,9 @@ Features being looked forward on implementation.
 * [X] Replace UI(menu) sounds.
 ### Models:
 * [ ] Replace..??
+* [ ] Gib Models
+* [ ] Debris Models
+* [ ] misc_explobox model_
 * [X] Get ourselves a basic version of the Mixamo testdummy that works in-game.
 * [ ] Get ourselves some environment props to use for ``client_misc_model`` decorating purposes.
 ### Textures:

@@ -123,6 +123,9 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->modelindex4 = MSG_ReadUintBase128( );
 	}
 
+	if ( bits & U_ENTITY_TYPE ) {
+		to->entityType = MSG_ReadUint8( );
+	}
 	if ( bits & U_FRAME ) {
 		to->frame = MSG_ReadUintBase128( );
 	}

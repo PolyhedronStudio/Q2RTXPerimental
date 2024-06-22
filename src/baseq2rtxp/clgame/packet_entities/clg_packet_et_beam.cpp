@@ -26,6 +26,10 @@ void CLG_PacketEntity_AddBeam( centity_t *packetEntity, entity_t *refreshEntity,
     refreshEntity->alpha = 0.30f;
     refreshEntity->skinnum = ( newState->skinnum >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
 
+    if ( refreshEntity->model == precache.models.laser ) {
+        refreshEntity->flags |= RF_NOSHADOW;
+    }
+
     // Interpolate start and end points for beams.
     Vector3 cent_origin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
     VectorCopy( cent_origin, refreshEntity->origin );
@@ -34,4 +38,10 @@ void CLG_PacketEntity_AddBeam( centity_t *packetEntity, entity_t *refreshEntity,
 
     // Reguler entity angle interpolation:
     LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
+
+    // Add entity to refresh list
+    clgi.V_AddEntity( refreshEntity );
+
+    // skip:
+    VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
 }

@@ -35,9 +35,8 @@ typedef enum {
     MSG_ES_FORCE = ( 1 << 0 ),
     MSG_ES_NEWENTITY = ( 1 << 1 ),
     MSG_ES_FIRSTPERSON = ( 1 << 2 ),
-    MSG_ES_UMASK = ( 1 << 4 ),
-    MSG_ES_BEAMORIGIN = ( 1 << 5 ),
-    MSG_ES_REMOVE = ( 1 << 7 )
+    MSG_ES_BEAMORIGIN = ( 1 << 3 ),
+    MSG_ES_REMOVE = ( 1 << 4 )
 } msgEsFlags_t;
 
 //! Optional (Read/Write-)Position Encoding Types:

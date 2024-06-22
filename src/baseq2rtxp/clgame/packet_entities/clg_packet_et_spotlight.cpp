@@ -53,6 +53,9 @@ void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEn
             newState->spotlight.angle_width, newState->spotlight.angle_falloff );
     }
 
+    // Add entity to refresh list
+    clgi.V_AddEntity( refreshEntity );
+
     // skip:
     VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
 

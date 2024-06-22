@@ -34,6 +34,8 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	}
 
 	out->number = in->number;
+	out->entityType = in->entityType;
+
 	//out->client = in->client;
 	out->origin[ 0 ] = in->origin[ 0 ]; //COORD2SHORT( in->origin[ 0 ] ); // WID: float-movement
 	out->origin[ 1 ] = in->origin[ 1 ]; //COORD2SHORT( in->origin[ 1 ] ); // WID: float-movement
@@ -150,11 +152,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 			bits |= U_OLDORIGIN;
 	}
 
-	if ( flags & MSG_ES_UMASK )
-		mask = 0xffff0000;
-	else
-		mask = 0xffff8000;  // don't confuse old clients
-
+	if ( to->entityType != from->entityType ) {
+		bits |= U_ENTITY_TYPE;
+	}
 	if ( to->frame != from->frame ) {
 		bits |= U_FRAME;
 	}
@@ -287,6 +287,10 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 	}
 	if ( bits & U_MODEL4 ) {
 		MSG_WriteUintBase128( to->modelindex4 );
+	}
+
+	if ( bits & U_ENTITY_TYPE ) {
+		MSG_WriteUint8( to->entityType );
 	}
 
 	if ( bits & U_FRAME ) {

@@ -15,31 +15,6 @@
 **/
 void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     //
-    // Animation Frame Lerping:
-    //
-    if ( !( refreshEntity->model & 0x80000000 ) && packetEntity->last_frame != packetEntity->current_frame ) {
-        // Calculate back lerpfraction. (10hz.)
-        //refreshEntity->backlerp = 1.0f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / 100.f );
-        //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
-        //refreshEntity->frame = packetEntity->current_frame;
-        //refreshEntity->oldframe = packetEntity->last_frame;
-
-        // Calculate back lerpfraction using RealTime. (40hz.)
-        //refreshEntity->backlerp = 1.0f - ( ( clgi.GetRealTime()  - ( (float)packetEntity->frame_realtime - clgi.client->sv_frametime ) ) / 25.f );
-        //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
-        //refreshEntity->frame = packetEntity->current_frame;
-        //refreshEntity->oldframe = packetEntity->last_frame;
-
-        // Calculate back lerpfraction using clgi.client->time. (40hz.)
-        constexpr int32_t animationHz = BASE_FRAMERATE;
-        constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
-        refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
-        refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
-        refreshEntity->frame = packetEntity->current_frame;
-        refreshEntity->oldframe = packetEntity->last_frame;
-    }
-
-    //
     // Lerp Origin:
     //   
     // Step origin discretely, because the frames do the animation properly:
@@ -58,6 +33,14 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     // Lerp Angles.
     //
     LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
+
+    // If no rotation flag is set, add specified trail flags. We don't need it spamming
+    // a blood trail of entities when it basically stopped motion.
+    if ( newState->effects & ~EF_ROTATE ) {
+        if ( newState->effects & EF_GIB ) {
+            CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->effects | EF_GIB );
+        }
+    }
 
     //
     // Special RF_STAIR_STEP lerp for Z axis.
@@ -95,11 +78,14 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     // 
     // Model Index #1:
     if ( newState->modelindex ) {
+        // Skin.
         refreshEntity->skinnum = newState->skinnum;
         refreshEntity->skin = 0;
+        // Model.
         refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
+        // Render effects.
         refreshEntity->flags = newState->renderfx;
-        
+
         // Allow skin override for remaster.
         if ( newState->renderfx & RF_CUSTOMSKIN && (unsigned)newState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
             if ( newState->skinnum >= 0 && newState->skinnum < 512 ) {
@@ -108,13 +94,24 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
             refreshEntity->skinnum = 0;
         }
 
+        //
+        // Animation Frame Lerping:
+        //
+        if ( !( refreshEntity->model & 0x80000000 ) && packetEntity->last_frame != packetEntity->current_frame ) {
+            // Calculate back lerpfraction using clgi.client->time. (40hz.)
+            constexpr int32_t animationHz = BASE_FRAMERATE;
+            constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
+            refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
+            refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
+            refreshEntity->frame = packetEntity->current_frame;
+            refreshEntity->oldframe = packetEntity->last_frame;
+        }
+
+        // Add refresh entity to scene.
         clgi.V_AddEntity( refreshEntity );
     }
     // Model Index #2:
     if ( newState->modelindex2 ) {
-        // Reset.
-        refreshEntity->skinnum = 0;
-        refreshEntity->skin = 0;
         // Add Model.
         refreshEntity->model = clgi.client->model_draw[ newState->modelindex2 ];
         clgi.V_AddEntity( refreshEntity );

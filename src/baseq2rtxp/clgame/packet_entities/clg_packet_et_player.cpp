@@ -15,31 +15,6 @@
 **/
 void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     //
-    // Animation Frame Lerping:
-    //
-    if ( !( refreshEntity->model & 0x80000000 ) && packetEntity->last_frame != packetEntity->current_frame ) {
-        // Calculate back lerpfraction. (10hz.)
-        //refreshEntity->backlerp = 1.0f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / 100.f );
-        //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
-        //refreshEntity->frame = packetEntity->current_frame;
-        //refreshEntity->oldframe = packetEntity->last_frame;
-
-        // Calculate back lerpfraction using RealTime. (40hz.)
-        //refreshEntity->backlerp = 1.0f - ( ( clgi.GetRealTime()  - ( (float)packetEntity->frame_realtime - clgi.client->sv_frametime ) ) / 25.f );
-        //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
-        //refreshEntity->frame = packetEntity->current_frame;
-        //refreshEntity->oldframe = packetEntity->last_frame;
-
-        // Calculate back lerpfraction using clgi.client->time. (40hz.)
-        constexpr int32_t animationHz = BASE_FRAMERATE;
-        constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
-        refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
-        refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
-        refreshEntity->frame = packetEntity->current_frame;
-        refreshEntity->oldframe = packetEntity->last_frame;
-    }
-
-    //
     // Lerp Origin:
     //   
     // If client entity, use predicted origin instead of Lerped:
@@ -60,6 +35,14 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
         VectorCopy( clgi.client->playerEntityAngles, refreshEntity->angles );      // use predicted angles
     } else {
         LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
+    }
+
+    // If no rotation flag is set, add specified trail flags. We don't need it spamming
+    // a blood trail of entities when it basically stopped motion.
+    if ( newState->effects & ~EF_ROTATE ) {
+        if ( newState->effects & EF_GIB ) {
+            CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->effects | EF_GIB );
+        }
     }
 
     ////
@@ -127,6 +110,31 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
             refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
         }
 
+        //
+        // Animation Frame Lerping:
+        //
+        if ( !( refreshEntity->model & 0x80000000 ) && packetEntity->last_frame != packetEntity->current_frame ) {
+            // Calculate back lerpfraction. (10hz.)
+            //refreshEntity->backlerp = 1.0f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / 100.f );
+            //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
+            //refreshEntity->frame = packetEntity->current_frame;
+            //refreshEntity->oldframe = packetEntity->last_frame;
+
+            // Calculate back lerpfraction using RealTime. (40hz.)
+            //refreshEntity->backlerp = 1.0f - ( ( clgi.GetRealTime()  - ( (float)packetEntity->frame_realtime - clgi.client->sv_frametime ) ) / 25.f );
+            //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
+            //refreshEntity->frame = packetEntity->current_frame;
+            //refreshEntity->oldframe = packetEntity->last_frame;
+
+            // Calculate back lerpfraction using clgi.client->time. (40hz.)
+            constexpr int32_t animationHz = BASE_FRAMERATE;
+            constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
+            refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
+            refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
+            refreshEntity->frame = packetEntity->current_frame;
+            refreshEntity->oldframe = packetEntity->last_frame;
+        }
+
         // Allow skin override for remaster.
         if ( newState->renderfx & RF_CUSTOMSKIN && (unsigned)newState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
             if ( newState->skinnum >= 0 && newState->skinnum < 512 ) {
@@ -134,6 +142,8 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
             }
             refreshEntity->skinnum = 0;
         }
+
+        // Render effects.
         refreshEntity->flags = newState->renderfx;
 
         // In case of the state belonging to the frame's viewed client number:

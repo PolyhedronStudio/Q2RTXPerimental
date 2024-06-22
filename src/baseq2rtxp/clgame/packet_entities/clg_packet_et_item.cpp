@@ -25,6 +25,7 @@ void CLG_PacketEntity_AddItem( centity_t *packetEntity, entity_t *refreshEntity,
     refreshEntity->skinnum = newState->skinnum;
     refreshEntity->skin = 0;
     refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
+    // Render effects.
     refreshEntity->flags = newState->renderfx;
 
     // Lerp Origin:
@@ -44,6 +45,9 @@ void CLG_PacketEntity_AddItem( centity_t *packetEntity, entity_t *refreshEntity,
     } else {
         LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
     }
+
+    // Add refresh entity to scene.
+    clgi.V_AddEntity( refreshEntity );
 
     // skip:
     VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
