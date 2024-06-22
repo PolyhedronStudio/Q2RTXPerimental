@@ -16,81 +16,72 @@
 *
 *
 **/
+//! Bullet Spread for default firing.
+static constexpr float PRIMARY_FIRE_BULLET_MIN_HSPREAD = 225.f;
+static constexpr float PRIMARY_FIRE_BULLET_MIN_VSPREAD = 225.f;
+//! Maximum Recoil Spread for default firing.
+static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD = 950.f;
+static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD = 950.f;
+//! Recoil Spread for aimed targetting secondary fire.
+static constexpr float SECONDARY_FIRE_BULLET_HSPREAD = 50.f;
+static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
+
 /**
-*   Pistol Weapon Mode Animation Frames.
+*   Pistol 'Weapon' Item Info.
 **/
 weapon_item_info_t pistolItemInfo = {
-    .modeFrames/*[ WEAPON_MODE_MAX ]*/ = {
-
-        // Mode Animation: IDLE
-        /*modeAnimationFrames[ WEAPON_MODE_IDLE ] = */{
-            .startFrame = 0,
-            .endFrame = 1,
-            .durationMsec = sg_time_t::from_hz( 1 )
-        },
-        // Mode Animation: DRAWING
-        /*modeAnimationFrames[ WEAPON_MODE_DRAWING ] = */{
-            .startFrame = 27,
-            .endFrame = 53,
-            .durationMsec = sg_time_t::from_hz( 53 - 27 )
-        },
-        // Mode Animation: HOLSTERING
-        /*modeAnimationFrames[ WEAPON_MODE_HOLSTERING ] = */{
-            .startFrame = 1,
-            .endFrame = 27,
-            .durationMsec = sg_time_t::from_hz( 27 - 1 )
-        },
-        // Mode Animation: PRIMARY_FIRING
-        /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
-            .startFrame = 53,
-            .endFrame = 67,
-            .durationMsec = sg_time_t::from_hz( 67 - 53 )
-        },
-        // Mode Animation: SECONDARY_FIRING -- UNUSED FOR PISTOL LOGIC.
-        /*modeAnimationFrames[ WEAPON_MODE_SECONDARY_FIRING ] =*/ {
-            .startFrame = 53,
-            .endFrame = 67,
-            .durationMsec = sg_time_t::from_hz( 67 - 53 )
-        },
-        // Mode Animation: RELOADING
-        /*modeAnimationFrames[ WEAPON_MODE_RELOADING ] = */{
-            .startFrame = 67,
-            .endFrame = 108,
-            .durationMsec = sg_time_t::from_hz( 108 - 67 )
-        },
-        // Mode Animation: AIMING IN
-        /*modeAnimationFrames[ WEAPON_MODE_AIM_IN ] = */
-        {
-            .startFrame = 108,
-            .endFrame = 123,
-            .durationMsec = sg_time_t::from_hz( 123 - 108 )
-        },
-        // Mode Animation: AIMING FIRE
-        /*modeAnimationFrames[ WEAPON_MODE_AIM_FIRE ] = */
-        {
-            .startFrame = 123,
-            .endFrame = 137,
-            .durationMsec = sg_time_t::from_hz( 137 - 123 )
-        },
-        // Mode Animation: AIMING OUT
-        /*modeAnimationFrames[ WEAPON_MODE_AIM_OUT ] = */
-        {
-            .startFrame = 137,
-            .endFrame = 152,
-            .durationMsec = sg_time_t::from_hz( 152 - 137 )
-        }
-    },
+    // These are dynamically loaded from the IQM model data.
+    .modeAnimations/*[ WEAPON_MODE_MAX ]*/ = { },
 
     // TODO: Move quantity etc from gitem_t into this struct.
 };
 
-static constexpr float PRIMARY_FIRE_BULLET_MIN_HSPREAD = 225.f;
-static constexpr float PRIMARY_FIRE_BULLET_MIN_VSPREAD = 225.f;
-static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD = 950.f;
-static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD = 950.f;
+/**
+*   @brief  Precache animation information.
+**/
+void Weapon_Pistol_Precached( const gitem_t *item ) {
+    // Get the model we want the animation data from.
+    const model_t *viewModel = gi.GetModelDataForName( item->view_model );
+    if ( !viewModel ) {
+        gi.dprintf( "%s: No viewmodel found. Failed to precache '%s' weapon animation data for item->view_model(%s)\n", __func__, item->classname, item->view_model );
+        return;
+    }
+    // Validate the IQM data.
+    if ( !viewModel->iqmData ) {
+        gi.dprintf( "%s: No IQMData found. Failed to precache '%s' weapon animation data for item->view_model(%s)\n", __func__, item->classname, item->view_model );
+        return;
+    }
 
-static constexpr float SECONDARY_FIRE_BULLET_HSPREAD = 50.f;
-static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
+    // We can safely operate now.
+    const iqm_model_t *iqmData = viewModel->iqmData;
+    // Iterate animations.
+    for ( int32_t animID = 0; animID < iqmData->num_animations; animID++ ) {
+        // IQM animation.
+        const iqm_anim_t *iqmAnim = &iqmData->animations[ animID ];
+
+        if ( !strcmp( iqmAnim->name, "idle" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_IDLE );
+        } else if ( !strcmp( iqmAnim->name, "draw" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_DRAWING );
+        } else if ( !strcmp( iqmAnim->name, "holster" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_HOLSTERING );
+        } else if ( !strcmp( iqmAnim->name, "fire" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_PRIMARY_FIRING );
+        } else if ( !strcmp( iqmAnim->name, "reload" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_RELOADING );
+        } else if ( !strcmp( iqmAnim->name, "aim_in" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_IN );
+        } else if ( !strcmp( iqmAnim->name, "aim_fire" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_FIRE );
+        } else if ( !strcmp( iqmAnim->name, "aim_out" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_OUT );
+        } else {
+            continue;
+        }
+    }
+}
+
+
 
 /**
 *
@@ -273,7 +264,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         **/
         if ( !( ent->client->buttons & BUTTON_SECONDARY_FIRE ) ) {
             //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
-            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeFrames, false );
+            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeAnimations, false );
             // Restore the original FOV.
             P_ResetPlayerStateFOV( ent->client );
         }
@@ -284,7 +275,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
             // Switch to Firing mode if we have Clip Ammo:
             if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
                 //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
-                P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_FIRE, pistolItemInfo.modeFrames, false );
+                P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_FIRE, pistolItemInfo.modeAnimations, false );
             // Attempt to reload otherwise:
             } else {
                 // We need to have enough ammo left to reload with.
@@ -318,7 +309,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         **/
         if ( ( ent->client->buttons & BUTTON_SECONDARY_FIRE ) ) {
             //gi.dprintf( "%s: NOT isAiming -> SwitchMode( WEAPON_MODE_AIM_IN )\n", __func__ );
-            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeFrames, false );
+            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeAnimations, false );
             ent->client->ps.fov = 45;
 
             return;
@@ -347,7 +338,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     // Add recoil.
                     Weapon_Pistol_AddRecoil( weaponState, 0.35f, level.time - timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, true );
+                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: A [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
                 // Fire for stage B:
@@ -355,14 +346,14 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     // Add recoil.
                     Weapon_Pistol_AddRecoil( weaponState, 0.25f, level.time - timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, true );
+                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: B [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );                // Fire for stage C:
                 } else if ( level.time >= timeRecoilStageC && level.time <= timeRecoilStageCap ) {
                     // Add recoil.
                     Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, true );
+                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: C [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
                 // The player waited long enough to fire steady again:
@@ -371,7 +362,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     weaponState->recoil = {};
 
                     //gi.dprintf( "%s: Pistol is steady firing! [lastPrimaryFire(%llu), level.time(%llu)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeFrames, false );
+                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, false );
                 }
             // Attempt to reload otherwise:
             } else {
@@ -380,7 +371,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
 
                 // We need to have enough ammo left to reload with:
                 if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
+                    P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeAnimations, false );
                 // Play out of ammo click sound:
                 } else {
                     weapon_pistol_no_ammo( ent );
@@ -398,7 +389,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
 
             // We need to have enough ammo left to reload with.
             if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
-                P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
+                P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeAnimations, false );
             } else {
                 // Play out of ammo click sound.
                 weapon_pistol_no_ammo( ent );
@@ -412,7 +403,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
 **/
 void Weapon_Pistol( edict_t *ent ) {
     // Process the animation frames of the mode we're in.
-    const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &pistolItemInfo.modeFrames[ ent->client->weaponState.mode ] );
+    const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &pistolItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
 
     // If done animating, switch back to idle mode.
     //if ( isDoneAnimating ) {

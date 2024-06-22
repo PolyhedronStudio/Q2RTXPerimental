@@ -168,7 +168,7 @@ void P_Weapon_Change(edict_t *ent) {
     if ( ent->client->pers.weapon != ent->client->newweapon ) {
         // Engage into holster if:
         if ( canChangeMode && ( !isHolsterMode && !isAiming ) ) {
-            P_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_frames_t *)ent->client->pers.weapon->info, true );
+            P_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_animation_t *)ent->client->pers.weapon->info, true );
             return;
         }
         // We know this function will continue to be called if newweapon is not nulled out.
@@ -218,7 +218,7 @@ allowchange:
     ent->client->ps.gunindex = gi.modelindex( ent->client->pers.weapon->view_model );
 
     // Engage into "Drawing" weapon mode.
-    P_Weapon_SwitchMode( ent, WEAPON_MODE_DRAWING, (const weapon_mode_frames_t*)ent->client->pers.weapon->info, true );
+    P_Weapon_SwitchMode( ent, WEAPON_MODE_DRAWING, (const weapon_mode_animation_t*)ent->client->pers.weapon->info, true );
 
     // ADjust player client animation.
     ent->client->anim_priority = ANIM_PAIN;
@@ -423,23 +423,51 @@ void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forwar
 * 
 **/
 /**
+*   @brief  Acts as a sub method for cleaner code, used by weapon item animation data precaching.
+**/
+void P_Weapon_ModeAnimationFromIQM( weapon_item_info_t *itemInfo, const iqm_anim_t *iqmAnim, const int32_t modeID ) {
+    // Ensure modeID is valid.
+    if ( modeID < 0 || modeID >= WEAPON_MODE_MAX ) {
+        gi.dprintf( "%s: modeID(#%i) < 0 or >= WEAPON_MODE_MAX\n", __func__ );
+        return;
+    }
+
+    // Get mode based animations array.
+    weapon_mode_animation_t *modeAnimations = itemInfo->modeAnimations;
+    // Get animation for modeID.
+    weapon_mode_animation_t *modeAnimation = &modeAnimations[ modeID ];
+
+    // Start filling the specified modeID slot with the iqmAnim data.
+    modeAnimation->startFrame = iqmAnim->first_frame;
+    modeAnimation->endFrame = iqmAnim->first_frame + iqmAnim->num_frames;
+    modeAnimation->duration = sg_time_t::from_ms( BASE_FRAMETIME ) * iqmAnim->num_frames;
+}
+
+/**
 *   @brief  Will switch the weapon to its 'newMode' if it can, unless enforced(force == true).
 **/
-void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_frames_t *weaponModeFrames, const bool force = false ) {
+void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_animation_t *weaponModeAnimations, const bool force = false ) {
     // Only switch if we're allowed to.
     if ( ( ent->client->weaponState.canChangeMode || force ) /* &&
         ( ent->client->weaponState.mode != ent->client->weaponState.oldMode )*/ ) {
         // We can switch, fetch animation data for the new mode.
-        const weapon_mode_frames_t *modeFrames= &weaponModeFrames[ newMode ];
+        const weapon_mode_animation_t *modeAnimation = &weaponModeAnimations[ newMode ];
 
         // Assign the new state's new mode.
         ent->client->weaponState.oldMode = ent->client->weaponState.mode;
         ent->client->weaponState.mode = newMode;
 
-        // Setup the new animation frames for the state work with.
-        ent->client->weaponState.animation.startFrame = modeFrames->startFrame;
-        ent->client->weaponState.animation.currentFrame = modeFrames->startFrame;
-        ent->client->weaponState.animation.endFrame = modeFrames->endFrame;
+        // Update animation state to match that of the new desired mode.
+        ent->client->weaponState.animation.startFrame = modeAnimation->startFrame;
+        ent->client->weaponState.animation.currentFrame = modeAnimation->startFrame;
+        ent->client->weaponState.animation.endFrame = modeAnimation->endFrame;
+
+        // Update the animation state's time information.
+        ent->client->weaponState.animation.startTime = level.time;
+        ent->client->weaponState.animation.endTime = level.time + modeAnimation->duration;
+        ent->client->weaponState.animation.currentTime = level.time;
+
+        // Update the weapon's animation based on time.
 
         // Make sure that the client's player state frame is adjusted also.
         //ent->client->ps.gunframe = modeFrames->startFrame;
@@ -452,26 +480,53 @@ void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapo
 /**
 *   @brief  Advances the animation of the 'mode' we're currently in.
 **/
-const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_frames_t *weaponModeFrames ) {
+const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animation_t *weaponModeAnimation ) {
     // Debug print if we ever run into this, which we normally shouldn't.
     if ( !ent->client->pers.weapon ) {
         gi.dprintf( "%s: if ( !ent->client->pers.weapon) {..\n", __func__ );
         return false;
     }
 
+    // Update the weapon's current time.
+    ent->client->weaponState.animation.currentTime = level.time;
+
+    #if 0
+    // WID: This is actually what we should be doing. However we don't, because it messes with
+    // the feeling of responsiveness for client user command thinking.
+    // Calculate the weapon's frame for the current moment in time.
+    //const int32_t oldWeaponFrame = ent->client->weaponState.animation.currentFrame;
+    //int32_t weaponFrame = 0;
+    //const double frameFraction = SG_FrameForTime( &weaponFrame, level.time, 
+    //    ent->client->weaponState.animation.startTime, 
+    //    25,
+    //    ent->client->weaponState.animation.startFrame,
+    //    ent->client->weaponState.animation.endFrame,
+    //    0, false );
+    // Debug
+    //gi.dprintf( "%s: gunFrame(%i)\n", __func__, weaponFrame );
+    //int32_t gunFrame = ( weaponFrame >= 0 ? weaponFrame : ent->client->weaponState.animation.currentFrame );
+    #else
+    // WID: User responsive approach:
     // Get current gunframe.
     int32_t gunFrame = ent->client->weaponState.animation.currentFrame;
     // Increment.
     gunFrame++;
-    // Debug
-    //gi.dprintf( "%s: gunFrame(%i)\n", __func__, gunFrame );
+    #endif
 
     // Determine whether we are finished processing the mode.
+    #if 0
+    //if ( level.time >= ent->client->weaponState.animation.endTime /*|| ( gunFrame == -1 || frameFraction == 1 )*/ ) {
+    #else
     if ( gunFrame > ent->client->weaponState.animation.endFrame ) {
+    #endif
         // Enable mode switching again.
         ent->client->weaponState.canChangeMode = true;
+        #if 0 
+        //ent->client->ps.gunframe = ent->client->weaponState.animation.currentFrame = ent->client->weaponState.animation.endFrame;
+        #else
         // Keep gun frame in check.
-        gunFrame = ent->client->ps.gunframe = ent->client->weaponState.animation.endFrame;
+        ent->client->ps.gunframe = ent->client->weaponState.animation.endFrame;
+        #endif
         // Finished animating.
         return true;
     } else {

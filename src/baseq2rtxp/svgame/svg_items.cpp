@@ -23,7 +23,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //void Weapon_Blaster(edict_t *ent);
 //void Weapon_Shotgun(edict_t *ent);
 void Weapon_Fists( edict_t *ent );
+void Weapon_Fists_Precached( const gitem_t *item );
 void Weapon_Pistol( edict_t *ent );
+void Weapon_Pistol_Precached( const gitem_t *item );
 //void Weapon_SuperShotgun(edict_t *ent);
 //void Weapon_Machinegun(edict_t *ent);
 //void Weapon_Chaingun(edict_t *ent);
@@ -566,58 +568,74 @@ void droptofloor(edict_t *ent)
 void PrecacheItem( const gitem_t *it)
 {
 	// WID: C++20: Added const.
-    const char    *s;
-	const char *start;
-    char    data[MAX_QPATH];
+    const char *s = nullptr;
+	const char *start = nullptr;
+    char    data[ MAX_QPATH ] = {};
     int     len;
 
-    if (!it)
+    if ( !it ) {
         return;
+    }
 
-    if (it->pickup_sound)
-        gi.soundindex(it->pickup_sound);
-    if (it->world_model)
-        gi.modelindex(it->world_model);
-    if (it->view_model)
-        gi.modelindex(it->view_model);
-    if (it->icon)
-        gi.imageindex(it->icon);
+    if ( it->pickup_sound ) {
+        gi.soundindex( it->pickup_sound );
+    }
+    if ( it->world_model ) {
+        gi.modelindex( it->world_model );
+    }
+    if ( it->view_model ) {
+        gi.modelindex( it->view_model );
+    }
+    if ( it->icon ) {
+        gi.imageindex( it->icon );
+    }
 
     // parse everything for its ammo
-    if (it->ammo && it->ammo[0]) {
-        const gitem_t *ammo = FindItem(it->ammo);
-        if (ammo != it)
-            PrecacheItem(ammo);
+    if ( it->ammo && it->ammo[ 0 ] ) {
+        const gitem_t *ammo = FindItem( it->ammo );
+        if ( ammo != it ) {
+            PrecacheItem( ammo );
+        }
     }
 
     // parse the space seperated precache string for other items
     s = it->precaches;
-    if (!s || !s[0])
+    if ( !s || !s[ 0 ] ) {
         return;
+    }
 
     while (*s) {
         start = s;
-        while (*s && *s != ' ')
+        while ( *s && *s != ' ' ) {
             s++;
+        }
 
         len = s - start;
-        if (len >= MAX_QPATH || len < 5)
-            gi.error("PrecacheItem: %s has bad precache string", it->classname);
+        if ( len >= MAX_QPATH || len < 5 ) {
+            gi.error( "PrecacheItem: %s has bad precache string", it->classname );
+        }
         memcpy(data, start, len);
         data[len] = 0;
-        if (*s)
+        if ( *s ) {
             s++;
+        }
 
         // determine type based on extension
         const char *extension = data + len - 3;
-        if ( !strcmp( extension, "iqm" ) || !strcmp( extension, "md3" ) || !strcmp( extension, "md2" ) )
+        if ( !strcmp( extension, "iqm" ) || !strcmp( extension, "md3" ) || !strcmp( extension, "md2" ) ) {
             gi.modelindex( data );
-        else if ( !strcmp( extension, "sp2" ) )
+        } else if ( !strcmp( extension, "sp2" ) ) {
             gi.modelindex( data );
-        else if ( !strcmp( extension, "wav" ) )
+        } else if ( !strcmp( extension, "wav" ) ) {
             gi.soundindex( data );
-        else if ( !strcmp( extension, "png" ) || !strcmp( extension, "tga" ) || !strcmp( extension, "jpg" ) || !strcmp( extension, "pcx" ) )
+        } else if ( !strcmp( extension, "png" ) || !strcmp( extension, "tga" ) || !strcmp( extension, "jpg" ) || !strcmp( extension, "pcx" ) ) {
             gi.imageindex( data );
+        }
+    }
+
+    // Used for sourcing information from precached data.
+    if ( it->precached ) {
+        it->precached( it );
     }
 }
 
@@ -734,6 +752,9 @@ gitem_t itemlist[] = {
     //
     {
         .classname = "weapon_fists",
+        
+        .precached = Weapon_Fists_Precached,
+
         .pickup = P_Weapon_Pickup,
         .use = P_Weapon_Use,
         .drop = P_Weapon_Drop,
@@ -764,6 +785,9 @@ gitem_t itemlist[] = {
     //
     {
         .classname = "weapon_pistol",
+
+        .precached = Weapon_Pistol_Precached,
+
         .pickup = P_Weapon_Pickup,
         .use =  P_Weapon_Use,
         .drop = P_Weapon_Drop,
@@ -800,6 +824,7 @@ gitem_t itemlist[] = {
     //
     {
         .classname = "ammo_bullets_pistol",
+        .precached = nullptr,
         .pickup = Pickup_Ammo,
         .use = NULL,
         .drop = Drop_Ammo,
@@ -827,6 +852,7 @@ gitem_t itemlist[] = {
     //
     {
         .classname = "ammo_bullets_rifle",
+        .precached = nullptr,
         .pickup = Pickup_Ammo,
         .use = nullptr,
         .drop = Drop_Ammo,
@@ -854,6 +880,7 @@ gitem_t itemlist[] = {
     //
     {
         .classname = "ammo_bullets_smg",
+        .precached = nullptr,
         .pickup = Pickup_Ammo,
         .use = nullptr,
         .drop = Drop_Ammo,
@@ -881,6 +908,7 @@ gitem_t itemlist[] = {
     //
     {
         .classname = "ammo_bullets_sniper",
+        .precached = nullptr,
         .pickup = Pickup_Ammo,
         .use = nullptr,
         .drop = Drop_Ammo,
@@ -908,6 +936,7 @@ gitem_t itemlist[] = {
     //
     {
         .classname = "ammo_shells_shotgun",
+        .precached = nullptr,
         .pickup = Pickup_Ammo,
         .use = NULL,
         .drop = Drop_Ammo,
@@ -948,6 +977,7 @@ gitem_t itemlist[] = {
     //
     {
         .classname = NULL,
+        .precached = nullptr,
         .pickup = Pickup_Health,
         .use = nullptr,
         .drop = nullptr,

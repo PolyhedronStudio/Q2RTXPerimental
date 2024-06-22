@@ -273,14 +273,14 @@ typedef enum {
 /**
 *   @brief  Used for constructing a weapon's 'mode' animation setup.
 **/
-typedef struct weapon_mode_frames_s {
+typedef struct weapon_mode_animation_s {
     //! Objective start frame index.
     int32_t startFrame;
     //! Objective end frame index.
     int32_t endFrame;
     //! Relative animation frame duration( endFrame - startFrame ).
-    sg_time_t durationMsec;
-} weapon_mode_frames_t;
+    sg_time_t duration;
+} weapon_mode_animation_t;
 
 /**
 *   @brief  Used as an item's internal 'info' pointer for describing the actual
@@ -288,7 +288,7 @@ typedef struct weapon_mode_frames_s {
 **/
 typedef struct weapon_item_info_s {
     //! Mode frames.
-    weapon_mode_frames_t modeFrames[ WEAPON_MODE_MAX ];
+    weapon_mode_animation_t modeAnimations[ WEAPON_MODE_MAX ];
     //! TODO: Other info.
 } weapon_item_info_t;
 
@@ -459,14 +459,20 @@ typedef struct {
 typedef struct gitem_s {
 	//! Classname.
     const char  *classname; // spawning name
+    
+    //! Called right after precaching the item, this allows for weapons to seek for
+    //! the appropriate animation data required for each used distinct weapon mode.
+    void        ( *precached )( const struct gitem_s *item );
+
     //! Pickup Callback.
-    const bool  (*pickup)(struct edict_s *ent, struct edict_s *other);
+    const bool  ( *pickup )( struct edict_s *ent, struct edict_s *other );
     //! Use Callback.
-    void        (*use)(struct edict_s *ent, const struct gitem_s *item);
+    void        ( *use )( struct edict_s *ent, const struct gitem_s *item );
     //! Drop Callback.
-    void        (*drop)(struct edict_s *ent, const struct gitem_s *item);
+    void        ( *drop )( struct edict_s *ent, const struct gitem_s *item );
+
     //! WeaponThink Callback.
-    void        (*weaponthink)(struct edict_s *ent);
+    void        ( *weaponthink )( struct edict_s *ent );
 
     //! Path: Pickup Sound.
 	const char	*pickup_sound; // WID: C++20: Added const.
@@ -1002,6 +1008,10 @@ void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forwar
 void P_PlayerNoise(edict_t *who, const vec3_t where, int type);
 
 /**
+*   @brief  Acts as a sub method for cleaner code, used by weapon item animation data precaching.
+**/
+void P_Weapon_ModeAnimationFromIQM( weapon_item_info_t *itemInfo, const iqm_anim_t *iqmAnim, const int32_t modeID );
+/**
 *   @brief
 **/
 const bool P_Weapon_Pickup( edict_t *ent, edict_t *other );
@@ -1020,11 +1030,11 @@ void P_Weapon_Change( edict_t *ent );
 /**
 *   @brief  Will switch the weapon to its 'newMode' if it can, unless enforced(force == true).
 **/
-void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_frames_t *weaponModeFrames, const bool force );
+void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_animation_t *weaponModeAnimations, const bool force );
 /**
 *   @brief  Advances the animation of the 'mode' we're currently in.
 **/
-const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_frames_t *weaponModeFrames );
+const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animation_t *weaponModeAnimation );
 /**
 *   @brief
 **/
@@ -1268,7 +1278,9 @@ struct gclient_s {
         //! Stores the 'Weapon Animation' data, which if still actively being processed
         //! prevents the weapon from changing 'mode'.
         struct {
-            //! The amount of time processed so far for the animation.
+            //! 
+            
+            //! The frame matching for the time processed so far with the current animation.
             int32_t currentFrame;
 
             //! The starting frame.
@@ -1277,12 +1289,12 @@ struct gclient_s {
             int32_t endFrame;
 
             //! Start time of animation.
-            int64_t startTime;
+            sg_time_t startTime;
             //! End time of animation.
-            int64_t endTime;
+            sg_time_t endTime;
             
             //! Current time of animation relative to startTime.
-            int32_t currentTime;
+            sg_time_t currentTime;
 
             //! Optional callback function pointer.
             //void ( *finished_animating )( edict_t *ent );

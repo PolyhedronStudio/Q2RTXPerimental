@@ -51,6 +51,15 @@ typedef struct sg_skm_s {
 
 } sg_skm_t;
 
+
+
+/**
+*
+*
+*	Animation Encode/Decode:
+*
+*
+**/
 /**
 *	@brief	Encodes the composed body animation part states into a single uint32_t, each one having a limit of 255. 
 **/
@@ -68,5 +77,21 @@ static inline void SG_DecodeAnimationState( const uint32_t animationState, uint8
 	*headAnimation = ( ( animationState >> 16 ) & 0xff );
 	//*framerate = ( ( animationState >> 24 ) & 255 );
 }
-//#define GS_EncodeAnimState(lower,upper,head) (((lower)&0x3F)|(((upper)&0x3F )<<6)|(((head)&0xF)<<12))
-//#define GS_DecodeAnimState(frame,lower,upper,head) ( (lower)=((frame)&0x3F),(upper)=(((frame)>>6)&0x3F),(head)=(((frame)>>12)&0xF) )
+
+
+
+/**
+*
+*
+*	Uncategorized Functions: TODO: CATEGORIZE!
+*
+*
+**/
+/**
+* @brief	Calculates the current frame for the current time since the start time stamp.
+*
+* @return   The frame and interpolation fraction for current time in an animation started at a given time.
+*           When the animation is finished it will return frame -1. Takes looping into account. Looping animations
+*           are never finished.
+**/
+const double SG_FrameForTime( int32_t *frame, const sg_time_t &currentTime, const sg_time_t &startTimeStamp, const double frameTime, const int32_t firstFrame, const int32_t lastFrame, const int32_t loopingFrames, const bool forceLoop );

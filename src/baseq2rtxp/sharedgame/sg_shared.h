@@ -21,6 +21,8 @@ typedef struct centity_s sgentity_s;
 typedef struct edict_s sgentity_s;
 #endif
 
+#include "sg_time.h"
+
 // Include other shared game headers.
 #include "sg_cmd_messages.h"
 #include "sg_entity_effects.h"
@@ -35,7 +37,6 @@ typedef struct edict_s sgentity_s;
 #include "sg_skm_modelinfo.h"
 #include "sg_skm_rootmotion.h"
 #include "sg_tempentity_events.h"
-#include "sg_time.h"
 
 
 

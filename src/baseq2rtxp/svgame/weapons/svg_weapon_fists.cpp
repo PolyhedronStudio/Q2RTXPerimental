@@ -17,78 +17,56 @@
 *
 **/
 /**
-*   Fists 'Weapon' Mode Animation Frames.
+*   Fists 'Weapon' Item Info.
 **/
 weapon_item_info_t fistsItemInfo = {
-    .modeFrames/*[ WEAPON_MODE_MAX ]*/ = {
+    // These are dynamically loaded from the IQM model data.
+    .modeAnimations/*[ WEAPON_MODE_MAX ]*/ = { },
 
-    // Mode Animation: IDLE
-    /*modeAnimationFrames[ WEAPON_MODE_IDLE ] = */{
-        .startFrame = 0,
-        .endFrame = 1,
-        .durationMsec = sg_time_t::from_hz( 1 )
-    },
-    // Mode Animation: DRAWING
-    /*modeAnimationFrames[ WEAPON_MODE_DRAWING ] = */{
-        .startFrame = 1,
-        .endFrame = 26,
-        .durationMsec = sg_time_t::from_hz( 26 - 1 )
-    },
-    // Mode Animation: HOLSTERING
-    /*modeAnimationFrames[ WEAPON_MODE_HOLSTERING ] = */{
-        .startFrame = 27,
-        .endFrame = 52,
-        .durationMsec = sg_time_t::from_hz( 52 - 27 )
-    },
-    // Mode Animation: PRIMARY_FIRING
-    /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
-        .startFrame = 53,
-        .endFrame = 73,
-        .durationMsec = sg_time_t::from_hz( 53 - 73 )
-    },
-    // Mode Animation: SECONDARY_FIRING -- UNUSED FOR PISTOL LOGIC.
-    /*modeAnimationFrames[ WEAPON_MODE_PRIMARY_FIRING ] =*/ {
-        .startFrame = 74,
-        .endFrame = 92,
-        .durationMsec = sg_time_t::from_hz( 92 - 74 )
-    },
-    // Mode Animation: RELOADING
-    /*modeAnimationFrames[ WEAPON_MODE_RELOADING ] = */{
-        .startFrame = 0,
-        .endFrame = 1,
-        .durationMsec = sg_time_t::from_hz( 1 )
-    },
-    // Mode Animation: AIMING IN
-    /*modeAnimationFrames[ WEAPON_MODE_AIM_IN ] = */
-    {
-        .startFrame = 0,
-        .endFrame = 1,
-        .durationMsec = sg_time_t::from_hz( 1 )
-    },
-    // Mode Animation: AIMING FIRE
-    /*modeAnimationFrames[ WEAPON_MODE_AIM_FIRE ] = */
-    {
-        .startFrame = 0,
-        .endFrame = 1,
-        .durationMsec = sg_time_t::from_hz( 1 )
-    },
-    // Mode Animation: AIMING OUT
-    /*modeAnimationFrames[ WEAPON_MODE_AIM_OUT ] = */
-    {
-        .startFrame = 0,
-        .endFrame = 1,
-        .durationMsec = sg_time_t::from_hz( 1 )
-    }
-},
-
-// TODO: Move quantity etc from gitem_t into this struct.
+    // TODO: Move quantity etc from gitem_t into this struct.
 };
 
-//static constexpr float PRIMARY_FIRE_BULLET_HSPREAD = 300.f;
-//static constexpr float PRIMARY_FIRE_BULLET_VSPREAD = 300.f;
-//
-//static constexpr float SECONDARY_FIRE_BULLET_HSPREAD = 50.f;
-//static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
+/**
+*   @brief  Precache animation information.
+**/
+void Weapon_Fists_Precached( const gitem_t *item ) {
+    // Get the model we want the animation data from.
+    const model_t *viewModel = gi.GetModelDataForName( item->view_model );
+    if ( !viewModel ) {
+        gi.dprintf( "%s: No viewmodel found. Failed to precache '%s' weapon animation data for item->view_model(%s)\n", __func__, item->classname, item->view_model );
+        return;
+    }
+    // Validate the IQM data.
+    if ( !viewModel->iqmData ) {
+        gi.dprintf( "%s: No IQMData found. Failed to precache '%s' weapon animation data for item->view_model(%s)\n", __func__, item->classname, item->view_model );
+        return;
+    }
+
+    // We can safely operate now.
+    const iqm_model_t *iqmData = viewModel->iqmData;
+    // Iterate animations.
+    for ( int32_t animID = 0; animID < iqmData->num_animations; animID++ ) {
+        // IQM animation.
+        const iqm_anim_t *iqmAnim = &iqmData->animations[ animID ];
+
+        // idle.
+        if ( !strcmp( iqmAnim->name, "idle" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_IDLE );
+        } else if ( !strcmp( iqmAnim->name, "draw" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_DRAWING );
+        } else if ( !strcmp( iqmAnim->name, "holster" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_HOLSTERING );
+        } else if ( !strcmp( iqmAnim->name, "primary_fire" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_PRIMARY_FIRING );
+        } else if ( !strcmp( iqmAnim->name, "secondary_fire" ) ) {
+            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_SECONDARY_FIRING );
+        } else {
+            continue;
+        }
+    }
+}
+
+
 
 /**
 *
@@ -172,10 +150,10 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
 **/
 static void Weapon_Fists_ProcessUserInput( edict_t *ent ) {
     if ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) {
-        P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, fistsItemInfo.modeFrames, false );
+        P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, fistsItemInfo.modeAnimations, false );
         return;
     } else if ( ent->client->latched_buttons & BUTTON_SECONDARY_FIRE ) {
-        P_Weapon_SwitchMode( ent, WEAPON_MODE_SECONDARY_FIRING, fistsItemInfo.modeFrames, false );
+        P_Weapon_SwitchMode( ent, WEAPON_MODE_SECONDARY_FIRING, fistsItemInfo.modeAnimations, false );
         return;
     }
 }
@@ -185,7 +163,7 @@ static void Weapon_Fists_ProcessUserInput( edict_t *ent ) {
 **/
 void Weapon_Fists( edict_t *ent ) {
     // Process the animation frames of the mode we're in.
-    const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &fistsItemInfo.modeFrames[ ent->client->weaponState.mode ] );
+    const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &fistsItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
 
     // If IDLE or NOT ANIMATING, process user input.
     if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE || isDoneAnimating ) {
@@ -261,3 +239,129 @@ void Weapon_Fists( edict_t *ent ) {
         }
     }
 }
+
+
+
+
+
+
+
+
+///**
+//* @brief	Calculates the current frame for the current time since the start time stamp.
+//*
+//* @return   The frame and interpolation fraction for current time in an animation started at a given time.
+//*           When the animation is finished it will return frame -1. Takes looping into account. Looping animations
+//*           are never finished.
+//**/
+//double SG_FrameForTime( int32_t *frame, const GameTime &currentTimestamp, const GameTime &startTimeStamp, float frameTime, int32_t startFrame, int32_t endFrame, int32_t loopingFrames, bool forceLoop ) {
+//    // Always set frame to start frame if the current time stamp is lower than the animation start timestamp.
+//    if ( currentTimestamp <= startTimeStamp ) {
+//        *frame = startFrame;
+//        return 0.0f;
+//    }
+//
+//    // If start frame == end frame, it means we have no animation to begin with, return 1.0 fraction and set frame to startframe.
+//    if ( startFrame == endFrame ) {
+//        *frame = startFrame;
+//        return 1.0f;
+//    }
+//
+//    // Calculate current amount of time this animation is running for.
+//    GameTime runningTime = currentTimestamp - startTimeStamp;
+//
+//    // Calculate frame fraction.
+//    double frameFraction = ( runningTime / frameTime ).count();
+//    int64_t frameCount = (int64_t)frameFraction;
+//    frameFraction -= frameCount;
+//
+//    // Calculate current frame.
+//    uint32_t currentFrame = startFrame + frameCount;
+//
+//    // If current frame is higher than last frame...
+//    if ( currentFrame >= endFrame ) {
+//        if ( forceLoop && !loopingFrames ) {
+//            loopingFrames = endFrame - startFrame;
+//        }
+//
+//        if ( loopingFrames ) {
+//            // Calculate current loop start #.
+//            uint32_t startCount = ( endFrame - startFrame ) - loopingFrames;
+//
+//            // Calculate the number of loops left to do.
+//            uint32_t numberOfLoops = ( frameCount - startCount ) / loopingFrames;
+//
+//            // Calculate current frame.
+//            currentFrame -= loopingFrames * numberOfLoops;
+//
+//            // Special frame fraction handling to play an animation just once.
+//            if ( loopingFrames == 1 ) {
+//                frameFraction = 1.0;
+//            }
+//        } else {
+//            // Animation's finished, set current frame to -1 and get over with it.
+//            currentFrame = -1;
+//        }
+//    }
+//
+//    // Assign new frame value.
+//    *frame = currentFrame;
+//
+//    // Return frame fraction.
+//    return frameFraction;
+//}
+//
+//
+//
+///*
+//* GS_FrameForTime
+//* Returns the frame and interpolation fraction for current time in an animation started at a given time.
+//* When the animation is finished it will return frame -1. Takes looping into account. Looping animations
+//* are never finished.
+//*/
+//float GS_FrameForTime( int *frame, int64_t curTime, int64_t startTimeStamp, float frametime, int firstframe, int lastframe, int loopingframes, bool forceLoop ) {
+//    int64_t runningtime, framecount;
+//    int curframe;
+//    float framefrac;
+//
+//    if ( curTime <= startTimeStamp ) {
+//        *frame = firstframe;
+//        return 0.0f;
+//    }
+//
+//    if ( firstframe == lastframe ) {
+//        *frame = firstframe;
+//        return 1.0f;
+//    }
+//
+//    runningtime = curTime - startTimeStamp;
+//    framefrac = ( (double)runningtime / (double)frametime );
+//    framecount = (unsigned int)framefrac;
+//    framefrac -= framecount;
+//
+//    curframe = firstframe + framecount;
+//    if ( curframe > lastframe ) {
+//        if ( forceLoop && !loopingframes ) {
+//            loopingframes = lastframe - firstframe;
+//        }
+//
+//        if ( loopingframes ) {
+//            unsigned int numloops;
+//            unsigned int startcount;
+//
+//            startcount = ( lastframe - firstframe ) - loopingframes;
+//
+//            numloops = ( framecount - startcount ) / loopingframes;
+//            curframe -= loopingframes * numloops;
+//            if ( loopingframes == 1 ) {
+//                framefrac = 1.0f;
+//            }
+//        } else {
+//            curframe = -1;
+//        }
+//    }
+//
+//    *frame = curframe;
+//
+//    return framefrac;
+//}

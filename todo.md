@@ -32,7 +32,8 @@ Features being looked forward on implementation.
 * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
 
 ### Low Priority:
-* [ ] Implement something utilizing ET_BEAM.
+* [ ] For weapon items, move quantity etc from gitem_t into this struct.
+* [X] Implement something utilizing ET_BEAM.
 * [ ] Fix game loop in client main for CLGame so it is 40hz but does not stall either.
 * [ ] Name cvars for game modules respectively ``clg_`` and ``svg_``, also server cvars missing ``sv_`` and client cvars missing ``cl_``
 * [X] Why, when func_plat hits ya, it moves you to random origin or such?_
@@ -64,9 +65,10 @@ Features being looked forward on implementation.
 * [X] Replace UI(menu) sounds.
 ### Models:
 * [ ] Replace..??
-* [ ] Gib Models
-* [ ] Debris Models
-* [ ] misc_explobox model_
+	* [ ] Health Pack.
+	* [ ] Gib Models.
+	* [ ] Debris Models.
+	* [ ] misc_explobox model_
 * [X] Get ourselves a basic version of the Mixamo testdummy that works in-game.
 * [ ] Get ourselves some environment props to use for ``client_misc_model`` decorating purposes.
 ### Textures:
