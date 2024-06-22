@@ -453,6 +453,7 @@ void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapo
 *   @brief  Advances the animation of the 'mode' we're currently in.
 **/
 const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_frames_t *weaponModeFrames ) {
+    // Debug print if we ever run into this, which we normally shouldn't.
     if ( !ent->client->pers.weapon ) {
         gi.dprintf( "%s: if ( !ent->client->pers.weapon) {..\n", __func__ );
         return false;

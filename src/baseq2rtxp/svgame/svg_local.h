@@ -238,16 +238,9 @@ typedef enum {
 //    WEAPON_DROPPING,
 //    WEAPON_FIRING
 //} weaponstate_t;
+
 /**
 *   @brief  Describes a weapon's current state.
-Exported anim "idle" with global_frames(0-1) ]
-Exported anim "fire" with global_frames(1-14) ]
-Exported anim "reload" with global_frames(15-55) ]
-Exported anim "holster" with global_frames(56-81) ]
-Exported anim "draw" with global_frames(82-107) ]
-Exported anim "aim_in" with global_frames(108-122) ]
-Exported anim "aim_fire" with global_frames(123-136) ]
-Exported anim "aim_out" with global_frames(137-151) ]
 **/
 typedef enum {
     //! The weapon is not doing anything else but sitting there, waiting for use.
@@ -260,7 +253,6 @@ typedef enum {
 
     //! The weapon is actively 'Primary' firing a shot.
     WEAPON_MODE_PRIMARY_FIRING,
-
     //! The weapon is actively 'Secondary' firing a shot.
     WEAPON_MODE_SECONDARY_FIRING,
 
@@ -1278,10 +1270,19 @@ struct gclient_s {
         struct {
             //! The amount of time processed so far for the animation.
             int32_t currentFrame;
+
             //! The starting frame.
             int32_t startFrame;
             //! The frame we want to be at by the end of the animation.
             int32_t endFrame;
+
+            //! Start time of animation.
+            int64_t startTime;
+            //! End time of animation.
+            int64_t endTime;
+            
+            //! Current time of animation relative to startTime.
+            int32_t currentTime;
 
             //! Optional callback function pointer.
             //void ( *finished_animating )( edict_t *ent );

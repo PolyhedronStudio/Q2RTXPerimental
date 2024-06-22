@@ -108,7 +108,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	Vector3 startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
 
 	// Perform an actual 'Step Slide'.
-	int32_t blockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, true /* monsterMove->hasTime */ );
+	int32_t blockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */ );
 
 	// Store for downward move XY.
 	Vector3 downOrigin = monsterMove->state.origin;
@@ -129,7 +129,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	monsterMove->state.velocity = startVelocity;
 
 	// Perform an actual 'Step Slide'.
-	blockedMask |= SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, true /* monsterMove->hasTime */ );
+	blockedMask |= SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */ );
 
 	// Push down the final amount.
 	Vector3 down = monsterMove->state.origin - Vector3{ 0.f, 0.f, stepSize };
