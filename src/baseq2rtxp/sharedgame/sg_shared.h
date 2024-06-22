@@ -33,6 +33,7 @@ typedef struct edict_s sgentity_s;
 #include "sg_pmove.h"
 #include "sg_pmove_slidemove.h"
 #include "sg_skm_modelinfo.h"
+#include "sg_skm_rootmotion.h"
 #include "sg_tempentity_events.h"
 #include "sg_time.h"
 
@@ -150,8 +151,12 @@ void SG_Z_TagFree( const uint32_t tag );
 
 /**
 *
-*	[OUT]: General SharedGame API functions, non game module specific.
+* 
+* 
+*	General SharedGame API functions, non game module specific.
 *
+* 
+* 
 **/
 /**
 *	@brief	Adds and averages out the blend[4] RGBA color on top of the already existing one in *v_blend.
@@ -195,7 +200,9 @@ inline static const std::string SG_RandomResourcePath( const char *path, const c
 /**
 *
 *
+* 
 *	Player State Game 'Stats':
+* 
 * 
 * 
 **/
