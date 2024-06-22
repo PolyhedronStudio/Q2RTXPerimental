@@ -160,7 +160,7 @@ static void CLG_PacketEntity_LerpOrigin( centity_t *packetEntity, entity_t *refr
     //        //if ( fabs( packetEntity->step_height ) <= STEP_MAX_SMALL_STEP_SIZE ) {
     //        //    stair_step_delta <<= 1; // small steps
     //        //}
-
+     
     //        // Calculate step time.
     //        int64_t stair_step_time = STEP_TIME - min( stair_step_delta, STEP_TIME );
 
