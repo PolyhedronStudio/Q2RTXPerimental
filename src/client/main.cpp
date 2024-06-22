@@ -84,7 +84,7 @@ extern "C" { cvar_t* info_rate; };// WID: C++20: Needed for linkage.
 cvar_t  *info_fov;
 cvar_t  *info_msg;
 cvar_t  *info_hand;
-cvar_t  *info_gender;
+//cvar_t  *info_gender;
 cvar_t  *info_uf;
 
 #if USE_REF == REF_GL
@@ -1395,30 +1395,30 @@ void CL_ErrorEvent(netadr_t *from)
 CL_FixUpGender_f
 ==============
 */
-static void CL_FixUpGender(void)
-{
-    char *p;
-    char sk[MAX_QPATH];
-
-    Q_strlcpy(sk, info_skin->string, sizeof(sk));
-    if ((p = strchr(sk, '/')) != NULL)
-        *p = 0;
-    if (Q_stricmp(sk, "male") == 0 || Q_stricmp(sk, "cyborg") == 0)
-        Cvar_Set("gender", "male");
-    else if (Q_stricmp(sk, "female") == 0 || Q_stricmp(sk, "crackhor") == 0)
-        Cvar_Set("gender", "female");
-    else
-        Cvar_Set("gender", "none");
-    info_gender->modified = false;
-}
+//static void CL_FixUpGender(void)
+//{
+//    char *p;
+//    char sk[MAX_QPATH];
+//
+//    Q_strlcpy(sk, info_skin->string, sizeof(sk));
+//    if ((p = strchr(sk, '/')) != NULL)
+//        *p = 0;
+//    if (Q_stricmp(sk, "male") == 0 || Q_stricmp(sk, "cyborg") == 0)
+//        Cvar_Set("gender", "male");
+//    else if (Q_stricmp(sk, "female") == 0 || Q_stricmp(sk, "crackhor") == 0)
+//        Cvar_Set("gender", "female");
+//    else
+//        Cvar_Set("gender", "none");
+//    info_gender->modified = false;
+//}
 
 void CL_UpdateUserinfo(cvar_t *var, from_t from)
 {
     int i;
 
-    if (var == info_skin && from > FROM_CONSOLE && gender_auto->integer) {
-        CL_FixUpGender();
-    }
+    //if (var == info_skin && from > FROM_CONSOLE && gender_auto->integer) {
+    //    CL_FixUpGender();
+    //}
 
     if (cls.state < ca_connected) {
         return;
@@ -2633,13 +2633,13 @@ static void CL_InitLocal(void)
     info_password = Cvar_Get("password", "", CVAR_USERINFO);
     info_spectator = Cvar_Get("spectator", "0", CVAR_USERINFO);
     info_name = Cvar_Get("name", "Q2RTXPerimental", CVAR_USERINFO | CVAR_ARCHIVE);
-    info_skin = Cvar_Get("skin", "male/grunt", CVAR_USERINFO | CVAR_ARCHIVE);
+    info_skin = Cvar_Get("skin", "testdummy/skin", CVAR_USERINFO | CVAR_ARCHIVE);
     info_rate = Cvar_Get("rate", std::to_string( CLIENT_RATE_MIN ).c_str(), CVAR_USERINFO | CVAR_ARCHIVE );
     info_msg = Cvar_Get("msg", "1", CVAR_USERINFO | CVAR_ARCHIVE);
     info_hand = Cvar_Get("hand", "0", CVAR_USERINFO | CVAR_ARCHIVE);
     info_fov = Cvar_Get("fov", "75", CVAR_USERINFO | CVAR_ARCHIVE);
-    info_gender = Cvar_Get("gender", "male", CVAR_USERINFO | CVAR_ARCHIVE);
-    info_gender->modified = false; // clear this so we know when user sets it manually
+    //info_gender = Cvar_Get("gender", "male", CVAR_USERINFO | CVAR_ARCHIVE);
+    //info_gender->modified = false; // clear this so we know when user sets it manually
     info_uf = Cvar_Get("uf", "", CVAR_USERINFO);
 
 

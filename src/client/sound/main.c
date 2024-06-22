@@ -508,19 +508,22 @@ static sfx_t *S_RegisterSexedSound(int entnum, const char *base)
     char            buffer[MAX_QPATH];
 
     // determine what model the client is using
-    if (entnum > 0 && entnum <= MAX_CLIENTS)
-        model = cl.clientinfo[entnum - 1].model_name;
-    else
+    if ( entnum > 0 && entnum <= MAX_CLIENTS ) {
+        model = cl.clientinfo[ entnum - 1 ].model_name;
+    } else {
         model = cl.baseclientinfo.model_name;
+    }
 
     // if we can't figure it out, they're male
-    if (!*model)
-        model = "male";
+    if ( !*model ) {
+        model = "testdummy";
+    }
 
-    // see if we already know of the model specific sound
-    if (Q_concat(buffer, MAX_QPATH, "players/", model, "/", base + 1) >= MAX_QPATH
-        && Q_concat(buffer, MAX_QPATH, "players/", "male", "/", base + 1) >= MAX_QPATH)
+    // See if we already know of the model specific sound.
+    if ( Q_concat( buffer, MAX_QPATH, "players/", base + 1 ) >= MAX_QPATH
+        && Q_concat( buffer, MAX_QPATH, "players/", "/", base + 1 ) >= MAX_QPATH ) {
         return NULL;
+    }
 
     sfx = S_FindName(buffer, FS_NormalizePath(buffer));
 

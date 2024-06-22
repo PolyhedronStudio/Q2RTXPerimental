@@ -85,7 +85,6 @@ extern cvar_t *info_rate;// WID: C++20: Needed for linkage.
 extern cvar_t *info_fov;
 extern cvar_t *info_msg;
 extern cvar_t *info_hand;
-extern cvar_t *info_gender;
 extern cvar_t *info_uf;
 
 // Cheesy workaround for these two cvars initialized in client FX_Init

@@ -90,7 +90,6 @@ cvar_t *info_rate = nullptr;// WID: C++20: Needed for linkage.
 cvar_t *info_fov = nullptr;
 cvar_t *info_msg = nullptr;
 cvar_t *info_hand = nullptr;
-cvar_t *info_gender = nullptr;
 cvar_t *info_uf = nullptr;
 
 // Cheesy workaround for various cvars initialized elsewhere in the client, but we need access.
@@ -301,8 +300,8 @@ void PF_InitGame( void ) {
 	info_msg = clgi.CVar_Get( "msg", nullptr, 0 );
 	info_hand = clgi.CVar_Get( "hand", nullptr, 0 );
 	info_fov = clgi.CVar_Get( "fov", nullptr, 0 );
-	info_gender = clgi.CVar_Get( "gender", nullptr, 0 );
-	info_gender->modified = false; // clear this so we know when user sets it manually
+	//info_gender = clgi.CVar_Get( "gender", nullptr, 0 );
+	//info_gender->modified = false; // clear this so we know when user sets it manually
 	info_uf = clgi.CVar_Get( "uf", nullptr, 0 );
 
 	// Generate a random user name to avoid new users being kicked out of MP servers.

@@ -173,31 +173,31 @@ void player_pain(edict_t *self, edict_t *other, float kick, int damage)
 }
 
 
-bool IsFemale(edict_t *ent)
-{
-    char        *info;
-
-    if (!ent->client)
-        return false;
-
-    info = Info_ValueForKey(ent->client->pers.userinfo, "gender");
-    if (info[0] == 'f' || info[0] == 'F')
-        return true;
-    return false;
-}
-
-bool IsNeutral(edict_t *ent)
-{
-    char        *info;
-
-    if (!ent->client)
-        return false;
-
-    info = Info_ValueForKey(ent->client->pers.userinfo, "gender");
-    if (info[0] != 'f' && info[0] != 'F' && info[0] != 'm' && info[0] != 'M')
-        return true;
-    return false;
-}
+//bool IsFemale(edict_t *ent)
+//{
+//    char        *info;
+//
+//    if (!ent->client)
+//        return false;
+//
+//    info = Info_ValueForKey(ent->client->pers.userinfo, "gender");
+//    if (info[0] == 'f' || info[0] == 'F')
+//        return true;
+//    return false;
+//}
+//
+//bool IsNeutral(edict_t *ent)
+//{
+//    char        *info;
+//
+//    if (!ent->client)
+//        return false;
+//
+//    info = Info_ValueForKey(ent->client->pers.userinfo, "gender");
+//    if (info[0] != 'f' && info[0] != 'F' && info[0] != 'm' && info[0] != 'M')
+//        return true;
+//    return false;
+//}
 
 void ClientObituary(edict_t *self, edict_t *inflictor, edict_t *attacker)
 {
@@ -268,11 +268,11 @@ void ClientObituary(edict_t *self, edict_t *inflictor, edict_t *attacker)
                 //    message = "tried to put the pin back in";
                 //    break;
             //    default:
-                    if (IsNeutral(self))
-                        message = "killed itself";
-                    else if (IsFemale(self))
-                        message = "killed herself";
-                    else
+                    //if (IsNeutral(self))
+                    //    message = "killed itself";
+                    //else if (IsFemale(self))
+                    //    message = "killed herself";
+                    //else
                         message = "killed himself";
             //        break;
             // }
@@ -1137,7 +1137,7 @@ void PutClientInServer(edict_t *ent)
     ent->deadflag = DEAD_NO;
     ent->air_finished_time = level.time + 12_sec;
     ent->clipmask = static_cast<contents_t>( MASK_PLAYERSOLID );
-    ent->model = "players/male/tris.md2";
+    ent->model = "players/testdummy/tris.iqm";
     ent->pain = player_pain;
     ent->die = player_die;
     ent->liquidInfo.level = liquid_level_t::LIQUID_NONE;

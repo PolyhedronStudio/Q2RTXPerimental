@@ -19,8 +19,21 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
     //   
     // If client entity, use predicted origin instead of Lerped:
     if ( CLG_IsFrameClientEntity( newState ) ) {
-        VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->origin );
-        VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->oldorigin );
+        // We actually need to offset the Z axis origin by half the bbox height.
+        Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
+        // For being Dead:
+        if ( clgi.client->predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
+            correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
+        // For being Ducked:
+        } else if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
+            correctedOrigin.z += PM_BBOX_DUCKED_MINS.z;
+        } else {
+            correctedOrigin.z += PM_BBOX_STANDUP_MINS.z;
+        }
+
+        // Now apply the corrected origin to our refresh entity.
+        VectorCopy( correctedOrigin, refreshEntity->origin );
+        VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
     // Lerp Origin:
     } else {
         Vector3 cent_origin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );

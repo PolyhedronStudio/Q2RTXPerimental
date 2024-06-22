@@ -193,13 +193,23 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
 
     // model file
     Q_concat( model_filename, sizeof( model_filename ),
-        "players/", model_name, "/tris.md2" );
+        "players/", model_name, "/tris.iqm" );
     ci->model = clgi.R_RegisterModel( model_filename );
-    if ( !ci->model && Q_stricmp( model_name, "male" ) ) {
-        strcpy( model_name, "male" );
-        strcpy( model_filename, "players/male/tris.md2" );
+    if ( !ci->model && Q_stricmp( model_name, "testdummy" ) ) {
+        strcpy( model_name, "testdummy" );
+        strcpy( model_filename, "players/testdummy/tris.iqm" );
         ci->model = clgi.R_RegisterModel( model_filename );
     }
+
+    //// model file
+    //Q_concat( model_filename, sizeof( model_filename ),
+    //    "players/", model_name, "/tris.md2" );
+    //ci->model = clgi.R_RegisterModel( model_filename );
+    //if ( !ci->model && Q_stricmp( model_name, "male" ) ) {
+    //    strcpy( model_name, "male" );
+    //    strcpy( model_filename, "players/male/tris.md2" );
+    //    ci->model = clgi.R_RegisterModel( model_filename );
+    //}
 
     // skin file
     Q_concat( skin_filename, sizeof( skin_filename ),
@@ -208,34 +218,34 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
 
     // if we don't have the skin and the model was female,
     // see if athena skin exists
-    if ( !ci->skin && !Q_stricmp( model_name, "female" ) ) {
-        strcpy( skin_name, "athena" );
-        strcpy( skin_filename, "players/female/athena.pcx" );
+    if ( !ci->skin && !Q_stricmp( model_name, "testdummy" ) ) {
+        strcpy( skin_name, "testdummy" );
+        strcpy( skin_filename, "players/testdummy/skin.pcx" );
         ci->skin = clgi.R_RegisterSkin( skin_filename );
     }
 
-    // if we don't have the skin and the model wasn't male,
-    // see if the male has it (this is for CTF's skins)
-    if ( !ci->skin && Q_stricmp( model_name, "male" ) ) {
-        // change model to male
-        strcpy( model_name, "male" );
-        strcpy( model_filename, "players/male/tris.md2" );
-        ci->model = clgi.R_RegisterModel( model_filename );
+    //// if we don't have the skin and the model wasn't male,
+    //// see if the male has it (this is for CTF's skins)
+    //if ( !ci->skin && Q_stricmp( model_name, "male" ) ) {
+    //    // change model to male
+    //    strcpy( model_name, "male" );
+    //    strcpy( model_filename, "players/male/tris.md2" );
+    //    ci->model = clgi.R_RegisterModel( model_filename );
 
-        // see if the skin exists for the male model
-        Q_concat( skin_filename, sizeof( skin_filename ),
-            "players/male/", skin_name, ".pcx" );
-        ci->skin = clgi.R_RegisterSkin( skin_filename );
-    }
+    //    // see if the skin exists for the male model
+    //    Q_concat( skin_filename, sizeof( skin_filename ),
+    //        "players/male/", skin_name, ".pcx" );
+    //    ci->skin = clgi.R_RegisterSkin( skin_filename );
+    //}
 
-    // if we still don't have a skin, it means that the male model
-    // didn't have it, so default to grunt
-    if ( !ci->skin ) {
-        // see if the skin exists for the male model
-        strcpy( skin_name, "grunt" );
-        strcpy( skin_filename, "players/male/grunt.pcx" );
-        ci->skin = clgi.R_RegisterSkin( skin_filename );
-    }
+    //// if we still don't have a skin, it means that the male model
+    //// didn't have it, so default to grunt
+    //if ( !ci->skin ) {
+    //    // see if the skin exists for the male model
+    //    strcpy( skin_name, "grunt" );
+    //    strcpy( skin_filename, "players/male/grunt.pcx" );
+    //    ci->skin = clgi.R_RegisterSkin( skin_filename );
+    //}
 
     // Viewmodel files:
     for ( i = 0; i < precache.numViewModels; i++ ) {

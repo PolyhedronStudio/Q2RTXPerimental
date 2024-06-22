@@ -556,9 +556,9 @@ void PF_ParsePlayerSkin( char *name, char *model, char *skin, const char *s ) {
     // isolate the skin name
     strcpy( skin, t + 1 );
 
-    // fix empty model to male
+    // fix empty model to testdummy
     if ( t == model ) {
-        strcpy( model, "male" );
+        strcpy( model, "testdummy" );
     }
 
     // apply restrictions on skins
@@ -574,11 +574,11 @@ void PF_ParsePlayerSkin( char *name, char *model, char *skin, const char *s ) {
 
 default_skin:
     if ( !Q_stricmp( model, "female" ) ) {
-        strcpy( model, "female" );
-        strcpy( skin, "athena" );
+        strcpy( model, "testdummy" );
+        strcpy( skin, "skin" );
     } else {
 default_model:
-        strcpy( model, "male" );
-        strcpy( skin, "grunt" );
+        strcpy( model, "testdummy" );
+        strcpy( skin, "skin" );
     }
 }

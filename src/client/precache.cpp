@@ -195,7 +195,7 @@ void CL_PrepRefresh(void)
         CL_LoadClientinfo(&cl.clientinfo[i], name);
     }
 
-    CL_LoadClientinfo(&cl.baseclientinfo, "unnamed\\male/grunt");
+    CL_LoadClientinfo(&cl.baseclientinfo, "unnamed\\testdummy");
 
     // set sky textures and speed
     CL_SetSky();
