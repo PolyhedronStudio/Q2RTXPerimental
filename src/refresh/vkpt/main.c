@@ -1595,10 +1595,12 @@ static pbr_material_t const * get_mesh_material(const entity_t* entity, const ma
 	}
 
 	int skinnum = 0;
-	if (mesh->materials[entity->skinnum])
+	// WID: Ensure skinnum is within bounds of numskins and thus the size of mesh->materials.
+	if ( entity->skinnum < mesh->numskins && mesh->materials[ entity->skinnum ] ) {
 		skinnum = entity->skinnum;
+	}
 
-	return mesh->materials[skinnum];
+	return mesh->materials[ skinnum ];
 }
 
 typedef struct {

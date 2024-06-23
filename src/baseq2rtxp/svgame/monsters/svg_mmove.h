@@ -213,11 +213,6 @@ const trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const V
 **/
 const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, edict_t *passEntity, contents_t contentMask = CONTENTS_NONE );
 
-/**
-*	@brief	Clips the velocity to surface normal.
-**/
-void SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
-
 
 
 /**

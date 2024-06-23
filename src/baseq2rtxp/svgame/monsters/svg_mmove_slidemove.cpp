@@ -65,20 +65,31 @@ static constexpr float MM_STOP_EPSILON = 0.1f;
 /**
 *	@brief	Clips the velocity to surface normal.
 **/
-void SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce ) {
-	float   backoff;
-	float   change;
-	int     i;
+const int32_t SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce ) {
+	// Whether we're actually blocked or not.
+	int32_t blocked = MM_VELOCITY_CLIPPED_NONE;
+	// If the plane that is blocking us has a positive z component, then assume it's a floor.
+	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
+		blocked |= MM_VELOCITY_CLIPPED_FLOOR;
+	}
+	// If the plane has no Z, it is vertical Wall/Step:
+	if ( normal.z == 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
+		blocked |= MM_VELOCITY_CLIPPED_WALL_OR_STEP;
+	}
+	// Determine how far to slide based on the incoming direction.
+	// Finish it by scaling with overBounce factor.
+	const float backoff = QM_Vector3DotProduct( in, normal ) * overbounce;
 
-	backoff = QM_Vector3DotProduct( in, normal ) * overbounce;
-
-	for ( i = 0; i < 3; i++ ) {
-		change = normal[ i ] * backoff;
+	for ( int32_t i = 0; i < 3; i++ ) {
+		const float change = normal[ i ] * backoff;
 		out[ i ] = in[ i ] - change;
 		if ( out[ i ] > -MM_STOP_EPSILON && out[ i ] < MM_STOP_EPSILON ) {
 			out[ i ] = 0;
 		}
 	}
+
+	// Return blocked by flag(s).
+	return blocked;
 }
 
 /**

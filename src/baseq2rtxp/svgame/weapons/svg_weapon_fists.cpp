@@ -166,10 +166,11 @@ void Weapon_Fists( edict_t *ent, const bool processUserInputOnly ) {
     const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &fistsItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
 
     // If IDLE or NOT ANIMATING, process user input.
-    if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE || isDoneAnimating 
+    if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE 
+        || isDoneAnimating 
         || processUserInputOnly == true ) {
-        // Respond to user input, which determines whether 
-        Weapon_Fists_ProcessUserInput( ent );
+            // Respond to user input, which determines whether 
+            Weapon_Fists_ProcessUserInput( ent );
     }
 
     // Primary Fire, throws a left punch fist.

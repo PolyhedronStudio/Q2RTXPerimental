@@ -1656,7 +1656,6 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
 **/
 void ClientThink(edict_t *ent, usercmd_t *ucmd)
 {
-    gclient_t   *client = nullptr;
     edict_t     *other = nullptr;
     
 	// Configure pmove.
@@ -1665,15 +1664,13 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 	SG_ConfigurePlayerMoveParameters( &pmp );
 
     level.current_entity = ent;
-    client = ent->client;
+    gclient_t *client = ent->client;
 
     // [Paril-KEX] pass buttons through even if we are in intermission or
     // chasing.
     client->oldbuttons = client->buttons;
     client->buttons = ucmd->buttons;
     client->latched_buttons |= client->buttons & ~client->oldbuttons;
-    //client->oldbuttons
-    //client->cmd = *ucmd;
 
     /**
     *   Level Intermission Path:

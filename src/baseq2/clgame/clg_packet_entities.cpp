@@ -418,7 +418,7 @@ void CLG_AddPacketEntities( void ) {
             ent.alpha = 0.30f;
             ent.skinnum = ( s1->skinnum >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
             ent.model = 0;
-            // Assume that this is thus not a beam, but an alias model entity instead:
+        // Assume that this was somehow not a beam, but an alias model entity instead:
         } else {
             CLG_PacketEntity_SetModelAndSkin( cent, &ent, s1, renderfx );
         }
@@ -439,9 +439,6 @@ void CLG_AddPacketEntities( void ) {
 
         // Calculate Angles, lerp if needed.
         CLG_PacketEntity_LerpAngles( cent, &ent, s1, effects, autorotate );
-
-
-        //int base_entity_flags = 0; // WID: C++20: Moved to the top of function.
 
         // Reset the base refresh entity flags.
         base_entity_flags = 0; // WID: C++20: Make sure to however, reset it to 0.

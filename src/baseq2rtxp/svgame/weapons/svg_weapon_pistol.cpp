@@ -262,13 +262,13 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         /**
         *   Letting go of 'Secondary Fire': "Aim Out" of isAiming Mode:
         **/
-        if ( !( ent->client->buttons & BUTTON_SECONDARY_FIRE ) && 
-            ent->client->weaponState.mode != WEAPON_MODE_AIM_OUT ) {
-                P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeAnimations, false );
-                // Restore the original FOV.
-                P_ResetPlayerStateFOV( ent->client );
-                //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
-
+        if ( !( ent->client->buttons & BUTTON_SECONDARY_FIRE )
+                && ent->client->weaponState.mode != WEAPON_MODE_AIM_OUT ) {
+            // Switch to aim out mode.
+            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeAnimations, false );
+            // Restore the original FOV.
+            P_ResetPlayerStateFOV( ent->client );
+            //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
         /**
         *   Firing 'Primary Fire' of isAiming Mode:
         **/
@@ -419,10 +419,10 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
     // If IDLE or NOT ANIMATING, or PRIMARY_FIRING, process user input.
     if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE
         || ent->client->weaponState.mode == WEAPON_MODE_PRIMARY_FIRING 
-        || isDoneAnimating || processUserInputOnly == true ) {
-
-        // Respond to user input, which determines whether 
-        Weapon_Pistol_ProcessUserInput( ent );
+        || isDoneAnimating 
+        || processUserInputOnly == true ) {
+            // Respond to user input, which determines whether 
+            Weapon_Pistol_ProcessUserInput( ent );
     }
 
     /**

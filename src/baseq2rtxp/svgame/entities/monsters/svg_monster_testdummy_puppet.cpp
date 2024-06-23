@@ -201,21 +201,34 @@ void monster_testdummy_puppet_think( edict_t *self ) {
             int32_t rootMotionFrame = self->s.frame - rootMotion->firstFrameIndex;
 
             // Get the distance for the frame:
-            // WID: This is exact, but looks odd if you want faster paced gameplay.
-            //float distance = rootMotion->distances[ rootMotionFrame ];
-            // WID: This is quite 'average':
-            //float distance = ( rootMotion->totalDistance ) * ( 1.0f / rootMotion->frameCount );
-            // WID: Try and accustom to Velocity 'METHOD':
-            // Base Velocity.
-            constexpr float speed = 350.f;
-            // Determine distance to traverse based on Base Velocity.
-            float distance = ( ( speed / rootMotion->frameCount ) * ( rootMotion->frameCount / rootMotion->totalDistance ) );
+            #if 1
+                // WID: This is exact, but looks odd if you want faster paced gameplay.
+                float distance = rootMotion->distances[ rootMotionFrame ];
+                // WID: This is quite 'average':
+                //float distance = ( rootMotion->totalDistance ) * ( 1.0f / rootMotion->frameCount );
+                // WID: Try and accustom to Velocity 'METHOD':
+            #else
+                // WID: Works also, somewhat.
+                #if 0
+                    // Base Velocity.
+                    constexpr float speed = 250.f;
+                    constexpr float maxSpeed = 325.f;
+                    float distance = QM_Normalizef( speed / rootMotion->frameCount, 0, maxSpeed );
+                    distance *= speed;
+                // WID: This one actually is the best attempt so far.
+                #else
+                    // Base Velocity.
+                    constexpr float speed = 250.f;
+                    // Determine distance to traverse based on Base Velocity.
+                    float distance = ( ( speed / rootMotion->frameCount ) * ( rootMotion->frameCount / rootMotion->totalDistance ) );
+                #endif
+            #endif
 
             // Calculate ideal yaw to turn into.
             self->ideal_yaw = QM_Vector3ToYaw(
                 QM_Vector3Normalize( Vector3( self->activator->s.origin ) - Vector3(self->s.origin) )
             );
-            // Setup decent yaw speed.
+            // Setup decent yaw turning speed.
             self->yaw_speed = 10;
 
             // Move yaw a frame into ideal yaw position.
@@ -226,7 +239,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
             Vector3 frameVelocity = {
                 cos( self->s.angles[ YAW ] * QM_DEG2RAD ) * distance,
                 sin( self->s.angles[ YAW ] * QM_DEG2RAD ) * distance,
-                0
+                entityVelocity.z
             };
             // If not onground, zero out the frameVelocity.
             if ( self->groundInfo.entity == nullptr ) {

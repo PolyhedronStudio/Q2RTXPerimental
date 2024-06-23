@@ -15,6 +15,14 @@ static constexpr float PM_MIN_STEP_NORMAL = 0.7f;
 //! Minimal Z Normal for testing whether something is legitimately a "WALL".
 static constexpr float PM_MIN_WALL_NORMAL_Z = 0.03125;
 
+
+//! Velocity has not been clipped by a Floor, nor any Wall/Step.
+static constexpr int32_t PM_VELOCITY_CLIPPED_NONE = BIT( 0 );
+//! Velocity has been clipped by a Floor.
+static constexpr int32_t PM_VELOCITY_CLIPPED_FLOOR = BIT( 1 );
+//! Velocity has been clipped by a Wall/Step.
+static constexpr int32_t PM_VELOCITY_CLIPPED_WALL_OR_STEP = BIT( 2 );
+
 /**
 *	@brief	Clips trace against world only.
 **/
@@ -28,7 +36,7 @@ const trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3
 /**
 *	@brief	Clips the velocity to surface normal.
 **/
-void PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
+const int32_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
 
 /**
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,

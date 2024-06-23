@@ -213,7 +213,7 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
                     refreshEntity->model = clgi.client->baseclientinfo.weaponmodel[ 0 ];
                 }
             }
-            // Regular 2nd model index.
+        // Regular 2nd model index.
         } else {
             refreshEntity->model = clgi.client->model_draw[ newState->modelindex2 ];
         }

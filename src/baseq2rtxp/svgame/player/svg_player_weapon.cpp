@@ -503,7 +503,7 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
         ent->client->weaponState.animation.endFrame,
         0, false );
     // Debug
-    gi.dprintf( "%s: gunFrame(%i)\n", __func__, newWeaponFrame );
+    //gi.dprintf( "%s: gunFrame(%i)\n", __func__, newWeaponFrame );
     int32_t gunFrame = ( newWeaponFrame >= 0 ? newWeaponFrame : oldWeaponFrame );
 #else
     // WID: User responsive approach:

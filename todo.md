@@ -32,6 +32,8 @@ Features being looked forward on implementation.
 * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
 
 ### Low Priority:
+* [ ] In common/messaging.cpp there are debug outputs for printing which bits are sent,
+	  in some cases these need to have a game API callback also.
 * [ ] For weapon items, move quantity etc from gitem_t into this struct.
 * [X] Implement something utilizing ET_BEAM.
 * [ ] Fix game loop in client main for CLGame so it is 40hz but does not stall either.
@@ -113,7 +115,7 @@ And here a list of things that I keep an eye out and/or may (fail multiple times
 - [X] Rename ``svgame/g_*`` to ``svgame/svg_*`` and put ``p_*`` files inside ``svgame/player``, ``m_`` files inside ``svgame/monsters/``
 	  move weapons into player folder as a subfolder.
 
-- [ ] Remove the whole player gender thing. Wtf...
+- [X] Remove the whole player gender thing. Wtf...
 
 - [ ] The NetCode Mysteries:
 	- [ ] We want bitstreaming to save up massive amounts of packet space.
@@ -126,7 +128,7 @@ And here a list of things that I keep an eye out and/or may (fail multiple times
 - [ ] The IQM Animation Scenario:
 	- [X] 0. Add in proper usage of entity type and adjust the client code to handle adding packet entities based on its type.
 			 This will simplify life in the future.
-	- [ ] 1. Weapon code should use ``PlayAnimation("anim_name")``, or precache animIDs ``GetAnimationHandle("anim_name")``.
+	- [X] 1. Weapon code should use ``PlayAnimation("anim_name")``, or precache animIDs ``GetAnimationHandle("anim_name")``.
 	- [ ] 2. Monster code should use Play/Get-Anim, and have actions linked to those consequently.
 	- [ ] 3. If ``entity type == MONSTER || PLAYER`` the net code needs to be adjusted so that 'frame' encodes/decodes animationIDs for each specific
 			 body part. 8 bits per part, means 24 bits and leaves 8 free bits for other uses.

@@ -653,7 +653,7 @@ void MSG_ShowDeltaUserCommandBits( const int32_t bits ) {
 	S( SIDE, "side" );
 	S( UP, "up" );
 	S( BUTTONS, "buttons" );
-	S( IMPULSE, "msec" );
+	S( IMPULSE, "impulse" );
 	#undef S
 }
 const char *MSG_ServerCommandString( const int32_t cmd ) {

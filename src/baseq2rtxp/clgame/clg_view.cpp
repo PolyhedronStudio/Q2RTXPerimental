@@ -234,6 +234,7 @@ static void CLG_AddViewWeapon( void ) {
     } else {
         gun.model = clgi.client->model_draw[ ps->gunindex ];
     }
+
     if ( !gun.model ) {
         return;
     }
