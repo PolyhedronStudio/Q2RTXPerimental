@@ -472,7 +472,7 @@ typedef struct gitem_s {
     void        ( *drop )( struct edict_s *ent, const struct gitem_s *item );
 
     //! WeaponThink Callback.
-    void        ( *weaponthink )( struct edict_s *ent );
+    void        ( *weaponthink )( struct edict_s *ent, const bool processUserInputOnly );
 
     //! Path: Pickup Sound.
 	const char	*pickup_sound; // WID: C++20: Added const.
@@ -1038,7 +1038,7 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
 /**
 *   @brief
 **/
-void P_Weapon_Think( edict_t *ent );
+void P_Weapon_Think( edict_t *ent, const bool processUserInputOnly );
 
 
 //

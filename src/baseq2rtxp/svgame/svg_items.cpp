@@ -22,9 +22,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 //void Weapon_Blaster(edict_t *ent);
 //void Weapon_Shotgun(edict_t *ent);
-void Weapon_Fists( edict_t *ent );
+void Weapon_Fists( edict_t *ent, const bool processUserInputOnly );
 void Weapon_Fists_Precached( const gitem_t *item );
-void Weapon_Pistol( edict_t *ent );
+void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly );
 void Weapon_Pistol_Precached( const gitem_t *item );
 //void Weapon_SuperShotgun(edict_t *ent);
 //void Weapon_Machinegun(edict_t *ent);

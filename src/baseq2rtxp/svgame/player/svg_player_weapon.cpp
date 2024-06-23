@@ -159,7 +159,7 @@ void P_Weapon_Change(edict_t *ent) {
     // Determine some other needed things.
     const bool isAiming = ent->client->weaponState.aimState.isAiming;
     const bool isHolsterMode = ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING );
-    const bool isAnimationFinished = ( ent->client->weaponState.animation.currentFrame >= ent->client->weaponState.animation.endFrame );
+    const bool isAnimationFinished = ( ent->client->weaponState.animation.currentTime >= ent->client->weaponState.animation.endTime ); //( ent->client->weaponState.animation.currentFrame >= ent->client->weaponState.animation.endFrame );
 
     /**
     *   Bit of an ugly ... approach, I'll admit that, but it still beats the OG vanilla code.
@@ -490,43 +490,47 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
     // Update the weapon's current time.
     ent->client->weaponState.animation.currentTime = level.time;
 
-    #if 0
+#if 1
     // WID: This is actually what we should be doing. However we don't, because it messes with
     // the feeling of responsiveness for client user command thinking.
     // Calculate the weapon's frame for the current moment in time.
-    //const int32_t oldWeaponFrame = ent->client->weaponState.animation.currentFrame;
-    //int32_t weaponFrame = 0;
-    //const double frameFraction = SG_FrameForTime( &weaponFrame, level.time, 
-    //    ent->client->weaponState.animation.startTime, 
-    //    25,
-    //    ent->client->weaponState.animation.startFrame,
-    //    ent->client->weaponState.animation.endFrame,
-    //    0, false );
+    const int32_t oldWeaponFrame = ent->client->weaponState.animation.currentFrame;
+    int32_t newWeaponFrame = 0;
+    const double frameFraction = SG_FrameForTime( &newWeaponFrame, level.time,
+        ent->client->weaponState.animation.startTime, 
+        BASE_FRAMETIME,
+        ent->client->weaponState.animation.startFrame,
+        ent->client->weaponState.animation.endFrame,
+        0, false );
     // Debug
-    //gi.dprintf( "%s: gunFrame(%i)\n", __func__, weaponFrame );
-    //int32_t gunFrame = ( weaponFrame >= 0 ? weaponFrame : ent->client->weaponState.animation.currentFrame );
-    #else
+    gi.dprintf( "%s: gunFrame(%i)\n", __func__, newWeaponFrame );
+    int32_t gunFrame = ( newWeaponFrame >= 0 ? newWeaponFrame : oldWeaponFrame );
+#else
     // WID: User responsive approach:
     // Get current gunframe.
     int32_t gunFrame = ent->client->weaponState.animation.currentFrame;
     // Increment.
     gunFrame++;
-    #endif
+#endif
 
     // Determine whether we are finished processing the mode.
-    #if 0
-    //if ( level.time >= ent->client->weaponState.animation.endTime /*|| ( gunFrame == -1 || frameFraction == 1 )*/ ) {
-    #else
-    if ( gunFrame > ent->client->weaponState.animation.endFrame ) {
-    #endif
+#if 1
+    // Enough time has passed:
+    if ( ent->client->weaponState.animation.currentTime >= ent->client->weaponState.animation.endTime 
+        // Or the animation has finished playing in general, stalling at its endFrame.
+        || ( gunFrame == -1 || frameFraction == 1 ) ) {
+#else
+        if ( gunFrame > ent->client->weaponState.animation.endFrame ) {
+#endif
         // Enable mode switching again.
         ent->client->weaponState.canChangeMode = true;
-        #if 0 
-        //ent->client->ps.gunframe = ent->client->weaponState.animation.currentFrame = ent->client->weaponState.animation.endFrame;
-        #else
+        // Apply gun frame.
+#if 1 
+        ent->client->ps.gunframe = ent->client->weaponState.animation.endFrame;
+#else
         // Keep gun frame in check.
         ent->client->ps.gunframe = ent->client->weaponState.animation.endFrame;
-        #endif
+#endif
         // Finished animating.
         return true;
     } else {
@@ -544,7 +548,7 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
 *   @brief  Perform the weapon's logical 'think' routine. This is Is either
 *           called by ClientBeginServerFrame or ClientThink.
 **/
-void P_Weapon_Think( edict_t *ent ) {
+void P_Weapon_Think( edict_t *ent, const bool processUserInputOnly ) {
     // If we just died, put the weapon away.
     if ( ent->health < 1 ) {
         // Select no weapon.
@@ -560,6 +564,6 @@ void P_Weapon_Think( edict_t *ent ) {
     const bool hasActiveWeapon = ( ent->client->pers.weapon != nullptr ? true : false );
     const bool hasThinkRoutine = ( hasActiveWeapon && ent->client->pers.weapon->weaponthink != nullptr ? true : false );
     if ( hasActiveWeapon && hasThinkRoutine ) {
-        ent->client->pers.weapon->weaponthink( ent );
+        ent->client->pers.weapon->weaponthink( ent, processUserInputOnly );
     }
 }

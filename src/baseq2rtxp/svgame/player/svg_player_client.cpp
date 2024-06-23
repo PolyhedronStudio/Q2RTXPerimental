@@ -1879,7 +1879,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     **/
     } else {
         // Check whether to engage switching to a new weapon.
-        if ( client->newweapon && !client->resp.spectator ) {
+        if ( client->newweapon ) {
             //if ( client->weaponState.mode == WEAPON_MODE_IDLE ) {
             P_Weapon_Change( ent );
             //}
@@ -1887,9 +1887,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
         // Process weapon thinking.
         //if ( ent->client->weapon_thunk == false ) {
-        P_Weapon_Think( ent );
-        // Store that we thought for this frame.
-        ent->client->weapon_thunk = true;
+            P_Weapon_Think( ent, true );
+            // Store that we thought for this frame.
+            ent->client->weapon_thunk = true;
         //}
     }
 
@@ -1960,8 +1960,8 @@ void ClientBeginServerFrame(edict_t *ent)
     /**
     *   Run weapon logic if it hasn't been done by a usercmd_t in ClientThink.
     **/
-    if ( client->weapon_thunk == false ) {
-        P_Weapon_Think( ent );
+    if ( client->weapon_thunk == false && !client->resp.spectator ) {
+        P_Weapon_Think( ent, false );
     } else {
         client->weapon_thunk = false;
     }

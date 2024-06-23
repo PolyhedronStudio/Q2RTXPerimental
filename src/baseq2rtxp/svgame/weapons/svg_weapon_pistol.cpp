@@ -262,16 +262,17 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         /**
         *   Letting go of 'Secondary Fire': "Aim Out" of isAiming Mode:
         **/
-        if ( !( ent->client->buttons & BUTTON_SECONDARY_FIRE ) ) {
-            //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
-            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeAnimations, false );
-            // Restore the original FOV.
-            P_ResetPlayerStateFOV( ent->client );
-        }
+        if ( !( ent->client->buttons & BUTTON_SECONDARY_FIRE ) && 
+            ent->client->weaponState.mode != WEAPON_MODE_AIM_OUT ) {
+                P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeAnimations, false );
+                // Restore the original FOV.
+                P_ResetPlayerStateFOV( ent->client );
+                //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
+
         /**
         *   Firing 'Primary Fire' of isAiming Mode:
         **/
-        if ( ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) ) {
+        } else if ( ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) ) {
             // Switch to Firing mode if we have Clip Ammo:
             if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
                 //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
@@ -307,34 +308,36 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         /**
         *   Pressing 'Secondary Fire': "Aim In" to engage for 'isAiming' Mode:
         **/
-        if ( ( ent->client->buttons & BUTTON_SECONDARY_FIRE ) ) {
-            //gi.dprintf( "%s: NOT isAiming -> SwitchMode( WEAPON_MODE_AIM_IN )\n", __func__ );
-            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeAnimations, false );
-            ent->client->ps.fov = 45;
+        if ( ( ent->client->buttons & BUTTON_SECONDARY_FIRE ) && ent->client->weaponState.mode != WEAPON_MODE_AIM_IN ) {
+            if ( ent->client->weaponState.aimState.isAiming == false ) {
+                //gi.dprintf( "%s: NOT isAiming -> SwitchMode( WEAPON_MODE_AIM_IN )\n", __func__ );
+                P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeAnimations, false );
+                ent->client->ps.fov = 45;
+            }
 
             return;
-        }
 
         /**
         *   @brief  Primary Fire Button Implementation:
         **/
-        if ( ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) /*&& ( ent->client->buttons & BUTTON_ATTACK )*/ ) {
+        } else if ( ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) /*&& ( ent->client->buttons & BUTTON_ATTACK )*/ ) {
             // Switch to Firing mode if we have Clip Ammo:
             if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
                 // Allow for rapidly firing, causing an increase in recoil.
                 const sg_time_t &timeLastPrimaryFire = weaponState->timers.lastPrimaryFire;
 
+                sg_time_t recoilTime = level.time - timeLastPrimaryFire;
                 // When a shot is fired right after 75_ms(first 3 frames of the weapon.)
-                sg_time_t timeRecoilStageA = timeLastPrimaryFire + 100_ms;
+                sg_time_t timeRecoilStageA = 75_ms;
                 // When a shot is fired right after 150_ms.(after first 3 frames, up to the 6th frame.)
-                sg_time_t timeRecoilStageB = timeLastPrimaryFire + 175_ms;
+                sg_time_t timeRecoilStageB = 150_ms;
                 // When a shot is fired right after 150_ms.(after first 3 frames, up to the 6th frame.)
-                sg_time_t timeRecoilStageC = timeLastPrimaryFire + 250_ms;
+                sg_time_t timeRecoilStageC = 225_ms;
                 // When a shot is fired right after 150_ms.(350_ms is the last frame of firing.)
-                sg_time_t timeRecoilStageCap = timeLastPrimaryFire + 350_ms;
+                sg_time_t timeRecoilStageCap = 350_ms;
 
                 // Fire for stage A:
-                if ( level.time >= timeRecoilStageA && level.time < timeRecoilStageB ) {
+                if ( recoilTime < timeRecoilStageA ) {
                     // Add recoil.
                     Weapon_Pistol_AddRecoil( weaponState, 0.35f, level.time - timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
@@ -342,20 +345,28 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: A [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
                 // Fire for stage B:
-                } else if ( level.time >= timeRecoilStageB && level.time < timeRecoilStageC ) {
+                } else if ( recoilTime < timeRecoilStageB ) {
                     // Add recoil.
                     Weapon_Pistol_AddRecoil( weaponState, 0.25f, level.time - timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
                     P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: B [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );                // Fire for stage C:
-                } else if ( level.time >= timeRecoilStageC && level.time <= timeRecoilStageCap ) {
+                } else if ( recoilTime < timeRecoilStageC ) {
                     // Add recoil.
                     Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
                     P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: C [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
+                } else if ( recoilTime < timeRecoilStageCap ) {
+                    // Add recoil.
+                    Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageA );
+                    // Engage FORCEFULLY in another Primary Firing mode.
+                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
+                    // Output total
+                    //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: C [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
+                    // 
                 // The player waited long enough to fire steady again:
                 } else {
                     // Reset recoil.
@@ -401,19 +412,15 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
 /**
 *   @brief  Pistol Weapon 'State Machine'.
 **/
-void Weapon_Pistol( edict_t *ent ) {
+void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
     // Process the animation frames of the mode we're in.
     const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &pistolItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
-
-    // If done animating, switch back to idle mode.
-    //if ( isDoneAnimating ) {
-    //    P_Weapon_SwitchMode( ent, WEAPON_MODE_IDLE, pistolAnimationFrames, true );
-    //}
 
     // If IDLE or NOT ANIMATING, or PRIMARY_FIRING, process user input.
     if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE
         || ent->client->weaponState.mode == WEAPON_MODE_PRIMARY_FIRING 
-        || isDoneAnimating ) {
+        || isDoneAnimating || processUserInputOnly == true ) {
+
         // Respond to user input, which determines whether 
         Weapon_Pistol_ProcessUserInput( ent );
     }
@@ -439,7 +446,7 @@ void Weapon_Pistol( edict_t *ent ) {
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_OUT ) {
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
             // any earlier/double firing.
-            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame ) {
+            if ( ent->client->weaponState.animation.endTime == level.time ) {
                 // Disengage aiming state.
                 ent->client->weaponState.aimState = {};
             }
@@ -459,27 +466,32 @@ void Weapon_Pistol( edict_t *ent ) {
                     // Store the time we last 'primary fired'.
                     ent->client->weaponState.timers.lastPrimaryFire = level.time;
                 }
-            }
-
-            // Reset recoil after enough time has passed.
-            if ( ent->client->weaponState.timers.lastPrimaryFire < level.time - 350_ms ) {
-                ent->client->weaponState.recoil.accumulatedTime = sg_time_t::from_ms( 0 );
-                ent->client->weaponState.recoil.amount = 0.f;
+            } else {
+                // Reset recoil after enough time has passed.
+                //if ( ent->client->weaponState.timers.lastPrimaryFire < level.time 
+                //    && level.time > ent->client->weaponState.animation.endTime ) {
+                if ( ent->client->weaponState.animation.endTime <= level.time ) {
+                    ent->client->weaponState.recoil.accumulatedTime = sg_time_t::from_ms( 0 );
+                    ent->client->weaponState.recoil.amount = 0.f;
+                }
             }
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN ) {
             // Set the isAiming state value for aiming specific behavior to true right at the end of its animation.
-            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame ) {
+            if ( ent->client->weaponState.animation.endTime == level.time ) {
                 //! Engage aiming mode.
                 ent->client->weaponState.aimState.isAiming = true;
+                //! Maintain end frame.
+                ent->client->weaponState.animation.currentFrame = ent->client->weaponState.animation.endFrame;
             }
         // Reload Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_RELOADING ) {
             // Start playing clip reload sound. (Takes about the same duration as a pistol reload, 1 second.)
-            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
+            if ( ent->client->weaponState.animation.startTime == level.time ) {//ent->client->weaponState.animation.startFrame ) {
                 ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/reload.wav" );
             }
             // Stop audio and actually reload the clip stats at the end of the animation sequence.
-            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame - 1 ) {
+            //if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame - 1 ) {
+            if ( ent->client->weaponState.animation.endTime == level.time ) {
                 ent->client->weaponState.activeSound = 0;
                 weapon_pistol_reload_clip( ent );
             }

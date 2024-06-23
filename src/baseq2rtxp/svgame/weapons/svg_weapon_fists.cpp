@@ -161,12 +161,13 @@ static void Weapon_Fists_ProcessUserInput( edict_t *ent ) {
 /**
 *   @brief  Pistol Weapon 'State Machine'.
 **/
-void Weapon_Fists( edict_t *ent ) {
+void Weapon_Fists( edict_t *ent, const bool processUserInputOnly ) {
     // Process the animation frames of the mode we're in.
     const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &fistsItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
 
     // If IDLE or NOT ANIMATING, process user input.
-    if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE || isDoneAnimating ) {
+    if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE || isDoneAnimating 
+        || processUserInputOnly == true ) {
         // Respond to user input, which determines whether 
         Weapon_Fists_ProcessUserInput( ent );
     }

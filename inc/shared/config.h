@@ -58,10 +58,10 @@
 //#define BASE_FRAMETIME_1000     0.1f    // BASE_FRAMETIME/1000
 
 // Default Server FPS: 40hz
-#define BASE_FRAMERATE          40		// OLD: 10
-#define BASE_FRAMETIME          25		// OLD: 100		1000 / 10 = 100     NEW: 1000 / 40 = 25
-#define BASE_1_FRAMETIME        0.04f	// OLD: 0.01f   1/BASE_FRAMETIME
-#define BASE_FRAMETIME_1000     0.025f	// OLD: 0.1f  
+#define BASE_FRAMERATE          40		// OLD: 10 fps	NEW: 40fps
+#define BASE_FRAMETIME          25		// OLD: 100		NEW: 1000 / BASE_FRAMERATE = 25
+#define BASE_1_FRAMETIME        0.04f	// OLD: 0.01f   NEW: 1 / BASE_FRAMETIME
+#define BASE_FRAMETIME_1000     0.025f	// OLD: 0.1f	NEW: BASE_FRAMETIME / 1000
 
 
 /**
