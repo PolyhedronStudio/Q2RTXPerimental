@@ -13,7 +13,8 @@
 //! Uncomment for enabling second best hit plane tracing results.
 #define SECOND_PLANE_TRACE
 
-
+//! Enables proper speed clamping instead of going full stop if the PM_STOP_EPSILON is reached.
+#define PM_SLIDEMOVE_CLIPVELOCITY_CLAMPING
 
 /**
 *
@@ -74,6 +75,7 @@ const int32_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3
 	if ( normal.z == 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
 		blocked |= PM_VELOCITY_CLIPPED_WALL_OR_STEP;
 	}
+
 	// Determine how far to slide based on the incoming direction.
 	// Finish it by scaling with overBounce factor.
 	const float backoff = QM_Vector3DotProduct( in, normal ) * overbounce;
@@ -81,10 +83,22 @@ const int32_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3
 	for ( int32_t i = 0; i < 3; i++ ) {
 		const float change = normal[ i ] * backoff;
 		out[ i ] = in[ i ] - change;
+#ifndef PM_SLIDEMOVE_CLIPVELOCITY_CLAMPING
 		if ( out[ i ] > -PM_STOP_EPSILON && out[ i ] < PM_STOP_EPSILON ) {
 			out[ i ] = 0;
 		}
+#endif
 	}
+#ifdef PM_SLIDEMOVE_CLIPVELOCITY_CLAMPING
+	{
+		const float oldSpeed = QM_Vector3Length( in );
+		const float newSpeed= QM_Vector3Length( out );
+		if ( newSpeed > oldSpeed ) {
+			out = QM_Vector3Normalize( out );
+			out = QM_Vector3Scale( out, oldSpeed );
+		}
+	}
+#endif
 
 	// Return blocked by flag(s).
 	return blocked;

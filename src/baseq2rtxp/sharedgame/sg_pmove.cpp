@@ -22,6 +22,9 @@
 //! Defining this will enable 'material physics' such as per example: Taking the friction value from the ground material.
 #define PMOVE_USE_MATERIAL_FRICTION
 
+//! Defining this allows for HL like acceleration. Where friction is applied to the acceleration formula.
+//#define HL_LIKE_ACCELERATION
+
 /**
 *	@brief	Actual in-moment local move variables.
 *
@@ -488,6 +491,23 @@ static void PM_Accelerate( const Vector3 &wishDirection, const float wishSpeed, 
 	if ( addSpeed <= 0 ) {
 		return;
 	}
+
+// HL like acceleration.
+#ifdef HL_LIKE_ACCELERATION
+	float drop = 0;
+	float friction = 1;
+	if ( ( pm->ground.entity != nullptr && pml.ground.surface != nullptr && !( pml.ground.surface->flags & SURF_SLICK ) ) || ( ps->pmove.pm_flags & PMF_ON_LADDER ) ) {
+		// Get the material to fetch friction from.
+		cm_material_t *ground_material = ( pml.ground.surface != nullptr ? pml.ground.surface->material : nullptr );
+		friction = ( ground_material ? ground_material->physical.friction : 1 );
+		//const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+		//drop += control * friction * pml.frameTime;
+	}
+	float accelerationSpeed = acceleration * pml.frameTime * wishSpeed * friction;
+	if ( accelerationSpeed > addSpeed ) {
+		accelerationSpeed = addSpeed;
+	}
+#endif
 
 	float accelerationSpeed = acceleration * pml.frameTime * wishSpeed;
 	if ( accelerationSpeed > addSpeed ) {

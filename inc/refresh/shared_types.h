@@ -26,6 +26,22 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
+
+/**
+*
+*
+*
+*   Constants:
+*
+*
+*
+**/
+// Needed for IQM_MAX_JOINTS
+#include "format/iqm.h"
+//! Maximum joints for SKM configuration info.
+#define SKM_MAX_JOINTS IQM_MAX_JOINTS
+
+//! Refresh limits.
 #define MAX_DLIGHTS 32
 #define MAX_ENTITIES 8192 // == MAX_PACKET_ENTITIES * 2
 #define MAX_PARTICLES 16384
@@ -56,12 +72,32 @@ extern "C" {
 
 #define DLIGHT_CUTOFF 64
 
+
+
+/**
+*
+*   Sprite Model:
+*
+**/
+/**
+*   @brief
+**/
 typedef struct mspriteframe_s {
     int             width, height;
     int             origin_x, origin_y;
     struct image_s  *image;
 } mspriteframe_t;
 
+
+
+/**
+*
+*   Model Class and LightPoly:
+*
+**/
+/**
+*   @brief
+**/
 typedef enum
 {
 	MCLASS_REGULAR,
@@ -71,16 +107,40 @@ typedef enum
     MCLASS_STATIC_LIGHT,
     MCLASS_FLARE
 } model_class_t;
+/**
+*   @brief
+**/
+typedef struct light_poly_s {
+    float positions[ 9 ]; // 3x vec3_t
+    vec3_t off_center;
+    vec3_t color;
+    struct pbr_material_s *material;
+    int cluster;
+    int style;
+    float emissive_factor;
+} light_poly_t;
 
-typedef struct
-{
+
+
+/**
+*
+* 
+*   IQM Data:
+*
+* 
+**/
+/**
+*   @brief
+**/
+typedef struct {
 	vec3_t translate;
 	quat_t rotate;
 	vec3_t scale;
 } iqm_transform_t;
-
-typedef struct
-{
+/**
+*   @brief
+**/
+typedef struct {
 	char name[MAX_QPATH];
 	uint32_t first_frame;
 	uint32_t num_frames;
@@ -89,9 +149,10 @@ typedef struct
 	//bool loop;
 } iqm_anim_t;
 
-// inter-quake-model
-typedef struct
-{
+/**
+*   @brief  'Inter-Quake-Model'
+**/
+typedef struct {
 	uint32_t num_vertexes;
 	uint32_t num_triangles;
 	uint32_t num_frames;
@@ -122,7 +183,9 @@ typedef struct
 	iqm_anim_t* animations;
 } iqm_model_t;
 
-// inter-quake-model mesh
+/**
+*   @brief 'Inter-Quake-Model' Mesh.
+**/
 typedef struct iqm_mesh_s
 {
 	char name[MAX_QPATH];
@@ -133,16 +196,68 @@ typedef struct iqm_mesh_s
 	uint32_t first_influence, num_influences;
 } iqm_mesh_t;
 
-typedef struct light_poly_s {
-	float positions[9]; // 3x vec3_t
-	vec3_t off_center;
-	vec3_t color;
-	struct pbr_material_s* material;
-	int cluster;
-	int style;
-	float emissive_factor;
-} light_poly_t;
 
+
+/**
+*
+*
+*   Skeletal Model Configuration Data:
+*
+*
+**/
+/**
+*   @brief  Stores IQM bone information more conveniently for proper working access.
+**/
+typedef struct skm_config_bone_node_s {
+    //! Bone name.
+    char name[ MAX_QPATH ];
+    //! Bone Number (This is also the actual index inside the boneArray).
+    int32_t number;
+    //! Bone parent. (Usually not -1.)
+    int32_t parentNumber;
+
+    //! Pointer to parent bone. (nullptr if this is the root bone.)
+    skm_config_bone_node_t *parentBone;
+    //! Allocated array of child bones.
+    skm_config_bone_node_t *childBones;
+} skm_config_bone_node_t;
+
+/**
+*   @brief  Stores Skeletal Model data conveniently, sourced from the IQM mesh and
+*           an (optional but mostly required) '.skc' model configuration file.
+* 
+*           It stores a bone array for easy accessing bones by their number, as well
+*           as a dynamically allocated bone tree for iterative purposes.
+* 
+*           Also pre-calculated and stored are the rootmotion translation/distance for
+*           all frames per animation.
+**/
+typedef struct skm_config_s {
+    //! Stores the bones indexed by bone number, for quick access.
+    skm_config_bone_node_t boneArray[ SKM_MAX_JOINTS ];
+    //! This is the root bone node, for iterative purposes.
+    skm_config_bone_node_t boneTree;
+
+    //! Pointers to the root bones in the tree, for easy access.
+    struct {
+        //! For the 'RootMotion' system.
+        skm_config_bone_node_t *motion;
+
+        //! For the 'Head'(Well, head, duhh) bone.
+        skm_config_bone_node_t *head;
+        //! For the 'Torso'(Upper Body) bone.
+        skm_config_bone_node_t *torso;
+        //! For the 'Hip'(Lower Body) bone.
+        skm_config_bone_node_t *hip;
+    } rootBones;
+} skm_config_t;
+
+
+/**
+*
+*   Actual model_t data.
+*
+**/
 typedef struct model_s {
     enum {
         MOD_FREE,
@@ -157,10 +272,19 @@ typedef struct model_s {
     // alias models
     int numframes;
     struct maliasframe_s *frames;
-//#if USE_REF == REF_GL || USE_REF == REF_VKPT
+
+#if 0 // WID: We use this data structure on the server also, so we don't need these checks.
+    #if USE_REF == REF_GL || USE_REF == REF_VKPT
+        int nummeshes;
+        struct maliasmesh_s *meshes;
+	    model_class_t model_class;
+    #endif
+#else
     int nummeshes;
     struct maliasmesh_s *meshes;
-	model_class_t model_class;
+    model_class_t model_class;
+    #endif
+#endif
 //#else
 //    int numskins;
 //    struct image_s *skins[MAX_ALIAS_SKINS];
@@ -178,57 +302,101 @@ typedef struct model_s {
 	bool sprite_vertical;
 
 	iqm_model_t* iqmData;
+    skm_config_t *skmConfig;
 
 	int num_light_polys;
 	light_poly_t* light_polys;
 } model_t;
 
+
+
+/**
+*
+* 
+*   Refresh Entity:
+*
+* 
+**/
+/**
+*   @brief  Entity for the refresh module, these define the objects 
+*           processed for rendering to screen.
+* 
+*   @note   WID: TODO: Rename r_entity_t, however this involves VKPT code changes which right now,
+*           I am trying really hard to avoid.
+**/
 typedef struct entity_s {
-    qhandle_t model; // opaque type outside refresh
+    //! Opaque type outside refresh.
+    qhandle_t model;
     vec3_t angles;
 
-    /*
-    ** most recent data
-    */
-    vec3_t origin; // also used as RF_BEAM's "from"
-    int frame; // also used as RF_BEAM's diameter
+    //
+    // most recent data
+    //
+    //! Also used as RF_BEAM's "from".
+    vec3_t origin;
+    //! Also used as RF_BEAM's diameter.
+    int frame;
 
-    /*
-    ** previous data for lerping
-    */
-    vec3_t oldorigin; // also used as RF_BEAM's "to"
+    //
+    // previous data for lerping
+    //
+    //! Also used as RF_BEAM's "to".
+    vec3_t oldorigin;
     int oldframe;
 
-    /*
-    ** misc
-    */
-    float backlerp; // 0.0 = current, 1.0 = old
-    int skinnum; // also used as RF_BEAM's palette index,
-    // -1 => use rgba
-
-    float alpha; // ignore if RF_TRANSLUCENT isn't set
+    //
+    // misc
+    //
+    //! 0.0 = current, 1.0 = old
+    float backlerp;
+    //! Also used as RF_BEAM's palette index, // -1 => use rgba.
+    int skinnum; 
+    
+    //! Ignored if RF_TRANSLUCENT isn't set.
+    float alpha; 
+    //! RGBA Color for when skinnum == 01.
     color_t rgba;
 
-    qhandle_t skin; // NULL for inline skin
+    //! NULL for inline skin
+    qhandle_t skin;
+    //! RenderFX flags.
     int flags;
 
+    //! Refresh Entity ID.
     int id;
-
+    //! Temp Entity Type.
     int tent_type;
 
+    //! Scale.
     float scale;
 } entity_t;
 
+
+
+/**
+*
+* 
+*   Dynamic Lights:
+*
+* 
+**/
+/**
+*   @brief
+**/
 typedef enum dlight_type_e {
     DLIGHT_SPHERE = 0,
     DLIGHT_SPOT
 } dlight_type;
-
+/**
+*   @brief
+**/
 typedef enum dlight_spot_emission_profile_e {
     DLIGHT_SPOT_EMISSION_PROFILE_FALLOFF = 0,
     DLIGHT_SPOT_EMISSION_PROFILE_AXIS_ANGLE_TEXTURE
 } dlight_spot_emission_profile;
-
+/**
+*   @brief
+**/
 typedef struct dlight_s {
     vec3_t origin;
     // WID: Leave it uncommented so memory is aligned properly either way.
@@ -239,33 +407,45 @@ typedef struct dlight_s {
     float intensity;
     float radius;
 
-    // VKPT light types support
+    //! VKPT light types support
     dlight_type light_type;
-    // Spotlight options
+    //! Spotlight options
     struct {
-        // Spotlight emission profile
+        //! Spotlight emission profile
         dlight_spot_emission_profile emission_profile;
-        // Spotlight direction
+        //! Spotlight direction
         vec3_t direction;
         union {
-            // Options for DLIGHT_SPOT_EMISSION_PROFILE_FALLOFF
+            //! Options for DLIGHT_SPOT_EMISSION_PROFILE_FALLOFF
             struct {
-                // Cosine of angle of spotlight cone width (no emission beyond that)
+                //! Cosine of angle of spotlight cone width (no emission beyond that)
                 float cos_total_width;
-                // Cosine of angle of start of falloff (full emission below that)
+                //! Cosine of angle of start of falloff (full emission below that)
                 float cos_falloff_start;
             };
-            // Options for DLIGHT_SPOT_EMISSION_PROFILE_AXIS_ANGLE_TEXTURE
+            //! Options for DLIGHT_SPOT_EMISSION_PROFILE_AXIS_ANGLE_TEXTURE
             struct {
-                // Angle of spotlight cone width (no emission beyond that), in radians
+                //! Angle of spotlight cone width (no emission beyond that), in radians
                 float total_width;
-                // Emission profile texture, indexed by 'angle / total_width'
+                //! Emission profile texture, indexed by 'angle / total_width'
                 qhandle_t texture;
             };
         };
     } spot;
 } dlight_t;
 
+
+
+/**
+*
+*
+*   Particles:
+*
+*
+**/
+/**
+*   @brief
+**/
 typedef struct particle_s {
     vec3_t origin;
     int color; // -1 => use rgba
@@ -275,11 +455,35 @@ typedef struct particle_s {
     float radius;
 } particle_t;
 
+
+
+/**
+*
+*
+*   LightStyles:
+*
+*
+**/
+/**
+*   @brief
+**/
 typedef struct lightstyle_s {
     float           white;          // highest of RGB
     vec3_t          rgb;            // 0.0 - 2.0
 } lightstyle_t;
 
+
+
+/**
+*
+*
+*   Decals:
+*
+*
+**/
+/**
+*   @brief
+**/
 #define MAX_DECALS 50
 typedef struct decal_s {
     vec3_t pos;
@@ -289,7 +493,25 @@ typedef struct decal_s {
     float dummy;
 } decal_t;
 
-// passes information back from the RTX renderer to the engine for various development maros
+
+
+/**
+*
+*
+*   Refresh Module:
+*
+*
+**/
+/**
+*   @brief  Self descriptive, used by refresh code for scissor/view regions.
+**/
+typedef struct {
+    int left, right, top, bottom;
+} clipRect_t;
+
+/**
+*   @brief  Passes information back from the RTX renderer to the engine for various development maros
+**/
 typedef struct ref_feedback_s {
     int viewcluster;
     int lookatcluster;
@@ -304,6 +526,9 @@ typedef struct ref_feedback_s {
     float adapted_luminance;
 } ref_feedback_t;
 
+/**
+*   @brief
+**/
 typedef struct refdef_s {
     int x, y, width, height; // in virtual screen coordinates
     float fov_x, fov_y;
@@ -334,30 +559,27 @@ typedef struct refdef_s {
     ref_feedback_t feedback;
 } refdef_t;
 
-typedef struct {
-    int     colorbits;
-    int     depthbits;
-    int     stencilbits;
-    int     multisamples;
-    qboolean debug;
-} r_opengl_config_t;
-
+/**
+*   @brief
+**/
 typedef enum {
     QVF_ACCELERATED = ( 1 << 0 ),
     QVF_GAMMARAMP = ( 1 << 1 ),
     QVF_FULLSCREEN = ( 1 << 2 )
 } vidFlags_t;
 
+/**
+*   @brief
+**/
 typedef struct {
     int width;
     int height;
     vidFlags_t flags;
 } refcfg_t;
 
-typedef struct {
-    int left, right, top, bottom;
-} clipRect_t;
-
+/**
+*   @brief
+**/
 typedef enum {
     IF_NONE = 0,
     IF_PERMANENT = ( 1 << 0 ),
@@ -380,10 +602,12 @@ typedef enum {
     IF_SRC_GAME = ( 0x2 << 16 ),
     IF_SRC_MASK = ( 0x3 << 16 ),
 } imageflags_t;
-
 // Shift amount for storing fake emissive synthesis threshold
 #define IF_FAKE_EMISSIVE_THRESH_SHIFT 20
 
+/**
+*   @brief
+**/
 typedef enum {
     IT_PIC,
     IT_FONT,
@@ -395,6 +619,9 @@ typedef enum {
     IT_MAX
 } imagetype_t;
 
+/**
+*   @brief
+**/
 typedef enum ref_type_e {
     REF_TYPE_NONE = 0,
     REF_TYPE_GL,

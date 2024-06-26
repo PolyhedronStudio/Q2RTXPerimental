@@ -11,12 +11,6 @@
 extern "C" {
 #endif // #ifdef __cplusplus
 
-	/**
-	*	@brief	Model Precache Instance.
-	**/
-	typedef struct {
-
-	};
 
 #ifdef __cplusplus
 }

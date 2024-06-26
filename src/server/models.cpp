@@ -29,8 +29,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "shared/shared.h"
 #include "shared/util_list.h"
+
 #include "common/common.h"
 #include "common/files.h"
+
 #include "system/hunk.h"
 //#include "format/md2.h"
 //#if USE_MD3
@@ -38,8 +40,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //#endif
 //#include "format/sp2.h"
 #include "format/iqm.h"
+
 #include "refresh/images.h"
 #include "refresh/shared_types.h"
+
+#include "common/skeletalmodels/cm_skm_configuration.h"
+
 
 
 /**
@@ -354,8 +360,29 @@ int SV_Models_LoadIQM( model_t *model, const void *rawdata, size_t length, const
         return res;
     }
 
-    char base_path[ MAX_QPATH ];
+    // Parse out base model path for alias name.
+    char base_path[ MAX_OSPATH ] = {};
     COM_FilePath( mod_name, base_path, sizeof( base_path ) );
+
+    // Extend the base model path to check on a skeletal model configuration file.
+    char skm_config_path[ MAX_OSPATH ];
+    memset( skm_config_path, 0, sizeof( skm_config_path ) );
+    const int32_t len = Q_snprintf( skm_config_path, MAX_OSPATH, "%s/tris.skc", base_path );
+
+    // If it had a succesfull length, head on to parsing the actual config file.
+    if ( len > 4 ) {
+        char *skm_config_file_buffer = NULL;
+        int32_t skc_load_result = 0;
+        skm_config_file_buffer = CM_SKM_LoadConfigurationFile( model, skm_config_path, &skc_load_result );
+        // If succesfully loaded, parse the buffer.
+        if ( skc_load_result ) {
+            // Move on to parsing the actual configuration file and storing the needed data into the model_t struct.
+            CM_SKM_ParseConfigurationBuffer( model, skm_config_path, skm_config_file_buffer );
+        }
+
+        // Make sure to free up the buffer now we're done parsing the skeletal model config script.
+        Z_Free( skm_config_file_buffer );
+    }
 
     CHECK( model->meshes = static_cast<maliasmesh_t*>( MOD_Malloc( &model->hunk, sizeof( maliasmesh_t ) * model->iqmData->num_meshes ) ) );
     model->nummeshes = (int)model->iqmData->num_meshes;

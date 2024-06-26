@@ -8,21 +8,23 @@
 #pragma once
 
 // fast "C" macros
-#define Q_isupper(c)    ((c) >= 'A' && (c) <= 'Z')
-#define Q_islower(c)    ((c) >= 'a' && (c) <= 'z')
-#define Q_isdigit(c)    ((c) >= '0' && (c) <= '9')
-#define Q_isalpha(c)    (Q_isupper(c) || Q_islower(c))
-#define Q_isalnum(c)    (Q_isalpha(c) || Q_isdigit(c))
-#define Q_isprint(c)    ((c) >= 32 && (c) < 127)
-#define Q_isgraph(c)    ((c) > 32 && (c) < 127)
-#define Q_isspace(c)    (c == ' ' || c == '\f' || c == '\n' || \
-                         c == '\r' || c == '\t' || c == '\v')
+#define Q_isupper( c )    ( ( c ) >= 'A' && ( c ) <= 'Z' )
+#define Q_islower( c )    ( ( c ) >= 'a' && ( c ) <= 'z' )
+#define Q_isdigit( c )    ( ( c ) >= '0' && ( c ) <= '9' )
+#define Q_isnumeric( c )	( ( c ) == '-' || ( c ) == '+' ) || ( ( c ) >= '0' && ( c ) <= '9' ) )
+#define Q_isfloat( c )	( ( c ) == '-' || ( c ) == '+' || ( c ) == '.' ) || ( (c) >= '0' && (c) <= '9') )
+#define Q_isalpha( c )    ( Q_isupper( c ) || Q_islower( c ) )
+#define Q_isalnum( c )    ( Q_isalpha( c ) || Q_isdigit( c ) )
+#define Q_isprint( c )    ( ( c ) >= 32 && ( c ) < 127 )
+#define Q_isgraph( c )    ( ( c ) > 32 && ( c ) < 127 )
+#define Q_isspace( c )    ( c == ' ' || c == '\f' || c == '\n' || \
+                         c == '\r' || c == '\t' || c == '\v' )
 
 // tests if specified character is valid quake path character
-#define Q_ispath(c)     (Q_isalnum(c) || (c) == '_' || (c) == '-')
+#define Q_ispath( c )     ( Q_isalnum( c ) || ( c ) == '_' || ( c ) == '-' )
 
 // tests if specified character has special meaning to quake console
-#define Q_isspecial(c)  ((c) == '\r' || (c) == '\n' || (c) == 127)
+#define Q_isspecial( c )  ( ( c ) == '\r' || ( c ) == '\n' || ( c ) == 127 )
 
 static inline int Q_tolower( int c ) {
 	if ( Q_isupper( c ) ) {

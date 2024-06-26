@@ -203,10 +203,18 @@ void monster_testdummy_puppet_think( edict_t *self ) {
             // Get the distance for the frame:
             #if 1
                 // WID: This is exact, but looks odd if you want faster paced gameplay.
-                float distance = rootMotion->distances[ rootMotionFrame ];
+                //float distance = rootMotion->distances[ rootMotionFrame ];
                 // WID: This is quite 'average':
                 //float distance = ( rootMotion->totalDistance ) * ( 1.0f / rootMotion->frameCount );
                 // WID: Try and accustom to Velocity 'METHOD':
+
+                //*pflGroundSpeed = sqrt( pseqdesc->linearmovement[ 0 ] * pseqdesc->linearmovement[ 0 ] + pseqdesc->linearmovement[ 1 ] * pseqdesc->linearmovement[ 1 ] + pseqdesc->linearmovement[ 2 ] * pseqdesc->linearmovement[ 2 ] );
+                //*pflGroundSpeed = *pflGroundSpeed * pseqdesc->fps / ( pseqdesc->numframes - 1 );
+
+                Vector3 translation = rootMotion->translations[ rootMotionFrame ];
+                float distance = sqrt( translation.x * translation.x +
+                                        translation.y * translation.y /*+ translation.z * translation.z*/ );
+                distance = distance * ( 40 / ( rootMotion->frameCount - 1 ) );
             #else
                 // WID: Works also, somewhat.
                 #if 0

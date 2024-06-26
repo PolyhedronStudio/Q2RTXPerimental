@@ -74,7 +74,7 @@ static const int32_t jsoneq( const char *json, jsmntok_t *tok, const char *s ) {
 
     if ( tok->type == JSMN_STRING && (int)strlen( s ) == tok->end - tok->start &&
         strncmp( json + tok->start, s, tok->end - tok->start ) == 0 ) {
-        return 0;
+        return 1;
     }
     return -1;
 }
@@ -115,7 +115,15 @@ const int32_t CM_LoadMaterialFromJSON( cm_t *cm, const char *name, const char *j
 
     // If lesser than 0 we failed to parse the json properly.
     if ( numTokensParsed < 0 ) {
-        Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(#%d)\n", __func__, jsonPath, numTokensParsed );
+        if ( numTokensParsed == JSMN_ERROR_INVAL ) {
+            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_INVAL), bad token, JSON string is corrupted\n", __func__, jsonPath );
+        } else if ( numTokensParsed == JSMN_ERROR_NOMEM ) {
+            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_INVAL), not enough tokens, JSON string is too large\n", __func__, jsonPath );
+        } else if ( numTokensParsed == JSMN_ERROR_PART ) {
+            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_PART),  JSON string is too short, expecting more JSON data\n", __func__, jsonPath );
+        } else {
+            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(unknown)\n", __func__, jsonPath );
+        }
         // Clear the jsonbuffer buffer.
         Z_Free( jsonBuffer );
         return 0;
@@ -145,7 +153,7 @@ const int32_t CM_LoadMaterialFromJSON( cm_t *cm, const char *name, const char *j
 
     // Iterate over json tokens.
     for ( int32_t tokenID = 1; tokenID < numTokensParsed; tokenID++ ) {
-        if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "physical_friction" ) == 0 ) {
+        if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "physical_friction" ) == 1 ) {
             // Value
             char fieldValue[ MAX_QPATH ] = { };
             // Fetch field value string size.
@@ -155,7 +163,7 @@ const int32_t CM_LoadMaterialFromJSON( cm_t *cm, const char *name, const char *j
 
             // Try and convert it to a float for our material.
             material->physical.friction = atof( fieldValue );
-        } else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "physical_material_kind" ) == 0 ) {
+        } else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "physical_material_kind" ) == 1 ) {
             // Value
             char fieldValue[ MAX_QPATH ] = { };
             // Fetch field value string size.
@@ -164,8 +172,8 @@ const int32_t CM_LoadMaterialFromJSON( cm_t *cm, const char *name, const char *j
             Q_snprintf( fieldValue, size + 1, jsonBuffer + tokens[ tokenID + 1 ].start );
 
             // Copy it over into our material kind string buffer.
-            memset( material->physical.kind, 0, MAX_QPATH );
-            Q_strlcpy( material->physical.kind, fieldValue, MAX_QPATH );//jsonBuffer + tokens[tokenID].start, size);
+            memset( material->physical.kind, 0, sizeof( material->physical.kind )/*MAX_QPATH*/ );
+            Q_strlcpy( material->physical.kind, fieldValue, sizeof( material->physical.kind )/*MAX_QPATH*/ );//jsonBuffer + tokens[tokenID].start, size);
         }
     }
     

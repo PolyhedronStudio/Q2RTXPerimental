@@ -123,6 +123,18 @@ void R_RegisterFunctionsGL(void);
 void R_RegisterFunctionsRTX(void);
 #endif
 
+
+/**
+*   @brief
+**/
+typedef struct {
+    int     colorbits;
+    int     depthbits;
+    int     stencilbits;
+    int     multisamples;
+    qboolean debug;
+} r_opengl_config_t;
+
 r_opengl_config_t *R_GetGLConfig( void );
 
 #ifdef __cplusplus

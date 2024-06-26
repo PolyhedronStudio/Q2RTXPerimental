@@ -444,7 +444,17 @@ char *vtos( const vec3_t v ) {
 	return str[ index ];
 }
 
-static char     com_token[ 4 ][ MAX_TOKEN_CHARS ];
+
+
+/**
+*
+*	
+*	General purpose tokenizer:
+* 
+* 
+**/
+static constexpr int32_t COM_MAX_PARSE_TOKENS = 12;
+static char     com_token[ COM_MAX_PARSE_TOKENS ][ MAX_TOKEN_CHARS ];
 static int      com_tokidx;
 
 /*
@@ -461,7 +471,7 @@ char *COM_Parse( const char **data_p ) {
 	const char *data;
 	char *s = com_token[ com_tokidx ];
 
-	com_tokidx = ( com_tokidx + 1 ) & 3;
+	com_tokidx = ( com_tokidx + 1 ) & COM_MAX_PARSE_TOKENS - 1;
 
 	data = *data_p;
 	len = 0;
@@ -634,14 +644,15 @@ finish:
 	return d - data;
 }
 
-/*
-============================================================================
 
-					LIBRARY REPLACEMENT FUNCTIONS
 
-============================================================================
-*/
-
+/**
+* 
+* 
+*	STDIO LIBRARY REPLACEMENT FUNCTIONS
+* 
+* 
+**/
 int Q_strncasecmp( const char *s1, const char *s2, size_t n ) {
 	int        c1, c2;
 
