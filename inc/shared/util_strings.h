@@ -11,7 +11,7 @@
 #define Q_isupper( c )    ( ( c ) >= 'A' && ( c ) <= 'Z' )
 #define Q_islower( c )    ( ( c ) >= 'a' && ( c ) <= 'z' )
 #define Q_isdigit( c )    ( ( c ) >= '0' && ( c ) <= '9' )
-#define Q_isnumeric( c )	( ( c ) == '-' || ( c ) == '+' ) || ( ( c ) >= '0' && ( c ) <= '9' ) )
+#define Q_isnumeric( c )	( ( c ) == '-' || ( c ) == '+' ) || ( ( c ) >= '0' && ( c ) <= '9' )
 #define Q_isfloat( c )	( ( c ) == '-' || ( c ) == '+' || ( c ) == '.' ) || ( (c) >= '0' && (c) <= '9') )
 #define Q_isalpha( c )    ( Q_isupper( c ) || Q_islower( c ) )
 #define Q_isalnum( c )    ( Q_isalpha( c ) || Q_isdigit( c ) )

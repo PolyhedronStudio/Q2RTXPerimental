@@ -39,7 +39,7 @@ extern "C" {
 // Needed for IQM_MAX_JOINTS
 #include "format/iqm.h"
 //! Maximum joints for SKM configuration info.
-#define SKM_MAX_JOINTS IQM_MAX_JOINTS
+#define SKM_MAX_BONES IQM_MAX_JOINTS
 
 //! Refresh limits.
 #define MAX_DLIGHTS 32
@@ -208,6 +208,7 @@ typedef struct iqm_mesh_s
 /**
 *   @brief  Stores IQM bone information more conveniently for proper working access.
 **/
+typedef struct skm_config_bone_node_s skm_config_bone_node_t;
 typedef struct skm_config_bone_node_s {
     //! Bone name.
     char name[ MAX_QPATH ];
@@ -218,8 +219,11 @@ typedef struct skm_config_bone_node_s {
 
     //! Pointer to parent bone. (nullptr if this is the root bone.)
     skm_config_bone_node_t *parentBone;
+
+    //! Number of child bone nodes.
+    int32_t numberOfChildNodes;
     //! Allocated array of child bones.
-    skm_config_bone_node_t *childBones;
+    skm_config_bone_node_t **childBones;
 } skm_config_bone_node_t;
 
 /**
@@ -233,10 +237,13 @@ typedef struct skm_config_bone_node_s {
 *           all frames per animation.
 **/
 typedef struct skm_config_s {
+    //! Actual number of bones stored in the parenting model_t iqm data.
+    int32_t numberOfBones;
+
     //! Stores the bones indexed by bone number, for quick access.
-    skm_config_bone_node_t boneArray[ SKM_MAX_JOINTS ];
+    skm_config_bone_node_t boneArray[ SKM_MAX_BONES ];
     //! This is the root bone node, for iterative purposes.
-    skm_config_bone_node_t boneTree;
+    skm_config_bone_node_t *boneTree;
 
     //! Pointers to the root bones in the tree, for easy access.
     struct {
@@ -283,7 +290,6 @@ typedef struct model_s {
     int nummeshes;
     struct maliasmesh_s *meshes;
     model_class_t model_class;
-    #endif
 #endif
 //#else
 //    int numskins;

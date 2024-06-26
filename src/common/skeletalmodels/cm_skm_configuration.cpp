@@ -43,6 +43,8 @@
 //! Uncomment to enable debug developer output for failing to parse the configuration file.
 #define _DEBUG_PRINT_SKM_CONFIGURATION_PARSE_FAILURE
 
+//! Uncomment to enable debug developer output of the (depth indented-) bone tree structure.
+#define _DEBUG_PRINT_SKM_BONE_TREE_STRUCTURE
 
 /**
 *
@@ -270,10 +272,214 @@ static inline const json_primitive_type_t json_token_primitive_type( const char 
 //}
 
 /**
+*   @brief  Will iterate over the IQM joints and arrange a more user friendly arranged 
+*           data copy for the SKM config.
+**/
+static const int32_t CM_SKM_CollectAndFillBonesArray( const model_t *model, const char *configurationFilePath ) {
+    // Sanity checks are skipped since this is only called by CM_SKM_ParseConfigurationBuffer.
+
+
+    // IQM Data Pointer.
+    iqm_model_t *iqmData = model->iqmData;
+    // SKM Config Pointer.
+    skm_config_t *skmConfig = model->skmConfig;
+    
+
+    // Pointer to joint names buffer.
+    char *str = iqmData->jointNames;
+    // Store the number of bones.
+    skmConfig->numberOfBones = iqmData->num_joints;
+
+    // Iterate the IQM joints data.
+    for ( uint32_t joint_idx = 0; joint_idx < iqmData->num_joints; joint_idx++ ) {
+        // The matching bone node.
+        skm_config_bone_node_t *boneNode = &skmConfig->boneArray[ joint_idx ];
+
+        // Copy over the name.
+        char *name = str;//(const char *)iqmData->jointNames[ joint_idx ];// +header->ofs_text + joint->name;
+        size_t len = strlen( name ) + 1;
+        // If the name is empty however..
+        if ( !name || (name && *name == '\0' ) ) {
+            continue;
+        }
+        if ( len >= MAX_QPATH ) { len = MAX_QPATH - 1; }
+        memcpy( boneNode->name, name, len );
+        // Move to next bone name.
+        str += len;
+
+        // Store the Bone Number and Parent Bone Number.
+        boneNode->number = joint_idx;
+        boneNode->parentNumber = iqmData->jointParents[ joint_idx ];
+
+        // Set pointer to the parent bone. (Unless we're the root node.)
+        //boneNode->parentBone = ( joint_idx == 0 ? nullptr : &skmConfig->boneArray[ boneNode->parentNumber ] );
+        boneNode->parentBone = ( boneNode->parentNumber == -1 ? nullptr : &skmConfig->boneArray[ boneNode->parentNumber ] );
+        // If we are the root node, setup the boneTree node pointer.
+        if ( boneNode->parentNumber == -1 ) {
+            skmConfig->boneTree = boneNode;
+        }
+    
+        // Increment the number of child nodes of the node matching parentNumber.
+        // This is done here so we already know how much space to allocate when creating the bone tree.
+        if ( boneNode->parentNumber == -1 ) {
+            skmConfig->boneTree->numberOfChildNodes++;
+        } else {
+            skmConfig->boneArray[ boneNode->parentNumber ].numberOfChildNodes++;
+        }
+    }
+
+    return 1;
+}
+
+/**
+*   @brief  For debugging reasons, iterates the bone its child nodes.
+**/
+#ifdef _DEBUG_PRINT_SKM_BONE_TREE_STRUCTURE
+static void CM_SKM_Debug_PrintNode( const skm_config_bone_node_t *boneNode, const int32_t treeDepth ) {
+    if ( !boneNode ) {
+        return;
+    }
+
+    // Generate the amount of spaces to indent based on treeDepth.
+    std::string depthComponent = "    ";
+    std::string depthString = "";
+    for ( int32_t i = 0; i < treeDepth; i++ ) {
+        depthString += depthComponent;
+    }
+
+    // Generate the actual string we want to print.
+    Com_LPrintf( PRINT_DEVELOPER, " %s [Bone=\"%s\", Number=%i, parentNumber=%i, numberOfChildNodes=%i]%s\n",
+        depthString.c_str(), boneNode->name, boneNode->number, boneNode->parentNumber, boneNode->numberOfChildNodes, ( boneNode->numberOfChildNodes > 0 ? " ->:" : "" ) );
+
+    if ( boneNode->numberOfChildNodes ) {
+        for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
+            skm_config_bone_node_t *childNode = boneNode->childBones[ i ];
+            if ( childNode != nullptr ) {
+                CM_SKM_Debug_PrintNode( childNode, treeDepth + 1 );
+            }
+        }
+    }
+}
+#endif
+
+/**
+*   @brief  Iterates over the SKM bones array, if the array node its parent number matches to
+*           that of boneNode, add it to the boneNode's childBones array and recursively call
+*           this function again to iterate over the array node.
+**/
+static void CM_SKM_CollectBoneChildren( model_t *model, skm_config_bone_node_t *boneNode ) {
+    // IQM Data Pointer.
+    iqm_model_t *iqmData = model->iqmData;
+    // SKM Config Pointer.
+    skm_config_t *skmConfig = model->skmConfig;
+
+    // Need a valid pointer to work with, and it could be a nullptr.
+    if ( !boneNode ) {
+        return;
+    }
+
+    // Iterate over the amount of child bones it has.
+    int32_t childrenAdded = 0;
+    for ( int32_t j = 0; j < skmConfig->numberOfBones; j++ ) {
+        // Get array bone node.
+        skm_config_bone_node_t *arrayNode = &skmConfig->boneArray[ j ];
+
+        // If its a valid number and a matching parent number.
+        if ( boneNode->number >= 0 && arrayNode && arrayNode->parentNumber == boneNode->number ) {
+            // Store the pointer to the node as a childBone.
+            boneNode->childBones[ childrenAdded ] = arrayNode;
+            // Increment children added for the current boneNode.
+            childrenAdded++;
+
+            // Skip it if it has zero child bones.
+            if ( !arrayNode || arrayNode->name[ 0 ] == '\0' || arrayNode->numberOfChildNodes == 0 ) {
+                continue;
+            }
+
+            // Recurse into the arrayNode to collect its children nodes.
+            CM_SKM_CollectBoneChildren( model, arrayNode );
+        }
+    }
+}
+/**
+*   @brief  Iterates over the SKM config bones array in order to generate the boneTree.
+**/
+static const int32_t CM_SKM_CreateBoneTree( model_t *model, const char *configurationFilePath ) {
+    // For CHECK( )
+    int ret = 0;
+    // Sanity checks are skipped since this is only called by CM_SKM_ParseConfigurationBuffer.
+
+
+    // IQM Data Pointer.
+    iqm_model_t *iqmData = model->iqmData;
+    // SKM Config Pointer.
+    skm_config_t *skmConfig = model->skmConfig;
+
+
+    // By now we've collected the number of child nodes for each SKM bone in the array.
+    // Get pointer to the root node.
+    skm_config_bone_node_t *boneTreeRootNode = skmConfig->boneTree;
+    
+    // Declared here since, label usage...
+    int32_t numberOfBonesFilled = 0;
+
+    // Iterate along the bones, allocate space for child bones..
+    for ( int32_t i = 0; i < skmConfig->numberOfBones; i++ ) {
+        // Acquire pointer to the bone node.
+        skm_config_bone_node_t *boneNode = &skmConfig->boneArray[ i ];
+
+        // Skip it if it has zero child bones.
+        if ( !boneNode || boneNode->name[ 0 ] == '\0' || boneNode->numberOfChildNodes == 0 ) {
+            continue;
+        }
+
+        // Allocate space for the child bones.
+        CHECK( boneNode->childBones = (skm_config_bone_node_t **)( MOD_Malloc( sizeof( skm_config_bone_node_t* ) * boneNode->numberOfChildNodes ) ) );
+        // Ensure it is zeroed out.
+        memset( boneNode->childBones, 0, sizeof( skm_config_bone_node_t*) * boneNode->numberOfChildNodes );
+    }
+
+    // Iterate along the bones once more now that memory is allocated.
+    // Collect and fill the matching childBones array for each bone recursively.
+    for ( int32_t i = 0; i < skmConfig->numberOfBones; i++ ) {
+        // Acquire pointer to the bone node.
+        skm_config_bone_node_t *boneNode = &skmConfig->boneArray[ i ];
+
+        // Skip it if it has zero child bones.
+        if ( !boneNode || boneNode->name[0] == '\0' || boneNode->numberOfChildNodes == 0 ) {
+            continue;
+        }
+
+        // Generate the bone tree.
+        CM_SKM_CollectBoneChildren( model, boneNode );
+    }
+
+#ifdef _DEBUG_PRINT_SKM_BONE_TREE_STRUCTURE
+    // Debug print.
+    Com_LPrintf( PRINT_DEVELOPER, " ------------------------- BoneTree: \"%s\" ----------------------- \n", configurationFilePath );
+    CM_SKM_Debug_PrintNode( boneTreeRootNode, 0 );
+    // Debug print.
+    Com_LPrintf( PRINT_DEVELOPER, " ------------------------------------------------------------------ \n" );
+#endif
+
+    return 1;
+
+fail:
+    return 0;
+}
+
+/**
 *	@brief	Parses the buffer, allocates specified memory in the model_t struct and fills it up with the results.
 *	@return	True on success, false on failure.
 **/
 const int32_t CM_SKM_ParseConfigurationBuffer( model_t *model, const char *configurationFilePath, char *fileBuffer ) {
+    // Used for the CHECK( ) macro.
+    int ret = 0;
+
+    // WID: TODO: REMOVE AFTER FINISHING THIS.
+    //
+    // This sits here for debugging purposes only, so we can place breakpoints without
+    // them triggering for each model it attemps to load a config for.
     if ( strcmp( configurationFilePath, "models/characters/mixadummy/tris.skc" ) ) {
         return true;
     }
@@ -351,6 +557,18 @@ numTokensParsed = jsmn_parse(
         Com_LPrintf( PRINT_DEVELOPER, "%s: Expected a json Object at the root of file '%s'!\n", __func__, configurationFilePath );
         return false;
     }
+
+    /**
+    *   All went well so far, so now we can start allocating things.
+    **/
+    int32_t boneArrayResult = 0;
+    int32_t boneTreeResult = 0;
+    // First of all, allocate our config object in general.
+    CHECK( model->skmConfig = static_cast<skm_config_t*>( MOD_Malloc( sizeof( skm_config_t ) ) ) );
+    // Collect and fill the bones array.
+    boneArrayResult = CM_SKM_CollectAndFillBonesArray( model, configurationFilePath );
+    // Build a proper boneTree based on the bone array data.
+    boneTreeResult = CM_SKM_CreateBoneTree( model, configurationFilePath );
 
     // Debug print.
     Com_LPrintf( PRINT_DEVELOPER, " ------------------------- JSON SKC Parsing: \"%s\" ----------------------- \n", configurationFilePath );
@@ -443,13 +661,23 @@ numTokensParsed = jsmn_parse(
 
         //}
     }
-
+// WID: TODO: Dynamically allocating somehow fails.
+#if 0
     // Free tokens.
     Z_Free( tokens );
-
+#endif
     // Debug print.
     Com_LPrintf( PRINT_DEVELOPER, " -------------------------------------------------------------------------- \n", configurationFilePath );
-
+    // Success.
     return true;
+
+// Used by the CHECK( ) macro.
+fail:
+    // WID: TODO: Dynamically allocating somehow fails.
+    #if 0
+        // Free tokens.
+    Z_Free( tokens );
+    #endif
+    return false;
 }
 
