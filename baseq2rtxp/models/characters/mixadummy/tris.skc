@@ -1,10 +1,10 @@
 {
     // Root Motion Bone:
-    "rootmotionbone" : "mixamo8:Hips",
+    "rootmotionbone" : "mixamorig8:Hips",
     // Root Motion Bone:
-    "headbone" : "mixamo8:Head",
+    "headbone" : "mixamorig8:Head",
     // Root Motion Bone:
-    "torsobone" : "mixamo8:Spine1",
+    "torsobone" : "mixamorig8:Spine1",
     // Root Motion Bone:
-    "hipbone" : "mixamo8:Hips"
+    "hipbone" : "mixamorig8:Hips"
 }

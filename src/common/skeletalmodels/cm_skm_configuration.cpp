@@ -158,7 +158,7 @@ static const int32_t json_token_value_to_buffer( const char *jsonBuffer, jsmntok
 
     //// Parse field value into buffer.
     //Q_snprintf( fieldValue, tokenValueSize, jsonBuffer + token.start );
-    return Q_scnprintf( outputBuffer, tokenValueSize, "%s\0", jsonBuffer + token->start );
+    return Q_scnprintf( outputBuffer, tokenValueSize + 1, "%s\0", jsonBuffer + token->start );
 }
 
 /**
@@ -225,51 +225,36 @@ static inline const json_primitive_type_t json_token_primitive_type( const char 
 *
 *
 **/
-///**
-//*   @brief  Will parse the "Animations" JSON object.
-//**/
-//static int32_t CM_SKM_ParseJSON_ActionsObject( const char *fileBuffer, jsmntok_t *tokens, const int32_t numTokens, const int32_t tokenID ) {
-//    std::string actionsRootTokenType = ( tokens[ tokenID ].type == JSMN_ARRAY ? "ARRAY" : "DIFF" );
-//    // Debug: 
-//    Com_LPrintf( PRINT_DEVELOPER, "%s: ------- Actions Object[tokenType=%s numTokens=%i, tokenID=%i][\n", __func__, actionsRootTokenType.c_str(), numTokens, tokenID );
-//
-//    // We skip sanity checks since we're only calling this function from CM_SKM_ParseConfigurationBuffer.
-//    // Begin iterating at tokenID 1, since tokenID 0 is our 'Root' JSON Object.
-//    int32_t subTokenID = tokenID;
-//    for ( subTokenID; subTokenID < tokenID + numTokens; subTokenID++ ) {
-//        // The actual previous token.
-//        const uint32_t previousTokenID = subTokenID - 1;
-//        jsmntok_t *previousToken = &tokens[ previousTokenID ];
-//        // The current token.
-//        jsmntok_t *currentToken = &tokens[ subTokenID ];
-//        // The next token.
-//        const uint32_t nextTokenID = subTokenID + 1;
-//        jsmntok_t *nextToken = ( nextTokenID < ( numTokens - 1 ) ? &tokens[ nextTokenID ] : nullptr );
-//
-//        // Start 
-//        std::string tokenTypeStr = "UNKNOWN";
-//        if ( currentToken->type == JSMN_ARRAY ) {
-//            tokenTypeStr = "Array";
-//        } else if ( currentToken->type == JSMN_OBJECT ) {
-//            tokenTypeStr = "Object";
-//        } else if ( currentToken->type == JSMN_STRING ) {
-//            tokenTypeStr = "String";
-//        } else if ( currentToken->type == JSMN_PRIMITIVE ) {
-//            tokenTypeStr = "Primitive";
-//        }
-//        Com_LPrintf( PRINT_DEVELOPER, "[tokenType=%s tokenID=%i]\n", tokenTypeStr.c_str(), subTokenID );
-//    }
-//    Com_LPrintf( PRINT_DEVELOPER, "]----------------------------------\n" );
-//
-//    return tokenID + numTokens;
-//}
-///**
-//*   @brief  Will parse the "RootMotion" JSON object.
-//**/
-//static int32_t CM_SKM_ParseJSON_RootMotionObject( const char *fileBuffer, jsmntok_t *tokens, const int32_t numTokens, const int32_t tokenID ) {
-//
-//    return 0;
-//}
+/**
+*   @brief  For debugging reasons, iterates the bone its child nodes.
+**/
+#ifdef _DEBUG_PRINT_SKM_BONE_TREE_STRUCTURE
+    static void CM_SKM_Debug_PrintNode( const skm_config_bone_node_t *boneNode, const int32_t treeDepth ) {
+        if ( !boneNode ) {
+            return;
+        }
+
+        // Generate the amount of spaces to indent based on treeDepth.
+        std::string depthComponent = "    ";
+        std::string depthString = "";
+        for ( int32_t i = 0; i < treeDepth; i++ ) {
+            depthString += depthComponent;
+        }
+
+        // Generate the actual string we want to print.
+        Com_LPrintf( PRINT_DEVELOPER, " %s [Bone=\"%s\", Number=%i, parentNumber=%i, numberOfChildNodes=%i]%s\n",
+            depthString.c_str(), boneNode->name, boneNode->number, boneNode->parentNumber, boneNode->numberOfChildNodes, ( boneNode->numberOfChildNodes > 0 ? " ->:" : "" ) );
+
+        if ( boneNode->numberOfChildNodes ) {
+            for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
+                skm_config_bone_node_t *childNode = boneNode->childBones[ i ];
+                if ( childNode != nullptr ) {
+                    CM_SKM_Debug_PrintNode( childNode, treeDepth + 1 );
+                }
+            }
+        }
+    }
+#endif
 
 /**
 *   @brief  Will iterate over the IQM joints and arrange a more user friendly arranged 
@@ -330,44 +315,12 @@ static const int32_t CM_SKM_CollectAndFillBonesArray( const model_t *model, cons
 
     return 1;
 }
-
-/**
-*   @brief  For debugging reasons, iterates the bone its child nodes.
-**/
-#ifdef _DEBUG_PRINT_SKM_BONE_TREE_STRUCTURE
-static void CM_SKM_Debug_PrintNode( const skm_config_bone_node_t *boneNode, const int32_t treeDepth ) {
-    if ( !boneNode ) {
-        return;
-    }
-
-    // Generate the amount of spaces to indent based on treeDepth.
-    std::string depthComponent = "    ";
-    std::string depthString = "";
-    for ( int32_t i = 0; i < treeDepth; i++ ) {
-        depthString += depthComponent;
-    }
-
-    // Generate the actual string we want to print.
-    Com_LPrintf( PRINT_DEVELOPER, " %s [Bone=\"%s\", Number=%i, parentNumber=%i, numberOfChildNodes=%i]%s\n",
-        depthString.c_str(), boneNode->name, boneNode->number, boneNode->parentNumber, boneNode->numberOfChildNodes, ( boneNode->numberOfChildNodes > 0 ? " ->:" : "" ) );
-
-    if ( boneNode->numberOfChildNodes ) {
-        for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
-            skm_config_bone_node_t *childNode = boneNode->childBones[ i ];
-            if ( childNode != nullptr ) {
-                CM_SKM_Debug_PrintNode( childNode, treeDepth + 1 );
-            }
-        }
-    }
-}
-#endif
-
 /**
 *   @brief  Iterates over the SKM bones array, if the array node its parent number matches to
 *           that of boneNode, add it to the boneNode's childBones array and recursively call
 *           this function again to iterate over the array node.
 **/
-static void CM_SKM_CollectBoneChildren( model_t *model, skm_config_bone_node_t *boneNode ) {
+static void CM_SKM_CollectBoneTreeNodeChildren( model_t *model, skm_config_bone_node_t *boneNode ) {
     // IQM Data Pointer.
     iqm_model_t *iqmData = model->iqmData;
     // SKM Config Pointer.
@@ -397,10 +350,11 @@ static void CM_SKM_CollectBoneChildren( model_t *model, skm_config_bone_node_t *
             }
 
             // Recurse into the arrayNode to collect its children nodes.
-            CM_SKM_CollectBoneChildren( model, arrayNode );
+            CM_SKM_CollectBoneTreeNodeChildren( model, arrayNode );
         }
     }
 }
+
 /**
 *   @brief  Iterates over the SKM config bones array in order to generate the boneTree.
 **/
@@ -451,7 +405,7 @@ static const int32_t CM_SKM_CreateBoneTree( model_t *model, const char *configur
         }
 
         // Generate the bone tree.
-        CM_SKM_CollectBoneChildren( model, boneNode );
+        CM_SKM_CollectBoneTreeNodeChildren( model, boneNode );
     }
 
 #ifdef _DEBUG_PRINT_SKM_BONE_TREE_STRUCTURE
@@ -466,6 +420,47 @@ static const int32_t CM_SKM_CreateBoneTree( model_t *model, const char *configur
 
 fail:
     return 0;
+}
+
+/**
+*   @brief  Returns a pointer to the first bone that has a matching name.
+**/
+skm_config_bone_node_t *CM_SKM_GetBoneByName( model_t *model, const char *boneName ) {
+    // Make sure model is valid.
+    if ( !model || !model->iqmData || !model->skmConfig ) {
+        return nullptr;
+    }
+    // Iterate, and if the name matches, return pointer to node.
+    for ( int32_t i = 0; i < model->skmConfig->numberOfBones; i++ ) {
+        skm_config_bone_node_t *boneNode = &model->skmConfig->boneArray[ i ];
+        if ( boneNode && boneNode->name[0] != '\0' && !strcmp( boneName, boneNode->name ) ) {
+            return boneNode;
+        }
+    }
+    // No node found.
+    return nullptr;
+}
+/**
+*   @brief  Returns a pointer to the first bone that has a matching number.
+**/
+skm_config_bone_node_t *CM_SKM_GetBoneByNumber( model_t *model, const int32_t boneNumber ) {
+    // Make sure model is valid.
+    if ( !model || !model->iqmData || !model->skmConfig ) {
+        return nullptr;
+    }
+    // Root Bone.
+    if ( boneNumber == 0 ) {
+        return model->skmConfig->boneTree;
+    }
+    // Iterate, and if the number matches, return pointer to node.
+    for ( int32_t i = 0; i < model->skmConfig->numberOfBones; i++ ) {
+        skm_config_bone_node_t *boneNode = &model->skmConfig->boneArray[ i ];
+        if ( boneNode && boneNode->number == boneNumber ) {
+            return boneNode;
+        }
+    }
+    // No node found.
+    return nullptr;
 }
 
 /**
@@ -593,9 +588,18 @@ numTokensParsed = jsmn_parse(
         if ( json_token_value_strcmp( fileBuffer, previousToken, "rootmotionbone" ) == 1 ) {
             // Make sure it is an object token. (Using 1 to prevent compiler warning C4805)...)
             if ( json_token_type_is_string( currentToken ) == 1 /*true*/ ) {
-                char rootMotionBoneName[ MAX_QPATH ];
+                // Name buffer.
+                char rootMotionBoneName[ MAX_QPATH ] = {};
                 if ( json_token_value_to_buffer( fileBuffer, currentToken, rootMotionBoneName, MAX_QPATH ) ) {
-                    Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - RootMotionBone(\"%s\")\n", configurationFilePath, rootMotionBoneName );
+                    // Get the bone node that has the matching name.
+                    skm_config_bone_node_t *rootMotionBoneNode = CM_SKM_GetBoneByName( model, rootMotionBoneName );
+                    if ( rootMotionBoneNode ) {
+                        // Setup root motion bone node pointer.
+                        model->skmConfig->rootBones.motion = rootMotionBoneNode;
+
+                        // Debug print.
+                        Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - RootMotionBone Set To (#%i, \"%s\")\n", configurationFilePath, rootMotionBoneNode->number, rootMotionBoneName );
+                    }
                 }
                 continue;
             }
@@ -606,9 +610,18 @@ numTokensParsed = jsmn_parse(
         if ( json_token_value_strcmp( fileBuffer, previousToken, "hipbone" ) == 1 ) {
             // Make sure it is an object token. (Using 1 to prevent compiler warning C4805)...)
             if ( json_token_type_is_string( currentToken ) == 1 /*true*/ ) {
-                char hipBoneName[ MAX_QPATH ];
+                // Name buffer.
+                char hipBoneName[ MAX_QPATH ] = {};
                 if ( json_token_value_to_buffer( fileBuffer, currentToken, hipBoneName, MAX_QPATH ) ) {
-                    Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - hipBone(\"%s\")\n", configurationFilePath, hipBoneName );
+                    // Get the bone node that has the matching name.
+                    skm_config_bone_node_t *hipBoneNode = CM_SKM_GetBoneByName( model, hipBoneName );
+                    if ( hipBoneNode ) {
+                        // Setup hipe bone node pointer.
+                        model->skmConfig->rootBones.hip = hipBoneNode;
+
+                        // Debug print.
+                        Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - hipBone(#%i, \"%s\")\n", configurationFilePath, hipBoneNode->number, hipBoneName );
+                    }
                 }
                 continue;
             }
@@ -619,9 +632,18 @@ numTokensParsed = jsmn_parse(
         if ( json_token_value_strcmp( fileBuffer, previousToken, "torsobone" ) == 1 ) {
             // Make sure it is an object token. (Using 1 to prevent compiler warning C4805)...)
             if ( json_token_type_is_string( currentToken ) == 1 /*true*/ ) {
-                char torsoBoneName[ MAX_QPATH ];
+                // Name buffer.
+                char torsoBoneName[ MAX_QPATH ] = {};
                 if ( json_token_value_to_buffer( fileBuffer, currentToken, torsoBoneName, MAX_QPATH ) ) {
-                    Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - torsoBoneName(\"%s\")\n", configurationFilePath, torsoBoneName );
+                    // Get the bone node that has the matching name.
+                    skm_config_bone_node_t *torsoBoneNode = CM_SKM_GetBoneByName( model, torsoBoneName );
+                    if ( torsoBoneNode ) {
+                        // Setup hipe bone node pointer.
+                        model->skmConfig->rootBones.torso = torsoBoneNode;
+
+                        // Debug Print.
+                        Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - torsoBoneName(#%i, \"%s\")\n", configurationFilePath, torsoBoneNode->number, torsoBoneName );
+                    }
                 }
                 continue;
             }
@@ -632,9 +654,18 @@ numTokensParsed = jsmn_parse(
         if ( json_token_value_strcmp( fileBuffer, previousToken, "headbone" ) == 1 ) {
             // Make sure it is an object token. (Using 1 to prevent compiler warning C4805)...)
             if ( json_token_type_is_string( currentToken ) == 1 /*true*/ ) {
-                char headBoneName[ MAX_QPATH ];
+                // Name buffer.
+                char headBoneName[ MAX_QPATH ] = {};
                 if ( json_token_value_to_buffer( fileBuffer, currentToken, headBoneName, MAX_QPATH ) ) {
-                    Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - headBoneName(\"%s\")\n", configurationFilePath, headBoneName );
+                    // Get the bone node that has the matching name.
+                    skm_config_bone_node_t *headBoneNode = CM_SKM_GetBoneByName( model, headBoneName );
+                    if ( headBoneNode ) {
+                        // Setup hipe bone node pointer.
+                        model->skmConfig->rootBones.head = headBoneNode;
+
+                        // Debug print.
+                        Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - headBoneName(#%i, \"%s\")\n", configurationFilePath, headBoneNode->number, headBoneName );
+                    }
                 }
                 continue;
             }
