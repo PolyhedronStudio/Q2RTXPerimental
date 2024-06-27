@@ -11,7 +11,7 @@
 #include "sg_shared.h"
 #include "sg_skm_modelinfo.h"
 
-
+#if 0
 //! List of loaded up skeletal model info scripts.
 static sg_skminfo_t skmInfoList;
 
@@ -32,7 +32,7 @@ sg_skminfo_t *SG_LoadAndParseSkeletalModelInfo( const char *filename ) {
 
 	return nullptr;
 }
-
+#endif
 
 /**
 *

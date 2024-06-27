@@ -116,7 +116,7 @@ const int32_t SG_FS_FileExistsEx( const char *path, const uint32_t flags );
 const int32_t SG_FS_LoadFile( const char *path, void **buffer );
 
 
-
+#if 0
 /**
 *
 *	Skeletal Model:
@@ -126,7 +126,7 @@ const int32_t SG_FS_LoadFile( const char *path, void **buffer );
 *	@brief
 **/
 const sg_skm_rootmotion_set_t SG_SKM_GenerateRootMotionSet( const model_t *skm, const int32_t rootBoneID, const int32_t axisFlags );
-
+#endif
 
 
 

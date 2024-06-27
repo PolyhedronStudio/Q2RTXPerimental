@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	SharedGame: Skeletal Model Information
+*	SharedGame: Skeletal Model Utilities.
 *
 *	Skeletal Models operate by .. TODO: explain ..
 *
@@ -27,37 +27,48 @@ enum sg_skm_body_part_e {
 	SKM_BODY_MAX
 };
 
+//! Number of queued up animation events to select the most prioritized from.
+static constexpr int32_t SKM_MAX_ANIMATION_QUEUE = 4;
 
 /**
-*	@brief	Stores the basic information that we generated from the skeletal model data.
+*	@brief	
 **/
-typedef struct sg_skminfo_s {
-	//! Name of the skm configuration file that was parsed in-place.
-	char *name;
-	//! Animation root bone indices for each skeletal model body part.
-	int32_t rootBones[ SKM_BODY_MAX ];
+typedef struct sg_skm_animation_state_s {
+	//! Animation Index. (For now, hard capped to 255.)
+	int32_t animationID;
 
-	//! Pointer to the next loaded up skeletal model info data instance.
-	sg_skminfo_s *next;
-} sg_skminfo_t;
-
+	//! Actual last calculated(making it current) frame.
+	int32_t currentFrame;
+	//! Previously last calculated frame.
+	int32_t previousFrame;
+	
+	//! FrameTime for this animation.
+	double frameTime;
+	//! Whether it is looping or not.
+	const bool isLooping;
+} sg_skm_animation_state_t;
 
 /**
-*	@brief
+*	@brief	Body Animation State.
 **/
-typedef struct sg_skm_s {
-	//! Pointer to the 'static' read-only information data for this skeletal model instance.
-	sg_skminfo_t *modelInfo;
+typedef struct sg_skm_animation_mixer_s {
+	//! Stores the calculated animation state for each of the varying body parts.
+	sg_skm_animation_state_t bodyStates[ SKM_BODY_MAX ];
 
-} sg_skm_t;
-
+	//! Animation Event Queue.
+	int32_t animationEvents[ SKM_MAX_ANIMATION_QUEUE ];
+	//! Animation Event Parameters.
+	int32_t animationEventsParams[ SKM_MAX_ANIMATION_QUEUE ];
+} sg_skm_animation_mixer_t;
 
 
 /**
 *
+* 
 *
 *	Animation Encode/Decode:
 *
+* 
 *
 **/
 /**
@@ -67,7 +78,6 @@ static inline uint32_t SG_EncodeAnimationState( const uint8_t lowerBodyAnimation
 	const uint32_t animationState = ( ( ( lowerBodyAnimation & 0xff ) << 0 ) | ( ( upperBodyAnimation & 0xff ) << 8 ) | ( ( headAnimation & 0xff ) << 16 ) /*| ( ( framerate & 0xff ) << 24 )*/ );
 	return animationState;
 }
-
 /**
 *	@brief	Decodes the body animations from a single uint32_t.
 **/
@@ -78,15 +88,6 @@ static inline void SG_DecodeAnimationState( const uint32_t animationState, uint8
 	//*framerate = ( ( animationState >> 24 ) & 255 );
 }
 
-
-
-/**
-*
-*
-*	Uncategorized Functions: TODO: CATEGORIZE!
-*
-*
-**/
 /**
 * @brief	Calculates the current frame for the current time since the start time stamp.
 *

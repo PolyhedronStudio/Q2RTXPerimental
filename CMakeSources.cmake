@@ -455,6 +455,7 @@ SET(SRC_COMMON
 	common/net/net.cpp
 
 	common/skeletalmodels/cm_skm.cpp
+	common/skeletalmodels/cm_skm_posecache.cpp
 	common/skeletalmodels/cm_skm_configuration.cpp
 )
 SET(HEADERS_COMMON
@@ -489,6 +490,7 @@ SET(HEADERS_COMMON
 	${CMAKE_SOURCE_DIR}/inc/common/zone.h
 
 	${CMAKE_SOURCE_DIR}/inc/common/skeletalmodels/cm_skm.h
+	${CMAKE_SOURCE_DIR}/inc/common/skeletalmodels/cm_skm_posecache.h
 	${CMAKE_SOURCE_DIR}/inc/common/skeletalmodels/cm_skm_configuration.h
 )
 
