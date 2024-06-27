@@ -87,7 +87,12 @@ qhandle_t SKM_PoseCache_AllocatePoseCache() {
 *	@brief	Will clear out the cache list as well as each cache contained inside of it.
 **/
 void SKM_PoseCache_ClearAllCaches() {
-
+	// Clear out each cache's data.
+	for ( int32_t i = 0; i < poseCaches.size(); i++ ) {
+		poseCaches[ i ].data.clear();
+	}
+	// Clear out the pose caches.
+	poseCaches.clear();
 }
 
 /**
