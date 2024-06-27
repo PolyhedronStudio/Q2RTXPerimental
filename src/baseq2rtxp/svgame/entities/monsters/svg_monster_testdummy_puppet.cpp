@@ -31,7 +31,8 @@ static constexpr float   DUMMY_VIEWHEIGHT_DEAD = 8.f;
 //---------------------------
 // <TEMPORARY FOR TESTING>
 //---------------------------
-static sg_skm_rootmotion_set_t rootMotionSet;
+//static sg_skm_rootmotion_set_t rootMotionSet;
+skm_rootmotion_set_t *rootMotionSet;
 static int32_t animationID = 1; // IDLE(0), RUN_FORWARD_PISTOL(1)
 
 //---------------------------
@@ -153,7 +154,7 @@ void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *pl
         // Assign enemy.
         self->activator = other;
         // Get the root motion.
-        sg_skm_rootmotion_t *rootMotion = &rootMotionSet.rootMotions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
+        skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
         // Transition to its animation.
         self->s.frame = rootMotion->firstFrameIndex;
     }
@@ -188,7 +189,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
         //---------------------------
         if ( self->activator && self->activator->client ) {
             // Get the root motion.
-            sg_skm_rootmotion_t *rootMotion = &rootMotionSet.rootMotions[ 3 ]; // [3] == RUN_FORWARD_PISTOL
+            skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 3 ]; // [3] == RUN_FORWARD_PISTOL
             // Calculate the last frame index.
             // 
             // Increment animation.
@@ -211,7 +212,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 //*pflGroundSpeed = sqrt( pseqdesc->linearmovement[ 0 ] * pseqdesc->linearmovement[ 0 ] + pseqdesc->linearmovement[ 1 ] * pseqdesc->linearmovement[ 1 ] + pseqdesc->linearmovement[ 2 ] * pseqdesc->linearmovement[ 2 ] );
                 //*pflGroundSpeed = *pflGroundSpeed * pseqdesc->fps / ( pseqdesc->numframes - 1 );
 
-                Vector3 translation = rootMotion->translations[ rootMotionFrame ];
+                Vector3 translation = *rootMotion->translations[ rootMotionFrame ];
                 float distance = sqrt( translation.x * translation.x +
                                         translation.y * translation.y /*+ translation.z * translation.z*/ );
                 distance = distance * ( 40 / ( rootMotion->frameCount - 1 ) );
@@ -372,12 +373,7 @@ void monster_testdummy_puppet_post_spawn( edict_t *self ) {
     //---------------------------
     const char *modelname = self->model;
     const model_t *model_forname = gi.GetModelDataForName( modelname );
-    if ( model_forname ) {
-        // Load it just once.
-        if ( rootMotionSet.totalRootMotions == 0 ) {
-            rootMotionSet = SG_SKM_GenerateRootMotionSet( model_forname, 0, 1 );
-        }
-    }
+    rootMotionSet = &model_forname->skmConfig->rootMotion;
     //---------------------------
     // </TEMPORARY FOR TESTING>
     //---------------------------

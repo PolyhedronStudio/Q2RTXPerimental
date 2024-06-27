@@ -16,6 +16,7 @@
 #include "common/cvar.h"
 #include "common/files.h"
 #include "common/math.h"
+#include "common/skeletalmodels/cm_skm.h"
 #include "common/skeletalmodels/cm_skm_configuration.h"
 
 #include "system/hunk.h"
@@ -58,7 +59,7 @@
 *			It does so by allocating the outputBuffer which needs to be Z_Freed by hand.
 *	@return	True on success, false on failure.
 **/
-char *CM_SKM_LoadConfigurationFile( model_t *model, const char *configurationFilePath, int32_t *loadResult ) {
+char *SKM_LoadConfigurationFile( model_t *model, const char *configurationFilePath, int32_t *loadResult ) {
     char *fileBuffer = nullptr;
 
     // Ensure the file is existent.
@@ -156,8 +157,7 @@ static const int32_t json_token_value_to_buffer( const char *jsonBuffer, jsmntok
     // Token string/value size.
     const int32_t tokenValueSize = constclamp( token->end - token->start, 0, outputBufferLength );
 
-    //// Parse field value into buffer.
-    //Q_snprintf( fieldValue, tokenValueSize, jsonBuffer + token.start );
+    // Parse field value into buffer.
     return Q_scnprintf( outputBuffer, tokenValueSize + 1, "%s\0", jsonBuffer + token->start );
 }
 
@@ -229,7 +229,7 @@ static inline const json_primitive_type_t json_token_primitive_type( const char 
 *   @brief  For debugging reasons, iterates the bone its child nodes.
 **/
 #ifdef _DEBUG_PRINT_SKM_BONE_TREE_STRUCTURE
-    static void CM_SKM_Debug_PrintNode( const skm_config_bone_node_t *boneNode, const int32_t treeDepth ) {
+    static void SKM_Debug_PrintNode( const skm_bone_node_t *boneNode, const int32_t treeDepth ) {
         if ( !boneNode ) {
             return;
         }
@@ -247,9 +247,9 @@ static inline const json_primitive_type_t json_token_primitive_type( const char 
 
         if ( boneNode->numberOfChildNodes ) {
             for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
-                skm_config_bone_node_t *childNode = boneNode->childBones[ i ];
+                skm_bone_node_t *childNode = boneNode->childBones[ i ];
                 if ( childNode != nullptr ) {
-                    CM_SKM_Debug_PrintNode( childNode, treeDepth + 1 );
+                    SKM_Debug_PrintNode( childNode, treeDepth + 1 );
                 }
             }
         }
@@ -260,8 +260,8 @@ static inline const json_primitive_type_t json_token_primitive_type( const char 
 *   @brief  Will iterate over the IQM joints and arrange a more user friendly arranged 
 *           data copy for the SKM config.
 **/
-static const int32_t CM_SKM_CollectAndFillBonesArray( const model_t *model, const char *configurationFilePath ) {
-    // Sanity checks are skipped since this is only called by CM_SKM_ParseConfigurationBuffer.
+static const int32_t SKM_GenerateBonesArray( const model_t *model, const char *configurationFilePath ) {
+    // Sanity checks are skipped since this is only called by SKM_ParseConfigurationBuffer.
 
 
     // IQM Data Pointer.
@@ -278,7 +278,7 @@ static const int32_t CM_SKM_CollectAndFillBonesArray( const model_t *model, cons
     // Iterate the IQM joints data.
     for ( uint32_t joint_idx = 0; joint_idx < iqmData->num_joints; joint_idx++ ) {
         // The matching bone node.
-        skm_config_bone_node_t *boneNode = &skmConfig->boneArray[ joint_idx ];
+        skm_bone_node_t *boneNode = &skmConfig->boneArray[ joint_idx ];
 
         // Copy over the name.
         char *name = str;//(const char *)iqmData->jointNames[ joint_idx ];// +header->ofs_text + joint->name;
@@ -320,7 +320,7 @@ static const int32_t CM_SKM_CollectAndFillBonesArray( const model_t *model, cons
 *           that of boneNode, add it to the boneNode's childBones array and recursively call
 *           this function again to iterate over the array node.
 **/
-static void CM_SKM_CollectBoneTreeNodeChildren( model_t *model, skm_config_bone_node_t *boneNode ) {
+static void SKM_CollectBoneTreeNodeChildren( model_t *model, skm_bone_node_t *boneNode ) {
     // IQM Data Pointer.
     iqm_model_t *iqmData = model->iqmData;
     // SKM Config Pointer.
@@ -335,7 +335,7 @@ static void CM_SKM_CollectBoneTreeNodeChildren( model_t *model, skm_config_bone_
     int32_t childrenAdded = 0;
     for ( int32_t j = 0; j < skmConfig->numberOfBones; j++ ) {
         // Get array bone node.
-        skm_config_bone_node_t *arrayNode = &skmConfig->boneArray[ j ];
+        skm_bone_node_t *arrayNode = &skmConfig->boneArray[ j ];
 
         // If its a valid number and a matching parent number.
         if ( boneNode->number >= 0 && arrayNode && arrayNode->parentNumber == boneNode->number ) {
@@ -350,7 +350,7 @@ static void CM_SKM_CollectBoneTreeNodeChildren( model_t *model, skm_config_bone_
             }
 
             // Recurse into the arrayNode to collect its children nodes.
-            CM_SKM_CollectBoneTreeNodeChildren( model, arrayNode );
+            SKM_CollectBoneTreeNodeChildren( model, arrayNode );
         }
     }
 }
@@ -358,10 +358,10 @@ static void CM_SKM_CollectBoneTreeNodeChildren( model_t *model, skm_config_bone_
 /**
 *   @brief  Iterates over the SKM config bones array in order to generate the boneTree.
 **/
-static const int32_t CM_SKM_CreateBoneTree( model_t *model, const char *configurationFilePath ) {
+static const int32_t SKM_CreateBonesTree( model_t *model, const char *configurationFilePath ) {
     // For CHECK( )
     int ret = 0;
-    // Sanity checks are skipped since this is only called by CM_SKM_ParseConfigurationBuffer.
+    // Sanity checks are skipped since this is only called by SKM_ParseConfigurationBuffer.
 
 
     // IQM Data Pointer.
@@ -372,7 +372,7 @@ static const int32_t CM_SKM_CreateBoneTree( model_t *model, const char *configur
 
     // By now we've collected the number of child nodes for each SKM bone in the array.
     // Get pointer to the root node.
-    skm_config_bone_node_t *boneTreeRootNode = skmConfig->boneTree;
+    skm_bone_node_t *boneTreeRootNode = skmConfig->boneTree;
     
     // Declared here since, label usage...
     int32_t numberOfBonesFilled = 0;
@@ -380,7 +380,7 @@ static const int32_t CM_SKM_CreateBoneTree( model_t *model, const char *configur
     // Iterate along the bones, allocate space for child bones..
     for ( int32_t i = 0; i < skmConfig->numberOfBones; i++ ) {
         // Acquire pointer to the bone node.
-        skm_config_bone_node_t *boneNode = &skmConfig->boneArray[ i ];
+        skm_bone_node_t *boneNode = &skmConfig->boneArray[ i ];
 
         // Skip it if it has zero child bones.
         if ( !boneNode || boneNode->name[ 0 ] == '\0' || boneNode->numberOfChildNodes == 0 ) {
@@ -388,16 +388,16 @@ static const int32_t CM_SKM_CreateBoneTree( model_t *model, const char *configur
         }
 
         // Allocate space for the child bones.
-        CHECK( boneNode->childBones = (skm_config_bone_node_t **)( MOD_Malloc( sizeof( skm_config_bone_node_t* ) * boneNode->numberOfChildNodes ) ) );
+        CHECK( boneNode->childBones = (skm_bone_node_t **)( MOD_Malloc( sizeof( skm_bone_node_t* ) * boneNode->numberOfChildNodes ) ) );
         // Ensure it is zeroed out.
-        memset( boneNode->childBones, 0, sizeof( skm_config_bone_node_t*) * boneNode->numberOfChildNodes );
+        memset( boneNode->childBones, 0, sizeof( skm_bone_node_t*) * boneNode->numberOfChildNodes );
     }
 
     // Iterate along the bones once more now that memory is allocated.
     // Collect and fill the matching childBones array for each bone recursively.
     for ( int32_t i = 0; i < skmConfig->numberOfBones; i++ ) {
         // Acquire pointer to the bone node.
-        skm_config_bone_node_t *boneNode = &skmConfig->boneArray[ i ];
+        skm_bone_node_t *boneNode = &skmConfig->boneArray[ i ];
 
         // Skip it if it has zero child bones.
         if ( !boneNode || boneNode->name[0] == '\0' || boneNode->numberOfChildNodes == 0 ) {
@@ -405,13 +405,13 @@ static const int32_t CM_SKM_CreateBoneTree( model_t *model, const char *configur
         }
 
         // Generate the bone tree.
-        CM_SKM_CollectBoneTreeNodeChildren( model, boneNode );
+        SKM_CollectBoneTreeNodeChildren( model, boneNode );
     }
 
 #ifdef _DEBUG_PRINT_SKM_BONE_TREE_STRUCTURE
     // Debug print.
     Com_LPrintf( PRINT_DEVELOPER, " ------------------------- BoneTree: \"%s\" ----------------------- \n", configurationFilePath );
-    CM_SKM_Debug_PrintNode( boneTreeRootNode, 0 );
+    SKM_Debug_PrintNode( boneTreeRootNode, 0 );
     // Debug print.
     Com_LPrintf( PRINT_DEVELOPER, " ------------------------------------------------------------------ \n" );
 #endif
@@ -423,54 +423,14 @@ fail:
 }
 
 /**
-*   @brief  Returns a pointer to the first bone that has a matching name.
-**/
-skm_config_bone_node_t *CM_SKM_GetBoneByName( model_t *model, const char *boneName ) {
-    // Make sure model is valid.
-    if ( !model || !model->iqmData || !model->skmConfig ) {
-        return nullptr;
-    }
-    // Iterate, and if the name matches, return pointer to node.
-    for ( int32_t i = 0; i < model->skmConfig->numberOfBones; i++ ) {
-        skm_config_bone_node_t *boneNode = &model->skmConfig->boneArray[ i ];
-        if ( boneNode && boneNode->name[0] != '\0' && !strcmp( boneName, boneNode->name ) ) {
-            return boneNode;
-        }
-    }
-    // No node found.
-    return nullptr;
-}
-/**
-*   @brief  Returns a pointer to the first bone that has a matching number.
-**/
-skm_config_bone_node_t *CM_SKM_GetBoneByNumber( model_t *model, const int32_t boneNumber ) {
-    // Make sure model is valid.
-    if ( !model || !model->iqmData || !model->skmConfig ) {
-        return nullptr;
-    }
-    // Root Bone.
-    if ( boneNumber == 0 ) {
-        return model->skmConfig->boneTree;
-    }
-    // Iterate, and if the number matches, return pointer to node.
-    for ( int32_t i = 0; i < model->skmConfig->numberOfBones; i++ ) {
-        skm_config_bone_node_t *boneNode = &model->skmConfig->boneArray[ i ];
-        if ( boneNode && boneNode->number == boneNumber ) {
-            return boneNode;
-        }
-    }
-    // No node found.
-    return nullptr;
-}
-
-/**
 *	@brief	Parses the buffer, allocates specified memory in the model_t struct and fills it up with the results.
 *	@return	True on success, false on failure.
 **/
-const int32_t CM_SKM_ParseConfigurationBuffer( model_t *model, const char *configurationFilePath, char *fileBuffer ) {
+const int32_t SKM_ParseConfigurationBuffer( model_t *model, const char *configurationFilePath, char *fileBuffer ) {
     // Used for the CHECK( ) macro.
     int ret = 0;
 
+    int32_t motionBoneNumber = -1;
     // WID: TODO: REMOVE AFTER FINISHING THIS.
     //
     // This sits here for debugging purposes only, so we can place breakpoints without
@@ -561,9 +521,9 @@ numTokensParsed = jsmn_parse(
     // First of all, allocate our config object in general.
     CHECK( model->skmConfig = static_cast<skm_config_t*>( MOD_Malloc( sizeof( skm_config_t ) ) ) );
     // Collect and fill the bones array.
-    boneArrayResult = CM_SKM_CollectAndFillBonesArray( model, configurationFilePath );
+    boneArrayResult = SKM_GenerateBonesArray( model, configurationFilePath );
     // Build a proper boneTree based on the bone array data.
-    boneTreeResult = CM_SKM_CreateBoneTree( model, configurationFilePath );
+    boneTreeResult = SKM_CreateBonesTree( model, configurationFilePath );
 
     // Debug print.
     Com_LPrintf( PRINT_DEVELOPER, " ------------------------- JSON SKC Parsing: \"%s\" ----------------------- \n", configurationFilePath );
@@ -583,7 +543,7 @@ numTokensParsed = jsmn_parse(
         jsmntok_t *nextToken = ( nextTokenID < ( numTokensParsed - 1 ) ? &tokens[ nextTokenID ] : nullptr );
 
         //
-        // RootMotion Bone:
+        // RootMotion Tracking Bone:
         //
         if ( json_token_value_strcmp( fileBuffer, previousToken, "rootmotionbone" ) == 1 ) {
             // Make sure it is an object token. (Using 1 to prevent compiler warning C4805)...)
@@ -592,7 +552,7 @@ numTokensParsed = jsmn_parse(
                 char rootMotionBoneName[ MAX_QPATH ] = {};
                 if ( json_token_value_to_buffer( fileBuffer, currentToken, rootMotionBoneName, MAX_QPATH ) ) {
                     // Get the bone node that has the matching name.
-                    skm_config_bone_node_t *rootMotionBoneNode = CM_SKM_GetBoneByName( model, rootMotionBoneName );
+                    skm_bone_node_t *rootMotionBoneNode = SKM_GetBoneByName( model, rootMotionBoneName );
                     if ( rootMotionBoneNode ) {
                         // Setup root motion bone node pointer.
                         model->skmConfig->rootBones.motion = rootMotionBoneNode;
@@ -614,7 +574,7 @@ numTokensParsed = jsmn_parse(
                 char hipBoneName[ MAX_QPATH ] = {};
                 if ( json_token_value_to_buffer( fileBuffer, currentToken, hipBoneName, MAX_QPATH ) ) {
                     // Get the bone node that has the matching name.
-                    skm_config_bone_node_t *hipBoneNode = CM_SKM_GetBoneByName( model, hipBoneName );
+                    skm_bone_node_t *hipBoneNode = SKM_GetBoneByName( model, hipBoneName );
                     if ( hipBoneNode ) {
                         // Setup hipe bone node pointer.
                         model->skmConfig->rootBones.hip = hipBoneNode;
@@ -636,7 +596,7 @@ numTokensParsed = jsmn_parse(
                 char torsoBoneName[ MAX_QPATH ] = {};
                 if ( json_token_value_to_buffer( fileBuffer, currentToken, torsoBoneName, MAX_QPATH ) ) {
                     // Get the bone node that has the matching name.
-                    skm_config_bone_node_t *torsoBoneNode = CM_SKM_GetBoneByName( model, torsoBoneName );
+                    skm_bone_node_t *torsoBoneNode = SKM_GetBoneByName( model, torsoBoneName );
                     if ( torsoBoneNode ) {
                         // Setup hipe bone node pointer.
                         model->skmConfig->rootBones.torso = torsoBoneNode;
@@ -658,7 +618,7 @@ numTokensParsed = jsmn_parse(
                 char headBoneName[ MAX_QPATH ] = {};
                 if ( json_token_value_to_buffer( fileBuffer, currentToken, headBoneName, MAX_QPATH ) ) {
                     // Get the bone node that has the matching name.
-                    skm_config_bone_node_t *headBoneNode = CM_SKM_GetBoneByName( model, headBoneName );
+                    skm_bone_node_t *headBoneNode = SKM_GetBoneByName( model, headBoneName );
                     if ( headBoneNode ) {
                         // Setup hipe bone node pointer.
                         model->skmConfig->rootBones.head = headBoneNode;
@@ -677,7 +637,7 @@ numTokensParsed = jsmn_parse(
         //    // Make sure it is an object token. (Using 1 to prevent compiler warning C4805)...)
         //    if ( json_token_type_is_object( nextToken ) == 1 /*true*/ ) {
         //        // Proceed into parsing the JSON for the RootMotion object.
-        //        //CM_SKM_ParseJSON_RootMotionObject( fileBuffer, tokens, numTokensParsed, tokenID + 1 );
+        //        //SKM_ParseJSON_RootMotionObject( fileBuffer, tokens, numTokensParsed, tokenID + 1 );
         //    }
         //    //// Value
         //    //char fieldValue[ MAX_QPATH ] = { };
@@ -692,6 +652,17 @@ numTokensParsed = jsmn_parse(
 
         //}
     }
+
+    // Debug print.
+    Com_LPrintf( PRINT_DEVELOPER, " -------------------- RootMotion Bone Tracking: \"%s\" --------------------- \n", configurationFilePath );
+
+    // Determine the root motion bone number.
+    motionBoneNumber = ( model->skmConfig && model->skmConfig->rootBones.motion ? model->skmConfig->rootBones.motion->number : -1 );
+    // If the rootmotion bone number == -1, it means we don't want to generate rootmotion data.
+    if ( motionBoneNumber >= 0 ) {
+        SKM_GenerateRootMotionSet( model, motionBoneNumber, 0 );
+    }
+
 // WID: TODO: Dynamically allocating somehow fails.
 #if 0
     // Free tokens.

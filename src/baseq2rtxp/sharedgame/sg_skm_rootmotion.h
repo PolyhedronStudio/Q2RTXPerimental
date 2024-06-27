@@ -10,15 +10,15 @@
 #pragma once
 
 
-
-//! Calculate it for all axis.
-static constexpr int32_t SKM_POSE_TRANSLATE_ALL = 0;
-//! Calculate translation of the bone's X Axis.
-static constexpr int32_t SKM_POSE_TRANSLATE_X = ( 1 << 0 );
-//! Calculate translation of the bone's Y Axis.
-static constexpr int32_t SKM_POSE_TRANSLATE_Y = ( 1 << 1 );
-//! Calculate translation of the bone's Z Axis.
-static constexpr int32_t SKM_POSE_TRANSLATE_Z = ( 1 << 2 );
+#if 0
+////! Calculate it for all axis.
+//static constexpr int32_t SKM_POSE_TRANSLATE_ALL = 0;
+////! Calculate translation of the bone's X Axis.
+//static constexpr int32_t SKM_POSE_TRANSLATE_X = ( 1 << 0 );
+////! Calculate translation of the bone's Y Axis.
+//static constexpr int32_t SKM_POSE_TRANSLATE_Y = ( 1 << 1 );
+////! Calculate translation of the bone's Z Axis.
+//static constexpr int32_t SKM_POSE_TRANSLATE_Z = ( 1 << 2 );
 
 /**
 *	@brief
@@ -56,3 +56,5 @@ typedef struct sg_skm_rootmotion_set_s {
 	//! Stores the root motions sorted by animation index number.
 	std::vector<sg_skm_rootmotion_t> rootMotions;
 } sg_skm_rootmotion_set_t;
+
+#endif

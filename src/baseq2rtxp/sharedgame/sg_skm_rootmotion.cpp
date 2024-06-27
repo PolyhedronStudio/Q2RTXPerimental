@@ -12,6 +12,7 @@
 #include "sg_skm_modelinfo.h"
 #include "sg_skm_rootmotion.h"
 
+#if 0
 /**
 *	@brief	Support method for calculating the exact translation of the root bone, in between frame poses.
 **/
@@ -165,3 +166,4 @@ const sg_skm_rootmotion_set_t SG_SKM_GenerateRootMotionSet( const model_t *skm, 
 
 	return rootMotionSet;
 }
+#endif

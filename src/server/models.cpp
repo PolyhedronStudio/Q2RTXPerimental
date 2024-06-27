@@ -373,11 +373,11 @@ int SV_Models_LoadIQM( model_t *model, const void *rawdata, size_t length, const
     if ( len > 4 ) {
         char *skm_config_file_buffer = NULL;
         int32_t skc_load_result = 0;
-        skm_config_file_buffer = CM_SKM_LoadConfigurationFile( model, skm_config_path, &skc_load_result );
+        skm_config_file_buffer = SKM_LoadConfigurationFile( model, skm_config_path, &skc_load_result );
         // If succesfully loaded, parse the buffer.
         if ( skc_load_result ) {
             // Move on to parsing the actual configuration file and storing the needed data into the model_t struct.
-            CM_SKM_ParseConfigurationBuffer( model, skm_config_path, skm_config_file_buffer );
+            SKM_ParseConfigurationBuffer( model, skm_config_path, skm_config_file_buffer );
         }
 
         // Make sure to free up the buffer now we're done parsing the skeletal model config script.

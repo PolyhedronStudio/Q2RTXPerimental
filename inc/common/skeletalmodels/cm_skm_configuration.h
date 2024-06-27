@@ -3,8 +3,10 @@
 *
 *	Skeletal Model Configuration(.skc) File Load and Parser.
 * 
-*	Used to load up the specified actions, blends, and events.
+*	Used to load up the extra needed model data such as the specified
+*	actions, blends, and events.
 *
+* 
 ********************************************************************/
 #pragma once
 
@@ -24,7 +26,7 @@ extern "C" {
 *			It does so by allocating the outputBuffer which needs to be Z_Freed by hand.
 *	@return	True on success, false on failure.
 **/
-char *CM_SKM_LoadConfigurationFile( model_t *model, const char *configurationFilePath, int32_t *loadResult );
+char *SKM_LoadConfigurationFile( model_t *model, const char *configurationFilePath, int32_t *loadResult );
 
 
 
@@ -41,7 +43,7 @@ char *CM_SKM_LoadConfigurationFile( model_t *model, const char *configurationFil
 *	@
 *	@return	True on success, false on failure.
 **/
-const int32_t CM_SKM_ParseConfigurationBuffer( model_t *model, const char *configurationFilePath, char *fileBuffer );
+const int32_t SKM_ParseConfigurationBuffer( model_t *model, const char *configurationFilePath, char *fileBuffer );
 
 
 #ifdef __cplusplus

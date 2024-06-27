@@ -125,7 +125,7 @@ typedef struct light_poly_s {
 /**
 *
 * 
-*   IQM Data:
+*   IQM Mesh Data:
 *
 * 
 **/
@@ -201,15 +201,16 @@ typedef struct iqm_mesh_s
 /**
 *
 *
-*   Skeletal Model Configuration Data:
+*   SKM Bone Node
 *
 *
 **/
 /**
-*   @brief  Stores IQM bone information more conveniently for proper working access.
+*   @brief  Stores (generated from IQM data) bone information to make it more convenient
+*           0for proper working access.
 **/
-typedef struct skm_config_bone_node_s skm_config_bone_node_t;
-typedef struct skm_config_bone_node_s {
+typedef struct skm_bone_node_s skm_bone_node_t;
+typedef struct skm_bone_node_s {
     //! Bone name.
     char name[ MAX_QPATH ];
     //! Bone Number (This is also the actual index inside the boneArray).
@@ -218,14 +219,87 @@ typedef struct skm_config_bone_node_s {
     int32_t parentNumber;
 
     //! Pointer to parent bone. (nullptr if this is the root bone.)
-    skm_config_bone_node_t *parentBone;
+    skm_bone_node_t *parentBone;
 
     //! Number of child bone nodes.
     int32_t numberOfChildNodes;
     //! Allocated array of child bones.
-    skm_config_bone_node_t **childBones;
-} skm_config_bone_node_t;
+    skm_bone_node_t **childBones;
+} skm_bone_node_t;
 
+
+
+/**
+*
+*
+*   Skeletal Model Bone RootMotion:
+*
+*
+**/
+//! Calculate it for all axis.
+#define SKM_POSE_TRANSLATE_ALL 0
+//! Calculate translation of the bone's X Axis.
+#define SKM_POSE_TRANSLATE_X ( 1 << 0 )
+//! Calculate translation of the bone's Y Axis.
+#define SKM_POSE_TRANSLATE_Y ( 1 << 1 )
+//! Calculate translation of the bone's Z Axis.
+#define SKM_POSE_TRANSLATE_Z ( 1 << 2 )
+
+/**
+*	@brief
+**/
+typedef struct skm_rootmotion_s {
+    //! Name of this root motion.
+    char name[ MAX_QPATH ];
+
+    //! The first frame index into the animation frames array.
+    int32_t firstFrameIndex;
+    //! The last frame index into the animation frames array.
+    int32_t lastFrameIndex;
+
+    //! The total number of 'Root Bone' frames this motion contains.
+    int32_t frameCount;
+
+    //! The 'Root Bone' translation offset relative to each frame. From 0 to frameCount.
+    /*std::vector<Vector3>*/
+    Vector3 **translations;
+    //! The total 'Root Bone' of all translations by this motion.
+    Vector3 totalTranslation;
+
+    //! The 'Root Bone' translation distance relative to each frame. From 0 to frameCount.
+    /*std::vector<float> */
+    float **distances;
+    //! The total 'Root Bone' distance traversed by this motion.
+    float totalDistance;
+} skm_rootmotion_t;
+
+/**
+*	@brief
+**/
+typedef struct skm_rootmotion_set_s {
+    //! The total number of Root Motions contained in this set.
+    //! (Technically this'll always be identical to IQM Data its num_animations.)
+    int32_t numberOfRootMotions;
+
+    //! Stores the root motions sorted by animation index number.
+    skm_rootmotion_t **motions;
+} skm_rootmotion_set_t;
+
+
+
+/**
+*
+*
+*   Skeletal Model (Configuration/Analyzed-) Data:
+*
+*   Contains a Bones Array for easy indexed access, as well as an actual
+*   Bones Node Tree for recursive traversing.
+* 
+*   Also stores the pre-calculated Root Bone Motion data for each IQM
+*   animation, which are optionally configured to cancel out axes for
+*   rendering as well as the actual tracking of the Bone Motion.
+*
+**/
 /**
 *   @brief  Stores Skeletal Model data conveniently, sourced from the IQM mesh and
 *           an (optional but mostly required) '.skc' model configuration file.
@@ -241,22 +315,24 @@ typedef struct skm_config_s {
     int32_t numberOfBones;
 
     //! Stores the bones indexed by bone number, for quick access.
-    skm_config_bone_node_t boneArray[ SKM_MAX_BONES ];
+    skm_bone_node_t boneArray[ SKM_MAX_BONES ];
     //! This is the root bone node, for iterative purposes.
-    skm_config_bone_node_t *boneTree;
-
+    skm_bone_node_t *boneTree;
     //! Pointers to the root bones in the tree, for easy access.
     struct {
         //! For the 'RootMotion' system.
-        skm_config_bone_node_t *motion;
+        skm_bone_node_t *motion;
 
         //! For the 'Head'(Well, head, duhh) bone.
-        skm_config_bone_node_t *head;
+        skm_bone_node_t *head;
         //! For the 'Torso'(Upper Body) bone.
-        skm_config_bone_node_t *torso;
+        skm_bone_node_t *torso;
         //! For the 'Hip'(Lower Body) bone.
-        skm_config_bone_node_t *hip;
+        skm_bone_node_t *hip;
     } rootBones;
+
+    //! Stores all pre-calculated motions of the Root Motion Bone, for all frames, of each animation.
+    skm_rootmotion_set_t rootMotion;
 } skm_config_t;
 
 
