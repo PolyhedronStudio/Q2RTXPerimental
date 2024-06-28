@@ -1165,9 +1165,10 @@ void PutClientInServer(edict_t *ent)
 
     // Proper gunindex.
     if ( client->pers.weapon ) {
-        client->ps.gunindex = gi.modelindex( client->pers.weapon->view_model );
+        client->ps.gun.modelIndex = gi.modelindex( client->pers.weapon->view_model );
     } else {
-        client->ps.gunindex = 0;
+        client->ps.gun.modelIndex = 0;
+        client->ps.gun.animationID = 0;
     }    
 
     // clear entity state values
@@ -1224,7 +1225,8 @@ void PutClientInServer(edict_t *ent)
         ent->movetype = MOVETYPE_NOCLIP;
         ent->solid = SOLID_NOT;
         ent->svflags |= SVF_NOCLIENT;
-        ent->client->ps.gunindex = 0;
+        ent->client->ps.gun.modelIndex = 0;
+        ent->client->ps.gun.animationID = 0;
         gi.linkentity(ent);
         return;
     } else
@@ -1919,6 +1921,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 			UpdateChaseCam( other );
 		}
     }
+
+
 }
 
 /**

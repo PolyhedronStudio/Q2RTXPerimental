@@ -210,17 +210,18 @@ allowchange:
 
     if (!ent->client->pers.weapon) {
         // dead
-        ent->client->ps.gunindex = 0;
+        ent->client->ps.gun.modelIndex = 0;
+        ent->client->ps.gun.animationID = 0;
         return;
     }
 
     // Now switch the actual model up for the player state.
-    ent->client->ps.gunindex = gi.modelindex( ent->client->pers.weapon->view_model );
+    ent->client->ps.gun.modelIndex = gi.modelindex( ent->client->pers.weapon->view_model );
 
     // Engage into "Drawing" weapon mode.
     P_Weapon_SwitchMode( ent, WEAPON_MODE_DRAWING, (const weapon_mode_animation_t*)ent->client->pers.weapon->info, true );
 
-    // ADjust player client animation.
+    // Adjust player client animation.
     ent->client->anim_priority = ANIM_PAIN;
     if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
         ent->s.frame = FRAME_crpain1;
@@ -425,7 +426,7 @@ void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forwar
 /**
 *   @brief  Acts as a sub method for cleaner code, used by weapon item animation data precaching.
 **/
-void P_Weapon_ModeAnimationFromIQM( weapon_item_info_t *itemInfo, const iqm_anim_t *iqmAnim, const int32_t modeID ) {
+void P_Weapon_ModeAnimationFromIQM( weapon_item_info_t *itemInfo, const iqm_anim_t *iqmAnim, const int32_t modeID, const int32_t iqmAnimationID ) {
     // Ensure modeID is valid.
     if ( modeID < 0 || modeID >= WEAPON_MODE_MAX ) {
         gi.dprintf( "%s: modeID(#%i) < 0 or >= WEAPON_MODE_MAX\n", __func__ );
@@ -438,6 +439,7 @@ void P_Weapon_ModeAnimationFromIQM( weapon_item_info_t *itemInfo, const iqm_anim
     weapon_mode_animation_t *modeAnimation = &modeAnimations[ modeID ];
 
     // Start filling the specified modeID slot with the iqmAnim data.
+    modeAnimation->modelAnimationID = iqmAnimationID;
     modeAnimation->startFrame = iqmAnim->first_frame;
     modeAnimation->endFrame = iqmAnim->first_frame + iqmAnim->num_frames;
     modeAnimation->duration = sg_time_t::from_ms( BASE_FRAMETIME ) * iqmAnim->num_frames;
@@ -450,27 +452,32 @@ void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapo
     // Only switch if we're allowed to.
     if ( ( ent->client->weaponState.canChangeMode || force ) /* &&
         ( ent->client->weaponState.mode != ent->client->weaponState.oldMode )*/ ) {
-        // We can switch, fetch animation data for the new mode.
-        const weapon_mode_animation_t *modeAnimation = &weaponModeAnimations[ newMode ];
-
-        // Assign the new state's new mode.
+        // We can switch, Assign the new state's mode.
         ent->client->weaponState.oldMode = ent->client->weaponState.mode;
         ent->client->weaponState.mode = newMode;
 
         // Update animation state to match that of the new desired mode.
+        const weapon_mode_animation_t *modeAnimation = &weaponModeAnimations[ newMode ];
         ent->client->weaponState.animation.startFrame = modeAnimation->startFrame;
         ent->client->weaponState.animation.currentFrame = modeAnimation->startFrame;
         ent->client->weaponState.animation.endFrame = modeAnimation->endFrame;
+        ent->client->weaponState.animation.modelAnimationID = modeAnimation->modelAnimationID;
 
         // Update the animation state's time information.
         ent->client->weaponState.animation.startTime = level.time;
         ent->client->weaponState.animation.endTime = level.time + modeAnimation->duration;
         ent->client->weaponState.animation.currentTime = level.time;
 
-        // Update the weapon's animation based on time.
+        // Moved to ClientThink so that it'll be updated always.
+        // Update animation change to player state.
+        //ent->client->ps.gun.animationID = ( ( ent->client->ps.gun.animationID & GUN_ANIMATION_TOGGLE_BIT ) ^ GUN_ANIMATION_TOGGLE_BIT )
+        //    | modeAnimation->modelAnimationID;
 
         // Make sure that the client's player state frame is adjusted also.
         //ent->client->ps.gunframe = modeFrames->startFrame;
+
+        // Set mode change to true, so we can use this to update player state animation data.
+        ent->client->weaponState.updatePlayerStateAnimationID = true;
 
         // Enforce a wait to finish animating mode before allowing yet another change.
         ent->client->weaponState.canChangeMode = false;
@@ -487,9 +494,20 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
         return false;
     }
 
-    // Update the weapon's current time.
-    ent->client->weaponState.animation.currentTime = level.time;
+    // Update animation change to player state.
+    if ( ent->client->ps.gun.modelIndex != 0 ) {
+        // Update weapon animationID with toggle bit, if necessary.
+        if ( ent->client->weaponState.updatePlayerStateAnimationID ) {
+            ent->client->ps.gun.animationID = ( ( ent->client->ps.gun.animationID & GUN_ANIMATION_TOGGLE_BIT ) ^ GUN_ANIMATION_TOGGLE_BIT )
+                | ent->client->weaponState.animation.modelAnimationID;
+        }
+        // Set back to false, otherwise we'd be animation toggle bit spamming which confuses the client in
+        // what frame to render for the weapon mode's animation.
+        ent->client->weaponState.updatePlayerStateAnimationID = false;
+    }
 
+    // Update the animation's current time.
+    ent->client->weaponState.animation.currentTime = level.time;
 #if 1
     // WID: This is actually what we should be doing. However we don't, because it messes with
     // the feeling of responsiveness for client user command thinking.
@@ -501,7 +519,7 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
         BASE_FRAMETIME,
         ent->client->weaponState.animation.startFrame,
         ent->client->weaponState.animation.endFrame,
-        0, false );
+        1, false );
     // Debug
     //gi.dprintf( "%s: gunFrame(%i)\n", __func__, newWeaponFrame );
     int32_t gunFrame = ( newWeaponFrame >= 0 ? newWeaponFrame : oldWeaponFrame );
@@ -518,7 +536,7 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
     // Enough time has passed:
     if ( ent->client->weaponState.animation.currentTime >= ent->client->weaponState.animation.endTime 
         // Or the animation has finished playing in general, stalling at its endFrame.
-        || ( gunFrame == -1 || frameFraction == 1 ) ) {
+        || /*( gunFrame == -1 ||*/( frameFraction == 1 ) ) {
 #else
         if ( gunFrame > ent->client->weaponState.animation.endFrame ) {
 #endif
@@ -526,7 +544,7 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
         ent->client->weaponState.canChangeMode = true;
         // Apply gun frame.
 #if 1 
-        ent->client->ps.gunframe = ent->client->weaponState.animation.endFrame;
+        ent->client->weaponState.animation.currentFrame = ent->client->weaponState.animation.endFrame;
 #else
         // Keep gun frame in check.
         ent->client->ps.gunframe = ent->client->weaponState.animation.endFrame;

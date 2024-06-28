@@ -98,6 +98,9 @@ typedef struct pmove_state_s {
 #define MAX_STATS               64  //! Maximum number of stats we compile with.
 
 
+//! Used to detect animation changes.
+#define GUN_ANIMATION_TOGGLE_BIT 128
+
 // pmove_state_t is the information needed in addition to player_state_t
 // to rendered a view. These are sent from client to server in an amount relative
 // to the client's (optionally set) frame rate limit.
@@ -120,11 +123,18 @@ typedef struct {
     /**
     *   (Networked) Gun State:
     **/
-    //! Weapon(gun model) index.
-    uint32_t gunindex;
-    //! Current weapon model's frame.
-    uint32_t gunframe;
-
+    struct {
+        //! Weapon(gun model) index.
+        uint32_t modelIndex;
+        //! Animation ID. We use GUN_ANIMATION_TOGGLE_BIT so we can detect animation
+        //! changes even if it is the same ID. Keep in mind that this limits our
+        //! animationID range from 0 to 127.
+        uint8_t animationID;
+        //! Time of setting animationID. (We could derive it by fiddling bits around?)
+        
+        //! Current weapon model's frame.
+        //uint32_t gunframe;
+    } gun;
 
     /**
     *   Screen State:
@@ -162,18 +172,20 @@ typedef struct {
     *   Not communicated over the net at all, some are calculated locally
     *   for both Client AND Server Game(s).
     **/
-    //! [BOTH] Calculated bobMove value.
+    //! [Client/Server] Calculated bobMove value.
     double bobMove;
-    //! [BOTH] XYSpeed.
+    //! [Client/Server] XYSpeed.
     double xySpeed;
-    //! [BOTH] XYSpeed.
+    //! [Client/Server] XYSpeed.
     double xyzSpeed;
 
-    //! [CLIENT]: Gun Angles on-screen.
+    //! [Client]: Gun Angles on-screen.
     Vector3 gunangles;
-    //! [CLIENT]: Gun Pffset on-screen.
+    //! [Client]: Gun Pffset on-screen.
     Vector3 gunoffset;
     
+    //! [Server]: Gun frame.
+    int32_t gunframe;
     //! server to game info for scoreboard			
     //int32_t ping; 
     //int64_t pmove_framecount;

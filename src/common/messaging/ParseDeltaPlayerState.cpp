@@ -119,11 +119,11 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->kick_angles[ 1 ] = MSG_ReadInt16( ) / 1024.f;
 		to->kick_angles[ 2 ] = MSG_ReadInt16( ) / 1024.f;
 	}
-	if ( flags & PS_WEAPONINDEX ) {
-		to->gunindex = MSG_ReadUintBase128( );
+	if ( flags & PS_GUN_MODELINDEX ) {
+		to->gun.modelIndex = MSG_ReadUintBase128( );
 	}
-	if ( flags & PS_WEAPONFRAME ) {
-		to->gunframe = MSG_ReadUintBase128( );
+	if ( flags & PS_GUN_ANIMATION ) {
+		to->gun.animationID = MSG_ReadUint8( );
 		// WID: Moved to client game.
 		//to->gunoffset[ 0 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmove MSG_ReadInt8( ) * 0.25f;
 		//to->gunoffset[ 1 ] = SHORT2COORD( MSG_ReadInt16( ) ); // WID: new-pmoveMSG_ReadInt8( ) * 0.25f;

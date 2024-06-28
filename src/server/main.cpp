@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/sizebuf.h"
 #include "common/huffman.h"
 #include "common/intreadwrite.h"
+#include "common/skeletalmodels/cm_skm_posecache.h"
 
 //pmoveParams_t   sv_pmp;
 
@@ -2018,6 +2019,11 @@ Only called at quake2.exe startup, not for each game
 ===============
 */
 void SV_Init(void) {
+    // Allocate/reserve the cache we use for blending skeletal model poses into.
+    svs.serverPoseCache = SKM_PoseCache_AllocatePoseCache();
+    // Reset pose cache fully to a clean slate initial size.
+    SKM_PoseCache_ResetCache( svs.serverPoseCache );
+
     // Initialize operator commands.
     SV_InitOperatorCommands();
     // Register savegames.
@@ -2213,6 +2219,9 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
 
     // Free all models.
     SV_Models_Shutdown();
+
+    // Clear up the server's skeletal model bone pose cache context.
+    SKM_PoseCache_ClearCache( &svs.serverPoseCache );
 
     // free current level
     CM_FreeMap(&sv.cm);

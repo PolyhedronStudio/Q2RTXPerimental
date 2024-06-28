@@ -107,8 +107,8 @@ extern "C" {
 		//int16_t		gunangles[3]; // WID: new-pmove //int8_t          gunangles[3];
 		// WID: Moved to CLGame.
 		//int16_t		gunoffset[3]; // WID: new-pmove //int8_t          gunoffset[3];
-		uint32_t		gunindex;
-		uint32_t		gunframe;
+		uint32_t		gunModelIndex;
+		uint8_t			gunAnimationID;
 		//uint8_t         damage_blend[ 4 ];
 		uint8_t         screen_blend[4];
 		uint8_t         fov;

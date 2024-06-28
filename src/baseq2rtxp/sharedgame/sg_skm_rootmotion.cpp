@@ -9,7 +9,7 @@
 ********************************************************************/
 #include "shared/shared.h"
 #include "sg_shared.h"
-#include "sg_skm_modelinfo.h"
+#include "sg_skm.h"
 #include "sg_skm_rootmotion.h"
 
 #if 0

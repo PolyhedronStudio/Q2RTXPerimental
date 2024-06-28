@@ -47,7 +47,8 @@ void MoveClientToIntermission(edict_t *ent)
     } else {
         ent->client->ps.pmove.pm_type = PM_INTERMISSION;
     }
-    ent->client->ps.gunindex = 0;
+    ent->client->ps.gun.modelIndex = 0;
+    ent->client->ps.gun.animationID = 0;
     /*ent->client->ps.damage_blend[3] = */ent->client->ps.screen_blend[ 3 ] = 0; // damageblend?
     ent->client->ps.rdflags = RDF_NONE;
 

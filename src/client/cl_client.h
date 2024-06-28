@@ -163,26 +163,44 @@ typedef struct {
 *           to the client game module by specific API callbacks.
 **/
 typedef struct client_static_s {
+    /**
+    *
+    *   Client Application State:
+    *
+    **/
     //! Actual connective state. (This includes disconnected, being dropped to console.)
     connstate_t state;
     //! Destination 'layer' for where key events end up being handled in.
     keydest_t   key_dest;
 
-    //! State of the application.
+    //! State of the application. ( Minimized, restored, activated. )
     active_t    active;
 
     //! Whether the renderer is initialized.
     qboolean    ref_initialized;
     //! OpenGL or VKPT.
     ref_type_t  ref_type;
-    uint64_t    disable_screen; //! If the screen is disabled (loading plaque is up), do nothing at all
+    //! If the screen is disabled (loading plaque is up), do nothing at all
+    uint64_t    disable_screen;
 
+
+    /**
+    *
+    *   User Info
+    *
+    **/
     //! Whether the userinfo was modified or not.
-    //! This is set each time a CVAR_USERINFO variable is changed
-    //! so that the client knows to send it to the server
+    //! This is set each time a CVAR_USERINFO variable is changed, so that the client knows to send it to the server
     int         userinfo_modified;
+    //! Pointers to userinfo cvars that need updating.
     cvar_t      *userinfo_updates[MAX_PACKET_USERINFOS];
 
+
+    /**
+    *
+    *   Client Timing:
+    *
+    **/
     //! Actual number of frames we've ran so far.
     int64_t     framecount;
     //! Time since application boot, always increasing, no clamping, etc.
@@ -192,15 +210,20 @@ typedef struct client_static_s {
     //! Seconds since last frame.
     double      frametime;
 
-// preformance measurement
-#define C_FPS   cls.measure.fps[0]
-#define R_FPS   cls.measure.fps[1]
-#define C_MPS   cls.measure.fps[2]
-#define C_PPS   cls.measure.fps[3]
-#define C_FRAMES    cls.measure.frames[0]
-#define R_FRAMES    cls.measure.frames[1]
-#define M_FRAMES    cls.measure.frames[2]
-#define P_FRAMES    cls.measure.frames[3]
+
+    /**
+    *
+    *   Performance measurement
+    *
+    **/
+    #define C_FPS   cls.measure.fps[0]
+    #define R_FPS   cls.measure.fps[1]
+    #define C_MPS   cls.measure.fps[2]
+    #define C_PPS   cls.measure.fps[3]
+    #define C_FRAMES    cls.measure.frames[0]
+    #define R_FRAMES    cls.measure.frames[1]
+    #define M_FRAMES    cls.measure.frames[2]
+    #define P_FRAMES    cls.measure.frames[3]
     struct {
         uint64_t time;
         int64_t frames[4];
@@ -208,7 +231,12 @@ typedef struct client_static_s {
 		int64_t ping;
     } measure;
 
-    // connection information
+
+    /**
+    *
+    *   Connection Information:
+    *
+    **/
     netadr_t    serverAddress;
     char        servername[MAX_OSPATH]; // name of server from original connect
     uint64_t	connect_time;           // for connection retransmits
@@ -251,7 +279,13 @@ typedef struct client_static_s {
         string_entry_t  *ignores;       // list of ignored paths
     } download;
 
-// demo recording info must be here, so it isn't cleared on level change
+
+    /**
+    *
+    *   Demo ( -Recording)/Time Demo:
+    *
+    **/
+    //! Demo recording info must be here, so it isn't cleared on level change
     struct {
         qhandle_t   playback;
         qhandle_t   recording;
@@ -272,6 +306,7 @@ typedef struct client_static_s {
         qboolean    seeking;
         qboolean    eof;
     } demo;
+    //! Time Demo:
     struct {
         // Number of timedemo runs to perform
         int64_t     runs_total;
@@ -280,6 +315,15 @@ typedef struct client_static_s {
         // Results of timedemo runs
         uint64_t *results;
     } timedemo;
+
+
+    /**
+    *
+    *   Other:
+    *
+    **/
+    //! Opaque handle to the reserved Bone Pose Cache memory manager context.
+    qhandle_t clientPoseCache;
 } client_static_t;
 
 //! Extern for access anywhere.

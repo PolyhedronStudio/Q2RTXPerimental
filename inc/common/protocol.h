@@ -81,8 +81,8 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define PS_VIEWOFFSET       (1<<11)
 #define PS_BLEND            (1<<12)
 #define PS_RDFLAGS          (1<<13)
-#define PS_WEAPONFRAME      (1<<14)
-#define PS_WEAPONINDEX      (1<<15)
+#define PS_GUN_ANIMATION	(1<<14)
+#define PS_GUN_MODELINDEX	(1<<15)
 #define PS_FOV              (1<<16)
 
 

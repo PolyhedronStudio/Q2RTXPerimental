@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_main.c  -- client main loop
 
 #include "cl_client.h"
+#include "common/skeletalmodels/cm_skm_posecache.h"
 #include "client/ui/ui.h"
 
 cvar_t  *rcon_address;
@@ -576,6 +577,9 @@ void CL_ClearState(void)
     // Let the client game wipe state also.
     clge->ClearState();
     // WID: disable LOC: LOC_FreeLocations();
+
+    // Don't forget to clear the pose cache.
+    SKM_PoseCache_ClearCache( &cls.clientPoseCache );
 
     // Unload the collision models.
     CM_FreeMap( &cl.collisionModel ); //BSP_Free(cl.bsp);
@@ -1561,6 +1565,14 @@ void CL_PostSpawnClientEntities() {
 **/
 void CL_Begin(void)
 {
+    if ( !cls.clientPoseCache ) {
+        // Allocate/reserve the cache we use for blending skeletal model poses into.
+        cls.clientPoseCache = SKM_PoseCache_AllocatePoseCache();
+    }
+    // Reset pose cache fully to a clean slate initial size.
+    SKM_PoseCache_ResetCache( cls.clientPoseCache );
+
+    // Fix any cheat cvars.
     Cvar_FixCheats();
 
     // Spawn local client entities and allow them to register precache data.
@@ -2530,6 +2542,9 @@ static void CL_InitLocal(void)
     cls.state = ca_disconnected;
     cls.connect_time -= CONNECT_INSTANT;
 
+    // Allocate/reserve the cache we use for blending skeletal model poses into.
+    cls.clientPoseCache = SKM_PoseCache_AllocatePoseCache();
+
     CL_RegisterInput();
     CL_InitDemos();
     // WID: disable LOC: LOC_Init();
@@ -3371,6 +3386,10 @@ void CL_Shutdown(void)
     // Shutdown the client game module.
     CL_GM_Shutdown();
 
+    // Don't forget to clear the pose cache.
+    SKM_PoseCache_ClearCache( &cls.clientPoseCache );
+
+    // Reset static state.
     memset(&cls, 0, sizeof(cls));
 
     Cvar_Set("cl_running", "0");

@@ -11,20 +11,17 @@
 #include "clgame/clg_temp_entities.h"
 
 /**
-*	@brief	Will setup the refresh entity for the ET_PLAYER centity with the newState.
+*   @brief  Type specific routine for LERPing ET_PLAYER origins.
 **/
-void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
-    //
-    // Lerp Origin:
-    //   
+void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     // If client entity, use predicted origin instead of Lerped:
-    if ( CLG_IsFrameClientEntity( newState ) ) {
+    if ( CLG_IsViewClientEntity( newState ) ) {
         // We actually need to offset the Z axis origin by half the bbox height.
         Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
         // For being Dead:
         if ( clgi.client->predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
             correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
-        // For being Ducked:
+            // For being Ducked:
         } else if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
             correctedOrigin.z += PM_BBOX_DUCKED_MINS.z;
         } else {
@@ -34,22 +31,28 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
         // Now apply the corrected origin to our refresh entity.
         VectorCopy( correctedOrigin, refreshEntity->origin );
         VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
-    // Lerp Origin:
+        // Lerp Origin:
     } else {
         Vector3 cent_origin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
         VectorCopy( cent_origin, refreshEntity->origin );
         VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
     }
-
-    //
-    // Lerp Angles.
-    //
-    if ( CLG_IsFrameClientEntity( newState ) ) {
+}
+/**
+*   @brief  Type specific routine for LERPing ET_PLAYER angles.
+**/
+void CLG_ETPlayer_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+    if ( CLG_IsViewClientEntity( newState ) ) {
         VectorCopy( clgi.client->playerEntityAngles, refreshEntity->angles );      // use predicted angles
     } else {
         LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
     }
-
+}
+/**
+*   @brief Apply flag specified effects.
+**/
+void CLG_ETPlayer_AddEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+    // This is specific to when the player entity turns into GIB without being an ET_GIB.
     // If no rotation flag is set, add specified trail flags. We don't need it spamming
     // a blood trail of entities when it basically stopped motion.
     if ( newState->effects & ~EF_ROTATE ) {
@@ -57,37 +60,61 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
             CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->effects | EF_GIB );
         }
     }
+}
 
-    ////
-    //// Special RF_STAIR_STEP lerp for Z axis.
-    //// 
-    //// Handle the possibility of a stair step occuring.
-    //static constexpr int64_t STEP_TIME = 150; // Smooths it out over 150ms, this used to be 100ms.
-    //uint64_t realTime = clgi.GetRealTime();
-    //if ( packetEntity->step_realtime >= realTime - STEP_TIME ) {
-    //    uint64_t stair_step_delta = clgi.GetRealTime() - packetEntity->step_realtime;
-    //    //uint64_t stair_step_delta = clgi.client->time - ( packetEntity->step_servertime - clgi.client->sv_frametime );
+/**
+*   @brief Apply flag specified effects.
+**/
+void CLG_ETPlayer_LerpStairStep( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+    // Handle the possibility of a stair step occuring.
+    static constexpr int64_t STEP_TIME = 150; // Smooths it out over 150ms, this used to be 100ms.
+    uint64_t realTime = clgi.GetRealTime();
+    if ( packetEntity->step_realtime >= realTime - STEP_TIME ) {
+        uint64_t stair_step_delta = clgi.GetRealTime() - packetEntity->step_realtime;
+        //uint64_t stair_step_delta = clgi.client->time - ( packetEntity->step_servertime - clgi.client->sv_frametime );
 
-    //    // Smooth out stair step over 200ms.
-    //    if ( stair_step_delta <= STEP_TIME ) {
-    //        static constexpr float STEP_BASE_1_FRAMETIME = 1.0f / STEP_TIME; // 0.01f;
+        // Smooth out stair step over 200ms.
+        if ( stair_step_delta <= STEP_TIME ) {
+            static constexpr float STEP_BASE_1_FRAMETIME = 1.0f / STEP_TIME; // 0.01f;
 
-    //        // Smooth it out further for smaller steps.
-    //        //static constexpr float STEP_MAX_SMALL_STEP_SIZE = 18.f;
-    //        static constexpr float STEP_MAX_SMALL_STEP_SIZE = 15.f;
-    //        if ( fabs( packetEntity->step_height ) <= STEP_MAX_SMALL_STEP_SIZE ) {
-    //            stair_step_delta <<= 1; // small steps
-    //        }
+            // Smooth it out further for smaller steps.
+            //static constexpr float STEP_MAX_SMALL_STEP_SIZE = 18.f;
+            static constexpr float STEP_MAX_SMALL_STEP_SIZE = 15.f;
+            if ( fabs( packetEntity->step_height ) <= STEP_MAX_SMALL_STEP_SIZE ) {
+                stair_step_delta <<= 1; // small steps
+            }
 
-    //        // Calculate step time.
-    //        int64_t stair_step_time = STEP_TIME - min( stair_step_delta, STEP_TIME );
+            // Calculate step time.
+            int64_t stair_step_time = STEP_TIME - min( stair_step_delta, STEP_TIME );
 
-    //        // Calculate lerped Z origin.
-    //        //packetEntity->current.origin[ 2 ] = QM_Lerp( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
-    //        refreshEntity->origin[ 2 ] = QM_Lerp( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
-    //        VectorCopy( packetEntity->current.origin, refreshEntity->oldorigin );
-    //    }
-    //}
+            // Calculate lerped Z origin.
+            //packetEntity->current.origin[ 2 ] = QM_Lerp( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
+            refreshEntity->origin[ 2 ] = QM_Lerp( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
+            VectorCopy( packetEntity->current.origin, refreshEntity->oldorigin );
+        }
+    }
+}
+
+/**
+*	@brief	Will setup the refresh entity for the ET_PLAYER centity with the newState.
+**/
+void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+    //
+    // Lerp Origin:
+    //
+    CLG_ETPlayer_LerpOrigin( packetEntity, refreshEntity, newState );
+    //
+    // Lerp Angles.
+    //
+    CLG_ETPlayer_LerpAngles( packetEntity, refreshEntity, newState );
+    //
+    // Apply Effects.
+    //
+    CLG_ETPlayer_AddEffects( packetEntity, refreshEntity, newState );
+    //
+    // Special RF_STAIR_STEP lerp for Z axis.
+    // 
+    //CLG_ETPlayer_LerpStairStep( packetEntity, refreshEntity, newState );
 
     //
     // Add Refresh Entity Model:
@@ -160,7 +187,7 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
         refreshEntity->flags = newState->renderfx;
 
         // In case of the state belonging to the frame's viewed client number:
-        if ( CLG_IsFrameClientEntity( newState ) ) {
+        if ( CLG_IsViewClientEntity( newState ) ) {
             // When not in third person mode:
             if ( !clgi.client->thirdPersonView ) {
                 // If we're running RTX, we want the player entity to render for shadow/reflection reasons:

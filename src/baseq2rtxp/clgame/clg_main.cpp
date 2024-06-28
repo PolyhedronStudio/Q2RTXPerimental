@@ -137,7 +137,7 @@ static size_t CL_Armor_m( char *buffer, size_t size ) {
 **/
 static size_t CL_WeaponModel_m( char *buffer, size_t size ) {
 	return Q_scnprintf( buffer, size, "%s",
-		clgi.client->configstrings[ clgi.client->frame.ps.gunindex + CS_MODELS ] );
+		clgi.client->configstrings[ clgi.client->frame.ps.gun.modelIndex + CS_MODELS ] );
 }
 
 

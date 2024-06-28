@@ -9,7 +9,7 @@
 ********************************************************************/
 #include "shared/shared.h"
 #include "sg_shared.h"
-#include "sg_skm_modelinfo.h"
+#include "sg_skm.h"
 
 #if 0
 //! List of loaded up skeletal model info scripts.

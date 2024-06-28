@@ -96,17 +96,15 @@ void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint6
 /**
 *   @brief Writes the delta values of the entity state.
 **/
-void MSG_WriteDeltaEntity( const entity_packed_t *from,
-						  const entity_packed_t *to,
-						  msgEsFlags_t          flags ) {
-	uint64_t    bits, mask;
-
+void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags ) {
 	if ( !to ) {
-		if ( !from )
+		if ( !from ) {
 			Com_Error( ERR_DROP, "%s: NULL", __func__ );
+		}
 
-		if ( from->number < 1 || from->number >= MAX_PACKET_ENTITIES )
+		if ( from->number < 1 || from->number >= MAX_PACKET_ENTITIES ) {
 			Com_Error( ERR_DROP, "%s: bad number: %d", __func__, from->number );
+		}
 
 		// Write out entity number with a remove bit set.
 		MSG_WriteEntityNumber( from->number, true, 0 );
@@ -114,14 +112,16 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from,
 		return; // remove entity
 	}
 
-	if ( to->number < 1 || to->number >= MAX_EDICTS )
+	if ( to->number < 1 || to->number >= MAX_EDICTS ) {
 		Com_Error( ERR_DROP, "%s: bad number: %d", __func__, to->number );
+	}
 
-	if ( !from )
+	if ( !from ) {
 		from = &nullEntityState;
+	}
 
-// send an update
-	bits = 0;
+	// send an update
+	uint64_t bits = 0;
 
 	//if ( to->client != from->client ) {
 	//	bits |= U_CLIENT;

@@ -181,7 +181,7 @@ SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_muzzleflashes_monsters.c
 	baseq2rtxp/sharedgame/sg_pmove.cpp
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.cpp
-	baseq2rtxp/sharedgame/sg_skm_modelinfo.cpp
+	baseq2rtxp/sharedgame/sg_skm.cpp
 	baseq2rtxp/sharedgame/sg_skm_rootmotion.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SHAREDGAME
@@ -194,7 +194,7 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_pmove.h
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.h
 	baseq2rtxp/sharedgame/sg_shared.h
-	baseq2rtxp/sharedgame/sg_skm_modelinfo.h
+	baseq2rtxp/sharedgame/sg_skm.h
 	baseq2rtxp/sharedgame/sg_skm_rootmotion.h
 	baseq2rtxp/sharedgame/sg_tempentity_events.h
 	baseq2rtxp/sharedgame/sg_time.h

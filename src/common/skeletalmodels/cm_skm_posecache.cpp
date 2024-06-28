@@ -65,12 +65,12 @@ static std::vector<iqm_transform_t> _cleanBonePoses( IQM_MAX_JOINTS );
 **/
 static inline skm_posecache_t *SKM_PoseCache_GetFromHandle( const qhandle_t poseCacheHandle ) {
 	// Invalid handle.
-	if ( poseCacheHandle < 0 || poseCacheHandle >= poseCaches.size() ) {
-		// TODO: WARN?
+	if ( poseCacheHandle <= 0 || poseCacheHandle > poseCaches.capacity() ) {
+		Com_LPrintf( PRINT_WARNING, "%s: poseCacheHandle(#%i) is ( poseCacheHandle <= 0 || poseCacheHandle > poseCaches.capacity() )!\n", __func__, poseCacheHandle );
 		return nullptr;
 	}
 
-	return &poseCaches[ poseCacheHandle ];
+	return &poseCaches[ poseCacheHandle - 1];
 }
 
 /**
@@ -80,7 +80,7 @@ qhandle_t SKM_PoseCache_AllocatePoseCache() {
 	// Push back a zeroed out memory pose cache.
 	poseCaches.push_back( {} );
 	// Return handle.
-	return poseCaches.size() - 1;
+	return poseCaches.size();
 }
 
 /**
@@ -88,7 +88,7 @@ qhandle_t SKM_PoseCache_AllocatePoseCache() {
 **/
 void SKM_PoseCache_ClearAllCaches() {
 	// Clear out each cache's data.
-	for ( int32_t i = 0; i < poseCaches.size(); i++ ) {
+	for ( int32_t i = 0; i < poseCaches.capacity(); i++ ) {
 		poseCaches[ i ].data.clear();
 	}
 	// Clear out the pose caches.
@@ -97,18 +97,28 @@ void SKM_PoseCache_ClearAllCaches() {
 
 /**
 *	@brief	Clears the Temporary Bone Cache. Does NOT reset its size to defaults. Memory stays allocated as it was.
+*	@note	poseCacheHandle's value will be set to 0.
 **/
-void SKM_PoseCache_ClearCache( const qhandle_t poseCacheHandle ) {
+void SKM_PoseCache_ClearCache( qhandle_t *poseCacheHandle ) {
+	// Ignore, but do not error out, on a 0 value for poseCacheHandle.
+	// It's 0 when simply none is registered for the client/server.
+	if ( *poseCacheHandle == 0 ) {
+		return;
+	}
+
 	// Get cache.
-	skm_posecache_t *cache = SKM_PoseCache_GetFromHandle( poseCacheHandle );
+	skm_posecache_t *cache = SKM_PoseCache_GetFromHandle( *poseCacheHandle );
 	// Return on failure, print a warning.
 	if ( !cache ) {
-		Com_LPrintf( PRINT_WARNING, "%s: Invalid poseCacheHandle(#%i)!\n", __func__, poseCacheHandle );
+		Com_LPrintf( PRINT_WARNING, "%s: Invalid poseCacheHandle(#%i)!\n", __func__, *poseCacheHandle );
 		return;
 	}
 
 	// Clear the cache.
 	cache->data.clear();
+
+	// Reset pose cache handle to 0.
+	*poseCacheHandle = 0;
 }
 
 /**

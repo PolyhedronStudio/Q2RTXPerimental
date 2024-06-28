@@ -165,9 +165,9 @@ typedef struct centity_s {
 	int64_t	frame_servertime;
 	// Real Time of receiving the current frame.
 	int64_t frame_realtime;
-
 	// Server Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
 	int64_t	step_servertime;
+	// Real Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
 	int64_t	step_realtime;
 	// Actual height of the step taken.
 	float	step_height;
@@ -176,6 +176,8 @@ typedef struct centity_s {
 	/**
 	*	The game dll can add anything it wants after this point in the structure.
 	**/
+	sg_skm_animation_mixer_t animationMixer;
+
 	//int64_t someTestVar;
 	//int64_t someTestVar2;
 } centity_t;
@@ -613,11 +615,13 @@ struct game_locals_t {
 	//! Stores state of the view weapon.
 	struct {
 		//! Current frame on-screen.
-		int64_t frame;
+		int32_t frame;
 		//! Last frame received.
-		int64_t last_frame;
+		int32_t last_frame;
 		//! Received server frame time of the weapon's frame.
-		int64_t server_time;
+		uint64_t server_time;
+		//! Realtime of the received serverframe for the weapon's frame.
+		uint64_t real_time;
 		//! If true, we're engaging a FOV change.
 		qboolean isAiming;
 	} viewWeapon;

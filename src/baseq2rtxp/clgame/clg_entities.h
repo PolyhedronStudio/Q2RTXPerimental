@@ -35,9 +35,23 @@ centity_t *CLG_ViewBoundEntity( void );
 /**
 *	@brief	Returns true if the entity state's number matches to our client's entity number.
 **/
-static const inline qboolean CLG_IsFrameClientEntity( const entity_state_t *state ) {
+static const inline qboolean CLG_IsClientEntity( const entity_state_t *state ) {
+	if ( state->number == clgi.client->clientNumber ) {
+		return true;
+	}
+	return false;
+}
+
+
+/**
+*	@brief	Returns true if the entity state's number matches to our client's view entity number.
+**/
+static const inline qboolean CLG_IsViewClientEntity( const entity_state_t *state ) {
 	if ( state->number == clgi.client->frame.clientNum + 1 ) {
 		return true;
 	}
+	//} else if ( state->number == clgi.client->frame.ps.stats[ STAT_CHASE ] ) {
+	//	return true;
+	//}
 	return false;
 }

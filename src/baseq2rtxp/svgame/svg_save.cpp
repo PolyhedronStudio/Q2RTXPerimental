@@ -357,8 +357,8 @@ static const save_field_t clientfields[] = {
 
 	//V( ps.gunangles ),
 	//V( ps.gunoffset ),
-	I( ps.gunindex ),
-	I( ps.gunframe ),
+	I( ps.gun.modelIndex ),
+	I( ps.gun.animationID ),
 
     //FA( ps.damage_blend, 4 ),
 	FA( ps.screen_blend, 4 ),

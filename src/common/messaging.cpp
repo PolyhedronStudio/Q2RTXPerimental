@@ -634,8 +634,8 @@ void MSG_ShowDeltaPlayerstateBits( const uint64_t flags ) {
 	S( VIEWOFFSET, "viewoffset" );
 	S( BLEND, "screen_blend" );
 	S( RDFLAGS, "rdflags" );
-	S( WEAPONFRAME, "gunframe" );
-	S( WEAPONINDEX, "gunindex" );
+	S( GUN_ANIMATION, "gunAnimationID" );
+	S( GUN_MODELINDEX, "gunModelIndex" );
 	S( FOV, "fov" );
 	#undef S
 }

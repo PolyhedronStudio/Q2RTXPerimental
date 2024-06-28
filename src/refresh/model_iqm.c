@@ -928,7 +928,7 @@ bool R_ComputeIQMTransforms( const iqm_model_t *model, const entity_t *entity, f
 	// Pointer to first joint.
 	iqm_transform_t *relativeJoint = relativeJoints;
 
-	// Datat to work with.
+	// Data to work with.
 	const int32_t frame = entity->frame;
 	const int32_t oldframe = entity->oldframe;
 	const float backLerp = entity->backlerp;

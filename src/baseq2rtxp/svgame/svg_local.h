@@ -274,6 +274,8 @@ typedef enum {
 *   @brief  Used for constructing a weapon's 'mode' animation setup.
 **/
 typedef struct weapon_mode_animation_s {
+    //! IQM Model Animation Index.
+    int32_t modelAnimationID;
     //! Objective start frame index.
     int32_t startFrame;
     //! Objective end frame index.
@@ -1010,7 +1012,7 @@ void P_PlayerNoise(edict_t *who, const vec3_t where, int type);
 /**
 *   @brief  Acts as a sub method for cleaner code, used by weapon item animation data precaching.
 **/
-void P_Weapon_ModeAnimationFromIQM( weapon_item_info_t *itemInfo, const iqm_anim_t *iqmAnim, const int32_t modeID );
+void P_Weapon_ModeAnimationFromIQM( weapon_item_info_t *itemInfo, const iqm_anim_t *iqmAnim, const int32_t modeID, const int32_t iqmAnimationID );
 /**
 *   @brief
 **/
@@ -1264,6 +1266,14 @@ struct gclient_s {
         weapon_mode_t mode;
         //! The 'old mode' is what the weapon was actually doing during its previous 'state'.
         weapon_mode_t oldMode;
+        
+        //! True if the mode has changed for the current caller of weaponthink(ClientThink/BeginServerFrame)
+        //! that executed weapon logic. It sets the weapon animationID of the player state, with a toggle bit
+        //! in case of it finding itself in repetitive mode changes.
+        //!
+        //! In other words, this allows the client to be made aware of when an animation changed OR restarted.
+        qboolean updatePlayerStateAnimationID;
+
         //! Determines if the weapon can change 'mode'.
         qboolean canChangeMode;
         //! If set, will be applied to the client entity's state sound member.
@@ -1278,7 +1288,8 @@ struct gclient_s {
         //! Stores the 'Weapon Animation' data, which if still actively being processed
         //! prevents the weapon from changing 'mode'.
         struct {
-            //! 
+            //! Model AnimationID.
+            uint8_t modelAnimationID;
             
             //! The frame matching for the time processed so far with the current animation.
             int32_t currentFrame;

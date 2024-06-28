@@ -60,21 +60,21 @@ void Weapon_Pistol_Precached( const gitem_t *item ) {
         const iqm_anim_t *iqmAnim = &iqmData->animations[ animID ];
 
         if ( !strcmp( iqmAnim->name, "idle" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_IDLE );
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_IDLE, animID );
         } else if ( !strcmp( iqmAnim->name, "draw" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_DRAWING );
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_DRAWING, animID );
         } else if ( !strcmp( iqmAnim->name, "holster" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_HOLSTERING );
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_HOLSTERING, animID );
         } else if ( !strcmp( iqmAnim->name, "fire" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_PRIMARY_FIRING );
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_PRIMARY_FIRING, animID );
         } else if ( !strcmp( iqmAnim->name, "reload" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_RELOADING );
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_RELOADING, animID );
         } else if ( !strcmp( iqmAnim->name, "aim_in" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_IN );
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_IN, animID );
         } else if ( !strcmp( iqmAnim->name, "aim_fire" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_FIRE );
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_FIRE, animID );
         } else if ( !strcmp( iqmAnim->name, "aim_out" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_OUT );
+            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_OUT, animID );
         } else {
             continue;
         }

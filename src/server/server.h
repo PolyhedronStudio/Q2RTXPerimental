@@ -434,6 +434,9 @@ typedef struct server_static_s {
     ratelimit_t     ratelimit_rcon;
 
     challenge_t     challenges[MAX_CHALLENGES]; // to prevent invalid IPs from connecting
+
+    //! Handle to the skeletal model pose cache for skeletal model animation blending.
+    qhandle_t serverPoseCache;
 } server_static_t;
 
 //=============================================================================

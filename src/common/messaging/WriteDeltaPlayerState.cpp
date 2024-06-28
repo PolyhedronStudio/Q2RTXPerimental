@@ -55,8 +55,8 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 	//out->gunangles[ 0 ] = ANGLE2SHORT( in->gunangles[ 0 ] );// WID: new-pmove OFFSET2CHAR( in->gunangles[ 0 ] );
 	//out->gunangles[ 1 ] = ANGLE2SHORT( in->gunangles[ 1 ] );// WID: new-pmove OFFSET2CHAR( in->gunangles[ 1 ] );
 	//out->gunangles[ 2 ] = ANGLE2SHORT( in->gunangles[ 2 ] );// WID: new-pmove OFFSET2CHAR( in->gunangles[ 2 ] );
-	out->gunindex = in->gunindex;
-	out->gunframe = in->gunframe;
+	out->gunModelIndex = in->gun.modelIndex;
+	out->gunAnimationID = in->gun.animationID;
 
 	out->screen_blend[ 0 ] = BLEND2BYTE( in->screen_blend[ 0 ] );
 	out->screen_blend[ 1 ] = BLEND2BYTE( in->screen_blend[ 1 ] );
@@ -137,11 +137,11 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	//if ( to->gunframe != from->gunframe ||
 	//	!VectorCompare( to->gunoffset, from->gunoffset ) ||
 	//	!VectorCompare( to->gunangles, from->gunangles ) ) {
-	if ( to->gunframe != from->gunframe ) {
-		pflags |= PS_WEAPONFRAME;
+	if ( to->gunAnimationID != from->gunAnimationID ) {
+		pflags |= PS_GUN_ANIMATION;
 	}
-	if ( to->gunindex != from->gunindex ) {
-		pflags |= PS_WEAPONINDEX;
+	if ( to->gunModelIndex != from->gunModelIndex ) {
+		pflags |= PS_GUN_MODELINDEX;
 	}
 
 
@@ -222,11 +222,11 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		MSG_WriteInt16( to->kick_angles[ 1 ] );
 		MSG_WriteInt16( to->kick_angles[ 2 ] );
 	}
-	if ( pflags & PS_WEAPONINDEX ) {
-		MSG_WriteUintBase128( to->gunindex );
+	if ( pflags & PS_GUN_MODELINDEX ) {
+		MSG_WriteUintBase128( to->gunModelIndex );
 	}
-	if ( pflags & PS_WEAPONFRAME ) {
-		MSG_WriteUintBase128( to->gunframe );
+	if ( pflags & PS_GUN_ANIMATION ) {
+		MSG_WriteUint8( to->gunAnimationID );
 		// Moved to CLGame.
 		//MSG_WriteInt16( to->gunoffset[ 0 ] );
 		//MSG_WriteInt16( to->gunoffset[ 1 ] );

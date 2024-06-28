@@ -51,15 +51,15 @@ void Weapon_Fists_Precached( const gitem_t *item ) {
 
         // idle.
         if ( !strcmp( iqmAnim->name, "idle" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_IDLE );
+            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_IDLE, animID );
         } else if ( !strcmp( iqmAnim->name, "draw" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_DRAWING );
+            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_DRAWING, animID );
         } else if ( !strcmp( iqmAnim->name, "holster" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_HOLSTERING );
+            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_HOLSTERING, animID );
         } else if ( !strcmp( iqmAnim->name, "primary_fire" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_PRIMARY_FIRING );
+            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_PRIMARY_FIRING, animID );
         } else if ( !strcmp( iqmAnim->name, "secondary_fire" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_SECONDARY_FIRING );
+            P_Weapon_ModeAnimationFromIQM( &fistsItemInfo, iqmAnim, WEAPON_MODE_SECONDARY_FIRING, animID );
         } else {
             continue;
         }

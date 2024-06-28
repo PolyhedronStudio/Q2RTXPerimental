@@ -543,7 +543,7 @@ static void CLG_HUD_DrawHealthIndicators() {
 *	@brief  Renders the player's weapon name and (clip-)ammo status to screen.
 **/
 static void CLG_HUD_DrawAmmoIndicators() {
-    if ( !clgi.client->frame.ps.gunindex ) {
+    if ( !clgi.client->frame.ps.gun.modelIndex ) {
         return;
     }
 

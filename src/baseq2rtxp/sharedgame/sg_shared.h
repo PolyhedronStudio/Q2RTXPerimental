@@ -34,8 +34,7 @@ typedef struct edict_s sgentity_s;
 #include "sg_muzzleflashes_monsters.h"
 #include "sg_pmove.h"
 #include "sg_pmove_slidemove.h"
-#include "sg_skm_modelinfo.h"
-#include "sg_skm_rootmotion.h"
+#include "sg_skm.h"
 #include "sg_tempentity_events.h"
 
 

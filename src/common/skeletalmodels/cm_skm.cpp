@@ -37,6 +37,9 @@
 //! Uncomment to enable debug output in case of invalid model data.
 #define _DEBUG_PRINT_SKM_INVALID_MODEL_DATA
 
+//! Uncomment to enable debug developer output of rootmotion data per frame, for each animation.
+//#define _DEBUG_PRINT_SKM_ROOTMOTION_DATA
+
 
 
 /**
@@ -216,8 +219,10 @@ const skm_rootmotion_set_t *SKM_GenerateRootMotionSet( model_t *model, const int
 		// Let us not forget copying in its name.
 		Q_strlcpy( rootMotion->name, iqmAnimation->name, sizeof( iqmAnimation->name ) );
 
-		// Debug print:
-		Com_LPrintf( PRINT_DEVELOPER, "%s:---------------------------------------------------\n", __func__ );
+		#ifdef _DEBUG_PRINT_SKM_ROOTMOTION_DATA
+			// Debug print:
+			Com_LPrintf( PRINT_DEVELOPER, "%s:---------------------------------------------------\n", __func__ );
+		#endif
 		// This vector is cleared upon each new animation. It serves as a purpose to accumulate the total distance
 		// traversed up till the end animation. This in turn is used to calculate the distance traversed from the
 		// last to the first frame.
@@ -270,29 +275,31 @@ const skm_rootmotion_set_t *SKM_GenerateRootMotionSet( model_t *model, const int
 			}
 		}
 
-		// Iterate over all its frames.
-		for ( int32_t j = 0; j < iqmAnimation->num_frames; j++ ) {
-			// First get the actual array frame offset.
-			const int32_t unboundFrame = ( j );
-			const int32_t unboundOldFrame = (j)+( j > 0 ? -1 : 0 );
+		#ifdef _DEBUG_PRINT_SKM_ROOTMOTION_DATA
+			// Iterate over all its frames.
+			for ( int32_t j = 0; j < iqmAnimation->num_frames; j++ ) {
+				// First get the actual array frame offset.
+				const int32_t unboundFrame = ( j );
+				const int32_t unboundOldFrame = (j)+( j > 0 ? -1 : 0 );
 
-			// Ensure that the frame is safely in bounds for use with our poses data array.
-			const int32_t boundFrame = iqmData->num_frames ? unboundFrame % (int32_t)( iqmAnimation->num_frames ) : 0;
-			const int32_t boundOldFrame = iqmData->num_frames ? unboundOldFrame % (int32_t)( iqmAnimation->num_frames ) : 0;
+				// Ensure that the frame is safely in bounds for use with our poses data array.
+				const int32_t boundFrame = iqmData->num_frames ? unboundFrame % (int32_t)( iqmAnimation->num_frames ) : 0;
+				const int32_t boundOldFrame = iqmData->num_frames ? unboundOldFrame % (int32_t)( iqmAnimation->num_frames ) : 0;
 
-			// Translation and Distance that was calculated for this frame.
-			const Vector3 translation = *rootMotion->translations[ boundFrame ];
-			const float distance = *rootMotion->distances[ boundFrame ];
+				// Translation and Distance that was calculated for this frame.
+				const Vector3 translation = *rootMotion->translations[ boundFrame ];
+				const float distance = *rootMotion->distances[ boundFrame ];
 
-			// Debug print:
-			Com_LPrintf( PRINT_DEVELOPER, "%s: animation(#%i, %s), boundOldFrame(%i), boundFrame(#%i), rootBone[ name(%s), translation(%f, %f, %f), distance(%f) ]\n",
-				__func__,
-				i, iqmAnimation->name,
-				boundOldFrame, boundFrame,
-				rootBoneName,
-				translation.x, translation.y, translation.z,
-				distance );
-		}
+				// Debug print:
+				Com_LPrintf( PRINT_DEVELOPER, "%s: animation(#%i, %s), boundOldFrame(%i), boundFrame(#%i), rootBone[ name(%s), translation(%f, %f, %f), distance(%f) ]\n",
+					__func__,
+					i, iqmAnimation->name,
+					boundOldFrame, boundFrame,
+					rootBoneName,
+					translation.x, translation.y, translation.z,
+					distance );
+			}
+		#endif
 	}
 
 	return rootMotionSet;
