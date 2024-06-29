@@ -47,9 +47,11 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     // 
     // Handle the possibility of a stair step occuring.
     static constexpr int64_t STEP_TIME = 150; // Smooths it out over 150ms, this used to be 100ms.
-    uint64_t realTime = clgi.GetRealTime();
-    if ( packetEntity->step_realtime >= realTime - STEP_TIME ) {
-        uint64_t stair_step_delta = clgi.GetRealTime() - packetEntity->step_realtime;
+    //uint64_t realTime = clgi.GetRealTime();
+    //if ( packetEntity->step_realtime >= realTime - STEP_TIME ) {
+    if ( packetEntity->step_servertime >= clgi.client->extrapolatedTime - STEP_TIME ) {
+        //uint64_t stair_step_delta = clgi.GetRealTime() - packetEntity->step_realtime;
+        uint64_t stair_step_delta = clgi.client->extrapolatedTime - packetEntity->step_realtime;
         //uint64_t stair_step_delta = clgi.client->time - ( packetEntity->step_servertime - clgi.client->sv_frametime );
 
         // Smooth out stair step over 200ms.
