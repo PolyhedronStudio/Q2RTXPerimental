@@ -21,7 +21,6 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     if ( newState->renderfx & RF_FRAMELERP ) {
         VectorCopy( packetEntity->current.origin, refreshEntity->origin );
         VectorCopy( packetEntity->current.old_origin, refreshEntity->oldorigin );  // FIXME
-        // Interpolate start and end points for beams.
     } else {
         // Lerp Origin:
         Vector3 lerpedOrigin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
@@ -47,9 +46,11 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     // 
     // Handle the possibility of a stair step occuring.
     static constexpr int64_t STEP_TIME = 150; // Smooths it out over 150ms, this used to be 100ms.
-    uint64_t realTime = clgi.GetRealTime();
-    if ( packetEntity->step_realtime >= realTime - STEP_TIME ) {
-        uint64_t stair_step_delta = clgi.GetRealTime() - packetEntity->step_realtime;
+    //uint64_t realTime = clgi.GetRealTime();
+    //if ( packetEntity->step_realtime >= realTime - STEP_TIME ) {
+    if ( packetEntity->step_servertime >= clgi.client->extrapolatedTime - STEP_TIME ) {
+        //uint64_t stair_step_delta = clgi.GetRealTime() - packetEntity->step_realtime;
+        uint64_t stair_step_delta = clgi.client->extrapolatedTime - packetEntity->step_servertime;
         //uint64_t stair_step_delta = clgi.client->time - ( packetEntity->step_servertime - clgi.client->sv_frametime );
 
         // Smooth out stair step over 200ms.
