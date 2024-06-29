@@ -807,12 +807,11 @@ void IQM_ComputeRelativeJoints( const iqm_model_t *model, const int32_t frame, c
 	iqm_transform_t *relativeJoint = relativeJoints;
 
 	// Copy the animation frame pos.
-	if ( boundFrame == boundOldFrame )
-	{
+	if ( frame == oldFrame ) {
 		const iqm_transform_t* pose = &model->poses[ boundFrame * model->num_poses];
 		for (uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, pose++, relativeJoint++)
 		{
-			#if 1
+			#if 0
 			if ( model->num_frames > 900 ) {
 				if ( pose_idx == 0 /* model_info->animation->root_bone_id */ ) {
 					// Copy over translation BUT NOT the X Axis.
@@ -839,7 +838,7 @@ void IQM_ComputeRelativeJoints( const iqm_model_t *model, const int32_t frame, c
 		const iqm_transform_t* oldPose = &model->poses[ boundOldFrame * model->num_poses];
 		for (uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, oldPose++, pose++, relativeJoint++)
 		{
-			#if 1
+			#if 0
 			if ( model->num_frames > 900 ) {
 				if ( pose_idx == 0 /* model_info->animation->root_bone_id */ ) {
 					// Translate all axis BUT the X axis.

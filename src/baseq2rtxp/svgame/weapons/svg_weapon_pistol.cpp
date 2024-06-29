@@ -457,7 +457,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
         if ( ent->client->weaponState.mode == WEAPON_MODE_PRIMARY_FIRING ) {
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
             // any earlier/double firing.
-            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 3 ) {
+            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 4 ) {
                 // Wait out until enough time has passed.
                 //if ( ent->client->weaponState.timers.lastPrimaryFire <= ( level.time + 325_ms ) ) {
                 if ( ent->client->weaponState.timers.lastPrimaryFire < level.time ) {
@@ -498,7 +498,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
         // Draw Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_DRAWING ) {
             // Start playing drawing weapon sound at the very first frame.
-            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1 ) {
+            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
                 ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/draw.wav" );
                 ent->client->weaponState.timers.lastDrawn = level.time;
             }
@@ -509,7 +509,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
         // Holster Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING ) {
             // Start playing holster weapon sound at the very first frame.
-            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1 ) {
+            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
                 ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/holster.wav" );
                 ent->client->weaponState.timers.lastHolster = level.time;
             }

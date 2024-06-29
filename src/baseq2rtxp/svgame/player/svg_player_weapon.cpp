@@ -184,6 +184,7 @@ void P_Weapon_Change(edict_t *ent) {
             return;
         }
         // Also allow the change to take place.
+        return;
     }
     //return;
 allowchange:
@@ -535,6 +536,7 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
 #if 1
     // Enough time has passed:
     if ( ent->client->weaponState.animation.currentTime >= ent->client->weaponState.animation.endTime 
+        || ( gunFrame > ent->client->weaponState.animation.endFrame )
         // Or the animation has finished playing in general, stalling at its endFrame.
         || /*( gunFrame == -1 ||*/( frameFraction == 1 ) ) {
 #else
@@ -543,19 +545,13 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
         // Enable mode switching again.
         ent->client->weaponState.canChangeMode = true;
         // Apply gun frame.
-#if 1 
-        ent->client->weaponState.animation.currentFrame = ent->client->weaponState.animation.endFrame;
-#else
-        // Keep gun frame in check.
-        ent->client->ps.gunframe = ent->client->weaponState.animation.endFrame;
-#endif
+        ent->client->weaponState.animation.currentFrame = oldWeaponFrame;
+
         // Finished animating.
         return true;
     } else {
         // Store current gun frame.
         ent->client->weaponState.animation.currentFrame = gunFrame;
-        // Assign newly calculated frame to player state.
-        ent->client->ps.gunframe = gunFrame;
     }
 
     // Still animating.
@@ -578,6 +574,15 @@ void P_Weapon_Think( edict_t *ent, const bool processUserInputOnly ) {
         return;
     }
 
+    #if 0
+    if ( !ent->client->pers.weapon ) {
+        if ( ent->client->newweapon ) {
+            P_Weapon_Change( ent );
+        }
+        return;
+    }
+    #endif
+    
     // Call active weapon think routine if any at all.
     const bool hasActiveWeapon = ( ent->client->pers.weapon != nullptr ? true : false );
     const bool hasThinkRoutine = ( hasActiveWeapon && ent->client->pers.weapon->weaponthink != nullptr ? true : false );

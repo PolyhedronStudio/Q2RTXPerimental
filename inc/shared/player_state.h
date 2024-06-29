@@ -130,10 +130,6 @@ typedef struct {
         //! changes even if it is the same ID. Keep in mind that this limits our
         //! animationID range from 0 to 127.
         uint8_t animationID;
-        //! Time of setting animationID. (We could derive it by fiddling bits around?)
-        
-        //! Current weapon model's frame.
-        //uint32_t gunframe;
     } gun;
 
     /**
@@ -170,7 +166,7 @@ typedef struct {
 
     /**
     *   Not communicated over the net at all, some are calculated locally
-    *   for both Client AND Server Game(s).
+    *   for both Client AND/OR Server Game(s).
     **/
     //! [Client/Server] Calculated bobMove value.
     double bobMove;
@@ -185,7 +181,7 @@ typedef struct {
     Vector3 gunoffset;
     
     //! [Server]: Gun frame.
-    int32_t gunframe;
+    //int32_t gunframe;
     //! server to game info for scoreboard			
     //int32_t ping; 
     //int64_t pmove_framecount;

@@ -1879,9 +1879,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     } else {
         // Check whether to engage switching to a new weapon.
         if ( client->newweapon ) {
-            //if ( client->weaponState.mode == WEAPON_MODE_IDLE ) {
             P_Weapon_Change( ent );
-            //}
         }
 
         // Process weapon thinking.

@@ -96,6 +96,8 @@ const double SG_FrameForTime( int32_t *frame, const sg_time_t &currentTime, cons
 			// Special frame fraction handling to play an animation just once.
 			if ( _loopingFrames == 1 ) {
 				frameFraction = 1.0f;
+				*frame = lastFrame;
+				return frameFraction;
 			}
 		// Animation's finished:
 		} else {

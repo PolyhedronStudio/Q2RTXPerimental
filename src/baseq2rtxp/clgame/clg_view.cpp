@@ -211,7 +211,7 @@ static void CLG_ApplyViewWeaponDrag( player_state_t *ops, player_state_t *ps, en
 **/
 static void CLG_AddViewWeapon( void ) {
     // view model
-    entity_t gun = {};        
+    static entity_t gun = {};        
     int32_t shell_flags = 0;
 
     // allow the gun to be completely removed
@@ -228,14 +228,12 @@ static void CLG_AddViewWeapon( void ) {
     player_state_t *ops = &clgi.client->oldframe.ps;
 
     memset( &gun, 0, sizeof( gun ) );
-
     if ( gun_model ) {
         gun.model = gun_model;  // development tool
     } else {
         gun.model = clgi.client->model_draw[ ps->gun.modelIndex ];
     }
-
-    if ( !gun.model ) {
+    if ( !ps->gun.modelIndex || !gun.model ) {
         return;
     }
 
@@ -288,109 +286,97 @@ static void CLG_AddViewWeapon( void ) {
         gun.frame = gun_frame;  // development tool
         gun.oldframe = gun_frame;   // development tool
     } else {
+        // Detect whether animation restarted, or changed. (Toggle Bit helps determining the difference.)
+        bool animationIDChanged = ps->gun.animationID != ops->gun.animationID;//animationID != oldAnimationID;
 
-        // AnimationID based weapon code.
-        #if 1
-            // Detect whether animation restarted.
-                 // Acquire the actual animationID.
+        // Acquire the actual animationIDs.
         const int32_t animationID = ( ps->gun.animationID & ~GUN_ANIMATION_TOGGLE_BIT );
         const int32_t oldAnimationID = ( ops->gun.animationID & ~GUN_ANIMATION_TOGGLE_BIT );
-        const bool animationRestarted = ps->gun.animationID != ops->gun.animationID;//animationID != oldAnimationID;
-        //const bool animationRestarted = ( ( ( ops->gun.animationID & ~GUN_ANIMATION_TOGGLE_BIT ) ^ GUN_ANIMATION_TOGGLE_BIT ) 
-        //        != ( ps->gun.animationID & ~GUN_ANIMATION_TOGGLE_BIT ) ); /*ps->gun.animationID & GUN_ANIMATION_TOGGLE_BIT*/
+        // Make sure it is within save bounds.
+        if ( ( animationID < 0 || animationID >= iqmData->num_animations ) ) {
+            gun.frame = gun.oldframe = 0;
+            gun.backlerp = 0.0;
+            return;
+        }
+        // Get IQM Animation.
+        const iqm_anim_t *iqmAnimation = &iqmData->animations[ animationID ];
+        if ( !iqmAnimation ) {
+            gun.frame = gun.oldframe = 0;
+            gun.backlerp = 0.0;
+            return;
+        }
 
-            // Make sure it is within save bounds.
-            if ( ( animationID < 0 || animationID >= iqmData->num_animations ) ) {
-                gun.frame = gun.oldframe = 0;
-                return;
+        // Animation frames.
+        const int32_t firstFrame = iqmAnimation->first_frame;
+        const int32_t lastFrame = iqmAnimation->first_frame + iqmAnimation->num_frames;
+
+        // If the animationID differed, or had its toggle bit flipped, reinitialize the animation.
+        if ( animationIDChanged ) {
+            // Check the time to prevent this from firing multiple times in a single game world frame.
+            if ( game.viewWeapon.server_time < clgi.client->servertime ) {
+                // Local real time of animation change.
+                game.viewWeapon.real_time = clgi.GetRealTime();
+                // Server time of animation change.
+                game.viewWeapon.server_time = clgi.client->servertime - BASE_FRAMETIME;
+                // Reset animation frame.
+                game.viewWeapon.frame = firstFrame;
+                // Debug output.
+                #if 0
+                clgi.Print( PRINT_NOTICE, "%s: Animation Restarted(#%i), firstFrame(%i), lastFrame(%i), server_time(%llu)\n", __func__, animationID, firstFrame, lastFrame, game.viewWeapon.server_time );
+                #endif
             }
-            // Get IQM Animation.
-            const iqm_anim_t *iqmAnimation = &iqmData->animations[ animationID ];
-            if ( !iqmAnimation ) {
-                gun.frame = gun.oldframe = 0;
-                return;
-            }
+        }
 
-            // Animation frames.
-            const int32_t firstFrame = iqmAnimation->first_frame;
-            const int32_t lastFrame = iqmAnimation->first_frame + iqmAnimation->num_frames;
+        // Backup the previously 'current' frame as its last frame.
+        game.viewWeapon.last_frame = game.viewWeapon.frame;
 
-            // We got the animation, store time in case it had restarted.
-            if ( animationRestarted ) {
-                if ( game.viewWeapon.real_time < clgi.GetRealTime() - 25 ) {
-                    // Local real time of animation change.
-                    game.viewWeapon.real_time = clgi.GetRealTime();
-                    // Server time of animation change.
-                    game.viewWeapon.server_time = clgi.client->servertime;
+        // Calculate the actual current frame for the moment in time of the active animation.
+        double lerpFraction = SG_FrameForTime( &game.viewWeapon.frame,
+            //sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
+            sg_time_t::from_ms( clgi.client->extrapolatedTime ), sg_time_t::from_ms( game.viewWeapon.server_time ),
+            BASE_FRAMETIME,
+            firstFrame, lastFrame,
+            1, false
+        );
 
-                    // Reset animation frame.
-                    //.viewWeapon.last_frame = game.viewWeapon.frame = iqmAnimation->first_frame;
-                    clgi.Print( PRINT_NOTICE, "%s: Animation Restarted(#%i), firstFrame(%i), lastFrame(%i), server_time(%llu)\n", __func__, animationID, firstFrame, lastFrame, game.viewWeapon.server_time );
+        // When a model switch has occurred, make sure to set our model to the first frame
+        // regardless of the actual time determined frame.
+        if ( ops->gun.modelIndex != ps->gun.modelIndex ) {
+            // Apply first frame.
+            game.viewWeapon.frame = game.viewWeapon.last_frame = gun.oldframe = gun.frame = firstFrame;
+            // Ensure backlerp is zeroed.
+            gun.backlerp = 0.0f;
+            // Weapon Frame Setup:
+        } else {
+            // Animation is running:
+            if ( lerpFraction < 1.0 ) {
+                // Apply animation to gun model refresh entity.
+                gun.frame = game.viewWeapon.frame;
+                gun.oldframe = ( gun.frame > 0 ? gun.frame - 1 : gun.frame );
+                // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
+                if ( gun.frame == firstFrame ) {
+                    gun.backlerp = 0.0;
+                    // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
+                } else if ( gun.frame == lastFrame ) {
+                    gun.backlerp = 1.0;
+                    // Otherwise just subtract the resulting lerpFraction.
+                } else {
+                    gun.backlerp = 1.0 - lerpFraction;
                 }
-            }
-
-            // Backup the previously 'current' frame as its last frame.
-            game.viewWeapon.last_frame = game.viewWeapon.frame;
-            // Calculate the actual current frame for the moment in time of the active animation.
-            double lerpFraction = SG_FrameForTime( &game.viewWeapon.frame, 
-                //sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
-                sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
-                BASE_FRAMETIME,
-                firstFrame, lastFrame, 
-                1, false 
-            );
-
-            // Apply animation to gun model refresh entity.
-            gun.frame = game.viewWeapon.frame;
-
-            // If we somehow have ended the animation and frame starts being set to -1, we HARD SET the weapon
-            // back into its animation end frame. Since it is still the last active animationID we got.
-            if (/* game.viewWeapon.frame == -1 || */lerpFraction < 1.0 ) {
-                gun.oldframe = ( game.viewWeapon.frame > 0 ? game.viewWeapon.frame - 1 : 0 );
-                gun.backlerp = 1.0 - lerpFraction;
-                clamp( gun.backlerp, 0.0, 1.f );
-                //game.viewWeapon.frame = lastFrame;
-                //clgi.Print( PRINT_NOTICE, "%s: Animation Fihished(#%i), firstFrame(%i), lastFrame(%i), server_time(%" PRIu64 ")\n", __func__, animationID, firstFrame, lastFrame, game.viewWeapon.server_time );
+                // Clamp just to be sure.
+                clamp( gun.backlerp, 0.0, 1.0 );
+                // Reached the end of the animation:
             } else {
-                gun.oldframe = gun.frame;
-                gun.backlerp = 0.0;
+                // Otherwise, oldframe now equals the current(end) frame.
+                gun.oldframe = gun.frame = lastFrame;
+                // No more lerping.
+                gun.backlerp = 1.0;
+
             }
-            
-            //constexpr int32_t animationHz = BASE_FRAMERATE;
-            //constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
-            //gun.backlerp = 1.f - ( ( clgi.client->time - ( (float)game.viewWeapon.server_time - clgi.client->sv_frametime ) ) / animationMs );
-            //gun.backlerp = QM_Clampf( gun.backlerp, 0.0f, 1.f );
-
-            // Detected a weapon switch, prevent lerping from the old weapon model its frame number.
-            //if ( ops->gun.modelindex != ps->gun.modelindex ) {
-            //    game.view
-            //} else {
-            //
-            //}
-       // Old gunframe based weapon animation code.
-       #else
-            // WID: 40hz - Does proper gun lerping.
-            // TODO: Add gunrate, and transfer it over the wire.
-            if ( ops->gunindex != ps->gunindex ) { // just changed weapons, don't lerp from old
-                game.viewWeapon.frame = game.viewWeapon.last_frame = ps->gunframe;
-                game.viewWeapon.server_time = clgi.client->servertime;
-            } else if ( game.viewWeapon.frame == -1 || game.viewWeapon.frame != ps->gunframe ) {
-                game.viewWeapon.frame = ps->gunframe;
-                game.viewWeapon.last_frame = ops->gunframe;
-                game.viewWeapon.server_time = clgi.client->servertime;
-            }
-
-            //// 40hz gun rate.
-            constexpr int32_t playerstate_gun_rate = 40;
-            const float gun_ms = 1.f / ( playerstate_gun_rate ) * 1000.f;
-            gun.backlerp = 1.f - ( ( clgi.client->time - ( (float)game.viewWeapon.server_time - clgi.client->sv_frametime ) ) / gun_ms );
-            clamp( gun.backlerp, 0.0f, 1.f );
-
-            gun.frame = (int32_t)game.viewWeapon.frame;
-            gun.oldframe = game.viewWeapon.last_frame;
-        #endif
+        }
     }
 
+    // APply gun model flags.
     gun.flags = RF_MINLIGHT | RF_DEPTHHACK | RF_WEAPONMODEL;
 
     if ( cl_gunalpha->value != 1 ) {

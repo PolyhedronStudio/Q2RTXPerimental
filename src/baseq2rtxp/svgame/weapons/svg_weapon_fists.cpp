@@ -220,7 +220,7 @@ void Weapon_Fists( edict_t *ent, const bool processUserInputOnly ) {
     // Draw Weapon:
     } else if ( ent->client->weaponState.mode == WEAPON_MODE_DRAWING ) {
         // Start playing drawing weapon sound at the very first frame.
-        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1) {
+        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
             ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/draw.wav" );
             ent->client->weaponState.timers.lastDrawn = level.time;
         }
@@ -231,7 +231,7 @@ void Weapon_Fists( edict_t *ent, const bool processUserInputOnly ) {
     // Holster Weapon:
     } else if ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING ) {
         // Start playing holster weapon sound at the very first frame.
-        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1) {
+        if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {
             ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/holster.wav" );
             ent->client->weaponState.timers.lastHolster = level.time;
         }
