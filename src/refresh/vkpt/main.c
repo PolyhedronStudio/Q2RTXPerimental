@@ -1949,7 +1949,7 @@ static void process_regular_entity(
 			return;
 		}
 		
-		R_ComputeIQMTransforms(model->iqmData, entity, iqm_matrix_data + (iqm_matrix_index * 12));
+		R_ComputeIQMTransforms(model, entity, iqm_matrix_data + (iqm_matrix_index * 12));
 		
 		*iqm_matrix_offset += (int)model->iqmData->num_poses;
 	}

@@ -451,6 +451,20 @@ typedef struct entity_s {
 
     //! Scale.
     float scale;
+
+    //
+    // Q2RTXP: Skeletal Model Stuff
+    //
+    //! Pointer to the blend composed final animation pose of the skeletal model data.
+    //! Buffer is expected to be SKM_MAX_BONES(256) tops.
+    iqm_transform_t *bonePoses;
+
+    //! Whether to use Root Motion at all.
+    //! Root Motion Bone ID.
+    int32_t rootMotionBoneID;
+    //! Root Motion Axis Flags. (If 0, no root motion is taken into account when computing poses.)
+    int32_t rootMotionFlags;
+
 } entity_t;
 
 

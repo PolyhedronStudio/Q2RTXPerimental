@@ -57,13 +57,13 @@ const double SG_FrameForTime( int32_t *frame, const sg_time_t &currentTime, cons
 	// Always set frame to startFrame if the current time stamp is lower than the animation startTimeStamp.
 	if ( currentTime <= startTimeStamp ) {
 		*frame = firstFrame;
-		return 0.0f;
+		return 0.0;
 	}
 	// If firstframe == last frame, it means we have no animation to begin with since it is already completed.
 	// To accommodate this situation, assign firstFrame to frame and return a fraction of 1.0. The animation's completed.
 	if ( firstFrame == lastFrame ) {
 		*frame = firstFrame;
-		return 1.0f;
+		return 1.0;
 	}
 
 	// Calculate how long the animation is currently running for.
@@ -95,7 +95,7 @@ const double SG_FrameForTime( int32_t *frame, const sg_time_t &currentTime, cons
 
 			// Special frame fraction handling to play an animation just once.
 			if ( _loopingFrames == 1 ) {
-				frameFraction = 1.0f;
+				frameFraction = 1.0;
 				*frame = lastFrame;
 				return frameFraction;
 			}

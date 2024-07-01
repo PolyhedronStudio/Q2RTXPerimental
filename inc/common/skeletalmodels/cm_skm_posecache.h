@@ -32,11 +32,11 @@ void SKM_PoseCache_ClearAllCaches();
 *	@brief	Clears the Temporary Bone Cache. Does NOT reset its size to defaults. Memory stays allocated as it was.
 *	@note	poseCacheHandle's value will be set to 0.
 **/
-void SKM_PoseCache_ClearCache( qhandle_t *poseCacheHandle );
+void SKM_PoseCache_ClearCache( const qhandle_t poseCacheHandle );
 /**
 *	@brief	Clears, AND resets the Temporary Bone Cache to its default size.
 **/
-void SKM_PoseCache_ResetCache( const qhandle_t poseCacheHandle );
+void SKM_PoseCache_ResetCache( qhandle_t *poseCacheHandle );
 
 /**
 *	@brief	See @return for description. The maximum size of an allocated block is hard limited to TBC_SIZE_MAX_POSEBLOCK.

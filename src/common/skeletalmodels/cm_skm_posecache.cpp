@@ -99,37 +99,34 @@ void SKM_PoseCache_ClearAllCaches() {
 *	@brief	Clears the Temporary Bone Cache. Does NOT reset its size to defaults. Memory stays allocated as it was.
 *	@note	poseCacheHandle's value will be set to 0.
 **/
-void SKM_PoseCache_ClearCache( qhandle_t *poseCacheHandle ) {
+void SKM_PoseCache_ClearCache( const qhandle_t poseCacheHandle ) {
 	// Ignore, but do not error out, on a 0 value for poseCacheHandle.
 	// It's 0 when simply none is registered for the client/server.
-	if ( *poseCacheHandle == 0 ) {
+	if ( poseCacheHandle == 0 ) {
 		return;
 	}
 
-	// Get cache.
-	skm_posecache_t *cache = SKM_PoseCache_GetFromHandle( *poseCacheHandle );
-	// Return on failure, print a warning.
-	if ( !cache ) {
-		Com_LPrintf( PRINT_WARNING, "%s: Invalid poseCacheHandle(#%i)!\n", __func__, *poseCacheHandle );
-		return;
-	}
-
-	// Clear the cache.
-	cache->data.clear();
-
-	// Reset pose cache handle to 0.
-	*poseCacheHandle = 0;
-}
-
-/**
-*	@brief	Clears, AND resets the Temporary Bone Cache to its default size.
-**/
-void SKM_PoseCache_ResetCache( const qhandle_t poseCacheHandle ) {
 	// Get cache.
 	skm_posecache_t *cache = SKM_PoseCache_GetFromHandle( poseCacheHandle );
 	// Return on failure, print a warning.
 	if ( !cache ) {
 		Com_LPrintf( PRINT_WARNING, "%s: Invalid poseCacheHandle(#%i)!\n", __func__, poseCacheHandle );
+		return;
+	}
+
+	// Clear the cache.
+	cache->data.clear();
+}
+
+/**
+*	@brief	Clears, AND resets the Temporary Bone Cache to its default size.
+**/
+void SKM_PoseCache_ResetCache( qhandle_t *poseCacheHandle ) {
+	// Get cache.
+	skm_posecache_t *cache = SKM_PoseCache_GetFromHandle( *poseCacheHandle );
+	// Return on failure, print a warning.
+	if ( !cache ) {
+		Com_LPrintf( PRINT_WARNING, "%s: Invalid poseCacheHandle(#%i)!\n", __func__, *poseCacheHandle );
 		return;
 	}
 

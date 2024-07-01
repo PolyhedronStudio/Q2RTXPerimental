@@ -45,6 +45,36 @@ void CLG_misc_model_Precache( clg_local_entity_t *self, const cm_entity_t *keyVa
 		} else {
 			self->locals.frame = 0;
 		}
+	// Key/Values for skeletal animationIDs:
+	} else {
+		// Key/Value: 'headAnimationID':
+		if ( const cm_entity_t *headAnimationIDKv = clgi.CM_EntityKeyValue( keyValues, "headAnimationID" ) ) {
+			if ( headAnimationIDKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+				classLocals->animation.headID = headAnimationIDKv->integer;
+			} else {
+				classLocals->animation.headID = 0;
+			}
+		}
+		// Key/Value: 'torsoAnimationID':
+		else if ( const cm_entity_t *torsoAnimationIDKv = clgi.CM_EntityKeyValue( keyValues, "torsoAnimationID" ) ) {
+			if ( torsoAnimationIDKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+				classLocals->animation.torsoID = torsoAnimationIDKv->integer;
+			} else {
+				classLocals->animation.torsoID = 0;
+			}
+		}
+		// Key/Value: 'hipAnimationID':
+		else if ( const cm_entity_t *hipAnimationIDKv = clgi.CM_EntityKeyValue( keyValues, "hipAnimationID" ) ) {
+			if ( hipAnimationIDKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+				classLocals->animation.hipID = hipAnimationIDKv->integer;
+			} else {
+				classLocals->animation.hipID = 0;
+			}
+		// None:
+		} else {
+			// Frame, nor any of the above are set, so default to frame = 0:
+			self->locals.oldframe = self->locals.frame = 0;
+		}
 	}
 
 	// Key/Value: 'skin':
@@ -86,81 +116,475 @@ void CLG_misc_model_Spawn( clg_local_entity_t *self ) {
 *	@brief	Sets up the local client model entity.
 **/
 void CLG_misc_model_PostSpawn( clg_local_entity_t *self ) {
-	//
-	// Test GetModelData functions:
-	//
-	const char *modelname = self->model;
-	const qhandle_t model_handle = precache.local_draw_models[ self->locals.modelindex ];
+	// Get class locals.
+	clg_misc_model_locals_t *classLocals = static_cast<clg_misc_model_locals_t *>( self->classLocals );
 
-	const model_t *model_forname = clgi.R_GetModelDataForName( modelname );
-	const model_t *model_forhandle = clgi.R_GetModelDataForHandle( model_handle );
-	if ( model_forname ) {
-		clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), model_forname(%s)\n", __func__, self->id, model_forname->name );
-	} else {
-		clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), model_forname(%s) == (nullptr).\n", __func__, self->id, modelname );
-	}
-	if ( model_forhandle ) {
-		clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), model_forhandle(#%i, %s)\n", __func__, self->id, model_handle, model_forhandle->name );
-	} else {
-		clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), model_forhandle(#%i, %s) == (nullptr).\n", __func__, self->id, model_handle, modelname );
-	}
+	// Get the modelname.
+	const char *modelName = self->model;
+	// Get a pointer to the model resource, needed for animation data.
+	classLocals->model = clgi.R_GetModelDataForName( modelName );
 
-	//
-	// Iterate over all IQM animations and print out its information.
-	//
-	if ( model_forname ) {
-		iqm_model_t *iqmModel = model_forname->iqmData;
-		if ( iqmModel ) {
-			// IQM Anim Count.
-			const int32_t numOfAnimations = iqmModel->num_animations;
-			// Iterate anim count times.
-			for ( int32_t i = 0; i < numOfAnimations; i++ ) {
-				iqm_anim_t *iqmAnimation = &iqmModel->animations[ i ];
-
-				if ( iqmAnimation ) {
-					const char *animationName = iqmAnimation->name;
-					const int32_t animationFirstFrame = iqmAnimation->first_frame;
-					const int32_t animationLastFrame = animationFirstFrame + iqmAnimation->num_frames;
-					const int32_t animationLoop = ( iqmAnimation->flags & ( 1 << 0 ) ) != 0;
-					clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), animation(#%i), [name='%s', firstFrame(%i), lastFrame(%i), loop(%s)]\n",
-						__func__, self->id, i,
-						animationName,
-						animationFirstFrame,
-						animationLastFrame,
-						animationLoop ? "true" : "false"
-					);
-				} else {
-					clgi.Print( PRINT_DEVELOPER, "%s: testdummy(#%i), animation(#%i), UNKNOWN ANIMATION.\n", __func__, self->id, i );
-				}
-			}
-		}
-	}
+	// Animation IDs.
+	classLocals->animation.headID = 14;
+	classLocals->animation.torsoID = 15;
+	classLocals->animation.hipID = 3;
+	
+	// They all start... NOW.
+	classLocals->animation.headStartTime = sg_time_t::from_ms( clgi.client->time );
+	classLocals->animation.torsoStartTime = sg_time_t::from_ms( clgi.client->time );
+	classLocals->animation.hipStartTime = sg_time_t::from_ms( clgi.client->time );
 }
 
 /**
 *	@brief	Think once per local game tick.
 **/
 void CLG_misc_model_Think( clg_local_entity_t *self ) {
-	self->locals.oldframe = self->locals.frame;
-	self->locals.frame++;
-
-	if ( self->locals.frame >= 409 ) {
-		self->locals.frame = 0;
-	}
+	// Get class locals.
+	clg_misc_model_locals_t *classLocals = static_cast<clg_misc_model_locals_t *>( self->classLocals );
 
 	// Setup nextthink.
 	self->nextthink = level.time + FRAME_TIME_MS;
-
-	// Get class.
-	auto *selfClass = CLG_LocalEntity_GetClass<clg_misc_model_locals_t>( self );
-	selfClass->frame_realtime = clgi.GetRealTime();
 }
 
 /**
 *	@brief	Called each refresh frame.
 **/
 void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
+	// Get class.
+	auto *selfClass = CLG_LocalEntity_GetClass<clg_misc_model_locals_t>( self );
 
+	// Refresh Entity.
+	entity_t *refreshEntity = &selfClass->rent;
+
+	// Get IQM and SKM resource pointers.
+	iqm_model_t *iqmData = selfClass->model->iqmData;
+	skm_config_t *skmConfig = selfClass->model->skmConfig;
+
+	/**
+	*	Head Animation:
+	**/
+	// Get animation in case one is set.
+	if ( selfClass->animation.headID >= 0 ) {
+		// Get the animation data.
+		iqm_anim_t *iqmAnimation = &iqmData->animations[ selfClass->animation.headID ];
+		
+		if ( iqmAnimation ) {
+			// First and Last frame.
+			const int32_t firstFrame = iqmAnimation->first_frame;
+			const int32_t lastFrame = firstFrame + iqmAnimation->num_frames;
+
+			// Backup the previously 'current' frame as its last frame.
+			selfClass->animation.lastHeadFrame = selfClass->animation.currentHeadFrame;
+
+			// Calculate the actual current frame for the moment in time of the active animation.
+			double lerpFraction = SG_FrameForTime( &selfClass->animation.currentHeadFrame,
+				//sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
+				sg_time_t::from_ms( clgi.client->extrapolatedTime ), selfClass->animation.headStartTime,
+				BASE_FRAMETIME,
+				firstFrame, lastFrame,
+				0, true
+			);
+
+			// Animation is running:
+			if ( lerpFraction < 1.0 ) {
+				// Apply animation to gun model refresh entity.
+				selfClass->animation.lastHeadFrame = ( selfClass->animation.currentHeadFrame > firstFrame
+					? selfClass->animation.currentHeadFrame - 1 : selfClass->animation.currentHeadFrame );
+				// Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
+				if ( selfClass->animation.currentHeadFrame == firstFrame ) {
+					selfClass->animation.headBackLerp = 0.0;
+					// Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
+				} else if ( selfClass->animation.currentHeadFrame == lastFrame ) {
+					selfClass->animation.headBackLerp = 1.0;
+					// Otherwise just subtract the resulting lerpFraction.
+				} else {
+					selfClass->animation.headBackLerp = 1.0 - lerpFraction;
+				}
+				// Clamp just to be sure.
+				clamp( selfClass->animation.headBackLerp, 0.0, 1.0 );
+				// Reached the end of the animation:
+			} else {
+				// Otherwise, oldframe now equals the current(end) frame.
+				selfClass->animation.lastHeadFrame = selfClass->animation.currentHeadFrame = lastFrame;
+				// No more lerping.
+				selfClass->animation.headBackLerp = 1.0;
+			}
+		}
+	}
+
+	/**
+	*	Torso Animation:
+	**/
+	// Get animation in case one is set.
+	if ( selfClass->animation.torsoID >= 0 ) {
+		// Get the animation data.
+		iqm_anim_t *iqmAnimation = &iqmData->animations[ selfClass->animation.torsoID ];
+
+		if ( iqmAnimation ) {
+			// First and Last frame.
+			const int32_t firstFrame = iqmAnimation->first_frame;
+			const int32_t lastFrame = firstFrame + iqmAnimation->num_frames;
+
+			// Backup the previously 'current' frame as its last frame.
+			selfClass->animation.lastTorsoFrame = selfClass->animation.currentTorsoFrame;
+
+			// Calculate the actual current frame for the moment in time of the active animation.
+			double lerpFraction = SG_FrameForTime( &selfClass->animation.currentTorsoFrame,
+				//sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
+				sg_time_t::from_ms( clgi.client->extrapolatedTime ), selfClass->animation.torsoStartTime,
+				BASE_FRAMETIME,
+				firstFrame, lastFrame,
+				0, true
+			);
+
+			// Animation is running:
+			if ( lerpFraction < 1.0 ) {
+				// Apply animation to gun model refresh entity.
+				selfClass->animation.lastTorsoFrame = ( selfClass->animation.currentTorsoFrame > firstFrame
+					? selfClass->animation.currentTorsoFrame - 1 : selfClass->animation.currentTorsoFrame );
+				// Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
+				if ( selfClass->animation.currentTorsoFrame == firstFrame ) {
+					selfClass->animation.torsoBackLerp = 0.0;
+					// Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
+				} else if ( selfClass->animation.currentTorsoFrame == lastFrame ) {
+					selfClass->animation.torsoBackLerp = 1.0;
+					// Otherwise just subtract the resulting lerpFraction.
+				} else {
+					selfClass->animation.torsoBackLerp = 1.0 - lerpFraction;
+				}
+				// Clamp just to be sure.
+				clamp( selfClass->animation.torsoBackLerp, 0.0, 1.0 );
+				// Reached the end of the animation:
+			} else {
+				// Otherwise, oldframe now equals the current(end) frame.
+				selfClass->animation.lastTorsoFrame = selfClass->animation.currentTorsoFrame = lastFrame;
+				// No more lerping.
+				selfClass->animation.torsoBackLerp = 1.0;
+			}
+		}
+	}
+	/**
+	*	Hip Animation:
+	**/
+	// Get animation in case one is set.
+	if ( selfClass->animation.hipID >= 0 ) {
+		// Get the animation data.
+		iqm_anim_t *iqmAnimation = &iqmData->animations[ selfClass->animation.hipID ];
+
+		if ( iqmAnimation ) {
+			// First and Last frame.
+			const int32_t firstFrame = iqmAnimation->first_frame;
+			const int32_t lastFrame = firstFrame + iqmAnimation->num_frames;
+
+			// Backup the previously 'current' frame as its last frame.
+			selfClass->animation.lastHipFrame = selfClass->animation.currentHipFrame;
+
+			// Calculate the actual current frame for the moment in time of the active animation.
+			double lerpFraction = SG_FrameForTime( &selfClass->animation.currentHipFrame,
+				//sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
+				sg_time_t::from_ms( clgi.client->extrapolatedTime ), selfClass->animation.hipStartTime,
+				BASE_FRAMETIME,
+				firstFrame, lastFrame,
+				0, true
+			);
+
+			// Animation is running:
+			if ( lerpFraction < 1.0 ) {
+				// Apply animation to gun model refresh entity.
+				selfClass->animation.lastHipFrame = ( selfClass->animation.currentHipFrame > firstFrame
+					? selfClass->animation.currentHipFrame - 1 : selfClass->animation.currentHipFrame );
+				// Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
+				if ( selfClass->animation.currentHipFrame == firstFrame ) {
+					selfClass->animation.hipBackLerp = 0.0;
+					// Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
+				} else if ( selfClass->animation.currentHipFrame == lastFrame ) {
+					selfClass->animation.hipBackLerp = 1.0;
+					// Otherwise just subtract the resulting lerpFraction.
+				} else {
+					selfClass->animation.hipBackLerp = 1.0 - lerpFraction;
+				}
+				// Clamp just to be sure.
+				clamp( selfClass->animation.hipBackLerp, 0.0, 1.0 );
+				// Reached the end of the animation:
+			} else {
+				// Otherwise, oldframe now equals the current(end) frame.
+				selfClass->animation.lastHipFrame = selfClass->animation.currentHipFrame = lastFrame;
+				// No more lerping.
+				selfClass->animation.hipBackLerp = 1.0;
+			}
+		}
+	}
+
+
+}
+
+
+/**************************************************************
+*
+*
+*
+*
+*
+*
+*
+**************************************************************/
+static void QuatSlerp( const quat_t from, const quat_t _to, float fraction, quat_t out ) {
+	// cos() of angle
+	float cosAngle = from[ 0 ] * _to[ 0 ] + from[ 1 ] * _to[ 1 ] + from[ 2 ] * _to[ 2 ] + from[ 3 ] * _to[ 3 ];
+
+	// negative handling is needed for taking shortest path (required for model joints)
+	quat_t to;
+	if ( cosAngle < 0.0f ) {
+		cosAngle = -cosAngle;
+		to[ 0 ] = -_to[ 0 ];
+		to[ 1 ] = -_to[ 1 ];
+		to[ 2 ] = -_to[ 2 ];
+		to[ 3 ] = -_to[ 3 ];
+	} else {
+		QuatCopy( _to, to );
+	}
+
+	float backlerp, lerp;
+	if ( cosAngle < 0.999999f ) {
+		// spherical lerp (slerp)
+		const float angle = acosf( cosAngle );
+		const float sinAngle = sinf( angle );
+		backlerp = sinf( ( 1.0f - fraction ) * angle ) / sinAngle;
+		lerp = sinf( fraction * angle ) / sinAngle;
+	} else {
+		// linear lerp
+		backlerp = 1.0f - fraction;
+		lerp = fraction;
+	}
+
+	out[ 0 ] = from[ 0 ] * backlerp + to[ 0 ] * lerp;
+	out[ 1 ] = from[ 1 ] * backlerp + to[ 1 ] * lerp;
+	out[ 2 ] = from[ 2 ] * backlerp + to[ 2 ] * lerp;
+	out[ 3 ] = from[ 3 ] * backlerp + to[ 3 ] * lerp;
+}
+static void IQM_ComputeRelativeJoints( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, iqm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags ) {
+	// Sanity check.
+	if ( !model || !model->iqmData ) {
+		return;
+	}
+
+	// Get IQM Data.
+	iqm_model_t *iqmData = model->iqmData;
+
+	// Keep frame within bounds.
+	const int32_t boundFrame = iqmData->num_frames ? frame % (int32_t)iqmData->num_frames : 0;
+	const int32_t boundOldFrame = iqmData->num_frames ? oldFrame % (int32_t)iqmData->num_frames : 0;
+
+	// Keep bone ID sane.
+	int32_t boundRootMotionBoneID = ( rootMotionBoneID >= 0 ? rootMotionBoneID % (int32_t)iqmData->num_joints : -1 );
+
+	// Fetch first joint.
+	iqm_transform_t *relativeJoint = outBonePose;
+
+	// Copy the animation frame pos.
+	if ( frame == oldFrame ) {
+		const iqm_transform_t *pose = &iqmData->poses[ boundFrame * iqmData->num_poses ];
+		for ( uint32_t pose_idx = 0; pose_idx < iqmData->num_poses; pose_idx++, pose++, relativeJoint++ ) {
+			#if 1
+			if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
+				// Translate the selected axises.
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
+					relativeJoint->translate[ 0 ] = 0;
+				} else {
+					relativeJoint->translate[ 0 ] = pose->translate[ 0 ];
+				}
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
+					relativeJoint->translate[ 1 ] = 0;
+				} else {
+					relativeJoint->translate[ 1 ] = pose->translate[ 1 ];
+				}
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
+					relativeJoint->translate[ 2 ] = 0;
+				} else {
+					relativeJoint->translate[ 2 ] = pose->translate[ 2 ];
+				}
+				// Copy in scale as per usual.
+				VectorCopy( pose->scale, relativeJoint->scale );
+				// Copy quat rotation as usual.
+				QuatCopy( pose->rotate, relativeJoint->rotate );
+				continue;
+			}
+			#endif
+
+			VectorCopy( pose->translate, relativeJoint->translate );
+			QuatCopy( pose->rotate, relativeJoint->rotate );
+			VectorCopy( pose->scale, relativeJoint->scale );
+		}
+		// Lerp the animation frame pose.
+	} else {
+		//const float lerp = 1.0f - backlerp;
+		const iqm_transform_t *pose = &iqmData->poses[ boundFrame * iqmData->num_poses ];
+		const iqm_transform_t *oldPose = &iqmData->poses[ boundOldFrame * iqmData->num_poses ];
+		for ( uint32_t pose_idx = 0; pose_idx < iqmData->num_poses; pose_idx++, oldPose++, pose++, relativeJoint++ ) {
+			#if 1
+			if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
+				// Translate the selected axises.
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
+					relativeJoint->translate[ 0 ] = 0;
+				} else {
+					relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0; //relativeJoint->translate[ 0 ] = 0;
+				}
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
+					relativeJoint->translate[ 1 ] = 0;
+				} else {
+					relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0;
+				}
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
+					relativeJoint->translate[ 2 ] = 0;
+				} else {
+					relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+				}
+
+				// Scale Lerp as usual.
+				relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + oldPose->scale[ 0 ] * frontLerp;
+				relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + oldPose->scale[ 1 ] * frontLerp;
+				relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + oldPose->scale[ 2 ] * frontLerp;
+				// Quat Slerp as usual.
+				QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
+				continue;
+			}
+			#endif
+
+			relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp;
+			relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp;
+			relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+
+			relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + oldPose->scale[ 0 ] * frontLerp;
+			relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + oldPose->scale[ 1 ] * frontLerp;
+			relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + oldPose->scale[ 2 ] * frontLerp;
+
+			QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
+		}
+	}
+}
+
+/**
+*	@brief	Combine 2 poses into one by performing a recursive blend starting from the given boneNode, using the given fraction as "intensity".
+*	@param	fraction		When set to 1.0, it blends in the animation at 100% intensity. Take 0.5 for example,
+*							and a tpose(frac 0.5)+walk would have its arms half bend.
+*	@param	addBonePose		The actual animation that you want to blend in on top of inBonePoses.
+*	@param	addToBonePose	A lerped bone pose which we want to blend addBonePoses animation on to.
+**/
+void SKM_RecursiveBlendFromBone( iqm_transform_t *addBonePoses, iqm_transform_t *addToBonePoses, skm_bone_node_t *boneNode, float backLerp, float fraction ) {
+	// If the bone node is invalid, escape.
+	if ( !boneNode || !addBonePoses || !addToBonePoses ) {
+		// TODO: Warn.
+		return;
+	}
+
+	//if ( boneNode->GetChildren().size() ) {
+	//	return;
+	//}
+	//// Get the bone.
+	//const EntitySkeletonBone *esBone = boneNode->GetEntitySkeletonBone();
+
+	//// If the bone is invalid, escape.
+	//if ( !esBone ) {
+	//	// TODO: Warn.
+	//	return;
+	//}
+
+	// Get bone number.
+	const int32_t boneNumber = boneNode->number;
+
+	if ( boneNode->number >= 0 ) {
+		iqm_transform_t *inBone = addBonePoses + boneNode->number;
+		iqm_transform_t *outBone = addToBonePoses + boneNode->number;
+
+		// DQ: ------------------- START
+				//if (fraction == 1) {
+				//	*outBone = *inBone;
+				//} else {
+				//	dualquat_lerp( inBone->dualquat, outBone->dualquat, fraction, outBone->dualquat );
+				//}
+		// DQ: ------------------- END
+		if ( fraction == 1 ) {
+			*outBone = *inBone;
+		} else {
+			//
+			//	WID: Unsure if actually lerping these is favored.
+			//
+			const float lerp = 1.0f - backLerp;
+			// Lerp the already Lerped Translation.
+			//outBone->translate[0] = outBone->translate[0] * backlerp + inBone->translate[0] * lerp;
+			//outBone->translate[1] = outBone->translate[1] * backlerp + inBone->translate[1] * lerp;
+			//outBone->translate[2] = outBone->translate[2] * backlerp + inBone->translate[2] * lerp;
+
+			// Lerp the already Lerped Scale.
+			//outBone->scale[0] = outBone->scale[0] * backlerp + inBone->scale[0] * lerp;
+			//outBone->scale[1] = outBone->scale[1] * backlerp + inBone->scale[1] * lerp;
+			//outBone->scale[2] = outBone->scale[2] * backlerp + inBone->scale[2] * lerp;
+
+			//if( bonenode->bonenum != -1 ) {
+			//	inbone = inboneposes + bonenode->bonenum;
+			//	outbone = outboneposes + bonenode->bonenum;
+			//	if( frac == 1 ) {
+			//		memcpy( &outboneposes[bonenode->bonenum], &inboneposes[bonenode->bonenum], sizeof( bonepose_t ) );
+			//	} else {
+			//		// blend current node pose
+			//		DualQuat_Lerp( inbone->dualquat, outbone->dualquat, frac, outbone->dualquat );
+			//	}
+			//}
+
+			//for( i = 0; i < bonenode->numbonechildren; i++ ) {
+			//	if( bonenode->bonechildren[i] ) {
+			//		CG_RecurseBlendSkeletalBone( inboneposes, outboneposes, bonenode->bonechildren[i], frac );
+			//	}
+			//}
+
+			// Copy Translation.
+			*outBone->translate = *inBone->translate;
+
+			// Copy Scale.
+			*outBone->scale = *inBone->scale; //vec3_scale(inBone->scale, 1.175);
+
+			// Slerp the rotation at fraction.	
+			QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+		}
+
+		// Recursively blend all thise bone node's children.
+		for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
+			skm_bone_node_t *childBoneNode = boneNode->childBones[ i ];
+			SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, childBoneNode, backLerp, fraction );
+		}
+	}
+
+}
+
+/**
+*	@brief	Blend the Head and the Torso animations sequentially on top of the Hip animation.
+**/
+static void CLG_misc_model_BlendAnimations( clg_local_entity_t *self, clg_misc_model_locals_t *selfClass, entity_t *refreshEntity ) {
+	// Get IQM and SKM resource pointers.
+	iqm_model_t *iqmData = selfClass->model->iqmData;
+	skm_config_t *skmConfig = selfClass->model->skmConfig;
+
+	// TODO: Acquire bone cache space.
+	static iqm_transform_t headAnimationBonePoses[ SKM_MAX_BONES ];
+	float headFrontLerp = 1.0f - selfClass->animation.headBackLerp;
+	float headBackLerp = selfClass->animation.headBackLerp;
+	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentHeadFrame, selfClass->animation.lastHeadFrame, headFrontLerp, headBackLerp, headAnimationBonePoses, 0, SKM_POSE_TRANSLATE_ALL );
+	static iqm_transform_t torsoAnimationBonePoses[ SKM_MAX_BONES ];
+	float torsoFrontLerp = 1.0f - selfClass->animation.torsoBackLerp;
+	float torsoBackLerp = selfClass->animation.torsoBackLerp;
+	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentTorsoFrame, selfClass->animation.lastTorsoFrame, torsoFrontLerp, torsoBackLerp, torsoAnimationBonePoses, 0, SKM_POSE_TRANSLATE_ALL );
+	static iqm_transform_t hipAnimationBonePoses[ SKM_MAX_BONES ];
+	float hipFrontLerp = 1.0f - selfClass->animation.hipBackLerp;
+	float hipBackLerp = selfClass->animation.hipBackLerp;
+	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentHipFrame, selfClass->animation.lastHipFrame, hipFrontLerp, hipBackLerp, hipAnimationBonePoses, 0, SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y );
+
+	static iqm_transform_t blendedBonePoses[ SKM_MAX_BONES ];
+	// Now recursively blend from the specified bones in skm data.
+	SKM_RecursiveBlendFromBone( hipAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.hip, hipBackLerp, 1.0f );
+	SKM_RecursiveBlendFromBone( torsoAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.torso, torsoBackLerp, 1.0f );
+	SKM_RecursiveBlendFromBone( headAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.head, headBackLerp, 1.0f );
+
+	refreshEntity->bonePoses = blendedBonePoses;
 }
 
 /**
@@ -168,73 +592,43 @@ void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
 **/
 void CLG_misc_model_PrepareRefreshEntity( clg_local_entity_t *self ) {
 	// Get class.
-	auto *selfClass = CLG_LocalEntity_GetClass<clg_misc_model_locals_t>( self );
+	clg_misc_model_locals_t *selfClass = CLG_LocalEntity_GetClass<clg_misc_model_locals_t>( self );
 
+	/**
+	*	Setup Origin, Angles, model, skin, alpha and scale.
+	**/
 	// Clean slate refresh entity.
-	static entity_t rent = {};
-	static int64_t prevtime = 0;
-
+	//selfClass->rent = {};
 	// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
-	rent.id = RENTITIY_OFFSET_LOCALENTITIES + self->id;
+	selfClass->rent.id = RENTITIY_OFFSET_LOCALENTITIES + self->id;
 
 	// Copy spatial information over into the refresh entity.
-	VectorCopy( self->locals.origin, rent.origin );
-	VectorCopy( self->locals.origin, rent.oldorigin );
-	VectorCopy( self->locals.angles, rent.angles );
+	VectorCopy( self->locals.origin, selfClass->rent.origin );
+	VectorCopy( self->locals.origin, selfClass->rent.oldorigin );
+	VectorCopy( self->locals.angles, selfClass->rent.angles );
 
 	// Copy model information.
 	if ( self->locals.modelindex ) {
-		rent.model = precache.local_draw_models[ self->locals.modelindex ];
+		selfClass->rent.model = precache.local_draw_models[ self->locals.modelindex ];
 		// Copy skin information.
 		//rent.skin = 0; // inline skin, -1 would use rgba.
 		//rent.skinnum = self->locals.skinNumber;
 	} else {
-		rent.model = 0;
-		rent.skin = 0; // inline skin, -1 would use rgba.
-		rent.skinnum = 0;
+		selfClass->rent.model = 0;
+		selfClass->rent.skin = 0; // inline skin, -1 would use rgba.
+		selfClass->rent.skinnum = 0;
 	}
-	rent.rgba.u32 = MakeColor( 255, 255, 255, 255 );
+	selfClass->rent.rgba.u32 = MakeColor( 255, 255, 255, 255 );
 
 	// Copy general render properties.
-	rent.alpha = 1.0f;
-	rent.scale = 1.0f;
+	selfClass->rent.alpha = 1.0f;
+	selfClass->rent.scale = 1.0f;
 
-	// Copy animation data.
-	//if ( self->locals.modelindex == MODELINDEX_PLAYER ) {
-	// Calculate back lerpfraction. (10hz.)
-	//static double frame = 0;
-	// Get class.
-	
-
-	if ( selfClass->frame_realtime != 0 ) {
-		static constexpr double millisecond = 1e-3f;
-
-		int64_t timediff = clgi.GetRealTime() - selfClass->frame_realtime; //clgi.client->time - prevtime;
-		double frame = self->locals.frame + (double)timediff * millisecond * std::max( 40.f, 0.f );
-
-		if ( frame >= (double)415 ) {
-			frame = 415.f;
-		} else if ( frame < 0 ) {
-			frame = 0;
-		}
-
-		double frac = frame - std::floor( frame );
-
-		rent.oldframe = (int)frame;
-		rent.frame = frame + 1;
-		rent.backlerp = 1.f - frac;
-	}
-	//prevtime = clgi.client->time;//clgi.client->time;
-	//rent.backlerp = 1.0f - ( ( clgi.GetRealTime() - ( (float)selfClass->frame_realtime ) / 100.f ) );
-	//clamp( rent.backlerp, 0.0f, 1.0f );
-	//if ( rent.frame != self->locals.frame ) {
-	//	rent.oldframe = rent.frame;
-	//}
-	//selfClass->frame_realtime = clgi.GetRealTime();
-	//rent.frame = self->locals.frame;
+	// Process the animations for the misc model.
+	CLG_misc_model_BlendAnimations( self, selfClass, &selfClass->rent );
 
 	// Add entity
-	clgi.V_AddEntity( &rent );
+	clgi.V_AddEntity( &selfClass->rent );
 }
 
 // Class definition.

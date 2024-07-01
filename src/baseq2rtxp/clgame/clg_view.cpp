@@ -207,6 +207,47 @@ static void CLG_ApplyViewWeaponDrag( player_state_t *ops, player_state_t *ps, en
 }
 
 /**
+*   @brief  Takes care of applying the proper animation frame based on time.
+**/
+static void CLG_AnimateViewWeapon( entity_t *refreshEntity, const int32_t firstFrame, const int32_t lastFrame ) {
+    // Backup the previously 'current' frame as its last frame.
+    game.viewWeapon.last_frame = game.viewWeapon.frame;
+
+    // Calculate the actual current frame for the moment in time of the active animation.
+    double lerpFraction = SG_FrameForTime( &game.viewWeapon.frame,
+        //sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
+        sg_time_t::from_ms( clgi.client->extrapolatedTime ), sg_time_t::from_ms( game.viewWeapon.server_time ),
+        BASE_FRAMETIME,
+        firstFrame, lastFrame,
+        1, false
+    );
+
+    // Animation is running:
+    if ( lerpFraction < 1.0 ) {
+        // Apply animation to gun model refresh entity.
+        refreshEntity->frame = game.viewWeapon.frame;
+        refreshEntity->oldframe = ( refreshEntity->frame > firstFrame ? refreshEntity->frame - 1 : refreshEntity->frame );
+        // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
+        if ( refreshEntity->frame == firstFrame ) {
+            refreshEntity->backlerp = 0.0;
+            // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
+        } else if ( refreshEntity->frame == lastFrame ) {
+            refreshEntity->backlerp = 1.0;
+            // Otherwise just subtract the resulting lerpFraction.
+        } else {
+            refreshEntity->backlerp = 1.0 - lerpFraction;
+        }
+        // Clamp just to be sure.
+        clamp( refreshEntity->backlerp, 0.0, 1.0 );
+        // Reached the end of the animation:
+    } else {
+        // Otherwise, oldframe now equals the current(end) frame.
+        refreshEntity->oldframe = refreshEntity->frame = lastFrame;
+        // No more lerping.
+        refreshEntity->backlerp = 1.0;
+    }
+}
+/**
 *   @brief  Adds the first person view its weapon model entity.
 **/
 static void CLG_AddViewWeapon( void ) {
@@ -287,12 +328,12 @@ static void CLG_AddViewWeapon( void ) {
         gun.oldframe = gun_frame;   // development tool
     } else {
         // Detect whether animation restarted, or changed. (Toggle Bit helps determining the difference.)
-        bool animationIDChanged = ps->gun.animationID != ops->gun.animationID;//animationID != oldAnimationID;
+        bool animationIDChanged = ps->gun.animationID != ops->gun.animationID;
 
         // Acquire the actual animationIDs.
         const int32_t animationID = ( ps->gun.animationID & ~GUN_ANIMATION_TOGGLE_BIT );
         const int32_t oldAnimationID = ( ops->gun.animationID & ~GUN_ANIMATION_TOGGLE_BIT );
-        // Make sure it is within save bounds.
+        // If the ID is invalid, resort to zero valued defaults.
         if ( ( animationID < 0 || animationID >= iqmData->num_animations ) ) {
             gun.frame = gun.oldframe = 0;
             gun.backlerp = 0.0;
@@ -327,18 +368,6 @@ static void CLG_AddViewWeapon( void ) {
             }
         }
 
-        // Backup the previously 'current' frame as its last frame.
-        game.viewWeapon.last_frame = game.viewWeapon.frame;
-
-        // Calculate the actual current frame for the moment in time of the active animation.
-        double lerpFraction = SG_FrameForTime( &game.viewWeapon.frame,
-            //sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
-            sg_time_t::from_ms( clgi.client->extrapolatedTime ), sg_time_t::from_ms( game.viewWeapon.server_time ),
-            BASE_FRAMETIME,
-            firstFrame, lastFrame,
-            1, false
-        );
-
         // When a model switch has occurred, make sure to set our model to the first frame
         // regardless of the actual time determined frame.
         if ( ops->gun.modelIndex != ps->gun.modelIndex ) {
@@ -346,33 +375,9 @@ static void CLG_AddViewWeapon( void ) {
             game.viewWeapon.frame = game.viewWeapon.last_frame = gun.oldframe = gun.frame = firstFrame;
             // Ensure backlerp is zeroed.
             gun.backlerp = 0.0f;
-            // Weapon Frame Setup:
+        // Process Weapon Animation:
         } else {
-            // Animation is running:
-            if ( lerpFraction < 1.0 ) {
-                // Apply animation to gun model refresh entity.
-                gun.frame = game.viewWeapon.frame;
-                gun.oldframe = ( gun.frame > 0 ? gun.frame - 1 : gun.frame );
-                // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
-                if ( gun.frame == firstFrame ) {
-                    gun.backlerp = 0.0;
-                    // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
-                } else if ( gun.frame == lastFrame ) {
-                    gun.backlerp = 1.0;
-                    // Otherwise just subtract the resulting lerpFraction.
-                } else {
-                    gun.backlerp = 1.0 - lerpFraction;
-                }
-                // Clamp just to be sure.
-                clamp( gun.backlerp, 0.0, 1.0 );
-                // Reached the end of the animation:
-            } else {
-                // Otherwise, oldframe now equals the current(end) frame.
-                gun.oldframe = gun.frame = lastFrame;
-                // No more lerping.
-                gun.backlerp = 1.0;
-
-            }
+            CLG_AnimateViewWeapon( &gun, firstFrame, lastFrame );
         }
     }
 

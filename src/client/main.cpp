@@ -579,7 +579,7 @@ void CL_ClearState(void)
     // WID: disable LOC: LOC_FreeLocations();
 
     // Don't forget to clear the pose cache.
-    SKM_PoseCache_ClearCache( &cls.clientPoseCache );
+    SKM_PoseCache_ClearCache( cls.clientPoseCache );
 
     // Unload the collision models.
     CM_FreeMap( &cl.collisionModel ); //BSP_Free(cl.bsp);
@@ -1570,7 +1570,7 @@ void CL_Begin(void)
         cls.clientPoseCache = SKM_PoseCache_AllocatePoseCache();
     }
     // Reset pose cache fully to a clean slate initial size.
-    SKM_PoseCache_ResetCache( cls.clientPoseCache );
+    SKM_PoseCache_ResetCache( &cls.clientPoseCache );
 
     // Fix any cheat cvars.
     Cvar_FixCheats();
@@ -3078,6 +3078,10 @@ uint64_t CL_Frame( uint64_t msec ) {
     cls.realdelta = ( current - cls.realtime ) / 1000.f;
     cls.realtime = current;
 
+    // Clear the bone cache.
+    SKM_PoseCache_ClearCache( cls.clientPoseCache );
+
+    // Process Events.
     CL_ProcessEvents();
 
     switch ( sync_mode ) {
@@ -3387,7 +3391,7 @@ void CL_Shutdown(void)
     CL_GM_Shutdown();
 
     // Don't forget to clear the pose cache.
-    SKM_PoseCache_ClearCache( &cls.clientPoseCache );
+    SKM_PoseCache_ClearCache( cls.clientPoseCache );
 
     // Reset static state.
     memset(&cls, 0, sizeof(cls));

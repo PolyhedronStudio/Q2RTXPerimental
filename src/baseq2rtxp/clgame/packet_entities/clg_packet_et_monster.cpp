@@ -107,6 +107,8 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
             refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
             refreshEntity->frame = packetEntity->current_frame;
             refreshEntity->oldframe = packetEntity->last_frame;
+            refreshEntity->rootMotionBoneID = 0;
+            refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y;
         }
 
         // Add refresh entity to scene.

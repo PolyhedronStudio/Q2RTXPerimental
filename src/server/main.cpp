@@ -2022,7 +2022,7 @@ void SV_Init(void) {
     // Allocate/reserve the cache we use for blending skeletal model poses into.
     svs.serverPoseCache = SKM_PoseCache_AllocatePoseCache();
     // Reset pose cache fully to a clean slate initial size.
-    SKM_PoseCache_ResetCache( svs.serverPoseCache );
+    SKM_PoseCache_ResetCache( &svs.serverPoseCache );
 
     // Initialize operator commands.
     SV_InitOperatorCommands();
@@ -2221,7 +2221,7 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
     SV_Models_Shutdown();
 
     // Clear up the server's skeletal model bone pose cache context.
-    SKM_PoseCache_ClearCache( &svs.serverPoseCache );
+    SKM_PoseCache_ClearCache( svs.serverPoseCache );
 
     // free current level
     CM_FreeMap(&sv.cm);

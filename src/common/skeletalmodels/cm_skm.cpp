@@ -199,16 +199,16 @@ const skm_rootmotion_set_t *SKM_GenerateRootMotionSet( model_t *model, const int
 		// Get the pointer to the rootmotion set.
 		skm_rootmotion_t *rootMotion = skmConfig->rootMotion.motions[ i ];
 		// Ensure it is zeroed out.
-		memset( rootMotion, 0, sizeof( skm_rootmotion_t ) );
-
+		memset( rootMotion, 0, sizeof( skm_rootmotion_t* ) );
+		
 		CHECK( rootMotion->translations = (Vector3**)( MOD_Malloc( sizeof( Vector3 * ) * iqmAnimation->num_frames ) ) );
 		// Ensure it is zeroed out.
-		memset( rootMotion->translations, 0, sizeof( Vector3 ) * iqmAnimation->num_frames );
+		memset( rootMotion->translations, 0, sizeof( Vector3 *) * iqmAnimation->num_frames );
 
 		// Distances
 		CHECK( rootMotion->distances = (float **)( MOD_Malloc( sizeof( float *) * iqmAnimation->num_frames ) ) );
 		// Ensure it is zeroed out.
-		memset( rootMotion->distances, 0, sizeof( float ) * iqmAnimation->num_frames );
+		memset( rootMotion->distances, 0, sizeof( float *) * iqmAnimation->num_frames );
 
 
 		// Prepare the set for filling.
