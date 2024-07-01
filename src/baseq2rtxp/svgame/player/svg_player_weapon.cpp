@@ -427,7 +427,7 @@ void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forwar
 /**
 *   @brief  Acts as a sub method for cleaner code, used by weapon item animation data precaching.
 **/
-void P_Weapon_ModeAnimationFromIQM( weapon_item_info_t *itemInfo, const iqm_anim_t *iqmAnim, const int32_t modeID, const int32_t iqmAnimationID ) {
+void P_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const skm_anim_t *skmAnim, const int32_t modeID, const int32_t skmAnimationID ) {
     // Ensure modeID is valid.
     if ( modeID < 0 || modeID >= WEAPON_MODE_MAX ) {
         gi.dprintf( "%s: modeID(#%i) < 0 or >= WEAPON_MODE_MAX\n", __func__ );
@@ -440,10 +440,10 @@ void P_Weapon_ModeAnimationFromIQM( weapon_item_info_t *itemInfo, const iqm_anim
     weapon_mode_animation_t *modeAnimation = &modeAnimations[ modeID ];
 
     // Start filling the specified modeID slot with the iqmAnim data.
-    modeAnimation->modelAnimationID = iqmAnimationID;
-    modeAnimation->startFrame = iqmAnim->first_frame;
-    modeAnimation->endFrame = iqmAnim->first_frame + iqmAnim->num_frames;
-    modeAnimation->duration = sg_time_t::from_ms( BASE_FRAMETIME ) * iqmAnim->num_frames;
+    modeAnimation->modelAnimationID = skmAnimationID;
+    modeAnimation->startFrame = skmAnim->first_frame;
+    modeAnimation->endFrame = skmAnim->first_frame + skmAnim->num_frames;
+    modeAnimation->duration = sg_time_t::from_ms( BASE_FRAMETIME ) * skmAnim->num_frames;
 }
 
 /**
@@ -515,7 +515,7 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
     // Calculate the weapon's frame for the current moment in time.
     const int32_t oldWeaponFrame = ent->client->weaponState.animation.currentFrame;
     int32_t newWeaponFrame = 0;
-    const double frameFraction = SG_FrameForTime( &newWeaponFrame, level.time,
+    const double frameFraction = SG_AnimationFrameForTime( &newWeaponFrame, level.time,
         ent->client->weaponState.animation.startTime, 
         BASE_FRAMETIME,
         ent->client->weaponState.animation.startFrame,

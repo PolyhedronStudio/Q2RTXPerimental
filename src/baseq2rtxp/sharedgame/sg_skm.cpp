@@ -34,23 +34,25 @@ sg_skminfo_t *SG_LoadAndParseSkeletalModelInfo( const char *filename ) {
 }
 #endif
 
+
+
 /**
 *
 *
 *
-*	These are uncategorized until later on. TODO: CATEGORIZE THESE FUNCTIONS
+*	Animation Processing:
 *
 *
 *
 **/
 /**
-* @brief	Calculates the current frame for the current time since the start time stamp.
+* @brief	Calculates the current frame since the 'start timestamp' for the 'current time'.
 *
 * @return   The frame and interpolation fraction for current time in an animation started at a given time.
 *           When the animation is finished it will return frame -1. Takes looping into account. Looping animations
 *           are never finished.
 **/
-const double SG_FrameForTime( int32_t *frame, const sg_time_t &currentTime, const sg_time_t &startTimeStamp, const double frameTime, const int32_t firstFrame, const int32_t lastFrame, const int32_t loopingFrames, const bool forceLoop ) {
+const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentTime, const sg_time_t &startTimeStamp, const double frameTime, const int32_t firstFrame, const int32_t lastFrame, const int32_t loopingFrames, const bool forceLoop ) {
 	// Working loopinframes variable.
 	int32_t _loopingFrames = loopingFrames;
 

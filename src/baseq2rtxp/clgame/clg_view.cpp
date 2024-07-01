@@ -214,7 +214,7 @@ static void CLG_AnimateViewWeapon( entity_t *refreshEntity, const int32_t firstF
     game.viewWeapon.last_frame = game.viewWeapon.frame;
 
     // Calculate the actual current frame for the moment in time of the active animation.
-    double lerpFraction = SG_FrameForTime( &game.viewWeapon.frame,
+    double lerpFraction = SG_AnimationFrameForTime( &game.viewWeapon.frame,
         //sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
         sg_time_t::from_ms( clgi.client->extrapolatedTime ), sg_time_t::from_ms( game.viewWeapon.server_time ),
         BASE_FRAMETIME,
@@ -285,8 +285,8 @@ static void CLG_AddViewWeapon( void ) {
         return;
     }
     // Get IQM data.
-    const iqm_model_t *iqmData = weaponModel->iqmData;
-    if ( !iqmData ) {
+    const skm_model_t *skmData = weaponModel->skmData;
+    if ( !skmData ) {
         return;
     }
 
@@ -334,22 +334,22 @@ static void CLG_AddViewWeapon( void ) {
         const int32_t animationID = ( ps->gun.animationID & ~GUN_ANIMATION_TOGGLE_BIT );
         const int32_t oldAnimationID = ( ops->gun.animationID & ~GUN_ANIMATION_TOGGLE_BIT );
         // If the ID is invalid, resort to zero valued defaults.
-        if ( ( animationID < 0 || animationID >= iqmData->num_animations ) ) {
+        if ( ( animationID < 0 || animationID >= skmData->num_animations ) ) {
             gun.frame = gun.oldframe = 0;
             gun.backlerp = 0.0;
             return;
         }
         // Get IQM Animation.
-        const iqm_anim_t *iqmAnimation = &iqmData->animations[ animationID ];
-        if ( !iqmAnimation ) {
+        const iqm_anim_t *skmAnimation = &skmData->animations[ animationID ];
+        if ( !skmAnimation ) {
             gun.frame = gun.oldframe = 0;
             gun.backlerp = 0.0;
             return;
         }
 
         // Animation frames.
-        const int32_t firstFrame = iqmAnimation->first_frame;
-        const int32_t lastFrame = iqmAnimation->first_frame + iqmAnimation->num_frames;
+        const int32_t firstFrame = skmAnimation->first_frame;
+        const int32_t lastFrame = skmAnimation->first_frame + skmAnimation->num_frames;
 
         // If the animationID differed, or had its toggle bit flipped, reinitialize the animation.
         if ( animationIDChanged ) {

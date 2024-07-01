@@ -125,8 +125,17 @@ typedef struct light_poly_s {
 /**
 *
 * 
-*   IQM Mesh Data:
+*   IQM Mesh Data:  
 *
+* 
+* 
+*   TODO: 
+* 
+*   Rename instead of typedef these to skm_name_t. The reason for that is this is
+*   actual in-memory representation of the IQM, and not the actual IQM data structs themselves.
+*
+*   'But why did you not do this yet?', because I prefer not to touch the VKPT code much right now.
+* 
 * 
 **/
 /**
@@ -137,6 +146,9 @@ typedef struct {
 	quat_t rotate;
 	vec3_t scale;
 } iqm_transform_t;
+//! Typedef for convenience.
+typedef iqm_transform_t skm_transform_t;
+
 /**
 *   @brief
 **/
@@ -148,6 +160,8 @@ typedef struct {
     int32_t flags;
 	//bool loop;
 } iqm_anim_t;
+//! Typedef for convenience.
+typedef iqm_anim_t skm_anim_t;
 
 /**
 *   @brief  'Inter-Quake-Model'
@@ -182,6 +196,8 @@ typedef struct {
 	
 	iqm_anim_t* animations;
 } iqm_model_t;
+//! Typedef for convenience.
+typedef iqm_model_t skm_model_t;
 
 /**
 *   @brief 'Inter-Quake-Model' Mesh.
@@ -195,8 +211,8 @@ typedef struct iqm_mesh_s
 	uint32_t first_triangle, num_triangles;
 	uint32_t first_influence, num_influences;
 } iqm_mesh_t;
-
-
+// Typedef for convenience.
+typedef iqm_mesh_t skm_mesh_t;
 
 /**
 *
@@ -383,7 +399,7 @@ typedef struct model_s {
     struct mspriteframe_s *spriteframes;
 	bool sprite_vertical;
 
-	iqm_model_t* iqmData;
+	skm_model_t* skmData;
     skm_config_t *skmConfig;
 
 	int num_light_polys;

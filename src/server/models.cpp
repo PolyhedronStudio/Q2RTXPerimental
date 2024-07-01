@@ -384,40 +384,40 @@ int SV_Models_LoadIQM( model_t *model, const void *rawdata, size_t length, const
         Z_Free( skm_config_file_buffer );
     }
 
-    CHECK( model->meshes = static_cast<maliasmesh_t*>( MOD_Malloc( &model->hunk, sizeof( maliasmesh_t ) * model->iqmData->num_meshes ) ) );
-    model->nummeshes = (int)model->iqmData->num_meshes;
+    CHECK( model->meshes = static_cast<maliasmesh_t*>( MOD_Malloc( &model->hunk, sizeof( maliasmesh_t ) * model->skmData->num_meshes ) ) );
+    model->nummeshes = (int)model->skmData->num_meshes;
     model->numframes = 1; // these are baked frames, so that the VBO uploader will only make one copy of the vertices
 
-    for ( unsigned model_idx = 0; model_idx < model->iqmData->num_meshes; model_idx++ ) {
-        iqm_mesh_t *iqm_mesh = &model->iqmData->meshes[ model_idx ];
+    for ( unsigned model_idx = 0; model_idx < model->skmData->num_meshes; model_idx++ ) {
+        skm_mesh_t *skm_mesh = &model->skmData->meshes[ model_idx ];
         maliasmesh_t *mesh = &model->meshes[ model_idx ];
 
-        mesh->indices = iqm_mesh->data->indices ? (int *)iqm_mesh->data->indices + iqm_mesh->first_triangle * 3 : NULL;
-        mesh->positions = iqm_mesh->data->positions ? (vec3_t *)( iqm_mesh->data->positions + iqm_mesh->first_vertex * 3 ) : NULL;
-        mesh->normals = iqm_mesh->data->normals ? (vec3_t *)( iqm_mesh->data->normals + iqm_mesh->first_vertex * 3 ) : NULL;
-        mesh->tex_coords = iqm_mesh->data->texcoords ? (vec2_t *)( iqm_mesh->data->texcoords + iqm_mesh->first_vertex * 2 ) : NULL;
-        mesh->tangents = iqm_mesh->data->tangents ? (vec3_t *)( iqm_mesh->data->tangents + iqm_mesh->first_vertex * 3 ) : NULL;
-        mesh->blend_indices = iqm_mesh->data->blend_indices ? (uint32_t *)( iqm_mesh->data->blend_indices + iqm_mesh->first_vertex * 4 ) : NULL;
-        mesh->blend_weights = iqm_mesh->data->blend_weights ? (uint32_t *)( iqm_mesh->data->blend_weights + iqm_mesh->first_vertex * 4 ) : NULL;
+        mesh->indices = skm_mesh->data->indices ? (int *)skm_mesh->data->indices + skm_mesh->first_triangle * 3 : NULL;
+        mesh->positions = skm_mesh->data->positions ? (vec3_t *)( skm_mesh->data->positions + skm_mesh->first_vertex * 3 ) : NULL;
+        mesh->normals = skm_mesh->data->normals ? (vec3_t *)( skm_mesh->data->normals + skm_mesh->first_vertex * 3 ) : NULL;
+        mesh->tex_coords = skm_mesh->data->texcoords ? (vec2_t *)( skm_mesh->data->texcoords + skm_mesh->first_vertex * 2 ) : NULL;
+        mesh->tangents = skm_mesh->data->tangents ? (vec3_t *)( skm_mesh->data->tangents + skm_mesh->first_vertex * 3 ) : NULL;
+        mesh->blend_indices = skm_mesh->data->blend_indices ? (uint32_t *)( skm_mesh->data->blend_indices + skm_mesh->first_vertex * 4 ) : NULL;
+        mesh->blend_weights = skm_mesh->data->blend_weights ? (uint32_t *)( skm_mesh->data->blend_weights + skm_mesh->first_vertex * 4 ) : NULL;
 
-        mesh->numindices = (int)( iqm_mesh->num_triangles * 3 );
-        mesh->numverts = (int)iqm_mesh->num_vertexes;
-        mesh->numtris = (int)iqm_mesh->num_triangles;
+        mesh->numindices = (int)( skm_mesh->num_triangles * 3 );
+        mesh->numverts = (int)skm_mesh->num_vertexes;
+        mesh->numtris = (int)skm_mesh->num_triangles;
 
         // convert the indices from IQM global space to mesh-local space; fix winding order.
-        for ( unsigned triangle_idx = 0; triangle_idx < iqm_mesh->num_triangles; triangle_idx++ ) {
+        for ( unsigned triangle_idx = 0; triangle_idx < skm_mesh->num_triangles; triangle_idx++ ) {
             int tri[ 3 ];
             tri[ 0 ] = mesh->indices[ triangle_idx * 3 + 0 ];
             tri[ 1 ] = mesh->indices[ triangle_idx * 3 + 1 ];
             tri[ 2 ] = mesh->indices[ triangle_idx * 3 + 2 ];
 
-            mesh->indices[ triangle_idx * 3 + 0 ] = tri[ 2 ] - (int)iqm_mesh->first_vertex;
-            mesh->indices[ triangle_idx * 3 + 1 ] = tri[ 1 ] - (int)iqm_mesh->first_vertex;
-            mesh->indices[ triangle_idx * 3 + 2 ] = tri[ 0 ] - (int)iqm_mesh->first_vertex;
+            mesh->indices[ triangle_idx * 3 + 0 ] = tri[ 2 ] - (int)skm_mesh->first_vertex;
+            mesh->indices[ triangle_idx * 3 + 1 ] = tri[ 1 ] - (int)skm_mesh->first_vertex;
+            mesh->indices[ triangle_idx * 3 + 2 ] = tri[ 0 ] - (int)skm_mesh->first_vertex;
         }
 
         char filename[ MAX_QPATH ];
-        Q_snprintf( filename, sizeof( filename ), "%s/%s.pcx", base_path, iqm_mesh->material );
+        Q_snprintf( filename, sizeof( filename ), "%s/%s.pcx", base_path, skm_mesh->material );
         // WID: TODO: Implement?
         //pbr_material_t *mat = MAT_Find( filename, IT_SKIN, IF_NONE );
         //assert( mat ); // it's either found or created

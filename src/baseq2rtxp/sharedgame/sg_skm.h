@@ -44,6 +44,7 @@ typedef struct sg_skm_animation_state_s {
 	
 	//! FrameTime for this animation.
 	double frameTime;
+
 	//! Whether it is looping or not.
 	const bool isLooping;
 } sg_skm_animation_state_t;
@@ -89,11 +90,22 @@ static inline void SG_DecodeAnimationState( const uint32_t animationState, uint8
 	//*framerate = ( ( animationState >> 24 ) & 255 );
 }
 
+
+
 /**
-* @brief	Calculates the current frame for the current time since the start time stamp.
+*
+*
+*
+*	Animation Processing:
+*
+*
+*
+**/
+/**
+* @brief	Calculates the current frame since the 'start timestamp' for the 'current time'.
 *
 * @return   The frame and interpolation fraction for current time in an animation started at a given time.
 *           When the animation is finished it will return frame -1. Takes looping into account. Looping animations
 *           are never finished.
 **/
-const double SG_FrameForTime( int32_t *frame, const sg_time_t &currentTime, const sg_time_t &startTimeStamp, const double frameTime, const int32_t firstFrame, const int32_t lastFrame, const int32_t loopingFrames, const bool forceLoop );
+const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentTime, const sg_time_t &startTimeStamp, const double frameTime, const int32_t firstFrame, const int32_t lastFrame, const int32_t loopingFrames, const bool forceLoop );

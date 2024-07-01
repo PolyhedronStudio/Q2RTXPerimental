@@ -1939,19 +1939,19 @@ static void process_regular_entity(
 		*contains_transparent = false;
 
 	int iqm_matrix_index = -1;
-	if (model->iqmData && model->iqmData->num_poses)
+	if (model->skmData && model->skmData->num_poses)
 	{
 		iqm_matrix_index = *iqm_matrix_offset;
 		
-		if (iqm_matrix_index + model->iqmData->num_poses > MAX_IQM_MATRICES)
+		if (iqm_matrix_index + model->skmData->num_poses > MAX_IQM_MATRICES)
 		{
 			assert(!"IQM matrix buffer overflow");
 			return;
 		}
 		
-		R_ComputeIQMTransforms(model, entity, iqm_matrix_data + (iqm_matrix_index * 12));
+		R_ComputePoseTransforms(model, entity, iqm_matrix_data + (iqm_matrix_index * 12));
 		
-		*iqm_matrix_offset += (int)model->iqmData->num_poses;
+		*iqm_matrix_offset += (int)model->skmData->num_poses;
 	}
 
 	float alpha = (entity->flags & RF_TRANSLUCENT) ? entity->alpha : 1.f;

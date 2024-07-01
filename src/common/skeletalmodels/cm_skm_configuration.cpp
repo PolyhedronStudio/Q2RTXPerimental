@@ -267,18 +267,18 @@ static const int32_t SKM_GenerateBonesArray( const model_t *model, const char *c
 
 
     // IQM Data Pointer.
-    iqm_model_t *iqmData = model->iqmData;
+    skm_model_t *skmData = model->skmData;
     // SKM Config Pointer.
     skm_config_t *skmConfig = model->skmConfig;
     
 
     // Pointer to joint names buffer.
-    char *str = iqmData->jointNames;
+    char *str = skmData->jointNames;
     // Store the number of bones.
-    skmConfig->numberOfBones = iqmData->num_joints;
+    skmConfig->numberOfBones = skmData->num_joints;
 
     // Iterate the IQM joints data.
-    for ( uint32_t joint_idx = 0; joint_idx < iqmData->num_joints; joint_idx++ ) {
+    for ( uint32_t joint_idx = 0; joint_idx < skmData->num_joints; joint_idx++ ) {
         // The matching bone node.
         skm_bone_node_t *boneNode = &skmConfig->boneArray[ joint_idx ];
 
@@ -296,7 +296,7 @@ static const int32_t SKM_GenerateBonesArray( const model_t *model, const char *c
 
         // Store the Bone Number and Parent Bone Number.
         boneNode->number = joint_idx;
-        boneNode->parentNumber = iqmData->jointParents[ joint_idx ];
+        boneNode->parentNumber = skmData->jointParents[ joint_idx ];
 
         // Set pointer to the parent bone. (Unless we're the root node.)
         //boneNode->parentBone = ( joint_idx == 0 ? nullptr : &skmConfig->boneArray[ boneNode->parentNumber ] );
@@ -324,7 +324,7 @@ static const int32_t SKM_GenerateBonesArray( const model_t *model, const char *c
 **/
 static void SKM_CollectBoneTreeNodeChildren( model_t *model, skm_bone_node_t *boneNode ) {
     // IQM Data Pointer.
-    iqm_model_t *iqmData = model->iqmData;
+    skm_model_t *iqmData = model->skmData;
     // SKM Config Pointer.
     skm_config_t *skmConfig = model->skmConfig;
 
@@ -367,7 +367,7 @@ static const int32_t SKM_CreateBonesTree( model_t *model, const char *configurat
 
 
     // IQM Data Pointer.
-    iqm_model_t *iqmData = model->iqmData;
+    skm_model_t *iqmData = model->skmData;
     // SKM Config Pointer.
     skm_config_t *skmConfig = model->skmConfig;
 
@@ -452,7 +452,7 @@ const int32_t SKM_ParseConfigurationBuffer( model_t *model, const char *configur
         return false;
     }
     // Ensure that there is valid iqmData to work with.
-    if ( !model->iqmData ) {
+    if ( !model->skmData ) {
         #ifdef _DEBUG_PRINT_SKM_CONFIGURATION_PARSE_FAILURE
         Com_LPrintf( PRINT_DEVELOPER, "%s: model->iqmData == nullptr! while trying to parse '%s', \n", __func__, configurationFilePath );
         #endif

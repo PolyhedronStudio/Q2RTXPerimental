@@ -1012,7 +1012,7 @@ void P_PlayerNoise(edict_t *who, const vec3_t where, int type);
 /**
 *   @brief  Acts as a sub method for cleaner code, used by weapon item animation data precaching.
 **/
-void P_Weapon_ModeAnimationFromIQM( weapon_item_info_t *itemInfo, const iqm_anim_t *iqmAnim, const int32_t modeID, const int32_t iqmAnimationID );
+void P_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const iqm_anim_t *iqmAnim, const int32_t modeID, const int32_t iqmAnimationID );
 /**
 *   @brief
 **/

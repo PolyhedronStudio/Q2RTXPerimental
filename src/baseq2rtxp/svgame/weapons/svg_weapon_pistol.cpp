@@ -47,34 +47,34 @@ void Weapon_Pistol_Precached( const gitem_t *item ) {
         return;
     }
     // Validate the IQM data.
-    if ( !viewModel->iqmData ) {
+    if ( !viewModel->skmData ) {
         gi.dprintf( "%s: No IQMData found. Failed to precache '%s' weapon animation data for item->view_model(%s)\n", __func__, item->classname, item->view_model );
         return;
     }
 
     // We can safely operate now.
-    const iqm_model_t *iqmData = viewModel->iqmData;
+    const skm_model_t *skmData = viewModel->skmData;
     // Iterate animations.
-    for ( int32_t animID = 0; animID < iqmData->num_animations; animID++ ) {
+    for ( int32_t animID = 0; animID < skmData->num_animations; animID++ ) {
         // IQM animation.
-        const iqm_anim_t *iqmAnim = &iqmData->animations[ animID ];
+        const skm_anim_t *skmAnim = &skmData->animations[ animID ];
 
-        if ( !strcmp( iqmAnim->name, "idle" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_IDLE, animID );
-        } else if ( !strcmp( iqmAnim->name, "draw" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_DRAWING, animID );
-        } else if ( !strcmp( iqmAnim->name, "holster" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_HOLSTERING, animID );
-        } else if ( !strcmp( iqmAnim->name, "fire" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_PRIMARY_FIRING, animID );
-        } else if ( !strcmp( iqmAnim->name, "reload" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_RELOADING, animID );
-        } else if ( !strcmp( iqmAnim->name, "aim_in" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_IN, animID );
-        } else if ( !strcmp( iqmAnim->name, "aim_fire" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_FIRE, animID );
-        } else if ( !strcmp( iqmAnim->name, "aim_out" ) ) {
-            P_Weapon_ModeAnimationFromIQM( &pistolItemInfo, iqmAnim, WEAPON_MODE_AIM_OUT, animID );
+        if ( !strcmp( skmAnim->name, "idle" ) ) {
+            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_IDLE, animID );
+        } else if ( !strcmp( skmAnim->name, "draw" ) ) {
+            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_DRAWING, animID );
+        } else if ( !strcmp( skmAnim->name, "holster" ) ) {
+            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_HOLSTERING, animID );
+        } else if ( !strcmp( skmAnim->name, "fire" ) ) {
+            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_PRIMARY_FIRING, animID );
+        } else if ( !strcmp( skmAnim->name, "reload" ) ) {
+            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_RELOADING, animID );
+        } else if ( !strcmp( skmAnim->name, "aim_in" ) ) {
+            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_IN, animID );
+        } else if ( !strcmp( skmAnim->name, "aim_fire" ) ) {
+            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_FIRE, animID );
+        } else if ( !strcmp( skmAnim->name, "aim_out" ) ) {
+            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_OUT, animID );
         } else {
             continue;
         }

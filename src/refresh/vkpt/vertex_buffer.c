@@ -972,7 +972,7 @@ vkpt_vertex_buffer_upload_models()
 
         assert(model->numframes > 0);
 
-		bool model_is_static = model->numframes == 1 && (!model->iqmData || !model->iqmData->blend_indices);
+		bool model_is_static = model->numframes == 1 && (!model->skmData || !model->skmData->blend_indices);
 		vbo->is_static = model_is_static;
 		vbo->total_tris = 0;
 

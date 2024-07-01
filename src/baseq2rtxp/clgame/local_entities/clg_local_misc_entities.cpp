@@ -157,7 +157,7 @@ void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
 	entity_t *refreshEntity = &selfClass->rent;
 
 	// Get IQM and SKM resource pointers.
-	iqm_model_t *iqmData = selfClass->model->iqmData;
+	skm_model_t *skmData = selfClass->model->skmData;
 	skm_config_t *skmConfig = selfClass->model->skmConfig;
 
 	/**
@@ -166,7 +166,7 @@ void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
 	// Get animation in case one is set.
 	if ( selfClass->animation.headID >= 0 ) {
 		// Get the animation data.
-		iqm_anim_t *iqmAnimation = &iqmData->animations[ selfClass->animation.headID ];
+		skm_anim_t *iqmAnimation = &skmData->animations[ selfClass->animation.headID ];
 		
 		if ( iqmAnimation ) {
 			// First and Last frame.
@@ -177,7 +177,7 @@ void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
 			selfClass->animation.lastHeadFrame = selfClass->animation.currentHeadFrame;
 
 			// Calculate the actual current frame for the moment in time of the active animation.
-			double lerpFraction = SG_FrameForTime( &selfClass->animation.currentHeadFrame,
+			double lerpFraction = SG_AnimationFrameForTime( &selfClass->animation.currentHeadFrame,
 				//sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
 				sg_time_t::from_ms( clgi.client->extrapolatedTime ), selfClass->animation.headStartTime,
 				BASE_FRAMETIME,
@@ -218,7 +218,7 @@ void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
 	// Get animation in case one is set.
 	if ( selfClass->animation.torsoID >= 0 ) {
 		// Get the animation data.
-		iqm_anim_t *iqmAnimation = &iqmData->animations[ selfClass->animation.torsoID ];
+		skm_anim_t *iqmAnimation = &skmData->animations[ selfClass->animation.torsoID ];
 
 		if ( iqmAnimation ) {
 			// First and Last frame.
@@ -229,7 +229,7 @@ void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
 			selfClass->animation.lastTorsoFrame = selfClass->animation.currentTorsoFrame;
 
 			// Calculate the actual current frame for the moment in time of the active animation.
-			double lerpFraction = SG_FrameForTime( &selfClass->animation.currentTorsoFrame,
+			double lerpFraction = SG_AnimationFrameForTime( &selfClass->animation.currentTorsoFrame,
 				//sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
 				sg_time_t::from_ms( clgi.client->extrapolatedTime ), selfClass->animation.torsoStartTime,
 				BASE_FRAMETIME,
@@ -269,7 +269,7 @@ void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
 	// Get animation in case one is set.
 	if ( selfClass->animation.hipID >= 0 ) {
 		// Get the animation data.
-		iqm_anim_t *iqmAnimation = &iqmData->animations[ selfClass->animation.hipID ];
+		skm_anim_t *iqmAnimation = &skmData->animations[ selfClass->animation.hipID ];
 
 		if ( iqmAnimation ) {
 			// First and Last frame.
@@ -280,7 +280,7 @@ void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
 			selfClass->animation.lastHipFrame = selfClass->animation.currentHipFrame;
 
 			// Calculate the actual current frame for the moment in time of the active animation.
-			double lerpFraction = SG_FrameForTime( &selfClass->animation.currentHipFrame,
+			double lerpFraction = SG_AnimationFrameForTime( &selfClass->animation.currentHipFrame,
 				//sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
 				sg_time_t::from_ms( clgi.client->extrapolatedTime ), selfClass->animation.hipStartTime,
 				BASE_FRAMETIME,
@@ -364,27 +364,27 @@ static void QuatSlerp( const quat_t from, const quat_t _to, float fraction, quat
 }
 static void IQM_ComputeRelativeJoints( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, iqm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags ) {
 	// Sanity check.
-	if ( !model || !model->iqmData ) {
+	if ( !model || !model->skmData ) {
 		return;
 	}
 
 	// Get IQM Data.
-	iqm_model_t *iqmData = model->iqmData;
+	skm_model_t *skmData = model->skmData;
 
 	// Keep frame within bounds.
-	const int32_t boundFrame = iqmData->num_frames ? frame % (int32_t)iqmData->num_frames : 0;
-	const int32_t boundOldFrame = iqmData->num_frames ? oldFrame % (int32_t)iqmData->num_frames : 0;
+	const int32_t boundFrame = skmData->num_frames ? frame % (int32_t)skmData->num_frames : 0;
+	const int32_t boundOldFrame = skmData->num_frames ? oldFrame % (int32_t)skmData->num_frames : 0;
 
 	// Keep bone ID sane.
-	int32_t boundRootMotionBoneID = ( rootMotionBoneID >= 0 ? rootMotionBoneID % (int32_t)iqmData->num_joints : -1 );
+	int32_t boundRootMotionBoneID = ( rootMotionBoneID >= 0 ? rootMotionBoneID % (int32_t)( skmData->num_joints - rootMotionBoneID ) : -1 );
 
 	// Fetch first joint.
-	iqm_transform_t *relativeJoint = outBonePose;
+	skm_transform_t *relativeJoint = outBonePose;
 
 	// Copy the animation frame pos.
 	if ( frame == oldFrame ) {
-		const iqm_transform_t *pose = &iqmData->poses[ boundFrame * iqmData->num_poses ];
-		for ( uint32_t pose_idx = 0; pose_idx < iqmData->num_poses; pose_idx++, pose++, relativeJoint++ ) {
+		const skm_transform_t *pose = &skmData->poses[ boundFrame * skmData->num_poses ];
+		for ( uint32_t pose_idx = 0; pose_idx < skmData->num_poses; pose_idx++, pose++, relativeJoint++ ) {
 			#if 1
 			if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
 				// Translate the selected axises.
@@ -415,12 +415,11 @@ static void IQM_ComputeRelativeJoints( const model_t *model, const int32_t frame
 			QuatCopy( pose->rotate, relativeJoint->rotate );
 			VectorCopy( pose->scale, relativeJoint->scale );
 		}
-		// Lerp the animation frame pose.
+	// Lerp the animation frame pose.
 	} else {
-		//const float lerp = 1.0f - backlerp;
-		const iqm_transform_t *pose = &iqmData->poses[ boundFrame * iqmData->num_poses ];
-		const iqm_transform_t *oldPose = &iqmData->poses[ boundOldFrame * iqmData->num_poses ];
-		for ( uint32_t pose_idx = 0; pose_idx < iqmData->num_poses; pose_idx++, oldPose++, pose++, relativeJoint++ ) {
+		const skm_transform_t *pose = &skmData->poses[ boundFrame * skmData->num_poses ];
+		const skm_transform_t *oldPose = &skmData->poses[ boundOldFrame * skmData->num_poses ];
+		for ( uint32_t pose_idx = 0; pose_idx < skmData->num_poses; pose_idx++, oldPose++, pose++, relativeJoint++ ) {
 			#if 1
 			if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
 				// Translate the selected axises.
@@ -470,121 +469,210 @@ static void IQM_ComputeRelativeJoints( const model_t *model, const int32_t frame
 *	@param	addBonePose		The actual animation that you want to blend in on top of inBonePoses.
 *	@param	addToBonePose	A lerped bone pose which we want to blend addBonePoses animation on to.
 **/
-void SKM_RecursiveBlendFromBone( iqm_transform_t *addBonePoses, iqm_transform_t *addToBonePoses, skm_bone_node_t *boneNode, float backLerp, float fraction ) {
+void SKM_RecursiveBlendFromBone( skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, skm_bone_node_t *boneNode, double backLerp, double fraction ) {
 	// If the bone node is invalid, escape.
 	if ( !boneNode || !addBonePoses || !addToBonePoses ) {
 		// TODO: Warn.
 		return;
 	}
 
-	//if ( boneNode->GetChildren().size() ) {
-	//	return;
-	//}
-	//// Get the bone.
-	//const EntitySkeletonBone *esBone = boneNode->GetEntitySkeletonBone();
-
-	//// If the bone is invalid, escape.
-	//if ( !esBone ) {
-	//	// TODO: Warn.
-	//	return;
-	//}
-
 	// Get bone number.
 	const int32_t boneNumber = boneNode->number;
-
+	//const int32_t parentBoneNumber = boneNode->parentNumber >= 0 ? boneNode->parentNumber : boneNumber;
+	
+	// Proceed if the bone number is valid.
 	if ( boneNode->number >= 0 ) {
-		iqm_transform_t *inBone = addBonePoses + boneNode->number;
-		iqm_transform_t *outBone = addToBonePoses + boneNode->number;
+		skm_transform_t *inBone = addBonePoses + boneNumber;
+		skm_transform_t *outBone = addToBonePoses + boneNumber;
 
-		// DQ: ------------------- START
-				//if (fraction == 1) {
-				//	*outBone = *inBone;
-				//} else {
-				//	dualquat_lerp( inBone->dualquat, outBone->dualquat, fraction, outBone->dualquat );
-				//}
-		// DQ: ------------------- END
 		if ( fraction == 1 ) {
+		#if 1
 			*outBone = *inBone;
-		} else {
-			//
-			//	WID: Unsure if actually lerping these is favored.
-			//
-			const float lerp = 1.0f - backLerp;
-			// Lerp the already Lerped Translation.
-			//outBone->translate[0] = outBone->translate[0] * backlerp + inBone->translate[0] * lerp;
-			//outBone->translate[1] = outBone->translate[1] * backlerp + inBone->translate[1] * lerp;
-			//outBone->translate[2] = outBone->translate[2] * backlerp + inBone->translate[2] * lerp;
-
-			// Lerp the already Lerped Scale.
-			//outBone->scale[0] = outBone->scale[0] * backlerp + inBone->scale[0] * lerp;
-			//outBone->scale[1] = outBone->scale[1] * backlerp + inBone->scale[1] * lerp;
-			//outBone->scale[2] = outBone->scale[2] * backlerp + inBone->scale[2] * lerp;
-
-			//if( bonenode->bonenum != -1 ) {
-			//	inbone = inboneposes + bonenode->bonenum;
-			//	outbone = outboneposes + bonenode->bonenum;
-			//	if( frac == 1 ) {
-			//		memcpy( &outboneposes[bonenode->bonenum], &inboneposes[bonenode->bonenum], sizeof( bonepose_t ) );
-			//	} else {
-			//		// blend current node pose
-			//		DualQuat_Lerp( inbone->dualquat, outbone->dualquat, frac, outbone->dualquat );
-			//	}
-			//}
-
-			//for( i = 0; i < bonenode->numbonechildren; i++ ) {
-			//	if( bonenode->bonechildren[i] ) {
-			//		CG_RecurseBlendSkeletalBone( inboneposes, outboneposes, bonenode->bonechildren[i], frac );
-			//	}
-			//}
-
+		#else
 			// Copy Translation.
 			*outBone->translate = *inBone->translate;
+			// Copy Scale.
+			*outBone->scale = *inBone->scale;
+			// Slerp the rotation at fraction.	
+			*outBone->rotate = *inBone->rotate;
+		#endif
+		} else {
+		//	WID: Unsure if actually lerping these is favored.
+		#if 1 
+			const double frontLerp = 1.0 - backLerp;
+			// Lerp the Translation.
+			//*outBone->translate = *inBone->translate;
+			outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
+			outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
+			outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
+			// Lerp the  Scale.
+			//*outBone->scale = *inBone->scale;
+			outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
+			outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
+			outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;
 
+			// Slerp the rotation
+			//*outBone->rotate = *inBone->rotate;
+			QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+		#else
+			// Copy Translation.
+			*outBone->translate = *inBone->translate;
 			// Copy Scale.
 			*outBone->scale = *inBone->scale; //vec3_scale(inBone->scale, 1.175);
-
 			// Slerp the rotation at fraction.	
-			QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+			*outBone->rotate = *inBone->rotate;
+		#endif
 		}
 
 		// Recursively blend all thise bone node's children.
 		for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
 			skm_bone_node_t *childBoneNode = boneNode->childBones[ i ];
-			SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, childBoneNode, backLerp, fraction );
+			if ( childBoneNode != nullptr && childBoneNode->numberOfChildNodes > 0 ) {
+				SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, childBoneNode, backLerp, fraction );
+			}
 		}
 	}
-
 }
+
+/****************************************************************
+
+
+*****************************************************************/
+#if 0
+static iqm_transform_t headAnimationBonePoses[ SKM_MAX_BONES ];
+static iqm_transform_t torsoAnimationBonePoses[ SKM_MAX_BONES ];
+static iqm_transform_t hipAnimationBonePoses[ SKM_MAX_BONES ];
+
+const int32_t _SKM_RecursiveBlendPose( clg_local_entity_t *self, clg_misc_model_locals_t *selfClass, entity_t *refreshEntity, sg_skm_body_part_e bodyPart, skm_bone_node_t *boneNode, iqm_transform_t *outBonePoses ) {
+	// Get IQM and SKM resource pointers.
+	iqm_model_t *iqmData = selfClass->model->iqmData;
+	skm_config_t *skmConfig = selfClass->model->skmConfig;
+
+	// This pointer is changed to the source animation pose we're currently acquiring data from.
+	iqm_transform_t *sourceBonePoses;
+	double frontLerp = 1.0 - selfClass->animation.headBackLerp;
+	double backLerp = selfClass->animation.headBackLerp;
+	if ( bodyPart == SKM_BODY_HEAD ) {
+		sourceBonePoses = headAnimationBonePoses;
+		frontLerp = 1.0 - selfClass->animation.headBackLerp;
+		backLerp = selfClass->animation.headBackLerp;
+	} else if ( bodyPart == SKM_BODY_UPPER ) {
+		sourceBonePoses = torsoAnimationBonePoses;
+		frontLerp = 1.0 - selfClass->animation.torsoBackLerp;
+		backLerp = selfClass->animation.torsoBackLerp;
+	} else {
+		sourceBonePoses = hipAnimationBonePoses;
+		frontLerp = 1.0 - selfClass->animation.hipBackLerp;
+		backLerp = selfClass->animation.hipBackLerp;
+	}
+
+	// Blend this bone.
+	if ( boneNode->number >= 0 ) {
+		*( outBonePoses + boneNode->number ) = *( sourceBonePoses + boneNode->number );
+		//*outBonePoses->translate = *sourceBonePoses->translate;
+
+		//// Lerp the already Lerped Scale.
+		//*outBonePoses->scale = *sourceBonePoses->scale;
+		////outBonePoses->scale[ 0 ] = outBonePoses->scale[ 0 ] * backLerp + sourceBonePoses->scale[ 0 ] * frontLerp;
+		////outBonePoses->scale[ 1 ] = outBonePoses->scale[ 1 ] * backLerp + sourceBonePoses->scale[ 1 ] * frontLerp;
+		////outBonePoses->scale[ 2 ] = outBonePoses->scale[ 2 ] * backLerp + sourceBonePoses->scale[ 2 ] * frontLerp;
+
+		//// Slerp the rotation
+		//QuatSlerp( outBonePoses->rotate, sourceBonePoses->rotate, fraction, outBonePoses->rotate );
+
+		if ( boneNode->numberOfChildNodes ) {
+			for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
+				skm_bone_node_t *childNode = boneNode->childBones[ i ];
+				if ( !childNode ) {
+					continue;
+				}
+
+				#if 1
+				int32_t childBodyPart = bodyPart;
+				if ( childNode == skmConfig->rootBones.hip ) {
+					childBodyPart = SKM_BODY_LOWER;
+				} else if ( childNode == skmConfig->rootBones.torso ) {
+					childBodyPart = SKM_BODY_UPPER;
+				} else if ( childNode == skmConfig->rootBones.head ) {
+					childBodyPart = SKM_BODY_HEAD;
+				}
+
+				// Blend.
+				_SKM_RecursiveBlendPose( self, selfClass, refreshEntity, (sg_skm_body_part_e)childBodyPart, childNode, outBonePoses );
+				#else
+				// Blend.
+				_SKM_RecursiveBlendPose( self, selfClass, refreshEntity, (sg_skm_body_part_e)bodyPart, childNode, outBonePoses );
+				#endif
+			}
+		}
+
+		return boneNode->number;
+	}
+
+	return -1;
+}
+#endif
 
 /**
 *	@brief	Blend the Head and the Torso animations sequentially on top of the Hip animation.
 **/
 static void CLG_misc_model_BlendAnimations( clg_local_entity_t *self, clg_misc_model_locals_t *selfClass, entity_t *refreshEntity ) {
 	// Get IQM and SKM resource pointers.
-	iqm_model_t *iqmData = selfClass->model->iqmData;
+	skm_model_t *iqmData = selfClass->model->skmData;
 	skm_config_t *skmConfig = selfClass->model->skmConfig;
 
+	#if 1
 	// TODO: Acquire bone cache space.
 	static iqm_transform_t headAnimationBonePoses[ SKM_MAX_BONES ];
-	float headFrontLerp = 1.0f - selfClass->animation.headBackLerp;
-	float headBackLerp = selfClass->animation.headBackLerp;
-	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentHeadFrame, selfClass->animation.lastHeadFrame, headFrontLerp, headBackLerp, headAnimationBonePoses, 0, SKM_POSE_TRANSLATE_ALL );
+	double headFrontLerp = 1.0 - selfClass->animation.headBackLerp;
+	double headBackLerp = selfClass->animation.headBackLerp;
+	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentHeadFrame, selfClass->animation.lastHeadFrame, headFrontLerp, headBackLerp, headAnimationBonePoses, skmConfig->rootBones.hip->number, SKM_POSE_TRANSLATE_ALL );
 	static iqm_transform_t torsoAnimationBonePoses[ SKM_MAX_BONES ];
-	float torsoFrontLerp = 1.0f - selfClass->animation.torsoBackLerp;
-	float torsoBackLerp = selfClass->animation.torsoBackLerp;
-	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentTorsoFrame, selfClass->animation.lastTorsoFrame, torsoFrontLerp, torsoBackLerp, torsoAnimationBonePoses, 0, SKM_POSE_TRANSLATE_ALL );
+	double torsoFrontLerp = 1.0 - selfClass->animation.torsoBackLerp;
+	double torsoBackLerp = selfClass->animation.torsoBackLerp;
+	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentTorsoFrame, selfClass->animation.lastTorsoFrame, torsoFrontLerp, torsoBackLerp, torsoAnimationBonePoses, skmConfig->rootBones.hip->number, SKM_POSE_TRANSLATE_ALL );
 	static iqm_transform_t hipAnimationBonePoses[ SKM_MAX_BONES ];
-	float hipFrontLerp = 1.0f - selfClass->animation.hipBackLerp;
-	float hipBackLerp = selfClass->animation.hipBackLerp;
-	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentHipFrame, selfClass->animation.lastHipFrame, hipFrontLerp, hipBackLerp, hipAnimationBonePoses, 0, SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y );
+	double hipFrontLerp = 1.0 - selfClass->animation.hipBackLerp;
+	double hipBackLerp = selfClass->animation.hipBackLerp;
+	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentHipFrame, selfClass->animation.lastHipFrame, hipFrontLerp, hipBackLerp, hipAnimationBonePoses, skmConfig->rootBones.hip->number, SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y );
 
-	static iqm_transform_t blendedBonePoses[ SKM_MAX_BONES ];
 	// Now recursively blend from the specified bones in skm data.
+	static iqm_transform_t blendedBonePoses[ SKM_MAX_BONES ];
+	SKM_RecursiveBlendFromBone( torsoAnimationBonePoses, hipAnimationBonePoses, skmConfig->rootBones.torso, torsoBackLerp, 0.5f );
 	SKM_RecursiveBlendFromBone( hipAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.hip, hipBackLerp, 1.0f );
-	SKM_RecursiveBlendFromBone( torsoAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.torso, torsoBackLerp, 1.0f );
-	SKM_RecursiveBlendFromBone( headAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.head, headBackLerp, 1.0f );
+	
+	SKM_RecursiveBlendFromBone( headAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.head, headBackLerp, 0.5f );
 
 	refreshEntity->bonePoses = blendedBonePoses;
+	#else
+	// TODO: Acquire bone cache space.
+	double headFrontLerp = 1.0 - selfClass->animation.headBackLerp;
+	double headBackLerp = selfClass->animation.headBackLerp;
+	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentHeadFrame, selfClass->animation.lastHeadFrame, headFrontLerp, headBackLerp, headAnimationBonePoses, skmConfig->rootBones.hip->number, SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y );
+	double torsoFrontLerp = 1.0 - selfClass->animation.torsoBackLerp;
+	double torsoBackLerp = selfClass->animation.torsoBackLerp;
+	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentTorsoFrame, selfClass->animation.lastTorsoFrame, torsoFrontLerp, torsoBackLerp, torsoAnimationBonePoses, skmConfig->rootBones.hip->number, SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y );
+	double hipFrontLerp = 1.0 - selfClass->animation.hipBackLerp;
+	double hipBackLerp = selfClass->animation.hipBackLerp;
+	IQM_ComputeRelativeJoints( selfClass->model, selfClass->animation.currentHipFrame, selfClass->animation.lastHipFrame, hipFrontLerp, hipBackLerp, hipAnimationBonePoses, skmConfig->rootBones.hip->number, SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y );
+
+	// Now recursively blend from the specified bones in skm data.
+	//SKM_RecursiveBlendFromBone( hipAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.hip, hipBackLerp, 1.0f );
+	//SKM_RecursiveBlendFromBone( torsoAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.torso, torsoBackLerp, 0.5f );
+	//SKM_RecursiveBlendFromBone( headAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.head, headBackLerp, 0.5f );
+
+	// Resulting pose.
+	static iqm_transform_t finalBonePoses[ SKM_MAX_BONES ];
+	// Start off with the root bone.
+	skm_bone_node_t *rootBoneNode = skmConfig->boneTree;
+	// Begin recursively blending animations.
+	int32_t result = _SKM_RecursiveBlendPose( self, selfClass, refreshEntity, SKM_BODY_HEAD, skmConfig->rootBones.head, finalBonePoses );
+	result = _SKM_RecursiveBlendPose( self, selfClass, refreshEntity, SKM_BODY_UPPER, skmConfig->rootBones.torso, finalBonePoses );
+	result = _SKM_RecursiveBlendPose( self, selfClass, refreshEntity, SKM_BODY_LOWER, skmConfig->rootBones.hip, finalBonePoses );
+	// Assign resulting bone pose to refresh entity.
+	refreshEntity->bonePoses = finalBonePoses;
+
+	#endif
 }
 
 /**

@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <refresh/models.h>
 #include <refresh/refresh.h>
 
+#include "common/skeletalmodels/cm_skm.h"
 
 
 /**
@@ -460,7 +461,7 @@ int MOD_LoadIQM_Base(model_t* model, const void* rawdata, size_t length, const c
 	}
 
 	CHECK(iqmData = MOD_Malloc(sizeof(iqm_model_t)));
-	model->iqmData = iqmData;
+	model->skmData = iqmData;
 
 	// fill header
 	iqmData->num_vertexes = (header->num_meshes > 0) ? header->num_vertexes : 0;
@@ -790,196 +791,43 @@ fail:
 /**
 *
 *
-*	IQM Pose Lerp/Transforming:
-*
-*
-**/
-/**
-*	@brief	Compute pose transformations for the given model + data
-*			'relativeJoints' must have enough room for model->num_poses
-**/
-void IQM_ComputeRelativeJoints( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, iqm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags ) {
-	// Sanity check.
-	if ( !model || !model->iqmData ) {
-		return;
-	}
-
-	// Get IQM Data.
-	iqm_model_t *iqmData = model->iqmData;
-
-	// Keep frame within bounds.
-	const int32_t boundFrame = iqmData->num_frames ? frame % (int32_t)iqmData->num_frames : 0;
-	const int32_t boundOldFrame = iqmData->num_frames ? oldFrame % (int32_t)iqmData->num_frames : 0;
-	
-	// Keep bone ID sane.
-	int32_t boundRootMotionBoneID = ( rootMotionBoneID >= 0 ? rootMotionBoneID % (int32_t)iqmData->num_joints : -1 );
-
-	// Fetch first joint.
-	iqm_transform_t *relativeJoint = outBonePose;
-
-	// Copy the animation frame pos.
-	if ( frame == oldFrame ) {
-		const iqm_transform_t* pose = &iqmData->poses[ boundFrame * iqmData->num_poses];
-		for (uint32_t pose_idx = 0; pose_idx < iqmData->num_poses; pose_idx++, pose++, relativeJoint++)
-		{
-			#if 1
-				if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
-					// Translate the selected axises.
-					if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
-						relativeJoint->translate[ 0 ] = 0;
-					} else {
-						relativeJoint->translate[ 0 ] = pose->translate[ 0 ];
-					}
-					if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
-						relativeJoint->translate[ 1 ] = 0;
-					} else {
-						relativeJoint->translate[ 1 ] = pose->translate[ 1 ];
-					}
-					if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
-						relativeJoint->translate[ 2 ] = 0;
-					} else {
-						relativeJoint->translate[ 2 ] = pose->translate[ 2 ];
-					}
-					// Copy in scale as per usual.
-					VectorCopy( pose->scale, relativeJoint->scale );
-					// Copy quat rotation as usual.
-					QuatCopy( pose->rotate, relativeJoint->rotate );
-					continue;
-				}
-			#endif
-	
-			VectorCopy(pose->translate, relativeJoint->translate);
-			QuatCopy(pose->rotate, relativeJoint->rotate);
-			VectorCopy(pose->scale, relativeJoint->scale);
-		}
-	// Lerp the animation frame pose.
-	} else {
-		//const float lerp = 1.0f - backlerp;
-		const iqm_transform_t* pose = &iqmData->poses[ boundFrame * iqmData->num_poses];
-		const iqm_transform_t* oldPose = &iqmData->poses[ boundOldFrame * iqmData->num_poses];
-		for (uint32_t pose_idx = 0; pose_idx < iqmData->num_poses; pose_idx++, oldPose++, pose++, relativeJoint++)
-		{
-			#if 1
-			if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
-				// Translate the selected axises.
-				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
-					relativeJoint->translate[ 0 ] = 0;
-				} else {
-					relativeJoint->translate[ 0 ] = oldPose->translate[0] * backLerp + pose->translate[0] * frontLerp; //relativeJoint->translate[ 1 ] = 0; //relativeJoint->translate[ 0 ] = 0;
-				}
-				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
-					relativeJoint->translate[ 1 ] = 0;
-				} else {
-					relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0;
-				}
-				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
-					relativeJoint->translate[ 2 ] = 0;
-				} else {
-					relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
-				}
-					
-				// Scale Lerp as usual.
-				relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + oldPose->scale[ 0 ] * frontLerp;
-				relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + oldPose->scale[ 1 ] * frontLerp;
-				relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + oldPose->scale[ 2 ] * frontLerp;
-				// Quat Slerp as usual.
-				QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
-				continue;
-			}
-			#endif
-	
-			relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp;
-			relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp;
-			relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
-	
-			relativeJoint->scale[0] = oldPose->scale[0] * backLerp + oldPose->scale[0] * frontLerp;
-			relativeJoint->scale[1] = oldPose->scale[1] * backLerp + oldPose->scale[1] * frontLerp;
-			relativeJoint->scale[2] = oldPose->scale[2] * backLerp + oldPose->scale[2] * frontLerp;
-	
-			QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate);
-		}
-	}
-}
-
-/**
-*	@brief	Compute "Local/Model-Space" matrices for the given pose transformations. 
-**/
-void IQM_ComputeLocalSpaceMatricesFromRelative( const iqm_model_t *model, const iqm_transform_t *relativeJoints, float *pose_matrices ) {
-	// multiply by inverse of bind pose and parent 'pose mat' (bind pose transform matrix)
-	const iqm_transform_t *relativeJoint = relativeJoints;
-	const int* jointParent = model->jointParents;
-	const float* invBindMat = model->invBindJoints;
-	float* poseMat = pose_matrices;
-	for (uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, relativeJoint++, jointParent++, invBindMat += 12, poseMat += 12)
-	{
-		float mat1[12], mat2[12];
-	
-		JointToMatrix(relativeJoint->rotate, relativeJoint->scale, relativeJoint->translate, mat1);
-	
-		if (*jointParent >= 0)
-		{
-			Matrix34Multiply(&model->bindJoints[(*jointParent) * 12], mat1, mat2);
-			Matrix34Multiply(mat2, invBindMat, mat1);
-			Matrix34Multiply(&pose_matrices[(*jointParent) * 12], mat1, poseMat);
-		}
-		else
-		{
-			Matrix34Multiply(mat1, invBindMat, poseMat);
-		}
-	}
-}
-
-/**
-*	@brief	Compute "World-Space" matrices for the given pose transformations.
-*			This is generally a slower procedure, use carefully.
-**/
-void IQM_ComputeWorldSpaceMatricesFromRelative( const iqm_model_t *model, const iqm_transform_t *relativeJoints, float *pose_matrices ) {
-	// First compute local space pose matrices from the relative joints.
-	IQM_ComputeLocalSpaceMatricesFromRelative( model, relativeJoints, pose_matrices );
-
-	// Calculate the world space pose matrices.
-	float *poseMat = model->bindJoints;
-	float *outPose = pose_matrices;
-
-	for ( size_t i = 0; i < model->num_poses; i++, poseMat += 12, outPose += 12 ) {
-		float inPose[ 12 ];
-		memcpy( inPose, outPose, sizeof( inPose ) );
-		Matrix34Multiply( inPose, poseMat, outPose );
-	}
-}
-
-/**
-*	@brief	Compute matrices for this model, returns [model->num_poses] 3x4 matrices in the (pose_matrices) array.
-*			Will use the refresh entity's frame and old frame, ignoring any Skeletal Model Configuration data.
 * 
-*	@note	(In other words it acts like a regular .md2/.md3 alias mesh.)
+*	Skeletal Model(IQM) Pose Transform and Lerping:
+*
+* 
+*
 **/
-bool R_ComputeIQMTransforms( const model_t *model, const entity_t *entity, float *pose_matrices ) {
-	if ( !model || !model->iqmData ) {
+/**
+*	@brief	Lerp the bone pose transforms and compute the pose matrices for this model as [model->num_poses] 3x4 matrices 
+*			in the (pose_matrices) array. This uses the entity's frame/oldframe for Lerping, unless
+*			the refresh entity has its bonePoses array set, in which case it'll use that for computing the
+*			local space matrices with.		
+* 
+*	@note	(In other words it acts like a regular .md2/.md3 alias mesh, unless bonePoses were set.)
+**/
+bool R_ComputePoseTransforms( const model_t *model, const entity_t *entity, float *pose_matrices ) {
+	// Sanity check.
+	if ( !model || !model->skmData ) {
 		return false;
 	}
 
-	// Temporary 'mix' buffer.
-	static iqm_transform_t temporaryBonePoses[ IQM_MAX_JOINTS ];
-	memset( temporaryBonePoses, 0, IQM_MAX_JOINTS * sizeof( float ) );
+	// Temporary bone pose buffer for when no bone poses have been provied by the refresh entity.
+	static skm_transform_t lerpedBonePoses[ IQM_MAX_JOINTS ] = { 0 };
 
-	// Data to work with.
-	const int32_t frame = entity->frame;
-	const int32_t oldframe = entity->oldframe;
-	const int32_t rootMotionBoneID = entity->rootMotionBoneID;
-	const int32_t rootMotionAxisFlags = entity->rootMotionFlags;
-	const float backLerp = entity->backlerp;
-	const float frontLerp = 1.0f - backLerp;
-
-	// Path to take when the refresh entity has no bonePoses set on it.
+	// Use refresh entity provided bone poses.
 	if ( entity->bonePoses ) {
 		// Compute the local model space matrices from the relative joints.
-		IQM_ComputeLocalSpaceMatricesFromRelative( model->iqmData, entity->bonePoses, pose_matrices );
+		SKM_TransformBonePosesLocalSpace( model->skmData, entity->bonePoses, pose_matrices );
+	// Compute the bone poses lerp ourselves since the entity provided none:
 	} else {
 		// Lerp compute the model (old-)frame's relative bone poses as if it were an md2/md3.
-		IQM_ComputeRelativeJoints( model, frame, oldframe, frontLerp, backLerp, temporaryBonePoses, rootMotionBoneID, rootMotionAxisFlags );
+		SKM_ComputeLerpBonePoses( model, entity->frame, entity->oldframe, 
+			1.0 - entity->backlerp, entity->backlerp,
+			lerpedBonePoses,
+			entity->rootMotionBoneID, entity->rootMotionFlags
+		);
 		// Compute the local model space matrices from the relative joints.
-		IQM_ComputeLocalSpaceMatricesFromRelative( model->iqmData, temporaryBonePoses, pose_matrices );
+		SKM_TransformBonePosesLocalSpace( model->skmData, lerpedBonePoses, pose_matrices );
 	}
 
 	return true;
