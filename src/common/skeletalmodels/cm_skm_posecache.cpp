@@ -33,8 +33,8 @@
 *	@brief	The actual pose cache that is unique to a qhandle_t
 **/
 typedef struct skm_posecache_s {
-	//! The actual cache, a vector of iqm_transform_t.
-	std::vector<iqm_transform_t> data;
+	//! The actual cache, a vector of skm_transform_t.
+	std::vector<skm_transform_t> data;
 } skm_posecache_t;
 
 //! The TOTAL maximum amount of temporary bones the cache can reserve during a frame.
@@ -42,13 +42,13 @@ typedef struct skm_posecache_s {
 static constexpr int32_t TBC_SIZE_MAX_CACHEBLOCK = 32768;
 
 //! The TOTAL maximum size for each allocated pose block.
-static constexpr int32_t TBC_SIZE_MAX_POSEBLOCK = IQM_MAX_JOINTS;
+static constexpr int32_t TBC_SIZE_MAX_POSEBLOCK = SKM_MAX_BONES;
 
 //! The size of each extra reserved bone cache block.
 static constexpr int32_t TBC_SIZE_BLOCK_RESERVE = 8192;
 
 //! The actual default size of our cache.
-static constexpr int32_t TBC_SIZE_INITIAL = 8192; // Should allow for 32 distinct poses of size IQM_MAX_JOINTS(256).
+static constexpr int32_t TBC_SIZE_INITIAL = 8192; // Should allow for 32 distinct poses of size SKM_MAX_BONES(256).
 
 
 
@@ -56,7 +56,7 @@ static constexpr int32_t TBC_SIZE_INITIAL = 8192; // Should allow for 32 distinc
 static std::vector<skm_posecache_t> poseCaches;
 
 //! Serves as a means of working with the std::vector::insert method.
-static std::vector<iqm_transform_t> _cleanBonePoses( IQM_MAX_JOINTS );
+static std::vector<skm_transform_t> _cleanBonePoses( SKM_MAX_BONES );
 
 
 
@@ -151,7 +151,7 @@ void SKM_PoseCache_ResetCache( qhandle_t *poseCacheHandle ) {
 *			If you need a larger temporary bone cache than both IQM_MAX_MATRICES as well as TBC_SIZE_MAX_POSEBLOCK
 *			need to be increased in a higher, and equally same number.
 **/
-iqm_transform_t *SKM_PoseCache_AcquireCachedMemoryBlock( const qhandle_t poseCacheHandle, uint32_t size ) {
+skm_transform_t *SKM_PoseCache_AcquireCachedMemoryBlock( const qhandle_t poseCacheHandle, const uint32_t size ) {
 	// Get cache.
 	skm_posecache_t *cache = SKM_PoseCache_GetFromHandle( poseCacheHandle );
 	// Return on failure, print a warning.
@@ -166,9 +166,9 @@ iqm_transform_t *SKM_PoseCache_AcquireCachedMemoryBlock( const qhandle_t poseCac
 	const size_t sizeDemand = cache->data.size() + size - 1;
 	const size_t currentCapacity = cache->data.capacity();
 
-	// In case the size exceeds MAX_IQM_JOINTS, nullptr.
-	if ( size > IQM_MAX_JOINTS ) {
-		Com_DPrintf( "if ( size > IQM_MAX_JOINTS ) where size=%i\n", size );
+	// In case the size exceeds SKM_MAX_BONES, nullptr.
+	if ( size > SKM_MAX_BONES ) {
+		Com_DPrintf( "if ( size > SKM_MAX_BONES ) where size=%i\n", size );
 		return nullptr;
 	}
 

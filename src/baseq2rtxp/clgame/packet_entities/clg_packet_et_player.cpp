@@ -10,6 +10,256 @@
 #include "clgame/clg_entities.h"
 #include "clgame/clg_temp_entities.h"
 
+
+
+/**
+*
+*
+*   Skeletal Model Stuff:
+*
+*
+**/
+/**
+*   @brief  Will only be called once whenever the add player entity method encounters an empty bone pose.
+**/
+void CLG_ETPlayer_AllocatePoseCache( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+    // Determine whether the entity now has a skeletal model, and if so, allocate a bone pose cache for it.
+    if ( const model_t *entModel = clgi.R_GetModelDataForHandle( clgi.client->model_draw[ newState->modelindex ] ) ) {
+        // Make sure it has proper SKM data.
+        if ( ( entModel->skmData ) && ( entModel->skmConfig ) ){
+            // Allocate bone pose space. ( Use SKM_MAX_BONES instead of entModel->skmConfig->numberOfBones because client models could change. )
+            packetEntity->bonePoseCache = clgi.SKM_PoseCache_AcquireCachedMemoryBlock( SKM_MAX_BONES /*entModel->skmConfig->numberOfBones*/ );
+        }
+    }
+}
+
+/**
+*   @brief  Determine the entity's active animations.
+**/
+void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+    // Get pmove state.
+    player_state_t *playerState = &clgi.client->frame.ps;
+
+    // xySpeed
+    const float xySpeed = clgi.client->predictedState.currentPs.xySpeed;
+    // xyzSpeed
+    const float xyzSpeed = clgi.client->predictedState.currentPs.xyzSpeed;
+    // xyZVelocity.
+    const Vector3 xyzVelocity = clgi.client->predictedState.currentPs.pmove.velocity;
+    const Vector3 xyVelocity = { xyzVelocity.x, xyzVelocity.y, 0.f };
+    // xyMove Direction vector.
+    const Vector3 xyMoveDirection = QM_Vector3Normalize( xyVelocity );
+
+    // Get angle vectors.
+    Vector3 yawAngles = { 0.f, newState->angles[ YAW ], 0.f };
+    Vector3 vForward = {}, vRight = {}, vUp = {};
+    QM_AngleVectors( yawAngles, &vForward, &vRight, &vUp );
+    
+    //
+    // Movement limit indicators.
+    //
+    static constexpr double MOVEDIREPSILON = 0.3;
+    static constexpr double WALKEPSILON = 0.25;
+    static constexpr double RUNEPSILON = 280.0;
+    //
+    // Move Anim Flags.
+    //
+    static constexpr int32_t ANIM_MOVE_RIGHT = BIT( 0 );
+    static constexpr int32_t ANIM_MOVE_LEFT = BIT( 1 );
+    static constexpr int32_t ANIM_MOVE_FORWARD = BIT( 2 );
+    static constexpr int32_t ANIM_MOVE_BACKWARD = BIT( 3 );
+    static constexpr int32_t ANIM_MOVE_RUN = BIT( 4 );
+    static constexpr int32_t ANIM_MOVE_WALK = BIT( 5 );
+    
+    // Precalculated, set a bit further down the function.
+    int32_t moveFlags = 0;
+    int32_t rootMotionFlags = 0;
+    double frameTime = BASE_FRAMETIME;
+
+    // Speed.
+    if ( xySpeed > RUNEPSILON ) {
+        moveFlags |= ANIM_MOVE_RUN;
+    } else if ( xySpeed > WALKEPSILON ) {
+        moveFlags |= ANIM_MOVE_WALK;
+    }
+    // Move directions.
+    if ( QM_Vector3DotProduct( xyMoveDirection, vRight ) > MOVEDIREPSILON ) {
+        moveFlags |= ANIM_MOVE_RIGHT;
+        rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
+    } else if ( -QM_Vector3DotProduct( xyMoveDirection, vRight ) > MOVEDIREPSILON ) {
+        moveFlags |= ANIM_MOVE_LEFT;
+        rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
+    }
+    if ( QM_Vector3DotProduct( xyMoveDirection, vForward ) > MOVEDIREPSILON ) {
+        moveFlags |= ANIM_MOVE_FORWARD;
+        rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
+    } else if ( -QM_Vector3DotProduct( xyMoveDirection, vForward ) > MOVEDIREPSILON ) {
+        moveFlags |= ANIM_MOVE_BACKWARD;
+        rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
+    }
+    // Generate debug string.
+    std::string dbgStr = "";
+    if ( moveFlags & ANIM_MOVE_RUN ) {
+        dbgStr += "run_";
+    } else if ( moveFlags & ANIM_MOVE_WALK ) {
+        // We don't have any walk animations yet, so stick to running, but change frametime.
+        //dbgStr += "walk_";
+        dbgStr += "run_";
+        // = BASE_FRAMETIME * 1.5;
+    } else if ( xySpeed < WALKEPSILON ) {
+        dbgStr += "idle_";
+    }
+    // Directions:
+    if ( ( moveFlags & ANIM_MOVE_RUN ) || ( moveFlags & ANIM_MOVE_WALK ) ) {
+        if ( moveFlags & ANIM_MOVE_FORWARD ) {
+            dbgStr += "forward_";
+        } else if ( moveFlags & ANIM_MOVE_BACKWARD ) {
+            dbgStr += "backward_";
+        }
+        if ( moveFlags & ANIM_MOVE_LEFT ) {
+            dbgStr += "left_";
+        } else if ( moveFlags & ANIM_MOVE_RIGHT ) {
+            dbgStr += "right_";
+        }
+    } else {
+
+    }
+    dbgStr += "pistol";
+
+    //
+    //  See if we can find the matching animation in our SKM data.
+    //
+    // Get model resource.
+    const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
+    // Get skm data.
+    const skm_model_t *skmData = model->skmData;
+    // Soon to be pointer to the animation.
+    const skm_anim_t *skmAnimation = nullptr;
+    int32_t skmAnimationID = -1;
+    // Find the animation with a matching name.
+    if ( skmData && skmData->num_animations ) {
+        for ( int32_t i = 0; i < skmData->num_animations; i++ ) {
+            std::string animName = skmData->animations[ i ].name;
+            if ( animName == dbgStr ) {
+                skmAnimation = &skmData->animations[ i ];
+                skmAnimationID = i;
+                break;
+            }
+        }
+    }
+
+    //
+    // Apply the animation if it isn't active already.
+    //
+    if ( skmAnimationID >= 0 ) {
+        // Get the animation state mixer.
+        sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
+        // Set lower body animation.
+        sg_skm_animation_state_t *lowerBodyAnimation = &animationMixer->bodyStates[ SKM_BODY_LOWER ];
+
+        //
+        // Different animation than we're currently playing, so prepare the switch.
+        //
+        if ( lowerBodyAnimation->animationID != skmAnimationID ) {
+            // Apply new animation data.
+            lowerBodyAnimation->previousAnimationID = lowerBodyAnimation->animationID;
+            lowerBodyAnimation->animationID = skmAnimationID;
+            lowerBodyAnimation->animationStartTime = sg_time_t::from_ms( clgi.client->servertime );
+            lowerBodyAnimation->animationEndTime = sg_time_t::from_ms( clgi.client->servertime + ( skmAnimation->num_frames * BASE_FRAMETIME ) );
+            lowerBodyAnimation->frameTime = frameTime;
+            lowerBodyAnimation->isLooping = true;
+
+            lowerBodyAnimation->srcStartFrame = skmAnimation->first_frame;
+            lowerBodyAnimation->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
+            lowerBodyAnimation->rootMotionFlags = rootMotionFlags;
+            // Apply the rootmotion flags
+            //refreshEntity->rootMotionFlags = rootMotionFlags;
+        //
+        // Same animation, keep on playing.
+        //
+        } else {
+
+        }
+    } else {
+        //refreshEntity->rootMotionFlags = 0;
+    }
+    clgi.Print( PRINT_DEVELOPER, "%s\n", dbgStr.c_str() );
+}
+/**
+*   @brief  Process the entity's active animations.
+**/
+void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+    // Get the animation state mixer.
+    sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
+    // Set lower body animation.
+    sg_skm_animation_state_t *lowerBodyAnimation = &animationMixer->bodyStates[ SKM_BODY_LOWER ];
+
+    //
+    // Different animation than we're currently playing, so prepare the switch.
+    //
+    if ( lowerBodyAnimation->animationID >= 0 ) {
+        // Backup the previously 'current' frame as its last frame.
+        lowerBodyAnimation->previousFrame = refreshEntity->frame;
+
+        // Apply rootmotion flags and bone.
+        refreshEntity->rootMotionBoneID = 0;
+        refreshEntity->rootMotionFlags = lowerBodyAnimation->rootMotionFlags;
+
+        // Old frame.
+        const int32_t oldFrame = lowerBodyAnimation->previousFrame;
+
+        // Animation is running:
+        //if ( lowerBodyAnimation->previousAnimationID == lowerBodyAnimation->animationID ) {
+            // Animation start and end frames.
+            const int32_t firstFrame = lowerBodyAnimation->srcStartFrame;
+            const int32_t lastFrame = lowerBodyAnimation->srcEndFrame;
+            // Calculate the actual current frame for the moment in time of the active animation.
+            double lerpFraction = SG_AnimationFrameForTime( &lowerBodyAnimation->currentFrame,
+                //sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
+                sg_time_t::from_ms( clgi.client->extrapolatedTime ), lowerBodyAnimation->animationStartTime,
+                lowerBodyAnimation->frameTime,
+                firstFrame, lastFrame,
+                0, lowerBodyAnimation->isLooping
+            );
+            if ( lerpFraction < 1.0 ) {
+                // Apply animation to gun model refresh entity.
+                refreshEntity->frame = lowerBodyAnimation->currentFrame;
+                refreshEntity->oldframe = ( refreshEntity->frame > firstFrame && refreshEntity->frame <= lastFrame ? refreshEntity->frame - 1 : oldFrame );
+                // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
+                if ( refreshEntity->frame == firstFrame ) {
+                    refreshEntity->backlerp = 0.0;
+                    // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
+                } else if ( refreshEntity->frame == lastFrame ) {
+                    refreshEntity->backlerp = 1.0;
+                    // Otherwise just subtract the resulting lerpFraction.
+                } else {
+                    refreshEntity->backlerp = 1.0 - lerpFraction;
+                }
+                // Clamp just to be sure.
+                clamp( refreshEntity->backlerp, 0.0, 1.0 );
+                // Reached the end of the animation:
+            } else {
+                // Otherwise, oldframe now equals the current(end) frame.
+                refreshEntity->oldframe = refreshEntity->frame = lastFrame;
+                // No more lerping.
+                refreshEntity->backlerp = 1.0;
+            }
+
+        // Animation is being switched.
+        //} else {
+
+        //}
+    }
+}
+
+
+/**
+*
+* 
+*   Entity Type Player
+* 
+* 
+**/
 /**
 *   @brief  Type specific routine for LERPing ET_PLAYER origins.
 **/
@@ -100,6 +350,13 @@ void CLG_ETPlayer_LerpStairStep( centity_t *packetEntity, entity_t *refreshEntit
 **/
 void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     //
+    // Will only be called once for each ET_PLAYER.
+    //
+    if ( packetEntity->bonePoseCache == nullptr ) {
+        CLG_ETPlayer_AllocatePoseCache( packetEntity, refreshEntity, newState );
+    }
+    
+    //
     // Lerp Origin:
     //
     CLG_ETPlayer_LerpOrigin( packetEntity, refreshEntity, newState );
@@ -114,18 +371,21 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
     //
     // Special RF_STAIR_STEP lerp for Z axis.
     // 
-    //CLG_ETPlayer_LerpStairStep( packetEntity, refreshEntity, newState );
+    CLG_ETPlayer_LerpStairStep( packetEntity, refreshEntity, newState );
 
     //
     // Add Refresh Entity Model:
     // 
     // Model Index #1:
     if ( newState->modelindex ) {
+        // Get client information.
+        clientinfo_t *ci = &clgi.client->clientinfo[ newState->skinnum & 0xff ];
+
         // A client player model index.
         if ( newState->modelindex == MODELINDEX_PLAYER ) {
             // Parse and use custom player skin.
             refreshEntity->skinnum = 0;
-            clientinfo_t *ci = &clgi.client->clientinfo[ newState->skinnum & 0xff ];
+            
             refreshEntity->skin = ci->skin;
             refreshEntity->model = ci->model;
 
@@ -143,37 +403,37 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
                 Q_concat( buffer, sizeof( buffer ), "players/", ci->model_name, "/disguise.pcx" );
                 refreshEntity->skin = clgi.R_RegisterSkin( buffer );
             }
-            // A regular alias entity model instead:
+        // A regular alias entity model instead:
         } else {
             refreshEntity->skinnum = newState->skinnum;
             refreshEntity->skin = 0;
             refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
         }
 
-        //
-        // Animation Frame Lerping:
-        //
-        if ( !( refreshEntity->model & 0x80000000 ) && packetEntity->last_frame != packetEntity->current_frame ) {
-            // Calculate back lerpfraction. (10hz.)
-            //refreshEntity->backlerp = 1.0f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / 100.f );
-            //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
-            //refreshEntity->frame = packetEntity->current_frame;
-            //refreshEntity->oldframe = packetEntity->last_frame;
+        ////
+        //// Animation Frame Lerping:
+        ////
+        //if ( !( refreshEntity->model & 0x80000000 ) && packetEntity->last_frame != packetEntity->current_frame ) {
+        //    // Calculate back lerpfraction. (10hz.)
+        //    //refreshEntity->backlerp = 1.0f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / 100.f );
+        //    //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
+        //    //refreshEntity->frame = packetEntity->current_frame;
+        //    //refreshEntity->oldframe = packetEntity->last_frame;
 
-            // Calculate back lerpfraction using RealTime. (40hz.)
-            //refreshEntity->backlerp = 1.0f - ( ( clgi.GetRealTime()  - ( (float)packetEntity->frame_realtime - clgi.client->sv_frametime ) ) / 25.f );
-            //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
-            //refreshEntity->frame = packetEntity->current_frame;
-            //refreshEntity->oldframe = packetEntity->last_frame;
+        //    // Calculate back lerpfraction using RealTime. (40hz.)
+        //    //refreshEntity->backlerp = 1.0f - ( ( clgi.GetRealTime()  - ( (float)packetEntity->frame_realtime - clgi.client->sv_frametime ) ) / 25.f );
+        //    //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
+        //    //refreshEntity->frame = packetEntity->current_frame;
+        //    //refreshEntity->oldframe = packetEntity->last_frame;
 
-            // Calculate back lerpfraction using clgi.client->time. (40hz.)
-            constexpr int32_t animationHz = BASE_FRAMERATE;
-            constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
-            refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
-            refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
-            refreshEntity->frame = packetEntity->current_frame;
-            refreshEntity->oldframe = packetEntity->last_frame;
-        }
+        //    // Calculate back lerpfraction using clgi.client->time. (40hz.)
+        //    constexpr int32_t animationHz = BASE_FRAMERATE;
+        //    constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
+        //    refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
+        //    refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
+        //    refreshEntity->frame = packetEntity->current_frame;
+        //    refreshEntity->oldframe = packetEntity->last_frame;
+        //}
 
         // Allow skin override for remaster.
         if ( newState->renderfx & RF_CUSTOMSKIN && (unsigned)newState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
@@ -188,6 +448,9 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
 
         // In case of the state belonging to the frame's viewed client number:
         if ( CLG_IsViewClientEntity( newState ) ) {
+            // Determine the base animation to play.
+            CLG_ETPlayer_DetermineBaseAnimations( packetEntity, refreshEntity, newState );
+
             // When not in third person mode:
             if ( !clgi.client->thirdPersonView ) {
                 // If we're running RTX, we want the player entity to render for shadow/reflection reasons:
@@ -203,14 +466,21 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
             // Don't tilt the model - looks weird.
             refreshEntity->angles[ 0 ] = 0.f;
 
-            // Offset the model back a bit to make the view point located in front of the head
-            vec3_t angles = { 0.f, refreshEntity->angles[ 1 ], 0.f };
-            vec3_t forward;
-            AngleVectors( angles, forward, NULL, NULL );
+            // If not thirderson, offset the model back a bit to make the view point located in front of the head:
+            if ( cl_player_model->integer != CL_PLAYER_MODEL_THIRD_PERSON ) {
+                vec3_t angles = { 0.f, refreshEntity->angles[ 1 ], 0.f };
+                vec3_t forward;
+                AngleVectors( angles, forward, NULL, NULL );
+                float offset = -15.f;
+                VectorMA( refreshEntity->origin, offset, forward, refreshEntity->origin );
+                VectorMA( refreshEntity->oldorigin, offset, forward, refreshEntity->oldorigin );
+            // Offset it determined on what animation state it is in:
+            } else {
 
-            float offset = -15.f;
-            VectorMA( refreshEntity->origin, offset, forward, refreshEntity->origin );
-            VectorMA( refreshEntity->oldorigin, offset, forward, refreshEntity->oldorigin );
+            }
+
+            // Process the animations.
+            CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, newState );
         }
 
         // Add model.

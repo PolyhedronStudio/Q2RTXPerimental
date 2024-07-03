@@ -571,6 +571,54 @@ typedef struct {
 
 	/**
 	*
+	*	Skeletal Model API:
+	*
+	**/
+	//
+	//	Common:
+	//
+	/**
+	*   @brief  Returns a pointer to the first bone that has a matching name.
+	**/
+	skm_bone_node_t *( *SKM_GetBoneByName )( const model_t *model, const char *boneName );
+	/**
+	*   @brief  Returns a pointer to the first bone that has a matching number.
+	**/
+	skm_bone_node_t *( *SKM_GetBoneByNumber )( const model_t *model, const int32_t boneNumber );
+	//
+	//	Pose Cache Memory Manager:
+	//
+	/**
+	*	@brief	See @return for description. The maximum size of an allocated block is hard limited to TBC_SIZE_MAX_POSEBLOCK.
+	*
+	*	@return	A pointer to a prepared block of memory in the bone cache. If needed, the bone cache resizes to meet
+	*			demands. Note that if it returns a nullptr it means that the actual limit of TBC_SIZE_MAX_POSEBLOCK has
+	*			been reached. It should always be the same value of IQM_MAX_MATRICES, which is defined in:
+	*			/src/refresh/vkpt/shader/vertex_buffer.h
+	*
+	*			If you need a larger temporary bone cache than both IQM_MAX_MATRICES as well as TBC_SIZE_MAX_POSEBLOCK
+	*			need to be increased in a higher, and equally same number.
+	**/
+	skm_transform_t *( *SKM_PoseCache_AcquireCachedMemoryBlock )( const uint32_t size );
+	//
+	//	Skeletal Model(IQM) Pose Transform and Lerping:
+	//
+	void ( *SKM_ComputeLerpBonePoses )( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+	/**
+	*	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
+	**/
+	void ( *SKM_TransformBonePosesLocalSpace )( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices );
+	/**
+	*	@brief	Compute "World-Space" matrices for the given pose transformations.
+	*			This is generally a slower procedure, but can be used to get the
+	*			actual bone's position for in-game usage.
+	**/
+	void ( *SKM_TransformBonePosesWorldSpace )( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices );
+
+
+
+	/**
+	*
 	*	Sound:
 	*
 	**/

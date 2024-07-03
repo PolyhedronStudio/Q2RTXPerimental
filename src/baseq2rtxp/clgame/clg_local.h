@@ -176,10 +176,13 @@ typedef struct centity_s {
 	/**
 	*	The game dll can add anything it wants after this point in the structure.
 	**/
-	sg_skm_animation_mixer_t animationMixer;
+	//! Refresh Entity.
+	entity_t refreshEntity;
 
-	//int64_t someTestVar;
-	//int64_t someTestVar2;
+	//! Bone Pose Cache for ET_PLAYER and ET_MONSTER types.
+	skm_transform_t *bonePoseCache;
+	//! Animations being played and mixed for this entity.
+	sg_skm_animation_mixer_t animationMixer;
 } centity_t;
 
 /**

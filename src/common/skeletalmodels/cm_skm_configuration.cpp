@@ -437,8 +437,8 @@ const int32_t SKM_ParseConfigurationBuffer( model_t *model, const char *configur
     //
     // This sits here for debugging purposes only, so we can place breakpoints without
     // them triggering for each model it attemps to load a config for.
-    if ( strcmp( configurationFilePath, "models/characters/mixadummy/tris.skc" ) ) {
-        return true;
+    if ( strcmp( configurationFilePath, "players/testdummy/tris.skc" ) == 0 ) {
+        int x = 10;
     }
 
     /**

@@ -36,11 +36,11 @@ const skm_rootmotion_set_t *SKM_GenerateRootMotionSet( model_t *model, const int
 /**
 *   @brief  Returns a pointer to the first bone that has a matching name.
 **/
-skm_bone_node_t *SKM_GetBoneByName( model_t *model, const char *boneName );
+skm_bone_node_t *SKM_GetBoneByName( const model_t *model, const char *boneName );
 /**
 *   @brief  Returns a pointer to the first bone that has a matching number.
 **/
-skm_bone_node_t *SKM_GetBoneByNumber( model_t *model, const int32_t boneNumber );
+skm_bone_node_t *SKM_GetBoneByNumber( const model_t *model, const int32_t boneNumber );
 
 
 
@@ -66,6 +66,9 @@ void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_trans
 *	@brief	Compute "World-Space" matrices for the given pose transformations.
 *			This is generally a slower procedure, but can be used to get the
 *			actual bone's position for in-game usage.
+*
+*	@note	Before calling this function it is expected that the bonePoses
+*			have already been transformed into local model space.
 **/
 void SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices );
 

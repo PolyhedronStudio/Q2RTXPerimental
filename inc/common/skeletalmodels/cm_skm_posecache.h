@@ -49,7 +49,7 @@ void SKM_PoseCache_ResetCache( qhandle_t *poseCacheHandle );
 *			If you need a larger temporary bone cache than both IQM_MAX_MATRICES as well as TBC_SIZE_MAX_POSEBLOCK
 *			need to be increased in a higher, and equally same number.
 **/
-iqm_transform_t *SKM_PoseCache_AcquireCachedMemoryBlock( const qhandle_t poseCacheHandle, uint32_t size );
+skm_transform_t *SKM_PoseCache_AcquireCachedMemoryBlock( const qhandle_t poseCacheHandle, const uint32_t size );
 
 #ifdef __cplusplus
 }

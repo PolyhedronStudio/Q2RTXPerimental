@@ -189,9 +189,11 @@ static void parse_entity_update(const entity_state_t *state)
         cl.solidEntities[ cl.numSolidEntities++ ] = ent;
     }
 
+    // If not a brush model, acquire the bounds from the state. (It will use the clip brush node its bounds otherwise.)
     if ( state->solid && state->solid != BOUNDS_BRUSHMODEL ) {
         // If not a brush bsp entity, decode its mins and maxs.
-        MSG_UnpackBoundsUint32( bounds_packed_t{ .u = state->bounds }, ent->mins, ent->maxs);
+        MSG_UnpackBoundsUint32( bounds_packed_t{ .u = state->bounds }, ent->mins, ent->maxs );
+    // Clear out the mins and maxs.
     } else {
         VectorClear( ent->mins );
         VectorClear( ent->maxs );
@@ -205,12 +207,16 @@ static void parse_entity_update(const entity_state_t *state)
         origin = state->origin;
     }
 
+    // See if the entity is new for the current serverframe or not and base our next move on that.
     if ( entity_is_new( ent ) ) {
         // Wasn't in last update, so initialize some things.
         entity_update_new( ent, state, origin );
     } else {
+        // Was around, sp update some things.
         entity_update_old( ent, state, origin );
     }
+
+
 
     // Assign last received server frame.
     ent->serverframe = cl.frame.number;

@@ -42,46 +42,49 @@ void CLG_AddPacketEntities( void ) {
         entity_state_t *newState = &clgi.client->entityStates[ entityStateIndex ];
         // Get a pointer to the client game entity that matches the state's number.
         centity_t *packetEntity = &clg_entities[ newState->number ];
+        // Backup a possible pointer to an already allocated cache so we can reapply it.
+        skm_transform_t *bonePoses = packetEntity->refreshEntity.bonePoses;
         // Setup the refresh entity ID to match that of the client game entity with the RESERVED_ENTITY_COUNT in mind.
-        entity_t refreshEntity = {
-            .id = RENTITIY_RESERVED_COUNT + packetEntity->id
+        packetEntity->refreshEntity = {
+            .id = RENTITIY_RESERVED_COUNT + packetEntity->id,
+            .bonePoses = bonePoses
         };
 
         switch ( newState->entityType ) {
         // Beams:
         case ET_BEAM:
-            CLG_PacketEntity_AddBeam( packetEntity, &refreshEntity, newState );
+            CLG_PacketEntity_AddBeam( packetEntity, &packetEntity->refreshEntity, newState );
             break;
         case ET_GIB:
-            CLG_PacketEntity_AddGib( packetEntity, &refreshEntity, newState );
+            CLG_PacketEntity_AddGib( packetEntity, &packetEntity->refreshEntity, newState );
             break;
         //// Items:
         case ET_ITEM:
-            CLG_PacketEntity_AddItem( packetEntity, &refreshEntity, newState );
+            CLG_PacketEntity_AddItem( packetEntity, &packetEntity->refreshEntity, newState );
             break;
         // Monsters:
         case ET_MONSTER:
-            CLG_PacketEntity_AddMonster( packetEntity, &refreshEntity, newState );
+            CLG_PacketEntity_AddMonster( packetEntity, &packetEntity->refreshEntity, newState );
             continue;
             break;
         // Players:
         case ET_PLAYER:
-            CLG_PacketEntity_AddPlayer( packetEntity, &refreshEntity, newState );
+            CLG_PacketEntity_AddPlayer( packetEntity, &packetEntity->refreshEntity, newState );
             continue;
             break;
         // Pushers:
         case ET_PUSHER:
-            CLG_PacketEntity_AddPusher( packetEntity, &refreshEntity, newState );
+            CLG_PacketEntity_AddPusher( packetEntity, &packetEntity->refreshEntity, newState );
             break;
         // Spotlights:
         case ET_SPOTLIGHT:
-            CLG_PacketEntity_AddSpotlight( packetEntity, &refreshEntity, newState );
+            CLG_PacketEntity_AddSpotlight( packetEntity, &packetEntity->refreshEntity, newState );
            break;
 
         // ET_GENERIC:
         case ET_GENERIC:
         default:
-            CLG_PacketEntity_AddGeneric( packetEntity, &refreshEntity, newState );
+            CLG_PacketEntity_AddGeneric( packetEntity, &packetEntity->refreshEntity, newState );
             break;
         }
     }

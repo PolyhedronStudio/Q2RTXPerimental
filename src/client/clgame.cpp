@@ -2,6 +2,9 @@
 #include "refresh/models.h"
 #include "refresh/images.h"
 
+#include "common/skeletalmodels/cm_skm.h"
+#include "common/skeletalmodels/cm_skm_posecache.h"
+
 extern "C" {
 
 /**
@@ -396,7 +399,16 @@ void PF_R_DiscardRawPic( void ) {
 	R_DiscardRawPic();
 }
 
-
+/**
+*
+*
+*	Skeletal Model Pose Cache:
+* 
+* 
+**/
+skm_transform_t *PF_SKM_PoseCache_AcquireCachedMemoryBlock( const uint32_t size ) {
+	return SKM_PoseCache_AcquireCachedMemoryBlock( cls.clientPoseCache, size );
+}
 
 /**
 * 
@@ -876,6 +888,22 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.SCR_GetColorName = SCR_GetColorName;
 	imports.SCR_ParseColor = SCR_ParseColor;
+
+	//
+	//	Skeletal Model Common:
+	//
+	imports.SKM_GetBoneByName = SKM_GetBoneByName;
+	imports.SKM_GetBoneByNumber = SKM_GetBoneByNumber;
+	//
+	//	Pose Cache Memory Manager:
+	//
+	imports.SKM_PoseCache_AcquireCachedMemoryBlock = PF_SKM_PoseCache_AcquireCachedMemoryBlock;
+	//	Skeletal Model(IQM) Pose Transform and Lerping:
+	//
+	imports.SKM_ComputeLerpBonePoses = SKM_ComputeLerpBonePoses;
+	imports.SKM_TransformBonePosesLocalSpace = SKM_TransformBonePosesLocalSpace;
+	imports.SKM_TransformBonePosesWorldSpace = SKM_TransformBonePosesWorldSpace;
+
 
 	imports.S_StartSound = S_StartSound;
 	imports.S_StartLocalSound = S_StartLocalSound;

@@ -256,8 +256,9 @@ static void CLG_AddViewWeapon( void ) {
     int32_t shell_flags = 0;
 
     // allow the gun to be completely removed
-    if ( cl_player_model->integer == CL_PLAYER_MODEL_DISABLED ) {
-        return;
+    if ( cl_player_model->integer == CL_PLAYER_MODEL_DISABLED
+        || cl_player_model->integer == CL_PLAYER_MODEL_THIRD_PERSON ) {
+            return;
     }
 
     if ( info_hand->integer == 2 ) {

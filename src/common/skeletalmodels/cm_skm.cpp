@@ -130,7 +130,7 @@ static void JointToMatrix( const quat_t rot, const vec3_t scale, const vec3_t tr
 /**
 *   @brief  Returns a pointer to the first bone that has a matching name.
 **/
-skm_bone_node_t *SKM_GetBoneByName( model_t *model, const char *boneName ) {
+skm_bone_node_t *SKM_GetBoneByName( const model_t *model, const char *boneName ) {
     // Make sure model is valid.
     if ( !model || !model->skmData || !model->skmConfig ) {
         #ifdef _DEBUG_PRINT_SKM_INVALID_MODEL_DATA
@@ -140,7 +140,7 @@ skm_bone_node_t *SKM_GetBoneByName( model_t *model, const char *boneName ) {
     }
     // Iterate, and if the name matches, return pointer to node.
     for ( int32_t i = 0; i < model->skmConfig->numberOfBones; i++ ) {
-        skm_bone_node_t *boneNode = &model->skmConfig->boneArray[ i ];
+		skm_bone_node_t *boneNode = &model->skmConfig->boneArray[ i ];
         if ( boneNode && boneNode->name[ 0 ] != '\0' && !strcmp( boneName, boneNode->name ) ) {
             return boneNode;
         }
@@ -151,7 +151,7 @@ skm_bone_node_t *SKM_GetBoneByName( model_t *model, const char *boneName ) {
 /**
 *   @brief  Returns a pointer to the first bone that has a matching number.
 **/
-skm_bone_node_t *SKM_GetBoneByNumber( model_t *model, const int32_t boneNumber ) {
+skm_bone_node_t *SKM_GetBoneByNumber( const model_t *model, const int32_t boneNumber ) {
     // Make sure model is valid.
     if ( !model || !model->skmData || !model->skmConfig ) {
         #ifdef _DEBUG_PRINT_SKM_INVALID_MODEL_DATA
@@ -163,6 +163,8 @@ skm_bone_node_t *SKM_GetBoneByNumber( model_t *model, const int32_t boneNumber )
     if ( boneNumber == 0 ) {
         return model->skmConfig->boneTree;
     }
+	// They are already indexed by number.. I haven't seen otherwise?
+	#if 0
     // Iterate, and if the number matches, return pointer to node.
     for ( int32_t i = 0; i < model->skmConfig->numberOfBones; i++ ) {
         skm_bone_node_t *boneNode = &model->skmConfig->boneArray[ i ];
@@ -170,6 +172,9 @@ skm_bone_node_t *SKM_GetBoneByNumber( model_t *model, const int32_t boneNumber )
             return boneNode;
         }
     }
+	#else
+		return &model->skmConfig->boneArray[ boneNumber ];
+	#endif
     // No node found.
     return nullptr;
 }
@@ -533,10 +538,13 @@ void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_trans
 *	@brief	Compute "World-Space" matrices for the given pose transformations.
 *			This is generally a slower procedure, but can be used to get the
 *			actual bone's position for in-game usage.
+* 
+*	@note	Before calling this function it is expected that the bonePoses 
+*			have already been transformed into local model space.
 **/
 void SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices ) {
 	// First compute local space pose matrices from the relative joints.
-	SKM_TransformBonePosesLocalSpace( model, relativeBonePose, pose_matrices );
+	//SKM_TransformBonePosesLocalSpace( model, relativeBonePose, pose_matrices );
 
 	// Calculate the world space pose matrices.
 	float *poseMat = model->bindJoints;

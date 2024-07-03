@@ -36,17 +36,31 @@ static constexpr int32_t SKM_MAX_ANIMATION_QUEUE = 4;
 typedef struct sg_skm_animation_state_s {
 	//! Animation Index. (For now, hard capped to 255.)
 	int32_t animationID;
+	//! Previous animationID.
+	int32_t previousAnimationID;
 
 	//! Actual last calculated(making it current) frame.
 	int32_t currentFrame;
 	//! Previously last calculated frame.
 	int32_t previousFrame;
+
+	// Source anim data.
+	int32_t srcStartFrame;
+	int32_t srcEndFrame;
+
+	//! Root Motion Flags for this animation.
+	int32_t rootMotionFlags;
+
+	//! Start time.
+	sg_time_t animationStartTime;
+	//! Expected time of ending the animation.
+	sg_time_t animationEndTime;
 	
 	//! FrameTime for this animation.
 	double frameTime;
 
 	//! Whether it is looping or not.
-	const bool isLooping;
+	bool isLooping;
 } sg_skm_animation_state_t;
 
 /**

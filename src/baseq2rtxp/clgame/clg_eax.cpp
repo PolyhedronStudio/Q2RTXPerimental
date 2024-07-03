@@ -25,9 +25,12 @@
 *			as well as on ClientBegin calls.
 **/
 void CLG_EAX_HardSetEnvironment( const qhandle_t id ) {
+	// Immediately interpolate fully.
+	if ( precache.eax.num_effects <= 0 ) {
+		return;
+	}
 	// (Re-)Initializes the EAX Environment back to basics:
 	CLG_EAX_SetEnvironment( id );
-	// Immediately interpolate fully.
 	level.eaxEffect.lerpFraction = 1.0f;
 	CLG_EAX_Interpolate( id, level.eaxEffect.lerpFraction, &level.eaxEffect.mixedProperties );
 	// Now apply the 'reset' environment.
