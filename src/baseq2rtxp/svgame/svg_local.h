@@ -931,8 +931,21 @@ void func_clock_use(edict_t *self, edict_t *other, edict_t *activator);
 //
 // WID: C++20: Added const.
 void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origin);
+#if 0
 bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick);
+#endif
+/**
+*   @brief  Used for all impact (fighting kick/punch) attacks
+**/
+const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick );
+/**
+*   @brief  Fires a single round. Used for machinegun and chaingun.  Would be fine for
+*           pistols, rifles, etc....
+**/
 void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, const sg_means_of_death_t meansOfDeath );
+/**
+*   @brief  Shoots shotgun pellets.  Used by shotgun and super shotgun.
+**/
 void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, const sg_means_of_death_t meansOfDeath );
 
 //

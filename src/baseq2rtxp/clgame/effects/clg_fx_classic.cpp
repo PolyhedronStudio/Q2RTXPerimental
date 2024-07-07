@@ -165,7 +165,8 @@ void CLG_BloodParticleEffect( const vec3_t org, const vec3_t dir, int color, int
         p->color = color + ( Q_rand() & 7 );
         p->brightness = 0.5f;
 
-        d = ( Q_rand() & 31 ) * 10.0f;
+        //d = ( Q_rand() & 31 ) * 40;
+        d = ( Q_rand() & 31 ) * 40; // WID: Was 10
         for ( j = 0; j < 3; j++ ) {
             p->org[ j ] = org[ j ] + ( (int)( Q_rand() & 7 ) - 4 ) + d * ( dir[ j ]
                 + a[ j ] * 0.5f * ( ( Q_rand() & 31 ) / 32.0f - .5f )
@@ -174,11 +175,12 @@ void CLG_BloodParticleEffect( const vec3_t org, const vec3_t dir, int color, int
             p->vel[ j ] = 10.0f * dir[ j ] + crand() * 20;
         }
         // fake gravity
-        p->org[ 2 ] -= d * d * .001f;
+        //p->org[ 2 ] -= d * d * .001f;
+        p->org[ 2 ] -= d * d * BASE_FRAMETIME_1000; // WID: Was .001f;
 
         p->accel[ 0 ] = p->accel[ 1 ] = 0;
         p->accel[ 2 ] = -PARTICLE_GRAVITY;
-        p->alpha = 0.5f;
+        p->alpha = 0.85f;
 
         p->alphavel = -1.0f / ( 0.5f + frand() * 0.3f );
     }

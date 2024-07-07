@@ -57,6 +57,7 @@ fire_hit
 Used for all impact (hit/punch/slash) attacks
 =================
 */
+#if 0
 bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 {
     trace_t     tr;
@@ -115,14 +116,11 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
         self->enemy->groundInfo.entity = NULL;
     return true;
 }
+#endif
 
-/*
-=================
-fire_hit
-
-Used for all impact (hit/punch/slash) attacks
-=================
-*/
+/**
+*   @brief  Used for all impact (fighting kick/punch) attacks
+**/
 const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick ) {
     static constexpr float HIT_RANGE = 32;
     trace_t     tr = {};
@@ -222,13 +220,9 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
 }
 
 
-/*
-=================
-fire_lead
-
-This is an internal support routine used for bullet/pellet based weapons.
-=================
-*/
+/**
+*   @brief  This is an internal support routine used for bullet/pellet based weapons.
+**/
 static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int te_impact, int hspread, int vspread, const sg_means_of_death_t meansOfDeath ) {
     trace_t     tr = {};
     vec3_t      dir = {};
@@ -348,27 +342,17 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
     }
 }
 
-
-/*
-=================
-fire_bullet
-
-Fires a single round.  Used for machinegun and chaingun.  Would be fine for
-pistols, rifles, etc....
-=================
-*/
+/**
+*   @brief  Fires a single round. Used for machinegun and chaingun.  Would be fine for
+*           pistols, rifles, etc....
+**/
 void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, const sg_means_of_death_t meansOfDeath ) {
     fire_lead(self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
-
-/*
-=================
-fire_shotgun
-
-Shoots shotgun pellets.  Used by shotgun and super shotgun.
-=================
-*/
+/**
+*   @brief  Shoots shotgun pellets.  Used by shotgun and super shotgun.
+**/
 void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, const sg_means_of_death_t meansOfDeath ) {
     int     i;
 

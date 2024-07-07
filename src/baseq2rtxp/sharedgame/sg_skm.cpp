@@ -40,6 +40,66 @@ sg_skminfo_t *SG_LoadAndParseSkeletalModelInfo( const char *filename ) {
 *
 *
 *
+*	Animations:
+*
+*
+*
+**/
+/**
+*	@brief	Will return a pointer to the model's SKM animation data matching the 'name',
+*			as well as set the value of 'animationID' if it is a valid pointer.
+**/
+const skm_anim_t *SG_SKM_GetAnimationForName( const model_t *model, const char *name, qhandle_t *animationID ) {
+	// Get skm data.
+	const skm_model_t *skmData = model->skmData;
+	// Soon to be pointer to the animation.
+	const skm_anim_t *skmAnimation = nullptr;
+	// If we got an animationID pointer, default it to -1 (no animation found.)
+	if ( animationID ) {
+		*animationID = -1;
+	}
+
+	// Find the animation with a matching name.
+	if ( skmData && skmData->num_animations ) {
+		for ( int32_t i = 0; i < skmData->num_animations; i++ ) {
+			if ( !Q_strncasecmp( skmData->animations[ i ].name, name, MAX_QPATH ) ) {
+				skmAnimation = &skmData->animations[ i ];
+				if ( animationID ) {
+					*animationID = i;
+				}
+				break;
+			}
+		}
+	}
+	// Return pointer.
+	return skmAnimation;
+}
+/**
+*	@brief	Will return a pointer to the model's SKM animation data matching the 'name'.
+**/
+const skm_anim_t *SG_SKM_GetAnimationForHandle( const model_t *model, const qhandle_t animationID ) {
+	// Get skm data.
+	const skm_model_t *skmData = model->skmData;
+	// Soon to be pointer to the animation.
+	const skm_anim_t *skmAnimation = nullptr;
+	// Sanity check.
+	if ( !skmData ) {
+		// TODO: Warn?
+		return skmAnimation;
+	}
+	// Sanity check.
+	if ( animationID >= 0 && animationID < skmData->num_animations ) {
+		skmAnimation = &skmData->animations[ animationID ];
+	}
+	// Return.
+	return skmAnimation;
+}
+
+
+/**
+*
+*
+*
 *	Animation Processing:
 *
 *

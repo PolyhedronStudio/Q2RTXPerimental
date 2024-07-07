@@ -195,7 +195,7 @@ void Weapon_Fists( edict_t *ent, const bool processUserInputOnly ) {
             // Swing the left fist.
             weapon_fists_primary_fire( ent );
         }
-    // Primary Fire, throws a left punch fist.
+    // Secondary Fire, throws a right punch fist.
     } else if ( ent->client->weaponState.mode == WEAPON_MODE_SECONDARY_FIRING ) {
         // Play a sway sound at the start of the animation.
         if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame ) {

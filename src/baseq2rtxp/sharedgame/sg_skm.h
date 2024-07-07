@@ -39,28 +39,28 @@ typedef struct sg_skm_animation_state_s {
 	//! Previous animationID.
 	int32_t previousAnimationID;
 
-	//! Actual last calculated(making it current) frame.
-	int32_t currentFrame;
-	//! Previously last calculated frame.
-	int32_t previousFrame;
-
-	// Source anim data.
+	//! Source animation data.
 	int32_t srcStartFrame;
 	int32_t srcEndFrame;
-
-	//! Root Motion Flags for this animation.
-	int32_t rootMotionFlags;
 
 	//! Start time.
 	sg_time_t animationStartTime;
 	//! Expected time of ending the animation.
 	sg_time_t animationEndTime;
-	
+
 	//! FrameTime for this animation.
 	double frameTime;
 
 	//! Whether it is looping or not.
 	bool isLooping;
+
+	//! Root Motion Flags for this animation.
+	int32_t rootMotionFlags;
+
+	//! Actual last calculated(making it current) frame.
+	int32_t currentFrame;
+	//! Previously last calculated frame.
+	int32_t previousFrame;
 } sg_skm_animation_state_t;
 
 /**
@@ -68,13 +68,36 @@ typedef struct sg_skm_animation_state_s {
 **/
 typedef struct sg_skm_animation_mixer_s {
 	//! Stores the calculated animation state for each of the varying body parts.
-	sg_skm_animation_state_t bodyStates[ SKM_BODY_MAX ];
+	sg_skm_animation_state_t currentBodyStates[ SKM_BODY_MAX ];
+	//! Stores the calculated animation state for each of the varying body parts.
+	sg_skm_animation_state_t lastBodyStates[ SKM_BODY_MAX ];
 
 	//! Animation Event Queue.
 	int32_t animationEvents[ SKM_MAX_ANIMATION_QUEUE ];
 	//! Animation Event Parameters.
 	int32_t animationEventsParams[ SKM_MAX_ANIMATION_QUEUE ];
 } sg_skm_animation_mixer_t;
+
+
+
+/**
+*
+*
+*
+*	Animations:
+*
+*
+*
+**/
+/**
+*	@brief	Will return a pointer to the model's SKM animation data matching the 'name',
+*			as well as set the value of 'animationID' if it is a valid pointer.
+**/
+const skm_anim_t *SG_SKM_GetAnimationForName( const model_t *model, const char *name, qhandle_t *animationID );
+/**
+*	@brief	Will return a pointer to the model's SKM animation data matching the 'name'.
+**/
+const skm_anim_t *SG_SKM_GetAnimationForHandle( const model_t *model, const qhandle_t animationID );
 
 
 

@@ -40,6 +40,9 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     // Get pmove state.
     player_state_t *playerState = &clgi.client->frame.ps;
 
+    // Get model resource.
+    const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
+
     // xySpeed
     const float xySpeed = clgi.client->predictedState.currentPs.xySpeed;
     // xyzSpeed
@@ -58,9 +61,11 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     //
     // Movement limit indicators.
     //
-    static constexpr double MOVEDIREPSILON = 0.3;
+    static constexpr double FORWARD_MOVEDIREPSILON = 0.45;
+    static constexpr double SIDE_MOVEDIREPSILON = 0.3;
+
     static constexpr double WALKEPSILON = 0.25;
-    static constexpr double RUNEPSILON = 280.0;
+    static constexpr double RUNEPSILON = 299.975;
     //
     // Move Anim Flags.
     //
@@ -78,103 +83,110 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     int32_t rootMotionFlags = 0;
     double frameTime = BASE_FRAMETIME;
 
-    // Determine "Animation Type" based on Jump/Crouch and Speed.
+    // Crouched: Applies to both, on-ground as well as in-air.
     if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
         moveFlags |= ANIM_MOVE_CROUCH;
     }
+    // On Ground: Determine "Animation Move Type" based on Speed.
     if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_ON_GROUND ) {
-        if ( xySpeed > RUNEPSILON ) {
+        if ( xySpeed >= RUNEPSILON ) {
             moveFlags |= ANIM_MOVE_RUN;
-        } else if ( xySpeed > WALKEPSILON ) {
+        } else if ( xySpeed >= WALKEPSILON ) {
             moveFlags |= ANIM_MOVE_WALK;
         } else {
             moveFlags |= ANIM_MOVE_IDLE;
         }
     } 
 
-    // Move directions.
-    if ( QM_Vector3DotProduct( xyMoveDirection, vRight ) > MOVEDIREPSILON ) {
-        moveFlags |= ANIM_MOVE_RIGHT;
-        rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
-    } else if ( -QM_Vector3DotProduct( xyMoveDirection, vRight ) > MOVEDIREPSILON ) {
-        moveFlags |= ANIM_MOVE_LEFT;
-        rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
-    }
-    if ( QM_Vector3DotProduct( xyMoveDirection, vForward ) > MOVEDIREPSILON ) {
-        moveFlags |= ANIM_MOVE_FORWARD;
-        rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
-    } else if ( -QM_Vector3DotProduct( xyMoveDirection, vForward ) > MOVEDIREPSILON ) {
-        moveFlags |= ANIM_MOVE_BACKWARD;
-        rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
-    }
+    // Prioritize forward/backward over left/right movement.
+    #if 1
+        if ( QM_Vector3DotProduct( xyMoveDirection, vForward ) > FORWARD_MOVEDIREPSILON ) {
+            moveFlags |= ANIM_MOVE_FORWARD;
+            rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
+        } else if ( -QM_Vector3DotProduct( xyMoveDirection, vForward ) > FORWARD_MOVEDIREPSILON ) {
+            moveFlags |= ANIM_MOVE_BACKWARD;
+            rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
+        }
+        if ( QM_Vector3DotProduct( xyMoveDirection, vRight ) > SIDE_MOVEDIREPSILON ) {
+            moveFlags |= ANIM_MOVE_RIGHT;
+            rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
+        } else if ( -QM_Vector3DotProduct( xyMoveDirection, vRight ) > SIDE_MOVEDIREPSILON ) {
+            moveFlags |= ANIM_MOVE_LEFT;
+            rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
+        }
+    // The following does separate checks for forward/backward AND left/right.
+    #else
+        if ( QM_Vector3DotProduct( xyMoveDirection, vForward ) > MOVEDIREPSILON ) {
+            moveFlags |= ANIM_MOVE_FORWARD;
+            rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
+        } else if ( -QM_Vector3DotProduct( xyMoveDirection, vForward ) > MOVEDIREPSILON ) {
+            moveFlags |= ANIM_MOVE_BACKWARD;
+            rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
+        }
+        if ( QM_Vector3DotProduct( xyMoveDirection, vRight ) > MOVEDIREPSILON ) {
+            moveFlags |= ANIM_MOVE_RIGHT;
+            rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
+        } else if ( -QM_Vector3DotProduct( xyMoveDirection, vRight ) > MOVEDIREPSILON ) {
+            moveFlags |= ANIM_MOVE_LEFT;
+            rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
+        }
+    #endif
+
     // Generate debug string.
     std::string dbgStrWeapon = "_rifle";
-    std::string dbgStr = "idle";
+    std::string lowerAnimStr = "idle";
     if ( moveFlags & ANIM_MOVE_IDLE ) {
-        dbgStr = "idle";
+        lowerAnimStr = "idle";
         if ( moveFlags & ANIM_MOVE_CROUCH ) {
-            dbgStr += "_crouch";
+            lowerAnimStr += "_crouch";
         }
     } else {
         if ( moveFlags & ANIM_MOVE_CROUCH ) {
-            dbgStr = "crouch";
+            lowerAnimStr = "crouch";
+            frameTime -= 5.f;
         } else if ( moveFlags & ANIM_MOVE_RUN ) {
-            dbgStr = "run";
+            lowerAnimStr = "run";
+            frameTime -= 5.f;
         } else if ( moveFlags & ANIM_MOVE_WALK ) {
-            // We don't have any walk animations yet, so stick to running, but change frametime.
-            //dbgStr += "walk_";
-            dbgStr = "walk";
-            // = BASE_FRAMETIME * 1.5;
+            lowerAnimStr = "walk";
+            frameTime *= 0.5;
         }
     }
 
     // Directions:
     if ( ( moveFlags & ANIM_MOVE_CROUCH ) || ( moveFlags & ANIM_MOVE_RUN ) || ( moveFlags & ANIM_MOVE_WALK ) ) {
         if ( moveFlags & ANIM_MOVE_FORWARD ) {
-            dbgStr += "_forward";
+            lowerAnimStr += "_forward";
         } else if ( moveFlags & ANIM_MOVE_BACKWARD ) {
-            dbgStr += "_backward";
+            lowerAnimStr += "_backward";
         }
         if ( moveFlags & ANIM_MOVE_LEFT ) {
-            dbgStr += "_left";
+            lowerAnimStr += "_left";
         } else if ( moveFlags & ANIM_MOVE_RIGHT ) {
-            dbgStr += "_right";
+            lowerAnimStr += "_right";
         }
     } else {
-        dbgStr = "idle";
+        lowerAnimStr = "idle";
         if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
-            dbgStr += "_crouch";
+            lowerAnimStr += "_crouch";
         }
     }
-    dbgStr += dbgStrWeapon;
+    lowerAnimStr += dbgStrWeapon;
 
-
+    //
+    // Determine whether to jump override.
+    //
+    if ( /*clgi.client->predictedState.currentPs.pmove.velocity.z >= 100 && */clgi.client->predictedState.cmd.cmd.upmove > 25 ) {
+        lowerAnimStr = "jump_up";
+    }
 
 
     //
     //  See if we can find the matching animation in our SKM data.
     //
-    // Get model resource.
-    const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
-    // Get skm data.
-    const skm_model_t *skmData = model->skmData;
-    // Soon to be pointer to the animation.
-    const skm_anim_t *skmAnimation = nullptr;
-    int32_t skmAnimationID = -1;
-    // Find the animation with a matching name.
-    if ( skmData && skmData->num_animations ) {
-        for ( int32_t i = 0; i < skmData->num_animations; i++ ) {
-            // Resort to idle.
-            skmAnimationID = 0;
-            std::string animName = skmData->animations[ i ].name;
-            if ( animName == dbgStr ) {
-                skmAnimation = &skmData->animations[ i ];
-                skmAnimationID = i;
-                break;
-            }
-
-        }
-    }
+    // Get matching animation data pointer and ID.
+    qhandle_t skmAnimationID = -1;
+    const skm_anim_t *skmAnimation = SG_SKM_GetAnimationForName( model, lowerAnimStr.c_str(), &skmAnimationID );
 
     //
     // Apply the animation if it isn't active already.
@@ -183,12 +195,13 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         // Get the animation state mixer.
         sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
         // Set lower body animation.
-        sg_skm_animation_state_t *lowerBodyAnimation = &animationMixer->bodyStates[ SKM_BODY_LOWER ];
+        sg_skm_animation_state_t *lowerBodyAnimation = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
 
         //
         // Different animation than we're currently playing, so prepare the switch.
         //
         if ( lowerBodyAnimation->animationID != skmAnimationID ) {
+
 
             lowerBodyAnimation->srcStartFrame = skmAnimation->first_frame;
             lowerBodyAnimation->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
@@ -205,7 +218,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
             // Apply the rootmotion flags
             //refreshEntity->rootMotionFlags = rootMotionFlags;
 
-            clgi.Print( PRINT_DEVELOPER, "%s\n", dbgStr.c_str() );
+            clgi.Print( PRINT_DEVELOPER, "%s\n", lowerAnimStr.c_str() );
 
         //
         // Same animation, keep on playing.
@@ -214,7 +227,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
 
         }
     } else {
-        clgi.Print( PRINT_DEVELOPER, "%s\n", dbgStr.c_str() );
+        //clgi.Print( PRINT_DEVELOPER, "%s\n", dbgStr.c_str() );
 
         //refreshEntity->rootMotionFlags = 0;
     }
@@ -226,7 +239,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     // Get the animation state mixer.
     sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
     // Set lower body animation.
-    sg_skm_animation_state_t *lowerBodyAnimation = &animationMixer->bodyStates[ SKM_BODY_LOWER ];
+    sg_skm_animation_state_t *lowerBodyAnimation = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
 
     //
     // Different animation than we're currently playing, so prepare the switch.
@@ -274,9 +287,10 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
                 // Reached the end of the animation:
             } else {
                 // Apply animation to gun model refresh entity.
+                refreshEntity->oldframe = refreshEntity->frame;
                 refreshEntity->frame = lowerBodyAnimation->currentFrame;
-                        refreshEntity->backlerp = clgi.client->xerpFraction;
-                        refreshEntity->oldframe = oldFrame;
+                refreshEntity->backlerp = clgi.client->xerpFraction;
+                        //refreshEntity->oldframe = oldFrame;
             }
             //if ( lerpFraction <= 1.0 ) {
             //    // Apply animation to gun model refresh entity.
@@ -350,7 +364,7 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
                 correctedOldOrigin.z += PM_BBOX_STANDUP_MINS.z;
             }
             VectorCopy( correctedOrigin, refreshEntity->origin );
-            VectorCopy( correctedOldOrigin, refreshEntity->oldorigin );
+            VectorCopy( correctedOrigin, refreshEntity->oldorigin );
         #else
         // We actually need to offset the Z axis origin by half the bbox height.
         Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
