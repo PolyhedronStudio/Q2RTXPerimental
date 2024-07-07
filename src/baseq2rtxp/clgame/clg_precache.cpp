@@ -195,9 +195,9 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
     Q_concat( model_filename, sizeof( model_filename ),
         "players/", model_name, "/tris.iqm" );
     ci->model = clgi.R_RegisterModel( model_filename );
-    if ( !ci->model && Q_stricmp( model_name, "testdummy" ) ) {
-        strcpy( model_name, "testdummy" );
-        strcpy( model_filename, "players/testdummy/tris.iqm" );
+    if ( !ci->model && Q_stricmp( model_name, "playerdummy" ) ) {
+        strcpy( model_name, "playerdummy" );
+        strcpy( model_filename, "players/playerdummy/tris.iqm" );
         ci->model = clgi.R_RegisterModel( model_filename );
     }
 
@@ -218,9 +218,9 @@ void PF_PrecacheClientInfo( clientinfo_t *ci, const char *s ) {
 
     // if we don't have the skin and the model was female,
     // see if athena skin exists
-    if ( !ci->skin && !Q_stricmp( model_name, "testdummy" ) ) {
-        strcpy( skin_name, "testdummy" );
-        strcpy( skin_filename, "players/testdummy/skin.pcx" );
+    if ( !ci->skin && !Q_stricmp( model_name, "playerdummy" ) ) {
+        strcpy( skin_name, "playerdummy" );
+        strcpy( skin_filename, "players/playerdummy/skin.pcx" );
         ci->skin = clgi.R_RegisterSkin( skin_filename );
     }
 

@@ -516,7 +516,7 @@ static sfx_t *S_RegisterSexedSound(int entnum, const char *base)
 
     // if we can't figure it out, they're male
     if ( !*model ) {
-        model = "testdummy";
+        model = "playerdummy";
     }
 
     // See if we already know of the model specific sound.

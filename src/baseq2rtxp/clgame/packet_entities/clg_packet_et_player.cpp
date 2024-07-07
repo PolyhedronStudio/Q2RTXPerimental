@@ -70,18 +70,28 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     static constexpr int32_t ANIM_MOVE_BACKWARD = BIT( 3 );
     static constexpr int32_t ANIM_MOVE_RUN = BIT( 4 );
     static constexpr int32_t ANIM_MOVE_WALK = BIT( 5 );
+    static constexpr int32_t ANIM_MOVE_CROUCH = BIT( 6 );
+    static constexpr int32_t ANIM_MOVE_IDLE = BIT( 7 );
     
     // Precalculated, set a bit further down the function.
     int32_t moveFlags = 0;
     int32_t rootMotionFlags = 0;
     double frameTime = BASE_FRAMETIME;
 
-    // Speed.
-    if ( xySpeed > RUNEPSILON ) {
-        moveFlags |= ANIM_MOVE_RUN;
-    } else if ( xySpeed > WALKEPSILON ) {
-        moveFlags |= ANIM_MOVE_WALK;
+    // Determine "Animation Type" based on Jump/Crouch and Speed.
+    if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
+        moveFlags |= ANIM_MOVE_CROUCH;
     }
+    if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_ON_GROUND ) {
+        if ( xySpeed > RUNEPSILON ) {
+            moveFlags |= ANIM_MOVE_RUN;
+        } else if ( xySpeed > WALKEPSILON ) {
+            moveFlags |= ANIM_MOVE_WALK;
+        } else {
+            moveFlags |= ANIM_MOVE_IDLE;
+        }
+    } 
+
     // Move directions.
     if ( QM_Vector3DotProduct( xyMoveDirection, vRight ) > MOVEDIREPSILON ) {
         moveFlags |= ANIM_MOVE_RIGHT;
@@ -98,33 +108,48 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
     }
     // Generate debug string.
-    std::string dbgStr = "";
-    if ( moveFlags & ANIM_MOVE_RUN ) {
-        dbgStr += "run_";
-    } else if ( moveFlags & ANIM_MOVE_WALK ) {
-        // We don't have any walk animations yet, so stick to running, but change frametime.
-        //dbgStr += "walk_";
-        dbgStr += "run_";
-        // = BASE_FRAMETIME * 1.5;
-    } else if ( xySpeed < WALKEPSILON ) {
-        dbgStr += "idle_";
-    }
-    // Directions:
-    if ( ( moveFlags & ANIM_MOVE_RUN ) || ( moveFlags & ANIM_MOVE_WALK ) ) {
-        if ( moveFlags & ANIM_MOVE_FORWARD ) {
-            dbgStr += "forward_";
-        } else if ( moveFlags & ANIM_MOVE_BACKWARD ) {
-            dbgStr += "backward_";
-        }
-        if ( moveFlags & ANIM_MOVE_LEFT ) {
-            dbgStr += "left_";
-        } else if ( moveFlags & ANIM_MOVE_RIGHT ) {
-            dbgStr += "right_";
+    std::string dbgStrWeapon = "_rifle";
+    std::string dbgStr = "idle";
+    if ( moveFlags & ANIM_MOVE_IDLE ) {
+        dbgStr = "idle";
+        if ( moveFlags & ANIM_MOVE_CROUCH ) {
+            dbgStr += "_crouch";
         }
     } else {
-
+        if ( moveFlags & ANIM_MOVE_CROUCH ) {
+            dbgStr = "crouch";
+        } else if ( moveFlags & ANIM_MOVE_RUN ) {
+            dbgStr = "run";
+        } else if ( moveFlags & ANIM_MOVE_WALK ) {
+            // We don't have any walk animations yet, so stick to running, but change frametime.
+            //dbgStr += "walk_";
+            dbgStr = "walk";
+            // = BASE_FRAMETIME * 1.5;
+        }
     }
-    dbgStr += "pistol";
+
+    // Directions:
+    if ( ( moveFlags & ANIM_MOVE_CROUCH ) || ( moveFlags & ANIM_MOVE_RUN ) || ( moveFlags & ANIM_MOVE_WALK ) ) {
+        if ( moveFlags & ANIM_MOVE_FORWARD ) {
+            dbgStr += "_forward";
+        } else if ( moveFlags & ANIM_MOVE_BACKWARD ) {
+            dbgStr += "_backward";
+        }
+        if ( moveFlags & ANIM_MOVE_LEFT ) {
+            dbgStr += "_left";
+        } else if ( moveFlags & ANIM_MOVE_RIGHT ) {
+            dbgStr += "_right";
+        }
+    } else {
+        dbgStr = "idle";
+        if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
+            dbgStr += "_crouch";
+        }
+    }
+    dbgStr += dbgStrWeapon;
+
+
+
 
     //
     //  See if we can find the matching animation in our SKM data.
@@ -139,19 +164,22 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     // Find the animation with a matching name.
     if ( skmData && skmData->num_animations ) {
         for ( int32_t i = 0; i < skmData->num_animations; i++ ) {
+            // Resort to idle.
+            skmAnimationID = 0;
             std::string animName = skmData->animations[ i ].name;
             if ( animName == dbgStr ) {
                 skmAnimation = &skmData->animations[ i ];
                 skmAnimationID = i;
                 break;
             }
+
         }
     }
 
     //
     // Apply the animation if it isn't active already.
     //
-    if ( skmAnimationID >= 0 ) {
+    if ( skmAnimation && skmAnimationID >= 0 ) {
         // Get the animation state mixer.
         sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
         // Set lower body animation.
@@ -161,19 +189,24 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         // Different animation than we're currently playing, so prepare the switch.
         //
         if ( lowerBodyAnimation->animationID != skmAnimationID ) {
+
+            lowerBodyAnimation->srcStartFrame = skmAnimation->first_frame;
+            lowerBodyAnimation->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
+
             // Apply new animation data.
             lowerBodyAnimation->previousAnimationID = lowerBodyAnimation->animationID;
             lowerBodyAnimation->animationID = skmAnimationID;
             lowerBodyAnimation->animationStartTime = sg_time_t::from_ms( clgi.client->servertime );
-            lowerBodyAnimation->animationEndTime = sg_time_t::from_ms( clgi.client->servertime + ( skmAnimation->num_frames * BASE_FRAMETIME ) );
+            lowerBodyAnimation->animationEndTime = sg_time_t::from_ms( clgi.client->servertime + ( ( lowerBodyAnimation->srcEndFrame - lowerBodyAnimation->srcStartFrame ) * frameTime ) );
             lowerBodyAnimation->frameTime = frameTime;
             lowerBodyAnimation->isLooping = true;
 
-            lowerBodyAnimation->srcStartFrame = skmAnimation->first_frame;
-            lowerBodyAnimation->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
             lowerBodyAnimation->rootMotionFlags = rootMotionFlags;
             // Apply the rootmotion flags
             //refreshEntity->rootMotionFlags = rootMotionFlags;
+
+            clgi.Print( PRINT_DEVELOPER, "%s\n", dbgStr.c_str() );
+
         //
         // Same animation, keep on playing.
         //
@@ -181,9 +214,10 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
 
         }
     } else {
+        clgi.Print( PRINT_DEVELOPER, "%s\n", dbgStr.c_str() );
+
         //refreshEntity->rootMotionFlags = 0;
     }
-    clgi.Print( PRINT_DEVELOPER, "%s\n", dbgStr.c_str() );
 }
 /**
 *   @brief  Process the entity's active animations.
@@ -197,7 +231,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     //
     // Different animation than we're currently playing, so prepare the switch.
     //
-    if ( lowerBodyAnimation->animationID >= 0 ) {
+    if ( lowerBodyAnimation && lowerBodyAnimation->animationID >= 0 ) {
         // Backup the previously 'current' frame as its last frame.
         lowerBodyAnimation->previousFrame = refreshEntity->frame;
 
@@ -239,11 +273,41 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
                 clamp( refreshEntity->backlerp, 0.0, 1.0 );
                 // Reached the end of the animation:
             } else {
-                // Otherwise, oldframe now equals the current(end) frame.
-                refreshEntity->oldframe = refreshEntity->frame = lastFrame;
-                // No more lerping.
-                refreshEntity->backlerp = 1.0;
+                // Apply animation to gun model refresh entity.
+                refreshEntity->frame = lowerBodyAnimation->currentFrame;
+                        refreshEntity->backlerp = clgi.client->xerpFraction;
+                        refreshEntity->oldframe = oldFrame;
             }
+            //if ( lerpFraction <= 1.0 ) {
+            //    // Apply animation to gun model refresh entity.
+            //    refreshEntity->frame = lowerBodyAnimation->currentFrame;
+            //    refreshEntity->oldframe = ( refreshEntity->frame > firstFrame && refreshEntity->frame <= lastFrame ? refreshEntity->frame - 1 : oldFrame );
+            //    // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
+            //    if ( refreshEntity->frame == firstFrame ) {
+            //        refreshEntity->backlerp = 0.0;
+            //        // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
+            //    } else if ( refreshEntity->frame == lastFrame ) {
+            //        refreshEntity->backlerp = 1.0;
+            //        // Otherwise just subtract the resulting lerpFraction.
+            //    } else if ( refreshEntity->frame > firstFrame && refreshEntity->frame <= lastFrame ) {
+            //        refreshEntity->backlerp = 1.0 - lerpFraction;
+            //    } else {
+            //        refreshEntity->backlerp = 1.0 - clgi.client->xerpFraction;
+            //    }
+            //    // Clamp just to be sure.
+            //    clamp( refreshEntity->backlerp, 0.0, 1.0 );
+            //// Reached the end of the animation:
+            //} else {
+            //    if ( refreshEntity->frame > firstFrame && refreshEntity->frame <= lastFrame ) {
+            //        // No more lerping.
+            //        refreshEntity->backlerp = 1.0;
+            //        // Otherwise, oldframe now equals the current(end) frame.
+            //        refreshEntity->oldframe = refreshEntity->frame = lastFrame;
+            //    } else {
+            //        refreshEntity->backlerp = 1.0 - clgi.client->xerpFraction;
+            //        refreshEntity->oldframe = oldFrame;
+            //    }
+            //}
 
         // Animation is being switched.
         //} else {
@@ -266,6 +330,28 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
 void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     // If client entity, use predicted origin instead of Lerped:
     if ( CLG_IsViewClientEntity( newState ) ) {
+        #if 0
+            VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->origin );
+            VectorCopy( packetEntity->current.origin, refreshEntity->oldorigin );  // FIXME
+
+            // We actually need to offset the Z axis origin by half the bbox height.
+            Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
+            Vector3 correctedOldOrigin = packetEntity->current.origin;
+            // For being Dead:
+            if ( clgi.client->predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
+                correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
+                correctedOldOrigin.z += PM_BBOX_GIBBED_MINS.z;
+                // For being Ducked:
+            } else if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
+                correctedOrigin.z += PM_BBOX_DUCKED_MINS.z;
+                correctedOldOrigin.z += PM_BBOX_DUCKED_MINS.z;
+            } else {
+                correctedOrigin.z += PM_BBOX_STANDUP_MINS.z;
+                correctedOldOrigin.z += PM_BBOX_STANDUP_MINS.z;
+            }
+            VectorCopy( correctedOrigin, refreshEntity->origin );
+            VectorCopy( correctedOldOrigin, refreshEntity->oldorigin );
+        #else
         // We actually need to offset the Z axis origin by half the bbox height.
         Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
         // For being Dead:
@@ -281,7 +367,8 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
         // Now apply the corrected origin to our refresh entity.
         VectorCopy( correctedOrigin, refreshEntity->origin );
         VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
-        // Lerp Origin:
+        #endif
+    // Lerp Origin:
     } else {
         Vector3 cent_origin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
         VectorCopy( cent_origin, refreshEntity->origin );

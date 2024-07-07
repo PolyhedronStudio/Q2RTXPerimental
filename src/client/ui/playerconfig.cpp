@@ -87,7 +87,7 @@ static void ReloadMedia(void)
 
     m_player.refdef.num_entities = 0;
 
-    Q_concat(scratch, sizeof(scratch), "players/", model, "/tris.md2");
+    Q_concat(scratch, sizeof(scratch), "players/", model, "/tris.iqm");
     m_player.entities[0].model = R_RegisterModel(scratch);
     if (!m_player.entities[0].model)
         return;

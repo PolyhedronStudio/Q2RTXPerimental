@@ -1137,7 +1137,7 @@ void PutClientInServer(edict_t *ent)
     ent->deadflag = DEAD_NO;
     ent->air_finished_time = level.time + 12_sec;
     ent->clipmask = static_cast<contents_t>( MASK_PLAYERSOLID );
-    ent->model = "players/testdummy/tris.iqm";
+    ent->model = "players/playerdummy/tris.iqm";
     ent->pain = player_pain;
     ent->die = player_die;
     ent->liquidInfo.level = liquid_level_t::LIQUID_NONE;
