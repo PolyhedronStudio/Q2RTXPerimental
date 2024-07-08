@@ -38,156 +38,93 @@ void CLG_ETPlayer_AllocatePoseCache( centity_t *packetEntity, entity_t *refreshE
 **/
 void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     // Get pmove state.
-    player_state_t *playerState = &clgi.client->frame.ps;
+    player_state_t *framePlayerState = &clgi.client->frame.ps;
+    player_state_t *predictedPlayerState = &clgi.client->predictedState.currentPs;
+
+    //
+    // TODO: Is this the right choice?
+    //
+    player_state_t *playerState = predictedPlayerState;
 
     // Get model resource.
     const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
-
-    // xySpeed
-    const float xySpeed = clgi.client->predictedState.currentPs.xySpeed;
-    // xyzSpeed
-    const float xyzSpeed = clgi.client->predictedState.currentPs.xyzSpeed;
-    // xyZVelocity.
-    const Vector3 xyzVelocity = clgi.client->predictedState.currentPs.pmove.velocity;
-    const Vector3 xyVelocity = { xyzVelocity.x, xyzVelocity.y, 0.f };
-    // xyMove Direction vector.
-    const Vector3 xyMoveDirection = QM_Vector3Normalize( xyVelocity );
-
-    // Get angle vectors.
-    Vector3 yawAngles = { 0.f, newState->angles[ YAW ], 0.f };
-    Vector3 vForward = {}, vRight = {}, vUp = {};
-    QM_AngleVectors( yawAngles, &vForward, &vRight, &vUp );
-    
-    //
-    // Movement limit indicators.
-    //
-    static constexpr double FORWARD_MOVEDIREPSILON = 0.45;
-    static constexpr double SIDE_MOVEDIREPSILON = 0.3;
-
-    static constexpr double WALKEPSILON = 0.25;
-    static constexpr double RUNEPSILON = 299.975;
-    //
-    // Move Anim Flags.
-    //
-    static constexpr int32_t ANIM_MOVE_RIGHT = BIT( 0 );
-    static constexpr int32_t ANIM_MOVE_LEFT = BIT( 1 );
-    static constexpr int32_t ANIM_MOVE_FORWARD = BIT( 2 );
-    static constexpr int32_t ANIM_MOVE_BACKWARD = BIT( 3 );
-    static constexpr int32_t ANIM_MOVE_RUN = BIT( 4 );
-    static constexpr int32_t ANIM_MOVE_WALK = BIT( 5 );
-    static constexpr int32_t ANIM_MOVE_CROUCH = BIT( 6 );
-    static constexpr int32_t ANIM_MOVE_IDLE = BIT( 7 );
     
     // Precalculated, set a bit further down the function.
-    int32_t moveFlags = 0;
     int32_t rootMotionFlags = 0;
     double frameTime = BASE_FRAMETIME;
 
-    // Crouched: Applies to both, on-ground as well as in-air.
-    if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
-        moveFlags |= ANIM_MOVE_CROUCH;
-    }
-    // On Ground: Determine "Animation Move Type" based on Speed.
-    if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_ON_GROUND ) {
-        if ( xySpeed >= RUNEPSILON ) {
-            moveFlags |= ANIM_MOVE_RUN;
-        } else if ( xySpeed >= WALKEPSILON ) {
-            moveFlags |= ANIM_MOVE_WALK;
-        } else {
-            moveFlags |= ANIM_MOVE_IDLE;
-        }
-    } 
-
-    // Prioritize forward/backward over left/right movement.
-    #if 1
-        if ( QM_Vector3DotProduct( xyMoveDirection, vForward ) > FORWARD_MOVEDIREPSILON ) {
-            moveFlags |= ANIM_MOVE_FORWARD;
-            rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
-        } else if ( -QM_Vector3DotProduct( xyMoveDirection, vForward ) > FORWARD_MOVEDIREPSILON ) {
-            moveFlags |= ANIM_MOVE_BACKWARD;
-            rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
-        }
-        if ( QM_Vector3DotProduct( xyMoveDirection, vRight ) > SIDE_MOVEDIREPSILON ) {
-            moveFlags |= ANIM_MOVE_RIGHT;
-            rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
-        } else if ( -QM_Vector3DotProduct( xyMoveDirection, vRight ) > SIDE_MOVEDIREPSILON ) {
-            moveFlags |= ANIM_MOVE_LEFT;
-            rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
-        }
-    // The following does separate checks for forward/backward AND left/right.
-    #else
-        if ( QM_Vector3DotProduct( xyMoveDirection, vForward ) > MOVEDIREPSILON ) {
-            moveFlags |= ANIM_MOVE_FORWARD;
-            rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
-        } else if ( -QM_Vector3DotProduct( xyMoveDirection, vForward ) > MOVEDIREPSILON ) {
-            moveFlags |= ANIM_MOVE_BACKWARD;
-            rootMotionFlags |= SKM_POSE_TRANSLATE_Z; //SKM_POSE_TRANSLATE_X | SKM_POSE_TRANSLATE_Y;
-        }
-        if ( QM_Vector3DotProduct( xyMoveDirection, vRight ) > MOVEDIREPSILON ) {
-            moveFlags |= ANIM_MOVE_RIGHT;
-            rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
-        } else if ( -QM_Vector3DotProduct( xyMoveDirection, vRight ) > MOVEDIREPSILON ) {
-            moveFlags |= ANIM_MOVE_LEFT;
-            rootMotionFlags |= SKM_POSE_TRANSLATE_Z;// | SKM_POSE_TRANSLATE_Z;
-        }
-    #endif
-
     // Generate debug string.
     std::string dbgStrWeapon = "_rifle";
-    std::string lowerAnimStr = "idle";
-    if ( moveFlags & ANIM_MOVE_IDLE ) {
-        lowerAnimStr = "idle";
-        if ( moveFlags & ANIM_MOVE_CROUCH ) {
-            lowerAnimStr += "_crouch";
+    std::string baseAnimStr = "idle";
+    if ( playerState->animation.isIdle ) {
+        baseAnimStr = "idle";
+        if ( playerState->animation.isCrouched ) {
+            baseAnimStr += "_crouch";
         }
     } else {
-        if ( moveFlags & ANIM_MOVE_CROUCH ) {
-            lowerAnimStr = "crouch";
+        if ( playerState->animation.isCrouched ) {
+            baseAnimStr = "crouch";
             frameTime -= 5.f;
-        } else if ( moveFlags & ANIM_MOVE_RUN ) {
-            lowerAnimStr = "run";
-            frameTime -= 5.f;
-        } else if ( moveFlags & ANIM_MOVE_WALK ) {
-            lowerAnimStr = "walk";
+        } else if ( playerState->animation.isWalking ) {
+            baseAnimStr = "walk";
             frameTime *= 0.5;
+        } else {
+            baseAnimStr = "run";
+            frameTime -= 5.f;
         }
     }
 
     // Directions:
-    if ( ( moveFlags & ANIM_MOVE_CROUCH ) || ( moveFlags & ANIM_MOVE_RUN ) || ( moveFlags & ANIM_MOVE_WALK ) ) {
-        if ( moveFlags & ANIM_MOVE_FORWARD ) {
-            lowerAnimStr += "_forward";
-        } else if ( moveFlags & ANIM_MOVE_BACKWARD ) {
-            lowerAnimStr += "_backward";
+    //if ( ( moveFlags & ANIM_MOVE_CROUCH ) || ( moveFlags & ANIM_MOVE_RUN ) || ( moveFlags & ANIM_MOVE_WALK ) ) {
+    if ( !playerState->animation.isIdle ) {
+        // Get move direction for animation.
+        const int32_t animationMoveDirection = clgi.client->predictedState.currentPs.animation.moveDirection;
+
+        // Append to the baseAnimStr the name of the directional animation.
+        // Forward:
+        if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD ) {
+            baseAnimStr += "_forward";
+        // Forward Left:
+        } else if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD_LEFT ) {
+            baseAnimStr += "_forward_left";
+        // Forward Right:
+        } else if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD_RIGHT ) {
+            baseAnimStr += "_forward_right";
+        // Backward:
+        } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD ) {
+            baseAnimStr += "_backward";
+        // Backward Left:
+        } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD_LEFT ) {
+            baseAnimStr += "_backward_left";
+        // Backward Right:
+        } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD_RIGHT ) {
+            baseAnimStr += "_backward_right";
+        // Left:
+        } else if ( animationMoveDirection == PM_MOVEDIRECTION_LEFT ) {
+            baseAnimStr += "_left";
+        // Right:
+        } else if ( animationMoveDirection == PM_MOVEDIRECTION_RIGHT ) {
+            baseAnimStr += "_right";
         }
-        if ( moveFlags & ANIM_MOVE_LEFT ) {
-            lowerAnimStr += "_left";
-        } else if ( moveFlags & ANIM_MOVE_RIGHT ) {
-            lowerAnimStr += "_right";
-        }
+        // Only translate Z axis for rootmotion rendering.
+        rootMotionFlags |= SKM_POSE_TRANSLATE_Z;
+    // We're idling:
     } else {
-        lowerAnimStr = "idle";
+        baseAnimStr = "idle";
+        // Possible Crouched:
         if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
-            lowerAnimStr += "_crouch";
+            baseAnimStr += "_crouch";
         }
     }
-    lowerAnimStr += dbgStrWeapon;
-
-    //
-    // Determine whether to jump override.
-    //
-    if ( /*clgi.client->predictedState.currentPs.pmove.velocity.z >= 100 && */clgi.client->predictedState.cmd.cmd.upmove > 25 ) {
-        lowerAnimStr = "jump_up";
-    }
-
+    // Add the weapon type stringname to the end.
+    baseAnimStr += dbgStrWeapon;
 
     //
     //  See if we can find the matching animation in our SKM data.
     //
     // Get matching animation data pointer and ID.
     qhandle_t skmAnimationID = -1;
-    const skm_anim_t *skmAnimation = SG_SKM_GetAnimationForName( model, lowerAnimStr.c_str(), &skmAnimationID );
-
+    const skm_anim_t *skmAnimation = SG_SKM_GetAnimationForName( model, baseAnimStr.c_str(), &skmAnimationID );
     //
     // Apply the animation if it isn't active already.
     //
@@ -196,29 +133,26 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
         // Set lower body animation.
         sg_skm_animation_state_t *lowerBodyAnimation = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
-
         //
-        // Different animation than we're currently playing, so prepare the switch.
+        // Different animation than we're currently playing, so prepare the switch:
         //
         if ( lowerBodyAnimation->animationID != skmAnimationID ) {
-
-
             lowerBodyAnimation->srcStartFrame = skmAnimation->first_frame;
             lowerBodyAnimation->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
 
             // Apply new animation data.
-            lowerBodyAnimation->previousAnimationID = lowerBodyAnimation->animationID;
+            //lowerBodyAnimation->previousAnimationID = lowerBodyAnimation->animationID;
             lowerBodyAnimation->animationID = skmAnimationID;
             lowerBodyAnimation->animationStartTime = sg_time_t::from_ms( clgi.client->servertime );
             lowerBodyAnimation->animationEndTime = sg_time_t::from_ms( clgi.client->servertime + ( ( lowerBodyAnimation->srcEndFrame - lowerBodyAnimation->srcStartFrame ) * frameTime ) );
             lowerBodyAnimation->frameTime = frameTime;
             lowerBodyAnimation->isLooping = true;
 
-            lowerBodyAnimation->rootMotionFlags = rootMotionFlags;
             // Apply the rootmotion flags
-            //refreshEntity->rootMotionFlags = rootMotionFlags;
+            lowerBodyAnimation->rootMotionFlags = rootMotionFlags;
 
-            clgi.Print( PRINT_DEVELOPER, "%s\n", lowerAnimStr.c_str() );
+            // Debug Print:
+            clgi.Print( PRINT_DEVELOPER, "%s\n", baseAnimStr.c_str() );
 
         //
         // Same animation, keep on playing.
@@ -228,7 +162,6 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         }
     } else {
         //clgi.Print( PRINT_DEVELOPER, "%s\n", dbgStr.c_str() );
-
         //refreshEntity->rootMotionFlags = 0;
     }
 }
@@ -240,93 +173,54 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
     // Set lower body animation.
     sg_skm_animation_state_t *lowerBodyAnimation = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
-
     //
     // Different animation than we're currently playing, so prepare the switch.
     //
     if ( lowerBodyAnimation && lowerBodyAnimation->animationID >= 0 ) {
-        // Backup the previously 'current' frame as its last frame.
-        lowerBodyAnimation->previousFrame = refreshEntity->frame;
-
         // Apply rootmotion flags and bone.
         refreshEntity->rootMotionBoneID = 0;
         refreshEntity->rootMotionFlags = lowerBodyAnimation->rootMotionFlags;
 
         // Old frame.
-        const int32_t oldFrame = lowerBodyAnimation->previousFrame;
+        const int32_t oldFrame = lowerBodyAnimation->currentFrame;
+        // Backup the previously 'current' frame as its last frame.
+        lowerBodyAnimation->previousFrame = refreshEntity->frame;
 
-        // Animation is running:
-        //if ( lowerBodyAnimation->previousAnimationID == lowerBodyAnimation->animationID ) {
-            // Animation start and end frames.
-            const int32_t firstFrame = lowerBodyAnimation->srcStartFrame;
-            const int32_t lastFrame = lowerBodyAnimation->srcEndFrame;
-            // Calculate the actual current frame for the moment in time of the active animation.
-            double lerpFraction = SG_AnimationFrameForTime( &lowerBodyAnimation->currentFrame,
-                //sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
-                sg_time_t::from_ms( clgi.client->extrapolatedTime ), lowerBodyAnimation->animationStartTime,
-                lowerBodyAnimation->frameTime,
-                firstFrame, lastFrame,
-                0, lowerBodyAnimation->isLooping
-            );
-            if ( lerpFraction < 1.0 ) {
-                // Apply animation to gun model refresh entity.
-                refreshEntity->frame = lowerBodyAnimation->currentFrame;
-                refreshEntity->oldframe = ( refreshEntity->frame > firstFrame && refreshEntity->frame <= lastFrame ? refreshEntity->frame - 1 : oldFrame );
-                // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
-                if ( refreshEntity->frame == firstFrame ) {
-                    refreshEntity->backlerp = 0.0;
-                    // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
-                } else if ( refreshEntity->frame == lastFrame ) {
-                    refreshEntity->backlerp = 1.0;
-                    // Otherwise just subtract the resulting lerpFraction.
-                } else {
-                    refreshEntity->backlerp = 1.0 - lerpFraction;
-                }
-                // Clamp just to be sure.
-                clamp( refreshEntity->backlerp, 0.0, 1.0 );
-                // Reached the end of the animation:
+        // Animation start and end frames.
+        const int32_t firstFrame = lowerBodyAnimation->srcStartFrame;
+        const int32_t lastFrame = lowerBodyAnimation->srcEndFrame;
+        // Calculate the actual current frame for the moment in time of the active animation.
+        double lerpFraction = SG_AnimationFrameForTime( &lowerBodyAnimation->currentFrame,
+            //sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
+            sg_time_t::from_ms( clgi.client->extrapolatedTime ), lowerBodyAnimation->animationStartTime /*- sg_time_t::from_ms(BASE_FRAMETIME)*/,
+            lowerBodyAnimation->frameTime,
+            firstFrame, lastFrame,
+            0, lowerBodyAnimation->isLooping
+        );
+
+        if ( lerpFraction <= 1.0 ) {
+            // Apply animation to gun model refresh entity.
+            refreshEntity->frame = lowerBodyAnimation->currentFrame;
+            refreshEntity->oldframe = ( refreshEntity->frame > firstFrame && refreshEntity->frame <= lastFrame ? refreshEntity->frame - 1 : lowerBodyAnimation->previousFrame );
+            // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
+            if ( refreshEntity->frame == firstFrame ) {
+                refreshEntity->backlerp = 0.0;
+                // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
+            } else if ( refreshEntity->frame == lastFrame ) {
+                refreshEntity->backlerp = 1.0;
+                // Otherwise just subtract the resulting lerpFraction.
             } else {
-                // Apply animation to gun model refresh entity.
-                refreshEntity->oldframe = refreshEntity->frame;
-                refreshEntity->frame = lowerBodyAnimation->currentFrame;
-                refreshEntity->backlerp = clgi.client->xerpFraction;
-                        //refreshEntity->oldframe = oldFrame;
+                refreshEntity->backlerp = 1.0 - lerpFraction;
             }
-            //if ( lerpFraction <= 1.0 ) {
-            //    // Apply animation to gun model refresh entity.
-            //    refreshEntity->frame = lowerBodyAnimation->currentFrame;
-            //    refreshEntity->oldframe = ( refreshEntity->frame > firstFrame && refreshEntity->frame <= lastFrame ? refreshEntity->frame - 1 : oldFrame );
-            //    // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
-            //    if ( refreshEntity->frame == firstFrame ) {
-            //        refreshEntity->backlerp = 0.0;
-            //        // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
-            //    } else if ( refreshEntity->frame == lastFrame ) {
-            //        refreshEntity->backlerp = 1.0;
-            //        // Otherwise just subtract the resulting lerpFraction.
-            //    } else if ( refreshEntity->frame > firstFrame && refreshEntity->frame <= lastFrame ) {
-            //        refreshEntity->backlerp = 1.0 - lerpFraction;
-            //    } else {
-            //        refreshEntity->backlerp = 1.0 - clgi.client->xerpFraction;
-            //    }
-            //    // Clamp just to be sure.
-            //    clamp( refreshEntity->backlerp, 0.0, 1.0 );
-            //// Reached the end of the animation:
-            //} else {
-            //    if ( refreshEntity->frame > firstFrame && refreshEntity->frame <= lastFrame ) {
-            //        // No more lerping.
-            //        refreshEntity->backlerp = 1.0;
-            //        // Otherwise, oldframe now equals the current(end) frame.
-            //        refreshEntity->oldframe = refreshEntity->frame = lastFrame;
-            //    } else {
-            //        refreshEntity->backlerp = 1.0 - clgi.client->xerpFraction;
-            //        refreshEntity->oldframe = oldFrame;
-            //    }
-            //}
-
-        // Animation is being switched.
-        //} else {
-
-        //}
+            // Clamp just to be sure.
+            clamp( refreshEntity->backlerp, 0.0, 1.0 );
+            // Reached the end of the animation:
+        } else {
+            // Apply animation to gun model refresh entity.
+            refreshEntity->oldframe = refreshEntity->frame;
+            refreshEntity->frame = lowerBodyAnimation->currentFrame;
+            refreshEntity->backlerp = 1.0 - clgi.client->xerpFraction;
+        }
     }
 }
 

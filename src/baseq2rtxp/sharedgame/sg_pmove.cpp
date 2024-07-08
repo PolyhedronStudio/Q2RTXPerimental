@@ -161,6 +161,14 @@ static void PM_SetDimensions() {
 		ps->pmove.viewheight = PM_VIEWHEIGHT_DUCKED;
 	}
 }
+#if 0
+/**
+*	@brief	Inline-wrapper to for convenience.
+**/
+void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
+	SG_PMoveState_AddPredictableEvent( newEvent, parameter, &ps->pmove );
+}
+#endif
 /**
 *	@brief	Keeps track of the player's xySpeed and bobCycle:  
 **/
@@ -182,6 +190,14 @@ static void PM_CycleBob() {
 	//QM_Vector2Length
 	// Reset bobmove.
 	//ps->bobMove = 0.f;
+	
+	// Determine whether we are crouched or not.
+	if ( pm->cmd.buttons & BUTTON_CROUCH ) {
+		// Animation State: We're crouched.
+		ps->animation.isCrouched = true;
+	} else {
+		ps->animation.isCrouched = false;
+	}
 
 	// Airborne leaves cycle intact, but doesn't advance either.
 	if ( pm->ground.entity == nullptr ) {
@@ -208,14 +224,25 @@ static void PM_CycleBob() {
 			//} else {
 			//	PM_ContinueLegsAnim( LEGS_IDLE );
 			//}
+			// Idling at last.
+			ps->animation.isIdle = true;
+		// Not idling yet, there's still velocities at play.
+		} else {
+			ps->animation.isIdle = false;
 		}
 		return;
+	// We're not idling that's for sure.
+	} else {
+		ps->animation.isIdle = false;
 	}
 
 	// Default to no footstep:
 	footStep = false;
 
 	if ( ps->pmove.pm_flags & PMF_DUCKED ) {
+		// Animation State: We're crouched.
+		//ps->animation.isCrouched = true;
+
 		// Ducked characters bob much faster:
 		ps->bobMove = 0.5;	
 		//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
@@ -235,7 +262,12 @@ static void PM_CycleBob() {
 	//	PM_ContinueLegsAnim( LEGS_BACK );
 	//*/
 	} else {
+		// Animation State: We're NOT crouched.
+		//ps->animation.isCrouched = false;
+
 		if ( !( pm->cmd.buttons & BUTTON_WALK ) ) {
+			// Animation State: We're running.
+			ps->animation.isWalking = false;
 			// Faster speeds bob faster:
 			ps->bobMove = 0.4f;
 			//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
@@ -245,6 +277,8 @@ static void PM_CycleBob() {
 			//}
 			footStep = true;
 		} else {
+			// Animation State: We're walking.
+			ps->animation.isWalking = true;
 			// Walking bobs slow:
 			ps->bobMove = 0.3f;
 			//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
@@ -281,12 +315,47 @@ static void PM_CycleBob() {
 	//}
 }
 /**
-*	@brief	Inline-wrapper to for convenience.
+*	@brief	Determine the rotation of the legs relative to the facing dir.
 **/
-//void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
-//	SG_PMoveState_AddPredictableEvent( newEvent, parameter, &ps->pmove );
-//}
-
+static void PM_Animation_SetMovementDirection( void ) {
+	// Determine the move direction for animations based on the user input state.
+	// ( If strafe left / right or forward / backward is pressed then.. )
+	if ( pm->cmd.forwardmove || pm->cmd.sidemove ) {
+		// Forward:
+		if ( pm->cmd.sidemove == 0 && pm->cmd.forwardmove > 0 ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_FORWARD;
+		// Forward Left:
+		} else if ( pm->cmd.sidemove < 0 && pm->cmd.forwardmove > 0 ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_FORWARD_LEFT;
+		// Left:
+		} else if ( pm->cmd.sidemove < 0 && pm->cmd.forwardmove == 0 ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_LEFT;
+		// Backward Left:
+		} else if ( pm->cmd.sidemove < 0 && pm->cmd.forwardmove < 0 ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_BACKWARD_LEFT;
+		// Backward:
+		} else if ( pm->cmd.sidemove == 0 && pm->cmd.forwardmove < 0 ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_BACKWARD;
+		// Backward Right:
+		} else if ( pm->cmd.sidemove > 0 && pm->cmd.forwardmove < 0 ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_BACKWARD_RIGHT;
+		// Right:
+		} else if ( pm->cmd.sidemove > 0 && pm->cmd.forwardmove == 0 ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_RIGHT;
+		// Forward Right:
+		} else if ( pm->cmd.sidemove > 0 && pm->cmd.forwardmove > 0 ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_FORWARD_RIGHT;
+		}
+	// if they aren't actively going directly sideways, change the animation to the diagonal so they
+	// don't stop too crooked:
+	} else {
+		if ( ps->animation.moveDirection == PM_MOVEDIRECTION_LEFT ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_FORWARD_LEFT;
+		} else if ( ps->animation.moveDirection == PM_MOVEDIRECTION_RIGHT ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_FORWARD_RIGHT;
+		}
+	}
+}
 
 
 /**
@@ -1310,6 +1379,7 @@ static void PM_CheckJump() {
 
 	// Can't jump while ducked.
 	if ( ps->pmove.pm_flags & PMF_DUCKED ) {
+
 		return;
 	}
 
@@ -1649,6 +1719,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	if ( PM_CheckDuck() ) {
 		PM_CategorizePosition();
 	}
+
 	// When dead, perform dead movement.
 	if ( ps->pmove.pm_type == PM_DEAD ) {
 		PM_DeadMove();
@@ -1673,6 +1744,9 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		PM_CheckJump( );
 		// Apply friction. ( If on-ground. )
 		PM_Friction( );
+
+		// Determine the animation move direction.
+		PM_Animation_SetMovementDirection();
 
 		// Determine water level and pursue to WaterMove if deep in above waist.
 		if ( pm->liquid.level >= liquid_level_t::LIQUID_WAIST ) {
@@ -1712,7 +1786,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	// Bob Cycle / Footstep events / legs animations.
 	//PM_Footsteps();
 	PM_CycleBob();
-	//// Entering / Leaving water splashes.
+	// Entering / Leaving water splashes.
 	//PM_WaterEvents();
 
 	// Snap us back into a validated position.

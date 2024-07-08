@@ -101,6 +101,20 @@ typedef struct pmove_state_s {
 //! Used to detect animation changes.
 #define GUN_ANIMATION_TOGGLE_BIT 128
 
+//! Used to determine what player base channel animation to set.
+//! "(crouch/walk/run)_forward/backward_left/right_(weapon)"
+#define PM_MOVEDIRECTION_FORWARD        0
+#define PM_MOVEDIRECTION_FORWARD_LEFT   1
+#define PM_MOVEDIRECTION_LEFT           2
+#define PM_MOVEDIRECTION_BACKWARD_LEFT  3
+#define PM_MOVEDIRECTION_BACKWARD       4
+#define PM_MOVEDIRECTION_BACKWARD_RIGHT 5
+#define PM_MOVEDIRECTION_RIGHT          6
+#define PM_MOVEDIRECTION_FORWARD_RIGHT  7
+
+
+//#define PM_MOVEDIRECTION_BACKWARD       1
+
 // pmove_state_t is the information needed in addition to player_state_t
 // to rendered a view. These are sent from client to server in an amount relative
 // to the client's (optionally set) frame rate limit.
@@ -165,8 +179,12 @@ typedef struct {
     //int32_t   externalEventTime;
 
     /**
-    *   Not communicated over the net at all, some are calculated locally
-    *   for both Client AND/OR Server Game(s).
+    * 
+    *   NOTE:
+    * 
+    *   These are NOT communicated over the net at all. Some are calculated locally
+    *   for either both Client AND/OR Server Game(s).
+    * 
     **/
     //! [Client/Server] Calculated bobMove value.
     double bobMove;
@@ -174,6 +192,24 @@ typedef struct {
     double xySpeed;
     //! [Client/Server] XYSpeed.
     double xyzSpeed;
+
+    //! [Client/Server] Animation State
+    struct {
+        //! True if the crouch key is pressed.
+        bool isCrouched;
+        //! True if the walk modifier key is pressed.
+        bool isWalking;
+        //! True if our xySpeed/xyzSpeed has slowed down to its epsilon values.
+        bool isIdle;
+
+        //bool startJump;
+        //bool inAir;
+        //bool landJump;
+
+        //! Movement Direction, used to determine what crouch/walk/run animation to play\
+        //! for the main animation channel..
+        int32_t moveDirection;
+    } animation;
 
     //! [Client]: Gun Angles on-screen.
     Vector3 gunangles;
