@@ -25,6 +25,13 @@
 //! Defining this allows for HL like acceleration. Where friction is applied to the acceleration formula.
 //#define HL_LIKE_ACCELERATION
 
+//! Stop Epsilon for switching bob cycle into idle..
+static constexpr double PM_BOB_CYCLE_IDLE_EPSILON = 0.1; // WID: Old was 0.1
+
+//! Stop Epsilon for toggling animation idle mode.
+static constexpr double PM_ANIMATION_IDLE_EPSILON = 0.25; // WID: Old was 0.1
+
+
 /**
 *	@brief	Actual in-moment local move variables.
 *
@@ -161,12 +168,12 @@ static void PM_SetDimensions() {
 		ps->pmove.viewheight = PM_VIEWHEIGHT_DUCKED;
 	}
 }
-#if 0
+#if 1
 /**
 *	@brief	Inline-wrapper to for convenience.
 **/
 void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
-	SG_PMoveState_AddPredictableEvent( newEvent, parameter, &ps->pmove );
+	SG_PMoveState_AddPredictableEvent( newEvent, parameter, ps );
 }
 #endif
 /**
@@ -191,23 +198,26 @@ static void PM_CycleBob() {
 	// Reset bobmove.
 	//ps->bobMove = 0.f;
 	
-	// Determine whether we are crouched or not.
-	if ( pm->cmd.buttons & BUTTON_CROUCH ) {
-		// Animation State: We're crouched.
+	//
+	// Determing whether we're crouching, AND (running OR walking).
+	// 
+	// Animation State: We're crouched.
+	if ( pm->cmd.buttons & BUTTON_CROUCH || ps->pmove.pm_flags & PMF_DUCKED ) {
 		ps->animation.isCrouched = true;
+	// Animation State: We're NOT crouched.
 	} else {
 		ps->animation.isCrouched = false;
+	}
+	// Animation State: We're running, NOT walking:
+	if ( !( pm->cmd.buttons & BUTTON_WALK ) ) {
+		ps->animation.isWalking = false;
+	// Animation State: We're walking, NOT running:
+	} else {		
+		ps->animation.isWalking = true;
 	}
 
 	// Airborne leaves cycle intact, but doesn't advance either.
 	if ( pm->ground.entity == nullptr ) {
-		//if ( ps->powerups[ PW_INVULNERABILITY ] ) {
-		//	PM_ContinueLegsAnim( LEGS_IDLECR );
-		//}
-		//// Airborne leaves position in cycle intact, but doesn't advance:
-		//if ( pm->liquid.level > LIQUID_FEET ) {
-		//	PM_ContinueLegsAnim( LEGS_SWIM );
-		//}
 		return;
 	}
 
@@ -215,18 +225,21 @@ static void PM_CycleBob() {
 	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove ) {
 		// Check both xySpeed, and xyzSpeed. The last one is to prevent
 		// view wobbling when crouched, yet idle.
-		//if ( ps->xySpeed < 0.006125 && ps->xyzSpeed < 0.006125 ) {
-		if ( ps->xySpeed < 0.1 && ps->xyzSpeed < 0.1 ) {
+		if ( ps->xySpeed < PM_BOB_CYCLE_IDLE_EPSILON && ps->xyzSpeed < PM_BOB_CYCLE_IDLE_EPSILON ) {
 			// Start at beginning of cycle again:
 			ps->bobCycle = 0;
-			//if ( ps->pmove.pm_flags & PMF_DUCKED ) {
-			//	PM_ContinueLegsAnim( LEGS_IDLECR );
-			//} else {
-			//	PM_ContinueLegsAnim( LEGS_IDLE );
-			//}
 			// Idling at last.
 			ps->animation.isIdle = true;
 		// Not idling yet, there's still velocities at play.
+		} else {
+			ps->animation.isIdle = false;
+		}
+
+		// Now check for animation idle playback animation.
+		if ( ps->xySpeed < PM_ANIMATION_IDLE_EPSILON && ps->xyzSpeed < PM_ANIMATION_IDLE_EPSILON ) {
+			// Idling at last.
+			ps->animation.isIdle = true;
+			// Not idling yet, there's still velocities at play.
 		} else {
 			ps->animation.isIdle = false;
 		}
@@ -240,52 +253,16 @@ static void PM_CycleBob() {
 	footStep = false;
 
 	if ( ps->pmove.pm_flags & PMF_DUCKED ) {
-		// Animation State: We're crouched.
-		//ps->animation.isCrouched = true;
-
 		// Ducked characters bob much faster:
 		ps->bobMove = 0.5;	
-		//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
-		//	PM_ContinueLegsAnim( LEGS_BACKCR );
-		//} else {
-		//	PM_ContinueLegsAnim( LEGS_WALKCR );
-		//}
-		// Ducked characters never play footsteps.
-	//*
-	//} else 	if ( pm->ps->pm_flags & PMF_BACKWARDS_RUN ) {
-	//	if ( !( pm->cmd.buttons & BUTTON_WALKING ) ) {
-	//		bobMove = 0.4;	// faster speeds bob faster
-	//		footStep = true;
-	//	} else {
-	//		bobMove = 0.3;
-	//	}
-	//	PM_ContinueLegsAnim( LEGS_BACK );
-	//*/
 	} else {
-		// Animation State: We're NOT crouched.
-		//ps->animation.isCrouched = false;
-
 		if ( !( pm->cmd.buttons & BUTTON_WALK ) ) {
-			// Animation State: We're running.
-			ps->animation.isWalking = false;
 			// Faster speeds bob faster:
 			ps->bobMove = 0.4f;
-			//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
-			//	PM_ContinueLegsAnim( LEGS_BACK );
-			//} else {
-			//	PM_ContinueLegsAnim( LEGS_RUN );
-			//}
 			footStep = true;
 		} else {
-			// Animation State: We're walking.
-			ps->animation.isWalking = true;
 			// Walking bobs slow:
 			ps->bobMove = 0.3f;
-			//if ( ps->pmove.pm_flags & PMF_BACKWARDS_RUN ) {
-			//	PM_ContinueLegsAnim( LEGS_BACKWALK );
-			//} else {
-			//	PM_ContinueLegsAnim( LEGS_WALK );
-			//}
 		}
 	}
 
@@ -879,7 +856,7 @@ static void PM_GenericMove() {
 		PM_StepSlideMove();
 	// Not on ground, so litte effect on velocity. Perform air acceleration in case it is enabled(has any value stored.):
 	} else {
-		// Accelrate appropriately.
+		// Accelerate appropriately.
 		if ( pmp->pm_air_accelerate ) {
 			PM_AirAccelerate( wishDirection, wishSpeed, pmp->pm_air_accelerate );
 		} else {
@@ -1131,6 +1108,9 @@ static void PM_CategorizePosition() {
 		pm->ground.surface = {};
 		pm->ground.contents = CONTENTS_NONE;
 		pm->ground.material = nullptr;
+
+		// We are in air.
+		ps->animation.inAir = true;
 	} else {
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, point );
 		pm->ground.plane = trace.plane;
@@ -1159,7 +1139,11 @@ static void PM_CategorizePosition() {
 		if ( trace.fraction == 1.0f || ( slanted_ground && !trace.startsolid ) ) {
 			pm->ground.entity = nullptr;
 			ps->pmove.pm_flags &= ~PMF_ON_GROUND;
+
+			// In air?
+			ps->animation.inAir = true;
 		} else {
+			// Update ground.
 			PM_UpdateGroundFromTrace( &trace );
 
 			// hitting solid ground will end a waterjump
@@ -1170,11 +1154,20 @@ static void PM_CategorizePosition() {
 
 			// Just hit the ground.
 			if ( !( ps->pmove.pm_flags & PMF_ON_GROUND ) ) {
+				// Set in case we already applied upward jump event.
+				bool isJumpUpEventSet = false;
+
+				// Hit ground.
+				ps->animation.inAir = false;
 
 				// [Paril-KEX]
 				if ( pml.velocity.z >= 100.f && pm->ground.plane.normal[ 2 ] >= 0.9f && !( ps->pmove.pm_flags & PMF_DUCKED ) ) {
 					ps->pmove.pm_flags |= PMF_TIME_TRICK_JUMP;
 					ps->pmove.pm_time = 64;
+
+					// Jump up.
+					SG_PMoveState_AddPredictableEvent( PS_EV_JUMP_UP, 0, ps );
+					isJumpUpEventSet = true;
 				}
 
 				// [Paril-KEX] calculate impact delta; this also fixes triple jumping
@@ -1182,8 +1175,11 @@ static void PM_CategorizePosition() {
 				PM_ClipVelocity( pml.velocity, pm->ground.plane.normal, clipped_velocity, 1.01f );
 
 				pm->impact_delta = pml.startVelocity.z - clipped_velocity.z;
-
 				ps->pmove.pm_flags |= PMF_ON_GROUND;
+
+				if ( !isJumpUpEventSet ) {
+					SG_PMoveState_AddPredictableEvent( PS_EV_JUMP_LAND, pm->impact_delta, ps );
+				}
 
 				if ( ( ps->pmove.pm_flags & PMF_DUCKED ) ) {
 					ps->pmove.pm_flags |= PMF_TIME_LAND;
@@ -1379,7 +1375,6 @@ static void PM_CheckJump() {
 
 	// Can't jump while ducked.
 	if ( ps->pmove.pm_flags & PMF_DUCKED ) {
-
 		return;
 	}
 
@@ -1414,17 +1409,20 @@ static void PM_CheckJump() {
 	// Adjust our pmove state to engage in the act of jumping.
 	ps->pmove.pm_flags |= PMF_JUMP_HELD;
 	pm->jump_sound = true;
-	pm->ground.entity = nullptr;
 	// Unset ground.
-//PM_UpdateGroundFromTrace( nullptr );
+	pm->ground.entity = nullptr; //PM_UpdateGroundFromTrace( nullptr );
 	ps->pmove.pm_flags &= ~PMF_ON_GROUND;
 
+	// Apply upwards velocity.
 	const float jump_height = pmp->pm_jump_height;
-
 	pml.velocity.z += jump_height;
+	// If still too low, force jump height velocity upwards.
 	if ( pml.velocity.z < jump_height ) {
 		pml.velocity.z = jump_height;
 	}
+
+	// Add 'Predictable' Event for Jumping Up.
+	PM_AddEvent( PS_EV_JUMP_UP, 0 );
 }
 /**
 *	@brief	Decide whether to duck, and/or unduck.

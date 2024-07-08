@@ -523,7 +523,13 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
         1, false );
     // Debug
     //gi.dprintf( "%s: gunFrame(%i)\n", __func__, newWeaponFrame );
+
+    // WID: If it ever bugs out however...
+    #if 0
     int32_t gunFrame = ( newWeaponFrame >= 0 ? newWeaponFrame : oldWeaponFrame );
+    #else
+    int32_t gunFrame = ( newWeaponFrame >= ent->client->weaponState.animation.startFrame ? newWeaponFrame : oldWeaponFrame );
+    #endif
 #else
     // WID: User responsive approach:
     // Get current gunframe.

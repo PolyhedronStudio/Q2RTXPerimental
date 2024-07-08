@@ -39,6 +39,7 @@ void CLG_ETPlayer_AllocatePoseCache( centity_t *packetEntity, entity_t *refreshE
 void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     // Get pmove state.
     player_state_t *framePlayerState = &clgi.client->frame.ps;
+    player_state_t *oldPredictedPlayerState = &clgi.client->predictedState.lastPs;
     player_state_t *predictedPlayerState = &clgi.client->predictedState.currentPs;
 
     //
@@ -49,75 +50,98 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     // Get model resource.
     const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
     
+    // Weapon name string for appending to final animations.
+    std::string dbgStrWeapon = "_rifle";
+    // Base Animation string.
+    std::string baseAnimStr = "idle";
+    // Jump Animation string. Only set when a specific jump animation has to play.
+    std::string jumpAnimStr = "";
     // Precalculated, set a bit further down the function.
     int32_t rootMotionFlags = 0;
     double frameTime = BASE_FRAMETIME;
 
-    // Generate debug string.
-    std::string dbgStrWeapon = "_rifle";
-    std::string baseAnimStr = "idle";
-    if ( playerState->animation.isIdle ) {
-        baseAnimStr = "idle";
-        if ( playerState->animation.isCrouched ) {
-            baseAnimStr += "_crouch";
-        }
-    } else {
-        if ( playerState->animation.isCrouched ) {
-            baseAnimStr = "crouch";
-            frameTime -= 5.f;
-        } else if ( playerState->animation.isWalking ) {
-            baseAnimStr = "walk";
-            frameTime *= 0.5;
+    if ( CLG_IsViewClientEntity( newState ) ) {
+        if ( playerState->animation.isIdle ) {
+            baseAnimStr = "idle";
+            if ( playerState->animation.isCrouched ) {
+                baseAnimStr += "_crouch";
+            }
         } else {
-            baseAnimStr = "run";
-            frameTime -= 5.f;
+            if ( playerState->animation.isCrouched ) {
+                baseAnimStr = "crouch";
+                frameTime -= 5.f;
+            } else if ( playerState->animation.isWalking ) {
+                baseAnimStr = "walk";
+                frameTime *= 0.5;
+            } else {
+                baseAnimStr = "run";
+                frameTime -= 5.f;
+            }
         }
+
+        // Directions:
+        //if ( ( moveFlags & ANIM_MOVE_CROUCH ) || ( moveFlags & ANIM_MOVE_RUN ) || ( moveFlags & ANIM_MOVE_WALK ) ) {
+        if ( !playerState->animation.isIdle ) {
+            // Get move direction for animation.
+            const int32_t animationMoveDirection = clgi.client->predictedState.currentPs.animation.moveDirection;
+
+            // Append to the baseAnimStr the name of the directional animation.
+            // Forward:
+            if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD ) {
+                baseAnimStr += "_forward";
+            // Forward Left:
+            } else if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD_LEFT ) {
+                baseAnimStr += "_forward_left";
+            // Forward Right:
+            } else if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD_RIGHT ) {
+                baseAnimStr += "_forward_right";
+            // Backward:
+            } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD ) {
+                baseAnimStr += "_backward";
+            // Backward Left:
+            } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD_LEFT ) {
+                baseAnimStr += "_backward_left";
+            // Backward Right:
+            } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD_RIGHT ) {
+                baseAnimStr += "_backward_right";
+            // Left:
+            } else if ( animationMoveDirection == PM_MOVEDIRECTION_LEFT ) {
+                baseAnimStr += "_left";
+            // Right:
+            } else if ( animationMoveDirection == PM_MOVEDIRECTION_RIGHT ) {
+                baseAnimStr += "_right";
+            }
+            // Only apply Z translation to the animations if NOT 'In-Air'.
+            if ( !playerState->animation.inAir ) {
+                // Jump?
+                if ( oldPredictedPlayerState->animation.inAir ) {
+                    jumpAnimStr = "jump_down";
+                // Only translate Z axis for rootmotion rendering.
+                } else {
+                    rootMotionFlags |= SKM_POSE_TRANSLATE_Z;
+                }
+            } else {
+                if ( !oldPredictedPlayerState->animation.inAir ) {
+                    jumpAnimStr = "jump_up";
+                } else {
+                    jumpAnimStr = "jump_air";
+                }
+            }
+        // We're idling:
+        } else {
+            baseAnimStr = "idle";
+            // Possible Crouched:
+            if ( playerState->animation.isCrouched ) {
+                baseAnimStr += "_crouch";
+            }
+        }
+        // Add the weapon type stringname to the end.
+        baseAnimStr += dbgStrWeapon;
     }
 
-    // Directions:
-    //if ( ( moveFlags & ANIM_MOVE_CROUCH ) || ( moveFlags & ANIM_MOVE_RUN ) || ( moveFlags & ANIM_MOVE_WALK ) ) {
-    if ( !playerState->animation.isIdle ) {
-        // Get move direction for animation.
-        const int32_t animationMoveDirection = clgi.client->predictedState.currentPs.animation.moveDirection;
-
-        // Append to the baseAnimStr the name of the directional animation.
-        // Forward:
-        if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD ) {
-            baseAnimStr += "_forward";
-        // Forward Left:
-        } else if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD_LEFT ) {
-            baseAnimStr += "_forward_left";
-        // Forward Right:
-        } else if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD_RIGHT ) {
-            baseAnimStr += "_forward_right";
-        // Backward:
-        } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD ) {
-            baseAnimStr += "_backward";
-        // Backward Left:
-        } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD_LEFT ) {
-            baseAnimStr += "_backward_left";
-        // Backward Right:
-        } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD_RIGHT ) {
-            baseAnimStr += "_backward_right";
-        // Left:
-        } else if ( animationMoveDirection == PM_MOVEDIRECTION_LEFT ) {
-            baseAnimStr += "_left";
-        // Right:
-        } else if ( animationMoveDirection == PM_MOVEDIRECTION_RIGHT ) {
-            baseAnimStr += "_right";
-        }
-        // Only translate Z axis for rootmotion rendering.
-        rootMotionFlags |= SKM_POSE_TRANSLATE_Z;
-    // We're idling:
-    } else {
-        baseAnimStr = "idle";
-        // Possible Crouched:
-        if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
-            baseAnimStr += "_crouch";
-        }
+    if ( jumpAnimStr != "" ) {
+        baseAnimStr = jumpAnimStr;
     }
-    // Add the weapon type stringname to the end.
-    baseAnimStr += dbgStrWeapon;
 
     //
     //  See if we can find the matching animation in our SKM data.
@@ -260,21 +284,21 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
             VectorCopy( correctedOrigin, refreshEntity->origin );
             VectorCopy( correctedOrigin, refreshEntity->oldorigin );
         #else
-        // We actually need to offset the Z axis origin by half the bbox height.
-        Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
-        // For being Dead:
-        if ( clgi.client->predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
-            correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
-            // For being Ducked:
-        } else if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
-            correctedOrigin.z += PM_BBOX_DUCKED_MINS.z;
-        } else {
-            correctedOrigin.z += PM_BBOX_STANDUP_MINS.z;
-        }
+            // We actually need to offset the Z axis origin by half the bbox height.
+            Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
+            // For being Dead:
+            if ( clgi.client->predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
+                correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
+                // For being Ducked:
+            } else if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
+                correctedOrigin.z += PM_BBOX_DUCKED_MINS.z;
+            } else {
+                correctedOrigin.z += PM_BBOX_STANDUP_MINS.z;
+            }
 
-        // Now apply the corrected origin to our refresh entity.
-        VectorCopy( correctedOrigin, refreshEntity->origin );
-        VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
+            // Now apply the corrected origin to our refresh entity.
+            VectorCopy( correctedOrigin, refreshEntity->origin );
+            VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
         #endif
     // Lerp Origin:
     } else {

@@ -170,8 +170,8 @@ typedef struct {
     **/
     //! PMove generated state events.
     //int32_t     eventSequence;
-    //int32_t     events[ MAX_PS_EVENTS ];
-    //int32_t     eventParms[ MAX_PS_EVENTS ];
+    int32_t     events[ MAX_PS_EVENTS ];
+    int32_t     eventParms[ MAX_PS_EVENTS ];
 
     // WID: TODO: Just use its entity events instead?
     //int32_t   externalEvent;	//! Events set on player from another source.
@@ -186,6 +186,14 @@ typedef struct {
     *   for either both Client AND/OR Server Game(s).
     * 
     **/
+    //! [Client/Server]: Event Sequencing - To differentiate from a same event ID.
+    int64_t	eventSequence;
+
+    //! [Client]: Gun Angles on-screen.
+    Vector3 gunangles;
+    //! [Client]: Gun Pffset on-screen.
+    Vector3 gunoffset;
+
     //! [Client/Server] Calculated bobMove value.
     double bobMove;
     //! [Client/Server] XYSpeed.
@@ -202,25 +210,18 @@ typedef struct {
         //! True if our xySpeed/xyzSpeed has slowed down to its epsilon values.
         bool isIdle;
 
-        //bool startJump;
-        //bool inAir;
-        //bool landJump;
+        //! True if we're 'in-air'.
+        bool inAir;
 
         //! Movement Direction, used to determine what crouch/walk/run animation to play\
         //! for the main animation channel..
         int32_t moveDirection;
     } animation;
 
-    //! [Client]: Gun Angles on-screen.
-    Vector3 gunangles;
-    //! [Client]: Gun Pffset on-screen.
-    Vector3 gunoffset;
-    
     //! [Server]: Gun frame.
     //int32_t gunframe;
     //! server to game info for scoreboard			
     //int32_t ping; 
     //int64_t pmove_framecount;
     //int32_t	jumppad_frame;
-    //int64_t	entityEventSequence;
 } player_state_t;

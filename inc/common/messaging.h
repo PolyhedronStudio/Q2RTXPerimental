@@ -115,6 +115,10 @@ extern "C" {
 		int32_t			rdflags;
 		int32_t         stats[MAX_STATS];
 
+		uint8_t			eventSequence;
+		uint8_t			events[ MAX_PS_EVENTS ];
+		uint8_t			eventParms[ MAX_PS_EVENTS ];
+
 		uint8_t			bobCycle;
 	} player_packed_t;
 

@@ -26,3 +26,4 @@ typedef enum {
 
     EV_GAME_MAX
 } sg_entity_events_t;
+

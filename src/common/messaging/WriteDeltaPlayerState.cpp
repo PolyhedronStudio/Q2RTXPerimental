@@ -38,6 +38,12 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 
 	out->bobCycle = (uint8_t)in->bobCycle;
 
+	out->eventSequence = in->eventSequence & 0xff;
+	out->events[ 0 ] = in->events[ 0 ];
+	out->events[ 1 ] = in->events[ 1 ];
+	out->eventParms[ 0 ] = in->eventParms[ 0 ];
+	out->eventParms[ 1 ] = in->eventParms[ 1 ];
+
 	out->viewangles[ 0 ] = AngleMod( in->viewangles[ 0 ] );
 	out->viewangles[ 1 ] = AngleMod( in->viewangles[ 1 ] );
 	out->viewangles[ 2 ] = AngleMod( in->viewangles[ 2 ] );
@@ -144,6 +150,22 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		pflags |= PS_GUN_MODELINDEX;
 	}
 
+	if ( to->eventSequence != from->eventSequence ) {
+		pflags |= PS_M_EVENT_SEQUENCE;
+	}
+	if ( to->events[ 0 ] != from->events[ 0 ] ) {
+		pflags |= PS_M_EVENT_FIRST;
+	}
+	if ( to->events[ 1 ] != from->events[ 1 ] ) {
+		pflags |= PS_M_EVENT_SECOND;
+	}
+	if ( to->eventParms[ 0 ] != from->eventParms[ 0 ] ) {
+		pflags |= PS_M_EVENT_FIRST_PARM;
+	}
+	if ( to->eventParms[ 1 ] != from->eventParms[ 1 ] ) {
+		pflags |= PS_M_EVENT_SECOND_PARM;
+	}
+
 
 	//
 	// write it
@@ -186,22 +208,22 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	if ( pflags & PS_BOB_CYCLE ) {
 		MSG_WriteUint8( to->bobCycle );
 	}
-	//// Sequenced Events:
-	//if ( pflags & PS_M_EVENT_SEQUENCE ) {
-	//	MSG_WriteUint8( to->pmove.eventSequence );
-	//}
-	//if ( pflags & PS_M_EVENT_FIRST ) {
-	//	MSG_WriteUint8( to->pmove.events[ 0 ] );
-	//}
-	//if ( pflags & PS_M_EVENT_FIRST_PARM ) {
-	//	MSG_WriteUint8( to->pmove.eventParms[ 0 ] );
-	//}
-	//if ( pflags & PS_M_EVENT_SECOND ) {
-	//	MSG_WriteUint8( to->pmove.events[ 1 ] );
-	//}
-	//if ( pflags & PS_M_EVENT_SECOND_PARM ) {
-	//	MSG_WriteUint8( to->pmove.eventParms[ 1 ] );
-	//}
+	// Sequenced Events:
+	if ( pflags & PS_M_EVENT_SEQUENCE ) {
+		MSG_WriteUint8( to->eventSequence );
+	}
+	if ( pflags & PS_M_EVENT_FIRST ) {
+		MSG_WriteUint8( to->events[ 0 ] );
+	}
+	if ( pflags & PS_M_EVENT_FIRST_PARM ) {
+		MSG_WriteUint8( to->eventParms[ 0 ] );
+	}
+	if ( pflags & PS_M_EVENT_SECOND ) {
+		MSG_WriteUint8( to->events[ 1 ] );
+	}
+	if ( pflags & PS_M_EVENT_SECOND_PARM ) {
+		MSG_WriteUint8( to->eventParms[ 1 ] );
+	}
 
 
 	//

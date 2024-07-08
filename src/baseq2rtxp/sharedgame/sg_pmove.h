@@ -16,6 +16,25 @@
 * 
 **/
 /**
+*	(Predictable-)Player State Events:
+**/
+//! Enumerator event numbers, also act as string indices.
+typedef enum {
+	PS_EV_NONE = 0,
+
+	//! For when jumping up.
+	PS_EV_JUMP_UP,
+
+	//! Or Fall, FallShort, FallFar??
+	PS_EV_JUMP_LAND,
+
+	//! Maximum.
+	PS_EV_MAX,
+} sg_player_state_event_t;
+//! String representatives.
+extern const char *sg_player_state_event_strings[ PS_EV_MAX ];
+
+/**
 *	Default BoundingBoxes:
 **/
 //! For when player is standing straight up.
@@ -31,6 +50,7 @@ static constexpr Vector3 PM_BBOX_GIBBED_MINS = { -16.f, -16.f, 0.f };
 static constexpr Vector3 PM_BBOX_GIBBED_MAXS = { 16.f, 16.f, 24.f };
 static constexpr float   PM_VIEWHEIGHT_GIBBED = 8.f;
 
+
 /**
 *	StepHeight:
 **/
@@ -38,6 +58,7 @@ static constexpr float   PM_VIEWHEIGHT_GIBBED = 8.f;
 static constexpr float PM_MIN_STEP_SIZE = 4.f;
 //! Maximal step height difference for the Z axis before marking our move as a 'stair step'.
 static constexpr float PM_MAX_STEP_SIZE = 18.f;
+
 
 /**
 *	Slide Move Results:
