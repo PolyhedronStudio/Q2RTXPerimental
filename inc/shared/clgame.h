@@ -603,7 +603,19 @@ typedef struct {
 	//
 	//	Skeletal Model(IQM) Pose Transform and Lerping:
 	//
+	/**
+	*	@brief	Compute pose transformations for the given model + data
+	*			'relativeJoints' must have enough room for model->num_poses
+	**/
 	void ( *SKM_ComputeLerpBonePoses )( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+	/**
+	*	@brief	Combine 2 poses into one by performing a recursive blend starting from the given boneNode, using the given fraction as "intensity".
+	*	@param	fraction		When set to 1.0, it blends in the animation at 100% intensity. Take 0.5 for example,
+	*							and a tpose(frac 0.5)+walk would have its arms half bend.
+	*	@param	addBonePose		The actual animation that you want to blend in on top of inBonePoses.
+	*	@param	addToBonePose	A lerped bone pose which we want to blend addBonePoses animation on to.
+	**/
+	void ( *SKM_RecursiveBlendFromBone )( skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction );
 	/**
 	*	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
 	**/

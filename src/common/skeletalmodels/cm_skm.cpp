@@ -511,6 +511,79 @@ void SKM_ComputeLerpBonePoses( const model_t *model, const int32_t frame, const 
 }
 
 /**
+*	@brief	Combine 2 poses into one by performing a recursive blend starting from the given boneNode, using the given fraction as "intensity".
+*	@param	fraction		When set to 1.0, it blends in the animation at 100% intensity. Take 0.5 for example,
+*							and a tpose(frac 0.5)+walk would have its arms half bend.
+*	@param	addBonePose		The actual animation that you want to blend in on top of inBonePoses.
+*	@param	addToBonePose	A lerped bone pose which we want to blend addBonePoses animation on to.
+**/
+void SKM_RecursiveBlendFromBone( skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction ) {
+	// If the bone node is invalid, escape.
+	if ( !boneNode || !addBonePoses || !addToBonePoses ) {
+		// TODO: Warn.
+		return;
+	}
+
+	// Get bone number.
+	const int32_t boneNumber = boneNode->number;
+	//const int32_t parentBoneNumber = boneNode->parentNumber >= 0 ? boneNode->parentNumber : boneNumber;
+
+	// Proceed if the bone number is valid.
+	if ( boneNode->number >= 0 ) {
+		skm_transform_t *inBone = addBonePoses + boneNumber;
+		skm_transform_t *outBone = addToBonePoses + boneNumber;
+
+		if ( fraction == 1 ) {
+			#if 1
+			*outBone = *inBone;
+			#else
+			// Copy Translation.
+			*outBone->translate = *inBone->translate;
+			// Copy Scale.
+			*outBone->scale = *inBone->scale;
+			// Slerp the rotation at fraction.	
+			*outBone->rotate = *inBone->rotate;
+			#endif
+		} else {
+			//	WID: Unsure if actually lerping these is favored.
+			#if 0 
+			const double frontLerp = 1.0 - backLerp;
+			// Lerp the Translation.
+			//*outBone->translate = *inBone->translate;
+			outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
+			outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
+			outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
+			// Lerp the  Scale.
+			//*outBone->scale = *inBone->scale;
+			outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
+			outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
+			outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;
+
+			// Slerp the rotation
+			//*outBone->rotate = *inBone->rotate;
+			QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+			#else
+			// Copy Translation.
+			*outBone->translate = *inBone->translate;
+			// Copy Scale.
+			*outBone->scale = *inBone->scale; //vec3_scale(inBone->scale, 1.175);
+			// Slerp the rotation at fraction.	
+			//*outBone->rotate = *inBone->rotate;
+			QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+			#endif
+		}
+
+		// Recursively blend all thise bone node's children.
+		for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
+			const skm_bone_node_t *childBoneNode = boneNode->childBones[ i ];
+			if ( childBoneNode != nullptr && childBoneNode->numberOfChildNodes > 0 ) {
+				SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, childBoneNode, backLerp, fraction );
+			}
+		}
+	}
+}
+
+/**
 *	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
 **/
 void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices ) {

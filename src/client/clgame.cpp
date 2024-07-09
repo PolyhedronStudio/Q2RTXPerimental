@@ -901,6 +901,7 @@ void CL_GM_LoadProgs( void ) {
 	//	Skeletal Model(IQM) Pose Transform and Lerping:
 	//
 	imports.SKM_ComputeLerpBonePoses = SKM_ComputeLerpBonePoses;
+	imports.SKM_RecursiveBlendFromBone = SKM_RecursiveBlendFromBone;
 	imports.SKM_TransformBonePosesLocalSpace = SKM_TransformBonePosesLocalSpace;
 	imports.SKM_TransformBonePosesWorldSpace = SKM_TransformBonePosesWorldSpace;
 

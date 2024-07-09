@@ -252,7 +252,10 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 
 	// Clamp just to be sure.
 	*outBackLerp = ( *outBackLerp < 0.0 ? *outBackLerp = 0.0 : ( *outBackLerp > 1.0 ? *outBackLerp = 1.0 : *outBackLerp ) );
-
+	if ( *outBackLerp >= 1.0 ) {
+		// We are done playing this animation now.
+		isPlaybackDone = true;
+	}
 	// Backup the previously 'current' frame as its last frame.
 	animationState->previousFrame = animationState->currentFrame;
 
