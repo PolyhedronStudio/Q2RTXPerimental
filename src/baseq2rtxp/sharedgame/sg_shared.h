@@ -59,6 +59,15 @@ typedef struct edict_s sgentity_s;
 **/
 void SG_DPrintf( const char *fmt, ... );
 
+/**
+*	@return	The linear interpolated frame fraction value.
+**/
+const double SG_GetFrameLerpFraction();
+/**
+*	@return	The linear extrapolated frame fraction value.
+**/
+const double SG_GetFrameXerpFraction();
+
 
 
 /**

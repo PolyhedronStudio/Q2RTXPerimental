@@ -70,7 +70,7 @@ typedef struct sg_skm_animation_mixer_s {
 	//! Stores the calculated animation state for each of the varying body parts.
 	sg_skm_animation_state_t currentBodyStates[ SKM_BODY_MAX ];
 	//! Stores the calculated animation state for each of the varying body parts.
-	sg_skm_animation_state_t lastBodyStates[ SKM_BODY_MAX ];
+	sg_skm_animation_state_t eventBodyState[ SKM_MAX_ANIMATION_QUEUE ];
 
 	//! Animation Event Queue.
 	int32_t animationEvents[ SKM_MAX_ANIMATION_QUEUE ];
@@ -146,3 +146,14 @@ static inline void SG_DecodeAnimationState( const uint32_t animationState, uint8
 *           are never finished.
 **/
 const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentTime, const sg_time_t &startTimeStamp, const double frameTime, const int32_t firstFrame, const int32_t lastFrame, const int32_t loopingFrames, const bool forceLoop );
+/**
+*	@brief	Processes the animation state by time. Lerping from the last animation's frame to a newly set animation if needed.
+*	@note	The resulting oldFrame, currentFrame, and lerpFraction are calculated for the moment in time by this function.
+* 
+*	@return	True if the animation has finished playing. Also returns true in case of an error, since no valid animation is instantly finished playing.
+**/
+const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_animation_state_t *animationState, const sg_time_t &time, int32_t *outOldFrame, int32_t *outCurrentFrame, double *outBackLerp );
+/**
+*	@brief	Will set the animation matching 'name' for the animation state. Forced, if desired.
+**/
+const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const char *animationName, const sg_time_t &startTime, const double frameTime, const bool forceSet );

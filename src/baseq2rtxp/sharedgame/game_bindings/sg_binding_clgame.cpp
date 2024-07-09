@@ -168,3 +168,17 @@ void SG_Z_TagFree( const uint32_t tag ) {
 int64_t sg_time_t::frames() const {
 	return _ms / clgi.frame_time_ms;
 }
+
+/**
+*	@return	The linear interpolated frame fraction value.
+**/
+const double SG_GetFrameLerpFraction() {
+	return clgi.client->lerpfrac;
+}
+
+/**
+*	@return	The linear extrapolated frame fraction value.
+**/
+const double SG_GetFrameXerpFraction() {
+	return clgi.client->xerpFraction;
+}

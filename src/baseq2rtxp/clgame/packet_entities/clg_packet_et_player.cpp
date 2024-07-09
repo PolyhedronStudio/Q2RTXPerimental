@@ -37,16 +37,6 @@ void CLG_ETPlayer_AllocatePoseCache( centity_t *packetEntity, entity_t *refreshE
 *   @brief  Determine the entity's active animations.
 **/
 void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
-    // Get pmove state.
-    player_state_t *framePlayerState = &clgi.client->frame.ps;
-    player_state_t *oldPredictedPlayerState = &clgi.client->predictedState.lastPs;
-    player_state_t *predictedPlayerState = &clgi.client->predictedState.currentPs;
-
-    //
-    // TODO: Is this the right choice?
-    //
-    player_state_t *playerState = predictedPlayerState;
-
     // Get model resource.
     const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
     
@@ -58,9 +48,20 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     std::string jumpAnimStr = "";
     // Precalculated, set a bit further down the function.
     int32_t rootMotionFlags = 0;
+    // Default animation FrameTime.
     double frameTime = BASE_FRAMETIME;
 
     if ( CLG_IsViewClientEntity( newState ) ) {
+        // Get pmove state.
+        player_state_t *framePlayerState = &clgi.client->frame.ps;
+        player_state_t *oldPredictedPlayerState = &clgi.client->predictedState.lastPs;
+        player_state_t *predictedPlayerState = &clgi.client->predictedState.currentPs;
+
+        //
+        // TODO: Is this the right choice?
+        //
+        player_state_t *playerState = predictedPlayerState;
+
         if ( playerState->animation.isIdle ) {
             baseAnimStr = "idle";
             if ( playerState->animation.isCrouched ) {
@@ -139,114 +140,71 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         baseAnimStr += dbgStrWeapon;
     }
 
-    if ( jumpAnimStr != "" ) {
-        baseAnimStr = jumpAnimStr;
-    }
-
-    //
-    //  See if we can find the matching animation in our SKM data.
-    //
-    // Get matching animation data pointer and ID.
-    qhandle_t skmAnimationID = -1;
-    const skm_anim_t *skmAnimation = SG_SKM_GetAnimationForName( model, baseAnimStr.c_str(), &skmAnimationID );
-    //
-    // Apply the animation if it isn't active already.
-    //
-    if ( skmAnimation && skmAnimationID >= 0 ) {
-        // Get the animation state mixer.
-        sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
-        // Set lower body animation.
-        sg_skm_animation_state_t *lowerBodyAnimation = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
-        //
-        // Different animation than we're currently playing, so prepare the switch:
-        //
-        if ( lowerBodyAnimation->animationID != skmAnimationID ) {
-            lowerBodyAnimation->srcStartFrame = skmAnimation->first_frame;
-            lowerBodyAnimation->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
-
-            // Apply new animation data.
-            //lowerBodyAnimation->previousAnimationID = lowerBodyAnimation->animationID;
-            lowerBodyAnimation->animationID = skmAnimationID;
-            lowerBodyAnimation->animationStartTime = sg_time_t::from_ms( clgi.client->servertime );
-            lowerBodyAnimation->animationEndTime = sg_time_t::from_ms( clgi.client->servertime + ( ( lowerBodyAnimation->srcEndFrame - lowerBodyAnimation->srcStartFrame ) * frameTime ) );
-            lowerBodyAnimation->frameTime = frameTime;
-            lowerBodyAnimation->isLooping = true;
-
-            // Apply the rootmotion flags
-            lowerBodyAnimation->rootMotionFlags = rootMotionFlags;
-
-            // Debug Print:
-            clgi.Print( PRINT_DEVELOPER, "%s\n", baseAnimStr.c_str() );
-
-        //
-        // Same animation, keep on playing.
-        //
-        } else {
-
-        }
-    } else {
-        //clgi.Print( PRINT_DEVELOPER, "%s\n", dbgStr.c_str() );
-        //refreshEntity->rootMotionFlags = 0;
-    }
+    // Get the animation state mixer.
+    sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
+    // Set lower body animation.
+    sg_skm_animation_state_t *lowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
+    // Set lower body animation.
+    SG_SKM_SetStateAnimation( model, lowerBodyState, baseAnimStr.c_str(), sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false );
 }
 /**
 *   @brief  Process the entity's active animations.
 **/
 void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+    // Get model resource.
+    const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
+
+    // Ensure it is valid.
+    if ( !model ) {
+        clgi.Print( PRINT_WARNING, "%s: Invalid model handle(#%i) for entity(#%i)\n", __func__, refreshEntity->model, packetEntity->current.number );
+        return;
+    }
+    // Ensure it has SKM data.
+    const skm_model_t *skmData = model->skmData;
+    if ( !skmData ) {
+        clgi.Print( PRINT_WARNING, "%s: No SKM data for model handle(#%i) for entity(#%i)\n", __func__, refreshEntity->model, packetEntity->current.number );
+        return;
+    }
+    // Ensure it has SKM config.
+    const skm_config_t *skmConfig = model->skmConfig;
+    if ( !skmConfig ) {
+        clgi.Print( PRINT_WARNING, "%s: No SKM config for model handle(#%i) for entity(#%i)\n", __func__, refreshEntity->model, packetEntity->current.number );
+        return;
+    }
     // Get the animation state mixer.
     sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
-    // Set lower body animation.
-    sg_skm_animation_state_t *lowerBodyAnimation = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
-    //
-    // Different animation than we're currently playing, so prepare the switch.
-    //
-    if ( lowerBodyAnimation && lowerBodyAnimation->animationID >= 0 ) {
-        // Apply rootmotion flags and bone.
-        refreshEntity->rootMotionBoneID = 0;
-        refreshEntity->rootMotionFlags = lowerBodyAnimation->rootMotionFlags;
-
-        // Old frame.
-        const int32_t oldFrame = lowerBodyAnimation->currentFrame;
-        // Backup the previously 'current' frame as its last frame.
-        lowerBodyAnimation->previousFrame = refreshEntity->frame;
-
-        // Animation start and end frames.
-        const int32_t firstFrame = lowerBodyAnimation->srcStartFrame;
-        const int32_t lastFrame = lowerBodyAnimation->srcEndFrame;
-        // Calculate the actual current frame for the moment in time of the active animation.
-        double lerpFraction = SG_AnimationFrameForTime( &lowerBodyAnimation->currentFrame,
-            //sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
-            sg_time_t::from_ms( clgi.client->extrapolatedTime ), lowerBodyAnimation->animationStartTime /*- sg_time_t::from_ms(BASE_FRAMETIME)*/,
-            lowerBodyAnimation->frameTime,
-            firstFrame, lastFrame,
-            0, lowerBodyAnimation->isLooping
-        );
-
-        if ( lerpFraction <= 1.0 ) {
-            // Apply animation to gun model refresh entity.
-            refreshEntity->frame = lowerBodyAnimation->currentFrame;
-            refreshEntity->oldframe = ( refreshEntity->frame > firstFrame && refreshEntity->frame <= lastFrame ? refreshEntity->frame - 1 : lowerBodyAnimation->previousFrame );
-            // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
-            if ( refreshEntity->frame == firstFrame ) {
-                refreshEntity->backlerp = 0.0;
-                // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
-            } else if ( refreshEntity->frame == lastFrame ) {
-                refreshEntity->backlerp = 1.0;
-                // Otherwise just subtract the resulting lerpFraction.
-            } else {
-                refreshEntity->backlerp = 1.0 - lerpFraction;
-            }
-            // Clamp just to be sure.
-            clamp( refreshEntity->backlerp, 0.0, 1.0 );
-            // Reached the end of the animation:
-        } else {
-            // Apply animation to gun model refresh entity.
-            refreshEntity->oldframe = refreshEntity->frame;
-            refreshEntity->frame = lowerBodyAnimation->currentFrame;
-            refreshEntity->backlerp = 1.0 - clgi.client->xerpFraction;
-        }
+    if ( !animationMixer ) {
+        clgi.Print( PRINT_WARNING, "%s: packetEntity(#%i)->animationMixer == (nullptr)\n", __func__, packetEntity->current.number );
+        return;
     }
+    // Set lower body animation.
+    sg_skm_animation_state_t *lowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
+
+    /**
+    *   Lower Body:
+    **/
+    // Time we're at.
+    const sg_time_t extrapolatedTime = sg_time_t::from_ms( clgi.client->extrapolatedTime );
+    // Certain entity or player state events trigger a jumping animation, this
+    // animation always has a high priority for overriding/blending in with the
+    // main base animation that is playing.
+    //
+    // So we first process the actual lowerbody animation itself.
+    int32_t lowerBodyOldFrame = 0;
+    int32_t lowerBodyCurrentFrame = 0;
+    double lowerBodyBackLerp = 0.0;
+    SG_SKM_ProcessAnimationStateForTime( model, lowerBodyState, extrapolatedTime, &lowerBodyOldFrame, &lowerBodyCurrentFrame, &lowerBodyBackLerp );
+
+    // TODO: Calculate the blend pose here instead of applying to refresh entity.
+    refreshEntity->frame = lowerBodyCurrentFrame;
+    refreshEntity->oldframe = refreshEntity->frame > 0 ? refreshEntity->frame - 1 : 0;
+    refreshEntity->backlerp = lowerBodyBackLerp;
+    refreshEntity->rootMotionBoneID = 0;
+    refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z;
+
+    //clgi.Print( PRINT_NOTICE, "%s: frame(%i), oldframe(%i), backlerp(%f)\n", __func__, lowerBodyCurrentFrame, lowerBodyOldFrame, lowerBodyBackLerp );
 }
+
 
 
 /**

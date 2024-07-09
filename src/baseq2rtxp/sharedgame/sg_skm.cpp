@@ -174,3 +174,152 @@ const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentT
 	// Return frame fraction.
 	return frameFraction;
 }
+
+/**
+*	@brief	Processes the animation state by time. Lerping from the last animation's frame to a newly set animation if needed.
+*	@note	The resulting oldFrame, currentFrame, and lerpFraction are calculated for the moment in time by this function.
+*
+*	@return	True if the animation has finished playing. Also returns true in case of an error, since no valid animation is instantly finished playing.
+**/
+const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_animation_state_t *animationState, const sg_time_t &time, int32_t *outOldFrame, int32_t *outCurrentFrame, double *outBackLerp ) {
+	// Sanity checks.
+	if ( !animationState ) {
+		SG_DPrintf( "%s: animationState == (nullptr)!\n", __func__ );
+		return true;
+	}
+	if ( !model ) {
+		SG_DPrintf( "%s: model == (nullptr)!\n", __func__ );
+		return true;
+	}
+	if ( !model->skmData ) {
+		SG_DPrintf( "%s: model->skmData == (nullptr)!\n", __func__ );
+		return true;
+	}
+		
+	// Make sure that the animationID is legit.
+	const skm_anim_t *skmAnimation = SG_SKM_GetAnimationForHandle( model, animationState->animationID );
+	if ( !skmAnimation ) {
+		SG_DPrintf( "%s: skmAnimation for handle(#%i) == (nullptr)!\n", __func__, animationState->animationID );
+		return true;
+	}
+
+	// The old frame of the animation state, possibly the one to lerp from into a new animation.
+	const int32_t oldFrame = animationState->previousFrame;
+
+	// Animation start and end frames.
+	const int32_t firstFrame = skmAnimation->first_frame;
+	const int32_t lastFrame = skmAnimation->first_frame + skmAnimation->num_frames;
+
+	// Calculate the actual current frame for the moment in time of the active animation.
+	double lerpFraction = SG_AnimationFrameForTime( &animationState->currentFrame,
+		time, animationState->animationStartTime /*- sg_time_t::from_ms(BASE_FRAMETIME)*/,
+		// Use the one provided by the animation state instead of the skmData, since we may want to play at a different speed.
+		animationState->frameTime,
+		// Process animation from first to last frame.
+		firstFrame, lastFrame,
+		// If the animation is not looping, play the animation only once.
+		( !animationState->isLooping ? 1 : 0), animationState->isLooping
+	);
+
+	// Apply animation to gun model refresh entity.
+	*outCurrentFrame = animationState->currentFrame;
+	if ( oldFrame < firstFrame || oldFrame > lastFrame ) {
+		*outOldFrame = oldFrame;
+	} else {
+		*outOldFrame = ( animationState->currentFrame > firstFrame && animationState->currentFrame <= lastFrame ? animationState->currentFrame - 1 : oldFrame );
+	}
+
+	// Whether we are finished playing this animation.
+	bool isPlaybackDone = false;
+
+	// Use lerpfraction between frames instead to rapidly switch.
+	//if ( *outOldFrame == oldFrame ) {
+	//	*outBackLerp = 1.0 - SG_GetFrameXerpFraction();
+	//// Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
+	//} else
+	if ( *outCurrentFrame == firstFrame ) {
+		*outBackLerp = 0.0;
+	// Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
+	} else if ( *outCurrentFrame == lastFrame ) {
+		// We are done playing this animation now.
+		isPlaybackDone = true;
+		// Full backlerp.
+		*outBackLerp = 1.0;
+	// Otherwise just subtract the resulting lerpFraction.
+	} else {
+		*outBackLerp = 1.0 - lerpFraction;
+	}
+
+	// Clamp just to be sure.
+	*outBackLerp = ( *outBackLerp < 0.0 ? *outBackLerp = 0.0 : ( *outBackLerp > 1.0 ? *outBackLerp = 1.0 : *outBackLerp ) );
+
+	// Backup the previously 'current' frame as its last frame.
+	animationState->previousFrame = animationState->currentFrame;
+
+	// Return whether finished playing or not.
+	return isPlaybackDone;
+	//// Reached the end of the animation:
+	//} else {
+	//	// Apply animation to gun model refresh entity.
+	//	*outOldFrame = animationState->previousFrame;
+	//	*outCurrentFrame = animationState->currentFrame;
+	//	//*outBackLerp = 1.0 - clgi.client->xerpFraction;
+	//}
+}
+
+/**
+*	@brief	Will set the animation matching 'name' for the animation state. Forced, if desired.
+**/
+const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const char *animationName, const sg_time_t &startTime, const double frameTime, const bool forceSet ) {
+	// Sanity checks.
+	if ( !animationState ) {
+		SG_DPrintf( "%s: animationState == (nullptr)!\n", __func__ );
+		return false;
+	}
+	if ( !model ) {
+		SG_DPrintf( "%s: model == (nullptr)!\n", __func__ );
+		return false;
+	}
+	if ( !model->skmData ) {
+		SG_DPrintf( "%s: model->skmData == (nullptr)!\n", __func__ );
+		return false;
+	}
+
+	// Make sure that the animationID is legit.
+	qhandle_t animationID = -1;
+	const skm_anim_t *skmAnimation = SG_SKM_GetAnimationForName( model, animationName, &animationID );
+	if ( !skmAnimation ) {
+		SG_DPrintf( "%s: skmAnimation for handle(#%i) == (nullptr)!\n", __func__, animationState->animationID );
+		return false;
+	}
+
+	// Apply the animation either if it is not active yet, or is forcefully set.
+	if ( animationState->animationID != animationID || forceSet ) {
+		animationState->srcStartFrame = skmAnimation->first_frame;
+		animationState->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
+
+		// Apply new animation data.
+		animationState->previousAnimationID = animationState->animationID;
+		animationState->animationID = animationID;
+		animationState->frameTime = frameTime;
+		#if 1
+		animationState->animationStartTime = startTime;
+		animationState->animationEndTime = ( startTime + sg_time_t::from_ms( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime ) );
+		#else
+		animationState->animationStartTime = sg_time_t::from_ms( clgi.client->servertime );
+		animationState->animationEndTime = sg_time_t::from_ms( clgi.client->servertime + ( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime ) );
+		#endif
+		animationState->isLooping = true;
+
+		// Apply the rootmotion flags
+		//animationState->rootMotionFlags = rootMotionFlags;
+		// Debug Print:
+		//clgi.Print( PRINT_DEVELOPER, "%s\n", baseAnimStr.c_str() );
+
+		// Animation was set.
+		return true;
+	}
+
+	// Already running, thus not set.
+	return false;
+}
