@@ -40,7 +40,7 @@ typedef enum {
 
     // These are also known to the game dlls, however, also needed by the engine.
     svc_muzzleflash,
-    svc_muzzleflash2,
+    //svc_muzzleflash2, WID: Removed, monster muzzleflashes based on hard coded static array.
     svc_temp_entity,
     svc_layout,
     svc_inventory,

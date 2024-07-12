@@ -119,11 +119,12 @@ void CLG_AddLightStyles( void );
 *   @brief  Handles the parsed client muzzleflash effects.
 **/
 void CLG_MuzzleFlash( void );
+#if 0 // WID: Removed
 /**
 *   @brief  Handles the parsed entities/monster muzzleflash effects.
 **/
 void CLG_MuzzleFlash2( void );
-
+#endif
 
 
 /***

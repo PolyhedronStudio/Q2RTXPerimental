@@ -326,11 +326,11 @@ static void PM_Animation_SetMovementDirection( void ) {
 	// if they aren't actively going directly sideways, change the animation to the diagonal so they
 	// don't stop too crooked:
 	} else {
-		//if ( ps->animation.moveDirection == PM_MOVEDIRECTION_LEFT ) {
-		//	ps->animation.moveDirection = PM_MOVEDIRECTION_FORWARD_LEFT;
-		//} else if ( ps->animation.moveDirection == PM_MOVEDIRECTION_RIGHT ) {
-		//	ps->animation.moveDirection = PM_MOVEDIRECTION_FORWARD_RIGHT;
-		//}
+		if ( ps->animation.moveDirection == PM_MOVEDIRECTION_LEFT ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_FORWARD_LEFT;
+		} else if ( ps->animation.moveDirection == PM_MOVEDIRECTION_RIGHT ) {
+			ps->animation.moveDirection = PM_MOVEDIRECTION_FORWARD_RIGHT;
+		}
 	}
 }
 

@@ -54,12 +54,12 @@ SV_CalcRoll
 
 ===============
 */
-float SV_CalcRoll( vec3_t angles, vec3_t velocity ) {
+const float SV_CalcRoll( const Vector3 &angles, const Vector3 &velocity ) {
 	float   sign;
 	float   side;
 	float   value;
 
-	side = DotProduct( velocity, right );
+	side = QM_Vector3DotProduct( velocity, right );
 	sign = side < 0 ? -1 : 1;
 	side = fabsf( side );
 

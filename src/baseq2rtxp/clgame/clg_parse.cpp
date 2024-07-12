@@ -406,11 +406,6 @@ const qboolean PF_ParseServerMessage( const int32_t serverMessage ) {
         CLG_MuzzleFlash();
         return true;
     break;
-    case svc_muzzleflash2:
-        CLG_ParseMuzzleFlashPacket( 0 );
-        CLG_MuzzleFlash2();
-        return true;
-    break;
     case svc_temp_entity:
         CLG_ParseTEntPacket();
         CLG_ParseTEnt();
@@ -455,7 +450,6 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
         return true;
     break;
     case svc_muzzleflash:
-    case svc_muzzleflash2:
         CLG_ParseMuzzleFlashPacket( 0 );
         return true;
     break;

@@ -685,7 +685,6 @@ const char *MSG_ServerCommandString( const int32_t cmd ) {
 				S( configstringstream )
 				S( baselinestream )
 				S( muzzleflash )
-				S( muzzleflash2 )
 				S( temp_entity )
 				S( layout )
 				S( inventory )

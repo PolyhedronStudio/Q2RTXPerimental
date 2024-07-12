@@ -107,7 +107,7 @@ void Move_Begin(edict_t *ent)
 
 void Think_AccelMove(edict_t *ent);
 
-void Move_Calc(edict_t *ent, const vec3_t dest, void(*func)(edict_t*))
+void Move_Calc(edict_t *ent, const Vector3 &dest, void(*func)(edict_t*))
 {
     VectorClear(ent->velocity);
     VectorSubtract(dest, ent->s.origin, ent->pusherMoveInfo.dir);
@@ -745,7 +745,7 @@ void SP_func_button(edict_t *ent)
     vec3_t  abs_movedir;
     float   dist;
 
-    G_SetMovedir(ent->s.angles, ent->movedir);
+    G_SetMovedir(ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_STOP;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
@@ -1117,7 +1117,7 @@ void SP_func_door(edict_t *ent)
         ent->pusherMoveInfo.sound_end = gi.soundindex("doors/door_end_01.wav");
     }
 
-    G_SetMovedir(ent->s.angles, ent->movedir);
+    G_SetMovedir(ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
@@ -1345,7 +1345,7 @@ void SP_func_water(edict_t *self)
 {
     vec3_t  abs_movedir;
 
-    G_SetMovedir(self->s.angles, self->movedir);
+    G_SetMovedir(self->s.angles, self->movedir );
     self->movetype = MOVETYPE_PUSH;
     self->solid = SOLID_BSP;
     self->s.entityType = ET_PUSHER;

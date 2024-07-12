@@ -23,10 +23,7 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo);
 
 void SP_misc_teleporter_dest(edict_t *ent);
 
-/**
-*   @brief  Returns a string stating the determined 'Base' animation, and sets the FrameTime value for frameTime pointer.
-**/
-const std::string SVG_P_DetermineClientBaseAnimation( const player_state_t *oldPlayerState, const player_state_t *playerState, double *frameTime );
+
 /**
 *   @brief  Will process(progress) the entity's active animations for each body state and event states.
 **/

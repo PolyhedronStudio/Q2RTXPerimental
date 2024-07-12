@@ -9,6 +9,8 @@
 #include "../clg_effects.h"
 #include "../clg_temp_entities.h"
 
+// Removed??
+#if 0
 /**
 *   @brief  Handles the parsed entities/monster muzzleflash effects.
 **/
@@ -368,3 +370,4 @@ void CLG_MuzzleFlash2( void ) {
         break;
     }
 }
+#endif

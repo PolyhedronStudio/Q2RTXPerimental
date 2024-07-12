@@ -835,34 +835,34 @@ const bool    KillBox( edict_t *ent, const bool bspClipping );
 /**
 *   @brief  Wraps up the new more modern G_ProjectSource.
 **/
-void    G_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result);
+void    G_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
 /**
 *   @brief  Project vector from source. 
 **/
 const Vector3 G_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
-edict_t *G_Find(edict_t *from, int fieldofs, const char *match); // WID: C++20: Added const.
-edict_t *findradius(edict_t *from, vec3_t org, float rad);
-edict_t *G_PickTarget(char *targetname);
-void    G_UseTargets(edict_t *ent, edict_t *activator);
-void    G_SetMovedir(vec3_t angles, vec3_t movedir);
+edict_t *G_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
+edict_t *findradius( edict_t *from, vec3_t org, float rad );
+edict_t *G_PickTarget( char *targetname );
+void    G_UseTargets( edict_t *ent, edict_t *activator );
+void    G_SetMovedir( vec3_t angles, Vector3 &movedir );
 
-void    G_InitEdict(edict_t *e);
-edict_t *G_AllocateEdict(void);
-void    G_FreeEdict(edict_t *e);
+void    G_InitEdict( edict_t *e );
+edict_t *G_AllocateEdict( void );
+void    G_FreeEdict( edict_t *e );
 
-void    G_TouchTriggers(edict_t *ent);
+void    G_TouchTriggers( edict_t *ent );
 void    G_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
-void    G_TouchSolids(edict_t *ent);
+void    G_TouchSolids( edict_t *ent );
 
-char    *G_CopyString(char *in);
+char *G_CopyString( char *in );
 
 //
 // g_combat.c
 //
-bool OnSameTeam(edict_t *ent1, edict_t *ent2);
-bool CanDamage(edict_t *targ, edict_t *inflictor);
+bool OnSameTeam( edict_t *ent1, edict_t *ent2 );
+bool CanDamage( edict_t *targ, edict_t *inflictor );
 void T_Damage( edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const int32_t dflags, const sg_means_of_death_t meansOfDeath );
-void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath );
+void T_RadiusDamage( edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath );
 
 // damage flags
 #define DAMAGE_NONE             BIT( 0 )
@@ -885,11 +885,11 @@ void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t
 //
 // g_monster.c
 //
-void monster_fire_bullet(edict_t *self, vec3_t start, vec3_t dir, int damage, int kick, int hspread, int vspread, int flashtype);
-void monster_fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int flashtype);
-void M_droptofloor(edict_t *ent);
+void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, int damage, int kick, int hspread, int vspread, int flashtype );
+void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int flashtype );
+void M_droptofloor( edict_t *ent );
 void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype );
-void M_CheckGround(edict_t *ent, const contents_t mask);
+void M_CheckGround( edict_t *ent, const contents_t mask );
 void M_WorldEffects( edict_t *ent );
 void M_SetAnimation( edict_t *self, mmove_t *move, bool instant = true );
 
@@ -898,15 +898,15 @@ void M_SetAnimation( edict_t *self, mmove_t *move, bool instant = true );
 // g_misc.c
 //
 // WID: C++20: Added const.
-void ThrowHead(edict_t *self, const char *gibname, int damage, int type);
-void ThrowClientHead(edict_t *self, int damage);
+void ThrowHead( edict_t *self, const char *gibname, int damage, int type );
+void ThrowClientHead( edict_t *self, int damage );
 // WID: C++20: Added const.
-void ThrowGib(edict_t *self, const char *gibname, int damage, int type);
-void BecomeExplosion1(edict_t *self);
+void ThrowGib( edict_t *self, const char *gibname, int damage, int type );
+void BecomeExplosion1( edict_t *self );
 
 #define CLOCK_MESSAGE_SIZE  16
-void func_clock_think(edict_t *self);
-void func_clock_use(edict_t *self, edict_t *other, edict_t *activator);
+void func_clock_think( edict_t *self );
+void func_clock_use( edict_t *self, edict_t *other, edict_t *activator );
 
 //
 // g_ai.c
@@ -930,9 +930,9 @@ void func_clock_use(edict_t *self, edict_t *other, edict_t *activator);
 // g_weapon.c
 //
 // WID: C++20: Added const.
-void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origin);
+void ThrowDebris( edict_t *self, const char *modelname, float speed, vec3_t origin );
 #if 0
-bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick);
+bool fire_hit( edict_t *self, vec3_t aim, int damage, int kick );
 #endif
 /**
 *   @brief  Used for all impact (fighting kick/punch) attacks
@@ -942,63 +942,63 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
 *   @brief  Fires a single round. Used for machinegun and chaingun.  Would be fine for
 *           pistols, rifles, etc....
 **/
-void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, const sg_means_of_death_t meansOfDeath );
+void fire_bullet( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, const sg_means_of_death_t meansOfDeath );
 /**
 *   @brief  Shoots shotgun pellets.  Used by shotgun and super shotgun.
 **/
-void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, const sg_means_of_death_t meansOfDeath );
+void fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, const sg_means_of_death_t meansOfDeath );
 
 //
 // g_ptrail.c
 //
-void PlayerTrail_Init(void);
-void PlayerTrail_Add(vec3_t spot);
-void PlayerTrail_New(vec3_t spot);
-edict_t *PlayerTrail_PickFirst(edict_t *self);
-edict_t *PlayerTrail_PickNext(edict_t *self);
-edict_t *PlayerTrail_LastSpot(void);
+void PlayerTrail_Init( void );
+void PlayerTrail_Add( vec3_t spot );
+void PlayerTrail_New( vec3_t spot );
+edict_t *PlayerTrail_PickFirst( edict_t *self );
+edict_t *PlayerTrail_PickNext( edict_t *self );
+edict_t *PlayerTrail_LastSpot( void );
 
 //
 // g_client.c
 //
-void respawn(edict_t *ent);
-void BeginIntermission(edict_t *targ);
+void respawn( edict_t *ent );
+void BeginIntermission( edict_t *targ );
 /**
 *   @brief  Will reset the entity client's 'Field of View' back to its defaults.
 **/
 void P_ResetPlayerStateFOV( gclient_t *client );
-void PutClientInServer(edict_t *ent);
-void InitClientPersistantData(edict_t *ent, gclient_t *client);
-void InitClientRespawnData(gclient_t *client);
-void InitBodyQue(void);
-void ClientBeginServerFrame(edict_t *ent);
+void PutClientInServer( edict_t *ent );
+void InitClientPersistantData( edict_t *ent, gclient_t *client );
+void InitClientRespawnData( gclient_t *client );
+void InitBodyQue( void );
+void ClientBeginServerFrame( edict_t *ent );
 
 //
 // g_player.c
 //
-void player_pain(edict_t *self, edict_t *other, float kick, int damage);
-void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point);
+void player_pain( edict_t *self, edict_t *other, float kick, int damage );
+void player_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 
 //
 // g_svcmds.c
 //
-void ServerCommand(void);
-bool SV_FilterPacket(char *from);
+void ServerCommand( void );
+bool SV_FilterPacket( char *from );
 
 //
 // p_view.c
 //
-void ClientEndServerFrame(edict_t *ent);
+void ClientEndServerFrame( edict_t *ent );
 
 //
 // p_hud.c
 //
-void MoveClientToIntermission(edict_t *client);
-void G_SetStats(edict_t *ent);
-void G_SetSpectatorStats(edict_t *ent);
-void G_CheckChaseStats(edict_t *ent);
-void ValidateSelectedItem(edict_t *ent);
-void DeathmatchScoreboardMessage(edict_t *client, edict_t *killer);
+void MoveClientToIntermission( edict_t *client );
+void G_SetStats( edict_t *ent );
+void G_SetSpectatorStats( edict_t *ent );
+void G_CheckChaseStats( edict_t *ent );
+void ValidateSelectedItem( edict_t *ent );
+void DeathmatchScoreboardMessage( edict_t *client, edict_t *killer );
 
 //
 // g_pweapon.c
@@ -1020,12 +1020,12 @@ void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forw
 **/
 const Vector3 P_ProjectDistance( edict_t *ent, Vector3 &point, Vector3 &distance, Vector3 &forward, Vector3 &right );
 void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
-void P_PlayerNoise(edict_t *who, const vec3_t where, int type);
+void P_PlayerNoise( edict_t *who, const vec3_t where, int type );
 
 /**
 *   @brief  Acts as a sub method for cleaner code, used by weapon item animation data precaching.
 **/
-void P_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const iqm_anim_t *iqmAnim, const int32_t modeID, const int32_t iqmAnimationID );
+void P_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const skm_anim_t *iqmAnim, const int32_t modeID, const int32_t iqmAnimationID );
 /**
 *   @brief
 **/
@@ -1061,23 +1061,23 @@ void P_Weapon_Think( edict_t *ent, const bool processUserInputOnly );
 //
 void SV_Impact( edict_t *e1, trace_t *trace );
 const contents_t G_GetClipMask( edict_t *ent );
-void G_RunEntity(edict_t *ent);
+void G_RunEntity( edict_t *ent );
 
 
 //
 // g_main.c
 //
-void SaveClientData(void);
-void FetchClientEntData(edict_t *ent);
+void SaveClientData( void );
+void FetchClientEntData( edict_t *ent );
 
 
 //
 // g_chase.c
 //
-void UpdateChaseCam(edict_t *ent);
-void ChaseNext(edict_t *ent);
-void ChasePrev(edict_t *ent);
-void GetChaseTarget(edict_t *ent);
+void UpdateChaseCam( edict_t *ent );
+void ChaseNext( edict_t *ent );
+void ChasePrev( edict_t *ent );
+void GetChaseTarget( edict_t *ent );
 
 //============================================================================
 
@@ -1528,9 +1528,9 @@ struct edict_s {
     //! Specified physics movetype.
     int32_t     movetype;
     //! Move velocity.
-    vec3_t      velocity;
+    Vector3      velocity;
     //! Angular(Move) Velocity.
-    vec3_t      avelocity;
+    Vector3     avelocity;
     //! Weight(mass) of entity.
     int32_t     mass;
 	//! Per entity gravity multiplier (1.0 is normal) use for lowgrav artifact, flares.
@@ -1548,9 +1548,9 @@ struct edict_s {
     float   speed;
     float   accel;
     float   decel;
-    vec3_t  movedir;
-    vec3_t  pos1;
-    vec3_t  pos2;
+    Vector3 movedir;
+    Vector3 pos1;
+    Vector3 pos2;
     edict_t *movetarget;
 
     //
@@ -1686,7 +1686,7 @@ struct edict_s {
 
 
     // Only used for g_turret.cpp - WID: Remove?
-    vec3_t      move_origin;
-    vec3_t      move_angles;
+    Vector3 move_origin;
+    Vector3 move_angles;
 };
 

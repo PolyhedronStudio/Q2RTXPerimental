@@ -178,7 +178,6 @@ SET(HEADERS_BASEQ2_SVGAME
 SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_gamemode.cpp
 	baseq2rtxp/sharedgame/sg_misc.cpp
-	baseq2rtxp/sharedgame/sg_muzzleflashes_monsters.c
 	baseq2rtxp/sharedgame/sg_pmove.cpp
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.cpp
 	baseq2rtxp/sharedgame/sg_skm.cpp
@@ -190,7 +189,6 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_local.h
 	baseq2rtxp/sharedgame/sg_misc.h
 	baseq2rtxp/sharedgame/sg_muzzleflashes.h
-	baseq2rtxp/sharedgame/sg_muzzleflashes_monsters.h
 	baseq2rtxp/sharedgame/sg_pmove.h
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.h
 	baseq2rtxp/sharedgame/sg_shared.h

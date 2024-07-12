@@ -18,6 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svg_local.h"
 
 
+#if 0
 /**
 *	@brief	
 **/
@@ -40,6 +41,7 @@ void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, int damag
 	gi.WriteUint8( flashtype );
 	gi.multicast( start, MULTICAST_PHS, false );
 }
+#endif
 
 /**
 *	@brief

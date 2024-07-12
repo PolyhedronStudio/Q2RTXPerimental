@@ -7,32 +7,31 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 * If we had event entities and then 'morphentity' function, for example: a blaster bullet could convert to an entity, eliminating
 the need for temp_entity_t behavior. For hit trace based weapons I suppose the hits could be done client side but that'd require
 simulating a frame ahead for all things. Either way, weapon could looks like it might be better off to go to shared some day.
-* It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
-
+* [X] It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
+	* It is a mistake in client game loop.
 ## Features:
 Features being looked forward on implementation.
 ### Highest Priority:
-* [ ] Get a test dummy model that we can use to replace the current player with.
+* [X] Get a test dummy model that we can use to replace the current player with.
 * [X] Get a similar test dummy, however, this one needs to be kept in mind it will serve monster purposes instead.
 ### High Priority:
 * [X] Add in ``cm_material_t`` accompanied by an actual json based client and server sided material properties file. Allowing for setting material contents ``kind``, acceleration/friction influences, footsteps, etc.
 	* [X] Acquire some proper footstep audio files and add in material specific footstep audio.
 	* [ ] Have bullet impact display material ``kind`` specific puffs?
-* [ ] Move player animation code/task into the player move code for proper synchronisity and consistency reasons.
+* [X] Move player animation code/task into the player move code for proper synchronisity and consistency reasons.
 * [X] Footsteps/ViewBob to Client Game, PMove?
 ### Medium Priority:
 * [X] Remove all Q2 monsters, keep a few around to use for testing.
-	* Monsters left are: ``monster_actor``, ``monster_infantry``, ``monster_player``, ``monster_solider``.
 * [ ] Eliminate all other Q2-only specific game entities.
 * [X] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
+* [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
+
+### Low Priority:
 * [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.
 * [x] Add some way of having entity 'class' like type support. (At the least, eliminate a need for having such a large edict_t type that holds all sorts of object-type specific variables.)
 	* [x] So far this is only in existence for the client game's ``clg_local_entity_t`` type.
 	* [ ] Finish the implementation/style of it, make sure it is save game compatible, and implement it all-round.
-* [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
-
-### Low Priority:
-* [ ] In common/messaging.cpp there are debug outputs for printing which bits are sent,
+* [ ] * [ ] In common/messaging.cpp there are debug outputs for printing which bits are sent,
 	  in some cases these need to have a game API callback also.
 * [ ] For weapon items, move quantity etc from gitem_t into this struct.
 * [X] Implement something utilizing ET_BEAM.
@@ -40,7 +39,7 @@ Features being looked forward on implementation.
 * [ ] Name cvars for game modules respectively ``clg_`` and ``svg_``, also server cvars missing ``sv_`` and client cvars missing ``cl_``
 * [X] Why, when func_plat hits ya, it moves you to random origin or such?_
 	* Resolved by what seemed incorrect default behavior? Simply passing a knockback of 0 to the hit entity instead of 1.
-* [ ] Internal representation of skeletal poses and an API for use by both, client and server, thus residing in /common/
+* [X] Internal representation of skeletal poses and an API for use by both, client and server, thus residing in /common/
 * [ ] Look into Q2RE q2pro for svc_sound additions.
 * [ ] Implement a game mode structure that accepts function pointers, these are configured depending on the gamemode that is active within the game.
 	* [ ] Rid all places where ``coop`` and ``deathmatch`` cvars are checked by actual individual gamemode related counterparts.
@@ -134,20 +133,20 @@ And here a list of things that I keep an eye out and/or may (fail multiple times
 			 This will simplify life in the future.
 	- [X] 1. Weapon code should use ``PlayAnimation("anim_name")``, or precache animIDs ``GetAnimationHandle("anim_name")``.
 	- [ ] 2. Monster code should use Play/Get-Anim, and have actions linked to those consequently.
-	- [ ] 3. If ``entity type == MONSTER || PLAYER`` the net code needs to be adjusted so that 'frame' encodes/decodes animationIDs for each specific
+	- [X] 3. If ``entity type == MONSTER || PLAYER`` the net code needs to be adjusted so that 'frame' encodes/decodes animationIDs for each specific
 			 body part. 8 bits per part, means 24 bits and leaves 8 free bits for other uses.
-	- [ ] 4. Client needs to detect animationID, time of change, and playback the animation from there
+	- [X] 4. Client needs to detect animationID, time of change, and playback the animation from there
 			 using the animation info provided in the IQM data.
 
 - [ ] The Skeletal Model Info Scenario:
-	- [ ] 0. For both, client and server, whenever an IQM file is loaded, so will be its matching
+	- [X] 0. For both, client and server, whenever an IQM file is loaded, so will be its matching
 			 .cfg file. This file will contain:
-		- Name of Root Bone.
-		- Bone Names for the ``Joint Controllers``.
-		- Tags assigned to a bone name, with a corresponding ``up/forward/right`` axis set.
-		- Animation Events, ``animevent "(animname)" (animframe) (client/server/both) "(animevent data, can be a string)"``
-		- Animation Root Motion Translate axes, animrootbonetranslate "animname" ``TRANSLATE_X/TRANSLATE_Y/TRANSLATE_Z``
-	- [ ] 1. The shared game code needs and is responsible for a ``Pose API`` which essentially is capable of:
+		- [X] Name of Root Bone.
+		- [ ] Bone Names for the ``Joint Controllers``.
+		- [ ] Tags assigned to a bone name, with a corresponding ``up/forward/right`` axis set.
+		- [ ] Animation Events, ``animevent "(animname)" (animframe) (client/server/both) "(animevent data, can be a string)"``
+		- [X] Animation Root Motion Translate axes, animrootbonetranslate "animname" ``TRANSLATE_X/TRANSLATE_Y/TRANSLATE_Z``
+	- [X] 1. The shared game code needs and is responsible for a ``Pose API`` which essentially is capable of:
 		- Taking an animation from Pose A, and blend it into Pose B starting from a specified bone.
 		- This'll use a simple memory cache that grows in POW2 size whenever there isn't enough space to be used.
 		  (The more entities there are using a skeletal model, the more space we need.)

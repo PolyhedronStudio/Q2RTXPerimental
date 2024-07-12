@@ -722,7 +722,7 @@ void func_explosive_explode(edict_t *self, edict_t *inflictor, edict_t *attacker
         T_RadiusDamage(self, attacker, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLOSIVE);
 
     VectorSubtract(self->s.origin, inflictor->s.origin, self->velocity);
-    VectorNormalize(self->velocity);
+    self->velocity = QM_Vector3Normalize(self->velocity);
     VectorScale(self->velocity, 150, self->velocity);
 
     // start chunks towards the center

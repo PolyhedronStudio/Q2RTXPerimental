@@ -302,7 +302,7 @@ void use_target_splash(edict_t *self, edict_t *other, edict_t *activator)
     gi.WriteUint8(TE_SPLASH);
     gi.WriteUint8(self->count);
     gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-    gi.WriteDir8(self->movedir);
+    gi.WriteDir8(&self->movedir.x);
     gi.WriteUint8(self->sounds);
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
 
@@ -359,7 +359,7 @@ void SP_target_spawner(edict_t *self)
     self->use = use_target_spawner;
     self->svflags = SVF_NOCLIENT;
     if (self->speed) {
-        G_SetMovedir(self->s.angles, self->movedir);
+        G_SetMovedir(self->s.angles, self->movedir );
         VectorScale(self->movedir, self->speed, self->movedir);
     }
 }
@@ -393,7 +393,7 @@ void use_target_blaster(edict_t *self, edict_t *other, edict_t *activator)
 void SP_target_blaster(edict_t *self)
 {
     self->use = use_target_blaster;
-    G_SetMovedir(self->s.angles, self->movedir);
+    G_SetMovedir(self->s.angles, self->movedir );
     self->noise_index = gi.soundindex("weapons/laser2.wav");
 
     if (!self->dmg)
@@ -472,7 +472,7 @@ void target_laser_think(edict_t *self)
         VectorCopy(self->movedir, last_movedir);
         VectorMA(self->enemy->absmin, 0.5f, self->enemy->size, point);
         VectorSubtract(point, self->s.origin, self->movedir);
-        VectorNormalize(self->movedir);
+        self->movedir = QM_Vector3Normalize(self->movedir);
         if (!VectorCompare(self->movedir, last_movedir))
             self->spawnflags |= 0x80000000;
     }
@@ -488,7 +488,7 @@ void target_laser_think(edict_t *self)
 
         // hurt it if we can
         if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER))
-            T_Damage(tr.ent, self, self->activator, self->movedir, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MEANS_OF_DEATH_LASER );
+            T_Damage(tr.ent, self, self->activator, &self->movedir.x, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MEANS_OF_DEATH_LASER );
 
         // if we hit something that's not a monster or player or is immune to lasers, we're done
         if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client)) {
@@ -574,7 +574,7 @@ void target_laser_start(edict_t *self)
                 gi.dprintf("%s at %s: %s is a bad target\n", self->classname, vtos(self->s.origin), self->target);
             self->enemy = ent;
         } else {
-            G_SetMovedir(self->s.angles, self->movedir);
+            G_SetMovedir(self->s.angles, self->movedir );
         }
     }
     self->use = target_laser_use;

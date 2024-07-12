@@ -40,114 +40,17 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     // Get model resource.
     const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
     
-    // Weapon name string for appending to final animations.
-    std::string dbgStrWeapon = "_rifle";
-    // Base Animation string.
-    std::string baseAnimStr = "idle";
-    // Jump Animation string. Only set when a specific jump animation has to play.
-    std::string jumpAnimStr = "";
-    // Precalculated, set a bit further down the function.
-    int32_t rootMotionFlags = 0;
-    // Default animation FrameTime.
-    double frameTime = BASE_FRAMETIME;
-
-    if ( CLG_IsViewClientEntity( newState ) ) {
-        // Get pmove state.
-        player_state_t *framePlayerState = &clgi.client->frame.ps;
-        player_state_t *oldPredictedPlayerState = &clgi.client->predictedState.lastPs;
-        player_state_t *predictedPlayerState = &clgi.client->predictedState.currentPs;
-
-        //
-        // TODO: Is this the right choice?
-        //
-        player_state_t *playerState = predictedPlayerState;
-
-        if ( playerState->animation.isIdle ) {
-            baseAnimStr = "idle";
-            if ( playerState->animation.isCrouched ) {
-                baseAnimStr += "_crouch";
-            }
-        } else {
-            if ( playerState->animation.isCrouched ) {
-                baseAnimStr = "crouch";
-                frameTime -= 5.f;
-            } else if ( playerState->animation.isWalking ) {
-                baseAnimStr = "walk";
-                frameTime *= 0.5;
-            } else {
-                baseAnimStr = "run";
-                frameTime -= 5.f;
-            }
-        }
-
-        // Directions:
-        //if ( ( moveFlags & ANIM_MOVE_CROUCH ) || ( moveFlags & ANIM_MOVE_RUN ) || ( moveFlags & ANIM_MOVE_WALK ) ) {
-        if ( !playerState->animation.isIdle ) {
-            // Get move direction for animation.
-            const int32_t animationMoveDirection = clgi.client->predictedState.currentPs.animation.moveDirection;
-
-            // Append to the baseAnimStr the name of the directional animation.
-            // Forward:
-            if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD ) {
-                baseAnimStr += "_forward";
-            // Forward Left:
-            } else if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD_LEFT ) {
-                baseAnimStr += "_forward_left";
-            // Forward Right:
-            } else if ( animationMoveDirection == PM_MOVEDIRECTION_FORWARD_RIGHT ) {
-                baseAnimStr += "_forward_right";
-            // Backward:
-            } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD ) {
-                baseAnimStr += "_backward";
-            // Backward Left:
-            } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD_LEFT ) {
-                baseAnimStr += "_backward_left";
-            // Backward Right:
-            } else if ( animationMoveDirection == PM_MOVEDIRECTION_BACKWARD_RIGHT ) {
-                baseAnimStr += "_backward_right";
-            // Left:
-            } else if ( animationMoveDirection == PM_MOVEDIRECTION_LEFT ) {
-                baseAnimStr += "_left";
-            // Right:
-            } else if ( animationMoveDirection == PM_MOVEDIRECTION_RIGHT ) {
-                baseAnimStr += "_right";
-            }
-            // Only apply Z translation to the animations if NOT 'In-Air'.
-            if ( !playerState->animation.inAir ) {
-                // Jump?
-                if ( oldPredictedPlayerState->animation.inAir ) {
-                    //jumpAnimStr = "jump_down";
-                // Only translate Z axis for rootmotion rendering.
-                } else {
-                    //rootMotionFlags |= SKM_POSE_TRANSLATE_Z;
-                }
-            } else {
-                if ( !oldPredictedPlayerState->animation.inAir ) {
-                    //jumpAnimStr = "jump_up";
-                } else {
-                    if ( !predictedPlayerState->animation.isCrouched ) {
-                        jumpAnimStr = "jump_air";
-                    }
-                }
-            }
-        // We're idling:
-        } else {
-            baseAnimStr = "idle";
-            // Possible Crouched:
-            if ( playerState->animation.isCrouched ) {
-                baseAnimStr += "_crouch";
-            }
-        }
-        // Add the weapon type stringname to the end.
-        baseAnimStr += dbgStrWeapon;
-    }
-
     // Get the animation state mixer.
     sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
     // Set lower body animation.
     sg_skm_animation_state_t *lowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
 
+    // Third-person/mirrors model of our own client entity:
     if ( CLG_IsViewClientEntity( newState ) ) {
+        // Determine 'Base' animation name.
+        double frameTime = 1.f;
+        const std::string baseAnimStr = SG_Player_GetClientBaseAnimation( &clgi.client->predictedState.lastPs, &clgi.client->predictedState.currentPs, &frameTime );
+
         // Start timer is always just servertime that we had.
         sg_time_t startTimer = sg_time_t::from_ms( clgi.client->servertime );
         // However, if the last body state was of a different animation type, we want to continue using its

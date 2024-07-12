@@ -169,27 +169,34 @@ Slide off of the impacting object
 returns the blocked flags (1 = floor, 2 = step / wall)
 ==================
 */
-#define STOP_EPSILON    0.1f
+#define CLIPVELOCITY_STOP_EPSILON    0.1f
+//! Return bit set in case of having clipped to a floor plane.
+static constexpr int32_t CLIPVELOCITY_CLIPPED_FLOOR = BIT( 0 );
+//! Return bit set in case of having clipped to a step plane. (Straight up wall.)
+static constexpr int32_t CLIPVELOCITY_CLIPPED_STEP  = BIT( 0 );
 
-int ClipVelocity(vec3_t in, vec3_t normal, vec3_t out, float overbounce)
-{
-    float   backoff;
-    float   change;
-    int     i, blocked;
-
-    blocked = 0;
-    if (normal[2] > 0)
+const int32_t SVG_Physics_ClipVelocity( Vector3 &in, vec3_t normal, Vector3 &out, const double overbounce) {
+    // Determine if clip got 'blocked'.
+    int32_t blocked = 0;
+    if ( normal[ 2 ] > 0 ) {
         blocked |= 1;       // floor
-    if (!normal[2])
+    }
+    if ( !normal[ 2 ] ) {
         blocked |= 2;       // step
+    }
+    // Backoff factor.
+    const float backOff = QM_Vector3DotProduct(in, normal) * overbounce;
 
-    backoff = DotProduct(in, normal) * overbounce;
-
-    for (i = 0; i < 3; i++) {
-        change = normal[i] * backoff;
-        out[i] = in[i] - change;
-        if (out[i] > -STOP_EPSILON && out[i] < STOP_EPSILON)
-            out[i] = 0;
+    // Calculate and apply change.
+    for ( int32_t i = 0; i < 3; i++ ) {
+        // Calculate change for axis.
+        const float change = normal[ i ] * backOff;
+        // Apply velocity change.
+        out[ i ] = in[ i ] - change;
+        // Halt if we're past epsilon.
+        if ( out[ i ] > -CLIPVELOCITY_STOP_EPSILON && out[ i ] < CLIPVELOCITY_STOP_EPSILON ) {
+            out[ i ] = 0;
+        }
     }
 
     return blocked;
@@ -214,8 +221,8 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
     vec3_t      dir;
     float       d;
     int         numplanes;
-    vec3_t      planes[MAX_CLIP_PLANES];
-    vec3_t      primal_velocity, original_velocity, new_velocity;
+    Vector3     planes[MAX_CLIP_PLANES];
+    Vector3      primal_velocity, original_velocity, new_velocity;
     int         i, j;
     trace_t     trace;
     vec3_t      end;
@@ -290,7 +297,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
 // modify original_velocity so it parallels all of the clip planes
 //
         for (i = 0; i < numplanes; i++) {
-            ClipVelocity(original_velocity, planes[i], new_velocity, 1);
+            SVG_Physics_ClipVelocity(original_velocity, &planes[i].x, new_velocity, 1);
 
             for (j = 0; j < numplanes; j++)
                 if ((j != i) && !VectorCompare(planes[i], planes[j])) {
@@ -745,7 +752,7 @@ void SV_Physics_Toss(edict_t *ent)
         else
             backoff = 1;
 
-        ClipVelocity(ent->velocity, trace.plane.normal, ent->velocity, backoff);
+        SVG_Physics_ClipVelocity(ent->velocity, trace.plane.normal, ent->velocity, backoff);
 
         // stop if on ground
         if (trace.plane.normal[2] > 0.7f) {
