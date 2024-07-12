@@ -484,30 +484,30 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         if (!self->deadflag) {
             static int i;
 
-            i = (i + 1) % 3;
-            // start a death animation
-            self->client->anim_priority = ANIM_DEATH;
-            if (self->client->ps.pmove.pm_flags & PMF_DUCKED) {
-                self->s.frame = FRAME_crdeath1 - 1;
-                self->client->anim_end = FRAME_crdeath5;
-            } else switch (i) {
-                case 0:
-                    self->s.frame = FRAME_death101 - 1;
-                    self->client->anim_end = FRAME_death106;
-                    break;
-                case 1:
-                    self->s.frame = FRAME_death201 - 1;
-                    self->client->anim_end = FRAME_death206;
-                    break;
-                case 2:
-                    self->s.frame = FRAME_death301 - 1;
-                    self->client->anim_end = FRAME_death308;
-                    break;
-                }
+            gi.dprintf( "%s: WID: TODO: Implement a player death player animation here\n", __func__ );
+
+            //i = (i + 1) % 3;
+            //// start a death animation
+            //self->client->anim_priority = ANIM_DEATH;
+            //if (self->client->ps.pmove.pm_flags & PMF_DUCKED) {
+            //    self->s.frame = FRAME_crdeath1 - 1;
+            //    self->client->anim_end = FRAME_crdeath5;
+            //} else switch (i) {
+            //    case 0:
+            //        self->s.frame = FRAME_death101 - 1;
+            //        self->client->anim_end = FRAME_death106;
+            //        break;
+            //    case 1:
+            //        self->s.frame = FRAME_death201 - 1;
+            //        self->client->anim_end = FRAME_death206;
+            //        break;
+            //    case 2:
+            //        self->s.frame = FRAME_death301 - 1;
+            //        self->client->anim_end = FRAME_death308;
+            //        break;
+            //    }
             //gi.sound(self, CHAN_VOICE, gi.soundindex(va("*death%i.wav", (Q_rand() % 4) + 1)), 1, ATTN_NORM, 0);
             gi.sound( self, CHAN_VOICE, gi.soundindex( va( "player/death0%i.wav", ( irandom(0, 4) ) + 1 ) ), 1, ATTN_NORM, 0 );
-
-			self->client->anim_time = 0_ms; // WID: 40hz:
         }
     }
 

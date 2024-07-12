@@ -116,32 +116,9 @@ static void P_DamageFeedback( edict_t *player ) {
 	}
 
 	// start a pain animation if still in the player model
-	if ( client->anim_priority < ANIM_PAIN && player->s.modelindex == MODELINDEX_PLAYER ) {
-		static int      i;
-
-		client->anim_priority = ANIM_PAIN;
-		if ( client->ps.pmove.pm_flags & PMF_DUCKED ) {
-			player->s.frame = FRAME_crpain1 - 1;
-			client->anim_end = FRAME_crpain4;
-		} else {
-			i = ( i + 1 ) % 3;
-			switch ( i ) {
-				case 0:
-					player->s.frame = FRAME_pain101 - 1;
-					client->anim_end = FRAME_pain104;
-					break;
-				case 1:
-					player->s.frame = FRAME_pain201 - 1;
-					client->anim_end = FRAME_pain204;
-					break;
-				case 2:
-					player->s.frame = FRAME_pain301 - 1;
-					client->anim_end = FRAME_pain304;
-					break;
-			}
-		}
-
-		client->anim_time = 0_ms; // WID: 40hz:
+	if ( /*client->anim_priority < ANIM_PAIN &&*/ player->s.modelindex == MODELINDEX_PLAYER ) {
+		// WID: TODO:
+		// ?? SG_PMoveState_AddExternalEvent( ... );
 	}
 
 	const float realcount = count;

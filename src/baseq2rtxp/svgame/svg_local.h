@@ -1417,12 +1417,6 @@ struct gclient_s {
     //! Each body state is made out of 9 bits, where the 9th bit is the animation toggle flag.
     sg_skm_animation_mixer_t animationMixer;
 
-    //! TODO: Get rid of.
-    int32_t     anim_end;
-    int32_t     anim_priority;
-    bool		anim_duck;
-    bool		anim_run;
-	sg_time_t	anim_time;
 
 	/**
 	*	Item/Use Event Timers:

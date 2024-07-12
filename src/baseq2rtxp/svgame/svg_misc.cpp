@@ -244,8 +244,9 @@ void ThrowClientHead(edict_t *self, int damage)
     VectorAdd(self->velocity, vd, self->velocity);
 
     if (self->client) { // bodies in the queue don't have a client anymore
-        self->client->anim_priority = ANIM_DEATH;
-        self->client->anim_end = self->s.frame;
+        gi.dprintf( "%s: WID: TODO: Implement client death animation here!\n", __func__ );
+        //self->client->anim_priority = ANIM_DEATH;
+        //self->client->anim_end = self->s.frame;
     } else {
         self->think = NULL;
         self->nextthink = 0_ms;

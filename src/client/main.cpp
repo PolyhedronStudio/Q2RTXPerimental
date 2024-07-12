@@ -2520,7 +2520,7 @@ static const cmdreg_t c_client[] = {
 
     { "score" }, //, CL_ToggleScoreboard_f },
 
-    { "wave" }, { "inven" }, { "kill" }, { "use" },
+    { "inven" }, { "kill" }, { "use" },
     { "drop" }, { "info" }, { "prog" },
     { "give" }, { "god" }, { "notarget" }, { "noclip" },
     { "invuse" }, { "invprev" }, { "invnext" }, { "invdrop" },

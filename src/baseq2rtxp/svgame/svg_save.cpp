@@ -459,12 +459,6 @@ static const save_field_t clientfields[] = {
     I( old_waterlevel ),
 	I64( next_drown_time ),
 
-	I( anim_end ),
-	I( anim_priority ),
-	O( anim_duck ),
-	O( anim_run ),
-    I64( anim_time ),
-
     I64( pickup_msg_time ), // WID: 64-bit-frame
 
     // WID: C++20: Replaced {0}

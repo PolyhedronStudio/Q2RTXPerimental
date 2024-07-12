@@ -678,57 +678,6 @@ void Cmd_Players_f(edict_t *ent)
     gi.cprintf(ent, PRINT_HIGH, "%s\n%i players\n", large, count);
 }
 
-/*
-=================
-Cmd_Wave_f
-=================
-*/
-void Cmd_Wave_f(edict_t *ent)
-{
-    int     i;
-
-    i = atoi(gi.argv(1));
-
-    // can't wave when ducked
-    if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-        return;
-
-    if (ent->client->anim_priority > ANIM_WAVE)
-        return;
-
-    ent->client->anim_priority = ANIM_WAVE;
-
-    switch (i) {
-    case 0:
-        gi.cprintf(ent, PRINT_HIGH, "flipoff\n");
-        ent->s.frame = FRAME_flip01 - 1;
-        ent->client->anim_end = FRAME_flip12;
-        break;
-    case 1:
-        gi.cprintf(ent, PRINT_HIGH, "salute\n");
-        ent->s.frame = FRAME_salute01 - 1;
-        ent->client->anim_end = FRAME_salute11;
-        break;
-    case 2:
-        gi.cprintf(ent, PRINT_HIGH, "taunt\n");
-        ent->s.frame = FRAME_taunt01 - 1;
-        ent->client->anim_end = FRAME_taunt17;
-        break;
-    case 3:
-        gi.cprintf(ent, PRINT_HIGH, "wave\n");
-        ent->s.frame = FRAME_wave01 - 1;
-        ent->client->anim_end = FRAME_wave11;
-        break;
-    case 4:
-    default:
-        gi.cprintf(ent, PRINT_HIGH, "point\n");
-        ent->s.frame = FRAME_point01 - 1;
-        ent->client->anim_end = FRAME_point12;
-        break;
-    }
-
-	ent->client->anim_time = 0_ms; // WID: 40hz:
-}
 
 static bool FloodProtect(edict_t *ent)
 {
@@ -938,8 +887,6 @@ void ClientCommand(edict_t *ent)
     //
     } else if ( Q_stricmp( cmd, "kill" ) == 0 ) {
         Cmd_Kill_f( ent );
-    } else if ( Q_stricmp( cmd, "wave" ) == 0 ) {
-        Cmd_Wave_f( ent );
     } else if ( Q_stricmp( cmd, "playerlist" ) == 0 ) {
         Cmd_PlayerList_f( ent );
     } else if ( Q_stricmp( cmd, "weapflare" ) == 0 ) {

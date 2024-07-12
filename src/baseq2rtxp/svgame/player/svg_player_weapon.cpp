@@ -223,15 +223,16 @@ allowchange:
     P_Weapon_SwitchMode( ent, WEAPON_MODE_DRAWING, (const weapon_mode_animation_t*)ent->client->pers.weapon->info, true );
 
     // Adjust player client animation.
-    ent->client->anim_priority = ANIM_PAIN;
-    if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
-        ent->s.frame = FRAME_crpain1;
-        ent->client->anim_end = FRAME_crpain4;
-    } else {
-        ent->s.frame = FRAME_pain301;
-        ent->client->anim_end = FRAME_pain304;
-    }
-	ent->client->anim_time = 0_ms;
+    gi.dprintf( "%s: WID: TODO: Implement weapon draw player animation here\n", __func__ );
+ //   ent->client->anim_priority = ANIM_PAIN;
+ //   if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
+ //       ent->s.frame = FRAME_crpain1;
+ //       ent->client->anim_end = FRAME_crpain4;
+ //   } else {
+ //       ent->s.frame = FRAME_pain301;
+ //       ent->client->anim_end = FRAME_pain304;
+ //   }
+	//ent->client->anim_time = 0_ms;
 }
 
 /**
