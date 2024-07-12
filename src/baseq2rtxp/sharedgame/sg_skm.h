@@ -116,18 +116,18 @@ const skm_anim_t *SG_SKM_GetAnimationForHandle( const model_t *model, const qhan
 /**
 *	@brief	Encodes the composed body animation part states into a single uint32_t, each one having a limit of 255. 
 **/
-static inline uint32_t SG_EncodeAnimationState( const uint8_t lowerBodyAnimation, const uint8_t upperBodyAnimation, const uint8_t headAnimation/*, const uint8_t framerate*/ ) {
-	const uint32_t animationState = ( ( ( lowerBodyAnimation & 0xff ) << 0 ) | ( ( upperBodyAnimation & 0xff ) << 8 ) | ( ( headAnimation & 0xff ) << 16 ) /*| ( ( framerate & 0xff ) << 24 )*/ );
+static inline uint32_t SG_EncodeAnimationState( const uint8_t lowerBodyAnimation, const uint8_t upperBodyAnimation, const uint8_t headAnimation, const uint8_t frameRate ) {
+	const uint32_t animationState = ( ( ( lowerBodyAnimation & 0xff ) << 0 ) | ( ( upperBodyAnimation & 0xff ) << 8 ) | ( ( headAnimation & 0xff ) << 16 ) | ( ( frameRate & 0xff ) << 24 ) );
 	return animationState;
 }
 /**
 *	@brief	Decodes the body animations from a single uint32_t.
 **/
-static inline void SG_DecodeAnimationState( const uint32_t animationState, uint8_t *lowerBodyAnimation, uint8_t *upperBodyAnimation, uint8_t *headAnimation/*, uint8_t *frameRate*/ ) {
+static inline void SG_DecodeAnimationState( const uint32_t animationState, uint8_t *lowerBodyAnimation, uint8_t *upperBodyAnimation, uint8_t *headAnimation, uint8_t *frameRate ) {
 	*lowerBodyAnimation = ( animationState & 0xff );
 	*upperBodyAnimation = ( ( animationState >> 8 ) & 0xff );
 	*headAnimation = ( ( animationState >> 16 ) & 0xff );
-	//*framerate = ( ( animationState >> 24 ) & 255 );
+	*frameRate = ( ( animationState >> 24 ) & 255 ); // 1000 / frameRate == FrameTime(ms)
 }
 
 
@@ -160,3 +160,8 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 *	@brief	Will set the animation matching 'name' for the animation state. Forced, if desired.
 **/
 const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const char *animationName, const sg_time_t &startTime, const double frameTime, const bool forceLoop, const bool forceSet );
+/**
+*	@brief	Will set the animation matching 'animationID' of the animation state.
+*			Will force set the aniamtion, if desired.
+**/
+const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const qhandle_t animationID, const sg_time_t &startTime, const double frameTime, const bool forceLoop, const bool forceSet );

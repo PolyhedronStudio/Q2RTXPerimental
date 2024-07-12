@@ -642,70 +642,65 @@ void SKM_RecursiveBlendFromBone( skm_transform_t *addBonePoses, skm_transform_t 
 	}
 
 	// Get bone number.
-	const int32_t boneNumber = ( boneNode->number >= 0 ? boneNode->number : 0 );
+	const int32_t boneNumber = ( boneNode->number > 0 ? boneNode->number : 0 );
 	//const int32_t parentBoneNumber = boneNode->parentNumber >= 0 ? boneNode->parentNumber : boneNumber;
 
 	// Proceed if the bone number is valid.
+	skm_transform_t *inBone = addBonePoses;
+	skm_transform_t *outBone = addToBonePoses;
 	if ( boneNumber >= 0 ) {
-		skm_transform_t *inBone = addBonePoses + boneNumber;
-		skm_transform_t *outBone = addToBonePoses + boneNumber;
+		inBone += boneNumber;
+		outBone += boneNumber;
+	}
 
-		if ( fraction == 1 ) {
-			#if 1
-			*outBone = *inBone;
-			if ( boneNumber == 0 ) {
-				outBone->translate[ 0 ] = 0;
-				outBone->translate[ 1 ] = 0;
-				//outBone->translate[ 2 ] = 0;
-			}
-			#else
-			// Copy Translation.
-			*outBone->translate = *inBone->translate;
-			// Copy Scale.
-			*outBone->scale = *inBone->scale;
-			// Slerp the rotation at fraction.	
-			*outBone->rotate = *inBone->rotate;
-			#endif
-		} else {
-			//	WID: Unsure if actually lerping these is favored.
-			#if 0 
-			const double frontLerp = 1.0 - backLerp;
-			// Lerp the Translation.
-			//*outBone->translate = *inBone->translate;
-			outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
-			outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
-			outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
-			// Lerp the  Scale.
-			//*outBone->scale = *inBone->scale;
-			outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
-			outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
-			outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;
+	if ( fraction == 1 ) {
+		#if 1
+		*outBone = *inBone;
+		// Slerp the rotation at fraction.	
+		//*outBone->rotate = *inBone->rotate;
+		//QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+		#else
+		// Copy Translation.
+		*outBone->translate = *inBone->translate;
+		// Copy Scale.
+		*outBone->scale = *inBone->scale;
+		// Slerp the rotation at fraction.	
+		*outBone->rotate = *inBone->rotate;
+		#endif
+	} else {
+		//	WID: Unsure if actually lerping these is favored.
+		#if 0 
+		const double frontLerp = 1.0 - backLerp;
+		// Lerp the Translation.
+		//*outBone->translate = *inBone->translate;
+		outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
+		outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
+		outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
+		// Lerp the  Scale.
+		//*outBone->scale = *inBone->scale;
+		outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
+		outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
+		outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;
 
-			// Slerp the rotation
-			//*outBone->rotate = *inBone->rotate;
-			QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
-			#else
-			// Copy Translation.
-			*outBone->translate = *inBone->translate;
-			if ( boneNumber == 0 ) {
-				outBone->translate[ 0 ] = 0;
-				outBone->translate[ 1 ] = 0;
-				//outBone->translate[ 2 ] = 0;
-			}
-			// Copy Scale.
-			*outBone->scale = *inBone->scale; //vec3_scale(inBone->scale, 1.175);
-			// Slerp the rotation at fraction.	
-			//*outBone->rotate = *inBone->rotate;
-			QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
-			#endif
-		}
+		// Slerp the rotation
+		//*outBone->rotate = *inBone->rotate;
+		QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+		#else
+		// Copy Translation.
+		*outBone->translate = *inBone->translate;
+		// Copy Scale.
+		*outBone->scale = *inBone->scale; //vec3_scale(inBone->scale, 1.175);
+		// Slerp the rotation at fraction.	
+		//*outBone->rotate = *inBone->rotate;
+		QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+		#endif
+	}
 
-		// Recursively blend all thise bone node's children.
-		for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
-			const skm_bone_node_t *childBoneNode = boneNode->childBones[ i ];
-			if ( childBoneNode != nullptr && childBoneNode->numberOfChildNodes > 0 ) {
-				SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, childBoneNode, backLerp, fraction );
-			}
+	// Recursively blend all thise bone node's children.
+	for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
+		const skm_bone_node_t *childBoneNode = boneNode->childBones[ i ];
+		if ( childBoneNode != nullptr && childBoneNode->numberOfChildNodes > 0 ) {
+			SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, childBoneNode, backLerp, fraction );
 		}
 	}
 }

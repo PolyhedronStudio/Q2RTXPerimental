@@ -301,6 +301,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/monsters/svg_mmove.cpp
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.cpp
 
+	baseq2rtxp/svgame/player/svg_player_animation.cpp
 	baseq2rtxp/svgame/player/svg_player_client.cpp
 	baseq2rtxp/svgame/player/svg_player_hud.cpp
 	baseq2rtxp/svgame/player/svg_player_trail.cpp

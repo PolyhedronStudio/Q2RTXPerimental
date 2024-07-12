@@ -956,20 +956,22 @@ void SP_worldspawn(edict_t *ent)
     } else {
         gi.configstring( CS_STATUSBAR, single_statusbar );
     }
+    
+    // Gravity.
+    if ( !st.gravity ) {
+        gi.cvar_set( "sv_gravity", "800" );
+    } else {
+        gi.cvar_set( "sv_gravity", st.gravity );
+    }
 
-    //---------------
-
+    // Certain precaches.
+    gi.modelindex( "players/playerdummy/tris.iqm" );
 
     // help icon for statusbar
     gi.imageindex("i_help");
     level.pic_health = gi.imageindex("i_health");
     gi.imageindex("help");
     gi.imageindex("field_3");
-
-    if (!st.gravity)
-        gi.cvar_set("sv_gravity", "800");
-    else
-        gi.cvar_set("sv_gravity", st.gravity);
 
     PrecacheItem(FindItem( "Fists" ));
     PrecacheItem(FindItem("Pistol"));

@@ -1208,6 +1208,7 @@ struct gclient_s {
     *	Known and Shared with the Server:
     /**/
     player_state_t  ps;             // communicated by server to clients
+    player_state_t  ops;            // old player state from the previous frame.
     int64_t         ping;			// WID: 64-bit-frame
 
 	/**
@@ -1411,6 +1412,12 @@ struct gclient_s {
 	/**
     *	Animation Related:
 	**/
+    //! Used for 'Humanoid Skeletal Model' entities. (Monsters, Players, ...)
+    //! The body states are encoded into the 'frame' state value.
+    //! Each body state is made out of 9 bits, where the 9th bit is the animation toggle flag.
+    sg_skm_animation_mixer_t animationMixer;
+
+    //! TODO: Get rid of.
     int32_t     anim_end;
     int32_t     anim_priority;
     bool		anim_duck;

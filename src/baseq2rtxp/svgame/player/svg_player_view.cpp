@@ -806,106 +806,20 @@ void G_SetClientFrame( edict_t *ent ) {
 
 	// Acquire its client info.
 	gclient_t *client = ent->client;
-
-	// Ducked?
-	bool duck = false;
-	if ( client->ps.pmove.pm_flags & PMF_DUCKED ) {
-		duck = true;
+	if ( !client ) {
+		return; // Need a client entity.
 	}
 
-	// Walk/Running ?
-	bool run = false;
-	if ( client->ps.xySpeed ) {
-		run = true;
-	}
+	// Get the model resource.
+	const model_t *model = gi.GetModelDataForName( ent->model );
 
-	// check for stand/duck and stop/go transitions
-	if ( duck != client->anim_duck && client->anim_priority < ANIM_DEATH ) {
-		goto newanim;
-	}
-	if ( run != client->anim_run && client->anim_priority == ANIM_BASIC ) {
-		goto newanim;
-	}
-	if ( !ent->groundInfo.entity && client->anim_priority <= ANIM_WAVE ) {
-		goto newanim;
-	}
+	// Get animation mixer.
+	sg_skm_animation_mixer_t *animationMixer = &client->animationMixer;
+	// Set lower 'Base' body animation.
+	sg_skm_animation_state_t *lowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
 
-	// WID: 40hz:
-	if ( client->anim_time > level.time ) {
-		return;
-	} else if ( client->anim_priority == ANIM_REVERSED ) {
-		if ( client->anim_time <= level.time ) {
-			ent->s.frame--;
-			client->anim_time = level.time + 10_hz; // WID: 40hz:
-		}
-		return;
-	} else if ( ent->s.frame < client->anim_end ) {
-		// continue an animation
-		if ( client->anim_time <= level.time ) {
-			ent->s.frame++;
-			client->anim_time = level.time + 10_hz; // WID: 40hz:
-		}
-		return;
-	}
-
-	// If death is prioritized, stay death anim.
-	if ( client->anim_priority == ANIM_DEATH ) {
-		// Stay there.
-		return;
-	}
-	// Jumping.
-	if ( client->anim_priority == ANIM_JUMP ) {
-		// If we're not on-ground we're already jumping.
-		if ( !ent->groundInfo.entity ) {
-			return;     // stay there
-		}
-		// I have no clue why this is here.
-		ent->client->anim_priority = ANIM_WAVE;
-
-		// WID: 40hz:
-		if ( duck ) {
-			ent->s.frame = FRAME_jump6;
-			ent->client->anim_end = FRAME_jump4;
-			ent->client->anim_priority |= ANIM_REVERSED;
-		} else {
-			ent->s.frame = FRAME_jump3;
-			ent->client->anim_end = FRAME_jump6;
-		}
-		ent->client->anim_time = level.time + 10_hz; // WID: 40hz:
-		return;
-	}
-
-newanim:
-	// return to either a running or standing frame
-	client->anim_priority = ANIM_BASIC;
-	client->anim_duck = duck;
-	client->anim_run = run;
-	client->anim_time = level.time + 10_hz; // WID: 40hz:
-
-	if ( !ent->groundInfo.entity ) {
-		client->anim_priority = ANIM_JUMP;
-		if ( ent->s.frame != FRAME_jump2 )
-			ent->s.frame = FRAME_jump1;
-		client->anim_end = FRAME_jump2;
-	} else if ( run ) {
-		// running
-		if ( duck ) {
-			ent->s.frame = FRAME_crwalk1;
-			client->anim_end = FRAME_crwalk6;
-		} else {
-			ent->s.frame = FRAME_run1;
-			client->anim_end = FRAME_run6;
-		}
-	} else {
-		// standing
-		if ( duck ) {
-			ent->s.frame = FRAME_crstnd01;
-			client->anim_end = FRAME_crstnd19;
-		} else {
-			ent->s.frame = FRAME_stand01;
-			client->anim_end = FRAME_stand40;
-		}
-	}
+	// Encode the body specifics into the frame value.
+	ent->s.frame = SG_EncodeAnimationState( lowerBodyState->animationID, 0, 0, /*lowerBodyState->frameTime*/BASE_FRAMERATE );
 }
 
 

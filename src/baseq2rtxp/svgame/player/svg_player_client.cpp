@@ -23,6 +23,15 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo);
 
 void SP_misc_teleporter_dest(edict_t *ent);
 
+/**
+*   @brief  Returns a string stating the determined 'Base' animation, and sets the FrameTime value for frameTime pointer.
+**/
+const std::string SVG_P_DetermineClientBaseAnimation( const player_state_t *oldPlayerState, const player_state_t *playerState, double *frameTime );
+/**
+*   @brief  Will process(progress) the entity's active animations for each body state and event states.
+**/
+void SVG_P_ProcessAnimations( edict_t *ent );
+
 //
 // Gross, ugly, disgustuing hack section
 //
@@ -824,9 +833,15 @@ void    SelectSpawnPoint( edict_t *ent, vec3_t origin, vec3_t angles ) {
     VectorCopy( spot->s.angles, angles );
 }
 
-//======================================================================
 
 
+/**
+* 
+* 
+*   Body Death & Queue
+* 
+* 
+**/
 void InitBodyQue( void ) {
     int     i;
     edict_t *ent;
@@ -903,6 +918,15 @@ void CopyToBodyQue( edict_t *ent ) {
     gi.linkentity( body );
 }
 
+
+
+/**
+*
+*
+*   Respawns:
+*
+*
+**/
 void respawn( edict_t *self ) {
     if ( deathmatch->value || coop->value ) {
         // spectator's don't leave bodies
@@ -1009,8 +1033,13 @@ void spectator_respawn( edict_t *ent ) {
     }
 }
 
-//==============================================================
-
+/**
+*
+*
+*   Client Utilities:
+*
+*
+**/
 /**
 *   @brief  Will reset the entity client's 'Field of View' back to its defaults.
 **/
@@ -1031,6 +1060,148 @@ void P_ResetPlayerStateFOV( gclient_t *client ) {
     }
 }
 
+/**
+*   @brief  Determine the impacting falling damage to take. Called directly by ClientThink after each PMove.
+**/
+void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
+    int	   damage;
+    vec3_t dir;
+
+    // Dead stuff can't crater.
+    if ( ent->health <= 0 || ent->deadflag ) {
+        return;
+    }
+
+    if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
+        return; // not in the player model
+    }
+
+    if ( ent->movetype == MOVETYPE_NOCLIP ) {
+        return;
+    }
+
+    // Never take falling damage if completely underwater.
+    if ( pm.liquid.level == LIQUID_UNDER ) {
+        return;
+    }
+
+    // ZOID
+    //  never take damage if just release grapple or on grapple
+    //if ( ent->client->ctf_grapplereleasetime >= level.time ||
+    //    ( ent->client->ctf_grapple &&
+    //        ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY ) )
+    //    return;
+    // ZOID
+
+    float delta = pm.impact_delta;
+
+    delta = delta * delta * 0.0001f;
+
+    if ( pm.liquid.level == LIQUID_WAIST ) {
+        delta *= 0.25f;
+    }
+    if ( pm.liquid.level == LIQUID_FEET ) {
+        delta *= 0.5f;
+    }
+
+    if ( delta < 1 ) {
+        return;
+    }
+
+    // WID: restart footstep timer <- NO MORE!! Because doing so causes the weapon bob 
+    // position to insta shift back to start.
+    //ent->client->ps.bobCycle = 0;
+
+    //if ( ent->client->landmark_free_fall ) {
+    //    delta = min( 30.f, delta );
+    //    ent->client->landmark_free_fall = false;
+    //    ent->client->landmark_noise_time = level.time + 100_ms;
+    //}
+
+    if ( delta < 15 ) {
+        if ( !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) {
+            ent->s.event = EV_FOOTSTEP;
+            //gi.dprintf( "%s: delta < 15 footstep\n", __func__ );
+        }
+        return;
+    }
+
+    ent->client->viewMove.fallValue = delta * 0.5f;
+    if ( ent->client->viewMove.fallValue > 40 ) {
+        ent->client->viewMove.fallValue = 40;
+    }
+    ent->client->viewMove.fallTime = level.time + FALL_TIME();
+
+    if ( delta > 30 ) {
+        if ( delta >= 55 ) {
+            ent->s.event = EV_FALLFAR;
+        } else {
+            ent->s.event = EV_FALL;
+        }
+
+        // WID: We DO want the VOICE channel to SHOUT in PAIN
+        //ent->pain_debounce_time = level.time + FRAME_TIME_S; // No normal pain sound.
+
+        damage = (int)( ( delta - 30 ) / 2 );
+        if ( damage < 1 ) {
+            damage = 1;
+        }
+        VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
+
+        if ( !deathmatch->integer ) {
+            T_Damage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
+        }
+    } else {
+        ent->s.event = EV_FALLSHORT;
+    }
+
+    // Paril: falling damage noises alert monsters
+    if ( ent->health ) {
+        P_PlayerNoise( ent, &pm.playerState->pmove.origin[ 0 ], PNOISE_SELF );
+    }
+}
+
+
+
+/**
+*
+*
+*   Client PMove Clip/Trace/PointContents:
+*
+*
+**/
+/**
+*   @brief  Player Move specific 'Trace' wrapper implementation.
+**/
+static const trace_t q_gameabi SV_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
+    //if (pm_passent->health > 0)
+    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
+    //else
+    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
+    return gi.trace( start, mins, maxs, end, (edict_t *)passEntity, contentMask );
+}
+/**
+*   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
+**/
+static const trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
+    return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
+}
+/**
+*   @brief  Player Move specific 'PointContents' wrapper implementation.
+**/
+static const contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
+    return gi.pointcontents( point );
+}
+
+
+
+/**
+*
+*
+*   Client Callbacks:
+*
+*
+**/
 /**
 *   @brief  Called either when a player connects to a server, OR respawns in a multiplayer game.
 **/
@@ -1518,133 +1689,6 @@ void ClientDisconnect(edict_t *ent)
     //gi.configstring (CS_PLAYERSKINS+playernum, "");
 }
 
-
-//==============================================================
-
-/**
-*   @brief  Player Move specific 'Trace' wrapper implementation.
-**/
-static const trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
-    //if (pm_passent->health > 0)
-    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
-    //else
-    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
-    return gi.trace( start, mins, maxs, end, (edict_t*)passEntity, contentMask );
-}
-/**
-*   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
-**/
-static const trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
-    return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
-}
-/**
-*   @brief  Player Move specific 'PointContents' wrapper implementation.
-**/
-static const contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
-    return gi.pointcontents( point );
-}
-
-/**
-*   @brief  Determine the impacting falling damage to take. Called directly by ClientThink after each PMove.
-**/
-void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
-    int	   damage;
-    vec3_t dir;
-
-    // Dead stuff can't crater.
-    if ( ent->health <= 0 || ent->deadflag ) {
-        return;
-    }
-
-    if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
-        return; // not in the player model
-    }
-
-    if ( ent->movetype == MOVETYPE_NOCLIP ) {
-        return;
-    }
-
-    // Never take falling damage if completely underwater.
-    if ( pm.liquid.level == LIQUID_UNDER ) {
-        return;
-    }
-
-    // ZOID
-    //  never take damage if just release grapple or on grapple
-    //if ( ent->client->ctf_grapplereleasetime >= level.time ||
-    //    ( ent->client->ctf_grapple &&
-    //        ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY ) )
-    //    return;
-    // ZOID
-
-    float delta = pm.impact_delta;
-
-    delta = delta * delta * 0.0001f;
-
-    if ( pm.liquid.level == LIQUID_WAIST ) {
-        delta *= 0.25f;
-    }
-    if ( pm.liquid.level == LIQUID_FEET ) {
-        delta *= 0.5f;
-    }
-
-    if ( delta < 1 ) {
-        return;
-    }
-
-    // WID: restart footstep timer <- NO MORE!! Because doing so causes the weapon bob 
-    // position to insta shift back to start.
-    //ent->client->ps.bobCycle = 0;
-
-    //if ( ent->client->landmark_free_fall ) {
-    //    delta = min( 30.f, delta );
-    //    ent->client->landmark_free_fall = false;
-    //    ent->client->landmark_noise_time = level.time + 100_ms;
-    //}
-
-    if ( delta < 15 ) {
-        if ( !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) {
-            ent->s.event = EV_FOOTSTEP;
-            //gi.dprintf( "%s: delta < 15 footstep\n", __func__ );
-        }
-        return;
-    }
-
-    ent->client->viewMove.fallValue = delta * 0.5f;
-    if ( ent->client->viewMove.fallValue > 40 ) {
-        ent->client->viewMove.fallValue = 40;
-    }
-    ent->client->viewMove.fallTime = level.time + FALL_TIME();
-
-    if ( delta > 30 ) {
-        if ( delta >= 55 ) {
-            ent->s.event = EV_FALLFAR;
-        } else {
-            ent->s.event = EV_FALL;
-        }
-
-        // WID: We DO want the VOICE channel to SHOUT in PAIN
-        //ent->pain_debounce_time = level.time + FRAME_TIME_S; // No normal pain sound.
-
-        damage = (int)( ( delta - 30 ) / 2 );
-        if ( damage < 1 ) {
-            damage = 1;
-        }
-        VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
-
-        if ( !deathmatch->integer ) {
-            T_Damage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
-        }
-    } else {
-        ent->s.event = EV_FALLSHORT;
-    }
-
-    // Paril: falling damage noises alert monsters
-    if ( ent->health ) {
-        P_PlayerNoise( ent, &pm.playerState->pmove.origin[ 0 ], PNOISE_SELF );
-    }
-}
-
 /**
 *   @brief  This will be called once for each client frame, which will usually 
 *           be a couple times for each server frame.
@@ -1652,6 +1696,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
 void ClientThink(edict_t *ent, usercmd_t *ucmd) {
     // Set the entity that is being processed.
     level.current_entity = ent;
+
     // Warn in case if it is not a client.
     if ( !ent) {
         gi.bprintf( PRINT_WARNING, "%s: ent == nullptr\n", __func__ );
@@ -1665,6 +1710,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
         gi.bprintf( PRINT_WARNING, "%s: ent->client == nullptr\n", __func__ );
         return;
     }
+
+    // Backup the old player state.
+    client->ops = client->ps;
 
 	// Configure pmove.
     pmove_t pm = {};
@@ -1893,6 +1941,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
         //}
     }
 
+    // Finally process the actual player_state animations.
+    SVG_P_ProcessAnimations( ent );
 
     /**
     *   Spectator/Chase-Cam specific behaviors:
