@@ -900,6 +900,8 @@ void CL_GM_LoadProgs( void ) {
 	imports.SKM_PoseCache_AcquireCachedMemoryBlock = PF_SKM_PoseCache_AcquireCachedMemoryBlock;
 	//	Skeletal Model(IQM) Pose Transform and Lerping:
 	//
+	imports.SKM_LerpBonePoses = SKM_LerpBonePoses;
+	imports.SKM_GetBonePosesForFrame = SKM_GetBonePosesForFrame;
 	imports.SKM_ComputeLerpBonePoses = SKM_ComputeLerpBonePoses;
 	imports.SKM_RecursiveBlendFromBone = SKM_RecursiveBlendFromBone;
 	imports.SKM_TransformBonePosesLocalSpace = SKM_TransformBonePosesLocalSpace;

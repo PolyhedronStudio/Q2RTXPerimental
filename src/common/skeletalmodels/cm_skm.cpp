@@ -406,8 +406,125 @@ fail:
 *
 **/
 /**
-*	@brief	Compute pose transformations for the given model + data
-*			'relativeJoints' must have enough room for model->num_poses
+*	@return	A pointer to the model's bone poses for 'frame'.
+*			Frame will wrap around in case of exceeding the frame pose limit.
+**/
+const skm_transform_t *SKM_GetBonePosesForFrame( const model_t *model, const int32_t frame ) {
+	// Sanity check.
+	if ( !model || !model->skmData ) {
+		return nullptr;
+	}
+
+	// Get IQM Data.
+	skm_model_t *skmData = model->skmData;
+
+	// Keep frame within bounds.
+	const int32_t boundFrame = skmData->num_frames ? frame % (int32_t)skmData->num_frames : 0;
+
+	return &skmData->poses[ boundFrame * skmData->num_poses ];
+}
+
+/**
+*	@brief	:erped pose transformations between frameBonePoses and oldFrameBonePoses.
+*			'outBonePose' must have enough room for model->num_poses
+**/
+void SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags ) {
+	// Sanity check.
+	if ( !model || !model->skmData ) {
+		return;
+	}
+
+	// Get IQM Data.
+	skm_model_t *skmData = model->skmData;
+
+	// Keep bone ID sane.
+	int32_t boundRootMotionBoneID = ( rootMotionBoneID >= 0 ? rootMotionBoneID % (int32_t)skmData->num_joints : -1 );
+	// Fetch first joint.
+	skm_transform_t *relativeJoint = outBonePose;
+
+	// Copy the animation frame pos.
+	if ( frameBonePoses == oldFrameBonePoses ) {
+		const skm_transform_t *pose = frameBonePoses;
+		for ( uint32_t pose_idx = 0; pose_idx < skmData->num_poses; pose_idx++, pose++, relativeJoint++ ) {
+			#if 1
+			if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
+				// Translate the selected axises.
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
+					relativeJoint->translate[ 0 ] = 0;
+				} else {
+					relativeJoint->translate[ 0 ] = pose->translate[ 0 ];
+				}
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
+					relativeJoint->translate[ 1 ] = 0;
+				} else {
+					relativeJoint->translate[ 1 ] = pose->translate[ 1 ];
+				}
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
+					relativeJoint->translate[ 2 ] = 0;
+				} else {
+					relativeJoint->translate[ 2 ] = pose->translate[ 2 ];
+				}
+				// Copy in scale as per usual.
+				VectorCopy( pose->scale, relativeJoint->scale );
+				// Copy quat rotation as usual.
+				QuatCopy( pose->rotate, relativeJoint->rotate );
+				continue;
+			}
+			#endif
+
+			VectorCopy( pose->translate, relativeJoint->translate );
+			QuatCopy( pose->rotate, relativeJoint->rotate );
+			VectorCopy( pose->scale, relativeJoint->scale );
+		}
+		// Lerp the animation frame pose.
+	} else {
+		const skm_transform_t *pose = frameBonePoses;
+		const skm_transform_t *oldPose = oldFrameBonePoses;
+		for ( uint32_t pose_idx = 0; pose_idx < skmData->num_poses; pose_idx++, oldPose++, pose++, relativeJoint++ ) {
+			#if 1
+			if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
+				// Translate the selected axises.
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
+					relativeJoint->translate[ 0 ] = 0;
+				} else {
+					relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0; //relativeJoint->translate[ 0 ] = 0;
+				}
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
+					relativeJoint->translate[ 1 ] = 0;
+				} else {
+					relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0;
+				}
+				if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
+					relativeJoint->translate[ 2 ] = 0;
+				} else {
+					relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+				}
+
+				// Scale Lerp as usual.
+				relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + oldPose->scale[ 0 ] * frontLerp;
+				relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + oldPose->scale[ 1 ] * frontLerp;
+				relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + oldPose->scale[ 2 ] * frontLerp;
+				// Quat Slerp as usual.
+				QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
+				continue;
+			}
+			#endif
+
+			relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp;
+			relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp;
+			relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+
+			relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + oldPose->scale[ 0 ] * frontLerp;
+			relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + oldPose->scale[ 1 ] * frontLerp;
+			relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + oldPose->scale[ 2 ] * frontLerp;
+
+			QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
+		}
+	}
+}
+/**
+*	@brief	Compute lerped pose transformations for the given model's frame/oldFrame.
+*			'outBonePose' must have enough room for model->num_poses
 **/
 void SKM_ComputeLerpBonePoses( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags ) {
 	// Sanity check.
@@ -525,17 +642,22 @@ void SKM_RecursiveBlendFromBone( skm_transform_t *addBonePoses, skm_transform_t 
 	}
 
 	// Get bone number.
-	const int32_t boneNumber = boneNode->number;
+	const int32_t boneNumber = ( boneNode->number >= 0 ? boneNode->number : 0 );
 	//const int32_t parentBoneNumber = boneNode->parentNumber >= 0 ? boneNode->parentNumber : boneNumber;
 
 	// Proceed if the bone number is valid.
-	if ( boneNode->number >= 0 ) {
+	if ( boneNumber >= 0 ) {
 		skm_transform_t *inBone = addBonePoses + boneNumber;
 		skm_transform_t *outBone = addToBonePoses + boneNumber;
 
 		if ( fraction == 1 ) {
 			#if 1
 			*outBone = *inBone;
+			if ( boneNumber == 0 ) {
+				outBone->translate[ 0 ] = 0;
+				outBone->translate[ 1 ] = 0;
+				//outBone->translate[ 2 ] = 0;
+			}
 			#else
 			// Copy Translation.
 			*outBone->translate = *inBone->translate;
@@ -565,6 +687,11 @@ void SKM_RecursiveBlendFromBone( skm_transform_t *addBonePoses, skm_transform_t 
 			#else
 			// Copy Translation.
 			*outBone->translate = *inBone->translate;
+			if ( boneNumber == 0 ) {
+				outBone->translate[ 0 ] = 0;
+				outBone->translate[ 1 ] = 0;
+				//outBone->translate[ 2 ] = 0;
+			}
 			// Copy Scale.
 			*outBone->scale = *inBone->scale; //vec3_scale(inBone->scale, 1.175);
 			// Slerp the rotation at fraction.	

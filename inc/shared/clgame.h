@@ -604,8 +604,18 @@ typedef struct {
 	//	Skeletal Model(IQM) Pose Transform and Lerping:
 	//
 	/**
+	*	@return	A pointer to the model's bone poses for 'frame'.
+	*			Frame will wrap around in case of exceeding the frame pose limit.
+	**/
+	const skm_transform_t *( *SKM_GetBonePosesForFrame )( const model_t *model, const int32_t frame );
+	/**
+	*	@brief	:erped pose transformations between frameBonePoses and oldFrameBonePoses.
+	*			'outBonePose' must have enough room for model->num_poses
+	**/
+	void ( *SKM_LerpBonePoses )( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+	/**
 	*	@brief	Compute pose transformations for the given model + data
-	*			'relativeJoints' must have enough room for model->num_poses
+	*			'outBonePose' must have enough room for model->num_poses
 	**/
 	void ( *SKM_ComputeLerpBonePoses )( const model_t *model, const int32_t frame, const int32_t oldFrame, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
 	/**

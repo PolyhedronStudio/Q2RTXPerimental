@@ -204,7 +204,10 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 	}
 
 	// The old frame of the animation state, possibly the one to lerp from into a new animation.
-	const int32_t oldFrame = animationState->previousFrame;
+	const int32_t oldFrame = animationState->currentFrame;
+
+	// Backup the previously 'current' frame as its last frame.
+	animationState->previousFrame = animationState->currentFrame;
 
 	// Animation start and end frames.
 	const int32_t firstFrame = skmAnimation->first_frame;
@@ -212,7 +215,7 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 
 	// Calculate the actual current frame for the moment in time of the active animation.
 	double lerpFraction = SG_AnimationFrameForTime( &animationState->currentFrame,
-		time, animationState->animationStartTime /*- sg_time_t::from_ms(BASE_FRAMETIME)*/,
+		time, animationState->animationStartTime - sg_time_t::from_ms(BASE_FRAMETIME),
 		// Use the one provided by the animation state instead of the skmData, since we may want to play at a different speed.
 		animationState->frameTime,
 		// Process animation from first to last frame.
@@ -223,11 +226,11 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 
 	// Apply animation to gun model refresh entity.
 	*outCurrentFrame = animationState->currentFrame;
-	if ( oldFrame < firstFrame || oldFrame > lastFrame ) {
-		*outOldFrame = oldFrame;
-	} else {
+	//if ( oldFrame < firstFrame || oldFrame > lastFrame ) {
+	//	*outOldFrame = animationState->previousFrame;
+	//} else {
 		*outOldFrame = ( animationState->currentFrame > firstFrame && animationState->currentFrame <= lastFrame ? animationState->currentFrame - 1 : oldFrame );
-	}
+	//}
 
 	// Whether we are finished playing this animation.
 	bool isPlaybackDone = false;
@@ -241,8 +244,6 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 		*outBackLerp = 0.0;
 	// Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
 	} else if ( *outCurrentFrame == lastFrame ) {
-		// We are done playing this animation now.
-		isPlaybackDone = true;
 		// Full backlerp.
 		*outBackLerp = 1.0;
 	// Otherwise just subtract the resulting lerpFraction.
@@ -256,9 +257,6 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 		// We are done playing this animation now.
 		isPlaybackDone = true;
 	}
-	// Backup the previously 'current' frame as its last frame.
-	animationState->previousFrame = animationState->currentFrame;
-
 	// Return whether finished playing or not.
 	return isPlaybackDone;
 	//// Reached the end of the animation:
@@ -273,7 +271,7 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 /**
 *	@brief	Will set the animation matching 'name' for the animation state. Forced, if desired.
 **/
-const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const char *animationName, const sg_time_t &startTime, const double frameTime, const bool forceSet ) {
+const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const char *animationName, const sg_time_t &startTime, const double frameTime, const bool forceLoop, const bool forceSet ) {
 	// Sanity checks.
 	if ( !animationState ) {
 		SG_DPrintf( "%s: animationState == (nullptr)!\n", __func__ );
@@ -298,6 +296,7 @@ const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_stat
 
 	// Apply the animation either if it is not active yet, or is forcefully set.
 	if ( animationState->animationID != animationID || forceSet ) {
+		// Store source frame data for easy access later on.
 		animationState->srcStartFrame = skmAnimation->first_frame;
 		animationState->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
 
@@ -312,8 +311,9 @@ const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_stat
 		animationState->animationStartTime = sg_time_t::from_ms( clgi.client->servertime );
 		animationState->animationEndTime = sg_time_t::from_ms( clgi.client->servertime + ( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime ) );
 		#endif
-		animationState->isLooping = true;
+		animationState->isLooping = ( skmAnimation->flags & IQM_LOOP ? true : ( forceLoop == true ? true : false ) );
 
+		// TODO: Get these from config?
 		// Apply the rootmotion flags
 		//animationState->rootMotionFlags = rootMotionFlags;
 		// Debug Print:

@@ -69,6 +69,9 @@ typedef struct sg_skm_animation_state_s {
 typedef struct sg_skm_animation_mixer_s {
 	//! Stores the calculated animation state for each of the varying body parts.
 	sg_skm_animation_state_t currentBodyStates[ SKM_BODY_MAX ];
+	//! Stores the last animation state for each of the varying body parts.
+	sg_skm_animation_state_t lastBodyStates[ SKM_BODY_MAX ];
+
 	//! Stores the calculated animation state for each of the varying body parts.
 	sg_skm_animation_state_t eventBodyState[ SKM_MAX_ANIMATION_QUEUE ];
 
@@ -156,4 +159,4 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 /**
 *	@brief	Will set the animation matching 'name' for the animation state. Forced, if desired.
 **/
-const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const char *animationName, const sg_time_t &startTime, const double frameTime, const bool forceSet );
+const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const char *animationName, const sg_time_t &startTime, const double frameTime, const bool forceLoop, const bool forceSet );

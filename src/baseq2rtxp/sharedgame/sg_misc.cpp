@@ -32,10 +32,10 @@ void SG_PMoveState_AddPredictableEvent( const uint8_t newEvent, const uint8_t ev
 		#ifdef CLGAME_INCLUDE
 		SG_DPrintf( "CLGame PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
 		#else
-		SG_DPrintf( "SVGame PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
+		//SG_DPrintf( "SVGame PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
 		#endif
 	}
-
+	#ifndef CLGAME_INCLUDE
 	// Add predicted player move state event.
 	ps->events[ sequenceIndex ] = newEvent;
 	ps->eventParms[ sequenceIndex ] = eventParm;
@@ -50,5 +50,6 @@ void SG_PMoveState_AddPredictableEvent( const uint8_t newEvent, const uint8_t ev
 		SG_DPrintf( "SVGame PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
 		#endif
 	}
+	#endif
 	#endif
 }
