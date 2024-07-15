@@ -280,7 +280,7 @@ static void PM_CycleBob() {
 *	@brief	Inline-wrapper to for convenience.
 **/
 //void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
-//	SG_PMoveState_AddPredictableEvent( newEvent, parameter, &ps->pmove );
+//	SG_PlayerState_AddPredictableEvent( newEvent, parameter, &ps->pmove );
 //}
 
 

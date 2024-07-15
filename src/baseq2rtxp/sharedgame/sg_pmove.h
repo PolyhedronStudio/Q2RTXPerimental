@@ -22,9 +22,22 @@
 typedef enum {
 	PS_EV_NONE = 0,
 
+	//
+	// External Events:
+	//
+	//! Reload Weapon.
+	PS_EV_WEAPON_RELOAD,
+	//! Weapon Primary Fire.
+	PS_EV_WEAPON_PRIMARY_FIRE,
+	//! Weapon Secondary Fire.
+	PS_EV_WEAPON_SECONDARY_FIRE,
+
+
+	//
+	// Non External Events:
+	// 
 	//! For when jumping up.
 	PS_EV_JUMP_UP,
-
 	//! Or Fall, FallShort, FallFar??
 	PS_EV_JUMP_LAND,
 

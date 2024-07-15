@@ -12,37 +12,50 @@
 *   pmove_state_t is the information necessary for client side movement prediction.
 **/
 typedef enum {  // : uint8_t {
+    //
     // Types that can accelerate and turn:
-    PM_NORMAL,      //! Gravity. Clips to world and its entities.
-    PM_GRAPPLE,     //! No gravity. Pull towards velocity.
-    PM_NOCLIP,      //! No gravity. Don't clip against entities/world at all. 
-    PM_SPECTATOR,   //! No gravity. Only clip against walls.
-    PM_INTERMISSION,//! No movement or status bar.
-    PM_SPINTERMISSION,//! No movement or status bar.
+    // 
+    //! Gravity. Clips to world and its entities.
+    PM_NORMAL,
+    //! No gravity. Pull towards velocity.
+    PM_GRAPPLE,
+    //! No gravity. Don't clip against entities/world at all. 
+    PM_NOCLIP,
+    //! No gravity. Only clip against walls.
+    PM_SPECTATOR,
+    //! No movement or status HUD.
+    PM_INTERMISSION,
+    //! No movement or status HUD.
+    PM_SPINTERMISSION,
 
-    // Types with no acceleration or turning support:
+    //
+    // Types without support for user input(To accelerate and/or turn viewangles).
+    //
+    //! Different bounding box for when the player is 'dead'.
     PM_DEAD,
-    PM_GIB,         //! Different bounding box for when the player is 'gibbing out'.
-    PM_FREEZE       //! Does not respond to any movement inputs.
+    //! Different bounding box for when the player is 'gibbing out'.
+    PM_GIB,
+    //! Does not respond to any movement inputs. Makes the player 'idle'/'still', not moving.
+    PM_FREEZE       
 } pmtype_t;
 
 /**
 *   pmove_state->pm_flags
 **/
-#define PMF_NONE						0   //! No flags.
-#define PMF_DUCKED						1   //! Player is ducked.
-#define PMF_JUMP_HELD					2   //! Player is keeping jump button pressed.
-#define PMF_ON_GROUND					4   //! Player is on-ground.
-#define PMF_TIME_WATERJUMP				8   //! pm_time is waterjump.
-#define PMF_TIME_LAND					16  //! pm_time is time before rejump.
-#define PMF_TIME_TELEPORT				32  //! pm_time is non-moving time.
-#define PMF_NO_POSITIONAL_PREDICTION	64  //! Temporarily disables prediction (used for grappling hook).
-//#define PMF_TELEPORT_BIT				128 //! used by q2pro
-#define PMF_ON_LADDER					128	//! Signal to game that we are on a ladder.
-#define PMF_NO_ANGULAR_PREDICTION		256 //! Temporary disables angular prediction.
-#define PMF_IGNORE_PLAYER_COLLISION		512	//! Don't collide with other players.
-#define PMF_TIME_TRICK_JUMP				1024//! pm_time is the trick jump time.
-//#define PMF_GROUNDENTITY_CHANGED        2048//! Set if the ground entity has changed between previous and current pmove state.
+#define PMF_NONE						0           //! No flags.
+#define PMF_DUCKED						BIT( 0 )    //! Player is ducked.
+#define PMF_JUMP_HELD					BIT( 1 )    //! Player is keeping jump button pressed.
+#define PMF_ON_GROUND					BIT( 2 )    //! Player is on-ground.
+#define PMF_TIME_WATERJUMP				BIT( 3 )    //! pm_time is waterjump.
+#define PMF_TIME_LAND					BIT( 4 )    //! pm_time is time before rejump.
+#define PMF_TIME_TELEPORT				BIT( 5 )    //! pm_time is non-moving time.
+#define PMF_NO_POSITIONAL_PREDICTION	BIT( 6 )    //! Temporarily disables prediction (used for grappling hook).
+//#define PMF_TELEPORT_BIT				BIT( 7 )    //! used by q2pro
+#define PMF_ON_LADDER					BIT( 7 )	//! Signal to game that we are on a ladder.
+#define PMF_NO_ANGULAR_PREDICTION		BIT( 8 )    //! Temporary disables angular prediction.
+#define PMF_IGNORE_PLAYER_COLLISION		BIT( 9 )	//! Don't collide with other players.
+#define PMF_TIME_TRICK_JUMP				BIT( 10 )   //! pm_time is the trick jump time.
+//#define PMF_GROUNDENTITY_CHANGED      BIT( 11 )   //! Set if the ground entity has changed between previous and current pmove state.
 #define	PMF_ALL_TIMES                   ( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP )
 
 

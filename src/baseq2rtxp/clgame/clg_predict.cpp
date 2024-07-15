@@ -47,6 +47,87 @@ void PF_AdjustViewHeight( const int32_t viewHeight ) {
 }
 
 /**
+*   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
+**/
+void CGL_CheckPlayerstateEvents( player_state_t *ps, player_state_t *ops ) {
+    //if ( !clgi.client->clientEntity ) {
+    //    return;
+    //}
+    //centity_t *cent = clgi.client->clientEntity;
+    centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
+
+    if ( cent->serverframe != clgi.client->frame.number ) {
+        return;
+    }
+
+    // Get model resource.
+    const model_t *model = clgi.R_GetModelDataForHandle( clgi.client->baseclientinfo.model /*cent->current.modelindex*/ );
+
+    // Get the animation state mixer.
+    sg_skm_animation_mixer_t *animationMixer = &cent->animationMixer;//&clgi.client->clientEntity->animationMixer;
+    // Get body states.
+    sg_skm_animation_state_t *currentBodyState = animationMixer->currentBodyStates;
+    sg_skm_animation_state_t *lastBodyState = animationMixer->lastBodyStates;
+
+    sg_skm_animation_state_t *lowerEventBodyState = &animationMixer->eventBodyState[ SKM_BODY_LOWER ];
+    sg_skm_animation_state_t *upperEventBodyState = &animationMixer->eventBodyState[ SKM_BODY_UPPER ];
+
+    #if 0
+    if ( ps->externalEvent && ps->externalEvent != ops->externalEvent ) {
+        centity_t *cent = clgi.client->clientEntity;//cent = &cg_entities[ ps->clientNum + 1 ];
+        cent->currentState.event = ps->externalEvent;
+        cent->currentState.eventParm = ps->externalEventParm;
+        CG_EntityEvent( cent, cent->lerpOrigin );
+    }
+    #endif
+
+    // 
+    //centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];//clgi.client->clientEntity; // cg_entities[ ps->clientNum + 1 ];
+    // go through the predictable events buffer
+    for ( int64_t i = ps->eventSequence - MAX_PS_EVENTS; i < ps->eventSequence; i++ ) {
+        // If we have a new predictable event:
+        if ( i >= ops->eventSequence
+            // OR the server told us to play another event instead of a predicted event we already issued
+            // OR something the server told us changed our prediction causing a different event
+            || ( i > ops->eventSequence - MAX_PS_EVENTS && ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] != ops->events[ i & ( MAX_PS_EVENTS - 1 ) ] ) ) {
+
+            // Get the event number.
+            const int32_t entityEvent = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];
+
+            // Proceed to executing the event.
+            if ( entityEvent == PS_EV_JUMP_UP ) {
+                clgi.Print( PRINT_NOTICE, "%s: PS_EV_JUMP_UP\n", __func__ );
+                // Set event state animation.
+                SG_SKM_SetStateAnimation( model, lowerEventBodyState, "jump_up_rifle", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+                lowerEventBodyState->isLooping = false;
+            } else if ( entityEvent == PS_EV_JUMP_LAND ) {
+                clgi.Print( PRINT_NOTICE, "%s: PS_EV_JUMP_LAND\n", __func__ );
+                // Set event state animation.
+                SG_SKM_SetStateAnimation( model, lowerEventBodyState, "jump_land_rifle", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+                lowerEventBodyState->isLooping = false;
+            } else if ( entityEvent == PS_EV_WEAPON_PRIMARY_FIRE ) {
+                clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_PRIMARY_FIRE\n", __func__ );
+                // Set event state animation.
+                SG_SKM_SetStateAnimation( model, upperEventBodyState, "fire_stand_rifle", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+            } else if ( entityEvent == PS_EV_WEAPON_RELOAD ) {
+                clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_RELOAD\n", __func__ );
+                // Set event state animation.
+                SG_SKM_SetStateAnimation( model, upperEventBodyState, "reload_stand_rifle", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+            }
+
+            //cent->current.event = event;
+            //cent->current.eventParm = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
+            //CLG_EntityEvent( cent, cent->lerp_origin );
+
+            //// Add to the list of predictable events.
+            //game.predictableEvents[ i & ( MAX_PREDICTED_EVENTS - 1 ) ] = event;
+            //// Increment Event Sequence.
+            //game.eventSequence++;
+        }
+    }
+}
+
+/**
 *   @brief  Will predict the bobcycle to be for the next server frame.
 **/
 void CLG_PredictNextBobCycle( pmove_t *pm ) {
@@ -319,7 +400,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         // Save for prediction checking.
         clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *pendingMoveCommand;
 
-        clgi.client->predictedState.cmd = *pendingMoveCommand;
+        predictedState->cmd = *pendingMoveCommand;
     }
 
     // Predict the next bobCycle for the frame.
@@ -341,4 +422,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
     // Swap in the resulting new pmove player state.
     predictedState->currentPs = pmPlayerState;
+
+    // Check and execute any player state related events.
+    CGL_CheckPlayerstateEvents( &predictedState->currentPs, &predictedState->lastPs );
 }

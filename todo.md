@@ -2,6 +2,7 @@
 These are mainly my personal notes/ideas/interests, and do not per se reflect the actual changes to be made.
 
 ## Notes:
+* Make sure that client and server both deduce frameTime based on animation framerates instead.
 * Is the hard coded speed value limit of 400.0f in CLG_ClampSpeed matching that to pmove's maxspeed? No I don't think so.
 * Is the actual bobCycle predicting working or necessary? We can do this in PMove right?
 * If we had event entities and then 'morphentity' function, for example: a blaster bullet could convert to an entity, eliminating
@@ -40,7 +41,8 @@ Features being looked forward on implementation.
 * [X] Why, when func_plat hits ya, it moves you to random origin or such?_
 	* Resolved by what seemed incorrect default behavior? Simply passing a knockback of 0 to the hit entity instead of 1.
 * [X] Internal representation of skeletal poses and an API for use by both, client and server, thus residing in /common/
-* [ ] Look into Q2RE q2pro for svc_sound additions.
+* [ ] SharedGame Weapon code, or Client Game sided immitations for predicting. This will make the game feel more responsive, by having possible client side player state events be ran instantly.
+* [ ] * [ ] Look into Q2RE q2pro for svc_sound additions.
 * [ ] Implement a game mode structure that accepts function pointers, these are configured depending on the gamemode that is active within the game.
 	* [ ] Rid all places where ``coop`` and ``deathmatch`` cvars are checked by actual individual gamemode related counterparts.
 	* [ ] CanDamage and functions alike need to be moved into gamemode.

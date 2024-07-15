@@ -483,6 +483,8 @@ void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapo
 
         // Enforce a wait to finish animating mode before allowing yet another change.
         ent->client->weaponState.canChangeMode = false;
+
+
     }
 }
 
@@ -503,6 +505,7 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
             ent->client->ps.gun.animationID = ( ( ent->client->ps.gun.animationID & GUN_ANIMATION_TOGGLE_BIT ) ^ GUN_ANIMATION_TOGGLE_BIT )
                 | ent->client->weaponState.animation.modelAnimationID;
         }
+
         // Set back to false, otherwise we'd be animation toggle bit spamming which confuses the client in
         // what frame to render for the weapon mode's animation.
         ent->client->weaponState.updatePlayerStateAnimationID = false;
@@ -565,6 +568,35 @@ const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animat
     return false;
 }
 
+// Determine whether to add player state (predictable-) weapon events.
+void P_Weapon_DeterminePredictableEvents( edict_t *ent ) {
+    if ( !ent->client ) {
+        return;
+    }
+
+    // If an animation changed, it means its mode has changed, so we deduce the event based on that.
+    if ( ent->client->ops.gun.animationID != ent->client->ps.gun.animationID ) {
+        // Mode ID.
+        const int32_t modeID = ent->client->weaponState.mode;
+        // Add corresponding predictable player state event.
+        switch ( modeID ) {
+            case WEAPON_MODE_AIM_FIRE:
+                SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_PRIMARY_FIRE, 0, &ent->client->ps );
+                break;
+            case WEAPON_MODE_PRIMARY_FIRING:
+                SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_PRIMARY_FIRE, 0, &ent->client->ps );
+                break;
+            case WEAPON_MODE_SECONDARY_FIRING:
+                SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_SECONDARY_FIRE, 0, &ent->client->ps );
+                break;
+            case WEAPON_MODE_RELOADING:
+                SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_RELOAD, 0, &ent->client->ps );
+                break;
+            default:
+                break;
+        }
+    }
+}
 /**
 *   @brief  Perform the weapon's logical 'think' routine. This is Is either
 *           called by ClientBeginServerFrame or ClientThink.
@@ -595,5 +627,8 @@ void P_Weapon_Think( edict_t *ent, const bool processUserInputOnly ) {
     const bool hasThinkRoutine = ( hasActiveWeapon && ent->client->pers.weapon->weaponthink != nullptr ? true : false );
     if ( hasActiveWeapon && hasThinkRoutine ) {
         ent->client->pers.weapon->weaponthink( ent, processUserInputOnly );
+
+        // Determine whether to add player state (predictable-) weapon events.
+        P_Weapon_DeterminePredictableEvents( ent );
     }
 }

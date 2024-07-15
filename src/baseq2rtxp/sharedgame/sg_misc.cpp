@@ -24,15 +24,18 @@
 **/
 //! String representatives.
 const char *sg_player_state_event_strings[ PS_EV_MAX ] = {
-	"None",			// PS_EV_NONE
-	"Jump Up",		// PS_EV_JUMP_UP
-	"Jump Land",	// PS_EV_JUMP_LAND
+	"None",			        // PS_EV_NONE
+    "Weapon Reload",        // PS_EV_WEAPON_RELOAD
+    "Weapon Primary Fire",  // PS_EV_WEAPON_PRIMARY_FIRE
+    "Weapon Secondary Fire",// PS_EV_WEAPON_SECONDARY_FIRE
+	"Jump Up",		        // PS_EV_JUMP_UP
+	"Jump Land",	        // PS_EV_JUMP_LAND
 };
 
 /**
 *	@brief	Adds a player movement predictable event to the player move state.
 **/
-void SG_PMoveState_AddPredictableEvent( const uint8_t newEvent, const uint8_t eventParm, player_state_t *playerState ) {
+void SG_PlayerState_AddPredictableEvent( const uint8_t newEvent, const uint8_t eventParm, player_state_t *playerState ) {
 	// Event sequence index.
 	const int32_t sequenceIndex = playerState->eventSequence & ( MAX_PS_EVENTS - 1 );
 
@@ -44,23 +47,34 @@ void SG_PMoveState_AddPredictableEvent( const uint8_t newEvent, const uint8_t ev
 		//SG_DPrintf( "SVGame PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
 		#endif
 	}
-	#ifndef CLGAME_INCLUDE
+	//#ifndef CLGAME_INCLUDE
 	// Add predicted player move state event.
-	playerState->events[ sequenceIndex ] = newEvent;
+    //playerState->events[ sequenceIndex ] = ( ( playerState->events[ sequenceIndex ] & GUN_ANIMATION_TOGGLE_BIT ) ^ GUN_ANIMATION_TOGGLE_BIT )
+    //    | newEvent;
+    playerState->events[ sequenceIndex ] = newEvent;
 	playerState->eventParms[ sequenceIndex ] = eventParm;
 	playerState->eventSequence++;
 
 	// Debug Output.
 	#ifdef _DEBUG_PRINT_PREDICTABLE_EVENTS
 	{
-		#ifdef CLGAME_INCLUDE
-		SG_DPrintf( "CLGame PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
-		#else
-		SG_DPrintf( "SVGame PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
-		#endif
+        // Ensure string is within bounds.
+        if ( newEvent < q_countof( sg_player_state_event_strings ) ) {
+            #ifdef CLGAME_INCLUDE
+            SG_DPrintf( "CLGame PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
+            #else
+            SG_DPrintf( "SVGame PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
+            #endif
+        } else {
+            #ifdef CLGAME_INCLUDE
+            SG_DPrintf( "CLGame PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, "Out of Bounds for sg_player_state_event_strings", eventParm);
+            #else
+            SG_DPrintf( "SVGame PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, "Out of Bounds for sg_player_state_event_strings", eventParm);
+            #endif
+        }
 	}
 	#endif
-	#endif
+	//#endif
 }
 
 
@@ -133,7 +147,7 @@ const std::string SG_Player_GetClientBaseAnimation( const player_state_t *oldPla
         } else if ( animationMoveDirection == PM_MOVEDIRECTION_RIGHT ) {
             baseAnimStr += "_right";
         }
-        #if 0
+        #if 1
         // Only apply Z translation to the animations if NOT 'In-Air'.
         if ( !playerState->animation.inAir ) {
             // Jump?
@@ -148,7 +162,8 @@ const std::string SG_Player_GetClientBaseAnimation( const player_state_t *oldPla
                 //jumpAnimStr = "jump_up";
             } else {
                 if ( !playerState->animation.isCrouched ) {
-                    .//jumpAnimStr = "jump_air";
+                    baseAnimStr = "jump_air";
+                    //baseAnimWeaponStr = "";
                 }
             }
         }
@@ -159,6 +174,8 @@ const std::string SG_Player_GetClientBaseAnimation( const player_state_t *oldPla
         // Possible Crouched:
         if ( playerState->animation.isCrouched ) {
             baseAnimStr += "_crouch";
+        } else {
+            baseAnimStr += "_stand";
         }
     }
 

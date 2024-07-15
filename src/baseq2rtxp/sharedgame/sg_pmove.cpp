@@ -173,7 +173,7 @@ static void PM_SetDimensions() {
 *	@brief	Inline-wrapper to for convenience.
 **/
 void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
-	SG_PMoveState_AddPredictableEvent( newEvent, parameter, ps );
+	SG_PlayerState_AddPredictableEvent( newEvent, parameter, ps );
 }
 #endif
 /**
@@ -1146,8 +1146,13 @@ static void PM_CategorizePosition() {
 			pm->ground.entity = nullptr;
 			ps->pmove.pm_flags &= ~PMF_ON_GROUND;
 
-			// In air?
-			ps->animation.inAir = true;
+			// When not crouched, set inAir state.
+			if ( !( ps->pmove.pm_flags & PMF_DUCKED ) ) {
+				ps->animation.inAir = true;
+			// When crouched and in air, allow for crouch animations, thus inAir = false.
+			} else {
+				ps->animation.inAir = false;
+			}
 		} else {
 			// Update ground.
 			PM_UpdateGroundFromTrace( &trace );
@@ -1161,13 +1166,10 @@ static void PM_CategorizePosition() {
 			// Just hit the ground.
 			if ( !( ps->pmove.pm_flags & PMF_ON_GROUND ) ) {
 				//if ( jumpLandTrace.fraction != 1.0 ) {
-				//	SG_PMoveState_AddPredictableEvent( PS_EV_JUMP_LAND, pm->impact_delta, ps );
+				//	SG_PlayerState_AddPredictableEvent( PS_EV_JUMP_LAND, pm->impact_delta, ps );
 				//}
 				// Set in case we already applied upward jump event.
 				bool isJumpUpEventSet = false;
-
-				// Hit ground.
-				ps->animation.inAir = false;
 
 				// [Paril-KEX]
 				if ( pml.velocity.z >= 100.f && pm->ground.plane.normal[ 2 ] >= 0.9f && !( ps->pmove.pm_flags & PMF_DUCKED ) ) {
@@ -1175,7 +1177,7 @@ static void PM_CategorizePosition() {
 					ps->pmove.pm_time = 64;
 
 					// Jump up.
-					SG_PMoveState_AddPredictableEvent( PS_EV_JUMP_UP, 0, ps );
+					PM_AddEvent( PS_EV_JUMP_UP, 0 );
 					isJumpUpEventSet = true;
 				}
 
@@ -1187,7 +1189,10 @@ static void PM_CategorizePosition() {
 				ps->pmove.pm_flags |= PMF_ON_GROUND;
 
 				if ( !isJumpUpEventSet ) {
-					SG_PMoveState_AddPredictableEvent( PS_EV_JUMP_LAND, pm->impact_delta, ps );
+					// Hit ground.
+					ps->animation.inAir = false;
+
+					PM_AddEvent( PS_EV_JUMP_LAND, pm->impact_delta );
 				}
 
 				if ( ( ps->pmove.pm_flags & PMF_DUCKED ) ) {

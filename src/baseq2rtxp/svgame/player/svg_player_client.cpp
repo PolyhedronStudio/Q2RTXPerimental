@@ -1936,6 +1936,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
             // Store that we thought for this frame.
             ent->client->weapon_thunk = true;
         //}
+
+    // Determine any possibly necessary player state events to go along.
+
     }
 
     // Finally process the actual player_state animations.

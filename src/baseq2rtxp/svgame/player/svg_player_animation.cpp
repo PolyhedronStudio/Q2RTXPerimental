@@ -42,10 +42,10 @@ void SVG_P_ProcessAnimations( edict_t *ent ) {
     // However, if the last body state was of a different animation type, we want to continue using its
     // start time so we can ensure that switching directions keeps the feet neatly lerping.
     if ( animationMixer->lastBodyStates[ SKM_BODY_LOWER ].animationID != animationMixer->currentBodyStates[ SKM_BODY_LOWER ].animationID ) {
-        // Backup into lastBodyStates.
-        animationMixer->lastBodyStates[ SKM_BODY_LOWER ] = animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
         // Set the startTimer for the new 'Base' body state animation to that of the old.
         startTimer = animationMixer->lastBodyStates[ SKM_BODY_LOWER ].animationStartTime;
+        // Backup into lastBodyStates.
+        animationMixer->lastBodyStates[ SKM_BODY_LOWER ] = animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
     }
     // Set lower 'Base' body animation.
     sg_skm_animation_state_t *lowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
@@ -56,6 +56,9 @@ void SVG_P_ProcessAnimations( edict_t *ent ) {
     /**
     *   Process Animations.
     **/
+    //
+    // Current Lower Body:
+    //
     int32_t lowerBodyOldFrame = 0;
     int32_t lowerBodyCurrentFrame = 0;
     double lowerBodyBackLerp = 0.0;
@@ -63,4 +66,24 @@ void SVG_P_ProcessAnimations( edict_t *ent ) {
     int32_t rootMotionAxisFlags = SKM_POSE_TRANSLATE_Z;
     // Process lower body animation.
     SG_SKM_ProcessAnimationStateForTime( model, lowerBodyState, level.time, &lowerBodyOldFrame, &lowerBodyCurrentFrame, &lowerBodyBackLerp );
+    //
+    // Event Lower Body:
+    //
+    int32_t eventLowerBodyOldFrame = 0;
+    int32_t eventLowerBodyCurrentFrame = 0;
+    double eventLowerBodyBackLerp = 0.0;
+    rootMotionAxisFlags = 0;
+    // Process lower body animation.
+    sg_skm_animation_state_t *eventLowerBodyState = &animationMixer->eventBodyState[ SKM_BODY_LOWER ];
+    SG_SKM_ProcessAnimationStateForTime( model, eventLowerBodyState, level.time, &eventLowerBodyOldFrame, &eventLowerBodyCurrentFrame, &eventLowerBodyBackLerp );
+
+    //
+    // Event Upper Body:
+    //
+    int32_t eventUpperBodyOldFrame = 0;
+    int32_t eventUpperBodyCurrentFrame = 0;
+    double eventUpperBodyBackLerp = 0.0;
+    // Process lower body animation.
+    sg_skm_animation_state_t *eventUpperBodyState = &animationMixer->eventBodyState[ SKM_BODY_UPPER ];
+    SG_SKM_ProcessAnimationStateForTime( model, eventUpperBodyState, level.time, &eventUpperBodyOldFrame, &eventUpperBodyCurrentFrame, &eventUpperBodyBackLerp );
 }

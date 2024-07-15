@@ -164,12 +164,12 @@ const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentT
 		// Animation's finished:
 		} else {
 			// Set current frame to -1 and get over with it.
-			//currentFrame = -1;
-			if ( _loopingFrames == 1 ) {
-				frameFraction = 1.0;
-				*frame = lastFrame;
-				return frameFraction;
-			}
+			currentFrame = -1;
+			//if ( _loopingFrames == 1 ) {
+			//	frameFraction = 1.0;
+			//	*frame = lastFrame;
+			//	return frameFraction;
+			//}
 		}
 	}
 
@@ -216,7 +216,7 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 
 	// Animation start and end frames.
 	const int32_t firstFrame = skmAnimation->first_frame;
-	const int32_t lastFrame = skmAnimation->first_frame + skmAnimation->num_frames;
+	const int32_t lastFrame = skmAnimation->first_frame + skmAnimation->num_frames; // use these instead?
 
 	// Calculate the actual current frame for the moment in time of the active animation.
 	double lerpFraction = SG_AnimationFrameForTime( &animationState->currentFrame,
@@ -229,15 +229,21 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 		( !animationState->isLooping ? 1 : 0), animationState->isLooping
 	);
 
-	// Apply animation to gun model refresh entity.
-	*outCurrentFrame = animationState->currentFrame;
-	//	*outOldFrame = animationState->previousFrame;
-	//} else {
-		*outOldFrame = ( animationState->currentFrame > firstFrame && animationState->currentFrame <= lastFrame ? animationState->currentFrame - 1 : animationState->currentFrame );
-	//}
-
 	// Whether we are finished playing this animation.
 	bool isPlaybackDone = false;
+
+	// Apply animation to gun model refresh entity.
+	if ( animationState->currentFrame == -1 ) {
+		*outCurrentFrame = animationState->srcEndFrame; // For this kinda crap?
+		*outBackLerp = 1.0;
+		isPlaybackDone = true;
+	} else {
+		*outCurrentFrame = animationState->currentFrame;
+	}
+	//	*outOldFrame = animationState->previousFrame;
+	//} else {
+		*outOldFrame = ( animationState->currentFrame > firstFrame && animationState->currentFrame <= lastFrame ? animationState->currentFrame - 1 : oldFrame );
+	//}
 
 	// Use lerpfraction between frames instead to rapidly switch.
 	//if ( *outOldFrame == oldFrame ) {
