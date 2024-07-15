@@ -227,6 +227,9 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     skm_bone_node_t *spineBone = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine" );
     skm_bone_node_t *spine1Bone = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine1" );
     skm_bone_node_t *spine2Bone = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine2" );
+    // Shoulder bones.
+    skm_bone_node_t *leftShoulderBone = clgi.SKM_GetBoneByName( model, "mixamorig8:LeftShoulder" );
+    skm_bone_node_t *rightShoulderBone = clgi.SKM_GetBoneByName( model, "mixamorig8:RightShoulder" );
     // Leg bones.
     skm_bone_node_t *leftUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:LeftUpLeg" );
     skm_bone_node_t *rightUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:RightUpLeg" );
@@ -238,12 +241,15 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     int32_t lowerBodyCurrentFrame = 0;
     double lowerBodyBackLerp = 0.0;
     int32_t rootMotionBoneID = 0;
-    int32_t rootMotionAxisFlags = SKM_POSE_TRANSLATE_Z;
+    int32_t rootMotionAxisFlags = 0;
     // Process lower body animation.
     sg_skm_animation_state_t *lowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
     SG_SKM_ProcessAnimationStateForTime( model, lowerBodyState, extrapolatedTime, &lowerBodyOldFrame, &lowerBodyCurrentFrame, &lowerBodyBackLerp );
     // Fetch and Lerp specified frame bone poses.
     static skm_transform_t currentStatePose[ SKM_MAX_BONES ];
+    static skm_transform_t lastCurrentStatePose[ SKM_MAX_BONES ];
+    memcpy( lastCurrentStatePose, currentStatePose, SKM_MAX_BONES * sizeof( skm_transform_t ) );
+
     const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, lowerBodyCurrentFrame );
     const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, lowerBodyOldFrame );
     clgi.SKM_LerpBonePoses(
@@ -278,10 +284,10 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
             rootMotionBoneID, 0
         );
         // Perform the blend.
-        //clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, currentStatePose, hipsBone, lowerEventBodyBackLerp, 1 );
-        clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, currentStatePose, spineBone, lowerEventBodyBackLerp, 0.5 );
-        clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, currentStatePose, leftUpLegBone, lowerEventBodyBackLerp, 0.5 );
-        clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, currentStatePose, rightUpLegBone, lowerEventBodyBackLerp, 0.5 );
+        clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, currentStatePose, hipsBone, lowerEventBodyBackLerp, 1 );
+        //clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, currentStatePose, spineBone, lowerEventBodyBackLerp, 0.15 );
+        //clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, currentStatePose, leftUpLegBone, lowerEventBodyBackLerp, 0.5 );
+        //clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, currentStatePose, rightUpLegBone, lowerEventBodyBackLerp, 0.5 );
     }
 
     //
@@ -305,14 +311,19 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
             framePose, oldFramePose,
             1.0 - upperEventBodyBackLerp, upperEventBodyBackLerp,
             upperEventStatePose,
-            rootMotionBoneID, 0
+            rootMotionBoneID, SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y
         );
-        // Perform the blend.
-        clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, spine2Bone, upperEventBodyBackLerp, 0.5 );
+        clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, spineBone, upperEventBodyBackLerp, 1 );
+        //clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, leftShoulderBone, upperEventBodyBackLerp, 0.15 );
+        //clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, rightShoulderBone, upperEventBodyBackLerp, 0.15 );
     }
+
     // Defaulted, unless event animations are actively playing.
     refreshEntity->bonePoses = currentStatePose;
-
+    refreshEntity->lastBonePoses = lastCurrentStatePose;
+    refreshEntity->rootMotionBoneID = 0;
+    refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z;
+    refreshEntity->backlerp = 1.0 - clgi.client->xerpFraction;
     
 #if 0
     //

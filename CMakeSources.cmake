@@ -207,6 +207,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_eax.cpp
 	baseq2rtxp/clgame/clg_effects.cpp
 	baseq2rtxp/clgame/clg_entities.cpp
+	baseq2rtxp/clgame/clg_events.cpp
 	baseq2rtxp/clgame/clg_input.cpp
 	baseq2rtxp/clgame/clg_local_entities.cpp
 	baseq2rtxp/clgame/clg_gamemode.cpp
@@ -252,6 +253,7 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_eax.h
 	baseq2rtxp/clgame/clg_effects.h
 	baseq2rtxp/clgame/clg_entities.h
+	baseq2rtxp/clgame/clg_events.h
 	baseq2rtxp/clgame/clg_hud.h
 	baseq2rtxp/clgame/clg_input.h
 	baseq2rtxp/clgame/clg_local.h

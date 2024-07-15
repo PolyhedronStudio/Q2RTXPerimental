@@ -1178,20 +1178,24 @@ static void PM_CategorizePosition() {
 
 					// Jump up.
 					PM_AddEvent( PS_EV_JUMP_UP, 0 );
+					// Jumped.
 					isJumpUpEventSet = true;
 				}
 
 				// [Paril-KEX] calculate impact delta; this also fixes triple jumping
 				Vector3 clipped_velocity = QM_Vector3Zero();
+				// First clip the velocity.
 				PM_ClipVelocity( pml.velocity, pm->ground.plane.normal, clipped_velocity, 1.01f );
-
+				// Calculate impact delta.
 				pm->impact_delta = pml.startVelocity.z - clipped_velocity.z;
+
+				// On ground.
 				ps->pmove.pm_flags |= PMF_ON_GROUND;
+				// Not in air anymore.
+				ps->animation.inAir = false;
 
-				if ( !isJumpUpEventSet ) {
-					// Hit ground.
-					ps->animation.inAir = false;
-
+				// The duck check is handled client-side for the view player and in G_SetClientFrame for other player entities.
+				if ( !isJumpUpEventSet /*&& !( ps->pmove.pm_flags & PMF_DUCKED ) */) {
 					PM_AddEvent( PS_EV_JUMP_LAND, pm->impact_delta );
 				}
 
@@ -1199,9 +1203,16 @@ static void PM_CategorizePosition() {
 					ps->pmove.pm_flags |= PMF_TIME_LAND;
 					ps->pmove.pm_time = 128;
 				}
+			// Setting inAir to false right here, will cause the player to still be 'in air' while
+			// it sends the landing event. Only the frame after that(where onground is set) do we
+			// want to notify animations of inAir is false.
+			} else if ( ( ps->pmove.pm_flags & PMF_ON_GROUND ) ) {
+				// Hit ground.
+				//ps->animation.inAir = false;
 			}
 		}
 
+		// Register the touch trace.
 		PM_RegisterTouchTrace( pm->touchTraces, trace );
 	}
 

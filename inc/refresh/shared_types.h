@@ -471,9 +471,18 @@ typedef struct entity_s {
     //
     // Q2RTXP: Skeletal Model Stuff
     //
-    //! Pointer to the blend composed final animation pose of the skeletal model data.
-    //! Buffer is expected to be SKM_MAX_BONES(256) tops.
+    
+    //! When bonePoses AND lastBonePoses are set, it'll lerp between the two poses, using
+    //! the refresh entity's backlerp value, rootMotionBoneID and rootMotionAxisFlags.
+    //! If lastBonePoses is not set, it'll just compute the local model space matrices for
+    //! bonePoses itself.
+    //!
+    //! Pointer to the final AND CURRENT animation frame pose of a skeletal model.
+    //! Buffer is expected to be SKM_MAX_BONES(256) in size.
     iqm_transform_t *bonePoses;
+    //! Pointer to the LAST animation frame pose of a skeletal model.
+    //! Buffer is expected to be SKM_MAX_BONES(256) in size.
+    iqm_transform_t *lastBonePoses;
 
     //! Whether to use Root Motion at all.
     //! Root Motion Bone ID.

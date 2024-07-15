@@ -792,8 +792,10 @@ void G_SetClientFrame( edict_t *ent ) {
 
 	// Get animation mixer.
 	sg_skm_animation_mixer_t *animationMixer = &client->animationMixer;
-	// Set lower 'Base' body animation.
+	// Get lower body state.
 	sg_skm_animation_state_t *lowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
+	// Get upper body state.
+	sg_skm_animation_state_t *upperBodyState = &animationMixer->currentBodyStates[ SKM_BODY_UPPER ];
 
 	// Encode the body specifics into the frame value.
 	ent->s.frame = SG_EncodeAnimationState( lowerBodyState->animationID, 0, 0, /*lowerBodyState->frameTime*/BASE_FRAMERATE );

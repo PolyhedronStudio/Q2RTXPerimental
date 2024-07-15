@@ -156,11 +156,11 @@ const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentT
 			currentFrame -= _loopingFrames * numberOfLoops;
 
 			// Special frame fraction handling to play an animation just once.
-			if ( _loopingFrames == 1 ) {
-				frameFraction = 1.0;
-				*frame = lastFrame;
-				return frameFraction;
-			}
+			//if ( _loopingFrames == 1 ) {
+			//	frameFraction = 1.0;
+			//	*frame = lastFrame;
+			//	return frameFraction;
+			//}
 		// Animation's finished:
 		} else {
 			// Set current frame to -1 and get over with it.
@@ -220,7 +220,7 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 
 	// Calculate the actual current frame for the moment in time of the active animation.
 	double lerpFraction = SG_AnimationFrameForTime( &animationState->currentFrame,
-		time, animationState->animationStartTime - sg_time_t::from_ms( BASE_FRAMETIME ),
+		time, animationState->animationStartTime /*- sg_time_t::from_ms( BASE_FRAMETIME )*/,
 		// Use the one provided by the animation state instead of the skmData, since we may want to play at a different speed.
 		animationState->frameTime,
 		// Process animation from first to last frame.
@@ -242,7 +242,7 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 	}
 	//	*outOldFrame = animationState->previousFrame;
 	//} else {
-		*outOldFrame = ( animationState->currentFrame > firstFrame && animationState->currentFrame <= lastFrame ? animationState->currentFrame - 1 : oldFrame );
+		*outOldFrame = ( animationState->currentFrame > firstFrame && animationState->currentFrame <= lastFrame ? animationState->currentFrame - 1 : oldFrame /*animationState->currentFrame */);
 	//}
 
 	// Use lerpfraction between frames instead to rapidly switch.
