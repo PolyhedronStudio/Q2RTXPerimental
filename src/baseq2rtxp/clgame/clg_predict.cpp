@@ -63,6 +63,9 @@ void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
         return;
     }
 
+    // WID: We don't have support for external events yet. In fact, they would in Q3 style rely on
+    // 'temp entities', which are alike a normal entity. Point being is this requires too much refactoring
+    // right now.
     #if 0
     if ( ps->externalEvent && ps->externalEvent != ops->externalEvent ) {
         centity_t *clientEntity = clgi.client->clientEntity;//cent = &cg_entities[ ps->clientNum + 1 ];

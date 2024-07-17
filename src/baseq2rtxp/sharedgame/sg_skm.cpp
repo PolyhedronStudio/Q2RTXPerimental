@@ -156,11 +156,11 @@ const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentT
 			currentFrame -= _loopingFrames * numberOfLoops;
 
 			// Special frame fraction handling to play an animation just once.
-			//if ( _loopingFrames == 1 ) {
-			//	frameFraction = 1.0;
-			//	*frame = lastFrame;
-			//	return frameFraction;
-			//}
+			if ( _loopingFrames == 1 ) {
+				frameFraction = 1.0;
+				*frame = lastFrame; // -1
+				return frameFraction;
+			}
 		// Animation's finished:
 		} else {
 			// Set current frame to -1 and get over with it.
@@ -220,7 +220,7 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 
 	// Calculate the actual current frame for the moment in time of the active animation.
 	double lerpFraction = SG_AnimationFrameForTime( &animationState->currentFrame,
-		time, animationState->animationStartTime /*- sg_time_t::from_ms( BASE_FRAMETIME )*/,
+		time, animationState->timeStart /*- sg_time_t::from_ms( BASE_FRAMETIME )*/,
 		// Use the one provided by the animation state instead of the skmData, since we may want to play at a different speed.
 		animationState->frameTime,
 		// Process animation from first to last frame.
@@ -279,6 +279,28 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 }
 
 /**
+*	@brief	Internal support routine: Sets the necessary data needed from skmAnimation for the animationState.
+**/
+static void SG_SKM_AnimationStateFromAnimation( const skm_anim_t *skmAnimation, sg_skm_animation_state_t *animationState, const int32_t animationID, const sg_time_t &startTime, const double frameTime, const bool forceLoop ) {
+	// Store source frame data for easy access later on.
+	animationState->srcStartFrame = skmAnimation->first_frame;
+	animationState->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
+
+	// Apply new animation data.
+	animationState->animationID = animationID;
+	animationState->frameTime = frameTime;
+	#if 1
+	animationState->timeStart = startTime;
+	animationState->timeDuration = sg_time_t::from_ms( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime );
+	animationState->timeEnd = ( startTime + animationState->timeDuration );
+	#else
+	animationState->animationStartTime = sg_time_t::from_ms( clgi.client->servertime );
+	animationState->animationEndTime = sg_time_t::from_ms( clgi.client->servertime + ( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime ) );
+	#endif
+	animationState->isLooping = ( skmAnimation->flags & IQM_LOOP ? true : ( forceLoop == true ? true : false ) );
+}
+
+/**
 *	@brief	Will set the animation matching 'name' for the animation state.
 *			Will force set the aniamtion, if desired.
 **/
@@ -307,28 +329,20 @@ const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_stat
 
 	// Apply the animation either if it is not active yet, or is forcefully set.
 	if ( animationState->animationID != animationID || forceSet ) {
-		// Store source frame data for easy access later on.
-		animationState->srcStartFrame = skmAnimation->first_frame;
-		animationState->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
+		// Apply SKM Animation data to Animation State.
+		SG_SKM_AnimationStateFromAnimation( skmAnimation,
+			animationState,
+			animationID,
+			startTime,
+			frameTime,
+			( skmAnimation->flags & IQM_LOOP ? true : ( forceLoop == true ? true : false ) ) 
+		);
 
-		// Apply new animation data.
-		animationState->previousAnimationID = animationState->animationID;
-		animationState->animationID = animationID;
-		animationState->frameTime = frameTime;
-		#if 1
-		animationState->animationStartTime = startTime;
-		animationState->animationEndTime = ( startTime + sg_time_t::from_ms( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime ) );
-		#else
-		animationState->animationStartTime = sg_time_t::from_ms( clgi.client->servertime );
-		animationState->animationEndTime = sg_time_t::from_ms( clgi.client->servertime + ( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime ) );
-		#endif
-		animationState->isLooping = ( skmAnimation->flags & IQM_LOOP ? true : ( forceLoop == true ? true : false ) );
-
-		// Animation was set.
+		// Animation State was set.
 		return true;
 	}
 
-	// Already running, thus not set.
+	// Already running this animation, thus not set.
 	return false;
 }
 
@@ -360,27 +374,19 @@ const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_stat
 
 	// Apply the animation either if it is not active yet, or is forcefully set.
 	if ( animationState->animationID != animationID || forceSet ) {
-		// Store source frame data for easy access later on.
-		animationState->srcStartFrame = skmAnimation->first_frame;
-		animationState->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
+		// Apply SKM Animation data to Animation State.
+		SG_SKM_AnimationStateFromAnimation( skmAnimation,
+			animationState,
+			animationID,
+			startTime,
+			frameTime,
+			( skmAnimation->flags & IQM_LOOP ? true : ( forceLoop == true ? true : false ) )
+		);
 
-		// Apply new animation data.
-		animationState->previousAnimationID = animationState->animationID;
-		animationState->animationID = animationID;
-		animationState->frameTime = frameTime;
-		#if 1
-		animationState->animationStartTime = startTime;
-		animationState->animationEndTime = ( startTime + sg_time_t::from_ms( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime ) );
-		#else
-		animationState->animationStartTime = sg_time_t::from_ms( clgi.client->servertime );
-		animationState->animationEndTime = sg_time_t::from_ms( clgi.client->servertime + ( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime ) );
-		#endif
-		animationState->isLooping = ( skmAnimation->flags & IQM_LOOP ? true : ( forceLoop == true ? true : false ) );
-
-		// Animation was set.
+		// Animation State was set.
 		return true;
 	}
 
-	// Already running, thus not set.
+	// Already running this animation, thus not set.
 	return false;
 }

@@ -34,33 +34,41 @@ static constexpr int32_t SKM_MAX_ANIMATION_QUEUE = 4;
 *	@brief	
 **/
 typedef struct sg_skm_animation_state_s {
+	/**
+	*	ID and settings:
+	**/
 	//! Animation Index. (For now, hard capped to 255.)
 	int32_t animationID;
-	//! Previous animationID.
-	int32_t previousAnimationID;
-
-	//! Source animation data.
-	int32_t srcStartFrame;
-	int32_t srcEndFrame;
-
-	//! Start time.
-	sg_time_t animationStartTime;
-	//! Expected time of ending the animation.
-	sg_time_t animationEndTime;
-
-	//! FrameTime for this animation.
-	double frameTime;
-
 	//! Whether it is looping or not.
 	bool isLooping;
-
 	//! Root Motion Flags for this animation.
 	int32_t rootMotionFlags;
 
+	/**
+	*	State Timers: Looping animations will always surpass timeDuration and timeEnd.
+	**/
+	//! Start time.
+	sg_time_t timeStart;
+	//! Duration of animation( ( srcEndFrame - srcStartFrame ) * frameTime ).
+	sg_time_t timeDuration;
+	//! Expected time of ending the animation. ( timeStart + timeDuration ).
+	sg_time_t timeEnd;
+	//! FrameTime for this animation.
+	double frameTime;
+
+	/**
+	*	Frames:
+	**/
 	//! Actual last calculated(making it current) frame.
 	int32_t currentFrame;
 	//! Previously last calculated frame.
 	int32_t previousFrame;
+
+	//! Total offset for the animation's model source start frame index.
+	int32_t srcStartFrame;
+	//! Total offset for the animation's model source end frame index.
+	int32_t srcEndFrame;
+
 } sg_skm_animation_state_t;
 
 /**

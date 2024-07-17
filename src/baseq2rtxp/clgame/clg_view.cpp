@@ -214,7 +214,8 @@ static void CLG_AnimateViewWeapon( entity_t *refreshEntity, const int32_t firstF
     game.viewWeapon.last_frame = game.viewWeapon.frame;
 
     // Calculate the actual current frame for the moment in time of the active animation.
-    double lerpFraction = SG_AnimationFrameForTime( &game.viewWeapon.frame,
+    int32_t frameForTime = -1;
+    double lerpFraction = SG_AnimationFrameForTime( &frameForTime,
         //sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
         sg_time_t::from_ms( clgi.client->extrapolatedTime ), sg_time_t::from_ms( game.viewWeapon.server_time ),
         BASE_FRAMETIME,
@@ -223,24 +224,28 @@ static void CLG_AnimateViewWeapon( entity_t *refreshEntity, const int32_t firstF
     );
 
     // Animation is running:
-    if ( lerpFraction < 1.0 ) {
+    if ( frameForTime != -1 /*lerpFraction <= 1.0*/ ) {
         // Apply animation to gun model refresh entity.
-        refreshEntity->frame = game.viewWeapon.frame;
-        refreshEntity->oldframe = ( refreshEntity->frame > firstFrame ? refreshEntity->frame - 1 : refreshEntity->frame );
+        refreshEntity->frame = game.viewWeapon.frame = frameForTime;
+        refreshEntity->oldframe = ( refreshEntity->frame > firstFrame && refreshEntity->frame < lastFrame ? refreshEntity->frame - 1 : lastFrame );
         // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
         if ( refreshEntity->frame == firstFrame ) {
             refreshEntity->backlerp = 0.0;
-            // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
+            clgi.Print( PRINT_NOTICE, "%s: refreshEntity->backlerp = 0.0; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame );
+        // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
         } else if ( refreshEntity->frame == lastFrame ) {
             refreshEntity->backlerp = 1.0;
-            // Otherwise just subtract the resulting lerpFraction.
+            clgi.Print( PRINT_NOTICE, "%s: refreshEntity->backlerp = 1.0; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame );
+        // Otherwise just subtract the resulting lerpFraction.
         } else {
             refreshEntity->backlerp = 1.0 - lerpFraction;
+            clgi.Print( PRINT_NOTICE, "%s: refreshEntity->backlerp = 1.0 - lerpFraction; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame );
         }
         // Clamp just to be sure.
         clamp( refreshEntity->backlerp, 0.0, 1.0 );
         // Reached the end of the animation:
     } else {
+        clgi.Print( PRINT_NOTICE, "%s: frameForTime != -1; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame  );
         // Otherwise, oldframe now equals the current(end) frame.
         refreshEntity->oldframe = refreshEntity->frame = lastFrame;
         // No more lerping.
@@ -359,7 +364,7 @@ static void CLG_AddViewWeapon( void ) {
                 // Local real time of animation change.
                 game.viewWeapon.real_time = clgi.GetRealTime();
                 // Server time of animation change.
-                game.viewWeapon.server_time = clgi.client->servertime - BASE_FRAMETIME;
+                game.viewWeapon.server_time = clgi.client->servertime/* - BASE_FRAMETIME*/;
                 // Reset animation frame.
                 game.viewWeapon.frame = firstFrame;
                 // Debug output.
@@ -454,7 +459,8 @@ static void CLG_CycleViewBob( player_state_t *ps ) {
     level.viewBob.cycle = ( ps->bobCycle & 128 ) >> 7;
     level.viewBob.fracSin = fabs( sin( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
     level.viewBob.xySpeed = ps->xySpeed;
-    #if 0
+        
+#if 0
     // calculate speed and cycle to be used for all cyclic walking effects
     level.viewBob.xySpeed = ps->xySpeed; // sqrt( cg.predictedPlayerState.pmove.velocity[ 0 ] * cg.predictedPlayerState.pmove.velocity[ 0 ] + cg.predictedPlayerState.pmove.velocity[ 1 ] * cg.predictedPlayerState.pmove.velocity[ 1 ] );
 

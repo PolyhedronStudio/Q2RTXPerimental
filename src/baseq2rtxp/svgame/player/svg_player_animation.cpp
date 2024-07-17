@@ -43,7 +43,7 @@ void SVG_P_ProcessAnimations( edict_t *ent ) {
     // start time so we can ensure that switching directions keeps the feet neatly lerping.
     if ( animationMixer->lastBodyStates[ SKM_BODY_LOWER ].animationID != animationMixer->currentBodyStates[ SKM_BODY_LOWER ].animationID ) {
         // Set the startTimer for the new 'Base' body state animation to that of the old.
-        startTimer = animationMixer->lastBodyStates[ SKM_BODY_LOWER ].animationStartTime;
+        startTimer = animationMixer->lastBodyStates[ SKM_BODY_LOWER ].timeStart;
         // Backup into lastBodyStates.
         animationMixer->lastBodyStates[ SKM_BODY_LOWER ] = animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
     }

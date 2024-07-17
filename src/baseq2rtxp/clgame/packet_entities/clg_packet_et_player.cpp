@@ -57,7 +57,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         // However, if the last body state was of a different animation type, we want to continue using its
         // start time so we can ensure that switching directions keeps the feet neatly lerping.
         if ( lastBodyState[ SKM_BODY_LOWER ].animationID != currentBodyState[ SKM_BODY_LOWER ].animationID ) {
-            startTimer = lastBodyState[ SKM_BODY_LOWER ].animationStartTime;
+            startTimer = lastBodyState[ SKM_BODY_LOWER ].timeStart;
             lastBodyState[ SKM_BODY_LOWER ] = currentBodyState[ SKM_BODY_LOWER ];
         }
         // We want this to loop for most animations.
@@ -75,7 +75,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         // However, if the last body state was of a different animation type, we want to continue using its
         // start time so we can ensure that switching directions keeps the feet neatly lerping.
         if ( lastBodyState[ SKM_BODY_LOWER ].animationID != currentBodyState[ SKM_BODY_LOWER ].animationID ) {
-            startTimer = lastBodyState[ SKM_BODY_LOWER ].animationStartTime;
+            startTimer = lastBodyState[ SKM_BODY_LOWER ].timeStart;
             lastBodyState[ SKM_BODY_LOWER ] = currentBodyState[ SKM_BODY_LOWER ];
         }
         // Calculate frameTime based on frameRate.
@@ -271,7 +271,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     const bool lowerEventFinishedPlaying = SG_SKM_ProcessAnimationStateForTime( model, lowerEventBodyState, extrapolatedTime, &lowerEventBodyOldFrame, &lowerEventBodyCurrentFrame, &lowerEventBodyBackLerp );
     // Lerp lower event state poses and blend into currentStatePose.
     static skm_transform_t lowerEventStatePose[ SKM_MAX_BONES ];
-    if ( lowerEventBodyState->animationEndTime >= extrapolatedTime ) {
+    if ( lowerEventBodyState->timeEnd >= extrapolatedTime ) {
         // Acquire frame poses.
         framePose = clgi.SKM_GetBonePosesForFrame( model, lowerEventBodyCurrentFrame );
         oldFramePose = clgi.SKM_GetBonePosesForFrame( model, lowerEventBodyOldFrame );
@@ -301,7 +301,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     const bool upperEventFinishedPlaying = SG_SKM_ProcessAnimationStateForTime( model, upperEventBodyState, extrapolatedTime, &upperEventBodyOldFrame, &upperEventBodyCurrentFrame, &upperEventBodyBackLerp );
     // Lerp upper event state poses and blend into currentStatePose.
     static skm_transform_t upperEventStatePose[ SKM_MAX_BONES ];
-    if ( upperEventBodyState->animationEndTime >= extrapolatedTime ) {
+    if ( upperEventBodyState->timeEnd >= extrapolatedTime ) {
         // Acquire frame poses.
         framePose = clgi.SKM_GetBonePosesForFrame( model, upperEventBodyCurrentFrame );
         oldFramePose = clgi.SKM_GetBonePosesForFrame( model, upperEventBodyOldFrame );
@@ -311,11 +311,30 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
             framePose, oldFramePose,
             1.0 - upperEventBodyBackLerp, upperEventBodyBackLerp,
             upperEventStatePose,
-            rootMotionBoneID, SKM_POSE_TRANSLATE_Z | SKM_POSE_TRANSLATE_Y
+            rootMotionBoneID, 0
         );
-        clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, spineBone, upperEventBodyBackLerp, 1 );
-        //clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, leftShoulderBone, upperEventBodyBackLerp, 0.15 );
-        //clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, rightShoulderBone, upperEventBodyBackLerp, 0.15 );
+        clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, spine2Bone, upperEventBodyBackLerp, 0.5 );
+        //clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, leftShoulderBone, upperEventBodyBackLerp, 1 );
+        //clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, rightShoulderBone, upperEventBodyBackLerp, 1 );
+
+        //
+        // Some testing, idk yet:
+        // 
+        //// This causes it to be "Z == Up".
+        //Quaternion hipQuatZUp = QM_QuaternionFromAxisAngle( Vector3( 1, 0, 0 ), DEG2RAD( 90 ) );
+        //// This rotates it into 'Front'.
+        //Quaternion hipQuatXRotate = QM_QuaternionFromAxisAngle( Vector3( 0, 1, 0 ), DEG2RAD( 45 ) );
+        //// Now Multiply.
+        //Quaternion hipQuat = QM_QuaternionMultiply( hipQuatZUp, hipQuatXRotate );
+        //// Assign.
+        //QuatCopy( hipQuat, currentStatePose[ 0 ].rotate );
+
+        // Cancel out hip for this pose
+        //Quaternion zHipQuat = QM_QuaternionFromAxisAngle( Vector3( 0, 0, 1 ), DEG2RAD( 90 ) );
+        //Quaternion yHipQuat = QM_QuaternionFromAxisAngle( Vector3( 1, 0, 0 ), DEG2RAD( 90 ) );
+        ////Quaternion hipQuat = QM_QuaternionMultiply( QM_QuaternionIdentity(), zHipQuat );
+        //Quaternion hipQuat = QM_QuaternionMultiply( zHipQuat, yHipQuat );
+        //QuatCopy( hipQuat, currentStatePose[ 0 ].rotate );
     }
 
     // Defaulted, unless event animations are actively playing.
@@ -368,8 +387,8 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         rootMotionBoneID, 0
     );
 
-    //sg_time_t lowerBodyDuration = ( lowerBodyState->animationEndTime - lowerBodyState->animationStartTime );
-    //sg_time_t lastLowerBodyDuration = ( lastLowerBodyState->animationEndTime - lastLowerBodyState->animationStartTime );
+    //sg_time_t lowerBodyDuration = ( lowerBodyState->animationEndTime - lowerBodyState->timeStart );
+    //sg_time_t lastLowerBodyDuration = ( lastLowerBodyState->animationEndTime - lastLowerBodyState->timeStart );
     //// Speed multipliers to correctly transition from one animation to another
     //float a = 1.0f;
     //float blendFactor = lowerBodyBackLerp;

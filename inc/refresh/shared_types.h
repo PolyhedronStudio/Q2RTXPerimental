@@ -254,12 +254,21 @@ typedef struct skm_bone_node_s {
 **/
 //! Calculate it for all axis.
 #define SKM_POSE_TRANSLATE_ALL 0
+
 //! Calculate translation of the bone's X Axis.
 #define SKM_POSE_TRANSLATE_X ( 1 << 0 )
 //! Calculate translation of the bone's Y Axis.
 #define SKM_POSE_TRANSLATE_Y ( 1 << 1 )
 //! Calculate translation of the bone's Z Axis.
 #define SKM_POSE_TRANSLATE_Z ( 1 << 2 )
+
+//! Calculate rotation of the bone's X Axis.
+#define SKM_POSE_ROTATE_X ( 1 << 3 )
+//! Calculate rotation of the bone's Y Axis.
+#define SKM_POSE_ROTATE_Y ( 1 << 4 )
+//! Calculate rotation of the bone's Z Axis.
+#define SKM_POSE_ROTATE_Z ( 1 << 5 )
+
 
 /**
 *	@brief
