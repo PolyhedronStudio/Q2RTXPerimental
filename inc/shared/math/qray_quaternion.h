@@ -41,6 +41,12 @@ RMAPI Quaternion QM_QuaternionIdentity( void ) {
 
     return result;
 }
+// Get "Z==UP" orientation quaternion
+RMAPI Quaternion QM_QuaternionZUpOrientation( void ) {
+    Quaternion result = { 0.5f, 0.5f, 0.5f, 0.5f };
+
+    return result;
+}
 
 // Computes the length of a quaternion
 RMAPI float QM_QuaternionLength( Quaternion q ) {

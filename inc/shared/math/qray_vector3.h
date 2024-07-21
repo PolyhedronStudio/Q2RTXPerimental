@@ -7,13 +7,7 @@
 **/
 #pragma once
 
-// This is so we can pass them by const reference from C++.
-// For C it'll be just a general const Vector3.
-#ifdef __cplusplus
-    typedef const Vector3& ConstVector3Ref;
-#else
-    typedef const Vector3 ConstVector3Ref;
-#endif
+
 
 // Vector with components value 0.0f
 RMAPI const Vector3 QM_Vector3Zero( void ) {
@@ -25,6 +19,13 @@ RMAPI const Vector3 QM_Vector3Zero( void ) {
 // Vector with components value 1.0f
 RMAPI const Vector3 QM_Vector3One( void ) {
     const Vector3 result = { 1.0f, 1.0f, 1.0f };
+
+    return result;
+}
+
+// Vector3 with x and y component of Vector2.
+RMAPI const Vector2 QM_Vector2FromVector3( ConstVector3Ref v1 ) {
+    const Vector2 result = { v1.x, v1.y };
 
     return result;
 }

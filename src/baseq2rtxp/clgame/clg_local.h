@@ -180,7 +180,9 @@ typedef struct centity_s {
 	entity_t refreshEntity;
 
 	//! Bone Pose Cache for ET_PLAYER and ET_MONSTER types.
-	skm_transform_t *bonePoseCache;
+	skm_transform_t *bonePoseCache;		//! Of the current animation.
+	skm_transform_t *lastBonePoseCache; //! Of the last animation.
+
 	//! Animations being played and mixed for this entity.
 	sg_skm_animation_mixer_t animationMixer;
 } centity_t;

@@ -75,7 +75,7 @@ void SKM_ComputeLerpBonePoses( const model_t *model, const int32_t frame, const 
 *	@param	addBonePose		The actual animation that you want to blend in on top of inBonePoses.
 *	@param	addToBonePose	A lerped bone pose which we want to blend addBonePoses animation on to.
 **/
-void SKM_RecursiveBlendFromBone( skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction );
+void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const skm_bone_node_t **excludeNodes, const int32_t numExcludeNodes, const double backLerp, const double fraction );
 /**
 *	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
 **/

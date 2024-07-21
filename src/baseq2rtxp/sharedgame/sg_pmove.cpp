@@ -176,43 +176,26 @@ void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
 	SG_PlayerState_AddPredictableEvent( newEvent, parameter, ps );
 }
 #endif
+
 /**
-*	@brief	Keeps track of the player's xySpeed and bobCycle:  
+*	@brief	Adjust the player's animation states depending on move direction speed and bobCycle.
 **/
-//static void PM_Footsteps( void ) {
-static void PM_CycleBob() {
-	//float		bobMove = 0.f;
-	int32_t		oldBobCycle = 0;
-	// Defaults to false and checked for later on:
-	qboolean	footStep = false;
-
-	//
-	// Calculate the speed and cycle to be used for all cyclic walking effects.
-	//
-	ps->xySpeed = QM_Vector2Length( ps->pmove.velocity );
-	ps->xyzSpeed = QM_Vector3Length( ps->pmove.velocity );
-
-	//ps->xySpeed = sqrtf( ps->pmove.velocity[ 0 ] * ps->pmove.velocity[ 0 ]
-	//	+ ps->pmove.velocity[ 1 ] * ps->pmove.velocity[ 1 ] );
-	//QM_Vector2Length
-	// Reset bobmove.
-	//ps->bobMove = 0.f;
-	
+static void PM_RefreshAnimationState() {
 	//
 	// Determing whether we're crouching, AND (running OR walking).
 	// 
 	// Animation State: We're crouched.
 	if ( pm->cmd.buttons & BUTTON_CROUCH || ps->pmove.pm_flags & PMF_DUCKED ) {
 		ps->animation.isCrouched = true;
-	// Animation State: We're NOT crouched.
-	} else {
+		// Animation State: We're NOT crouched.
+	} else if ( !( pm->cmd.buttons & BUTTON_CROUCH || ps->pmove.pm_flags & PMF_DUCKED ) ) {
 		ps->animation.isCrouched = false;
 	}
 	// Animation State: We're running, NOT walking:
 	if ( !( pm->cmd.buttons & BUTTON_WALK ) ) {
 		ps->animation.isWalking = false;
-	// Animation State: We're walking, NOT running:
-	} else {		
+		// Animation State: We're walking, NOT running:
+	} else if ( ( pm->cmd.buttons & BUTTON_WALK ) ) {
 		ps->animation.isWalking = true;
 	}
 
@@ -229,10 +212,10 @@ static void PM_CycleBob() {
 			// Start at beginning of cycle again:
 			ps->bobCycle = 0;
 			// Idling at last.
-			ps->animation.isIdle = true;
-		// Not idling yet, there's still velocities at play.
+			//ps->animation.isIdle = true;
+			// Not idling yet, there's still velocities at play.
 		} else {
-			ps->animation.isIdle = false;
+			//ps->animation.isIdle = false;
 		}
 
 		// Now check for animation idle playback animation.
@@ -244,9 +227,41 @@ static void PM_CycleBob() {
 			ps->animation.isIdle = false;
 		}
 		return;
-	// We're not idling that's for sure.
+		// We're not idling that's for sure.
 	} else {
 		ps->animation.isIdle = false;
+	}
+}
+/**
+*	@brief	Keeps track of the player's xySpeed and bobCycle:  
+**/
+//static void PM_Footsteps( void ) {
+static void 		// Determine the animation move direction.
+PM_Animation_SetMovementDirection();
+static void PM_CycleBob() {
+	//float		bobMove = 0.f;
+	int32_t		oldBobCycle = 0;
+	// Defaults to false and checked for later on:
+	qboolean	footStep = false;
+
+	//
+	// Calculate the speed and cycle to be used for all cyclic walking effects.
+	//
+	ps->xySpeed = QM_Vector2Length( QM_Vector2FromVector3( ps->pmove.velocity ) );
+	ps->xyzSpeed = QM_Vector3Length( ps->pmove.velocity );
+
+	// Reset bobmove.
+	//ps->bobMove = 0.f; // WID: Doing this just.. gives jitter like gameplay feel, but enable if you wanna...
+	
+	// Determine(refresh) the animation state.
+	PM_RefreshAnimationState();
+
+	// Determine the animation move direction.
+	PM_Animation_SetMovementDirection();
+
+	// Airborne leaves cycle intact, but doesn't advance either.
+	if ( pm->ground.entity == nullptr ) {
+		return;
 	}
 
 	// Default to no footstep:
@@ -295,6 +310,55 @@ static void PM_CycleBob() {
 *	@brief	Determine the rotation of the legs relative to the facing dir.
 **/
 static void PM_Animation_SetMovementDirection( void ) {
+	// if it's moving to where is looking, it's moving forward
+	// The desired yaw for the lower body.
+	static constexpr float DIR_EPSILON = 0.3f;
+	static constexpr float WALK_EPSILON = 5.0f;
+	static constexpr float RUN_EPSILON = 100.f;
+
+	// Angle Vectors.
+	const Vector3 vForward = pml.forward;
+	const Vector3 vRight = pml.right;
+
+	// Get the move direction vector.
+	Vector2 xyMoveDir = QM_Vector2FromVector3( ps->pmove.velocity );
+	// Normalized move direction vector.
+	Vector3 xyMoveDirNormalized = QM_Vector3FromVector2( QM_Vector2Normalize( xyMoveDir ) );
+
+	// Dot products.
+	const float xDotResult = QM_Vector3DotProduct( xyMoveDirNormalized, vRight );
+	const float yDotResult = QM_Vector3DotProduct( xyMoveDirNormalized, vForward );
+
+	// Resulting move flags.
+	ps->animation.moveDirection = 0;
+
+	// Are we even moving enough?
+	if ( ps->xySpeed > WALK_EPSILON ) {
+		// Forward:
+		if ( ( yDotResult > DIR_EPSILON ) || ( pm->cmd.forwardmove > 0 ) ) {
+			ps->animation.moveDirection |= PM_MOVEDIRECTION_FORWARD;
+		// Back:
+		} else if ( ( -yDotResult > DIR_EPSILON ) || ( pm->cmd.forwardmove < 0 ) ) {
+			ps->animation.moveDirection |= PM_MOVEDIRECTION_BACKWARD;
+		}
+		// Right: (Only if the dotproduct is so, or specifically only side move is pressed.)
+		if ( ( xDotResult > DIR_EPSILON ) || ( !pm->cmd.forwardmove && pm->cmd.sidemove > 0 ) ) {
+			ps->animation.moveDirection |= PM_MOVEDIRECTION_RIGHT;
+		// Left: (Only if the dotproduct is so, or specifically only side move is pressed.)
+		} else if ( ( -xDotResult > DIR_EPSILON ) || ( !pm->cmd.forwardmove && pm->cmd.sidemove < 0 ) ) {
+			ps->animation.moveDirection |= PM_MOVEDIRECTION_LEFT;
+		}
+
+		// Running:
+		if ( pm->playerState->xySpeed > RUN_EPSILON ) {
+			ps->animation.moveDirection |= PM_MOVEDIRECTION_RUN;
+		// Walking:
+		} else if ( pm->playerState->xySpeed > WALK_EPSILON ) {
+			ps->animation.moveDirection |= PM_MOVEDIRECTION_WALK;
+		}
+	}
+
+	#if 0
 	// Determine the move direction for animations based on the user input state.
 	// ( If strafe left / right or forward / backward is pressed then.. )
 	if ( pm->cmd.forwardmove || pm->cmd.sidemove ) {
@@ -332,6 +396,7 @@ static void PM_Animation_SetMovementDirection( void ) {
 			ps->animation.moveDirection = PM_MOVEDIRECTION_FORWARD_RIGHT;
 		}
 	}
+	#endif
 }
 
 
@@ -1192,7 +1257,7 @@ static void PM_CategorizePosition() {
 				// On ground.
 				ps->pmove.pm_flags |= PMF_ON_GROUND;
 				// Not in air anymore.
-				ps->animation.inAir = false;
+				//ps->animation.inAir = false;
 
 				// The duck check is handled client-side for the view player and in G_SetClientFrame for other player entities.
 				if ( !isJumpUpEventSet /*&& !( ps->pmove.pm_flags & PMF_DUCKED ) */) {
@@ -1208,7 +1273,7 @@ static void PM_CategorizePosition() {
 			// want to notify animations of inAir is false.
 			} else if ( ( ps->pmove.pm_flags & PMF_ON_GROUND ) ) {
 				// Hit ground.
-				//ps->animation.inAir = false;
+				ps->animation.inAir = false;
 			}
 		}
 

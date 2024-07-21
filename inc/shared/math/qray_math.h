@@ -121,6 +121,10 @@
 #define QM_Vector3ToConstFloat(vec) (QM_Vector3ToConstFloatV(vec).v)
 #endif
 
+#ifdef __cplusplus
+struct Vector3;
+#endif
+
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
@@ -155,8 +159,10 @@ typedef struct Vector2 {
         this->y = v.y;
     }
     [[nodiscard]] inline Vector2( vec2_t v2 ) {
-        this->x = v2[ 0 ];
-        this->y = v2[ 1 ];
+        if ( v2 ) {
+            this->x = v2[ 0 ];
+            this->y = v2[ 1 ];
+        }
     }
 
     /**
@@ -221,6 +227,7 @@ typedef struct Vector3 {
             this->x = this->y = this->z = 0;
         }
     }
+
     /**
     *  C++ Array like component accessors:
     **/
@@ -345,6 +352,16 @@ typedef struct qfloat3 {
 // Module Functions Definition - Utils math
 //----------------------------------------------------------------------------------
 #include "shared/math/qray_utils.h"
+
+// This is so we can pass them by const reference from C++.
+// For C it'll be just a general const Vector3.
+#ifdef __cplusplus
+    typedef const Vector3 &ConstVector3Ref;
+    typedef const Vector2 &ConstVector2Ref;
+#else
+    typedef const Vector3 ConstVector3Ref;
+    typedef const Vector2 ConstVector2Ref;
+#endif
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Vector2 math

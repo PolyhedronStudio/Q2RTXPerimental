@@ -21,81 +21,71 @@ RMAPI Vector2 QM_Vector2One( void ) {
     return result;
 }
 
+// Vector2 with x and y component of Vector3.
+RMAPI const Vector3 QM_Vector3FromVector2( ConstVector2Ref v1 ) {
+    const Vector3 result = { v1.x, v1.y, 0.f };
+
+    return result;
+}
+
 // Add two vectors (v1 + v2)
-RMAPI Vector2 QM_Vector2Add( Vector2 v1, Vector2 v2 ) {
+RMAPI Vector2 QM_Vector2Add( ConstVector2Ref v1, ConstVector2Ref v2 ) {
     Vector2 result = { v1.x + v2.x, v1.y + v2.y };
 
     return result;
 }
 
 // Add vector and float value
-RMAPI Vector2 QM_Vector2AddValue( Vector2 v, float add ) {
+RMAPI Vector2 QM_Vector2AddValue( ConstVector2Ref v, float add ) {
     Vector2 result = { v.x + add, v.y + add };
 
     return result;
 }
 
 // Subtract two vectors (v1 - v2)
-RMAPI Vector2 QM_Vector2Subtract( Vector2 v1, Vector2 v2 ) {
+RMAPI Vector2 QM_Vector2Subtract( ConstVector2Ref v1, ConstVector2Ref v2 ) {
     Vector2 result = { v1.x - v2.x, v1.y - v2.y };
 
     return result;
 }
 
 // Subtract vector by float value
-RMAPI Vector2 QM_Vector2SubtractValue( Vector2 v, float sub ) {
+RMAPI Vector2 QM_Vector2SubtractValue( ConstVector2Ref v, float sub ) {
     Vector2 result = { v.x - sub, v.y - sub };
 
     return result;
 }
 
 // Calculate vector length
-RMAPI float QM_Vector2Length( Vector2 v ) {
+RMAPI float QM_Vector2Length( ConstVector2Ref v ) {
     float result = sqrtf( ( v.x * v.x ) + ( v.y * v.y ) );
 
     return result;
 }
 
-#ifdef __cplusplus // Only compatible with C++
-// Calculate vector length
-RMAPI float QM_Vector2Length( Vector3 v ) {
-    float result = sqrtf( ( v.x * v.x ) + ( v.y * v.y ) );
-
-    return result;
-}
-#endif // #ifdef __cplusplus
-
 // Calculate vector square length
-RMAPI float QM_Vector2LengthSqr( Vector2 v ) {
+RMAPI float QM_Vector2LengthSqr( ConstVector2Ref v ) {
     float result = ( v.x * v.x ) + ( v.y * v.y );
 
     return result;
 }
-#ifdef __cplusplus // Only compatible with C++
-// Calculate vector square length
-RMAPI float QM_Vector2LengthSqr( Vector3 v ) {
-    float result = ( v.x * v.x ) + ( v.y * v.y );
-
-    return result;
-}
-#endif // #ifdef __cplusplus
 
 // Calculate two vectors dot product
-RMAPI float QM_Vector2DotProduct( Vector2 v1, Vector2 v2 ) {
+RMAPI float QM_Vector2DotProduct( ConstVector2Ref v1, ConstVector2Ref v2 ) {
     float result = ( v1.x * v2.x + v1.y * v2.y );
 
     return result;
 }
 
 // Calculate distance between two vectors
-RMAPI float QM_Vector2Distance( Vector2 v1, Vector2 v2 ) {
+RMAPI float QM_Vector2Distance( ConstVector2Ref v1, ConstVector2Ref v2 ) {
     float result = sqrtf( ( v1.x - v2.x ) * ( v1.x - v2.x ) + ( v1.y - v2.y ) * ( v1.y - v2.y ) );
 
     return result;
 }
 
 // Calculate square distance between two vectors
-RMAPI float QM_Vector2DistanceSqr( Vector2 v1, Vector2 v2 ) {
+RMAPI float QM_Vector2DistanceSqr( ConstVector2Ref v1, ConstVector2Ref v2 ) {
     float result = ( ( v1.x - v2.x ) * ( v1.x - v2.x ) + ( v1.y - v2.y ) * ( v1.y - v2.y ) );
 
     return result;
@@ -103,7 +93,7 @@ RMAPI float QM_Vector2DistanceSqr( Vector2 v1, Vector2 v2 ) {
 
 // Calculate angle between two vectors
 // NOTE: Angle is calculated from origin point (0, 0)
-RMAPI float QM_Vector2Angle( Vector2 v1, Vector2 v2 ) {
+RMAPI float QM_Vector2Angle( ConstVector2Ref v1, ConstVector2Ref v2 ) {
     float result = 0.0f;
 
     float dot = v1.x * v2.x + v1.y * v2.y;
@@ -117,7 +107,7 @@ RMAPI float QM_Vector2Angle( Vector2 v1, Vector2 v2 ) {
 // Calculate angle defined by a two vectors line
 // NOTE: Parameters need to be normalized
 // Current implementation should be aligned with glm::angle
-RMAPI float QM_Vector2LineAngle( Vector2 start, Vector2 end ) {
+RMAPI float QM_Vector2LineAngle( ConstVector2Ref start, ConstVector2Ref end ) {
     float result = 0.0f;
 
     // TODO(10/9/2023): Currently angles move clockwise, determine if this is wanted behavior
@@ -127,42 +117,42 @@ RMAPI float QM_Vector2LineAngle( Vector2 start, Vector2 end ) {
 }
 
 // Scale vector (multiply by value)
-RMAPI Vector2 QM_Vector2Scale( Vector2 v, float scale ) {
+RMAPI Vector2 QM_Vector2Scale( ConstVector2Ref v, float scale ) {
     Vector2 result = { v.x * scale, v.y * scale };
 
     return result;
 }
 
 // Multiply vector by vector
-RMAPI Vector2 QM_Vector2Multiply( Vector2 v1, Vector2 v2 ) {
+RMAPI Vector2 QM_Vector2Multiply( ConstVector2Ref v1, ConstVector2Ref v2 ) {
     Vector2 result = { v1.x * v2.x, v1.y * v2.y };
 
     return result;
 }
 
 // Negate vector
-RMAPI Vector2 QM_Vector2Negate( Vector2 v ) {
+RMAPI Vector2 QM_Vector2Negate( ConstVector2Ref v ) {
     Vector2 result = { -v.x, -v.y };
 
     return result;
 }
 
 // Divide vector by vector
-RMAPI Vector2 QM_Vector2Divide( Vector2 v1, Vector2 v2 ) {
+RMAPI Vector2 QM_Vector2Divide( ConstVector2Ref v1, ConstVector2Ref v2 ) {
     Vector2 result = { v1.x / v2.x, v1.y / v2.y };
 
     return result;
 }
 
 // Divide vector by scalar
-RMAPI Vector2 QM_Vector2DivideValue( Vector2 v1, const float scalar ) {
+RMAPI Vector2 QM_Vector2DivideValue( ConstVector2Ref v1, const float scalar ) {
     Vector2 result = { v1.x / scalar, v1.y / scalar };
 
     return result;
 }
 
 // Normalize provided vector
-RMAPI Vector2 QM_Vector2Normalize( Vector2 v ) {
+RMAPI Vector2 QM_Vector2Normalize( ConstVector2Ref v ) {
     Vector2 result = { 0 };
     float length = sqrtf( ( v.x * v.x ) + ( v.y * v.y ) );
 
@@ -176,7 +166,7 @@ RMAPI Vector2 QM_Vector2Normalize( Vector2 v ) {
 }
 
 // Transforms a Vector2 by a given Matrix
-RMAPI Vector2 QM_Vector2Transform( Vector2 v, Matrix mat ) {
+RMAPI Vector2 QM_Vector2Transform( ConstVector2Ref v, Matrix mat ) {
     Vector2 result = { 0 };
 
     float x = v.x;
@@ -190,7 +180,7 @@ RMAPI Vector2 QM_Vector2Transform( Vector2 v, Matrix mat ) {
 }
 
 // Calculate linear interpolation between two vectors
-RMAPI Vector2 QM_Vector2Lerp( Vector2 v1, Vector2 v2, float amount ) {
+RMAPI Vector2 QM_Vector2Lerp( ConstVector2Ref v1, ConstVector2Ref v2, float amount ) {
     Vector2 result = { 0 };
 
     result.x = v1.x + amount * ( v2.x - v1.x );
@@ -200,7 +190,7 @@ RMAPI Vector2 QM_Vector2Lerp( Vector2 v1, Vector2 v2, float amount ) {
 }
 
 // Calculate reflected vector to normal
-RMAPI Vector2 QM_Vector2Reflect( Vector2 v, Vector2 normal ) {
+RMAPI Vector2 QM_Vector2Reflect( ConstVector2Ref v, ConstVector2Ref normal ) {
     Vector2 result = { 0 };
 
     float dotProduct = ( v.x * normal.x + v.y * normal.y ); // Dot product
@@ -212,7 +202,7 @@ RMAPI Vector2 QM_Vector2Reflect( Vector2 v, Vector2 normal ) {
 }
 
 // Rotate vector by angle
-RMAPI Vector2 QM_Vector2Rotate( Vector2 v, float angle ) {
+RMAPI Vector2 QM_Vector2Rotate( ConstVector2Ref v, float angle ) {
     Vector2 result = { 0 };
 
     float cosres = cosf( angle );
@@ -225,7 +215,7 @@ RMAPI Vector2 QM_Vector2Rotate( Vector2 v, float angle ) {
 }
 
 // Move Vector towards target
-RMAPI Vector2 QM_Vector2MoveTowards( Vector2 v, Vector2 target, float maxDistance ) {
+RMAPI Vector2 QM_Vector2MoveTowards( ConstVector2Ref v, ConstVector2Ref target, float maxDistance ) {
     Vector2 result = { 0 };
 
     float dx = target.x - v.x;
@@ -243,7 +233,7 @@ RMAPI Vector2 QM_Vector2MoveTowards( Vector2 v, Vector2 target, float maxDistanc
 }
 
 // Invert the given vector
-RMAPI Vector2 QM_Vector2Invert( Vector2 v ) {
+RMAPI Vector2 QM_Vector2Invert( ConstVector2Ref v ) {
     Vector2 result = { 1.0f / v.x, 1.0f / v.y };
 
     return result;
@@ -251,7 +241,7 @@ RMAPI Vector2 QM_Vector2Invert( Vector2 v ) {
 
 // Clamp the components of the vector between
 // min and max values specified by the given vectors
-RMAPI Vector2 QM_Vector2Clamp( Vector2 v, Vector2 min, Vector2 max ) {
+RMAPI Vector2 QM_Vector2Clamp( ConstVector2Ref v, ConstVector2Ref min, ConstVector2Ref max ) {
     Vector2 result = { 0 };
 
     result.x = fminf( max.x, fmaxf( min.x, v.x ) );
@@ -261,7 +251,7 @@ RMAPI Vector2 QM_Vector2Clamp( Vector2 v, Vector2 min, Vector2 max ) {
 }
 
 // Clamp the magnitude of the vector between two min and max values
-RMAPI Vector2 QM_Vector2ClampValue( Vector2 v, float min, float max ) {
+RMAPI Vector2 QM_Vector2ClampValue( ConstVector2Ref v, float min, float max ) {
     Vector2 result = v;
 
     float length = ( v.x * v.x ) + ( v.y * v.y );
@@ -283,7 +273,7 @@ RMAPI Vector2 QM_Vector2ClampValue( Vector2 v, float min, float max ) {
 }
 
 // Check whether two given vectors are almost equal
-RMAPI int QM_Vector2Equals( Vector2 p, Vector2 q ) {
+RMAPI int QM_Vector2Equals( ConstVector2Ref p, ConstVector2Ref q ) {
     #if !defined(QM_EPSILON)
     #define QM_EPSILON 0.000001f
     #endif

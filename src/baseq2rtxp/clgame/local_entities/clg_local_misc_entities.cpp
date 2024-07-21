@@ -566,10 +566,10 @@ static void CLG_misc_model_BlendAnimations( clg_local_entity_t *self, clg_misc_m
 
 	// Now recursively blend from the specified bones in skm data.
 	static iqm_transform_t blendedBonePoses[ SKM_MAX_BONES ];
-	clgi.SKM_RecursiveBlendFromBone( torsoAnimationBonePoses, hipAnimationBonePoses, skmConfig->rootBones.torso, torsoBackLerp, 0.5f );
-	clgi.SKM_RecursiveBlendFromBone( hipAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.hip, hipBackLerp, 1.0f );
+	clgi.SKM_RecursiveBlendFromBone( torsoAnimationBonePoses, hipAnimationBonePoses, skmConfig->rootBones.torso, nullptr, 0, torsoBackLerp, 0.5f );
+	clgi.SKM_RecursiveBlendFromBone( hipAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.hip, nullptr, 0, hipBackLerp, 1.0f );
 	
-	clgi.SKM_RecursiveBlendFromBone( headAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.head, headBackLerp, 0.5f );
+	clgi.SKM_RecursiveBlendFromBone( headAnimationBonePoses, blendedBonePoses, skmConfig->rootBones.head, nullptr, 0, headBackLerp, 0.5f );
 
 	refreshEntity->bonePoses = blendedBonePoses;
 	#else

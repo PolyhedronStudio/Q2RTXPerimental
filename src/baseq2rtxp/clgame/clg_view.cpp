@@ -231,21 +231,21 @@ static void CLG_AnimateViewWeapon( entity_t *refreshEntity, const int32_t firstF
         // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
         if ( refreshEntity->frame == firstFrame ) {
             refreshEntity->backlerp = 0.0;
-            clgi.Print( PRINT_NOTICE, "%s: refreshEntity->backlerp = 0.0; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame );
+            //clgi.Print( PRINT_NOTICE, "%s: refreshEntity->backlerp = 0.0; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame );
         // Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
         } else if ( refreshEntity->frame == lastFrame ) {
             refreshEntity->backlerp = 1.0;
-            clgi.Print( PRINT_NOTICE, "%s: refreshEntity->backlerp = 1.0; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame );
+            //clgi.Print( PRINT_NOTICE, "%s: refreshEntity->backlerp = 1.0; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame );
         // Otherwise just subtract the resulting lerpFraction.
         } else {
             refreshEntity->backlerp = 1.0 - lerpFraction;
-            clgi.Print( PRINT_NOTICE, "%s: refreshEntity->backlerp = 1.0 - lerpFraction; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame );
+            //clgi.Print( PRINT_NOTICE, "%s: refreshEntity->backlerp = 1.0 - lerpFraction; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame );
         }
         // Clamp just to be sure.
         clamp( refreshEntity->backlerp, 0.0, 1.0 );
         // Reached the end of the animation:
     } else {
-        clgi.Print( PRINT_NOTICE, "%s: frameForTime != -1; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame  );
+        //clgi.Print( PRINT_NOTICE, "%s: frameForTime != -1; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame  );
         // Otherwise, oldframe now equals the current(end) frame.
         refreshEntity->oldframe = refreshEntity->frame = lastFrame;
         // No more lerping.
@@ -985,7 +985,7 @@ void PF_CalculateViewValues( void ) {
     // Copy the view origin and angles for the thirdperson(and also shadow casing) entity.
     VectorCopy( clgi.client->refdef.vieworg, clgi.client->playerEntityOrigin );
     VectorCopy( clgi.client->refdef.viewangles, clgi.client->playerEntityAngles );
-        // Keep pitch in bounds.
+    // Keep pitch in bounds.
     if ( clgi.client->playerEntityAngles[ PITCH ] > 180 ) {
         clgi.client->playerEntityAngles[ PITCH ] -= 360;
     }
