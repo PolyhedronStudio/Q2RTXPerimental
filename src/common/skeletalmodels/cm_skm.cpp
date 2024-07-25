@@ -501,9 +501,9 @@ void SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePo
 				}
 
 				// Scale Lerp as usual.
-				relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + oldPose->scale[ 0 ] * frontLerp;
-				relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + oldPose->scale[ 1 ] * frontLerp;
-				relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + oldPose->scale[ 2 ] * frontLerp;
+				relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + pose->scale[ 0 ] * frontLerp;
+				relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + pose->scale[ 1 ] * frontLerp;
+				relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + pose->scale[ 2 ] * frontLerp;
 				// Quat Slerp as usual.
 				QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
 				continue;
@@ -514,9 +514,9 @@ void SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePo
 			relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp;
 			relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
 
-			relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + oldPose->scale[ 0 ] * frontLerp;
-			relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + oldPose->scale[ 1 ] * frontLerp;
-			relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + oldPose->scale[ 2 ] * frontLerp;
+			relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + pose->scale[ 0 ] * frontLerp;
+			relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + pose->scale[ 1 ] * frontLerp;
+			relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + pose->scale[ 2 ] * frontLerp;
 
 			QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
 		}
@@ -605,9 +605,9 @@ void SKM_ComputeLerpBonePoses( const model_t *model, const int32_t frame, const 
 				}
 
 				// Scale Lerp as usual.
-				relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + oldPose->scale[ 0 ] * frontLerp;
-				relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + oldPose->scale[ 1 ] * frontLerp;
-				relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + oldPose->scale[ 2 ] * frontLerp;
+				relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + pose->scale[ 0 ] * frontLerp;
+				relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + pose->scale[ 1 ] * frontLerp;
+				relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + pose->scale[ 2 ] * frontLerp;
 				// Quat Slerp as usual.
 				QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
 				continue;
@@ -618,9 +618,9 @@ void SKM_ComputeLerpBonePoses( const model_t *model, const int32_t frame, const 
 			relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp;
 			relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
 
-			relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + oldPose->scale[ 0 ] * frontLerp;
-			relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + oldPose->scale[ 1 ] * frontLerp;
-			relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + oldPose->scale[ 2 ] * frontLerp;
+			relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + pose->scale[ 0 ] * frontLerp;
+			relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + pose->scale[ 1 ] * frontLerp;
+			relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + pose->scale[ 2 ] * frontLerp;
 
 			QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
 		}
@@ -657,9 +657,9 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
 		// Copy bone translation and scale;
 		*outBone->translate = *inBone->translate;
 		*outBone->scale = *inBone->scale;
-		*outBone->rotate = *inBone->rotate;
+		//*outBone->rotate = *inBone->rotate;
 		// Slerp the rotation at fraction.	
-		//QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+		QuatSlerp( outBone->rotate, inBone->rotate, 1.0, outBone->rotate );
 		#else
 		const double frontLerp = 1.0 - backLerp;
 		// Lerp the Translation.
@@ -699,6 +699,7 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
 		// Copy bone translation and scale;
 		*outBone->translate = *inBone->translate;
 		*outBone->scale = *inBone->scale;
+		//*outBone->rotate = *inBone->rotate;
 		// Slerp rotation by fraction.
 		QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
 		#endif

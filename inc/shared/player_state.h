@@ -116,14 +116,14 @@ typedef struct pmove_state_s {
 
 //! Used to determine what player base channel animation to set.
 //! "(crouch/walk/run)_forward/backward_left/right_(weapon)"
-#define PM_MOVEDIRECTION_FORWARD        BIT( 0 )
-#define PM_MOVEDIRECTION_FORWARD_LEFT   BIT( 1 )
-#define PM_MOVEDIRECTION_LEFT           BIT( 2 )
+#define PM_MOVEDIRECTION_FORWARD_LEFT   BIT( 0 )
+#define PM_MOVEDIRECTION_FORWARD        BIT( 1 )
+#define PM_MOVEDIRECTION_FORWARD_RIGHT  BIT( 2 )
 #define PM_MOVEDIRECTION_BACKWARD_LEFT  BIT( 3 )
 #define PM_MOVEDIRECTION_BACKWARD       BIT( 4 )
 #define PM_MOVEDIRECTION_BACKWARD_RIGHT BIT( 5 )
-#define PM_MOVEDIRECTION_RIGHT          BIT( 6 )
-#define PM_MOVEDIRECTION_FORWARD_RIGHT  BIT( 7 )
+#define PM_MOVEDIRECTION_LEFT           BIT( 6 )
+#define PM_MOVEDIRECTION_RIGHT          BIT( 7 )
 #define PM_MOVEDIRECTION_RUN            BIT( 8 )
 #define PM_MOVEDIRECTION_WALK           BIT( 9 )
 

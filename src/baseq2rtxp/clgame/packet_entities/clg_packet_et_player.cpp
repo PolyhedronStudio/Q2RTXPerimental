@@ -56,14 +56,23 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
 
         // Start timer is always just servertime that we had.
         sg_time_t startTimer = sg_time_t::from_ms( clgi.client->servertime );
-        // However, if the last body state was of a different animation type, we want to continue using its
-        // start time so we can ensure that switching directions keeps the feet neatly lerping.
-        if ( lastBodyState[ SKM_BODY_LOWER ].animationID != currentBodyState[ SKM_BODY_LOWER ].animationID ) {
-            //startTimer = lastBodyState[ SKM_BODY_LOWER ].timeStart;
-            lastBodyState[ SKM_BODY_LOWER ] = currentBodyState[ SKM_BODY_LOWER ];
-        }
+        
+        // Temporary for setting the animation.
+        sg_skm_animation_state_t newAnimationBodyState;
+
         // We want this to loop for most animations.
-        SG_SKM_SetStateAnimation( model, &currentBodyState[ SKM_BODY_LOWER ], baseAnimStr.c_str(), startTimer, frameTime, true, false );
+        if ( SG_SKM_SetStateAnimation( model, &newAnimationBodyState, baseAnimStr.c_str(), startTimer, frameTime, true, false ) ) {
+            // However, if the last body state was of a different animation type, we want to continue using its
+            // start time so we can ensure that switching directions keeps the feet neatly lerping.
+            if ( lastBodyState[ SKM_BODY_LOWER ].animationID != newAnimationBodyState.animationID ) {
+                // Store the what once was current, as last body state.
+                lastBodyState[ SKM_BODY_LOWER ] = currentBodyState[ SKM_BODY_LOWER ];
+                // Assign the newly set animation state.
+                //newAnimationBodyState.timeSTart = lastBodyState[ SKM_BODY_LOWER ].timeStart;
+                currentBodyState[ SKM_BODY_LOWER ] = newAnimationBodyState;
+            }
+        }
+
     } else {
         // Decode the entity's animationIDs from its newState.
         uint8_t lowerAnimationID = 0;
@@ -85,107 +94,16 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         // Set animation.
         SG_SKM_SetStateAnimation( model, &currentBodyState[ SKM_BODY_LOWER ], lowerAnimationID, startTimer, frameTime, true, false );
     }
-    
-
-    #if 0
-    // If we got an entity event...
-    //if ( entityEvent == PS_EV_JUMP_UP ) {
-    //    // Set event animation.
-    //    sg_skm_animation_state_t *eventAnimationState = &animationMixer->eventBodyState[ SKM_BODY_LOWER ];// &animationMixer->eventBodyState[ 0 ];
-    //    // Set lower body animation.
-    //    SG_SKM_SetStateAnimation( model, eventAnimationState, "jump_up", sg_time_t::from_ms(clgi.client->servertime), BASE_FRAMETIME, false, true );
-    //} else if ( entityEvent == PS_EV_JUMP_LAND ) {
-    //    // Set event animation.
-    //    sg_skm_animation_state_t *eventAnimationState = &animationMixer->eventBodyState[ SKM_BODY_LOWER ];// &animationMixer->currentBodyStates[ 0 ];
-    //    // Set lower body animation.
-    //    SG_SKM_SetStateAnimation( model, eventAnimationState, "jump_down", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
-    //} else {
-        player_state_t *predictedPlayerState = &clgi.client->predictedState.currentPs;
-
-        if ( !predictedPlayerState->animation.isCrouched && predictedPlayerState->animation.inAir ) {
-        //    // Set event animation.
-            sg_skm_animation_state_t *eventAnimationState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];//&animationMixer->currentBodyStates[ 0 ];
-            // Wait for other event to finish.
-            //if ( eventAnimationState->ler <= sg_time_t::from_ms( clgi.client->extrapolatedTime ) ) {
-                // Set lower body animation.
-                SG_SKM_SetStateAnimation( model, eventAnimationState, "jump_air", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, true, true );
-            //}
-        }
-#endif
-    //}
 }
 
 /**
 *   @brief  Determine which animations to play based on the player state event channels.
 **/
 void CLG_ETPlayer_DetermineEventAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
-    //// Get model resource.
-    //const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
 
-    //// Get the animation state mixer.
-    //sg_skm_animation_mixer_t *animationMixer = &packetEntity->animationMixer;
-    //// Get body states.
-    //sg_skm_animation_state_t *currentBodyState = animationMixer->currentBodyStates;
-    //sg_skm_animation_state_t *lastBodyState = animationMixer->lastBodyStates;
-
-    //sg_skm_animation_state_t *lowerEventBodyState = &animationMixer->eventBodyState[ SKM_BODY_LOWER ];
-    //sg_skm_animation_state_t *upperEventBodyState = &animationMixer->eventBodyState[ SKM_BODY_UPPER ];
-
-
-    //// Third-person/mirrors model of our own client entity:
-    //if ( CLG_IsViewClientEntity( newState ) ) {
-    //    // WID: TODO: We need client-side weapon code if we want to use the predicted states,
-    //    player_state_t *playerState = &clgi.client->predictedState.lastPs; // &clgi.client->frame.ps;//
-    //    player_state_t *oldPlayerState = &clgi.client->predictedState.currentPs; // &clgi.client->oldframe.ps;//;
-    //    if ( oldPlayerState->eventSequence != playerState->eventSequence ) {
-    //        const int32_t currentSequenceIndex = playerState->eventSequence & ( MAX_PS_EVENTS - 1 );
-    //        const int32_t oldSequenceIndex = oldPlayerState->eventSequence & ( MAX_PS_EVENTS - 1 );
-    //        const int32_t entityEvent = playerState->events[ currentSequenceIndex ];
-    //        const int32_t oldEntityEvent = oldPlayerState->events[ oldSequenceIndex ];
-
-    //        // Set event animation.
-    //        const sg_time_t extrapolatedTime = sg_time_t::from_ms( clgi.client->extrapolatedTime );
-    //        //if ( extrapolatedTime > eventAnimationState->animationEndTime ) {
-    //        //if ( entityEvent != oldEntityEvent ) {
-    //        if ( entityEvent == PS_EV_JUMP_UP ) {
-    //            //sg_skm_animation_state_t *currentLowerBodyAnimationState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
-    //            //sg_skm_animation_state_t *lastLowerBodyAnimationState = &animationMixer->lastBodyStates[ SKM_BODY_LOWER ];
-    //            //*lastLowerBodyAnimationState = *currentLowerBodyAnimationState;
-    //            //SG_SKM_SetStateAnimation( model, currentLowerBodyAnimationState, "jump_up", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
-    //        } else if ( entityEvent == PS_EV_JUMP_LAND ) {
-    //            //sg_skm_animation_state_t *currentLowerBodyAnimationState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
-    //            //sg_skm_animation_state_t *lastLowerBodyAnimationState = &animationMixer->lastBodyStates[ SKM_BODY_LOWER ];
-    //            //*lastLowerBodyAnimationState = *currentLowerBodyAnimationState;
-    //            //SG_SKM_SetStateAnimation( model, currentLowerBodyAnimationState, "jump_down", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
-    //        } else if ( entityEvent == PS_EV_WEAPON_PRIMARY_FIRE ) {
-    //            // Set event state animation.
-    //            SG_SKM_SetStateAnimation( model, lowerEventBodyState, "fire_stand_rifle", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
-    //        } else if ( entityEvent == PS_EV_WEAPON_RELOAD ) {
-    //            // Set event state animation.
-    //            SG_SKM_SetStateAnimation( model, lowerEventBodyState, "reload_stand_rifle", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
-    //        }
-    //        //}
-    //        //}
-    //        //
-    //        //  if ( entityEvent == PS_EV_JUMP_UP ) {
-    //        //      // &animationMixer->eventBodyState[ 0 ];
-    //        //                      // Set lower body animation.
-    //        //      SG_SKM_SetStateAnimation( model, eventAnimationState, "jump_up", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, false );
-    //        //  } else if ( entityEvent == PS_EV_JUMP_LAND ) {
-    //        //      // Set event animation.
-    //        //      sg_skm_animation_state_t *eventAnimationState = &animationMixer->eventBodyState[ SKM_BODY_LOWER ];// &animationMixer->currentBodyStates[ 0 ];
-    //        //      // Set lower body animation.
-    //        //      SG_SKM_SetStateAnimation( model, eventAnimationState, "jump_down", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, false );
-    //        //  }
-    //        //}
-    //        // 
-    //            //predictedPlayerState->events[ sequenceIndex ] = EV_NONE;
-    //    }
-    //} else {
-    //    //entityEvent = packetEntity->current.event;
-    //}
 }
 
+#if 0
 static const double CLG_ETPlayer_GetSwitchAnimationScaleFactor( const sg_time_t &lastTimeStamp, const sg_time_t &nextTimeStamp, const sg_time_t &animationTime ) {
     //double scaleFactor = 0.0;
     const double midWayLength = animationTime.milliseconds() - lastTimeStamp.milliseconds();
@@ -194,9 +112,22 @@ static const double CLG_ETPlayer_GetSwitchAnimationScaleFactor( const sg_time_t 
     if ( framesDiff > 0 ) {
         return /*scaleFactor = */ midWayLength / framesDiff;
     } else {
-        return DBL_EPSILON;//0;
+        return 0;//0;
     }
 }
+#else
+static const double CLG_ETPlayer_GetSwitchAnimationScaleFactor( const sg_time_t &lastTimeStamp, const sg_time_t &nextTimeStamp, const sg_time_t &animationTime ) {
+    //double scaleFactor = 0.0;
+    const double midWayLength = animationTime.milliseconds() - lastTimeStamp.milliseconds();
+    const double framesDiff = nextTimeStamp.milliseconds() - lastTimeStamp.milliseconds();
+    // WID: Prevent a possible division by zero?
+    if ( framesDiff > 0 ) {
+        return /*scaleFactor = */ midWayLength / framesDiff;
+    } else {
+        return 1;//0;
+    }
+}
+#endif
 
 /**
 *   @brief  Process the entity's active animations.
@@ -232,6 +163,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     /**
     *   Lower Body:
     **/
+    const sg_time_t serverTime = sg_time_t::from_ms( clgi.client->servertime );
     // Time we're at.
     const sg_time_t extrapolatedTime = sg_time_t::from_ms( clgi.client->extrapolatedTime );
 
@@ -241,6 +173,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     skm_bone_node_t *spineBone = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine" );
     skm_bone_node_t *spine1Bone = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine1" );
     skm_bone_node_t *spine2Bone = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine2" );
+    skm_bone_node_t *neckBone = clgi.SKM_GetBoneByName( model, "mixamorig8:Neck" );
     // Shoulder bones.
     skm_bone_node_t *leftShoulderBone = clgi.SKM_GetBoneByName( model, "mixamorig8:LeftShoulder" );
     skm_bone_node_t *rightShoulderBone = clgi.SKM_GetBoneByName( model, "mixamorig8:RightShoulder" );
@@ -248,16 +181,21 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     skm_bone_node_t *leftUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:LeftUpLeg" );
     skm_bone_node_t *rightUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:RightUpLeg" );
 
-    // Stores data for current and last frame poses.
+    // Final state pose.
     static skm_transform_t finalStatePose[ SKM_MAX_BONES ];
     static skm_transform_t lastFinalStatePose[ SKM_MAX_BONES ];
     memcpy( lastFinalStatePose, finalStatePose, SKM_MAX_BONES * sizeof( skm_transform_t ) );
+    
+    // For the current active animation.
     static skm_transform_t currentStatePose[ SKM_MAX_BONES ];
+    static skm_transform_t previousStatePose[ SKM_MAX_BONES ];
+    // For the last animation that continues playing for transitioning purposes.
     static skm_transform_t lastCurrentStatePose[ SKM_MAX_BONES ];
-    memcpy( lastCurrentStatePose, currentStatePose, SKM_MAX_BONES * sizeof( skm_transform_t ) );
-    static skm_transform_t lastStatePose[ SKM_MAX_BONES ];
-    static skm_transform_t lastLastStatePose[ SKM_MAX_BONES ];
-    memcpy( lastLastStatePose, lastStatePose, SKM_MAX_BONES * sizeof( skm_transform_t ) );
+    static skm_transform_t lastPreviousStatePose[ SKM_MAX_BONES ];
+
+    // Backup the old previous frame state poses for smooth lerping.
+    memcpy( lastPreviousStatePose, previousStatePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
+    memcpy( lastCurrentStatePose, currentStatePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
 
     // Default rootmotion settings.
     int32_t rootMotionBoneID = 0, rootMotionAxisFlags = 0;
@@ -269,39 +207,31 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     int32_t lastLowerBodyCurrentFrame = 0, lastLowerBodyOldFrame = 0;
     double currentLowerBodyBackLerp = 0.0, lastLowerBodyBackLerp;
     
-    sg_skm_animation_state_t *currentLowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
+    // Process the 'previous' lower body animation. (This is so we can smoothly transition from 'last' to 'current').
     sg_skm_animation_state_t *lastLowerBodyState = &animationMixer->lastBodyStates[ SKM_BODY_LOWER ];
-    // Process the 'last' lower body animation. (This is so we can smoothly transition from 'last' to 'current').
     { 
         // Get frame.
         SG_SKM_ProcessAnimationStateForTime( model, lastLowerBodyState, extrapolatedTime, &lastLowerBodyOldFrame, &lastLowerBodyCurrentFrame, &lastLowerBodyBackLerp );
         // Lerp the relative frame poses.
         const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, lastLowerBodyCurrentFrame );
         const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, lastLowerBodyOldFrame );
-        clgi.SKM_LerpBonePoses(
-            model,
-            framePose, oldFramePose,
-            1.0 - lastLowerBodyBackLerp, lastLowerBodyBackLerp,
-            lastStatePose,
-            rootMotionBoneID, rootMotionAxisFlags
-        );
+        
+        // Copy in the frame pose.
+        memcpy( previousStatePose, framePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
     }
     // Process the 'current' lower body animation.
+    sg_skm_animation_state_t *currentLowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
     {
         // Get frame.
         SG_SKM_ProcessAnimationStateForTime( model, currentLowerBodyState, extrapolatedTime, &currentLowerBodyOldFrame, &currentLowerBodyCurrentFrame, &currentLowerBodyBackLerp );
         const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, currentLowerBodyCurrentFrame );
         const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, currentLowerBodyOldFrame );
-        // Lerp the relative frame poses.
-        clgi.SKM_LerpBonePoses(
-            model,
-            framePose, oldFramePose,
-            1.0 - currentLowerBodyBackLerp, currentLowerBodyBackLerp,
-            currentStatePose,
-            rootMotionBoneID, rootMotionAxisFlags
-        );
+        
+        // Copy in the frame pose.
+        memcpy( currentStatePose, framePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
     }
 
+    #if 0
     //
     // Event: Lower Body State
     //
@@ -327,7 +257,6 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         );
         // Perform the blend.
         clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, currentStatePose, hipsBone, nullptr, 0, lowerEventBodyBackLerp, 1 );
-        clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, lastStatePose, hipsBone, nullptr, 0, lowerEventBodyBackLerp, 1 );
     }
 
     ////
@@ -362,234 +291,244 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
             0, 0
         );
         clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, spineBone, nullptr, 0, upperEventBodyBackLerp, 1 );
-        clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, lastStatePose, spineBone, nullptr, 0, upperEventBodyBackLerp, 1 );
     }
-
-    #if 0
-    Vector3 thirdpersonAngles = clgi.client->playerEntityAngles;
-    Vector3 spineAngles = thirdpersonAngles;
-    // Adjust pitch slightly.
-    spineAngles[ YAW ] = -AngleMod( spineAngles[ YAW ] ) / 3;
-
-    //hipZUpOrientQuat = QM_QuaternionMultiply( hipQuatZRotate, hipZUpOrientQuat );
-    Quaternion quatZUpOrientation = QM_QuaternionIdentity();//QM_QuaternionZUpOrientation();
-    // Get a quaternion of the players pitch angle.
-    Quaternion spineQuatPitchRotate = QM_QuaternionFromAxisAngle( Vector3( 1, 0, 0 ), DEG2RAD( spineAngles[ PITCH ] ) );
-    // Get a quaternion of the players yaw angle.
-    Quaternion spineQuatYawRotate = QM_QuaternionFromAxisAngle( Vector3( 0, 1, 0 ), DEG2RAD( spineAngles[ YAW ] ) );
-    // Apply the pitch rotation to the ZUp orientation to get the hipQuaternion.
-    Quaternion spineQuat = QM_QuaternionMultiply( quatZUpOrientation, spineQuatYawRotate );
-    // Apply the pitch rotation to the ZUp orientation to get the hipQuaternion.
-    spineQuat = QM_QuaternionMultiply( spineQuat, spineQuatPitchRotate );
-
-    // Assign.
-    QuatCopy( spineQuat, currentStatePose[ spineBone->number ].rotate );
-    QuatCopy( spineQuat, lastStatePose[ spineBone->number ].rotate );
-    #else
-    
-        player_state_t *predictedState = &clgi.client->predictedState.currentPs;
-        player_state_t *lastPredictedState = &clgi.client->predictedState.lastPs;
-
-        // Final predicted player state entity angles.
-        Vector3 thirdpersonAngles = clgi.client->playerEntityAngles;
-        // Get the move direction vector.
-        Vector2 xyMoveDir = QM_Vector2FromVector3( clgi.client->predictedState.currentPs.pmove.velocity );
-        // Normalized move direction vector.
-        Vector3 xyMoveDirNormalized = QM_Vector3FromVector2( QM_Vector2Normalize( xyMoveDir ) );      
-
-
-
-        //
-        // Calculate hip/Spine rotations.
-        //
-        Vector3 hipRotateEuler = QM_QuaternionToEuler( currentStatePose[ hipsBone->number ].rotate );
-
-        // Calculate and 'turn to' desired yaw.
-        static float initialBaseHipsYaw = hipRotateEuler.z;
-        if ( predictedState->animation.moveDirection != lastPredictedState->animation.moveDirection ) {
-            initialBaseHipsYaw = hipRotateEuler.z;
-        }
-        static float hipsDesiredYaw = initialBaseHipsYaw;
-        static float hipsYaw = hipRotateEuler.z; // Z == Pitch for this.
-        static float hipsAddStep = 1.8 * clgi.client->lerpfrac;
-
-        Vector3 vRight;
-        Vector3 vForward;
-        QM_AngleVectors( predictedState->viewangles, &vForward, &vRight, nullptr );
-        const float xDotResult = QM_Vector3DotProduct( xyMoveDirNormalized, vRight );
-        const float yDotResult = QM_Vector3DotProduct( xyMoveDirNormalized, vForward );
-
-        hipsAddStep = 12.5 * /*( 1.0 - xDotResult ) **/ ( clgi.client->xerpFraction );
-        //hipsAddStep = ( xDotResult * (1.0 / 12.5 ) ) * ( 1.0 - clgi.client->xerpFraction );
-
-        // Move direction animation flags.
-        const int32_t moveDirectionFlags = predictedState->animation.moveDirection;
-        if ( moveDirectionFlags & PM_MOVEDIRECTION_FORWARD ) {
-            if ( moveDirectionFlags & PM_MOVEDIRECTION_LEFT ) {
-                //hipsDesiredYaw -= 0.3 * BASE_FRAMETIME_1000;
-                hipsDesiredYaw = initialBaseHipsYaw + 45;
-                //hipsAdd = -0.3f;
-            } else if ( moveDirectionFlags & PM_MOVEDIRECTION_RIGHT ) {
-                //hipsDesiredYaw += 0.3 * BASE_FRAMETIME_1000;
-                hipsDesiredYaw = initialBaseHipsYaw + -45;
-                //hipsAdd = 0.3f;
-            } else {
-                hipsDesiredYaw = initialBaseHipsYaw;
-            }
-        } else if ( moveDirectionFlags & PM_MOVEDIRECTION_BACKWARD ) {
-            if ( moveDirectionFlags & PM_MOVEDIRECTION_LEFT ) {
-                //hipsDesiredYaw += 0.3 * BASE_FRAMETIME_1000;
-                hipsDesiredYaw = initialBaseHipsYaw + -45;
-                //hipsAdd = 0.3f;
-            } else if ( moveDirectionFlags & PM_MOVEDIRECTION_RIGHT ) {
-                //hipsDesiredYaw -= 0.3 * BASE_FRAMETIME_1000;
-                hipsDesiredYaw = initialBaseHipsYaw + 45;
-                //hipsAdd = -0.3f;
-            } else {
-                hipsDesiredYaw = initialBaseHipsYaw;
-            }
-        } else {
-            if ( moveDirectionFlags & PM_MOVEDIRECTION_LEFT ) {
-                //hipsDesiredYaw -= 0.3 * BASE_FRAMETIME_1000;
-                hipsDesiredYaw = initialBaseHipsYaw;
-                //hipsAdd = -0.3f;
-            } else if ( moveDirectionFlags & PM_MOVEDIRECTION_RIGHT ) {
-                //hipsDesiredYaw += 0.3 * BASE_FRAMETIME_1000;
-                hipsDesiredYaw = initialBaseHipsYaw;
-                //hipsAdd = 0.3f;
-            } else {
-                hipsDesiredYaw = initialBaseHipsYaw;
-            }
-        }
-
-        // Subtract/Add depending on desire.
-        if ( hipsYaw < hipsDesiredYaw ) {
-            hipsYaw += hipsAddStep;
-        } else if ( hipsYaw > hipsDesiredYaw ) {
-            hipsYaw += -hipsAddStep;
-        }
-
-        //// Keep within bounds.
-        //if ( hipsYaw > hipsDesiredYaw ) {
-        //    hipsYaw = hipsDesiredYaw;
-        //} else if ( hipsYaw > hipsDesiredYaw ) {
-        //    hipsYaw = hipsDesiredYaw;
-        //}
-
-        // We need that annooooying 90 somehow.
-        //hipsYaw = AngleMod( hipsYaw );
-
-
-        #if 1
-        //
-        // Hips(Yaw) Rotation:
-        // 
-        //hipZUpOrientQuat = QM_QuaternionMultiply( hipQuatZRotate, hipZUpOrientQuat );
-        // We use the Z Up Orientation when dealing with the hip bone.
-        // ( It basically puts a rotation that defaults into quake's X/Z/Y system. )
-        Quaternion quatZUpOrientation = QM_QuaternionZUpOrientation();
-        // Get a quaternion of the players pitch angle.
-        //Quaternion hipsQuatPitchRotate = QM_QuaternionFromAxisAngle( Vector3( 1, 0, 0 ), DEG2RAD( spineAngles[ PITCH ] ) );
-        // Get a quaternion of the players yaw angle.
-        Quaternion hipsQuatYawRotate = QM_QuaternionFromAxisAngle( Vector3( 0, 1, 0 ), DEG2RAD( hipsYaw ) );
-        // Apply the pitch rotation to the ZUp orientation to get the hipQuaternion.
-        //Quaternion hipsQuat = QM_QuaternionMultiply( quatZUpOrientation, hipsQuatYawRotate );
-        // Apply the pitch rotation to the ZUp orientation to get the hipQuaternion.
-        //hipsQuat = QM_QuaternionMultiply( hipsQuat, hipsQuatPitchRotate );
-        Quaternion hipsQuat = QM_QuaternionMultiply( quatZUpOrientation, hipsQuatYawRotate );
-        // Assign.
-        QuatCopy( hipsQuat, currentStatePose[ hipsBone->number ].rotate );
-        QuatCopy( hipsQuat, lastStatePose[ hipsBone->number ].rotate );
-        #endif
-        #if 0
-        //
-        // Legs(Yaw) Rotation:
-        // 
-        //hipZUpOrientQuat = QM_QuaternionMultiply( hipQuatZRotate, hipZUpOrientQuat );
-        // We use the Z Up Orientation when dealing with the hip bone.
-        // ( It basically puts a rotation that defaults into quake's X/Z/Y system. )
-        Quaternion quatLeftLeg = currentStatePose[ leftUpLegBone->number ].rotate;// QM_QuaternionFromAxisAngle( Vector3( 1, 0, 0 ), DEG2RAD( -90 ) );
-        Quaternion quatRightLeg = currentStatePose[ rightUpLegBone->number ].rotate;
-        // Get a quaternion of the players pitch angle.
-        //Quaternion hipsQuatPitchRotate = QM_QuaternionFromAxisAngle( Vector3( 1, 0, 0 ), DEG2RAD( spineAngles[ PITCH ] ) );
-        // Get a quaternion of the players yaw angle.
-        Quaternion legsQuatYawRotate = QM_QuaternionFromAxisAngle( Vector3( 0, 1, 0 ), DEG2RAD( hipsYaw ) );
-        // Apply the pitch rotation to the ZUp orientation to get the hipQuaternion.
-        //Quaternion hipsQuat = QM_QuaternionMultiply( quatZUpOrientation, hipsQuatYawRotate );
-        // Apply the pitch rotation to the ZUp orientation to get the hipQuaternion.
-        //hipsQuat = QM_QuaternionMultiply( hipsQuat, hipsQuatPitchRotate );
-        float slerpFactor = ( clgi.client->xerpFraction ) * BASE_1_FRAMETIME;
-
-        Quaternion legsLeftQuat = QM_QuaternionSlerp( quatLeftLeg, legsQuatYawRotate, slerpFactor );
-        Quaternion legsRightQuat = QM_QuaternionSlerp( quatRightLeg, legsQuatYawRotate, slerpFactor );
-        //Quaternion legsLeftQuat = QM_QuaternionMultiply( quatLeftLeg, legsQuatYawRotate );
-        //Quaternion legsRightQuat = QM_QuaternionMultiply( quatRightLeg, legsQuatYawRotate );
-
-        // Assign.
-        //QuatCopy( hipsQuat, currentStatePose[ hipsBone->number ].rotate );
-        //QuatCopy( hipsQuat, lastStatePose[ hipsBone->number ].rotate );
-        QuatCopy( legsLeftQuat, currentStatePose[ leftUpLegBone->number ].rotate );
-        QuatCopy( legsRightQuat, currentStatePose[ rightUpLegBone->number ].rotate );
-        QuatCopy( legsLeftQuat, lastStatePose[ leftUpLegBone->number ].rotate );
-        QuatCopy( legsRightQuat, lastStatePose[ rightUpLegBone->number ].rotate );
-        #endif
-
-        //
-        // Spine(Pitch and Yaw)
-        //
-        Vector3 spineRotateEuler = QM_QuaternionToEuler( currentStatePose[ spineBone->number ].rotate );
-
-        // Calculate and 'turn to' desired yaw.
-        static float initialBaseSpineYaw = spineRotateEuler.z;
-        static float spineDesiredYaw = initialBaseSpineYaw;
-        static float spineYaw = initialBaseSpineYaw; // Z == Pitch for this.
-
-        static float initialBaseSpinePitch = spineRotateEuler.y;
-        static float spineDesiredPitch = initialBaseSpinePitch;
-        static float spinePitch = initialBaseSpinePitch; // Z == Pitch for this.
-
-        spineYaw = AngleMod( clgi.client->refdef.viewangles[ YAW ] );
-
-        // Get a quaternion of the players pitch angle.
-        //Quaternion spineQuatPitchRotate = QM_QuaternionFromAxisAngle( Vector3( 1, 0, 0 ), DEG2RAD( spineAngles[ PITCH ] ) );
-        // Get a quaternion of the players yaw angle.
-        Quaternion spineQuatYawRotate = QM_QuaternionFromAxisAngle( Vector3( 0, 1, 0 ), DEG2RAD( spineYaw ) );
-        // Get a quaternion of the players yaw angle.
-        Quaternion spineQuatPitchRotate = QM_QuaternionFromAxisAngle( Vector3( 1, 0, 0 ), DEG2RAD( spineDesiredPitch ) );
-        // Apply the pitch rotation to the ZUp orientation to get the hipQuaternion.
-        //Quaternion spineQuat = QM_QuaternionMultiply( quatZUpOrientation, spineQuatYawRotate );
-        // Apply the pitch rotation to the ZUp orientation to get the hipQuaternion.
-        //spineQuat = QM_QuaternionMultiply( spineQuat, spineQuatPitchRotate );
-        Quaternion spineQuat = QM_QuaternionMultiply( QM_QuaternionIdentity(), spineQuatYawRotate );
-        //spineQuat = QM_QuaternionMultiply( spineQuat, spineQuatPitchRotate);
-        //spineQuat = QM_QuaternionSlerp( lastStatePose[ spineBone->number ].rotate, spineQuat, 1.0 - clgi.client->xerpFraction );
-
-        // Assign.
-        QuatCopy( spineQuat, currentStatePose[ spineBone->number ].rotate );
-        QuatCopy( spineQuat, lastStatePose[ spineBone->number ].rotate );
     #endif
+    //#if 0
+    //Vector3 thirdpersonAngles = clgi.client->playerEntityAngles;
+    //Vector3 spineAngles = thirdpersonAngles;
+    //// Adjust pitch slightly.
+    //spineAngles[ YAW ] = -AngleMod( spineAngles[ YAW ] ) / 3;
+
+    ////hipZUpOrientQuat = QM_QuaternionMultiply( hipQuatZRotate, hipZUpOrientQuat );
+    //Quaternion quatZUpOrientation = QM_QuaternionIdentity();//QM_QuaternionZUpOrientation();
+    //// Get a quaternion of the players pitch angle.
+    //Quaternion spineQuatPitchRotate = QM_QuaternionFromAxisAngle( Vector3( 1, 0, 0 ), DEG2RAD( spineAngles[ PITCH ] ) );
+    //// Get a quaternion of the players yaw angle.
+    //Quaternion spineQuatYawRotate = QM_QuaternionFromAxisAngle( Vector3( 0, 1, 0 ), DEG2RAD( spineAngles[ YAW ] ) );
+    //// Apply the pitch rotation to the ZUp orientation to get the hipQuaternion.
+    //Quaternion spineQuat = QM_QuaternionMultiply( quatZUpOrientation, spineQuatYawRotate );
+    //// Apply the pitch rotation to the ZUp orientation to get the hipQuaternion.
+    //spineQuat = QM_QuaternionMultiply( spineQuat, spineQuatPitchRotate );
+
+    //// Assign.
+    //QuatCopy( spineQuat, currentStatePose[ spineBone->number ].rotate );
+    //QuatCopy( spineQuat, lastStatePose[ spineBone->number ].rotate );
+    //#else
+    //
+    //    player_state_t *predictedState = &clgi.client->predictedState.currentPs;
+    //    player_state_t *lastPredictedState = &clgi.client->predictedState.lastPs;
+
+    //    // Final predicted player state entity angles.
+    //    Vector3 thirdpersonAngles = clgi.client->playerEntityAngles;
+    //    // Get the move direction vector.
+    //    Vector2 xyMoveDir = QM_Vector2FromVector3( clgi.client->predictedState.currentPs.pmove.velocity );
+    //    // Normalized move direction vector.
+    //    Vector3 xyMoveDirNormalized = QM_Vector3FromVector2( QM_Vector2Normalize( xyMoveDir ) );      
+
+
+
+    //    //
+    //    // Calculate hip/Spine rotations.
+    //    //
+    //    Vector3 hipRotateEuler = QM_QuaternionToEuler( currentStatePose[ hipsBone->number ].rotate );
+
+    //    // Calculate and 'turn to' desired yaw.
+    //    static float initialBaseHipsYaw = hipRotateEuler.z;
+    //    if ( predictedState->animation.moveDirection != lastPredictedState->animation.moveDirection ) {
+    //        initialBaseHipsYaw = hipRotateEuler.z;
+    //    }
+    //    static float hipsDesiredYaw = initialBaseHipsYaw;
+    //    static float hipsYaw = hipRotateEuler.z; // Z == Pitch for this.
+    //    static float hipsAddStep = 12.5 * clgi.client->lerpfrac;
+
+    //    Vector3 vRight;
+    //    Vector3 vForward;
+    //    QM_AngleVectors( predictedState->viewangles, &vForward, &vRight, nullptr );
+    //    const float xDotResult = QM_Vector3DotProduct( xyMoveDirNormalized, vRight );
+    //    const float yDotResult = QM_Vector3DotProduct( xyMoveDirNormalized, vForward );
+
+    //    hipsAddStep = 12.5 * /*( 1.0 - xDotResult ) **/ ( 1.0 - clgi.client->xerpFraction );
+    //    //hipsAddStep = ( xDotResult * (1.0 / 12.5 ) ) * ( 1.0 - clgi.client->xerpFraction );
+
+    //    // Move direction animation flags.
+    //    const int32_t moveDirectionFlags = predictedState->animation.moveDirection;
+    //    if ( moveDirectionFlags & PM_MOVEDIRECTION_FORWARD ) {
+    //        if ( moveDirectionFlags & PM_MOVEDIRECTION_LEFT ) {
+    //            //hipsDesiredYaw -= 0.3 * BASE_FRAMETIME_1000;
+    //            hipsDesiredYaw = initialBaseHipsYaw + 45;
+    //            //hipsAdd = -0.3f;
+    //        } else if ( moveDirectionFlags & PM_MOVEDIRECTION_RIGHT ) {
+    //            //hipsDesiredYaw += 0.3 * BASE_FRAMETIME_1000;
+    //            hipsDesiredYaw = initialBaseHipsYaw + -45;
+    //            //hipsAdd = 0.3f;
+    //        } else {
+    //            hipsDesiredYaw = initialBaseHipsYaw;
+    //        }
+    //    } else if ( moveDirectionFlags & PM_MOVEDIRECTION_BACKWARD ) {
+    //        if ( moveDirectionFlags & PM_MOVEDIRECTION_LEFT ) {
+    //            //hipsDesiredYaw += 0.3 * BASE_FRAMETIME_1000;
+    //            hipsDesiredYaw = initialBaseHipsYaw + -45;
+    //            //hipsAdd = 0.3f;
+    //        } else if ( moveDirectionFlags & PM_MOVEDIRECTION_RIGHT ) {
+    //            //hipsDesiredYaw -= 0.3 * BASE_FRAMETIME_1000;
+    //            hipsDesiredYaw = initialBaseHipsYaw + 45;
+    //            //hipsAdd = -0.3f;
+    //        } else {
+    //            hipsDesiredYaw = initialBaseHipsYaw;
+    //        }
+    //    } else {
+    //        if ( moveDirectionFlags & PM_MOVEDIRECTION_LEFT ) {
+    //            //hipsDesiredYaw -= 0.3 * BASE_FRAMETIME_1000;
+    //            hipsDesiredYaw = initialBaseHipsYaw;
+    //            //hipsAdd = -0.3f;
+    //        } else if ( moveDirectionFlags & PM_MOVEDIRECTION_RIGHT ) {
+    //            //hipsDesiredYaw += 0.3 * BASE_FRAMETIME_1000;
+    //            hipsDesiredYaw = initialBaseHipsYaw;
+    //            //hipsAdd = 0.3f;
+    //        } else {
+    //            hipsDesiredYaw = initialBaseHipsYaw;
+    //        }
+    //    }
+
+    //    // Subtract/Add depending on desire.
+    //    hipsDesiredYaw = AngleMod( hipsDesiredYaw );
+    //    if ( hipsYaw < hipsDesiredYaw ) {
+    //        hipsYaw += hipsAddStep;
+    //    } else if ( hipsYaw > hipsDesiredYaw ) {
+    //        hipsYaw += -hipsAddStep;
+    //    }
+    //#endif
+
+    //clgi.SKM_LerpBonePoses(
+    //    model,
+    //    framePose, oldFramePose,
+    //    1.0 - lastLowerBodyBackLerp, lastLowerBodyBackLerp,
+    //    lastStatePose,
+    //    rootMotionBoneID, rootMotionAxisFlags
+    //);
+    //        clgi.SKM_LerpBonePoses(
+    //    model,
+    //    framePose, oldFramePose,
+    //    1.0 - currentLowerBodyBackLerp, currentLowerBodyBackLerp,
+    //    currentStatePose,
+    //    rootMotionBoneID, rootMotionAxisFlags
+    //);
+
+    int32_t upperEventBodyOldFrame = 0;
+    int32_t upperEventBodyCurrentFrame = 0;
+    double upperEventBodyBackLerp = 0.0;
+    sg_skm_animation_state_t *upperEventBodyState = &animationMixer->eventBodyState[ SKM_BODY_UPPER ];
+    static skm_transform_t upperEventStatePose[ SKM_MAX_BONES ];
+    bool upperEventFinishedPlaying = true;
+    {
+        // Lerp upper event state poses and blend into currentStatePose.
+        upperEventFinishedPlaying = SG_SKM_ProcessAnimationStateForTime( model, upperEventBodyState, extrapolatedTime, &upperEventBodyOldFrame, &upperEventBodyCurrentFrame, &upperEventBodyBackLerp );
+        if ( !upperEventFinishedPlaying && upperEventBodyState->timeEnd >= extrapolatedTime ) {
+            // Acquire frame poses.
+            const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, upperEventBodyCurrentFrame );
+            const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, upperEventBodyOldFrame );
+            memcpy( upperEventStatePose, framePose, SKM_MAX_BONES * sizeof( skm_transform_t ) );
+
+            //Quaternion spineQuat = QM_QuaternionFromVector3ToVector3( clgi.client->v_forward, clgi.client->v_right );
+            //Vector4Copy( spineQuat, upperEventStatePose[ spineBone->number ].rotate );
+
+            //// Recurse blend it in the state poses.
+            //clgi.SKM_LerpBonePoses( model,
+            //    framePose, oldFramePose,
+            //    1.0 - upperEventBodyBackLerp, upperEventBodyBackLerp,
+            //    upperEventStatePose,
+            //    0, 0
+            //);
+
+            clgi.SKM_RecursiveBlendFromBone( oldFramePose, lastPreviousStatePose, spine2Bone, nullptr, 0, upperEventBodyBackLerp, 0.5 );
+            clgi.SKM_RecursiveBlendFromBone( framePose, previousStatePose, spine2Bone, nullptr, 0, upperEventBodyBackLerp, 0.5 );
+            clgi.SKM_RecursiveBlendFromBone( oldFramePose, lastCurrentStatePose, spine2Bone, nullptr, 0, upperEventBodyBackLerp, 0.5 );
+            clgi.SKM_RecursiveBlendFromBone( framePose, currentStatePose, spine2Bone, nullptr, 0, upperEventBodyBackLerp, 0.5 );
+                       
+            //// Get base pose quaternions.    
+            //--- Sorta..
+            //Quaternion quatHips;
+            //Vector4Copy( upperEventStatePose[ hipsBone->number ].rotate, quatHips );
+            //Quaternion quatSpine2;
+            //Vector4Copy( upperEventStatePose[ spine2Bone->number ].rotate, quatSpine2 );
+            //quatHips = QM_QuaternionAdd( quatSpine2, quatHips );
+            //Vector4Copy( quatHips, upperEventStatePose[ spine2Bone->number ].rotate );
+            //---
+            //Quaternion quatHips;
+            //Vector4Copy( upperEventStatePose[ hipsBone->number ].rotate, quatHips );
+            //
+            //Quaternion quatSpine2;
+            //Vector4Copy( upperEventStatePose[ spine2Bone->number ].rotate, quatSpine2 );
+            //quatHips = QM_QuaternionMultiply( quatSpine2, QM_QuaternionInvert( quatHips ) );
+            //Vector4Copy( quatHips, upperEventStatePose[ spine2Bone->number ].rotate );
+
+            ////Vector3 hipsEuler = QM_QuaternionToEuler( quatHips );
+            ////Vector3 spineEuler = QM_QuaternionToEuler( quatSpine );
+            //Quaternion newQuatSpine2 = QM_QuatSpineFromHipQuat( quatHips, quatSpine2, AngleMod( newState->angles[ YAW ] ) );
+            ////hipsEuler.x = 0;
+            ////hipsEuler.z = 0;
+            ////spineEuler.x = spineEuler.x + -hipsEuler.x;
+            ////spineEuler.y = spineEuler.y + -hipsEuler.y;
+            ////spineEuler.y = RAD2DEG( hipsEuler.y );
+
+            //Quaternion newSpineController = newQuatSpine2;// QM_QuaternionFromEuler( spineEuler.z, DEG2RAD( spineEuler.y ), spineEuler.x );
+            //Vector4Copy( newSpineController, lastPreviousStatePose[ spine2Bone->number ].rotate );
+            //Vector4Copy( newSpineController, previousStatePose[ spine2Bone->number ].rotate );
+            //Vector4Copy( newSpineController, lastCurrentStatePose[ spine2Bone->number ].rotate );
+            //Vector4Copy( newSpineController, currentStatePose[ spine2Bone->number ].rotate );
+        }
+    }
 
     // Calculate the front and backlerp so that the last and current animation can smoothly
     // lerp into one another.
-    double scaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( lastLowerBodyState->timeStart, currentLowerBodyState->timeStart, extrapolatedTime );
-    const double frontLerp = constclamp( ( 1.0 / lastLowerBodyState->timeDuration.milliseconds() ) * ( 1.0 / scaleFactor ), 0.0, 1.0 );
-    const double backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );// clgi.client->xerpFraction;
-    // Lerp.
-    //clgi.Print( PRINT_DEVELOPER, "%s: scaleFactor(%f), frontLerp(%f), backLerp(%f)\n", __func__, scaleFactor, frontLerp, backLerp );
+    double scaleFactor = 1;
+    if ( lastLowerBodyState->timeEnd >= extrapolatedTime && currentLowerBodyState->timeStart <= lastLowerBodyState->timeEnd ) {
+        scaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( lastLowerBodyState->timeStart, currentLowerBodyState->timeStart + lastLowerBodyState->timeDuration, extrapolatedTime );
+    }
+    //double scaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( lastLowerBodyState->timeStart, currentLowerBodyState->timeStart + lastLowerBodyState->timeDuration, extrapolatedTime );
+    double frontLerp = clgi.client->lerpfrac; // 1.0 - clgi.client->xerpFraction
+    double backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );// clgi.client->xerpFraction;
+    if ( scaleFactor < 1 ) {
+        frontLerp = scaleFactor;// 1.0 - constclamp( ( 1.0 / currentLowerBodyState->timeDuration.milliseconds() ) * ( ( 1.0 / lastLowerBodyState->timeDuration.milliseconds() ) * scaleFactor ), 0.0, 1.0 );
+        backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );
 
+        //clgi.Print( PRINT_DEVELOPER, "%s: scaleFactor(%f), frontLerp(%f), backLerp(%f)\n", __func__, scaleFactor, frontLerp, backLerp );
+    }
+    
+    // Lerp the last state bone poses right into lastFinalStatePose.
+    clgi.SKM_LerpBonePoses( model,
+        lastCurrentStatePose, lastPreviousStatePose,
+        frontLerp, backLerp,
+        lastFinalStatePose,
+        0, 0
+    );
+    // Lerp the current state bone poses right into finalStatePose.
     clgi.SKM_LerpBonePoses( model, 
-        currentStatePose, lastStatePose, 
+        currentStatePose, previousStatePose,
         frontLerp, backLerp, 
         finalStatePose, 
         0, 0
     );
 
-    // Defaulted, unless event animations are actively playing.
-    refreshEntity->bonePoses = finalStatePose;
-    refreshEntity->lastBonePoses = lastFinalStatePose;
-    refreshEntity->rootMotionBoneID = 0;
-    refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z;
-    refreshEntity->backlerp = clgi.client->xerpFraction;
+    //Vector3 hipRotateEuler = QM_QuaternionToEuler( finalStatePose[ hipsBone->number ].rotate );
+    //clgi.Print( PRINT_NOTICE, "hipRotateEuler( %f, %f, %f )\n", RAD2DEG( hipRotateEuler.x ), RAD2DEG( hipRotateEuler.y ), RAD2DEG( hipRotateEuler.z ) );
+    //Vector3 spineRotateEuler = QM_QuaternionToEuler( finalStatePose[ spine2Bone->number ].rotate );
+    //clgi.Print( PRINT_NOTICE, "spineRotateEuler( %f, %f, %f )\n", RAD2DEG( spineRotateEuler.x ), RAD2DEG( spineRotateEuler.y ), RAD2DEG( spineRotateEuler.z ) );
+
+    // Use last/final state and lerp between them if we still have a scale factor going.
+    if ( scaleFactor < 1 ) {
+        refreshEntity->bonePoses = finalStatePose;
+        refreshEntity->lastBonePoses = lastFinalStatePose;
+        refreshEntity->rootMotionBoneID = 0;
+        refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z;
+        refreshEntity->backlerp = clgi.client->xerpFraction;//1.0 - clgi.client->lerpfrac;
+    } else {
+        refreshEntity->bonePoses = currentStatePose;
+        refreshEntity->lastBonePoses = lastCurrentStatePose;
+        refreshEntity->rootMotionBoneID = 0;
+        refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z;
+        refreshEntity->backlerp = clgi.client->xerpFraction;//1.0 - clgi.client->lerpfrac;
+    }
     
 #if 0
     //
@@ -710,10 +649,10 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
         #else
             // We actually need to offset the Z axis origin by half the bbox height.
             Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
-            // For being Dead:
+            // For being Dead( Gibbed ):
             if ( clgi.client->predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
                 correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
-                // For being Ducked:
+            // For being Ducked:
             } else if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
                 correctedOrigin.z += PM_BBOX_DUCKED_MINS.z;
             } else {

@@ -11,6 +11,73 @@
 
 
 /**
+*   @brief  Determines the 'fire' animation to play for the given primary fire event.
+**/
+static const std::string CLG_PrimaryFireEvent_DetermineAnimation( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
+// We want this to work, but somehow moveDir is off.
+#if 1
+    // Default animation
+    std::string animationName = "fire_stand_rifle";
+
+    // Get move direction for animation.
+    const int32_t animationMoveDirection = ps->animation.moveDirection;
+    if ( ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD ) && ( animationMoveDirection & PM_MOVEDIRECTION_RIGHT ) ) {
+        animationName = "fire_run_diagleft_rifle";
+    } else if ( ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) && ( animationMoveDirection & PM_MOVEDIRECTION_LEFT ) ) {
+        animationName = "fire_run_diagleft_rifle";
+    }
+
+    clgi.Print( PRINT_NOTICE, "%s: %s\n", animationName.c_str() );
+    return animationName;
+#else
+    // if it's moving to where is looking, it's moving forward
+    // The desired yaw for the lower body.
+    static constexpr float DIR_EPSILON = 0.3f;
+    static constexpr float WALK_EPSILON = 5.0f;
+    static constexpr float RUN_EPSILON = 100.f;
+
+    // Angle Vectors.
+    const Vector3 vForward = pml.forward;
+    const Vector3 vRight = pml.right;
+
+    // Get the move direction vector.
+    Vector2 xyMoveDir = QM_Vector2FromVector3( ps->pmove.velocity );
+    // Normalized move direction vector.
+    Vector3 xyMoveDirNormalized = QM_Vector3FromVector2( QM_Vector2Normalize( xyMoveDir ) );
+
+    // Dot products.
+    const float xDotResult = QM_Vector3DotProduct( xyMoveDirNormalized, vRight );
+    const float yDotResult = QM_Vector3DotProduct( xyMoveDirNormalized, vForward );
+
+    // Are we even moving enough?
+    if ( ps->xySpeed > WALK_EPSILON ) {
+        // Forward:
+        if ( ( yDotResult > DIR_EPSILON ) || ( pm->cmd.forwardmove > 0 ) ) {
+            //ps->animation.moveDirection |= PM_MOVEDIRECTION_FORWARD;
+            // Back:
+        } else if ( ( -yDotResult > DIR_EPSILON ) || ( pm->cmd.forwardmove < 0 ) ) {
+            //ps->animation.moveDirection |= PM_MOVEDIRECTION_BACKWARD;
+        }
+        // Right: (Only if the dotproduct is so, or specifically only side move is pressed.)
+        if ( ( xDotResult > DIR_EPSILON ) || ( !pm->cmd.forwardmove && pm->cmd.sidemove > 0 ) ) {
+            //ps->animation.moveDirection |= PM_MOVEDIRECTION_RIGHT;
+            // Left: (Only if the dotproduct is so, or specifically only side move is pressed.)
+        } else if ( ( -xDotResult > DIR_EPSILON ) || ( !pm->cmd.forwardmove && pm->cmd.sidemove < 0 ) ) {
+            //ps->animation.moveDirection |= PM_MOVEDIRECTION_LEFT;
+        }
+
+        // Running:
+        if ( pm->playerState->xySpeed > RUN_EPSILON ) {
+            //ps->animation.moveDirection |= PM_MOVEDIRECTION_RUN;
+            // Walking:
+        } else if ( pm->playerState->xySpeed > WALK_EPSILON ) {
+            //ps->animation.moveDirection |= PM_MOVEDIRECTION_WALK;
+        }
+    }
+#endif
+}
+
+/**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
 void CLG_FirePlayerStateEvent( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
@@ -48,9 +115,10 @@ void CLG_FirePlayerStateEvent( const player_state_t *ops, const player_state_t *
             SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_LOWER ], "jump_land_rifle", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
         }
     } else if ( playerStateEvent == PS_EV_WEAPON_PRIMARY_FIRE ) {
+        const std::string animationName = CLG_PrimaryFireEvent_DetermineAnimation( ops, ps, playerStateEvent, lerpOrigin );
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_PRIMARY_FIRE\n", __func__ );
         // Set event state animation.
-        SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], "fire_stand_rifle", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+        SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], animationName.c_str(), sg_time_t::from_ms(clgi.client->servertime), BASE_FRAMETIME, false, true);
     } else if ( playerStateEvent == PS_EV_WEAPON_RELOAD ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_RELOAD\n", __func__ );
         // Set event state animation.

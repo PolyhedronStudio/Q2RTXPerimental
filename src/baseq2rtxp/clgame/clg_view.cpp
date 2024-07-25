@@ -224,10 +224,11 @@ static void CLG_AnimateViewWeapon( entity_t *refreshEntity, const int32_t firstF
     );
 
     // Animation is running:
-    if ( frameForTime != -1 /*lerpFraction <= 1.0*/ ) {
+    if ( frameForTime != -1 || lerpFraction < 1.0 ) {
         // Apply animation to gun model refresh entity.
-        refreshEntity->frame = game.viewWeapon.frame = frameForTime;
-        refreshEntity->oldframe = ( refreshEntity->frame > firstFrame && refreshEntity->frame < lastFrame ? refreshEntity->frame - 1 : lastFrame );
+        game.viewWeapon.frame = refreshEntity->frame;
+        refreshEntity->frame = frameForTime;
+        refreshEntity->oldframe = ( refreshEntity->frame > firstFrame && refreshEntity->frame <= lastFrame ? refreshEntity->frame - 1 : game.viewWeapon.last_frame );
         // Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
         if ( refreshEntity->frame == firstFrame ) {
             refreshEntity->backlerp = 0.0;

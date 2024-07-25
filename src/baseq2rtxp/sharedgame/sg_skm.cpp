@@ -133,14 +133,14 @@ const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentT
 
 	// Calculate the frame's fraction.
 	double frameFraction = ( (double)runningtime.milliseconds() / (double)frameTime );
-	const int64_t frameCount = (uint64_t)frameFraction;
+	const int64_t frameCount = std::floor(frameFraction);
 	frameFraction -= frameCount;
 
 	// Determine the current frame.
 	int32_t currentFrame = firstFrame + frameCount;
 
 	// If the current frame exceeds the last frame:
-	if ( currentFrame > lastFrame ) {
+	if ( currentFrame >= lastFrame ) {
 		// If we're force looping, and loopingframes has not been set. Set it back to where it came from(lastframe - firstframe).
 		if ( forceLoop && !loopingFrames ) {
 			_loopingFrames = lastFrame - firstFrame;
@@ -158,18 +158,13 @@ const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentT
 			// Special frame fraction handling to play an animation just once.
 			if ( _loopingFrames == 1 ) {
 				frameFraction = 1.0;
-				*frame = lastFrame; // -1
-				return frameFraction;
+				//currentFrame = lastFrame; // -1
+			//	return frameFraction;
 			}
 		// Animation's finished:
 		} else {
 			// Set current frame to -1 and get over with it.
 			currentFrame = -1;
-			//if ( _loopingFrames == 1 ) {
-			//	frameFraction = 1.0;
-			//	*frame = lastFrame;
-			//	return frameFraction;
-			//}
 		}
 	}
 
@@ -261,12 +256,9 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 		*outBackLerp = 1.0 - lerpFraction;
 	}
 
-	// Clamp just to be sure.
-	*outBackLerp = ( *outBackLerp < 0.0 ? *outBackLerp = 0.0 : ( *outBackLerp > 1.0 ? *outBackLerp = 1.0 : *outBackLerp ) );
-	if ( *outBackLerp >= 1.0 ) {
-		// We are done playing this animation now.
-		isPlaybackDone = true;
-	}
+	//// Clamp just to be sure.
+	//*outBackLerp = ( *outBackLerp < 0.0 ? *outBackLerp = 0.0 : ( *outBackLerp > 1.0 ? *outBackLerp = 1.0 : *outBackLerp ) );
+
 	// Return whether finished playing or not.
 	return isPlaybackDone;
 	//// Reached the end of the animation:

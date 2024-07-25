@@ -126,33 +126,40 @@ const std::string SG_Player_GetClientBaseAnimation( const player_state_t *oldPla
         if ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) {
             baseAnimStr += "_forward";
         // Forward Left:
-        } else if ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD_LEFT ) {
-            //baseAnimStr += "_forward_left";
-            baseAnimStr += "_forward";
+        } 
+        if ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD_LEFT ) {
+            baseAnimStr += "_forward_left";
+            //baseAnimStr += "_forward";
         // Forward Right:
-        } else if ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD_RIGHT ) {
-            //baseAnimStr += "_forward_right";
-            baseAnimStr += "_forward";
+        } 
+        if ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD_RIGHT ) {
+            baseAnimStr += "_forward_right";
+            //baseAnimStr += "_forward";
         // Backward:
-        } else if ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD ) {
+        }
+        if ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD ) {
             baseAnimStr += "_backward";
         // Backward Left:
-        } else if ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD_LEFT ) {
-            //baseAnimStr += "_backward_left";
-            baseAnimStr += "_backward";
-        // Backward Right:
-        } else if ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD_RIGHT ) {
-            //baseAnimStr += "_backward_right";
-            baseAnimStr += "_backward";
-        // In case isIdle isn't set YET.
-        } else {
-            baseAnimStr += "_forward";
         }
+        if ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD_LEFT ) {
+            baseAnimStr += "_backward_left";
+            //baseAnimStr += "_backward";
+        // Backward Right:
+        }
+        if ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD_RIGHT ) {
+            baseAnimStr += "_backward_right";
+            //baseAnimStr += "_backward";
+        }
+        // In case isIdle isn't set YET.
+        //} else {
+        //    baseAnimStr += "_forward";
+        //}
         // Left:
-        if ( animationMoveDirection & PM_MOVEDIRECTION_LEFT && !( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) && !( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD ) ) {
+        if ( animationMoveDirection & PM_MOVEDIRECTION_LEFT /*&& !( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) && !( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD )*/ ) {
             baseAnimStr += "_left";
         // Right:
-        } else if ( animationMoveDirection & PM_MOVEDIRECTION_RIGHT && !( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) && !( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD ) ) {
+        }
+        if ( animationMoveDirection & PM_MOVEDIRECTION_RIGHT /*&& !( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) && !( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD )*/ ) {
             baseAnimStr += "_right";
         }
         #if 1
