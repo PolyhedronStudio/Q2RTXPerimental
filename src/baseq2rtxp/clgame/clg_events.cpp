@@ -16,17 +16,30 @@
 static const std::string CLG_PrimaryFireEvent_DetermineAnimation( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
 // We want this to work, but somehow moveDir is off.
 #if 1
+    // Are we ducked?
+    const bool isDucked = ( ps->pmove.pm_flags & PMF_DUCKED ? true : false );
+
     // Default animation
     std::string animationName = "fire_stand_rifle";
+    if ( isDucked ) {
+        animationName = "fire_crouch_rifle";
+    } else {
+        // Get move direction for animation.
+        const int32_t animationMoveDirection = ps->animation.moveDirection;
 
-    // Get move direction for animation.
-    const int32_t animationMoveDirection = ps->animation.moveDirection;
-    if ( ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD ) && ( animationMoveDirection & PM_MOVEDIRECTION_RIGHT ) ) {
-        animationName = "fire_run_diagleft_rifle";
-    } else if ( ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) && ( animationMoveDirection & PM_MOVEDIRECTION_LEFT ) ) {
-        animationName = "fire_run_diagleft_rifle";
+        // Diagonal from left top to bottom right.
+        if ( ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) && ( animationMoveDirection & PM_MOVEDIRECTION_LEFT ) ) {
+            animationName = "fire_run_diag_tl_rifle";
+        } else if ( ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD ) && ( animationMoveDirection & PM_MOVEDIRECTION_RIGHT ) ) {
+            animationName = "fire_run_diag_br_rifle";
+        }
+        //// Diagonal fire for: Backward Right, Forward Right
+        //else if ( ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) && ( animationMoveDirection & PM_MOVEDIRECTION_RIGHT ) ) {
+        //    animationName = "fire_run_diagleft_rifle";
+        //} else if ( ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD ) && ( animationMoveDirection & PM_MOVEDIRECTION_LEFT ) ) {
+        //    animationName = "fire_run_diagleft_rifle";
+        //}
     }
-
     clgi.Print( PRINT_NOTICE, "%s: %s\n", animationName.c_str() );
     return animationName;
 #else
@@ -106,7 +119,7 @@ void CLG_FirePlayerStateEvent( const player_state_t *ops, const player_state_t *
     if ( playerStateEvent == PS_EV_JUMP_UP ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_JUMP_UP\n", __func__ );
         // Set event state animation.
-        SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_LOWER ], "jump_up_rifle", sg_time_t::from_ms(clgi.client->servertime), BASE_FRAMETIME, false, true);
+        SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_LOWER ], "jump_up_rifle", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
     } else if ( playerStateEvent == PS_EV_JUMP_LAND ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_JUMP_LAND\n", __func__ );
         // We really do NOT want this when we are crouched when having hit the ground.
@@ -118,7 +131,7 @@ void CLG_FirePlayerStateEvent( const player_state_t *ops, const player_state_t *
         const std::string animationName = CLG_PrimaryFireEvent_DetermineAnimation( ops, ps, playerStateEvent, lerpOrigin );
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_PRIMARY_FIRE\n", __func__ );
         // Set event state animation.
-        SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], animationName.c_str(), sg_time_t::from_ms(clgi.client->servertime), BASE_FRAMETIME, false, true);
+        SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], animationName.c_str(), sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
     } else if ( playerStateEvent == PS_EV_WEAPON_RELOAD ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_RELOAD\n", __func__ );
         // Set event state animation.

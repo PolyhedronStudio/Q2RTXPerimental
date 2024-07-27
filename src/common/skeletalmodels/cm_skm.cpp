@@ -682,15 +682,15 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
 		#if 1
 		const double frontLerp = 1.0 - backLerp;
 		// Lerp the Translation.
-		//*outBone->translate = *inBone->translate;
-		outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
-		outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
-		outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
+		*outBone->translate = *inBone->translate;
+		//outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
+		//outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
+		//outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
 		// Lerp the  Scale.
-		//*outBone->scale = *inBone->scale;
-		outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
-		outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
-		outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;
+		*outBone->scale = *inBone->scale;
+		//outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
+		//outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
+		//outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;
 
 		// Slerp the rotation
 		//*outBone->rotate = *inBone->rotate;
