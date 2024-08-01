@@ -158,9 +158,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	if ( to->frame != from->frame ) {
 		bits |= U_FRAME;
 	}
-	if ( to->old_frame != from->old_frame ) {
-		bits |= U_OLD_FRAME;
-	}
+	//if ( to->old_frame != from->old_frame ) {
+	//	bits |= U_OLD_FRAME;
+	//}
 
 	if ( to->renderfx != from->renderfx ) {
 		bits |= U_RENDERFX;
@@ -296,9 +296,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	if ( bits & U_FRAME ) {
 		MSG_WriteUintBase128( to->frame );
 	}
-	if ( bits & U_OLD_FRAME ) {
-		MSG_WriteUintBase128( to->old_frame );
-	}
+	//if ( bits & U_OLD_FRAME ) {
+	//	MSG_WriteUintBase128( to->old_frame );
+	//}
 	if ( bits & U_SKIN ) {
 		MSG_WriteUintBase128( to->skinnum );
 	}

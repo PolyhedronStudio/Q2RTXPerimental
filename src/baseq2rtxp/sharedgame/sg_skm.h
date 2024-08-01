@@ -132,10 +132,10 @@ static inline uint32_t SG_EncodeAnimationState( const uint8_t lowerBodyAnimation
 *	@brief	Decodes the body animations from a single uint32_t.
 **/
 static inline void SG_DecodeAnimationState( const uint32_t animationState, uint8_t *lowerBodyAnimation, uint8_t *upperBodyAnimation, uint8_t *headAnimation, uint8_t *frameRate ) {
-	*lowerBodyAnimation = ( animationState & 0xff );
-	*upperBodyAnimation = ( ( animationState >> 8 ) & 0xff );
-	*headAnimation = ( ( animationState >> 16 ) & 0xff );
-	*frameRate = ( ( animationState >> 24 ) & 255 ); // 1000 / frameRate == FrameTime(ms)
+	if ( lowerBodyAnimation )	{ *lowerBodyAnimation = ( animationState & 0xff ); }
+	if ( upperBodyAnimation )	{ *upperBodyAnimation = ( ( animationState >> 8 ) & 0xff );	}
+	if ( headAnimation )		{ *headAnimation = ( ( animationState >> 16 ) & 0xff );	}
+	if ( frameRate )			{ *frameRate = ( ( animationState >> 24 ) & 0xff );	}// 1000 / frameRate == FrameTime(ms)
 }
 
 

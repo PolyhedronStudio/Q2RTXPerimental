@@ -74,7 +74,6 @@ void SG_PlayerState_AddPredictableEvent( const uint8_t newEvent, const uint8_t e
         }
 	}
 	#endif
-	//#endif
 }
 
 
@@ -93,7 +92,7 @@ const std::string SG_Player_GetClientBaseAnimation( const player_state_t *oldPla
     // Base animation string we'll end up seeking in SKM data.
     std::string baseAnimStr = "";
     // Weapon to append to animation string.
-    std::string baseAnimWeaponStr = "_rifle";
+    std::string baseAnimWeaponStr = "_pistol";
     // Default frameTime to apply to animation.
     *frameTime = BASE_FRAMETIME;
 
@@ -101,67 +100,76 @@ const std::string SG_Player_GetClientBaseAnimation( const player_state_t *oldPla
         baseAnimStr = "idle";
         if ( playerState->animation.isCrouched ) {
             baseAnimStr += "_crouch";
+        } else {
+            baseAnimStr += "_stand";
         }
     } else {
         if ( playerState->animation.isCrouched ) {
             baseAnimStr = "crouch";
-            *frameTime -= 5.f;
+            //*frameTime -= 5.f;
         } else if ( playerState->animation.isWalking ) {
             baseAnimStr = "walk";
-            *frameTime *= 0.5;
+            //*frameTime *= 0.5;
         } else {
-            baseAnimStr = "run";
-            *frameTime -= 5.f;
+            baseAnimStr = "run";//baseAnimStr = "run";
+            //*frameTime -= 5.f;
         }
     }
 
     // Directions:
     //if ( ( moveFlags & ANIM_MOVE_CROUCH ) || ( moveFlags & ANIM_MOVE_RUN ) || ( moveFlags & ANIM_MOVE_WALK ) ) {
     if ( !playerState->animation.isIdle ) {
-        // Get move direction for animation.
-        const int32_t animationMoveDirection = playerState->animation.moveDirection;
+        // Get move directions for each state
+        const int32_t lastMoveDirection = oldPlayerState->animation.moveDirection;
+        const int32_t currentMoveDirection = playerState->animation.moveDirection;
 
         // Append to the baseAnimStr the name of the directional animation.
-        // Forward:
-        if ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) {
-            baseAnimStr += "_forward";
         // Forward Left:
-        } 
-        if ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD_LEFT ) {
+        if ( ( currentMoveDirection & PM_MOVEDIRECTION_FORWARD ) && ( currentMoveDirection & PM_MOVEDIRECTION_LEFT ) ) {
             baseAnimStr += "_forward_left";
             //baseAnimStr += "_forward";
         // Forward Right:
         } 
-        if ( animationMoveDirection & PM_MOVEDIRECTION_FORWARD_RIGHT ) {
+        else if ( ( currentMoveDirection & PM_MOVEDIRECTION_FORWARD ) && ( currentMoveDirection & PM_MOVEDIRECTION_RIGHT ) ) {
             baseAnimStr += "_forward_right";
             //baseAnimStr += "_forward";
-        // Backward:
         }
-        if ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD ) {
-            baseAnimStr += "_backward";
+        // Forward:
+        else if ( currentMoveDirection & PM_MOVEDIRECTION_FORWARD ) {
+            baseAnimStr += "_forward";
         // Backward Left:
         }
-        if ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD_LEFT ) {
+        else if ( ( currentMoveDirection & PM_MOVEDIRECTION_BACKWARD ) && ( currentMoveDirection & PM_MOVEDIRECTION_LEFT ) ) {
             baseAnimStr += "_backward_left";
             //baseAnimStr += "_backward";
         // Backward Right:
         }
-        if ( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD_RIGHT ) {
+        else if ( ( currentMoveDirection & PM_MOVEDIRECTION_BACKWARD ) && ( currentMoveDirection & PM_MOVEDIRECTION_RIGHT ) ) {
             baseAnimStr += "_backward_right";
             //baseAnimStr += "_backward";
-        }
+        // Backward:
+        } else if ( currentMoveDirection & PM_MOVEDIRECTION_BACKWARD ) {
+            baseAnimStr += "_backward";
         // In case isIdle isn't set YET.
-        //} else {
-        //    baseAnimStr += "_forward";
-        //}
-        // Left:
-        if ( animationMoveDirection & PM_MOVEDIRECTION_LEFT /*&& !( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) && !( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD )*/ ) {
-            baseAnimStr += "_left";
-        // Right:
+        } else {
+            // Left:
+            if ( currentMoveDirection & PM_MOVEDIRECTION_LEFT && !( currentMoveDirection & PM_MOVEDIRECTION_FORWARD ) && !( currentMoveDirection & PM_MOVEDIRECTION_BACKWARD ) ) {
+                baseAnimStr += "_strafe_left";
+                // Right:
+            } else if ( currentMoveDirection & PM_MOVEDIRECTION_RIGHT && !( currentMoveDirection & PM_MOVEDIRECTION_FORWARD ) && !( currentMoveDirection & PM_MOVEDIRECTION_BACKWARD ) ) {
+                baseAnimStr += "_strafe_right";
+            // For when isIdle is still set due to PM_ANIMATION_IDLE_EPSILON PMove case:
+            } else {
+                baseAnimStr = "idle";
+                // Possible Crouched:
+                if ( playerState->animation.isCrouched ) {
+                    baseAnimStr += "_crouch";
+                } else {
+                    baseAnimStr += "_stand";
+                }
+            }
         }
-        if ( animationMoveDirection & PM_MOVEDIRECTION_RIGHT /*&& !( animationMoveDirection & PM_MOVEDIRECTION_FORWARD ) && !( animationMoveDirection & PM_MOVEDIRECTION_BACKWARD )*/ ) {
-            baseAnimStr += "_right";
-        }
+
         #if 1
         // Only apply Z translation to the animations if NOT 'In-Air'.
         if ( !playerState->animation.inAir ) {

@@ -150,8 +150,8 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 // fourth byte
 #define U_HULL_CONTENTS	(1<<24)
 #define U_OWNER 		(1<<25)
-#define U_OLD_FRAME		(1<<26)
-#define U_BOUNDINGBOX	(1<<27)
+#define U_BOUNDINGBOX	(1<<26)
+#define U_UNUSED0		(1<<27)
 #define U_UNUSED1		(1<<28)
 #define U_UNUSED2		(1<<29)
 #define U_UNUSED3		(1<<30)

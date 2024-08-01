@@ -613,7 +613,7 @@ void MSG_ShowDeltaEntityBits( const uint64_t bits ) {
 	S( CLIPMASK, "clipMask" );
 	S( HULL_CONTENTS, "hullContents" );
 	S( OWNER, "owner" );
-	S( OLD_FRAME, "old_frame" );
+	//S( OLD_FRAME, "old_frame" );
 	S( BOUNDINGBOX, "boundingbox" );
 
 	#undef S

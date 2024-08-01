@@ -129,9 +129,9 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	if ( bits & U_FRAME ) {
 		to->frame = MSG_ReadUintBase128( );
 	}
-	if ( bits & U_OLD_FRAME ) {
-		to->old_frame = MSG_ReadUintBase128();
-	}
+	//if ( bits & U_OLD_FRAME ) {
+	//	to->old_frame = MSG_ReadUintBase128();
+	//}
 
 	if ( bits & U_SKIN ) {
 		to->skinnum = MSG_ReadUintBase128( );

@@ -38,19 +38,33 @@ void SVG_P_ProcessAnimations( edict_t *ent ) {
     *   Special change detection handling:
     **/
     // Default to level time for animation start.
-    sg_time_t startTimer = level.time;
-    // However, if the last body state was of a different animation type, we want to continue using its
-    // start time so we can ensure that switching directions keeps the feet neatly lerping.
-    if ( animationMixer->lastBodyStates[ SKM_BODY_LOWER ].animationID != animationMixer->currentBodyStates[ SKM_BODY_LOWER ].animationID ) {
-        // Set the startTimer for the new 'Base' body state animation to that of the old.
-        startTimer = animationMixer->lastBodyStates[ SKM_BODY_LOWER ].timeStart;
-        // Backup into lastBodyStates.
-        animationMixer->lastBodyStates[ SKM_BODY_LOWER ] = animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
-    }
-    // Set lower 'Base' body animation.
-    sg_skm_animation_state_t *lowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
+    // Temporary for setting the animation.
+    sg_skm_animation_state_t newAnimationBodyState = animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
     // We want this to loop for most animations.
-    SG_SKM_SetStateAnimation( model, lowerBodyState, baseAnimStr.c_str(), startTimer, frameTime, true, false );
+    if ( SG_SKM_SetStateAnimation( model, &newAnimationBodyState, baseAnimStr.c_str(), level.time, frameTime, true, false ) ) {
+        // However, if the last body state was of a different animation type, we want to continue using its
+        // start time so we can ensure that switching directions keeps the feet neatly lerping.
+        if ( animationMixer->currentBodyStates[ SKM_BODY_LOWER ].animationID != newAnimationBodyState.animationID ) {
+            // Store the what once was current, as last body state.
+            animationMixer->lastBodyStates[ SKM_BODY_LOWER ] = animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
+            // Assign the newly set animation state.
+            //newAnimationBodyState.timeSTart = lastBodyState[ SKM_BODY_LOWER ].timeStart;
+            animationMixer->currentBodyStates[ SKM_BODY_LOWER ] = newAnimationBodyState;
+        }
+    }
+    //sg_time_t startTimer = level.time;
+    //// However, if the last body state was of a different animation type, we want to continue using its
+    //// start time so we can ensure that switching directions keeps the feet neatly lerping.
+    //if ( animationMixer->lastBodyStates[ SKM_BODY_LOWER ].animationID != animationMixer->currentBodyStates[ SKM_BODY_LOWER ].animationID ) {
+    //    // Set the startTimer for the new 'Base' body state animation to that of the old.
+    //    startTimer = animationMixer->lastBodyStates[ SKM_BODY_LOWER ].timeStart;
+    //    // Backup into lastBodyStates.
+    //    animationMixer->lastBodyStates[ SKM_BODY_LOWER ] = animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
+    //}
+    //// Set lower 'Base' body animation.
+    sg_skm_animation_state_t *lowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
+    //// We want this to loop for most animations.
+    //SG_SKM_SetStateAnimation( model, lowerBodyState, baseAnimStr.c_str(), startTimer, frameTime, true, false );
 
 
     /**

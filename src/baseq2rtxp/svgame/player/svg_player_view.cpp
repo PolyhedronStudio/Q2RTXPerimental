@@ -797,8 +797,34 @@ void G_SetClientFrame( edict_t *ent ) {
 	// Get upper body state.
 	sg_skm_animation_state_t *upperBodyState = &animationMixer->currentBodyStates[ SKM_BODY_UPPER ];
 
+	// Get lower event body state.
+	sg_skm_animation_state_t *lowerEventState = &animationMixer->eventBodyState[ SKM_BODY_LOWER ];
+	// Get upper event body state.
+	sg_skm_animation_state_t *upperEventState = &animationMixer->eventBodyState[ SKM_BODY_UPPER ];
+
+	// Default to body states.
+	uint8_t lowerBodyAnimationID = lowerBodyState->animationID;
+	uint8_t upperBodyAnimationID = upperBodyState->animationID;
+
+	// These are 0 in case of being inactive!
+	uint8_t lowerEventAnimationID = 0;
+	uint8_t upperEventAnimationID = 0;
+
+	// Only override the actual animationIDs if the event is still actively playing.
+	if ( lowerEventState->timeEnd >= level.time ) {
+		lowerEventAnimationID = lowerEventState->animationID;
+	}
+	if ( upperEventState->timeEnd >= level.time ) {
+		upperEventAnimationID = upperEventState->animationID;
+	}
+	
 	// Encode the body specifics into the frame value.
-	ent->s.frame = SG_EncodeAnimationState( lowerBodyState->animationID, 0, 0, /*lowerBodyState->frameTime*/BASE_FRAMERATE );
+	ent->s.frame = SG_EncodeAnimationState( 
+		( lowerEventAnimationID ? lowerEventAnimationID : lowerBodyAnimationID ),
+		( upperEventAnimationID ? upperEventAnimationID : upperBodyAnimationID ),
+		0, 
+		/*lowerBodyState->frameTime*/BASE_FRAMERATE 
+	);
 }
 
 

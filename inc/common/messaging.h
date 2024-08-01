@@ -79,8 +79,8 @@ extern "C" {
 		uint32_t    renderfx;
 		uint32_t    effects;
 
-		uint16_t    frame;
-		uint16_t	old_frame;
+		uint32_t    frame;
+		uint32_t	old_frame;
 
 		uint16_t    sound;
 		uint8_t     event;

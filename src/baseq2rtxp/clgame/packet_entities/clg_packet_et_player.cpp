@@ -72,7 +72,6 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
                 currentBodyState[ SKM_BODY_LOWER ] = newAnimationBodyState;
             }
         }
-
     } else {
         // Decode the entity's animationIDs from its newState.
         uint8_t lowerAnimationID = 0;
@@ -81,18 +80,39 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         uint8_t animationFrameRate = BASE_FRAMERATE; // NOTE: Also set by SG_DecodeAnimationState :-)
         // Decode it.
         SG_DecodeAnimationState( newState->frame, &lowerAnimationID, &torsoAnimationID, &headAnimationID, &animationFrameRate );
+        //clgi.Print( PRINT_NOTICE, "%s: lowerAnimationID(%i), torsoAnimationID(%i), headAnimationID(%i), framerate(%i)\n", __func__, lowerAnimationID, torsoAnimationID, headAnimationID, animationFrameRate );
+        
         // Start timer is always just servertime that we had.
-        sg_time_t startTimer = sg_time_t::from_ms( clgi.client->servertime );
-        // However, if the last body state was of a different animation type, we want to continue using its
-        // start time so we can ensure that switching directions keeps the feet neatly lerping.
-        if ( lastBodyState[ SKM_BODY_LOWER ].animationID != currentBodyState[ SKM_BODY_LOWER ].animationID ) {
-            //startTimer = lastBodyState[ SKM_BODY_LOWER ].timeStart;
-            lastBodyState[ SKM_BODY_LOWER ] = currentBodyState[ SKM_BODY_LOWER ];
-        }
-        // Calculate frameTime based on frameRate.
-        double frameTime = 1000.0 / animationFrameRate;
-        // Set animation.
-        SG_SKM_SetStateAnimation( model, &currentBodyState[ SKM_BODY_LOWER ], lowerAnimationID, startTimer, frameTime, true, false );
+        const sg_time_t startTimer = sg_time_t::from_ms( clgi.client->servertime );
+        #if 1
+            // However, if the last body state was of a different animation type, we want to continue using its
+            // start time so we can ensure that switching directions keeps the feet neatly lerping.
+            if ( lastBodyState[ SKM_BODY_LOWER ].animationID != currentBodyState[ SKM_BODY_LOWER ].animationID ) {
+                //startTimer = lastBodyState[ SKM_BODY_LOWER ].timeStart;
+                lastBodyState[ SKM_BODY_LOWER ] = currentBodyState[ SKM_BODY_LOWER ];
+            }
+            // Calculate frameTime based on frameRate.
+            double frameTime = 1000.0 / animationFrameRate;
+            // Set animation.
+            SG_SKM_SetStateAnimation( model, &currentBodyState[ SKM_BODY_LOWER ], lowerAnimationID, startTimer, frameTime, true, false );
+        #else
+            // Calculate frameTime based on frameRate.
+            double frameTime = 1000.0 / animationFrameRate;
+            // Temporary for setting the animation.
+            sg_skm_animation_state_t newAnimationBodyState;
+            // We want this to loop for most animations.
+            if ( SG_SKM_SetStateAnimation( model, &newAnimationBodyState, lowerAnimationID, startTimer, frameTime, true, false ) ) {
+                // However, if the last body state was of a different animation type, we want to continue using its
+                // start time so we can ensure that switching directions keeps the feet neatly lerping.
+                if ( lastBodyState[ SKM_BODY_LOWER ].animationID != lowerAnimationID ) {
+                    // Store the what once was current, as last body state.
+                    lastBodyState[ SKM_BODY_LOWER ] = currentBodyState[ SKM_BODY_LOWER ];
+                    // Assign the newly set animation state.
+                    //newAnimationBodyState.timeSTart = lastBodyState[ SKM_BODY_LOWER ].timeStart;
+                    currentBodyState[ SKM_BODY_LOWER ] = newAnimationBodyState;
+                }
+            }
+        #endif
     }
 }
 
@@ -124,7 +144,7 @@ static const double CLG_ETPlayer_GetSwitchAnimationScaleFactor( const sg_time_t 
     if ( framesDiff > 0 ) {
         return /*scaleFactor = */ midWayLength / framesDiff;
     } else {
-        return 1;//0;
+        return 0;//0;
     }
 }
 #endif
@@ -304,53 +324,88 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
             frontLerp = scaleFactor;// 1.0 - constclamp( ( 1.0 / currentLowerBodyState->timeDuration.milliseconds() ) * ( ( 1.0 / lastLowerBodyState->timeDuration.milliseconds() ) * scaleFactor ), 0.0, 1.0 );
             backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );
             //clgi.Print( PRINT_DEVELOPER, "%s: scaleFactor(%f), frontLerp(%f), backLerp(%f)\n", __func__, scaleFactor, frontLerp, backLerp );
+
+            //const double tweenFraction = constclamp( ( scaleFactor ), 0.0, 1.0 );
+            //const double _lerpFraction = 1.f;
+            //clgi.SKM_RecursiveBlendFromBone( lastPreviousStatePose, lastPreviousStatePose, hipsBone, nullptr, 0, _lerpFraction, tweenFraction );
+            //clgi.SKM_RecursiveBlendFromBone( lastCurrentStatePose, lastCurrentStatePose, hipsBone, nullptr, 0, _lerpFraction, tweenFraction );
+            //clgi.SKM_RecursiveBlendFromBone( previousStatePose, previousStatePose, hipsBone, nullptr, 0, _lerpFraction, tweenFraction );
+            //clgi.SKM_RecursiveBlendFromBone( currentStatePose, currentStatePose, hipsBone, nullptr, 0, _lerpFraction, tweenFraction );
         }
     }
-    
+
+    //
+    // Lerping:
+    // 
     // Lerp the last state bone poses right into lastFinalStatePose.
     clgi.SKM_LerpBonePoses( model,
         previousStatePose, lastPreviousStatePose,
         frontLerp, backLerp,
         lastFinalStatePose,
-        0, 0
+        0, SKM_POSE_TRANSLATE_ALL
     );
     // Lerp the current state bone poses right into finalStatePose.
     clgi.SKM_LerpBonePoses( model, 
         currentStatePose, lastCurrentStatePose,//currentStatePose, previousStatePose,
         frontLerp, backLerp, 
         finalStatePose, 
-        0, 0
+        0, SKM_POSE_TRANSLATE_ALL
     );
 
+
+    //
+    // Prepare Refresh Entity:
+    // 
     // Use last/final state and lerp between them if we still have a scale factor going.
-    if ( scaleFactor < 1 ) {
+    if ( upperEventBodyState->timeEnd >= extrapolatedTime && scaleFactor < 1 ) {
+        // Backlerp:
+        double statePoseBackLerp = clgi.client->xerpFraction;
+        if ( scaleFactor > 0 ) {
+            statePoseBackLerp = constclamp( 1.0 - ( clgi.client->xerpFraction / scaleFactor ), 0.0, 1.0 ); // clgi.client->xerpFraction;//1.0 - clgi.client->lerpfrac;
+        }
+        // Fraction:
+        const double fraction = 1.0;// -statePoseBackLerp;
+
+        // Events:
         if ( lowerEventBodyState->timeEnd >= extrapolatedTime ) {
-            clgi.SKM_RecursiveBlendFromBone( lastLowerEventStatePose, currentStatePose, hipsBone, nullptr, 0, 1, 1 );
-            clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, finalStatePose, hipsBone, nullptr, 0, 1, 1 );
+            clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, lastFinalStatePose, hipsBone, nullptr, 0, 1, fraction );
+            clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, finalStatePose, hipsBone, nullptr, 0, 1, fraction );
         }
         if ( upperEventBodyState->timeEnd >= extrapolatedTime ) {
-            clgi.SKM_RecursiveBlendFromBone( lastUpperEventStatePose, currentStatePose, spineBone, nullptr, 0, 1, 1 );
-            clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, finalStatePose, spineBone, nullptr, 0, 1, 1 );
+            clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, lastFinalStatePose, spine2Bone, nullptr, 0, 1, fraction );
+            clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, finalStatePose, spine2Bone, nullptr, 0, 1, fraction );
         }
+
+        // Last but not least, lerp the current final state pose with the current state post.
         refreshEntity->bonePoses = finalStatePose;
-        refreshEntity->lastBonePoses = currentStatePose;
+        refreshEntity->lastBonePoses = lastFinalStatePose;
         refreshEntity->rootMotionBoneID = 0;
         refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z;
-        refreshEntity->backlerp = scaleFactor; // clgi.client->xerpFraction;//1.0 - clgi.client->lerpfrac;
+        refreshEntity->backlerp = statePoseBackLerp;
     } else {
+        // Backlerp:
+        double statePoseBackLerp = clgi.client->xerpFraction;
+        //if ( scaleFactor > 0 ) {
+        //    backLerp = constclamp( ( clgi.client->xerpFraction / scaleFactor ), 0.0, 1.0 ); // clgi.client->xerpFraction;//1.0 - clgi.client->lerpfrac;
+        //}
+        // Fraction:
+        const double fraction = 1.0;// -statePoseBackLerp;
+
+        // Events:
         if ( lowerEventBodyState->timeEnd >= extrapolatedTime ) {
-            clgi.SKM_RecursiveBlendFromBone( lastLowerEventStatePose, lastCurrentStatePose, hipsBone, nullptr, 0, 1, 1 );
-            clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, currentStatePose, hipsBone, nullptr, 0, 1, 1 );
+            clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, lastCurrentStatePose, hipsBone, nullptr, 0, 1, fraction );
+            clgi.SKM_RecursiveBlendFromBone( lowerEventStatePose, currentStatePose, hipsBone, nullptr, 0, 1, fraction );
         }
         if ( upperEventBodyState->timeEnd >= extrapolatedTime ) {
-            clgi.SKM_RecursiveBlendFromBone( lastUpperEventStatePose, lastCurrentStatePose, spineBone, nullptr, 0, 1, 1 );
-            clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, spineBone, nullptr, 0, 1, 1 );
+            clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, lastCurrentStatePose, spine2Bone, nullptr, 0, 1, fraction );
+            clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, spine2Bone, nullptr, 0, 1, fraction );
         }
+
         refreshEntity->bonePoses = currentStatePose;
         refreshEntity->lastBonePoses = lastCurrentStatePose;
         refreshEntity->rootMotionBoneID = 0;
         refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z;
-        refreshEntity->backlerp = clgi.client->xerpFraction; //1.0 - clgi.client->lerpfrac;
+        refreshEntity->backlerp = statePoseBackLerp;
     }
 }
 
@@ -565,7 +620,10 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
                 //    goto skip;
                 //}
             }
-
+            // Determine the base animation to play.
+            CLG_ETPlayer_DetermineBaseAnimations( packetEntity, refreshEntity, newState );
+            // Determine the event animation(s) to play.
+            CLG_ETPlayer_DetermineEventAnimations( packetEntity, refreshEntity, newState );
             // Don't tilt the model - looks weird.
             refreshEntity->angles[ 0 ] = 0.f;
 
@@ -582,6 +640,15 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
 
             }
 
+            // Process the animations.
+            CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, newState );
+        } else {
+            // Determine the base animation to play.
+            CLG_ETPlayer_DetermineBaseAnimations( packetEntity, refreshEntity, newState );
+            // Determine the event animation(s) to play.
+            CLG_ETPlayer_DetermineEventAnimations( packetEntity, refreshEntity, newState );
+            // Don't tilt the model - looks weird.
+            refreshEntity->angles[ 0 ] = 0.f;
             // Process the animations.
             CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, newState );
         }
