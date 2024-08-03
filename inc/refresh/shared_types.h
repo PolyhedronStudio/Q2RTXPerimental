@@ -40,6 +40,7 @@ extern "C" {
 #include "format/iqm.h"
 //! Maximum joints for SKM configuration info.
 #define SKM_MAX_BONES IQM_MAX_JOINTS
+#define SKM_MAX_BONE_CONTROLLERS 4
 
 //! Refresh limits.
 #define MAX_DLIGHTS 32
@@ -214,6 +215,44 @@ typedef struct iqm_mesh_s
 // Typedef for convenience.
 typedef iqm_mesh_t skm_mesh_t;
 
+
+
+/**
+*
+* 
+*   SKM Bone Controller
+* 
+* 
+**/
+//! It is inactive, not used during the computation of local model space.
+#define SKM_BONE_CONTROLLER_STATE_INACTIVE 0
+//! It is active, thus used during the computation of local model space.
+#define SKM_BONE_CONTROLLER_STATE_ACTIVE 1
+
+//! Transform the rotation.
+#define SKM_BONE_CONTROLLER_TRANSFORM_ROTATION BIT( 1 << 0 )
+//! Transform the translation.
+#define SKM_BONE_CONTROLLER_TRANSFORM_TRANSLATE BIT( 1 << 1 )
+//! Transform the scale.
+#define SKM_BONE_CONTROLLER_TRANSFORM_SCALE BIT( 1 << 2 )
+
+/**
+*   @brief  Actual 'Bone Controller' type, which are used to apply as a transformation during the
+*           computing of local model space.
+**/
+typedef struct skm_bone_controller_s {
+    //! The bone number this controller operates on.
+    int32_t boneNumber;
+    //! The state this controller resides in(active/inactive/..?)
+    int32_t state;
+    //! The properties it should override for the transform(rotation, translation, scale)
+    int32_t transformMask;
+    //! The transform that this controller should apply to the specified bone.
+    skm_transform_t transform;
+} skm_bone_controller_t;
+
+
+
 /**
 *
 *
@@ -223,7 +262,7 @@ typedef iqm_mesh_t skm_mesh_t;
 **/
 /**
 *   @brief  Stores (generated from IQM data) bone information to make it more convenient
-*           0for proper working access.
+*           for proper working access.
 **/
 typedef struct skm_bone_node_s skm_bone_node_t;
 typedef struct skm_bone_node_s {
@@ -492,6 +531,10 @@ typedef struct entity_s {
     //! Pointer to the LAST animation frame pose of a skeletal model.
     //! Buffer is expected to be SKM_MAX_BONES(256) in size.
     iqm_transform_t *lastBonePoses;
+
+    //! Bone Controllers are used to override a bones transform during the calculation
+    //! of local bone space matrices.
+    skm_bone_controller_t boneControllers[ SKM_MAX_BONE_CONTROLLERS ];
 
     //! Whether to use Root Motion at all.
     //! Root Motion Bone ID.

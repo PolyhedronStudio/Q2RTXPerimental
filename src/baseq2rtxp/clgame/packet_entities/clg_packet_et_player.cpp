@@ -55,11 +55,10 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         const std::string baseAnimStr = SG_Player_GetClientBaseAnimation( &clgi.client->predictedState.lastPs, &clgi.client->predictedState.currentPs, &frameTime );
 
         // Start timer is always just servertime that we had.
-        sg_time_t startTimer = sg_time_t::from_ms( clgi.client->servertime );
+        const sg_time_t startTimer = sg_time_t::from_ms( clgi.client->servertime );
         
         // Temporary for setting the animation.
         sg_skm_animation_state_t newAnimationBodyState;
-
         // We want this to loop for most animations.
         if ( SG_SKM_SetStateAnimation( model, &newAnimationBodyState, baseAnimStr.c_str(), startTimer, frameTime, true, false ) ) {
             // However, if the last body state was of a different animation type, we want to continue using its
@@ -68,8 +67,8 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
                 // Store the what once was current, as last body state.
                 lastBodyState[ SKM_BODY_LOWER ] = currentBodyState[ SKM_BODY_LOWER ];
                 // Assign the newly set animation state.
-                //newAnimationBodyState.timeSTart = lastBodyState[ SKM_BODY_LOWER ].timeStart;
                 currentBodyState[ SKM_BODY_LOWER ] = newAnimationBodyState;
+                //clgi.Print( PRINT_DEVELOPER, "%s: newAnimID=%i\n", __func__, newAnimationBodyState.animationID );
             }
         }
     } else {
@@ -116,6 +115,15 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     }
 }
 
+/***
+*
+*
+*
+*   Animation Utilities: TODO: Clean Up a bit, relocate, etc.
+* 
+*
+*
+**/
 /**
 *   @brief  Determine which animations to play based on the player state event channels.
 **/
@@ -180,9 +188,6 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         return;
     }
 
-    /**
-    *   Lower Body:
-    **/
     // Time we're at.
     const sg_time_t serverTime = sg_time_t::from_ms( clgi.client->servertime );
     const sg_time_t extrapolatedTime = sg_time_t::from_ms( clgi.client->extrapolatedTime );
@@ -220,6 +225,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     // Default rootmotion settings.
     int32_t rootMotionBoneID = 0, rootMotionAxisFlags = 0;
 
+
     //
     // Lower Body State(s):
     //
@@ -250,6 +256,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         // Copy in the frame pose.
         memcpy( currentStatePose, framePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
     }
+
 
     //
     // Event State(s):
@@ -287,7 +294,6 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
             );
         }
     }
-
     // "finished" by default:
     bool lowerEventFinishedPlaying = true;
     // Process the upper event body state animation:
@@ -299,6 +305,10 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
             // Acquire frame poses.
             const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, lowerEventCurrentFrame );
             const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, lowerEventOldFrame );
+
+            // In case of jump animations, we want to...
+            clgi.Print( PRINT_DEVELOPER, "%s: animationID of Event is (%i)\n", __func__, lowerEventBodyState->animationID );
+            
             // Recurse blend it in the state poses.
             clgi.SKM_LerpBonePoses( model,
                 framePose, oldFramePose,
@@ -308,6 +318,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
             );
         }
     }
+
 
     //
     // Base Animation Blend Transitioning:
@@ -323,16 +334,9 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         if ( scaleFactor < 1 ) {
             frontLerp = scaleFactor;// 1.0 - constclamp( ( 1.0 / currentLowerBodyState->timeDuration.milliseconds() ) * ( ( 1.0 / lastLowerBodyState->timeDuration.milliseconds() ) * scaleFactor ), 0.0, 1.0 );
             backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );
-            //clgi.Print( PRINT_DEVELOPER, "%s: scaleFactor(%f), frontLerp(%f), backLerp(%f)\n", __func__, scaleFactor, frontLerp, backLerp );
-
-            //const double tweenFraction = constclamp( ( scaleFactor ), 0.0, 1.0 );
-            //const double _lerpFraction = 1.f;
-            //clgi.SKM_RecursiveBlendFromBone( lastPreviousStatePose, lastPreviousStatePose, hipsBone, nullptr, 0, _lerpFraction, tweenFraction );
-            //clgi.SKM_RecursiveBlendFromBone( lastCurrentStatePose, lastCurrentStatePose, hipsBone, nullptr, 0, _lerpFraction, tweenFraction );
-            //clgi.SKM_RecursiveBlendFromBone( previousStatePose, previousStatePose, hipsBone, nullptr, 0, _lerpFraction, tweenFraction );
-            //clgi.SKM_RecursiveBlendFromBone( currentStatePose, currentStatePose, hipsBone, nullptr, 0, _lerpFraction, tweenFraction );
         }
     }
+
 
     //
     // Lerping:
@@ -357,14 +361,14 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     // Prepare Refresh Entity:
     // 
     // Use last/final state and lerp between them if we still have a scale factor going.
-    if ( upperEventBodyState->timeEnd >= extrapolatedTime && scaleFactor < 1 ) {
+    if ( scaleFactor < 1 ) {
+        // Fraction:
+        const double fraction = 1.0;// -statePoseBackLerp;
         // Backlerp:
         double statePoseBackLerp = clgi.client->xerpFraction;
         if ( scaleFactor > 0 ) {
             statePoseBackLerp = constclamp( 1.0 - ( clgi.client->xerpFraction / scaleFactor ), 0.0, 1.0 ); // clgi.client->xerpFraction;//1.0 - clgi.client->lerpfrac;
         }
-        // Fraction:
-        const double fraction = 1.0;// -statePoseBackLerp;
 
         // Events:
         if ( lowerEventBodyState->timeEnd >= extrapolatedTime ) {
@@ -376,20 +380,17 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
             clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, finalStatePose, spine2Bone, nullptr, 0, 1, fraction );
         }
 
-        // Last but not least, lerp the current final state pose with the current state post.
+        // Last but not least, setup refresh entity.
         refreshEntity->bonePoses = finalStatePose;
         refreshEntity->lastBonePoses = lastFinalStatePose;
         refreshEntity->rootMotionBoneID = 0;
         refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z;
         refreshEntity->backlerp = statePoseBackLerp;
     } else {
-        // Backlerp:
-        double statePoseBackLerp = clgi.client->xerpFraction;
-        //if ( scaleFactor > 0 ) {
-        //    backLerp = constclamp( ( clgi.client->xerpFraction / scaleFactor ), 0.0, 1.0 ); // clgi.client->xerpFraction;//1.0 - clgi.client->lerpfrac;
-        //}
         // Fraction:
-        const double fraction = 1.0;// -statePoseBackLerp;
+        const double fraction = 1.0;
+        // Backlerp:
+        const double statePoseBackLerp = clgi.client->xerpFraction;
 
         // Events:
         if ( lowerEventBodyState->timeEnd >= extrapolatedTime ) {
@@ -401,6 +402,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
             clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentStatePose, spine2Bone, nullptr, 0, 1, fraction );
         }
 
+        // Last but not least, setup refresh entity.
         refreshEntity->bonePoses = currentStatePose;
         refreshEntity->lastBonePoses = lastCurrentStatePose;
         refreshEntity->rootMotionBoneID = 0;

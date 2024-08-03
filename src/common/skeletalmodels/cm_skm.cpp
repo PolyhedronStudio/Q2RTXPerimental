@@ -714,17 +714,52 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
 /**
 *	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
 **/
-void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices ) {
+void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, const skm_bone_controller_t *boneControllers, float *pose_matrices ) {
 	// multiply by inverse of bind pose and parent 'pose mat' (bind pose transform matrix)
 	const skm_transform_t *relativeJoint = relativeBonePose;
 	const int *jointParent = model->jointParents;
 	const float *invBindMat = model->invBindJoints;
 	float *poseMat = pose_matrices;
 	for ( uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, relativeJoint++, jointParent++, invBindMat += 12, poseMat += 12 ) {
-		float mat1[ 12 ], mat2[ 12 ];
+		float mat1[ 12 ] = { }, mat2[ 12 ] = { };
 
-		JointToMatrix( relativeJoint->rotate, relativeJoint->scale, relativeJoint->translate, mat1 );
+		// Default to the relative joint.
+		skm_transform_t jointTransform = *relativeJoint;
 
+		// Determine whether we have a bone controller for this pose joint.
+		if ( boneControllers != nullptr ) {
+			// Iterate controllers.
+			for ( int32_t i = 0; i < SKM_MAX_BONE_CONTROLLERS; i++ ) {
+				// Get controller ptr.
+				const skm_bone_controller_t *boneController = &boneControllers[ i ];
+				// Skip if inactive.
+				if ( boneController->state != SKM_BONE_CONTROLLER_STATE_ACTIVE ) {
+					continue;
+				}
+				// If controller is active, and matches the bone number, override the desired bone transform properties:
+				if ( pose_idx == boneController->boneNumber ||
+					( boneController->boneNumber == -1 && *jointParent < 0 ) ) 
+				{
+					// Rotate:
+					if ( boneController->transformMask & SKM_BONE_CONTROLLER_TRANSFORM_ROTATION ) {
+						Vector4Copy( boneControllers->transform.rotate, jointTransform.rotate );
+					}
+					// Translate:
+					if ( boneController->transformMask & SKM_BONE_CONTROLLER_TRANSFORM_TRANSLATE ) {
+						VectorCopy( boneControllers->transform.translate, jointTransform.translate );
+					}
+					// Scale:
+					if ( boneController->transformMask & SKM_BONE_CONTROLLER_TRANSFORM_SCALE ) {
+						VectorCopy( boneControllers->transform.scale, jointTransform.scale );
+					}
+				}
+			}
+		}
+
+		// Now convert the joint to a 3x4 matrix.
+		JointToMatrix( jointTransform.rotate, jointTransform.scale, jointTransform.translate, mat1 );
+
+		// Concatenate if not the root joint.
 		if ( *jointParent >= 0 ) {
 			Matrix34Multiply( &model->bindJoints[ ( *jointParent ) * 12 ], mat1, mat2 );
 			Matrix34Multiply( mat2, invBindMat, mat1 );

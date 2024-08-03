@@ -79,7 +79,7 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
 /**
 *	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
 **/
-void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices );
+void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, const skm_bone_controller_t *boneControllers, float *pose_matrices );
 /**
 *	@brief	Compute "World-Space" matrices for the given pose transformations.
 *			This is generally a slower procedure, but can be used to get the
