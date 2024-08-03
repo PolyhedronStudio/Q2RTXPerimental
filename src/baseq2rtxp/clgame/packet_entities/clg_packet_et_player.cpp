@@ -84,7 +84,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         
         // Start timer is always just servertime that we had.
         const sg_time_t startTimer = sg_time_t::from_ms( clgi.client->servertime );
-        #if 1
+        #if 0
             // However, if the last body state was of a different animation type, we want to continue using its
             // start time so we can ensure that switching directions keeps the feet neatly lerping.
             if ( lastBodyState[ SKM_BODY_LOWER ].animationID != currentBodyState[ SKM_BODY_LOWER ].animationID ) {

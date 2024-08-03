@@ -303,6 +303,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/player/svg_player_animation.cpp
 	baseq2rtxp/svgame/player/svg_player_client.cpp
+	baseq2rtxp/svgame/player/svg_player_events.cpp
 	baseq2rtxp/svgame/player/svg_player_hud.cpp
 	baseq2rtxp/svgame/player/svg_player_trail.cpp
 	baseq2rtxp/svgame/player/svg_player_view.cpp

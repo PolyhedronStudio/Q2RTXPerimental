@@ -12,7 +12,7 @@
 /**
 *   @brief  Will process(progress) the entity's active animations for each body state and event states.
 **/
-void SVG_P_ProcessAnimations( edict_t *ent ) {
+void SVG_P_ProcessAnimations( const edict_t *ent ) {
     // Return if not viewing a player model entity.
     if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
         return;     // not in the player model
@@ -39,7 +39,7 @@ void SVG_P_ProcessAnimations( edict_t *ent ) {
     **/
     // Default to level time for animation start.
     // Temporary for setting the animation.
-    sg_skm_animation_state_t newAnimationBodyState = animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
+    sg_skm_animation_state_t newAnimationBodyState;
     // We want this to loop for most animations.
     if ( SG_SKM_SetStateAnimation( model, &newAnimationBodyState, baseAnimStr.c_str(), level.time, frameTime, true, false ) ) {
         // However, if the last body state was of a different animation type, we want to continue using its

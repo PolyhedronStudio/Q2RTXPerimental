@@ -31,6 +31,10 @@ static  vec3_t  forward, right, up;
 //int64_t bobcycle, bobcycle_run;       // odd cycles are right foot going forward
 //float   bobfracsin;     // sin(bobfrac*M_PI)
 
+/**
+*   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
+**/
+void G_CheckClientPlayerstateEvents( const edict_t *ent, player_state_t *ops, player_state_t *ps );
 
 inline bool SkipViewModifiers( ) {
 	//if ( g_skipViewModifiers->integer && sv_cheats->integer ) {
@@ -775,6 +779,7 @@ void G_SetClientSound( edict_t *ent ) {
 /**
 *	@brief	Will set the client entity's animation for the current frame.
 **/
+void SVG_P_ProcessAnimations( const edict_t *ent );
 void G_SetClientFrame( edict_t *ent ) {
 	// Return if not viewing a player model entity.
 	if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
@@ -786,6 +791,10 @@ void G_SetClientFrame( edict_t *ent ) {
 	if ( !client ) {
 		return; // Need a client entity.
 	}
+
+
+	// Finally process the actual player_state animations.
+	SVG_P_ProcessAnimations( ent );
 
 	// Get the model resource.
 	const model_t *model = gi.GetModelDataForName( ent->model );
@@ -813,17 +822,23 @@ void G_SetClientFrame( edict_t *ent ) {
 	// Only override the actual animationIDs if the event is still actively playing.
 	if ( lowerEventState->timeEnd >= level.time ) {
 		lowerEventAnimationID = lowerEventState->animationID;
+		//gi.bprintf( PRINT_DEVELOPER, "%s: lowerEventState->animationID(%i), lowerEventState->time(%" PRIu64 "), lowerEventState->timEnd(%" PRIu64 ")\n", __func__, lowerEventAnimationID, ( level.time - lowerEventState->timeStart ).milliseconds(), lowerEventState->timeEnd.milliseconds() );
+	} else {
+		//gi.bprintf( PRINT_DEVELOPER, "%s: lowerEventState->animationID(0) lowerEventState->timeStart(%" PRIu64 "), level.time(%" PRIu64 ")\n", __func__, lowerEventState->timeStart.milliseconds(), level.time.milliseconds() );
 	}
 	if ( upperEventState->timeEnd >= level.time ) {
 		upperEventAnimationID = upperEventState->animationID;
+		//gi.bprintf( PRINT_DEVELOPER, "%s: upperEventState->animationID(%i), upperEventState->time(%" PRIu64 "), upperEventState->timEnd(%" PRIu64 ")\n", __func__, upperEventAnimationID, ( level.time - upperEventState->timeStart ).milliseconds(), upperEventState->timeEnd.milliseconds() );
+	} else {
+		//gi.bprintf( PRINT_DEVELOPER, "%s: lowerEventState->animationID(0) upperEventState->timeStart(%" PRIu64 "), level.time(%" PRIu64 ")\n", __func__, upperEventState->timeStart.milliseconds(), level.time.milliseconds() );
 	}
-	
+
 	// Encode the body specifics into the frame value.
 	ent->s.frame = SG_EncodeAnimationState( 
 		( lowerEventAnimationID ? lowerEventAnimationID : lowerBodyAnimationID ),
 		( upperEventAnimationID ? upperEventAnimationID : upperBodyAnimationID ),
 		0, 
-		/*lowerBodyState->frameTime*/BASE_FRAMERATE 
+		BASE_FRAMERATE /*lowerBodyState->frameTime*/
 	);
 }
 
@@ -836,6 +851,7 @@ Called for each player at the end of the server frame
 and right after spawning
 =================
 */
+void ClientCheckPlayerstateEvents( const edict_t *ent, player_state_t *ops, player_state_t *ps );
 void ClientEndServerFrame( edict_t *ent ) {
 	int     i;
 
@@ -929,6 +945,8 @@ void ClientEndServerFrame( edict_t *ent ) {
 	G_SetClientEffects( ent );
 	// Sound.
 	G_SetClientSound( ent );
+	// Check for client plaerstate its pmove generated events.
+	G_CheckClientPlayerstateEvents( ent, &current_client->ops, &current_client->ps );
 	// Animation Frame.
 	G_SetClientFrame( ent );
 

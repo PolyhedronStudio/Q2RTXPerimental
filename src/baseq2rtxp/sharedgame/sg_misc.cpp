@@ -11,7 +11,7 @@
 #include "sg_misc.h"
 
 //! Uncomment to enable debug print output of predictable events.
-#define _DEBUG_PRINT_PREDICTABLE_EVENTS
+//#define _DEBUG_PRINT_PREDICTABLE_EVENTS
 
 
 

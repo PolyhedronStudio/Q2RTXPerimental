@@ -40,7 +40,7 @@ static const std::string CLG_PrimaryFireEvent_DetermineAnimation( const player_s
     //    //    animationName = "fire_run_diagleft_rifle";
     //    //}
     //}
-    clgi.Print( PRINT_NOTICE, "%s: %s\n", animationName.c_str() );
+    //clgi.Print( PRINT_NOTICE, "%s: %s\n", animationName.c_str() );
     return animationName;
 #else
     // if it's moving to where is looking, it's moving forward
