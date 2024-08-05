@@ -536,6 +536,9 @@ typedef struct entity_s {
     //! of local bone space matrices.
     skm_bone_controller_t boneControllers[ SKM_MAX_BONE_CONTROLLERS ];
 
+    // WID: TODO: TEMPORARY for TESTING
+    float *localSpaceBonePose3x4Matrices;
+
     //! Whether to use Root Motion at all.
     //! Root Motion Bone ID.
     int32_t rootMotionBoneID;

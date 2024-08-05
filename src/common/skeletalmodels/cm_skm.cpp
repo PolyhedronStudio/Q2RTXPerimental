@@ -661,17 +661,17 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
 		// Slerp the rotation at fraction.	
 		QuatSlerp( outBone->rotate, inBone->rotate, 1.0, outBone->rotate );
 		#else
-		const double frontLerp = 1.0 - backLerp;
+		const double frontLerp = 1.0 - fraction;
 		// Lerp the Translation.
 		//*outBone->translate = *inBone->translate;
-		outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
-		outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
-		outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
+		outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * fraction + inBone->translate[ 0 ] * frontLerp );
+		outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * fraction + inBone->translate[ 1 ] * frontLerp );
+		outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * fraction + inBone->translate[ 2 ] * frontLerp );
 		// Lerp the  Scale.
 		//*outBone->scale = *inBone->scale;
-		outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
-		outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
-		outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;		// Slerp the rotation at fraction.	
+		outBone->scale[ 0 ] = outBone->scale[ 0 ] * fraction + inBone->scale[ 0 ] * frontLerp;
+		outBone->scale[ 1 ] = outBone->scale[ 1 ] * fraction + inBone->scale[ 1 ] * frontLerp;
+		outBone->scale[ 2 ] = outBone->scale[ 2 ] * fraction + inBone->scale[ 2 ] * frontLerp;		// Slerp the rotation at fraction.	
 
 		// Slerp the rotation at fraction.	
 		//*outBone->rotate = *inBone->rotate;
@@ -682,13 +682,13 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
 		#if 0
 		const double frontLerp = 1.0 - backLerp;
 		// Lerp the Translation.
-		outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
-		outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
-		outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
+		outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * fraction + inBone->translate[ 0 ] * frontLerp );
+		outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * fraction + inBone->translate[ 1 ] * frontLerp );
+		outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * fraction + inBone->translate[ 2 ] * frontLerp );
 		// Lerp the Scale.
-		outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
-		outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
-		outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;
+		outBone->scale[ 0 ] = outBone->scale[ 0 ] * fraction + inBone->scale[ 0 ] * frontLerp;
+		outBone->scale[ 1 ] = outBone->scale[ 1 ] * fraction + inBone->scale[ 1 ] * frontLerp;
+		outBone->scale[ 2 ] = outBone->scale[ 2 ] * fraction + inBone->scale[ 2 ] * frontLerp;
 
 		// Slerp the rotation
 		//*outBone->rotate = *inBone->rotate;
@@ -737,9 +737,7 @@ void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_trans
 					continue;
 				}
 				// If controller is active, and matches the bone number, override the desired bone transform properties:
-				if ( pose_idx == boneController->boneNumber ||
-					( boneController->boneNumber == -1 && *jointParent < 0 ) ) 
-				{
+				if ( pose_idx == boneController->boneNumber || ( boneController->boneNumber == -1 && *jointParent < 0 ) ) {
 					// Rotate:
 					if ( boneController->transformMask & SKM_BONE_CONTROLLER_TRANSFORM_ROTATION ) {
 						Vector4Copy( boneControllers->transform.rotate, jointTransform.rotate );
@@ -787,8 +785,10 @@ void SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_trans
 	float *outPose = pose_matrices;
 
 	for ( size_t i = 0; i < model->num_poses; i++, poseMat += 12, outPose += 12 ) {
+		// It does this...
 		float inPose[ 12 ];
 		memcpy( inPose, outPose, sizeof( inPose ) );
+		// To prevent this operation from failing.
 		Matrix34Multiply( inPose, poseMat, outPose );
 	}
 }

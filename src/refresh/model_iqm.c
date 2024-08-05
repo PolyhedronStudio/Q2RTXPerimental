@@ -814,27 +814,32 @@ bool R_ComputePoseTransforms( const model_t *model, const entity_t *entity, floa
 	// Temporary bone pose buffer for when no bone poses have been provied by the refresh entity.
 	static skm_transform_t lerpedBonePoses[ IQM_MAX_JOINTS ] = { 0 };
 
-	// Use refresh entity provided bone poses.
-	if ( entity->bonePoses ) {	
-		if ( entity->lastBonePoses ) {
-			// Lerp between.
-			SKM_LerpBonePoses( model, entity->bonePoses, entity->lastBonePoses, 1.0 - entity->backlerp, entity->backlerp, lerpedBonePoses, entity->rootMotionBoneID, entity->rootMotionFlags );
+	if ( entity->localSpaceBonePose3x4Matrices ) {
+		// Just copy over these that we got supplied.
+		memcpy( pose_matrices, entity->localSpaceBonePose3x4Matrices, sizeof( float ) * 12 * IQM_MAX_JOINTS );
+	} else {
+		// Use refresh entity provided bone poses.
+		if ( entity->bonePoses ) {	
+			if ( entity->lastBonePoses ) {
+				// Lerp between.
+				SKM_LerpBonePoses( model, entity->bonePoses, entity->lastBonePoses, 1.0 - entity->backlerp, entity->backlerp, lerpedBonePoses, entity->rootMotionBoneID, entity->rootMotionFlags );
+				// Compute the local model space matrices from the relative joints.
+				SKM_TransformBonePosesLocalSpace( model->skmData, lerpedBonePoses, entity->boneControllers, pose_matrices );
+			} else {
+				// Compute the local model space matrices from the relative joints.
+				SKM_TransformBonePosesLocalSpace( model->skmData, entity->bonePoses, entity->boneControllers, pose_matrices );
+			}
+		// Compute the bone poses lerp ourselves since the entity provided none:
+		} else {
+			// Lerp compute the model (old-)frame's relative bone poses as if it were an md2/md3.
+			SKM_ComputeLerpBonePoses( model, entity->frame, entity->oldframe, 
+				1.0 - entity->backlerp, entity->backlerp,
+				lerpedBonePoses,
+				entity->rootMotionBoneID, entity->rootMotionFlags
+			);
 			// Compute the local model space matrices from the relative joints.
 			SKM_TransformBonePosesLocalSpace( model->skmData, lerpedBonePoses, entity->boneControllers, pose_matrices );
-		} else {
-			// Compute the local model space matrices from the relative joints.
-			SKM_TransformBonePosesLocalSpace( model->skmData, entity->bonePoses, entity->boneControllers, pose_matrices );
 		}
-	// Compute the bone poses lerp ourselves since the entity provided none:
-	} else {
-		// Lerp compute the model (old-)frame's relative bone poses as if it were an md2/md3.
-		SKM_ComputeLerpBonePoses( model, entity->frame, entity->oldframe, 
-			1.0 - entity->backlerp, entity->backlerp,
-			lerpedBonePoses,
-			entity->rootMotionBoneID, entity->rootMotionFlags
-		);
-		// Compute the local model space matrices from the relative joints.
-		SKM_TransformBonePosesLocalSpace( model->skmData, lerpedBonePoses, entity->boneControllers, pose_matrices );
 	}
 
 	return true;
