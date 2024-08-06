@@ -233,7 +233,136 @@ void SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_trans
 *	@param	addBonePose		The actual animation that you want to blend in on top of inBonePoses.
 *	@param	addToBonePose	A lerped bone pose which we want to blend addBonePoses animation on to.
 **/
-void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const skm_bone_node_t **excludeNodes, const int32_t numExcludeNodes, const double backLerp, const double fraction ) {
+#if 0
+typedef struct skm_exclude_blend_s {
+    //! The bone node we're excluding.
+    skm_bone_node_t *boneNode;
+    //! Excludes the bone node itself from being blend.
+    bool blendSelf;
+    //! Don't recurse blend this bone's children.
+    bool excludeChildren;
+    
+    float fraction;
+} skm_exclude_blend_t;
+void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const skm_exclude_blend_t *excludeNodes, const int32_t numExcludeNodes, const double backLerp, const double fraction ) {
+    // If the bone node is invalid, escape.
+    if ( !boneNode || !addBonePoses || !addToBonePoses ) {
+        // TODO: Warn.
+        return;
+    }
+
+    // Get bone number.
+    const int32_t boneNumber = ( boneNode->number > 0 ? boneNode->number : -1 );
+
+    // Exclude it?
+    bool excludeNode = false;
+    
+    float _fraction = fraction;
+
+    for ( int32_t j = 0; j < numExcludeNodes; j++ ) {
+        const skm_exclude_blend_t *excludeNodeBlend = &excludeNodes[ j ];
+        if ( boneNumber == excludeNodeBlend->boneNode->number ) {
+            if ( !excludeNodeBlend->blendSelf ) {
+                excludeNode = true;
+            } else {
+                _fraction = excludeNodeBlend->fraction;
+            }
+            break;
+        }
+    }
+
+    if ( boneNumber != -1 || excludeNode != false ) {
+        // Proceed if the bone number is valid and not an excluded bone.
+        const skm_transform_t *inBone = addBonePoses;
+        skm_transform_t *outBone = addToBonePoses;
+        if ( boneNumber >= 0 ) {
+            inBone += boneNumber;
+            outBone += boneNumber;
+        }
+
+        if ( _fraction == 1 ) {
+            #if 1
+            // Copy bone translation and scale;
+            *outBone->translate = *inBone->translate;
+            *outBone->scale = *inBone->scale;
+            //*outBone->rotate = *inBone->rotate;
+            // Slerp the rotation at fraction.	
+            QuatSlerp( outBone->rotate, inBone->rotate, _fraction, outBone->rotate );
+            //Quaternion newQuat = QM_QuaternionMultiply( Quaternion( outBone->rotate ), Quaternion( inBone->rotate ) );
+            //Vector4Copy( newQuat, outBone->rotate );
+            #else
+            const double frontLerp = 1.0 - _fraction;
+            // Lerp the Translation.
+            //*outBone->translate = *inBone->translate;
+            outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * _fraction + inBone->translate[ 0 ] * frontLerp );
+            outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * _fraction + inBone->translate[ 1 ] * frontLerp );
+            outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * _fraction + inBone->translate[ 2 ] * frontLerp );
+            // Lerp the  Scale.
+            //*outBone->scale = *inBone->scale;
+            outBone->scale[ 0 ] = outBone->scale[ 0 ] * _fraction + inBone->scale[ 0 ] * frontLerp;
+            outBone->scale[ 1 ] = outBone->scale[ 1 ] * _fraction + inBone->scale[ 1 ] * frontLerp;
+            outBone->scale[ 2 ] = outBone->scale[ 2 ] * _fraction + inBone->scale[ 2 ] * frontLerp;		// Slerp the rotation at fraction.	
+
+            // Slerp the rotation at fraction.	
+            //*outBone->rotate = *inBone->rotate;
+            //QuatSlerp( outBone->rotate, inBone->rotate, _fraction, outBone->rotate );
+            Quaternion newQuat = QM_QuaternionMultiply( Quaternion( outBone->rotate ), Quaternion( inBone->rotate ) );
+            Vector4Copy( newQuat, outBone->rotate );
+            #endif
+        } else {
+            //	WID: Unsure if actually lerping these is favored.
+            #if 1
+            const double frontLerp = 1.0 - _fraction;
+            // Lerp the Translation.
+            outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * _fraction + inBone->translate[ 0 ] * frontLerp );
+            outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * _fraction + inBone->translate[ 1 ] * frontLerp );
+            outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * _fraction + inBone->translate[ 2 ] * frontLerp );
+            // Lerp the Scale.
+            outBone->scale[ 0 ] = outBone->scale[ 0 ] * _fraction + inBone->scale[ 0 ] * frontLerp;
+            outBone->scale[ 1 ] = outBone->scale[ 1 ] * _fraction + inBone->scale[ 1 ] * frontLerp;
+            outBone->scale[ 2 ] = outBone->scale[ 2 ] * _fraction + inBone->scale[ 2 ] * frontLerp;
+
+            // Slerp the rotation
+            //*outBone->rotate = *inBone->rotate;
+            QuatSlerp( outBone->rotate, inBone->rotate, _fraction, outBone->rotate );
+            #else
+            // Copy bone translation and scale;
+            *outBone->translate = *inBone->translate;
+            *outBone->scale = *inBone->scale;
+            // Slerp rotation by fraction.
+            QuatSlerp( outBone->rotate, inBone->rotate, _fraction, outBone->rotate );
+            #endif
+        }
+    }
+
+    // Recursively blend all thise bone node's children.
+    for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
+        const skm_bone_node_t *childBoneNode = boneNode->childBones[ i ];
+
+        if ( !childBoneNode ) {
+            continue;
+        }
+
+        bool excludeChildren = false;
+        for ( int32_t j = 0; j < numExcludeNodes; j++ ) {
+            const skm_exclude_blend_t *excludeNodeBlend = &excludeNodes[ j ];
+            if ( excludeNodeBlend->boneNode->number == childBoneNode->number ) {
+                if ( excludeNodeBlend->excludeChildren ) {
+                    excludeChildren = true;
+                } else {
+                    _fraction = excludeNodeBlend->fraction;
+                }
+
+                break;
+            }
+        }
+        if ( !excludeChildren && childBoneNode != nullptr && childBoneNode->numberOfChildNodes > 0 ) {
+            SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, childBoneNode, excludeNodes, numExcludeNodes, backLerp, _fraction );
+        }
+    }
+}
+#else
+void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction ) {
     // If the bone node is invalid, escape.
     if ( !boneNode || !addBonePoses || !addToBonePoses ) {
         // TODO: Warn.
@@ -254,7 +383,7 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
     if ( fraction == 1 ) {
         #if 1
         // Copy bone translation and scale;
-        * outBone->translate = *inBone->translate;
+        *outBone->translate = *inBone->translate;
         *outBone->scale = *inBone->scale;
         //*outBone->rotate = *inBone->rotate;
         // Slerp the rotation at fraction.	
@@ -263,14 +392,14 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
         const double frontLerp = 1.0 - fraction;
         // Lerp the Translation.
         //*outBone->translate = *inBone->translate;
-        outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * fraction + inBone->translate[ 0 ] * frontLerp );
-        outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * fraction + inBone->translate[ 1 ] * frontLerp );
-        outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * fraction + inBone->translate[ 2 ] * frontLerp );
+        outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
+        outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
+        outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
         // Lerp the  Scale.
         //*outBone->scale = *inBone->scale;
-        outBone->scale[ 0 ] = outBone->scale[ 0 ] * fraction + inBone->scale[ 0 ] * frontLerp;
-        outBone->scale[ 1 ] = outBone->scale[ 1 ] * fraction + inBone->scale[ 1 ] * frontLerp;
-        outBone->scale[ 2 ] = outBone->scale[ 2 ] * fraction + inBone->scale[ 2 ] * frontLerp;		// Slerp the rotation at fraction.	
+        outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
+        outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
+        outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;		// Slerp the rotation at fraction.	
 
         // Slerp the rotation at fraction.	
         //*outBone->rotate = *inBone->rotate;
@@ -278,16 +407,16 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
         #endif
     } else {
         //	WID: Unsure if actually lerping these is favored.
-        #if 0
+        #if 1
         const double frontLerp = 1.0 - backLerp;
         // Lerp the Translation.
-        outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * fraction + inBone->translate[ 0 ] * frontLerp );
-        outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * fraction + inBone->translate[ 1 ] * frontLerp );
-        outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * fraction + inBone->translate[ 2 ] * frontLerp );
+        outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
+        outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
+        outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
         // Lerp the Scale.
-        outBone->scale[ 0 ] = outBone->scale[ 0 ] * fraction + inBone->scale[ 0 ] * frontLerp;
-        outBone->scale[ 1 ] = outBone->scale[ 1 ] * fraction + inBone->scale[ 1 ] * frontLerp;
-        outBone->scale[ 2 ] = outBone->scale[ 2 ] * fraction + inBone->scale[ 2 ] * frontLerp;
+        outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
+        outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
+        outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;
 
         // Slerp the rotation
         //*outBone->rotate = *inBone->rotate;
@@ -305,11 +434,11 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
     for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
         const skm_bone_node_t *childBoneNode = boneNode->childBones[ i ];
         if ( childBoneNode != nullptr && childBoneNode->numberOfChildNodes > 0 ) {
-            SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, childBoneNode, excludeNodes, numExcludeNodes, backLerp, fraction );
+            SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, childBoneNode, backLerp, fraction );
         }
     }
 }
-
+#endif
 
 
 /**
@@ -493,21 +622,18 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     skm_bone_node_t *leftUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:LeftUpLeg" );
     skm_bone_node_t *rightUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:RightUpLeg" );
 
-    // Final state pose.
+    //
+    // TODO: These need to actually be precached memory blocks stored by packet entity.
+    // 
+    // Final all combined states pose.
     static skm_transform_t finalStatePose[ SKM_MAX_BONES ];
     static skm_transform_t lastFinalStatePose[ SKM_MAX_BONES ];
-    memcpy( lastFinalStatePose, finalStatePose, SKM_MAX_BONES * sizeof( skm_transform_t ) );
-    
     // For the current active animation.
     static skm_transform_t currentStatePose[ SKM_MAX_BONES ];
     static skm_transform_t previousStatePose[ SKM_MAX_BONES ];
     // For the last animation that continues playing for transitioning purposes.
     static skm_transform_t lastCurrentStatePose[ SKM_MAX_BONES ];
     static skm_transform_t lastPreviousStatePose[ SKM_MAX_BONES ];
-
-    // Backup the old previous frame state poses for smooth lerping.
-    memcpy( lastPreviousStatePose, previousStatePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
-    memcpy( lastCurrentStatePose, currentStatePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
 
     // Default rootmotion settings.
     int32_t rootMotionBoneID = 0, rootMotionAxisFlags = 0;
@@ -548,21 +674,37 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     //
     // Event State(s):
     //
-    int32_t lowerEventOldFrame = 0, lowerEventCurrentFrame = 0;
-    int32_t upperEventOldFrame = 0,upperEventCurrentFrame = 0;
     double upperEventBackLerp = 0.0, lowerEventBackLerp = 0.0;
 
+    //
+    // Event Animations.
+    // 
+    // "finished" by default:
+    bool lowerEventFinishedPlaying = true;
     static skm_transform_t lowerEventStatePose[ SKM_MAX_BONES ];
-    static skm_transform_t lastLowerEventStatePose[ SKM_MAX_BONES ];
-    // Store last state pase.
-    memcpy( lastLowerEventStatePose, lowerEventStatePose, SKM_MAX_BONES * sizeof( skm_transform_t ) );
-    static skm_transform_t upperEventStatePose[ SKM_MAX_BONES ];
-    static skm_transform_t lastUpperEventStatePose[ SKM_MAX_BONES ];
-    // Store last state pase.
-    memcpy( lastUpperEventStatePose, upperEventStatePose, SKM_MAX_BONES * sizeof( skm_transform_t ) );
-
+    int32_t lowerEventOldFrame = 0, lowerEventCurrentFrame = 0;
+    // Process the upper event body state animation:
+    sg_skm_animation_state_t *lowerEventBodyState = &animationMixer->eventBodyState[ SKM_BODY_LOWER ];
+    {
+        // Process Animation:
+        lowerEventFinishedPlaying = SG_SKM_ProcessAnimationStateForTime( model, lowerEventBodyState, extrapolatedTime, &lowerEventOldFrame, &lowerEventCurrentFrame, &lowerEventBackLerp );
+        if ( !lowerEventFinishedPlaying && lowerEventBodyState->timeEnd >= extrapolatedTime ) {
+            // Acquire frame poses.
+            const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, lowerEventCurrentFrame );
+            const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, lowerEventOldFrame );
+            // Recurse blend it in the state poses.
+            clgi.SKM_LerpBonePoses( model,
+                framePose, oldFramePose,
+                1.0 - lowerEventBackLerp, lowerEventBackLerp,
+                lowerEventStatePose,
+                0, SKM_POSE_TRANSLATE_Z
+            );
+        }
+    }
     // "finished" by default:
     bool upperEventFinishedPlaying = true;
+    static skm_transform_t upperEventStatePose[ SKM_MAX_BONES ];
+    int32_t upperEventOldFrame = 0, upperEventCurrentFrame = 0;
     // Process the upper event body state animation:
     sg_skm_animation_state_t *upperEventBodyState = &animationMixer->eventBodyState[ SKM_BODY_UPPER ];
     {
@@ -579,48 +721,23 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
                 upperEventStatePose,
                 0, 0
             );
-        }
-    }
-    // "finished" by default:
-    bool lowerEventFinishedPlaying = true;
-    // Process the upper event body state animation:
-    sg_skm_animation_state_t *lowerEventBodyState = &animationMixer->eventBodyState[ SKM_BODY_LOWER ];
-    {
-        // Process Animation:
-        lowerEventFinishedPlaying = SG_SKM_ProcessAnimationStateForTime( model, lowerEventBodyState, extrapolatedTime, &lowerEventOldFrame, &lowerEventCurrentFrame, &lowerEventBackLerp );
-        if ( !lowerEventFinishedPlaying && lowerEventBodyState->timeEnd >= extrapolatedTime ) {
-            // Acquire frame poses.
-            const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, lowerEventCurrentFrame );
-            const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, lowerEventOldFrame );
 
-            // In case of jump animations, we want to...
-            clgi.Print( PRINT_DEVELOPER, "%s: animationID of Event is (%i)\n", __func__, lowerEventBodyState->animationID );
-            
-            // Recurse blend it in the state poses.
-            clgi.SKM_LerpBonePoses( model,
-                framePose, oldFramePose,
-                1.0 - lowerEventBackLerp, lowerEventBackLerp,
-                lowerEventStatePose,
-                0, 0
-            );
-        }
-    }
+            //
+            // Spine Controller:
+            // 
+            // Now reorient torso
+            skm_transform_t *hipsTransform = &currentStatePose[ hipsBone->number ];
+            skm_transform_t *spineTransform = &upperEventStatePose[ spineBone->number ];
 
+            // Get eulers.
+            const Vector3 hipsEuler = QM_QuaternionToEuler( hipsTransform->rotate );
+            const Vector3 spineEuler = QM_QuaternionToEuler( spineTransform->rotate );
 
-    //
-    // Base Animation Blend Transitioning:
-    // 
-    // Calculate the front and backlerp so that the last and current animation can smoothly
-    // lerp into one another.
-    double scaleFactor = 0;
-    double frontLerp = clgi.client->xerpFraction;
-    double backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );// clgi.client->xerpFraction;
-    if ( lastLowerBodyState->timeEnd >= extrapolatedTime && currentLowerBodyState->timeStart <= lastLowerBodyState->timeEnd ) {
-        scaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( lastLowerBodyState->timeStart, currentLowerBodyState->timeStart + lastLowerBodyState->timeDuration, extrapolatedTime );
-        //scaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( lastLowerBodyState->timeStart, currentLowerBodyState->timeStart + lastLowerBodyState->timeDuration, extrapolatedTime );
-        if ( scaleFactor > 0 ) {
-            frontLerp = scaleFactor;// 1.0 - constclamp( ( 1.0 / currentLowerBodyState->timeDuration.milliseconds() ) * ( ( 1.0 / lastLowerBodyState->timeDuration.milliseconds() ) * scaleFactor ), 0.0, 1.0 );
-            backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );
+            // Generate new spine quat.
+            Quaternion yawSpineQuat = QM_QuaternionFromEuler( 0, -hipsEuler.y, 0 );
+
+            Quaternion invertedHipQuat = QM_QuaternionMultiply( yawSpineQuat, Quaternion( spineTransform->rotate ) );//QM_QuaternionFromEuler( spineEuler.x, -hipsEuler.y, spineEuler.z );
+            Vector4Copy( invertedHipQuat, spineTransform->rotate );
         }
     }
 
@@ -628,6 +745,8 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     //
     // Lerping:
     // 
+    double frontLerp = clgi.client->xerpFraction;
+    double backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );// clgi.client->xerpFraction;
     // Lerp the last state bone poses right into lastFinalStatePose.
     clgi.SKM_LerpBonePoses( model,
         previousStatePose, lastPreviousStatePose,
@@ -635,6 +754,8 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         lastFinalStatePose,
         0, SKM_POSE_TRANSLATE_Z
     );
+    // Now store it as the last previous state pose.
+    memcpy( lastPreviousStatePose, previousStatePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
     // Lerp the current state bone poses right into finalStatePose.
     clgi.SKM_LerpBonePoses( model, 
         currentStatePose, lastCurrentStatePose,//currentStatePose, previousStatePose,
@@ -642,27 +763,33 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         finalStatePose, 
         0, SKM_POSE_TRANSLATE_Z
     );
+    // Now store it as the last current state pose.
+    memcpy( lastCurrentStatePose, currentStatePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
 
 
     //
-    // Final boneposes to use.
+    // Old to New Anim Transitioning:
     //
-    skm_transform_t *currentLerpedPose = nullptr;
-    const skm_transform_t *lastLerpedPose = nullptr;
+    // Current animation lerped pose.
+    skm_transform_t *currentLerpedPose = finalStatePose;
+    // Last animation lerped pose.
+    const skm_transform_t *lastLerpedPose = lastFinalStatePose;
+    // Transition scale.
+    double baseScaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( currentLowerBodyState->timeStart, lastLowerBodyState->timeDuration + currentLowerBodyState->timeStart, extrapolatedTime );
+    // Blend old animation into the new one.
+    if ( baseScaleFactor < 1 ) {
+        clgi.SKM_LerpBonePoses( model,
+            currentLerpedPose, lastLerpedPose,
+            1.0 - baseScaleFactor, baseScaleFactor,
+            currentLerpedPose,
+            0, SKM_POSE_TRANSLATE_Z
+        );
+    }
+
+
     //
     // Prepare Refresh Entity:
     // 
-    // Fraction:
-    const double fraction = 1.0;// -statePoseBackLerp;
-    // Backlerp:
-    //double statePoseBackLerp = clgi.client->xerpFraction;
-    //if ( scaleFactor > 0 ) {
-    //    statePoseBackLerp = constclamp( 1.0 - ( clgi.client->xerpFraction / scaleFactor ), 0.0, 1.0 ); // clgi.client->xerpFraction;//1.0 - clgi.client->lerpfrac;
-    //}
-
-    // Last but not least, setup refresh entity.
-    currentLerpedPose = finalStatePose;//refreshEntity->bonePoses = finalStatePose;
-    lastLerpedPose = lastFinalStatePose;//refreshEntity->lastBonePoses = lastFinalStatePose;
     refreshEntity->rootMotionBoneID = 0;
     refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_Z;
     refreshEntity->backlerp = clgi.client->xerpFraction;
@@ -673,13 +800,68 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     static mat3x4 localCurrentBoneMats[ SKM_MAX_BONES ];
     // Local upper body event state local spaces.
     static mat3x4 localUpperEventBoneMats[ SKM_MAX_BONES ];
-    if ( lowerEventBodyState->timeEnd >= extrapolatedTime ) {
+
+
+    if ( !lowerEventFinishedPlaying && lowerEventBodyState->timeEnd >= extrapolatedTime ) {
         //clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentLerpedPose, spineBone, nullptr, 0, clgi.client->xerpFraction, 1 );
-        SKM_RecursiveBlendFromBone( lowerEventStatePose, currentLerpedPose, spineBone, nullptr, 0, clgi.client->xerpFraction, 1 );
+        SKM_RecursiveBlendFromBone( lowerEventStatePose, currentLerpedPose, hipsBone, 0, 1 );
     }
-    if ( upperEventBodyState->timeEnd >= extrapolatedTime ) {
-        //clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentLerpedPose, spineBone, nullptr, 0, clgi.client->xerpFraction, 1 );
-        SKM_RecursiveBlendFromBone( upperEventStatePose, currentLerpedPose, spineBone, nullptr, 0, clgi.client->xerpFraction, 1 );
+    if ( !upperEventFinishedPlaying && upperEventBodyState->timeEnd >= extrapolatedTime ) {
+        #if 0
+        const skm_exclude_blend_t excludeBoneNodes[8] = {
+            {
+                hipsBone,
+                false,
+                false,
+                1.0,
+            },
+            {
+                spineBone,
+                false,
+                false,
+                0.5
+            },
+            {
+                spine1Bone,
+                false,
+                false,
+                0.5
+            },
+            {
+                spine2Bone,
+                false,
+                false,
+                0.25
+            },
+            {
+                leftShoulderBone,
+                true,
+                false,
+                1
+            },
+            {
+                rightShoulderBone,
+                true,
+                false,
+                1
+            },
+            {
+                leftUpLegBone,
+                false,
+                true,
+                0.0
+            },
+            {
+                rightUpLegBone,
+                false,
+                true,
+                0.0
+            }
+        };
+        SKM_RecursiveBlendFromBone( upperEventStatePose, currentLerpedPose, hipsBone, excludeBoneNodes, 8, clgi.client->xerpFraction, 1);
+        #else
+        SKM_RecursiveBlendFromBone( upperEventStatePose, currentLerpedPose, spineBone, 1, 1 );
+        #endif
     }
 
     // Transform.
