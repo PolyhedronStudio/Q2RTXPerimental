@@ -185,6 +185,32 @@ typedef struct centity_s {
 
 	//! Animations being played and mixed for this entity.
 	sg_skm_animation_mixer_t animationMixer;
+
+	//! Movement information, derived from states.
+	struct {
+		//! Directions as in velocities.
+		Vector2 xyDirection, xyDirectionNormalized;
+		Vector3 xyzDirection, xyzDirectionNormalized;
+
+		//! Velocity lengths.
+		double xySpeed;
+		double xyzSpeed;
+
+		//! Dot product against move dirs.
+		double xDot;
+		double yDot;
+
+		int32_t directionFlags;
+	} moveInfo;
+
+	//! (View-) Angle Vectors, updated along with movement information.
+	struct {
+		Vector3 up;
+		Vector3 forward;
+		Vector3 right;
+	} vAngles;
+
+
 } centity_t;
 
 /**

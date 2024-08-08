@@ -21,6 +21,30 @@ static const std::string CLG_PrimaryFireEvent_DetermineAnimation( const player_s
 
     // Default animation
     std::string animationName = "fire_stand_pistol";
+    
+    if ( !ps->animation.isIdle ) {
+        if ( ps->animation.isCrouched ) {
+            //animationName = "fire_crouch_pistol";
+            animationName = "fire_run_pistol";
+        } else if ( ps->animation.isWalking ) {
+            //animationName = "fire_walk_pistol";
+            animationName = "fire_run_pistol";
+        } else {
+            // Only if not strafing though.
+            bool isStrafing = true;
+            if ( ( !( ps->animation.moveDirection & PM_MOVEDIRECTION_FORWARD ) && !( ps->animation.moveDirection & PM_MOVEDIRECTION_BACKWARD ) )
+                && ( ( ps->animation.moveDirection & PM_MOVEDIRECTION_LEFT ) || ( ps->animation.moveDirection & PM_MOVEDIRECTION_RIGHT ) ) ) {
+                animationName = "fire_stand_pistol";
+            } else {
+                animationName = "fire_run_pistol";
+            }
+        }
+    } else {
+        animationName = "fire_stand_pistol";
+    }
+    // If walking:
+    
+    // When strafing just use fire_stand_pistol.
     //if ( isDucked ) {
     //    animationName = "fire_crouch_rifle";
     //} else {

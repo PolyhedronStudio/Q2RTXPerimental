@@ -199,6 +199,16 @@ typedef struct Vector3 {
         this->y = y;
         this->z = z;
     }
+    [[nodiscard]] inline Vector3( Vector2 &v ) {
+        this->x = v.x;
+        this->y = v.y;
+        this->z = 0;
+    }
+    [[nodiscard]] inline Vector3( const Vector2 &v ) {
+        this->x = v.x;
+        this->y = v.y;
+        this->z = 0;
+    }
     [[nodiscard]] inline Vector3( Vector3 &v ) {
         this->x = v.x;
         this->y = v.y;

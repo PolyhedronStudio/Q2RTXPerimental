@@ -394,7 +394,7 @@ RMAPI void QM_QuaternionToAxisAngle( Quaternion q, Vector3 *outAxis, float *outA
 }
 
 // Get the quaternion equivalent to Euler angles
-// NOTE: Rotation order is ZYX
+// NOTE: Rotation order is XYZ(Pitch, Yaw, Roll), angles should be supplied in radians.
 RMAPI Quaternion QM_QuaternionFromEuler( float pitch, float yaw, float roll ) {
     Quaternion result = { 0 };
 
@@ -418,22 +418,38 @@ RMAPI Quaternion QM_QuaternionFromEuler( float pitch, float yaw, float roll ) {
 RMAPI Vector3 QM_QuaternionToEuler( Quaternion q ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
-    // Roll (x-axis rotation)
-    float x0 = 2.0f * ( q.w * q.x + q.y * q.z );
-    float x1 = 1.0f - 2.0f * ( q.x * q.x + q.y * q.y );
-    result.x = atan2f( x0, x1 );
+    // WID: We really want PYR(Pitch Yaw Roll), similar to QuaternionFromEuler, so life is less confusing.
+    #if 0
+        // Roll (x-axis rotation)
+        float x0 = 2.0f * ( q.w * q.x + q.y * q.z );
+        float x1 = 1.0f - 2.0f * ( q.x * q.x + q.y * q.y );
+        result.x = atan2f( x0, x1 );
 
-    // Pitch (y-axis rotation)
-    float y0 = 2.0f * ( q.w * q.y - q.z * q.x );
-    y0 = y0 > 1.0f ? 1.0f : y0;
-    y0 = y0 < -1.0f ? -1.0f : y0;
-    result.y = asinf( y0 );
+        // Pitch (y-axis rotation)
+        float y0 = 2.0f * ( q.w * q.y - q.z * q.x );
+        y0 = y0 > 1.0f ? 1.0f : y0;
+        y0 = y0 < -1.0f ? -1.0f : y0;
+        result.y = asinf( y0 );
 
-    // Yaw (z-axis rotation)
-    float z0 = 2.0f * ( q.w * q.z + q.x * q.y );
-    float z1 = 1.0f - 2.0f * ( q.y * q.y + q.z * q.z );
-    result.z = atan2f( z0, z1 );
-
+        // Yaw (z-axis rotation)
+        float z0 = 2.0f * ( q.w * q.z + q.x * q.y );
+        float z1 = 1.0f - 2.0f * ( q.y * q.y + q.z * q.z );
+        result.z = atan2f( z0, z1 );
+    #else
+        // Pitch (y-axis rotation)
+        float x0 = 2.0f * ( q.w * q.y - q.z * q.x );
+        x0 = x0 > 1.0f ? 1.0f : x0;
+        x0 = x0 < -1.0f ? -1.0f : x0;
+        result.x = asinf( x0 );
+        // Yaw (z-axis rotation)
+        float y0 = 2.0f * ( q.w * q.z + q.x * q.y );
+        float y1 = 1.0f - 2.0f * ( q.y * q.y + q.z * q.z );
+        result.y = atan2f( y0, y1 );
+        // Roll (x-axis rotation)
+        float z0 = 2.0f * ( q.w * q.x + q.y * q.z );
+        float z1 = 1.0f - 2.0f * ( q.x * q.x + q.y * q.y );
+        result.z = atan2f( z0, z1 );
+    #endif
     return result;
 }
 
