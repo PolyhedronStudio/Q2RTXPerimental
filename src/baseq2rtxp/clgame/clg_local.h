@@ -189,8 +189,10 @@ typedef struct centity_s {
 	//! Movement information, derived from states.
 	struct {
 		//! Directions as in velocities.
-		Vector2 xyDirection, xyDirectionNormalized;
-		Vector3 xyzDirection, xyzDirectionNormalized;
+		Vector2 xyDirection;
+		Vector2 xyDirectionNormalized;
+		Vector3 xyzDirection;
+		Vector3 xyzDirectionNormalized;
 
 		//! Velocity lengths.
 		double xySpeed;

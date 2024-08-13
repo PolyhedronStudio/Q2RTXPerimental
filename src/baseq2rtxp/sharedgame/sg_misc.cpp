@@ -85,6 +85,7 @@ void SG_PlayerState_AddPredictableEvent( const uint8_t newEvent, const uint8_t e
 *
 *
 **/
+#define ONLY_FORWARD_AND_BACKWARD 1
 /**
 *   @brief  Returns a string stating the determined 'Base' animation, and sets the FrameTime value for frameTime pointer.
 **/
@@ -126,13 +127,19 @@ const std::string SG_Player_GetClientBaseAnimation( const player_state_t *oldPla
         // Append to the baseAnimStr the name of the directional animation.
         // Forward Left:
         if ( ( currentMoveDirection & PM_MOVEDIRECTION_FORWARD ) && ( currentMoveDirection & PM_MOVEDIRECTION_LEFT ) ) {
+            #ifndef ONLY_FORWARD_AND_BACKWARD
             baseAnimStr += "_forward_left";
-            //baseAnimStr += "_forward";
+            #else
+            baseAnimStr += "_forward";
+            #endif
         // Forward Right:
         } 
         else if ( ( currentMoveDirection & PM_MOVEDIRECTION_FORWARD ) && ( currentMoveDirection & PM_MOVEDIRECTION_RIGHT ) ) {
+            #ifndef ONLY_FORWARD_AND_BACKWARD
             baseAnimStr += "_forward_right";
-            //baseAnimStr += "_forward";
+            #else
+            baseAnimStr += "_forward";
+            #endif
         }
         // Forward:
         else if ( currentMoveDirection & PM_MOVEDIRECTION_FORWARD ) {
@@ -140,13 +147,19 @@ const std::string SG_Player_GetClientBaseAnimation( const player_state_t *oldPla
         // Backward Left:
         }
         else if ( ( currentMoveDirection & PM_MOVEDIRECTION_BACKWARD ) && ( currentMoveDirection & PM_MOVEDIRECTION_LEFT ) ) {
+            #ifndef ONLY_FORWARD_AND_BACKWARD
             baseAnimStr += "_backward_left";
-            //baseAnimStr += "_backward";
+            #else
+            baseAnimStr += "_backward";
+            #endif
         // Backward Right:
         }
         else if ( ( currentMoveDirection & PM_MOVEDIRECTION_BACKWARD ) && ( currentMoveDirection & PM_MOVEDIRECTION_RIGHT ) ) {
+            #ifndef ONLY_FORWARD_AND_BACKWARD
             baseAnimStr += "_backward_right";
-            //baseAnimStr += "_backward";
+            #else
+            baseAnimStr += "_backward";
+            #endif
         // Backward:
         } else if ( currentMoveDirection & PM_MOVEDIRECTION_BACKWARD ) {
             baseAnimStr += "_backward";

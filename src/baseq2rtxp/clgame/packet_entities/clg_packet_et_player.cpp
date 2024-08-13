@@ -58,6 +58,104 @@ static void QuatSlerp( const quat_t from, const quat_t _to, float fraction, quat
     out[ 3 ] = from[ 3 ] * backlerp + to[ 3 ] * lerp;
 }
 
+static inline Quaternion QuatRotateX( const Quaternion &a, const double rad ) {
+    const double halfRad = rad * 0.5;
+
+    const float ax = a[ 0 ],
+        ay = a[ 1 ],
+        az = a[ 2 ],
+        aw = a[ 3 ];
+    const float bx = sinf( halfRad ),
+        bw = cosf( halfRad );
+
+    return {
+        ax * bw + aw * bx,
+        ay * bw + az * bx,
+        az * bw - ay * bx,
+        aw * bw - ax * bx,
+    };
+
+}
+
+static inline const Quaternion QuatRotateY( const Quaternion &a, const double rad ) {
+    const double halfRad = rad * 0.5;
+
+    const float ax = a[ 0 ],
+        ay = a[ 1 ],
+        az = a[ 2 ],
+        aw = a[ 3 ];
+    const float by = sinf( halfRad ),
+        bw = cosf( halfRad );
+
+    return {
+        ax * bw - az * by,
+        ay * bw + aw * by,
+        az * bw + ax * by,
+        aw * bw - ay * by
+    };
+}
+
+static inline const Quaternion QuatRotateZ( const Quaternion &a, const double rad ) {
+    const double halfRad = rad * 0.5;
+
+    const float ax = a[ 0 ],
+        ay = a[ 1 ],
+        az = a[ 2 ],
+        aw = a[ 3 ];
+    const float bz = sinf( halfRad ),
+        bw = cosf( halfRad );
+
+    return {
+        ax * bw + ay * bz,
+        ay * bw - ax * bz,
+        az * bw + aw * bz,
+        aw * bw - az * bz
+    };
+}
+
+/**
+ * Sets a quat from the given angle and rotation axis,
+ * then returns it.
+ *
+ * @param {quat} out the receiving quaternion
+ * @param {vec3} axis the axis around which to rotate
+ * @param {Number} rad the angle in radians
+ * @returns {quat} out
+ **/
+const Quaternion QuatSetAxisAngle( const Vector3 &axis, float rad ) {
+    
+    rad = rad * 0.5;
+    float s = sinf( rad );
+    return {
+        s * axis[ 0 ],
+        s * axis[ 1 ],
+        s * axis[ 2 ],
+        cosf( rad )
+    };
+}
+
+/*
+* AngleNormalize180
+*
+* returns angle normalized to the range [-180 < angle <= 180]
+*/
+float QM_Angle_Normalize180( const float angle ) {
+    float _angle = fmod( ( angle ), 360.0f );
+    if ( _angle > 180.0 ) {
+        _angle -= 360.0;
+    }
+    return _angle;
+}
+
+/*
+* AngleDelta
+*
+* returns the normalized delta from angle1 to angle2
+*/
+float QM_AngleDelta( const float angle1, const float angle2 ) {
+    return QM_Angle_Normalize180( angle1 - angle2 );
+}
+
 // "multiply" 3x4 matrices, these are assumed to be the top 3 rows
 // of a 4x4 matrix with the last row = (0 0 0 1)
 static void Matrix34Multiply( const mat3x4 &a, const mat3x4 &b, mat3x4 &out ) {
@@ -554,7 +652,9 @@ void CLG_ETPlayer_DetermineEventAnimations( centity_t *packetEntity, entity_t *r
 
 }
 
-#if 0
+/**
+*   @brief  Calculates the 'scaleFactor' of an animation switch, for use with the fraction and lerp values between two animation poses. 
+**/
 static const double CLG_ETPlayer_GetSwitchAnimationScaleFactor( const sg_time_t &lastTimeStamp, const sg_time_t &nextTimeStamp, const sg_time_t &animationTime ) {
     //double scaleFactor = 0.0;
     const double midWayLength = animationTime.milliseconds() - lastTimeStamp.milliseconds();
@@ -566,19 +666,59 @@ static const double CLG_ETPlayer_GetSwitchAnimationScaleFactor( const sg_time_t 
         return 0;//0;
     }
 }
-#else
-static const double CLG_ETPlayer_GetSwitchAnimationScaleFactor( const sg_time_t &lastTimeStamp, const sg_time_t &nextTimeStamp, const sg_time_t &animationTime ) {
-    //double scaleFactor = 0.0;
-    const double midWayLength = animationTime.milliseconds() - lastTimeStamp.milliseconds();
-    const double framesDiff = nextTimeStamp.milliseconds() - lastTimeStamp.milliseconds();
-    // WID: Prevent a possible division by zero?
-    if ( framesDiff > 0 ) {
-        return /*scaleFactor = */ midWayLength / framesDiff;
-    } else {
-        return 0;//0;
+
+/**
+*   @brief  
+*   @return A boolean of whether the animation state is still activeplay playing, or not.
+*           ( !!! Does not per se mean, backLerp > 0 ).
+*   @note   poseBuffer is expected to be SKM_MAX_BONES in size.
+*   @note   The model and its skmData member are expected to be valid. Make sure to check these before calling this function.
+**/
+static const bool CLG_ETPlayer_GenerateAnimationStatePoseForTime( const model_t *model, const sg_time_t &time, const int32_t rootMotionAxisFlags, const skm_bone_node_t *boneNode, sg_skm_animation_state_t *animationState, skm_transform_t *poseBuffer ) {
+    // Get current and old frame poses and determine backlerp.
+    double animationStateBackLerp = 0.0;
+    int32_t animationStateCurrentFrame = 0, animationStateOldFrame = 0;
+    const bool isPlaying = SG_SKM_ProcessAnimationStateForTime( 
+        model, 
+        animationState, 
+        time, 
+        &animationStateOldFrame, 
+        &animationStateCurrentFrame,
+        &animationStateBackLerp 
+    );
+
+    // If for whatever reason animation state is out of bounds frame wise...
+    if ( ( animationStateCurrentFrame < 0 || animationStateCurrentFrame > model->skmData->num_frames ) ) {
+        return false;
     }
+    // If for whatever reason animation state is out of bounds frame wise...
+    if ( ( animationStateOldFrame < 0 || animationStateOldFrame > model->skmData->num_frames ) ) {
+        return false;
+    }
+
+    // Get pose frames for time..
+    const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, animationStateCurrentFrame );
+    const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, animationStateOldFrame );
+
+    // If the lerp is > 0, it means we have a legitimate framePose and oldFramePose to work with.
+    if ( animationStateBackLerp > 0 && framePose && oldFramePose ) {
+        const double frontLerp = 1.0 - animationStateBackLerp;
+        const double backLerp = animationStateBackLerp;
+        // Lerp the final pose.
+        clgi.SKM_LerpBonePoses( model,
+            framePose, oldFramePose,
+            frontLerp, backLerp,
+            poseBuffer,
+            ( boneNode != nullptr ? boneNode->number : 0 ), rootMotionAxisFlags
+        );
+    // If we don't, just copy in the retreived first frame pose data instead.
+    } else if ( framePose ) {
+        memcpy( poseBuffer, framePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
+    }
+
+    // !!! Does not per se mean, backLerp > 0
+    return isPlaying;
 }
-#endif
 
 /**
 *   @brief  Process the entity's active animations.
@@ -611,385 +751,211 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         return;
     }
 
-    // Time we're at.
+    /**
+    *   Time:
+    **/
+    // The frame's Server Time.
     const sg_time_t serverTime = sg_time_t::from_ms( clgi.client->servertime );
+    // The Time we're at.
     const sg_time_t extrapolatedTime = sg_time_t::from_ms( clgi.client->extrapolatedTime );
 
+    // FrontLerp Fraction (extrapolated ahead of Server Time).
+    const double frontLerp = clgi.client->xerpFraction;
+    // BackLerp Fraction.
+    double backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );// clgi.client->xerpFraction;
+
+    /**
+    *   Determine Yaw movement:
+    **/
+    player_state_t *playerState = &clgi.client->predictedState.currentPs;
+    player_state_t *oldPlayerState = &clgi.client->predictedState.lastPs;
+    // Determine new wish yaw.
+    static float wishYaw = 0;
+    static sg_time_t timeDirChanged = level.time;
+    float adjustFactor = 1;
+    if ( playerState->animation.moveDirection != oldPlayerState->animation.moveDirection ) {
+        const int32_t moveDirection = playerState->animation.moveDirection;
+        if ( ( moveDirection & PM_MOVEDIRECTION_FORWARD ) && ( moveDirection & PM_MOVEDIRECTION_LEFT ) ) {
+            wishYaw = 45;
+            timeDirChanged = extrapolatedTime;
+        } else if ( ( moveDirection & PM_MOVEDIRECTION_FORWARD ) && ( moveDirection & PM_MOVEDIRECTION_RIGHT ) ) {
+            wishYaw = -45;
+            timeDirChanged = extrapolatedTime;
+        } else if ( ( moveDirection & PM_MOVEDIRECTION_BACKWARD ) && ( moveDirection & PM_MOVEDIRECTION_LEFT ) ) {
+            wishYaw = -45;
+            timeDirChanged = extrapolatedTime;
+        } else if ( ( moveDirection & PM_MOVEDIRECTION_BACKWARD ) && ( moveDirection & PM_MOVEDIRECTION_RIGHT ) ) {
+            wishYaw = 45;
+            timeDirChanged = extrapolatedTime;
+        } else {
+            wishYaw = 0;
+            timeDirChanged = extrapolatedTime;
+        }
+    }
+    
+    // Setup the time of change for lerping.
+    const sg_time_t timeDirChangeEnd = timeDirChanged + 150_ms;
+    if ( timeDirChangeEnd >= extrapolatedTime ) {
+        double factor = 1.0 / 150.0;
+        adjustFactor = 1.0 - ( ( timeDirChangeEnd - extrapolatedTime ).milliseconds() * factor );
+    } else {
+        adjustFactor = 1;
+    }
+
+
+    /**
+    *   Acquire access to desired Bone Nodes:
+    **/
     // The model's hip bone.
     skm_bone_node_t *hipsBone = clgi.SKM_GetBoneByName( model, "mixamorig8:Hips" );
     // Spine bones, for upper body event animations.
     skm_bone_node_t *spineBone = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine" );
     skm_bone_node_t *spine1Bone = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine1" );
     skm_bone_node_t *spine2Bone = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine2" );
-    skm_bone_node_t *neckBone = clgi.SKM_GetBoneByName( model, "mixamorig8:Neck" );
+    //skm_bone_node_t *neckBone = clgi.SKM_GetBoneByName( model, "mixamorig8:Neck" );
     // Shoulder bones.
-    skm_bone_node_t *leftShoulderBone = clgi.SKM_GetBoneByName( model, "mixamorig8:LeftShoulder" );
-    skm_bone_node_t *rightShoulderBone = clgi.SKM_GetBoneByName( model, "mixamorig8:RightShoulder" );
+    //skm_bone_node_t *leftShoulderBone = clgi.SKM_GetBoneByName( model, "mixamorig8:LeftShoulder" );
+    //skm_bone_node_t *rightShoulderBone = clgi.SKM_GetBoneByName( model, "mixamorig8:RightShoulder" );
     // Leg bones.
-    skm_bone_node_t *leftUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:LeftUpLeg" );
-    skm_bone_node_t *rightUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:RightUpLeg" );
-
-    //
-    // TODO: These need to actually be precached memory blocks stored by packet entity.
-    // 
-    // Final all combined states pose.
-    static skm_transform_t finalStatePose[ SKM_MAX_BONES ];
-    static skm_transform_t lastFinalStatePose[ SKM_MAX_BONES ];
-    // For the current active animation.
-    static skm_transform_t currentStatePose[ SKM_MAX_BONES ];
-    static skm_transform_t previousStatePose[ SKM_MAX_BONES ];
-    // For the last animation that continues playing for transitioning purposes.
-    static skm_transform_t lastCurrentStatePose[ SKM_MAX_BONES ];
-    static skm_transform_t lastPreviousStatePose[ SKM_MAX_BONES ];
-
-    // Default rootmotion settings.
-    int32_t rootMotionBoneID = 0, rootMotionAxisFlags = 0;
-
-
-    //
-    // Lower Body State(s):
-    //
-    int32_t currentLowerBodyCurrentFrame = 0, currentLowerBodyOldFrame = 0;
-    int32_t lastLowerBodyCurrentFrame = 0, lastLowerBodyOldFrame = 0;
-    double currentLowerBodyBackLerp = 0.0, lastLowerBodyBackLerp = 0.0;
-    
-    // Process the 'previous' lower body animation. (This is so we can smoothly transition from 'last' to 'current').
+    //skm_bone_node_t *leftUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:LeftUpLeg" );
+    //skm_bone_node_t *rightUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:RightUpLeg" );
+    /**
+    *   Acquire access to 'Base' Animation States:
+    **/
+    // The 'LAST' actively playing lower body animation state.
     sg_skm_animation_state_t *lastLowerBodyState = &animationMixer->lastBodyStates[ SKM_BODY_LOWER ];
-    { 
-
-        // Get frame.
-        SG_SKM_ProcessAnimationStateForTime( model, lastLowerBodyState, extrapolatedTime, &lastLowerBodyOldFrame, &lastLowerBodyCurrentFrame, &lastLowerBodyBackLerp );
-        // Lerp the relative frame poses.
-        const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, lastLowerBodyCurrentFrame );
-        const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, lastLowerBodyOldFrame );
-        
-        // Copy in the frame pose.
-        memcpy( previousStatePose, framePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
-    }
-    // Process the 'current' lower body animation.
+    // The 'CURRENT' actively playing lower body animation state.
     sg_skm_animation_state_t *currentLowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
-    {
-        // Get frame.
-        SG_SKM_ProcessAnimationStateForTime( model, currentLowerBodyState, extrapolatedTime, &currentLowerBodyOldFrame, &currentLowerBodyCurrentFrame, &currentLowerBodyBackLerp );
-        const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, currentLowerBodyCurrentFrame );
-        const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, currentLowerBodyOldFrame );
-        
-        // Copy in the frame pose.
-        memcpy( currentStatePose, framePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
-    }
-
-
-    //
-    // Event State(s):
-    //
-    double upperEventBackLerp = 0.0, lowerEventBackLerp = 0.0;
-
-    //
-    // Event Animations.
-    // 
-    // "finished" by default:
-    bool lowerEventFinishedPlaying = true;
-    static skm_transform_t lowerEventStatePose[ SKM_MAX_BONES ];
-    int32_t lowerEventOldFrame = 0, lowerEventCurrentFrame = 0;
-    // Process the upper event body state animation:
+    /**
+    *   Acquire access to 'Event' Animation States:
+    **/
+    // The last received(possibly actively playing) 'LOWER BODY' event animation state.
     sg_skm_animation_state_t *lowerEventBodyState = &animationMixer->eventBodyState[ SKM_BODY_LOWER ];
-    {
-        // Process Animation:
-        lowerEventFinishedPlaying = SG_SKM_ProcessAnimationStateForTime( model, lowerEventBodyState, extrapolatedTime, &lowerEventOldFrame, &lowerEventCurrentFrame, &lowerEventBackLerp );
-        if ( !lowerEventFinishedPlaying && lowerEventBodyState->timeEnd >= extrapolatedTime ) {
-            // Acquire frame poses.
-            const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, lowerEventCurrentFrame );
-            const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, lowerEventOldFrame );
-            // Recurse blend it in the state poses.
-            clgi.SKM_LerpBonePoses( model,
-                framePose, oldFramePose,
-                1.0 - lowerEventBackLerp, lowerEventBackLerp,
-                lowerEventStatePose,
-                0, SKM_POSE_TRANSLATE_Z
-            );
-        }
-    }
-    // "finished" by default:
-    bool upperEventFinishedPlaying = true;
-    static skm_transform_t upperEventStatePose[ SKM_MAX_BONES ];
-    int32_t upperEventOldFrame = 0, upperEventCurrentFrame = 0;
-    // Process the upper event body state animation:
+    // The last received(possibly actively playing) 'UPPER BODY' event animation state.
     sg_skm_animation_state_t *upperEventBodyState = &animationMixer->eventBodyState[ SKM_BODY_UPPER ];
-    {
-        // Process Animation:
-        upperEventFinishedPlaying = SG_SKM_ProcessAnimationStateForTime( model, upperEventBodyState, extrapolatedTime, &upperEventOldFrame, &upperEventCurrentFrame, &upperEventBackLerp );
-        if ( !upperEventFinishedPlaying && upperEventBodyState->timeEnd >= extrapolatedTime ) {
-            // Acquire frame poses.
-            const skm_transform_t *framePose = clgi.SKM_GetBonePosesForFrame( model, upperEventCurrentFrame );
-            const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, upperEventOldFrame );
-            // Recurse blend it in the state poses.
-            clgi.SKM_LerpBonePoses( model,
-                framePose, oldFramePose,
-                1.0 - upperEventBackLerp, upperEventBackLerp,
-                upperEventStatePose,
-                0, 0
-            );
 
-        }
+
+    /**
+    *   'Base' Animation States Pose Lerping:
+    **/
+    // WID: TODO: !!! These need to actually be precached memory blocks stored by packet entities ??
+    // Last Animation, and Current Animation State Pose Buffers.
+    static skm_transform_t finalStatePose[ SKM_MAX_BONES ] = {};
+    static skm_transform_t lastFinalStatePose[ SKM_MAX_BONES ] = {};
+    // Transition scale.
+    const double baseScaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( currentLowerBodyState->timeStart, lastLowerBodyState->timeDuration + currentLowerBodyState->timeStart, extrapolatedTime );
+    //if ( baseScaleFactor < 1 ) {
+        // Process the 'LAST' lower body animation. (This is so we can smoothly transition from 'last' to 'current').
+        CLG_ETPlayer_GenerateAnimationStatePoseForTime( model, extrapolatedTime, SKM_POSE_TRANSLATE_ALL, nullptr, lastLowerBodyState, lastFinalStatePose );
+    //}
+    // Process the 'CURRENT' lower body animation.
+    CLG_ETPlayer_GenerateAnimationStatePoseForTime( model, extrapolatedTime, SKM_POSE_TRANSLATE_ALL, nullptr, currentLowerBodyState, finalStatePose );
+    /**
+    *   'Events' Animation States Pose Lerping:
+    **/
+    // Lerped frame for time poses of each active event.
+    static skm_transform_t lowerEventStatePose[ SKM_MAX_BONES ] = {};
+    static skm_transform_t upperEventStatePose[ SKM_MAX_BONES ] = {};
+    // These events are, "finished" by default:
+    bool lowerEventFinishedPlaying = true;
+    bool upperEventFinishedPlaying = true;
+    // Root Motion Axis Flags:
+    const int32_t lowerEventRootMotionAxisFlags = SKM_POSE_TRANSLATE_Z; // Z only by default.
+    const int32_t upperEventRootMotionAxisFlags = SKM_POSE_TRANSLATE_ALL; // Z only by default.
+    // Process the lower event body state animation IF still within valid time range:
+    if ( lowerEventBodyState->timeEnd >= extrapolatedTime ) {
+        lowerEventFinishedPlaying = CLG_ETPlayer_GenerateAnimationStatePoseForTime( model, extrapolatedTime, lowerEventRootMotionAxisFlags, nullptr, lowerEventBodyState, lowerEventStatePose );
+    }
+    // Process the upper event body state animation IF still within valid time range:
+    if ( upperEventBodyState->timeEnd >= extrapolatedTime ) {
+        upperEventFinishedPlaying = CLG_ETPlayer_GenerateAnimationStatePoseForTime( model, extrapolatedTime, upperEventRootMotionAxisFlags, nullptr, upperEventBodyState, upperEventStatePose );
     }
 
 
-    //
-    // Lerping:
-    // 
-    double frontLerp = clgi.client->xerpFraction;
-    double backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );// clgi.client->xerpFraction;
-    // Lerp the last state bone poses right into lastFinalStatePose.
-    clgi.SKM_LerpBonePoses( model,
-        previousStatePose, lastPreviousStatePose,
-        frontLerp, backLerp,
-        lastFinalStatePose,
-        0, SKM_POSE_TRANSLATE_ALL
-    );
-    // Now store it as the last previous state pose.
-    memcpy( lastPreviousStatePose, previousStatePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
-    // Lerp the current state bone poses right into finalStatePose.
-    clgi.SKM_LerpBonePoses( model, 
-        currentStatePose, lastCurrentStatePose,//currentStatePose, previousStatePose,
-        frontLerp, backLerp, 
-        finalStatePose, 
-        0, SKM_POSE_TRANSLATE_ALL
-    );
-    // Now store it as the last current state pose.
-    memcpy( lastCurrentStatePose, currentStatePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
-
-
-    //
-    // Old to New Anim Transitioning:
-    //
+    /**
+    *   'Base' Blend Animation Transition over time, from the 'LAST' to 'CURRENT' lerped poses.
+    **/
     // Current animation lerped pose.
     skm_transform_t *currentLerpedPose = finalStatePose;
     // Last animation lerped pose.
     skm_transform_t *lastLerpedPose = lastFinalStatePose;
     // Transition scale.
-    double baseScaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( currentLowerBodyState->timeStart, lastLowerBodyState->timeDuration + currentLowerBodyState->timeStart, extrapolatedTime );
+    //double baseScaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( currentLowerBodyState->timeStart, lastLowerBodyState->timeDuration + currentLowerBodyState->timeStart, extrapolatedTime );
     // Blend old animation into the new one.
     if ( baseScaleFactor < 1 ) {
         SKM_RecursiveBlendFromBone( lastLerpedPose, currentLerpedPose, hipsBone, baseScaleFactor, baseScaleFactor );
-        //clgi.Print( PRINT_WARNING, "%s: baseScaleFactor(%f), backLerp(%f)\n", __func__, baseScaleFactor, backLerp );
     } else {
+        #if 0
+        // Just lerp them.
         clgi.SKM_LerpBonePoses( model,
             currentLerpedPose, lastLerpedPose,
             frontLerp, backLerp,
             currentLerpedPose,
             0, SKM_POSE_TRANSLATE_ALL
         );
-        //clgi.Print( PRINT_WARNING, "%s: baseScaleFactor( SHOULD BE 1 BUT IS ? %f)\n", __func__, baseScaleFactor );
+        #endif
+    }
+    /**
+    *   'Event' Animation Override Layering:
+    **/
+    // If playing, within a valid time range: Override the whole skeleton with the the lower event state pose.
+    if ( !lowerEventFinishedPlaying && lowerEventBodyState->timeEnd >= extrapolatedTime ) {
+        //memcpy( currentLerpedPose, lowerEventStatePose, SKM_MAX_BONES ); // This is faster if we override from the hips.
+        SKM_RecursiveBlendFromBone( lowerEventStatePose, currentLerpedPose, hipsBone, 1, 1 ); // Slower path..
+    }
+    // If playing, the upper event state overrides only the spine bone and all its child bones.
+    if ( !upperEventFinishedPlaying && upperEventBodyState->timeEnd >= extrapolatedTime ) {
+        SKM_RecursiveBlendFromBone( upperEventStatePose, currentLerpedPose, spineBone, 1, 1 );
     }
 
 
+    /**
+    *   Bone Controlling:
+    **/
+    // Now reorient torso
+    skm_transform_t *hipsTransform = &finalStatePose[ hipsBone->number ];
+    skm_transform_t *spineTransform = &finalStatePose[ spineBone->number ];
+    skm_transform_t *spine1Transform = &finalStatePose[ spine1Bone->number ];
+    skm_transform_t *spine2Transform = &finalStatePose[ spine2Bone->number ];
 
+    // Rotate(Slerp) the 'Hips Bone' to the desired wish yaw.
+    const Vector3 hipsEuler = QM_QuaternionToEuler( finalStatePose[ hipsBone->number ].rotate );
+    Quaternion newHipsQuat = QuatRotateY( hipsTransform->rotate, DEG2RAD( wishYaw ) );
+    newHipsQuat = QM_QuaternionSlerp( currentLerpedPose[ hipsBone->number ].rotate, newHipsQuat, ( adjustFactor < 1 ? adjustFactor : 1 ) );
+    // Copy in the rotations to the bone controller.
+    Vector4Copy( newHipsQuat, currentLerpedPose[ hipsBone->number ].rotate );
 
-    // Now store it as the last current state pose.
-    //memcpy( lastLerpedPose, currentLerpedPose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
+    const Vector3 spineEuler = QM_QuaternionToEuler( spineTransform->rotate );
+    Quaternion newSpineQuat = QuatRotateY( spineTransform->rotate, -( DEG2RAD( wishYaw ) ) );
+    newSpineQuat = QM_QuaternionSlerp( spineTransform->rotate, newSpineQuat, ( adjustFactor < 1 ? adjustFactor : 1 ) );
+    // Copy in the rotations to the bone controller.
+    Vector4Copy( newSpineQuat, currentLerpedPose[ spineBone->number ].rotate );
 
-    //
-    // Prepare Refresh Entity:
-    // 
+    const Vector3 spine1Euler = QM_QuaternionToEuler( spine1Transform->rotate );
+    Quaternion newSpine1Quat = QuatRotateY( spine1Transform->rotate, ( DEG2RAD( wishYaw / 3 ) ) );
+    newSpine1Quat = QM_QuaternionSlerp( spine1Transform->rotate, newSpine1Quat, ( adjustFactor < 1 ? adjustFactor : 1 ) );
+    // Copy in the rotations to the bone controller.
+    Vector4Copy( newSpine1Quat, currentLerpedPose[ spine1Bone->number ].rotate );
+
+    const Vector3 spine2Euler = QM_QuaternionToEuler( spine2Transform->rotate );
+    Quaternion newSpine2Quat = QuatRotateY( spine2Transform->rotate, ( DEG2RAD( wishYaw / 3 ) ) );
+    newSpine2Quat = QM_QuaternionSlerp( spine2Transform->rotate, newSpine2Quat, ( adjustFactor < 1 ? adjustFactor : 1 ) );
+    // Copy in the rotations to the bone controller.
+    Vector4Copy( newSpine2Quat, currentLerpedPose[ spine2Bone->number ].rotate );
+
+    /**
+    *   Prepare the RefreshEntity by generating the local model space matrices for rendering.
+    **/
+    // TODO: THIS NEEDS TO BE UNIQUE FOR EACH PACKETENTITY! OTHERWISE IT'LL OVERWRITE SAME MEMORY BEFORE IT IS RENDERED...
+    // Local model space final representation matrices.
+    static mat3x4 refreshBoneMats[ SKM_MAX_BONES ];
+    // Transform.
+    SKM_TransformBonePosesLocalSpace( model->skmData, currentLerpedPose, nullptr, 0, (float *)&refreshBoneMats[ 0 ] );
+    // Assign final refresh mats.
+    refreshEntity->localSpaceBonePose3x4Matrices = (float *)&refreshBoneMats[ 0 ];
     refreshEntity->rootMotionBoneID = 0;
     refreshEntity->rootMotionFlags = SKM_POSE_TRANSLATE_ALL;
     refreshEntity->backlerp = clgi.client->xerpFraction;
-
-    // Local model space final representation matrices.
-    static mat3x4 refreshBoneMats[ SKM_MAX_BONES ];
-    // Local current lower body state local spaces.
-    static mat3x4 localCurrentBoneMats[ SKM_MAX_BONES ];
-    // Local upper body event state local spaces.
-    static mat3x4 localUpperEventBoneMats[ SKM_MAX_BONES ];
-
-    if ( !lowerEventFinishedPlaying && lowerEventBodyState->timeEnd >= extrapolatedTime ) {
-        //clgi.SKM_RecursiveBlendFromBone( upperEventStatePose, currentLerpedPose, spineBone, nullptr, 0, clgi.client->xerpFraction, 1 );
-        SKM_RecursiveBlendFromBone( lowerEventStatePose, currentLerpedPose, hipsBone, 1, 1 );
-    }
-    if ( !upperEventFinishedPlaying && upperEventBodyState->timeEnd >= extrapolatedTime ) {
-        #if 0
-        const skm_exclude_blend_t excludeBoneNodes[8] = {
-            {
-                hipsBone,
-                false,
-                false,
-                1.0,
-            },
-            {
-                spineBone,
-                false,
-                false,
-                0.5
-            },
-            {
-                spine1Bone,
-                false,
-                false,
-                0.5
-            },
-            {
-                spine2Bone,
-                false,
-                false,
-                0.25
-            },
-            {
-                leftShoulderBone,
-                true,
-                false,
-                1
-            },
-            {
-                rightShoulderBone,
-                true,
-                false,
-                1
-            },
-            {
-                leftUpLegBone,
-                false,
-                true,
-                0.0
-            },
-            {
-                rightUpLegBone,
-                false,
-                true,
-                0.0
-            }
-        };
-        SKM_RecursiveBlendFromBone( upperEventStatePose, currentLerpedPose, hipsBone, excludeBoneNodes, 8, clgi.client->xerpFraction, 1);
-        #else
-        SKM_RecursiveBlendFromBone( upperEventStatePose, currentLerpedPose, spineBone, 1, 1 );
-
-        //// Now reorient torso
-        //skm_transform_t *hipsTransform = &currentLerpedPose[ hipsBone->number ];
-        //skm_transform_t *spineTransform = &currentLerpedPose[ spineBone->number ];
-
-        //// Get eulers.
-        //const Vector3 hipsEuler = QM_QuaternionToEuler( hipsTransform->rotate );
-        //const Vector3 spineEuler = QM_QuaternionToEuler( spineTransform->rotate );
-
-        //// Generate new spine quat.
-        //const double newPitch = RAD2DEG( ( DEG2RAD( ( hipsEuler.z  ) ) ) );
-        //Quaternion yawSpineQuat = QM_QuaternionSlerp( spineTransform->rotate, QM_QuaternionFromEuler( 0., DEG2RAD( -90 ), 0. ), 1.0 );;
-        //if ( hipsEuler.z > 80 ) {
-        //    yawSpineQuat = QM_QuaternionSlerp( spineTransform->rotate, QM_QuaternionFromEuler( 0., DEG2RAD( 90 ), 0. ), 1.0 );
-        //}
-        //Vector4Copy( yawSpineQuat, spineTransform->rotate );
-
-        #endif
-    }
-
-    #if 0
-    //
-    // Spine Controller:
-    // 
-    // Now reorient torso
-    skm_transform_t *hipsTransform = &currentLerpedPose[ hipsBone->number ];
-    skm_transform_t *spineTransform = &upperEventStatePose[ spineBone->number ];
-
-    // Get eulers.
-    const Vector3 hipsEuler = QM_Vector3ToAngles( QM_QuaternionToEuler( hipsTransform->rotate ) );
-    const Vector3 spineEuler = QM_Vector3ToAngles( QM_QuaternionToEuler( spineTransform->rotate ) );
-
-    // Generate new spine quat.
-    //clgi.Print( PRINT_NOTICE, "%f: hipsEuler.y(%f)\n", __func__, hipsEuler.y );
-    Quaternion yawSpineQuat = QM_QuaternionFromEuler( 0., -RAD2DEG( hipsEuler.y ), 0. );
-    //Vector4Copy( invertedHipQuat, spineTransform->rotate );
-
-    // Local space bone controllers.
-    skm_bone_controller_t boneControllers[ 1 ] = {
-        {
-            .boneNumber = spineBone->number,
-            .state = 1,
-            .transformMask = SKM_BONE_CONTROLLER_TRANSFORM_ROTATION,
-            .transform = {
-                //.rotate = invertedHipQuat // Oops, quat_t here...
-            },
-        }
-    };
-    if ( !upperEventFinishedPlaying && upperEventBodyState->timeEnd >= extrapolatedTime ) {
-        boneControllers[ 0 ].state = 1;
-        // Copy in the rotation into transform C style array.
-        Vector4Copy( yawSpineQuat, boneControllers[ 0 ].transform.rotate );
-        const Vector3 spineEuler = QM_Vector3ToAngles( QM_QuaternionToEuler( yawSpineQuat ) );
-        clgi.Print( PRINT_NOTICE, "%f: hipsEuler.y(%f) yawSpineQuatEulerY(%f)\n", __func__, hipsEuler.x, spineEuler.x );
-    } else {
-        boneControllers[ 0 ].state = 1;
-        // Copy in the rotation into transform C style array.
-        Vector4Copy( yawSpineQuat, boneControllers[ 0 ].transform.rotate );
-    }
-    // Transform.
-    SKM_TransformBonePosesLocalSpace( model->skmData, currentLerpedPose, boneControllers, 1, (float *)&localCurrentBoneMats[ 0 ] );
-    #else
-    //
-    // Spine Controller:
-    // 
-    // Now reorient torso
-    skm_transform_t *hipsTransform = &currentLerpedPose[ hipsBone->number ];
-    skm_transform_t *spineTransform = &currentLerpedPose[ spineBone->number ];
-
-    // Take the upper event state spine in case...
-    if ( !upperEventFinishedPlaying && upperEventBodyState->timeEnd >= extrapolatedTime ) {
-        spineTransform = &upperEventStatePose[ spineBone->number ];
-    }
-
-    // Get eulers. ( X = Roll, Y = Pitch, Z = Yaw )
-    const Vector3 hipsEuler = QM_QuaternionToEuler( hipsTransform->rotate );
-    const Vector3 spineEuler = QM_QuaternionToEuler( spineTransform->rotate );
-
-    // Generate new spine quat. Eulers( Pitch = Y, Yaw = Z, Roll = X )
-    //clgi.Print( PRINT_NOTICE, "%f: hipsEuler.y(%f)\n", __func__, hipsEuler.y );
-    Quaternion yawSpineQuat = QM_QuaternionFromEuler( spineEuler.x, spineEuler.y, spineEuler.z );
-    // Derive from move dir.
-    if ( currentLowerBodyState->animationID == 29 ) {
-        yawSpineQuat = QM_QuaternionFromEuler( spineEuler.x, DEG2RAD(90) - hipsEuler.y, spineEuler.z );
-        //clgi.Print( PRINT_DEVELOPER, "FORWARD LEFT G\n" );
-    } else if ( currentLowerBodyState->animationID == 31 ) {
-        //clgi.Print( PRINT_DEVELOPER, "FORWARD RIGHT G\n" );
-        yawSpineQuat = QM_QuaternionFromEuler( spineEuler.x, hipsEuler.y, spineEuler.z );
-    } else if ( currentLowerBodyState->animationID == 26 ) {
-        //clgi.Print( PRINT_DEVELOPER, "BACKWARD LEFT G\n" );
-        yawSpineQuat = QM_QuaternionFromEuler( spineEuler.x, hipsEuler.y, spineEuler.z );
-    } else if ( currentLowerBodyState->animationID == 28 ) {
-        yawSpineQuat = QM_QuaternionFromEuler( spineEuler.x, DEG2RAD( 90 ) - hipsEuler.y, spineEuler.z );
-        //clgi.Print( PRINT_DEVELOPER, "BACKWARD RIGHT G\n" );
-    }
-
-    //clgi.Print( PRINT_NOTICE, "%f: animationID(%i), hipsEuler.x(%f), hipsEuler.y(%f), hipsEuler.z(%f), hipsEuler.x(%f), hipsEuler.y(%f), hipsEuler.z(%f) \n", 
-    //    __func__, 
-    //    currentLowerBodyState->animationID, 
-    //    RAD2DEG( hipsEuler.x ),
-    //    RAD2DEG( hipsEuler.y ),
-    //    RAD2DEG( hipsEuler.z ), 
-    //    ( hipsEuler.x ),
-    //    ( hipsEuler.y ),
-    //    ( hipsEuler.z )
-    //);
-    
-    // Local space bone controllers.
-    skm_bone_controller_t boneControllers[ 1 ] = {
-        {
-            .boneNumber = spineBone->number,
-            .state = SKM_BONE_CONTROLLER_STATE_ACTIVE,
-            .transformMask = SKM_BONE_CONTROLLER_TRANSFORM_ROTATION,
-            .transform = {
-            //.rotate = invertedHipQuat // Oops, quat_t here...
-        },
-    }
-    };
-    // Copy in the rotation into transform C style array.
-    Vector4Copy( yawSpineQuat, boneControllers[ 0 ].transform.rotate );
-    // Transform.
-    SKM_TransformBonePosesLocalSpace( model->skmData, currentLerpedPose, boneControllers, 1, (float *)&localCurrentBoneMats[ 0 ] );
-    #endif
-
-    // Copy into refresh bone mats.
-    memcpy( refreshBoneMats, localCurrentBoneMats, sizeof( mat3x4 ) * SKM_MAX_BONES );
-
-    // Assign final refresh mats.
-    refreshEntity->localSpaceBonePose3x4Matrices = (float *)&refreshBoneMats[ 0 ];
 }
 
 
@@ -1187,11 +1153,6 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
 
         // In case of the state belonging to the frame's viewed client number:
         if ( CLG_IsViewClientEntity( newState ) ) {
-            // Determine the base animation to play.
-            CLG_ETPlayer_DetermineBaseAnimations( packetEntity, refreshEntity, newState );
-            // Determine the event animation(s) to play.
-            CLG_ETPlayer_DetermineEventAnimations( packetEntity, refreshEntity, newState );
-
             // When not in third person mode:
             if ( !clgi.client->thirdPersonView ) {
                 // If we're running RTX, we want the player entity to render for shadow/reflection reasons:
@@ -1222,7 +1183,6 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
             } else {
 
             }
-
             // Process the animations.
             CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, newState );
         } else {

@@ -251,6 +251,7 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 	} else if ( *outCurrentFrame == lastFrame ) {
 		// Full backlerp.
 		*outBackLerp = 1.0;
+		isPlaybackDone = true;
 	// Otherwise just subtract the resulting lerpFraction.
 	} else {
 		*outBackLerp = 1.0 - lerpFraction;

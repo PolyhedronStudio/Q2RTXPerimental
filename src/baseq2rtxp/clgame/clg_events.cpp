@@ -25,7 +25,7 @@ static const std::string CLG_PrimaryFireEvent_DetermineAnimation( const player_s
     if ( !ps->animation.isIdle ) {
         if ( ps->animation.isCrouched ) {
             //animationName = "fire_crouch_pistol";
-            animationName = "fire_run_pistol";
+            animationName = "fire_crouch_pistol";
         } else if ( ps->animation.isWalking ) {
             //animationName = "fire_walk_pistol";
             animationName = "fire_run_pistol";
@@ -40,7 +40,12 @@ static const std::string CLG_PrimaryFireEvent_DetermineAnimation( const player_s
             }
         }
     } else {
-        animationName = "fire_stand_pistol";
+        if ( ps->animation.isCrouched ) {
+            //animationName = "fire_crouch_pistol";
+            animationName = "fire_crouch_pistol";
+        } else {
+            animationName = "fire_stand_pistol";
+        }
     }
     // If walking:
     
