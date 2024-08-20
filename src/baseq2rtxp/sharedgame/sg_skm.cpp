@@ -11,28 +11,162 @@
 #include "sg_shared.h"
 #include "sg_skm.h"
 
-#if 0
-//! List of loaded up skeletal model info scripts.
-static sg_skminfo_t skmInfoList;
 
 
 /**
-*	@brief	
+*
+*
+*
+*   Quaternion Utilities that are currently specific only to Skeletal Model Functions:
+*
+*
+*
 **/
-static sg_skminfo_t *SG_ParseSkeletalModelInfo( const char *filename, const char *info ) {
-	
+/**
+*   @brief  
+**/
+static void QuatSlerp( const quat_t from, const quat_t _to, float fraction, quat_t out ) {
+    // cos() of angle
+    float cosAngle = from[ 0 ] * _to[ 0 ] + from[ 1 ] * _to[ 1 ] + from[ 2 ] * _to[ 2 ] + from[ 3 ] * _to[ 3 ];
+
+    // negative handling is needed for taking shortest path (required for model joints)
+    quat_t to;
+    if ( cosAngle < 0.0f ) {
+        cosAngle = -cosAngle;
+        to[ 0 ] = -_to[ 0 ];
+        to[ 1 ] = -_to[ 1 ];
+        to[ 2 ] = -_to[ 2 ];
+        to[ 3 ] = -_to[ 3 ];
+    } else {
+        QuatCopy( _to, to );
+    }
+
+    float backlerp, lerp;
+    if ( cosAngle < 0.999999f ) {
+        // spherical lerp (slerp)
+        const float angle = acosf( cosAngle );
+        const float sinAngle = sinf( angle );
+        backlerp = sinf( ( 1.0f - fraction ) * angle ) / sinAngle;
+        lerp = sinf( fraction * angle ) / sinAngle;
+    } else {
+        // linear lerp
+        backlerp = 1.0f - fraction;
+        lerp = fraction;
+    }
+
+    out[ 0 ] = from[ 0 ] * backlerp + to[ 0 ] * lerp;
+    out[ 1 ] = from[ 1 ] * backlerp + to[ 1 ] * lerp;
+    out[ 2 ] = from[ 2 ] * backlerp + to[ 2 ] * lerp;
+    out[ 3 ] = from[ 3 ] * backlerp + to[ 3 ] * lerp;
+}
+/**
+*   @brief
+**/
+static inline Quaternion QuatRotateX( const Quaternion &a, const double rad ) {
+    const double halfRad = rad * 0.5;
+
+    const float ax = a[ 0 ],
+        ay = a[ 1 ],
+        az = a[ 2 ],
+        aw = a[ 3 ];
+    const float bx = sinf( halfRad ),
+        bw = cosf( halfRad );
+
+    return {
+        ax * bw + aw * bx,
+        ay * bw + az * bx,
+        az * bw - ay * bx,
+        aw * bw - ax * bx,
+    };
+
+}
+/**
+*   @brief
+**/
+static inline const Quaternion QuatRotateY( const Quaternion &a, const double rad ) {
+    const double halfRad = rad * 0.5;
+
+    const float ax = a[ 0 ],
+        ay = a[ 1 ],
+        az = a[ 2 ],
+        aw = a[ 3 ];
+    const float by = sinf( halfRad ),
+        bw = cosf( halfRad );
+
+    return {
+        ax * bw - az * by,
+        ay * bw + aw * by,
+        az * bw + ax * by,
+        aw * bw - ay * by
+    };
+}
+/**
+*   @brief
+**/
+static inline const Quaternion QuatRotateZ( const Quaternion &a, const double rad ) {
+    const double halfRad = rad * 0.5;
+
+    const float ax = a[ 0 ],
+        ay = a[ 1 ],
+        az = a[ 2 ],
+        aw = a[ 3 ];
+    const float bz = sinf( halfRad ),
+        bw = cosf( halfRad );
+
+    return {
+        ax * bw + ay * bz,
+        ay * bw - ax * bz,
+        az * bw + aw * bz,
+        aw * bw - az * bz
+    };
 }
 
 /**
-*	@brief	Loads and parses the skeletal model info configuration file.
-*	@return	(nullptr) on failure. Otherwise, a pointer to an already existing, or newly created sg_skminfo_t.
+*   @brief  "multiply" 3x4 matrices, these are assumed to be the top 3 rows
+*           of a 4x4 matrix with the last row = (0 0 0 1)
 **/
-sg_skminfo_t *SG_LoadAndParseSkeletalModelInfo( const char *filename ) {
-
-
-	return nullptr;
+static void Matrix34Multiply( const mat3x4 &a, const mat3x4 &b, mat3x4 &out ) {
+    out[ 0 ] = a[ 0 ] * b[ 0 ] + a[ 1 ] * b[ 4 ] + a[ 2 ] * b[ 8 ];
+    out[ 1 ] = a[ 0 ] * b[ 1 ] + a[ 1 ] * b[ 5 ] + a[ 2 ] * b[ 9 ];
+    out[ 2 ] = a[ 0 ] * b[ 2 ] + a[ 1 ] * b[ 6 ] + a[ 2 ] * b[ 10 ];
+    out[ 3 ] = a[ 0 ] * b[ 3 ] + a[ 1 ] * b[ 7 ] + a[ 2 ] * b[ 11 ] + a[ 3 ];
+    out[ 4 ] = a[ 4 ] * b[ 0 ] + a[ 5 ] * b[ 4 ] + a[ 6 ] * b[ 8 ];
+    out[ 5 ] = a[ 4 ] * b[ 1 ] + a[ 5 ] * b[ 5 ] + a[ 6 ] * b[ 9 ];
+    out[ 6 ] = a[ 4 ] * b[ 2 ] + a[ 5 ] * b[ 6 ] + a[ 6 ] * b[ 10 ];
+    out[ 7 ] = a[ 4 ] * b[ 3 ] + a[ 5 ] * b[ 7 ] + a[ 6 ] * b[ 11 ] + a[ 7 ];
+    out[ 8 ] = a[ 8 ] * b[ 0 ] + a[ 9 ] * b[ 4 ] + a[ 10 ] * b[ 8 ];
+    out[ 9 ] = a[ 8 ] * b[ 1 ] + a[ 9 ] * b[ 5 ] + a[ 10 ] * b[ 9 ];
+    out[ 10 ] = a[ 8 ] * b[ 2 ] + a[ 9 ] * b[ 6 ] + a[ 10 ] * b[ 10 ];
+    out[ 11 ] = a[ 8 ] * b[ 3 ] + a[ 9 ] * b[ 7 ] + a[ 10 ] * b[ 11 ] + a[ 11 ];
 }
-#endif
+
+/**
+*   @brief  
+**/
+static void JointToMatrix( const Quaternion &rot, const Vector3 &scale, const Vector3 &trans, mat3x4 &mat ) {
+    float xx = 2.0f * rot[ 0 ] * rot[ 0 ];
+    float yy = 2.0f * rot[ 1 ] * rot[ 1 ];
+    float zz = 2.0f * rot[ 2 ] * rot[ 2 ];
+    float xy = 2.0f * rot[ 0 ] * rot[ 1 ];
+    float xz = 2.0f * rot[ 0 ] * rot[ 2 ];
+    float yz = 2.0f * rot[ 1 ] * rot[ 2 ];
+    float wx = 2.0f * rot[ 3 ] * rot[ 0 ];
+    float wy = 2.0f * rot[ 3 ] * rot[ 1 ];
+    float wz = 2.0f * rot[ 3 ] * rot[ 2 ];
+
+    mat[ 0 ] = scale[ 0 ] * ( 1.0f - ( yy + zz ) );
+    mat[ 1 ] = scale[ 0 ] * ( xy - wz );
+    mat[ 2 ] = scale[ 0 ] * ( xz + wy );
+    mat[ 3 ] = trans[ 0 ];
+    mat[ 4 ] = scale[ 1 ] * ( xy + wz );
+    mat[ 5 ] = scale[ 1 ] * ( 1.0f - ( xx + zz ) );
+    mat[ 6 ] = scale[ 1 ] * ( yz - wx );
+    mat[ 7 ] = trans[ 1 ];
+    mat[ 8 ] = scale[ 2 ] * ( xz - wy );
+    mat[ 9 ] = scale[ 2 ] * ( yz + wx );
+    mat[ 10 ] = scale[ 2 ] * ( 1.0f - ( xx + yy ) );
+    mat[ 11 ] = trans[ 2 ];
+}
 
 
 
@@ -96,11 +230,12 @@ const skm_anim_t *SG_SKM_GetAnimationForHandle( const model_t *model, const qhan
 }
 
 
+
 /**
 *
 *
 *
-*	Animation Processing:
+*	AnimationState Functionalities:
 *
 *
 *
@@ -382,4 +517,472 @@ const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_stat
 
 	// Already running this animation, thus not set.
 	return false;
+}
+
+
+
+/**
+*
+*
+*
+*   BonePoses Space Transforming:
+*
+*
+*
+**/
+/**
+*	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
+**/
+void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices ) {
+    // multiply by inverse of bind pose and parent 'pose mat' (bind pose transform matrix)
+    const skm_transform_t *relativeJoint = relativeBonePose;
+    const int *jointParent = model->jointParents;
+    const mat3x4 *invBindMat = (const mat3x4 *)model->invBindJoints;
+    const mat3x4 *bindJointMats = (const mat3x4 *)model->bindJoints;
+    mat3x4 *poseMat = (mat3x4 *)pose_matrices;
+    mat3x4 *poseMatrices = (mat3x4 *)pose_matrices;
+    for ( uint32_t pose_idx = 0; pose_idx < model->num_poses; pose_idx++, relativeJoint++, jointParent++, invBindMat += 1/*12*/, poseMat += 1/*12*/ ) {
+        // Matrices.
+        mat3x4 mat1 = { };
+        mat3x4 mat2 = { };
+
+        // Now convert the joint to a 3x4 matrix.
+        JointToMatrix( relativeJoint->rotate, relativeJoint->scale, relativeJoint->translate, mat1 );
+
+        // Concatenate if not the root joint.
+        if ( *jointParent >= 0 ) {
+            Matrix34Multiply( bindJointMats[ ( *jointParent ) /** 12*/ ], mat1, mat2 );
+            Matrix34Multiply( mat2, *invBindMat, mat1 );
+            Matrix34Multiply( poseMatrices[ ( *jointParent ) /** 12*/ ], mat1, *poseMat );
+        } else {
+            Matrix34Multiply( mat1, *invBindMat, *poseMat );
+        }
+    }
+}
+
+/**
+*   @brief  
+**/
+void SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, const skm_bone_controller_t *boneControllers, float *pose_matrices ) {
+    // First compute local space pose matrices from the relative joints.
+    //SKM_TransformBonePosesLocalSpace( model, relativeBonePose, boneControllers, pose_matrices );
+
+    // Calculate the world space pose matrices.
+    const mat3x4 *poseMat = (const mat3x4 *)model->bindJoints;
+    mat3x4 *outPose = (mat3x4 *)pose_matrices;
+
+    for ( size_t i = 0; i < model->num_poses; i++, poseMat += 1, outPose += 1 ) {
+        // It does this...
+        mat3x4 inPose;
+        memcpy( inPose, outPose, sizeof( mat3x4 ) );
+        // To prevent this operation from failing.
+        Matrix34Multiply( inPose, *poseMat, *outPose );
+    }
+}
+
+
+
+/**
+*
+*
+*
+*   Blending/Layering BonePoses:
+*
+*
+*
+**/
+/**
+*   @brief  Will recursively blend(lerp by lerpfracs/slerp by fraction) the addBonePoses to addToBonePoses starting from the boneNode.
+**/
+void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction ) {
+    // If the bone node is invalid, escape.
+    if ( !boneNode || !addBonePoses || !addToBonePoses ) {
+        // TODO: Warn.
+        return;
+    }
+
+    // Get bone number.
+    const int32_t boneNumber = ( boneNode->number > 0 ? boneNode->number : 0 );
+
+    // Proceed if the bone number is valid and not an excluded bone.
+    const skm_transform_t *inBone = addBonePoses;
+    skm_transform_t *outBone = addToBonePoses;
+
+    if ( boneNumber >= 0 ) {
+        inBone += boneNumber;
+        outBone += boneNumber;
+    }
+
+    if ( fraction == 1 ) {
+        #if 1
+        // Copy bone translation and scale;
+        * outBone->translate = *inBone->translate;
+        *outBone->scale = *inBone->scale;
+        //*outBone->rotate = *inBone->rotate;
+        // Slerp the rotation at fraction.	
+        QuatSlerp( outBone->rotate, inBone->rotate, 1.0, outBone->rotate );
+        //QuatSlerp( inBone->rotate, outBone->rotate, 1.0, outBone->rotate );
+        #else
+        const double frontLerp = 1.0 - fraction;
+        // Lerp the Translation.
+        //*outBone->translate = *inBone->translate;
+        outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
+        outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
+        outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
+        // Lerp the  Scale.
+        //*outBone->scale = *inBone->scale;
+        outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
+        outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
+        outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;		// Slerp the rotation at fraction.	
+
+        // Slerp the rotation at fraction.	
+        //*outBone->rotate = *inBone->rotate;
+        QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+        //QuatSlerp( inBone->rotate, outBone->rotate, fraction, outBone->rotate );
+        #endif
+    } else {
+        //	WID: Unsure if actually lerping these is favored.
+        #if 1
+        const double frontLerp = 1.0 - backLerp;
+        // Lerp the Translation.
+        outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
+        outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
+        outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
+        // Lerp the Scale.
+        outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
+        outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
+        outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;
+
+        // Slerp the rotation
+        //*outBone->rotate = *inBone->rotate;
+        QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+        //QuatSlerp( inBone->rotate, outBone->rotate, fraction, outBone->rotate );
+        #else
+        // Copy bone translation and scale;
+        *outBone->translate = *inBone->translate;
+        *outBone->scale = *inBone->scale;
+        // Slerp rotation by fraction.
+        QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+        //QuatSlerp( inBone->rotate, outBone->rotate, fraction, outBone->rotate );
+        #endif
+    }
+
+    // Recursively blend all thise bone node's children.
+    for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
+        const skm_bone_node_t *childBoneNode = boneNode->childBones[ i ];
+        if ( childBoneNode != nullptr && childBoneNode->numberOfChildNodes > 0 ) {
+            SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, childBoneNode, backLerp, fraction );
+        }
+    }
+}
+
+
+
+/**
+*
+*
+*
+*   Lerping BonePoses:
+*
+*
+*
+**/
+/**
+*	@brief	Lerped pose transformations between frameBonePoses and oldFrameBonePoses.
+*			'outBonePose' must have enough room for model->num_poses
+**/
+void SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags ) {
+    // Sanity check.
+    if ( !model || !model->skmData ) {
+        return;
+    }
+
+    // Get IQM Data.
+    skm_model_t *skmData = model->skmData;
+
+    // Keep bone ID sane.
+    int32_t boundRootMotionBoneID = ( rootMotionBoneID >= 0 ? rootMotionBoneID % (int32_t)skmData->num_joints : -1 );
+    // Fetch first joint.
+    skm_transform_t *relativeJoint = outBonePose;
+
+    // Copy the animation frame pos.
+    if ( frameBonePoses == oldFrameBonePoses ) {
+        const skm_transform_t *pose = frameBonePoses;
+        for ( uint32_t pose_idx = 0; pose_idx < skmData->num_poses; pose_idx++, pose++, relativeJoint++ ) {
+            #if 1
+            if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
+                // Translate the selected axises.
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
+                    relativeJoint->translate[ 0 ] = 0;
+                } else {
+                    relativeJoint->translate[ 0 ] = pose->translate[ 0 ];
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
+                    relativeJoint->translate[ 1 ] = 0;
+                } else {
+                    relativeJoint->translate[ 1 ] = pose->translate[ 1 ];
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
+                    relativeJoint->translate[ 2 ] = 0;
+                } else {
+                    relativeJoint->translate[ 2 ] = pose->translate[ 2 ];
+                }
+                // Copy in scale as per usual.
+                VectorCopy( pose->scale, relativeJoint->scale );
+                // Copy quat rotation as usual.
+                QuatCopy( pose->rotate, relativeJoint->rotate );
+                continue;
+            }
+            #endif
+
+            VectorCopy( pose->translate, relativeJoint->translate );
+            QuatCopy( pose->rotate, relativeJoint->rotate );
+            VectorCopy( pose->scale, relativeJoint->scale );
+        }
+        // Lerp the animation frame pose.
+    } else {
+        const skm_transform_t *pose = frameBonePoses;
+        const skm_transform_t *oldPose = oldFrameBonePoses;
+        for ( uint32_t pose_idx = 0; pose_idx < skmData->num_poses; pose_idx++, oldPose++, pose++, relativeJoint++ ) {
+            #if 1
+            if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
+                // Translate the selected axises.
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
+                    relativeJoint->translate[ 0 ] = 0;
+                } else {
+                    relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0; //relativeJoint->translate[ 0 ] = 0;
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
+                    relativeJoint->translate[ 1 ] = 0;
+                } else {
+                    relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0;
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
+                    relativeJoint->translate[ 2 ] = 0;
+                } else {
+                    relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+                }
+
+                // Scale Lerp as usual.
+                relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + pose->scale[ 0 ] * frontLerp;
+                relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + pose->scale[ 1 ] * frontLerp;
+                relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + pose->scale[ 2 ] * frontLerp;
+                // Quat Slerp as usual.
+                QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
+                continue;
+            }
+            #endif
+
+            relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp;
+            relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp;
+            relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+
+            relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + pose->scale[ 0 ] * frontLerp;
+            relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + pose->scale[ 1 ] * frontLerp;
+            relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + pose->scale[ 2 ] * frontLerp;
+
+            QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
+        }
+    }
+}
+
+/**
+*	@brief	Lerped pose transformations between frameBonePoses and oldFrameBonePoses.
+*			'outBonePose' must have enough room for model->num_poses
+**/
+void SKM_LerpRangeBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const int32_t rangeStart, const int32_t rangeSize, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags ) {
+    // Sanity check.
+    if ( !model || !model->skmData ) {
+        return;
+    }
+
+    // Get IQM Data.
+    skm_model_t *skmData = model->skmData;
+
+    // Keep bone ID sane.
+    int32_t boundRootMotionBoneID = ( rootMotionBoneID >= 0 ? rootMotionBoneID % (int32_t)skmData->num_joints : -1 );
+    // Fetch first joint.
+    skm_transform_t *relativeJoint = outBonePose;
+
+    // Ensure the ranges are within bounds.
+    const int32_t _rangeStart = QM_ClampInt32( rangeStart, 0, skmData->num_poses );
+    const int32_t _rangeSize = QM_ClampInt32( rangeSize, 0, skmData->num_poses - _rangeStart );
+
+    // Copy the animation frame pos.
+    if ( frameBonePoses == oldFrameBonePoses ) {
+        const skm_transform_t *pose = frameBonePoses + _rangeStart;
+        for ( uint32_t pose_idx = 0; pose_idx < _rangeSize; pose_idx++, pose++, relativeJoint++ ) {
+            #if 1
+            if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
+                // Translate the selected axises.
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
+                    relativeJoint->translate[ 0 ] = 0;
+                } else {
+                    relativeJoint->translate[ 0 ] = pose->translate[ 0 ];
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
+                    relativeJoint->translate[ 1 ] = 0;
+                } else {
+                    relativeJoint->translate[ 1 ] = pose->translate[ 1 ];
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
+                    relativeJoint->translate[ 2 ] = 0;
+                } else {
+                    relativeJoint->translate[ 2 ] = pose->translate[ 2 ];
+                }
+                // Copy in scale as per usual.
+                VectorCopy( pose->scale, relativeJoint->scale );
+                // Copy quat rotation as usual.
+                QuatCopy( pose->rotate, relativeJoint->rotate );
+                continue;
+            }
+            #endif
+
+            VectorCopy( pose->translate, relativeJoint->translate );
+            QuatCopy( pose->rotate, relativeJoint->rotate );
+            VectorCopy( pose->scale, relativeJoint->scale );
+        }
+        // Lerp the animation frame pose.
+    } else {
+        const skm_transform_t *pose = frameBonePoses + _rangeStart;
+        const skm_transform_t *oldPose = oldFrameBonePoses + _rangeStart;
+        for ( uint32_t pose_idx = 0; pose_idx < _rangeSize; pose_idx++, oldPose++, pose++, relativeJoint++ ) {
+            #if 1
+            if ( rootMotionAxisFlags != SKM_POSE_TRANSLATE_ALL && pose_idx == boundRootMotionBoneID ) {
+                // Translate the selected axises.
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_X ) ) {
+                    relativeJoint->translate[ 0 ] = 0;
+                } else {
+                    relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0; //relativeJoint->translate[ 0 ] = 0;
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Y ) ) {
+                    relativeJoint->translate[ 1 ] = 0;
+                } else {
+                    relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp; //relativeJoint->translate[ 1 ] = 0;
+                }
+                if ( !( rootMotionAxisFlags & SKM_POSE_TRANSLATE_Z ) ) {
+                    relativeJoint->translate[ 2 ] = 0;
+                } else {
+                    relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+                }
+
+                // Scale Lerp as usual.
+                relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + pose->scale[ 0 ] * frontLerp;
+                relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + pose->scale[ 1 ] * frontLerp;
+                relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + pose->scale[ 2 ] * frontLerp;
+                // Quat Slerp as usual.
+                QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
+                continue;
+            }
+            #endif
+
+            relativeJoint->translate[ 0 ] = oldPose->translate[ 0 ] * backLerp + pose->translate[ 0 ] * frontLerp;
+            relativeJoint->translate[ 1 ] = oldPose->translate[ 1 ] * backLerp + pose->translate[ 1 ] * frontLerp;
+            relativeJoint->translate[ 2 ] = oldPose->translate[ 2 ] * backLerp + pose->translate[ 2 ] * frontLerp;
+
+            relativeJoint->scale[ 0 ] = oldPose->scale[ 0 ] * backLerp + pose->scale[ 0 ] * frontLerp;
+            relativeJoint->scale[ 1 ] = oldPose->scale[ 1 ] * backLerp + pose->scale[ 1 ] * frontLerp;
+            relativeJoint->scale[ 2 ] = oldPose->scale[ 2 ] * backLerp + pose->scale[ 2 ] * frontLerp;
+
+            QuatSlerp( oldPose->rotate, pose->rotate, frontLerp, relativeJoint->rotate );
+        }
+    }
+}
+
+
+
+/**
+*
+*
+*
+*   Skeletal Model Bone Controllers:
+*
+*
+*
+**/
+/**
+*   @brief  Activates the bone controller and (re-)initializes its initial state as well as its imer.
+**/
+void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const skm_bone_node_t *boneNode, const skm_bone_controller_target_t &target, const skm_transform_t *initialTransform, const skm_transform_t *currentTransform, const int32_t transformMask, const sg_time_t &timeDuration, const sg_time_t &timeActivated ) {
+    // Sanity check.
+    if ( !boneController || !boneNode ) {
+        // TODO: WARN
+        return;
+    }
+    // TODO: Ensure boneNumber is within model range?
+    // if ( boneNode->number >= 0 && ... ) {
+    //  return;
+    // }
+
+    // Activate.
+    boneController->boneNumber = boneNode->number;
+
+    boneController->state = SKM_BONE_CONTROLLER_STATE_ACTIVE;
+    boneController->transformMask = transformMask;
+
+    boneController->timeActivated = timeActivated.milliseconds();
+    boneController->slerpDuration = timeDuration.milliseconds();
+    boneController->timeEnd = boneController->timeActivated + boneController->slerpDuration;
+
+    // Apply 'initial' base transform.
+    boneController->baseTransform = *initialTransform;
+    //boneController->currentTransform = currentTransform;
+    boneController->target = target;
+}
+
+/**
+*   @brief  Processes and applies the bone controllers to the pose, for the current time.
+**/
+void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControllers, const int32_t numBoneControllers, const sg_time_t &currentTime, skm_transform_t *inOutBonePoses ) {
+    // Sanity check.
+    if ( !boneControllers || !numBoneControllers || !inOutBonePoses ) {
+        // TODO: WARN
+        return;
+    }
+
+    // Iterate controllers.
+    for ( int32_t i = 0; i < numBoneControllers; i++ ) {
+        // Get bone controller.
+        skm_bone_controller_t *boneController = &boneControllers[ i ];
+
+        // If inactive, continue.
+        if ( boneController[ i ].state == SKM_BONE_CONTROLLER_STATE_INACTIVE ) {
+            continue;
+        }
+
+        // TODO: Clamp bone number to model num_poses?
+        const int32_t boneNumber = boneController->boneNumber;
+
+        // Determine bone control (S)Lerp controlFactor based on the time changed.
+        const sg_time_t timeEnd = sg_time_t::from_ms( boneController->timeEnd );
+
+        // However if the current time is lesser than the time it is meant to end.. Process it.
+        double boneControlFactor = 1.0;
+        if ( currentTime <= timeEnd ) {
+            // Get the scale fraction derived from duration.
+            const double scaleFraction = 1.0 / boneController->slerpDuration;
+            // Calculate the (S)Lerp controlFactor.
+            boneControlFactor = 1.0 - ( ( timeEnd - currentTime ).milliseconds() * scaleFraction );
+        }
+
+        /**
+        *   Rotation:
+        **/
+        if ( boneController->transformMask & SKM_BONE_CONTROLLER_TRANSFORM_ROTATION ) {
+            double wishYaw = boneController->target.rotation.targetYaw;
+
+            if ( boneControlFactor >= 1 ) {
+                Quaternion baseFullRotQuat = QuatRotateY( boneController->baseTransform.rotate, DEG2RAD( wishYaw ) );
+                Vector4Copy( baseFullRotQuat, boneController->currentTransform.rotate );
+            }
+            // Calculate the new state bonepose yaw quaternion.
+            Quaternion wishQuat = QuatRotateY( inOutBonePoses[ boneController->boneNumber ].rotate, DEG2RAD( wishYaw ) );
+            // 'Control' the BonePose's rotation Quaternion by Slerping for 'boneControlFactor' to the newly calculated Quaternion.
+            Quaternion newQuat = QM_QuaternionSlerp( boneController->currentTransform.rotate, wishQuat, ( boneControlFactor < 1 ? boneControlFactor : 1 ) );
+            // Copy the 'controller' Quaternion into the BonePose's Rotation Quaternion.
+            Vector4Copy( newQuat, inOutBonePoses[ boneController->boneNumber ].rotate );
+            // Store a copy of the current actual 'Controller' Quaternion for later re-use as a source to start Slerping from.
+            Vector4Copy( newQuat, boneController->currentTransform.rotate );
+        }
+    }
 }

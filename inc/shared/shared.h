@@ -196,6 +196,9 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 };  // Escape extern "C" for raymath.h include. ( This is because we got some C++ specifics code in there. )
 #endif
 
+//! Currently used for Skeletal Model Stuff:
+typedef float mat3x4[ 12 ];
+
 //! Use static inlining for all its functions.
 #define RAYMATH_STATIC_INLINE
 //! Include our own custom version of raylib1.5 its raymath library.

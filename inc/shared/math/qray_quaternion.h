@@ -57,7 +57,7 @@ RMAPI const float QM_QuaternionLength( Quaternion q ) {
 
 // Normalize provided quaternion
 RMAPI const Quaternion QM_QuaternionNormalize( Quaternion q ) {
-    Quaternion result = { 0 };
+    Quaternion result = { };
 
     float length = sqrtf( q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w );
     if ( length == 0.0f ) length = 1.0f;
@@ -91,7 +91,7 @@ RMAPI const Quaternion QM_QuaternionInvert( Quaternion q ) {
 
 // Calculate two quaternion multiplication
 RMAPI const Quaternion QM_QuaternionMultiply( Quaternion q1, Quaternion q2 ) {
-    Quaternion result = { 0 };
+    Quaternion result = { };
 
     float qax = q1.x, qay = q1.y, qaz = q1.z, qaw = q1.w;
     float qbx = q2.x, qby = q2.y, qbz = q2.z, qbw = q2.w;
@@ -106,7 +106,7 @@ RMAPI const Quaternion QM_QuaternionMultiply( Quaternion q1, Quaternion q2 ) {
 
 // Scale quaternion by float value
 RMAPI const Quaternion QM_QuaternionScale( Quaternion q, float mul ) {
-    Quaternion result = { 0 };
+    Quaternion result = { };
 
     result.x = q.x * mul;
     result.y = q.y * mul;
@@ -125,7 +125,7 @@ RMAPI const Quaternion QM_QuaternionDivide( Quaternion q1, Quaternion q2 ) {
 
 // Calculate linear interpolation between two quaternions
 RMAPI const Quaternion QM_QuaternionLerp( Quaternion q1, Quaternion q2, float amount ) {
-    Quaternion result = { 0 };
+    Quaternion result = { };
 
     result.x = q1.x + amount * ( q2.x - q1.x );
     result.y = q1.y + amount * ( q2.y - q1.y );
@@ -137,7 +137,7 @@ RMAPI const Quaternion QM_QuaternionLerp( Quaternion q1, Quaternion q2, float am
 
 // Calculate slerp-optimized interpolation between two quaternions
 RMAPI const Quaternion QM_QuaternionNlerp( Quaternion q1, Quaternion q2, float amount ) {
-    Quaternion result = { 0 };
+    Quaternion result = { };
 
     // QuaternionLerp(q1, q2, amount)
     result.x = q1.x + amount * ( q2.x - q1.x );
@@ -161,7 +161,7 @@ RMAPI const Quaternion QM_QuaternionNlerp( Quaternion q1, Quaternion q2, float a
 
 // Calculates spherical linear interpolation between two quaternions
 RMAPI const Quaternion QM_QuaternionSlerp( Quaternion q1, Quaternion q2, float amount ) {
-    Quaternion result = { 0 };
+    Quaternion result = { };
 
     #if !defined(QM_EPSILON)
     #define QM_EPSILON 0.000001f
@@ -201,7 +201,7 @@ RMAPI const Quaternion QM_QuaternionSlerp( Quaternion q1, Quaternion q2, float a
 
 // Calculate quaternion based on the rotation from one vector to another
 RMAPI const Quaternion QM_QuaternionFromVector3ToVector3( Vector3 from, Vector3 to ) {
-    Quaternion result = { 0 };
+    Quaternion result = { };
 
     float cos2Theta = ( from.x * to.x + from.y * to.y + from.z * to.z );    // Vector3DotProduct(from, to)
     Vector3 cross = { from.y * to.z - from.z * to.y, from.z * to.x - from.x * to.z, from.x * to.y - from.y * to.x }; // Vector3CrossProduct(from, to)
@@ -228,7 +228,7 @@ RMAPI const Quaternion QM_QuaternionFromVector3ToVector3( Vector3 from, Vector3 
 
 // Get a quaternion for a given rotation matrix
 RMAPI const Quaternion QM_QuaternionFromMatrix( Matrix mat ) {
-    Quaternion result = { 0 };
+    Quaternion result = { };
 
     float fourWSquaredMinus1 = mat.m0 + mat.m5 + mat.m10;
     float fourXSquaredMinus1 = mat.m0 - mat.m5 - mat.m10;
@@ -396,7 +396,7 @@ RMAPI void QM_QuaternionToAxisAngle( Quaternion q, Vector3 *outAxis, float *outA
 // Get the quaternion equivalent to Euler angles
 // NOTE: Rotation order is XYZ(Pitch, Yaw, Roll), angles should be supplied in radians.
 RMAPI const Quaternion QM_QuaternionFromEuler( float pitch, float yaw, float roll ) {
-    Quaternion result = { 0 };
+    Quaternion result = { };
 
     float x0 = cosf( pitch * 0.5f );
     float x1 = sinf( pitch * 0.5f );
@@ -455,7 +455,7 @@ RMAPI Vector3 QM_QuaternionToEuler( Quaternion q ) {
 
 // Transform a quaternion given a transformation matrix
 RMAPI const Quaternion QM_QuaternionTransform( Quaternion q, Matrix mat ) {
-    Quaternion result = { 0 };
+    Quaternion result = { };
 
     result.x = mat.m0 * q.x + mat.m4 * q.y + mat.m8 * q.z + mat.m12 * q.w;
     result.y = mat.m1 * q.x + mat.m5 * q.y + mat.m9 * q.z + mat.m13 * q.w;

@@ -131,6 +131,52 @@ typedef struct cclient_s {
 *
 **/
 /**
+*	MoveInfo Flags:
+**/
+//! Forward motion.
+static constexpr int32_t CLG_MOVEINFOFLAG_DIRECTION_FORWARD = BIT( 0 );
+//! Backward motion.
+static constexpr int32_t CLG_MOVEINFOFLAG_DIRECTION_BACKWARD = BIT( 1 );
+//! Strafe to the left.
+static constexpr int32_t CLG_MOVEINFOFLAG_DIRECTION_LEFT = BIT( 2 );
+//! Strafe to the right.
+static constexpr int32_t CLG_MOVEINFOFLAG_DIRECTION_RIGHT = BIT( 3 );
+//! Flagged if the entity is moving fast enough to be categorized as 'Running'.
+static constexpr int32_t CLG_MOVEINFOFLAG_RUN = BIT( 4 );
+//! Flagged if the entity is moving fast enough to be categorized as 'Walking'.
+static constexpr int32_t CLG_MOVEINFOFLAG_WALK = BIT( 5 );
+
+/**
+*	@brief	Used for storing necessary movement information derived from 
+*			Received/Predicted (player/entity-)state changes between each frame.
+**/
+typedef struct clg_entity_moveinfo_s {
+	//! 2D Direction Offset and Unit Vectors derived from 'Previous' and 'Current' (player/entity-)state origin changes.
+	Vector2 xyDirection;
+	Vector2 xyDirectionNormalized;
+	//! 3D Direction Offset and Unit Vectors derived from 'Previous' and 'Current' (player/entity-)state origin changes.
+	Vector3 xyzDirection;
+	Vector3 xyzDirectionNormalized;
+	//! 'Velocities'
+	double xySpeed;
+	double xyzSpeed;
+	//! Move direction DotProducts.
+	double xDot;
+	double yDot;
+	//! Flags indication the calculated moveinfo state.
+	int32_t flags;
+
+	// WID: TODO: I suppose technically this should go into a bone controller struct or so.
+	struct {
+		struct {
+			float desired; //! Desired final Yaw destination. (Degrees.)
+			float current; //! Actual Yaw. (Degrees.)
+			sg_time_t timeChanged;
+		} yaw;
+	} transitions;
+} clg_entity_moveinfo_t;
+
+/**
 *	Client-Game Packet Entity structure definition: This structure always has to
 *	mirror the 'first part' of the structure defined within the Client.
 **/
@@ -186,23 +232,14 @@ typedef struct centity_s {
 	//! Animations being played and mixed for this entity.
 	sg_skm_animation_mixer_t animationMixer;
 
-	//! Movement information, derived from states.
+	//! Bone Controllers.
+	skm_bone_controller_t boneControllers[ 4 ];
+
 	struct {
-		//! Directions as in velocities.
-		Vector2 xyDirection;
-		Vector2 xyDirectionNormalized;
-		Vector3 xyzDirection;
-		Vector3 xyzDirectionNormalized;
-
-		//! Velocity lengths.
-		double xySpeed;
-		double xyzSpeed;
-
-		//! Dot product against move dirs.
-		double xDot;
-		double yDot;
-
-		int32_t directionFlags;
+		//! The most recently calculated move information.
+		clg_entity_moveinfo_t current;
+		//! The previous frame's calculated move information.
+		clg_entity_moveinfo_t previous;
 	} moveInfo;
 
 	//! (View-) Angle Vectors, updated along with movement information.
@@ -211,7 +248,6 @@ typedef struct centity_s {
 		Vector3 forward;
 		Vector3 right;
 	} vAngles;
-
 
 } centity_t;
 

@@ -313,8 +313,41 @@ typedef struct Vector4 {
             this->y = v4[ 1 ];
             this->z = v4[ 2 ];
             this->w = v4[ 3 ];
+        } else {
+            this->x = this->y = this->z = this->w = 0;
         }
     }
+    [[nodiscard]] inline Vector4( const vec4_t v4 ) {
+        if ( v4 ) {
+            this->x = v4[ 0 ];
+            this->y = v4[ 1 ];
+            this->z = v4[ 2 ];
+            this->w = v4[ 3 ];
+        } else {
+            this->x = this->y = this->z = this->w = 0;
+        }
+    }
+
+    //[[nodiscard]] inline Vector4( quat_t v4 ) {
+    //    if ( v4 ) {
+    //        this->x = v4[ 0 ];
+    //        this->y = v4[ 1 ];
+    //        this->z = v4[ 2 ];
+    //        this->w = v4[ 3 ];
+    //    } else {
+    //        this->x = this->y = this->z = this->w = 0;
+    //    }
+    //}
+    //[[nodiscard]] inline Vector4( const quat_t v4 ) {
+    //    if ( v4 ) {
+    //        this->x = v4[ 0 ];
+    //        this->y = v4[ 1 ];
+    //        this->z = v4[ 2 ];
+    //        this->w = v4[ 3 ];
+    //    } else {
+    //        this->x = this->y = this->z = this->w = 0;
+    //    }
+    //}
     /**
     *  C++ Array like component accessors:
     **/

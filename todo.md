@@ -77,6 +77,7 @@ Features being looked forward on implementation.
 	* [ ] CanDamage and functions alike need to be moved into gamemode.
 
 ### Lowest, nearly redundant Priority:
+* [ ] Move capability of determining new pvs packet entities to clgame.
 * [ ] Add an enter/exit frame/pvs so that we can allocate and deallocate skeletal bone
 	  pose caches. Otherwise in hour long games they'd possibly stack up the memory buffer.
 * [/] model_iqm.c, needs relocating preferably, also use QM_ maths.

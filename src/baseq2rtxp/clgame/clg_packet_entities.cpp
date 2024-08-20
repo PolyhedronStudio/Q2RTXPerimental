@@ -30,13 +30,36 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
     static constexpr float RUN_EPSILON = 100.f;
 
     /**
+    *   Backup into previous moveInfo state:
+    **/
+    packetEntity->moveInfo.previous = packetEntity->moveInfo.current;
+
+    /**
     *   First determine if we need to recalculate the forward/right/up vectors.
     **/
-    Vector3 currentAngles = newState->angles;
-    Vector3 previousAngles = packetEntity->prev.angles;
-    if ( currentAngles.x != previousAngles.x || currentAngles.y != previousAngles.y || currentAngles.x != previousAngles.x ) {
-        // Calculate angle vectors derived from current viewing angles.
-        QM_AngleVectors( currentAngles, &packetEntity->vAngles.forward, &packetEntity->vAngles.right, &packetEntity->vAngles.up );
+    // If we're the local client player, just use the PREDICTED player_state_t vAngles instead.
+    if ( packetEntity->current.number == clgi.client->clientNumber + 1 ) {
+        //packetEntity->vAngles.forward = clgi.client->v_forward;
+        //packetEntity->vAngles.right = clgi.client->v_right;
+        //packetEntity->vAngles.up = clgi.client->v_up;
+        Vector3 currentAngles = newState->angles;
+        Vector3 previousAngles = packetEntity->prev.angles;
+
+        // Avoid usage of more expensive Vector3 compare Operator here. Instead thus any change at all means a recalculation.
+        if ( currentAngles.x != previousAngles.x || currentAngles.y != previousAngles.y || currentAngles.x != previousAngles.x ) {
+            // Calculate angle vectors derived from current viewing angles.
+            QM_AngleVectors( currentAngles, &packetEntity->vAngles.forward, &packetEntity->vAngles.right, &packetEntity->vAngles.up );
+        }
+    // Otherwise, calculate it based on if new and previous angle states differ from one another.
+    } else {
+        Vector3 currentAngles = newState->angles;
+        Vector3 previousAngles = packetEntity->prev.angles;
+
+        // Avoid usage of more expensive Vector3 compare Operator here. Instead thus any change at all means a recalculation.
+        if ( currentAngles.x != previousAngles.x || currentAngles.y != previousAngles.y || currentAngles.x != previousAngles.x ) {
+            // Calculate angle vectors derived from current viewing angles.
+            QM_AngleVectors( currentAngles, &packetEntity->vAngles.forward, &packetEntity->vAngles.right, &packetEntity->vAngles.up );
+        }
     }
 
     /**
@@ -52,6 +75,7 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
         previousOrigin = clgi.client->predictedState.lastPs.pmove.origin;
     }
     // Update and adjust ONLY if the origin has changed between frames.
+    // Avoid usage of more expensive Vector3 compare Operator here. Instead thus any change at all means a recalculation.
     if ( previousOrigin.x != currentOrigin.x || previousOrigin.y != currentOrigin.y || previousOrigin.z != currentOrigin.z ) {
         // Update offset.
         offset = currentOrigin - previousOrigin;
@@ -60,54 +84,48 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
         const Vector3 &vForward = packetEntity->vAngles.forward;
         const Vector3 &vRight = packetEntity->vAngles.right;
 
-        // Determine velocity based on actual old and current origin.
-        packetEntity->moveInfo.xyzDirection = offset;//Vector3( newState->origin ) - Vector3( packetEntity->prev.origin );
         // Get the move direction vectors.
-        packetEntity->moveInfo.xyDirection = QM_Vector2FromVector3( packetEntity->moveInfo.xyzDirection );
+        packetEntity->moveInfo.current.xyDirection = QM_Vector2FromVector3( offset );
+        packetEntity->moveInfo.current.xyzDirection = offset;//Vector3( newState->origin ) - Vector3( packetEntity->prev.origin );
         // Normalized move direction vectors.
-        packetEntity->moveInfo.xyDirectionNormalized = QM_Vector2Normalize( packetEntity->moveInfo.xyDirection );
-        packetEntity->moveInfo.xyzDirectionNormalized = QM_Vector3Normalize( packetEntity->moveInfo.xyzDirection );
+        packetEntity->moveInfo.current.xyDirectionNormalized = QM_Vector2Normalize( packetEntity->moveInfo.current.xyDirection );
+        packetEntity->moveInfo.current.xyzDirectionNormalized = QM_Vector3Normalize( packetEntity->moveInfo.current.xyzDirection );
         // Dot products.
-        packetEntity->moveInfo.xDot = QM_Vector3DotProduct( packetEntity->moveInfo.xyDirectionNormalized, vRight );
-        packetEntity->moveInfo.yDot = QM_Vector3DotProduct( packetEntity->moveInfo.xyDirectionNormalized, vForward );
+        packetEntity->moveInfo.current.xDot = QM_Vector3DotProduct( packetEntity->moveInfo.current.xyDirectionNormalized, vRight );
+        packetEntity->moveInfo.current.yDot = QM_Vector3DotProduct( packetEntity->moveInfo.current.xyDirectionNormalized, vForward );
         // Speeds.
-        packetEntity->moveInfo.xySpeed = QM_Vector2Length( packetEntity->moveInfo.xyDirection );
-        packetEntity->moveInfo.xyzSpeed = QM_Vector3Length( packetEntity->moveInfo.xyzDirection );
+        packetEntity->moveInfo.current.xySpeed = QM_Vector2Length( packetEntity->moveInfo.current.xyDirection );
+        packetEntity->moveInfo.current.xyzSpeed = QM_Vector3Length( packetEntity->moveInfo.current.xyzDirection );
 
-        // Resulting move flags.
-        packetEntity->moveInfo.directionFlags = 0;
-        // Are we even moving enough?
-        if ( packetEntity->moveInfo.xySpeed > 0 ) {
+        // Clean slate flags.
+        packetEntity->moveInfo.current.flags = 0;
+
+        // Determine flags based on 2D plane movement.
+        if ( packetEntity->moveInfo.current.xySpeed > 0 ) {
             // Forward:
-            if ( ( packetEntity->moveInfo.yDot > DIR_EPSILON ) /*|| ( pm->cmd.forwardmove > 0 )*/ ) {
-                packetEntity->moveInfo.directionFlags |= PM_MOVEDIRECTION_FORWARD;
+            if ( ( packetEntity->moveInfo.current.yDot > DIR_EPSILON ) /*|| ( pm->cmd.forwardmove > 0 )*/ ) {
+                packetEntity->moveInfo.current.flags |= CLG_MOVEINFOFLAG_DIRECTION_FORWARD;
                 // Back:
-            } else if ( ( -packetEntity->moveInfo.yDot > DIR_EPSILON ) /*|| ( pm->cmd.forwardmove < 0 )*/ ) {
-                packetEntity->moveInfo.directionFlags |= PM_MOVEDIRECTION_BACKWARD;
+            } else if ( ( -packetEntity->moveInfo.current.yDot > DIR_EPSILON ) /*|| ( pm->cmd.forwardmove < 0 )*/ ) {
+                packetEntity->moveInfo.current.flags |= CLG_MOVEINFOFLAG_DIRECTION_BACKWARD;
             }
             // Right: (Only if the dotproduct is so, or specifically only side move is pressed.)
-            if ( ( packetEntity->moveInfo.xDot > DIR_EPSILON ) /*|| ( !pm->cmd.forwardmove && pm->cmd.sidemove > 0 )*/ ) {
-                packetEntity->moveInfo.directionFlags |= PM_MOVEDIRECTION_RIGHT;
+            if ( ( packetEntity->moveInfo.current.xDot > DIR_EPSILON ) /*|| ( !pm->cmd.forwardmove && pm->cmd.sidemove > 0 )*/ ) {
+                packetEntity->moveInfo.current.flags |= CLG_MOVEINFOFLAG_DIRECTION_RIGHT;
                 // Left: (Only if the dotproduct is so, or specifically only side move is pressed.)
-            } else if ( ( -packetEntity->moveInfo.xDot > DIR_EPSILON ) /*|| ( !pm->cmd.forwardmove && pm->cmd.sidemove < 0 )*/ ) {
-                packetEntity->moveInfo.directionFlags |= PM_MOVEDIRECTION_LEFT;
+            } else if ( ( -packetEntity->moveInfo.current.xDot > DIR_EPSILON ) /*|| ( !pm->cmd.forwardmove && pm->cmd.sidemove < 0 )*/ ) {
+                packetEntity->moveInfo.current.flags |= CLG_MOVEINFOFLAG_DIRECTION_LEFT;
             }
 
-            //// Running:
-            //if ( packetEntity->moveInfo.xySpeed > 0 ) {
-            //    packetEntity->moveInfo.directionFlags |= PM_MOVEDIRECTION_RUN;
-            //// Walking:
-            //} else if ( packetEntity->moveInfo.xySpeed > 1 ) {
-            //    packetEntity->moveInfo.directionFlags |= PM_MOVEDIRECTION_WALK;
-            //}
+            // WID: TODO: Determine running, or walking.
         }
 
-        clgi.Print( PRINT_DEVELOPER, "%s: (localClient) directionFlags(%i), xyzDirectionNormalized(%f, %f, %f)\n", __func__,
-            packetEntity->moveInfo.directionFlags,
-            packetEntity->moveInfo.xyzDirectionNormalized.x,
-            packetEntity->moveInfo.xyzDirectionNormalized.y,
-            packetEntity->moveInfo.xyzDirectionNormalized.z
-        );
+        //clgi.Print( PRINT_DEVELOPER, "%s: (localClient) directionFlags(%i), xyzDirectionNormalized(%f, %f, %f)\n", __func__,
+        //    packetEntity->moveInfo.directionFlags,
+        //    packetEntity->moveInfo.xyzDirectionNormalized.x,
+        //    packetEntity->moveInfo.xyzDirectionNormalized.y,
+        //    packetEntity->moveInfo.xyzDirectionNormalized.z
+        //);
     }
 }
 #endif
@@ -150,7 +168,7 @@ void CLG_AddPacketEntities( void ) {
         /**
         *   Determine certain properties in relation to movement.
         **/
-        CLG_PacketEntity_DetermineMoveDirection( packetEntity, newState );
+        //CLG_PacketEntity_DetermineMoveDirection( packetEntity, newState );
         #endif
 
         /**

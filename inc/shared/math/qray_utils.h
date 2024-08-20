@@ -114,3 +114,20 @@ RMAPI const float QM_LerpAngle( float angle2, float angle1, const float fraction
     }
     return angle2 + fraction * ( angle1 - angle2 );
 }
+
+/**
+*   @brief  returns angle normalized to the range [-180 < angle <= 180]
+**/
+RMAPI const float QM_Angle_Normalize180( const float angle ) {
+    float _angle = fmod( ( angle ), 360.0f );
+    if ( _angle > 180.0 ) {
+        _angle -= 360.0;
+    }
+    return _angle;
+}
+/**
+*   @brief  returns the normalized to range [-180 < angle <= 180] delta from angle1 to angle2
+**/
+RMAPI const float QM_AngleDelta( const float angle1, const float angle2 ) {
+    return QM_Angle_Normalize180( angle1 - angle2 );
+}

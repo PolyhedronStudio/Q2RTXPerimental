@@ -144,7 +144,7 @@ static inline void SG_DecodeAnimationState( const uint32_t animationState, uint8
 *
 *
 *
-*	Animation Processing:
+*	AnimationState Functionalities:
 *
 *
 *
@@ -173,3 +173,103 @@ const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_stat
 *			Will force set the aniamtion, if desired.
 **/
 const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const qhandle_t animationID, const sg_time_t &startTime, const double frameTime, const bool forceLoop, const bool forceSet );
+
+
+
+/**
+*
+*
+*
+*   BonePoses Space Transforming:
+*
+*
+*
+**/
+/**
+*	@brief	Compute "Local/Model-Space" matrices for the given pose transformations.
+**/
+void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices );
+/**
+*   @brief
+**/
+void SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, const skm_bone_controller_t *boneControllers, float *pose_matrices );
+
+
+
+/**
+*
+*
+*
+*   Lerping BonePoses:
+*
+*
+*
+**/
+/**
+*	@brief	Lerped pose transformations between frameBonePoses and oldFrameBonePoses.
+*			'outBonePose' must have enough room for model->num_poses
+**/
+void SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+/**
+*	@brief	Lerped pose transformations between frameBonePoses and oldFrameBonePoses.
+*			'outBonePose' must have enough room for model->num_poses
+**/
+void SKM_LerpRangeBonePoses( const model_t * model, const skm_transform_t * frameBonePoses, const skm_transform_t * oldFrameBonePoses, const int32_t rangeStart, const int32_t rangeSize, const float frontLerp, const float backLerp, skm_transform_t * outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+
+
+
+/**
+*
+*
+*
+*   Blending/Layering BonePoses:
+*
+*
+*
+**/
+/**
+*   @brief  Will recursively blend(lerp by lerpfracs/slerp by fraction) the addBonePoses to addToBonePoses starting from the boneNode.
+**/
+void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction );
+
+
+
+/**
+*
+*
+*
+*   Lerping BonePoses:
+*
+*
+*
+**/
+/**
+*	@brief	Lerped pose transformations between frameBonePoses and oldFrameBonePoses.
+*			'outBonePose' must have enough room for model->num_poses
+**/
+void SKM_LerpBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+/**
+*	@brief	:erped pose transformations between frameBonePoses and oldFrameBonePoses.
+*			'outBonePose' must have enough room for model->num_poses
+**/
+void SKM_LerpRangeBonePoses( const model_t *model, const skm_transform_t *frameBonePoses, const skm_transform_t *oldFrameBonePoses, const int32_t rangeStart, const int32_t rangeSize, const float frontLerp, const float backLerp, skm_transform_t *outBonePose, const int32_t rootMotionBoneID, const int32_t rootMotionAxisFlags );
+
+
+
+/**
+*
+*
+*
+*   Skeletal Model Bone Controllers:
+*
+*
+*
+**/
+/**
+*   @brief  Activates the bone controller and (re-)initializes its initial state as well as its imer.
+**/
+void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const skm_bone_node_t *boneNode, const skm_bone_controller_target_t &target, const skm_transform_t *initialTransform, const skm_transform_t *currentTransform, const int32_t transformMask, const sg_time_t &timeDuration, const sg_time_t &timeActivated );
+/**
+*   @brief  Processes and applies the bone controllers to the pose, for the current time.
+**/
+void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControllers, const int32_t numBoneControllers, const sg_time_t &currentTime, skm_transform_t *inOutBonePoses );

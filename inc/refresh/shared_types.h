@@ -232,10 +232,28 @@ typedef iqm_mesh_t skm_mesh_t;
 //! Transform the rotation.
 #define SKM_BONE_CONTROLLER_TRANSFORM_ROTATION BIT( 1 << 0 )
 //! Transform the translation.
-#define SKM_BONE_CONTROLLER_TRANSFORM_TRANSLATE BIT( 1 << 1 )
+//#define SKM_BONE_CONTROLLER_TRANSFORM_TRANSLATE BIT( 1 << 1 )
 //! Transform the scale.
-#define SKM_BONE_CONTROLLER_TRANSFORM_SCALE BIT( 1 << 2 )
+//#define SKM_BONE_CONTROLLER_TRANSFORM_SCALE BIT( 1 << 2 )
 
+/**
+*   @brief  Target destination values for the bone controller.
+**/
+typedef struct skm_bone_controller_target_s {
+    // Rotations.
+    struct {
+        double targetYaw;
+        double targetPitch;
+    } rotation;
+    //// Translate.
+    //struct {
+    //    double targetX, targetY, targetZ;
+    //} translate;
+    //// Translate.
+    //struct {
+    //    double scaleX, scaleY, scaleZ;
+    //} translate;
+} skm_bone_controller_target_t;
 /**
 *   @brief  Actual 'Bone Controller' type, which are used to apply as a transformation during the
 *           computing of local model space.
@@ -243,12 +261,27 @@ typedef iqm_mesh_t skm_mesh_t;
 typedef struct skm_bone_controller_s {
     //! The bone number this controller operates on.
     int32_t boneNumber;
+
     //! The state this controller resides in(active/inactive/..?)
     int32_t state;
     //! The properties it should override for the transform(rotation, translation, scale)
     int32_t transformMask;
-    //! The transform that this controller should apply to the specified bone.
-    skm_transform_t transform;
+
+    //! The initial start(default) transform state for this bone.
+    skm_transform_t baseTransform;
+    //! The current transform which will be applied to the pose.
+    skm_transform_t currentTransform;
+
+    //! The target transform state to (S)Lerp to.
+    skm_bone_controller_target_t target;
+
+    //! The duration of the (S)Lerp.
+    int32_t slerpDuration;
+    //! The time this bone controller was activated at.
+    uint64_t timeActivated;
+    //! The time at which this bone controller will reach its target transform.
+    uint64_t timeEnd;
+
 } skm_bone_controller_t;
 
 
