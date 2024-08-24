@@ -35,6 +35,7 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 		  (The more entities there are using a skeletal model, the more space we need.)
 	- [ ] 2. I am most likely forgetting some things, so first finish this entire list.
 
+## For v0.0.6 or so:
 - [ ] The Monster Scenario:
 	- [ ] 0. We need nav nodes of sorts, probably lets do this KISS first, just use some entities.
 	- [ ] 1. There's more I can think of such as detecting whether to strafe and all that...
@@ -56,6 +57,7 @@ Features being looked forward on implementation.
 * [X] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
 * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
 ### Low Priority:
+* [ ] Use the C version of glmatrix.net and adjust(C++ify also), and streamline it as the math lib for use.
 * [ ] Have bullet impact display material ``kind`` specific puffs?
 * [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.
 * [x] Add some way of having entity 'class' like type support. (At the least, eliminate a need for having such a large edict_t type that holds all sorts of object-type specific variables.)
@@ -119,7 +121,8 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 * [X] Ladders from within water, simply isn't working. Likely related to the recent ground entity changes.
 ### Medium Priority:
 * [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
-* [ ] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
+* [/] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
+	- [ ] Filter so it doesn't clip to all entities.
 ### Low Priority:
 * [x] None
 ### Lowest, nearly redundant Priority:

@@ -151,6 +151,9 @@ static constexpr int32_t CLG_MOVEINFOFLAG_WALK = BIT( 5 );
 *			Received/Predicted (player/entity-)state changes between each frame.
 **/
 typedef struct clg_entity_moveinfo_s {
+	//! Servertime of the frame for which this move info was generated.
+	sg_time_t serverTime;
+
 	//! 2D Direction Offset and Unit Vectors derived from 'Previous' and 'Current' (player/entity-)state origin changes.
 	Vector2 xyDirection;
 	Vector2 xyDirectionNormalized;
@@ -226,8 +229,9 @@ typedef struct centity_s {
 	entity_t refreshEntity;
 
 	//! Bone Pose Cache for ET_PLAYER and ET_MONSTER types.
-	skm_transform_t *bonePoseCache;		//! Of the current animation.
-	skm_transform_t *lastBonePoseCache; //! Of the last animation.
+	skm_transform_t *bonePoseCache[ SKM_BODY_MAX ];		//! For the current animation(s).
+	skm_transform_t *lastBonePoseCache[ SKM_BODY_MAX ]; //! For the last animation(s).
+	skm_transform_t *eventBonePoseCache[ SKM_BODY_MAX ];//! For the event animation(s).
 
 	//! Animations being played and mixed for this entity.
 	sg_skm_animation_mixer_t animationMixer;

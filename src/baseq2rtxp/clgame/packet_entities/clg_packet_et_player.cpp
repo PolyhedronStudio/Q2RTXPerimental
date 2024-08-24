@@ -23,13 +23,29 @@
 *   @brief  Will only be called once whenever the add player entity method encounters an empty bone pose.
 **/
 void CLG_ETPlayer_AllocatePoseCache( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
-    if ( packetEntity->bonePoseCache == nullptr ) {
-        // Determine whether the entity now has a skeletal model, and if so, allocate a bone pose cache for it.
-        if ( const model_t *entModel = clgi.R_GetModelDataForHandle( clgi.client->model_draw[ newState->modelindex ] ) ) {
-            // Make sure it has proper SKM data.
-            if ( ( entModel->skmData ) && ( entModel->skmConfig ) ) {
-                // Allocate bone pose space. ( Use SKM_MAX_BONES instead of entModel->skmConfig->numberOfBones because client models could change. )
-                packetEntity->bonePoseCache = clgi.SKM_PoseCache_AcquireCachedMemoryBlock( SKM_MAX_BONES /*entModel->skmConfig->numberOfBones*/ );
+    // We'll assume that, in this case, all caches are allocated.
+    if ( packetEntity->bonePoseCache[ 0 ] != nullptr ) {
+        return;
+    }
+
+    // Determine whether the entity now has a skeletal model, and if so, allocate a bone pose cache for it.
+    if ( const model_t *entModel = clgi.R_GetModelDataForHandle( refreshEntity->model ) ) {
+        // Make sure it has proper SKM data.
+        if ( ( entModel->skmData ) && ( entModel->skmConfig ) ) {
+            // Acquire cached memory blocks.
+            for ( int i = 0; i < SKM_BODY_MAX; i++ ) {
+                if ( packetEntity->bonePoseCache[i] == nullptr ) {
+                    // Allocate bone pose space. ( Use SKM_MAX_BONES instead of entModel->skmConfig->numberOfBones because client models could change. )
+                    packetEntity->bonePoseCache[ i ] = clgi.SKM_PoseCache_AcquireCachedMemoryBlock( SKM_MAX_BONES /*entModel->skmConfig->numberOfBones*/ );
+                }
+                if ( packetEntity->lastBonePoseCache[ i ] == nullptr ) {
+                    // Allocate bone pose space. ( Use SKM_MAX_BONES instead of entModel->skmConfig->numberOfBones because client models could change. )
+                    packetEntity->lastBonePoseCache[ i ] = clgi.SKM_PoseCache_AcquireCachedMemoryBlock( SKM_MAX_BONES /*entModel->skmConfig->numberOfBones*/ );
+                }
+                if ( packetEntity->eventBonePoseCache[ i ] == nullptr ) {
+                    // Allocate bone pose space. ( Use SKM_MAX_BONES instead of entModel->skmConfig->numberOfBones because client models could change. )
+                    packetEntity->eventBonePoseCache[ i ] = clgi.SKM_PoseCache_AcquireCachedMemoryBlock( SKM_MAX_BONES /*entModel->skmConfig->numberOfBones*/ );
+                }
             }
         }
     }
@@ -49,7 +65,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     sg_skm_animation_state_t *lastBodyState = animationMixer->lastBodyStates;
 
     // Third-person/mirrors model of our own client entity:
-    if ( CLG_IsViewClientEntity( newState ) ) {
+    if ( CLG_IsClientEntity( newState ) ) {
         // Determine 'Base' animation name.
         double frameTime = 1.f;
         const std::string baseAnimStr = SG_Player_GetClientBaseAnimation( &clgi.client->predictedState.lastPs, &clgi.client->predictedState.currentPs, &frameTime );
@@ -93,7 +109,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         if ( SG_SKM_SetStateAnimation( model, &newAnimationBodyState, lowerAnimationID, startTimer, frameTime, true, false ) ) {
             // However, if the last body state was of a different animation type, we want to continue using its
             // start time so we can ensure that switching directions keeps the feet neatly lerping.
-            if ( lastBodyState[ SKM_BODY_LOWER ].animationID != lowerAnimationID ) {
+            if ( lastBodyState[ SKM_BODY_LOWER ].animationID != newAnimationBodyState.animationID ) {
                 // Store the what once was current, as last body state.
                 lastBodyState[ SKM_BODY_LOWER ] = currentBodyState[ SKM_BODY_LOWER ];
                 // Assign the newly set animation state.
@@ -156,11 +172,13 @@ static const bool CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( const model_t
 
     // If for whatever reason animation state is out of bounds frame wise...
     if ( ( animationStateCurrentFrame < 0 || animationStateCurrentFrame > model->skmData->num_frames ) ) {
-        return false;
+        //animationStateCurrentFrame = animationState->srcStartFrame;
+        //return false;
     }
     // If for whatever reason animation state is out of bounds frame wise...
     if ( ( animationStateOldFrame < 0 || animationStateOldFrame > model->skmData->num_frames ) ) {
-        return false;
+        animationStateOldFrame = animationState->currentFrame;
+        //return false;
     }
 
     // Get pose frames for time..
@@ -168,20 +186,21 @@ static const bool CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( const model_t
     const skm_transform_t *oldFramePose = clgi.SKM_GetBonePosesForFrame( model, animationStateOldFrame );
 
     // If the lerp is > 0, it means we have a legitimate framePose and oldFramePose to work with.
-    if ( animationStateBackLerp > 0 && framePose && oldFramePose ) {
+    if ( animationStateCurrentFrame != -1 && animationStateBackLerp <= 1 ) {/*animationStateBackLerp > 0 && framePose && oldFramePose*/
         const double frontLerp = 1.0 - animationStateBackLerp;
         const double backLerp = animationStateBackLerp;
         // Lerp the final pose.
-        clgi.SKM_LerpBonePoses( model,
+        SKM_LerpBonePoses( model,
             framePose, oldFramePose,
             frontLerp, backLerp,
             outPoseBuffer,
             ( boneNode != nullptr ? boneNode->number : 0 ), rootMotionAxisFlags
         );
     // If we don't, just copy in the retreived first frame pose data instead.
-    } else if ( framePose ) {
-        memcpy( outPoseBuffer, framePose, SKM_MAX_BONES * sizeof( iqm_transform_t ) );
     }
+    //else if ( framePose ) {
+    //    memcpy( outPoseBuffer, framePose, model->skmData->num_poses * sizeof( skm_transform_t ) );//SKM_MAX_BONES * sizeof( iqm_transform_t ) );
+    //}
 
     // !!! Does not per se mean, backLerp > 0
     return isPlaying;
@@ -269,7 +288,7 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
     bool updateYawControllers = false;
 
     // Get the desired 'Yaw' angle to rotate into based on the (predicted-) player states.
-    if ( CLG_IsViewClientEntity( newState ) ) {
+    if ( CLG_IsClientEntity( newState ) ) {
         // States to determine it by.
         player_state_t *playerState = &clgi.client->predictedState.currentPs;
         player_state_t *oldPlayerState = &clgi.client->predictedState.lastPs;
@@ -296,7 +315,11 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
         const sg_time_t yawChangedTime = packetEntity->moveInfo.current.transitions.yaw.timeChanged;
 
         // The desired yaw for the hips to turn to.
+        //const float fabsXDot = ( packetEntity->moveInfo.current.xDot );
+        //const double wishYaw = packetEntity->moveInfo.current.transitions.yaw.desired * fabsXDot;
         const double wishYaw = packetEntity->moveInfo.current.transitions.yaw.desired;
+
+        //clgi.Print( PRINT_DEVELOPER, "xDot=%f\n", packetEntity->moveInfo.current.xDot );
 
         /**
         *   Acquire access to desired Bone Nodes:
@@ -446,7 +469,7 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
 /**
 *   @brief  Process the entity's active animations.
 **/
-void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const bool isLocalClientEntity ) {
     // Get model resource.
     const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
 
@@ -474,16 +497,21 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         return;
     }
 
+    // Wait till we got the cache.
+    if ( !packetEntity->bonePoseCache[0] || !packetEntity->lastBonePoseCache[0] ) {
+        return;
+    }
+
     /**
     *   Time:
     **/
     // The frame's Server Time.
     const sg_time_t serverTime = sg_time_t::from_ms( clgi.client->servertime );
     // The Time we're at.
-    const sg_time_t extrapolatedTime = sg_time_t::from_ms( clgi.client->extrapolatedTime );
+    const sg_time_t extrapolatedTime = sg_time_t::from_ms( ( isLocalClientEntity ? clgi.client->extrapolatedTime : clgi.client->servertime ) );
 
     // FrontLerp Fraction (extrapolated ahead of Server Time).
-    const double frontLerp = clgi.client->xerpFraction;
+    const double frontLerp = ( isLocalClientEntity ? clgi.client->xerpFraction : clgi.client->lerpfrac );
     // BackLerp Fraction.
     double backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );// clgi.client->xerpFraction;
 
@@ -526,26 +554,29 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     **/
     // WID: TODO: !!! These need to actually be precached memory blocks stored by packet entities ??
     // Last Animation, and Current Animation State Pose Buffers.
-    static skm_transform_t finalStatePose[ SKM_MAX_BONES ] = {};
-    static skm_transform_t lastFinalStatePose[ SKM_MAX_BONES ] = {};
+    //static skm_transform_t finalStatePose[ SKM_MAX_BONES ] = {};
+    //static skm_transform_t lastFinalStatePose[ SKM_MAX_BONES ] = {};
+    skm_transform_t *finalStatePose = packetEntity->bonePoseCache[ SKM_BODY_LOWER ];
+    skm_transform_t *lastFinalStatePose = packetEntity->lastBonePoseCache[ SKM_BODY_LOWER ];
+
     // Transition scale.
+    bool lastStateIsPlaying = false;
     const double switchAnimationScaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( currentLowerBodyState->timeStart, lastLowerBodyState->timeDuration + currentLowerBodyState->timeStart, extrapolatedTime );
-    //if ( switchAnimationScaleFactor < 1 ) {
+    if ( switchAnimationScaleFactor > 0 && switchAnimationScaleFactor <= 1 ) {
         // Process the 'LAST' lower body animation. (This is so we can smoothly transition from 'last' to 'current').
-        CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, SKM_POSE_TRANSLATE_ALL, nullptr, lastLowerBodyState, lastFinalStatePose );
-    //}
+        lastStateIsPlaying = CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, SKM_POSE_TRANSLATE_ALL, nullptr, lastLowerBodyState, lastFinalStatePose );
+    }
     // Process the 'CURRENT' lower body animation.
     CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, SKM_POSE_TRANSLATE_ALL, nullptr, currentLowerBodyState, finalStatePose );
-    // We need a backup of the initial state pose here.
-    static skm_transform_t initialStatePose[ SKM_MAX_BONES ] = {};
-    memcpy( initialStatePose, finalStatePose, sizeof( skm_transform_t ) * SKM_MAX_BONES );
-
     /**
     *   'Events' Animation States Pose Lerping:
     **/
     // Lerped frame for time poses of each active event.
-    static skm_transform_t lowerEventStatePose[ SKM_MAX_BONES ] = {};
-    static skm_transform_t upperEventStatePose[ SKM_MAX_BONES ] = {};
+    //static skm_transform_t lowerEventStatePose[ SKM_MAX_BONES ] = {};
+    //static skm_transform_t upperEventStatePose[ SKM_MAX_BONES ] = {};
+    skm_transform_t *lowerEventStatePose = packetEntity->eventBonePoseCache[ SKM_BODY_LOWER ];
+    skm_transform_t *upperEventStatePose = packetEntity->eventBonePoseCache[ SKM_BODY_UPPER ];
+
     // These events are, "finished" by default:
     bool lowerEventFinishedPlaying = true;
     bool upperEventFinishedPlaying = true;
@@ -570,16 +601,16 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     // Last animation lerped pose.
     skm_transform_t *lastLerpedPose = lastFinalStatePose;
     // Blend old animation into the new one.
-    if ( switchAnimationScaleFactor < 1 ) {
+    if ( lastStateIsPlaying ) {
         // SKM_RecursiveBlendFromBone( lastLerpedPose, currentLerpedPose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
-        SKM_RecursiveBlendFromBone( lastLerpedPose, currentLerpedPose, hipsBone, backLerp, switchAnimationScaleFactor );
+        SKM_RecursiveBlendFromBone( lastLerpedPose, currentLerpedPose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
     } else {
         // They are already lerped so..
         #if 0
         // Just lerp them.
         clgi.SKM_LerpBonePoses( model,
             currentLerpedPose, lastLerpedPose,
-            frontLerp, switchAnimationScaleFactor,
+            frontLerp, backLerp/*switchAnimationScaleFactor*/,
             currentLerpedPose,
             0, SKM_POSE_TRANSLATE_ALL
         );
@@ -638,7 +669,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
 **/
 void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     // If client entity, use predicted origin instead of Lerped:
-    if ( CLG_IsViewClientEntity( newState ) ) {
+    if ( CLG_IsClientEntity( newState ) ) {
         #if 0
             VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->origin );
             VectorCopy( packetEntity->current.origin, refreshEntity->oldorigin );  // FIXME
@@ -679,8 +710,11 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
         #endif
     // Lerp Origin:
     } else {
-        Vector3 cent_origin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
-        VectorCopy( cent_origin, refreshEntity->origin );
+        Vector3 lerpedOrigin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
+        //Vector3 lerpedOrigin = QM_Vector3Lerp( packetEntity->current.origin, newState->origin, clgi.client->lerpfrac );
+        Vector3 correctionVector = { 0.f, 0.f, packetEntity->mins[ 2 ] };
+        lerpedOrigin += correctionVector;
+        VectorCopy( lerpedOrigin, refreshEntity->origin );
         VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
     }
 }
@@ -688,7 +722,7 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
 *   @brief  Type specific routine for LERPing ET_PLAYER angles.
 **/
 void CLG_ETPlayer_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
-    if ( CLG_IsViewClientEntity( newState ) ) {
+    if ( CLG_IsClientEntity( newState ) ) {
         VectorCopy( clgi.client->playerEntityAngles, refreshEntity->angles );      // use predicted angles
     } else {
         LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
@@ -745,13 +779,6 @@ void CLG_ETPlayer_LerpStairStep( centity_t *packetEntity, entity_t *refreshEntit
 *	@brief	Will setup the refresh entity for the ET_PLAYER centity with the newState.
 **/
 void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
-    //
-    // Will only be called once for each ET_PLAYER.
-    //
-    if ( packetEntity->bonePoseCache == nullptr ) {
-        CLG_ETPlayer_AllocatePoseCache( packetEntity, refreshEntity, newState );
-    }
-    
     //
     // Lerp Origin:
     //
@@ -817,8 +844,15 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
         // Render effects.
         refreshEntity->flags = newState->renderfx;
 
+        //
+        // Will only be called once for each ET_PLAYER.
+        //
+        if ( packetEntity->bonePoseCache[0] == nullptr ) {
+            CLG_ETPlayer_AllocatePoseCache( packetEntity, refreshEntity, newState );
+        }
+
         // In case of the state belonging to the frame's viewed client number:
-        if ( CLG_IsViewClientEntity( newState ) ) {
+        if ( CLG_IsClientEntity( newState ) ) {
             // When not in third person mode:
             if ( !clgi.client->thirdPersonView ) {
                 // If we're running RTX, we want the player entity to render for shadow/reflection reasons:
@@ -850,7 +884,7 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
 
             }
             // Process the animations.
-            CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, newState );
+            CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, newState, true );
         } else {
             // Determine the base animation to play.
             CLG_ETPlayer_DetermineBaseAnimations( packetEntity, refreshEntity, newState );
@@ -859,7 +893,7 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
             // Don't tilt the model - looks weird.
             refreshEntity->angles[ 0 ] = 0.f;
             // Process the animations.
-            CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, newState );
+            CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, newState, false );
         }
 
         // Add model.

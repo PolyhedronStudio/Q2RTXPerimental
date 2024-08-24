@@ -167,8 +167,8 @@ skm_transform_t *SKM_PoseCache_AcquireCachedMemoryBlock( const qhandle_t poseCac
 	const size_t currentCapacity = cache->data.capacity();
 
 	// In case the size exceeds SKM_MAX_BONES, nullptr.
-	if ( size > SKM_MAX_BONES ) {
-		Com_DPrintf( "if ( size > SKM_MAX_BONES ) where size=%i\n", size );
+	if ( size > TBC_SIZE_MAX_POSEBLOCK ) {
+		Com_DPrintf( "if ( size > TBC_SIZE_MAX_POSEBLOCK ) where size=%i\n", size );
 		return nullptr;
 	}
 

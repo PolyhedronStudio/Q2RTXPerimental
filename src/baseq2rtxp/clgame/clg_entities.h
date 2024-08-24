@@ -36,7 +36,7 @@ centity_t *CLG_ViewBoundEntity( void );
 *	@brief	Returns true if the entity state's number matches to our client's entity number.
 **/
 static const inline qboolean CLG_IsClientEntity( const entity_state_t *state ) {
-	if ( state->number == clgi.client->clientNumber ) {
+	if ( state->number == clgi.client->clientNumber + 1 ) {
 		return true;
 	}
 	return false;

@@ -356,7 +356,7 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 		// Process animation from first to last frame.
 		firstFrame, lastFrame,
 		// If the animation is not looping, play the animation only once.
-		( !animationState->isLooping ? 1 : 0), animationState->isLooping
+		( !animationState->isLooping ? 1 : 0 ), animationState->isLooping
 	);
 
 	// Whether we are finished playing this animation.
@@ -975,6 +975,7 @@ void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControlle
                 Quaternion baseFullRotQuat = QuatRotateY( boneController->baseTransform.rotate, DEG2RAD( wishYaw ) );
                 Vector4Copy( baseFullRotQuat, boneController->currentTransform.rotate );
             }
+
             // Calculate the new state bonepose yaw quaternion.
             Quaternion wishQuat = QuatRotateY( inOutBonePoses[ boneController->boneNumber ].rotate, DEG2RAD( wishYaw ) );
             // 'Control' the BonePose's rotation Quaternion by Slerping for 'boneControlFactor' to the newly calculated Quaternion.

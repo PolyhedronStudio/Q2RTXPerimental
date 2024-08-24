@@ -22,44 +22,50 @@
 /**
 *	@brief	Determine the rotation of movement relative to the facing dir.
 **/
-static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, entity_state_t *newState ) {
+static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, entity_state_t *newState, const bool isLocalClientEntity ) {
     // if it's moving to where is looking, it's moving forward
     // The desired yaw for the lower body.
     static constexpr float DIR_EPSILON = 0.3f;
     static constexpr float WALK_EPSILON = 5.0f;
     static constexpr float RUN_EPSILON = 100.f;
 
+    // Determine...
+    //const bool isLocalClientEntity = CLG_IsClientEntity( newState );
+
+    // If we're not the local client entity, we don't want to update these values unless we're in a new serverframe.
+    if ( !isLocalClientEntity ) {
+        if ( packetEntity->moveInfo.current.serverTime >= sg_time_t::from_ms( clgi.client->servertime ) ) {
+            return;
+        }
+    }
+
     /**
     *   Backup into previous moveInfo state:
     **/
     packetEntity->moveInfo.previous = packetEntity->moveInfo.current;
 
+    // Update otherwise.
+    packetEntity->moveInfo.current.serverTime = sg_time_t::from_ms( clgi.client->servertime );
+
     /**
     *   First determine if we need to recalculate the forward/right/up vectors.
     **/
+    Vector3 currentAngles = newState->angles;
+    Vector3 previousAngles = packetEntity->current.angles;
+
     // If we're the local client player, just use the PREDICTED player_state_t vAngles instead.
-    if ( packetEntity->current.number == clgi.client->clientNumber + 1 ) {
+    if ( isLocalClientEntity ) {
+        currentAngles = clgi.client->predictedState.currentPs.viewangles;
+        previousAngles = clgi.client->predictedState.lastPs.viewangles;
+
         //packetEntity->vAngles.forward = clgi.client->v_forward;
         //packetEntity->vAngles.right = clgi.client->v_right;
         //packetEntity->vAngles.up = clgi.client->v_up;
-        Vector3 currentAngles = newState->angles;
-        Vector3 previousAngles = packetEntity->prev.angles;
-
-        // Avoid usage of more expensive Vector3 compare Operator here. Instead thus any change at all means a recalculation.
-        if ( currentAngles.x != previousAngles.x || currentAngles.y != previousAngles.y || currentAngles.x != previousAngles.x ) {
-            // Calculate angle vectors derived from current viewing angles.
-            QM_AngleVectors( currentAngles, &packetEntity->vAngles.forward, &packetEntity->vAngles.right, &packetEntity->vAngles.up );
-        }
-    // Otherwise, calculate it based on if new and previous angle states differ from one another.
-    } else {
-        Vector3 currentAngles = newState->angles;
-        Vector3 previousAngles = packetEntity->prev.angles;
-
-        // Avoid usage of more expensive Vector3 compare Operator here. Instead thus any change at all means a recalculation.
-        if ( currentAngles.x != previousAngles.x || currentAngles.y != previousAngles.y || currentAngles.x != previousAngles.x ) {
-            // Calculate angle vectors derived from current viewing angles.
-            QM_AngleVectors( currentAngles, &packetEntity->vAngles.forward, &packetEntity->vAngles.right, &packetEntity->vAngles.up );
-        }
+    }
+    // Avoid usage of more expensive Vector3 compare Operator here. Instead thus any change at all means a recalculation.
+    if ( currentAngles.x != previousAngles.x || currentAngles.y != previousAngles.y || currentAngles.x != previousAngles.x ) {
+        // Calculate angle vectors derived from current viewing angles.
+        QM_AngleVectors( currentAngles, &packetEntity->vAngles.forward, &packetEntity->vAngles.right, &packetEntity->vAngles.up );
     }
 
     /**
@@ -68,9 +74,9 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
     // Default to zero.
     Vector3 offset = QM_Vector3Zero();
     Vector3 currentOrigin = newState->origin;
-    Vector3 previousOrigin = packetEntity->prev.origin;
+    Vector3 previousOrigin = packetEntity->current.origin;
     // If we're the local client player, use the PREDICTED player_state_t origins instead.
-    if ( packetEntity->current.number == clgi.client->clientNumber + 1 ) {
+    if ( isLocalClientEntity ) {
         currentOrigin = clgi.client->predictedState.currentPs.pmove.origin;
         previousOrigin = clgi.client->predictedState.lastPs.pmove.origin;
     }
@@ -190,7 +196,7 @@ void CLG_AddPacketEntities( void ) {
         // Monsters:
         case ET_MONSTER:
             // First determine movement properties.
-            CLG_PacketEntity_DetermineMoveDirection( packetEntity, newState );
+            //CLG_PacketEntity_DetermineMoveDirection( packetEntity, newState, false );
             // Add Monster Entity.
             CLG_PacketEntity_AddMonster( packetEntity, &packetEntity->refreshEntity, newState );
             continue;
@@ -198,7 +204,7 @@ void CLG_AddPacketEntities( void ) {
         // Players:
         case ET_PLAYER:
             // First determine movement properties.
-            CLG_PacketEntity_DetermineMoveDirection( packetEntity, newState );
+            CLG_PacketEntity_DetermineMoveDirection( packetEntity, newState, CLG_IsClientEntity( newState ) );
             // Add Player Entity.
             CLG_PacketEntity_AddPlayer( packetEntity, &packetEntity->refreshEntity, newState );
             continue;

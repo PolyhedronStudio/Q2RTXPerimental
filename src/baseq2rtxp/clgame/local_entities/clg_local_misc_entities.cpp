@@ -150,6 +150,7 @@ void CLG_misc_model_Think( clg_local_entity_t *self ) {
 *	@brief	Called each refresh frame.
 **/
 void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
+	#if 0
 	// Get class.
 	auto *selfClass = CLG_LocalEntity_GetClass<clg_misc_model_locals_t>( self );
 
@@ -315,7 +316,7 @@ void CLG_misc_model_RefreshFrame( clg_local_entity_t *self ) {
 		}
 	}
 
-
+	#endif
 }
 
 
@@ -610,41 +611,41 @@ void CLG_misc_model_PrepareRefreshEntity( clg_local_entity_t *self ) {
 	// Get class.
 	clg_misc_model_locals_t *selfClass = CLG_LocalEntity_GetClass<clg_misc_model_locals_t>( self );
 
-	/**
-	*	Setup Origin, Angles, model, skin, alpha and scale.
-	**/
-	// Clean slate refresh entity.
-	//selfClass->rent = {};
-	// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
-	selfClass->rent.id = RENTITIY_OFFSET_LOCALENTITIES + self->id;
+	///**
+	//*	Setup Origin, Angles, model, skin, alpha and scale.
+	//**/
+	//// Clean slate refresh entity.
+	////selfClass->rent = {};
+	//// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
+	//selfClass->rent.id = RENTITIY_OFFSET_LOCALENTITIES + self->id;
 
-	// Copy spatial information over into the refresh entity.
-	VectorCopy( self->locals.origin, selfClass->rent.origin );
-	VectorCopy( self->locals.origin, selfClass->rent.oldorigin );
-	VectorCopy( self->locals.angles, selfClass->rent.angles );
+	//// Copy spatial information over into the refresh entity.
+	//VectorCopy( self->locals.origin, selfClass->rent.origin );
+	//VectorCopy( self->locals.origin, selfClass->rent.oldorigin );
+	//VectorCopy( self->locals.angles, selfClass->rent.angles );
 
-	// Copy model information.
-	if ( self->locals.modelindex ) {
-		selfClass->rent.model = precache.local_draw_models[ self->locals.modelindex ];
-		// Copy skin information.
-		//rent.skin = 0; // inline skin, -1 would use rgba.
-		//rent.skinnum = self->locals.skinNumber;
-	} else {
-		selfClass->rent.model = 0;
-		selfClass->rent.skin = 0; // inline skin, -1 would use rgba.
-		selfClass->rent.skinnum = 0;
-	}
-	selfClass->rent.rgba.u32 = MakeColor( 255, 255, 255, 255 );
+	//// Copy model information.
+	//if ( self->locals.modelindex ) {
+	//	selfClass->rent.model = precache.local_draw_models[ self->locals.modelindex ];
+	//	// Copy skin information.
+	//	//rent.skin = 0; // inline skin, -1 would use rgba.
+	//	//rent.skinnum = self->locals.skinNumber;
+	//} else {
+	//	selfClass->rent.model = 0;
+	//	selfClass->rent.skin = 0; // inline skin, -1 would use rgba.
+	//	selfClass->rent.skinnum = 0;
+	//}
+	//selfClass->rent.rgba.u32 = MakeColor( 255, 255, 255, 255 );
 
-	// Copy general render properties.
-	selfClass->rent.alpha = 1.0f;
-	selfClass->rent.scale = 1.0f;
+	//// Copy general render properties.
+	//selfClass->rent.alpha = 1.0f;
+	//selfClass->rent.scale = 1.0f;
 
-	// Process the animations for the misc model.
-	CLG_misc_model_BlendAnimations( self, selfClass, &selfClass->rent );
+	//// Process the animations for the misc model.
+	//CLG_misc_model_BlendAnimations( self, selfClass, &selfClass->rent );
 
-	// Add entity
-	clgi.V_AddEntity( &selfClass->rent );
+	//// Add entity
+	//clgi.V_AddEntity( &selfClass->rent );
 }
 
 // Class definition.
