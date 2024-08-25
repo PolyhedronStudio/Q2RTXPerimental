@@ -81,7 +81,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         if ( SG_SKM_SetStateAnimation( model, &newAnimationBodyState, baseAnimStr.c_str(), startTimer, frameTime, true, false ) ) {
             // However, if the last body state was of a different animation type, we want to continue using its
             // start time so we can ensure that switching directions keeps the feet neatly lerping.
-            if ( lastBodyState[ SKM_BODY_LOWER ].animationID != newAnimationBodyState.animationID ) {
+            if ( currentBodyState[ SKM_BODY_LOWER ].animationID != newAnimationBodyState.animationID ) {
                 // Store the what once was current, as last body state.
                 lastBodyState[ SKM_BODY_LOWER ] = currentBodyState[ SKM_BODY_LOWER ];
                 // Assign the newly set animation state.
@@ -109,7 +109,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         if ( SG_SKM_SetStateAnimation( model, &newAnimationBodyState, lowerAnimationID, startTimer, frameTime, true, false ) ) {
             // However, if the last body state was of a different animation type, we want to continue using its
             // start time so we can ensure that switching directions keeps the feet neatly lerping.
-            if ( lastBodyState[ SKM_BODY_LOWER ].animationID != newAnimationBodyState.animationID ) {
+            if ( currentBodyState[ SKM_BODY_LOWER ].animationID != newAnimationBodyState.animationID ) {
                 // Store the what once was current, as last body state.
                 lastBodyState[ SKM_BODY_LOWER ] = currentBodyState[ SKM_BODY_LOWER ];
                 // Assign the newly set animation state.
@@ -173,12 +173,12 @@ static const bool CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( const model_t
     // If for whatever reason animation state is out of bounds frame wise...
     if ( ( animationStateCurrentFrame < 0 || animationStateCurrentFrame > model->skmData->num_frames ) ) {
         //animationStateCurrentFrame = animationState->srcStartFrame;
-        //return false;
+        return false;
     }
     // If for whatever reason animation state is out of bounds frame wise...
     if ( ( animationStateOldFrame < 0 || animationStateOldFrame > model->skmData->num_frames ) ) {
         animationStateOldFrame = animationState->currentFrame;
-        //return false;
+        return false;
     }
 
     // Get pose frames for time..
@@ -354,7 +354,7 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
         skm_bone_controller_target_t spine1BoneTarget;
         hipsBoneTarget.rotation.targetYaw = wishYaw;
         spineBoneTarget.rotation.targetYaw = -wishYaw;
-        spine1BoneTarget.rotation.targetYaw = -( wishYaw / 4 );
+        spine1BoneTarget.rotation.targetYaw = ( wishYaw / 4 );
 
         /**
         *   Activate them.
@@ -552,17 +552,13 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     /**
     *   'Base' Animation States Pose Lerping:
     **/
-    // WID: TODO: !!! These need to actually be precached memory blocks stored by packet entities ??
-    // Last Animation, and Current Animation State Pose Buffers.
-    //static skm_transform_t finalStatePose[ SKM_MAX_BONES ] = {};
-    //static skm_transform_t lastFinalStatePose[ SKM_MAX_BONES ] = {};
     skm_transform_t *finalStatePose = packetEntity->bonePoseCache[ SKM_BODY_LOWER ];
     skm_transform_t *lastFinalStatePose = packetEntity->lastBonePoseCache[ SKM_BODY_LOWER ];
 
     // Transition scale.
     bool lastStateIsPlaying = false;
     const double switchAnimationScaleFactor = CLG_ETPlayer_GetSwitchAnimationScaleFactor( currentLowerBodyState->timeStart, lastLowerBodyState->timeDuration + currentLowerBodyState->timeStart, extrapolatedTime );
-    if ( switchAnimationScaleFactor > 0 && switchAnimationScaleFactor <= 1 ) {
+    if ( switchAnimationScaleFactor >= 0 && switchAnimationScaleFactor <= 1 ) {
         // Process the 'LAST' lower body animation. (This is so we can smoothly transition from 'last' to 'current').
         lastStateIsPlaying = CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, SKM_POSE_TRANSLATE_ALL, nullptr, lastLowerBodyState, lastFinalStatePose );
     }
@@ -578,18 +574,18 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     skm_transform_t *upperEventStatePose = packetEntity->eventBonePoseCache[ SKM_BODY_UPPER ];
 
     // These events are, "finished" by default:
-    bool lowerEventFinishedPlaying = true;
-    bool upperEventFinishedPlaying = true;
+    bool lowerEventIsPlaying = false;
+    bool upperEventIsPlaying = false;
     // Root Motion Axis Flags:
     const int32_t lowerEventRootMotionAxisFlags = SKM_POSE_TRANSLATE_Z; // Z only by default.
     const int32_t upperEventRootMotionAxisFlags = SKM_POSE_TRANSLATE_ALL; // Z only by default.
     // Process the lower event body state animation IF still within valid time range:
     if ( lowerEventBodyState->timeEnd >= extrapolatedTime ) {
-        lowerEventFinishedPlaying = CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, lowerEventRootMotionAxisFlags, nullptr, lowerEventBodyState, lowerEventStatePose );
+        lowerEventIsPlaying = !CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, lowerEventRootMotionAxisFlags, nullptr, lowerEventBodyState, lowerEventStatePose );
     }
     // Process the upper event body state animation IF still within valid time range:
     if ( upperEventBodyState->timeEnd >= extrapolatedTime ) {
-        upperEventFinishedPlaying = CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, upperEventRootMotionAxisFlags, nullptr, upperEventBodyState, upperEventStatePose );
+        upperEventIsPlaying = !CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, upperEventRootMotionAxisFlags, nullptr, upperEventBodyState, upperEventStatePose );
     }
 
 
@@ -602,6 +598,12 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     skm_transform_t *lastLerpedPose = lastFinalStatePose;
     // Blend old animation into the new one.
     if ( lastStateIsPlaying ) {
+        /**
+        *   Bone Controlling:
+        **/
+        //CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, lastLerpedPose, lastLerpedPose, extrapolatedTime );
+        //CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, finalStatePose, currentLerpedPose, extrapolatedTime );
+
         // SKM_RecursiveBlendFromBone( lastLerpedPose, currentLerpedPose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
         SKM_RecursiveBlendFromBone( lastLerpedPose, currentLerpedPose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
     } else {
@@ -620,12 +622,12 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     *   'Event' Animation Override Layering:
     **/
     // If playing, within a valid time range: Override the whole skeleton with the the lower event state pose.
-    if ( !lowerEventFinishedPlaying && lowerEventBodyState->timeEnd >= extrapolatedTime ) {
+    if ( lowerEventIsPlaying /*&& lowerEventBodyState->timeEnd >= extrapolatedTime */) {
         //memcpy( currentLerpedPose, lowerEventStatePose, SKM_MAX_BONES ); // This is faster if we override from the hips.
         SKM_RecursiveBlendFromBone( lowerEventStatePose, currentLerpedPose, hipsBone, 1, 1 ); // Slower path..
     }
     // If playing, the upper event state overrides only the spine bone and all its child bones.
-    if ( !upperEventFinishedPlaying && upperEventBodyState->timeEnd >= extrapolatedTime ) {
+    if ( upperEventIsPlaying /*&& upperEventBodyState->timeEnd >= extrapolatedTime*/ ) {
         SKM_RecursiveBlendFromBone( upperEventStatePose, currentLerpedPose, spineBone, 1, 1 );
     }
 

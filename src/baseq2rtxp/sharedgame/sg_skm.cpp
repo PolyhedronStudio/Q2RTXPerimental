@@ -338,23 +338,23 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 		return true;
 	}
 
-	// The old frame of the animation state, possibly the one to lerp from into a new animation.
-	const int32_t oldFrame = animationState->currentFrame;
-
-	// Backup the previously 'current' frame as its last frame.
-	animationState->previousFrame = animationState->currentFrame;
-
 	// Animation start and end frames.
-	const int32_t firstFrame = skmAnimation->first_frame;
-	const int32_t lastFrame = skmAnimation->first_frame + skmAnimation->num_frames; // use these instead?
+	const int32_t skmFirstFrame = skmAnimation->first_frame;
+	const int32_t skmLastFrame = skmAnimation->first_frame + skmAnimation->num_frames; // use these instead?
+
+    // The old frame of the animation state, possibly the one to lerp from into a new animation.
+    const int32_t oldFrame = QM_ClampInt32( animationState->currentFrame, skmFirstFrame, skmLastFrame );
+
+    // Backup the previously 'current' frame as its last frame.
+    animationState->previousFrame = oldFrame;
 
 	// Calculate the actual current frame for the moment in time of the active animation.
-	double lerpFraction = SG_AnimationFrameForTime( &animationState->currentFrame,
+	const double lerpFraction = SG_AnimationFrameForTime( &animationState->currentFrame,
 		time, animationState->timeStart /*- sg_time_t::from_ms( BASE_FRAMETIME )*/,
 		// Use the one provided by the animation state instead of the skmData, since we may want to play at a different speed.
 		animationState->frameTime,
 		// Process animation from first to last frame.
-		firstFrame, lastFrame,
+		skmFirstFrame, skmLastFrame,
 		// If the animation is not looping, play the animation only once.
 		( !animationState->isLooping ? 1 : 0 ), animationState->isLooping
 	);
@@ -364,46 +364,30 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 
 	// Apply animation to gun model refresh entity.
 	if ( animationState->currentFrame == -1 ) {
-		*outCurrentFrame = animationState->srcEndFrame; // For this kinda crap?
-		*outBackLerp = 1.0;
+        *outCurrentFrame = animationState->previousFrame;
 		isPlaybackDone = true;
 	} else {
 		*outCurrentFrame = animationState->currentFrame;
 	}
-	//	*outOldFrame = animationState->previousFrame;
-	//} else {
-		*outOldFrame = ( animationState->currentFrame > firstFrame && animationState->currentFrame <= lastFrame ? animationState->currentFrame - 1 : oldFrame /*animationState->currentFrame */);
-	//}
 
-	// Use lerpfraction between frames instead to rapidly switch.
-	//if ( *outOldFrame == oldFrame ) {
-	//	*outBackLerp = 1.0 - SG_GetFrameXerpFraction();
-	//// Enforce lerp of 0.0 to ensure that the first frame does not 'bug out'.
-	//} else
-	if ( *outCurrentFrame == firstFrame ) {
+    *outOldFrame = ( animationState->currentFrame > skmFirstFrame && animationState->currentFrame <= skmLastFrame ? animationState->currentFrame - 1 : oldFrame /*animationState->currentFrame */);
+
+    // No backlerp.
+	if ( *outCurrentFrame == skmFirstFrame ) {
 		*outBackLerp = 0.0;
 	// Enforce lerp of 1.0 if the calculated frame is equal or exceeds the last one.
-	} else if ( *outCurrentFrame == lastFrame ) {
+	} else if ( *outCurrentFrame == skmLastFrame ) {
 		// Full backlerp.
 		*outBackLerp = 1.0;
+        // Done playing.
 		isPlaybackDone = true;
 	// Otherwise just subtract the resulting lerpFraction.
 	} else {
 		*outBackLerp = 1.0 - lerpFraction;
 	}
 
-	//// Clamp just to be sure.
-	//*outBackLerp = ( *outBackLerp < 0.0 ? *outBackLerp = 0.0 : ( *outBackLerp > 1.0 ? *outBackLerp = 1.0 : *outBackLerp ) );
-
 	// Return whether finished playing or not.
 	return isPlaybackDone;
-	//// Reached the end of the animation:
-	//} else {
-	//	// Apply animation to gun model refresh entity.
-	//	*outOldFrame = animationState->previousFrame;
-	//	*outCurrentFrame = animationState->currentFrame;
-	//	//*outBackLerp = 1.0 - clgi.client->xerpFraction;
-	//}
 }
 
 /**
@@ -925,8 +909,12 @@ void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const s
     boneController->timeEnd = boneController->timeActivated + boneController->slerpDuration;
 
     // Apply 'initial' base transform.
-    boneController->baseTransform = *initialTransform;
-    //boneController->currentTransform = currentTransform;
+    if ( initialTransform ) {
+        boneController->baseTransform = *initialTransform;
+    }
+    //if ( currentTransform ) {
+    //    boneController->currentTransform = *currentTransform;
+    //}
     boneController->target = target;
 }
 

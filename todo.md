@@ -26,7 +26,8 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 			 .cfg file. This file will contain:
 		- [X] Name of Root Bone.
 		- [ ] Bone Names for the ``Joint Controllers``.
-		- [ ] Tags assigned to a bone name, with a corresponding ``up/forward/right`` axis set.
+		- [/] Tags assigned to a bone name, with a corresponding ``up/forward/right`` axis set.
+			- [ ] Technically, it's probably easier to just use code for this since it allwos for more control as well. 
 		- [ ] Animation Events, ``animevent "(animname)" (animframe) (client/server/both) "(animevent data, can be a string)"``
 		- [X] Animation Root Motion Translate axes, animrootbonetranslate "animname" ``TRANSLATE_X/TRANSLATE_Y/TRANSLATE_Z``
 	- [X] 1. The shared game code needs and is responsible for a ``Pose API`` which essentially is capable of:
@@ -48,7 +49,8 @@ Features being looked forward on implementation.
 * [X] Get a test dummy model that we can use to replace the current player with.
 * [X] Get a similar test dummy, however, this one needs to be kept in mind it will serve monster purposes instead.
 ### High Priority:
-* [ ] Rethink/reimplement the way how we approach skeletal model 'blending'. Local space it is?
+* [X] Rethink/reimplement the way how we approach skeletal model 'blending'. Local space it is?
+	- Relative we do.
 * [ ] Implement model events for animations:
 	* [ ] Footsteps implemented using this.
 ### Medium Priority:
@@ -56,6 +58,7 @@ Features being looked forward on implementation.
 * [ ] Eliminate all other Q2-only specific game entities.
 * [X] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
 * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
+	- And an entity you can 'pick up and move around' for the lulz.
 ### Low Priority:
 * [ ] Use the C version of glmatrix.net and adjust(C++ify also), and streamline it as the math lib for use.
 * [ ] Have bullet impact display material ``kind`` specific puffs?
@@ -121,8 +124,8 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 * [X] Ladders from within water, simply isn't working. Likely related to the recent ground entity changes.
 ### Medium Priority:
 * [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
-* [/] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
-	- [ ] Filter so it doesn't clip to all entities.
+* [X] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
+	- [X] Filter so it doesn't clip to all entities.
 ### Low Priority:
 * [x] None
 ### Lowest, nearly redundant Priority:

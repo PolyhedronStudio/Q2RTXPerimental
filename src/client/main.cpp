@@ -2777,8 +2777,8 @@ static void CL_SetClientTime(void)
     **/
     // Calculate linear extrapolation fraction, between frame and nextframe first, so we can correct it
     // afterwards based on our extrapolated time.
-    int64_t prevServerTime = ( cl.oldframe.number - cl.serverdelta ) * CL_FRAMETIME;
-    int64_t nextServerTime = prevServerTime + CL_FRAMETIME;
+    const int64_t prevServerTime = ( cl.oldframe.number - cl.serverdelta ) * CL_FRAMETIME;
+    const int64_t nextServerTime = prevServerTime + CL_FRAMETIME;
     cl.xerpFraction = (double)( cl.extrapolatedTime - prevServerTime ) / ( nextServerTime - prevServerTime );
 
     // Correct the calculated extrapolated time and fraction.
@@ -3126,7 +3126,7 @@ uint64_t CL_Frame( uint64_t msec ) {
         }
 
         // Return immediately if neither clientgame, physics or refresh are scheduled:
-        if ( !phys_frame && !ref_frame && !clientgame_frame ) {
+        if ( !phys_frame && !ref_frame /*&& !clientgame_frame*/ ) {
             return min( phys_msec - phys_extra, ref_msec - ref_extra );
         }
         break;

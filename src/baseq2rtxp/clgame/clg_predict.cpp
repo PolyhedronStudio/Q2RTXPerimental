@@ -5,9 +5,10 @@
 *
 *
 ********************************************************************/
-#include "clg_local.h"
-#include "clg_events.h"
-#include "clg_predict.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_events.h"
+#include "clgame/clg_predict.h"
+
 
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
@@ -225,7 +226,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
         };
 
         #if USE_DEBUG
-        clgi.Print( PRINT_NOTICE, "First frame(%" PRIi64 "). Nothing to predict yet.\n",
+        clgi.Print( PRINT_NOTICE, "First frame(#%" PRIi64 "). Nothing to predict yet.\n",
             clgi.client->frame.number );
         //clgi.ShowMiss( "First frame(%" PRIi64 ") frame #(%i). Nothing to predict yet.\n",
         //    clgi.client->frame.number );
@@ -245,8 +246,10 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
         if ( len > MAX_DELTA_ORIGIN ) {
             // Debug misses:
             #if USE_DEBUG
-                clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
-                    clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+            clgi.Print( PRINT_NOTICE, "MAX_DELTA_ORIGIN on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
+                clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+            //clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
+            //    clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
             #endif
             out->lastPs = clgi.client->frame.ps;
             out->currentPs = clgi.client->frame.ps;
@@ -272,8 +275,10 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
         } else {
             // Debug misses:
             #if USE_DEBUG
-                clgi.ShowMiss( "Prediction miss on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
+                clgi.Print( PRINT_NOTICE, "Prediction miss on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
                     clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+                //clgi.ShowMiss( "Prediction miss on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
+                //    clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
             #endif
         }
     }
