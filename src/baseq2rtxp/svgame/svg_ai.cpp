@@ -348,21 +348,21 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //    VectorCopy(self->enemy->s.origin, self->monsterinfo.last_sighting);
 //    self->monsterinfo.trail_time = level.time;
 //
-//    if (!self->combattarget) {
+//    if (!self->targetNames.combat) {
 //        HuntTarget(self);
 //        return;
 //    }
 //
-//    self->goalentity = self->movetarget = G_PickTarget(self->combattarget);
+//    self->goalentity = self->movetarget = G_PickTarget(self->targetNames.combat);
 //    if (!self->movetarget) {
 //        self->goalentity = self->movetarget = self->enemy;
 //        HuntTarget(self);
-//        gi.dprintf("%s at %s, combattarget %s not found\n", self->classname, vtos(self->s.origin), self->combattarget);
+//        gi.dprintf("%s at %s, targetNames.combat %s not found\n", self->classname, vtos(self->s.origin), self->targetNames.combat);
 //        return;
 //    }
 //
-//    // clear out our combattarget, these are a one shot deal
-//    self->combattarget = NULL;
+//    // clear out our targetNames.combat, these are a one shot deal
+//    self->targetNames.combat = NULL;
 //    self->monsterinfo.aiflags |= AI_COMBAT_POINT;
 //
 //    // clear the targetname, that point is ours!

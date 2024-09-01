@@ -127,10 +127,10 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
         //        self->item = NULL;
         //    }
 
-        //    if ( self->deathtarget )
-        //        self->target = self->deathtarget;
+        //    if ( self->targetNames.death )
+        //        self->targetNames.target = self->targetNames.death;
 
-        //    if ( !self->target )
+        //    if ( !self->targetNames.target )
         //        return;
 
         //    G_UseTargets( self, self->enemy );

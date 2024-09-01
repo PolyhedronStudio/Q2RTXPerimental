@@ -539,6 +539,15 @@ typedef struct {
     int32_t     num_items;
     //! Autosaved.
     bool        autosaved;
+
+    /**
+    *   Information for PUSH/STOP -movers.
+    **/
+    int32_t num_movewithEntityStates;
+    struct {
+        //! The move with entity.
+        edict_t *entity;
+    } moveWithEntities[MAX_EDICTS];
 } game_locals_t;
 //! Extern, access all over game dll code.
 extern  game_locals_t   game;
@@ -637,11 +646,11 @@ extern spawn_temp_t st;
 *   @brief  Stores movement info for 'Pushers(also known as Movers)'.
 ***/
 typedef struct {
-    // fixed data
-    vec3_t      start_origin;
-    vec3_t      start_angles;
-    vec3_t      end_origin;
-    vec3_t      end_angles;
+    // Fixed Data.
+    Vector3     start_origin;
+    Vector3     start_angles;
+    Vector3     end_origin;
+    Vector3     end_angles;
 
     int         sound_start;
     int         sound_middle;
@@ -654,15 +663,18 @@ typedef struct {
 
     float       wait;
 
-    // state data
+    // Dynamic State Data
     int         state;
-    vec3_t      dir;
+    Vector3     dir;
     float       current_speed;
     float       move_speed;
     float       next_speed;
     float       remaining_distance;
     float       decel_distance;
     void        (*endfunc)(edict_t *);
+
+    // WID: MoveWith:
+    Vector3 lastVelocity;
 } g_pusher_moveinfo_t;
 
 /**
@@ -831,7 +843,29 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 //
 // g_utils.c
 //
+/**
+*   @brief
+**/
 const bool    KillBox( edict_t *ent, const bool bspClipping );
+
+/**
+*   @brief
+**/
+void G_MoveWith_AdjustToParent( edict_t *self );
+/**
+*   @brief
+**/
+//void G_MoveWith_Init( edict_t *self, edict_t *parent );
+/**
+*   @brief
+**/
+void G_MoveWith_SetChildEntityMovement( edict_t *self );
+/**
+*   @note   At the time of calling, parent entity has to reside in its default state.
+*           (This so the actual offsets can be calculated easily.)
+**/
+void G_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover );
+
 /**
 *   @brief  Wraps up the new more modern G_ProjectSource.
 **/
@@ -1504,25 +1538,53 @@ struct edict_s {
 
 
     //
-    // Target fields.
+    // Target Fields:
     //
-    char        *target;
-    const char	*targetname;
-    char        *killtarget;
-    char        *team;
-    char        *pathtarget;
-    char        *deathtarget;
-    char        *combattarget;
-    edict_t     *target_ent;
+    const char *targetname;
+    struct {
+        char *target;
+        char *kill;
+        char *team;
+        char *path;
+        char *death;
+        char *combat;
+        const char *movewith;
+    } targetNames;
+
+    //
+    // Target Entities:
+    //
+    struct {
+        //! The default 'target' entity.
+        edict_t *target;
+        //! The parent entity to move along with.
+        edict_t *movewith;
+        //! Next child in the list of this 'movewith group' chain.
+        edict_t *movewith_next;
+    } targetEntities;
+
 
 
     //
     // Physics Related:
     //
+    //! For move with parent entities.
+    struct {
+        //! Initial origin offset between parent and child.
+        Vector3 absoluteOriginOffset;
+        //! Relative delta offset to the absoluteOriginOffset.
+        Vector3 relativeDeltaOffset;
+
+        //! Initial delta angles between parent and child.
+        Vector3 spawnDeltaAngles;
+        //! Initial angles set during spawn time.
+        Vector3 spawnParentAttachAngles;
+    } moveWith;
+
     //! Specified physics movetype.
     int32_t     movetype;
     //! Move velocity.
-    Vector3      velocity;
+    Vector3     velocity;
     //! Angular(Move) Velocity.
     Vector3     avelocity;
     //! Weight(mass) of entity.

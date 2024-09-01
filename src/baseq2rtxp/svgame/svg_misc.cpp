@@ -334,17 +334,17 @@ void path_corner_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_
     if (other->enemy)
         return;
 
-    if (self->pathtarget) {
+    if (self->targetNames.path) {
         char *savetarget;
 
-        savetarget = self->target;
-        self->target = self->pathtarget;
+        savetarget = self->targetNames.target;
+        self->targetNames.target = self->targetNames.path;
         G_UseTargets(self, other);
-        self->target = savetarget;
+        self->targetNames.target = savetarget;
     }
 
-    if (self->target)
-        next = G_PickTarget(self->target);
+    if (self->targetNames.target)
+        next = G_PickTarget(self->targetNames.target);
     else
         next = NULL;
 
@@ -353,7 +353,7 @@ void path_corner_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_
         v[2] += next->mins[2];
         v[2] -= other->mins[2];
         VectorCopy(v, other->s.origin);
-        next = G_PickTarget(next->target);
+        next = G_PickTarget(next->targetNames.target);
         other->s.event = EV_OTHER_TELEPORT;
     }
 
@@ -405,14 +405,14 @@ void point_combat_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface
     if (other->movetarget != self)
         return;
 
-    if (self->target) {
-        other->target = self->target;
-        other->goalentity = other->movetarget = G_PickTarget(other->target);
+    if (self->targetNames.target) {
+        other->targetNames.target = self->targetNames.target;
+        other->goalentity = other->movetarget = G_PickTarget(other->targetNames.target);
         if (!other->goalentity) {
-            gi.dprintf("%s at %s target %s does not exist\n", self->classname, vtos(self->s.origin), self->target);
+            gi.dprintf("%s at %s target %s does not exist\n", self->classname, vtos(self->s.origin), self->targetNames.target);
             other->movetarget = self;
         }
-        self->target = NULL;
+        self->targetNames.target = NULL;
     // WID: TODO: Monster Reimplement.
     }// else if ((self->spawnflags & 1) && !(other->flags & (FL_SWIM | FL_FLY))) {
     //    other->monsterinfo.pause_time = HOLD_FOREVER;
@@ -421,18 +421,18 @@ void point_combat_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface
     //}
 
     if (other->movetarget == self) {
-        other->target = NULL;
+        other->targetNames.target = NULL;
         other->movetarget = NULL;
         other->goalentity = other->enemy;
         // WID: TODO: Monster Reimplement.
         //other->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
     }
 
-    if (self->pathtarget) {
+    if (self->targetNames.path) {
         char *savetarget;
 
-        savetarget = self->target;
-        self->target = self->pathtarget;
+        savetarget = self->targetNames.target;
+        self->targetNames.target = self->targetNames.path;
         if (other->enemy && other->enemy->client)
             activator = other->enemy;
         else if (other->oldenemy && other->oldenemy->client)
@@ -442,7 +442,7 @@ void point_combat_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface
         else
             activator = other;
         G_UseTargets(self, activator);
-        self->target = savetarget;
+        self->targetNames.target = savetarget;
     }
 }
 
@@ -1107,7 +1107,7 @@ target a target_string with this
 
 The default is to be a time of day clock
 
-TIMER_UP and TIMER_DOWN run for "count" seconds and the fire "pathtarget"
+TIMER_UP and TIMER_DOWN run for "count" seconds and the fire "targetNames.path"
 If START_OFF, this entity must be used before it starts
 
 "style"     0 "xx"
@@ -1154,7 +1154,7 @@ static void func_clock_format_countdown(edict_t *self)
 void func_clock_think(edict_t *self)
 {
     if (!self->enemy) {
-        self->enemy = G_Find(NULL, FOFS(targetname), self->target);
+        self->enemy = G_Find(NULL, FOFS(targetname), self->targetNames.target);
         if (!self->enemy)
             return;
     }
@@ -1186,16 +1186,16 @@ void func_clock_think(edict_t *self)
 
     if (((self->spawnflags & 1) && (self->health > self->wait)) ||
         ((self->spawnflags & 2) && (self->health < self->wait))) {
-        if (self->pathtarget) {
+        if (self->targetNames.path) {
             char *savetarget;
             char *savemessage;
 
-            savetarget = self->target;
+            savetarget = self->targetNames.target;
             savemessage = self->message;
-            self->target = self->pathtarget;
+            self->targetNames.target = self->targetNames.path;
             self->message = NULL;
             G_UseTargets(self, self->activator);
-            self->target = savetarget;
+            self->targetNames.target = savetarget;
             self->message = savemessage;
         }
 
@@ -1223,7 +1223,7 @@ void func_clock_use(edict_t *self, edict_t *other, edict_t *activator)
 
 void SP_func_clock(edict_t *self)
 {
-    if (!self->target) {
+    if (!self->targetNames.target) {
         gi.dprintf("%s with no target at %s\n", self->classname, vtos(self->s.origin));
         G_FreeEdict(self);
         return;
@@ -1260,7 +1260,7 @@ void teleporter_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t
 
     if (!other->client)
         return;
-    dest = G_Find(NULL, FOFS(targetname), self->target);
+    dest = G_Find(NULL, FOFS(targetname), self->targetNames.target);
     if (!dest) {
         gi.dprintf("Couldn't find destination\n");
         return;
@@ -1305,7 +1305,7 @@ void SP_misc_teleporter(edict_t *ent)
 {
     edict_t     *trig;
 
-    if (!ent->target) {
+    if (!ent->targetNames.target) {
         gi.dprintf("teleporter without a target.\n");
         G_FreeEdict(ent);
         return;
@@ -1326,7 +1326,7 @@ void SP_misc_teleporter(edict_t *ent)
     trig->touch = teleporter_touch;
     trig->solid = SOLID_TRIGGER;
     trig->s.entityType = ET_TELEPORT_TRIGGER;
-    trig->target = ent->target;
+    trig->targetNames.target = ent->targetNames.target;
     trig->owner = ent;
     VectorCopy(ent->s.origin, trig->s.origin);
     VectorSet(trig->mins, -8, -8, 8);

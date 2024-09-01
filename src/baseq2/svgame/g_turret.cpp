@@ -197,12 +197,12 @@ void turret_breach_think(edict_t *self)
 void turret_breach_finish_init(edict_t *self)
 {
     // get and save info for muzzle location
-    if (!self->target) {
+    if (!self->targetNames.target) {
         gi.dprintf("%s at %s needs a target\n", self->classname, vtos(self->s.origin));
     } else {
-        self->target_ent = G_PickTarget(self->target);
-        VectorSubtract(self->target_ent->s.origin, self->s.origin, self->move_origin);
-        G_FreeEdict(self->target_ent);
+        self->targetEntities.target = G_PickTarget(self->targetNames.target);
+        VectorSubtract(self->targetEntities.target->s.origin, self->s.origin, self->move_origin);
+        G_FreeEdict(self->targetEntities.target);
     }
 
     self->teammaster->dmg = self->dmg;
@@ -273,17 +273,17 @@ void turret_driver_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int
     edict_t *ent;
 
     // level the gun
-    self->target_ent->move_angles[0] = 0;
+    self->targetEntities.target->move_angles[0] = 0;
 
     // remove the driver from the end of them team chain
-    for (ent = self->target_ent->teammaster; ent->teamchain != self; ent = ent->teamchain)
+    for (ent = self->targetEntities.target->teammaster; ent->teamchain != self; ent = ent->teamchain)
         ;
     ent->teamchain = NULL;
     self->teammaster = NULL;
     self->flags = static_cast<ent_flags_t>( self->flags & ~FL_TEAMSLAVE );
 
-    self->target_ent->owner = NULL;
-    self->target_ent->teammaster->owner = NULL;
+    self->targetEntities.target->owner = NULL;
+    self->targetEntities.target->teammaster->owner = NULL;
 
     infantry_die(self, inflictor, attacker, damage, point );
 }
@@ -320,8 +320,8 @@ void turret_driver_think(edict_t *self)
     // let the turret know where we want it to aim
     VectorCopy(self->enemy->s.origin, target);
     target[2] += self->enemy->viewheight;
-    VectorSubtract(target, self->target_ent->s.origin, dir);
-    QM_Vector3ToAngles(dir, self->target_ent->move_angles);
+    VectorSubtract(target, self->targetEntities.target->s.origin, dir);
+    QM_Vector3ToAngles(dir, self->targetEntities.target->move_angles);
 
     // decide if we should shoot
 	sg_time_t reaction_time = sg_time_t::from_sec( 3 - skill->integer );
@@ -330,7 +330,7 @@ void turret_driver_think(edict_t *self)
 
 	self->monsterinfo.attack_finished = level.time + reaction_time + 1_sec;
     //FIXME how do we really want to pass this along?
-    self->target_ent->spawnflags |= 65536;
+    self->targetEntities.target->spawnflags |= 65536;
 }
 
 void turret_driver_link(edict_t *self)
@@ -341,28 +341,28 @@ void turret_driver_link(edict_t *self)
     self->think = turret_driver_think;
 	self->nextthink = level.time + FRAME_TIME_S;
 
-    self->target_ent = G_PickTarget(self->target);
-    self->target_ent->owner = self;
-    self->target_ent->teammaster->owner = self;
-    VectorCopy(self->target_ent->s.angles, self->s.angles);
+    self->targetEntities.target = G_PickTarget(self->targetNames.target);
+    self->targetEntities.target->owner = self;
+    self->targetEntities.target->teammaster->owner = self;
+    VectorCopy(self->targetEntities.target->s.angles, self->s.angles);
 
-    vec[0] = self->target_ent->s.origin[0] - self->s.origin[0];
-    vec[1] = self->target_ent->s.origin[1] - self->s.origin[1];
+    vec[0] = self->targetEntities.target->s.origin[0] - self->s.origin[0];
+    vec[1] = self->targetEntities.target->s.origin[1] - self->s.origin[1];
     vec[2] = 0;
     self->move_origin[0] = VectorLength(vec);
 
-    VectorSubtract(self->s.origin, self->target_ent->s.origin, vec);
+    VectorSubtract(self->s.origin, self->targetEntities.target->s.origin, vec);
     QM_Vector3ToAngles(vec, vec);
     AnglesNormalize(vec);
     self->move_origin[1] = vec[1];
 
-    self->move_origin[2] = self->s.origin[2] - self->target_ent->s.origin[2];
+    self->move_origin[2] = self->s.origin[2] - self->targetEntities.target->s.origin[2];
 
     // add the driver to the end of them team chain
-    for (ent = self->target_ent->teammaster; ent->teamchain; ent = ent->teamchain)
+    for (ent = self->targetEntities.target->teammaster; ent->teamchain; ent = ent->teamchain)
         ;
     ent->teamchain = self;
-    self->teammaster = self->target_ent->teammaster;
+    self->teammaster = self->targetEntities.target->teammaster;
     self->flags = static_cast<ent_flags_t>( self->flags | FL_TEAMSLAVE );
 }
 

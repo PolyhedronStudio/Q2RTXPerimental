@@ -230,7 +230,7 @@ void SKM_LerpRangeBonePoses( const model_t * model, const skm_transform_t * fram
 /**
 *   @brief  Will recursively blend(lerp by lerpfracs/slerp by fraction) the addBonePoses to addToBonePoses starting from the boneNode.
 **/
-void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction );
+void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, const skm_transform_t *addToBonePoses, skm_transform_t *outBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction );
 
 
 
@@ -271,5 +271,7 @@ void SKM_LerpRangeBonePoses( const model_t *model, const skm_transform_t *frameB
 void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const skm_bone_node_t *boneNode, const skm_bone_controller_target_t &target, const skm_transform_t *initialTransform, const skm_transform_t *currentTransform, const int32_t transformMask, const sg_time_t &timeDuration, const sg_time_t &timeActivated );
 /**
 *   @brief  Processes and applies the bone controllers to the pose, for the current time.
+*   @note   The pose is expected to be untempered with in any way.
+*           This means that it should contain purely relative blended joints sourced by lerping and recursive blending.
 **/
 void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControllers, const int32_t numBoneControllers, const sg_time_t &currentTime, skm_transform_t *inOutBonePoses );

@@ -322,10 +322,10 @@ static const spawn_field_t spawn_fields[] = {
 	{"decel", FOFS( decel ), F_FLOAT},
 	{"target", FOFS( target ), F_LSTRING},
 	{"targetname", FOFS( targetname ), F_LSTRING},
-	{"pathtarget", FOFS( pathtarget ), F_LSTRING},
-	{"deathtarget", FOFS( deathtarget ), F_LSTRING},
-	{"killtarget", FOFS( killtarget ), F_LSTRING},
-	{"combattarget", FOFS( combattarget ), F_LSTRING},
+	{"targetNames.path", FOFS( targetNames.path ), F_LSTRING},
+	{"targetNames.death", FOFS( targetNames.death ), F_LSTRING},
+	{"targetNames.kill", FOFS( targetNames.kill ), F_LSTRING},
+	{"targetNames.combat", FOFS( targetNames.combat ), F_LSTRING},
 	{"message", FOFS( message ), F_LSTRING},
 	{"team", FOFS( team ), F_LSTRING},
 	{"wait", FOFS( wait ), F_FLOAT},
@@ -461,7 +461,7 @@ void G_FindTeams( void ) {
     for ( i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++ ) {
         if ( !e->inuse )
             continue;
-        if ( !e->team )
+        if ( !e->targetNames.team )
             continue;
         if ( e->flags & FL_TEAMSLAVE )
             continue;
@@ -472,11 +472,11 @@ void G_FindTeams( void ) {
         for ( j = i + 1, e2 = e + 1; j < globals.num_edicts; j++, e2++ ) {
             if ( !e2->inuse )
                 continue;
-            if ( !e2->team )
+            if ( !e2->targetNames.team )
                 continue;
             if ( e2->flags & FL_TEAMSLAVE )
                 continue;
-            if ( !strcmp( e->team, e2->team ) ) {
+            if ( !strcmp( e->targetNames.team, e2->targetNames.team ) ) {
                 c2++;
                 chain->teamchain = e2;
                 e2->teammaster = e;

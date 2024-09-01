@@ -8,7 +8,7 @@
 *     - Added in operator(s) support for when compiling with C++.
 *
 *
-*   CONVENTIONS:
+*   RayMath CONVENTIONS:
 *     - Matrix structure is defined as row-major (memory layout) but parameters naming AND all
 *       math operations performed by the library consider the structure as it was column-major
 *       It is like transposed versions of the matrices are used for all the maths
@@ -24,7 +24,7 @@
 *     - No compound literals used to make sure libray is compatible with C++
 *
 *
-*   CONFIGURATION:
+*   RayMath CONFIGURATION:
 *       #define RAYMATH_IMPLEMENTATION
 *           Generates the implementation of the library into the included file.
 *           If not defined, the library is in header only mode and can be included in other headers
@@ -35,7 +35,7 @@
 *           This may use up lots of memory.
 *
 *
-*   LICENSE: zlib/libpng
+*   RayMath LICENSE: zlib/libpng
 *
 *   Copyright (c) 2015-2024 Ramon Santamaria (@raysan5)
 *
@@ -87,47 +87,78 @@
 //----------------------------------------------------------------------------------
 // Defines and Macros
 //----------------------------------------------------------------------------------
-#ifndef QM_PI
-#define QM_PI 3.14159265358979323846f
-#endif
 
-#ifndef QM_EPSILON
-#define QM_EPSILON 0.000001f
-#endif
-
-#ifndef QM_DEG2RAD
-#define QM_DEG2RAD (QM_PI/180.0f)
-#endif
-
-#ifndef QM_RAD2DEG
-#define QM_RAD2DEG (180.0f/QM_PI)
-#endif
-
-// Get float vector for Matrix
-#ifndef QM_MatrixToFloat
-#define QM_MatrixToFloat(mat) ( QM_MatrixToFloatV(mat).v)
-#endif
-
-// Get float vector for Vector3
-#ifndef QM_Vector3ToFloat
-#define QM_Vector3ToFloat(vec) (QM_Vector3ToFloatV(vec).v)
+// Don't reinclude if done so already.
+#ifndef _INC_MATH
+#include <math.h>       // Required for: sinf(), cosf(), tan(), atan2f(), sqrtf(), floor(), fminf(), fmaxf(), fabs()
 #endif
 
 /**
-*   Q2RTXPerimental: Add support for constness float arrays.
+*   QM PI:
 **/
-// Get const float vector for Vector3
-#ifndef QM_Vector3ToConstFloat
-#define QM_Vector3ToConstFloat(vec) (QM_Vector3ToConstFloatV(vec).v)
+#ifndef QM_PI
+#ifdef __cplusplus
+static constexpr float QM_PI = 3.14159265358979323846f;
+#else
+#define QM_PI 3.14159265358979323846f
+#endif
 #endif
 
+/**
+*   QM Epsilon:
+**/
+#ifndef QM_EPSILON
 #ifdef __cplusplus
-struct Vector3;
+static constexpr float QM_EPSILON = 0.000001f;
+#else
+#define QM_EPSILON 0.000001f
 #endif
+#endif
+
+/**
+*   QM Degrees 2 Radians:
+**/
+#ifndef QM_DEG2RAD
+#ifdef __cplusplus
+static constexpr float QM_DEG2RAD = ( QM_PI / 180.0f );
+#else
+#define QM_DEG2RAD (QM_PI/180.0f)
+#endif
+#endif
+
+/**
+*   QM Radians 2 Degrees:
+**/
+#ifndef QM_RAD2DEG
+#ifdef __cplusplus
+static constexpr float QM_RAD2DEG = ( 180.0f / QM_PI );
+#else
+#define QM_RAD2DEG (180.0f/QM_PI)
+#endif
+#endif
+
+/**
+*   Predefine:
+**/
+#ifdef __cplusplus
+    struct Vector2;
+    struct Vector3;
+    struct Vector4;
+    struct BBox3;
+#endif
+
+
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
+/**
+*
+*
+*   Vector2:
+*
+*
+**/
 #if !defined(RL_VECTOR2_TYPE)
 // Vector2 type
 typedef struct Vector2 {
@@ -162,6 +193,9 @@ typedef struct Vector2 {
         if ( v2 ) {
             this->x = v2[ 0 ];
             this->y = v2[ 1 ];
+        } else {
+            this->x = 0;
+            this->y = 0;
         }
     }
 
@@ -175,6 +209,15 @@ typedef struct Vector2 {
 #define RL_VECTOR2_TYPE
 #endif
 
+
+
+/**
+*
+*
+*   Vector3:
+*
+*
+**/
 #if !defined(RL_VECTOR3_TYPE)
 // Vector3 type
 typedef struct Vector3 {
@@ -183,7 +226,7 @@ typedef struct Vector3 {
     float z;
 
     /**
-    *   Q2RTXPerimental: C++ operator support. Implementations are further down this file.
+    *   Q2RTXPerimental: C++ operator support. Certain implementations are further down this file.
     **/
     #ifdef __cplusplus
     /**
@@ -248,6 +291,15 @@ typedef struct Vector3 {
 #define RL_VECTOR3_TYPE
 #endif
 
+
+
+/**
+*
+*
+*   Vector4:
+*
+*
+**/
 #if !defined(RL_VECTOR4_TYPE)
 // Vector4 type
 typedef struct Vector4 {
@@ -358,12 +410,30 @@ typedef struct Vector4 {
 #define RL_VECTOR4_TYPE
 #endif
 
+
+
+/**
+*
+*
+*   Quaternion:
+*
+*
+**/
 #if !defined(RL_QUATERNION_TYPE)
 // Quaternion type
 typedef Vector4 Quaternion;
 #define RL_QUATERNION_TYPE
 #endif
 
+
+
+/**
+*
+*
+*   Matrix4x4:
+*
+*
+**/
 #if !defined(RL_MATRIX_TYPE)
 // Matrix type (OpenGL style 4x4 - right handed, column major)
 typedef struct Matrix {
@@ -375,6 +445,96 @@ typedef struct Matrix {
 #define RL_MATRIX_TYPE
 #endif
 
+
+
+/**
+*
+*
+*   BBox3:
+*
+*
+**/
+/**
+*	@brief Box 3 type definiton: (mins, maxs). The bounds are implemented like a union class.
+**/
+typedef struct BBox3 {
+    union {
+        // XYZ array index accessor.
+        Vector3 bounds[ 2 ];
+        // Points Array.
+        float points[ 6 ];
+        // X Y Z desegnator accessors.
+        struct {
+            Vector3 mins;
+            Vector3 maxs;
+        };
+    };
+
+    #ifdef __cplusplus
+    /**
+    *	@brief	Specific Intersection Test Types for use with bbox3_intersects_sphere.
+    **/
+    struct IntersectType {
+        // Box VS Sphere Types:
+        static constexpr int32_t HollowBox_HollowSphere = 0;
+        static constexpr int32_t HollowBox_SolidSphere = 1;
+        static constexpr int32_t SolidBox_HollowSphere = 2;
+        static constexpr int32_t SolidBox_SolidSphere = 3;
+    };
+
+    /**
+    *	Constructors.
+    **/
+    // Default.
+    BBox3() { mins = { 0.f, 0.f, 0.f }; maxs = { 0.f, 0.f, 0.f }; }
+
+    BBox3( BBox3 &bbox ) { mins = bbox.mins; maxs = bbox.maxs; }
+    BBox3( const BBox3 &bbox ) { mins = bbox.mins; maxs = bbox.maxs; }
+
+    // Assign.
+    BBox3( const Vector3 &boxMins, const Vector3 &boxMaxs ) { mins = boxMins; maxs = boxMaxs; }
+
+    // Regular *vec_t support.
+    BBox3( Vector3 *vec ) { mins = vec[ 0 ]; maxs = vec[ 1 ]; }
+    BBox3( const Vector3 *vec ) { mins = vec[ 0 ]; maxs = vec[ 1 ]; }
+    BBox3( const float *vec ) { mins = { vec[ 0 ], vec[ 1 ], vec[ 2 ] }; maxs = { vec[ 3 ], vec[ 4 ], vec[ 5 ] }; }
+
+    /**
+    *	Operators
+    **/
+    // Pointer.
+    inline operator float *( ) {
+        return &mins[ 0 ];
+    }
+    inline operator Vector3 *( ) {
+        return &mins;
+    }
+
+    // Pointer cast to const float*
+    inline operator const float *( ) const {
+        return &mins[ 0 ];
+    }
+    inline operator const Vector3 *( ) const {
+        return &mins;
+    }
+
+    /**
+    *  C++ Array like component accessors:
+    **/
+    [[nodiscard]] inline constexpr const float &operator[]( const size_t i ) const;
+    [[nodiscard]] inline constexpr float &operator[]( const size_t i );
+    #endif // #ifdef __cplusplus
+} BBox3;
+
+
+
+/**
+*
+*
+*   Helper Types:
+*
+*
+**/
 // NOTE: Helper types to be used instead of array return types for *ToFloat functions
 typedef struct float3 {
     float v[ 3 ];
@@ -389,46 +549,63 @@ typedef struct qfloat3 {
     vec3_t v;
 } qfloat3;
 
-#include <math.h>       // Required for: sinf(), cosf(), tan(), atan2f(), sqrtf(), floor(), fminf(), fmaxf(), fabs()
 
+
+/**
+*
+*
+*   QMath Utilities:
+*
+*
+**/
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Utils math
 //----------------------------------------------------------------------------------
-#include "shared/math/qray_utils.h"
+#include "shared/math/qm_utils.h"
 
 // This is so we can pass them by const reference from C++.
 // For C it'll be just a general const Vector3.
 #ifdef __cplusplus
-    typedef const Vector3 &ConstVector3Ref;
-    typedef const Vector2 &ConstVector2Ref;
+    typedef const BBox3     &ConstBBox3Ref;
+    typedef const Vector2   &ConstVector2Ref;
+    typedef const Vector3   &ConstVector3Ref;
+    typedef const Vector4   &ConstVector4Ref;
 #else
-    typedef const Vector3 ConstVector3Ref;
-    typedef const Vector2 ConstVector2Ref;
+    typedef const BBox3     ConstBBox3Ref;
+    typedef const Vector2   ConstVector2Ref;
+    typedef const Vector3   ConstVector3Ref;
+    typedef const Vector4   ConstVector4Ref;
 #endif
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Vector2 math
 //----------------------------------------------------------------------------------
-#include "shared/math/qray_vector2.h"
+#include "shared/math/qm_vector2.h"
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Vector3 math
 //----------------------------------------------------------------------------------
-#include "shared/math/qray_vector3.h"
+#include "shared/math/qm_vector3.h"
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Vector4 math
 //----------------------------------------------------------------------------------
-#include "shared/math/qray_vector4.h"
+#include "shared/math/qm_vector4.h"
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Matrix math
 //----------------------------------------------------------------------------------
-#include "shared/math/qray_matrix4x4.h"
+#include "shared/math/qm_matrix4x4.h"
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Quaternion math
 //----------------------------------------------------------------------------------
-#include "shared/math/qray_quaternion.h"
+#include "shared/math/qm_quaternion.h"
+
+//----------------------------------------------------------------------------------
+// Module Functions Definition - BBox3 math
+//----------------------------------------------------------------------------------
+#include "shared/math/qm_bbox3.h"
+
 
 #endif  // QRAYMATH_H

@@ -825,10 +825,10 @@ void door_use_areaportals(edict_t *self, bool open)
 {
     edict_t *t = NULL;
 
-    if (!self->target)
+    if (!self->targetNames.target)
         return;
 
-    while ((t = G_Find(t, FOFS(targetname), self->target))) {
+    while ((t = G_Find(t, FOFS(targetname), self->targetNames.target))) {
         if (Q_stricmp(t->classname, "func_areaportal") == 0) {
             gi.SetAreaPortalState(t->style, open);
 
@@ -1175,7 +1175,7 @@ void SP_func_door(edict_t *ent)
         ent->s.effects |= EF_ANIM_ALLFAST;
 
     // to simplify logic elsewhere, make non-teamed doors into a team of one
-    if (!ent->team)
+    if (!ent->targetNames.team)
         ent->teammaster = ent;
 
     gi.linkentity(ent);
@@ -1302,7 +1302,7 @@ void SP_func_door_rotating(edict_t *ent)
         ent->s.effects |= EF_ANIM_ALL;
 
     // to simplify logic elsewhere, make non-teamed doors into a team of one
-    if (!ent->team)
+    if (!ent->targetNames.team)
         ent->teammaster = ent;
 
     gi.linkentity(ent);
@@ -1433,17 +1433,17 @@ void train_blocked(edict_t *self, edict_t *other)
 
 void train_wait(edict_t *self)
 {
-    if (self->target_ent->pathtarget) {
+    if (self->targetEntities.target->targetNames.path) {
         char    *savetarget;
         edict_t *ent;
 
-        ent = self->target_ent;
+        ent = self->targetEntities.target;
         savetarget = ent->target;
-        ent->target = ent->pathtarget;
+        ent->target = ent->targetNames.path;
         G_UseTargets(ent, self->activator);
         ent->target = savetarget;
 
-        // make sure we didn't get killed by a killtarget
+        // make sure we didn't get killed by a targetNames.kill
         if (!self->inuse)
             return;
     }
@@ -1478,18 +1478,18 @@ void train_next(edict_t *self)
 
     first = true;
 again:
-    if (!self->target) {
+    if (!self->targetNames.target) {
 //      gi.dprintf ("train_next: no next target\n");
         return;
     }
 
-    ent = G_PickTarget(self->target);
+    ent = G_PickTarget(self->targetNames.target);
     if (!ent) {
-        gi.dprintf("train_next: bad target %s\n", self->target);
+        gi.dprintf("train_next: bad target %s\n", self->targetNames.target);
         return;
     }
 
-    self->target = ent->target;
+    self->targetNames.target = ent->target;
 
     // check for a teleport path_corner
     if (ent->spawnflags & 1) {
@@ -1506,7 +1506,7 @@ again:
     }
 
     self->moveinfo.wait = ent->wait;
-    self->target_ent = ent;
+    self->targetEntities.target = ent;
 
     if (!(self->flags & FL_TEAMSLAVE)) {
         if (self->moveinfo.sound_start)
@@ -1527,7 +1527,7 @@ void train_resume(edict_t *self)
     edict_t *ent;
     vec3_t  dest;
 
-    ent = self->target_ent;
+    ent = self->targetEntities.target;
 
     VectorSubtract(ent->s.origin, self->mins, dest);
     self->moveinfo.state = STATE_TOP;
@@ -1541,16 +1541,16 @@ void func_train_find(edict_t *self)
 {
     edict_t *ent;
 
-    if (!self->target) {
+    if (!self->targetNames.target) {
         gi.dprintf("train_find: no target\n");
         return;
     }
-    ent = G_PickTarget(self->target);
+    ent = G_PickTarget(self->targetNames.target);
     if (!ent) {
-        gi.dprintf("train_find: target %s not found\n", self->target);
+        gi.dprintf("train_find: target %s not found\n", self->targetNames.target);
         return;
     }
-    self->target = ent->target;
+    self->targetNames.target = ent->target;
 
     VectorSubtract(ent->s.origin, self->mins, self->s.origin);
     gi.linkentity(self);
@@ -1577,7 +1577,7 @@ void train_use(edict_t *self, edict_t *other, edict_t *activator)
         VectorClear(self->velocity);
         self->nextthink = 0_ms;
     } else {
-        if (self->target_ent)
+        if (self->targetEntities.target)
             train_resume(self);
         else
             train_next(self);
@@ -1612,7 +1612,7 @@ void SP_func_train(edict_t *self)
 
     gi.linkentity(self);
 
-    if (self->target) {
+    if (self->targetNames.target) {
         // start trains on the second frame, to make sure their targets have had
         // a chance to spawn
 		self->nextthink = level.time + FRAME_TIME_S;
@@ -1634,34 +1634,34 @@ void trigger_elevator_use(edict_t *self, edict_t *other, edict_t *activator)
         return;
     }
 
-    if (!other->pathtarget) {
-        gi.dprintf("elevator used with no pathtarget\n");
+    if (!other->targetNames.path) {
+        gi.dprintf("elevator used with no targetNames.path\n");
         return;
     }
 
-    target = G_PickTarget(other->pathtarget);
+    target = G_PickTarget(other->targetNames.path);
     if (!target) {
-        gi.dprintf("elevator used with bad pathtarget: %s\n", other->pathtarget);
+        gi.dprintf("elevator used with bad targetNames.path: %s\n", other->targetNames.path);
         return;
     }
 
-    self->movetarget->target_ent = target;
+    self->movetarget->targetEntities.target = target;
     train_resume(self->movetarget);
 }
 
 void trigger_elevator_init(edict_t *self)
 {
-    if (!self->target) {
+    if (!self->targetNames.target) {
         gi.dprintf("trigger_elevator has no target\n");
         return;
     }
-    self->movetarget = G_PickTarget(self->target);
+    self->movetarget = G_PickTarget(self->targetNames.target);
     if (!self->movetarget) {
-        gi.dprintf("trigger_elevator unable to find target %s\n", self->target);
+        gi.dprintf("trigger_elevator unable to find target %s\n", self->targetNames.target);
         return;
     }
     if (strcmp(self->movetarget->classname, "func_train") != 0) {
-        gi.dprintf("trigger_elevator target %s is not a train\n", self->target);
+        gi.dprintf("trigger_elevator target %s is not a train\n", self->targetNames.target);
         return;
     }
 

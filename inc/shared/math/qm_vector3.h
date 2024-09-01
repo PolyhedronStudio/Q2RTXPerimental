@@ -406,7 +406,7 @@ RMAPI const Vector3 QM_Vector3Reflect( ConstVector3Ref v, ConstVector3Ref normal
 }
 
 // Get min value for each pair of components
-RMAPI const Vector3 QM_Vector3Min( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+RMAPI const Vector3 QM_Vector3Minf( ConstVector3Ref v1, ConstVector3Ref v2 ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     result.x = fminf( v1.x, v2.x );
@@ -417,7 +417,7 @@ RMAPI const Vector3 QM_Vector3Min( ConstVector3Ref v1, ConstVector3Ref v2 ) {
 }
 
 // Get max value for each pair of components
-RMAPI const Vector3 QM_Vector3Max( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+RMAPI const Vector3 QM_Vector3Maxf( ConstVector3Ref v1, ConstVector3Ref v2 ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     result.x = fmaxf( v1.x, v2.x );
@@ -426,6 +426,18 @@ RMAPI const Vector3 QM_Vector3Max( ConstVector3Ref v1, ConstVector3Ref v2 ) {
 
     return result;
 }
+
+// Get absolute value for each pair of components
+RMAPI const Vector3 QM_Vector3Absf( ConstVector3Ref v ) {
+    Vector3 result = { 0.f, 0.f, 0.f };
+
+    result.x = fabsf( v.x );
+    result.y = fabsf( v.y );
+    result.z = fabsf( v.z );
+
+    return result;
+}
+
 
 // Compute barycenter coordinates (u, v, w) for point p with respect to triangle (a, b, c)
 // NOTE: Assumes P is on the plane of the triangle
@@ -599,16 +611,27 @@ RMAPI const Vector3 QM_Vector3ClampValue( ConstVector3Ref v, const float min, co
 }
 
 // Check whether two given vectors are almost equal
-RMAPI const int QM_Vector3Equals( Vector3 p, Vector3 q ) {
-    #if !defined(QM_EPSILON)
-    #define QM_EPSILON 0.000001f
+#ifdef __cplusplus
+RMAPI const int QM_Vector3EqualsEpsilon( Vector3 p, Vector3 q, const float epsilon = QM_EPSILON ) {
+    #else
+RMAPI const int QM_Vector3EqualsEpsilon( Vector3 p, Vector3 q, const float epsilon ) {
     #endif
-
-    int result = ( ( fabsf( p.x - q.x ) ) <= ( QM_EPSILON * fmaxf( 1.0f, fmaxf( fabsf( p.x ), fabsf( q.x ) ) ) ) ) &&
-        ( ( fabsf( p.y - q.y ) ) <= ( QM_EPSILON * fmaxf( 1.0f, fmaxf( fabsf( p.y ), fabsf( q.y ) ) ) ) ) &&
-        ( ( fabsf( p.z - q.z ) ) <= ( QM_EPSILON * fmaxf( 1.0f, fmaxf( fabsf( p.z ), fabsf( q.z ) ) ) ) );
+    int result = ( ( fabsf( p.x - q.x ) ) <= ( epsilon * fmaxf( 1.0f, fmaxf( fabsf( p.x ), fabsf( q.x ) ) ) ) ) &&
+        ( ( fabsf( p.y - q.y ) ) <= ( epsilon * fmaxf( 1.0f, fmaxf( fabsf( p.y ), fabsf( q.y ) ) ) ) ) &&
+        ( ( fabsf( p.z - q.z ) ) <= ( epsilon * fmaxf( 1.0f, fmaxf( fabsf( p.z ), fabsf( q.z ) ) ) ) );
 
     return result;
+}
+#ifdef __cplusplus
+RMAPI const int QM_Vector3Equals( Vector3 p, Vector3 q, const float epsilon = QM_EPSILON ) {
+    #else
+RMAPI const int QM_Vector3Equals( Vector3 p, Vector3 q, const float epsilon ) {
+#endif
+    return QM_Vector3EqualsEpsilon( p, q, epsilon );
+}
+// Less precise but more performance friendly check.
+RMAPI const int QM_Vector3EqualsFast( Vector3 p, Vector3 q ) {
+    return ( p.x == q.x && p.y == q.y && p.z == q.z );
 }
 
 // Compute the direction of a refracted ray
@@ -805,6 +828,56 @@ RMAPI const Vector3 QM_Vector3Down( void ) {
 *
 **/
 #ifdef __cplusplus
+
+/**
+*   @brief  Returns the Vector3 '{ FLT_MAX, FLT_MAX, FLT_MAX }'.
+* */
+RMAPI const Vector3 QM_Vector3Mins( void ) {
+    return Vector3{
+        FLT_MAX,// -FLT_MAX
+        FLT_MAX,// -FLT_MAX
+        FLT_MAX // -FLT_MAX
+    };
+}
+/**
+*   @brief  Returns the Vector3 '{ -FLT_MAX, -FLT_MAX, -FLT_MAX }'.
+**/
+RMAPI const Vector3 QM_Vector3Maxs( void ) {
+    return Vector3{
+        -FLT_MAX,// FLT_MAX
+        -FLT_MAX,// FLT_MAX
+        -FLT_MAX // FLT_MAX
+    };
+}
+
+
+/**
+*   @brief  Returns the linear interpolation of `a` and `b` using the specified 'lerp' fractions.
+**/
+RMAPI const Vector3 QM_Vector3LerpVector3( ConstVector3Ref a, ConstVector3Ref b, ConstVector3Ref lerp ) {
+    return QM_Vector3Add( a, QM_Vector3Multiply( QM_Vector3Subtract( b, a ), lerp ) );
+}
+
+
+/**
+*   @brief  Return a vector with random values between 'begin' and 'end'.
+**/
+RMAPI const Vector3 QM_Vector3RandomRange( const float begin, const float end ) {
+    return Vector3{
+        frandom( begin, end ),
+        frandom( begin, end ),
+        frandom( begin, end )
+    };
+}
+/**
+*   @brief  A vector with random values between '0' and '1'.
+**/
+RMAPI const Vector3 QM_Vector3Random( void ) {
+    return QM_Vector3RandomRange( 0.f, 1.f );
+}
+
+
+
 /**
 *   @brief  Access Vector3 members by their index instead.
 *   @return Value of the indexed Vector3 component.

@@ -117,7 +117,7 @@ gitem_t *FindItem(const char *pickup_name)
 
 void DoRespawn(edict_t *ent)
 {
-    if (ent->team) {
+    if (ent->targetNames.team) {
         edict_t *master;
         int count;
         int choice;
@@ -886,7 +886,7 @@ void droptofloor(edict_t *ent)
 
     VectorCopy(tr.endpos, ent->s.origin);
 
-    if (ent->team) {
+    if (ent->targetNames.team) {
         ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_TEAMSLAVE );
         ent->chain = ent->teamchain;
         ent->teamchain = NULL;

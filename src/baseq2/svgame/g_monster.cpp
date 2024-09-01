@@ -565,10 +565,10 @@ void monster_death_use( edict_t *self ) {
 		self->item = NULL;
 	}
 
-	if ( self->deathtarget )
-		self->target = self->deathtarget;
+	if ( self->targetNames.death )
+		self->targetNames.target = self->targetNames.death;
 
-	if ( !self->target )
+	if ( !self->targetNames.target )
 		return;
 
 	G_UseTargets( self, self->enemy );
@@ -628,8 +628,8 @@ void monster_start_go( edict_t *self ) {
 	if ( self->health <= 0 )
 		return;
 
-	// check for target to combat_point and change to combattarget
-	if ( self->target ) {
+	// check for target to combat_point and change to targetNames.combat
+	if ( self->targetNames.target ) {
 		bool        notcombat;
 		bool        fixup;
 		edict_t *target;
@@ -637,46 +637,46 @@ void monster_start_go( edict_t *self ) {
 		target = NULL;
 		notcombat = false;
 		fixup = false;
-		while ( ( target = G_Find( target, FOFS( targetname ), self->target ) ) != NULL ) {
+		while ( ( target = G_Find( target, FOFS( targetname ), self->targetNames.target ) ) != NULL ) {
 			if ( strcmp( target->classname, "point_combat" ) == 0 ) {
-				self->combattarget = self->target;
+				self->targetNames.combat = self->targetNames.target;
 				fixup = true;
 			} else {
 				notcombat = true;
 			}
 		}
-		if ( notcombat && self->combattarget )
+		if ( notcombat && self->targetNames.combat )
 			gi.dprintf( "%s at %s has target with mixed types\n", self->classname, vtos( self->s.origin ) );
 		if ( fixup )
-			self->target = NULL;
+			self->targetNames.target = NULL;
 	}
 
-	// validate combattarget
-	if ( self->combattarget ) {
+	// validate targetNames.combat
+	if ( self->targetNames.combat ) {
 		edict_t *target;
 
 		target = NULL;
-		while ( ( target = G_Find( target, FOFS( targetname ), self->combattarget ) ) != NULL ) {
+		while ( ( target = G_Find( target, FOFS( targetname ), self->targetNames.combat ) ) != NULL ) {
 			if ( strcmp( target->classname, "point_combat" ) != 0 ) {
-				gi.dprintf( "%s at %s has a bad combattarget %s : %s at %s\n",
+				gi.dprintf( "%s at %s has a bad targetNames.combat %s : %s at %s\n",
 						   self->classname, vtos( self->s.origin ),
-						   self->combattarget, target->classname, vtos( target->s.origin ) );
+						   self->targetNames.combat, target->classname, vtos( target->s.origin ) );
 			}
 		}
 	}
 
-    if (self->target) {
-        self->goalentity = self->movetarget = G_PickTarget(self->target);
+    if (self->targetNames.target) {
+        self->goalentity = self->movetarget = G_PickTarget(self->targetNames.target);
         if (!self->movetarget) {
-            gi.dprintf("%s can't find target %s at %s\n", self->classname, self->target, vtos(self->s.origin));
-            self->target = NULL;
+            gi.dprintf("%s can't find target %s at %s\n", self->classname, self->targetNames.target, vtos(self->s.origin));
+            self->targetNames.target = NULL;
             self->monsterinfo.pause_time = HOLD_FOREVER;
             self->monsterinfo.stand(self);
         } else if (strcmp(self->movetarget->classname, "path_corner") == 0) {
             VectorSubtract(self->goalentity->s.origin, self->s.origin, v);
             self->ideal_yaw = self->s.angles[YAW] = QM_Vector3ToYaw(v);
             self->monsterinfo.walk(self);
-            self->target = NULL;
+            self->targetNames.target = NULL;
         } else {
             self->goalentity = self->movetarget = NULL;
             self->monsterinfo.pause_time = HOLD_FOREVER;

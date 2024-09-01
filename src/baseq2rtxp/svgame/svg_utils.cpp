@@ -58,10 +58,16 @@ edict_t *G_Find(edict_t *from, int fieldofs, const char *match)
 {
     char    *s;
 
-    if (!from)
+    // WID: Prevent nastyness when match is empty (Q_stricmp)
+    if ( !match ) {
+        return nullptr;
+    }
+
+    if ( !from ) {
         from = g_edicts;
-    else
+    } else {
         from++;
+    }
 
     for (; from < &g_edicts[globals.num_edicts] ; from++) {
         if (!from->inuse)
@@ -194,8 +200,8 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
         if (!activator)
             gi.dprintf("Think_Delay with no activator\n");
         t->message = ent->message;
-        t->target = ent->target;
-        t->killtarget = ent->killtarget;
+        t->targetNames.target = ent->targetNames.target;
+        t->targetNames.kill = ent->targetNames.kill;
         return;
     }
 
@@ -214,9 +220,9 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 //
 // kill killtargets
 //
-    if (ent->killtarget) {
+    if (ent->targetNames.kill) {
         t = NULL;
-        while ((t = G_Find(t, FOFS(targetname), ent->killtarget))) {
+        while ((t = G_Find(t, FOFS(targetname), ent->targetNames.kill))) {
             G_FreeEdict(t);
             if (!ent->inuse) {
                 gi.dprintf("entity was removed while using killtargets\n");
@@ -228,9 +234,9 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 //
 // fire targets
 //
-    if (ent->target) {
+    if (ent->targetNames.target) {
         t = NULL;
-        while ((t = G_Find(t, FOFS(targetname), ent->target))) {
+        while ((t = G_Find(t, FOFS(targetname), ent->targetNames.target))) {
             // doors fire area portals in a specific way
             if (!Q_stricmp(t->classname, "func_areaportal") &&
                 (!Q_stricmp(ent->classname, "func_door") || !Q_stricmp(ent->classname, "func_door_rotating")))
@@ -628,4 +634,124 @@ const bool KillBox( edict_t *ent, const bool bspClipping ) {
     }
 
     return true;        // all clear
+}
+
+
+
+/**
+*
+*
+*
+*   MoveWith for parenting brush entities as a whole.
+*
+*
+*
+**/
+// WID: TODO: move into g_local.h
+static constexpr int32_t PUSHER_MOVEINFO_STATE_TOP      = 0;
+static constexpr int32_t PUSHER_MOVEINFO_STATE_BOTTOM   = 1;
+static constexpr int32_t PUSHER_MOVEINFO_STATE_UP       = 2;
+static constexpr int32_t PUSHER_MOVEINFO_STATE_DOWN     = 3;
+
+
+//
+// WID: TODO: Implement bbox3 type..
+//
+
+/**
+*   @note   At the time of calling, parent entity has to reside in its default state.
+*           (This so the actual offsets can be calculated easily.)
+**/
+void G_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover ) {
+    // Update targetname.
+    childMover->targetNames.movewith = targetName;
+
+    // Determine brushmodel bbox origins.
+    Vector3 parentOrigin = QM_BBox3Center(
+        QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
+    );
+    Vector3 childOrigin = QM_BBox3Center(
+        QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax )
+    );
+
+
+    // Calculate the relative offets for its origin and angles.
+    //Vector3 parentOrigin = parentMover->s.origin;
+    //Vector3 childOrigin = childMover->s.origin;
+    childMover->moveWith.absoluteOriginOffset = parentOrigin - childOrigin;
+    
+    // Fetch spawn angles.
+    Vector3 childAngles = childMover->s.angles;
+    childMover->moveWith.spawnParentAttachAngles = childAngles;
+    // Calculate delta angles.
+    Vector3 parentAngles = parentMover->s.angles;
+    childMover->moveWith.spawnDeltaAngles = childAngles - parentAngles;
+
+    // Debug
+    gi.dprintf( "%s: found parent(%s) for child entity(%s).\n", __func__, parentMover->targetNames.target, childMover->targetNames.movewith );
+}
+
+void G_MoveWith_Init( edict_t *self, edict_t *parent ) {
+
+}
+
+/**
+*   @brief
+**/
+void G_MoveWith_SetChildEntityMovement( edict_t *self ) {
+    //// Parent origin.
+    //Vector3 parentOrigin = moveWithEntity->s.origin;
+    //// Difference atm between parent origin and child origin.
+    //Vector3 diffOrigin = parentOrigin - ent->s.origin;
+    //// Reposition to parent with its default origin offset, subtract difference.
+    //Vector3 newOrigin = parentOrigin + moveWithEntity->moveWith.originOffset + diffOrigin;
+    //
+    //VectorCopy( newOrigin, ent->s.origin );
+}
+
+/**
+*   @brief 
+**/
+void G_MoveWith_AdjustToParent( edict_t *self ) {
+    // Get parent.
+    edict_t *parent = self->targetEntities.movewith;
+    if ( !parent ) {
+        return;
+    }
+
+    // Determine brushmodel bbox origins.
+    Vector3 parentOrigin = QM_BBox3Center(
+        QM_BBox3FromMinsMaxs( parent->absmin, parent->absmax )
+    );
+    Vector3 childOrigin = QM_BBox3Center(
+        QM_BBox3FromMinsMaxs( self->absmin, self->absmax )
+    );
+
+    // In case we are a mover, calculate the adjusted origin.
+    Vector3 relativeOffsetDelta = QM_Vector3Zero();
+    if ( self->movetype == MOVETYPE_PUSH || self->movetype == MOVETYPE_STOP ) {
+        relativeOffsetDelta = childOrigin - ( parentOrigin + self->moveWith.absoluteOriginOffset );
+    }
+    // Reposition the entities origin.
+    Vector3 newOrigin = parentOrigin + self->moveWith.absoluteOriginOffset + relativeOffsetDelta;
+
+    // Determine the readjustment.
+    Vector3 adjustment = newOrigin - childOrigin;
+
+    // 
+    self->pusherMoveInfo.start_origin += adjustment;
+    self->pusherMoveInfo.end_origin += adjustment;
+    self->pos1 += adjustment;
+    self->pos2 += adjustment;
+
+
+    //if ( self->pusherMoveInfo.state == PUSHER_MOVEINFO_STATE_BOTTOM ) {
+    //    VectorCopy( self->s.origin, self->pos1 );
+    //    VectorMA( self->pos1, self->pusherMoveInfo.distance, self->movedir, self->pos2 );
+    //} else if ( self->pusherMoveInfo.state == PUSHER_MOVEINFO_STATE_TOP ) {
+    //    VectorCopy( self->s.origin, self->pos2 );
+    //    VectorMA( self->pos2, -self->pusherMoveInfo.distance, self->movedir, self->pos1 );
+    //}
+    //VectorCopy( self->pos1, self->pusherMoveInfo.start_origin );
+    //VectorCopy( self->pos2, self->pusherMoveInfo.end_origin );
 }

@@ -379,10 +379,10 @@ void actor_use(edict_t *self, edict_t *other, edict_t *activator)
 {
     vec3_t      v;
 
-    self->goalentity = self->movetarget = G_PickTarget(self->target);
+    self->goalentity = self->movetarget = G_PickTarget(self->targetNames.target);
     if ((!self->movetarget) || (strcmp(self->movetarget->classname, "target_actor") != 0)) {
-        gi.dprintf("%s has bad target %s at %s\n", self->classname, self->target, vtos(self->s.origin));
-        self->target = NULL;
+        gi.dprintf("%s has bad target %s at %s\n", self->classname, self->targetNames.target, vtos(self->s.origin));
+        self->targetNames.target = NULL;
         self->monsterinfo.pause_time = HOLD_FOREVER;
         self->monsterinfo.stand(self);
         return;
@@ -391,7 +391,7 @@ void actor_use(edict_t *self, edict_t *other, edict_t *activator)
     VectorSubtract(self->goalentity->s.origin, self->s.origin, v);
     self->ideal_yaw = self->s.angles[YAW] = QM_Vector3ToYaw(v);
     self->monsterinfo.walk(self);
-    self->target = NULL;
+    self->targetNames.target = NULL;
 }
 
 
@@ -411,7 +411,7 @@ void SP_misc_actor(edict_t *self)
         return;
     }
 
-    if (!self->target) {
+    if (!self->targetNames.target) {
         gi.dprintf("%s with no target at %s\n", self->classname, vtos(self->s.origin));
         G_FreeEdict(self);
         return;
@@ -453,11 +453,11 @@ void SP_misc_actor(edict_t *self)
 
 /*QUAKED target_actor (.5 .3 0) (-8 -8 -8) (8 8 8) JUMP SHOOT ATTACK x HOLD BRUTAL
 JUMP            jump in set direction upon reaching this target
-SHOOT           take a single shot at the pathtarget
-ATTACK          attack pathtarget until it or actor is dead
+SHOOT           take a single shot at the targetNames.path
+ATTACK          attack targetNames.path until it or actor is dead
 
 "target"        next target_actor
-"pathtarget"    target of any action to be taken at this point
+"targetNames.path"    target of any action to be taken at this point
 "wait"          amount of time actor should pause at this point
 "message"       actor will "say" this to the player
 
@@ -503,7 +503,7 @@ void target_actor_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface
 
     if (self->spawnflags & 2) { //shoot
     } else if (self->spawnflags & 4) { //attack
-        other->enemy = G_PickTarget(self->pathtarget);
+        other->enemy = G_PickTarget(self->targetNames.path);
         if (other->enemy) {
             other->goalentity = other->enemy;
             if (self->spawnflags & 32)
@@ -517,16 +517,16 @@ void target_actor_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface
         }
     }
 
-    if (!(self->spawnflags & 6) && (self->pathtarget)) {
+    if (!(self->spawnflags & 6) && (self->targetNames.path)) {
         char *savetarget;
 
-        savetarget = self->target;
-        self->target = self->pathtarget;
+        savetarget = self->targetNames.target;
+        self->targetNames.target = self->targetNames.path;
         G_UseTargets(self, other);
-        self->target = savetarget;
+        self->targetNames.target = savetarget;
     }
 
-    other->movetarget = G_PickTarget(self->target);
+    other->movetarget = G_PickTarget(self->targetNames.target);
 
     if (!other->goalentity)
         other->goalentity = other->movetarget;

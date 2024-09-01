@@ -137,14 +137,17 @@ static const save_field_t entityfields[] = {
 
     F( angle ),
 
-    L( target ),
     L( targetname ),
-    L( killtarget ),
-    L( team ),
-    L( pathtarget ),
-    L( deathtarget ),
-    L( combattarget ),
-    E( target_ent ),
+    L( targetNames.target ),
+    L( targetNames.kill ),
+    L( targetNames.team ),
+    L( targetNames.path ),
+    L( targetNames.death ),
+    L( targetNames.combat ),
+    L( targetNames.movewith ),
+
+    E( targetEntities.target ),
+    E( targetEntities.movewith ),
 
     F( speed ),
     F( accel ),

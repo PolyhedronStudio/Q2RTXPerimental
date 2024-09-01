@@ -67,127 +67,182 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define DOOR_Y_AXIS         128
 
 
-//
-// Support routines for movement (changes in origin using velocity)
-//
 
-void Move_Done(edict_t *ent)
-{
-    VectorClear(ent->velocity);
-    ent->pusherMoveInfo.endfunc(ent);
+/**
+*
+*
+*
+*   Support routines for movement (changes in origin using velocity)
+*
+* 
+*
+**/
+/**
+*   @brief  
+**/
+void Move_Done( edict_t *ent ) {
+    // WID: MoveWith: Clear last velocity also.
+    VectorClear( ent->velocity );
+
+    if ( ent->pusherMoveInfo.endfunc ) {
+        ent->pusherMoveInfo.endfunc( ent );
+    }
+
+    //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
+    //    G_MoveWith_SetChildEntityMovement( ent );
+    //}
 }
-
-void Move_Final(edict_t *ent)
-{
-    if (ent->pusherMoveInfo.remaining_distance == 0) {
-        Move_Done(ent);
+/**
+*   @brief
+**/
+void Move_Final( edict_t *ent ) {
+    if ( ent->pusherMoveInfo.remaining_distance == 0 ) {
+        Move_Done( ent );
         return;
     }
 
-    VectorScale(ent->pusherMoveInfo.dir, ent->pusherMoveInfo.remaining_distance / FRAMETIME, ent->velocity);
+    VectorScale( ent->pusherMoveInfo.dir, ent->pusherMoveInfo.remaining_distance / FRAMETIME, ent->velocity );
+
+    //if ( ent->targetEntities.movewith ) {
+    //    VectorAdd( ent->targetEntities.movewith->velocity, ent->velocity, ent->velocity );
+    //}
 
     ent->think = Move_Done;
     ent->nextthink = level.time + FRAME_TIME_S;
+    //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
+    //    G_MoveWith_SetChildEntityMovement( ent );
+    //}
 }
-
-void Move_Begin(edict_t *ent)
-{
-    float   frames;
-
-	if ( ( ent->pusherMoveInfo.speed * gi.frame_time_s ) >= ent->pusherMoveInfo.remaining_distance ) {
-        Move_Final(ent);
+/**
+*   @brief
+**/
+void Move_Begin( edict_t *ent ) {
+    if ( ( ent->pusherMoveInfo.speed * gi.frame_time_s ) >= ent->pusherMoveInfo.remaining_distance ) {
+        Move_Final( ent );
         return;
     }
-    VectorScale(ent->pusherMoveInfo.dir, ent->pusherMoveInfo.speed, ent->velocity);
-	frames = floor( ( ent->pusherMoveInfo.remaining_distance / ent->pusherMoveInfo.speed ) / gi.frame_time_s );
-	ent->pusherMoveInfo.remaining_distance -= frames * ent->pusherMoveInfo.speed * gi.frame_time_s;
-	ent->nextthink = level.time + ( FRAME_TIME_S * frames );
-	ent->think = Move_Final;
+    VectorScale( ent->pusherMoveInfo.dir, ent->pusherMoveInfo.speed, ent->velocity );
+
+    //if ( ent->targetEntities.movewith ) {
+    //    VectorAdd( ent->targetEntities.movewith->velocity, ent->velocity, ent->velocity );
+    //    ent->pusherMoveInfo.remaining_distance -= ent->pusherMoveInfo.speed * gi.frame_time_s;
+    //    ent->nextthink = level.time + FRAME_TIME_S;
+    //    ent->think = Move_Begin;
+    //} else {
+    const float frames = floor( ( ent->pusherMoveInfo.remaining_distance / ent->pusherMoveInfo.speed ) / gi.frame_time_s );
+    ent->pusherMoveInfo.remaining_distance -= frames * ent->pusherMoveInfo.speed * gi.frame_time_s;
+    ent->nextthink = level.time + ( FRAME_TIME_S * frames );
+    ent->think = Move_Final;
+    //}
+
+    //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
+    //    G_MoveWith_SetChildEntityMovement( ent );
+    //}
 }
-
+/**
+*   @brief
+**/
 void Think_AccelMove(edict_t *ent);
-
-void Move_Calc(edict_t *ent, const Vector3 &dest, void(*func)(edict_t*))
-{
-    VectorClear(ent->velocity);
-    VectorSubtract(dest, ent->s.origin, ent->pusherMoveInfo.dir);
-    ent->pusherMoveInfo.remaining_distance = VectorNormalize(ent->pusherMoveInfo.dir);
+/**
+*   @brief
+**/
+void Move_Calc( edict_t *ent, const Vector3 &dest, void( *func )( edict_t * ) ) {
+    VectorClear( ent->velocity );
+    VectorSubtract( dest, ent->s.origin, ent->pusherMoveInfo.dir );
+    ent->pusherMoveInfo.remaining_distance = VectorNormalize( &ent->pusherMoveInfo.dir.x );
     ent->pusherMoveInfo.endfunc = func;
 
-    if (ent->pusherMoveInfo.speed == ent->pusherMoveInfo.accel && ent->pusherMoveInfo.speed == ent->pusherMoveInfo.decel) {
-        if (level.current_entity == ((ent->flags & FL_TEAMSLAVE) ? ent->teammaster : ent)) {
-            Move_Begin(ent);
+    if ( ent->pusherMoveInfo.speed == ent->pusherMoveInfo.accel && ent->pusherMoveInfo.speed == ent->pusherMoveInfo.decel ) {
+        // If a Team Master, engage move immediately:
+        if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
+            Move_Begin( ent );
+            //} else if ( ent->targetEntities.movewith ) {
+            //    Move_Begin( ent );
+            //} else {
+        // Team Slaves start moving next frame:
         } else {
-			ent->nextthink = level.time + FRAME_TIME_S;
+            ent->nextthink = level.time + FRAME_TIME_S;
             ent->think = Move_Begin;
         }
     } else {
         // accelerative
         ent->pusherMoveInfo.current_speed = 0;
         ent->think = Think_AccelMove;
-		ent->nextthink = level.time + FRAME_TIME_S;
+        ent->nextthink = level.time + FRAME_TIME_S;
     }
 }
 
 
-//
-// Support routines for angular movement (changes in angle using avelocity)
-//
 
-void AngleMove_Done(edict_t *ent)
-{
-    VectorClear(ent->avelocity);
-    ent->pusherMoveInfo.endfunc(ent);
+/**
+*
+*
+*
+*   Support routines for angular movement (changes in angle using avelocity)
+* 
+* 
+* 
+**/
+/**
+*   @brief
+**/
+void AngleMove_Done( edict_t *ent ) {
+    VectorClear( ent->avelocity );
+    ent->pusherMoveInfo.endfunc( ent );
 }
-
-void AngleMove_Final(edict_t *ent)
-{
+/**
+*   @brief
+**/
+void AngleMove_Final( edict_t *ent ) {
     vec3_t  move;
 
-    if (ent->pusherMoveInfo.state == STATE_UP)
-        VectorSubtract(ent->pusherMoveInfo.end_angles, ent->s.angles, move);
-    else
-        VectorSubtract(ent->pusherMoveInfo.start_angles, ent->s.angles, move);
+    if ( ent->pusherMoveInfo.state == STATE_UP ) {
+        VectorSubtract( ent->pusherMoveInfo.end_angles, ent->s.angles, move );
+    } else {
+        VectorSubtract( ent->pusherMoveInfo.start_angles, ent->s.angles, move );
+    }
 
-    if (VectorEmpty(move)) {
-        AngleMove_Done(ent);
+    if ( VectorEmpty( move ) ) {
+        AngleMove_Done( ent );
         return;
     }
 
-    VectorScale(move, 1.0f / FRAMETIME, ent->avelocity);
+    VectorScale( move, 1.0f / FRAMETIME, ent->avelocity );
 
     ent->think = AngleMove_Done;
-	ent->nextthink = level.time + FRAME_TIME_S;
+    ent->nextthink = level.time + FRAME_TIME_S;
 }
-
-void AngleMove_Begin(edict_t *ent)
-{
+/**
+*   @brief
+**/
+void AngleMove_Begin( edict_t *ent ) {
     vec3_t  destdelta;
     float   len;
     float   traveltime;
     float   frames;
 
     // set destdelta to the vector needed to move
-    if (ent->pusherMoveInfo.state == STATE_UP)
-        VectorSubtract(ent->pusherMoveInfo.end_angles, ent->s.angles, destdelta);
-    else
-        VectorSubtract(ent->pusherMoveInfo.start_angles, ent->s.angles, destdelta);
+    if ( ent->pusherMoveInfo.state == STATE_UP ) {
+        VectorSubtract( ent->pusherMoveInfo.end_angles, ent->s.angles, destdelta );
+    } else {
+        VectorSubtract( ent->pusherMoveInfo.start_angles, ent->s.angles, destdelta );
+    }
 
     // calculate length of vector
-    len = VectorLength(destdelta);
+    len = VectorLength( destdelta );
 
     // divide by speed to get time to reach dest
     traveltime = len / ent->pusherMoveInfo.speed;
 
-	if ( traveltime < gi.frame_time_s ) {
-        AngleMove_Final(ent);
+    if ( traveltime < gi.frame_time_s ) {
+        AngleMove_Final( ent );
         return;
     }
 
 	frames = floor( traveltime / gi.frame_time_s );
 
     // scale the destdelta vector by the time spent traveling to get velocity
-    VectorScale(destdelta, 1.0f / traveltime, ent->avelocity);
+    VectorScale( destdelta, 1.0f / traveltime, ent->avelocity );
 
 	// PGM
 	//  if we're done accelerating, act as a normal rotation
@@ -201,20 +256,31 @@ void AngleMove_Begin(edict_t *ent)
 	}
 	// PGM
 }
-
-void AngleMove_Calc(edict_t *ent, void(*func)(edict_t*))
-{
-    VectorClear(ent->avelocity);
+/**
+*   @brief
+**/
+void AngleMove_Calc( edict_t *ent, void( *func )( edict_t * ) ) {
+    VectorClear( ent->avelocity );
     ent->pusherMoveInfo.endfunc = func;
-    if (level.current_entity == ((ent->flags & FL_TEAMSLAVE) ? ent->teammaster : ent)) {
-        AngleMove_Begin(ent);
+    if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
+        AngleMove_Begin( ent );
     } else {
-		ent->nextthink = level.time + FRAME_TIME_S;
-		ent->think = AngleMove_Begin;
+        ent->nextthink = level.time + FRAME_TIME_S;
+        ent->think = AngleMove_Begin;
     }
 }
 
 
+
+/**
+*
+*
+*
+*   Move Acceleration:
+*
+*
+*
+**/
 /*
 ==============
 Think_AccelMove
@@ -223,69 +289,75 @@ The team has completed a frame of movement, so
 change the speed for the next frame
 ==============
 */
+/**
+*   @brief
+**/
 constexpr float AccelerationDistance( float target, float rate ) {
 	return ( target * ( ( target / rate ) + 1 ) / 2 );
 }
-
-void plat_CalcAcceleratedMove( g_pusher_moveinfo_t *moveinfo)
-{
+/**
+*   @brief
+**/
+void plat_CalcAcceleratedMove( g_pusher_moveinfo_t *moveinfo ) {
     float   accel_dist;
     float   decel_dist;
 
     moveinfo->move_speed = moveinfo->speed;
 
-    if (moveinfo->remaining_distance < moveinfo->accel) {
+    if ( moveinfo->remaining_distance < moveinfo->accel ) {
         moveinfo->current_speed = moveinfo->remaining_distance;
         return;
     }
 
-    accel_dist = AccelerationDistance(moveinfo->speed, moveinfo->accel);
-    decel_dist = AccelerationDistance(moveinfo->speed, moveinfo->decel);
+    accel_dist = AccelerationDistance( moveinfo->speed, moveinfo->accel );
+    decel_dist = AccelerationDistance( moveinfo->speed, moveinfo->decel );
 
-    if ((moveinfo->remaining_distance - accel_dist - decel_dist) < 0) {
+    if ( ( moveinfo->remaining_distance - accel_dist - decel_dist ) < 0 ) {
         float   f;
 
-        f = (moveinfo->accel + moveinfo->decel) / (moveinfo->accel * moveinfo->decel);
-        moveinfo->move_speed = (-2 + sqrtf(4 - 4 * f * (-2 * moveinfo->remaining_distance))) / (2 * f);
-        decel_dist = AccelerationDistance(moveinfo->move_speed, moveinfo->decel);
+        f = ( moveinfo->accel + moveinfo->decel ) / ( moveinfo->accel * moveinfo->decel );
+        moveinfo->move_speed = ( -2 + sqrtf( 4 - 4 * f * ( -2 * moveinfo->remaining_distance ) ) ) / ( 2 * f );
+        decel_dist = AccelerationDistance( moveinfo->move_speed, moveinfo->decel );
     }
 
     moveinfo->decel_distance = decel_dist;
 }
-
-void plat_Accelerate( g_pusher_moveinfo_t *moveinfo)
-{
+/**
+*   @brief
+**/
+void plat_Accelerate( g_pusher_moveinfo_t *moveinfo ) {
     // are we decelerating?
-    if (moveinfo->remaining_distance <= moveinfo->decel_distance) {
-        if (moveinfo->remaining_distance < moveinfo->decel_distance) {
-            if (moveinfo->next_speed) {
+    if ( moveinfo->remaining_distance <= moveinfo->decel_distance ) {
+        if ( moveinfo->remaining_distance < moveinfo->decel_distance ) {
+            if ( moveinfo->next_speed ) {
                 moveinfo->current_speed = moveinfo->next_speed;
                 moveinfo->next_speed = 0;
                 return;
             }
-            if (moveinfo->current_speed > moveinfo->decel)
+            if ( moveinfo->current_speed > moveinfo->decel ) {
                 moveinfo->current_speed -= moveinfo->decel;
+            }
         }
         return;
     }
 
     // are we at full speed and need to start decelerating during this move?
-    if (moveinfo->current_speed == moveinfo->move_speed)
-        if ((moveinfo->remaining_distance - moveinfo->current_speed) < moveinfo->decel_distance) {
+    if ( moveinfo->current_speed == moveinfo->move_speed )
+        if ( ( moveinfo->remaining_distance - moveinfo->current_speed ) < moveinfo->decel_distance ) {
             float   p1_distance;
             float   p2_distance;
             float   distance;
 
             p1_distance = moveinfo->remaining_distance - moveinfo->decel_distance;
-            p2_distance = moveinfo->move_speed * (1.0f - (p1_distance / moveinfo->move_speed));
+            p2_distance = moveinfo->move_speed * ( 1.0f - ( p1_distance / moveinfo->move_speed ) );
             distance = p1_distance + p2_distance;
             moveinfo->current_speed = moveinfo->move_speed;
-            moveinfo->next_speed = moveinfo->move_speed - moveinfo->decel * (p2_distance / distance);
+            moveinfo->next_speed = moveinfo->move_speed - moveinfo->decel * ( p2_distance / distance );
             return;
         }
 
     // are we accelerating?
-    if (moveinfo->current_speed < moveinfo->speed) {
+    if ( moveinfo->current_speed < moveinfo->speed ) {
         float   old_speed;
         float   p1_distance;
         float   p1_speed;
@@ -296,35 +368,39 @@ void plat_Accelerate( g_pusher_moveinfo_t *moveinfo)
 
         // figure simple acceleration up to move_speed
         moveinfo->current_speed += moveinfo->accel;
-        if (moveinfo->current_speed > moveinfo->speed)
+        if ( moveinfo->current_speed > moveinfo->speed ) {
             moveinfo->current_speed = moveinfo->speed;
+        }
 
         // are we accelerating throughout this entire move?
-        if ((moveinfo->remaining_distance - moveinfo->current_speed) >= moveinfo->decel_distance)
+        if ( ( moveinfo->remaining_distance - moveinfo->current_speed ) >= moveinfo->decel_distance ) {
             return;
+        }
 
         // during this move we will accelrate from current_speed to move_speed
         // and cross over the decel_distance; figure the average speed for the
         // entire move
         p1_distance = moveinfo->remaining_distance - moveinfo->decel_distance;
-        p1_speed = (old_speed + moveinfo->move_speed) / 2.0f;
-        p2_distance = moveinfo->move_speed * (1.0f - (p1_distance / p1_speed));
+        p1_speed = ( old_speed + moveinfo->move_speed ) / 2.0f;
+        p2_distance = moveinfo->move_speed * ( 1.0f - ( p1_distance / p1_speed ) );
         distance = p1_distance + p2_distance;
-        moveinfo->current_speed = (p1_speed * (p1_distance / distance)) + (moveinfo->move_speed * (p2_distance / distance));
-        moveinfo->next_speed = moveinfo->move_speed - moveinfo->decel * (p2_distance / distance);
+        moveinfo->current_speed = ( p1_speed * ( p1_distance / distance ) ) + ( moveinfo->move_speed * ( p2_distance / distance ) );
+        moveinfo->next_speed = moveinfo->move_speed - moveinfo->decel * ( p2_distance / distance );
         return;
     }
 
     // we are at constant velocity (move_speed)
     return;
 }
-
-void Think_AccelMove(edict_t *ent)
-{
+/**
+*   @brief
+**/
+void Think_AccelMove( edict_t *ent ) {
     ent->pusherMoveInfo.remaining_distance -= ent->pusherMoveInfo.current_speed;
 
-    if (ent->pusherMoveInfo.current_speed == 0)       // starting or blocked
-        plat_CalcAcceleratedMove(&ent->pusherMoveInfo);
+    if ( ent->pusherMoveInfo.current_speed == 0 ) {      // starting or blocked
+        plat_CalcAcceleratedMove( &ent->pusherMoveInfo );
+    }
 
     plat_Accelerate(&ent->pusherMoveInfo);
 
@@ -335,9 +411,14 @@ void Think_AccelMove(edict_t *ent)
     }
 
     VectorScale(ent->pusherMoveInfo.dir, ent->pusherMoveInfo.current_speed * 10, ent->velocity);
-	ent->nextthink = level.time + 10_hz;
 
+	ent->nextthink = level.time + 10_hz;
     ent->think = Think_AccelMove;
+
+    // Find entities that move along with this entity.
+    //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
+    //    G_MoveWith_SetChildEntityMovement( ent );
+    //}
 }
 
 
@@ -413,8 +494,20 @@ void plat_blocked(edict_t *self, edict_t *other)
 
 void Use_Plat(edict_t *ent, edict_t *other, edict_t *activator)
 {
-    if (ent->think)
+    // WID: <Q2RTXP> For func_button support.
+    if ( ( other && !strcmp( other->classname, "func_button" ) ) ) {
+        if ( ent->pusherMoveInfo.state == STATE_UP || ent->pusherMoveInfo.state == STATE_TOP ) {
+            plat_go_down( ent );
+        } else if ( ent->pusherMoveInfo.state == STATE_DOWN || ent->pusherMoveInfo.state == STATE_BOTTOM ) {
+            plat_go_up( ent );
+        }
         return;     // already down
+    }
+    // WID: </Q2RTXP>
+
+    if ( ent->think ) {
+        return;
+    }
     plat_go_down(ent);
 }
 
@@ -428,10 +521,11 @@ void Touch_Plat_Center(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t
         return;
 
     ent = ent->enemy;   // now point at the plat, not the trigger
-    if (ent->pusherMoveInfo.state == STATE_BOTTOM)
-        plat_go_up(ent);
-    else if (ent->pusherMoveInfo.state == STATE_TOP)
-		ent->nextthink = level.time + 1_sec; // the player is still on the plat, so delay going down
+    if ( ent->pusherMoveInfo.state == STATE_BOTTOM ) {
+        plat_go_up( ent );
+    } else if ( ent->pusherMoveInfo.state == STATE_TOP ) {
+        ent->nextthink = level.time + 1_sec; // the player is still on the plat, so delay going down
+    }
 }
 
 void plat_spawn_inside_trigger(edict_t *ent)
@@ -662,6 +756,7 @@ When a button is touched, it moves some distance in the direction of it's angle,
 "wait"      override the default 1 second wait (-1 = never return)
 "lip"       override the default 4 pixel lip remaining at end of move
 "health"    if set, the button must be killed instead of touched
+"moveparent" the parent entity it'll relatively stay offset and move along the origin with.
 "sounds"
 1) silent
 2) steam metal
@@ -746,7 +841,12 @@ void SP_func_button(edict_t *ent)
     float   dist;
 
     G_SetMovedir(ent->s.angles, ent->movedir );
-    ent->movetype = MOVETYPE_STOP;
+    if ( ent->targetNames.movewith ) {
+        ent->movetype = MOVETYPE_PUSH;
+
+    } else {
+        ent->movetype = MOVETYPE_STOP;
+    }
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
     gi.setmodel(ent, ent->model);
@@ -832,10 +932,10 @@ void door_use_areaportals(edict_t *self, bool open)
 {
     edict_t *t = NULL;
 
-    if (!self->target)
+    if (!self->targetNames.target)
         return;
 
-    while ((t = G_Find(t, FOFS(targetname), self->target))) {
+    while ((t = G_Find(t, FOFS(targetname), self->targetNames.target))) {
         //if (Q_stricmp(t->classname, "func_areaportal") == 0) {
         if ( t->s.entityType == ET_AREA_PORTAL ) {
             gi.SetAreaPortalState(t->style, open);
@@ -1185,7 +1285,7 @@ void SP_func_door(edict_t *ent)
         ent->s.effects |= EF_ANIM_ALLFAST;
 
     // to simplify logic elsewhere, make non-teamed doors into a team of one
-    if (!ent->team)
+    if (!ent->targetNames.team)
         ent->teammaster = ent;
 
     gi.linkentity(ent);
@@ -1313,7 +1413,7 @@ void SP_func_door_rotating(edict_t *ent)
         ent->s.effects |= EF_ANIM_ALL;
 
     // to simplify logic elsewhere, make non-teamed doors into a team of one
-    if (!ent->team)
+    if (!ent->targetNames.team)
         ent->teammaster = ent;
 
     gi.linkentity(ent);
@@ -1445,17 +1545,17 @@ void train_blocked(edict_t *self, edict_t *other)
 
 void train_wait(edict_t *self)
 {
-    if (self->target_ent->pathtarget) {
+    if (self->targetEntities.target->targetNames.path) {
         char    *savetarget;
         edict_t *ent;
 
-        ent = self->target_ent;
-        savetarget = ent->target;
-        ent->target = ent->pathtarget;
+        ent = self->targetEntities.target;
+        savetarget = ent->targetNames.target;
+        ent->targetNames.target = ent->targetNames.path;
         G_UseTargets(ent, self->activator);
-        ent->target = savetarget;
+        ent->targetNames.target = savetarget;
 
-        // make sure we didn't get killed by a killtarget
+        // make sure we didn't get killed by a targetNames.kill
         if (!self->inuse)
             return;
     }
@@ -1490,18 +1590,18 @@ void train_next(edict_t *self)
 
     first = true;
 again:
-    if (!self->target) {
+    if (!self->targetNames.target) {
 //      gi.dprintf ("train_next: no next target\n");
         return;
     }
 
-    ent = G_PickTarget(self->target);
+    ent = G_PickTarget(self->targetNames.target);
     if (!ent) {
-        gi.dprintf("train_next: bad target %s\n", self->target);
+        gi.dprintf("train_next: bad target %s\n", self->targetNames.target);
         return;
     }
 
-    self->target = ent->target;
+    self->targetNames.target = ent->targetNames.target;
 
     // check for a teleport path_corner
     if (ent->spawnflags & 1) {
@@ -1518,7 +1618,7 @@ again:
     }
 
     self->pusherMoveInfo.wait = ent->wait;
-    self->target_ent = ent;
+    self->targetEntities.target = ent;
 
     if (!(self->flags & FL_TEAMSLAVE)) {
         if (self->pusherMoveInfo.sound_start)
@@ -1539,7 +1639,7 @@ void train_resume(edict_t *self)
     edict_t *ent;
     vec3_t  dest;
 
-    ent = self->target_ent;
+    ent = self->targetEntities.target;
 
     VectorSubtract(ent->s.origin, self->mins, dest);
     self->pusherMoveInfo.state = STATE_TOP;
@@ -1553,16 +1653,16 @@ void func_train_find(edict_t *self)
 {
     edict_t *ent;
 
-    if (!self->target) {
+    if (!self->targetNames.target) {
         gi.dprintf("train_find: no target\n");
         return;
     }
-    ent = G_PickTarget(self->target);
+    ent = G_PickTarget(self->targetNames.target);
     if (!ent) {
-        gi.dprintf("train_find: target %s not found\n", self->target);
+        gi.dprintf("train_find: target %s not found\n", self->targetNames.target);
         return;
     }
-    self->target = ent->target;
+    self->targetNames.target = ent->targetNames.target;
 
     VectorSubtract(ent->s.origin, self->mins, self->s.origin);
     gi.linkentity(self);
@@ -1589,7 +1689,7 @@ void train_use(edict_t *self, edict_t *other, edict_t *activator)
         VectorClear(self->velocity);
         self->nextthink = 0_ms;
     } else {
-        if (self->target_ent)
+        if (self->targetEntities.target)
             train_resume(self);
         else
             train_next(self);
@@ -1625,7 +1725,7 @@ void SP_func_train(edict_t *self)
 
     gi.linkentity(self);
 
-    if (self->target) {
+    if (self->targetNames.target) {
         // start trains on the second frame, to make sure their targets have had
         // a chance to spawn
 		self->nextthink = level.time + FRAME_TIME_S;
@@ -1647,34 +1747,34 @@ void trigger_elevator_use(edict_t *self, edict_t *other, edict_t *activator)
         return;
     }
 
-    if (!other->pathtarget) {
-        gi.dprintf("elevator used with no pathtarget\n");
+    if (!other->targetNames.path) {
+        gi.dprintf("elevator used with no targetNames.path\n");
         return;
     }
 
-    target = G_PickTarget(other->pathtarget);
+    target = G_PickTarget(other->targetNames.path);
     if (!target) {
-        gi.dprintf("elevator used with bad pathtarget: %s\n", other->pathtarget);
+        gi.dprintf("elevator used with bad targetNames.path: %s\n", other->targetNames.path);
         return;
     }
 
-    self->movetarget->target_ent = target;
+    self->movetarget->targetEntities.target = target;
     train_resume(self->movetarget);
 }
 
 void trigger_elevator_init(edict_t *self)
 {
-    if (!self->target) {
+    if (!self->targetNames.target) {
         gi.dprintf("trigger_elevator has no target\n");
         return;
     }
-    self->movetarget = G_PickTarget(self->target);
+    self->movetarget = G_PickTarget(self->targetNames.target);
     if (!self->movetarget) {
-        gi.dprintf("trigger_elevator unable to find target %s\n", self->target);
+        gi.dprintf("trigger_elevator unable to find target %s\n", self->targetNames.target);
         return;
     }
     if (strcmp(self->movetarget->classname, "func_train") != 0) {
-        gi.dprintf("trigger_elevator target %s is not a train\n", self->target);
+        gi.dprintf("trigger_elevator target %s is not a train\n", self->targetNames.target);
         return;
     }
 

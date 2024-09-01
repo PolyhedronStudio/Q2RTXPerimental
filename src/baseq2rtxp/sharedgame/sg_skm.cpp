@@ -60,6 +60,75 @@ static void QuatSlerp( const quat_t from, const quat_t _to, float fraction, quat
     out[ 3 ] = from[ 3 ] * backlerp + to[ 3 ] * lerp;
 }
 /**
+*   @brief  Slerp from 4 control points.
+**/
+static void QuatSSlerp( const quat_t fromA, const quat_t fromB, const quat_t toB, const quat_t toA, const float fraction, quat_t out ) {
+    quat_t t1;
+    quat_t t2;
+
+    QuatSlerp( fromA, toA, fraction, t1 );
+    QuatSlerp( fromB, toB, fraction, t2 );
+    QuatSlerp( t1, t2, 2 * fraction * ( 1 - fraction ), out );
+}
+
+/**
+*   Sets a quaternion to represent the shortest rotation from one
+*   vector to another.
+**/
+const Quaternion QuaternionRotationTo( const Vector3 &a, const Vector3 &b ) {
+    Vector3 tmpVec3;
+    Vector3 xUnitVec3 = { 1., 0., 0. };
+    Vector3 yUnitVec3 = { 1., 0., 0. };
+
+    const float dot = QM_Vector3DotProduct( a, b );
+    if ( dot < -0.999999 ) {
+        tmpVec3 = QM_Vector3CrossProduct( xUnitVec3, a );
+        if ( QM_Vector3Length( tmpVec3 ) < 0.000001 ) {
+            tmpVec3 = QM_Vector3CrossProduct( yUnitVec3, a );
+        }
+        tmpVec3 = QM_Vector3Normalize( tmpVec3 );
+        return QM_QuaternionFromAxisAngle( tmpVec3, M_PI );
+    } else if ( dot > 0.999999 ) {
+        return { 0., 0., 0., 1. };
+    } else {
+        tmpVec3 = QM_Vector3CrossProduct( a, b );
+        return QM_QuaternionNormalize( { tmpVec3.x, tmpVec3.y, tmpVec3.z, 1 + dot } );
+    }
+}
+
+/**
+*   @brief  Will make sure that the Quaternions are within 180 degrees of each other, if not, reverse one instead.
+**/
+void QM_AlignQuaternions( const Quaternion &in1, const Quaternion &in2, Quaternion &out ) {
+    float a = 0.0;
+    float b = 0.0;
+
+    // dot product of in1 - in2
+    a += ( in1.x - in2.x ) * ( in1.x - in2.x );
+    a += ( in1.y - in2.y ) * ( in1.y - in2.y );
+    a += ( in1.z - in2.z ) * ( in1.z - in2.z );
+    a += ( in1.w - in2.w ) * ( in1.w - in2.w );
+
+    // dot product of in1 + in2
+    b += ( in1.x + in2.x ) * ( in1.x + in2.x );
+    b += ( in1.y + in2.y ) * ( in1.y + in2.y );
+    b += ( in1.z + in2.z ) * ( in1.z + in2.z );
+    b += ( in1.w + in2.w ) * ( in1.w + in2.w );
+
+    if ( a > b ) {
+        out[ 0 ] = -in2.x;
+        out[ 1 ] = -in2.y;
+        out[ 2 ] = -in2.z;
+        out[ 3 ] = -in2.w;
+    } else {
+        out[ 0 ] = in2.x;
+        out[ 1 ] = in2.y;
+        out[ 2 ] = in2.z;
+        out[ 3 ] = in2.w;
+    }
+}
+
+/**
 *   @brief
 **/
 static inline Quaternion QuatRotateX( const Quaternion &a, const double rad ) {
@@ -578,9 +647,9 @@ void SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_trans
 /**
 *   @brief  Will recursively blend(lerp by lerpfracs/slerp by fraction) the addBonePoses to addToBonePoses starting from the boneNode.
 **/
-void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transform_t *addToBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction ) {
+void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, const skm_transform_t *addToBonePoses, skm_transform_t *outBonePoses, const skm_bone_node_t *boneNode, const double backLerp, const double fraction ) {
     // If the bone node is invalid, escape.
-    if ( !boneNode || !addBonePoses || !addToBonePoses ) {
+    if ( !boneNode || !addBonePoses || !addToBonePoses || !outBonePoses ) {
         // TODO: Warn.
         return;
     }
@@ -589,39 +658,48 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
     const int32_t boneNumber = ( boneNode->number > 0 ? boneNode->number : 0 );
 
     // Proceed if the bone number is valid and not an excluded bone.
-    const skm_transform_t *inBone = addBonePoses;
-    skm_transform_t *outBone = addToBonePoses;
+    const skm_transform_t *addBone = addBonePoses;
+    const skm_transform_t *addToBone = addToBonePoses;
+    skm_transform_t *outBone = outBonePoses;
 
     if ( boneNumber >= 0 ) {
-        inBone += boneNumber;
+        addBone += boneNumber;
+        addToBone += boneNumber;
         outBone += boneNumber;
     }
 
     if ( fraction == 1 ) {
         #if 1
         // Copy bone translation and scale;
-        * outBone->translate = *inBone->translate;
-        *outBone->scale = *inBone->scale;
+        *outBone->translate = *addBone->translate;
+        *outBone->scale = *addBone->scale;
         //*outBone->rotate = *inBone->rotate;
         // Slerp the rotation at fraction.	
-        QuatSlerp( outBone->rotate, inBone->rotate, 1.0, outBone->rotate );
-        //QuatSlerp( inBone->rotate, outBone->rotate, 1.0, outBone->rotate );
+        quat_t t1;
+        quat_t t2;
+
+        const double frontLerp = 1.0 - backLerp;
+
+        QuatSlerp( addBone->rotate, addToBone->rotate, fraction, t1 );
+        QuatSlerp( addToBone->rotate, addBone->rotate, fraction, t2 );
+        QuatSlerp( t2, t1, 2 * fraction * ( 1 - fraction ), outBone->rotate );
+
         #else
         const double frontLerp = 1.0 - fraction;
         // Lerp the Translation.
         //*outBone->translate = *inBone->translate;
-        outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
-        outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
-        outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
+        outBone->translate[ 0 ] = ( addToBone->translate[ 0 ] * backLerp + addBone->translate[ 0 ] * frontLerp );
+        outBone->translate[ 1 ] = ( addToBone->translate[ 1 ] * backLerp + addBone->translate[ 1 ] * frontLerp );
+        outBone->translate[ 2 ] = ( addToBone->translate[ 2 ] * backLerp + addBone->translate[ 2 ] * frontLerp );
         // Lerp the  Scale.
         //*outBone->scale = *inBone->scale;
-        outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
-        outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
-        outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;		// Slerp the rotation at fraction.	
+        outBone->scale[ 0 ] = addToBone->scale[ 0 ] * backLerp + addBone->scale[ 0 ] * frontLerp;
+        outBone->scale[ 1 ] = addToBone->scale[ 1 ] * backLerp + addBone->scale[ 1 ] * frontLerp;
+        outBone->scale[ 2 ] = addToBone->scale[ 2 ] * backLerp + addBone->scale[ 2 ] * frontLerp;		// Slerp the rotation at fraction.	
 
         // Slerp the rotation at fraction.	
         //*outBone->rotate = *inBone->rotate;
-        QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+        QuatSSlerp( addBone->rotate, addToBone->rotate, addBone->rotate, addToBone->rotate, fraction, outBone->rotate );
         //QuatSlerp( inBone->rotate, outBone->rotate, fraction, outBone->rotate );
         #endif
     } else {
@@ -629,24 +707,32 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
         #if 1
         const double frontLerp = 1.0 - backLerp;
         // Lerp the Translation.
-        outBone->translate[ 0 ] = ( outBone->translate[ 0 ] * backLerp + inBone->translate[ 0 ] * frontLerp );
-        outBone->translate[ 1 ] = ( outBone->translate[ 1 ] * backLerp + inBone->translate[ 1 ] * frontLerp );
-        outBone->translate[ 2 ] = ( outBone->translate[ 2 ] * backLerp + inBone->translate[ 2 ] * frontLerp );
-        // Lerp the Scale.
-        outBone->scale[ 0 ] = outBone->scale[ 0 ] * backLerp + inBone->scale[ 0 ] * frontLerp;
-        outBone->scale[ 1 ] = outBone->scale[ 1 ] * backLerp + inBone->scale[ 1 ] * frontLerp;
-        outBone->scale[ 2 ] = outBone->scale[ 2 ] * backLerp + inBone->scale[ 2 ] * frontLerp;
+        //*outBone->translate = *inBone->translate;
+        outBone->translate[ 0 ] = ( addToBone->translate[ 0 ] * backLerp + addBone->translate[ 0 ] * frontLerp );
+        outBone->translate[ 1 ] = ( addToBone->translate[ 1 ] * backLerp + addBone->translate[ 1 ] * frontLerp );
+        outBone->translate[ 2 ] = ( addToBone->translate[ 2 ] * backLerp + addBone->translate[ 2 ] * frontLerp );
+        // Lerp the  Scale.
+        //*outBone->scale = *inBone->scale;
+        outBone->scale[ 0 ] = addToBone->scale[ 0 ] * backLerp + addBone->scale[ 0 ] * frontLerp;
+        outBone->scale[ 1 ] = addToBone->scale[ 1 ] * backLerp + addBone->scale[ 1 ] * frontLerp;
+        outBone->scale[ 2 ] = addToBone->scale[ 2 ] * backLerp + addBone->scale[ 2 ] * frontLerp;		// Slerp the rotation at fraction.	
 
-        // Slerp the rotation
-        //*outBone->rotate = *inBone->rotate;
-        QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
-        //QuatSlerp( inBone->rotate, outBone->rotate, fraction, outBone->rotate );
+        // Slerp the rotation at fraction.	
+        //QuatSSlerp( addBone->rotate, addBone->rotate, addToBone->rotate, addToBone->rotate, fraction, outBone->rotate );
+        quat_t t1;
+        quat_t t2;
+
+        QuatSlerp( addBone->rotate, addToBone->rotate, fraction, t1 );
+        QuatSlerp( addToBone->rotate, addBone->rotate, fraction, t2 );
+        QuatSlerp( t2, t1, 2 * fraction * ( 1 - fraction ), outBone->rotate );
+
         #else
         // Copy bone translation and scale;
-        *outBone->translate = *inBone->translate;
-        *outBone->scale = *inBone->scale;
-        // Slerp rotation by fraction.
-        QuatSlerp( outBone->rotate, inBone->rotate, fraction, outBone->rotate );
+        *outBone->translate = *addBone->translate;
+        *outBone->scale = *addBone->scale;
+        //*outBone->rotate = *inBone->rotate;
+        // Slerp the rotation at fraction.	
+        QuatSlerp( addToBone->rotate, addBone->rotate, fraction, outBone->rotate );
         //QuatSlerp( inBone->rotate, outBone->rotate, fraction, outBone->rotate );
         #endif
     }
@@ -655,7 +741,7 @@ void SKM_RecursiveBlendFromBone( const skm_transform_t *addBonePoses, skm_transf
     for ( int32_t i = 0; i < boneNode->numberOfChildNodes; i++ ) {
         const skm_bone_node_t *childBoneNode = boneNode->childBones[ i ];
         if ( childBoneNode != nullptr && childBoneNode->numberOfChildNodes > 0 ) {
-            SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, childBoneNode, backLerp, fraction );
+            SKM_RecursiveBlendFromBone( addBonePoses, addToBonePoses, outBonePoses, childBoneNode, backLerp, fraction );
         }
     }
 }
@@ -920,6 +1006,8 @@ void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const s
 
 /**
 *   @brief  Processes and applies the bone controllers to the pose, for the current time.
+*   @note   The pose is expected to be untempered with in any way. 
+*           This means that it should contain purely relative blended joints sourced by lerping and recursive blending.
 **/
 void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControllers, const int32_t numBoneControllers, const sg_time_t &currentTime, skm_transform_t *inOutBonePoses ) {
     // Sanity check.
@@ -957,21 +1045,20 @@ void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControlle
         *   Rotation:
         **/
         if ( boneController->transformMask & SKM_BONE_CONTROLLER_TRANSFORM_ROTATION ) {
-            double wishYaw = boneController->target.rotation.targetYaw;
+            // The desired target Yaw.
+            const double targetYaw = boneController->target.rotation.targetYaw;
 
-            if ( boneControlFactor >= 1 ) {
-                Quaternion baseFullRotQuat = QuatRotateY( boneController->baseTransform.rotate, DEG2RAD( wishYaw ) );
-                Vector4Copy( baseFullRotQuat, boneController->currentTransform.rotate );
-            }
+            // Calculate the final target destination quaternion relative to the source bone pose Quaternion.
+            Quaternion targetQuat = QuatRotateY( inOutBonePoses[ boneController->boneNumber ].rotate, DEG2RAD( targetYaw ) );
+            // Make sure to -180/+180 align normalize the quaternions to prevent any odd rotations from happening. (Edge cases.)
+            QM_AlignQuaternions( inOutBonePoses[ boneController->boneNumber ].rotate, targetQuat, targetQuat );
 
-            // Calculate the new state bonepose yaw quaternion.
-            Quaternion wishQuat = QuatRotateY( inOutBonePoses[ boneController->boneNumber ].rotate, DEG2RAD( wishYaw ) );
-            // 'Control' the BonePose's rotation Quaternion by Slerping for 'boneControlFactor' to the newly calculated Quaternion.
-            Quaternion newQuat = QM_QuaternionSlerp( boneController->currentTransform.rotate, wishQuat, ( boneControlFactor < 1 ? boneControlFactor : 1 ) );
-            // Copy the 'controller' Quaternion into the BonePose's Rotation Quaternion.
-            Vector4Copy( newQuat, inOutBonePoses[ boneController->boneNumber ].rotate );
+            // 'Control' the BonePose's rotation Quaternion by Slerping for 'boneControlFactor' to the target Quaternion.
+            Quaternion outQuat = QM_QuaternionSlerp( boneController->currentTransform.rotate, targetQuat, ( boneControlFactor < 1 ? boneControlFactor : 1 ) );
             // Store a copy of the current actual 'Controller' Quaternion for later re-use as a source to start Slerping from.
-            Vector4Copy( newQuat, boneController->currentTransform.rotate );
+            Vector4Copy( outQuat, boneController->currentTransform.rotate );
+            // Copy the 'controller' Quaternion into the BonePose's Rotation Quaternion.
+            Vector4Copy( outQuat, inOutBonePoses[ boneController->boneNumber ].rotate );
         }
     }
 }

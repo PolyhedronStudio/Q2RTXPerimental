@@ -338,7 +338,7 @@ void SP_trigger_key( edict_t *self ) {
 		return;
 	}
 
-	if ( !self->target ) {
+	if ( !self->targetNames.target ) {
 		gi.dprintf( "%s at %s has no target\n", self->classname, vtos( self->s.origin ) );
 		return;
 	}

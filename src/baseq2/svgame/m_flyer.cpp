@@ -549,8 +549,8 @@ void SP_monster_flyer(edict_t *self)
 
     // fix a map bug in jail5.bsp
     if (!Q_stricmp(level.mapname, "jail5") && (self->s.origin[2] == -104)) {
-        self->targetname = self->target;
-        self->target = NULL;
+        self->targetname = self->targetNames.target;
+        self->targetNames.target = NULL;
     }
 
     sound_sight = gi.soundindex("flyer/flysght1.wav");

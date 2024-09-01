@@ -372,7 +372,7 @@ void use_target_spawner(edict_t *self, edict_t *other, edict_t *activator)
     edict_t *ent;
 
     ent = G_AllocateEdict();
-    ent->classname = self->target;
+    ent->classname = self->targetNames.target;
     VectorCopy(self->s.origin, ent->s.origin);
     VectorCopy(self->s.angles, ent->s.angles);
     ED_CallSpawn(ent);
@@ -437,7 +437,7 @@ void SP_target_blaster(edict_t *self)
 //==========================================================
 
 /*QUAKED target_crosslevel_trigger (.5 .5 .5) (-8 -8 -8) (8 8 8) trigger1 trigger2 trigger3 trigger4 trigger5 trigger6 trigger7 trigger8
-Once this trigger is touched/used, any trigger_crosslevel_target with the same trigger number is automatically used when a level is started within the same unit.  It is OK to check multiple triggers.  Message, delay, target, and killtarget also work.
+Once this trigger is touched/used, any trigger_crosslevel_target with the same trigger number is automatically used when a level is started within the same unit.  It is OK to check multiple triggers.  Message, delay, target, and targetNames.kill also work.
 */
 void trigger_crosslevel_trigger_use(edict_t *self, edict_t *other, edict_t *activator)
 {
@@ -453,7 +453,7 @@ void SP_target_crosslevel_trigger(edict_t *self)
 
 /*QUAKED target_crosslevel_target (.5 .5 .5) (-8 -8 -8) (8 8 8) trigger1 trigger2 trigger3 trigger4 trigger5 trigger6 trigger7 trigger8
 Triggered by a trigger_crosslevel elsewhere within a unit.  If multiple triggers are checked, all must be true.  Delay, target and
-killtarget also work.
+targetNames.kill also work.
 
 "delay"     delay before using targets if the trigger has been activated (default 1)
 */
@@ -596,10 +596,10 @@ void target_laser_start(edict_t *self)
         self->s.skinnum = 0xe0e1e2e3;
 
     if (!self->enemy) {
-        if (self->target) {
-            ent = G_Find(NULL, FOFS(targetname), self->target);
+        if (self->targetNames.target) {
+            ent = G_Find(NULL, FOFS(targetname), self->targetNames.target);
             if (!ent)
-                gi.dprintf("%s at %s: %s is a bad target\n", self->classname, vtos(self->s.origin), self->target);
+                gi.dprintf("%s at %s: %s is a bad target\n", self->classname, vtos(self->s.origin), self->targetNames.target);
             self->enemy = ent;
         } else {
             G_SetMovedir(self->s.angles, self->movedir);
@@ -663,19 +663,19 @@ void target_lightramp_use(edict_t *self, edict_t *other, edict_t *activator)
         // check all the targets
         e = NULL;
         while (1) {
-            e = G_Find(e, FOFS(targetname), self->target);
+            e = G_Find(e, FOFS(targetname), self->targetNames.target);
             if (!e)
                 break;
             if (strcmp(e->classname, "light") != 0) {
                 gi.dprintf("%s at %s ", self->classname, vtos(self->s.origin));
-                gi.dprintf("target %s (%s at %s) is not a light\n", self->target, e->classname, vtos(e->s.origin));
+                gi.dprintf("target %s (%s at %s) is not a light\n", self->targetNames.target, e->classname, vtos(e->s.origin));
             } else {
                 self->enemy = e;
             }
         }
 
         if (!self->enemy) {
-            gi.dprintf("%s target %s not found at %s\n", self->classname, self->target, vtos(self->s.origin));
+            gi.dprintf("%s target %s not found at %s\n", self->classname, self->targetNames.target, vtos(self->s.origin));
             G_FreeEdict(self);
             return;
         }
@@ -698,7 +698,7 @@ void SP_target_lightramp(edict_t *self)
         return;
     }
 
-    if (!self->target) {
+    if (!self->targetNames.target) {
         gi.dprintf("%s with no target at %s\n", self->classname, vtos(self->s.origin));
         G_FreeEdict(self);
         return;

@@ -182,7 +182,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
             gi.dprintf("Think_Delay with no activator\n");
         t->message = ent->message;
         t->target = ent->target;
-        t->killtarget = ent->killtarget;
+        t->targetNames.kill = ent->targetNames.kill;
         return;
     }
 
@@ -201,9 +201,9 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 //
 // kill killtargets
 //
-    if (ent->killtarget) {
+    if (ent->targetNames.kill) {
         t = NULL;
-        while ((t = G_Find(t, FOFS(targetname), ent->killtarget))) {
+        while ((t = G_Find(t, FOFS(targetname), ent->targetNames.kill))) {
             G_FreeEdict(t);
             if (!ent->inuse) {
                 gi.dprintf("entity was removed while using killtargets\n");

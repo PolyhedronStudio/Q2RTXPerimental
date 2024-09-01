@@ -677,7 +677,7 @@ void G_RunFrame(void)
     }
 
     //
-    // treat each object in turn
+    // Treat each object in turn
     // even the world gets a chance to think
     //
     ent = &g_edicts[ 0 ];
@@ -730,6 +730,77 @@ void G_RunFrame(void)
             continue;
         } else {
             G_RunEntity( ent );
+
+            //
+            //
+            //
+            //if ( ent->targetEntities.movewith && ent->inuse && ( ent->movetype == MOVETYPE_PUSH || ent->movetype == MOVETYPE_STOP ) ) {
+            //    edict_t *moveWithEntity = ent->targetEntities.movewith;
+            //    if ( moveWithEntity->inuse && ( moveWithEntity->movetype == MOVETYPE_PUSH || moveWithEntity->movetype == MOVETYPE_STOP ) ) {
+            //        // Parent origin.
+            //        Vector3 parentOrigin = moveWithEntity->s.origin;
+            //        // Difference atm between parent origin and child origin.
+            //        Vector3 diffOrigin = parentOrigin - ent->s.origin;
+            //        // Reposition to parent with its default origin offset, subtract difference.
+            //        Vector3 newOrigin = parentOrigin + moveWithEntity->moveWith.originOffset + diffOrigin;
+            //        
+            //        //VectorCopy( newOrigin, ent->s.origin );
+            //        #define STATE_TOP           0
+            //        #define STATE_BOTTOM        1
+            //        #define STATE_UP            2
+            //        #define STATE_DOWN          3
+            //        
+            //        vec3_t delta_angles, forward, right, up;
+            //        VectorSubtract( moveWithEntity->s.angles, ent->moveWith.originAnglesOffset, delta_angles );
+            //        AngleVectors( delta_angles, forward, right, up );
+            //        VectorNegate( right, right );
+
+            //        vec3_t angles;
+            //        VectorAdd( ent->s.angles, ent->moveWith.originAnglesOffset, angles );
+            //        G_SetMovedir( angles, ent->movedir );
+
+            //        VectorMA( moveWithEntity->s.origin, ent->moveWith.originOffset[ 0 ], forward, ent->pos1 );
+            //        VectorMA( ent->pos1, ent->moveWith.originOffset[ 1 ], right, ent->pos1 );
+            //        VectorMA( ent->pos1, ent->moveWith.originOffset[ 2 ], up, ent->pos1 );
+            //        VectorMA( ent->pos1, ent->pusherMoveInfo.distance, ent->movedir, ent->pos2 );
+            //        VectorCopy( ent->pos1, ent->pusherMoveInfo.start_origin );
+            //        VectorCopy( ent->s.angles, ent->pusherMoveInfo.start_angles );
+            //        VectorCopy( ent->pos2, ent->pusherMoveInfo.end_origin );
+            //        VectorCopy( ent->s.angles, ent->pusherMoveInfo.end_angles );
+            //        if ( ent->pusherMoveInfo.state == STATE_BOTTOM || ent->pusherMoveInfo.state == STATE_TOP ) {
+            //            // Velocities for door/button movement are handled in normal
+            //            // movement routines
+            //            VectorCopy( moveWithEntity->velocity, ent->velocity );
+            //            // Sanity insurance:
+            //            if ( ent->pusherMoveInfo.state == STATE_BOTTOM ) {
+            //                VectorCopy( ent->pos1, ent->s.origin );
+            //            } else {
+            //                VectorCopy( ent->pos2, ent->s.origin );
+            //            }
+            //        }
+
+            //        gi.linkentity( ent );
+
+            //        //gi.dprintf( "%s: entID(%i), moveWithEntity->origin(%f, %f, %f)\n", __func__, ent->s.number, newMoveWithOrigin.x, newMoveWithOrigin.y, newMoveWithOrigin.z );
+            //    }
+            //}
+        }
+    }
+
+    //
+    // Readjust specific mover entities if necessary.
+    //
+    for ( int32_t i = 0; i < game.num_movewithEntityStates; i++ ) {
+        // Child mover.
+        edict_t *ent = game.moveWithEntities[ i ].entity;
+
+        if ( ent->targetEntities.movewith && ent->inuse && ( ent->movetype == MOVETYPE_PUSH || ent->movetype == MOVETYPE_STOP ) ) {
+            edict_t *moveWithEntity = ent->targetEntities.movewith;
+
+            if ( moveWithEntity->inuse && ( moveWithEntity->movetype == MOVETYPE_PUSH || moveWithEntity->movetype == MOVETYPE_STOP ) ) {
+
+                G_MoveWith_AdjustToParent( ent );
+            }
         }
     }
 

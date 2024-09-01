@@ -589,8 +589,8 @@ void medic_cable_attack(edict_t *self)
         self->enemy->monsterinfo.aiflags = 0;
         self->enemy->target = NULL;
         self->enemy->targetname = NULL;
-        self->enemy->combattarget = NULL;
-        self->enemy->deathtarget = NULL;
+        self->enemy->targetNames.combat = NULL;
+        self->enemy->targetNames.death = NULL;
         self->enemy->owner = self;
         ED_CallSpawn(self->enemy);
         self->enemy->owner = NULL;

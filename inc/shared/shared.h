@@ -55,17 +55,17 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     #include <ctime>
     // C++ STL Headers:
     #include <version>
-    #include <bit>
+    //#include <bit>
     #include <type_traits>
-    #include <algorithm>
-    #include <array>
+    //#include <algorithm>
+    //#include <array>
     #include <list>
-    #include <functional>
-    #include <map>
+    //#include <functional>
+    //#include <map>
     #include <numeric>
-    #include <unordered_map>
-    #include <set>
-    #include <unordered_set>
+    //#include <unordered_map>
+    //#include <set>
+    //#include <unordered_set>
     #include <random>
     #include <string_view>
     #include <vector>
@@ -190,7 +190,7 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 // Includes the 'old' math library support. Which is pretty much still in use all over the place.
 // Strictly speaking, for consistency sake, we should update all code however it is prone to creating
 // possible new bugs and takes a lot of time to invest.
-#include "shared/math/math_old.h"
+#include "shared/math/q2rtx_legacy.h"
 
 #ifdef __cplusplus
 };  // Escape extern "C" for raymath.h include. ( This is because we got some C++ specifics code in there. )
@@ -202,7 +202,7 @@ typedef float mat3x4[ 12 ];
 //! Use static inlining for all its functions.
 #define RAYMATH_STATIC_INLINE
 //! Include our own custom version of raylib1.5 its raymath library.
-#include <shared/math/qray_math.h>
+#include <shared/math/qm_math.h>
 
 #ifdef __cplusplus
 // We extern back to "C"
@@ -259,7 +259,7 @@ extern "C" {
 
 
 //! Collision: 
-//! Maximum World 'Half-Size'. Now 8 times(+/- 32768) larger than the old Q2 Vanilla 'Half-Size': (+/- 4096).
+//! Maximum World 'Half-Size'. Now 8 times larger(+/- 32768) than the old Q2 Vanilla 'Half-Size': (+/- 4096).
 #define CM_MAX_WORLD_HALF_SIZE 32768
 //! Maximum World Size, used for calculating various trace distance end point vectors. ( 32768 * 2 == 65536 )
 #define CM_MAX_WORLD_SIZE ( CM_MAX_WORLD_HALF_SIZE * 2 )

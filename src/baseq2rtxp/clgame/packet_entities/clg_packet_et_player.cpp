@@ -196,13 +196,7 @@ static const bool CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( const model_t
             outPoseBuffer,
             ( boneNode != nullptr ? boneNode->number : 0 ), rootMotionAxisFlags
         );
-    // If we don't, just copy in the retreived first frame pose data instead.
     }
-    //else if ( framePose ) {
-    //    memcpy( outPoseBuffer, framePose, model->skmData->num_poses * sizeof( skm_transform_t ) );//SKM_MAX_BONES * sizeof( iqm_transform_t ) );
-    //}
-
-    // !!! Does not per se mean, backLerp > 0
     return isPlaying;
 }
 
@@ -210,12 +204,6 @@ static const bool CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( const model_t
 *   @brief  Calculate desired yaw derived player state move direction, and recored time of change.
 **/
 const bool CLG_ETPlayer_CalculateDesiredYaw( centity_t *packetEntity, const player_state_t *playerState, const player_state_t *oldPlayerState, const sg_time_t &currentTime ) {
-    // Get bone controllers.
-    skm_bone_controller_t *hipsBoneController = &packetEntity->boneControllers[ 0 ];
-    skm_bone_controller_t *spineBoneController = &packetEntity->boneControllers[ 1 ];
-    skm_bone_controller_t *spine2BoneController = &packetEntity->boneControllers[ 2 ];
-    skm_bone_controller_t *neckBoneController = &packetEntity->boneControllers[ 3 ];
-
     if ( playerState->animation.moveDirection != oldPlayerState->animation.moveDirection ) {
         const int32_t moveDirection = playerState->animation.moveDirection;
         if ( ( moveDirection & PM_MOVEDIRECTION_FORWARD ) && ( moveDirection & PM_MOVEDIRECTION_LEFT ) ) {
@@ -299,7 +287,6 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
         updateYawControllers = CLG_ETPlayer_CalculateDesiredYaw( packetEntity, currentTime );
     }
 
-    #if 1
     /**
     *   Update the controllers if a change has been detected,
     **/
@@ -386,84 +373,6 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
     *   Apply the bone controllers to the lerpedBonePoses.
     **/
     SKM_BoneController_ApplyToPoseForTime( packetEntity->boneControllers, 3, currentTime, lerpedBonePose );
-    #else
-    // Determine wish yaw based on yDot.
-    const double wishYaw = packetEntity->moveInfo.current.transitions.yaw.desired;
-    //double dotFactor = ( 1.0 / 0.3 ) * ( packetEntity->moveInfo.current.yDot * 0.3 );
-
-    /**
-    *   Acquire access to desired Bone Nodes:
-    **/
-    // The model's hip bone.
-    skm_bone_node_t *hipsBoneNode = clgi.SKM_GetBoneByName( model, "mixamorig8:Hips" );
-    // Spine bones, for upper body event animations.
-    skm_bone_node_t *spineBoneNode = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine" );
-    skm_bone_node_t *spine1BoneNode = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine1" );
-    skm_bone_node_t *spine2BoneNode = clgi.SKM_GetBoneByName( model, "mixamorig8:Spine2" );
-    //skm_bone_node_t *neckBone = clgi.SKM_GetBoneByName( model, "mixamorig8:Neck" );
-    // Shoulder bones.
-    //skm_bone_node_t *leftShoulderBone = clgi.SKM_GetBoneByName( model, "mixamorig8:LeftShoulder" );
-    //skm_bone_node_t *rightShoulderBone = clgi.SKM_GetBoneByName( model, "mixamorig8:RightShoulder" );
-    // Leg bones.
-    //skm_bone_node_t *leftUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:LeftUpLeg" );
-    //skm_bone_node_t *rightUpLegBone = clgi.SKM_GetBoneByName( model, "mixamorig8:RightUpLeg" );
-    skm_transform_t *hipsTransform = &lerpedBonePose[ hipsBoneNode->number ];
-    skm_transform_t *spineTransform = &lerpedBonePose[ spineBoneNode->number ];
-    skm_transform_t *spine1Transform = &lerpedBonePose[ spine1BoneNode->number ];
-    skm_transform_t *spine2Transform = &lerpedBonePose[ spine2BoneNode->number ];
-
-    // Initial actual
-    static Quaternion actualHipsYawQuat = lerpedBonePose[ hipsBoneNode->number ].rotate;
-    static Quaternion actualSpineYawQuat = lerpedBonePose[ spineBoneNode->number ].rotate;
-    static Quaternion actualSpine1YawQuat = lerpedBonePose[ spine1BoneNode->number ].rotate;
-
-    static constexpr sg_time_t hipsYawSlerpTime = 125_ms;
-    static constexpr sg_time_t spineYawSlerpTime = 75_ms;
-
-    // Determine bone control Slerp fraction based on the time changed.
-    const sg_time_t timeYawChangeFinished = packetEntity->moveInfo.current.transitions.yaw.timeChanged + 350_ms;
-    float controlFactor = 1;
-    if ( currentTime <= timeYawChangeFinished ) {
-        double factor = 1.0 / 350.0;
-        controlFactor = 1.0 - ( ( timeYawChangeFinished - currentTime ).milliseconds() * factor );
-    }
-
-    // If factor >= 1 then we're finished, so perform a hard copy instead.
-    if ( controlFactor >= 1 ) {
-        actualHipsYawQuat = QuatRotateY( hipsTransform->rotate, DEG2RAD( wishYaw ) );
-        actualSpineYawQuat = QuatRotateY( spineTransform->rotate, -DEG2RAD( wishYaw ) );
-        actualSpine1YawQuat = QuatRotateY( spine1Transform->rotate, -DEG2RAD( wishYaw / 4 ) );
-    } else {
-        //actualHipsYawQuat = hipsTransform->rotate; //actualHipsYawQuat = lerpedBonePose[ hipsBone->number ].rotate; //actualSpineYawQuat = lerpedBonePose[ spineBone->number ].rotate; //actualSpine1YawQuat = lerpedBonePose[ spine1Bone->number ].rotate;
-    }
-
-    // Calculate the new 'Hips' BonePose's desired(final) state Rotation Quaternion.
-    Quaternion wishHipsQuat = QuatRotateY( lerpedBonePose[ hipsBoneNode->number ].rotate, DEG2RAD( wishYaw ) );
-    // 'Control' the 'Hips' BonePose's rotation Quaternion by Slerping for 'controlFactor' to the newly calculated Quaternion.
-    Quaternion newHipsQuat = QM_QuaternionSlerp( actualHipsYawQuat, wishHipsQuat, ( controlFactor < 1 ? controlFactor : 1 ) );
-    // Copy the 'controller' Quaternion into the BonePose's Rotation Quaternion.
-    Vector4Copy( newHipsQuat, lerpedBonePose[ hipsBoneNode->number ].rotate );
-    // Store a copy of the current actual 'Controller' Quaternion for later re-use as a source to start Slerping from.
-    actualHipsYawQuat = newHipsQuat;
-
-    // Calculate the new 'Spine' BonePose's desired(final) state Rotation Quaternion.
-    Quaternion newSpineQuat = QuatRotateY( spineTransform->rotate, -( DEG2RAD( wishYaw ) ) );
-    // 'Control' the 'Spine' BonePose's rotation Quaternion by Slerping for 'controlFactor' to the newly calculated Quaternion.
-    newSpineQuat = QM_QuaternionSlerp( actualSpineYawQuat, newSpineQuat, ( controlFactor < 1 ? controlFactor : 1 ) );
-    // Copy the 'controller' Quaternion into the BonePose's Rotation Quaternion.
-    Vector4Copy( newSpineQuat, lerpedBonePose[ spineBoneNode->number ].rotate );
-    // Store a copy of the current actual 'Controller' Quaternion for later re-use as a source to start Slerping from.m.
-    actualSpineYawQuat = newSpineQuat;
-
-    // Calculate the new 'Spine1' BonePose's desired(final) state Rotation Quaternion.
-    Quaternion newSpine1Quat = QuatRotateY( spine1Transform->rotate, -( DEG2RAD( wishYaw / 4 ) ) );
-    // 'Control' the 'Spine1' BonePose's rotation Quaternion by Slerping for 'controlFactor' to the newly calculated Quaternion.
-    newSpine1Quat = QM_QuaternionSlerp( actualSpine1YawQuat, newSpine1Quat, ( controlFactor < 1 ? controlFactor : 1 ) );
-    // Copy the 'controller' Quaternion into the BonePose's Rotation Quaternion.
-    Vector4Copy( newSpine1Quat, lerpedBonePose[ spine1BoneNode->number ].rotate );
-    // Store a copy of the current actual 'Controller' Quaternion for later re-use as a source to start Slerping from.
-    actualSpine1YawQuat = newSpine1Quat;
-    #endif
 }
 
 /**
@@ -570,8 +479,6 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     // Lerped frame for time poses of each active event.
     //static skm_transform_t lowerEventStatePose[ SKM_MAX_BONES ] = {};
     //static skm_transform_t upperEventStatePose[ SKM_MAX_BONES ] = {};
-    skm_transform_t *lowerEventStatePose = packetEntity->eventBonePoseCache[ SKM_BODY_LOWER ];
-    skm_transform_t *upperEventStatePose = packetEntity->eventBonePoseCache[ SKM_BODY_UPPER ];
 
     // These events are, "finished" by default:
     bool lowerEventIsPlaying = false;
@@ -580,10 +487,12 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     const int32_t lowerEventRootMotionAxisFlags = SKM_POSE_TRANSLATE_Z; // Z only by default.
     const int32_t upperEventRootMotionAxisFlags = SKM_POSE_TRANSLATE_ALL; // Z only by default.
     // Process the lower event body state animation IF still within valid time range:
+    skm_transform_t *lowerEventStatePose = packetEntity->eventBonePoseCache[ SKM_BODY_LOWER ];
     if ( lowerEventBodyState->timeEnd >= extrapolatedTime ) {
         lowerEventIsPlaying = !CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, lowerEventRootMotionAxisFlags, nullptr, lowerEventBodyState, lowerEventStatePose );
     }
     // Process the upper event body state animation IF still within valid time range:
+    skm_transform_t *upperEventStatePose = packetEntity->eventBonePoseCache[ SKM_BODY_UPPER ];
     if ( upperEventBodyState->timeEnd >= extrapolatedTime ) {
         upperEventIsPlaying = !CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( model, extrapolatedTime, upperEventRootMotionAxisFlags, nullptr, upperEventBodyState, upperEventStatePose );
     }
@@ -592,20 +501,16 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     /**
     *   'Base' Blend Animation Transition over time, from the 'LAST' to 'CURRENT' lerped poses.
     **/
-    // Current animation lerped pose.
-    skm_transform_t *currentLerpedPose = finalStatePose;
-    // Last animation lerped pose.
-    skm_transform_t *lastLerpedPose = lastFinalStatePose;
     // Blend old animation into the new one.
     if ( lastStateIsPlaying ) {
         /**
         *   Bone Controlling:
         **/
-        //CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, lastLerpedPose, lastLerpedPose, extrapolatedTime );
+        //CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, lastFinalStatePose, lastLerpedPose, extrapolatedTime );
         //CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, finalStatePose, currentLerpedPose, extrapolatedTime );
 
-        // SKM_RecursiveBlendFromBone( lastLerpedPose, currentLerpedPose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
-        SKM_RecursiveBlendFromBone( lastLerpedPose, currentLerpedPose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
+        //SKM_RecursiveBlendFromBone( lastFinalStatePose, finalStatePose, finalStatePose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
+        SKM_RecursiveBlendFromBone( finalStatePose, lastFinalStatePose, finalStatePose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
     } else {
         // They are already lerped so..
         #if 0
@@ -624,25 +529,25 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     // If playing, within a valid time range: Override the whole skeleton with the the lower event state pose.
     if ( lowerEventIsPlaying /*&& lowerEventBodyState->timeEnd >= extrapolatedTime */) {
         //memcpy( currentLerpedPose, lowerEventStatePose, SKM_MAX_BONES ); // This is faster if we override from the hips.
-        SKM_RecursiveBlendFromBone( lowerEventStatePose, currentLerpedPose, hipsBone, 1, 1 ); // Slower path..
+        SKM_RecursiveBlendFromBone( lowerEventStatePose, finalStatePose, finalStatePose, hipsBone, 1, 1 ); // Slower path..
     }
     // If playing, the upper event state overrides only the spine bone and all its child bones.
     if ( upperEventIsPlaying /*&& upperEventBodyState->timeEnd >= extrapolatedTime*/ ) {
-        SKM_RecursiveBlendFromBone( upperEventStatePose, currentLerpedPose, spineBone, 1, 1 );
+        SKM_RecursiveBlendFromBone( upperEventStatePose, finalStatePose, finalStatePose, spineBone, 1, 1 );
     }
 
 
     /**
     *   Bone Controlling:
     **/
-    CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, finalStatePose, currentLerpedPose, extrapolatedTime );
+    CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, finalStatePose, finalStatePose, extrapolatedTime );
 
 
     /**
     *   Prepare the RefreshEntity by generating the local model space matrices for rendering.
     **/
     // This will suffice.
-    refreshEntity->bonePoses = currentLerpedPose;
+    refreshEntity->bonePoses = finalStatePose;
     #if 0
     // TODO: THIS NEEDS TO BE UNIQUE FOR EACH ET_PLAYER PACKETENTITY! OTHERWISE IT'LL OVERWRITE SAME MEMORY BEFORE IT IS RENDERED...
     // Local model space final representation matrices.

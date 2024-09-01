@@ -237,21 +237,20 @@ static const spawn_field_t spawn_fields[] = {
 	{"speed", FOFS( speed ), F_FLOAT},
 	{"accel", FOFS( accel ), F_FLOAT},
 	{"decel", FOFS( decel ), F_FLOAT},
-	{"target", FOFS( target ), F_LSTRING},
+	{"target", FOFS( targetNames.target ), F_LSTRING},
 	{"targetname", FOFS( targetname ), F_LSTRING},
-	{"pathtarget", FOFS( pathtarget ), F_LSTRING},
-	{"deathtarget", FOFS( deathtarget ), F_LSTRING},
-	{"killtarget", FOFS( killtarget ), F_LSTRING},
-	{"combattarget", FOFS( combattarget ), F_LSTRING},
-	{"message", FOFS( message ), F_LSTRING},
-	{"team", FOFS( team ), F_LSTRING},
+	{"path", FOFS( targetNames.path ), F_LSTRING},
+	{"death", FOFS( targetNames.death ), F_LSTRING},
+	{"kill", FOFS( targetNames.kill ), F_LSTRING},
+	{"combat", FOFS( targetNames.combat ), F_LSTRING},
+    {"message", FOFS( message ), F_LSTRING},
+	{"team", FOFS( targetNames.team ), F_LSTRING},
 	{"wait", FOFS( wait ), F_FLOAT},
 	{"delay", FOFS( delay ), F_FLOAT},
 	{"random", FOFS( random ), F_FLOAT},
 	{"move_origin", FOFS( move_origin ), F_VECTOR},
 	{"move_angles", FOFS( move_angles ), F_VECTOR},
 	{"style", FOFS( style ), F_INT},
-	{"customLightStyle", FOFS( customLightStyle ), F_LSTRING},
 	{"count", FOFS( count ), F_INT},
 	{"health", FOFS( health ), F_INT},
 	{"sounds", FOFS( sounds ), F_INT},
@@ -265,10 +264,16 @@ static const spawn_field_t spawn_fields[] = {
 	{"angles", FOFS( s.angles ), F_VECTOR},
 	{"angle", FOFS( s.angles ), F_ANGLEHACK},
 
-	{"rgb", FOFS( s.spotlight.rgb ), F_VECTOR},
+    // <Q2RTXP>:
+    // MoveWith:
+    { "movewith", FOFS( targetNames.movewith ), F_LSTRING },
+    // (Spot-)light:
+    {"customLightStyle", FOFS( customLightStyle ), F_LSTRING},
+    {"rgb", FOFS( s.spotlight.rgb ), F_VECTOR},
 	{"intensity", FOFS( s.spotlight.intensity ), F_FLOAT},
 	{"angle_width", FOFS( s.spotlight.angle_width ), F_FLOAT},
 	{"angle_falloff", FOFS( s.spotlight.angle_falloff ), F_FLOAT},
+    // </Q2RTXP>
 
     {NULL}
 };
@@ -378,7 +383,7 @@ void G_FindTeams( void ) {
     for ( i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++ ) {
         if ( !e->inuse )
             continue;
-        if ( !e->team )
+        if ( !e->targetNames.team )
             continue;
         if ( e->flags & FL_TEAMSLAVE )
             continue;
@@ -389,11 +394,11 @@ void G_FindTeams( void ) {
         for ( j = i + 1, e2 = e + 1; j < globals.num_edicts; j++, e2++ ) {
             if ( !e2->inuse )
                 continue;
-            if ( !e2->team )
+            if ( !e2->targetNames.team )
                 continue;
             if ( e2->flags & FL_TEAMSLAVE )
                 continue;
-            if ( !strcmp( e->team, e2->team ) ) {
+            if ( !strcmp( e->targetNames.team, e2->targetNames.team ) ) {
                 c2++;
                 chain->teamchain = e2;
                 e2->teammaster = e;
@@ -404,6 +409,44 @@ void G_FindTeams( void ) {
     }
 
     gi.dprintf( "%i teams with %i entities\n", c, c2 );
+}
+
+/**
+*   @brief  Find and set the 'movewith' parent entity for entities that have this key set.
+**/
+void G_MoveWith_FindParentTargetEntities( void ) {
+    edict_t *ent = g_edicts;
+    int32_t moveParents  = 0;
+    int32_t i = 1;
+    for ( i = 1, ent = g_edicts + i; i < globals.num_edicts; i++, ent++ ) {
+        // It has to be in-use.
+        //if ( !ent->inuse ) {
+        //    continue;
+        //}
+
+        // Not having any parent.
+        if ( !ent->targetNames.movewith ) {
+            continue;
+        }
+        // Already set, so skip it.
+        if ( ent->targetEntities.movewith ) {
+            continue;
+        }
+
+        // Fetch 'parent' target entity.
+        edict_t *parentMover = G_Find( NULL, FOFS( targetname ), ent->targetNames.movewith );
+        // Apply.
+        if ( parentMover ) {
+            G_MoveWith_SetTargetParentEntity( ent->targetNames.movewith, parentMover, ent );
+
+            // Increment.
+            game.moveWithEntities[ game.num_movewithEntityStates ].entity = ent;
+            game.num_movewithEntityStates++;
+        }
+    }
+
+    // Debug:
+    gi.dprintf( "total entities moving with parent entities(total #%i).\n", moveParents );
 }
 
 /**
@@ -763,6 +806,9 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
 
     // Find entity 'teams', NOTE: these are not actual player game teams.
     G_FindTeams();
+
+    // Find all entities that are following a parent's movement.
+    G_MoveWith_FindParentTargetEntities();
 
     // Initialize player trail.
     PlayerTrail_Init();

@@ -1234,12 +1234,12 @@ struct edict_s {
     char        *target;
 	// WID: C++20: Added const.
     const char	*targetname;
-    char        *killtarget;
+    char        *targetNames.kill;
     char        *team;
-    char        *pathtarget;
-    char        *deathtarget;
-    char        *combattarget;
-    edict_t     *target_ent;
+    char        *targetNames.path;
+    char        *targetNames.death;
+    char        *targetNames.combat;
+    edict_t     *targetEntities.target;
 
     float       speed, accel, decel;
     vec3_t      movedir;

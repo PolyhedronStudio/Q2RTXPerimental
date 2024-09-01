@@ -544,11 +544,11 @@ void jorg_dead(edict_t *self)
     tempent = G_AllocateEdict();
     VectorCopy(self->s.origin, tempent->s.origin);
     VectorCopy(self->s.angles, tempent->s.angles);
-    tempent->killtarget = self->killtarget;
-    tempent->target = self->target;
+    tempent->targetNames.kill = self->targetNames.kill;
+    tempent->target = self->targetNames.target;
     tempent->activator = self->enemy;
-    self->killtarget = 0;
-    self->target = 0;
+    self->targetNames.kill = 0;
+    self->targetNames.target = 0;
     SP_monster_makron(tempent);
 #endif
 }
