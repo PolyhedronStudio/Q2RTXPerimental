@@ -542,6 +542,7 @@ void plat_spawn_inside_trigger(edict_t *ent)
     trigger->solid = SOLID_TRIGGER;
     trigger->s.entityType = ET_PUSH_TRIGGER;
     trigger->enemy = ent;
+    //G_MoveWith_SetTargetParentEntity( ent->targetname, ent, trigger );
 
     tmin[0] = ent->mins[0] + 25;
     tmin[1] = ent->mins[1] + 25;

@@ -674,11 +674,9 @@ void G_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMo
         QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax )
     );
 
-
     // Calculate the relative offets for its origin and angles.
-    //Vector3 parentOrigin = parentMover->s.origin;
-    //Vector3 childOrigin = childMover->s.origin;
-    childMover->moveWith.absoluteOriginOffset = parentOrigin - childOrigin;
+    childMover->moveWith.absoluteOrigin = childOrigin;
+    childMover->moveWith.absoluteParentOriginOffset = parentOrigin - childOrigin;
     
     // Fetch spawn angles.
     Vector3 childAngles = childMover->s.angles;
@@ -686,6 +684,10 @@ void G_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMo
     // Calculate delta angles.
     Vector3 parentAngles = parentMover->s.angles;
     childMover->moveWith.spawnDeltaAngles = childAngles - parentAngles;
+
+    // Add to game movewiths.
+    game.moveWithEntities[ game.num_movewithEntityStates ].childNumber = childMover->s.number;
+    game.moveWithEntities[ game.num_movewithEntityStates ].parentNumber = parentMover->s.number;
 
     // Debug
     gi.dprintf( "%s: found parent(%s) for child entity(%s).\n", __func__, parentMover->targetNames.target, childMover->targetNames.movewith );
@@ -712,46 +714,63 @@ void G_MoveWith_SetChildEntityMovement( edict_t *self ) {
 /**
 *   @brief 
 **/
-void G_MoveWith_AdjustToParent( edict_t *self ) {
-    // Get parent.
-    edict_t *parent = self->targetEntities.movewith;
-    if ( !parent ) {
-        return;
-    }
-
-    // Determine brushmodel bbox origins.
-    Vector3 parentOrigin = QM_BBox3Center(
-        QM_BBox3FromMinsMaxs( parent->absmin, parent->absmax )
+void G_MoveWith_AdjustToParent( edict_t *parentMover, edict_t *childMover ) {
+    // This is the absolute parent entity brush model origin in BSP model space.
+    Vector3 parentAbsOrigin = QM_BBox3Center(
+        QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
     );
-    Vector3 childOrigin = QM_BBox3Center(
-        QM_BBox3FromMinsMaxs( self->absmin, self->absmax )
+    // This is the absolute child entity brush model origin in BSP model space.
+    Vector3 childAbsOrigin = QM_BBox3Center(
+        QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax )
     );
 
-    // In case we are a mover, calculate the adjusted origin.
-    Vector3 relativeOffsetDelta = QM_Vector3Zero();
-    if ( self->movetype == MOVETYPE_PUSH || self->movetype == MOVETYPE_STOP ) {
-        relativeOffsetDelta = childOrigin - ( parentOrigin + self->moveWith.absoluteOriginOffset );
-    }
-    // Reposition the entities origin.
-    Vector3 newOrigin = parentOrigin + self->moveWith.absoluteOriginOffset + relativeOffsetDelta;
+    //
+    /*static */Vector3 lastParentOrigin = parentMover->lastOrigin;
+    /*static */Vector3 lastParentAngles = parentMover->lastAngles;
 
-    // Determine the readjustment.
-    Vector3 adjustment = newOrigin - childOrigin;
+    //// Calculate origin to adjust by.
+    //Vector3 deltaParentOrigin = parentMover->s.origin - lastParentOrigin;
+    //Vector3 childOrigin = childMover->s.origin;
+    //childOrigin += deltaParentOrigin;
+    //// Adjust desired pusher origins.
+    //childMover->pusherMoveInfo.start_origin += deltaParentOrigin;
+    //childMover->pusherMoveInfo.end_origin += deltaParentOrigin;
+    //childMover->pos1 += deltaParentOrigin;
+    //childMover->pos2 += deltaParentOrigin;
+    //VectorCopy( childOrigin, childMover->s.origin );
 
-    // 
-    self->pusherMoveInfo.start_origin += adjustment;
-    self->pusherMoveInfo.end_origin += adjustment;
-    self->pos1 += adjustment;
-    self->pos2 += adjustment;
+    //// Calculate angles to adjust by.
+    //Vector3 deltaParentAngles = parentMover->s.angles - lastParentAngles;
+    //Vector3 childAngles = childMover->s.angles;
+    //childAngles = QM_Vector3AngleMod( childAngles + deltaParentAngles );
 
+    //// Adjust desired pusher angles.
+    //childMover->pusherMoveInfo.start_angles = QM_Vector3AngleMod( childMover->pusherMoveInfo.start_angles + deltaParentAngles );
+    //childMover->pusherMoveInfo.end_angles = QM_Vector3AngleMod( childMover->pusherMoveInfo.end_angles + deltaParentAngles );
+    //VectorCopy( childAngles, childMover->s.angles );
 
-    //if ( self->pusherMoveInfo.state == PUSHER_MOVEINFO_STATE_BOTTOM ) {
-    //    VectorCopy( self->s.origin, self->pos1 );
-    //    VectorMA( self->pos1, self->pusherMoveInfo.distance, self->movedir, self->pos2 );
-    //} else if ( self->pusherMoveInfo.state == PUSHER_MOVEINFO_STATE_TOP ) {
-    //    VectorCopy( self->s.origin, self->pos2 );
-    //    VectorMA( self->pos2, -self->pusherMoveInfo.distance, self->movedir, self->pos1 );
-    //}
-    //VectorCopy( self->pos1, self->pusherMoveInfo.start_origin );
-    //VectorCopy( self->pos2, self->pusherMoveInfo.end_origin );
+    // We're done, link it back in.
+    //gi.linkentity( childMover );
+
+    // Make sure to store the last ... origins and angles.
+    parentMover->lastOrigin = parentMover->s.origin;
+    parentMover->lastAngles = parentMover->s.angles;
+
+    //gi.bprintf( PRINT_DEVELOPER, "%s: parentMover->s.origin(%f, %f, %f), childMover->s.origin(%f, %f, %f)\n", __func__,
+    //    parentMover->s.origin[ 0 ],
+    //    parentMover->s.origin[ 1 ],
+    //    parentMover->s.origin[ 2 ],
+    //    childMover->s.origin[ 0 ],
+    //    childMover->s.origin[ 1 ],
+    //    childMover->s.origin[ 2 ]
+    //);
+
+    //gi.bprintf( PRINT_DEVELOPER, "%s: parentAbsBoxOrigin(%f, %f, %f), childAbsBoxOrigin(%f, %f, %f)\n", __func__,  
+    //    parentAbsOrigin.x,
+    //    parentAbsOrigin.y,
+    //    parentAbsOrigin.z,
+    //    childAbsOrigin.x,
+    //    childAbsOrigin.y,
+    //    childAbsOrigin.z
+    //);
 }

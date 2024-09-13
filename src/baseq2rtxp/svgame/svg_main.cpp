@@ -792,14 +792,19 @@ void G_RunFrame(void)
     //
     for ( int32_t i = 0; i < game.num_movewithEntityStates; i++ ) {
         // Child mover.
-        edict_t *ent = game.moveWithEntities[ i ].entity;
+        edict_t *childMover = nullptr;
+        if ( game.moveWithEntities[ i ].childNumber > 0 && game.moveWithEntities[ i ].childNumber < MAX_EDICTS ) {
+            childMover = &g_edicts[ game.moveWithEntities[ i ].childNumber ];
+        }
+        // Parent mover.
+        edict_t *parentMover = nullptr;
+        if ( game.moveWithEntities[ i ].parentNumber > 0 && game.moveWithEntities[ i ].parentNumber < MAX_EDICTS ) {
+            parentMover = &g_edicts[ game.moveWithEntities[ i ].parentNumber ];
+        }
 
-        if ( ent->targetEntities.movewith && ent->inuse && ( ent->movetype == MOVETYPE_PUSH || ent->movetype == MOVETYPE_STOP ) ) {
-            edict_t *moveWithEntity = ent->targetEntities.movewith;
-
-            if ( moveWithEntity->inuse && ( moveWithEntity->movetype == MOVETYPE_PUSH || moveWithEntity->movetype == MOVETYPE_STOP ) ) {
-
-                G_MoveWith_AdjustToParent( ent );
+        if ( parentMover && parentMover->inuse && ( parentMover->movetype == MOVETYPE_PUSH || parentMover->movetype == MOVETYPE_STOP ) ) {
+            if ( childMover && childMover->inuse && ( childMover->movetype == MOVETYPE_PUSH || childMover->movetype == MOVETYPE_STOP ) ) {
+                G_MoveWith_AdjustToParent( parentMover, childMover );
             }
         }
     }

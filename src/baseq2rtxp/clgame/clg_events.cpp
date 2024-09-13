@@ -145,10 +145,12 @@ void CLG_FirePlayerStateEvent( const player_state_t *ops, const player_state_t *
     sg_skm_animation_state_t *eventBodyState = animationMixer->eventBodyState;
 
     // Proceed to executing the event.
+    // -- Jump Up:
     if ( playerStateEvent == PS_EV_JUMP_UP ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_JUMP_UP\n", __func__ );
         // Set event state animation.
         SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_LOWER ], "jump_up_pistol", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+    // -- Jump Land:
     } else if ( playerStateEvent == PS_EV_JUMP_LAND ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_JUMP_LAND\n", __func__ );
         // We really do NOT want this when we are crouched when having hit the ground.
@@ -156,14 +158,36 @@ void CLG_FirePlayerStateEvent( const player_state_t *ops, const player_state_t *
             // Set event state animation.
             SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_LOWER ], "jump_land_pistol", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
         }
+    // -- Weapon Fire Primary:
     } else if ( playerStateEvent == PS_EV_WEAPON_PRIMARY_FIRE ) {
         const std::string animationName = CLG_PrimaryFireEvent_DetermineAnimation( ops, ps, playerStateEvent, lerpOrigin );
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_PRIMARY_FIRE\n", __func__ );
         // Set event state animation.
         SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], animationName.c_str(), sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+    // -- Weapon Reload:
     } else if ( playerStateEvent == PS_EV_WEAPON_RELOAD ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_RELOAD\n", __func__ );
         // Set event state animation.
         SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], "reload_stand_pistol", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+    
+    #if 1
+    // -- Weapon Holster AND Draw:
+    } else if ( playerStateEvent == PS_EV_WEAPON_HOLSTER_AND_DRAW ) {
+        //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_RELOAD\n", __func__ );
+        // Set event state animation.
+        SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], "holster_draw_pistol", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
     }
+    #else
+    // -- Weapon Draw:
+    } else if ( playerStateEvent == PS_EV_WEAPON_HOLSTER ) {
+        //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_RELOAD\n", __func__ );
+        // Set event state animation.
+        SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], "holster_pistol", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+    // -- Weapon Holster:
+    } else if ( playerStateEvent == PS_EV_WEAPON_DRAW ) {
+        //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_RELOAD\n", __func__ );
+        // Set event state animation.
+        SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], "draw_pistol", sg_time_t::from_ms( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+    }
+    #endif
 }

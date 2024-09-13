@@ -542,11 +542,15 @@ typedef struct {
 
     /**
     *   Information for PUSH/STOP -movers.
+    * 
+    *   We use numbers so we can fetch entities in-frame ensuring that we always have valid pointers.
     **/
     int32_t num_movewithEntityStates;
     struct {
-        //! The move with entity.
-        edict_t *entity;
+        //! The child entity that has to move with its parent entity.
+        int32_t childNumber;
+        //! The parent entity that has to move its child entity.
+        int32_t parentNumber;
     } moveWithEntities[MAX_EDICTS];
 } game_locals_t;
 //! Extern, access all over game dll code.
@@ -851,7 +855,7 @@ const bool    KillBox( edict_t *ent, const bool bspClipping );
 /**
 *   @brief
 **/
-void G_MoveWith_AdjustToParent( edict_t *self );
+void G_MoveWith_AdjustToParent( edict_t *parentMover, edict_t *childMover );
 /**
 *   @brief
 **/
@@ -1570,8 +1574,10 @@ struct edict_s {
     //
     //! For move with parent entities.
     struct {
+        //! Initial absolute origin of child.
+        Vector3 absoluteOrigin;
         //! Initial origin offset between parent and child.
-        Vector3 absoluteOriginOffset;
+        Vector3 absoluteParentOriginOffset;
         //! Relative delta offset to the absoluteOriginOffset.
         Vector3 relativeDeltaOffset;
 
@@ -1607,6 +1613,8 @@ struct edict_s {
     Vector3 movedir;
     Vector3 pos1;
     Vector3 pos2;
+    Vector3 lastOrigin;
+    Vector3 lastAngles;
     edict_t *movetarget;
 
     //

@@ -31,7 +31,14 @@ typedef enum {
 	PS_EV_WEAPON_PRIMARY_FIRE,
 	//! Weapon Secondary Fire.
 	PS_EV_WEAPON_SECONDARY_FIRE,
-
+	
+	//! Weapon Holster/Draw:
+	PS_EV_WEAPON_HOLSTER_AND_DRAW,
+	// TODO: We really do wanna split weapon draw and holstering, but, alas, lack animation skills.
+	//! Draw Weapon.
+	PS_EV_WEAPON_DRAW,
+	//! Holster Weapon.
+	PS_EV_WEAPON_HOLSTER,
 
 	//
 	// Non External Events:

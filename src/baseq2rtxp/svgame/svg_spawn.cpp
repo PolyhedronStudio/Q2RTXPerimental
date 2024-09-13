@@ -437,10 +437,9 @@ void G_MoveWith_FindParentTargetEntities( void ) {
         edict_t *parentMover = G_Find( NULL, FOFS( targetname ), ent->targetNames.movewith );
         // Apply.
         if ( parentMover ) {
+            // Set.
             G_MoveWith_SetTargetParentEntity( ent->targetNames.movewith, parentMover, ent );
-
             // Increment.
-            game.moveWithEntities[ game.num_movewithEntityStates ].entity = ent;
             game.num_movewithEntityStates++;
         }
     }

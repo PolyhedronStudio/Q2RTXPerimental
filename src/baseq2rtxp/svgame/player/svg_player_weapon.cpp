@@ -168,7 +168,11 @@ void P_Weapon_Change(edict_t *ent) {
     if ( ent->client->pers.weapon != ent->client->newweapon ) {
         // Engage into holster if:
         if ( canChangeMode && ( !isHolsterMode && !isAiming ) ) {
+            // Engage weapon holstering mode.
             P_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_animation_t *)ent->client->pers.weapon->info, true );
+            // Fire an actual event for the client at hand.
+            //SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_HOLSTER, 0, &ent->client->ps );
+            SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_HOLSTER_AND_DRAW, 0, &ent->client->ps );
             return;
         }
         // We know this function will continue to be called if newweapon is not nulled out.
@@ -221,9 +225,13 @@ allowchange:
 
     // Engage into "Drawing" weapon mode.
     P_Weapon_SwitchMode( ent, WEAPON_MODE_DRAWING, (const weapon_mode_animation_t*)ent->client->pers.weapon->info, true );
+    // Fire an actual event for the client at hand.
+    // TODO: Implement draw specific animation and holster specific instead.
+    //SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_DRAW, 0, &ent->client->ps );
+    //SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_HOLSTER_AND_DRAW, 0, &ent->client->ps );
 
     // Adjust player client animation.
-    gi.dprintf( "%s: WID: TODO: Implement weapon draw player animation here\n", __func__ );
+    //gi.dprintf( "%s: WID: TODO: Implement weapon draw player animation here\n", __func__ );
  //   ent->client->anim_priority = ANIM_PAIN;
  //   if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
  //       ent->s.frame = FRAME_crpain1;

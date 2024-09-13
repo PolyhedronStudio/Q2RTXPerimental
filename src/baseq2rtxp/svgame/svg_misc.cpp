@@ -510,37 +510,52 @@ void SP_info_notnull(edict_t *self)
 Non-displayed light.
 Default light value is 300.
 Default style is 0.
-If targeted, will toggle between on and off.
+If targeted, will toggle between on and off. Firing other set target also.
 Default _cone value is 10 (used to set size of light for spotlights)
 */
 
 #define START_OFF   1
 
-void light_use(edict_t *self, edict_t *other, edict_t *activator)
-{
-    if (self->spawnflags & START_OFF) {
-        gi.configstring(CS_LIGHTS + self->style, "m");
+void light_use( edict_t *self, edict_t *other, edict_t *activator ) {
+    if ( self->spawnflags & START_OFF ) {
+        if ( self->customLightStyle ) {
+            gi.configstring( CS_LIGHTS + self->style, self->customLightStyle );
+        } else {
+            gi.configstring( CS_LIGHTS + self->style, "m" );
+        }
         self->spawnflags &= ~START_OFF;
     } else {
-        gi.configstring(CS_LIGHTS + self->style, "a");
+        gi.configstring( CS_LIGHTS + self->style, "a" );
         self->spawnflags |= START_OFF;
     }
+
+    // Apply activator.
+    self->activator = activator;
+
+    // Fire set target.
+    G_UseTargets( self, activator );
 }
 
-void SP_light(edict_t *self)
-{
+void SP_light( edict_t *self ) {
+    #if 0
     // no targeted lights in deathmatch, because they cause global messages
-    if (!self->targetname || deathmatch->value) {
-        G_FreeEdict(self);
+    if ( !self->targetname || deathmatch->value ) {
+        G_FreeEdict( self );
         return;
     }
+    #endif
 
-    if (self->style >= 32) {
+    if ( self->style >= 32 ) {
         self->use = light_use;
-        if (self->spawnflags & START_OFF)
-            gi.configstring(CS_LIGHTS + self->style, "a");
-        else
-            gi.configstring(CS_LIGHTS + self->style, "m");
+        if ( self->spawnflags & START_OFF ) {
+            gi.configstring( CS_LIGHTS + self->style, "a" );
+        } else {
+            if ( self->customLightStyle ) {
+                gi.configstring( CS_LIGHTS + self->style, self->customLightStyle );
+            } else {
+                gi.configstring( CS_LIGHTS + self->style, "m" );
+            }
+        }
     }
 }
 

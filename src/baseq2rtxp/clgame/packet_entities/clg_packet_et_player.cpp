@@ -476,11 +476,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     /**
     *   'Events' Animation States Pose Lerping:
     **/
-    // Lerped frame for time poses of each active event.
-    //static skm_transform_t lowerEventStatePose[ SKM_MAX_BONES ] = {};
-    //static skm_transform_t upperEventStatePose[ SKM_MAX_BONES ] = {};
-
-    // These events are, "finished" by default:
+    // These events are, "unfinished" by default:
     bool lowerEventIsPlaying = false;
     bool upperEventIsPlaying = false;
     // Root Motion Axis Flags:

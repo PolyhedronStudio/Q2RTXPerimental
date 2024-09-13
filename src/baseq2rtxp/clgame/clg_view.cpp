@@ -38,6 +38,9 @@ qhandle_t gun;
 //    if ( cl_testmodel_handle != -1 ) {
 //        model_t *model = MOD_ForHandle( cl_testmodel_handle );
 //
+//    if ( cl_testmodel_handle != -1 ) {
+//        const model_t *model = clgi.R_GetModelDataForHandle( cl_testmodel_handle );
+//
 //        if ( model != NULL && model->meshes != NULL ) {
 //            entity_t entity = { 0 };
 //            entity.model = cl_testmodel_handle;
