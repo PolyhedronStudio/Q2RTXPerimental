@@ -15,7 +15,6 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [X] 0. Add in proper usage of entity type and adjust the client code to handle adding packet entities based on its type.
 			 This will simplify life in the future.
 	- [X] 1. Weapon code should use ``PlayAnimation("anim_name")``, or precache animIDs ``GetAnimationHandle("anim_name")``.
-	- [ ] 2. Monster code should use Play/Get-Anim, and have actions linked to those consequently.
 	- [X] 3. If ``entity type == MONSTER || PLAYER`` the net code needs to be adjusted so that 'frame' encodes/decodes animationIDs for each specific
 			 body part. 8 bits per part, means 24 bits and leaves 8 free bits for other uses.
 	- [X] 4. Client needs to detect animationID, time of change, and playback the animation from there
@@ -41,7 +40,8 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [ ] 0. We need nav nodes of sorts, probably lets do this KISS first, just use some entities.
 	- [ ] 1. There's more I can think of such as detecting whether to strafe and all that...
 	- [ ] 2. Add mm_move_t as a member of gedict_t, and/or of a different monster struct that becomes part of gedict_t
-	- [ ] I'll continue this list by the time I get there.
+	- [ ] 3. Monster code should use Play/Get-Anim, and have actions linked to those consequently.
+	- [ ] - [ ] I'll continue this list by the time I get there.
 
 ## Other Features:
 Features being looked forward on implementation.
