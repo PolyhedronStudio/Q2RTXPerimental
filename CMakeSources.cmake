@@ -315,6 +315,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_local.h
+	baseq2rtxp/svgame/svg_lua.h
 	baseq2rtxp/svgame/svg_save.h
 
 	baseq2rtxp/svgame/player/svg_m_player.h

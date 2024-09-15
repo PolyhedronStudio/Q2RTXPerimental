@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svg_local.h"
+#include "svg_lua.h"
 
 /**
 *	General used Game Objects.
@@ -151,8 +152,13 @@ static void cvar_sv_gamemode_changed( cvar_t *self ) {
 **/
 void ShutdownGame(void)
 {
+    // Notify of shutdown.
     gi.dprintf("==== Shutdown ServerGame ====\n");
+    
+    // Shutdown the Lua VM.
+    SVG_LUA_Shutdown();
 
+    // Free level and game module allocated ram.
     gi.FreeTags(TAG_SVGAME_LEVEL);
     gi.FreeTags(TAG_SVGAME);
 }
@@ -316,6 +322,9 @@ void InitGame( void )
 	// WID: C++20: Addec cast.
     game.clients = (gclient_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
     globals.num_edicts = game.maxclients + 1;
+
+    // Initialize the Lua VM.
+    SVG_LUA_Initialize();
 }
 
 

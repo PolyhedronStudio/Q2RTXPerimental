@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svg_local.h"
 #include "svg_save.h"
+#include "svg_lua.h"
 
 /**
 *
@@ -811,6 +812,9 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
 
     // Initialize player trail.
     PlayerTrail_Init();
+
+    // Load up and initialize the LUA map script. (If any.)
+    SVG_LUA_LoadMapScript( mapname );
 }
 
 
