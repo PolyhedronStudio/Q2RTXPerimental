@@ -281,6 +281,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_combat.cpp
 	baseq2rtxp/svgame/svg_gamemode.cpp
 	baseq2rtxp/svgame/svg_items.cpp
+	baseq2rtxp/svgame/svg_lua.cpp
 	baseq2rtxp/svgame/svg_main.cpp
 	baseq2rtxp/svgame/svg_misc.cpp
 	baseq2rtxp/svgame/svg_monster.cpp

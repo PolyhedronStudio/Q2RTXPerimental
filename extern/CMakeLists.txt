@@ -12,6 +12,15 @@ set_target_properties(example PROPERTIES FOLDER extern)
 #endif()
 
 ####
+##  LUA
+####
+add_subdirectory(lua-5.4.7)
+target_include_directories(liblua-5.4.7 PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/liblua-5.4.7> $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/liblua-5.4.7>)
+set_target_properties( liblua-5.4.7 PROPERTIES FOLDER extern)
+set_target_properties( lua PROPERTIES FOLDER extern)
+set_target_properties( luac PROPERTIES FOLDER extern)
+
+####
 ##	glslangValidator
 ####
 if( CONFIG_BUILD_CLIENT_TARGET AND CONFIG_VKPT_RENDERER AND CONFIG_BUILD_GLSLANG)

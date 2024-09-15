@@ -434,7 +434,9 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 	#target_include_directories(baseq2rtxp_clgame PRIVATE ../inc baseq2rtxp/clgame baseq2rtxp/sharedgame)
 	target_include_directories(baseq2rtxp_svgame PRIVATE ../inc baseq2rtxp/)
 	target_include_directories(baseq2rtxp_clgame PRIVATE ../inc baseq2rtxp/)
-    target_link_libraries(baseq2rtxp_svgame zlibstatic)
+
+	target_include_directories(baseq2rtxp_svgame PRIVATE ${CMAKE_SOURCE_DIR}/extern/lua-5.4.7/src )
+    target_link_libraries(baseq2rtxp_svgame zlibstatic liblua-5.4.7)
 
 	# Specify both LIBRARY and RUNTIME because one works only on Windows,
 	# and another works only on Linux.

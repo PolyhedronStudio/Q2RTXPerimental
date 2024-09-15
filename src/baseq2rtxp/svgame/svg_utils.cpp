@@ -729,15 +729,15 @@ void G_MoveWith_AdjustToParent( edict_t *parentMover, edict_t *childMover ) {
     /*static */Vector3 lastParentAngles = parentMover->lastAngles;
 
     //// Calculate origin to adjust by.
-    //Vector3 deltaParentOrigin = parentMover->s.origin - lastParentOrigin;
-    //Vector3 childOrigin = childMover->s.origin;
-    //childOrigin += deltaParentOrigin;
-    //// Adjust desired pusher origins.
-    //childMover->pusherMoveInfo.start_origin += deltaParentOrigin;
-    //childMover->pusherMoveInfo.end_origin += deltaParentOrigin;
-    //childMover->pos1 += deltaParentOrigin;
-    //childMover->pos2 += deltaParentOrigin;
-    //VectorCopy( childOrigin, childMover->s.origin );
+    Vector3 deltaParentOrigin = parentMover->s.origin - lastParentOrigin;
+    Vector3 childOrigin = childMover->s.origin;
+    childOrigin += deltaParentOrigin;
+    // Adjust desired pusher origins.
+    childMover->pusherMoveInfo.start_origin += deltaParentOrigin;
+    childMover->pusherMoveInfo.end_origin += deltaParentOrigin;
+    childMover->pos1 += deltaParentOrigin;
+    childMover->pos2 += deltaParentOrigin;
+    VectorCopy( childOrigin, childMover->s.origin );
 
     //// Calculate angles to adjust by.
     //Vector3 deltaParentAngles = parentMover->s.angles - lastParentAngles;
@@ -750,7 +750,7 @@ void G_MoveWith_AdjustToParent( edict_t *parentMover, edict_t *childMover ) {
     //VectorCopy( childAngles, childMover->s.angles );
 
     // We're done, link it back in.
-    //gi.linkentity( childMover );
+    gi.linkentity( childMover );
 
     // Make sure to store the last ... origins and angles.
     parentMover->lastOrigin = parentMover->s.origin;

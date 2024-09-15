@@ -47,15 +47,14 @@ OPTION(CONFIG_BUILD_CLIENT_TARGET "Build the Client target" ON)
 OPTION(CONFIG_BUILD_SERVER_TARGET "Build the Dedicated Server target" ON)
 OPTION(CONFIG_BUILD_GAME_BASEQ2_TARGETS "Build the BaseQ2 Game Module targets" ON)
 OPTION(CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS "Build the BaseQ2RTXP Game Module targets" ON)
-OPTION(CONFIG_BUILD_FTEQW_IQM_TOOL "Build the fteqw-iqmtool target" ON)
-OPTION(CONFIG_GL_RENDERER "Enable GL renderer" ON)
 OPTION(CONFIG_VKPT_RENDERER "Enable VKPT renderer" ON)
 OPTION(CONFIG_VKPT_ENABLE_DEVICE_GROUPS "Enable device groups (multi-gpu) support" ON)
 OPTION(CONFIG_VKPT_ENABLE_IMAGE_DUMPS "Enable image dumping functionality" OFF)
+OPTION(CONFIG_GL_RENDERER "Enable GL renderer" ON)
 OPTION(CONFIG_USE_CURL "Use CURL for HTTP support" ON)
-#OPTION(CONFIG_LINUX_PACKAGING_SUPPORT "Enable Linux Packaging support" OFF)
-#OPTION(CONFIG_LINUX_PACKAGING_SKIP_PKZ "Skip zipping the game contents into .pkz when packaging (for quicker iteration)" OFF)
-#OPTION(CONFIG_LINUX_STEAM_RUNTIME_SUPPORT "Enable Linux Steam Runtime support" OFF)
+OPTION(CONFIG_BUILD_FTEQW_IQM_TOOL "Build the fteqw-iqmtool target" ON)
+
+# WIN32: Expect it to be installed by developer instead.
 IF( CONFIG_BUILD_CLIENT_TARGET )
 	IF(WIN32)
 		SET(DEFAULT_BUILD_GLSLANG OFF)
@@ -67,6 +66,9 @@ OPTION(CONFIG_BUILD_GLSLANG "Build glslangValidator from source instead of using
 OPTION(CONFIG_BUILD_IPO "Enable interprocedural optimizations" OFF)
 OPTION(CONFIG_BUILD_SHADER_DEBUG_INFO "Build shaders with debug info" OFF)
 
+#OPTION(CONFIG_LINUX_PACKAGING_SUPPORT "Enable Linux Packaging support" OFF)
+#OPTION(CONFIG_LINUX_PACKAGING_SKIP_PKZ "Skip zipping the game contents into .pkz when packaging (for quicker iteration)" OFF)
+#OPTION(CONFIG_LINUX_STEAM_RUNTIME_SUPPORT "Enable Linux Steam Runtime support" OFF)
 
 
 #

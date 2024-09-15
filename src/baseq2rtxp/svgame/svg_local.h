@@ -1699,6 +1699,7 @@ struct edict_s {
     sg_means_of_death_t meansOfDeath;
     //! Used for target_changelevel. Set as key/value.
     const char *map;
+
     //! The entity's height above its 'origin', used to state where eyesight is determined.
     int32_t     viewheight;
     //! To take damage or not.
