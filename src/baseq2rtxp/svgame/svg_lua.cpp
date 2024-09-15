@@ -19,6 +19,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svg_local.h"
 #include "svg_lua.h"
 
+//! Enable LUA debug output:
+#define LUA_DEBUG_OUTPUT 1
+
 /**
 *
 *
@@ -41,6 +44,22 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define Q_ERR_(e)       (-ERRNO_MAX - e)
 
 
+
+/**
+*
+*
+*
+*	TODO: This is DJ Not Nice, code is not neat, needs fixing.
+*
+*
+8
+**/
+#ifdef LUA_DEBUG_OUTPUT
+#define LUA_DPrintf(...) gi.dprintf( __VA_ARGS__ );
+#else
+#define LUA_DPrintf(...) 
+#endif
+
 /**
 *
 * 
@@ -59,6 +78,13 @@ static char *mapScriptBuffer = nullptr;
 void SVG_LUA_Initialize() {
 	// Open LUA Map State.
 	lMapState = luaL_newstate();
+
+	// Load in several useful defualt LUA libraries.
+	luaopen_base( lMapState );
+	luaopen_string( lMapState );
+	luaopen_table( lMapState );
+	luaopen_math( lMapState );
+	luaopen_debug( lMapState );
 }
 /**
 *	@brief 
@@ -69,14 +95,38 @@ void SVG_LUA_Shutdown() {
 }
 
 /**
+*	@brief	For now a Support routine for LoadMapScript.
+**/
+static const bool LUA_InterpreteString( const char *buffer ) {
+	if ( luaL_loadstring( lMapState, buffer ) == LUA_OK ) {
+		LUA_DPrintf( "%s: Succesfully interpreted buffer\n", __func__ );
+		return true;
+	} else {
+		// TODO: Output display error.
+		LUA_DPrintf( "%s: Failed interpreting buffer\n", __func__ );
+
+		return false;
+	}
+}
+
+/**
+*	@brief	For now a Support routine for LoadMapScript.
+*			TODO: The buffer is stored in tag_filesystem so... basically...
+**/
+static void LUA_UnloadMapScript() {
+	// TODO: This is technically not safe, we need to store the buffer elsewhere ... expose FS_LoadFileEx!
+	mapScriptBuffer = nullptr; 
+}
+
+/**
 *	@brief
 **/
 void SVG_LUA_LoadMapScript( const std::string &scriptName ) {
 	// File path.
 	const std::string filePath = "maps/scripts/" + scriptName + ".lua";
 
-	// The buffer is stored in tag_filesystem so... basically...
-	mapScriptBuffer = nullptr; // This is technically not safe, we need to store the buffer elsewhere ... expose FS_LoadFileEx!
+	// Unload one if we had one loaded up before.
+	LUA_UnloadMapScript();
 
 	// Ensure file exists.
 	if ( SG_FS_FileExistsEx( filePath.c_str(), 0 ) ) {
@@ -84,11 +134,92 @@ void SVG_LUA_LoadMapScript( const std::string &scriptName ) {
 		size_t scriptFileLength = SG_FS_LoadFile( filePath.c_str(), (void **)&mapScriptBuffer );
 
 		if ( mapScriptBuffer && scriptFileLength != Q_ERR( ENOENT ) ) {
-			gi.dprintf( "%s: Loaded Lua Script File: %s\n", __func__, filePath.c_str() );
+			// Debug output.			
+			LUA_DPrintf( "%s: Loaded Lua Script File: %s\n", __func__, filePath.c_str() );
+
+			if ( LUA_InterpreteString( mapScriptBuffer ) ) {
+				// Debug output:
+				LUA_DPrintf( "%s: Succesfully parsed and interpreted Lua Script File: %s\n", __func__, filePath.c_str() );
+			} else {
+				// Debug output:
+				LUA_DPrintf( "%s: Succesfully parsed and interpreted Lua Script File: %s\n", __func__, filePath.c_str() );
+			}
+		// Failure:
 		} else {
-			gi.dprintf( "%s: Failed loading Lua Script File: %s\n", __func__, filePath.c_str() );
+			// Debug output.
+			LUA_DPrintf( "%s: Failed loading Lua Script File: %s\n", __func__, filePath.c_str() );
 		}
+	// Failure:
 	} else {
-		gi.dprintf( "%s: Map %s has no existing Lua Script File\n", __func__, scriptName.c_str() );
+		// Debug output:
+		LUA_DPrintf( "%s: Map %s has no existing Lua Script File\n", __func__, scriptName.c_str() );
 	}
+}
+
+
+
+/**
+*
+*
+*
+*	Lua Game Callback Hooks:
+*
+*
+*
+**/
+//
+//	For when a map is just loaded up, or about to be unloaded.
+//
+/**
+*	@brief
+**/
+void SVG_LUA_CallBack_BeginMap() {
+
+}
+/**
+*	@brief
+**/
+void SVG_LUA_CallBack_ExitMap() {
+
+}
+
+
+//
+//	For when a client is connecting thus entering the active map(level) 
+//	or disconnecting, thus exiting the map(level).
+//
+/**
+*	@brief
+**/
+void SVG_LUA_CallBack_ClientEnterLevel() {
+
+}
+/**
+*	@brief
+**/
+void SVG_LUA_CallBack_ClientExitLevel() {
+
+}
+
+
+//
+//	Generic Server Frame stuff.
+//
+/**
+*	@brief
+**/
+void SVG_LUA_CallBack_BeginServerFrame() {
+
+}
+/**
+*	@brief
+**/
+void SVG_LUA_CallBack_RunFrame() {
+
+}
+/**
+*	@brief
+**/
+void SVG_LUA_CallBack_EndServerFrame() {
+
 }
