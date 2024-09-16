@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_lua.h"
 #include "svg_m_player.h"
 
 void ClientUserinfoChanged(edict_t *ent, char *userinfo);
@@ -1496,6 +1497,9 @@ void ClientBegin( edict_t *ent ) {
 
     // make sure all view stuff is valid
     ClientEndServerFrame( ent );
+
+    // WID: LUA:
+    SVG_LUA_CallBack_ClientEnterLevel();
 }
 
 /**
@@ -1653,6 +1657,9 @@ void ClientDisconnect(edict_t *ent)
 
     if (!ent->client)
         return;
+
+    // WID: LUA:
+    SVG_LUA_CallBack_ClientExitLevel();
 
     gi.bprintf(PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 

@@ -638,6 +638,10 @@ void ExitLevel(void)
     edict_t *ent;
     char    command [256];
 
+    // WID: LUA: CallBack.
+    SVG_LUA_CallBack_ExitMap();
+
+
     Q_snprintf(command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
     gi.AddCommandString(command);
     level.changemap = NULL;
@@ -684,6 +688,9 @@ void G_RunFrame(void)
         ExitLevel();
         return;
     }
+
+    // WID: LUA: CallBack.
+    SVG_LUA_CallBack_BeginServerFrame();
 
     //
     // Treat each object in turn
@@ -818,6 +825,9 @@ void G_RunFrame(void)
         }
     }
 
+    // WID: LUA: CallBack.
+    SVG_LUA_CallBack_RunFrame();
+
     // see if it is time to end a deathmatch
     CheckDMRules();
 
@@ -826,5 +836,8 @@ void G_RunFrame(void)
 
     // build the playerstate_t structures for all players
     ClientEndServerFrames();
+
+    // WID: LUA: CallBack.
+    SVG_LUA_CallBack_EndServerFrame();
 }
 
