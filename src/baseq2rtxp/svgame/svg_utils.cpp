@@ -18,6 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // g_utils.c -- misc utility functions for game module
 
 #include "svg_local.h"
+#include "svg_lua.h"
 
 /**
 *   @brief  Wraps up the new more modern G_ProjectSource.
@@ -247,6 +248,8 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
             } else {
                 if (t->use)
                     t->use(t, ent, activator);
+
+                SVG_LUA_DispatchTargetNameUseCallBack( t, ent, activator );
             }
             if (!ent->inuse) {
                 gi.dprintf("entity was removed while using targets\n");

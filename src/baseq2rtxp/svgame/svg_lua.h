@@ -6,6 +6,14 @@
 #include <lauxlib.h>
 
 
+// (Templated-) Support Lua Utilities:
+//! For errors:
+#define LUA_ErrorPrintf(...) gi.bprintf( PRINT_WARNING, __VA_ARGS__ );
+//! For calling into LUA functions:
+#include "svgame/lua/svg_lua_callfunction.hpp"
+
+
+
 /**
 *
 *
@@ -28,6 +36,22 @@ void SVG_LUA_Shutdown();
 *	@brief
 **/
 void SVG_LUA_LoadMapScript( const std::string &scriptName );
+
+
+
+/**
+*
+*
+*
+*	Lua Script Calling:
+*
+*
+*
+**/
+/**
+*	@brief	Calls specified function.
+**/
+const bool SVG_LUA_DispatchTargetNameUseCallBack( edict_t *self, edict_t *other, edict_t *activator );
 
 
 
@@ -60,11 +84,11 @@ void SVG_LUA_CallBack_ExitMap();
 /**
 *	@brief
 **/
-void SVG_LUA_CallBack_ClientEnterLevel();
+void SVG_LUA_CallBack_ClientEnterLevel( edict_t *clientEntity );
 /**
 *	@brief
 **/
-void SVG_LUA_CallBack_ClientExitLevel();
+void SVG_LUA_CallBack_ClientExitLevel( edict_t *clientEntity );
 
 
 //

@@ -836,52 +836,51 @@ void button_killed(edict_t *self, edict_t *inflictor, edict_t *attacker, int dam
     button_fire(self);
 }
 
-void SP_func_button(edict_t *ent)
-{
+void SP_func_button( edict_t *ent ) {
     vec3_t  abs_movedir;
     float   dist;
 
-    G_SetMovedir(ent->s.angles, ent->movedir );
-    if ( ent->targetNames.movewith ) {
-        ent->movetype = MOVETYPE_PUSH;
-
-    } else {
-        ent->movetype = MOVETYPE_STOP;
-    }
+    G_SetMovedir( ent->s.angles, ent->movedir );
+    ent->movetype = MOVETYPE_STOP;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
-    gi.setmodel(ent, ent->model);
+    gi.setmodel( ent, ent->model );
 
-    if (ent->sounds != 1)
-        ent->pusherMoveInfo.sound_start = gi.soundindex("switches/butn2.wav");
+    if ( ent->sounds != 1 )
+        ent->pusherMoveInfo.sound_start = gi.soundindex( "switches/butn2.wav" );
 
-    if (!ent->speed)
+    if ( !ent->speed )
         ent->speed = 40;
-    if (!ent->accel)
+    if ( !ent->accel )
         ent->accel = ent->speed;
-    if (!ent->decel)
+    if ( !ent->decel )
         ent->decel = ent->speed;
 
-    if (!ent->wait)
+    if ( !ent->wait )
         ent->wait = 3;
-    if (!st.lip)
+    if ( !st.lip )
         st.lip = 4;
 
-    VectorCopy(ent->s.origin, ent->pos1);
-    abs_movedir[0] = fabsf(ent->movedir[0]);
-    abs_movedir[1] = fabsf(ent->movedir[1]);
-    abs_movedir[2] = fabsf(ent->movedir[2]);
-    dist = abs_movedir[0] * ent->size[0] + abs_movedir[1] * ent->size[1] + abs_movedir[2] * ent->size[2] - st.lip;
-    VectorMA(ent->pos1, dist, ent->movedir, ent->pos2);
+    VectorCopy( ent->s.origin, ent->pos1 );
+    abs_movedir[ 0 ] = fabsf( ent->movedir[ 0 ] );
+    abs_movedir[ 1 ] = fabsf( ent->movedir[ 1 ] );
+    abs_movedir[ 2 ] = fabsf( ent->movedir[ 2 ] );
+    dist = abs_movedir[ 0 ] * ent->size[ 0 ] + abs_movedir[ 1 ] * ent->size[ 1 ] + abs_movedir[ 2 ] * ent->size[ 2 ] - st.lip;
+    VectorMA( ent->pos1, dist, ent->movedir, ent->pos2 );
 
     ent->use = button_use;
     ent->s.effects |= EF_ANIM01;
 
-    if (ent->health) {
+    if ( ent->health ) {
         ent->max_health = ent->health;
         ent->die = button_killed;
         ent->takedamage = DAMAGE_YES;
-    } else if (! ent->targetname)
+        // WID: LUA: TODO: This breaks old default behavior.
+    #if 0
+    } else if ( !ent->targetname )
+    #else
+    }
+    #endif
         ent->touch = button_touch;
 
     ent->pusherMoveInfo.state = STATE_BOTTOM;

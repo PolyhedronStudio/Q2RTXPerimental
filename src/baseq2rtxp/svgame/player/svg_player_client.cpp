@@ -1499,7 +1499,7 @@ void ClientBegin( edict_t *ent ) {
     ClientEndServerFrame( ent );
 
     // WID: LUA:
-    SVG_LUA_CallBack_ClientEnterLevel();
+    SVG_LUA_CallBack_ClientEnterLevel( ent );
 }
 
 /**
@@ -1659,7 +1659,7 @@ void ClientDisconnect(edict_t *ent)
         return;
 
     // WID: LUA:
-    SVG_LUA_CallBack_ClientExitLevel();
+    SVG_LUA_CallBack_ClientExitLevel( ent );
 
     gi.bprintf(PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname);
 

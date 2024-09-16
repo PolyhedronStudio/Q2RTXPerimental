@@ -51,7 +51,8 @@ Features being looked forward on implementation.
 ### High Priority:
 * [X] Rethink/reimplement the way how we approach skeletal model 'blending'. Local space it is?
 	- Relative we do.
-* [ ] Use gsc/sgsc for more 'dynamic' maps, so that movers can be scripted nicely.
+* [ ] Implement Lua for game state logic and dynamics.
+	- [ ] Fix the script file loaded up leaking memory. FS_LoadFileEx(other tag)_
 * [ ] Implement model events for animations:
 	* [ ] Footsteps implemented using this.
 ### Medium Priority:
