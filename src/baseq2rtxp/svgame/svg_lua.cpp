@@ -115,7 +115,7 @@ static bool mapScriptInterpreted = false;
 /**
 *	@brief	Initializes the EntitiesLib
 **/
-void EntitiesLib_Initialize( lua_State *l );
+void GameLib_Initialize( lua_State *l );
 /**
 *	@brief	Initializes the EntitiesLib
 **/
@@ -150,7 +150,7 @@ void SVG_Lua_Initialize() {
 
 	// Initialize Game Libraries.
 	CoreLib_Initialize( lMapState );
-	EntitiesLib_Initialize( lMapState );
+	GameLib_Initialize( lMapState );
 }
 /**
 *	@brief 
@@ -304,7 +304,7 @@ void CoreLib_Initialize( lua_State *L ) {
 *
 *
 *
-*	Lua EntitiesLib:
+*	Lua GameLib:
 *
 *
 *
@@ -312,7 +312,7 @@ void CoreLib_Initialize( lua_State *L ) {
 /**
 *	@return	The number of the entity if it has a matching luaName, -1 otherwise.
 **/
-int EntitiesLib_GetForLuaName( lua_State *L ) {
+int GameLib_GetEntityForLuaName( lua_State *L ) {
 	// Check if the first argument is string.
 	const char *luaName = luaL_checkstring( L, 1 );
 	if ( !luaName ) {
@@ -347,7 +347,7 @@ int EntitiesLib_GetForLuaName( lua_State *L ) {
 /**
 *	@return	The number of the entity if it has a matching targetname, -1 otherwise.
 **/
-int EntitiesLib_GetForTargetName( lua_State *L ) {
+int GameLib_GetEntityForTargetName( lua_State *L ) {
 	// Check if the first argument is string.
 	const char *targetName = luaL_checkstring( L, 1 );
 	if ( !targetName ) {
@@ -382,7 +382,7 @@ int EntitiesLib_GetForTargetName( lua_State *L ) {
 /**
 *	@return	The number of the entity if it has a matching targetname, -1 otherwise.
 **/
-int EntitiesLib_UseTarget( lua_State *L ) {
+int GameLib_UseTarget( lua_State *L ) {
 	// 
 	const int32_t entityNumber = luaL_checkinteger( L, 1 );
 	const int32_t otherEntityNumber = luaL_checkinteger( L, 2 );
@@ -437,29 +437,29 @@ int EntitiesLib_UseTarget( lua_State *L ) {
 	return 1;
 }
 /**
-*	@brief	Entities Namespace Functions:
+*	@brief	Game Namespace Functions:
 **/
-const struct luaL_Reg EntitiesLib[] = {
-	{ "GetForLuaName", EntitiesLib_GetForLuaName },
-	{ "GetForTargetName", EntitiesLib_GetForTargetName },
-	{ "UseTarget", EntitiesLib_UseTarget },
+const struct luaL_Reg GameLib[] = {
+	{ "GetEntityForLuaName", GameLib_GetEntityForLuaName },
+	{ "GetEntityForTargetName", GameLib_GetEntityForTargetName },
+	{ "UseTarget", GameLib_UseTarget },
 	{ NULL, NULL }
 };
 /**
-*	@brief	Initializes the EntitiesLib
+*	@brief	Initializes the GameLib
 **/
-void EntitiesLib_Initialize( lua_State *L ) {
+void GameLib_Initialize( lua_State *L ) {
 	// We create a new table
 	lua_newtable( L );
 
-	// Here we set all functions from EntitiesLib array into
+	// Here we set all functions from GameLib array into
 	// the table on the top of the stack
-	luaL_setfuncs( L, EntitiesLib, 0);
+	luaL_setfuncs( L, GameLib, 0);
 
 	// We get the table and set as global variable
-	lua_setglobal( L, "Entities" );
+	lua_setglobal( L, "Game" );
 
-	if ( luaL_dostring( L, "Core.DPrint(\"Initialized Lua EntitiesLib\n\"" ) == LUA_OK ) {
+	if ( luaL_dostring( L, "Core.DPrint(\"Initialized Lua GameLib\n\"" ) == LUA_OK ) {
 		lua_pop( L, lua_gettop( L ) );
 	}
 }
@@ -476,112 +476,6 @@ void EntitiesLib_Initialize( lua_State *L ) {
 *
 **/
 
-
-
-/**
-*	@brief	Calls specified function.
-**/
-//static const bool LUA_CallFunction( const char *functionName ) {
-//	// We require the script to be succesfully interpreted.
-//	if ( !mapScriptInterpreted || !lMapState || !functionName ) {
-//		return false;
-//	}
-//
-//	// Get the global functionname value and push it to stack:
-//	lua_getglobal( lMapState, functionName );
-//
-//	// Check if function even exists.
-//	if ( lua_isfunction( lMapState, -1 ) ) {
-//		// Protect Call the pushed function name string.
-//		if ( lua_pcall( lMapState, 0, 1, 0 ) == LUA_OK ) {
-//			// Pop function name from stack.
-//			lua_pop( lMapState, lua_gettop( lMapState ) );
-//			// Success.
-//			return true;
-//		// Failure:
-//		} else {
-//			// Get error.
-//			const std::string errorStr = lua_tostring( lMapState, lua_gettop( lMapState ) );
-//			// Remove the errorStr from the stack
-//			lua_pop( lMapState, lua_gettop( lMapState ) );
-//			// Output.
-//			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
-//			// Failure.
-//			return false;
-//		}
-//	// Failure:
-//	} else {
-//		// Remove the function from the stack
-//		lua_pop( lMapState, lua_gettop( lMapState ) );
-//
-//		LUA_ErrorPrintf( "%s: %s is not a function\n", __func__, functionName );
-//		return false;
-//	}
-//}
-
-/**
-*	@brief	Calls specified function.
-**/
-const bool SVG_Lua_DispatchTargetNameUseCallBack( edict_t *self, edict_t *other, edict_t *activator ) {
-	// We require the script to be succesfully interpreted.
-	if ( !mapScriptInterpreted || !lMapState || !self ) {
-		return false;
-	}
-
-	// Determine the function name based on self.targetname.
-	const std::string functionName = std::string( self->targetname ) + "_onUse";
-
-	// Dispatch.
-	int32_t numRetValues = LUA_CallFunction( lMapState, functionName.c_str(), 1, self, other, activator);
-
-	// Pop return value from stack.
-	for ( int32_t i = 0; i < numRetValues; i++ ) {
-		lua_pop( lMapState, i );
-	}
-
-	return true;
-
-	//// Check if function even exists.
-	//if ( lua_isfunction( lMapState, -1 ) ) {
-	//	// Push the entity state numbers for the onUse callback.
-	//	lua_pushinteger( lMapState, self->s.number );
-	//	if ( other && other->inuse ) {
-	//		lua_pushinteger( lMapState, other->s.number );
-	//	} else {
-	//		lua_pushinteger( lMapState, -1 );
-	//	}
-	//	if ( activator && activator->inuse ) {
-	//		lua_pushinteger( lMapState, activator->s.number );
-	//	} else {
-	//		lua_pushinteger( lMapState, -1 );
-	//	}
-
-
-	//	// Protect Call the pushed function name string.
-	//	if ( lua_pcall( lMapState, 3, 1, 0 ) == LUA_OK ) {
-	//		// Pop function name from stack.
-	//		lua_pop( lMapState, lua_gettop( lMapState ) );
-	//		// Success.
-	//		return true;
-	//		// Failure:
-	//	} else {
-	//		// Get error.
-	//		const std::string errorStr = lua_tostring( lMapState, lua_gettop( lMapState ) );
-	//		// Remove the errorStr from the stack
-	//		lua_pop( lMapState, lua_gettop( lMapState ) );
-	//		// Output.
-	//		LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
-	//		// Failure.
-	//		return false;
-	//	}
-	//	// Failure:
-	//} else {
-	//	LUA_ErrorPrintf( "%s: %s is not a function\n", __func__, functionName.c_str() );
-	//	// Remove the function from the stack
-	//	lua_pop( lMapState, lua_gettop( lMapState ) );
-	//	return false;
-	//}
-}
 
 
 

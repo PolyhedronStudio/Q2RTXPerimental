@@ -663,7 +663,7 @@ void ExitLevel(void)
 ================
 G_RunFrame
 
-Advances the world by 0.1 seconds
+Advances the world by FRAME_TIME_MS seconds
 ================
 */
 void G_RunFrame(void)
@@ -814,17 +814,18 @@ void G_RunFrame(void)
         }
 
         if ( parentMover && parentMover->inuse && ( parentMover->movetype == MOVETYPE_PUSH || parentMover->movetype == MOVETYPE_STOP ) ) {
-            Vector3 lastParentOrigin = parentMover->lastOrigin;
-            Vector3 lastParentAngles = parentMover->lastAngles;
-            
             // Calculate origin to adjust by.
+            Vector3 lastParentOrigin = parentMover->lastOrigin;
             Vector3 parentOriginDelta = parentMover->s.origin - lastParentOrigin;
 
+            //Vector3 lastParentAngles = parentMover->lastAngles;
+
+            // Iterate to find the child movers to adjust to parent.
             for ( int32_t j = 0; j < game.num_movewithEntityStates; j++ ) {
                 // Child mover.
                 edict_t *childMover = nullptr;
-                if ( game.moveWithEntities[ j ].parentNumber == parentMover->s.number ) {//&&
-                    /*game.moveWithEntities[ j ].childNumber > 0 && game.moveWithEntities[ j ].childNumber < MAX_EDICTS */
+                if ( game.moveWithEntities[ j ].parentNumber == parentMover->s.number &&
+                    game.moveWithEntities[ j ].childNumber > 0 && game.moveWithEntities[ j ].childNumber < MAX_EDICTS ) {
                     childMover = &g_edicts[ game.moveWithEntities[ j ].childNumber ];
                 }
                 if ( childMover && childMover->inuse && ( childMover->movetype == MOVETYPE_PUSH || childMover->movetype == MOVETYPE_STOP ) ) {

@@ -61,10 +61,6 @@ void SVG_Lua_LoadMapScript( const std::string &scriptName );
 *
 *
 **/
-/**
-*	@brief	Calls specified function.
-**/
-const bool SVG_Lua_DispatchTargetNameUseCallBack( edict_t *self, edict_t *other, edict_t *activator );
 
 
 
