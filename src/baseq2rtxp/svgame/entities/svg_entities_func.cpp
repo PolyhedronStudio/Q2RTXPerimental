@@ -16,6 +16,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_lua.h"
+#include "svgame/lua/svg_lua_callfunction.hpp"
 
 /*
 =========================================================
@@ -433,8 +435,18 @@ void plat_hit_top(edict_t *ent)
     }
     ent->pusherMoveInfo.state = STATE_TOP;
 
+    #if 0
     ent->think = plat_go_down;
 	ent->nextthink = level.time + 3_sec;
+    #endif
+    // WID: LUA: Call the HitTop function if it exists.
+    if ( ent->luaProperties.luaName ) {
+        lua_State *L = SVG_Lua_GetMapLuaState();
+        const std::string luaFunctionName = std::string( ent->luaProperties.luaName ) + "_OnPlatformHitTop";
+        if ( LUA_HasFunction( L, luaFunctionName.c_str() ) ) {
+            LUA_CallFunction( L, luaFunctionName.c_str(), 1, ent, ent->activator );
+        }
+    }
 }
 
 void plat_hit_bottom(edict_t *ent)
@@ -445,6 +457,15 @@ void plat_hit_bottom(edict_t *ent)
         ent->s.sound = 0;
     }
     ent->pusherMoveInfo.state = STATE_BOTTOM;
+
+    // WID: LUA: Call the HitBottom function if it exists.
+    if ( ent->luaProperties.luaName ) {
+        lua_State *L = SVG_Lua_GetMapLuaState();
+        const std::string luaFunctionName = std::string( ent->luaProperties.luaName ) + "_OnPlatformHitBottom";
+        if ( LUA_HasFunction( L, luaFunctionName.c_str() ) ) {
+            LUA_CallFunction( L, luaFunctionName.c_str(), 1, ent, ent->activator );
+        }
+    }
 }
 
 void plat_go_down(edict_t *ent)
@@ -495,20 +516,23 @@ void plat_blocked(edict_t *self, edict_t *other)
 void Use_Plat(edict_t *ent, edict_t *other, edict_t *activator)
 {
     // WID: <Q2RTXP> For func_button support.
-    if ( ( other && !strcmp( other->classname, "func_button" ) ) ) {
+    //if ( ( other && !strcmp( other->classname, "func_button" ) ) ) {
         if ( ent->pusherMoveInfo.state == STATE_UP || ent->pusherMoveInfo.state == STATE_TOP ) {
             plat_go_down( ent );
         } else if ( ent->pusherMoveInfo.state == STATE_DOWN || ent->pusherMoveInfo.state == STATE_BOTTOM ) {
             plat_go_up( ent );
         }
-        return;     // already down
-    }
+    //    return;     // already down
+    //}
     // WID: </Q2RTXP>
 
-    if ( ent->think ) {
-        return;
-    }
-    plat_go_down(ent);
+    #if 0
+
+        if ( ent->think ) {
+            return;
+        }
+        plat_go_down(ent);
+    #endif
 }
 
 
@@ -792,6 +816,15 @@ void button_wait(edict_t *self)
     self->s.effects |= EF_ANIM23;
 
     G_UseTargets(self, self->activator);
+    // WID: LUA: Call the HitBottom function if it exists.
+    if ( self->luaProperties.luaName ) {
+        lua_State *L = SVG_Lua_GetMapLuaState();
+        const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_OnButtonFire";
+        if ( LUA_HasFunction( L, luaFunctionName.c_str() ) ) {
+            LUA_CallFunction( L, luaFunctionName.c_str(), 1, self, self->activator );
+        }
+    }
+
     self->s.frame = 1;
     if (self->pusherMoveInfo.wait >= 0) {
 		self->nextthink = level.time + sg_time_t::from_sec( self->pusherMoveInfo.wait );
@@ -957,12 +990,22 @@ void door_hit_top(edict_t *self)
         self->s.sound = 0;
     }
     self->pusherMoveInfo.state = STATE_TOP;
+
+    // WID: LUA: Call the HitBottom function if it exists.
+    if ( self->luaProperties.luaName ) {
+        lua_State *L = SVG_Lua_GetMapLuaState();
+        const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_OnDoorOpened";
+        if ( LUA_HasFunction( L, luaFunctionName.c_str() ) ) {
+            LUA_CallFunction( L, luaFunctionName.c_str(), 1, self, self->activator );
+        }
+    }
     if (self->spawnflags & DOOR_TOGGLE)
         return;
     if (self->pusherMoveInfo.wait >= 0) {
         self->think = door_go_down;
 		self->nextthink = level.time + sg_time_t::from_sec( self->pusherMoveInfo.wait );
     }
+
 }
 
 void door_hit_bottom(edict_t *self)
@@ -974,6 +1017,15 @@ void door_hit_bottom(edict_t *self)
     }
     self->pusherMoveInfo.state = STATE_BOTTOM;
     door_use_areaportals(self, false);
+
+    // WID: LUA: Call the HitBottom function if it exists.
+    if ( self->luaProperties.luaName ) {
+        lua_State *L = SVG_Lua_GetMapLuaState();
+        const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_OnDoorClosed";
+        if ( LUA_HasFunction( L, luaFunctionName.c_str() ) ) {
+            LUA_CallFunction( L, luaFunctionName.c_str(), 1, self, self->activator );
+        }
+    }
 }
 
 void door_go_down(edict_t *self)

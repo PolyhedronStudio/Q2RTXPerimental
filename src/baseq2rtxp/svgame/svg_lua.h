@@ -9,8 +9,17 @@
 // (Templated-) Support Lua Utilities:
 //! For errors:
 #define LUA_ErrorPrintf(...) gi.bprintf( PRINT_WARNING, __VA_ARGS__ );
+
 //! For calling into LUA functions:
 #include "svgame/lua/svg_lua_callfunction.hpp"
+
+static inline const bool LUA_HasFunction( lua_State *L, const char *functionName ) {
+	// Get the global functionname value and push it to stack:
+	lua_getglobal( L, functionName );
+
+	// Check if function even exists.
+	return ( lua_isfunction( L, -1 ) ? true : false );
+}
 
 
 
@@ -26,16 +35,20 @@
 /**
 *	@brief
 **/
-void SVG_LUA_Initialize();
+void SVG_Lua_Initialize();
 /**
 *	@brief
 **/
-void SVG_LUA_Shutdown();
+void SVG_Lua_Shutdown();
+/**
+*	@brief
+**/
+lua_State *SVG_Lua_GetMapLuaState();
 
 /**
 *	@brief
 **/
-void SVG_LUA_LoadMapScript( const std::string &scriptName );
+void SVG_Lua_LoadMapScript( const std::string &scriptName );
 
 
 
@@ -51,7 +64,7 @@ void SVG_LUA_LoadMapScript( const std::string &scriptName );
 /**
 *	@brief	Calls specified function.
 **/
-const bool SVG_LUA_DispatchTargetNameUseCallBack( edict_t *self, edict_t *other, edict_t *activator );
+const bool SVG_Lua_DispatchTargetNameUseCallBack( edict_t *self, edict_t *other, edict_t *activator );
 
 
 
@@ -70,11 +83,11 @@ const bool SVG_LUA_DispatchTargetNameUseCallBack( edict_t *self, edict_t *other,
 /**
 *	@brief
 **/
-void SVG_LUA_CallBack_BeginMap();
+void SVG_Lua_CallBack_BeginMap();
 /**
 *	@brief
 **/
-void SVG_LUA_CallBack_ExitMap();
+void SVG_Lua_CallBack_ExitMap();
 
 
 //
@@ -84,11 +97,11 @@ void SVG_LUA_CallBack_ExitMap();
 /**
 *	@brief
 **/
-void SVG_LUA_CallBack_ClientEnterLevel( edict_t *clientEntity );
+void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity );
 /**
 *	@brief
 **/
-void SVG_LUA_CallBack_ClientExitLevel( edict_t *clientEntity );
+void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity );
 
 
 //
@@ -97,13 +110,13 @@ void SVG_LUA_CallBack_ClientExitLevel( edict_t *clientEntity );
 /**
 *	@brief
 **/
-void SVG_LUA_CallBack_BeginServerFrame();
+void SVG_Lua_CallBack_BeginServerFrame();
 /**
 *	@brief
 **/
-void SVG_LUA_CallBack_RunFrame();
+void SVG_Lua_CallBack_RunFrame();
 /**
 *	@brief
 **/
-void SVG_LUA_CallBack_EndServerFrame();
+void SVG_Lua_CallBack_EndServerFrame();
 

@@ -30,6 +30,8 @@ template <typename... Rest>
 static inline void LUA_CallFunction_PushStackValue( lua_State *L, const edict_t *e, const Rest&... rest ) {
 	if ( e != nullptr && e->inuse ) {
 		lua_pushinteger( L, e->s.number );
+	} else {
+		lua_pushinteger( L, -1 );
 	}
 	LUA_CallFunction_PushStackValue( L, rest... );
 }
@@ -83,9 +85,11 @@ static inline void LUA_CallFunction_PushStackValue( lua_State *L, const std::str
 *	@note	One has to deal and pop return values themselves.
 **/
 template <typename... Rest> 
-static const bool LUA_CallFunction( lua_State *L, const char *functionName, const Rest&... rest ) {
+static const bool LUA_CallFunction( lua_State *L, const char *functionName, const int32_t numReturnValues, const Rest&... rest ) {
+	bool executedSuccessfully = false;
+
 	if ( !L || !functionName ) {
-		return false;
+		return executedSuccessfully;
 	}
 
 	// Get the global functionname value and push it to stack:
@@ -97,11 +101,12 @@ static const bool LUA_CallFunction( lua_State *L, const char *functionName, cons
 		LUA_CallFunction_PushStackValue( L, rest... ); // Recursive call using pack expansion syntax
 
 		// Protect Call the pushed function name string.
-		if ( lua_pcall( L, sizeof...( Rest ), 1, 0 ) == LUA_OK ) {
+		int32_t pCallReturnValue = lua_pcall( L, sizeof...( Rest ), numReturnValues, 0 );
+		if ( pCallReturnValue == LUA_OK ) {
 			// Pop function name from stack.
 			lua_pop( L, lua_gettop( L ) );
-			// Return Success.
-			return true;
+			// Success.
+			executedSuccessfully = true;
 		} else {
 			// Get error.
 			const std::string errorStr = lua_tostring( L, lua_gettop( L ) );
@@ -109,15 +114,14 @@ static const bool LUA_CallFunction( lua_State *L, const char *functionName, cons
 			lua_pop( L, lua_gettop( L ) );
 			// Print Error Notification.
 			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
-			// Return failure.
-			return false;
 		}
 	} else {
 		// Pop function name from stack.
 		lua_pop( L, lua_gettop( L ) );
 		// Print Error Notification.
 		LUA_ErrorPrintf( "%s: %s is not a function\n", __func__, functionName );
-		// Return failure.
-		return false;
 	}
+
+	// Return failure.
+	return executedSuccessfully;
 }

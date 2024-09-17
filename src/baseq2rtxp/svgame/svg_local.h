@@ -1567,7 +1567,13 @@ struct edict_s {
         edict_t *movewith_next;
     } targetEntities;
 
-
+    //
+    // Lua Properties:
+    //
+    struct {
+        //! The name which its script methods are prepended by.
+        const char *luaName;
+    } luaProperties;
 
     //
     // Physics Related:
@@ -1651,7 +1657,8 @@ struct edict_s {
 
     //! Trigger Activator.
     edict_t *activator;
-
+    //! WID: LUA: Other Trigger.
+    edict_t *other;
 
     //
     //  Player Noise/Trail:

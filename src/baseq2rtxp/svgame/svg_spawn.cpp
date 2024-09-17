@@ -268,6 +268,8 @@ static const spawn_field_t spawn_fields[] = {
     // <Q2RTXP>:
     // MoveWith:
     { "movewith", FOFS( targetNames.movewith ), F_LSTRING },
+    // Lua:
+    { "luaName", FOFS( luaProperties.luaName ), F_LSTRING },
     // (Spot-)light:
     {"customLightStyle", FOFS( customLightStyle ), F_LSTRING},
     {"rgb", FOFS( s.spotlight.rgb ), F_VECTOR},
@@ -429,10 +431,10 @@ void G_MoveWith_FindParentTargetEntities( void ) {
         if ( !ent->targetNames.movewith ) {
             continue;
         }
-        // Already set, so skip it.
-        if ( ent->targetEntities.movewith ) {
-            continue;
-        }
+        //// Already set, so skip it.
+        //if ( ent->targetEntities.movewith ) {
+        //    continue;
+        //}
 
         // Fetch 'parent' target entity.
         edict_t *parentMover = G_Find( NULL, FOFS( targetname ), ent->targetNames.movewith );
@@ -814,7 +816,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
     PlayerTrail_Init();
 
     // Load up and initialize the LUA map script. (If any.)
-    SVG_LUA_LoadMapScript( mapname );
+    SVG_Lua_LoadMapScript( mapname );
 }
 
 

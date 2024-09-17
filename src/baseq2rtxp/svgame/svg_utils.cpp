@@ -201,6 +201,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
         if (!activator)
             gi.dprintf("Think_Delay with no activator\n");
         t->message = ent->message;
+        //t->luaProperties.luaName = ent->luaProperties.luaName;
         t->targetNames.target = ent->targetNames.target;
         t->targetNames.kill = ent->targetNames.kill;
         return;
@@ -249,7 +250,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
                 if (t->use)
                     t->use(t, ent, activator);
 
-                SVG_LUA_DispatchTargetNameUseCallBack( t, ent, activator );
+                //SVG_Lua_DispatchTargetNameUseCallBack( t, ent, activator );
             }
             if (!ent->inuse) {
                 gi.dprintf("entity was removed while using targets\n");
@@ -667,7 +668,7 @@ static constexpr int32_t PUSHER_MOVEINFO_STATE_DOWN     = 3;
 **/
 void G_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover ) {
     // Update targetname.
-    childMover->targetNames.movewith = targetName;
+    //childMover->targetNames.movewith = targetName;
 
     // Determine brushmodel bbox origins.
     Vector3 parentOrigin = QM_BBox3Center(

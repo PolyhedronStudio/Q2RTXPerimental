@@ -156,7 +156,7 @@ void ShutdownGame(void)
     gi.dprintf("==== Shutdown ServerGame ====\n");
     
     // Shutdown the Lua VM.
-    SVG_LUA_Shutdown();
+    SVG_Lua_Shutdown();
 
     // Free level and game module allocated ram.
     gi.FreeTags(TAG_SVGAME_LEVEL);
@@ -324,7 +324,7 @@ void InitGame( void )
     globals.num_edicts = game.maxclients + 1;
 
     // Initialize the Lua VM.
-    SVG_LUA_Initialize();
+    SVG_Lua_Initialize();
 }
 
 
@@ -639,7 +639,7 @@ void ExitLevel(void)
     char    command [256];
 
     // WID: LUA: CallBack.
-    SVG_LUA_CallBack_ExitMap();
+    SVG_Lua_CallBack_ExitMap();
 
 
     Q_snprintf(command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
@@ -690,7 +690,7 @@ void G_RunFrame(void)
     }
 
     // WID: LUA: CallBack.
-    SVG_LUA_CallBack_BeginServerFrame();
+    SVG_Lua_CallBack_BeginServerFrame();
 
     //
     // Treat each object in turn
@@ -826,7 +826,7 @@ void G_RunFrame(void)
     }
 
     // WID: LUA: CallBack.
-    SVG_LUA_CallBack_RunFrame();
+    SVG_Lua_CallBack_RunFrame();
 
     // see if it is time to end a deathmatch
     CheckDMRules();
@@ -838,6 +838,6 @@ void G_RunFrame(void)
     ClientEndServerFrames();
 
     // WID: LUA: CallBack.
-    SVG_LUA_CallBack_EndServerFrame();
+    SVG_Lua_CallBack_EndServerFrame();
 }
 
