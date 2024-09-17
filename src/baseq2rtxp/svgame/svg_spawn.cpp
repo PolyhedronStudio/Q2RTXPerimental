@@ -431,10 +431,10 @@ void G_MoveWith_FindParentTargetEntities( void ) {
         if ( !ent->targetNames.movewith ) {
             continue;
         }
-        //// Already set, so skip it.
-        //if ( ent->targetEntities.movewith ) {
-        //    continue;
-        //}
+        // Already set, so skip it.
+        if ( ent->targetEntities.movewith ) {
+            continue;
+        }
 
         // Fetch 'parent' target entity.
         edict_t *parentMover = G_Find( NULL, FOFS( targetname ), ent->targetNames.movewith );

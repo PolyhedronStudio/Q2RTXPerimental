@@ -807,11 +807,6 @@ void G_RunFrame(void)
     // Readjust specific mover entities if necessary.
     //
     for ( int32_t i = 0; i < game.num_movewithEntityStates; i++ ) {
-        // Child mover.
-        edict_t *childMover = nullptr;
-        if ( game.moveWithEntities[ i ].childNumber > 0 && game.moveWithEntities[ i ].childNumber < MAX_EDICTS ) {
-            childMover = &g_edicts[ game.moveWithEntities[ i ].childNumber ];
-        }
         // Parent mover.
         edict_t *parentMover = nullptr;
         if ( game.moveWithEntities[ i ].parentNumber > 0 && game.moveWithEntities[ i ].parentNumber < MAX_EDICTS ) {
@@ -819,9 +814,26 @@ void G_RunFrame(void)
         }
 
         if ( parentMover && parentMover->inuse && ( parentMover->movetype == MOVETYPE_PUSH || parentMover->movetype == MOVETYPE_STOP ) ) {
-            if ( childMover && childMover->inuse && ( childMover->movetype == MOVETYPE_PUSH || childMover->movetype == MOVETYPE_STOP ) ) {
-                G_MoveWith_AdjustToParent( parentMover, childMover );
+            Vector3 lastParentOrigin = parentMover->lastOrigin;
+            Vector3 lastParentAngles = parentMover->lastAngles;
+            
+            // Calculate origin to adjust by.
+            Vector3 parentOriginDelta = parentMover->s.origin - lastParentOrigin;
+
+            for ( int32_t j = 0; j < game.num_movewithEntityStates; j++ ) {
+                // Child mover.
+                edict_t *childMover = nullptr;
+                if ( game.moveWithEntities[ j ].parentNumber == parentMover->s.number ) {//&&
+                    /*game.moveWithEntities[ j ].childNumber > 0 && game.moveWithEntities[ j ].childNumber < MAX_EDICTS */
+                    childMover = &g_edicts[ game.moveWithEntities[ j ].childNumber ];
+                }
+                if ( childMover && childMover->inuse && ( childMover->movetype == MOVETYPE_PUSH || childMover->movetype == MOVETYPE_STOP ) ) {
+                    G_MoveWith_AdjustToParent( parentOriginDelta, parentMover, childMover );
+                }
             }
+
+            // Make sure to store the last ... origins and angles.
+            parentMover->lastOrigin = parentMover->s.origin;
         }
     }
 

@@ -855,7 +855,7 @@ const bool    KillBox( edict_t *ent, const bool bspClipping );
 /**
 *   @brief
 **/
-void G_MoveWith_AdjustToParent( edict_t *parentMover, edict_t *childMover );
+void G_MoveWith_AdjustToParent( const Vector3 &parentOriginDelta, edict_t *parentMover, edict_t *childMover );
 /**
 *   @brief
 **/

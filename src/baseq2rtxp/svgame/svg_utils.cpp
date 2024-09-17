@@ -718,7 +718,7 @@ void G_MoveWith_SetChildEntityMovement( edict_t *self ) {
 /**
 *   @brief 
 **/
-void G_MoveWith_AdjustToParent( edict_t *parentMover, edict_t *childMover ) {
+void G_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, edict_t *parentMover, edict_t *childMover ) {
     // This is the absolute parent entity brush model origin in BSP model space.
     Vector3 parentAbsOrigin = QM_BBox3Center(
         QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
@@ -728,12 +728,8 @@ void G_MoveWith_AdjustToParent( edict_t *parentMover, edict_t *childMover ) {
         QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax )
     );
 
-    //
-    /*static */Vector3 lastParentOrigin = parentMover->lastOrigin;
-    /*static */Vector3 lastParentAngles = parentMover->lastAngles;
-
     //// Calculate origin to adjust by.
-    Vector3 deltaParentOrigin = parentMover->s.origin - lastParentOrigin;
+    //Vector3 deltaParentOrigin = parentMover->s.origin - lastParentOrigin;
     Vector3 childOrigin = childMover->s.origin;
     childOrigin += deltaParentOrigin;
     // Adjust desired pusher origins.
@@ -756,9 +752,9 @@ void G_MoveWith_AdjustToParent( edict_t *parentMover, edict_t *childMover ) {
     // We're done, link it back in.
     gi.linkentity( childMover );
 
-    // Make sure to store the last ... origins and angles.
-    parentMover->lastOrigin = parentMover->s.origin;
-    parentMover->lastAngles = parentMover->s.angles;
+    if ( std::string( childMover->classname ) == "func_door" ) {
+        int x = 10;
+    }
 
     //gi.bprintf( PRINT_DEVELOPER, "%s: parentMover->s.origin(%f, %f, %f), childMover->s.origin(%f, %f, %f)\n", __func__,
     //    parentMover->s.origin[ 0 ],
