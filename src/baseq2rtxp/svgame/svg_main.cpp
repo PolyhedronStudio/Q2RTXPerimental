@@ -108,13 +108,13 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo);
 void ClientDisconnect(edict_t *ent);
 void ClientBegin(edict_t *ent);
 void ClientCommand(edict_t *ent);
-void G_RunEntity(edict_t *ent);
+void SVG_RunEntity(edict_t *ent);
 void WriteGame(const char *filename, qboolean autosave);
 void ReadGame(const char *filename);
 void WriteLevel(const char *filename);
 void ReadLevel(const char *filename);
 void InitGame(void);
-void G_RunFrame(void);
+void SVG_RunFrame(void);
 //===================================================================
 /**
 *
@@ -295,7 +295,7 @@ void InitGame( void )
 	sv_flaregun = gi.cvar("sv_flaregun", "2", 0);
 
     // export our own features
-    gi.cvar_forceset("g_features", va("%d", G_FEATURES));
+    gi.cvar_forceset("g_features", va("%d", SVG_FEATURES));
     
     // In case we've modified air acceleration, update the config string.
     //gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
@@ -391,7 +391,7 @@ extern "C" { // WID: C++20: extern "C".
         globals.IsMultiplayerGameMode = _Exports_SG_IsMultiplayerGameMode;
         globals.GetDefaultMultiplayerGamemodeType = _Exports_SG_GetDefaultMultiplayerGameModeType;
 		globals.GetGamemodeName = _Exports_SG_GetGameModeName;
-		globals.GamemodeNoSaveGames = G_GetGamemodeNoSaveGames;
+		globals.GamemodeNoSaveGames = SVG_GetGamemodeNoSaveGames;
 
 		globals.WriteGame = WriteGame;
 		globals.ReadGame = ReadGame;
@@ -408,7 +408,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.PlayerMove = SG_PlayerMove;
 		globals.ConfigurePlayerMoveParameters = SG_ConfigurePlayerMoveParameters;
 
-		globals.RunFrame = G_RunFrame;
+		globals.RunFrame = SVG_RunFrame;
 
 		globals.ServerCommand = ServerCommand;
 
@@ -494,7 +494,7 @@ edict_t *CreateTargetChangeLevel(char *map)
 {
     edict_t *ent;
 
-    ent = G_AllocateEdict();
+    ent = SVG_AllocateEdict();
     ent->classname = "target_changelevel";
     if (map != level.nextmap)
         Q_strlcpy(level.nextmap, map, sizeof(level.nextmap));
@@ -550,7 +550,7 @@ void EndDMLevel(void)
     if (level.nextmap[0]) // go to a specific map
         BeginIntermission(CreateTargetChangeLevel(level.nextmap));
     else {  // search for a changelevel
-        ent = G_Find(NULL, FOFS(classname), "target_changelevel");
+        ent = SVG_Find(NULL, FOFS(classname), "target_changelevel");
         if (!ent) {
             // the map designer didn't include a changelevel,
             // so create a fake ent that goes back to the same level
@@ -666,7 +666,7 @@ G_RunFrame
 Advances the world by FRAME_TIME_MS seconds
 ================
 */
-void G_RunFrame(void)
+void SVG_RunFrame(void)
 {
     int     i;
     edict_t *ent;
@@ -720,7 +720,7 @@ void G_RunFrame(void)
 
         // If the ground entity moved, make sure we are still on it.
         if ( ( ent->groundInfo.entity ) && ( ent->groundInfo.entity->linkcount != ent->groundInfo.entityLinkCount ) ) {
-            contents_t mask = G_GetClipMask( ent );
+            contents_t mask = SVG_GetClipMask( ent );
 
             // Monsters that don't SWIM or FLY, got their own unique ground check.
             if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {
@@ -745,7 +745,7 @@ void G_RunFrame(void)
             ClientBeginServerFrame( ent );
             continue;
         } else {
-            G_RunEntity( ent );
+            SVG_RunEntity( ent );
 
             //
             //
@@ -773,7 +773,7 @@ void G_RunFrame(void)
 
             //        vec3_t angles;
             //        VectorAdd( ent->s.angles, ent->moveWith.originAnglesOffset, angles );
-            //        G_SetMovedir( angles, ent->movedir );
+            //        SVG_SetMovedir( angles, ent->movedir );
 
             //        VectorMA( moveWithEntity->s.origin, ent->moveWith.originOffset[ 0 ], forward, ent->pos1 );
             //        VectorMA( ent->pos1, ent->moveWith.originOffset[ 1 ], right, ent->pos1 );
@@ -829,7 +829,7 @@ void G_RunFrame(void)
                     childMover = &g_edicts[ game.moveWithEntities[ j ].childNumber ];
                 }
                 if ( childMover && childMover->inuse && ( childMover->movetype == MOVETYPE_PUSH || childMover->movetype == MOVETYPE_STOP ) ) {
-                    G_MoveWith_AdjustToParent( parentOriginDelta, parentMover, childMover );
+                    SVG_MoveWith_AdjustToParent( parentOriginDelta, parentMover, childMover );
                 }
             }
 

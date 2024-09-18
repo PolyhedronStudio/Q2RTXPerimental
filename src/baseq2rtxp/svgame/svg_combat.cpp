@@ -133,7 +133,7 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
         //    if ( !self->targetNames.target )
         //        return;
 
-        //    G_UseTargets( self, self->enemy );
+        //    SVG_UseTargets( self, self->enemy );
         //}
     }
 

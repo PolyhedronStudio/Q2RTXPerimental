@@ -201,7 +201,7 @@ void M_droptofloor( edict_t *ent ) {
 	vec3_t      end;
 	trace_t     trace;
 
-	contents_t mask = G_GetClipMask( ent );
+	contents_t mask = SVG_GetClipMask( ent );
 
 	ent->s.origin[ 2 ] += 1;
 	VectorCopy( ent->s.origin, end );

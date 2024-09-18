@@ -187,7 +187,7 @@ void spotlight_use( edict_t *self, edict_t *other, edict_t *activator ) {
 *	@brief
 **/
 void SP_spotlight( edict_t *self ) {
-	G_InitEdict( self );
+	SVG_InitEdict( self );
 	
 	// Spotlight Type
 	self->s.entityType = ET_SPOTLIGHT;

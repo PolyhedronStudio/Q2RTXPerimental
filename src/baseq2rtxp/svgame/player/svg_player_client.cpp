@@ -50,7 +50,7 @@ void SP_FixCoopSpots(edict_t *self)
     spot = NULL;
 
     while (1) {
-        spot = G_Find(spot, FOFS(classname), "info_player_start");
+        spot = SVG_Find(spot, FOFS(classname), "info_player_start");
         if (!spot)
             return;
         if (!spot->targetname)
@@ -75,7 +75,7 @@ void SP_CreateCoopSpots(edict_t *self)
     edict_t *spot;
 
     if (Q_stricmp(level.mapname, "security") == 0) {
-        spot = G_AllocateEdict();
+        spot = SVG_AllocateEdict();
         spot->classname = "info_player_coop";
         spot->s.origin[0] = 188 - 64;
         spot->s.origin[1] = -164;
@@ -83,7 +83,7 @@ void SP_CreateCoopSpots(edict_t *self)
         spot->targetname = "jail3";
         spot->s.angles[1] = 90;
 
-        spot = G_AllocateEdict();
+        spot = SVG_AllocateEdict();
         spot->classname = "info_player_coop";
         spot->s.origin[0] = 188 + 64;
         spot->s.origin[1] = -164;
@@ -91,7 +91,7 @@ void SP_CreateCoopSpots(edict_t *self)
         spot->targetname = "jail3";
         spot->s.angles[1] = 90;
 
-        spot = G_AllocateEdict();
+        spot = SVG_AllocateEdict();
         spot->classname = "info_player_coop";
         spot->s.origin[0] = 188 + 128;
         spot->s.origin[1] = -164;
@@ -124,7 +124,7 @@ potential spawning position for deathmatch games
 void SP_info_player_deathmatch(edict_t *self)
 {
     if (!deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
     SP_misc_teleporter_dest(self);
@@ -137,7 +137,7 @@ potential spawning position for coop games
 void SP_info_player_coop(edict_t *self)
 {
     if (!coop->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
@@ -678,7 +678,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint( void ) {
     range1 = range2 = 99999;
     spot1 = spot2 = NULL;
 
-    while ( ( spot = G_Find( spot, FOFS( classname ), "info_player_deathmatch" ) ) != NULL ) {
+    while ( ( spot = SVG_Find( spot, FOFS( classname ), "info_player_deathmatch" ) ) != NULL ) {
         count++;
         range = PlayersRangeFromSpot( spot );
         if ( range < range1 ) {
@@ -702,7 +702,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint( void ) {
 
     spot = NULL;
     do {
-        spot = G_Find( spot, FOFS( classname ), "info_player_deathmatch" );
+        spot = SVG_Find( spot, FOFS( classname ), "info_player_deathmatch" );
         if ( spot == spot1 || spot == spot2 )
             selection++;
     } while ( selection-- );
@@ -725,7 +725,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint( void ) {
     spot = NULL;
     bestspot = NULL;
     bestdistance = 0;
-    while ( ( spot = G_Find( spot, FOFS( classname ), "info_player_deathmatch" ) ) != NULL ) {
+    while ( ( spot = SVG_Find( spot, FOFS( classname ), "info_player_deathmatch" ) ) != NULL ) {
         bestplayerdistance = PlayersRangeFromSpot( spot );
 
         if ( bestplayerdistance > bestdistance ) {
@@ -740,7 +740,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint( void ) {
 
     // if there is a player just spawned on each and every start spot
     // we have no choice to turn one into a telefrag meltdown
-    spot = G_Find( NULL, FOFS( classname ), "info_player_deathmatch" );
+    spot = SVG_Find( NULL, FOFS( classname ), "info_player_deathmatch" );
 
     return spot;
 }
@@ -769,7 +769,7 @@ edict_t *SelectCoopSpawnPoint( edict_t *ent ) {
 
     // assume there are four coop spots at each spawnpoint
     while ( 1 ) {
-        spot = G_Find( spot, FOFS( classname ), "info_player_coop" );
+        spot = SVG_Find( spot, FOFS( classname ), "info_player_coop" );
         if ( !spot )
             return NULL;    // we didn't have enough...
 
@@ -806,7 +806,7 @@ void    SelectSpawnPoint( edict_t *ent, vec3_t origin, vec3_t angles ) {
 
     // find a single player start spot
     if ( !spot ) {
-        while ( ( spot = G_Find( spot, FOFS( classname ), "info_player_start" ) ) != NULL ) {
+        while ( ( spot = SVG_Find( spot, FOFS( classname ), "info_player_start" ) ) != NULL ) {
             if ( !game.spawnpoint[ 0 ] && !spot->targetname )
                 break;
 
@@ -820,7 +820,7 @@ void    SelectSpawnPoint( edict_t *ent, vec3_t origin, vec3_t angles ) {
         if ( !spot ) {
             if ( !game.spawnpoint[ 0 ] ) {
                 // there wasn't a spawnpoint without a target, so use any
-                spot = G_Find( spot, FOFS( classname ), "info_player_start" );
+                spot = SVG_Find( spot, FOFS( classname ), "info_player_start" );
             }
             if ( !spot )
                 gi.error( "Couldn't find spawn point %s", game.spawnpoint );
@@ -846,7 +846,7 @@ void InitBodyQue( void ) {
 
     level.body_que = 0;
     for ( i = 0; i < BODY_QUEUE_SIZE; i++ ) {
-        ent = G_AllocateEdict();
+        ent = SVG_AllocateEdict();
         ent->classname = "bodyque";
     }
 }
@@ -1409,7 +1409,7 @@ void PutClientInServer( edict_t *ent ) {
 **/
 void ClientBeginDeathmatch( edict_t *ent ) {
     // Init Edict.
-    G_InitEdict( ent );
+    SVG_InitEdict( ent );
 
     // Make sure it is recognized as a player.
     ent->svflags |= SVF_PLAYER;
@@ -1469,7 +1469,7 @@ void ClientBegin( edict_t *ent ) {
         // a spawn point will completely reinitialize the entity
         // except for the persistant data that was initialized at
         // ClientConnect() time
-        G_InitEdict( ent );
+        SVG_InitEdict( ent );
         ent->classname = "player";
         ent->s.entityType = ET_PLAYER;
         InitClientRespawnData( ent->client );
@@ -1936,7 +1936,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
         //    ent->client->landmark_free_fall = false;
         //    ent->client->landmark_noise_time = level.time + 100_ms;
         //}
-        // [Paril-KEX] save old position for G_TouchProjectiles
+        // [Paril-KEX] save old position for SVG_TouchProjectiles
         //vec3_t old_origin = ent->s.origin;
         
         // [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
@@ -1952,7 +1952,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
             }
         }
         
-        // [Paril-KEX] save old position for G_TouchProjectiles
+        // [Paril-KEX] save old position for SVG_TouchProjectiles
         const Vector3 old_origin = ent->s.origin;
 
 		// Copy back into the entity, both the resulting origin and velocity.
@@ -2005,8 +2005,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
 
         // If we're not 'No-Clipping', or 'Spectating', touch triggers and projectfiles.
 		if ( ent->movetype != MOVETYPE_NOCLIP ) {
-			G_TouchTriggers( ent );
-            G_TouchProjectiles( ent, old_origin );
+			SVG_TouchTriggers( ent );
+            SVG_TouchProjectiles( ent, old_origin );
 		}
 
         // Dispatch touch callbacks on all the remaining 'Solid' traced objects during our PMove.

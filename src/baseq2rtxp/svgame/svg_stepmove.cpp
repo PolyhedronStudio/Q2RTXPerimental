@@ -175,7 +175,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
                 VectorCopy(trace.endpos, ent->s.origin);
                 if (relink) {
                     gi.linkentity(ent);
-                    G_TouchTriggers(ent);
+                    SVG_TouchTriggers(ent);
                 }
                 return true;
             }
@@ -227,7 +227,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
             VectorAdd(ent->s.origin, move, ent->s.origin);
             if (relink) {
                 gi.linkentity(ent);
-                G_TouchTriggers(ent);
+                SVG_TouchTriggers(ent);
             }
             ent->groundInfo.entity = NULL;
             return true;
@@ -250,7 +250,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
             // and is trying to correct
             if (relink) {
                 gi.linkentity(ent);
-                G_TouchTriggers(ent);
+                SVG_TouchTriggers(ent);
             }
             return true;
         }
@@ -267,7 +267,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
 // the move is ok
     if (relink) {
         gi.linkentity(ent);
-        G_TouchTriggers(ent);
+        SVG_TouchTriggers(ent);
     }
 
 	if ( stepped ) {
@@ -357,12 +357,12 @@ bool SV_StepDirection( edict_t *ent, float yaw, float dist ) {
             VectorCopy( oldorigin, ent->s.origin );
         }
         gi.linkentity( ent );
-        G_TouchTriggers( ent );
-        G_TouchProjectiles( ent, oldorigin );
+        SVG_TouchTriggers( ent );
+        SVG_TouchProjectiles( ent, oldorigin );
         return true;
     }
     gi.linkentity( ent );
-    G_TouchTriggers( ent );
+    SVG_TouchTriggers( ent );
     return false;
 }
 

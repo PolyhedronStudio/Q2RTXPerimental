@@ -326,7 +326,7 @@ int GameLib_GetEntityForLuaName( lua_State *L ) {
 	// Find entity and acquire its number.
 	int32_t entityNumber = -1; // None by default.
 
-	edict_t *targetNameEntity = G_Find( NULL, FOFS( luaProperties.luaName ), luaName );
+	edict_t *targetNameEntity = SVG_Find( NULL, FOFS( luaProperties.luaName ), luaName );
 	if ( targetNameEntity ) {
 		entityNumber = targetNameEntity->s.number;
 	}
@@ -361,7 +361,7 @@ int GameLib_GetEntityForTargetName( lua_State *L ) {
 	// Find entity and acquire its number.
 	int32_t entityNumber = -1; // None by default.
 
-	edict_t *targetNameEntity = G_Find( NULL, FOFS( targetname ), targetName );
+	edict_t *targetNameEntity = SVG_Find( NULL, FOFS( targetname ), targetName );
 	if ( targetNameEntity ) {
 		entityNumber = targetNameEntity->s.number;
 	}
@@ -387,7 +387,7 @@ void LUA_Think_UseTargetDelay( edict_t *entity ) {
 	if ( creatorEntity->use ) {
 		creatorEntity->use( creatorEntity, entity->other, entity->activator );
 	}
-	G_FreeEdict( entity );
+	SVG_FreeEdict( entity );
 }
 /**
 *	@return	The number of the entity if it has a matching targetname, -1 otherwise.
@@ -439,7 +439,7 @@ int GameLib_UseTarget( lua_State *L ) {
 
 	if ( entity->delay ) {
 		// create a temp object to UseTarget at a later time.
-		edict_t *t = G_AllocateEdict();
+		edict_t *t = SVG_AllocateEdict();
 		t->classname = "DelayedUse";
 		t->nextthink = level.time + sg_time_t::from_sec( entity->delay );
 		t->think = LUA_Think_UseTargetDelay;

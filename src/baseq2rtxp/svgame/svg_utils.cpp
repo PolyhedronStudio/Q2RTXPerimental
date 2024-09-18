@@ -21,11 +21,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svg_lua.h"
 
 /**
-*   @brief  Wraps up the new more modern G_ProjectSource.
+*   @brief  Wraps up the new more modern SVG_ProjectSource.
 **/
-void G_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result ) {
-    // Call the new more modern G_ProjectSource.
-    const Vector3 _result = G_ProjectSource( point, distance, forward, right );
+void SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result ) {
+    // Call the new more modern SVG_ProjectSource.
+    const Vector3 _result = SVG_ProjectSource( point, distance, forward, right );
     // Copy the resulting values into the result vec3_t array(ptr).
     VectorCopy( _result, result );
 }
@@ -33,7 +33,7 @@ void G_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t fo
 /**
 *   @brief  Project vector from source.
 **/
-const Vector3 G_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
+const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
     return {
         point[ 0 ] + forward[ 0 ] * distance[ 0 ] + right[ 0 ] * distance[ 1 ],
         point[ 1 ] + forward[ 1 ] * distance[ 0 ] + right[ 1 ] * distance[ 1 ],
@@ -55,7 +55,7 @@ NULL will be returned if the end of the list is reached.
 =============
 */
 // WID: C++20: Added const.
-edict_t *G_Find(edict_t *from, int fieldofs, const char *match)
+edict_t *SVG_Find(edict_t *from, int fieldofs, const char *match)
 {
     char    *s;
 
@@ -132,7 +132,7 @@ NULL will be returned if the end of the list is reached.
 */
 #define MAXCHOICES  8
 
-edict_t *G_PickTarget(char *targetname)
+edict_t *SVG_PickTarget(char *targetname)
 {
     edict_t *ent = NULL;
     int     num_choices = 0;
@@ -144,7 +144,7 @@ edict_t *G_PickTarget(char *targetname)
     }
 
     while (1) {
-        ent = G_Find(ent, FOFS(targetname), targetname);
+        ent = SVG_Find(ent, FOFS(targetname), targetname);
         if (!ent)
             break;
         choice[num_choices++] = ent;
@@ -164,13 +164,13 @@ edict_t *G_PickTarget(char *targetname)
 
 void Think_Delay(edict_t *ent)
 {
-    G_UseTargets(ent, ent->activator);
-    G_FreeEdict(ent);
+    SVG_UseTargets(ent, ent->activator);
+    SVG_FreeEdict(ent);
 }
 
 /*
 ==============================
-G_UseTargets
+SVG_UseTargets
 
 the global "activator" should be set to the entity that initiated the firing.
 
@@ -184,7 +184,7 @@ match (string)self.target and call their .use function
 
 ==============================
 */
-void G_UseTargets(edict_t *ent, edict_t *activator)
+void SVG_UseTargets(edict_t *ent, edict_t *activator)
 {
     edict_t     *t;
 
@@ -193,7 +193,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->delay) {
         // create a temp object to fire at a later time
-        t = G_AllocateEdict();
+        t = SVG_AllocateEdict();
         t->classname = "DelayedUse";
         t->nextthink = level.time + sg_time_t::from_sec(ent->delay);
         t->think = Think_Delay;
@@ -224,8 +224,8 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->targetNames.kill) {
         t = NULL;
-        while ((t = G_Find(t, FOFS(targetname), ent->targetNames.kill))) {
-            G_FreeEdict(t);
+        while ((t = SVG_Find(t, FOFS(targetname), ent->targetNames.kill))) {
+            SVG_FreeEdict(t);
             if (!ent->inuse) {
                 gi.dprintf("entity was removed while using killtargets\n");
                 return;
@@ -238,7 +238,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->targetNames.target) {
         t = NULL;
-        while ((t = G_Find(t, FOFS(targetname), ent->targetNames.target))) {
+        while ((t = SVG_Find(t, FOFS(targetname), ent->targetNames.target))) {
             // doors fire area portals in a specific way
             if (!Q_stricmp(t->classname, "func_areaportal") &&
                 (!Q_stricmp(ent->classname, "func_door") || !Q_stricmp(ent->classname, "func_door_rotating")))
@@ -264,7 +264,7 @@ vec3_t MOVEDIR_UP   = {0, 0, 1};
 vec3_t VEC_DOWN     = {0, -2, 0};
 vec3_t MOVEDIR_DOWN = {0, 0, -1};
 
-void G_SetMovedir( vec3_t angles, Vector3 &movedir ) {
+void SVG_SetMovedir( vec3_t angles, Vector3 &movedir ) {
     if ( VectorCompare( angles, VEC_UP ) ) {
         VectorCopy( MOVEDIR_UP, movedir );
     } else if ( VectorCompare( angles, VEC_DOWN ) ) {
@@ -276,7 +276,7 @@ void G_SetMovedir( vec3_t angles, Vector3 &movedir ) {
     VectorClear( angles );
 }
 
-char *G_CopyString(char *in)
+char *SVG_CopyString(char *in)
 {
     char    *out;
 
@@ -287,7 +287,7 @@ char *G_CopyString(char *in)
 }
 
 
-void G_InitEdict(edict_t *e)
+void SVG_InitEdict(edict_t *e)
 {
     e->inuse = true;
     e->classname = "noclass";
@@ -309,7 +309,7 @@ instead of being removed and recreated, which can cause interpolated
 angles and bad trails.
 =================
 */
-edict_t *G_AllocateEdict(void)
+edict_t *SVG_AllocateEdict(void)
 {
     int32_t i = game.maxclients + 1;
     edict_t *entity = &g_edicts[ game.maxclients + 1 ];
@@ -319,7 +319,7 @@ edict_t *G_AllocateEdict(void)
         // the first couple seconds of server time can involve a lot of
         // freeing and allocating, so relax the replacement policy
         if ( !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
-            G_InitEdict( entity );
+            SVG_InitEdict( entity );
             return entity;
         }
 
@@ -332,25 +332,25 @@ edict_t *G_AllocateEdict(void)
 
     if ( i == game.maxentities ) {
         if ( freedEntity ) {
-            G_InitEdict( freedEntity );
+            SVG_InitEdict( freedEntity );
             return freedEntity;
         }
         gi.error( "G_AllocateEdict: no free edicts" );
     }
 
     globals.num_edicts++;
-    G_InitEdict(entity);
+    SVG_InitEdict(entity);
     return entity;
 }
 
 /*
 =================
-G_FreeEdict
+SVG_FreeEdict
 
 Marks the edict as free
 =================
 */
-void G_FreeEdict(edict_t *ed)
+void SVG_FreeEdict(edict_t *ed)
 {
     gi.unlinkentity(ed);        // unlink from world
 
@@ -377,7 +377,7 @@ G_TouchTriggers
 
 ============
 */
-void    G_TouchTriggers(edict_t *ent)
+void    SVG_TouchTriggers(edict_t *ent)
 {
     int         i, num;
     edict_t     *touch[MAX_EDICTS], *hit;
@@ -410,7 +410,7 @@ Call after linking a new trigger in during gameplay
 to force all entities it covers to immediately touch it
 ============
 */
-void    G_TouchSolids(edict_t *ent)
+void    SVG_TouchSolids(edict_t *ent)
 {
     int         i, num;
     edict_t     *touch[MAX_EDICTS], *hit;
@@ -434,7 +434,7 @@ void    G_TouchSolids(edict_t *ent)
 
 // [Paril-KEX] scan for projectiles between our movement positions
 // to see if we need to collide against them
-void G_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
+void SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
     struct skipped_projectile {
         edict_t *projectile;
         int32_t spawn_count;
@@ -527,7 +527,7 @@ of ent.  Ent should be unlinked before calling this!
 //
 //        trace_t clip = {};
 //        if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
-//            clip = gi.clip(ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, G_GetClipMask(hit));
+//            clip = gi.clip(ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask(hit));
 //
 //            if ( clip.fraction == 1.0f ) {
 //                continue;
@@ -599,7 +599,7 @@ const bool KillBox( edict_t *ent, const bool bspClipping ) {
 
         trace_t clip = {};
         if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
-            clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, G_GetClipMask( hit ) );
+            clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
 
             if ( clip.fraction == 1.0f ) {
                 continue;
@@ -664,7 +664,7 @@ static constexpr int32_t PUSHER_MOVEINFO_STATE_DOWN     = 3;
 *   @note   At the time of calling, parent entity has to reside in its default state.
 *           (This so the actual offsets can be calculated easily.)
 **/
-void G_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover ) {
+void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover ) {
     // Update targetname.
     //childMover->targetNames.movewith = targetName;
 
@@ -695,14 +695,14 @@ void G_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMo
     gi.dprintf( "%s: found parent(%s) for child entity(%s).\n", __func__, parentMover->targetNames.target, childMover->targetNames.movewith );
 }
 
-void G_MoveWith_Init( edict_t *self, edict_t *parent ) {
+void SVG_MoveWith_Init( edict_t *self, edict_t *parent ) {
 
 }
 
 /**
 *   @brief
 **/
-void G_MoveWith_SetChildEntityMovement( edict_t *self ) {
+void SVG_MoveWith_SetChildEntityMovement( edict_t *self ) {
     //// Parent origin.
     //Vector3 parentOrigin = moveWithEntity->s.origin;
     //// Difference atm between parent origin and child origin.
@@ -716,7 +716,7 @@ void G_MoveWith_SetChildEntityMovement( edict_t *self ) {
 /**
 *   @brief 
 **/
-void G_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, edict_t *parentMover, edict_t *childMover ) {
+void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, edict_t *parentMover, edict_t *childMover ) {
     // This is the absolute parent entity brush model origin in BSP model space.
     Vector3 parentAbsOrigin = QM_BBox3Center(
         QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )

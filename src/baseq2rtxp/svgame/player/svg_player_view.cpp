@@ -34,7 +34,7 @@ static  vec3_t  forward, right, up;
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
-void G_CheckClientPlayerstateEvents( const edict_t *ent, player_state_t *ops, player_state_t *ps );
+void SVG_CheckClientPlayerstateEvents( const edict_t *ent, player_state_t *ops, player_state_t *ps );
 
 inline bool SkipViewModifiers( ) {
 	//if ( g_skipViewModifiers->integer && sv_cheats->integer ) {
@@ -46,7 +46,7 @@ inline bool SkipViewModifiers( ) {
 	//	return true;
 	//}
 	// spectator mode
-	if ( current_client->resp.spectator ) { //|| ( G_TeamplayEnabled( ) && current_client->resp.ctf_team == CTF_NOTEAM ) ) {
+	if ( current_client->resp.spectator ) { //|| ( SVG_TeamplayEnabled( ) && current_client->resp.ctf_team == CTF_NOTEAM ) ) {
 		return true;
 	}
 	return false;
@@ -705,10 +705,10 @@ static void P_CheckWorldEffects( void ) {
 
 /*
 ===============
-G_SetClientEffects
+SVG_SetClientEffects
 ===============
 */
-void G_SetClientEffects( edict_t *ent ) {
+void SVG_SetClientEffects( edict_t *ent ) {
 	ent->s.effects = 0;
 	ent->s.renderfx = 0;
 
@@ -726,10 +726,10 @@ void G_SetClientEffects( edict_t *ent ) {
 
 /*
 ===============
-G_SetClientEvent
+SVG_SetClientEvent
 ===============
 */
-void G_SetClientEvent( edict_t *ent ) {
+void SVG_SetClientEvent( edict_t *ent ) {
 	// We're already occupied by an event.
 	if ( ent->s.event ) {
 		return;
@@ -760,10 +760,10 @@ void G_SetClientEvent( edict_t *ent ) {
 
 /*
 ===============
-G_SetClientSound
+SVG_SetClientSound
 ===============
 */
-void G_SetClientSound( edict_t *ent ) {
+void SVG_SetClientSound( edict_t *ent ) {
 	// Override sound with the 'fry' sound in case of being in a 'fryer' liquid, lol.
 	if ( ent->liquidInfo.level && ( ent->liquidInfo.type & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
 		ent->s.sound = snd_fry;
@@ -780,7 +780,7 @@ void G_SetClientSound( edict_t *ent ) {
 *	@brief	Will set the client entity's animation for the current frame.
 **/
 void SVG_P_ProcessAnimations( const edict_t *ent );
-void G_SetClientFrame( edict_t *ent ) {
+void SVG_SetClientFrame( edict_t *ent ) {
 	// Return if not viewing a player model entity.
 	if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
 		return;     // not in the player model
@@ -885,7 +885,7 @@ void ClientEndServerFrame( edict_t *ent ) {
 		// FIXME: add view drifting here?
 		current_client->ps.screen_blend[ 3 ] = 0;
 		current_client->ps.fov = 90;
-		G_SetStats( ent );
+		SVG_SetStats( ent );
 		return;
 	}
 
@@ -932,23 +932,23 @@ void ClientEndServerFrame( edict_t *ent ) {
 
 	// Different layout when spectating.
 	if ( ent->client->resp.spectator ) {
-		G_SetSpectatorStats( ent );
+		SVG_SetSpectatorStats( ent );
 	// Regular layout.
 	} else {
-		G_SetStats( ent );
+		SVG_SetStats( ent );
 	}
 	// Set stats to that of the entity which we're tracing. (Overriding previously set stats.)
-	G_CheckChaseStats( ent );
+	SVG_CheckChaseStats( ent );
 	// Events.
-	G_SetClientEvent( ent );
+	SVG_SetClientEvent( ent );
 	// Effects.
-	G_SetClientEffects( ent );
+	SVG_SetClientEffects( ent );
 	// Sound.
-	G_SetClientSound( ent );
+	SVG_SetClientSound( ent );
 	// Check for client plaerstate its pmove generated events.
-	G_CheckClientPlayerstateEvents( ent, &current_client->ops, &current_client->ps );
+	SVG_CheckClientPlayerstateEvents( ent, &current_client->ops, &current_client->ps );
 	// Animation Frame.
-	G_SetClientFrame( ent );
+	SVG_SetClientFrame( ent );
 
 	// Backup velocity, viewangles, and ground entity.
 	VectorCopy( ent->velocity, ent->client->oldvelocity );

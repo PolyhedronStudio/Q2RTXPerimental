@@ -43,7 +43,7 @@ void P_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
 
 
     if ( !who->mynoise ) {
-        noise = G_AllocateEdict();
+        noise = SVG_AllocateEdict();
         noise->classname = "player_noise";
         VectorSet( noise->mins, -8, -8, -8 );
         VectorSet( noise->maxs, 8, 8, 8 );
@@ -51,7 +51,7 @@ void P_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
         noise->svflags = SVF_NOCLIENT;
         who->mynoise = noise;
 
-        noise = G_AllocateEdict();
+        noise = SVG_AllocateEdict();
         noise->classname = "player_noise";
         VectorSet( noise->mins, -8, -8, -8 );
         VectorSet( noise->maxs, 8, 8, 8 );
@@ -366,7 +366,7 @@ void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forw
     } else if ( ent->client->pers.hand == CENTER_HANDED ) {
         _distance[ 1 ] = 0;
     }
-    const Vector3 _result = G_ProjectSource( point, _distance, forward, right );
+    const Vector3 _result = SVG_ProjectSource( point, _distance, forward, right );
     // Copy the resulting values into the result vec3_t array(ptr).
     VectorCopy( _result, result );
 }
@@ -382,7 +382,7 @@ const Vector3 P_ProjectDistance( edict_t *ent, Vector3 &point, Vector3 &distance
         _distance[ 1 ] = 0;
     }
 
-    return G_ProjectSource( point, _distance, forward, right );
+    return SVG_ProjectSource( point, _distance, forward, right );
 
     // Aim fix from Yamagi Quake 2.
     // Now the projectile hits exactly where the scope is pointing.
@@ -411,7 +411,7 @@ void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forwar
     } else if ( ent->client->pers.hand == CENTER_HANDED ) {
         _distance[ 1 ] = 0;
     }
-    G_ProjectSource( point, &_distance.x, forward, right, result );
+    SVG_ProjectSource( point, &_distance.x, forward, right, result );
 
     // Aim fix from Yamagi Quake 2.
     // Now the projectile hits exactly where the scope is pointing.

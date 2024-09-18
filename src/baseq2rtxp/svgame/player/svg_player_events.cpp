@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *	@brief	Inspects the player state events for any events which may fire animation playbacks.
 **/
-static void G_FireClientPlayerStateEvent( const edict_t *ent, const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent ) {
+static void SVG_FireClientPlayerStateEvent( const edict_t *ent, const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent ) {
     // Sanity check.
     if ( !ent ) {
         return;
@@ -77,7 +77,7 @@ static void G_FireClientPlayerStateEvent( const edict_t *ent, const player_state
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
-void G_CheckClientPlayerstateEvents( const edict_t *ent, player_state_t *ops, player_state_t *ps ) {
+void SVG_CheckClientPlayerstateEvents( const edict_t *ent, player_state_t *ops, player_state_t *ps ) {
     // Sanity check.
     if ( !ent ) {
         return;
@@ -118,7 +118,7 @@ void G_CheckClientPlayerstateEvents( const edict_t *ent, player_state_t *ops, pl
             // Get the event number.
             const int32_t playerStateEvent = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];
             // Proceed to firing the predicted/received event.
-            G_FireClientPlayerStateEvent( ent, ops, ps, playerStateEvent );
+            SVG_FireClientPlayerStateEvent( ent, ops, ps, playerStateEvent );
 
             //// Add to the list of predictable events.
             //game.predictableEvents[ i & ( MAX_PREDICTED_EVENTS - 1 ) ] = event;

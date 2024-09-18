@@ -1,5 +1,6 @@
 // Game related types.
 #include "svg_local.h"
+
 // Save related types.
 #include "svg_save.h"
 
@@ -52,6 +53,10 @@ extern mmove_t soldier_move_walk1;
 extern mmove_t soldier_move_walk2;
 
 // <Q2RTXP>:
+// Lua. (Certain things as Thinks for DelayedUse)
+void LUA_Think_UseTargetDelay( edict_t *entity );
+
+
 extern void SP_monster_testdummy_puppet( edict_t *self );
 extern void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void monster_testdummy_puppet_think( edict_t *self );
@@ -108,7 +113,7 @@ extern void func_timer_think( edict_t *self );
 extern void func_timer_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void func_train_find( edict_t *self );
 extern void func_wall_use( edict_t *self, edict_t *other, edict_t *activator );
-extern void G_FreeEdict( edict_t *self );
+extern void SVG_FreeEdict( edict_t *self );
 extern void gib_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void gib_think( edict_t *self );
 extern void gib_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
@@ -192,43 +197,44 @@ const save_ptr_t save_ptrs[] = {
 	{ P_postspawn, (void *)monster_testdummy_puppet_post_spawn },
 	// </Q2RTXP>
 { P_postspawn, (void *)door_postspawn },
-{ P_think,  (void*)AngleMove_Begin },
-{ P_think,  (void*)AngleMove_Done },
-{ P_think,  (void*)AngleMove_Final },
-{ P_think,  (void*)barrel_explode },
-{ P_think,  (void*)button_return },
-{ P_think,  (void*)door_go_down },
-{ P_think,  (void*)door_secret_move2 },
-{ P_think,  (void*)door_secret_move4 },
-{ P_think,  (void*)door_secret_move6 },
-{ P_think,  (void*)DoRespawn },
-{ P_think,  (void*)drop_make_touchable },
-{ P_think,  (void*)droptofloor },
-{ P_think,  (void*)func_clock_think },
-{ P_think,  (void*)func_object_release },
-{ P_think,  (void*)func_timer_think },
-{ P_think,  (void*)func_train_find },
-{ P_think,  (void*)G_FreeEdict },
-{ P_think,  (void*)gib_think },
-{ P_think,  (void*)M_droptofloor },
-{ P_think,  (void*)MegaHealth_think },
-{ P_think,  (void*)Move_Begin },
-{ P_think,  (void*)Move_Done },
-{ P_think,  (void*)Move_Final },
-{ P_think,  (void*)multi_wait },
-{ P_think,  (void*)plat_go_down },
-{ P_think,  (void*)SP_CreateCoopSpots },
-{ P_think,  (void*)SP_FixCoopSpots },
-{ P_think,  (void*)target_crosslevel_target_think },
-{ P_think,  (void*)target_earthquake_think },
-{ P_think,  (void*)target_explosion_explode },
-{ P_think,  (void*)target_laser_start },
-{ P_think,  (void*)target_laser_think },
-{ P_think,  (void*)target_lightramp_think },
-{ P_think,  (void*)TH_viewthing },
-{ P_think,  (void*)Think_AccelMove },
-{ P_think,  (void*)Think_CalcMoveSpeed },
-{ P_think,  (void*)Think_Delay },
+{ P_think,  (void *)AngleMove_Begin },
+{ P_think,  (void *)AngleMove_Done },
+{ P_think,  (void *)AngleMove_Final },
+{ P_think,  (void *)barrel_explode },
+{ P_think,  (void *)button_return },
+{ P_think,  (void *)door_go_down },
+{ P_think,  (void *)door_secret_move2 },
+{ P_think,  (void *)door_secret_move4 },
+{ P_think,  (void *)door_secret_move6 },
+{ P_think,  (void *)DoRespawn },
+{ P_think,  (void *)drop_make_touchable },
+{ P_think,  (void *)droptofloor },
+{ P_think,  (void *)func_clock_think },
+{ P_think,  (void *)func_object_release },
+{ P_think,  (void *)func_timer_think },
+{ P_think,  (void *)func_train_find },
+{ P_think,  (void *)SVG_FreeEdict },
+{ P_think,  (void *)gib_think },
+{ P_think,  (void *)M_droptofloor },
+{ P_think,  (void *)MegaHealth_think },
+{ P_think,  (void *)Move_Begin },
+{ P_think,  (void *)Move_Done },
+{ P_think,  (void *)Move_Final },
+{ P_think,  (void *)multi_wait },
+{ P_think,  (void *)plat_go_down },
+{ P_think,  (void *)SP_CreateCoopSpots },
+{ P_think,  (void *)SP_FixCoopSpots },
+{ P_think,  (void *)target_crosslevel_target_think },
+{ P_think,  (void *)target_earthquake_think },
+{ P_think,  (void *)target_explosion_explode },
+{ P_think,  (void *)target_laser_start },
+{ P_think,  (void *)target_laser_think },
+{ P_think,  (void *)target_lightramp_think },
+{ P_think,  (void *)TH_viewthing },
+{ P_think,  (void *)Think_AccelMove },
+{ P_think,  (void *)Think_CalcMoveSpeed },
+{ P_think,  (void *)Think_Delay },
+{ P_think,  (void *)LUA_Think_UseTargetDelay },
 { P_think,  (void*)Think_SpawnDoorTrigger },
 { P_think,  (void*)train_next },
 { P_think,  (void*)trigger_elevator_init },

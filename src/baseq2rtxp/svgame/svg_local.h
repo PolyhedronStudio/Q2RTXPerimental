@@ -61,7 +61,7 @@ extern sg_time_t FRAME_TIME_MS;
 constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64_t>::max( ) );
 
 //! Features this game supports.
-#define G_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS)
+#define SVG_FEATURES  (GMF_PROPERINUSE|GMF_WANT_ALL_DISCONNECTS)
 // The "gameversion" client command will print this plus compile date.
 #define GAMEVERSION "BaseQ2RTXP"
 
@@ -600,7 +600,7 @@ typedef struct {
     int         total_monsters;
     int         killed_monsters;
 
-    edict_t     *current_entity;    // entity running from G_RunFrame
+    edict_t     *current_entity;    // entity running from SVG_RunFrame
     int         body_que;           // dead bodies
 } level_locals_t;
 //! Extern, access all over game dll code.
@@ -820,7 +820,7 @@ extern  gitem_t itemlist[];
 *	@return	True in case the current gamemode allows for saving the game.
 *			(This should only be true for single and cooperative play modes.)
 **/
-const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer );
+const bool SVG_GetGamemodeNoSaveGames( const bool isDedicatedServer );
 
 //
 // g_cmds.c
@@ -855,44 +855,44 @@ const bool    KillBox( edict_t *ent, const bool bspClipping );
 /**
 *   @brief
 **/
-void G_MoveWith_AdjustToParent( const Vector3 &parentOriginDelta, edict_t *parentMover, edict_t *childMover );
+void SVG_MoveWith_AdjustToParent( const Vector3 &parentOriginDelta, edict_t *parentMover, edict_t *childMover );
 /**
 *   @brief
 **/
-//void G_MoveWith_Init( edict_t *self, edict_t *parent );
+//void SVG_MoveWith_Init( edict_t *self, edict_t *parent );
 /**
 *   @brief
 **/
-void G_MoveWith_SetChildEntityMovement( edict_t *self );
+void SVG_MoveWith_SetChildEntityMovement( edict_t *self );
 /**
 *   @note   At the time of calling, parent entity has to reside in its default state.
 *           (This so the actual offsets can be calculated easily.)
 **/
-void G_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover );
+void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover );
 
 /**
-*   @brief  Wraps up the new more modern G_ProjectSource.
+*   @brief  Wraps up the new more modern SVG_ProjectSource.
 **/
-void    G_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
+void    SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
 /**
 *   @brief  Project vector from source. 
 **/
-const Vector3 G_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
-edict_t *G_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
+const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
+edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
 edict_t *findradius( edict_t *from, vec3_t org, float rad );
-edict_t *G_PickTarget( char *targetname );
-void    G_UseTargets( edict_t *ent, edict_t *activator );
-void    G_SetMovedir( vec3_t angles, Vector3 &movedir );
+edict_t *SVG_PickTarget( char *targetname );
+void    SVG_UseTargets( edict_t *ent, edict_t *activator );
+void    SVG_SetMovedir( vec3_t angles, Vector3 &movedir );
 
-void    G_InitEdict( edict_t *e );
-edict_t *G_AllocateEdict( void );
-void    G_FreeEdict( edict_t *e );
+void    SVG_InitEdict( edict_t *e );
+edict_t *SVG_AllocateEdict( void );
+void    SVG_FreeEdict( edict_t *e );
 
-void    G_TouchTriggers( edict_t *ent );
-void    G_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
-void    G_TouchSolids( edict_t *ent );
+void    SVG_TouchTriggers( edict_t *ent );
+void    SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
+void    SVG_TouchSolids( edict_t *ent );
 
-char *G_CopyString( char *in );
+char *SVG_CopyString( char *in );
 
 //
 // g_combat.c
@@ -1032,9 +1032,9 @@ void ClientEndServerFrame( edict_t *ent );
 // p_hud.c
 //
 void MoveClientToIntermission( edict_t *client );
-void G_SetStats( edict_t *ent );
-void G_SetSpectatorStats( edict_t *ent );
-void G_CheckChaseStats( edict_t *ent );
+void SVG_SetStats( edict_t *ent );
+void SVG_SetSpectatorStats( edict_t *ent );
+void SVG_CheckChaseStats( edict_t *ent );
 void ValidateSelectedItem( edict_t *ent );
 void DeathmatchScoreboardMessage( edict_t *client, edict_t *killer );
 
@@ -1042,13 +1042,13 @@ void DeathmatchScoreboardMessage( edict_t *client, edict_t *killer );
 // g_pweapon.c
 //
 /**
-*   @brief  Wraps up the new more modern G_ProjectSource.
+*   @brief  Wraps up the new more modern SVG_ProjectSource.
 **/
-void    G_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
+void    SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
 /**
 *   @brief  Project vector from source.
 **/
-const Vector3 G_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
+const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
 /**
 *   @brief  Wraps up the new more modern P_ProjectDistance.
 **/
@@ -1098,8 +1098,8 @@ void P_Weapon_Think( edict_t *ent, const bool processUserInputOnly );
 // g_phys.c
 //
 void SV_Impact( edict_t *e1, trace_t *trace );
-const contents_t G_GetClipMask( edict_t *ent );
-void G_RunEntity( edict_t *ent );
+const contents_t SVG_GetClipMask( edict_t *ent );
+void SVG_RunEntity( edict_t *ent );
 
 
 //

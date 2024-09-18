@@ -353,7 +353,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //        return;
 //    }
 //
-//    self->goalentity = self->movetarget = G_PickTarget(self->targetNames.combat);
+//    self->goalentity = self->movetarget = SVG_PickTarget(self->targetNames.combat);
 //    if (!self->movetarget) {
 //        self->goalentity = self->movetarget = self->enemy;
 //        HuntTarget(self);
@@ -893,7 +893,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //    }
 //
 //    save = self->goalentity;
-//    tempgoal = G_AllocateEdict();
+//    tempgoal = SVG_AllocateEdict();
 //    self->goalentity = tempgoal;
 //
 //    _new = false;
@@ -956,12 +956,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //            AngleVectors(self->s.angles, v_forward, v_right, NULL);
 //
 //            VectorSet(v, d2, -16, 0);
-//            G_ProjectSource(self->s.origin, v, v_forward, v_right, left_target);
+//            SVG_ProjectSource(self->s.origin, v, v_forward, v_right, left_target);
 //            tr = gi.trace(self->s.origin, self->mins, self->maxs, left_target, self, MASK_PLAYERSOLID);
 //            left = tr.fraction;
 //
 //            VectorSet(v, d2, 16, 0);
-//            G_ProjectSource(self->s.origin, v, v_forward, v_right, right_target);
+//            SVG_ProjectSource(self->s.origin, v, v_forward, v_right, right_target);
 //            tr = gi.trace(self->s.origin, self->mins, self->maxs, right_target, self, MASK_PLAYERSOLID);
 //            right = tr.fraction;
 //
@@ -969,7 +969,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //            if (left >= center && left > right) {
 //                if (left < 1) {
 //                    VectorSet(v, d2 * left * 0.5f, -16, 0);
-//                    G_ProjectSource(self->s.origin, v, v_forward, v_right, left_target);
+//                    SVG_ProjectSource(self->s.origin, v, v_forward, v_right, left_target);
 //                }
 //                VectorCopy(self->monsterinfo.last_sighting, self->monsterinfo.saved_goal);
 //                self->monsterinfo.aiflags |= AI_PURSUE_TEMP;
@@ -980,7 +980,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //            } else if (right >= center && right > left) {
 //                if (right < 1) {
 //                    VectorSet(v, d2 * right * 0.5f, 16, 0);
-//                    G_ProjectSource(self->s.origin, v, v_forward, v_right, right_target);
+//                    SVG_ProjectSource(self->s.origin, v, v_forward, v_right, right_target);
 //                }
 //                VectorCopy(self->monsterinfo.last_sighting, self->monsterinfo.saved_goal);
 //                self->monsterinfo.aiflags |= AI_PURSUE_TEMP;
@@ -994,7 +994,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 //    M_MoveToGoal(self, dist);
 //
-//    G_FreeEdict(tempgoal);
+//    SVG_FreeEdict(tempgoal);
 //
 //    if (self)
 //        self->goalentity = save;

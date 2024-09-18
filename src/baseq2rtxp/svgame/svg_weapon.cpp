@@ -360,7 +360,7 @@ void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int ki
         fire_lead( self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
-static const bool G_ShouldPlayersCollideProjectile( edict_t *self ) {
+static const bool SVG_ShouldPlayersCollideProjectile( edict_t *self ) {
     // In Coop they don't.
     if ( SG_GetActiveGameModeType() == GAMEMODE_TYPE_COOPERATIVE ) {
         return false;

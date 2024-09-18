@@ -128,19 +128,19 @@ void BeginIntermission(edict_t *targ)
     level.exitintermission = 0;
 
     // find an intermission spot
-    ent = G_Find(NULL, FOFS(classname), "info_player_intermission");
+    ent = SVG_Find(NULL, FOFS(classname), "info_player_intermission");
     if (!ent) {
         // the map creator forgot to put in an intermission point...
-        ent = G_Find(NULL, FOFS(classname), "info_player_start");
+        ent = SVG_Find(NULL, FOFS(classname), "info_player_start");
         if (!ent)
-            ent = G_Find(NULL, FOFS(classname), "info_player_deathmatch");
+            ent = SVG_Find(NULL, FOFS(classname), "info_player_deathmatch");
     } else {
         // chose one of four spots
         i = Q_rand() & 3;
         while (i--) {
-            ent = G_Find(ent, FOFS(classname), "info_player_intermission");
+            ent = SVG_Find(ent, FOFS(classname), "info_player_intermission");
             if (!ent)   // wrap around the list
-                ent = G_Find(ent, FOFS(classname), "info_player_intermission");
+                ent = SVG_Find(ent, FOFS(classname), "info_player_intermission");
         }
     }
 
@@ -326,9 +326,9 @@ void Cmd_Score_f(edict_t *ent)
 //=======================================================================
 
 /**
-*   @brief  Specific 'Weaponry' substitute function for G_SetStats.
+*   @brief  Specific 'Weaponry' substitute function for SVG_SetStats.
 **/
-void G_SetWeaponStats( edict_t *ent ) {
+void SVG_SetWeaponStats( edict_t *ent ) {
     //
     // Type of ammo to display the total carrying amount of.
     //
@@ -390,7 +390,7 @@ void G_SetWeaponStats( edict_t *ent ) {
 /**
 *   @brief  Will update the client's player_state_t stats array with the current client entity's values.
 **/
-void G_SetStats(edict_t *ent) {
+void SVG_SetStats(edict_t *ent) {
     //
     // Health
     //
@@ -405,7 +405,7 @@ void G_SetStats(edict_t *ent) {
     //
     //  (Clip-)Ammo and Weapon(-Stats).
     //
-    G_SetWeaponStats( ent );
+    SVG_SetWeaponStats( ent );
     
     //
     // Armor
@@ -509,10 +509,10 @@ void G_SetStats(edict_t *ent) {
 
 /*
 ===============
-G_CheckChaseStats
+SVG_CheckChaseStats
 ===============
 */
-void G_CheckChaseStats(edict_t *ent)
+void SVG_CheckChaseStats(edict_t *ent)
 {
     int i;
     gclient_t *cl;
@@ -522,21 +522,21 @@ void G_CheckChaseStats(edict_t *ent)
         if (!g_edicts[i].inuse || cl->chase_target != ent)
             continue;
         memcpy(cl->ps.stats, ent->client->ps.stats, sizeof(cl->ps.stats));
-        G_SetSpectatorStats(g_edicts + i);
+        SVG_SetSpectatorStats(g_edicts + i);
     }
 }
 
 /*
 ===============
-G_SetSpectatorStats
+SVG_SetSpectatorStats
 ===============
 */
-void G_SetSpectatorStats(edict_t *ent)
+void SVG_SetSpectatorStats(edict_t *ent)
 {
     gclient_t *cl = ent->client;
 
     if (!cl->chase_target)
-        G_SetStats(ent);
+        SVG_SetStats(ent);
 
     // If this function was called, enable spectator mode stats.
     cl->ps.stats[STAT_SPECTATOR] = 1;

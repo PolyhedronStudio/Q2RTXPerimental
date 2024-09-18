@@ -376,7 +376,7 @@ void ED_CallSpawn(edict_t *ent)
 *           All but the first will have the FL_TEAMSLAVE flag set.
 *           All but the last will have the teamchain field set to the next one
 **/
-void G_FindTeams( void ) {
+void SVG_FindTeams( void ) {
     edict_t *e, *e2, *chain;
     int     i, j;
     int     c, c2;
@@ -417,7 +417,7 @@ void G_FindTeams( void ) {
 /**
 *   @brief  Find and set the 'movewith' parent entity for entities that have this key set.
 **/
-void G_MoveWith_FindParentTargetEntities( void ) {
+void SVG_MoveWith_FindParentTargetEntities( void ) {
     edict_t *ent = g_edicts;
     int32_t moveParents  = 0;
     int32_t i = 1;
@@ -437,11 +437,11 @@ void G_MoveWith_FindParentTargetEntities( void ) {
         }
 
         // Fetch 'parent' target entity.
-        edict_t *parentMover = G_Find( NULL, FOFS( targetname ), ent->targetNames.movewith );
+        edict_t *parentMover = SVG_Find( NULL, FOFS( targetname ), ent->targetNames.movewith );
         // Apply.
         if ( parentMover ) {
             // Set.
-            G_MoveWith_SetTargetParentEntity( ent->targetNames.movewith, parentMover, ent );
+            SVG_MoveWith_SetTargetParentEntity( ent->targetNames.movewith, parentMover, ent );
             // Increment.
             game.num_movewithEntityStates++;
         }
@@ -637,7 +637,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
 
         // Pointer to the worldspawn edict in first instance, after that the first free entity
         // we can acquire.
-        spawnEdict = ( !spawnEdict ? g_edicts : G_AllocateEdict() );
+        spawnEdict = ( !spawnEdict ? g_edicts : SVG_AllocateEdict() );
 
         // Get the incremental index entity.
         cm_entity = entities[ i ];
@@ -728,7 +728,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
             /*  || strstr( spawnEdict->classname, "misc_deadsoldier" )
                 || strstr( spawnEdict->classname, "misc_insane" )*/ ) ) {
                 // Free entity.
-                G_FreeEdict( spawnEdict );
+                SVG_FreeEdict( spawnEdict );
                 // Increase the amount of inhibited entities we're keeping track of.
                 numInhibitedEntities++;
                 // Iterate to the next entity key/value list entry.
@@ -739,7 +739,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
             if ( deathmatch->value ) {
                 if ( spawnEdict->spawnflags & SPAWNFLAG_NOT_DEATHMATCH ) {
                     // Free entity.
-                    G_FreeEdict( spawnEdict );
+                    SVG_FreeEdict( spawnEdict );
                     // Increase the amount of inhibited entities we're keeping track of.
                     numInhibitedEntities++;
                     // Iterate to the next entity key/value list entry.
@@ -752,7 +752,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
                     ( ( ( skill->value == 2 ) || ( skill->value == 3 ) ) && ( spawnEdict->spawnflags & SPAWNFLAG_NOT_HARD ) )
                     ) {
                     // Free entity.
-                    G_FreeEdict( spawnEdict );
+                    SVG_FreeEdict( spawnEdict );
                     // Increase the amount of inhibited entities we're keeping track of.
                     numInhibitedEntities++;
                     // Iterate to the next entity key/value list entry.
@@ -807,10 +807,10 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
 #endif
 
     // Find entity 'teams', NOTE: these are not actual player game teams.
-    G_FindTeams();
+    SVG_FindTeams();
 
     // Find all entities that are following a parent's movement.
-    G_MoveWith_FindParentTargetEntities();
+    SVG_MoveWith_FindParentTargetEntities();
 
     // Initialize player trail.
     PlayerTrail_Init();
@@ -955,7 +955,7 @@ void SP_worldspawn(edict_t *ent)
 {
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
-    ent->inuse = true;          // since the world doesn't use G_AllocateEdict()
+    ent->inuse = true;          // since the world doesn't use SVG_AllocateEdict()
     ent->s.modelindex = 1;      // world model is always index 1
 
     //---------------

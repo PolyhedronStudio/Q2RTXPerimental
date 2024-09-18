@@ -91,7 +91,7 @@ void Move_Done( edict_t *ent ) {
     }
 
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
-    //    G_MoveWith_SetChildEntityMovement( ent );
+    //    SVG_MoveWith_SetChildEntityMovement( ent );
     //}
 }
 /**
@@ -112,7 +112,7 @@ void Move_Final( edict_t *ent ) {
     ent->think = Move_Done;
     ent->nextthink = level.time + FRAME_TIME_S;
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
-    //    G_MoveWith_SetChildEntityMovement( ent );
+    //    SVG_MoveWith_SetChildEntityMovement( ent );
     //}
 }
 /**
@@ -138,7 +138,7 @@ void Move_Begin( edict_t *ent ) {
     //}
 
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
-    //    G_MoveWith_SetChildEntityMovement( ent );
+    //    SVG_MoveWith_SetChildEntityMovement( ent );
     //}
 }
 /**
@@ -419,7 +419,7 @@ void Think_AccelMove( edict_t *ent ) {
 
     // Find entities that move along with this entity.
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
-    //    G_MoveWith_SetChildEntityMovement( ent );
+    //    SVG_MoveWith_SetChildEntityMovement( ent );
     //}
 }
 
@@ -562,7 +562,7 @@ void plat_spawn_inside_trigger(edict_t *ent)
 //
 // middle trigger
 //
-    trigger = G_AllocateEdict();
+    trigger = SVG_AllocateEdict();
     trigger->touch = Touch_Plat_Center;
     trigger->movetype = MOVETYPE_NONE;
     trigger->solid = SOLID_TRIGGER;
@@ -817,7 +817,7 @@ void button_wait(edict_t *self)
     self->s.effects &= ~EF_ANIM01;
     self->s.effects |= EF_ANIM23;
 
-    G_UseTargets(self, self->activator);
+    SVG_UseTargets(self, self->activator);
     // WID: LUA: Call the HitBottom function if it exists.
     if ( self->luaProperties.luaName ) {
         // Generate function 'callback' name.
@@ -876,7 +876,7 @@ void SP_func_button( edict_t *ent ) {
     vec3_t  abs_movedir;
     float   dist;
 
-    G_SetMovedir( ent->s.angles, ent->movedir );
+    SVG_SetMovedir( ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_STOP;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
@@ -971,7 +971,7 @@ void door_use_areaportals(edict_t *self, bool open)
     if (!self->targetNames.target)
         return;
 
-    while ((t = G_Find(t, FOFS(targetname), self->targetNames.target))) {
+    while ((t = SVG_Find(t, FOFS(targetname), self->targetNames.target))) {
         //if (Q_stricmp(t->classname, "func_areaportal") == 0) {
         if ( t->s.entityType == ET_AREA_PORTAL ) {
             gi.SetAreaPortalState(t->style, open);
@@ -1077,7 +1077,7 @@ void door_go_up(edict_t *self, edict_t *activator)
     else if (strcmp(self->classname, "func_door_rotating") == 0)
         AngleMove_Calc(self, door_hit_top);
 
-    G_UseTargets(self, activator);
+    SVG_UseTargets(self, activator);
     door_use_areaportals(self, true);
 }
 
@@ -1186,7 +1186,7 @@ void Think_SpawnDoorTrigger(edict_t *ent)
     maxs[0] += 60;
     maxs[1] += 60;
 
-    other = G_AllocateEdict();
+    other = SVG_AllocateEdict();
     VectorCopy(mins, other->mins);
     VectorCopy(maxs, other->maxs);
     other->owner = ent;
@@ -1260,7 +1260,7 @@ void door_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf
 
 void door_postspawn( edict_t *self ) {
     //if ( self->spawnflags & DOOR_START_OPEN ) {
-    //    //G_UseTargets( self, self );
+    //    //SVG_UseTargets( self, self );
     //    door_use_areaportals( self, true );
     //    //self->pusherMoveInfo.state = STATE_TOP;
     //}
@@ -1276,7 +1276,7 @@ void SP_func_door(edict_t *ent)
         ent->pusherMoveInfo.sound_end = gi.soundindex("doors/door_end_01.wav");
     }
 
-    G_SetMovedir(ent->s.angles, ent->movedir );
+    SVG_SetMovedir(ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
@@ -1504,7 +1504,7 @@ void SP_func_water(edict_t *self)
 {
     vec3_t  abs_movedir;
 
-    G_SetMovedir(self->s.angles, self->movedir );
+    SVG_SetMovedir(self->s.angles, self->movedir );
     self->movetype = MOVETYPE_PUSH;
     self->solid = SOLID_BSP;
     self->s.entityType = ET_PUSHER;
@@ -1611,7 +1611,7 @@ void train_wait(edict_t *self)
         ent = self->targetEntities.target;
         savetarget = ent->targetNames.target;
         ent->targetNames.target = ent->targetNames.path;
-        G_UseTargets(ent, self->activator);
+        SVG_UseTargets(ent, self->activator);
         ent->targetNames.target = savetarget;
 
         // make sure we didn't get killed by a targetNames.kill
@@ -1654,7 +1654,7 @@ again:
         return;
     }
 
-    ent = G_PickTarget(self->targetNames.target);
+    ent = SVG_PickTarget(self->targetNames.target);
     if (!ent) {
         gi.dprintf("train_next: bad target %s\n", self->targetNames.target);
         return;
@@ -1716,7 +1716,7 @@ void func_train_find(edict_t *self)
         gi.dprintf("train_find: no target\n");
         return;
     }
-    ent = G_PickTarget(self->targetNames.target);
+    ent = SVG_PickTarget(self->targetNames.target);
     if (!ent) {
         gi.dprintf("train_find: target %s not found\n", self->targetNames.target);
         return;
@@ -1811,7 +1811,7 @@ void trigger_elevator_use(edict_t *self, edict_t *other, edict_t *activator)
         return;
     }
 
-    target = G_PickTarget(other->targetNames.path);
+    target = SVG_PickTarget(other->targetNames.path);
     if (!target) {
         gi.dprintf("elevator used with bad targetNames.path: %s\n", other->targetNames.path);
         return;
@@ -1827,7 +1827,7 @@ void trigger_elevator_init(edict_t *self)
         gi.dprintf("trigger_elevator has no target\n");
         return;
     }
-    self->movetarget = G_PickTarget(self->targetNames.target);
+    self->movetarget = SVG_PickTarget(self->targetNames.target);
     if (!self->movetarget) {
         gi.dprintf("trigger_elevator unable to find target %s\n", self->targetNames.target);
         return;
@@ -1865,7 +1865,7 @@ These can used but not touched.
 */
 void func_timer_think(edict_t *self)
 {
-    G_UseTargets(self, self->activator);
+    SVG_UseTargets(self, self->activator);
 	self->nextthink = level.time + sg_time_t::from_sec( self->wait + crandom( ) * self->random );
 }
 

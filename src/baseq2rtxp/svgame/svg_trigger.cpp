@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 **/
 void InitTrigger( edict_t *self ) {
 	if ( !VectorEmpty( self->s.angles ) ) {
-		G_SetMovedir( self->s.angles, self->movedir );
+		SVG_SetMovedir( self->s.angles, self->movedir );
 	}
 
 	self->solid = SOLID_TRIGGER;
@@ -63,7 +63,7 @@ void multi_trigger( edict_t *ent ) {
 	if ( ent->nextthink )
 		return;     // already been triggered
 
-	G_UseTargets( ent, ent->activator );
+	SVG_UseTargets( ent, ent->activator );
 
 	if ( ent->wait > 0 ) {
 		ent->think = multi_wait;
@@ -73,7 +73,7 @@ void multi_trigger( edict_t *ent ) {
 		// called while looping through area links...
 		ent->touch = NULL;
 		ent->nextthink = level.time + 10_hz;
-		ent->think = G_FreeEdict;
+		ent->think = SVG_FreeEdict;
 	}
 }
 
@@ -102,7 +102,7 @@ void Touch_Multi( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *su
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
+		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;
@@ -171,7 +171,7 @@ void SP_trigger_multiple( edict_t *ent ) {
 	}
 
 	if ( !VectorEmpty( ent->s.angles ) )
-		G_SetMovedir( ent->s.angles, ent->movedir );
+		SVG_SetMovedir( ent->s.angles, ent->movedir );
 
 	gi.linkentity( ent );
 
@@ -234,7 +234,7 @@ void SP_trigger_once( edict_t *ent ) {
 *	@brief
 **/
 void trigger_relay_use( edict_t *self, edict_t *other, edict_t *activator ) {
-	G_UseTargets( self, activator );
+	SVG_UseTargets( self, activator );
 }
 
 /*QUAKED trigger_relay (.5 .5 .5) (-8 -8 -8) (8 8 8)
@@ -314,7 +314,7 @@ void SP_trigger_always( edict_t *ent ) {
 	if ( !ent->delay ) {
 		ent->delay = 1.f;
 	}
-	G_UseTargets( ent, ent );
+	SVG_UseTargets( ent, ent );
 }
 
 
@@ -337,7 +337,7 @@ static int windsound = 0;
 void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
 	
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
+		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;
@@ -361,7 +361,7 @@ void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurfac
 		}
 	}
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_PUSH_ONCE ) {
-		G_FreeEdict( self );
+		SVG_FreeEdict( self );
 	}
 }
 
@@ -435,7 +435,7 @@ void hurt_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *sur
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
+		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;
@@ -515,7 +515,7 @@ static constexpr int32_t SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP = 32;
 **/
 void trigger_gravity_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
+		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;
@@ -533,7 +533,7 @@ gravity for the level.
 void SP_trigger_gravity( edict_t *self ) {
 	if ( st.gravity == NULL ) {
 		gi.dprintf( "trigger_gravity without gravity set at %s\n", vtos( self->s.origin ) );
-		G_FreeEdict( self );
+		SVG_FreeEdict( self );
 		return;
 	}
 
@@ -571,7 +571,7 @@ void trigger_monsterjump_touch( edict_t *self, edict_t *other, cplane_t *plane, 
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MONSTERJUMP_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, G_GetClipMask( other ) );
+		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;
