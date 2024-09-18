@@ -36,39 +36,7 @@ typedef struct clg_misc_model_locals_s {
 	entity_t rent;
 
 	//! Animation Data.
-	//! 
-	//! If the animationID of head, or torso, is zero, it will resort to
-	//! using the base animation which is set by the hip.
-	struct {
-		//! Animation to display for the head bone.
-		uint32_t headID;
-		//! Animation to display for the torso bone.
-		uint32_t torsoID;
-		//! Animation to display for the hip bone.
-		uint32_t hipID;
-
-		//! Start time of the headID animation.
-		sg_time_t headStartTime;
-		//! Start time of the torsoID animation.
-		sg_time_t torsoStartTime;
-		//! Start time of the headID animation.
-		sg_time_t hipStartTime;
-
-		//! Frame of the head animation.
-		int32_t currentHeadFrame;
-		int32_t lastHeadFrame;
-		//! Frame of the torso animation.
-		int32_t currentTorsoFrame;
-		int32_t lastTorsoFrame;
-		//! Frame of the hip animation.
-		int32_t currentHipFrame;
-		int32_t lastHipFrame;
-
-		// Backlerps.
-		double headBackLerp;
-		double torsoBackLerp;
-		double hipBackLerp;
-	} animation;
+	// TODO: 
 
 	//! Pointer to the model data for display.
 	const model_t *model;

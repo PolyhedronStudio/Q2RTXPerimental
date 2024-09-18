@@ -380,6 +380,16 @@ int GameLib_GetEntityForTargetName( lua_State *L ) {
 }
 
 /**
+*	@brief	Utility/Support routine for delaying UseTarget when the 'delay' key/value is set on an entity.
+**/
+void LUA_Think_UseTargetDelay( edict_t *entity ) {
+	edict_t *creatorEntity = entity->luaProperties.delayedUseCreatorEntity;
+	if ( creatorEntity->use ) {
+		creatorEntity->use( creatorEntity, entity->other, entity->activator );
+	}
+	G_FreeEdict( entity );
+}
+/**
 *	@return	The number of the entity if it has a matching targetname, -1 otherwise.
 **/
 int GameLib_UseTarget( lua_State *L ) {
@@ -427,6 +437,32 @@ int GameLib_UseTarget( lua_State *L ) {
 	edict_t *activator = ( activatorEntityNumber != -1 ? &g_edicts[ activatorEntityNumber ] : nullptr );
 	//_UseTargets( entity, activator );
 
+	if ( entity->delay ) {
+		// create a temp object to UseTarget at a later time.
+		edict_t *t = G_AllocateEdict();
+		t->classname = "DelayedUse";
+		t->nextthink = level.time + sg_time_t::from_sec( entity->delay );
+		t->think = LUA_Think_UseTargetDelay;
+
+		t->activator = activator;
+		t->other = other;
+		if ( !activator ) {
+			gi.dprintf( "Think_Delay with no activator\n" );
+		}
+
+		t->luaProperties.luaName = entity->luaProperties.luaName;
+		t->luaProperties.delayedUseCreatorEntity = entity;
+
+		t->message = entity->message;
+		t->targetNames.target = entity->targetNames.target;
+		t->targetNames.kill = entity->targetNames.kill;
+
+		// Return 0, UseTarget has not actually used its target yet.
+		lua_pushinteger( L, 0 );
+		return 1;
+	}
+
+	// Fire the use method if it has any.
 	if ( entity->use ) {
 		entity->activator = activator;
 		entity->other = other;

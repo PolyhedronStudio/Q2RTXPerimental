@@ -441,10 +441,11 @@ void plat_hit_top(edict_t *ent)
     #endif
     // WID: LUA: Call the HitTop function if it exists.
     if ( ent->luaProperties.luaName ) {
-        lua_State *L = SVG_Lua_GetMapLuaState();
+        // Generate function 'callback' name.
         const std::string luaFunctionName = std::string( ent->luaProperties.luaName ) + "_OnPlatformHitTop";
-        if ( LUA_HasFunction( L, luaFunctionName.c_str() ) ) {
-            LUA_CallFunction( L, luaFunctionName.c_str(), 1, ent, ent->activator );
+        // Call if it exists.
+        if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
+            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, ent, ent->activator );
         }
     }
 }
@@ -460,10 +461,11 @@ void plat_hit_bottom(edict_t *ent)
 
     // WID: LUA: Call the HitBottom function if it exists.
     if ( ent->luaProperties.luaName ) {
-        lua_State *L = SVG_Lua_GetMapLuaState();
+        // Generate function 'callback' name.
         const std::string luaFunctionName = std::string( ent->luaProperties.luaName ) + "_OnPlatformHitBottom";
-        if ( LUA_HasFunction( L, luaFunctionName.c_str() ) ) {
-            LUA_CallFunction( L, luaFunctionName.c_str(), 1, ent, ent->activator );
+        // Call if it exists.
+        if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
+            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, ent, ent->activator );
         }
     }
 }
@@ -818,10 +820,11 @@ void button_wait(edict_t *self)
     G_UseTargets(self, self->activator);
     // WID: LUA: Call the HitBottom function if it exists.
     if ( self->luaProperties.luaName ) {
-        lua_State *L = SVG_Lua_GetMapLuaState();
+        // Generate function 'callback' name.
         const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_OnButtonFire";
-        if ( LUA_HasFunction( L, luaFunctionName.c_str() ) ) {
-            LUA_CallFunction( L, luaFunctionName.c_str(), 1, self, self->activator );
+        // Call if it exists.
+        if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
+            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, self, self->activator );
         }
     }
 
@@ -991,16 +994,19 @@ void door_hit_top(edict_t *self)
     }
     self->pusherMoveInfo.state = STATE_TOP;
 
-    // WID: LUA: Call the HitBottom function if it exists.
+    // WID: LUA: Call the OnDoorOpened function if it exists.
     if ( self->luaProperties.luaName ) {
-        lua_State *L = SVG_Lua_GetMapLuaState();
+        // Generate function 'callback' name.
         const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_OnDoorOpened";
-        if ( LUA_HasFunction( L, luaFunctionName.c_str() ) ) {
-            LUA_CallFunction( L, luaFunctionName.c_str(), 1, self, self->activator );
+        // Call if it exists.
+        if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
+            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, self, self->activator );
         }
     }
+
     if (self->spawnflags & DOOR_TOGGLE)
         return;
+
     if (self->pusherMoveInfo.wait >= 0) {
         self->think = door_go_down;
 		self->nextthink = level.time + sg_time_t::from_sec( self->pusherMoveInfo.wait );
@@ -1018,12 +1024,13 @@ void door_hit_bottom(edict_t *self)
     self->pusherMoveInfo.state = STATE_BOTTOM;
     door_use_areaportals(self, false);
 
-    // WID: LUA: Call the HitBottom function if it exists.
+    // WID: LUA: Call the OnDoorClosed function if it exists.
     if ( self->luaProperties.luaName ) {
-        lua_State *L = SVG_Lua_GetMapLuaState();
+        // Generate function 'callback' name.
         const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_OnDoorClosed";
-        if ( LUA_HasFunction( L, luaFunctionName.c_str() ) ) {
-            LUA_CallFunction( L, luaFunctionName.c_str(), 1, self, self->activator );
+        // Call if it exists.
+        if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
+            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, self, self->activator );
         }
     }
 }

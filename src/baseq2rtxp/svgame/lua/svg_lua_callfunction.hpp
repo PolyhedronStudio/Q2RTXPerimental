@@ -85,15 +85,15 @@ static inline void LUA_CallFunction_PushStackValue( lua_State *L, const std::str
 *	@note	One has to deal and pop return values themselves.
 **/
 template <typename... Rest> 
-static const bool LUA_CallFunction( lua_State *L, const char *functionName, const int32_t numReturnValues, const Rest&... rest ) {
+static const bool LUA_CallFunction( lua_State *L, const std::string &functionName, const int32_t numReturnValues, const Rest&... rest ) {
 	bool executedSuccessfully = false;
 
-	if ( !L || !functionName ) {
+	if ( !L || functionName.empty() ) {
 		return executedSuccessfully;
 	}
 
 	// Get the global functionname value and push it to stack:
-	lua_getglobal( L, functionName );
+	lua_getglobal( L, functionName.c_str() );
 
 	// Check if function even exists.
 	if ( lua_isfunction( L, -1 ) ) {

@@ -1573,6 +1573,9 @@ struct edict_s {
     struct {
         //! The name which its script methods are prepended by.
         const char *luaName;
+
+        //! The source entity that when UseTarget, created the DelayedUse entity.
+        edict_t *delayedUseCreatorEntity;
     } luaProperties;
 
     //

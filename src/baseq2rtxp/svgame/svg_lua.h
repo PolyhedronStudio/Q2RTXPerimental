@@ -13,9 +13,9 @@
 //! For calling into LUA functions:
 #include "svgame/lua/svg_lua_callfunction.hpp"
 
-static inline const bool LUA_HasFunction( lua_State *L, const char *functionName ) {
+static inline const bool LUA_HasFunction( lua_State *L, const std::string &functionName ) {
 	// Get the global functionname value and push it to stack:
-	lua_getglobal( L, functionName );
+	lua_getglobal( L, functionName.c_str() );
 
 	// Check if function even exists.
 	return ( lua_isfunction( L, -1 ) ? true : false );

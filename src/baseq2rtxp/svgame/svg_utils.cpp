@@ -249,8 +249,6 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
             } else {
                 if (t->use)
                     t->use(t, ent, activator);
-
-                //SVG_Lua_DispatchTargetNameUseCallBack( t, ent, activator );
             }
             if (!ent->inuse) {
                 gi.dprintf("entity was removed while using targets\n");
