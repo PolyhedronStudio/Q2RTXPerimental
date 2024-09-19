@@ -259,7 +259,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
     }
 
     if (ent->flags & FL_PARTIALGROUND) {
-        ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_PARTIALGROUND );
+        ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_PARTIALGROUND );
     }
     ent->groundInfo.entity = trace.ent;
     ent->groundInfo.entityLinkCount = trace.ent->linkcount;
@@ -374,7 +374,7 @@ SV_FixCheckBottom
 */
 void SV_FixCheckBottom(edict_t *ent)
 {
-    ent->flags = static_cast<ent_flags_t>( ent->flags | FL_PARTIALGROUND );
+    ent->flags = static_cast<entity_flags_t>( ent->flags | FL_PARTIALGROUND );
 }
 
 /*

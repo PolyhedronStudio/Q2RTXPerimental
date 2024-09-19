@@ -609,7 +609,7 @@ static void P_CheckWorldEffects( void ) {
 				gi.sound( current_player, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
 			}
 		}
-		current_player->flags = static_cast<ent_flags_t>( current_player->flags | FL_INWATER );
+		current_player->flags = static_cast<entity_flags_t>( current_player->flags | FL_INWATER );
 
 	}
 
@@ -623,7 +623,7 @@ static void P_CheckWorldEffects( void ) {
 	if ( !liquidlevel && old_waterlevel >= liquid_level_t::LIQUID_WAIST ) {
 		P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
-		current_player->flags = static_cast<ent_flags_t>( current_player->flags & ~FL_INWATER );
+		current_player->flags = static_cast<entity_flags_t>( current_player->flags & ~FL_INWATER );
 	}
 
 	// Check for head just going under water.

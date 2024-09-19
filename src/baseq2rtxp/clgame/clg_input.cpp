@@ -67,8 +67,14 @@ static keybutton_t    in_strafe, in_speed;
 //! Up/Down directional Z movement.
 static keybutton_t    in_up, in_down;
 //static keybutton_t    in_holster;
+
 //! Weapon modifiers.
-static keybutton_t    in_use, in_primary_fire, in_secondary_fire, in_reload;
+static keybutton_t    in_primary_fire;
+static keybutton_t    in_secondary_fire;
+static keybutton_t    in_reload;
+//! Use Inventory/Target modifiers.
+static keybutton_t    in_use_target;
+static keybutton_t    in_use_item;
 
 //! Impulses.
 static int32_t	in_impulse;
@@ -110,7 +116,30 @@ static void IN_SpeedDown( void ) { clgi.KeyDown( &in_speed ); }
 static void IN_SpeedUp( void ) { clgi.KeyUp( &in_speed ); }
 static void IN_StrafeDown( void ) { clgi.KeyDown( &in_strafe ); }
 static void IN_StrafeUp( void ) { clgi.KeyUp( &in_strafe ); }
+static void IN_Impulse( void ) {
+    in_impulse = atoi( clgi.Cmd_Argv( 1 ) );
+}
+static void IN_CenterView( void ) {
+    clgi.client->viewangles[ PITCH ] = -/*SHORT2ANGLE*/( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
+}
+static void IN_MLookDown( void ) {
+    in_mlooking = true;
+}
+static void IN_MLookUp( void ) {
+    in_mlooking = false;
 
+    if ( !freelook->integer && lookspring->integer )
+        IN_CenterView();
+}
+/**
+*
+*   The following few button callbacks ensure that we instantly send out the usercmd 
+*   message to ensure there is no delay. Giving a responsive user experience.
+*
+**/
+/**
+*   @brief  Primary Fire Down.
+**/
 static void IN_PrimaryFireDown( void ) {
     clgi.KeyDown( &in_primary_fire );
 
@@ -118,11 +147,16 @@ static void IN_PrimaryFireDown( void ) {
         clgi.client->sendPacketNow = true;
     }
 }
-
+/**
+*   @brief  Primary Fire Up.
+**/
 static void IN_PrimaryFireUp( void ) {
     clgi.KeyUp( &in_primary_fire );
 }
 
+/**
+*   @brief  Secondary Fire Down.
+**/
 static void IN_SecondaryFireDown( void ) {
     clgi.KeyDown( &in_secondary_fire );
     
@@ -130,24 +164,50 @@ static void IN_SecondaryFireDown( void ) {
         clgi.client->sendPacketNow = true;
     }
 }
-
+/**
+*   @brief  Secondary Fire Up.
+**/
 static void IN_SecondaryFireUp( void ) {
     clgi.KeyUp( &in_secondary_fire );
 }
 
-
-static void IN_UseDown( void ) {
-    clgi.KeyDown( &in_use );
+/**
+*   @brief  When the 'Use Inventory Item" button goes down.
+**/
+static void IN_UseItemDown( void ) {
+    clgi.KeyDown( &in_use_item );
 
     if ( cl_instantpacket->integer && clgi.GetConnectionState() == ca_active && !clgi.IsDemoPlayback() ) {
         clgi.client->sendPacketNow = true;
     }
 }
-
-static void IN_UseUp( void ) {
-    clgi.KeyUp( &in_use );
+/**
+*   @brief  When the 'Use Inventory Item" button goes up.
+**/
+static void IN_UseItemUp( void ) {
+    clgi.KeyUp( &in_use_item );
 }
 
+/**
+*   @brief  When the 'Use target entity we point at" button goes down.
+**/
+static void IN_UseTargetDown( void ) {
+    clgi.KeyDown( &in_use_target );
+
+    if ( cl_instantpacket->integer && clgi.GetConnectionState() == ca_active && !clgi.IsDemoPlayback() ) {
+        clgi.client->sendPacketNow = true;
+    }
+}
+/**
+*   @brief  When the 'Use target entity we point at" button goes up.
+**/
+static void IN_UseTargetUp( void ) {
+    clgi.KeyUp( &in_use_target );
+}
+
+/**
+*   @brief  Reload Weapon Down.
+**/
 static void IN_ReloadDown( void ) {
     clgi.KeyDown( &in_reload );
 
@@ -155,32 +215,17 @@ static void IN_ReloadDown( void ) {
         clgi.client->sendPacketNow = true;
     }
 }
-
+/**
+*   @brief  Reload Weapon Up.
+**/
 static void IN_ReloadUp( void ) {
     clgi.KeyUp( &in_reload );
 }
 
-static void IN_Impulse( void ) {
-    in_impulse = atoi( clgi.Cmd_Argv( 1 ) );
-}
 
-static void IN_CenterView( void ) {
-    clgi.client->viewangles[ PITCH ] = -/*SHORT2ANGLE*/( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
-}
-
-static void IN_MLookDown( void ) {
-    in_mlooking = true;
-}
-
-static void IN_MLookUp( void ) {
-    in_mlooking = false;
-
-    if ( !freelook->integer && lookspring->integer )
-        IN_CenterView();
-}
 
 //! Called upon when mouse movement is detected.
-void PF_MouseMove( const float deltaX, const float deltaY, const float moveX, const float moveY, const float speed ) {
+void CLG_MouseMotionMove( client_mouse_motion_t *mouseMotion ) {
     //if ( ( in_strafe.state & BUTTON_STATE_HELD ) || ( lookstrafe->integer && !in_mlooking ) ) {
     //    clgi.client->mousemove[ 1 ] += m_side->value * moveX;
     //} else {
@@ -192,6 +237,17 @@ void PF_MouseMove( const float deltaX, const float deltaY, const float moveX, co
     //} else {
     //    clgi.client->mousemove[ 0 ] -= m_forward->value * moveY;
     //}
+    if ( ( in_strafe.state & BUTTON_STATE_HELD ) || ( lookstrafe->integer && !in_mlooking ) ) {
+        clgi.client->mousemove[ 1 ] += m_side->value * mouseMotion->moveX;
+    } else {
+        clgi.client->viewangles[ YAW ] -= m_yaw->value * mouseMotion->moveX;
+    }
+
+    if ( ( in_mlooking || freelook->integer ) && !( in_strafe.state & BUTTON_STATE_HELD ) ) {
+        clgi.client->viewangles[ PITCH ] += m_pitch->value * mouseMotion->moveY * ( m_invert->integer ? -1.f : 1.f );
+    } else {
+        clgi.client->mousemove[ 0 ] -= m_forward->value * mouseMotion->moveY;
+    }
 }
 
 /**
@@ -258,16 +314,16 @@ static void CLG_ClampSpeed( Vector3 &move ) {
 *   @brief  Adds the delta angles and clamps the viewangle's pitch appropriately. 
 */
 static void CLG_ClampPitch( void ) {
-    float pitch, angle;
-
-    pitch = /*SHORT2ANGLE*/( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
-    angle = clgi.client->viewangles[ PITCH ] + pitch;
-
-    if ( angle < -180 )
+    const float pitch = /*SHORT2ANGLE*/( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
+    float angle = clgi.client->viewangles[ PITCH ] + pitch;
+    // Wrap around.
+    if ( angle < -180 ) {
         angle += 360; // wrapped
-    if ( angle > 180 )
+    }
+    if ( angle > 180 ) {
         angle -= 360; // wrapped
-
+    }
+    // Clamp pitch angle.
     clamp( angle, -89, 89 );
     clgi.client->viewangles[ PITCH ] = angle - pitch;
 }
@@ -283,7 +339,10 @@ static void CLG_FigureButtonBits( client_movecmd_t *moveCommand ) {
         moveCommand->cmd.buttons |= BUTTON_SECONDARY_FIRE;
     }
 
-    if ( in_use.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+    if ( in_use_target.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
+        moveCommand->cmd.buttons |= BUTTON_USE_TARGET;
+    }
+    if ( in_use_item.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
         moveCommand->cmd.buttons |= BUTTON_USE_ITEM;
     }
     if ( in_reload.state & ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ) ) {
@@ -311,7 +370,8 @@ void CLG_ClearStateDownFlags( client_movecmd_t *moveCommand ) {
     in_primary_fire.state = static_cast<keybutton_state_t>( in_primary_fire.state & ~BUTTON_STATE_DOWN );
     in_secondary_fire.state = static_cast<keybutton_state_t>( in_secondary_fire.state & ~BUTTON_STATE_DOWN );
     
-    in_use.state = static_cast<keybutton_state_t>( in_use.state & ~BUTTON_STATE_DOWN );
+    in_use_target.state = static_cast<keybutton_state_t>( in_use_target.state & ~BUTTON_STATE_DOWN );
+    in_use_item.state = static_cast<keybutton_state_t>( in_use_item.state & ~BUTTON_STATE_DOWN );
     in_reload.state = static_cast<keybutton_state_t>( in_reload.state & ~BUTTON_STATE_DOWN );
 
     in_speed.state = static_cast<keybutton_state_t>( in_speed.state & ~BUTTON_STATE_DOWN );
@@ -343,17 +403,7 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, cl
 
     // Allow mice to add to the move
     if ( mouseMotion->hasMotion ) {
-        if ( ( in_strafe.state & BUTTON_STATE_HELD ) || ( lookstrafe->integer && !in_mlooking ) ) {
-            clgi.client->mousemove[ 1 ] += m_side->value * mouseMotion->moveX;
-        } else {
-            clgi.client->viewangles[ YAW ] -= m_yaw->value * mouseMotion->moveX;
-        }
-
-        if ( ( in_mlooking || freelook->integer ) && !( in_strafe.state & BUTTON_STATE_HELD ) ) {
-            clgi.client->viewangles[ PITCH ] += m_pitch->value * mouseMotion->moveY * ( m_invert->integer ? -1.f : 1.f );
-        } else {
-            clgi.client->mousemove[ 0 ] -= m_forward->value * mouseMotion->moveY;
-        }
+        CLG_MouseMotionMove( mouseMotion );
     }
 
     // Add accumulated mouse forward/side movement.
@@ -483,10 +533,12 @@ void PF_RegisterUserInput( void ) {
     clgi.Cmd_AddCommand( "-fire_prim", IN_PrimaryFireUp );
     clgi.Cmd_AddCommand( "+fire_sec", IN_SecondaryFireDown );
     clgi.Cmd_AddCommand( "-fire_sec", IN_SecondaryFireUp );
-    clgi.Cmd_AddCommand( "+use", IN_UseDown );
-    clgi.Cmd_AddCommand( "-use", IN_UseUp );
+    clgi.Cmd_AddCommand( "+useitem", IN_UseItemDown );
+    clgi.Cmd_AddCommand( "-useitem", IN_UseItemUp );
     clgi.Cmd_AddCommand( "+reload", IN_ReloadDown );
     clgi.Cmd_AddCommand( "-reload", IN_ReloadUp );
+    clgi.Cmd_AddCommand( "+usetarget", IN_UseTargetDown );
+    clgi.Cmd_AddCommand( "-usetarget", IN_UseTargetUp );
     clgi.Cmd_AddCommand( "impulse", IN_Impulse );
     clgi.Cmd_AddCommand( "+klook", IN_KLookDown );
     clgi.Cmd_AddCommand( "-klook", IN_KLookUp );

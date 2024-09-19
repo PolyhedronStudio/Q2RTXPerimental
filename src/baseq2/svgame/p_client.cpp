@@ -527,7 +527,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     self->client->invincible_time = 0_ms;
     self->client->breather_time = 0_ms;
     self->client->enviro_time = 0_ms;
-    self->flags = static_cast<ent_flags_t>( self->flags & ~FL_POWER_ARMOR );
+    self->flags = static_cast<entity_flags_t>( self->flags & ~FL_POWER_ARMOR );
 
     // Gib Death:
     if (self->health < -40) {
@@ -670,7 +670,7 @@ void SaveClientData(void)
             continue;
         game.clients[i].pers.health = ent->health;
         game.clients[i].pers.max_health = ent->max_health;
-        game.clients[i].pers.savedFlags = static_cast<ent_flags_t>(ent->flags & (FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR));
+        game.clients[i].pers.savedFlags = static_cast<entity_flags_t>(ent->flags & (FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR));
         if (coop->value)
             game.clients[i].pers.score = ent->client->resp.score;
     }
@@ -1183,7 +1183,7 @@ void PutClientInServer(edict_t *ent)
     ent->die = player_die;
     ent->liquidlevel = liquid_level_t::LIQUID_NONE;;
     ent->liquidtype = CONTENTS_NONE;
-    ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
+    ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
     ent->svflags &= ~SVF_DEADMONSTER;
     ent->svflags &= ~FL_NO_KNOCKBACK;

@@ -746,60 +746,6 @@ void SVG_RunFrame(void)
             continue;
         } else {
             SVG_RunEntity( ent );
-
-            //
-            //
-            //
-            //if ( ent->targetEntities.movewith && ent->inuse && ( ent->movetype == MOVETYPE_PUSH || ent->movetype == MOVETYPE_STOP ) ) {
-            //    edict_t *moveWithEntity = ent->targetEntities.movewith;
-            //    if ( moveWithEntity->inuse && ( moveWithEntity->movetype == MOVETYPE_PUSH || moveWithEntity->movetype == MOVETYPE_STOP ) ) {
-            //        // Parent origin.
-            //        Vector3 parentOrigin = moveWithEntity->s.origin;
-            //        // Difference atm between parent origin and child origin.
-            //        Vector3 diffOrigin = parentOrigin - ent->s.origin;
-            //        // Reposition to parent with its default origin offset, subtract difference.
-            //        Vector3 newOrigin = parentOrigin + moveWithEntity->moveWith.originOffset + diffOrigin;
-            //        
-            //        //VectorCopy( newOrigin, ent->s.origin );
-            //        #define STATE_TOP           0
-            //        #define STATE_BOTTOM        1
-            //        #define STATE_UP            2
-            //        #define STATE_DOWN          3
-            //        
-            //        vec3_t delta_angles, forward, right, up;
-            //        VectorSubtract( moveWithEntity->s.angles, ent->moveWith.originAnglesOffset, delta_angles );
-            //        AngleVectors( delta_angles, forward, right, up );
-            //        VectorNegate( right, right );
-
-            //        vec3_t angles;
-            //        VectorAdd( ent->s.angles, ent->moveWith.originAnglesOffset, angles );
-            //        SVG_SetMovedir( angles, ent->movedir );
-
-            //        VectorMA( moveWithEntity->s.origin, ent->moveWith.originOffset[ 0 ], forward, ent->pos1 );
-            //        VectorMA( ent->pos1, ent->moveWith.originOffset[ 1 ], right, ent->pos1 );
-            //        VectorMA( ent->pos1, ent->moveWith.originOffset[ 2 ], up, ent->pos1 );
-            //        VectorMA( ent->pos1, ent->pusherMoveInfo.distance, ent->movedir, ent->pos2 );
-            //        VectorCopy( ent->pos1, ent->pusherMoveInfo.start_origin );
-            //        VectorCopy( ent->s.angles, ent->pusherMoveInfo.start_angles );
-            //        VectorCopy( ent->pos2, ent->pusherMoveInfo.end_origin );
-            //        VectorCopy( ent->s.angles, ent->pusherMoveInfo.end_angles );
-            //        if ( ent->pusherMoveInfo.state == STATE_BOTTOM || ent->pusherMoveInfo.state == STATE_TOP ) {
-            //            // Velocities for door/button movement are handled in normal
-            //            // movement routines
-            //            VectorCopy( moveWithEntity->velocity, ent->velocity );
-            //            // Sanity insurance:
-            //            if ( ent->pusherMoveInfo.state == STATE_BOTTOM ) {
-            //                VectorCopy( ent->pos1, ent->s.origin );
-            //            } else {
-            //                VectorCopy( ent->pos2, ent->s.origin );
-            //            }
-            //        }
-
-            //        gi.linkentity( ent );
-
-            //        //gi.dprintf( "%s: entID(%i), moveWithEntity->origin(%f, %f, %f)\n", __func__, ent->s.number, newMoveWithOrigin.x, newMoveWithOrigin.y, newMoveWithOrigin.z );
-            //    }
-            //}
         }
     }
 
@@ -814,11 +760,17 @@ void SVG_RunFrame(void)
         }
 
         if ( parentMover && parentMover->inuse && ( parentMover->movetype == MOVETYPE_PUSH || parentMover->movetype == MOVETYPE_STOP ) ) {
+            //        vec3_t delta_angles, forward, right, up;
+            //        VectorSubtract( moveWithEntity->s.angles, ent->moveWith.originAnglesOffset, delta_angles );
+            //        AngleVectors( delta_angles, forward, right, up );
+            //        VectorNegate( right, right );
+            Vector3 parentAnglesDelta = parentMover->s.angles - parentMover->lastAngles;
+            Vector3 parentVForward, parentVRight, parentVUp;
+            QM_AngleVectors( parentAnglesDelta, &parentVForward, &parentVRight, &parentVUp );
+            parentVRight = QM_Vector3Negate( parentVRight );
+            
             // Calculate origin to adjust by.
-            Vector3 lastParentOrigin = parentMover->lastOrigin;
-            Vector3 parentOriginDelta = parentMover->s.origin - lastParentOrigin;
-
-            //Vector3 lastParentAngles = parentMover->lastAngles;
+            Vector3 parentOriginDelta = parentMover->s.origin - parentMover->lastOrigin;
 
             // Iterate to find the child movers to adjust to parent.
             for ( int32_t j = 0; j < game.num_movewithEntityStates; j++ ) {
@@ -829,12 +781,17 @@ void SVG_RunFrame(void)
                     childMover = &g_edicts[ game.moveWithEntities[ j ].childNumber ];
                 }
                 if ( childMover && childMover->inuse && ( childMover->movetype == MOVETYPE_PUSH || childMover->movetype == MOVETYPE_STOP ) ) {
-                    SVG_MoveWith_AdjustToParent( parentOriginDelta, parentMover, childMover );
+                    SVG_MoveWith_AdjustToParent( 
+                        parentOriginDelta, parentOriginDelta,
+                        parentVUp, parentVRight, parentVForward,
+                        parentMover, childMover 
+                    );
                 }
             }
 
             // Make sure to store the last ... origins and angles.
             parentMover->lastOrigin = parentMover->s.origin;
+            parentMover->lastAngles = parentMover->s.angles;
         }
     }
 
@@ -853,4 +810,3 @@ void SVG_RunFrame(void)
     // WID: LUA: CallBack.
     SVG_Lua_CallBack_EndServerFrame();
 }
-

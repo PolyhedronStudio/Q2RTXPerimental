@@ -536,7 +536,11 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     /**
     *   Bone Controlling:
     **/
-    CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, finalStatePose, finalStatePose, extrapolatedTime );
+    //if ( lastStateIsPlaying ) {
+    //    CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, lastFinalStatePose, finalStatePose, extrapolatedTime );
+    //} else {
+        CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, finalStatePose, finalStatePose, extrapolatedTime );
+    //}
 
 
     /**

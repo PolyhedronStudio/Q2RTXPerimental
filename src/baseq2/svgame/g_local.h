@@ -196,7 +196,7 @@ typedef enum {
     FL_NO_KNOCKBACK         = BIT( 13 ),
     FL_POWER_ARMOR          = BIT( 14 ),// power armor (if any) is active
     FL_RESPAWN              = BIT( 15 ) // used for item respawning
-} ent_flags_t;
+} entity_flags_t;
 
 
 /**
@@ -983,7 +983,7 @@ typedef struct {
     // values saved and restored from edicts when changing levels
     int         health;
     int         max_health;
-    ent_flags_t savedFlags;
+    entity_flags_t savedFlags;
 
     int         selected_item;
     int         inventory[MAX_ITEMS];
@@ -1214,7 +1214,7 @@ struct edict_s {
     //================================
     int32_t     spawn_count;
     int32_t     movetype;
-    ent_flags_t flags;
+    entity_flags_t flags;
 
 	// WID: C++20: added const.
     const char  *model;

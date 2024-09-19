@@ -129,7 +129,7 @@ void DoRespawn(edict_t *ent)
 
 void SetRespawn(edict_t *ent, float delay)
 {
-    ent->flags = static_cast<ent_flags_t>( ent->flags | FL_RESPAWN );
+    ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
     ent->svflags |= SVF_NOCLIENT;
     ent->solid = SOLID_NOT;
     ent->nextthink = level.time + sg_time_t::from_sec( delay );
@@ -320,7 +320,7 @@ const bool Pickup_Health(edict_t *ent, edict_t *other)
         ent->think = MegaHealth_think;
         ent->nextthink = level.time + 5_sec;
         ent->owner = other;
-        ent->flags = static_cast<ent_flags_t>( ent->flags | FL_RESPAWN );
+        ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
         ent->svflags |= SVF_NOCLIENT;
         ent->solid = SOLID_NOT;
     } else {
@@ -393,7 +393,7 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 
     if (!((coop->value) && (ent->item->flags & ITEM_FLAG_STAY_COOP)) || (ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM))) {
         if (ent->flags & FL_RESPAWN)
-            ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_RESPAWN );
+            ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_RESPAWN );
         else
             SVG_FreeEdict(ent);
     }
@@ -531,7 +531,7 @@ void droptofloor(edict_t *ent)
     VectorCopy(tr.endpos, ent->s.origin);
 
     if (ent->targetNames.team) {
-        ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_TEAMSLAVE );
+        ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_TEAMSLAVE );
         ent->chain = ent->teamchain;
         ent->teamchain = NULL;
 

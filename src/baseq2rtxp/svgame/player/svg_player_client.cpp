@@ -600,7 +600,7 @@ void SaveClientData( void ) {
         }
         game.clients[ i ].pers.health = ent->health;
         game.clients[ i ].pers.max_health = ent->max_health;
-        game.clients[ i ].pers.savedFlags = static_cast<ent_flags_t>( ent->flags & ( FL_GODMODE | FL_NOTARGET /*| FL_POWER_ARMOR*/ ) );
+        game.clients[ i ].pers.savedFlags = static_cast<entity_flags_t>( ent->flags & ( FL_GODMODE | FL_NOTARGET /*| FL_POWER_ARMOR*/ ) );
         if ( coop->value ) {
             game.clients[ i ].pers.score = ent->client->resp.score;
         }
@@ -1300,7 +1300,7 @@ void PutClientInServer( edict_t *ent ) {
     ent->die = player_die;
     ent->liquidInfo.level = liquid_level_t::LIQUID_NONE;
     ent->liquidInfo.type = CONTENTS_NONE;
-    ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
+    ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
     ent->svflags &= ~SVF_DEADMONSTER;
     ent->svflags &= ~FL_NO_KNOCKBACK;
@@ -2021,6 +2021,48 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
             }
         }
 
+        /**
+        *   Entity Use Target:
+        **/
+        if ( client->latched_buttons & BUTTON_USE_TARGET ) {
+            // AngleVecs.
+            Vector3 vForward, vRight;
+            QM_AngleVectors( ent->client->viewMove.viewAngles, &vForward, &vRight, NULL );
+            // Project from source to shot destination.
+            Vector3 traceStart;
+            Vector3 shotOffset = { 0, 0, (float)ent->viewheight };
+            P_ProjectSource( ent, ent->s.origin, &shotOffset.x, &vForward.x, &vRight.x, &traceStart.x );
+            //Vector3 traceStart = ent->s.origin;
+            //traceStart.z += ent->viewheight;
+
+            // Calculate trace end.
+            Vector3 traceEnd = QM_Vector3MultiplyAdd( traceStart, 48, vForward );
+            // Perform trace.
+            trace_t traceUseTarget = gi.trace( &traceStart.x, NULL, NULL, &traceEnd.x, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ) );
+
+            // Get resulting entity.
+            edict_t *useTargetEntity = traceUseTarget.ent;
+            // Ensure the trace is legit:
+            if ( useTargetEntity && useTargetEntity->inuse && !( useTargetEntity->targetUseFlags & ENTITY_TARGET_USE_FLAG_NOT ) ) {
+                gi.dprintf( "%s: useTargetEntity(#%d) with useTargetFlags(%d)\n",
+                    __func__, useTargetEntity->s.number, useTargetEntity->targetUseFlags );
+                // Toggle:
+                if ( useTargetEntity->targetUseFlags & ENTITY_TARGET_USE_FLAG_TOGGLE ) {
+                    // See if it has a use callback, if so, dispatch.
+                    if ( useTargetEntity->use ) {
+                        useTargetEntity->use( useTargetEntity, ent, ent );
+                    }
+                    // Remove from the latched buttons.
+                    client->latched_buttons &= ~BUTTON_USE_TARGET;
+                // Hold:
+                } else if ( useTargetEntity->targetUseFlags & ENTITY_TARGET_USE_FLAG_HOLD ) {
+                    // See if it has a use callback, if so, dispatch.
+                    if ( useTargetEntity->use ) {
+                        useTargetEntity->use( useTargetEntity, ent, ent );
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -2040,7 +2082,6 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
                 GetChaseTarget( ent );
             }
         }
-
     /**
     *   Regular (Weapon-)Path:
     **/
@@ -2049,16 +2090,13 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
         if ( client->newweapon ) {
             P_Weapon_Change( ent );
         }
-
         // Process weapon thinking.
         //if ( ent->client->weapon_thunk == false ) {
-            P_Weapon_Think( ent, true );
-            // Store that we thought for this frame.
-            ent->client->weapon_thunk = true;
+        P_Weapon_Think( ent, true );
+        // Store that we thought for this frame.
+        ent->client->weapon_thunk = true;
         //}
-
-    // Determine any possibly necessary player state events to go along.
-
+        // Determine any possibly necessary player state events to go along.
     }
 
     /**
@@ -2076,7 +2114,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
 					GetChaseTarget( ent );
 				}
             }
-        // Untoggle button state.
+        // Untoggle playerstate jump_held.
 		} else {
             client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
 		}

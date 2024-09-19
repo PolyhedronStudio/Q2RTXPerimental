@@ -291,7 +291,7 @@ void Cmd_God_f(edict_t *ent)
         return;
     }
 
-    ent->flags = static_cast<ent_flags_t>( ent->flags ^ FL_GODMODE );
+    ent->flags = static_cast<entity_flags_t>( ent->flags ^ FL_GODMODE );
     if (!(ent->flags & FL_GODMODE))
         gi.cprintf(ent, PRINT_HIGH, "godmode OFF\n");
     else
@@ -315,7 +315,7 @@ void Cmd_Notarget_f(edict_t *ent)
         return;
     }
 
-    ent->flags = static_cast<ent_flags_t>( ent->flags ^ FL_NOTARGET );
+    ent->flags = static_cast<entity_flags_t>( ent->flags ^ FL_NOTARGET );
     if (!(ent->flags & FL_NOTARGET))
         gi.cprintf(ent, PRINT_HIGH, "notarget OFF\n");
     else
@@ -349,12 +349,12 @@ void Cmd_Noclip_f(edict_t *ent)
 
 /*
 ==================
-Cmd_Use_f
+Cmd_UseItem_f
 
 Use an inventory item
 ==================
 */
-void Cmd_Use_f(edict_t *ent) {
+void Cmd_UseItem_f(edict_t *ent) {
     const char *s = gi.args();
     const gitem_t *it = FindItem(s);
     if (!it) {
@@ -372,6 +372,7 @@ void Cmd_Use_f(edict_t *ent) {
     }
 
     gi.dprintf( "%s: WE ARE USING %s\n", __func__, s );
+    // Dispatch the item use callback.
     it->use(ent, it);
 }
 
@@ -435,10 +436,10 @@ void Cmd_Inven_f(edict_t *ent)
 
 /*
 =================
-Cmd_InvUse_f
+Cmd_InvUseSelectedItem_f
 =================
 */
-void Cmd_InvUse_f(edict_t *ent)
+void Cmd_InvUseSelectedItem_f(edict_t *ent)
 {
     gitem_t     *it;
 
@@ -601,7 +602,7 @@ void Cmd_Kill_f(edict_t *ent)
 {
     if ((level.time - ent->client->respawn_time) < 5_sec)
         return;
-    ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_GODMODE );
+    ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_GODMODE );
     ent->health = 0;
     ent->meansOfDeath = MEANS_OF_DEATH_SUICIDE;
     player_die(ent, ent, ent, 100000, ent->s.origin);
@@ -810,57 +811,44 @@ void Cmd_PlayerList_f(edict_t *ent)
 ClientCommand
 =================
 */
-void ClientCommand(edict_t *ent)
-{
-    char    *cmd;
+void ClientCommand( edict_t *ent ) {
+    char *cmd;
 
-    if (!ent->client)
+    if ( !ent->client )
         return;     // not fully in game yet
 
-    cmd = gi.argv(0);
+    cmd = gi.argv( 0 );
 
-    if (Q_stricmp(cmd, "players") == 0) {
-        Cmd_Players_f(ent);
+    if ( Q_stricmp( cmd, "players" ) == 0 ) {
+        Cmd_Players_f( ent );
         return;
     }
-    if (Q_stricmp(cmd, "say") == 0) {
-        Cmd_Say_f(ent, false, false);
+    if ( Q_stricmp( cmd, "say" ) == 0 ) {
+        Cmd_Say_f( ent, false, false );
         return;
     }
-    if (Q_stricmp(cmd, "say_team") == 0) {
-        Cmd_Say_f(ent, true, false);
+    if ( Q_stricmp( cmd, "say_team" ) == 0 ) {
+        Cmd_Say_f( ent, true, false );
         return;
     }
-    if (Q_stricmp(cmd, "score") == 0) {
-        Cmd_Score_f(ent);
+    if ( Q_stricmp( cmd, "score" ) == 0 ) {
+        Cmd_Score_f( ent );
         return;
     }
 
-    if (level.intermission_framenum)
+    if ( level.intermission_framenum ) {
         return;
+    }
 
-    //
-    // ??
-    //
-    if ( Q_stricmp( cmd, "use" ) == 0 ) {
-        Cmd_Use_f( ent );
-    } else if ( Q_stricmp( cmd, "drop" ) == 0 ) {
-        Cmd_Drop_f( ent );
-    //
-    // 'Cheats':
-    //
-    } else if ( Q_stricmp( cmd, "give" ) == 0 ) {
-        Cmd_Give_f( ent );
-    } else if ( Q_stricmp( cmd, "god" ) == 0 ) {
-        Cmd_God_f( ent );
-    } else if ( Q_stricmp( cmd, "notarget" ) == 0 ) {
-        Cmd_Notarget_f( ent );
-    } else if ( Q_stricmp( cmd, "noclip" ) == 0 ) {
-        Cmd_Noclip_f(ent);
     //
     // Inventory:
     //
-    } else if ( Q_stricmp( cmd, "inven" ) == 0 ) {
+    if ( Q_stricmp( cmd, "useitem" ) == 0 ) {
+        Cmd_UseItem_f( ent );
+    } else if ( Q_stricmp( cmd, "drop" ) == 0 ) {
+        Cmd_Drop_f( ent );
+    }
+    if ( Q_stricmp( cmd, "inven" ) == 0 ) {
         Cmd_Inven_f( ent );
     } else if ( Q_stricmp( cmd, "invnext" ) == 0 ) {
         SelectNextItem( ent, -1 );
@@ -871,7 +859,7 @@ void ClientCommand(edict_t *ent)
     } else if ( Q_stricmp( cmd, "invprevw" ) == 0 ) {
         SelectPrevItem( ent, ITEM_FLAG_WEAPON );
     } else if ( Q_stricmp( cmd, "invuse" ) == 0 ) {
-        Cmd_InvUse_f( ent );
+        Cmd_InvUseSelectedItem_f( ent );
     } else if ( Q_stricmp( cmd, "invdrop" ) == 0 ) {
         Cmd_InvDrop_f( ent );
     } else if ( Q_stricmp( cmd, "weapprev" ) == 0 ) {
@@ -882,19 +870,31 @@ void ClientCommand(edict_t *ent)
         Cmd_WeapLast_f( ent );
     } else if ( Q_stricmp( cmd, "putaway" ) == 0 ) {
         Cmd_PutAway_f( ent );
-    //
-    // Other:
-    //
+        //
+        // 'Cheats':
+        //
+    } else if ( Q_stricmp( cmd, "give" ) == 0 ) {
+        Cmd_Give_f( ent );
+    } else if ( Q_stricmp( cmd, "god" ) == 0 ) {
+        Cmd_God_f( ent );
+    } else if ( Q_stricmp( cmd, "notarget" ) == 0 ) {
+        Cmd_Notarget_f( ent );
+    } else if ( Q_stricmp( cmd, "noclip" ) == 0 ) {
+        Cmd_Noclip_f( ent );
+        //
+        // Other:
+        //
     } else if ( Q_stricmp( cmd, "kill" ) == 0 ) {
         Cmd_Kill_f( ent );
     } else if ( Q_stricmp( cmd, "playerlist" ) == 0 ) {
         Cmd_PlayerList_f( ent );
     } else if ( Q_stricmp( cmd, "weapflare" ) == 0 ) {
         Cmd_WeapFlare_f( ent );
-    //
-    // Anything that doesn't match a command will be a chat.
-    //
+        //
+        // Anything that doesn't match a command will be a chat.
+        //
     } else {
         Cmd_Say_f( ent, false, true );
     }
 }
+

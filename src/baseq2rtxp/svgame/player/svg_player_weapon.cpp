@@ -114,7 +114,7 @@ const bool P_Weapon_Pickup( edict_t *ent, edict_t *other ) {
             if ( deathmatch->value ) {
                 // Apply item entity FL_RESPAWN flag immediately.
                 if ( (int)( dmflags->value ) & DF_WEAPONS_STAY ) {
-                    ent->flags = static_cast<ent_flags_t>( ent->flags | FL_RESPAWN );
+                    ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
                 // Set a duration for respawning:
                 } else {
                     SetRespawn( ent, 30 );
@@ -123,7 +123,7 @@ const bool P_Weapon_Pickup( edict_t *ent, edict_t *other ) {
             // Coop Path:
             if ( coop->value ) {
                 // Apply item entity FL_RESPAWN flag.
-                ent->flags = static_cast<ent_flags_t>( ent->flags | FL_RESPAWN );
+                ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
             }
         }
     }

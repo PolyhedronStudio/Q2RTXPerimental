@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 **/
 void InitTrigger( edict_t *self ) {
 	if ( !VectorEmpty( self->s.angles ) ) {
-		SVG_SetMovedir( self->s.angles, self->movedir );
+		SVG_SetMoveDir( self->s.angles, self->movedir );
 	}
 
 	self->solid = SOLID_TRIGGER;
@@ -171,7 +171,7 @@ void SP_trigger_multiple( edict_t *ent ) {
 	}
 
 	if ( !VectorEmpty( ent->s.angles ) )
-		SVG_SetMovedir( ent->s.angles, ent->movedir );
+		SVG_SetMoveDir( ent->s.angles, ent->movedir );
 
 	gi.linkentity( ent );
 

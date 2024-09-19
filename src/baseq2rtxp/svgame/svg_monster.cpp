@@ -157,7 +157,7 @@ void M_WorldEffects( edict_t *ent ) {
 	if ( ent->liquidInfo.level == 0 ) {
 		if ( ent->flags & FL_INWATER ) {
 			gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
-			ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_INWATER );
+			ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_INWATER );
 		}
 		return;
 	}
@@ -191,7 +191,7 @@ void M_WorldEffects( edict_t *ent ) {
 			}
 		}
 
-		ent->flags = static_cast<ent_flags_t>( ent->flags | FL_INWATER );
+		ent->flags = static_cast<entity_flags_t>( ent->flags | FL_INWATER );
 
         ent->damage_debounce_time = 0_ms;
     }

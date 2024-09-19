@@ -8,10 +8,6 @@
 #pragma once
 
 /**
-*	@brief	Called upon when mouse movement is detected.
-**/
-void PF_MouseMove( const float deltaX, const float deltaY, const float moveX, const float moveY, const float speed );
-/**
 *	@brief	Called upon to register movement commands.
 **/
 void PF_RegisterUserInput( void );

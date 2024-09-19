@@ -481,7 +481,7 @@ void G_FindTeams( void ) {
                 chain->teamchain = e2;
                 e2->teammaster = e;
                 chain = e2;
-                e2->flags = static_cast<ent_flags_t>( e2->flags | FL_TEAMSLAVE );
+                e2->flags = static_cast<entity_flags_t>( e2->flags | FL_TEAMSLAVE );
             }
         }
     }

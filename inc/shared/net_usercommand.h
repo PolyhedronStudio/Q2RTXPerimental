@@ -26,10 +26,12 @@
 #define BUTTON_RELOAD       BIT(7)
 ////! Set when the holster button is pressed.
 //#define BUTTON_HOLSTER      BIT(7)
-//! Set when the '+use' button is pressed. (Use item, not actually 'use targetting entity')
-#define BUTTON_USE_ITEM     BIT(8)
+//! Set when the '+usetarget' button is pressed. (Use targetting entity)
+#define BUTTON_USE_TARGET     BIT(8)
+//! Set when the '+useitem' button is pressed. (Use item, not actually 'use targetting entity')
+#define BUTTON_USE_ITEM     BIT(9)
 //! Set when any button is pressed at all. Any key whatsoever(We keep the value lower for optimnized net code, max is 16 bits)
-#define BUTTON_ANY          BIT(9)
+#define BUTTON_ANY          BIT(10)
 
 
 /**

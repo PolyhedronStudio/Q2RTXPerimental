@@ -538,7 +538,7 @@ void insane_stand(edict_t *self)
 void insane_dead(edict_t *self)
 {
     if (self->spawnflags & 8) {
-        self->flags = static_cast<ent_flags_t>( self->flags | FL_FLY );
+        self->flags = static_cast<entity_flags_t>( self->flags | FL_FLY );
     } else {
         VectorSet(self->mins, -16, -16, -24);
         VectorSet(self->maxs, 16, 16, -8);
@@ -648,7 +648,7 @@ void SP_misc_insane(edict_t *self)
     if (self->spawnflags & 8) {                 // Crucified ?
         VectorSet(self->mins, -16, 0, 0);
         VectorSet(self->maxs, 16, 8, 32);
-        self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
+        self->flags = static_cast<entity_flags_t>( self->flags | FL_NO_KNOCKBACK );
         flymonster_start(self);
     } else {
         walkmonster_start(self);

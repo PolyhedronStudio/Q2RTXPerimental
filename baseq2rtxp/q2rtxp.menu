@@ -547,20 +547,24 @@ begin keys
     bind "Primary Fire" +fire_prim
     bind "Secondary Fire" +fire_sec
     bind "Reload Weapon" +reload
-    bind "Next Weapon" weapnext
-    bind "Previous Weapon" weapprev
-    bind "walk forward" +forward
+    bind "Use Target" +usetarget
+    blank
+    bind "Walk Forward" +forward
     bind "Walk Backward" +back
     bind "Run" +speed
     bind "Step Left" +moveleft
     bind "Step Right" +moveright
     bind "Up/Jump" +moveup
     bind "Down/Crouch" +movedown
+    blank
+    bind "Next Weapon" weapnext
+    bind "Previous Weapon" weapprev
+    blank
     bind "Inventory" inven
-    bind "Use Item" invuse
-    bind "Drop Item" invdrop
-    bind "Prev Item" invprev
-    bind "Next Item" invnext
+    bind "Inventory Use Selected Item" invuse
+    bind "Inventory Drop Selected Item" invdrop
+    bind "Inventory Prev Selected Item" invprev
+    bind "Inventory Next Selected Item" invnext
     blank
     action "legacy keys..." pushmenu keys_legacy
 end

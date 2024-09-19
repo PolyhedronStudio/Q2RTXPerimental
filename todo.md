@@ -11,7 +11,7 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 * [X] It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
 	* It is a mistake in client game loop.
 ## For v0.0.5:
-- [ ] The IQM Animation Scenario:
+- [X] The IQM Animation Scenario:
 	- [X] 0. Add in proper usage of entity type and adjust the client code to handle adding packet entities based on its type.
 			 This will simplify life in the future.
 	- [X] 1. Weapon code should use ``PlayAnimation("anim_name")``, or precache animIDs ``GetAnimationHandle("anim_name")``.
@@ -51,18 +51,18 @@ Features being looked forward on implementation.
 ### High Priority:
 * [X] Rethink/reimplement the way how we approach skeletal model 'blending'. Local space it is?
 	- Relative we do.
-* [ ] Implement Lua for game state logic and dynamics.
+* [-] Implement Lua for game state logic and dynamics.
 	- [ ] Fix the script file loaded up leaking memory. FS_LoadFileEx(other tag)_
 * [ ] Implement model events for animations:
 	* [ ] Footsteps implemented using this.
 ### Medium Priority:
 * [X] Remove all Q2 monsters, keep a few around to use for testing.
-* [ ] Eliminate all other Q2-only specific game entities.
+* [-] Eliminate all other Q2-only specific game entities.
 * [X] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
 * [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
 	- And an entity you can 'pick up and move around' for the lulz.
 ### Low Priority:
-* [ ] Use the C version of glmatrix.net and adjust(C++ify also), and streamline it as the math lib for use.
+* [ ] Use our own C version of glmatrix.net and adjust(C++ify also), and streamline it as the math lib for use.
 * [ ] Have bullet impact display material ``kind`` specific puffs?
 * [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.
 * [x] Add some way of having entity 'class' like type support. (At the least, eliminate a need for having such a large edict_t type that holds all sorts of object-type specific variables.)

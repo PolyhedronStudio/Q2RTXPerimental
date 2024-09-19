@@ -1043,8 +1043,6 @@ typedef struct {
 	*	User Input:
 	*
 	**/
-	//! Called upon when mouse movement is detected.
-	void ( *MouseMove )( const float deltaX, const float deltaY, const float moveX, const float moveY, const float speed );
 	//! Called upon to register user input keybuttons.
 	void ( *RegisterUserInput )( void );
 	//!

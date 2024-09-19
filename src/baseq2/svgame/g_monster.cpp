@@ -239,7 +239,7 @@ void M_WorldEffects( edict_t *ent ) {
 	if ( ent->liquidlevel == 0 ) {
 		if ( ent->flags & FL_INWATER ) {
 			gi.sound( ent, CHAN_BODY, gi.soundindex( "player/watr_out.wav" ), 1, ATTN_NORM, 0 );
-			ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_INWATER );
+			ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_INWATER );
 		}
 		return;
 	}
@@ -270,7 +270,7 @@ void M_WorldEffects( edict_t *ent ) {
 				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
 		}
 
-		ent->flags = static_cast<ent_flags_t>( ent->flags | FL_INWATER );
+		ent->flags = static_cast<entity_flags_t>( ent->flags | FL_INWATER );
 
         ent->damage_debounce_time = 0_ms;
     }
@@ -557,7 +557,7 @@ enemy as activator.
 ================
 */
 void monster_death_use( edict_t *self ) {
-	self->flags = static_cast<ent_flags_t>( self->flags & ~( FL_FLY |  FL_SWIM ) );
+	self->flags = static_cast<entity_flags_t>( self->flags & ~( FL_FLY |  FL_SWIM ) );
 	self->monsterinfo.aiflags &= AI_GOOD_GUY;
 
 	if ( self->item ) {
@@ -734,7 +734,7 @@ void flymonster_start_go( edict_t *self ) {
 
 
 void flymonster_start( edict_t *self ) {
-	self->flags = static_cast<ent_flags_t>( self->flags | FL_FLY );
+	self->flags = static_cast<entity_flags_t>( self->flags | FL_FLY );
 	self->think = flymonster_start_go;
 	monster_start( self );
 }
@@ -752,7 +752,7 @@ void swimmonster_start_go( edict_t *self ) {
 }
 
 void swimmonster_start( edict_t *self ) {
-	self->flags = static_cast<ent_flags_t>( self->flags | FL_SWIM );
+	self->flags = static_cast<entity_flags_t>( self->flags | FL_SWIM );
 	self->think = swimmonster_start_go;
 	monster_start( self );
 }

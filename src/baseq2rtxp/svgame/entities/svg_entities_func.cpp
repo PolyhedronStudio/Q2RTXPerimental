@@ -876,7 +876,7 @@ void SP_func_button( edict_t *ent ) {
     vec3_t  abs_movedir;
     float   dist;
 
-    SVG_SetMovedir( ent->s.angles, ent->movedir );
+    SVG_SetMoveDir( ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_STOP;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
@@ -917,7 +917,8 @@ void SP_func_button( edict_t *ent ) {
     #else
     }
     #endif
-        ent->touch = button_touch;
+        //ent->touch = button_touch;
+    ent->targetUseFlags = ENTITY_TARGET_USE_FLAG_TOGGLE;
 
     ent->pusherMoveInfo.state = STATE_BOTTOM;
 
@@ -1276,7 +1277,7 @@ void SP_func_door(edict_t *ent)
         ent->pusherMoveInfo.sound_end = gi.soundindex("doors/door_end_01.wav");
     }
 
-    SVG_SetMovedir(ent->s.angles, ent->movedir );
+    SVG_SetMoveDir(ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
@@ -1504,7 +1505,7 @@ void SP_func_water(edict_t *self)
 {
     vec3_t  abs_movedir;
 
-    SVG_SetMovedir(self->s.angles, self->movedir );
+    SVG_SetMoveDir(self->s.angles, self->movedir );
     self->movetype = MOVETYPE_PUSH;
     self->solid = SOLID_BSP;
     self->s.entityType = ET_PUSHER;

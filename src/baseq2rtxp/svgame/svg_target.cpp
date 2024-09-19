@@ -313,7 +313,7 @@ void use_target_splash(edict_t *self, edict_t *other, edict_t *activator)
 void SP_target_splash(edict_t *self)
 {
     self->use = use_target_splash;
-    SVG_SetMovedir(self->s.angles, self->movedir);
+    SVG_SetMoveDir(self->s.angles, self->movedir);
 
     if (!self->count)
         self->count = 32;
@@ -359,7 +359,7 @@ void SP_target_spawner(edict_t *self)
     self->use = use_target_spawner;
     self->svflags = SVF_NOCLIENT;
     if (self->speed) {
-        SVG_SetMovedir(self->s.angles, self->movedir );
+        SVG_SetMoveDir(self->s.angles, self->movedir );
         VectorScale(self->movedir, self->speed, self->movedir);
     }
 }
@@ -393,7 +393,7 @@ void use_target_blaster(edict_t *self, edict_t *other, edict_t *activator)
 void SP_target_blaster(edict_t *self)
 {
     self->use = use_target_blaster;
-    SVG_SetMovedir(self->s.angles, self->movedir );
+    SVG_SetMoveDir(self->s.angles, self->movedir );
     self->noise_index = gi.soundindex("weapons/laser2.wav");
 
     if (!self->dmg)
@@ -574,7 +574,7 @@ void target_laser_start(edict_t *self)
                 gi.dprintf("%s at %s: %s is a bad target\n", self->classname, vtos(self->s.origin), self->targetNames.target);
             self->enemy = ent;
         } else {
-            SVG_SetMovedir(self->s.angles, self->movedir );
+            SVG_SetMoveDir(self->s.angles, self->movedir );
         }
     }
     self->use = target_laser_use;

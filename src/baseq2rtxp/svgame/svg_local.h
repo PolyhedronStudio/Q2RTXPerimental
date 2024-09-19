@@ -221,9 +221,19 @@ typedef enum {
     FL_NO_KNOCKBACK         = BIT( 13 ),
     FL_RESPAWN              = BIT( 14 ) //! Used for item respawning.
     //FL_POWER_ARMOR          = BIT( 15 ),//! Power armor (if any) is active
-} ent_flags_t;
+} entity_flags_t;
 
-
+/**
+*   @brief  edict->entityUseFlags
+**/
+typedef enum entity_target_use_flags_e {
+    //! Default, this entity can not be 'Use' interacted with.
+    ENTITY_TARGET_USE_FLAG_NOT = 0,
+    //! Takes repeated 'Use' key hit presses to dispatch 'Use' callbacks.
+    ENTITY_TARGET_USE_FLAG_TOGGLE = BIT(1),
+    //! Takes a single 'Use' key press, which when hold will dispatch a 'Use' callback each frame.
+    ENTITY_TARGET_USE_FLAG_HOLD = BIT(2),
+} entity_target_use_flags_t;
 
 
 typedef enum {
@@ -855,7 +865,7 @@ const bool    KillBox( edict_t *ent, const bool bspClipping );
 /**
 *   @brief
 **/
-void SVG_MoveWith_AdjustToParent( const Vector3 &parentOriginDelta, edict_t *parentMover, edict_t *childMover );
+void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, edict_t *parentMover, edict_t *childMover );
 /**
 *   @brief
 **/
@@ -882,7 +892,7 @@ edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++
 edict_t *findradius( edict_t *from, vec3_t org, float rad );
 edict_t *SVG_PickTarget( char *targetname );
 void    SVG_UseTargets( edict_t *ent, edict_t *activator );
-void    SVG_SetMovedir( vec3_t angles, Vector3 &movedir );
+void    SVG_SetMoveDir( vec3_t angles, Vector3 &movedir );
 
 void    SVG_InitEdict( edict_t *e );
 edict_t *SVG_AllocateEdict( void );
@@ -1188,7 +1198,7 @@ typedef struct {
     //! Maximum allowed health.
     int32_t         max_health;
     //! Saved entity flags.
-    ent_flags_t     savedFlags;
+    entity_flags_t     savedFlags;
 
     //! The currently selected item.
     int32_t         selected_item;
@@ -1480,6 +1490,16 @@ struct gclient_s {
 };
 
 
+
+/**
+*
+* 
+*
+*   ServerGame Side Entity:
+* 
+* 
+* 
+**/
 struct edict_s {
     entity_state_t  s;
     struct gclient_s *client;   //! NULL if not a player the server expects the first part
@@ -1537,10 +1557,11 @@ struct edict_s {
     // Key Spawn Angle.
     float       angle;          // set in qe3, -1 = up, -2 = down
 
-    //! Entity flags.
-    ent_flags_t flags;
-
-
+    //! Generic Entity flags.
+    entity_flags_t flags;
+    //! 
+    entity_target_use_flags_t targetUseFlags;
+    
     //
     // Target Fields:
     //

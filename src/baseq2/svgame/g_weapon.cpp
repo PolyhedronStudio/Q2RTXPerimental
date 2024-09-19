@@ -349,7 +349,7 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
         bolt->clipmask = static_cast<contents_t>( bolt->clipmask & ~CONTENTS_PLAYER );
     }
-    bolt->flags = static_cast<ent_flags_t>( bolt->flags | FL_DODGE );
+    bolt->flags = static_cast<entity_flags_t>( bolt->flags | FL_DODGE );
     bolt->solid = SOLID_BOUNDS_BOX;
     bolt->s.effects |= effect;
     bolt->s.renderfx |= RF_NOSHADOW;
@@ -485,7 +485,7 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
         grenade->clipmask = static_cast<contents_t>( grenade->clipmask & ~CONTENTS_PLAYER );
     }
-    grenade->flags = static_cast<ent_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */);
+    grenade->flags = static_cast<entity_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */);
     grenade->svflags |= SVF_PROJECTILE;
     grenade->solid = SOLID_BOUNDS_BOX;
     grenade->s.effects |= EF_GRENADE;
@@ -526,7 +526,7 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
         grenade->clipmask = static_cast<contents_t>( grenade->clipmask & ~CONTENTS_PLAYER );
     }
-    grenade->flags = static_cast<ent_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */ );
+    grenade->flags = static_cast<entity_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */ );
     grenade->svflags |= SVF_PROJECTILE;
     grenade->solid = SOLID_BOUNDS_BOX;
     grenade->s.effects |= EF_GRENADE;
@@ -619,7 +619,7 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
         rocket->clipmask = static_cast<contents_t>( rocket->clipmask & ~CONTENTS_PLAYER );
     }
-    rocket->flags = static_cast<ent_flags_t>( rocket->flags | FL_DODGE /*| FL_TRAP */ );
+    rocket->flags = static_cast<entity_flags_t>( rocket->flags | FL_DODGE /*| FL_TRAP */ );
     rocket->svflags |= SVF_PROJECTILE;
     rocket->solid = SOLID_BOUNDS_BOX;
     rocket->s.effects |= EF_ROCKET;

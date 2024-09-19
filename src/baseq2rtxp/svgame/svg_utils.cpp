@@ -264,7 +264,7 @@ vec3_t MOVEDIR_UP   = {0, 0, 1};
 vec3_t VEC_DOWN     = {0, -2, 0};
 vec3_t MOVEDIR_DOWN = {0, 0, -1};
 
-void SVG_SetMovedir( vec3_t angles, Vector3 &movedir ) {
+void SVG_SetMoveDir( vec3_t angles, Vector3 &movedir ) {
     if ( VectorCompare( angles, VEC_UP ) ) {
         VectorCopy( MOVEDIR_UP, movedir );
     } else if ( VectorCompare( angles, VEC_DOWN ) ) {
@@ -716,7 +716,7 @@ void SVG_MoveWith_SetChildEntityMovement( edict_t *self ) {
 /**
 *   @brief 
 **/
-void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, edict_t *parentMover, edict_t *childMover ) {
+void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, edict_t *parentMover, edict_t *childMover ) {
     // This is the absolute parent entity brush model origin in BSP model space.
     Vector3 parentAbsOrigin = QM_BBox3Center(
         QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
@@ -727,7 +727,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, edict_t *par
     );
 
     //// Calculate origin to adjust by.
-    //Vector3 deltaParentOrigin = parentMover->s.origin - lastParentOrigin;
+    #if 1
     Vector3 childOrigin = childMover->s.origin;
     childOrigin += deltaParentOrigin;
     // Adjust desired pusher origins.
@@ -736,6 +736,55 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, edict_t *par
     childMover->pos1 += deltaParentOrigin;
     childMover->pos2 += deltaParentOrigin;
     VectorCopy( childOrigin, childMover->s.origin );
+    #else
+//  vec3_t angles;
+//  VectorAdd( ent->s.angles, ent->moveWith.originAnglesOffset, angles );
+//  SVG_SetMoveDir( angles, ent->movedir );
+    Vector3 newAngles = childMover->s.angles + deltaParentAngles;
+    SVG_SetMoveDir( &newAngles.x, childMover->movedir );
+
+//  VectorMA( moveWithEntity->s.origin, ent->moveWith.originOffset[ 0 ], forward, ent->pos1 );
+//  VectorMA( ent->pos1, ent->moveWith.originOffset[ 1 ], right, ent->pos1 );
+//  VectorMA( ent->pos1, ent->moveWith.originOffset[ 2 ], up, ent->pos1 );
+//  VectorMA( ent->pos1, ent->pusherMoveInfo.distance, ent->movedir, ent->pos2 );
+    Vector3 childOrigin = childMover->s.origin;
+    childOrigin += deltaParentOrigin;
+    //VectorCopy( childOrigin, childMover->s.origin );
+
+    childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, deltaParentOrigin.x, parentVForward );
+    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, deltaParentOrigin.y, parentVRight );
+    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, deltaParentOrigin.z, parentVUp );
+    childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos1, childMover->pusherMoveInfo.distance, childMover->movedir );
+
+
+
+
+//  VectorCopy( ent->pos1, ent->pusherMoveInfo.start_origin );
+//  VectorCopy( ent->s.angles, ent->pusherMoveInfo.start_angles );
+//  VectorCopy( ent->pos2, ent->pusherMoveInfo.end_origin );
+//  VectorCopy( ent->s.angles, ent->pusherMoveInfo.end_angles );
+    childMover->pusherMoveInfo.start_origin = childMover->pos1;
+    childMover->pusherMoveInfo.end_origin = childMover->pos2;
+    childMover->pusherMoveInfo.start_angles = childMover->s.angles;
+    childMover->pusherMoveInfo.end_angles = childMover->s.angles;
+
+    if ( childMover->pusherMoveInfo.state == 0/*STATE_BOTTOM*/ || childMover->pusherMoveInfo.state == 1/*STATE_TOP*/ ) {
+        // Velocities for door/button movement are handled in normal
+        // movement routines
+        VectorCopy( parentMover->velocity, childMover->velocity );
+        // Sanity insurance:
+        if ( childMover->pusherMoveInfo.state == 0/*STATE_BOTTOM*/ ) {
+            VectorCopy( childMover->pos1, childMover->s.origin );
+        } else {
+            VectorCopy( childMover->pos2, childMover->s.origin );
+        }
+    }
+    #endif
+
+
+
+
+
 
     //// Calculate angles to adjust by.
     //Vector3 deltaParentAngles = parentMover->s.angles - lastParentAngles;
@@ -772,3 +821,54 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, edict_t *par
     //    childAbsOrigin.z
     //);
 }
+
+//if ( ent->targetEntities.movewith && ent->inuse && ( ent->movetype == MOVETYPE_PUSH || ent->movetype == MOVETYPE_STOP ) ) {
+//    edict_t *moveWithEntity = ent->targetEntities.movewith;
+//    if ( moveWithEntity->inuse && ( moveWithEntity->movetype == MOVETYPE_PUSH || moveWithEntity->movetype == MOVETYPE_STOP ) ) {
+//        // Parent origin.
+//        Vector3 parentOrigin = moveWithEntity->s.origin;
+//        // Difference atm between parent origin and child origin.
+//        Vector3 diffOrigin = parentOrigin - ent->s.origin;
+//        // Reposition to parent with its default origin offset, subtract difference.
+//        Vector3 newOrigin = parentOrigin + moveWithEntity->moveWith.originOffset + diffOrigin;
+//        
+//        //VectorCopy( newOrigin, ent->s.origin );
+//        #define STATE_TOP           0
+//        #define STATE_BOTTOM        1
+//        #define STATE_UP            2
+//        #define STATE_DOWN          3
+//        
+//        vec3_t delta_angles, forward, right, up;
+//        VectorSubtract( moveWithEntity->s.angles, ent->moveWith.originAnglesOffset, delta_angles );
+//        AngleVectors( delta_angles, forward, right, up );
+//        VectorNegate( right, right );
+
+//        vec3_t angles;
+//        VectorAdd( ent->s.angles, ent->moveWith.originAnglesOffset, angles );
+//        SVG_SetMoveDir( angles, ent->movedir );
+
+//        VectorMA( moveWithEntity->s.origin, ent->moveWith.originOffset[ 0 ], forward, ent->pos1 );
+//        VectorMA( ent->pos1, ent->moveWith.originOffset[ 1 ], right, ent->pos1 );
+//        VectorMA( ent->pos1, ent->moveWith.originOffset[ 2 ], up, ent->pos1 );
+//        VectorMA( ent->pos1, ent->pusherMoveInfo.distance, ent->movedir, ent->pos2 );
+//        VectorCopy( ent->pos1, ent->pusherMoveInfo.start_origin );
+//        VectorCopy( ent->s.angles, ent->pusherMoveInfo.start_angles );
+//        VectorCopy( ent->pos2, ent->pusherMoveInfo.end_origin );
+//        VectorCopy( ent->s.angles, ent->pusherMoveInfo.end_angles );
+//        if ( ent->pusherMoveInfo.state == STATE_BOTTOM || ent->pusherMoveInfo.state == STATE_TOP ) {
+//            // Velocities for door/button movement are handled in normal
+//            // movement routines
+//            VectorCopy( moveWithEntity->velocity, ent->velocity );
+//            // Sanity insurance:
+//            if ( ent->pusherMoveInfo.state == STATE_BOTTOM ) {
+//                VectorCopy( ent->pos1, ent->s.origin );
+//            } else {
+//                VectorCopy( ent->pos2, ent->s.origin );
+//            }
+//        }
+
+//        gi.linkentity( ent );
+
+//        //gi.dprintf( "%s: entID(%i), moveWithEntity->origin(%f, %f, %f)\n", __func__, ent->s.number, newMoveWithOrigin.x, newMoveWithOrigin.y, newMoveWithOrigin.z );
+//    }
+//}

@@ -521,7 +521,6 @@ extern "C" { // WID: C++20: extern "C".
 		globals.SeekDemoMessage = PF_SeekDemoMessage;
 		globals.ParsePlayerSkin = PF_ParsePlayerSkin;
 
-		globals.MouseMove = PF_MouseMove;
 		globals.RegisterUserInput = PF_RegisterUserInput;
 		globals.UpdateMoveCommand = PF_UpdateMoveCommand;
 		globals.FinalizeMoveCommand = PF_FinalizeMoveCommand;

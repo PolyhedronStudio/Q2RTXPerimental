@@ -575,7 +575,7 @@ void P_WorldEffects( void ) {
 			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
 		else if ( current_player->liquidtype & CONTENTS_WATER )
 			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_in.wav" ), 1, ATTN_NORM, 0 );
-		current_player->flags = static_cast<ent_flags_t>( current_player->flags | FL_INWATER );
+		current_player->flags = static_cast<entity_flags_t>( current_player->flags | FL_INWATER );
 
 		// clear damage_debounce, so the pain sound will play immediately
 		current_player->damage_debounce_time = level.time - 1_sec;
@@ -587,7 +587,7 @@ void P_WorldEffects( void ) {
 	if ( old_waterlevel && !liquidlevel ) {
 		PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_out.wav" ), 1, ATTN_NORM, 0 );
-		current_player->flags = static_cast<ent_flags_t>( current_player->flags & ~FL_INWATER );
+		current_player->flags = static_cast<entity_flags_t>( current_player->flags & ~FL_INWATER );
 	}
 
 	//

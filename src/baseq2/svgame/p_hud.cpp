@@ -444,7 +444,7 @@ void G_SetStats(edict_t *ent)
         cells = ent->client->pers.inventory[ITEM_INDEX(FindItem("cells"))];
         if (cells == 0) {
             // ran out of cells for power armor
-            ent->flags = static_cast<ent_flags_t>( ent->flags & ~FL_POWER_ARMOR );
+            ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_POWER_ARMOR );
             gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/power2.wav"), 1, ATTN_NORM, 0);
             power_armor_type = 0;
         }

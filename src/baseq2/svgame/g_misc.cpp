@@ -139,7 +139,7 @@ void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
     gi.setmodel(gib, gibname);
     gib->solid = SOLID_NOT;
     gib->s.effects |= EF_GIB;
-    gib->flags = static_cast<ent_flags_t>( gib->flags | FL_NO_KNOCKBACK );
+    gib->flags = static_cast<entity_flags_t>( gib->flags | FL_NO_KNOCKBACK );
     gib->takedamage = DAMAGE_YES;
     gib->die = gib_die;
 
@@ -182,7 +182,7 @@ void ThrowHead(edict_t *self, const char *gibname, int damage, int type)
     self->s.effects |= EF_GIB;
     self->s.effects &= ~EF_FLIES;
     self->s.sound = 0;
-    self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
+    self->flags = static_cast<entity_flags_t>( self->flags | FL_NO_KNOCKBACK );
     self->svflags &= ~SVF_MONSTER;
     self->takedamage = DAMAGE_YES;
     self->die = gib_die;
@@ -233,7 +233,7 @@ void ThrowClientHead(edict_t *self, int damage)
     self->solid = SOLID_NOT;
     self->s.effects = EF_GIB;
     self->s.sound = 0;
-    self->flags = static_cast<ent_flags_t>( self->flags | FL_NO_KNOCKBACK );
+    self->flags = static_cast<entity_flags_t>( self->flags | FL_NO_KNOCKBACK );
 
     self->movetype = MOVETYPE_BOUNCE;
     VelocityForDamage(damage, vd);
