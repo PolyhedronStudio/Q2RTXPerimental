@@ -59,8 +59,10 @@ Features being looked forward on implementation.
 * [X] Remove all Q2 monsters, keep a few around to use for testing.
 * [-] Eliminate all other Q2-only specific game entities.
 * [X] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
-* [ ] Add support for a proper "+/-use" command such as seen in **Half-Life**.
-	- And an entity you can 'pick up and move around' for the lulz.
+* [-] Add support for a proper "+/-use" command such as seen in **Half-Life**.
+	- [ ] Add client-side functionality?? so that when hovering an entity you can
+          ``useTarget`` it displays a thing such as: ``Press 'E' to interact/pull/push/open/close/press/unpress``?
+	- [ ] And an entity you can 'pick up and move around' for the lulz.
 ### Low Priority:
 * [ ] Use our own C version of glmatrix.net and adjust(C++ify also), and streamline it as the math lib for use.
 * [ ] Have bullet impact display material ``kind`` specific puffs?

@@ -296,8 +296,21 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_utils.cpp
 	baseq2rtxp/svgame/svg_weapon.cpp
 
-	baseq2rtxp/svgame/entities/svg_entities_func.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_button.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_conveyor.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_door.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_door_rotating.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_door_secret.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_killbox.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_plat.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_rotating.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_timer.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_train.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_water.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_entities.cpp
 	baseq2rtxp/svgame/entities/monsters/svg_monster_testdummy_puppet.cpp
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_elevator.cpp
+	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
 
 	baseq2rtxp/svgame/monsters/svg_mmove.cpp
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.cpp
@@ -317,6 +330,22 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_local.h
 	baseq2rtxp/svgame/svg_lua.h
 	baseq2rtxp/svgame/svg_save.h
+
+	baseq2rtxp/svgame/entities/func/svg_func_button.h
+	baseq2rtxp/svgame/entities/func/svg_func_conveyor.h
+	baseq2rtxp/svgame/entities/func/svg_func_door.h
+	baseq2rtxp/svgame/entities/func/svg_func_door_rotating.h
+	baseq2rtxp/svgame/entities/func/svg_func_door_secret.h
+	baseq2rtxp/svgame/entities/func/svg_func_killbox.h
+	baseq2rtxp/svgame/entities/func/svg_func_plat.h
+	baseq2rtxp/svgame/entities/func/svg_func_rotating.h
+	baseq2rtxp/svgame/entities/func/svg_func_timer.h
+	baseq2rtxp/svgame/entities/func/svg_func_train.h
+	baseq2rtxp/svgame/entities/func/svg_func_water.h
+	baseq2rtxp/svgame/entities/func/svg_func_entities.h
+	#baseq2rtxp/svgame/entities/monsters/svg_monster_testdummy_puppet.h
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_elevator.h
+	baseq2rtxp/svgame/entities/svg_entities_pushermove.h
 
 	baseq2rtxp/svgame/player/svg_m_player.h
 

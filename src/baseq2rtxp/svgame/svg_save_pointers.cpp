@@ -71,19 +71,25 @@ extern void barrel_delay( edict_t *self, edict_t *inflictor, edict_t *attacker, 
 extern void barrel_explode( edict_t *self );
 extern void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void body_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
+
 extern void button_done( edict_t *self );
 extern void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void button_return( edict_t *self );
 extern void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void button_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void button_wait( edict_t *self );
+
 extern void debris_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
+
 extern void door_blocked( edict_t *self, edict_t *other );
 extern void door_go_down( edict_t *self );
 extern void door_hit_bottom( edict_t *self );
 extern void door_hit_top( edict_t *self );
 extern void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void door_postspawn( edict_t *self );
+extern void door_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+extern void door_use( edict_t *self, edict_t *other, edict_t *activator );
+#if 0
 extern void door_secret_blocked( edict_t *self, edict_t *other );
 extern void door_secret_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void door_secret_done( edict_t *self );
@@ -94,25 +100,34 @@ extern void door_secret_move4( edict_t *self );
 extern void door_secret_move5( edict_t *self );
 extern void door_secret_move6( edict_t *self );
 extern void door_secret_use( edict_t *self, edict_t *other, edict_t *activator );
-extern void door_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void door_use( edict_t *self, edict_t *other, edict_t *activator );
+#endif
+
 extern void DoRespawn( edict_t *self );
+
 extern void drop_make_touchable( edict_t *self );
 extern void drop_temp_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void droptofloor( edict_t *self );
+
 extern void func_clock_think( edict_t *self );
 extern void func_clock_use( edict_t *self, edict_t *other, edict_t *activator );
+
 extern void func_conveyor_use( edict_t *self, edict_t *other, edict_t *activator );
+
 extern void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void func_explosive_spawn( edict_t *self, edict_t *other, edict_t *activator );
 extern void func_explosive_use( edict_t *self, edict_t *other, edict_t *activator );
+
 extern void func_object_release( edict_t *self );
 extern void func_object_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void func_object_use( edict_t *self, edict_t *other, edict_t *activator );
+
 extern void func_timer_think( edict_t *self );
 extern void func_timer_use( edict_t *self, edict_t *other, edict_t *activator );
+
 extern void func_train_find( edict_t *self );
+
 extern void func_wall_use( edict_t *self, edict_t *other, edict_t *activator );
+
 extern void SVG_FreeEdict( edict_t *self );
 extern void gib_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void gib_think( edict_t *self );
@@ -190,22 +205,45 @@ extern void use_target_splash( edict_t *self, edict_t *other, edict_t *activator
 extern void Use_Target_Tent( edict_t *self, edict_t *other, edict_t *activator );
 
 const save_ptr_t save_ptrs[] = {
-	// <Q2RTXP>
-	{ P_die, (void *)monster_testdummy_puppet_die },
-	{ P_think, (void *)monster_testdummy_puppet_think },
-	{ P_touch, (void *)monster_testdummy_puppet_touch },
-	{ P_postspawn, (void *)monster_testdummy_puppet_post_spawn },
-	// </Q2RTXP>
+
+//
+//	Disabled entity... Too Q2-ish specific.
+//
+#if 0
+{ P_pusher_moveinfo_endfunc, (void *)door_secret_done },
+{ P_pusher_moveinfo_endfunc, (void *)door_secret_move1 },
+{ P_pusher_moveinfo_endfunc, (void *)door_secret_move3 },
+{ P_pusher_moveinfo_endfunc, (void *)door_secret_move5 },
+{ P_die, (void *)door_secret_die },
+{ P_think,  (void *)door_secret_move2 },
+{ P_think,  (void *)door_secret_move4 },
+{ P_think,  (void *)door_secret_move6 },
+{ P_blocked, (void *)door_secret_blocked },
+{ P_use, (void *)door_secret_use },
+#endif
+
+// <Q2RTXP>
+{ P_die, (void *)monster_testdummy_puppet_die },
+{ P_think, (void *)monster_testdummy_puppet_think },
+{ P_touch, (void *)monster_testdummy_puppet_touch },
+{ P_postspawn, (void *)monster_testdummy_puppet_post_spawn },
+// </Q2RTXP>
+
+//
+//	Post Spawn Callback Pointers:
+//
 { P_postspawn, (void *)door_postspawn },
+
+//
+//	Think Callback Pointers:
+//
 { P_think,  (void *)AngleMove_Begin },
 { P_think,  (void *)AngleMove_Done },
 { P_think,  (void *)AngleMove_Final },
 { P_think,  (void *)barrel_explode },
 { P_think,  (void *)button_return },
 { P_think,  (void *)door_go_down },
-{ P_think,  (void *)door_secret_move2 },
-{ P_think,  (void *)door_secret_move4 },
-{ P_think,  (void *)door_secret_move6 },
+
 { P_think,  (void *)DoRespawn },
 { P_think,  (void *)drop_make_touchable },
 { P_think,  (void *)droptofloor },
@@ -239,11 +277,18 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void*)train_next },
 { P_think,  (void*)trigger_elevator_init },
 { P_think,	(void*)spotlight_think },
+
+//
+//	Blocked Callback Pointers.
+//
 { P_blocked, (void*)door_blocked },
-{ P_blocked, (void*)door_secret_blocked },
 { P_blocked, (void*)plat_blocked },
 { P_blocked, (void*)rotating_blocked },
 { P_blocked, (void*)train_blocked },
+
+//
+//	Touch Callback Pointers.
+// 	
 { P_touch, (void*)barrel_touch },
 { P_touch, (void*)button_touch },
 { P_touch, (void*)door_touch },
@@ -262,8 +307,11 @@ const save_ptr_t save_ptrs[] = {
 { P_touch, (void*)trigger_gravity_touch },
 { P_touch, (void*)trigger_monsterjump_touch },
 { P_touch, (void*)trigger_push_touch },
+
+//
+//	Use Callback Pointers:
+//
 { P_use, (void*)button_use },
-{ P_use, (void*)door_secret_use },
 { P_use, (void*)door_use },
 { P_use, (void*)func_clock_use },
 { P_use, (void*)func_conveyor_use },
@@ -300,28 +348,31 @@ const save_ptr_t save_ptrs[] = {
 { P_use, (void*)Use_Target_Speaker },
 { P_use, (void*)use_target_splash },
 { P_use, (void*)Use_Target_Tent },
+
+//
+//	Pain Callback Pointers:
+//
 { P_pain, (void*)player_pain },
+
+//
+//	Die Callback Pointers:
+//
 { P_die, (void*)barrel_delay },
 { P_die, (void*)body_die },
 { P_die, (void*)button_killed },
 { P_die, (void*)debris_die },
 { P_die, (void*)door_killed },
-{ P_die, (void*)door_secret_die },
 { P_die, (void*)func_explosive_explode },
 { P_die, (void*)gib_die },
 { P_die, (void*)player_die },
 
 //
-// MoveInfo_EndFunc
+// MoveInfo_EndFunc	Callback Pointers:
 //
 { P_pusher_moveinfo_endfunc, (void*)button_done },
 { P_pusher_moveinfo_endfunc, (void*)button_wait },
 { P_pusher_moveinfo_endfunc, (void*)door_hit_bottom },
 { P_pusher_moveinfo_endfunc, (void*)door_hit_top },
-{ P_pusher_moveinfo_endfunc, (void*)door_secret_done },
-{ P_pusher_moveinfo_endfunc, (void*)door_secret_move1 },
-{ P_pusher_moveinfo_endfunc, (void*)door_secret_move3 },
-{ P_pusher_moveinfo_endfunc, (void*)door_secret_move5 },
 { P_pusher_moveinfo_endfunc, (void*)plat_hit_bottom },
 { P_pusher_moveinfo_endfunc, (void*)plat_hit_top },
 { P_pusher_moveinfo_endfunc, (void*)train_wait },

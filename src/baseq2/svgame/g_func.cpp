@@ -58,19 +58,21 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define STATE_UP            2
 #define STATE_DOWN          3
 
-#define DOOR_START_OPEN     1
-#define DOOR_REVERSE        2
-#define DOOR_CRUSHER        4
-#define DOOR_NOMONSTER      8
-#define DOOR_TOGGLE         32
-#define DOOR_X_AXIS         64
-#define DOOR_Y_AXIS         128
-
+#define DOOR_START_OPEN     BIT(0) // 1
+#define DOOR_REVERSE        BIT(1) // 2
+#define DOOR_CRUSHER        BIT(2) // 4
+#define DOOR_NOMONSTER      BIT(3) // 8
+#define DOOR_TOGGLE         BIT(4) // 32
+#define DOOR_X_AXIS         BIT(5) // 64
+#define DOOR_Y_AXIS         BIT(6) // 128
+//Q2RTXP: Allows for doors / buttons to be triggerd by +usetarget
+#define DOOR_USE_TARGET     BIT(7) // 256
+//Q2RTXP: Allows for doors / buttons to be triggered by +usetarget and -usetarget
+#define DOOR_USE_HOLD       BIT(8) // 512 Q2RTXP: Allows for doors/buttons to be triggerd by +usetarget
 
 //
 // Support routines for movement (changes in origin using velocity)
 //
-
 void Move_Done(edict_t *ent)
 {
     VectorClear(ent->velocity);
@@ -744,20 +746,27 @@ void SP_func_button(edict_t *ent)
     ent->solid = SOLID_BSP;
     gi.setmodel(ent, ent->model);
 
-    if (ent->sounds != 1)
-        ent->moveinfo.sound_start = gi.soundindex("switches/butn2.wav");
+    if ( ent->sounds != 1 ) {
+        ent->moveinfo.sound_start = gi.soundindex( "switches/butn2.wav" );
+    }
 
-    if (!ent->speed)
+    if ( !ent->speed ) {
         ent->speed = 40;
-    if (!ent->accel)
+    }
+    // Use speed for deceleration and acceleration if they weren't ever set.
+    if ( !ent->accel ) {
         ent->accel = ent->speed;
-    if (!ent->decel)
+    }
+    if ( !ent->decel ) {
         ent->decel = ent->speed;
+    }
 
-    if (!ent->wait)
+    if ( !ent->wait ) {
         ent->wait = 3;
-    if (!st.lip)
+    }
+    if ( !st.lip ) {
         st.lip = 4;
+    }
 
     VectorCopy(ent->s.origin, ent->pos1);
     abs_movedir[0] = fabsf(ent->movedir[0]);

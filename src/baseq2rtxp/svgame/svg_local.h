@@ -195,11 +195,15 @@ typedef enum {
 *   @brief  edict->spawnflags T
 *           These are set with checkboxes on each entity in the map editor.
 **/
-#define SPAWNFLAG_NOT_EASY          0x00000100
-#define SPAWNFLAG_NOT_MEDIUM        0x00000200
-#define SPAWNFLAG_NOT_HARD          0x00000400
-#define SPAWNFLAG_NOT_DEATHMATCH    0x00000800
-#define SPAWNFLAG_NOT_COOP          0x00001000
+static constexpr int32_t SPAWNFLAG_NOT_EASY          = BIT(8);
+static constexpr int32_t SPAWNFLAG_NOT_MEDIUM        = BIT(9);
+static constexpr int32_t SPAWNFLAG_NOT_HARD          = BIT(10);
+static constexpr int32_t SPAWNFLAG_NOT_DEATHMATCH    = BIT(11);
+static constexpr int32_t SPAWNFLAG_NOT_COOP          = BIT(12);
+
+static constexpr int32_t SPAWNFLAG_USETARGET_PRESSABLE = BIT( 22 );
+static constexpr int32_t SPAWNFLAG_USETARGET_HOLDABLE = BIT( 23 );
+static constexpr int32_t SPAWNFLAG_USETARGET_TOGGLEABLE = BIT( 24 );
 
 /**
 *   @brief  edict->flags
@@ -226,14 +230,24 @@ typedef enum {
 /**
 *   @brief  edict->entityUseFlags
 **/
-typedef enum entity_target_use_flags_e {
+typedef enum entity_usetarget_flags_e {
     //! Default, this entity can not be 'Use' interacted with.
-    ENTITY_TARGET_USE_FLAG_NOT = 0,
+    ENTITY_USETARGET_FLAG_DISABLED      = BIT( 0 ),
     //! Takes repeated 'Use' key hit presses to dispatch 'Use' callbacks.
-    ENTITY_TARGET_USE_FLAG_TOGGLE = BIT(1),
+    ENTITY_USETARGET_FLAG_TOGGLE   = BIT( 1 ),
     //! Takes a single 'Use' key press, which when hold will dispatch a 'Use' callback each frame.
-    ENTITY_TARGET_USE_FLAG_HOLD = BIT(2),
-} entity_target_use_flags_t;
+    ENTITY_USETARGET_FLAG_HOLD     = BIT( 2 ),
+
+} entity_usetarget_flags_t;
+/**
+*   @brief  edict->entityUseState
+**/
+typedef enum entity_usetarget_state_e {
+    //! Entity is useTarget toggled.
+    ENTITY_USETARGET_STATE_IS_TOGGLED = BIT( 0 ),
+    //! Entity is useTarget toggled.
+    ENTITY_USETARGET_STATE_IS_HELD = BIT( 1 ),
+} entity_usetarget_state_t;
 
 
 typedef enum {
@@ -881,6 +895,19 @@ void SVG_MoveWith_SetChildEntityMovement( edict_t *self );
 void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover );
 
 /**
+*   @brief  Dispatches toggling callback of 'usetarget' capable entities.
+**/
+const bool SVG_ToggleUseTarget( edict_t *useTargetEntity, edict_t *activator );
+/**
+*   @brief  Dispatches untoggling callback of 'usetarget' capable entities.
+**/
+const bool SVG_UnToggleUseTarget( edict_t *useTargetEntity, edict_t *activator );
+/**
+*   @brief  Dispatches the 'holding of 'usetarget'' callback for capable entities.
+**/
+const bool SVG_HoldUseTarget( edict_t *useTargetEntity, edict_t *activator );
+
+/**
 *   @brief  Wraps up the new more modern SVG_ProjectSource.
 **/
 void    SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
@@ -1442,12 +1469,12 @@ struct gclient_s {
     **/
     uint64_t    last_stair_step_frame;
 
-    vec3_t last_ladder_pos; // For ladder step sounds.
-    sg_time_t last_ladder_sound;
+    vec3_t      last_ladder_pos; // For ladder step sounds.
+    sg_time_t   last_ladder_sound;
 
-    vec3_t      oldviewangles;
-    vec3_t      oldvelocity;
-    edict_t     *oldgroundentity; // [Paril-KEX]
+    vec3_t          oldviewangles;
+    vec3_t          oldvelocity;
+    edict_t         *oldgroundentity; // [Paril-KEX]
     liquid_level_t	old_waterlevel;
     sg_time_t       flash_time; // [Paril-KEX] for high tickrate
 
@@ -1455,7 +1482,21 @@ struct gclient_s {
 	/**
 	*   Misc:
 	**/
-	sg_time_t		next_drown_time;
+	//! Time for another drown sound event.
+    sg_time_t		next_drown_time;
+
+    /**
+    *   UseTarget:
+    **/
+    struct {
+        //! The entity we are currently pointing at.
+        edict_t *currentEntity;
+        //! The previous frame entity which we were pointing at.
+        edict_t *previousEntity;
+
+        //! The state 
+        //! 
+    } useTarget;
 
 	/**
     *	Animation Related:
@@ -1469,12 +1510,9 @@ struct gclient_s {
 	/**
 	*	Item/Use Event Timers:
 	**/
-	//sg_time_t	quad_time;
-	//sg_time_t	invincible_time;
-	//sg_time_t	breather_time;
-	//sg_time_t	enviro_time;
-
     sg_time_t	pickup_msg_time;
+    sg_time_t	respawn_time;		// can respawn when time > this
+
 
     /**
     *	Chat Flood Related:
@@ -1483,8 +1521,10 @@ struct gclient_s {
     sg_time_t	flood_when[10];     // when messages were said
     int64_t		flood_whenhead;     // head pointer for when said
 
-    sg_time_t	respawn_time;		// can respawn when time > this
 
+    /**
+    *   Spectator Chasing:
+    **/
     edict_t     *chase_target;      // player we are chasing
     bool        update_chase;       // need to update chase info?
 };
@@ -1559,8 +1599,10 @@ struct edict_s {
 
     //! Generic Entity flags.
     entity_flags_t flags;
-    //! 
-    entity_target_use_flags_t targetUseFlags;
+    //! The use target features for this entity.
+    entity_usetarget_flags_t useTargetFlags;
+    //! The use target state for its feature.
+    entity_usetarget_state_e useTargetState;
     
     //
     // Target Fields:
@@ -1650,15 +1692,36 @@ struct edict_s {
     //
     // NextThinkg + Entity Callbacks:
     //
+    //! When to perform its next frame logic.
     sg_time_t   nextthink;
+
+    //! Gives a chance to setup references to other entities etc.
     void        ( *postspawn )( edict_t *ent );
+
+    //! Called before actually thinking.
     void        ( *prethink )( edict_t *ent );
+    //! Called for thinking.
     void        ( *think )( edict_t *self );
+    //! Called after thinking.
     void        ( *postthink )( edict_t *ent );
+
+    //! Called when movement has been blocked.
     void        ( *blocked )( edict_t *self, edict_t *other );         // move to moveinfo?
+    //! Called when the entity touches another entity.
     void        ( *touch )( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+    
+    //! Called to 'trigger' the entity.
     void        ( *use )( edict_t *self, edict_t *other, edict_t *activator );
+    //! Called when the entity is targetted and (+usetarget) by a client entity.
+    const bool  ( *usetarget_toggle )( edict_t *self, edict_t *activator );
+    //! Called when the entity is untargetted by (-usetarget) or lost a client's focus.
+    const bool  ( *usetarget_untoggle )( edict_t *self, edict_t *activator );
+    //! Called when the entity is continously (+usetarget)-ted
+    const bool  ( *usetarget_hold )( edict_t *self, edict_t *activator );
+
+    //! Called when it gets damaged.
     void        ( *pain )( edict_t *self, edict_t *other, float kick, int damage );
+    //! Called to die.
     void        ( *die )( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 
 

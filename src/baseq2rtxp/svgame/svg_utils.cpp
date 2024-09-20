@@ -258,6 +258,73 @@ void SVG_UseTargets(edict_t *ent, edict_t *activator)
     }
 }
 
+/**
+*   @brief  Dispatches toggling callback of 'usetarget' capable entities.
+**/
+const bool SVG_ToggleUseTarget( edict_t *useTargetEntity, edict_t *activator ) {
+    // It has to be a valid pointer, have a callback set.
+    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_toggle ) {
+        // Make sure that the entity has use (+usetarget) toggling or holding feature set.
+        if ( ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE )
+            || ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) ) {
+            // Make sure that it is not (temporarily-) disabled however.
+            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
+                #if 0
+                // 
+                const bool result = useTargetEntity->usetarget_toggle( useTargetEntity, activator );
+                // Apply use target state.
+                if ( result ) {
+                    useTargetEntity->useTargetState = (entity_usetarget_state_t)( useTargetEntity->useTargetState | ENTITY_USETARGET_STATE_IS_TOGGLED );
+                }
+                // Return result.
+                return result;
+                #endif
+                return useTargetEntity->usetarget_toggle( useTargetEntity, activator );
+            }
+        }
+    }
+
+    // Didn't actually toggle.
+    return false;
+}
+/**
+*   @brief  Dispatches untoggling callback of 'usetarget' capable entities.
+**/
+const bool SVG_UnToggleUseTarget( edict_t *useTargetEntity, edict_t *activator ) {
+    // It has to be a valid pointer, have a callback set.
+    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_untoggle ) {
+        // Make sure that the entity has use (+usetarget) toggling or holding feature set.
+        if ( ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE )
+            || ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) ) {
+            // Make sure that it is not (temporarily-) disabled however.
+            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
+                return useTargetEntity->usetarget_untoggle( useTargetEntity, activator );
+            }
+        }
+    }
+
+    // Didn't actually untoggle.
+    return false;
+}
+/**
+*   @brief  Dispatches the 'holding of 'usetarget'' callback for capable entities.
+**/
+const bool SVG_HoldUseTarget( edict_t *useTargetEntity, edict_t *activator ) {
+    // It has to be a valid pointer, have a callback set.
+    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_hold ) {
+        // Make sure that the entity has use (+usetarget) holding feature set.
+        if ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) {
+            // Make sure that it is not (temporarily-) disabled however.
+            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
+                return useTargetEntity->usetarget_hold( useTargetEntity, activator );
+            }
+        }
+    }
+
+    // Isn't holding anymore.
+    return false;
+}
+
 
 vec3_t VEC_UP       = {0, -1, 0};
 vec3_t MOVEDIR_UP   = {0, 0, 1};

@@ -1804,6 +1804,170 @@ void ClientCheckPlayerstateEvents( const edict_t *ent, player_state_t *ops, play
 }
 
 /**
+*   +usetarget/-usetarget:
+*
+*   Toggle Entities:
+*   Will trigger an entity only once in case of the keypress(+usetarget).
+*
+*   Toggle Example:
+*   When the keypress(+usetarget) is processed on a button, it will trigger it
+*   only once. For the next keypress(+usetarget) it will trigger the button once
+*   again, resulting in its state now untoggling.
+*
+*
+*   Hold Entities:
+*   In case of a 'hold' entity, it means we trigger on both the keypress(+usetarget),
+*   and keyrelease(-usetarget), as well as when the client loses the entity out of its
+*   crosshair's focus. Whether this can be perceived as truly holding depends on the
+*   entity its own implementation. See the example below:
+*
+*   Hold Example:
+*   We could have a box entity. When +usetarget triggered, it assigns the client as its
+*   owner. In its 'use' callback, if its 'owner' pointer != (nullptr),
+*   it can check if the activator is its actual owner. If it is, then it can reset its
+*   'owner' pointer back to (nullptr). Theoretically this allows for concepts such as
+*   the possibility of objects that one can pick up and move around.
+**/
+void ClientUpdateUseTarget( edict_t *ent, gclient_t *client ) {
+    // AngleVecs.
+    Vector3 vForward, vRight;
+    QM_AngleVectors( client->viewMove.viewAngles, &vForward, &vRight, NULL );
+
+    // Determine the point that is the center of the crosshair, to use as the
+    // start of the trace for finding the entity that is in-focus.
+    Vector3 traceStart;
+    Vector3 viewHeightOffset = { 0, 0, (float)ent->viewheight };
+    P_ProjectSource( ent, ent->s.origin, &viewHeightOffset.x, &vForward.x, &vRight.x, &traceStart.x );
+
+    // Translate 48 units into the forward direction from the starting trace, to get our trace end position.
+    constexpr float USE_TARGET_TRACE_DISTANCE = 48.f;
+    Vector3 traceEnd = QM_Vector3MultiplyAdd( traceStart, USE_TARGET_TRACE_DISTANCE, vForward );
+    // Now perform the trace.
+    trace_t traceUseTarget = gi.trace( &traceStart.x, NULL, NULL, &traceEnd.x, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ) );
+    // Get resulting entity.
+    edict_t *traceFocusEntity = traceUseTarget.ent;
+    // Store what was the current, as our previous useTarget entity.
+    client->useTarget.previousEntity = client->useTarget.currentEntity;
+
+    // <DEBUG>:
+    #if 0
+    if ( traceFocusEntity ) {
+        gi.dprintf( "%s: traceFocusEntity(%s), (%s)\n"
+            __func__,
+            traceFocusEntity->classname,
+            traceFocusEntity->inuse ? "inUse" : "unused"
+        );
+    }
+    #endif
+    // </DEBUG>
+
+    // Is it a different entity than before?(or none at all?)
+    edict_t *useTargetEntity = ent->client->useTarget.currentEntity;
+    if ( traceFocusEntity != useTargetEntity ) {
+        // Callback its untoggle function since we lost focus of it(means we can't hold it anymore).
+        if ( useTargetEntity != nullptr && useTargetEntity->useTargetState & ENTITY_USETARGET_STATE_IS_HELD ) {
+            SVG_UnToggleUseTarget( useTargetEntity, ent );
+        }
+        // Assign the new focus entity as the current entity.
+        ent->client->useTarget.currentEntity = traceFocusEntity;
+        // Refresh it to the new focussed entity.
+        useTargetEntity = traceFocusEntity;
+    }
+
+    // The +usetarget key has been pressed once.
+    if ( client->latched_buttons & BUTTON_USE_TARGET ) {
+        // Toggle or UnToggle depending on state.
+        if ( useTargetEntity && useTargetEntity->inuse ) {
+            if ( useTargetEntity->useTargetState & ENTITY_USETARGET_STATE_IS_TOGGLED ) {
+                if ( !SVG_UnToggleUseTarget( useTargetEntity, ent ) ) {
+                    // If we got here, either the callback returned false for a reason or
+                    // the callback was never dispatched in the first place.
+                }
+            } else {
+                if ( !SVG_ToggleUseTarget( useTargetEntity, ent ) ) {
+                    // If we got here, either the callback returned false for a reason or
+                    // the callback was never dispatched in the first place.
+                    // WID: TODO: Play a silly audio like HL1? lol.
+                }
+            }
+        }
+        // Remove from the latched buttons.
+        client->latched_buttons &= ~BUTTON_USE_TARGET;
+    }
+}
+/**
+*   @brief  Will search for touching trigger and projectiles, dispatching their touch callback when touching.
+**/
+void ClientProcessTouches( edict_t *ent, gclient_t *client, pmove_t &pm, const Vector3 &oldOrigin ) {
+    // If we're not 'No-Clipping', or 'Spectating', touch triggers and projectfiles.
+    if ( ent->movetype != MOVETYPE_NOCLIP ) {
+        SVG_TouchTriggers( ent );
+        SVG_TouchProjectiles( ent, oldOrigin );
+    }
+
+    // Dispatch touch callbacks on all the remaining 'Solid' traced objects during our PMove.
+    for ( int32_t i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
+        trace_t &tr = pm.touchTraces.traces[ i ];
+        edict_t *other = tr.ent;
+
+        if ( other != nullptr && other->touch ) {
+            // TODO: Q2RE has these for last 2 args: const trace_t &tr, bool other_touching_self
+            // What the??
+            other->touch( other, ent, &tr.plane, tr.surface );
+        }
+    }
+}
+const Vector3 ClientPostPMove( edict_t *ent, gclient_t *client, pmove_t &pm ) {
+    // [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
+    if ( ( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
+        VectorCopy( ent->s.origin, client->last_ladder_pos );
+
+        if ( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) {
+            if ( !deathmatch->integer &&
+                client->last_ladder_sound < level.time ) {
+                ent->s.event = EV_FOOTSTEP_LADDER;
+                client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
+            }
+        }
+    }
+
+    // [Paril-KEX] save old position for ClientProcessTouches
+    const Vector3 oldOrigin = ent->s.origin;
+
+    // Copy back into the entity, both the resulting origin and velocity.
+    VectorCopy( pm.playerState->pmove.origin, ent->s.origin );
+    VectorCopy( pm.playerState->pmove.velocity, ent->velocity );
+    // Copy back in bounding box results. (Player might've crouched for example.)
+    VectorCopy( pm.mins, ent->mins );
+    VectorCopy( pm.maxs, ent->maxs );
+
+    // Play 'Jump' sound if pmove inquired so.
+    if ( pm.jump_sound && !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquid.level == 0) {
+        // Jump sound to play.
+        const int32_t sndIndex = irandom( 2 ) + 1;
+        std::string pathJumpSnd = "player/jump0"; pathJumpSnd += std::to_string( sndIndex ); pathJumpSnd += ".wav";
+        gi.sound( ent, CHAN_VOICE, gi.soundindex( pathJumpSnd.c_str() ), 1, ATTN_NORM, 0 );
+        // Jump sound to play.
+        //gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/jump01.wav" ), 1, ATTN_NORM, 0 );
+
+        // Paril: removed to make ambushes more effective and to
+        // not have monsters around corners come to jumps
+        // PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
+    }
+
+    // Update the entity's remaining viewheight, liquid and ground information:
+    ent->viewheight = (int32_t)pm.playerState->pmove.viewheight;
+    ent->liquidInfo.level = pm.liquid.level;
+    ent->liquidInfo.type = pm.liquid.type;
+    ent->groundInfo.entity = pm.ground.entity;
+    if ( pm.ground.entity ) {
+        ent->groundInfo.entityLinkCount = pm.ground.entity->linkcount;
+    }
+
+    // Return the oldOrigin for later use.
+    return oldOrigin;
+}
+/**
 *   @brief  This will be called once for each client frame, which will usually 
 *           be a couple times for each server frame.
 **/
@@ -1939,51 +2103,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
         // [Paril-KEX] save old position for SVG_TouchProjectiles
         //vec3_t old_origin = ent->s.origin;
         
-        // [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
-        if ( ( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
-            VectorCopy( ent->s.origin, client->last_ladder_pos );
+        // Updates the entity origin, angles, bbox, groundinfo, etc.
+        const Vector3 oldOrigin = ClientPostPMove( ent, client, pm );
 
-            if ( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) {
-                if ( !deathmatch->integer &&
-                    client->last_ladder_sound < level.time ) {
-                    ent->s.event = EV_FOOTSTEP_LADDER;
-                    client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
-                }
-            }
-        }
-        
-        // [Paril-KEX] save old position for SVG_TouchProjectiles
-        const Vector3 old_origin = ent->s.origin;
-
-		// Copy back into the entity, both the resulting origin and velocity.
-		VectorCopy( pm.playerState->pmove.origin, ent->s.origin );
-		VectorCopy( pm.playerState->pmove.velocity, ent->velocity );
-        // Copy back in bounding box results. (Player might've crouched for example.)
-        VectorCopy( pm.mins, ent->mins );
-        VectorCopy( pm.maxs, ent->maxs );
-
-        // Play 'Jump' sound if pmove inquired so.
-        if ( pm.jump_sound && !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquid.level == 0) {
-            // Jump sound to play.
-            const int32_t sndIndex = irandom( 2 ) + 1;
-            std::string pathJumpSnd = "player/jump0"; pathJumpSnd += std::to_string( sndIndex ); pathJumpSnd += ".wav";
-            gi.sound( ent, CHAN_VOICE, gi.soundindex( pathJumpSnd.c_str() ), 1, ATTN_NORM, 0 );
-            // Jump sound to play.
-            //gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/jump01.wav" ), 1, ATTN_NORM, 0 );
-            
-            // Paril: removed to make ambushes more effective and to
-            // not have monsters around corners come to jumps
-            // PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
-        }
-
-		// Update the entity's remaining viewheight, liquid and ground information:
-        ent->viewheight = (int32_t)pm.playerState->pmove.viewheight;
-        ent->liquidInfo.level = pm.liquid.level;
-        ent->liquidInfo.type = pm.liquid.type;
-        ent->groundInfo.entity = pm.ground.entity;
-        if ( pm.ground.entity ) {
-            ent->groundInfo.entityLinkCount = pm.ground.entity->linkcount;
-        }
         // Apply a specific view angle if dead:
         if ( ent->deadflag ) {
             client->ps.viewangles[ROLL] = 40;
@@ -2003,66 +2125,10 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
         ent->gravity = 1.0;
         // PGM
 
-        // If we're not 'No-Clipping', or 'Spectating', touch triggers and projectfiles.
-		if ( ent->movetype != MOVETYPE_NOCLIP ) {
-			SVG_TouchTriggers( ent );
-            SVG_TouchProjectiles( ent, old_origin );
-		}
-
-        // Dispatch touch callbacks on all the remaining 'Solid' traced objects during our PMove.
-        for ( int32_t i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
-            trace_t &tr = pm.touchTraces.traces[ i ];
-            edict_t *other = tr.ent;
-
-            if ( other != nullptr && other->touch ) {
-                // TODO: Q2RE has these for last 2 args: const trace_t &tr, bool other_touching_self
-                // What the??
-                other->touch( other, ent, &tr.plane, tr.surface );
-            }
-        }
-
-        /**
-        *   Entity Use Target:
-        **/
-        if ( client->latched_buttons & BUTTON_USE_TARGET ) {
-            // AngleVecs.
-            Vector3 vForward, vRight;
-            QM_AngleVectors( ent->client->viewMove.viewAngles, &vForward, &vRight, NULL );
-            // Project from source to shot destination.
-            Vector3 traceStart;
-            Vector3 shotOffset = { 0, 0, (float)ent->viewheight };
-            P_ProjectSource( ent, ent->s.origin, &shotOffset.x, &vForward.x, &vRight.x, &traceStart.x );
-            //Vector3 traceStart = ent->s.origin;
-            //traceStart.z += ent->viewheight;
-
-            // Calculate trace end.
-            Vector3 traceEnd = QM_Vector3MultiplyAdd( traceStart, 48, vForward );
-            // Perform trace.
-            trace_t traceUseTarget = gi.trace( &traceStart.x, NULL, NULL, &traceEnd.x, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ) );
-
-            // Get resulting entity.
-            edict_t *useTargetEntity = traceUseTarget.ent;
-            // Ensure the trace is legit:
-            if ( useTargetEntity && useTargetEntity->inuse && !( useTargetEntity->targetUseFlags & ENTITY_TARGET_USE_FLAG_NOT ) ) {
-                gi.dprintf( "%s: useTargetEntity(#%d) with useTargetFlags(%d)\n",
-                    __func__, useTargetEntity->s.number, useTargetEntity->targetUseFlags );
-                // Toggle:
-                if ( useTargetEntity->targetUseFlags & ENTITY_TARGET_USE_FLAG_TOGGLE ) {
-                    // See if it has a use callback, if so, dispatch.
-                    if ( useTargetEntity->use ) {
-                        useTargetEntity->use( useTargetEntity, ent, ent );
-                    }
-                    // Remove from the latched buttons.
-                    client->latched_buttons &= ~BUTTON_USE_TARGET;
-                // Hold:
-                } else if ( useTargetEntity->targetUseFlags & ENTITY_TARGET_USE_FLAG_HOLD ) {
-                    // See if it has a use callback, if so, dispatch.
-                    if ( useTargetEntity->use ) {
-                        useTargetEntity->use( useTargetEntity, ent, ent );
-                    }
-                }
-            }
-        }
+        // Process touch callback dispatching for Triggers and Projectiles.
+        ClientProcessTouches( ent, client, pm, oldOrigin );
+        // Update the (+/-usetarget) key state actions.
+        ClientUpdateUseTarget( ent, client );
     }
 
     /**
@@ -2130,6 +2196,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
 
 
 }
+
 
 /**
 *   @brief  This will be called once for each server frame, before running any other entities in the world.
