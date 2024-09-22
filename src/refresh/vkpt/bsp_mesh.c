@@ -473,7 +473,7 @@ get_triangle_off_center(const float* positions, float* center, float* anti_cente
 static int
 get_surf_light_style(const mface_t* surf)
 {
-	for (int nstyle = 0; nstyle < 4; nstyle++)
+	for (int nstyle = 0; nstyle < MAX_LIGHTMAPS; nstyle++)
 	{
 		if (surf->styles[nstyle] != 0 && surf->styles[nstyle] != 255)
 		{
@@ -784,7 +784,9 @@ typedef struct {
 	float x, y;
 } point2_t;
 
-#define MAX_POLY_VERTS 32
+// WID: Adjusted to properly support higher geometry brushes.
+//#define MAX_POLY_VERTS 32
+#define MAX_POLY_VERTS 128
 typedef struct {
 	point2_t v[MAX_POLY_VERTS];
 	int len;
