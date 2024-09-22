@@ -77,11 +77,11 @@ void door_go_down( edict_t *self );
 **/
 void door_hit_top( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pusherMoveInfo.sound_end )
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+        if ( self->pushMoveInfo.sound_end )
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
         self->s.sound = 0;
     }
-    self->pusherMoveInfo.state = STATE_TOP;
+    self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
 
     // WID: LUA: Call the OnDoorOpened function if it exists.
     if ( self->luaProperties.luaName ) {
@@ -96,9 +96,9 @@ void door_hit_top( edict_t *self ) {
     if ( self->spawnflags & FUNC_DOOR_TOGGLE )
         return;
 
-    if ( self->pusherMoveInfo.wait >= 0 ) {
+    if ( self->pushMoveInfo.wait >= 0 ) {
         self->think = door_go_down;
-        self->nextthink = level.time + sg_time_t::from_sec( self->pusherMoveInfo.wait );
+        self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
     }
 
 }
@@ -108,11 +108,11 @@ void door_hit_top( edict_t *self ) {
 **/
 void door_hit_bottom( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pusherMoveInfo.sound_end )
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+        if ( self->pushMoveInfo.sound_end )
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
         self->s.sound = 0;
     }
-    self->pusherMoveInfo.state = STATE_BOTTOM;
+    self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
     door_use_areaportals( self, false );
 
     // WID: LUA: Call the OnDoorClosed function if it exists.
@@ -131,46 +131,46 @@ void door_hit_bottom( edict_t *self ) {
 **/
 void door_go_down( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pusherMoveInfo.sound_start )
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-        self->s.sound = self->pusherMoveInfo.sound_middle;
+        if ( self->pushMoveInfo.sound_start )
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
+        self->s.sound = self->pushMoveInfo.sound_middle;
     }
     if ( self->max_health ) {
         self->takedamage = DAMAGE_YES;
         self->health = self->max_health;
     }
 
-    self->pusherMoveInfo.state = STATE_MOVING_DOWN;
+    self->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
     if ( strcmp( self->classname, "func_door" ) == 0 )
-        Move_Calc( self, self->pusherMoveInfo.start_origin, door_hit_bottom );
+        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, door_hit_bottom );
     else if ( strcmp( self->classname, "func_door_rotating" ) == 0 )
-        AngleMove_Calc( self, door_hit_bottom );
+        SVG_PushMove_AngleMoveCalculate( self, door_hit_bottom );
 }
 
 /**
 *	@brief
 **/
 void door_go_up( edict_t *self, edict_t *activator ) {
-    if ( self->pusherMoveInfo.state == STATE_MOVING_UP )
+    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP )
         return;     // already going up
 
-    if ( self->pusherMoveInfo.state == STATE_TOP ) {
+    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
         // reset top wait time
-        if ( self->pusherMoveInfo.wait >= 0 )
-            self->nextthink = level.time + sg_time_t::from_sec( self->pusherMoveInfo.wait );
+        if ( self->pushMoveInfo.wait >= 0 )
+            self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
         return;
     }
 
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pusherMoveInfo.sound_start )
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-        self->s.sound = self->pusherMoveInfo.sound_middle;
+        if ( self->pushMoveInfo.sound_start )
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
+        self->s.sound = self->pushMoveInfo.sound_middle;
     }
-    self->pusherMoveInfo.state = STATE_MOVING_UP;
+    self->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
     if ( strcmp( self->classname, "func_door" ) == 0 )
-        Move_Calc( self, self->pusherMoveInfo.end_origin, door_hit_top );
+        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, door_hit_top );
     else if ( strcmp( self->classname, "func_door_rotating" ) == 0 )
-        AngleMove_Calc( self, door_hit_top );
+        SVG_PushMove_AngleMoveCalculate( self, door_hit_top );
 
     SVG_UseTargets( self, activator );
     door_use_areaportals( self, true );
@@ -186,7 +186,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator ) {
         return;
 
     if ( self->spawnflags & FUNC_DOOR_TOGGLE ) {
-        if ( self->pusherMoveInfo.state == STATE_MOVING_UP || self->pusherMoveInfo.state == STATE_TOP ) {
+        if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP || self->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
             // trigger all paired doors
             for ( ent = self; ent; ent = ent->teamchain ) {
                 ent->message = NULL;
@@ -228,8 +228,8 @@ void door_blocked( edict_t *self, edict_t *other ) {
 
     // if a door has a negative wait, it would never come back if blocked,
     // so let it just squash the object to death real fast
-    if ( self->pusherMoveInfo.wait >= 0 ) {
-        if ( self->pusherMoveInfo.state == STATE_MOVING_DOWN ) {
+    if ( self->pushMoveInfo.wait >= 0 ) {
+        if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN ) {
             for ( ent = self->teammaster; ent; ent = ent->teamchain )
                 door_go_up( ent, ent->activator );
         } else {
@@ -274,7 +274,7 @@ void door_postspawn( edict_t *self ) {
     //if ( self->spawnflags & DOOR_START_OPEN ) {
     //    //SVG_UseTargets( self, self );
     //    door_use_areaportals( self, true );
-    //    //self->pusherMoveInfo.state = STATE_TOP;
+    //    //self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
     //}
 }
 
@@ -285,9 +285,9 @@ void SP_func_door( edict_t *ent ) {
     vec3_t  abs_movedir;
 
     if ( ent->sounds != 1 ) {
-        ent->pusherMoveInfo.sound_start = gi.soundindex( "doors/door_start_01.wav" );
-        ent->pusherMoveInfo.sound_middle = gi.soundindex( "doors/door_mid_01.wav" );
-        ent->pusherMoveInfo.sound_end = gi.soundindex( "doors/door_end_01.wav" );
+        ent->pushMoveInfo.sound_start = gi.soundindex( "doors/door_start_01.wav" );
+        ent->pushMoveInfo.sound_middle = gi.soundindex( "doors/door_mid_01.wav" );
+        ent->pushMoveInfo.sound_end = gi.soundindex( "doors/door_end_01.wav" );
     }
 
     SVG_SetMoveDir( ent->s.angles, ent->movedir );
@@ -322,8 +322,8 @@ void SP_func_door( edict_t *ent ) {
     abs_movedir[ 0 ] = fabsf( ent->movedir[ 0 ] );
     abs_movedir[ 1 ] = fabsf( ent->movedir[ 1 ] );
     abs_movedir[ 2 ] = fabsf( ent->movedir[ 2 ] );
-    ent->pusherMoveInfo.distance = abs_movedir[ 0 ] * ent->size[ 0 ] + abs_movedir[ 1 ] * ent->size[ 1 ] + abs_movedir[ 2 ] * ent->size[ 2 ] - st.lip;
-    VectorMA( ent->pos1, ent->pusherMoveInfo.distance, ent->movedir, ent->pos2 );
+    ent->pushMoveInfo.distance = abs_movedir[ 0 ] * ent->size[ 0 ] + abs_movedir[ 1 ] * ent->size[ 1 ] + abs_movedir[ 2 ] * ent->size[ 2 ] - st.lip;
+    VectorMA( ent->pos1, ent->pushMoveInfo.distance, ent->movedir, ent->pos2 );
 
     // if it starts open, switch the positions
     if ( ent->spawnflags & FUNC_DOOR_START_OPEN ) {
@@ -332,7 +332,7 @@ void SP_func_door( edict_t *ent ) {
         VectorCopy( ent->s.origin, ent->pos1 );
     }
 
-    ent->pusherMoveInfo.state = STATE_BOTTOM;
+    ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
 
     if ( ent->health ) {
         ent->takedamage = DAMAGE_YES;
@@ -343,14 +343,14 @@ void SP_func_door( edict_t *ent ) {
         ent->touch = door_touch;
     }
 
-    ent->pusherMoveInfo.speed = ent->speed;
-    ent->pusherMoveInfo.accel = ent->accel;
-    ent->pusherMoveInfo.decel = ent->decel;
-    ent->pusherMoveInfo.wait = ent->wait;
-    VectorCopy( ent->pos1, ent->pusherMoveInfo.start_origin );
-    VectorCopy( ent->s.angles, ent->pusherMoveInfo.start_angles );
-    VectorCopy( ent->pos2, ent->pusherMoveInfo.end_origin );
-    VectorCopy( ent->s.angles, ent->pusherMoveInfo.end_angles );
+    ent->pushMoveInfo.speed = ent->speed;
+    ent->pushMoveInfo.accel = ent->accel;
+    ent->pushMoveInfo.decel = ent->decel;
+    ent->pushMoveInfo.wait = ent->wait;
+    VectorCopy( ent->pos1, ent->pushMoveInfo.start_origin );
+    VectorCopy( ent->s.angles, ent->pushMoveInfo.start_angles );
+    VectorCopy( ent->pos2, ent->pushMoveInfo.end_origin );
+    VectorCopy( ent->s.angles, ent->pushMoveInfo.end_angles );
 
     if ( ent->spawnflags & 16 )
         ent->s.effects |= EF_ANIM_ALL;

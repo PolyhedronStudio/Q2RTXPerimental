@@ -84,11 +84,11 @@ void plat_go_down( edict_t *ent );
 
 void plat_hit_top( edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pusherMoveInfo.sound_end )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pusherMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+        if ( ent->pushMoveInfo.sound_end )
+            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
         ent->s.sound = 0;
     }
-    ent->pusherMoveInfo.state = STATE_TOP;
+    ent->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
 
     #if 0
     ent->think = plat_go_down;
@@ -107,11 +107,11 @@ void plat_hit_top( edict_t *ent ) {
 
 void plat_hit_bottom( edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pusherMoveInfo.sound_end )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pusherMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+        if ( ent->pushMoveInfo.sound_end )
+            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
         ent->s.sound = 0;
     }
-    ent->pusherMoveInfo.state = STATE_BOTTOM;
+    ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
 
     // WID: LUA: Call the HitBottom function if it exists.
     if ( ent->luaProperties.luaName ) {
@@ -126,22 +126,22 @@ void plat_hit_bottom( edict_t *ent ) {
 
 void plat_go_down( edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pusherMoveInfo.sound_start )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pusherMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-        ent->s.sound = ent->pusherMoveInfo.sound_middle;
+        if ( ent->pushMoveInfo.sound_start )
+            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
+        ent->s.sound = ent->pushMoveInfo.sound_middle;
     }
-    ent->pusherMoveInfo.state = STATE_MOVING_DOWN;
-    Move_Calc( ent, ent->pusherMoveInfo.end_origin, plat_hit_bottom );
+    ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
+    SVG_PushMove_MoveCalculate( ent, ent->pushMoveInfo.end_origin, plat_hit_bottom );
 }
 
 void plat_go_up( edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pusherMoveInfo.sound_start )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pusherMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-        ent->s.sound = ent->pusherMoveInfo.sound_middle;
+        if ( ent->pushMoveInfo.sound_start )
+            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
+        ent->s.sound = ent->pushMoveInfo.sound_middle;
     }
-    ent->pusherMoveInfo.state = STATE_MOVING_UP;
-    Move_Calc( ent, ent->pusherMoveInfo.start_origin, plat_hit_top );
+    ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
+    SVG_PushMove_MoveCalculate( ent, ent->pushMoveInfo.start_origin, plat_hit_top );
 }
 
 void plat_blocked( edict_t *self, edict_t *other ) {
@@ -159,9 +159,9 @@ void plat_blocked( edict_t *self, edict_t *other ) {
     const bool knockBack = false;
     T_Damage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, knockBack, 0, MEANS_OF_DEATH_CRUSHED );
 
-    if ( self->pusherMoveInfo.state == STATE_MOVING_UP )
+    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP )
         plat_go_down( self );
-    else if ( self->pusherMoveInfo.state == STATE_MOVING_DOWN )
+    else if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN )
         plat_go_up( self );
 }
 
@@ -169,9 +169,9 @@ void plat_blocked( edict_t *self, edict_t *other ) {
 void Use_Plat( edict_t *ent, edict_t *other, edict_t *activator ) {
     // WID: <Q2RTXP> For func_button support.
     //if ( ( other && !strcmp( other->classname, "func_button" ) ) ) {
-    if ( ent->pusherMoveInfo.state == STATE_MOVING_UP || ent->pusherMoveInfo.state == STATE_TOP ) {
+    if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP || ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
         plat_go_down( ent );
-    } else if ( ent->pusherMoveInfo.state == STATE_MOVING_DOWN || ent->pusherMoveInfo.state == STATE_BOTTOM ) {
+    } else if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN || ent->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM ) {
         plat_go_up( ent );
     }
     //    return;     // already down
@@ -196,9 +196,9 @@ void Touch_Plat_Center( edict_t *ent, edict_t *other, cplane_t *plane, csurface_
         return;
 
     ent = ent->enemy;   // now point at the plat, not the trigger
-    if ( ent->pusherMoveInfo.state == STATE_BOTTOM ) {
+    if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM ) {
         plat_go_up( ent );
-    } else if ( ent->pusherMoveInfo.state == STATE_TOP ) {
+    } else if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
         ent->nextthink = level.time + 1_sec; // the player is still on the plat, so delay going down
     }
 }
@@ -289,23 +289,23 @@ void SP_func_plat( edict_t *ent ) {
     plat_spawn_inside_trigger( ent );     // the "start moving" trigger
 
     if ( ent->targetname ) {
-        ent->pusherMoveInfo.state = STATE_MOVING_UP;
+        ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
     } else {
         VectorCopy( ent->pos2, ent->s.origin );
         gi.linkentity( ent );
-        ent->pusherMoveInfo.state = STATE_BOTTOM;
+        ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
     }
 
-    ent->pusherMoveInfo.speed = ent->speed;
-    ent->pusherMoveInfo.accel = ent->accel;
-    ent->pusherMoveInfo.decel = ent->decel;
-    ent->pusherMoveInfo.wait = ent->wait;
-    VectorCopy( ent->pos1, ent->pusherMoveInfo.start_origin );
-    VectorCopy( ent->s.angles, ent->pusherMoveInfo.start_angles );
-    VectorCopy( ent->pos2, ent->pusherMoveInfo.end_origin );
-    VectorCopy( ent->s.angles, ent->pusherMoveInfo.end_angles );
+    ent->pushMoveInfo.speed = ent->speed;
+    ent->pushMoveInfo.accel = ent->accel;
+    ent->pushMoveInfo.decel = ent->decel;
+    ent->pushMoveInfo.wait = ent->wait;
+    VectorCopy( ent->pos1, ent->pushMoveInfo.start_origin );
+    VectorCopy( ent->s.angles, ent->pushMoveInfo.start_angles );
+    VectorCopy( ent->pos2, ent->pushMoveInfo.end_origin );
+    VectorCopy( ent->s.angles, ent->pushMoveInfo.end_angles );
 
-    ent->pusherMoveInfo.sound_start = gi.soundindex( "plats/plat_start_01.wav" );
-    ent->pusherMoveInfo.sound_middle = gi.soundindex( "plats/plat_mid_01.wav" );
-    ent->pusherMoveInfo.sound_end = gi.soundindex( "plats/plat_end_01.wav" );
+    ent->pushMoveInfo.sound_start = gi.soundindex( "plats/plat_start_01.wav" );
+    ent->pushMoveInfo.sound_middle = gi.soundindex( "plats/plat_mid_01.wav" );
+    ent->pushMoveInfo.sound_end = gi.soundindex( "plats/plat_end_01.wav" );
 }

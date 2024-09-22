@@ -55,13 +55,13 @@ void SP_func_water( edict_t *self ) {
         break;
 
     case 1: // water
-        self->pusherMoveInfo.sound_start = gi.soundindex( "world/mov_watr.wav" );
-        self->pusherMoveInfo.sound_end = gi.soundindex( "world/stp_watr.wav" );
+        self->pushMoveInfo.sound_start = gi.soundindex( "world/mov_watr.wav" );
+        self->pushMoveInfo.sound_end = gi.soundindex( "world/stp_watr.wav" );
         break;
 
     case 2: // lava
-        self->pusherMoveInfo.sound_start = gi.soundindex( "world/mov_watr.wav" );
-        self->pusherMoveInfo.sound_end = gi.soundindex( "world/stp_watr.wav" );
+        self->pushMoveInfo.sound_start = gi.soundindex( "world/mov_watr.wav" );
+        self->pushMoveInfo.sound_end = gi.soundindex( "world/stp_watr.wav" );
         break;
     }
 
@@ -70,8 +70,8 @@ void SP_func_water( edict_t *self ) {
     abs_movedir[ 0 ] = fabsf( self->movedir[ 0 ] );
     abs_movedir[ 1 ] = fabsf( self->movedir[ 1 ] );
     abs_movedir[ 2 ] = fabsf( self->movedir[ 2 ] );
-    self->pusherMoveInfo.distance = abs_movedir[ 0 ] * self->size[ 0 ] + abs_movedir[ 1 ] * self->size[ 1 ] + abs_movedir[ 2 ] * self->size[ 2 ] - st.lip;
-    VectorMA( self->pos1, self->pusherMoveInfo.distance, self->movedir, self->pos2 );
+    self->pushMoveInfo.distance = abs_movedir[ 0 ] * self->size[ 0 ] + abs_movedir[ 1 ] * self->size[ 1 ] + abs_movedir[ 2 ] * self->size[ 2 ] - st.lip;
+    VectorMA( self->pos1, self->pushMoveInfo.distance, self->movedir, self->pos2 );
 
     // if it starts open, switch the positions
     if ( self->spawnflags & FUNC_WATER_START_OPEN ) {
@@ -80,20 +80,20 @@ void SP_func_water( edict_t *self ) {
         VectorCopy( self->s.origin, self->pos1 );
     }
 
-    VectorCopy( self->pos1, self->pusherMoveInfo.start_origin );
-    VectorCopy( self->s.angles, self->pusherMoveInfo.start_angles );
-    VectorCopy( self->pos2, self->pusherMoveInfo.end_origin );
-    VectorCopy( self->s.angles, self->pusherMoveInfo.end_angles );
+    VectorCopy( self->pos1, self->pushMoveInfo.start_origin );
+    VectorCopy( self->s.angles, self->pushMoveInfo.start_angles );
+    VectorCopy( self->pos2, self->pushMoveInfo.end_origin );
+    VectorCopy( self->s.angles, self->pushMoveInfo.end_angles );
 
-    self->pusherMoveInfo.state = STATE_BOTTOM;
+    self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
 
     if ( !self->speed )
         self->speed = 25;
-    self->pusherMoveInfo.accel = self->pusherMoveInfo.decel = self->pusherMoveInfo.speed = self->speed;
+    self->pushMoveInfo.accel = self->pushMoveInfo.decel = self->pushMoveInfo.speed = self->speed;
 
     if ( !self->wait )
         self->wait = -1;
-    self->pusherMoveInfo.wait = self->wait;
+    self->pushMoveInfo.wait = self->wait;
 
     self->use = door_use;
 

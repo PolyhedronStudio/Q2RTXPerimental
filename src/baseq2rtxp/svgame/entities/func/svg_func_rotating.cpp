@@ -43,7 +43,7 @@ void rotating_use( edict_t *self, edict_t *other, edict_t *activator ) {
         VectorClear( self->avelocity );
         self->touch = NULL;
     } else {
-        self->s.sound = self->pusherMoveInfo.sound_middle;
+        self->s.sound = self->pushMoveInfo.sound_middle;
         VectorScale( self->movedir, self->speed, self->avelocity );
         if ( self->spawnflags & 16 )
             self->touch = rotating_touch;
@@ -77,7 +77,7 @@ void SP_func_rotating( edict_t *ent ) {
     if ( !ent->dmg )
         ent->dmg = 2;
 
-    //  ent->pusherMoveInfo.sound_middle = "doors/hydro1.wav";
+    //  ent->pushMoveInfo.sound_middle = "doors/hydro1.wav";
 
     ent->use = rotating_use;
     if ( ent->dmg )

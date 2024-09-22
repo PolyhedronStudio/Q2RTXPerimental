@@ -68,7 +68,7 @@ void SP_func_door_rotating( edict_t *ent ) {
 
     VectorCopy( ent->s.angles, ent->pos1 );
     VectorMA( ent->s.angles, st.distance, ent->movedir, ent->pos2 );
-    ent->pusherMoveInfo.distance = st.distance;
+    ent->pushMoveInfo.distance = st.distance;
 
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
@@ -91,9 +91,9 @@ void SP_func_door_rotating( edict_t *ent ) {
         ent->dmg = 2;
 
     if ( ent->sounds != 1 ) {
-        ent->pusherMoveInfo.sound_start = gi.soundindex( "doors/door_start_01.wav" );
-        ent->pusherMoveInfo.sound_middle = gi.soundindex( "doors/door_mid_01.wav" );
-        ent->pusherMoveInfo.sound_end = gi.soundindex( "doors/door_end_01.wav" );
+        ent->pushMoveInfo.sound_start = gi.soundindex( "doors/door_start_01.wav" );
+        ent->pushMoveInfo.sound_middle = gi.soundindex( "doors/door_mid_01.wav" );
+        ent->pushMoveInfo.sound_end = gi.soundindex( "doors/door_end_01.wav" );
     }
 
     // if it starts open, switch the positions
@@ -115,15 +115,15 @@ void SP_func_door_rotating( edict_t *ent ) {
         ent->touch = door_touch;
     }
 
-    ent->pusherMoveInfo.state = STATE_BOTTOM;
-    ent->pusherMoveInfo.speed = ent->speed;
-    ent->pusherMoveInfo.accel = ent->accel;
-    ent->pusherMoveInfo.decel = ent->decel;
-    ent->pusherMoveInfo.wait = ent->wait;
-    VectorCopy( ent->s.origin, ent->pusherMoveInfo.start_origin );
-    VectorCopy( ent->pos1, ent->pusherMoveInfo.start_angles );
-    VectorCopy( ent->s.origin, ent->pusherMoveInfo.end_origin );
-    VectorCopy( ent->pos2, ent->pusherMoveInfo.end_angles );
+    ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
+    ent->pushMoveInfo.speed = ent->speed;
+    ent->pushMoveInfo.accel = ent->accel;
+    ent->pushMoveInfo.decel = ent->decel;
+    ent->pushMoveInfo.wait = ent->wait;
+    VectorCopy( ent->s.origin, ent->pushMoveInfo.start_origin );
+    VectorCopy( ent->pos1, ent->pushMoveInfo.start_angles );
+    VectorCopy( ent->s.origin, ent->pushMoveInfo.end_origin );
+    VectorCopy( ent->pos2, ent->pushMoveInfo.end_angles );
 
     if ( ent->spawnflags & 16 )
         ent->s.effects |= EF_ANIM_ALL;

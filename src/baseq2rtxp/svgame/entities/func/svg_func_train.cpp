@@ -66,9 +66,9 @@ void train_wait( edict_t *self ) {
             return;
     }
 
-    if ( self->pusherMoveInfo.wait ) {
-        if ( self->pusherMoveInfo.wait > 0 ) {
-            self->nextthink = level.time + sg_time_t::from_sec( self->pusherMoveInfo.wait );
+    if ( self->pushMoveInfo.wait ) {
+        if ( self->pushMoveInfo.wait > 0 ) {
+            self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
             self->think = train_next;
         } else if ( self->spawnflags & TRAIN_TOGGLE ) { // && wait < 0
             train_next( self );
@@ -78,8 +78,8 @@ void train_wait( edict_t *self ) {
         }
 
         if ( !( self->flags & FL_TEAMSLAVE ) ) {
-            if ( self->pusherMoveInfo.sound_end )
-                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+            if ( self->pushMoveInfo.sound_end )
+                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
             self->s.sound = 0;
         }
     } else {
@@ -122,20 +122,20 @@ again:
         goto again;
     }
 
-    self->pusherMoveInfo.wait = ent->wait;
+    self->pushMoveInfo.wait = ent->wait;
     self->targetEntities.target = ent;
 
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pusherMoveInfo.sound_start )
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pusherMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-        self->s.sound = self->pusherMoveInfo.sound_middle;
+        if ( self->pushMoveInfo.sound_start )
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
+        self->s.sound = self->pushMoveInfo.sound_middle;
     }
 
     VectorSubtract( ent->s.origin, self->mins, dest );
-    self->pusherMoveInfo.state = STATE_TOP;
-    VectorCopy( self->s.origin, self->pusherMoveInfo.start_origin );
-    VectorCopy( dest, self->pusherMoveInfo.end_origin );
-    Move_Calc( self, dest, train_wait );
+    self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
+    VectorCopy( self->s.origin, self->pushMoveInfo.start_origin );
+    VectorCopy( dest, self->pushMoveInfo.end_origin );
+    SVG_PushMove_MoveCalculate( self, dest, train_wait );
     self->spawnflags |= TRAIN_START_ON;
 }
 
@@ -146,10 +146,10 @@ void train_resume( edict_t *self ) {
     ent = self->targetEntities.target;
 
     VectorSubtract( ent->s.origin, self->mins, dest );
-    self->pusherMoveInfo.state = STATE_TOP;
-    VectorCopy( self->s.origin, self->pusherMoveInfo.start_origin );
-    VectorCopy( dest, self->pusherMoveInfo.end_origin );
-    Move_Calc( self, dest, train_wait );
+    self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
+    VectorCopy( self->s.origin, self->pushMoveInfo.start_origin );
+    VectorCopy( dest, self->pushMoveInfo.end_origin );
+    SVG_PushMove_MoveCalculate( self, dest, train_wait );
     self->spawnflags |= TRAIN_START_ON;
 }
 
@@ -214,13 +214,13 @@ void SP_func_train( edict_t *self ) {
     gi.setmodel( self, self->model );
 
     if ( st.noise )
-        self->pusherMoveInfo.sound_middle = gi.soundindex( st.noise );
+        self->pushMoveInfo.sound_middle = gi.soundindex( st.noise );
 
     if ( !self->speed )
         self->speed = 100;
 
-    self->pusherMoveInfo.speed = self->speed;
-    self->pusherMoveInfo.accel = self->pusherMoveInfo.decel = self->pusherMoveInfo.speed;
+    self->pushMoveInfo.speed = self->speed;
+    self->pushMoveInfo.accel = self->pushMoveInfo.decel = self->pushMoveInfo.speed;
 
     self->use = train_use;
 

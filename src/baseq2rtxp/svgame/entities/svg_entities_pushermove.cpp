@@ -28,12 +28,12 @@
 /**
 *   @brief
 **/
-void Move_Done( edict_t *ent ) {
+void SVG_PushMove_MoveDone( edict_t *ent ) {
     // WID: MoveWith: Clear last velocity also.
     VectorClear( ent->velocity );
 
-    if ( ent->pusherMoveInfo.endfunc ) {
-        ent->pusherMoveInfo.endfunc( ent );
+    if ( ent->pushMoveInfo.endfunc ) {
+        ent->pushMoveInfo.endfunc( ent );
     }
 
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
@@ -43,19 +43,19 @@ void Move_Done( edict_t *ent ) {
 /**
 *   @brief
 **/
-void Move_Final( edict_t *ent ) {
-    if ( ent->pusherMoveInfo.remaining_distance == 0 ) {
-        Move_Done( ent );
+void SVG_PushMove_MoveFinal( edict_t *ent ) {
+    if ( ent->pushMoveInfo.remaining_distance == 0 ) {
+        SVG_PushMove_MoveDone( ent );
         return;
     }
 
-    VectorScale( ent->pusherMoveInfo.dir, ent->pusherMoveInfo.remaining_distance / FRAMETIME, ent->velocity );
+    VectorScale( ent->pushMoveInfo.dir, ent->pushMoveInfo.remaining_distance / FRAMETIME, ent->velocity );
 
     //if ( ent->targetEntities.movewith ) {
     //    VectorAdd( ent->targetEntities.movewith->velocity, ent->velocity, ent->velocity );
     //}
 
-    ent->think = Move_Done;
+    ent->think = SVG_PushMove_MoveDone;
     ent->nextthink = level.time + FRAME_TIME_S;
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
     //    SVG_MoveWith_SetChildEntityMovement( ent );
@@ -64,23 +64,23 @@ void Move_Final( edict_t *ent ) {
 /**
 *   @brief
 **/
-void Move_Begin( edict_t *ent ) {
-    if ( ( ent->pusherMoveInfo.speed * gi.frame_time_s ) >= ent->pusherMoveInfo.remaining_distance ) {
-        Move_Final( ent );
+void SVG_PushMove_MoveBegin( edict_t *ent ) {
+    if ( ( ent->pushMoveInfo.speed * gi.frame_time_s ) >= ent->pushMoveInfo.remaining_distance ) {
+        SVG_PushMove_MoveFinal( ent );
         return;
     }
-    VectorScale( ent->pusherMoveInfo.dir, ent->pusherMoveInfo.speed, ent->velocity );
+    VectorScale( ent->pushMoveInfo.dir, ent->pushMoveInfo.speed, ent->velocity );
 
     //if ( ent->targetEntities.movewith ) {
     //    VectorAdd( ent->targetEntities.movewith->velocity, ent->velocity, ent->velocity );
-    //    ent->pusherMoveInfo.remaining_distance -= ent->pusherMoveInfo.speed * gi.frame_time_s;
+    //    ent->pushMoveInfo.remaining_distance -= ent->pushMoveInfo.speed * gi.frame_time_s;
     //    ent->nextthink = level.time + FRAME_TIME_S;
-    //    ent->think = Move_Begin;
+    //    ent->think = SVG_PushMove_MoveBegin;
     //} else {
-    const float frames = floor( ( ent->pusherMoveInfo.remaining_distance / ent->pusherMoveInfo.speed ) / gi.frame_time_s );
-    ent->pusherMoveInfo.remaining_distance -= frames * ent->pusherMoveInfo.speed * gi.frame_time_s;
+    const float frames = floor( ( ent->pushMoveInfo.remaining_distance / ent->pushMoveInfo.speed ) / gi.frame_time_s );
+    ent->pushMoveInfo.remaining_distance -= frames * ent->pushMoveInfo.speed * gi.frame_time_s;
     ent->nextthink = level.time + ( FRAME_TIME_S * frames );
-    ent->think = Move_Final;
+    ent->think = SVG_PushMove_MoveFinal;
     //}
 
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
@@ -90,32 +90,32 @@ void Move_Begin( edict_t *ent ) {
 /**
 *   @brief
 **/
-void Think_AccelMove( edict_t *ent );
+void SVG_PushMove_Think_AccelerateMove( edict_t *ent );
 /**
 *   @brief
 **/
-void Move_Calc( edict_t *ent, const Vector3 &dest, void( *func )( edict_t * ) ) {
+void SVG_PushMove_MoveCalculate( edict_t *ent, const Vector3 &dest, void( *func )( edict_t * ) ) {
     VectorClear( ent->velocity );
-    VectorSubtract( dest, ent->s.origin, ent->pusherMoveInfo.dir );
-    ent->pusherMoveInfo.remaining_distance = VectorNormalize( &ent->pusherMoveInfo.dir.x );
-    ent->pusherMoveInfo.endfunc = func;
+    VectorSubtract( dest, ent->s.origin, ent->pushMoveInfo.dir );
+    ent->pushMoveInfo.remaining_distance = VectorNormalize( &ent->pushMoveInfo.dir.x );
+    ent->pushMoveInfo.endfunc = func;
 
-    if ( ent->pusherMoveInfo.speed == ent->pusherMoveInfo.accel && ent->pusherMoveInfo.speed == ent->pusherMoveInfo.decel ) {
+    if ( ent->pushMoveInfo.speed == ent->pushMoveInfo.accel && ent->pushMoveInfo.speed == ent->pushMoveInfo.decel ) {
         // If a Team Master, engage move immediately:
         if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
-            Move_Begin( ent );
+            SVG_PushMove_MoveBegin( ent );
             //} else if ( ent->targetEntities.movewith ) {
-            //    Move_Begin( ent );
+            //    SVG_PushMove_MoveBegin( ent );
             //} else {
         // Team Slaves start moving next frame:
         } else {
             ent->nextthink = level.time + FRAME_TIME_S;
-            ent->think = Move_Begin;
+            ent->think = SVG_PushMove_MoveBegin;
         }
     } else {
         // accelerative
-        ent->pusherMoveInfo.current_speed = 0;
-        ent->think = Think_AccelMove;
+        ent->pushMoveInfo.current_speed = 0;
+        ent->think = SVG_PushMove_Think_AccelerateMove;
         ent->nextthink = level.time + FRAME_TIME_S;
     }
 }
@@ -134,56 +134,56 @@ void Move_Calc( edict_t *ent, const Vector3 &dest, void( *func )( edict_t * ) ) 
 /**
 *   @brief
 **/
-void AngleMove_Done( edict_t *ent ) {
+void SVG_PushMove_AngleMoveDone( edict_t *ent ) {
     VectorClear( ent->avelocity );
-    ent->pusherMoveInfo.endfunc( ent );
+    ent->pushMoveInfo.endfunc( ent );
 }
 /**
 *   @brief
 **/
-void AngleMove_Final( edict_t *ent ) {
+void SVG_PushMove_AngleMoveFinal( edict_t *ent ) {
     vec3_t  move;
 
-    if ( ent->pusherMoveInfo.state == STATE_MOVING_UP ) {
-        VectorSubtract( ent->pusherMoveInfo.end_angles, ent->s.angles, move );
+    if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
+        VectorSubtract( ent->pushMoveInfo.end_angles, ent->s.angles, move );
     } else {
-        VectorSubtract( ent->pusherMoveInfo.start_angles, ent->s.angles, move );
+        VectorSubtract( ent->pushMoveInfo.start_angles, ent->s.angles, move );
     }
 
     if ( VectorEmpty( move ) ) {
-        AngleMove_Done( ent );
+        SVG_PushMove_AngleMoveDone( ent );
         return;
     }
 
     VectorScale( move, 1.0f / FRAMETIME, ent->avelocity );
 
-    ent->think = AngleMove_Done;
+    ent->think = SVG_PushMove_AngleMoveDone;
     ent->nextthink = level.time + FRAME_TIME_S;
 }
 /**
 *   @brief
 **/
-void AngleMove_Begin( edict_t *ent ) {
+void SVG_PushMove_AngleMoveBegin( edict_t *ent ) {
     vec3_t  destdelta;
     float   len;
     float   traveltime;
     float   frames;
 
     // set destdelta to the vector needed to move
-    if ( ent->pusherMoveInfo.state == STATE_MOVING_UP ) {
-        VectorSubtract( ent->pusherMoveInfo.end_angles, ent->s.angles, destdelta );
+    if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
+        VectorSubtract( ent->pushMoveInfo.end_angles, ent->s.angles, destdelta );
     } else {
-        VectorSubtract( ent->pusherMoveInfo.start_angles, ent->s.angles, destdelta );
+        VectorSubtract( ent->pushMoveInfo.start_angles, ent->s.angles, destdelta );
     }
 
     // calculate length of vector
     len = VectorLength( destdelta );
 
     // divide by speed to get time to reach dest
-    traveltime = len / ent->pusherMoveInfo.speed;
+    traveltime = len / ent->pushMoveInfo.speed;
 
     if ( traveltime < gi.frame_time_s ) {
-        AngleMove_Final( ent );
+        SVG_PushMove_AngleMoveFinal( ent );
         return;
     }
 
@@ -194,27 +194,27 @@ void AngleMove_Begin( edict_t *ent ) {
 
     // PGM
     //  if we're done accelerating, act as a normal rotation
-    if ( ent->pusherMoveInfo.speed >= ent->speed ) {
+    if ( ent->pushMoveInfo.speed >= ent->speed ) {
         // set nextthink to trigger a think when dest is reached
         ent->nextthink = level.time + ( FRAME_TIME_S * frames );
-        ent->think = AngleMove_Final;
+        ent->think = SVG_PushMove_AngleMoveFinal;
     } else {
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = AngleMove_Begin;
+        ent->think = SVG_PushMove_AngleMoveBegin;
     }
     // PGM
 }
 /**
 *   @brief
 **/
-void AngleMove_Calc( edict_t *ent, void( *func )( edict_t * ) ) {
+void SVG_PushMove_AngleMoveCalculate( edict_t *ent, void( *func )( edict_t * ) ) {
     VectorClear( ent->avelocity );
-    ent->pusherMoveInfo.endfunc = func;
+    ent->pushMoveInfo.endfunc = func;
     if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
-        AngleMove_Begin( ent );
+        SVG_PushMove_AngleMoveBegin( ent );
     } else {
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = AngleMove_Begin;
+        ent->think = SVG_PushMove_AngleMoveBegin;
     }
 }
 
@@ -231,7 +231,7 @@ void AngleMove_Calc( edict_t *ent, void( *func )( edict_t * ) ) {
 **/
 /*
 ==============
-Think_AccelMove
+SVG_PushMove_Think_AccelerateMove
 
 The team has completed a frame of movement, so
 change the speed for the next frame
@@ -240,13 +240,13 @@ change the speed for the next frame
 /**
 *   @brief
 **/
-constexpr float AccelerationDistance( float target, float rate ) {
+static constexpr float AccelerationDistance( float target, float rate ) {
     return ( target * ( ( target / rate ) + 1 ) / 2 );
 }
 /**
 *   @brief
 **/
-void plat_CalcAcceleratedMove( g_pusher_moveinfo_t *moveinfo ) {
+static void PushMove_CalculateAcceleratedMove( g_pushmove_info_t *moveinfo ) {
     float   accel_dist;
     float   decel_dist;
 
@@ -273,7 +273,7 @@ void plat_CalcAcceleratedMove( g_pusher_moveinfo_t *moveinfo ) {
 /**
 *   @brief
 **/
-void plat_Accelerate( g_pusher_moveinfo_t *moveinfo ) {
+void PushMove_Accelerate( g_pushmove_info_t *moveinfo ) {
     // are we decelerating?
     if ( moveinfo->remaining_distance <= moveinfo->decel_distance ) {
         if ( moveinfo->remaining_distance < moveinfo->decel_distance ) {
@@ -341,28 +341,28 @@ void plat_Accelerate( g_pusher_moveinfo_t *moveinfo ) {
     return;
 }
 /**
-*   @brief  The team has completed a frame of movement, so
-*           change the speed for the next frame.
+*   @brief  The team has completed a frame of movement, so calculate
+*			the speed required for a move during the next game frame.
 **/
-void Think_AccelMove( edict_t *ent ) {
-    ent->pusherMoveInfo.remaining_distance -= ent->pusherMoveInfo.current_speed;
+void SVG_PushMove_Think_AccelerateMove( edict_t *ent ) {
+    ent->pushMoveInfo.remaining_distance -= ent->pushMoveInfo.current_speed;
 
-    if ( ent->pusherMoveInfo.current_speed == 0 ) {      // starting or blocked
-        plat_CalcAcceleratedMove( &ent->pusherMoveInfo );
+    if ( ent->pushMoveInfo.current_speed == 0 ) {      // starting or blocked
+        PushMove_CalculateAcceleratedMove( &ent->pushMoveInfo );
     }
 
-    plat_Accelerate( &ent->pusherMoveInfo );
+    PushMove_Accelerate( &ent->pushMoveInfo );
 
     // will the entire move complete on next frame?
-    if ( ent->pusherMoveInfo.remaining_distance <= ent->pusherMoveInfo.current_speed ) {
-        Move_Final( ent );
+    if ( ent->pushMoveInfo.remaining_distance <= ent->pushMoveInfo.current_speed ) {
+        SVG_PushMove_MoveFinal( ent );
         return;
     }
 
-    VectorScale( ent->pusherMoveInfo.dir, ent->pusherMoveInfo.current_speed * 10, ent->velocity );
+    VectorScale( ent->pushMoveInfo.dir, ent->pushMoveInfo.current_speed * 10, ent->velocity );
 
     ent->nextthink = level.time + 10_hz;
-    ent->think = Think_AccelMove;
+    ent->think = SVG_PushMove_Think_AccelerateMove;
 
     // Find entities that move along with this entity.
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {

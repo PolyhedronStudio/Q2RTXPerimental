@@ -50,28 +50,28 @@ void Think_CalcMoveSpeed( edict_t *self ) {
         return;     // only the team master does this
 
     // find the smallest distance any member of the team will be moving
-    minDist = fabsf( self->pusherMoveInfo.distance );
+    minDist = fabsf( self->pushMoveInfo.distance );
     for ( ent = self->teamchain; ent; ent = ent->teamchain ) {
-        dist = fabsf( ent->pusherMoveInfo.distance );
+        dist = fabsf( ent->pushMoveInfo.distance );
         if ( dist < minDist )
             minDist = dist;
     }
 
-    time = minDist / self->pusherMoveInfo.speed;
+    time = minDist / self->pushMoveInfo.speed;
 
     // adjust speeds so they will all complete at the same time
     for ( ent = self; ent; ent = ent->teamchain ) {
-        newspeed = fabsf( ent->pusherMoveInfo.distance ) / time;
-        ratio = newspeed / ent->pusherMoveInfo.speed;
-        if ( ent->pusherMoveInfo.accel == ent->pusherMoveInfo.speed )
-            ent->pusherMoveInfo.accel = newspeed;
+        newspeed = fabsf( ent->pushMoveInfo.distance ) / time;
+        ratio = newspeed / ent->pushMoveInfo.speed;
+        if ( ent->pushMoveInfo.accel == ent->pushMoveInfo.speed )
+            ent->pushMoveInfo.accel = newspeed;
         else
-            ent->pusherMoveInfo.accel *= ratio;
-        if ( ent->pusherMoveInfo.decel == ent->pusherMoveInfo.speed )
-            ent->pusherMoveInfo.decel = newspeed;
+            ent->pushMoveInfo.accel *= ratio;
+        if ( ent->pushMoveInfo.decel == ent->pushMoveInfo.speed )
+            ent->pushMoveInfo.decel = newspeed;
         else
-            ent->pusherMoveInfo.decel *= ratio;
-        ent->pusherMoveInfo.speed = newspeed;
+            ent->pushMoveInfo.decel *= ratio;
+        ent->pushMoveInfo.speed = newspeed;
     }
 }
 
