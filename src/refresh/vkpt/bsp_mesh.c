@@ -35,6 +35,10 @@ extern cvar_t *cvar_pt_enable_surface_lights_warp;
 extern cvar_t* cvar_pt_bsp_radiance_scale;
 extern cvar_t *cvar_pt_bsp_sky_lights;
 
+//! Maximum of surface vertices.
+//static const int max_vertices = 128;
+#define max_vertices 128
+
 static void
 remove_collinear_edges(float* positions, float* tex_coords, mbasis_t* bases, int* num_vertices)
 {
@@ -155,10 +159,9 @@ create_poly(
 	uint32_t max_prim,
 	VboPrimitive* primitives_out)
 {
-	static const int max_vertices = 32;
-	float positions [3 * /*max_vertices*/ 32];
-	float tex_coords[2 * /*max_vertices*/ 32];
-	mbasis_t bases  [    /*max_vertices*/ 32];
+	float positions [3 * max_vertices /*32*/];
+	float tex_coords[2 * max_vertices /*32*/];
+	mbasis_t bases  [    max_vertices /*32*/];
 	mtexinfo_t *texinfo = surf->texinfo;
 	assert(surf->numsurfedges < max_vertices);
 	(void)max_vertices;
@@ -927,7 +930,7 @@ collect_one_light_poly_entire_texture(bsp_t *bsp, mface_t *surf, mtexinfo_t *tex
 									  const vec3_t light_color, float emissive_factor, int light_style,
 									  int *num_lights, int *allocated_lights, light_poly_t **lights)
 {
-	float positions[3 * /*max_vertices*/ 32];
+	float positions[3 * max_vertices /*32*/];
 
 	for (int i = 0; i < surf->numsurfedges; i++)
 	{
@@ -1289,7 +1292,7 @@ collect_sky_and_lava_light_polys(bsp_mesh_t *wm, bsp_t* bsp)
 		if (!is_sky && !is_lava)
 			continue;
 
-		float positions[3 * /*max_vertices*/ 32];
+		float positions[3 * max_vertices /*32*/];
 
 		for (int i = 0; i < surf->numsurfedges; i++)
 		{
