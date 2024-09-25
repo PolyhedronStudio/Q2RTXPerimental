@@ -38,47 +38,20 @@ void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t 
 }
 
 void rotating_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
-    // For Toggling Use Types:
-    if ( useType == ENTITY_USETARGET_TYPE_TOGGLE ) {
-        if ( !VectorEmpty( self->avelocity ) ) {
-            self->s.sound = 0;
-            VectorClear( self->avelocity );
-            self->touch = NULL;
-        } else {
-            self->s.sound = self->pushMoveInfo.sound_middle;
-            VectorScale( self->movedir, self->speed, self->avelocity );
-            if ( self->spawnflags & 16 )
-                self->touch = rotating_touch;
-        }
-        // Exit.
-        return;
-    } else if ( useType == ENTITY_USETARGET_TYPE_SET ) {
-        if ( useValue != 0 ) {
-            self->s.sound = self->pushMoveInfo.sound_middle;
-            VectorScale( self->movedir, self->speed, self->avelocity );
-            if ( self->spawnflags & 16 ) {
-                self->touch = rotating_touch;
-            }
-            // Exit.
-            return;
-        }
-    } else if ( useType == ENTITY_USETARGET_TYPE_ON ) {
+    // If the useType is off, or on:
+    if ( SVG_UseTarget_ShouldToggle( useType, useValue )/* || useValue == 1*/ ) {
         self->s.sound = self->pushMoveInfo.sound_middle;
         VectorScale( self->movedir, self->speed, self->avelocity );
         if ( self->spawnflags & 16 ) {
             self->touch = rotating_touch;
         }
-        // Exit.
-        return;
-    } else if ( useType == ENTITY_USETARGET_TYPE_OFF ) {
-
-    }
-
-    // Default fallback:
-    if ( !VectorEmpty( self->avelocity ) ) {
-        self->s.sound = 0;
-        VectorClear( self->avelocity );
-        self->touch = NULL;
+    // It is turned off.
+    } else {
+        if ( !VectorEmpty( self->avelocity ) ) {
+            self->s.sound = 0;
+            VectorClear( self->avelocity );
+            self->touch = NULL;
+        }
     }
 }
 

@@ -94,11 +94,15 @@ void SVG_PushMove_Think_AccelerateMove( edict_t *ent );
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveCalculate( edict_t *ent, const Vector3 &dest, void( *func )( edict_t * ) ) {
+void SVG_PushMove_MoveCalculate( edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
+    // Reset velocity.
     VectorClear( ent->velocity );
-    VectorSubtract( dest, ent->s.origin, ent->pushMoveInfo.dir );
+    // Subtract destination and origin to acquire move direction.
+    VectorSubtract( destination, ent->s.origin, ent->pushMoveInfo.dir );
+    // Use the normalized direction vector's length to determine the remaining move idstance.
     ent->pushMoveInfo.remaining_distance = VectorNormalize( &ent->pushMoveInfo.dir.x );
-    ent->pushMoveInfo.endfunc = func;
+    // Setup end move callback function.
+    ent->pushMoveInfo.endfunc = endMoveCallback;
 
     if ( ent->pushMoveInfo.speed == ent->pushMoveInfo.accel && ent->pushMoveInfo.speed == ent->pushMoveInfo.decel ) {
         // If a Team Master, engage move immediately:

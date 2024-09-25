@@ -14,6 +14,7 @@
 #include "svgame/entities/func/svg_func_button.h"
 
 
+
 // Debugging reasons:
 static inline constexpr std::string GetUseTargetTypeString( const entity_usetarget_type_t &useTargetType ) {
     if ( useTargetType == ENTITY_USETARGET_TYPE_OFF ) {
@@ -29,14 +30,44 @@ static inline constexpr std::string GetUseTargetTypeString( const entity_usetarg
     }
 }
 
+/**
+*   Button SpawnFlags:
+**/
+//! Button starts pressed.
+static constexpr int32_t BUTTON_SPAWNFLAG_START_PRESSED = BIT( 0 );
+//! Button can't be triggered by monsters.
+static constexpr int32_t BUTTON_SPAWNFLAG_NO_MONSTERS   = BIT( 1 );
+//! Button fires targets when touched.
+static constexpr int32_t BUTTON_SPAWNFLAG_TOUCH_ACTIVATES   = BIT( 2 );
+//! Button fires targets when damaged.
+static constexpr int32_t BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES  = BIT( 3 );
+//! Button is locked from spawn, so it can't be used.
+static constexpr int32_t BUTTON_SPAWNFLAG_LOCKED            = BIT( 4 );
+//! Button stays pushed until reused.
+//static constexpr int32_t BUTTON_SPAWNFLAG_TOGGLE      = BIT( 5 );    // This is a target use flag.
+//! Button fires targets when pressed/used.
+//static constexpr int32_t BUTTON_SPAWNFLAG_PRESS_ACTIVATES   = BIT( 6 ); // This is also a target use flag.
+
+//#define SF_BUTTON_DONTMOVE				1
+//#define SF_ROTBUTTON_NOTSOLID			1
+//#define	SF_BUTTON_TOGGLE				32		// button stays pushed until reactivated
+//#define SF_BUTTON_TOUCH_ACTIVATES		256		// Button fires when touched.
+//#define SF_BUTTON_DAMAGE_ACTIVATES		512		// Button fires when damaged.
+//#define SF_BUTTON_USE_ACTIVATES			1024	// Button fires when used.
+//#define SF_BUTTON_LOCKED				2048	// Whether the button is initially locked.
+//#define	SF_BUTTON_SPARK_IF_OFF			4096	// button sparks in OFF state
+//#define	SF_BUTTON_JIGGLE_ON_USE_LOCKED	8192	// whether to jiggle if someone uses us when we're locked
 
 /**
-*   @brief  For readability's sake:
+*   For readability's sake:
 **/
-static constexpr int32_t BUTTON_STATE_PRESSED = PUSHMOVE_STATE_TOP;
-static constexpr int32_t BUTTON_STATE_MOVING_TO_PRESSED_STATE = PUSHMOVE_STATE_MOVING_UP;
+static constexpr int32_t BUTTON_STATE_PRESSED   = PUSHMOVE_STATE_TOP;
 static constexpr int32_t BUTTON_STATE_UNPRESSED = PUSHMOVE_STATE_BOTTOM;
+static constexpr int32_t BUTTON_STATE_MOVING_TO_PRESSED_STATE   = PUSHMOVE_STATE_MOVING_UP;
 static constexpr int32_t BUTTON_STATE_MOVING_TO_UNPRESSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
+
+
+
 // Debugging reasons:
 #if 1
 static inline constexpr std::string GetButtonStateString( const int32_t &useTargetType ) {
@@ -60,81 +91,79 @@ static inline constexpr std::string GetButtonStateString( const int32_t &useTarg
 **/
 typedef enum button_response_e {
     BUTTON_RESPONSE_NOTHING,
-    BUTTON_RESPONSE_ENGAGE_PRESSING,
-    BUTTON_RESPONSE_ENGAGE_UNPRESSING,
-    BUTTON_RESPONSE_HOLD,
+    BUTTON_RESPONSE_PRESS,
+    BUTTON_RESPONSE_UNPRESS,
 } button_response_t;
 // Debugging reasons:
 #if 1
 static inline constexpr std::string GetButtonResponseString( const button_response_t &buttonResponse ) {
     if ( buttonResponse == BUTTON_RESPONSE_NOTHING ) {
         return "BUTTON_RESPONSE_NOTHING";
-    } else if ( buttonResponse == BUTTON_RESPONSE_ENGAGE_PRESSING ) {
-        return "BUTTON_RESPONSE_ENGAGE_PRESSING";
-    } else if ( buttonResponse == BUTTON_RESPONSE_ENGAGE_UNPRESSING ) {
-        return "BUTTON_RESPONSE_ENGAGE_UNPRESSING";
-    } else if ( buttonResponse == BUTTON_RESPONSE_HOLD ) {
-        return "BUTTON_RESPONSE_HOLD";
+    } else if ( buttonResponse == BUTTON_RESPONSE_PRESS ) {
+        return "BUTTON_RESPONSE_PRESS";
+    } else if ( buttonResponse == BUTTON_RESPONSE_UNPRESS ) {
+        return "BUTTON_RESPONSE_UNPRESS";
     } else {
         return "<UNKNOWN BUTTON_RESPONSE #" + std::to_string( buttonResponse ) + ">";
     }
 }
 #endif
 static button_response_t button_response_to_trigger( edict_t *self ) {
-    // Ignore trigger responses if button is moving, or pushed-in and waiting to auto-come-out.
-    if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
+    // Touch Activator.
+    const bool isTouchButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_TOUCH_ACTIVATES );
+    // Remain pressed, or wait a specified amount of time?
+    const bool stayPressed = ( self->wait == -1 ? true : false );
+
+    // UseTarget button behavior type:
+    const bool isDisabledButton = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_DISABLED );
+    const bool isContinuousButton = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    const bool isPressButton = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_PRESS );
+    const bool isToggleButton = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
+
+    // Do nothing if the button is still moving.
+    if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
+        || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE
+        // Do nothing if it is pushed and waiting to return after time has passed.
+        || ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED && !stayPressed && !isToggleButton ) ) {
+        // Do nothing:
         return BUTTON_RESPONSE_NOTHING;
     }
-//or pushed - in and waiting to auto - come - out.
-//|| ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED && self->wait == -1 && !( self->spawnflags & ENTITY_USETARGET_FLAG_TOGGLE ) ) ) {
 
     // If for whatever reason we are disabled to be useTargetted anymore, do nothing of course.
-    if ( self->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) {
+    if ( isDisabledButton ) {
         return BUTTON_RESPONSE_NOTHING;
     }
-    // Logic for PRESSABLE buttons:
-    if ( self->useTargetFlags & ENTITY_USETARGET_FLAG_PRESS ) {
-        // If pressed, and not set to never return(wait == -1) then engage unpressing.
-        if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED && self->wait != -1 ) {
-            return BUTTON_RESPONSE_ENGAGE_UNPRESSING;
-        // Otherwise, engage into pressing the button instead.
-        } else {
-            return BUTTON_RESPONSE_ENGAGE_PRESSING;
-        }
-    }
-    // Logic for TOGGLEABLE buttons:
-    if ( self->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE ) {
-        // If pressed, then engage unpressing.
-        if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED ) {
-            return BUTTON_RESPONSE_ENGAGE_UNPRESSING;
-        // Otherwise, engage into pressing the button instead.
-        } else if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED ) {
-            return BUTTON_RESPONSE_ENGAGE_PRESSING;
-        }
-    }
-    // Logic for HOLDABLE buttons:
-    if ( self->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) {
+    //// Logic for PRESSABLE buttons:
+    //if ( self->useTarget.flags & ENTITY_USETARGET_FLAG_PRESS ) {
+    //    // If pressed, and not set to never return(wait == -1) then engage unpressing.
+    //    if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED && self->wait != -1 ) {
+    //        return BUTTON_RESPONSE_UNPRESS;
+    //    // Otherwise, engage into pressing the button instead.
+    //    } else {
+    //        return BUTTON_RESPONSE_PRESS;
+    //    }
+    //}
 
+    if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED ) {
+        if ( isToggleButton && !stayPressed ) {
+            return BUTTON_RESPONSE_UNPRESS;
+        }
+    } else {
+        return BUTTON_RESPONSE_PRESS;
     }
+    //// Logic for TOGGLEABLE buttons:
+    //if ( self->useTarget.flags & ENTITY_USETARGET_FLAG_TOGGLE ) {
+    //    // If pressed, then engage unpressing.
+    //        return BUTTON_RESPONSE_UNPRESS;
+    //    // Otherwise, engage into pressing the button instead.
+    //    } else if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED ) {
+    //        return BUTTON_RESPONSE_PRESS;
+    //    }
+    //}
 
     return BUTTON_RESPONSE_NOTHING;
-    #if 0
-    // Ignore touches if button is moving, or pushed-in and waiting to auto-come-out.
-    if ( m_toggle_state == TS_GOING_UP ||
-        m_toggle_state == TS_GOING_DOWN ||
-        ( m_toggle_state == TS_AT_TOP && !m_fStayPushed && !FBitSet( pev->spawnflags, SF_BUTTON_TOGGLE ) ) )
-        return BUTTON_NOTHING;
-
-    if ( m_toggle_state == TS_AT_TOP ) {
-        if ( ( FBitSet( pev->spawnflags, SF_BUTTON_TOGGLE ) ) && !m_fStayPushed ) {
-            return BUTTON_RETURN;
-        }
-    } else
-        return BUTTON_ACTIVATE;
-
-    return BUTTON_NOTHING;
-    #endif
 }
+
 
 /*QUAKED func_button (0 .5 .8) ?
 When a button is use targetted(+usetarget), it moves some distance in the direction of it's angle, triggers all of it's targets.
@@ -154,11 +183,16 @@ There it will wait till the wait time is over, or if toggleable, until it is tog
 4) metallic click
 5) in-out
 */
+void button_press_move_done( edict_t *self );
+void button_unpress_move_done( edict_t *self );
+void button_think_return( edict_t *self );
+void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+
 /**
-*   @brief
+*   @brief  Will call back upon the specified `luaName_eventName(..)` function, if existent.
 **/
 void button_trigger_lua_event( edict_t *self, const std::string &eventName ) {
-    // WID: LUA: Call the HitBottom function if it exists.
+    // WID: LUA: Call the event function if it exists.
     if ( self->luaProperties.luaName ) {
         // Generate function 'callback' name.
         const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + eventName;
@@ -169,75 +203,290 @@ void button_trigger_lua_event( edict_t *self, const std::string &eventName ) {
     }
 }
 
-void button_done( edict_t *self ) {
-    self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
+
+
+/**
+*
+*
+*
+*   PushMove - EndMove CallBacks:
+*
+*
+*
+**/
+/**
+*   @brief  PushMoveInfo callback for when the button returned to its initial 'Unpressed' state.
+**/
+void button_unpress_move_done( edict_t *self ) {
+    // Assert.
+    Q_DevAssert( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE );
+
+    // Toggleable button?
+    const bool isToggleButton = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
+    // Touch button?
+    const bool isTouchButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_TOUCH_ACTIVATES );
+
+    // Engage 'Unpressed' state.
+    self->pushMoveInfo.state = BUTTON_STATE_UNPRESSED;
+
+    // Adjust entity animation effects for the client to display.
     self->s.effects &= ~EF_ANIM23;
     self->s.effects |= EF_ANIM01;
-}
 
-void button_return( edict_t *self ) {
-    self->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
+    // Respond to the untoggling of the button.
+    if ( isToggleButton ) {
+        //// Play sound.
+        //if ( self->pushMoveInfo.sound_end && !( self->flags & FL_TEAMSLAVE ) ) {
+        //    gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+        //}
+        // Fire use targets.
+        SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+    }
 
-    SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, button_done );
-
-    self->s.frame = 0;
-
-    if ( self->health )
-        self->takedamage = DAMAGE_YES;
-}
-
-void button_wait( edict_t *self ) {
-    self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
-    self->s.effects &= ~EF_ANIM01;
-    self->s.effects |= EF_ANIM23;
-
-    SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
-    button_trigger_lua_event( self, "_OnButtonFire" );
-
-    self->s.frame = 1;
-    if ( self->pushMoveInfo.wait >= 0 ) {
-        self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
-        self->think = button_return;
+    // If it is a touch button, reassign the touch callback.
+    if ( !isTouchButton ) {
+        self->touch = nullptr;
+    } else {
+        self->touch = button_touch;
     }
 }
 
-void button_fire( edict_t *self ) {
-    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP || self->pushMoveInfo.state == PUSHMOVE_STATE_TOP )
-        return;
+/**
+*   @brief  PushMoveInfo callback for when the button reaches its 'Pressed' state.
+**/
+void button_press_move_done( edict_t *self ) {
+    // Assert.
+    Q_DevAssert( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE );
 
-    self->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
-    if ( self->pushMoveInfo.sound_start && !( self->flags & FL_TEAMSLAVE ) )
+    // Continous button?
+    const bool isContinuousButton = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    // Continous active?
+    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    
+    // Toggleable button?
+    const bool isToggleButton = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
+    // Touch button?
+    const bool isTouchButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_TOUCH_ACTIVATES );
+    // Is it a wait button? Or meant to remain pressed?
+    const bool stayPressed = ( self->wait == -1 ? true : false );
+
+    // Apply "Pressed" state.
+    self->pushMoveInfo.state = BUTTON_STATE_PRESSED;
+
+    // Adjust entity animation effects for the client to display.
+    self->s.effects &= ~EF_ANIM01;
+    self->s.effects |= EF_ANIM23;
+
+    // If button has to remain pushed, or is a 'Toggleable':
+    if ( stayPressed || isToggleButton ) {
+        // If it is a touch button, reassign the touch callback.
+        if ( !isTouchButton ) {
+            self->touch = nullptr;
+        } else {
+            self->touch = button_touch;
+        }
+    } else {
+        //if ( !isContinuousButton ) {
+            // If a wait time has been set, use it for when to trigger the button's return(unpressing).
+            if ( self->pushMoveInfo.wait >= 0 ) {
+                self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
+                self->think = button_think_return;
+            }
+        //}
+    }
+
+    // Change texture animation from.
+    self->s.frame = 1;
+
+    // Trigger UseTargets
+    SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+    // Dispatch a lua fire event.
+    button_trigger_lua_event( self, "_OnButtonFire" );
+}
+
+
+
+/**
+*
+*
+*
+*   Press/UnPress Utilities:
+*
+*
+*
+**/
+/**
+*   @brief  Engages moving into the pressed state, after which at arrival, it calls upon 'button_wait'.
+**/
+void button_press_move( edict_t *self ) {
+    // Adjust movement state info.
+    self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_PRESSED_STATE;
+    // Play sound.
+    if ( self->pushMoveInfo.sound_start && !( self->flags & FL_TEAMSLAVE ) ) {
         gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-    SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, button_wait );
+    }
+    // Calculate and begin moving to the button's 'Pressed' state end origin.
+    SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, button_press_move_done );
+}
+/**
+*   @brief  Engages moving into the 'Unpressed' state, after which at arrival, it calls upon 'button_unpress_move_done'.
+**/
+void button_unpress_move( edict_t *self ) {
+    // Change the frame(texture index).
+    self->s.frame = 0;
+    // Adjust movement state info.
+    self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_UNPRESSED_STATE;
+    // Calculate and begin moving back to the button's 'Unpressed' state start origin.
+    SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, button_unpress_move_done );
 }
 
-void button_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
+
+
+/**
+*
+*
+*
+*   func_button state 'Think' methods:
+*
+*
+*
+**/
+/**
+*   @brief  Think method called to determine when/whether to move back to its unpressed state.
+**/
+void button_think_return( edict_t *self ) {
+    // Assert.
+    Q_DevAssert( self->pushMoveInfo.state == BUTTON_STATE_PRESSED );
+    
+    // Continous button?
+    const bool isContinuousButton = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    // Continous active?
+    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    // Try again next frame.
+    if ( isContinuousButton && isContinuousState ) {
+        self->nextthink = level.time + FRAME_TIME_MS;
+        self->think = button_think_return;
+        return;
+    }
+
+    // Move back to the button's 'Unpressed' state.
+    //if ( !SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
+        // Unpress itself.
+        button_unpress_move( self );
+
+        // For damage based buttons.
+        if ( SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES ) && self->health ) {
+            self->takedamage = DAMAGE_YES;
+        }
+    //} else {
+    //    self->nextthink = level.time + FRAME_TIME_MS;
+    //    self->think = button_think_return;
+    //}
+
+}
+
+/**
+*   @brief  Actual implementation for 'triggering'/'firing' the button.
+**/
+void button_trigger( edict_t *self, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
+    // Ignore triggers calling into fire when the button is still actively moving.
+    if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
+        || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
+        return;
+    }
+
+    // Toggleable button?
+    const bool isToggleButton = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
+    // Touch button?
+    const bool isTouchButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_TOUCH_ACTIVATES );
+    // Is it a wait button? Or meant to remain pressed?
+    const bool stayPressed = ( self->wait == -1 ? true : false );
+
+    if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED ) {
+        if ( !stayPressed && isToggleButton ) {
+            // Engage in unpress movement.
+            button_unpress_move( self );
+        }
+    } else {
+        // Engage in press movement.
+        button_press_move( self );
+    }
+}
+
+/**
+*   @brief  For when 'Use' triggered.
+**/
+void button_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {   
+    // Set activator.
     self->activator = activator;
-    button_fire( self );
+    button_trigger( self, activator, useType, useValue );
 }
-
+/**
+*   @brief  For when 'Touch' triggered.
+**/
 void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-    if ( !other->client )
+    // Only react if it is a client entity which is touch triggering this button.
+    if ( !other->client ) {
         return;
-
-    if ( other->health <= 0 )
+    }
+    // If it is a dead button, ignore triggering it.
+    if ( other->health <= 0 ) {
         return;
+    }
 
-    self->activator = other;
-    button_fire( self );
+    // What is the desired response for the current button state?
+    button_response_t buttonResponse = button_response_to_trigger( self );
+    // Nothing:
+    if ( buttonResponse == BUTTON_RESPONSE_NOTHING ) {
+        return;
+    }
+
+    //// Are we locked?
+    //if ( self.entityclass.button.isLocked ) {
+    //    // TODO: Play some locked sound.
+    //    return;
+    //}
+
+    // Unset touch function until the button is unpressed again.
+    self->touch = nullptr;
+
+    if ( buttonResponse == BUTTON_RESPONSE_UNPRESS ) {
+        // Untoggle.
+        self->activator = other;
+        // UseTargets a Toggle.
+        SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+        // Unpress,
+        button_unpress_move( self );
+    } else if ( buttonResponse == BUTTON_RESPONSE_PRESS ) {
+        // Press,
+        button_press_move( self );
+    }
 }
-
+/**
+*   @brief  For when 'Death' triggered.
+**/
 void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
-    self->activator = attacker;
-    self->health = self->max_health;
-    self->takedamage = DAMAGE_NO;
-    button_fire( self );
+    // Of course, only process if we're dealing with a damage trigger button.
+    if ( SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES ) ) {
+        // Reset its health.
+        self->health = self->max_health;
+        // But do not allow it to take damage when 'Pressed'.
+        self->takedamage = DAMAGE_NO;
+        // Fire the triggering action.
+        self->activator = attacker;
+        button_trigger( self, attacker, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+    }
 }
 
+
+/**
+*   @brief  Spawn function.
+**/
 void SP_func_button( edict_t *ent ) {
     vec3_t  abs_movedir;
     float   dist;
 
+    // PushMove Entity Basics:
     SVG_SetMoveDir( ent->s.angles, ent->movedir );
     if ( ent->targetNames.movewith ) {
         ent->movetype = MOVETYPE_PUSH;
@@ -247,356 +496,110 @@ void SP_func_button( edict_t *ent ) {
     }
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
+    // BSP Model, or otherwise, specified external model.
     gi.setmodel( ent, ent->model );
 
-    if ( ent->sounds != 1 )
+    // Default sounds.
+    if ( ent->sounds != 1 ) {
         ent->pushMoveInfo.sound_start = gi.soundindex( "switches/butn2.wav" );
-
-    if ( !ent->speed )
-        ent->speed = 40;
-    if ( !ent->accel )
-        ent->accel = ent->speed;
-    if ( !ent->decel )
-        ent->decel = ent->speed;
-
-    if ( !ent->wait )
-        ent->wait = 3;
-    if ( !st.lip )
-        st.lip = 4;
-
-    VectorCopy( ent->s.origin, ent->pos1 );
-    abs_movedir[ 0 ] = fabsf( ent->movedir[ 0 ] );
-    abs_movedir[ 1 ] = fabsf( ent->movedir[ 1 ] );
-    abs_movedir[ 2 ] = fabsf( ent->movedir[ 2 ] );
-    dist = abs_movedir[ 0 ] * ent->size[ 0 ] + abs_movedir[ 1 ] * ent->size[ 1 ] + abs_movedir[ 2 ] * ent->size[ 2 ] - st.lip;
-    VectorMA( ent->pos1, dist, ent->movedir, ent->pos2 );
-
-    ent->use = button_use;
-    ent->s.effects |= EF_ANIM01;
-
-    if ( ent->health ) {
-        ent->max_health = ent->health;
-        ent->die = button_killed;
-        ent->takedamage = DAMAGE_YES;
-    } else if ( !ent->targetname )
-        ent->touch = button_touch;
-
-    ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
-
-    ent->pushMoveInfo.speed = ent->speed;
-    ent->pushMoveInfo.accel = ent->accel;
-    ent->pushMoveInfo.decel = ent->decel;
-    ent->pushMoveInfo.wait = ent->wait;
-    VectorCopy( ent->pos1, ent->pushMoveInfo.start_origin );
-    VectorCopy( ent->s.angles, ent->pushMoveInfo.start_angles );
-    VectorCopy( ent->pos2, ent->pushMoveInfo.end_origin );
-    VectorCopy( ent->s.angles, ent->pushMoveInfo.end_angles );
-
-    gi.linkentity( ent );
-}
-
-// OLD... but bugged too lazy to figure it out just gonna rewrite it yay haha for teh lulz.
-#if 0
-/**
-*   @brief
-**/
-void button_trigger_lua_event( edict_t *self, const std::string &eventName ) {
-    // WID: LUA: Call the HitBottom function if it exists.
-    if ( self->luaProperties.luaName ) {
-        // Generate function 'callback' name.
-        const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + eventName;
-        // Call if it exists.
-        if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
-            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, self, self->activator );
-        }
-    }
-}
-void button_reached_pressed_state( edict_t *self ) {
-    self->pushMoveInfo.state = BUTTON_STATE_PRESSED;
-    self->s.effects &= ~EF_ANIM23;
-    self->s.effects |= EF_ANIM01;
-}
-void button_reached_unpressed_state( edict_t *self ) {
-    self->pushMoveInfo.state = BUTTON_STATE_UNPRESSED;
-    self->s.effects &= ~EF_ANIM23;
-    self->s.effects |= EF_ANIM01;
-}
-
-void button_return_to_unpressed_state( edict_t *self ) {
-    self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_UNPRESSED_STATE;
-
-    SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, button_reached_unpressed_state );
-
-    self->s.frame = 0;
-
-    if ( self->health ) {
-        self->takedamage = DAMAGE_YES;
-    }
-}
-
-void button_return_to_pressed_state( edict_t *self ) {
-    self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_PRESSED_STATE;
-
-    SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, button_reached_pressed_state );
-
-    self->s.frame = 1;
-}
-
-void button_trigger_and_wait( edict_t *self ) {
-    #if 0
-    if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE ) {
-        self->pushMoveInfo.state = BUTTON_STATE_PRESSED;
-    } else if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
-        self->pushMoveInfo.state = BUTTON_STATE_UNPRESSED;
-    }
-    #endif
-
-    self->s.effects &= ~EF_ANIM01;
-    self->s.effects |= EF_ANIM23;
-
-    // Logic for PRESSABLE buttons: Only do a UseTarget one time, if we reached pressed state.
-    if ( self->useTargetFlags & ENTITY_USETARGET_FLAG_PRESS ) {
-        if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED ) {
-            // Dispatch UseTargets.
-            SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
-            button_trigger_lua_event( self, "_OnButtonFire" );
-
-            self->s.frame = 1;
-            // If not set to remain pressed, engage moving back to its unpressed state.
-            //if ( self->pushMoveInfo.wait >= 0 ) {
-            //    self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
-            //    self->think = button_return_to_unpressed_state;
-            //}
-        } else {
-            SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
-        }
-    }
-    // Logic for TOGGABLE buttons: Keep use targetting until we're out of pressed state.
-    else if ( self->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE ) {
-        if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED ) {
-            // Dispatch UseTargets.
-            SVG_UseTargets( self, self->activator );
-            button_trigger_lua_event( self, "_OnButtonFire" );
-            // If not set to remain pressed, engage moving back to its unpressed state.
-            if ( self->pushMoveInfo.wait >= 0 ) {
-                self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
-                self->think = button_return_to_unpressed_state;
-            }
-        } else if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED ) {
-            // Dispatch UseTargets.
-            SVG_UseTargets( self, self->activator );
-            button_trigger_lua_event( self, "_OnButtonFire" );
-            // If not set to remain pressed, engage moving back to its unpressed state.
-            if ( self->pushMoveInfo.wait >= 0 ) {
-                self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
-                self->think = button_return_to_pressed_state;
-            }
-            // If not set to remain pressed, engage moving back to its unpressed state.
-            //if ( self->pushMoveInfo.wait >= 0 ) {
-                //self->nextthink = level.time + FRAME_TIME_MS; //sg_time_t::from_sec( self->pushMoveInfo.wait );
-                //self->think = button_return_to_unpressed_state;
-            //}
-        }
-    // Logic for HOLDABLE buttons: Keep use targetting until we're out of pressed state.
-    } else if ( self->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) {
-        //if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE ) {
-        //    self->pushMoveInfo.state = BUTTON_STATE_PRESSED;
-        //}
-        if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED ) {
-            // Dispatch UseTargets.
-            SVG_UseTargets( self, self->activator );
-            button_trigger_lua_event( self, "_OnButtonFire" );
-        } else {
-
-        }
     }
 
-    self->s.frame = 1;
-    //if ( self->pushMoveInfo.wait >= 0 ) {
-    //    self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
-    //    self->think = button_return_to_unpressed_state;
-    //}
-}
-
-void button_fire( edict_t *self, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
-    gi.dprintf( "%s(#0): self->s.number(%d), %s, (%d), %s\n", __func__, self->s.number, GetUseTargetTypeString( useType ).c_str(), useValue, GetButtonStateString( self->pushMoveInfo.state ).c_str() );
-
-    // It won't be any use firing if we're still switching state of course.
-    if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
-        return;
-    }
-
-    // Apply as activator.
-    self->activator = activator;
-
-    // Determine what action to engage into.
-    button_response_t buttonResponse = button_response_to_trigger( self );
-
-    gi.dprintf( "%s(#0): self->s.number(%d), %s, (%d), %s, %s\n", __func__, self->s.number, GetUseTargetTypeString( useType ).c_str(), useValue, GetButtonStateString( self->pushMoveInfo.state ).c_str(), GetButtonResponseString(buttonResponse).c_str() );
-
-    //if ( buttonResponse == BUTTON_RESPONSE_ENGAGE_PRESSING ) {
-    if ( useType == ENTITY_USETARGET_TYPE_ON || useValue == 1 ) {
-        // Play specified audio.
-        if ( self->pushMoveInfo.sound_start && !( self->flags & FL_TEAMSLAVE ) ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-        }
-        //// Switch state.
-        //self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_PRESSED_STATE;
-        //// Engage movement.
-        //SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, button_trigger_and_wait );
-        button_return_to_pressed_state( self );
-        gi.dprintf( "%s: BUTTON_RESPONSE_ENGAGE_PRESSING\n", __func__ );
-    }
-    //if ( buttonResponse == BUTTON_RESPONSE_ENGAGE_UNPRESSING ) {
-    if ( useType == ENTITY_USETARGET_TYPE_OFF || useValue == 0 ) {
-        // Play specified audio.
-        // TODO: We need some audio for this shit.
-        #if 0
-        if ( self->pushMoveInfo.sound_end && !( self->flags & FL_TEAMSLAVE ) ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
-        }
-        #endif
-        // Switch state.
-        //self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_UNPRESSED_STATE;
-        // Engage movement.
-        //SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, button_trigger_and_wait );
-        button_return_to_unpressed_state( self );
-        gi.dprintf( "%s: BUTTON_RESPONSE_ENGAGE_UNPRESSING\n", __func__ );
-    }
-
-    //self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_UNPRESSED_STATE;
-    //if ( self->pushMoveInfo.sound_start && !( self->flags & FL_TEAMSLAVE ) ) {
-    //    gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-    //}
-
-    //SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, button_trigger_and_wait );
-}
-
-void button_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
-    button_fire( self, activator, useType, useValue );
-
-    gi.dprintf( "%s: self->s.number(%d), %s\n", __func__, self->s.number, GetUseTargetTypeString( useType ).c_str() );
-}
-
-void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-    if ( !other->client ) {
-        return;
-    }
-    if ( other->health <= 0 ) {
-        return;
-    }
-    button_fire( self, other, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 0 );
-
-    gi.dprintf( "%s: self->s.number(%d), %s\n", __func__, self->s.number, "USETARGET_TYPE_TOGGLE" );
-}
-
-/**
-*   @brief
-**/
-void SP_func_button( edict_t *ent ) {
-    vec3_t  abs_movedir;
-    float   dist;
-
-    SVG_SetMoveDir( ent->s.angles, ent->movedir );
-    ent->movetype = MOVETYPE_STOP;
-    ent->solid = SOLID_BSP;
-    ent->s.entityType = ET_PUSHER;
-    gi.setmodel( ent, ent->model );
-
-    if ( ent->sounds != 1 )
-        ent->pushMoveInfo.sound_start = gi.soundindex( "switches/butn2.wav" );
-
-    // Default speed.
-    if ( !ent->speed ) {
-        ent->speed = 40;
-    }
-    // Use speed for deceleration and acceleration if they weren't ever set.
+    // PushMove defaults:
     if ( !ent->accel ) {
         ent->accel = ent->speed;
     }
     if ( !ent->decel ) {
         ent->decel = ent->speed;
     }
-    // Default wait. (Otherwise it'd return instantly.)
-    if ( !ent->wait ) {
-        ent->wait = 3;
+    if ( !ent->speed ) {
+        ent->speed = 40;
     }
-    //ent->wait = -1;
     if ( !st.lip ) {
         st.lip = 4;
     }
+    // Trigger defaults:
+    if ( !ent->wait ) {
+        ent->wait = 3;
+    }
 
-    // Determine start and end position
-    VectorCopy( ent->s.origin, ent->pos1 );
+    // Calculate absolute move distance to get from pos1 to pos2.
+    ent->pos1 = ent->s.origin;
     abs_movedir[ 0 ] = fabsf( ent->movedir[ 0 ] );
     abs_movedir[ 1 ] = fabsf( ent->movedir[ 1 ] );
     abs_movedir[ 2 ] = fabsf( ent->movedir[ 2 ] );
     dist = abs_movedir[ 0 ] * ent->size[ 0 ] + abs_movedir[ 1 ] * ent->size[ 1 ] + abs_movedir[ 2 ] * ent->size[ 2 ] - st.lip;
-    VectorMA( ent->pos1, dist, ent->movedir, ent->pos2 );
+    // Translate the determined move distance into the move direction to get pos2, our move end origin.
+    ent->pos2 = QM_Vector3MultiplyAdd( ent->movedir, dist, ent->pos1 );
 
-    // Trigger use callback.
-    ent->touch = button_touch;
-
-    // This button is only toggled, never untoggled, by each (+usetarget) interaction.
-    if ( ent->spawnflags & SPAWNFLAG_USETARGET_PRESSABLE ) {
-        ent->useTargetFlags = ENTITY_USETARGET_FLAG_PRESS;
-        // Remove touch button functionality, instead, reside to usetarget functionality.
-        ent->touch = nullptr;
-        ent->use = button_use;
-    // This button is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
-    } else if ( ent->spawnflags & SPAWNFLAG_USETARGET_TOGGLEABLE ) {
-        ent->useTargetFlags = ENTITY_USETARGET_FLAG_TOGGLE;
-        // Remove touch button functionality, instead, reside to usetarget functionality.
-        ent->touch = nullptr;
-        ent->use = button_use;
-    // This button is pressed for as long as it is focused and +usetargetted.
-    } else if ( ent->spawnflags & SPAWNFLAG_USETARGET_HOLDABLE ) {
-        ent->useTargetFlags = ENTITY_USETARGET_FLAG_HOLD;
-        // Remove touch button functionality, instead, reside to usetarget functionality.
-        ent->touch = nullptr;
-        ent->use = button_use;
-    }
-    // Is usetargetting disabled by default?
-    if ( ent->spawnflags & SPAWNFLAG_USETARGET_DISABLED ) {
-        ent->useTargetFlags = (entity_usetarget_flags_t)( ent->useTargetFlags | ENTITY_USETARGET_FLAG_DISABLED );
-    }
-
-    ent->useTargetState = ENTITY_USETARGET_STATE_DEFAULT;
-
-    // If this was (nullptr) we are dealing with a usetargets button.
-    #if 0
-    if ( !ent->touch ) {
-        ent->usetarget_toggle = button_usetarget_toggle;
-        ent->usetarget_untoggle = button_usetarget_untoggle;
-        ent->usetarget_hold = button_usetarget_hold;
-    }
-    #endif
-
-    // Animation type in case texture is animated.
+    // Default trigger callback.
+    ent->use = button_use;
+    // Default animation effects.
     ent->s.effects |= EF_ANIM01;
-    #if 0
-    if ( ent->health ) {
-        ent->max_health = ent->health;
-        ent->die = button_killed;
-        ent->takedamage = DAMAGE_YES;
-        // WID: LUA: TODO: This breaks old default behavior.
-    } else if ( !ent->targetname )
-    }
-    #endif    
 
-    // Default starting state.
+    // Used for condition checking, if we got a damage activating button we don't want to have it support pressing.
+    const bool damageActivates = SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES );
+    // Health trigger based button:
+    if ( damageActivates ) {
+        // Set max health, also used to reinitialize the button to revive.
+        ent->max_health = ent->health;
+        // Let it take damage.
+        ent->takedamage = DAMAGE_YES;
+        // Die callback.
+        ent->die = button_killed;
+    // Touch based button:
+    } else if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_TOUCH_ACTIVATES ) ) {
+        // Trigger use callback.
+        ent->touch = button_touch;
+    // Otherwise check for +usetarget features of this button:
+    } else if ( !damageActivates ) {
+        // This button is only toggled, never untoggled, by each (+usetarget) interaction.
+        if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_PRESSABLE ) ) {
+            ent->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
+            // Remove touch button functionality, instead, reside to usetarget functionality.
+            ent->touch = nullptr;
+            ent->use = button_use;
+        // This button is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
+        } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
+            ent->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
+            // Remove touch button functionality, instead, reside to usetarget functionality.
+            ent->touch = nullptr;
+            ent->use = button_use;
+        } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
+            ent->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
+            // Remove touch button functionality, instead, reside to usetarget functionality.
+            ent->touch = nullptr;
+            ent->use = button_use;
+        }
+
+        // Is usetargetting disabled by default?
+        if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_DISABLED ) ) {
+            ent->useTarget.flags = (entity_usetarget_flags_t)( ent->useTarget.flags | ENTITY_USETARGET_FLAG_DISABLED );
+        }
+    }
+
+    // Buttons are unpressed by default:
     ent->pushMoveInfo.state = BUTTON_STATE_UNPRESSED;
 
+    // Copy the calculated info into the pushMoveInfo state struct.
     ent->pushMoveInfo.speed = ent->speed;
     ent->pushMoveInfo.accel = ent->accel;
     ent->pushMoveInfo.decel = ent->decel;
     ent->pushMoveInfo.wait = ent->wait;
-    VectorCopy( ent->pos1, ent->pushMoveInfo.start_origin );
-    VectorCopy( ent->s.angles, ent->pushMoveInfo.start_angles );
-    VectorCopy( ent->pos2, ent->pushMoveInfo.end_origin );
-    VectorCopy( ent->s.angles, ent->pushMoveInfo.end_angles );
+    // For PRESSED: pos1 = start, pos2 = end.
+    if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_START_PRESSED ) ) {
+        ent->pushMoveInfo.state = BUTTON_STATE_PRESSED;
+        ent->pushMoveInfo.start_origin = ent->pos2;
+        ent->pushMoveInfo.start_angles = ent->s.angles;
+        ent->pushMoveInfo.end_origin = ent->pos1;
+        ent->pushMoveInfo.end_angles = ent->s.angles;
+    // For UNPRESSED: pos1 = start, pos2 = end.
+    } else {
+        ent->pushMoveInfo.start_origin = ent->pos1;
+        ent->pushMoveInfo.start_angles = ent->s.angles;
+        ent->pushMoveInfo.end_origin = ent->pos2;
+        ent->pushMoveInfo.end_angles = ent->s.angles;
+    }
 
+    // Link it in.
     gi.linkentity( ent );
 }
-
-#endif // #if 0/1

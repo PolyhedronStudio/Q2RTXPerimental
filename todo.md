@@ -9,12 +9,19 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 the need for temp_entity_t behavior. For hit trace based weapons I suppose the hits could be done client side but that'd require
 simulating a frame ahead for all things. Either way, weapon could looks like it might be better off to go to shared some day.
 * [X] It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
-	* It is a mistake in client game loop.
+	- It is a mistake in client game loop.
+
+
+## For v0.0.6 or so:
+- [ ] The Monster Scenario:
+	- [ ] 0. We need nav nodes of sorts, probably lets do this KISS first, just use some entities.
+	- [ ] 1. There's more I can think of such as detecting whether to strafe and all that...
+	- [ ] 2. Add mm_move_t as a member of gedict_t, and/or of a different monster struct that becomes part of gedict_t
+	- [ ] 3. Monster code should use Play/Get-Anim, and have actions linked to those consequently.
+	- [ ] 4. I'll continue this list by the time I get there.
+
+
 ## For v0.0.5:
-- [ ] ..
-- [ ] MUST DO MUST DO!!
-- [ ] Update all save/load fields accordingly before releasing this lol!!
-- [ ] ..
 - [X] The IQM Animation Scenario:
 	- [X] 0. Add in proper usage of entity type and adjust the client code to handle adding packet entities based on its type.
 			 This will simplify life in the future.
@@ -34,31 +41,34 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 		- [ ] Animation Events, ``animevent "(animname)" (animframe) (client/server/both) "(animevent data, can be a string)"``
 		- [X] Animation Root Motion Translate axes, animrootbonetranslate "animname" ``TRANSLATE_X/TRANSLATE_Y/TRANSLATE_Z``
 	- [X] 1. The shared game code needs and is responsible for a ``Pose API`` which essentially is capable of:
-		- Taking an animation from Pose A, and blend it into Pose B starting from a specified bone.
-		- This'll use a simple memory cache that grows in POW2 size whenever there isn't enough space to be used.
-		  (The more entities there are using a skeletal model, the more space we need.)
+			- Taking an animation from Pose A, and blend it into Pose B starting from a specified bone.
+			- This'll use a simple memory cache that grows in POW2 size whenever there isn't enough space to be used.
+		      (The more entities there are using a skeletal model, the more space we need.)
 	- [ ] 2. I am most likely forgetting some things, so first finish this entire list.
 
-## For v0.0.6 or so:
-- [ ] The Monster Scenario:
-	- [ ] 0. We need nav nodes of sorts, probably lets do this KISS first, just use some entities.
-	- [ ] 1. There's more I can think of such as detecting whether to strafe and all that...
-	- [ ] 2. Add mm_move_t as a member of gedict_t, and/or of a different monster struct that becomes part of gedict_t
-	- [ ] 3. Monster code should use Play/Get-Anim, and have actions linked to those consequently.
-	- [ ] - [ ] I'll continue this list by the time I get there.
 
 ## Other Features:
 Features being looked forward on implementation.
+
 ### Highest Priority:
 * [X] Get a test dummy model that we can use to replace the current player with.
 * [X] Get a similar test dummy, however, this one needs to be kept in mind it will serve monster purposes instead.
+
 ### High Priority:
 * [X] Rethink/reimplement the way how we approach skeletal model 'blending'. Local space it is?
 	- Relative we do.
 * [-] Implement Lua for game state logic and dynamics.
 	- [ ] Fix the script file loaded up leaking memory. FS_LoadFileEx(other tag)_
-* [ ] Implement model events for animations:
+	- [ ] Make buttons lockable lol.
+* [ ] * [ ] Implement model events for animations:
 	* [ ] Footsteps implemented using this.
+* [ ] Experiment with Head/Torso/Hips separated animation actions.
+	- [ ] Create torso anim actions for fists, pistol, and rifle.
+	- [ ] Create hips anims that dominate for crouch, walk, run, and jump.
+	- [ ] Event anims are derived for torso based on the active weapon.
+	- [ ] Have a good time with Blender :-)
+* [ ] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly.
+
 ### Medium Priority:
 * [ ] The lua script file being opened by gi.FS_ stuff, is doing so in an incorrect memory tag namespace. Leaks._
 * [X] Remove all Q2 monsters, keep a few around to use for testing.
@@ -68,7 +78,9 @@ Features being looked forward on implementation.
 	- [ ] Add client-side functionality?? so that when hovering an entity you can
           ``useTarget`` it displays a thing such as: ``Press 'E' to interact/pull/push/open/close/press/unpress``?
 	- [ ] And an entity you can 'pick up and move around' for the lulz.
+
 ### Low Priority:
+* [ ] Fix up proper C++ enums issue with the whole int32_t by implementing appropriate operators... sigh..._
 * [ ] Use our own C version of glmatrix.net and adjust(C++ify also), and streamline it as the math lib for use.
 * [ ] Have bullet impact display material ``kind`` specific puffs?
 * [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.

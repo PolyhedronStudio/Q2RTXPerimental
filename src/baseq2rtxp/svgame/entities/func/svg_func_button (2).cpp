@@ -85,7 +85,7 @@ void Button_BackHome( edict_t *self ) {
     // We're at "bottom" state, idling, awaiting another use/usetarget.
     self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
 
-    if ( self->useTargetFlags == ENTITY_USETARGET_FLAG_TOGGLE ) {
+    if ( self->useTarget.flags == ENTITY_USETARGET_FLAG_TOGGLE ) {
         SVG_UseTargets( self, self->activator );
     }
 
@@ -289,29 +289,29 @@ void SP_func_button( edict_t *ent ) {
 
     // This button is only toggled, never untoggled, by each (+usetarget) interaction.
     if ( ent->spawnflags & SPAWNFLAG_USETARGET_PRESSABLE ) {
-        ent->useTargetFlags = ENTITY_USETARGET_FLAG_PRESS;
+        ent->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
         // Remove touch button functionality, instead, reside to usetarget functionality.
         ent->touch = nullptr;
         ent->use = button_use;
     // This button is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
     } else if ( ent->spawnflags & SPAWNFLAG_USETARGET_TOGGLEABLE ) {
-        ent->useTargetFlags = ENTITY_USETARGET_FLAG_TOGGLE;
+        ent->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
         // Remove touch button functionality, instead, reside to usetarget functionality.
         ent->touch = nullptr;
         ent->use = button_use;
     // This button is pressed for as long as it is focused and +usetargetted.
     } else if ( ent->spawnflags & SPAWNFLAG_USETARGET_HOLDABLE ) {
-        ent->useTargetFlags = ENTITY_USETARGET_FLAG_HOLD;
+        ent->useTarget.flags = ENTITY_USETARGET_FLAG_HOLD;
         // Remove touch button functionality, instead, reside to usetarget functionality.
         ent->touch = nullptr;
         ent->use = button_use;
     }
     // Is usetargetting disabled by default?
     if ( ent->spawnflags & SPAWNFLAG_USETARGET_DISABLED ) {
-        ent->useTargetFlags = (entity_usetarget_flags_t)( ent->useTargetFlags | ENTITY_USETARGET_FLAG_DISABLED );
+        ent->useTarget.flags = (entity_usetarget_flags_t)( ent->useTarget.flags | ENTITY_USETARGET_FLAG_DISABLED );
     }
 
-    ent->useTargetState = ENTITY_USETARGET_STATE_DEFAULT;
+    ent->useTarget.state = ENTITY_USETARGET_STATE_DEFAULT;
 
     // If this was (nullptr) we are dealing with a usetargets button.
     if ( !ent->touch ) {

@@ -365,8 +365,9 @@ void SP_func_door( edict_t *ent ) {
 
     ent->nextthink = level.time + FRAME_TIME_S;
 
-    if ( ent->health || ent->targetname )
+    if ( ent->health || ent->targetname ) {
         ent->think = Think_CalcMoveSpeed;
-    else
+    } else {
         ent->think = Think_SpawnDoorTrigger;
+    }
 }

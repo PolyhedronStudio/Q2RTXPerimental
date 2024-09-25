@@ -77,9 +77,9 @@ extern void button_reached_pressed_state( edict_t *self );
 extern void button_return_to_unpressed_state( edict_t *self );
 extern void button_trigger_and_wait( edict_t *self );
 #else
-extern void button_done( edict_t *self );
-extern void button_return( edict_t *self );
-extern void button_wait( edict_t *self );
+extern void button_unpress_move_done( edict_t *self );
+extern void button_think_return( edict_t *self );
+extern void button_press_move_done( edict_t *self );
 #endif
 extern void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
@@ -250,7 +250,7 @@ const save_ptr_t save_ptrs[] = {
 #if 0
 { P_think,  (void *)button_return_to_unpressed_state },
 #else
-{ P_think,  (void *)button_return },
+{ P_think,  (void *)button_think_return },
 #endif
 { P_think,  (void *)door_go_down },
 
@@ -369,7 +369,7 @@ const save_ptr_t save_ptrs[] = {
 //
 { P_die, (void*)barrel_delay },
 { P_die, (void*)body_die },
-//{ P_die, (void *)button_killed },
+{ P_die, (void *)button_killed },
 { P_die, (void*)debris_die },
 { P_die, (void*)door_killed },
 { P_die, (void*)func_explosive_explode },
@@ -383,8 +383,8 @@ const save_ptr_t save_ptrs[] = {
 { P_pusher_moveinfo_endfunc, (void*)button_reached_pressed_state },
 { P_pusher_moveinfo_endfunc, (void*)button_trigger_and_wait },
 #else
-{ P_pusher_moveinfo_endfunc, (void *)button_done },
-{ P_pusher_moveinfo_endfunc, (void *)button_wait },
+{ P_pusher_moveinfo_endfunc, (void *)button_unpress_move_done },
+{ P_pusher_moveinfo_endfunc, (void *)button_press_move_done },
 #endif
 { P_pusher_moveinfo_endfunc, (void*)door_hit_bottom },
 { P_pusher_moveinfo_endfunc, (void*)door_hit_top },

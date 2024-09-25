@@ -25,15 +25,19 @@ typedef enum {
 *   @brief  Com_LPrintf specific types:
 **/
 typedef enum {
-    //! For general messages.
+    //! Prints using default conchars text and thus color.
+    //! Used for General messages..
     PRINT_ALL,
-    //! Prints in green color.
+    //! Prints in Green color.
     PRINT_TALK,
-    //! Only prints when the cvar "developer" == 1
+    //! Only prints when the cvar "developer" >= 1
     PRINT_DEVELOPER,
-    PRINT_WARNING,      // Print in Yellow color.
-    PRINT_ERROR,        // Print in Red color.
-    PRINT_NOTICE        // Print in Cyan color.
+    //! Print a Warning in Yellow color.
+    PRINT_WARNING,
+    //! Print an Error in Red color.
+    PRINT_ERROR,
+    //! Print a Notice in bright Cyan color.
+    PRINT_NOTICE
 } print_type_t;
 
 //! Prints to console the specific message in its 'type'.
@@ -47,8 +51,15 @@ q_noreturn q_printf( 2, 3 );
 #define Com_WPrintf(...) Com_LPrintf(PRINT_WARNING, __VA_ARGS__)
 #define Com_EPrintf(...) Com_LPrintf(PRINT_ERROR, __VA_ARGS__)
 
+//! WID: Assertions that always trigger.
 #define Q_assert(expr) \
     do { if (!(expr)) Com_Error(ERR_FATAL, "%s: assertion `%s' failed", __func__, #expr); } while (0)
+//! WID: For when cvar developer >= 1
+#define Q_DevAssert(expr) \
+    do { if ( !(expr)) Com_LPrintf( PRINT_DEVELOPER, "%s:%s:%s: DevAssert failed: `%s'\n", __FILE__, __func__, __LINE__, #expr); } while (0)
+//! WID: For when cvar developer >= 1
+#define Q_DevPrint(...) \
+    do { Com_LPrintf( PRINT_DEVELOPER, "%s:%s:%d: %s\n", __FILE__, __func__, __LINE__, __VA_ARGS__ ); } while (0)
 
 // Game Print Flags:
 #define PRINT_LOW           0       // Pickup messages.

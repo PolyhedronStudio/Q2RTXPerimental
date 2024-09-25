@@ -20,6 +20,17 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svg_local.h"
 #include "svg_lua.h"
 
+
+
+/**
+*
+*
+*
+*   Vector Utilities:
+*
+*
+*
+**/
 /**
 *   @brief  Wraps up the new more modern SVG_ProjectSource.
 **/
@@ -42,82 +53,16 @@ const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, 
 }
 
 
-/*
-=============
-G_Find
 
-Searches all active entities for the next one that holds
-the matching string at fieldofs (use the FOFS() macro) in the structure.
-
-Searches beginning at the edict after from, or the beginning if NULL
-NULL will be returned if the end of the list is reached.
-
-=============
-*/
-// WID: C++20: Added const.
-edict_t *SVG_Find(edict_t *from, int fieldofs, const char *match)
-{
-    char    *s;
-
-    // WID: Prevent nastyness when match is empty (Q_stricmp)
-    if ( !match ) {
-        return nullptr;
-    }
-
-    if ( !from ) {
-        from = g_edicts;
-    } else {
-        from++;
-    }
-
-    for (; from < &g_edicts[globals.num_edicts] ; from++) {
-        if (!from->inuse)
-            continue;
-        s = *(char **)((byte *)from + fieldofs);
-        if (!s)
-            continue;
-        if (!Q_stricmp(s, match))
-            return from;
-    }
-
-    return NULL;
-}
-
-
-/*
-=================
-findradius
-
-Returns entities that have origins within a spherical area
-
-findradius (origin, radius)
-=================
-*/
-edict_t *findradius(edict_t *from, vec3_t org, float rad)
-{
-    vec3_t  eorg;
-    int     j;
-
-    if (!from)
-        from = g_edicts;
-    else
-        from++;
-    for (; from < &g_edicts[globals.num_edicts]; from++) {
-        if (!from->inuse)
-            continue;
-        if (from->solid == SOLID_NOT)
-            continue;
-        for (j = 0 ; j < 3 ; j++)
-            eorg[j] = org[j] - (from->s.origin[j] + (from->mins[j] + from->maxs[j]) * 0.5f);
-        if (VectorLength(eorg) > rad)
-            continue;
-        return from;
-    }
-
-    return NULL;
-}
-
-
+/**
+*
+*
+*
+*   (Use-)Targets:
+*
+*
+*
+**/
 /*
 =============
 G_PickTarget
@@ -259,91 +204,47 @@ void SVG_UseTargets(edict_t *ent, edict_t *activator, entity_usetarget_type_t us
     }
 }
 
-///**
-//*   @brief  Dispatches toggling callback of 'usetarget' capable entities.
-//**/
-//const bool SVG_UseTarget_Toggle( edict_t *useTargetEntity, edict_t *activator ) {
-//    // It has to be a valid pointer, have a callback set.
-//    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_toggle ) {
-//        // Make sure that the entity has use (+usetarget) toggling or holding feature set.
-//        //if ( ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE )
-//        //    || ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) ) {
-//            // Make sure that it is not (temporarily-) disabled however.
-//            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
-//                #if 0
-//                // 
-//                const bool result = useTargetEntity->usetarget_toggle( useTargetEntity, activator );
-//                // Apply use target state.
-//                if ( result ) {
-//                    useTargetEntity->useTargetState = (entity_usetarget_state_t)( useTargetEntity->useTargetState | ENTITY_USETARGET_STATE_TOGGLED );
-//                }
-//                // Return result.
-//                return result;
-//                #endif
-//                return useTargetEntity->usetarget_toggle( useTargetEntity, activator );
-//            }
-//        //}
-//    }
-//
-//    // Didn't actually toggle.
-//    return false;
-//}
-///**
-//*   @brief  Dispatches untoggling callback of 'usetarget' capable entities.
-//**/
-//const bool SVG_UseTarget_UnToggle( edict_t *useTargetEntity, edict_t *activator ) {
-//    // It has to be a valid pointer, have a callback set.
-//    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_untoggle ) {
-//        // Make sure that the entity has use (+usetarget) toggling or holding feature set.
-//        //if ( ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE )
-//        //    || ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) ) {
-//            // Make sure that it is not (temporarily-) disabled however.
-//            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
-//                return useTargetEntity->usetarget_untoggle( useTargetEntity, activator );
-//            }
-//        //}
-//    }
-//
-//    // Didn't actually untoggle.
-//    return false;
-//}
-///**
-//*   @brief  Dispatches the 'holding of 'usetarget'' callback for capable entities.
-//**/
-//const bool SVG_UseTarget_Hold( edict_t *useTargetEntity, edict_t *activator ) {
-//    // It has to be a valid pointer, have a callback set.
-//    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_hold ) {
-//        // Make sure that the entity has use (+usetarget) holding feature set.
-//        //if ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) {
-//            // Make sure that it is not (temporarily-) disabled however.
-//            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
-//                return useTargetEntity->usetarget_hold( useTargetEntity, activator );
-//            }
-//        //}
-//    }
-//
-//    // Isn't holding anymore.
-//    return false;
-//}
+
+
 /**
-*   @brief  Returns true if the entity has Toggle UseTarget feature enabled.
+*
+*
+*
+*   UseTarget Functionality:
+*
+*
+*
 **/
-const bool SVG_UseTarget_HasToggleFeature( edict_t *ent ) {
-    return ent->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE;
-}
 /**
-*   @brief  Returns true if the entity has Hold UseTarget feature enabled.
+*   @brief  True if the entity should 'toggle'.
 **/
-const bool SVG_UseTarget_HasHoldFeature( edict_t *ent ) {
-    return ent->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD;
-}
-/**
-*   @brief  Returns true if the entity has Toggle or Hold UseTarget features enabled.
-**/
-const bool SVG_UseTarget_HasToggleHoldFeatures( edict_t *ent ) {
-    return ( ent->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD && ent->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE );
+const bool SVG_UseTarget_ShouldToggle( const entity_usetarget_type_t useType, const int32_t currentState ) {
+    // We always toggle for USE_TOGGLE and USE_SET:
+    if ( useType != ENTITY_USETARGET_TYPE_TOGGLE && useType != ENTITY_USETARGET_TYPE_SET ) {
+        // If its current state is 'ON' and useType is 'ON', don't toggle:
+        if ( currentState && useType == ENTITY_USETARGET_TYPE_ON ) {
+            return false;
+        }
+        // If its current state is 'OFF' and useType is 'OFF', don't toggle:
+        if ( !currentState && useType == ENTITY_USETARGET_TYPE_OFF ) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
+
+
+/**
+*
+* 
+* 
+*   Move Direction for PushMovers: 
+* 
+* 
+* 
+**/
 vec3_t VEC_UP       = {0, -1, 0};
 vec3_t MOVEDIR_UP   = {0, 0, 1};
 vec3_t VEC_DOWN     = {0, -2, 0};
@@ -361,6 +262,17 @@ void SVG_SetMoveDir( vec3_t angles, Vector3 &movedir ) {
     VectorClear( angles );
 }
 
+
+
+/**
+*
+*
+*
+*   Strings:
+*
+*
+*
+**/
 char *SVG_CopyString(char *in)
 {
     char    *out;
@@ -372,6 +284,16 @@ char *SVG_CopyString(char *in)
 }
 
 
+
+/**
+*
+*
+*
+*   Edicts:
+*
+*
+*
+**/
 void SVG_InitEdict(edict_t *e)
 {
     e->inuse = true;
@@ -456,6 +378,92 @@ void SVG_FreeEdict(edict_t *ed)
 }
 
 
+
+/*
+=============
+G_Find
+
+Searches all active entities for the next one that holds
+the matching string at fieldofs (use the FOFS() macro) in the structure.
+
+Searches beginning at the edict after from, or the beginning if NULL
+NULL will be returned if the end of the list is reached.
+
+=============
+*/
+// WID: C++20: Added const.
+edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ) {
+    char *s;
+
+    // WID: Prevent nastyness when match is empty (Q_stricmp)
+    if ( !match ) {
+        return nullptr;
+    }
+
+    if ( !from ) {
+        from = g_edicts;
+    } else {
+        from++;
+    }
+
+    for ( ; from < &g_edicts[ globals.num_edicts ]; from++ ) {
+        if ( !from->inuse )
+            continue;
+        s = *(char **)( (byte *)from + fieldofs );
+        if ( !s )
+            continue;
+        if ( !Q_stricmp( s, match ) )
+            return from;
+    }
+
+    return NULL;
+}
+
+
+/*
+=================
+findradius
+
+Returns entities that have origins within a spherical area
+
+findradius (origin, radius)
+=================
+*/
+edict_t *findradius( edict_t *from, vec3_t org, float rad ) {
+    vec3_t  eorg;
+    int     j;
+
+    if ( !from )
+        from = g_edicts;
+    else
+        from++;
+    for ( ; from < &g_edicts[ globals.num_edicts ]; from++ ) {
+        if ( !from->inuse )
+            continue;
+        if ( from->solid == SOLID_NOT )
+            continue;
+        for ( j = 0; j < 3; j++ )
+            eorg[ j ] = org[ j ] - ( from->s.origin[ j ] + ( from->mins[ j ] + from->maxs[ j ] ) * 0.5f );
+        if ( VectorLength( eorg ) > rad )
+            continue;
+        return from;
+    }
+
+    return NULL;
+}
+
+
+
+
+/**
+*
+*
+*
+*   Touch... Implementations:
+*
+*
+*
+**/
 /*
 ============
 G_TouchTriggers
@@ -562,13 +570,17 @@ void SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
     skipped.clear();
 }
 
-/*
-==============================================================================
 
-Kill box
 
-==============================================================================
-*/
+/**
+*
+*
+*
+*   KillBox:
+*
+*
+*
+**/
 
 /*
 =================

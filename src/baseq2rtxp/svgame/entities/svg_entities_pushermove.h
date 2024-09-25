@@ -28,6 +28,8 @@ static constexpr int32_t PUSHMOVE_STATE_MOVING_DOWN = 3;
 *
 *
 **/
+
+
 /**
 *   @brief
 **/
@@ -43,7 +45,7 @@ void SVG_PushMove_MoveBegin( edict_t *ent );
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveCalculate( edict_t *ent, const Vector3 &dest, void( *func )( edict_t * ) );
+void SVG_PushMove_MoveCalculate( edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
 
 
 

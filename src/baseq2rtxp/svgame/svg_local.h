@@ -254,24 +254,32 @@ typedef enum {
 **/
 //! edict->entityUseFlags
 typedef enum {
-    ENTITY_USETARGET_FLAG_NONE      = 0,
-    //! 
-    ENTITY_USETARGET_FLAG_PRESS     = BIT( 0 ),
-    //! 
-    ENTITY_USETARGET_FLAG_TOGGLE    = BIT( 1 ),
-    //! 
-    ENTITY_USETARGET_FLAG_HOLD      = BIT( 2 ),
+    //! No (+usetarget) key press supporting entity at all.
+    ENTITY_USETARGET_FLAG_NONE          = 0,
+    //! Pressable UseTarget( (+usetarget) single key press activates )
+    ENTITY_USETARGET_FLAG_PRESS         = BIT( 0 ),
+    //! Toggleable UseTarget( (+usetarget) single key press toggles, activates at end of press movement ).
+    ENTITY_USETARGET_FLAG_TOGGLE        = BIT( 1 ),
+    //! Continuous UseTarget( (+usetarget) key held down, activates continuous ).
+    ENTITY_USETARGET_FLAG_CONTINUOUS     = BIT( 2 ),
+    //! Should send +/- 1 values.
+    //ENTITY_USETARGET_FLAG_DIRECTIONAL   = BIT( 3 ),
+
     //! For temporarily disabling this useTarget.
-    ENTITY_USETARGET_FLAG_DISABLED  = BIT( 3 ),
+    ENTITY_USETARGET_FLAG_DISABLED      = BIT( 4 ),
 } entity_usetarget_flags_t;
 //! edict->entityUseState
 typedef enum {
-    //! Default, clear state.
-    ENTITY_USETARGET_STATE_DEFAULT         = 0,
-    //! Entity is useTarget toggled.
-    ENTITY_USETARGET_STATE_TOGGLED   = BIT( 0 ),
-    ////! Entity is useTarget toggled.
-    ENTITY_USETARGET_STATE_HOLD      = BIT( 1 ),
+    //! Generic state.
+    ENTITY_USETARGET_STATE_DEFAULT      = 0,
+    //! 'OFF' state.
+    ENTITY_USETARGET_STATE_OFF          = BIT( 0 ),
+    //! 'ON' state.
+    ENTITY_USETARGET_STATE_ON           = BIT( 1 ),
+    //! The entity its usetarget state has been toggled.
+    ENTITY_USETARGET_STATE_TOGGLED      = BIT( 2 ),
+    //! Entity is continuously 'usetargetted'.
+    ENTITY_USETARGET_STATE_CONTINUOUS   = BIT( 3 ),
 } entity_usetarget_state_t;
 /**
 *   @brief  For SVG_UseTargets
@@ -735,6 +743,9 @@ extern spawn_temp_t st;
 *
 *
 **/
+//! Typedef for pushmove end move callback.
+typedef void( *svg_pushmove_endcallback )( edict_t * );
+
 /**
 *   @brief  Stores movement info for 'Pushers(also known as Movers)'.
 ***/
@@ -764,7 +775,7 @@ typedef struct {
     float       next_speed;
     float       remaining_distance;
     float       decel_distance;
-    void        (*endfunc)(edict_t *);
+    svg_pushmove_endcallback endfunc;
 
     // WID: MoveWith:
     Vector3 lastVelocity;
@@ -941,6 +952,17 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 **/
 const bool    KillBox( edict_t *ent, const bool bspClipping );
 
+
+
+/**
+*
+*
+*
+*   MoveWith Functionality:
+*
+*
+*
+**/
 /**
 *   @brief
 **/
@@ -959,31 +981,17 @@ void SVG_MoveWith_SetChildEntityMovement( edict_t *self );
 **/
 void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover );
 
-/**
-*   @brief  Dispatches toggling callback of 'usetarget' capable entities.
-**/
-const bool SVG_UseTarget_Toggle( edict_t *useTargetEntity, edict_t *activator );
-/**
-*   @brief  Dispatches untoggling callback of 'usetarget' capable entities.
-**/
-const bool SVG_UseTarget_UnToggle( edict_t *useTargetEntity, edict_t *activator );
-/**
-*   @brief  Dispatches the 'holding of 'usetarget'' callback for capable entities.
-**/
-const bool SVG_UseTarget_Hold( edict_t *useTargetEntity, edict_t *activator );
-/**
-*   @brief  Returns true if the entity has Toggle UseTarget feature enabled.
-**/
-const bool SVG_UseTarget_HasToggleFeature( edict_t *ent );
-/**
-*   @brief  Returns true if the entity has Hold UseTarget feature enabled.
-**/
-const bool SVG_UseTarget_HasHoldFeature( edict_t *ent );
-/**
-*   @brief  Returns true if the entity has Toggle or Hold UseTarget features enabled.
-**/
-const bool SVG_UseTarget_HasToggleHoldFeatures( edict_t *ent );
 
+
+/**
+*
+*
+*
+*   
+*
+*
+*
+**/
 /**
 *   @brief  Wraps up the new more modern SVG_ProjectSource.
 **/
@@ -1689,11 +1697,24 @@ struct edict_s {
 
     //! Generic Entity flags.
     entity_flags_t flags;
-    //! The use target features for this entity.
-    entity_usetarget_flags_t useTargetFlags;
-    //! The use target state for its feature.
-    entity_usetarget_state_t useTargetState;
-    //! The time at which this usetarget was 
+
+    //
+    // UseTarget Properties and State:
+    // 
+    struct {
+        //! The entity's current useTarget value.
+        //union {
+        //    int32_t integral;
+        //    float   fltpoint;
+        //} value;
+        int32_t value;
+        //! The use target features for this entity.
+        entity_usetarget_flags_t flags;
+        //! The use target state.
+        entity_usetarget_state_t state;
+        //! The time at which this entity was last (+usetarget) activated.
+        sg_time_t timeChanged;
+    } useTarget;
 
     //
     // Target Fields:
@@ -1803,12 +1824,15 @@ struct edict_s {
     
     //! Called to 'trigger' the entity.
     void        ( *use )( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+    
     #if 0
-    //! Called when the entity is targetted and (+usetarget) by a client entity.
+    //! Called when the entity is keypressed by a client's(+usetarget).
+    const bool  ( *usetarget_press )( edict_t *self, edict_t *activator );
+    //! Called when the entity is keypressed by a client's(+usetarget).
     const bool  ( *usetarget_toggle )( edict_t *self, edict_t *activator );
     //! Called when the entity is untargetted by (-usetarget) or lost a client's focus.
     const bool  ( *usetarget_untoggle )( edict_t *self, edict_t *activator );
-    //! Called when the entity is continously (+usetarget)-ted
+    //! Called when the entity is continously (+usetarget)-ted and in-focus.
     const bool  ( *usetarget_hold )( edict_t *self, edict_t *activator );
     #endif
 
@@ -1942,3 +1966,64 @@ struct edict_s {
     Vector3 move_angles;
 };
 
+
+
+/**
+*
+*
+*
+*   General Entity Functionality:
+*
+*
+*
+**/
+/**
+*   @brief  Returns true if the entity has specified spawnFlags set.
+**/
+static inline const bool SVG_HasSpawnFlags( const edict_t *ent, const int32_t spawnFlags ) {
+    return ( ent->spawnflags & spawnFlags ) != 0;
+}
+
+
+
+/**
+*
+*
+*
+*   UseTarget Functionality:
+*
+*
+*
+**/
+
+
+/**
+*   @brief  Returns true if the entity has the specified useTarget flags set.
+**/
+static inline const bool SVG_UseTarget_HasUseTargetFlags( const edict_t *ent, const entity_usetarget_flags_t useTargetFlags ) {
+    return ( ( ent->useTarget.flags & useTargetFlags ) ) != 0 ? true : false;
+}
+/**
+*   @brief  Returns true if the entity has the specified useTarget flags set.
+**/
+static inline const bool SVG_UseTarget_HasUseTargetState( const edict_t *ent, const entity_usetarget_state_t useTargetState ) {
+    return ( ent->useTarget.state & useTargetState ) != 0 ? true : false;
+}
+
+/**
+*   @brief  True if the entity should 'toggle'.
+**/
+const bool SVG_UseTarget_ShouldToggle( const entity_usetarget_type_t useType, const int32_t currentState );
+
+/**
+*   @brief  Dispatches toggling callback of 'usetarget' capable entities.
+**/
+const bool SVG_UseTarget_Toggle( edict_t *useTargetEntity, edict_t *activator );
+/**
+*   @brief  Dispatches untoggling callback of 'usetarget' capable entities.
+**/
+const bool SVG_UseTarget_UnToggle( edict_t *useTargetEntity, edict_t *activator );
+/**
+*   @brief  Dispatches the 'holding of 'usetarget'' callback for capable entities.
+**/
+const bool SVG_UseTarget_Hold( edict_t *useTargetEntity, edict_t *activator );

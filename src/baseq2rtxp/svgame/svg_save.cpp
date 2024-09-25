@@ -570,8 +570,7 @@ static void write_index(gzFile f, void *p, size_t size, void *start, int max_ind
     write_int(f, (int)(diff / size));
 }
 
-static void write_pointer(gzFile f, void *p, ptr_type_t type)
-{
+static void write_pointer(gzFile f, void *p, ptr_type_t type, const save_field_t *saveField ) {
     const save_ptr_t *ptr;
     int i;
 
@@ -588,7 +587,11 @@ static void write_pointer(gzFile f, void *p, ptr_type_t type)
     }
 
     gzclose(f);
+    #if USE_DEBUG
+    gi.error( "%s: unknown pointer for '%s': %p", __func__, saveField->name, p );
+    #else
     gi.error("%s: unknown pointer: %p", __func__, p);
+    #endif
 }
 
 static void write_field(gzFile f, const save_field_t *field, void *base)
@@ -647,7 +650,7 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
 
     case F_POINTER:
 		// WID: C++20: Added cast.
-        write_pointer(f, *(void **)p, (ptr_type_t)field->size);
+        write_pointer(f, *(void **)p, (ptr_type_t)field->size, field );
         break;
 
     case F_FRAMETIME:

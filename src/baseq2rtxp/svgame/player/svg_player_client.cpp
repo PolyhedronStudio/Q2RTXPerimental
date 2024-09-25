@@ -1832,12 +1832,7 @@ void ClientCheckPlayerstateEvents( const edict_t *ent, player_state_t *ops, play
 **/
 void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
     // Get the (+targetuse) key state.
-    //const bool isTargetUseKeyHolding = ( client->buttons & BUTTON_USE_TARGET );
-    //const bool isTargetUseKeyPressed = ( client->latched_buttons & BUTTON_USE_TARGET );
-    //const bool isTargetUseKeyReleased = !isTargetUseKeyHolding &&
-    //    ( !( client->oldbuttons & BUTTON_USE_TARGET ) && !( client->latched_buttons & BUTTON_USE_TARGET ) );
-    const bool isTargetUseKeyHolding = ( client->userInput.heldButtons & BUTTON_USE_TARGET ); //( client->oldbuttons & BUTTON_USE_TARGET && client->buttons & BUTTON_USE_TARGET );
-        //&& ( client->userInput.pressedButtons & BUTTON_USE_TARGET ) );
+    const bool isTargetUseKeyHolding = ( client->userInput.heldButtons & BUTTON_USE_TARGET );
     const bool isTargetUseKeyPressed = ( client->userInput.pressedButtons & BUTTON_USE_TARGET );
     const bool isTargetUseKeyReleased= ( client->userInput.releasedButtons & BUTTON_USE_TARGET );
 
@@ -1856,78 +1851,99 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
     Vector3 traceEnd = QM_Vector3MultiplyAdd( traceStart, USE_TARGET_TRACE_DISTANCE, vForward );
     // Now perform the trace.
     trace_t traceUseTarget = gi.trace( &traceStart.x, NULL, NULL, &traceEnd.x, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ) );
-    // Is it a different entity than before? Make sure to UseTarget it to set it off, if we
-    // were holding on to the entity.
-    edict_t *currentUseTargetEntity = ent->client->useTarget.currentEntity;
-    if ( currentUseTargetEntity != traceUseTarget.ent ) {
-        // Store what was the current, as our previous useTarget entity.
-        client->useTarget.previousEntity = client->useTarget.currentEntity;
-
-        // Get previous entity.
-        edict_t *previousUseTargetEntity = ent->client->useTarget.previousEntity;
-        gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
-        // Trigger OFF in case it is a holdable.
-        if ( previousUseTargetEntity != nullptr && previousUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) {
-            gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
-            // It might for whatever reason not be in use all of a sudden.
-            if ( previousUseTargetEntity->inuse ) {
-                SVG_UseTargets( previousUseTargetEntity, ent, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_OFF, 0 );
-                gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
+    
+    // Get the current activate(in last frame) entity we were (+usetarget) using.
+    edict_t *currentTargetEntity = ent->client->useTarget.currentEntity;
+    // If it is a valid pointer and in use entity.
+    if ( currentTargetEntity && currentTargetEntity->inuse ) {    
+        // And it differs from the one we found by tracing:
+        if ( currentTargetEntity != traceUseTarget.ent ) {
+            // AND it is a continuous usetarget supporting entity, with its state being continuously held:
+            if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) 
+                && SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
+                // Stop useTargetting the entity:
+                if ( currentTargetEntity->use ) {
+                    currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
+                }
+                // Remove continuous state flag.
+                currentTargetEntity->useTarget.state = (entity_usetarget_state_t)( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_CONTINUOUS );
             }
-            // Remove the hold flag.
-            previousUseTargetEntity->useTargetState = (entity_usetarget_state_t)( previousUseTargetEntity->useTargetState & ~ENTITY_USETARGET_STATE_HOLD );
+
+            // Store it as the previous usetarget entity that we had.
+            client->useTarget.previousEntity = client->useTarget.currentEntity;
         }
     }
     
-    // Store the new current entity we are focussing on.
-    client->useTarget.currentEntity = traceUseTarget.ent;
+    // Update the current target entity to that of the new found trace.
+    currentTargetEntity = client->useTarget.currentEntity = traceUseTarget.ent;
 
+    // Don't continue if there is no (+usetarget) key activity present.
     if ( ( ( client->userInput.buttons | client->userInput.pressedButtons | client->userInput.releasedButtons ) & BUTTON_USE_TARGET ) == 0 ) {
         return;
     }
 
-    // <Debug>
-    std::string keys = "BUTTONS [ ";
-    keys += "isTargetUseKeyHolding(";
-    keys += isTargetUseKeyHolding ? "true" : "false";
-    keys += "), isTargetUseKeyPressed(";
-    keys += isTargetUseKeyPressed ? "true" : "false";
-    keys += "), isTargetUseKeyReleased(";
-    keys += isTargetUseKeyReleased ? "true" : "false";
-    keys += ") ]";
-    gi.dprintf( "%s: %s\n", __func__, keys.c_str() );
-    // </Debug>
-
     // Are we continously holding +usetarget or did we single press it? If so, proceed.
-    if ( currentUseTargetEntity && currentUseTargetEntity->inuse ) {
-        if ( ( isTargetUseKeyHolding && ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) != 0 )
-            || ( isTargetUseKeyPressed && ( ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_PRESS ) | ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE ) ) != 0 ) ) {
-                gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
-                // Change its useTargetState.
-                if ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) {
-                    currentUseTargetEntity->useTargetState = (entity_usetarget_state_t)( currentUseTargetEntity->useTargetFlags | ENTITY_USETARGET_STATE_HOLD );
-                    gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
+    if ( currentTargetEntity && currentTargetEntity->inuse ) {
+        // Holding (+usetarget) key, thus we continously USE the target entity.
+        if ( isTargetUseKeyHolding && SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
+            // Continous entity husage:
+            if ( currentTargetEntity->use ) {
+                currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
+            }
+        // Pressed (+usetarget) key, thus either fire as ON/OFF or as TOGGLE.
+        } else if ( isTargetUseKeyPressed && SVG_UseTarget_HasUseTargetFlags( currentTargetEntity,
+            (entity_usetarget_flags_t)( ENTITY_USETARGET_FLAG_PRESS | ENTITY_USETARGET_FLAG_TOGGLE ) ) ) {
+
+            // Single press entity usage:
+            if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_PRESS ) ) {
+                if ( currentTargetEntity->use ) {
+                    // Trigger 'OFF' if it is toggled.
+                    if ( SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_ON ) ) {
+                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_OFF, 0 );
+                    // Trigger 'ON' if it is untoggled.
+                    } else {
+                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_ON, 1 );
+                    }
                 }
-                if ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE ) {
-                    currentUseTargetEntity->useTargetState = (entity_usetarget_state_t)( currentUseTargetEntity->useTargetFlags | ENTITY_USETARGET_STATE_TOGGLED );
-                    gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
+            }
+            // Toggle press entity usage:
+            if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_TOGGLE ) ) {
+                if ( currentTargetEntity->use ) {
+                    // Trigger 'TOGGLE OFF' if it is toggled.
+                    if ( SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_TOGGLED ) ) {
+                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+                    // Trigger 'TOGGLE ON' if it is untoggled.
+                    } else {
+                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+                    }
                 }
-                // UseTargets it as "ON".
-                SVG_UseTargets( currentUseTargetEntity, ent, ENTITY_USETARGET_TYPE_SET, 1 );
-        // Set it as off if it was a hold entity, and we were holding +usetarget
-        } else if ( isTargetUseKeyReleased && ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE ) != 0 ) {
-            gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
-            // UseTargets it as "OFF".
-            SVG_UseTargets( currentUseTargetEntity, ent, ENTITY_USETARGET_TYPE_SET, 0 );
+            }
+        // The (+target) key is neither pressed, nor held continuously, thus it was released this frame.
+        } else if ( isTargetUseKeyReleased ) {
+            // Stop with the continous entity usage:
+            if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
+                // Continous entity husage:
+                if ( currentTargetEntity->use ) {
+                    currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
+                }
+            }
         }
     } else {
-        gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
         // WID: TODO: Play a silly audio like HL1? lol.
+
     }
-    //if ( isTargetUseKeyPressed ) {
-        gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
-        //ent->client->latched_buttons &= ~BUTTON_USE_TARGET;
-    //}
+
+    //// <Debug>
+    //std::string keys = "BUTTONS [ ";
+    //keys += "isTargetUseKeyHolding(";
+    //keys += isTargetUseKeyHolding ? "true" : "false";
+    //keys += "), isTargetUseKeyPressed(";
+    //keys += isTargetUseKeyPressed ? "true" : "false";
+    //keys += "), isTargetUseKeyReleased(";
+    //keys += isTargetUseKeyReleased ? "true" : "false";
+    //keys += ") ]";
+    //Q_DevPrint( keys.c_str() );
+    //// </Debug>
 }
 /**
 *   @brief  Will search for touching trigger and projectiles, dispatching their touch callback when touching.

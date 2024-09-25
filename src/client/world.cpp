@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *			object 'hull' of mins/maxs size for the entity's said 'solid'.
 **/
 static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSolidTriggers = false */) {
-    if ( ent->current.solid == BOUNDS_BRUSHMODEL /*|| ( includeSolidTriggers && ent->current.solid == SOLID_TRIGGER )*/ ) {
+    if ( ent->current.solid == (solid_t)BOUNDS_BRUSHMODEL /*|| ( includeSolidTriggers && ent->current.solid == SOLID_TRIGGER )*/ ) {
         const int32_t i = ent->current.modelindex - 1;
 
         // explicit hulls in the BSP model
