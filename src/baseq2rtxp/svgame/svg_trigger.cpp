@@ -80,7 +80,7 @@ void multi_trigger( edict_t *ent ) {
 /**
 *	@brief	
 **/
-void Use_Multi( edict_t *ent, edict_t *other, edict_t *activator ) {
+void Use_Multi( edict_t *ent, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
 	ent->activator = activator;
 	multi_trigger( ent );
 }
@@ -125,7 +125,7 @@ void Touch_Multi( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *su
 /**
 *	@brief
 **/
-void trigger_enable( edict_t *self, edict_t *other, edict_t *activator ) {
+void trigger_enable( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
 	self->solid = SOLID_TRIGGER;
 	self->use = Use_Multi;
 	gi.linkentity( self );
@@ -233,8 +233,8 @@ void SP_trigger_once( edict_t *ent ) {
 /**
 *	@brief
 **/
-void trigger_relay_use( edict_t *self, edict_t *other, edict_t *activator ) {
-	SVG_UseTargets( self, activator );
+void trigger_relay_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
+	SVG_UseTargets( self, activator, useType, useValue );
 }
 
 /*QUAKED trigger_relay (.5 .5 .5) (-8 -8 -8) (8 8 8)
@@ -258,7 +258,7 @@ static constexpr int32_t SPAWNPFLAG_TRIGGER_COUNTER_NO_MESSAGE = 1;
 /**
 *	@brief
 **/
-void trigger_counter_use( edict_t *self, edict_t *other, edict_t *activator ) {
+void trigger_counter_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
 	if ( self->count == 0 ) {
 		return;
 	}
@@ -407,7 +407,7 @@ static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP = 32;
 /**
 *	@brief
 **/
-void hurt_use( edict_t *self, edict_t *other, edict_t *activator ) {
+void hurt_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
 	if ( self->solid == SOLID_NOT ) {
 		self->solid = SOLID_TRIGGER;
 	} else {

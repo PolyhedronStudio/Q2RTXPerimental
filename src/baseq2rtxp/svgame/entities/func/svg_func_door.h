@@ -40,4 +40,4 @@ void door_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *sur
 /**
 *	@brief
 **/
-void door_use( edict_t *self, edict_t *other, edict_t *activator );
+void door_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );

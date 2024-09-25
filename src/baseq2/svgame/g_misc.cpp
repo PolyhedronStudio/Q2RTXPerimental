@@ -143,7 +143,7 @@ void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
     gib->takedamage = DAMAGE_YES;
     gib->die = gib_die;
 
-    if (type == GIB_ORGANIC) {
+    if (type == GIB_TYPE_ORGANIC) {
         gib->movetype = MOVETYPE_TOSS;
         gib->touch = gib_touch;
         vscale = 0.5f;
@@ -187,7 +187,7 @@ void ThrowHead(edict_t *self, const char *gibname, int damage, int type)
     self->takedamage = DAMAGE_YES;
     self->die = gib_die;
 
-    if (type == GIB_ORGANIC) {
+    if (type == GIB_TYPE_ORGANIC) {
         self->movetype = MOVETYPE_TOSS;
         self->touch = gib_touch;
         vscale = 0.5f;
@@ -1150,8 +1150,8 @@ void misc_deadsoldier_die(edict_t *self, edict_t *inflictor, edict_t *attacker, 
 
     gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
     for (n = 0; n < 4; n++)
-        ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
-    ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_ORGANIC);
+        ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+    ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
 }
 
 void SP_misc_deadsoldier(edict_t *ent)
@@ -1182,7 +1182,7 @@ void SP_misc_deadsoldier(edict_t *ent)
 
     VectorSet(ent->mins, -16, -16, 0);
     VectorSet(ent->maxs, 16, 16, 16);
-    ent->deadflag = DEAD_DEAD;
+    ent->deadflag = DEADFLAG_DEAD;
     ent->takedamage = DAMAGE_YES;
     ent->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
     ent->die = misc_deadsoldier_die;
@@ -1427,7 +1427,7 @@ void SP_misc_gib_arm(edict_t *ent)
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
     ent->svflags |= SVF_MONSTER;
-    ent->deadflag = DEAD_DEAD;
+    ent->deadflag = DEADFLAG_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;
     ent->avelocity[2] = random() * 200;
@@ -1448,7 +1448,7 @@ void SP_misc_gib_leg(edict_t *ent)
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
     ent->svflags |= SVF_MONSTER;
-    ent->deadflag = DEAD_DEAD;
+    ent->deadflag = DEADFLAG_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;
     ent->avelocity[2] = random() * 200;
@@ -1469,7 +1469,7 @@ void SP_misc_gib_head(edict_t *ent)
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
     ent->svflags |= SVF_MONSTER;
-    ent->deadflag = DEAD_DEAD;
+    ent->deadflag = DEADFLAG_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;
     ent->avelocity[2] = random() * 200;

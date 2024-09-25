@@ -265,9 +265,9 @@ extern void actor_run( edict_t *self );
 extern void actor_stand( edict_t *self );
 extern void actor_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void actor_walk( edict_t *self );
-extern void AngleMove_Begin( edict_t *ent );
-extern void AngleMove_Done( edict_t *ent );
-extern void AngleMove_Final( edict_t *ent );
+extern void SVG_PushMove_AngleMoveBegin( edict_t *ent );
+extern void SVG_PushMove_AngleMoveDone( edict_t *ent );
+extern void SVG_PushMove_AngleMoveFinal( edict_t *ent );
 extern void barrel_delay( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void barrel_explode( edict_t *self );
 extern void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
@@ -490,9 +490,9 @@ extern void monster_think( edict_t *self );
 extern void monster_triggered_spawn( edict_t *self );
 extern void monster_triggered_spawn_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void monster_use( edict_t *self, edict_t *other, edict_t *activator );
-extern void Move_Begin( edict_t *ent );
-extern void Move_Done( edict_t *ent );
-extern void Move_Final( edict_t *ent );
+extern void SVG_PushMove_MoveBegin( edict_t *ent );
+extern void SVG_PushMove_MoveDone( edict_t *ent );
+extern void SVG_PushMove_MoveFinal( edict_t *ent );
 extern void multi_wait( edict_t *ent );
 extern bool mutant_checkattack( edict_t *self );
 extern void mutant_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
@@ -565,7 +565,7 @@ extern void target_lightramp_use( edict_t *self, edict_t *other, edict_t *activa
 extern void target_string_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void teleporter_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void TH_viewthing( edict_t *ent );
-extern void Think_AccelMove( edict_t *self );
+extern void SVG_PushMove_Think_AccelerateMove( edict_t *self );
 extern void Think_Boss3Stand( edict_t *self );
 extern void Think_CalcMoveSpeed( edict_t *self );
 extern void Think_Delay( edict_t *self );
@@ -614,9 +614,9 @@ extern void walkmonster_start_go( edict_t *self );
 const save_ptr_t save_ptrs[] = {
 { P_postspawn, (void *)door_postspawn },
 { P_prethink, (void*)misc_viper_bomb_prethink },
-{ P_think,  (void*)AngleMove_Begin },
-{ P_think,  (void*)AngleMove_Done },
-{ P_think,  (void*)AngleMove_Final },
+{ P_think,  (void*)SVG_PushMove_AngleMoveBegin },
+{ P_think,  (void*)SVG_PushMove_AngleMoveDone },
+{ P_think,  (void*)SVG_PushMove_AngleMoveFinal },
 { P_think,  (void*)barrel_explode },
 { P_think,  (void*)bfg_explode },
 { P_think,  (void*)bfg_think },
@@ -655,9 +655,9 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void*)misc_satellite_dish_think },
 { P_think,  (void*)monster_think },
 { P_think,  (void*)monster_triggered_spawn },
-{ P_think,  (void*)Move_Begin },
-{ P_think,  (void*)Move_Done },
-{ P_think,  (void*)Move_Final },
+{ P_think,  (void*)SVG_PushMove_MoveBegin },
+{ P_think,  (void*)SVG_PushMove_MoveDone },
+{ P_think,  (void*)SVG_PushMove_MoveFinal },
 { P_think,  (void*)multi_wait },
 { P_think,  (void*)plat_go_down },
 { P_think,  (void*)SP_CreateCoopSpots },
@@ -670,7 +670,7 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void*)target_laser_think },
 { P_think,  (void*)target_lightramp_think },
 { P_think,  (void*)TH_viewthing },
-{ P_think,  (void*)Think_AccelMove },
+{ P_think,  (void*)SVG_PushMove_Think_AccelerateMove },
 { P_think,  (void*)Think_Boss3Stand },
 { P_think,  (void*)Think_CalcMoveSpeed },
 { P_think,  (void*)Think_Delay },

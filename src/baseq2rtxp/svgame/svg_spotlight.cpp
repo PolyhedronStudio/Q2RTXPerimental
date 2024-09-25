@@ -166,7 +166,7 @@ void spotlight_think( edict_t *self ) {
 /**
 *	@brief	
 **/
-void spotlight_use( edict_t *self, edict_t *other, edict_t *activator ) {
+void spotlight_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
 	if ( self->spawnflags & START_OFF ) {
 		// Remove the 'off' flag.
 		self->spawnflags &= ~START_OFF;

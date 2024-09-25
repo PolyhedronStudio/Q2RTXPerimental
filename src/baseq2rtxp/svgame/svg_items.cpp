@@ -472,7 +472,7 @@ edict_t *Drop_Item(edict_t *ent, const gitem_t *item)
 /**
 *   @brief
 **/
-void Use_Item(edict_t *ent, edict_t *other, edict_t *activator)
+void Use_Item(edict_t *ent, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue )
 {
     ent->svflags &= ~SVF_NOCLIENT;
     ent->use = NULL;

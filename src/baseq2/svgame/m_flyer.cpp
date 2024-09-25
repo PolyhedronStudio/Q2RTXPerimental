@@ -494,7 +494,7 @@ void flyer_melee(edict_t *self)
 
 void flyer_check_melee(edict_t *self)
 {
-    if (range(self, self->enemy) == RANGE_MELEE)
+    if (range(self, self->enemy) == RANGE_DISTANCE_MELEE)
         if (random() <= 0.8f)
             M_SetAnimation( self, &flyer_move_loop_melee );
         else

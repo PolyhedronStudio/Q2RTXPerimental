@@ -473,7 +473,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         gi.sound(self, CHAN_BODY, gi.soundindex("world/gib01.wav"), 1, ATTN_NORM, 0);
         //! Throw 4 small meat gibs around.
         for ( n = 0; n < 4; n++ ) {
-            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC );
+            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
         }
         // Turn ourself into the thrown head entity.
         ThrowClientHead(self, damage);
@@ -512,7 +512,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         }
     }
 
-    self->deadflag = DEAD_DEAD;
+    self->deadflag = DEADFLAG_DEAD;
 
     gi.linkentity(self);
 }
@@ -857,7 +857,7 @@ void body_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
     if ( self->health < -40 ) {
         gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
         for ( n = 0; n < 4; n++ ) {
-            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC );
+            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
         }
         self->s.origin[ 2 ] -= 48;
         ThrowClientHead( self, damage );
@@ -1292,7 +1292,7 @@ void PutClientInServer( edict_t *ent ) {
     ent->classname = "player";
     ent->mass = 200;
     ent->solid = SOLID_BOUNDS_BOX;
-    ent->deadflag = DEAD_NO;
+    ent->deadflag = DEADFLAG_NO;
     ent->air_finished_time = level.time + 12_sec;
     ent->clipmask = static_cast<contents_t>( MASK_PLAYERSOLID );
     ent->model = "players/playerdummy/tris.iqm";
@@ -1804,6 +1804,7 @@ void ClientCheckPlayerstateEvents( const edict_t *ent, player_state_t *ops, play
 }
 
 /**
+* 
 *   +usetarget/-usetarget:
 *
 *   Toggle Entities:
@@ -1827,8 +1828,19 @@ void ClientCheckPlayerstateEvents( const edict_t *ent, player_state_t *ops, play
 *   it can check if the activator is its actual owner. If it is, then it can reset its
 *   'owner' pointer back to (nullptr). Theoretically this allows for concepts such as
 *   the possibility of objects that one can pick up and move around.
+* 
 **/
-void ClientUpdateUseTarget( edict_t *ent, gclient_t *client ) {
+void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
+    // Get the (+targetuse) key state.
+    //const bool isTargetUseKeyHolding = ( client->buttons & BUTTON_USE_TARGET );
+    //const bool isTargetUseKeyPressed = ( client->latched_buttons & BUTTON_USE_TARGET );
+    //const bool isTargetUseKeyReleased = !isTargetUseKeyHolding &&
+    //    ( !( client->oldbuttons & BUTTON_USE_TARGET ) && !( client->latched_buttons & BUTTON_USE_TARGET ) );
+    const bool isTargetUseKeyHolding = ( client->userInput.heldButtons & BUTTON_USE_TARGET ); //( client->oldbuttons & BUTTON_USE_TARGET && client->buttons & BUTTON_USE_TARGET );
+        //&& ( client->userInput.pressedButtons & BUTTON_USE_TARGET ) );
+    const bool isTargetUseKeyPressed = ( client->userInput.pressedButtons & BUTTON_USE_TARGET );
+    const bool isTargetUseKeyReleased= ( client->userInput.releasedButtons & BUTTON_USE_TARGET );
+
     // AngleVecs.
     Vector3 vForward, vRight;
     QM_AngleVectors( client->viewMove.viewAngles, &vForward, &vRight, NULL );
@@ -1844,56 +1856,78 @@ void ClientUpdateUseTarget( edict_t *ent, gclient_t *client ) {
     Vector3 traceEnd = QM_Vector3MultiplyAdd( traceStart, USE_TARGET_TRACE_DISTANCE, vForward );
     // Now perform the trace.
     trace_t traceUseTarget = gi.trace( &traceStart.x, NULL, NULL, &traceEnd.x, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ) );
-    // Get resulting entity.
-    edict_t *traceFocusEntity = traceUseTarget.ent;
-    // Store what was the current, as our previous useTarget entity.
-    client->useTarget.previousEntity = client->useTarget.currentEntity;
+    // Is it a different entity than before? Make sure to UseTarget it to set it off, if we
+    // were holding on to the entity.
+    edict_t *currentUseTargetEntity = ent->client->useTarget.currentEntity;
+    if ( currentUseTargetEntity != traceUseTarget.ent ) {
+        // Store what was the current, as our previous useTarget entity.
+        client->useTarget.previousEntity = client->useTarget.currentEntity;
 
-    // <DEBUG>:
-    #if 0
-    if ( traceFocusEntity ) {
-        gi.dprintf( "%s: traceFocusEntity(%s), (%s)\n"
-            __func__,
-            traceFocusEntity->classname,
-            traceFocusEntity->inuse ? "inUse" : "unused"
-        );
-    }
-    #endif
-    // </DEBUG>
-
-    // Is it a different entity than before?(or none at all?)
-    edict_t *useTargetEntity = ent->client->useTarget.currentEntity;
-    if ( traceFocusEntity != useTargetEntity ) {
-        // Callback its untoggle function since we lost focus of it(means we can't hold it anymore).
-        if ( useTargetEntity != nullptr && useTargetEntity->useTargetState & ENTITY_USETARGET_STATE_IS_HELD ) {
-            SVG_UnToggleUseTarget( useTargetEntity, ent );
-        }
-        // Assign the new focus entity as the current entity.
-        ent->client->useTarget.currentEntity = traceFocusEntity;
-        // Refresh it to the new focussed entity.
-        useTargetEntity = traceFocusEntity;
-    }
-
-    // The +usetarget key has been pressed once.
-    if ( client->latched_buttons & BUTTON_USE_TARGET ) {
-        // Toggle or UnToggle depending on state.
-        if ( useTargetEntity && useTargetEntity->inuse ) {
-            if ( useTargetEntity->useTargetState & ENTITY_USETARGET_STATE_IS_TOGGLED ) {
-                if ( !SVG_UnToggleUseTarget( useTargetEntity, ent ) ) {
-                    // If we got here, either the callback returned false for a reason or
-                    // the callback was never dispatched in the first place.
-                }
-            } else {
-                if ( !SVG_ToggleUseTarget( useTargetEntity, ent ) ) {
-                    // If we got here, either the callback returned false for a reason or
-                    // the callback was never dispatched in the first place.
-                    // WID: TODO: Play a silly audio like HL1? lol.
-                }
+        // Get previous entity.
+        edict_t *previousUseTargetEntity = ent->client->useTarget.previousEntity;
+        gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
+        // Trigger OFF in case it is a holdable.
+        if ( previousUseTargetEntity != nullptr && previousUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) {
+            gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
+            // It might for whatever reason not be in use all of a sudden.
+            if ( previousUseTargetEntity->inuse ) {
+                SVG_UseTargets( previousUseTargetEntity, ent, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_OFF, 0 );
+                gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
             }
+            // Remove the hold flag.
+            previousUseTargetEntity->useTargetState = (entity_usetarget_state_t)( previousUseTargetEntity->useTargetState & ~ENTITY_USETARGET_STATE_HOLD );
         }
-        // Remove from the latched buttons.
-        client->latched_buttons &= ~BUTTON_USE_TARGET;
     }
+    
+    // Store the new current entity we are focussing on.
+    client->useTarget.currentEntity = traceUseTarget.ent;
+
+    if ( ( ( client->userInput.buttons | client->userInput.pressedButtons | client->userInput.releasedButtons ) & BUTTON_USE_TARGET ) == 0 ) {
+        return;
+    }
+
+    // <Debug>
+    std::string keys = "BUTTONS [ ";
+    keys += "isTargetUseKeyHolding(";
+    keys += isTargetUseKeyHolding ? "true" : "false";
+    keys += "), isTargetUseKeyPressed(";
+    keys += isTargetUseKeyPressed ? "true" : "false";
+    keys += "), isTargetUseKeyReleased(";
+    keys += isTargetUseKeyReleased ? "true" : "false";
+    keys += ") ]";
+    gi.dprintf( "%s: %s\n", __func__, keys.c_str() );
+    // </Debug>
+
+    // Are we continously holding +usetarget or did we single press it? If so, proceed.
+    if ( currentUseTargetEntity && currentUseTargetEntity->inuse ) {
+        if ( ( isTargetUseKeyHolding && ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) != 0 )
+            || ( isTargetUseKeyPressed && ( ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_PRESS ) | ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE ) ) != 0 ) ) {
+                gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
+                // Change its useTargetState.
+                if ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) {
+                    currentUseTargetEntity->useTargetState = (entity_usetarget_state_t)( currentUseTargetEntity->useTargetFlags | ENTITY_USETARGET_STATE_HOLD );
+                    gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
+                }
+                if ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE ) {
+                    currentUseTargetEntity->useTargetState = (entity_usetarget_state_t)( currentUseTargetEntity->useTargetFlags | ENTITY_USETARGET_STATE_TOGGLED );
+                    gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
+                }
+                // UseTargets it as "ON".
+                SVG_UseTargets( currentUseTargetEntity, ent, ENTITY_USETARGET_TYPE_SET, 1 );
+        // Set it as off if it was a hold entity, and we were holding +usetarget
+        } else if ( isTargetUseKeyReleased && ( currentUseTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE ) != 0 ) {
+            gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
+            // UseTargets it as "OFF".
+            SVG_UseTargets( currentUseTargetEntity, ent, ENTITY_USETARGET_TYPE_SET, 0 );
+        }
+    } else {
+        gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
+        // WID: TODO: Play a silly audio like HL1? lol.
+    }
+    //if ( isTargetUseKeyPressed ) {
+        gi.dprintf( "%s: line %d\n", __func__, __LINE__ );
+        //ent->client->latched_buttons &= ~BUTTON_USE_TARGET;
+    //}
 }
 /**
 *   @brief  Will search for touching trigger and projectiles, dispatching their touch callback when touching.
@@ -1971,12 +2005,12 @@ const Vector3 ClientPostPMove( edict_t *ent, gclient_t *client, pmove_t &pm ) {
 *   @brief  This will be called once for each client frame, which will usually 
 *           be a couple times for each server frame.
 **/
-void ClientThink(edict_t *ent, usercmd_t *ucmd) {
+void ClientThink( edict_t *ent, usercmd_t *ucmd ) {
     // Set the entity that is being processed.
     level.current_entity = ent;
 
     // Warn in case if it is not a client.
-    if ( !ent) {
+    if ( !ent ) {
         gi.bprintf( PRINT_WARNING, "%s: ent == nullptr\n", __func__ );
         return;
     }
@@ -1992,16 +2026,28 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
     // Backup the old player state.
     client->ops = client->ps;
 
-	// Configure pmove.
+    // Configure pmove.
     pmove_t pm = {};
     pmoveParams_t pmp = {};
-	SG_ConfigurePlayerMoveParameters( &pmp );
+    SG_ConfigurePlayerMoveParameters( &pmp );
 
     // [Paril-KEX] pass buttons through even if we are in intermission or
     // chasing.
     client->oldbuttons = client->buttons;
     client->buttons = ucmd->buttons;
-    client->latched_buttons |= client->buttons & ~client->oldbuttons;
+    client->latched_buttons |= ( client->buttons & ~client->oldbuttons );
+    // WID: <UserInput>: Different User Input approach.
+    client->userInput.lastButtons = client->userInput.buttons;
+    client->userInput.buttons = ucmd->buttons;
+    // Determine which buttons changed state.
+    const int32_t buttonsChanged = ( client->userInput.lastButtons ^ client->userInput.buttons );
+    // The changed ones that are still down are 'pressed'.
+    client->userInput.pressedButtons = ( buttonsChanged & client->userInput.buttons );
+    // These are held down after being pressed:
+    client->userInput.heldButtons = ( client->userInput.lastButtons & client->userInput.buttons );
+    // The others are 'released'.
+    client->userInput.releasedButtons = ( buttonsChanged & ( ~client->userInput.buttons ) );
+    // WID: </UserInput>:
 
     /**
     *   Level Intermission Path:
@@ -2010,7 +2056,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
         client->ps.pmove.pm_type = PM_FREEZE;
 
         // can exit intermission after five seconds
-        if ( ( level.framenum > level.intermission_framenum + 5.0f * BASE_FRAMERATE ) && ( ucmd->buttons & BUTTON_ANY ) ) {
+        if ( ( level.framenum > level.intermission_framenum + 5.0f * BASE_FRAMERATE ) && ( client->buttons & BUTTON_ANY ) ) {
             level.exitintermission = true;
         }
 
@@ -2090,7 +2136,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
             }
         }
 
-        // Check for client plaerstate its pmove generated events.
+        // Check for client playerstate its pmove generated events.
         //ClientCheckPlayerstateEvents( ent, &client->ops, &client->ps );
 
         // Apply falling damage directly.
@@ -2127,8 +2173,6 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
 
         // Process touch callback dispatching for Triggers and Projectiles.
         ClientProcessTouches( ent, client, pm, oldOrigin );
-        // Update the (+/-usetarget) key state actions.
-        ClientUpdateUseTarget( ent, client );
     }
 
     /**
@@ -2149,9 +2193,13 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd) {
             }
         }
     /**
-    *   Regular (Weapon-)Path:
+    *   Regular Player (And Weapon-)Path:
     **/
     } else {
+        // Perform use Targets if we haven't already.
+        ClientTraceForUseTarget( ent, client );
+        client->useTarget.tracedForFrame = true;
+
         // Check whether to engage switching to a new weapon.
         if ( client->newweapon ) {
             P_Weapon_Change( ent );
@@ -2229,6 +2277,16 @@ void ClientBeginServerFrame(edict_t *ent)
         ( level.time - client->respawn_time ) >= 5_sec ) {
         spectator_respawn( ent );
         return;
+    }
+
+    /**
+    *   Run (+usetarget) logics.
+    **/
+    // Update the (+/-usetarget) key state actions if not done so already by ClientUserThink.
+    if ( !client->useTarget.tracedForFrame ) {
+        ClientTraceForUseTarget( ent, client );
+    } else {
+        client->useTarget.tracedForFrame = false;
     }
 
     /**

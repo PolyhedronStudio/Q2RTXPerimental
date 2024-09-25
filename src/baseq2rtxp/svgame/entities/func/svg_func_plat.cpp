@@ -166,7 +166,7 @@ void plat_blocked( edict_t *self, edict_t *other ) {
 }
 
 
-void Use_Plat( edict_t *ent, edict_t *other, edict_t *activator ) {
+void Use_Plat( edict_t *ent, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
     // WID: <Q2RTXP> For func_button support.
     //if ( ( other && !strcmp( other->classname, "func_button" ) ) ) {
     if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP || ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {

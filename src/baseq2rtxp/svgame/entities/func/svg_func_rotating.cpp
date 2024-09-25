@@ -37,16 +37,48 @@ void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t 
         T_Damage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
 }
 
-void rotating_use( edict_t *self, edict_t *other, edict_t *activator ) {
+void rotating_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
+    // For Toggling Use Types:
+    if ( useType == ENTITY_USETARGET_TYPE_TOGGLE ) {
+        if ( !VectorEmpty( self->avelocity ) ) {
+            self->s.sound = 0;
+            VectorClear( self->avelocity );
+            self->touch = NULL;
+        } else {
+            self->s.sound = self->pushMoveInfo.sound_middle;
+            VectorScale( self->movedir, self->speed, self->avelocity );
+            if ( self->spawnflags & 16 )
+                self->touch = rotating_touch;
+        }
+        // Exit.
+        return;
+    } else if ( useType == ENTITY_USETARGET_TYPE_SET ) {
+        if ( useValue != 0 ) {
+            self->s.sound = self->pushMoveInfo.sound_middle;
+            VectorScale( self->movedir, self->speed, self->avelocity );
+            if ( self->spawnflags & 16 ) {
+                self->touch = rotating_touch;
+            }
+            // Exit.
+            return;
+        }
+    } else if ( useType == ENTITY_USETARGET_TYPE_ON ) {
+        self->s.sound = self->pushMoveInfo.sound_middle;
+        VectorScale( self->movedir, self->speed, self->avelocity );
+        if ( self->spawnflags & 16 ) {
+            self->touch = rotating_touch;
+        }
+        // Exit.
+        return;
+    } else if ( useType == ENTITY_USETARGET_TYPE_OFF ) {
+
+    }
+
+    // Default fallback:
     if ( !VectorEmpty( self->avelocity ) ) {
         self->s.sound = 0;
         VectorClear( self->avelocity );
         self->touch = NULL;
-    } else {
-        self->s.sound = self->pushMoveInfo.sound_middle;
-        VectorScale( self->movedir, self->speed, self->avelocity );
-        if ( self->spawnflags & 16 )
-            self->touch = rotating_touch;
     }
 }
 
@@ -84,7 +116,7 @@ void SP_func_rotating( edict_t *ent ) {
         ent->blocked = rotating_blocked;
 
     if ( ent->spawnflags & 1 )
-        ent->use( ent, NULL, NULL );
+        ent->use( ent, NULL, NULL, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_ON, 1 );
 
     if ( ent->spawnflags & 64 )
         ent->s.effects |= EF_ANIM_ALL;

@@ -234,20 +234,20 @@ typedef enum {
 
 
 //deadflag
-#define DEAD_NO                 0
-#define DEAD_DYING              1
-#define DEAD_DEAD               2
-#define DEAD_RESPAWNABLE        3
+#define DEADFLAG_NO                 0
+#define DEADFLAG_DYING              1
+#define DEADFLAG_DEAD               2
+#define DEADFLAG_RESPAWNABLE        3
 
 //range
-#define RANGE_MELEE             0
-#define RANGE_NEAR              1
-#define RANGE_MID               2
-#define RANGE_FAR               3
+#define RANGE_DISTANCE_MELEE             0
+#define RANGE_DISTANCE_NEAR              1
+#define RANGE_DISTANCE_MID               2
+#define RANGE_DISTANCE_FAR               3
 
 //gib types
-#define GIB_ORGANIC             0
-#define GIB_METALLIC            1
+#define GIB_TYPE_ORGANIC             0
+#define GIB_TYPE_METALLIC            1
 
 //monster ai flags
 #define AI_STAND_GROUND         0x00000001

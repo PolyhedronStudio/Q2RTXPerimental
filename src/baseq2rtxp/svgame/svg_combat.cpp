@@ -93,7 +93,7 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
 
     targ->enemy = attacker;
 
-    if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD)) {
+    if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEADFLAG_DEAD)) {
             //targ->svflags |= SVF_DEADMONSTER;   // now treat as a different content type
             // WID: TODO: Monster Reimplement.        
             //if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
@@ -112,7 +112,7 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
         return;
     }
 
-    if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEAD_DEAD)) {
+    if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEADFLAG_DEAD)) {
         targ->touch = NULL;
         // WID: TODO: Actually trigger death.
         //monster_death_use(targ);

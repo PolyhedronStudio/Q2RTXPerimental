@@ -324,20 +324,20 @@ void actor_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
     if (self->health <= -80) {
 //      gi.sound (self, CHAN_VOICE, actor.sound_gib, 1, ATTN_NORM, 0);
         for (n = 0; n < 2; n++)
-            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_ORGANIC);
+            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_ORGANIC);
-        self->deadflag = DEAD_DEAD;
+            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
+        self->deadflag = DEADFLAG_DEAD;
         return;
     }
 
-    if (self->deadflag == DEAD_DEAD)
+    if (self->deadflag == DEADFLAG_DEAD)
         return;
 
 // regular death
 //  gi.sound (self, CHAN_VOICE, actor.sound_die, 1, ATTN_NORM, 0);
-    self->deadflag = DEAD_DEAD;
+    self->deadflag = DEADFLAG_DEAD;
     self->takedamage = DAMAGE_YES;
 
     n = Q_rand() % 2;

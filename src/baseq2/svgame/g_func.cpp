@@ -53,8 +53,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #define PLAT_LOW_TRIGGER    1
 
-#define STATE_TOP           0
-#define STATE_BOTTOM        1
+#define PUSHMOVE_STATE_TOP           0
+#define PUSHMOVE_STATE_BOTTOM        1
 #define STATE_UP            2
 #define STATE_DOWN          3
 
@@ -73,43 +73,43 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 // Support routines for movement (changes in origin using velocity)
 //
-void Move_Done(edict_t *ent)
+void SVG_PushMove_MoveDone(edict_t *ent)
 {
     VectorClear(ent->velocity);
     ent->moveinfo.endfunc(ent);
 }
 
-void Move_Final(edict_t *ent)
+void SVG_PushMove_MoveFinal(edict_t *ent)
 {
     if (ent->moveinfo.remaining_distance == 0) {
-        Move_Done(ent);
+        SVG_PushMove_MoveDone(ent);
         return;
     }
 
     VectorScale(ent->moveinfo.dir, ent->moveinfo.remaining_distance / FRAMETIME, ent->velocity);
 
-    ent->think = Move_Done;
+    ent->think = SVG_PushMove_MoveDone;
     ent->nextthink = level.time + FRAME_TIME_S;
 }
 
-void Move_Begin(edict_t *ent)
+void SVG_PushMove_MoveBegin(edict_t *ent)
 {
     float   frames;
 
 	if ( ( ent->moveinfo.speed * gi.frame_time_s ) >= ent->moveinfo.remaining_distance ) {
-        Move_Final(ent);
+        SVG_PushMove_MoveFinal(ent);
         return;
     }
     VectorScale(ent->moveinfo.dir, ent->moveinfo.speed, ent->velocity);
 	frames = floor( ( ent->moveinfo.remaining_distance / ent->moveinfo.speed ) / gi.frame_time_s );
 	ent->moveinfo.remaining_distance -= frames * ent->moveinfo.speed * gi.frame_time_s;
 	ent->nextthink = level.time + ( FRAME_TIME_S * frames );
-	ent->think = Move_Final;
+	ent->think = SVG_PushMove_MoveFinal;
 }
 
-void Think_AccelMove(edict_t *ent);
+void SVG_PushMove_Think_AccelerateMove(edict_t *ent);
 
-void Move_Calc(edict_t *ent, const vec3_t dest, void(*func)(edict_t*))
+void SVG_PushMove_MoveCalculate(edict_t *ent, const vec3_t dest, void(*func)(edict_t*))
 {
     VectorClear(ent->velocity);
     VectorSubtract(dest, ent->s.origin, ent->moveinfo.dir);
@@ -118,15 +118,15 @@ void Move_Calc(edict_t *ent, const vec3_t dest, void(*func)(edict_t*))
 
     if (ent->moveinfo.speed == ent->moveinfo.accel && ent->moveinfo.speed == ent->moveinfo.decel) {
         if (level.current_entity == ((ent->flags & FL_TEAMSLAVE) ? ent->teammaster : ent)) {
-            Move_Begin(ent);
+            SVG_PushMove_MoveBegin(ent);
         } else {
 			ent->nextthink = level.time + FRAME_TIME_S;
-            ent->think = Move_Begin;
+            ent->think = SVG_PushMove_MoveBegin;
         }
     } else {
         // accelerative
         ent->moveinfo.current_speed = 0;
-        ent->think = Think_AccelMove;
+        ent->think = SVG_PushMove_Think_AccelerateMove;
 		ent->nextthink = level.time + FRAME_TIME_S;
     }
 }
@@ -136,13 +136,13 @@ void Move_Calc(edict_t *ent, const vec3_t dest, void(*func)(edict_t*))
 // Support routines for angular movement (changes in angle using avelocity)
 //
 
-void AngleMove_Done(edict_t *ent)
+void SVG_PushMove_AngleMoveDone(edict_t *ent)
 {
     VectorClear(ent->avelocity);
     ent->moveinfo.endfunc(ent);
 }
 
-void AngleMove_Final(edict_t *ent)
+void SVG_PushMove_AngleMoveFinal(edict_t *ent)
 {
     vec3_t  move;
 
@@ -152,17 +152,17 @@ void AngleMove_Final(edict_t *ent)
         VectorSubtract(ent->moveinfo.start_angles, ent->s.angles, move);
 
     if (VectorEmpty(move)) {
-        AngleMove_Done(ent);
+        SVG_PushMove_AngleMoveDone(ent);
         return;
     }
 
     VectorScale(move, 1.0f / FRAMETIME, ent->avelocity);
 
-    ent->think = AngleMove_Done;
+    ent->think = SVG_PushMove_AngleMoveDone;
 	ent->nextthink = level.time + FRAME_TIME_S;
 }
 
-void AngleMove_Begin(edict_t *ent)
+void SVG_PushMove_AngleMoveBegin(edict_t *ent)
 {
     vec3_t  destdelta;
     float   len;
@@ -182,7 +182,7 @@ void AngleMove_Begin(edict_t *ent)
     traveltime = len / ent->moveinfo.speed;
 
 	if ( traveltime < gi.frame_time_s ) {
-        AngleMove_Final(ent);
+        SVG_PushMove_AngleMoveFinal(ent);
         return;
     }
 
@@ -196,30 +196,30 @@ void AngleMove_Begin(edict_t *ent)
 	if ( ent->moveinfo.speed >= ent->speed ) {
 		// set nextthink to trigger a think when dest is reached
 		ent->nextthink = level.time + ( FRAME_TIME_S * frames );
-		ent->think = AngleMove_Final;
+		ent->think = SVG_PushMove_AngleMoveFinal;
 	} else {
 		ent->nextthink = level.time + FRAME_TIME_S;
-		ent->think = AngleMove_Begin;
+		ent->think = SVG_PushMove_AngleMoveBegin;
 	}
 	// PGM
 }
 
-void AngleMove_Calc(edict_t *ent, void(*func)(edict_t*))
+void SVG_PushMove_AngleMoveCalculate(edict_t *ent, void(*func)(edict_t*))
 {
     VectorClear(ent->avelocity);
     ent->moveinfo.endfunc = func;
     if (level.current_entity == ((ent->flags & FL_TEAMSLAVE) ? ent->teammaster : ent)) {
-        AngleMove_Begin(ent);
+        SVG_PushMove_AngleMoveBegin(ent);
     } else {
 		ent->nextthink = level.time + FRAME_TIME_S;
-		ent->think = AngleMove_Begin;
+		ent->think = SVG_PushMove_AngleMoveBegin;
     }
 }
 
 
 /*
 ==============
-Think_AccelMove
+SVG_PushMove_Think_AccelerateMove
 
 The team has completed a frame of movement, so
 change the speed for the next frame
@@ -321,7 +321,7 @@ void plat_Accelerate(moveinfo_t *moveinfo)
     return;
 }
 
-void Think_AccelMove(edict_t *ent)
+void SVG_PushMove_Think_AccelerateMove(edict_t *ent)
 {
     ent->moveinfo.remaining_distance -= ent->moveinfo.current_speed;
 
@@ -332,14 +332,14 @@ void Think_AccelMove(edict_t *ent)
 
     // will the entire move complete on next frame?
     if (ent->moveinfo.remaining_distance <= ent->moveinfo.current_speed) {
-        Move_Final(ent);
+        SVG_PushMove_MoveFinal(ent);
         return;
     }
 
     VectorScale(ent->moveinfo.dir, ent->moveinfo.current_speed * 10, ent->velocity);
 	ent->nextthink = level.time + 10_hz;
 
-    ent->think = Think_AccelMove;
+    ent->think = SVG_PushMove_Think_AccelerateMove;
 }
 
 
@@ -352,7 +352,7 @@ void plat_hit_top(edict_t *ent)
             gi.sound(ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->moveinfo.sound_end, 1, ATTN_STATIC, 0);
         ent->s.sound = 0;
     }
-    ent->moveinfo.state = STATE_TOP;
+    ent->moveinfo.state = PUSHMOVE_STATE_TOP;
 
     ent->think = plat_go_down;
 	ent->nextthink = level.time + 3_sec;
@@ -365,7 +365,7 @@ void plat_hit_bottom(edict_t *ent)
             gi.sound(ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->moveinfo.sound_end, 1, ATTN_STATIC, 0);
         ent->s.sound = 0;
     }
-    ent->moveinfo.state = STATE_BOTTOM;
+    ent->moveinfo.state = PUSHMOVE_STATE_BOTTOM;
 }
 
 void plat_go_down(edict_t *ent)
@@ -376,7 +376,7 @@ void plat_go_down(edict_t *ent)
         ent->s.sound = ent->moveinfo.sound_middle;
     }
     ent->moveinfo.state = STATE_DOWN;
-    Move_Calc(ent, ent->moveinfo.end_origin, plat_hit_bottom);
+    SVG_PushMove_MoveCalculate(ent, ent->moveinfo.end_origin, plat_hit_bottom);
 }
 
 void plat_go_up(edict_t *ent)
@@ -387,7 +387,7 @@ void plat_go_up(edict_t *ent)
         ent->s.sound = ent->moveinfo.sound_middle;
     }
     ent->moveinfo.state = STATE_UP;
-    Move_Calc(ent, ent->moveinfo.start_origin, plat_hit_top);
+    SVG_PushMove_MoveCalculate(ent, ent->moveinfo.start_origin, plat_hit_top);
 }
 
 void plat_blocked(edict_t *self, edict_t *other)
@@ -427,9 +427,9 @@ void Touch_Plat_Center(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t
         return;
 
     ent = ent->enemy;   // now point at the plat, not the trigger
-    if (ent->moveinfo.state == STATE_BOTTOM)
+    if (ent->moveinfo.state == PUSHMOVE_STATE_BOTTOM)
         plat_go_up(ent);
-    else if (ent->moveinfo.state == STATE_TOP)
+    else if (ent->moveinfo.state == PUSHMOVE_STATE_TOP)
 		ent->nextthink = level.time + 1_sec; // the player is still on the plat, so delay going down
 }
 
@@ -541,7 +541,7 @@ void SP_func_plat(edict_t *ent)
     } else {
         VectorCopy(ent->pos2, ent->s.origin);
         gi.linkentity(ent);
-        ent->moveinfo.state = STATE_BOTTOM;
+        ent->moveinfo.state = PUSHMOVE_STATE_BOTTOM;
     }
 
     ent->moveinfo.speed = ent->speed;
@@ -668,7 +668,7 @@ When a button is touched, it moves some distance in the direction of it's angle,
 
 void button_done(edict_t *self)
 {
-    self->moveinfo.state = STATE_BOTTOM;
+    self->moveinfo.state = PUSHMOVE_STATE_BOTTOM;
     self->s.effects &= ~EF_ANIM23;
     self->s.effects |= EF_ANIM01;
 }
@@ -677,7 +677,7 @@ void button_return(edict_t *self)
 {
     self->moveinfo.state = STATE_DOWN;
 
-    Move_Calc(self, self->moveinfo.start_origin, button_done);
+    SVG_PushMove_MoveCalculate(self, self->moveinfo.start_origin, button_done);
 
     self->s.frame = 0;
 
@@ -687,7 +687,7 @@ void button_return(edict_t *self)
 
 void button_wait(edict_t *self)
 {
-    self->moveinfo.state = STATE_TOP;
+    self->moveinfo.state = PUSHMOVE_STATE_TOP;
     self->s.effects &= ~EF_ANIM01;
     self->s.effects |= EF_ANIM23;
 
@@ -701,13 +701,13 @@ void button_wait(edict_t *self)
 
 void button_fire(edict_t *self)
 {
-    if (self->moveinfo.state == STATE_UP || self->moveinfo.state == STATE_TOP)
+    if (self->moveinfo.state == STATE_UP || self->moveinfo.state == PUSHMOVE_STATE_TOP)
         return;
 
     self->moveinfo.state = STATE_UP;
     if (self->moveinfo.sound_start && !(self->flags & FL_TEAMSLAVE))
         gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->moveinfo.sound_start, 1, ATTN_STATIC, 0);
-    Move_Calc(self, self->moveinfo.end_origin, button_wait);
+    SVG_PushMove_MoveCalculate(self, self->moveinfo.end_origin, button_wait);
 }
 
 void button_use(edict_t *self, edict_t *other, edict_t *activator)
@@ -785,7 +785,7 @@ void SP_func_button(edict_t *ent)
     } else if (! ent->targetname)
         ent->touch = button_touch;
 
-    ent->moveinfo.state = STATE_BOTTOM;
+    ent->moveinfo.state = PUSHMOVE_STATE_BOTTOM;
 
     ent->moveinfo.speed = ent->speed;
     ent->moveinfo.accel = ent->accel;
@@ -857,7 +857,7 @@ void door_hit_top(edict_t *self)
             gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->moveinfo.sound_end, 1, ATTN_STATIC, 0);
         self->s.sound = 0;
     }
-    self->moveinfo.state = STATE_TOP;
+    self->moveinfo.state = PUSHMOVE_STATE_TOP;
     if (self->spawnflags & DOOR_TOGGLE)
         return;
     if (self->moveinfo.wait >= 0) {
@@ -873,7 +873,7 @@ void door_hit_bottom(edict_t *self)
             gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->moveinfo.sound_end, 1, ATTN_STATIC, 0);
         self->s.sound = 0;
     }
-    self->moveinfo.state = STATE_BOTTOM;
+    self->moveinfo.state = PUSHMOVE_STATE_BOTTOM;
     door_use_areaportals(self, false);
 }
 
@@ -891,9 +891,9 @@ void door_go_down(edict_t *self)
 
     self->moveinfo.state = STATE_DOWN;
     if (strcmp(self->classname, "func_door") == 0)
-        Move_Calc(self, self->moveinfo.start_origin, door_hit_bottom);
+        SVG_PushMove_MoveCalculate(self, self->moveinfo.start_origin, door_hit_bottom);
     else if (strcmp(self->classname, "func_door_rotating") == 0)
-        AngleMove_Calc(self, door_hit_bottom);
+        SVG_PushMove_AngleMoveCalculate(self, door_hit_bottom);
 }
 
 void door_go_up(edict_t *self, edict_t *activator)
@@ -901,7 +901,7 @@ void door_go_up(edict_t *self, edict_t *activator)
     if (self->moveinfo.state == STATE_UP)
         return;     // already going up
 
-    if (self->moveinfo.state == STATE_TOP) {
+    if (self->moveinfo.state == PUSHMOVE_STATE_TOP) {
         // reset top wait time
         if (self->moveinfo.wait >= 0)
 			self->nextthink = level.time + sg_time_t::from_sec( self->moveinfo.wait );
@@ -915,9 +915,9 @@ void door_go_up(edict_t *self, edict_t *activator)
     }
     self->moveinfo.state = STATE_UP;
     if (strcmp(self->classname, "func_door") == 0)
-        Move_Calc(self, self->moveinfo.end_origin, door_hit_top);
+        SVG_PushMove_MoveCalculate(self, self->moveinfo.end_origin, door_hit_top);
     else if (strcmp(self->classname, "func_door_rotating") == 0)
-        AngleMove_Calc(self, door_hit_top);
+        SVG_PushMove_AngleMoveCalculate(self, door_hit_top);
 
     G_UseTargets(self, activator);
     door_use_areaportals(self, true);
@@ -931,7 +931,7 @@ void door_use(edict_t *self, edict_t *other, edict_t *activator)
         return;
 
     if (self->spawnflags & DOOR_TOGGLE) {
-        if (self->moveinfo.state == STATE_UP || self->moveinfo.state == STATE_TOP) {
+        if (self->moveinfo.state == STATE_UP || self->moveinfo.state == PUSHMOVE_STATE_TOP) {
             // trigger all paired doors
             for (ent = self ; ent ; ent = ent->teamchain) {
                 ent->message = NULL;
@@ -1103,7 +1103,7 @@ void door_postspawn( edict_t *self ) {
     //if ( self->spawnflags & DOOR_START_OPEN ) {
     //    //G_UseTargets( self, self );
     //    door_use_areaportals( self, true );
-    //    //self->moveinfo.state = STATE_TOP;
+    //    //self->moveinfo.state = PUSHMOVE_STATE_TOP;
     //}
 }
 
@@ -1158,7 +1158,7 @@ void SP_func_door(edict_t *ent)
         VectorCopy(ent->s.origin, ent->pos1);
     }
 
-    ent->moveinfo.state = STATE_BOTTOM;
+    ent->moveinfo.state = PUSHMOVE_STATE_BOTTOM;
 
     if (ent->health) {
         ent->takedamage = DAMAGE_YES;
@@ -1297,7 +1297,7 @@ void SP_func_door_rotating(edict_t *ent)
         ent->touch = door_touch;
     }
 
-    ent->moveinfo.state = STATE_BOTTOM;
+    ent->moveinfo.state = PUSHMOVE_STATE_BOTTOM;
     ent->moveinfo.speed = ent->speed;
     ent->moveinfo.accel = ent->accel;
     ent->moveinfo.decel = ent->decel;
@@ -1383,7 +1383,7 @@ void SP_func_water(edict_t *self)
     VectorCopy(self->pos2, self->moveinfo.end_origin);
     VectorCopy(self->s.angles, self->moveinfo.end_angles);
 
-    self->moveinfo.state = STATE_BOTTOM;
+    self->moveinfo.state = PUSHMOVE_STATE_BOTTOM;
 
     if (!self->speed)
         self->speed = 25;
@@ -1524,10 +1524,10 @@ again:
     }
 
     VectorSubtract(ent->s.origin, self->mins, dest);
-    self->moveinfo.state = STATE_TOP;
+    self->moveinfo.state = PUSHMOVE_STATE_TOP;
     VectorCopy(self->s.origin, self->moveinfo.start_origin);
     VectorCopy(dest, self->moveinfo.end_origin);
-    Move_Calc(self, dest, train_wait);
+    SVG_PushMove_MoveCalculate(self, dest, train_wait);
     self->spawnflags |= TRAIN_START_ON;
 }
 
@@ -1539,10 +1539,10 @@ void train_resume(edict_t *self)
     ent = self->targetEntities.target;
 
     VectorSubtract(ent->s.origin, self->mins, dest);
-    self->moveinfo.state = STATE_TOP;
+    self->moveinfo.state = PUSHMOVE_STATE_TOP;
     VectorCopy(self->s.origin, self->moveinfo.start_origin);
     VectorCopy(dest, self->moveinfo.end_origin);
-    Move_Calc(self, dest, train_wait);
+    SVG_PushMove_MoveCalculate(self, dest, train_wait);
     self->spawnflags |= TRAIN_START_ON;
 }
 
@@ -1814,7 +1814,7 @@ void door_secret_use(edict_t *self, edict_t *other, edict_t *activator)
     if (!VectorEmpty(self->s.origin))
         return;
 
-    Move_Calc(self, self->pos1, door_secret_move1);
+    SVG_PushMove_MoveCalculate(self, self->pos1, door_secret_move1);
     door_use_areaportals(self, true);
 }
 
@@ -1826,7 +1826,7 @@ void door_secret_move1(edict_t *self)
 
 void door_secret_move2(edict_t *self)
 {
-    Move_Calc(self, self->pos2, door_secret_move3);
+    SVG_PushMove_MoveCalculate(self, self->pos2, door_secret_move3);
 }
 
 void door_secret_move3(edict_t *self)
@@ -1839,7 +1839,7 @@ void door_secret_move3(edict_t *self)
 
 void door_secret_move4(edict_t *self)
 {
-    Move_Calc(self, self->pos1, door_secret_move5);
+    SVG_PushMove_MoveCalculate(self, self->pos1, door_secret_move5);
 }
 
 void door_secret_move5(edict_t *self)
@@ -1850,7 +1850,7 @@ void door_secret_move5(edict_t *self)
 
 void door_secret_move6(edict_t *self)
 {
-    Move_Calc(self, vec3_origin, door_secret_done);
+    SVG_PushMove_MoveCalculate(self, vec3_origin, door_secret_done);
 }
 
 void door_secret_done(edict_t *self)

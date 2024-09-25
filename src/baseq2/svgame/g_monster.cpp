@@ -602,7 +602,7 @@ bool monster_start( edict_t *self ) {
     self->clipmask = MASK_MONSTERSOLID;
 
 	self->s.skinnum = 0;
-	self->deadflag = DEAD_NO;
+	self->deadflag = DEADFLAG_NO;
 	self->svflags &= ~SVF_DEADMONSTER;
 
 	if ( !self->monsterinfo.checkattack )

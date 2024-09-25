@@ -20,7 +20,7 @@
 Kills everything inside when fired, irrespective of protection.
 */
 static constexpr int32_t SPAWNFLAG_KILLBOX_TRIGGER_BRUSH_CLIP = 32;
-void use_killbox( edict_t *self, edict_t *other, edict_t *activator ) {
+void use_killbox( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
     self->solid = SOLID_TRIGGER;
     gi.linkentity( self );
 

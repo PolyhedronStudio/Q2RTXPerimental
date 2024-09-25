@@ -11,6 +11,10 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 * [X] It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
 	* It is a mistake in client game loop.
 ## For v0.0.5:
+- [ ] ..
+- [ ] MUST DO MUST DO!!
+- [ ] Update all save/load fields accordingly before releasing this lol!!
+- [ ] ..
 - [X] The IQM Animation Scenario:
 	- [X] 0. Add in proper usage of entity type and adjust the client code to handle adding packet entities based on its type.
 			 This will simplify life in the future.
@@ -56,6 +60,7 @@ Features being looked forward on implementation.
 * [ ] Implement model events for animations:
 	* [ ] Footsteps implemented using this.
 ### Medium Priority:
+* [ ] The lua script file being opened by gi.FS_ stuff, is doing so in an incorrect memory tag namespace. Leaks._
 * [X] Remove all Q2 monsters, keep a few around to use for testing.
 * [-] Eliminate all other Q2-only specific game entities.
 * [X] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.

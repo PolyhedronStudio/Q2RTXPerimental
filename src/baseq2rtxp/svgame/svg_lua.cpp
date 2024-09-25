@@ -385,7 +385,12 @@ int GameLib_GetEntityForTargetName( lua_State *L ) {
 void LUA_Think_UseTargetDelay( edict_t *entity ) {
 	edict_t *creatorEntity = entity->luaProperties.delayedUseCreatorEntity;
 	if ( creatorEntity->use ) {
-		creatorEntity->use( creatorEntity, entity->other, entity->activator );
+		creatorEntity->use( 
+			creatorEntity,
+			entity->other, 
+			entity->activator,
+			entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE,
+			0 );
 	}
 	SVG_FreeEdict( entity );
 }
@@ -466,7 +471,7 @@ int GameLib_UseTarget( lua_State *L ) {
 	if ( entity->use ) {
 		entity->activator = activator;
 		entity->other = other;
-		entity->use( entity, other, activator );
+		entity->use( entity, other, activator, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 0 );
 	}
 
 	lua_pushinteger( L, 1 );

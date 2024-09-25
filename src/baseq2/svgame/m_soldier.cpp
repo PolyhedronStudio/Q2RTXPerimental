@@ -511,7 +511,7 @@ void soldier_attack1_refire1(edict_t *self)
     if (self->enemy->health <= 0)
         return;
 
-    if (((skill->value == 3) && (random() < 0.5f)) || (range(self, self->enemy) == RANGE_MELEE))
+    if (((skill->value == 3) && (random() < 0.5f)) || (range(self, self->enemy) == RANGE_DISTANCE_MELEE))
         self->monsterinfo.nextframe = FRAME_attak102;
     else
         self->monsterinfo.nextframe = FRAME_attak110;
@@ -525,7 +525,7 @@ void soldier_attack1_refire2(edict_t *self)
     if (self->enemy->health <= 0)
         return;
 
-    if (((skill->value == 3) && (random() < 0.5f)) || (range(self, self->enemy) == RANGE_MELEE))
+    if (((skill->value == 3) && (random() < 0.5f)) || (range(self, self->enemy) == RANGE_DISTANCE_MELEE))
         self->monsterinfo.nextframe = FRAME_attak102;
 }
 
@@ -560,7 +560,7 @@ void soldier_attack2_refire1(edict_t *self)
     if (self->enemy->health <= 0)
         return;
 
-    if (((skill->value == 3) && (random() < 0.5f)) || (range(self, self->enemy) == RANGE_MELEE))
+    if (((skill->value == 3) && (random() < 0.5f)) || (range(self, self->enemy) == RANGE_DISTANCE_MELEE))
         self->monsterinfo.nextframe = FRAME_attak204;
     else
         self->monsterinfo.nextframe = FRAME_attak216;
@@ -574,7 +574,7 @@ void soldier_attack2_refire2(edict_t *self)
     if (self->enemy->health <= 0)
         return;
 
-    if (((skill->value == 3) && (random() < 0.5f)) || (range(self, self->enemy) == RANGE_MELEE))
+    if (((skill->value == 3) && (random() < 0.5f)) || (range(self, self->enemy) == RANGE_DISTANCE_MELEE))
         self->monsterinfo.nextframe = FRAME_attak204;
 }
 
@@ -655,7 +655,7 @@ void soldier_fire4(edict_t *self)
 //  if (self->enemy->health <= 0)
 //      return;
 //
-//  if ( ((skill->value == 3) && (random() < 0.5)) || (range(self, self->enemy) == RANGE_MELEE) )
+//  if ( ((skill->value == 3) && (random() < 0.5)) || (range(self, self->enemy) == RANGE_DISTANCE_MELEE) )
 //      self->monsterinfo.nextframe = FRAME_attak402;
 }
 
@@ -682,7 +682,7 @@ void soldier_attack5_refire(edict_t *self)
     if (self->enemy->health <= 0)
         return;
 
-    if (((skill->value == 3) && (random() < 0.5f)) || (range(self, self->enemy) == RANGE_MELEE))
+    if (((skill->value == 3) && (random() < 0.5f)) || (range(self, self->enemy) == RANGE_DISTANCE_MELEE))
         self->monsterinfo.nextframe = FRAME_attak505;
 }
 
@@ -711,7 +711,7 @@ void soldier_attack6_refire(edict_t *self)
     if (self->enemy->health <= 0)
         return;
 
-    if (range(self, self->enemy) < RANGE_MID)
+    if (range(self, self->enemy) < RANGE_DISTANCE_MID)
         return;
 
     if (skill->value == 3)
@@ -760,7 +760,7 @@ void soldier_sight(edict_t *self, edict_t *other)
     else
         gi.sound(self, CHAN_VOICE, sound_sight2, 1, ATTN_NORM, 0);
 
-    if ((skill->value > 0) && (range(self, self->enemy) >= RANGE_MID)) {
+    if ((skill->value > 0) && (range(self, self->enemy) >= RANGE_DISTANCE_MID)) {
         if (random() > 0.5f)
             M_SetAnimation( self, &soldier_move_attack6 );
     }
@@ -1102,18 +1102,18 @@ void soldier_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 3; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
-        ThrowGib(self, "models/objects/gibs/chest/tris.md2", damage, GIB_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_ORGANIC);
-        self->deadflag = DEAD_DEAD;
+            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+        ThrowGib(self, "models/objects/gibs/chest/tris.md2", damage, GIB_TYPE_ORGANIC);
+        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
+        self->deadflag = DEADFLAG_DEAD;
         return;
     }
 
-    if (self->deadflag == DEAD_DEAD)
+    if (self->deadflag == DEADFLAG_DEAD)
         return;
 
 // regular death
-    self->deadflag = DEAD_DEAD;
+    self->deadflag = DEADFLAG_DEAD;
     self->takedamage = DAMAGE_YES;
     self->s.skinnum |= 1;
 

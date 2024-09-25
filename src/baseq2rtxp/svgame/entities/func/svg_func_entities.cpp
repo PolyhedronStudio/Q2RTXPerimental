@@ -32,7 +32,7 @@ void Touch_DoorTrigger( edict_t *self, edict_t *other, cplane_t *plane, csurface
         return;
     self->touch_debounce_time = level.time + 1_sec;
 
-    door_use( self->owner, other, other );
+    door_use( self->owner, other, other, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 0 );
 }
 
 /**

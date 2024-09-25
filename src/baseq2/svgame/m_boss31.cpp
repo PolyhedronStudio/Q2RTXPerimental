@@ -557,7 +557,7 @@ void jorg_dead(edict_t *self)
 void jorg_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
     gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
-    self->deadflag = DEAD_DEAD;
+    self->deadflag = DEADFLAG_DEAD;
     self->takedamage = DAMAGE_NO;
     self->s.sound = 0;
     self->count = 0;
@@ -595,7 +595,7 @@ bool Jorg_CheckAttack(edict_t *self)
 
 
     // melee attack
-    if (enemy_range == RANGE_MELEE) {
+    if (enemy_range == RANGE_DISTANCE_MELEE) {
         if (self->monsterinfo.melee)
             self->monsterinfo.attack_state = AS_MELEE;
         else
@@ -610,16 +610,16 @@ bool Jorg_CheckAttack(edict_t *self)
     if (level.time < self->monsterinfo.attack_finished)
         return false;
 
-    if (enemy_range == RANGE_FAR)
+    if (enemy_range == RANGE_DISTANCE_FAR)
         return false;
 
     if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
         chance = 0.4f;
-    } else if (enemy_range == RANGE_MELEE) {
+    } else if (enemy_range == RANGE_DISTANCE_MELEE) {
         chance = 0.8f;
-    } else if (enemy_range == RANGE_NEAR) {
+    } else if (enemy_range == RANGE_DISTANCE_NEAR) {
         chance = 0.4f;
-    } else if (enemy_range == RANGE_MID) {
+    } else if (enemy_range == RANGE_DISTANCE_MID) {
         chance = 0.2f;
     } else {
         return false;

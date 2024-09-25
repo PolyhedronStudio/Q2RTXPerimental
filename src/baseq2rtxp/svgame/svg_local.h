@@ -195,18 +195,34 @@ typedef enum {
 *   @brief  edict->spawnflags T
 *           These are set with checkboxes on each entity in the map editor.
 **/
-static constexpr int32_t SPAWNFLAG_NOT_EASY          = BIT(8);
-static constexpr int32_t SPAWNFLAG_NOT_MEDIUM        = BIT(9);
-static constexpr int32_t SPAWNFLAG_NOT_HARD          = BIT(10);
-static constexpr int32_t SPAWNFLAG_NOT_DEATHMATCH    = BIT(11);
-static constexpr int32_t SPAWNFLAG_NOT_COOP          = BIT(12);
+//! Excludes the entity from DeathMatch game maps.
+static constexpr int32_t SPAWNFLAG_NOT_DEATHMATCH   = BIT( 19 );
+//! Excludes the entity from Coop game maps.
+static constexpr int32_t SPAWNFLAG_NOT_COOP         = BIT( 20 );
+//! Excludes the entity from 'easy' skill level maps.
+static constexpr int32_t SPAWNFLAG_NOT_EASY         = BIT( 21 );
+//! Excludes the entity from 'medium' skill level maps.
+static constexpr int32_t SPAWNFLAG_NOT_MEDIUM       = BIT( 22 );
+//! Excludes the entity from 'hard' skill level maps.
+static constexpr int32_t SPAWNFLAG_NOT_HARD         = BIT( 23 );
 
-static constexpr int32_t SPAWNFLAG_USETARGET_PRESSABLE = BIT( 22 );
-static constexpr int32_t SPAWNFLAG_USETARGET_HOLDABLE = BIT( 23 );
-static constexpr int32_t SPAWNFLAG_USETARGET_TOGGLEABLE = BIT( 24 );
+//! (Temporarily-) Disable (+usetarget) key interacting for this this usetarget supporting entity.
+static constexpr int32_t SPAWNFLAG_USETARGET_DISABLED   = BIT( 15 );
+//! Indicates that the entity is a 'presser' when +usetargetted.
+static constexpr int32_t SPAWNFLAG_USETARGET_PRESSABLE  = BIT( 16 );
+//! Indicates that the entity is a 'presser' when +usetargetted.
+static constexpr int32_t SPAWNFLAG_USETARGET_TOGGLEABLE = BIT( 17 );
+//! Will toggle on press, untoggle on release of press or focus, dispatch hold callback if toggled.
+static constexpr int32_t SPAWNFLAG_USETARGET_HOLDABLE   = BIT( 18 );
+
+
 
 /**
+* 
+* 
 *   @brief  edict->flags
+* 
+* 
 **/
 typedef enum {
     FL_NONE                 = 0,
@@ -227,42 +243,119 @@ typedef enum {
     //FL_POWER_ARMOR          = BIT( 15 ),//! Power armor (if any) is active
 } entity_flags_t;
 
+
+
 /**
-*   @brief  edict->entityUseFlags
+*
+*
+*   Entity Use:
+*
+*
 **/
-typedef enum entity_usetarget_flags_e {
-    //! Default, this entity can not be 'Use' interacted with.
-    ENTITY_USETARGET_FLAG_DISABLED      = BIT( 0 ),
-    //! Takes repeated 'Use' key hit presses to dispatch 'Use' callbacks.
-    ENTITY_USETARGET_FLAG_TOGGLE   = BIT( 1 ),
-    //! Takes a single 'Use' key press, which when hold will dispatch a 'Use' callback each frame.
-    ENTITY_USETARGET_FLAG_HOLD     = BIT( 2 ),
-
-} entity_usetarget_flags_t;
-/**
-*   @brief  edict->entityUseState
-**/
-typedef enum entity_usetarget_state_e {
-    //! Entity is useTarget toggled.
-    ENTITY_USETARGET_STATE_IS_TOGGLED = BIT( 0 ),
-    //! Entity is useTarget toggled.
-    ENTITY_USETARGET_STATE_IS_HELD = BIT( 1 ),
-} entity_usetarget_state_t;
-
-
+//! edict->entityUseFlags
 typedef enum {
-    DAMAGE_NO,
-    DAMAGE_YES,         // will take damage if hit
-    DAMAGE_AIM          // auto targeting recognizes this
-} damage_t;
+    ENTITY_USETARGET_FLAG_NONE      = 0,
+    //! 
+    ENTITY_USETARGET_FLAG_PRESS     = BIT( 0 ),
+    //! 
+    ENTITY_USETARGET_FLAG_TOGGLE    = BIT( 1 ),
+    //! 
+    ENTITY_USETARGET_FLAG_HOLD      = BIT( 2 ),
+    //! For temporarily disabling this useTarget.
+    ENTITY_USETARGET_FLAG_DISABLED  = BIT( 3 ),
+} entity_usetarget_flags_t;
+//! edict->entityUseState
+typedef enum {
+    //! Default, clear state.
+    ENTITY_USETARGET_STATE_DEFAULT         = 0,
+    //! Entity is useTarget toggled.
+    ENTITY_USETARGET_STATE_TOGGLED   = BIT( 0 ),
+    ////! Entity is useTarget toggled.
+    ENTITY_USETARGET_STATE_HOLD      = BIT( 1 ),
+} entity_usetarget_state_t;
+/**
+*   @brief  For SVG_UseTargets
+**/
+typedef enum {
+    //! Triggers as 'Off' type.
+    ENTITY_USETARGET_TYPE_OFF = 0,
+    //! Triggers as 'On' type.
+    ENTITY_USETARGET_TYPE_ON,
+    //! Triggers as 'Set' type.
+    ENTITY_USETARGET_TYPE_SET,
+    //! Triggers as 'Toggle' type.
+    ENTITY_USETARGET_TYPE_TOGGLE
+} entity_usetarget_type_t;
 
-//typedef enum {
-//    WEAPON_READY,
-//    WEAPON_ACTIVATING,
-//    WEAPON_DROPPING,
-//    WEAPON_FIRING
-//} weaponstate_t;
 
+
+/**
+*
+*
+*   Combat:
+*
+*
+**/
+//! TakeDamage, no, yes, yes(auto target recognization).
+typedef enum entity_takedamage_e {
+    DAMAGE_NO = 0,
+    DAMAGE_YES,         //! Will take damage if hit.
+    DAMAGE_AIM          //! Auto targeting recognizes this.
+} entity_takedamage_t;
+//! DeadFlag:
+typedef enum entity_deathflag_e {
+    DEADFLAG_NO = 0,                 // 0
+    DEADFLAG_DYING,              // 1
+    DEADFLAG_DEAD,               // 2
+    DEADFLAG_RESPAWNABLE,        // 3
+} entity_deathflag_t;
+//! Range:
+typedef enum entity_range_distance_e {
+    RANGE_DISTANCE_MELEE = 0,
+    RANGE_DISTANCE_NEAR,
+    RANGE_DISTANCE_MID,
+    RANGE_DISTANCE_FAR,
+} entity_range_distance_t;
+
+// Gib Types:
+static constexpr int32_t GIB_TYPE_ORGANIC   = 0;
+static constexpr int32_t GIB_TYPE_METALLIC  = 1;
+
+// WID: TODO: Kept for future inspiration :-)
+#if 0
+// Monster AI flags:
+#define AI_STAND_GROUND         0x00000001
+#define AI_TEMP_STAND_GROUND    0x00000002
+#define AI_SOUND_TARGET         0x00000004
+#define AI_LOST_SIGHT           0x00000008
+#define AI_PURSUIT_LAST_SEEN    0x00000010
+#define AI_PURSUE_NEXT          0x00000020
+#define AI_PURSUE_TEMP          0x00000040
+#define AI_HOLD_FRAME           0x00000080
+#define AI_GOOD_GUY             0x00000100
+#define AI_BRUTAL               0x00000200
+#define AI_NOSTEP               0x00000400
+#define AI_DUCKED               0x00000800
+#define AI_COMBAT_POINT         0x00001000
+#define AI_MEDIC                0x00002000
+#define AI_RESURRECTING         0x00004000
+#define AI_HIGH_TICK_RATE		0x00008000
+
+//monster attack state
+#define AS_STRAIGHT             1
+#define AS_SLIDING              2
+#define AS_MELEE                3
+#define AS_MISSILE              4
+#endif
+
+
+/**
+*
+*
+*   Weaponry:
+*
+*
+**/
 /**
 *   @brief  Describes a weapon's current state.
 **/
@@ -318,6 +411,15 @@ typedef struct weapon_item_info_s {
     //! TODO: Other info.
 } weapon_item_info_t;
 
+
+
+/**
+*
+*
+*   Items:
+*
+*
+**/
 /**
 *   @brief  Specific 'Item Tags' so we can identify what item category/type
 *           we are dealing with.
@@ -352,46 +454,100 @@ typedef enum {
     //AMMO_SLUGS
 } gitem_tag_t;
 
+typedef struct {
+    int32_t base_count;
+    int32_t max_count;
+    float   normal_protection;
+    float   energy_protection;
+    int32_t armor;
+} gitem_armor_t;
 
-//deadflag
-#define DEAD_NO                 0
-#define DEAD_DYING              1
-#define DEAD_DEAD               2
-#define DEAD_RESPAWNABLE        3
 
-//range
-#define RANGE_MELEE             0
-#define RANGE_NEAR              1
-#define RANGE_MID               2
-#define RANGE_FAR               3
+// gitem_t->flags
+#define ITEM_FLAG_WEAPON       1       //! "+use" makes active weapon
+#define ITEM_FLAG_AMMO         2
+#define ITEM_FLAG_ARMOR        4
+#define ITEM_FLAG_STAY_COOP    8
+// WID: These don't exist anymore, but can still be reused of course.
+//#define IT_KEY          16
+//#define IT_POWERUP      32
 
-//gib types
-#define GIB_ORGANIC             0
-#define GIB_METALLIC            1
+// gitem_t->weapon_index for weapons indicates model index.
+// NOTE: These must MATCH in ORDER to those in g_spawn.cpp
+#define WEAP_FISTS              1
+#define WEAP_PISTOL             2
+//#define WEAP_SHOTGUN            3
+//#define WEAP_SUPERSHOTGUN       4
+//#define WEAP_MACHINEGUN         5
+//#define WEAP_CHAINGUN           6
+//#define WEAP_GRENADES           7
+//#define WEAP_GRENADELAUNCHER    8
+//#define WEAP_ROCKETLAUNCHER     9
+//#define WEAP_HYPERBLASTER       10
+//#define WEAP_RAILGUN            11
+//#define WEAP_BFG                12
+//#define WEAP_FLAREGUN           13
 
-//monster ai flags
-#define AI_STAND_GROUND         0x00000001
-#define AI_TEMP_STAND_GROUND    0x00000002
-#define AI_SOUND_TARGET         0x00000004
-#define AI_LOST_SIGHT           0x00000008
-#define AI_PURSUIT_LAST_SEEN    0x00000010
-#define AI_PURSUE_NEXT          0x00000020
-#define AI_PURSUE_TEMP          0x00000040
-#define AI_HOLD_FRAME           0x00000080
-#define AI_GOOD_GUY             0x00000100
-#define AI_BRUTAL               0x00000200
-#define AI_NOSTEP               0x00000400
-#define AI_DUCKED               0x00000800
-#define AI_COMBAT_POINT         0x00001000
-#define AI_MEDIC                0x00002000
-#define AI_RESURRECTING         0x00004000
-#define AI_HIGH_TICK_RATE		0x00008000
 
-//monster attack state
-#define AS_STRAIGHT             1
-#define AS_SLIDING              2
-#define AS_MELEE                3
-#define AS_MISSILE              4
+
+/**
+*   @brief  Used to create the items array, where each gitem_t is assigned its
+*           descriptive item values.
+**/
+typedef struct gitem_s {
+    //! Classname.
+    const char *classname; // spawning name
+
+    //! Called right after precaching the item, this allows for weapons to seek for
+    //! the appropriate animation data required for each used distinct weapon mode.
+    void        ( *precached )( const struct gitem_s *item );
+
+    //! Pickup Callback.
+    const bool  ( *pickup )( struct edict_s *ent, struct edict_s *other );
+    //! Use Callback.
+    void        ( *use )( struct edict_s *ent, const struct gitem_s *item );
+    //! Drop Callback.
+    void        ( *drop )( struct edict_s *ent, const struct gitem_s *item );
+
+    //! WeaponThink Callback.
+    void        ( *weaponthink )( struct edict_s *ent, const bool processUserInputOnly );
+
+    //! Path: Pickup Sound.
+    const char *pickup_sound; // WID: C++20: Added const.
+    //! Path: World Model
+    const char *world_model; // WID: C++20: Added const.
+    //! World Model Entity Flags.
+    int32_t     world_model_flags;
+    //! Path: View Weapon Model.
+    const char *view_model;
+
+    //! Client Side Info:
+    const char *icon;
+    //! For printing on 'pickup'.
+    const char *pickup_name;
+    //! Number of digits to display by icon
+    int         count_width;
+
+
+    //! For ammo how much is acquired when picking up, for weapons how much is used per shot.
+    int32_t     quantity;
+    //! Limit of this weapon's capacity per 'clip'.
+    int32_t     clip_capacity;
+    //! For weapons, the name referring to the used Ammo Item type.
+    const char *ammo;
+    // IT_* specific flags.
+    int32_t     flags;
+    //! Weapon ('model'-)index (For weapons):
+    int32_t     weapon_index;
+
+    //! Pointer to item category/type specific info.
+    void *info;
+    //! Identifier for the item's category/type.
+    gitem_tag_t tag;
+
+    //! String of all models, sounds, and images this item will use and needs to precache.
+    const char *precaches;
+} gitem_t;
 
 
 
@@ -444,98 +600,7 @@ typedef enum {
 
 
 
-typedef struct {
-    int32_t base_count;
-    int32_t max_count;
-    float   normal_protection;
-    float   energy_protection;
-    int32_t armor;
-} gitem_armor_t;
 
-
-// gitem_t->flags
-#define ITEM_FLAG_WEAPON       1       //! "+use" makes active weapon
-#define ITEM_FLAG_AMMO         2
-#define ITEM_FLAG_ARMOR        4
-#define ITEM_FLAG_STAY_COOP    8
-// WID: These don't exist anymore, but can still be reused of course.
-//#define IT_KEY          16
-//#define IT_POWERUP      32
-
-// gitem_t->weapon_index for weapons indicates model index.
-// NOTE: These must MATCH in ORDER to those in g_spawn.cpp
-#define WEAP_FISTS              1
-#define WEAP_PISTOL             2
-//#define WEAP_SHOTGUN            3
-//#define WEAP_SUPERSHOTGUN       4
-//#define WEAP_MACHINEGUN         5
-//#define WEAP_CHAINGUN           6
-//#define WEAP_GRENADES           7
-//#define WEAP_GRENADELAUNCHER    8
-//#define WEAP_ROCKETLAUNCHER     9
-//#define WEAP_HYPERBLASTER       10
-//#define WEAP_RAILGUN            11
-//#define WEAP_BFG                12
-//#define WEAP_FLAREGUN           13
-
-/**
-*   @brief  Used to create the items array, where each gitem_t is assigned its
-*           descriptive item values.
-**/
-typedef struct gitem_s {
-	//! Classname.
-    const char  *classname; // spawning name
-    
-    //! Called right after precaching the item, this allows for weapons to seek for
-    //! the appropriate animation data required for each used distinct weapon mode.
-    void        ( *precached )( const struct gitem_s *item );
-
-    //! Pickup Callback.
-    const bool  ( *pickup )( struct edict_s *ent, struct edict_s *other );
-    //! Use Callback.
-    void        ( *use )( struct edict_s *ent, const struct gitem_s *item );
-    //! Drop Callback.
-    void        ( *drop )( struct edict_s *ent, const struct gitem_s *item );
-
-    //! WeaponThink Callback.
-    void        ( *weaponthink )( struct edict_s *ent, const bool processUserInputOnly );
-
-    //! Path: Pickup Sound.
-	const char	*pickup_sound; // WID: C++20: Added const.
-    //! Path: World Model
-	const char	*world_model; // WID: C++20: Added const.
-    //! World Model Entity Flags.
-    int32_t     world_model_flags;
-    //! Path: View Weapon Model.
-	const char	*view_model;
-
-    //! Client Side Info:
-	const char	*icon;
-    //! For printing on 'pickup'.
-	const char	*pickup_name;
-    //! Number of digits to display by icon
-    int         count_width;
-
-
-    //! For ammo how much is acquired when picking up, for weapons how much is used per shot.
-    int32_t     quantity;
-    //! Limit of this weapon's capacity per 'clip'.
-    int32_t     clip_capacity;
-    //! For weapons, the name referring to the used Ammo Item type.
-	const char	*ammo;
-    // IT_* specific flags.
-    int32_t     flags;
-    //! Weapon ('model'-)index (For weapons):
-    int32_t     weapon_index;
-
-    //! Pointer to item category/type specific info.
-    void        *info;
-    //! Identifier for the item's category/type.
-    gitem_tag_t tag;
-
-    //! String of all models, sounds, and images this item will use and needs to precache.
-    const char	*precaches;
-} gitem_t;
 
 /**
 *   @brief  This structure is left intact through an entire game
@@ -703,7 +768,7 @@ typedef struct {
 
     // WID: MoveWith:
     Vector3 lastVelocity;
-} g_pusher_moveinfo_t;
+} g_pushmove_info_t;
 
 /**
 *   @brief  Data for each 'movement' frame of a monster.
@@ -897,15 +962,27 @@ void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parent
 /**
 *   @brief  Dispatches toggling callback of 'usetarget' capable entities.
 **/
-const bool SVG_ToggleUseTarget( edict_t *useTargetEntity, edict_t *activator );
+const bool SVG_UseTarget_Toggle( edict_t *useTargetEntity, edict_t *activator );
 /**
 *   @brief  Dispatches untoggling callback of 'usetarget' capable entities.
 **/
-const bool SVG_UnToggleUseTarget( edict_t *useTargetEntity, edict_t *activator );
+const bool SVG_UseTarget_UnToggle( edict_t *useTargetEntity, edict_t *activator );
 /**
 *   @brief  Dispatches the 'holding of 'usetarget'' callback for capable entities.
 **/
-const bool SVG_HoldUseTarget( edict_t *useTargetEntity, edict_t *activator );
+const bool SVG_UseTarget_Hold( edict_t *useTargetEntity, edict_t *activator );
+/**
+*   @brief  Returns true if the entity has Toggle UseTarget feature enabled.
+**/
+const bool SVG_UseTarget_HasToggleFeature( edict_t *ent );
+/**
+*   @brief  Returns true if the entity has Hold UseTarget feature enabled.
+**/
+const bool SVG_UseTarget_HasHoldFeature( edict_t *ent );
+/**
+*   @brief  Returns true if the entity has Toggle or Hold UseTarget features enabled.
+**/
+const bool SVG_UseTarget_HasToggleHoldFeatures( edict_t *ent );
 
 /**
 *   @brief  Wraps up the new more modern SVG_ProjectSource.
@@ -918,7 +995,7 @@ const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, 
 edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
 edict_t *findradius( edict_t *from, vec3_t org, float rad );
 edict_t *SVG_PickTarget( char *targetname );
-void    SVG_UseTargets( edict_t *ent, edict_t *activator );
+void    SVG_UseTargets( edict_t *ent, edict_t *activator, entity_usetarget_type_t useType = entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, const int32_t useValue = 0 );
 void    SVG_SetMoveDir( vec3_t angles, Vector3 &movedir );
 
 void    SVG_InitEdict( edict_t *e );
@@ -981,7 +1058,7 @@ void BecomeExplosion1( edict_t *self );
 
 #define CLOCK_MESSAGE_SIZE  16
 void func_clock_think( edict_t *self );
-void func_clock_use( edict_t *self, edict_t *other, edict_t *activator );
+void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
 
 //
 // g_ai.c
@@ -1303,11 +1380,24 @@ struct gclient_s {
 
 
     /**
-    *	User Imput:
+    *	User Input:
     **/
     int32_t         buttons;
     int32_t         oldbuttons;
     int32_t         latched_buttons;
+    struct {
+        //! Current usercmd buttons.
+        int32_t     buttons;
+        //! Last frame buttons.
+        int32_t     lastButtons;
+
+        //! Buttons that have been pressed but are now being held down.
+        int32_t     heldButtons;
+        //! Buttons which have been pressed once.
+        int32_t     pressedButtons;
+        //! Buttons which have been released.
+        int32_t     releasedButtons;
+    } userInput;
 
 	/**
 	*	Weapon Related:
@@ -1494,8 +1584,8 @@ struct gclient_s {
         //! The previous frame entity which we were pointing at.
         edict_t *previousEntity;
 
-        //! The state 
-        //! 
+        //! To ensure we check for processing useTargets only once.
+        bool tracedForFrame;
     } useTarget;
 
 	/**
@@ -1602,8 +1692,9 @@ struct edict_s {
     //! The use target features for this entity.
     entity_usetarget_flags_t useTargetFlags;
     //! The use target state for its feature.
-    entity_usetarget_state_e useTargetState;
-    
+    entity_usetarget_state_t useTargetState;
+    //! The time at which this usetarget was 
+
     //
     // Target Fields:
     //
@@ -1678,7 +1769,7 @@ struct edict_s {
     //
     // Not per se, but mostly used for Pushers(Movers):
     //
-    g_pusher_moveinfo_t pusherMoveInfo;
+    g_pushmove_info_t pushMoveInfo;
     float   speed;
     float   accel;
     float   decel;
@@ -1711,13 +1802,15 @@ struct edict_s {
     void        ( *touch )( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
     
     //! Called to 'trigger' the entity.
-    void        ( *use )( edict_t *self, edict_t *other, edict_t *activator );
+    void        ( *use )( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+    #if 0
     //! Called when the entity is targetted and (+usetarget) by a client entity.
     const bool  ( *usetarget_toggle )( edict_t *self, edict_t *activator );
     //! Called when the entity is untargetted by (-usetarget) or lost a client's focus.
     const bool  ( *usetarget_untoggle )( edict_t *self, edict_t *activator );
     //! Called when the entity is continously (+usetarget)-ted
     const bool  ( *usetarget_hold )( edict_t *self, edict_t *activator );
+    #endif
 
     //! Called when it gets damaged.
     void        ( *pain )( edict_t *self, edict_t *other, float kick, int damage );
@@ -1797,7 +1890,7 @@ struct edict_s {
     //! The entity's height above its 'origin', used to state where eyesight is determined.
     int32_t     viewheight;
     //! To take damage or not.
-    int32_t     takedamage;
+    entity_takedamage_t takedamage;
     //! Damage entity will do.
     int32_t     dmg;
     //! Size of the radius where entities within will be damaged.
@@ -1814,10 +1907,10 @@ struct edict_s {
     //
     // Health Conditions:
     //
-    int32_t     health;
-    int32_t     max_health;
-    int32_t     gib_health;
-    int32_t     deadflag;
+    int32_t             health;
+    int32_t             max_health;
+    int32_t             gib_health;
+    entity_deathflag_t  deadflag;
 
     //
     //  Lights:

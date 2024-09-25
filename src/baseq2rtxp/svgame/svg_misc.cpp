@@ -26,7 +26,7 @@ Used to group brushes together just for editor convenience.
 
 //=====================================================
 
-void Use_Areaportal(edict_t *ent, edict_t *other, edict_t *activator)
+void Use_Areaportal(edict_t *ent, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue )
 {
     //ent->count ^= 1;        // toggle state
     int32_t areaPortalState = gi.GetAreaPortalState( ent->style );
@@ -146,7 +146,7 @@ void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
     gib->takedamage = DAMAGE_YES;
     gib->die = gib_die;
 
-    if (type == GIB_ORGANIC) {
+    if (type == GIB_TYPE_ORGANIC) {
         gib->movetype = MOVETYPE_TOSS;
         gib->touch = gib_touch;
         vscale = 0.5f;
@@ -191,7 +191,7 @@ void ThrowHead(edict_t *self, const char *gibname, int damage, int type)
     self->takedamage = DAMAGE_YES;
     self->die = gib_die;
 
-    if (type == GIB_ORGANIC) {
+    if (type == GIB_TYPE_ORGANIC) {
         self->movetype = MOVETYPE_TOSS;
         self->touch = gib_touch;
         vscale = 0.5f;
@@ -516,7 +516,7 @@ Default _cone value is 10 (used to set size of light for spotlights)
 
 #define START_OFF   1
 
-void light_use( edict_t *self, edict_t *other, edict_t *activator ) {
+void light_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
     if ( self->spawnflags & START_OFF ) {
         if ( self->customLightStyle ) {
             gi.configstring( CS_LIGHTS + self->style, self->customLightStyle );
@@ -574,7 +574,7 @@ START_ON        only valid for TRIGGER_SPAWN walls
                 the wall will initially be present
 */
 
-void func_wall_use(edict_t *self, edict_t *other, edict_t *activator)
+void func_wall_use(edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue )
 {
     if (self->solid == SOLID_NOT) {
         self->solid = SOLID_BSP;
@@ -658,7 +658,7 @@ void func_object_release(edict_t *self)
     self->touch = func_object_touch;
 }
 
-void func_object_use(edict_t *self, edict_t *other, edict_t *activator)
+void func_object_use(edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue )
 {
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
@@ -776,12 +776,12 @@ void func_explosive_explode(edict_t *self, edict_t *inflictor, edict_t *attacker
         SVG_FreeEdict(self);
 }
 
-void func_explosive_use(edict_t *self, edict_t *other, edict_t *activator)
+void func_explosive_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue )
 {
     func_explosive_explode(self, self, activator, self->health, self->s.origin);
 }
 
-void func_explosive_spawn(edict_t *self, edict_t *other, edict_t *activator)
+void func_explosive_spawn( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue )
 {
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
@@ -1006,7 +1006,7 @@ void SP_misc_gib_arm(edict_t *ent)
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
     ent->svflags |= SVF_MONSTER;
-    ent->deadflag = DEAD_DEAD;
+    ent->deadflag = DEADFLAG_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;
     ent->avelocity[2] = random() * 200;
@@ -1028,7 +1028,7 @@ void SP_misc_gib_leg(edict_t *ent)
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
     ent->svflags |= SVF_MONSTER;
-    ent->deadflag = DEAD_DEAD;
+    ent->deadflag = DEADFLAG_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;
     ent->avelocity[2] = random() * 200;
@@ -1050,7 +1050,7 @@ void SP_misc_gib_head(edict_t *ent)
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
     ent->svflags |= SVF_MONSTER;
-    ent->deadflag = DEAD_DEAD;
+    ent->deadflag = DEADFLAG_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;
     ent->avelocity[2] = random() * 200;
@@ -1081,7 +1081,7 @@ void SP_target_character(edict_t *self)
 /*QUAKED target_string (0 0 1) (-8 -8 -8) (8 8 8)
 */
 
-void target_string_use(edict_t *self, edict_t *other, edict_t *activator)
+void target_string_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue )
 {
     edict_t *e;
     int     n, l;
@@ -1197,7 +1197,7 @@ void func_clock_think(edict_t *self)
     }
 
     self->enemy->message = self->message;
-    self->enemy->use(self->enemy, self, self);
+    self->enemy->use(self->enemy, self, self, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
 
     if (((self->spawnflags & 1) && (self->health > self->wait)) ||
         ((self->spawnflags & 2) && (self->health < self->wait))) {
@@ -1226,7 +1226,7 @@ void func_clock_think(edict_t *self)
 	self->nextthink = level.time + 1_sec;
 }
 
-void func_clock_use(edict_t *self, edict_t *other, edict_t *activator)
+void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue  )
 {
     if (!(self->spawnflags & 8))
         self->use = NULL;

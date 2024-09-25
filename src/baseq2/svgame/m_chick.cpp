@@ -342,19 +342,19 @@ void chick_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 2; n++)
-            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_ORGANIC);
+            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_ORGANIC);
-        self->deadflag = DEAD_DEAD;
+            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
+        self->deadflag = DEADFLAG_DEAD;
         return;
     }
 
-    if (self->deadflag == DEAD_DEAD)
+    if (self->deadflag == DEADFLAG_DEAD)
         return;
 
 // regular death
-    self->deadflag = DEAD_DEAD;
+    self->deadflag = DEADFLAG_DEAD;
     self->takedamage = DAMAGE_YES;
 
     n = Q_rand() % 2;
@@ -505,7 +505,7 @@ mmove_t chick_move_end_attack1 = {FRAME_attak128, FRAME_attak132, chick_frames_e
 void chick_rerocket(edict_t *self)
 {
     if (self->enemy->health > 0) {
-        if (range(self, self->enemy) > RANGE_MELEE)
+        if (range(self, self->enemy) > RANGE_DISTANCE_MELEE)
             if (visible(self, self->enemy))
                 if (random() <= 0.6f) {
                     M_SetAnimation( self, &chick_move_attack1 );
@@ -545,7 +545,7 @@ mmove_t chick_move_end_slash = {FRAME_attak213, FRAME_attak216, chick_frames_end
 void chick_reslash(edict_t *self)
 {
     if (self->enemy->health > 0) {
-        if (range(self, self->enemy) == RANGE_MELEE) {
+        if (range(self, self->enemy) == RANGE_DISTANCE_MELEE) {
             if (random() <= 0.9f) {
                 M_SetAnimation( self, &chick_move_slash );
                 return;

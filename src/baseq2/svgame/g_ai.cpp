@@ -252,12 +252,12 @@ int range(edict_t *self, edict_t *other)
     VectorSubtract(self->s.origin, other->s.origin, v);
     len = VectorLength(v);
     if (len < MELEE_DISTANCE)
-        return RANGE_MELEE;
+        return RANGE_DISTANCE_MELEE;
     if (len < 500)
-        return RANGE_NEAR;
+        return RANGE_DISTANCE_NEAR;
     if (len < 1000)
-        return RANGE_MID;
-    return RANGE_FAR;
+        return RANGE_DISTANCE_MID;
+    return RANGE_DISTANCE_FAR;
 }
 
 /*
@@ -452,7 +452,7 @@ bool FindTarget(edict_t *self)
     if (!heardit) {
         r = range(self, client);
 
-        if (r == RANGE_FAR)
+        if (r == RANGE_DISTANCE_FAR)
             return false;
 
 // this is where we would check invisibility
@@ -465,11 +465,11 @@ bool FindTarget(edict_t *self)
             return false;
         }
 
-        if (r == RANGE_NEAR) {
+        if (r == RANGE_DISTANCE_NEAR) {
             if (client->show_hostile < level.time && !infront(self, client)) {
                 return false;
             }
-        } else if (r == RANGE_MID) {
+        } else if (r == RANGE_DISTANCE_MID) {
             if (!infront(self, client)) {
                 return false;
             }
@@ -577,7 +577,7 @@ bool M_CheckAttack(edict_t *self)
     }
 
     // melee attack
-    if (enemy_range == RANGE_MELEE) {
+    if (enemy_range == RANGE_DISTANCE_MELEE) {
         // don't always melee in easy mode
         if (skill->value == 0 && (Q_rand() & 3))
             return false;
@@ -595,16 +595,16 @@ bool M_CheckAttack(edict_t *self)
     if (level.time < self->monsterinfo.attack_finished)
         return false;
 
-    if (enemy_range == RANGE_FAR)
+    if (enemy_range == RANGE_DISTANCE_FAR)
         return false;
 
     if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
         chance = 0.4f;
-    } else if (enemy_range == RANGE_MELEE) {
+    } else if (enemy_range == RANGE_DISTANCE_MELEE) {
         chance = 0.2f;
-    } else if (enemy_range == RANGE_NEAR) {
+    } else if (enemy_range == RANGE_DISTANCE_NEAR) {
         chance = 0.1f;
-    } else if (enemy_range == RANGE_MID) {
+    } else if (enemy_range == RANGE_DISTANCE_MID) {
         chance = 0.02f;
     } else {
         return false;

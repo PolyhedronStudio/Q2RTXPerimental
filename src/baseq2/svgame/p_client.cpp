@@ -535,7 +535,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         //! Throw 4 small meat gibs around.
         for ( n = 0; n < 4; n++ ) {
-            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC );
+            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
         }
         // Turn ourself into the thrown head entity.
         ThrowClientHead(self, damage);
@@ -573,7 +573,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         }
     }
 
-    self->deadflag = DEAD_DEAD;
+    self->deadflag = DEADFLAG_DEAD;
 
     gi.linkentity(self);
 }
@@ -930,7 +930,7 @@ void body_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
     if (self->health < -40) {
         gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
+            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
         self->s.origin[2] -= 48;
         ThrowClientHead(self, damage);
         self->takedamage = DAMAGE_NO;
@@ -1175,7 +1175,7 @@ void PutClientInServer(edict_t *ent)
     ent->classname = "player";
     ent->mass = 200;
     ent->solid = SOLID_BOUNDS_BOX;
-    ent->deadflag = DEAD_NO;
+    ent->deadflag = DEADFLAG_NO;
     ent->air_finished_time = level.time + 12_sec;
     ent->clipmask = static_cast<contents_t>( MASK_PLAYERSOLID );
     ent->model = "players/male/tris.md2";

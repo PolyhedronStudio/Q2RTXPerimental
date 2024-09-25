@@ -719,21 +719,21 @@ void tank_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 1 /*4*/; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
+            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", damage, GIB_METALLIC);
-        ThrowGib(self, "models/objects/gibs/chest/tris.md2", damage, GIB_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/gear/tris.md2", damage, GIB_METALLIC);
-        self->deadflag = DEAD_DEAD;
+            ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", damage, GIB_TYPE_METALLIC);
+        ThrowGib(self, "models/objects/gibs/chest/tris.md2", damage, GIB_TYPE_ORGANIC);
+        ThrowHead(self, "models/objects/gibs/gear/tris.md2", damage, GIB_TYPE_METALLIC);
+        self->deadflag = DEADFLAG_DEAD;
         return;
     }
 
-    if (self->deadflag == DEAD_DEAD)
+    if (self->deadflag == DEADFLAG_DEAD)
         return;
 
 // regular death
     gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
-    self->deadflag = DEAD_DEAD;
+    self->deadflag = DEADFLAG_DEAD;
     self->takedamage = DAMAGE_YES;
 
 	M_SetAnimation( self, &tank_move_death );

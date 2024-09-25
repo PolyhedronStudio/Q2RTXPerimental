@@ -48,27 +48,27 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
     //self->nextthink = level.time + 20_hz;
     //self->think = barrel_explode;
 
-    if ( self->deadflag == DEAD_DEAD ) {
+    if ( self->deadflag == DEADFLAG_DEAD ) {
         return;
     }
 
-    if ( self->deadflag == DEAD_DYING ) {
+    if ( self->deadflag == DEADFLAG_DYING ) {
         // Gib Death:
         if ( self->health < -40 ) {
             // Play gib sound.
             gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
             //! Throw 4 small meat gibs around.
             for ( int32_t n = 0; n < 4; n++ ) {
-                ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC );
+                ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
             }
             // Turn ourself into the thrown head entity.
-            ThrowHead( self, "models/objects/gibs/head2/tris.md2", damage, GIB_ORGANIC );
+            ThrowHead( self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC );
 
             // Gibs don't take damage, but fade away as time passes.
             self->takedamage = DAMAGE_NO;
 
             // Set deadflag.
-            self->deadflag = DEAD_DEAD;
+            self->deadflag = DEADFLAG_DEAD;
         }
     }
     // Set activator.
@@ -77,7 +77,7 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
     //---------------------------
     // <TEMPORARY FOR TESTING>
     //---------------------------
-    if ( self->deadflag == DEAD_NO ) {
+    if ( self->deadflag == DEADFLAG_NO ) {
         // Pick a random death animation.
         int32_t deathanim = irandom( 3 );
         if ( deathanim == 0 ) {
@@ -88,7 +88,7 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
             self->s.frame = 801;
         }
          
-        self->deadflag = DEAD_DYING;
+        self->deadflag = DEADFLAG_DYING;
         // Set this here so the entity does not block traces while playing death animation.
         self->svflags |= SVF_DEADMONSTER;
     } else if ( self->s.frame == 643 ) {
@@ -305,7 +305,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 // Last but not least, make sure to link it back in.
                 gi.linkentity( self );
             }
-        } else if ( self->deadflag == DEAD_NO ) {
+        } else if ( self->deadflag == DEADFLAG_NO ) {
             self->s.frame++;
             if ( self->s.frame >= 82 ) {
                 self->s.frame = 0;
@@ -315,7 +315,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
         // </TEMPORARY FOR TESTING>
         //---------------------------
     } else {
-        if ( self->deadflag != DEAD_NO ) {
+        if ( self->deadflag != DEADFLAG_NO ) {
             if ( self->s.frame >= 512 && self->s.frame < 642 ) {
                 // Forward Death 01.
                 self->s.frame++;
@@ -417,7 +417,7 @@ void SP_monster_testdummy_puppet( edict_t *self ) {
     //self->use = monster_use;
     self->max_health = self->health;
     self->clipmask = MASK_MONSTERSOLID;
-    self->deadflag = DEAD_NO;
+    self->deadflag = DEADFLAG_NO;
     self->svflags &= ~SVF_DEADMONSTER;
 
     // Touch:

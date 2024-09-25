@@ -179,7 +179,7 @@ void door_go_up( edict_t *self, edict_t *activator ) {
 /**
 *	@brief
 **/
-void door_use( edict_t *self, edict_t *other, edict_t *activator ) {
+void door_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
     edict_t *ent;
 
     if ( self->flags & FL_TEAMSLAVE )
@@ -249,7 +249,7 @@ void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
         ent->health = ent->max_health;
         ent->takedamage = DAMAGE_NO;
     }
-    door_use( self->teammaster, attacker, attacker );
+    door_use( self->teammaster, attacker, attacker, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 0 );
 }
 
 /**

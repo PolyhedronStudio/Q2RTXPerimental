@@ -651,20 +651,20 @@ void makron_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 1 /*4*/; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_ORGANIC);
+            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", damage, GIB_METALLIC);
-        ThrowHead(self, "models/objects/gibs/gear/tris.md2", damage, GIB_METALLIC);
-        self->deadflag = DEAD_DEAD;
+            ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", damage, GIB_TYPE_METALLIC);
+        ThrowHead(self, "models/objects/gibs/gear/tris.md2", damage, GIB_TYPE_METALLIC);
+        self->deadflag = DEADFLAG_DEAD;
         return;
     }
 
-    if (self->deadflag == DEAD_DEAD)
+    if (self->deadflag == DEADFLAG_DEAD)
         return;
 
 // regular death
     gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
-    self->deadflag = DEAD_DEAD;
+    self->deadflag = DEADFLAG_DEAD;
     self->takedamage = DAMAGE_YES;
 
     tempent = G_AllocateEdict();
@@ -708,7 +708,7 @@ bool Makron_CheckAttack(edict_t *self)
 
 
     // melee attack
-    if (enemy_range == RANGE_MELEE) {
+    if (enemy_range == RANGE_DISTANCE_MELEE) {
         if (self->monsterinfo.melee)
             self->monsterinfo.attack_state = AS_MELEE;
         else
@@ -723,16 +723,16 @@ bool Makron_CheckAttack(edict_t *self)
     if (level.time < self->monsterinfo.attack_finished)
         return false;
 
-    if (enemy_range == RANGE_FAR)
+    if (enemy_range == RANGE_DISTANCE_FAR)
         return false;
 
     if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
         chance = 0.4f;
-    } else if (enemy_range == RANGE_MELEE) {
+    } else if (enemy_range == RANGE_DISTANCE_MELEE) {
         chance = 0.8f;
-    } else if (enemy_range == RANGE_NEAR) {
+    } else if (enemy_range == RANGE_DISTANCE_NEAR) {
         chance = 0.4f;
-    } else if (enemy_range == RANGE_MID) {
+    } else if (enemy_range == RANGE_DISTANCE_MID) {
         chance = 0.2f;
     } else {
         return false;

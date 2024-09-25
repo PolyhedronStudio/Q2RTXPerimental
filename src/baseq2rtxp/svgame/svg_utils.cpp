@@ -184,9 +184,9 @@ match (string)self.target and call their .use function
 
 ==============================
 */
-void SVG_UseTargets(edict_t *ent, edict_t *activator)
-{
+void SVG_UseTargets(edict_t *ent, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
     edict_t     *t;
+
 
 //
 // check for a delay
@@ -247,8 +247,9 @@ void SVG_UseTargets(edict_t *ent, edict_t *activator)
             if (t == ent) {
                 gi.dprintf("WARNING: Entity used itself.\n");
             } else {
-                if (t->use)
-                    t->use(t, ent, activator);
+                if ( t->use ) {
+                    t->use( t, ent, activator, useType, useValue );
+                }
             }
             if (!ent->inuse) {
                 gi.dprintf("entity was removed while using targets\n");
@@ -258,73 +259,90 @@ void SVG_UseTargets(edict_t *ent, edict_t *activator)
     }
 }
 
+///**
+//*   @brief  Dispatches toggling callback of 'usetarget' capable entities.
+//**/
+//const bool SVG_UseTarget_Toggle( edict_t *useTargetEntity, edict_t *activator ) {
+//    // It has to be a valid pointer, have a callback set.
+//    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_toggle ) {
+//        // Make sure that the entity has use (+usetarget) toggling or holding feature set.
+//        //if ( ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE )
+//        //    || ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) ) {
+//            // Make sure that it is not (temporarily-) disabled however.
+//            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
+//                #if 0
+//                // 
+//                const bool result = useTargetEntity->usetarget_toggle( useTargetEntity, activator );
+//                // Apply use target state.
+//                if ( result ) {
+//                    useTargetEntity->useTargetState = (entity_usetarget_state_t)( useTargetEntity->useTargetState | ENTITY_USETARGET_STATE_TOGGLED );
+//                }
+//                // Return result.
+//                return result;
+//                #endif
+//                return useTargetEntity->usetarget_toggle( useTargetEntity, activator );
+//            }
+//        //}
+//    }
+//
+//    // Didn't actually toggle.
+//    return false;
+//}
+///**
+//*   @brief  Dispatches untoggling callback of 'usetarget' capable entities.
+//**/
+//const bool SVG_UseTarget_UnToggle( edict_t *useTargetEntity, edict_t *activator ) {
+//    // It has to be a valid pointer, have a callback set.
+//    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_untoggle ) {
+//        // Make sure that the entity has use (+usetarget) toggling or holding feature set.
+//        //if ( ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE )
+//        //    || ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) ) {
+//            // Make sure that it is not (temporarily-) disabled however.
+//            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
+//                return useTargetEntity->usetarget_untoggle( useTargetEntity, activator );
+//            }
+//        //}
+//    }
+//
+//    // Didn't actually untoggle.
+//    return false;
+//}
+///**
+//*   @brief  Dispatches the 'holding of 'usetarget'' callback for capable entities.
+//**/
+//const bool SVG_UseTarget_Hold( edict_t *useTargetEntity, edict_t *activator ) {
+//    // It has to be a valid pointer, have a callback set.
+//    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_hold ) {
+//        // Make sure that the entity has use (+usetarget) holding feature set.
+//        //if ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) {
+//            // Make sure that it is not (temporarily-) disabled however.
+//            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
+//                return useTargetEntity->usetarget_hold( useTargetEntity, activator );
+//            }
+//        //}
+//    }
+//
+//    // Isn't holding anymore.
+//    return false;
+//}
 /**
-*   @brief  Dispatches toggling callback of 'usetarget' capable entities.
+*   @brief  Returns true if the entity has Toggle UseTarget feature enabled.
 **/
-const bool SVG_ToggleUseTarget( edict_t *useTargetEntity, edict_t *activator ) {
-    // It has to be a valid pointer, have a callback set.
-    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_toggle ) {
-        // Make sure that the entity has use (+usetarget) toggling or holding feature set.
-        if ( ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE )
-            || ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) ) {
-            // Make sure that it is not (temporarily-) disabled however.
-            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
-                #if 0
-                // 
-                const bool result = useTargetEntity->usetarget_toggle( useTargetEntity, activator );
-                // Apply use target state.
-                if ( result ) {
-                    useTargetEntity->useTargetState = (entity_usetarget_state_t)( useTargetEntity->useTargetState | ENTITY_USETARGET_STATE_IS_TOGGLED );
-                }
-                // Return result.
-                return result;
-                #endif
-                return useTargetEntity->usetarget_toggle( useTargetEntity, activator );
-            }
-        }
-    }
-
-    // Didn't actually toggle.
-    return false;
+const bool SVG_UseTarget_HasToggleFeature( edict_t *ent ) {
+    return ent->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE;
 }
 /**
-*   @brief  Dispatches untoggling callback of 'usetarget' capable entities.
+*   @brief  Returns true if the entity has Hold UseTarget feature enabled.
 **/
-const bool SVG_UnToggleUseTarget( edict_t *useTargetEntity, edict_t *activator ) {
-    // It has to be a valid pointer, have a callback set.
-    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_untoggle ) {
-        // Make sure that the entity has use (+usetarget) toggling or holding feature set.
-        if ( ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE )
-            || ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) ) {
-            // Make sure that it is not (temporarily-) disabled however.
-            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
-                return useTargetEntity->usetarget_untoggle( useTargetEntity, activator );
-            }
-        }
-    }
-
-    // Didn't actually untoggle.
-    return false;
+const bool SVG_UseTarget_HasHoldFeature( edict_t *ent ) {
+    return ent->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD;
 }
 /**
-*   @brief  Dispatches the 'holding of 'usetarget'' callback for capable entities.
+*   @brief  Returns true if the entity has Toggle or Hold UseTarget features enabled.
 **/
-const bool SVG_HoldUseTarget( edict_t *useTargetEntity, edict_t *activator ) {
-    // It has to be a valid pointer, have a callback set.
-    if ( useTargetEntity && useTargetEntity->inuse && useTargetEntity->usetarget_hold ) {
-        // Make sure that the entity has use (+usetarget) holding feature set.
-        if ( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD ) {
-            // Make sure that it is not (temporarily-) disabled however.
-            if ( !( useTargetEntity->useTargetFlags & ENTITY_USETARGET_FLAG_DISABLED ) ) {
-                return useTargetEntity->usetarget_hold( useTargetEntity, activator );
-            }
-        }
-    }
-
-    // Isn't holding anymore.
-    return false;
+const bool SVG_UseTarget_HasToggleHoldFeatures( edict_t *ent ) {
+    return ( ent->useTargetFlags & ENTITY_USETARGET_FLAG_HOLD && ent->useTargetFlags & ENTITY_USETARGET_FLAG_TOGGLE );
 }
-
 
 vec3_t VEC_UP       = {0, -1, 0};
 vec3_t MOVEDIR_UP   = {0, 0, 1};
@@ -798,8 +816,8 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
     Vector3 childOrigin = childMover->s.origin;
     childOrigin += deltaParentOrigin;
     // Adjust desired pusher origins.
-    childMover->pusherMoveInfo.start_origin += deltaParentOrigin;
-    childMover->pusherMoveInfo.end_origin += deltaParentOrigin;
+    childMover->pushMoveInfo.start_origin += deltaParentOrigin;
+    childMover->pushMoveInfo.end_origin += deltaParentOrigin;
     childMover->pos1 += deltaParentOrigin;
     childMover->pos2 += deltaParentOrigin;
     VectorCopy( childOrigin, childMover->s.origin );
@@ -813,7 +831,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 //  VectorMA( moveWithEntity->s.origin, ent->moveWith.originOffset[ 0 ], forward, ent->pos1 );
 //  VectorMA( ent->pos1, ent->moveWith.originOffset[ 1 ], right, ent->pos1 );
 //  VectorMA( ent->pos1, ent->moveWith.originOffset[ 2 ], up, ent->pos1 );
-//  VectorMA( ent->pos1, ent->pusherMoveInfo.distance, ent->movedir, ent->pos2 );
+//  VectorMA( ent->pos1, ent->pushMoveInfo.distance, ent->movedir, ent->pos2 );
     Vector3 childOrigin = childMover->s.origin;
     childOrigin += deltaParentOrigin;
     //VectorCopy( childOrigin, childMover->s.origin );
@@ -821,26 +839,26 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
     childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, deltaParentOrigin.x, parentVForward );
     childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, deltaParentOrigin.y, parentVRight );
     childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, deltaParentOrigin.z, parentVUp );
-    childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos1, childMover->pusherMoveInfo.distance, childMover->movedir );
+    childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos1, childMover->pushMoveInfo.distance, childMover->movedir );
 
 
 
 
-//  VectorCopy( ent->pos1, ent->pusherMoveInfo.start_origin );
-//  VectorCopy( ent->s.angles, ent->pusherMoveInfo.start_angles );
-//  VectorCopy( ent->pos2, ent->pusherMoveInfo.end_origin );
-//  VectorCopy( ent->s.angles, ent->pusherMoveInfo.end_angles );
-    childMover->pusherMoveInfo.start_origin = childMover->pos1;
-    childMover->pusherMoveInfo.end_origin = childMover->pos2;
-    childMover->pusherMoveInfo.start_angles = childMover->s.angles;
-    childMover->pusherMoveInfo.end_angles = childMover->s.angles;
+//  VectorCopy( ent->pos1, ent->pushMoveInfo.start_origin );
+//  VectorCopy( ent->s.angles, ent->pushMoveInfo.start_angles );
+//  VectorCopy( ent->pos2, ent->pushMoveInfo.end_origin );
+//  VectorCopy( ent->s.angles, ent->pushMoveInfo.end_angles );
+    childMover->pushMoveInfo.start_origin = childMover->pos1;
+    childMover->pushMoveInfo.end_origin = childMover->pos2;
+    childMover->pushMoveInfo.start_angles = childMover->s.angles;
+    childMover->pushMoveInfo.end_angles = childMover->s.angles;
 
-    if ( childMover->pusherMoveInfo.state == 0/*STATE_BOTTOM*/ || childMover->pusherMoveInfo.state == 1/*STATE_TOP*/ ) {
+    if ( childMover->pushMoveInfo.state == 0/*PUSHMOVE_STATE_BOTTOM*/ || childMover->pushMoveInfo.state == 1/*PUSHMOVE_STATE_TOP*/ ) {
         // Velocities for door/button movement are handled in normal
         // movement routines
         VectorCopy( parentMover->velocity, childMover->velocity );
         // Sanity insurance:
-        if ( childMover->pusherMoveInfo.state == 0/*STATE_BOTTOM*/ ) {
+        if ( childMover->pushMoveInfo.state == 0/*PUSHMOVE_STATE_BOTTOM*/ ) {
             VectorCopy( childMover->pos1, childMover->s.origin );
         } else {
             VectorCopy( childMover->pos2, childMover->s.origin );
@@ -859,8 +877,8 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
     //childAngles = QM_Vector3AngleMod( childAngles + deltaParentAngles );
 
     //// Adjust desired pusher angles.
-    //childMover->pusherMoveInfo.start_angles = QM_Vector3AngleMod( childMover->pusherMoveInfo.start_angles + deltaParentAngles );
-    //childMover->pusherMoveInfo.end_angles = QM_Vector3AngleMod( childMover->pusherMoveInfo.end_angles + deltaParentAngles );
+    //childMover->pushMoveInfo.start_angles = QM_Vector3AngleMod( childMover->pushMoveInfo.start_angles + deltaParentAngles );
+    //childMover->pushMoveInfo.end_angles = QM_Vector3AngleMod( childMover->pushMoveInfo.end_angles + deltaParentAngles );
     //VectorCopy( childAngles, childMover->s.angles );
 
     // We're done, link it back in.
@@ -900,8 +918,8 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 //        Vector3 newOrigin = parentOrigin + moveWithEntity->moveWith.originOffset + diffOrigin;
 //        
 //        //VectorCopy( newOrigin, ent->s.origin );
-//        #define STATE_TOP           0
-//        #define STATE_BOTTOM        1
+//        #define PUSHMOVE_STATE_TOP           0
+//        #define PUSHMOVE_STATE_BOTTOM        1
 //        #define STATE_UP            2
 //        #define STATE_DOWN          3
 //        
@@ -917,17 +935,17 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 //        VectorMA( moveWithEntity->s.origin, ent->moveWith.originOffset[ 0 ], forward, ent->pos1 );
 //        VectorMA( ent->pos1, ent->moveWith.originOffset[ 1 ], right, ent->pos1 );
 //        VectorMA( ent->pos1, ent->moveWith.originOffset[ 2 ], up, ent->pos1 );
-//        VectorMA( ent->pos1, ent->pusherMoveInfo.distance, ent->movedir, ent->pos2 );
-//        VectorCopy( ent->pos1, ent->pusherMoveInfo.start_origin );
-//        VectorCopy( ent->s.angles, ent->pusherMoveInfo.start_angles );
-//        VectorCopy( ent->pos2, ent->pusherMoveInfo.end_origin );
-//        VectorCopy( ent->s.angles, ent->pusherMoveInfo.end_angles );
-//        if ( ent->pusherMoveInfo.state == STATE_BOTTOM || ent->pusherMoveInfo.state == STATE_TOP ) {
+//        VectorMA( ent->pos1, ent->pushMoveInfo.distance, ent->movedir, ent->pos2 );
+//        VectorCopy( ent->pos1, ent->pushMoveInfo.start_origin );
+//        VectorCopy( ent->s.angles, ent->pushMoveInfo.start_angles );
+//        VectorCopy( ent->pos2, ent->pushMoveInfo.end_origin );
+//        VectorCopy( ent->s.angles, ent->pushMoveInfo.end_angles );
+//        if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM || ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
 //            // Velocities for door/button movement are handled in normal
 //            // movement routines
 //            VectorCopy( moveWithEntity->velocity, ent->velocity );
 //            // Sanity insurance:
-//            if ( ent->pusherMoveInfo.state == STATE_BOTTOM ) {
+//            if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM ) {
 //                VectorCopy( ent->pos1, ent->s.origin );
 //            } else {
 //                VectorCopy( ent->pos2, ent->s.origin );
