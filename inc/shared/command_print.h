@@ -56,7 +56,7 @@ q_noreturn q_printf( 2, 3 );
     do { if (!(expr)) Com_Error(ERR_FATAL, "%s: assertion `%s' failed", __func__, #expr); } while (0)
 //! WID: For when cvar developer >= 1
 #define Q_DevAssert(expr) \
-    do { if ( !(expr)) Com_LPrintf( PRINT_DEVELOPER, "%s:%s:%s: DevAssert failed: `%s'\n", __FILE__, __func__, __LINE__, #expr); } while (0)
+    do { if ( !(expr)) Com_LPrintf( PRINT_DEVELOPER, "%s:%s:%d: DevAssert failed: `%s'\n", __FILE__, __func__, __LINE__, #expr); } while (0)
 //! WID: For when cvar developer >= 1
 #define Q_DevPrint(...) \
     do { Com_LPrintf( PRINT_DEVELOPER, "%s:%s:%d: %s\n", __FILE__, __func__, __LINE__, __VA_ARGS__ ); } while (0)

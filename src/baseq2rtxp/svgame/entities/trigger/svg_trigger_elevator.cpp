@@ -19,7 +19,7 @@
 
 /*QUAKED trigger_elevator (0.3 0.1 0.6) (-8 -8 -8) (8 8 8)
 */
-void trigger_elevator_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
+void trigger_elevator_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     edict_t *target;
 
     if ( self->movetarget->nextthink ) {

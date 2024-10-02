@@ -38,14 +38,14 @@
 
 
 
-//! Uncomment to enable failure to load developer output.
+//! Uncomment to disable failure to load developer output.
 #define _DEBUG_PRINT_SKM_CONFIGURATION_LOAD_FAILURE
 
-//! Uncomment to enable debug developer output for failing to parse the configuration file.
+//! Uncomment to disable debug developer output for failing to parse the configuration file.
 #define _DEBUG_PRINT_SKM_CONFIGURATION_PARSE_FAILURE
 
 //! Uncomment to enable debug developer output of the (depth indented-) bone tree structure.
-#define _DEBUG_PRINT_SKM_BONE_TREE_STRUCTURE
+//#define _DEBUG_PRINT_SKM_BONE_TREE_STRUCTURE
 
 
 

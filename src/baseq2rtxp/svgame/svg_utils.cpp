@@ -129,7 +129,7 @@ match (string)self.target and call their .use function
 
 ==============================
 */
-void SVG_UseTargets(edict_t *ent, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
+void SVG_UseTargets(edict_t *ent, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     edict_t     *t;
 
 

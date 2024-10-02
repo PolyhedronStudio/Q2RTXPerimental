@@ -60,7 +60,7 @@ Features being looked forward on implementation.
 * [-] Implement Lua for game state logic and dynamics.
 	- [ ] Fix the script file loaded up leaking memory. FS_LoadFileEx(other tag)_
 	- [ ] Make buttons lockable lol.
-* [ ] * [ ] Implement model events for animations:
+* [ ] Implement model events for animations:
 	* [ ] Footsteps implemented using this.
 * [ ] Experiment with Head/Torso/Hips separated animation actions.
 	- [ ] Create torso anim actions for fists, pistol, and rifle.
@@ -80,6 +80,7 @@ Features being looked forward on implementation.
 	- [ ] And an entity you can 'pick up and move around' for the lulz.
 
 ### Low Priority:
+* [X] Get our own button sound files, also, for press(start) and unpress(end) states.
 * [ ] Fix up proper C++ enums issue with the whole int32_t by implementing appropriate operators... sigh..._
 * [ ] Use our own C version of glmatrix.net and adjust(C++ify also), and streamline it as the math lib for use.
 * [ ] Have bullet impact display material ``kind`` specific puffs?

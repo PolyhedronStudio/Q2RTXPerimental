@@ -34,7 +34,7 @@ void func_timer_think( edict_t *self ) {
     self->nextthink = level.time + sg_time_t::from_sec( self->wait + crandom() * self->random );
 }
 
-void func_timer_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
+void func_timer_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     self->activator = activator;
 
     // if on, turn it off

@@ -181,7 +181,7 @@ void func_train_find( edict_t *self ) {
     }
 }
 
-void train_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
+void train_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     self->activator = activator;
 
     if ( self->spawnflags & TRAIN_START_ON ) {

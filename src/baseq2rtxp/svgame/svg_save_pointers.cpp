@@ -83,7 +83,7 @@ extern void button_press_move_done( edict_t *self );
 #endif
 extern void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void button_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void button_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void debris_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 
@@ -94,7 +94,7 @@ extern void door_hit_top( edict_t *self );
 extern void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void door_postspawn( edict_t *self );
 extern void door_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void door_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 #if 0
 extern void door_secret_blocked( edict_t *self, edict_t *other );
 extern void door_secret_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
@@ -115,34 +115,34 @@ extern void drop_temp_touch( edict_t *self, edict_t *other, cplane_t *plane, csu
 extern void droptofloor( edict_t *self );
 
 extern void func_clock_think( edict_t *self );
-extern void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
-extern void func_conveyor_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void func_conveyor_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
-extern void func_explosive_spawn( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void func_explosive_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void func_explosive_spawn( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void func_explosive_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void func_object_release( edict_t *self );
 extern void func_object_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void func_object_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void func_object_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void func_timer_think( edict_t *self );
-extern void func_timer_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void func_timer_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void func_train_find( edict_t *self );
 
-extern void func_wall_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void func_wall_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void SVG_FreeEdict( edict_t *self );
 extern void gib_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void gib_think( edict_t *self );
 extern void gib_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void hurt_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void hurt_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void hurt_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void spotlight_think( edict_t *self );
-extern void spotlight_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void light_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void spotlight_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void light_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void M_droptofloor( edict_t *self );
 extern void MegaHealth_think( edict_t *self );
 extern void SVG_PushMove_MoveBegin( edict_t *ent );
@@ -159,19 +159,19 @@ extern void player_pain( edict_t *self, edict_t *other, float kick, int damage )
 extern void point_combat_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void rotating_blocked( edict_t *self, edict_t *other );
 extern void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void rotating_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void SP_CreateCoopSpots( edict_t *self  );
 extern void SP_FixCoopSpots( edict_t *self );
 extern void target_crosslevel_target_think( edict_t *self );
 extern void target_earthquake_think( edict_t *self );
-extern void target_earthquake_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void target_earthquake_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void target_explosion_explode( edict_t *self );
 extern void target_laser_start( edict_t *self );
 extern void target_laser_think( edict_t *self );
-extern void target_laser_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void target_laser_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void target_lightramp_think( edict_t *self );
-extern void target_lightramp_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void target_string_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void target_lightramp_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void target_string_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void teleporter_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void TH_viewthing( edict_t *ent );
 extern void SVG_PushMove_Think_AccelerateMove( edict_t *self );
@@ -184,31 +184,31 @@ extern void Touch_Multi( edict_t *ent, edict_t *other, cplane_t *plane, csurface
 extern void Touch_Plat_Center( edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void train_blocked( edict_t *self, edict_t *other );
 extern void train_next( edict_t *self );
-extern void train_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void train_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void train_wait( edict_t *self );
-extern void trigger_counter_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void trigger_crosslevel_trigger_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void trigger_counter_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void trigger_crosslevel_trigger_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void trigger_elevator_init( edict_t *self );
-extern void trigger_elevator_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void trigger_enable( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void trigger_elevator_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void trigger_enable( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void trigger_gravity_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void trigger_monsterjump_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-extern void trigger_relay_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void Use_Areaportal( edict_t *ent, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void Use_Item( edict_t *ent, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void use_killbox( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void Use_Multi( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void Use_Plat( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void use_target_blaster( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void use_target_changelevel( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void use_target_explosion( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void use_target_goal( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void use_target_secret( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void use_target_spawner( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void Use_Target_Speaker( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void use_target_splash( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
-extern void Use_Target_Tent( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+extern void trigger_relay_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void Use_Areaportal( edict_t *ent, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void Use_Item( edict_t *ent, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void use_killbox( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void Use_Multi( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void Use_Plat( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void use_target_blaster( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void use_target_changelevel( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void use_target_explosion( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void use_target_goal( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void use_target_secret( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void use_target_spawner( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void Use_Target_Speaker( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void use_target_splash( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void Use_Target_Tent( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 const save_ptr_t save_ptrs[] = {
 

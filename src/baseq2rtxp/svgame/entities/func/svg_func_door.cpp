@@ -179,7 +179,7 @@ void door_go_up( edict_t *self, edict_t *activator ) {
 /**
 *	@brief
 **/
-void door_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue ) {
+void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     edict_t *ent;
 
     if ( self->flags & FL_TEAMSLAVE )

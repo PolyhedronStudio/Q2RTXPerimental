@@ -1066,7 +1066,7 @@ void BecomeExplosion1( edict_t *self );
 
 #define CLOCK_MESSAGE_SIZE  16
 void func_clock_think( edict_t *self );
-void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 //
 // g_ai.c
@@ -1823,7 +1823,7 @@ struct edict_s {
     void        ( *touch )( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
     
     //! Called to 'trigger' the entity.
-    void        ( *use )( edict_t *self, edict_t *other, edict_t *activator, entity_usetarget_type_t useType, const int32_t useValue );
+    void        ( *use )( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
     
     #if 0
     //! Called when the entity is keypressed by a client's(+usetarget).

@@ -175,7 +175,7 @@ void CLG_PacketEntity_LerpAngles( centity_t *cent, entity_t *ent, entity_state_t
         VectorMA( ent->origin, 64, forward, start );
         clgi.V_AddLight( start, 100, 1, 0, 0 );
 
-        // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
+    // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
     } else if ( newState->number == clgi.client->frame.clientNum + 1 ) {
         VectorCopy( clgi.client->playerEntityAngles, ent->angles );      // use predicted angles
 
@@ -237,7 +237,7 @@ static void CLG_PacketEntity_SetModelAndSkin( centity_t *cent, entity_t *ent, en
 /**
 *   @brief  Look for any effects demanding a shell renderfx, and apply where needed.
 **/
-static void CLG_PacketEntity_ApplyShellEffects( uint32_t &effects, int32_t renderfx ) {
+static void CLG_PacketEntity_ApplyShellEffects( uint32_t &effects, int32_t &renderfx ) {
     // quad and pent can do different things on client
     if ( effects & EF_PENT ) {
         effects &= ~EF_PENT;

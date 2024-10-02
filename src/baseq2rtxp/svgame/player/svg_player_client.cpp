@@ -1871,6 +1871,15 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
 
             // Store it as the previous usetarget entity that we had.
             client->useTarget.previousEntity = client->useTarget.currentEntity;
+
+            // Remove the glow from specified entity.
+            //if ( client->useTarget.previousEntity != nullptr ) {
+            //    client->useTarget.previousEntity->s.renderfx &= ~RF_SHELL_DOUBLE;
+            //}
+        } else {
+            //if ( traceUseTarget.ent ) {
+            //    traceUseTarget.ent->s.renderfx |= RF_SHELL_DOUBLE;
+            //}
         }
     }
     
@@ -1886,6 +1895,8 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
     if ( currentTargetEntity && currentTargetEntity->inuse ) {
         // Holding (+usetarget) key, thus we continously USE the target entity.
         if ( isTargetUseKeyHolding && SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
+            // Apply continuous hold state.
+            currentTargetEntity->useTarget.state = (entity_usetarget_state_t)( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_CONTINUOUS );
             // Continous entity husage:
             if ( currentTargetEntity->use ) {
                 currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
@@ -1926,6 +1937,8 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
                 if ( currentTargetEntity->use ) {
                     currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
                 }
+                // Remove continuous state flag.
+                currentTargetEntity->useTarget.state = (entity_usetarget_state_t)( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_CONTINUOUS );
             }
         }
     } else {
