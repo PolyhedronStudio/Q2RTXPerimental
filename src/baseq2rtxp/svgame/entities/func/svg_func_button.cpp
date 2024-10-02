@@ -278,9 +278,8 @@ void button_press_move_done( edict_t *self ) {
         }
     }
 
-
     // Trigger UseTargets
-    SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+    SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
     // Dispatch a lua signal.
     button_lua_signal( self, "OnPressed" );
 }
@@ -360,6 +359,11 @@ void button_think_return( edict_t *self ) {
         self->think = button_think_return;
         // Trigger UseTargets
         SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_SET, 1 );
+
+        // Dispatch a lua signal.
+        button_lua_signal( self, "OnContinuousPress" );
+
+        // Get out.
         return;
     }
 
@@ -372,6 +376,7 @@ void button_think_return( edict_t *self ) {
         if ( SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES ) && self->health ) {
             self->takedamage = DAMAGE_YES;
         }
+    // It is continuous and still held, so maintain this function as our 'think' callback.
     } else {
         self->nextthink = level.time + FRAME_TIME_MS;
         self->think = button_think_return;
@@ -394,7 +399,6 @@ void button_trigger( edict_t *self, edict_t *activator, const entity_usetarget_t
     // Continuous active?
     const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
 
-
     // Toggleable button?
     const bool isToggleButton = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
     // Touch button?
@@ -410,6 +414,7 @@ void button_trigger( edict_t *self, edict_t *activator, const entity_usetarget_t
             self->think = button_think_return;
             // Trigger UseTargets
             SVG_UseTargets( self, self->activator, useType, useValue );
+
             // Dispatch a lua signal.
             button_lua_signal( self, "OnContinuousPress" );
             return;
@@ -472,9 +477,15 @@ void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
         SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
         // Unpress,
         button_unpress_move( self );
+        
+        // Dispatch a lua signal.
+        button_lua_signal( self, "OnTouchUnPress" );
     } else if ( buttonResponse == BUTTON_RESPONSE_PRESS ) {
         // Press,
         button_press_move( self );
+        
+        // Dispatch a lua signal.
+        button_lua_signal( self, "OnTouchPress" );
     }
 }
 /**
@@ -490,6 +501,9 @@ void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int da
         // Fire the triggering action.
         self->activator = attacker;
         button_trigger( self, attacker, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+
+        // Dispatch a lua signal.
+        button_lua_signal( self, "OnKilled" );
     }
 }
 

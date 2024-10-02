@@ -261,7 +261,7 @@ typedef enum {
     //! Toggleable UseTarget( (+usetarget) single key press toggles, activates at end of press movement ).
     ENTITY_USETARGET_FLAG_TOGGLE        = BIT( 1 ),
     //! Continuous UseTarget( (+usetarget) key held down, activates continuous ).
-    ENTITY_USETARGET_FLAG_CONTINUOUS     = BIT( 2 ),
+    ENTITY_USETARGET_FLAG_CONTINUOUS    = BIT( 2 ),
     //! Should send +/- 1 values.
     //ENTITY_USETARGET_FLAG_DIRECTIONAL   = BIT( 3 ),
 

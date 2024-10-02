@@ -1892,7 +1892,17 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
     }
 
     // Are we continously holding +usetarget or did we single press it? If so, proceed.
-    if ( currentTargetEntity && currentTargetEntity->inuse ) {
+    if ( currentTargetEntity && ( currentTargetEntity->inuse && currentTargetEntity->s.number != 0 ) ) {
+        // Play audio sound for when pressing onto a valid entity.
+        if ( isTargetUseKeyPressed ) {
+            if ( currentTargetEntity->useTarget.flags != ENTITY_USETARGET_FLAG_NONE
+                && !SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_DISABLED ) ) {
+                gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_use.wav" ), 0.25, ATTN_NORM, 0 );
+            } else {
+                gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.4, ATTN_NORM, 0 );
+            }
+        }
+
         // Holding (+usetarget) key, thus we continously USE the target entity.
         if ( isTargetUseKeyHolding && SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
             // Apply continuous hold state.
@@ -1942,8 +1952,10 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
             }
         }
     } else {
-        // WID: TODO: Play a silly audio like HL1? lol.
-
+        // Play audio sound for when pressing onto an invalid (+usetarget) entity.
+        if ( isTargetUseKeyPressed ) {
+            gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.4, ATTN_NORM, 0 );
+        }
     }
 
     //// <Debug>

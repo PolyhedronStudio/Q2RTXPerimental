@@ -1040,146 +1040,152 @@ void SP_worldspawn(edict_t *ent)
 
 
     // help icon for statusbar
-    gi.imageindex("i_help");
-    level.pic_health = gi.imageindex("i_health");
-    gi.imageindex("help");
-    gi.imageindex("field_3");
+    //gi.imageindex("i_help");
+    //level.pic_health = gi.imageindex("i_health");
+    //gi.imageindex("help");
+    //gi.imageindex("field_3");
 
-    if (!st.gravity)
-        gi.cvar_set("sv_gravity", "800");
-    else
-        gi.cvar_set("sv_gravity", st.gravity);
+    if ( !st.gravity ) {
+        gi.cvar_set( "sv_gravity", "800" );
+    } else {
+        gi.cvar_set( "sv_gravity", st.gravity );
+    }
 
-    snd_fry = gi.soundindex("player/fry.wav");  // standing in lava / slime
+    // Use Targets.
+    gi.soundindex( "player/usetarget_invalid.wav" );
+    gi.soundindex( "player/usetarget_use.wav" );
 
-    gi.soundindex("player/lava_in.wav");
-    gi.soundindex("player/burn1.wav");
-    gi.soundindex("player/burn2.wav");
-    gi.soundindex("player/drown1.wav");
+    // Frying and Lava stuff.
+    snd_fry = gi.soundindex( "player/fry.wav" );  // standing in lava / slime
 
-    PrecacheItem(FindItem("Blaster"));
+    gi.soundindex( "player/lava_in.wav" );
+    gi.soundindex( "player/burn1.wav" );
+    gi.soundindex( "player/burn2.wav" );
+    gi.soundindex( "player/drown1.wav" );
 
-    gi.soundindex("player/lava1.wav");
-    gi.soundindex("player/lava2.wav");
+    PrecacheItem( FindItem( "Blaster" ) );
 
-    gi.soundindex("misc/pc_up.wav");
-    gi.soundindex("misc/talk.wav");
-    gi.soundindex("hud/chat01.wav");
+    gi.soundindex( "player/lava1.wav" );
+    gi.soundindex( "player/lava2.wav" );
 
-    gi.soundindex("misc/udeath.wav");
+    //gi.soundindex( "misc/pc_up.wav" );
+    gi.soundindex( "misc/talk.wav" );
+    gi.soundindex( "hud/chat01.wav" );
+
+    gi.soundindex( "misc/udeath.wav" );
 
     // gibs
-    gi.soundindex("items/respawn1.wav");
+    gi.soundindex( "items/respawn1.wav" );
 
     // sexed sounds
-    gi.soundindex("*death1.wav");
-    gi.soundindex("*death2.wav");
-    gi.soundindex("*death3.wav");
-    gi.soundindex("*death4.wav");
-    gi.soundindex("*fall1.wav");
-    gi.soundindex("*fall2.wav");
-    gi.soundindex("*gurp1.wav");        // drowning damage
-    gi.soundindex("*gurp2.wav");
-    gi.soundindex("*jump1.wav");        // player jump
-    gi.soundindex("*pain25_1.wav");
-    gi.soundindex("*pain25_2.wav");
-    gi.soundindex("*pain50_1.wav");
-    gi.soundindex("*pain50_2.wav");
-    gi.soundindex("*pain75_1.wav");
-    gi.soundindex("*pain75_2.wav");
-    gi.soundindex("*pain100_1.wav");
-    gi.soundindex("*pain100_2.wav");
+    gi.soundindex( "*death1.wav" );
+    gi.soundindex( "*death2.wav" );
+    gi.soundindex( "*death3.wav" );
+    gi.soundindex( "*death4.wav" );
+    gi.soundindex( "*fall1.wav" );
+    gi.soundindex( "*fall2.wav" );
+    gi.soundindex( "*gurp1.wav" );        // drowning damage
+    gi.soundindex( "*gurp2.wav" );
+    gi.soundindex( "*jump1.wav" );        // player jump
+    gi.soundindex( "*pain25_1.wav" );
+    gi.soundindex( "*pain25_2.wav" );
+    gi.soundindex( "*pain50_1.wav" );
+    gi.soundindex( "*pain50_2.wav" );
+    gi.soundindex( "*pain75_1.wav" );
+    gi.soundindex( "*pain75_2.wav" );
+    gi.soundindex( "*pain100_1.wav" );
+    gi.soundindex( "*pain100_2.wav" );
 
     // sexed models
     // THIS ORDER MUST MATCH THE DEFINES IN g_local.h
     // you can add more, max 15
-    gi.modelindex("#w_blaster.md2");
-    gi.modelindex("#w_shotgun.md2");
-    gi.modelindex("#w_sshotgun.md2");
-    gi.modelindex("#w_machinegun.md2");
-    gi.modelindex("#w_chaingun.md2");
-    gi.modelindex("#a_grenades.md2");
-    gi.modelindex("#w_glauncher.md2");
-    gi.modelindex("#w_rlauncher.md2");
-    gi.modelindex("#w_hyperblaster.md2");
-    gi.modelindex("#w_railgun.md2");
-    gi.modelindex("#w_bfg.md2");
+    gi.modelindex( "#w_blaster.md2" );
+    gi.modelindex( "#w_shotgun.md2" );
+    gi.modelindex( "#w_sshotgun.md2" );
+    gi.modelindex( "#w_machinegun.md2" );
+    gi.modelindex( "#w_chaingun.md2" );
+    gi.modelindex( "#a_grenades.md2" );
+    gi.modelindex( "#w_glauncher.md2" );
+    gi.modelindex( "#w_rlauncher.md2" );
+    gi.modelindex( "#w_hyperblaster.md2" );
+    gi.modelindex( "#w_railgun.md2" );
+    gi.modelindex( "#w_bfg.md2" );
 
     //-------------------
 
-    gi.soundindex("player/gasp1.wav");      // gasping for air
-    gi.soundindex("player/gasp2.wav");      // head breaking surface, not gasping
+    gi.soundindex( "player/gasp1.wav" );      // gasping for air
+    gi.soundindex( "player/gasp2.wav" );      // head breaking surface, not gasping
 
-    gi.soundindex("player/watr_in.wav");    // feet hitting water
-    gi.soundindex("player/watr_out.wav");   // feet leaving water
+    gi.soundindex( "player/watr_in.wav" );    // feet hitting water
+    gi.soundindex( "player/watr_out.wav" );   // feet leaving water
 
-    gi.soundindex("player/watr_un.wav");    // head going underwater
+    gi.soundindex( "player/watr_un.wav" );    // head going underwater
 
-    gi.soundindex("player/u_breath1.wav");
-    gi.soundindex("player/u_breath2.wav");
+    gi.soundindex( "player/u_breath1.wav" );
+    gi.soundindex( "player/u_breath2.wav" );
 
-    gi.soundindex("items/pkup.wav");        // bonus item pickup
-    gi.soundindex("world/land.wav");        // landing thud
-    gi.soundindex("misc/h2ohit1.wav");      // landing splash
+    gi.soundindex( "items/pkup.wav" );        // bonus item pickup
+    gi.soundindex( "world/land.wav" );        // landing thud
+    gi.soundindex( "misc/h2ohit1.wav" );      // landing splash
 
-    gi.soundindex("items/damage.wav");
-    gi.soundindex("items/protect.wav");
-    gi.soundindex("items/protect4.wav");
-    gi.soundindex("weapons/noammo.wav");
+    gi.soundindex( "items/damage.wav" );
+    gi.soundindex( "items/protect.wav" );
+    gi.soundindex( "items/protect4.wav" );
+    gi.soundindex( "weapons/noammo.wav" );
 
-    gi.soundindex("infantry/inflies1.wav");
+    gi.soundindex( "infantry/inflies1.wav" );
 
-    sm_meat_index = gi.modelindex("models/objects/gibs/sm_meat/tris.md2");
-    gi.modelindex("models/objects/gibs/arm/tris.md2");
-    gi.modelindex("models/objects/gibs/bone/tris.md2");
-    gi.modelindex("models/objects/gibs/bone2/tris.md2");
-    gi.modelindex("models/objects/gibs/chest/tris.md2");
-    gi.modelindex("models/objects/gibs/skull/tris.md2");
-    gi.modelindex("models/objects/gibs/head2/tris.md2");
+    sm_meat_index = gi.modelindex( "models/objects/gibs/sm_meat/tris.md2" );
+    gi.modelindex( "models/objects/gibs/arm/tris.md2" );
+    gi.modelindex( "models/objects/gibs/bone/tris.md2" );
+    gi.modelindex( "models/objects/gibs/bone2/tris.md2" );
+    gi.modelindex( "models/objects/gibs/chest/tris.md2" );
+    gi.modelindex( "models/objects/gibs/skull/tris.md2" );
+    gi.modelindex( "models/objects/gibs/head2/tris.md2" );
 
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is doublebright.
 //
 
     // 0 normal
-    gi.configstring(CS_LIGHTS + 0, "m");
+    gi.configstring( CS_LIGHTS + 0, "m" );
 
     // 1 FLICKER (first variety)
-    gi.configstring(CS_LIGHTS + 1, "mmnmmommommnonmmonqnmmo");
+    gi.configstring( CS_LIGHTS + 1, "mmnmmommommnonmmonqnmmo" );
 
     // 2 SLOW STRONG PULSE
-    gi.configstring(CS_LIGHTS + 2, "abcdefghijklmnopqrstuvwxyzyxwvutsrqponmlkjihgfedcba");
+    gi.configstring( CS_LIGHTS + 2, "abcdefghijklmnopqrstuvwxyzyxwvutsrqponmlkjihgfedcba" );
 
     // 3 CANDLE (first variety)
-    gi.configstring(CS_LIGHTS + 3, "mmmmmaaaaammmmmaaaaaabcdefgabcdefg");
+    gi.configstring( CS_LIGHTS + 3, "mmmmmaaaaammmmmaaaaaabcdefgabcdefg" );
 
     // 4 FAST STROBE
-    gi.configstring(CS_LIGHTS + 4, "mamamamamama");
+    gi.configstring( CS_LIGHTS + 4, "mamamamamama" );
 
     // 5 GENTLE PULSE 1
-    gi.configstring(CS_LIGHTS + 5, "jklmnopqrstuvwxyzyxwvutsrqponmlkj");
+    gi.configstring( CS_LIGHTS + 5, "jklmnopqrstuvwxyzyxwvutsrqponmlkj" );
 
     // 6 FLICKER (second variety)
-    gi.configstring(CS_LIGHTS + 6, "nmonqnmomnmomomno");
+    gi.configstring( CS_LIGHTS + 6, "nmonqnmomnmomomno" );
 
     // 7 CANDLE (second variety)
-    gi.configstring(CS_LIGHTS + 7, "mmmaaaabcdefgmmmmaaaammmaamm");
+    gi.configstring( CS_LIGHTS + 7, "mmmaaaabcdefgmmmmaaaammmaamm" );
 
     // 8 CANDLE (third variety)
-    gi.configstring(CS_LIGHTS + 8, "mmmaaammmaaammmabcdefaaaammmmabcdefmmmaaaa");
+    gi.configstring( CS_LIGHTS + 8, "mmmaaammmaaammmabcdefaaaammmmabcdefmmmaaaa" );
 
     // 9 SLOW STROBE (fourth variety)
-    gi.configstring(CS_LIGHTS + 9, "aaaaaaaazzzzzzzz");
+    gi.configstring( CS_LIGHTS + 9, "aaaaaaaazzzzzzzz" );
 
     // 10 FLUORESCENT FLICKER
-    gi.configstring(CS_LIGHTS + 10, "mmamammmmammamamaaamammma");
+    gi.configstring( CS_LIGHTS + 10, "mmamammmmammamamaaamammma" );
 
     // 11 SLOW PULSE NOT FADE TO BLACK
-    gi.configstring(CS_LIGHTS + 11, "abcdefghijklmnopqrrqponmlkjihgfedcba");
+    gi.configstring( CS_LIGHTS + 11, "abcdefghijklmnopqrrqponmlkjihgfedcba" );
 
     // styles 32-62 are assigned by the light program for switchable lights
 
     // 63 testing
-    gi.configstring(CS_LIGHTS + 63, "a");
+    gi.configstring( CS_LIGHTS + 63, "a" );
 }
 
