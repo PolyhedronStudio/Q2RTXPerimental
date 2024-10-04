@@ -21,6 +21,17 @@
 ********************************************************************/
 #pragma once
 
+//! Determines 'How' to be verbose, if at all.
+typedef enum {
+	//! Don't be verbose at all.
+	LUA_CALLFUNCTION_VERBOSE_NOT		= 0,
+	//! Only be verbose if the function is actually missing.
+	LUA_CALLFUNCTION_VERBOSE_MISSING	= BIT( 0 ),
+	//! Will also be verbose if something went wrong trying and during execution of the function.
+	LUA_CALLFUNCTION_VERBOSE_MASK_ALL	= LUA_CALLFUNCTION_VERBOSE_MISSING /* | SOME_OTHER_VERBOSE */,
+} svg_lua_callfunction_verbosity_t;
+
+
 static inline void LUA_CallFunction_PushStackValue( lua_State *L ) {
 	// Do absolutely nothing
 	return;
@@ -85,7 +96,10 @@ static inline void LUA_CallFunction_PushStackValue( lua_State *L, const std::str
 *	@note	One has to deal and pop return values themselves.
 **/
 template <typename... Rest> 
-static const bool LUA_CallFunction( lua_State *L, const std::string &functionName, const int32_t numReturnValues, const Rest&... rest ) {
+static const bool LUA_CallFunction( lua_State *L, const std::string &functionName, const int32_t numReturnValues, 
+	const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_NOT,
+	const Rest&... rest ) {
+
 	bool executedSuccessfully = false;
 
 	if ( !L || functionName.empty() ) {
@@ -118,8 +132,12 @@ static const bool LUA_CallFunction( lua_State *L, const std::string &functionNam
 	} else {
 		// Pop function name from stack.
 		lua_pop( L, lua_gettop( L ) );
-		// Print Error Notification.
-		LUA_ErrorPrintf( "%s: %s is not a function\n", __func__, functionName.c_str() );
+		// There are use cases where we don't want to report an actual error and it is 
+		// just fine if the function does not exist at all.
+		if ( !( verbosity & LUA_CALLFUNCTION_VERBOSE_MISSING ) ) {
+			// Print Error Notification.
+			LUA_ErrorPrintf( "%s: %s is not a function\n", __func__, functionName.c_str() );
+		}
 	}
 
 	// Return failure.

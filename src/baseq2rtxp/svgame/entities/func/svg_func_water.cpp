@@ -98,7 +98,7 @@ void SP_func_water( edict_t *self ) {
     self->use = door_use;
 
     if ( self->wait == -1 )
-        self->spawnflags |= FUNC_DOOR_TOGGLE;
+        self->spawnflags |= DOOR_SPAWNFLAG_TOGGLE;
 
     self->classname = "func_door";
 

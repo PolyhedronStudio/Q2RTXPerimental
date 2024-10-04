@@ -25,7 +25,7 @@ void Touch_DoorTrigger( edict_t *self, edict_t *other, cplane_t *plane, csurface
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) )
         return;
 
-    if ( ( self->owner->spawnflags & FUNC_DOOR_NOMONSTER ) && ( other->svflags & SVF_MONSTER ) )
+    if ( ( self->owner->spawnflags & DOOR_SPAWNFLAG_NOMONSTER ) && ( other->svflags & SVF_MONSTER ) )
         return;
 
     if ( level.time < self->touch_debounce_time )
@@ -109,7 +109,7 @@ void Think_SpawnDoorTrigger( edict_t *ent ) {
     other->touch = Touch_DoorTrigger;
     gi.linkentity( other );
 
-    if ( ent->spawnflags & FUNC_DOOR_START_OPEN )
+    if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN )
         door_use_areaportals( ent, true );
 
     Think_CalcMoveSpeed( ent );

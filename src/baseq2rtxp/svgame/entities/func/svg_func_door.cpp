@@ -7,13 +7,20 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_lua.h"
-#include "svgame/lua/svg_lua_callfunction.hpp"
 
 #include "svgame/entities/svg_entities_pushermove.h"
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_door.h"
 
 
+
+/**
+*   For readability's sake:
+**/
+static constexpr int32_t DOOR_STATE_OPENED = PUSHMOVE_STATE_TOP;
+static constexpr int32_t DOOR_STATE_CLOSED = PUSHMOVE_STATE_BOTTOM;
+static constexpr int32_t DOOR_STATE_MOVING_TO_OPENED_STATE = PUSHMOVE_STATE_MOVING_UP;
+static constexpr int32_t DOOR_STATE_MOVING_TO_CLOSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
 
 /*
 ======================================================================
@@ -27,18 +34,19 @@ DOORS
 */
 
 /*QUAKED func_door (0 .5 .8) ? START_OPEN x CRUSHER NOMONSTER ANIMATED TOGGLE ANIMATED_FAST
-TOGGLE      wait in both the start and end states for a trigger event.
-START_OPEN  the door to moves to its destination when spawned, and operate in reverse.  It is used to temporarily or permanently close off an area when triggered (not useful for touch or takedamage doors).
-NOMONSTER   monsters will not trigger this door
+TOGGLE      Wait in both the start and end states for a trigger event.
+START_OPEN  The door to moves to its destination when spawned, and operate in reverse.  
+            It is used to temporarily or permanently close off an area when triggered (not useful for touch or takedamage doors).
+NOMONSTER   Monsters will not trigger this door.
 
-"message"   is printed when the door is touched if it is a trigger door and it hasn't been fired yet
-"angle"     determines the opening direction
-"targetname" if set, no touch field will be spawned and a remote button or trigger field activates the door.
-"health"    if set, door must be shot open
-"speed"     movement speed (100 default)
-"wait"      wait before returning (3 default, -1 = never return)
-"lip"       lip remaining at end of move (8 default)
-"dmg"       damage to inflict when blocked (2 default)
+"message"   Is printed when the door is touched if it is a trigger door and it hasn't been fired yet
+"angle"     Determines the opening direction
+"targetname" If set, no touch field will be spawned and a remote button or trigger field activates the door.
+"health"    If set, door must be shot open
+"speed"     Movement speed (100 default)
+"wait"      Wait before returning (3 default, -1 = never return)
+"lip"       Lip remaining at end of move (8 default)
+"dmg"       Damage to inflict when blocked (2 default)
 "sounds"
 1)  silent
 2)  light
@@ -47,7 +55,7 @@ NOMONSTER   monsters will not trigger this door
 */
 
 /**
-*	@brief
+*	@brief  Open/Close the door's area portals.
 **/
 void door_use_areaportals( edict_t *self, const bool open ) {
     edict_t *t = NULL;
@@ -67,37 +75,45 @@ void door_use_areaportals( edict_t *self, const bool open ) {
     }
 }
 
+
+
+
+/**
+*
+*
+*
+*   PushMove - EndMove CallBacks:
+*
+*
+*
+**/
 /**
 *	@brief
 **/
-void door_go_down( edict_t *self );
+void door_close_move( edict_t *self );
 
 /**
 *	@brief
 **/
-void door_hit_top( edict_t *self ) {
+void door_open_move_done( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sound_end )
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
         self->s.sound = 0;
     }
-    self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
+    // Apply state.
+    self->pushMoveInfo.state = DOOR_STATE_OPENED;
 
-    // WID: LUA: Call the OnDoorOpened function if it exists.
-    if ( self->luaProperties.luaName ) {
-        // Generate function 'callback' name.
-        const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_OnDoorOpened";
-        // Call if it exists.
-        if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
-            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, self, self->activator );
-        }
+    // Dispatch a lua signal.
+    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnOpened" );
+
+    // If it is a toggle door, don't set any next think to 'go down' again.
+    if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
+        return;
     }
 
-    if ( self->spawnflags & FUNC_DOOR_TOGGLE )
-        return;
-
     if ( self->pushMoveInfo.wait >= 0 ) {
-        self->think = door_go_down;
+        self->think = door_close_move;
         self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
     }
 
@@ -106,30 +122,34 @@ void door_hit_top( edict_t *self ) {
 /**
 *	@brief
 **/
-void door_hit_bottom( edict_t *self ) {
+void door_close_move_done( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sound_end )
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
         self->s.sound = 0;
     }
-    self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
+    self->pushMoveInfo.state = DOOR_STATE_CLOSED;
     door_use_areaportals( self, false );
 
-    // WID: LUA: Call the OnDoorClosed function if it exists.
-    if ( self->luaProperties.luaName ) {
-        // Generate function 'callback' name.
-        const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_OnDoorClosed";
-        // Call if it exists.
-        if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
-            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, self, self->activator );
-        }
-    }
+    // Dispatch a lua signal.
+    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnClosed" );
 }
 
+
+
+/**
+*
+*
+*
+*   Close/Open Initiators:
+*
+*
+*
+**/
 /**
 *	@brief
 **/
-void door_go_down( edict_t *self ) {
+void door_close_move( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sound_start )
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
@@ -140,21 +160,24 @@ void door_go_down( edict_t *self ) {
         self->health = self->max_health;
     }
 
-    self->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
+    self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
     if ( strcmp( self->classname, "func_door" ) == 0 )
-        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, door_hit_bottom );
+        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, door_close_move_done );
     else if ( strcmp( self->classname, "func_door_rotating" ) == 0 )
-        SVG_PushMove_AngleMoveCalculate( self, door_hit_bottom );
+        SVG_PushMove_AngleMoveCalculate( self, door_close_move_done );
+
+    // Dispatch a lua signal.
+    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnClose" );
 }
 
 /**
 *	@brief
 **/
-void door_go_up( edict_t *self, edict_t *activator ) {
-    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP )
+void door_open_move( edict_t *self/*, edict_t *activator */) {
+    if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE )
         return;     // already going up
 
-    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
+    if ( self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
         // reset top wait time
         if ( self->pushMoveInfo.wait >= 0 )
             self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
@@ -166,14 +189,17 @@ void door_go_up( edict_t *self, edict_t *activator ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
         self->s.sound = self->pushMoveInfo.sound_middle;
     }
-    self->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
+    self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
     if ( strcmp( self->classname, "func_door" ) == 0 )
-        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, door_hit_top );
+        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, door_open_move_done );
     else if ( strcmp( self->classname, "func_door_rotating" ) == 0 )
-        SVG_PushMove_AngleMoveCalculate( self, door_hit_top );
+        SVG_PushMove_AngleMoveCalculate( self, door_open_move_done );
 
-    SVG_UseTargets( self, activator );
+    SVG_UseTargets( self, self->activator );
     door_use_areaportals( self, true );
+
+    // Dispatch a lua signal.
+    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnOpen" );
 }
 
 /**
@@ -185,13 +211,13 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
     if ( self->flags & FL_TEAMSLAVE )
         return;
 
-    if ( self->spawnflags & FUNC_DOOR_TOGGLE ) {
-        if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP || self->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
+    if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
+        if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
             // trigger all paired doors
             for ( ent = self; ent; ent = ent->teamchain ) {
                 ent->message = NULL;
                 ent->touch = NULL;
-                door_go_down( ent );
+                door_close_move( ent );
             }
             return;
         }
@@ -201,7 +227,8 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
     for ( ent = self; ent; ent = ent->teamchain ) {
         ent->message = NULL;
         ent->touch = NULL;
-        door_go_up( ent, activator );
+        ent->activator = activator;
+        door_open_move( ent/*, activator */);
     }
 }
 
@@ -222,19 +249,19 @@ void door_blocked( edict_t *self, edict_t *other ) {
 
     T_Damage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
 
-    if ( self->spawnflags & FUNC_DOOR_CRUSHER )
+    if ( self->spawnflags & DOOR_SPAWNFLAG_CRUSHER )
         return;
 
 
     // if a door has a negative wait, it would never come back if blocked,
     // so let it just squash the object to death real fast
     if ( self->pushMoveInfo.wait >= 0 ) {
-        if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN ) {
+        if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_CLOSED_STATE ) {
             for ( ent = self->teammaster; ent; ent = ent->teamchain )
-                door_go_up( ent, ent->activator );
+                door_open_move( ent/*, ent->activator */);
         } else {
             for ( ent = self->teammaster; ent; ent = ent->teamchain )
-                door_go_down( ent );
+                door_close_move( ent );
         }
     }
 }
@@ -274,7 +301,7 @@ void door_postspawn( edict_t *self ) {
     //if ( self->spawnflags & DOOR_START_OPEN ) {
     //    //SVG_UseTargets( self, self );
     //    door_use_areaportals( self, true );
-    //    //self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
+    //    //self->pushMoveInfo.state = DOOR_STATE_OPENED;
     //}
 }
 
@@ -326,13 +353,13 @@ void SP_func_door( edict_t *ent ) {
     VectorMA( ent->pos1, ent->pushMoveInfo.distance, ent->movedir, ent->pos2 );
 
     // if it starts open, switch the positions
-    if ( ent->spawnflags & FUNC_DOOR_START_OPEN ) {
+    if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN ) {
         VectorCopy( ent->pos2, ent->s.origin );
         VectorCopy( ent->pos1, ent->pos2 );
         VectorCopy( ent->s.origin, ent->pos1 );
     }
 
-    ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
+    ent->pushMoveInfo.state = DOOR_STATE_CLOSED;
 
     if ( ent->health ) {
         ent->takedamage = DAMAGE_YES;

@@ -750,36 +750,68 @@ typedef void( *svg_pushmove_endcallback )( edict_t * );
 *   @brief  Stores movement info for 'Pushers(also known as Movers)'.
 ***/
 typedef struct {
+    //
     // Fixed Data.
+    //
+    //! Move start origin.
     Vector3     start_origin;
+    //! Move start angles.
     Vector3     start_angles;
+    //! Move end origin.
     Vector3     end_origin;
+    //! Move end angles.
     Vector3     end_angles;
 
-    int         sound_start;
-    int         sound_middle;
-    int         sound_end;
+    //! Start move sound.
+    int32_t     sound_start;
+    //! Continuous repeating move sound.
+    int32_t     sound_middle;
+    //! End move sound.
+    int32_t     sound_end;
 
+    //! Acceleration.
     float       accel;
+    //! Speed.
     float       speed;
+    //! Deceleration.
     float       decel;
     float       distance;
 
     float       wait;
 
+    //
+    // Lock/Unlock Data
+    //
+    struct {
+        //! Whether this pusher is 'locked', think of doors or even buttons.
+        bool isLocked;
+
+        //! Locked sound.
+        qhandle_t lockedSound;
+
+        //! Lock sound.
+        qhandle_t lockSound;
+        //! Unlock sound.
+        qhandle_t unlockSound;
+    } lockState;
+
+    //
     // Dynamic State Data
-    int         state;
+    //
+    int32_t     state;
     Vector3     dir;
     float       current_speed;
     float       move_speed;
     float       next_speed;
     float       remaining_distance;
     float       decel_distance;
+
+    //! Callback function for when a 'Move' has ended by reached its destination.
     svg_pushmove_endcallback endfunc;
 
     // WID: MoveWith:
     Vector3 lastVelocity;
-} g_pushmove_info_t;
+} svg_pushmove_info_t;
 
 /**
 *   @brief  Data for each 'movement' frame of a monster.
@@ -1795,7 +1827,7 @@ struct edict_s {
     //
     // Not per se, but mostly used for Pushers(Movers):
     //
-    g_pushmove_info_t pushMoveInfo;
+    svg_pushmove_info_t pushMoveInfo;
     float   speed;
     float   accel;
     float   decel;

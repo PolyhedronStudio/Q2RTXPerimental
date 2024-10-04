@@ -88,9 +88,10 @@ extern void button_use( edict_t *self, edict_t *other, edict_t *activator, const
 extern void debris_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 
 extern void door_blocked( edict_t *self, edict_t *other );
-extern void door_go_down( edict_t *self );
-extern void door_hit_bottom( edict_t *self );
-extern void door_hit_top( edict_t *self );
+extern void door_close_move( edict_t *self );
+extern void door_open_move( edict_t *self/*, edict_t *activator */);
+extern void door_close_move_done( edict_t *self );
+extern void door_open_move_done( edict_t *self );
 extern void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void door_postspawn( edict_t *self );
 extern void door_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
@@ -252,7 +253,8 @@ const save_ptr_t save_ptrs[] = {
 #else
 { P_think,  (void *)button_think_return },
 #endif
-{ P_think,  (void *)door_go_down },
+{ P_think,  (void *)door_close_move },
+{ P_think,  (void *)door_open_move },
 
 { P_think,  (void *)DoRespawn },
 { P_think,  (void *)drop_make_touchable },
@@ -386,8 +388,8 @@ const save_ptr_t save_ptrs[] = {
 { P_pusher_moveinfo_endfunc, (void *)button_unpress_move_done },
 { P_pusher_moveinfo_endfunc, (void *)button_press_move_done },
 #endif
-{ P_pusher_moveinfo_endfunc, (void*)door_hit_bottom },
-{ P_pusher_moveinfo_endfunc, (void*)door_hit_top },
+{ P_pusher_moveinfo_endfunc, (void*)door_close_move_done },
+{ P_pusher_moveinfo_endfunc, (void*)door_open_move_done },
 { P_pusher_moveinfo_endfunc, (void*)plat_hit_bottom },
 { P_pusher_moveinfo_endfunc, (void*)plat_hit_top },
 { P_pusher_moveinfo_endfunc, (void*)train_wait },

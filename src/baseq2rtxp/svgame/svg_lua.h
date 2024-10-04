@@ -27,9 +27,12 @@
 static inline const bool LUA_HasFunction( lua_State *L, const std::string &functionName ) {
 	// Get the global functionname value and push it to stack:
 	lua_getglobal( L, functionName.c_str() );
-
 	// Check if function even exists.
-	return ( lua_isfunction( L, -1 ) ? true : false );
+	const bool isFunction = ( lua_isfunction( L, -1 ) ? true : false );
+	// Pop from stack.
+	lua_pop( L, lua_gettop( L ) );
+	// Return result.
+	return isFunction;
 }
 
 //! For calling into LUA functions:

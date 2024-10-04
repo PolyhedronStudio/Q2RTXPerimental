@@ -250,7 +250,7 @@ static constexpr float AccelerationDistance( float target, float rate ) {
 /**
 *   @brief
 **/
-static void PushMove_CalculateAcceleratedMove( g_pushmove_info_t *moveinfo ) {
+static void PushMove_CalculateAcceleratedMove( svg_pushmove_info_t *moveinfo ) {
     float   accel_dist;
     float   decel_dist;
 
@@ -277,7 +277,7 @@ static void PushMove_CalculateAcceleratedMove( g_pushmove_info_t *moveinfo ) {
 /**
 *   @brief
 **/
-void PushMove_Accelerate( g_pushmove_info_t *moveinfo ) {
+void PushMove_Accelerate( svg_pushmove_info_t *moveinfo ) {
     // are we decelerating?
     if ( moveinfo->remaining_distance <= moveinfo->decel_distance ) {
         if ( moveinfo->remaining_distance < moveinfo->decel_distance ) {

@@ -293,7 +293,9 @@ void CoreLib_Initialize( lua_State *L ) {
 	// We get the table and set as global variable
 	lua_setglobal( L, "Core" );
 
+	// Process string.
 	if ( luaL_dostring( L, "Core.DPrint(\"Initialized Lua CoreLib\n\"" ) == LUA_OK ) {
+		// Pop stack.
 		lua_pop( L, lua_gettop( L ) );
 	}
 }
@@ -549,15 +551,21 @@ void GameLib_Initialize( lua_State *L ) {
 void SVG_Lua_CallBack_BeginMap() {
 	VPrint( "FUNCTION NAME LOL", "Hello World! VARIADIC!@!!\n" );
 	//VPrint( "aids", "dacht je dat?" );
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnBeginMap", 1 );
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnBeginMap", 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
+	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
+	// Pop remaining stack.
+	lua_pop( lMapState, lua_gettop( lMapState ) );
 }
 /**
 *	@brief
 **/
 void SVG_Lua_CallBack_ExitMap() {
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnExitMap", 1 );
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnExitMap", 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/);
+	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
+	// Pop remaining stack.
+	lua_pop( lMapState, lua_gettop( lMapState ) );
 }
 
 
@@ -569,15 +577,24 @@ void SVG_Lua_CallBack_ExitMap() {
 *	@brief
 **/
 void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity ) {
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnClientEnterLevel", 1, clientEntity );
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnClientEnterLevel", 1, LUA_CALLFUNCTION_VERBOSE_MISSING, 
+		/*[lua args]:*/clientEntity );
+	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
+	// Pop remaining stack.
+	lua_pop( lMapState, lua_gettop( lMapState ) );
 }
 /**
 *	@brief
 **/
 void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity ) {
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnClientExitLevel", 1, clientEntity );
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnClientExitLevel", 1, LUA_CALLFUNCTION_VERBOSE_MISSING, 
+		/*[lua args]:*/ clientEntity );
+
+	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
+	// Pop remaining stack.
+	lua_pop( lMapState, lua_gettop( lMapState ) );
 }
 
 
@@ -588,20 +605,30 @@ void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity ) {
 *	@brief
 **/
 void SVG_Lua_CallBack_BeginServerFrame() {
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnBeginServerFrame", 1 );
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnBeginServerFrame", 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
+	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
+	// Pop remaining stack.
+	lua_pop( lMapState, lua_gettop( lMapState ) );
 }
 /**
 *	@brief
 **/
 void SVG_Lua_CallBack_RunFrame() {
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnRunFrame", 1, level.framenum );
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnRunFrame", 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
+		/*[lua args]:*/ level.framenum );
+	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
+	// Pop remaining stack.
+	lua_pop( lMapState, lua_gettop( lMapState ) );
 }
 /**
 *	@brief
 **/
 void SVG_Lua_CallBack_EndServerFrame() {
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnEndServerFrame", 1 );
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnEndServerFrame", 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
+	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
+	// Pop remaining stack.
+	lua_pop( lMapState, lua_gettop( lMapState ) );
 }

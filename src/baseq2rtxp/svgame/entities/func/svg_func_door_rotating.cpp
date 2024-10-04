@@ -50,15 +50,15 @@ void SP_func_door_rotating( edict_t *ent ) {
 
     // set the axis of rotation
     VectorClear( ent->movedir );
-    if ( ent->spawnflags & FUNC_DOOR_X_AXIS )
+    if ( ent->spawnflags & DOOR_SPAWNFLAG_X_AXIS )
         ent->movedir[ 2 ] = 1.0f;
-    else if ( ent->spawnflags & FUNC_DOOR_Y_AXIS )
+    else if ( ent->spawnflags & DOOR_SPAWNFLAG_Y_AXIS )
         ent->movedir[ 0 ] = 1.0f;
     else // Z_AXIS
         ent->movedir[ 1 ] = 1.0f;
 
     // check for reverse rotation
-    if ( ent->spawnflags & FUNC_DOOR_REVERSE )
+    if ( ent->spawnflags & DOOR_SPAWNFLAG_REVERSE )
         VectorNegate( ent->movedir, ent->movedir );
 
     if ( !st.distance ) {
@@ -97,7 +97,7 @@ void SP_func_door_rotating( edict_t *ent ) {
     }
 
     // if it starts open, switch the positions
-    if ( ent->spawnflags & FUNC_DOOR_START_OPEN ) {
+    if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN ) {
         VectorCopy( ent->pos2, ent->s.angles );
         VectorCopy( ent->pos1, ent->pos2 );
         VectorCopy( ent->s.angles, ent->pos1 );

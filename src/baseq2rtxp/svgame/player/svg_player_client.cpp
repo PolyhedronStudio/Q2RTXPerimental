@@ -1899,7 +1899,7 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
                 && !SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_DISABLED ) ) {
                 gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_use.wav" ), 0.25, ATTN_NORM, 0 );
             } else {
-                gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.4, ATTN_NORM, 0 );
+                gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.8, ATTN_NORM, 0 );
             }
         }
 
@@ -1954,7 +1954,7 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
     } else {
         // Play audio sound for when pressing onto an invalid (+usetarget) entity.
         if ( isTargetUseKeyPressed ) {
-            gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.4, ATTN_NORM, 0 );
+            gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.8, ATTN_NORM, 0 );
         }
     }
 

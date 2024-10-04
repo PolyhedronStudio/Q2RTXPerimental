@@ -63,7 +63,7 @@ void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const enti
     }
     // On/Off and Toggle usage support.
     if ( useType == ENTITY_USETARGET_TYPE_TOGGLE 
-        || ( useType == ENTITY_USETARGET_TYPE_ON && useType == ENTITY_USETARGET_TYPE_OFF ) ) {
+        || ( useType == ENTITY_USETARGET_TYPE_ON || useType == ENTITY_USETARGET_TYPE_OFF ) ) {
         // If the useType is off, or on:
         if ( SVG_UseTarget_ShouldToggle( useType, useValue )/* || useValue == 1*/ ) {
             self->s.sound = self->pushMoveInfo.sound_middle;

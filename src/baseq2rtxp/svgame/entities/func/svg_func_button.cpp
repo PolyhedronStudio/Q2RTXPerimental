@@ -149,7 +149,8 @@ void button_lua_use( edict_t *self, edict_t *other, edict_t *activator, const en
         const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_Use";
         // Call if it exists.
         if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
-            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, self, other, activator, useType, useValue );
+            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, LUA_CALLFUNCTION_VERBOSE_MISSING, 
+                /*[lua args]:*/ self, other, activator, useType, useValue);
         }
     }
 }
@@ -264,7 +265,7 @@ void button_press_move_done( edict_t *self ) {
 *
 *
 *
-*   Press/UnPress Utilities:
+*   Press/UnPress Initiators:
 *
 *
 *
