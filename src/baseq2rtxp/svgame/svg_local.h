@@ -1751,6 +1751,11 @@ struct edict_s {
 
         //! The source entity that when UseTarget, created the DelayedUse entity.
         edict_t *delayedUseCreatorEntity;
+
+        //! The useType for delayed UseTarget.
+        entity_usetarget_type_t delayedUseType;
+        //! The useValue for delayed UseTarget.
+        int32_t delayedUseValue;
     } luaProperties;
 
     //
@@ -1972,17 +1977,65 @@ struct edict_s {
 *
 *
 *
-*   General Entity Functionality:
+*   General Entities Functionality:
 *
 *
 *
 **/
+/**
+*   @brief  Returns true if, ent != nullptr, ent->inuse == true.
+**/
+static inline const bool SVG_IsActiveEntity( const edict_t *ent ) {
+    // nullptr:
+    if ( !ent ) {
+        return false;
+    }
+    // Inactive:
+    if ( !ent->inuse ) {
+        return false;
+    }
+    // Active.
+    return true;
+}
+/**
+*   @brief  Returns true if the active entity has a client assigned to it.
+**/
+static inline const bool SVG_IsClientEntity( const edict_t *ent ) {
+    // Inactive Entity:
+    if ( !SVG_IsActiveEntity( ent ) ) {
+        return false;
+    }
+    // No Client:
+    if ( !ent->client ) {
+        return false;
+    }
+    // Has Client.
+    return true;
+}
+/**
+*   @brief  Returns true if the entity is active(optional, true by default) and has a luaName set to it.
+*   @param  mustBeActive    If true, it will also check for whether the entity is an active entity.
+**/
+static inline const bool SVG_IsValidLuaEntity( const edict_t *ent, const bool mustBeActive = true ) {
+    // Inactive Entity:
+    if ( mustBeActive && !SVG_IsActiveEntity( ent ) ) {
+        return false;
+    }
+    // Has a luaName set:
+    if ( ent && ent->luaProperties.luaName ) {
+        return true;
+    }
+    // No Lua Entity.
+    return false;
+}
+
 /**
 *   @brief  Returns true if the entity has specified spawnFlags set.
 **/
 static inline const bool SVG_HasSpawnFlags( const edict_t *ent, const int32_t spawnFlags ) {
     return ( ent->spawnflags & spawnFlags ) != 0;
 }
+
 
 
 

@@ -146,7 +146,10 @@ void SVG_UseTargets(edict_t *ent, edict_t *activator, const entity_usetarget_typ
         if (!activator)
             gi.dprintf("Think_Delay with no activator\n");
         t->message = ent->message;
-        //t->luaProperties.luaName = ent->luaProperties.luaName;
+        t->luaProperties.luaName = ent->luaProperties.luaName;
+        t->luaProperties.delayedUseCreatorEntity = ent;
+        t->luaProperties.delayedUseType = useType;
+        t->luaProperties.delayedUseValue = useValue;
         t->targetNames.target = ent->targetNames.target;
         t->targetNames.kill = ent->targetNames.kill;
         return;

@@ -10,9 +10,20 @@
 //! For errors:
 #define LUA_ErrorPrintf(...) gi.bprintf( PRINT_WARNING, __VA_ARGS__ );
 
-//! For calling into LUA functions:
-#include "svgame/lua/svg_lua_callfunction.hpp"
 
+
+/**
+*
+*
+*
+*	Utilities:
+*
+*
+*
+**/
+/**
+*	@brief	 
+**/
 static inline const bool LUA_HasFunction( lua_State *L, const std::string &functionName ) {
 	// Get the global functionname value and push it to stack:
 	lua_getglobal( L, functionName.c_str() );
@@ -20,6 +31,13 @@ static inline const bool LUA_HasFunction( lua_State *L, const std::string &funct
 	// Check if function even exists.
 	return ( lua_isfunction( L, -1 ) ? true : false );
 }
+
+//! For calling into LUA functions:
+#include "svgame/lua/svg_lua_callfunction.hpp"
+//! For signaling.
+#include "svgame/lua/svg_lua_signals.hpp"
+
+
 
 
 

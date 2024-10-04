@@ -384,13 +384,15 @@ int GameLib_GetEntityForTargetName( lua_State *L ) {
 **/
 void LUA_Think_UseTargetDelay( edict_t *entity ) {
 	edict_t *creatorEntity = entity->luaProperties.delayedUseCreatorEntity;
+	const entity_usetarget_type_t useType = entity->luaProperties.delayedUseType;
+	const int32_t useValue = entity->luaProperties.delayedUseValue;
 	if ( creatorEntity->use ) {
 		creatorEntity->use( 
 			creatorEntity,
 			entity->other, 
 			entity->activator,
-			entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE,
-			0 );
+			useType,
+			useValue );
 	}
 	SVG_FreeEdict( entity );
 }
@@ -402,6 +404,8 @@ int GameLib_UseTarget( lua_State *L ) {
 	const int32_t entityNumber = luaL_checkinteger( L, 1 );
 	const int32_t otherEntityNumber = luaL_checkinteger( L, 2 );
 	const int32_t activatorEntityNumber = luaL_checkinteger( L, 3 );
+	const entity_usetarget_type_t useType = static_cast<const entity_usetarget_type_t>( luaL_checkinteger( L, 4 ) );
+	const int32_t useValue = static_cast<const int32_t>( luaL_checkinteger( L, 5 ) );
 
 	// Validate entity numbers.
 	if ( entityNumber < 0 || activatorEntityNumber >= game.maxentities ) {
@@ -457,6 +461,8 @@ int GameLib_UseTarget( lua_State *L ) {
 
 		t->luaProperties.luaName = entity->luaProperties.luaName;
 		t->luaProperties.delayedUseCreatorEntity = entity;
+		t->luaProperties.delayedUseType = useType;
+		t->luaProperties.delayedUseValue = useValue;
 
 		t->message = entity->message;
 		t->targetNames.target = entity->targetNames.target;
@@ -471,11 +477,16 @@ int GameLib_UseTarget( lua_State *L ) {
 	if ( entity->use ) {
 		entity->activator = activator;
 		entity->other = other;
-		entity->use( entity, other, activator, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 0 );
-	}
+		entity->use( entity, other, activator, useType, useValue );
 
-	lua_pushinteger( L, 1 );
-	return 1;
+		// Return 1, we have used our method.
+		lua_pushinteger( L, 1 );
+		return 1;
+	} else {
+		// Return 0, UseTarget has not actually used its target yet.
+		lua_pushinteger( L, 0 );
+		return 1;
+	}
 }
 /**
 *	@brief	Game Namespace Functions:
@@ -495,7 +506,7 @@ void GameLib_Initialize( lua_State *L ) {
 
 	// Here we set all functions from GameLib array into
 	// the table on the top of the stack
-	luaL_setfuncs( L, GameLib, 0);
+	luaL_setfuncs( L, GameLib, 0 );
 
 	// We get the table and set as global variable
 	lua_setglobal( L, "Game" );
@@ -539,12 +550,14 @@ void SVG_Lua_CallBack_BeginMap() {
 	VPrint( "FUNCTION NAME LOL", "Hello World! VARIADIC!@!!\n" );
 	//VPrint( "aids", "dacht je dat?" );
 	const bool calledFunction = LUA_CallFunction( lMapState, "OnBeginMap", 1 );
+	lua_pop( lMapState, 1 );
 }
 /**
 *	@brief
 **/
 void SVG_Lua_CallBack_ExitMap() {
 	const bool calledFunction = LUA_CallFunction( lMapState, "OnExitMap", 1 );
+	lua_pop( lMapState, 1 );
 }
 
 
@@ -557,12 +570,14 @@ void SVG_Lua_CallBack_ExitMap() {
 **/
 void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity ) {
 	const bool calledFunction = LUA_CallFunction( lMapState, "OnClientEnterLevel", 1, clientEntity );
+	lua_pop( lMapState, 1 );
 }
 /**
 *	@brief
 **/
 void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity ) {
 	const bool calledFunction = LUA_CallFunction( lMapState, "OnClientExitLevel", 1, clientEntity );
+	lua_pop( lMapState, 1 );
 }
 
 
@@ -574,16 +589,19 @@ void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity ) {
 **/
 void SVG_Lua_CallBack_BeginServerFrame() {
 	const bool calledFunction = LUA_CallFunction( lMapState, "OnBeginServerFrame", 1 );
+	lua_pop( lMapState, 1 );
 }
 /**
 *	@brief
 **/
 void SVG_Lua_CallBack_RunFrame() {
 	const bool calledFunction = LUA_CallFunction( lMapState, "OnRunFrame", 1, level.framenum );
+	lua_pop( lMapState, 1 );
 }
 /**
 *	@brief
 **/
 void SVG_Lua_CallBack_EndServerFrame() {
 	const bool calledFunction = LUA_CallFunction( lMapState, "OnEndServerFrame", 1 );
+	lua_pop( lMapState, 1 );
 }

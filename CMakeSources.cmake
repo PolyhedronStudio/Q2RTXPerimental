@@ -331,6 +331,9 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_lua.h
 	baseq2rtxp/svgame/svg_save.h
 
+	baseq2rtxp/svgame/lua/svg_lua_callfunction.hpp
+	baseq2rtxp/svgame/lua/svg_lua_signals.hpp
+
 	baseq2rtxp/svgame/entities/func/svg_func_button.h
 	baseq2rtxp/svgame/entities/func/svg_func_conveyor.h
 	baseq2rtxp/svgame/entities/func/svg_func_door.h

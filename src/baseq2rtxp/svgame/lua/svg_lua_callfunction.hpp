@@ -104,7 +104,7 @@ static const bool LUA_CallFunction( lua_State *L, const std::string &functionNam
 		int32_t pCallReturnValue = lua_pcall( L, sizeof...( Rest ), numReturnValues, 0 );
 		if ( pCallReturnValue == LUA_OK ) {
 			// Pop function name from stack.
-			lua_pop( L, lua_gettop( L ) );
+			//lua_pop( L, lua_gettop( L ) );
 			// Success.
 			executedSuccessfully = true;
 		} else {
@@ -119,7 +119,7 @@ static const bool LUA_CallFunction( lua_State *L, const std::string &functionNam
 		// Pop function name from stack.
 		lua_pop( L, lua_gettop( L ) );
 		// Print Error Notification.
-		LUA_ErrorPrintf( "%s: %s is not a function\n", __func__, functionName );
+		LUA_ErrorPrintf( "%s: %s is not a function\n", __func__, functionName.c_str() );
 	}
 
 	// Return failure.
