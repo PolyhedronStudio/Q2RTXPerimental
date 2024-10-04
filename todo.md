@@ -46,6 +46,13 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 		      (The more entities there are using a skeletal model, the more space we need.)
 	- [ ] 2. I am most likely forgetting some things, so first finish this entire list.
 
+- [ ] The LUA Scenario:
+	- [ ] Implement custom TagMalloc like allocator for Lua memory management.
+	- [ ] Add support for edicts on the C side of life to implement OnSignal functionalities.
+	- [ ] Add SignalOut funcionality to Lua, so it can fire signals.
+	- [ ] Add for PushMovers a function to acquire their current state.
+	- [ ] Add proper file chunk loading.
+	- [ ] (Somewhat optional, but useful really..) Add a stack debugger.
 
 ## Other Features:
 Features being looked forward on implementation.
@@ -70,7 +77,6 @@ Features being looked forward on implementation.
 * [ ] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly.
 
 ### Medium Priority:
-* [ ] The lua script file being opened by gi.FS_ stuff, is doing so in an incorrect memory tag namespace. Leaks._
 * [X] Remove all Q2 monsters, keep a few around to use for testing.
 * [-] Eliminate all other Q2-only specific game entities.
 * [X] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.

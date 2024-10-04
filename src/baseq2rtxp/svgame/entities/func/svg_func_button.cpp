@@ -138,12 +138,12 @@ void button_unpress_move_done( edict_t *self );
 void button_think_return( edict_t *self );
 void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 
+
 /**
-*   @brief  Will call back upon the specified `luaName_eventName(..)` function, if existent.
+*   @brief  Fire use target lua function implementation if existant.
 **/
 void button_lua_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t &useType, const int32_t useValue ) {
-
-    // WID: LUA: Call the event function if it exists.
+    // Need the luaName.
     if ( self->luaProperties.luaName ) {
         // Generate function 'callback' name.
         const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_Use";
@@ -426,7 +426,7 @@ void button_use( edict_t *self, edict_t *other, edict_t *activator, const entity
     self->activator = activator;
     button_trigger( self, activator, useType, useValue );
 
-    // Call upon Lua OnFire.
+    // Call upon Lua OnUse.
     button_lua_use( self, other, activator, useType, useValue );
 }
 /**
@@ -501,16 +501,17 @@ void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 **/
 void SP_func_button( edict_t *ent ) {
     vec3_t  abs_movedir;
-    float   dist;
 
     // PushMove Entity Basics:
     SVG_SetMoveDir( ent->s.angles, ent->movedir );
+    #if 0
     if ( ent->targetNames.movewith ) {
         ent->movetype = MOVETYPE_PUSH;
-
     } else {
         ent->movetype = MOVETYPE_STOP;
     }
+    #endif
+    ent->movetype = MOVETYPE_STOP;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
     // BSP Model, or otherwise, specified external model.
@@ -524,14 +525,14 @@ void SP_func_button( edict_t *ent ) {
     }
 
     // PushMove defaults:
+    if ( !ent->speed ) {
+        ent->speed = 40;
+    }
     if ( !ent->accel ) {
         ent->accel = ent->speed;
     }
     if ( !ent->decel ) {
         ent->decel = ent->speed;
-    }
-    if ( !ent->speed ) {
-        ent->speed = 40;
     }
     if ( !st.lip ) {
         st.lip = 4;
@@ -546,9 +547,9 @@ void SP_func_button( edict_t *ent ) {
     abs_movedir[ 0 ] = fabsf( ent->movedir[ 0 ] );
     abs_movedir[ 1 ] = fabsf( ent->movedir[ 1 ] );
     abs_movedir[ 2 ] = fabsf( ent->movedir[ 2 ] );
-    dist = abs_movedir[ 0 ] * ent->size[ 0 ] + abs_movedir[ 1 ] * ent->size[ 1 ] + abs_movedir[ 2 ] * ent->size[ 2 ] - st.lip;
+    ent->pushMoveInfo.distance = abs_movedir[ 0 ] * ent->size[ 0 ] + abs_movedir[ 1 ] * ent->size[ 1 ] + abs_movedir[ 2 ] * ent->size[ 2 ] - st.lip;
     // Translate the determined move distance into the move direction to get pos2, our move end origin.
-    ent->pos2 = QM_Vector3MultiplyAdd( ent->movedir, dist, ent->pos1 );
+    ent->pos2 = QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );
 
     // Default trigger callback.
     ent->use = button_use;

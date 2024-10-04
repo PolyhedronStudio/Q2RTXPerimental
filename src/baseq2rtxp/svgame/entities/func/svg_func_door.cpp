@@ -75,7 +75,21 @@ void door_use_areaportals( edict_t *self, const bool open ) {
     }
 }
 
-
+/**
+*   @brief  Fire use target lua function implementation if existant.
+**/
+void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t &useType, const int32_t useValue ) {
+    // Need the luaName.
+    if ( self->luaProperties.luaName ) {
+        // Generate function 'callback' name.
+        const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_Use";
+        // Call if it exists.
+        if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
+            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
+                /*[lua args]:*/ self, other, activator, useType, useValue );
+        }
+    }
+}
 
 
 /**
@@ -116,7 +130,6 @@ void door_open_move_done( edict_t *self ) {
         self->think = door_close_move;
         self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
     }
-
 }
 
 /**
@@ -217,6 +230,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
             for ( ent = self; ent; ent = ent->teamchain ) {
                 ent->message = NULL;
                 ent->touch = NULL;
+                ent->activator = activator; // WID: We need to assign it right?
                 door_close_move( ent );
             }
             return;
@@ -227,9 +241,12 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
     for ( ent = self; ent; ent = ent->teamchain ) {
         ent->message = NULL;
         ent->touch = NULL;
-        ent->activator = activator;
+        ent->activator = activator; // WID: We need to assign it right?
         door_open_move( ent/*, activator */);
     }
+
+    // Call upon Lua OnUse.
+    door_lua_use( self, other, activator, useType, useValue );
 }
 
 /**
@@ -249,9 +266,9 @@ void door_blocked( edict_t *self, edict_t *other ) {
 
     T_Damage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
 
-    if ( self->spawnflags & DOOR_SPAWNFLAG_CRUSHER )
+    if ( self->spawnflags & DOOR_SPAWNFLAG_CRUSHER ) {
         return;
-
+    }
 
     // if a door has a negative wait, it would never come back if blocked,
     // so let it just squash the object to death real fast
@@ -321,44 +338,58 @@ void SP_func_door( edict_t *ent ) {
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
+    // BSP Model, or otherwise, specified external model.
     gi.setmodel( ent, ent->model );
 
+    // WID: TODO: We don't want this...
+    #if 0
+    if ( deathmatch->value ) {
+        ent->speed *= 2;
+    }
+    #endif
+    // PushMove defaults:
+    if ( !ent->speed ) {
+        ent->speed = 100;
+    }
+    if ( !ent->accel ) {
+        ent->accel = ent->speed;
+    }
+    if ( !ent->decel ) {
+        ent->decel = ent->speed;
+    }
+    if ( !st.lip ) {
+        st.lip = 8;
+    }
+    // Trigger defaults:
+    if ( !ent->wait ) {
+        ent->wait = 3;
+    }
+    if ( !ent->dmg ) {
+        ent->dmg = 2;
+    }
+
+    // Callbacks.
     ent->postspawn = door_postspawn;
     ent->blocked = door_blocked;
     ent->use = door_use;
 
-    if ( !ent->speed )
-        ent->speed = 100;
-    if ( deathmatch->value )
-        ent->speed *= 2;
-
-    if ( !ent->accel )
-        ent->accel = ent->speed;
-    if ( !ent->decel )
-        ent->decel = ent->speed;
-
-    if ( !ent->wait )
-        ent->wait = 3;
-    if ( !st.lip )
-        st.lip = 8;
-    if ( !ent->dmg )
-        ent->dmg = 2;
-
-    // calculate second position
-    VectorCopy( ent->s.origin, ent->pos1 );
+    // Calculate absolute move distance to get from pos1 to pos2.
+    ent->pos1 = ent->s.origin;
     abs_movedir[ 0 ] = fabsf( ent->movedir[ 0 ] );
     abs_movedir[ 1 ] = fabsf( ent->movedir[ 1 ] );
     abs_movedir[ 2 ] = fabsf( ent->movedir[ 2 ] );
     ent->pushMoveInfo.distance = abs_movedir[ 0 ] * ent->size[ 0 ] + abs_movedir[ 1 ] * ent->size[ 1 ] + abs_movedir[ 2 ] * ent->size[ 2 ] - st.lip;
-    VectorMA( ent->pos1, ent->pushMoveInfo.distance, ent->movedir, ent->pos2 );
+    // Translate the determined move distance into the move direction to get pos2, our move end origin.
+    ent->pos2 = QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );
 
     // if it starts open, switch the positions
-    if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN ) {
-        VectorCopy( ent->pos2, ent->s.origin );
-        VectorCopy( ent->pos1, ent->pos2 );
-        VectorCopy( ent->s.origin, ent->pos1 );
-    }
+    //if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN ) {
+    //    VectorCopy( ent->pos2, ent->s.origin );
+    //    VectorCopy( ent->pos1, ent->pos2 );
+    //    VectorCopy( ent->s.origin, ent->pos1 );
+    //}
 
+    // Initial closed state.
     ent->pushMoveInfo.state = DOOR_STATE_CLOSED;
 
     if ( ent->health ) {
@@ -370,28 +401,44 @@ void SP_func_door( edict_t *ent ) {
         ent->touch = door_touch;
     }
 
+    // Copy the calculated info into the pushMoveInfo state struct.
     ent->pushMoveInfo.speed = ent->speed;
     ent->pushMoveInfo.accel = ent->accel;
     ent->pushMoveInfo.decel = ent->decel;
     ent->pushMoveInfo.wait = ent->wait;
-    VectorCopy( ent->pos1, ent->pushMoveInfo.start_origin );
-    VectorCopy( ent->s.angles, ent->pushMoveInfo.start_angles );
-    VectorCopy( ent->pos2, ent->pushMoveInfo.end_origin );
-    VectorCopy( ent->s.angles, ent->pushMoveInfo.end_angles );
+    // For PRESSED: pos1 = start, pos2 = end.
+    if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_START_OPEN ) ) {
+        ent->pushMoveInfo.state = DOOR_STATE_OPENED;
+        ent->pushMoveInfo.start_origin = ent->pos2;
+        ent->pushMoveInfo.start_angles = ent->s.angles;
+        ent->pushMoveInfo.end_origin = ent->pos1;
+        ent->pushMoveInfo.end_angles = ent->s.angles;
+    // For UNPRESSED: pos1 = start, pos2 = end.
+    } else {
+        ent->pushMoveInfo.start_origin = ent->pos1;
+        ent->pushMoveInfo.start_angles = ent->s.angles;
+        ent->pushMoveInfo.end_origin = ent->pos2;
+        ent->pushMoveInfo.end_angles = ent->s.angles;
+    }
 
-    if ( ent->spawnflags & 16 )
+    // Animated doors:
+    if ( ent->spawnflags & DOOR_SPAWNFLAG_ANIMATED ) {
         ent->s.effects |= EF_ANIM_ALL;
-    if ( ent->spawnflags & 64 )
+    }
+    if ( ent->spawnflags & DOOR_SPAWNFLAG_ANIMATED_FAST ) {
         ent->s.effects |= EF_ANIM_ALLFAST;
+    }
 
-    // to simplify logic elsewhere, make non-teamed doors into a team of one
-    if ( !ent->targetNames.team )
+    // To simplify logic elsewhere, make non-teamed doors into a team of one
+    if ( !ent->targetNames.team ) {
         ent->teammaster = ent;
+    }
 
+    // Link it in.
     gi.linkentity( ent );
 
+    // Apply next think time and method.
     ent->nextthink = level.time + FRAME_TIME_S;
-
     if ( ent->health || ent->targetname ) {
         ent->think = Think_CalcMoveSpeed;
     } else {

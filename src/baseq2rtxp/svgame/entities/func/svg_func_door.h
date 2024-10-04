@@ -12,23 +12,23 @@
 *   Spawnflags:
 **/
 //! Door starts opened.
-static constexpr int32_t DOOR_SPAWNFLAG_START_OPEN	= BIT( 0 );
+static constexpr int32_t DOOR_SPAWNFLAG_START_OPEN		= BIT( 0 );
 //! Door starts in reversed(its opposite) state.
-static constexpr int32_t DOOR_SPAWNFLAG_REVERSE      = BIT( 1 );
+static constexpr int32_t DOOR_SPAWNFLAG_REVERSE			= BIT( 1 );
 //! Door does damage when blocked, trying to 'crush' the entity blocking its path.
-static constexpr int32_t DOOR_SPAWNFLAG_CRUSHER      = BIT( 2 );
+static constexpr int32_t DOOR_SPAWNFLAG_CRUSHER			= BIT( 2 );
 //! Door won't be triggered by monsters.
-static constexpr int32_t DOOR_SPAWNFLAG_NOMONSTER    = BIT( 3 );
+static constexpr int32_t DOOR_SPAWNFLAG_NOMONSTER		= BIT( 3 );
 //! Door does not automatically wait for returning to its initial(can be reversed) state.
-static constexpr int32_t DOOR_SPAWNFLAG_TOGGLE       = BIT( 4 );
+static constexpr int32_t DOOR_SPAWNFLAG_TOGGLE			= BIT( 4 );
 //! Door has animation.
 static constexpr int32_t DOOR_SPAWNFLAG_ANIMATED		= BIT( 5 );
 //! Door has animation.
-static constexpr int32_t DOOR_SPAWNFLAG_ANIMATED_FAST= BIT( 6 );
+static constexpr int32_t DOOR_SPAWNFLAG_ANIMATED_FAST	= BIT( 6 );
 //! Door moves into X axis instead of Z.
-static constexpr int32_t DOOR_SPAWNFLAG_X_AXIS		= BIT( 7 );
+static constexpr int32_t DOOR_SPAWNFLAG_X_AXIS			= BIT( 7 );
 //! Door moves into Y axis instead of Z.
-static constexpr int32_t DOOR_SPAWNFLAG_Y_AXIS		= BIT( 8 );
+static constexpr int32_t DOOR_SPAWNFLAG_Y_AXIS			= BIT( 8 );
 
 
 
