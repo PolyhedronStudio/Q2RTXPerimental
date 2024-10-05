@@ -1783,11 +1783,16 @@ struct edict_s {
 
         //! The source entity that when UseTarget, created the DelayedUse entity.
         edict_t *delayedUseCreatorEntity;
+        //! The source entity that when SignalOut, created the DelayedUse entity.
+        edict_t *delayedSignalCreatorEntity;
 
         //! The useType for delayed UseTarget.
         entity_usetarget_type_t delayedUseType;
         //! The useValue for delayed UseTarget.
         int32_t delayedUseValue;
+
+        //! For delayed signaling.
+        char delayedSignalName[256];
     } luaProperties;
 
     //
@@ -1861,7 +1866,9 @@ struct edict_s {
     
     //! Called to 'trigger' the entity.
     void        ( *use )( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
-    
+    //! Called when the entity is being 'Signalled', happens when another entity fires an OutSignal to it.
+    void        ( *onsignal )( edict_t *self, edict_t *other, edict_t *activator, const char *signalName );
+
     #if 0
     //! Called when the entity is keypressed by a client's(+usetarget).
     const bool  ( *usetarget_press )( edict_t *self, edict_t *activator );

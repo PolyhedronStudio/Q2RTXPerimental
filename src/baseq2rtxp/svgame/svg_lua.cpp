@@ -414,12 +414,15 @@ int GameLib_GetEntityForTargetName( lua_State *L ) {
 **/
 void LUA_Think_UseTargetDelay( edict_t *entity ) {
 	edict_t *creatorEntity = entity->luaProperties.delayedUseCreatorEntity;
+	if ( !creatorEntity ) {
+		return;
+	}
 	const entity_usetarget_type_t useType = entity->luaProperties.delayedUseType;
 	const int32_t useValue = entity->luaProperties.delayedUseValue;
 	if ( creatorEntity->use ) {
-		creatorEntity->use( 
+		creatorEntity->use(
 			creatorEntity,
-			entity->other, 
+			entity->other,
 			entity->activator,
 			useType,
 			useValue );
@@ -427,7 +430,25 @@ void LUA_Think_UseTargetDelay( edict_t *entity ) {
 	SVG_FreeEdict( entity );
 }
 /**
-*	@return	The number of the entity if it has a matching targetname, -1 otherwise.
+*	@brief	Utility/Support routine for delaying SignalOut when a 'delay' is given to it.
+**/
+void LUA_Think_SignalOutDelay( edict_t *entity ) {
+	edict_t *creatorEntity = entity->luaProperties.delayedSignalCreatorEntity;
+	if ( !creatorEntity ) {
+		return;
+	}
+	const char *signalName = entity->luaProperties.delayedSignalName;
+	if ( creatorEntity->onsignal ) {
+		creatorEntity->onsignal(
+			creatorEntity,
+			entity->other,
+			entity->activator,
+			signalName );
+	}
+	SVG_FreeEdict( entity );
+}
+/**
+*	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
 int GameLib_UseTarget( lua_State *L ) {
 	// 
@@ -519,12 +540,109 @@ int GameLib_UseTarget( lua_State *L ) {
 	}
 }
 /**
+*	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
+**/
+int GameLib_SignalOut( lua_State *L ) {
+	// 
+	const int32_t entityNumber = luaL_checkinteger( L, 1 );
+	const int32_t otherEntityNumber = luaL_checkinteger( L, 2 );
+	const int32_t activatorEntityNumber = luaL_checkinteger( L, 3 );
+	const char *signalName = static_cast<const char*>( luaL_checkstring( L, 4 ) );
+
+	// Validate entity numbers.
+	if ( entityNumber < 0 || activatorEntityNumber >= game.maxentities ) {
+		lua_pushinteger( L, -1 );
+		return 1;
+	}
+	#if 0
+	if ( otherEntityNumber < 0 || otherEntityNumber >= game.maxentities ) {
+		lua_pushinteger( L, -1 );
+		return 1;
+	}
+	if ( activatorEntityNumber < 0 || activatorEntityNumber >= game.maxentities ) {
+		lua_pushinteger( L, -1 );
+		return 1;
+	}
+	#endif
+
+	// See if the targetted entity is inuse.
+	if ( !g_edicts[ entityNumber ].inuse ) {
+		lua_pushinteger( L, -1 );
+		return 1;
+	}
+	#if 0
+	if ( !g_edicts[ otherEntityNumber ].inuse ) {
+		lua_pushinteger( L, -1 );
+		return 1;
+	}
+	// See if the activator is inuse.
+	if ( !g_edicts[ activatorEntityNumber ].inuse ) {
+		lua_pushinteger( L, -1 );
+		return 1;
+	}
+	#endif
+
+	// Perform UseTargets
+	edict_t *entity = &g_edicts[ entityNumber ];
+	edict_t *other = ( otherEntityNumber != -1 ? &g_edicts[ otherEntityNumber ] : nullptr );
+	edict_t *activator = ( activatorEntityNumber != -1 ? &g_edicts[ activatorEntityNumber ] : nullptr );
+	//_UseTargets( entity, activator );
+
+	if ( entity->delay ) {
+		// create a temp object to UseTarget at a later time.
+		edict_t *t = SVG_AllocateEdict();
+		t->classname = "DelayedUse";
+		t->nextthink = level.time + sg_time_t::from_sec( entity->delay );
+		t->think = LUA_Think_SignalOutDelay;
+
+		t->activator = activator;
+		t->other = other;
+		if ( !activator ) {
+			gi.dprintf( "Think_Delay with no activator\n" );
+		}
+
+		t->luaProperties.luaName = entity->luaProperties.luaName;
+		t->luaProperties.delayedSignalCreatorEntity = entity;
+		//t->luaProperties.delayedUseType = useType;
+		//t->luaProperties.delayedUseValue = useValue;
+		// The actual string comes from lua so we need to copy it in instead.
+		memset( t->luaProperties.delayedSignalName, 0, sizeof( t->luaProperties.delayedSignalName ) );
+		Q_strlcpy( t->luaProperties.delayedSignalName, signalName, strlen( signalName ) );
+
+		t->message = entity->message;
+		t->targetNames.target = entity->targetNames.target;
+		t->targetNames.kill = entity->targetNames.kill;
+
+		// Return 0, UseTarget has not actually used its target yet.
+		lua_pushinteger( L, 0 );
+		return 1;
+	}
+
+	// Fire the signal if it has a OnSignal method registered.
+	if ( entity->onsignal ) {
+		entity->activator = activator;
+		entity->other = other;
+		//entity->use( entity, other, activator, useType, useValue );
+		entity->onsignal( entity, other, activator, signalName );
+
+		// Return 1, we have used our method.
+		lua_pushinteger( L, 1 );
+		return 1;
+	} else {
+		// Return 0, UseTarget has not actually used its target yet.
+		lua_pushinteger( L, 0 );
+		return 1;
+	}
+}
+
+/**
 *	@brief	Game Namespace Functions:
 **/
 const struct luaL_Reg GameLib[] = {
 	{ "GetEntityForLuaName", GameLib_GetEntityForLuaName },
 	{ "GetEntityForTargetName", GameLib_GetEntityForTargetName },
 	{ "UseTarget", GameLib_UseTarget },
+	{ "SignalOut", GameLib_SignalOut },
 	{ NULL, NULL }
 };
 /**

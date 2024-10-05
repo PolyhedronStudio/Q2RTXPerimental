@@ -91,6 +91,62 @@ void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const enti
     }
 }
 
+/**
+*   @brief  Toggles the entire door team.
+**/
+void door_close_move( edict_t *self );
+void door_open_move( edict_t *self/*, edict_t *activator */ );
+void door_team_toggle( edict_t *self, edict_t *activator, const bool open ) {
+    if ( self->flags & FL_TEAMSLAVE )
+        return;
+
+    if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
+        if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
+            // trigger all paired doors
+            for ( edict_t *ent = self; ent; ent = ent->teamchain ) {
+                ent->message = NULL;
+                ent->touch = NULL;
+                ent->activator = activator; // WID: We need to assign it right?
+                door_close_move( ent );
+            }
+            return;
+        }
+    }
+
+    // trigger all paired doors
+    for ( edict_t *ent = self; ent; ent = ent->teamchain ) {
+        ent->message = NULL;
+        ent->touch = NULL;
+        ent->activator = activator; // WID: We need to assign it right?
+        door_open_move( ent/*, activator */ );
+    }
+}
+
+/**
+*   @brief  Signal Receiving:
+**/
+void door_onsignal( edict_t *self, edict_t *other, edict_t *activator, const char *signalName ) {
+    // DoorOpen:
+    if ( Q_strcasecmp( signalName, "DoorOpen" ) == 0 ) {
+        self->activator = activator;
+        self->other = other;
+        //door_open_move( self );
+        // signal all paired doors
+        door_team_toggle( self, activator, true );
+    }
+    // DoorClose:
+    if ( Q_strcasecmp( signalName, "DoorClose" ) == 0 ) {
+        self->other = other;
+        self->activator = activator;
+
+        //door_close_move( self );
+        // signal all paired doors
+        door_team_toggle( self, activator, false );
+    }
+
+    gi.dprintf( "%s\n", signalName );
+}
+
 
 /**
 *
@@ -372,6 +428,7 @@ void SP_func_door( edict_t *ent ) {
     ent->postspawn = door_postspawn;
     ent->blocked = door_blocked;
     ent->use = door_use;
+    ent->onsignal = door_onsignal;
 
     // Calculate absolute move distance to get from pos1 to pos2.
     ent->pos1 = ent->s.origin;
