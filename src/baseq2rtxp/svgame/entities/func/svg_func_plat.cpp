@@ -290,6 +290,9 @@ void SP_func_plat( edict_t *ent ) {
 
     plat_spawn_inside_trigger( ent );     // the "start moving" trigger
 
+    // WID: TODO: For Lua stuff we dun need this.
+    ent->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
+    #if 0 
     if ( ent->targetname ) {
         ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
     } else {
@@ -297,6 +300,7 @@ void SP_func_plat( edict_t *ent ) {
         gi.linkentity( ent );
         ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
     }
+    #endif
 
     ent->pushMoveInfo.speed = ent->speed;
     ent->pushMoveInfo.accel = ent->accel;

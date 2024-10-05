@@ -47,6 +47,41 @@
 /**
 *	@return	The number of the entity if it has a matching luaName, -1 otherwise.
 **/
+static int GameLib_GetPushMoverState( lua_State *L ) {
+	// Check if the first argument is numeric(the entity number).
+	const int32_t entityNumber = luaL_checkinteger( L, 1 );
+
+	// Validate entity numbers.
+	if ( entityNumber < 0 || entityNumber >= game.maxentities ) {
+		Lua_DeveloperPrintf( "%s: invalid entity number(#%d)\n", __func__, entityNumber );
+		lua_pushinteger( L, -1 );
+		return 1;
+	}
+
+	// Find entity and acquire its number.
+	int32_t pusherMoveState = -1; // None by default.
+
+	edict_t *pushMoverEntity = &g_edicts[ entityNumber ];
+	if ( SVG_IsActiveEntity( pushMoverEntity ) ) {
+		pusherMoveState = pushMoverEntity->pushMoveInfo.state;
+	}
+
+	// multiply and store the result inside a type lua_Integer
+	lua_Integer luaPusherMoveState = pusherMoveState;
+
+	// Here we prepare the values to be returned.
+	// First we push the values we want to return onto the stack in direct order.
+	// Second, we must return the number of values pushed onto the stack.
+
+	// Pushing the result onto the stack to be returned
+	lua_pushinteger( L, luaPusherMoveState );
+
+	return 1; // The number of returned values
+}
+
+/**
+*	@return	The number of the entity if it has a matching luaName, -1 otherwise.
+**/
 static int GameLib_GetEntityForLuaName( lua_State *L ) {
 	// Check if the first argument is string.
 	const char *luaName = luaL_checkstring( L, 1 );
@@ -146,7 +181,7 @@ static int GameLib_UseTarget( lua_State *L ) {
 	const int32_t useValue = static_cast<const int32_t>( luaL_checkinteger( L, 5 ) );
 
 	// Validate entity numbers.
-	if ( entityNumber < 0 || activatorEntityNumber >= game.maxentities ) {
+	if ( entityNumber < 0 || entityNumber >= game.maxentities ) {
 		lua_pushinteger( L, -1 );
 		return 1;
 	}
@@ -256,7 +291,7 @@ static int GameLib_SignalOut( lua_State *L ) {
 	const char *signalName = static_cast<const char *>( luaL_checkstring( L, 4 ) );
 
 	// Validate entity numbers.
-	if ( entityNumber < 0 || activatorEntityNumber >= game.maxentities ) {
+	if ( entityNumber < 0 || entityNumber >= game.maxentities ) {
 		lua_pushinteger( L, -1 );
 		return 1;
 	}
@@ -345,10 +380,21 @@ static int GameLib_SignalOut( lua_State *L ) {
 *	@brief	Game Namespace Functions:
 **/
 static const struct luaL_Reg GameLib[] = {
+
+	// GetEntity...:
 	{ "GetEntityForLuaName", GameLib_GetEntityForLuaName },
 	{ "GetEntityForTargetName", GameLib_GetEntityForTargetName },
+
+	// PushMovers:
+	{ "GetPushMoverState", GameLib_GetPushMoverState },
+
+	// UseTargets:
 	{ "UseTarget", GameLib_UseTarget },
+
+	// Signalling:
 	{ "SignalOut", GameLib_SignalOut },
+
+	// End OF Array.
 	{ NULL, NULL }
 };
 /**
