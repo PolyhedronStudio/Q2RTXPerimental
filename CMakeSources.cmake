@@ -312,6 +312,9 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_elevator.cpp
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
 
+	baseq2rtxp/svgame/lua/svg_lua_corelib.cpp
+	baseq2rtxp/svgame/lua/svg_lua_gamelib.cpp
+
 	baseq2rtxp/svgame/monsters/svg_mmove.cpp
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.cpp
 

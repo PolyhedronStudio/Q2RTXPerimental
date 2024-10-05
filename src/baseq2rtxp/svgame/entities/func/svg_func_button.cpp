@@ -204,8 +204,8 @@ void button_unpress_move_done( edict_t *self ) {
         self->touch = button_touch;
     }
 
-    // Dispatch a lua signal.
-    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnUnPressed" );
+    // Dispatch a signal.
+    SVG_SignalOut( self, self->other, self->activator, "OnUnPressed" );
 }
 
 /**
@@ -255,8 +255,8 @@ void button_press_move_done( edict_t *self ) {
 
     // Trigger UseTargets
     SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
-    // Dispatch a lua signal.
-    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnPressed" );
+    // Dispatch a signal.
+    SVG_SignalOut( self, self->other, self->activator, "OnPressed" );
 }
 
 
@@ -282,8 +282,8 @@ void button_press_move( edict_t *self ) {
     }
     // Calculate and begin moving to the button's 'Pressed' state end origin.
     SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, button_press_move_done );
-    // Dispatch a lua signal.
-    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnPress" );
+    // Dispatch a signal.
+    SVG_SignalOut( self, self->other, self->activator, "OnPress" );
 }
 /**
 *   @brief  Engages moving into the 'Unpressed' state, after which at arrival, it calls upon 'button_unpress_move_done'.
@@ -301,8 +301,8 @@ void button_unpress_move( edict_t *self ) {
     #endif
     // Calculate and begin moving back to the button's 'Unpressed' state start origin.
     SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, button_unpress_move_done );
-    // Dispatch a lua signal.
-    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnUnPress" );
+    // Dispatch a signal.
+    SVG_SignalOut( self, self->other, self->activator, "OnUnPress" );
 }
 
 
@@ -335,8 +335,8 @@ void button_think_return( edict_t *self ) {
         // Trigger UseTargets
         SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_SET, 1 );
 
-        // Dispatch a lua signal.
-        SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnContinuousPress" );
+        // Dispatch a signal.
+        SVG_SignalOut( self, self->other, self->activator, "OnContinuousPress" );
 
         // Get out.
         return;
@@ -348,7 +348,7 @@ void button_think_return( edict_t *self ) {
         button_unpress_move( self );
         // If it is a continuous button...
         if ( isContinuousButton ) {
-            // Dispatch a lua signal.
+            // Dispatch a signal.
             //button_lua_signal( self, "OnContinuousUnPress" );
         }
 
@@ -356,8 +356,8 @@ void button_think_return( edict_t *self ) {
         if ( SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES ) && self->health ) {
             // Allow it to take damage again.
             self->takedamage = DAMAGE_YES;
-            // Dispatch a lua signal.
-            SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnRevive" );
+            // Dispatch a signal.
+            SVG_SignalOut( self, self->other, self->activator, "OnRevive" );
         }
     // It is continuous and still held, so maintain this function as our 'think' callback.
     } else {
@@ -398,8 +398,8 @@ void button_trigger( edict_t *self, edict_t *activator, const entity_usetarget_t
             // Trigger UseTargets
             SVG_UseTargets( self, self->activator, useType, useValue );
 
-            // Dispatch a lua signal.
-            SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnContinuousPress" );
+            // Dispatch a signal.
+            SVG_SignalOut( self, self->other, self->activator, "OnContinuousPress" );
             return;
         }
 
@@ -407,14 +407,14 @@ void button_trigger( edict_t *self, edict_t *activator, const entity_usetarget_t
         if ( !stayPressed && isToggleButton ) {
             // Engage in unpress movement.
             button_unpress_move( self );
-            // Dispatch a lua signal.
-            //SVG_Lua_SignalOut( self, "OnUnPress" );
+            // Dispatch a signal.
+            //SVG_SignalOut( "OnUnPress" );
         }
     } else {
         // Engage in press movement.
         button_press_move( self );
-        // Dispatch a lua signal.
-        //SVG_Lua_SignalOut( self, "OnPress" );
+        // Dispatch a signal.
+        //SVG_SignalOut( "OnPress" );
     }
 }
 
@@ -424,6 +424,7 @@ void button_trigger( edict_t *self, edict_t *activator, const entity_usetarget_t
 void button_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {   
     // Set activator.
     self->activator = activator;
+    self->other = other;
     button_trigger( self, activator, useType, useValue );
 
     // Call upon Lua OnUse.
@@ -461,19 +462,22 @@ void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
     if ( buttonResponse == BUTTON_RESPONSE_UNPRESS ) {
         // Untoggle.
         self->activator = other;
+        self->other = other;
         // UseTargets a Toggle.
         SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
         // Unpress,
         button_unpress_move( self );
         
-        // Dispatch a lua signal.
-        SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnTouchUnPress" );
+        // Dispatch a signal.
+        SVG_SignalOut( self, self->other, self->activator, "OnTouchUnPress" );
     } else if ( buttonResponse == BUTTON_RESPONSE_PRESS ) {
         // Press,
+        self->activator = other;
+        self->other = other;
         button_press_move( self );
         
-        // Dispatch a lua signal.
-        SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnTouchPress" );
+        // Dispatch a signal.
+        SVG_SignalOut( self, self->other, self->activator, "OnTouchPress" );
     }
 }
 /**
@@ -486,12 +490,14 @@ void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int da
         self->health = self->max_health;
         // But do not allow it to take damage when 'Pressed'.
         self->takedamage = DAMAGE_NO;
-        // Fire the triggering action.
+        // Assign activator and inflictor.
         self->activator = attacker;
+        self->other = inflictor;
+        // Fire the triggering action.
         button_trigger( self, attacker, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
 
-        // Dispatch a lua signal.
-        SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnKilled" );
+        // Dispatch a signal.
+        SVG_SignalOut( self, self->other, self->activator, "OnKilled" );
     }
 }
 

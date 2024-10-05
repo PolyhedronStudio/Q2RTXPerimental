@@ -28,24 +28,28 @@
 *	@note	<discard_this>One has to deal and pop return values themselves.</discard_this>
 **/
 template <typename... Rest>
-static const bool SVG_Lua_SignalOut( lua_State *L, edict_t *ent, edict_t *activator, const std::string &signalName, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_MISSING, const Rest&... rest ) {
+static const bool SVG_Lua_SignalOut( lua_State *L, edict_t *ent, edict_t *other, edict_t *activator, const char *signalName, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_MISSING, const Rest&... rest ) {
 	// False by default:
 	bool executedSuccessfully = false;
 
 	// Activator needs to be active(in use) if not nullptr.
-	if ( !SVG_IsValidLuaEntity( ent ) || ( activator && !SVG_IsActiveEntity( activator ) ) || !L || signalName.empty() ) {
+	if ( !SVG_IsValidLuaEntity( ent ) 
+		|| ( activator && !SVG_IsActiveEntity( activator ) ) 
+		//|| ( other && !SVG_IsActiveEntity( other ) )
+		|| !L 
+		|| !signalName ) {
 		return executedSuccessfully;
 	}
 
 	// Generate function name.
-	const std::string functionName = std::string( ent->luaProperties.luaName ) + "_OnSignal";
+	const std::string functionName = std::string( ent->luaProperties.luaName ) + "_OnSignalIn";
 
 	// Call function, verbose, because OnSignals may not exist.
 	executedSuccessfully = LUA_CallFunction( L, functionName, 1, verbosity, 
-		/*[lua args]:*/  ent, activator, signalName, rest... );
+		/*[lua args]:*/  ent, other, activator, signalName, rest... );
 
 	// Debug print.
-	gi.dprintf( "luaNameTarget(%s): fired signal(%s)\n", functionName.c_str(), signalName.c_str(), ent->luaProperties.luaName );
+	gi.dprintf( "luaNameTarget(%s): fired signal(%s)\n", functionName.c_str(), signalName, ent->luaProperties.luaName );
 
 	// If it did successfully execute..
 	if ( executedSuccessfully ) {

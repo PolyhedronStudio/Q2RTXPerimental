@@ -1032,6 +1032,12 @@ void    SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3
 *   @brief  Project vector from source. 
 **/
 const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
+
+/**
+*   @brief
+**/
+void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName );
+
 edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
 edict_t *findradius( edict_t *from, vec3_t org, float rad );
 edict_t *SVG_PickTarget( char *targetname );
@@ -1867,7 +1873,7 @@ struct edict_s {
     //! Called to 'trigger' the entity.
     void        ( *use )( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
     //! Called when the entity is being 'Signalled', happens when another entity fires an OutSignal to it.
-    void        ( *onsignal )( edict_t *self, edict_t *other, edict_t *activator, const char *signalName );
+    void        ( *onsignalin )( edict_t *self, edict_t *other, edict_t *activator, const char *signalName );
 
     #if 0
     //! Called when the entity is keypressed by a client's(+usetarget).
@@ -1905,7 +1911,7 @@ struct edict_s {
 
     //! Trigger Activator.
     edict_t *activator;
-    //! WID: LUA: Other Trigger.
+    //! The entity that called upon the SignalOut/UseTarget
     edict_t *other;
 
     //

@@ -85,8 +85,14 @@ static inline void LUA_CallFunction_PushStackValue( lua_State *L, const double &
 }
 
 template <typename... Rest>
+static inline void LUA_CallFunction_PushStackValue( lua_State *L, const char *s, const Rest&... rest ) {
+	lua_pushlstring( L, s, strlen( s ) );
+	LUA_CallFunction_PushStackValue( L, rest... );
+}
+
+template <typename... Rest>
 static inline void LUA_CallFunction_PushStackValue( lua_State *L, const std::string &s, const Rest&... rest ) {
-	lua_pushstring( L, s.c_str() );
+	lua_pushlstring( L, s.c_str(), s.length() );
 	LUA_CallFunction_PushStackValue( L, rest... );
 }
 

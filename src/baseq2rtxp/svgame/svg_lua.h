@@ -5,11 +5,28 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+#if _DEBUG
+//! Enable LUA debug output:
+#define LUA_DEBUG_OUTPUT 1
+#else
+//! Disable LUA debug output:
+#define LUA_DEBUG_OUTPUT 0
+#endif
 
 // (Templated-) Support Lua Utilities:
 //! For errors:
 #define LUA_ErrorPrintf(...) gi.bprintf( PRINT_WARNING, __VA_ARGS__ );
 
+//! For developer prints:
+#if LUA_DEBUG_OUTPUT == 1
+	#define Lua_DeveloperPrintf(...) gi.dprintf( __VA_ARGS__ );
+#else
+	#define Lua_DeveloperPrintf(...) 
+#endif
+
+// For checking whether to proceed lua callbacks or not.
+inline const bool SVG_Lua_IsMapScriptInterpreted();
+#define SVG_Lua_ReturnIfNotInterpretedOK if ( !SVG_Lua_IsMapScriptInterpreted() ) { return; } 
 
 
 /**
@@ -62,10 +79,13 @@ void SVG_Lua_Initialize();
 **/
 void SVG_Lua_Shutdown();
 /**
-*	@brief
+*	@brief	Returns a pointer to the Lua State(Thread) that handles the map logic.
 **/
 lua_State *SVG_Lua_GetMapLuaState();
-
+/**
+*	@brief	Returns true if the map script has been interpreted properly.
+**/
+inline const bool SVG_Lua_IsMapScriptInterpreted();
 /**
 *	@brief
 **/

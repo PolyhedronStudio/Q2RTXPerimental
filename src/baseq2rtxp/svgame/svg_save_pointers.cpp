@@ -55,7 +55,7 @@ extern mmove_t soldier_move_walk2;
 // <Q2RTXP>:
 // Lua. (Certain things as Thinks for DelayedUse)
 void LUA_Think_UseTargetDelay( edict_t *entity );
-
+void LUA_Think_SignalOutDelay( edict_t *entity );
 
 extern void SP_monster_testdummy_puppet( edict_t *self );
 extern void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
@@ -177,7 +177,8 @@ extern void teleporter_touch( edict_t *self, edict_t *other, cplane_t *plane, cs
 extern void TH_viewthing( edict_t *ent );
 extern void SVG_PushMove_Think_AccelerateMove( edict_t *self );
 extern void Think_CalcMoveSpeed( edict_t *self );
-extern void Think_Delay( edict_t *self );
+extern void Think_UseTargetsDelay( edict_t *self );
+extern void Think_SignalOutDelay( edict_t *self );
 extern void Think_SpawnDoorTrigger( edict_t *ent );
 extern void Touch_DoorTrigger( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void Touch_Item( edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf );
@@ -283,8 +284,10 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void *)TH_viewthing },
 { P_think,  (void *)SVG_PushMove_Think_AccelerateMove },
 { P_think,  (void *)Think_CalcMoveSpeed },
-{ P_think,  (void *)Think_Delay },
+{ P_think,  (void *)Think_UseTargetsDelay },
+{ P_think,  (void *)Think_SignalOutDelay },
 { P_think,  (void *)LUA_Think_UseTargetDelay },
+{ P_think,  (void *)LUA_Think_SignalOutDelay },
 { P_think,  (void*)Think_SpawnDoorTrigger },
 { P_think,  (void*)train_next },
 { P_think,  (void*)trigger_elevator_init },

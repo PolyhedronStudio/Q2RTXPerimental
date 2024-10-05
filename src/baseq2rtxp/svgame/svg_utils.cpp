@@ -58,59 +58,120 @@ const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, 
 *
 *
 *
-*   (Use-)Targets:
+*   Signaling:
 *
 *
 *
 **/
-/*
-=============
-G_PickTarget
+/**
+*   @brief  'Think' support routine for delayed SignalOut signalling.
+**/
+void Think_SignalOutDelay( edict_t *ent ) {
+    // SignalOut again, keep in mind that ent now has no delay set, so it will actually
+    // proceed to calling the OnSignalIn functions.
+    SVG_SignalOut( ent, ent->other, ent->activator, ent->luaProperties.delayedSignalName );
+    // Free ourselves again.
+    SVG_FreeEdict( ent );
+}
 
-Searches all active entities for the next one that holds
-the matching string at fieldofs (use the FOFS() macro) in the structure.
+/**
+*   @brief  Will call upon the entity's OnSignalIn(C/Lua) using the signalName.
+*   @param  other   (optional) The entity which Send Out the Signal.
+*   @param  activator   The entity which initiated the process that resulted in sending out a signal.
+**/
+void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName ) {
+    edict_t *t;
 
-Searches beginning at the edict after from, or the beginning if NULL
-NULL will be returned if the end of the list is reached.
 
-=============
-*/
-#define MAXCHOICES  8
+    //
+    // check for a delay
+    //
+    if ( ent->delay ) {
+        // create a temp object to fire at a later time
+        t = SVG_AllocateEdict();
+        t->classname = "DelayedSignal";
+        t->nextthink = level.time + sg_time_t::from_sec( ent->delay );
+        t->think = Think_SignalOutDelay;
+        t->activator = activator;
+        t->other = sender;
+        if ( !activator ) {
+            gi.dprintf( "Signal_Delay with no activator\n" );
+        }
 
-edict_t *SVG_PickTarget(char *targetname)
-{
-    edict_t *ent = NULL;
-    int     num_choices = 0;
-    edict_t *choice[MAXCHOICES];
+        t->luaProperties.luaName = ent->luaProperties.luaName;
+        t->luaProperties.delayedSignalCreatorEntity = ent;
+        //t->luaProperties.delayedUseType = useType;
+        //t->luaProperties.delayedUseValue = useValue;
+        // The actual string comes from lua so we need to copy it in instead.
+        memset( t->luaProperties.delayedSignalName, 0, sizeof( t->luaProperties.delayedSignalName ) );
+        Q_strlcpy( t->luaProperties.delayedSignalName, signalName, strlen( signalName ) );
 
-    if (!targetname) {
-        gi.dprintf("G_PickTarget called with NULL targetname\n");
-        return NULL;
+        t->message = ent->message;
+        t->targetNames.target = ent->targetNames.target;
+        t->targetNames.kill = ent->targetNames.kill;
+        return;
     }
 
-    while (1) {
-        ent = SVG_Find(ent, FOFS(targetname), targetname);
-        if (!ent)
-            break;
-        choice[num_choices++] = ent;
-        if (num_choices == MAXCHOICES)
-            break;
-    }
+    // Whether to por
+    bool propogateToLua = true;
+    if ( ent->onsignalin ) {
+        ent->activator = activator;
+        ent->other = sender;
 
-    if (!num_choices) {
-        gi.dprintf("G_PickTarget: target %s not found\n", targetname);
-        return NULL;
+        // Notify of the signal coming in.
+        /*propogateToLua = */ent->onsignalin(ent, sender, activator, signalName );
     }
-
-    return choice[Q_rand_uniform(num_choices)];
+    // If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
+    if ( propogateToLua ) {
+        SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), ent, sender, activator, signalName );
+    }
 }
 
 
 
-void Think_Delay(edict_t *ent)
-{
-    SVG_UseTargets(ent, ent->activator);
-    SVG_FreeEdict(ent);
+/**
+*
+*
+*
+*   UseTarget Functionality:
+*
+*
+*
+**/
+#define MAXCHOICES  8
+
+edict_t *SVG_PickTarget( char *targetname ) {
+    edict_t *ent = NULL;
+    int     num_choices = 0;
+    edict_t *choice[ MAXCHOICES ];
+
+    if ( !targetname ) {
+        gi.dprintf( "G_PickTarget called with NULL targetname\n" );
+        return NULL;
+    }
+
+    while ( 1 ) {
+        ent = SVG_Find( ent, FOFS( targetname ), targetname );
+        if ( !ent )
+            break;
+        choice[ num_choices++ ] = ent;
+        if ( num_choices == MAXCHOICES )
+            break;
+    }
+
+    if ( !num_choices ) {
+        gi.dprintf( "G_PickTarget: target %s not found\n", targetname );
+        return NULL;
+    }
+
+    return choice[ Q_rand_uniform( num_choices ) ];
+}
+
+
+
+void Think_UseTargetsDelay( edict_t *ent ) {
+    SVG_UseTargets( ent, ent->activator );
+    SVG_FreeEdict( ent );
 }
 
 /*
@@ -129,22 +190,23 @@ match (string)self.target and call their .use function
 
 ==============================
 */
-void SVG_UseTargets(edict_t *ent, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    edict_t     *t;
+void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    edict_t *t;
 
 
-//
-// check for a delay
-//
-    if (ent->delay) {
+    //
+    // check for a delay
+    //
+    if ( ent->delay ) {
         // create a temp object to fire at a later time
         t = SVG_AllocateEdict();
         t->classname = "DelayedUse";
-        t->nextthink = level.time + sg_time_t::from_sec(ent->delay);
-        t->think = Think_Delay;
+        t->nextthink = level.time + sg_time_t::from_sec( ent->delay );
+        t->think = Think_UseTargetsDelay;
         t->activator = activator;
-        if (!activator)
-            gi.dprintf("Think_Delay with no activator\n");
+        t->other = ent->other;
+        if ( !activator )
+            gi.dprintf( "Think_Delay with no activator\n" );
         t->message = ent->message;
         t->luaProperties.luaName = ent->luaProperties.luaName;
         t->luaProperties.delayedUseCreatorEntity = ent;
@@ -156,68 +218,56 @@ void SVG_UseTargets(edict_t *ent, edict_t *activator, const entity_usetarget_typ
     }
 
 
-//
-// print the message
-//
-    if ((ent->message) && !(activator->svflags & SVF_MONSTER)) {
-        gi.centerprintf(activator, "%s", ent->message);
-        if (ent->noise_index)
-            gi.sound(activator, CHAN_AUTO, ent->noise_index, 1, ATTN_NORM, 0);
+    //
+    // print the message
+    //
+    if ( ( ent->message ) && !( activator->svflags & SVF_MONSTER ) ) {
+        gi.centerprintf( activator, "%s", ent->message );
+        if ( ent->noise_index )
+            gi.sound( activator, CHAN_AUTO, ent->noise_index, 1, ATTN_NORM, 0 );
         else
-            gi.sound(activator, CHAN_AUTO, gi.soundindex("hud/chat01.wav"), 1, ATTN_NORM, 0);
+            gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
     }
 
-//
-// kill killtargets
-//
-    if (ent->targetNames.kill) {
+    //
+    // kill killtargets
+    //
+    if ( ent->targetNames.kill ) {
         t = NULL;
-        while ((t = SVG_Find(t, FOFS(targetname), ent->targetNames.kill))) {
-            SVG_FreeEdict(t);
-            if (!ent->inuse) {
-                gi.dprintf("entity was removed while using killtargets\n");
+        while ( ( t = SVG_Find( t, FOFS( targetname ), ent->targetNames.kill ) ) ) {
+            SVG_FreeEdict( t );
+            if ( !ent->inuse ) {
+                gi.dprintf( "entity was removed while using killtargets\n" );
                 return;
             }
         }
     }
 
-//
-// fire targets
-//
-    if (ent->targetNames.target) {
+    //
+    // fire targets
+    //
+    if ( ent->targetNames.target ) {
         t = NULL;
-        while ((t = SVG_Find(t, FOFS(targetname), ent->targetNames.target))) {
+        while ( ( t = SVG_Find( t, FOFS( targetname ), ent->targetNames.target ) ) ) {
             // doors fire area portals in a specific way
-            if (!Q_stricmp(t->classname, "func_areaportal") &&
-                (!Q_stricmp(ent->classname, "func_door") || !Q_stricmp(ent->classname, "func_door_rotating")))
+            if ( !Q_stricmp( t->classname, "func_areaportal" ) &&
+                ( !Q_stricmp( ent->classname, "func_door" ) || !Q_stricmp( ent->classname, "func_door_rotating" ) ) )
                 continue;
 
-            if (t == ent) {
-                gi.dprintf("WARNING: Entity used itself.\n");
+            if ( t == ent ) {
+                gi.dprintf( "WARNING: Entity used itself.\n" );
             } else {
                 if ( t->use ) {
                     t->use( t, ent, activator, useType, useValue );
                 }
             }
-            if (!ent->inuse) {
-                gi.dprintf("entity was removed while using targets\n");
+            if ( !ent->inuse ) {
+                gi.dprintf( "entity was removed while using targets\n" );
                 return;
             }
         }
     }
 }
-
-
-
-/**
-*
-*
-*
-*   UseTarget Functionality:
-*
-*
-*
-**/
 /**
 *   @brief  True if the entity should 'toggle'.
 **/

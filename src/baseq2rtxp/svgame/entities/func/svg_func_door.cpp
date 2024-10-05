@@ -91,12 +91,13 @@ void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const enti
     }
 }
 
+
 /**
 *   @brief  Toggles the entire door team.
 **/
 void door_close_move( edict_t *self );
 void door_open_move( edict_t *self/*, edict_t *activator */ );
-void door_team_toggle( edict_t *self, edict_t *activator, const bool open ) {
+void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const bool open ) {
     if ( self->flags & FL_TEAMSLAVE )
         return;
 
@@ -106,6 +107,7 @@ void door_team_toggle( edict_t *self, edict_t *activator, const bool open ) {
             for ( edict_t *ent = self; ent; ent = ent->teamchain ) {
                 ent->message = NULL;
                 ent->touch = NULL;
+                ent->other = other;
                 ent->activator = activator; // WID: We need to assign it right?
                 door_close_move( ent );
             }
@@ -117,6 +119,7 @@ void door_team_toggle( edict_t *self, edict_t *activator, const bool open ) {
     for ( edict_t *ent = self; ent; ent = ent->teamchain ) {
         ent->message = NULL;
         ent->touch = NULL;
+        ent->other = other;
         ent->activator = activator; // WID: We need to assign it right?
         door_open_move( ent/*, activator */ );
     }
@@ -125,26 +128,31 @@ void door_team_toggle( edict_t *self, edict_t *activator, const bool open ) {
 /**
 *   @brief  Signal Receiving:
 **/
-void door_onsignal( edict_t *self, edict_t *other, edict_t *activator, const char *signalName ) {
+void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName ) {
+    //// Also check for signals on the lua side.
+    //SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, other, activator, signalName );
+
     // DoorOpen:
     if ( Q_strcasecmp( signalName, "DoorOpen" ) == 0 ) {
         self->activator = activator;
         self->other = other;
         //door_open_move( self );
         // signal all paired doors
-        door_team_toggle( self, activator, true );
+        door_team_toggle( self, other, activator, true );
     }
     // DoorClose:
     if ( Q_strcasecmp( signalName, "DoorClose" ) == 0 ) {
-        self->other = other;
         self->activator = activator;
+        self->other = other;
 
         //door_close_move( self );
         // signal all paired doors
-        door_team_toggle( self, activator, false );
+        door_team_toggle( self, other, activator, false );
     }
 
-    gi.dprintf( "%s\n", signalName );
+    //const int32_t otherNumber = ( other ? other->s.number : -1 );
+    //const int32_t activatorNumber= ( activator ? activator->s.number : -1 );
+    //gi.dprintf( "door_onsignalin[ self(#%d), \"%s\", other(#%d), activator(%d) ]\n", self->s.number, signalName, otherNumber, activatorNumber );
 }
 
 
@@ -175,7 +183,7 @@ void door_open_move_done( edict_t *self ) {
     self->pushMoveInfo.state = DOOR_STATE_OPENED;
 
     // Dispatch a lua signal.
-    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnOpened" );
+    SVG_SignalOut( self, self->other, self->activator, "OnOpened" );
 
     // If it is a toggle door, don't set any next think to 'go down' again.
     if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
@@ -201,7 +209,7 @@ void door_close_move_done( edict_t *self ) {
     door_use_areaportals( self, false );
 
     // Dispatch a lua signal.
-    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnClosed" );
+    SVG_SignalOut( self, self->other, self->activator, "OnClosed" );
 }
 
 
@@ -236,7 +244,7 @@ void door_close_move( edict_t *self ) {
         SVG_PushMove_AngleMoveCalculate( self, door_close_move_done );
 
     // Dispatch a lua signal.
-    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnClose" );
+    SVG_SignalOut( self, self->other, self->activator, "OnClose" );
 }
 
 /**
@@ -268,7 +276,7 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
     door_use_areaportals( self, true );
 
     // Dispatch a lua signal.
-    SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, self->activator, "OnOpen" );
+    SVG_SignalOut( self, self->other, self->activator, "OnOpen" );
 }
 
 /**
@@ -287,6 +295,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
                 ent->message = NULL;
                 ent->touch = NULL;
                 ent->activator = activator; // WID: We need to assign it right?
+                ent->other = other;
                 door_close_move( ent );
             }
             return;
@@ -298,6 +307,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
         ent->message = NULL;
         ent->touch = NULL;
         ent->activator = activator; // WID: We need to assign it right?
+        ent->other = other;
         door_open_move( ent/*, activator */);
     }
 
@@ -331,9 +341,11 @@ void door_blocked( edict_t *self, edict_t *other ) {
     if ( self->pushMoveInfo.wait >= 0 ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_CLOSED_STATE ) {
             for ( ent = self->teammaster; ent; ent = ent->teamchain )
+                ent->other = other;
                 door_open_move( ent/*, ent->activator */);
         } else {
             for ( ent = self->teammaster; ent; ent = ent->teamchain )
+                ent->other = other;
                 door_close_move( ent );
         }
     }
@@ -428,7 +440,7 @@ void SP_func_door( edict_t *ent ) {
     ent->postspawn = door_postspawn;
     ent->blocked = door_blocked;
     ent->use = door_use;
-    ent->onsignal = door_onsignal;
+    ent->onsignalin = door_onsignalin;
 
     // Calculate absolute move distance to get from pos1 to pos2.
     ent->pos1 = ent->s.origin;
