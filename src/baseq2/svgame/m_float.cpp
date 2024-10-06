@@ -68,7 +68,7 @@ void floater_fire_blaster(edict_t *self)
     else
         effect = 0;
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_FLOAT_BLASTER_1], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_FLOAT_BLASTER_1], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, end);
     end[2] += self->enemy->viewheight;
@@ -517,8 +517,8 @@ void floater_zap(edict_t *self)
     AngleVectors(self->s.angles, forward, right, NULL);
     //FIXME use a flash and replace these two lines with the commented one
     VectorSet(offset, 18.5f, -0.9f, 10);
-    G_ProjectSource(self->s.origin, offset, forward, right, origin);
-//  G_ProjectSource (self->s.origin, monster_flash_offset[flash_number], forward, right, origin);
+    SVG_ProjectSource(self->s.origin, offset, forward, right, origin);
+//  SVG_ProjectSource (self->s.origin, monster_flash_offset[flash_number], forward, right, origin);
 
     gi.sound(self, CHAN_WEAPON, sound_attack2, 1, ATTN_NORM, 0);
 
@@ -531,7 +531,7 @@ void floater_zap(edict_t *self)
     gi.WriteUint8(1);    //sparks
     gi.multicast( origin, MULTICAST_PVS, false );
 
-    T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, 5 + Q_rand() % 6, -10, DAMAGE_ENERGY, MOD_UNKNOWN);
+    SVG_TriggerDamage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, 5 + Q_rand() % 6, -10, DAMAGE_ENERGY, MOD_UNKNOWN);
 }
 
 void floater_attack(edict_t *self)
@@ -586,7 +586,7 @@ void floater_dead(edict_t *self)
 void floater_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
     gi.sound(self, CHAN_VOICE, sound_death1, 1, ATTN_NORM, 0);
-    BecomeExplosion1(self);
+    SVG_Misc_BecomeExplosion1(self);
 }
 
 /*QUAKED monster_floater (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
@@ -594,7 +594,7 @@ void floater_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 void SP_monster_floater(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

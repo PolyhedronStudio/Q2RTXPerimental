@@ -329,10 +329,10 @@ void gunner_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 2; n++)
-            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+        SVG_Misc_ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
         self->deadflag = DEADFLAG_DEAD;
         return;
     }
@@ -420,7 +420,7 @@ void GunnerFire(edict_t *self)
     flash_number = MZ2_GUNNER_MACHINEGUN_1 + (self->s.frame - FRAME_attak216);
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     // project enemy back a bit and target there
     VectorCopy(self->enemy->s.origin, target);
@@ -449,7 +449,7 @@ void GunnerGrenade(edict_t *self)
         flash_number = MZ2_GUNNER_GRENADE_4;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     //FIXME : do a spread -225 -75 75 225 degrees around forward
     VectorCopy(forward, aim);
@@ -559,7 +559,7 @@ void gunner_refire_chain(edict_t *self)
 void SP_monster_gunner(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

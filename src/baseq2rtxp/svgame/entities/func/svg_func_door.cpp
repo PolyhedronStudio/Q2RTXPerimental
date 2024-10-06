@@ -323,14 +323,14 @@ void door_blocked( edict_t *self, edict_t *other ) {
 
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
         // give it a chance to go away on it's own terms (like gibs)
-        T_Damage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MEANS_OF_DEATH_CRUSHED );
+        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
         if ( other )
-            BecomeExplosion1( other );
+            SVG_Misc_BecomeExplosion1( other );
         return;
     }
 
-    T_Damage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
+    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
 
     if ( self->spawnflags & DOOR_SPAWNFLAG_CRUSHER ) {
         return;

@@ -128,13 +128,13 @@ void SP_target_help(edict_t *ent)
 {
     if (deathmatch->value) {
         // auto-remove for deathmatch
-        G_FreeEdict(ent);
+        SVG_FreeEdict(ent);
         return;
     }
 
     if (!ent->message) {
         gi.dprintf("%s with no message at %s\n", ent->classname, vtos(ent->s.origin));
-        G_FreeEdict(ent);
+        SVG_FreeEdict(ent);
         return;
     }
     ent->use = Use_Target_Help;
@@ -152,15 +152,15 @@ void use_target_secret(edict_t *ent, edict_t *other, edict_t *activator)
 
     level.found_secrets++;
 
-    G_UseTargets(ent, activator);
-    G_FreeEdict(ent);
+    SVG_UseTargets(ent, activator);
+    SVG_FreeEdict(ent);
 }
 
 void SP_target_secret(edict_t *ent)
 {
     if (deathmatch->value) {
         // auto-remove for deathmatch
-        G_FreeEdict(ent);
+        SVG_FreeEdict(ent);
         return;
     }
 
@@ -190,15 +190,15 @@ void use_target_goal(edict_t *ent, edict_t *other, edict_t *activator)
     if (level.found_goals == level.total_goals)
         gi.configstring(CS_CDTRACK, "0");
 
-    G_UseTargets(ent, activator);
-    G_FreeEdict(ent);
+    SVG_UseTargets(ent, activator);
+    SVG_FreeEdict(ent);
 }
 
 void SP_target_goal(edict_t *ent)
 {
     if (deathmatch->value) {
         // auto-remove for deathmatch
-        G_FreeEdict(ent);
+        SVG_FreeEdict(ent);
         return;
     }
 
@@ -228,11 +228,11 @@ void target_explosion_explode(edict_t *self)
     gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     gi.multicast( self->s.origin, MULTICAST_PHS, false );
 
-    T_RadiusDamage(self, self->activator, self->dmg, NULL, self->dmg + 40, MOD_EXPLOSIVE);
+    SVG_RadiusDamage(self, self->activator, self->dmg, NULL, self->dmg + 40, MOD_EXPLOSIVE);
 
     save = self->delay;
     self->delay = 0;
-    G_UseTargets(self, self->activator);
+    SVG_UseTargets(self, self->activator);
     self->delay = save;
 }
 
@@ -273,7 +273,7 @@ void use_target_changelevel(edict_t *self, edict_t *other, edict_t *activator)
 
     // if noexit, do a ton of damage to other
     if (deathmatch->value && !((int)dmflags->value & DF_ALLOW_EXIT) && other != world) {
-        T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, 0, MOD_EXIT);
+        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, 0, MOD_EXIT);
         return;
     }
 
@@ -287,14 +287,14 @@ void use_target_changelevel(edict_t *self, edict_t *other, edict_t *activator)
     if (strchr(self->map, '*'))
         game.serverflags &= ~(SFL_CROSS_TRIGGER_MASK);
 
-    BeginIntermission(self);
+    SVG_HUD_BeginIntermission(self);
 }
 
 void SP_target_changelevel(edict_t *ent)
 {
     if (!ent->map) {
         gi.dprintf("target_changelevel with no map at %s\n", vtos(ent->s.origin));
-        G_FreeEdict(ent);
+        SVG_FreeEdict(ent);
         return;
     }
 
@@ -336,13 +336,13 @@ void use_target_splash(edict_t *self, edict_t *other, edict_t *activator)
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
 
     if (self->dmg)
-        T_RadiusDamage(self, activator, self->dmg, NULL, self->dmg + 40, MOD_SPLASH);
+        SVG_RadiusDamage(self, activator, self->dmg, NULL, self->dmg + 40, MOD_SPLASH);
 }
 
 void SP_target_splash(edict_t *self)
 {
     self->use = use_target_splash;
-    G_SetMovedir(self->s.angles, self->movedir);
+    SVG_SetMovedir(self->s.angles, self->movedir);
 
     if (!self->count)
         self->count = 32;
@@ -371,7 +371,7 @@ void use_target_spawner(edict_t *self, edict_t *other, edict_t *activator)
 {
     edict_t *ent;
 
-    ent = G_AllocateEdict();
+    ent = SVG_AllocateEdict();
     ent->classname = self->targetNames.target;
     VectorCopy(self->s.origin, ent->s.origin);
     VectorCopy(self->s.angles, ent->s.angles);
@@ -388,7 +388,7 @@ void SP_target_spawner(edict_t *self)
     self->use = use_target_spawner;
     self->svflags = SVF_NOCLIENT;
     if (self->speed) {
-        G_SetMovedir(self->s.angles, self->movedir);
+        SVG_SetMovedir(self->s.angles, self->movedir);
         VectorScale(self->movedir, self->speed, self->movedir);
     }
 }
@@ -422,7 +422,7 @@ void use_target_blaster(edict_t *self, edict_t *other, edict_t *activator)
 void SP_target_blaster(edict_t *self)
 {
     self->use = use_target_blaster;
-    G_SetMovedir(self->s.angles, self->movedir);
+    SVG_SetMovedir(self->s.angles, self->movedir);
     self->noise_index = gi.soundindex("weapons/laser2.wav");
 
     if (!self->dmg)
@@ -442,7 +442,7 @@ Once this trigger is touched/used, any trigger_crosslevel_target with the same t
 void trigger_crosslevel_trigger_use(edict_t *self, edict_t *other, edict_t *activator)
 {
     game.serverflags |= self->spawnflags;
-    G_FreeEdict(self);
+    SVG_FreeEdict(self);
 }
 
 void SP_target_crosslevel_trigger(edict_t *self)
@@ -460,8 +460,8 @@ targetNames.kill also work.
 void target_crosslevel_target_think(edict_t *self)
 {
     if (self->spawnflags == (game.serverflags & SFL_CROSS_TRIGGER_MASK & self->spawnflags)) {
-        G_UseTargets(self, self);
-        G_FreeEdict(self);
+        SVG_UseTargets(self, self);
+        SVG_FreeEdict(self);
     }
 }
 
@@ -517,7 +517,7 @@ void target_laser_think(edict_t *self)
 
         // hurt it if we can
         if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER))
-            T_Damage(tr.ent, self, self->activator, self->movedir, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MOD_TARGET_LASER);
+            SVG_TriggerDamage(tr.ent, self, self->activator, self->movedir, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MOD_TARGET_LASER);
 
         // if we hit something that's not a monster or player or is immune to lasers, we're done
         if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client)) {
@@ -597,12 +597,12 @@ void target_laser_start(edict_t *self)
 
     if (!self->enemy) {
         if (self->targetNames.target) {
-            ent = G_Find(NULL, FOFS(targetname), self->targetNames.target);
+            ent = SVG_Find(NULL, FOFS(targetname), self->targetNames.target);
             if (!ent)
                 gi.dprintf("%s at %s: %s is a bad target\n", self->classname, vtos(self->s.origin), self->targetNames.target);
             self->enemy = ent;
         } else {
-            G_SetMovedir(self->s.angles, self->movedir);
+            SVG_SetMovedir(self->s.angles, self->movedir);
         }
     }
     self->use = target_laser_use;
@@ -663,7 +663,7 @@ void target_lightramp_use(edict_t *self, edict_t *other, edict_t *activator)
         // check all the targets
         e = NULL;
         while (1) {
-            e = G_Find(e, FOFS(targetname), self->targetNames.target);
+            e = SVG_Find(e, FOFS(targetname), self->targetNames.target);
             if (!e)
                 break;
             if (strcmp(e->classname, "light") != 0) {
@@ -676,7 +676,7 @@ void target_lightramp_use(edict_t *self, edict_t *other, edict_t *activator)
 
         if (!self->enemy) {
             gi.dprintf("%s target %s not found at %s\n", self->classname, self->targetNames.target, vtos(self->s.origin));
-            G_FreeEdict(self);
+            SVG_FreeEdict(self);
             return;
         }
     }
@@ -689,18 +689,18 @@ void SP_target_lightramp(edict_t *self)
 {
     if (!self->message || strlen(self->message) != 2 || self->message[0] < 'a' || self->message[0] > 'z' || self->message[1] < 'a' || self->message[1] > 'z' || self->message[0] == self->message[1]) {
         gi.dprintf("target_lightramp has bad ramp (%s) at %s\n", self->message, vtos(self->s.origin));
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
     if (!self->targetNames.target) {
         gi.dprintf("%s with no target at %s\n", self->classname, vtos(self->s.origin));
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

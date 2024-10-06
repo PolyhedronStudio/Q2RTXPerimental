@@ -144,7 +144,7 @@ void Drop_General(edict_t *ent, gitem_t *item)
 {
     Drop_Item(ent, item);
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 }
 
 
@@ -245,7 +245,7 @@ const bool Pickup_Ammo(edict_t *itemEntity, edict_t *other) {
         }
     }
 
-    // Set an item respawn for DM mode.
+    // Set an item SVG_Client_Respawn for DM mode.
     if ( !( itemEntity->spawnflags & ( DROPPED_ITEM | DROPPED_PLAYER_ITEM ) ) && ( deathmatch->value ) ) {
         SetRespawn( itemEntity, 30 );
     }
@@ -273,7 +273,7 @@ void Drop_Ammo(edict_t *ent, const gitem_t *item) {
     //}
 
     ent->client->pers.inventory[index] -= dropped->count;
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 }
 
 
@@ -755,9 +755,9 @@ gitem_t itemlist[] = {
         
         .precached = Weapon_Fists_Precached,
 
-        .pickup = P_Weapon_Pickup,
-        .use = P_Weapon_Use,
-        .drop = P_Weapon_Drop,
+        .pickup = SVG_Player_Weapon_Pickup,
+        .use = SVG_Player_Weapon_Use,
+        .drop = SVG_Player_Weapon_Drop,
         .weaponthink = Weapon_Fists,
 
         .pickup_sound = "items/weaponry_pickup.wav",
@@ -788,9 +788,9 @@ gitem_t itemlist[] = {
 
         .precached = Weapon_Pistol_Precached,
 
-        .pickup = P_Weapon_Pickup,
-        .use =  P_Weapon_Use,
-        .drop = P_Weapon_Drop,
+        .pickup = SVG_Player_Weapon_Pickup,
+        .use =  SVG_Player_Weapon_Use,
+        .drop = SVG_Player_Weapon_Drop,
         .weaponthink = Weapon_Pistol,
         
         .pickup_sound = "items/weaponry_pickup.wav",

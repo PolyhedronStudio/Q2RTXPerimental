@@ -30,13 +30,14 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 			 body part. 8 bits per part, means 24 bits and leaves 8 free bits for other uses.
 	- [X] 4. Client needs to detect animationID, time of change, and playback the animation from there
 			 using the animation info provided in the IQM data.
+	- [ ] 5. Redo the player animations properly once and for allOnce again.. sigh
 
 - [ ] The Skeletal Model Info Scenario:
 	- [X] 0. For both, client and server, whenever an IQM file is loaded, so will be its matching
 			 .cfg file. This file will contain:
 		- [X] Name of Root Bone.
 		- [ ] Bone Names for the ``Joint Controllers``.
-		- [/] Tags assigned to a bone name, with a corresponding ``up/forward/right`` axis set.
+		- [-] Tags assigned to a bone name, with a corresponding ``up/forward/right`` axis set.
 			- [ ] Technically, it's probably easier to just use code for this since it allwos for more control as well. 
 		- [ ] Animation Events, ``animevent "(animname)" (animframe) (client/server/both) "(animevent data, can be a string)"``
 		- [X] Animation Root Motion Translate axes, animrootbonetranslate "animname" ``TRANSLATE_X/TRANSLATE_Y/TRANSLATE_Z``
@@ -47,15 +48,33 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [ ] 2. I am most likely forgetting some things, so first finish this entire list.
 
 - [ ] The LUA Scenario:
-	- [ ] Implement custom TagMalloc like allocator for Lua memory management.
-	- [ ] Add support for edicts on the C side of life to implement OnSignal functionalities.
-	- [ ] Add SignalOut funcionality to Lua, so it can fire signals.
-	- [ ] Add for PushMovers a function to acquire their current state.
-	- [ ] Add proper file chunk loading.
 	- [ ] (Somewhat optional, but useful really..) Add a stack debugger.
+	- [ ] Implement custom TagMalloc like allocator for Lua memory management.
+	- [X] Add support for edicts on the C side of life to implement OnSignal functionalities.
+	- [X] Add SignalOut funcionality to Lua, so it can fire signals.
+	- [X] Add for PushMovers a function to acquire their current state.
+	- [-] Add proper file chunk loading.
+		- [ ] What about 'include' functionality that loads its own chunks?
+	- [ ] Add C utilities to define Lua consts for enums/constvals/defines.
+
+- [ ] Signalling:
+	- [ ] Patch all entities that might have a use for signalling. Such might be:
+		  a target_temp_entity etc. And of course, all PushMovers, killbox, etc.
+	- [ ] Add support for passing along values for Signals to be interpreted.
+	- [ ] Adjust at least all movers to support signalling.
+
+- [ ] Entities:
+	- [ ] Reimplement (client-)misc_model properly.
+	- [ ] Add proper spawn flag constants.
+	- [ ] Can we do a, C++ struct inheritance and have edict_t* store a pointer to an instance of				
+	the matching entity classname and its 'classdata' struct.
+	- [ ] .. Some more I bet ..
+_
+- [ ] Misc:
+	- [ ] Attach a 'world' weapon model to the player.
 
 ## Other Features:
-Features being looked forward on implementation.
+These are things to fix, or randomly implement(features, ideas), but definitely need to be dealt with before we can call it a day.
 
 ### Highest Priority:
 * [X] Get a test dummy model that we can use to replace the current player with.
@@ -66,7 +85,7 @@ Features being looked forward on implementation.
 	- Relative we do.
 * [-] Implement Lua for game state logic and dynamics.
 	- [ ] Fix the script file loaded up leaking memory. FS_LoadFileEx(other tag)_
-	- [ ] Make buttons lockable lol.
+	- [ ] Make buttons and doors lockable lol.
 * [ ] Implement model events for animations:
 	* [ ] Footsteps implemented using this.
 * [ ] Experiment with Head/Torso/Hips separated animation actions.
@@ -86,17 +105,17 @@ Features being looked forward on implementation.
 	- [ ] And an entity you can 'pick up and move around' for the lulz.
 
 ### Low Priority:
-* [X] Get our own button sound files, also, for press(start) and unpress(end) states.
-* [ ] Fix up proper C++ enums issue with the whole int32_t by implementing appropriate operators... sigh..._
 * [ ] Use our own C version of glmatrix.net and adjust(C++ify also), and streamline it as the math lib for use.
-* [ ] Have bullet impact display material ``kind`` specific puffs?
-* [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.
+* [ ] Fix up proper C++ enums issue with the whole int32_t by implementing appropriate operators... sigh..._
+* [X] Get our own button sound files, also, for press(start) and unpress(end) states.
 * [x] Add some way of having entity 'class' like type support. (At the least, eliminate a need for having such a large edict_t type that holds all sorts of object-type specific variables.)
 	* [x] So far this is only in existence for the client game's ``clg_local_entity_t`` type.
 	* [ ] Finish the implementation/style of it, make sure it is save game compatible, and implement it all-round.
-* [ ] * [ ] In common/messaging.cpp there are debug outputs for printing which bits are sent,
+* [ ] In common/messaging.cpp there are debug outputs for printing which bits are sent,
 	  in some cases these need to have a game API callback also.
 * [ ] For weapon items, move quantity etc from gitem_t into this struct.
+* [ ] Have bullet impact display material ``kind`` specific puffs?
+* [ ] Add an entity type that can have several ``hull`` varieties set to it, for testing purposes.
 * [X] Implement something utilizing ET_BEAM.
 * [ ] Fix game loop in client main for CLGame so it is 40hz but does not stall either.
 * [ ] Name cvars for game modules respectively ``clg_`` and ``svg_``, also server cvars missing ``sv_`` and client cvars missing ``cl_``
@@ -107,7 +126,7 @@ Features being looked forward on implementation.
 * [ ] Look into Q2RE q2pro for svc_sound additions.
 * [ ] Implement a game mode structure that accepts function pointers, these are configured depending on the gamemode that is active within the game.
 	* [ ] Rid all places where ``coop`` and ``deathmatch`` cvars are checked by actual individual gamemode related counterparts.
-	* [ ] CanDamage and functions alike need to be moved into gamemode.
+	* [ ] SVG_CanDamage and functions alike need to be moved into gamemode.
 
 ### Lowest, nearly redundant Priority:
 * [ ] Move capability of determining new pvs packet entities to clgame.

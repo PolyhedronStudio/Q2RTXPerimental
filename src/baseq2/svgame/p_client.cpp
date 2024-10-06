@@ -43,7 +43,7 @@ void SP_FixCoopSpots(edict_t *self)
     spot = NULL;
 
     while (1) {
-        spot = G_Find(spot, FOFS(classname), "info_player_start");
+        spot = SVG_Find(spot, FOFS(classname), "info_player_start");
         if (!spot)
             return;
         if (!spot->targetname)
@@ -68,7 +68,7 @@ void SP_CreateCoopSpots(edict_t *self)
     edict_t *spot;
 
     if (Q_stricmp(level.mapname, "security") == 0) {
-        spot = G_AllocateEdict();
+        spot = SVG_AllocateEdict();
         spot->classname = "info_player_coop";
         spot->s.origin[0] = 188 - 64;
         spot->s.origin[1] = -164;
@@ -76,7 +76,7 @@ void SP_CreateCoopSpots(edict_t *self)
         spot->targetname = "jail3";
         spot->s.angles[1] = 90;
 
-        spot = G_AllocateEdict();
+        spot = SVG_AllocateEdict();
         spot->classname = "info_player_coop";
         spot->s.origin[0] = 188 + 64;
         spot->s.origin[1] = -164;
@@ -84,7 +84,7 @@ void SP_CreateCoopSpots(edict_t *self)
         spot->targetname = "jail3";
         spot->s.angles[1] = 90;
 
-        spot = G_AllocateEdict();
+        spot = SVG_AllocateEdict();
         spot->classname = "info_player_coop";
         spot->s.origin[0] = 188 + 128;
         spot->s.origin[1] = -164;
@@ -117,7 +117,7 @@ potential spawning position for deathmatch games
 void SP_info_player_deathmatch(edict_t *self)
 {
     if (!deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
     SP_misc_teleporter_dest(self);
@@ -130,7 +130,7 @@ potential spawning position for coop games
 void SP_info_player_coop(edict_t *self)
 {
     if (!coop->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
@@ -431,7 +431,7 @@ void TossClientWeapon(edict_t *self)
 
         drop->touch = Touch_Item;
         drop->nextthink = self->client->quad_time;
-        drop->think = G_FreeEdict;
+        drop->think = SVG_FreeEdict;
     }
 }
 
@@ -511,7 +511,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         ClientObituary(self, inflictor, attacker);
         TossClientWeapon(self);
         if (deathmatch->value)
-            Cmd_Help_f(self);       // show scores
+            SVG_Cmd_Help_f(self);       // show scores
 
         // clear inventory
         // this is kind of ugly, but it's how we want to handle keys in coop
@@ -535,10 +535,10 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         //! Throw 4 small meat gibs around.
         for ( n = 0; n < 4; n++ ) {
-            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
+            SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
         }
         // Turn ourself into the thrown head entity.
-        ThrowClientHead(self, damage);
+        SVG_Misc_ThrowClientHead(self, damage);
 
         // Gibs don't take damage, but fade away as time passes.
         self->takedamage = DAMAGE_NO;
@@ -582,13 +582,13 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 
 /*
 ==============
-InitClientPersistantData
+SVG_Client_InitPersistantData
 
 This is only called when the game first initializes in single player,
 but is called after each death and level change in deathmatch
 ==============
 */
-void InitClientPersistantData(edict_t *ent, gclient_t *client)
+void SVG_Client_InitPersistantData(edict_t *ent, gclient_t *client)
 {
 	gitem_t     *item;
 
@@ -634,9 +634,9 @@ void InitClientPersistantData(edict_t *ent, gclient_t *client)
 }
 
 
-void InitClientRespawnData(gclient_t *client)
+void SVG_Client_InitRespawnData(gclient_t *client)
 {
-    // Clear out respawn data.
+    // Clear out SVG_Client_Respawn data.
     client->resp = {};
 
     // Save the moment in time.
@@ -645,13 +645,13 @@ void InitClientRespawnData(gclient_t *client)
 
     // In case of a coop game mode, we make sure to store the 
     // 'persistent across level changes' data into the client's
-    // respawn field, so we can restore it.
+    // SVG_Client_Respawn field, so we can restore it.
     client->resp.coop_respawn = client->pers;
 }
 
 /*
 ==================
-SaveClientData
+SVG_SaveClientData
 
 Some information that should be persistant, like health,
 is still stored in the edict structure, so it needs to
@@ -659,7 +659,7 @@ be mirrored out to the client structure before all the
 edicts are wiped.
 ==================
 */
-void SaveClientData(void)
+void SVG_SaveClientData(void)
 {
     int     i;
     edict_t *ent;
@@ -676,7 +676,7 @@ void SaveClientData(void)
     }
 }
 
-void FetchClientEntData(edict_t *ent)
+void SVG_FetchClientEntData(edict_t *ent)
 {
     ent->health = ent->client->pers.health;
     ent->max_health = ent->client->pers.max_health;
@@ -751,7 +751,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint(void)
     range1 = range2 = 99999;
     spot1 = spot2 = NULL;
 
-    while ((spot = G_Find(spot, FOFS(classname), "info_player_deathmatch")) != NULL) {
+    while ((spot = SVG_Find(spot, FOFS(classname), "info_player_deathmatch")) != NULL) {
         count++;
         range = PlayersRangeFromSpot(spot);
         if (range < range1) {
@@ -775,7 +775,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint(void)
 
     spot = NULL;
     do {
-        spot = G_Find(spot, FOFS(classname), "info_player_deathmatch");
+        spot = SVG_Find(spot, FOFS(classname), "info_player_deathmatch");
         if (spot == spot1 || spot == spot2)
             selection++;
     } while (selection--);
@@ -799,7 +799,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint(void)
     spot = NULL;
     bestspot = NULL;
     bestdistance = 0;
-    while ((spot = G_Find(spot, FOFS(classname), "info_player_deathmatch")) != NULL) {
+    while ((spot = SVG_Find(spot, FOFS(classname), "info_player_deathmatch")) != NULL) {
         bestplayerdistance = PlayersRangeFromSpot(spot);
 
         if (bestplayerdistance > bestdistance) {
@@ -814,7 +814,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint(void)
 
     // if there is a player just spawned on each and every start spot
     // we have no choice to turn one into a telefrag meltdown
-    spot = G_Find(NULL, FOFS(classname), "info_player_deathmatch");
+    spot = SVG_Find(NULL, FOFS(classname), "info_player_deathmatch");
 
     return spot;
 }
@@ -845,7 +845,7 @@ edict_t *SelectCoopSpawnPoint(edict_t *ent)
 
     // assume there are four coop spots at each spawnpoint
     while (1) {
-        spot = G_Find(spot, FOFS(classname), "info_player_coop");
+        spot = SVG_Find(spot, FOFS(classname), "info_player_coop");
         if (!spot)
             return NULL;    // we didn't have enough...
 
@@ -883,7 +883,7 @@ void    SelectSpawnPoint(edict_t *ent, vec3_t origin, vec3_t angles)
 
     // find a single player start spot
     if (!spot) {
-        while ((spot = G_Find(spot, FOFS(classname), "info_player_start")) != NULL) {
+        while ((spot = SVG_Find(spot, FOFS(classname), "info_player_start")) != NULL) {
             if (!game.spawnpoint[0] && !spot->targetname)
                 break;
 
@@ -897,7 +897,7 @@ void    SelectSpawnPoint(edict_t *ent, vec3_t origin, vec3_t angles)
         if (!spot) {
             if (!game.spawnpoint[0]) {
                 // there wasn't a spawnpoint without a target, so use any
-                spot = G_Find(spot, FOFS(classname), "info_player_start");
+                spot = SVG_Find(spot, FOFS(classname), "info_player_start");
             }
             if (!spot)
                 gi.error("Couldn't find spawn point %s", game.spawnpoint);
@@ -911,14 +911,14 @@ void    SelectSpawnPoint(edict_t *ent, vec3_t origin, vec3_t angles)
 //======================================================================
 
 
-void InitBodyQue(void)
+void SVG_InitBodyQue(void)
 {
     int     i;
     edict_t *ent;
 
     level.body_que = 0;
     for (i = 0; i < BODY_QUEUE_SIZE ; i++) {
-        ent = G_AllocateEdict();
+        ent = SVG_AllocateEdict();
         ent->classname = "bodyque";
     }
 }
@@ -930,9 +930,9 @@ void body_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
     if (self->health < -40) {
         gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
         self->s.origin[2] -= 48;
-        ThrowClientHead(self, damage);
+        SVG_Misc_ThrowClientHead(self, damage);
         self->takedamage = DAMAGE_NO;
     }
 }
@@ -987,14 +987,14 @@ void CopyToBodyQue(edict_t *ent)
     gi.linkentity(body);
 }
 
-void respawn(edict_t *self)
+void SVG_Client_Respawn(edict_t *self)
 {
     if (deathmatch->value || coop->value) {
         // spectator's don't leave bodies
         if (self->movetype != MOVETYPE_NOCLIP)
             CopyToBodyQue(self);
         self->svflags &= ~SVF_NOCLIENT;
-        PutClientInServer(self);
+        SVG_Client_PutInServer(self);
 
         // add a teleportation effect
         self->s.event = EV_PLAYER_TELEPORT;
@@ -1065,11 +1065,11 @@ void spectator_respawn(edict_t *ent)
         }
     }
 
-    // clear client on respawn
+    // clear client on SVG_Client_Respawn
     ent->client->resp.score = ent->client->pers.score = 0;
 
     ent->svflags &= ~SVF_NOCLIENT;
-    PutClientInServer(ent);
+    SVG_Client_PutInServer(ent);
 
     // add a teleportation effect
     if (!ent->client->pers.spectator)  {
@@ -1097,13 +1097,13 @@ void spectator_respawn(edict_t *ent)
 
 /*
 ===========
-PutClientInServer
+SVG_Client_PutInServer
 
 Called when a player connects to a server or respawns in
 a deathmatch.
 ============
 */
-void PutClientInServer(edict_t *ent)
+void SVG_Client_PutInServer(edict_t *ent)
 {
     vec3_t  mins = { -16, -16, -24};
     vec3_t  maxs = {16, 16, 32};
@@ -1129,7 +1129,7 @@ void PutClientInServer(edict_t *ent)
         char        userinfo[ MAX_INFO_STRING ];
         resp = client->resp;
         memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
-        InitClientPersistantData( ent, client );
+        SVG_Client_InitPersistantData( ent, client );
         ClientUserinfoChanged( ent, userinfo );
     } else {
 //      int         n;
@@ -1156,11 +1156,11 @@ void PutClientInServer(edict_t *ent)
     memset(client, 0, sizeof(*client));
     client->pers = saved;
     if (client->pers.health <= 0)
-        InitClientPersistantData( ent, client );
+        SVG_Client_InitPersistantData( ent, client );
     client->resp = resp;
 
     // copy some data from the client to the entity
-    FetchClientEntData(ent);
+    SVG_FetchClientEntData(ent);
 
     // fix level switch issue
     ent->client->pers.connected = true;
@@ -1298,18 +1298,18 @@ deathmatch mode, so clear everything out before starting them.
 void ClientBeginDeathmatch(edict_t *ent)
 {
     // Init Edict.
-    G_InitEdict(ent);
+    SVG_InitEdict(ent);
     
     // Make sure it is recognized as a player.
     ent->svflags |= SVF_PLAYER;
 
-    InitClientRespawnData(ent->client);
+    SVG_Client_InitRespawnData(ent->client);
 
     // locate ent at a spawn point
-    PutClientInServer(ent);
+    SVG_Client_PutInServer(ent);
 
     if (level.intermission_framenum) {
-        MoveClientToIntermission(ent);
+        SVG_HUD_MoveClientToIntermission(ent);
     } else {
         // send effect
         gi.WriteUint8(svc_muzzleflash);
@@ -1321,7 +1321,7 @@ void ClientBeginDeathmatch(edict_t *ent)
     gi.bprintf(PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname);
 
     // make sure all view stuff is valid
-    ClientEndServerFrame(ent);
+    SVG_Client_EndServerFrame(ent);
 }
 
 
@@ -1363,16 +1363,16 @@ void ClientBegin(edict_t *ent)
         // a spawn point will completely reinitialize the entity
         // except for the persistant data that was initialized at
         // ClientConnect() time
-        G_InitEdict(ent);
+        SVG_InitEdict(ent);
         ent->classname = "player";
-        InitClientRespawnData(ent->client);
-        PutClientInServer(ent);
+        SVG_Client_InitRespawnData(ent->client);
+        SVG_Client_PutInServer(ent);
     }
 
     ent->svflags |= SVF_PLAYER;
 
     if (level.intermission_framenum) {
-        MoveClientToIntermission(ent);
+        SVG_HUD_MoveClientToIntermission(ent);
     } else {
         // send effect if in a multiplayer game
         if (game.maxclients > 1) {
@@ -1386,7 +1386,7 @@ void ClientBegin(edict_t *ent)
     }
 
     // make sure all view stuff is valid
-    ClientEndServerFrame(ent);
+    SVG_Client_EndServerFrame(ent);
 }
 
 /*
@@ -1469,7 +1469,7 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
 
     // check to see if they are on the banned IP list
     value = Info_ValueForKey(userinfo, "ip");
-    if (SV_FilterPacket(value)) {
+    if (SVG_FilterPacket(value)) {
         Info_SetValueForKey(userinfo, "rejmsg", "Banned.");
         return false;
     }
@@ -1513,9 +1513,9 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
     // take it, otherwise spawn one from scratch
     if (ent->inuse == false) {
         // clear the respawning variables
-        InitClientRespawnData(ent->client);
+        SVG_Client_InitRespawnData(ent->client);
         if (!game.autosaved || !ent->client->pers.weapon)
-            InitClientPersistantData( ent, ent->client );
+            SVG_Client_InitPersistantData( ent, ent->client );
     }
 
     // make sure we start with known default(s)
@@ -1695,7 +1695,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
         VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
 
         if ( !deathmatch->integer /*|| !g_dm_no_fall_damage->integer*/ ) {
-            T_Damage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING );
+            SVG_TriggerDamage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING );
         }
     } else {
         ent->s.event = EV_FALLSHORT;
@@ -1703,7 +1703,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
 
     // Paril: falling damage noises alert monsters
     if ( ent->health )
-        PlayerNoise( ent, &pm.playerState->pmove.origin[ 0 ], PNOISE_SELF);
+        SVG_PlayerNoise( ent, &pm.playerState->pmove.origin[ 0 ], PNOISE_SELF);
 }
 
 /*
@@ -1823,7 +1823,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         //    ent->client->landmark_noise_time = level.time + 100_ms;
         //}
 
-        //// [Paril-KEX] save old position for G_TouchProjectiles
+        //// [Paril-KEX] save old position for SVG_TouchProjectiles
         //vec3_t old_origin = ent->s.origin;
         
         // [Paril-KEX] if we stepped onto/off of a ladder, reset the
@@ -1840,7 +1840,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             }
         }
         
-        // [Paril-KEX] save old position for G_TouchProjectiles
+        // [Paril-KEX] save old position for SVG_TouchProjectiles
         const Vector3 old_origin = ent->s.origin;
 
 		// Copy back into the entity, both the resulting origin and velocity.
@@ -1856,7 +1856,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             gi.sound( ent, CHAN_VOICE, gi.soundindex( "*jump1.wav" ), 1, ATTN_NORM, 0 );
             // Paril: removed to make ambushes more effective and to
             // not have monsters around corners come to jumps
-            // PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
+            // SVG_PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
         }
 
 		// Update the entity's other properties.
@@ -1885,8 +1885,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         // PGM
 
 		if ( ent->movetype != MOVETYPE_NOCLIP ) {
-			G_TouchTriggers( ent );
-            G_TouchProjectiles( ent, old_origin );
+			SVG_TouchTriggers( ent );
+            SVG_TouchProjectiles( ent, old_origin );
 		}
 
         // Touch other objects
@@ -1921,7 +1921,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
                 client->chase_target = nullptr;
                 client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
 			} else {
-				GetChaseTarget( ent );
+				SVG_ChaseCam_GetTarget( ent );
 			}
 
         } else if ( !client->weapon_thunk ) {
@@ -1944,9 +1944,9 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
                 client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
 
 				if ( client->chase_target ) {
-					ChaseNext( ent );
+					SVG_ChaseCam_Next( ent );
 				} else {
-					GetChaseTarget( ent );
+					SVG_ChaseCam_GetTarget( ent );
 				}
             }
 		} else {
@@ -1958,7 +1958,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
     for ( int32_t i = 1; i <= maxclients->value; i++ ) {
         other = g_edicts + i;
         if ( other->inuse && other->client->chase_target == ent ) {
-			UpdateChaseCam( other );
+			SVG_ChaseCam_Update( other );
 		}
     }
 }
@@ -1966,13 +1966,13 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
 /*
 ==============
-ClientBeginServerFrame
+SVG_Client_BeginServerFrame
 
 This will be called once for each server frame, before running
 any other entities in the world.
 ==============
 */
-void ClientBeginServerFrame(edict_t *ent)
+void SVG_Client_BeginServerFrame(edict_t *ent)
 {
     gclient_t   *client;
     int         buttonMask;
@@ -2013,7 +2013,7 @@ void ClientBeginServerFrame(edict_t *ent)
 
             if ( ( client->latched_buttons & buttonMask ) ||
                 ( deathmatch->value && ( (int)dmflags->value & DF_FORCE_RESPAWN ) ) ) {
-                respawn( ent );
+                SVG_Client_Respawn( ent );
                 client->latched_buttons = BUTTON_NONE;
             }
         }

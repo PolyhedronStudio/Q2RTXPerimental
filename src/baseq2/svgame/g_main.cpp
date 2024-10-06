@@ -115,7 +115,7 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo);
 void ClientDisconnect(edict_t *ent);
 void ClientBegin(edict_t *ent);
 void ClientCommand(edict_t *ent);
-void G_RunEntity(edict_t *ent);
+void SVG_RunEntity(edict_t *ent);
 void WriteGame(const char *filename, qboolean autosave);
 void ReadGame(const char *filename);
 void WriteLevel(const char *filename);
@@ -365,7 +365,7 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.RunFrame = G_RunFrame;
 
-		globals.ServerCommand = ServerCommand;
+		globals.SVG_ServerCommand = SVG_ServerCommand;
 
 		globals.edict_size = sizeof( edict_t );
 
@@ -433,7 +433,7 @@ void ClientEndServerFrames(void)
         ent = g_edicts + 1 + i;
         if (!ent->inuse || !ent->client)
             continue;
-        ClientEndServerFrame(ent);
+        SVG_Client_EndServerFrame(ent);
     }
 
 }
@@ -449,7 +449,7 @@ edict_t *CreateTargetChangeLevel(char *map)
 {
     edict_t *ent;
 
-    ent = G_AllocateEdict();
+    ent = SVG_AllocateEdict();
     ent->classname = "target_changelevel";
     if (map != level.nextmap)
         Q_strlcpy(level.nextmap, map, sizeof(level.nextmap));
@@ -472,7 +472,7 @@ void EndDMLevel(void)
 
     // stay on same level flag
     if ((int)dmflags->value & DF_SAME_LEVEL) {
-        BeginIntermission(CreateTargetChangeLevel(level.mapname));
+        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.mapname));
         return;
     }
 
@@ -487,11 +487,11 @@ void EndDMLevel(void)
                 t = strtok(NULL, seps);
                 if (t == NULL) { // end of list, go to first one
                     if (f == NULL) // there isn't a first one, same level
-                        BeginIntermission(CreateTargetChangeLevel(level.mapname));
+                        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.mapname));
                     else
-                        BeginIntermission(CreateTargetChangeLevel(f));
+                        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(f));
                 } else
-                    BeginIntermission(CreateTargetChangeLevel(t));
+                    SVG_HUD_BeginIntermission(CreateTargetChangeLevel(t));
                 free(s);
                 return;
             }
@@ -503,16 +503,16 @@ void EndDMLevel(void)
     }
 
     if (level.nextmap[0]) // go to a specific map
-        BeginIntermission(CreateTargetChangeLevel(level.nextmap));
+        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.nextmap));
     else {  // search for a changelevel
-        ent = G_Find(NULL, FOFS(classname), "target_changelevel");
+        ent = SVG_Find(NULL, FOFS(classname), "target_changelevel");
         if (!ent) {
             // the map designer didn't include a changelevel,
             // so create a fake ent that goes back to the same level
-            BeginIntermission(CreateTargetChangeLevel(level.mapname));
+            SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.mapname));
             return;
         }
-        BeginIntermission(ent);
+        SVG_HUD_BeginIntermission(ent);
     }
 }
 
@@ -667,7 +667,7 @@ void G_RunFrame(void)
 
         // If the ground entity moved, make sure we are still on it.
         if ( ( ent->groundentity ) && ( ent->groundentity->linkcount != ent->groundentity_linkcount ) ) {
-            contents_t mask = G_GetClipMask( ent );
+            contents_t mask = SVG_GetClipMask( ent );
 
             // Monsters that don't SWIM or FLY, got their own unique ground check.
             if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {
@@ -689,10 +689,10 @@ void G_RunFrame(void)
         }
 
         if ( i > 0 && i <= maxclients->value ) {
-            ClientBeginServerFrame( ent );
+            SVG_Client_BeginServerFrame( ent );
             continue;
         } else {
-            G_RunEntity( ent );
+            SVG_RunEntity( ent );
         }
     }
 

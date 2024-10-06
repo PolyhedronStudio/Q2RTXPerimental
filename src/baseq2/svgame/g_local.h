@@ -303,7 +303,7 @@ typedef enum {
 #define SFL_CROSS_TRIGGER_MASK  0x000000ff
 
 
-// noise types for PlayerNoise
+// noise types for SVG_PlayerNoise
 #define PNOISE_SELF             0
 #define PNOISE_WEAPON           1
 #define PNOISE_IMPACT           2
@@ -736,8 +736,8 @@ const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer );
 //
 // g_cmds.c
 //
-void Cmd_Help_f(edict_t *ent);
-void Cmd_Score_f(edict_t *ent);
+void SVG_Cmd_Help_f(edict_t *ent);
+void SVG_Cmd_Score_f(edict_t *ent);
 
 //
 // g_items.c
@@ -763,30 +763,30 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 // g_utils.c
 //
 const bool    KillBox( edict_t *ent, const bool bspClipping );
-void    G_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result);
-edict_t *G_Find(edict_t *from, int fieldofs, const char *match); // WID: C++20: Added const.
-edict_t *findradius(edict_t *from, vec3_t org, float rad);
-edict_t *G_PickTarget(char *targetname);
-void    G_UseTargets(edict_t *ent, edict_t *activator);
-void    G_SetMovedir(vec3_t angles, vec3_t movedir);
+void    SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
+edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
+edict_t *SVG_FindWithinRadius( edict_t *from, vec3_t org, float rad );
+edict_t *SVG_PickTarget( char *targetname );
+void    SVG_UseTargets( edict_t *ent, edict_t *activator );
+void    SVG_SetMovedir( vec3_t angles, vec3_t movedir );
 
-void    G_InitEdict(edict_t *e);
-edict_t *G_AllocateEdict(void);
-void    G_FreeEdict(edict_t *e);
+void    SVG_InitEdict( edict_t *e );
+edict_t *SVG_AllocateEdict( void );
+void    SVG_FreeEdict( edict_t *e );
 
-void    G_TouchTriggers(edict_t *ent);
-void    G_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
-void    G_TouchSolids(edict_t *ent);
+void    SVG_TouchSolids( edict_t *ent );
+void    SVG_TouchTriggers( edict_t *ent );
+void    SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
 
-char    *G_CopyString(char *in);
+char *SVG_CopyString( char *in );
 
 //
 // g_combat.c
 //
-bool OnSameTeam(edict_t *ent1, edict_t *ent2);
-bool CanDamage(edict_t *targ, edict_t *inflictor);
-void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int mod);
-void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod);
+const bool SVG_OnSameTeam( edict_t *ent1, edict_t *ent2 );
+const bool SVG_CanDamage( edict_t *targ, edict_t *inflictor );
+void SVG_TriggerDamage( edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int mod );
+void SVG_RadiusDamage( edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod );
 
 // damage flags
 #define DAMAGE_NONE             0x00000000
@@ -834,11 +834,11 @@ void M_SetAnimation( edict_t *self, mmove_t *move, bool instant = true );
 // g_misc.c
 //
 // WID: C++20: Added const.
-void ThrowHead(edict_t *self, const char *gibname, int damage, int type);
-void ThrowClientHead(edict_t *self, int damage);
+void SVG_Misc_ThrowHead(edict_t *self, const char *gibname, int damage, int type);
+void SVG_Misc_ThrowClientHead(edict_t *self, int damage);
 // WID: C++20: Added const.
-void ThrowGib(edict_t *self, const char *gibname, int damage, int type);
-void BecomeExplosion1(edict_t *self);
+void SVG_Misc_ThrowGib(edict_t *self, const char *gibname, int damage, int type);
+void SVG_Misc_BecomeExplosion1(edict_t *self);
 
 #define CLOCK_MESSAGE_SIZE  16
 void func_clock_think(edict_t *self);
@@ -866,7 +866,7 @@ bool FacingIdeal(edict_t *self);
 // g_weapon.c
 //
 // WID: C++20: Added const.
-void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origin);
+void SVG_Misc_ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origin);
 bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick);
 void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int mod);
 void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int mod);
@@ -890,13 +890,13 @@ edict_t *PlayerTrail_LastSpot(void);
 //
 // g_client.c
 //
-void respawn(edict_t *ent);
-void BeginIntermission(edict_t *targ);
-void PutClientInServer(edict_t *ent);
-void InitClientPersistantData(edict_t *ent, gclient_t *client);
-void InitClientRespawnData(gclient_t *client);
-void InitBodyQue(void);
-void ClientBeginServerFrame(edict_t *ent);
+void SVG_Client_Respawn(edict_t *ent);
+void SVG_Client_PutInServer(edict_t *ent);
+void SVG_Client_InitPersistantData(edict_t *ent, gclient_t *client);
+void SVG_Client_InitRespawnData(gclient_t *client);
+void SVG_Client_BeginServerFrame(edict_t *ent);
+
+void SVG_InitBodyQue( void );
 
 //
 // g_player.c
@@ -907,28 +907,28 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 //
 // g_svcmds.c
 //
-void ServerCommand(void);
-bool SV_FilterPacket(char *from);
+void SVG_ServerCommand(void);
+bool SVG_FilterPacket(char *from);
 
 //
 // p_view.c
 //
-void ClientEndServerFrame(edict_t *ent);
+void SVG_Client_EndServerFrame(edict_t *ent);
 
 //
 // p_hud.c
 //
-void MoveClientToIntermission(edict_t *client);
-void G_SetStats(edict_t *ent);
-void G_SetSpectatorStats(edict_t *ent);
-void G_CheckChaseStats(edict_t *ent);
-void ValidateSelectedItem(edict_t *ent);
-void DeathmatchScoreboardMessage(edict_t *client, edict_t *killer);
+void SVG_HUD_MoveClientToIntermission(edict_t *client);
+void SVG_HUD_SetStats(edict_t *ent);
+void SVG_HUD_SetSpectatorStats(edict_t *ent);
+void SVG_HUD_CheckChaseStats(edict_t *ent);
+void SVG_HUD_ValidateSelectedItem(edict_t *ent);
+void SVG_HUD_DeathmatchScoreboardMessage(edict_t *client, edict_t *killer);
 
 //
 // g_pweapon.c
 //
-void PlayerNoise(edict_t *who, const vec3_t where, int type);
+void SVG_PlayerNoise(edict_t *who, const vec3_t where, int type);
 
 //
 // m_move.c
@@ -941,23 +941,23 @@ void M_ChangeYaw(edict_t *ent);
 //
 // g_phys.c
 //
-void SV_Impact( edict_t *e1, trace_t *trace );
-const contents_t G_GetClipMask( edict_t *ent );
-void G_RunEntity(edict_t *ent);
+void SVG_Impact( edict_t *e1, trace_t *trace );
+const contents_t SVG_GetClipMask( edict_t *ent );
+void SVG_RunEntity(edict_t *ent);
 
 //
 // g_main.c
 //
-void SaveClientData(void);
-void FetchClientEntData(edict_t *ent);
+void SVG_SaveClientData(void);
+void SVG_FetchClientEntData(edict_t *ent);
 
 //
 // g_chase.c
 //
-void UpdateChaseCam(edict_t *ent);
-void ChaseNext(edict_t *ent);
-void ChasePrev(edict_t *ent);
-void GetChaseTarget(edict_t *ent);
+void SVG_ChaseCam_Update(edict_t *ent);
+void SVG_ChaseCam_Next(edict_t *ent);
+void SVG_ChaseCam_Previous(edict_t *ent);
+void SVG_ChaseCam_GetTarget(edict_t *ent);
 
 //============================================================================
 
@@ -1010,7 +1010,7 @@ typedef struct {
 
 // Client data that stays across deathmatch respawns
 typedef struct {
-    client_persistant_t coop_respawn;	// what to set client->pers to on a respawn
+    client_persistant_t coop_respawn;	// what to set client->pers to on a SVG_Client_Respawn
 
     int64_t enterframe;     // level.framenum the client entered the game
     sg_time_t entertime;    // the moment in time the client entered the game.
@@ -1021,7 +1021,7 @@ typedef struct {
     bool spectator;     // Client is a spectator
 } client_respawn_t;
 
-// this structure is cleared on each PutClientInServer(),
+// this structure is cleared on each SVG_Client_PutInServer(),
 // except for 'client->pers'
 struct gclient_s {
     /**
@@ -1173,7 +1173,7 @@ struct gclient_s {
     sg_time_t	flood_when[10];     // when messages were said
     int64_t		flood_whenhead;     // head pointer for when said
 
-    sg_time_t	respawn_time;		// can respawn when time > this
+    sg_time_t	respawn_time;		// can SVG_Client_Respawn when time > this
 
     edict_t     *chase_target;      // player we are chasing
     bool        update_chase;       // need to update chase info?

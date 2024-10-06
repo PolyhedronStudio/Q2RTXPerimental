@@ -404,7 +404,7 @@ void makronBFG(edict_t *self)
     vec3_t  vec;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MAKRON_BFG], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MAKRON_BFG], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, vec);
     vec[2] += self->enemy->viewheight;
@@ -491,7 +491,7 @@ void MakronRailgun(edict_t *self)
     vec3_t  forward, right;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MAKRON_RAILGUN_1], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MAKRON_RAILGUN_1], forward, right, start);
 
     // calc direction to where we targted
     VectorSubtract(self->pos1, start, dir);
@@ -512,7 +512,7 @@ void MakronHyperblaster(edict_t *self)
     flash_number = MZ2_MAKRON_BLASTER_1 + (self->s.frame - FRAME_attak405);
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     if (self->enemy) {
         VectorCopy(self->enemy->s.origin, vec);
@@ -651,10 +651,10 @@ void makron_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 1 /*4*/; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", damage, GIB_TYPE_METALLIC);
-        ThrowHead(self, "models/objects/gibs/gear/tris.md2", damage, GIB_TYPE_METALLIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", damage, GIB_TYPE_METALLIC);
+        SVG_Misc_ThrowHead(self, "models/objects/gibs/gear/tris.md2", damage, GIB_TYPE_METALLIC);
         self->deadflag = DEADFLAG_DEAD;
         return;
     }
@@ -667,7 +667,7 @@ void makron_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     self->deadflag = DEADFLAG_DEAD;
     self->takedamage = DAMAGE_YES;
 
-    tempent = G_AllocateEdict();
+    tempent = SVG_AllocateEdict();
     VectorCopy(self->s.origin, tempent->s.origin);
     VectorCopy(self->s.angles, tempent->s.angles);
     tempent->s.origin[1] -= 84;
@@ -784,7 +784,7 @@ void MakronPrecache(void)
 void SP_monster_makron(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
@@ -858,7 +858,7 @@ void MakronToss(edict_t *self)
 {
     edict_t *ent;
 
-    ent = G_AllocateEdict();
+    ent = SVG_AllocateEdict();
     ent->nextthink = level.time + 0.8_sec;
     ent->think = MakronSpawn;
     ent->target = self->targetNames.target;

@@ -314,7 +314,7 @@ void mutant_jump_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_
             VectorNormalize(normal);
             VectorMA(self->s.origin, self->maxs[0], normal, point);
             damage = 40 + 10 * random();
-            T_Damage(other, self, self, self->velocity, point, normal, damage, damage, 0, MOD_UNKNOWN);
+            SVG_TriggerDamage(other, self, self, self->velocity, point, normal, damage, damage, 0, MOD_UNKNOWN);
         }
     }
 
@@ -550,10 +550,10 @@ void mutant_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 2; n++)
-            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+        SVG_Misc_ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
         self->deadflag = DEADFLAG_DEAD;
         return;
     }
@@ -582,7 +582,7 @@ void mutant_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 void SP_monster_mutant(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

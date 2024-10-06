@@ -394,14 +394,14 @@ void plat_blocked(edict_t *self, edict_t *other)
 {
     if (!(other->svflags & SVF_MONSTER) && (!other->client)) {
         // give it a chance to go away on it's own terms (like gibs)
-        T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
+        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
         // if it's still there, nuke it
         if (other)
-            BecomeExplosion1(other);
+            SVG_Misc_BecomeExplosion1(other);
         return;
     }
 
-    T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 
     if (self->moveinfo.state == STATE_UP)
         plat_go_down(self);
@@ -441,7 +441,7 @@ void plat_spawn_inside_trigger(edict_t *ent)
 //
 // middle trigger
 //
-    trigger = G_AllocateEdict();
+    trigger = SVG_AllocateEdict();
     trigger->touch = Touch_Plat_Center;
     trigger->movetype = MOVETYPE_NONE;
     trigger->solid = SOLID_TRIGGER;
@@ -574,13 +574,13 @@ STOP mean it will stop moving instead of pushing entities
 
 void rotating_blocked(edict_t *self, edict_t *other)
 {
-    T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 }
 
 void rotating_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
 {
     if (!VectorEmpty(self->avelocity))
-        T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 }
 
 void rotating_use(edict_t *self, edict_t *other, edict_t *activator)
@@ -691,7 +691,7 @@ void button_wait(edict_t *self)
     self->s.effects &= ~EF_ANIM01;
     self->s.effects |= EF_ANIM23;
 
-    G_UseTargets(self, self->activator);
+    SVG_UseTargets(self, self->activator);
     self->s.frame = 1;
     if (self->moveinfo.wait >= 0) {
 		self->nextthink = level.time + sg_time_t::from_sec( self->moveinfo.wait );
@@ -741,7 +741,7 @@ void SP_func_button(edict_t *ent)
     vec3_t  abs_movedir;
     float   dist;
 
-    G_SetMovedir(ent->s.angles, ent->movedir);
+    SVG_SetMovedir(ent->s.angles, ent->movedir);
     ent->movetype = MOVETYPE_STOP;
     ent->solid = SOLID_BSP;
     gi.setmodel(ent, ent->model);
@@ -837,7 +837,7 @@ void door_use_areaportals(edict_t *self, bool open)
     if (!self->targetNames.target)
         return;
 
-    while ((t = G_Find(t, FOFS(targetname), self->targetNames.target))) {
+    while ((t = SVG_Find(t, FOFS(targetname), self->targetNames.target))) {
         if (Q_stricmp(t->classname, "func_areaportal") == 0) {
             gi.SetAreaPortalState(t->style, open);
 
@@ -919,7 +919,7 @@ void door_go_up(edict_t *self, edict_t *activator)
     else if (strcmp(self->classname, "func_door_rotating") == 0)
         SVG_PushMove_AngleMoveCalculate(self, door_hit_top);
 
-    G_UseTargets(self, activator);
+    SVG_UseTargets(self, activator);
     door_use_areaportals(self, true);
 }
 
@@ -1028,7 +1028,7 @@ void Think_SpawnDoorTrigger(edict_t *ent)
     maxs[0] += 60;
     maxs[1] += 60;
 
-    other = G_AllocateEdict();
+    other = SVG_AllocateEdict();
     VectorCopy(mins, other->mins);
     VectorCopy(maxs, other->maxs);
     other->owner = ent;
@@ -1049,14 +1049,14 @@ void door_blocked(edict_t *self, edict_t *other)
 
     if (!(other->svflags & SVF_MONSTER) && (!other->client)) {
         // give it a chance to go away on it's own terms (like gibs)
-        T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
+        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
         // if it's still there, nuke it
         if (other)
-            BecomeExplosion1(other);
+            SVG_Misc_BecomeExplosion1(other);
         return;
     }
 
-    T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 
     if (self->spawnflags & DOOR_CRUSHER)
         return;
@@ -1101,7 +1101,7 @@ void door_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf
 
 void door_postspawn( edict_t *self ) {
     //if ( self->spawnflags & DOOR_START_OPEN ) {
-    //    //G_UseTargets( self, self );
+    //    //SVG_UseTargets( self, self );
     //    door_use_areaportals( self, true );
     //    //self->moveinfo.state = PUSHMOVE_STATE_TOP;
     //}
@@ -1117,7 +1117,7 @@ void SP_func_door(edict_t *ent)
         ent->moveinfo.sound_end = gi.soundindex("doors/dr1_end.wav");
     }
 
-    G_SetMovedir(ent->s.angles, ent->movedir);
+    SVG_SetMovedir(ent->s.angles, ent->movedir);
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
     gi.setmodel(ent, ent->model);
@@ -1343,7 +1343,7 @@ void SP_func_water(edict_t *self)
 {
     vec3_t  abs_movedir;
 
-    G_SetMovedir(self->s.angles, self->movedir);
+    SVG_SetMovedir(self->s.angles, self->movedir);
     self->movetype = MOVETYPE_PUSH;
     self->solid = SOLID_BSP;
     gi.setmodel(self, self->model);
@@ -1424,10 +1424,10 @@ void train_blocked(edict_t *self, edict_t *other)
 {
     if (!(other->svflags & SVF_MONSTER) && (!other->client)) {
         // give it a chance to go away on it's own terms (like gibs)
-        T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
+        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
         // if it's still there, nuke it
         if (other)
-            BecomeExplosion1(other);
+            SVG_Misc_BecomeExplosion1(other);
         return;
     }
 
@@ -1437,7 +1437,7 @@ void train_blocked(edict_t *self, edict_t *other)
     if (!self->dmg)
         return;
     self->touch_debounce_time = level.time + 0.5_sec;
-    T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 }
 
 void train_wait(edict_t *self)
@@ -1449,7 +1449,7 @@ void train_wait(edict_t *self)
         ent = self->targetEntities.target;
         savetarget = ent->target;
         ent->target = ent->targetNames.path;
-        G_UseTargets(ent, self->activator);
+        SVG_UseTargets(ent, self->activator);
         ent->target = savetarget;
 
         // make sure we didn't get killed by a targetNames.kill
@@ -1492,7 +1492,7 @@ again:
         return;
     }
 
-    ent = G_PickTarget(self->targetNames.target);
+    ent = SVG_PickTarget(self->targetNames.target);
     if (!ent) {
         gi.dprintf("train_next: bad target %s\n", self->targetNames.target);
         return;
@@ -1554,7 +1554,7 @@ void func_train_find(edict_t *self)
         gi.dprintf("train_find: no target\n");
         return;
     }
-    ent = G_PickTarget(self->targetNames.target);
+    ent = SVG_PickTarget(self->targetNames.target);
     if (!ent) {
         gi.dprintf("train_find: target %s not found\n", self->targetNames.target);
         return;
@@ -1648,7 +1648,7 @@ void trigger_elevator_use(edict_t *self, edict_t *other, edict_t *activator)
         return;
     }
 
-    target = G_PickTarget(other->targetNames.path);
+    target = SVG_PickTarget(other->targetNames.path);
     if (!target) {
         gi.dprintf("elevator used with bad targetNames.path: %s\n", other->targetNames.path);
         return;
@@ -1664,7 +1664,7 @@ void trigger_elevator_init(edict_t *self)
         gi.dprintf("trigger_elevator has no target\n");
         return;
     }
-    self->movetarget = G_PickTarget(self->targetNames.target);
+    self->movetarget = SVG_PickTarget(self->targetNames.target);
     if (!self->movetarget) {
         gi.dprintf("trigger_elevator unable to find target %s\n", self->targetNames.target);
         return;
@@ -1702,7 +1702,7 @@ These can used but not touched.
 */
 void func_timer_think(edict_t *self)
 {
-    G_UseTargets(self, self->activator);
+    SVG_UseTargets(self, self->activator);
 	self->nextthink = level.time + sg_time_t::from_sec( self->wait + crandom( ) * self->random );
 }
 
@@ -1866,10 +1866,10 @@ void door_secret_blocked(edict_t *self, edict_t *other)
 {
     if (!(other->svflags & SVF_MONSTER) && (!other->client)) {
         // give it a chance to go away on it's own terms (like gibs)
-        T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
+        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
         // if it's still there, nuke it
         if (other)
-            BecomeExplosion1(other);
+            SVG_Misc_BecomeExplosion1(other);
         return;
     }
 
@@ -1877,7 +1877,7 @@ void door_secret_blocked(edict_t *self, edict_t *other)
         return;
     self->touch_debounce_time = level.time + 0.5_sec;
 
-    T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 }
 
 void door_secret_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)

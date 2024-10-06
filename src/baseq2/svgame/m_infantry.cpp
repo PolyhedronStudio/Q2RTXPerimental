@@ -255,7 +255,7 @@ void InfantryMachineGun(edict_t *self)
     if (self->s.frame == FRAME_attak111) {
         flash_number = MZ2_INFANTRY_MACHINEGUN_1;
         AngleVectors(self->s.angles, forward, right, NULL);
-        G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+        SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
         if (self->enemy) {
             VectorMA(self->enemy->s.origin, -0.2f, self->enemy->velocity, target);
@@ -269,7 +269,7 @@ void InfantryMachineGun(edict_t *self)
         flash_number = MZ2_INFANTRY_MACHINEGUN_2 + (self->s.frame - FRAME_death211);
 
         AngleVectors(self->s.angles, forward, right, NULL);
-        G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+        SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
         VectorSubtract(self->s.angles, aimangles[flash_number - MZ2_INFANTRY_MACHINEGUN_2], vec);
         AngleVectors(vec, forward, NULL, NULL);
@@ -370,10 +370,10 @@ void infantry_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 2; n++)
-            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+        SVG_Misc_ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
         self->deadflag = DEADFLAG_DEAD;
         return;
     }
@@ -527,7 +527,7 @@ void infantry_attack(edict_t *self)
 void SP_monster_infantry(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

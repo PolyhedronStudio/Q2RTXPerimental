@@ -129,7 +129,8 @@ bool SV_RunThink(edict_t *ent)
 
     ent->nextthink = 0_ms;
     if ( !ent->think ) {
-        gi.error( "nullptr ent->think" );
+        gi.error( "[ entityNumber(%d), inUse(%s), classname(%s), targetname(%s), luaName(%s), (nullptr) ent->think ]\n",
+            ent->s.number, ( ent->inuse == true ? "true" : "false" ), ent->classname, ent->targetname, ent->luaProperties.luaName);
         return false;
     }
 
@@ -140,12 +141,12 @@ bool SV_RunThink(edict_t *ent)
 
 /*
 ==================
-SV_Impact
+SVG_Impact
 
 Two entities have touched, so run their touch functions
 ==================
 */
-void SV_Impact(edict_t *e1, trace_t *trace)
+void SVG_Impact(edict_t *e1, trace_t *trace)
 {
     edict_t     *e2;
 //  cplane_t    backplane;
@@ -277,7 +278,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
 //
 // run the impact function
 //
-        SV_Impact(ent, &trace);
+        SVG_Impact(ent, &trace);
         if (!ent->inuse)
             break;      // removed by the impact function
 
@@ -383,7 +384,7 @@ retry:
     gi.linkentity(ent);
 
     if (trace.fraction != 1.0f) {
-        SV_Impact(ent, &trace);
+        SVG_Impact(ent, &trace);
 
         // if the pushed entity went away and the pusher is still there
         if (!trace.ent->inuse && ent->inuse) {
@@ -1244,7 +1245,7 @@ void SV_Physics_RootMotion( edict_t *ent ) {
 //============================================================================
 /*
 ================
-G_RunEntity
+SVG_RunEntity
 
 ================
 */

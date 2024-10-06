@@ -79,26 +79,6 @@ template <typename... Rest> void VPrint( const std::string &functionName, const 
 
 /**
 *
-*
-*
-*	TODO: This is DJ Not Nice, code is not neat, needs fixing.
-*
-*
-8
-**/
-//! For developer prints:
-#ifdef Lua_DEBUG_OUTPUT
-#define Lua_DeveloperPrintf(...) gi.dprintf( __VA_ARGS__ );
-#else
-#define Lua_DeveloperPrintf(...) 
-#endif
-
-// 
-#define SVG_Lua_ReturnIfNotInterpretedOK if ( !mapScriptInterpreted ) { return; } 
-
-
-/**
-*
 * 
 *
 *	TODO: Needs structurisation.

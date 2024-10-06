@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 #include "g_local.h"
 
-void UpdateChaseCam(edict_t *ent)
+void SVG_ChaseCam_Update(edict_t *ent)
 {
     vec3_t o, ownerv, goal;
     edict_t *targ;
@@ -30,7 +30,7 @@ void UpdateChaseCam(edict_t *ent)
     if (!ent->client->chase_target->inuse
         || ent->client->chase_target->client->resp.spectator) {
         edict_t *old = ent->client->chase_target;
-        ChaseNext(ent);
+        SVG_ChaseCam_Next(ent);
         if (ent->client->chase_target == old) {
             ent->client->chase_target = NULL;
 			ent->client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION ); // WID: pmove_new
@@ -105,7 +105,7 @@ void UpdateChaseCam(edict_t *ent)
     gi.linkentity(ent);
 }
 
-void ChaseNext(edict_t *ent)
+void SVG_ChaseCam_Next(edict_t *ent)
 {
     int i;
     edict_t *e;
@@ -129,7 +129,7 @@ void ChaseNext(edict_t *ent)
     ent->client->update_chase = true;
 }
 
-void ChasePrev(edict_t *ent)
+void SVG_ChaseCam_Previous(edict_t *ent)
 {
     int i;
     edict_t *e;
@@ -153,7 +153,7 @@ void ChasePrev(edict_t *ent)
     ent->client->update_chase = true;
 }
 
-void GetChaseTarget(edict_t *ent)
+void SVG_ChaseCam_GetTarget(edict_t *ent)
 {
     int i;
     edict_t *other;
@@ -163,7 +163,7 @@ void GetChaseTarget(edict_t *ent)
         if (other->inuse && !other->client->resp.spectator) {
             ent->client->chase_target = other;
             ent->client->update_chase = true;
-            UpdateChaseCam(ent);
+            SVG_ChaseCam_Update(ent);
             return;
         }
     }

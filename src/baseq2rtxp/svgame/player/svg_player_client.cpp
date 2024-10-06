@@ -447,7 +447,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     self->svflags |= SVF_DEADMONSTER;
 
     if (!self->deadflag) {
-        // Determine respawn time.
+        // Determine SVG_Client_Respawn time.
 		self->client->respawn_time = ( level.time + 1_sec );
         // Make sure the playerstate its pmove knows we're dead.
         self->client->ps.pmove.pm_type = PM_DEAD;
@@ -473,10 +473,10 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         gi.sound(self, CHAN_BODY, gi.soundindex("world/gib01.wav"), 1, ATTN_NORM, 0);
         //! Throw 4 small meat gibs around.
         for ( n = 0; n < 4; n++ ) {
-            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
+            SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
         }
         // Turn ourself into the thrown head entity.
-        ThrowClientHead(self, damage);
+        SVG_Misc_ThrowClientHead(self, damage);
 
         // Gibs don't take damage, but fade away as time passes.
         self->takedamage = DAMAGE_NO;
@@ -521,13 +521,13 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 
 /*
 ==============
-InitClientPersistantData
+SVG_Client_InitPersistantData
 
 This is only called when the game first initializes in single player,
 but is called after each death and level change in deathmatch
 ==============
 */
-void InitClientPersistantData( edict_t *ent, gclient_t *client ) {
+void SVG_Client_InitPersistantData( edict_t *ent, gclient_t *client ) {
     // Clear out persistent data.
     client->pers = {};
 
@@ -565,8 +565,8 @@ void InitClientPersistantData( edict_t *ent, gclient_t *client ) {
 }
 
 
-void InitClientRespawnData( gclient_t *client ) {
-    // Clear out respawn data.
+void SVG_Client_InitRespawnData( gclient_t *client ) {
+    // Clear out SVG_Client_Respawn data.
     client->resp = {};
 
     // Save the moment in time.
@@ -575,13 +575,13 @@ void InitClientRespawnData( gclient_t *client ) {
 
     // In case of a coop game mode, we make sure to store the 
     // 'persistent across level changes' data into the client's
-    // respawn field, so we can restore it each respawn.
+    // SVG_Client_Respawn field, so we can restore it each SVG_Client_Respawn.
     client->resp.pers_respawn = client->pers;
 }
 
 /*
 ==================
-SaveClientData
+SVG_SaveClientData
 
 Some information that should be persistant, like health,
 is still stored in the edict structure, so it needs to
@@ -589,7 +589,7 @@ be mirrored out to the client structure before all the
 edicts are wiped.
 ==================
 */
-void SaveClientData( void ) {
+void SVG_SaveClientData( void ) {
     int     i;
     edict_t *ent;
 
@@ -607,7 +607,7 @@ void SaveClientData( void ) {
     }
 }
 
-void FetchClientEntData( edict_t *ent ) {
+void SVG_FetchClientEntData( edict_t *ent ) {
     ent->health = ent->client->pers.health;
     ent->max_health = ent->client->pers.max_health;
     ent->flags |= ent->client->pers.savedFlags;
@@ -840,7 +840,7 @@ void    SelectSpawnPoint( edict_t *ent, vec3_t origin, vec3_t angles ) {
 * 
 * 
 **/
-void InitBodyQue( void ) {
+void SVG_InitBodyQue( void ) {
     int     i;
     edict_t *ent;
 
@@ -857,10 +857,10 @@ void body_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
     if ( self->health < -40 ) {
         gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
         for ( n = 0; n < 4; n++ ) {
-            ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
+            SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
         }
         self->s.origin[ 2 ] -= 48;
-        ThrowClientHead( self, damage );
+        SVG_Misc_ThrowClientHead( self, damage );
         self->takedamage = DAMAGE_NO;
     }
 }
@@ -925,13 +925,13 @@ void CopyToBodyQue( edict_t *ent ) {
 *
 *
 **/
-void respawn( edict_t *self ) {
+void SVG_Client_Respawn( edict_t *self ) {
     if ( deathmatch->value || coop->value ) {
         // spectator's don't leave bodies
         if ( self->movetype != MOVETYPE_NOCLIP )
             CopyToBodyQue( self );
         self->svflags &= ~SVF_NOCLIENT;
-        PutClientInServer( self );
+        SVG_Client_PutInServer( self );
 
         // add a teleportation effect
         self->s.event = EV_PLAYER_TELEPORT;
@@ -1003,11 +1003,11 @@ void spectator_respawn( edict_t *ent ) {
         }
     }
 
-    // clear client on respawn
+    // clear client on SVG_Client_Respawn
     ent->client->resp.score = ent->client->pers.score = 0;
 
     ent->svflags &= ~SVF_NOCLIENT;
-    PutClientInServer( ent );
+    SVG_Client_PutInServer( ent );
 
     // add a teleportation effect
     if ( !ent->client->pers.spectator ) {
@@ -1041,7 +1041,7 @@ void spectator_respawn( edict_t *ent ) {
 /**
 *   @brief  Will reset the entity client's 'Field of View' back to its defaults.
 **/
-void P_ResetPlayerStateFOV( gclient_t *client ) {
+void SVG_Player_ResetPlayerStateFOV( gclient_t *client ) {
     // For DM Mode, possibly fixed FOV is set.
     if ( deathmatch->value && ( (int)dmflags->value & DF_FIXED_FOV ) ) {
         client->ps.fov = 90;
@@ -1147,7 +1147,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
         VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
 
         if ( !deathmatch->integer ) {
-            T_Damage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
+            SVG_TriggerDamage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
         }
     } else {
         ent->s.event = EV_FALLSHORT;
@@ -1155,7 +1155,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
 
     // Paril: falling damage noises alert monsters
     if ( ent->health ) {
-        P_PlayerNoise( ent, &pm.playerState->pmove.origin[ 0 ], PNOISE_SELF );
+        SVG_Player_PlayerNoise( ent, &pm.playerState->pmove.origin[ 0 ], PNOISE_SELF );
     }
 }
 
@@ -1203,7 +1203,7 @@ static const contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
 /**
 *   @brief  Called either when a player connects to a server, OR respawns in a multiplayer game.
 **/
-void PutClientInServer( edict_t *ent ) {
+void SVG_Client_PutInServer( edict_t *ent ) {
     Vector3 mins = PM_BBOX_STANDUP_MINS;
     Vector3 maxs = PM_BBOX_STANDUP_MAXS;
     int     index;
@@ -1227,12 +1227,12 @@ void PutClientInServer( edict_t *ent ) {
         // Store userinfo.
         char        userinfo[ MAX_INFO_STRING ];
         memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
-        // Store respawn data.
+        // Store SVG_Client_Respawn data.
         resp = client->resp;
 
         // DeathMatch: Reinitialize a fresh persistent data.
         if ( game.gamemode == GAMEMODE_TYPE_DEATHMATCH ) {
-            InitClientPersistantData( ent, client );
+            SVG_Client_InitPersistantData( ent, client );
             // Cooperative: 
         } else if ( game.gamemode == GAMEMODE_TYPE_COOPERATIVE ) {
             // this is kind of ugly, but it's how we want to handle keys in coop
@@ -1257,7 +1257,7 @@ void PutClientInServer( edict_t *ent ) {
         memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
         // Restore userinfo.
         ClientUserinfoChanged( ent, userinfo );
-        // Acquire respawn data.
+        // Acquire SVG_Client_Respawn data.
         resp = client->resp;
         // Restore client persistent data.
         client->pers = resp.pers_respawn;
@@ -1272,12 +1272,12 @@ void PutClientInServer( edict_t *ent ) {
     client->pers = saved;
     // If dead at the time of the previous map switching to the current, reinitialize persistent data.
     if ( client->pers.health <= 0 ) {
-        InitClientPersistantData( ent, client );
+        SVG_Client_InitPersistantData( ent, client );
     }
     client->resp = resp;
 
     // copy some data from the client to the entity
-    FetchClientEntData( ent );
+    SVG_FetchClientEntData( ent );
 
     // fix level switch issue
     ent->client->pers.connected = true;
@@ -1315,7 +1315,7 @@ void PutClientInServer( edict_t *ent ) {
     // Clear playerstate values.
     memset( &ent->client->ps, 0, sizeof( client->ps ) );
     // Reset the Field of View for the player state.
-    P_ResetPlayerStateFOV( ent->client );
+    SVG_Player_ResetPlayerStateFOV( ent->client );
 
 
     // Set viewheight for player state pmove.
@@ -1398,7 +1398,7 @@ void PutClientInServer( edict_t *ent ) {
 
     // force the current weapon up
     client->newweapon = client->pers.weapon;
-    P_Weapon_Change( ent );
+    SVG_Player_Weapon_Change( ent );
 }
 
 /**
@@ -1415,13 +1415,13 @@ void ClientBeginDeathmatch( edict_t *ent ) {
     ent->svflags |= SVF_PLAYER;
     ent->s.entityType = ET_PLAYER;
 
-    InitClientRespawnData( ent->client );
+    SVG_Client_InitRespawnData( ent->client );
 
     // locate ent at a spawn point
-    PutClientInServer( ent );
+    SVG_Client_PutInServer( ent );
 
     if ( level.intermission_framenum ) {
-        MoveClientToIntermission( ent );
+        SVG_HUD_MoveClientToIntermission( ent );
     } else {
         // send effect
         gi.WriteUint8( svc_muzzleflash );
@@ -1433,7 +1433,7 @@ void ClientBeginDeathmatch( edict_t *ent ) {
     gi.bprintf( PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname );
 
     // make sure all view stuff is valid
-    ClientEndServerFrame( ent );
+    SVG_Client_EndServerFrame( ent );
 }
 
 /**
@@ -1472,14 +1472,14 @@ void ClientBegin( edict_t *ent ) {
         SVG_InitEdict( ent );
         ent->classname = "player";
         ent->s.entityType = ET_PLAYER;
-        InitClientRespawnData( ent->client );
-        PutClientInServer( ent );
+        SVG_Client_InitRespawnData( ent->client );
+        SVG_Client_PutInServer( ent );
     }
 
     ent->svflags |= SVF_PLAYER;
 
     if ( level.intermission_framenum ) {
-        MoveClientToIntermission( ent );
+        SVG_HUD_MoveClientToIntermission( ent );
     } else {
         // Send effect even if NOT in a multiplayer game
         if ( game.maxclients >= 1 ) {
@@ -1496,7 +1496,7 @@ void ClientBegin( edict_t *ent ) {
     }
 
     // make sure all view stuff is valid
-    ClientEndServerFrame( ent );
+    SVG_Client_EndServerFrame( ent );
 
     // WID: LUA:
     SVG_Lua_CallBack_ClientEnterLevel( ent );
@@ -1540,7 +1540,7 @@ void ClientUserinfoChanged( edict_t *ent, char *userinfo ) {
 
     // fov
     #if 1
-    P_ResetPlayerStateFOV( ent->client );
+    SVG_Player_ResetPlayerStateFOV( ent->client );
     #else
         if (deathmatch->value && ((int)dmflags->value & DF_FIXED_FOV)) {
             ent->client->ps.fov = 90;
@@ -1578,7 +1578,7 @@ void ClientUserinfoChanged( edict_t *ent, char *userinfo ) {
 qboolean ClientConnect( edict_t *ent, char *userinfo ) {
     // check to see if they are on the banned IP list
     char *value = Info_ValueForKey( userinfo, "ip" );
-    if ( SV_FilterPacket( value ) ) {
+    if ( SVG_FilterPacket( value ) ) {
         Info_SetValueForKey( userinfo, "rejmsg", "Banned." );
         return false;
     }
@@ -1621,9 +1621,9 @@ qboolean ClientConnect( edict_t *ent, char *userinfo ) {
     // take it, otherwise spawn one from scratch
     if ( ent->inuse == false ) {
         // clear the respawning variables
-        InitClientRespawnData( ent->client );
+        SVG_Client_InitRespawnData( ent->client );
         if ( !game.autosaved || !ent->client->pers.weapon ) {
-            InitClientPersistantData( ent, ent->client );
+            SVG_Client_InitPersistantData( ent, ent->client );
         }
     }
 
@@ -1844,7 +1844,7 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
     // start of the trace for finding the entity that is in-focus.
     Vector3 traceStart;
     Vector3 viewHeightOffset = { 0, 0, (float)ent->viewheight };
-    P_ProjectSource( ent, ent->s.origin, &viewHeightOffset.x, &vForward.x, &vRight.x, &traceStart.x );
+    SVG_Player_ProjectSource( ent, ent->s.origin, &viewHeightOffset.x, &vForward.x, &vRight.x, &traceStart.x );
 
     // Translate 48 units into the forward direction from the starting trace, to get our trace end position.
     constexpr float USE_TARGET_TRACE_DISTANCE = 48.f;
@@ -2027,7 +2027,7 @@ const Vector3 ClientPostPMove( edict_t *ent, gclient_t *client, pmove_t &pm ) {
 
         // Paril: removed to make ambushes more effective and to
         // not have monsters around corners come to jumps
-        // PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
+        // SVG_PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
     }
 
     // Update the entity's remaining viewheight, liquid and ground information:
@@ -2101,7 +2101,7 @@ void ClientThink( edict_t *ent, usercmd_t *ucmd ) {
             level.exitintermission = true;
         }
 
-        // WID: Also seems set in p_hud.cpp -> MoveClientToIntermission
+        // WID: Also seems set in p_hud.cpp -> SVG_HUD_MoveClientToIntermission
         client->ps.pmove.viewheight = ent->viewheight = PM_VIEWHEIGHT_STANDUP;
 
         return;
@@ -2230,7 +2230,7 @@ void ClientThink( edict_t *ent, usercmd_t *ucmd ) {
                 client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
                 // Otherwise, get an active chase target:
             } else {
-                GetChaseTarget( ent );
+                SVG_ChaseCam_GetTarget( ent );
             }
         }
     /**
@@ -2243,11 +2243,11 @@ void ClientThink( edict_t *ent, usercmd_t *ucmd ) {
 
         // Check whether to engage switching to a new weapon.
         if ( client->newweapon ) {
-            P_Weapon_Change( ent );
+            SVG_Player_Weapon_Change( ent );
         }
         // Process weapon thinking.
         //if ( ent->client->weapon_thunk == false ) {
-        P_Weapon_Think( ent, true );
+        SVG_Player_Weapon_Think( ent, true );
         // Store that we thought for this frame.
         ent->client->weapon_thunk = true;
         //}
@@ -2264,9 +2264,9 @@ void ClientThink( edict_t *ent, usercmd_t *ucmd ) {
                 client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
 
 				if ( client->chase_target ) {
-					ChaseNext( ent );
+					SVG_ChaseCam_Next( ent );
 				} else {
-					GetChaseTarget( ent );
+					SVG_ChaseCam_GetTarget( ent );
 				}
             }
         // Untoggle playerstate jump_held.
@@ -2279,7 +2279,7 @@ void ClientThink( edict_t *ent, usercmd_t *ucmd ) {
     for ( int32_t i = 1; i <= maxclients->value; i++ ) {
         edict_t *other = g_edicts + i;
         if ( other->inuse && other->client->chase_target == ent ) {
-			UpdateChaseCam( other );
+			SVG_ChaseCam_Update( other );
 		}
     }
 
@@ -2290,7 +2290,7 @@ void ClientThink( edict_t *ent, usercmd_t *ucmd ) {
 /**
 *   @brief  This will be called once for each server frame, before running any other entities in the world.
 **/
-void ClientBeginServerFrame(edict_t *ent)
+void SVG_Client_BeginServerFrame(edict_t *ent)
 {
     gclient_t   *client;
     int         buttonMask;
@@ -2334,7 +2334,7 @@ void ClientBeginServerFrame(edict_t *ent)
     *   Run weapon logic if it hasn't been done by a usercmd_t in ClientThink.
     **/
     if ( client->weapon_thunk == false && !client->resp.spectator ) {
-        P_Weapon_Think( ent, false );
+        SVG_Player_Weapon_Think( ent, false );
     } else {
         client->weapon_thunk = false;
     }
@@ -2354,7 +2354,7 @@ void ClientBeginServerFrame(edict_t *ent)
 
             if ( ( client->latched_buttons & buttonMask ) ||
                 ( deathmatch->value && ( (int)dmflags->value & DF_FORCE_RESPAWN ) ) ) {
-                respawn( ent );
+                SVG_Client_Respawn( ent );
                 client->latched_buttons = BUTTON_NONE;
             }
         }

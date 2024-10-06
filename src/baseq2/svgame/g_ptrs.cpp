@@ -385,7 +385,7 @@ extern void func_timer_think( edict_t *self );
 extern void func_timer_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void func_train_find( edict_t *self );
 extern void func_wall_use( edict_t *self, edict_t *other, edict_t *activator );
-extern void G_FreeEdict( edict_t *self );
+extern void SVG_FreeEdict( edict_t *self );
 extern void gib_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void gib_think( edict_t *self );
 extern void gib_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
@@ -637,7 +637,7 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void*)func_object_release },
 { P_think,  (void*)func_timer_think },
 { P_think,  (void*)func_train_find },
-{ P_think,  (void*)G_FreeEdict },
+{ P_think,  (void*)SVG_FreeEdict },
 { P_think,  (void*)gib_think },
 { P_think,  (void*)Grenade_Explode },
 { P_think,  (void*)hover_deadthink },

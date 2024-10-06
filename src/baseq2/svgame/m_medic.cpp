@@ -46,7 +46,7 @@ edict_t *medic_FindDeadMonster(edict_t *self)
     edict_t *ent = NULL;
     edict_t *best = NULL;
 
-    while ((ent = findradius(ent, self->s.origin, 1024)) != NULL) {
+    while ((ent = SVG_FindWithinRadius(ent, self->s.origin, 1024)) != NULL) {
         if (ent == self)
             continue;
         if (!(ent->svflags & SVF_MONSTER))
@@ -338,7 +338,7 @@ void medic_fire_blaster(edict_t *self)
         effect = 0;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MEDIC_BLASTER_1], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MEDIC_BLASTER_1], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, end);
     end[2] += self->enemy->viewheight;
@@ -404,10 +404,10 @@ void medic_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 2; n++)
-            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+        SVG_Misc_ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
         self->deadflag = DEADFLAG_DEAD;
         return;
     }
@@ -562,7 +562,7 @@ void medic_cable_attack(edict_t *self)
 
     AngleVectors(self->s.angles, f, r, NULL);
     VectorCopy(medic_cable_offsets[self->s.frame - FRAME_attack42], offset);
-    G_ProjectSource(self->s.origin, offset, f, r, start);
+    SVG_ProjectSource(self->s.origin, offset, f, r, start);
 
     // check for max distance
     VectorSubtract(start, self->enemy->s.origin, dir);
@@ -686,7 +686,7 @@ bool medic_checkattack(edict_t *self)
 void SP_monster_medic(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

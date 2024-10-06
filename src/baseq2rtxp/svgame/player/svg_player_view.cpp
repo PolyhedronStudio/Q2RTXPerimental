@@ -159,7 +159,7 @@ static void P_DamageFeedback( edict_t *player ) {
 		//gi.sound( player, CHAN_VOICE, gi.soundindex( va( "*pain%i_%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
 		gi.sound( player, CHAN_VOICE, gi.soundindex( va( "player/pain%i_0%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
 		// Paril: pain noises alert monsters
-		P_PlayerNoise( player, player->s.origin, PNOISE_SELF );
+		SVG_Player_PlayerNoise( player, player->s.origin, PNOISE_SELF );
 	}
 
 	// the total alpha of the blend is always proportional to count
@@ -582,7 +582,7 @@ static void P_CheckWorldEffects( void ) {
 	if ( !old_waterlevel && liquidlevel ) {
 		// Feet in.
 		if ( liquidlevel == liquid_level_t::LIQUID_FEET ) {
-			P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+			SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 			if ( current_player->liquidInfo.type & CONTENTS_LAVA ) {
 				//gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
 				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
@@ -595,7 +595,7 @@ static void P_CheckWorldEffects( void ) {
 				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
 			}
 		} else if ( liquidlevel >= liquid_level_t::LIQUID_WAIST ) {
-			P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+			SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 			if ( current_player->liquidInfo.type & CONTENTS_LAVA ) {
 				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
 
@@ -615,13 +615,13 @@ static void P_CheckWorldEffects( void ) {
 
 	// If just completely exited a water volume while only feet in, play a sound.
 	if ( !liquidlevel && old_waterlevel == liquid_level_t::LIQUID_FEET ) {
-		P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+		SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
 
 	}
 	// If just completely exited a water volume waist or head in, play a sound.
 	if ( !liquidlevel && old_waterlevel >= liquid_level_t::LIQUID_WAIST ) {
-		P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+		SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
 		current_player->flags = static_cast<entity_flags_t>( current_player->flags & ~FL_INWATER );
 	}
@@ -636,7 +636,7 @@ static void P_CheckWorldEffects( void ) {
 		if ( current_player->air_finished_time < level.time ) {
 			// gasp for air
 			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
-			P_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+			SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		} else  if ( current_player->air_finished_time < level.time + 11_sec ) {
 			// just break surface
 			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
@@ -669,7 +669,7 @@ static void P_CheckWorldEffects( void ) {
 
 				current_player->pain_debounce_time = level.time;
 
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
+				SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
 			}
 		}
 	} else {
@@ -693,11 +693,11 @@ static void P_CheckWorldEffects( void ) {
 				current_player->pain_debounce_time = level.time + 1_sec;
 			}
 
-			T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MEANS_OF_DEATH_LAVA );
+			SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MEANS_OF_DEATH_LAVA );
 		}
 
 		if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
-			T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MEANS_OF_DEATH_SLIME );
+			SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MEANS_OF_DEATH_SLIME );
 		}
 	}
 }
@@ -845,14 +845,14 @@ void SVG_SetClientFrame( edict_t *ent ) {
 
 /*
 =================
-ClientEndServerFrame
+SVG_Client_EndServerFrame
 
 Called for each player at the end of the server frame
 and right after spawning
 =================
 */
 void ClientCheckPlayerstateEvents( const edict_t *ent, player_state_t *ops, player_state_t *ps );
-void ClientEndServerFrame( edict_t *ent ) {
+void SVG_Client_EndServerFrame( edict_t *ent ) {
 	int     i;
 
 	// no player exists yet (load game)
@@ -885,7 +885,7 @@ void ClientEndServerFrame( edict_t *ent ) {
 		// FIXME: add view drifting here?
 		current_client->ps.screen_blend[ 3 ] = 0;
 		current_client->ps.fov = 90;
-		SVG_SetStats( ent );
+		SVG_HUD_SetStats( ent );
 		return;
 	}
 
@@ -932,13 +932,13 @@ void ClientEndServerFrame( edict_t *ent ) {
 
 	// Different layout when spectating.
 	if ( ent->client->resp.spectator ) {
-		SVG_SetSpectatorStats( ent );
+		SVG_HUD_SetSpectatorStats( ent );
 	// Regular layout.
 	} else {
-		SVG_SetStats( ent );
+		SVG_HUD_SetStats( ent );
 	}
 	// Set stats to that of the entity which we're tracing. (Overriding previously set stats.)
-	SVG_CheckChaseStats( ent );
+	SVG_HUD_CheckChaseStats( ent );
 	// Events.
 	SVG_SetClientEvent( ent );
 	// Effects.
@@ -960,7 +960,7 @@ void ClientEndServerFrame( edict_t *ent ) {
 	
 	// If the scoreboard is up, update it.
 	if ( ent->client->showscores && !( level.framenum & 31 ) ) {
-		DeathmatchScoreboardMessage( ent, ent->enemy );
+		SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy );
 		gi.unicast( ent, false );
 	}
 }

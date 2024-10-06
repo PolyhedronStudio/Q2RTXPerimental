@@ -27,7 +27,7 @@ INTERMISSION
 ======================================================================
 */
 
-void MoveClientToIntermission(edict_t *ent)
+void SVG_HUD_MoveClientToIntermission(edict_t *ent)
 {
     if ( deathmatch->value || coop->value ) {
         ent->client->showscores = true;
@@ -78,13 +78,13 @@ void MoveClientToIntermission(edict_t *ent)
 
     // add the layout
     if (deathmatch->value || coop->value) {
-        DeathmatchScoreboardMessage(ent, NULL);
+        SVG_HUD_DeathmatchScoreboardMessage(ent, NULL);
         gi.unicast(ent, true);
     }
 
 }
 
-void BeginIntermission(edict_t *targ)
+void SVG_HUD_BeginIntermission(edict_t *targ)
 {
     int     i, n;
     edict_t *ent, *client;
@@ -94,13 +94,13 @@ void BeginIntermission(edict_t *targ)
 
     game.autosaved = false;
 
-    // respawn any dead clients
+    // SVG_Client_Respawn any dead clients
     for (i = 0 ; i < maxclients->value ; i++) {
         client = g_edicts + 1 + i;
         if (!client->inuse)
             continue;
         if (client->health <= 0)
-            respawn(client);
+            SVG_Client_Respawn(client);
     }
 
     level.intermission_framenum = level.framenum;
@@ -130,19 +130,19 @@ void BeginIntermission(edict_t *targ)
     level.exitintermission = 0;
 
     // find an intermission spot
-    ent = G_Find(NULL, FOFS(classname), "info_player_intermission");
+    ent = SVG_Find(NULL, FOFS(classname), "info_player_intermission");
     if (!ent) {
         // the map creator forgot to put in an intermission point...
-        ent = G_Find(NULL, FOFS(classname), "info_player_start");
+        ent = SVG_Find(NULL, FOFS(classname), "info_player_start");
         if (!ent)
-            ent = G_Find(NULL, FOFS(classname), "info_player_deathmatch");
+            ent = SVG_Find(NULL, FOFS(classname), "info_player_deathmatch");
     } else {
         // chose one of four spots
         i = Q_rand() & 3;
         while (i--) {
-            ent = G_Find(ent, FOFS(classname), "info_player_intermission");
+            ent = SVG_Find(ent, FOFS(classname), "info_player_intermission");
             if (!ent)   // wrap around the list
-                ent = G_Find(ent, FOFS(classname), "info_player_intermission");
+                ent = SVG_Find(ent, FOFS(classname), "info_player_intermission");
         }
     }
 
@@ -156,18 +156,18 @@ void BeginIntermission(edict_t *targ)
         client = g_edicts + 1 + i;
         if (!client->inuse)
             continue;
-        MoveClientToIntermission(client);
+        SVG_HUD_MoveClientToIntermission(client);
     }
 }
 
 
 /*
 ==================
-DeathmatchScoreboardMessage
+SVG_HUD_DeathmatchScoreboardMessage
 
 ==================
 */
-void DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
+void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 {
     char    entry[1024];
     char    string[1400];
@@ -296,19 +296,19 @@ Note that it isn't that hard to overflow the 1400 byte message limit!
 */
 void DeathmatchScoreboard(edict_t *ent)
 {
-    DeathmatchScoreboardMessage(ent, ent->enemy);
+    SVG_HUD_DeathmatchScoreboardMessage(ent, ent->enemy);
     gi.unicast(ent, true);
 }
 
 
 /*
 ==================
-Cmd_Score_f
+SVG_Cmd_Score_f
 
 Display the scoreboard
 ==================
 */
-void Cmd_Score_f(edict_t *ent)
+void SVG_Cmd_Score_f(edict_t *ent)
 {
     ent->client->showinventory = false;
     ent->client->showhelp = false;
@@ -373,16 +373,16 @@ void HelpComputer(edict_t *ent)
 
 /*
 ==================
-Cmd_Help_f
+SVG_Cmd_Help_f
 
 Display the current help message
 ==================
 */
-void Cmd_Help_f(edict_t *ent)
+void SVG_Cmd_Help_f(edict_t *ent)
 {
     // this is for backwards compatability
     if (deathmatch->value) {
-        Cmd_Score_f(ent);
+        SVG_Cmd_Score_f(ent);
         return;
     }
 
@@ -404,10 +404,10 @@ void Cmd_Help_f(edict_t *ent)
 
 /*
 ===============
-G_SetStats
+SVG_HUD_SetStats
 ===============
 */
-void G_SetStats(edict_t *ent)
+void SVG_HUD_SetStats(edict_t *ent)
 {
     gitem_t     *item;
     int         index, cells;
@@ -573,10 +573,10 @@ void G_SetStats(edict_t *ent)
 
 /*
 ===============
-G_CheckChaseStats
+SVG_HUD_CheckChaseStats
 ===============
 */
-void G_CheckChaseStats(edict_t *ent)
+void SVG_HUD_CheckChaseStats(edict_t *ent)
 {
     int i;
     gclient_t *cl;
@@ -586,21 +586,21 @@ void G_CheckChaseStats(edict_t *ent)
         if (!g_edicts[i].inuse || cl->chase_target != ent)
             continue;
         memcpy(cl->ps.stats, ent->client->ps.stats, sizeof(cl->ps.stats));
-        G_SetSpectatorStats(g_edicts + i);
+        SVG_HUD_SetSpectatorStats(g_edicts + i);
     }
 }
 
 /*
 ===============
-G_SetSpectatorStats
+SVG_HUD_SetSpectatorStats
 ===============
 */
-void G_SetSpectatorStats(edict_t *ent)
+void SVG_HUD_SetSpectatorStats(edict_t *ent)
 {
     gclient_t *cl = ent->client;
 
     if (!cl->chase_target)
-        G_SetStats(ent);
+        SVG_HUD_SetStats(ent);
 
     // If this function was called, enable spectator mode stats.
     cl->ps.stats[STAT_SPECTATOR] = 1;

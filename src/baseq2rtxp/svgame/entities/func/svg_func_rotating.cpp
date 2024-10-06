@@ -29,12 +29,12 @@ STOP mean it will stop moving instead of pushing entities
 */
 
 void rotating_blocked( edict_t *self, edict_t *other ) {
-    T_Damage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
+    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
 }
 
 void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
     if ( !VectorEmpty( self->avelocity ) )
-        T_Damage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
+        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
 }
 
 void rotating_set_avelocity( edict_t *self ) {

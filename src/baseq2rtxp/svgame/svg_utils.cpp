@@ -146,7 +146,7 @@ edict_t *SVG_PickTarget( char *targetname ) {
     edict_t *choice[ MAXCHOICES ];
 
     if ( !targetname ) {
-        gi.dprintf( "G_PickTarget called with NULL targetname\n" );
+        gi.dprintf( "SVG_PickTarget called with NULL targetname\n" );
         return NULL;
     }
 
@@ -160,7 +160,7 @@ edict_t *SVG_PickTarget( char *targetname ) {
     }
 
     if ( !num_choices ) {
-        gi.dprintf( "G_PickTarget: target %s not found\n", targetname );
+        gi.dprintf( "SVG_PickTarget: target %s not found\n", targetname );
         return NULL;
     }
 
@@ -360,7 +360,7 @@ void SVG_InitEdict(edict_t *e)
 
 /*
 =================
-G_AllocateEdict
+SVG_AllocateEdict
 
 Either finds a free edict, or allocates a new one.
 Try to avoid reusing an entity that was recently freed, because it
@@ -395,7 +395,7 @@ edict_t *SVG_AllocateEdict(void)
             SVG_InitEdict( freedEntity );
             return freedEntity;
         }
-        gi.error( "G_AllocateEdict: no free edicts" );
+        gi.error( "SVG_AllocateEdict: no free edicts" );
     }
 
     globals.num_edicts++;
@@ -434,7 +434,7 @@ void SVG_FreeEdict(edict_t *ed)
 
 /*
 =============
-G_Find
+SVG_Find
 
 Searches all active entities for the next one that holds
 the matching string at fieldofs (use the FOFS() macro) in the structure.
@@ -475,14 +475,14 @@ edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ) {
 
 /*
 =================
-findradius
+SVG_FindWithinRadius
 
 Returns entities that have origins within a spherical area
 
-findradius (origin, radius)
+SVG_FindWithinRadius (origin, radius)
 =================
 */
-edict_t *findradius( edict_t *from, vec3_t org, float rad ) {
+edict_t *SVG_FindWithinRadius( edict_t *from, vec3_t org, float rad ) {
     vec3_t  eorg;
     int     j;
 
@@ -519,7 +519,7 @@ edict_t *findradius( edict_t *from, vec3_t org, float rad ) {
 **/
 /*
 ============
-G_TouchTriggers
+SVG_TouchTriggers
 
 ============
 */
@@ -550,7 +550,7 @@ void    SVG_TouchTriggers(edict_t *ent)
 
 /*
 ============
-G_TouchSolids
+SVG_TouchSolids
 
 Call after linking a new trigger in during gameplay
 to force all entities it covers to immediately touch it
@@ -606,12 +606,12 @@ void SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
         // Q2RE: if we're both players and it's coop, allow the projectile to "pass" through
         // However, we got no methods like them, but we do have an optional check for no friendly fire.
         if ( ent->client && tr.ent->owner && tr.ent->owner->client 
-            && OnSameTeam( ent, tr.ent->owner ) && !( dmflags->integer & DF_NO_FRIENDLY_FIRE ) ) {
+            && SVG_OnSameTeam( ent, tr.ent->owner ) && !( dmflags->integer & DF_NO_FRIENDLY_FIRE ) ) {
             continue;
         }
 
         // Call impact(touch) triggers.
-        SV_Impact( ent, &tr );
+        SVG_Impact( ent, &tr );
     }
 
     for ( auto &skip : skipped ) {
@@ -692,19 +692,19 @@ of ent.  Ent should be unlinked before calling this!
 //                VectorNormalize( dir );
 //
 //                if ( clip.plane.dist ) {
-//                    T_Damage( hit, ent, ent, dir, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+//                    SVG_TriggerDamage( hit, ent, ent, dir, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
 //                } else {
-//                    T_Damage( hit, ent, ent, dir, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+//                    SVG_TriggerDamage( hit, ent, ent, dir, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
 //                }
 //            } else {
 //                if ( clip.plane.dist ) {
-//                    T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+//                    SVG_TriggerDamage( hit, ent, ent, vec3_origin, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
 //                } else {
-//                    T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+//                    SVG_TriggerDamage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
 //                }
 //            }
 //        } else {
-//            T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+//            SVG_TriggerDamage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
 //        }
 //
 //        // if we didn't kill it, fail
@@ -764,19 +764,19 @@ const bool KillBox( edict_t *ent, const bool bspClipping ) {
                 VectorNormalize( dir );
 
                 if ( clip.plane.dist ) {
-                    T_Damage( hit, ent, ent, dir, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                    SVG_TriggerDamage( hit, ent, ent, dir, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
                 } else {
-                    T_Damage( hit, ent, ent, dir, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                    SVG_TriggerDamage( hit, ent, ent, dir, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
                 }
             } else {
                 if ( clip.plane.dist ) {
-                    T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                    SVG_TriggerDamage( hit, ent, ent, vec3_origin, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
                 } else {
-                    T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                    SVG_TriggerDamage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
                 }
             }
         } else {
-            T_Damage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+            SVG_TriggerDamage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
         }
 
         // if we didn't kill it, fail

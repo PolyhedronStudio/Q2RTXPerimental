@@ -953,7 +953,7 @@ void WriteGame(const char *filename, qboolean autosave)
     int     i;
 
     if (!autosave)
-        SaveClientData();
+        SVG_SaveClientData();
 
     f = gzopen(filename, "wb");
     if (!f)

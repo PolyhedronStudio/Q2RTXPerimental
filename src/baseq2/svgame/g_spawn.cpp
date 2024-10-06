@@ -633,7 +633,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
     }
 
     // If we were running a previous session, make sure to save the session's client data.
-    SaveClientData();
+    SVG_SaveClientData();
 
     // Free up all SVGAME_LEVEL tag memory.
     gi.FreeTags(TAG_SVGAME_LEVEL);
@@ -675,7 +675,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
 
         // Pointer to the worldspawn edict in first instance, after that the first free entity
         // we can acquire.
-        spawnEdict = ( !spawnEdict ? g_edicts : G_AllocateEdict() );
+        spawnEdict = ( !spawnEdict ? g_edicts : SVG_AllocateEdict() );
 
         // Get the incremental index entity.
         cm_entity = entities[ i ];
@@ -766,7 +766,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
                 || strstr( spawnEdict->classname, "misc_deadsoldier" )
                 || strstr( spawnEdict->classname, "misc_insane" ) ) ) {
                 // Free entity.
-                G_FreeEdict( spawnEdict );
+                SVG_FreeEdict( spawnEdict );
                 // Increase the amount of inhibited entities we're keeping track of.
                 numInhibitedEntities++;
                 // Iterate to the next entity key/value list entry.
@@ -777,7 +777,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
             if ( deathmatch->value ) {
                 if ( spawnEdict->spawnflags & SPAWNFLAG_NOT_DEATHMATCH ) {
                     // Free entity.
-                    G_FreeEdict( spawnEdict );
+                    SVG_FreeEdict( spawnEdict );
                     // Increase the amount of inhibited entities we're keeping track of.
                     numInhibitedEntities++;
                     // Iterate to the next entity key/value list entry.
@@ -790,7 +790,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
                     ( ( ( skill->value == 2 ) || ( skill->value == 3 ) ) && ( spawnEdict->spawnflags & SPAWNFLAG_NOT_HARD ) )
                     ) {
                     // Free entity.
-                    G_FreeEdict( spawnEdict );
+                    SVG_FreeEdict( spawnEdict );
                     // Increase the amount of inhibited entities we're keeping track of.
                     numInhibitedEntities++;
                     // Iterate to the next entity key/value list entry.
@@ -983,13 +983,13 @@ void SP_worldspawn(edict_t *ent)
 {
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
-    ent->inuse = true;          // since the world doesn't use G_AllocateEdict()
+    ent->inuse = true;          // since the world doesn't use SVG_AllocateEdict()
     ent->s.modelindex = 1;      // world model is always index 1
 
     //---------------
 
     // reserve some spots for dead player bodies for coop / deathmatch
-    InitBodyQue();
+    SVG_InitBodyQue();
 
     // set configstrings for items
     SetItemNames();

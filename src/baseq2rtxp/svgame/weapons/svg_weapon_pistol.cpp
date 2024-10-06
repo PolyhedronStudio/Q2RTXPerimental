@@ -60,21 +60,21 @@ void Weapon_Pistol_Precached( const gitem_t *item ) {
         const skm_anim_t *skmAnim = &skmData->animations[ animID ];
 
         if ( !strcmp( skmAnim->name, "idle" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_IDLE, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_IDLE, animID );
         } else if ( !strcmp( skmAnim->name, "draw" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_DRAWING, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_DRAWING, animID );
         } else if ( !strcmp( skmAnim->name, "holster" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_HOLSTERING, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_HOLSTERING, animID );
         } else if ( !strcmp( skmAnim->name, "fire" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_PRIMARY_FIRING, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_PRIMARY_FIRING, animID );
         } else if ( !strcmp( skmAnim->name, "reload" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_RELOADING, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_RELOADING, animID );
         } else if ( !strcmp( skmAnim->name, "aim_in" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_IN, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_IN, animID );
         } else if ( !strcmp( skmAnim->name, "aim_fire" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_FIRE, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_FIRE, animID );
         } else if ( !strcmp( skmAnim->name, "aim_out" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_OUT, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_OUT, animID );
         } else {
             continue;
         }
@@ -115,7 +115,7 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     // Project from source to shot destination.
     Vector3 shotOffset = { 0, 10, (float)ent->viewheight - 5.5f };
     Vector3 start = {};
-    P_ProjectDistance( ent, ent->s.origin, &shotOffset.x, &forward.x, &right.x, &start.x );
+    SVG_Player_ProjectDistance( ent, ent->s.origin, &shotOffset.x, &forward.x, &right.x, &start.x );
 
     // Determine spread value determined by weaponState.
     // Make sure we're not in aiming mode.
@@ -129,7 +129,7 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
 
     // Project from source to muzzleflash destination.
     Vector3 muzzleFlashOffset = { 16.f, 10.f, (float)ent->viewheight };
-    P_ProjectDistance( ent, ent->s.origin, &muzzleFlashOffset.x, &forward.x, &right.x, &start.x );
+    SVG_Player_ProjectDistance( ent, ent->s.origin, &muzzleFlashOffset.x, &forward.x, &right.x, &start.x );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
@@ -138,7 +138,7 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     gi.multicast( &start.x/*ent->s.origin*/, MULTICAST_PVS, false );
 
     // Notify we're making noise.
-    P_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
+    SVG_Player_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
 
     // Decrease clip ammo.
     //if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
@@ -162,7 +162,7 @@ void weapon_pistol_aim_fire( edict_t *ent ) {
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
     vec3_t shotOffset = { 0, 0, (float)ent->viewheight };
-    P_ProjectSource( ent, ent->s.origin, shotOffset, &forward.x, &right.x, &start.x );
+    SVG_Player_ProjectSource( ent, ent->s.origin, shotOffset, &forward.x, &right.x, &start.x );
 
     // Determine the amount to multiply bullet spread with based on the player's velocity.
     // TODO: Use stats array or so for storing the actual move speed limit, since this
@@ -179,7 +179,7 @@ void weapon_pistol_aim_fire( edict_t *ent ) {
 
     // Project from source to muzzleflash destination.
     vec3_t muzzleFlashOffset = { 16, 0, (float)ent->viewheight };
-    P_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, &forward.x, &right.x, &start.x ); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    SVG_Player_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, &forward.x, &right.x, &start.x ); //SVG_Player_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
@@ -188,7 +188,7 @@ void weapon_pistol_aim_fire( edict_t *ent ) {
     gi.multicast( &start.x, MULTICAST_PVS, false );
 
     // Notify we're making noise.
-    P_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
+    SVG_Player_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
 
     // Decrease clip ammo.
     //if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
@@ -265,9 +265,9 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         if ( !( ent->client->buttons & BUTTON_SECONDARY_FIRE )
                 && ent->client->weaponState.mode != WEAPON_MODE_AIM_OUT ) {
             // Switch to aim out mode.
-            P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeAnimations, false );
+            SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeAnimations, false );
             // Restore the original FOV.
-            P_ResetPlayerStateFOV( ent->client );
+            SVG_Player_ResetPlayerStateFOV( ent->client );
             //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
         /**
         *   Firing 'Primary Fire' of isAiming Mode:
@@ -276,7 +276,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
             // Switch to Firing mode if we have Clip Ammo:
             if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
                 //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
-                P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_FIRE, pistolItemInfo.modeAnimations, false );
+                SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_FIRE, pistolItemInfo.modeAnimations, false );
             // Attempt to reload otherwise:
             } else {
                 // We need to have enough ammo left to reload with.
@@ -288,9 +288,9 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     // Exit isAiming mode.
                     weaponState->aimState.isAiming = false;
                     // Restore the original FOV.
-                    P_ResetPlayerStateFOV( ent->client );
+                    SVG_Player_ResetPlayerStateFOV( ent->client );
                     // Screen should be lerping back to FOV, engage into reload mode.
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
+                    SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
                     #else
                     // Play out of ammo click sound.
                     weapon_pistol_no_ammo( ent );
@@ -311,7 +311,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         if ( ( ent->client->buttons & BUTTON_SECONDARY_FIRE ) && ent->client->weaponState.mode != WEAPON_MODE_AIM_IN ) {
             if ( ent->client->weaponState.aimState.isAiming == false ) {
                 //gi.dprintf( "%s: NOT isAiming -> SwitchMode( WEAPON_MODE_AIM_IN )\n", __func__ );
-                P_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeAnimations, false );
+                SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeAnimations, false );
                 ent->client->ps.fov = 45;
             }
 
@@ -341,7 +341,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     // Add recoil.
                     Weapon_Pistol_AddRecoil( weaponState, 0.35f, level.time - timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
+                    SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: A [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
                 // Fire for stage B:
@@ -349,21 +349,21 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     // Add recoil.
                     Weapon_Pistol_AddRecoil( weaponState, 0.25f, level.time - timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
+                    SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: B [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );                // Fire for stage C:
                 } else if ( recoilTime < timeRecoilStageC ) {
                     // Add recoil.
                     Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
+                    SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: C [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
                 } else if ( recoilTime < timeRecoilStageCap ) {
                     // Add recoil.
                     Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
+                    SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: C [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
                     // 
@@ -373,7 +373,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                     weaponState->recoil = {};
 
                     //gi.dprintf( "%s: Pistol is steady firing! [lastPrimaryFire(%llu), level.time(%llu)]\n", __func__, timeLastPrimaryFire.milliseconds(), level.time.milliseconds(), weaponState->recoil.amount );
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, false );
+                    SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, false );
                 }
             // Attempt to reload otherwise:
             } else {
@@ -382,7 +382,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
 
                 // We need to have enough ammo left to reload with:
                 if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
-                    P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeAnimations, false );
+                    SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeAnimations, false );
                 // Play out of ammo click sound:
                 } else {
                     weapon_pistol_no_ammo( ent );
@@ -400,7 +400,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
 
             // We need to have enough ammo left to reload with.
             if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
-                P_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeAnimations, false );
+                SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeAnimations, false );
             } else {
                 // Play out of ammo click sound.
                 weapon_pistol_no_ammo( ent );
@@ -414,7 +414,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
 **/
 void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
     // Process the animation frames of the mode we're in.
-    const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &pistolItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
+    const bool isDoneAnimating = SVG_Player_Weapon_ProcessModeAnimation( ent, &pistolItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
 
     // If IDLE or NOT ANIMATING, or PRIMARY_FIRING, process user input.
     if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE

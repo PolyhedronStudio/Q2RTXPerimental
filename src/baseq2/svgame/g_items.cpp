@@ -184,7 +184,7 @@ void Drop_General(edict_t *ent, gitem_t *item)
 {
     Drop_Item(ent, item);
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 }
 
 
@@ -329,7 +329,7 @@ void Use_Quad(edict_t *ent, gitem_t *item)
     sg_time_t     timeout;
 
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 
     if (quad_drop_timeout_hack) {
         timeout = quad_drop_timeout_hack;
@@ -351,7 +351,7 @@ void Use_Quad(edict_t *ent, gitem_t *item)
 void Use_Breather(edict_t *ent, gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 
 	ent->client->breather_time = std::max( level.time, ent->client->breather_time ) + 30_sec;
 
@@ -363,7 +363,7 @@ void Use_Breather(edict_t *ent, gitem_t *item)
 void Use_Envirosuit(edict_t *ent, gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 
 	ent->client->enviro_time = std::max( level.time, ent->client->enviro_time ) + 30_sec;
 
@@ -375,7 +375,7 @@ void Use_Envirosuit(edict_t *ent, gitem_t *item)
 void    Use_Invulnerability(edict_t *ent, gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 
 	ent->client->invincible_time = std::max( level.time, ent->client->invincible_time ) + 30_sec;
 
@@ -387,7 +387,7 @@ void    Use_Invulnerability(edict_t *ent, gitem_t *item)
 void    Use_Silencer(edict_t *ent, gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
     ent->client->silencer_shots += 30;
 
 //  gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
@@ -498,12 +498,12 @@ void Drop_Ammo(edict_t *ent, gitem_t *item)
         item->tag == AMMO_GRENADES &&
         ent->client->pers.inventory[index] - dropped->count <= 0) {
         gi.cprintf(ent, PRINT_HIGH, "Can't drop current weapon\n");
-        G_FreeEdict(dropped);
+        SVG_FreeEdict(dropped);
         return;
     }
 
     ent->client->pers.inventory[index] -= dropped->count;
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 }
 
 
@@ -520,7 +520,7 @@ void MegaHealth_think(edict_t *self)
     if (!(self->spawnflags & DROPPED_ITEM) && (deathmatch->value))
         SetRespawn(self, 20);
     else
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
 }
 
 bool Pickup_Health(edict_t *ent, edict_t *other)
@@ -755,7 +755,7 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
     }
 
     if (!(ent->spawnflags & ITEM_TARGETS_USED)) {
-        G_UseTargets(ent, other);
+        SVG_UseTargets(ent, other);
         ent->spawnflags |= ITEM_TARGETS_USED;
     }
 
@@ -766,7 +766,7 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
         if (ent->flags & FL_RESPAWN)
             ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_RESPAWN );
         else
-            G_FreeEdict(ent);
+            SVG_FreeEdict(ent);
     }
 }
 
@@ -785,7 +785,7 @@ void drop_make_touchable(edict_t *ent)
     ent->touch = Touch_Item;
     if (deathmatch->value) {
         ent->nextthink = level.time + 29_sec;
-        ent->think = G_FreeEdict;
+        ent->think = SVG_FreeEdict;
     }
 }
 
@@ -795,7 +795,7 @@ edict_t *Drop_Item(edict_t *ent, gitem_t *item)
     vec3_t  forward, right;
     vec3_t  offset;
 
-    dropped = G_AllocateEdict();
+    dropped = SVG_AllocateEdict();
 
     dropped->classname = item->classname;
     dropped->item = item;
@@ -815,7 +815,7 @@ edict_t *Drop_Item(edict_t *ent, gitem_t *item)
 
         AngleVectors(ent->client->v_angle, forward, right, NULL);
         VectorSet(offset, 24, 0, -16);
-        G_ProjectSource(ent->s.origin, offset, forward, right, dropped->s.origin);
+        SVG_ProjectSource(ent->s.origin, offset, forward, right, dropped->s.origin);
         trace = gi.trace(ent->s.origin, dropped->mins, dropped->maxs,
                          dropped->s.origin, ent, CONTENTS_SOLID);
         VectorCopy(trace.endpos, dropped->s.origin);
@@ -880,7 +880,7 @@ void droptofloor(edict_t *ent)
     tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, dest, ent, MASK_SOLID);
     if (tr.startsolid) {
         gi.dprintf("droptofloor: %s startsolid at %s\n", ent->classname, vtos(ent->s.origin));
-        G_FreeEdict(ent);
+        SVG_FreeEdict(ent);
         return;
     }
 
@@ -1008,25 +1008,25 @@ void SpawnItem(edict_t *ent, gitem_t *item)
     if (deathmatch->value) {
         if ((int)dmflags->value & DF_NO_ARMOR) {
             if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor) {
-                G_FreeEdict(ent);
+                SVG_FreeEdict(ent);
                 return;
             }
         }
         if ((int)dmflags->value & DF_NO_ITEMS) {
             if (item->pickup == Pickup_Powerup) {
-                G_FreeEdict(ent);
+                SVG_FreeEdict(ent);
                 return;
             }
         }
         if ((int)dmflags->value & DF_NO_HEALTH) {
             if (item->pickup == Pickup_Health || item->pickup == Pickup_Adrenaline || item->pickup == Pickup_AncientHead) {
-                G_FreeEdict(ent);
+                SVG_FreeEdict(ent);
                 return;
             }
         }
         if ((int)dmflags->value & DF_INFINITE_AMMO) {
             if ((item->flags == IT_AMMO) || (strcmp(ent->classname, "weapon_bfg") == 0)) {
-                G_FreeEdict(ent);
+                SVG_FreeEdict(ent);
                 return;
             }
         }
@@ -2064,7 +2064,7 @@ gitem_t itemlist[] = {
 void SP_item_health(edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
@@ -2079,7 +2079,7 @@ void SP_item_health(edict_t *self)
 void SP_item_health_small(edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
@@ -2095,7 +2095,7 @@ void SP_item_health_small(edict_t *self)
 void SP_item_health_large(edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
@@ -2110,7 +2110,7 @@ void SP_item_health_large(edict_t *self)
 void SP_item_health_mega(edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

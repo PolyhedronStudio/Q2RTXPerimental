@@ -426,7 +426,7 @@ void hover_fire_blaster(edict_t *self)
         effect = 0;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_HOVER_BLASTER_1], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_HOVER_BLASTER_1], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, end);
     end[2] += self->enemy->viewheight;
@@ -498,7 +498,7 @@ void hover_deadthink(edict_t *self)
         self->nextthink = level.time + FRAME_TIME_S;
         return;
     }
-    BecomeExplosion1(self);
+    SVG_Misc_BecomeExplosion1(self);
 }
 
 void hover_dead(edict_t *self)
@@ -520,10 +520,10 @@ void hover_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 2; n++)
-            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 2; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+        SVG_Misc_ThrowHead(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
         self->deadflag = DEADFLAG_DEAD;
         return;
     }
@@ -546,7 +546,7 @@ void hover_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
 void SP_monster_hover(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

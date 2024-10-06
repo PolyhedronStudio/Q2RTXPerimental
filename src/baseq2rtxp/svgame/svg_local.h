@@ -582,7 +582,7 @@ typedef struct gitem_s {
 #define SFL_CROSS_TRIGGER_MASK  0x000000ff
 
 
-// noise types for PlayerNoise
+// noise types for SVG_PlayerNoise
 #define PNOISE_SELF             0
 #define PNOISE_WEAPON           1
 #define PNOISE_IMPACT           2
@@ -957,7 +957,7 @@ const bool SVG_GetGamemodeNoSaveGames( const bool isDedicatedServer );
 //
 // g_cmds.c
 //
-void Cmd_Score_f(edict_t *ent);
+void SVG_Command_Score_f(edict_t *ent);
 
 //
 // g_items.c
@@ -1039,7 +1039,7 @@ const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, 
 void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName );
 
 edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
-edict_t *findradius( edict_t *from, vec3_t org, float rad );
+edict_t *SVG_FindWithinRadius( edict_t *from, vec3_t org, float rad );
 edict_t *SVG_PickTarget( char *targetname );
 void    SVG_UseTargets( edict_t *ent, edict_t *activator, entity_usetarget_type_t useType = entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, const int32_t useValue = 0 );
 void    SVG_SetMoveDir( vec3_t angles, Vector3 &movedir );
@@ -1057,10 +1057,10 @@ char *SVG_CopyString( char *in );
 //
 // g_combat.c
 //
-bool OnSameTeam( edict_t *ent1, edict_t *ent2 );
-bool CanDamage( edict_t *targ, edict_t *inflictor );
-void T_Damage( edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const int32_t dflags, const sg_means_of_death_t meansOfDeath );
-void T_RadiusDamage( edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath );
+const bool SVG_OnSameTeam( edict_t *ent1, edict_t *ent2 );
+const bool SVG_CanDamage( edict_t *targ, edict_t *inflictor );
+void SVG_TriggerDamage( edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const int32_t dflags, const sg_means_of_death_t meansOfDeath );
+void SVG_RadiusDamage( edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath );
 
 // damage flags
 #define DAMAGE_NONE             BIT( 0 )
@@ -1095,12 +1095,11 @@ void M_SetAnimation( edict_t *self, mmove_t *move, bool instant = true );
 //
 // g_misc.c
 //
-// WID: C++20: Added const.
-void ThrowHead( edict_t *self, const char *gibname, int damage, int type );
-void ThrowClientHead( edict_t *self, int damage );
-// WID: C++20: Added const.
-void ThrowGib( edict_t *self, const char *gibname, int damage, int type );
-void BecomeExplosion1( edict_t *self );
+void SVG_Misc_ThrowHead( edict_t *self, const char *gibname, int damage, int type );
+void SVG_Misc_ThrowClientHead( edict_t *self, int damage );
+void SVG_Misc_ThrowGib( edict_t *self, const char *gibname, int damage, int type );
+void SVG_Misc_ThrowDebris( edict_t *self, const char *modelname, float speed, vec3_t origin );
+void SVG_Misc_BecomeExplosion1( edict_t *self );
 
 #define CLOCK_MESSAGE_SIZE  16
 void func_clock_think( edict_t *self );
@@ -1127,8 +1126,6 @@ void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, const en
 //
 // g_weapon.c
 //
-// WID: C++20: Added const.
-void ThrowDebris( edict_t *self, const char *modelname, float speed, vec3_t origin );
 #if 0
 bool fire_hit( edict_t *self, vec3_t aim, int damage, int kick );
 #endif
@@ -1159,17 +1156,17 @@ edict_t *PlayerTrail_LastSpot( void );
 //
 // g_client.c
 //
-void respawn( edict_t *ent );
-void BeginIntermission( edict_t *targ );
+void SVG_Client_Respawn( edict_t *ent );
+void SVG_HUD_BeginIntermission( edict_t *targ );
 /**
 *   @brief  Will reset the entity client's 'Field of View' back to its defaults.
 **/
-void P_ResetPlayerStateFOV( gclient_t *client );
-void PutClientInServer( edict_t *ent );
-void InitClientPersistantData( edict_t *ent, gclient_t *client );
-void InitClientRespawnData( gclient_t *client );
-void InitBodyQue( void );
-void ClientBeginServerFrame( edict_t *ent );
+void SVG_Player_ResetPlayerStateFOV( gclient_t *client );
+void SVG_Client_PutInServer( edict_t *ent );
+void SVG_Client_InitPersistantData( edict_t *ent, gclient_t *client );
+void SVG_Client_InitRespawnData( gclient_t *client );
+void SVG_InitBodyQue( void );
+void SVG_Client_BeginServerFrame( edict_t *ent );
 
 //
 // g_player.c
@@ -1180,23 +1177,23 @@ void player_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 //
 // g_svcmds.c
 //
-void ServerCommand( void );
-bool SV_FilterPacket( char *from );
+void SVG_ServerCommand( void );
+bool SVG_FilterPacket( char *from );
 
 //
 // p_view.c
 //
-void ClientEndServerFrame( edict_t *ent );
+void SVG_Client_EndServerFrame( edict_t *ent );
 
 //
 // p_hud.c
 //
-void MoveClientToIntermission( edict_t *client );
-void SVG_SetStats( edict_t *ent );
-void SVG_SetSpectatorStats( edict_t *ent );
-void SVG_CheckChaseStats( edict_t *ent );
-void ValidateSelectedItem( edict_t *ent );
-void DeathmatchScoreboardMessage( edict_t *client, edict_t *killer );
+void SVG_HUD_MoveClientToIntermission( edict_t *client );
+void SVG_HUD_SetStats( edict_t *ent );
+void SVG_HUD_SetSpectatorStats( edict_t *ent );
+void SVG_HUD_CheckChaseStats( edict_t *ent );
+void SVG_HUD_ValidateSelectedItem( edict_t *ent );
+void SVG_HUD_DeathmatchScoreboardMessage( edict_t *client, edict_t *killer );
 
 //
 // g_pweapon.c
@@ -1209,55 +1206,56 @@ void    SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3
 *   @brief  Project vector from source.
 **/
 const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
+
 /**
-*   @brief  Wraps up the new more modern P_ProjectDistance.
+*   @brief  Wraps up the new more modern SVG_Player_ProjectDistance.
 **/
-void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
+void SVG_Player_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
 /**
 *   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
 **/
-const Vector3 P_ProjectDistance( edict_t *ent, Vector3 &point, Vector3 &distance, Vector3 &forward, Vector3 &right );
-void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
-void P_PlayerNoise( edict_t *who, const vec3_t where, int type );
+const Vector3 SVG_Player_ProjectDistance( edict_t *ent, Vector3 &point, Vector3 &distance, Vector3 &forward, Vector3 &right );
+void SVG_Player_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
+void SVG_Player_PlayerNoise( edict_t *who, const vec3_t where, int type );
 
 /**
 *   @brief  Acts as a sub method for cleaner code, used by weapon item animation data precaching.
 **/
-void P_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const skm_anim_t *iqmAnim, const int32_t modeID, const int32_t iqmAnimationID );
+void SVG_Player_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const skm_anim_t *iqmAnim, const int32_t modeID, const int32_t iqmAnimationID );
 /**
 *   @brief
 **/
-const bool P_Weapon_Pickup( edict_t *ent, edict_t *other );
+const bool SVG_Player_Weapon_Pickup( edict_t *ent, edict_t *other );
 /**
 *   @brief
 **/
-void P_Weapon_Drop( edict_t *ent, const gitem_t *inv );
+void SVG_Player_Weapon_Drop( edict_t *ent, const gitem_t *inv );
 /**
 *   @brief
 **/
-void P_Weapon_Use( edict_t *ent, const gitem_t *inv );
+void SVG_Player_Weapon_Use( edict_t *ent, const gitem_t *inv );
 /**
 *   @brief
 **/
-void P_Weapon_Change( edict_t *ent );
+void SVG_Player_Weapon_Change( edict_t *ent );
 /**
 *   @brief  Will switch the weapon to its 'newMode' if it can, unless enforced(force == true).
 **/
-void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_animation_t *weaponModeAnimations, const bool force );
+void SVG_Player_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_animation_t *weaponModeAnimations, const bool force );
 /**
 *   @brief  Advances the animation of the 'mode' we're currently in.
 **/
-const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animation_t *weaponModeAnimation );
+const bool SVG_Player_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animation_t *weaponModeAnimation );
 /**
 *   @brief
 **/
-void P_Weapon_Think( edict_t *ent, const bool processUserInputOnly );
+void SVG_Player_Weapon_Think( edict_t *ent, const bool processUserInputOnly );
 
 
 //
 // g_phys.c
 //
-void SV_Impact( edict_t *e1, trace_t *trace );
+void SVG_Impact( edict_t *e1, trace_t *trace );
 const contents_t SVG_GetClipMask( edict_t *ent );
 void SVG_RunEntity( edict_t *ent );
 
@@ -1265,17 +1263,19 @@ void SVG_RunEntity( edict_t *ent );
 //
 // g_main.c
 //
-void SaveClientData( void );
-void FetchClientEntData( edict_t *ent );
+void SVG_SaveClientData( void );
+void SVG_FetchClientEntData( edict_t *ent );
 
 
 //
 // g_chase.c
 //
-void UpdateChaseCam( edict_t *ent );
-void ChaseNext( edict_t *ent );
-void ChasePrev( edict_t *ent );
-void GetChaseTarget( edict_t *ent );
+void SVG_ChaseCam_Update( edict_t *ent );
+void SVG_ChaseCam_Next( edict_t *ent );
+void SVG_ChaseCam_Previous( edict_t *ent );
+void SVG_ChaseCam_GetTarget( edict_t *ent );
+
+
 
 //============================================================================
 
@@ -1312,16 +1312,8 @@ typedef struct mm_liquid_info_s {
 
 
 
-
 //============================================================================
-// client_t->anim_priority
-#define ANIM_BASIC      0       // stand / run
-#define ANIM_WAVE       1
-#define ANIM_JUMP       2
-#define ANIM_PAIN       3
-#define ANIM_ATTACK     4
-#define ANIM_DEATH      5
-#define ANIM_REVERSED   6		// animation is played in reverse.
+
 
 
 /**
@@ -1385,10 +1377,10 @@ typedef struct {
 } client_persistant_t;
 
 /**
-*   @brief  Client respawn data that stays across multiplayer mode respawns.
+*   @brief  Client SVG_Client_Respawn data that stays across multiplayer mode respawns.
 **/
 typedef struct {
-    client_persistant_t pers_respawn;	// what to set client->pers to on a respawn
+    client_persistant_t pers_respawn;	// what to set client->pers to on a SVG_Client_Respawn
 
     int64_t enterframe;     // level.framenum the client entered the game
     sg_time_t entertime;    // the moment in time the client entered the game.
@@ -1399,7 +1391,7 @@ typedef struct {
     bool spectator;     // Client is a spectator
 } client_respawn_t;
 
-// this structure is cleared on each PutClientInServer(),
+// this structure is cleared on each SVG_Client_PutInServer(),
 // except for 'client->pers'
 struct gclient_s {
     /**
@@ -1456,7 +1448,7 @@ struct gclient_s {
 
     //! If true, the weapon thinking process has been executed by a 
     //! usercmd_t in ClientThink. Otherwise it'll be dealt with by the
-    //! ClientBeginServerFrame instead.
+    //! SVG_Client_BeginServerFrame instead.
 	bool weapon_thunk;
 
 	sg_time_t	grenade_time;
@@ -1647,7 +1639,7 @@ struct gclient_s {
 	*	Item/Use Event Timers:
 	**/
     sg_time_t	pickup_msg_time;
-    sg_time_t	respawn_time;		// can respawn when time > this
+    sg_time_t	respawn_time;		// can SVG_Client_Respawn when time > this
 
 
     /**
@@ -1956,7 +1948,7 @@ struct edict_s {
     //
     // Various.
     //
-    //! Set when the entity gets hurt(T_Damage) and might be its cause of death.
+    //! Set when the entity gets hurt(SVG_TriggerDamage) and might be its cause of death.
     sg_means_of_death_t meansOfDeath;
     //! Used for target_changelevel. Set as key/value.
     const char *map;
@@ -2112,7 +2104,7 @@ static inline const bool SVG_UseTarget_HasUseTargetState( const edict_t *ent, co
 *   @brief  True if the entity should 'toggle'.
 **/
 const bool SVG_UseTarget_ShouldToggle( const entity_usetarget_type_t useType, const int32_t currentState );
-
+#if 0
 /**
 *   @brief  Dispatches toggling callback of 'usetarget' capable entities.
 **/
@@ -2125,3 +2117,4 @@ const bool SVG_UseTarget_UnToggle( edict_t *useTargetEntity, edict_t *activator 
 *   @brief  Dispatches the 'holding of 'usetarget'' callback for capable entities.
 **/
 const bool SVG_UseTarget_Hold( edict_t *useTargetEntity, edict_t *activator );
+#endif

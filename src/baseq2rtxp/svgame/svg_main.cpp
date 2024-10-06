@@ -410,7 +410,7 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.RunFrame = SVG_RunFrame;
 
-		globals.ServerCommand = ServerCommand;
+		globals.ServerCommand = SVG_ServerCommand;
 
 		globals.edict_size = sizeof( edict_t );
 
@@ -478,7 +478,7 @@ void ClientEndServerFrames(void)
         ent = g_edicts + 1 + i;
         if (!ent->inuse || !ent->client)
             continue;
-        ClientEndServerFrame(ent);
+        SVG_Client_EndServerFrame(ent);
     }
 
 }
@@ -517,7 +517,7 @@ void EndDMLevel(void)
 
     // stay on same level flag
     if ((int)dmflags->value & DF_SAME_LEVEL) {
-        BeginIntermission(CreateTargetChangeLevel(level.mapname));
+        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.mapname));
         return;
     }
 
@@ -532,11 +532,11 @@ void EndDMLevel(void)
                 t = strtok(NULL, seps);
                 if (t == NULL) { // end of list, go to first one
                     if (f == NULL) // there isn't a first one, same level
-                        BeginIntermission(CreateTargetChangeLevel(level.mapname));
+                        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.mapname));
                     else
-                        BeginIntermission(CreateTargetChangeLevel(f));
+                        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(f));
                 } else
-                    BeginIntermission(CreateTargetChangeLevel(t));
+                    SVG_HUD_BeginIntermission(CreateTargetChangeLevel(t));
                 free(s);
                 return;
             }
@@ -548,16 +548,16 @@ void EndDMLevel(void)
     }
 
     if (level.nextmap[0]) // go to a specific map
-        BeginIntermission(CreateTargetChangeLevel(level.nextmap));
+        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.nextmap));
     else {  // search for a changelevel
         ent = SVG_Find(NULL, FOFS(classname), "target_changelevel");
         if (!ent) {
             // the map designer didn't include a changelevel,
             // so create a fake ent that goes back to the same level
-            BeginIntermission(CreateTargetChangeLevel(level.mapname));
+            SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.mapname));
             return;
         }
-        BeginIntermission(ent);
+        SVG_HUD_BeginIntermission(ent);
     }
 }
 
@@ -742,7 +742,7 @@ void SVG_RunFrame(void)
         }
 
         if ( i > 0 && i <= maxclients->value ) {
-            ClientBeginServerFrame( ent );
+            SVG_Client_BeginServerFrame( ent );
             continue;
         } else {
             SVG_RunEntity( ent );

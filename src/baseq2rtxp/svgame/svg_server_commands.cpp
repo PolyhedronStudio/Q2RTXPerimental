@@ -19,9 +19,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svg_local.h"
 
 
-void    Svcmd_Test_f(void)
+void    ServerCommand_Test_f(void)
 {
-    gi.cprintf(NULL, PRINT_HIGH, "Svcmd_Test_f()\n");
+    gi.cprintf(NULL, PRINT_HIGH, "ServerCommand_Test_f()\n");
 }
 
 /*
@@ -109,10 +109,10 @@ static bool StringToFilter(char *s, ipfilter_t *f)
 
 /*
 =================
-SV_FilterPacket
+SVG_FilterPacket
 =================
 */
-bool SV_FilterPacket(char *from)
+bool SVG_FilterPacket(char *from)
 {
     int     i;
     unsigned    in;
@@ -152,7 +152,7 @@ bool SV_FilterPacket(char *from)
 SV_AddIP_f
 =================
 */
-void SVCmd_AddIP_f(void)
+void ServerCommand_AddIP_f(void)
 {
     int     i;
 
@@ -181,7 +181,7 @@ void SVCmd_AddIP_f(void)
 SV_RemoveIP_f
 =================
 */
-void SVCmd_RemoveIP_f(void)
+void ServerCommand_RemoveIP_f(void)
 {
     ipfilter_t  f;
     int         i, j;
@@ -211,7 +211,7 @@ void SVCmd_RemoveIP_f(void)
 SV_ListIP_f
 =================
 */
-void SVCmd_ListIP_f(void)
+void ServerCommand_ListIP_f(void)
 {
     int     i;
     union {
@@ -231,7 +231,7 @@ void SVCmd_ListIP_f(void)
 SV_WriteIP_f
 =================
 */
-void SVCmd_WriteIP_f(void)
+void ServerCommand_WriteIP_f(void)
 {
     FILE    *f;
     char    name[MAX_OSPATH];
@@ -275,28 +275,28 @@ void SVCmd_WriteIP_f(void)
 
 /*
 =================
-ServerCommand
+SVG_ServerCommand
 
-ServerCommand will be called when an "sv" command is issued.
+SVG_ServerCommand will be called when an "sv" command is issued.
 The game can issue gi.argc() / gi.argv() commands to get the rest
 of the parameters
 =================
 */
-void    ServerCommand(void)
+void    SVG_ServerCommand(void)
 {
     char    *cmd;
 
     cmd = gi.argv(1);
     if (Q_stricmp(cmd, "test") == 0)
-        Svcmd_Test_f();
+        ServerCommand_Test_f();
     else if (Q_stricmp(cmd, "addip") == 0)
-        SVCmd_AddIP_f();
+        ServerCommand_AddIP_f();
     else if (Q_stricmp(cmd, "removeip") == 0)
-        SVCmd_RemoveIP_f();
+        ServerCommand_RemoveIP_f();
     else if (Q_stricmp(cmd, "listip") == 0)
-        SVCmd_ListIP_f();
+        ServerCommand_ListIP_f();
     else if (Q_stricmp(cmd, "writeip") == 0)
-        SVCmd_WriteIP_f();
+        ServerCommand_WriteIP_f();
     else
         gi.cprintf(NULL, PRINT_HIGH, "Unknown server command \"%s\"\n", cmd);
 }

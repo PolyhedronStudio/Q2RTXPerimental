@@ -124,7 +124,7 @@ void gib_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, v
 }
 
 // WID: C++20: Added const.
-void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
+void SVG_Misc_ThrowGib(edict_t *self, const char *gibname, int damage, int type)
 {
     edict_t *gib;
     vec3_t  vd;
@@ -169,7 +169,7 @@ void ThrowGib(edict_t *self, const char *gibname, int damage, int type)
 }
 
 // WID: C++20: Added const.
-void ThrowHead(edict_t *self, const char *gibname, int damage, int type)
+void SVG_Misc_ThrowHead(edict_t *self, const char *gibname, int damage, int type)
 {
     vec3_t  vd;
     float   vscale;
@@ -213,7 +213,7 @@ void ThrowHead(edict_t *self, const char *gibname, int damage, int type)
 }
 
 
-void ThrowClientHead(edict_t *self, int damage)
+void SVG_Misc_ThrowClientHead(edict_t *self, int damage)
 {
     vec3_t  vd;
 	// WID: C++20: Added const.
@@ -267,7 +267,7 @@ void debris_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 }
 
 // WID: C++20: Added const.
-void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origin)
+void SVG_Misc_ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origin)
 {
     edict_t *chunk;
     vec3_t  v;
@@ -295,7 +295,7 @@ void ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origi
 }
 
 
-void BecomeExplosion1(edict_t *self)
+void SVG_Misc_BecomeExplosion1(edict_t *self)
 {
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_EXPLOSION1);
@@ -649,7 +649,7 @@ void func_object_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_
     if ( other && other->takedamage == DAMAGE_NO ) {
         return;
     }
-    T_Damage(other, self, self, vec3_origin, self->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
+    SVG_TriggerDamage(other, self, self, vec3_origin, self->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
 }
 
 void func_object_release(edict_t *self)
@@ -735,7 +735,7 @@ void func_explosive_explode(edict_t *self, edict_t *inflictor, edict_t *attacker
     self->takedamage = DAMAGE_NO;
 
     if (self->dmg)
-        T_RadiusDamage(self, attacker, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLOSIVE);
+        SVG_RadiusDamage(self, attacker, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLOSIVE);
 
     VectorSubtract(self->s.origin, inflictor->s.origin, self->velocity);
     self->velocity = QM_Vector3Normalize(self->velocity);
@@ -755,7 +755,7 @@ void func_explosive_explode(edict_t *self, edict_t *inflictor, edict_t *attacker
             count = 8;
         while (count--) {
             VectorMA(origin, crandom(), size, chunkorigin);
-            ThrowDebris(self, "models/objects/debris1/tris.md2", 1, chunkorigin);
+            SVG_Misc_ThrowDebris(self, "models/objects/debris1/tris.md2", 1, chunkorigin);
         }
     }
 
@@ -765,13 +765,13 @@ void func_explosive_explode(edict_t *self, edict_t *inflictor, edict_t *attacker
         count = 16;
     while (count--) {
         VectorMA(origin, crandom(), size, chunkorigin);
-        ThrowDebris(self, "models/objects/debris2/tris.md2", 2, chunkorigin);
+        SVG_Misc_ThrowDebris(self, "models/objects/debris2/tris.md2", 2, chunkorigin);
     }
 
     SVG_UseTargets(self, attacker);
 
     if (self->dmg)
-        BecomeExplosion1(self);
+        SVG_Misc_BecomeExplosion1(self);
     else
         SVG_FreeEdict(self);
 }
@@ -877,7 +877,7 @@ void barrel_explode(edict_t *self)
     vec3_t  save;
     int     i;
 
-    T_RadiusDamage(self, self->activator, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLODED_BARREL);
+    SVG_RadiusDamage(self, self->activator, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLODED_BARREL);
 
     VectorCopy(self->s.origin, save);
     VectorMA(self->absmin, 0.5f, self->size, self->s.origin);
@@ -885,37 +885,37 @@ void barrel_explode(edict_t *self)
     // a few big chunks
     spd = 1.5f * (float)self->dmg / 200.0f;
     VectorMA(self->s.origin, crandom(), self->size, org);
-    ThrowDebris(self, "models/objects/debris1/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/objects/debris1/tris.md2", spd, org);
     VectorMA(self->s.origin, crandom(), self->size, org);
-    ThrowDebris(self, "models/objects/debris1/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/objects/debris1/tris.md2", spd, org);
 
     // bottom corners
     spd = 1.75f * (float)self->dmg / 200.0f;
     VectorCopy(self->absmin, org);
-    ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
     VectorCopy(self->absmin, org);
     org[0] += self->size[0];
-    ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
     VectorCopy(self->absmin, org);
     org[1] += self->size[1];
-    ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
     VectorCopy(self->absmin, org);
     org[0] += self->size[0];
     org[1] += self->size[1];
-    ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
 
     // a bunch of little chunks
     spd = 2 * self->dmg / 200;
     for (i = 0; i < 8; i++) {
         VectorMA(self->s.origin, crandom(), self->size, org);
-        ThrowDebris(self, "models/objects/debris2/tris.md2", spd, org);
+        SVG_Misc_ThrowDebris(self, "models/objects/debris2/tris.md2", spd, org);
     }
 
     VectorCopy(save, self->s.origin);
     if ( self->groundInfo.entity ) {
         BecomeExplosion2( self );
     } else {
-        BecomeExplosion1( self );
+        SVG_Misc_BecomeExplosion1( self );
     }
 }
 

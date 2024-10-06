@@ -568,7 +568,7 @@ void P_WorldEffects( void ) {
 	// if just entered a water volume, play a sound
 	//
 	if ( !old_waterlevel && liquidlevel ) {
-		PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+		SVG_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		if ( current_player->liquidtype & CONTENTS_LAVA )
 			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
 		else if ( current_player->liquidtype & CONTENTS_SLIME )
@@ -585,7 +585,7 @@ void P_WorldEffects( void ) {
 	// if just completely exited a water volume, play a sound
 	//
 	if ( old_waterlevel && !liquidlevel ) {
-		PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+		SVG_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/watr_out.wav" ), 1, ATTN_NORM, 0 );
 		current_player->flags = static_cast<entity_flags_t>( current_player->flags & ~FL_INWATER );
 	}
@@ -604,7 +604,7 @@ void P_WorldEffects( void ) {
 		if ( current_player->air_finished_time < level.time ) {
 			// gasp for air
 			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp1.wav" ), 1, ATTN_NORM, 0 );
-			PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+			SVG_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		} else  if ( current_player->air_finished_time < level.time + 11_sec ) {
 			// just break surface
 			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp2.wav" ), 1, ATTN_NORM, 0 );
@@ -625,7 +625,7 @@ void P_WorldEffects( void ) {
 				else
 					gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/u_breath2.wav" ), 1, ATTN_NORM, 0 );
 				current_client->breather_sound ^= 1;
-				PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+				SVG_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 				//FIXME: release a bubble?
 			}
 		}
@@ -652,7 +652,7 @@ void P_WorldEffects( void ) {
 
 				current_player->pain_debounce_time = level.time;
 
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MOD_WATER );
+				SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MOD_WATER );
 			}
 		}
 	} else {
@@ -676,15 +676,15 @@ void P_WorldEffects( void ) {
 			}
 
 			if ( envirosuit ) // take 1/3 damage with envirosuit
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_LAVA );
+				SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_LAVA );
 			else
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MOD_LAVA );
+				SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MOD_LAVA );
 		}
 
 		if ( current_player->liquidtype & CONTENTS_SLIME ) {
 			if ( !envirosuit ) {
 				// no damage from slime with envirosuit
-				T_Damage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_SLIME );
+				SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_SLIME );
 			}
 		}
 	}
@@ -913,13 +913,13 @@ newanim:
 
 /*
 =================
-ClientEndServerFrame
+SVG_Client_EndServerFrame
 
 Called for each player at the end of the server frame
 and right after spawning
 =================
 */
-void ClientEndServerFrame( edict_t *ent ) {
+void SVG_Client_EndServerFrame( edict_t *ent ) {
 	int     i;
 
 	// no player exists yet (load game)
@@ -952,7 +952,7 @@ void ClientEndServerFrame( edict_t *ent ) {
 		// FIXME: add view drifting here?
 		current_client->ps.screen_blend[ 3 ] = 0;
 		current_client->ps.fov = 90;
-		G_SetStats( ent );
+		SVG_HUD_SetStats( ent );
 		return;
 	}
 
@@ -1033,10 +1033,10 @@ void ClientEndServerFrame( edict_t *ent ) {
 
 	// chase cam stuff
 	if ( ent->client->resp.spectator )
-		G_SetSpectatorStats( ent );
+		SVG_HUD_SetSpectatorStats( ent );
 	else
-		G_SetStats( ent );
-	G_CheckChaseStats( ent );
+		SVG_HUD_SetStats( ent );
+	SVG_HUD_CheckChaseStats( ent );
 
 	G_SetClientEvent( ent );
 
@@ -1057,7 +1057,7 @@ void ClientEndServerFrame( edict_t *ent ) {
 
 	// if the scoreboard is up, update it
 	if ( ent->client->showscores && !( level.framenum & 31 ) ) {
-		DeathmatchScoreboardMessage( ent, ent->enemy );
+		SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy );
 		gi.unicast( ent, false );
 	}
 }

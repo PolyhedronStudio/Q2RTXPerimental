@@ -38,7 +38,7 @@ solid_edge items only clip against bsp models.
 
 // [Paril-KEX] fetch the clipmask for this entity; certain modifiers
 // affect the clipping behavior of objects.
-const contents_t G_GetClipMask( edict_t *ent ) {
+const contents_t SVG_GetClipMask( edict_t *ent ) {
     // Get current clip mask.
     contents_t mask = ent->clipmask;
 
@@ -83,7 +83,7 @@ edict_t *SV_TestEntityPosition(edict_t *ent)
     //    mask = ent->clipmask;
     //else
     //    mask = MASK_SOLID;
-    trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, G_GetClipMask( ent ) );
+    trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, SVG_GetClipMask( ent ) );
 
     if ( trace.startsolid ) {
         return g_edicts;
@@ -135,12 +135,12 @@ bool SV_RunThink(edict_t *ent)
 
 /*
 ==================
-SV_Impact
+SVG_Impact
 
 Two entities have touched, so run their touch functions
 ==================
 */
-void SV_Impact(edict_t *e1, trace_t *trace)
+void SVG_Impact(edict_t *e1, trace_t *trace)
 {
     edict_t     *e2;
 //  cplane_t    backplane;
@@ -265,7 +265,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
 //
 // run the impact function
 //
-        SV_Impact(ent, &trace);
+        SVG_Impact(ent, &trace);
         if (!ent->inuse)
             break;      // removed by the impact function
 
@@ -365,13 +365,13 @@ retry:
     //else
     //    mask = MASK_SOLID;
 
-    trace = gi.trace(start, ent->mins, ent->maxs, end, ent, G_GetClipMask( ent ) );
+    trace = gi.trace(start, ent->mins, ent->maxs, end, ent, SVG_GetClipMask( ent ) );
 
     VectorCopy(trace.endpos, ent->s.origin);
     gi.linkentity(ent);
 
     if (trace.fraction != 1.0f) {
-        SV_Impact(ent, &trace);
+        SVG_Impact(ent, &trace);
 
         // if the pushed entity went away and the pusher is still there
         if (!trace.ent->inuse && ent->inuse) {
@@ -383,7 +383,7 @@ retry:
     }
 
     if (ent->inuse)
-        G_TouchTriggers(ent);
+        SVG_TouchTriggers(ent);
 
     return trace;
 }
@@ -554,7 +554,7 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
 //FIXME: is there a better way to handle this?
     // see if anything we moved has touched a trigger
     for (i = (pushed_p - pushed) - 1; i >= 0; i--)
-        G_TouchTriggers(pushed[i].ent);
+        SVG_TouchTriggers(pushed[i].ent);
 
     return true;
 }
@@ -815,7 +815,7 @@ void SV_Physics_Step(edict_t *ent)
     float	   speed, newspeed, control;
     float	   friction;
     edict_t *groundentity;
-    contents_t mask = G_GetClipMask( ent );
+    contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
     if ( !ent->groundentity ) {
@@ -908,7 +908,7 @@ void SV_Physics_Step(edict_t *ent)
 
         SV_FlyMove( ent, gi.frame_time_s, mask );
 
-        G_TouchProjectiles( ent, old_origin );
+        SVG_TouchProjectiles( ent, old_origin );
 
         M_CheckGround( ent, mask );
 
@@ -923,7 +923,7 @@ void SV_Physics_Step(edict_t *ent)
         // [Paril-KEX] this is something N64 does to avoid doors opening
         // at the start of a level, which triggers some monsters to spawn.
         if ( /*!level.is_n64 || */level.time > FRAME_TIME_S )
-            G_TouchTriggers( ent );
+            SVG_TouchTriggers( ent );
 
         if ( !ent->inuse )
             return;
@@ -957,7 +957,7 @@ void SV_Physics_Step(edict_t *ent)
 //    float       speed = 0.f, newspeed = 0.f, control = 0.f;
 //    float       friction = 0.f;
 //    edict_t     *groundentity = nullptr;
-//    contents_t  mask = G_GetClipMask( ent );
+//    contents_t  mask = SVG_GetClipMask( ent );
 //
 //    // airborn monsters should always check for ground
 //    if ( !ent->groundentity ) {
@@ -1040,10 +1040,10 @@ void SV_Physics_Step(edict_t *ent)
 //
 //        const Vector3 oldOrigin = ent->s.origin;
 //        SV_FlyMove(ent, FRAMETIME, mask);
-//        G_TouchProjectiles( ent, oldOrigin );
+//        SVG_TouchProjectiles( ent, oldOrigin );
 //
 //        gi.linkentity(ent);
-//        G_TouchTriggers(ent);
+//        SVG_TouchTriggers(ent);
 //        if (!ent->inuse)
 //            return;
 //
@@ -1060,11 +1060,11 @@ void SV_Physics_Step(edict_t *ent)
 //============================================================================
 /*
 ================
-G_RunEntity
+SVG_RunEntity
 
 ================
 */
-void G_RunEntity(edict_t *ent)
+void SVG_RunEntity(edict_t *ent)
 {
     Vector3	previousOrigin;
     bool	isMoveStepper = false;
@@ -1105,7 +1105,7 @@ void G_RunEntity(edict_t *ent)
     if ( isMoveStepper && ent->movetype == MOVETYPE_STEP ) {
         // if we moved, check and fix origin if needed
         if ( !VectorCompare( ent->s.origin, previousOrigin ) ) {
-            trace_t trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, G_GetClipMask( ent ) );
+            trace_t trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
             if ( trace.allsolid || trace.startsolid )
                 VectorCopy( previousOrigin, ent->s.origin ); // = previous_origin;
         }

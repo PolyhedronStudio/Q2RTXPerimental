@@ -82,6 +82,11 @@ Set "sounds" to one of the following:
 
 void plat_go_down( edict_t *ent );
 
+void plat_think_idle( edict_t *ent ) {
+    ent->think = plat_think_idle;
+    ent->nextthink = level.time + FRAME_TIME_MS;
+}
+
 void plat_hit_top( edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
         if ( ent->pushMoveInfo.sound_end )
@@ -93,6 +98,8 @@ void plat_hit_top( edict_t *ent ) {
     #if 0
     ent->think = plat_go_down;
     ent->nextthink = level.time + 3_sec;
+    #else
+    plat_think_idle( ent );
     #endif
     // WID: LUA: Call the HitTop function if it exists.
     if ( ent->luaProperties.luaName ) {
@@ -113,6 +120,9 @@ void plat_hit_bottom( edict_t *ent ) {
         ent->s.sound = 0;
     }
     ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
+
+    // Engage into idle thinking.
+    plat_think_idle( ent );
 
     // WID: LUA: Call the HitBottom function if it exists.
     if ( ent->luaProperties.luaName ) {
@@ -150,21 +160,22 @@ void plat_blocked( edict_t *self, edict_t *other ) {
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
         const bool knockBack = true;
         // give it a chance to go away on it's own terms (like gibs)
-        T_Damage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, knockBack, 0, MEANS_OF_DEATH_CRUSHED );
+        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, knockBack, 0, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
         if ( other ) {
-            BecomeExplosion1( other );
+            SVG_Misc_BecomeExplosion1( other );
         }
         return;
     }
 
     const bool knockBack = false;
-    T_Damage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, knockBack, 0, MEANS_OF_DEATH_CRUSHED );
+    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, knockBack, 0, MEANS_OF_DEATH_CRUSHED );
 
-    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP )
+    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
         plat_go_down( self );
-    else if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN )
+    } else if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN ) {
         plat_go_up( self );
+    }
 }
 
 
@@ -181,7 +192,6 @@ void Use_Plat( edict_t *ent, edict_t *other, edict_t *activator, const entity_us
     // WID: </Q2RTXP>
 
     #if 0
-
     if ( ent->think ) {
         return;
     }
@@ -201,7 +211,11 @@ void Touch_Plat_Center( edict_t *ent, edict_t *other, cplane_t *plane, csurface_
     if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM ) {
         plat_go_up( ent );
     } else if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
+        #if 1
+        plat_think_idle( ent );
+        #else
         ent->nextthink = level.time + 1_sec; // the player is still on the plat, so delay going down
+        #endif
     }
 }
 

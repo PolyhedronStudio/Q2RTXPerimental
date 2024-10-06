@@ -362,7 +362,7 @@ void flyer_fire(edict_t *self, int flash_number)
     else
         effect = 0;
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, end);
     end[2] += self->enemy->viewheight;
@@ -534,7 +534,7 @@ void flyer_pain(edict_t *self, edict_t *other, float kick, int damage)
 void flyer_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
     gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
-    BecomeExplosion1(self);
+    SVG_Misc_BecomeExplosion1(self);
 }
 
 
@@ -543,7 +543,7 @@ void flyer_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
 void SP_monster_flyer(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

@@ -458,7 +458,7 @@ void soldier_fire(edict_t *self, int flash_number)
         flash_index = machinegun_flash[flash_number];
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[flash_index], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_index], forward, right, start);
 
     if (flash_number == 5 || flash_number == 6) {
         VectorCopy(forward, aim);
@@ -1102,9 +1102,9 @@ void soldier_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 3; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
-        ThrowGib(self, "models/objects/gibs/chest/tris.md2", damage, GIB_TYPE_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+        SVG_Misc_ThrowGib(self, "models/objects/gibs/chest/tris.md2", damage, GIB_TYPE_ORGANIC);
+        SVG_Misc_ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
         self->deadflag = DEADFLAG_DEAD;
         return;
     }
@@ -1189,7 +1189,7 @@ void SP_monster_soldier_x(edict_t *self)
 void SP_monster_soldier_light(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
@@ -1211,7 +1211,7 @@ void SP_monster_soldier_light(edict_t *self)
 void SP_monster_soldier(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
@@ -1231,7 +1231,7 @@ void SP_monster_soldier(edict_t *self)
 void SP_monster_soldier_ss(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

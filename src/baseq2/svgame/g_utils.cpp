@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "g_local.h"
 
 
-void G_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result)
+void SVG_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result)
 {
     result[0] = point[0] + forward[0] * distance[0] + right[0] * distance[1];
     result[1] = point[1] + forward[1] * distance[0] + right[1] * distance[1];
@@ -30,7 +30,7 @@ void G_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t for
 
 /*
 =============
-G_Find
+SVG_Find
 
 Searches all active entities for the next one that holds
 the matching string at fieldofs (use the FOFS() macro) in the structure.
@@ -41,7 +41,7 @@ NULL will be returned if the end of the list is reached.
 =============
 */
 // WID: C++20: Added const.
-edict_t *G_Find(edict_t *from, int fieldofs, const char *match)
+edict_t *SVG_Find(edict_t *from, int fieldofs, const char *match)
 {
     char    *s;
 
@@ -66,14 +66,14 @@ edict_t *G_Find(edict_t *from, int fieldofs, const char *match)
 
 /*
 =================
-findradius
+SVG_FindWithinRadius
 
 Returns entities that have origins within a spherical area
 
-findradius (origin, radius)
+SVG_FindWithinRadius (origin, radius)
 =================
 */
-edict_t *findradius(edict_t *from, vec3_t org, float rad)
+edict_t *SVG_FindWithinRadius(edict_t *from, vec3_t org, float rad)
 {
     vec3_t  eorg;
     int     j;
@@ -100,7 +100,7 @@ edict_t *findradius(edict_t *from, vec3_t org, float rad)
 
 /*
 =============
-G_PickTarget
+SVG_PickTarget
 
 Searches all active entities for the next one that holds
 the matching string at fieldofs (use the FOFS() macro) in the structure.
@@ -112,19 +112,19 @@ NULL will be returned if the end of the list is reached.
 */
 #define MAXCHOICES  8
 
-edict_t *G_PickTarget(char *targetname)
+edict_t *SVG_PickTarget(char *targetname)
 {
     edict_t *ent = NULL;
     int     num_choices = 0;
     edict_t *choice[MAXCHOICES];
 
     if (!targetname) {
-        gi.dprintf("G_PickTarget called with NULL targetname\n");
+        gi.dprintf("SVG_PickTarget called with NULL targetname\n");
         return NULL;
     }
 
     while (1) {
-        ent = G_Find(ent, FOFS(targetname), targetname);
+        ent = SVG_Find(ent, FOFS(targetname), targetname);
         if (!ent)
             break;
         choice[num_choices++] = ent;
@@ -133,7 +133,7 @@ edict_t *G_PickTarget(char *targetname)
     }
 
     if (!num_choices) {
-        gi.dprintf("G_PickTarget: target %s not found\n", targetname);
+        gi.dprintf("SVG_PickTarget: target %s not found\n", targetname);
         return NULL;
     }
 
@@ -144,13 +144,13 @@ edict_t *G_PickTarget(char *targetname)
 
 void Think_Delay(edict_t *ent)
 {
-    G_UseTargets(ent, ent->activator);
-    G_FreeEdict(ent);
+    SVG_UseTargets(ent, ent->activator);
+    SVG_FreeEdict(ent);
 }
 
 /*
 ==============================
-G_UseTargets
+SVG_UseTargets
 
 the global "activator" should be set to the entity that initiated the firing.
 
@@ -164,7 +164,7 @@ match (string)self.target and call their .use function
 
 ==============================
 */
-void G_UseTargets(edict_t *ent, edict_t *activator)
+void SVG_UseTargets(edict_t *ent, edict_t *activator)
 {
     edict_t     *t;
 
@@ -173,7 +173,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->delay) {
         // create a temp object to fire at a later time
-        t = G_AllocateEdict();
+        t = SVG_AllocateEdict();
         t->classname = "DelayedUse";
         t->nextthink = level.time + sg_time_t::from_sec(ent->delay);
         t->think = Think_Delay;
@@ -203,8 +203,8 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->targetNames.kill) {
         t = NULL;
-        while ((t = G_Find(t, FOFS(targetname), ent->targetNames.kill))) {
-            G_FreeEdict(t);
+        while ((t = SVG_Find(t, FOFS(targetname), ent->targetNames.kill))) {
+            SVG_FreeEdict(t);
             if (!ent->inuse) {
                 gi.dprintf("entity was removed while using killtargets\n");
                 return;
@@ -217,7 +217,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->target) {
         t = NULL;
-        while ((t = G_Find(t, FOFS(targetname), ent->target))) {
+        while ((t = SVG_Find(t, FOFS(targetname), ent->target))) {
             // doors fire area portals in a specific way
             if (!Q_stricmp(t->classname, "func_areaportal") &&
                 (!Q_stricmp(ent->classname, "func_door") || !Q_stricmp(ent->classname, "func_door_rotating")))
@@ -243,7 +243,7 @@ vec3_t MOVEDIR_UP   = {0, 0, 1};
 vec3_t VEC_DOWN     = {0, -2, 0};
 vec3_t MOVEDIR_DOWN = {0, 0, -1};
 
-void G_SetMovedir(vec3_t angles, vec3_t movedir)
+void SVG_SetMovedir(vec3_t angles, vec3_t movedir)
 {
     if (VectorCompare(angles, VEC_UP)) {
         VectorCopy(MOVEDIR_UP, movedir);
@@ -256,7 +256,7 @@ void G_SetMovedir(vec3_t angles, vec3_t movedir)
     VectorClear(angles);
 }
 
-char *G_CopyString(char *in)
+char *SVG_CopyString(char *in)
 {
     char    *out;
 
@@ -267,7 +267,7 @@ char *G_CopyString(char *in)
 }
 
 
-void G_InitEdict(edict_t *e)
+void SVG_InitEdict(edict_t *e)
 {
     e->inuse = true;
     e->classname = "noclass";
@@ -280,7 +280,7 @@ void G_InitEdict(edict_t *e)
 
 /*
 =================
-G_AllocateEdict
+SVG_AllocateEdict
 
 Either finds a free edict, or allocates a new one.
 Try to avoid reusing an entity that was recently freed, because it
@@ -289,7 +289,7 @@ instead of being removed and recreated, which can cause interpolated
 angles and bad trails.
 =================
 */
-edict_t *G_AllocateEdict(void)
+edict_t *SVG_AllocateEdict(void)
 {
     int32_t i = game.maxclients + 1;
     edict_t *entity = &g_edicts[ game.maxclients + 1 ];
@@ -299,7 +299,7 @@ edict_t *G_AllocateEdict(void)
         // the first couple seconds of server time can involve a lot of
         // freeing and allocating, so relax the replacement policy
         if ( !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
-            G_InitEdict( entity );
+            SVG_InitEdict( entity );
             return entity;
         }
 
@@ -312,25 +312,25 @@ edict_t *G_AllocateEdict(void)
 
     if ( i == game.maxentities ) {
         if ( freedEntity ) {
-            G_InitEdict( freedEntity );
+            SVG_InitEdict( freedEntity );
             return freedEntity;
         }
-        gi.error( "G_AllocateEdict: no free edicts" );
+        gi.error( "SVG_AllocateEdict: no free edicts" );
     }
 
     globals.num_edicts++;
-    G_InitEdict(entity);
+    SVG_InitEdict(entity);
     return entity;
 }
 
 /*
 =================
-G_FreeEdict
+SVG_FreeEdict
 
 Marks the edict as free
 =================
 */
-void G_FreeEdict(edict_t *ed)
+void SVG_FreeEdict(edict_t *ed)
 {
     gi.unlinkentity(ed);        // unlink from world
 
@@ -353,11 +353,11 @@ void G_FreeEdict(edict_t *ed)
 
 /*
 ============
-G_TouchTriggers
+SVG_TouchTriggers
 
 ============
 */
-void    G_TouchTriggers(edict_t *ent)
+void    SVG_TouchTriggers(edict_t *ent)
 {
     int         i, num;
     edict_t     *touch[MAX_EDICTS], *hit;
@@ -384,13 +384,13 @@ void    G_TouchTriggers(edict_t *ent)
 
 /*
 ============
-G_TouchSolids
+SVG_TouchSolids
 
 Call after linking a new trigger in during gameplay
 to force all entities it covers to immediately touch it
 ============
 */
-void    G_TouchSolids(edict_t *ent)
+void    SVG_TouchSolids(edict_t *ent)
 {
     int         i, num;
     edict_t     *touch[MAX_EDICTS], *hit;
@@ -414,7 +414,7 @@ void    G_TouchSolids(edict_t *ent)
 
 // [Paril-KEX] scan for projectiles between our movement positions
 // to see if we need to collide against them
-void G_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
+void SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
     struct skipped_projectile {
         edict_t *projectile;
         int32_t spawn_count;
@@ -440,12 +440,12 @@ void G_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
         // Q2RE: if we're both players and it's coop, allow the projectile to "pass" through
         // However, we got no methods like them, but we do have an optional check for no friendly fire.
         if ( ent->client && tr.ent->owner && tr.ent->owner->client 
-            && OnSameTeam( ent, tr.ent->owner ) && !( dmflags->integer & DF_NO_FRIENDLY_FIRE ) ) {
+            && SVG_OnSameTeam( ent, tr.ent->owner ) && !( dmflags->integer & DF_NO_FRIENDLY_FIRE ) ) {
             continue;
         }
 
         // Call impact(touch) triggers.
-        SV_Impact( ent, &tr );
+        SVG_Impact( ent, &tr );
     }
 
     for ( auto &skip : skipped ) {
@@ -498,7 +498,7 @@ const bool KillBox(edict_t *ent, const bool bspClipping ) {
         }
 
         if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
-            trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, G_GetClipMask( hit ) );
+            trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
 
             if ( clip.fraction == 1.0f ) {
                 continue;
@@ -506,7 +506,7 @@ const bool KillBox(edict_t *ent, const bool bspClipping ) {
         }
 
         // nail it
-        T_Damage(hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+        SVG_TriggerDamage(hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
 
         //// if we didn't kill it, fail
         //if (tr.ent->solid)

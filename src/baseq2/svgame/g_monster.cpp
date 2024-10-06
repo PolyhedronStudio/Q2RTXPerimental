@@ -216,7 +216,7 @@ void M_WorldEffects( edict_t *ent ) {
 					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).seconds( ) ) );
                     if (dmg > 15)
                         dmg = 15;
-                    T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MOD_WATER);
+                    SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MOD_WATER);
                     ent->pain_debounce_time = level.time + 1_sec;
                 }
             }
@@ -229,7 +229,7 @@ void M_WorldEffects( edict_t *ent ) {
 					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).seconds( ) ) );
                     if (dmg > 15)
                         dmg = 15;
-                    T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MOD_WATER);
+                    SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MOD_WATER);
                     ent->pain_debounce_time = level.time + 1_sec;
                 }
             }
@@ -247,13 +247,13 @@ void M_WorldEffects( edict_t *ent ) {
     if ((ent->liquidtype & CONTENTS_LAVA) && !(ent->flags & FL_IMMUNE_LAVA)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 0.2_sec;
-            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidlevel, 0, 0, MOD_LAVA);
+            SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidlevel, 0, 0, MOD_LAVA);
         }
     }
     if ((ent->liquidtype & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 1_sec;
-            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidlevel, 0, 0, MOD_SLIME);
+            SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidlevel, 0, 0, MOD_SLIME);
         }
     }
 
@@ -281,7 +281,7 @@ void M_droptofloor( edict_t *ent ) {
 	vec3_t      end;
 	trace_t     trace;
 
-	contents_t mask = G_GetClipMask( ent );
+	contents_t mask = SVG_GetClipMask( ent );
 
 	ent->s.origin[ 2 ] += 1;
 	VectorCopy( ent->s.origin, end );
@@ -326,12 +326,12 @@ void M_SetEffects( edict_t *ent ) {
 void M_SetAnimation( edict_t *self, mmove_t *move, bool instant ) {
 	// [Paril-KEX] free the beams if we switch animations.
 	//if ( self->beam ) {
-	//	G_FreeEdict( self->beam );
+	//	SVG_FreeEdict( self->beam );
 	//	self->beam = nullptr;
 	//}
 
 	//if ( self->beam2 ) {
-	//	G_FreeEdict( self->beam2 );
+	//	SVG_FreeEdict( self->beam2 );
 	//	self->beam2 = nullptr;
 	//}
 
@@ -473,7 +473,7 @@ void monster_think( edict_t *self ) {
 	M_MoveFrame( self );
 	if ( self->linkcount != self->monsterinfo.linkcount ) {
 		self->monsterinfo.linkcount = self->linkcount;
-		M_CheckGround( self, G_GetClipMask( self ) );
+		M_CheckGround( self, SVG_GetClipMask( self ) );
 	}
 	M_CatagorizePosition( self, self->s.origin, self->liquidlevel, self->liquidtype );
 	M_WorldEffects( self );
@@ -571,7 +571,7 @@ void monster_death_use( edict_t *self ) {
 	if ( !self->targetNames.target )
 		return;
 
-	G_UseTargets( self, self->enemy );
+	SVG_UseTargets( self, self->enemy );
 }
 
 
@@ -579,7 +579,7 @@ void monster_death_use( edict_t *self ) {
 
 bool monster_start( edict_t *self ) {
 	if ( deathmatch->value ) {
-		G_FreeEdict( self );
+		SVG_FreeEdict( self );
 		return false;
 	}
 
@@ -637,7 +637,7 @@ void monster_start_go( edict_t *self ) {
 		target = NULL;
 		notcombat = false;
 		fixup = false;
-		while ( ( target = G_Find( target, FOFS( targetname ), self->targetNames.target ) ) != NULL ) {
+		while ( ( target = SVG_Find( target, FOFS( targetname ), self->targetNames.target ) ) != NULL ) {
 			if ( strcmp( target->classname, "point_combat" ) == 0 ) {
 				self->targetNames.combat = self->targetNames.target;
 				fixup = true;
@@ -656,7 +656,7 @@ void monster_start_go( edict_t *self ) {
 		edict_t *target;
 
 		target = NULL;
-		while ( ( target = G_Find( target, FOFS( targetname ), self->targetNames.combat ) ) != NULL ) {
+		while ( ( target = SVG_Find( target, FOFS( targetname ), self->targetNames.combat ) ) != NULL ) {
 			if ( strcmp( target->classname, "point_combat" ) != 0 ) {
 				gi.dprintf( "%s at %s has a bad targetNames.combat %s : %s at %s\n",
 						   self->classname, vtos( self->s.origin ),
@@ -666,7 +666,7 @@ void monster_start_go( edict_t *self ) {
 	}
 
     if (self->targetNames.target) {
-        self->goalentity = self->movetarget = G_PickTarget(self->targetNames.target);
+        self->goalentity = self->movetarget = SVG_PickTarget(self->targetNames.target);
         if (!self->movetarget) {
             gi.dprintf("%s can't find target %s at %s\n", self->classname, self->targetNames.target, vtos(self->s.origin));
             self->targetNames.target = NULL;

@@ -345,7 +345,7 @@ void FoundTarget(edict_t *self)
         return;
     }
 
-    self->goalentity = self->movetarget = G_PickTarget(self->targetNames.combat);
+    self->goalentity = self->movetarget = SVG_PickTarget(self->targetNames.combat);
     if (!self->movetarget) {
         self->goalentity = self->movetarget = self->enemy;
         HuntTarget(self);
@@ -888,7 +888,7 @@ void ai_run(edict_t *self, float dist)
     }
 
     save = self->goalentity;
-    tempgoal = G_AllocateEdict();
+    tempgoal = SVG_AllocateEdict();
     self->goalentity = tempgoal;
 
     _new = false;
@@ -951,12 +951,12 @@ void ai_run(edict_t *self, float dist)
             AngleVectors(self->s.angles, v_forward, v_right, NULL);
 
             VectorSet(v, d2, -16, 0);
-            G_ProjectSource(self->s.origin, v, v_forward, v_right, left_target);
+            SVG_ProjectSource(self->s.origin, v, v_forward, v_right, left_target);
             tr = gi.trace(self->s.origin, self->mins, self->maxs, left_target, self, MASK_PLAYERSOLID);
             left = tr.fraction;
 
             VectorSet(v, d2, 16, 0);
-            G_ProjectSource(self->s.origin, v, v_forward, v_right, right_target);
+            SVG_ProjectSource(self->s.origin, v, v_forward, v_right, right_target);
             tr = gi.trace(self->s.origin, self->mins, self->maxs, right_target, self, MASK_PLAYERSOLID);
             right = tr.fraction;
 
@@ -964,7 +964,7 @@ void ai_run(edict_t *self, float dist)
             if (left >= center && left > right) {
                 if (left < 1) {
                     VectorSet(v, d2 * left * 0.5f, -16, 0);
-                    G_ProjectSource(self->s.origin, v, v_forward, v_right, left_target);
+                    SVG_ProjectSource(self->s.origin, v, v_forward, v_right, left_target);
                 }
                 VectorCopy(self->monsterinfo.last_sighting, self->monsterinfo.saved_goal);
                 self->monsterinfo.aiflags |= AI_PURSUE_TEMP;
@@ -975,7 +975,7 @@ void ai_run(edict_t *self, float dist)
             } else if (right >= center && right > left) {
                 if (right < 1) {
                     VectorSet(v, d2 * right * 0.5f, 16, 0);
-                    G_ProjectSource(self->s.origin, v, v_forward, v_right, right_target);
+                    SVG_ProjectSource(self->s.origin, v, v_forward, v_right, right_target);
                 }
                 VectorCopy(self->monsterinfo.last_sighting, self->monsterinfo.saved_goal);
                 self->monsterinfo.aiflags |= AI_PURSUE_TEMP;
@@ -989,7 +989,7 @@ void ai_run(edict_t *self, float dist)
 
     M_MoveToGoal(self, dist);
 
-    G_FreeEdict(tempgoal);
+    SVG_FreeEdict(tempgoal);
 
     if (self)
         self->goalentity = save;

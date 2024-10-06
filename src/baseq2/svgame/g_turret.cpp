@@ -54,7 +54,7 @@ void turret_blocked(edict_t *self, edict_t *other)
             attacker = self->teammaster->owner;
         else
             attacker = self->teammaster;
-        T_Damage(other, self, attacker, vec3_origin, other->s.origin, vec3_origin, self->teammaster->dmg, 10, 0, MOD_CRUSH);
+        SVG_TriggerDamage(other, self, attacker, vec3_origin, other->s.origin, vec3_origin, self->teammaster->dmg, 10, 0, MOD_CRUSH);
     }
 }
 
@@ -200,9 +200,9 @@ void turret_breach_finish_init(edict_t *self)
     if (!self->targetNames.target) {
         gi.dprintf("%s at %s needs a target\n", self->classname, vtos(self->s.origin));
     } else {
-        self->targetEntities.target = G_PickTarget(self->targetNames.target);
+        self->targetEntities.target = SVG_PickTarget(self->targetNames.target);
         VectorSubtract(self->targetEntities.target->s.origin, self->s.origin, self->move_origin);
-        G_FreeEdict(self->targetEntities.target);
+        SVG_FreeEdict(self->targetEntities.target);
     }
 
     self->teammaster->dmg = self->dmg;
@@ -341,7 +341,7 @@ void turret_driver_link(edict_t *self)
     self->think = turret_driver_think;
 	self->nextthink = level.time + FRAME_TIME_S;
 
-    self->targetEntities.target = G_PickTarget(self->targetNames.target);
+    self->targetEntities.target = SVG_PickTarget(self->targetNames.target);
     self->targetEntities.target->owner = self;
     self->targetEntities.target->teammaster->owner = self;
     VectorCopy(self->targetEntities.target->s.angles, self->s.angles);
@@ -369,7 +369,7 @@ void turret_driver_link(edict_t *self)
 void SP_turret_driver(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

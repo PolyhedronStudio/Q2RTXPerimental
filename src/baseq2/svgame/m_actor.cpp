@@ -260,7 +260,7 @@ void actorMachineGun(edict_t *self)
     vec3_t  forward, right;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_ACTOR_MACHINEGUN_1], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_ACTOR_MACHINEGUN_1], forward, right, start);
     if (self->enemy) {
         if (self->enemy->health > 0) {
             VectorMA(self->enemy->s.origin, -0.2f, self->enemy->velocity, target);
@@ -324,10 +324,10 @@ void actor_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
     if (self->health <= -80) {
 //      gi.sound (self, CHAN_VOICE, actor.sound_gib, 1, ATTN_NORM, 0);
         for (n = 0; n < 2; n++)
-            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+        SVG_Misc_ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
         self->deadflag = DEADFLAG_DEAD;
         return;
     }
@@ -379,7 +379,7 @@ void actor_use(edict_t *self, edict_t *other, edict_t *activator)
 {
     vec3_t      v;
 
-    self->goalentity = self->movetarget = G_PickTarget(self->targetNames.target);
+    self->goalentity = self->movetarget = SVG_PickTarget(self->targetNames.target);
     if ((!self->movetarget) || (strcmp(self->movetarget->classname, "target_actor") != 0)) {
         gi.dprintf("%s has bad target %s at %s\n", self->classname, self->targetNames.target, vtos(self->s.origin));
         self->targetNames.target = NULL;
@@ -401,19 +401,19 @@ void actor_use(edict_t *self, edict_t *other, edict_t *activator)
 void SP_misc_actor(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
     if (!self->targetname) {
         gi.dprintf("untargeted %s at %s\n", self->classname, vtos(self->s.origin));
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
     if (!self->targetNames.target) {
         gi.dprintf("%s with no target at %s\n", self->classname, vtos(self->s.origin));
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 
@@ -503,7 +503,7 @@ void target_actor_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface
 
     if (self->spawnflags & 2) { //shoot
     } else if (self->spawnflags & 4) { //attack
-        other->enemy = G_PickTarget(self->targetNames.path);
+        other->enemy = SVG_PickTarget(self->targetNames.path);
         if (other->enemy) {
             other->goalentity = other->enemy;
             if (self->spawnflags & 32)
@@ -522,11 +522,11 @@ void target_actor_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface
 
         savetarget = self->targetNames.target;
         self->targetNames.target = self->targetNames.path;
-        G_UseTargets(self, other);
+        SVG_UseTargets(self, other);
         self->targetNames.target = savetarget;
     }
 
-    other->movetarget = G_PickTarget(self->targetNames.target);
+    other->movetarget = SVG_PickTarget(self->targetNames.target);
 
     if (!other->goalentity)
         other->goalentity = other->movetarget;
@@ -558,7 +558,7 @@ void SP_target_actor(edict_t *self)
             st.height = 200;
         if (self->s.angles[YAW] == 0)
             self->s.angles[YAW] = 360;
-        G_SetMovedir(self->s.angles, self->movedir);
+        SVG_SetMovedir(self->s.angles, self->movedir);
         self->movedir[2] = st.height;
     }
 

@@ -51,15 +51,15 @@ void Weapon_Fists_Precached( const gitem_t *item ) {
 
         // idle.
         if ( !strcmp( skmAnim->name, "idle" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_IDLE, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_IDLE, animID );
         } else if ( !strcmp( skmAnim->name, "draw" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_DRAWING, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_DRAWING, animID );
         } else if ( !strcmp( skmAnim->name, "holster" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_HOLSTERING, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_HOLSTERING, animID );
         } else if ( !strcmp( skmAnim->name, "primary_fire" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_PRIMARY_FIRING, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_PRIMARY_FIRING, animID );
         } else if ( !strcmp( skmAnim->name, "secondary_fire" ) ) {
-            P_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_SECONDARY_FIRING, animID );
+            SVG_Player_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_SECONDARY_FIRING, animID );
         } else {
             continue;
         }
@@ -95,7 +95,7 @@ void weapon_fists_primary_fire( edict_t *ent ) {
 
     // Project from source to shot destination.
     vec3_t fistOffset = { 0, -10, (float)ent->viewheight - 5.5f }; // VectorSet( offset, 0, 8, ent->viewheight - 8 );
-    P_ProjectDistance( ent, ent->s.origin, fistOffset, &forward.x, &right.x, start ); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    SVG_Player_ProjectDistance( ent, ent->s.origin, fistOffset, &forward.x, &right.x, start ); //SVG_Player_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Fire the actual bullet itself.
     //fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
@@ -108,7 +108,7 @@ void weapon_fists_primary_fire( edict_t *ent ) {
     }
 
     // Notify we're making noise.
-    P_PlayerNoise( ent, start, PNOISE_WEAPON );
+    SVG_Player_PlayerNoise( ent, start, PNOISE_WEAPON );
 }
 /**
 *   @brief  
@@ -129,7 +129,7 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
 
     // Project from source to shot destination.
     vec3_t fistOffset = { 0, 10, (float)ent->viewheight - 5.5f }; // VectorSet( offset, 0, 8, ent->viewheight - 8 );
-    P_ProjectDistance( ent, ent->s.origin, fistOffset, &forward.x, &right.x, &start.x); //P_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    SVG_Player_ProjectDistance( ent, ent->s.origin, fistOffset, &forward.x, &right.x, &start.x); //SVG_Player_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Fire the actual bullet itself.
     //fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
@@ -142,7 +142,7 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
     }
 
     // Notify we're making noise.
-    P_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
+    SVG_Player_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
 }
 
 /**
@@ -150,10 +150,10 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
 **/
 static void Weapon_Fists_ProcessUserInput( edict_t *ent ) {
     if ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) {
-        P_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, fistsItemInfo.modeAnimations, false );
+        SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, fistsItemInfo.modeAnimations, false );
         return;
     } else if ( ent->client->latched_buttons & BUTTON_SECONDARY_FIRE ) {
-        P_Weapon_SwitchMode( ent, WEAPON_MODE_SECONDARY_FIRING, fistsItemInfo.modeAnimations, false );
+        SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_SECONDARY_FIRING, fistsItemInfo.modeAnimations, false );
         return;
     }
 }
@@ -163,7 +163,7 @@ static void Weapon_Fists_ProcessUserInput( edict_t *ent ) {
 **/
 void Weapon_Fists( edict_t *ent, const bool processUserInputOnly ) {
     // Process the animation frames of the mode we're in.
-    const bool isDoneAnimating = P_Weapon_ProcessModeAnimation( ent, &fistsItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
+    const bool isDoneAnimating = SVG_Player_Weapon_ProcessModeAnimation( ent, &fistsItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
 
     // If IDLE or NOT ANIMATING, process user input.
     if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE 

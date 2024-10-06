@@ -43,7 +43,7 @@ char *ClientTeam(edict_t *ent)
     return ++p;
 }
 
-bool OnSameTeam(edict_t *ent1, edict_t *ent2)
+bool SVG_OnSameTeam(edict_t *ent1, edict_t *ent2)
 {
     char    ent1Team [512];
     char    ent2Team [512];
@@ -69,7 +69,7 @@ void SelectNextItem(edict_t *ent, int itflags)
     cl = ent->client;
 
     if (cl->chase_target) {
-        ChaseNext(ent);
+        SVG_ChaseCam_Next(ent);
         return;
     }
 
@@ -100,7 +100,7 @@ void SelectPrevItem(edict_t *ent, int itflags)
     cl = ent->client;
 
     if (cl->chase_target) {
-        ChasePrev(ent);
+        SVG_ChaseCam_Previous(ent);
         return;
     }
 
@@ -122,7 +122,7 @@ void SelectPrevItem(edict_t *ent, int itflags)
     cl->pers.selected_item = -1;
 }
 
-void ValidateSelectedItem(edict_t *ent)
+void SVG_HUD_ValidateSelectedItem(edict_t *ent)
 {
     gclient_t   *cl;
 
@@ -219,12 +219,12 @@ void Cmd_Give_f(edict_t *ent)
 
     if (give_all || Q_stricmp(name, "Power Shield") == 0) {
         it = FindItem("Power Shield");
-        it_ent = G_AllocateEdict();
+        it_ent = SVG_AllocateEdict();
         it_ent->classname = it->classname;
         SpawnItem(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);
         if (it_ent->inuse)
-            G_FreeEdict(it_ent);
+            SVG_FreeEdict(it_ent);
 
         if (!give_all)
             return;
@@ -265,12 +265,12 @@ void Cmd_Give_f(edict_t *ent)
         else
             ent->client->pers.inventory[index] += it->quantity;
     } else {
-        it_ent = G_AllocateEdict();
+        it_ent = SVG_AllocateEdict();
         it_ent->classname = it->classname;
         SpawnItem(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);
         if (it_ent->inuse)
-            G_FreeEdict(it_ent);
+            SVG_FreeEdict(it_ent);
     }
 }
 
@@ -451,7 +451,7 @@ void Cmd_InvUse_f(edict_t *ent)
 {
     gitem_t     *it;
 
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 
     if (ent->client->pers.selected_item == -1) {
         gi.cprintf(ent, PRINT_HIGH, "No item to use.\n");
@@ -591,7 +591,7 @@ void Cmd_InvDrop_f(edict_t *ent)
 {
     gitem_t     *it;
 
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 
     if (ent->client->pers.selected_item == -1) {
         gi.cprintf(ent, PRINT_HIGH, "No item to drop.\n");
@@ -830,7 +830,7 @@ void Cmd_Say_f(edict_t *ent, bool team, bool arg0)
         if (!other->client)
             continue;
         if (team) {
-            if (!OnSameTeam(ent, other))
+            if (!SVG_OnSameTeam(ent, other))
                 continue;
         }
         gi.cprintf(other, PRINT_CHAT, "%s", text);
@@ -897,11 +897,11 @@ void ClientCommand(edict_t *ent)
         return;
     }
     if (Q_stricmp(cmd, "score") == 0) {
-        Cmd_Score_f(ent);
+        SVG_Cmd_Score_f(ent);
         return;
     }
     if (Q_stricmp(cmd, "help") == 0) {
-        Cmd_Help_f(ent);
+        SVG_Cmd_Help_f(ent);
         return;
     }
 

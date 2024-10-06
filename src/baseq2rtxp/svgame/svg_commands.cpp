@@ -43,7 +43,7 @@ char *ClientTeam(edict_t *ent)
     return ++p;
 }
 
-bool OnSameTeam(edict_t *ent1, edict_t *ent2)
+const bool SVG_OnSameTeam(edict_t *ent1, edict_t *ent2)
 {
     char    ent1Team [512];
     char    ent2Team [512];
@@ -69,7 +69,7 @@ void SelectNextItem(edict_t *ent, int itflags)
     cl = ent->client;
 
     if (cl->chase_target) {
-        ChaseNext(ent);
+        SVG_ChaseCam_Next(ent);
         return;
     }
 
@@ -100,7 +100,7 @@ void SelectPrevItem(edict_t *ent, int itflags)
     cl = ent->client;
 
     if (cl->chase_target) {
-        ChasePrev(ent);
+        SVG_ChaseCam_Previous(ent);
         return;
     }
 
@@ -122,7 +122,7 @@ void SelectPrevItem(edict_t *ent, int itflags)
     cl->pers.selected_item = -1;
 }
 
-void ValidateSelectedItem(edict_t *ent)
+void SVG_HUD_ValidateSelectedItem(edict_t *ent)
 {
     gclient_t   *cl;
 
@@ -139,12 +139,12 @@ void ValidateSelectedItem(edict_t *ent)
 
 /*
 ==================
-Cmd_Give_f
+SVG_Command_Give_f
 
 Give items to a client
 ==================
 */
-void Cmd_Give_f(edict_t *ent)
+void SVG_Command_Give_f(edict_t *ent)
 {
     char        *name;
     const gitem_t     *it;
@@ -277,14 +277,14 @@ void Cmd_Give_f(edict_t *ent)
 
 /*
 ==================
-Cmd_God_f
+SVG_Command_God_f
 
 Sets client to godmode
 
 argv(0) god
 ==================
 */
-void Cmd_God_f(edict_t *ent)
+void SVG_Command_God_f(edict_t *ent)
 {
     if ((deathmatch->value || coop->value) && !sv_cheats->value) {
         gi.cprintf(ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
@@ -301,14 +301,14 @@ void Cmd_God_f(edict_t *ent)
 
 /*
 ==================
-Cmd_Notarget_f
+SVG_Command_Notarget_f
 
 Sets client to notarget
 
 argv(0) notarget
 ==================
 */
-void Cmd_Notarget_f(edict_t *ent)
+void SVG_Command_Notarget_f(edict_t *ent)
 {
     if ((deathmatch->value || coop->value) && !sv_cheats->value) {
         gi.cprintf(ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
@@ -325,12 +325,12 @@ void Cmd_Notarget_f(edict_t *ent)
 
 /*
 ==================
-Cmd_Noclip_f
+SVG_Command_Noclip_f
 
 argv(0) noclip
 ==================
 */
-void Cmd_Noclip_f(edict_t *ent)
+void SVG_Command_Noclip_f(edict_t *ent)
 {
     if ((deathmatch->value || coop->value) && !sv_cheats->value) {
         gi.cprintf(ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
@@ -349,12 +349,12 @@ void Cmd_Noclip_f(edict_t *ent)
 
 /*
 ==================
-Cmd_UseItem_f
+SVG_Command_UseItem_f
 
 Use an inventory item
 ==================
 */
-void Cmd_UseItem_f(edict_t *ent) {
+void SVG_Command_UseItem_f(edict_t *ent) {
     const char *s = gi.args();
     const gitem_t *it = FindItem(s);
     if (!it) {
@@ -379,12 +379,12 @@ void Cmd_UseItem_f(edict_t *ent) {
 
 /*
 ==================
-Cmd_Drop_f
+SVG_Command_Drop_f
 
 Drop an inventory item
 ==================
 */
-void Cmd_Drop_f(edict_t *ent) {
+void SVG_Command_Drop_f(edict_t *ent) {
     const char *s = gi.args();
     const gitem_t *it = FindItem(s);
     if (!it) {
@@ -407,10 +407,10 @@ void Cmd_Drop_f(edict_t *ent) {
 
 /*
 =================
-Cmd_Inven_f
+SVG_Command_Inven_f
 =================
 */
-void Cmd_Inven_f(edict_t *ent)
+void SVG_Command_Inven_f(edict_t *ent)
 {
     int         i;
     gclient_t   *cl;
@@ -436,14 +436,14 @@ void Cmd_Inven_f(edict_t *ent)
 
 /*
 =================
-Cmd_InvUseSelectedItem_f
+SVG_Command_InvUseSelectedItem_f
 =================
 */
-void Cmd_InvUseSelectedItem_f(edict_t *ent)
+void SVG_Command_InvUseSelectedItem_f(edict_t *ent)
 {
     gitem_t     *it;
 
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 
     if (ent->client->pers.selected_item == -1) {
         gi.cprintf(ent, PRINT_HIGH, "No item to use.\n");
@@ -460,10 +460,10 @@ void Cmd_InvUseSelectedItem_f(edict_t *ent)
 
 /*
 =================
-Cmd_WeapPrev_f
+SVG_Command_WeapPrev_f
 =================
 */
-void Cmd_WeapPrev_f(edict_t *ent)
+void SVG_Command_WeapPrev_f(edict_t *ent)
 {
     gclient_t   *cl;
     int         i, index;
@@ -495,10 +495,10 @@ void Cmd_WeapPrev_f(edict_t *ent)
 
 /*
 =================
-Cmd_WeapNext_f
+SVG_Command_WeapNext_f
 =================
 */
-void Cmd_WeapNext_f(edict_t *ent)
+void SVG_Command_WeapNext_f(edict_t *ent)
 {
     gclient_t   *cl;
     int         i, index;
@@ -530,10 +530,10 @@ void Cmd_WeapNext_f(edict_t *ent)
 
 /*
 =================
-Cmd_WeapLast_f
+SVG_Command_WeapLast_f
 =================
 */
-void Cmd_WeapLast_f(edict_t *ent)
+void SVG_Command_WeapLast_f(edict_t *ent)
 {
     gclient_t   *cl;
     int         index;
@@ -557,13 +557,13 @@ void Cmd_WeapLast_f(edict_t *ent)
 
 /*
 =================
-Cmd_WeapFlare_f
+SVG_Command_WeapFlare_f
 =================
 */
-void Cmd_WeapFlare_f(edict_t* ent) {
+void SVG_Command_WeapFlare_f(edict_t* ent) {
     gclient_t *cl = ent->client;
     if (cl->pers.weapon && strcmp(cl->pers.weapon->pickup_name, "Flare Gun") == 0) {
-        Cmd_WeapLast_f(ent);
+        SVG_Command_WeapLast_f(ent);
     } else {
         const gitem_t *it = FindItem("Flare Gun");
         it->use(ent, it);
@@ -572,13 +572,13 @@ void Cmd_WeapFlare_f(edict_t* ent) {
 
 /*
 =================
-Cmd_InvDrop_f
+SVG_Command_InvDrop_f
 =================
 */
-void Cmd_InvDrop_f(edict_t *ent) {
+void SVG_Command_InvDrop_f(edict_t *ent) {
     gitem_t     *it;
 
-    ValidateSelectedItem(ent);
+    SVG_HUD_ValidateSelectedItem(ent);
 
     if (ent->client->pers.selected_item == -1) {
         gi.cprintf(ent, PRINT_HIGH, "No item to drop.\n");
@@ -595,10 +595,10 @@ void Cmd_InvDrop_f(edict_t *ent) {
 
 /*
 =================
-Cmd_Kill_f
+SVG_Command_Kill_f
 =================
 */
-void Cmd_Kill_f(edict_t *ent)
+void SVG_Command_Kill_f(edict_t *ent)
 {
     if ((level.time - ent->client->respawn_time) < 5_sec)
         return;
@@ -610,10 +610,10 @@ void Cmd_Kill_f(edict_t *ent)
 
 /*
 =================
-Cmd_PutAway_f
+SVG_Command_PutAway_f
 =================
 */
-void Cmd_PutAway_f(edict_t *ent)
+void SVG_Command_PutAway_f(edict_t *ent)
 {
     ent->client->showscores = false;
     ent->client->showhelp = false;
@@ -640,10 +640,10 @@ int PlayerSort(void const *a, void const *b)
 
 /*
 =================
-Cmd_Players_f
+SVG_Command_Players_f
 =================
 */
-void Cmd_Players_f(edict_t *ent)
+void SVG_Command_Players_f(edict_t *ent)
 {
     int     i;
     int     count;
@@ -719,10 +719,10 @@ static bool FloodProtect(edict_t *ent)
 
 /*
 ==================
-Cmd_Say_f
+SVG_Command_Say_f
 ==================
 */
-void Cmd_Say_f(edict_t *ent, bool team, bool arg0)
+void SVG_Command_Say_f(edict_t *ent, bool team, bool arg0)
 {
     int     j;
     edict_t *other;
@@ -766,14 +766,14 @@ void Cmd_Say_f(edict_t *ent, bool team, bool arg0)
         if (!other->client)
             continue;
         if (team) {
-            if (!OnSameTeam(ent, other))
+            if (!SVG_OnSameTeam(ent, other))
                 continue;
         }
         gi.cprintf(other, PRINT_CHAT, "%s", text);
     }
 }
 
-void Cmd_PlayerList_f(edict_t *ent)
+void SVG_Command_PlayerList_f(edict_t *ent)
 {
     int i;
     char st[80];
@@ -820,19 +820,19 @@ void ClientCommand( edict_t *ent ) {
     cmd = gi.argv( 0 );
 
     if ( Q_stricmp( cmd, "players" ) == 0 ) {
-        Cmd_Players_f( ent );
+        SVG_Command_Players_f( ent );
         return;
     }
     if ( Q_stricmp( cmd, "say" ) == 0 ) {
-        Cmd_Say_f( ent, false, false );
+        SVG_Command_Say_f( ent, false, false );
         return;
     }
     if ( Q_stricmp( cmd, "say_team" ) == 0 ) {
-        Cmd_Say_f( ent, true, false );
+        SVG_Command_Say_f( ent, true, false );
         return;
     }
     if ( Q_stricmp( cmd, "score" ) == 0 ) {
-        Cmd_Score_f( ent );
+        SVG_Command_Score_f( ent );
         return;
     }
 
@@ -844,12 +844,12 @@ void ClientCommand( edict_t *ent ) {
     // Inventory:
     //
     if ( Q_stricmp( cmd, "useitem" ) == 0 ) {
-        Cmd_UseItem_f( ent );
+        SVG_Command_UseItem_f( ent );
     } else if ( Q_stricmp( cmd, "drop" ) == 0 ) {
-        Cmd_Drop_f( ent );
+        SVG_Command_Drop_f( ent );
     }
     if ( Q_stricmp( cmd, "inven" ) == 0 ) {
-        Cmd_Inven_f( ent );
+        SVG_Command_Inven_f( ent );
     } else if ( Q_stricmp( cmd, "invnext" ) == 0 ) {
         SelectNextItem( ent, -1 );
     } else if ( Q_stricmp( cmd, "invprev" ) == 0 ) {
@@ -859,42 +859,42 @@ void ClientCommand( edict_t *ent ) {
     } else if ( Q_stricmp( cmd, "invprevw" ) == 0 ) {
         SelectPrevItem( ent, ITEM_FLAG_WEAPON );
     } else if ( Q_stricmp( cmd, "invuse" ) == 0 ) {
-        Cmd_InvUseSelectedItem_f( ent );
+        SVG_Command_InvUseSelectedItem_f( ent );
     } else if ( Q_stricmp( cmd, "invdrop" ) == 0 ) {
-        Cmd_InvDrop_f( ent );
+        SVG_Command_InvDrop_f( ent );
     } else if ( Q_stricmp( cmd, "weapprev" ) == 0 ) {
-        Cmd_WeapPrev_f( ent );
+        SVG_Command_WeapPrev_f( ent );
     } else if ( Q_stricmp( cmd, "weapnext" ) == 0 ) {
-        Cmd_WeapNext_f( ent );
+        SVG_Command_WeapNext_f( ent );
     } else if ( Q_stricmp( cmd, "weaplast" ) == 0 ) {
-        Cmd_WeapLast_f( ent );
+        SVG_Command_WeapLast_f( ent );
     } else if ( Q_stricmp( cmd, "putaway" ) == 0 ) {
-        Cmd_PutAway_f( ent );
+        SVG_Command_PutAway_f( ent );
         //
         // 'Cheats':
         //
     } else if ( Q_stricmp( cmd, "give" ) == 0 ) {
-        Cmd_Give_f( ent );
+        SVG_Command_Give_f( ent );
     } else if ( Q_stricmp( cmd, "god" ) == 0 ) {
-        Cmd_God_f( ent );
+        SVG_Command_God_f( ent );
     } else if ( Q_stricmp( cmd, "notarget" ) == 0 ) {
-        Cmd_Notarget_f( ent );
+        SVG_Command_Notarget_f( ent );
     } else if ( Q_stricmp( cmd, "noclip" ) == 0 ) {
-        Cmd_Noclip_f( ent );
+        SVG_Command_Noclip_f( ent );
         //
         // Other:
         //
     } else if ( Q_stricmp( cmd, "kill" ) == 0 ) {
-        Cmd_Kill_f( ent );
+        SVG_Command_Kill_f( ent );
     } else if ( Q_stricmp( cmd, "playerlist" ) == 0 ) {
-        Cmd_PlayerList_f( ent );
+        SVG_Command_PlayerList_f( ent );
     } else if ( Q_stricmp( cmd, "weapflare" ) == 0 ) {
-        Cmd_WeapFlare_f( ent );
+        SVG_Command_WeapFlare_f( ent );
         //
         // Anything that doesn't match a command will be a chat.
         //
     } else {
-        Cmd_Say_f( ent, false, true );
+        SVG_Command_Say_f( ent, false, true );
     }
 }
 

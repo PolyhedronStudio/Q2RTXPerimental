@@ -32,7 +32,7 @@ static byte     is_silenced;
 *           Monsters that don't directly see the player can move
 *           to a noise in hopes of seeing the player from there.
 **/
-void P_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
+void SVG_Player_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
     edict_t *noise;
 
     if ( deathmatch->value )
@@ -81,7 +81,7 @@ void P_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
 /** 
 *   @brief  Called when a weapon item has been touched.
 **/
-const bool P_Weapon_Pickup( edict_t *ent, edict_t *other ) {
+const bool SVG_Player_Weapon_Pickup( edict_t *ent, edict_t *other ) {
     int         index;
 
     // Get the item index.
@@ -144,7 +144,7 @@ const bool P_Weapon_Pickup( edict_t *ent, edict_t *other ) {
 *   @brief  Called when the 'Old Weapon' has been dropped all the way. This function will
 *           make the 'newweapon' as the client's current weapon.
 **/
-void P_Weapon_Change(edict_t *ent) {
+void SVG_Player_Weapon_Change(edict_t *ent) {
     int32_t i = 0;
 
     //if (ent->client->grenade_time) {
@@ -169,7 +169,7 @@ void P_Weapon_Change(edict_t *ent) {
         // Engage into holster if:
         if ( canChangeMode && ( !isHolsterMode && !isAiming ) ) {
             // Engage weapon holstering mode.
-            P_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_animation_t *)ent->client->pers.weapon->info, true );
+            SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_animation_t *)ent->client->pers.weapon->info, true );
             // Fire an actual event for the client at hand.
             //SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_HOLSTER, 0, &ent->client->ps );
             SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_HOLSTER_AND_DRAW, 0, &ent->client->ps );
@@ -224,7 +224,7 @@ allowchange:
     ent->client->ps.gun.modelIndex = gi.modelindex( ent->client->pers.weapon->view_model );
 
     // Engage into "Drawing" weapon mode.
-    P_Weapon_SwitchMode( ent, WEAPON_MODE_DRAWING, (const weapon_mode_animation_t*)ent->client->pers.weapon->info, true );
+    SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_DRAWING, (const weapon_mode_animation_t*)ent->client->pers.weapon->info, true );
     // Fire an actual event for the client at hand.
     // TODO: Implement draw specific animation and holster specific instead.
     //SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_DRAW, 0, &ent->client->ps );
@@ -280,7 +280,7 @@ allowchange:
 /**
 *   @brief  Will prepare a switch to the newly passed weapon.
 **/
-void P_Weapon_Use( edict_t *ent, const gitem_t *item ) {
+void SVG_Player_Weapon_Use( edict_t *ent, const gitem_t *item ) {
     int32_t ammo_index = 0;
     const gitem_t *ammo_item = nullptr;
 
@@ -323,7 +323,7 @@ void P_Weapon_Use( edict_t *ent, const gitem_t *item ) {
 /**
 *   @brief  Called if the weapon item is wanted to be dropped by the player.
 **/
-void P_Weapon_Drop( edict_t *ent, const gitem_t *item ) {
+void SVG_Player_Weapon_Drop( edict_t *ent, const gitem_t *item ) {
     int     index;
 
     // Don't allow dropping in WEAPONS_STAY Deathmatch mode.
@@ -356,9 +356,9 @@ void P_Weapon_Drop( edict_t *ent, const gitem_t *item ) {
 *
 **/
 /**
-*   @brief  Wraps up the new more modern P_ProjectDistance.
+*   @brief  Wraps up the new more modern SVG_Player_ProjectDistance.
 **/
-void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
+void SVG_Player_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
     // Adjust distance to handedness.
     Vector3 _distance = distance;
     if ( ent->client->pers.hand == LEFT_HANDED ) {
@@ -373,7 +373,7 @@ void P_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forw
 /**
 *   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
 **/
-const Vector3 P_ProjectDistance( edict_t *ent, Vector3 &point, Vector3 &distance, Vector3 &forward, Vector3 &right ) {
+const Vector3 SVG_Player_ProjectDistance( edict_t *ent, Vector3 &point, Vector3 &distance, Vector3 &forward, Vector3 &right ) {
     // Adjust distance to handedness.
     Vector3 _distance = distance;
     if ( ent->client->pers.hand == LEFT_HANDED ) {
@@ -403,7 +403,7 @@ const Vector3 P_ProjectDistance( edict_t *ent, Vector3 &point, Vector3 &distance
 *          point as the final destination.
 *   @note   The forward vector is normalized.
 **/
-void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
+void SVG_Player_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
     // Adjust distance to handedness.
     Vector3 _distance = distance;
     if ( ent->client->pers.hand == LEFT_HANDED ) {
@@ -436,7 +436,7 @@ void P_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forwar
 /**
 *   @brief  Acts as a sub method for cleaner code, used by weapon item animation data precaching.
 **/
-void P_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const skm_anim_t *skmAnim, const int32_t modeID, const int32_t skmAnimationID ) {
+void SVG_Player_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const skm_anim_t *skmAnim, const int32_t modeID, const int32_t skmAnimationID ) {
     // Ensure modeID is valid.
     if ( modeID < 0 || modeID >= WEAPON_MODE_MAX ) {
         gi.dprintf( "%s: modeID(#%i) < 0 or >= WEAPON_MODE_MAX\n", __func__ );
@@ -458,7 +458,7 @@ void P_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const skm_anim
 /**
 *   @brief  Will switch the weapon to its 'newMode' if it can, unless enforced(force == true).
 **/
-void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_animation_t *weaponModeAnimations, const bool force = false ) {
+void SVG_Player_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_animation_t *weaponModeAnimations, const bool force = false ) {
     // Only switch if we're allowed to.
     if ( ( ent->client->weaponState.canChangeMode || force ) /* &&
         ( ent->client->weaponState.mode != ent->client->weaponState.oldMode )*/ ) {
@@ -499,7 +499,7 @@ void P_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapo
 /**
 *   @brief  Advances the animation of the 'mode' we're currently in.
 **/
-const bool P_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animation_t *weaponModeAnimation ) {
+const bool SVG_Player_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animation_t *weaponModeAnimation ) {
     // Debug print if we ever run into this, which we normally shouldn't.
     if ( !ent->client->pers.weapon ) {
         gi.dprintf( "%s: if ( !ent->client->pers.weapon) {..\n", __func__ );
@@ -607,24 +607,24 @@ void P_Weapon_DeterminePredictableEvents( edict_t *ent ) {
 }
 /**
 *   @brief  Perform the weapon's logical 'think' routine. This is Is either
-*           called by ClientBeginServerFrame or ClientThink.
+*           called by SVG_Client_BeginServerFrame or ClientThink.
 **/
-void P_Weapon_Think( edict_t *ent, const bool processUserInputOnly ) {
+void SVG_Player_Weapon_Think( edict_t *ent, const bool processUserInputOnly ) {
     // If we just died, put the weapon away.
     if ( ent->health < 1 ) {
         // Select no weapon.
         ent->client->newweapon = nullptr;
         // Apply an instant change since we're dead.
-        P_Weapon_Change( ent );
+        SVG_Player_Weapon_Change( ent );
         
-        // Escape, since we won't be performing any more weapon thinking from this point on until we respawn properly.
+        // Escape, since we won't be performing any more weapon thinking from this point on until we SVG_Client_Respawn properly.
         return;
     }
 
     #if 0
     if ( !ent->client->pers.weapon ) {
         if ( ent->client->newweapon ) {
-            P_Weapon_Change( ent );
+            SVG_Player_Weapon_Change( ent );
         }
         return;
     }

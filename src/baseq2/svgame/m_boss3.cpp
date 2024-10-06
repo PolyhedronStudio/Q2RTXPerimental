@@ -32,7 +32,7 @@ void Use_Boss3(edict_t *ent, edict_t *other, edict_t *activator)
     gi.WriteUint8(TE_BOSSTPORT);
     gi.WritePosition(ent->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     gi.multicast( ent->s.origin, MULTICAST_PHS, false );
-    G_FreeEdict(ent);
+    SVG_FreeEdict(ent);
 }
 
 void Think_Boss3Stand(edict_t *ent)
@@ -51,7 +51,7 @@ Just stands and cycles in one place until targeted, then teleports away.
 void SP_monster_boss3_stand(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

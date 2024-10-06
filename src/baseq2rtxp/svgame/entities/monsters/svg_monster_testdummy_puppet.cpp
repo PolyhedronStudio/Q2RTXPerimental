@@ -59,10 +59,10 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
             gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
             //! Throw 4 small meat gibs around.
             for ( int32_t n = 0; n < 4; n++ ) {
-                ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
+                SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
             }
             // Turn ourself into the thrown head entity.
-            ThrowHead( self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC );
+            SVG_Misc_ThrowHead( self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC );
 
             // Gibs don't take damage, but fade away as time passes.
             self->takedamage = DAMAGE_NO;

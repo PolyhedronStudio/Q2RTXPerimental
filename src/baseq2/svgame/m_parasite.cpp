@@ -308,7 +308,7 @@ void parasite_drain_attack(edict_t *self)
 
     AngleVectors(self->s.angles, f, r, NULL);
     VectorSet(offset, 24, 0, 6);
-    G_ProjectSource(self->s.origin, offset, f, r, start);
+    SVG_ProjectSource(self->s.origin, offset, f, r, start);
 
     VectorCopy(self->enemy->s.origin, end);
     if (!parasite_drain_attack_ok(start, end)) {
@@ -342,7 +342,7 @@ void parasite_drain_attack(edict_t *self)
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
 
     VectorSubtract(start, end, dir);
-    T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_UNKNOWN);
+    SVG_TriggerDamage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_UNKNOWN);
 }
 
 mframe_t parasite_frames_drain [] = {
@@ -455,10 +455,10 @@ void parasite_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 2; n++)
-            ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/bone/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+        SVG_Misc_ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
         self->deadflag = DEADFLAG_DEAD;
         return;
     }
@@ -484,7 +484,7 @@ End Death Stuff
 void SP_monster_parasite(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

@@ -327,7 +327,7 @@ void TankBlaster(edict_t *self)
         flash_number = MZ2_TANK_BLASTER_3;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, end);
     end[2] += self->enemy->viewheight;
@@ -357,7 +357,7 @@ void TankRocket(edict_t *self)
         flash_number = MZ2_TANK_ROCKET_3;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, vec);
     vec[2] += self->enemy->viewheight;
@@ -378,7 +378,7 @@ void TankMachineGun(edict_t *self)
     flash_number = MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406);
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     if (self->enemy) {
         VectorCopy(self->enemy->s.origin, vec);
@@ -719,11 +719,11 @@ void tank_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
     if (self->health <= self->gib_health) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
         for (n = 0; n < 1 /*4*/; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", damage, GIB_TYPE_METALLIC);
-        ThrowGib(self, "models/objects/gibs/chest/tris.md2", damage, GIB_TYPE_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/gear/tris.md2", damage, GIB_TYPE_METALLIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", damage, GIB_TYPE_METALLIC);
+        SVG_Misc_ThrowGib(self, "models/objects/gibs/chest/tris.md2", damage, GIB_TYPE_ORGANIC);
+        SVG_Misc_ThrowHead(self, "models/objects/gibs/gear/tris.md2", damage, GIB_TYPE_METALLIC);
         self->deadflag = DEADFLAG_DEAD;
         return;
     }
@@ -752,7 +752,7 @@ void tank_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
 void SP_monster_tank(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

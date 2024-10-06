@@ -134,7 +134,7 @@ void M_WorldEffects( edict_t *ent ) {
 					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).seconds( ) ) );
                     if (dmg > 15)
                         dmg = 15;
-                    T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
+                    SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
                     ent->pain_debounce_time = level.time + 1_sec;
                 }
             }
@@ -147,7 +147,7 @@ void M_WorldEffects( edict_t *ent ) {
 					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).seconds( ) ) );
                     if (dmg > 15)
                         dmg = 15;
-                    T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
+                    SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
                     ent->pain_debounce_time = level.time + 1_sec;
                 }
             }
@@ -165,13 +165,13 @@ void M_WorldEffects( edict_t *ent ) {
     if ((ent->liquidInfo.type & CONTENTS_LAVA) && !(ent->flags & FL_IMMUNE_LAVA)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 0.2_sec;
-            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidInfo.level, 0, 0, MEANS_OF_DEATH_LAVA );
+            SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidInfo.level, 0, 0, MEANS_OF_DEATH_LAVA );
         }
     }
     if ((ent->liquidInfo.type & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 1_sec;
-            T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidInfo.level, 0, 0, MEANS_OF_DEATH_SLIME );
+            SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidInfo.level, 0, 0, MEANS_OF_DEATH_SLIME );
         }
     }
 

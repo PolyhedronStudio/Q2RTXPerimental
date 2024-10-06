@@ -485,7 +485,7 @@ void supertankRocket(edict_t *self)
         flash_number = MZ2_SUPERTANK_ROCKET_3;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, vec);
     vec[2] += self->enemy->viewheight;
@@ -511,7 +511,7 @@ void supertankMachineGun(edict_t *self)
     dir[2] = 0;
 
     AngleVectors(dir, forward, right, NULL);
-    G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     if (self->enemy) {
         VectorCopy(self->enemy->s.origin, vec);
@@ -610,11 +610,11 @@ void BossExplode(edict_t *self)
     case 8:
         self->s.sound = 0;
         for (n = 0; n < 4; n++)
-            ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", 500, GIB_TYPE_ORGANIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", 500, GIB_TYPE_ORGANIC);
         for (n = 0; n < 8; n++)
-            ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", 500, GIB_TYPE_METALLIC);
-        ThrowGib(self, "models/objects/gibs/chest/tris.md2", 500, GIB_TYPE_ORGANIC);
-        ThrowHead(self, "models/objects/gibs/gear/tris.md2", 500, GIB_TYPE_METALLIC);
+            SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", 500, GIB_TYPE_METALLIC);
+        SVG_Misc_ThrowGib(self, "models/objects/gibs/chest/tris.md2", 500, GIB_TYPE_ORGANIC);
+        SVG_Misc_ThrowHead(self, "models/objects/gibs/gear/tris.md2", 500, GIB_TYPE_METALLIC);
         self->deadflag = DEADFLAG_DEAD;
         return;
     }
@@ -646,7 +646,7 @@ void supertank_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int dam
 void SP_monster_supertank(edict_t *self)
 {
     if (deathmatch->value) {
-        G_FreeEdict(self);
+        SVG_FreeEdict(self);
         return;
     }
 

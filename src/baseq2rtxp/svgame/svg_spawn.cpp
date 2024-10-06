@@ -599,7 +599,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
     }
 
     // If we were running a previous session, make sure to save the session's client data.
-    SaveClientData();
+    SVG_SaveClientData();
 
     // Free up all SVGAME_LEVEL tag memory.
     gi.FreeTags(TAG_SVGAME_LEVEL);
@@ -965,7 +965,7 @@ void SP_worldspawn(edict_t *ent)
     //---------------
 
     // reserve some spots for dead player bodies for coop / deathmatch
-    InitBodyQue();
+    SVG_InitBodyQue();
 
     // set configstrings for items
     SetItemNames();

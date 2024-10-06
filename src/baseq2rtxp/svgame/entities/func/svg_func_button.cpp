@@ -555,7 +555,8 @@ void SP_func_button( edict_t *ent ) {
     abs_movedir[ 2 ] = fabsf( ent->movedir[ 2 ] );
     ent->pushMoveInfo.distance = abs_movedir[ 0 ] * ent->size[ 0 ] + abs_movedir[ 1 ] * ent->size[ 1 ] + abs_movedir[ 2 ] * ent->size[ 2 ] - st.lip;
     // Translate the determined move distance into the move direction to get pos2, our move end origin.
-    ent->pos2 = QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );
+    //ent->pos2 = QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );
+    ent->pos2 = QM_Vector3MultiplyAdd( ent->movedir, ent->pushMoveInfo.distance, ent->pos1 );
 
     // Default trigger callback.
     ent->use = button_use;

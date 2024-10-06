@@ -27,7 +27,7 @@ INTERMISSION
 ======================================================================
 */
 
-void MoveClientToIntermission(edict_t *ent)
+void SVG_HUD_MoveClientToIntermission(edict_t *ent)
 {
     if ( deathmatch->value || coop->value ) {
         ent->client->showscores = true;
@@ -75,13 +75,13 @@ void MoveClientToIntermission(edict_t *ent)
 
     // add the layout
     if (deathmatch->value || coop->value) {
-        DeathmatchScoreboardMessage(ent, NULL);
+        SVG_HUD_DeathmatchScoreboardMessage(ent, NULL);
         gi.unicast(ent, true);
     }
 
 }
 
-void BeginIntermission(edict_t *targ)
+void SVG_HUD_BeginIntermission(edict_t *targ)
 {
     int     i = 0;
     edict_t *ent = nullptr;
@@ -92,13 +92,13 @@ void BeginIntermission(edict_t *targ)
 
     game.autosaved = false;
 
-    // respawn any dead clients
+    // SVG_Client_Respawn any dead clients
     for (i = 0 ; i < maxclients->value ; i++) {
         client = g_edicts + 1 + i;
         if (!client->inuse)
             continue;
         if (client->health <= 0)
-            respawn(client);
+            SVG_Client_Respawn(client);
     }
 
     level.intermission_framenum = level.framenum;
@@ -154,18 +154,18 @@ void BeginIntermission(edict_t *targ)
         client = g_edicts + 1 + i;
         if (!client->inuse)
             continue;
-        MoveClientToIntermission(client);
+        SVG_HUD_MoveClientToIntermission(client);
     }
 }
 
 
 /*
 ==================
-DeathmatchScoreboardMessage
+SVG_HUD_DeathmatchScoreboardMessage
 
 ==================
 */
-void DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
+void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 {
     char    entry[1024];
     char    string[1400];
@@ -292,21 +292,21 @@ Draw instead of help message.
 Note that it isn't that hard to overflow the 1400 byte message limit!
 ==================
 */
-void DeathmatchScoreboard(edict_t *ent)
+void SVG_HUD_DeathmatchScoreboard(edict_t *ent)
 {
-    DeathmatchScoreboardMessage(ent, ent->enemy);
+    SVG_HUD_DeathmatchScoreboardMessage(ent, ent->enemy);
     gi.unicast(ent, true);
 }
 
 
 /*
 ==================
-Cmd_Score_f
+SVG_Cmd_Score_f
 
 Display the scoreboard
 ==================
 */
-void Cmd_Score_f(edict_t *ent)
+void SVG_Command_Score_f(edict_t *ent)
 {
     ent->client->showinventory = false;
     ent->client->showhelp = false;
@@ -320,13 +320,13 @@ void Cmd_Score_f(edict_t *ent)
     }
 
     ent->client->showscores = true;
-    DeathmatchScoreboard(ent);
+    SVG_HUD_DeathmatchScoreboard(ent);
 }
 
 //=======================================================================
 
 /**
-*   @brief  Specific 'Weaponry' substitute function for SVG_SetStats.
+*   @brief  Specific 'Weaponry' substitute function for SVG_HUD_SetStats.
 **/
 void SVG_SetWeaponStats( edict_t *ent ) {
     //
@@ -390,7 +390,7 @@ void SVG_SetWeaponStats( edict_t *ent ) {
 /**
 *   @brief  Will update the client's player_state_t stats array with the current client entity's values.
 **/
-void SVG_SetStats(edict_t *ent) {
+void SVG_HUD_SetStats(edict_t *ent) {
     //
     // Health
     //
@@ -509,10 +509,10 @@ void SVG_SetStats(edict_t *ent) {
 
 /*
 ===============
-SVG_CheckChaseStats
+SVG_HUD_CheckChaseStats
 ===============
 */
-void SVG_CheckChaseStats(edict_t *ent)
+void SVG_HUD_CheckChaseStats(edict_t *ent)
 {
     int i;
     gclient_t *cl;
@@ -522,21 +522,21 @@ void SVG_CheckChaseStats(edict_t *ent)
         if (!g_edicts[i].inuse || cl->chase_target != ent)
             continue;
         memcpy(cl->ps.stats, ent->client->ps.stats, sizeof(cl->ps.stats));
-        SVG_SetSpectatorStats(g_edicts + i);
+        SVG_HUD_SetSpectatorStats(g_edicts + i);
     }
 }
 
 /*
 ===============
-SVG_SetSpectatorStats
+SVG_HUD_SetSpectatorStats
 ===============
 */
-void SVG_SetSpectatorStats(edict_t *ent)
+void SVG_HUD_SetSpectatorStats(edict_t *ent)
 {
     gclient_t *cl = ent->client;
 
     if (!cl->chase_target)
-        SVG_SetStats(ent);
+        SVG_HUD_SetStats(ent);
 
     // If this function was called, enable spectator mode stats.
     cl->ps.stats[STAT_SPECTATOR] = 1;

@@ -21,13 +21,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 /*
 ============
-CanDamage
+SVG_CanDamage
 
 Returns true if the inflictor can directly damage the target.  Used for
 explosions and melee attacks.
 ============
 */
-bool CanDamage(edict_t *targ, edict_t *inflictor)
+const bool SVG_CanDamage(edict_t *targ, edict_t *inflictor)
 {
     vec3_t  dest;
     trace_t trace;
@@ -161,7 +161,7 @@ void SpawnDamage(int type, const vec3_t origin, const vec3_t normal, int damage)
 
 /*
 ============
-T_Damage
+SVG_TriggerDamage
 
 targ        entity that is being damaged
 inflictor   entity that is causing the damage
@@ -174,7 +174,7 @@ normal      normal vector from that point
 damage      amount of damage being inflicted
 knockback   force to be applied against targ as a result of the damage
 
-dflags      these flags are used to control how T_Damage works
+dflags      these flags are used to control how SVG_TriggerDamage works
     DAMAGE_RADIUS           damage was indirect (from a nearby explosion)
     DAMAGE_NO_ARMOR         armor does not protect from this damage
     DAMAGE_ENERGY           damage is from an energy based weapon
@@ -269,7 +269,7 @@ bool CheckTeamDamage(edict_t *targ, edict_t *attacker)
     return false;
 }
 
-void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const int32_t dflags, const sg_means_of_death_t meansOfDeath ) {
+void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const int32_t dflags, const sg_means_of_death_t meansOfDeath ) {
     // Final means of death.
     sg_means_of_death_t finalMeansOfDeath = meansOfDeath;
     
@@ -290,7 +290,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
     // If enabled you can't hurt teammates (but you can hurt yourself)
     // Knockback still occurs.
     if ((targ != attacker) && ((deathmatch->value && ((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS))) || (coop->value && targ->client))) {
-        if (OnSameTeam(targ, attacker)) {
+        if (SVG_OnSameTeam(targ, attacker)) {
             if ( (int)( dmflags->value ) & DF_NO_FRIENDLY_FIRE ) {
                 finalDamage = 0;
             } else {
@@ -467,17 +467,17 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 
 /*
 ============
-T_RadiusDamage
+SVG_RadiusDamage
 ============
 */
-void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath ) 
+void SVG_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath ) 
 {
     float   points;
     edict_t *ent = NULL;
     vec3_t  v;
     vec3_t  dir;
 
-    while ((ent = findradius(ent, inflictor->s.origin, radius)) != NULL) {
+    while ((ent = SVG_FindWithinRadius(ent, inflictor->s.origin, radius)) != NULL) {
         if (ent == ignore)
             continue;
         if (!ent->takedamage)
@@ -490,9 +490,9 @@ void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t
         if (ent == attacker)
             points = points * 0.5f;
         if (points > 0) {
-            if (CanDamage(ent, inflictor)) {
+            if (SVG_CanDamage(ent, inflictor)) {
                 VectorSubtract(ent->s.origin, inflictor->s.origin, dir);
-                T_Damage(ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, meansOfDeath );
+                SVG_TriggerDamage(ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, meansOfDeath );
             }
         }
     }
