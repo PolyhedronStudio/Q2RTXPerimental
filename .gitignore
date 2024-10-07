@@ -56,7 +56,9 @@ baseq2rtxp/**/*.txt
 /baseq2/textures/
 /baseq2/.conhistory
 /CMakeSettings.json
-/baseq2rtxp/maps
+
+/baseq2rtxp/maps/*.bsp
+!/baseq2q2rtxp/maps/scripts/*.lua
 /baseq2rtxp/materials
 /baseq2rtxp/textures/
 /baseq2rtxp/.conhistory

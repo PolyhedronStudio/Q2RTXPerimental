@@ -172,12 +172,12 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 	if ( loadResult == LUA_OK ) {
 		// Execute the code.
 		if ( lua_pcall( lMapState, 0, 0, 0 ) == LUA_OK ) {
-			// Set interpreted to true.
-			mapScriptInterpreted = true;
 			// Debug:
 			Lua_DeveloperPrintf( "%s: Succesfully interpreted buffer\n", __func__ );
 			// Remove the code buffer, pop it from stack.
 			lua_pop( lMapState, lua_gettop( lMapState ) );
+			// Set interpreted to true.
+			mapScriptInterpreted = true;
 			// Success:
 			return true;
 		// Failure:
@@ -185,7 +185,11 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 			// Get error.
 			const std::string errorStr = lua_tostring( lMapState, lua_gettop( lMapState ) );
 			// Output.
-			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
+			if ( fileName ) {
+				LUA_ErrorPrintf( "%s: %s\n", __func__, fileName, errorStr.c_str() );
+			} else {
+				LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
+			}
 			// Remove the function from the stack
 			lua_pop( lMapState, lua_gettop( lMapState ) );
 		}
@@ -194,9 +198,9 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 		const std::string errorStr = lua_tostring( lMapState, lua_gettop( lMapState ) );
 		// Output.
 		if ( fileName ) {
-			LUA_ErrorPrintf( "%s: Error compiling buffer(%s): %s\n", __func__, fileName, errorStr.c_str() );
+			LUA_ErrorPrintf( "%s: %s\n", __func__, fileName, errorStr.c_str() );
 		} else {
-			LUA_ErrorPrintf( "%s: Error compiling buffer(raw): %s\n", __func__, errorStr.c_str() );
+			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
 		}
 		// Remove the function from the stack
 		lua_pop( lMapState, lua_gettop( lMapState ) );

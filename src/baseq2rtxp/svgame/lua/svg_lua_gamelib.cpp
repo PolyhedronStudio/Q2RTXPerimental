@@ -9,7 +9,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_lua.h"
-
+#include "svgame/entities/svg_entities_pushermove.h"
 
 
 /**
@@ -414,4 +414,24 @@ void GameLib_Initialize( lua_State *L ) {
 	if ( luaL_dostring( L, "Core.DPrint(\"Initialized Lua GameLib\n\"" ) == LUA_OK ) {
 		lua_pop( L, lua_gettop( L ) );
 	}
+
+	/**
+	*	Register all global constants.
+	**/
+	// WID: TODO: We don't use these yet, do we even need them?
+	// Door Toggle Types:
+	LUA_RegisterGlobalConstant( L, "DOOR_TOGGLE_CLOSE<const>", static_cast<const lua_Integer>( 0 ) );
+	LUA_RegisterGlobalConstant( L, "DOOR_TOGGLE_OPEN<const>", static_cast<const lua_Integer>( 1 ) );
+
+	// PushMoveInfo States:
+	LUA_RegisterGlobalConstant( L, "PUSHMOVE_STATE_TOP<const>", static_cast<const lua_Integer>( PUSHMOVE_STATE_TOP ) );
+	LUA_RegisterGlobalConstant( L, "PUSHMOVE_STATE_BOTTOM<const>", static_cast<const lua_Integer>( PUSHMOVE_STATE_BOTTOM ) );
+	LUA_RegisterGlobalConstant( L, "PUSHMOVE_STATE_MOVING_UP<const>", static_cast<const lua_Integer>( PUSHMOVE_STATE_MOVING_UP ) );
+	LUA_RegisterGlobalConstant( L, "PUSHMOVE_STATE_MOVING_DOWN<const>", static_cast<const lua_Integer>( PUSHMOVE_STATE_MOVING_DOWN ) );
+
+	// UseTarget Types:
+	LUA_RegisterGlobalConstant( L, "ENTITY_USETARGET_TYPE_OFF<const>", static_cast<const lua_Integer>( ENTITY_USETARGET_TYPE_OFF ) );
+	LUA_RegisterGlobalConstant( L, "ENTITY_USETARGET_TYPE_ON<const>", static_cast<const lua_Integer>( ENTITY_USETARGET_TYPE_ON ) );
+	LUA_RegisterGlobalConstant( L, "ENTITY_USETARGET_TYPE_SET<const>", static_cast<const lua_Integer>( ENTITY_USETARGET_TYPE_SET ) );
+	LUA_RegisterGlobalConstant( L, "ENTITY_USETARGET_TYPE_TOGGLE<const>", static_cast<const lua_Integer>( ENTITY_USETARGET_TYPE_TOGGLE ) );
 }

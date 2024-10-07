@@ -52,6 +52,53 @@ static inline const bool LUA_HasFunction( lua_State *L, const std::string &funct
 	return isFunction;
 }
 
+/**
+*	@brief	Returns true if the global is already defined.
+**/
+static inline const bool LUA_IsGlobalDefined( lua_State *L, const char *name ) {
+	lua_getglobal( L, name );
+	const bool result = lua_isnone( L, -1 );
+	lua_pop( L, -1 );
+	return result;
+}
+/**
+*	@brief
+**/
+static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lua_Integer integer ) {
+	if ( LUA_IsGlobalDefined( L, name ) ) {
+		Lua_DeveloperPrintf( "%s: Global '%s' already defined!\n", __func__, name );
+		return;
+	}
+
+	lua_pushinteger( L, integer );
+	lua_setglobal( L, name );
+}
+/**
+*	@brief
+**/
+static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lua_Number number ) {
+	if ( LUA_IsGlobalDefined( L, name ) ) {
+		Lua_DeveloperPrintf( "%s: Global '%s' already defined!\n", __func__, name );
+		return;
+	}
+
+	lua_pushnumber( L, number );
+	lua_setglobal( L, name );
+}
+
+/**
+*	@brief
+**/
+static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const char *str ) {
+	if ( LUA_IsGlobalDefined( L, name ) ) {
+		Lua_DeveloperPrintf( "%s: Global '%s' already defined!\n", __func__, name );
+		return;
+	}
+
+	lua_pushlstring( L, str, strlen( str ) );
+	lua_setglobal( L, name );
+}
+
 //! For calling into LUA functions:
 #include "svgame/lua/svg_lua_callfunction.hpp"
 //! For signaling.
@@ -70,6 +117,7 @@ static inline const bool LUA_HasFunction( lua_State *L, const std::string &funct
 *
 *
 **/
+
 /**
 *	@brief
 **/
@@ -78,6 +126,7 @@ void SVG_Lua_Initialize();
 *	@brief
 **/
 void SVG_Lua_Shutdown();
+
 /**
 *	@brief	Returns a pointer to the Lua State(Thread) that handles the map logic.
 **/
@@ -90,6 +139,8 @@ inline const bool SVG_Lua_IsMapScriptInterpreted();
 *	@brief
 **/
 void SVG_Lua_LoadMapScript( const std::string &scriptName );
+
+
 
 
 

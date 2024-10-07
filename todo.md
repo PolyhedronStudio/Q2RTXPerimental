@@ -41,6 +41,7 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 			- [ ] Technically, it's probably easier to just use code for this since it allwos for more control as well. 
 		- [ ] Animation Events, ``animevent "(animname)" (animframe) (client/server/both) "(animevent data, can be a string)"``
 		- [X] Animation Root Motion Translate axes, animrootbonetranslate "animname" ``TRANSLATE_X/TRANSLATE_Y/TRANSLATE_Z``
+		- [ ] Perhaps, an optional lua animation state machine script?
 	- [X] 1. The shared game code needs and is responsible for a ``Pose API`` which essentially is capable of:
 			- Taking an animation from Pose A, and blend it into Pose B starting from a specified bone.
 			- This'll use a simple memory cache that grows in POW2 size whenever there isn't enough space to be used.
@@ -144,6 +145,22 @@ These are things to fix, or randomly implement(features, ideas), but definitely 
 * [ ] Look into JoltPhysics and see if it's something realistic for Jolt Physics.
 	* [ ] If that fails, look into some library to deal with at least 'tracing' through geometric shapes properly.
 
+## Bugfixes: 
+Ideally this list would never exist, but in this world we can't have it all so, let me introduce you to a highly most pleasant list of bugs to fix!
+### Highest:
+* [x] None
+### High Priority:
+* [X] Ladders from within water, simply isn't working. Likely related to the recent ground entity changes.
+### Medium Priority:
+* [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
+* [X] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
+	- [X] Filter so it doesn't clip to all entities.
+### Low Priority:
+* [ ] Buttons, angles, and movedir, seems 90 deg off?? wtf??
+* [x] None
+### Lowest, nearly redundant Priority:
+* [ ] Remove the if statement for cl_batchcmds in the (client/input.c)``ready_to_send``_to re-enable the bug for batched commands movement. The bug is that pushers have a steady pattern of 'spiking', moving neatly 5 units a frame as expected up to suddenly the double.
+
 ## Resources:
 ### Audio:
 * [X] Replace pain25 up to pain100 audio files. (And/or rework its code a bit.)
@@ -162,21 +179,6 @@ These are things to fix, or randomly implement(features, ideas), but definitely 
 * [ ] Get ourselves some environment props to use for ``client_misc_model`` decorating purposes.
 ### Textures:
 * [ ] Find some consistent themed PBR texture set?
-
-## Bugfixes: 
-Ideally this list would never exist, but in this world we can't have it all so, let me introduce you to a highly most pleasant list of bugs to fix!
-### Highest:
-* [x] None
-### High Priority:
-* [X] Ladders from within water, simply isn't working. Likely related to the recent ground entity changes.
-### Medium Priority:
-* [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
-* [X] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
-	- [X] Filter so it doesn't clip to all entities.
-### Low Priority:
-* [x] None
-### Lowest, nearly redundant Priority:
-* [ ] Remove the if statement for cl_batchcmds in the (client/input.c)``ready_to_send``_to re-enable the bug for batched commands movement. The bug is that pushers have a steady pattern of 'spiking', moving neatly 5 units a frame as expected up to suddenly the double.
 
 ## Wishlist:
 Content Related:

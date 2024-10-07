@@ -22,6 +22,8 @@ static constexpr int32_t DOOR_STATE_CLOSED = PUSHMOVE_STATE_BOTTOM;
 static constexpr int32_t DOOR_STATE_MOVING_TO_OPENED_STATE = PUSHMOVE_STATE_MOVING_UP;
 static constexpr int32_t DOOR_STATE_MOVING_TO_CLOSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
 
+
+
 /*
 ======================================================================
 
@@ -129,15 +131,12 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
 *   @brief  Signal Receiving:
 **/
 void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName ) {
-    //// Also check for signals on the lua side.
-    //SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), self, other, activator, signalName );
-
     // DoorOpen:
     if ( Q_strcasecmp( signalName, "DoorOpen" ) == 0 ) {
         self->activator = activator;
         self->other = other;
-        //door_open_move( self );
-        // signal all paired doors
+
+        // Signal all paired doors to open. (Presuming they are the same state, closed)
         door_team_toggle( self, other, activator, true );
     }
     // DoorClose:
@@ -145,14 +144,16 @@ void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const c
         self->activator = activator;
         self->other = other;
 
-        //door_close_move( self );
-        // signal all paired doors
+        // Signal all paired doors to close. (Presuming they are the same state, opened)
         door_team_toggle( self, other, activator, false );
     }
 
-    //const int32_t otherNumber = ( other ? other->s.number : -1 );
-    //const int32_t activatorNumber= ( activator ? activator->s.number : -1 );
-    //gi.dprintf( "door_onsignalin[ self(#%d), \"%s\", other(#%d), activator(%d) ]\n", self->s.number, signalName, otherNumber, activatorNumber );
+    // WID: Useful for debugging.
+    #if 0
+    const int32_t otherNumber = ( other ? other->s.number : -1 );
+    const int32_t activatorNumber= ( activator ? activator->s.number : -1 );
+    gi.dprintf( "door_onsignalin[ self(#%d), \"%s\", other(#%d), activator(%d) ]\n", self->s.number, signalName, otherNumber, activatorNumber );
+    #endif
 }
 
 

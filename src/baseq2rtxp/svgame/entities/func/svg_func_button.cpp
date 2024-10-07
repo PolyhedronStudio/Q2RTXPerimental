@@ -13,7 +13,6 @@
 #include "svgame/entities/func/svg_func_button.h"
 
 
-
 // WID: TODO: The audio file we got is ugly so lol...
 #define FUNC_BUTTON_ENABLE_END_SOUND 1
 
