@@ -121,6 +121,11 @@ static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const ch
 /**
 *	@brief
 **/
+void SVG_Lua_DumpStack( lua_State *L );
+
+/**
+*	@brief
+**/
 void SVG_Lua_Initialize();
 /**
 *	@brief

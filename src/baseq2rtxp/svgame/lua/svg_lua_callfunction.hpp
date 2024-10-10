@@ -104,10 +104,10 @@ static inline void LUA_CallFunction_PushStackValue( lua_State *L, const std::str
 *	@note	One has to deal and pop return values themselves.
 **/
 template <typename... Rest> 
-static const bool LUA_CallFunction( lua_State *L, const std::string &functionName, const int32_t numReturnValues,  
-	const int32_t numExpectedArgs = 0, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_NOT,
+static const bool LUA_CallFunction( lua_State *L, const std::string &functionName, 
+	const int32_t numExpectedArgs = 0, const int32_t numReturnValues = 0, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_NOT,
 	const Rest&... rest ) {
-
+	
 	bool executedSuccessfully = false;
 
 	if ( !L || functionName.empty() ) {
@@ -132,19 +132,25 @@ static const bool LUA_CallFunction( lua_State *L, const std::string &functionNam
 		int32_t pCallReturnValue = lua_pcall( L, sizeof...( Rest ), numReturnValues, 0 );
 		if ( pCallReturnValue == LUA_OK ) {
 			// Pop function name from stack.
-			//lua_pop( L, lua_gettop( L ) );
+			if ( numReturnValues >= 1 && lua_gettop( L ) != numReturnValues ) {
+				//luaL_error( L, "%s: returned (#%d) return values, but (#%d) number of return values were expected",
+				//	__func__, lua_gettop( L ), numReturnValues );
+				LUA_ErrorPrintf( "%s: returned (#%d) return values, but (#%d) number of return values were expected",
+					__func__, lua_gettop( L ), numReturnValues );
+			}
+
 			// Success.
 			executedSuccessfully = true;
 		} else {
 			// Get error.
 			const std::string errorStr = lua_tostring( L, -1 );
 			// Remove the errorStr from the stack
-			lua_pop( L, -1 );
+			lua_pop( L, lua_gettop( L ) );
 			// Print Error Notification.
 			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
 		}
 	} else {
-		// Pop function name from stack.
+		// Remove the errorStr from the stack
 		lua_pop( L, lua_gettop( L ) );
 		// There are use cases where we don't want to report an actual error and it is 
 		// just fine if the function does not exist at all.

@@ -57,7 +57,6 @@ static const bool SVG_Lua_SignalOut( lua_State *L, edict_t *ent, edict_t *other,
 		lua_Integer retval = lua_toboolean( L, -1 );
 		// Did signal return true?
 		if ( static_cast<bool>( retval ) == true ) {
-			//lua_pop( L, 1 );
 			// Pop stack.
 			lua_pop( L, lua_gettop( L ) );
 			return true;

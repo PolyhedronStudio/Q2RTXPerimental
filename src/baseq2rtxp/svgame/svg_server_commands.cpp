@@ -16,13 +16,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "svg_local.h"
-
+#include "svgame/svg_local.h"
+#include "svgame/svg_lua.h"
 
 void    ServerCommand_Test_f(void)
 {
     gi.cprintf(NULL, PRINT_HIGH, "ServerCommand_Test_f()\n");
 }
+
 
 /*
 ==============================================================================
@@ -287,17 +288,17 @@ void    SVG_ServerCommand(void)
     char    *cmd;
 
     cmd = gi.argv(1);
-    if (Q_stricmp(cmd, "test") == 0)
+    if ( Q_stricmp( cmd, "test" ) == 0 )
         ServerCommand_Test_f();
-    else if (Q_stricmp(cmd, "addip") == 0)
+    else if ( Q_stricmp( cmd, "addip" ) == 0 )
         ServerCommand_AddIP_f();
-    else if (Q_stricmp(cmd, "removeip") == 0)
+    else if ( Q_stricmp( cmd, "removeip" ) == 0 )
         ServerCommand_RemoveIP_f();
-    else if (Q_stricmp(cmd, "listip") == 0)
+    else if ( Q_stricmp( cmd, "listip" ) == 0 )
         ServerCommand_ListIP_f();
-    else if (Q_stricmp(cmd, "writeip") == 0)
+    else if ( Q_stricmp( cmd, "writeip" ) == 0 )
         ServerCommand_WriteIP_f();
     else
-        gi.cprintf(NULL, PRINT_HIGH, "Unknown server command \"%s\"\n", cmd);
+        gi.cprintf( NULL, PRINT_HIGH, "Unknown server command \"%s\"\n", cmd );
 }
 

@@ -15,8 +15,22 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-#include "svg_local.h"
-#include "player/svg_m_player.h"
+#include "svgame/svg_local.h"
+#include "svgame/player/svg_m_player.h"
+#include "svgame/svg_lua.h"
+
+
+/**
+*	@brief
+**/
+/**
+*	@brief
+**/
+void SVG_Lua_DumpStack( lua_State *L );
+void SVG_Command_Lua_DumpStack( void ) {
+    // Dump stack.
+    SVG_Lua_DumpStack( SVG_Lua_GetMapLuaState() );
+}
 
 
 char *ClientTeam(edict_t *ent)
@@ -870,9 +884,9 @@ void ClientCommand( edict_t *ent ) {
         SVG_Command_WeapLast_f( ent );
     } else if ( Q_stricmp( cmd, "putaway" ) == 0 ) {
         SVG_Command_PutAway_f( ent );
-        //
-        // 'Cheats':
-        //
+    //
+    // 'Cheats':
+    //
     } else if ( Q_stricmp( cmd, "give" ) == 0 ) {
         SVG_Command_Give_f( ent );
     } else if ( Q_stricmp( cmd, "god" ) == 0 ) {
@@ -881,18 +895,23 @@ void ClientCommand( edict_t *ent ) {
         SVG_Command_Notarget_f( ent );
     } else if ( Q_stricmp( cmd, "noclip" ) == 0 ) {
         SVG_Command_Noclip_f( ent );
-        //
-        // Other:
-        //
+    //
+    // Lua:
+    // 
+    } else if ( Q_stricmp( cmd, "lua_dumpstack" ) == 0 ) {
+        SVG_Command_Lua_DumpStack();
+    //
+    // Other:
+    //
     } else if ( Q_stricmp( cmd, "kill" ) == 0 ) {
         SVG_Command_Kill_f( ent );
     } else if ( Q_stricmp( cmd, "playerlist" ) == 0 ) {
         SVG_Command_PlayerList_f( ent );
     } else if ( Q_stricmp( cmd, "weapflare" ) == 0 ) {
         SVG_Command_WeapFlare_f( ent );
-        //
-        // Anything that doesn't match a command will be a chat.
-        //
+    //
+    // Anything that doesn't match a command will be a chat.
+    //
     } else {
         SVG_Command_Say_f( ent, false, true );
     }

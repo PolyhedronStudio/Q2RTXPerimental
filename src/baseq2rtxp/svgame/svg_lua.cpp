@@ -114,6 +114,51 @@ void CoreLib_Initialize( lua_State *L );
 *
 **/
 /**
+*	@brief	
+**/
+void SVG_Lua_DumpStack( lua_State *L ) {
+	// Need a valid loaded script.
+	if ( !SVG_Lua_IsMapScriptInterpreted() ) {
+		return;
+	}
+
+	// Output func name.
+	gi.dprintf( "-----------  Lua StackDump  ------------\n" );
+
+	// Get top stack number.
+	const int32_t  top = lua_gettop( L );
+	// Iterate to top of stack.
+	for ( int32_t i = 1; i <= top; i++ ) {  /* repeat for each level */
+		// Get type.
+		const int32_t t = lua_type( L, i );
+		// Act based on type.
+		switch ( t ) {
+
+		// strings:
+		case LUA_TSTRING:
+			gi.dprintf( "idx[#%d] : value[ `%s' ]\n", i, lua_tostring( L, i ) );
+			break;
+		// booleans:
+		case LUA_TBOOLEAN:
+			gi.dprintf( "idx[#%d] : value[ %s ]\n", i, lua_toboolean( L, i ) ? "true" : "false" );
+			break;
+		// numbers:
+		case LUA_TNUMBER:
+			gi.dprintf( "idx[#%d] : value[ %g ]\n", i, lua_tonumber( L, i ) );
+			break;
+		
+		// other values:
+		default:
+			gi.dprintf( "idx[#%d] : value[ %s ]\n", i, lua_typename( L, t ) );
+			break;
+		}
+	}
+
+	// End of stack dump.
+	gi.dprintf( "----------------------------------------\n" );
+}
+
+/**
 *	@brief
 **/
 void SVG_Lua_Initialize() {
@@ -301,7 +346,7 @@ void SVG_Lua_CallBack_ExitMap() {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnExitMap", 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/);
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnExitMap", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/);
 	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
 	// Pop remaining stack.
@@ -353,7 +398,7 @@ void SVG_Lua_CallBack_BeginServerFrame() {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnBeginServerFrame", 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnBeginServerFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
 	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
 	// Pop remaining stack.
@@ -380,7 +425,7 @@ void SVG_Lua_CallBack_EndServerFrame() {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnEndServerFrame", 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnEndServerFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
 	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
 	// Pop remaining stack.
