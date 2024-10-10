@@ -320,7 +320,7 @@ void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity ) {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnClientEnterLevel", 1, LUA_CALLFUNCTION_VERBOSE_MISSING, 
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnClientEnterLevel", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
 		/*[lua args]:*/clientEntity );
 	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
@@ -334,7 +334,7 @@ void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity ) {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnClientExitLevel", 1, LUA_CALLFUNCTION_VERBOSE_MISSING, 
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnClientExitLevel", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
 		/*[lua args]:*/ clientEntity );
 	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );
@@ -366,7 +366,7 @@ void SVG_Lua_CallBack_RunFrame() {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( lMapState, "OnRunFrame", 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
+	const bool calledFunction = LUA_CallFunction( lMapState, "OnRunFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
 		/*[lua args]:*/ level.framenum );
 	// Pop the bool from stack.
 	lua_pop( lMapState, 1 );

@@ -87,7 +87,7 @@ void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const enti
         const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_Use";
         // Call if it exists.
         if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
-            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
+            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
                 /*[lua args]:*/ self, other, activator, useType, useValue );
         }
     }
@@ -252,26 +252,30 @@ void door_close_move( edict_t *self ) {
 *	@brief
 **/
 void door_open_move( edict_t *self/*, edict_t *activator */) {
-    if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE )
+    if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE ) {
         return;     // already going up
+    }
 
     if ( self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
         // reset top wait time
-        if ( self->pushMoveInfo.wait >= 0 )
+        if ( self->pushMoveInfo.wait >= 0 ) {
             self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
+        }
         return;
     }
 
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sound_start )
+        if ( self->pushMoveInfo.sound_start ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
+        }
         self->s.sound = self->pushMoveInfo.sound_middle;
     }
     self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
-    if ( strcmp( self->classname, "func_door" ) == 0 )
+    if ( strcmp( self->classname, "func_door" ) == 0 ) {
         SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, door_open_move_done );
-    else if ( strcmp( self->classname, "func_door_rotating" ) == 0 )
+    } else if ( strcmp( self->classname, "func_door_rotating" ) == 0 ) {
         SVG_PushMove_AngleMoveCalculate( self, door_open_move_done );
+    }
 
     SVG_UseTargets( self, self->activator );
     door_use_areaportals( self, true );
@@ -286,8 +290,9 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
 void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     edict_t *ent;
 
-    if ( self->flags & FL_TEAMSLAVE )
+    if ( self->flags & FL_TEAMSLAVE ) {
         return;
+    }
 
     if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
@@ -326,8 +331,9 @@ void door_blocked( edict_t *self, edict_t *other ) {
         // give it a chance to go away on it's own terms (like gibs)
         SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
-        if ( other )
+        if ( other ) {
             SVG_Misc_BecomeExplosion1( other );
+        }
         return;
     }
 
@@ -341,13 +347,15 @@ void door_blocked( edict_t *self, edict_t *other ) {
     // so let it just squash the object to death real fast
     if ( self->pushMoveInfo.wait >= 0 ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_CLOSED_STATE ) {
-            for ( ent = self->teammaster; ent; ent = ent->teamchain )
+            for ( ent = self->teammaster; ent; ent = ent->teamchain ) {
                 ent->other = other;
-                door_open_move( ent/*, ent->activator */);
+                door_open_move( ent/*, ent->activator */ );
+            }
         } else {
-            for ( ent = self->teammaster; ent; ent = ent->teamchain )
+            for ( ent = self->teammaster; ent; ent = ent->teamchain ) {
                 ent->other = other;
                 door_close_move( ent );
+            }
         }
     }
 }
@@ -369,11 +377,13 @@ void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 *	@brief
 **/
 void door_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-    if ( !other->client )
+    if ( !other->client ) {
         return;
+    }
 
-    if ( level.time < self->touch_debounce_time )
+    if ( level.time < self->touch_debounce_time ) {
         return;
+    }
     self->touch_debounce_time = level.time + 5_sec;
 
     gi.centerprintf( other, "%s", self->message );

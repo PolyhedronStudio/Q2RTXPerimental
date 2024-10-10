@@ -107,7 +107,7 @@ void plat_hit_top( edict_t *ent ) {
         const std::string luaFunctionName = std::string( ent->luaProperties.luaName ) + "_OnPlatformHitTop";
         // Call if it exists.
         if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
-            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
+            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, 2, LUA_CALLFUNCTION_VERBOSE_MISSING,
                 /*[lua args]:*/ ent, ent->activator );
         }
     }
@@ -130,7 +130,7 @@ void plat_hit_bottom( edict_t *ent ) {
         const std::string luaFunctionName = std::string( ent->luaProperties.luaName ) + "_OnPlatformHitBottom";
         // Call if it exists.
         if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
-            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
+            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, 2, LUA_CALLFUNCTION_VERBOSE_MISSING,
                 /*[lua args]:*/ ent, ent->activator );
         }
     }

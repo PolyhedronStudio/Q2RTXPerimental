@@ -148,7 +148,7 @@ void button_lua_use( edict_t *self, edict_t *other, edict_t *activator, const en
         const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_Use";
         // Call if it exists.
         if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
-            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, LUA_CALLFUNCTION_VERBOSE_MISSING, 
+            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING, 
                 /*[lua args]:*/ self, other, activator, useType, useValue);
         }
     }

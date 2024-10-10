@@ -96,14 +96,16 @@ static inline void LUA_CallFunction_PushStackValue( lua_State *L, const std::str
 	LUA_CallFunction_PushStackValue( L, rest... );
 }
 
+
 /**
 *	@brief	Looks up the specified function, if it exists, will call it with the variadic arguments supplied( if any ).
+*	@param	numExpectedArgs	If left at 0 it ignores checking the stack for number of valid arguments.
 *	@return	True in case it was a success, meaning the return values are now in the lua stack and need to be popped.
 *	@note	One has to deal and pop return values themselves.
 **/
 template <typename... Rest> 
-static const bool LUA_CallFunction( lua_State *L, const std::string &functionName, const int32_t numReturnValues, 
-	const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_NOT,
+static const bool LUA_CallFunction( lua_State *L, const std::string &functionName, const int32_t numReturnValues,  
+	const int32_t numExpectedArgs = 0, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_NOT,
 	const Rest&... rest ) {
 
 	bool executedSuccessfully = false;
@@ -120,6 +122,12 @@ static const bool LUA_CallFunction( lua_State *L, const std::string &functionNam
 		// Push all arguments to the lua stack.
 		LUA_CallFunction_PushStackValue( L, rest... ); // Recursive call using pack expansion syntax
 
+		// Check stack.
+		if ( numExpectedArgs >= 1 ) {
+			// Notify about the stack being incorrectly setup.
+			luaL_checkstack( L, numExpectedArgs, "too many arguments" );
+		}
+
 		// Protect Call the pushed function name string.
 		int32_t pCallReturnValue = lua_pcall( L, sizeof...( Rest ), numReturnValues, 0 );
 		if ( pCallReturnValue == LUA_OK ) {
@@ -129,9 +137,9 @@ static const bool LUA_CallFunction( lua_State *L, const std::string &functionNam
 			executedSuccessfully = true;
 		} else {
 			// Get error.
-			const std::string errorStr = lua_tostring( L, lua_gettop( L ) );
+			const std::string errorStr = lua_tostring( L, -1 );
 			// Remove the errorStr from the stack
-			lua_pop( L, lua_gettop( L ) );
+			lua_pop( L, -1 );
 			// Print Error Notification.
 			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
 		}

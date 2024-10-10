@@ -56,12 +56,12 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [X] Add for PushMovers a function to acquire their current state.
 	- [-] Add proper file chunk loading.
 		- [ ] What about 'include' functionality that loads its own chunks?
-	- [ ] Add C utilities to define Lua consts for enums/constvals/defines.
+	- [X] Add C utilities to define Lua consts for enums/constvals/defines.
 
 - [ ] Signalling:
 	- [ ] Patch all entities that might have a use for signalling. Such might be:
 		  a target_temp_entity etc. And of course, all PushMovers, killbox, etc.
-	- [ ] Add support for passing along values for Signals to be interpreted.
+	- [ ] Add support for passing along values for Signals to be processed.
 	- [ ] Adjust at least all movers to support signalling.
 
 - [ ] Entities:

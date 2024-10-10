@@ -58,19 +58,16 @@ baseq2rtxp/**/*.txt
 /CMakeSettings.json
 
 /baseq2rtxp/maps/*.bsp
+!baseq2q2rtxp/maps/sky/*.txt
 !/baseq2q2rtxp/maps/scripts/*.lua
 /baseq2rtxp/materials
 /baseq2rtxp/textures/
 /baseq2rtxp/.conhistory
-/baseq2rtxp/pics/conchars.png~
 /baseq2rtxp/demos/.democache
+
 /src/windows/res/RCa12572
 /src/windows/res/RCb12572
 /src/windows/res/RCc12572
-/src/windows/res/q2rtxp_blue.kra-autosave.kra
 /src/unix/res/q2pro.xbm~
 /local_entities_test.bat
-/code.rar
-/code.rar
-/baseq2rtxp/models/v_wep/fps_arms/tris.iqe
-*.png~
+
