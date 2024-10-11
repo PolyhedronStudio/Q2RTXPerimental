@@ -354,7 +354,6 @@ typedef struct {
 	const cm_entity_t *( *CM_GetNullEntity )( void );
 
 
-
 	/**
 	*
 	*	FileSystem:
@@ -396,7 +395,6 @@ typedef struct {
 	void ( *SetKeyEventDestination )( const keydest_t keyEventDestination );
 	//! Returns the 'layer' of where key events are handled by.
 	const keydest_t ( *GetKeyEventDestination )( void );
-
 
 
 	/**
@@ -480,7 +478,6 @@ typedef struct {
 	void ( *MSG_ReadPos )( vec3_t pos, const msgPositionEncoding_t encoding );
 
 
-
 	/**
 	*
 	*	Printing:
@@ -488,7 +485,6 @@ typedef struct {
 	**/
 	void ( *q_printf( 2, 3 ) Print )( print_type_t printlevel, const char *fmt, ... );
 	void ( *q_noreturn q_printf( 1, 2 ) Error )( const char *fmt, ... );
-
 
 
 	/**
@@ -558,7 +554,6 @@ typedef struct {
 	const uint32_t *( *R_Get8BitTo24BitTable )( void );
 
 
-
 	/**
 	*
 	*	Screen:
@@ -566,7 +561,6 @@ typedef struct {
 	**/
 	const char *( *SCR_GetColorName )( color_index_t colorIndex );
 	const qboolean( *SCR_ParseColor )( const char *s, color_t *color );
-
 
 
 	/**
@@ -654,6 +648,7 @@ typedef struct {
 	**/
 	void ( *S_SetupSpatialListener )( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp );
 	const qboolean ( *S_SetEAXEnvironmentProperties )( const sfx_eax_properties_t *properties );
+	
 
 	/**
 	*
@@ -663,7 +658,6 @@ typedef struct {
 	void *( *TagMalloc )( unsigned size, unsigned tag );
 	void ( *TagFree )( void *block );
 	void ( *FreeTags )( unsigned tag );
-
 
 
 	/**
@@ -686,7 +680,6 @@ typedef struct {
 	void ( *V_AddLightStyle )( int style, float value );
 
 
-
 	/**
 	*
 	*	Zone Memory Allocator:
@@ -699,14 +692,12 @@ typedef struct {
 	void *( *Z_Malloc )( size_t size ) q_malloc;
 
 
-
 	/**
 	*
 	*	Command Prompt
 	*
 	**/
 	void ( *Prompt_AddMatch )( genctx_t *ctx, const char *s );
-
 
 
 	/**
@@ -744,6 +735,11 @@ typedef struct {
 	*	Other:
 	*
 	**/
+	//! Returns current error number.
+	const int32_t( *Q_ErrorNumber )( void );
+	//! Returns matching string for error number.
+	const char *( *Q_ErrorString )( const int32_t error );
+
 	/**
 	*	@brief	Scans the ignore list for the given nickname.
 	*	@return	True if the nickname is found in the ignore list.
@@ -778,7 +774,6 @@ typedef struct {
 	*   @return Pointer to model data matching the resource handle, otherwise a (nullptr) on failure.
 	**/
 	const model_t *( *R_GetModelDataForHandle )( const qhandle_t handle );
-
 
 
 	/**

@@ -28,6 +28,7 @@ extern "C" {
 #include "shared/util_list.h"
 
 // Include needed shared refresh types.
+// ( We need some data so we can partially get and process animation data. )
 #include "refresh/shared_types.h"
 
 //
@@ -133,11 +134,17 @@ typedef struct {
 	/**
 	*	Consts and Variables:
 	**/
+    //! The hz we are ticking at. (10hz, 40hz.. etc.)
 	uint32_t    tick_rate;
+    //! The time for each frame in 'seconds', 0.1 for 100ms(10hz), 0.025 for 25ms(40hz)
 	float       frame_time_s;
+    //! The time for each frame in 'miliseconds'.
 	uint32_t    frame_time_ms;
-
+    /**
+    *   @brief  The actual server frame number we are processing.
+    **/
     const int64_t ( *GetServerFrameNumber )( void );
+
 
 	/**
 	*
@@ -150,6 +157,7 @@ typedef struct {
     void (* q_printf(2, 3) centerprintf)(edict_t *ent, const char *fmt, ...);
     void (*sound)(edict_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs);
     void (*positioned_sound)(const vec3_t origin, edict_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs);
+
 
 	/**
     *	Config strings hold all the index strings, the lightstyles, the models that are in-use,
@@ -175,6 +183,7 @@ typedef struct {
 
     void (*setmodel)(edict_t *ent, const char *name);
 
+
 	/**
 	*
 	*	Collision Detection:
@@ -197,7 +206,6 @@ typedef struct {
     const int32_t(*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_t **list, const int32_t maxcount, const int32_t areatype);
     
 
-
     /**
     *
     *	(Collision Model-) Entities:
@@ -213,7 +221,6 @@ typedef struct {
     *   @return Pointer to the collision model system's 'null' entity key/pair.
     **/
     const cm_entity_t *( *CM_GetNullEntity )( void );
-
 
 
     /**
@@ -232,7 +239,6 @@ typedef struct {
     *	@return	length < 0 indicates error.
     **/
     const int32_t( *FS_LoadFile )( const char *path, void **buffer );
-
 
 
 	/**
@@ -257,6 +263,7 @@ typedef struct {
     void ( *WriteAngle8 )( const float f );
     void ( *WriteAngle16 )( const float f );
 
+
 	/**
 	*
 	*	'Tag' Managed Memory Allocation:
@@ -265,6 +272,7 @@ typedef struct {
     void *(*TagMalloc)(unsigned size, unsigned tag);
     void (*TagFree)(void *block);
     void (*FreeTags)(unsigned tag);
+
 
 	/**
 	*
@@ -275,6 +283,7 @@ typedef struct {
     cvar_t *(*cvar_set)(const char *var_name, const char *value);
     cvar_t *(*cvar_forceset)(const char *var_name, const char *value);
 
+
 	/**
 	*
 	*	ClientCommand and ServerCommand parameter access:
@@ -283,13 +292,21 @@ typedef struct {
     const int32_t (*argc)(void);
     char *(*argv)(int n);
     char *(*args)(void);     // concatenation of all argv >= 1
-
-	/**
-    *	Add commands to the server console as if they were typed in
-    *	for map changing, etc
-	**/
+    //! Add commands to the server console as if they were typed in, useful for for map changing, etc
     void (*AddCommandString)(const char *text);
 
+
+    /**
+    *
+    *   Other:
+    * 
+    **/
+    //! Returns current error number.
+    const int32_t( *Q_ErrorNumber )( void );
+    //! Returns matching string for error number.
+    const char *(* Q_ErrorString)( const int32_t error );
+
+    //! Does nothing atm.
     void (*DebugGraph)(float value, int color);
 } svgame_import_t;
 
@@ -303,8 +320,9 @@ typedef struct {
 	*	Init/Shutdown:
 	* 
     *	The preinit and init functions will only be called when a game starts,
-    *	not each time a level is loaded.  Persistant data for clients
-    *	and the server can be allocated in init
+    *	not each time a level is loaded.  
+    *
+    *   All 'Persistant' data for clients AND the server, can be allocated in Init.
 	**/
 	void (*PreInit)( void );
 	void (*Init)(void);
@@ -312,6 +330,7 @@ typedef struct {
 
     //! Each new level entered will cause a call to SpawnEntities
     void (*SpawnEntities)( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
+
 
 	/**
 	*	GameModes:
@@ -342,6 +361,7 @@ typedef struct {
     **/
     const bool ( *GamemodeNoSaveGames )( const bool isDedicated );
 
+
 	/**
 	*	Read/Write Game: 
 	*	Is for storing persistant cross level information about the world state and the clients.
@@ -352,6 +372,7 @@ typedef struct {
     void (*WriteGame)(const char *filename, qboolean autosave);
     void (*ReadGame)(const char *filename);
 
+
 	/**
 	*	Read/Write Level:
 	* 
@@ -360,6 +381,7 @@ typedef struct {
 	**/
     void (*WriteLevel)(const char *filename);
     void (*ReadLevel)(const char *filename);
+
 
     /**
     *
@@ -373,6 +395,7 @@ typedef struct {
     void (*ClientCommand)(edict_t *ent);
     void (*ClientThink)(edict_t *ent, usercmd_t *cmd);
 
+
 	/**
 	*
 	*	Player Movement:
@@ -383,6 +406,7 @@ typedef struct {
     //! Setup the basic player move configuration parameters. (Used by server for new clients.)
 	void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
 
+
     /**
     *
 	*	Frames:
@@ -391,6 +415,7 @@ typedef struct {
     **/
     //! Runs a single frame of the server game.
     void (*RunFrame)(void);
+
 
 	/**
 	*
@@ -402,6 +427,7 @@ typedef struct {
     //! The game can issue gi.argc() / gi.argv() commands to get the rest
     //! of the parameters
     void (*ServerCommand)(void);
+
 
     /**
     *	Global variables shared between game and server

@@ -16,8 +16,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef ERROR_H
-#define ERROR_H
+#ifndef COMMON_ERROR_H
+#define COMMON_ERROR_H
 
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
@@ -25,6 +25,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
+// <Q2RTXP> WID: Moved to shared/qerror.h
+#if 0
 #include <errno.h>
 
 #define ERRNO_MAX       0x5000
@@ -64,20 +66,21 @@ extern "C" {
 #define Q_ERR_NOT_COHERENT      Q_ERR_(22)  // Coherency check failed
 #define Q_ERR_BAD_COMPRESSION   Q_ERR_(23)  // Bad compression method
 
-// This macro converts system errno into quake error value.
-#define Q_ERRNO                 Q_ErrorNumber()
+#endif
 
-static inline int Q_ErrorNumber(void)
-{
-    int e = errno;
+// This macro converts system errno into quake error value.
+#define Q_ERRNO Q_ErrorNumber()
+
+static inline const int32_t Q_ErrorNumber(void) {
+    const int32_t e = errno;
     return Q_ERR(e);
 }
 
-const char *Q_ErrorString(int error);
+const char *Q_ErrorString( const int32_t error );
 // WID: C++20: In case of C++ including this..
 #ifdef __cplusplus
 // We extern "C"
 };
 #endif
 
-#endif // ERROR_H
+#endif // COMMON_ERROR_H

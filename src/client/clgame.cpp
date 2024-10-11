@@ -945,6 +945,8 @@ void CL_GM_LoadProgs( void ) {
 	imports.ShowMiss = PF_ShowMiss;
 	//#endif
 
+	imports.Q_ErrorNumber = Q_ErrorNumber;
+	imports.Q_ErrorString = Q_ErrorString;
 	imports.CheckForIgnore = PF_CL_CheckForIgnore;
 	imports.CheckForIP = PF_CL_CheckForIP;
 	imports.CheckForVersion = PF_CL_CheckForVersion;

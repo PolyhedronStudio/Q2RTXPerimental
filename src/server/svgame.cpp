@@ -909,7 +909,7 @@ static GameEntryFunctionPointer *SV_LoadGameLibrary(const char *game, const char
 *   @brief  Init the game subsystem for a new map
 **/
 void SV_InitGameProgs(void) {
-    svgame_import_t   import;
+    svgame_import_t   imports;
 	GameEntryFunctionPointer *entry = NULL;
 
     // unload anything we have now
@@ -935,97 +935,104 @@ void SV_InitGameProgs(void) {
     }
 
 	// Setup import frametime related values so the GameDLL knows about it.
-	import.tick_rate = BASE_FRAMERATE;
-	import.frame_time_s = BASE_FRAMETIME_1000;
-	import.frame_time_ms = BASE_FRAMETIME;
+	imports.tick_rate = BASE_FRAMERATE;
+	imports.frame_time_s = BASE_FRAMETIME_1000;
+	imports.frame_time_ms = BASE_FRAMETIME;
 
-    import.GetServerFrameNumber = PF_GetServerFrameNumber;
+    imports.GetServerFrameNumber = PF_GetServerFrameNumber;
 
     // load a new game dll
-    import.multicast = PF_Multicast;
-    import.unicast = PF_Unicast;
+    imports.multicast = PF_Multicast;
+    imports.unicast = PF_Unicast;
 
-    import.bprintf = PF_bprintf;
-    import.dprintf = PF_dprintf;
-    import.cprintf = PF_cprintf;
-    import.centerprintf = PF_centerprintf;
-    import.error = PF_error;
+    imports.bprintf = PF_bprintf;
+    imports.dprintf = PF_dprintf;
+    imports.cprintf = PF_cprintf;
+    imports.centerprintf = PF_centerprintf;
+    imports.error = PF_error;
 
-    import.CM_EntityKeyValue = CM_EntityKeyValue;
-    import.CM_GetNullEntity = CM_GetNullEntity;
+    imports.CM_EntityKeyValue = CM_EntityKeyValue;
+    imports.CM_GetNullEntity = CM_GetNullEntity;
 
-    import.FS_FileExistsEx = PF_FS_FileExistsEx;
-    import.FS_LoadFile = PF_FS_LoadFile;
+    imports.FS_FileExistsEx = PF_FS_FileExistsEx;
+    imports.FS_LoadFile = PF_FS_LoadFile;
 
-    import.linkentity = PF_LinkEdict;
-    import.unlinkentity = PF_UnlinkEdict;
+    imports.BoxEdicts = SV_AreaEdicts;
+    imports.trace = SV_Trace;
+	imports.clip = SV_Clip;
+    imports.pointcontents = SV_PointContents;
+    imports.linkentity = PF_LinkEdict;
+    imports.unlinkentity = PF_UnlinkEdict;
 
-    import.BoxEdicts = SV_AreaEdicts;
-    import.trace = SV_Trace;
-	import.clip = SV_Clip;
-    import.pointcontents = SV_PointContents;
-    import.setmodel = PF_setmodel;
+    imports.SetAreaPortalState = PF_SetAreaPortalState;
+    imports.GetAreaPortalState = PF_GetAreaPortalState;
+    imports.AreasConnected = PF_AreasConnected;
+    imports.inPVS = PF_inPVS;
+    imports.inPHS = PF_inPHS;
+    imports.setmodel = PF_setmodel;
 
-    import.inPVS = PF_inPVS;
-    import.inPHS = PF_inPHS;
+    imports.GetModelDataForName = PF_GetModelDataForName;
+    imports.GetModelDataForHandle = PF_GetModelDataForHandle;
 
-    import.GetModelDataForName = PF_GetModelDataForName;
-    import.GetModelDataForHandle = PF_GetModelDataForHandle;
+    imports.modelindex = PF_ModelIndex;
+    imports.soundindex = PF_SoundIndex;
+    imports.imageindex = PF_ImageIndex;
 
-    import.modelindex = PF_ModelIndex;
-    import.soundindex = PF_SoundIndex;
-    import.imageindex = PF_ImageIndex;
+	imports.GetConfigString = PF_GetConfigString;
+    imports.configstring = PF_configstring;
 
-	import.GetConfigString = PF_GetConfigString;
-    import.configstring = PF_configstring;
+    imports.sound = PF_StartSound;
+    imports.positioned_sound = SV_StartSound;
 
-    import.sound = PF_StartSound;
-    import.positioned_sound = SV_StartSound;
+    imports.WriteInt8 = MSG_WriteInt8;
+    imports.WriteUint8 = MSG_WriteUint8;
+    imports.WriteInt16 = MSG_WriteInt16;
+	imports.WriteUint16 = MSG_WriteUint16;
+    imports.WriteInt32 = MSG_WriteInt32;
+	imports.WriteInt64 = MSG_WriteInt64;
+	imports.WriteUintBase128 = MSG_WriteUintBase128;
+	imports.WriteIntBase128 = MSG_WriteIntBase128;
+    imports.WriteFloat = MSG_WriteFloat;
+    imports.WriteString = MSG_WriteString;
+    imports.WritePosition = MSG_WritePos;
+    imports.WriteDir8 = MSG_WriteDir8;
+    imports.WriteAngle8 = MSG_WriteAngle8;
+	imports.WriteAngle16 = MSG_WriteAngle16;
 
-    import.WriteInt8 = MSG_WriteInt8;
-    import.WriteUint8 = MSG_WriteUint8;
-    import.WriteInt16 = MSG_WriteInt16;
-	import.WriteUint16 = MSG_WriteUint16;
-    import.WriteInt32 = MSG_WriteInt32;
-	import.WriteInt64 = MSG_WriteInt64;
-	import.WriteUintBase128 = MSG_WriteUintBase128;
-	import.WriteIntBase128 = MSG_WriteIntBase128;
-    import.WriteFloat = MSG_WriteFloat;
-    import.WriteString = MSG_WriteString;
-    import.WritePosition = MSG_WritePos;
-    import.WriteDir8 = MSG_WriteDir8;
-    import.WriteAngle8 = MSG_WriteAngle8;
-	import.WriteAngle16 = MSG_WriteAngle16;
+    imports.TagMalloc = PF_TagMalloc;
+    imports.TagFree = Z_Free;
+    imports.FreeTags = PF_FreeTags;
 
-    import.TagMalloc = PF_TagMalloc;
-    import.TagFree = Z_Free;
-    import.FreeTags = PF_FreeTags;
+    imports.cvar = PF_cvar;
+    imports.cvar_set = Cvar_UserSet;
+    imports.cvar_forceset = Cvar_Set;
 
-    import.cvar = PF_cvar;
-    import.cvar_set = Cvar_UserSet;
-    import.cvar_forceset = Cvar_Set;
-
-    import.argc = Cmd_Argc;
-    import.argv = Cmd_Argv;
+    imports.argc = Cmd_Argc;
+    imports.argv = Cmd_Argv;
     // original Cmd_Args() did actually return raw arguments
-    import.args = Cmd_RawArgs;
-    import.AddCommandString = PF_AddCommandString;
+    imports.args = Cmd_RawArgs;
+    imports.AddCommandString = PF_AddCommandString;
 
-    import.DebugGraph = PF_DebugGraph;
-    import.SetAreaPortalState = PF_SetAreaPortalState;
-    import.GetAreaPortalState = PF_GetAreaPortalState;
-    import.AreasConnected = PF_AreasConnected;
+    /**
+    *
+    *   Other:
+    *
+    **/
+    imports.Q_ErrorNumber = Q_ErrorNumber;
+    imports.Q_ErrorString = Q_ErrorString;
+    imports.DebugGraph = PF_DebugGraph;
 
-    ge = entry(&import);
+    // Load up module, error out on failure.
+    ge = entry(&imports);
     if (!ge) {
         Com_Error(ERR_DROP, "ServerGame library returned NULL exports");
     }
 
-    if (ge->apiversion != SVGAME_API_VERSION) {
-        Com_Error(ERR_DROP, "ServerGame library is version %d, expected %d",
-                  ge->apiversion, SVGAME_API_VERSION);
+    // Error out on version mismatch.
+    if (ge && ge->apiversion != SVGAME_API_VERSION) {
+        Com_Error( ERR_DROP, "ServerGame library is version %d, expected %d",
+                  ge->apiversion, SVGAME_API_VERSION );
     }
-
 }
 
 };

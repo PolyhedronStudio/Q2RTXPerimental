@@ -29,8 +29,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 **/
 #ifndef __cplusplus
     // C STD Headers:
-    #include <math.h>
     #include <ctype.h>
+    #include <errno.h>
+    #include <math.h>
     #include <stdio.h>
     #include <stdarg.h>
     #include <string.h>
@@ -43,6 +44,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #else//__cplusplus
     // C STD Headers:
     #include <cctype>
+    #include <cerrno>
     #include <cinttypes>
     #include <climits>
     #include <cmath>
@@ -56,6 +58,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     // C++ STL Headers:
     #include <version>
     //#include <bit>
+    #include <chrono>
     #include <type_traits>
     //#include <algorithm>
     //#include <array>
@@ -69,13 +72,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     #include <random>
     #include <string_view>
     #include <vector>
-    #include <chrono>
 #endif//__cplusplus
 
 //! Include Endianness utilities if not already included by another system header.
 #if HAVE_ENDIAN_H
     #include <endian.h>
 #endif
+
 //! Include shared platform specifics.
 #include "shared/platform.h"
 
@@ -87,6 +90,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     #define USE_BIG_ENDIAN      1
 #endif
 
+//! Include (Quake-)Error Code Definitions:
+#include "shared/qerrors.h"
 
 //! Utility to get the count of arrays.
 #define q_countof(a) (sizeof(a) / sizeof(a[0]))
