@@ -255,10 +255,11 @@ BAR GRAPHS
 ===============================================================================
 */
 
-static void draw_progress_bar( float progress, bool paused, int framenum ) {
+static void draw_progress_bar( float progress, bool paused, int64_t framenum ) {
     char buffer[ 16 ];
     int x, w, h;
     size_t len;
+    static const int64_t frameMs = FRAME_TIME_MS.milliseconds(); // Used to be 10 ofc.
 
     w = Q_rint( scr.hud_width * progress );
     h = Q_rint( CHAR_HEIGHT / scr.hud_scale );
@@ -278,10 +279,10 @@ static void draw_progress_bar( float progress, bool paused, int framenum ) {
     clgi.R_DrawString( x, h, 0, MAX_STRING_CHARS, buffer, precache.screen.font_pic );
 
     if ( scr_demobar->integer > 1 ) {
-        int sec = framenum / 10;
+        int sec = framenum / frameMs;
         int min = sec / 60; sec %= 60;
 
-        Q_scnprintf( buffer, sizeof( buffer ), "%d:%02d.%d", min, sec, framenum % 10 );
+        Q_scnprintf( buffer, sizeof( buffer ), "%d:%02d.%d", min, sec, framenum % frameMs );
         clgi.R_DrawString( 0, h, 0, MAX_STRING_CHARS, buffer, precache.screen.font_pic );
     }
 
@@ -1779,22 +1780,46 @@ static void SCR_DrawDamageDisplays( void ) {
 *
 ***/
 /**
+*   @return True if the game is in an actual pause state and we should DRAW something indicating we're paused.
+**/
+const bool SCR_ShouldDrawPause() {
+    // Server paused?
+    if ( !sv_paused->integer ) {
+        // No.
+        return false;
+    }
+    // Client paused?
+    if ( !cl_paused->integer ) {
+        // No.
+        return false;
+    }
+    // Show pause?
+    if ( scr_showpause->integer != 1 ) {
+        // No.
+        return false;
+    }
+
+    // Draw pause.
+    return true;
+}
+/**
 *	@brief
 **/
 static void SCR_DrawPause( void ) {
-    int x, y;
-
-    if ( !sv_paused->integer )
+    if ( !SCR_ShouldDrawPause() ) {
         return;
-    if ( !cl_paused->integer )
-        return;
-    if ( scr_showpause->integer != 1 )
-        return;
+    }
 
-    x = ( scr.hud_width - scr.pause_width ) / 2;
-    y = ( scr.hud_height - scr.pause_height ) / 2;
+    // Determine center of screen.
+    const int32_t x = ( scr.hud_width /*- scr.pause_width */) / 2;
+    const int32_t y = ( scr.hud_height /*- scr.pause_height */) / 2;
 
-    clgi.R_DrawPic( x, y, precache.screen.pause_pic );
+    // Use our 'Orange' color.
+    clgi.R_SetColor( MakeColor( 255, 150, 100, 255 ) );
+    // Draw pause text info string.
+    HUD_DrawCenterString( x, y, "[PAUSED]" );
+    // Reset R color.
+    clgi.R_ClearColor();
 }
 /**
 *	@brief

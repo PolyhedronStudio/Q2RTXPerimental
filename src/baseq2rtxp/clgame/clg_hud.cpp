@@ -66,10 +66,14 @@ static struct {
 } hud = {};
 
 
+//! Used in various places.
+extern const bool SCR_ShouldDrawPause();
+
+
 /**
 *
 *
-*   HUD Core:
+*   Crosshair(-color) CVar change and updating:
 *
 *
 **/
@@ -160,6 +164,15 @@ static void scr_crosshair_changed( cvar_t *self ) {
     }
 }
 
+
+
+/**
+*
+*
+*   HUD Core:
+*
+*
+**/
 /**
 *   @brief  Called when screen module is initialized.
 **/
@@ -442,6 +455,9 @@ void CLG_HUD_DrawCrosshair( void ) {
     //if ( !hud_crosshair->integer || !precache.hud.crosshair_pic ) {
     //    return;
     //}
+    if ( SCR_ShouldDrawPause() ) {
+        return;
+    }
 
     // Don't show when 'is aiming' weapon mode is true.
     if ( clgi.client->predictedState.currentPs.stats[ STAT_WEAPON_FLAGS ] & STAT_WEAPON_FLAGS_IS_AIMING ) {
