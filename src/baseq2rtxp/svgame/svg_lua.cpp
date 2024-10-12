@@ -35,7 +35,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 **/
 static struct {
 	//! lua state.
-	lua_State *luaState;
+	lua_State *lState;
 	//! map script state
 	char *scriptBuffer;
 	//! Did we succesfully parse, and load it?
@@ -64,7 +64,8 @@ void CoreLib_Initialize( lua_State *L );
 *
 **/
 /**
-*	@brief	
+*	@brief	Will 'developer print' the current lua state's stack.
+*			(From bottom to top.)
 **/
 void SVG_Lua_DumpStack( lua_State *L ) {
 	// Need a valid loaded script.
@@ -112,35 +113,33 @@ void SVG_Lua_DumpStack( lua_State *L ) {
 *	@brief
 **/
 void SVG_Lua_Initialize() {
-	//VPrint( "Hello World! VarPrint! ", 10, " ", 0.5f, " ", "Some other str" );
-
 	// Open LUA Map State.
-	luaMapState.luaState = luaL_newstate();
+	luaMapState.lState = luaL_newstate();
 
 	// Load in several useful defualt LUA libraries.
-	luaopen_base( luaMapState.luaState );
-	luaopen_string( luaMapState.luaState );
-	luaopen_table( luaMapState.luaState );
-	luaopen_math( luaMapState.luaState );
-	luaopen_debug( luaMapState.luaState );
+	luaopen_base( luaMapState.lState );
+	luaopen_string( luaMapState.lState );
+	luaopen_table( luaMapState.lState );
+	luaopen_math( luaMapState.lState );
+	luaopen_debug( luaMapState.lState );
 
 	// Initialize Game Libraries.
-	CoreLib_Initialize( luaMapState.luaState );
-	GameLib_Initialize( luaMapState.luaState );
+	CoreLib_Initialize( luaMapState.lState );
+	GameLib_Initialize( luaMapState.lState );
 }
 /**
 *	@brief 
 **/
 void SVG_Lua_Shutdown() {
 	// Close LUA Map State.
-	lua_close( luaMapState.luaState );
+	lua_close( luaMapState.lState );
 }
 
 /**
 *	@brief	Returns a pointe rto the Lua State(Thread) that handles the map logic.
 **/
 lua_State *SVG_Lua_GetMapLuaState() {
-	return luaMapState.luaState;
+	return luaMapState.lState;
 }
 /**
 *	@brief	Returns true if the map script has been interpreted properly.
@@ -159,18 +158,18 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 	// Raw string:
 	int loadResult = LUA_OK;
 	if ( fileName ) {
-		loadResult = LUA_LoadFileString( luaMapState.luaState, fileName, buffer );
+		loadResult = LUA_LoadFileString( luaMapState.lState, fileName, buffer );
 	} else {
-		loadResult = luaL_loadstring( luaMapState.luaState, buffer );
+		loadResult = luaL_loadstring( luaMapState.lState, buffer );
 	}
 	
 	if ( loadResult == LUA_OK ) {
 		// Execute the code.
-		if ( lua_pcall( luaMapState.luaState, 0, 0, 0 ) == LUA_OK ) {
+		if ( lua_pcall( luaMapState.lState, 0, 0, 0 ) == LUA_OK ) {
 			// Debug:
 			Lua_DeveloperPrintf( "%s: Succesfully interpreted buffer\n", __func__ );
 			// Remove the code buffer, pop it from stack.
-			lua_pop( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+			lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 			// Set interpreted to true.
 			luaMapState.scriptInterpreted = true;
 			// Success:
@@ -178,7 +177,7 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 		// Failure:
 		} else {
 			// Get error.
-			const std::string errorStr = lua_tostring( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+			const std::string errorStr = lua_tostring( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 			// Output.
 			if ( fileName ) {
 				LUA_ErrorPrintf( "%s: %s\n", __func__, fileName, errorStr.c_str() );
@@ -186,11 +185,11 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 				LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
 			}
 			// Remove the function from the stack
-			lua_pop( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+			lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 		}
 	} else {
 		// Get error.
-		const std::string errorStr = lua_tostring( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+		const std::string errorStr = lua_tostring( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 		// Output.
 		if ( fileName ) {
 			LUA_ErrorPrintf( "%s: %s\n", __func__, fileName, errorStr.c_str() );
@@ -198,7 +197,7 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
 		}
 		// Remove the function from the stack
-		lua_pop( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+		lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 	}
 
 	// Failed.
@@ -283,11 +282,11 @@ void SVG_Lua_CallBack_BeginMap() {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( luaMapState.luaState, "OnBeginMap", 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
+	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnBeginMap", 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
 	// Pop the bool from stack.
-	lua_pop( luaMapState.luaState, 1 );
+	lua_pop( luaMapState.lState, 1 );
 	// Pop remaining stack.
-	lua_pop( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
 /**
 *	@brief
@@ -296,11 +295,11 @@ void SVG_Lua_CallBack_ExitMap() {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( luaMapState.luaState, "OnExitMap", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/);
+	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnExitMap", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/);
 	// Pop the bool from stack.
-	lua_pop( luaMapState.luaState, 1 );
+	lua_pop( luaMapState.lState, 1 );
 	// Pop remaining stack.
-	lua_pop( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
 
 
@@ -315,12 +314,12 @@ void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity ) {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( luaMapState.luaState, "OnClientEnterLevel", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
+	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnClientEnterLevel", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
 		/*[lua args]:*/clientEntity );
 	// Pop the bool from stack.
-	lua_pop( luaMapState.luaState, 1 );
+	lua_pop( luaMapState.lState, 1 );
 	// Pop remaining stack.
-	lua_pop( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
 /**
 *	@brief
@@ -329,12 +328,12 @@ void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity ) {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( luaMapState.luaState, "OnClientExitLevel", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
+	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnClientExitLevel", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
 		/*[lua args]:*/ clientEntity );
 	// Pop the bool from stack.
-	lua_pop( luaMapState.luaState, 1 );
+	lua_pop( luaMapState.lState, 1 );
 	// Pop remaining stack.
-	lua_pop( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
 
 
@@ -348,11 +347,11 @@ void SVG_Lua_CallBack_BeginServerFrame() {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( luaMapState.luaState, "OnBeginServerFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
+	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnBeginServerFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
 	// Pop the bool from stack.
-	lua_pop( luaMapState.luaState, 1 );
+	lua_pop( luaMapState.lState, 1 );
 	// Pop remaining stack.
-	lua_pop( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
 /**
 *	@brief
@@ -361,12 +360,12 @@ void SVG_Lua_CallBack_RunFrame() {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( luaMapState.luaState, "OnRunFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
+	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnRunFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
 		/*[lua args]:*/ level.framenum );
 	// Pop the bool from stack.
-	lua_pop( luaMapState.luaState, 1 );
+	lua_pop( luaMapState.lState, 1 );
 	// Pop remaining stack.
-	lua_pop( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
 /**
 *	@brief
@@ -375,9 +374,9 @@ void SVG_Lua_CallBack_EndServerFrame() {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( luaMapState.luaState, "OnEndServerFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
+	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnEndServerFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
 	// Pop the bool from stack.
-	lua_pop( luaMapState.luaState, 1 );
+	lua_pop( luaMapState.lState, 1 );
 	// Pop remaining stack.
-	lua_pop( luaMapState.luaState, lua_gettop( luaMapState.luaState ) );
+	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }

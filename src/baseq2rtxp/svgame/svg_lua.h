@@ -57,12 +57,12 @@ static inline const bool LUA_HasFunction( lua_State *L, const std::string &funct
 **/
 static inline const bool LUA_IsGlobalDefined( lua_State *L, const char *name ) {
 	lua_getglobal( L, name );
-	const bool result = lua_isnone( L, -1 );
+	const bool result = ( lua_isnone( L, -1 ) ? true : false );
 	lua_pop( L, -1 );
 	return result;
 }
 /**
-*	@brief
+*	@brief	Declares if not already existing, a global variable as 'name = integer'.
 **/
 static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lua_Integer integer ) {
 	if ( LUA_IsGlobalDefined( L, name ) ) {
@@ -74,7 +74,7 @@ static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lu
 	lua_setglobal( L, name );
 }
 /**
-*	@brief
+*	@brief	Declares if not already existing, a global variable as 'name = number'.
 **/
 static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lua_Number number ) {
 	if ( LUA_IsGlobalDefined( L, name ) ) {
@@ -85,9 +85,8 @@ static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lu
 	lua_pushnumber( L, number );
 	lua_setglobal( L, name );
 }
-
 /**
-*	@brief
+*	@brief	Declares if not already existing, a global variable as 'name = str'.
 **/
 static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const char *str ) {
 	if ( LUA_IsGlobalDefined( L, name ) ) {
@@ -119,7 +118,8 @@ static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const ch
 **/
 
 /**
-*	@brief
+*	@brief	Will 'developer print' the current lua state's stack.
+*			(From bottom to top.)
 **/
 void SVG_Lua_DumpStack( lua_State *L );
 

@@ -69,9 +69,49 @@ const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, 
 void Think_SignalOutDelay( edict_t *ent ) {
     // SignalOut again, keep in mind that ent now has no delay set, so it will actually
     // proceed to calling the OnSignalIn functions.
-    SVG_SignalOut( ent, ent->other, ent->activator, ent->luaProperties.delayedSignalName );
+    SVG_SignalOut( ent, ent->other, ent->activator, ent->delayed.signalOut.name );
     // Free ourselves again.
     SVG_FreeEdict( ent );
+}
+
+
+
+/**
+*   @brief  Will iterate over the signal argument list and push all its key/values into the
+*           lua table stack.
+**/
+static void SVG_SignalOut_DebugPrintArguments( const svg_signal_argument_array_t &signalArguments ) {
+    // Need sane signal args and number of signal args.
+    if ( signalArguments.empty() ) {
+        return;
+    }
+    
+    gi.dprintf( "%s:\n", "-------------------------------------------" );
+    gi.dprintf( "%s:\n", __func__ );
+
+    // Iterate the arguments.
+    for ( int32_t argumentIndex = 0; argumentIndex < signalArguments.size(); argumentIndex++ ) {
+        // Get access to argument.
+        const svg_signal_argument_t *signalArgument = &signalArguments[ argumentIndex ];
+
+        // Act based on its type.
+                // Act based on its type.
+        if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_BOOLEAN ) {
+            gi.dprintf( "%s:%s\n", signalArgument->key, ( signalArgument->value.boolean ? "true" : "false" ) );
+        } else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_INTEGER ) {
+            gi.dprintf( "%s:%d\n", signalArgument->key, signalArgument->value.integer );
+        } else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NUMBER ) {
+            gi.dprintf( "%s:%f\n", signalArgument->key, signalArgument->value.number );
+        } else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_STRING ) {
+            gi.dprintf( "%s:%s\n", signalArgument->key, signalArgument->value.str );
+        }else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NULLPTR ) {
+            gi.dprintf( "%s:%s\n", signalArgument->key, "(nil)" );
+        // Fall through:
+        //} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NONE ) {
+        } else {
+            gi.dprintf( "%s:%s\n", signalArgument->key, "(invalid type)");
+        }
+    }
 }
 
 /**
@@ -79,36 +119,38 @@ void Think_SignalOutDelay( edict_t *ent ) {
 *   @param  other   (optional) The entity which Send Out the Signal.
 *   @param  activator   The entity which initiated the process that resulted in sending out a signal.
 **/
-void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName ) {
-    edict_t *t;
-
-
+//void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments, const int32_t numberOfSignalArguments ) {
+void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
     //
     // check for a delay
     //
     if ( ent->delay ) {
         // create a temp object to fire at a later time
-        t = SVG_AllocateEdict();
-        t->classname = "DelayedSignal";
-        t->nextthink = level.time + sg_time_t::from_sec( ent->delay );
-        t->think = Think_SignalOutDelay;
-        t->activator = activator;
-        t->other = sender;
+        edict_t *delayEntity = SVG_AllocateEdict();
+        delayEntity->classname = "DelayedSignalOut";
+        delayEntity->nextthink = level.time + sg_time_t::from_sec( ent->delay );
+        delayEntity->think = Think_SignalOutDelay;
+        delayEntity->activator = activator;
+        delayEntity->other = signaller;
         if ( !activator ) {
-            gi.dprintf( "Signal_Delay with no activator\n" );
+            gi.dprintf( "Think_SignalOutDelay with no activator\n" );
         }
+        delayEntity->message = ent->message;
 
-        t->luaProperties.luaName = ent->luaProperties.luaName;
-        t->luaProperties.delayedSignalCreatorEntity = ent;
-        //t->luaProperties.delayedUseType = useType;
-        //t->luaProperties.delayedUseValue = useValue;
+        delayEntity->targetNames.target = ent->targetNames.target;
+        delayEntity->targetNames.kill = ent->targetNames.kill;
+        
+        // The luaName of the actual original entity.
+        delayEntity->luaProperties.luaName = ent->luaProperties.luaName;
+        
+        // The entity which created this temporary delay signal entity.
+        delayEntity->delayed.signalOut.creatorEntity = ent;
+        // The arguments of said signal.
+        delayEntity->delayed.signalOut.arguments = signalArguments;
         // The actual string comes from lua so we need to copy it in instead.
-        memset( t->luaProperties.delayedSignalName, 0, sizeof( t->luaProperties.delayedSignalName ) );
-        Q_strlcpy( t->luaProperties.delayedSignalName, signalName, strlen( signalName ) );
+        memset( delayEntity->delayed.signalOut.name, 0, sizeof( delayEntity->delayed.signalOut.name ) );
+        Q_strlcpy( delayEntity->delayed.signalOut.name, signalName, strlen( signalName ) + 1 );
 
-        t->message = ent->message;
-        t->targetNames.target = ent->targetNames.target;
-        t->targetNames.kill = ent->targetNames.kill;
         return;
     }
 
@@ -116,14 +158,14 @@ void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const cha
     bool propogateToLua = true;
     if ( ent->onsignalin ) {
         ent->activator = activator;
-        ent->other = sender;
+        ent->other = signaller;
 
         // Notify of the signal coming in.
-        /*propogateToLua = */ent->onsignalin(ent, sender, activator, signalName );
+        /*propogateToLua = */ent->onsignalin(ent, signaller, activator, signalName, signalArguments );
     }
     // If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
     if ( propogateToLua ) {
-        SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), ent, sender, activator, signalName );
+        SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), ent, signaller, activator, signalName, signalArguments );
     }
 }
 
@@ -191,29 +233,30 @@ match (string)self.target and call their .use function
 ==============================
 */
 void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    edict_t *t;
-
-
     //
-    // check for a delay
+    // Check for a delay
     //
     if ( ent->delay ) {
         // create a temp object to fire at a later time
-        t = SVG_AllocateEdict();
-        t->classname = "DelayedUse";
-        t->nextthink = level.time + sg_time_t::from_sec( ent->delay );
-        t->think = Think_UseTargetsDelay;
-        t->activator = activator;
-        t->other = ent->other;
-        if ( !activator )
-            gi.dprintf( "Think_Delay with no activator\n" );
-        t->message = ent->message;
-        t->luaProperties.luaName = ent->luaProperties.luaName;
-        t->luaProperties.delayedUseCreatorEntity = ent;
-        t->luaProperties.delayedUseType = useType;
-        t->luaProperties.delayedUseValue = useValue;
-        t->targetNames.target = ent->targetNames.target;
-        t->targetNames.kill = ent->targetNames.kill;
+        edict_t *delayEntity = SVG_AllocateEdict();
+        delayEntity->classname = "DelayedUseTargets";
+        delayEntity->nextthink = level.time + sg_time_t::from_sec( ent->delay );
+        delayEntity->think = Think_UseTargetsDelay;
+        if ( !activator ) {
+            gi.dprintf( "Think_UseTargetsDelay with no activator\n" );
+        }
+        delayEntity->activator = activator;
+        delayEntity->other = ent->other;
+        delayEntity->message = ent->message;
+        
+        delayEntity->targetNames.target = ent->targetNames.target;
+        delayEntity->targetNames.kill = ent->targetNames.kill;
+
+        delayEntity->luaProperties.luaName = ent->luaProperties.luaName;
+        delayEntity->delayed.useTarget.creatorEntity = ent;
+        delayEntity->delayed.useTarget.useType = useType;
+        delayEntity->delayed.useTarget.useValue = useValue;
+
         return;
     }
 
@@ -223,21 +266,22 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
     //
     if ( ( ent->message ) && !( activator->svflags & SVF_MONSTER ) ) {
         gi.centerprintf( activator, "%s", ent->message );
-        if ( ent->noise_index )
+        if ( ent->noise_index ) {
             gi.sound( activator, CHAN_AUTO, ent->noise_index, 1, ATTN_NORM, 0 );
-        else
+        } else {
             gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+        }
     }
 
     //
     // kill killtargets
     //
     if ( ent->targetNames.kill ) {
-        t = NULL;
-        while ( ( t = SVG_Find( t, FOFS( targetname ), ent->targetNames.kill ) ) ) {
-            SVG_FreeEdict( t );
+        edict_t *killTargetEntity = nullptr;
+        while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS( targetname ), ent->targetNames.kill ) ) ) {
+            SVG_FreeEdict( killTargetEntity );
             if ( !ent->inuse ) {
-                gi.dprintf( "entity was removed while using killtargets\n" );
+                gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, ent->s.number, ent->classname );
                 return;
             }
         }
@@ -247,22 +291,34 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
     // fire targets
     //
     if ( ent->targetNames.target ) {
-        t = NULL;
-        while ( ( t = SVG_Find( t, FOFS( targetname ), ent->targetNames.target ) ) ) {
-            // doors fire area portals in a specific way
-            if ( !Q_stricmp( t->classname, "func_areaportal" ) &&
-                ( !Q_stricmp( ent->classname, "func_door" ) || !Q_stricmp( ent->classname, "func_door_rotating" ) ) )
+        edict_t *fireTargetEntity = nullptr;
+        while ( ( fireTargetEntity = SVG_Find( fireTargetEntity, FOFS( targetname ), ent->targetNames.target ) ) ) {
+            // Doors fire area portals in a specific way
+            if ( !Q_stricmp( fireTargetEntity->classname, "func_areaportal" )
+                && ( !Q_stricmp( ent->classname, "func_door" ) || !Q_stricmp( ent->classname, "func_door_rotating" ) ) ) {
                 continue;
+            }
 
-            if ( t == ent ) {
-                gi.dprintf( "WARNING: Entity used itself.\n" );
+            if ( fireTargetEntity == ent ) {
+                gi.dprintf( "%s: entity(#%d, \"%s\") used itself!\n", __func__, ent->s.number, ent->classname );
             } else {
-                if ( t->use ) {
-                    t->use( t, ent, activator, useType, useValue );
+                if ( fireTargetEntity->use ) {
+                    fireTargetEntity->use( fireTargetEntity, ent, activator, useType, useValue );
+                }
+
+                
+                if ( fireTargetEntity->luaProperties.luaName ) {
+                    // Generate function 'callback' name.
+                    const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
+                    // Call if it exists.
+                    if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
+                        LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
+                            /*[lua args]:*/ fireTargetEntity, fireTargetEntity->other, activator, useType, useValue );
+                    }
                 }
             }
             if ( !ent->inuse ) {
-                gi.dprintf( "entity was removed while using targets\n" );
+                gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, ent->s.number, ent->classname );
                 return;
             }
         }

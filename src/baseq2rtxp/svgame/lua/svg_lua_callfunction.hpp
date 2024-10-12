@@ -83,16 +83,64 @@ static inline void LUA_CallFunction_PushStackValue( lua_State *L, const double &
 	lua_pushnumber( L, d );
 	LUA_CallFunction_PushStackValue( L, rest... );
 }
-
+// const char*
 template <typename... Rest>
 static inline void LUA_CallFunction_PushStackValue( lua_State *L, const char *s, const Rest&... rest ) {
 	lua_pushlstring( L, s, strlen( s ) );
 	LUA_CallFunction_PushStackValue( L, rest... );
 }
-
+// const std::string &
 template <typename... Rest>
 static inline void LUA_CallFunction_PushStackValue( lua_State *L, const std::string &s, const Rest&... rest ) {
 	lua_pushlstring( L, s.c_str(), s.length() );
+	LUA_CallFunction_PushStackValue( L, rest... );
+}
+// svg_signal_argument_array_t
+template <typename... Rest>
+static inline void LUA_CallFunction_PushStackValue( lua_State *L, const svg_signal_argument_array_t &signalArguments, const Rest&... rest ) {
+	if ( !signalArguments.empty() ) {
+		// Create the table for the size of the argument array.
+		lua_createtable( L, 0, signalArguments.size() );
+
+		for ( int32_t i = 0; i < signalArguments.size(); i++ ) {
+			// Pointer to argument.
+			const svg_signal_argument_t *signalArgument = &signalArguments[ i ];
+			// Push depending on its type.
+			if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_BOOLEAN ) {
+				// Push boolean value.
+				lua_pushboolean( L, signalArgument->value.boolean );
+				// Set key name.
+				lua_setfield( L, -2, signalArgument->key );
+			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_INTEGER) {
+				// Push integer value.
+				lua_pushinteger( L, signalArgument->value.integer );
+				// Set key name.
+				lua_setfield( L, -2, signalArgument->key );
+			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NUMBER) {
+				// Push integer value.
+				lua_pushnumber( L, signalArgument->value.number );
+				// Set key name.
+				lua_setfield( L, -2, signalArgument->key );
+			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_STRING ) {
+				// Push integer value.
+				lua_pushlstring( L, signalArgument->value.str, strlen( signalArgument->value.str ) );
+				// Set key name.
+				lua_setfield( L, -2, signalArgument->key );
+			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NULLPTR ) {
+				// Push nil value.
+				lua_pushnil( L );
+				// Set key name.
+				lua_setfield( L, -2, signalArgument->key );
+			} else {
+				// WID: TODO: Warn?
+			}
+		}
+	} else {
+		// Push nil value.
+		lua_pushnil( L );
+	}
+
+	//lua_pushlstring( L, s.c_str(), s.length() );
 	LUA_CallFunction_PushStackValue( L, rest... );
 }
 

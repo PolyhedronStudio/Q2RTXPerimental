@@ -1019,11 +1019,60 @@ void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parent
 *
 *
 *
-*   
+*   Signals:
 *
 *
 *
 **/
+/**
+*   @brief  Describes the value type of a signal's argument.
+**/
+typedef enum {
+    //! Argument type wasn't set!
+    SIGNAL_ARGUMENT_TYPE_NONE = 0,
+
+    //! Boolean type.
+    SIGNAL_ARGUMENT_TYPE_BOOLEAN,
+    //! Integer type.
+    SIGNAL_ARGUMENT_TYPE_INTEGER,
+    //! Double type.
+    SIGNAL_ARGUMENT_TYPE_NUMBER,
+    //! String type.
+    SIGNAL_ARGUMENT_TYPE_STRING,
+    //! (Nullptr) type.
+    SIGNAL_ARGUMENT_TYPE_NULLPTR,
+} svg_signal_argument_type_t;
+/**
+*   @brief  Holds a Signal's argument its key, type, as well as its value.
+**/
+typedef struct svg_signal_argument_s {
+    //! Type.
+    svg_signal_argument_type_t type;
+    //! Key index name of the argument for usage within the lua table.
+    const char *key;
+    //! Value.
+    union {
+        // Boolean representation.
+        bool boolean;
+        //! Integer representation.
+        int64_t integer;
+        //! Number(double) representation.
+        double number;
+        //! String representation.
+        const char *str;
+    } value;
+} svg_signal_argument_t;
+//! Typedef an std::vector for varying argument counts.
+typedef std::vector<svg_signal_argument_t> svg_signal_argument_array_t;
+
+/**
+*   @brief
+**/
+//void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments = nullptr, const int32_t numberOfSignalArguments = 0 );
+void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments = {} );
+
+
+
 /**
 *   @brief  Wraps up the new more modern SVG_ProjectSource.
 **/
@@ -1032,11 +1081,6 @@ void    SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3
 *   @brief  Project vector from source. 
 **/
 const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
-
-/**
-*   @brief
-**/
-void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName );
 
 edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
 edict_t *SVG_FindWithinRadius( edict_t *from, vec3_t org, float rad );
@@ -1737,26 +1781,34 @@ struct edict_s {
         //    int32_t integral;
         //    float   fltpoint;
         //} value;
-        int32_t value;
+        //int32_t value;
         //! The use target features for this entity.
         entity_usetarget_flags_t flags;
         //! The use target state.
         entity_usetarget_state_t state;
         //! The time at which this entity was last (+usetarget) activated.
-        sg_time_t timeChanged;
+        //sg_time_t timeChanged;
     } useTarget;
 
     //
     // Target Fields:
     //
+    //! Targetname of this entity.
     const char *targetname;
     struct {
+        //! Name of the entity with a matching 'targetname' to (trigger-)use target.
         char *target;
+        //! Name of entity to kill if triggered.
         char *kill;
+        //! Name of the team this entity is on. (For movers.)
         char *team;
+        //!
         char *path;
+        //!
         char *death;
+        //!
         char *combat;
+        //! Name of the entity with a matching 'targetname' to move along with. (PushMovers).
         const char *movewith;
     } targetNames;
 
@@ -1764,12 +1816,12 @@ struct edict_s {
     // Target Entities:
     //
     struct {
-        //! The default 'target' entity.
+        //! The active 'target' entity.
         edict_t *target;
         //! The parent entity to move along with.
         edict_t *movewith;
         //! Next child in the list of this 'movewith group' chain.
-        edict_t *movewith_next;
+        //edict_t *movewith_next;
     } targetEntities;
 
     //
@@ -1778,20 +1830,32 @@ struct edict_s {
     struct {
         //! The name which its script methods are prepended by.
         const char *luaName;
-
-        //! The source entity that when UseTarget, created the DelayedUse entity.
-        edict_t *delayedUseCreatorEntity;
-        //! The source entity that when SignalOut, created the DelayedUse entity.
-        edict_t *delayedSignalCreatorEntity;
-
-        //! The useType for delayed UseTarget.
-        entity_usetarget_type_t delayedUseType;
-        //! The useValue for delayed UseTarget.
-        int32_t delayedUseValue;
-
-        //! For delayed signaling.
-        char delayedSignalName[256];
     } luaProperties;
+
+    //
+    // "Delay" entities, these are created when (UseTargets/SignalOut) and a
+    // special "delay" worldspawn key/value has been set.
+    // 
+    struct {
+        //! For the SVG_UseTargets and its Lua companion.
+        struct {
+            //! The source entity that when UseTarget, created the DelayedUse entity.
+            edict_t *creatorEntity;
+            //! The useType for delayed UseTarget.
+            entity_usetarget_type_t useType;
+            //! The useValue for delayed UseTarget.
+            int32_t useValue;
+        } useTarget;
+
+        struct {
+            //! The source entity that when SignalOut, created the DelayedSignalOut entity.
+            edict_t *creatorEntity;
+            //! A copy of the actual signal name.
+            char name[ 256 ];
+            //! For delayed signaling.
+            std::vector<svg_signal_argument_t> arguments;
+        } signalOut;
+    } delayed;
 
     //
     // Physics Related:
@@ -1865,7 +1929,7 @@ struct edict_s {
     //! Called to 'trigger' the entity.
     void        ( *use )( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
     //! Called when the entity is being 'Signalled', happens when another entity fires an OutSignal to it.
-    void        ( *onsignalin )( edict_t *self, edict_t *other, edict_t *activator, const char *signalName );
+    void        ( *onsignalin )( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 
     #if 0
     //! Called when the entity is keypressed by a client's(+usetarget).
@@ -1913,8 +1977,8 @@ struct edict_s {
     edict_t *mynoise;       // can go in client only
     edict_t *mynoise2;
     //! Noise indexes.
-    int32_t     noise_index;
-    int32_t     noise_index2;
+    int32_t noise_index;
+    int32_t noise_index2;
 
 
     //
@@ -1928,9 +1992,9 @@ struct edict_s {
     //
     // Trigger(s):
     //
-    float       wait;
-    float       delay;          // before firing targets
-    float       random;
+    float   wait;
+    float   delay;          // before firing targets
+    float   random;
 
 
     //

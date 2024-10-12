@@ -138,6 +138,8 @@ void button_think_return( edict_t *self );
 void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 
 
+// WID: Now handled by SVG_UseTargets.
+#if 0
 /**
 *   @brief  Fire use target lua function implementation if existant.
 **/
@@ -149,11 +151,11 @@ void button_lua_use( edict_t *self, edict_t *other, edict_t *activator, const en
         // Call if it exists.
         if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
             LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING, 
-                /*[lua args]:*/ self, other, activator, useType, useValue);
+                /*[lua args]:*/ self, other, activator, useType, useValue );
         }
     }
 }
-
+#endif
 
 
 /**
@@ -281,8 +283,21 @@ void button_press_move( edict_t *self ) {
     }
     // Calculate and begin moving to the button's 'Pressed' state end origin.
     SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, button_press_move_done );
+
+    #if 1
     // Dispatch a signal.
     SVG_SignalOut( self, self->other, self->activator, "OnPress" );
+    // Signal Testing:
+    #else
+    // Signal arguments.
+    std::vector<svg_signal_argument_t> signalArguments = {
+        { .type = SIGNAL_ARGUMENT_TYPE_STRING,  .key = "stringArg",     .value = { .str = "Hello World!" } },
+        { .type = SIGNAL_ARGUMENT_TYPE_INTEGER, .key = "integerArg",    .value = { .integer = 1337 } },
+        { .type = SIGNAL_ARGUMENT_TYPE_NUMBER,  .key = "numberArg",     .value = { .number = 13.37f } },
+    };
+    // Dispatch a signal.
+    SVG_SignalOut( self, self->other, self->activator, "OnPress", signalArguments );
+    #endif
 }
 /**
 *   @brief  Engages moving into the 'Unpressed' state, after which at arrival, it calls upon 'button_unpress_move_done'.
@@ -426,8 +441,10 @@ void button_use( edict_t *self, edict_t *other, edict_t *activator, const entity
     self->other = other;
     button_trigger( self, activator, useType, useValue );
 
-    // Call upon Lua OnUse.
+    // We don't need this anymore for buttons. SVG_UseTargets gets called either way, which in turn.. calls the Lua shot.
+    #if 0
     button_lua_use( self, other, activator, useType, useValue );
+    #endif
 }
 /**
 *   @brief  For when 'Touch' triggered.

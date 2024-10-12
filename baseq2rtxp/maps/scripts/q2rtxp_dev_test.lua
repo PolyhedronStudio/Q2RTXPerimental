@@ -1,23 +1,20 @@
---[[--------------------------------------------------------------------
+----------------------------------------------------------------------
 ---- Map State Variables - These are stored for save/load game states.
-----------------------------------------------------------------------]]
+----------------------------------------------------------------------
 mapStates = {
     -- there are none yet.
 }
 
-
-ENTITY_USETARGET_TYPE_TOGGLE = 3
-
---[[--------------------------------------------------------------------
-
-
-    HallWay Elevator Implementations:
-
-
-----------------------------------------------------------------------]]
---[[--------------------------------------------------------------------
----- The Buttons
-----------------------------------------------------------------------]]
+----------------------------------------------------------------------
+----
+----
+----    HallWay Elevator Implementations:
+----
+----
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+-- The Buttons
+----------------------------------------------------------------------
 function HallElevatorButtonOutside_OnSignalIn( self, signaller, activator, signalName )
     -- Open the doors.
     if ( signalName == "OnPressed" ) then
@@ -26,7 +23,7 @@ function HallElevatorButtonOutside_OnSignalIn( self, signaller, activator, signa
         -- Only SignalOut a "DoorOpen" when the elevator is NOT moving.
         if ( elevatorMoveState ~= PUSHMOVE_STATE_MOVING_DOWN and elevatorMoveState ~= PUSHMOVE_STATE_MOVING_UP ) then
             -- Send open signal, as a toggle, so it remains opened  until further actioning.
-            Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "DoorOpen" )
+            Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "DoorOpen", { testInteger = 10, testString = "Hello World!", testNumber = 13.37 } )
         end
     end
     return true
@@ -34,14 +31,26 @@ end
 function HallElevatorButtonInside_OnSignalIn( self, signaller, activator, signalName )
     -- Close the doors.
     if ( signalName == "OnPressed" ) then
-        -- Send close signal, as a toggle, so it remains closed until further actioning.
-        Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "DoorClose" )
+        -- Get elevator and door move states.
+        local elevatorMoveState = Game.GetPushMoverState( Game.GetEntityForLuaName( "HallElevator" ) )
+        local doorMoveState = Game.GetPushMoverState( Game.GetEntityForLuaName( "HallElevatorDoor00" ) )
+        -- Only fire SignalOuts for closing/openingthe door IF the elevator is NOT moving.
+        if ( elevatorMoveState == PUSHMOVE_STATE_TOP or elevatorMoveState == PUSHMOVE_STATE_DOWN ) then
+            -- Open the door if closed:
+            if ( doorMoveState == PUSHMOVE_STATE_MOVING_DOWN or doorMoveState == PUSHMOVE_STATE_BOTTOM ) then
+                -- Send close signal, as a toggle, so it remains closed until further actioning.
+                Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "DoorClose" )
+            elseif ( doorMoveState == PUSHMOVE_STATE_MOVING_UP or doorMoveState == PUSHMOVE_STATE_TOP ) then
+                -- Send close signal, as a toggle, so it remains closed until further actioning.
+                Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "DoorOpen" )
+            end
+        end
     end
     return true
 end
---[[--------------------------------------------------------------------
----- The Doors 
-----------------------------------------------------------------------]]
+----------------------------------------------------------------------
+-- The Doors 
+----------------------------------------------------------------------
 function HallElevatorDoor00_OnSignalIn( self, signaller, activator, signalName )
     -- Acquire the number of the inside elevator func_button.
     local insideButtonEntity = Game.GetEntityForLuaName( "HallElevatorButtonInside" )
@@ -64,13 +73,13 @@ end
 
 
 
---[[
-
-
-    Map CallBack Hooks:
-
-
---]]
+----------------------------------------------------------------------
+----
+----
+----    Map CallBack Hooks:
+----
+----
+----------------------------------------------------------------------
 --[[ TODO: --]]
 function OnBeginMap()
     return true
@@ -82,13 +91,13 @@ end
 
 
 
---[[
-
-
-    Client CallBack Hooks:
-
-
---]]
+----------------------------------------------------------------------
+----
+----
+----    Client CallBack Hooks:
+----
+----
+----------------------------------------------------------------------
 --[[ TODO: --]]
 function OnClientEnterLevel( clientEntity )
     Core.DPrint( "OnClientEnterLevel: A client connected with entityID(#" .. clientEntity .. ")\n")
@@ -102,13 +111,13 @@ end
 
 
 
---[[
-
-
-    Frame CallBack Hooks:
-
-
---]]
+----------------------------------------------------------------------
+----
+----
+----    Frame CallBack Hooks:
+----
+----
+----------------------------------------------------------------------
 --[[ TODO: --]]
 function OnBeginServerFrame()
     return true

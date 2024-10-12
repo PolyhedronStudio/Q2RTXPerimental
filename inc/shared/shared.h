@@ -57,6 +57,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     #include <ctime>
     // C++ STL Headers:
     #include <version>
+    //#include <array>
     //#include <bit>
     #include <chrono>
     #include <type_traits>
@@ -64,13 +65,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     //#include <array>
     #include <list>
     //#include <functional>
-    //#include <map>
+    #include <map>
     #include <numeric>
     //#include <unordered_map>
     //#include <set>
     //#include <unordered_set>
     #include <random>
-    #include <string_view>
+    //#include <string_view>
+    #include <variant>
     #include <vector>
 #endif//__cplusplus
 

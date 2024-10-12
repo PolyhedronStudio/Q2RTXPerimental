@@ -100,44 +100,48 @@ void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const enti
 void door_close_move( edict_t *self );
 void door_open_move( edict_t *self/*, edict_t *activator */ );
 void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const bool open ) {
-    if ( self->flags & FL_TEAMSLAVE )
+    // Slave to team.
+    if ( self->flags & FL_TEAMSLAVE ) {
         return;
+    }
 
-    if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
+    if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) || open != true ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
             // trigger all paired doors
             for ( edict_t *ent = self; ent; ent = ent->teamchain ) {
                 ent->message = NULL;
                 ent->touch = NULL;
-                ent->other = other;
                 ent->activator = activator; // WID: We need to assign it right?
+                ent->other = other;
                 door_close_move( ent );
             }
             return;
         }
     }
 
-    // trigger all paired doors
-    for ( edict_t *ent = self; ent; ent = ent->teamchain ) {
-        ent->message = NULL;
-        ent->touch = NULL;
-        ent->other = other;
-        ent->activator = activator; // WID: We need to assign it right?
-        door_open_move( ent/*, activator */ );
+    if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) || open != false ) {
+        // trigger all paired doors
+        for ( edict_t *ent = self; ent; ent = ent->teamchain ) {
+            ent->message = NULL;
+            ent->touch = NULL;
+            ent->activator = activator; // WID: We need to assign it right?
+            ent->other = other;
+            door_open_move( ent/*, activator */ );
+        }
     }
 }
 
 /**
 *   @brief  Signal Receiving:
 **/
-void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName ) {
+void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
     // DoorOpen:
     if ( Q_strcasecmp( signalName, "DoorOpen" ) == 0 ) {
         self->activator = activator;
         self->other = other;
 
         // Signal all paired doors to open. (Presuming they are the same state, closed)
-        door_team_toggle( self, other, activator, true );
+        door_team_toggle( self, self->other, self->activator, true );
     }
     // DoorClose:
     if ( Q_strcasecmp( signalName, "DoorClose" ) == 0 ) {
@@ -145,7 +149,7 @@ void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const c
         self->other = other;
 
         // Signal all paired doors to close. (Presuming they are the same state, opened)
-        door_team_toggle( self, other, activator, false );
+        door_team_toggle( self, self->other, self->activator, false );
     }
 
     // WID: Useful for debugging.
