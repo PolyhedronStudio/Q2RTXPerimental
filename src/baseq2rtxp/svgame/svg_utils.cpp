@@ -306,14 +306,13 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
                     fireTargetEntity->use( fireTargetEntity, ent, activator, useType, useValue );
                 }
 
-                
                 if ( fireTargetEntity->luaProperties.luaName ) {
                     // Generate function 'callback' name.
                     const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
                     // Call if it exists.
                     if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
                         LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-                            /*[lua args]:*/ fireTargetEntity, fireTargetEntity->other, activator, useType, useValue );
+                            /*[lua args]:*/ fireTargetEntity, ent, activator, useType, useValue );
                     }
                 }
             }
