@@ -175,6 +175,10 @@ typedef struct {
     const model_t *( *GetModelDataForName )( const char *name );
     const model_t *( *GetModelDataForHandle )( const qhandle_t handle );
 
+    //! Get access to the actual pointer of a loaded bsp inline-model.
+    const mmodel_t *( *GetInlineModelDataForName )( const char *name );
+    const mmodel_t *( *GetInlineModelDataForHandle )( const qhandle_t handle );
+
     // the *index functions create configstrings(precache iqm models) and some internal server state.
 	// these are sent over to the client 
     int (*modelindex)(const char *name);

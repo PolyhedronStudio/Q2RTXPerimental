@@ -25,11 +25,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 extern "C" {
 #endif
 
+//! Copy String Utility.
 #define Z_CopyString(string)    Z_TagCopyString(string, TAG_GENERAL)
+//! Copy Struct Utility.
 #define Z_CopyStruct(ptr)       memcpy(Z_Malloc(sizeof(*ptr)), ptr, sizeof(*ptr))
 
-// memory tags to allow dynamic memory to be cleaned up
-// game DLL has separate tag namespace starting at TAG_MAX
+
+/**
+*   @brief  Memory tags to allow dynamic memory to be cleaned up.
+*   @note   Game DLL has separate tag namespace starting at TAG_MAX.
+**/
 typedef enum {
     TAG_FREE,       // should have never been set
     TAG_STATIC,
@@ -48,9 +53,12 @@ typedef enum {
     TAG_MAX
 } memtag_t;
 
+
 void    Z_Init(void);
 void    Z_Free(void *ptr);
-// Frees the memory block pointed at by (*ptr), if that's nonzero, and sets (*ptr) to zero.
+/**
+*   @brief  Frees the memory block pointed at by (*ptr), if that's nonzero, and sets (*ptr) to zero.
+**/
 void    Z_Freep(void **ptr);
 void    *Z_Realloc(void *ptr, size_t size);
 void    *Z_Malloc(size_t size) q_malloc;

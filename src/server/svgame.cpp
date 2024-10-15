@@ -805,6 +805,40 @@ static const int64_t PF_GetServerFrameNumber() {
 /**
 *
 *
+*   BSP Inline-Models:
+*
+*
+**/
+/**
+*   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
+**/
+static const mmodel_t *PF_GetInlineModelDataForName( const char *name ) {
+    // Ensure cache is valid.
+    if ( !sv.cm.cache ) {
+        return nullptr;
+    }
+}
+/**
+*   @return Pointer to model data matching the resource handle, otherwise a (nullptr) on failure.
+**/
+static const mmodel_t *PF_GetInlineModelDataForHandle( const qhandle_t handle ) {
+    // Ensure cache is valid.
+    if ( !sv.cm.cache ) {
+        return nullptr;
+    }
+    if ( handle < sv.cm.cache->nummodels ) {
+        return &sv.cm.cache->models[ handle ];
+    } else {
+        // TODO: Warn?
+        return nullptr;
+    }
+}
+
+
+
+/**
+*
+*
 *   (Skeletal though-) Alias Models:
 *
 *
@@ -973,6 +1007,9 @@ void SV_InitGameProgs(void) {
 
     imports.GetModelDataForName = PF_GetModelDataForName;
     imports.GetModelDataForHandle = PF_GetModelDataForHandle;
+
+    imports.GetInlineModelDataForHandle = PF_GetInlineModelDataForHandle;
+    imports.GetInlineModelDataForName = PF_GetInlineModelDataForName;
 
     imports.modelindex = PF_ModelIndex;
     imports.soundindex = PF_SoundIndex;

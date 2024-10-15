@@ -46,6 +46,8 @@ REVERSE will cause the door to rotate in the opposite direction.
 */
 
 void SP_func_door_rotating( edict_t *ent ) {
+    vec3_t  abs_movedir;
+
     VectorClear( ent->s.angles );
 
     // set the axis of rotation
@@ -66,8 +68,8 @@ void SP_func_door_rotating( edict_t *ent ) {
         st.distance = 90;
     }
 
-    VectorCopy( ent->s.angles, ent->pos1 );
-    VectorMA( ent->s.angles, st.distance, ent->movedir, ent->pos2 );
+    ent->angles1 = ent->s.angles;
+    VectorMA( ent->s.angles, st.distance, ent->movedir, ent->angles2 );
     ent->pushMoveInfo.distance = st.distance;
 
     ent->movetype = MOVETYPE_PUSH;
@@ -77,6 +79,16 @@ void SP_func_door_rotating( edict_t *ent ) {
 
     ent->blocked = door_blocked;
     ent->use = door_use;
+    ent->onsignalin = door_onsignalin;
+
+    // Calculate absolute move distance to get from pos1 to pos2.
+    ent->pos1 = ent->s.origin;
+    abs_movedir[ 0 ] = fabsf( ent->movedir[ 0 ] );
+    abs_movedir[ 1 ] = fabsf( ent->movedir[ 1 ] );
+    abs_movedir[ 2 ] = fabsf( ent->movedir[ 2 ] );
+    //ent->pushMoveInfo.distance = abs_movedir[ 0 ] * ent->size[ 0 ] + abs_movedir[ 1 ] * ent->size[ 1 ] + abs_movedir[ 2 ] * ent->size[ 2 ] - st.lip;
+    // Translate the determined move distance into the move direction to get pos2, our move end origin.
+    ent->pos2 = ent->s.origin;// QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );
 
     if ( !ent->speed )
         ent->speed = 100;
@@ -98,10 +110,10 @@ void SP_func_door_rotating( edict_t *ent ) {
 
     // if it starts open, switch the positions
     if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN ) {
-        VectorCopy( ent->pos2, ent->s.angles );
-        VectorCopy( ent->pos1, ent->pos2 );
-        VectorCopy( ent->s.angles, ent->pos1 );
-        VectorNegate( ent->movedir, ent->movedir );
+        VectorCopy( ent->angles2, ent->s.angles );
+        ent->angles2 = ent->angles1;
+        ent->angles1 = ent->s.angles;
+        ent->movedir = QM_Vector3Negate( ent->movedir );
     }
 
     if ( ent->health ) {
@@ -121,9 +133,9 @@ void SP_func_door_rotating( edict_t *ent ) {
     ent->pushMoveInfo.decel = ent->decel;
     ent->pushMoveInfo.wait = ent->wait;
     VectorCopy( ent->s.origin, ent->pushMoveInfo.start_origin );
-    VectorCopy( ent->pos1, ent->pushMoveInfo.start_angles );
+    VectorCopy( ent->angles1, ent->pushMoveInfo.start_angles );
     VectorCopy( ent->s.origin, ent->pushMoveInfo.end_origin );
-    VectorCopy( ent->pos2, ent->pushMoveInfo.end_angles );
+    VectorCopy( ent->angles2, ent->pushMoveInfo.end_angles );
 
     if ( ent->spawnflags & 16 )
         ent->s.effects |= EF_ANIM_ALL;

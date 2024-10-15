@@ -212,10 +212,10 @@ typedef struct mnode_s {
     /* ======> */
     cplane_t *plane;     // never NULL to differentiate from leafs
     #if USE_REF
-    vec3_t              mins;
-    vec3_t              maxs;
+    vec3_t          mins;
+    vec3_t          maxs;
 
-    unsigned            visframe;
+    unsigned        visframe;
     #endif
     struct mnode_s *parent;
     /* <====== */
@@ -223,43 +223,43 @@ typedef struct mnode_s {
     struct mnode_s *children[ 2 ];
 
     #if USE_REF
-    int                 numfaces;
-    mface_t *firstface;
+    int             numfaces;
+    mface_t         *firstface;
     #endif
 } mnode_t;
 
 typedef struct {
-    cplane_t *plane;
-    mtexinfo_t *texinfo;
+    cplane_t    *plane;
+    mtexinfo_t  *texinfo;
 } mbrushside_t;
 
 typedef struct {
-    int                 contents;
-    int                 numsides;
-    mbrushside_t *firstbrushside;
-    unsigned            checkcount;         // to avoid repeated testings
+    int             contents;
+    int             numsides;
+    mbrushside_t    *firstbrushside;
+    unsigned        checkcount;         // to avoid repeated testings
 } mbrush_t;
 
 typedef struct {
     /* ======> */
     cplane_t *plane;     // always NULL to differentiate from nodes
     #if USE_REF
-    vec3_t              mins;
-    vec3_t              maxs;
+    vec3_t          mins;
+    vec3_t          maxs;
 
-    unsigned            visframe;
+    unsigned        visframe;
     #endif
-    struct mnode_s *parent;
+    struct mnode_s  *parent;
     /* <====== */
 
-    int             contents;
-    int             cluster;
-    int             area;
-    mbrush_t **firstleafbrush;
-    int             numleafbrushes;
+    int         contents;
+    int         cluster;
+    int         area;
+    mbrush_t    **firstleafbrush;
+    int         numleafbrushes;
     #if USE_REF
-    mface_t **firstleafface;
-    int             numleaffaces;
+    mface_t     **firstleafface;
+    int         numleaffaces;
     #endif
 } mleaf_t;
 
@@ -280,19 +280,19 @@ typedef struct mmodel_s {
     int             type;
     /* <====== */
     #endif
-    vec3_t          mins, maxs;
-    vec3_t          origin;        // for sounds or lights
-    mnode_t *headnode;
+    vec3_t      mins, maxs;
+    vec3_t      origin;        // for sounds or lights
+    mnode_t     *headnode;
 
     #if USE_REF
-    float           radius;
+    float       radius;
 
-    int             numfaces;
-    mface_t *firstface;
+    int         numfaces;
+    mface_t     *firstface;
 
-    #if USE_REF == REF_GL
-    unsigned        drawframe;
-    #endif
+        #if USE_REF == REF_GL
+        unsigned    drawframe;
+        #endif
     #endif
 } mmodel_t;
 
@@ -305,38 +305,38 @@ typedef struct bsp_s {
     memhunk_t   hunk;
 
     int             numbrushsides;
-    mbrushside_t *brushsides;
+    mbrushside_t    *brushsides;
 
     int             numtexinfo;
-    mtexinfo_t *texinfo;
+    mtexinfo_t      *texinfo;
 
     int             numplanes;
-    cplane_t *planes;
+    cplane_t        *planes;
 
     int             numnodes;
-    mnode_t *nodes;
+    mnode_t         *nodes;
 
     int             numleafs;
-    mleaf_t *leafs;
+    mleaf_t         *leafs;
 
     int             numleafbrushes;
-    mbrush_t **leafbrushes;
+    mbrush_t        **leafbrushes;
 
     int             nummodels;
-    mmodel_t *models;
+    mmodel_t        *models;
 
     int             numbrushes;
-    mbrush_t *brushes;
+    mbrush_t        *brushes;
 
     int             numvisibility;
     int             visrowsize;
-    dvis_t *vis;
+    dvis_t          *vis;
 
     int             numentitychars;
-    char *entitystring;
+    char            *entitystring;
 
     int             numareas;
-    marea_t *areas;
+    marea_t         *areas;
 
     int             numportals;     // largest portal number used plus one
     int             numareaportals; // size of the array below
@@ -344,34 +344,34 @@ typedef struct bsp_s {
 
     #if USE_REF
     int             numfaces;
-    mface_t *faces;
+    mface_t         *faces;
 
     int             numleaffaces;
-    mface_t **leaffaces;
+    mface_t         **leaffaces;
 
     int             numlightmapbytes;
-    byte *lightmap;
+    byte            *lightmap;
 
     int             numvertices;
-    mvertex_t *vertices;
+    mvertex_t       *vertices;
 
     int             numedges;
-    medge_t *edges;
+    medge_t         *edges;
 
     int             numsurfedges;
-    msurfedge_t *surfedges;
+    msurfedge_t     *surfedges;
 
     int             numbasisvectors;
-    vec3_t *basisvectors;
+    vec3_t          *basisvectors;
 
     int             numbases;
-    mbasis_t *bases;
+    mbasis_t        *bases;
 
     bool            lm_decoupled;
     #endif
 
-    byte *pvs_matrix;
-    byte *pvs2_matrix;
+    byte            *pvs_matrix;
+    byte            *pvs2_matrix;
     bool            pvs_patched;
 
     bool            extended;

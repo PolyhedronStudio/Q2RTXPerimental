@@ -397,176 +397,6 @@ char *SVG_CopyString(char *in)
 *
 *
 *
-*   Edicts:
-*
-*
-*
-**/
-void SVG_InitEdict(edict_t *e)
-{
-    e->inuse = true;
-    e->classname = "noclass";
-    e->gravity = 1.0f;
-    e->s.number = e - g_edicts;
-	
-	// A generic entity type by default.
-	e->s.entityType = ET_GENERIC;
-}
-
-/*
-=================
-SVG_AllocateEdict
-
-Either finds a free edict, or allocates a new one.
-Try to avoid reusing an entity that was recently freed, because it
-can cause the client to think the entity morphed into something else
-instead of being removed and recreated, which can cause interpolated
-angles and bad trails.
-=================
-*/
-edict_t *SVG_AllocateEdict(void)
-{
-    int32_t i = game.maxclients + 1;
-    edict_t *entity = &g_edicts[ game.maxclients + 1 ];
-    edict_t *freedEntity = nullptr;
-
-    for ( i; i < globals.num_edicts; i++, entity++ ) {
-        // the first couple seconds of server time can involve a lot of
-        // freeing and allocating, so relax the replacement policy
-        if ( !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
-            SVG_InitEdict( entity );
-            return entity;
-        }
-
-        // this is going to be our second chance to spawn an entity in case all free
-        // entities have been freed only recently
-        if ( !freedEntity ) {
-            freedEntity = entity;
-        }
-    }
-
-    if ( i == game.maxentities ) {
-        if ( freedEntity ) {
-            SVG_InitEdict( freedEntity );
-            return freedEntity;
-        }
-        gi.error( "SVG_AllocateEdict: no free edicts" );
-    }
-
-    globals.num_edicts++;
-    SVG_InitEdict(entity);
-    return entity;
-}
-
-/*
-=================
-SVG_FreeEdict
-
-Marks the edict as free
-=================
-*/
-void SVG_FreeEdict(edict_t *ed)
-{
-    gi.unlinkentity(ed);        // unlink from world
-
-    if ((ed - g_edicts) <= (maxclients->value + BODY_QUEUE_SIZE)) {
-        #ifdef _DEBUG
-            gi.dprintf("tried to free special edict(#%d) within special edict range(%d)\n", ed - g_edicts, maxclients->value + BODY_QUEUE_SIZE );
-        #endif
-        return;
-    }
-
-    int32_t id = ed->spawn_count + 1;
-    memset( ed, 0, sizeof( *ed ) );
-    ed->s.number = ed - g_edicts;
-    ed->classname = "freed";
-    ed->freetime = level.time;
-    ed->inuse = false;
-    ed->spawn_count = id;
-}
-
-
-
-/*
-=============
-SVG_Find
-
-Searches all active entities for the next one that holds
-the matching string at fieldofs (use the FOFS() macro) in the structure.
-
-Searches beginning at the edict after from, or the beginning if NULL
-NULL will be returned if the end of the list is reached.
-
-=============
-*/
-// WID: C++20: Added const.
-edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ) {
-    char *s;
-
-    // WID: Prevent nastyness when match is empty (Q_stricmp)
-    if ( !match ) {
-        return nullptr;
-    }
-
-    if ( !from ) {
-        from = g_edicts;
-    } else {
-        from++;
-    }
-
-    for ( ; from < &g_edicts[ globals.num_edicts ]; from++ ) {
-        if ( !from->inuse )
-            continue;
-        s = *(char **)( (byte *)from + fieldofs );
-        if ( !s )
-            continue;
-        if ( !Q_stricmp( s, match ) )
-            return from;
-    }
-
-    return NULL;
-}
-
-
-/*
-=================
-SVG_FindWithinRadius
-
-Returns entities that have origins within a spherical area
-
-SVG_FindWithinRadius (origin, radius)
-=================
-*/
-edict_t *SVG_FindWithinRadius( edict_t *from, vec3_t org, float rad ) {
-    vec3_t  eorg;
-    int     j;
-
-    if ( !from )
-        from = g_edicts;
-    else
-        from++;
-    for ( ; from < &g_edicts[ globals.num_edicts ]; from++ ) {
-        if ( !from->inuse )
-            continue;
-        if ( from->solid == SOLID_NOT )
-            continue;
-        for ( j = 0; j < 3; j++ )
-            eorg[ j ] = org[ j ] - ( from->s.origin[ j ] + ( from->mins[ j ] + from->maxs[ j ] ) * 0.5f );
-        if ( VectorLength( eorg ) > rad )
-            continue;
-        return from;
-    }
-
-    return NULL;
-}
-
-
-
-
-/**
-*
-*
-*
 *   Touch... Implementations:
 *
 *
@@ -594,10 +424,12 @@ void    SVG_TouchTriggers(edict_t *ent)
     // list removed before we get to it (killtriggered)
     for (i = 0 ; i < num ; i++) {
         hit = touch[i];
-        if (!hit->inuse)
+        if ( !hit->inuse ) {
             continue;
-        if (!hit->touch)
+        }
+        if ( !hit->touch ) {
             continue;
+        }
 
         hit->touch(hit, ent, NULL, NULL);
     }
@@ -623,12 +455,15 @@ void    SVG_TouchSolids(edict_t *ent)
     // list removed before we get to it (killtriggered)
     for (i = 0 ; i < num ; i++) {
         hit = touch[i];
-        if (!hit->inuse)
+        if ( !hit->inuse ) {
             continue;
-        if (ent->touch)
-            ent->touch(hit, ent, NULL, NULL);
-        if (!ent->inuse)
+        }
+        if ( ent->touch ) {
+            ent->touch( hit, ent, NULL, NULL );
+        }
+        if ( !ent->inuse ) {
             break;
+        }
     }
 }
 
@@ -923,16 +758,59 @@ void SVG_MoveWith_SetChildEntityMovement( edict_t *self ) {
 **/
 void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, edict_t *parentMover, edict_t *childMover ) {
     // This is the absolute parent entity brush model origin in BSP model space.
-    Vector3 parentAbsOrigin = QM_BBox3Center(
-        QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
-    );
-    // This is the absolute child entity brush model origin in BSP model space.
-    Vector3 childAbsOrigin = QM_BBox3Center(
-        QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax )
-    );
+    //Vector3 parentAbsOrigin = QM_BBox3Center(
+    //    QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
+    //);
+    //// This is the absolute child entity brush model origin in BSP model space.
+    //Vector3 childAbsOrigin = QM_BBox3Center(
+    //    QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax )
+    //);
+    //BBox3 bboxParentMover = QM_BBox3FromCenterSize(
+    //    QM_BBox3Size(
+    //        QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
+    //    ),
+    //    parentMover->move_origin
+    //);
+    //BBox3 bboxChildMover = QM_BBox3FromCenterSize( 
+    //    QM_BBox3Size( 
+    //        QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax ) 
+    //    ),
+    //    childMover->move_origin 
+    //);
+
+    //// This is the absolute parent entity brush model origin in BSP model space.
+    //Vector3 parentAbsOrigin = QM_BBox3Center(
+    //    bboxParentMover
+    //);
+    //// This is the absolute child entity brush model origin in BSP model space.
+    //Vector3 childAbsOrigin = QM_BBox3Center(
+    //    bboxChildMover
+    //);
+
+    Vector3 childOrigin = childMover->s.origin;
+    if ( childMover->solid == SOLID_BSP ) {
+        const mmodel_t *bspModel = gi.GetInlineModelDataForHandle( childMover->s.modelindex );
+        Vector3 childAbsOrigin = bspModel->origin;
+        // This is the absolute child entity brush model origin in BSP model space.
+        //Vector3 childAbsOrigin = QM_BBox3Center(
+        //    QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax )
+        //);
+        childOrigin = childAbsOrigin - childOrigin;
+    }
+    Vector3 parentOrigin = parentMover->s.origin;
+    if ( parentMover->solid == SOLID_BSP ) {
+        const mmodel_t *bspModel = gi.GetInlineModelDataForHandle( parentMover->s.modelindex );
+        Vector3 parentAbsOrigin = bspModel->origin;
+        //Vector3 parentAbsOrigin = QM_BBox3Center(
+        //    QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
+        //);
+        parentOrigin = parentAbsOrigin - parentOrigin;
+    }
+
+    Vector3 _deltaParentOrigin = parentOrigin - childOrigin;
 
     //// Calculate origin to adjust by.
-    #if 1
+    #if 0
     Vector3 childOrigin = childMover->s.origin;
     childOrigin += deltaParentOrigin;
     // Adjust desired pusher origins.
@@ -946,22 +824,30 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 //  VectorAdd( ent->s.angles, ent->moveWith.originAnglesOffset, angles );
 //  SVG_SetMoveDir( angles, ent->movedir );
     Vector3 newAngles = childMover->s.angles + deltaParentAngles;
-    SVG_SetMoveDir( &newAngles.x, childMover->movedir );
+    Vector3 tempMoveDir = {};
+    SVG_SetMoveDir( &newAngles.x, tempMoveDir );
 
 //  VectorMA( moveWithEntity->s.origin, ent->moveWith.originOffset[ 0 ], forward, ent->pos1 );
 //  VectorMA( ent->pos1, ent->moveWith.originOffset[ 1 ], right, ent->pos1 );
 //  VectorMA( ent->pos1, ent->moveWith.originOffset[ 2 ], up, ent->pos1 );
 //  VectorMA( ent->pos1, ent->pushMoveInfo.distance, ent->movedir, ent->pos2 );
-    Vector3 childOrigin = childMover->s.origin;
-    childOrigin += deltaParentOrigin;
+    
     //VectorCopy( childOrigin, childMover->s.origin );
-
-    childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, deltaParentOrigin.x, parentVForward );
-    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, deltaParentOrigin.y, parentVRight );
-    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, deltaParentOrigin.z, parentVUp );
-    childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos1, childMover->pushMoveInfo.distance, childMover->movedir );
-
-
+    // Pos1.
+    //childMover->pos1 += _deltaParentOrigin;
+    childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, _deltaParentOrigin.x, parentVForward );
+    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, _deltaParentOrigin.y, parentVRight );
+    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, _deltaParentOrigin.z, parentVUp );
+    // 
+    // Pos2.
+    //if ( strcmp( childMover->classname, "func_door_rotating" ) != 0 ) {
+    //    childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos1, childMover->pushMoveInfo.distance, tempMoveDir );
+    //} else {
+        //childMover->pos2 += _deltaParentOrigin;
+        childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, _deltaParentOrigin.x, parentVForward );
+        childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, _deltaParentOrigin.y, parentVRight );
+        childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, _deltaParentOrigin.z, parentVUp );
+    //}
 
 
 //  VectorCopy( ent->pos1, ent->pushMoveInfo.start_origin );
@@ -970,9 +856,10 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 //  VectorCopy( ent->s.angles, ent->pushMoveInfo.end_angles );
     childMover->pushMoveInfo.start_origin = childMover->pos1;
     childMover->pushMoveInfo.end_origin = childMover->pos2;
-    childMover->pushMoveInfo.start_angles = childMover->s.angles;
-    childMover->pushMoveInfo.end_angles = childMover->s.angles;
+    childMover->pushMoveInfo.start_angles = childMover->angles1;
+    childMover->pushMoveInfo.end_angles = childMover->angles2;
 
+    #if 1
     if ( childMover->pushMoveInfo.state == 0/*PUSHMOVE_STATE_BOTTOM*/ || childMover->pushMoveInfo.state == 1/*PUSHMOVE_STATE_TOP*/ ) {
         // Velocities for door/button movement are handled in normal
         // movement routines
@@ -984,6 +871,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
             VectorCopy( childMover->pos2, childMover->s.origin );
         }
     }
+    #endif
     #endif
 
 

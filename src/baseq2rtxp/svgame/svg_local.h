@@ -1074,6 +1074,15 @@ void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const 
 
 
 /**
+*
+*
+*
+*   Utilities:
+*
+*
+*
+**/
+/**
 *   @brief  Wraps up the new more modern SVG_ProjectSource.
 **/
 void    SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
@@ -1082,21 +1091,80 @@ void    SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3
 **/
 const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
 
-edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
-edict_t *SVG_FindWithinRadius( edict_t *from, vec3_t org, float rad );
-edict_t *SVG_PickTarget( char *targetname );
-void    SVG_UseTargets( edict_t *ent, edict_t *activator, entity_usetarget_type_t useType = entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, const int32_t useValue = 0 );
-void    SVG_SetMoveDir( vec3_t angles, Vector3 &movedir );
-
-void    SVG_InitEdict( edict_t *e );
-edict_t *SVG_AllocateEdict( void );
-void    SVG_FreeEdict( edict_t *e );
-
-void    SVG_TouchTriggers( edict_t *ent );
-void    SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
-void    SVG_TouchSolids( edict_t *ent );
-
+/**
+*   @brief
+**/
 char *SVG_CopyString( char *in );
+
+/**
+*   @brief
+**/
+void SVG_TouchTriggers( edict_t *ent );
+/**
+*   @brief
+**/
+void SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
+/**
+*   @brief
+**/
+void SVG_TouchSolids( edict_t *ent );
+/**
+*   @brief
+**/
+
+/**
+*   @brief
+**/
+void SVG_SetMoveDir( vec3_t angles, Vector3 &movedir );
+
+/**
+*   @brief
+**/
+edict_t *SVG_PickTarget( char *targetname );
+/**
+*   @brief
+**/
+void SVG_UseTargets( edict_t *ent, edict_t *activator, entity_usetarget_type_t useType = entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, const int32_t useValue = 0 );
+
+
+
+/**
+*
+*
+*
+*   Edicts(Entities):
+*
+*
+**/
+/**
+*   @brief  (Re-)initialize an edict.
+**/
+void SVG_InitEdict( edict_t *e );
+/**
+*   @brief  Either finds a free edict, or allocates a new one.
+*   @remark This function tries to avoid reusing an entity that was recently freed,
+*           because it can cause the client to think the entity morphed into something
+*           else instead of being removed and recreated, which can cause interpolated
+*           angles and bad trails.
+**/
+edict_t *SVG_AllocateEdict( void );
+/**
+*   @brief  Marks the edict as free
+**/
+void SVG_FreeEdict( edict_t *e );
+/**
+*   @brief  Searches all active entities for the next one that holds
+*           the matching string at fieldofs (use the FOFS() macro) in the structure.
+*
+*   @remark Searches beginning at the edict after from, or the beginning if NULL
+*           NULL will be returned if the end of the list is reached.
+**/
+edict_t *SVG_Find( edict_t *from, const int32_t fieldofs, const char *match ); // WID: C++20: Added const.
+/**
+*   @brief  Similar to SVG_Find, but, returns entities that have origins within a spherical area.
+**/
+edict_t *SVG_FindWithinRadius( edict_t *from, const vec3_t org, const float rad );
+
 
 //
 // g_combat.c
@@ -1116,13 +1184,6 @@ void SVG_RadiusDamage( edict_t *inflictor, edict_t *attacker, float damage, edic
 #define DAMAGE_NO_PROTECTION    BIT( 6 )  // Armor, shields, invulnerability, and godmode have no effect.
 #define DAMAGE_NO_INDICATOR     BIT( 7 )  // For clients: No damage indicators.
 
-#define DEFAULT_BULLET_HSPREAD  300
-#define DEFAULT_BULLET_VSPREAD  500
-#define DEFAULT_SHOTGUN_HSPREAD 1000
-#define DEFAULT_SHOTGUN_VSPREAD 500
-#define DEFAULT_DEATHMATCH_SHOTGUN_COUNT    12
-#define DEFAULT_SHOTGUN_COUNT   12
-#define DEFAULT_SSHOTGUN_COUNT  20
 
 //
 // g_monster.c
@@ -1900,7 +1961,9 @@ struct edict_s {
     float   decel;
     Vector3 movedir;
     Vector3 pos1;
+    Vector3 angles1;
     Vector3 pos2;
+    Vector3 angles2;
     Vector3 lastOrigin;
     Vector3 lastAngles;
     edict_t *movetarget;

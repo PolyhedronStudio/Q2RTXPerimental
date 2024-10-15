@@ -353,11 +353,13 @@ void door_blocked( edict_t *self, edict_t *other ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_CLOSED_STATE ) {
             for ( ent = self->teammaster; ent; ent = ent->teamchain ) {
                 ent->other = other;
+                ent->activator = other;
                 door_open_move( ent/*, ent->activator */ );
             }
         } else {
             for ( ent = self->teammaster; ent; ent = ent->teamchain ) {
                 ent->other = other;
+                ent->activator = other;
                 door_close_move( ent );
             }
         }
@@ -373,8 +375,20 @@ void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
     for ( ent = self->teammaster; ent; ent = ent->teamchain ) {
         ent->health = ent->max_health;
         ent->takedamage = DAMAGE_NO;
+
+        // Dispatch a signal to each door team member.
+        ent->other = inflictor;
+        ent->activator = attacker;
+        SVG_SignalOut( ent, ent->other, ent->activator, "OnKilled" );
     }
+
+    // Fire its use targets.
     door_use( self->teammaster, attacker, attacker, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+
+    //// Dispatch a signal.
+    //self->other = inflictor;
+    //self->activator = attacker;
+    //SVG_SignalOut( self, self->other, self->activator, "OnKilled" );
 }
 
 /**

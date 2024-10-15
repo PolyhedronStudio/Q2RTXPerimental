@@ -279,6 +279,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_chase.cpp
 	baseq2rtxp/svgame/svg_commands.cpp
 	baseq2rtxp/svgame/svg_combat.cpp
+	baseq2rtxp/svgame/svg_edicts.cpp
 	baseq2rtxp/svgame/svg_gamemode.cpp
 	baseq2rtxp/svgame/svg_items.cpp
 	baseq2rtxp/svgame/svg_lua.cpp

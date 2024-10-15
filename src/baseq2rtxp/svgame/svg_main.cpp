@@ -765,12 +765,13 @@ void SVG_RunFrame(void)
             //        AngleVectors( delta_angles, forward, right, up );
             //        VectorNegate( right, right );
             Vector3 parentAnglesDelta = parentMover->s.angles - parentMover->lastAngles;
+            Vector3 parentOriginDelta = parentMover->lastOrigin - parentMover->s.origin;
+
             Vector3 parentVForward, parentVRight, parentVUp;
             QM_AngleVectors( parentAnglesDelta, &parentVForward, &parentVRight, &parentVUp );
-            parentVRight = QM_Vector3Negate( parentVRight );
+            //parentVRight = QM_Vector3Negate( parentVRight );
             
             // Calculate origin to adjust by.
-            Vector3 parentOriginDelta = parentMover->s.origin - parentMover->lastOrigin;
 
             // Iterate to find the child movers to adjust to parent.
             for ( int32_t j = 0; j < game.num_movewithEntityStates; j++ ) {
@@ -782,7 +783,7 @@ void SVG_RunFrame(void)
                 }
                 if ( childMover && childMover->inuse && ( childMover->movetype == MOVETYPE_PUSH || childMover->movetype == MOVETYPE_STOP ) ) {
                     SVG_MoveWith_AdjustToParent( 
-                        parentOriginDelta, parentOriginDelta,
+                        parentOriginDelta, parentAnglesDelta,
                         parentVUp, parentVRight, parentVForward,
                         parentMover, childMover 
                     );

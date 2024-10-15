@@ -52,3 +52,7 @@ void door_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *sur
 *	@brief
 **/
 void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+/**
+*   @brief  Signal Receiving:
+**/
+void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );

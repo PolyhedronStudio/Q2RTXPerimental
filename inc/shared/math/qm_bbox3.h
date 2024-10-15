@@ -191,40 +191,24 @@ RMAPI const BBox3 QM_BBox3FromCenterRadius( const float radius, ConstVector3Ref 
     };
 }
 
-///**
-//*	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
-//**/
-//RMAPI const BBox3 bbox3_expand_vec3( const BBox3 &box, const Vector3 &expansion ) {
-//	return BBox3 {
-//		box.mins - expansion,
-//		box.maxs + expansion
-//	};
-//}
-///**
-//*	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
-//**/
-//RMAPI const BBox3 bbox3_expand_bbox3( const BBox3 &box, const BBox3 &expansion) {
-//	return BBox3 {
-//		box.mins + expansion.mins,
-//		box.maxs + expansion.maxs
-//	};
-//}
-///**
-//*	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
-//**/
-//RMAPI const BBox3 bbox3_expandf( const BBox3 &box, const float expansion ) {
-//	return bbox3_expand_vec3( box, Vector3{ expansion, expansion, expansion } );
-//}
-
+/**
+*	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
+**/
 RMAPI const BBox3 QM_BBox3ExpandVector3( ConstBBox3Ref bounds, ConstVector3Ref expansion ) {
     return BBox3{
         bounds.mins - expansion,
         bounds.maxs + expansion
     };
 }
+/**
+*	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
+**/
 RMAPI const BBox3 QM_BBox3ExpandValue( ConstBBox3Ref bounds, const float expansion ) {
     return QM_BBox3ExpandVector3( bounds, Vector3{ expansion, expansion, expansion } );
 }
+/**
+*	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
+**/
 RMAPI const BBox3 QM_BBox3ExpandBBox3( ConstBBox3Ref boundsA, ConstBBox3Ref boundsB ) {
     return BBox3{
         boundsA.mins + boundsB.mins,
