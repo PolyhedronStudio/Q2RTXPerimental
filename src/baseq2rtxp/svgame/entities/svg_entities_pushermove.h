@@ -28,8 +28,6 @@ static constexpr int32_t PUSHMOVE_STATE_MOVING_DOWN = 3;
 *
 *
 **/
-
-
 /**
 *   @brief
 **/
@@ -91,3 +89,18 @@ void SVG_PushMove_AngleMoveCalculate( edict_t *ent, void( *func )( edict_t * ) )
 *			the speed required for a move during the next game frame.
 **/
 void SVG_PushMove_Think_AccelerateMove( edict_t *ent );
+
+
+
+/**
+*
+*
+*
+*   MoveWith Entities:
+*
+*
+**/
+/**
+*   @brief  Reposition 'moveWith' entities to their parent entity its made movement.
+**/
+void SVG_PushMove_UpdateMoveWithEntities();

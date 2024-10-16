@@ -275,16 +275,16 @@ typedef struct {
 } marea_t;
 
 typedef struct mmodel_s {
-    #if USE_REF
+    //#if USE_REF
     /* ======> */
     int             type;
     /* <====== */
-    #endif
+    //#endif
     vec3_t      mins, maxs;
     vec3_t      origin;        // for sounds or lights
     mnode_t     *headnode;
 
-    #if USE_REF
+    //#if USE_REF
     float       radius;
 
     int         numfaces;
@@ -293,7 +293,7 @@ typedef struct mmodel_s {
         #if USE_REF == REF_GL
         unsigned    drawframe;
         #endif
-    #endif
+    //#endif
 } mmodel_t;
 
 typedef struct bsp_s {

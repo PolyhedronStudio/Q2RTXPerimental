@@ -1925,15 +1925,25 @@ struct edict_s {
     struct {
         //! Initial absolute origin of child.
         Vector3 absoluteOrigin;
-        //! Initial origin offset between parent and child.
-        Vector3 absoluteParentOriginOffset;
-        //! Relative delta offset to the absoluteOriginOffset.
+        //! (Brush-) origin offset.
+        Vector3 originOffset;
+        //! Relative delta offset to the parent entity.
         Vector3 relativeDeltaOffset;
 
         //! Initial delta angles between parent and child.
         Vector3 spawnDeltaAngles;
         //! Initial angles set during spawn time.
         Vector3 spawnParentAttachAngles;
+
+        //! The totalled velocity of parent and child.
+        Vector3 totalVelocity;
+
+        //! POinter to the parent we're moving with.
+        edict_t *parentMoveEntity;
+
+        //! A pointer to the first 'moveWith child' entity.
+        //! The child entity will be pointing to the next in line, and so on.
+        edict_t *moveNextEntity;
     } moveWith;
 
     //! Specified physics movetype.

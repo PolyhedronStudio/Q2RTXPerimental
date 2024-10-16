@@ -16,8 +16,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "svg_local.h"
-#include "svg_lua.h"
+#include "svgame/svg_local.h"
+#include "svgame/svg_lua.h"
+
+#include "svgame/entities/svg_entities_pushermove.h"
+
 
 /**
 *	General used Game Objects.
@@ -745,56 +748,17 @@ void SVG_RunFrame(void)
             SVG_Client_BeginServerFrame( ent );
             continue;
         } else {
+            if ( ent->s.entityType == ET_PUSHER ) {
+                // Make sure to store the last ... origins and angles.
+                ent->lastOrigin = ent->s.origin;
+                ent->lastAngles = ent->s.angles;
+            }
             SVG_RunEntity( ent );
         }
     }
 
-    //
-    // Readjust specific mover entities if necessary.
-    //
-    for ( int32_t i = 0; i < game.num_movewithEntityStates; i++ ) {
-        // Parent mover.
-        edict_t *parentMover = nullptr;
-        if ( game.moveWithEntities[ i ].parentNumber > 0 && game.moveWithEntities[ i ].parentNumber < MAX_EDICTS ) {
-            parentMover = &g_edicts[ game.moveWithEntities[ i ].parentNumber ];
-        }
-
-        if ( parentMover && parentMover->inuse && ( parentMover->movetype == MOVETYPE_PUSH || parentMover->movetype == MOVETYPE_STOP ) ) {
-            //        vec3_t delta_angles, forward, right, up;
-            //        VectorSubtract( moveWithEntity->s.angles, ent->moveWith.originAnglesOffset, delta_angles );
-            //        AngleVectors( delta_angles, forward, right, up );
-            //        VectorNegate( right, right );
-            Vector3 parentAnglesDelta = parentMover->s.angles - parentMover->lastAngles;
-            Vector3 parentOriginDelta = parentMover->lastOrigin - parentMover->s.origin;
-
-            Vector3 parentVForward, parentVRight, parentVUp;
-            QM_AngleVectors( parentAnglesDelta, &parentVForward, &parentVRight, &parentVUp );
-            //parentVRight = QM_Vector3Negate( parentVRight );
-            
-            // Calculate origin to adjust by.
-
-            // Iterate to find the child movers to adjust to parent.
-            for ( int32_t j = 0; j < game.num_movewithEntityStates; j++ ) {
-                // Child mover.
-                edict_t *childMover = nullptr;
-                if ( game.moveWithEntities[ j ].parentNumber == parentMover->s.number &&
-                    game.moveWithEntities[ j ].childNumber > 0 && game.moveWithEntities[ j ].childNumber < MAX_EDICTS ) {
-                    childMover = &g_edicts[ game.moveWithEntities[ j ].childNumber ];
-                }
-                if ( childMover && childMover->inuse && ( childMover->movetype == MOVETYPE_PUSH || childMover->movetype == MOVETYPE_STOP ) ) {
-                    SVG_MoveWith_AdjustToParent( 
-                        parentOriginDelta, parentAnglesDelta,
-                        parentVUp, parentVRight, parentVForward,
-                        parentMover, childMover 
-                    );
-                }
-            }
-
-            // Make sure to store the last ... origins and angles.
-            parentMover->lastOrigin = parentMover->s.origin;
-            parentMover->lastAngles = parentMover->s.angles;
-        }
-    }
+    // Readjust "movewith" Push/Stop entities.
+    SVG_PushMove_UpdateMoveWithEntities();
 
     // WID: LUA: CallBack.
     SVG_Lua_CallBack_RunFrame();

@@ -481,14 +481,15 @@ void SP_func_door( edict_t *ent ) {
     ent->pos2 = QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );
 
     // if it starts open, switch the positions
-    //if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN ) {
-    //    VectorCopy( ent->pos2, ent->s.origin );
-    //    VectorCopy( ent->pos1, ent->pos2 );
-    //    VectorCopy( ent->s.origin, ent->pos1 );
-    //}
-
-    // Initial closed state.
-    ent->pushMoveInfo.state = DOOR_STATE_CLOSED;
+    if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN ) {
+        VectorCopy( ent->pos2, ent->s.origin );
+        ent->pos2 = ent->pos1;
+        ent->pos1 = ent->s.origin;
+        ent->pushMoveInfo.state = DOOR_STATE_OPENED;
+    } else {
+        // Initial closed state.
+        ent->pushMoveInfo.state = DOOR_STATE_CLOSED;
+    }
 
     if ( ent->health ) {
         ent->takedamage = DAMAGE_YES;

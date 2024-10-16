@@ -17,9 +17,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // g_utils.c -- misc utility functions for game module
 
-#include "svg_local.h"
-#include "svg_lua.h"
-
+#include "svgame/svg_local.h"
+#include "svgame/svg_lua.h"
+#include "svgame/entities/svg_entities_pushermove.h"
 
 
 /**
@@ -689,43 +689,49 @@ const bool KillBox( edict_t *ent, const bool bspClipping ) {
 *
 *
 **/
-// WID: TODO: move into g_local.h
-static constexpr int32_t PUSHER_MOVEINFO_STATE_TOP      = 0;
-static constexpr int32_t PUSHER_MOVEINFO_STATE_BOTTOM   = 1;
-static constexpr int32_t PUSHER_MOVEINFO_STATE_UP       = 2;
-static constexpr int32_t PUSHER_MOVEINFO_STATE_DOWN     = 3;
-
-
-//
-// WID: TODO: Implement bbox3 type..
-//
 
 /**
 *   @note   At the time of calling, parent entity has to reside in its default state.
 *           (This so the actual offsets can be calculated easily.)
 **/
 void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover ) {
+    if ( !SVG_IsActiveEntity( parentMover ) || !SVG_IsActiveEntity( childMover ) ) {
+        return;
+    }
+    
     // Update targetname.
-    //childMover->targetNames.movewith = targetName;
+    childMover->targetNames.movewith = targetName;
 
     // Determine brushmodel bbox origins.
-    Vector3 parentOrigin = QM_BBox3Center(
+    Vector3 parentOriginOffset = QM_BBox3Center(
         QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
     );
-    Vector3 childOrigin = QM_BBox3Center(
+    Vector3 childOriginOffset = QM_BBox3Center(
         QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax )
     );
 
+    // Add it to the chain.
+    edict_t *nextInlineMover = parentMover;
+    while ( nextInlineMover->moveWith.moveNextEntity ) {
+        nextInlineMover = nextInlineMover->moveWith.moveNextEntity;
+    }
+    nextInlineMover->moveWith.moveNextEntity = childMover;
+    nextInlineMover->moveWith.moveNextEntity->moveWith.parentMoveEntity = parentMover;
+
+    Vector3 parentOrigin    = parentMover->s.origin;
+    Vector3 childOrigin     = childMover->s.origin;
+
     // Calculate the relative offets for its origin and angles.
     childMover->moveWith.absoluteOrigin = childOrigin;
-    childMover->moveWith.absoluteParentOriginOffset = parentOrigin - childOrigin;
-    
+    childMover->moveWith.originOffset = childOrigin - childOriginOffset;
+    childMover->moveWith.relativeDeltaOffset = parentOrigin - childOrigin;
+
     // Fetch spawn angles.
     Vector3 childAngles = childMover->s.angles;
     childMover->moveWith.spawnParentAttachAngles = childAngles;
     // Calculate delta angles.
     Vector3 parentAngles = parentMover->s.angles;
-    childMover->moveWith.spawnDeltaAngles = childAngles - parentAngles;
+    childMover->moveWith.spawnDeltaAngles = parentAngles - childAngles;
 
     // Add to game movewiths.
     game.moveWithEntities[ game.num_movewithEntityStates ].childNumber = childMover->s.number;
@@ -756,61 +762,13 @@ void SVG_MoveWith_SetChildEntityMovement( edict_t *self ) {
 /**
 *   @brief 
 **/
+bool SV_Push( edict_t *pusher, vec3_t move, vec3_t amove );
+trace_t SV_PushEntity( edict_t *ent, vec3_t push );
+
 void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, edict_t *parentMover, edict_t *childMover ) {
-    // This is the absolute parent entity brush model origin in BSP model space.
-    //Vector3 parentAbsOrigin = QM_BBox3Center(
-    //    QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
-    //);
-    //// This is the absolute child entity brush model origin in BSP model space.
-    //Vector3 childAbsOrigin = QM_BBox3Center(
-    //    QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax )
-    //);
-    //BBox3 bboxParentMover = QM_BBox3FromCenterSize(
-    //    QM_BBox3Size(
-    //        QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
-    //    ),
-    //    parentMover->move_origin
-    //);
-    //BBox3 bboxChildMover = QM_BBox3FromCenterSize( 
-    //    QM_BBox3Size( 
-    //        QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax ) 
-    //    ),
-    //    childMover->move_origin 
-    //);
-
-    //// This is the absolute parent entity brush model origin in BSP model space.
-    //Vector3 parentAbsOrigin = QM_BBox3Center(
-    //    bboxParentMover
-    //);
-    //// This is the absolute child entity brush model origin in BSP model space.
-    //Vector3 childAbsOrigin = QM_BBox3Center(
-    //    bboxChildMover
-    //);
-
-    Vector3 childOrigin = childMover->s.origin;
-    if ( childMover->solid == SOLID_BSP ) {
-        const mmodel_t *bspModel = gi.GetInlineModelDataForHandle( childMover->s.modelindex );
-        Vector3 childAbsOrigin = bspModel->origin;
-        // This is the absolute child entity brush model origin in BSP model space.
-        //Vector3 childAbsOrigin = QM_BBox3Center(
-        //    QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax )
-        //);
-        childOrigin = childAbsOrigin - childOrigin;
-    }
-    Vector3 parentOrigin = parentMover->s.origin;
-    if ( parentMover->solid == SOLID_BSP ) {
-        const mmodel_t *bspModel = gi.GetInlineModelDataForHandle( parentMover->s.modelindex );
-        Vector3 parentAbsOrigin = bspModel->origin;
-        //Vector3 parentAbsOrigin = QM_BBox3Center(
-        //    QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
-        //);
-        parentOrigin = parentAbsOrigin - parentOrigin;
-    }
-
-    Vector3 _deltaParentOrigin = parentOrigin - childOrigin;
-
-    //// Calculate origin to adjust by.
+    // Calculate origin to adjust by.
     #if 0
+
     Vector3 childOrigin = childMover->s.origin;
     childOrigin += deltaParentOrigin;
     // Adjust desired pusher origins.
@@ -823,37 +781,24 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 //  vec3_t angles;
 //  VectorAdd( ent->s.angles, ent->moveWith.originAnglesOffset, angles );
 //  SVG_SetMoveDir( angles, ent->movedir );
-    Vector3 newAngles = childMover->s.angles + deltaParentAngles;
+    Vector3 newAngles = childMover->s.angles;// +deltaParentAngles;
     Vector3 tempMoveDir = {};
     SVG_SetMoveDir( &newAngles.x, tempMoveDir );
 
-//  VectorMA( moveWithEntity->s.origin, ent->moveWith.originOffset[ 0 ], forward, ent->pos1 );
-//  VectorMA( ent->pos1, ent->moveWith.originOffset[ 1 ], right, ent->pos1 );
-//  VectorMA( ent->pos1, ent->moveWith.originOffset[ 2 ], up, ent->pos1 );
-//  VectorMA( ent->pos1, ent->pushMoveInfo.distance, ent->movedir, ent->pos2 );
-    
-    //VectorCopy( childOrigin, childMover->s.origin );
-    // Pos1.
-    //childMover->pos1 += _deltaParentOrigin;
-    childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, _deltaParentOrigin.x, parentVForward );
-    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, _deltaParentOrigin.y, parentVRight );
-    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, _deltaParentOrigin.z, parentVUp );
+    Vector3 relativeParentOffset = childMover->moveWith.relativeDeltaOffset;
+    childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
+    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, relativeParentOffset.y, parentVRight );
+    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, relativeParentOffset.z, parentVUp );
     // 
     // Pos2.
-    //if ( strcmp( childMover->classname, "func_door_rotating" ) != 0 ) {
-    //    childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos1, childMover->pushMoveInfo.distance, tempMoveDir );
-    //} else {
-        //childMover->pos2 += _deltaParentOrigin;
-        childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, _deltaParentOrigin.x, parentVForward );
-        childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, _deltaParentOrigin.y, parentVRight );
-        childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, _deltaParentOrigin.z, parentVUp );
-    //}
+    if ( strcmp( childMover->classname, "func_door_rotating" ) != 0 ) {
+        childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos1, childMover->pushMoveInfo.distance, childMover->movedir );
+    } else {
+        childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
+        childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.y, parentVRight );
+        childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.z, parentVUp );
+    }
 
-
-//  VectorCopy( ent->pos1, ent->pushMoveInfo.start_origin );
-//  VectorCopy( ent->s.angles, ent->pushMoveInfo.start_angles );
-//  VectorCopy( ent->pos2, ent->pushMoveInfo.end_origin );
-//  VectorCopy( ent->s.angles, ent->pushMoveInfo.end_angles );
     childMover->pushMoveInfo.start_origin = childMover->pos1;
     childMover->pushMoveInfo.end_origin = childMover->pos2;
     childMover->pushMoveInfo.start_angles = childMover->angles1;
@@ -870,49 +815,63 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
         } else {
             VectorCopy( childMover->pos2, childMover->s.origin );
         }
+    } else {
+        if ( strcmp( childMover->classname, "func_door_rotating" ) != 0 ) {
+            // Calculate what is expected to be the offset from parent origin.
+            Vector3 parentMoverOrigin = parentMover->s.origin;
+            Vector3 childMoverRelativeParentOffset = parentMoverOrigin;
+            childMoverRelativeParentOffset += relativeParentOffset;
+
+            // Subtract
+            Vector3 childMoverOrigin = childMover->s.origin;
+            Vector3 offset = childMoverRelativeParentOffset - childMoverOrigin;
+
+            // ADjust velocity.
+            vec3_t move = {};
+            vec3_t amove = {};
+            VectorScale( parentMover->velocity, gi.frame_time_s, move );
+            SV_Push( childMover, &offset.x, amove );
+            //VectorAdd( childMover->velocity, move, childMover->velocity );
+
+            // Add origin.
+            //VectorAdd( childMoverOrigin, offset, childMover->s.origin );
+
+            // object is moving
+            //SV_PushEntity( childMover, offset );
+            //trace_t SV_PushEntity( edict_t * ent, vec3_t push )
+            //    if ( !VectorEmpty( part->velocity ) || !VectorEmpty( part->avelocity ) ) {
+            //        // object is moving
+            //        VectorScale( part->velocity, gi.frame_time_s, move );
+            //        VectorScale( part->avelocity, gi.frame_time_s, amove );
+
+            //        if ( !SV_Push( part, move, amove ) )
+            //            break;  // move was blocked
+            //    }
+        }
     }
-    #endif
-    #endif
-
-
-
-
-
-
-    //// Calculate angles to adjust by.
+    // Calculate angles to adjust by.
     //Vector3 deltaParentAngles = parentMover->s.angles - lastParentAngles;
     //Vector3 childAngles = childMover->s.angles;
     //childAngles = QM_Vector3AngleMod( childAngles + deltaParentAngles );
 
-    //// Adjust desired pusher angles.
+    // Adjust desired pusher angles.
     //childMover->pushMoveInfo.start_angles = QM_Vector3AngleMod( childMover->pushMoveInfo.start_angles + deltaParentAngles );
     //childMover->pushMoveInfo.end_angles = QM_Vector3AngleMod( childMover->pushMoveInfo.end_angles + deltaParentAngles );
     //VectorCopy( childAngles, childMover->s.angles );
+     
+    //Vector3 childVelocity = childMover->velocity;
+    //gi.dprintf( "%s: ent->classname(\"%s\"), ent->s.number(%i), childVelocity(%g,%g,%g)\n",
+    //    __func__,
+    //    childMover->classname,
+    //    childMover->s.number,
+    //    childVelocity.x, childVelocity.y, childVelocity.z
+    //);
+
+    #endif
+    #endif
 
     // We're done, link it back in.
     gi.linkentity( childMover );
-
-    if ( std::string( childMover->classname ) == "func_door" ) {
-        int x = 10;
-    }
-
-    //gi.bprintf( PRINT_DEVELOPER, "%s: parentMover->s.origin(%f, %f, %f), childMover->s.origin(%f, %f, %f)\n", __func__,
-    //    parentMover->s.origin[ 0 ],
-    //    parentMover->s.origin[ 1 ],
-    //    parentMover->s.origin[ 2 ],
-    //    childMover->s.origin[ 0 ],
-    //    childMover->s.origin[ 1 ],
-    //    childMover->s.origin[ 2 ]
-    //);
-
-    //gi.bprintf( PRINT_DEVELOPER, "%s: parentAbsBoxOrigin(%f, %f, %f), childAbsBoxOrigin(%f, %f, %f)\n", __func__,  
-    //    parentAbsOrigin.x,
-    //    parentAbsOrigin.y,
-    //    parentAbsOrigin.z,
-    //    childAbsOrigin.x,
-    //    childAbsOrigin.y,
-    //    childAbsOrigin.z
-    //);
 }
 
 //if ( ent->targetEntities.movewith && ent->inuse && ( ent->movetype == MOVETYPE_PUSH || ent->movetype == MOVETYPE_STOP ) ) {
