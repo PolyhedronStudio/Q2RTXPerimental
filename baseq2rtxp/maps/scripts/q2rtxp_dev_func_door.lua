@@ -23,48 +23,6 @@ end
 ----------------------------------------------------------------------
 ----
 ----
-----    Target(s) Range Implementations:
-----
-----
-----------------------------------------------------------------------
--- XXL Target:
-function TargetXXL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    if ( signalName == "OnKilled" ) then
-       Core.DPrint( "Killed TargetXXL :-)\n" ) 
-    end
-end
--- XL Target:
-function TargetXL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    if ( signalName == "OnKilled" ) then
-        Core.DPrint( "Killed TargetXL :-)\n" ) 
-     end
-end
--- L Target:
-function TargetL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    if ( signalName == "OnKilled" ) then
-        Core.DPrint( "Killed TargetL :-)\n" ) 
-     end
-end
--- Target:
-function Target_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    if ( signalName == "OnKilled" ) then
-        Core.DPrint( "Killed Target :-)\n" ) 
-     end
-end
-
--- Button that Toggles On/Off
-function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    if ( signalName == "OnPressed" ) then
-        Core.DPrint( "Pressed toggle target range button\n" )
-        Game.UseTarget( Game.GetEntityForTargetName( "train_target_xxl" ), signaller, activator, ENTITY_USETARGET_TYPE_TOGGLE, 1 )
-    end
-end
-
-
-
-----------------------------------------------------------------------
-----
-----
 ----    WareHouse Locked Doors Implementations:
 ----
 ----
@@ -72,23 +30,48 @@ end
 ----------------------------------------------------------------------
 -- The Buttons
 ----------------------------------------------------------------------
-function WareHouseLockingButton_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+function ButtonLock00_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     -- Open the doors.
     if ( signalName == "OnPressed" ) then
         -- Get entity
-        local entityWareHouseDoor01 = Game.GetEntityForLuaName( "WareHouseDoor01" )
+        local entDoor = Game.GetEntityForTargetName( "door_usetargets_locking" )
         -- Determine its move state.
-        local doorMoveState = Game.GetPushMoverState( entityWareHouseDoor01 )
-        -- Only SignalOut a "DoorOpen" when the elevator is NOT moving.
-        if ( doorMoveState ~= PUSHMOVE_STATE_MOVING_DOWN and doorMoveState~= PUSHMOVE_STATE_MOVING_UP ) then
-            -- Send the lock toggle signal.
-            --Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "DoorLockToggle", { testInteger = 10, testString = "Hello World!", testNumber = 13.37 } )
-            Game.SignalOut( entityWareHouseDoor01, self, activator, "DoorLockToggle" )
+        local moveState = Game.GetPushMoverState( entDoor )
+        -- Of course we can't lock a moving door. For showing off feature wise, we also allow for locking it in its opened state.
+        if ( moveState ~= PUSHMOVE_STATE_MOVING_DOWN and moveState ~= PUSHMOVE_STATE_MOVING_UP ) then
+            -- Signal the "DoorLockToggle" event.
+            Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
         end
     end
     return true
 end
 
+function ButtonLockTeamPairDoors_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+    -- Open the doors.
+    if ( signalName == "OnPressed" ) then
+        -- Get entity
+        local entsDoors = Game.GetEntitiesForTargetName( "door_usetargets_team" )
+        
+        -- No results at all.
+        if ( type( entsDoors ) ~= "table" )
+            return false
+        end
+        if ( #entsDoors >= 1 ) then
+            --Core.DPrint( "entsDoors = " .. type(entsDoors) .. "value = "..entsDoors.."\n")
+            DEBUG_ITERATE_TABLE( entsDoors )
+            for keyIndex,entDoor in pairs(entsDoors) do
+                -- Determine its move state.
+                local moveState = Game.GetPushMoverState( entDoor )
+                -- Of course we can't lock a moving door. For showing off feature wise, we also allow for locking it in its opened state.
+                if ( moveState ~= PUSHMOVE_STATE_MOVING_DOWN and moveState ~= PUSHMOVE_STATE_MOVING_UP ) then
+                    -- Signal the "DoorLockToggle" event.
+                    Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
+                end
+            end
+        end
+    end
+    return true
+end
 
 
 
