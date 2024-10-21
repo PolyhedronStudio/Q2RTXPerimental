@@ -16,20 +16,22 @@
 *   @brief  Entity key-value pair parsed types.
 **/
 typedef enum cm_entity_parsed_type_s {
+    //! (Useful for Error parsing), so no proper type.
+    ENTITY_PARSED_TYPE_NONE     = 0,
     //! A value of one or more characters is available.
-    ENTITY_STRING = 0x1,
+    ENTITY_PARSED_TYPE_STRING   = BIT( 0 ),
 
     //! An integer value is available.
-    ENTITY_INTEGER = 0x2,
+    ENTITY_PARSED_TYPE_INTEGER  = BIT( 1 ),
     //! A float value is available.
-    ENTITY_FLOAT = 0x4,
+    ENTITY_PARSED_TYPE_FLOAT    = BIT( 2 ),
 
     //!A two component vector value is available.
-    ENTITY_VECTOR2 = 0x8,
+    ENTITY_PARSED_TYPE_VECTOR2  = BIT( 3 ),
     //! A three component vector value is available.
-    ENTITY_VECTOR3 = 0x10,
+    ENTITY_PARSED_TYPE_VECTOR3  = BIT( 4 ),
     //! A four component vector is available.
-    ENTITY_VECTOR4 = 0x20,
+    ENTITY_PARSED_TYPE_VECTOR4  = BIT( 5 ),
 } cm_entity_parsed_type_t;
 
 /**
