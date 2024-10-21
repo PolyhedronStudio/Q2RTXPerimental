@@ -31,7 +31,7 @@ void CLG_env_sound_Precache( clg_local_entity_t *self, const cm_entity_t *keyVal
 
 	// Key/Value: 'radius':
 	if ( const cm_entity_t *modelKv = clgi.CM_EntityKeyValue( keyValues, "radius" ) ) {
-		if ( modelKv->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+		if ( modelKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
 			classLocals->radius = modelKv->value;
 		// Resort to some default:
 		} else {
@@ -41,7 +41,7 @@ void CLG_env_sound_Precache( clg_local_entity_t *self, const cm_entity_t *keyVal
 
 	// Key/Value: 'reverb_effect_id':
 	if ( const cm_entity_t *reverb_effect_idKv = clgi.CM_EntityKeyValue( keyValues, "reverb_effect_id" ) ) {
-		if ( reverb_effect_idKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+		if ( reverb_effect_idKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
 			classLocals->reverbID = reverb_effect_idKv->integer;
 		// Resort to the default one:
 		} else {
@@ -51,7 +51,7 @@ void CLG_env_sound_Precache( clg_local_entity_t *self, const cm_entity_t *keyVal
 
 	//// Key/Value: 'skin':
 	//if ( const cm_entity_t *skinKv = clgi.CM_EntityKeyValue( keyValues, "skin" ) ) {
-	//	if ( skinKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+	//	if ( skinKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
 	//		self->locals.skinNumber = skinKv->integer;
 	//	} else {
 	//		self->locals.skinNumber = 0;

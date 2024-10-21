@@ -19,15 +19,17 @@
 *	@brief
 **/
 void Touch_DoorTrigger( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+    gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
+
     if ( other->health <= 0 )
         return;
-
+    gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) )
         return;
-
+    gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
     if ( ( self->owner->spawnflags & DOOR_SPAWNFLAG_NOMONSTER ) && ( other->svflags & SVF_MONSTER ) )
         return;
-
+    gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
     if ( level.time < self->touch_debounce_time )
         return;
     self->touch_debounce_time = level.time + 1_sec;

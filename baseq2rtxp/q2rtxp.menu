@@ -375,7 +375,9 @@ begin developer_stuff
     blank
     action "cm_materials(CollisionModel Materials)" "skill 0; gamemode 0; maxclients 1; map cm_materials force"
     blank
-    action "Signal I/O - TargetRange" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_targetrange"
+    action "Entities - func_door/func_door_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_door force"
+    blank
+    action "Signal I/O - TargetRange" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_targetrange force"
     blank
     action "func_plat & func_rotating" "skill 0; gamemode 0; maxclients 1; map func_plat_n_rot force"
     blank

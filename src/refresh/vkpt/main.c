@@ -3689,7 +3689,7 @@ R_Init_RTX(bool total)
 	// 1 -> also surfaces with both SKY and LIGHT flags set
 	// 2 -> also surfaces with SKY, LIGHT, and NODRAW flags set become invisible portal lights
 	// Nonzero settings should only be used for custom maps where sky surfaces are marked properly for Q2RTX.
-	cvar_pt_bsp_sky_lights = Cvar_Get("pt_bsp_sky_lights", "0", 0);
+	cvar_pt_bsp_sky_lights = Cvar_Get("pt_bsp_sky_lights", "1", 0);
 
 	// 0 -> disabled, regular pause; 1 -> enabled; 2 -> enabled, hide GUI
 	cvar_pt_accumulation_rendering = Cvar_Get("pt_accumulation_rendering", "1", CVAR_ARCHIVE);

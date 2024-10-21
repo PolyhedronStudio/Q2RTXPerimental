@@ -31,7 +31,7 @@ void CLG_misc_model_Precache( clg_local_entity_t *self, const cm_entity_t *keyVa
 
 	// Key/Value: 'model':
 	if ( const cm_entity_t *modelKv = clgi.CM_EntityKeyValue( keyValues, "model" ) ) {
-		if ( modelKv->parsed_type & cm_entity_parsed_type_t::ENTITY_STRING ) {
+		if ( modelKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
 			self->model = modelKv->string;
 		} else {
 			self->model = nullptr;// memset( classLocals->modelname, 0, MAX_QPATH );
@@ -40,7 +40,7 @@ void CLG_misc_model_Precache( clg_local_entity_t *self, const cm_entity_t *keyVa
 
 	// Key/Value: 'frame':
 	if ( const cm_entity_t *frameKv = clgi.CM_EntityKeyValue( keyValues, "frame" ) ) {
-		if ( frameKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+		if ( frameKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
 			self->locals.frame = frameKv->integer;
 		} else {
 			self->locals.frame = 0;
@@ -49,7 +49,7 @@ void CLG_misc_model_Precache( clg_local_entity_t *self, const cm_entity_t *keyVa
 
 	// Key/Value: 'skin':
 	if ( const cm_entity_t *skinKv = clgi.CM_EntityKeyValue( keyValues, "skin" ) ) {
-		if ( skinKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+		if ( skinKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
 			self->locals.skinNumber = skinKv->integer;
 		} else {
 			self->locals.skinNumber = 0;
@@ -186,7 +186,7 @@ void CLG_misc_te_Precache( clg_local_entity_t *self, const cm_entity_t *keyValue
 
 	// Key/Value: 'event':
 	if ( const cm_entity_t *eventTypeKv = clgi.CM_EntityKeyValue( keyValues, "event" ) ) {
-		if ( eventTypeKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+		if ( eventTypeKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
 			selfClass->teEvent = static_cast<temp_entity_event_t>( eventTypeKv->integer );
 		} else {
 			selfClass->teEvent = static_cast<temp_entity_event_t>( 0 );
@@ -263,7 +263,7 @@ void CLG_misc_playerholo_Precache( clg_local_entity_t *self, const cm_entity_t *
 
 	// Key/Value: 'frame':
 	if ( const cm_entity_t *clientnumKv = clgi.CM_EntityKeyValue( keyValues, "clientnum" ) ) {
-		if ( clientnumKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+		if ( clientnumKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
 			selfClass->clientNumber = clientnumKv->integer;
 		} else {
 			selfClass->clientNumber = 0;

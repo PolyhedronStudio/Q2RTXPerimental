@@ -440,7 +440,7 @@ void button_use( edict_t *self, edict_t *other, edict_t *activator, const entity
     self->activator = activator;
     self->other = other;
     button_trigger( self, activator, useType, useValue );
-
+    gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
     // We don't need this anymore for buttons. SVG_UseTargets gets called either way, which in turn.. calls the Lua shot.
     #if 0
     button_lua_use( self, other, activator, useType, useValue );

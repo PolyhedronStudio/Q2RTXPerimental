@@ -105,6 +105,18 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
         return;
     }
 
+    // Play locked sound.
+    if ( self->pushMoveInfo.lockState.isLocked ) {
+        // Only play locked sound if toggled while door is idle.
+        if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
+            if ( self->pushMoveInfo.lockState.lockedSound ) {
+                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound , 1, ATTN_STATIC, 0 );
+            }
+        }
+        // Return, we're locked..
+        return;
+    }
+
     if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) || open != true ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
             // trigger all paired doors
@@ -132,6 +144,34 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
 }
 
 /**
+*   @brief
+**/
+void door_lock( edict_t *self ) {
+    // Door has to be either open, or closed, in order to allow for 'locking'.
+    if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
+        // Of course it has to be locked if we want to play a sound.
+        if ( !self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockingSound ) {
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
+        }
+        // Last but not least, unlock its state.
+        self->pushMoveInfo.lockState.isLocked = true;
+    }
+}
+/**
+*   @brief
+**/
+void door_unlock( edict_t *self ) {
+    // Door has to be either open, or closed, in order to allow for 'unlocking'.
+    if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
+        // Of course it has to be locked if we want to play a sound.
+        if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.unlockingSound ) {
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
+        }
+        // Last but not least, unlock its state.
+        self->pushMoveInfo.lockState.isLocked = false;
+    }
+}
+/**
 *   @brief  Signal Receiving:
 **/
 void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
@@ -150,6 +190,24 @@ void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const c
 
         // Signal all paired doors to close. (Presuming they are the same state, opened)
         door_team_toggle( self, self->other, self->activator, false );
+    }
+
+    // DoorLock:
+    if ( Q_strcasecmp( signalName, "DoorLock" ) == 0 ) {
+        door_lock( self );
+    }
+    // DoorUnlock:
+    if ( Q_strcasecmp( signalName, "DoorUnlock" ) == 0 ) {
+        // If we're locked while in either opened, or closed state, unlock the door.
+        door_unlock( self );
+    }
+    // DoorLockToggle:
+    if ( Q_strcasecmp( signalName, "DoorLockToggle" ) == 0 ) {
+        if ( !self->pushMoveInfo.lockState.isLocked ) {
+            door_lock( self );
+        } else {
+            door_unlock( self );
+        }
     }
 
     // WID: Useful for debugging.
@@ -293,11 +351,22 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
 **/
 void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     edict_t *ent;
-
+    gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
+    // Team slave:
     if ( self->flags & FL_TEAMSLAVE ) {
         return;
     }
 
+    // If we're locked while in either opened, or closed state, refuse to use target ourselves and play a locked sound.
+    if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
+        if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockedSound ) {
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
+            return;
+        }
+    }
+
+    gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
+    // Toggle door.
     if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
             // trigger all paired doors
@@ -307,6 +376,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
                 ent->activator = activator; // WID: We need to assign it right?
                 ent->other = other;
                 door_close_move( ent );
+                gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
             }
             return;
         }
@@ -319,6 +389,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
         ent->activator = activator; // WID: We need to assign it right?
         ent->other = other;
         door_open_move( ent/*, activator */);
+        gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
     }
 
     // Call upon Lua OnUse.
@@ -399,13 +470,18 @@ void door_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *sur
         return;
     }
 
+    // WID: TODO: Send a 'OnTouch' Out Signal.
+    #if 0
+
     if ( level.time < self->touch_debounce_time ) {
         return;
     }
+
     self->touch_debounce_time = level.time + 5_sec;
 
     gi.centerprintf( other, "%s", self->message );
     gi.sound( other, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+    #endif
 }
 
 /**
@@ -429,6 +505,10 @@ void SP_func_door( edict_t *ent ) {
         ent->pushMoveInfo.sound_start = gi.soundindex( "doors/door_start_01.wav" );
         ent->pushMoveInfo.sound_middle = gi.soundindex( "doors/door_mid_01.wav" );
         ent->pushMoveInfo.sound_end = gi.soundindex( "doors/door_end_01.wav" );
+
+        ent->pushMoveInfo.lockState.lockedSound = gi.soundindex( "misc/door_locked.wav" );
+        ent->pushMoveInfo.lockState.lockingSound = gi.soundindex( "misc/door_locking.wav" );
+        ent->pushMoveInfo.lockState.unlockingSound = gi.soundindex( "misc/door_unlocking.wav" );
     }
 
     SVG_SetMoveDir( ent->s.angles, ent->movedir );
@@ -468,6 +548,7 @@ void SP_func_door( edict_t *ent ) {
     // Callbacks.
     ent->postspawn = door_postspawn;
     ent->blocked = door_blocked;
+    ent->touch = door_touch;
     ent->use = door_use;
     ent->onsignalin = door_onsignalin;
 
@@ -481,7 +562,7 @@ void SP_func_door( edict_t *ent ) {
     ent->pos2 = QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );
 
     // if it starts open, switch the positions
-    if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN ) {
+    if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_START_OPEN ) ) {
         VectorCopy( ent->pos2, ent->s.origin );
         ent->pos2 = ent->pos1;
         ent->pos1 = ent->s.origin;
@@ -491,13 +572,49 @@ void SP_func_door( edict_t *ent ) {
         ent->pushMoveInfo.state = DOOR_STATE_CLOSED;
     }
 
-    if ( ent->health ) {
-        ent->takedamage = DAMAGE_YES;
-        ent->die = door_killed;
+    // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
+    const bool damageActivates = SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
+    // Health trigger based door:
+    if ( damageActivates ) {
+        // Set max health, also used to reinitialize the door to revive.
         ent->max_health = ent->health;
-    } else if ( ent->targetname && ent->message ) {
-        gi.soundindex( "hud/chat01.wav" );
-        ent->touch = door_touch;
+        // Let it take damage.
+        ent->takedamage = DAMAGE_YES;
+        // Die callback.
+        ent->die = door_killed;
+    // Touch based door:DOOR_SPAWNFLAG_DAMAGE_ACTIVATES
+    } else if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
+        // Set its next think to create the trigger area.
+        ent->nextthink = level.time + FRAME_TIME_S;
+        ent->think = Think_SpawnDoorTrigger;
+    } else {
+        // Apply next think time and method.
+        ent->nextthink = level.time + FRAME_TIME_S;
+        ent->think = Think_CalcMoveSpeed;
+
+        // This door is only toggled, never untoggled, by each (+usetarget) interaction.
+        if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_PRESSABLE ) ) {
+            ent->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
+            // Remove touch door functionality, instead, reside to usetarget functionality.
+            ent->touch = nullptr;
+            ent->use = door_use;
+            // This door is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
+        } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
+            ent->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
+            // Remove touch door functionality, instead, reside to usetarget functionality.
+            ent->touch = nullptr;
+            ent->use = door_use;
+        } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
+            ent->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
+            // Remove touch door functionality, instead, reside to usetarget functionality.
+            ent->touch = nullptr;
+            ent->use = door_use;
+        }
+
+        // Is usetargetting disabled by default?
+        if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_DISABLED ) ) {
+            ent->useTarget.flags = (entity_usetarget_flags_t)( ent->useTarget.flags | ENTITY_USETARGET_FLAG_DISABLED );
+        }
     }
 
     // Copy the calculated info into the pushMoveInfo state struct.
@@ -521,11 +638,16 @@ void SP_func_door( edict_t *ent ) {
     }
 
     // Animated doors:
-    if ( ent->spawnflags & DOOR_SPAWNFLAG_ANIMATED ) {
+    if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_ANIMATED ) ) {
         ent->s.effects |= EF_ANIM_ALL;
     }
-    if ( ent->spawnflags & DOOR_SPAWNFLAG_ANIMATED_FAST ) {
+    if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_ANIMATED_FAST ) ) {
         ent->s.effects |= EF_ANIM_ALLFAST;
+    }
+
+    // Locked or not locked?
+    if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_START_LOCKED ) ) {
+        ent->pushMoveInfo.lockState.isLocked = true;
     }
 
     // To simplify logic elsewhere, make non-teamed doors into a team of one
@@ -535,12 +657,4 @@ void SP_func_door( edict_t *ent ) {
 
     // Link it in.
     gi.linkentity( ent );
-
-    // Apply next think time and method.
-    ent->nextthink = level.time + FRAME_TIME_S;
-    if ( ent->health || ent->targetname ) {
-        ent->think = Think_CalcMoveSpeed;
-    } else {
-        ent->think = Think_SpawnDoorTrigger;
-    }
 }

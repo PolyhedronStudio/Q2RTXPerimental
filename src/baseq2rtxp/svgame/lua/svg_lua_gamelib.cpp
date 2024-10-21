@@ -21,17 +21,18 @@
 *
 *
 **/
-#include <errno.h>
-
-#define ERRNO_MAX       0x5000
-
-#if EINVAL > 0
-#define Q_ERR(e)        (e < 1 || e > ERRNO_MAX ? -ERRNO_MAX : -e)
-#else
-#define Q_ERR(e)        (e > -1 || e < -ERRNO_MAX ? -ERRNO_MAX : e)
-#endif
-
-#define Q_ERR_(e)       (-ERRNO_MAX - e)
+//// WID: TODO: move to shared?
+//#include <errno.h>
+//
+//#define ERRNO_MAX       0x5000
+//
+//#if EINVAL > 0
+//#define Q_ERR(e)        (e < 1 || e > ERRNO_MAX ? -ERRNO_MAX : -e)
+//#else
+//#define Q_ERR(e)        (e > -1 || e < -ERRNO_MAX ? -ERRNO_MAX : e)
+//#endif
+//
+//#define Q_ERR_(e)       (-ERRNO_MAX - e)
 
 
 
@@ -39,7 +40,7 @@
 *
 *
 *
-*	Lua GameLib:
+*	Lua GameLib		:	  PushMovers:
 *
 *
 *
@@ -66,7 +67,7 @@ static int GameLib_GetPushMoverState( lua_State *L ) {
 		pusherMoveState = pushMoverEntity->pushMoveInfo.state;
 	}
 
-	// multiply and store the result inside a type lua_Integer
+	// Store the result inside a type lua_Integer
 	lua_Integer luaPusherMoveState = pusherMoveState;
 
 	// Here we prepare the values to be returned.
@@ -79,6 +80,17 @@ static int GameLib_GetPushMoverState( lua_State *L ) {
 	return 1; // The number of returned values
 }
 
+
+
+/**
+*
+*
+*
+*	Lua GameLib		:	  (Get-)Entities:
+*
+*
+*
+**/
 /**
 *	@return	The number of the entity if it has a matching luaName, -1 otherwise.
 **/
@@ -101,7 +113,7 @@ static int GameLib_GetEntityForLuaName( lua_State *L ) {
 		entityNumber = targetNameEntity->s.number;
 	}
 
-	// multiply and store the result inside a type lua_Integer
+	// Store the result inside a type lua_Integer
 	lua_Integer luaEntityNumber = entityNumber;
 
 	// Here we prepare the values to be returned.
@@ -115,7 +127,7 @@ static int GameLib_GetEntityForLuaName( lua_State *L ) {
 }
 
 /**
-*	@return	The number of the entity if it has a matching targetname, -1 otherwise.
+*	@return	The number of the first matching targetname entity in the entities array, -1 if not found.
 **/
 static int GameLib_GetEntityForTargetName( lua_State *L ) {
 	// Check if the first argument is string.
@@ -136,7 +148,7 @@ static int GameLib_GetEntityForTargetName( lua_State *L ) {
 		entityNumber = targetNameEntity->s.number;
 	}
 
-	// multiply and store the result inside a type lua_Integer
+	// Store the result inside a type lua_Integer
 	lua_Integer luaEntityNumber = entityNumber;
 
 	// Here we prepare the values to be returned.
@@ -148,7 +160,85 @@ static int GameLib_GetEntityForTargetName( lua_State *L ) {
 
 	return 1; // The number of returned values
 }
+/**
+*	@return	The number of the team matching entities found in the entity array, -1 if none found.
+*	@note	
+**/
+static int GameLib_GetEntitiesForTargetName( lua_State *L ) {
+	// Check if the first argument is string.
+	const char *targetName = luaL_checkstring( L, 1 );
+	if ( !targetName ) {
+		Lua_DeveloperPrintf( "%s: invalid string\n", __func__ );
+		// Pushing the result onto the stack to be returned
+		lua_Integer luaEntityNumber = -1;
+		lua_pushinteger( L, luaEntityNumber );
+		return 1;
+	}
 
+	// Get the first matching targetname entity.
+	//edict_t *targetNameEntity = SVG_Find( NULL, FOFS( targetname ), targetName );
+	// If not found, return a -1.
+	//if ( !targetNameEntity ) {
+	//	//Lua_DeveloperPrintf( "%s: no entities found with matching targetname('%s')\n", __func__, targetName );
+	//	// Pushing the result onto the stack to be returned
+	//	lua_Integer luaEntityNumber = -1;
+	//	lua_pushinteger( L, luaEntityNumber );
+	//	return 1;
+	//}
+
+	// Num of return values.
+	int32_t numReturnValues = 1;
+
+	//// Push the found entity onto the stack to be returned first in line.
+	//// Store the result inside a type lua_Integer
+	//lua_Integer luaEntityNumber = targetNameEntity->s.number;
+	//// Pushing the result onto the stack to be returned
+	//lua_pushinteger( L, luaEntityNumber );
+
+	edict_t *targetNameEntity = SVG_Find( NULL, FOFS( targetname ), targetName );
+	if ( !targetNameEntity ) {
+		// Pushing the result onto the stack to be returned
+		lua_Integer luaEntityNumber = -1;
+		lua_pushinteger( L, luaEntityNumber );
+		return 1;
+	}
+
+	// Push table to insert our entity number sequence.
+	lua_createtable( L, 0, 0 );
+	// Store the result inside a type lua_Integer
+	lua_Integer luaEntityNumber = targetNameEntity->s.number;
+	// Pushing the result onto the stack to be returned
+	lua_pushinteger( L, luaEntityNumber );
+
+	// Iterate over all entities seeking for targetnamed ents.
+	//while ( ( targetNameEntity = SVG_Find( targetNameEntity, FOFS( targetname ), targetName ) ) ) {
+	while ( 1 ) {
+		targetNameEntity = SVG_Find( targetNameEntity, FOFS( targetname ), targetName );
+		if ( !targetNameEntity ) {
+			break;
+		}
+		// Increment return value count.
+		numReturnValues += 1;
+		// Store the result inside a type lua_Integer
+		lua_Integer luaEntityNumber = targetNameEntity->s.number;
+		// Pushing the result onto the stack to be returned
+		lua_pushinteger( L, luaEntityNumber );
+	}
+
+	return 1; // The number of returned values
+}
+
+
+
+/**
+*
+*
+*
+*	Lua GameLib		:	  UseTargets:
+*
+*
+*
+**/
 /**
 *	@brief	Utility/Support routine for delaying UseTarget when the 'delay' key/value is set on an entity.
 **/
@@ -362,6 +452,18 @@ static const svg_signal_argument_array_t GameLib_SignalOut_ParseArgumentsTable( 
 
 	return signalArguments;
 }
+
+
+
+/**
+*
+*
+*
+*	Lua GameLib		:	  Signalling:
+*
+*
+*
+**/
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
@@ -467,14 +569,26 @@ static int GameLib_SignalOut( lua_State *L ) {
 	return 1;
 }
 
+
+
+/**
+*
+*
+*
+*	Lua GameLib		:	  Init/Shutdown:
+*
+*
+*
+**/
 /**
 *	@brief	Game Namespace Functions:
 **/
 static const struct luaL_Reg GameLib[] = {
 
-	// GetEntity...:
+	// (Get-)Entities...:
 	{ "GetEntityForLuaName", GameLib_GetEntityForLuaName },
 	{ "GetEntityForTargetName", GameLib_GetEntityForTargetName },
+	{ "GetEntitiesForTargetName", GameLib_GetEntitiesForTargetName },
 
 	// PushMovers:
 	{ "GetPushMoverState", GameLib_GetPushMoverState },

@@ -45,7 +45,7 @@ static const bool SVG_Lua_SignalOut( lua_State *L, edict_t *ent, edict_t *other,
 	const std::string functionName = std::string( ent->luaProperties.luaName ) + "_OnSignalIn";
 
 	// Call function, verbose, because OnSignals may not exist.
-	executedSuccessfully = LUA_CallFunction( L, functionName, 5, 0, verbosity, 
+	executedSuccessfully = LUA_CallFunction( L, functionName, 5, 1, verbosity, 
 		/*[lua args]:*/  ent, other, activator, signalName, signalArguments, rest... );
 
 	// Debug print.

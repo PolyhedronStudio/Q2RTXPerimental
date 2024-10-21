@@ -560,21 +560,21 @@ static void WritePairToEdictKeyField( byte *writeAddress, const spawn_field_t *k
         case F_IGNORE:
             break;
         case F_INT:
-            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
                 *(int *)( writeAddress + keyOffsetField->ofs ) = kv->integer;
             } else {
                 gi.dprintf( "%s: couldn't parse field '%s' as integer type.\n", __func__, kv->key );
             }
             break;
         case F_FLOAT:
-            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
                 *(float *)( writeAddress + keyOffsetField->ofs ) = kv->value;
             } else {
                 gi.dprintf( "%s: couldn't parse field '%s' as float type.\n", __func__, kv->key );
             }
             break;
         case F_ANGLEHACK:
-            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = 0;
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->value;
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = 0;
@@ -586,17 +586,17 @@ static void WritePairToEdictKeyField( byte *writeAddress, const spawn_field_t *k
             *(char **)( writeAddress + keyOffsetField->ofs ) = ED_NewString( kv->string );
             break;
         case F_VECTOR:
-            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR4 ) {
+            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR4 ) {
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec4[ 0 ];
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec4[ 1 ];
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = kv->vec4[ 2 ];
                 // TODO: We don't support vector4 yet, so just behave as if it were a Vector3 for now.
                 //( (float *)( b + f->ofs ) )[ 3 ] = pair->vec4[ 3 ];
-            } else if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
+            } else if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec3[ 0 ];
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec3[ 1 ];
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = kv->vec3[ 2 ];
-            } else if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR2 ) {
+            } else if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR2 ) {
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec2[ 0 ];
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec2[ 1 ];
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = 0;
@@ -721,22 +721,22 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
 
                 // Debugging:
                 #ifdef DEBUG_ENTITY_SPAWN_PROCESS_SHOW_PARSED_FOR_FIELD_TYPES
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_STRING ) {
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
                     gi.dprintf( "\"%s\":\"%s\" parsed for type(string) value=(%s) \n", kv->key, kv->string, kv->nullable_string );
                 }
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
                     gi.dprintf( "\"%s\":\"%s\" parsed for type(integer) value=(%d) \n", kv->key, kv->string, kv->integer );
                 }
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
                     gi.dprintf( "\"%s\":\"%s\" parsed for type(float) value=(%f) \n", kv->key, kv->string, kv->value );
                 }
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR2 ) {
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR2 ) {
                     gi.dprintf( "\"%s\":\"%s\" parsed for type(Vector2) value=(%f, %f) \n", kv->key, kv->string, kv->vec2[ 0 ], kv->vec2[ 1 ] );
                 }
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
                     gi.dprintf( "\"%s\":\"%s\" parsed for type(Vector3) value=(%f, %f, %f) \n", kv->key, kv->string, kv->vec3[ 0 ], kv->vec3[ 1 ], kv->vec3[ 2 ] );
                 }
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR4 ) {
+                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR4 ) {
                     gi.dprintf( "\"%s\":\"%s\" parsed for type(Vector4) value=(%f, %f, %f, %f) \n", kv->key, kv->vec4[ 0 ], kv->vec4[ 1 ], kv->vec4[ 2 ], kv->vec4[ 3 ] );
                 }
                 #endif

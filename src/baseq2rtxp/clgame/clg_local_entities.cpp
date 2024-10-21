@@ -412,26 +412,26 @@ const bool CLG_LocalEntity_DispatchPrepareRefreshEntity( clg_local_entity_t *len
 void CLG_LocalEntity_ParseLocals( clg_local_entity_t *lent, const cm_entity_t *keyValues ) {
 	// Spawnflags:
 	if ( const cm_entity_t *originKv = clgi.CM_EntityKeyValue( keyValues, "spawnflags" ) ) {
-		if ( originKv->parsed_type & cm_entity_parsed_type_t::ENTITY_INTEGER ) {
+		if ( originKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
 			lent->spawnflags = originKv->integer;
 		}
 	}
 
 	// Origin:
 	if ( const cm_entity_t *originKv = clgi.CM_EntityKeyValue( keyValues, "origin" ) ) {
-		if ( originKv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
+		if ( originKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
 			lent->locals.origin = originKv->vec3;
 		}
 	}
 
 	// Angles:
 	if ( const cm_entity_t *anglesKv = clgi.CM_EntityKeyValue( keyValues, "angle" ) ) {
-		if ( anglesKv->parsed_type & cm_entity_parsed_type_t::ENTITY_FLOAT ) {
+		if ( anglesKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
 			lent->locals.angles = { 0.f, anglesKv->value, 0.f };
 		}
 		// Angle:
 	} else if ( const cm_entity_t *anglesKv = clgi.CM_EntityKeyValue( keyValues, "angles" ) ) {
-		if ( anglesKv->parsed_type & cm_entity_parsed_type_t::ENTITY_VECTOR3 ) {
+		if ( anglesKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
 			lent->locals.angles = anglesKv->vec3;
 		}
 	}

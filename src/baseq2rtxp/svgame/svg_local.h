@@ -788,11 +788,10 @@ typedef struct {
 
         //! Locked sound.
         qhandle_t lockedSound;
-
         //! Lock sound.
-        qhandle_t lockSound;
+        qhandle_t lockingSound;
         //! Unlock sound.
-        qhandle_t unlockSound;
+        qhandle_t unlockingSound;
     } lockState;
 
     //
