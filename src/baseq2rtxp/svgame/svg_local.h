@@ -1664,9 +1664,10 @@ struct gclient_s {
     **/
     //! Summed Weapon Kicks, to be applied to client 'viewoffset' and 'kick_angles'.
     struct {
-        //! Additional weapon 'Kick Effect' angles to be added to playerState.kick_angles.
+        //! Additional weapon 'Kick Effect' angles, auto decays. 
+        //! These are to be added to playerState.kick_angles.
         Vector3 offsetAngles;
-        //! Additional weapon 'Kick Effect' origin to be added to viewOffset.
+        //! Additional weapon 'Kick Effect' origin. These are to be added to viewOffset.
         Vector3 offsetOrigin;
     } weaponKicks;
     //! Stores view movement related information.

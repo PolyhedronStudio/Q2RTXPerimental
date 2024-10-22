@@ -971,6 +971,13 @@ void PF_CalculateViewValues( void ) {
         // Just use interpolated values.
         Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
         VectorCopy( viewOrg, clgi.client->refdef.vieworg );
+        
+        // WID: NOTE: If things break, look for this here.
+        // WID: This should fix demos or cl_nopredict
+        VectorCopy( clgi.client->refdef.vieworg, clgi.client->predictedState.currentPs.pmove.origin );
+        #if 0
+        clgi.client->refdef.vieworg[2] -= ops->pmove.origin.z;
+        #endif
     }
 
     // Smooth out step offset.

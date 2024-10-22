@@ -162,7 +162,7 @@ static int GameLib_GetEntityForTargetName( lua_State *L ) {
 }
 /**
 *	@return	The number of the team matching entities found in the entity array, -1 if none found.
-*	@note	
+*	@note	In Lua, it returns a table containing the entity number(s) with a matching targetname.
 **/
 static int GameLib_GetEntitiesForTargetName( lua_State *L ) {
 	// Check if the first argument is string.
@@ -175,26 +175,7 @@ static int GameLib_GetEntitiesForTargetName( lua_State *L ) {
 		return 1;
 	}
 
-	// Get the first matching targetname entity.
-	//edict_t *targetNameEntity = SVG_Find( NULL, FOFS( targetname ), targetName );
-	// If not found, return a -1.
-	//if ( !targetNameEntity ) {
-	//	//Lua_DeveloperPrintf( "%s: no entities found with matching targetname('%s')\n", __func__, targetName );
-	//	// Pushing the result onto the stack to be returned
-	//	lua_Integer luaEntityNumber = -1;
-	//	lua_pushinteger( L, luaEntityNumber );
-	//	return 1;
-	//}
-
-	// Num of return values.
-	int32_t numReturnValues = 1;
-
-	//// Push the found entity onto the stack to be returned first in line.
-	//// Store the result inside a type lua_Integer
-	//lua_Integer luaEntityNumber = targetNameEntity->s.number;
-	//// Pushing the result onto the stack to be returned
-	//lua_pushinteger( L, luaEntityNumber );
-
+	// Find our first targetnamed entity, if any at all.
 	edict_t *targetNameEntity = SVG_Find( NULL, FOFS( targetname ), targetName );
 	if ( !targetNameEntity ) {
 		// Pushing the result onto the stack to be returned
@@ -203,26 +184,34 @@ static int GameLib_GetEntitiesForTargetName( lua_State *L ) {
 		return 1;
 	}
 
-	// Push table to insert our entity number sequence.
-	lua_createtable( L, 0, 0 );
 	// Store the result inside a type lua_Integer
 	lua_Integer luaEntityNumber = targetNameEntity->s.number;
+	// Num of targetnamed matching entities..
+	int32_t numMatchingEntities = 0;
+
+	// Push table to insert our entity number sequence.
+	lua_createtable( L, 0, 0 );
 	// Pushing the result onto the stack to be returned
 	lua_pushinteger( L, luaEntityNumber );
+	// Assign the pushed integer value to our numMatchinEntities index in the table.
+	lua_seti( L, -2, numMatchingEntities );
 
 	// Iterate over all entities seeking for targetnamed ents.
-	//while ( ( targetNameEntity = SVG_Find( targetNameEntity, FOFS( targetname ), targetName ) ) ) {
 	while ( 1 ) {
+		// Find next entity in line.
 		targetNameEntity = SVG_Find( targetNameEntity, FOFS( targetname ), targetName );
+		// Exit if it's nullptr.
 		if ( !targetNameEntity ) {
 			break;
 		}
-		// Increment return value count.
-		numReturnValues += 1;
+		// Increment num entities value count.
+		numMatchingEntities += 1;
 		// Store the result inside a type lua_Integer
 		lua_Integer luaEntityNumber = targetNameEntity->s.number;
 		// Pushing the result onto the stack to be returned
 		lua_pushinteger( L, luaEntityNumber );
+		// Assign the pushed integer value to our numMatchinEntities index in the table.
+		lua_rawseti( L, -2, numMatchingEntities );
 	}
 
 	return 1; // The number of returned values

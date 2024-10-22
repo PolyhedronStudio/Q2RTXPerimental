@@ -352,20 +352,40 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
 void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     edict_t *ent;
     gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
-    // Team slave:
-    if ( self->flags & FL_TEAMSLAVE ) {
-        return;
+
+    // Determine whether the entity is capable of opening doors.
+    const bool entityIsCapable = ( SVG_IsClientEntity( activator ) || activator->svflags & SVF_MONSTER ? true : false );
+
+    // If the activator is a client or a monster, determine whether to play a locked door sound.
+    if ( entityIsCapable ) {
+        // If we're locked while in either opened, or closed state, refuse to use target ourselves and play a locked sound.
+        if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
+            if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockedSound ) {
+                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
+                return;
+            }
+        }
     }
 
-    // If we're locked while in either opened, or closed state, refuse to use target ourselves and play a locked sound.
-    if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
-        if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockedSound ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
+    // By default it is a 'Team Slave', and thus should exit. However, in the scenario of a client
+    // performing a (+usetarget) key action, we want to try and activate the team master. This allows
+    // for the team master to determine what to do next. (Which if the door is unlocked, means it'll
+    // engage to toggle the door moving states.)
+    if ( self->flags & FL_TEAMSLAVE ) {
+        // Prevent ourselves from actually falling into recursion, make sure we got a client entity.
+        if ( self->teammaster != self && entityIsCapable ) {
+            // Pass through to the team master to handle this.
+            if ( self->teammaster->use ) {
+                self->teammaster->use( self->teammaster, other, activator, useType, useValue );
+            }
+            return;
+        // Default 'Team Slave' behavior:
+        } else {
             return;
         }
     }
 
-    gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
+    //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
     // Toggle door.
     if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
@@ -376,7 +396,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
                 ent->activator = activator; // WID: We need to assign it right?
                 ent->other = other;
                 door_close_move( ent );
-                gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
+                //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
             }
             return;
         }
@@ -389,7 +409,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
         ent->activator = activator; // WID: We need to assign it right?
         ent->other = other;
         door_open_move( ent/*, activator */);
-        gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
+        //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
     }
 
     // Call upon Lua OnUse.
