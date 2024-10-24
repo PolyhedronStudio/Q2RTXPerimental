@@ -2174,13 +2174,18 @@ static inline const bool SVG_IsActiveEntity( const edict_t *ent ) {
 /**
 *   @brief  Returns true if the active entity has a client assigned to it.
 **/
-static inline const bool SVG_IsClientEntity( const edict_t *ent ) {
+static inline const bool SVG_IsClientEntity( const edict_t *ent, const bool healthCheck = false ) {
     // Inactive Entity:
     if ( !SVG_IsActiveEntity( ent ) ) {
         return false;
     }
     // No Client:
     if ( !ent->client ) {
+        return false;
+    }
+
+    // Health Check, require > 0
+    if ( healthCheck && ent->health <= 0 ) {
         return false;
     }
     // Has Client.

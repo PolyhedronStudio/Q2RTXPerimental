@@ -124,6 +124,25 @@ RMAPI const Vector3 QM_Vector3Perpendicular( ConstVector3Ref v ) {
     return result;
 }
 
+// Calculate the fabs() of the vector.
+RMAPI const Vector3 QM_Vector3Fabs( ConstVector3Ref v1 ) {
+    #ifdef __cplusplus
+    Vector3 result = { 
+        std::fabsf( v1.x ),
+        std::fabsf( v1.y ),
+        std::fabsf( v1.z )
+    };
+    #else
+    Vector3 result = {
+        fabsf( v1.x ),
+        fabsf( v1.y ),
+        fabsf( v1.z )
+    };
+    #endif
+
+    return result;
+}
+
 // Calculate vector length
 RMAPI const float QM_Vector3Length( ConstVector3Ref v ) {
     const float result = sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );

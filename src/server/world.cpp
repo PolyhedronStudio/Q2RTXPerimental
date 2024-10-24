@@ -589,9 +589,7 @@ const trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
 
     // clip to other solid entities
     SV_ClipMoveToEntities(start, mins, maxs, end, passedict, contentmask, &trace);
-    if ( contentmask & CONTENTS_LADDER ) {
-        int x = 10;
-    }
+
     return trace;
 }
 

@@ -57,12 +57,33 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [-] Add proper file chunk loading.
 		- [ ] What about 'include' functionality that loads its own chunks?
 	- [X] Add C utilities to define Lua consts for enums/constvals/defines.
-
-- [ ] Signalling:
-	- [ ] Patch all entities that might have a use for signalling. Such might be:
-		  a target_temp_entity etc. And of course, all PushMovers, killbox, etc.
-	- [ ] Add support for passing along values for Signals to be processed.
-	- [ ] Adjust at least all movers to support signalling.
+	- [ ] Signalling:
+		- [-] Patch all entities that might have a use for signalling. Such might be: A target_temp_entity etc. And of course, all PushMovers, killbox, etc. In hindsight, I will actually do these gradually over releases to prevent it from stalling the project overall.
+		- [ ] PushMovers Signal I/O Support:
+			- [-] func_button *still buggy, pressed on start ain't working?? *
+			- [ ] func_conveyor
+			- [x] func_door
+			- [x] func_door_rotating
+			- [ ] func_rotating
+			- [ ] func_killbox
+			- [ ] func_plat
+			- [ ] func_timer
+			- [ ] func_train
+		- [ ] (Point-)Triggers Signal I/O Support:
+			- [ ] trigger_always
+			- [ ] trigger_counter
+			- [ ] trigger_elevator
+			- [ ] trigger_gravity
+			- [ ] trigger_hurt
+			- [ ] trigger_multiple
+			- [ ] trigger_once
+			- [ ] trigger_push
+			- [ ] trigger_relay
+		- [ ] Others Signal I/O Support, some need type specific signals, others need just the generic signals which also counts for ALL the entities above..
+			- [ ] path_corner
+			- [ ] spotlight
+			- [ ] target_ entities.
+	- [X] Add support for passing along values for Signals to be processed.
 
 - [ ] Entities:
 	- [ ] Reimplement (client-)misc_model properly.
@@ -70,7 +91,7 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [ ] Can we do a, C++ struct inheritance and have edict_t* store a pointer to an instance of				
 	the matching entity classname and its 'classdata' struct.
 	- [ ] .. Some more I bet ..
-_
+
 - [ ] Misc:
 	- [ ] Attach a 'world' weapon model to the player.
 

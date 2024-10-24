@@ -30,9 +30,9 @@ end
 ----------------------------------------------------------------------
 -- The Buttons
 ----------------------------------------------------------------------
+-- Lock Toggling for the single Regular Door.
 function ButtonLock00_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    -- Open the doors.
-    if ( signalName == "OnPressed" ) then
+    if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
         -- Get entity
         local entDoor = Game.GetEntityForTargetName( "door_usetargets_locking" )
         -- Determine its move state.
@@ -45,12 +45,47 @@ function ButtonLock00_OnSignalIn( self, signaller, activator, signalName, signal
     end
     return true
 end
-
+-- Lock Toggling for the paired Regular Doors.
 function ButtonLockTeamPairDoors_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    -- Open the doors.
-    if ( signalName == "OnPressed" ) then
+    if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
         -- Get entities with matching targetName.
         local entsDoors = Game.GetEntitiesForTargetName( "door_usetargets_team" )
+        -- The result has to be a valid table with at least one entity number residing inside of it.
+        if ( type( entsDoors ) == "table" or #entsDoors >= 1 ) then
+            -- Iterate the targetname entities table.
+            for keyIndex,entDoor in pairs(entsDoors) do
+                -- Determine move state.
+                local moveState = Game.GetPushMoverState( entDoor )
+                -- Of course we can't lock a moving door. 
+                -- For showing off feature wise, we also allow for locking it in its opened state.
+                if ( moveState ~= PUSHMOVE_STATE_MOVING_DOWN and moveState ~= PUSHMOVE_STATE_MOVING_UP ) then
+                    -- Signal the "DoorLockToggle" event.
+                    Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
+                end
+            end
+        end
+    end
+end
+-- Lock Toggling for the single Rotating Door.
+function ButtonLock01_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+    if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
+        -- Get entity
+        local entDoor = Game.GetEntityForTargetName( "door_rotating_usetargets_locking" )
+        -- Determine its move state.
+        local moveState = Game.GetPushMoverState( entDoor )
+        -- Of course we can't lock a moving door. For showing off feature wise, we also allow for locking it in its opened state.
+        if ( moveState ~= PUSHMOVE_STATE_MOVING_DOWN and moveState ~= PUSHMOVE_STATE_MOVING_UP ) then
+            -- Signal the "DoorLockToggle" event.
+            Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
+        end
+    end
+    return true
+end
+-- Lock Toggling for the paired Rotating Doors.
+function ButtonLockTeamPairDoorsRotating_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+    if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
+        -- Get entities with matching targetName.
+        local entsDoors = Game.GetEntitiesForTargetName( "door_rotating_usetargets_team" )
         -- The result has to be a valid table with at least one entity number residing inside of it.
         if ( type( entsDoors ) == "table" or #entsDoors >= 1 ) then
             -- Iterate the targetname entities table.
