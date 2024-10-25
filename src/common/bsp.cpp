@@ -37,7 +37,8 @@ extern "C" {
     extern mtexinfo_t nulltexinfo;
 };
 
-static cvar_t *map_visibility_patch;
+// WID: Not needed anymore.
+//static cvar_t *map_visibility_patch;
 
 /**
 *   When not compiling with USE_REF defined by CMake, we know we're not dealing
@@ -68,6 +69,7 @@ static cvar_t *map_visibility_patch;
 #define DEBUG(msg) \
     Com_SetLastError(va("%s: %s", __func__, msg))
 
+#define BSP_Byte()      (in += 1, RL8(in - 1))
 #define BSP_Short()     (in += 2, RL16(in - 2))
 #define BSP_Long()      (in += 4, RL32(in - 4))
 #define BSP_Float()     LongToFloat(BSP_Long())
@@ -427,13 +429,13 @@ LOAD(Faces)
         }
         out->texinfo = bsp->texinfo + texinfo;
 
-        for (j = 0; j < MAX_LIGHTMAPS && in[j] != 255; j++) {
+        for (j = 0; j < 4 && in[j] != 255; j++) {
             out->styles[j] = in[j];
         }
-        for (out->numstyles = j; j < MAX_LIGHTMAPS; j++) {
+        for (out->numstyles = j; j < 4; j++) {
             out->styles[j] = 255;
         }
-        in += MAX_LIGHTMAPS;
+        in += 4;
 
         lightofs = BSP_Long();
         if (lightofs == (uint32_t)-1 || bsp->numlightmapbytes == 0) {
@@ -1091,6 +1093,18 @@ bool BSP_SavePatchedPVS(bsp_t *bsp)
 }
 
 #if USE_REF
+/**
+*
+* 
+* 
+*   BSPX: VertexNormals: 
+* 
+* 
+* 
+**/
+/**
+*   @brief
+**/
 static void BSP_LoadBspxNormals(bsp_t* bsp, const byte* in, size_t data_size)
 {
 	if (data_size < sizeof(uint32_t))
@@ -1141,12 +1155,116 @@ static void BSP_LoadBspxNormals(bsp_t* bsp, const byte* in, size_t data_size)
 		basis_offset += face->numsurfedges;
 	}
 }
-
+/**
+*   @brief
+**/
 static size_t BSP_ParseNormalsHeader(bsp_t* bsp, const byte* in, size_t data_size)
 {
     return data_size;
 }
 
+
+
+/**
+*
+*
+*
+*   BSPX: LightStyles:
+*
+*
+*
+**/
+/**
+*   @brief
+**/
+/**
+*   @brief
+**/
+static void BSP_LoadBspxLightMapStyles( bsp_t *bsp, const byte *in, size_t data_size ) {
+    if ( data_size < sizeof( uint8_t ) )
+        return;
+
+    //// Count the total number of face-vertices in the BSP
+    //uint32_t total_vertices = 0;
+    //for ( int i = 0; i < bsp->numfaces; i++ ) {
+    //    mface_t *face = bsp->faces + i;
+    //    total_vertices += face->numsurfedges;
+    //    face->numstyles
+    //}
+
+    // Validate the header and that all data fits into the lump
+    //uint32_t numFaceStyles = BSP_Byte();
+    size_t expected_data_size = data_size / ( sizeof( *mface_t::styles ) * bsp->numfaces );
+    if ( !expected_data_size || data_size != bsp->numfaces * sizeof( *mface_t::styles ) * expected_data_size ) {
+        Com_DPrintf( "%s: BSPX Lump LMSTYLE is incorrectly sized, expected %u*%u entries, found %u\n", 
+            __func__, bsp->numfaces, expected_data_size, data_size / ( (uint32_t)sizeof( *mface_t::styles ) ) );
+    }
+    //int size;
+    //overrides->styles8 = BSPX_FindLump( bspx, mod_base, "LMSTYLE", &size );
+    //overrides->stylesperface = size / ( sizeof( *overrides->styles8 ) * loadmodel->numsurfaces ); //rounding issues will be caught on the next line...
+    //if ( !overrides->stylesperface || size != loadmodel->numsurfaces * sizeof( *overrides->styles8 ) * overrides->stylesperface ) {
+    //    if ( size )
+    //        Con_Printf( CON_ERROR"BSPX LMSTYLE16 lump is wrong size, expected %u*%u entries, found %u\n", loadmodel->numsurfaces, overrides->stylesperface, size / (unsigned int)sizeof( *overrides->styles8 ) );
+    //    overrides->styles8 = NULL;
+    //}
+    if ( data_size < expected_data_size )
+        return;
+
+    // Add basis indexing
+    //int basis_offset = 0;
+    //uint8_t numTotalStyles = BSP_Byte();
+    for ( int i = 0; i < bsp->numfaces; i++ ) {
+        mface_t *face = bsp->faces + i;
+        //uint8_t numFaceStyles = BSP_Byte();
+        //if ( numFaceStyles != 255 ) {
+            //face->numstyles = expected_data_size;// ( numFaceStyles < 32 ? numFaceStyles : 32 );
+            for ( int32_t j = 0; j < expected_data_size; j++ ) {
+                //uint16_t faceStyle = BSP_Byte();
+                if ( j == 0 ) {
+                    face->numstyles = 1;
+                }
+                uint8_t style = in[ i * expected_data_size + j ];
+                if ( style != 255 ) {
+                    //if ( faceStyle != 65503 ) {
+                    face->styles[ j ] = style;
+                    face->numstyles++;
+                } else {
+                    face->styles[ j ] = 0;
+                }
+                //} else {
+                    //face->styles[ j ] = 255;
+                //}
+            }
+
+            if ( face->numstyles >= 5 ) {
+                int k = face->styles[ 0 ];
+                int j = face->styles[ 1 ];
+                int x = 10;
+            }
+        //}
+    }
+}
+/**
+*   @brief
+**/
+static size_t BSP_ParseBspxLightMapStylesHeader( bsp_t *bsp, const byte *in, size_t data_size ) {
+    return data_size;
+}
+
+
+
+/**
+*
+*
+*
+*   BSPX: Decoupled LightMaps:
+*
+*
+*
+**/
+/**
+*   @brief
+**/
 static void BSP_ParseDecoupledLM(bsp_t *bsp, const byte *in, size_t filelen)
 {
     mface_t *out;
@@ -1179,7 +1297,8 @@ static void BSP_ParseDecoupledLM(bsp_t *bsp, const byte *in, size_t filelen)
 
 static const xlump_info_t bspx_lumps[] = {
     { "DECOUPLED_LM", BSP_ParseDecoupledLM },
-    { "FACENORMALS", BSP_LoadBspxNormals, BSP_ParseNormalsHeader }
+    { "FACENORMALS", BSP_LoadBspxNormals, BSP_ParseNormalsHeader },
+    { "LMSTYLE", BSP_LoadBspxLightMapStyles, BSP_ParseBspxLightMapStylesHeader }
 };
 
 // returns amount of extra data to allocate
@@ -1610,6 +1729,8 @@ overrun:
         }
     } while (out < out_end);
 
+    // WID: Not needed anymore.
+    #if 0
     // apply our ugly PVS patches
     if (map_visibility_patch->integer) {
         if (bsp->checksum == 0x1e5b50c5) {
@@ -1643,6 +1764,7 @@ overrun:
             }
         }
     }
+    #endif
 
     return mask;
 }
@@ -1684,7 +1806,8 @@ mmodel_t *BSP_InlineModel(bsp_t *bsp, const char *name)
 
 void BSP_Init(void)
 {
-    map_visibility_patch = Cvar_Get("map_visibility_patch", "1", 0);
+    // WID: Not needed anymore.
+    //map_visibility_patch = Cvar_Get("map_visibility_patch", "1", 0);
 
     Cmd_AddCommand("bsplist", BSP_List_f);
 

@@ -915,7 +915,8 @@ append_light_poly(int* num_lights, int* allocated, light_poly_t** lights)
 {
 	if (*num_lights == *allocated)
 	{
-		*allocated = max(*allocated * 2, 128);
+		// WID: OLD: *allocated = max( *allocated * 2, 128 );
+		*allocated = max(*allocated * 2, MAX_POLY_VERTS );
 		*lights = Z_Realloc(*lights, *allocated * sizeof(light_poly_t));
 	}
 	return *lights + (*num_lights)++;

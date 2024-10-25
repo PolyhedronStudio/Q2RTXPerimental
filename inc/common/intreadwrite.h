@@ -21,24 +21,29 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #if (defined __GNUC__)
 
+struct unaligned8   { uint8_t u; } __attribute__( ( packed, may_alias ) );
 struct unaligned16 { uint16_t u; } __attribute__((packed, may_alias));
 struct unaligned32 { uint32_t u; } __attribute__((packed, may_alias));
 struct unaligned64 { uint64_t u; } __attribute__((packed, may_alias));
 
+#define RN8(p)  (((const struct unaligned8 *)(p))->u)
 #define RN16(p) (((const struct unaligned16 *)(p))->u)
 #define RN32(p) (((const struct unaligned32 *)(p))->u)
 #define RN64(p) (((const struct unaligned64 *)(p))->u)
 
+#define WN8(p, v)   (((struct unaligned8 *)(p))->u = (v))
 #define WN16(p, v)  (((struct unaligned16 *)(p))->u = (v))
 #define WN32(p, v)  (((struct unaligned32 *)(p))->u = (v))
 #define WN64(p, v)  (((struct unaligned64 *)(p))->u = (v))
 
 #elif (defined _MSC_VER)
 
+#define RN8(p)  (*(const uint8_t *)(p))
 #define RN16(p) (*(const uint16_t *)(p))
 #define RN32(p) (*(const uint32_t *)(p))
 #define RN64(p) (*(const uint64_t *)(p))
 
+#define WN8(p, v)   (*(uint8_t *)(p) = (v))
 #define WN16(p, v)  (*(uint16_t *)(p) = (v))
 #define WN32(p, v)  (*(uint32_t *)(p) = (v))
 #define WN64(p, v)  (*(uint64_t *)(p) = (v))
@@ -48,15 +53,17 @@ struct unaligned64 { uint64_t u; } __attribute__((packed, may_alias));
 #if USE_LITTLE_ENDIAN
 
 #ifdef RN16
+#define RL8(p)  RN8(p)
 #define RL16(p) RN16(p)
 #define RL32(p) RN32(p)
 #define RL64(p) RN64(p)
 #endif
 
 #ifdef WN16
-#define WL16(p, v) WN16(p, v)
-#define WL32(p, v) WN32(p, v)
-#define WL64(p, v) WN64(p, v)
+#define WL8(p,v)    WN8(p, v)
+#define WL16(p, v)  WN16(p, v)
+#define WL32(p, v)  WN32(p, v)
+#define WL64(p, v)  WN64(p, v)
 #endif
 
 #endif  // USE_LITTLE_ENDIAN

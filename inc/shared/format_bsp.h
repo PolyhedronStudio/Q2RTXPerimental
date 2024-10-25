@@ -66,7 +66,9 @@ typedef struct {
     lump_t      lumps[ HEADER_LUMPS ];
 } dheader_t;
 
-#define    MAX_LIGHTMAPS    4
+// WID: BSPX: LMSTYLE
+//#define    MAX_LIGHTMAPS    4
+#define    MAX_LIGHTMAPS    256
 
 #define ANGLE_UP    -1
 #define ANGLE_DOWN  -2
@@ -167,7 +169,7 @@ typedef struct mface_s {
     cplane_t *plane;
     int             drawflags; // DSURF_PLANEBACK, etc
 
-    byte *lightmap;
+    byte            *lightmap;
     byte            styles[ MAX_LIGHTMAPS ];
     int             numstyles;
 
@@ -179,21 +181,21 @@ typedef struct mface_s {
     int             lm_height;
 
     #if USE_REF == REF_GL
-    int             texnum[ 2 ];
-    int             statebits;
-    int             firstvert;
-    int             light_s, light_t;
-    float           stylecache[ MAX_LIGHTMAPS ];
+        int             texnum[ 2 ];
+        int             statebits;
+        int             firstvert;
+        int             light_s, light_t;
+        float           stylecache[ MAX_LIGHTMAPS ];
     #else
-    #ifndef MIPLEVELS
-    #define MIPLEVELS 4
-    #define IN_HEADER_MIPLEVELS
-    #endif
-    struct surfcache_s *cachespots[ MIPLEVELS ]; // surface generation data
-    #ifndef IN_HEADER_MIPLEVELS
-    #undef MIPLEVELS 4
-    #undef IN_HEADER_MIPLEVELS
-    #endif
+        #ifndef MIPLEVELS
+            #define MIPLEVELS 4
+            #define IN_HEADER_MIPLEVELS
+        #endif
+        struct surfcache_s *cachespots[ MIPLEVELS ]; // surface generation data
+        #ifndef IN_HEADER_MIPLEVELS
+            #undef MIPLEVELS 4
+            #undef IN_HEADER_MIPLEVELS
+        #endif
     #endif
 
     int             firstbasis;

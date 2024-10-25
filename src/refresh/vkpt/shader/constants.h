@@ -115,7 +115,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define MAX_RESERVED_INSTANCES   16   // TLAS instances reserved for skinned geometry, particles and the like
 #define MAX_TLAS_INSTANCES       (MAX_MODEL_INSTANCES + MAX_RESERVED_INSTANCES)
 #define MAX_LIGHT_SOURCES        32
-#define MAX_LIGHT_STYLES         64
+// WID: BSPX: LMSTYLE:
+//#define MAX_LIGHT_STYLES         64
+#define MAX_LIGHT_STYLES         256
 
 #define TLAS_INDEX_GEOMETRY      0
 #define TLAS_INDEX_EFFECTS       1
