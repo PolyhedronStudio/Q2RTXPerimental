@@ -514,28 +514,87 @@ If targeted, will toggle between on and off. Firing other set target also.
 Default _cone value is 10 (used to set size of light for spotlights)
 */
 
-#define START_OFF   1
+static constexpr int32_t START_OFF = 1;
 
-void light_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    if ( self->spawnflags & START_OFF ) {
+/**
+*   @brief
+**/
+static void light_off( edict_t *self ) {
+    //if ( !SVG_HasSpawnFlags( self, START_OFF ) ) {
+        gi.configstring( CS_LIGHTS + self->style, "a" );
+        self->spawnflags |= START_OFF;
+    //}
+}
+/**
+*   @brief
+**/
+static void light_on( edict_t *self ) {
+    //if ( SVG_HasSpawnFlags( self, START_OFF ) ) {
         if ( self->customLightStyle ) {
             gi.configstring( CS_LIGHTS + self->style, self->customLightStyle );
         } else {
             gi.configstring( CS_LIGHTS + self->style, "m" );
         }
         self->spawnflags &= ~START_OFF;
+    //}
+}
+/**
+*   @brief
+**/
+static void light_toggle( edict_t *self ) {
+    if ( self->spawnflags & START_OFF ) {
+        light_on( self );
     } else {
-        gi.configstring( CS_LIGHTS + self->style, "a" );
-        self->spawnflags |= START_OFF;
+        light_off( self );
     }
+}
+/**
+*   @brief
+**/
+void light_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    //if ( self->spawnflags & START_OFF ) {
+    //    if ( self->customLightStyle ) {
+    //        gi.configstring( CS_LIGHTS + self->style, self->customLightStyle );
+    //    } else {
+    //        gi.configstring( CS_LIGHTS + self->style, "m" );
+    //    }
+    //    self->spawnflags &= ~START_OFF;
+    //} else {
+    //    gi.configstring( CS_LIGHTS + self->style, "a" );
+    //    self->spawnflags |= START_OFF;
+    //}
+
 
     // Apply activator.
     self->activator = activator;
+    self->other = other;
+
+    if ( useType == ENTITY_USETARGET_TYPE_SET ) {
+        if ( useValue == 1 ) {
+            // If it is on let it be.
+            light_on( self );
+        } else {
+            // If it is on let it be.
+            light_off( self );
+        }
+    } else {
+        if ( useType == ENTITY_USETARGET_TYPE_TOGGLE ) {
+            light_toggle( self );
+        } else {
+            if ( useType == ENTITY_USETARGET_TYPE_OFF ) {
+                light_off( self );
+            } else if ( useType == ENTITY_USETARGET_TYPE_ON ) {
+                light_on( self );
+            }
+        }
+    }
 
     // Fire set target.
     SVG_UseTargets( self, activator );
 }
-
+/**
+*   @brief
+**/
 void SP_light( edict_t *self ) {
     #if 0
     // no targeted lights in deathmatch, because they cause global messages
@@ -547,14 +606,11 @@ void SP_light( edict_t *self ) {
 
     if ( self->style >= 32 ) {
         self->use = light_use;
+        // Set on or off depending on spawnflags.
         if ( self->spawnflags & START_OFF ) {
-            gi.configstring( CS_LIGHTS + self->style, "a" );
+            light_off( self );
         } else {
-            if ( self->customLightStyle ) {
-                gi.configstring( CS_LIGHTS + self->style, self->customLightStyle );
-            } else {
-                gi.configstring( CS_LIGHTS + self->style, "m" );
-            }
+            light_on( self );
         }
     }
 }
