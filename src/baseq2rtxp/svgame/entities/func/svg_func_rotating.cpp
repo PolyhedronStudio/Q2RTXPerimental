@@ -79,7 +79,7 @@ void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const enti
                 self->touch = NULL;
             }
         }
-        }
+    }
 }
 
 void SP_func_rotating( edict_t *ent ) {

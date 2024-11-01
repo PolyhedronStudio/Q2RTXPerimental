@@ -1184,64 +1184,35 @@ static void BSP_LoadBspxLightMapStyles( bsp_t *bsp, const byte *in, size_t data_
     if ( data_size < sizeof( uint8_t ) )
         return;
 
-    //// Count the total number of face-vertices in the BSP
-    //uint32_t total_vertices = 0;
-    //for ( int i = 0; i < bsp->numfaces; i++ ) {
-    //    mface_t *face = bsp->faces + i;
-    //    total_vertices += face->numsurfedges;
-    //    face->numstyles
-    //}
-
-    // Validate the header and that all data fits into the lump
-    //uint32_t numFaceStyles = BSP_Byte();
-    size_t expected_data_size = data_size / ( sizeof( *mface_t::styles ) * bsp->numfaces );
-    if ( !expected_data_size || data_size != bsp->numfaces * sizeof( *mface_t::styles ) * expected_data_size ) {
-        Com_DPrintf( "%s: BSPX Lump LMSTYLE is incorrectly sized, expected %u*%u entries, found %u\n", 
-            __func__, bsp->numfaces, expected_data_size, data_size / ( (uint32_t)sizeof( *mface_t::styles ) ) );
-    }
-    //int size;
-    //overrides->styles8 = BSPX_FindLump( bspx, mod_base, "LMSTYLE", &size );
-    //overrides->stylesperface = size / ( sizeof( *overrides->styles8 ) * loadmodel->numsurfaces ); //rounding issues will be caught on the next line...
-    //if ( !overrides->stylesperface || size != loadmodel->numsurfaces * sizeof( *overrides->styles8 ) * overrides->stylesperface ) {
-    //    if ( size )
-    //        Con_Printf( CON_ERROR"BSPX LMSTYLE16 lump is wrong size, expected %u*%u entries, found %u\n", loadmodel->numsurfaces, overrides->stylesperface, size / (unsigned int)sizeof( *overrides->styles8 ) );
-    //    overrides->styles8 = NULL;
-    //}
-    if ( data_size < expected_data_size )
+    // 
+    size_t maxFaceStyles = data_size / ( sizeof( *mface_t::styles ) * bsp->numfaces );
+    if ( !maxFaceStyles || data_size != bsp->numfaces * sizeof( *mface_t::styles ) * maxFaceStyles ) {
+        Com_WPrintf( "%s: BSPX Lump LMSTYLE is incorrectly sized, expected %u*%u entries, found %u\n", 
+            __func__, bsp->numfaces, maxFaceStyles, data_size / ( (uint32_t)sizeof( *mface_t::styles ) ) );
         return;
+    }
 
-    // Add basis indexing
-    //int basis_offset = 0;
-    //uint8_t numTotalStyles = BSP_Byte();
     for ( int i = 0; i < bsp->numfaces; i++ ) {
         mface_t *face = bsp->faces + i;
-        //uint8_t numFaceStyles = BSP_Byte();
-        //if ( numFaceStyles != 255 ) {
-            //face->numstyles = expected_data_size;// ( numFaceStyles < 32 ? numFaceStyles : 32 );
-            for ( int32_t j = 0; j < expected_data_size; j++ ) {
-                //uint16_t faceStyle = BSP_Byte();
-                if ( j == 0 ) {
-                    face->numstyles = 1;
-                }
-                uint8_t style = in[ i * expected_data_size + j ];
-                if ( style != 255 ) {
-                    //if ( faceStyle != 65503 ) {
-                    face->styles[ j ] = style;
-                    face->numstyles++;
-                } else {
-                    face->styles[ j ] = 0;
-                }
-                //} else {
-                    //face->styles[ j ] = 255;
-                //}
+        for ( int32_t j = 0; j < maxFaceStyles; j++ ) {
+            // Initially reset the number of styles to just 1.
+            if ( j == 0 ) {
+                face->numstyles = 1;
             }
 
-            if ( face->numstyles >= 5 ) {
-                int k = face->styles[ 0 ];
-                int j = face->styles[ 1 ];
-                int x = 10;
+            // Acquire the style value for the light index.
+            uint8_t style = in[ i * maxFaceStyles + j ];
+            // If it is a valid style index:
+            if ( style != 255 ) {
+                // Assign BSPX style.
+                face->styles[ j ] = style;
+                // Increment number of styles of face.
+                face->numstyles++;
+            // Default to style 0:
+            } else {
+                face->styles[ j ] = 0;
             }
-        //}
+        }
     }
 }
 /**

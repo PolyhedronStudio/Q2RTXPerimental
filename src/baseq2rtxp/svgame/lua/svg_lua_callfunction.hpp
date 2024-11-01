@@ -181,10 +181,13 @@ static const bool LUA_CallFunction( lua_State *L, const std::string &functionNam
 		if ( pCallReturnValue == LUA_OK ) {
 			// Pop function name from stack.
 			if ( numReturnValues >= 1 && lua_gettop( L ) != numReturnValues ) {
-				//luaL_error( L, "%s: returned (#%d) return values, but (#%d) number of return values were expected",
-				//	__func__, lua_gettop( L ), numReturnValues );
-				LUA_ErrorPrintf( "%s: returned (#%d) return values, but (#%d) number of return values were expected",
-					__func__, lua_gettop( L ), numReturnValues );
+				// WID: LUA: Requires us to implement 'the other way' of dealing with Lua Errrors.
+				#if 0
+				return luaL_error( L, "%s: function \"%s\" returned (#%d) return values, but (#%d) number of return values were expected\n",
+					__func__, functionName.c_str(), lua_gettop( L ), numReturnValues );
+				#endif
+				LUA_ErrorPrintf( "%s: function \"%s\" returned (#%d) return values, but (#%d) number of return values were expected\n",
+					__func__, functionName.c_str(), lua_gettop( L ), numReturnValues );
 			}
 
 			// Success.

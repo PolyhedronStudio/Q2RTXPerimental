@@ -407,11 +407,6 @@ void button_press_move( edict_t *self ) {
     #if 1
     // Dispatch a signal.
     SVG_SignalOut( self, self->other, self->activator, "OnPress" );
-    // Also a special one for touch buttons.
-    const bool isTouchButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_TOUCH_ACTIVATES );
-    if ( isTouchButton ) {
-        SVG_SignalOut( self, self->other, self->activator, "OnTouchPress" );
-    }
     // Signal Testing:
     #else
     // Signal arguments.
@@ -445,11 +440,6 @@ void button_unpress_move( edict_t *self ) {
     SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, button_unpress_move_done );
     // Dispatch a signal.
     SVG_SignalOut( self, self->other, self->activator, "OnUnPress" );
-    // Also a special one for touch buttons.
-    const bool isTouchButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_TOUCH_ACTIVATES );
-    if ( isTouchButton ) {
-        SVG_SignalOut( self, self->other, self->activator, "OnTouchUnPress" );
-    }
 }
 
 
@@ -659,33 +649,33 @@ void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
         self->other = other;
         button_unpress_move( self );
 
-        //if ( !startPressed ) {
-        //    // UseTargets a Toggle.
-        //    SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
-        //    // Dispatch a signal.
-        //    SVG_SignalOut( self, self->other, self->activator, "OnTouchUnPress" );
-        //} else {
-        //    // UseTargets a Toggle.
-        //    SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
-        //    // Dispatch a signal.
-        //    SVG_SignalOut( self, self->other, self->activator, "OnTouchPress" );
-        //}
+        if ( !startPressed ) {
+            // UseTargets a Toggle.
+            SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+            // Dispatch a signal.
+            SVG_SignalOut( self, self->other, self->activator, "OnTouchUnPress" );
+        } else {
+            // UseTargets a Toggle.
+            SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+            // Dispatch a signal.
+            SVG_SignalOut( self, self->other, self->activator, "OnTouchPress" );
+        }
     } else if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED && !stayPressed ) {
         // Press,
         self->activator = other;
         self->other = other;
         button_press_move( self );
-        //if ( !startPressed ) {
-        //    // UseTargets a Toggle.
-        //    SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
-        //    // Dispatch a signal.
-        //    SVG_SignalOut( self, self->other, self->activator, "OnTouchPress" );
-        //} else {
-        //    // UseTargets a Toggle.
-        //    SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
-        //    // Dispatch a signal.
-        //    SVG_SignalOut( self, self->other, self->activator, "OnTouchUnPress" );
-        //}
+        if ( !startPressed ) {
+            // UseTargets a Toggle.
+            SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+            // Dispatch a signal.
+            SVG_SignalOut( self, self->other, self->activator, "OnTouchPress" );
+        } else {
+            // UseTargets a Toggle.
+            SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+            // Dispatch a signal.
+            SVG_SignalOut( self, self->other, self->activator, "OnTouchUnPress" );
+        }
     }
 }
 /**

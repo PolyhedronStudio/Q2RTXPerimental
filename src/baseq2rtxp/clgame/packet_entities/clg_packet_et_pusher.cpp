@@ -32,7 +32,7 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     }
 
     // Setup the old frame.
-    refreshEntity->oldframe = packetEntity->prev.frame;
+    refreshEntity->oldframe = refreshEntity->frame; // packetEntity->prev.frame;
     // Backlerp.
     refreshEntity->backlerp = 1.0f - clgi.client->lerpfrac;
 

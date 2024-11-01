@@ -79,7 +79,11 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *re
     } else {
         refreshEntity->frame = newState->frame;
     }
-
+    if ( packetEntity->prev.frame != newState->frame ) {
+        if ( packetEntity->current.entityType == ET_PUSHER ) {
+            int x = 10;
+        }
+    }
     // Setup the old frame.
     refreshEntity->oldframe = packetEntity->prev.frame;
     // Backlerp.

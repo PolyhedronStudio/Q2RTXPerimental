@@ -297,11 +297,15 @@ void door_open_move_done( edict_t *self ) {
 
     // If it is a toggle door, don't set any next think to 'go down' again.
     if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
+        // Thus we exit.
         return;
     }
 
+    // If a wait time is set:
     if ( self->pushMoveInfo.wait >= 0 ) {
+        // Assign close move think.
         self->think = door_close_move;
+        // Tell it when to start closing.
         self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
     }
 }
@@ -342,16 +346,24 @@ void door_close_move( edict_t *self ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
         self->s.sound = self->pushMoveInfo.sound_middle;
     }
-    if ( self->max_health ) {
-        self->takedamage = DAMAGE_YES;
-        self->health = self->max_health;
+
+    // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
+    const bool damageActivates = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
+    // Health trigger based door:
+    if ( damageActivates ) {
+        if ( self->max_health ) {
+            self->takedamage = DAMAGE_YES;
+            self->health = self->max_health;
+        }
     }
 
+    // Engage moving to closed state.
     self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
-    if ( strcmp( self->classname, "func_door" ) == 0 )
+    if ( strcmp( self->classname, "func_door" ) == 0 ) {
         SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, door_close_move_done );
-    else if ( strcmp( self->classname, "func_door_rotating" ) == 0 )
+    } else if ( strcmp( self->classname, "func_door_rotating" ) == 0 ) {
         SVG_PushMove_AngleMoveCalculate( self, door_close_move_done );
+    }
 
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnClose" );
@@ -511,8 +523,13 @@ void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
     edict_t *ent;
 
     for ( ent = self->teammaster; ent; ent = ent->teamchain ) {
-        ent->health = ent->max_health;
-        ent->takedamage = DAMAGE_NO;
+        // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
+        const bool damageActivates = SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
+        // Health trigger based door:
+        if ( damageActivates ) {
+            ent->health = ent->max_health;
+            ent->takedamage = DAMAGE_NO;
+        }
 
         // Dispatch a signal to each door team member.
         ent->other = inflictor;

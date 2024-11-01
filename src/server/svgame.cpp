@@ -817,6 +817,19 @@ static const mmodel_t *PF_GetInlineModelDataForName( const char *name ) {
     if ( !sv.cm.cache ) {
         return nullptr;
     }
+
+    // Has to be an inline model name.
+    if ( name[ 0 ] == '*' ) {
+        // Convert number part into an integer.
+        int32_t inlineIndex = atoi( name + 1 );
+        // If it is within bounds...
+        if ( inlineIndex >= 0 && inlineIndex < sv.cm.cache->nummodels ) {
+            return &sv.cm.cache->models[ inlineIndex ];
+        }
+    }
+
+    // Not found.
+    return nullptr;
 }
 /**
 *   @return Pointer to model data matching the resource handle, otherwise a (nullptr) on failure.

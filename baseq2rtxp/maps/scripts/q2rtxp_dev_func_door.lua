@@ -27,9 +27,12 @@ end
 ----
 ----
 ----------------------------------------------------------------------
-----------------------------------------------------------------------
--- The Buttons
-----------------------------------------------------------------------
+
+--
+--
+-- The Regular Door Buttons
+--
+--
 -- Lock Toggling for the single Regular Door.
 function ButtonLock00_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
@@ -51,7 +54,7 @@ function ButtonLockTeamPairDoors_OnSignalIn( self, signaller, activator, signalN
         -- Get entities with matching targetName.
         local entsDoors = Game.GetEntitiesForTargetName( "door_usetargets_team" )
         -- The result has to be a valid table with at least one entity number residing inside of it.
-        if ( type( entsDoors ) == "table" or #entsDoors >= 1 ) then
+        if ( type( entsDoors ) == "table" and #entsDoors >= 1 ) then
             -- Iterate the targetname entities table.
             for keyIndex,entDoor in pairs(entsDoors) do
                 -- Determine move state.
@@ -65,7 +68,15 @@ function ButtonLockTeamPairDoors_OnSignalIn( self, signaller, activator, signalN
             end
         end
     end
+    return true
 end
+
+
+--
+--
+-- The Rotating Door Buttons
+--
+--
 -- Lock Toggling for the single Rotating Door.
 function ButtonLock01_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
@@ -87,7 +98,7 @@ function ButtonLockTeamPairDoorsRotating_OnSignalIn( self, signaller, activator,
         -- Get entities with matching targetName.
         local entsDoors = Game.GetEntitiesForTargetName( "door_rotating_usetargets_team" )
         -- The result has to be a valid table with at least one entity number residing inside of it.
-        if ( type( entsDoors ) == "table" or #entsDoors >= 1 ) then
+        if ( type( entsDoors ) == "table" and #entsDoors >= 1 ) then
             -- Iterate the targetname entities table.
             for keyIndex,entDoor in pairs(entsDoors) do
                 -- Determine move state.
@@ -103,6 +114,15 @@ function ButtonLockTeamPairDoorsRotating_OnSignalIn( self, signaller, activator,
     end
     return true
 end
+
+
+
+--
+--
+-- The Light Buttons
+--
+--
+
 
 
 

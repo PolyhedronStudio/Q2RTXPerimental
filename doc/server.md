@@ -569,9 +569,7 @@ logging server stdout with systemd(1). Default value is empty (no prefix).
 ### Miscellaneous
 
 #### `map_visibility_patch`
-Attempt to patch miscalculated visibility data for some well-known maps
-(`q2dm1`, `q2dm3` and `q2dm8` are patched so far), fixing disappearing walls and
-entities. Default value is 1 (enabled).
+Removed, however:
 
 *NOTE*: Q2RTX makes further adjustments to the visibility data in order to
 make water properly transparent. The adjustments happen in the RTX renderer,
