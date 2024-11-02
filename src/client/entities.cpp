@@ -72,12 +72,14 @@ static inline void entity_update_new( centity_t *ent, const entity_state_t *stat
     // duplicate the current state so lerping doesn't hurt anything
     ent->prev = *state;
 
+    #if 0
     // WID: 40hz
     // Update the animation frames and time.
     ent->current_frame = ent->last_frame = state->frame;
     ent->frame_servertime = cl.servertime;
     ent->frame_realtime = cls.realtime;
     // WID: 40hz
+    #endif
 
     // No lerping if teleported, or a BEAM effect entity.
     if ( state->event == EV_PLAYER_TELEPORT ||
@@ -101,6 +103,7 @@ static inline void entity_update_old( centity_t *ent, const entity_state_t *stat
     const int32_t event = state->event;
 
     // Handle proper lerping for animated entities by Hz.
+    #if 0
     if ( ent->current_frame != state->frame ) {
         if ( state->renderfx & RF_OLD_FRAME_LERP ) {
             ent->last_frame = ent->current.old_frame;
@@ -111,6 +114,7 @@ static inline void entity_update_old( centity_t *ent, const entity_state_t *stat
         ent->frame_servertime = cl.servertime;
         ent->frame_realtime = cls.realtime;
     }
+    #endif
 
     // Set step height, and server time, if caught stair stepping.
     if ( state->renderfx & RF_STAIR_STEP ) {
@@ -136,10 +140,11 @@ static inline void entity_update_old( centity_t *ent, const entity_state_t *stat
         // duplicate the current state so lerping doesn't hurt anything
         ent->prev = *state;
 
+        #if 0
         // WID: 40hz
         ent->last_frame = state->frame;
         // WID: 40hz
-
+        #endif
         // no lerping if teleported or morphed
         VectorCopy( origin, ent->lerp_origin );
         return;

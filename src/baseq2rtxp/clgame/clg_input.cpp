@@ -305,7 +305,17 @@ static void CLG_BaseMove( Vector3 &move ) {
 *   @brief  
 **/
 static void CLG_ClampSpeed( Vector3 &move ) {
-    constexpr float speed = 400.f;  // default (maximum) running speed
+    // Determine the speed limit value to account for.
+    float speed = default_pmoveParams_t::pm_max_speed; // default (maximum) running speed
+    // For 'flying' aka noclip or spectating.
+    if ( clgi.client->frame.ps.pmove.pm_type == PM_SPECTATOR
+        || clgi.client->frame.ps.pmove.pm_type == PM_NOCLIP ) {
+        speed = default_pmoveParams_t::pm_fly_speed;
+    }
+    // For in case we're 'swimming'.
+    if ( clgi.client->predictedState.liquid.level >= liquid_level_t::LIQUID_WAIST ) {
+        speed = default_pmoveParams_t::pm_water_speed;
+    }
 
     move = QM_Vector3ClampValue( move, -speed, speed );
 }

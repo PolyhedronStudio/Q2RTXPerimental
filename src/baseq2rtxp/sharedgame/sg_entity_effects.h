@@ -14,6 +14,7 @@
 // even if it has a zero index model.
 #define EF_ROTATE           EF_ENGINE_MAX	// rotate (bonus items)
 #define EF_GIB              BIT( 3 )		// leave a trail
+#define EF_ANIM_CYCLE2_2HZ	BIT( 12 )      // Automatically cycle between frames 0 and 1 at 2 hz
 #define EF_ANIM01           BIT( 4 )      // Automatically cycle between frames 0 and 1 at 2 hz
 #define EF_ANIM23           BIT( 5 )      // Automatically cycle between frames 2 and 3 at 2 hz
 #define EF_ANIM_ALL         BIT( 6 )      // Automatically cycle through all frames at 2hz

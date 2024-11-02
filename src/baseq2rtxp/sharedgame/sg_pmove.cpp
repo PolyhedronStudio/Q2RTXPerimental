@@ -81,43 +81,6 @@ static pmoveParams_t *pmp;
 static pml_t pml;
 
 
-/**
-*	@brief	Default player movement parameter constants.
-**/
-typedef struct default_pmoveParams_s {
-	//! Stop speed.
-	static constexpr float pm_stop_speed = 100.f;
-	//! Server determined maximum speed.
-	static constexpr float pm_max_speed = 300.f;
-	//! Velocity that is set for jumping. (Determines the height we aim for.)
-	static constexpr float pm_jump_height = 270.f;
-
-	//! General up/down movespeed for on a ladder.
-	static constexpr float pm_ladder_speed = 200.f;
-	//! Maximum 'strafe' side move speed while on a ladder.
-	static constexpr float pm_ladder_sidemove_speed = 150.f;
-	//! Ladder modulation scalar for when being in-water and climbing a ladder.
-	static constexpr float pm_ladder_mod = 0.5f;
-
-	//! Speed for when ducked and crawling on-ground.
-	static constexpr float pm_duck_speed = 100.f;
-	//! Speed for when moving in water(swimming).
-	static constexpr float pm_water_speed = 400.f;
-	//! Speed for when flying.
-	static constexpr float pm_fly_speed = 400.f;
-
-	//! General acceleration.
-	static constexpr float pm_accelerate = 10.f;
-	//! General water acceleration.
-	static constexpr float pm_water_accelerate = 10.f;
-
-	//! General friction.
-	static constexpr float pm_friction = 6.f;
-	//! General water friction.
-	static constexpr float pm_water_friction = 1.f;
-} default_pmoveParams_t;
-
-
 
 /**
 *

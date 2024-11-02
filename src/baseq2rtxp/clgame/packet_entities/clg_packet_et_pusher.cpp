@@ -27,14 +27,14 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
         refreshEntity->frame = autoanim;
     } else if ( newState->effects & EF_ANIM_ALLFAST ) {
         refreshEntity->frame = clgi.client->time / BASE_FRAMETIME; // WID: 40hz: Adjusted. clgi.client->time / 100;
-    } else {
-        refreshEntity->frame = newState->frame;
+    } else if ( newState->effects & EF_ANIM_CYCLE2_2HZ ) {
+        refreshEntity->frame = newState->frame + ( autoanim & 1 );
     }
 
     // Setup the old frame.
-    refreshEntity->oldframe = refreshEntity->frame; // packetEntity->prev.frame;
+    refreshEntity->oldframe = refreshEntity->frame;// packetEntity->prev.frame;
     // Backlerp.
-    refreshEntity->backlerp = 1.0f - clgi.client->lerpfrac;
+    refreshEntity->backlerp = 1.0f -clgi.client->lerpfrac;
 
     // Set skin and model.
     //refreshEntity->skinnum = newState->skinnum;

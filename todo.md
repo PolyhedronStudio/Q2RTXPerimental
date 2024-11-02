@@ -60,7 +60,7 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [ ] Signalling:
 		- [-] Patch all entities that might have a use for signalling. Such might be: A target_temp_entity etc. And of course, all PushMovers, killbox, etc. In hindsight, I will actually do these gradually over releases to prevent it from stalling the project overall.
 		- [ ] PushMovers Signal I/O Support:
-			- [-] func_button *still buggy, pressed on start ain't working?? *
+			- [X] func_button
 			- [ ] func_conveyor
 			- [x] func_door
 			- [x] func_door_rotating
@@ -171,13 +171,12 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 ### Highest:
 * [x] None
 ### High Priority:
-* [X] Ladders from within water, simply isn't working. Likely related to the recent ground entity changes.
+* [x] None
 ### Medium Priority:
 * [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
 * [X] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
 	- [X] Filter so it doesn't clip to all entities.
 ### Low Priority:
-* [ ] Buttons, angles, and movedir, seems 90 deg off?? wtf??
 * [x] None
 ### Lowest, nearly redundant Priority:
 * [ ] Remove the if statement for cl_batchcmds in the (client/input.c)``ready_to_send``_to re-enable the bug for batched commands movement. The bug is that pushers have a steady pattern of 'spiking', moving neatly 5 units a frame as expected up to suddenly the double.

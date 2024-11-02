@@ -252,6 +252,27 @@ void button_lua_use( edict_t *self, edict_t *other, edict_t *activator, const en
 
 
 /**
+*   @brief
+**/
+static const int32_t button_get_frame_for_state( const edict_t *self, const int32_t buttonState ) {
+    // If we started in reverse, we got to swap the end result so things maintain synchronisity.
+    const bool swapFrames = ( SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_START_PRESSED ) ? true : false );
+
+    // Configurable, the frame depends on the button state.
+    constexpr int32_t buttonPressedFrame    = 0;
+    constexpr int32_t buttonUnPressedFrame  = 2;
+
+    // Final result, default to unpressed.
+    int32_t buttonFrame = buttonUnPressedFrame; // 'Unpressed'
+    if ( buttonState == BUTTON_STATE_PRESSED ) {
+        buttonFrame = ( !swapFrames ? buttonPressedFrame : buttonUnPressedFrame );
+    } else if ( buttonState == BUTTON_STATE_UNPRESSED ) {
+        buttonFrame = ( !swapFrames ? buttonUnPressedFrame : buttonPressedFrame );
+    }
+    // return the actual frame.
+    return buttonFrame;
+}
+/**
 *
 *
 *
@@ -276,8 +297,8 @@ void button_unpress_move_done( edict_t *self ) {
     self->pushMoveInfo.state = BUTTON_STATE_UNPRESSED;
 
     // Adjust entity animation effects for the client to display.
-    self->s.effects &= ~EF_ANIM23;
-    self->s.effects |= EF_ANIM01;
+    //self->s.effects &= ~EF_ANIM23;
+    //self->s.effects |= EF_ANIM01;
     // Adjust entity animation effects for the client to display, 
     // by determining the new material texture animation.
     /**
@@ -288,8 +309,9 @@ void button_unpress_move_done( edict_t *self ) {
         //self->s.effects &= ~EF_ANIM01;
         //self->s.effects |= EF_ANIM23;
         // Change the frame(texture index).
-        self->s.frame = ( SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_START_PRESSED ) ? 0 : 1 );
+        //self->s.frame = button_get_frame_for_state( self, BUTTON_STATE_UNPRESSED );//( SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_START_PRESSED ) ? 0 : 1 );
     }
+    self->s.frame = button_get_frame_for_state( self, BUTTON_STATE_UNPRESSED );//( SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_START_PRESSED ) ? 0 : 1 );
 
     /**
     *   Respond to the Pressing of the button.
@@ -340,10 +362,11 @@ void button_press_move_done( edict_t *self ) {
     **/
     if ( isToggleUseTarget || isTouchButton || ( isContinuousState && isContinuousUseTarget ) ) {
         // Adjust entity animation effects for the client to display.
-        self->s.effects &= ~EF_ANIM01;
-        self->s.effects |= EF_ANIM23;
+        //self->s.effects &= ~EF_ANIM01;
+        //self->s.effects |= EF_ANIM23;
         // Change the frame(texture index).
-        self->s.frame = ( SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_START_PRESSED ) ? 1 : 0 );
+        //self->s.frame = button_get_frame_for_state( self, BUTTON_STATE_PRESSED );
+        self->s.frame = button_get_frame_for_state( self, BUTTON_STATE_PRESSED );
     }
 
     /**
@@ -355,7 +378,7 @@ void button_press_move_done( edict_t *self ) {
     // If button has to remain pushed, or is a 'Toggleable':
     if ( stayPressed || isToggleUseTarget || /*isTouchButton || */( isContinuousState && isContinuousUseTarget ) ) {
 
-        // If a wait time has been set, use it for when to trigger the button's return(unpressing).
+    // If a wait time has been set, use it for when to trigger the button's return(unpressing).
     } else {
         // If it is a touch button, reassign the touch callback.
         //if ( !isTouchButton ) {
@@ -771,6 +794,8 @@ void SP_func_button( edict_t *ent ) {
         ent->pushMoveInfo.state = BUTTON_STATE_UNPRESSED;
     }
 
+    ent->s.frame = button_get_frame_for_state( ent, ent->pushMoveInfo.state );
+
     //ent->pushMoveInfo.start_origin = ent->pos1;
     ent->pushMoveInfo.start_angles = ent->s.angles;
     //ent->pushMoveInfo.end_origin = ent->pos2;
@@ -779,7 +804,7 @@ void SP_func_button( edict_t *ent ) {
     // Default trigger callback.
     ent->use = button_use;
     // Default animation effects.
-    ent->s.effects |= EF_ANIM01;
+    ent->s.effects |= EF_ANIM_CYCLE2_2HZ;
 
     // Used for condition checking, if we got a damage activating button we don't want to have it support pressing.
     const bool damageActivates = SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES );
