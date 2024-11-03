@@ -1088,7 +1088,7 @@ static int _try_image_format(imageformat_t fmt, image_t *image, int try_src, byt
 
     // decompress the image
     ret = img_loaders[fmt].load(data, len, image, pic);
-
+    
     FS_FreeFile(data);
 
     image->filepath[0] = 0;
@@ -1152,6 +1152,7 @@ int IMG_GetDimensions(const char* name, int* width, int* height)
         return Q_ERR_NAMETOOSHORT;
 
     imageformat_t format;
+
     if (Q_stricmp(name + len - 4, ".wal") == 0)
         format = IM_WAL;
     else if (Q_stricmp(name + len - 4, ".pcx") == 0)
@@ -1868,7 +1869,7 @@ void IMG_Init(void)
     Q_assert(!r_numImages);
 
     r_override_textures = Cvar_Get("r_override_textures", "1", CVAR_FILES);
-    r_texture_formats = Cvar_Get("r_texture_formats", "pjt", 0);
+    r_texture_formats = Cvar_Get("r_texture_formats", "tpj", 0);
     r_texture_formats->changed = r_texture_formats_changed;
     r_texture_formats_changed(r_texture_formats);
     r_texture_overrides = Cvar_Get("r_texture_overrides", "-1", CVAR_FILES);

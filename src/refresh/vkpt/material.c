@@ -819,6 +819,58 @@ static qboolean game_image_identical_to_base(const char* name)
 	return result;
 }
 
+/**
+*	@brief	Support routine for finding the base material texture.
+**/
+void MAT_FindBaseTexture( pbr_material_t *mat, const char *name, imagetype_t type, imageflags_t flags ) {
+	char mat_name_no_ext[ MAX_QPATH ];
+	truncate_extension( name, mat_name_no_ext );
+	Q_strlwr( mat_name_no_ext );
+
+	// WID: This will try and load the image that is specified, expecting a 'hi-res HD' texture.
+	if ( mat->filename_base[ 0 ] ) {
+		load_material_image( &mat->image_base, mat->filename_base, mat, type, flags | IF_SRGB );
+		Q_strlcpy( mat->filename_base, mat->image_base->filepath, sizeof( mat->filename_base ) );
+	} else {
+		mat->image_base = R_NOTEXTURE;
+	}
+
+	// WID: If unable to find, try again but this time try and acquire its low-res '.wal' type.
+	if ( mat->image_base == R_NOTEXTURE ) {
+		//Com_WPrintf( "Hi-Res texture(\"%s\") specified in material(\"%s\") could not be found. Attempting the low-res texture.\n", mat->filename_base, mat_name_no_ext );
+		mat->image_base = IMG_Find( name, type, flags | IF_SRGB );
+		if ( mat->image_base == R_NOTEXTURE ) {
+			Com_WPrintf( "Texture(\"%s\") in Material(\"%s\") could not be found. Resorting to R_NOTEXTURE\n", mat->filename_base, mat_name_no_ext );
+			mat->image_base = R_NOTEXTURE;//NULL;
+		} else {
+			// Assign the image's filepath to the internally created material.
+			Q_strlcpy( mat->filename_base, mat->image_base->filepath, sizeof( mat->filename_base ) );
+			// Fetch its image's size.
+			mat->original_width = mat->image_base->width;
+			mat->original_height = mat->image_base->height;
+		}
+	} else {
+		// WID: When this else statement hits, it may still have been a '.wal' texture that IS specified in the 'texture_base' property.
+		// Now, IMG_GetDimensions only supports .wal and .pcx, so when the image is neither of the two, it won't return: Q_ERR_SUCCESS
+		int foundDimension = IMG_GetDimensions( name, &mat->original_width, &mat->original_height );
+
+		// WID: This allows support for maps that have been compiled without .wal textures using 'ericw-tools'.
+		// We now know that the texinfo name is most definitely not a '.wal', in other words the BSP contains 
+		// texinfo a path such as: textures/tests/01.tga
+		//
+		// This scenario leaves us with no '.wal' to derive any 'original' width and height from. 
+		// Meaning that instead we'll just use the '.tga/.png/.jpg' image its own original width and height.
+		if ( type == IT_WALL && foundDimension != Q_ERR_SUCCESS ) {
+			mat->original_width = mat->image_base->width;
+			mat->original_height = mat->image_base->height;
+			//mat->original_width = mat->image_base->upload_width;
+			//mat->original_height = mat->image_base->upload_height;
+			//mat->original_width = mat->image_base->upload_width = mat->image_base->width;
+			//mat->original_height = mat->image_base->upload_height = mat->image_base->height;
+		}
+	}
+}
+
 pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 {
 	char mat_name_no_ext[MAX_QPATH];
@@ -835,10 +887,11 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 		return mat;
 	}
 
+	// Find the default material in the parsed materials list.
 	mat = allocate_material();
-
 	pbr_material_t* matdef = find_material_sorted(mat_name_no_ext, r_global_materials, num_global_materials);
 	
+	// In case the map had a custom materials file, override the material definition with that found in there.
 	if (type == IT_WALL)
 	{
 		pbr_material_t* map_mat = find_material_sorted(mat_name_no_ext, r_map_materials, num_map_materials);
@@ -869,53 +922,20 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 		 * from being picked up. */
 		flags = (flags & ~IF_SRC_MASK) | IF_SRC_GAME;
 	}
+	// Path for when a material definition was found:
 	if (matdef)
 	{
+		// Copy over the definition info into the current entry.
 		memcpy(mat, matdef, sizeof(pbr_material_t));
+		// Determine its index.
 		uint32_t index = (uint32_t)(mat - r_materials);
+		// Set index and next frame.
 		mat->flags = (mat->flags & ~MATERIAL_INDEX_MASK) | index;
 		mat->next_frame = index;
 		
-		
+		// Load its base texture.
 		if (mat->filename_base[0]) {
-			// WID: This will try and load the image that is specified, expecting a 'hi-res HD' texture.
-			load_material_image(&mat->image_base, mat->filename_base, mat, type, flags | IF_SRGB);
-			// WID: If unable to find, try again but this time try and acquire its low-res '.wal' type.
-			if (mat->image_base == R_NOTEXTURE) {
-				Com_WPrintf("Texture '%s' specified in material '%s' could not be found. Using the low-res texture.\n", mat->filename_base, mat_name_no_ext);
-				
-				mat->image_base = IMG_Find(name, type, flags | IF_SRGB);
-				mat->original_width = mat->image_base->width;
-				mat->original_height = mat->image_base->height;
-				if (mat->image_base == R_NOTEXTURE) {
-					mat->image_base = NULL;
-				}
-			}
-			else
-			{
-				// WID: When this else statement hits, it may still have been a '.wal' texture that IS specified in the 'texture_base' property.
-				// Now, IMG_GetDimensions only supports .wal and .pcx, so when the image is neither of the two, it won't return: Q_ERR_SUCCESS
-				int foundDimension = IMG_GetDimensions(name, &mat->original_width, &mat->original_height);
-
-				// WID: This allows support for maps that have been compiled without .wal textures using 'ericw-tools'.
-				// We now know that the texinfo name is most definitely not a '.wal', in other words the BSP contains 
-				// texinfo a path such as: textures/tests/01.tga
-				//
-				// This scenario leaves us with no '.wal' to derive any 'original' width and height from. 
-				// Meaning that instead we'll just use the '.tga/.png/.jpg' image its own original width and height.
-				if ( type == IT_WALL && foundDimension != Q_ERR_SUCCESS ) {
-					//ssize_t len = strlen( mat->filename_base );
-					//if ( len > 4 && ) {
-					//	if ( Q_stricmp( mat->filename_base + len - 4, ".wal" ) != 0 ) {
-					//		Com_DPrintf( "MAT: Should not be a .wal '%s'\n", mat->filename_base );
-							mat->original_width = mat->image_base->width;
-							mat->original_height = mat->image_base->height;
-					//		mat->original_width = mat->image_base->upload_width;
-					//		mat->original_height = mat->image_base->upload_height;
-					//	}
-					//}
-				}
-			}
+			MAT_FindBaseTexture( mat, name, type, flags );
 		}
 
 		if (mat->filename_normals[0]) {
@@ -941,12 +961,18 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 				mat->image_mask = NULL;
 			}
 		}
-	}
-	else
-	{
+	// This path is taken when for whatever reason no proper material definitions were found.
+	} else {
+		// Create a fresh internal material for this material slot.
 		MAT_Reset(mat);
+		// Assign its internal material name.
 		Q_strlcpy(mat->name, mat_name_no_ext, sizeof(mat->name));
 		
+		#if 1
+		MAT_FindBaseTexture( mat, name, type, flags );
+		#else
+		// WID: This doesn't work for animated materials that lack a .wal
+		// it gives incorrect size results due to a lack of any better.
 		mat->image_base = IMG_Find(name, type, flags | IF_SRGB);
 		mat->original_width = mat->image_base->width;
 		mat->original_height = mat->image_base->height;
@@ -954,7 +980,8 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 			mat->image_base = NULL;
 		else
 			Q_strlcpy(mat->filename_base, mat->image_base->filepath, sizeof(mat->filename_base));
-
+		#endif
+		// Normal map:
 		char file_name[MAX_QPATH];
 		
 		Q_snprintf(file_name, sizeof(file_name), "%s_n.tga", mat_name_no_ext);
@@ -964,6 +991,7 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 		else
 			Q_strlcpy(mat->filename_normals, mat->image_normals->filepath, sizeof(mat->filename_normals));
 
+		// Emissive Map:
 		Q_snprintf(file_name, sizeof(file_name), "%s_light.tga", mat_name_no_ext);
 		mat->image_emissive = IMG_Find(file_name, type, flags | IF_SRGB);
 		if (mat->image_emissive == R_NOTEXTURE)
