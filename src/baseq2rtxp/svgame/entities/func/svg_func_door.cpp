@@ -391,11 +391,56 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
         }
         self->s.sound = self->pushMoveInfo.sound_middle;
     }
-    self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
+
+    // Path for: func_door
     if ( strcmp( self->classname, "func_door" ) == 0 ) {
+        // Set state to opening.
+        self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
+        // Engage door opening movement.
         SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, door_open_move_done );
+
+    // Path for: func_door_rotating:
     } else if ( strcmp( self->classname, "func_door_rotating" ) == 0 ) {
-        SVG_PushMove_AngleMoveCalculate( self, door_open_move_done );
+        // Specific behavior for doors that support opening into both directions.
+        if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_BOTH_DIRECTIONS ) ) {
+            float sign = 1.0f;
+
+            // Calculate direction.
+            Vector3 activatorOrigin = self->activator->s.origin;
+            Vector3 dir = activatorOrigin;
+            dir -= self->s.origin;
+            // Angles, we multiply by movedir so we only get the angles we care for that match our direction.
+            // movedir is expected to be a unit vector so.
+            Vector3 activatorAngles = self->movedir * self->activator->s.angles;
+            
+            //activatorAngles.x = 0;
+            //activatorAngles.z = 0;
+
+            // Calculate forward vector for activator.
+            Vector3 vForward;
+            QM_AngleVectors( activatorAngles, &vForward, nullptr, nullptr );
+            // Calculate estimated next frame 
+            Vector3 vNextFrame = ( activatorOrigin + ( vForward * 10 ) ) - self->s.origin;
+            // Determine direction sign.
+            Vector2 v2Dir = QM_Vector2FromVector3( dir );
+            Vector2 v2NextFrame = QM_Vector2FromVector3( vNextFrame );
+            if ( ( v2Dir.x * vNextFrame.y - v2Dir.y * vNextFrame.x ) > 0 ) {
+                sign *= -1.0f;
+            }
+
+            //gi.dprintf( "%s: sign == %f\n", __func__, sign );
+
+            // If it is already into a state of moving to opening..
+            if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE ) {
+                door_close_move( self );
+            } else if ( self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
+                self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
+                SVG_PushMove_AngleMoveCalculateSign( self, sign, door_open_move_done );
+            }
+        // Regular single direction doors:
+        } else {
+            SVG_PushMove_AngleMoveCalculate( self, door_open_move_done );
+        }
     }
 
     SVG_UseTargets( self, self->activator );

@@ -35,6 +35,8 @@ static constexpr int32_t DOOR_SPAWNFLAG_ANIMATED_FAST	= BIT( 9 );
 static constexpr int32_t DOOR_SPAWNFLAG_X_AXIS			= BIT( 10 );
 //! Door moves into Y axis instead of Z.
 static constexpr int32_t DOOR_SPAWNFLAG_Y_AXIS			= BIT( 11 );
+//! Door always pushes into the negated direction of what the player is facing.
+static constexpr int32_t DOOR_SPAWNFLAG_BOTH_DIRECTIONS = BIT( 12 );
 
 
 

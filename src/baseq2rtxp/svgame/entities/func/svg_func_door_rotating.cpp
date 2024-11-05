@@ -143,12 +143,6 @@ void SP_func_door_rotating( edict_t *ent ) {
     // Calculate absolute move distance to get from pos1 to pos2.
     ent->pos1 = ent->s.origin;
     ent->pos2 = ent->s.origin;
-    //abs_movedir[ 0 ] = fabsf( ent->movedir[ 0 ] );
-    //abs_movedir[ 1 ] = fabsf( ent->movedir[ 1 ] );
-    //abs_movedir[ 2 ] = fabsf( ent->movedir[ 2 ] );
-    ////ent->pushMoveInfo.distance = abs_movedir[ 0 ] * ent->size[ 0 ] + abs_movedir[ 1 ] * ent->size[ 1 ] + abs_movedir[ 2 ] * ent->size[ 2 ] - st.lip;
-    //// Translate the determined move distance into the move direction to get pos2, our move end origin.
-    //ent->pos2 = ent->s.origin;// QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );
 
     // if it starts open, switch the positions
     if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_START_OPEN ) ) {
