@@ -55,13 +55,13 @@ void SP_func_water( edict_t *self ) {
         break;
 
     case 1: // water
-        self->pushMoveInfo.sound_start = gi.soundindex( "world/mov_watr.wav" );
-        self->pushMoveInfo.sound_end = gi.soundindex( "world/stp_watr.wav" );
+        self->pushMoveInfo.sounds.start = gi.soundindex( "world/mov_watr.wav" );
+        self->pushMoveInfo.sounds.end = gi.soundindex( "world/stp_watr.wav" );
         break;
 
     case 2: // lava
-        self->pushMoveInfo.sound_start = gi.soundindex( "world/mov_watr.wav" );
-        self->pushMoveInfo.sound_end = gi.soundindex( "world/stp_watr.wav" );
+        self->pushMoveInfo.sounds.start = gi.soundindex( "world/mov_watr.wav" );
+        self->pushMoveInfo.sounds.end = gi.soundindex( "world/stp_watr.wav" );
         break;
     }
 
@@ -80,10 +80,10 @@ void SP_func_water( edict_t *self ) {
         VectorCopy( self->s.origin, self->pos1 );
     }
 
-    VectorCopy( self->pos1, self->pushMoveInfo.start_origin );
-    VectorCopy( self->s.angles, self->pushMoveInfo.start_angles );
-    VectorCopy( self->pos2, self->pushMoveInfo.end_origin );
-    VectorCopy( self->s.angles, self->pushMoveInfo.end_angles );
+    VectorCopy( self->pos1, self->pushMoveInfo.startOrigin );
+    VectorCopy( self->s.angles, self->pushMoveInfo.startAngles );
+    VectorCopy( self->pos2, self->pushMoveInfo.endOrigin );
+    VectorCopy( self->s.angles, self->pushMoveInfo.endAngles );
 
     self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
 

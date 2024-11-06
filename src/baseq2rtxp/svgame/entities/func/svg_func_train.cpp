@@ -78,8 +78,8 @@ void train_wait( edict_t *self ) {
         }
 
         if ( !( self->flags & FL_TEAMSLAVE ) ) {
-            if ( self->pushMoveInfo.sound_end )
-                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+            if ( self->pushMoveInfo.sounds.end )
+                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
             self->s.sound = 0;
         }
     } else {
@@ -126,15 +126,15 @@ again:
     self->targetEntities.target = ent;
 
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sound_start )
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-        self->s.sound = self->pushMoveInfo.sound_middle;
+        if ( self->pushMoveInfo.sounds.start )
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+        self->s.sound = self->pushMoveInfo.sounds.middle;
     }
 
     VectorSubtract( ent->s.origin, self->mins, dest );
     self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
-    VectorCopy( self->s.origin, self->pushMoveInfo.start_origin );
-    VectorCopy( dest, self->pushMoveInfo.end_origin );
+    VectorCopy( self->s.origin, self->pushMoveInfo.startOrigin );
+    VectorCopy( dest, self->pushMoveInfo.endOrigin );
     SVG_PushMove_MoveCalculate( self, dest, train_wait );
     self->spawnflags |= TRAIN_START_ON;
 }
@@ -147,8 +147,8 @@ void train_resume( edict_t *self ) {
 
     VectorSubtract( ent->s.origin, self->mins, dest );
     self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
-    VectorCopy( self->s.origin, self->pushMoveInfo.start_origin );
-    VectorCopy( dest, self->pushMoveInfo.end_origin );
+    VectorCopy( self->s.origin, self->pushMoveInfo.startOrigin );
+    VectorCopy( dest, self->pushMoveInfo.endOrigin );
     SVG_PushMove_MoveCalculate( self, dest, train_wait );
     self->spawnflags |= TRAIN_START_ON;
 }
@@ -214,7 +214,7 @@ void SP_func_train( edict_t *self ) {
     gi.setmodel( self, self->model );
 
     if ( st.noise )
-        self->pushMoveInfo.sound_middle = gi.soundindex( st.noise );
+        self->pushMoveInfo.sounds.middle = gi.soundindex( st.noise );
 
     if ( !self->speed )
         self->speed = 100;

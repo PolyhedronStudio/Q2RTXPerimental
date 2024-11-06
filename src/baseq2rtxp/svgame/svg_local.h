@@ -751,32 +751,40 @@ typedef void( *svg_pushmove_endcallback )( edict_t * );
 ***/
 typedef struct {
     //
-    // Fixed Data.
+    // Start/End Data:
     //
     //! Move start origin.
-    Vector3     start_origin;
+    Vector3     startOrigin;
     //! Move start angles.
-    Vector3     start_angles;
+    Vector3     startAngles;
     //! Move end origin.
-    Vector3     end_origin;
+    Vector3     endOrigin;
     //! Move end angles.
-    Vector3     end_angles;
+    Vector3     endAngles;
 
-    //! Start move sound.
-    int32_t     sound_start;
-    //! Continuous repeating move sound.
-    int32_t     sound_middle;
-    //! End move sound.
-    int32_t     sound_end;
+    //
+    // Dynamic State Data
+    //
+    int32_t     state;
+    Vector3     dir;
+    float       current_speed;
+    float       move_speed;
+    float       next_speed;
+    float       remaining_distance;
+    float       decel_distance;
 
+    //
+    //  Acceleration Data.
+    // 
     //! Acceleration.
     float       accel;
     //! Speed.
     float       speed;
     //! Deceleration.
     float       decel;
+    //! Distance, or, amount of rotation angle in degrees.
     float       distance;
-
+    //! Time to wait before returning back to initial state. (Non toggleables).
     float       wait;
 
     //
@@ -795,18 +803,19 @@ typedef struct {
     } lockState;
 
     //
-    // Dynamic State Data
+    // Sounds.
     //
-    int32_t     state;
-    Vector3     dir;
-    float       current_speed;
-    float       move_speed;
-    float       next_speed;
-    float       remaining_distance;
-    float       decel_distance;
+    struct {
+        //! Start move sound.
+        qhandle_t   start;
+        //! Continuous repeating move sound.
+        qhandle_t   middle;
+        //! End move sound.
+        qhandle_t   end;
+    } sounds;
 
     //! Callback function for when a 'Move' has ended by reached its destination.
-    svg_pushmove_endcallback endfunc;
+    svg_pushmove_endcallback endMoveCallback;
 
     // WID: MoveWith:
     Vector3 lastVelocity;
@@ -1966,16 +1975,27 @@ struct edict_s {
     // Not per se, but mostly used for Pushers(Movers):
     //
     svg_pushmove_info_t pushMoveInfo;
+    //! [SpawnKey]: Moving speed.
     float   speed;
+    //! [SpawnKey]: Acceleration speed.
     float   accel;
+    //! [SpawnKey]: Deceleration speed.
     float   decel;
+    //! [SpawnKey]: Move axis orientation, defaults to Z axis.
     Vector3 movedir;
+    //! Mover Default Start Position.
     Vector3 pos1;
+    //! Mover Default Start Angles.
     Vector3 angles1;
+    //! Mover Default End Position.
     Vector3 pos2;
+    //! Mover Default End Angles.
     Vector3 angles2;
+    //! Mover last origin.
     Vector3 lastOrigin;
+    //! Mover last angles.
     Vector3 lastAngles;
+    //! For func_train, next path to move to.
     edict_t *movetarget;
 
     //

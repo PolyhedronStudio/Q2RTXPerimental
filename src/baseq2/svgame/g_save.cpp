@@ -229,14 +229,14 @@ static const save_field_t entityfields[] = {
 
     T(item),
 
-    V(moveinfo.start_origin),
-    V(moveinfo.start_angles),
-    V(moveinfo.end_origin),
-    V(moveinfo.end_angles),
+    V(moveinfo.startOrigin),
+    V(moveinfo.startAngles),
+    V(moveinfo.endOrigin),
+    V(moveinfo.endAngles),
 
-    I(moveinfo.sound_start),
-    I(moveinfo.sound_middle),
-    I(moveinfo.sound_end),
+    I(moveinfo.sounds.start),
+    I(moveinfo.sounds.middle),
+    I(moveinfo.sounds.end),
 
     F(moveinfo.accel),
     F(moveinfo.speed),

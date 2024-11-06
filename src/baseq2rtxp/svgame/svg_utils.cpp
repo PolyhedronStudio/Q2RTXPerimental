@@ -772,8 +772,8 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
     Vector3 childOrigin = childMover->s.origin;
     childOrigin += deltaParentOrigin;
     // Adjust desired pusher origins.
-    childMover->pushMoveInfo.start_origin += deltaParentOrigin;
-    childMover->pushMoveInfo.end_origin += deltaParentOrigin;
+    childMover->pushMoveInfo.startOrigin += deltaParentOrigin;
+    childMover->pushMoveInfo.endOrigin += deltaParentOrigin;
     childMover->pos1 += deltaParentOrigin;
     childMover->pos2 += deltaParentOrigin;
     VectorCopy( childOrigin, childMover->s.origin );
@@ -799,10 +799,10 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
         childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.z, parentVUp );
     }
 
-    childMover->pushMoveInfo.start_origin = childMover->pos1;
-    childMover->pushMoveInfo.end_origin = childMover->pos2;
-    childMover->pushMoveInfo.start_angles = childMover->angles1;
-    childMover->pushMoveInfo.end_angles = childMover->angles2;
+    childMover->pushMoveInfo.startOrigin = childMover->pos1;
+    childMover->pushMoveInfo.endOrigin = childMover->pos2;
+    childMover->pushMoveInfo.startAngles = childMover->angles1;
+    childMover->pushMoveInfo.endAngles = childMover->angles2;
 
     #if 1
     if ( childMover->pushMoveInfo.state == 0/*PUSHMOVE_STATE_BOTTOM*/ || childMover->pushMoveInfo.state == 1/*PUSHMOVE_STATE_TOP*/ ) {
@@ -855,8 +855,8 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
     //childAngles = QM_Vector3AngleMod( childAngles + deltaParentAngles );
 
     // Adjust desired pusher angles.
-    //childMover->pushMoveInfo.start_angles = QM_Vector3AngleMod( childMover->pushMoveInfo.start_angles + deltaParentAngles );
-    //childMover->pushMoveInfo.end_angles = QM_Vector3AngleMod( childMover->pushMoveInfo.end_angles + deltaParentAngles );
+    //childMover->pushMoveInfo.startAngles = QM_Vector3AngleMod( childMover->pushMoveInfo.startAngles + deltaParentAngles );
+    //childMover->pushMoveInfo.endAngles = QM_Vector3AngleMod( childMover->pushMoveInfo.endAngles + deltaParentAngles );
     //VectorCopy( childAngles, childMover->s.angles );
      
     //Vector3 childVelocity = childMover->velocity;
@@ -903,10 +903,10 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 //        VectorMA( ent->pos1, ent->moveWith.originOffset[ 1 ], right, ent->pos1 );
 //        VectorMA( ent->pos1, ent->moveWith.originOffset[ 2 ], up, ent->pos1 );
 //        VectorMA( ent->pos1, ent->pushMoveInfo.distance, ent->movedir, ent->pos2 );
-//        VectorCopy( ent->pos1, ent->pushMoveInfo.start_origin );
-//        VectorCopy( ent->s.angles, ent->pushMoveInfo.start_angles );
-//        VectorCopy( ent->pos2, ent->pushMoveInfo.end_origin );
-//        VectorCopy( ent->s.angles, ent->pushMoveInfo.end_angles );
+//        VectorCopy( ent->pos1, ent->pushMoveInfo.startOrigin );
+//        VectorCopy( ent->s.angles, ent->pushMoveInfo.startAngles );
+//        VectorCopy( ent->pos2, ent->pushMoveInfo.endOrigin );
+//        VectorCopy( ent->s.angles, ent->pushMoveInfo.endAngles );
 //        if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM || ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
 //            // Velocities for door/button movement are handled in normal
 //            // movement routines

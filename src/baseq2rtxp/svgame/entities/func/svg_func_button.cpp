@@ -269,6 +269,7 @@ static const int32_t button_get_frame_for_state( const edict_t *self, const int3
     } else if ( buttonState == BUTTON_STATE_UNPRESSED ) {
         buttonFrame = ( !swapFrames ? buttonUnPressedFrame : buttonPressedFrame );
     }
+
     // return the actual frame.
     return buttonFrame;
 }
@@ -319,8 +320,8 @@ void button_unpress_move_done( edict_t *self ) {
     if ( isToggleUseTarget ) {
         #if 0
         // Play sound.
-        if ( self->pushMoveInfo.sound_end && !( self->flags & FL_TEAMSLAVE ) ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+        if ( self->pushMoveInfo.sounds.end && !( self->flags & FL_TEAMSLAVE ) ) {
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
         }
         #endif
         // Fire use targets.
@@ -421,11 +422,11 @@ void button_press_move( edict_t *self ) {
     //button_determine_animation( self, self->pushMoveInfo.state );
 
     // Play sound.
-    if ( self->pushMoveInfo.sound_start && !( self->flags & FL_TEAMSLAVE ) ) {
-        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
+    if ( self->pushMoveInfo.sounds.start && !( self->flags & FL_TEAMSLAVE ) ) {
+        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
     }
     // Calculate and begin moving to the button's 'Pressed' state end origin.
-    SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, button_press_move_done );
+    SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.endOrigin, button_press_move_done );
 
     #if 1
     // Dispatch a signal.
@@ -460,12 +461,12 @@ void button_unpress_move( edict_t *self ) {
     //button_determine_animation( self, self->pushMoveInfo.state );
     #ifdef FUNC_BUTTON_ENABLE_END_SOUND
     // Play sound.
-    if ( self->pushMoveInfo.sound_end && !( self->flags & FL_TEAMSLAVE ) ) {
-        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+    if ( self->pushMoveInfo.sounds.end && !( self->flags & FL_TEAMSLAVE ) ) {
+        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
     }
     #endif
     // Calculate and begin moving back to the button's 'Unpressed' state start origin.
-    SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, button_unpress_move_done );
+    SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.startOrigin, button_unpress_move_done );
     // Dispatch a signal.
     SVG_SignalOut( self, self->other, self->activator, "OnUnPress" );
     // Also a special one for touch buttons.
@@ -754,8 +755,8 @@ void SP_func_button( edict_t *ent ) {
     // Default sounds:
     if ( ent->sounds != 1 ) {
         // 'Mechanic':
-        ent->pushMoveInfo.sound_start = gi.soundindex( "buttons/button_mechanic_press.wav" );
-        ent->pushMoveInfo.sound_end = gi.soundindex( "buttons/button_mechanic_unpress.wav" );
+        ent->pushMoveInfo.sounds.start = gi.soundindex( "buttons/button_mechanic_press.wav" );
+        ent->pushMoveInfo.sounds.end = gi.soundindex( "buttons/button_mechanic_unpress.wav" );
     }
 
     // PushMove defaults:
@@ -796,10 +797,10 @@ void SP_func_button( edict_t *ent ) {
 
     ent->s.frame = button_get_frame_for_state( ent, ent->pushMoveInfo.state );
 
-    //ent->pushMoveInfo.start_origin = ent->pos1;
-    ent->pushMoveInfo.start_angles = ent->s.angles;
-    //ent->pushMoveInfo.end_origin = ent->pos2;
-    ent->pushMoveInfo.end_angles = ent->s.angles;
+    //ent->pushMoveInfo.startOrigin = ent->pos1;
+    ent->pushMoveInfo.startAngles = ent->s.angles;
+    //ent->pushMoveInfo.endOrigin = ent->pos2;
+    ent->pushMoveInfo.endAngles = ent->s.angles;
 
     // Default trigger callback.
     ent->use = button_use;
@@ -865,16 +866,16 @@ void SP_func_button( edict_t *ent ) {
     // For PRESSED: pos1 = start, pos2 = end.
     if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_START_PRESSED ) ) {
         ent->pushMoveInfo.state = BUTTON_STATE_PRESSED;
-        ent->pushMoveInfo.start_origin = ent->pos2;
-        ent->pushMoveInfo.start_angles = ent->s.angles;
-        ent->pushMoveInfo.end_origin = ent->pos1;
-        ent->pushMoveInfo.end_angles = ent->s.angles;
+        ent->pushMoveInfo.startOrigin = ent->pos2;
+        ent->pushMoveInfo.startAngles = ent->s.angles;
+        ent->pushMoveInfo.endOrigin = ent->pos1;
+        ent->pushMoveInfo.endAngles = ent->s.angles;
         // For UNPRESSED: pos1 = start, pos2 = end.
     } else {
-        ent->pushMoveInfo.start_origin = ent->pos1;
-        ent->pushMoveInfo.start_angles = ent->s.angles;
-        ent->pushMoveInfo.end_origin = ent->pos2;
-        ent->pushMoveInfo.end_angles = ent->s.angles;
+        ent->pushMoveInfo.startOrigin = ent->pos1;
+        ent->pushMoveInfo.startAngles = ent->s.angles;
+        ent->pushMoveInfo.endOrigin = ent->pos2;
+        ent->pushMoveInfo.endAngles = ent->s.angles;
     }
 
     // Link it in.

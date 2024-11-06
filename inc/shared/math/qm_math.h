@@ -181,6 +181,9 @@ typedef struct Vector2 {
         this->x = x;
         this->y = y;
     }
+    /**
+    *   Vector2 in:
+    **/
     [[nodiscard]] inline Vector2( Vector2 &v ) {
         this->x = v.x;
         this->y = v.y;

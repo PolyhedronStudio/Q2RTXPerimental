@@ -218,10 +218,10 @@ const save_ptr_t save_ptrs[] = {
 //	Disabled entity... Too Q2-ish specific.
 //
 #if 0
-{ P_pusher_moveinfo_endfunc, (void *)door_secret_done },
-{ P_pusher_moveinfo_endfunc, (void *)door_secret_move1 },
-{ P_pusher_moveinfo_endfunc, (void *)door_secret_move3 },
-{ P_pusher_moveinfo_endfunc, (void *)door_secret_move5 },
+{ P_pusher_moveinfo_endmovecallback, (void *)door_secret_done },
+{ P_pusher_moveinfo_endmovecallback, (void *)door_secret_move1 },
+{ P_pusher_moveinfo_endmovecallback, (void *)door_secret_move3 },
+{ P_pusher_moveinfo_endmovecallback, (void *)door_secret_move5 },
 { P_die, (void *)door_secret_die },
 { P_think,  (void *)door_secret_move2 },
 { P_think,  (void *)door_secret_move4 },
@@ -385,17 +385,17 @@ const save_ptr_t save_ptrs[] = {
 // MoveInfo_EndFunc	Callback Pointers:
 //
 #if 0
-{ P_pusher_moveinfo_endfunc, (void*)button_reached_pressed_state },
-{ P_pusher_moveinfo_endfunc, (void*)button_trigger_and_wait },
+{ P_pusher_moveinfo_endmovecallback, (void*)button_reached_pressed_state },
+{ P_pusher_moveinfo_endmovecallback, (void*)button_trigger_and_wait },
 #else
-{ P_pusher_moveinfo_endfunc, (void *)button_unpress_move_done },
-{ P_pusher_moveinfo_endfunc, (void *)button_press_move_done },
+{ P_pusher_moveinfo_endmovecallback, (void *)button_unpress_move_done },
+{ P_pusher_moveinfo_endmovecallback, (void *)button_press_move_done },
 #endif
-{ P_pusher_moveinfo_endfunc, (void*)door_close_move_done },
-{ P_pusher_moveinfo_endfunc, (void*)door_open_move_done },
-{ P_pusher_moveinfo_endfunc, (void*)plat_hit_bottom },
-{ P_pusher_moveinfo_endfunc, (void*)plat_hit_top },
-{ P_pusher_moveinfo_endfunc, (void*)train_wait },
+{ P_pusher_moveinfo_endmovecallback, (void*)door_close_move_done },
+{ P_pusher_moveinfo_endmovecallback, (void*)door_open_move_done },
+{ P_pusher_moveinfo_endmovecallback, (void*)plat_hit_bottom },
+{ P_pusher_moveinfo_endmovecallback, (void*)plat_hit_top },
+{ P_pusher_moveinfo_endmovecallback, (void*)train_wait },
 
 //
 // MonsterInfo_CurrentMove.

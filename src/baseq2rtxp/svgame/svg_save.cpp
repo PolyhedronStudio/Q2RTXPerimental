@@ -235,14 +235,14 @@ static const save_field_t entityfields[] = {
 
     T( item ),
 
-    V( pushMoveInfo.start_origin ),
-    V( pushMoveInfo.start_angles ),
-    V( pushMoveInfo.end_origin ),
-    V( pushMoveInfo.end_angles ),
+    V( pushMoveInfo.startOrigin ),
+    V( pushMoveInfo.startAngles ),
+    V( pushMoveInfo.endOrigin ),
+    V( pushMoveInfo.endAngles ),
 
-    I( pushMoveInfo.sound_start ),
-    I( pushMoveInfo.sound_middle ),
-    I( pushMoveInfo.sound_end ),
+    I( pushMoveInfo.sounds.start ),
+    I( pushMoveInfo.sounds.middle ),
+    I( pushMoveInfo.sounds.end ),
 
     F( pushMoveInfo.accel ),
     F( pushMoveInfo.speed ),
@@ -258,7 +258,7 @@ static const save_field_t entityfields[] = {
     F( pushMoveInfo.next_speed ),
     F( pushMoveInfo.remaining_distance ),
     F( pushMoveInfo.decel_distance ),
-    P( pushMoveInfo.endfunc, P_pusher_moveinfo_endfunc ),
+    P( pushMoveInfo.endMoveCallback, P_pusher_moveinfo_endmovecallback ),
 
     // WID: TODO: Monster Reimplement.
     //P( monsterinfo.currentmove, P_monsterinfo_currentmove ),

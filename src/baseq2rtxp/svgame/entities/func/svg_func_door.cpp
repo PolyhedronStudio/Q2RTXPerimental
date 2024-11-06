@@ -285,8 +285,8 @@ void door_close_move( edict_t *self );
 **/
 void door_open_move_done( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sound_end )
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+        if ( self->pushMoveInfo.sounds.end )
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
         self->s.sound = 0;
     }
     // Apply state.
@@ -315,8 +315,8 @@ void door_open_move_done( edict_t *self ) {
 **/
 void door_close_move_done( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sound_end )
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+        if ( self->pushMoveInfo.sounds.end )
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
         self->s.sound = 0;
     }
     self->pushMoveInfo.state = DOOR_STATE_CLOSED;
@@ -342,9 +342,9 @@ void door_close_move_done( edict_t *self ) {
 **/
 void door_close_move( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sound_start )
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-        self->s.sound = self->pushMoveInfo.sound_middle;
+        if ( self->pushMoveInfo.sounds.start )
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+        self->s.sound = self->pushMoveInfo.sounds.middle;
     }
 
     // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
@@ -360,7 +360,7 @@ void door_close_move( edict_t *self ) {
     // Engage moving to closed state.
     self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
     if ( strcmp( self->classname, "func_door" ) == 0 ) {
-        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.start_origin, door_close_move_done );
+        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.startOrigin, door_close_move_done );
     } else if ( strcmp( self->classname, "func_door_rotating" ) == 0 ) {
         SVG_PushMove_AngleMoveCalculate( self, door_close_move_done );
     }
@@ -378,18 +378,19 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
     }
 
     if ( self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
-        // reset top wait time
+        // Reset 'top pusher state'/'door opened state' wait time
         if ( self->pushMoveInfo.wait >= 0 ) {
             self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
         }
         return;
     }
 
+    // Team Masters dictate the audio effects:
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sound_start ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
+        if ( self->pushMoveInfo.sounds.start ) {
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
         }
-        self->s.sound = self->pushMoveInfo.sound_middle;
+        self->s.sound = self->pushMoveInfo.sounds.middle;
     }
 
     // Path for: func_door
@@ -397,53 +398,18 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
         // Set state to opening.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
         // Engage door opening movement.
-        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.end_origin, door_open_move_done );
-
+        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.endOrigin, door_open_move_done );
     // Path for: func_door_rotating:
     } else if ( strcmp( self->classname, "func_door_rotating" ) == 0 ) {
-        // Specific behavior for doors that support opening into both directions.
-        if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_BOTH_DIRECTIONS ) ) {
-            float sign = 1.0f;
-
-            // Calculate direction.
-            Vector3 activatorOrigin = self->activator->s.origin;
-            Vector3 dir = activatorOrigin;
-            dir -= self->s.origin;
-            // Angles, we multiply by movedir so we only get the angles we care for that match our direction.
-            // movedir is expected to be a unit vector so.
-            Vector3 activatorAngles = self->movedir * self->activator->s.angles;
-            
-            //activatorAngles.x = 0;
-            //activatorAngles.z = 0;
-
-            // Calculate forward vector for activator.
-            Vector3 vForward;
-            QM_AngleVectors( activatorAngles, &vForward, nullptr, nullptr );
-            // Calculate estimated next frame 
-            Vector3 vNextFrame = ( activatorOrigin + ( vForward * 10 ) ) - self->s.origin;
-            // Determine direction sign.
-            Vector2 v2Dir = QM_Vector2FromVector3( dir );
-            Vector2 v2NextFrame = QM_Vector2FromVector3( vNextFrame );
-            if ( ( v2Dir.x * vNextFrame.y - v2Dir.y * vNextFrame.x ) > 0 ) {
-                sign *= -1.0f;
-            }
-
-            //gi.dprintf( "%s: sign == %f\n", __func__, sign );
-
-            // If it is already into a state of moving to opening..
-            if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE ) {
-                door_close_move( self );
-            } else if ( self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
-                self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
-                SVG_PushMove_AngleMoveCalculateSign( self, sign, door_open_move_done );
-            }
-        // Regular single direction doors:
-        } else {
-            SVG_PushMove_AngleMoveCalculate( self, door_open_move_done );
-        }
+        // Set state to opening.
+        self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
+        // Engage door opening movement.
+        SVG_PushMove_AngleMoveCalculate( self, door_open_move_done );
     }
 
+    // Fire use targets.
     SVG_UseTargets( self, self->activator );
+    // Update areaportals for PVS awareness.
     door_use_areaportals( self, true );
 
     // Dispatch a lua signal.
@@ -476,22 +442,58 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
     // for the team master to determine what to do next. (Which if the door is unlocked, means it'll
     // engage to toggle the door moving states.)
     if ( self->flags & FL_TEAMSLAVE ) {
-        // Prevent ourselves from actually falling into recursion, make sure we got a client entity.
+        // If we got a client/monster entity, prevent ourselves from actually falling into recursion.
         if ( self->teammaster != self && entityIsCapable ) {
             // Pass through to the team master to handle this.
             if ( self->teammaster->use ) {
                 self->teammaster->use( self->teammaster, other, activator, useType, useValue );
             }
+            // Exit.
             return;
         // Default 'Team Slave' behavior:
         } else {
+            // Exit.
             return;
         }
     }
 
-    //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
-    // Toggle door.
-    if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
+    // Get some info.
+    const bool isToggle = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE );
+    const bool isBothDirections = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_BOTH_DIRECTIONS );
+    const bool isRotating = strcmp( self->classname, "func_door_rotating" ) == 0;
+    const bool isReversed = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_REVERSE );
+
+    // Default sign, multiplied by -1 later on in case we're on the other side.
+    float directionSign = ( isBothDirections ? ( isReversed ? -1.0f : 1.0f ) : 1.0f );
+    // Only +usetargets capable entities can do this currently...
+    if ( entityIsCapable && isBothDirections ) {
+        // Angles, we multiply by movedir the move direction(unit vector) so that we are left
+        // with the actual matching axis angle that we want to test against.
+        Vector3 vActivatorAngles = self->movedir * activator->s.angles;
+        //activatorAngles.x = 0;
+        //activatorAngles.z = 0;
+        // Calculate forward vector for activator.
+        Vector3 vForward = {};
+        QM_AngleVectors( vActivatorAngles, &vForward, nullptr, nullptr );
+        // Calculate direction.
+        Vector3 vActivatorOrigin = activator->s.origin;
+        Vector3 vDir = vActivatorOrigin - self->s.origin;
+
+        // Calculate estimated next frame 
+        Vector3 vNextFrame = ( vActivatorOrigin + ( vForward * 10 ) ) - self->s.origin;
+        // Determine direction sign.
+        if ( ( vDir.x * vNextFrame.y - vDir.y * vNextFrame.x ) > 0 ) {
+            directionSign *= -1.0f;
+        }
+    }
+
+    // Recalculate endAngles in case we got a closed toggle usetargets door that goes both directions.
+    if ( isToggle && isBothDirections && self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
+        self->pushMoveInfo.endAngles = self->angles2 * directionSign;
+    }
+
+    if ( isToggle ) {
+        // Engage closing if opened or moving into opened state.
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
             // trigger all paired doors
             for ( ent = self; ent; ent = ent->teamchain ) {
@@ -501,7 +503,9 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
                 ent->other = other;
                 door_close_move( ent );
                 //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
+                gi.dprintf( "(%s:%i) door_close_move(..) with SIGN=%f\n ", __func__, __LINE__, directionSign );
             }
+            // Exit.
             return;
         }
     }
@@ -514,6 +518,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
         ent->other = other;
         door_open_move( ent/*, activator */);
         //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
+        gi.dprintf( "(%s:%i) door_open_move(..) with SIGN=%f\n ", __func__, __LINE__, directionSign );
     }
 
     // Call upon Lua OnUse.
@@ -638,9 +643,9 @@ void SP_func_door( edict_t *ent ) {
 
     // Default sounds:
     if ( ent->sounds != 1 ) {
-        ent->pushMoveInfo.sound_start = gi.soundindex( "doors/door_start_01.wav" );
-        ent->pushMoveInfo.sound_middle = gi.soundindex( "doors/door_mid_01.wav" );
-        ent->pushMoveInfo.sound_end = gi.soundindex( "doors/door_end_01.wav" );
+        ent->pushMoveInfo.sounds.start = gi.soundindex( "doors/door_start_01.wav" );
+        ent->pushMoveInfo.sounds.middle = gi.soundindex( "doors/door_mid_01.wav" );
+        ent->pushMoveInfo.sounds.end = gi.soundindex( "doors/door_end_01.wav" );
 
         ent->pushMoveInfo.lockState.lockedSound = gi.soundindex( "misc/door_locked.wav" );
         ent->pushMoveInfo.lockState.lockingSound = gi.soundindex( "misc/door_locking.wav" );
@@ -755,16 +760,16 @@ void SP_func_door( edict_t *ent ) {
     // For PRESSED: pos1 = start, pos2 = end.
     if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_START_OPEN ) ) {
         ent->pushMoveInfo.state = DOOR_STATE_OPENED;
-        ent->pushMoveInfo.start_origin = ent->pos2;
-        ent->pushMoveInfo.start_angles = ent->s.angles;
-        ent->pushMoveInfo.end_origin = ent->pos1;
-        ent->pushMoveInfo.end_angles = ent->s.angles;
+        ent->pushMoveInfo.startOrigin = ent->pos2;
+        ent->pushMoveInfo.startAngles = ent->s.angles;
+        ent->pushMoveInfo.endOrigin = ent->pos1;
+        ent->pushMoveInfo.endAngles = ent->s.angles;
     // For UNPRESSED: pos1 = start, pos2 = end.
     } else {
-        ent->pushMoveInfo.start_origin = ent->pos1;
-        ent->pushMoveInfo.start_angles = ent->s.angles;
-        ent->pushMoveInfo.end_origin = ent->pos2;
-        ent->pushMoveInfo.end_angles = ent->s.angles;
+        ent->pushMoveInfo.startOrigin = ent->pos1;
+        ent->pushMoveInfo.startAngles = ent->s.angles;
+        ent->pushMoveInfo.endOrigin = ent->pos2;
+        ent->pushMoveInfo.endAngles = ent->s.angles;
     }
 
     // Animated doors:

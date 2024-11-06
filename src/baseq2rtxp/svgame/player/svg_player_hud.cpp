@@ -371,7 +371,7 @@ void SVG_SetWeaponStats( edict_t *ent ) {
     //
     int32_t stat_weapon_flags = 0;
     // Apply IS_AIMING flag if we're weaponStating as AIMING IN or isAiming == true.
-    if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN || ent->client->weaponState.aimState.isAiming == true ) {
+    if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN || ent->client->weaponState.aimState.isAiming != false ) {
         stat_weapon_flags |= STAT_WEAPON_FLAGS_IS_AIMING;
     }
     ent->client->ps.stats[ STAT_WEAPON_FLAGS ] = stat_weapon_flags;

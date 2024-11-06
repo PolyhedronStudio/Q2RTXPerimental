@@ -89,8 +89,8 @@ void plat_think_idle( edict_t *ent ) {
 
 void plat_hit_top( edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pushMoveInfo.sound_end )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+        if ( ent->pushMoveInfo.sounds.end )
+            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
         ent->s.sound = 0;
     }
     ent->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
@@ -115,8 +115,8 @@ void plat_hit_top( edict_t *ent ) {
 
 void plat_hit_bottom( edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pushMoveInfo.sound_end )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sound_end, 1, ATTN_STATIC, 0 );
+        if ( ent->pushMoveInfo.sounds.end )
+            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
         ent->s.sound = 0;
     }
     ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
@@ -138,22 +138,22 @@ void plat_hit_bottom( edict_t *ent ) {
 
 void plat_go_down( edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pushMoveInfo.sound_start )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-        ent->s.sound = ent->pushMoveInfo.sound_middle;
+        if ( ent->pushMoveInfo.sounds.start )
+            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+        ent->s.sound = ent->pushMoveInfo.sounds.middle;
     }
     ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
-    SVG_PushMove_MoveCalculate( ent, ent->pushMoveInfo.end_origin, plat_hit_bottom );
+    SVG_PushMove_MoveCalculate( ent, ent->pushMoveInfo.endOrigin, plat_hit_bottom );
 }
 
 void plat_go_up( edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pushMoveInfo.sound_start )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sound_start, 1, ATTN_STATIC, 0 );
-        ent->s.sound = ent->pushMoveInfo.sound_middle;
+        if ( ent->pushMoveInfo.sounds.start )
+            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+        ent->s.sound = ent->pushMoveInfo.sounds.middle;
     }
     ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
-    SVG_PushMove_MoveCalculate( ent, ent->pushMoveInfo.start_origin, plat_hit_top );
+    SVG_PushMove_MoveCalculate( ent, ent->pushMoveInfo.startOrigin, plat_hit_top );
 }
 
 void plat_blocked( edict_t *self, edict_t *other ) {
@@ -320,12 +320,12 @@ void SP_func_plat( edict_t *ent ) {
     ent->pushMoveInfo.accel = ent->accel;
     ent->pushMoveInfo.decel = ent->decel;
     ent->pushMoveInfo.wait = ent->wait;
-    VectorCopy( ent->pos1, ent->pushMoveInfo.start_origin );
-    VectorCopy( ent->s.angles, ent->pushMoveInfo.start_angles );
-    VectorCopy( ent->pos2, ent->pushMoveInfo.end_origin );
-    VectorCopy( ent->s.angles, ent->pushMoveInfo.end_angles );
+    VectorCopy( ent->pos1, ent->pushMoveInfo.startOrigin );
+    VectorCopy( ent->s.angles, ent->pushMoveInfo.startAngles );
+    VectorCopy( ent->pos2, ent->pushMoveInfo.endOrigin );
+    VectorCopy( ent->s.angles, ent->pushMoveInfo.endAngles );
 
-    ent->pushMoveInfo.sound_start = gi.soundindex( "plats/plat_start_01.wav" );
-    ent->pushMoveInfo.sound_middle = gi.soundindex( "plats/plat_mid_01.wav" );
-    ent->pushMoveInfo.sound_end = gi.soundindex( "plats/plat_end_01.wav" );
+    ent->pushMoveInfo.sounds.start = gi.soundindex( "plats/plat_start_01.wav" );
+    ent->pushMoveInfo.sounds.middle = gi.soundindex( "plats/plat_mid_01.wav" );
+    ent->pushMoveInfo.sounds.end = gi.soundindex( "plats/plat_end_01.wav" );
 }

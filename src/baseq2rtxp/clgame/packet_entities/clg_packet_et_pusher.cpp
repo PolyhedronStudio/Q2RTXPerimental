@@ -34,7 +34,7 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     // Setup the old frame.
     refreshEntity->oldframe = refreshEntity->frame;// packetEntity->prev.frame;
     // Backlerp.
-    refreshEntity->backlerp = 1.0f -clgi.client->lerpfrac;
+    refreshEntity->backlerp = 1.0f - clgi.client->lerpfrac;
 
     // Set skin and model.
     //refreshEntity->skinnum = newState->skinnum;

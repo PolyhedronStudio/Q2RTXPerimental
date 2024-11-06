@@ -32,8 +32,8 @@ void SVG_PushMove_MoveDone( edict_t *ent ) {
     // WID: MoveWith: Clear last velocity also.
     VectorClear( ent->velocity );
 
-    if ( ent->pushMoveInfo.endfunc ) {
-        ent->pushMoveInfo.endfunc( ent );
+    if ( ent->pushMoveInfo.endMoveCallback ) {
+        ent->pushMoveInfo.endMoveCallback( ent );
     }
 
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
@@ -102,10 +102,11 @@ void SVG_PushMove_MoveCalculate( edict_t *ent, const Vector3 &destination, svg_p
     // Use the normalized direction vector's length to determine the remaining move idstance.
     ent->pushMoveInfo.remaining_distance = VectorNormalize( &ent->pushMoveInfo.dir.x );
     // Setup end move callback function.
-    ent->pushMoveInfo.endfunc = endMoveCallback;
+    ent->pushMoveInfo.endMoveCallback = endMoveCallback;
 
     if ( ent->pushMoveInfo.speed == ent->pushMoveInfo.accel && ent->pushMoveInfo.speed == ent->pushMoveInfo.decel ) {
-        // If a Team Master, engage move immediately:
+        // If the current level entity that is being processed, happens to be in front of the
+        // entity array queue AND is a teamslave, begin moving its team master instead.
         if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
             SVG_PushMove_MoveBegin( ent );
             //} else if ( ent->targetEntities.movewith ) {
@@ -116,8 +117,8 @@ void SVG_PushMove_MoveCalculate( edict_t *ent, const Vector3 &destination, svg_p
             ent->nextthink = level.time + FRAME_TIME_S;
             ent->think = SVG_PushMove_MoveBegin;
         }
+    // We're accelerating still:
     } else {
-        // accelerative
         ent->pushMoveInfo.current_speed = 0;
         ent->think = SVG_PushMove_Think_AccelerateMove;
         ent->nextthink = level.time + FRAME_TIME_S;
@@ -139,19 +140,27 @@ void SVG_PushMove_MoveCalculate( edict_t *ent, const Vector3 &destination, svg_p
 *   @brief
 **/
 void SVG_PushMove_AngleMoveDone( edict_t *ent ) {
-    VectorClear( ent->avelocity );
-    ent->pushMoveInfo.endfunc( ent );
+    // Reset sign.
+    //ent->pushMoveInfo.sign = 1.f;
+    // Clear angular velocity.
+    ent->avelocity = {};
+    // Dispatch end move callback.
+    ent->pushMoveInfo.endMoveCallback( ent );
 }
 /**
 *   @brief
 **/
 void SVG_PushMove_AngleMoveFinal( edict_t *ent ) {
-    vec3_t  move;
+    Vector3  move = {};
 
+    // set destdelta to the vector needed to move
     if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
-        VectorSubtract( ent->pushMoveInfo.end_angles, ent->s.angles, move );
+        // Sign for Direction.
+        //const float sign = ent->pushMoveInfo.sign;
+        //ent->pushMoveInfo.endAngles = ent->angles2 * sign;
+        move = ent->pushMoveInfo.endAngles - ent->s.angles;
     } else {
-        VectorSubtract( ent->pushMoveInfo.start_angles, ent->s.angles, move );
+        move = ent->pushMoveInfo.startAngles - ent->s.angles;
     }
 
     if ( VectorEmpty( move ) ) {
@@ -159,7 +168,7 @@ void SVG_PushMove_AngleMoveFinal( edict_t *ent ) {
         return;
     }
 
-    VectorScale( move, 1.0f / FRAMETIME, ent->avelocity );
+    ent->avelocity = QM_Vector3Scale( move, ( 1.0f / FRAMETIME ) ); /** ent->pushMoveInfo.sign*/
 
     ent->think = SVG_PushMove_AngleMoveDone;
     ent->nextthink = level.time + FRAME_TIME_S;
@@ -168,39 +177,47 @@ void SVG_PushMove_AngleMoveFinal( edict_t *ent ) {
 *   @brief
 **/
 void SVG_PushMove_AngleMoveBegin( edict_t *ent ) {
-    vec3_t  destdelta;
-    float   len;
-    float   traveltime;
-    float   frames;
+    Vector3 destinationDelta = {};
+
+    //// Get sign, default to 1.0 in case it is unset ( thus 0. )
+    //// The defaulting gives us back the original behavior for non customizable sign entities.
+    //const float sign = ( ent->pushMoveInfo.sign == 0 ? 1.0f : ent->pushMoveInfo.sign );
 
     // set destdelta to the vector needed to move
     if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
-        VectorSubtract( ent->pushMoveInfo.end_angles, ent->s.angles, destdelta );
+        // Multiply by sign to get the desired end angles with.
+        //ent->pushMoveInfo.endAngles = ent->angles2 * sign;
+        // Determine destination delta.
+        destinationDelta = ent->pushMoveInfo.endAngles - ent->s.angles;
     } else {
-        VectorSubtract( ent->pushMoveInfo.start_angles, ent->s.angles, destdelta );
+        // Determine destination delta.
+        destinationDelta = ent->pushMoveInfo.startAngles - ent->s.angles;
     }
 
+    //destinationDelta = QM_Vector3Scale( destinationDelta, ent->pushMoveInfo.sign );
+
     // calculate length of vector
-    len = VectorLength( destdelta );
+    const float len = QM_Vector3Length( destinationDelta );
 
     // divide by speed to get time to reach dest
-    traveltime = len / ent->pushMoveInfo.speed;
+    const float travelTime = len / ent->pushMoveInfo.speed;
 
-    if ( traveltime < gi.frame_time_s ) {
+    if ( travelTime < gi.frame_time_s ) {
         SVG_PushMove_AngleMoveFinal( ent );
         return;
     }
 
-    frames = floor( traveltime / gi.frame_time_s );
+    const float numFrames = floor( travelTime / gi.frame_time_s );
 
     // scale the destdelta vector by the time spent traveling to get velocity
-    VectorScale( destdelta, 1.0f / traveltime, ent->avelocity );
-
+    ent->avelocity = QM_Vector3Scale( destinationDelta, ( 1.0f / travelTime ) );
+    //ent->avelocity = destinationDelta / travelTime;
+    
     // PGM
     //  if we're done accelerating, act as a normal rotation
     if ( ent->pushMoveInfo.speed >= ent->speed ) {
         // set nextthink to trigger a think when dest is reached
-        ent->nextthink = level.time + ( FRAME_TIME_S * frames );
+        ent->nextthink = level.time + ( FRAME_TIME_S * numFrames );
         ent->think = SVG_PushMove_AngleMoveFinal;
     } else {
         ent->nextthink = level.time + FRAME_TIME_S;
@@ -211,12 +228,46 @@ void SVG_PushMove_AngleMoveBegin( edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveCalculate( edict_t *ent, void( *func )( edict_t * ) ) {
-    VectorClear( ent->avelocity );
-    ent->pushMoveInfo.endfunc = func;
+void SVG_PushMove_AngleMoveCalculate( edict_t *ent, svg_pushmove_endcallback endMoveCallback ) {
+    // Clear angular velocity.
+    ent->avelocity = QM_Vector3Zero();
+    // Set function pointer for end position callback.
+    ent->pushMoveInfo.endMoveCallback = endMoveCallback;
+    // Default sign to 1.
+    //ent->pushMoveInfo.sign = 1;
+    // If the current level entity that is being processed, happens to be in front of the
+    // entity array queue AND is a teamslave, begin moving its team master instead.
     if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
         SVG_PushMove_AngleMoveBegin( ent );
+    // Team Slaves start moving next frame:
     } else {
+        ent->nextthink = level.time + FRAME_TIME_S;
+        ent->think = SVG_PushMove_AngleMoveBegin;
+    }
+}
+/**
+*   @brief  Begins an angular move with its default direction multiplied by the sign(+/- 1).
+**/
+void SVG_PushMove_AngleMoveCalculateSign( edict_t *ent, const float sign, svg_pushmove_endcallback endMoveCallback ) {
+    // Clear angular velocity.
+    ent->avelocity = QM_Vector3Zero();
+    // Set function pointer for end position callback.
+    ent->pushMoveInfo.endMoveCallback = endMoveCallback;
+    // Direction sign.
+    //ent->pushMoveInfo.sign = sign;
+    //gi.dprintf( "%s: sign == %f\n", __func__, sign );
+
+    // If the current level entity that is being processed, happens to be in front of the
+    // entity array queue AND is a teamslave, begin moving its team master instead.
+    if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
+        // Direction sign.
+        //ent->teammaster->pushMoveInfo.sign = sign;
+        SVG_PushMove_AngleMoveBegin( ent );
+        // Team Slaves start moving next frame:
+    } else {
+        // Direction sign.
+        //ent->pushMoveInfo.sign = sign;
+
         ent->nextthink = level.time + FRAME_TIME_S;
         ent->think = SVG_PushMove_AngleMoveBegin;
     }

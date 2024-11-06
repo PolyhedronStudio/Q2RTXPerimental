@@ -68,7 +68,7 @@ enum ptr_type_t : int32_t {
 	//
 	// edict->moveinfo.<methodname> function pointer addresses.
 	//
-    P_pusher_moveinfo_endfunc,
+    P_pusher_moveinfo_endmovecallback,
 
 	//
 	// edict->monsterinfo.<methodname> function pointer addresses.

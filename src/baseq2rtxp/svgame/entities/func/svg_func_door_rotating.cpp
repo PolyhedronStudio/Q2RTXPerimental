@@ -67,9 +67,9 @@ void SP_func_door_rotating( edict_t *ent ) {
     //vec3_t  abs_movedir;
 
     if ( ent->sounds != 1 ) {
-        ent->pushMoveInfo.sound_start = gi.soundindex( "doors/door_start_01.wav" );
-        ent->pushMoveInfo.sound_middle = gi.soundindex( "doors/door_mid_01.wav" );
-        ent->pushMoveInfo.sound_end = gi.soundindex( "doors/door_end_01.wav" );
+        ent->pushMoveInfo.sounds.start = gi.soundindex( "doors/door_start_01.wav" );
+        ent->pushMoveInfo.sounds.middle = gi.soundindex( "doors/door_mid_01.wav" );
+        ent->pushMoveInfo.sounds.end = gi.soundindex( "doors/door_end_01.wav" );
 
         ent->pushMoveInfo.lockState.lockedSound = gi.soundindex( "misc/door_locked.wav" );
         ent->pushMoveInfo.lockState.lockingSound = gi.soundindex( "misc/door_locking.wav" );
@@ -211,24 +211,24 @@ void SP_func_door_rotating( edict_t *ent ) {
     ent->pushMoveInfo.wait = ent->wait;
     
     #if 1
-    ent->pushMoveInfo.start_origin = ent->s.origin;
-    ent->pushMoveInfo.start_angles = ent->angles1;
-    ent->pushMoveInfo.end_origin = ent->s.origin;
-    ent->pushMoveInfo.end_angles = ent->angles2;
+    ent->pushMoveInfo.startOrigin = ent->s.origin;
+    ent->pushMoveInfo.startAngles = ent->angles1;
+    ent->pushMoveInfo.endOrigin = ent->s.origin;
+    ent->pushMoveInfo.endAngles = ent->angles2;
     #else
     // For PRESSED: pos1 = start, pos2 = end.
     if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_START_OPEN ) ) {
         ent->pushMoveInfo.state = DOOR_STATE_OPENED;
-        ent->pushMoveInfo.start_origin = ent->s.origin;
-        ent->pushMoveInfo.start_angles = ent->angles1;
-        ent->pushMoveInfo.end_origin = ent->s.origin;
-        ent->pushMoveInfo.end_angles = ent->angles2;
+        ent->pushMoveInfo.startOrigin = ent->s.origin;
+        ent->pushMoveInfo.startAngles = ent->angles1;
+        ent->pushMoveInfo.endOrigin = ent->s.origin;
+        ent->pushMoveInfo.endAngles = ent->angles2;
     // For UNPRESSED: pos1 = start, pos2 = end.
     } else {
-        ent->pushMoveInfo.start_origin = ent->s.origin;
-        ent->pushMoveInfo.start_angles = ent->angles1;
-        ent->pushMoveInfo.end_origin = ent->s.origin;
-        ent->pushMoveInfo.end_angles = ent->angles2;
+        ent->pushMoveInfo.startOrigin = ent->s.origin;
+        ent->pushMoveInfo.startAngles = ent->angles1;
+        ent->pushMoveInfo.endOrigin = ent->s.origin;
+        ent->pushMoveInfo.endAngles = ent->angles2;
     }
     #endif
     // Animated doors:

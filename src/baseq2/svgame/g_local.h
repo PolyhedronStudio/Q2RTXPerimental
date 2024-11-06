@@ -496,14 +496,14 @@ typedef struct {
 
 typedef struct {
     // fixed data
-    vec3_t      start_origin;
-    vec3_t      start_angles;
-    vec3_t      end_origin;
-    vec3_t      end_angles;
+    vec3_t      startOrigin;
+    vec3_t      startAngles;
+    vec3_t      endOrigin;
+    vec3_t      endAngles;
 
-    int         sound_start;
-    int         sound_middle;
-    int         sound_end;
+    int         sounds.start;
+    int         sounds.middle;
+    int         sounds.end;
 
     float       accel;
     float       speed;

@@ -188,10 +188,9 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
         // Snap back if the distance was too far off:
         if ( len > MAX_DELTA_ORIGIN ) {
             // Debug misses:
-            #if USE_DEBUG
-                clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
-                    clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
-            #endif
+            clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
+                clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+
             out->lastPs = clgi.client->frame.ps;
             out->currentPs = clgi.client->frame.ps;
             out->currentPs.pmove = *in;

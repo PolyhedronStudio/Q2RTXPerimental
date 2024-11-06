@@ -132,7 +132,7 @@ bool SV_RunThink(edict_t *ent)
     if ( !ent->think ) {
         // WID: Useful to output exact information about what entity we are dealing with here, that'll help us fix the problem :-).
         gi.error( "[ entityNumber(%d), inUse(%s), classname(%s), targetname(%s), luaName(%s), (nullptr) ent->think ]\n",
-            ent->s.number, ( ent->inuse == true ? "true" : "false" ), ent->classname, ent->targetname, ent->luaProperties.luaName);
+            ent->s.number, ( ent->inuse != false ? "true" : "false" ), ent->classname, ent->targetname, ent->luaProperties.luaName);
         // Failed.
         return false;
     }

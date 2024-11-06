@@ -38,7 +38,7 @@ void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t 
 }
 
 void rotating_set_avelocity( edict_t *self ) {
-    self->s.sound = self->pushMoveInfo.sound_middle;
+    self->s.sound = self->pushMoveInfo.sounds.middle;
     VectorScale( self->movedir, self->speed, self->avelocity );
     if ( self->spawnflags & 16 ) {
         self->touch = rotating_touch;
@@ -66,7 +66,7 @@ void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const enti
         || ( useType == ENTITY_USETARGET_TYPE_ON || useType == ENTITY_USETARGET_TYPE_OFF ) ) {
         // If the useType is off, or on:
         if ( SVG_UseTarget_ShouldToggle( useType, useValue )/* || useValue == 1*/ ) {
-            self->s.sound = self->pushMoveInfo.sound_middle;
+            self->s.sound = self->pushMoveInfo.sounds.middle;
             VectorScale( self->movedir, self->speed, self->avelocity );
             if ( self->spawnflags & 16 ) {
                 self->touch = rotating_touch;
@@ -114,7 +114,7 @@ void SP_func_rotating( edict_t *ent ) {
         ent->dmg = 2;
     }
 
-    //  ent->pushMoveInfo.sound_middle = "doors/hydro1.wav";
+    //  ent->pushMoveInfo.sounds.middle = "doors/hydro1.wav";
 
     ent->use = rotating_use;
     if ( ent->dmg ) {

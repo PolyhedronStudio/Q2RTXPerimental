@@ -71,7 +71,11 @@ void SVG_PushMove_AngleMoveBegin( edict_t *ent );
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveCalculate( edict_t *ent, void( *func )( edict_t * ) );
+void SVG_PushMove_AngleMoveCalculate( edict_t *ent, svg_pushmove_endcallback endMoveCallback );
+/**
+*   @brief  Begins an angular move with its default direction multiplied by the sign(+/- 1).
+**/
+void SVG_PushMove_AngleMoveCalculateSign( edict_t *ent, const float sign, svg_pushmove_endcallback endMoveCallback );
 
 
 
