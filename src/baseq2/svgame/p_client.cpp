@@ -1177,7 +1177,7 @@ void SVG_Client_PutInServer(edict_t *ent)
     ent->solid = SOLID_BOUNDS_BOX;
     ent->deadflag = DEADFLAG_NO;
     ent->air_finished_time = level.time + 12_sec;
-    ent->clipmask = static_cast<contents_t>( MASK_PLAYERSOLID );
+    ent->clipmask = ( MASK_PLAYERSOLID );
     ent->model = "players/male/tris.md2";
     ent->pain = player_pain;
     ent->die = player_die;
@@ -1233,7 +1233,7 @@ void SVG_Client_PutInServer(edict_t *ent)
     VectorCopy(spawn_origin, temp2);
     temp[2] -= 64;
     temp2[2] += 16;
-    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, static_cast<contents_t>( MASK_PLAYERSOLID ));
+    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, ( MASK_PLAYERSOLID ));
     if (!tr.allsolid && !tr.startsolid && Q_stricmp(level.mapname, "tech5")) {
         VectorCopy(tr.endpos, ent->s.origin);
         ent->groundentity = tr.ent;

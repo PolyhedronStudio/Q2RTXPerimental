@@ -1076,6 +1076,8 @@ void Qcommon_Frame(void)
     msec = com_eventTime - oldtime;
 
 #if USE_CLIENT
+    // WID: Seems to fix the client side 'stuttering' for clgame related things?
+    #if 0
     // spin until msec is non-zero if running a client
     if (!dedicated->integer && !com_timedemo->integer) {
         while (msec < 1) {
@@ -1086,6 +1088,7 @@ void Qcommon_Frame(void)
                 break;
         }
     }
+    #endif
 #endif
 
 	// WID: 64-bit-frame: Should we messabout with this?

@@ -423,7 +423,7 @@ void SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
     static std::vector<skipped_projectile> skipped;
 
     while ( true ) {
-        trace_t tr = gi.trace( &previous_origin.x, ent->mins, ent->maxs, ent->s.origin, ent, static_cast<contents_t>( ent->clipmask | CONTENTS_PROJECTILE ) );
+        trace_t tr = gi.trace( &previous_origin.x, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipmask | CONTENTS_PROJECTILE ) );
 
         if ( tr.fraction == 1.0f ) {
             break;
@@ -479,7 +479,7 @@ const bool KillBox(edict_t *ent, const bool bspClipping ) {
         return true;
     }
 
-    contents_t mask = static_cast<contents_t>( CONTENTS_MONSTER | CONTENTS_PLAYER );
+    contents_t mask = ( CONTENTS_MONSTER | CONTENTS_PLAYER );
 
     //// [Paril-KEX] don't gib other players in coop if we're not colliding
     //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )

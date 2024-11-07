@@ -510,7 +510,7 @@ void target_laser_think(edict_t *self)
     VectorCopy(self->s.origin, start);
     VectorMA(start, 2048, self->movedir, end);
     while (1) {
-        tr = gi.trace( start, NULL, NULL, end, ignore, static_cast<contents_t>( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER ) );
+        tr = gi.trace( start, NULL, NULL, end, ignore, ( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER ) );
 
         if (!tr.ent)
             break;

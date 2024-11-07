@@ -133,7 +133,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
     float       u;
     vec3_t      water_start;
     bool        water = false;
-    contents_t  content_mask = static_cast<contents_t>( MASK_SHOT | MASK_WATER );
+    contents_t  content_mask = ( MASK_SHOT | MASK_WATER );
 
     tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
     if (!(tr.fraction < 1.0f)) {
@@ -149,7 +149,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
         if (gi.pointcontents(start) & MASK_WATER) {
             water = true;
             VectorCopy(start, water_start);
-            content_mask = static_cast<contents_t>( content_mask & ~MASK_WATER ); // content_mask &= ~MASK_WATER
+            content_mask = ( content_mask & ~MASK_WATER ); // content_mask &= ~MASK_WATER
         }
 
         tr = gi.trace(start, NULL, NULL, end, self, content_mask);
@@ -347,7 +347,7 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
     bolt->movetype = MOVETYPE_FLYMISSILE;
     bolt->clipmask = MASK_PROJECTILE;
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
-        bolt->clipmask = static_cast<contents_t>( bolt->clipmask & ~CONTENTS_PLAYER );
+        bolt->clipmask = ( bolt->clipmask & ~CONTENTS_PLAYER );
     }
     bolt->flags = static_cast<entity_flags_t>( bolt->flags | FL_DODGE );
     bolt->solid = SOLID_BOUNDS_BOX;
@@ -483,7 +483,7 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     grenade->movetype = MOVETYPE_BOUNCE;
     grenade->clipmask = MASK_PROJECTILE;
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
-        grenade->clipmask = static_cast<contents_t>( grenade->clipmask & ~CONTENTS_PLAYER );
+        grenade->clipmask = ( grenade->clipmask & ~CONTENTS_PLAYER );
     }
     grenade->flags = static_cast<entity_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */);
     grenade->svflags |= SVF_PROJECTILE;
@@ -524,7 +524,7 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
     grenade->movetype = MOVETYPE_BOUNCE;
     grenade->clipmask = MASK_PROJECTILE;
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
-        grenade->clipmask = static_cast<contents_t>( grenade->clipmask & ~CONTENTS_PLAYER );
+        grenade->clipmask = ( grenade->clipmask & ~CONTENTS_PLAYER );
     }
     grenade->flags = static_cast<entity_flags_t>( grenade->flags | FL_DODGE /*| FL_TRAP */ );
     grenade->svflags |= SVF_PROJECTILE;
@@ -617,7 +617,7 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
     rocket->movetype = MOVETYPE_FLYMISSILE;
     rocket->clipmask = MASK_PROJECTILE;
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
-        rocket->clipmask = static_cast<contents_t>( rocket->clipmask & ~CONTENTS_PLAYER );
+        rocket->clipmask = ( rocket->clipmask & ~CONTENTS_PLAYER );
     }
     rocket->flags = static_cast<entity_flags_t>( rocket->flags | FL_DODGE /*| FL_TRAP */ );
     rocket->svflags |= SVF_PROJECTILE;
@@ -662,13 +662,13 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
     VectorCopy(start, from);
     ignore = self;
     water = false;
-    mask = static_cast<contents_t>( MASK_SHOT | CONTENTS_SLIME | CONTENTS_LAVA );
+    mask = ( MASK_SHOT | CONTENTS_SLIME | CONTENTS_LAVA );
     lastfrac = 1;
     while (ignore) {
         tr = gi.trace(from, NULL, NULL, end, ignore, mask);
 
         if (tr.contents & (CONTENTS_SLIME | CONTENTS_LAVA)) {
-            mask = static_cast<contents_t>( ~( CONTENTS_SLIME | CONTENTS_LAVA ) );
+            mask = ( ~( CONTENTS_SLIME | CONTENTS_LAVA ) );
             water = true;
         } else {
             //ZOID--added so rail goes through SOLID_BOUNDS_BOX entities (gibs, etc)
@@ -830,7 +830,7 @@ void bfg_think(edict_t *self)
         VectorCopy(self->s.origin, start);
         VectorMA(start, 2048, dir, end);
         while (1) {
-            tr = gi.trace( start, NULL, NULL, end, ignore, static_cast<contents_t>( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER ) );
+            tr = gi.trace( start, NULL, NULL, end, ignore, ( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER ) );
 
             if (!tr.ent)
                 break;
@@ -880,7 +880,7 @@ void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, fl
     bfg->svflags = SVF_PROJECTILE;
     // [Paril-KEX]
     if ( self->client && !G_ShouldPlayersCollideProjectile( self ) ) {
-        bfg->clipmask = static_cast<contents_t>( bfg->clipmask & ~CONTENTS_PLAYER );
+        bfg->clipmask = ( bfg->clipmask & ~CONTENTS_PLAYER );
     }
     bfg->solid = SOLID_BOUNDS_BOX;
     bfg->s.effects |= EF_BFG | EF_ANIM_ALLFAST;

@@ -36,62 +36,55 @@ static inline size_t Q_concat_stdarray(char* dest, size_t size, std::vector<cons
 *	A special template method in order to apply a set of operators to actual C enum types.
 *   reducing the need to do specific and possibly wrong casts everywhere.
 ****/
-// Operator: !=
-template <class E, class = std::enable_if_t < std::is_enum<E>{} >>
-static inline constexpr bool operator != ( E keydestA, const int32_t keydestB ) {
-    return static_cast<int32_t>( keydestA ) != static_cast<int32_t>( keydestB );
-};
-template <class E, class = std::enable_if_t < std::is_enum<E>{} >>
-static inline constexpr bool operator != ( E keydestA, const uint32_t keydestB ) {
-    return static_cast<uint32_t>( keydestA ) != static_cast<uint32_t>( keydestB );
-};
 // Operator: ==
-template <class E, class = std::enable_if_t < std::is_enum<E>{} >>
-static inline constexpr bool operator == ( E keydestA, const int32_t keydestB ) {
-    return static_cast<int32_t>( keydestA ) == static_cast<int32_t>( keydestB );
+template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
+    static inline const E operator == ( const E lha, const E rhb ) {
+    //return static_cast<int32_t>( keydestA ) != static_cast<int32_t>( keydestB );
+    return E( std::underlying_type<const E>::type( lha ) == std::underlying_type<const E>::type( rhb ) );
 };
-template <class E, class = std::enable_if_t < std::is_enum<E>{} >>
-static inline constexpr bool operator == ( E keydestA, const uint32_t keydestB ) {
-    return static_cast<uint32_t>( keydestA ) == static_cast<uint32_t>( keydestB );
+// Operator: !=
+template <class E, class = std::enable_if_t< std::is_enum< const E >{} >>
+static inline const E operator != ( const E lha, const E rhb ) {
+    //return static_cast<int32_t>( keydestA ) != static_cast<int32_t>( keydestB );
+    return E( std::underlying_type<const E>::type( lha ) != std::underlying_type<const E>::type( rhb ) );
 };
+
 // Operator: |
-template <class E, class = std::enable_if_t < std::is_enum<E>{} >> 
-static inline constexpr E operator | ( E &keydestA, E keydestB ) {
-	return static_cast<E>( static_cast<int32_t>( keydestA ) | static_cast<int32_t>( keydestB ) );
+template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
+static inline constexpr const E operator | ( const E lha, const E rhb ) {
+    return E( std::underlying_type<const E>::type( lha ) | std::underlying_type<const E>::type( rhb ) );
 };
-//template <class E, class = std::enable_if_t < std::is_enum<E>{} >>
-//static inline E operator | ( E &keydestA, const E keydestB ) {
-//    return static_cast<E>( static_cast<int>( keydestA ) | static_cast<int>( keydestB ) );
-//};
 // Operator: &
-template <class E, class = std::enable_if_t < std::is_enum<E>{} >>
-static inline constexpr E operator & ( E& keydestA, E& keydestB ) {
-	return static_cast<E>( static_cast<int32_t>(keydestA) & static_cast<int32_t>( keydestB ) );
+template <class E, class = std::enable_if_t< std::is_enum< const E >{} >>
+static inline constexpr const E operator & ( const E lha, const E rhb ) {
+    return E( std::underlying_type<const E>::type( lha ) & std::underlying_type<const E>::type( rhb ) );
 };
-template <class E, class = std::enable_if_t < std::is_enum<E>{} >>
-static inline const constexpr E operator & ( const E& keydestA, const E& keydestB) {
-	return static_cast<E>(static_cast<int32_t>(keydestA) & static_cast<int32_t>(keydestB));
-};
-
 // Operator: ~
-template <class E, class = std::enable_if_t < std::is_enum<E>{} >>
-static inline constexpr E operator ~ (E& keydestA) {
-	return static_cast<E>(~static_cast<int32_t>(keydestA));
+template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
+static inline constexpr const E &operator ~ ( E &lha) {
+    return lha = ~std::underlying_type<E>::type( E( std::underlying_type<E>::type( lha ) ) );
 };
-template <class E, class = std::enable_if_t < std::is_enum<E>{} >>
-static inline constexpr E & operator ~ (E& keydestA) {
-	return static_cast<E>(~static_cast<int32_t>(keydestA));
+// Operator: ^
+template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
+static inline constexpr const E &operator ^ ( E &lha, E &rhb ) {
+    return lha = E( std::underlying_type<const E>::type( lha ) ^ std::underlying_type<const E>::type( rhb ) );
+};
+// Operator: |=
+template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
+static inline E &operator |= ( E &lha, E &rhb ) {
+    return lha = E( std::underlying_type<const E>::type( lha ) | std::underlying_type<const E>::type( rhb ) );
+};
+// Operator: &=
+template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
+static inline E &operator &= ( E &lha, E &rhb ) {
+    return lha = E( std::underlying_type<const E>::type( lha ) & std::underlying_type<const E>::type( rhb ) );
+};
+// Operator: ^=
+template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
+static inline E &operator ^= ( E &lha, E &rhb ) {
+    return lha = E( std::underlying_type<const E>::type( lha ) ^ std::underlying_type<const E>::type( rhb ) );
 };
 
-// Operator: |=
-//template <class E, class = std::enable_if_t < std::is_enum<E>{} >>
-//E operator |= ( E& keydestA, E& keydestB ) {
-//	return keydestA = static_cast<E>( static_cast<int>( keydestA ) | static_cast<int>( keydestB ) );
-//};
-template <class E, class = std::enable_if_t < std::is_enum<E>{} >>
-static inline E& operator |= (E& keydestA, E& keydestB) {
-	return keydestA = static_cast<E>(static_cast<int>(keydestA) | static_cast<int>(keydestB));
-};
 
 
 /**

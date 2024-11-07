@@ -104,7 +104,7 @@ static void CM_BoxLeafs_r( box_leaf_test_t &boxLeafTest, mnode_t *node ) {
     //        //    // Get leaf.
     //        mleaf_t *leaf = (mleaf_t*)( node );
     //        // Accumulate contents flags.
-    //        boxLeafTest.leafs_contents = static_cast<contents_t>( boxLeafTest.leafs_contents | leaf->contents );
+    //        boxLeafTest.leafs_contents = ( boxLeafTest.leafs_contents | leaf->contents );
     //        // Add to list if room left.
     //        if ( boxLeafTest.leaf_count < boxLeafTest.leaf_max_count ) {
     //            boxLeafTest.leaf_list[ boxLeafTest.leaf_count++ ] = leaf;

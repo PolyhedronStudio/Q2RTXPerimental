@@ -45,9 +45,9 @@ const contents_t SVG_GetClipMask( edict_t *ent ) {
     // If none, setup a default mask based on the svflags.
     if ( !mask ) {
         if ( ent->svflags & SVF_MONSTER ) {
-            mask = static_cast<contents_t>( MASK_MONSTERSOLID );
+            mask = ( MASK_MONSTERSOLID );
         } else if ( ent->svflags & SVF_PROJECTILE ) {
-            mask = static_cast<contents_t>( MASK_PROJECTILE );
+            mask = ( MASK_PROJECTILE );
         } else {
             mask = static_cast<contents_t>( MASK_SHOT & ~CONTENTS_DEADMONSTER );
         }

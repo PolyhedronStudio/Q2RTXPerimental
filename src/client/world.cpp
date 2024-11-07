@@ -224,7 +224,7 @@ const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const ve
 **/
 const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
     // Perform point contents against world.
-    contents_t contents = static_cast<contents_t>( CM_PointContents( &cl.collisionModel, point, cl.collisionModel.cache->nodes ) );
+    contents_t contents = ( CM_PointContents( &cl.collisionModel, point, cl.collisionModel.cache->nodes ) );
 
     for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
         // Clip against all brush entity models.
@@ -264,7 +264,7 @@ const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
         //}
 
         // Might intersect, so do an exact clip.
-        contents = static_cast<contents_t>( contents | CM_TransformedPointContents( &cl.collisionModel, point, headNode, ent->current.origin, ent->current.angles ) );
+        contents = ( contents | CM_TransformedPointContents( &cl.collisionModel, point, headNode, ent->current.origin, ent->current.angles ) );
     }
 
     // Et voila.

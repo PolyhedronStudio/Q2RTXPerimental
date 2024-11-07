@@ -45,24 +45,24 @@ const contents_t SVG_GetClipMask( edict_t *ent ) {
     // If none, setup a default mask based on the svflags.
     if ( !mask ) {
         if ( ent->svflags & SVF_MONSTER ) {
-            mask = static_cast<contents_t>( MASK_MONSTERSOLID );
+            mask = ( MASK_MONSTERSOLID );
         } else if ( ent->svflags & SVF_PROJECTILE ) {
-            mask = static_cast<contents_t>( MASK_PROJECTILE );
+            mask = ( MASK_PROJECTILE );
         } else {
-            mask = static_cast<contents_t>( MASK_SHOT & ~CONTENTS_DEADMONSTER );
+            mask = ( MASK_SHOT & ~CONTENTS_DEADMONSTER );
         }
     }
 
     // Non-Solid objects (items, etc) shouldn't try to clip
     // against players/monsters.
     if ( ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER ) {
-        mask = static_cast<contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
+        mask = ( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
     }
 
     // Monsters/Players that are also dead shouldn't clip
     // against players/monsters.
     if ( ( ent->svflags & ( SVF_MONSTER | SVF_PLAYER ) ) && ( ent->svflags & SVF_DEADMONSTER ) ) {
-        mask = static_cast<contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
+        mask = ( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
     }
 
     return mask;

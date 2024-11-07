@@ -473,7 +473,7 @@ const contents_t SV_PointContents( const vec3_t p ) {
     }
 
 	// get base contents from world
-    contents = static_cast<contents_t>( CM_PointContents( &sv.cm, p, SV_WorldNodes() ) );
+    contents = ( CM_PointContents( &sv.cm, p, SV_WorldNodes() ) );
 
 	// or in contents from all the other entities
 	num = SV_AreaEdicts( p, p, touch, MAX_EDICTS, AREA_SOLID );
@@ -487,7 +487,7 @@ const contents_t SV_PointContents( const vec3_t p ) {
         //}
 
 		// Might intersect, so do an exact clip.
-		contents = static_cast<contents_t>( contents | CM_TransformedPointContents( &sv.cm, p, SV_HullForEntity(hit),
+		contents = ( contents | CM_TransformedPointContents( &sv.cm, p, SV_HullForEntity(hit),
 												hit->s.origin, hit->s.angles ) );
 	}
 

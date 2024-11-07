@@ -34,7 +34,7 @@ typedef enum {  //: uint8_t {
 /**
 *   @brief  Brush Contents: lower bits are stronger, and will eat weaker brushes completely
 **/
-typedef enum {
+typedef enum contents_s {
     CONTENTS_NONE = 0,
     CONTENTS_SOLID = BIT( 0 ),  // An eye is never valid in a solid.
     CONTENTS_WINDOW = BIT( 1 ), // Translucent, but not watery.
@@ -74,6 +74,7 @@ typedef enum {
     CONTENTS_PROJECTILE = BIT( 31 )  // [Paril-KEX] should never be on a brush, only in game; projectiles.
     // used to solve deadmonster collision issues.
 } contents_t;
+
 //typedef uint32_t contents_t;
 
 /**
@@ -96,19 +97,19 @@ typedef enum {
 /**
 *   ContentMask Sets:
 **/
-#define MASK_SOLID              contents_t( CONTENTS_SOLID | CONTENTS_WINDOW )
-#define MASK_PLAYERSOLID        contents_t( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTER | CONTENTS_PLAYER )
-#define MASK_DEADSOLID          contents_t( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW )
-#define MASK_MONSTERSOLID       contents_t( CONTENTS_SOLID | CONTENTS_MONSTERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTER | CONTENTS_PLAYER )
-#define MASK_WATER              contents_t( CONTENTS_WATER | CONTENTS_LAVA | CONTENTS_SLIME )
-#define MASK_OPAQUE             contents_t( CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA )
-#define MASK_SHOT               contents_t( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_WINDOW | CONTENTS_DEADMONSTER )
-#define MASK_CURRENT            contents_t( CONTENTS_CURRENT_0 | CONTENTS_CURRENT_90 | CONTENTS_CURRENT_180 | CONTENTS_CURRENT_270 | CONTENTS_CURRENT_UP | CONTENTS_CURRENT_DOWN )
+#define MASK_SOLID              /*contents_t*/( CONTENTS_SOLID | CONTENTS_WINDOW )
+#define MASK_PLAYERSOLID        /*contents_t*/( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTER | CONTENTS_PLAYER )
+#define MASK_DEADSOLID          /*contents_t*/( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW )
+#define MASK_MONSTERSOLID       /*contents_t*/( CONTENTS_SOLID | CONTENTS_MONSTERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTER | CONTENTS_PLAYER )
+#define MASK_WATER              /*contents_t*/( CONTENTS_WATER | CONTENTS_LAVA | CONTENTS_SLIME )
+#define MASK_OPAQUE             /*contents_t*/( CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA )
+#define MASK_SHOT               /*contents_t*/( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_WINDOW | CONTENTS_DEADMONSTER )
+#define MASK_CURRENT            /*contents_t*/( CONTENTS_CURRENT_0 | CONTENTS_CURRENT_90 | CONTENTS_CURRENT_180 | CONTENTS_CURRENT_270 | CONTENTS_CURRENT_UP | CONTENTS_CURRENT_DOWN )
 //#define MASK_BLOCK_SIGHT        ( CONTENTS_SOLID | CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_MONSTER | CONTENTS_PLAYER )
 //#define MASK_NAV_SOLID          ( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW )
 //#define MASK_LADDER_NAV_SOLID   ( CONTENTS_SOLID | CONTENTS_WINDOW )
 //#define MASK_WALK_NAV_SOLID     ( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTERCLIP )
-#define MASK_PROJECTILE         contents_t( MASK_SHOT | CONTENTS_PROJECTILECLIP )
+#define MASK_PROJECTILE         /*contents_t*/( MASK_SHOT | CONTENTS_PROJECTILECLIP )
 
 // gi.BoxEdicts() can return a list of either solid or trigger entities
 // FIXME: eliminate AREA_ distinction?

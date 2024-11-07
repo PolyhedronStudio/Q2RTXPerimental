@@ -32,11 +32,6 @@ static constexpr int32_t BUTTON_SPAWNFLAG_TOGGLEABLE        = BIT( 4 );
 //! Button is locked from spawn, so it can't be used.
 static constexpr int32_t BUTTON_SPAWNFLAG_LOCKED            = BIT( 5 );
 
-//! Button stays pushed until reused.
-//static constexpr int32_t BUTTON_SPAWNFLAG_TOGGLE          = BIT( 5 );    // This is a target use flag.
-//! Button fires targets when pressed/used.
-//static constexpr int32_t BUTTON_SPAWNFLAG_PRESS_ACTIVATES = BIT( 6 ); // This is also a target use flag.
-
 
 /**
 *   For readability's sake:
@@ -89,26 +84,6 @@ void button_unpress_move_done( edict_t *self );
 void button_think_return( edict_t *self );
 void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
-
-
-// WID: Now handled by SVG_UseTargets.
-#if 0
-/**
-*   @brief  Fire use target lua function implementation if existant.
-**/
-void button_lua_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t &useType, const int32_t useValue ) {
-    // Need the luaName.
-    if ( self->luaProperties.luaName ) {
-        // Generate function 'callback' name.
-        const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_Use";
-        // Call if it exists.
-        if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
-            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-                /*[lua args]:*/ self, other, activator, useType, useValue );
-        }
-    }
-}
-#endif
 
 
 

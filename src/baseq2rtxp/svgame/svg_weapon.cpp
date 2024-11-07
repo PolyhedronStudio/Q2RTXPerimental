@@ -131,7 +131,7 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
     float       r = 0;
     float       u = 0;
     bool        water = false;
-    contents_t  content_mask = static_cast<contents_t>( MASK_SHOT );
+    contents_t  content_mask = ( MASK_SHOT );
 
     ////see if enemy is in range
     //VectorSubtract( self->enemy->s.origin, self->s.origin, dir );
@@ -232,7 +232,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
     float       u = 0;
     vec3_t      water_start = {};
     bool        water = false;
-    contents_t  content_mask = static_cast<contents_t>( MASK_SHOT | MASK_WATER );
+    contents_t  content_mask = ( MASK_SHOT | MASK_WATER );
 
     tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
     if (!(tr.fraction < 1.0f)) {

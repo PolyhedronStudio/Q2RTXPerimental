@@ -495,7 +495,7 @@ void CM_ClipEntity( cm_t *cm, trace_t *dst, const trace_t *src, struct edict_s *
         dst->surface = src->surface;
         dst->plane2 = src->plane2;
         dst->surface2 = src->surface2;
-        dst->contents = static_cast<contents_t>( dst->contents | src->contents );
+        dst->contents = ( dst->contents | src->contents );
         dst->ent = ent;
         dst->material = src->material;
     }
