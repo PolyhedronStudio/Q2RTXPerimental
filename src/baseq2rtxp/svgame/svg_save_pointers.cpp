@@ -84,6 +84,9 @@ extern void button_press_move_done( edict_t *self );
 extern void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void button_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void button_usetarget_press( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void button_usetarget_toggle( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void debris_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 
@@ -136,72 +139,108 @@ extern void func_train_find( edict_t *self );
 extern void func_wall_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void SVG_FreeEdict( edict_t *self );
+
 extern void gib_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void gib_think( edict_t *self );
 extern void gib_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+
 extern void hurt_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void hurt_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void spotlight_think( edict_t *self );
 extern void spotlight_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void light_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void M_droptofloor( edict_t *self );
+
 extern void MegaHealth_think( edict_t *self );
+
 extern void SVG_PushMove_MoveBegin( edict_t *ent );
 extern void SVG_PushMove_MoveDone( edict_t *ent );
 extern void SVG_PushMove_MoveFinal( edict_t *ent );
+extern void SVG_PushMove_Think_AccelerateMove( edict_t *self );
+
 extern void multi_wait( edict_t *ent );
+
 extern void path_corner_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+
 extern void plat_blocked( edict_t *self, edict_t *other );
 extern void plat_go_down( edict_t *self );
 extern void plat_hit_bottom( edict_t *self );
 extern void plat_hit_top( edict_t *self );
+
 extern void player_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void player_pain( edict_t *self, edict_t *other, float kick, int damage );
+
 extern void point_combat_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+
 extern void rotating_blocked( edict_t *self, edict_t *other );
 extern void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void SP_CreateCoopSpots( edict_t *self  );
 extern void SP_FixCoopSpots( edict_t *self );
+
 extern void target_crosslevel_target_think( edict_t *self );
+
 extern void target_earthquake_think( edict_t *self );
 extern void target_earthquake_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void target_explosion_explode( edict_t *self );
+
 extern void target_laser_start( edict_t *self );
 extern void target_laser_think( edict_t *self );
 extern void target_laser_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void target_lightramp_think( edict_t *self );
 extern void target_lightramp_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void target_string_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void teleporter_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+
 extern void TH_viewthing( edict_t *ent );
-extern void SVG_PushMove_Think_AccelerateMove( edict_t *self );
+
+
 extern void Think_CalcMoveSpeed( edict_t *self );
 extern void Think_UseTargetsDelay( edict_t *self );
 extern void Think_SignalOutDelay( edict_t *self );
 extern void Think_SpawnDoorTrigger( edict_t *ent );
+
 extern void Touch_DoorTrigger( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void Touch_Item( edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void Touch_Multi( edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void Touch_Plat_Center( edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf );
+
 extern void train_blocked( edict_t *self, edict_t *other );
 extern void train_next( edict_t *self );
 extern void train_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void train_wait( edict_t *self );
+
 extern void trigger_counter_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void trigger_crosslevel_trigger_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void trigger_elevator_init( edict_t *self );
 extern void trigger_elevator_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void trigger_enable( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void trigger_gravity_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+
 extern void trigger_monsterjump_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+
 extern void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+
 extern void trigger_relay_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void Use_Areaportal( edict_t *ent, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void Use_Item( edict_t *ent, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void use_killbox( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void Use_Multi( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void Use_Plat( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void Use_Target_Tent( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+
 extern void use_target_blaster( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void use_target_changelevel( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void use_target_explosion( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
@@ -210,7 +249,6 @@ extern void use_target_secret( edict_t *self, edict_t *other, edict_t *activator
 extern void use_target_spawner( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void Use_Target_Speaker( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void use_target_splash( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
-extern void Use_Target_Tent( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 const save_ptr_t save_ptrs[] = {
 
@@ -271,26 +309,35 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void *)SVG_PushMove_MoveBegin },
 { P_think,  (void *)SVG_PushMove_MoveDone },
 { P_think,  (void *)SVG_PushMove_MoveFinal },
+{ P_think,  (void *)SVG_PushMove_Think_AccelerateMove },
+
 { P_think,  (void *)multi_wait },
+
 { P_think,  (void *)plat_go_down },
+
 { P_think,  (void *)SP_CreateCoopSpots },
 { P_think,  (void *)SP_FixCoopSpots },
+
 { P_think,  (void *)target_crosslevel_target_think },
 { P_think,  (void *)target_earthquake_think },
 { P_think,  (void *)target_explosion_explode },
 { P_think,  (void *)target_laser_start },
 { P_think,  (void *)target_laser_think },
 { P_think,  (void *)target_lightramp_think },
+
 { P_think,  (void *)TH_viewthing },
-{ P_think,  (void *)SVG_PushMove_Think_AccelerateMove },
 { P_think,  (void *)Think_CalcMoveSpeed },
 { P_think,  (void *)Think_UseTargetsDelay },
 { P_think,  (void *)Think_SignalOutDelay },
+{ P_think,  (void *)Think_SpawnDoorTrigger },
+
 { P_think,  (void *)LUA_Think_UseTargetDelay },
 { P_think,  (void *)LUA_Think_SignalOutDelay },
-{ P_think,  (void*)Think_SpawnDoorTrigger },
+
 { P_think,  (void*)train_next },
+
 { P_think,  (void*)trigger_elevator_init },
+
 { P_think,	(void*)spotlight_think },
 
 //
@@ -327,7 +374,12 @@ const save_ptr_t save_ptrs[] = {
 //	Use Callback Pointers:
 //
 { P_use, (void*)button_use },
+{ P_use, (void *)button_usetarget_press },
+{ P_use, (void *)button_usetarget_toggle },
+{ P_use, (void *)button_usetarget_continuous_press },
+
 { P_use, (void*)door_use },
+
 { P_use, (void*)func_clock_use },
 { P_use, (void*)func_conveyor_use },
 { P_use, (void*)func_explosive_spawn },
@@ -335,25 +387,34 @@ const save_ptr_t save_ptrs[] = {
 { P_use, (void*)func_object_use },
 { P_use, (void*)func_timer_use },
 { P_use, (void*)func_wall_use },
+
 { P_use, (void*)hurt_use },
+
 { P_use, (void*)spotlight_use },
 { P_use, (void*)light_use },
+
 { P_use, (void*)rotating_use },
+
 { P_use, (void*)target_earthquake_use },
 { P_use, (void*)target_laser_use },
 { P_use, (void*)target_lightramp_use },
 { P_use, (void*)target_string_use },
+
 { P_use, (void*)train_use },
+
 { P_use, (void*)trigger_counter_use },
 { P_use, (void*)trigger_crosslevel_trigger_use },
 { P_use, (void*)trigger_elevator_use },
 { P_use, (void*)trigger_enable },
 { P_use, (void*)trigger_relay_use },
+
 { P_use, (void*)Use_Areaportal },
 { P_use, (void*)Use_Item },
 { P_use, (void*)use_killbox },
 { P_use, (void*)Use_Multi },
 { P_use, (void*)Use_Plat },
+{ P_use, (void *)Use_Target_Tent },
+
 { P_use, (void*)use_target_blaster },
 { P_use, (void*)use_target_changelevel },
 { P_use, (void*)use_target_explosion },
@@ -362,7 +423,6 @@ const save_ptr_t save_ptrs[] = {
 { P_use, (void*)use_target_spawner },
 { P_use, (void*)Use_Target_Speaker },
 { P_use, (void*)use_target_splash },
-{ P_use, (void*)Use_Target_Tent },
 
 //
 //	Pain Callback Pointers:

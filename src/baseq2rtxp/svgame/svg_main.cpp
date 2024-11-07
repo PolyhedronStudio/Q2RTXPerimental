@@ -465,55 +465,41 @@ void Com_Error(error_type_t type, const char *fmt, ...)
 //======================================================================
 
 
-/*
-=================
-ClientEndServerFrames
-=================
-*/
-void ClientEndServerFrames(void)
-{
-    int     i;
-    edict_t *ent;
-
+/**
+*   @brief 
+**/
+void ClientEndServerFrames(void) {
     // calc the player views now that all pushing
     // and damage has been added
-    for (i = 0 ; i < maxclients->value ; i++) {
-        ent = g_edicts + 1 + i;
-        if (!ent->inuse || !ent->client)
+    for ( int32_t i = 0 ; i < maxclients->value ; i++) {
+        edict_t *ent = g_edicts + 1 + i;
+        if ( !ent->inuse || !ent->client ) {
             continue;
+        }
         SVG_Client_EndServerFrame(ent);
     }
 
 }
 
-/*
-=================
-CreateTargetChangeLevel
-
-Returns the created target changelevel
-=================
-*/
-edict_t *CreateTargetChangeLevel(char *map)
-{
+/**
+*   @brief  Returns the created target changelevel
+**/
+edict_t *CreateTargetChangeLevel( char *map ) {
     edict_t *ent;
 
     ent = SVG_AllocateEdict();
     ent->classname = "target_changelevel";
-    if (map != level.nextmap)
-        Q_strlcpy(level.nextmap, map, sizeof(level.nextmap));
+    if ( map != level.nextmap ) {
+        Q_strlcpy( level.nextmap, map, sizeof( level.nextmap ) );
+    }
     ent->map = level.nextmap;
     return ent;
 }
 
-/*
-=================
-EndDMLevel
-
-The timelimit or fraglimit has been exceeded
-=================
-*/
-void EndDMLevel(void)
-{
+/**
+*   @brief  The timelimit or fraglimit has been exceeded
+**/
+void EndDMLevel(void) {
     edict_t     *ent;
     char *s, *t, *f;
     static const char *seps = " ,\n\r";
@@ -534,25 +520,28 @@ void EndDMLevel(void)
                 // it's in the list, go to the next one
                 t = strtok(NULL, seps);
                 if (t == NULL) { // end of list, go to first one
-                    if (f == NULL) // there isn't a first one, same level
-                        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.mapname));
-                    else
-                        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(f));
-                } else
-                    SVG_HUD_BeginIntermission(CreateTargetChangeLevel(t));
+                    if ( f == NULL ) {// there isn't a first one, same level
+                        SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.mapname ) );
+                    } else {
+                        SVG_HUD_BeginIntermission( CreateTargetChangeLevel( f ) );
+                    }
+                } else {
+                    SVG_HUD_BeginIntermission( CreateTargetChangeLevel( t ) );
+                }
                 free(s);
                 return;
             }
-            if (!f)
+            if ( !f ) {
                 f = t;
+            }
             t = strtok(NULL, seps);
         }
         free(s);
     }
 
-    if (level.nextmap[0]) // go to a specific map
-        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.nextmap));
-    else {  // search for a changelevel
+    if ( level.nextmap[ 0 ] ) {// go to a specific map
+        SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.nextmap ) );
+    } else {  // search for a changelevel
         ent = SVG_Find(NULL, FOFS(classname), "target_changelevel");
         if (!ent) {
             // the map designer didn't include a changelevel,
@@ -564,14 +553,10 @@ void EndDMLevel(void)
     }
 }
 
-
-/*
-=================
-CheckNeedPass
-=================
-*/
-void CheckNeedPass(void)
-{
+/**
+*   @brief  
+**/
+void CheckNeedPass(void) {
     int need;
 
     // if password or spectator_password has changed, update needpass
@@ -581,30 +566,31 @@ void CheckNeedPass(void)
 
         need = 0;
 
-        if (*password->string && Q_stricmp(password->string, "none"))
+        if ( *password->string && Q_stricmp( password->string, "none" ) ) {
             need |= 1;
-        if (*spectator_password->string && Q_stricmp(spectator_password->string, "none"))
+        }
+        if ( *spectator_password->string && Q_stricmp( spectator_password->string, "none" ) ) {
             need |= 2;
+        }
 
         gi.cvar_set("needpass", va("%d", need));
     }
 }
 
-/*
-=================
-CheckDMRules
-=================
-*/
-void CheckDMRules(void)
-{
+/**
+*   @brief
+**/
+void CheckDMRules(void) {
     int         i;
     gclient_t   *cl;
 
-    if (level.intermission_framenum)
+    if ( level.intermission_framenum ) {
         return;
+    }
 
-    if (!deathmatch->value)
+    if ( !deathmatch->value ) {
         return;
+    }
 
     if (timelimit->value) {
         if (level.time >= sg_time_t::from_min( timelimit->value * 60 ) ) {
@@ -617,8 +603,9 @@ void CheckDMRules(void)
     if (fraglimit->value) {
         for (i = 0 ; i < maxclients->value ; i++) {
             cl = game.clients + i;
-            if (!g_edicts[i + 1].inuse)
+            if ( !g_edicts[ i + 1 ].inuse ) {
                 continue;
+            }
 
             if (cl->resp.score >= fraglimit->value) {
                 gi.bprintf(PRINT_HIGH, "Fraglimit hit.\n");
@@ -629,14 +616,10 @@ void CheckDMRules(void)
     }
 }
 
-
-/*
-=============
-ExitLevel
-=============
-*/
-void ExitLevel(void)
-{
+/**
+*   @brief
+**/
+void ExitLevel(void) {
     int     i;
     edict_t *ent;
     char    command [256];
@@ -654,26 +637,20 @@ void ExitLevel(void)
     // clear some things before going to next level
     for (i = 0 ; i < maxclients->value ; i++) {
         ent = g_edicts + 1 + i;
-        if (!ent->inuse)
+        if ( !ent->inuse ) {
             continue;
-        if (ent->health > ent->client->pers.max_health)
+        }
+        if ( ent->health > ent->client->pers.max_health ) {
             ent->health = ent->client->pers.max_health;
+        }
     }
 
 }
 
-/*
-================
-G_RunFrame
-
-Advances the world by FRAME_TIME_MS seconds
-================
-*/
-void SVG_RunFrame(void)
-{
-    int     i;
-    edict_t *ent;
-
+/**
+*   @brief  Advances the world by FRAME_TIME_MS seconds
+**/
+void SVG_RunFrame(void) {
     // Check for cvars that demand a configstring update if they've changed.
     //G_CheckCVarConfigStrings();
 
@@ -699,8 +676,8 @@ void SVG_RunFrame(void)
     // Treat each object in turn
     // even the world gets a chance to think
     //
-    ent = &g_edicts[ 0 ];
-    for ( i = 0; i < globals.num_edicts; i++, ent++ ) {
+    edict_t *ent = &g_edicts[ 0 ];
+    for ( int32_t i = 0; i < globals.num_edicts; i++, ent++ ) {
         if ( !ent->inuse ) {
             // "Defer removing client info so that disconnected, etc works."
             if ( i > 0 && i <= game.maxclients ) {
@@ -710,6 +687,7 @@ void SVG_RunFrame(void)
                     ent->timestamp = 0_sec;
                 }
             }
+            // Skip since entity is not in use.
             continue;
         }
 

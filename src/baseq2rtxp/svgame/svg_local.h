@@ -761,6 +761,10 @@ typedef struct {
     Vector3     endOrigin;
     //! Move end angles.
     Vector3     endAngles;
+    //! The start texture animation frame.
+    int32_t     startFrame;
+    //! The end texture animation frame.
+    int32_t     endFrame;
 
     //
     // Dynamic State Data
@@ -2192,7 +2196,7 @@ static inline const bool SVG_IsActiveEntity( const edict_t *ent ) {
     return true;
 }
 /**
-*   @brief  Returns true if the active entity has a client assigned to it.
+*   @brief  Returns true if the entity is active and has a client assigned to it.
 **/
 static inline const bool SVG_IsClientEntity( const edict_t *ent, const bool healthCheck = false ) {
     // Inactive Entity:
@@ -2210,6 +2214,21 @@ static inline const bool SVG_IsClientEntity( const edict_t *ent, const bool heal
     }
     // Has Client.
     return true;
+}
+/**
+*   @brief  Returns true if the entity is active and is an actual monster.
+**/
+static inline const bool SVG_IsMonsterEntity( const edict_t *ent/*, const bool healthCheck = false */) {
+    // Inactive Entity:
+    if ( !SVG_IsActiveEntity( ent ) ) {
+        return false;
+    }
+    // Monster entity:
+    if ( ( ent->svflags & SVF_MONSTER ) || ent->s.entityType == ET_MONSTER || ent->s.entityType == ET_MONSTER_CORPSE ) {
+        return true;
+    }
+    // No monster entity.
+    return false;
 }
 /**
 *   @brief  Returns true if the entity is active(optional, true by default) and has a luaName set to it.
