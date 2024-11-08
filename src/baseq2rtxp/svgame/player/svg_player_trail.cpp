@@ -113,8 +113,8 @@ void PlayerTrail_New(vec3_t spot)
 
 edict_t *PlayerTrail_PickFirst(edict_t *self)
 {
-    int     marker;
-    int     n;
+    int32_t     marker = 0;
+    int32_t     n = 0;
 
     if (!trail_active)
         return NULL;
@@ -140,8 +140,8 @@ edict_t *PlayerTrail_PickFirst(edict_t *self)
 
 edict_t *PlayerTrail_PickNext(edict_t *self)
 {
-    int     marker;
-    int     n;
+    int32_t     marker = 0;
+    int32_t     n = 0;
 
     if (!trail_active)
         return NULL;

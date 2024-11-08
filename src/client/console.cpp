@@ -485,7 +485,7 @@ void Con_Init(void)
     con_font->changed = con_media_changed;
     con_background = Cvar_Get("con_background", "conback", 0);
     con_background->changed = con_media_changed;
-    con_scroll = Cvar_Get("con_scroll", "0", 0);
+    con_scroll = Cvar_Get("con_scroll", "3", 0);
     con_history = Cvar_Get("con_history", "10", 0);
     con_timestamps = Cvar_Get("con_timestamps", "0", 0);
     con_timestamps->changed = con_width_changed;

@@ -1921,9 +1921,11 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
                     // Trigger 'OFF' if it is toggled.
                     if ( SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_ON ) ) {
                         currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_OFF, 0 );
+                        currentTargetEntity->useTarget.state = (entity_usetarget_state_t)( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_ON );
                     // Trigger 'ON' if it is untoggled.
                     } else {
                         currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_ON, 1 );
+                        currentTargetEntity->useTarget.state = currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_ON;
                     }
                 }
             }
@@ -1933,9 +1935,11 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
                     // Trigger 'TOGGLE OFF' if it is toggled.
                     if ( SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_TOGGLED ) ) {
                         currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+                        currentTargetEntity->useTarget.state = (entity_usetarget_state_t)( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_TOGGLED );
                     // Trigger 'TOGGLE ON' if it is untoggled.
                     } else {
                         currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+                        currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_TOGGLED );
                     }
                 }
             }
@@ -1943,12 +1947,12 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
         } else if ( isTargetUseKeyReleased ) {
             // Stop with the continous entity usage:
             if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
-                // Remove continuous state flag.
-                currentTargetEntity->useTarget.state = (entity_usetarget_state_t)( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_CONTINUOUS );
                 // Continous entity husage:
                 if ( currentTargetEntity->use ) {
                     currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
                 }
+                // Remove continuous state flag.
+                currentTargetEntity->useTarget.state = (entity_usetarget_state_t)( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_CONTINUOUS );
             }
         }
     } else {

@@ -365,12 +365,12 @@ void button_think_return( edict_t *self ) {
             // Dispatch a signal.
             SVG_SignalOut( self, self->other, self->activator, "OnRevive" );
         }
-    }
-    // It is continuous and still held, so maintain this function as our 'think' callback.
-    //} else {
-    //    self->nextthink = level.time + FRAME_TIME_MS;
-    //    self->think = button_think_return;
     //}
+    // It is continuous and still held, so maintain this function as our 'think' callback.
+    } else {
+        self->nextthink = level.time + FRAME_TIME_MS;
+        self->think = button_think_return;
+    }
 }
 
 /**
@@ -406,6 +406,18 @@ void button_use( edict_t *self, edict_t *other, edict_t *activator, const entity
     // Start Unpressed Path( Default ):
     if ( isStartPressed ) {
         if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED ) {
+            // Try again next frame:
+            if ( isContinuousUseTarget && isContinuousState ) {
+                // Reinitiate this function.
+                self->nextthink = level.time + FRAME_TIME_MS;
+                self->think = button_think_return;
+                // Trigger UseTargets
+                SVG_UseTargets( self, self->activator, useType, useValue );
+                // Dispatch a signal.
+                SVG_SignalOut( self, self->other, self->activator, "OnContinuousPress" );
+                return;
+            }
+
             // Unpress if demanded:
             if ( !stayPressed ) {
                 // Engage in unpress movement.
@@ -438,7 +450,13 @@ void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *
     if ( !SVG_IsClientEntity( activator, /* healthCheck=*/true ) ) {
         return;
     }
-    
+
+    // Ignore triggers calling into fire when the button is still actively moving.
+    if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
+        || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
+        //return;
+    }
+
     // Set activator.
     self->activator = activator;
     // Set other.
@@ -451,11 +469,6 @@ void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *
         return;
     }
 
-    // Ignore triggers calling into fire when the button is still actively moving.
-    if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
-        || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
-        return;
-    }
     
     // Continuous button?
     const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
@@ -479,15 +492,15 @@ void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *
         }
 
         // Unpress if demanded:
-        if ( !isContinuousState ) {
+        if ( !stayPressed && ( ( isContinuousUseTarget && !isContinuousState ) ) ) {
             // Engage in unpress movement.
             button_unpress_move( self );
         }
-    } else {
-        if ( !isContinuousState ) {
+    } else if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED ){
+        //if ( !isContinuousState ) {
             // Engage in press movement.
             button_press_move( self );
-        }
+        //}
     }
 }
 /**
