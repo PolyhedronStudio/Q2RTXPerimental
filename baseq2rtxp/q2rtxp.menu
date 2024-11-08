@@ -65,8 +65,10 @@ color selection #d27d2ccc
 color disabled #757161
 
 begin environment
+    title "Environment Settings"
     background #212F3CD0
     style --compact
+    style --transparent
     pairs "sky type" physical_sky "original env.map" 0 earth 1 stroggos 2
     range -f "%+.1f EV" "sun and sky brightness" physical_sky_brightness -10 2 0.1
     pairs "time of day" sun_preset "custom" 0 "current time" 1 "12x current time" 2 "night" 3 "dawn" 4 "morning" 5 "noon" 6 "evening" 7 "dusk" 8
@@ -79,12 +81,13 @@ begin environment
     toggle "clouds" physical_sky_draw_clouds
     blank
     range -f "%.1f deg" --status "latitude to compute the sun position in automatic mode" "latitude" sun_latitude -90 90 2
-    blank
 end
 
 begin resolution
+    title "Dynamic Resolution Scaling"
     background #212F3CD0
     style --compact
+    style --transparent
 	toggle "dynamic resolution scaling" drs_enable
 	blank
 	range -f "%.0f FPS" --status "only effective in dynamic mode" "target frames per second" drs_target 30 250 1
@@ -95,9 +98,10 @@ begin resolution
 end
 
 begin hdr
+    title "HDR Settings"
     background #212F3CD0
     style --compact
-    title "HDR Settings"
+    style --transparent
     toggle "Enable HDR" vid_hdr
     blank
     range -f "%.0f nits" "peak brightness" tm_hdr_peak_nits 100 2000 10
@@ -106,10 +110,10 @@ begin hdr
 end
 
 begin photomode
+    title "Photo Mode Settings"
     background #212F3CD0
     style --compact
-    title "Photo Mode Settings"
-    blank
+    style --transparent
     pairs "enable photo mode" pt_accumulation_rendering no 0 yes 1 "yes, hide GUI immediately" 2
     bind "activation key" pause
     toggle "show pause plaque" scr_showpause
@@ -126,6 +130,7 @@ begin video
     title "Video Setup"
     background #212F3CD0
     style --compact
+    style --transparent
     //banner m_banner_video
 	pairs "renderer" vid_rtx opengl 0 rtx 1
     values -s "use LEFT and RIGHT keys to select" "video mode" vid_fullscreen windowed $$vid_modelist
@@ -215,7 +220,6 @@ begin sound
     background #212F3CD0
     style --compact
     title "Sound Setup"
-    blank
     range -p -f "%.0f%%" "master volume" s_volume 0 1 0.05
     range -p -f "%.0f%%" "music volume" ogg_volume 0 1 0.05
     toggle "enable music" ogg_enable
@@ -231,7 +235,6 @@ begin railtrail
     background #212F3CD0
     style --compact
     title "Railgun Trail Setup"
-    blank
     values "rail trail type" cl_railtrail_type \
         "default" "core only" "core and spiral"
     range -f "%.1f s" "rail trail duration" cl_railtrail_time 0.1 3.0 0.1
@@ -249,7 +252,6 @@ begin effects
     background #212F3CD0
     style --compact
     title "Effects Setup"
-    blank
     ifneq vid_rtx 1
         values "dynamic lighting" gl_dynamic "no" "yes" "only switchable"
         values "entity cel-shading" gl_celshading no 1x 2x 3x
@@ -272,7 +274,6 @@ begin crosshair
     background #212F3CD0
     style --compact
     title "Crosshair Setup"
-    blank
     values "crosshair type" crosshair none cross dot angle
     pairs "crosshair scale" ch_scale 0.5x 0.5 1x 1 2x 2
     toggle "color by health" ch_health
@@ -286,7 +287,6 @@ begin screen
     background #212F3CD0
     style --compact
     title "Screen Setup"
-    blank
     toggle "cutscenes" cl_cinematics
     blank
 	pairs "selected inventory item" scr_showitemname "do not show" 0 "show on change" 1 "always show" 2
@@ -304,8 +304,7 @@ end
 begin downloads
     background #212F3CD0
     style --compact
-    title "Download Options"
-    blank
+    title "Download Options" 
     toggle "allow downloading" allow_download
     toggle "maps" allow_download_maps
     toggle "player models/skins" allow_download_players
@@ -320,8 +319,7 @@ end
 begin gameflags
     background #212F3CD0
     style --compact
-    title "Deathmatch Flags"
-    blank
+    title "Deathmatch Flags" 
     toggle "falling damage" dmflags ~3
     toggle "weapons stay" dmflags 2
     toggle "instant powerups" dmflags 4
@@ -367,10 +365,11 @@ begin multiplayer
     action "disconnect" disconnect
 end
 
-begin developer_stuff
-    title "Developer Test Maps"
+begin developer_menu
+    title "Developer (Test-)Maps"
     background #212F3CD0
     style --compact
+    style --transparent
     action "Generic Dev Test(s)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_test force"
     blank
     action "cm_materials(CollisionModel Materials)" "skill 0; gamemode 0; maxclients 1; map cm_materials force"
@@ -399,7 +398,6 @@ begin singleplayer
     style --compact
     style --transparent
     //style --compact
-    blank
     action easy "skill 0; gamemode 0; maxclients 1; newgame"
     action medium "skill 1; gamemode 0; maxclients 1; newgame"
     action hard "skill 2; gamemode 0; maxclients 1; newgame"
@@ -464,13 +462,11 @@ begin quit
 end
 
 begin main
-    title "Main Menu"
     background #212F3CD0
     style --compact
-    blank
+    title "Q2RTXPerimental"
     //ifeq developer 1
-        action "developer stuff" "pushmenu developer_stuff"
-        blank
+        action "developer" "pushmenu developer_menu"
     //endif
     action "singleplayer" "pushmenu singleplayer"
     action "multiplayer" "pushmenu multiplayer"
@@ -489,15 +485,14 @@ end
 begin game
     title "In-Game Menu"
     background #212F3CD0
-    style --compact
-    blank
+    style --compact 
     //ifeq developer 1
-        action "developer stuff" "pushmenu developer_stuff"
+        action "developer stuff" "pushmenu developer_menu"
         blank
     //endif
     action "singleplayer" "pushmenu singleplayer"
     action "multiplayer" "pushmenu multiplayer"
-    action "developer stuff" "pushmenu developer_stuff"
+    action "developer stuff" "pushmenu developer_menu"
     action "options" "pushmenu options"
     action "video settings" "pushmenu video"
     action "quit" "pushmenu quit"
@@ -530,8 +525,7 @@ end
 begin input
     background #212F3CD0
     style --compact
-    title "Input Setup"
-    blank
+    title "Input Setup" 
     field --numeric --width 8 "mouse sensitivity" sensitivity
     toggle "invert mouse" m_invert
     toggle "adjust sensitivity with FOV" m_autosens
@@ -544,8 +538,7 @@ end
 begin keys
     background #212F3CD0
     style --compact
-    title "Action Key Bindings"
-    blank
+    title "Action Key Bindings" 
     bind "Primary Fire" +fire_prim
     bind "Secondary Fire" +fire_sec
     bind "Reload Weapon" +reload
@@ -574,9 +567,8 @@ end
 begin keys_function
     background #212F3CD0
     style --compact
-    title "Function Key Bindings"
-    blank
-    bind "help computer" help
+    title "Function Key Bindings" 
+    //bind "help computer" help
     bind "save game menu" "pushmenu savegame"
     bind "load game menu" "pushmenu loadgame"
     bind "options menu" "pushmenu options"
@@ -598,8 +590,7 @@ end
 begin keys_legacy
     background #212F3CD0
     style --compact
-    title "Legacy Key Bindings"
-    blank
+    title "Legacy Key Bindings" 
 
     bind "turn left" +left
     bind "turn right" +right
@@ -614,8 +605,7 @@ end
 begin weapons
     background #212F3CD0
     style --compact
-    title "Weapon and Item Bindings"
-    blank
+    title "Weapon and Item Bindings" 
     bind "fists" "use Fists"
     bind "pistol" "use Pistol"
 end

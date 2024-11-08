@@ -31,7 +31,14 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [X] 4. Client needs to detect animationID, time of change, and playback the animation from there
 			 using the animation info provided in the IQM data.
 	- [ ] 5. Redo the player animations properly once and for allOnce again.. sigh
-
+- [ ] The EDITOR/VIEWER Scenario:
+	- [ ] 0. A file selector dialog for use with the editors below.
+		     Use the demo browser as a reference material.
+	- [ ] 1. A refresh material editor.
+	- [ ] 2. A collision material editor(actually, .wal_json since we use that.)
+	- [ ] 3. A model viewer, allowing to speed up/down animations, as well as
+			 blend combining them, so it becomes easier to figure out the framerate
+			 you may want an animation to play at.
 - [ ] The Skeletal Model Info Scenario:
 	- [X] 0. For both, client and server, whenever an IQM file is loaded, so will be its matching
 			 .cfg file. This file will contain:

@@ -1020,8 +1020,14 @@ static void DrawStatus(void)
     else
         w = uis.width;
 
+    #if 0
     R_DrawFill8(0, uis.height - CHAR_HEIGHT, w, CHAR_HEIGHT, 4);
     R_DrawFill8(w, uis.height - CHAR_HEIGHT, uis.width - w, CHAR_HEIGHT, 0);
+    #else
+    const uint32_t barColor = (uint32_t)MakeColor( 255, 125, 4, 220 );
+    R_DrawFill32( 0, uis.height - CHAR_HEIGHT, w, CHAR_HEIGHT, barColor );
+    R_DrawFill32( w, uis.height - CHAR_HEIGHT, uis.width - w, CHAR_HEIGHT, 4 );
+    #endif
 
     if (m_servers.status_c)
         UI_DrawString(uis.width / 2, uis.height - CHAR_HEIGHT, UI_CENTER, m_servers.status_c);

@@ -1957,10 +1957,20 @@ void Menu_Size(menuFrameWork_t *menu)
         h += GENERIC_SPACING(menu->banner_rc.height);
     }
 
+    // Account for title offset space.
+    if ( menu->title ) {
+        h += GENERIC_SPACING( 24 );
+    }
+
     // set menu top/bottom
     if (menu->compact) {
-        menu->y1 = (uis.height - h) / 2 - MENU_SPACING;
-        menu->y2 = (uis.height + h) / 2 + MENU_SPACING;
+        if ( menu->title ) {
+            menu->y1 = ( uis.height - h ) / 2 - ( MENU_SPACING + GENERIC_SPACING( 24 ) );
+            menu->y2 = ( uis.height + h ) / 2 + ( MENU_SPACING - GENERIC_SPACING( 24 ) );
+        } else {
+            menu->y1 = ( uis.height - h ) / 2 - MENU_SPACING;
+            menu->y2 = ( uis.height + h ) / 2 + MENU_SPACING;
+        }
     } else {
         menu->y1 = 0;
         menu->y2 = uis.height;
@@ -2226,15 +2236,18 @@ void Menu_Draw(menuFrameWork_t *menu)
 //
 // Draw specific menu overlay 
 //
-    const int32_t overlayColor = MakeColor( 220, 220, 220, 75 );
+    const int32_t overlayColor = MakeColor(  78,  74,  78, 220 );
     R_DrawFill32( 0, menu->y1, uis.width,
         menu->y2 - menu->y1, overlayColor );
 //
 // draw title bar
 //
     if (menu->title) {
-        UI_DrawString(uis.width / 2, menu->y1,
-                      UI_CENTER | UI_ALTCOLOR, menu->title);
+        // Set color instead of using ALT COLOR
+        R_SetColor( colorTable[ COLOR_BLUE ] );
+        UI_DrawString(uis.width / 2, menu->y1 + GENERIC_SPACING( 8 ),
+                      UI_CENTER /*| UI_ALTCOLOR*/, menu->title);
+        R_ClearColor();
     }
 
 //
