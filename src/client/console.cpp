@@ -439,7 +439,7 @@ static void con_timestampscolor_changed(cvar_t *self)
     if (!SCR_ParseColor(self->string, &con.ts_color)) {
         Com_WPrintf("Invalid value '%s' for '%s'\n", self->string, self->name);
         Cvar_Reset(self);
-        con.ts_color.u32 = MakeColor(170, 170, 170, 255);
+        con.ts_color.u32 = U32_WHITE;// MakeColor( 170, 170, 170, 255 );
     }
 }
 
@@ -485,7 +485,7 @@ void Con_Init(void)
     con_font->changed = con_media_changed;
     con_background = Cvar_Get("con_background", "conback", 0);
     con_background->changed = con_media_changed;
-    con_scroll = Cvar_Get("con_scroll", "3", 0);
+    con_scroll = Cvar_Get("con_scroll", "1", 0);
     con_history = Cvar_Get("con_history", "10", 0);
     con_timestamps = Cvar_Get("con_timestamps", "0", 0);
     con_timestamps->changed = con_width_changed;
@@ -989,20 +989,21 @@ static void Con_DrawSolidConsole(void)
         row++;
     }
 
-    R_SetColor(U32_CYAN);
+    //R_SetColor(U32_CYAN);
+    R_SetColor( U32_WHITE );
 
 // draw clock
     if (con_clock->integer) {
         x = Com_Time_m(buffer, sizeof(buffer)) * CHAR_WIDTH;
         if (widths[row] + x + CHAR_WIDTH <= con.vidWidth) {
             R_DrawString(con.vidWidth - CHAR_WIDTH - x, y - CHAR_HEIGHT,
-                         UI_RIGHT, MAX_STRING_CHARS, buffer, con.charsetImage);
+                        UI_ALTCOLOR | UI_RIGHT, MAX_STRING_CHARS, buffer, con.charsetImage);
         }
     }
 
 // draw version
     if (!row || widths[0] + VER_WIDTH <= con.vidWidth) {
-        SCR_DrawStringEx(con.vidWidth - CHAR_WIDTH, y, UI_RIGHT,
+        SCR_DrawStringEx(con.vidWidth - CHAR_WIDTH, y, UI_ALTCOLOR | UI_RIGHT,
                          MAX_STRING_CHARS, APP_VERSION, con.charsetImage);
     }
 

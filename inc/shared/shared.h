@@ -123,6 +123,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 	#ifndef NULL
 	#define NULL ((void *)0)
 	#endif
+    #define QENUM_OPERATORS(...)
 #endif //__cplusplus
 
 

@@ -59,10 +59,10 @@ font conchars
 cursor ch1
 weapon w_railgun.md2
 
-color normal #0f90eb64
-color active #0f90ff64
-color selection #0f90eb64
-color disabled #7f7f7f
+color normal #ff966464
+color active #ffb89799
+color selection #d27d2ccc
+color disabled #757161
 
 begin environment
     background #212F3CD0

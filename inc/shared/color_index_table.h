@@ -44,10 +44,10 @@ static inline color_index_t &operator++( color_index_t &color ) {
 #endif
 
 #define U32_BLACK   MakeColor(  0,   0,   0, 255)
-#define U32_RED     MakeColor(255,   0,   0, 255)
-#define U32_GREEN   MakeColor(  0, 255,   0, 255)
-#define U32_YELLOW  MakeColor(255, 255,   0, 255)
-#define U32_BLUE    MakeColor(  0,   0, 255, 255)
-#define U32_CYAN    MakeColor(  0, 255, 255, 255)
-#define U32_MAGENTA MakeColor(255,   0, 255, 255)
+#define U32_RED     MakeColor(208,  70,  72, 255)
+#define U32_GREEN   MakeColor(109, 170,  44, 255)
+#define U32_YELLOW  MakeColor(218, 212,  94, 255)
+#define U32_BLUE    MakeColor( 89, 125, 206, 255)
+#define U32_CYAN    MakeColor(109, 194, 202, 255)
+#define U32_MAGENTA MakeColor(210, 170, 153, 255)
 #define U32_WHITE   MakeColor(255, 255, 255, 255)

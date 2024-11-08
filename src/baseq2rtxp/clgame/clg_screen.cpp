@@ -1122,9 +1122,6 @@ void PF_SCR_RegisterMedia( void ) {
     precache.screen.inven_pic = clgi.R_RegisterPic( "inventory" );
     precache.screen.field_pic = clgi.R_RegisterPic( "field_3" );
 
-    precache.screen.pause_pic = clgi.R_RegisterPic( "pause" );
-    clgi.R_GetPicSize( &scr.pause_width, &scr.pause_height, precache.screen.pause_pic );
-
     precache.screen.loading_pic = clgi.R_RegisterPic( "loading" );
     clgi.R_GetPicSize( &scr.loading_width, &scr.loading_height, precache.screen.loading_pic );
 
@@ -1738,19 +1735,19 @@ static void SCR_DrawDamageDisplays( void ) {
 
         const float lerpFraction = ( entry->time - clgi.GetRealTime() ) / scr_damage_indicator_time->value;
 
-        float my_yaw = clgi.client->predictedState.currentPs.viewangles[ YAW ];
+        float clientYawAngle = clgi.client->predictedState.currentPs.viewangles[ YAW ];
         //vec3_t angles;
         //vectoangles2( entry->dir, angles );
         //Vector3 angles = QM_Vector3ToAngles( entry->dir );
-        float damage_yaw = QM_Vector3ToYaw( entry->dir );// angles[ YAW ];
-        float yaw_diff = damage_yaw /*- 180*/;// ( my_yaw - damage_yaw ) - 180;
-        if ( yaw_diff > 180 ) {
-            yaw_diff -= 360;
+        float damageYawAngle = QM_Vector3ToYaw( entry->dir );// angles[ YAW ];
+        float yawDifference = damageYawAngle/*- 180*/;// ( clientYawAngle - damageYawAngle ) - 180;
+        if ( yawDifference > 180 ) {
+            yawDifference -= 360;
         }
-        if ( yaw_diff < -180 ) {
-            yaw_diff += 360;
+        if ( yawDifference < -180 ) {
+            yawDifference += 360;
         }
-        //yaw_diff = DEG2RAD( yaw_diff );
+        //yawDifference = DEG2RAD( yawDifference );
 
         clgi.R_SetColor( MakeColor(
             (int)( entry->color[ 0 ] * 255.f ),
@@ -1766,7 +1763,7 @@ static void SCR_DrawDamageDisplays( void ) {
 
 
         //clgi.R_DrawStretchPic( x, y, scr.damage_display_height, scr.damage_display_width, scr.damage_display_pic );
-        clgi.R_DrawRotateStretchPic( x, y, size_x, scr.damage_display_height, yaw_diff, ( scr.damage_display_width / 2 ), ( scr.damage_display_height / 2 ), precache.screen.damage_display_pic );
+        clgi.R_DrawRotateStretchPic( x, y, size_x, scr.damage_display_height, yawDifference, ( scr.damage_display_width / 2 ), ( scr.damage_display_height / 2 ), precache.screen.damage_display_pic );
     }
 }
 

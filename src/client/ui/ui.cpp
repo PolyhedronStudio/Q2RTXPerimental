@@ -344,10 +344,14 @@ void UI_StringDimensions(vrect_t *rc, int flags, const char *string)
 
 void UI_DrawRect8(const vrect_t *rc, int border, int c)
 {
-    R_DrawFill8(rc->x, rc->y, border, rc->height, c);   // left
-    R_DrawFill8(rc->x + rc->width - border, rc->y, border, rc->height, c);   // right
-    R_DrawFill8(rc->x + border, rc->y, rc->width - border * 2, border, c);   // top
-    R_DrawFill8(rc->x + border, rc->y + rc->height - border, rc->width - border * 2, border, c);   // bottom
+    // Left:
+    R_DrawFill8(rc->x, rc->y, border, rc->height, c);
+    // Right:
+    R_DrawFill8(rc->x + rc->width - border, rc->y, border, rc->height, c);
+    // Top:
+    R_DrawFill8(rc->x + border, rc->y, rc->width - border * 2, border, c);
+    // Bottom:
+    R_DrawFill8(rc->x + border, rc->y + rc->height - border, rc->width - border * 2, border, c);
 }
 
 #if 0
@@ -661,11 +665,11 @@ void UI_Init(void)
         uis.bitmapCursors[i] = R_RegisterPic(buffer);
     }
 
-    uis.color.background.u32    = MakeColor(0,   0,   0, 255);
-    uis.color.normal.u32        = MakeColor(15, 128, 235, 100);
-    uis.color.active.u32        = MakeColor(15, 128, 235, 100);
-    uis.color.selection.u32     = MakeColor(15, 128, 235, 100);
-    uis.color.disabled.u32      = MakeColor(127, 127, 127, 255);
+    uis.color.background.u32    = MakeColor(  0,   0,   0, 255);
+    uis.color.normal.u32        = MakeColor(255, 150, 100, 100);
+    uis.color.active.u32        = MakeColor(255, 184, 151, 153);
+    uis.color.selection.u32     = MakeColor(210, 125,  44, 204);
+    uis.color.disabled.u32      = MakeColor(117, 113,  97, 255);
 
     strcpy(uis.weaponModel, "#w_blaster.md2");
 

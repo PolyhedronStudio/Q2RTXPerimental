@@ -106,7 +106,9 @@ static cvar_t   *net_enable_ipv6;
 static cvar_t   *net_ignore_icmp;
 #endif
 
-static netflag_t    net_active;
+extern "C" {
+    static netflag_t    net_active;
+}
 static int          net_error;
 
 static qsocket_t    udp_sockets[NS_COUNT] = { -1, -1 };

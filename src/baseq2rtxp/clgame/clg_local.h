@@ -628,8 +628,6 @@ typedef struct precached_media_s {
 	*	@brief	Stores all resource ID's for the screen related media.
 	**/
 	struct {
-		//! Reference to the 'Paused' center-screen display picture.
-		qhandle_t   pause_pic;
 		//! Reference to the 'Loading' center-screen display picture.
 		qhandle_t   loading_pic;
 		//! Reference to the damage display indicatore picture.

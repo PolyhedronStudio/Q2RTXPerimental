@@ -33,8 +33,10 @@ static struct {
     //! Generic display color values.
     struct {
         // Colors.
-        static constexpr uint32_t ORANGE = MakeColor( 255, 150, 100, 255 );
-        static constexpr uint32_t RED = MakeColor( 255, 50, 30, 255 );
+        //static constexpr uint32_t ORANGE = MakeColor( 255, 150, 100, 255 );
+        //static constexpr uint32_t RED = MakeColor( 255, 50, 30, 255 );
+        static constexpr uint32_t ORANGE = MakeColor( 210, 125, 44, 255 );
+        static constexpr uint32_t RED = MakeColor( 208, 70, 72, 255 );
         static constexpr uint32_t LESS_WHITE = MakeColor( 220, 220, 220, 75 );
         static constexpr uint32_t WHITE = MakeColor( 255, 255, 255, 255 );
     } colors;

@@ -2219,14 +2219,14 @@ void Menu_Draw(menuFrameWork_t *menu)
             uis.height, R_RegisterPic( "conback.png" )/*menu->image*/ );
     }
     //} else {
-        R_DrawFill32(0, menu->y1, uis.width,
-                     menu->y2 - menu->y1, menu->color.u32);
+    //    R_DrawFill32(0, menu->y1, uis.width,
+    //                 menu->y2 - menu->y1, menu->color.u32);
     //}
 
 //
 // Draw specific menu overlay 
 //
-    const int32_t overlayColor = MakeColor( 33, 47, 60, 192 );
+    const int32_t overlayColor = MakeColor( 220, 220, 220, 75 );
     R_DrawFill32( 0, menu->y1, uis.width,
         menu->y2 - menu->y1, overlayColor );
 //

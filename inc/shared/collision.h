@@ -74,7 +74,6 @@ typedef enum contents_s {
     CONTENTS_PROJECTILE = BIT( 31 )  // [Paril-KEX] should never be on a brush, only in game; projectiles.
     // used to solve deadmonster collision issues.
 } contents_t;
-
 //typedef uint32_t contents_t;
 
 /**
