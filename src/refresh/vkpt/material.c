@@ -163,7 +163,7 @@ static void MAT_SetIndex(pbr_material_t* mat)
 	mat->next_frame = mat_index;
 }
 
-static void MAT_Reset(pbr_material_t * mat)
+void MAT_Reset(pbr_material_t * mat)
 {
 	memset(mat, 0, sizeof(pbr_material_t));
 	mat->bump_scale = 1.0f;
@@ -206,19 +206,26 @@ static struct MaterialKind {
 
 static int nMaterialKinds = sizeof(materialKinds) / sizeof(struct MaterialKind);
 
-static uint32_t getMaterialKind(const char * kindname)
-{
-	for (int i = 0; i < nMaterialKinds; ++i)
-		if (Q_stricmp(kindname, materialKinds[i].name) == 0)
-			return materialKinds[i].flag;
+/**
+*	@brief	Returns the material kind uint32_t value matching the kindname key.
+**/
+uint32_t MAT_GetMaterialKindForName(const char * kindname) {
+	for ( int i = 0; i < nMaterialKinds; ++i ) {
+		if ( Q_stricmp( kindname, materialKinds[ i ].name ) == 0 ) {
+			return materialKinds[ i ].flag;
+		}
+	}
 	return MATERIAL_KIND_REGULAR;
 }
-
-static const char * getMaterialKindName(uint32_t flag)
-{
-	for (int i = 0; i < nMaterialKinds; ++i)
-		if ((flag & MATERIAL_KIND_MASK) == materialKinds[i].flag)
-			return materialKinds[i].name;
+/**
+*	@brief	Returns the material key string value matching the flag uint32_t.
+**/
+const char * MAT_GetMaterialKindName(uint32_t flag) {
+	for ( int i = 0; i < nMaterialKinds; ++i ) {
+		if ( ( flag & MATERIAL_KIND_MASK ) == materialKinds[ i ].flag ) {
+			return materialKinds[ i ].name;
+		}
+	}
 	return NULL;
 }
 
@@ -431,7 +438,7 @@ static int set_material_attribute(pbr_material_t* mat, const char* attribute, co
 	case MAT_METALNESS_FACTOR: mat->metalness_factor = fvalue; break;
 	case MAT_EMISSIVE_FACTOR: mat->emissive_factor = fvalue; break;
 	case MAT_KIND: {
-		uint32_t kind = getMaterialKind(svalue);
+		uint32_t kind = MAT_GetMaterialKindForName(svalue);
 		if (kind != 0)
 			mat->flags = MAT_SetKind(mat->flags, kind);
 		else
@@ -700,7 +707,7 @@ static void save_materials(const char* file_name, bool save_all, bool force)
 			FS_FPrintf(file, "\tbase_factor %f\n", mat->base_factor);
 
 		if (!MAT_IsKind(mat->flags, MATERIAL_KIND_REGULAR)) {
-			const char* kind = getMaterialKindName(mat->flags);
+			const char* kind = MAT_GetMaterialKindName(mat->flags);
 			FS_FPrintf(file, "\tkind %s\n", kind ? kind : "");
 		}
 		
@@ -1123,7 +1130,7 @@ void MAT_Print(pbr_material_t const * mat)
 	Com_Printf("    emissive_factor %f\n", mat->emissive_factor);
 	Com_Printf("    specular_factor %f\n", mat->specular_factor);
 	Com_Printf("    base_factor %f\n", mat->base_factor);
-	const char * kind = getMaterialKindName(mat->flags);
+	const char * kind = MAT_GetMaterialKindName(mat->flags);
 	Com_Printf("    kind %s\n", kind ? kind : "");
 	Com_Printf("    is_light %d\n", (mat->flags & MATERIAL_FLAG_LIGHT) != 0);
 	Com_Printf("    light_styles %d\n", mat->light_styles ? 1 : 0);

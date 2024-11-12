@@ -126,7 +126,7 @@ void PlayerModel_Load(void)
         int nskins = 0;
 
         // verify the existence of tris.md2
-        Q_concat(scratch, sizeof(scratch), "players/", dirnames[i], "/tris.md2");
+        Q_concat(scratch, sizeof(scratch), "players/", dirnames[i], "/tris.iqm");
         if (!FS_FileExists(scratch)) {
             goto skip;
         }

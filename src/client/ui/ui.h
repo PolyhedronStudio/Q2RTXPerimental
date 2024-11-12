@@ -106,7 +106,7 @@ typedef struct menuFrameWork_s {
     const char    *name, *title, *status; // WID: C++20: Was non const
 
     void    **items;
-    int     nitems;
+    int32_t nitems;
 
     bool compact;
     bool transparent;
@@ -114,10 +114,11 @@ typedef struct menuFrameWork_s {
 
     qhandle_t image;
     color_t color;
-    int y1, y2;
+    int32_t y1, y2;
+    int32_t x1, x2;
 
-    int mins[2];
-    int maxs[2];
+    int32_t mins[2];
+    int32_t maxs[2];
 
     qhandle_t banner;
     vrect_t banner_rc;
@@ -234,6 +235,8 @@ typedef struct menuList_s {
     menuSound_t (*sort)(struct menuList_s *);
 } menuList_t;
 
+// Callback, called when menu performs key event, if returning QMS_SILENT it means it was left unhandled.
+typedef int32_t( *menuAction_callback_t )( menuFrameWork_t *menu, struct menuAction_s *a, int32_t key );
 typedef struct menuSpinControl_s {
     menuCommon_t generic;
     cvar_t *cvar;
@@ -247,9 +250,14 @@ typedef struct menuSpinControl_s {
     bool        negate;
 } menuSpinControl_t;
 
+// Callback, called when menu performs key event, if returning QMS_SILENT it means it was left unhandled.
+typedef int32_t( *menuAction_callback_t )( menuFrameWork_t *menu, struct menuAction_s *a, int32_t key );
 typedef struct menuAction_s {
     menuCommon_t generic;
+    // Console command to execute.
     char *cmd;
+    // Actual callback to execute instead.
+    menuAction_callback_t callback;
 } menuAction_t;
 
 typedef struct menuSeparator_s {
@@ -325,6 +333,9 @@ typedef struct uiStatic_s {
         color_t selection;
         color_t disabled;
     } color;
+
+    // WID: Disable or Enable bloom.
+    bool bloomEnabled;
 } uiStatic_t;
 
 extern uiStatic_t   uis;
@@ -356,7 +367,7 @@ void        Menu_Draw(menuFrameWork_t *menu);
 void        Menu_AddItem(menuFrameWork_t *menu, void *item);
 menuSound_t Menu_SelectItem(menuFrameWork_t *menu);
 menuSound_t Menu_SlideItem(menuFrameWork_t *menu, int dir);
-menuSound_t Menu_KeyEvent(menuCommon_t *item, int key);
+menuSound_t Menu_KeyEvent( menuFrameWork_t *menu, menuCommon_t *item, int key);
 menuSound_t Menu_CharEvent(menuCommon_t *item, int key);
 menuSound_t Menu_MouseMove(menuCommon_t *item);
 menuSound_t Menu_Keydown(menuFrameWork_t *menu, int key);
@@ -373,6 +384,7 @@ bool        Menu_Push(menuFrameWork_t *menu);
 void        Menu_Pop(menuFrameWork_t *menu);
 void        Menu_Free(menuFrameWork_t *menu);
 
+void M_Menu_Editor_RefreshMaterial( void );
 void M_Menu_PlayerConfig(void);
 void M_Menu_Demos(void);
 void M_Menu_Servers(void);

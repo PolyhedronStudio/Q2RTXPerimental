@@ -71,6 +71,9 @@ extern pbr_material_t r_materials[MAX_PBR_MATERIALS];
 // clears the material table, adds the mat command
 void MAT_Init(void);
 
+// resets the material to a sane default.
+void MAT_Reset( pbr_material_t *mat );
+
 // unregisters the mat command
 void MAT_Shutdown(void);
 
@@ -92,6 +95,15 @@ pbr_material_t* MAT_ForSkin(image_t * image_base);
 
 // reset materials textures (call before loading a level)
 int MAT_FreeUnused(void);
+
+/**
+*	@brief	Returns the material kind uint32_t value matching the kindname key.
+**/
+uint32_t MAT_GetMaterialKindForName( const char *kindname );
+/**
+*	@brief	Returns the material key string value matching the flag uint32_t.
+**/
+const char *MAT_GetMaterialKindName( uint32_t flag );
 
 // replaces the material kind field with the given value
 uint32_t MAT_SetKind(uint32_t material, uint32_t kind);

@@ -671,12 +671,16 @@ void UI_Init(void)
     uis.color.selection.u32     = MakeColor(210, 125,  44, 204);
     uis.color.disabled.u32      = MakeColor(117, 113,  97, 255);
 
+    // WID: Enable bloom by default.
+    uis.bloomEnabled = true;
+
     strcpy(uis.weaponModel, "#w_blaster.md2");
 
     // load custom menus
     UI_LoadScript();
 
     // load built-in menus
+    M_Menu_Editor_RefreshMaterial();
     M_Menu_PlayerConfig();
     M_Menu_Servers();
     M_Menu_Demos();

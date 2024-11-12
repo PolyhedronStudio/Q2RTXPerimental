@@ -22,8 +22,8 @@
 //! Defining this will enable 'material physics' such as per example: Taking the friction value from the ground material.
 #define PMOVE_USE_MATERIAL_FRICTION
 
-//! Allow for 'Wall Jumping'.
-#define PMOVE_ENABLE_WALLJUMPING
+//! Allow for 'Wall Jumping'. ( Disabled by default. )
+//#define PMOVE_ENABLE_WALLJUMPING
 
 //! Defining this allows for HL like acceleration. Where friction is applied to the acceleration formula.
 //#define HL_LIKE_ACCELERATION
@@ -1458,17 +1458,19 @@ static void PM_CheckJump() {
 			&& !( ps->pmove.pm_flags & PMF_ON_GROUND ) ) {
 				ps->pmove.pm_flags &= ~PMF_JUMP_HELD;
 				pm->jump_sound = true;
-				float jump_height = 370;
-				//pml.velocity[ 2 ] += jump_height;
-				// I DID NOT TEST REMOVING THIS BUT I THINK YOU CAN...
-				if ( pml.velocity[ 2 ] < jump_height ) {
-					pml.velocity[ 2 ] = jump_height;
-				}
 
+				constexpr float jump_height = 370;
+				
+				// For use with the excluding Z component, and/or prevent walljumps if exceeding certain Z velocities.
+				//pml.velocity[ 2 ] += jump_height;
+				//if ( pml.velocity[ 2 ] < jump_height ) {
+				//	pml.velocity[ 2 ] = jump_height;
+				//}
 				// Exclude the Z component since we already applied the jump height up above.
-				pml.velocity += Vector3( trace.plane.normal ) * 240.f;
+				//pml.velocity += Vector2( trace.plane.normal ) * 240.f;
+				
 				// One can choose to exclude the jump_height addition up above and use this below instead.
-				//pml.velocity += Vector3( trace.plane.normal ) * 240.0f;
+				pml.velocity += Vector3( trace.plane.normal ) * 240.0f;
 		}
 		return;
 	}

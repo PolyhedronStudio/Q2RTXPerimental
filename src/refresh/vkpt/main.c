@@ -2941,7 +2941,7 @@ R_RenderFrame_RTX(refdef_t *fd)
 	evaluate_reference_mode(&ref_mode);
 	evaluate_taa_settings(&ref_mode);
 	
-	qvk.frame_menu_mode = cl_paused->integer == 1 && uis.menuDepth > 0 && render_world;
+	qvk.frame_menu_mode = cl_paused->integer == 1 && uis.menuDepth > 0 && render_world && uis.bloomEnabled == true;
 
 	int new_world_anim_frame = (int)(fd->time * 2);
 	bool update_world_animations = (new_world_anim_frame != world_anim_frame);

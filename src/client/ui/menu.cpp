@@ -90,6 +90,19 @@ static void Action_Draw(menuAction_t *a)
 }
 
 /*
+=================
+Field_Key
+=================
+*/
+static int Action_Key( menuFrameWork_t *menu, menuAction_t *a, int key ) {
+    if ( a->callback ) {
+        return a->callback( menu, a, key );
+    }
+
+    return QMS_NOTHANDLED;
+}
+
+/*
 ===================================================================
 
 STATIC CONTROL
@@ -2237,8 +2250,14 @@ void Menu_Draw(menuFrameWork_t *menu)
 // Draw specific menu overlay 
 //
     const int32_t overlayColor = MakeColor(  78,  74,  78, 220 );
-    R_DrawFill32( 0, menu->y1, uis.width,
-        menu->y2 - menu->y1, overlayColor );
+    // Has width?
+    if ( menu->x1 != 0 && menu->x2 != 0 ) {
+        R_DrawFill32( menu->x1, menu->y1, menu->x2 - menu->x1,
+            menu->y2 - menu->y1, overlayColor );
+    } else {
+        R_DrawFill32( 0, menu->y1, uis.width,
+            menu->y2 - menu->y1, overlayColor );
+    }
 //
 // draw title bar
 //
@@ -2253,25 +2272,25 @@ void Menu_Draw(menuFrameWork_t *menu)
 //
 // draw banner, plaque and logo
 //
-    if (menu->banner) {
-        R_DrawPic(menu->banner_rc.x, menu->banner_rc.y, menu->banner);
-    }
-    if (menu->plaque) {
-        R_DrawPic(menu->plaque_rc.x, menu->plaque_rc.y, menu->plaque);
-    }
-    if (menu->logo) {
-        R_DrawPic(menu->logo_rc.x, menu->logo_rc.y, menu->logo);
-	}
-	if (menu->footer) {
-		R_DrawStretchPic(menu->footer_rc.x, menu->footer_rc.y, menu->footer_rc.width, menu->footer_rc.height, menu->footer);
-	}
+ //   if (menu->banner) {
+ //       R_DrawPic(menu->banner_rc.x, menu->banner_rc.y, menu->banner);
+ //   }
+ //   if (menu->plaque) {
+ //       R_DrawPic(menu->plaque_rc.x, menu->plaque_rc.y, menu->plaque);
+ //   }
+ //   if (menu->logo) {
+ //       R_DrawPic(menu->logo_rc.x, menu->logo_rc.y, menu->logo);
+	//}
+	//if (menu->footer) {
+	//	R_DrawStretchPic(menu->footer_rc.x, menu->footer_rc.y, menu->footer_rc.width, menu->footer_rc.height, menu->footer);
+	//}
 
 //
 // draw contents
 //
     for (i = 0; i < menu->nitems; i++) {
         item = menu->items[i];
-        if (((menuCommon_t *)item)->flags & QMF_HIDDEN) {
+        if (!item || ( item && ((menuCommon_t *)item)->flags & QMF_HIDDEN ) ) {
             continue;
         }
 
@@ -2382,7 +2401,7 @@ menuSound_t Menu_SlideItem(menuFrameWork_t *s, int dir)
     }
 }
 
-menuSound_t Menu_KeyEvent(menuCommon_t *item, int key)
+menuSound_t Menu_KeyEvent( menuFrameWork_t *menu, menuCommon_t *item, int key)
 {
     if (item->keydown) {
         menuSound_t sound = item->keydown(item, key);
@@ -2392,6 +2411,8 @@ menuSound_t Menu_KeyEvent(menuCommon_t *item, int key)
     }
 
     switch (item->type) {
+    case MTYPE_ACTION:
+        return static_cast<menuSound_t>( Action_Key( menu, (menuAction_t *)item, key ) );
     case MTYPE_FIELD:
         return static_cast<menuSound_t>( Field_Key( (menuField_t *)item, key) ); // WID: C++20: Was without a cast.
     case MTYPE_LIST:
@@ -2498,7 +2519,7 @@ menuSound_t Menu_Keydown(menuFrameWork_t *menu, int key)
 
     item = Menu_ItemAtCursor(menu);
     if (item) {
-        sound = Menu_KeyEvent(item, key);
+        sound = Menu_KeyEvent(menu, item, key);
         if (sound != QMS_NOTHANDLED) {
             return sound;
         }

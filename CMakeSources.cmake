@@ -393,6 +393,7 @@ SET(SRC_CLIENT
 	client/world.cpp
 	client/ui/_scoreboard.cpp
 	client/ui/demos.cpp
+	client/ui/editor_rmaterial.cpp
 	client/ui/menu.cpp
 	client/ui/playerconfig.cpp
 	client/ui/playermodels.cpp
