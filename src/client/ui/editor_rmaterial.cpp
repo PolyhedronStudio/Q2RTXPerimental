@@ -16,7 +16,7 @@ extern "C" {
 }
 //! Enables material test model rendering.
 //#define ENABLE_MATERIAL_TEST_MODEL_RENDERING
-
+extern cvar_t *ui_editor_rmaterial_background_alpha;
 
 //! Model ID to use:
 static constexpr int32_t ID_MODEL   = 103;
@@ -594,6 +594,14 @@ static void Draw( menuFrameWork_t *self ) {
     }
     #endif
 
+    // Override background color.
+    m_rmaterial.menu.color.u32 = MakeColor(
+        uis.color.background.u8[ 0 ],
+        uis.color.background.u8[ 1 ],
+        uis.color.background.u8[ 2 ],
+        (uint32_t)( 255.f * ui_editor_rmaterial_background_alpha->value )
+    );
+
     // Draw Editor Menu.
     Menu_Draw( self );
 
@@ -945,7 +953,7 @@ static menuSound_t Keydown_Material_Fields( menuCommon_t *item, int key ) {
                 cmdString += fieldValue;
             }
             // Debug print.
-            Com_DPrintf( "%s\n", cmdString.c_str() );
+            //Com_DPrintf( "%s\n", cmdString.c_str() );
             // Generate cmd command.
             Cmd_ExecuteString( cmd_current, cmdString.c_str() );
             return QMS_MOVE;
@@ -961,7 +969,7 @@ static menuSound_t Keydown_Material_Fields( menuCommon_t *item, int key ) {
                 cmdString += fieldValue;
             }
             // Debug print.
-            Com_DPrintf( "%s\n", cmdString.c_str() );
+            //Com_DPrintf( "%s\n", cmdString.c_str() );
             // Generate cmd command.
             Cmd_ExecuteString( cmd_current, cmdString.c_str() );
             return QMS_MOVE;
@@ -977,7 +985,7 @@ static menuSound_t Keydown_Material_Fields( menuCommon_t *item, int key ) {
                 cmdString += fieldValue;
             }
             // Debug print.
-            Com_DPrintf( "%s\n", cmdString.c_str() );
+            //Com_DPrintf( "%s\n", cmdString.c_str() );
             // Generate cmd command.
             Cmd_ExecuteString( cmd_current, cmdString.c_str() );
             return QMS_MOVE;
@@ -993,7 +1001,7 @@ static menuSound_t Keydown_Material_Fields( menuCommon_t *item, int key ) {
                 cmdString += fieldValue;
             }
             // Debug print.
-            Com_DPrintf( "%s\n", cmdString.c_str() );
+            //Com_DPrintf( "%s\n", cmdString.c_str() );
             // Generate cmd command.
             Cmd_ExecuteString( cmd_current, cmdString.c_str() );
             return QMS_MOVE;
@@ -1009,7 +1017,7 @@ static menuSound_t Keydown_Material_Fields( menuCommon_t *item, int key ) {
                 cmdString += fieldValue;
             }
             // Debug print.
-            Com_DPrintf( "%s\n", cmdString.c_str() );
+            //Com_DPrintf( "%s\n", cmdString.c_str() );
             // Generate cmd command.
             Cmd_ExecuteString( cmd_current, cmdString.c_str() );
             return QMS_MOVE;
@@ -1040,7 +1048,6 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     } else {
         //m_rmaterial.menu.color.u32 = MakeColor( 0, 0, 0, 255 );
     }
-    m_rmaterial.menu.color.u32 = MakeColor( 0, 0, 0, 255 );
 
 
     // Setup the 3D view and entities for the Test Model to render in:
@@ -1313,6 +1320,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     // Looks faaackt lol.
     //Menu_AddItem( &m_rmaterial.menu, &m_rmaterial.materialKeyFields.staticMaterialName );
 
+    // Add all menu items.
     Menu_AddItem( &m_rmaterial.menu, &m_rmaterial.materialKeyFields.materialKind );
 
     Menu_AddItem( &m_rmaterial.menu, &m_rmaterial.materialKeyFields.filenameBaseTexture );
@@ -1339,8 +1347,17 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     Menu_AddItem( &m_rmaterial.menu, &m_rmaterial.materialKeyFields.actionSave );
     Menu_AddItem( &m_rmaterial.menu, &m_rmaterial.materialKeyFields.actionCancel );
 
+    // Init menu.
     Menu_Init( &m_rmaterial.menu );
+    // Override background color.
+    m_rmaterial.menu.color.u32 = MakeColor( 
+        uis.color.background.u8[ 0 ], 
+        uis.color.background.u8[ 1 ], 
+        uis.color.background.u8[ 2 ], 
+        (uint32_t)( 255.f * ui_editor_rmaterial_background_alpha->value )
+    );
 
+    // Append to menus list.
     List_Append( &ui_menus, &m_rmaterial.menu.entry );
 }
 

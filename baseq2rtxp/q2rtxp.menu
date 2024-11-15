@@ -59,6 +59,7 @@ font conchars
 cursor ch1
 weapon w_railgun.md2
 
+color background #4e4a4edc
 color normal #ff966464
 color active #ffb89799
 color selection #d27d2ccc
@@ -66,7 +67,7 @@ color disabled #757161
 
 begin environment
     title "Environment Settings"
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     style --transparent
     pairs "sky type" physical_sky "original env.map" 0 earth 1 stroggos 2
@@ -85,7 +86,7 @@ end
 
 begin resolution
     title "Dynamic Resolution Scaling"
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     style --transparent
 	toggle "dynamic resolution scaling" drs_enable
@@ -99,7 +100,7 @@ end
 
 begin hdr
     title "HDR Settings"
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     style --transparent
     toggle "Enable HDR" vid_hdr
@@ -111,7 +112,7 @@ end
 
 begin photomode
     title "Photo Mode Settings"
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     style --transparent
     pairs "enable photo mode" pt_accumulation_rendering no 0 yes 1 "yes, hide GUI immediately" 2
@@ -128,7 +129,7 @@ end
 
 begin video
     title "Video Setup"
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     style --transparent
     //banner m_banner_video
@@ -194,7 +195,7 @@ end
 
 begin options
     title "Options"
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     //banner m_banner_options
     ifeq vid_rtx 1
@@ -217,7 +218,7 @@ begin options
 end
 
 begin sound
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Sound Setup"
     range -p -f "%.0f%%" "master volume" s_volume 0 1 0.05
@@ -232,7 +233,7 @@ begin sound
 end
 
 begin railtrail
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Railgun Trail Setup"
     values "rail trail type" cl_railtrail_type \
@@ -249,7 +250,7 @@ begin railtrail
 end
 
 begin effects
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Effects Setup"
     ifneq vid_rtx 1
@@ -271,7 +272,7 @@ begin effects
 end
 
 begin crosshair
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Crosshair Setup"
     values "crosshair type" crosshair none cross dot angle
@@ -284,7 +285,7 @@ begin crosshair
 end
 
 begin screen
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Screen Setup"
     toggle "cutscenes" cl_cinematics
@@ -302,7 +303,7 @@ begin screen
 end
 
 begin downloads
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Download Options" 
     toggle "allow downloading" allow_download
@@ -317,7 +318,7 @@ begin downloads
 end
 
 begin gameflags
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Deathmatch Flags" 
     toggle "falling damage" dmflags ~3
@@ -335,7 +336,7 @@ begin gameflags
 end
 
 begin startserver
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Start Server"
     //banner m_banner_start_server
@@ -354,7 +355,7 @@ begin startserver
 end
 
 begin multiplayer
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Multiplayer" //banner m_banner_multiplayer
     action "browse q2servers.com" pushmenu servers "+http://q2servers.com/?raw=2"
@@ -367,7 +368,7 @@ end
 
 begin developer_menu
     title "Developer (Test-)Maps"
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     style --transparent
     action "Generic Dev Test(s)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_test force"
@@ -393,7 +394,7 @@ end
 
 begin singleplayer
     title "Singleplayer"
-    background #212F3CD0
+    background #4e4a4edc
     //background "conback.png"
     style --compact
     style --transparent
@@ -408,7 +409,7 @@ begin singleplayer
 end
 
 begin loadgame
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Load Game" //banner m_banner_load_game
     loadgame save0
@@ -433,7 +434,7 @@ begin loadgame
 end
 
 begin savegame
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Save Game"//banner m_banner_save_game
     savegame save1
@@ -453,7 +454,7 @@ begin savegame
 end
 
 begin quit
-    background #212F3CD0
+    background #4e4a4edc
     //background "conback.png"
     style --compact
     title "Quit Game?"
@@ -462,7 +463,7 @@ begin quit
 end
 
 begin main
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Q2RTXPerimental"
     //ifeq developer 1
@@ -484,7 +485,7 @@ end
 
 begin game
     title "In-Game Menu"
-    background #212F3CD0
+    background #4e4a4edc
     style --compact 
     //ifeq developer 1
         action "developer stuff" "pushmenu developer_menu"
@@ -500,7 +501,7 @@ begin game
 end
 
 begin addressbook
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Address Book"
     //banner m_banner_addressbook
@@ -523,7 +524,7 @@ begin addressbook
 end
 
 begin input
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Input Setup" 
     field --numeric --width 8 "mouse sensitivity" sensitivity
@@ -536,7 +537,7 @@ begin input
 end
 
 begin keys
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Action Key Bindings" 
     bind "Primary Fire" +fire_prim
@@ -565,7 +566,7 @@ begin keys
 end
 
 begin keys_function
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Function Key Bindings" 
     //bind "help computer" help
@@ -588,7 +589,7 @@ begin keys_function
 end
 
 begin keys_legacy
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Legacy Key Bindings" 
 
@@ -603,7 +604,7 @@ begin keys_legacy
 end
 
 begin weapons
-    background #212F3CD0
+    background #4e4a4edc
     style --compact
     title "Weapon and Item Bindings" 
     bind "fists" "use Fists"

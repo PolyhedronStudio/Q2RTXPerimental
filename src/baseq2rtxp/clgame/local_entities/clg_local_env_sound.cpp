@@ -66,7 +66,7 @@ void CLG_env_sound_Precache( clg_local_entity_t *self, const cm_entity_t *keyVal
 	//}
 
 	// DEBNUG PRINT:
-	clgi.Print( PRINT_DEVELOPER, "CLG_misc_env_sound: radius(%f), reverb_effect_id(%i)\n", classLocals->radius, classLocals->reverbID );
+	//clgi.Print( PRINT_DEVELOPER, "CLG_misc_env_sound: radius(%f), reverb_effect_id(%i)\n", classLocals->radius, classLocals->reverbID );
 }
 
 /**

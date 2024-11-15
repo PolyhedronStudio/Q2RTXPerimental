@@ -19,6 +19,7 @@
 #include "shared/jsmn.h"
 
 //! Enables material debug output.
+//#define _DEBUG_MAT_SUCCESSFUL 0
 #define _DEBUG_MAT_PRINT_JSONWAL_FAILURES 1
 //#define _DEBUG_MAT_PRINT_JSONWAL_COULDNOTREAD 1
 
@@ -177,9 +178,11 @@ const int32_t CM_LoadMaterialFromJSON( cm_t *cm, const char *name, const char *j
         }
     }
     
+    #ifdef _DEBUG_MAT_SUCCESSFUL
     // Debug print:
     Com_LPrintf( PRINT_DEVELOPER, "%s: Inserted new material[materialID(#%d), name(\"%s\"), kind(%s), friction(%f)]\n",
         __func__, material->materialID, material->name, material->physical.kind, material->physical.friction );
+    #endif
 
     // Clear the jsonbuffer buffer.
     Z_Free( jsonBuffer );

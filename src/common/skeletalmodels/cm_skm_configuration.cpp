@@ -656,8 +656,9 @@ numTokensParsed = jsmn_parse(
     }
 
     // Debug print.
+    #ifdef _DEBUG_PRINT_SKM_ROOTMOTION_DATA
     Com_LPrintf( PRINT_DEVELOPER, " -------------------- RootMotion Bone Tracking: \"%s\" --------------------- \n", configurationFilePath );
-
+    #endif
     // Determine the root motion bone number.
     motionBoneNumber = ( model->skmConfig && model->skmConfig->rootBones.motion ? model->skmConfig->rootBones.motion->number : -1 );
     // If the rootmotion bone number == -1, it means we don't want to generate rootmotion data.
@@ -670,8 +671,10 @@ numTokensParsed = jsmn_parse(
     // Free tokens.
     Z_Free( tokens );
 #endif
+    #ifdef _DEBUG_PRINT_SKM_ROOTMOTION_DATA
     // Debug print.
     Com_LPrintf( PRINT_DEVELOPER, " -------------------------------------------------------------------------- \n", configurationFilePath );
+    #endif
     // Success.
     return true;
 

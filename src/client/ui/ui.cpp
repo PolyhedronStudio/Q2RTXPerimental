@@ -28,9 +28,10 @@ extern "C" {
 
 LIST_DECL(ui_menus);
 
-cvar_t    *ui_debug;
-static cvar_t    *ui_open;
-static cvar_t    *ui_scale;
+cvar_t    *ui_debug = nullptr;
+cvar_t    *ui_editor_rmaterial_background_alpha = nullptr;
+static cvar_t    *ui_open = nullptr;
+static cvar_t    *ui_scale = nullptr;
 
 // ===========================================================================
 
@@ -653,6 +654,7 @@ void UI_Init(void)
 
     ui_debug = Cvar_Get("ui_debug", "0", 0);
     ui_open = Cvar_Get("ui_open", "1", 0);
+    ui_editor_rmaterial_background_alpha = Cvar_Get( "ui_editor_rmaterial_background_alpha", "0.5", 0 );
 
     UI_ModeChanged();
 
@@ -665,11 +667,11 @@ void UI_Init(void)
         uis.bitmapCursors[i] = R_RegisterPic(buffer);
     }
 
-    uis.color.background.u32    = MakeColor(  0,   0,   0, 255);
-    uis.color.normal.u32        = MakeColor(255, 150, 100, 100);
-    uis.color.active.u32        = MakeColor(255, 184, 151, 153);
-    uis.color.selection.u32     = MakeColor(210, 125,  44, 204);
-    uis.color.disabled.u32      = MakeColor(117, 113,  97, 255);
+    uis.color.background.u32    = MakeColor(  78,  74,  78, 220 );
+    uis.color.normal.u32        = MakeColor( 255, 150, 100, 100 );
+    uis.color.active.u32        = MakeColor( 255, 184, 151, 153 );
+    uis.color.selection.u32     = MakeColor( 210, 125,  44, 204 );
+    uis.color.disabled.u32      = MakeColor( 117, 113,  97, 255 );
 
     // WID: Enable bloom by default.
     uis.bloomEnabled = true;

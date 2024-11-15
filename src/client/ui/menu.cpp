@@ -2230,13 +2230,13 @@ void Menu_Draw(menuFrameWork_t *menu)
     void *item;	
     int i;
 
-//
-// draw background
-//
-
+    /**
+    *   Draw background.
+    **/
     //if (menu->image) {
         //R_DrawKeepAspectPic(0, menu->y1, uis.width,
         //                    menu->y2 - menu->y1, menu->image);
+    // Draw Console/Menu Background.
     if ( cls.state != connstate_t::ca_active ) {
         R_DrawKeepAspectPic( 0, 0, uis.width,
             uis.height, R_RegisterPic( "conback.png" )/*menu->image*/ );
@@ -2246,24 +2246,75 @@ void Menu_Draw(menuFrameWork_t *menu)
     //                 menu->y2 - menu->y1, menu->color.u32);
     //}
 
-//
-// Draw specific menu overlay 
-//
-    const int32_t overlayColor = MakeColor(  78,  74,  78, 220 );
+    /**
+    *   Draw specific menu overlay 
+    **/
+    //const int32_t overlayColor = MakeColor(  78,  74,  78, 220 );
+    // Get ourselves the overlay color.
+    const uint32_t overlayColor = menu->color.u32;
+    // Now generate the top outline color.
+    //1
+      //  5
+       // 1
+    const uint32_t topLineColor = MakeColor( 79/*( overlayColor & 255 ) + 1*/, 
+        79/*( ( overlayColor >> 8 ) & 255 ) + 5*/,
+        79 /*( ( overlayColor >> 16 ) & 255 ) + 1*/,
+        /*( ( overlayColor >> 24 ) & 255 )*/255
+    );
+    const uint32_t bottomLineColor = MakeColor( 
+        76,/*( overlayColor & 255 ) - 1*/
+        77, /*( ( overlayColor >> 8 ) & 255 ) - 5,*/
+        76, /*( ( overlayColor >> 16 ) & 255 ) - 1,*/
+        /*( ( overlayColor >> 24 ) & 255 )*/255
+    );
+
+    // Bottom outline color.
+
+
     // Has width?
     if ( menu->x1 != 0 && menu->x2 != 0 ) {
+        // Bg.
         R_DrawFill32( menu->x1, menu->y1, menu->x2 - menu->x1,
             menu->y2 - menu->y1, overlayColor );
+        // First Top line.
+        R_DrawFill32( menu->x1, menu->y1, menu->x2 - menu->x1,
+            1, topLineColor );
+        #if 0
+        // Second Top Line.
+        if ( menu->title ) {
+            R_DrawFill32( menu->x1, menu->y1 + GENERIC_SPACING( 20 ) - 1, menu->x2 - menu->x1,
+                1, topLineColor );
+        }
+        #endif
+        // Bottom Line.
+        R_DrawFill32( menu->x1, menu->y2 - 1, menu->x2 - menu->x1,
+            1, bottomLineColor );
     } else {
+        // Bg.
         R_DrawFill32( 0, menu->y1, uis.width,
             menu->y2 - menu->y1, overlayColor );
+        // First Top line.
+        R_DrawFill32( menu->x1, menu->y1, uis.width,
+            1, topLineColor );
+        #if 0
+        // Second Top Line.
+        if ( menu->title ) {
+            R_DrawFill32( menu->x1, menu->y1 + GENERIC_SPACING( 20 ) - 1, uis.width,
+                1, topLineColor );
+        }
+        #endif
+        // Bottom Line.
+        R_DrawFill32( menu->x1, menu->y2 - 1, uis.width,
+            1, bottomLineColor );
     }
 //
 // draw title bar
 //
     if (menu->title) {
         // Set color instead of using ALT COLOR
-        R_SetColor( colorTable[ COLOR_BLUE ] );
+        //const uint32_t titleColor = MakeColor( 202, 135, 27, 255 );
+        const uint32_t titleColor = MakeColor( 202, 144, 29, 255 );
+        R_SetColor( titleColor /*colorTable[ COLOR_BLUE ]*/ );
         UI_DrawString(uis.width / 2, menu->y1 + GENERIC_SPACING( 8 ),
                       UI_CENTER /*| UI_ALTCOLOR*/, menu->title);
         R_ClearColor();
