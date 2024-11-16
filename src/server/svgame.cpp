@@ -193,6 +193,13 @@ static void PF_bprintf(int level, const char *fmt, ...)
     MSG_WriteUint8(svc_print);
     MSG_WriteUint8(level);
     MSG_WriteData(string, len + 1);
+    
+    // WID: For Lua and other error type or warning printing...
+    #if USE_CLIENT
+    if ( !COM_DEDICATED && level >= print_type_t::PRINT_WARNING ) {
+        Com_LPrintf( (print_type_t)level, "%s", string );
+    }
+    #endif
 
     // echo to console
     if (COM_DEDICATED) {
@@ -203,8 +210,9 @@ static void PF_bprintf(int level, const char *fmt, ...)
     }
 
     FOR_EACH_CLIENT(client) {
-        if (client->state != cs_spawned)
+        if ( client->state != cs_spawned ) {
             continue;
+        }
         if (level >= client->messagelevel) {
             SV_ClientAddMessage(client, MSG_RELIABLE);
         }

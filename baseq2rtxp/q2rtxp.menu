@@ -84,6 +84,8 @@ begin developer_menu
     action --align "Local Entities - env_sound(EAX Reverb Areas)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_env_sound force"
     action --align "Local Entities - Local Client PVS" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_pvs force"
     blank
+    action --align "LUA - Errors" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_lua_errors force"
+    blank
     action --align "Other - Lulz" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_other_lulz force"
     action --align "Other - OctagonHull" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_other_octagahull force"
     blank
