@@ -664,7 +664,7 @@ static void Pop_Apply( menuFrameWork_t *self ) {
     char scratch[ MAX_OSPATH ];
 
     // Disable bloom again.
-    uis.bloomEnabled = true;
+    uis.bloomEnabled = false;
     // We won't be needing this however..
     #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
     //Cvar_SetEx( "name", m_rmaterial.name.field.text, FROM_CONSOLE );
@@ -687,7 +687,7 @@ static void Pop_Apply( menuFrameWork_t *self ) {
 **/
 static void Pop_Cancel( menuFrameWork_t *self ) {
     // Disable bloom again.
-    uis.bloomEnabled = true;
+    uis.bloomEnabled = false;
 
     // Reset the material its properties to what they were instead.
     if ( memcmp( m_rmaterial.materialKeyValues.material, &m_rmaterial.materialKeyValues.materialDefaults, sizeof( pbr_material_t ) ) ) {
@@ -696,13 +696,14 @@ static void Pop_Cancel( menuFrameWork_t *self ) {
 }
 
 static bool Push( menuFrameWork_t *self ) {
+    #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
     char currentdirectory[ MAX_QPATH ];
     char currentskin[ MAX_QPATH ];
     int i, j;
     int currentdirectoryindex = 0;
     int currentskinindex = 0;
     char *p;
-
+    #endif
     // Find the material we want to edit.
     pbr_material_t *targetMaterial = nullptr;
     // Get pointer to the material.
@@ -1163,7 +1164,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorBase.minvalue = 0;
     m_rmaterial.materialKeyFields.factorBase.maxvalue = 10;
     m_rmaterial.materialKeyFields.factorBase.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->base_factor, 0.f, 10.f );
-    m_rmaterial.materialKeyFields.factorBase.format = UI_CopyString( "%.1f" );
+    m_rmaterial.materialKeyFields.factorBase.format = (char *)"%.1f";
     m_rmaterial.materialKeyFields.factorBase.step = 0.1f;
 
     m_rmaterial.materialKeyFields.factorEmissive.generic.type = MTYPE_SLIDER;
@@ -1173,7 +1174,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorEmissive.minvalue = 0;
     m_rmaterial.materialKeyFields.factorEmissive.maxvalue = 1;
     m_rmaterial.materialKeyFields.factorEmissive.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->emissive_factor, 0.f, 1.f );
-    m_rmaterial.materialKeyFields.factorEmissive.format = UI_CopyString( "%.4f" );
+    m_rmaterial.materialKeyFields.factorEmissive.format = (char *)"%.4f";
     m_rmaterial.materialKeyFields.factorEmissive.step = 0.0125f;
 
     m_rmaterial.materialKeyFields.factorMetalness.generic.type = MTYPE_SLIDER;
@@ -1183,7 +1184,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorMetalness.minvalue = 0;
     m_rmaterial.materialKeyFields.factorMetalness.maxvalue = 1;
     m_rmaterial.materialKeyFields.factorMetalness.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->metalness_factor, 0.f, 1.f );
-    m_rmaterial.materialKeyFields.factorMetalness.format = UI_CopyString( "%.4f" );
+    m_rmaterial.materialKeyFields.factorMetalness.format = (char *)"%.4f";
     m_rmaterial.materialKeyFields.factorMetalness.step = 0.0125f;
 
     m_rmaterial.materialKeyFields.factorSpecular.generic.type = MTYPE_SLIDER;
@@ -1193,7 +1194,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorSpecular.minvalue = 0;
     m_rmaterial.materialKeyFields.factorSpecular.maxvalue = 1;
     m_rmaterial.materialKeyFields.factorSpecular.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->specular_factor, 0.f, 1.f );
-    m_rmaterial.materialKeyFields.factorSpecular.format = UI_CopyString( "%.4f" );
+    m_rmaterial.materialKeyFields.factorSpecular.format = (char*)"%.4f";
     m_rmaterial.materialKeyFields.factorSpecular.step = 0.0125f;
 
     /**
@@ -1206,7 +1207,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.bumpScale.minvalue = 0;
     m_rmaterial.materialKeyFields.bumpScale.maxvalue = 10;
     m_rmaterial.materialKeyFields.bumpScale.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->bump_scale, 0.f, 10.f );
-    m_rmaterial.materialKeyFields.bumpScale.format = UI_CopyString( "%.4f" );
+    m_rmaterial.materialKeyFields.bumpScale.format = (char*)"%.4f";
     m_rmaterial.materialKeyFields.bumpScale.step = 0.0125f;
 
     m_rmaterial.materialKeyFields.roughnessOverride.generic.type = MTYPE_SLIDER;
@@ -1216,7 +1217,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.roughnessOverride.minvalue = -1;
     m_rmaterial.materialKeyFields.roughnessOverride.maxvalue = 1;
     m_rmaterial.materialKeyFields.roughnessOverride.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->roughness_override, -1.f, 1.f );
-    m_rmaterial.materialKeyFields.roughnessOverride.format = UI_CopyString( "%.1f" );
+    m_rmaterial.materialKeyFields.roughnessOverride.format = (char*)( "%.1f" );
     m_rmaterial.materialKeyFields.roughnessOverride.step = 0.1f;
 
     /**
@@ -1253,7 +1254,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.defaultRadiance.minvalue = 0;
     m_rmaterial.materialKeyFields.defaultRadiance.maxvalue = 1;
     m_rmaterial.materialKeyFields.defaultRadiance.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->default_radiance, 0.f, 1.f );
-    m_rmaterial.materialKeyFields.defaultRadiance.format = UI_CopyString( "%.1f" );
+    m_rmaterial.materialKeyFields.defaultRadiance.format = (char *)"%.1f";
     m_rmaterial.materialKeyFields.defaultRadiance.step = 0.1f;
 
     /**
