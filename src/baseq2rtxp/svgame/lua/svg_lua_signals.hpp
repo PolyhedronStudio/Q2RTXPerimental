@@ -21,6 +21,8 @@
 ********************************************************************/
 #pragma once
 
+//! For debugging purposes.
+//#define SVG_LUA_REPORT_SIGNAL_OUT 1
 
 /**
 *	@brief	Fires an 'Out' signal, calling and passing it over to the entity's luaName OnSignal function.
@@ -50,7 +52,9 @@ static const bool SVG_Lua_SignalOut( lua_State *L, edict_t *ent, edict_t *other,
 		/*[lua args]:*/  ent, other, activator, signalName, signalArguments, rest... );
 
 	// Debug print.
+	#ifdef SVG_LUA_REPORT_SIGNAL_OUT
 	gi.dprintf( "luaName(%s): function(%s) fired signal(\"%s\")\n", luaName.c_str(), functionName.c_str(), signalName, ent->luaProperties.luaName );
+	#endif
 
 	// If it did successfully execute..
 	if ( executedSuccessfully ) {

@@ -165,7 +165,7 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 	
 	if ( loadResult == LUA_OK ) {
 		// Execute the code.
-		if ( lua_pcall( luaMapState.lState, 0, 0, 0 ) == LUA_OK ) {
+		if ( lua_pcall( luaMapState.lState, 0, LUA_MULTRET, 0 ) == LUA_OK ) {
 			// Debug:
 			Lua_DeveloperPrintf( "%s: Succesfully interpreted buffer\n", __func__ );
 			// Remove the code buffer, pop it from stack.
@@ -180,7 +180,7 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 			const std::string errorStr = lua_tostring( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 			// Output.
 			if ( fileName ) {
-				LUA_ErrorPrintf( "%s: %s\n", __func__, fileName, errorStr.c_str() );
+				LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
 			} else {
 				LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
 			}
@@ -192,7 +192,7 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 		const std::string errorStr = lua_tostring( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 		// Output.
 		if ( fileName ) {
-			LUA_ErrorPrintf( "%s: %s\n", __func__, fileName, errorStr.c_str() );
+			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
 		} else {
 			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
 		}
@@ -236,24 +236,24 @@ void SVG_Lua_LoadMapScript( const std::string &scriptName ) {
 
 		if ( luaMapState.scriptBuffer && scriptFileLength != Q_ERR( ENOENT ) ) {
 			// Debug output.			
-			Lua_DeveloperPrintf( "%s: Loaded Lua Script File: %s\n", __func__, filePath.c_str() );
+			Lua_DeveloperPrintf( "%s: Loaded Lua script file: %s\n", __func__, filePath.c_str() );
 
 			if ( LUA_InterpreteString( fileNameExt.c_str(), luaMapState.scriptBuffer ) ) {
 				// Debug output:
-				Lua_DeveloperPrintf( "%s: Succesfully parsed and interpreted Lua Script File: %s\n", __func__, filePath.c_str() );
+				Lua_DeveloperPrintf( "%s: Succesfully parsed and interpreted Lua script file: %s\n", __func__, filePath.c_str() );
 			} else {
 				// Debug output:
-				Lua_DeveloperPrintf( "%s: Succesfully parsed and interpreted Lua Script File: %s\n", __func__, filePath.c_str() );
+				Lua_DeveloperPrintf( "%s: Failed parsing/interpreting Lua script file: %s\n", __func__, filePath.c_str() );
 			}
 		// Failure:
 		} else {
 			// Debug output.
-			Lua_DeveloperPrintf( "%s: Failed loading Lua Script File: %s\n", __func__, filePath.c_str() );
+			Lua_DeveloperPrintf( "%s: Failed loading Lua script file: %s\n", __func__, filePath.c_str() );
 		}
 	// Failure:
 	} else {
 		// Debug output:
-		Lua_DeveloperPrintf( "%s: Map %s has no existing Lua Script File\n", __func__, scriptName.c_str() );
+		Lua_DeveloperPrintf( "%s: Map %s has no existing Lua script file\n", __func__, scriptName.c_str() );
 	}
 }
 
