@@ -33,22 +33,20 @@ extern cvar_t *map_allsolid_bug;
 // 1/32 epsilon to keep floating point happy
 static constexpr float DIST_EPSILON = 0.03125f;
 
-static Vector3  trace_start = {}, trace_end = {};
-static Vector3  trace_mins = {}, trace_maxs = {};
-static Vector3  trace_absMins = {}, trace_absMaxs = {};
-static Vector3  trace_offsets[ 8 ] = {};
-static Vector3  trace_extents = {};
+static vec3_t   trace_start, trace_end;
+static vec3_t   trace_offsets[ 8 ];
+static vec3_t   trace_extents;
 
-static trace_t *trace_trace = nullptr;
-static uint32_t trace_contents = 0;
-static cm_material_t *trace_material = nullptr;
-static csurface_t trace_surface = {};
-static bool trace_ispoint = false;      // optimized case
+static trace_t *trace_trace;
+static uint32_t trace_contents;
+static cm_material_t *trace_material;
+static csurface_t trace_surface;
+static bool     trace_ispoint;      // optimized case
 
 /**
 *   @brief
 **/
-static void CM_ClipBoxToBrush( const Vector3 &p1, const Vector3 &p2, trace_t *trace, mbrush_t *brush ) {
+static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace, mbrush_t *brush ) {
     int         i;
     cplane_t *plane, *clipplane[ 2 ];
     float       dist;
@@ -60,14 +58,6 @@ static void CM_ClipBoxToBrush( const Vector3 &p1, const Vector3 &p2, trace_t *tr
 
     if ( !brush->numsides )
         return;
-
-    // WID: Check for bbox.
-    if ( brush->isBspXBrush
-        && ( trace_absMins[ 0 ] > brush->absmaxs[ 0 ] || trace_absMaxs[ 0 ] < brush->absmins[ 0 ]
-            || trace_absMins[ 1 ] > brush->absmaxs[ 1 ] || trace_absMaxs[ 1 ] < brush->absmins[ 1 ]
-            || trace_absMins[ 2 ] > brush->absmaxs[ 2 ] || trace_absMaxs[ 2 ] < brush->absmins[ 2 ] ) ) {
-        //return;
-    }
 
     enterfrac[ 0 ] = enterfrac[ 1 ] = -1;
     leavefrac = 1;
@@ -185,7 +175,7 @@ static void CM_ClipBoxToBrush( const Vector3 &p1, const Vector3 &p2, trace_t *tr
 /**
 *   @brief
 **/
-static void CM_TestBoxInBrush( const Vector3 &p1, trace_t *trace, mbrush_t *brush ) {
+static void CM_TestBoxInBrush( const vec3_t p1, trace_t *trace, mbrush_t *brush ) {
     int         i;
     cplane_t *plane;
     float       dist;
@@ -194,14 +184,6 @@ static void CM_TestBoxInBrush( const Vector3 &p1, trace_t *trace, mbrush_t *brus
 
     if ( !brush->numsides )
         return;
-
-    // WID: Check for bbox.
-    if ( brush->isBspXBrush
-        && ( trace_absMins[ 0 ] > brush->absmaxs[ 0 ] || trace_absMaxs[ 0 ] < brush->absmins[ 0 ]
-            || trace_absMins[ 1 ] > brush->absmaxs[ 1 ] || trace_absMaxs[ 1 ] < brush->absmins[ 1 ]
-            || trace_absMins[ 2 ] > brush->absmaxs[ 2 ] || trace_absMaxs[ 2 ] < brush->absmins[ 2 ] ) ) {
-        //return;
-    }
 
     side = brush->firstbrushside;
     for ( i = 0; i < brush->numsides; i++, side++ ) {
@@ -238,13 +220,6 @@ static void CM_TraceToLeaf( cm_t *cm, mleaf_t *leaf ) {
 
     if ( !( leaf->contents & trace_contents ) )
         return;
-
-    if ( trace_absMins[ 0 ] > leaf->maxs[ 0 ] || trace_absMaxs[ 0 ] < leaf->mins[ 0 ]
-        || trace_absMins[ 1 ] > leaf->maxs[ 1 ] || trace_absMaxs[ 1 ] < leaf->mins[ 1 ]
-        || trace_absMins[ 2 ] > leaf->maxs[ 2 ] || trace_absMaxs[ 2 ] < leaf->mins[ 2 ] ) {
-        //return;
-    }
-
     // trace line against all brushes in the leaf
     leafbrush = leaf->firstleafbrush;
     for ( k = 0; k < leaf->numleafbrushes; k++, leafbrush++ ) {
@@ -255,7 +230,6 @@ static void CM_TraceToLeaf( cm_t *cm, mleaf_t *leaf ) {
 
         if ( !( b->contents & trace_contents ) )
             continue;
-
         CM_ClipBoxToBrush( trace_start, trace_end, trace_trace, b );
         if ( !trace_trace->fraction )
             return;
@@ -271,13 +245,6 @@ static void CM_TestInLeaf( cm_t *cm, mleaf_t *leaf ) {
 
     if ( !( leaf->contents & trace_contents ) )
         return;
-    
-    if ( trace_absMins[ 0 ] > leaf->maxs[ 0 ] || trace_absMaxs[ 0 ] < leaf->mins[ 0 ]
-            || trace_absMins[ 1 ] > leaf->maxs[ 1 ] || trace_absMaxs[ 1 ] < leaf->mins[ 1 ]
-            || trace_absMins[ 2 ] > leaf->maxs[ 2 ] || trace_absMaxs[ 2 ] < leaf->mins[ 2 ] ) {
-        //return;
-    }
-
     // trace line against all brushes in the leaf
     leafbrush = leaf->firstleafbrush;
     for ( k = 0; k < leaf->numleafbrushes; k++, leafbrush++ ) {
@@ -288,7 +255,6 @@ static void CM_TestInLeaf( cm_t *cm, mleaf_t *leaf ) {
 
         if ( !( b->contents & trace_contents ) )
             continue;
-
         CM_TestBoxInBrush( trace_start, trace_trace, b );
         if ( !trace_trace->fraction )
             return;
@@ -415,23 +381,6 @@ void CM_BoxTrace( cm_t *cm, trace_t *trace,
         for ( j = 0; j < 3; j++ )
             trace_offsets[ i ][ j ] = bounds[ ( i >> j ) & 1 ][ j ];
 
-    trace_mins = Vector3( mins );
-    trace_maxs = Vector3( maxs );
-
-    trace_extents[ 0 ] = max( -mins[ 0 ], maxs[ 0 ] );
-    trace_extents[ 1 ] = max( -mins[ 1 ], maxs[ 1 ] );
-    trace_extents[ 2 ] = max( -mins[ 2 ], maxs[ 2 ] );
-
-    for ( i = 0; i < 3; i++ ) {
-        if ( start[ i ] < end[ i ] ) {
-            trace_absMins[ i ] = start[ i ] + trace_extents[ i ];
-            trace_absMaxs[ i ] = end[ i ] + trace_extents[ i ];
-        } else {
-            trace_absMins[ i ] = end[ i ] + trace_extents[ i ];
-            trace_absMaxs[ i ] = start[ i ] + trace_extents[ i ];
-        }
-    }
-
     //
     // check for position test special case
     //
@@ -442,19 +391,10 @@ void CM_BoxTrace( cm_t *cm, trace_t *trace,
 
         VectorAdd( start, mins, c1 );
         VectorAdd( start, maxs, c2 );
-
-        //trace_absMins = c1;
-        ////trace_absMaxs = c2;
-        //VectorCopy( trace_absMins, c1 );
-        //VectorCopy( trace_absMaxs, c2 );
-
         for ( i = 0; i < 3; i++ ) {
             c1[ i ] -= 1;
             c2[ i ] += 1;
         }
-
-        trace_absMins = c1;
-        trace_absMaxs = c2;
 
         numleafs = CM_BoxLeafs_headnode( cm, c1, c2, leafs, q_countof( leafs ), headnode, NULL );
         for ( i = 0; i < numleafs; i++ ) {
@@ -465,28 +405,19 @@ void CM_BoxTrace( cm_t *cm, trace_t *trace,
         VectorCopy( start, trace_trace->endpos );
         return;
     }
+
     //
-// check for point special case
-//
+    // check for point special case
+    //
     if ( VectorEmpty( mins ) && VectorEmpty( maxs ) ) {
         trace_ispoint = true;
         VectorClear( trace_extents );
     } else {
         trace_ispoint = false;
-
+        trace_extents[ 0 ] = max( -mins[ 0 ], maxs[ 0 ] );
+        trace_extents[ 1 ] = max( -mins[ 1 ], maxs[ 1 ] );
+        trace_extents[ 2 ] = max( -mins[ 2 ], maxs[ 2 ] );
     }
-    ////
-    //// check for point special case
-    ////
-    //if ( VectorEmpty( mins ) && VectorEmpty( maxs ) ) {
-    //    trace_ispoint = true;
-    //    VectorClear( trace_extents );
-    //} else {
-    //    trace_ispoint = false;
-    //    trace_extents[ 0 ] = max( -mins[ 0 ], maxs[ 0 ] );
-    //    trace_extents[ 1 ] = max( -mins[ 1 ], maxs[ 1 ] );
-    //    trace_extents[ 2 ] = max( -mins[ 2 ], maxs[ 2 ] );
-    //}
 
     //
     // general sweeping through world

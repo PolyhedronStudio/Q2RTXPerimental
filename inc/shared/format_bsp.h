@@ -236,11 +236,6 @@ typedef struct {
 } mbrushside_t;
 
 typedef struct {
-    // <Q2RTXP>: BSPX BRUSHLIST loaded: mins/maxs
-    bool            isBspXBrush;
-    vec3_t          absmins;
-    vec3_t          absmaxs;
-    // </Q2RTXP>
     int             contents;
     int             numsides;
     mbrushside_t    *firstbrushside;

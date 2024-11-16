@@ -1105,7 +1105,7 @@ bool BSP_SavePatchedPVS(bsp_t *bsp)
 /**
 *   @brief
 **/
-static void BSPX_LoadBspxNormals(bsp_t* bsp, const byte* in, size_t data_size)
+static void BSP_LoadBspxNormals(bsp_t* bsp, const byte* in, size_t data_size)
 {
 	if (data_size < sizeof(uint32_t))
 		return;
@@ -1158,7 +1158,7 @@ static void BSPX_LoadBspxNormals(bsp_t* bsp, const byte* in, size_t data_size)
 /**
 *   @brief
 **/
-static size_t BSPX_ParseNormalsHeader(bsp_t* bsp, const byte* in, size_t data_size)
+static size_t BSP_ParseNormalsHeader(bsp_t* bsp, const byte* in, size_t data_size)
 {
     return data_size;
 }
@@ -1180,7 +1180,7 @@ static size_t BSPX_ParseNormalsHeader(bsp_t* bsp, const byte* in, size_t data_si
 /**
 *   @brief
 **/
-static void BSPX_LoadLightMapStyles( bsp_t *bsp, const byte *in, size_t data_size ) {
+static void BSP_LoadBspxLightMapStyles( bsp_t *bsp, const byte *in, size_t data_size ) {
     if ( data_size < sizeof( uint8_t ) )
         return;
 
@@ -1218,155 +1218,7 @@ static void BSPX_LoadLightMapStyles( bsp_t *bsp, const byte *in, size_t data_siz
 /**
 *   @brief
 **/
-static size_t BSPX_ParseLightMapStylesHeader( bsp_t *bsp, const byte *in, size_t data_size ) {
-    return data_size;
-}
-
-
-/**
-*
-*
-*
-*   BSPX: BrushList (For mins/maxs):
-* 
-*   WID: Modified version of FTEQW's since we only care for the brush mins/maxs.
-* 
-* 
-* 
-**/
-static void BSPX_LoadBrushList( bsp_t *bsp, const byte *in, size_t data_size ) {
-    const struct srcmodel_t {
-        unsigned int ver;
-        unsigned int modelnum;
-        unsigned int numbrushes;
-        unsigned int numplanes;
-    } *srcmodel;
-    const struct srcbrush_t {
-        float mins[ 3 ];
-        float maxs[ 3 ];
-        signed short contents;
-        unsigned short numplanes;
-    } *srcbrush;
-    /*
-    Note to implementors:
-    a pointy brush with angles pointier than 90 degrees will extend further than any adjacent brush, thus creating invisible walls with larger expansions.
-    the engine inserts 6 axial planes acording to the bbox, thus the qbsp need not write any axial planes
-    note that doing it this way probably isn't good if you want to query textures...
-    */
-    const struct srcplane_t {
-        vec3_t normal;
-        float dist;
-    } *srcplane;
-
-    //static vec3_t axis[ 3 ] = { {1, 0, 0}, {0, 1, 0}, {0, 0, 1} };
-    uint32_t br = 0;// , pl = 0;
-    mbrush_t *brush = nullptr;
-    //mbrushside_t *sides = nullptr;	//grr!
-    //cplane_t *planes = nullptr;	//bulky?
-    uint32_t lumpsizeremaining = data_size;
-    uint32_t numplanes = 0;
-
-    uint32_t srcver = 0;
-    uint32_t srcmodelidx = 0, modbrushes = 0, modplanes = 0;
-
-    srcmodel = (srcmodel_t *)in;
-    if ( !srcmodel ) {
-        return;
-    }
-
-    while ( lumpsizeremaining ) {
-        if ( lumpsizeremaining < sizeof( *srcmodel ) ) {
-            return;
-        }
-        srcver = LittleLong( srcmodel->ver );
-        srcmodelidx = LittleLong( srcmodel->modelnum );
-        modbrushes = LittleLong( srcmodel->numbrushes );
-        modplanes = LittleLong( srcmodel->numplanes );
-        if ( srcver != 1 || lumpsizeremaining < sizeof( *srcmodel ) + modbrushes * sizeof( *srcmodel ) + modplanes * sizeof( *srcplane ) ) {
-            return;
-        }
-        lumpsizeremaining -= ( (const char *)( srcmodel + 1 ) + modbrushes * sizeof( *srcbrush ) + modplanes * sizeof( *srcplane ) ) - (const char *)srcmodel;
-        if ( srcmodelidx > bsp->nummodels ) {
-            return;
-        }
-
-        brush = bsp->brushes;
-        srcbrush = (srcbrush_t*)( srcmodel + 1 );
-        for ( br = 0; br < modbrushes; br++, srcbrush = (srcbrush_t*)srcplane ) {
-            brush->isBspXBrush = true;
-
-            /*byteswap it all in place*/
-            brush->absmins[ 0 ] = LittleFloat( srcbrush->mins[ 0 ] );
-            brush->absmins[ 1 ] = LittleFloat( srcbrush->mins[ 1 ] );
-            brush->absmins[ 2 ] = LittleFloat( srcbrush->mins[ 2 ] );
-            brush->absmaxs[ 0 ] = LittleFloat( srcbrush->maxs[ 0 ] );
-            brush->absmaxs[ 1 ] = LittleFloat( srcbrush->maxs[ 1 ] );
-            brush->absmaxs[ 2 ] = LittleFloat( srcbrush->maxs[ 2 ] );
-            numplanes = (unsigned short)LittleShort( srcbrush->numplanes );
-            
-            // Debug..
-            const int32_t brushID = br;
-            
-            Com_DPrintf( "BRUSHLIST(#%d) absMins[%f,%f,%f] absMaxs[%f,%f,%f]\n",
-                brushID,
-                brush->absmins[ 0 ],
-                brush->absmins[ 1 ], 
-                brush->absmins[ 2 ],
-                brush->absmaxs[ 0 ],
-                brush->absmaxs[ 1 ],
-                brush->absmaxs[ 2 ]
-            );
-            /*make sure planes don't overflow*/
-            if ( numplanes > modplanes ) {
-                return;
-            }
-            modplanes -= numplanes;
-
-            /*set up the mbrush from the file*/
-            LittleShort( srcbrush->contents );
-            //brush->contents = Q1BSP_TranslateContents( LittleShort( srcbrush->contents ) );
-            //brush->brushside = sides;
-            for ( srcplane = (srcplane_t*)( srcbrush + 1 ); numplanes-- > 0; srcplane++ ) {
-                /*planes->normal[ 0 ] = */LittleFloat( srcplane->normal[ 0 ] );
-                /*planes->normal[ 1 ] = */LittleFloat( srcplane->normal[ 1 ] );
-                /*planes->normal[ 2 ] = */LittleFloat( srcplane->normal[ 2 ] );
-                /*planes->dist = */LittleFloat( srcplane->dist );
-                //CategorizePlane( planes );
-
-                //sides->surface = NULL;
-                //sides++->plane = planes++;
-            }
-
-            ///*and add axial planes acording to the brush's bbox*/
-            //for ( pl = 0; pl < 3; pl++ ) {
-            //    VectorCopy( axis[ pl ], planes->normal );
-            //    planes->dist = brush->absmaxs[ pl ];
-            //    CategorizePlane( planes );
-
-            //    sides->surface = NULL;
-            //    sides++->plane = planes++;
-            //}
-            //for ( pl = 0; pl < 3; pl++ ) {
-            //    VectorNegate( axis[ pl ], planes->normal );
-            //    planes->dist = -brush->absmins[ pl ];
-            //    CategorizePlane( planes );
-
-            //    sides->surface = NULL;
-            //    sides++->plane = planes++;
-            //}
-            //brush->numsides = sides - brush->brushside;
-            brush++;
-        }
-        //model->submodels[ srcmodelidx ].numbrushes = brush - model->submodels[ srcmodelidx ].brushes;
-
-        /*move on to the next model*/
-        srcmodel = (srcmodel_t *)srcbrush;
-    }
-}
-/**
-*   @brief
-**/
-static size_t BSPX_ParseBrushListHeader( bsp_t *bsp, const byte *in, size_t data_size ) {
+static size_t BSP_ParseBspxLightMapStylesHeader( bsp_t *bsp, const byte *in, size_t data_size ) {
     return data_size;
 }
 
@@ -1384,7 +1236,7 @@ static size_t BSPX_ParseBrushListHeader( bsp_t *bsp, const byte *in, size_t data
 /**
 *   @brief
 **/
-static void BSPX_ParseDecoupledLM(bsp_t *bsp, const byte *in, size_t filelen)
+static void BSP_ParseDecoupledLM(bsp_t *bsp, const byte *in, size_t filelen)
 {
     mface_t *out;
     uint32_t offset;
@@ -1415,10 +1267,9 @@ static void BSPX_ParseDecoupledLM(bsp_t *bsp, const byte *in, size_t filelen)
 }
 
 static const xlump_info_t bspx_lumps[] = {
-    { "FACENORMALS", BSPX_LoadBspxNormals, BSPX_ParseNormalsHeader },
-    { "BRUSHLIST", BSPX_LoadBrushList, BSPX_ParseBrushListHeader },
-    { "LMSTYLE", BSPX_LoadLightMapStyles, BSPX_ParseLightMapStylesHeader },
-    { "DECOUPLED_LM", BSPX_ParseDecoupledLM },
+    { "DECOUPLED_LM", BSP_ParseDecoupledLM },
+    { "FACENORMALS", BSP_LoadBspxNormals, BSP_ParseNormalsHeader },
+    { "LMSTYLE", BSP_LoadBspxLightMapStyles, BSP_ParseBspxLightMapStylesHeader }
 };
 
 // returns amount of extra data to allocate
