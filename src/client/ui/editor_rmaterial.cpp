@@ -1283,13 +1283,13 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     **/
     m_rmaterial.materialKeyFields.actionSave.generic.type = MTYPE_ACTION;
     m_rmaterial.materialKeyFields.actionSave.generic.name = "Save Changes";
-    m_rmaterial.materialKeyFields.actionSave.generic.uiFlags = UI_LEFT | UI_RIGHT;
+    m_rmaterial.materialKeyFields.actionSave.generic.uiFlags = UI_LEFT | UI_ALTCOLOR;
     m_rmaterial.materialKeyFields.actionSave.generic.flags = 0;
     m_rmaterial.materialKeyFields.actionSave.callback = MenuAction_Save_Callback;
 
     m_rmaterial.materialKeyFields.actionCancel.generic.type = MTYPE_ACTION;
     m_rmaterial.materialKeyFields.actionCancel.generic.name = "Cancel";
-    m_rmaterial.materialKeyFields.actionCancel.generic.uiFlags = UI_LEFT | UI_RIGHT;
+    m_rmaterial.materialKeyFields.actionCancel.generic.uiFlags = UI_LEFT;
     m_rmaterial.materialKeyFields.actionCancel.generic.flags = 0;
     m_rmaterial.materialKeyFields.actionCancel.callback = MenuAction_Cancel_Callback;
 

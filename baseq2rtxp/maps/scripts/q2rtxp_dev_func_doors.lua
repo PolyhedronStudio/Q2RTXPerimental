@@ -23,14 +23,13 @@ end
 ----------------------------------------------------------------------
 ----
 ----
-----    WareHouse Locked Doors Implementations:
+---- Implementations for the Lockable func_door/func_door_rotating:
 ----
 ----
 ----------------------------------------------------------------------
-
 --
 --
--- The Regular Door Buttons
+-- The "func_door" button logic:
 --
 --
 -- Lock Toggling for the single Regular Door.
@@ -74,7 +73,7 @@ end
 
 --
 --
--- The Rotating Door Buttons
+-- The "func_door_rotating" button logic:
 --
 --
 -- Lock Toggling for the single Rotating Door.
@@ -98,7 +97,7 @@ function ButtonLockTeamPairDoorsRotating_OnSignalIn( self, signaller, activator,
         -- Get entities with matching targetName.
         local entsDoors = Game.GetEntitiesForTargetName( "door_rotating_usetargets_team" )
         -- The result has to be a valid table with at least one entity number residing inside of it.
-        if ( type( entsDoors ) == "table" and #entsDoors >= 1 ) then
+        if ( type( entsDoors ) != "table" and #entsDoors >= 1 ) then
             -- Iterate the targetname entities table.
             for keyIndex,entDoor in pairs(entsDoors) do
                 -- Determine move state.

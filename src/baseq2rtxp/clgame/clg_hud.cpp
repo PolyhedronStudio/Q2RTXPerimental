@@ -33,9 +33,10 @@ static struct {
     //! Generic display color values.
     struct {
         // Colors.
-        //static constexpr uint32_t ORANGE = MakeColor( 255, 150, 100, 255 );
+        static constexpr uint32_t ORANGE2 = MakeColor( 255, 150, 100, 75 );
         //static constexpr uint32_t RED = MakeColor( 255, 50, 30, 255 );
-        static constexpr uint32_t ORANGE = MakeColor( 210, 125, 44, 255 );
+        //static constexpr uint32_t ORANGE = MakeColor( 210, 125, 44, 150 );
+        static constexpr uint32_t ORANGE = MakeColor( 210, 125, 44, 250 );
         static constexpr uint32_t RED = MakeColor( 208, 70, 72, 255 );
         static constexpr uint32_t LESS_WHITE = MakeColor( 220, 220, 220, 75 );
         static constexpr uint32_t WHITE = MakeColor( 255, 255, 255, 255 );
@@ -528,9 +529,9 @@ static void CLG_HUD_DrawHealthIndicators() {
     *   Draw Health Indicator:
     **/
     // Background with an Outlined Rectangle.
-    CLG_HUD_DrawOutlinedRectangle( healthBackGroundX, healthBackGroundY, HEALTH_BACKGROUND_WIDTH, HEALTH_BACKGROUND_HEIGHT, hud.colors.LESS_WHITE, hud.colors.WHITE );
+    CLG_HUD_DrawOutlinedRectangle( healthBackGroundX, healthBackGroundY, HEALTH_BACKGROUND_WIDTH, HEALTH_BACKGROUND_HEIGHT, hud.colors.ORANGE2, hud.colors.ORANGE );
     // Set text color to orange.
-    clgi.R_SetColor( hud.colors.ORANGE );
+    clgi.R_SetColor( hud.colors.WHITE );
     // Draw health name.
     HUD_DrawString( healthNameX, healthNameY, strHealthName.c_str() );
     // Set text color to white.
@@ -546,9 +547,9 @@ static void CLG_HUD_DrawHealthIndicators() {
     *   Draw Armor Indicator:
     **/
     // Background with an Outlined Rectangle.
-    CLG_HUD_DrawOutlinedRectangle( armorBackGroundX, armorBackGroundY, ARMOR_BACKGROUND_WIDTH, ARMOR_BACKGROUND_HEIGHT, hud.colors.LESS_WHITE, hud.colors.WHITE );
+    CLG_HUD_DrawOutlinedRectangle( armorBackGroundX, armorBackGroundY, ARMOR_BACKGROUND_WIDTH, ARMOR_BACKGROUND_HEIGHT, hud.colors.ORANGE2, hud.colors.ORANGE );
     // Set text color to orange.
-    clgi.R_SetColor( hud.colors.ORANGE );
+    clgi.R_SetColor( hud.colors.WHITE );
     // Draw armor display name.
     HUD_DrawString( armorNameX, armorNameY, strArmorName.c_str() );
     // Set text color to white.
@@ -617,9 +618,9 @@ static void CLG_HUD_DrawAmmoIndicators() {
     *   Draw Ammo Indicator:
     **/
     // Background with an Outlined Rectangle.
-    CLG_HUD_DrawOutlinedRectangle( ammoBackGroundX, ammoBackGroundY, AMMO_BACKGROUND_WIDTH, AMMO_BACKGROUND_HEIGHT, hud.colors.LESS_WHITE, hud.colors.WHITE );
+    CLG_HUD_DrawOutlinedRectangle( ammoBackGroundX, ammoBackGroundY, AMMO_BACKGROUND_WIDTH, AMMO_BACKGROUND_HEIGHT, hud.colors.ORANGE2, hud.colors.ORANGE );
     // Set text color to orange.
-    clgi.R_SetColor( hud.colors.ORANGE );
+    clgi.R_SetColor( hud.colors.WHITE );
     // Draw weapon name.
     HUD_DrawString( weaponNameX, weaponNameY, strWeaponName.c_str() );
 
@@ -633,7 +634,7 @@ static void CLG_HUD_DrawAmmoIndicators() {
     HUD_DrawString( totalAmmoX, totalAmmoY, strTotalAmmo.c_str() );
 
     // Set text color to orange.
-    clgi.R_SetColor( hud.colors.ORANGE );
+    clgi.R_SetColor( hud.colors.WHITE );
     // Draw clip ammo.
     HUD_DrawString( separatorX, separatorY, strSeparator.c_str() );
 

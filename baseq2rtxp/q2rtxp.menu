@@ -65,6 +65,33 @@ color active #ffb89799
 color selection #d27d2ccc
 color disabled #757161
 
+begin developer_menu
+    style --compact
+    style --transparent
+    background #4e4a4edc
+    
+    title "Developer (Test-)Maps"
+    action --align "CollisionModel - Friction Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_materials force"
+    blank
+    action --align "Entities - func_button" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_buttons force"
+    action --align "Entities - func_door/func_door_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_doors force"
+    action --align "Entities - func_plat & func_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_plat_rot force"
+    blank
+    action --align "Graphical - Makkon Textures PBR (pt_nearest 1)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_makkon force"
+    action --align "Graphical - SpotLights" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_spotlights force"
+    blank
+    action --align "Local Entities - General" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_general force"
+    action --align "Local Entities - env_sound(EAX Reverb Areas)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_env_sound force"
+    action --align "Local Entities - Local Client PVS" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_pvs force"
+    blank
+    action --align "Other - Lulz" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_other_lulz force"
+    action --align "Other - OctagonHull" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_other_octagahull force"
+    blank
+    action --align "Signal I/O - TargetRange" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_sigio_targetrange force"
+    blank
+    action --align "Triggers - Trigger Brush Clip" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_trigs_brushclip force"
+end
+
 begin environment
     title "Environment Settings"
     background #4e4a4edc
@@ -364,32 +391,6 @@ begin multiplayer
     action "start server" pushmenu startserver
     action "player setup" pushmenu players
     action "disconnect" disconnect
-end
-
-begin developer_menu
-    title "Developer (Test-)Maps"
-    background #4e4a4edc
-    style --compact
-    style --transparent
-    action "Generic Dev Test(s)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_test force"
-    blank
-    action "cm_materials(CollisionModel Materials)" "skill 0; gamemode 0; maxclients 1; map cm_materials force"
-    blank
-    action "Entities - func_door/func_door_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_door force"
-    blank
-    action "Signal I/O - TargetRange" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_targetrange force"
-    blank
-    action "func_plat & func_rotating" "skill 0; gamemode 0; maxclients 1; map func_plat_n_rot force"
-    blank
-    action "local_entities" "skill 0; gamemode 0; maxclients 1; map local_entities force"
-    action "local env_sound(Reverb EAX Effects)" "skill 0; gamemode 0; maxclients 1; map local_env_sound force"
-    action "local_pvs" "skill 0; gamemode 0; maxclients 1; map local_pvs force"
-    blank
-    action "octagonhull_test" "skill 0; gamemode 0; maxclients 1; map octagonhull_test force"
-    action "spotlights" "skill 0; gamemode 0; maxclients 1; map spotlights force"
-    action "trigger_brushclip" "skill 0; gamemode 0; maxclients 1; map trigger_brushclip force"
-    blank
-    action "makkon (oldschool textures+pbr)" "skill 0; gamemode 0; maxclients 1; map makkon force"
 end
 
 begin singleplayer

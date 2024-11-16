@@ -111,14 +111,14 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
             // Forward:
             if ( ( packetEntity->moveInfo.current.yDot > DIR_EPSILON ) /*|| ( pm->cmd.forwardmove > 0 )*/ ) {
                 packetEntity->moveInfo.current.flags |= CLG_MOVEINFOFLAG_DIRECTION_FORWARD;
-                // Back:
+            // Back:
             } else if ( ( -packetEntity->moveInfo.current.yDot > DIR_EPSILON ) /*|| ( pm->cmd.forwardmove < 0 )*/ ) {
                 packetEntity->moveInfo.current.flags |= CLG_MOVEINFOFLAG_DIRECTION_BACKWARD;
             }
             // Right: (Only if the dotproduct is so, or specifically only side move is pressed.)
             if ( ( packetEntity->moveInfo.current.xDot > DIR_EPSILON ) /*|| ( !pm->cmd.forwardmove && pm->cmd.sidemove > 0 )*/ ) {
                 packetEntity->moveInfo.current.flags |= CLG_MOVEINFOFLAG_DIRECTION_RIGHT;
-                // Left: (Only if the dotproduct is so, or specifically only side move is pressed.)
+            // Left: (Only if the dotproduct is so, or specifically only side move is pressed.)
             } else if ( ( -packetEntity->moveInfo.current.xDot > DIR_EPSILON ) /*|| ( !pm->cmd.forwardmove && pm->cmd.sidemove < 0 )*/ ) {
                 packetEntity->moveInfo.current.flags |= CLG_MOVEINFOFLAG_DIRECTION_LEFT;
             }
