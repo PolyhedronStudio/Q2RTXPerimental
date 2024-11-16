@@ -19,12 +19,12 @@ extern "C" {
 extern cvar_t *ui_editor_rmaterial_background_alpha;
 
 //! Model ID to use:
-static constexpr int32_t ID_MODEL   = 103;
+static constexpr int32_t ID_MODEL = 103;
 //! Skin ID to use:
-static constexpr int32_t ID_SKIN    = 104;
+static constexpr int32_t ID_SKIN = 104;
 
 /**
-*   
+*
 **/
 //list_t entry;
 //char name[ MAX_QPATH ];
@@ -74,7 +74,7 @@ typedef struct m_rmaterial_s {
         menuField_t         filenameNormalsTexture;
         menuField_t         filenameEmissiveTexture;
         menuField_t         filenameMaskTexture;
-        
+
         menuSlider_t        factorBase;
         menuSlider_t        factorEmissive;
         menuSlider_t        factorMetalness;
@@ -104,7 +104,7 @@ typedef struct m_rmaterial_s {
         // Points to the actual material we are editing.
         pbr_material_t *material;
     } materialKeyValues;
-    
+
     /**
     *   For 3D Test Model Rendering
     **/
@@ -342,7 +342,7 @@ void Menu_Material_RollBack() {
     // Get factor.
     const int is_light = m_rmaterial.materialKeyValues.materialDefaults.flags & MATERIAL_FLAG_LIGHT;
     // Generate cmd string.
-    cmdString = "mat is_light " + std::to_string( is_light) + "\n";
+    cmdString = "mat is_light " + std::to_string( is_light ) + "\n";
     // Generate cmd command.
     Cmd_ExecuteString( cmd_current, cmdString.c_str() );
 
@@ -640,7 +640,7 @@ static void Size( menuFrameWork_t *self ) {
 **/
 static menuSound_t Change( menuCommon_t *self ) {
     switch ( self->id ) {
-    #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
+        #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
     case ID_MODEL:
         m_rmaterial.skin.itemnames =
             uis.pmi[ m_rmaterial.model.curvalue ].skindisplaynames;
@@ -650,7 +650,7 @@ static menuSound_t Change( menuCommon_t *self ) {
     case ID_SKIN:
         ReloadMedia();
         break;
-    #endif
+        #endif
     default:
         break;
     }
@@ -664,7 +664,7 @@ static void Pop_Apply( menuFrameWork_t *self ) {
     char scratch[ MAX_OSPATH ];
 
     // Disable bloom again.
-    uis.bloomEnabled = true;
+    uis.bloomEnabled = false;
     // We won't be needing this however..
     #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
     //Cvar_SetEx( "name", m_rmaterial.name.field.text, FROM_CONSOLE );
@@ -687,22 +687,23 @@ static void Pop_Apply( menuFrameWork_t *self ) {
 **/
 static void Pop_Cancel( menuFrameWork_t *self ) {
     // Disable bloom again.
-    uis.bloomEnabled = true;
+    uis.bloomEnabled = false;
 
     // Reset the material its properties to what they were instead.
     if ( memcmp( m_rmaterial.materialKeyValues.material, &m_rmaterial.materialKeyValues.materialDefaults, sizeof( pbr_material_t ) ) ) {
         Menu_Material_RollBack();
-    }    
+    }
 }
 
 static bool Push( menuFrameWork_t *self ) {
+    #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
     char currentdirectory[ MAX_QPATH ];
     char currentskin[ MAX_QPATH ];
     int i, j;
     int currentdirectoryindex = 0;
     int currentskinindex = 0;
     char *p;
-
+    #endif
     // Find the material we want to edit.
     pbr_material_t *targetMaterial = nullptr;
     // Get pointer to the material.
@@ -804,8 +805,8 @@ static bool Push( menuFrameWork_t *self ) {
     *   Texture File Path Fields:
     **/
     // [TEXTURE_BASE]:
-    IF_Init( 
-        &m_rmaterial.materialKeyFields.filenameBaseTexture.field, 
+    IF_Init(
+        &m_rmaterial.materialKeyFields.filenameBaseTexture.field,
         32,
         m_rmaterial.materialKeyFields.filenameBaseTexture.width
     );
@@ -887,7 +888,7 @@ static bool Push( menuFrameWork_t *self ) {
             , m_rmaterial.materialKeyValues.material->name );
     }
     m_rmaterial.menu.title = m_rmaterial.titleBuffer;
- 
+
     // Load media and run for a frame.
     #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
     ReloadMedia();
@@ -975,7 +976,7 @@ static menuSound_t Keydown_Material_Fields( menuCommon_t *item, int key ) {
             return QMS_MOVE;
         }
         // Special handling for 'texture_emissive'.
-        if ( field == &m_rmaterial.materialKeyFields.filenameEmissiveTexture) {
+        if ( field == &m_rmaterial.materialKeyFields.filenameEmissiveTexture ) {
             std::string fieldValue = field->field.text;
             // Generate cmd string.
             std::string cmdString = "mat texture_emissive ";
@@ -1163,7 +1164,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorBase.minvalue = 0;
     m_rmaterial.materialKeyFields.factorBase.maxvalue = 10;
     m_rmaterial.materialKeyFields.factorBase.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->base_factor, 0.f, 10.f );
-    m_rmaterial.materialKeyFields.factorBase.format = UI_CopyString( "%.1f" );
+    m_rmaterial.materialKeyFields.factorBase.format = (char *)"%.1f";
     m_rmaterial.materialKeyFields.factorBase.step = 0.1f;
 
     m_rmaterial.materialKeyFields.factorEmissive.generic.type = MTYPE_SLIDER;
@@ -1173,7 +1174,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorEmissive.minvalue = 0;
     m_rmaterial.materialKeyFields.factorEmissive.maxvalue = 1;
     m_rmaterial.materialKeyFields.factorEmissive.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->emissive_factor, 0.f, 1.f );
-    m_rmaterial.materialKeyFields.factorEmissive.format = UI_CopyString( "%.4f" );
+    m_rmaterial.materialKeyFields.factorEmissive.format = (char *)"%.4f";
     m_rmaterial.materialKeyFields.factorEmissive.step = 0.0125f;
 
     m_rmaterial.materialKeyFields.factorMetalness.generic.type = MTYPE_SLIDER;
@@ -1183,7 +1184,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorMetalness.minvalue = 0;
     m_rmaterial.materialKeyFields.factorMetalness.maxvalue = 1;
     m_rmaterial.materialKeyFields.factorMetalness.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->metalness_factor, 0.f, 1.f );
-    m_rmaterial.materialKeyFields.factorMetalness.format = UI_CopyString( "%.4f" );
+    m_rmaterial.materialKeyFields.factorMetalness.format = (char *)"%.4f";
     m_rmaterial.materialKeyFields.factorMetalness.step = 0.0125f;
 
     m_rmaterial.materialKeyFields.factorSpecular.generic.type = MTYPE_SLIDER;
@@ -1193,7 +1194,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorSpecular.minvalue = 0;
     m_rmaterial.materialKeyFields.factorSpecular.maxvalue = 1;
     m_rmaterial.materialKeyFields.factorSpecular.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->specular_factor, 0.f, 1.f );
-    m_rmaterial.materialKeyFields.factorSpecular.format = UI_CopyString( "%.4f" );
+    m_rmaterial.materialKeyFields.factorSpecular.format = (char *)"%.4f";
     m_rmaterial.materialKeyFields.factorSpecular.step = 0.0125f;
 
     /**
@@ -1206,7 +1207,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.bumpScale.minvalue = 0;
     m_rmaterial.materialKeyFields.bumpScale.maxvalue = 10;
     m_rmaterial.materialKeyFields.bumpScale.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->bump_scale, 0.f, 10.f );
-    m_rmaterial.materialKeyFields.bumpScale.format = UI_CopyString( "%.4f" );
+    m_rmaterial.materialKeyFields.bumpScale.format = (char *)"%.4f";
     m_rmaterial.materialKeyFields.bumpScale.step = 0.0125f;
 
     m_rmaterial.materialKeyFields.roughnessOverride.generic.type = MTYPE_SLIDER;
@@ -1216,7 +1217,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.roughnessOverride.minvalue = -1;
     m_rmaterial.materialKeyFields.roughnessOverride.maxvalue = 1;
     m_rmaterial.materialKeyFields.roughnessOverride.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->roughness_override, -1.f, 1.f );
-    m_rmaterial.materialKeyFields.roughnessOverride.format = UI_CopyString( "%.1f" );
+    m_rmaterial.materialKeyFields.roughnessOverride.format = (char *)( "%.1f" );
     m_rmaterial.materialKeyFields.roughnessOverride.step = 0.1f;
 
     /**
@@ -1235,8 +1236,8 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.lightStyles.generic.flags = 0;
     m_rmaterial.materialKeyFields.lightStyles.generic.change = MenuChange_Material_LightStyles;
     m_rmaterial.materialKeyFields.lightStyles.curvalue = ( m_rmaterial.materialKeyValues.material->light_styles ? 1 : 0 );
-    m_rmaterial.materialKeyFields.lightStyles.itemnames = (char**)lightStyles_ItemNames;
-    m_rmaterial.materialKeyFields.lightStyles.itemvalues= (char**)lightStyles_ItemValues;
+    m_rmaterial.materialKeyFields.lightStyles.itemnames = (char **)lightStyles_ItemNames;
+    m_rmaterial.materialKeyFields.lightStyles.itemvalues = (char **)lightStyles_ItemValues;
 
     m_rmaterial.materialKeyFields.bspRadiance.generic.type = MTYPE_SPINCONTROL;
     m_rmaterial.materialKeyFields.bspRadiance.generic.name = "BSP Radiance";
@@ -1253,7 +1254,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.defaultRadiance.minvalue = 0;
     m_rmaterial.materialKeyFields.defaultRadiance.maxvalue = 1;
     m_rmaterial.materialKeyFields.defaultRadiance.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->default_radiance, 0.f, 1.f );
-    m_rmaterial.materialKeyFields.defaultRadiance.format = UI_CopyString( "%.1f" );
+    m_rmaterial.materialKeyFields.defaultRadiance.format = (char *)"%.1f";
     m_rmaterial.materialKeyFields.defaultRadiance.step = 0.1f;
 
     /**
@@ -1350,10 +1351,10 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     // Init menu.
     Menu_Init( &m_rmaterial.menu );
     // Override background color.
-    m_rmaterial.menu.color.u32 = MakeColor( 
-        uis.color.background.u8[ 0 ], 
-        uis.color.background.u8[ 1 ], 
-        uis.color.background.u8[ 2 ], 
+    m_rmaterial.menu.color.u32 = MakeColor(
+        uis.color.background.u8[ 0 ],
+        uis.color.background.u8[ 1 ],
+        uis.color.background.u8[ 2 ],
         (uint32_t)( 255.f * ui_editor_rmaterial_background_alpha->value )
     );
 
