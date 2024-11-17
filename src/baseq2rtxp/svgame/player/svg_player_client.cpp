@@ -2206,7 +2206,7 @@ void ClientThink( edict_t *ent, usercmd_t *ucmd ) {
         } else {
             VectorCopy( pm.playerState->viewangles, client->ps.viewangles );
             VectorCopy( client->ps.viewangles, client->viewMove.viewAngles );
-            QM_AngleVectors( client->viewMove.viewAngles, &client->viewMove.viewForward, nullptr, nullptr );
+            QM_AngleVectors( client->viewMove.viewAngles, &client->viewMove.viewForward, &client->viewMove.viewRight, &client->viewMove.viewUp );
         }
 
         // Finally link the entity back in.

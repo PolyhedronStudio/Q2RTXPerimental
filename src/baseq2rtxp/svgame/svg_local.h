@@ -1243,6 +1243,11 @@ void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, const en
 //
 // g_weapon.c
 //
+/**
+*   @brief  Projects the muzzleflash destination origin, then performs a trace clipping it to any entity/brushes that are in its way.
+*   @return Clipped muzzleflash destination origin.
+**/
+const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right );
 #if 0
 bool fire_hit( edict_t *self, vec3_t aim, int damage, int kick );
 #endif
@@ -1331,7 +1336,7 @@ void SVG_Player_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, ve
 /**
 *   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
 **/
-const Vector3 SVG_Player_ProjectDistance( edict_t *ent, Vector3 &point, Vector3 &distance, Vector3 &forward, Vector3 &right );
+const Vector3 SVG_Player_ProjectDistance( edict_t *ent, const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
 void SVG_Player_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
 void SVG_Player_PlayerNoise( edict_t *who, const vec3_t where, int type );
 
@@ -1686,7 +1691,7 @@ struct gclient_s {
     //! Stores view movement related information.
     struct {
         //! Aiming direction.
-        Vector3 viewAngles, viewForward;
+        Vector3 viewAngles, viewForward, viewRight, viewUp;
 
         // View Movement Timers:
         sg_time_t	damageTime;

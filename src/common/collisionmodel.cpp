@@ -35,7 +35,7 @@ cvar_t       *map_allsolid_bug;
 **/
 void CM_Init() {
     map_noareas = Cvar_Get( "map_noareas", "0", 0 );
-    map_allsolid_bug = Cvar_Get( "map_allsolid_bug", "1", 0 );
+    map_allsolid_bug = Cvar_Get( "map_allsolid_bug", "0", 0 );
 }
 /**
 *   @brief

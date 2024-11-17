@@ -155,6 +155,7 @@ const int32_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const flo
 			if ( better ) {
 				trace.plane = trace.plane2;
 				trace.surface = trace.surface2;
+				trace.material = trace.material2;
 			}
 		}
 		#endif

@@ -111,19 +111,19 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace,
                 enterfrac[ 0 ] = f;
                 clipplane[ 0 ] = plane;
                 leadside[ 0 ] = side;
-#ifdef SECOND_PLANE_TRACE
+            #ifdef SECOND_PLANE_TRACE
             } else if ( f > enterfrac[ 1 ] ) {
                 enterfrac[ 1 ] = f;
                 clipplane[ 1 ] = plane;
                 leadside[ 1 ] = side;
             }
-#else
+            #else
             }
-#endif
-        
+            #endif
+
 
             // KEX
-        } else {
+    } else {
             // leave
             // Paril: from Q3A
             f = min( 1.0f, ( d1 + DIST_EPSILON ) / ( d1 - d2 ) );
@@ -131,7 +131,7 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace,
             if ( f < leavefrac )
                 leavefrac = f;
         }
-    }
+}
 
     if ( !startout ) {
         // original point was inside brush
@@ -155,19 +155,19 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace,
             trace->surface = &( leadside[ 0 ]->texinfo->c );
             trace->contents = static_cast<contents_t>( brush->contents );
             trace->material = trace->surface->material;
-#ifdef SECOND_PLANE_TRACE
+            #ifdef SECOND_PLANE_TRACE
             if ( leadside[ 1 ] ) {
                 trace->plane2 = *clipplane[ 1 ];
                 trace->surface2 = &( leadside[ 1 ]->texinfo->c );
-                trace->material = trace->surface2->material;
+                trace->material2 = trace->surface2->material;
             }
-#else
+            #else
             trace->plane2 = *clipplane[ 0 ];
             trace->surface2 = &( leadside[ 0 ]->texinfo->c );
-            trace->material = trace->surface2->material;
+            trace->material2 = trace->surface->material;
             //trace->plane2 = {};
             //trace->surface2 = nullptr;
-#endif
+            #endif
         }
     }
 }
@@ -207,7 +207,7 @@ static void CM_TestBoxInBrush( const vec3_t p1, trace_t *trace, mbrush_t *brush 
     trace->fraction = 0;
     trace->contents = static_cast<contents_t>( brush->contents );
     //if ( trace->material ) {
-        trace->material = nullptr;
+    trace->material = nullptr;
     //}
 }
 
@@ -446,15 +446,15 @@ void CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
     bool rotated = ( ( headnode != cm->hull_boundingbox->headnode ) &&
         ( headnode != cm->hull_octagonbox->headnode ) &&
         !VectorEmpty( angles )
-    );
+        );
 
     //if ( isOctagonHull ) {
     //    // cylinder offset
     //    VectorSubtract( start, cm->hull_octagonbox->cylinder_offset, start_l );
     //    VectorSubtract( end, cm->hull_octagonbox->cylinder_offset, end_l );
     //} else {
-        VectorCopy( start, start_l );
-        VectorCopy( end, end_l );
+    VectorCopy( start, start_l );
+    VectorCopy( end, end_l );
     //}
 
     // subtract origin offset
@@ -490,13 +490,16 @@ void CM_ClipEntity( cm_t *cm, trace_t *dst, const trace_t *src, struct edict_s *
     dst->startsolid |= src->startsolid;
     if ( src->fraction < dst->fraction ) {
         dst->fraction = src->fraction;
+        dst->ent = ent;
         VectorCopy( src->endpos, dst->endpos );
+
         dst->plane = src->plane;
         dst->surface = src->surface;
+        dst->material = src->material;
+        dst->contents = ( dst->contents | src->contents );
+
         dst->plane2 = src->plane2;
         dst->surface2 = src->surface2;
-        dst->contents = ( dst->contents | src->contents );
-        dst->ent = ent;
-        dst->material = src->material;
+        dst->material2 = src->material2;
     }
 }

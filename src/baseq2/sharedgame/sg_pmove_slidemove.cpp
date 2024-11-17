@@ -195,6 +195,7 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 			if ( better ) {
 				trace.plane = trace.plane2;
 				trace.surface = trace.surface2;
+				trace.material = trace.material2;
 			}
 		}
 #endif

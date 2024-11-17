@@ -373,7 +373,7 @@ void SVG_Player_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, ve
 /**
 *   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
 **/
-const Vector3 SVG_Player_ProjectDistance( edict_t *ent, Vector3 &point, Vector3 &distance, Vector3 &forward, Vector3 &right ) {
+const Vector3 SVG_Player_ProjectDistance( edict_t *ent, const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
     // Adjust distance to handedness.
     Vector3 _distance = distance;
     if ( ent->client->pers.hand == LEFT_HANDED ) {

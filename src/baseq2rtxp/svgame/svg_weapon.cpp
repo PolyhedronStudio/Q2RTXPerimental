@@ -49,7 +49,26 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
     //}
 }
 
+/**
+*   @brief  Projects the muzzleflash destination origin, then performs a trace clipping it to any entity/brushes that are in its way.
+*   @return Clipped muzzleflash destination origin.
+**/
+const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right ) {
+    // Project from source to muzzleflash destination.
+    Vector3 muzzleFlashOrigin = {};
+    muzzleFlashOrigin = SVG_Player_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, forward, right );
 
+    // To stop it accidentally spawning the MZ_PISTOL muzzleflash inside of entities and/or (wall-)brushes,
+    // peform a trace from our origin on to the projected start.
+    trace_t tr = gi.trace( ent->s.origin, NULL, NULL, &muzzleFlashOrigin.x, ent, MASK_SHOT );
+    // We hit something, clip to trace endpos so the muzzleflash will play in our non-solid area:
+    if ( tr.fraction < 1.0 ) {
+        muzzleFlashOrigin = tr.endpos;
+    }
+
+    // Return the final result.
+    return muzzleFlashOrigin;
+}
 /*
 =================
 fire_hit
@@ -360,12 +379,12 @@ void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int ki
         fire_lead( self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
-static const bool SVG_ShouldPlayersCollideProjectile( edict_t *self ) {
-    // In Coop they don't.
-    if ( SG_GetActiveGameModeType() == GAMEMODE_TYPE_COOPERATIVE ) {
-        return false;
-    }
-
-    // Otherwise they do.
-    return true;
-}
+//static const bool SVG_ShouldPlayersCollideProjectile( edict_t *self ) {
+//    // In Coop they don't.
+//    if ( SG_GetActiveGameModeType() == GAMEMODE_TYPE_COOPERATIVE ) {
+//        return false;
+//    }
+//
+//    // Otherwise they do.
+//    return true;
+//}

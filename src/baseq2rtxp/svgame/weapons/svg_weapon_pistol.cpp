@@ -105,17 +105,15 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     // Default kickback force.
     const float kick = 8 + ( additionalKick * recoilAmount );
 
-    // TODO: These are already calculated, right?
-    // Calculate angle vectors.
-    Vector3 forward = {}, right = { };
-    QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
+    // Acquire these for usage.
+    Vector3 forward = ent->client->viewMove.viewForward, right = ent->client->viewMove.viewRight;
     // Determine shot kick offset.
-    VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
+    ent->client->weaponKicks.offsetOrigin = QM_Vector3Scale( forward, -2 );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
-    Vector3 shotOffset = { 0, 10, (float)ent->viewheight - 5.5f };
-    Vector3 start = {};
-    SVG_Player_ProjectDistance( ent, ent->s.origin, &shotOffset.x, &forward.x, &right.x, &start.x );
+    Vector3 shotOffset = { 0.f, 10.f, (float)ent->viewheight - 5.5f };
+    Vector3 shotStart = {};
+    shotStart = SVG_Player_ProjectDistance( ent, ent->s.origin, shotOffset, forward, right );
 
     // Determine spread value determined by weaponState.
     // Make sure we're not in aiming mode.
@@ -125,20 +123,25 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     //}
 
     // Fire the actual bullet itself.
-    fire_bullet( ent, &start.x, &forward.x, damage, kick, bulletHSpread, bulletVSpread, MEANS_OF_DEATH_HIT_PISTOL );
+    fire_bullet( ent, 
+        &shotStart.x, &forward.x, damage, kick, 
+        bulletHSpread, bulletVSpread, 
+        MEANS_OF_DEATH_HIT_PISTOL
+    );
 
-    // Project from source to muzzleflash destination.
+    // Project muzzleflash destination from source to source+offset, and clip it to any obstacles.
     Vector3 muzzleFlashOffset = { 16.f, 10.f, (float)ent->viewheight };
-    SVG_Player_ProjectDistance( ent, ent->s.origin, &muzzleFlashOffset.x, &forward.x, &right.x, &start.x );
+    //SVG_Player_ProjectDistance( ent, ent->s.origin, &muzzleFlashOffset.x, &forward.x, &right.x, &start.x );
+    Vector3 muzzleFlashOrigin = SVG_MuzzleFlash_ProjectAndTraceToPoint( ent, muzzleFlashOffset, forward, right );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
     gi.WriteInt16( ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
-    gi.multicast( &start.x/*ent->s.origin*/, MULTICAST_PVS, false );
+    gi.multicast( &muzzleFlashOrigin.x/*ent->s.origin*/, MULTICAST_PVS, false );
 
     // Notify we're making noise.
-    SVG_Player_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
+    SVG_Player_PlayerNoise( ent, &muzzleFlashOrigin.x, PNOISE_WEAPON );
 
     // Decrease clip ammo.
     //if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
@@ -149,20 +152,18 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
 *   @brief  Supplements the Secondary Firing routine by actually performing a more precise 'single bullet' shot.
 **/
 void weapon_pistol_aim_fire( edict_t *ent ) {
-    Vector3      start;
-    Vector3      forward, right;
-    int         damage = 14;
-    int         kick = 10;
+    constexpr int32_t shotDamage = 14;
+    constexpr int32_t recoilKick = 10;
 
-    // TODO: These are already calculated, right?
-    // Calculate angle vectors.
-    QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
+    // Acquire these for usage.
+    Vector3 forward = ent->client->viewMove.viewForward, right = ent->client->viewMove.viewRight;
     // Determine shot kick offset.
-    VectorScale( forward, -2, ent->client->weaponKicks.offsetOrigin );
+    ent->client->weaponKicks.offsetOrigin = QM_Vector3Scale( forward, -2 );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
-    vec3_t shotOffset = { 0, 0, (float)ent->viewheight };
-    SVG_Player_ProjectSource( ent, ent->s.origin, shotOffset, &forward.x, &right.x, &start.x );
+    Vector3 shotOffset = { 0.f, 0.f, (float)ent->viewheight };
+    Vector3 shotStart = {};
+    shotStart = SVG_Player_ProjectDistance( ent, ent->s.origin, shotOffset, forward, right );
 
     // Determine the amount to multiply bullet spread with based on the player's velocity.
     // TODO: Use stats array or so for storing the actual move speed limit, since this
@@ -170,25 +171,31 @@ void weapon_pistol_aim_fire( edict_t *ent ) {
     constexpr float moveThreshold = 300.0f;
     // Don't spread multiply if we're pretty much standing still. This allows for a precise shot.
     const float hSpreadMultiplier = ( ent->client->ps.xyzSpeed > 5 ? moveThreshold * ent->client->ps.bobMove : 0 );
-    float vSpreadMultiplier = ( ent->client->ps.xyzSpeed > 5 ? moveThreshold * ent->client->ps.bobMove : 0 );
+    const float vSpreadMultiplier = ( ent->client->ps.xyzSpeed > 5 ? moveThreshold * ent->client->ps.bobMove : 0 );
     //gi.dprintf( " ----- ----- ----- \n" );
     //gi.dprintf( "%s: hSpreadMultiplier(%f) vSpreadMultiplier(%f)\n", __func__, hSpreadMultiplier, vSpreadMultiplier );
 
     // Fire the actual bullet itself.
-    fire_bullet( ent, &start.x, &forward.x, damage, kick, SECONDARY_FIRE_BULLET_HSPREAD + hSpreadMultiplier, SECONDARY_FIRE_BULLET_VSPREAD + vSpreadMultiplier, MEANS_OF_DEATH_HIT_PISTOL );
+    fire_bullet( ent, 
+        &shotStart.x, &forward.x, shotDamage, recoilKick, 
+        SECONDARY_FIRE_BULLET_HSPREAD + hSpreadMultiplier, 
+        SECONDARY_FIRE_BULLET_VSPREAD + vSpreadMultiplier, 
+        MEANS_OF_DEATH_HIT_PISTOL 
+    );
 
-    // Project from source to muzzleflash destination.
+    // Project muzzleflash destination from source to source+offset, and clip it to any obstacles.
     vec3_t muzzleFlashOffset = { 16, 0, (float)ent->viewheight };
-    SVG_Player_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, &forward.x, &right.x, &start.x ); //SVG_Player_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    //SVG_Player_ProjectDistance( ent, ent->s.origin, &muzzleFlashOffset.x, &forward.x, &right.x, &start.x );
+    Vector3 muzzleFlashOrigin = SVG_MuzzleFlash_ProjectAndTraceToPoint( ent, muzzleFlashOffset, forward, right );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
     gi.WriteInt16( ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
-    gi.multicast( &start.x, MULTICAST_PVS, false );
+    gi.multicast( &muzzleFlashOrigin.x, MULTICAST_PVS, false );
 
     // Notify we're making noise.
-    SVG_Player_PlayerNoise( ent, &start.x, PNOISE_WEAPON );
+    SVG_Player_PlayerNoise( ent, &muzzleFlashOrigin.x, PNOISE_WEAPON );
 
     // Decrease clip ammo.
     //if ( !( (int)dmflags->value & DF_INFINITE_AMMO ) )
@@ -418,7 +425,8 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
 
     // If IDLE or NOT ANIMATING, or PRIMARY_FIRING, process user input.
     if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE
-        || ent->client->weaponState.mode == WEAPON_MODE_PRIMARY_FIRING 
+        || ent->client->weaponState.mode == WEAPON_MODE_PRIMARY_FIRING
+        || ent->client->weaponState.mode == WEAPON_MODE_SECONDARY_FIRING
         || isDoneAnimating 
         || processUserInputOnly == true ) {
             // Respond to user input, which determines whether 
@@ -435,7 +443,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
             // any earlier/double firing.
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 3 ) {
                 // Wait out until enough time has passed.
-                if ( ent->client->weaponState.timers.lastAimedFire <= ( level.time + 325_ms ) ) {
+                if ( ent->client->weaponState.timers.lastAimedFire <= ( level.time - 325_ms ) ) {
                     // Fire the pistol bullet.
                     weapon_pistol_aim_fire( ent );
                     // Store the time we last 'primary fired'.
@@ -446,7 +454,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_OUT ) {
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
             // any earlier/double firing.
-            if ( ent->client->weaponState.animation.endTime == level.time ) {
+            if ( level.time >= ent->client->weaponState.animation.endTime ) {
                 // Disengage aiming state.
                 ent->client->weaponState.aimState = {};
             }
@@ -477,7 +485,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
             }
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN ) {
             // Set the isAiming state value for aiming specific behavior to true right at the end of its animation.
-            if ( ent->client->weaponState.animation.endTime == level.time ) {
+            if ( level.time >= ent->client->weaponState.animation.endTime ) {
                 //! Engage aiming mode.
                 ent->client->weaponState.aimState.isAiming = true;
                 //! Maintain end frame.
@@ -491,7 +499,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
             }
             // Stop audio and actually reload the clip stats at the end of the animation sequence.
             //if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame - 1 ) {
-            if ( ent->client->weaponState.animation.endTime == level.time ) {
+            if ( level.time == ent->client->weaponState.animation.endTime ) {
                 ent->client->weaponState.activeSound = 0;
                 weapon_pistol_reload_clip( ent );
             }
@@ -503,7 +511,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
                 ent->client->weaponState.timers.lastDrawn = level.time;
             }
             // Enough time has passed, shutdown the sound.
-            else if ( ent->client->weaponState.timers.lastDrawn <= level.time - 250_ms ) {
+            else if ( ent->client->weaponState.timers.lastDrawn <= ( level.time - 250_ms ) ) {
                 ent->client->weaponState.activeSound = 0;
             }
         // Holster Weapon:
@@ -514,7 +522,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
                 ent->client->weaponState.timers.lastHolster = level.time;
             }
             // Enough time has passed, shutdown the sound.
-            else if ( ent->client->weaponState.timers.lastHolster <= level.time - 250_ms ) {
+            else if ( ent->client->weaponState.timers.lastHolster <= ( level.time - 250_ms ) ) {
                 ent->client->weaponState.activeSound = 0;
             }
         }

@@ -182,4 +182,5 @@ typedef struct trace_s {
     // [Paril-KEX] the second-best surface hit from a trace
     cplane_t	plane2;		// second surface normal at impact
     csurface_t *surface2;	// second surface hit
+    struct cm_material_s *material2; // second surface collision model material pointer.
 } trace_t;
