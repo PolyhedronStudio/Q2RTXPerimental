@@ -20,8 +20,21 @@
 *   Fists 'Weapon' Item Info.
 **/
 weapon_item_info_t fistsItemInfo = {
-    // These are dynamically loaded from the IQM model data.
-    .modeAnimations/*[ WEAPON_MODE_MAX ]*/ = { },
+    // These are dynamically loaded from the SKM(IQM) model data.
+    // COULD be set by hand... if you want to. lol.
+    .modeAnimations/*[ WEAPON_MODE_MAX ]*/ = {
+        {.skmAnimationName = "idle" },          // WEAPON_MODE_IDLE
+        {.skmAnimationName = "draw" },          // WEAPON_MODE_DRAWING
+        {.skmAnimationName = "holster" },       // WEAPON_MODE_HOLSTERING
+        {.skmAnimationName = "primary_fire" },  // WEAPON_MODE_PRIMARY_FIRING
+        {.skmAnimationName = "secondary_fire" },// [UNUSED] WEAPON_MODE_SECONDARY_FIRING
+        {.skmAnimationName = "" },              // [UNUSED] WEAPON_MODE_RELOADING
+        {.skmAnimationName = "" },              // [UNUSED] WEAPON_MODE_AIM_IN
+        {.skmAnimationName = "" },              // [UNUSED] WEAPON_MODE_AIM_FIRE
+        {.skmAnimationName = "" },              // [UNUSED] WEAPON_MODE_AIM_IDLE
+        {.skmAnimationName = "" },              // [UNUSED] WEAPON_MODE_AIM_OUT
+        //{ nullptr },  // WEAPON_MODE_MAX
+    },
 
     // TODO: Move quantity etc from gitem_t into this struct.
 };
@@ -30,40 +43,8 @@ weapon_item_info_t fistsItemInfo = {
 *   @brief  Precache animation information.
 **/
 void Weapon_Fists_Precached( const gitem_t *item ) {
-    // Get the model we want the animation data from.
-    const model_t *viewModel = gi.GetModelDataForName( item->view_model );
-    if ( !viewModel ) {
-        gi.dprintf( "%s: No viewmodel found. Failed to precache '%s' weapon animation data for item->view_model(%s)\n", __func__, item->classname, item->view_model );
-        return;
-    }
-    // Validate the IQM data.
-    if ( !viewModel->skmData ) {
-        gi.dprintf( "%s: No SKM Data found. Failed to precache '%s' weapon animation data for item->view_model(%s)\n", __func__, item->classname, item->view_model );
-        return;
-    }
-
-    // We can safely operate now.
-    const skm_model_t *skmData = viewModel->skmData;
-    // Iterate animations.
-    for ( int32_t animID = 0; animID < skmData->num_animations; animID++ ) {
-        // IQM animation.
-        const skm_anim_t *skmAnim = &skmData->animations[ animID ];
-
-        // idle.
-        if ( !strcmp( skmAnim->name, "idle" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_IDLE, animID );
-        } else if ( !strcmp( skmAnim->name, "draw" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_DRAWING, animID );
-        } else if ( !strcmp( skmAnim->name, "holster" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_HOLSTERING, animID );
-        } else if ( !strcmp( skmAnim->name, "primary_fire" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_PRIMARY_FIRING, animID );
-        } else if ( !strcmp( skmAnim->name, "secondary_fire" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &fistsItemInfo, skmAnim, WEAPON_MODE_SECONDARY_FIRING, animID );
-        } else {
-            continue;
-        }
-    }
+    // Precache the view model animation data for each weapon mode described in our fistsItemInfo struct.
+    SVG_Player_Weapon_PrecacheItemInfo( &fistsItemInfo, item->classname, item->view_model );
 }
 
 
@@ -149,10 +130,10 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
 *   @brief  Processes responses to the user input.
 **/
 static void Weapon_Fists_ProcessUserInput( edict_t *ent ) {
-    if ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) {
+    if ( ent->client->userInput.pressedButtons & BUTTON_PRIMARY_FIRE ) {
         SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, fistsItemInfo.modeAnimations, false );
         return;
-    } else if ( ent->client->latched_buttons & BUTTON_SECONDARY_FIRE ) {
+    } else if ( ent->client->userInput.pressedButtons & BUTTON_SECONDARY_FIRE ) {
         SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_SECONDARY_FIRING, fistsItemInfo.modeAnimations, false );
         return;
     }

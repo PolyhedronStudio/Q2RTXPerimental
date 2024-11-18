@@ -388,6 +388,8 @@ typedef enum {
     WEAPON_MODE_AIM_IN,
     //! The weapon is 'firing' in 'Aimed' mode.
     WEAPON_MODE_AIM_FIRE,
+    //! The weapon is idle and 'aimed' to the center of screen.
+    WEAPON_MODE_AIM_IDLE,
     //! The weapon is 'aiming out' to the center of screen.
     WEAPON_MODE_AIM_OUT,
 
@@ -399,6 +401,8 @@ typedef enum {
 *   @brief  Used for constructing a weapon's 'mode' animation setup.
 **/
 typedef struct weapon_mode_animation_s {
+    //! The animation name to search and precache data from the viewmodel.
+    const char *skmAnimationName;
     //! IQM Model Animation Index.
     int32_t modelAnimationID;
     //! Objective start frame index.
@@ -414,8 +418,9 @@ typedef struct weapon_mode_animation_s {
 *           weapon's properties.
 **/
 typedef struct weapon_item_info_s {
-    //! Mode frames.
+    //! Weapon Mode (ViewModel-)Animations.
     weapon_mode_animation_t modeAnimations[ WEAPON_MODE_MAX ];
+    //! 
     //! TODO: Other info.
 } weapon_item_info_t;
 
@@ -1343,7 +1348,13 @@ void SVG_Player_PlayerNoise( edict_t *who, const vec3_t where, int type );
 /**
 *   @brief  Acts as a sub method for cleaner code, used by weapon item animation data precaching.
 **/
-void SVG_Player_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const skm_anim_t *iqmAnim, const int32_t modeID, const int32_t iqmAnimationID );
+void SVG_Player_Weapon_SetModeAnimationFromSKM( weapon_item_info_t *itemInfo, const skm_anim_t *iqmAnim, const int32_t modeID, const int32_t iqmAnimationID );
+/**
+*   @brief  Will iterate the model animations, assigning animationIDs for the matching queried weapon mode its animation names.
+*   @note   modeAnimations and modeAnimationNames are expected to be of size WEAPON_MODE_MAX!!
+*   @return True if all animation names were matched and precached with the SKM data.
+**/
+const bool SVG_Player_Weapon_PrecacheItemInfo( weapon_item_info_t *weaponItemInfo, const std::string &weaponName, const std::string &weaponViewModel );
 /**
 *   @brief
 **/
@@ -1545,8 +1556,8 @@ struct gclient_s {
     int32_t         buttons;
     int32_t         oldbuttons;
     int32_t         latched_buttons;
-    struct {
-        //! Current usercmd buttons.
+    struct userinput_s {
+        //! Current frame usercmd buttons.
         int32_t     buttons;
         //! Last frame buttons.
         int32_t     lastButtons;
@@ -1562,7 +1573,7 @@ struct gclient_s {
 	/**
 	*	Weapon Related:
 	**/
-	// Actual current weapon ammo type, inventory index.
+	// 'Inventory Index' for the actual CURRENT weapon's ammo type.
     int32_t	ammo_index;
 
 	// Set when we want to switch weapons.

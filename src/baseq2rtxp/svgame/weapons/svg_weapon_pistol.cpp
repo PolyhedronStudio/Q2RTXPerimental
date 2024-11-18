@@ -8,6 +8,9 @@
 #include "svgame/svg_local.h"
 
 
+//! Enable to have the pistol auto reload when an empty clip occures while engaged in target aiming fire mode.
+//#define WEAPON_PISTOL_ENABLE_RELOAD_ON_AIMFIRE_EMPTY_CLIP
+
 
 /**
 *
@@ -30,8 +33,21 @@ static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
 *   Pistol 'Weapon' Item Info.
 **/
 weapon_item_info_t pistolItemInfo = {
-    // These are dynamically loaded from the IQM model data.
-    .modeAnimations/*[ WEAPON_MODE_MAX ]*/ = { },
+    // These are dynamically loaded from the SKM(IQM) model data.
+    // COULD be set by hand... if you want to. lol.
+    .modeAnimations/*[ WEAPON_MODE_MAX ]*/ = {
+        { .skmAnimationName = "idle" },     // WEAPON_MODE_IDLE
+        { .skmAnimationName = "draw" },     // WEAPON_MODE_DRAWING
+        { .skmAnimationName = "holster" },  // WEAPON_MODE_HOLSTERING
+        { .skmAnimationName = "fire" },     // WEAPON_MODE_PRIMARY_FIRING
+        { .skmAnimationName = "" },         // [UNUSED] WEAPON_MODE_SECONDARY_FIRING
+        { .skmAnimationName = "reload" },   // WEAPON_MODE_RELOADING
+        { .skmAnimationName = "aim_in" },   // WEAPON_MODE_AIM_IN
+        { .skmAnimationName = "aim_fire" }, // WEAPON_MODE_AIM_FIRE
+        { .skmAnimationName = "aim_idle" }, // WEAPON_MODE_AIM_IDLE
+        { .skmAnimationName = "aim_out" },  // WEAPON_MODE_AIM_OUT
+        //{ nullptr },  // WEAPON_MODE_MAX
+    },
 
     // TODO: Move quantity etc from gitem_t into this struct.
 };
@@ -40,45 +56,8 @@ weapon_item_info_t pistolItemInfo = {
 *   @brief  Precache animation information.
 **/
 void Weapon_Pistol_Precached( const gitem_t *item ) {
-    // Get the model we want the animation data from.
-    const model_t *viewModel = gi.GetModelDataForName( item->view_model );
-    if ( !viewModel ) {
-        gi.dprintf( "%s: No viewmodel found. Failed to precache '%s' weapon animation data for item->view_model(%s)\n", __func__, item->classname, item->view_model );
-        return;
-    }
-    // Validate the IQM data.
-    if ( !viewModel->skmData ) {
-        gi.dprintf( "%s: No IQMData found. Failed to precache '%s' weapon animation data for item->view_model(%s)\n", __func__, item->classname, item->view_model );
-        return;
-    }
-
-    // We can safely operate now.
-    const skm_model_t *skmData = viewModel->skmData;
-    // Iterate animations.
-    for ( int32_t animID = 0; animID < skmData->num_animations; animID++ ) {
-        // IQM animation.
-        const skm_anim_t *skmAnim = &skmData->animations[ animID ];
-
-        if ( !strcmp( skmAnim->name, "idle" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_IDLE, animID );
-        } else if ( !strcmp( skmAnim->name, "draw" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_DRAWING, animID );
-        } else if ( !strcmp( skmAnim->name, "holster" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_HOLSTERING, animID );
-        } else if ( !strcmp( skmAnim->name, "fire" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_PRIMARY_FIRING, animID );
-        } else if ( !strcmp( skmAnim->name, "reload" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_RELOADING, animID );
-        } else if ( !strcmp( skmAnim->name, "aim_in" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_IN, animID );
-        } else if ( !strcmp( skmAnim->name, "aim_fire" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_FIRE, animID );
-        } else if ( !strcmp( skmAnim->name, "aim_out" ) ) {
-            SVG_Player_Weapon_ModeAnimationFromSKM( &pistolItemInfo, skmAnim, WEAPON_MODE_AIM_OUT, animID );
-        } else {
-            continue;
-        }
-    }
+    // Precache the view model animation data for each weapon mode described in our pistolItemInfo struct.
+    SVG_Player_Weapon_PrecacheItemInfo( &pistolItemInfo, item->classname, item->view_model );
 }
 
 
@@ -97,13 +76,13 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     // Get weapon state.
     gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
     // Default damage value.
-    static constexpr int32_t damage = 10;
+    static constexpr int32_t shotDamage = 10;
     // Additional recoil kick force strength.
     static constexpr float additionalKick = 2;
     // Get recoil amount.
     const float recoilAmount = weaponState->recoil.amount;
     // Default kickback force.
-    const float kick = 8 + ( additionalKick * recoilAmount );
+    const float shotKick = 8 + ( additionalKick * recoilAmount );
 
     // Acquire these for usage.
     Vector3 forward = ent->client->viewMove.viewForward, right = ent->client->viewMove.viewRight;
@@ -124,7 +103,7 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
 
     // Fire the actual bullet itself.
     fire_bullet( ent, 
-        &shotStart.x, &forward.x, damage, kick, 
+        &shotStart.x, &forward.x, shotDamage, shotKick,
         bulletHSpread, bulletVSpread, 
         MEANS_OF_DEATH_HIT_PISTOL
     );
@@ -261,87 +240,87 @@ static void Weapon_Pistol_AddRecoil( gclient_t::weapon_state_s *weaponState, con
 static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
     // Acquire weapon state.
     gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
+    // Acquire user button input states.
+    gclient_t::userinput_s &userInput = ent->client->userInput;
 
     /**
-    *   isAiming Behavior Path:
+    *   AIMING Path: We're AIMING, if the current MODE(and animation) >= WEAPON_MODE_AIM_IN
     **/
-    if ( weaponState->aimState.isAiming == true ) {
-        /**
-        *   Letting go of 'Secondary Fire': "Aim Out" of isAiming Mode:
-        **/
-        if ( !( ent->client->buttons & BUTTON_SECONDARY_FIRE )
-                && ent->client->weaponState.mode != WEAPON_MODE_AIM_OUT ) {
-            // Switch to aim out mode.
-            SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeAnimations, false );
-            // Restore the original FOV.
-            SVG_Player_ResetPlayerStateFOV( ent->client );
-            //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_OUT )\n", __func__ );
-        /**
-        *   Firing 'Primary Fire' of isAiming Mode:
-        **/
-        } else if ( ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) ) {
-            // Switch to Firing mode if we have Clip Ammo:
-            if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
-                //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
-                SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_FIRE, pistolItemInfo.modeAnimations, false );
-            // Attempt to reload otherwise:
-            } else {
-                // We need to have enough ammo left to reload with.
-                if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
+    if ( ent->client->weaponState.mode >= WEAPON_MODE_AIM_IN ) {
+        // If we're still aiming, but IDLE, respond to key presses again:
+        if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IDLE ) {
+            // Engage into aiming out mode in case the SECONDARY_FIRE button isn't HELD anymore.
+            if ( !( ent->client->userInput.heldButtons & BUTTON_SECONDARY_FIRE ) ) {
+                // Switch to aim out mode.
+                SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeAnimations, false );
+                // Revert POV.
+                SVG_Player_ResetPlayerStateFOV( ent->client );
+                // Exit.
+                return;
+            }
+
+            // Attempt to fire:
+            if ( ( ent->client->userInput.pressedButtons & BUTTON_PRIMARY_FIRE ) ) {
+                // Switch to Firing mode if we have Clip Ammo:
+                if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] > 0 ) {
+                    gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
+                    SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_FIRE, pistolItemInfo.modeAnimations, false );
+                    // No ammo audio.
+                } else {
                     // When enabled, will move out of isAiming mode, reset FOV, and perform a reload, upon
                     // which if secondary fire is still pressed, it'll return to aiming in.
-                    #if 0
-                    //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_RELOADING )\n", __func__ );
-                    // Exit isAiming mode.
-                    weaponState->aimState.isAiming = false;
-                    // Restore the original FOV.
-                    SVG_Player_ResetPlayerStateFOV( ent->client );
-                    // Screen should be lerping back to FOV, engage into reload mode.
-                    SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
+                    #ifdef WEAPON_PISTOL_ENABLE_RELOAD_ON_AIMFIRE_EMPTY_CLIP
+                    // We need to have enough ammo left to reload with.
+                    if ( ent->client->pers.inventory[ ent->client->ammo_index ] > 0 ) {
+                        //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_RELOADING )\n", __func__ );
+                        // Exit isAiming mode.
+                        weaponState->aimState.isAiming = false;
+                        // Restore the original FOV.
+                        SVG_Player_ResetPlayerStateFOV( ent->client );
+                        // Screen should be lerping back to FOV, engage into reload mode.
+                        SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
+                    } else {
+                        // Play out of ammo click sound.
+                        weapon_pistol_no_ammo( ent );
+                    }
                     #else
                     // Play out of ammo click sound.
                     weapon_pistol_no_ammo( ent );
                     #endif
-                } else {
-                    // Play out of ammo click sound.
-                    weapon_pistol_no_ammo( ent );
                 }
             }
         }
     /**
-    *   Regular Behavior Path:
+    *   REGULAR Path: We're NOT aiming, the current MODE(and animation) <= WEAPON_MODE_RELOADING
     **/
     } else {
         /**
-        *   Pressing 'Secondary Fire': "Aim In" to engage for 'isAiming' Mode:
+        *   Secondary Fire Button Implementation: "Aim In" to engage for 'isAiming' Mode:
         **/
-        if ( ( ent->client->buttons & BUTTON_SECONDARY_FIRE ) && ent->client->weaponState.mode != WEAPON_MODE_AIM_IN ) {
-            if ( ent->client->weaponState.aimState.isAiming == false ) {
+        if ( ( ( ent->client->userInput.pressedButtons & BUTTON_SECONDARY_FIRE )
+            || ( ent->client->userInput.heldButtons & BUTTON_SECONDARY_FIRE ) ) //( ent->client->buttons & BUTTON_SECONDARY_FIRE ) 
+            && ent->client->weaponState.mode <= WEAPON_MODE_RELOADING ) {
                 //gi.dprintf( "%s: NOT isAiming -> SwitchMode( WEAPON_MODE_AIM_IN )\n", __func__ );
                 SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeAnimations, false );
-                ent->client->ps.fov = 45;
-            }
-
-            return;
-
         /**
         *   @brief  Primary Fire Button Implementation:
         **/
-        } else if ( ( ent->client->latched_buttons & BUTTON_PRIMARY_FIRE ) /*&& ( ent->client->buttons & BUTTON_ATTACK )*/ ) {
+        } else if ( ( ent->client->userInput.pressedButtons & BUTTON_PRIMARY_FIRE ) /*&& ( ent->client->buttons & BUTTON_ATTACK )*/ ) {
             // Switch to Firing mode if we have Clip Ammo:
-            if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] ) {
+            if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] > 0 ) {
                 // Allow for rapidly firing, causing an increase in recoil.
                 const sg_time_t &timeLastPrimaryFire = weaponState->timers.lastPrimaryFire;
-
+                // Actual recoil time so far.
                 sg_time_t recoilTime = level.time - timeLastPrimaryFire;
+
                 // When a shot is fired right after 75_ms(first 3 frames of the weapon.)
-                sg_time_t timeRecoilStageA = 75_ms;
+                constexpr sg_time_t timeRecoilStageA = 75_ms;
                 // When a shot is fired right after 150_ms.(after first 3 frames, up to the 6th frame.)
-                sg_time_t timeRecoilStageB = 150_ms;
-                // When a shot is fired right after 150_ms.(after first 3 frames, up to the 6th frame.)
-                sg_time_t timeRecoilStageC = 225_ms;
-                // When a shot is fired right after 150_ms.(350_ms is the last frame of firing.)
-                sg_time_t timeRecoilStageCap = 350_ms;
+                constexpr sg_time_t timeRecoilStageB = 150_ms;
+                // When a shot is fired right after 300_ms.(after first 6 frames, up to the 9th frame.)
+                constexpr sg_time_t timeRecoilStageC = 225_ms;
+                // When a shot is fired right after 350_ms.(350_ms is the last frame of firing.)
+                constexpr sg_time_t timeRecoilStageCap = 350_ms;
 
                 // Fire for stage A:
                 if ( recoilTime < timeRecoilStageA ) {
@@ -396,12 +375,10 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                 }
             }
             return;
-        }
-
         /**
         *   Reload Button Implementation:
         **/
-        if ( ent->client->latched_buttons & BUTTON_RELOAD ) {
+        } else if ( ent->client->userInput.pressedButtons & BUTTON_RELOAD ) {//ent->client->latched_buttons & BUTTON_RELOAD ) {
             // Reset recoil.
             ent->client->weaponState.recoil = {};
 
@@ -417,28 +394,51 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
     }
 }
 /**
-*   @brief  Pistol Weapon 'State Machine'.
+*   @brief  Pistol Weapon Think function acting as a 'State Machine'.
+*           If a weapon mode requests user input, the mode is done animating, or
+*           the mode in specific allows user input, proceed to processing that first.
+* 
+*           The mode acting itself is dealt with by this function.
 **/
 void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
     // Process the animation frames of the mode we're in.
     const bool isDoneAnimating = SVG_Player_Weapon_ProcessModeAnimation( ent, &pistolItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
 
-    // If IDLE or NOT ANIMATING, or PRIMARY_FIRING, process user input.
+    // Process User Input ONLY If:
+    // Weapon mode is IDLE:
     if ( ent->client->weaponState.mode == WEAPON_MODE_IDLE
+        // For firing when precision aiming:
+        || ent->client->weaponState.mode == WEAPON_MODE_AIM_IDLE
+        // For rapidly performing primary firing:
         || ent->client->weaponState.mode == WEAPON_MODE_PRIMARY_FIRING
-        || ent->client->weaponState.mode == WEAPON_MODE_SECONDARY_FIRING
-        || isDoneAnimating 
+        // Done Animating:
+        || isDoneAnimating
+        // Function was called to deal with userinput specifically for this frame.
         || processUserInputOnly == true ) {
             // Respond to user input, which determines whether 
             Weapon_Pistol_ProcessUserInput( ent );
     }
 
     /**
-    *   isAiming Behavior Path:
+    *   AIMING Path: We're AIMING, if the current MODE(and animation) >= WEAPON_MODE_AIM_IN
     **/
-    if ( ent->client->weaponState.aimState.isAiming == true ) {
+    if ( ent->client->weaponState.mode >= WEAPON_MODE_AIM_IN ) {
+        if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN ) {
+            // Adjust the POV.
+            if ( ent->client->weaponState.animation.currentFrame >= ent->client->weaponState.animation.startFrame ) {
+                ent->client->ps.fov = 45;
+            }
+
+            // Set the isAiming state value for aiming specific behavior to true right at the end of its animation.
+            if ( level.time >= ent->client->weaponState.animation.endTime ) {
+                // Switch to AIM Idle.
+                SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IDLE, pistolItemInfo.modeAnimations, false );
+            }
+        // isAiming -> Idle:
+        } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IDLE ) {
+        
         // isAiming -> Fire:
-        if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_FIRE ) {
+        } if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_FIRE ) {
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
             // any earlier/double firing.
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 3 ) {
@@ -446,21 +446,31 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
                 if ( ent->client->weaponState.timers.lastAimedFire <= ( level.time - 325_ms ) ) {
                     // Fire the pistol bullet.
                     weapon_pistol_aim_fire( ent );
-                    // Store the time we last 'primary fired'.
+                    // Store the time we last 'aim fired'.
                     ent->client->weaponState.timers.lastAimedFire = level.time;
                 }
+            } else if ( ent->client->weaponState.animation.endTime == level.time ) {
+                // Back to idle.
+                SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IDLE, pistolItemInfo.modeAnimations, false );
             }
         // isAiming -> "Aim Out":
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_OUT ) {
+            // Restore the original FOV.
+            SVG_Player_ResetPlayerStateFOV( ent->client );
+
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
             // any earlier/double firing.
             if ( level.time >= ent->client->weaponState.animation.endTime ) {
                 // Disengage aiming state.
                 ent->client->weaponState.aimState = {};
+                // Back to idle.
+                SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_IDLE, pistolItemInfo.modeAnimations, false );
             }
         }
+    /**
+    *   REGULAR Path: We're NOT aiming, the current MODE(and animation) <= WEAPON_MODE_RELOADING
+    **/
     } else {
-        // Process logic for state specific modes and their frames.
         // Primary Fire:
         if ( ent->client->weaponState.mode == WEAPON_MODE_PRIMARY_FIRING ) {
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
@@ -481,15 +491,9 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
                 if ( ent->client->weaponState.animation.endTime <= level.time ) {
                     ent->client->weaponState.recoil.accumulatedTime = sg_time_t::from_ms( 0 );
                     ent->client->weaponState.recoil.amount = 0.f;
+                    // Switch to AIM Idle.
+                    SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_IDLE, pistolItemInfo.modeAnimations, false );
                 }
-            }
-        } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN ) {
-            // Set the isAiming state value for aiming specific behavior to true right at the end of its animation.
-            if ( level.time >= ent->client->weaponState.animation.endTime ) {
-                //! Engage aiming mode.
-                ent->client->weaponState.aimState.isAiming = true;
-                //! Maintain end frame.
-                ent->client->weaponState.animation.currentFrame = ent->client->weaponState.animation.endFrame;
             }
         // Reload Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_RELOADING ) {
@@ -498,10 +502,13 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
                 ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/reload.wav" );
             }
             // Stop audio and actually reload the clip stats at the end of the animation sequence.
-            //if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.endFrame - 1 ) {
-            if ( level.time == ent->client->weaponState.animation.endTime ) {
+            else if ( level.time == ent->client->weaponState.animation.endTime ) {
+                // Stop sound.
                 ent->client->weaponState.activeSound = 0;
+                // Switch to idle.
                 weapon_pistol_reload_clip( ent );
+                // Switch to idle.
+                SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_IDLE, pistolItemInfo.modeAnimations, false );
             }
         // Draw Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_DRAWING ) {
@@ -510,9 +517,12 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
                 ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/draw.wav" );
                 ent->client->weaponState.timers.lastDrawn = level.time;
             }
-            // Enough time has passed, shutdown the sound.
+            // Enough time has passed, shutdown the sound, switch to idle state.
             else if ( ent->client->weaponState.timers.lastDrawn <= ( level.time - 250_ms ) ) {
+                // Stop sound.
                 ent->client->weaponState.activeSound = 0;
+                // Switch to idle.
+                SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_IDLE, pistolItemInfo.modeAnimations, false );
             }
         // Holster Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING ) {

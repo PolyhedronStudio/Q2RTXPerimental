@@ -290,28 +290,32 @@ void SVG_Player_Weapon_Use( edict_t *ent, const gitem_t *item ) {
     }
 
     // See if the weapon we're going to use has any ammo in its clip.
-    bool hasClipAmmo = false;
-    if ( ent->client->pers.weapon ) {
-        if ( ent->client->pers.weapon->weapon_index ) {
-            if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] >= 1 ) {
-                hasClipAmmo = true;
-            }
-        }
-    }
+    //bool hasClipAmmo = false;
+    //if ( ent->client->pers.weapon ) {
+    //    if ( ent->client->pers.weapon->weapon_index ) {
+    //        if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] >= 1 ) {
+    //            hasClipAmmo = true;
+    //        }
+    //    }
+    //}
 
     if ( item->ammo && !g_select_empty->value && !( item->flags & ITEM_FLAG_AMMO ) ) {
         ammo_item = FindItem( item->ammo );
         ammo_index = ITEM_INDEX( ammo_item );
 
-        if ( !hasClipAmmo && !ent->client->pers.inventory[ ammo_index ] ) {
+        if ( ent->client->pers.weapon_clip_ammo[ ammo_index] && ent->client->pers.inventory[ent->client->ammo_index] <= 0 ) {
             gi.cprintf( ent, PRINT_HIGH, "No %s for %s.\n", ammo_item->pickup_name, item->pickup_name );
             return;
         }
+            //if ( !hasClipAmmo && !ent->client->pers.inventory[ ammo_index ] ) {
+        //    gi.cprintf( ent, PRINT_HIGH, "No %s for %s.\n", ammo_item->pickup_name, item->pickup_name );
+        //    return;
+        //}
 
-        if ( !hasClipAmmo && ent->client->pers.inventory[ ammo_index ] < item->quantity ) {
-            gi.cprintf( ent, PRINT_HIGH, "Not enough %s for %s.\n", ammo_item->pickup_name, item->pickup_name );
-            return;
-        }
+        //if ( !hasClipAmmo && ent->client->pers.inventory[ ammo_index ] < item->quantity ) {
+        //    gi.cprintf( ent, PRINT_HIGH, "Not enough %s for %s.\n", ammo_item->pickup_name, item->pickup_name );
+        //    return;
+        //}
     }
 
     // Weapons require the info pointer to be set to their specific description struct.
@@ -436,10 +440,20 @@ void SVG_Player_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3
 /**
 *   @brief  Acts as a sub method for cleaner code, used by weapon item animation data precaching.
 **/
-void SVG_Player_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const skm_anim_t *skmAnim, const int32_t modeID, const int32_t skmAnimationID ) {
+void SVG_Player_Weapon_SetModeAnimationFromSKM( weapon_item_info_t *itemInfo, const skm_anim_t *skmAnim, const int32_t modeID, const int32_t skmAnimationID ) {
+    // Ensure ItemInfo is valid:
+    if ( !itemInfo ) {
+        gi.dprintf( "%s: itemInfo == nullptr!\n", __func__ );
+        return;
+    }
+    // Ensure SKM is valid.
+    if ( !skmAnim ) {
+        gi.dprintf( "%s: skmAnim == nullptr!\n", __func__ );
+        return;
+    }
     // Ensure modeID is valid.
     if ( modeID < 0 || modeID >= WEAPON_MODE_MAX ) {
-        gi.dprintf( "%s: modeID(#%i) < 0 or >= WEAPON_MODE_MAX\n", __func__ );
+        gi.dprintf( "%s: modeID(#%i) < 0 or >= WEAPON_MODE_MAX\n", __func__, modeID );
         return;
     }
 
@@ -453,6 +467,70 @@ void SVG_Player_Weapon_ModeAnimationFromSKM( weapon_item_info_t *itemInfo, const
     modeAnimation->startFrame = skmAnim->first_frame;
     modeAnimation->endFrame = skmAnim->first_frame + skmAnim->num_frames;
     modeAnimation->duration = sg_time_t::from_ms( BASE_FRAMETIME ) * skmAnim->num_frames;
+}
+/**
+*   @brief  Will iterate the model animations, assigning animationIDs for the matching queried weapon mode its animation names.
+*   @note   modeAnimations and modeAnimationNames are expected to be of size WEAPON_MODE_MAX!!
+*   @return True if all animation names were matched and precached with the SKM data.
+**/
+const bool SVG_Player_Weapon_PrecacheItemInfo( weapon_item_info_t *weaponItemInfo, const std::string &weaponName, const std::string &weaponViewModel ) {
+    // Ensure ItemInfo is valid:
+    if ( !weaponItemInfo ) {
+        gi.dprintf( "%s: weaponItemInfo == nullptr!\n", __func__ );
+        return false;
+    }
+    // Get the model we want the animation data from.
+    const model_t *weaponViewModelData = gi.GetModelDataForName( weaponViewModel.c_str() );
+    if ( !weaponViewModelData ) {
+        gi.dprintf( "%s: No viewmodel found. Failed to precache '%s' weapon animation data for item->view_model(%s)\n", __func__, weaponName.c_str(), weaponViewModel.c_str() );
+        return false;
+    }
+    // Validate the IQM data.
+    if ( !weaponViewModelData->skmData ) {
+        gi.dprintf( "%s: No SKMData found. Failed to precache '%s' weapon animation data for item->view_model(%s)\n", __func__, weaponName.c_str(), weaponViewModel.c_str());
+        return false;
+    }
+    // Get mode based animations array.
+    weapon_mode_animation_t *modeAnimations = weaponItemInfo->modeAnimations;
+
+    // We can safely operate now, get our skeletal model data pointer.
+    const skm_model_t *skmData = weaponViewModelData->skmData;
+    // For warning if we did not find animations for all modes.
+    bool foundAll = true;
+    // Cover all our modes. If we can't find a matching animation name, default to 0, which tends to be the idle animation.
+    for ( int32_t modeID = 0; modeID < WEAPON_MODE_MAX; modeID++ ) {
+        const char *animationName = modeAnimations[ modeID ].skmAnimationName;
+        // We skip over animations that are left out, meaning they aren't used.
+        if ( animationName == nullptr || strlen( animationName ) == 0 ) {
+            continue;
+        }
+
+        // First Skeletal Model(Referred to as SKM) animation.
+        const skm_anim_t *skmAnim = &skmData->animations[ 0 ];
+        // For warning
+        bool foundAnimation = false;
+        // Iterate through all its animations, acquiring those we need for our 'Weapon Modes'.
+        for ( int32_t animID = 0; animID < skmData->num_animations; animID++, skmAnim++ ) {
+            // Animation name matches that found in our mode name list.
+            if ( !strcmp( skmAnim->name, animationName ) ) {
+                // Set the the queried for and found animation data for this weapon mode.
+                SVG_Player_Weapon_SetModeAnimationFromSKM( weaponItemInfo, skmAnim, modeID, animID );
+                // We found animation.
+                foundAnimation = true;
+            } else {
+                continue;
+            }
+        }
+
+        if ( !foundAnimation ) {
+            gi.dprintf( "%s: Failed to find model animation(\"%s\"). Failed to precache all '%s' weapon animation data for item->view_model(%s)\n", __func__, animationName, weaponName.c_str(), weaponViewModel.c_str() );
+        }
+
+        // Did we not find it?
+        foundAll = foundAnimation;
+    }
+
+    return foundAll;
 }
 
 /**
@@ -491,8 +569,6 @@ void SVG_Player_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, co
 
         // Enforce a wait to finish animating mode before allowing yet another change.
         ent->client->weaponState.canChangeMode = false;
-
-
     }
 }
 

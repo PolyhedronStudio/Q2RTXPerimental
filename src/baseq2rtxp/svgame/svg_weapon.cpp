@@ -190,7 +190,7 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
         // We hit something.
         if ( tr.fraction < 1.0f ) {
             // It was an entity, if it takes damage, hit it:
-            if ( tr.ent && tr.ent->takedamage ) {
+            if ( tr.ent && tr.ent->takedamage >= DAMAGE_YES ) {
                 SVG_TriggerDamage( tr.ent, self, self, &aimDir.x, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MEANS_OF_DEATH_HIT_FIGHTING );
                 isTDamaged = true;
             // Otherwise, display something that shows we are hitting something senselessly.
