@@ -217,8 +217,8 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
     //gi.multicast( start, MULTICAST_PVS, false );
 
     if ( !( tr.ent ) || ( tr.ent != &g_edicts[ 0 ] ) || ( !( tr.ent->svflags & SVF_MONSTER ) && ( !tr.ent->client ) ) ) {
-        gi.dprintf( "%s: no monster flag set for '%s' ?!\n", __func__, tr.ent->classname );
-        //return false;
+        //gi.dprintf( "%s: no monster flag set for '%s' ?!\n", __func__, tr.ent->classname );
+        return false;
     }
 
     vec3_t      v, point;
