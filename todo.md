@@ -4,12 +4,14 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ## Notes:
 * Make sure that client and server both deduce frameTime based on animation framerates instead.
 * Is the hard coded speed value limit of 400.0f in CLG_ClampSpeed matching that to pmove's maxspeed? No I don't think so.
+	- [X] Fixed..
 * Is the actual bobCycle predicting working or necessary? We can do this in PMove right?
 * If we had event entities and then 'morphentity' function, for example: a blaster bullet could convert to an entity, eliminating
 the need for temp_entity_t behavior. For hit trace based weapons I suppose the hits could be done client side but that'd require
 simulating a frame ahead for all things. Either way, weapon could looks like it might be better off to go to shared some day.
 * [X] It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
 	- It is a mistake in client game loop.
+	- [X] This actually seems fixed now, yay.
 
 
 ## For v0.0.6 or so:
@@ -34,7 +36,7 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 - [ ] The EDITOR/VIEWER Scenario:
 	- [ ] 0. A file selector dialog for use with the editors below.
 		     Use the demo browser as a reference material.
-	- [ ] 1. A refresh material editor.
+	- [X] 1. A refresh material editor.
 	- [ ] 2. A collision material editor(actually, .wal_json since we use that.)
 	- [ ] 3. A model viewer, allowing to speed up/down animations, as well as
 			 blend combining them, so it becomes easier to figure out the framerate
@@ -114,7 +116,7 @@ These are things to fix, or randomly implement(features, ideas), but definitely 
 	- Relative we do.
 * [-] Implement Lua for game state logic and dynamics.
 	- [ ] Fix the script file loaded up leaking memory. FS_LoadFileEx(other tag)_
-	- [ ] Make buttons and doors lockable lol.
+	- [X] Make buttons and doors lockable lol.
 * [ ] Implement model events for animations:
 	* [ ] Footsteps implemented using this.
 * [ ] Experiment with Head/Torso/Hips separated animation actions.
@@ -205,13 +207,14 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 * [X] Get ourselves a basic version of the Mixamo testdummy that works in-game.
 * [ ] Get ourselves some environment props to use for ``client_misc_model`` decorating purposes.
 ### Textures:
-* [ ] Find some consistent themed PBR texture set?
-
+* [/] Find some consistent themed PBR texture set?
+	- [ ] Want more :-)
+	- [ ] 
 ## Wishlist:
 Content Related:
 - [ ] Figure out how to create textures like those in the makkon 'pbr' sample map(it lacked actual roughness maps though).
 - [/] Replace the audio with what I seemingly found, Q1 audio replacements.
-	- [ ] Scratch that, we're replacing all shit with custom sounds. Nice.
+	- [X] Scratch that, we're replacing all shit with custom sounds. Nice.
 - [X] Get some custom weapon models so we can implement some new gameplay into baseq2rtxp.
 
 And here a list of things that I keep an eye out and/or may (fail multiple times-) try and implement sooner or later:

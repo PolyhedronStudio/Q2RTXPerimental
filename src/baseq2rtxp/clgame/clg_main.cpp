@@ -367,6 +367,9 @@ void PF_InitGame( void ) {
 *	@brief
 **/
 void PF_ClearState( void ) {
+	// Clear out the player's viewWeapon state.
+	game.viewWeapon = {};
+
 	// Hard reset the sound EAX environment.
 	CLG_EAX_HardSetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
 
