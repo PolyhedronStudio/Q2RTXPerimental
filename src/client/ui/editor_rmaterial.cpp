@@ -93,8 +93,8 @@ typedef struct m_rmaterial_s {
         menuField_t         emissiveThreshold; // 0 to 255
 
         // Apply/Cancel
-        menuAction_t        actionSave;
-        menuAction_t        actionCancel;
+        //menuAction_t        actionSave;
+        menuAction_t        actionRevert;
     } materialKeyFields;
     struct {
         // Holds a copy of editing material as it were, used to restore when cancelling.
@@ -687,30 +687,27 @@ static void Pop_Apply( menuFrameWork_t *self ) {
 /**
 *   @brief  For Cancel, will reset the material to what it once was.
 **/
-static void Pop_Cancel( menuFrameWork_t *self ) {
-    // Disable bloom again.
-    uis.bloomEnabled = false;
-
-    // Reset the material its properties to what they were instead.
-    if ( memcmp( m_rmaterial.materialKeyValues.material, &m_rmaterial.materialKeyValues.materialDefaults, sizeof( pbr_material_t ) ) ) {
-        Menu_Material_RollBack();
-    }
-
-    //UI_PopMenu();
-    UI_ForceMenuOff();
-}
+//static void Pop_Cancel( menuFrameWork_t *self ) {
+//    // Disable bloom again.
+//    uis.bloomEnabled = false;
+//
+//    // Reset the material its properties to what they were instead.
+//    if ( memcmp( m_rmaterial.materialKeyValues.material, &m_rmaterial.materialKeyValues.materialDefaults, sizeof( pbr_material_t ) ) ) {
+//        Menu_Material_RollBack();
+//    }
+//
+//    //UI_PopMenu();
+//    UI_ForceMenuOff();
+//}
 
 static void Pop_General( menuFrameWork_t *self ) {
     // Disable bloom again.
     uis.bloomEnabled = false;
 
-    // Reset the material its properties to what they were instead.
-    if ( memcmp( m_rmaterial.materialKeyValues.material, &m_rmaterial.materialKeyValues.materialDefaults, sizeof( pbr_material_t ) ) ) {
-        Menu_Material_RollBack();
-    }
-
-    //UI_PopMenu();
-    //UI_ForceMenuOff();
+    //// Reset the material its properties to what they were instead.
+    //if ( memcmp( m_rmaterial.materialKeyValues.material, &m_rmaterial.materialKeyValues.materialDefaults, sizeof( pbr_material_t ) ) ) {
+    //    Menu_Material_RollBack();
+    //}
 }
 
 static bool Push( menuFrameWork_t *self ) {
@@ -932,22 +929,22 @@ static void Free( menuFrameWork_t *self ) {
 }
 
 //menuFrameWork_t *menu, menuAction_t *a, int32_t key
-int32_t MenuAction_Save_Callback( menuFrameWork_t *menu, menuAction_t *a, int32_t key ) {
+//int32_t MenuAction_Save_Callback( menuFrameWork_t *menu, menuAction_t *a, int32_t key ) {
+//    if ( key == K_KP_ENTER || key == K_ENTER ) {
+//        Com_DPrintf( "Applied Material Changes\n" );
+//        menu->pop = Pop_Apply;
+//        //UI_ForceMenuOff();
+//        //UI_PopMenu();
+//        return QMS_BEEP;
+//    } else {
+//        return QMS_NOTHANDLED;
+//    }
+//}
+int32_t MenuAction_Revert_Callback( menuFrameWork_t *menu, menuAction_t *a, int32_t key ) {
     if ( key == K_KP_ENTER || key == K_ENTER ) {
-        Com_DPrintf( "Applied Material Changes\n" );
-        menu->pop = Pop_Apply;
-        //UI_ForceMenuOff();
-        //UI_PopMenu();
-        return QMS_BEEP;
-    } else {
-        return QMS_NOTHANDLED;
-    }
-}
-int32_t MenuAction_Cancel_Callback( menuFrameWork_t *menu, menuAction_t *a, int32_t key ) {
-    if ( key == K_KP_ENTER || key == K_ENTER ) {
-        menu->pop = Pop_Cancel;
-        //UI_ForceMenuOff();
-        UI_PopMenu();
+        if ( memcmp( m_rmaterial.materialKeyValues.material, &m_rmaterial.materialKeyValues.materialDefaults, sizeof( pbr_material_t ) ) ) {
+            Menu_Material_RollBack();
+        }
         return QMS_OUT;
     } else {
         return QMS_NOTHANDLED;
@@ -1305,17 +1302,17 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     /**
     *   Cancel/Apply Action Buttons:
     **/
-    m_rmaterial.materialKeyFields.actionSave.generic.type = MTYPE_ACTION;
-    m_rmaterial.materialKeyFields.actionSave.generic.name = "Save Changes";
-    m_rmaterial.materialKeyFields.actionSave.generic.uiFlags = UI_LEFT | UI_ALTCOLOR;
-    m_rmaterial.materialKeyFields.actionSave.generic.flags = 0;
-    m_rmaterial.materialKeyFields.actionSave.callback = MenuAction_Save_Callback;
+    //m_rmaterial.materialKeyFields.actionSave.generic.type = MTYPE_ACTION;
+    //m_rmaterial.materialKeyFields.actionSave.generic.name = "Save Changes";
+    //m_rmaterial.materialKeyFields.actionSave.generic.uiFlags = UI_LEFT | UI_ALTCOLOR;
+    //m_rmaterial.materialKeyFields.actionSave.generic.flags = 0;
+    //m_rmaterial.materialKeyFields.actionSave.callback = MenuAction_Save_Callback;
 
-    m_rmaterial.materialKeyFields.actionCancel.generic.type = MTYPE_ACTION;
-    m_rmaterial.materialKeyFields.actionCancel.generic.name = "Cancel";
-    m_rmaterial.materialKeyFields.actionCancel.generic.uiFlags = UI_LEFT;
-    m_rmaterial.materialKeyFields.actionCancel.generic.flags = 0;
-    m_rmaterial.materialKeyFields.actionCancel.callback = MenuAction_Cancel_Callback;
+    m_rmaterial.materialKeyFields.actionRevert.generic.type = MTYPE_ACTION;
+    m_rmaterial.materialKeyFields.actionRevert.generic.name = "Revert Material";
+    m_rmaterial.materialKeyFields.actionRevert.generic.uiFlags = UI_LEFT | UI_ALTCOLOR;
+    m_rmaterial.materialKeyFields.actionRevert.generic.flags = 0;
+    m_rmaterial.materialKeyFields.actionRevert.callback = MenuAction_Revert_Callback;
 
     //m_rmaterial.model.generic.type = MTYPE_SPINCONTROL;
     //m_rmaterial.model.generic.id = ID_MODEL;
@@ -1368,8 +1365,8 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     Menu_AddItem( &m_rmaterial.menu, &m_rmaterial.materialKeyFields.synthEmissiveTexture );
     Menu_AddItem( &m_rmaterial.menu, &m_rmaterial.materialKeyFields.emissiveThreshold );
 
-    Menu_AddItem( &m_rmaterial.menu, &m_rmaterial.materialKeyFields.actionSave );
-    Menu_AddItem( &m_rmaterial.menu, &m_rmaterial.materialKeyFields.actionCancel );
+    //Menu_AddItem( &m_rmaterial.menu, &m_rmaterial.materialKeyFields.actionSave );
+    Menu_AddItem( &m_rmaterial.menu, &m_rmaterial.materialKeyFields.actionRevert );
 
     // Init menu.
     Menu_Init( &m_rmaterial.menu );
