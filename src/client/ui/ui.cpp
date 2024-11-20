@@ -147,6 +147,7 @@ UI_PopMenu
 void UI_PopMenu(void)
 {
     menuFrameWork_t *menu;
+    int x = uis.menuDepth;
 
     Q_assert(uis.menuDepth > 0);
 

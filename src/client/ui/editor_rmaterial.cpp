@@ -663,6 +663,8 @@ static menuSound_t Change( menuCommon_t *self ) {
 static void Pop_Apply( menuFrameWork_t *self ) {
     char scratch[ MAX_OSPATH ];
 
+    //UI_PopMenu();
+
     // Disable bloom again.
     uis.bloomEnabled = false;
     // We won't be needing this however..
@@ -693,6 +695,22 @@ static void Pop_Cancel( menuFrameWork_t *self ) {
     if ( memcmp( m_rmaterial.materialKeyValues.material, &m_rmaterial.materialKeyValues.materialDefaults, sizeof( pbr_material_t ) ) ) {
         Menu_Material_RollBack();
     }
+
+    //UI_PopMenu();
+    UI_ForceMenuOff();
+}
+
+static void Pop_General( menuFrameWork_t *self ) {
+    // Disable bloom again.
+    uis.bloomEnabled = false;
+
+    // Reset the material its properties to what they were instead.
+    if ( memcmp( m_rmaterial.materialKeyValues.material, &m_rmaterial.materialKeyValues.materialDefaults, sizeof( pbr_material_t ) ) ) {
+        Menu_Material_RollBack();
+    }
+
+    //UI_PopMenu();
+    //UI_ForceMenuOff();
 }
 
 static bool Push( menuFrameWork_t *self ) {
@@ -889,6 +907,9 @@ static bool Push( menuFrameWork_t *self ) {
     }
     m_rmaterial.menu.title = m_rmaterial.titleBuffer;
 
+    // General popping, as if nothing ever happened.
+    m_rmaterial.menu.pop = Pop_General;
+
     // Load media and run for a frame.
     #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
     ReloadMedia();
@@ -915,7 +936,8 @@ int32_t MenuAction_Save_Callback( menuFrameWork_t *menu, menuAction_t *a, int32_
     if ( key == K_KP_ENTER || key == K_ENTER ) {
         Com_DPrintf( "Applied Material Changes\n" );
         menu->pop = Pop_Apply;
-        UI_ForceMenuOff();
+        //UI_ForceMenuOff();
+        //UI_PopMenu();
         return QMS_BEEP;
     } else {
         return QMS_NOTHANDLED;
@@ -924,7 +946,8 @@ int32_t MenuAction_Save_Callback( menuFrameWork_t *menu, menuAction_t *a, int32_
 int32_t MenuAction_Cancel_Callback( menuFrameWork_t *menu, menuAction_t *a, int32_t key ) {
     if ( key == K_KP_ENTER || key == K_ENTER ) {
         menu->pop = Pop_Cancel;
-        UI_ForceMenuOff();
+        //UI_ForceMenuOff();
+        UI_PopMenu();
         return QMS_OUT;
     } else {
         return QMS_NOTHANDLED;
@@ -1038,7 +1061,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.menu.name = "editor_rmaterial";
     m_rmaterial.menu.push = Push;
     // Set to cancel by default, so it will undo any active changes.
-    m_rmaterial.menu.pop = Pop_Cancel;
+    m_rmaterial.menu.pop = Pop_General;
     m_rmaterial.menu.size = Size;
     m_rmaterial.menu.draw = Draw;
     m_rmaterial.menu.free = Free;
