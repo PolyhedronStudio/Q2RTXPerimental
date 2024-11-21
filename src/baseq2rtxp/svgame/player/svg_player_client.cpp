@@ -1252,8 +1252,7 @@ void SVG_Client_PutInServer( edict_t *ent ) {
         // Administer the user info change.
         ClientUserinfoChanged( ent, userinfo );
     } else {
-        //      int         n;
-        char        userinfo[ MAX_INFO_STRING ];
+        char    userinfo[ MAX_INFO_STRING ];
         memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
         // Restore userinfo.
         ClientUserinfoChanged( ent, userinfo );
@@ -1357,9 +1356,7 @@ void SVG_Client_PutInServer( edict_t *ent ) {
 
     VectorCopy( ent->s.origin, ent->s.old_origin );
 
-    for ( i = 0; i < 3; i++ ) {
-        client->ps.pmove.origin[ i ] = ent->s.origin[ i ]; // COORD2SHORT(ent->s.origin[i]); // WID: float-movement
-    }
+    client->ps.pmove.origin = ent->s.origin; // COORD2SHORT(ent->s.origin[i]); // WID: float-movement
 
     spawn_angles[ PITCH ] = 0;
     spawn_angles[ ROLL ] = 0;
@@ -1370,8 +1367,8 @@ void SVG_Client_PutInServer( edict_t *ent ) {
     }
 
     VectorCopy( spawn_angles, ent->s.angles );
-    VectorCopy( spawn_angles, client->ps.viewangles );
-    VectorCopy( spawn_angles, client->viewMove.viewAngles );
+    client->ps.viewangles = spawn_angles;
+    client->viewMove.viewAngles = spawn_angles;
     AngleVectors( &client->viewMove.viewAngles.x, &client->viewMove.viewForward.x, nullptr, nullptr );
 
     // spawn a spectator
@@ -2076,13 +2073,14 @@ void ClientThink( edict_t *ent, usercmd_t *ucmd ) {
     pmoveParams_t pmp = {};
     SG_ConfigurePlayerMoveParameters( &pmp );
 
-    // [Paril-KEX] pass buttons through even if we are in intermission or
-    // chasing.
+    // [Paril-KEX] pass the usercommand buttons through even if we are in intermission or chasing.
     client->oldbuttons = client->buttons;
     client->buttons = ucmd->buttons;
     client->latched_buttons |= ( client->buttons & ~client->oldbuttons );
-    // WID: <UserInput>: Different User Input approach.
+
+    // Store last userInput buttons.
     client->userInput.lastButtons = client->userInput.buttons;
+    // Update with the new userCmd buttons.
     client->userInput.buttons = ucmd->buttons;
     // Determine which buttons changed state.
     const int32_t buttonsChanged = ( client->userInput.lastButtons ^ client->userInput.buttons );
@@ -2092,7 +2090,6 @@ void ClientThink( edict_t *ent, usercmd_t *ucmd ) {
     client->userInput.heldButtons = ( client->userInput.lastButtons & client->userInput.buttons );
     // The others are 'released'.
     client->userInput.releasedButtons = ( buttonsChanged & ( ~client->userInput.buttons ) );
-    // WID: </UserInput>:
 
     /**
     *   Level Intermission Path:
@@ -2286,8 +2283,6 @@ void ClientThink( edict_t *ent, usercmd_t *ucmd ) {
 			SVG_ChaseCam_Update( other );
 		}
     }
-
-
 }
 
 

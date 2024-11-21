@@ -282,7 +282,7 @@ void SVG_Lua_CallBack_BeginMap() {
 	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
-	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnBeginMap", 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
+	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnBeginMap", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
 	// Pop the bool from stack.
 	lua_pop( luaMapState.lState, 1 );
 	// Pop remaining stack.

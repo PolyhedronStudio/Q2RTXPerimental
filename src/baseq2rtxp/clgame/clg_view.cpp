@@ -509,7 +509,7 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
     }
 
     ps->gunangles[ PITCH ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005f;
-
+    #if 1
     // Gun angles from delta movement
     for ( i = 0; i < 3; i++ ) {
         delta = AngleMod( ops->viewangles[ i ] - ps->viewangles[ i ] );
@@ -526,7 +526,47 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
         }
         ps->gunangles[ i ] += 0.2f * delta;
     }
+    #else
+    static Vector3 slowAngles = {};
+    Vector3 viewAnglesDelta = {};
+    // Gun angles from delta movement
+    for ( i = 0; i < 3; i++ ) {
+        viewAnglesDelta[ i ] = AngleMod(ops->viewangles[i] - ps->viewangles[i]);
+    }
+    slowAngles += viewAnglesDelta;
 
+    for ( i = 0; i < 3; i++ ) {
+        float &delta = slowAngles[ i ];
+
+        if ( !delta )
+            continue;
+
+        if ( delta > 180 ) {
+            delta -= 360;
+        }
+        if ( delta < -180 ) {
+            delta += 360;
+        }
+        if ( delta > 45 ) {
+            delta = 45;
+        }
+        if ( delta < -45 ) {
+            delta = -45;
+        }
+        //clamp( delta, -45, 45 );
+
+        if ( i == YAW ) {
+            ps->gunangles[ ROLL ] += ( 0.1f * delta ) * 0.5f;
+        }
+        ps->gunangles[ i ] += ( 0.2f * delta ) * 0.5f;
+        float reduction_factor = viewAnglesDelta[ i ] ? 0.05f : 0.15f;
+
+        if ( delta > 0 )
+            delta = std::max( 0.f, delta - clgi.frame_time_ms * reduction_factor );
+        else if ( delta < 0 )
+            delta = min( 0.f, delta + clgi.frame_time_ms * reduction_factor );
+    }
+    #endif
     // gun height
     VectorClear( ps->gunoffset );
     //  ent->ps->gunorigin[2] += bob;

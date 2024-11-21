@@ -16,6 +16,8 @@ extern "C" {
 }
 //! Enables material test model rendering.
 //#define ENABLE_MATERIAL_TEST_MODEL_RENDERING
+
+// Access to the cvar determining material background.
 extern cvar_t *ui_editor_rmaterial_background_alpha;
 
 //! Model ID to use:
@@ -23,41 +25,6 @@ static constexpr int32_t ID_MODEL = 103;
 //! Skin ID to use:
 static constexpr int32_t ID_SKIN = 104;
 
-/**
-*
-**/
-//list_t entry;
-//char name[ MAX_QPATH ];
-//char filename_base[ MAX_QPATH ];
-//char filename_normals[ MAX_QPATH ];
-//char filename_emissive[ MAX_QPATH ];
-//char filename_mask[ MAX_QPATH ];
-//char source_matfile[ MAX_QPATH ];
-//uint32_t source_line;
-//int original_width;
-//int original_height;
-//image_t *image_base;
-//image_t *image_normals;
-//image_t *image_emissive;
-//image_t *image_mask;
-//float bump_scale;
-//float roughness_override;
-//float metalness_factor;
-//float emissive_factor;
-//float specular_factor;
-//float base_factor;
-//uint32_t flags;
-//int registration_sequence;
-//int num_frames;
-//int next_frame;
-//bool light_styles;
-//bool bsp_radiance;
-//float default_radiance;
-//imageflags_t image_flags;
-//imagetype_t image_type;
-//bool synth_emissive;
-//int emissive_threshold;
-// 
 //! Menu data.
 typedef struct m_rmaterial_s {
     //! Lol, irony, a menu title buffer lmao...
@@ -66,7 +33,7 @@ typedef struct m_rmaterial_s {
     menuFrameWork_t     menu;
     //! UI Material Key Fields:
     struct {
-        menuStatic_t        staticMaterialName;
+        //menuStatic_t        staticMaterialName;
 
         menuSpinControl_t   materialKind;
 
@@ -132,11 +99,14 @@ extern cvar_t *vid_rtx;
 extern "C" vkpt_refdef_t vkpt_refdef;
 
 
+
 /**
 *
 *
-*   SpinControl Options:
+* 
+*   SpinControl Field Options:
 *
+* 
 *
 **/
 //! For Material KIND SpinControl:
@@ -206,7 +176,6 @@ static const char *bspRadiance_ItemValues[] = {
     "1",
     nullptr
 };
-
 // Synth Emissive Texture
 static const char *synthEmissive_ItemNames[] = {
     "No",
@@ -219,6 +188,16 @@ static const char *synthEmissive_ItemValues[] = {
     nullptr
 };
 
+
+
+/**
+*
+*
+*
+*   Test Model Rendering:
+*
+*
+**/
 #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
 static dlight_t dlights[] = {
     {.origin = { -120.f, -80.f, 80.f },.color = {1.f, 1.f, 1.f},.intensity = 200.f,.radius = 20.f },
@@ -227,33 +206,45 @@ static dlight_t dlights[] = {
 
 static void ReloadMedia( void ) {
     char scratch[ MAX_QPATH ];
-    char *model = uis.pmi[ m_rmaterial.model.curvalue ].directory;
-    char *skin = uis.pmi[ m_rmaterial.model.curvalue ].skindisplaynames[ m_rmaterial.skin.curvalue ];
+    const char *model = "testmaterial";//uis.pmi[ m_rmaterial.model.curvalue ].directory;
+    const char *skin = "testmaterial";//uis.pmi[ m_rmaterial.model.curvalue ].skindisplaynames[ m_rmaterial.skin.curvalue ];
 
     m_rmaterial.refdef.num_entities = 0;
 
-    Q_concat( scratch, sizeof( scratch ), "players/", model, "/tris.iqm" );
+    Q_concat( scratch, sizeof( scratch ), "models/developer/", model, "/tris.iqm" );
     m_rmaterial.entities[ 0 ].model = R_RegisterModel( scratch );
-    if ( !m_rmaterial.entities[ 0 ].model )
+    if ( !m_rmaterial.entities[ 0 ].model ) {
         return;
+    }
 
     m_rmaterial.refdef.num_entities++;
 
-    Q_concat( scratch, sizeof( scratch ), "players/", model, "/", skin, ".pcx" );
-    m_rmaterial.entities[ 0 ].skin = R_RegisterSkin( scratch );
+    //Q_concat( scratch, sizeof( scratch ), "models/developer/", model, "/", skin, ".tga" );
+    //m_rmaterial.entities[ 0 ].skin = R_RegisterSkin( scratch );
 
-    if ( !uis.weaponModel[ 0 ] )
-        return;
+    //if ( !uis.weaponModel[ 0 ] )
+    //    return;
 
-    Q_concat( scratch, sizeof( scratch ), "players/", model, "/", uis.weaponModel );
-    m_rmaterial.entities[ 1 ].model = R_RegisterModel( scratch );
-    if ( !m_rmaterial.entities[ 1 ].model )
-        return;
+    //Q_concat( scratch, sizeof( scratch ), "players/", model, "/", uis.weaponModel );
+    //m_rmaterial.entities[ 1 ].model = R_RegisterModel( scratch );
+    //if ( !m_rmaterial.entities[ 1 ].model )
+    //    return;
 
-    m_rmaterial.refdef.num_entities++;
+    //m_rmaterial.refdef.num_entities++;
 }
 
 static void RunFrame( void ) {
+    static vec3_t origin = { 0.0f, 0.0f, 0.0f };
+
+    cvar_t *gunx = Cvar_Get( "gun_x", "", 0 );
+    cvar_t *guny = Cvar_Get( "gun_y", "", 0 );
+    cvar_t *gunz = Cvar_Get( "gun_z", "", 0 );
+    origin[ 0 ] = ( gunx ? gunx->value : 0 );
+    origin[ 1 ] = ( guny ? guny->value : 0 );
+    origin[ 2 ] = ( gunz ? gunz->value : 0 );
+    VectorCopy( origin, m_rmaterial.entities[ 0 ].origin );
+    VectorCopy( origin, m_rmaterial.entities[ 0 ].oldorigin );
+
     int frame;
     int i;
 
@@ -268,8 +259,15 @@ static void RunFrame( void ) {
         frame = ( m_rmaterial.time / 120 ) % 40;
 
         for ( i = 0; i < m_rmaterial.refdef.num_entities; i++ ) {
-            m_rmaterial.entities[ i ].oldframe = m_rmaterial.entities[ i ].frame;
-            m_rmaterial.entities[ i ].frame = frame;
+            //m_rmaterial.entities[ i ].oldframe = m_rmaterial.entities[ i ].frame;
+            //m_rmaterial.entities[ i ].frame = frame;
+
+            const float angleX = ( m_rmaterial.time / 120 ) % 40;
+            const float angleY = ( m_rmaterial.time / 120 ) % 40;
+            const float angleZ = ( m_rmaterial.time / 120 ) % 40;
+            m_rmaterial.entities[ i ].angles[ 0 ] = angleX;
+            m_rmaterial.entities[ i ].angles[ 1 ] = angleY;
+            m_rmaterial.entities[ i ].angles[ 2 ] = angleZ;
         }
     }
 }
@@ -562,6 +560,8 @@ menuSound_t MenuChange_Material_EmissiveThreshold( menuCommon_t *item ) {
     return QMS_MOVE;
 }
 
+
+
 /**
 *
 *
@@ -570,11 +570,11 @@ menuSound_t MenuChange_Material_EmissiveThreshold( menuCommon_t *item ) {
 *
 **/
 /**
-*   @brief  Draw the refresh material editor menu.
+*   @brief  UI Draw Callback: Draws the refresh material editor menu.
 **/
 static void Draw( menuFrameWork_t *self ) {
-    float backlerp;
-    int i;
+    m_rmaterial.menu.compact = true;
+    m_rmaterial.menu.transparent = true;
 
     // Process the 3D Material Test Model for a frame.
     #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
@@ -582,6 +582,7 @@ static void Draw( menuFrameWork_t *self ) {
 
     RunFrame();
 
+    float backlerp;
     if ( m_rmaterial.time == m_rmaterial.oldTime ) {
         backlerp = 0;
     } else {
@@ -589,7 +590,7 @@ static void Draw( menuFrameWork_t *self ) {
             (float)( m_rmaterial.time - m_rmaterial.oldTime );
     }
 
-    for ( i = 0; i < m_rmaterial.refdef.num_entities; i++ ) {
+    for ( int32_t i = 0; i < m_rmaterial.refdef.num_entities; i++ ) {
         m_rmaterial.entities[ i ].backlerp = backlerp;
     }
     #endif
@@ -610,25 +611,34 @@ static void Draw( menuFrameWork_t *self ) {
     R_RenderFrame( &m_rmaterial.refdef );
     #endif
 
+    // Apply ui scale.
     R_SetScale( uis.scale );
 }
 
+/**
+*   @brief  UI Size callback, will calculate all dimensions for menu items.
+**/
 static void Size( menuFrameWork_t *self ) {
+    // First determine all regions as normal.
     Menu_Size( self );
-    return;
 
-    int w = 0;// ( uis.width * 0.25 ) *uis.scale;
-    int h = 0;// ( uis.height * 0.25 ) *uis.scale;
-    //int x = ( uis.width * 0.5f ) - w * 0.5f;
-    //int32_t numMenuItems = 5;
-    //int y = ( uis.height * 0.5f ) - ( ( MENU_SPACING * numMenuItems ) *0.5f );
+    #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
+    const int32_t w = ( uis.width * 0.25 ) *uis.scale;
+    const int32_t h = ( uis.height * 0.25 ) *uis.scale;
+    const int32_t x = ( uis.width * 0.5f ) - w * 0.5f;
+    int32_t numMenuItems = 5;// self->nitems;
+    const int32_t y = ( uis.height * 0.5f ) - ( ( MENU_SPACING * numMenuItems ) *0.5f );
 
     // Configure the 3D Material Model its view render properties.
-    #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
-    m_rmaterial.refdef.x = w / 2;
-    m_rmaterial.refdef.y = h / 10;
-    m_rmaterial.refdef.width = w / 2;
-    m_rmaterial.refdef.height = h - h / 5;
+    //m_rmaterial.refdef.x = w / 2;
+    //m_rmaterial.refdef.y = h / 10;
+    //m_rmaterial.refdef.width = w / 2;
+    //m_rmaterial.refdef.height = h - h / 5;
+    
+    m_rmaterial.refdef.x = 1280 - 360;
+    m_rmaterial.refdef.y = ( h / 2 ) - ( h / 4 );
+    m_rmaterial.refdef.width = 360;
+    m_rmaterial.refdef.height = h - ( h / 4 );
 
     m_rmaterial.refdef.fov_x = 90;
     m_rmaterial.refdef.fov_y = V_CalcFov( m_rmaterial.refdef.fov_x, m_rmaterial.refdef.width, m_rmaterial.refdef.height );
@@ -636,70 +646,30 @@ static void Size( menuFrameWork_t *self ) {
 }
 
 /**
-*   @brief  Menu field changed.
+*   @brief  Active selected Menu Field has changed.
 **/
 static menuSound_t Change( menuCommon_t *self ) {
-    switch ( self->id ) {
-        #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
-    case ID_MODEL:
-        m_rmaterial.skin.itemnames =
-            uis.pmi[ m_rmaterial.model.curvalue ].skindisplaynames;
-        m_rmaterial.skin.curvalue = 0;
-        SpinControl_Init( &m_rmaterial.skin );
-        // fall through
-    case ID_SKIN:
-        ReloadMedia();
-        break;
-        #endif
-    default:
-        break;
-    }
+    //#ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
+    //switch ( self->id ) {
+    //case ID_MODEL:
+    //    m_rmaterial.skin.itemnames =
+    //        uis.pmi[ m_rmaterial.model.curvalue ].skindisplaynames;
+    //    m_rmaterial.skin.curvalue = 0;
+    //    SpinControl_Init( &m_rmaterial.skin );
+    //    // fall through
+    //case ID_SKIN:
+    //    ReloadMedia();
+    //    break;
+    //default:
+    //    break;
+    //}
+    //#endif
     return QMS_MOVE;
 }
 
 /**
-*   For Applying Action.
+*   @brief  UI Callback when exiting the menu, 'popping' it. 
 **/
-static void Pop_Apply( menuFrameWork_t *self ) {
-    char scratch[ MAX_OSPATH ];
-
-    //UI_PopMenu();
-
-    // Disable bloom again.
-    uis.bloomEnabled = false;
-    // We won't be needing this however..
-    #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
-    //Cvar_SetEx( "name", m_rmaterial.name.field.text, FROM_CONSOLE );
-
-    //Q_concat( scratch, sizeof( scratch ),
-    //    uis.pmi[ m_rmaterial.model.curvalue ].directory, "/",
-    //    uis.pmi[ m_rmaterial.model.curvalue ].skindisplaynames[ m_rmaterial.skin.curvalue ] );
-
-    //Cvar_SetEx( "skin", scratch, FROM_CONSOLE );
-
-    //Cvar_SetEx( "hand", va( "%d", m_rmaterial.hand.curvalue ), FROM_CONSOLE );
-
-    //Cvar_SetEx( "aimfix", va( "%d", m_rmaterial.aimfix.curvalue ), FROM_CONSOLE );
-
-    //Cvar_SetEx( "cl_player_model", va( "%d", m_rmaterial.view.curvalue ), FROM_CONSOLE );
-    #endif
-}
-/**
-*   @brief  For Cancel, will reset the material to what it once was.
-**/
-//static void Pop_Cancel( menuFrameWork_t *self ) {
-//    // Disable bloom again.
-//    uis.bloomEnabled = false;
-//
-//    // Reset the material its properties to what they were instead.
-//    if ( memcmp( m_rmaterial.materialKeyValues.material, &m_rmaterial.materialKeyValues.materialDefaults, sizeof( pbr_material_t ) ) ) {
-//        Menu_Material_RollBack();
-//    }
-//
-//    //UI_PopMenu();
-//    UI_ForceMenuOff();
-//}
-
 static void Pop_General( menuFrameWork_t *self ) {
     // Disable bloom again.
     uis.bloomEnabled = false;
@@ -710,6 +680,9 @@ static void Pop_General( menuFrameWork_t *self ) {
     //}
 }
 
+/**
+*   @brief  UI Entry point for pushmenu cmd, will reinitialize field values based on the material being targetted.
+**/
 static bool Push( menuFrameWork_t *self ) {
     #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
     char currentdirectory[ MAX_QPATH ];
@@ -729,6 +702,9 @@ static bool Push( menuFrameWork_t *self ) {
     if ( !targetMaterial ) {
         return false;
     }
+    // Make sure to reset it to Pop_General, as if nothing ever happened.
+    m_rmaterial.menu.pop = Pop_General;
+
     // Store a copy to reset to if cancelling editing.
     m_rmaterial.materialKeyValues.materialDefaults = *targetMaterial;
     // Store pointer to actual material being edited.
@@ -741,49 +717,22 @@ static bool Push( menuFrameWork_t *self ) {
 
     // Register the 3D Material Test Model(s)
     #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
-    if ( !uis.numPlayerModels ) {
-        PlayerModel_Load();
-        if ( !uis.numPlayerModels ) {
-            Com_Printf( "No player models found.\n" );
-            return false;
-        }
-    }
-
-    // Get skin.
-    Cvar_VariableStringBuffer( "skin", currentdirectory, sizeof( currentdirectory ) );
-
-    if ( ( p = strchr( currentdirectory, '/' ) ) || ( p = strchr( currentdirectory, '\\' ) ) ) {
-        *p++ = 0;
-        Q_strlcpy( currentskin, p, sizeof( currentskin ) );
-    } else {
-        strcpy( currentdirectory, "playerdummy" );
-        strcpy( currentskin, "playerdummy" );
-    }
-
-    for ( i = 0; i < 8; i++ ) {
-        m_rmaterial.pmnames[ i ] = uis.pmi[ i ].directory;
-        if ( Q_stricmp( uis.pmi[ i ].directory, currentdirectory ) == 0 ) {
-            currentdirectoryindex = i;
-
-            for ( j = 0; j < uis.pmi[ i ].nskins; j++ ) {
-                if ( Q_stricmp( uis.pmi[ i ].skindisplaynames[ j ], currentskin ) == 0 ) {
-                    currentskinindex = j;
-                    break;
-                }
-            }
-        }
-    }
+    //if ( !uis.numPlayerModels ) {
+    //    TestModel_Load();
+    //    if ( !uis.testModel ) {
+    //        Com_Printf( "No test model found.\n" );
+    //        return false;
+    //    }
+    //}
     #endif
     /**
     *   Material Filename this Material resides in.
     **/
-    //strcpy( m_rmaterial.materialKeyValues.material->source_matfile, "materials/pbr02.mat" );
-    m_rmaterial.materialKeyFields.staticMaterialName.generic.type = MTYPE_STATIC;
-    m_rmaterial.materialKeyFields.staticMaterialName.generic.uiFlags = UI_CENTER;
-    m_rmaterial.materialKeyFields.staticMaterialName.generic.flags = QMF_DISABLED | QMF_GRAYED;
-    m_rmaterial.materialKeyFields.staticMaterialName.generic.name = m_rmaterial.materialKeyValues.material->name;
-    //m_rmaterial.materialKeyFields.staticMaterialName.generic.width = 32 - 1;
-    m_rmaterial.materialKeyFields.staticMaterialName.maxChars = 64;
+    //m_rmaterial.materialKeyFields.staticMaterialName.generic.type = MTYPE_STATIC;
+    //m_rmaterial.materialKeyFields.staticMaterialName.generic.uiFlags = UI_CENTER;
+    //m_rmaterial.materialKeyFields.staticMaterialName.generic.flags = QMF_DISABLED | QMF_GRAYED;
+    //m_rmaterial.materialKeyFields.staticMaterialName.generic.name = m_rmaterial.materialKeyValues.material->name;
+    //m_rmaterial.materialKeyFields.staticMaterialName.maxChars = 64;
 
     /**
     *   Material Kind:
@@ -806,7 +755,6 @@ static bool Push( menuFrameWork_t *self ) {
         const char *kindValueStr = materialKind_ItemNames[ i ];
         // Get integer.
         const char *matKindName = MAT_GetMaterialKindName( m_rmaterial.materialKeyValues.material->flags );
-
         // Found the matching index.
         if ( !strcmp( matKindName, kindValueStr ) ) {
             // Set value.
@@ -885,11 +833,11 @@ static bool Push( menuFrameWork_t *self ) {
 
 
     #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
-    m_rmaterial.model.curvalue = currentdirectoryindex;
-    m_rmaterial.model.itemnames = m_player.pmnames;
+    //m_rmaterial.model.curvalue = currentdirectoryindex;
+    //m_rmaterial.model.itemnames = m_player.pmnames;
 
-    m_rmaterial.skin.curvalue = currentskinindex;
-    m_rmaterial.skin.itemnames = uis.pmi[ currentdirectoryindex ].skindisplaynames;
+    //m_rmaterial.skin.curvalue = currentskinindex;
+    //m_rmaterial.skin.itemnames = uis.pmi[ currentdirectoryindex ].skindisplaynames;
     #endif
 
     // Annoying but this way we can manage the title. I am merely adding this editor in for ease of use and all that.
@@ -902,10 +850,8 @@ static bool Push( menuFrameWork_t *self ) {
         Q_scnprintf( m_rmaterial.titleBuffer, 1024, "Editing RMaterial[\"%s\"] - [Automatically Generated]\n"
             , m_rmaterial.materialKeyValues.material->name );
     }
+    // Apply menu title.
     m_rmaterial.menu.title = m_rmaterial.titleBuffer;
-
-    // General popping, as if nothing ever happened.
-    m_rmaterial.menu.pop = Pop_General;
 
     // Load media and run for a frame.
     #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
@@ -928,18 +874,10 @@ static void Free( menuFrameWork_t *self ) {
     memset( &m_rmaterial, 0, sizeof( m_rmaterial ) );
 }
 
-//menuFrameWork_t *menu, menuAction_t *a, int32_t key
-//int32_t MenuAction_Save_Callback( menuFrameWork_t *menu, menuAction_t *a, int32_t key ) {
-//    if ( key == K_KP_ENTER || key == K_ENTER ) {
-//        Com_DPrintf( "Applied Material Changes\n" );
-//        menu->pop = Pop_Apply;
-//        //UI_ForceMenuOff();
-//        //UI_PopMenu();
-//        return QMS_BEEP;
-//    } else {
-//        return QMS_NOTHANDLED;
-//    }
-//}
+/**
+*   @brief  Implementation of the "Revert Material" button logic. Will reapply all the material 
+*           settings as it were at the start of opening the menu.
+**/
 int32_t MenuAction_Revert_Callback( menuFrameWork_t *menu, menuAction_t *a, int32_t key ) {
     if ( key == K_KP_ENTER || key == K_ENTER ) {
         if ( memcmp( m_rmaterial.materialKeyValues.material, &m_rmaterial.materialKeyValues.materialDefaults, sizeof( pbr_material_t ) ) ) {
@@ -952,7 +890,7 @@ int32_t MenuAction_Revert_Callback( menuFrameWork_t *menu, menuAction_t *a, int3
 }
 
 /**
-*   @brief
+*   @brief  Handles the applying of material texture file changes when enter has been pressed on either of those fields.
 **/
 static menuSound_t Keydown_Material_Fields( menuCommon_t *item, int key ) {
     // Ignore autorepeats
@@ -1052,40 +990,33 @@ static menuSound_t Keydown_Material_Fields( menuCommon_t *item, int key ) {
 *   @brief  Setup the refresh material editor UI.
 **/
 void M_Menu_Editor_RefreshMaterial( void ) {
-    static const vec3_t origin = { 40.0f, 0.0f, 0.0f };
+    static const vec3_t origin = { -320.0f, 0.0f, 0.0f };
     static const vec3_t angles = { 0.0f, 260.0f, 0.0f };
 
     m_rmaterial.menu.name = "editor_rmaterial";
     m_rmaterial.menu.push = Push;
-    // Set to cancel by default, so it will undo any active changes.
+    // Pop_General pops without undoing material changes.
     m_rmaterial.menu.pop = Pop_General;
     m_rmaterial.menu.size = Size;
     m_rmaterial.menu.draw = Draw;
     m_rmaterial.menu.free = Free;
-    if ( cls.ref_type == REF_TYPE_VKPT ) {
-        // Q2RTX: make the player menu transparent so that we can see 
-        // the model below: all 2D stuff is rendered after 3D, in stretch_pics.
-        //m_rmaterial.menu.color.u32 = 0;
-    } else {
-        //m_rmaterial.menu.color.u32 = MakeColor( 0, 0, 0, 255 );
-    }
 
 
     // Setup the 3D view and entities for the Test Model to render in:
     #ifdef ENABLE_MATERIAL_TEST_MODEL_RENDERING
-    m_rmaterial.entities[ 0 ].flags = RF_FULLBRIGHT;
+    m_rmaterial.entities[ 0 ].flags = RF_DEPTHHACK | RF_WEAPONMODEL;
     m_rmaterial.entities[ 0 ].id = 1; // Q2RTX: add entity id to fix motion vectors
     VectorCopy( angles, m_rmaterial.entities[ 0 ].angles );
     VectorCopy( origin, m_rmaterial.entities[ 0 ].origin );
     VectorCopy( origin, m_rmaterial.entities[ 0 ].oldorigin );
 
-    m_rmaterial.entities[ 1 ].flags = RF_FULLBRIGHT;
-    m_rmaterial.entities[ 1 ].id = 2; // Q2RTX: add entity id to fix motion vectors
-    VectorCopy( angles, m_rmaterial.entities[ 1 ].angles );
-    VectorCopy( origin, m_rmaterial.entities[ 1 ].origin );
-    VectorCopy( origin, m_rmaterial.entities[ 1 ].oldorigin );
+    //m_rmaterial.entities[ 1 ].flags = RF_FULLBRIGHT;
+    //m_rmaterial.entities[ 1 ].id = 2; // Q2RTX: add entity id to fix motion vectors
+    //VectorCopy( angles, m_rmaterial.entities[ 1 ].angles );
+    //VectorCopy( origin, m_rmaterial.entities[ 1 ].origin );
+    //VectorCopy( origin, m_rmaterial.entities[ 1 ].oldorigin );
 
-    m_rmaterial.refdef.num_entities = 0;
+    m_rmaterial.refdef.num_entities = 1;
     m_rmaterial.refdef.entities = m_rmaterial.entities;
     m_rmaterial.refdef.rdflags = RDF_NOWORLDMODEL;
 
@@ -1105,13 +1036,13 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     /**
     *   Material Filename this Material resides in.
     **/
-    strcpy( m_rmaterial.materialKeyValues.material->source_matfile, "materials/null.mat" );
-    m_rmaterial.materialKeyFields.staticMaterialName.generic.type = MTYPE_STATIC;
-    m_rmaterial.materialKeyFields.staticMaterialName.generic.uiFlags = UI_CENTER;
-    m_rmaterial.materialKeyFields.staticMaterialName.generic.flags = QMF_DISABLED | QMF_GRAYED;
-    m_rmaterial.materialKeyFields.staticMaterialName.generic.name = m_rmaterial.materialKeyValues.material->source_matfile;
-    //m_rmaterial.materialKeyFields.staticMaterialName.generic.width = 32 - 1;
-    m_rmaterial.materialKeyFields.staticMaterialName.maxChars = 64;
+    //strcpy( m_rmaterial.materialKeyValues.material->source_matfile, "materials/null.mat" );
+    //m_rmaterial.materialKeyFields.staticMaterialName.generic.type = MTYPE_STATIC;
+    //m_rmaterial.materialKeyFields.staticMaterialName.generic.uiFlags = UI_CENTER;
+    //m_rmaterial.materialKeyFields.staticMaterialName.generic.flags = QMF_DISABLED | QMF_GRAYED;
+    //m_rmaterial.materialKeyFields.staticMaterialName.generic.name = m_rmaterial.materialKeyValues.material->source_matfile;
+    ////m_rmaterial.materialKeyFields.staticMaterialName.generic.width = 32 - 1;
+    //m_rmaterial.materialKeyFields.staticMaterialName.maxChars = 64;
 
     /**
     *   Material Kind:
@@ -1300,14 +1231,8 @@ void M_Menu_Editor_RefreshMaterial( void ) {
 
 
     /**
-    *   Cancel/Apply Action Buttons:
+    *   Action Buttons:
     **/
-    //m_rmaterial.materialKeyFields.actionSave.generic.type = MTYPE_ACTION;
-    //m_rmaterial.materialKeyFields.actionSave.generic.name = "Save Changes";
-    //m_rmaterial.materialKeyFields.actionSave.generic.uiFlags = UI_LEFT | UI_ALTCOLOR;
-    //m_rmaterial.materialKeyFields.actionSave.generic.flags = 0;
-    //m_rmaterial.materialKeyFields.actionSave.callback = MenuAction_Save_Callback;
-
     m_rmaterial.materialKeyFields.actionRevert.generic.type = MTYPE_ACTION;
     m_rmaterial.materialKeyFields.actionRevert.generic.name = "Revert Material";
     m_rmaterial.materialKeyFields.actionRevert.generic.uiFlags = UI_LEFT | UI_ALTCOLOR;
@@ -1324,17 +1249,6 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     //m_rmaterial.skin.generic.name = "skin";
     //m_rmaterial.skin.generic.change = Change;
 
-    //m_rmaterial.hand.generic.type = MTYPE_SPINCONTROL;
-    //m_rmaterial.hand.generic.name = "handedness";
-    //m_rmaterial.hand.itemnames = (char **)handedness;
-
-    //m_rmaterial.aimfix.generic.type = MTYPE_SPINCONTROL;
-    //m_rmaterial.aimfix.generic.name = "aiming point";
-    //m_rmaterial.aimfix.itemnames = (char **)aiming_points;
-
-    //m_rmaterial.view.generic.type = MTYPE_SPINCONTROL;
-    //m_rmaterial.view.generic.name = "view";
-    //m_rmaterial.view.itemnames = (char **)viewmodes;
     m_rmaterial.menu.compact = true;
     m_rmaterial.menu.transparent = true;
 
@@ -1370,6 +1284,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
 
     // Init menu.
     Menu_Init( &m_rmaterial.menu );
+
     // Override background color.
     m_rmaterial.menu.color.u32 = MakeColor(
         uis.color.background.u8[ 0 ],
@@ -1377,6 +1292,9 @@ void M_Menu_Editor_RefreshMaterial( void ) {
         uis.color.background.u8[ 2 ],
         (uint32_t)( 255.f * ui_editor_rmaterial_background_alpha->value )
     );
+
+    m_rmaterial.menu.compact = true;
+    m_rmaterial.menu.transparent = true;
 
     // Append to menus list.
     List_Append( &ui_menus, &m_rmaterial.menu.entry );

@@ -74,7 +74,7 @@ end
 ----------------------------------------------------------------------
 function WareHouseLockingButton_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     -- Open the doors.
-    if ( signalName == "OnPressed" ) then
+    if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
         -- Get entity
         local entityWareHouseDoor01 = Game.GetEntityForLuaName( "WareHouseDoor01" )
         -- Determine its move state.
