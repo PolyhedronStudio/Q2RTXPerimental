@@ -236,6 +236,9 @@ begin options
     action "player setup" pushmenu players
     blank
     action "input setup" pushmenu input
+    //ifeq developer 1
+    action "developer key bindings" pushmenu keys_developer
+    //endif
     action "action key bindings" pushmenu keys
     action "weapon and item bindings" pushmenu weapons
     action "function key bindings" pushmenu keys_function
@@ -565,7 +568,6 @@ begin keys
     bind "Inventory Prev Selected Item" invprev
     bind "Inventory Next Selected Item" invnext
     blank
-    action "developer keys" pushmenu keys_developer
     action "legacy keys..." pushmenu keys_legacy
 end
 

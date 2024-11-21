@@ -181,12 +181,14 @@ static inline float LerpAngle( float a2, float a1, float frac ) {
 static inline const float AngleMod( float a ) {
 // Float based method:
 	#if 1
-	float v = fmod( a, 360.0f );
+    // Float based method:
+    const float v = fmod( a, 360.0f );
 
-	if ( v < 0 )
-		return 360.f + v;
+    if ( v < 0 ) {
+        return 360.f + v;
+    }
 
-	return v;
+    return v;
 	#endif
 	// Failed attempt:
 	#if 0
@@ -198,18 +200,9 @@ static inline const float AngleMod( float a ) {
 	#endif
 }
 
-static inline int Q_align( int value, int align ) {
-	int mod = value % align;
+static inline const int64_t Q_align( const int64_t value, const int64_t align ) {
+    int64_t mod = value % align;
 	return mod ? value + align - mod : value;
-}
-
-static inline int Q_gcd( int a, int b ) {
-	while ( b != 0 ) {
-		int t = b;
-		b = a % b;
-		a = t;
-	}
-	return a;
 }
 
 void Q_srand( uint32_t seed );

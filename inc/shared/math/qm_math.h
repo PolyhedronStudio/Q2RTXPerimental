@@ -457,20 +457,15 @@ typedef struct Matrix {
 *
 *
 **/
+#if !defined(QM_BBOX3_TYPE)
 /**
 *	@brief Box 3 type definiton: (mins, maxs). The bounds are implemented like a union class.
 **/
 typedef struct BBox3 {
     union {
-        // XYZ array index accessor.
-        Vector3 bounds[ 2 ];
-        // Points Array.
-        float points[ 6 ];
         // X Y Z desegnator accessors.
-        struct {
-            Vector3 mins;
-            Vector3 maxs;
-        };
+        Vector3 mins, maxs;
+        float points[ 6 ];
     };
 
     #ifdef __cplusplus
@@ -528,7 +523,8 @@ typedef struct BBox3 {
     [[nodiscard]] inline constexpr float &operator[]( const size_t i );
     #endif // #ifdef __cplusplus
 } BBox3;
-
+#define QM_BBOX3_TYPE
+#endif 
 
 
 /**

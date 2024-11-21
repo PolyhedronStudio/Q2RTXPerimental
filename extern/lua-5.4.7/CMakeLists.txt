@@ -49,7 +49,9 @@ if (WIN32)
 	add_library( liblua-5.4.7 STATIC ${LUA_LIB_SOURCES} )
 else()
 	add_library( liblua-5.4.7 STATIC ${LUA_LIB_SOURCES} )
+	target_link_libraries( liblua-5.4.7 m )
 endif()
+
 # Ensure the library ends up in the lua folder.
 set_target_properties( liblua-5.4.7 
 	PROPERTIES
@@ -76,7 +78,11 @@ set_target_properties( liblua-5.4.7
 # Lua (Interpreter):
 #
 add_executable( lua ${LUA_INTERPRETER_SOURCES} )
-target_link_libraries( lua liblua-5.4.7 )
+if (WIN32)
+	target_link_libraries( lua liblua-5.4.7 )
+else()
+	target_link_libraries( lua liblua-5.4.7 m )
+endif()
 # Ensure the Lua(Interpreter) ends up in the tools folder.
 set_target_properties( lua
 	PROPERTIES
@@ -101,7 +107,11 @@ set_target_properties( lua
 # LuaC (compiler):
 #
 add_executable( luac ${LUA_COMPILER_SOURCES} )
-target_link_libraries( luac liblua-5.4.7 )
+if (WIN32)
+	target_link_libraries( luac liblua-5.4.7 )
+else()
+	target_link_libraries( luac liblua-5.4.7 m )
+endif()
 # Ensure the Lua(Compiler) ends up in the tools folder.
 set_target_properties( luac
 	PROPERTIES
