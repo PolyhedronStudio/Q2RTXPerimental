@@ -565,6 +565,7 @@ begin keys
     bind "Inventory Prev Selected Item" invprev
     bind "Inventory Next Selected Item" invnext
     blank
+    action "developer keys" pushmenu keys_developer
     action "legacy keys..." pushmenu keys_legacy
 end
 
@@ -604,6 +605,16 @@ begin keys_legacy
     bind "center view" centerview
     bind "mouse look" +mlook
     bind "keyboard look" +klook
+end
+
+begin keys_developer
+    background #4e4a4edc
+    style --compact
+    title "Developer Key Bindings" 
+
+    bind "Give ALl" "give all"
+    bind "GodMode" god
+    bind "NoClip" noclip
 end
 
 begin weapons
