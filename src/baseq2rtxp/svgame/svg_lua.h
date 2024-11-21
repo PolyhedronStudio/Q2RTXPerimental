@@ -17,6 +17,7 @@
 //! For errors:
 #define LUA_ErrorPrintf(...) gi.bprintf( PRINT_ERROR, __VA_ARGS__ );
 
+
 //! For developer prints:
 #if LUA_DEBUG_OUTPUT == 1
 	#define Lua_DeveloperPrintf(...) gi.dprintf( __VA_ARGS__ );

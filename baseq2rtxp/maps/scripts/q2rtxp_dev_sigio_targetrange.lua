@@ -77,8 +77,10 @@ function WareHouseLockingButton_OnSignalIn( self, signaller, activator, signalNa
     if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
         -- Get entity
         local entityWareHouseDoor01 = Game.GetEntityForLuaName( "WareHouseDoor01" )
+        entityWareHouseDoor01 = nil
         -- Determine its move state.
-        local doorMoveState = Game.GetPushMoverState( entityWareHouseDoor01 )
+        local doorMoveState = Game. GetPushMoverState( entityWareHouseDoor01 )
+
         -- Only SignalOut a "DoorOpen" when the elevator is NOT moving.
         if ( doorMoveState ~= PUSHMOVE_STATE_MOVING_DOWN and doorMoveState~= PUSHMOVE_STATE_MOVING_UP ) then
             -- Send the lock toggle signal.

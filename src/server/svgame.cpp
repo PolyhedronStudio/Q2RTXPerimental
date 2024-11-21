@@ -198,6 +198,7 @@ static void PF_bprintf(int level, const char *fmt, ...)
     #if USE_CLIENT
     if ( !COM_DEDICATED && level >= print_type_t::PRINT_WARNING ) {
         Com_LPrintf( (print_type_t)level, "%s", string );
+        return;
     }
     #endif
 

@@ -149,23 +149,61 @@ inline const bool SVG_Lua_IsMapScriptInterpreted() {
 }
 
 /**
+*	@brief	TODO: Implement this properly so we use a custom reader.
+**/
+typedef struct LoadS {
+	const char *s;
+	size_t size;
+} LoadS;
+static const char *_LUA_getS( lua_State *L, void *ud, size_t *size ) {
+	LoadS *ls = (LoadS *)ud;
+	(void)L;  /* not used */
+	if ( ls->size == 0 ) return NULL;
+	*size = ls->size;
+	ls->size = 0;
+	return ls->s;
+}
+static int _LUA_luaL_loadbufferx( lua_State *L, const char *buff, size_t size,
+	const char *name, const char *mode ) {
+	LoadS ls;
+	ls.s = buff;
+	ls.size = size;
+	return lua_load( L, _LUA_getS, &ls, name, mode );
+}
+
+
+static int _LUA_luaL_loadstring( lua_State *L, const char *s ) {
+	return _LUA_luaL_loadbufferx( L, s, strlen( s ), s, NULL );
+}
+
+/**
 *	@brief	For now a Support routine for LoadMapScript.
 **/
-int LUA_LoadFileString( lua_State *L, const char *fileName, const char *s ) {
-	return luaL_loadbuffer( L, s, strlen( s ), fileName );
+static int _LUA_LoadFileString( lua_State *L, const char *fileName, const char *s ) {
+	return _LUA_luaL_loadbufferx( L, s, strlen( s ), fileName, "bt" );
 }
+
 static const bool LUA_InterpreteString( const char *fileName, const char *buffer ) {
 	// Raw string:
 	int loadResult = LUA_OK;
 	if ( fileName ) {
-		loadResult = LUA_LoadFileString( luaMapState.lState, fileName, buffer );
+		loadResult = _LUA_LoadFileString( luaMapState.lState, fileName, buffer );
 	} else {
-		loadResult = luaL_loadstring( luaMapState.lState, buffer );
+		loadResult = _LUA_luaL_loadstring( luaMapState.lState, buffer );
 	}
 	
+	// Output.
+	#define InterpretError(...) \
+		if ( fileName ) {\
+			LUA_ErrorPrintf( "%s:\n%s\n", __func__, errorStr.c_str() );\
+		} else {\
+			LUA_ErrorPrintf( "%s:\n%s\n", __func__, errorStr.c_str() );\
+		}
+
 	if ( loadResult == LUA_OK ) {
 		// Execute the code.
-		if ( lua_pcall( luaMapState.lState, 0, LUA_MULTRET, 0 ) == LUA_OK ) {
+		int pCallReturnValue = lua_pcall( luaMapState.lState, 0, LUA_MULTRET, 0 );
+		if ( pCallReturnValue == LUA_OK ) {
 			// Debug:
 			Lua_DeveloperPrintf( "%s: Succesfully interpreted buffer\n", __func__ );
 			// Remove the code buffer, pop it from stack.
@@ -174,27 +212,80 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 			luaMapState.scriptInterpreted = true;
 			// Success:
 			return true;
-		// Failure:
+		// Yielded -> TODO: Can we ever make yielding work by doing something here to
+		// keeping save/load games in mind?
+		} else if ( pCallReturnValue == LUA_YIELD ) {
+			// Get error.
+			const std::string errorStr = lua_tostring( luaMapState.lState, -1 );
+			// Remove the errorStr from the stack
+			lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
+			// Print Error Notification.
+			LUA_ErrorPrintf( "[%s]:[Yielding Not Supported!]:\n%s\n", __func__, errorStr.c_str() );
+		// Runtime Error:
+		} else if ( pCallReturnValue == LUA_ERRRUN ) {
+			// Get error.
+			const std::string errorStr = lua_tostring( luaMapState.lState, -1 );
+			// Remove the errorStr from the stack
+			lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
+			// Print Error Notification.
+			LUA_ErrorPrintf( "[%s]:[Runtime Error]:\n%s\n", __func__, errorStr.c_str() );
+		// Syntax Error:
+		} else if ( pCallReturnValue == LUA_ERRSYNTAX ) {
+			// Get error.
+			const std::string errorStr = lua_tostring( luaMapState.lState, -1 );
+			// Remove the errorStr from the stack
+			lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
+			// Print Error Notification.
+			LUA_ErrorPrintf( "[%s]:[Syntax Error]:\n%s\n", __func__, errorStr.c_str() );
+		// Memory Error:
+		} else if ( pCallReturnValue == LUA_ERRMEM ) {
+			// Get error.
+			const std::string errorStr = lua_tostring( luaMapState.lState, -1 );
+			// Remove the errorStr from the stack
+			lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
+			// Print Error Notification.
+			LUA_ErrorPrintf( "[%s]:[Memory Error]:\n%s\n", __func__, errorStr.c_str() );
+		// Error Error? Lol: TODO: WTF?
+		} else if ( pCallReturnValue == LUA_ERRERR ) {
+			// Get error.
+			const std::string errorStr = lua_tostring( luaMapState.lState, -1 );
+			// Remove the errorStr from the stack
+			lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
+			// Print Error Notification.
+			LUA_ErrorPrintf( "[%s]:[Error]:\n%s\n", __func__, errorStr.c_str() );
 		} else {
 			// Get error.
-			const std::string errorStr = lua_tostring( luaMapState.lState, lua_gettop( luaMapState.lState ) );
-			// Output.
-			if ( fileName ) {
-				LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
-			} else {
-				LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
-			}
-			// Remove the function from the stack
+			const std::string errorStr = lua_tostring( luaMapState.lState, -1 );
+			// Remove the errorStr from the stack
 			lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
+			// Print Error Notification.
+			LUA_ErrorPrintf( "%s:\n%s\n", __func__, errorStr.c_str() );
 		}
+	// Syntax Error:
+	} else if ( loadResult == LUA_ERRSYNTAX ) {
+		// Get error.
+		const std::string errorStr = lua_tostring( luaMapState.lState, -1 );
+		// Remove the errorStr from the stack
+		lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
+		// Print Error Notification.
+		LUA_ErrorPrintf( "[%s]:[Syntax Error:]\n%s\n", __func__, errorStr.c_str() );
+	// Memory Error:
+	} else if ( loadResult == LUA_ERRMEM ) {
+		// Get error.
+		const std::string errorStr = lua_tostring( luaMapState.lState, -1 );
+		// Remove the errorStr from the stack
+		lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
+		// Print Error Notification.
+		LUA_ErrorPrintf( "%s:\nMemory Error: %s\n", __func__, errorStr.c_str() );
+		// Error Error? Lol: TODO: WTF?
 	} else {
 		// Get error.
 		const std::string errorStr = lua_tostring( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 		// Output.
 		if ( fileName ) {
-			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
+			LUA_ErrorPrintf( "%s:\n%s\n", __func__, errorStr.c_str() );
 		} else {
-			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
+			LUA_ErrorPrintf( "%s:\n%s\n", __func__, errorStr.c_str() );
 		}
 		// Remove the function from the stack
 		lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );

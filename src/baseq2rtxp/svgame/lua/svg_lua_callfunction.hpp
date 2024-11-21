@@ -179,29 +179,56 @@ static const bool LUA_CallFunction( lua_State *L, const std::string &functionNam
 		// Protect Call the pushed function name string.
 		int32_t pCallReturnValue = lua_pcall( L, sizeof...( Rest ), numReturnValues, 0 );
 		if ( pCallReturnValue == LUA_OK ) {
-			// TODO: Get elements from stack and... store somewhere??
-			
-			// Pop stack.
-			//lua_pop( L, lua_gettop( L ) );
-			//if ( numReturnValues >= 1 && lua_gettop( L ) != numReturnValues ) {
-			//	// WID: LUA: Requires us to implement 'the other way' of dealing with Lua Errrors.
-			//	#if 0
-			//	return luaL_error( L, "%s: function \"%s\" returned (#%d) return values, but (#%d) number of return values were expected\n",
-			//		__func__, functionName.c_str(), lua_gettop( L ), numReturnValues );
-			//	#endif
-			//	LUA_ErrorPrintf( "%s: function \"%s\" returned (#%d) return values, but (#%d) number of return values were expected\n",
-			//		__func__, functionName.c_str(), lua_gettop( L ), numReturnValues );
-			//}
-
 			// Success.
 			executedSuccessfully = true;
+		// Yielded -> TODO: Can we ever make yielding work by doing something here to
+		// keeping save/load games in mind?
+		} else if ( pCallReturnValue == LUA_YIELD ) {
+			// Get error.
+			const std::string errorStr = lua_tostring( L, -1 );
+			// Remove the errorStr from the stack
+			lua_pop( L, lua_gettop( L ) );
+			// Print Error Notification.
+			LUA_ErrorPrintf( "[%s]:[Yielding Not Supported!]:\n%s\n", __func__, errorStr.c_str() );
+		// Runtime Error:
+		} else if ( pCallReturnValue == LUA_ERRRUN ) {
+			// Get error.
+			const std::string errorStr = lua_tostring( L, -1 );
+			// Remove the errorStr from the stack
+			lua_pop( L, lua_gettop( L ) );
+			// Print Error Notification.
+			LUA_ErrorPrintf( "[%s]:[Runtime Error]:\n%s\n", __func__, errorStr.c_str() );
+		// Syntax Error:
+		} else if ( pCallReturnValue == LUA_ERRSYNTAX ) {
+			// Get error.
+			const std::string errorStr = lua_tostring( L, -1 );
+			// Remove the errorStr from the stack
+			lua_pop( L, lua_gettop( L ) );
+			// Print Error Notification.
+			LUA_ErrorPrintf( "[%s]:[Syntax Error]:\n%s\n", __func__, errorStr.c_str() );
+		// Memory Error:
+		} else if ( pCallReturnValue == LUA_ERRMEM ) {
+			// Get error.
+			const std::string errorStr = lua_tostring( L, -1 );
+			// Remove the errorStr from the stack
+			lua_pop( L, lua_gettop( L ) );
+			// Print Error Notification.
+			LUA_ErrorPrintf( "[%s]:[Memory Error]:\n%s\n", __func__, errorStr.c_str() );
+		// Error Error? Lol: TODO: WTF?
+		} else if ( pCallReturnValue == LUA_ERRERR ) {
+			// Get error.
+			const std::string errorStr = lua_tostring( L, -1 );
+			// Remove the errorStr from the stack
+			lua_pop( L, lua_gettop( L ) );
+			// Print Error Notification.
+			LUA_ErrorPrintf( "[%s]:[Error]:\n%s\n", __func__, errorStr.c_str() );
 		} else {
 			// Get error.
 			const std::string errorStr = lua_tostring( L, -1 );
 			// Remove the errorStr from the stack
 			lua_pop( L, lua_gettop( L ) );
 			// Print Error Notification.
-			LUA_ErrorPrintf( "%s: %s\n", __func__, errorStr.c_str() );
+			LUA_ErrorPrintf( "%s:\n%s\n", __func__, errorStr.c_str() );
 		}
 	} else {
 		// Remove the errorStr from the stack
@@ -210,7 +237,7 @@ static const bool LUA_CallFunction( lua_State *L, const std::string &functionNam
 		// just fine if the function does not exist at all.
 		if ( !( verbosity & LUA_CALLFUNCTION_VERBOSE_MISSING ) ) {
 			// Print Error Notification.
-			LUA_ErrorPrintf( "%s: %s is not a function\n", __func__, functionName.c_str() );
+			LUA_ErrorPrintf( "%s:\n\"%s\" is not a function\n", __func__, functionName.c_str() );
 		}
 	}
 
