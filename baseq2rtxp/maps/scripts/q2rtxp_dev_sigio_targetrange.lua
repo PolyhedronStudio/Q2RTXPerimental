@@ -61,7 +61,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
     -- track when it has reached 'closed' state.
     ]]--
     -- A new round has begun, so the target got told to "close", turn on the light so we can see it close.
-    elseif ( signalName == "DoorClose" ) then
+    elseif ( signalName == "OnClose" ) then
         -- Turn on the light for this target.
         entityUseType = "ENTITY_USETARGET_TYPE_ON"
         entityUseValue = 1

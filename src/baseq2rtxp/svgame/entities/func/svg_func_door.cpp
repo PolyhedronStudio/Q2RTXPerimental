@@ -123,7 +123,7 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
     const bool entityIsCapable = ( SVG_IsClientEntity( activator ) || activator->svflags & SVF_MONSTER ? true : false );
 
     // If the activator is a client or a monster, determine whether to play a locked door sound.
-    if ( entityIsCapable ) {
+    //if ( entityIsCapable ) {
         // If we're locked while in either opened, or closed state, refuse to use target ourselves and play a locked sound.
         if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
             if ( self->pushMoveInfo.lockState.isLocked ) {
@@ -136,7 +136,7 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
         if ( self->pushMoveInfo.lockState.isLocked ) {
             return;
         }
-    }
+    //}
 
     // By default it is a 'Team Slave', and thus should exit. However, in the scenario of a client
     // performing a (+usetarget) key action, we want to try and activate the team master. This allows
@@ -144,17 +144,11 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
     // engage to toggle the door moving states.)
     if ( self->flags & FL_TEAMSLAVE ) {
         // Prevent ourselves from actually falling into recursion, make sure we got a client entity.
-        //if ( self->teammaster != self && entityIsCapable ) {
-        //    // Pass through to the team master to handle this.
-        //    if ( self->teammaster->use ) {
-        //        self->teammaster->use( self->teammaster, other, activator, useType, useValue );
-        //    }
-        //    return;
-        //    // Default 'Team Slave' behavior:
-        //} else {
-        //    return;
-        //}
-        if ( self->teammaster == self || !entityIsCapable ) {
+        if ( self->teammaster != self /*&& entityIsCapable*/ ) {
+            // Pass through to the team master to handle this.
+            //if ( self->teammaster->use ) {
+                door_team_toggle( self->teammaster, other, activator, open );
+            //}
             return;
         // Default 'Team Slave' behavior:
         } else {
@@ -300,16 +294,6 @@ void door_open_move_done( edict_t *self ) {
     // Apply state.
     self->pushMoveInfo.state = DOOR_STATE_OPENED;
 
-    // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
-    const bool damageActivates = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
-    // Health trigger based door:
-    if ( damageActivates ) {
-        if ( self->max_health ) {
-            self->takedamage = DAMAGE_YES;
-            self->health = self->max_health;
-        }
-    }
-
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnOpened" );
 
@@ -338,6 +322,17 @@ void door_close_move_done( edict_t *self ) {
         }
         self->s.sound = 0;
     }
+    
+    // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
+    const bool damageActivates = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
+    // Health trigger based door:
+    if ( damageActivates ) {
+        if ( self->max_health ) {
+            self->takedamage = DAMAGE_YES;
+            self->health = self->max_health;
+        }
+    }
+
     self->pushMoveInfo.state = DOOR_STATE_CLOSED;
     door_use_areaportals( self, false );
 
@@ -455,6 +450,9 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
         // If we're locked while in either opened, or closed state, refuse to use target ourselves and play a locked sound.
         if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
             if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockedSound ) {
+                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
+            }
+            if ( self->pushMoveInfo.lockState.isLocked ) {
                 gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
                 return;
             }
