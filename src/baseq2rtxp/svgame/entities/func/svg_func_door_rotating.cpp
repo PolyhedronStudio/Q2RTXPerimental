@@ -138,6 +138,7 @@ void SP_func_door_rotating( edict_t *ent ) {
     ent->blocked = door_blocked;
     ent->touch = door_touch;
     ent->use = door_use;
+    ent->pain = door_pain;
     ent->onsignalin = door_onsignalin;
 
     // Calculate absolute move distance to get from pos1 to pos2.

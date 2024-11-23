@@ -53,6 +53,10 @@ void door_blocked( edict_t *self, edict_t *other );
 **/
 void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 /**
+*   @brief  Pain for door.
+**/
+void door_pain( edict_t *self, edict_t *other, float kick, int damage );
+/**
 *	@brief
 **/
 void door_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
@@ -60,6 +64,10 @@ void door_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *sur
 *	@brief
 **/
 void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+/**
+*   @brief  Pain for door.
+**/
+void door_pain( edict_t *self, edict_t *other, float kick, int damage );
 /**
 *   @brief  Signal Receiving:
 **/

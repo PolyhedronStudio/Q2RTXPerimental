@@ -97,6 +97,7 @@ extern void door_close_move_done( edict_t *self );
 extern void door_open_move_done( edict_t *self );
 extern void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void door_postspawn( edict_t *self );
+extern void door_pain( edict_t *self, edict_t *other, float kick, int damage );
 extern void door_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 #if 0
@@ -427,6 +428,7 @@ const save_ptr_t save_ptrs[] = {
 //
 //	Pain Callback Pointers:
 //
+{ P_pain, (void *)door_pain },
 { P_pain, (void*)player_pain },
 
 //

@@ -161,7 +161,7 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
     if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) || open != true ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
             // trigger all paired doors
-            for ( edict_t *ent = self; ent; ent = ent->teamchain ) {
+            for ( edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
                 ent->message = NULL;
                 ent->touch = NULL;
                 ent->activator = activator; // WID: We need to assign it right?
@@ -175,7 +175,7 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
     //if ( open == true || SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) {
     if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) || open != false ) {
         // trigger all paired doors
-        for ( edict_t *ent = self; ent; ent = ent->teamchain ) {
+        for ( edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
             ent->message = NULL;
             ent->touch = NULL;
             ent->activator = activator; // WID: We need to assign it right?
@@ -734,6 +734,7 @@ void SP_func_door( edict_t *ent ) {
     ent->blocked = door_blocked;
     ent->touch = door_touch;
     ent->use = door_use;
+    ent->pain = door_pain;
     ent->onsignalin = door_onsignalin;
 
     // Calculate absolute move distance to get from pos1 to pos2.
