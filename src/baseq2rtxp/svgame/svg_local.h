@@ -273,7 +273,7 @@ typedef enum {
     //! Generic state.
     ENTITY_USETARGET_STATE_DEFAULT      = 0,
     //! 'OFF' state.
-    ENTITY_USETARGET_STATE_OFF          = BIT( 0 ),
+    ENTITY_USETARGET_STATE_OFF          = ENTITY_USETARGET_STATE_DEFAULT,//BIT( 0 ),
     //! 'ON' state.
     ENTITY_USETARGET_STATE_ON           = BIT( 1 ),
     //! The entity its usetarget state has been toggled.

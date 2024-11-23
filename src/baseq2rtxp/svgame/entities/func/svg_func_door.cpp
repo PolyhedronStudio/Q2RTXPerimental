@@ -126,10 +126,15 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
     if ( entityIsCapable ) {
         // If we're locked while in either opened, or closed state, refuse to use target ourselves and play a locked sound.
         if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
-            if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockedSound ) {
-                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
-                return;
+            if ( self->pushMoveInfo.lockState.isLocked ) {
+                if ( self->pushMoveInfo.lockState.lockedSound ) {
+                    gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
+                }
             }
+        }
+        // Escape if locked.
+        if ( self->pushMoveInfo.lockState.isLocked ) {
+            return;
         }
     }
 
@@ -158,6 +163,7 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
     }
     #endif
 
+    //if ( open == false || SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) {
     if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) || open != true ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
             // trigger all paired doors
@@ -172,6 +178,7 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
         }
     }
 
+    //if ( open == true || SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) {
     if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) || open != false ) {
         // trigger all paired doors
         for ( edict_t *ent = self; ent; ent = ent->teamchain ) {
@@ -285,12 +292,23 @@ void door_close_move( edict_t *self );
 **/
 void door_open_move_done( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sounds.end )
+        if ( self->pushMoveInfo.sounds.end ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
+        }
         self->s.sound = 0;
     }
     // Apply state.
     self->pushMoveInfo.state = DOOR_STATE_OPENED;
+
+    // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
+    const bool damageActivates = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
+    // Health trigger based door:
+    if ( damageActivates ) {
+        if ( self->max_health ) {
+            self->takedamage = DAMAGE_YES;
+            self->health = self->max_health;
+        }
+    }
 
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnOpened" );
@@ -315,8 +333,9 @@ void door_open_move_done( edict_t *self ) {
 **/
 void door_close_move_done( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sounds.end )
+        if ( self->pushMoveInfo.sounds.end ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
+        }
         self->s.sound = 0;
     }
     self->pushMoveInfo.state = DOOR_STATE_CLOSED;
@@ -342,8 +361,9 @@ void door_close_move_done( edict_t *self ) {
 **/
 void door_close_move( edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sounds.start )
+        if ( self->pushMoveInfo.sounds.start ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+        }
         self->s.sound = self->pushMoveInfo.sounds.middle;
     }
 
@@ -377,19 +397,23 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
         return;     // already going up
     }
 
+    // If we are already opened, and re-used:
     if ( self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
         // Reset 'top pusher state'/'door opened state' wait time
         if ( self->pushMoveInfo.wait >= 0 ) {
             self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
         }
+        // And exit. This results in having to wait longer if trigger/button spamming.
         return;
     }
 
     // Team Masters dictate the audio effects:
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
+        // Play start sound using start sound message.
         if ( self->pushMoveInfo.sounds.start ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
         }
+        // Apply the 'moving' sound to the entity state itself.
         self->s.sound = self->pushMoveInfo.sounds.middle;
     }
 
@@ -443,6 +467,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
     // engage to toggle the door moving states.)
     if ( self->flags & FL_TEAMSLAVE ) {
         // If we got a client/monster entity, prevent ourselves from actually falling into recursion.
+        // In case of single non teamed doors, self->teammaster can be self.
         if ( self->teammaster != self && entityIsCapable ) {
             // Pass through to the team master to handle this.
             if ( self->teammaster->use ) {
@@ -572,6 +597,26 @@ void door_blocked( edict_t *self, edict_t *other ) {
 void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
     edict_t *ent;
 
+    // By default it is a 'Team Slave', and thus should exit. However, in the scenario of a client
+    // performing a (+usetarget) key action, we want to try and activate the team master. This allows
+    // for the team master to determine what to do next. (Which if the door is unlocked, means it'll
+    // engage to toggle the door moving states.)
+    if ( self->flags & FL_TEAMSLAVE ) {
+        // If we got a client/monster entity, prevent ourselves from actually falling into recursion.
+        if ( self->teammaster != self ) {
+            // Pass through to the team master to handle this.
+            if ( self->teammaster && self->teammaster->use ) {
+                door_killed( self->teammaster, inflictor, attacker, damage, point );
+            }
+            // Exit.
+            return;
+            // Default 'Team Slave' behavior:
+        } else {
+            // Exit.
+            return;
+        }
+    }
+
     for ( ent = self->teammaster; ent; ent = ent->teamchain ) {
         // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
         const bool damageActivates = SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
@@ -588,12 +633,19 @@ void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
     }
 
     // Fire its use targets.
-    door_use( self->teammaster, attacker, attacker, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+    door_use( self, attacker, attacker, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+    //SVG_UseTargets( self, attacker, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
 
     //// Dispatch a signal.
     //self->other = inflictor;
     //self->activator = attacker;
     //SVG_SignalOut( self, self->other, self->activator, "OnKilled" );
+}
+/**
+*   @brief  Pain for door.
+**/
+void door_pain( edict_t *self, edict_t *other, float kick, int damage ) {
+
 }
 
 /**
@@ -714,6 +766,7 @@ void SP_func_door( edict_t *ent ) {
         ent->takedamage = DAMAGE_YES;
         // Die callback.
         ent->die = door_killed;
+        ent->pain = door_pain;
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
         ent->think = Think_CalcMoveSpeed;

@@ -263,7 +263,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
             if ( ( ent->client->userInput.pressedButtons & BUTTON_PRIMARY_FIRE ) ) {
                 // Switch to Firing mode if we have Clip Ammo:
                 if ( ent->client->pers.weapon_clip_ammo[ ent->client->pers.weapon->weapon_index ] > 0 ) {
-                    gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
+                    //gi.dprintf( "%s: isAiming -> SwitchMode( WEAPON_MODE_AIM_FIRE )\n", __func__ );
                     SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_FIRE, pistolItemInfo.modeAnimations, false );
                     // No ammo audio.
                 } else {
@@ -441,7 +441,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
         } if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_FIRE ) {
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
             // any earlier/double firing.
-            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 3 ) {
+            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame /*+ 3 This is realistic, visually, but, plays very annoying and unnaturally.. */ ) {
                 // Wait out until enough time has passed.
                 if ( ent->client->weaponState.timers.lastAimedFire <= ( level.time - 325_ms ) ) {
                     // Fire the pistol bullet.

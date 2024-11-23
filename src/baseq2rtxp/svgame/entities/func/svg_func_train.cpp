@@ -183,7 +183,51 @@ void func_train_find( edict_t *self ) {
 
 void train_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     self->activator = activator;
+    self->other = other;
 
+    #if 1
+    // Dealing with a toggleable train?
+    if ( SVG_HasSpawnFlags( self, TRAIN_TOGGLE ) ) {
+
+        // ON:
+        if ( useType == ENTITY_USETARGET_TYPE_ON || useValue == 1 ) {
+            if ( self->targetEntities.target ) {
+                train_resume( self );
+            } else {
+                train_next( self );
+            }
+        }
+        else if ( useType == ENTITY_USETARGET_TYPE_OFF || useValue == 0 ) {
+            self->spawnflags &= ~TRAIN_START_ON;
+            VectorClear( self->velocity );
+            self->nextthink = 0_ms;
+        }
+        //if ( !SVG_UseTarget_ShouldToggle( useType, ( self->useTarget.state & ENTITY_USETARGET_STATE_OFF ) != 0  /*0 != self->s.frame*/ ) ) {
+        //    return;
+        //}
+        //self->s.frame = 0 != self->s.frame ? 0 : 1;
+        //if ( 0 != self->s.frame ) {
+
+        //    //SVG_UseTargets( self, activator, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_ON, 1 );
+        //} else {
+
+        //    //SVG_UseTargets( self, activator, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_OFF, 0 );
+        //}
+
+        // OFF:
+        
+
+        // TODO: Continuous? ;-P
+        
+    // Non toggleable, automatically resume movement if a target is set, 
+    // or find the next target to move to next frame.
+    } else {
+        if ( self->targetEntities.target )
+            train_resume( self );
+        else
+            train_next( self );
+    }
+    #else
     if ( self->spawnflags & TRAIN_START_ON ) {
         if ( !( self->spawnflags & TRAIN_TOGGLE ) )
             return;
@@ -196,6 +240,7 @@ void train_use( edict_t *self, edict_t *other, edict_t *activator, const entity_
         else
             train_next( self );
     }
+    #endif
 }
 
 void SP_func_train( edict_t *self ) {

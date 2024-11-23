@@ -82,11 +82,11 @@ void SP_func_door_rotating( edict_t *ent ) {
     // Set the axis of rotation.
     ent->movedir = QM_Vector3Zero();
     if ( ent->spawnflags & DOOR_SPAWNFLAG_X_AXIS ) {
-        ent->movedir[ 2 ] = 1.0f;
-    } else if ( ent->spawnflags & DOOR_SPAWNFLAG_Y_AXIS ) {
         ent->movedir[ 0 ] = 1.0f;
-    } else {// Z_AXIS
+    } else if ( ent->spawnflags & DOOR_SPAWNFLAG_Y_AXIS ) {
         ent->movedir[ 1 ] = 1.0f;
+    } else {// Z_AXIS
+        ent->movedir[ 2 ] = 1.0f;
     }
 
     // check for reverse rotation

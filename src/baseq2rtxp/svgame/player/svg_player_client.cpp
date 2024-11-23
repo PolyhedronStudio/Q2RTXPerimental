@@ -1901,55 +1901,62 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
         }
 
         // Holding (+usetarget) key, thus we continously USE the target entity.
-        if ( isTargetUseKeyHolding && SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
-            // Apply continuous hold state.
-            currentTargetEntity->useTarget.state = (entity_usetarget_state_t)( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_CONTINUOUS );
-            // Continous entity husage:
-            if ( currentTargetEntity->use ) {
-                currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
-            }
+        if ( ( isTargetUseKeyPressed || isTargetUseKeyHolding ) 
+            && SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
+                // Apply continuous hold state.
+                //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_CONTINUOUS );
+                currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_CONTINUOUS;
+                // Continous entity husage:
+                if ( currentTargetEntity->use ) {
+                    currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
+                }
         // Pressed (+usetarget) key, thus either fire as ON/OFF or as TOGGLE.
-        } else if ( isTargetUseKeyPressed && SVG_UseTarget_HasUseTargetFlags( currentTargetEntity,
-            (entity_usetarget_flags_t)( ENTITY_USETARGET_FLAG_PRESS | ENTITY_USETARGET_FLAG_TOGGLE ) ) ) {
-
-            // Single press entity usage:
-            if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_PRESS ) ) {
-                if ( currentTargetEntity->use ) {
-                    // Trigger 'OFF' if it is toggled.
-                    if ( SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_ON ) ) {
-                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_OFF, 0 );
-                        currentTargetEntity->useTarget.state = (entity_usetarget_state_t)( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_ON );
-                    // Trigger 'ON' if it is untoggled.
-                    } else {
-                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_ON, 1 );
-                        currentTargetEntity->useTarget.state = currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_ON;
+        } else if ( ( isTargetUseKeyPressed && !isTargetUseKeyHolding ) 
+            && SVG_UseTarget_HasUseTargetFlags(currentTargetEntity, ( ENTITY_USETARGET_FLAG_PRESS | ENTITY_USETARGET_FLAG_TOGGLE ) ) ) {
+                // Single press entity usage:
+                if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_PRESS ) ) {
+                    if ( currentTargetEntity->use ) {
+                        //// Trigger 'OFF' if it is toggled.
+                        if ( SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_ON ) ) {
+                            currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_OFF, 0 );
+                            //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_ON );
+                            //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_OFF );
+                            currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
+                        // Trigger 'ON' if it is untoggled.
+                        } else {
+                            currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_ON, 1 );
+                            //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_OFF );
+                            //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_ON );
+                            currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_ON;
+                        }
                     }
                 }
-            }
-            // Toggle press entity usage:
-            if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_TOGGLE ) ) {
-                if ( currentTargetEntity->use ) {
-                    // Trigger 'TOGGLE OFF' if it is toggled.
-                    if ( SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_TOGGLED ) ) {
-                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
-                        currentTargetEntity->useTarget.state = (entity_usetarget_state_t)( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_TOGGLED );
-                    // Trigger 'TOGGLE ON' if it is untoggled.
-                    } else {
-                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
-                        currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_TOGGLED );
+                // Toggle press entity usage:
+                if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_TOGGLE ) ) {
+                    if ( currentTargetEntity->use ) {
+                        // Trigger 'TOGGLE OFF' if it is toggled.
+                        if ( SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_TOGGLED ) ) {
+                            currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+                            //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ENTITY_USETARGET_STATE_TOGGLED );
+                            currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
+                        // Trigger 'TOGGLE ON' if it is untoggled.
+                        } else {
+                            currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+                            //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_TOGGLED );
+                            currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_TOGGLED;
+                        }
                     }
                 }
-            }
         // The (+target) key is neither pressed, nor held continuously, thus it was released this frame.
         } else if ( isTargetUseKeyReleased ) {
             // Stop with the continous entity usage:
             if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
+                // Remove continuous state flag.
+                currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
                 // Continous entity husage:
                 if ( currentTargetEntity->use ) {
                     currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
                 }
-                // Remove continuous state flag.
-                currentTargetEntity->useTarget.state = (entity_usetarget_state_t)( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_CONTINUOUS );
             }
         }
     } else {
