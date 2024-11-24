@@ -23,7 +23,7 @@
 *
 **/
 /**
-*	@brief	Game Namespace Functions:
+*	@brief	"Game" Namespace Functions:
 **/
 static const struct luaL_Reg GameLib[] = {
 	// svg_lua_gamelib_entities.cpp:

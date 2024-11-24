@@ -821,6 +821,9 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
 
     // Load up and initialize the LUA map script. (If any.)
     SVG_Lua_LoadMapScript( mapname );
+
+    // Give Lua a chance to precache media.
+    SVG_Lua_CallBack_OnPrecacheMedia();
 }
 
 

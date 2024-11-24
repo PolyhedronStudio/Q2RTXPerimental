@@ -315,10 +315,14 @@ SET(SRC_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/lua/svg_lua_corelib.cpp
 	baseq2rtxp/svgame/lua/svg_lua_gamelib.cpp
-	baseq2rtxp/svgame/lua/svg_lua_gamelib_entities.cpp
-	baseq2rtxp/svgame/lua/svg_lua_gamelib_pushmovers.cpp
-	baseq2rtxp/svgame/lua/svg_lua_gamelib_signalio.cpp
-	baseq2rtxp/svgame/lua/svg_lua_gamelib_usetargets.cpp
+	baseq2rtxp/svgame/lua/svg_lua_medialib.cpp
+
+	baseq2rtxp/svgame/lua/gamelib/svg_lua_gamelib_entities.cpp
+	baseq2rtxp/svgame/lua/gamelib/svg_lua_gamelib_pushmovers.cpp
+	baseq2rtxp/svgame/lua/gamelib/svg_lua_gamelib_signalio.cpp
+	baseq2rtxp/svgame/lua/gamelib/svg_lua_gamelib_usetargets.cpp
+
+	baseq2rtxp/svgame/lua/medialib/svg_lua_medialib_sound.cpp
 
 	baseq2rtxp/svgame/monsters/svg_mmove.cpp
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.cpp
@@ -343,6 +347,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/lua/svg_lua_signals.hpp
 	
 	baseq2rtxp/svgame/lua/svg_lua_gamelib.hpp
+	baseq2rtxp/svgame/lua/svg_lua_medialib.hpp
 
 	baseq2rtxp/svgame/entities/func/svg_func_button.h
 	baseq2rtxp/svgame/entities/func/svg_func_conveyor.h

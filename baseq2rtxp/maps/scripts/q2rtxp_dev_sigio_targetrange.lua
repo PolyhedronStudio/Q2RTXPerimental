@@ -4,20 +4,10 @@
 mapStates = {
     -- there are none yet.
 }
-
--- Debug Function, iterates the signalArguments table.
-function DEBUG_ITERATE_TABLE( table )
-    if ( type( table ) == "table" ) then
-        Core.DPrint( "  DEBUG_ITERATE_TABLE: table = {\n" )
-        for key, value in pairs(table) do
-            Core.DPrint( "      [" .. key .. "] => [" .. value .. "]\n" )
-        end
-        Core.DPrint( "}\n" )
-    else
-    --    Core.DPrint( "DEBUG_ITERATE_TABLE: NO TABLE FOUND\n" )
-    end
-end
-
+mapMedia = {
+    -- Filled by precaching.
+    sound = {}
+}
 
 ----------------------------------------------------------------------
 -- Target Logic:
@@ -40,12 +30,8 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         entityUseValue = 0
         entityTargetName = trainTargetName
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, ENTITY_USETARGET_TYPE_OFF, 0 )
-        -- Turn off the light for this target.
-        --entityUseType = "ENTITY_USETARGET_TYPE_OFF"
-        --entityUseValue = 0
-        --entityTargetName = lightTargetName
-        --Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, ENTITY_USETARGET_TYPE_OFF, 0 )
-        --end
+        -- Play speciual 'opening' sound effect.
+        Media.Sound( self, CHAN_VOICE, mapMedia.sound.rangetarget_open, 1.0, ATTN_IDLE, 0.0 )
         return
     -- It finished the 'open movement' and arrived at destination:
     elseif ( signalName == "OnOpened" ) then
@@ -67,10 +53,8 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         entityUseValue = 1
         entityTargetName = lightTargetName
         Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, ENTITY_USETARGET_TYPE_ON, 1 )
-        --entityUseType = "ENTITY_USETARGET_TYPE_ON"
-        --entityUseValue = 1
-        --entityTargetName = trainTargetName
-        --Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, ENTITY_USETARGET_TYPE_ON, 1 )
+        -- Play speciual closing sound effect.
+        Media.Sound( self, CHAN_VOICE, mapMedia.sound.rangetarget_close, 1.0, ATTN_IDLE, 0.0 )
         return
     -- A new round has begun, so the target got told to "close", turn on the train.
     elseif ( signalName == "OnClosed") then
@@ -180,6 +164,15 @@ end
 ----
 ----
 ----------------------------------------------------------------------
+--[[
+--  Precache all map specific related media.
+]]--
+function OnPrecacheMedia()
+    mapMedia.sound = {
+        rangetarget_close = Media.PrecacheSound( "maps/targetrange/rangetarget_close.wav" ),
+        rangetarget_open = Media.PrecacheSound( "maps/targetrange/rangetarget_open.wav" )
+    }
+end
 --[[ TODO: --]]
 function OnBeginMap()
     return true

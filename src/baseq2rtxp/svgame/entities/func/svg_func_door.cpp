@@ -643,7 +643,26 @@ void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 *   @brief  Pain for door.
 **/
 void door_pain( edict_t *self, edict_t *other, float kick, int damage ) {
-
+    const svg_signal_argument_array_t signalArguments = {
+            {
+                .type = SIGNAL_ARGUMENT_TYPE_NUMBER,
+                .key = "kick",
+                .value = {
+                    .number = kick
+                }
+            },
+            {
+                .type = SIGNAL_ARGUMENT_TYPE_INTEGER,
+                .key = "damage",
+                .value = {
+                    .integer = damage
+                }
+            }
+    };
+    // Dispatch a signal to each door team member.
+    self->other = other;
+    self->activator = other;
+    SVG_SignalOut( self, self->other, self->activator, "OnPain", signalArguments );
 }
 
 /**

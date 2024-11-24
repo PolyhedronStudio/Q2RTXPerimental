@@ -72,7 +72,7 @@ static inline const bool LUA_IsGlobalDefined( lua_State *L, const char *name ) {
 /**
 *	@brief	Declares if not already existing, a global variable as 'name = integer'.
 **/
-static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lua_Integer integer ) {
+static inline void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lua_Integer integer ) {
 	if ( LUA_IsGlobalDefined( L, name ) ) {
 		Lua_DeveloperPrintf( "%s: Global '%s' already defined!\n", __func__, name );
 		return;
@@ -84,7 +84,7 @@ static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lu
 /**
 *	@brief	Declares if not already existing, a global variable as 'name = number'.
 **/
-static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lua_Number number ) {
+static inline void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lua_Number number ) {
 	if ( LUA_IsGlobalDefined( L, name ) ) {
 		Lua_DeveloperPrintf( "%s: Global '%s' already defined!\n", __func__, name );
 		return;
@@ -96,7 +96,7 @@ static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const lu
 /**
 *	@brief	Declares if not already existing, a global variable as 'name = str'.
 **/
-static void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const char *str ) {
+static inline void LUA_RegisterGlobalConstant( lua_State *L, const char *name, const char *str ) {
 	if ( LUA_IsGlobalDefined( L, name ) ) {
 		Lua_DeveloperPrintf( "%s: Global '%s' already defined!\n", __func__, name );
 		return;
@@ -151,7 +151,7 @@ inline const bool SVG_Lua_IsMapScriptInterpreted();
 /**
 *	@brief
 **/
-void SVG_Lua_LoadMapScript( const std::string &scriptName );
+const bool SVG_Lua_LoadMapScript( const std::string &scriptName );
 
 
 
@@ -181,6 +181,11 @@ void SVG_Lua_LoadMapScript( const std::string &scriptName );
 //
 //	For when a map is just loaded up, or about to be unloaded.
 //
+/**
+*	@brief	Gives Lua a chance to precache media(audio, models, ..)
+**/
+void SVG_Lua_CallBack_OnPrecacheMedia();
+
 /**
 *	@brief
 **/

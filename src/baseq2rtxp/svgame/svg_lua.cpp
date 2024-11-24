@@ -26,6 +26,30 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 /**
 *
+*
+*
+*	NameSpace Library API Binding Initializers:
+*
+*
+*
+**/
+/**
+*	@brief	Initializes the CoreLib
+**/
+void CoreLib_Initialize( lua_State *L );
+/**
+*	@brief	Initializes the GameLib
+**/
+void GameLib_Initialize( lua_State *l );
+/**
+*	@brief	Initializes the MediaLib
+**/
+void MediaLib_Initialize( lua_State *L );
+
+
+
+/**
+*
 * 
 *
 *	TODO: Needs structurisation.
@@ -43,14 +67,44 @@ static struct {
 } luaMapState = {};
 
 
+
 /**
-*	@brief	Initializes the EntitiesLib
+*
+*
+*
+*	@brief	TODO: Implement this properly so we use a custom reader.
+*
+*
+*
 **/
-void GameLib_Initialize( lua_State *l );
+typedef struct LoadS {
+	const char *s;
+	size_t size;
+} LoadS;
+static const char *_LUA_getS( lua_State *L, void *ud, size_t *size ) {
+	LoadS *ls = (LoadS *)ud;
+	(void)L;  /* not used */
+	if ( ls->size == 0 ) return NULL;
+	*size = ls->size;
+	ls->size = 0;
+	return ls->s;
+}
+static int _LUA_luaL_loadbufferx( lua_State *L, const char *buff, size_t size,
+	const char *name, const char *mode ) {
+	LoadS ls;
+	ls.s = buff;
+	ls.size = size;
+	return lua_load( L, _LUA_getS, &ls, name, mode );
+}
+static int _LUA_luaL_loadstring( lua_State *L, const char *s ) {
+	return _LUA_luaL_loadbufferx( L, s, strlen( s ), s, NULL );
+}
 /**
-*	@brief	Initializes the EntitiesLib
+*	@brief	For now a Support routine for LoadMapScript.
 **/
-void CoreLib_Initialize( lua_State *L );
+static int _LUA_LoadFileString( lua_State *L, const char *fileName, const char *s ) {
+	return _LUA_luaL_loadbufferx( L, s, strlen( s ), fileName, "bt" );
+}
 
 
 
@@ -126,6 +180,7 @@ void SVG_Lua_Initialize() {
 	// Initialize Game Libraries.
 	CoreLib_Initialize( luaMapState.lState );
 	GameLib_Initialize( luaMapState.lState );
+	MediaLib_Initialize( luaMapState.lState );
 }
 /**
 *	@brief 
@@ -149,40 +204,9 @@ inline const bool SVG_Lua_IsMapScriptInterpreted() {
 }
 
 /**
-*	@brief	TODO: Implement this properly so we use a custom reader.
+*	Will load a chunk of LUA and compile it, if given a filename the chunk will
+*	be stored with a filename identifier, used to display errors etc with line numbers.
 **/
-typedef struct LoadS {
-	const char *s;
-	size_t size;
-} LoadS;
-static const char *_LUA_getS( lua_State *L, void *ud, size_t *size ) {
-	LoadS *ls = (LoadS *)ud;
-	(void)L;  /* not used */
-	if ( ls->size == 0 ) return NULL;
-	*size = ls->size;
-	ls->size = 0;
-	return ls->s;
-}
-static int _LUA_luaL_loadbufferx( lua_State *L, const char *buff, size_t size,
-	const char *name, const char *mode ) {
-	LoadS ls;
-	ls.s = buff;
-	ls.size = size;
-	return lua_load( L, _LUA_getS, &ls, name, mode );
-}
-
-
-static int _LUA_luaL_loadstring( lua_State *L, const char *s ) {
-	return _LUA_luaL_loadbufferx( L, s, strlen( s ), s, NULL );
-}
-
-/**
-*	@brief	For now a Support routine for LoadMapScript.
-**/
-static int _LUA_LoadFileString( lua_State *L, const char *fileName, const char *s ) {
-	return _LUA_luaL_loadbufferx( L, s, strlen( s ), fileName, "bt" );
-}
-
 static const bool LUA_InterpreteString( const char *fileName, const char *buffer ) {
 	// Raw string:
 	int loadResult = LUA_OK;
@@ -312,7 +336,7 @@ static void LUA_UnloadMapScript() {
 /**
 *	@brief
 **/
-void SVG_Lua_LoadMapScript( const std::string &scriptName ) {
+const bool SVG_Lua_LoadMapScript( const std::string &scriptName ) {
 	// File name+ext & path.
 	const std::string fileNameExt = scriptName + ".lua";
 	const std::string filePath = "maps/scripts/" + fileNameExt;
@@ -332,6 +356,7 @@ void SVG_Lua_LoadMapScript( const std::string &scriptName ) {
 			if ( LUA_InterpreteString( fileNameExt.c_str(), luaMapState.scriptBuffer ) ) {
 				// Debug output:
 				Lua_DeveloperPrintf( "%s: Succesfully parsed and interpreted Lua script file: %s\n", __func__, filePath.c_str() );
+				return true;
 			} else {
 				// Debug output:
 				Lua_DeveloperPrintf( "%s: Failed parsing/interpreting Lua script file: %s\n", __func__, filePath.c_str() );
@@ -346,6 +371,7 @@ void SVG_Lua_LoadMapScript( const std::string &scriptName ) {
 		// Debug output:
 		Lua_DeveloperPrintf( "%s: Map %s has no existing Lua script file\n", __func__, scriptName.c_str() );
 	}
+	return false;
 }
 
 
@@ -366,6 +392,18 @@ void SVG_Lua_LoadMapScript( const std::string &scriptName ) {
 //
 //	For when a map is just loaded up, or about to be unloaded.
 //
+void SVG_Lua_CallBack_OnPrecacheMedia() {
+	// Ensure it is interpreted succesfully.
+	SVG_Lua_ReturnIfNotInterpretedOK
+	// Proceed to calling the global map precache function.
+	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnPrecacheMedia", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
+	if ( calledFunction ) {
+		// Pop the bool from stack.
+		lua_pop( luaMapState.lState, 1 );
+	}
+	// Pop remaining stack.
+	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
+}
 /**
 *	@brief
 **/
@@ -374,8 +412,10 @@ void SVG_Lua_CallBack_BeginMap() {
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
 	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnBeginMap", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
-	// Pop the bool from stack.
-	lua_pop( luaMapState.lState, 1 );
+	if ( calledFunction ) {
+		// Pop the bool from stack.
+		lua_pop( luaMapState.lState, 1 );
+	}
 	// Pop remaining stack.
 	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
@@ -387,8 +427,10 @@ void SVG_Lua_CallBack_ExitMap() {
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
 	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnExitMap", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/);
-	// Pop the bool from stack.
-	lua_pop( luaMapState.lState, 1 );
+	if ( calledFunction ) {
+		// Pop the bool from stack.
+		lua_pop( luaMapState.lState, 1 );
+	}
 	// Pop remaining stack.
 	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
@@ -407,8 +449,10 @@ void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity ) {
 	// Call function.
 	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnClientEnterLevel", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
 		/*[lua args]:*/clientEntity );
-	// Pop the bool from stack.
-	lua_pop( luaMapState.lState, 1 );
+	if ( calledFunction ) {
+		// Pop the bool from stack.
+		lua_pop( luaMapState.lState, 1 );
+	}
 	// Pop remaining stack.
 	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
@@ -421,8 +465,10 @@ void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity ) {
 	// Call function.
 	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnClientExitLevel", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
 		/*[lua args]:*/ clientEntity );
-	// Pop the bool from stack.
-	lua_pop( luaMapState.lState, 1 );
+	if ( calledFunction ) {
+		// Pop the bool from stack.
+		lua_pop( luaMapState.lState, 1 );
+	}
 	// Pop remaining stack.
 	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
@@ -439,8 +485,10 @@ void SVG_Lua_CallBack_BeginServerFrame() {
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
 	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnBeginServerFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
-	// Pop the bool from stack.
-	lua_pop( luaMapState.lState, 1 );
+	if ( calledFunction ) {
+		// Pop the bool from stack.
+		lua_pop( luaMapState.lState, 1 );
+	}
 	// Pop remaining stack.
 	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
@@ -453,8 +501,10 @@ void SVG_Lua_CallBack_RunFrame() {
 	// Call function.
 	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnRunFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING,
 		/*[lua args]:*/ level.framenum );
-	// Pop the bool from stack.
-	lua_pop( luaMapState.lState, 1 );
+	if ( calledFunction ) {
+		// Pop the bool from stack.
+		lua_pop( luaMapState.lState, 1 );
+	}
 	// Pop remaining stack.
 	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
@@ -466,8 +516,10 @@ void SVG_Lua_CallBack_EndServerFrame() {
 	SVG_Lua_ReturnIfNotInterpretedOK
 	// Call function.
 	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnEndServerFrame", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
-	// Pop the bool from stack.
-	lua_pop( luaMapState.lState, 1 );
+	if ( calledFunction ) {
+		// Pop the bool from stack.
+		lua_pop( luaMapState.lState, 1 );
+	}
 	// Pop remaining stack.
 	lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
 }
