@@ -62,7 +62,7 @@ int MediaLib_Sound( lua_State *L ) {
 	// Validate entity numbers.
 	if ( entityNumber < 0 || entityNumber >= game.maxentities ) {
 		lua_pushinteger( L, -1 );
-		return 0;
+		return 1;
 	}
 	#if 0
 	if ( signallerEntityNumber < 0 || signallerEntityNumber >= game.maxentities ) {
@@ -78,14 +78,14 @@ int MediaLib_Sound( lua_State *L ) {
 	// See if the targetted entity is inuse.
 	edict_t *entity = &g_edicts[ entityNumber ];
 	if ( !SVG_IsActiveEntity( entity ) ) {
-		lua_pushinteger( L, -1 );
-		return 0;
+		lua_pushinteger( L, 0 );
+		return 1;
 	}
 
 	// Perform gi.sound.
-	gi.sound( entity, soundChannel, soundHandle, soundVolume, soundAttenuation, 0.f );
+	gi.sound( entity, soundChannel, soundHandle, soundVolume, soundAttenuation, soundTimeOffset );
 
 	// Success.
-	lua_pushinteger( L, 0 );
+	lua_pushinteger( L, 1 );
 	return 1;
 }

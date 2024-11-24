@@ -21,12 +21,18 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
     --[[
     -- Handles its death, turns off the train track and the light.
     ]]--
+    if ( signalName == "OnPain" ) then
+        -- Play speciual 'opening' sound effect.
+        local res = Media.Sound( self, CHAN_VOICE, mapMedia.sound.rangetarget_pain, 1.0, ATTN_NORM, 0.0 )
+        Core.DPrint( "res="..res.."\n" )
+        Core.DPrint( "OnPain! kick="..signalArguments["kick"].." damage="..signalArguments["damage"].."\n" )
+        return
     -- It just got killed, stop the train track, notify, and add score.
-    if ( signalName == "OnKilled" ) then
+    elseif ( signalName == "OnKilled" ) then
         -- Notify of the kill.
-        Core.DPrint( onKilledMessage ) 
+        Core.DPrint( onKilledMessage )
         -- Stop the train for this target.
-        entityUseType = "ENTITY_USETARGET_TYPE_OFF"
+        localentityUseType = "ENTITY_USETARGET_TYPE_OFF"
         entityUseValue = 0
         entityTargetName = trainTargetName
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, ENTITY_USETARGET_TYPE_OFF, 0 )
@@ -170,7 +176,8 @@ end
 function OnPrecacheMedia()
     mapMedia.sound = {
         rangetarget_close = Media.PrecacheSound( "maps/targetrange/rangetarget_close.wav" ),
-        rangetarget_open = Media.PrecacheSound( "maps/targetrange/rangetarget_open.wav" )
+        rangetarget_open = Media.PrecacheSound( "maps/targetrange/rangetarget_open.wav" ),
+        rangetarget_pain = Media.PrecacheSound( "maps/targetrange/rangetarget_pain.wav" )
     }
 end
 --[[ TODO: --]]

@@ -330,6 +330,7 @@ void door_close_move_done( edict_t *self ) {
         if ( self->max_health ) {
             self->takedamage = DAMAGE_YES;
             self->health = self->max_health;
+            self->pain = door_pain;
         }
     }
 
@@ -362,15 +363,15 @@ void door_close_move( edict_t *self ) {
         self->s.sound = self->pushMoveInfo.sounds.middle;
     }
 
-    // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
-    const bool damageActivates = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
-    // Health trigger based door:
-    if ( damageActivates ) {
-        if ( self->max_health ) {
-            self->takedamage = DAMAGE_YES;
-            self->health = self->max_health;
-        }
-    }
+    //// Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
+    //const bool damageActivates = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
+    //// Health trigger based door:
+    //if ( damageActivates ) {
+    //    if ( self->max_health ) {
+    //        self->takedamage = DAMAGE_YES;
+    //        self->health = self->max_health;
+    //    }
+    //}
 
     // Engage moving to closed state.
     self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
@@ -453,7 +454,6 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
                 gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
             }
             if ( self->pushMoveInfo.lockState.isLocked ) {
-                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
                 return;
             }
         }
@@ -525,8 +525,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
                 ent->activator = activator; // WID: We need to assign it right?
                 ent->other = other;
                 door_close_move( ent );
-                //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
-                gi.dprintf( "(%s:%i) door_close_move(..) with SIGN=%f\n ", __func__, __LINE__, directionSign );
+                // gi.dprintf( "(%s:%i) door_close_move(..) with SIGN=%f\n", __func__, __LINE__, directionSign );
             }
             // Exit.
             return;
@@ -540,8 +539,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
         ent->activator = activator; // WID: We need to assign it right?
         ent->other = other;
         door_open_move( ent/*, activator */);
-        //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
-        gi.dprintf( "(%s:%i) door_open_move(..) with SIGN=%f\n ", __func__, __LINE__, directionSign );
+        //gi.dprintf( "(%s:%i) door_open_move(..) with SIGN=%f\n", __func__, __LINE__, directionSign );
     }
 
     // Call upon Lua OnUse.
@@ -622,6 +620,7 @@ void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
         if ( damageActivates ) {
             ent->health = ent->max_health;
             ent->takedamage = DAMAGE_NO;
+            ent->pain = nullptr;
         }
 
         // Dispatch a signal to each door team member.
@@ -633,11 +632,6 @@ void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
     // Fire its use targets.
     door_use( self, attacker, attacker, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
     //SVG_UseTargets( self, attacker, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
-
-    //// Dispatch a signal.
-    //self->other = inflictor;
-    //self->activator = attacker;
-    //SVG_SignalOut( self, self->other, self->activator, "OnKilled" );
 }
 /**
 *   @brief  Pain for door.
@@ -659,10 +653,13 @@ void door_pain( edict_t *self, edict_t *other, float kick, int damage ) {
                 }
             }
     };
-    // Dispatch a signal to each door team member.
-    self->other = other;
-    self->activator = other;
-    SVG_SignalOut( self, self->other, self->activator, "OnPain", signalArguments );
+
+    for ( edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
+        // Dispatch a signal to each door team member.
+        ent->other = other;
+        ent->activator = other;
+        SVG_SignalOut( ent, ent, ent->activator, "OnPain", signalArguments );
+    }
 }
 
 /**

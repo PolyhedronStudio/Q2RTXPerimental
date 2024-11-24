@@ -2282,8 +2282,6 @@ static inline const bool SVG_HasSpawnFlags( const edict_t *ent, const int32_t sp
 *
 *
 **/
-
-
 /**
 *   @brief  Returns true if the entity has the specified useTarget flags set.
 **/
