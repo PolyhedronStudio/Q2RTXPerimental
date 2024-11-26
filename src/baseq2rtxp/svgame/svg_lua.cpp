@@ -22,10 +22,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //! Enable LUA debug output:
 #define Lua_DEBUG_OUTPUT 1
 
-#define SOL_ALL_SAFETIES_ON 1
-#include <sol/sol.hpp>
-#include "svgame/lua/svg_lua_sol_assert.hpp"
-
 
 
 /**
@@ -61,16 +57,14 @@ void MediaLib_Initialize( lua_State *L );
 * 
 * 
 **/
-static struct LuaMapState {
+static struct {
 	//! lua state.
 	lua_State *lState;
-	// State view on lState.
-	sol::state solState;
 	//! map script state
 	char *scriptBuffer;
 	//! Did we succesfully parse, and load it?
 	bool scriptInterpreted;
-} luaMapState = { };
+} luaMapState = {};
 
 
 
@@ -173,30 +167,16 @@ void SVG_Lua_DumpStack( lua_State *L ) {
 *	@brief
 **/
 void SVG_Lua_Initialize() {
-	//// Open LUA Map State.
-	//luaMapState.lState = luaL_newstate();
+	// Open LUA Map State.
+	luaMapState.lState = luaL_newstate();
 
-	//// Load in several useful defualt LUA libraries.
-	//luaopen_base( luaMapState.lState );
-	//luaopen_string( luaMapState.lState );
-	//luaopen_table( luaMapState.lState );
-	//luaopen_math( luaMapState.lState );
-	//luaopen_debug( luaMapState.lState );
+	// Load in several useful defualt LUA libraries.
+	luaopen_base( luaMapState.lState );
+	luaopen_string( luaMapState.lState );
+	luaopen_table( luaMapState.lState );
+	luaopen_math( luaMapState.lState );
+	luaopen_debug( luaMapState.lState );
 
-	// Get our sol state view.
-	//luaMapState.solState = sol::state(  );
-	luaMapState.solState.open_libraries( sol::lib::base 
-		| sol::lib::string 
-		| sol::lib::table 
-		| sol::lib::math 
-		#if USE_DEBUG
-		| sol::lib::debug
-		#endif
-	);
-
-	//
-	luaMapState.lState = luaMapState.solState.lua_state();
-	
 	// Initialize Game Libraries.
 	CoreLib_Initialize( luaMapState.lState );
 	GameLib_Initialize( luaMapState.lState );
@@ -207,7 +187,7 @@ void SVG_Lua_Initialize() {
 **/
 void SVG_Lua_Shutdown() {
 	// Close LUA Map State.
-	//lua_close( luaMapState.lState );
+	lua_close( luaMapState.lState );
 }
 
 /**
@@ -228,45 +208,6 @@ inline const bool SVG_Lua_IsMapScriptInterpreted() {
 *	be stored with a filename identifier, used to display errors etc with line numbers.
 **/
 static const bool LUA_InterpreteString( const char *fileName, const char *buffer ) {
-	#if 0
-	sol::state_view &solState = luaMapState.solState;
-
-	// If supplied a filename..
-		// Raw string:
-	//if ( fileName ) {
-	//	loadResult = _LUA_LoadFileString( luaMapState.lState, fileName, buffer );
-	//} else {
-	//	loadResult = _LUA_luaL_loadstring( luaMapState.lState, buffer );
-	//}
-	if ( fileName != nullptr ) {
-		sol::load_result fileLoadResult = solState.load( buffer, fileName );
-		if ( !fileLoadResult.valid() ) {
-			sol::load_status status = fileLoadResult.status();
-			sol::error errorStatus = fileLoadResult;
-			gi.bprintf( PRINT_ERROR, "%s:[%s]: %s\n", __func__, sol::to_string( status ).c_str(), errorStatus.what() );
-			return false;
-		}
-	} else {
-		auto prtCallResult = solState.safe_script( buffer,
-		[]( lua_State *, sol::protected_function_result pfr ) {
-				if ( !pfr.valid() ) {
-					sol::call_status statusResult = pfr.status();
-					gi.bprintf( PRINT_ERROR, "%s:[%s]\n", __func__, sol::to_string( statusResult ).c_str() );
-				}
-				return pfr;
-		});
-
-		if ( !prtCallResult.valid() ) {
-			sol::call_status status = prtCallResult.status();
-			sol::error errorStatus = prtCallResult;
-			gi.bprintf( PRINT_ERROR, "%s:[%s]: %s\n", __func__, sol::to_string( status ).c_str(), errorStatus.what() );
-			return false;
-		}
-	}
-
-	
-	return true;
-	#else
 	// Raw string:
 	int loadResult = LUA_OK;
 	if ( fileName ) {
@@ -380,7 +321,6 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 	//// TODO: Output display error.
 	//Lua_DeveloperPrintf( "%s: Failed interpreting buffer, unknown error.\n", __func__ );
 	return false;
-	#endif
 }
 
 /**
@@ -453,23 +393,9 @@ const bool SVG_Lua_LoadMapScript( const std::string &scriptName ) {
 //	For when a map is just loaded up, or about to be unloaded.
 //
 void SVG_Lua_CallBack_OnPrecacheMedia() {
-	// Pop remaining stack.
-	//lua_pop( luaMapState.lState, lua_gettop( luaMapState.lState ) );
-	//const sol::protected_function &pf = luaMapState.solState[ "OnPrecacheMedia" ];
-	////luaMapState.solState[ "OnPrecacheMedia" ]();
-	//int i = 0;
-	//try {
-	//	i = pf();
-	//}
-	//catch( const std::exception &e )
-	//{
-	//	gi.dprintf( "%s: WTF: %s\n ", __func__, e.what() );
-	//}
-	//c_assert( i == true );
-
-	//// Ensure it is interpreted succesfully.
+	// Ensure it is interpreted succesfully.
 	SVG_Lua_ReturnIfNotInterpretedOK
-	//// Proceed to calling the global map precache function.
+	// Proceed to calling the global map precache function.
 	const bool calledFunction = LUA_CallFunction( luaMapState.lState, "OnPrecacheMedia", 1, 1, LUA_CALLFUNCTION_VERBOSE_MISSING /*, [lua args]:*/ );
 	if ( calledFunction ) {
 		// Pop the bool from stack.

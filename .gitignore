@@ -47,11 +47,6 @@ baseq2/**/*.txt
 !baseq2/*.txt
 !baseq2/maps/sky/*.txt
 !baseq2/pics/flashlight_profile.png
-baseq2rtxp/maps/mapsrc/*.log
-baseq2rtxp/maps/mapsrc/*.prt
-baseq2rtxp/maps/mapsrc/*.texinfo.json
-baseq2rtxp/maps/mapsrc/*-compile.map
-baseq2rtxp/maps/mapsrc/*.vis.log
 baseq2rtxp/**/*.txt
 !baseq2rtxp/*.txt
 !baseq2rtxp/maps/sky/*.txt
