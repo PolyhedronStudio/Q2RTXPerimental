@@ -21,6 +21,10 @@ set_target_properties( lua PROPERTIES FOLDER extern)
 set_target_properties( luac PROPERTIES FOLDER extern)
 
 ####
+## SOL
+####
+add_subdirectory(sol2-develop-07-13-2024)
+####
 ##	glslangValidator
 ####
 if( CONFIG_BUILD_CLIENT_TARGET AND CONFIG_VKPT_RENDERER AND CONFIG_BUILD_GLSLANG)
