@@ -111,11 +111,14 @@ static inline void LUA_CallFunction_PushStackValue( lua_State *L, const svg_sign
 				lua_pushboolean( L, signalArgument->value.boolean );
 				// Set key name.
 				lua_setfield( L, -2, signalArgument->key );
+			// TODO: Hmm?? Sol has no notion, maybe though using sol::object.as however, of an integer??
+			#if 0
 			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_INTEGER) {
 				// Push integer value.
 				lua_pushinteger( L, signalArgument->value.integer );
 				// Set key name.
 				lua_setfield( L, -2, signalArgument->key );
+			#endif
 			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NUMBER) {
 				// Push integer value.
 				lua_pushnumber( L, signalArgument->value.number );
@@ -152,16 +155,36 @@ static inline void LUA_CallFunction_PushStackValue( lua_State *L, const svg_sign
 *	@note	One has to deal and pop return values themselves.
 **/
 template <typename... Rest> 
-static const bool LUA_CallFunction( lua_State *L, const std::string &functionName, 
+static const bool LUA_CallFunction( sol::state_view &stateView, const std::string &functionName, 
 	const int32_t numExpectedArgs = 0, const int32_t numReturnValues = 0, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_NOT,
 	const Rest&... rest ) {
 	
 	bool executedSuccessfully = false;
 
-	if ( !L || functionName.empty() ) {
+	if ( !stateView.lua_state() || functionName.empty() ) {
 		return executedSuccessfully;
 	}
 
+	// Get function object.
+	sol::protected_function funcRefCall = stateView[ functionName ];
+	// Get type.
+	sol::type funcRefType = funcRefCall.get_type();
+	// Ensure it matches, accordingly
+	if ( funcRefType != sol::type::function /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
+		// Return if it is LUA_NOREF and luaState == nullptr again.
+		return false;
+	}
+
+	try {
+		funcRefCall( rest... );
+	}
+	catch ( std::exception &e ) {
+		gi.bprintf( PRINT_ERROR, "%s: %s\n", __func__, e.what() );
+		return false;
+	}
+
+	executedSuccessfully = true;
+	#if 0
 	// Get the global functionname value and push it to stack:
 	lua_getglobal( L, functionName.c_str() );
 
@@ -240,7 +263,7 @@ static const bool LUA_CallFunction( lua_State *L, const std::string &functionNam
 			LUA_ErrorPrintf( "%s:\n\"%s\" is not a function\n", __func__, functionName.c_str() );
 		}
 	}
-
+	#endif
 	// Return failure.
 	return executedSuccessfully;
 }

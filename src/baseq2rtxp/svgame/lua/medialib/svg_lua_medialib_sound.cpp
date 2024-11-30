@@ -8,6 +8,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_lua.h"
+#include "svgame/lua/svg_lua_gamelib.hpp" // for lua_edict_t
 #include "svgame/lua/svg_lua_medialib.hpp"
 #include "svgame/entities/svg_entities_pushermove.h"
 
@@ -25,67 +26,39 @@
 /**
 *	@return	The numeric handle of the precached sound, -1 on failure.
 **/
-int MediaLib_PrecacheSound( lua_State *L ) {
-	// Check if the first argument is numeric(the entity number).
-	//const int32_t entityNumber = luaL_checkinteger( L, 1 );
-	const std::string soundPath = luaL_checkstring( L, 1 );
+const qhandle_t MediaLib_PrecacheSound( const std::string &soundPath ) {
 	// Error.
 	if ( soundPath.empty() ) {
 		Lua_DeveloperPrintf( "%s: no sound filename given \n", __func__ );
-		lua_pushinteger( L, 0 );
-		return 1;
+		sol::error e( std::string(__func__) + ": no sound filename given\n" );
+		
+		// Not found.
+		return 0;
 	}
 
 	// Load the sound.
 	qhandle_t soundIndex = gi.soundindex( soundPath.c_str() );
 	if ( !soundIndex ) {
 		Lua_DeveloperPrintf( "%s: Failed to load audio file: (\"%s\")\n", __func__, soundPath.c_str() );
+
+		sol::error e( std::string( __func__ ) + ": Failed to load audio file: (\"" + __func__ + "\")\n" );
 	}
 
 	gi.dprintf( "PRECACHING LUA SOUNDS MOFUCKAHS! \n " );
-	// Pushing the result onto the stack to be returned
-	lua_pushinteger( L, static_cast<lua_Integer>( soundIndex ) );
-	return 1; // The number of returned values
+
+	return soundIndex;
 }
 
 /**
 *	@return	Binding to gi.sound
 **/
-int MediaLib_Sound( lua_State *L ) {
-	const int32_t entityNumber = luaL_checkinteger( L, 1 );
-	const int32_t soundChannel = luaL_checkinteger( L, 2 );
-	const qhandle_t soundHandle = luaL_checkinteger( L, 3 );
-	const float soundVolume = luaL_checknumber( L, 4 );
-	const int32_t soundAttenuation = luaL_checknumber( L, 5 );
-	const float soundTimeOffset = luaL_checknumber( L, 6 );
-
-	// Validate entity numbers.
-	if ( entityNumber < 0 || entityNumber >= game.maxentities ) {
-		lua_pushinteger( L, -1 );
-		return 1;
-	}
-	#if 0
-	if ( signallerEntityNumber < 0 || signallerEntityNumber >= game.maxentities ) {
-		lua_pushinteger( L, -1 );
-		return 1;
-	}
-	if ( activatorEntityNumber < 0 || activatorEntityNumber >= game.maxentities ) {
-		lua_pushinteger( L, -1 );
-		return 1;
-	}
-	#endif
-
-	// See if the targetted entity is inuse.
-	edict_t *entity = &g_edicts[ entityNumber ];
+const int32_t MediaLib_Sound( lua_edict_t leEnt, const int32_t soundChannel, const qhandle_t soundHandle, const float soundVolume, const int32_t soundAttenuation, const float soundTimeOffset ) {
+	edict_t *entity = leEnt.edict;
 	if ( !SVG_IsActiveEntity( entity ) ) {
-		lua_pushinteger( L, 0 );
-		return 1;
+		return 0; // INVALID ENTITY
 	}
-
 	// Perform gi.sound.
 	gi.sound( entity, soundChannel, soundHandle, soundVolume, soundAttenuation, soundTimeOffset );
-
 	// Success.
-	lua_pushinteger( L, 1 );
 	return 1;
 }

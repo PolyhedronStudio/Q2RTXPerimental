@@ -22,7 +22,7 @@
 #pragma once
 
 //! For debugging purposes.
-//#define SVG_LUA_REPORT_SIGNAL_OUT 1
+#define SVG_LUA_REPORT_SIGNAL_OUT 1
 
 /**
 *	@brief	Fires an 'Out' signal, calling and passing it over to the entity's luaName OnSignal function.
@@ -30,15 +30,17 @@
 *	@note	<discard_this>One has to deal and pop return values themselves.</discard_this>
 **/
 template <typename... Rest>
-static const bool SVG_Lua_SignalOut( lua_State *L, edict_t *ent, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments = {}, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_MISSING, const Rest&... rest ) {
+static const bool SVG_Lua_SignalOut( sol::state_view &stateView, edict_t *ent, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_MISSING, const Rest&... rest ) {
 	// False by default:
 	bool executedSuccessfully = false;
 
-	// Activator needs to be active(in use) if not nullptr.
-	if ( !SVG_IsValidLuaEntity( ent ) 
+	// Entity has to be non (nullptr) and active(in use).
+	if ( !SVG_IsValidLuaEntity( ent, true ) 
+		// has to be non (nullptr) and active(in use).
 		|| ( activator && !SVG_IsActiveEntity( activator ) ) 
+		// Other is optional.
 		//|| ( other && !SVG_IsActiveEntity( other ) )
-		|| !L 
+		// And a valid Signal Name.
 		|| !signalName ) {
 		return executedSuccessfully;
 	}
@@ -47,30 +49,27 @@ static const bool SVG_Lua_SignalOut( lua_State *L, edict_t *ent, edict_t *other,
 	const std::string luaName = ent->luaProperties.luaName;
 	const std::string functionName = luaName + "_OnSignalIn";
 
-	// Call function, verbose, because OnSignals may not exist.
-	executedSuccessfully = LUA_CallFunction( L, functionName, 5, 1, verbosity, 
-		/*[lua args]:*/  ent, other, activator, signalName, signalArguments, rest... );
+	// Get function object.
+	sol::protected_function funcRefSignalOut = stateView[ functionName ];
+	// Get type.
+	sol::type funcRefType = funcRefSignalOut.get_type();
+	// Ensure it matches, accordingly
+	if ( funcRefType != sol::type::function /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */) {
+		// Return if it is LUA_NOREF and luaState == nullptr again.
+		return false;
+	}
+
+	try {
+		funcRefSignalOut( lua_edict_t(ent), lua_edict_t(other), lua_edict_t(activator), signalName, signalArguments, rest... );
+	} catch ( std::exception &e ) {
+		gi.bprintf( PRINT_ERROR, "%s: %s\n", __func__, e.what() );
+		return false;
+	}
 
 	// Debug print.
 	#ifdef SVG_LUA_REPORT_SIGNAL_OUT
 	gi.dprintf( "luaName(%s): function(%s) fired signal(\"%s\")\n", luaName.c_str(), functionName.c_str(), signalName, ent->luaProperties.luaName );
 	#endif
 
-	// If it did successfully execute..
-	if ( executedSuccessfully ) {
-		// Get from stack.
-		lua_Integer retval = lua_toboolean( L, -1 );
-		// Did signal return true?
-		if ( static_cast<bool>( retval ) == true ) {
-			// Pop stack.
-			lua_pop( L, lua_gettop( L ) );
-			return true;
-		}
-	} else {
-		// Pop stack.
-		lua_pop( L, lua_gettop( L ) );
-	}
-
-	// Return failure.
-	return false/*executedSuccessfully*/;
+	return true;
 }

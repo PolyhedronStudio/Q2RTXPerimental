@@ -29,7 +29,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 void SVG_Lua_DumpStack( lua_State *L );
 void SVG_Command_Lua_DumpStack( void ) {
     // Dump stack.
-    SVG_Lua_DumpStack( SVG_Lua_GetMapLuaState() );
+    SVG_Lua_DumpStack( SVG_Lua_GetSolStateView() );
 }
 
 

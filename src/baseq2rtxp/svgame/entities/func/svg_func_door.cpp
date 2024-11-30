@@ -83,12 +83,59 @@ void door_use_areaportals( edict_t *self, const bool open ) {
 void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t &useType, const int32_t useValue ) {
     // Need the luaName.
     if ( self->luaProperties.luaName ) {
-        // Generate function 'callback' name.
+        //// Generate function 'callback' name.
         const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_Use";
+
+        //// Get reference to sol lua state view.
+        //sol::state_view &stateView = SVG_Lua_GetSolStateView();
+        //// Get function object.
+        //sol::function funcRefUse = stateView[ luaFunctionName ];
+        //// Get type.
+        //sol::type funcRefType = funcRefUse.get_type();
+        //// Ensure it matches, accordingly
+        //if ( funcRefType != sol::type::function /*|| !funcRefUse.is<std::function<void( Rest... )>>() */ ) {
+        //    // Return if it is LUA_NOREF and luaState == nullptr again.
+        //    return;
+        //}
+
+        //// Call function, verbose, because OnSignals may not exist.
+        //int32_t iSelf = ( SVG_IsActiveEntity( self ) ? self->s.number : -1 );
+        //int32_t iOther = ( SVG_IsActiveEntity( other ) ? other->s.number : -1 );
+        //int32_t iActivator = ( SVG_IsActiveEntity( activator ) ? activator->s.number : -1 );
+        //funcRefUse( iSelf, iOther, iActivator, useType, useValue );
+
+
         // Call if it exists.
-        if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
-            LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-                /*[lua args]:*/ self, other, activator, useType, useValue );
+        //if ( LUA_HasFunction( SVG_Lua_GetSolStateView(), luaFunctionName ) ) {
+        //    LUA_CallFunction( SVG_Lua_GetSolStateView(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
+        //        /*[lua args]:*/ self, other, activator, useType, useValue );
+        //}
+         
+        // Get reference to sol lua state view.
+        sol::state_view &solStateView = SVG_Lua_GetSolStateView();
+         
+        // Get function object.
+        sol::protected_function funcRefUse = solStateView[ luaFunctionName ];
+        // Get type.
+        sol::type funcRefType = funcRefUse.get_type();
+        // Ensure it matches, accordingly
+        if ( funcRefType != sol::type::function /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
+            // Return if it is LUA_NOREF and luaState == nullptr again.
+            // TODO: Error?
+            return;
+        }
+
+        try {
+            funcRefUse( self, other, activator, (int32_t)useType, (int32_t)useValue );
+            //// Call function, verbose, because OnSignals may not exist.
+            //int32_t iEnt = ( SVG_IsActiveEntity( ent ) ? ent->s.number : -1 );
+            //int32_t iOther = ( SVG_IsActiveEntity( ent ) ? ent->s.number : -1 );
+            //int32_t iActivator = ( SVG_IsActiveEntity( ent ) ? ent->s.number : -1 );
+            //funcRefSignalOut( iEnt, iOther, iActivator, signalName, signalArguments, rest... );
+        }
+        catch ( std::exception &e ) {
+            gi.bprintf( PRINT_ERROR, "%s: %s\n", __func__, e.what() );
+            return;
         }
     }
 }
@@ -646,7 +693,7 @@ void door_pain( edict_t *self, edict_t *other, float kick, int damage ) {
                 }
             },
             {
-                .type = SIGNAL_ARGUMENT_TYPE_INTEGER,
+                .type = SIGNAL_ARGUMENT_TYPE_NUMBER, // TODO: WID: Was before sol, TYPE_INTEGER
                 .key = "damage",
                 .value = {
                     .integer = damage

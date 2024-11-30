@@ -14,10 +14,6 @@ mapMedia = {
 ----------------------------------------------------------------------
 -- L Target:
 function Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, onKilledMessage, targetName, trainTargetName, lightTargetName )
-    local entityUseType = "<None>"
-    local entityUseValue = 0
-    local entityTargetName = "<None>"
-
     --[[
     -- Handles its death, turns off the train track and the light.
     ]]--
@@ -85,50 +81,52 @@ end
 function TargetL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "Killed the L target!\n", "t_target_l", "train_target_l", "light_target_l" )
 end
--- Target:
+-- S Target:
 function Target_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    Target_ProcessSignals(self, signaller, activator, signalName, signalArguments, "Killed the S target!\n", "t_target", "train_target", "light_target" )
+    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "Killed the S target!\n", "t_target", "train_target", "light_target" )
 end
 
 -- Button that resets the range.
 function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     if ( signalName == "OnPressed" ) then
         Core.DPrint( "Range targets reset!\n" ) -- TODO: Use not developer print...
-        -- Play speciual 'opening' sound effect.
+        -- Play speciual 'restart' sound effect.
         Media.Sound( self, CHAN_ITEM, mapMedia.sound.newround, 1.0, ATTN_IDLE, 0.0 )
 
         -- Signal all targetrange lane targets to "close" again, effectively reactivating our target range course.
-        Game.SignalOut( Game.GetEntityForTargetName( "t_target_xxl" ), signaller, activator, "DoorClose" )
-        Game.SignalOut( Game.GetEntityForTargetName( "t_target_xl" ), signaller, activator, "DoorClose" )
-        Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "DoorClose" )
-        Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "DoorClose" )
+        Game.SignalOut( Game.GetEntityForTargetName( "t_target_xxl" ), signaller, activator, "DoorClose", {} )
+        Game.SignalOut( Game.GetEntityForTargetName( "t_target_xl" ), signaller, activator, "DoorClose", {} )
+        Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "DoorClose", {} )
+        Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "DoorClose", {} )
     end
 end
 
 
 
 ----------------------------------------------------------------------
-----
-----
-----    WareHouse Locked Doors Implementations:
-----
-----
+-- WareHouse Locked Doors Implementations:
 ----------------------------------------------------------------------
 ----------------------------------------------------------------------
 -- The Buttons
 ----------------------------------------------------------------------
-function WareHouseLockingButton_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+function WareHouseLockingButton_OnSignalIn( xself, signaller, activator, signalName, signalArguments )
+    Core.DPrint( "xself(#"..xself.number..")\n")
+    Core.DPrint( "signaller(#"..signaller.number..")\n")
+    Core.DPrint( "activator(#"..activator.number..")\n")
+
     -- Open the doors.
     if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
         -- Get entity
         local entityWareHouseDoor00 = Game.GetEntityForLuaName( "WareHouseDoor00" )
+        Core.DPrint( "entityWareHouseDoor00(#"..entityWareHouseDoor00.number..")\n")
+
         -- Determine its move state.
         local doorMoveState = Game.GetPushMoverState( entityWareHouseDoor00 )
 
         -- Only SignalOut a "DoorOpen" when the elevator is NOT moving.
         if ( doorMoveState ~= PUSHMOVE_STATE_MOVING_DOWN and doorMoveState~= PUSHMOVE_STATE_MOVING_UP ) then
             -- Send the lock toggle signal.
-            Game.SignalOut( entityWareHouseDoor00, self, activator, "DoorLockToggle" )
+            Game.SignalOut( entityWareHouseDoor00, xself, activator, "DoorLockToggle", {} )
         end
     end
     return true
@@ -138,11 +136,7 @@ end
 
 
 ----------------------------------------------------------------------
-----
-----
 ----    Map CallBack Hooks:
-----
-----
 ----------------------------------------------------------------------
 --[[
 --  Precache all map specific related media.
@@ -177,12 +171,14 @@ end
 ----------------------------------------------------------------------
 --[[ TODO: --]]
 function OnClientEnterLevel( clientEntity )
-    Core.DPrint( "OnClientEnterLevel: A client connected with entityID(#" .. clientEntity .. ")\n")
+    Core.DPrint( "OnClientEnterLevel: A client connected with entityID(#" .. clientEntity.number .. ")\n")
+    --Core.DPrint( "OnClientEnterLevel: A client connected with entityID(#" .. clientEntity .. ")\n")
     return true
 end
 --[[ TODO: --]]
 function OnClientExitLevel( clientEntity )
-    Core.DPrint( "OnClientEnterLevel: A client disconnected with entityID(#" .. clientEntity .. ")\n")
+    Core.DPrint( "OnClientEnterLevel: A client disconnected with entityID(#" .. clientEntity.number .. ")\n")
+    --Core.DPrint( "OnClientEnterLevel: A client disconnected with entityID(#" .. clientEntity .. ")\n")
     return true
 end
 
@@ -205,5 +201,6 @@ function OnEndServerFrame()
 end
 --[[ TODO: --]]
 function OnRunFrame( frameNumber )
-   return true
+    --Core.DPrint( "framenumber = " .. frameNumber .. "\n" )
+    return true
 end

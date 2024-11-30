@@ -9,6 +9,7 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_gamelib.hpp"
+#include "svgame/lua/svg_lua_signals.hpp"
 
 
 
@@ -39,7 +40,7 @@ void LUA_Think_SignalOutDelay( edict_t *entity ) {
 	}
 	// If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
 	if ( propogateToLua ) {
-		SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(),
+		SVG_Lua_SignalOut( SVG_Lua_GetSolStateView(),
 			entity, entity->other, entity->activator,
 			signalName, entity->delayed.signalOut.arguments
 		);
@@ -79,6 +80,8 @@ static const svg_signal_argument_array_t GameLib_SignalOut_ParseArgumentsTable( 
 				signalArguments.push_back( { SIGNAL_ARGUMENT_TYPE_BOOLEAN, key, {.boolean = value } } );
 				// Debug Print:
 				gi.dprintf( "	%s => %s\n", key, value ? "true" : "false" );
+			// TODO: Hmm?? Sol has no notion, maybe though using sol::object.as however, of an integer??
+			#if 0
 			} else if ( lua_isinteger( L, -2 ) ) {
 				// Get string value copy.
 				lua_Integer value = lua_tointeger( L, -2 );
@@ -86,6 +89,7 @@ static const svg_signal_argument_array_t GameLib_SignalOut_ParseArgumentsTable( 
 				signalArguments.push_back( { SIGNAL_ARGUMENT_TYPE_INTEGER, key, {.integer = value } } );
 				// Debug Print:
 				gi.dprintf( "	%s => %" PRIi64 "\n", key, static_cast<int64_t>( value ) );
+			#endif
 			} else if ( lua_isnumber( L, -2 ) ) {
 				// Get string value copy.
 				lua_Number value = lua_tonumber( L, -2 );
@@ -122,66 +126,95 @@ static const svg_signal_argument_array_t GameLib_SignalOut_ParseArgumentsTable( 
 }
 
 /**
+*	@brief	Support routine for GameLib_SignalOut.
+**/
+#include <algorithm>
+static svg_signal_argument_array_t _GameLib_LuaTable_ToArgumentsArray( sol::table table ) {
+	svg_signal_argument_array_t signalArguments = { };
+	
+	// Iterate the signalArguments table and create our signal arguments "array" with its keys and values.
+	// Use std::for_each to keep the lua stack happy :-)
+	std::for_each( table.begin(), table.end(),
+		[&signalArguments]( std::pair<sol::object, sol::object> kvPair ) -> void {
+			// We require string keys here.
+			if ( kvPair.first.get_type() == sol::type::string ) {
+				// Get value object reference.
+				sol::object &valueObject = kvPair.second;
+				// Get its type.
+				sol::type valueType = valueObject.get_type();
+
+				// We allow at the moment: numeric, integral, and string
+				if ( valueType == sol::type::boolean ) {
+					signalArguments.push_back( {
+						.type = SIGNAL_ARGUMENT_TYPE_BOOLEAN,
+						.key = kvPair.first.as<const char *>(),
+						.value = { .boolean = kvPair.second.as<bool>() }
+					} );
+				}
+				else if ( valueType == sol::type::number ) {
+					signalArguments.push_back( {
+						.type = SIGNAL_ARGUMENT_TYPE_NUMBER,
+						.key = kvPair.first.as<const char *>(),
+						.value = { .number = kvPair.second.as<double>() }
+					} );
+				}
+				else if ( valueType == sol::type::string ) {
+					signalArguments.push_back( {
+						.type = SIGNAL_ARGUMENT_TYPE_STRING,
+						.key = kvPair.first.as<const char *>(),
+						.value = {.str = kvPair.second.as<const char *>() }
+					} );
+				}
+				else if ( valueType == sol::type::nil || valueType == sol::type::lua_nil ) {
+					signalArguments.push_back( {
+						.type = SIGNAL_ARGUMENT_TYPE_NULLPTR,
+						.key = kvPair.first.as<const char *>(),
+						.value = { 0 }
+					} );
+				} else {
+					gi.dprintf( "%s: uncompatible singalArguments value type(%s) for key(%s)\n",
+						__func__,
+						sol::type_name( SVG_Lua_GetSolStateView(), valueType ).c_str(),
+						kvPair.first.as<const char *>() );
+				}
+			}
+		}
+	);
+
+	return signalArguments;
+}
+
+/**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-int GameLib_SignalOut( lua_State *L ) {
-	// 
-	const int32_t entityNumber = luaL_checkinteger( L, 1 );
-	const int32_t signallerEntityNumber = luaL_checkinteger( L, 2 );
-	const int32_t activatorEntityNumber = luaL_checkinteger( L, 3 );
-	const char *signalName = static_cast<const char *>( luaL_checkstring( L, 4 ) );
-	svg_signal_argument_array_t signalArguments = GameLib_SignalOut_ParseArgumentsTable( L );
+const int32_t GameLib_SignalOut( lua_edict_t leEnt, lua_edict_t leSignaller, lua_edict_t leActivator, std::string signalName, sol::table signalArguments ) {
+	// Make sure that the entity is at least active and valid to be signalling.
+	if ( !SVG_IsActiveEntity( leEnt.edict ) ) {
+		return -1; // SIGNALOUT_FAILED
+	}
 
-	// Validate entity numbers.
-	if ( entityNumber < 0 || entityNumber >= game.maxentities ) {
-		lua_pushinteger( L, -1 );
-		return 1;
-	}
-	#if 0
-	if ( signallerEntityNumber < 0 || signallerEntityNumber >= game.maxentities ) {
-		lua_pushinteger( L, -1 );
-		return 1;
-	}
-	if ( activatorEntityNumber < 0 || activatorEntityNumber >= game.maxentities ) {
-		lua_pushinteger( L, -1 );
-		return 1;
-	}
-	#endif
+	// Stores the parsed sol::table results.
+	svg_signal_argument_array_t signalArgumentsArray = _GameLib_LuaTable_ToArgumentsArray( signalArguments );
 
-	// See if the targetted entity is inuse.
-	if ( !g_edicts[ entityNumber ].inuse ) {
-		lua_pushinteger( L, -1 );
-		return 1;
-	}
-	#if 0
-	if ( !g_edicts[ signallerEntityNumber ].inuse ) {
-		lua_pushinteger( L, -1 );
-		return 1;
-	}
-	// See if the activator is inuse.
-	if ( !g_edicts[ activatorEntityNumber ].inuse ) {
-		lua_pushinteger( L, -1 );
-		return 1;
-	}
-	#endif
+	// Acquire pointers from lua_edict_t handles.
+	edict_t *entity = leEnt.edict;
+	edict_t *signaller = leSignaller.edict;
+	edict_t *activator = leActivator.edict;
 
-	// Perform UseTargets
-	edict_t *entity = &g_edicts[ entityNumber ];
-	edict_t *signaller = ( signallerEntityNumber != -1 ? &g_edicts[ signallerEntityNumber ] : nullptr );
-	edict_t *activator = ( activatorEntityNumber != -1 ? &g_edicts[ activatorEntityNumber ] : nullptr );
-
+	// Spawn a delayed signal out entity if a delay was requested.
 	if ( entity->delay ) {
 		// create a temp object to UseTarget at a later time.
 		edict_t *delayEntity = SVG_AllocateEdict();
 		delayEntity->classname = "DelayedLuaSignalOut";
+
 		delayEntity->nextthink = level.time + sg_time_t::from_sec( entity->delay );
 		delayEntity->think = LUA_Think_SignalOutDelay;
 		if ( !activator ) {
 			gi.dprintf( "LUA_Think_SignalOutDelay with no activator\n" );
 		}
-
 		delayEntity->activator = activator;
 		delayEntity->other = signaller;
+
 		delayEntity->message = entity->message;
 
 		delayEntity->targetNames.target = entity->targetNames.target;
@@ -192,14 +225,12 @@ int GameLib_SignalOut( lua_State *L ) {
 		// The entity which created this temporary delay signal entity.
 		delayEntity->delayed.signalOut.creatorEntity = entity;
 		// The arguments of said signal.
-		delayEntity->delayed.signalOut.arguments = signalArguments;
+		delayEntity->delayed.signalOut.arguments = signalArgumentsArray;
 		// The actual string comes from lua so we need to copy it in instead.
 		memset( delayEntity->delayed.signalOut.name, 0, sizeof( delayEntity->delayed.signalOut.name ) );
-		Q_strlcpy( delayEntity->delayed.signalOut.name, signalName, strlen( signalName ) );
+		signalName.copy( delayEntity->delayed.signalOut.name, signalName.size(), 0 );
 
-		// Return 0, UseTarget has not actually used its target yet.
-		lua_pushinteger( L, 0 );
-		return 1;
+		return 0; // SIGNALOUT_DELAYED
 	}
 
 	// Fire the signal if it has a OnSignal method registered.
@@ -210,17 +241,15 @@ int GameLib_SignalOut( lua_State *L ) {
 		entity->activator = activator;
 		entity->other = signaller;
 		// Fire away.
-		/*propogateToLua = */entity->onsignalin( entity, signaller, activator, signalName, signalArguments );
+		/*propogateToLua = */entity->onsignalin( entity, signaller, activator, signalName.c_str(), signalArgumentsArray );
 		sentSignalOut = true;
 	}
 
 	// If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
 	if ( propogateToLua ) {
-		SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), entity, signaller, activator, signalName, signalArguments );
+		SVG_Lua_SignalOut( SVG_Lua_GetSolStateView(), entity, signaller, activator, signalName.c_str(), signalArgumentsArray );
 		sentSignalOut = true;
 	}
 
-	// Return 1, we have used our method.
-	lua_pushinteger( L, sentSignalOut );
-	return 1;
+	return 1; // SIGNALOUT_SIGNALLED
 }

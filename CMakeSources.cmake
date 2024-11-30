@@ -324,6 +324,9 @@ SET(SRC_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/lua/medialib/svg_lua_medialib_sound.cpp
 
+	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_t.cpp
+	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_t.hpp
+
 	baseq2rtxp/svgame/monsters/svg_mmove.cpp
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.cpp
 

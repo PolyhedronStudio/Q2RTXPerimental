@@ -121,7 +121,10 @@ const int32_t SG_FS_FileExistsEx( const char *path, const uint32_t flags );
 *	@return	length < 0 indicates error.
 **/
 const int32_t SG_FS_LoadFile( const char *path, void **buffer );
-
+/**
+*	@brief	Frees FS_FILESYSTEM Tag Malloc file buffer.
+**/
+void SG_FS_FreeFile( void *buffer );
 
 #if 0
 /**

@@ -216,7 +216,12 @@ static const int32_t PF_FS_FileExistsEx( const char *path, const uint32_t flags 
 static const int32_t PF_FS_LoadFile( const char *path, void **buffer ) {
 	return FS_LoadFile( path, buffer );
 }
-
+/**
+*	@brief	Frees FS_FILESYSTEM Tag Malloc file buffer.
+**/
+static void PF_FS_FreeFile( void *buffer ) {
+	FS_FreeFile( buffer );
+}
 
 
 /**
@@ -822,6 +827,7 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.FS_FileExistsEx = PF_FS_FileExistsEx;
 	imports.FS_LoadFile = PF_FS_LoadFile;
+	imports.FS_FreeFile = PF_FS_FreeFile;
 
 	imports.KeyDown = CL_KeyDown;
 	imports.KeyUp = CL_KeyUp;

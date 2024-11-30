@@ -21,8 +21,12 @@ extern clgame_import_t clgi;
 
 /**
 *
+* 
+* 
 *	Core:
 *
+* 
+* 
 **/
 /**
 *	@brief	Wrapper for using the appropriate developer print for the specific game module we're building.
@@ -45,8 +49,12 @@ void SG_DPrintf( const char *fmt, ... ) {
 
 /**
 *
+* 
+* 
 *	Entities:
 *
+* 
+* 
 **/
 /**
 *	@brief	Returns the entity number, -1 if invalid(nullptr, or out of bounds).
@@ -63,8 +71,12 @@ const int32_t SG_GetEntityNumber( sgentity_s *sgent ) {
 
 /**
 *
+* 
+* 
 *	ConfigStrings:
 *
+* 
+* 
 **/
 /**
 *	@brief	Returns the given configstring that sits at index.
@@ -77,8 +89,12 @@ configstring_t *SG_GetConfigString( const int32_t configStringIndex ) {
 
 /**
 *
+* 
+* 
 *	CVars:
 *
+* 
+* 
 **/
 /**
 *	@brief	Wraps around CVar_Get
@@ -92,8 +108,12 @@ cvar_t *SG_CVar_Get( const char *var_name, const char *value, const int32_t flag
 /**
 *
 *
+* 
+* 
 *	FileSystem:
 *
+* 
+* 
 *
 **/
 /**
@@ -109,13 +129,22 @@ const int32_t SG_FS_FileExistsEx( const char *path, const uint32_t flags ) {
 const int32_t SG_FS_LoadFile( const char *path, void **buffer ) {
 	return clgi.FS_LoadFile( path, buffer );
 }
-
+/**
+*	@brief	Frees FS_FILESYSTEM Tag Malloc file buffer.
+**/
+void SG_FS_FreeFile( void *buffer ) {
+	return clgi.FS_FreeFile( buffer );
+}
 
 
 /**
 *
+* 
+* 
 *	Skeletal Model:
 *
+* 
+* 
 **/
 /**
 *   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
@@ -134,8 +163,12 @@ const model_t *SG_GetModelDataForHandle( const qhandle_t handle ) {
 
 /**
 *
+* 
+* 
 *	Zone (Tag-)Malloc:
 *
+* 
+* 
 **/
 /**
 *	@brief
@@ -159,8 +192,12 @@ void SG_Z_TagFree( const uint32_t tag ) {
 
 /**
 *
+* 
+* 
 *	Other:
 *
+* 
+* 
 **/
 /**
 *	@brief	Client side sharedgame implementation of sg_time_t::frames.

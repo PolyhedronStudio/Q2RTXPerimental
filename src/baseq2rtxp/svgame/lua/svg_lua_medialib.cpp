@@ -8,6 +8,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_lua.h"
+#include "svgame/lua/svg_lua_gamelib.hpp" // for lua_edict_t
 #include "svgame/lua/svg_lua_medialib.hpp"
 
 
@@ -22,51 +23,36 @@
 *
 **/
 /**
-*	@brief	"Media" Namespace Functions:
-**/
-static const struct luaL_Reg MediaLib[] = {
-	// svg_lua_medialib_sound.cpp:
-	{ "PrecacheSound", MediaLib_PrecacheSound },
-	{ "Sound", MediaLib_Sound },
-
-	// End OF Array.
-	{ NULL, NULL }
-};
-/**
 *	@brief	Initializes the MediaLib
 **/
-void MediaLib_Initialize( lua_State *L ) {
-	// We create a new table
-	lua_newtable( L );
+void MediaLib_Initialize( sol::state_view &solStateView ) {
+	// Namespace name.
+	constexpr const char *nameSpaceName = "Media";
 
-	// Here we set all functions from GameLib array into
-	// the table on the top of the stack
-	luaL_setfuncs( L, MediaLib, 0 );
+	// Create namespace.
+	auto solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
+	solNameSpace[ "PrecacheSound" ] = MediaLib_PrecacheSound;
+	solNameSpace[ "Sound" ] = MediaLib_Sound;
 
-	// We get the table and set as global variable
-	lua_setglobal( L, "Media" );
-
-	if ( luaL_dostring( L, "Core.DPrint(\"Initialized Lua MediaLib\n\"" ) == LUA_OK ) {
-		lua_pop( L, lua_gettop( L ) );
-	}
+	// Developer print.
+	gi.dprintf( "[Lua]: %s as -> \"%s\"\n", __func__, nameSpaceName );
 
 	/**
 	*	Register all global constants.
 	**/
 	// Sound Attenuation
-	LUA_RegisterGlobalConstant( L, "ATTN_NONE", static_cast<const lua_Integer>( ATTN_NONE ) );
-	//LUA_RegisterGlobalConstant( L, "ATTN_DISTANT", static_cast<const lua_Integer>( ATTN_DISTANT ) );
-	LUA_RegisterGlobalConstant( L, "ATTN_NORM", static_cast<const lua_Integer>( ATTN_NORM ) );
-	LUA_RegisterGlobalConstant( L, "ATTN_IDLE", static_cast<const lua_Integer>( ATTN_IDLE ) );
-	LUA_RegisterGlobalConstant( L, "ATTN_STATIC", static_cast<const lua_Integer>( ATTN_STATIC ) );
+	solStateView.set( "ATTN_NONE", ATTN_NONE );
+	//solStateView.set( "ATTN_DISTANT", ATTN_DISTANT );
+	solStateView.set( "ATTN_NORM", ATTN_NORM );
+	solStateView.set( "ATTN_IDLE", ATTN_IDLE );
+	solStateView.set( "ATTN_STATIC", ATTN_STATIC );
 
 	// Sound Channels:
-	LUA_RegisterGlobalConstant( L, "CHAN_AUTO", static_cast<const lua_Integer>( CHAN_AUTO ) );
-	LUA_RegisterGlobalConstant( L, "CHAN_WEAPON", static_cast<const lua_Integer>( CHAN_WEAPON ) );
-	LUA_RegisterGlobalConstant( L, "CHAN_VOICE", static_cast<const lua_Integer>( CHAN_VOICE ) );
-	LUA_RegisterGlobalConstant( L, "CHAN_ITEM", static_cast<const lua_Integer>( CHAN_ITEM ) );
-	LUA_RegisterGlobalConstant( L, "CHAN_BODY", static_cast<const lua_Integer>( CHAN_BODY ) );
-	// Sound Channel Modifier flags.
-	LUA_RegisterGlobalConstant( L, "CHAN_NO_PHS_ADD", static_cast<const lua_Integer>( CHAN_NO_PHS_ADD ) );
-	LUA_RegisterGlobalConstant( L, "CHAN_RELIABLE", static_cast<const lua_Integer>( CHAN_RELIABLE ) );
+	solStateView.set( "CHAN_AUTO", CHAN_AUTO );
+	solStateView.set( "CHAN_WEAPON", CHAN_WEAPON );
+	solStateView.set( "CHAN_VOICE", CHAN_VOICE );
+	solStateView.set( "CHAN_ITEM", CHAN_ITEM );
+	solStateView.set( "CHAN_BODY", CHAN_BODY );
+	solStateView.set( "CHAN_NO_PHS_ADD", CHAN_NO_PHS_ADD );
+	solStateView.set( "CHAN_RELIABLE", CHAN_RELIABLE );
 }

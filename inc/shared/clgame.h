@@ -369,7 +369,10 @@ typedef struct {
 	*	@return	length < 0 indicates error.
 	**/
 	const int32_t ( *FS_LoadFile )( const char *path, void **buffer );
-
+	/**
+	*	@brief	Frees FS_FILESYSTEM Tag Malloc file buffer.
+	**/
+	void ( *FS_FreeFile )( void *buffer );
 
 	/**
 	*

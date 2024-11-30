@@ -47,20 +47,21 @@ static const struct luaL_Reg CoreLib[] = {
 /**
 *	@brief	Initializes the EntitiesLib
 **/
-void CoreLib_Initialize( lua_State *L ) {
-	// We create a new table
-	lua_newtable( L );
+void CoreLib_Initialize( sol::state_view &solStateView ) {
+	// Namespace name.
+	constexpr const char *nameSpaceName = "Core";
 
-	// Here we set all functions from CoreLib array into
-	// the table on the top of the stack
-	luaL_setfuncs( L, CoreLib, 0 );
+	// Create namespace.
+	auto solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
+	solNameSpace[ "DPrint" ]  = CoreLib_DPrint;
 
-	// We get the table and set as global variable
-	lua_setglobal( L, "Core" );
+	// Developer print.
+	gi.dprintf( "[Lua]: %s as -> \"%s\"\n", __func__, nameSpaceName );
 
-	// Process string.
-	if ( luaL_dostring( L, "Core.DPrint(\"Initialized Lua CoreLib\n\"" ) == LUA_OK ) {
-		// Pop stack.
-		lua_pop( L, lua_gettop( L ) );
-	}
+	/**
+	*	Register all global constants.
+	**/
+	// Door Toggle Types:
+	// WID: TODO: We don't use these yet, do we even need them?
+	solStateView.set( "TEST_CONST", 1 );
 }

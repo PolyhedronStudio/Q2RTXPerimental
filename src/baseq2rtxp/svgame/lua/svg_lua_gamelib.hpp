@@ -9,6 +9,12 @@
 #pragma once
 
 
+//
+// UserTypes:
+//
+#include "svgame/lua/usertypes/svg_lua_usertype_edict_t.hpp"
+
+
 
 /**
 *
@@ -27,16 +33,16 @@
 /**
 *	@return	The number of the entity if it has a matching luaName, -1 otherwise.
 **/
-int GameLib_GetEntityForLuaName( lua_State *L );
+lua_edict_t GameLib_GetEntityForLuaName( const std::string &luaName );
 /**
 *	@return	The number of the first matching targetname entity in the entities array, -1 if not found.
 **/
-int GameLib_GetEntityForTargetName( lua_State *L );
+lua_edict_t GameLib_GetEntityForTargetName( const std::string &targetName );
 /**
 *	@return	The number of the team matching entities found in the entity array, -1 if none found.
 *	@note	In Lua, it returns a table containing the entity number(s) with a matching targetname.
 **/
-int GameLib_GetEntitiesForTargetName( lua_State *L );
+sol::table GameLib_GetEntitiesForTargetName( const std::string &targetName );
 
 
 /**
@@ -45,9 +51,9 @@ int GameLib_GetEntitiesForTargetName( lua_State *L );
 *
 **/
 /**
-*	@return	The number of the entity if it has a matching luaName, -1 otherwise.
+*	@return	The push mover its' current state.
 **/
-int GameLib_GetPushMoverState( lua_State *L );
+const int32_t GameLib_GetPushMoverState( lua_edict_t pushMoverEntity );
 
 
 /**
@@ -58,7 +64,7 @@ int GameLib_GetPushMoverState( lua_State *L );
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-int GameLib_SignalOut( lua_State *L );
+const int32_t GameLib_SignalOut( lua_edict_t leEnt, lua_edict_t leSignaller, lua_edict_t leActivator, std::string signalName, sol::table signalArguments );
 
 
 /**
@@ -69,7 +75,7 @@ int GameLib_SignalOut( lua_State *L );
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-int GameLib_UseTarget( lua_State *L );
+const int32_t GameLib_UseTarget( lua_edict_t leEnt, lua_edict_t leSignaller, lua_edict_t leActivator, const entity_usetarget_type_t useType, const int32_t useValue );
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/

@@ -18,7 +18,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // g_utils.c -- misc utility functions for game module
 
 #include "svgame/svg_local.h"
+
 #include "svgame/svg_lua.h"
+#include "svgame/lua/svg_lua_gamelib.hpp"
+#include "svgame/lua/svg_lua_signals.hpp"
+
 #include "svgame/entities/svg_entities_pushermove.h"
 
 
@@ -98,8 +102,11 @@ static void SVG_SignalOut_DebugPrintArguments( const svg_signal_argument_array_t
                 // Act based on its type.
         if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_BOOLEAN ) {
             gi.dprintf( "%s:%s\n", signalArgument->key, ( signalArgument->value.boolean ? "true" : "false" ) );
+            // TODO: Hmm?? Sol has no notion, maybe though using sol::object.as however, of an integer??
+        #if 0
         } else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_INTEGER ) {
             gi.dprintf( "%s:%d\n", signalArgument->key, signalArgument->value.integer );
+        #endif
         } else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NUMBER ) {
             gi.dprintf( "%s:%f\n", signalArgument->key, signalArgument->value.number );
         } else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_STRING ) {
@@ -165,7 +172,7 @@ void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const 
     }
     // If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
     if ( propogateToLua ) {
-        SVG_Lua_SignalOut( SVG_Lua_GetMapLuaState(), ent, signaller, activator, signalName, signalArguments );
+        SVG_Lua_SignalOut( SVG_Lua_GetSolState(), ent, signaller, activator, signalName, signalArguments);
     }
 }
 
@@ -310,8 +317,8 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
                     // Generate function 'callback' name.
                     const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
                     // Call if it exists.
-                    if ( LUA_HasFunction( SVG_Lua_GetMapLuaState(), luaFunctionName ) ) {
-                        LUA_CallFunction( SVG_Lua_GetMapLuaState(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
+                    if ( LUA_HasFunction( SVG_Lua_GetSolStateView(), luaFunctionName ) ) {
+                        LUA_CallFunction( SVG_Lua_GetSolStateView(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
                             /*[lua args]:*/ fireTargetEntity, ent, activator, useType, useValue );
                     }
                 }

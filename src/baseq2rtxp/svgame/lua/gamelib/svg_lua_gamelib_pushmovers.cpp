@@ -56,3 +56,14 @@ int GameLib_GetPushMoverState( lua_State *L ) {
 
 	return 1; // The number of returned values
 }
+/**
+*	@return	The push mover its' current state.
+**/
+const int32_t GameLib_GetPushMoverState( lua_edict_t pushMoverEntity ) {
+	const int32_t pushMoverState = ( pushMoverEntity.edict ? pushMoverEntity.edict->pushMoveInfo.state : -1 );
+	return pushMoverState;
+	//// Get the first matching entity for the targetname.
+	//edict_t *targetNameEntity = SVG_Find( NULL, FOFS( targetname ), targetName.c_str() );
+	//// Return it.
+	//return targetNameEntity;
+}

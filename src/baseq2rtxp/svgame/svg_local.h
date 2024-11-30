@@ -1051,7 +1051,7 @@ typedef enum {
     //! Boolean type.
     SIGNAL_ARGUMENT_TYPE_BOOLEAN,
     //! Integer type.
-    SIGNAL_ARGUMENT_TYPE_INTEGER,
+    //SIGNAL_ARGUMENT_TYPE_INTEGER,
     //! Double type.
     SIGNAL_ARGUMENT_TYPE_NUMBER,
     //! String type.
