@@ -9,6 +9,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_lua.h"
+#include "svgame/lua/svg_lua_gamelib.hpp"
 
 
 
@@ -24,26 +25,14 @@
 /**
 *	@brief	Prints the given string.
 **/
-static int CoreLib_DPrint( lua_State *L ) {
-	// Check if the first argument is string.
-	const char *printStr = luaL_checkstring( L, 1 );
-	if ( !printStr ) {
-		Lua_DeveloperPrintf( "%s: invalid string\n", __func__ );
-		return 0;
-	}
-
-	// Print
-	gi.dprintf( "%s", printStr );
-
-	return 0; // The number of returned values
+static const int32_t CoreLib_DPrint( std::string string ) {
+	// Print.
+	gi.dprintf( "%s", string.c_str() );
+	return 1;
 }
-/**
-*	@brief	Entities Namespace Functions:
-**/
-static const struct luaL_Reg CoreLib[] = {
-	{ "DPrint", CoreLib_DPrint },
-	{ NULL, NULL }
-};
+
+
+
 /**
 *	@brief	Initializes the EntitiesLib
 **/
@@ -53,15 +42,28 @@ void CoreLib_Initialize( sol::state_view &solStateView ) {
 
 	// Create namespace.
 	auto solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
-	solNameSpace[ "DPrint" ]  = CoreLib_DPrint;
+	solNameSpace.set_function( "DPrint", CoreLib_DPrint );
 
 	// Developer print.
 	gi.dprintf( "[Lua]: %s as -> \"%s\"\n", __func__, nameSpaceName );
 
 	/**
-	*	Register all global constants.
+	*	Register all global constants, we don't include these in the namespace.
+	*	It makes things easier to write and read. We won't be having duplicates anyway.
 	**/
-	// Door Toggle Types:
-	// WID: TODO: We don't use these yet, do we even need them?
-	solStateView.set( "TEST_CONST", 1 );
+	// Debug Build:
+	#ifdef _DEBUG
+	solStateView.set( "DEBUGGING", 1 );
+	#else
+	solStateView.set( "DEBUGGING", 0 );
+	#endif
+	// Developer mode:
+	cvar_t *developer = gi.cvar( "developer", 0, 0 );
+	if ( developer && developer->integer != 0 ) {
+		solStateView.set( "DEVELOPER", gi.cvar( "developer", 0, 0 )->integer );
+	} else {
+		solStateView.set( "DEVELOPER", gi.cvar( "developer", 0, 0 ) );
+	}
+	
+	// None..
 }

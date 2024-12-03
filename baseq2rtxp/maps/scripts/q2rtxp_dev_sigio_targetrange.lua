@@ -13,29 +13,31 @@ mapMedia = {
 -- Target Logic:
 ----------------------------------------------------------------------
 -- L Target:
-function Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, onKilledMessage, targetName, trainTargetName, lightTargetName )
+function Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, displayName, targetName, trainTargetName, lightTargetName )
     --[[
     -- Handles its death, turns off the train track and the light.
     ]]--
     if ( signalName == "OnPain" ) then
         -- Play speciual 'pain' sound effect.
-        Media.Sound( self, CHAN_VOICE, mapMedia.sound.rangetarget_pain, 1.0, ATTN_NORM, 0.0 )
+        Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_pain, 1.0, SoundAttenuation.NORMAL, 0.0 )
         -- Done handling signal.
         return
     -- It just got killed, stop the train track, notify, and add score.
     elseif ( signalName == "OnKilled" ) then
         -- Notify of the kill.
-        Core.DPrint( onKilledMessage ) -- TODO: Use actual prints, not developer prints :-P
+        Game.Print( PrintLevel.NOTICE, "Shot down the \"" .. displayName .. "\" target!\n" )
+
         -- Stop the train for this target.
-        Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, ENTITY_USETARGET_TYPE_OFF, 0 )
+        Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTarget.OFF, 0 )
+        
         -- Play speciual 'opening' sound effect.
-        Media.Sound( self, CHAN_VOICE, mapMedia.sound.rangetarget_open, 1.0, ATTN_IDLE, 0.0 )
+        Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_open, 1.0, SoundAttenuation.IDLE, 0.0 )
         -- Done handling signal.
         return
     -- It finished the 'open movement' and arrived at destination:
     elseif ( signalName == "OnOpened" ) then
         -- Turn off the light for this target.
-        Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, ENTITY_USETARGET_TYPE_OFF, 0 )
+        Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, EntityUseTarget.OFF, 0 )
         -- Done handling signal.
         return
     --[[
@@ -46,15 +48,18 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
     -- A new round has begun, so the target got told to "close", turn on the light so we can see it close.
     elseif ( signalName == "OnClose" ) then
         -- Turn on the light for this target.
-        Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, ENTITY_USETARGET_TYPE_ON, 1 )
+        Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, EntityUseTarget.ON, 1 )
+
         -- Play speciual closing sound effect.
-        Media.Sound( self, CHAN_VOICE, mapMedia.sound.rangetarget_close, 1.0, ATTN_IDLE, 0.0 )
+        Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_close, 1.0, SoundAttenuation.IDLE, 0.0 )
+
         -- Done handling signal.
         return
     -- A new round has begun, so the target got told to "close", turn on the train.
     elseif ( signalName == "OnClosed") then
         -- Turn on the train for this target.
-        Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, ENTITY_USETARGET_TYPE_ON, 1 )
+        Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTarget.ON, 1 )
+        
         -- Done handling signal.
         return
     elseif ( signalName == "OnOpen" ) then
@@ -71,19 +76,19 @@ end
 ----------------------------------------------------------------------
 -- XXL Target:
 function TargetXXL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "Killed the XXL target!\n", "t_target_xxl", "train_target_xxl", "light_target_xxl" )
+    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "XXL", "t_target_xxl", "train_target_xxl", "light_target_xxl" )
 end
 -- XL Target:
 function TargetXL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "Killed the XL target!\n", "t_target_xl", "train_target_xl", "light_target_xl" )
+    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "XL", "t_target_xl", "train_target_xl", "light_target_xl" )
 end
 -- L Target:
 function TargetL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "Killed the L target!\n", "t_target_l", "train_target_l", "light_target_l" )
+    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "L", "t_target_l", "train_target_l", "light_target_l" )
 end
 -- S Target:
 function Target_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "Killed the S target!\n", "t_target", "train_target", "light_target" )
+    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "S", "t_target", "train_target", "light_target" )
 end
 
 -- Button that resets the range.
@@ -91,7 +96,7 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
     if ( signalName == "OnPressed" ) then
         Core.DPrint( "Range targets reset!\n" ) -- TODO: Use not developer print...
         -- Play speciual 'restart' sound effect.
-        Media.Sound( self, CHAN_ITEM, mapMedia.sound.newround, 1.0, ATTN_IDLE, 0.0 )
+        Media.Sound( signaller, SoundChannel.ITEM, mapMedia.sound.newround, 1.0, SoundAttenuation.NORMAL, 0.0 )
 
         -- Signal all targetrange lane targets to "close" again, effectively reactivating our target range course.
         Game.SignalOut( Game.GetEntityForTargetName( "t_target_xxl" ), signaller, activator, "DoorClose", {} )
@@ -109,11 +114,7 @@ end
 ----------------------------------------------------------------------
 -- The Buttons
 ----------------------------------------------------------------------
-function WareHouseLockingButton_OnSignalIn( xself, signaller, activator, signalName, signalArguments )
-    Core.DPrint( "xself(#"..xself.number..")\n")
-    Core.DPrint( "signaller(#"..signaller.number..")\n")
-    Core.DPrint( "activator(#"..activator.number..")\n")
-
+function WareHouseLockingButton_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     -- Open the doors.
     if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
         -- Get entity
@@ -124,9 +125,9 @@ function WareHouseLockingButton_OnSignalIn( xself, signaller, activator, signalN
         local doorMoveState = Game.GetPushMoverState( entityWareHouseDoor00 )
 
         -- Only SignalOut a "DoorOpen" when the elevator is NOT moving.
-        if ( doorMoveState ~= PUSHMOVE_STATE_MOVING_DOWN and doorMoveState~= PUSHMOVE_STATE_MOVING_UP ) then
+        if ( doorMoveState ~= PushMoveState.MOVING_DOWN and doorMoveState ~= PushMoveState.MOVING_UP ) then
             -- Send the lock toggle signal.
-            Game.SignalOut( entityWareHouseDoor00, xself, activator, "DoorLockToggle", {} )
+            Game.SignalOut( entityWareHouseDoor00, self, activator, "DoorLockToggle", {} )
         end
     end
     return true

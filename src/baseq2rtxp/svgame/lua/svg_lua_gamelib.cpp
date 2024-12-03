@@ -17,6 +17,50 @@
 *
 *
 *
+*	Lua GameLib:
+*
+*
+*
+**/
+/**
+*	@brief	Prints a message of 'gamePrintLevel' to the ALL clients.
+**/
+static const int32_t GameLib_Print( const int32_t gamePrintLevel, std::string string ) {
+	// Print.
+	gi.bprintf( gamePrintLevel, "%s", string.c_str() );
+	return 1;
+}
+/**
+*	@brief	Prints a message of 'printLevel' to the given client.
+**/
+static const int32_t GameLib_ClientPrint( lua_edict_t leClientEntity, const int32_t clientPrintLevel, std::string string ) {
+	// Make sure the client is active.
+	if ( !SVG_IsClientEntity( leClientEntity.edict ) ) {
+		return 0;
+	}
+	// Print.
+	gi.cprintf( leClientEntity.edict, clientPrintLevel, "%s", string.c_str() );
+	return 1;
+}
+/**
+*	@brief	Prints a centered screen message to the given client.
+**/
+static const int32_t GameLib_CenterPrint( lua_edict_t leClientEntity, std::string string ) {
+	// Make sure the client is active.
+	if ( !SVG_IsClientEntity( leClientEntity.edict ) ) {
+		return 0;
+	}
+	// Print.
+	gi.centerprintf( leClientEntity.edict, "%s", string.c_str() );
+	return 1;
+}
+
+
+
+/**
+*
+*
+*
 *	[Lua GameLib] -> Init/Shutdown:
 *
 *
@@ -34,31 +78,61 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 	solNameSpace.set_function( "GetEntityForLuaName", GameLib_GetEntityForLuaName );
 	solNameSpace.set_function( "GetEntityForTargetName", GameLib_GetEntityForTargetName );
 	solNameSpace.set_function( "GetEntitiesForTargetName", GameLib_GetEntitiesForTargetName );
+	//
 	solNameSpace.set_function( "GetPushMoverState", GameLib_GetPushMoverState );
+	//
 	solNameSpace.set_function( "UseTarget", GameLib_UseTarget );
 	solNameSpace.set_function( "UseTargets", GameLib_UseTarget );
+	//
 	solNameSpace.set_function( "SignalOut", GameLib_SignalOut );
+	//
+	solNameSpace.set_function( "Print", GameLib_Print );
+	solNameSpace.set_function( "ClientPrint", GameLib_ClientPrint );
+	solNameSpace.set_function( "CenterPrint", GameLib_CenterPrint );
 
 	// Developer print.
 	gi.dprintf( "[Lua]: %s as -> \"%s\"\n", __func__, nameSpaceName );
 
 	/**
-	*	Register all global constants.
+	*	Register all global constants, we don't include these in the namespace.
+	*	It makes things easier to write and read. We won't be having duplicates anyway.
 	**/
 	// Door Toggle Types:
-	// WID: TODO: We don't use these yet, do we even need them?
-	solStateView.set( "DOOR_TOGGLE_CLOSE",	0 );
-	solStateView.set( "DOOR_TOGGLE_OPEN",	1 );
-
+	solStateView.new_enum( "PushMoveToggle",
+		"CLOSE",	0,	//! Moves it to "Bottom".
+		"OPEN",		1	//! Moves it to "Up"
+	);
 	// PushMoveInfo States:
-	solStateView.set( "PUSHMOVE_STATE_TOP",			PUSHMOVE_STATE_TOP );
-	solStateView.set( "PUSHMOVE_STATE_BOTTOM",		PUSHMOVE_STATE_BOTTOM );
-	solStateView.set( "PUSHMOVE_STATE_MOVING_UP",	PUSHMOVE_STATE_MOVING_UP );
-	solStateView.set( "PUSHMOVE_STATE_MOVING_DOWN",	PUSHMOVE_STATE_MOVING_DOWN );
+	solStateView.new_enum( "PushMoveState",
+		"TOP",			PUSHMOVE_STATE_TOP,
+		"BOTTOM",		PUSHMOVE_STATE_BOTTOM,
+		"MOVING_UP",	PUSHMOVE_STATE_MOVING_UP,
+		"MOVING_DOWN",	PUSHMOVE_STATE_MOVING_DOWN
+	);
 
 	// UseTarget Types:
-	solStateView.set( "ENTITY_USETARGET_TYPE_OFF",		ENTITY_USETARGET_TYPE_OFF );
-	solStateView.set( "ENTITY_USETARGET_TYPE_ON",		ENTITY_USETARGET_TYPE_ON );
-	solStateView.set( "ENTITY_USETARGET_TYPE_SET",		ENTITY_USETARGET_TYPE_SET );
-	solStateView.set( "ENTITY_USETARGET_TYPE_TOGGLE",	ENTITY_USETARGET_TYPE_TOGGLE );
+	solStateView.new_enum( "EntityUseTarget",
+		"OFF",		ENTITY_USETARGET_TYPE_OFF,
+		"ON",		ENTITY_USETARGET_TYPE_ON,
+		"SET",		ENTITY_USETARGET_TYPE_SET,
+		"TOGGLE",	ENTITY_USETARGET_TYPE_TOGGLE
+	);
+
+		// Print Levels:
+	solStateView.new_enum( "PrintLevel",
+		//! Prints using default conchars text and thus color.
+		"ALL",			PRINT_ALL,		//! Used for General messages..
+		"TALK",			PRINT_TALK,		//! Prints in Green color.
+		"DEVELOPER",	PRINT_DEVELOPER,//! Only prints when the cvar "developer" >= 1
+		"WARNING",		PRINT_WARNING,	//! Print a Warning in Yellow color.
+		"ERROR",		PRINT_ERROR,	//! Print an Error in Red color.
+		"NOTICE",		PRINT_NOTICE	//! Print a Notice in bright Cyan color.
+	);
+	// Game Message Print Levels:
+	solStateView.new_enum( "ClientPrintLevel",
+		"LOW",		PRINT_LOW,		//! Pickup messages.
+		"MEDIUM",	PRINT_MEDIUM,	//! Death messages.
+		"HIGH",		PRINT_HIGH,		//! Critical messages.
+		"CHAT",		PRINT_CHAT		//! Chat messages.
+	);
 }
