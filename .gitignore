@@ -40,6 +40,10 @@ music/
 *.wal
 *.wav
 
+*.texinfo.json
+*-compile.map
+*.prt
+
 q2config.cfg
 save
 */docs
@@ -57,7 +61,11 @@ baseq2rtxp/**/*.txt
 /baseq2/.conhistory
 /CMakeSettings.json
 
-/baseq2rtxp/maps/*.bsp
+baseq2rtxp/maps/mapsrc/*.-compile.map
+baseq2rtxp/maps/mapsrc/*.prt
+baseq2rtxp/maps/*.-compile.map
+baseq2rtxp/maps/*.prt
+baseq2rtxp/maps/*.bsp
 !baseq2q2rtxp/maps/sky/*.txt
 !/baseq2q2rtxp/maps/scripts/*.lua
 /baseq2rtxp/materials
@@ -71,3 +79,5 @@ baseq2rtxp/**/*.txt
 /src/unix/res/q2pro.xbm~
 /local_entities_test.bat
 
+/baseq2rtxp/maps/mapsrc/q2rtxp_dev_sigio_targetrange-compile.map
+/baseq2rtxp/maps/mapsrc/q2rtxp_dev_sigio_targetrange.prt

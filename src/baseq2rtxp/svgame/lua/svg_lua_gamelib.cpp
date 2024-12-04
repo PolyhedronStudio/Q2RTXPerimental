@@ -75,17 +75,18 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 
 	// Create namespace.
 	auto solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
+	// Entities:
 	solNameSpace.set_function( "GetEntityForLuaName", GameLib_GetEntityForLuaName );
 	solNameSpace.set_function( "GetEntityForTargetName", GameLib_GetEntityForTargetName );
 	solNameSpace.set_function( "GetEntitiesForTargetName", GameLib_GetEntitiesForTargetName );
-	//
+	// PushMovers:
 	solNameSpace.set_function( "GetPushMoverState", GameLib_GetPushMoverState );
-	//
+	// UseTarget(s):
 	solNameSpace.set_function( "UseTarget", GameLib_UseTarget );
 	solNameSpace.set_function( "UseTargets", GameLib_UseTarget );
-	//
+	// Signal I/O:
 	solNameSpace.set_function( "SignalOut", GameLib_SignalOut );
-	//
+	// Printing:
 	solNameSpace.set_function( "Print", GameLib_Print );
 	solNameSpace.set_function( "ClientPrint", GameLib_ClientPrint );
 	solNameSpace.set_function( "CenterPrint", GameLib_CenterPrint );
@@ -118,7 +119,7 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 		"TOGGLE",	ENTITY_USETARGET_TYPE_TOGGLE
 	);
 
-		// Print Levels:
+	// Print Levels:
 	solStateView.new_enum( "PrintLevel",
 		//! Prints using default conchars text and thus color.
 		"ALL",			PRINT_ALL,		//! Used for General messages..
