@@ -40,7 +40,7 @@ function ButtonLock00_OnSignalIn( self, signaller, activator, signalName, signal
         -- Determine its move state.
         local moveState = Game.GetPushMoverState( entDoor )
         -- Of course we can't lock a moving door. For showing off feature wise, we also allow for locking it in its opened state.
-        if ( moveState ~= PUSHMOVE_STATE_MOVING_DOWN and moveState ~= PUSHMOVE_STATE_MOVING_UP ) then
+        if ( moveState ~= PushMoveState.MOVING_DOWN and moveState ~= PushMoveState.MOVING_UP ) then
             -- Signal the "DoorLockToggle" event.
             Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
         end
@@ -60,7 +60,7 @@ function ButtonLockTeamPairDoors_OnSignalIn( self, signaller, activator, signalN
                 local moveState = Game.GetPushMoverState( entDoor )
                 -- Of course we can't lock a moving door. 
                 -- For showing off feature wise, we also allow for locking it in its opened state.
-                if ( moveState ~= PUSHMOVE_STATE_MOVING_DOWN and moveState ~= PUSHMOVE_STATE_MOVING_UP ) then
+                if ( moveState ~= PushMoveState.MOVING_DOWN and moveState ~= PushMoveState.MOVING_UP ) then
                     -- Signal the "DoorLockToggle" event.
                     Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
                 end
@@ -84,7 +84,7 @@ function ButtonLock01_OnSignalIn( self, signaller, activator, signalName, signal
         -- Determine its move state.
         local moveState = Game.GetPushMoverState( entDoor )
         -- Of course we can't lock a moving door. For showing off feature wise, we also allow for locking it in its opened state.
-        if ( moveState ~= PUSHMOVE_STATE_MOVING_DOWN and moveState ~= PUSHMOVE_STATE_MOVING_UP ) then
+        if ( moveState ~= PushMoveState.MOVING_DOWN and moveState ~= PushMoveState.MOVING_UP ) then
             -- Signal the "DoorLockToggle" event.
             Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
         end
@@ -104,7 +104,7 @@ function ButtonLockTeamPairDoorsRotating_OnSignalIn( self, signaller, activator,
                 local moveState = Game.GetPushMoverState( entDoor )
                 -- Of course we can't lock a moving door. 
                 -- For showing off feature wise, we also allow for locking it in its opened state.
-                if ( moveState ~= PUSHMOVE_STATE_MOVING_DOWN and moveState ~= PUSHMOVE_STATE_MOVING_UP ) then
+                if ( moveState ~= PushMoveState.MOVING_DOWN and moveState ~= PushMoveState.MOVING_UP ) then
                     -- Signal the "DoorLockToggle" event.
                     Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
                 end

@@ -1,4 +1,11 @@
-#include "svg_local.h"
+/*******************************************************************
+*
+*
+*	ServerGame: SpotLight
+*
+*
+********************************************************************/
+#include "svgame/svg_local.h"
 
 //void V_AddSphereLight( const vec3_t org, float intensity, float r, float g, float b, float radius ) {
 //	dlight_t *dl;

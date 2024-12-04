@@ -60,6 +60,7 @@ baseq2rtxp/**/*.txt
 /baseq2/textures/
 /baseq2/.conhistory
 /CMakeSettings.json
+baseq2rtxp/maps/mapsrc/autosave/*
 
 baseq2rtxp/maps/mapsrc/*.-compile.map
 baseq2rtxp/maps/mapsrc/*.prt

@@ -290,7 +290,6 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_save_pointers.cpp
 	baseq2rtxp/svgame/svg_save.cpp
 	baseq2rtxp/svgame/svg_spawn.cpp
-	baseq2rtxp/svgame/svg_spotlight.cpp
 	baseq2rtxp/svgame/svg_server_commands.cpp
 	baseq2rtxp/svgame/svg_target.cpp
 	baseq2rtxp/svgame/svg_trigger.cpp
@@ -309,7 +308,9 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/func/svg_func_train.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_water.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_entities.cpp
-	baseq2rtxp/svgame/entities/monsters/svg_monster_testdummy_puppet.cpp
+	baseq2rtxp/svgame/entities/light/svg_light_light.cpp
+	baseq2rtxp/svgame/entities/light/svg_light_spotlight.cpp
+	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_puppet.cpp
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_elevator.cpp
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
 

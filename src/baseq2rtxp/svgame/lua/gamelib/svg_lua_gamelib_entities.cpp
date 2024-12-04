@@ -46,13 +46,16 @@ lua_edict_t GameLib_GetEntityForTargetName( const std::string &targetName ) {
 **/
 sol::table GameLib_GetEntitiesForTargetName( const std::string &targetName ) {
 	// Table to push lua_edict_t types onto.
-	sol::table targetEntities( SVG_Lua_GetSolStateView(), sol::create );
+	sol::table targetEntities = SVG_Lua_GetSolStateView().create_table();
 
 	// Find our first targetnamed entity, if any at all.
 	edict_t *targetNameEntity = SVG_Find( NULL, FOFS( targetname ), targetName.c_str() );
 	if ( !targetNameEntity ) {
 		return targetEntities;
 	}
+
+	// Add to the table.
+	targetEntities.add( targetNameEntity );
 
 	// Iterate over all entities seeking for targetnamed ents.
 	while ( 1 ) {
@@ -62,8 +65,9 @@ sol::table GameLib_GetEntitiesForTargetName( const std::string &targetName ) {
 		if ( !targetNameEntity ) {
 			break;
 		}
-		// Set the table. Entities won't be having same number so no need to check I guess..
-		targetEntities.set( std::to_string( targetNameEntity->s.number ), lua_edict_t( targetNameEntity ) );
+		// Add to the table.
+		targetEntities.add( lua_edict_t( targetNameEntity ) );
 	}
+
 	return targetEntities;
 }

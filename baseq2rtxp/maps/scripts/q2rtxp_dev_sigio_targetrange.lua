@@ -3,12 +3,27 @@
 ----------------------------------------------------------------------
 mapStates = {
     -- there are none yet.
+    targetRange = {
+        targetsAlive = 0,   -- How many targets are still alive and kicking?
+        isActive = false    -- True when the targetrange has been (re-)started and actively moving the targets.
+    }
 }
 mapMedia = {
     -- Filled by precaching.
     sound = {}
 }
-
+-- Debug Function, iterates the signalArguments table.
+function DEBUG_ITERATE_TABLE( table )
+    if ( type( table ) == "table" ) then
+        Core.DPrint( "  DEBUG_ITERATE_TABLE: table = {\n" )
+        for key, value in pairs(table) do
+            Core.DPrint( "      [" .. key .. "] => [" .. value .. "]\n" )
+        end
+        Core.DPrint( "}\n" )
+    else
+    --    Core.DPrint( "DEBUG_ITERATE_TABLE: NO TABLE FOUND\n" )
+    end
+end
 ----------------------------------------------------------------------
 -- Target Logic:
 ----------------------------------------------------------------------
@@ -20,12 +35,14 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
     if ( signalName == "OnPain" ) then
         -- Play speciual 'pain' sound effect.
         Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_pain, 1.0, SoundAttenuation.NORMAL, 0.0 )
+        -- Decrement number of targets alive count.
+        mapStates.targetRange.targetsAlive = mapStates.targetRange.targetsAlive - 1
         -- Done handling signal.
         return
     -- It just got killed, stop the train track, notify, and add score.
     elseif ( signalName == "OnKilled" ) then
         -- Notify of the kill.
-        Game.Print( PrintLevel.NOTICE, "Shot down the \"" .. displayName .. "\" target!\n" )
+        Game.Print( PrintLevel.NOTICE, "Shot down the \"" .. displayName .. "\" target! Only #".. mapStates.targetRange.targetsAlive .. " targets remaining!\n" )
 
         -- Stop the train for this target.
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTarget.OFF, 0 )
@@ -59,7 +76,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
     elseif ( signalName == "OnClosed") then
         -- Turn on the train for this target.
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTarget.ON, 1 )
-        
+
         -- Done handling signal.
         return
     elseif ( signalName == "OnOpen" ) then
@@ -103,6 +120,20 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
         Game.SignalOut( Game.GetEntityForTargetName( "t_target_xl" ), signaller, activator, "DoorClose", {} )
         Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "DoorClose", {} )
         Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "DoorClose", {} )
+        -- Reset targets alive count.
+        mapStates.targetRange.targetsAlive = 4
+
+        -- Turn on all lights for the target range.
+        local targetRangeLights = Game.GetEntitiesForTargetName( "light_ceil_range" )
+        Core.DPrint( debug.stacktrace() .. "\n" )
+        -- Core.DPrint( "Type of range lights = " .. type( targetRangeLights ) .. "\n" )
+        -- Core.DPrint( "TARGETRANGELIGHTSSIZE = " .. #targetRangeLights .. "\n" )
+        
+        -- for targetRangeLightKey,targetRangeLight in ipairs(targetRangeLights) do
+        --     -- Turn on the light for this target.
+        --     Core.DPrint( "UseTarget on light entity #".. targetRangeLight.number .. "\n" )
+        --     Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.ON, 1 )
+        -- end
     end
 end
 
