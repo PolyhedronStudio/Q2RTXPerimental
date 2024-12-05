@@ -36,7 +36,7 @@ public:
 	*	Constructors: 
 	* 
 	**/
-	lua_edict_t() ;
+	lua_edict_t();
 	lua_edict_t( edict_t *_edict );
 
 	/**

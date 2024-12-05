@@ -58,7 +58,7 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	**/
 	sol::usertype<lua_edict_t> lua_edict_type = solState.new_usertype<lua_edict_t>( "lua_edict_t",
 		//sol::no_constructor,
-		sol::constructors< lua_edict_t(), lua_edict_t(edict_t*)>()
+		sol::constructors< lua_edict_t(), lua_edict_t( edict_t* ) >()
 	);
 
 	/**

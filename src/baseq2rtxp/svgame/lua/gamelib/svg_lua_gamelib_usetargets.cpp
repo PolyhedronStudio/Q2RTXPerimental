@@ -31,7 +31,7 @@ void LUA_Think_UseTargetDelay( edict_t *entity ) {
 	}
 
 	edict_t *activator = entity->activator;
-	edict_t *signaller = entity->other;
+	edict_t *other = entity->other;
 
 	// Acquire the delayed UseTarget data.
 	const entity_usetarget_type_t useType = entity->delayed.useTarget.useType;
@@ -70,7 +70,7 @@ void LUA_Think_UseTargetDelay( edict_t *entity ) {
 	int useResult = -1; // Default to USETARGET_INVALID
 	if ( entity->use ) {
 		// We fired.
-		entity->use( entity, signaller, activator, useType, useValue );
+		entity->use( entity, other, activator, useType, useValue );
 		useResult = 1; // USETARGET_FIRED.
 	}
 
@@ -79,9 +79,15 @@ void LUA_Think_UseTargetDelay( edict_t *entity ) {
 		// Generate function 'callback' name.
 		const std::string luaFunctionName = std::string( entity->luaProperties.luaName ) + "_Use";
 		// Call if it exists.
-		if ( LUA_HasFunction( SVG_Lua_GetSolStateView(), luaFunctionName ) ) {
-			LUA_CallFunction( SVG_Lua_GetSolStateView(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-				/*[lua args]:*/ entity, signaller, activator, useType, useValue );
+		sol::state &solState = SVG_Lua_GetSolState();
+		if ( LUA_HasFunction( solState, luaFunctionName ) ) {
+			// Create  lua edict handle structures to work with.
+			sol::userdata leEntity = sol::make_object<lua_edict_t>( solState, lua_edict_t( entity ) );
+			sol::userdata leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( other ) );
+			sol::userdata leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
+			// Call upon the function.
+			LUA_CallFunction( solState, luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
+				/*[lua args]:*/ leEntity, leOther, leActivator, useType, useValue );
 			useResult = 1; // USETARGET_FIRED.
 		}
 	}
@@ -92,7 +98,7 @@ void LUA_Think_UseTargetDelay( edict_t *entity ) {
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-const int32_t GameLib_UseTarget( lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue ) {
+const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue ) {
 	// Make sure that the entity is at least active and valid to be signalling.
 	if ( !SVG_IsActiveEntity( leEnt.edict ) ) {
 		return -1; // USETARGET_INVALID
@@ -188,11 +194,16 @@ const int32_t GameLib_UseTarget( lua_edict_t leEnt, lua_edict_t leOther, lua_edi
 		// Generate function 'callback' name.
 		const std::string luaFunctionName = std::string( entity->luaProperties.luaName ) + "_Use";
 		// Call if it exists.
-		if ( LUA_HasFunction( SVG_Lua_GetSolStateView(), luaFunctionName ) ) {
-			LUA_CallFunction( SVG_Lua_GetSolStateView(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-				/*[lua args]:*/ entity, other, activator, useType, useValue );
-
-			useResult = 1; // USETARGET_FIRED
+		sol::state &solState = SVG_Lua_GetSolState();
+		if ( LUA_HasFunction( solState, luaFunctionName ) ) {
+			// Create  lua edict handle structures to work with.
+			sol::userdata leEntity = sol::make_object<lua_edict_t>( solState, lua_edict_t( entity ) );
+			sol::userdata leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( other ) );
+			sol::userdata leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
+			// Call upon the function.
+			LUA_CallFunction( solState, luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
+				/*[lua args]:*/ leEntity, leOther, leActivator, useType, useValue );
+			useResult = 1; // USETARGET_FIRED.
 		}
 	}
 
@@ -213,7 +224,7 @@ void LUA_Think_UseTargetsDelay( edict_t *entity ) {
 	}
 
 	edict_t *activator = entity->activator;
-	edict_t *signaller = entity->other;
+	edict_t *other = entity->other;
 
 	// Acquire the delayed UseTarget data.
 	const entity_usetarget_type_t useType = entity->delayed.useTarget.useType;
@@ -268,7 +279,7 @@ void LUA_Think_UseTargetsDelay( edict_t *entity ) {
 			} else {
 				// Dispatch C use.
 				if ( fireTargetEntity->use ) {
-					fireTargetEntity->use( fireTargetEntity, entity, activator, useType, useValue );
+					fireTargetEntity->use( fireTargetEntity, other, activator, useType, useValue );
 					useResult = 1; // USETARGET_FIRED
 				}
 
@@ -277,11 +288,16 @@ void LUA_Think_UseTargetsDelay( edict_t *entity ) {
 					// Generate function 'callback' name.
 					const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
 					// Call if it exists.
-					if ( LUA_HasFunction( SVG_Lua_GetSolStateView(), luaFunctionName ) ) {
-						LUA_CallFunction( SVG_Lua_GetSolStateView(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-							/*[lua args]:*/ fireTargetEntity, entity, activator, useType, useValue );
-
-						useResult = 1; // USETARGET_FIRED
+					sol::state &solState = SVG_Lua_GetSolState();
+					if ( LUA_HasFunction( solState, luaFunctionName ) ) {
+						// Create  lua edict handle structures to work with.
+						sol::userdata leEntity = sol::make_object<lua_edict_t>( solState, lua_edict_t( entity ) );
+						sol::userdata leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( other ) );
+						sol::userdata leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
+						// Call upon the function.
+						LUA_CallFunction( solState, luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
+							/*[lua args]:*/ leEntity, leOther, leActivator, useType, useValue );
+						useResult = 1; // USETARGET_FIRED.
 					}
 				}
 			}
@@ -298,7 +314,7 @@ void LUA_Think_UseTargetsDelay( edict_t *entity ) {
 /**
 *	@return < 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-const int32_t GameLib_UseTargets( lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue ) {
+const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue ) {
 	// Make sure that the entity is at least active and valid to be signalling.
 	if ( !SVG_IsActiveEntity( leEnt.edict ) ) {
 		return -1; // USETARGET_INVALID
@@ -396,17 +412,22 @@ const int32_t GameLib_UseTargets( lua_edict_t leEnt, lua_edict_t leOther, lua_ed
 					// Generate function 'callback' name.
 					const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
 					// Call if it exists.
-					if ( LUA_HasFunction( SVG_Lua_GetSolStateView(), luaFunctionName ) ) {
-						LUA_CallFunction( SVG_Lua_GetSolStateView(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-							/*[lua args]:*/ fireTargetEntity, entity, activator, useType, useValue );
-
-						useResult = 1; // USETARGET_FIRED
+					sol::state &solState = SVG_Lua_GetSolState();
+					if ( LUA_HasFunction( solState, luaFunctionName ) ) {
+						// Create  lua edict handle structures to work with.
+						sol::userdata leEntity = sol::make_object<lua_edict_t>( solState, lua_edict_t( entity ) );
+						sol::userdata leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( other ) );
+						sol::userdata leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
+						// Call upon the function.
+						LUA_CallFunction( solState, luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
+							/*[lua args]:*/ leEntity, leOther, leActivator, useType, useValue );
+						useResult = 1; // USETARGET_FIRED.
 					}
 				}
-			}
-			if ( !entity->inuse ) {
-				gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, entity->classname );
-				return -1; // USETARGET_INVALID
+				if ( !entity->inuse ) {
+					gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, entity->classname );
+					return -1; // USETARGET_INVALID
+				}
 			}
 		}
 	}

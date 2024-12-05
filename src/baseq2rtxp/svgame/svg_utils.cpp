@@ -316,10 +316,39 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
                 if ( fireTargetEntity->luaProperties.luaName ) {
                     // Generate function 'callback' name.
                     const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
-                    // Call if it exists.
-                    if ( LUA_HasFunction( SVG_Lua_GetSolStateView(), luaFunctionName ) ) {
-                        LUA_CallFunction( SVG_Lua_GetSolStateView(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-                            /*[lua args]:*/ fireTargetEntity, ent, activator, useType, useValue );
+                    // Get reference to sol lua state view.
+                    sol::state_view &solState = SVG_Lua_GetSolState();
+
+                    // Get function object.
+                    sol::protected_function funcRefUse = solState[ luaFunctionName ];
+                    // Get type.
+                    sol::type funcRefType = funcRefUse.get_type();
+                    // Ensure it matches, accordingly
+                    if ( funcRefType != sol::type::function /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
+                        // Return if it is LUA_NOREF and luaState == nullptr again.
+                        // TODO: Error?
+                        return;
+                    }
+
+                    // Create lua userdata object references to the entities.
+                    auto leSelf = sol::make_object<lua_edict_t>( solState, lua_edict_t( fireTargetEntity ) );
+                    auto leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( ent ) );
+                    auto leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
+                    // Fire SignalOut callback.
+                    auto callResult = funcRefUse( leSelf, leOther, leActivator, useType, useValue );
+                    // If valid, convert result to boolean.
+                    if ( callResult.valid() ) {
+                        // Convert.
+                        bool signalHandled = callResult.get<bool>();
+                        // Debug print.
+                        // We got an error:
+                    } else {
+                        // Acquire error object.
+                        sol::error resultError = callResult;
+                        // Get error string.
+                        const std::string errorStr = resultError.what();
+                        // Print the error in case of failure.
+                        gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
                     }
                 }
             }

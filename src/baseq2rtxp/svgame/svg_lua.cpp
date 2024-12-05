@@ -63,13 +63,16 @@ void MediaLib_Initialize( sol::state_view &solStateView );
 * 
 **/
 static struct LuaMapInstance {
+	// Name of the actual main script file.
+	 
 	//! lua state.
 	lua_State *lState;
 	// State view on lState.
 	sol::state solState;
-	//! map script state
+
+	//! Map script buffer.
 	char *scriptBuffer;
-	//! Did we succesfully parse, and load it?
+	//! Did we succesfully load, parse, and run(interprete) it?
 	bool scriptInterpreted;
 
 	// References to map callback hooks.
@@ -139,7 +142,7 @@ static void LUA_FindCallBackReferences() {
 	// Ensure it matches, and if not, unset it to a nullptr.
 	if ( funcRefType != sol::type::function || !funcRefOnPrecacheMedia.is<std::function<bool()>>() ) {
 		// Reset it so it is LUA_NOREF and luaState == nullptr again.
-		funcRefOnPrecacheMedia.reset();
+		//funcRefOnPrecacheMedia.reset();
 	}
 
 	/**
@@ -152,7 +155,7 @@ static void LUA_FindCallBackReferences() {
 	// Ensure it matches, and if not, unset it to a nullptr.
 	if ( funcRefType != sol::type::function || !funcRefOnBeginMap.is<std::function<bool()>>() ) {
 		// Reset it so it is LUA_NOREF and luaState == nullptr again.
-		funcRefOnBeginMap.reset();
+		//funcRefOnBeginMap.reset();
 	}
 	/**
 	*	OnExitMap
@@ -164,7 +167,7 @@ static void LUA_FindCallBackReferences() {
 	// Ensure it matches, and if not, unset it to a nullptr.
 	if ( funcRefType != sol::type::function || !funcRefOnExitMap.is<std::function<bool()>>() ) {
 		// Reset it so it is LUA_NOREF and luaState == nullptr again.
-		funcRefOnExitMap.reset();
+		//funcRefOnExitMap.reset();
 	}
 
 	/**
@@ -177,7 +180,7 @@ static void LUA_FindCallBackReferences() {
 	// Ensure it matches, and if not, unset it to a nullptr.
 	if ( funcRefType != sol::type::function || !funcRefOnClientEnterLevel.is<std::function<bool(lua_edict_t&)>>() ) {
 		// Reset it so it is LUA_NOREF and luaState == nullptr again.
-		funcRefOnClientEnterLevel.reset();
+		//funcRefOnClientEnterLevel.reset();
 	}
 	/**
 	*	OnClientExitLevel
@@ -189,7 +192,7 @@ static void LUA_FindCallBackReferences() {
 	// Ensure it matches, and if not, unset it to a nullptr.
 	if ( funcRefType != sol::type::function || !funcRefOnClientExitLevel.is<std::function<bool(lua_edict_t&)>>() ) {
 		// Reset it so it is LUA_NOREF and luaState == nullptr again.
-		funcRefOnClientExitLevel.reset();
+		//funcRefOnClientExitLevel.reset();
 	}
 
 	/**
@@ -202,7 +205,7 @@ static void LUA_FindCallBackReferences() {
 	// Ensure it matches, and if not, unset it to a nullptr.
 	if ( funcRefType != sol::type::function || !funcRefOnBeginServerFrame.is<std::function<bool()>>() ) {
 		// Reset it so it is LUA_NOREF and luaState == nullptr again.
-		funcRefOnBeginServerFrame.reset();
+		//funcRefOnBeginServerFrame.reset();
 	}
 	/**
 	*	OnRunFrame
@@ -214,7 +217,7 @@ static void LUA_FindCallBackReferences() {
 	// Ensure it matches, and if not, unset it to a nullptr.
 	if ( funcRefType != sol::type::function || !funcRefOnRunFrame.is<std::function<bool(uint64_t)>>() ) {
 		// Reset it so it is LUA_NOREF and luaState == nullptr again.
-		funcRefOnRunFrame.reset();
+		//funcRefOnRunFrame.reset();
 	}
 	/**
 	*	OnEndServerFrame
@@ -226,7 +229,7 @@ static void LUA_FindCallBackReferences() {
 	// Ensure it matches, and if not, unset it to a nullptr.
 	if ( funcRefType != sol::type::function || !funcRefOnEndServerFrame.is<std::function<bool()>>() ) {
 		// Reset it so it is LUA_NOREF and luaState == nullptr again.
-		funcRefOnEndServerFrame.reset();
+		//funcRefOnEndServerFrame.reset();
 	}
 }
 
@@ -281,13 +284,41 @@ void SVG_Lua_DumpStack( lua_State *L ) {
 **/
 void SVG_Lua_Initialize() {
 	// Get our sol state view.
-	//luaMapInstance.solState = sol::state(  );
-	luaMapInstance.solState.open_libraries( sol::lib::base 
-		| sol::lib::string 
-		| sol::lib::table 
-		| sol::lib::math 
-		#if USE_DEBUG
-		| sol::lib::debug
+	if ( !luaMapInstance.solState.lua_state() ) {
+		luaMapInstance.solState = sol::state();
+	}
+	luaMapInstance.solState.open_libraries( 
+		// print, assert, and other base functions
+		sol::lib::base
+		// require and other package functions
+		//| sol::lib::package
+		// coroutine functions and utilities
+		//| sol::lib::coroutine
+		// string library
+		, sol::lib::string
+		// functionality from the OS
+		//| sol::lib::os
+		// all things math
+		, sol::lib::math
+		// the table manipulator and observer functions
+		, sol::lib::table
+		// the bit library: different based on which you're using
+		, sol::lib::bit32
+		#if USE_DEBUG || _DEBUG
+		// the debug library
+		, sol::lib::debug
+		#endif
+		#if 0
+		// input/output library
+		, io
+		// LuaJIT only
+		, ffi
+		// LuaJIT only
+		, jit
+		// library for handling utf8: new to Lua
+		, utf8
+		// do not use
+		//count
 		#endif
 	);
 
@@ -296,7 +327,6 @@ void SVG_Lua_Initialize() {
 	
 	// Initialize UserTypes:
 	UserType_Register_Edict_t( luaMapInstance.solState );
-
 
 	// Initialize Game Libraries.
 	CoreLib_Initialize( luaMapInstance.solState );
@@ -340,23 +370,38 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 
 	if ( fileName != nullptr ) {
 		// Load buffer into fileName chunk.
-		sol::load_result fileLoadResult = solState.load( buffer, fileName );
+		auto fileLoadResult = solState.load( buffer, fileName, sol::load_mode::any );
 		// Check for load errors.
-		sol::load_status loadStatus = fileLoadResult.status();
-		if ( !fileLoadResult.valid() || loadStatus != sol::load_status::ok ) {
-			sol::error errorStatus = fileLoadResult;
-			gi.bprintf( PRINT_ERROR, "%s:[%s]: %s\n", __func__, sol::to_string( loadStatus ).c_str(), errorStatus.what() );
+		if ( !fileLoadResult.valid() /*|| fileLoadResult.status() != sol::call_status::ok*/ ) {
+			// Acquire error object.
+			sol::error resultError = fileLoadResult;
+			// Get error string.
+			const std::string errorStr = resultError.what();
+			// Print the error in case of failure.
+			gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
+			luaMapInstance.scriptInterpreted = false;
 			return false;
 		}
 		// Execute it.
 		sol::protected_function_result resultValue = fileLoadResult();
 		// Check for runtime errors.
-		if ( resultValue.status() != sol::call_status::ok ) { // We don't support yielding. (Impossible to save/load aka restore state.)
-			gi.bprintf( PRINT_ERROR, "%s:CallStatus[%s]\n", __func__, sol::to_string( resultValue.status() ).c_str() );
+		if ( !resultValue.valid() || resultValue.status() == sol::call_status::yielded ) { // We don't support yielding. (Impossible to save/load aka restore state.)
+			// Acquire error object.
+			sol::error resultError = resultValue;
+			// Get error string.
+			const std::string errorStr = resultError.what();
+			// Print the error in case of failure.
+			gi.bprintf( PRINT_ERROR, "%s:\nCallStatus[%s]: %s\n ", __func__, sol::to_string( resultValue.status() ).c_str(), errorStr.c_str() );
+
+			//gi.bprintf( PRINT_ERROR, "%s:CallStatus[%s]\n", __func__, sol::to_string( resultValue.status() ).c_str() );
+			luaMapInstance.scriptInterpreted = false;
 			return false;
 		}
+
+		// Interpreted.
+		luaMapInstance.scriptInterpreted = true;
 	} else {
-		#if 1
+		#if 0
 		// Execute it.
 		sol::protected_function_result resultValue = solState.do_string( buffer );
 		// Check for runtime errors.
@@ -368,17 +413,19 @@ static const bool LUA_InterpreteString( const char *fileName, const char *buffer
 		auto prtCallResult = solState.safe_script( buffer,
 		[]( lua_State *, sol::protected_function_result pfr ) {
 				if ( !pfr.valid() ) {
-					sol::call_status statusResult = pfr.status();
-					gi.bprintf( PRINT_ERROR, "%s:[%s]\n", __func__, sol::to_string( statusResult ).c_str() );
+					sol::error err = pfr;
+					gi.bprintf( PRINT_ERROR, "%s:[%s]\n", __func__, err.what() );
 					//luaMapInstance.scriptInterpreted = false;
+					luaMapInstance.scriptInterpreted = false;
 				}
 				return pfr;
 		});
 		
 		sol::call_status callStatus = prtCallResult.status();
 		if ( !prtCallResult.valid() || callStatus != sol::call_status::ok ) {
-			sol::error errorStatus = prtCallResult;
-			gi.bprintf( PRINT_ERROR, "%s:[%s]: %s\n", __func__, sol::to_string( callStatus ).c_str(), errorStatus.what() );
+			//sol::error errorStatus = prtCallResult;
+			luaMapInstance.scriptInterpreted = false;
+			//gi.bprintf( PRINT_ERROR, "%s:[%s]: %s\n", __func__, sol::to_string( callStatus ).c_str(), errorStatus.what() );
 			return false;
 		}
 		#endif
@@ -452,7 +499,7 @@ const bool SVG_Lua_LoadMapScript( const std::string &scriptName ) {
 // For checking whether to proceed lua callbacks or not.
 inline const bool SVG_Lua_IsMapScriptInterpreted();
 #define LUA_CanDispatchCallback( callBackObject ) \
-	if ( !SVG_Lua_IsMapScriptInterpreted() || !callBackObject.valid() ) { \
+	if ( !SVG_Lua_IsMapScriptInterpreted() || luaMapInstance.lState == nullptr || ( !callBackObject ) ) { \
 		return; \
 }
 
@@ -465,11 +512,20 @@ void SVG_Lua_CallBack_OnPrecacheMedia() {
 
 	// Expect true.
 	bool retval = true;
-	try {
-		retval = luaMapInstance.callBacks.OnPrecacheMedia();
-	// Print the error in case of failure.
-	} catch ( const std::exception &e ) {
-		gi.dprintf( "%s: %s\n ", __func__, e.what() );
+	auto callResult = luaMapInstance.callBacks.OnPrecacheMedia();
+	// If valid, convert result to boolean.
+	if ( callResult.valid() ) {
+		// Convert.
+		retval = callResult;
+		// TODO: Deal with true/false?
+	// We got an error:
+	} else {
+		// Acquire error object.
+		sol::error resultError = callResult;
+		// Get error string.
+		const std::string errorStr = resultError.what();
+		// Print the error in case of failure.
+		gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
 	}
 }
 /**
@@ -481,12 +537,20 @@ void SVG_Lua_CallBack_BeginMap() {
 
 	// Expect true.
 	bool retval = true;
-	try {
-		retval = luaMapInstance.callBacks.OnBeginMap();
-	// Print the error in case of failure.
-	}
-	catch ( const std::exception &e ) {
-		gi.dprintf( "%s: %s\n ", __func__, e.what() );
+	auto callResult = luaMapInstance.callBacks.OnBeginMap();
+	// If valid, convert result to boolean.
+	if ( callResult.valid() ) {
+		// Convert.
+		retval = callResult;
+		// TODO: Deal with true/false?
+	// We got an error:
+	} else {
+		// Acquire error object.
+		sol::error resultError = callResult;
+		// Get error string.
+		const std::string errorStr = resultError.what();
+		// Print the error in case of failure.
+		gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
 	}
 }
 /**
@@ -498,12 +562,20 @@ void SVG_Lua_CallBack_ExitMap() {
 
 	// Expect true.
 	bool retval = true;
-	try {
-		retval = luaMapInstance.callBacks.OnExitMap();
-	// Print the error in case of failure.
-	}
-	catch ( const std::exception &e ) {
-		gi.dprintf( "%s: %s\n ", __func__, e.what() );
+	auto callResult = luaMapInstance.callBacks.OnExitMap();
+	// If valid, convert result to boolean.
+	if ( callResult.valid() ) {
+		// Convert.
+		retval = callResult;
+		// TODO: Deal with true/false?
+	// We got an error:
+	} else {
+		// Acquire error object.
+		sol::error resultError = callResult;
+		// Get error string.
+		const std::string errorStr = resultError.what();
+		// Print the error in case of failure.
+		gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
 	}
 }
 
@@ -525,17 +597,25 @@ void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity ) {
 		return;
 	}
 
+	// Create a lua edict handle structure to work with.
+	auto luaEdict = sol::make_object<lua_edict_t>( luaMapInstance.solState, lua_edict_t( clientEntity ) );
+
 	// Expect true.
 	bool retval = true;
-	try {
-		// Create a lua edict handle structure to work with.
-		lua_edict_t luaEdict = lua_edict_t( clientEntity );
-		// Call upon method.
-		retval = luaMapInstance.callBacks.OnClientEnterLevel( luaEdict );
-	// Print the error in case of failure.
-	}
-	catch ( const std::exception &e ) {
-		gi.dprintf( "%s: %s\n ", __func__, e.what() );
+	auto callResult = luaMapInstance.callBacks.OnClientEnterLevel( luaEdict );
+	// If valid, convert result to boolean.
+	if ( callResult.valid() ) {
+		// Convert.
+		retval = callResult;
+		// TODO: Deal with true/false?
+	// We got an error:
+	} else {
+		// Acquire error object.
+		sol::error resultError = callResult;
+		// Get error string.
+		const std::string errorStr = resultError.what();
+		// Print the error in case of failure.
+		gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
 	}
 }
 /**
@@ -551,17 +631,25 @@ void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity ) {
 		return;
 	}
 
+	// Create a lua edict handle structure to work with.
+	auto luaEdict = sol::make_object<lua_edict_t>( luaMapInstance.solState, lua_edict_t( clientEntity ) );
+
 	// Expect true.
 	bool retval = true;
-	try {
-		// Create a lua edict handle structure to work with.
-		lua_edict_t luaEdict = lua_edict_t( clientEntity );
-		// Call upon method.
-		retval = luaMapInstance.callBacks.OnClientExitLevel( luaEdict );
-	// Print the error in case of failure.
-	}
-	catch ( const std::exception &e ) {
-		gi.dprintf( "%s: %s\n ", __func__, e.what() );
+	auto callResult = luaMapInstance.callBacks.OnClientExitLevel( luaEdict );
+	// If valid, convert result to boolean.
+	if ( callResult.valid() ) {
+		// Convert.
+		retval = callResult;
+		// TODO: Deal with true/false?
+	// We got an error:
+	} else {
+		// Acquire error object.
+		sol::error resultError = callResult;
+		// Get error string.
+		const std::string errorStr = resultError.what();
+		// Print the error in case of failure.
+		gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
 	}
 }
 
@@ -578,12 +666,20 @@ void SVG_Lua_CallBack_BeginServerFrame() {
 
 	// Expect true.
 	bool retval = true;
-	try {
-		retval = luaMapInstance.callBacks.OnBeginServerFrame( );
-	// Print the error in case of failure.
-	}
-	catch ( const std::exception &e ) {
-		gi.dprintf( "%s: %s\n ", __func__, e.what() );
+	auto callResult = luaMapInstance.callBacks.OnBeginServerFrame( );
+	// If valid, convert result to boolean.
+	if ( callResult.valid() ) {
+		// Convert.
+		retval = callResult;
+		// TODO: Deal with true/false?
+	// We got an error:
+	} else {
+		// Acquire error object.
+		sol::error resultError = callResult;
+		// Get error string.
+		const std::string errorStr = resultError.what();
+		// Print the error in case of failure.
+		gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
 	}
 }
 /**
@@ -595,12 +691,20 @@ void SVG_Lua_CallBack_RunFrame() {
 
 	// Expect true.
 	bool retval = true;
-	try {
-		retval = luaMapInstance.callBacks.OnRunFrame( level.framenum );
-	// Print the error in case of failure.
-	}
-	catch ( const std::exception &e ) {
-		gi.dprintf( "%s: %s\n ", __func__, e.what() );
+	auto callResult = luaMapInstance.callBacks.OnRunFrame( level.framenum );
+	// If valid, convert result to boolean.
+	if ( callResult.valid() ) {
+		// Convert.
+		retval = callResult;
+		// TODO: Deal with true/false?
+	// We got an error:
+	} else {
+		// Acquire error object.
+		sol::error resultError = callResult;
+		// Get error string.
+		const std::string errorStr = resultError.what();
+		// Print the error in case of failure.
+		gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
 	}
 }
 /**
@@ -612,11 +716,19 @@ void SVG_Lua_CallBack_EndServerFrame() {
 
 	// Expect true.
 	bool retval = true;
-	try {
-		retval = luaMapInstance.callBacks.OnEndServerFrame();
-	// Print the error in case of failure.
-	}
-	catch ( const std::exception &e ) {
-		gi.dprintf( "%s: %s\n ", __func__, e.what() );
+	auto callResult = luaMapInstance.callBacks.OnEndServerFrame( );
+	// If valid, convert result to boolean.
+	if ( callResult.valid() ) {
+		// Convert.
+		retval = callResult;
+		// TODO: Deal with true/false?
+	// We got an error:
+	} else {
+		// Acquire error object.
+		sol::error resultError = callResult;
+		// Get error string.
+		const std::string errorStr = resultError.what();
+		// Print the error in case of failure.
+		gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
 	}
 }

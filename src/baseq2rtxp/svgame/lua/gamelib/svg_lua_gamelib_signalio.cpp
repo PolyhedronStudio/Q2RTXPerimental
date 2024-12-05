@@ -40,7 +40,7 @@ void LUA_Think_SignalOutDelay( edict_t *entity ) {
 	}
 	// If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
 	if ( propogateToLua ) {
-		SVG_Lua_SignalOut( SVG_Lua_GetSolStateView(),
+		SVG_Lua_SignalOut( SVG_Lua_GetSolState(),
 			entity, entity->other, entity->activator,
 			signalName, entity->delayed.signalOut.arguments
 		);
@@ -129,13 +129,13 @@ static const svg_signal_argument_array_t GameLib_SignalOut_ParseArgumentsTable( 
 *	@brief	Support routine for GameLib_SignalOut.
 **/
 #include <algorithm>
-static svg_signal_argument_array_t _GameLib_LuaTable_ToArgumentsArray( sol::table table ) {
+static svg_signal_argument_array_t _GameLib_LuaTable_ToArgumentsArray( sol::this_state s, sol::table &table ) {
 	svg_signal_argument_array_t signalArguments = { };
 	
 	// Iterate the signalArguments table and create our signal arguments "array" with its keys and values.
 	// Use std::for_each to keep the lua stack happy :-)
 	std::for_each( table.begin(), table.end(),
-		[&signalArguments]( std::pair<sol::object, sol::object> kvPair ) -> void {
+		[&s, &signalArguments]( std::pair<sol::object, sol::object> kvPair ) -> void {
 			// We require string keys here.
 			if ( kvPair.first.get_type() == sol::type::string ) {
 				// Get value object reference.
@@ -165,7 +165,7 @@ static svg_signal_argument_array_t _GameLib_LuaTable_ToArgumentsArray( sol::tabl
 						.value = {.str = kvPair.second.as<const char *>() }
 					} );
 				}
-				else if ( valueType == sol::type::nil || valueType == sol::type::lua_nil ) {
+				else if ( valueType == sol::type::nil /*|| valueType == sol::type::lua_nil */) {
 					signalArguments.push_back( {
 						.type = SIGNAL_ARGUMENT_TYPE_NULLPTR,
 						.key = kvPair.first.as<const char *>(),
@@ -174,7 +174,7 @@ static svg_signal_argument_array_t _GameLib_LuaTable_ToArgumentsArray( sol::tabl
 				} else {
 					gi.dprintf( "%s: uncompatible singalArguments value type(%s) for key(%s)\n",
 						__func__,
-						sol::type_name( SVG_Lua_GetSolStateView(), valueType ).c_str(),
+						sol::type_name( s, valueType).c_str(),
 						kvPair.first.as<const char *>() );
 				}
 			}
@@ -187,14 +187,14 @@ static svg_signal_argument_array_t _GameLib_LuaTable_ToArgumentsArray( sol::tabl
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-const int32_t GameLib_SignalOut( lua_edict_t leEnt, lua_edict_t leSignaller, lua_edict_t leActivator, std::string signalName, sol::table signalArguments ) {
+const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict_t leSignaller, lua_edict_t leActivator, std::string signalName, sol::table signalArguments ) {
 	// Make sure that the entity is at least active and valid to be signalling.
 	if ( !SVG_IsActiveEntity( leEnt.edict ) ) {
 		return -1; // SIGNALOUT_FAILED
 	}
 
 	// Stores the parsed sol::table results.
-	svg_signal_argument_array_t signalArgumentsArray = _GameLib_LuaTable_ToArgumentsArray( signalArguments );
+	svg_signal_argument_array_t signalArgumentsArray = {};// _GameLib_LuaTable_ToArgumentsArray( s, signalArguments );
 
 	// Acquire pointers from lua_edict_t handles.
 	edict_t *entity = leEnt.edict;
@@ -247,7 +247,11 @@ const int32_t GameLib_SignalOut( lua_edict_t leEnt, lua_edict_t leSignaller, lua
 
 	// If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
 	if ( propogateToLua ) {
-		SVG_Lua_SignalOut( SVG_Lua_GetSolStateView(), entity, signaller, activator, signalName.c_str(), signalArgumentsArray );
+		// Set activator/other.
+		entity->activator = activator;
+		entity->other = signaller;
+		// Fire away.
+		SVG_Lua_SignalOut( SVG_Lua_GetSolState(), entity, signaller, activator, signalName.c_str(), signalArgumentsArray );
 		sentSignalOut = true;
 	}
 

@@ -30,7 +30,7 @@ void MediaLib_Initialize( sol::state_view &solStateView ) {
 	constexpr const char *nameSpaceName = "Media";
 
 	// Create namespace.
-	auto solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
+	sol::table solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
 	solNameSpace.set_function( "PrecacheSound", MediaLib_PrecacheSound );
 	solNameSpace.set_function( "Sound", MediaLib_Sound );
 

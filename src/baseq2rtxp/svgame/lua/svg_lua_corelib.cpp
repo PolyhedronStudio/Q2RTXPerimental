@@ -41,7 +41,7 @@ void CoreLib_Initialize( sol::state_view &solStateView ) {
 	constexpr const char *nameSpaceName = "Core";
 
 	// Create namespace.
-	auto solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
+	sol::table solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
 	solNameSpace.set_function( "DPrint", CoreLib_DPrint );
 
 	// Developer print.

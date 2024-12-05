@@ -33,16 +33,16 @@
 /**
 *	@return	The number of the entity if it has a matching luaName, -1 otherwise.
 **/
-lua_edict_t GameLib_GetEntityForLuaName( const std::string &luaName );
+sol::userdata GameLib_GetEntityForLuaName( sol::this_state s, const std::string &luaName );
 /**
 *	@return	The number of the first matching targetname entity in the entities array, -1 if not found.
 **/
-lua_edict_t GameLib_GetEntityForTargetName( const std::string &targetName );
+sol::userdata GameLib_GetEntityForTargetName( sol::this_state s, const std::string &targetName );
 /**
 *	@return	The number of the team matching entities found in the entity array, -1 if none found.
 *	@note	In Lua, it returns a table containing the entity number(s) with a matching targetname.
 **/
-sol::table GameLib_GetEntitiesForTargetName( const std::string &targetName );
+sol::table GameLib_GetEntitiesForTargetName( sol::this_state s, const std::string &targetName );
 
 
 /**
@@ -53,7 +53,7 @@ sol::table GameLib_GetEntitiesForTargetName( const std::string &targetName );
 /**
 *	@return	The push mover its' current state.
 **/
-const int32_t GameLib_GetPushMoverState( lua_edict_t pushMoverEntity );
+const int32_t GameLib_GetPushMoverState( sol::this_state s, lua_edict_t pushMoverEntity );
 
 
 /**
@@ -64,7 +64,7 @@ const int32_t GameLib_GetPushMoverState( lua_edict_t pushMoverEntity );
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-const int32_t GameLib_SignalOut( lua_edict_t leEnt, lua_edict_t leSignaller, lua_edict_t leActivator, std::string signalName, sol::table signalArguments );
+const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict_t leSignaller, lua_edict_t leActivator, std::string signalName, sol::table signalArguments );
 
 
 /**
@@ -75,8 +75,8 @@ const int32_t GameLib_SignalOut( lua_edict_t leEnt, lua_edict_t leSignaller, lua
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-const int32_t GameLib_UseTarget( lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue );
+const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue );
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-const int32_t GameLib_UseTargets( lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue );
+const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue );

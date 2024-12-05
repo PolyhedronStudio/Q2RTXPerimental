@@ -111,7 +111,7 @@ end
 -- Button that resets the range.
 function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     if ( signalName == "OnPressed" ) then
-        Core.DPrint( "Range targets reset!\n" ) -- TODO: Use not developer print...
+        Core.DPrint( "Range targets reset! #1\n" ) -- TODO: Use not developer print...
         -- Play speciual 'restart' sound effect.
         Media.Sound( signaller, SoundChannel.ITEM, mapMedia.sound.newround, 1.0, SoundAttenuation.NORMAL, 0.0 )
 
@@ -121,19 +121,21 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
         Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "DoorClose", {} )
         Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "DoorClose", {} )
         -- Reset targets alive count.
-        mapStates.targetRange.targetsAlive = 4
-
+        --mapStates.targetRange.targetsAlive = 4
         -- Turn on all lights for the target range.
+        Core.DPrint( "Range targets reset! #2 \n" ) -- TODO: Use not developer print...
         local targetRangeLights = Game.GetEntitiesForTargetName( "light_ceil_range" )
-        Core.DPrint( debug.stacktrace() .. "\n" )
-        -- Core.DPrint( "Type of range lights = " .. type( targetRangeLights ) .. "\n" )
-        -- Core.DPrint( "TARGETRANGELIGHTSSIZE = " .. #targetRangeLights .. "\n" )
-        
-        -- for targetRangeLightKey,targetRangeLight in ipairs(targetRangeLights) do
-        --     -- Turn on the light for this target.
-        --     Core.DPrint( "UseTarget on light entity #".. targetRangeLight.number .. "\n" )
-        --     Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.ON, 1 )
-        -- end
+        --Core.DPrint( "TARGETRANGELIGHTSSIZE = " .. #targetRangeLights .. "\n" )
+        Core.DPrint( "Range targets reset #3!\n" ) -- TODO: Use not developer print...
+
+        Core.DPrint( "Yes: " .. type(targetRangeLights) .. "\n" )
+
+        Core.DPrint( type( targetRangeLights ) .. "\n" )
+        for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
+            -- Turn on the light for this target.
+            Core.DPrint( "UseTarget on light entity #".. targetRangeLight.number .. "\n" )
+            Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.ON, 1 )
+        end
     end
 end
 

@@ -41,10 +41,10 @@ const qhandle_t MediaLib_PrecacheSound( const std::string &soundPath ) {
 	if ( !soundIndex ) {
 		Lua_DeveloperPrintf( "%s: Failed to load audio file: (\"%s\")\n", __func__, soundPath.c_str() );
 
-		sol::error e( std::string( __func__ ) + ": Failed to load audio file: (\"" + __func__ + "\")\n" );
+		//sol::error e( std::string( __func__ ) + ": Failed to load audio file: (\"" + __func__ + "\")\n" );
 	}
 
-	gi.dprintf( "PRECACHING LUA SOUNDS MOFUCKAHS! \n " );
+	gi.dprintf( "PRECACHING LUA SOUND %s MOFUCKAHS! \n ", soundPath.c_str() );
 
 	return soundIndex;
 }

@@ -74,7 +74,7 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 	constexpr const char *nameSpaceName = "Game";
 
 	// Create namespace.
-	auto solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
+	sol::table solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
 	// Entities:
 	solNameSpace.set_function( "GetEntityForLuaName", GameLib_GetEntityForLuaName );
 	solNameSpace.set_function( "GetEntityForTargetName", GameLib_GetEntityForTargetName );
@@ -83,7 +83,7 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 	solNameSpace.set_function( "GetPushMoverState", GameLib_GetPushMoverState );
 	// UseTarget(s):
 	solNameSpace.set_function( "UseTarget", GameLib_UseTarget );
-	solNameSpace.set_function( "UseTargets", GameLib_UseTarget );
+	solNameSpace.set_function( "UseTargets", GameLib_UseTargets );
 	// Signal I/O:
 	solNameSpace.set_function( "SignalOut", GameLib_SignalOut );
 	// Printing:

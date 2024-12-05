@@ -31,6 +31,11 @@ void SVG_Command_Lua_DumpStack( void ) {
     // Dump stack.
     SVG_Lua_DumpStack( SVG_Lua_GetSolStateView() );
 }
+void SVG_Command_Lua_ReloadMapScript( ) {
+    std::string mapScriptName = level.mapname;
+    // Dump stack.
+    SVG_Lua_LoadMapScript( mapScriptName );
+}
 
 
 char *ClientTeam(edict_t *ent)
@@ -900,6 +905,8 @@ void ClientCommand( edict_t *ent ) {
     // 
     } else if ( Q_stricmp( cmd, "lua_dumpstack" ) == 0 ) {
         SVG_Command_Lua_DumpStack();
+    } else if ( Q_stricmp( cmd, "lua_reload_mapscript" ) == 0 ) {
+        SVG_Command_Lua_ReloadMapScript();
     //
     // Other:
     //

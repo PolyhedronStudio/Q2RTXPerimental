@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_lua.h"
+#include "svgame/lua/svg_lua_gamelib.hpp"
 
 #include "svgame/entities/svg_entities_pushermove.h"
 #include "svgame/entities/func/svg_func_entities.h"
@@ -86,36 +87,11 @@ void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const enti
         //// Generate function 'callback' name.
         const std::string luaFunctionName = std::string( self->luaProperties.luaName ) + "_Use";
 
-        //// Get reference to sol lua state view.
-        //sol::state_view &stateView = SVG_Lua_GetSolStateView();
-        //// Get function object.
-        //sol::function funcRefUse = stateView[ luaFunctionName ];
-        //// Get type.
-        //sol::type funcRefType = funcRefUse.get_type();
-        //// Ensure it matches, accordingly
-        //if ( funcRefType != sol::type::function /*|| !funcRefUse.is<std::function<void( Rest... )>>() */ ) {
-        //    // Return if it is LUA_NOREF and luaState == nullptr again.
-        //    return;
-        //}
-
-        //// Call function, verbose, because OnSignals may not exist.
-        //int32_t iSelf = ( SVG_IsActiveEntity( self ) ? self->s.number : -1 );
-        //int32_t iOther = ( SVG_IsActiveEntity( other ) ? other->s.number : -1 );
-        //int32_t iActivator = ( SVG_IsActiveEntity( activator ) ? activator->s.number : -1 );
-        //funcRefUse( iSelf, iOther, iActivator, useType, useValue );
-
-
-        // Call if it exists.
-        //if ( LUA_HasFunction( SVG_Lua_GetSolStateView(), luaFunctionName ) ) {
-        //    LUA_CallFunction( SVG_Lua_GetSolStateView(), luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-        //        /*[lua args]:*/ self, other, activator, useType, useValue );
-        //}
-         
         // Get reference to sol lua state view.
-        sol::state_view &solStateView = SVG_Lua_GetSolStateView();
-         
+        sol::state_view &solState = SVG_Lua_GetSolState();
+
         // Get function object.
-        sol::protected_function funcRefUse = solStateView[ luaFunctionName ];
+        sol::protected_function funcRefUse = solState[ luaFunctionName ];
         // Get type.
         sol::type funcRefType = funcRefUse.get_type();
         // Ensure it matches, accordingly
@@ -125,17 +101,25 @@ void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const enti
             return;
         }
 
-        try {
-            funcRefUse( self, other, activator, (int32_t)useType, (int32_t)useValue );
-            //// Call function, verbose, because OnSignals may not exist.
-            //int32_t iEnt = ( SVG_IsActiveEntity( ent ) ? ent->s.number : -1 );
-            //int32_t iOther = ( SVG_IsActiveEntity( ent ) ? ent->s.number : -1 );
-            //int32_t iActivator = ( SVG_IsActiveEntity( ent ) ? ent->s.number : -1 );
-            //funcRefSignalOut( iEnt, iOther, iActivator, signalName, signalArguments, rest... );
-        }
-        catch ( std::exception &e ) {
-            gi.bprintf( PRINT_ERROR, "%s: %s\n", __func__, e.what() );
-            return;
+        // Create lua userdata object references to the entities.
+        auto leSelf = sol::make_object<lua_edict_t>( solState, lua_edict_t( self ) );
+        auto leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( other ) );
+        auto leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
+        // Fire SignalOut callback.
+        auto callResult = funcRefUse( leSelf, leOther, leActivator, useType, useValue );
+        // If valid, convert result to boolean.
+        if ( callResult.valid() ) {
+            // Convert.
+            bool signalHandled = callResult.get<bool>();
+            // Debug print.
+            // We got an error:
+        } else {
+            // Acquire error object.
+            sol::error resultError = callResult;
+            // Get error string.
+            const std::string errorStr = resultError.what();
+            // Print the error in case of failure.
+            gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
         }
     }
 }

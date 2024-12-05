@@ -42,7 +42,7 @@ function ButtonLock00_OnSignalIn( self, signaller, activator, signalName, signal
         -- Of course we can't lock a moving door. For showing off feature wise, we also allow for locking it in its opened state.
         if ( moveState ~= PushMoveState.MOVING_DOWN and moveState ~= PushMoveState.MOVING_UP ) then
             -- Signal the "DoorLockToggle" event.
-            Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
+            Game.SignalOut( entDoor, self, activator, "DoorLockToggle", {} )
         end
     end
     return true
@@ -62,7 +62,7 @@ function ButtonLockTeamPairDoors_OnSignalIn( self, signaller, activator, signalN
                 -- For showing off feature wise, we also allow for locking it in its opened state.
                 if ( moveState ~= PushMoveState.MOVING_DOWN and moveState ~= PushMoveState.MOVING_UP ) then
                     -- Signal the "DoorLockToggle" event.
-                    Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
+                    Game.SignalOut( entDoor, self, activator, "DoorLockToggle", {} )
                 end
             end
         end
@@ -86,7 +86,7 @@ function ButtonLock01_OnSignalIn( self, signaller, activator, signalName, signal
         -- Of course we can't lock a moving door. For showing off feature wise, we also allow for locking it in its opened state.
         if ( moveState ~= PushMoveState.MOVING_DOWN and moveState ~= PushMoveState.MOVING_UP ) then
             -- Signal the "DoorLockToggle" event.
-            Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
+            Game.SignalOut( entDoor, self, activator, "DoorLockToggle", {} )
         end
     end
     return true
@@ -96,6 +96,7 @@ function ButtonLockTeamPairDoorsRotating_OnSignalIn( self, signaller, activator,
     if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
         -- Get entities with matching targetName.
         local entsDoors = Game.GetEntitiesForTargetName( "door_rotating_usetargets_team" )
+
         -- The result has to be a valid table with at least one entity number residing inside of it.
         if ( type( entsDoors ) == "table" and #entsDoors >= 1 ) then
             -- Iterate the targetname entities table.
@@ -106,9 +107,11 @@ function ButtonLockTeamPairDoorsRotating_OnSignalIn( self, signaller, activator,
                 -- For showing off feature wise, we also allow for locking it in its opened state.
                 if ( moveState ~= PushMoveState.MOVING_DOWN and moveState ~= PushMoveState.MOVING_UP ) then
                     -- Signal the "DoorLockToggle" event.
-                    Game.SignalOut( entDoor, self, activator, "DoorLockToggle" )
+                    Game.SignalOut( entDoor, self, activator, "DoorLockToggle", {} )
                 end
             end
+        else
+            Core.DPrint( "entsDoor == nil!?\n" )
         end
     end
     return true
@@ -133,6 +136,24 @@ end
 ----
 ----------------------------------------------------------------------
 --[[ TODO: --]]
+local pairs = pairs
+local type = type
+function OnPrecacheMedia()
+    local testTable = {
+        x = 10,
+        more = {
+            y = 20,
+            z = 30
+        }
+    }
+
+    for i,v in pairs(testTable) do 
+        Core.DPrint( type( v ) .. "\n" )
+    end
+
+    return true
+end
+--[[ TODO: --]]
 function OnBeginMap()
     return true
 end
@@ -152,12 +173,13 @@ end
 ----------------------------------------------------------------------
 --[[ TODO: --]]
 function OnClientEnterLevel( clientEntity )
-    Core.DPrint( "OnClientEnterLevel: A client connected with entityID(#" .. clientEntity .. ")\n")
+    Core.DPrint( "OnClientEnterLevel: A client connected with entityID(#" .. clientEntity.number .. ")\n")
+
     return true
 end
 --[[ TODO: --]]
 function OnClientExitLevel( clientEntity )
-    Core.DPrint( "OnClientEnterLevel: A client disconnected with entityID(#" .. clientEntity .. ")\n")
+    Core.DPrint( "OnClientEnterLevel: A client disconnected with entityID(#" .. clientEntity.number .. ")\n")
     return true
 end
 
@@ -180,5 +202,5 @@ function OnEndServerFrame()
 end
 --[[ TODO: --]]
 function OnRunFrame( frameNumber )
-   return true
+    return true
 end

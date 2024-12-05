@@ -32,120 +32,120 @@ typedef enum {
 } svg_lua_callfunction_verbosity_t;
 
 
-static inline void LUA_CallFunction_PushStackValue( lua_State *L ) {
-	// Do absolutely nothing
-	return;
-}
-// edict_t*
-template <typename... Rest>
-static inline void LUA_CallFunction_PushStackValue( lua_State *L, const edict_t *e, const Rest&... rest ) {
-	if ( e != nullptr && e->inuse ) {
-		lua_pushinteger( L, e->s.number );
-	} else {
-		lua_pushinteger( L, -1 );
-	}
-	LUA_CallFunction_PushStackValue( L, rest... );
-}
-// uint64_t
-template <typename... Rest>
-static inline void LUA_CallFunction_PushStackValue( lua_State *L, const uint64_t &i, const Rest&... rest ) {
-	lua_pushinteger( L, i );
-	LUA_CallFunction_PushStackValue( L, rest... );
-}
-// int32_t
-template <typename... Rest>
-static inline void LUA_CallFunction_PushStackValue( lua_State *L, const int64_t &i, const Rest&... rest ) {
-	lua_pushinteger( L, i );
-	LUA_CallFunction_PushStackValue( L, rest... );
-}
-
-// uint32_t
-template <typename... Rest>
-static inline void LUA_CallFunction_PushStackValue( lua_State *L, const uint32_t &i, const Rest&... rest ) {
-	lua_pushinteger( L, i );
-	LUA_CallFunction_PushStackValue( L, rest... );
-}
-// int32_t
-template <typename... Rest>
-static inline void LUA_CallFunction_PushStackValue( lua_State *L, const int32_t &i, const Rest&... rest ) {
-	lua_pushinteger( L, i );
-	LUA_CallFunction_PushStackValue( L, rest... );
-}
-// float
-template <typename... Rest>
-static inline void LUA_CallFunction_PushStackValue( lua_State *L, const float &f, const Rest&... rest ) {
-	lua_pushnumber( L, f );
-	LUA_CallFunction_PushStackValue( L, rest... );
-}
-// double
-template <typename... Rest>
-static inline void LUA_CallFunction_PushStackValue( lua_State *L, const double &d, const Rest&... rest ) {
-	lua_pushnumber( L, d );
-	LUA_CallFunction_PushStackValue( L, rest... );
-}
-// const char*
-template <typename... Rest>
-static inline void LUA_CallFunction_PushStackValue( lua_State *L, const char *s, const Rest&... rest ) {
-	lua_pushlstring( L, s, strlen( s ) );
-	LUA_CallFunction_PushStackValue( L, rest... );
-}
-// const std::string &
-template <typename... Rest>
-static inline void LUA_CallFunction_PushStackValue( lua_State *L, const std::string &s, const Rest&... rest ) {
-	lua_pushlstring( L, s.c_str(), s.length() );
-	LUA_CallFunction_PushStackValue( L, rest... );
-}
-// svg_signal_argument_array_t
-template <typename... Rest>
-static inline void LUA_CallFunction_PushStackValue( lua_State *L, const svg_signal_argument_array_t &signalArguments, const Rest&... rest ) {
-	if ( !signalArguments.empty() ) {
-		// Create the table for the size of the argument array.
-		lua_createtable( L, 0, signalArguments.size() );
-
-		for ( int32_t i = 0; i < signalArguments.size(); i++ ) {
-			// Pointer to argument.
-			const svg_signal_argument_t *signalArgument = &signalArguments[ i ];
-			// Push depending on its type.
-			if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_BOOLEAN ) {
-				// Push boolean value.
-				lua_pushboolean( L, signalArgument->value.boolean );
-				// Set key name.
-				lua_setfield( L, -2, signalArgument->key );
-			// TODO: Hmm?? Sol has no notion, maybe though using sol::object.as however, of an integer??
-			#if 0
-			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_INTEGER) {
-				// Push integer value.
-				lua_pushinteger( L, signalArgument->value.integer );
-				// Set key name.
-				lua_setfield( L, -2, signalArgument->key );
-			#endif
-			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NUMBER) {
-				// Push integer value.
-				lua_pushnumber( L, signalArgument->value.number );
-				// Set key name.
-				lua_setfield( L, -2, signalArgument->key );
-			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_STRING ) {
-				// Push integer value.
-				lua_pushlstring( L, signalArgument->value.str, strlen( signalArgument->value.str ) );
-				// Set key name.
-				lua_setfield( L, -2, signalArgument->key );
-			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NULLPTR ) {
-				// Push nil value.
-				lua_pushnil( L );
-				// Set key name.
-				lua_setfield( L, -2, signalArgument->key );
-			} else {
-				// WID: TODO: Warn?
-			}
-		}
-	} else {
-		// Push nil value.
-		lua_pushnil( L );
-	}
-
-	//lua_pushlstring( L, s.c_str(), s.length() );
-	LUA_CallFunction_PushStackValue( L, rest... );
-}
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L ) {
+//	// Do absolutely nothing
+//	return;
+//}
+//// edict_t*
+//template <typename... Rest>
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const edict_t *e, const Rest&... rest ) {
+//	if ( e != nullptr && e->inuse ) {
+//		lua_pushinteger( L, e->s.number );
+//	} else {
+//		lua_pushinteger( L, -1 );
+//	}
+//	LUA_CallFunction_PushStackValue( L, rest... );
+//}
+//// uint64_t
+//template <typename... Rest>
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const uint64_t &i, const Rest&... rest ) {
+//	lua_pushinteger( L, i );
+//	LUA_CallFunction_PushStackValue( L, rest... );
+//}
+//// int32_t
+//template <typename... Rest>
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const int64_t &i, const Rest&... rest ) {
+//	lua_pushinteger( L, i );
+//	LUA_CallFunction_PushStackValue( L, rest... );
+//}
+//
+//// uint32_t
+//template <typename... Rest>
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const uint32_t &i, const Rest&... rest ) {
+//	lua_pushinteger( L, i );
+//	LUA_CallFunction_PushStackValue( L, rest... );
+//}
+//// int32_t
+//template <typename... Rest>
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const int32_t &i, const Rest&... rest ) {
+//	lua_pushinteger( L, i );
+//	LUA_CallFunction_PushStackValue( L, rest... );
+//}
+//// float
+//template <typename... Rest>
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const float &f, const Rest&... rest ) {
+//	lua_pushnumber( L, f );
+//	LUA_CallFunction_PushStackValue( L, rest... );
+//}
+//// double
+//template <typename... Rest>
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const double &d, const Rest&... rest ) {
+//	lua_pushnumber( L, d );
+//	LUA_CallFunction_PushStackValue( L, rest... );
+//}
+//// const char*
+//template <typename... Rest>
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const char *s, const Rest&... rest ) {
+//	lua_pushlstring( L, s, strlen( s ) );
+//	LUA_CallFunction_PushStackValue( L, rest... );
+//}
+//// const std::string &
+//template <typename... Rest>
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const std::string &s, const Rest&... rest ) {
+//	lua_pushlstring( L, s.c_str(), s.length() );
+//	LUA_CallFunction_PushStackValue( L, rest... );
+//}
+//// svg_signal_argument_array_t
+//template <typename... Rest>
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const svg_signal_argument_array_t &signalArguments, const Rest&... rest ) {
+//	if ( !signalArguments.empty() ) {
+//		// Create the table for the size of the argument array.
+//		lua_createtable( L, 0, signalArguments.size() );
+//
+//		for ( int32_t i = 0; i < signalArguments.size(); i++ ) {
+//			// Pointer to argument.
+//			const svg_signal_argument_t *signalArgument = &signalArguments[ i ];
+//			// Push depending on its type.
+//			if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_BOOLEAN ) {
+//				// Push boolean value.
+//				lua_pushboolean( L, signalArgument->value.boolean );
+//				// Set key name.
+//				lua_setfield( L, -2, signalArgument->key );
+//			// TODO: Hmm?? Sol has no notion, maybe though using sol::object.as however, of an integer??
+//			#if 0
+//			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_INTEGER) {
+//				// Push integer value.
+//				lua_pushinteger( L, signalArgument->value.integer );
+//				// Set key name.
+//				lua_setfield( L, -2, signalArgument->key );
+//			#endif
+//			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NUMBER) {
+//				// Push integer value.
+//				lua_pushnumber( L, signalArgument->value.number );
+//				// Set key name.
+//				lua_setfield( L, -2, signalArgument->key );
+//			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_STRING ) {
+//				// Push integer value.
+//				lua_pushlstring( L, signalArgument->value.str, strlen( signalArgument->value.str ) );
+//				// Set key name.
+//				lua_setfield( L, -2, signalArgument->key );
+//			} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NULLPTR ) {
+//				// Push nil value.
+//				lua_pushnil( L );
+//				// Set key name.
+//				lua_setfield( L, -2, signalArgument->key );
+//			} else {
+//				// WID: TODO: Warn?
+//			}
+//		}
+//	} else {
+//		// Push nil value.
+//		lua_pushnil( L );
+//	}
+//
+//	//lua_pushlstring( L, s.c_str(), s.length() );
+//	LUA_CallFunction_PushStackValue( L, rest... );
+//}
 
 
 /**
@@ -155,115 +155,48 @@ static inline void LUA_CallFunction_PushStackValue( lua_State *L, const svg_sign
 *	@note	One has to deal and pop return values themselves.
 **/
 template <typename... Rest> 
-static const bool LUA_CallFunction( sol::state_view &stateView, const std::string &functionName, 
+static const bool LUA_CallFunction( sol::state &state, const std::string &functionName, 
 	const int32_t numExpectedArgs = 0, const int32_t numReturnValues = 0, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_NOT,
 	const Rest&... rest ) {
 	
 	bool executedSuccessfully = false;
 
-	if ( !stateView.lua_state() || functionName.empty() ) {
+	if ( !state.lua_state() || functionName.empty() ) {
 		return executedSuccessfully;
 	}
 
 	// Get function object.
-	sol::protected_function funcRefCall = stateView[ functionName ];
+	sol::protected_function funcRefCall = state[ functionName ];
 	// Get type.
 	sol::type funcRefType = funcRefCall.get_type();
 	// Ensure it matches, accordingly
-	if ( funcRefType != sol::type::function /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
+	if ( funcRefType != sol::type::function && verbosity != LUA_CALLFUNCTION_VERBOSE_MISSING /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
 		// Return if it is LUA_NOREF and luaState == nullptr again.
-		return false;
+		gi.bprintf( PRINT_ERROR, "%s: %s but is %s instead!\n", __func__, "funcRefType != sol::type::function", sol::type_name( state, funcRefType ).c_str() );
+
+		return executedSuccessfully;
 	}
 
-	try {
-		funcRefCall( rest... );
-	}
-	catch ( std::exception &e ) {
-		gi.bprintf( PRINT_ERROR, "%s: %s\n", __func__, e.what() );
-		return false;
-	}
+	// Expect true.
+	sol::protected_function_result callResult = funcRefCall( rest ... );
 
-	executedSuccessfully = true;
-	#if 0
-	// Get the global functionname value and push it to stack:
-	lua_getglobal( L, functionName.c_str() );
-
-	// Check if function even exists.
-	if ( lua_isfunction( L, -1 ) ) {
-		// Push all arguments to the lua stack.
-		LUA_CallFunction_PushStackValue( L, rest... ); // Recursive call using pack expansion syntax
-
-		// Check stack.
-		if ( numExpectedArgs >= 1 ) {
-			// Notify about the stack being incorrectly setup.
-			luaL_checkstack( L, numExpectedArgs, "too many arguments" );
-		}
-
-		// Protect Call the pushed function name string.
-		int32_t pCallReturnValue = lua_pcall( L, sizeof...( Rest ), numReturnValues, 0 );
-		if ( pCallReturnValue == LUA_OK ) {
-			// Success.
-			executedSuccessfully = true;
-		// Yielded -> TODO: Can we ever make yielding work by doing something here to
-		// keeping save/load games in mind?
-		} else if ( pCallReturnValue == LUA_YIELD ) {
-			// Get error.
-			const std::string errorStr = lua_tostring( L, -1 );
-			// Remove the errorStr from the stack
-			lua_pop( L, lua_gettop( L ) );
-			// Print Error Notification.
-			LUA_ErrorPrintf( "[%s]:[Yielding Not Supported!]:\n%s\n", __func__, errorStr.c_str() );
-		// Runtime Error:
-		} else if ( pCallReturnValue == LUA_ERRRUN ) {
-			// Get error.
-			const std::string errorStr = lua_tostring( L, -1 );
-			// Remove the errorStr from the stack
-			lua_pop( L, lua_gettop( L ) );
-			// Print Error Notification.
-			LUA_ErrorPrintf( "[%s]:[Runtime Error]:\n%s\n", __func__, errorStr.c_str() );
-		// Syntax Error:
-		} else if ( pCallReturnValue == LUA_ERRSYNTAX ) {
-			// Get error.
-			const std::string errorStr = lua_tostring( L, -1 );
-			// Remove the errorStr from the stack
-			lua_pop( L, lua_gettop( L ) );
-			// Print Error Notification.
-			LUA_ErrorPrintf( "[%s]:[Syntax Error]:\n%s\n", __func__, errorStr.c_str() );
-		// Memory Error:
-		} else if ( pCallReturnValue == LUA_ERRMEM ) {
-			// Get error.
-			const std::string errorStr = lua_tostring( L, -1 );
-			// Remove the errorStr from the stack
-			lua_pop( L, lua_gettop( L ) );
-			// Print Error Notification.
-			LUA_ErrorPrintf( "[%s]:[Memory Error]:\n%s\n", __func__, errorStr.c_str() );
-		// Error Error? Lol: TODO: WTF?
-		} else if ( pCallReturnValue == LUA_ERRERR ) {
-			// Get error.
-			const std::string errorStr = lua_tostring( L, -1 );
-			// Remove the errorStr from the stack
-			lua_pop( L, lua_gettop( L ) );
-			// Print Error Notification.
-			LUA_ErrorPrintf( "[%s]:[Error]:\n%s\n", __func__, errorStr.c_str() );
-		} else {
-			// Get error.
-			const std::string errorStr = lua_tostring( L, -1 );
-			// Remove the errorStr from the stack
-			lua_pop( L, lua_gettop( L ) );
-			// Print Error Notification.
-			LUA_ErrorPrintf( "%s:\n%s\n", __func__, errorStr.c_str() );
-		}
+	// Error if invalid.
+	if ( !callResult.valid() || callResult.status() == sol::call_status::yielded ) { // We don't support yielding. (Impossible to save/load aka restore state.)
+		// Acquire error object.
+		sol::error resultError = callResult;
+		// Get error string.
+		const std::string errorStr = resultError.what();
+		// Print the error in case of failure.
+		gi.bprintf( PRINT_ERROR, "%s:\nCallStatus[%s]: %s\n ", __func__, sol::to_string( callResult.status() ).c_str(), errorStr.c_str() );
+		executedSuccessfully = false;
 	} else {
-		// Remove the errorStr from the stack
-		lua_pop( L, lua_gettop( L ) );
-		// There are use cases where we don't want to report an actual error and it is 
-		// just fine if the function does not exist at all.
-		if ( !( verbosity & LUA_CALLFUNCTION_VERBOSE_MISSING ) ) {
-			// Print Error Notification.
-			LUA_ErrorPrintf( "%s:\n\"%s\" is not a function\n", __func__, functionName.c_str() );
-		}
+		// If valid, convert result to boolean.
+		const bool retval = callResult.get<bool>();
+		// TODO: Deal with true/false?
+		executedSuccessfully = true;
+
 	}
-	#endif
+
 	// Return failure.
 	return executedSuccessfully;
 }

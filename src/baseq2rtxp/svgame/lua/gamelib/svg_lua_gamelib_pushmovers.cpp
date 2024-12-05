@@ -59,7 +59,7 @@ int GameLib_GetPushMoverState( lua_State *L ) {
 /**
 *	@return	The push mover its' current state.
 **/
-const int32_t GameLib_GetPushMoverState( lua_edict_t pushMoverEntity ) {
+const int32_t GameLib_GetPushMoverState( sol::this_state s, lua_edict_t pushMoverEntity ) {
 	const int32_t pushMoverState = ( pushMoverEntity.edict ? pushMoverEntity.edict->pushMoveInfo.state : -1 );
 	return pushMoverState;
 	//// Get the first matching entity for the targetname.

@@ -2520,6 +2520,11 @@ static const cmdreg_t c_client[] = {
 
     { "score" }, //, CL_ToggleScoreboard_f },
 
+    // Q@RTXP:
+    { "lua_dumpstack" },
+    { "lua_reload_mapscript" },
+
+    // WID: TODO: Check whether all are still valid...
     { "inven" }, { "kill" }, { "use" },
     { "drop" }, { "info" }, { "prog" },
     { "give" }, { "god" }, { "notarget" }, { "noclip" },

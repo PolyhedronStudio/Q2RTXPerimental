@@ -33,7 +33,7 @@
 #endif
 
 #define SOL_ALL_SAFETIES_ON 1
-#define SOL_ENABLE_INTEROP 1
+//#define SOL_ENABLE_INTEROP 1
 #include <sol/sol.hpp>
 #include "svgame/lua/svg_lua_sol_assert.hpp"
 
@@ -58,13 +58,13 @@ typedef enum {
 *	@brief	Sets the reference to the resulting returned value of trying to get to the function.
 *	@return	True if the reference is an actual function.
 **/
-static inline const bool LUA_GetFunction( sol::state_view &stateView, const std::string &functionName, sol::protected_function &functionReference, const svg_lua_getfunction_verbosity_t &verbosity ) {
+static inline const bool LUA_GetFunction( sol::state &state, const std::string &functionName, sol::protected_function &functionReference, const svg_lua_getfunction_verbosity_t &verbosity ) {
 	// Get function object.
-	functionReference = stateView[ functionName ];
+	functionReference = state[ functionName ];
 	// Get type.
 	sol::type functionReferenceType = functionReference.get_type();
 	// Ensure it matches, and if not, unset it to a nullptr.
-	if ( functionReferenceType != sol::type::function || !functionReference.is<std::function<bool()>>() ) {
+	if ( functionReferenceType != sol::type::function /*|| !functionReference.is<std::function<bool()>>()*/ ) {
 		// Reset it so it is LUA_NOREF and luaState == nullptr again.
 		functionReference.reset();
 	}
@@ -72,15 +72,17 @@ static inline const bool LUA_GetFunction( sol::state_view &stateView, const std:
 /**
 *	@brief	 
 **/
-static inline const bool LUA_HasFunction( lua_State *L, const std::string &functionName ) {
-	// Get the global functionname value and push it to stack:
-	lua_getglobal( L, functionName.c_str() );
-	// Check if function even exists.
-	const bool isFunction = ( lua_isfunction( L, -1 ) ? true : false );
-	// Pop from stack.
-	lua_pop( L, lua_gettop( L ) );
-	// Return result.
-	return isFunction;
+static inline const bool LUA_HasFunction( sol::state &state, const std::string &functionName ) {
+	// Get function object.
+	sol::protected_function functionReference = state[ functionName ];
+	// Ensure it matches, and if not, unset it to a nullptr.
+	if ( functionReference.valid() ) {
+		// Reset it so it is LUA_NOREF and luaState == nullptr again.
+		return true;
+	}
+
+	// Found.
+	return false;
 }
 
 
