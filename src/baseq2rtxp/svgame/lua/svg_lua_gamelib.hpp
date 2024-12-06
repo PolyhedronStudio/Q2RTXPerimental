@@ -75,8 +75,8 @@ const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue );
+const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, const entity_usetarget_type_t useType, const int32_t useValue );
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue );
+const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, const entity_usetarget_type_t useType, const int32_t useValue );

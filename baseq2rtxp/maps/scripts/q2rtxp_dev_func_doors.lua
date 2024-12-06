@@ -136,21 +136,7 @@ end
 ----
 ----------------------------------------------------------------------
 --[[ TODO: --]]
-local pairs = pairs
-local type = type
 function OnPrecacheMedia()
-    local testTable = {
-        x = 10,
-        more = {
-            y = 20,
-            z = 30
-        }
-    }
-
-    for i,v in pairs(testTable) do 
-        Core.DPrint( type( v ) .. "\n" )
-    end
-
     return true
 end
 --[[ TODO: --]]

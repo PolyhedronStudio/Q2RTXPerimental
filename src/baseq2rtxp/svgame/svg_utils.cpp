@@ -179,6 +179,84 @@ void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const 
 
 
 /**
+* 
+* 
+* 
+*   Utilities, common for UseTargets trigger system. (Also used in lua usetargets code.)
+* 
+* 
+* 
+**/
+/**
+*   @brief  Calls the (usually key/value field luaName).."_Use" matching Lua function.
+**/
+const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, edict_t *entity, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool verboseIfMissing ) {
+    if ( luaName.empty() ) {
+        return false;
+    }
+
+    // Generate function 'callback' name.
+    const std::string luaFunctionName = luaName + "_Use";
+    // Call if it exists.
+    if ( LUA_HasFunction( stateView, luaFunctionName ) ) {
+        // Create  lua edict handle structures to work with.
+        sol::userdata leEntity = sol::make_object<lua_edict_t>( stateView, lua_edict_t( entity ) );
+        sol::userdata leOther = sol::make_object<lua_edict_t>( stateView, lua_edict_t( other ) );
+        sol::userdata leActivator = sol::make_object<lua_edict_t>( stateView, lua_edict_t( activator ) );
+
+            // Call upon the function.
+        bool returnValue = false;
+        bool calledFunction = LUA_CallFunction( 
+            stateView, luaFunctionName, returnValue,
+            ( verboseIfMissing ? LUA_CALLFUNCTION_VERBOSE_MISSING : LUA_CALLFUNCTION_VERBOSE_NOT ),
+            /*[lua args]:*/ 
+            leEntity, leOther, leActivator, useType, useValue 
+        );
+        // Dispatched callback.
+        return returnValue;
+    }
+
+    // Didn't dispatch callback.
+    return false;
+}
+/**
+*   @brief  Centerprints the trigger message and plays a set sound, or default chat hud sound.
+**/
+void SVG_Trigger_PrintMessage( edict_t *self, edict_t *activator ) {
+    // If a message was set, the activator is not a monster, then center print it.
+    if ( ( self->message ) && !( activator->svflags & SVF_MONSTER ) ) {
+        // Print.
+        gi.centerprintf( activator, "%s", self->message );
+        // Play custom set audio.
+        if ( self->noise_index ) {
+            gi.sound( activator, CHAN_AUTO, self->noise_index, 1, ATTN_NORM, 0 );
+            // Play default "chat" hud sound.
+        } else {
+            gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+        }
+    }
+}
+/**
+*   @brief  Kills all entities matching the killtarget name.
+**/
+const int32_t SVG_Trigger_KillTargets( edict_t *self ) {
+    if ( self->targetNames.kill ) {
+        edict_t *killTargetEntity = nullptr;
+        while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS( targetname ), self->targetNames.kill ) ) ) {
+            SVG_FreeEdict( killTargetEntity );
+            if ( !self->inuse ) {
+                gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, self->s.number, self->classname );
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+
+
+/**
 *
 *
 *
@@ -187,12 +265,15 @@ void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const 
 *
 *
 **/
-#define MAXCHOICES  8
-
+//! Maximum number of entities to pick target from.
+static constexpr int32_t PICKTARGET_MAX = 8;
+/**
+*   @brief  Pick a random target of entities with a matching targetname.
+**/
 edict_t *SVG_PickTarget( char *targetname ) {
     edict_t *ent = NULL;
     int     num_choices = 0;
-    edict_t *choice[ MAXCHOICES ];
+    edict_t *choice[ PICKTARGET_MAX ];
 
     if ( !targetname ) {
         gi.dprintf( "SVG_PickTarget called with NULL targetname\n" );
@@ -204,7 +285,7 @@ edict_t *SVG_PickTarget( char *targetname ) {
         if ( !ent )
             break;
         choice[ num_choices++ ] = ent;
-        if ( num_choices == MAXCHOICES )
+        if ( num_choices == PICKTARGET_MAX )
             break;
     }
 
@@ -271,28 +352,12 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
     //
     // print the message
     //
-    if ( ( ent->message ) && !( activator->svflags & SVF_MONSTER ) ) {
-        gi.centerprintf( activator, "%s", ent->message );
-        if ( ent->noise_index ) {
-            gi.sound( activator, CHAN_AUTO, ent->noise_index, 1, ATTN_NORM, 0 );
-        } else {
-            gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
-        }
-    }
+    SVG_Trigger_PrintMessage( ent, activator );
 
     //
     // kill killtargets
     //
-    if ( ent->targetNames.kill ) {
-        edict_t *killTargetEntity = nullptr;
-        while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS( targetname ), ent->targetNames.kill ) ) ) {
-            SVG_FreeEdict( killTargetEntity );
-            if ( !ent->inuse ) {
-                gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, ent->s.number, ent->classname );
-                return;
-            }
-        }
-    }
+    SVG_Trigger_KillTargets( ent );
 
     //
     // fire targets

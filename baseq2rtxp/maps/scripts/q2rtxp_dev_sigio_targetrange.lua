@@ -137,6 +137,7 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
             Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.ON, 1 )
         end
     end
+    return true
 end
 
 

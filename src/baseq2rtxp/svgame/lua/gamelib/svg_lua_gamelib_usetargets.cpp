@@ -16,6 +16,30 @@
 *
 *
 *
+*   Utilities, common for UseTargets trigger system. (Also used in lua usetargets code.)
+*
+*
+*
+**/
+/**
+*   @brief  Calls the (usually key/value field luaName).."_Use" matching Lua function.
+**/
+const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, edict_t *entity, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType = entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, const int32_t useValue = 0, const bool verboseIfMissing = true );
+/**
+*   @brief  Centerprints the trigger message and plays a set sound, or default chat hud sound.
+**/
+void SVG_Trigger_PrintMessage( edict_t *self, edict_t *activator );
+/**
+*   @brief  Kills all entities matching the killtarget name.
+**/
+const int32_t SVG_Trigger_KillTargets( edict_t *self );
+
+
+
+/**
+*
+*
+*
 *	UseTarget(s) API:
 *
 *
@@ -40,34 +64,19 @@ void LUA_Think_UseTargetDelay( edict_t *entity ) {
 	//
 	// print the message
 	//
-	if ( ( entity->message ) && !( activator && activator->svflags & SVF_MONSTER ) ) {
-		gi.centerprintf( activator, "%s", entity->message );
-		if ( entity->noise_index ) {
-			gi.sound( activator, CHAN_AUTO, entity->noise_index, 1, ATTN_NORM, 0 );
-		} else {
-			gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
-		}
-	}
+	SVG_Trigger_PrintMessage( entity, activator );
 
 	//
 	// kill killtargets
 	//
-	if ( entity->targetNames.kill ) {
-		edict_t *killTargetEntity = nullptr;
-		while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS( targetname ), entity->targetNames.kill ) ) ) {
-			SVG_FreeEdict( killTargetEntity );
-			if ( !entity->inuse ) {
-				gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, entity->classname );
-				// Error.
-				return; // USETARGET_INVALID
-			}
-		}
+	if ( !SVG_Trigger_KillTargets( entity ) ) {
+		return; // -1; // USETARGET_INVALID
 	}
 
 	//
 	// Fire the use method if it has any.
 	//
-	int useResult = -1; // Default to USETARGET_INVALID
+	int32_t useResult = -1; // Default to USETARGET_INVALID
 	if ( entity->use ) {
 		// We fired.
 		entity->use( entity, other, activator, useType, useValue );
@@ -76,20 +85,17 @@ void LUA_Think_UseTargetDelay( edict_t *entity ) {
 
 	// Dispatch lua use.
 	if ( entity->luaProperties.luaName ) {
-		// Generate function 'callback' name.
-		const std::string luaFunctionName = std::string( entity->luaProperties.luaName ) + "_Use";
-		// Call if it exists.
-		sol::state &solState = SVG_Lua_GetSolState();
-		if ( LUA_HasFunction( solState, luaFunctionName ) ) {
-			// Create  lua edict handle structures to work with.
-			sol::userdata leEntity = sol::make_object<lua_edict_t>( solState, lua_edict_t( entity ) );
-			sol::userdata leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( other ) );
-			sol::userdata leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
-			// Call upon the function.
-			LUA_CallFunction( solState, luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-				/*[lua args]:*/ leEntity, leOther, leActivator, useType, useValue );
-			useResult = 1; // USETARGET_FIRED.
-		}
+		// Dispatch Callback.
+		useResult = ( SVG_Trigger_DispatchLuaUseCallback(
+			// Sol State.
+			SVG_Lua_GetSolStateView(),
+			// LuaName of entity/entities, appended with "_Use".
+			entity->luaProperties.luaName,
+			// Entities.
+			entity, other, activator,
+			// UseType n Value.
+			useType, useValue
+		) ? 1 : -1 ); // 1 == USETARGET_FIRED, -1 == USETARGET_INVALID
 	}
 
 	// We can now free up the entity since we're done with it.
@@ -98,7 +104,7 @@ void LUA_Think_UseTargetDelay( edict_t *entity ) {
 /**
 *	@return	< 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue ) {
+const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 	// Make sure that the entity is at least active and valid to be signalling.
 	if ( !SVG_IsActiveEntity( leEnt.edict ) ) {
 		return -1; // USETARGET_INVALID
@@ -145,28 +151,13 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 	//
 	// print the message
 	//
-	if ( ( entity->message ) && !( activator && activator->svflags & SVF_MONSTER ) ) {
-		gi.centerprintf( activator, "%s", entity->message );
-		if ( entity->noise_index ) {
-			gi.sound( activator, CHAN_AUTO, entity->noise_index, 1, ATTN_NORM, 0 );
-		} else {
-			gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
-		}
-	}
+	SVG_Trigger_PrintMessage( entity, activator );
 
 	//
 	// kill killtargets
 	//
-	if ( entity->targetNames.kill ) {
-		edict_t *killTargetEntity = nullptr;
-		while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS( targetname ), entity->targetNames.kill ) ) ) {
-			SVG_FreeEdict( killTargetEntity );
-			if ( !entity->inuse ) {
-				gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, entity->classname );
-				// Error.
-				return -1; // USETARGET_INVALID
-			}
-		}
+	if ( !SVG_Trigger_KillTargets( entity ) ) {
+		return -1; // USETARGET_INVALID
 	}
 
 	//
@@ -191,20 +182,17 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 
 	// Dispatch lua use.
 	if ( entity->luaProperties.luaName ) {
-		// Generate function 'callback' name.
-		const std::string luaFunctionName = std::string( entity->luaProperties.luaName ) + "_Use";
-		// Call if it exists.
-		sol::state &solState = SVG_Lua_GetSolState();
-		if ( LUA_HasFunction( solState, luaFunctionName ) ) {
-			// Create  lua edict handle structures to work with.
-			sol::userdata leEntity = sol::make_object<lua_edict_t>( solState, lua_edict_t( entity ) );
-			sol::userdata leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( other ) );
-			sol::userdata leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
-			// Call upon the function.
-			LUA_CallFunction( solState, luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-				/*[lua args]:*/ leEntity, leOther, leActivator, useType, useValue );
-			useResult = 1; // USETARGET_FIRED.
-		}
+		// Dispatch Callback.
+		useResult = ( SVG_Trigger_DispatchLuaUseCallback(
+			// Sol State.
+			SVG_Lua_GetSolStateView(),
+			// LuaName of entity/entities, appended with "_Use".
+			entity->luaProperties.luaName,
+			// Entities.
+			entity, other, activator,
+			// UseType n Value.
+			useType, useValue
+		) ? 1 : -1 ); // 1 == USETARGET_FIRED, -1 == USETARGET_INVALID
 	}
 
 	if ( !entity->inuse ) {
@@ -233,28 +221,13 @@ void LUA_Think_UseTargetsDelay( edict_t *entity ) {
 	//
 	// print the message
 	//
-	if ( ( entity->message ) && !( activator && activator->svflags & SVF_MONSTER ) ) {
-		gi.centerprintf( activator, "%s", entity->message );
-		if ( entity->noise_index ) {
-			gi.sound( activator, CHAN_AUTO, entity->noise_index, 1, ATTN_NORM, 0 );
-		} else {
-			gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
-		}
-	}
+	SVG_Trigger_PrintMessage( entity, activator );
 
 	//
 	// kill killtargets
 	//
-	if ( entity->targetNames.kill ) {
-		edict_t *killTargetEntity = nullptr;
-		while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS( targetname ), entity->targetNames.kill ) ) ) {
-			SVG_FreeEdict( killTargetEntity );
-			if ( !entity->inuse ) {
-				gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, entity->classname );
-				// Error.
-				return; // USETARGET_INVALID
-			}
-		}
+	if ( !SVG_Trigger_KillTargets( entity ) ) {
+		return; // -1; // USETARGET_INVALID
 	}
 
 	//
@@ -282,23 +255,19 @@ void LUA_Think_UseTargetsDelay( edict_t *entity ) {
 					fireTargetEntity->use( fireTargetEntity, other, activator, useType, useValue );
 					useResult = 1; // USETARGET_FIRED
 				}
-
 				// Dispatch lua use.
 				if ( fireTargetEntity->luaProperties.luaName ) {
-					// Generate function 'callback' name.
-					const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
-					// Call if it exists.
-					sol::state &solState = SVG_Lua_GetSolState();
-					if ( LUA_HasFunction( solState, luaFunctionName ) ) {
-						// Create  lua edict handle structures to work with.
-						sol::userdata leEntity = sol::make_object<lua_edict_t>( solState, lua_edict_t( entity ) );
-						sol::userdata leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( other ) );
-						sol::userdata leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
-						// Call upon the function.
-						LUA_CallFunction( solState, luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-							/*[lua args]:*/ leEntity, leOther, leActivator, useType, useValue );
-						useResult = 1; // USETARGET_FIRED.
-					}
+					// Dispatch Callback.
+					useResult = ( SVG_Trigger_DispatchLuaUseCallback(
+						// Sol State.
+						SVG_Lua_GetSolStateView(),
+						// LuaName of entity/entities, appended with "_Use".
+						fireTargetEntity->luaProperties.luaName,
+						// Entities.
+						entity, other, activator,
+						// UseType n Value.
+						useType, useValue
+					) ? 1 : -1 ); // 1 == USETARGET_FIRED, -1 == USETARGET_INVALID
 				}
 			}
 			if ( !entity->inuse ) {
@@ -314,7 +283,7 @@ void LUA_Think_UseTargetsDelay( edict_t *entity ) {
 /**
 *	@return < 0 if failed, 0 if delayed or not fired at all, 1 if fired.
 **/
-const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, int32_t useType, int32_t useValue ) {
+const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, const entity_usetarget_type_t useType, int32_t useValue ) {
 	// Make sure that the entity is at least active and valid to be signalling.
 	if ( !SVG_IsActiveEntity( leEnt.edict ) ) {
 		return -1; // USETARGET_INVALID
@@ -361,27 +330,13 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 	//
 	// print the message
 	//
-	if ( ( entity->message ) && !( activator && activator->svflags & SVF_MONSTER ) ) {
-		gi.centerprintf( activator, "%s", entity->message );
-		if ( entity->noise_index ) {
-			gi.sound( activator, CHAN_AUTO, entity->noise_index, 1, ATTN_NORM, 0 );
-		} else {
-			gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
-		}
-	}
+	SVG_Trigger_PrintMessage( entity, activator );
 
 	//
 	// kill killtargets
 	//
-	if ( entity->targetNames.kill ) {
-		edict_t *killTargetEntity = nullptr;
-		while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS( targetname ), entity->targetNames.kill ) ) ) {
-			SVG_FreeEdict( killTargetEntity );
-			if ( !entity->inuse ) {
-				gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, entity->classname );
-				return -1; // USETARGET_INVALID
-			}
-		}
+	if ( !SVG_Trigger_KillTargets( entity ) ) {
+		return -1; // USETARGET_INVALID
 	}
 
 	//
@@ -409,21 +364,19 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 
 				// Dispatch lua use.
 				if ( fireTargetEntity->luaProperties.luaName ) {
-					// Generate function 'callback' name.
-					const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
-					// Call if it exists.
-					sol::state &solState = SVG_Lua_GetSolState();
-					if ( LUA_HasFunction( solState, luaFunctionName ) ) {
-						// Create  lua edict handle structures to work with.
-						sol::userdata leEntity = sol::make_object<lua_edict_t>( solState, lua_edict_t( entity ) );
-						sol::userdata leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( other ) );
-						sol::userdata leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
-						// Call upon the function.
-						LUA_CallFunction( solState, luaFunctionName, 1, 5, LUA_CALLFUNCTION_VERBOSE_MISSING,
-							/*[lua args]:*/ leEntity, leOther, leActivator, useType, useValue );
-						useResult = 1; // USETARGET_FIRED.
-					}
+					// Dispatch Callback.
+					useResult = ( SVG_Trigger_DispatchLuaUseCallback(
+						// Sol State.
+						SVG_Lua_GetSolStateView(),
+						// LuaName of entity/entities, appended with "_Use".
+						fireTargetEntity->luaProperties.luaName,
+						// Entities.
+						entity, other, activator,
+						// UseType n Value.
+						useType, useValue
+					) ? 1 : -1 ); // 1 == USETARGET_FIRED, -1 == USETARGET_INVALID
 				}
+
 				if ( !entity->inuse ) {
 					gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, entity->classname );
 					return -1; // USETARGET_INVALID

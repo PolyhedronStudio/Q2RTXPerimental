@@ -327,7 +327,7 @@ void InitGame( void )
     globals.num_edicts = game.maxclients + 1;
 
     // Initialize the Lua VM.
-    SVG_Lua_Initialize();
+    //SVG_Lua_Initialize();
 }
 
 

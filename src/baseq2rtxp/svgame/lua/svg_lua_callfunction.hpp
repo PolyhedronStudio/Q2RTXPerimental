@@ -154,26 +154,34 @@ typedef enum {
 *	@return	True in case it was a success, meaning the return values are now in the lua stack and need to be popped.
 *	@note	One has to deal and pop return values themselves.
 **/
-template <typename... Rest> 
-static const bool LUA_CallFunction( sol::state &state, const std::string &functionName, 
-	const int32_t numExpectedArgs = 0, const int32_t numReturnValues = 0, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_NOT,
+template <typename RetType, typename... Rest> 
+static const bool LUA_CallFunction( sol::state_view &stateView, 
+	const std::string &functionName, RetType &returnValue,
+	const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_NOT,
+	// WID: TODO: Do proper argument inspectations perhaps?
+	//const int32_t numExpectedArgs = 0, const int32_t numReturnValues = 0,
 	const Rest&... rest ) {
 	
+	// Default to false.
 	bool executedSuccessfully = false;
 
-	if ( !state.lua_state() || functionName.empty() ) {
+	// Exit, without warning.
+	if ( !stateView.lua_state() || functionName.empty() ) {
 		return executedSuccessfully;
 	}
 
-	// Get function object.
-	sol::protected_function funcRefCall = state[ functionName ];
+	// Get protected function object.
+	sol::protected_function funcRefCall = stateView[ functionName ];
 	// Get type.
 	sol::type funcRefType = funcRefCall.get_type();
 	// Ensure it matches, accordingly
 	if ( funcRefType != sol::type::function && verbosity != LUA_CALLFUNCTION_VERBOSE_MISSING /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
 		// Return if it is LUA_NOREF and luaState == nullptr again.
-		gi.bprintf( PRINT_ERROR, "%s: %s but is %s instead!\n", __func__, "funcRefType != sol::type::function", sol::type_name( state, funcRefType ).c_str() );
-
+		gi.bprintf( PRINT_ERROR, "%s: %s but is %s instead!\n", 
+			__func__, "funcRefType != sol::type::function", 
+			sol::type_name( stateView, funcRefType ).c_str()
+		);
+		// Exit.
 		return executedSuccessfully;
 	}
 
@@ -188,15 +196,14 @@ static const bool LUA_CallFunction( sol::state &state, const std::string &functi
 		const std::string errorStr = resultError.what();
 		// Print the error in case of failure.
 		gi.bprintf( PRINT_ERROR, "%s:\nCallStatus[%s]: %s\n ", __func__, sol::to_string( callResult.status() ).c_str(), errorStr.c_str() );
-		executedSuccessfully = false;
 	} else {
-		// If valid, convert result to boolean.
-		const bool retval = callResult.get<bool>();
-		// TODO: Deal with true/false?
-		executedSuccessfully = true;
+		// Cast to expected return value type.
+		returnValue = callResult.get<RetType>();
 
+		// Let it be known we executed function.
+		executedSuccessfully = true;
 	}
 
-	// Return failure.
+	// Return success or failure.
 	return executedSuccessfully;
 }

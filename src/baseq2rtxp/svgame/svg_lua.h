@@ -58,9 +58,9 @@ typedef enum {
 *	@brief	Sets the reference to the resulting returned value of trying to get to the function.
 *	@return	True if the reference is an actual function.
 **/
-static inline const bool LUA_GetFunction( sol::state &state, const std::string &functionName, sol::protected_function &functionReference, const svg_lua_getfunction_verbosity_t &verbosity ) {
+static inline const bool LUA_GetFunction( sol::state_view &stateView, const std::string &functionName, sol::protected_function &functionReference, const svg_lua_getfunction_verbosity_t &verbosity ) {
 	// Get function object.
-	functionReference = state[ functionName ];
+	functionReference = stateView[ functionName ];
 	// Get type.
 	sol::type functionReferenceType = functionReference.get_type();
 	// Ensure it matches, and if not, unset it to a nullptr.
@@ -72,9 +72,9 @@ static inline const bool LUA_GetFunction( sol::state &state, const std::string &
 /**
 *	@brief	 
 **/
-static inline const bool LUA_HasFunction( sol::state &state, const std::string &functionName ) {
+static inline const bool LUA_HasFunction( sol::state_view &stateView, const std::string &functionName ) {
 	// Get function object.
-	sol::protected_function functionReference = state[ functionName ];
+	sol::protected_function functionReference = stateView[ functionName ];
 	// Ensure it matches, and if not, unset it to a nullptr.
 	if ( functionReference.valid() ) {
 		// Reset it so it is LUA_NOREF and luaState == nullptr again.

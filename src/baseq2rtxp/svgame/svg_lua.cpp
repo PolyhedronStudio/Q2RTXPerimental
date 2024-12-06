@@ -64,7 +64,7 @@ void MediaLib_Initialize( sol::state_view &solStateView );
 **/
 static struct LuaMapInstance {
 	// Name of the actual main script file.
-	 
+
 	//! lua state.
 	lua_State *lState;
 	// State view on lState.
@@ -125,8 +125,10 @@ static void LUA_UnloadMapScript() {
 	luaMapInstance.solState = nullptr;
 
 	// TODO: This is technically not safe, we need to store the buffer elsewhere ... expose FS_LoadFileEx!
-	SG_FS_FreeFile( luaMapInstance.scriptBuffer );
-	luaMapInstance.scriptBuffer = nullptr;
+	if ( luaMapInstance.scriptBuffer ) {
+		SG_FS_FreeFile( luaMapInstance.scriptBuffer );
+		luaMapInstance.scriptBuffer = nullptr;
+	}
 }
 /**
 *	@brief	Finds all references to neccessary core map hook callbacks.
@@ -287,7 +289,7 @@ void SVG_Lua_Initialize() {
 	if ( !luaMapInstance.solState.lua_state() ) {
 		luaMapInstance.solState = sol::state();
 	}
-	luaMapInstance.solState.open_libraries( 
+	luaMapInstance.solState.open_libraries(
 		// print, assert, and other base functions
 		sol::lib::base
 		// require and other package functions
@@ -324,7 +326,6 @@ void SVG_Lua_Initialize() {
 
 	//
 	luaMapInstance.lState = luaMapInstance.solState.lua_state();
-	
 	// Initialize UserTypes:
 	UserType_Register_Edict_t( luaMapInstance.solState );
 
@@ -499,7 +500,9 @@ const bool SVG_Lua_LoadMapScript( const std::string &scriptName ) {
 // For checking whether to proceed lua callbacks or not.
 inline const bool SVG_Lua_IsMapScriptInterpreted();
 #define LUA_CanDispatchCallback( callBackObject ) \
-	if ( !SVG_Lua_IsMapScriptInterpreted() || luaMapInstance.lState == nullptr || ( !callBackObject ) ) { \
+	if ( !SVG_Lua_IsMapScriptInterpreted() \
+			|| !luaMapInstance.solState.lua_state() \
+			|| ( !callBackObject ) ) { \
 		return; \
 }
 
