@@ -63,6 +63,7 @@ extern void door_postspawn( edict_t *self );
 /**
 *	@brief
 **/
+void SVG_SetMoveDir( vec3_t angles, Vector3 &movedir );
 void SP_func_door_rotating( edict_t *ent ) {
     //vec3_t  abs_movedir;
 
@@ -76,17 +77,25 @@ void SP_func_door_rotating( edict_t *ent ) {
         ent->pushMoveInfo.lockState.unlockingSound = gi.soundindex( "misc/door_unlocking.wav" );
     }
 
+    // In case we ever go Q2 Rerelease movers I guess.
+    #if 0
+    const bool isBothDirections = SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_BOTH_DIRECTIONS );
+    if ( isBothDirections ) {
+        SVG_SetMoveDir( ent->s.angles, ent->pushMoveInfo.dir);
+    }
+    #endif
+
     // Clear the angles.
     VectorClear( ent->s.angles );
 
     // Set the axis of rotation.
     ent->movedir = QM_Vector3Zero();
     if ( ent->spawnflags & DOOR_SPAWNFLAG_X_AXIS ) {
-        ent->movedir[ 0 ] = 1.0f;
-    } else if ( ent->spawnflags & DOOR_SPAWNFLAG_Y_AXIS ) {
-        ent->movedir[ 1 ] = 1.0f;
-    } else {// Z_AXIS
         ent->movedir[ 2 ] = 1.0f;
+    } else if ( ent->spawnflags & DOOR_SPAWNFLAG_Y_AXIS ) {
+        ent->movedir[ 0 ] = 1.0f;
+    } else {// Z_AXIS
+        ent->movedir[ 1 ] = 1.0f;
     }
 
     // check for reverse rotation
@@ -109,6 +118,7 @@ void SP_func_door_rotating( edict_t *ent ) {
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
+    //ent->svflags |= SVF_DOOR;
     // BSP Model, or otherwise, specified external model.
     gi.setmodel( ent, ent->model );
 

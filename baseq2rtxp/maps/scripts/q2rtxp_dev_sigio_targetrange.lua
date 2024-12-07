@@ -28,15 +28,13 @@ end
 -- Target Logic:
 ----------------------------------------------------------------------
 -- L Target:
-function Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, displayName, targetName, trainTargetName, lightTargetName )
+function Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, displayName, targetName, trainTargetName, lightTargetName, lightBrushTargetName )
     --[[
     -- Handles its death, turns off the train track and the light.
     ]]--
     if ( signalName == "OnPain" ) then
         -- Play speciual 'pain' sound effect.
         Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_pain, 1.0, SoundAttenuation.NORMAL, 0.0 )
-        -- Decrement number of targets alive count.
-        mapStates.targetRange.targetsAlive = mapStates.targetRange.targetsAlive - 1
         -- Done handling signal.
         return
     -- It just got killed, stop the train track, notify, and add score.
@@ -44,17 +42,26 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         -- Notify of the kill.
         Game.Print( PrintLevel.NOTICE, "Shot down the \"" .. displayName .. "\" target! Only #".. mapStates.targetRange.targetsAlive .. " targets remaining!\n" )
 
+        -- Decrement number of targets alive count.
+        mapStates.targetRange.targetsAlive = mapStates.targetRange.targetsAlive - 1
+
         -- Stop the train for this target.
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTarget.OFF, 0 )
         
         -- Play speciual 'opening' sound effect.
         Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_open, 1.0, SoundAttenuation.IDLE, 0.0 )
+
+        -- Change texture of 'animslight' its frame to second, so it turns red indicating this target is dead.
+        self.state.frame = 1
+
+        -- Turn on the light for this target.
+        Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, EntityUseTarget.ON, 1 )
         -- Done handling signal.
         return
     -- It finished the 'open movement' and arrived at destination:
     elseif ( signalName == "OnOpened" ) then
         -- Turn off the light for this target.
-        Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, EntityUseTarget.OFF, 0 )
+        --Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, EntityUseTarget.OFF, 0 )
         -- Done handling signal.
         return
     --[[
@@ -64,6 +71,9 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
     ]]--
     -- A new round has begun, so the target got told to "close", turn on the light so we can see it close.
     elseif ( signalName == "OnClose" ) then
+        -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
+        self.state.frame = 0
+
         -- Turn on the light for this target.
         Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, EntityUseTarget.ON, 1 )
 
@@ -76,7 +86,6 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
     elseif ( signalName == "OnClosed") then
         -- Turn on the train for this target.
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTarget.ON, 1 )
-
         -- Done handling signal.
         return
     elseif ( signalName == "OnOpen" ) then
@@ -93,19 +102,19 @@ end
 ----------------------------------------------------------------------
 -- XXL Target:
 function TargetXXL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "XXL", "t_target_xxl", "train_target_xxl", "light_target_xxl" )
+    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "XXL", "t_target_xxl", "train_target_xxl", "light_target_xxl", "light_brush_target_xxl" )
 end
 -- XL Target:
 function TargetXL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "XL", "t_target_xl", "train_target_xl", "light_target_xl" )
+    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "XL", "t_target_xl", "train_target_xl", "light_target_xl", "light_brush_target_xl" )
 end
 -- L Target:
 function TargetL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "L", "t_target_l", "train_target_l", "light_target_l" )
+    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "L", "t_target_l", "train_target_l", "light_target_l", "light_brush_target_l" )
 end
 -- S Target:
 function Target_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "S", "t_target", "train_target", "light_target" )
+    Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "S", "t_target", "train_target", "light_target", "light_brush_target_s" )
 end
 
 -- Button that resets the range.
@@ -121,7 +130,7 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
         Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "DoorClose", {} )
         Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "DoorClose", {} )
         -- Reset targets alive count.
-        --mapStates.targetRange.targetsAlive = 4
+        mapStates.targetRange.targetsAlive = 4
         -- Turn on all lights for the target range.
         Core.DPrint( "Range targets reset! #2 \n" ) -- TODO: Use not developer print...
         local targetRangeLights = Game.GetEntitiesForTargetName( "light_ceil_range" )
@@ -134,7 +143,7 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
         for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
             -- Turn on the light for this target.
             Core.DPrint( "UseTarget on light entity #".. targetRangeLight.number .. "\n" )
-            Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.ON, 1 )
+            Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.OFF, 0 )
         end
     end
     return true

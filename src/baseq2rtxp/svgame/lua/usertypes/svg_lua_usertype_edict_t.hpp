@@ -41,8 +41,10 @@ public:
 
 	/**
 	*
-	*	property(number):
+	* 
+	*	Entity State Properties
 	*
+	* 
 	**/
 	/**
 	*	@brief
@@ -52,6 +54,15 @@ public:
 	*	@brief
 	**/
 	void set_number( const int32_t number ) const;
+
+	/**
+	*	@return Get (Brush-)Entity Frame.
+	**/
+	const int32_t get_state_frame() const;
+	/**
+	*	@brief Set (Brush-)Entity Frame.
+	**/
+	void set_state_frame( const int32_t frame ) const;
 };
 
 /**

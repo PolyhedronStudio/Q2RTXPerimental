@@ -29,6 +29,9 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
         refreshEntity->frame = clgi.client->time / BASE_FRAMETIME; // WID: 40hz: Adjusted. clgi.client->time / 100;
     } else if ( newState->effects & EF_ANIM_CYCLE2_2HZ ) {
         refreshEntity->frame = newState->frame + ( autoanim & 1 );
+    // For light brushes that (change color possibly) by switching animation texture index.
+    } else {
+        refreshEntity->frame = newState->frame;
     }
 
     // Setup the old frame.

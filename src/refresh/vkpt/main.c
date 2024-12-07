@@ -3661,7 +3661,7 @@ R_Init_RTX(bool total)
 	cvar_vsync->changed = NULL; // in case the GL renderer has set it
 	cvar_hdr = Cvar_Get("vid_hdr", "0", CVAR_ARCHIVE);
 	cvar_pt_caustics = Cvar_Get("pt_caustics", "1", CVAR_ARCHIVE);
-	cvar_pt_enable_nodraw = Cvar_Get("pt_enable_nodraw", "0", 0);
+	cvar_pt_enable_nodraw = Cvar_Get("pt_enable_nodraw", "1", 0);
 	/* Synthesize materials for surfaces with LIGHT flag.
 	 * 0: disabled
 	 * 1: enabled for "custom" materials (not in materials.csv)

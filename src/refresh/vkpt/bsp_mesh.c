@@ -623,6 +623,7 @@ static void build_pvs2(bsp_t* bsp)
 // for the total number of triangles needed to represent the bsp and one instance of every model.
 static int count_triangles(const bsp_t* bsp)
 {
+	// <Q2RTXP>: WID: Removed the - 2, since it'd bug out on certain maps with lights. 
 	int num_tris = 0;
 
 	for (int i = 0; i < bsp->numfaces; i++)
@@ -631,7 +632,7 @@ static int count_triangles(const bsp_t* bsp)
 		int num_vertices = surf->numsurfedges;
 
 		if (num_vertices >= 3)
-			num_tris += (num_vertices - 2);
+			num_tris += (num_vertices /*- 2*/);
 	}
 
 	return num_tris;
