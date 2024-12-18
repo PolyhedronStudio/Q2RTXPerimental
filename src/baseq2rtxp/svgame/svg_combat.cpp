@@ -109,7 +109,9 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
 
     if (targ->movetype == MOVETYPE_PUSH || targ->movetype == MOVETYPE_STOP || targ->movetype == MOVETYPE_NONE) {
         // doors, triggers, etc
-        targ->die(targ, inflictor, attacker, damage, point);
+        if ( targ->die ) {
+            targ->die( targ, inflictor, attacker, damage, point );
+        }
         return;
     }
 
@@ -137,8 +139,9 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
         //    SVG_UseTargets( self, self->enemy );
         //}
     }
-
-    targ->die(targ, inflictor, attacker, damage, point);
+    if ( targ->die ) {
+        targ->die( targ, inflictor, attacker, damage, point );
+    }
 }
 
 

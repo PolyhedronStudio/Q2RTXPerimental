@@ -53,7 +53,7 @@ public:
 	/**
 	*	@brief
 	**/
-	void set_number( const int32_t number ) const;
+	void set_number( const int32_t number );
 
 	/**
 	*	@return Get (Brush-)Entity Frame.
@@ -62,7 +62,7 @@ public:
 	/**
 	*	@brief Set (Brush-)Entity Frame.
 	**/
-	void set_state_frame( const int32_t frame ) const;
+	void set_state_frame( const int32_t frame );
 };
 
 /**

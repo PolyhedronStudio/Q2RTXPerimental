@@ -33,11 +33,13 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     } else {
         refreshEntity->frame = newState->frame;
     }
-
     // Setup the old frame.
-    refreshEntity->oldframe = refreshEntity->frame;// packetEntity->prev.frame;
+    refreshEntity->oldframe = packetEntity->prev.frame;
+    //refreshEntity->frame = 1;
+    //refreshEntity->oldframe = 1;
     // Backlerp.
     refreshEntity->backlerp = 1.0f - clgi.client->lerpfrac;
+    //refreshEntity->backlerp = 0;
 
     // Set skin and model.
     //refreshEntity->skinnum = newState->skinnum;
@@ -45,7 +47,7 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
     // Render effects.
     refreshEntity->flags = newState->renderfx;
-
+    
     // Lerp Origin:
     Vector3 cent_origin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
     VectorCopy( cent_origin, refreshEntity->origin );

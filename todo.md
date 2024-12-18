@@ -24,7 +24,17 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 
 
 ## For v0.0.5:
-- [X] The IQM Animation Scenario:
+- [ ] Generic Scenario:
+	- [ ] C++ Global Enum BitFlag Operators SCREAM AND CURSE AT YOU! BOOHOO!
+	      Turn that into a DEFINE_ENUM_BITFLAGS(enumtypename) instead._
+
+- [ ] The **VKPT** Scenario:
+	- [ ] Target Range -> Animated Textures which lol, do not animate, we merely use them right now
+			for visual trickstery. Such as a light switching colors. However, this fails, it ends up
+		    doing a silly light animation either way.
+	- [ ] fill_model_instance, use a proper bbox check for BSP_WORLD_MODEL isntead of pointleaf.
+
+- [X] The **IQM Animation** Scenario:
 	- [X] 0. Add in proper usage of entity type and adjust the client code to handle adding packet entities based on its type.
 			 This will simplify life in the future.
 	- [X] 1. Weapon code should use ``PlayAnimation("anim_name")``, or precache animIDs ``GetAnimationHandle("anim_name")``.
@@ -33,7 +43,8 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [X] 4. Client needs to detect animationID, time of change, and playback the animation from there
 			 using the animation info provided in the IQM data.
 	- [ ] 5. Redo the player animations properly once and for allOnce again.. sigh
-- [ ] The EDITOR/VIEWER Scenario:
+
+- [ ] The **EDITOR/VIEWER** Scenario:
 	- [ ] 0. A file selector dialog for use with the editors below.
 		     Use the demo browser as a reference material.
 	- [X] 1. A refresh material editor.
@@ -41,7 +52,8 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [ ] 3. A model viewer, allowing to speed up/down animations, as well as
 			 blend combining them, so it becomes easier to figure out the framerate
 			 you may want an animation to play at.
-- [ ] The Skeletal Model Info Scenario:
+
+- [ ] The **Skeletal Model Info** Scenario:
 	- [X] 0. For both, client and server, whenever an IQM file is loaded, so will be its matching
 			 .cfg file. This file will contain:
 		- [X] Name of Root Bone.
@@ -57,7 +69,7 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 		      (The more entities there are using a skeletal model, the more space we need.)
 	- [ ] 2. I am most likely forgetting some things, so first finish this entire list.
 
-- [ ] The LUA Scenario:
+- [ ] The **LUA** Scenario:
 	- [ ] (Somewhat optional, but useful really..) Add a stack debugger.
 	- [ ] Implement custom TagMalloc like allocator for Lua memory management.
 	- [X] Add support for edicts on the C side of life to implement OnSignal functionalities.

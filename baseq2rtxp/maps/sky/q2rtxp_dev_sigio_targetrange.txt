@@ -1,0 +1,11 @@
+# This file is part of the Q2RTX lighting system.
+# For this map, it lists BSP clusters with skybox and lava polygons
+# that have to be converted to analytic area lights.
+# For more information, see comments in the `path_tracer.h` file
+# in Q2RTX source code.
+#
+# show_pvs 1
+# pt_show_sky 1
+# $cl_cluster for player cluster
+# $cl_clusterthere for crosshair cluster
+11 12 15 4 17 35 33 42 41 32

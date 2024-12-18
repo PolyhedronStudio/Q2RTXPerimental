@@ -360,6 +360,7 @@ void door_close_move_done( edict_t *self ) {
     if ( damageActivates ) {
         if ( self->max_health ) {
             self->takedamage = DAMAGE_YES;
+            self->deadflag = DEADFLAG_DEAD;
             self->health = self->max_health;
             self->pain = door_pain;
         }
@@ -735,6 +736,7 @@ void SP_func_door( edict_t *ent ) {
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
+    ent->svflags |= SVF_DOOR;
     // BSP Model, or otherwise, specified external model.
     gi.setmodel( ent, ent->model );
 

@@ -47,7 +47,7 @@ const int32_t lua_edict_t::get_number() const {
 /**
 *	@brief
 **/
-void lua_edict_t::set_number( const int32_t number ) const {
+void lua_edict_t::set_number( const int32_t number ) {
 	// Do nothing.
 	// TODO: Error out?
 	return;
@@ -64,7 +64,7 @@ const int32_t lua_edict_t::get_state_frame() const {
 /**
 *	@brief Set (Brush-)Entity Frame.
 **/
-void lua_edict_t::set_state_frame( const int32_t number ) const {
+void lua_edict_t::set_state_frame( const int32_t number ) {
 	// Do nothing.
 	if ( this->edict != nullptr ) {
 		this->edict->s.frame = number;
@@ -92,10 +92,17 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	// Read Only:
 	//lua_edict_type.set( "number", sol::readonly( &lua_edict_t::edict->s.number ) );
 	lua_edict_type[ "number" ] = sol::property( &lua_edict_t::get_number, &lua_edict_t::set_number );
-
+	lua_edict_type[ "frame" ] = sol::property( &lua_edict_t::get_state_frame, &lua_edict_t::set_state_frame );
+	lua_edict_type[ "state" ] = solState.create_table_with( 
+		"frame", sol::property( &lua_edict_t::get_state_frame, &lua_edict_t::set_state_frame )
+	);
 	// Read/Write Entity State:
-	lua_edict_type[ "state" ] = solState.create_table();
-	lua_edict_type[ "state" ][ "frame" ] = sol::property( &lua_edict_t::get_state_frame, &lua_edict_t::set_state_frame );
-
+/*	lua_edict_type[ "state" ] = sol::property( [&solState]() -> sol::table { 
+		sol::table stateTable = solState.create_table();
+		stateTable["frame"] = sol::property( &lua_edict_t::get_state_frame, &lua_edict_t::set_state_frame );
+		return std::move(stateTable);
+	} );*///solState.create_table();
+	//lua_edict_type[ "state" ][ "frame" ] = sol::property( &lua_edict_t::get_state_frame, &lua_edict_t::set_state_frame );
+	
 	// Read/Write Entity Other:
 }

@@ -117,8 +117,9 @@ void SP_func_door_rotating( edict_t *ent ) {
     //SVG_SetMoveDir( ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
+    //ent->s.renderfx |= RF_BRUSHTEXTURE_SET_FRAME_INDEX;
     ent->s.entityType = ET_PUSHER;
-    //ent->svflags |= SVF_DOOR;
+    ent->svflags |= SVF_DOOR;
     // BSP Model, or otherwise, specified external model.
     gi.setmodel( ent, ent->model );
 
@@ -148,7 +149,7 @@ void SP_func_door_rotating( edict_t *ent ) {
     ent->blocked = door_blocked;
     ent->touch = door_touch;
     ent->use = door_use;
-    ent->pain = door_pain;
+    //ent->pain = door_pain;
     ent->onsignalin = door_onsignalin;
 
     // Calculate absolute move distance to get from pos1 to pos2.
@@ -171,12 +172,27 @@ void SP_func_door_rotating( edict_t *ent ) {
     const bool damageActivates = SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
     // Health trigger based door:
     if ( damageActivates ) {
-        // Set max health, also used to reinitialize the door to revive.
-        ent->max_health = ent->health;
-        // Let it take damage.
-        ent->takedamage = DAMAGE_YES;
-        // Die callback.
-        ent->die = door_killed;
+        // Spawn open, does not imply death, to do so, spawn open, set max_health for revival, and health to 0 for death.
+        if ( ent->max_health > 0 && ent->health <= 0 ) {
+            // Don't allow damaging.
+            ent->takedamage = DAMAGE_NO;
+            ent->deadflag = DEADFLAG_DEAD;
+            // Die callback.
+            ent->die = door_killed;
+            ent->pain = door_pain;
+        } else {
+            // Set max health, in case it wasn't set.also used to reinitialize the door to revive.
+            if ( !ent->health ) {
+                ent->health = ent->max_health;
+            }
+            // Let it take damage.
+            ent->takedamage = DAMAGE_YES;
+            ent->deadflag = DEADFLAG_NO;
+            // Die callback.
+            ent->die = door_killed;
+            ent->pain = door_pain;
+        }
+
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
         ent->think = Think_CalcMoveSpeed;
@@ -249,6 +265,10 @@ void SP_func_door_rotating( edict_t *ent ) {
     if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_ANIMATED_FAST ) ) {
         ent->s.effects |= EF_ANIM_ALLFAST;
     }
+    
+    // WID: TODO: Necessary? Default frame?
+    // WID: Perhaps better to allow as spawn key value field.
+    ent->s.frame = 0;
 
     // Locked or not locked?
     if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_START_LOCKED ) ) {
