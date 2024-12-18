@@ -213,8 +213,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 		bits |= U_OLDORIGIN;
 	} else if ( to->entityType == ET_BEAM || to->renderfx & RF_BEAM ) {
 		if ( flags & MSG_ES_BEAMORIGIN ) {
-			if ( !VectorCompare( to->old_origin, from->old_origin ) )
+			if ( !VectorCompare( to->old_origin, from->old_origin ) ) {
 				bits |= U_OLDORIGIN;
+			}
 		} else {
 			bits |= U_OLDORIGIN;
 		}
