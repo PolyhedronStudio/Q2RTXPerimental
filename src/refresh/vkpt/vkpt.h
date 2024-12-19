@@ -376,6 +376,9 @@ typedef struct
 
 	bool transparent;
 	bool masked;
+
+	//! <Q2RTXP>: WID: For animated (light-)brushes. 
+	const struct entity_s *entity;
 } bsp_model_t;
 
 typedef struct aabb_s {

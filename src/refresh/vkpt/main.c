@@ -1681,6 +1681,8 @@ static void fill_model_instance(ModelInstance* instance, const entity_t* entity,
 	int cluster = -1;
 	if (bsp_world_model)
 		cluster = BSP_PointLeaf(bsp_world_model->nodes, entity->origin)->cluster;
+
+	// <Q2RTXP>: WID: TODO: BoxOnPlaneSideFast for point leaf? So do an actual proper test instead.
 	
 	int frame = entity->frame;
 	int oldframe = entity->oldframe;
@@ -1766,8 +1768,9 @@ static inline void transform_point(const float* p, const float* matrix, float* r
 	VectorCopy(transformed, result); // vec4 -> vec3
 }
 
-static void instance_model_lights(int num_light_polys, const light_poly_t* light_polys, const float* transform)
+static void instance_model_lights(const entity_t *entity, int num_light_polys, const light_poly_t* light_polys, const float* transform)
 {
+	// Iterate over all light polygons.
 	for (int nlight = 0; nlight < num_light_polys; nlight++)
 	{
 		if (num_model_lights >= MAX_MODEL_LIGHTS)
@@ -1776,7 +1779,10 @@ static void instance_model_lights(int num_light_polys, const light_poly_t* light
 			break;
 		}
 
+		// Source light poly buffer to copy from.
 		const light_poly_t* src_light = light_polys + nlight;
+
+		// Destination light poly instance buffer to insert data to.
 		light_poly_t* dst_light = model_lights + num_model_lights;
 
 		// Transform the light's positions and center
@@ -1785,18 +1791,22 @@ static void instance_model_lights(int num_light_polys, const light_poly_t* light
 		transform_point(src_light->positions + 6, transform, dst_light->positions + 6);
 		transform_point(src_light->off_center, transform, dst_light->off_center);
 
+		// Assign entity.
+		//dst_light->entity = entity;
 		// Find the cluster based on the center. Maybe it's OK to use the model's cluster, need to test.
 		dst_light->cluster = BSP_PointLeaf(bsp_world_model->nodes, dst_light->off_center)->cluster;
-
+		
 		// We really need to map these lights to a cluster
-		if (dst_light->cluster < 0)
+		if ( dst_light->cluster < 0 ) {
 			continue;
+		}
 
 		// Copy the other light properties
 		VectorCopy(src_light->color, dst_light->color);
 		dst_light->material = src_light->material;
 		dst_light->style = src_light->style;
 
+		// Increment, we added a new model light to the instance list.
 		num_model_lights++;
 	}
 }
@@ -1822,6 +1832,9 @@ static void process_bsp_entity(const entity_t* entity, int* instance_count)
 	create_entity_matrix(transform, (entity_t*)entity);
 
 	bsp_model_t* model = vkpt_refdef.bsp_mesh_world.models + (~entity->model);
+
+	// Assign entity.
+	model->entity = entity;
 
 	vec3_t origin;
 	transform_point(model->center, transform, origin);
@@ -1879,11 +1892,11 @@ static void process_bsp_entity(const entity_t* entity, int* instance_count)
 	mi->render_buffer_idx = VERTEX_BUFFER_WORLD;
 	mi->render_prim_offset = model->geometry.prim_offsets[0];
 	
-	instance_model_lights(model->num_light_polys, model->light_polys, transform);
+	instance_model_lights(entity, model->num_light_polys, model->light_polys, transform);
 
 	if (model->geometry.accel)
 	{
-		// WID: RF_NOSHADOW
+		// <Q2RTXP>: WID: RF_NOSHADOW
 		uint32_t override_masks = ( mi->alpha_and_frame < 1.f ) ? AS_FLAG_TRANSPARENT : 0;
 
 		if ( entity->flags & RF_NOSHADOW )
@@ -1891,7 +1904,7 @@ static void process_bsp_entity(const entity_t* entity, int* instance_count)
 
 		vkpt_pt_instance_model_blas( &model->geometry, mi->transform, VERTEX_BUFFER_WORLD, current_instance_idx, override_masks );
 		//vkpt_pt_instance_model_blas( &model->geometry, mi->transform, VERTEX_BUFFER_WORLD, current_instance_idx, ( mi->alpha_and_frame < 1.f ) ? AS_FLAG_TRANSPARENT : 0 );
-		// WID: RF_NOSHADOW
+		// <Q2RTXP>: WID: RF_NOSHADOW
 
 	}
 
@@ -1979,14 +1992,14 @@ static void process_regular_entity(
 
 			uint32_t model_index = (uint32_t)(model - r_models);
 
-			// WID: RF_NOSHADOW
+			// <Q2RTXP>: WID: RF_NOSHADOW
 			uint32_t override_masks = ( alpha < 1.f ) ? AS_FLAG_TRANSPARENT : 0;
 
 			if ( entity->flags & RF_NOSHADOW )
 				override_masks |= AS_FLAG_OPAQUE_NO_SHADOW;
 			vkpt_pt_instance_model_blas( geom, transform_, VERTEX_BUFFER_FIRST_MODEL + model_index, current_instance_index, override_masks );
 			//vkpt_pt_instance_model_blas( geom, transform_, VERTEX_BUFFER_FIRST_MODEL + model_index, current_instance_index, ( alpha < 1.f ) ? AS_FLAG_TRANSPARENT : 0 );
-			// WID: RF_NOSHADOW
+			// <Q2RTXP>: WID: RF_NOSHADOW
 		}
 	}
 
@@ -2163,7 +2176,7 @@ prepare_entities(EntityUploadInfo* upload_info)
 				else
 					create_entity_matrix(transform, (entity_t*)entity);
 
-				instance_model_lights(model->num_light_polys, model->light_polys, transform);
+				instance_model_lights(entity, model->num_light_polys, model->light_polys, transform);
 			}
 		}
 	}

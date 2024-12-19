@@ -165,8 +165,10 @@ void CLG_AddPacketEntities( void ) {
         skm_transform_t *bonePoses = packetEntity->refreshEntity.bonePoses;
         // Setup the refresh entity ID to match that of the client game entity with the RESERVED_ENTITY_COUNT in mind.
         packetEntity->refreshEntity = {
+            .frame = packetEntity->refreshEntity.frame,
+            //.oldframe = packetEntity->refreshEntity.oldframe,
             .id = RENTITIY_RESERVED_COUNT + packetEntity->id,
-            .bonePoses = bonePoses
+            .bonePoses = bonePoses,
         };
 
         // WID: TODO: Move to client where it determines old/new states.

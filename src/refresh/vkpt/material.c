@@ -542,7 +542,7 @@ static uint32_t load_material_file(const char* file_name, pbr_material_t* dest, 
 		{
 			char *t = strchr( linebuf, '#' );
 			// remove comments, in case it actually IS a comment...
-			if ( t && ( (t + 1) < sizeof(linebuf) && *(t + 1) == ' ' ) ) {
+			if ( t && ( (t + 1) < (char*)sizeof(linebuf) && *(t + 1) == ' ' ) ) { // <Q2RTXP> WID: Added cast to char* for this in MSVC: warning C4047: '<': 'char *' differs in levels of indirection from 'size_t'
 				*t = 0;
 			}   
 		}

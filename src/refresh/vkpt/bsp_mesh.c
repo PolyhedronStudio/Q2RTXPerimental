@@ -966,18 +966,22 @@ collect_one_light_poly_entire_texture(bsp_t *bsp, mface_t *surf, mtexinfo_t *tex
 		VectorScale(light_color, emissive_factor, light.color);
 
 		light.material = texinfo->material;
+		light.material_base = texinfo->material;
 		light.style = light_style;
-
-		if(!get_triangle_off_center(light.positions, light.off_center, NULL, 1.f))
+		light.entity = surf->entity;
+		
+		if ( !get_triangle_off_center( light.positions, light.off_center, NULL, 1.f ) ) {
 			continue;
+		}
 
 		light.emissive_factor = emissive_factor;
 		
-		if (model_idx >= 0)
+		if ( model_idx >= 0 ) {
 			light.cluster = -1; // Cluster will be determined when the model is instanced
-		else
-			light.cluster = BSP_PointLeaf(bsp->nodes, light.off_center)->cluster;
-		
+		} else {
+			light.cluster = BSP_PointLeaf( bsp->nodes, light.off_center )->cluster;
+		}
+
 		if (model_idx >= 0 || light.cluster >= 0)
 		{
 			light_poly_t* list_light = append_light_poly(num_lights, allocated_lights, lights);
@@ -1119,7 +1123,10 @@ collect_one_light_poly(bsp_t *bsp, mface_t *surf, mtexinfo_t *texinfo, int model
 				int i2 = (i + 1) % e;
 
 				light_poly_t* light = append_light_poly(num_lights, allocated_lights, lights);
+				// If any, use surface entity.
+				light->entity = surf->entity;
 				light->material = texinfo->material;
+				light->material_base = texinfo->material;
 				light->style = light_style;
 				light->emissive_factor = emissive_factor;
 				VectorCopy(instance_positions[0], light->positions + 0);
@@ -1328,11 +1335,16 @@ collect_sky_and_lava_light_polys(bsp_mesh_t *wm, bsp_t* bsp)
 			{
 				VectorSet(light.color, -1.f, -1.f, -1.f); // special value for the sky
 				light.material = 0;
+				light.material_base = 0;
+				light.entity = NULL;
 			}
 			else
 			{
 				VectorCopy(surf->texinfo->material->image_emissive->light_color, light.color);
 				light.material = surf->texinfo->material;
+				light.material_base = surf->texinfo->material;
+				// If any, use surface entity.
+				light.entity = surf->entity;
 			}
 
 			light.style = 0;
@@ -1827,6 +1839,8 @@ bsp_mesh_create_custom_sky_prims(uint32_t* prim_ctr, bsp_mesh_t* wm, const bsp_t
 		VectorSet(light->color, -1.f, -1.f, -1.f); // special value for the sky
 		VectorCopy(center, light->off_center);
 		light->material = 0;
+		light->material_base = 0;
+		light->entity = NULL;
 		light->style = 0;
 		light->cluster = cluster;
 
@@ -2071,31 +2085,108 @@ bsp_mesh_register_textures(bsp_t *bsp)
 	}
 }
 
-static void animate_light_polys(int num_light_polys, light_poly_t *light_polys)
+/**
+*	@brief	Animates the material chain for the BSP world model light polygons.
+**/
+static void animate_world_light_polys(int num_light_polys, light_poly_t *light_polys)
 {
 	for (int i = 0; i < num_light_polys; i++)
 	{
-		pbr_material_t *material = light_polys[i].material;
+		light_poly_t *light_poly = &light_polys[ i ];
+
+		pbr_material_t *material = light_poly->material;
 		if(!material || (material->num_frames <= 1))
 			continue;
 
 		pbr_material_t *new_material = r_materials + material->next_frame;
-		light_polys[i].material = new_material;
-		float emissive_factor = new_material->emissive_factor * light_polys[i].emissive_factor;
-		if(new_material->image_emissive)
-			VectorScale(new_material->image_emissive->light_color, emissive_factor, light_polys[i].color);
-		else
-			VectorSet(light_polys[i].color, 0, 0, 0);
+		light_poly->material = new_material;
+		float emissive_factor = new_material->emissive_factor * light_poly->emissive_factor;
+		if ( new_material->image_emissive ) {
+			VectorScale( new_material->image_emissive->light_color, emissive_factor, light_poly->color );
+		} else {
+			VectorSet( light_poly->color, 0, 0, 0 );
+		}
 	}
 }
 
+/**
+*	@brief	Animates the material chain for the inline-BSP model entity light polygons.
+*			RF_BRUSHTEXTURE_SET_FRAME_INDEX flag is set, iterates to the hard set entity 'frame' number instead.
+**/
+static void animate_inline_model_light_polys( bsp_model_t *model, int num_light_polys, light_poly_t *light_polys ) {
+	// Otherwise, just properly animate instead.
+	for ( int i = 0; i < num_light_polys; i++ ) {
+		// Get light poly.
+		light_poly_t *light_poly = &light_polys[ i ];
+		// Get actual current poly material.
+		pbr_material_t *material = light_poly->material;
+		// Get actual base poly material.
+		pbr_material_t *material_base = light_poly->material_base;
+
+		// Ensure it is valid, and actually has an animation setup for it.
+		if ( !material || ( material->num_frames <= 1 ) ) {
+			continue;
+		}
+
+		// Default to NULL, bad, bad, lol.
+		pbr_material_t *new_material = NULL;// = r_materials + material->next_frame;
+
+		// If we are dealing with an entity that demands a 'hard frame set':
+		// Iterate through the materials 'next frames'.
+		const entity_t *bsp_model_entity = model->entity;
+		if ( ( bsp_model_entity && ( bsp_model_entity->flags & RF_BRUSHTEXTURE_SET_FRAME_INDEX ) ) ) {
+			// Subtract active frame from current material index, so we can get the previous material to addition to.
+			new_material = r_materials + ( material_base - r_materials );
+
+			// The probable, to assign, new material.
+			pbr_material_t *probable_new_material = NULL;
+			// Current frame accumulator for iterating the chain.
+			int material_chain_index = 0;
+			// Iterate it up till frame number.
+			while ( material_chain_index++ < bsp_model_entity->frame ) {
+				// Assign next frame's material.
+				pbr_material_t *probable_new_material = r_materials + new_material->next_frame;
+
+				if ( !probable_new_material /*|| ( probable_new_material->num_frames <= 1 )*/ ) {
+					continue;
+				}
+				// Assign it as being the new to apply material.
+				new_material = probable_new_material;
+
+				// Break if we're at the last frame.
+				if ( new_material != NULL && ( new_material->num_frames <= 1 ) ) {
+					break;
+				}
+			}
+		// Otherwise, just pick whichever next frame is in the chain.
+		} else {
+			// Assign next frame's material.
+			new_material = r_materials + material->next_frame;
+		}
+
+		// Apply whichever material we wound up with.
+		light_poly->material = new_material;
+		// Calculate actual active emissive factor based on (new_material_emission * current_light_poly_emission).
+		const float emissive_factor = new_material->emissive_factor * light_poly->emissive_factor;
+		// Apply emissive material data if it has an emissive image set. (factor, color).
+		if ( new_material->image_emissive ) {
+			VectorScale( new_material->image_emissive->light_color, emissive_factor, light_poly->color );
+		} else {
+			VectorSet( light_poly->color, 0, 0, 0 );
+		}
+	}
+}
+
+/**
+*	@brief	Animate all the world's BSP mesh texture chains. (Also for the inline-BSP model entities).
+**/
 void bsp_mesh_animate_light_polys(bsp_mesh_t *wm)
 {
-	animate_light_polys(wm->num_light_polys, wm->light_polys);
+	animate_world_light_polys(wm->num_light_polys, wm->light_polys);
 	for (int k = 0; k < wm->num_models; k++)
 	{
 		bsp_model_t* model = wm->models + k;
-		animate_light_polys(model->num_light_polys, model->light_polys);
+		animate_inline_model_light_polys(model, model->num_light_polys, model->light_polys);
 	}
 }
 

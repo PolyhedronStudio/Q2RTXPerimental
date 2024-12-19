@@ -115,10 +115,16 @@ typedef struct light_poly_s {
     float positions[ 9 ]; // 3x vec3_t
     vec3_t off_center;
     vec3_t color;
-    struct pbr_material_s *material;
     int cluster;
     int style;
     float emissive_factor;
+    // <Q2RTXP: WID: Regular, currently active, material.
+    struct pbr_material_s *material;
+    //! <Q2RTXP>: WID: Used for animated textures with a hard set frame.
+    //! Helps us acquire the actual frame based on its next_frame member(s).
+    struct pbr_material_s *material_base;
+    //! <Q2RTXP>: WID: For animated lightbrushes. 
+    struct entity_s *entity;
 } light_poly_t;
 
 

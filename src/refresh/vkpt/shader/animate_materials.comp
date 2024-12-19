@@ -55,6 +55,7 @@ main()
 
 	if(minfo.num_frames > 1)
 	{
+		// Keep the flags of root frame material by reapplying them to the next_frame material index.
 		new_material = minfo.next_frame | (new_material & ~MATERIAL_INDEX_MASK);
 	}
 

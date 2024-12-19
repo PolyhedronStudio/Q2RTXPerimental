@@ -117,7 +117,7 @@ void SP_func_door_rotating( edict_t *ent ) {
     //SVG_SetMoveDir( ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
-    //ent->s.renderfx |= RF_BRUSHTEXTURE_SET_FRAME_INDEX;
+    ent->s.renderfx |= RF_BRUSHTEXTURE_SET_FRAME_INDEX;
     ent->s.entityType = ET_PUSHER;
     ent->svflags |= SVF_DOOR;
     // BSP Model, or otherwise, specified external model.
