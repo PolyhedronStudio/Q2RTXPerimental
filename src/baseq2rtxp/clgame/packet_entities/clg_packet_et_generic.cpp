@@ -79,11 +79,7 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *re
     } else {
         refreshEntity->frame = newState->frame;
     }
-    //if ( packetEntity->prev.frame != newState->frame ) {
-        if ( packetEntity->current.entityType == ET_PUSHER ) {
-            int x = 10;
-        }
-    //}
+
     // Setup the old frame.
     refreshEntity->oldframe = packetEntity->prev.frame;
     // Backlerp.
@@ -412,13 +408,26 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
 
     // Colored Shells:
     // Reapply the aforementioned base_entity_flags to the refresh entity.
-    refreshEntity->flags |= base_entity_flags;
-    // The base entity has the renderfx set on it for 'Shell' effect.
-    if ( ( effects & EF_COLOR_SHELL ) ) {
-        refreshEntity->flags |= renderfx;
+    if ( clgi.GetRefreshType() == REF_TYPE_GL ) {
+        // Add entity to refresh list
+        clgi.V_AddEntity( refreshEntity );
+
+        // The base entity has the renderfx set on it for 'Shell' effect.
+        if ( ( effects & EF_COLOR_SHELL ) ) {
+            // color shells generate a separate entity for the main model
+            refreshEntity->flags |= base_entity_flags;
+            refreshEntity->flags |= renderfx;
+            // Add entity to refresh list
+            clgi.V_AddEntity( refreshEntity );
+        }
+    } else {
+        // The base entity has the renderfx set on it for 'Shell' effect.
+        if ( ( effects & EF_COLOR_SHELL ) ) {
+            refreshEntity->flags |= renderfx;
+        }
+        // Add entity to refresh list
+        clgi.V_AddEntity( refreshEntity );
     }
-    // Add entity to refresh list
-    clgi.V_AddEntity( refreshEntity );
 
     // #(2nd) Model Index: Reset skin, skinnum, apply base_entity_flags       
     refreshEntity->skin = 0;
