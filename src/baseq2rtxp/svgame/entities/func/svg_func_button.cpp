@@ -36,10 +36,10 @@ static constexpr int32_t BUTTON_SPAWNFLAG_LOCKED            = BIT( 5 );
 /**
 *   For readability's sake:
 **/
-static constexpr int32_t BUTTON_STATE_PRESSED                   = PUSHMOVE_STATE_TOP;
-static constexpr int32_t BUTTON_STATE_UNPRESSED                 = PUSHMOVE_STATE_BOTTOM;
-static constexpr int32_t BUTTON_STATE_MOVING_TO_PRESSED_STATE   = PUSHMOVE_STATE_MOVING_UP;
-static constexpr int32_t BUTTON_STATE_MOVING_TO_UNPRESSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
+static constexpr svg_pushmove_state_t BUTTON_STATE_PRESSED                   = PUSHMOVE_STATE_TOP;
+static constexpr svg_pushmove_state_t BUTTON_STATE_UNPRESSED                 = PUSHMOVE_STATE_BOTTOM;
+static constexpr svg_pushmove_state_t BUTTON_STATE_MOVING_TO_PRESSED_STATE   = PUSHMOVE_STATE_MOVING_UP;
+static constexpr svg_pushmove_state_t BUTTON_STATE_MOVING_TO_UNPRESSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
 
 
 /**
@@ -133,8 +133,8 @@ void button_unpress_move_done( edict_t *self ) {
     // We're unpressed, thus use the 'start' frame.
     self->s.frame = ( isStartPressed ? self->pushMoveInfo.endFrame : self->pushMoveInfo.startFrame );
     // Adjust entity animation effects for the client to display.
-    //self->s.effects &= ~EF_ANIM23;
-    //self->s.effects |= EF_ANIM01;
+    self->s.effects &= ~EF_ANIM23;
+    self->s.effects |= EF_ANIM01;
 
     /**
     *   Respond to the Pressing of the button.
@@ -211,6 +211,9 @@ void button_press_move_done( edict_t *self ) {
     **/
     // We're pressed, thus use the 'end' frame.
     self->s.frame = ( isStartPressed ? self->pushMoveInfo.startFrame : self->pushMoveInfo.endFrame );
+    // Adjust entity animation effects for the client to display.
+    self->s.effects &= ~EF_ANIM01;
+    self->s.effects |= EF_ANIM23;
 
     if ( isTouchButton ) {
         // If it is a touch button, reassign the touch callback.
@@ -290,6 +293,7 @@ void button_unpress_move( edict_t *self ) {
     // Adjust movement state info.
     self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_UNPRESSED_STATE;
     // Adjust entity animation effects for the client to display, 
+    // 
     // by determining the new material texture animation.
     //button_determine_animation( self, self->pushMoveInfo.state );
     #ifdef FUNC_BUTTON_ENABLE_END_SOUND
@@ -748,8 +752,19 @@ void SP_func_button( edict_t *ent ) {
         ent->pushMoveInfo.startFrame = BUTTON_FRAME_UNPRESSED_0;
         ent->pushMoveInfo.endFrame = BUTTON_FRAME_PRESSED_0;
     }
+
     // Initial start frame.
     ent->s.frame = ent->pushMoveInfo.startFrame;
+    // Default animation effects.
+    // <Q2RTXP>: WID: TODO: Guess it's nice if you can determine animation style yourself, right?
+    // if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_ANIMATED ) ) {
+    if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_START_PRESSED ) ) {
+        ent->s.effects |= EF_ANIM01; // EF_ANIM_CYCLE2_2HZ;
+    } else {
+        ent->s.effects |= EF_ANIM23; // EF_ANIM_CYCLE2_2HZ;
+    }
+    // }
+
     //ent->pushMoveInfo.startOrigin = ent->pos1;
     ent->pushMoveInfo.startAngles = ent->s.angles;
     //ent->pushMoveInfo.endOrigin = ent->pos2;
@@ -757,8 +772,6 @@ void SP_func_button( edict_t *ent ) {
 
     // Default trigger callback.
     ent->use = button_use;
-    // Default animation effects.
-    ent->s.effects |= EF_ANIM_CYCLE2_2HZ;
 
     // Used for condition checking, if we got a damage activating button we don't want to have it support pressing.
     const bool damageActivates = SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES );
@@ -773,14 +786,14 @@ void SP_func_button( edict_t *ent ) {
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
         ent->think = Think_CalcMoveSpeed;
-        // Touch based button:
+    // Touch based button:
     } else if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_TOUCH_ACTIVATES ) ) {
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
         ent->think = Think_CalcMoveSpeed;
         // Trigger use callback.
         ent->touch = button_touch;
-        // Otherwise check for +usetarget features of this button:
+    // Otherwise check for +usetarget features of this button:
     } else {
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
