@@ -1804,6 +1804,7 @@ static void instance_model_lights(const entity_t *entity, int num_light_polys, c
 		// Copy the other light properties
 		VectorCopy(src_light->color, dst_light->color);
 		dst_light->material = src_light->material;
+		dst_light->material_base = src_light->material_base;
 		dst_light->style = src_light->style;
 
 		// Increment, we added a new model light to the instance list.

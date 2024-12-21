@@ -2114,6 +2114,10 @@ static void animate_world_light_polys(int num_light_polys, light_poly_t *light_p
 *			RF_BRUSHTEXTURE_SET_FRAME_INDEX flag is set, iterates to the hard set entity 'frame' number instead.
 **/
 static void animate_inline_model_light_polys( bsp_model_t *model, int num_light_polys, light_poly_t *light_polys ) {
+	const entity_t *bsp_model_entity = model->entity;
+	bool bsp_model = bsp_model_entity && ( ( bsp_model_entity->model & 0x80000000 ) );
+	bool is_hard_frame_set = ( bsp_model && ( bsp_model_entity->flags & RF_BRUSHTEXTURE_SET_FRAME_INDEX ) );
+
 	// Otherwise, just properly animate instead.
 	for ( int i = 0; i < num_light_polys; i++ ) {
 		// Get light poly.
@@ -2134,18 +2138,24 @@ static void animate_inline_model_light_polys( bsp_model_t *model, int num_light_
 		// If we are dealing with an entity that demands a 'hard frame set':
 		// Iterate through the materials 'next frames'.
 		const entity_t *bsp_model_entity = model->entity;
-		if ( ( bsp_model_entity && ( bsp_model_entity->flags & RF_BRUSHTEXTURE_SET_FRAME_INDEX ) ) ) {
+		if ( bsp_model && is_hard_frame_set ) {
+			// Ensure it is valid, and actually has an animation setup for it.
+			if ( material_base && ( material_base->num_frames <= 1 ) ) {
+				new_material = material_base;
+				continue;
+			}
+
 			// Subtract active frame from current material index, so we can get the previous material to addition to.
 			new_material = r_materials + ( material_base - r_materials );
 
 			// The probable, to assign, new material.
-			pbr_material_t *probable_new_material = NULL;
+			pbr_material_t *probable_new_material = new_material;
 			// Current frame accumulator for iterating the chain.
 			int material_chain_index = 0;
 			// Iterate it up till frame number.
 			while ( material_chain_index++ < bsp_model_entity->frame ) {
 				// Assign next frame's material.
-				pbr_material_t *probable_new_material = r_materials + new_material->next_frame;
+				probable_new_material = r_materials + new_material->next_frame;
 
 				if ( !probable_new_material /*|| ( probable_new_material->num_frames <= 1 )*/ ) {
 					continue;
