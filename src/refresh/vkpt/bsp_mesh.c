@@ -2115,8 +2115,8 @@ static void animate_world_light_polys(int num_light_polys, light_poly_t *light_p
 **/
 static void animate_inline_model_light_polys( bsp_model_t *model, int num_light_polys, light_poly_t *light_polys ) {
 	const entity_t *bsp_model_entity = model->entity;
-	bool bsp_model = bsp_model_entity && ( ( bsp_model_entity->model & 0x80000000 ) );
-	bool is_hard_frame_set = ( bsp_model && ( bsp_model_entity->flags & RF_BRUSHTEXTURE_SET_FRAME_INDEX ) );
+	bool bsp_model = ( bsp_model_entity != NULL && ( bsp_model_entity->model & 0x80000000 ) ? true : false );
+	bool is_hard_frame_set = ( bsp_model == true && ( bsp_model_entity->flags & RF_BRUSHTEXTURE_SET_FRAME_INDEX ) ? true : false );
 
 	// Otherwise, just properly animate instead.
 	for ( int i = 0; i < num_light_polys; i++ ) {
@@ -2128,17 +2128,17 @@ static void animate_inline_model_light_polys( bsp_model_t *model, int num_light_
 		pbr_material_t *material_base = light_poly->material_base;
 
 		// Ensure it is valid, and actually has an animation setup for it.
-		if ( !material || ( material->num_frames <= 1 ) ) {
+		if ( !material || ( material && material->num_frames <= 1 ) ) {
 			continue;
 		}
 
 		// Default to NULL, bad, bad, lol.
-		pbr_material_t *new_material = NULL;// = r_materials + material->next_frame;
+		pbr_material_t *new_material = material;// = r_materials + material->next_frame;
 
 		// If we are dealing with an entity that demands a 'hard frame set':
 		// Iterate through the materials 'next frames'.
 		const entity_t *bsp_model_entity = model->entity;
-		if ( bsp_model && is_hard_frame_set ) {
+		if ( bsp_model && is_hard_frame_set && material_base ) {
 			// Ensure it is valid, and actually has an animation setup for it.
 			if ( material_base && ( material_base->num_frames <= 1 ) ) {
 				new_material = material_base;

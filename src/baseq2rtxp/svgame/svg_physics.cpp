@@ -173,23 +173,35 @@ Slide off of the impacting object
 returns the blocked flags (1 = floor, 2 = step / wall)
 ==================
 */
-#define CLIPVELOCITY_STOP_EPSILON    0.1f
+static constexpr double CLIPVELOCITY_STOP_EPSILON = 0.1;
 //! Return bit set in case of having clipped to a floor plane.
 static constexpr int32_t CLIPVELOCITY_CLIPPED_FLOOR = BIT( 0 );
 //! Return bit set in case of having clipped to a step plane. (Straight up wall.)
-static constexpr int32_t CLIPVELOCITY_CLIPPED_STEP  = BIT( 0 );
+static constexpr int32_t CLIPVELOCITY_CLIPPED_STEP  = BIT( 1 );
+//! Return bit set in case of having resulting in a dead stop. ( Corner or such. )
+static constexpr int32_t CLIPVELOCITY_CLIPPED_DEAD_STOP = BIT( 2 );
+//! Return bit set in case of being trapped inside a solid.
+static constexpr int32_t CLIPVELOCITY_CLIPPED_STUCK_SOLID = BIT( 3 );
+//! Return bit set in case of num of clipped planes overflowing. ( Should never happen. )
+static constexpr int32_t CLIPVELOCITY_CLIPPED_OVERFLOW = BIT( 4 );
+//! Return bit set in case of stopping because if the crease not matching 2 planes.
+static constexpr int32_t CLIPVELOCITY_CLIPPED_CREASE_STOP = BIT( 5 );
 
-const int32_t SVG_Physics_ClipVelocity( Vector3 &in, vec3_t normal, Vector3 &out, const double overbounce) {
+
+const int32_t SVG_Physics_ClipVelocity( Vector3 &in, vec3_t normal, Vector3 &out, const double overbounce ) {
     // Determine if clip got 'blocked'.
     int32_t blocked = 0;
+    // Floor:
     if ( normal[ 2 ] > 0 ) {
-        blocked |= 1;       // floor
+        blocked |= CLIPVELOCITY_CLIPPED_FLOOR;
     }
+    // Step/Wall:
     if ( !normal[ 2 ] ) {
-        blocked |= 2;       // step
+        blocked |= CLIPVELOCITY_CLIPPED_STEP;
     }
+
     // Backoff factor.
-    const float backOff = QM_Vector3DotProduct(in, normal) * overbounce;
+    const double backOff = QM_Vector3DotProduct(in, normal) * overbounce;
 
     // Calculate and apply change.
     for ( int32_t i = 0; i < 3; i++ ) {
@@ -252,7 +264,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
         if (trace.allsolid) {
             // entity is trapped in another solid
             VectorClear(ent->velocity);
-            return 3;
+            return CLIPVELOCITY_CLIPPED_STUCK_SOLID;
         }
 
         if (trace.fraction > 0) {
@@ -268,14 +280,14 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
         hit = trace.ent;
 
         if (trace.plane.normal[2] > 0.7f) {
-            blocked |= 1;       // floor
+            blocked |= CLIPVELOCITY_CLIPPED_FLOOR;       // floor
             if (hit->solid == SOLID_BSP) {
                 ent->groundInfo.entity = hit;
                 ent->groundInfo.entityLinkCount = hit->linkcount;
             }
         }
         if (!trace.plane.normal[2]) {
-            blocked |= 2;       // step
+            blocked |= CLIPVELOCITY_CLIPPED_STEP;       // step
         }
 
 //
@@ -291,7 +303,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
         if (numplanes >= MAX_CLIP_PLANES) {
             // this shouldn't really happen
             VectorClear(ent->velocity);
-            return 3;
+            return CLIPVELOCITY_CLIPPED_OVERFLOW;
         }
 
         VectorCopy(trace.plane.normal, planes[numplanes]);
@@ -301,7 +313,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
 // modify original_velocity so it parallels all of the clip planes
 //
         for (i = 0; i < numplanes; i++) {
-            SVG_Physics_ClipVelocity(original_velocity, &planes[i].x, new_velocity, 1);
+            blocked |= SVG_Physics_ClipVelocity( original_velocity, &planes[i].x, new_velocity, 1 );
 
             for (j = 0; j < numplanes; j++)
                 if ((j != i) && !VectorCompare(planes[i], planes[j])) {
@@ -320,7 +332,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
             if (numplanes != 2) {
 //              gi.dprintf ("clip velocity, numplanes == %i\n",numplanes);
                 VectorClear(ent->velocity);
-                return 7;
+                return CLIPVELOCITY_CLIPPED_CREASE_STOP;
             }
             CrossProduct(planes[0], planes[1], dir);
             d = DotProduct(dir, ent->velocity);
@@ -333,7 +345,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
 //
         if (DotProduct(ent->velocity, primal_velocity) <= 0) {
             VectorClear(ent->velocity);
-            return blocked;
+            return blocked | CLIPVELOCITY_CLIPPED_DEAD_STOP;
         }
     }
 

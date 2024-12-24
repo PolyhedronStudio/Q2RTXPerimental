@@ -222,9 +222,16 @@ void button_press_move_done( edict_t *self ) {
         }
     }
     
-    // If button has to remain pushed, or is a 'Toggleable':
-    if ( stayPressed || ( isToggleButton && isToggleUseTarget ) || /*isTouchButton || */( isContinuousState && isContinuousUseTarget ) ) {
-
+    // If button has to remain pushed,
+    if ( stayPressed 
+        // or is a 'Touchable',
+        /* || isTouchButton || */
+        // or is a 'Toggleable',
+        || ( isToggleButton && isToggleUseTarget ) 
+        // or a 'Continuous Usable':
+        || ( isContinuousState || isContinuousUseTarget ) ) 
+    {
+            // Don't do anything in regards to applying the wait time.
     // If a wait time has been set, use it for when to trigger the button's return(unpressing).
     } else {
         // Is press button?
@@ -237,7 +244,9 @@ void button_press_move_done( edict_t *self ) {
     }
 
     // Trigger UseTargets
-    SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+    if ( !isContinuousUseTarget ) {
+        SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+    }
     // Dispatch a signal.
     SVG_SignalOut( self, self->other, self->activator, "OnPressed" );
 }
@@ -274,6 +283,16 @@ void button_press_move( edict_t *self ) {
     if ( isTouchButton ) {
         SVG_SignalOut( self, self->other, self->activator, "OnTouchPress" );
     }
+    // Continous button?
+    const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    // Continous active?
+    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    // Signal its unpress.
+    if ( isContinuousUseTarget && !isContinuousState ) {
+        // Dispatch a signal.
+        SVG_SignalOut( self, self->other, self->activator, "OnContinuousPress" );
+    }
+
     // Signal Testing:
     #if 0
     // Signal arguments.
@@ -311,6 +330,16 @@ void button_unpress_move( edict_t *self ) {
     if ( isTouchButton ) {
         SVG_SignalOut( self, self->other, self->activator, "OnTouchUnPress" );
     }
+    
+    // Continous button?
+    const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    // Continous active?
+    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    // Signal its unpress.
+    if ( isContinuousUseTarget && !isContinuousState ) {
+        // Dispatch a signal.
+        SVG_SignalOut( self, self->other, self->activator, "OnContinuousUnPress" );
+    }
 }
 
 
@@ -340,18 +369,19 @@ void button_think_return( edict_t *self ) {
     if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED && isContinuousUseTarget && isContinuousState ) {
         self->nextthink = level.time + FRAME_TIME_MS;
         self->think = button_think_return;
+
         // Trigger UseTargets
         SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_SET, 1 );
 
         // Dispatch a signal.
-        SVG_SignalOut( self, self->other, self->activator, "OnContinuousPress" );
+        SVG_SignalOut( self, self->other, self->activator, "OnContinuousPressed" );
 
         // Get out.
         return;
     }
 
     // Move back to the button's 'Unpressed' state.
-    if ( !SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
+    if ( !isContinuousState ) {
         // Unpress itself.
         button_unpress_move( self );
         // If it is a continuous button...
@@ -491,7 +521,7 @@ void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *
             // Trigger UseTargets
             SVG_UseTargets( self, self->activator, useType, useValue );
             // Dispatch a signal.
-            SVG_SignalOut( self, self->other, self->activator, "OnContinuousPress" );
+            SVG_SignalOut( self, self->other, self->activator, "OnContinuousPressed" );
             return;
         }
 
@@ -500,7 +530,7 @@ void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *
             // Engage in unpress movement.
             button_unpress_move( self );
         }
-    } else if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED ){
+    } else if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED ) {
         //if ( !isContinuousState ) {
             // Engage in press movement.
             button_press_move( self );
@@ -755,6 +785,7 @@ void SP_func_button( edict_t *ent ) {
 
     // Initial start frame.
     ent->s.frame = ent->pushMoveInfo.startFrame;
+
     // Default animation effects.
     // <Q2RTXP>: WID: TODO: Guess it's nice if you can determine animation style yourself, right?
     // if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_ANIMATED ) ) {
