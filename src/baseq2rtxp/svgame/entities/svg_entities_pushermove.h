@@ -12,12 +12,12 @@
 
 
 /**
-*	State Constants:
+*	@brief	State Constants, top and down are synonymous to open and close, up to opening, down to closing.
 **/
-static constexpr int32_t PUSHMOVE_STATE_TOP = 0;
-static constexpr int32_t PUSHMOVE_STATE_BOTTOM = 1;
-static constexpr int32_t PUSHMOVE_STATE_MOVING_UP = 2;
-static constexpr int32_t PUSHMOVE_STATE_MOVING_DOWN = 3;
+//static constexpr int32_t PUSHMOVE_STATE_TOP = 0;
+//static constexpr int32_t PUSHMOVE_STATE_BOTTOM = 1;
+//static constexpr int32_t PUSHMOVE_STATE_MOVING_UP = 2;
+//static constexpr int32_t PUSHMOVE_STATE_MOVING_DOWN = 3;
 
 /**
 *
@@ -69,7 +69,7 @@ void SVG_PushMove_AngleMoveFinal( edict_t *ent );
 **/
 void SVG_PushMove_AngleMoveBegin( edict_t *ent );
 /**
-*   @brief
+*   @brief	
 **/
 void SVG_PushMove_AngleMoveCalculate( edict_t *ent, svg_pushmove_endcallback endMoveCallback );
 /**

@@ -21,20 +21,31 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
 
     if ( newState->effects & EF_ANIM01 ) {
         refreshEntity->frame = autoanim & 1;
+        refreshEntity->oldframe = packetEntity->prev.frame;
+
+        //clgi.Print( PRINT_DEVELOPER, "%s: EF_ANIM01 refreshEntity->frame(%d), refreshEntity->oldframe(%d)\n",
+        //    __func__, refreshEntity->frame, refreshEntity->oldframe );
     } else if ( newState->effects & EF_ANIM23 ) {
         refreshEntity->frame = 2 + ( autoanim & 1 );
+        refreshEntity->oldframe = packetEntity->prev.frame;
+        //clgi.Print( PRINT_DEVELOPER, "%s: EF_ANIM23 refreshEntity->frame(%d), refreshEntity->oldframe(%d)\n",
+        //    __func__, refreshEntity->frame, refreshEntity->oldframe );
     } else if ( newState->effects & EF_ANIM_ALL ) {
         refreshEntity->frame = autoanim;
+        refreshEntity->oldframe = packetEntity->prev.frame;
     } else if ( newState->effects & EF_ANIM_ALLFAST ) {
         refreshEntity->frame = clgi.client->time / BASE_FRAMETIME; // WID: 40hz: Adjusted. clgi.client->time / 100;
+        refreshEntity->oldframe = packetEntity->prev.frame;
     } else if ( newState->effects & EF_ANIM_CYCLE2_2HZ ) {
         refreshEntity->frame = newState->frame + ( autoanim & 1 );
-    // For light brushes that (change color possibly) by switching animation texture index.
+        refreshEntity->oldframe = packetEntity->prev.frame;
+    // For hard set animated texture chain frames.
     } else {
         refreshEntity->frame = newState->frame;
+        refreshEntity->oldframe = packetEntity->prev.frame;
     }
     // Setup the old frame.
-    refreshEntity->oldframe = packetEntity->prev.frame;
+    
     //refreshEntity->frame = 1;
     //refreshEntity->oldframe = 1;
     // Backlerp.

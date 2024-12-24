@@ -18,10 +18,10 @@
 /**
 *   For readability's sake:
 **/
-static constexpr int32_t DOOR_STATE_OPENED = PUSHMOVE_STATE_TOP;
-static constexpr int32_t DOOR_STATE_CLOSED = PUSHMOVE_STATE_BOTTOM;
-static constexpr int32_t DOOR_STATE_MOVING_TO_OPENED_STATE = PUSHMOVE_STATE_MOVING_UP;
-static constexpr int32_t DOOR_STATE_MOVING_TO_CLOSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
+static constexpr svg_pushmove_state_t DOOR_STATE_OPENED = PUSHMOVE_STATE_TOP;
+static constexpr svg_pushmove_state_t DOOR_STATE_CLOSED = PUSHMOVE_STATE_BOTTOM;
+static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_OPENED_STATE = PUSHMOVE_STATE_MOVING_UP;
+static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_CLOSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
 
 
 
@@ -130,7 +130,7 @@ void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const enti
 **/
 void door_close_move( edict_t *self );
 void door_open_move( edict_t *self/*, edict_t *activator */ );
-void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const bool open ) {
+void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const bool stateIsOpen, const bool forceState = false ) {
     // Actually determine properly whether the door(its master) is locked or not.
     #if 0
     // Slave to team.
@@ -175,12 +175,12 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
     // engage to toggle the door moving states.)
     if ( self->flags & FL_TEAMSLAVE ) {
         // Prevent ourselves from actually falling into recursion, make sure we got a client entity.
-        if ( self->teammaster != self /*&& entityIsCapable*/ ) {
+        if ( self->teammaster != self && self->teammaster->use/*&& entityIsCapable*/ ) {
             // Pass through to the team master to handle this.
-            //if ( self->teammaster->use ) {
-                door_team_toggle( self->teammaster, other, activator, open );
-            //}
-            return;
+            if ( self->teammaster->use ) {
+                door_team_toggle( self->teammaster, other, activator, stateIsOpen, forceState );
+            }
+                return;
         // Default 'Team Slave' behavior:
         } else {
             return;
@@ -189,7 +189,7 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
     #endif
 
     //if ( open == false || SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) {
-    if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) || open != true ) {
+    if ( ( forceState == true && stateIsOpen == false ) || ( forceState == false && SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
             // trigger all paired doors
             for ( edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
@@ -204,7 +204,7 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
     }
 
     //if ( open == true || SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) {
-    if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) || open != false ) {
+    if ( ( forceState == true && stateIsOpen == true ) || ( forceState == false && SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) ) {
         // trigger all paired doors
         for ( edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
             ent->message = NULL;
@@ -252,15 +252,24 @@ void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const c
     if ( Q_strcasecmp( signalName, "DoorOpen" ) == 0 ) {
         self->activator = activator;
         self->other = other;
+
         // Signal all paired doors to open. (Presuming they are the same state, closed)
-        door_team_toggle( self, self->other, self->activator, true );
+        //if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
+        //    door_team_toggle( self, self->other, self->activator, false, true );
+        //} else {
+            door_team_toggle( self, self->other, self->activator, true, true );
+        //}
     }
     // DoorClose:
     if ( Q_strcasecmp( signalName, "DoorClose" ) == 0 ) {
         self->activator = activator;
         self->other = other;
-        // Signal all paired doors to close. (Presuming they are the same state, opened)
-        door_team_toggle( self, self->other, self->activator, false );
+        // Signal all paired doors to open. (Presuming they are the same state, closed)
+        //if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
+            door_team_toggle( self, self->other, self->activator, false, true );
+        //} else {
+        //    door_team_toggle( self, self->other, self->activator, true, true );
+        //}
     }
 
     // DoorLock:
@@ -405,11 +414,17 @@ void door_close_move( edict_t *self ) {
     //    }
     //}
 
+
     // Engage moving to closed state.
-    self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
     if ( strcmp( self->classname, "func_door" ) == 0 ) {
+        // Set state to closing.
+        self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
+        // Engage moving to closed state.
         SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.startOrigin, door_close_move_done );
     } else if ( strcmp( self->classname, "func_door_rotating" ) == 0 ) {
+        // Set state to closing.
+        self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
+        // Engage moving to closed state.
         SVG_PushMove_AngleMoveCalculate( self, door_close_move_done );
     }
 
@@ -428,7 +443,7 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
     // If we are already opened, and re-used:
     if ( self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
         // Reset 'top pusher state'/'door opened state' wait time
-        if ( self->pushMoveInfo.wait >= 0 ) {
+        if ( self->pushMoveInfo.wait > 0 ) {
             self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
         }
         // And exit. This results in having to wait longer if trigger/button spamming.
@@ -638,7 +653,7 @@ void door_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
             }
             // Exit.
             return;
-            // Default 'Team Slave' behavior:
+        // Default 'Team Slave' behavior:
         } else {
             // Exit.
             return;

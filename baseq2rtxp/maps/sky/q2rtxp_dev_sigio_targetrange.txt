@@ -8,4 +8,3 @@
 # pt_show_sky 1
 # $cl_cluster for player cluster
 # $cl_clusterthere for crosshair cluster
-11 12 15 4 17 35 33 42 41 32

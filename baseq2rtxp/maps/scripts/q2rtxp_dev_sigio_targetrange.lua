@@ -160,14 +160,16 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
             Game.Print( PrintLevel.NOTICE, "Round Active, last target remaining!\n" )
         -- Proceed (re-)activating range:
         else
+            Game.Print( PrintLevel.NOTICE, "New Round Started! Kill all 4 targets as quickly as you can!\n" )
+
             -- Play speciual 'restart' sound effect.
             Media.Sound( signaller, SoundChannel.ITEM, mapMedia.sound.newround, 1.0, SoundAttenuation.NORMAL, 0.0 )
 
             -- Signal all targetrange lane targets to "close" again, effectively reactivating our target range course.
-            Game.SignalOut( Game.GetEntityForTargetName( "t_target_xxl" ), signaller, activator, "DoorOpen", {} )
-            Game.SignalOut( Game.GetEntityForTargetName( "t_target_xl" ), signaller, activator, "DoorOpen", {} )
-            Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "DoorOpen", {} )
-            Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "DoorOpen", {} )
+            Game.SignalOut( Game.GetEntityForTargetName( "t_target_xxl" ), signaller, activator, "DoorClose", {} )
+            Game.SignalOut( Game.GetEntityForTargetName( "t_target_xl" ), signaller, activator, "DoorClose", {} )
+            Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "DoorClose", {} )
+            Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "DoorClose", {} )
 
             -- Engage all func_train into moving again.
             Game.UseTargets( Game.GetEntityForTargetName( "train_target_xxl" ), signaller, activator, EntityUseTarget.ON, 1 )
@@ -225,6 +227,25 @@ function WareHouseLockingButton_OnSignalIn( self, signaller, activator, signalNa
     return true
 end
 
+----------------------------------------------------------------------
+-- The Doors
+----------------------------------------------------------------------
+function WareHouseDoor00_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+    -- Open the doors.
+    if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
+        -- -- Get entity
+        -- local entityWareHouseDoor01 = Game.GetEntityForLuaName( "WareHouseDoor01" )
+        -- -- Determine its move state.
+        -- local doorMoveState = Game.GetPushMoverState( entityWareHouseDoor01 )
+
+        -- -- Only SignalOut a "DoorOpen" when the elevator is NOT moving.
+        -- if ( doorMoveState ~= PUSHMOVE_STATE_MOVING_DOWN and doorMoveState~= PUSHMOVE_STATE_MOVING_UP ) then
+        --     -- Send the lock toggle signal.
+        --     Game.SignalOut( entityWareHouseDoor01, self, activator, "DoorLockToggle" )
+        -- end
+    end
+    return true
+end
 
 
 

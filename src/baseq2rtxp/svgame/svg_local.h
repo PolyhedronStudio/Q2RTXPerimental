@@ -748,6 +748,21 @@ extern spawn_temp_t st;
 *
 *
 **/
+/**
+*	@brief	State Constants, top and down are synonymous to open and close, up to opening, down to closing.
+**/
+typedef enum svg_pushmove_state_e {
+    PUSHMOVE_STATE_TOP = 0,
+    PUSHMOVE_STATE_BOTTOM = 1,
+    PUSHMOVE_STATE_MOVING_UP = 2,
+    PUSHMOVE_STATE_MOVING_DOWN = 3,
+} svg_pushmove_state_t;
+//typedef int32_t svg_pushmove_state_t;
+//static constexpr svg_pushmove_state_t PUSHMOVE_STATE_TOP = 0;
+//static constexpr svg_pushmove_state_t PUSHMOVE_STATE_BOTTOM = 1;
+//static constexpr svg_pushmove_state_t PUSHMOVE_STATE_MOVING_UP = 2;
+//static constexpr svg_pushmove_state_t PUSHMOVE_STATE_MOVING_DOWN = 3;
+
 //! Typedef for pushmove end move callback.
 typedef void( *svg_pushmove_endcallback )( edict_t * );
 
@@ -774,8 +789,9 @@ typedef struct {
     //
     // Dynamic State Data
     //
-    int32_t     state;
+    svg_pushmove_state_t state;
     Vector3     dir;
+    bool        in_motion;  //! Hard set by begin and final functions.
     float       current_speed;
     float       move_speed;
     float       next_speed;

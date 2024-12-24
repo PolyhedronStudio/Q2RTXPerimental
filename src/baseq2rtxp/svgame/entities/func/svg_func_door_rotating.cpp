@@ -19,10 +19,10 @@
 /**
 *   For readability's sake:
 **/
-static constexpr int32_t DOOR_STATE_OPENED = PUSHMOVE_STATE_TOP;
-static constexpr int32_t DOOR_STATE_CLOSED = PUSHMOVE_STATE_BOTTOM;
-static constexpr int32_t DOOR_STATE_MOVING_TO_OPENED_STATE = PUSHMOVE_STATE_MOVING_UP;
-static constexpr int32_t DOOR_STATE_MOVING_TO_CLOSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
+static constexpr svg_pushmove_state_t DOOR_STATE_OPENED = PUSHMOVE_STATE_TOP;
+static constexpr svg_pushmove_state_t DOOR_STATE_CLOSED = PUSHMOVE_STATE_BOTTOM;
+static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_OPENED_STATE = PUSHMOVE_STATE_MOVING_UP;
+static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_CLOSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
 
 
 
@@ -98,8 +98,8 @@ void SP_func_door_rotating( edict_t *ent ) {
         ent->movedir[ 1 ] = 1.0f;
     }
 
-    // check for reverse rotation
-    if ( ent->spawnflags & DOOR_SPAWNFLAG_REVERSE ) {
+    // Check for reverse rotation.
+    if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_REVERSE ) ) {
         ent->movedir = QM_Vector3Negate( ent->movedir );
     }
 
@@ -110,9 +110,10 @@ void SP_func_door_rotating( edict_t *ent ) {
     }
 
     // Determine move angles.
+    const float distance = st.distance; // ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_REVERSE ) ? -st.distance : st.distance );
     ent->angles1 = ent->s.angles;
-    VectorMA( ent->s.angles, st.distance, ent->movedir, ent->angles2 );
-    ent->pushMoveInfo.distance = st.distance;
+    VectorMA( ent->s.angles, distance, ent->movedir, ent->angles2 );
+    ent->pushMoveInfo.distance = distance;
 
     //SVG_SetMoveDir( ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_PUSH;
@@ -159,9 +160,9 @@ void SP_func_door_rotating( edict_t *ent ) {
     // if it starts open, switch the positions
     if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_START_OPEN ) ) {
         VectorCopy( ent->angles2, ent->s.angles );
-        ent->angles2 = ent->angles1;
-        ent->angles1 = ent->s.angles;
-        ent->movedir = QM_Vector3Negate( ent->movedir );
+        //ent->angles2 = ent->angles1;
+        //ent->angles1 = -Vector3(ent->s.angles);
+        //ent->movedir = QM_Vector3Negate( ent->movedir );
         ent->pushMoveInfo.state = DOOR_STATE_OPENED;
     } else {
         // Initial closed state.
