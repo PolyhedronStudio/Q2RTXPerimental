@@ -137,7 +137,7 @@ void button_unpress_move_done( edict_t *self ) {
     self->s.effects |= EF_ANIM01;
 
     /**
-    *   Respond to the Pressing of the button.
+    *   Respond to the UnPressing of the button.
     **/
     if ( isToggleUseTarget ) {
         #if 0
@@ -166,6 +166,12 @@ void button_unpress_move_done( edict_t *self ) {
         //} else {
             self->die = button_killed;
         //}
+    }
+
+    // Signal its unpress.
+    if ( isContinuousUseTarget && !isContinuousState ) {
+        // Dispatch a signal.
+        SVG_SignalOut( self, self->other, self->activator, "OnContinuousUnPressed" );
     }
 
     // Dispatch a signal.
@@ -366,7 +372,7 @@ void button_think_return( edict_t *self ) {
     const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
 
     // Try again next frame.
-    if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED && isContinuousUseTarget && isContinuousState ) {
+    if (/* self->pushMoveInfo.state == BUTTON_STATE_PRESSED &&*/ isContinuousUseTarget && isContinuousState ) {
         self->nextthink = level.time + FRAME_TIME_MS;
         self->think = button_think_return;
 
@@ -488,7 +494,7 @@ void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *
     // Ignore triggers calling into fire when the button is still actively moving.
     if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
         || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
-        //return;
+        return;
     }
 
     // Set activator.
@@ -779,7 +785,7 @@ void SP_func_button( edict_t *ent ) {
         // Initial 'unpressed' state.
         ent->pushMoveInfo.state = BUTTON_STATE_UNPRESSED;
         // Initial texture frame setup.
-        ent->pushMoveInfo.startFrame = BUTTON_FRAME_UNPRESSED_0;
+        ent->pushMoveInfo.startFrame = BUTTON_FRAME_UNPRESSED_1;
         ent->pushMoveInfo.endFrame = BUTTON_FRAME_PRESSED_0;
     }
 
@@ -789,11 +795,11 @@ void SP_func_button( edict_t *ent ) {
     // Default animation effects.
     // <Q2RTXP>: WID: TODO: Guess it's nice if you can determine animation style yourself, right?
     // if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_ANIMATED ) ) {
-    if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_START_PRESSED ) ) {
-        ent->s.effects |= EF_ANIM01; // EF_ANIM_CYCLE2_2HZ;
-    } else {
-        ent->s.effects |= EF_ANIM23; // EF_ANIM_CYCLE2_2HZ;
-    }
+    //if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_START_PRESSED ) ) {
+    //    ent->s.effects |= EF_ANIM01; // EF_ANIM_CYCLE2_2HZ;
+    //} else {
+    //    ent->s.effects |= EF_ANIM23; // EF_ANIM_CYCLE2_2HZ;
+    //}
     // }
 
     //ent->pushMoveInfo.startOrigin = ent->pos1;

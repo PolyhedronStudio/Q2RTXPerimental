@@ -22,7 +22,7 @@
 #pragma once
 
 //! For debugging purposes.
-#define SVG_LUA_REPORT_SIGNAL_OUT 1
+//#define SVG_LUA_REPORT_SIGNAL_OUT 1
 
 /**
 *	@brief	Fires an 'Out' signal, calling and passing it over to the entity's luaName OnSignal function.
