@@ -21,10 +21,10 @@
 **/
 /**
 *
-*	lua_edict_t:
+*	lua_edict_state_t:
 *
 **/
-class lua_edict_t {
+class lua_edict_state_t {
 //private:
 	//edict_t *edict;
 
@@ -32,19 +32,19 @@ public:
 	edict_t *edict;
 
 	/**
-	* 
-	*	Constructors: 
-	* 
+	*
+	*	Constructors:
+	*
 	**/
-	lua_edict_t();
-	lua_edict_t( edict_t *_edict );
+	lua_edict_state_t();
+	lua_edict_state_t( edict_t *_edict );
 
 	/**
 	*
-	* 
+	*
 	*	Entity State Properties
 	*
-	* 
+	*
 	**/
 	/**
 	*	@brief
@@ -56,12 +56,17 @@ public:
 	void set_number( const int32_t number );
 
 	/**
-	*	@return	Returns a lua userdata object for accessing the entity's entity_state_t.
+	*	@return Get (Brush-)Entity Frame.
 	**/
-	sol::object get_state( sol::this_state s );
+	const int32_t get_frame() const;
+	/**
+	*	@brief Set (Brush-)Entity Frame.
+	**/
+	void set_frame( const int32_t frame );
 };
 
+
 /**
-*	@brief	Register a usertype for passing along edict_t into lua.
+*	@brief	Register a usertype for passing along entity_state_t into lua.
 **/
-void UserType_Register_Edict_t( sol::state &solState );
+void UserType_Register_EdictState_t( sol::state &solState );

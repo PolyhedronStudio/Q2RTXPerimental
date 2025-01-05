@@ -11,6 +11,9 @@
 #include "svgame/lua/svg_lua_gamelib.hpp"
 #include "svgame/entities/svg_entities_pushermove.h"
 
+// UserTypes:
+#include "svgame/lua/usertypes/svg_lua_usertype_edict_t.hpp"
+#include "svgame/lua/usertypes/svg_lua_usertype_edict_state_t.hpp"
 
 
 /**

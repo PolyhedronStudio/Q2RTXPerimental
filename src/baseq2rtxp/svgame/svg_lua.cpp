@@ -20,6 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svg_lua.h"
 
 // UserTypes:
+#include "svgame/lua/usertypes/svg_lua_usertype_edict_state_t.hpp"
 #include "svgame/lua/usertypes/svg_lua_usertype_edict_t.hpp"
 
 //! Enable LUA debug output:
@@ -327,6 +328,8 @@ void SVG_Lua_Initialize() {
 	//
 	luaMapInstance.lState = luaMapInstance.solState.lua_state();
 	// Initialize UserTypes:
+	// First comes the member of edict_t: entity_state_t
+	UserType_Register_EdictState_t( luaMapInstance.solState );
 	UserType_Register_Edict_t( luaMapInstance.solState );
 
 	// Initialize Game Libraries.

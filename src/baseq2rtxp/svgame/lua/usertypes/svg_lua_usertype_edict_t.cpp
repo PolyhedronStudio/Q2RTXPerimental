@@ -10,6 +10,7 @@
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_gamelib.hpp"
 #include "svgame/entities/svg_entities_pushermove.h"
+#include "svgame/lua/usertypes/svg_lua_usertype_edict_state_t.hpp"
 
 
 
@@ -31,7 +32,7 @@ lua_edict_t::lua_edict_t( edict_t *_edict ) : edict(_edict) {
 /**
 *
 *
-*	Entity State Properties:
+*	Entity Properties:
 *
 *
 **/
@@ -52,26 +53,14 @@ void lua_edict_t::set_number( const int32_t number ) {
 	// TODO: Error out?
 	return;
 }
-//
-//	(frame):
-//
+
 /**
-*	@return Get (Brush-)Entity Frame.
+*	@return	Returns a lua userdata object for accessing the entity's entity_state_t.
 **/
-const int32_t lua_edict_t::get_state_frame() const {
-	return ( this->edict != nullptr ? this->edict->s.frame : 0 );
-}
-/**
-*	@brief Set (Brush-)Entity Frame.
-**/
-void lua_edict_t::set_state_frame( const int32_t number ) {
-	// Do nothing.
-	if ( this->edict != nullptr ) {
-		this->edict->s.frame = number;
-	} else {
-		// TODO: Error out?
-		return;
-	}
+sol::object lua_edict_t::get_state( sol::this_state s ) {
+	sol::state_view solState( s );
+
+	return sol::make_object_userdata<lua_edict_state_t>(solState, this->edict);
 }
 
 /**
@@ -79,7 +68,7 @@ void lua_edict_t::set_state_frame( const int32_t number ) {
 **/
 void UserType_Register_Edict_t( sol::state &solState ) {
 	/**
-	*	Register 'User Types':
+	*	Register 'User Type':
 	**/
 	sol::usertype<lua_edict_t> lua_edict_type = solState.new_usertype<lua_edict_t>( "lua_edict_t",
 		//sol::no_constructor,
@@ -87,15 +76,21 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	);
 
 	/**
-	*	Variables:
+	*	(Read Only-) Variables:
 	**/
-	// Read Only:
-	//lua_edict_type.set( "number", sol::readonly( &lua_edict_t::edict->s.number ) );
+	// Technically, this is a part of entity_state_t however it's just easier to write 'entity.number' than 'entity.state.number' in Lua.
 	lua_edict_type[ "number" ] = sol::property( &lua_edict_t::get_number, &lua_edict_t::set_number );
-	lua_edict_type[ "frame" ] = sol::property( &lua_edict_t::get_state_frame, &lua_edict_t::set_state_frame );
-	lua_edict_type[ "state" ] = solState.create_table_with( 
-		"frame", sol::property( &lua_edict_t::get_state_frame, &lua_edict_t::set_state_frame )
-	);
+
+	/**
+	*	Modifyable Variables:
+	**/
+	// Returns the member entity_state_t of edict_t.
+	lua_edict_type[ "state" ] = sol::property( &lua_edict_t::get_state );
+
+		//lua_edict_type
+	//lua_edict_type[ "state" ] = solState.create_table_with( 
+	//	"frame", sol::property( &lua_edict_t::get_state_frame, &lua_edict_t::set_state_frame )
+	//);
 	// Read/Write Entity State:
 /*	lua_edict_type[ "state" ] = sol::property( [&solState]() -> sol::table { 
 		sol::table stateTable = solState.create_table();
