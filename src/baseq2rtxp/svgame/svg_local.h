@@ -781,9 +781,9 @@ typedef struct {
     Vector3     endOrigin;
     //! Move end angles.
     Vector3     endAngles;
-    //! The start texture animation frame.
+    //! The start position, texture animation frame index.
     int32_t     startFrame;
-    //! The end texture animation frame.
+    //! The end position, texture animation frame index.
     int32_t     endFrame;
 
     //

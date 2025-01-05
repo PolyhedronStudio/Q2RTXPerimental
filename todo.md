@@ -12,27 +12,51 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 * [X] It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
 	- It is a mistake in client game loop.
 	- [X] This actually seems fixed now, yay.
-
+* Animated Brush Textures: Any brush entity with an animated texture needs to be able to configure its
+animations for open/closed/transit-in/transit-out states throughout TB editor. (``func_button,func_door etc``)
 
 ## For v0.0.6 or so:
-- [ ] The Monster Scenario:
+- [ ] The **Monster** Scenario:
 	- [ ] 0. We need nav nodes of sorts, probably lets do this KISS first, just use some entities.
 	- [ ] 1. There's more I can think of such as detecting whether to strafe and all that...
 	- [ ] 2. Add mm_move_t as a member of gedict_t, and/or of a different monster struct that becomes part of gedict_t
 	- [ ] 3. Monster code should use Play/Get-Anim, and have actions linked to those consequently.
 	- [ ] 4. I'll continue this list by the time I get there.
 
+- [ ] The **EDITOR/VIEWER** Scenario:
+	- [ ] 0. A file selector dialog for use with the editors below.
+		     Use the demo browser as a reference material.
+	- [X] 1. A refresh material editor.
+	- [ ] 2. A collision material editor(actually, .wal_json since we use that.)
+	- [ ] 3. A model viewer, allowing to speed up/down animations, as well as
+			 blend combining them, so it becomes easier to figure out the framerate
+			 you may want an animation to play at.
 
-## For v0.0.5:
-- [ ] Generic Scenario:
+- [ ] **Entities**:
+	- [ ] Reimplement (client-)misc_model properly.
+	- [ ] Add proper spawn flag constants.
+	- [ ] Can we do a, C++ struct inheritance and have edict_t* store a pointer to an instance of				
+	the matching entity classname and its 'classdata' struct.
+	- [ ] .. Some more I bet ..
+
+- [ ] The **IQM Animation** Scenario:
+	- [ ] Allow attaching models configured by bone tags setup.
+
+## For v0.0.5(Being idealistic here, not realistic, that is when it comes to time lol):
+- [ ] Core/Generic/Code-Style/Important(DoNotForget):
 	- [ ] C++ Global Enum BitFlag Operators SCREAM AND CURSE AT YOU! BOOHOO!
 	      Turn that into a DEFINE_ENUM_BITFLAGS(enumtypename) instead._
+		  **HIGH PRIORITY -->:** Without this it may actually be breaking code without us being aware.
+	- [ ] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly.
 
 - [ ] The **VKPT** Scenario:
-	- [ ] Target Range -> Animated Textures which lol, do not animate, we merely use them right now
+	- [X] Target Range -> Animated Textures which lol, do not animate, we merely use them right now
 			for visual trickstery. Such as a light switching colors. However, this fails, it ends up
 		    doing a silly light animation either way.
 	- [ ] fill_model_instance, use a proper bbox check for BSP_WORLD_MODEL isntead of pointleaf.
+			(See doors in target range map which bug out cluster testing, remaining unlit by interior lights.)
+- [ ] **Entities**:
+	- [ ] 0. Fix func_button, KISS for now.
 
 - [X] The **IQM Animation** Scenario:
 	- [X] 0. Add in proper usage of entity type and adjust the client code to handle adding packet entities based on its type.
@@ -45,13 +69,7 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [ ] 5. Redo the player animations properly once and for allOnce again.. sigh
 
 - [ ] The **EDITOR/VIEWER** Scenario:
-	- [ ] 0. A file selector dialog for use with the editors below.
-		     Use the demo browser as a reference material.
-	- [X] 1. A refresh material editor.
-	- [ ] 2. A collision material editor(actually, .wal_json since we use that.)
-	- [ ] 3. A model viewer, allowing to speed up/down animations, as well as
-			 blend combining them, so it becomes easier to figure out the framerate
-			 you may want an animation to play at.
+	- [X] 0. A refresh material editor.
 
 - [ ] The **Skeletal Model Info** Scenario:
 	- [X] 0. For both, client and server, whenever an IQM file is loaded, so will be its matching
@@ -72,11 +90,11 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 - [ ] The **LUA** Scenario:
 	- [ ] (Somewhat optional, but useful really..) Add a stack debugger.
 	- [ ] Implement custom TagMalloc like allocator for Lua memory management.
+	- [-] Add proper file chunk loading.
+		- [ ] Add support for 'including/requiring' other Lua files in their own chunks.
 	- [X] Add support for edicts on the C side of life to implement OnSignal functionalities.
 	- [X] Add SignalOut funcionality to Lua, so it can fire signals.
 	- [X] Add for PushMovers a function to acquire their current state.
-	- [-] Add proper file chunk loading.
-		- [ ] What about 'include' functionality that loads its own chunks?
 	- [X] Add C utilities to define Lua consts for enums/constvals/defines.
 	- [ ] Signalling:
 		- [-] Patch all entities that might have a use for signalling. Such might be: A target_temp_entity etc. And of course, all PushMovers, killbox, etc. In hindsight, I will actually do these gradually over releases to prevent it from stalling the project overall.
@@ -106,17 +124,8 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 			- [ ] target_ entities.
 	- [X] Add support for passing along values for Signals to be processed.
 
-- [ ] Entities:
-	- [ ] Reimplement (client-)misc_model properly.
-	- [ ] Add proper spawn flag constants.
-	- [ ] Can we do a, C++ struct inheritance and have edict_t* store a pointer to an instance of				
-	the matching entity classname and its 'classdata' struct.
-	- [ ] .. Some more I bet ..
 
-- [ ] Misc:
-	- [ ] Attach a 'world' weapon model to the player.
-
-## Other Features:
+## Technical Things prioritized, not catagorized however:
 These are things to fix, or randomly implement(features, ideas), but definitely need to be dealt with before we can call it a day.
 
 ### Highest Priority:
@@ -126,8 +135,8 @@ These are things to fix, or randomly implement(features, ideas), but definitely 
 ### High Priority:
 * [X] Rethink/reimplement the way how we approach skeletal model 'blending'. Local space it is?
 	- Relative we do.
-* [-] Implement Lua for game state logic and dynamics.
-	- [ ] Fix the script file loaded up leaking memory. FS_LoadFileEx(other tag)_
+* [X] Implement Lua for game state logic and dynamics.
+	- [X] Fix the script file loaded up leaking memory. FS_LoadFileEx(other tag)_
 	- [X] Make buttons and doors lockable lol.
 * [ ] Implement model events for animations:
 	* [ ] Footsteps implemented using this.
@@ -194,6 +203,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 ### High Priority:
 * [x] None
 ### Medium Priority:
+* [ ] Getting stuck by a pusher brush entity has us 'wrap/teleport' far off.
 * [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
 * [X] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
 	- [X] Filter so it doesn't clip to all entities.
