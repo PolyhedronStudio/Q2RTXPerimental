@@ -57,8 +57,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         -- Get LightBrush Entity.
         local lightBrushEntity = Game.GetEntityForTargetName( lightBrushTargetName )
         -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
-        lightBrushEntity.state["frame"] = 1 -- + 128
-        --lightBrushEntity.frame = 1 -- + 128
+        lightBrushEntity.state.frame = 1
 
         -- Turn on the light for this target.
         --Game.UseTarget( lightBrushEntity, signaller, activator, EntityUseTarget.ON, 1 )
@@ -109,8 +108,8 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         -- Get LightBrush Entity.
         local lightBrushEntity = Game.GetEntityForTargetName( lightBrushTargetName )
         -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
-        lightBrushEntity.state["frame"] = 0 -- + 128
-        --lightBrushEntity.frame = 0 -- + 128
+        lightBrushEntity.state.frame = 0
+        lightBrushEntity.state.number = 10 -- Should error.
         -- Turn off the light for this target.
         --Game.UseTarget( lightBrushEntity, signaller, activator, EntityUseTarget.OFF, 0 )
 

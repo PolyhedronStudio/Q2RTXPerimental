@@ -32,10 +32,23 @@
 	#define Lua_DeveloperPrintf(...) 
 #endif
 
+
+//
+// SOL and Settings:
+//
+// Enable all safeties using protected function calling as a default.
 #define SOL_ALL_SAFETIES_ON 1
+// Enable Interop.
 //#define SOL_ENABLE_INTEROP 1
-#include <sol/sol.hpp>
+
+// Include custom in-game assert functionality macros.
 #include "svgame/lua/svg_lua_sol_assert.hpp"
+// Include SOL itself.
+//// Custom in-engine-asserts:
+//#define SOL_ASSERT 
+//#define SOL_ASSERT_MSG  
+#include <sol/sol.hpp>
+
 
 
 /**

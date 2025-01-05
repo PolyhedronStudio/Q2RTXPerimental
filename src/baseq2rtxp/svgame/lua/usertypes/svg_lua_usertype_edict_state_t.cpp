@@ -10,7 +10,6 @@
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_gamelib.hpp"
 #include "svgame/entities/svg_entities_pushermove.h"
-
 #include "svgame/lua/usertypes/svg_lua_usertype_edict_state_t.hpp"
 
 
@@ -51,9 +50,8 @@ const int32_t lua_edict_state_t::get_number() const {
 *	@brief
 **/
 void lua_edict_state_t::set_number( const int32_t number ) {
-	// Do nothing.
-	// TODO: Error out?
-	return;
+	// Error notify.
+	LUA_ErrorPrintf( "%s: Can't change an entities number!\n", __func__  );
 }
 //
 //	(frame):
@@ -73,6 +71,10 @@ void lua_edict_state_t::set_frame( const int32_t number ) {
 		this->edict->s.frame = number;
 	} else {
 		// TODO: Error out?
+		// Error notify.
+		//LUA_ErrorPrintf( "%s: Can't change an entities number!", __func__ );
+		// Developer notify.
+		Lua_DeveloperPrintf( "%s: on an invalid edict_t* pointer!\n", __func__ );
 		return;
 	}
 }

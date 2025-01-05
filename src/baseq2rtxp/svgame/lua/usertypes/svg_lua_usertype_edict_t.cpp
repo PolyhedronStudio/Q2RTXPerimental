@@ -49,9 +49,8 @@ const int32_t lua_edict_t::get_number() const {
 *	@brief
 **/
 void lua_edict_t::set_number( const int32_t number ) {
-	// Do nothing.
-	// TODO: Error out?
-	return;
+	// Error notify.
+	LUA_ErrorPrintf( "%s: Can't change an entities number!\n", __func__ );
 }
 
 /**
@@ -86,18 +85,4 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	**/
 	// Returns the member entity_state_t of edict_t.
 	lua_edict_type[ "state" ] = sol::property( &lua_edict_t::get_state );
-
-		//lua_edict_type
-	//lua_edict_type[ "state" ] = solState.create_table_with( 
-	//	"frame", sol::property( &lua_edict_t::get_state_frame, &lua_edict_t::set_state_frame )
-	//);
-	// Read/Write Entity State:
-/*	lua_edict_type[ "state" ] = sol::property( [&solState]() -> sol::table { 
-		sol::table stateTable = solState.create_table();
-		stateTable["frame"] = sol::property( &lua_edict_t::get_state_frame, &lua_edict_t::set_state_frame );
-		return std::move(stateTable);
-	} );*///solState.create_table();
-	//lua_edict_type[ "state" ][ "frame" ] = sol::property( &lua_edict_t::get_state_frame, &lua_edict_t::set_state_frame );
-	
-	// Read/Write Entity Other:
 }

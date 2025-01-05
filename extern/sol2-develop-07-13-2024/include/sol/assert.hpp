@@ -69,7 +69,7 @@ struct pre_main {
 #endif
 
 #if SOL_IS_ON(SOL_USER_ASSERT_MSG)
-	#define SOL_ASSERT_MSG(message, ...) SOL_ASSERT_MSG(message, __VA_ARGS__)
+	#define SOL_ASSERT_MSG(message, ...) SOL_C_ASSERT_MSG(message, __VA_ARGS__)
 #else
 	#if SOL_IS_ON(SOL_DEBUG_BUILD)
 		#include <exception>

@@ -7,6 +7,14 @@
 ********************************************************************/
 #pragma once
 
+// Stringify macro.
+#ifndef STRINGIFY2
+#define STRINGIFY2(x)   #x
+#endif
+#ifndef STRINGIFY
+#define STRINGIFY(x)    STRINGIFY2(x)
+#endif
+
 // fast "C" macros
 #define Q_isupper( c )    ( ( c ) >= 'A' && ( c ) <= 'Z' )
 #define Q_islower( c )    ( ( c ) >= 'a' && ( c ) <= 'z' )
