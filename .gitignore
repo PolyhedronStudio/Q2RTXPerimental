@@ -2,8 +2,8 @@
 .q2pro/
 .q2proded/
 .baseq2/
-q2rtxp
-q2rtxpded
+q2rtxp.exe
+q2rtxpded.exe
 clgame*.so
 svgame*.so
 *.swp
@@ -67,7 +67,7 @@ baseq2rtxp/maps/mapsrc/*.prt
 baseq2rtxp/maps/*.-compile.map
 baseq2rtxp/maps/*.prt
 baseq2rtxp/maps/*.bsp
-!baseq2q2rtxp/maps/sky/*.txt
+!/baseq2q2rtxp/maps/sky/*.txt
 !/baseq2q2rtxp/maps/scripts/*.lua
 /baseq2rtxp/materials
 /baseq2rtxp/textures/
@@ -82,3 +82,5 @@ baseq2rtxp/maps/*.bsp
 
 /baseq2rtxp/maps/mapsrc/q2rtxp_dev_sigio_targetrange-compile.map
 /baseq2rtxp/maps/mapsrc/q2rtxp_dev_sigio_targetrange.prt
+
+!/trenchbroom/games/Q2RTXP/*
