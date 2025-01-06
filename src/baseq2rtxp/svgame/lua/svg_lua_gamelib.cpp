@@ -101,20 +101,73 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 	*	Register all global constants, we don't include these in the namespace.
 	*	It makes things easier to write and read. We won't be having duplicates anyway.
 	**/
-	// Door Toggle Types:
+	//
+	// EntityEffects:
+	//
+	solStateView.new_enum( "EntityEffects",
+		"NONE", EF_NONE,
+		"SPOTLIGHT", EF_SPOTLIGHT,
+		"GIB", EF_GIB,
+		"ANIM_CYCLE2_2HZ", EF_ANIM_CYCLE2_2HZ,
+		"ANIM01", EF_ANIM01,
+		"ANIM23", EF_ANIM23,
+		"ANIM_ALL", EF_ANIM_ALL,
+		"ANIM_ALLFAST", EF_ANIM_ALLFAST,
+		"COLOR_SHELL", EF_COLOR_SHELL,
+		"QUAD", EF_QUAD,
+		"PENT", EF_PENT,
+		"TELEPORTER", EF_TELEPORTER
+	);
+	//
+	// RenderFx:
+	//
+	solStateView.new_enum( "RenderFx",
+		"NONE", RF_NONE,
+		"MINLIGHT", RF_MINLIGHT,
+		"VIEWERMODEL", RF_VIEWERMODEL,
+		"WEAPONMODEL", RF_WEAPONMODEL,
+		"FULLBRIGHT", RF_FULLBRIGHT,
+		"DEPTHHACK", RF_DEPTHHACK,
+		"TRANSLUCENT", RF_TRANSLUCENT,
+		"FRAMELERP", RF_FRAMELERP,
+		"BEAM", RF_BEAM,
+		"CUSTOMSKIN", RF_CUSTOMSKIN,
+		"GLOW", RF_GLOW,
+		"SHELL_RED", RF_SHELL_RED,
+		"SHELL_GREEN", RF_SHELL_GREEN,
+		"SHELL_BLUE", RF_SHELL_BLUE,
+		"NOSHADOW", RF_NOSHADOW,
+		"OLD_FRAME_LERP", RF_OLD_FRAME_LERP,
+		"STAIR_STEP", RF_STAIR_STEP,
+
+		"IR_VISIBLE", RF_IR_VISIBLE,
+		"SHELL_DOUBLE", RF_SHELL_DOUBLE,
+		"SHELL_HALF_DAM", RF_SHELL_HALF_DAM,
+		"USE_DISGUISE", RF_USE_DISGUISE,
+
+		"BRUSHTEXTURE_SET_FRAME_INDEX", RF_BRUSHTEXTURE_SET_FRAME_INDEX
+	);
+
+	//
+	// PushMove(as in a Door) Toggle Types:
+	//
 	solStateView.new_enum( "PushMoveToggle",
 		"CLOSE",	0,	//! Moves it to "Bottom".
 		"OPEN",		1	//! Moves it to "Up"
 	);
+	//
 	// PushMoveInfo States:
+	//
 	solStateView.new_enum( "PushMoveState",
 		"TOP",			PUSHMOVE_STATE_TOP,
 		"BOTTOM",		PUSHMOVE_STATE_BOTTOM,
 		"MOVING_UP",	PUSHMOVE_STATE_MOVING_UP,
 		"MOVING_DOWN",	PUSHMOVE_STATE_MOVING_DOWN
 	);
-
+	
+	//
 	// UseTarget Types:
+	//
 	solStateView.new_enum( "EntityUseTarget",
 		"OFF",		ENTITY_USETARGET_TYPE_OFF,
 		"ON",		ENTITY_USETARGET_TYPE_ON,
@@ -122,7 +175,18 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 		"TOGGLE",	ENTITY_USETARGET_TYPE_TOGGLE
 	);
 
-	// Print Levels:
+	//
+	// Game Message Print Levels:
+	//
+	solStateView.new_enum( "ClientPrintLevel",
+		"LOW", PRINT_LOW,		//! Pickup messages.
+		"MEDIUM", PRINT_MEDIUM,	//! Death messages.
+		"HIGH", PRINT_HIGH,		//! Critical messages.
+		"CHAT", PRINT_CHAT		//! Chat messages.
+	);
+	//
+	// System Print Levels:
+	//
 	solStateView.new_enum( "PrintLevel",
 		//! Prints using default conchars text and thus color.
 		"ALL",			PRINT_ALL,		//! Used for General messages..
@@ -131,12 +195,5 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 		"WARNING",		PRINT_WARNING,	//! Print a Warning in Yellow color.
 		"ERROR",		PRINT_ERROR,	//! Print an Error in Red color.
 		"NOTICE",		PRINT_NOTICE	//! Print a Notice in bright Cyan color.
-	);
-	// Game Message Print Levels:
-	solStateView.new_enum( "ClientPrintLevel",
-		"LOW",		PRINT_LOW,		//! Pickup messages.
-		"MEDIUM",	PRINT_MEDIUM,	//! Death messages.
-		"HIGH",		PRINT_HIGH,		//! Critical messages.
-		"CHAT",		PRINT_CHAT		//! Chat messages.
 	);
 }

@@ -72,6 +72,50 @@ const int32_t lua_edict_state_t::get_number( sol::this_state s ) const {
 *	@brief
 **/
 //
+// (effects):
+//
+/**
+*	@return Get EntityEffects.
+**/
+const int32_t lua_edict_state_t::get_entity_effects( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( EF_NONE );
+	// Return entity state effects.
+	return this->edict->s.effects;
+}
+/**
+*	@return Set EntityEffects.
+**/
+void lua_edict_state_t::set_entity_effects( sol::this_state s, const int32_t effects ) {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER( );
+	// Assign entity state effects.
+	this->edict->s.effects = effects;
+}
+
+//
+// (renderfx):
+//
+/**
+*	@return Get RenderFx.
+**/
+const int32_t lua_edict_state_t::get_renderfx( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( RF_NONE );
+	// Return entity state renderfx.
+	return this->edict->s.renderfx;
+}
+/**
+*	@brief Set RenderFx
+**/
+void lua_edict_state_t::set_renderfx( sol::this_state s, const int32_t renderFx ) {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
+	// Assign entity state renderfx.
+	this->edict->s.renderfx = renderFx;
+}
+
+//
 //	(frame):
 //
 /**
@@ -154,6 +198,42 @@ void lua_edict_state_t::set_model_index4( sol::this_state s, const int32_t model
 	this->edict->s.modelindex4 = modelIndex;
 }
 
+/**
+*	@return Get Sound.
+**/
+const int32_t lua_edict_state_t::get_sound( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( 0 );
+	// Return sound.
+	return this->edict->s.sound;
+}
+/**
+*	@brief Set Sound.
+**/
+void lua_edict_state_t::set_sound( sol::this_state s, const int32_t sound ) {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
+	// Set sound.
+	this->edict->s.sound = sound;
+}
+/**
+*	@return Get Event.
+**/
+const int32_t lua_edict_state_t::get_event( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( 0 );
+	// Return event.
+	return this->edict->s.event;
+}
+/**
+*	@brief Set Event.
+**/
+void lua_edict_state_t::set_event( sol::this_state s, const int32_t event ) {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
+	// Set event.
+	this->edict->s.event = event;
+}
 
 
 
@@ -172,10 +252,16 @@ void UserType_Register_EdictState_t( sol::state &solState ) {
 
 	// Register Lua 'Properties', so we got get and setters for each accessible entity_state_t member.
 	lua_edict_state_type[ "number" ] = sol::property( &lua_edict_state_t::get_number/*, &lua_edict_state_t::set_number */);
-	lua_edict_state_type[ "frame" ] = sol::property( &lua_edict_state_t::get_frame, &lua_edict_state_t::set_frame );
 
+	lua_edict_state_type[ "effects" ] = sol::property( &lua_edict_state_t::get_entity_effects, &lua_edict_state_t::set_entity_effects);
+	lua_edict_state_type[ "renderFx" ] = sol::property( &lua_edict_state_t::get_renderfx, &lua_edict_state_t::set_renderfx );
+
+	lua_edict_state_type[ "frame" ] = sol::property( &lua_edict_state_t::get_frame, &lua_edict_state_t::set_frame );
 	lua_edict_state_type[ "modelIndex" ] = sol::property( &lua_edict_state_t::get_model_index, &lua_edict_state_t::set_model_index );
 	lua_edict_state_type[ "modelIndex2" ] = sol::property( &lua_edict_state_t::get_model_index2, &lua_edict_state_t::set_model_index2 );
 	lua_edict_state_type[ "modelIndex3" ] = sol::property( &lua_edict_state_t::get_model_index3, &lua_edict_state_t::set_model_index3 );
 	lua_edict_state_type[ "modelIndex4" ] = sol::property( &lua_edict_state_t::get_model_index4, &lua_edict_state_t::set_model_index4 );
+
+	lua_edict_state_type[ "sound" ] = sol::property( &lua_edict_state_t::get_sound, &lua_edict_state_t::set_sound );
+	lua_edict_state_type[ "event" ] = sol::property( &lua_edict_state_t::get_event, &lua_edict_state_t::set_event );
 }
