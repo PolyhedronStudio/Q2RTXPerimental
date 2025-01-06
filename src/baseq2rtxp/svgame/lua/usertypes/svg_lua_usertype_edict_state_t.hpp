@@ -49,20 +49,31 @@ public:
 	/**
 	*	@brief
 	**/
-	const int32_t get_number() const;
-	/**
-	*	@brief
-	**/
-	void set_number( const int32_t number );
+	const int32_t get_number( sol::this_state s ) const;
 
 	/**
 	*	@return Get (Brush-)Entity Frame.
 	**/
-	const int32_t get_frame() const;
+	const int32_t get_frame( sol::this_state s ) const;
 	/**
 	*	@brief Set (Brush-)Entity Frame.
 	**/
-	void set_frame( const int32_t frame );
+	void set_frame( sol::this_state s, const int32_t frame );
+
+	/**
+*	@return Get ModelIndex:
+**/
+	const int32_t get_model_index( sol::this_state s ) const;
+	const int32_t get_model_index2( sol::this_state s ) const;
+	const int32_t get_model_index3( sol::this_state s ) const;
+	const int32_t get_model_index4( sol::this_state s ) const;
+	/**
+	*	@brief Set ModelIndex.
+	**/
+	void set_model_index( sol::this_state s, const int32_t modelIndex );
+	void set_model_index2( sol::this_state s, const int32_t modelIndex );
+	void set_model_index3( sol::this_state s, const int32_t modelIndex );
+	void set_model_index4( sol::this_state s, const int32_t modelIndex );
 };
 
 

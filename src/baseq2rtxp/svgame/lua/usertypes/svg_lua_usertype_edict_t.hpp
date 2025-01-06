@@ -49,11 +49,7 @@ public:
 	/**
 	*	@brief
 	**/
-	const int32_t get_number() const;
-	/**
-	*	@brief
-	**/
-	void set_number( const int32_t number );
+	const int32_t get_number( sol::this_state s ) const;
 
 	/**
 	*	@return	Returns a lua userdata object for accessing the entity's entity_state_t.

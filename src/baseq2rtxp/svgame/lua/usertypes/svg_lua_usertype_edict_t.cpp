@@ -15,17 +15,39 @@
 
 
 /**
+*	Utility for checking if 'edict' pointer is valid.
+**/
+#define LUA_VALIDATE_EDICT_POINTER() \
+do { \
+	if ( edict == nullptr ) { \
+		Lua_DeveloperPrintf( "%s: lua_edict_t::edict == (nullptr) !\n", (__FUNCTION__) ); \
+		return; \
+	} \
+} while (false)
+
+#define LUA_VALIDATE_EDICT_POINTER_RETVAL(returnValue) \
+do { \
+	if ( edict == nullptr ) { \
+		Lua_DeveloperPrintf( "%s: lua_edict_t::edict == (nullptr) !\n", (__FUNCTION__) ); \
+		return returnValue; \
+	} \
+} while (false)
+
+
+
+/**
 *
 *	Constructors:
 *
 **/
 lua_edict_t::lua_edict_t() : edict(nullptr) {
-	// TODO: Warn? 
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
 	
 }
 lua_edict_t::lua_edict_t( edict_t *_edict ) : edict(_edict) {
-	// TODO: Warn if invalid?
-	//this->edict = _edict;
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
 }
 
 
@@ -42,23 +64,30 @@ lua_edict_t::lua_edict_t( edict_t *_edict ) : edict(_edict) {
 /**
 *	@brief
 **/
-const int32_t lua_edict_t::get_number() const {
-	return ( this->edict != nullptr ? this->edict->s.number : -1 );
+const int32_t lua_edict_t::get_number( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( -1 );
+	// Return number.
+	return this->edict->s.number;
 }
 /**
 *	@brief
 **/
-void lua_edict_t::set_number( const int32_t number ) {
-	// Error notify.
-	LUA_ErrorPrintf( "%s: Can't change an entities number!\n", __func__ );
-}
+//void lua_edict_t::set_number( sol::this_state s, const int32_t number ) {
+//	// Error notify.
+//	LUA_ErrorPrintf( "%s: Can't change an entities number!\n", __func__ );
+//}
 
 /**
 *	@return	Returns a lua userdata object for accessing the entity's entity_state_t.
 **/
 sol::object lua_edict_t::get_state( sol::this_state s ) {
-	sol::state_view solState( s );
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( sol::nil );
 
+	// Get state.
+	sol::state_view solState( s );
+	// Create a reference object of entity state userdata.
 	return sol::make_object_userdata<lua_edict_state_t>(solState, this->edict);
 }
 
@@ -78,7 +107,7 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	*	(Read Only-) Variables:
 	**/
 	// Technically, this is a part of entity_state_t however it's just easier to write 'entity.number' than 'entity.state.number' in Lua.
-	lua_edict_type[ "number" ] = sol::property( &lua_edict_t::get_number, &lua_edict_t::set_number );
+	lua_edict_type[ "number" ] = sol::property( &lua_edict_t::get_number/*, &lua_edict_t::set_number */);
 
 	/**
 	*	Modifyable Variables:
