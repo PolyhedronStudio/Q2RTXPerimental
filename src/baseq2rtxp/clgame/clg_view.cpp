@@ -153,6 +153,16 @@ static const int32_t weapon_shell_effect( void ) {
     if ( ent->current.effects & EF_QUAD ) {
         flags |= RF_SHELL_BLUE;
     }
+    if ( ent->current.effects & EF_DOUBLE ) {
+        flags |= RF_SHELL_DOUBLE;
+    }
+    if ( ent->current.effects & EF_HALF_DAMAGE ) {
+        flags |= RF_SHELL_HALF_DAM;
+    }
+    // For godmode.
+    if ( ent->current.effects & EF_COLOR_SHELL ) {
+        flags |= ent->current.renderfx; //( RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE );
+    }
 
     return flags;
 }

@@ -112,6 +112,10 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         -- Turn off the light for this target.
         --Game.UseTarget( lightBrushEntity, signaller, activator, EntityUseTarget.OFF, 0 )
 
+        -- Let it glow? lol.
+        self.state.effects = EntityEffects.COLOR_SHELL
+        self.state.renderFx = RenderFx.SHELL_RED
+
         -- Turn on the train for this target.
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTarget.ON, 1 )
         -- Done handling signal.
