@@ -3,6 +3,7 @@
 *
 *   Entity "Render FX" Flags:
 *
+*	NOTE: These are also passed into Lua, make sure to (re-)adjust `RenderFx` enum in svg_lua_gamelib.cpp
 *
 ********************************************************************/
 #pragma once

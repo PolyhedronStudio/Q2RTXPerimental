@@ -12,7 +12,7 @@
 // that happen constantly on the given entity.
 // An entity that has effects will be sent to the client
 // even if it has a zero index model.
-#define EF_NONE             BIT( 0 )
-#define EF_SPOTLIGHT		BIT( 1 )
+#define EF_NONE             0 //BIT( 0 )
+#define EF_SPOTLIGHT		BIT( 0 )
 //! Game Entity Effects can start from here:
-#define EF_ENGINE_MAX		BIT( 2 )
+#define EF_ENGINE_MAX		BIT( 1 )
