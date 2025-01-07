@@ -114,7 +114,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
 
         -- Let it glow? lol.
         self.state.effects = EntityEffects.COLOR_SHELL
-        self.state.renderFx = RenderFx.SHELL_RED
+        self.state.renderFx = RenderFx.SHELL_GREEN
 
         -- Turn on the train for this target.
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTarget.ON, 1 )

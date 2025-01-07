@@ -37,7 +37,7 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
         refreshEntity->frame = clgi.client->time / BASE_FRAMETIME; // WID: 40hz: Adjusted. clgi.client->time / 100;
         refreshEntity->oldframe = packetEntity->prev.frame;
     } else if ( newState->effects & EF_ANIM_CYCLE2_2HZ ) {
-        refreshEntity->frame = newState->frame + ( autoanim % 2 );
+        refreshEntity->frame = newState->frame + ( autoanim & 1 );
         refreshEntity->oldframe = packetEntity->prev.frame;
     // For hard set animated texture chain frames.
     } else {
@@ -58,7 +58,7 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
     // Render effects.
     refreshEntity->flags = newState->renderfx;
-    
+
     // Lerp Origin:
     Vector3 cent_origin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
     VectorCopy( cent_origin, refreshEntity->origin );
@@ -67,9 +67,21 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     // Lerp Angles:
     LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
 
+    //if ( newState->effects & EF_COLOR_SHELL ) {
+    //    refreshEntity->flags |= RF_SHELL_GREEN;
+    //}
+
     // Add entity to refresh list
     clgi.V_AddEntity( refreshEntity );
-    
+    #if 0
+    // Render effects.
+    if ( newState->effects & EF_COLOR_SHELL ) {
+        refreshEntity->flags |= RF_SHELL_GREEN | RF_TRANSLUCENT;
+        refreshEntity->alpha = 0.3;
+        refreshEntity->scale = 1.03125;
+        clgi.V_AddEntity( refreshEntity );
+    }
+    #endif
     // skip:
     VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
 }

@@ -124,7 +124,7 @@ typedef struct light_poly_s {
     //! Helps us acquire the actual frame based on its next_frame member(s).
     struct pbr_material_s *material_base;
     //! <Q2RTXP>: WID: For animated lightbrushes. 
-    struct entity_s *entity;
+    const struct entity_s *entity;
 } light_poly_t;
 
 

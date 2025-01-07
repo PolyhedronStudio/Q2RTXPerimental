@@ -131,8 +131,11 @@ void button_unpress_move_done( edict_t *self ) {
     *   Adjust animation and/or frame.
     **/
     // We're unpressed, thus use the 'start' frame.
+    //self->s.frame = ( !isStartPressed ? self->pushMoveInfo.endFrame : self->pushMoveInfo.startFrame );
     self->s.frame = ( isStartPressed ? self->pushMoveInfo.endFrame : self->pushMoveInfo.startFrame );
     // Adjust entity animation effects for the client to display.
+    // We use EF_ANIM_CYCLE2_2HZ at spawn instead.
+    #if 0
     if ( self->s.effects & EF_ANIM23 ) {
         self->s.effects &= ~EF_ANIM23;
         self->s.effects |= EF_ANIM01;
@@ -140,6 +143,7 @@ void button_unpress_move_done( edict_t *self ) {
         self->s.effects &= ~EF_ANIM01;
         self->s.effects |= EF_ANIM23;
     }
+    #endif
 
     /**
     *   Respond to the UnPressing of the button.
@@ -221,8 +225,11 @@ void button_press_move_done( edict_t *self ) {
     *   Adjust animation and/or frame.
     **/
     // We're pressed, thus use the 'end' frame.
+    //self->s.frame = ( !isStartPressed ? self->pushMoveInfo.endFrame : self->pushMoveInfo.startFrame );
     self->s.frame = ( isStartPressed ? self->pushMoveInfo.startFrame : self->pushMoveInfo.endFrame );
     // Adjust entity animation effects for the client to display.
+    // We use EF_ANIM_CYCLE2_2HZ at spawn instead.
+    #if 0
     if ( self->s.effects & EF_ANIM23 ) {
         self->s.effects &= ~EF_ANIM23;
         self->s.effects |= EF_ANIM01;
@@ -230,6 +237,7 @@ void button_press_move_done( edict_t *self ) {
         self->s.effects &= ~EF_ANIM01;
         self->s.effects |= EF_ANIM23;
     }
+    #endif
 
     if ( isTouchButton ) {
         // If it is a touch button, reassign the touch callback.
@@ -797,13 +805,13 @@ void SP_func_button( edict_t *ent ) {
         // Initial animation. ( Cycles between 0 and 1. )
         // <Q2RTXP>: WID: TODO: Guess it's nice if you can determine animation style yourself, right?
         // if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_ANIMATED ) ) {
-        ent->s.effects |= EF_ANIM01;
+        ent->s.effects |= EF_ANIM_CYCLE2_2HZ;
         // }
     } else {
         // Initial 'unpressed' state.
         ent->pushMoveInfo.state = BUTTON_STATE_UNPRESSED;
         // Initial texture frame setup.
-        ent->pushMoveInfo.startFrame = BUTTON_FRAME_UNPRESSED_1;
+        ent->pushMoveInfo.startFrame = BUTTON_FRAME_UNPRESSED_0;
         ent->pushMoveInfo.endFrame = BUTTON_FRAME_PRESSED_0;
 
         // Initial start frame.
@@ -811,7 +819,7 @@ void SP_func_button( edict_t *ent ) {
         // Initial animation. ( Cycles between 0 and 1. )
         // <Q2RTXP>: WID: TODO: Guess it's nice if you can determine animation style yourself, right?
         // if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_ANIMATED ) ) {
-        ent->s.effects |= EF_ANIM23;
+        ent->s.effects |= EF_ANIM_CYCLE2_2HZ;
         // }
     }
 

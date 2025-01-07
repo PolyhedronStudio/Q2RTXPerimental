@@ -71,7 +71,7 @@ void light_use( edict_t *self, edict_t *other, edict_t *activator, const entity_
     self->activator = activator;
     self->other = other;
 
-    gi.dprintf( "%s: useType=(%d) useValue=(%d)\n", __func__, useType, useValue );
+    //gi.dprintf( "%s: useType=(%d) useValue=(%d)\n", __func__, useType, useValue );
     if ( useType == ENTITY_USETARGET_TYPE_SET ) {
         if ( useValue != 0 ) {
             // If it is on let it be.
