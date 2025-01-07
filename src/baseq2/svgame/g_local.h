@@ -1318,22 +1318,26 @@ struct edict_s {
 
     sg_time_t		last_sound_time;
 
+    //! The possible liquid 'solid' brush we're intersecting with, or inside of.
     contents_t      liquidtype;
+    //! The level of degree at which we're intersecting with, or inside of the liquid 'solid' brush.
 	liquid_level_t	liquidlevel;
 
     vec3_t      move_origin;
     vec3_t      move_angles;
 
-    // move this to clientinfo?
-    int32_t     light_level;
-
-    int32_t     style;          // also used as areaportal number
+    //! Light style, but, also the areaportal number for areaportal entities.
+    int32_t  style;
 	const char *customLightStyle;	// It is as it says.
 
     gitem_t     *item;          // for bonus items
 
-    // common data blocks
+    /**
+    *   Common data blocks
+    **/
+    // Movement Info.
     moveinfo_t      moveinfo;
+    // Monster Info.
     monsterinfo_t   monsterinfo;
 };
 

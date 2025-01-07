@@ -11,6 +11,18 @@
 #include "clgame/clg_temp_entities.h"
 
 
+/**
+*   @brief  Adds trail effects to the entity.
+**/
+static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const uint32_t effects ) {
+    // If no rotation flag is set, add specified trail flags.
+    // WID: Why not? Let's just do this.
+    //if ( effects & ~EF_ROTATE ) {
+    if ( effects & EF_GIB ) {
+        CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, effects );
+    }
+    //}
+}
 
 /**
 *	@brief	Will setup the refresh entity for the ET_PUSHER centity with the newState.
@@ -44,13 +56,8 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
         refreshEntity->frame = newState->frame;
         refreshEntity->oldframe = packetEntity->prev.frame;
     }
-    // Setup the old frame.
-    
-    //refreshEntity->frame = 1;
-    //refreshEntity->oldframe = 1;
     // Backlerp.
     refreshEntity->backlerp = 1.0f - clgi.client->lerpfrac;
-    //refreshEntity->backlerp = 0;
 
     // Set skin and model.
     //refreshEntity->skinnum = newState->skinnum;
@@ -67,12 +74,12 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     // Lerp Angles:
     LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
 
-    //if ( newState->effects & EF_COLOR_SHELL ) {
-    //    refreshEntity->flags |= RF_SHELL_GREEN;
-    //}
+    // Add automatic particle trails
+    CLG_PacketEntity_AddTrailEffects( packetEntity, refreshEntity, newState, newState->effects );
 
     // Add entity to refresh list
     clgi.V_AddEntity( refreshEntity );
+
     #if 0
     // Render effects.
     if ( newState->effects & EF_COLOR_SHELL ) {

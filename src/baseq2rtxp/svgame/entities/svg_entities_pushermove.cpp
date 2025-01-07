@@ -439,7 +439,12 @@ void SVG_PushMove_UpdateMoveWithEntities() {
                     game.moveWithEntities[ j ].childNumber > 0 && game.moveWithEntities[ j ].childNumber < MAX_EDICTS ) {
                     childMover = &g_edicts[ game.moveWithEntities[ j ].childNumber ];
                 }
-                if ( childMover && childMover->inuse && ( childMover->movetype == MOVETYPE_PUSH || childMover->movetype == MOVETYPE_STOP ) ) {
+                if ( childMover && childMover->inuse 
+                    && ( 
+                        //// Allow Triggers, 
+                        //childMover->solid == SOLID_TRIGGER ||
+                        // And Pushers.
+                        childMover->movetype == MOVETYPE_PUSH || childMover->movetype == MOVETYPE_STOP ) ) {
                     SVG_MoveWith_AdjustToParent(
                         parentOriginDelta, parentAnglesDelta,
                         parentVUp, parentVRight, parentVForward,

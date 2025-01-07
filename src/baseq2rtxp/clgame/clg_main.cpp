@@ -383,7 +383,7 @@ void PF_ClearState( void ) {
 	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
 
 	// Clear Temporary Entities.
-	CLG_ClearTEnts();
+	CLG_TemporaryEntities_Clear();
 	// Clear out remaining effect types.
 	CLG_ClearEffects();
 

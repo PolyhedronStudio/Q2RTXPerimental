@@ -72,7 +72,7 @@ static void CLG_StartRandomExplosionSfx( ) {
 /**
 *   @brief   
 **/
-void CLG_ParseTEnt( void ) {
+void CLG_TemporaryEntities_Parse( void ) {
     clg_explosion_t *ex;
     int r;
 
@@ -432,14 +432,14 @@ void CLG_ParseTEnt( void ) {
     //    break;
 
     default:
-        Com_Error( ERR_DROP, "%s: bad type", __func__ );
+        Com_Error( ERR_DROP, "%s: unknown temp entity type(ID: #%d)", __func__, level.parsedMessage.events.tempEntity.type );
     }
 }
 
 /**
 *   @brief
 **/
-void CLG_AddTEnts( void ) {
+void CLG_TemporaryEntities_Add( void ) {
     CLG_AddBeams();
     CLG_AddPlayerBeams();
     CLG_AddExplosions();
@@ -450,7 +450,7 @@ void CLG_AddTEnts( void ) {
 /**
 *   @brief
 **/
-void CLG_ClearTEnts( void ) {
+void CLG_TemporaryEntities_Clear( void ) {
     CLG_ClearBeams();
     CLG_ClearExplosions();
     CLG_ClearLasers();

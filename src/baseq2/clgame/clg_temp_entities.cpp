@@ -95,7 +95,7 @@ static const byte splash_color[] = { 0x00, 0xe0, 0xb0, 0x50, 0xd0, 0xe0, 0xe8 };
 /**
 *   @brief   
 **/
-void CLG_ParseTEnt( void ) {
+void CLG_TemporaryEntities_Parse( void ) {
     clg_explosion_t *ex;
     int r;
 
@@ -464,7 +464,7 @@ void CLG_ParseTEnt( void ) {
 /**
 *   @brief
 **/
-void CLG_AddTEnts( void ) {
+void CLG_TemporaryEntities_Add( void ) {
     CLG_AddBeams();
     CLG_AddPlayerBeams();
     CLG_AddExplosions();
@@ -475,7 +475,7 @@ void CLG_AddTEnts( void ) {
 /**
 *   @brief
 **/
-void CLG_ClearTEnts( void ) {
+void CLG_TemporaryEntities_Clear( void ) {
     CLG_ClearBeams();
     CLG_ClearExplosions();
     CLG_ClearLasers();

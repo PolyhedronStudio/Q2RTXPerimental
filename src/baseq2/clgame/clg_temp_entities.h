@@ -21,15 +21,15 @@ void CLG_InitTEnts( void );
 /**
 *   @brief
 **/
-void CLG_ClearTEnts( void );
+void CLG_TemporaryEntities_Clear( void );
 /**
 *   @brief
 **/
-void CLG_ParseTEnt( void );
+void CLG_TemporaryEntities_Parse( void );
 /**
 *   @brief
 **/
-void CLG_AddTEnts( void );
+void CLG_TemporaryEntities_Add( void );
 
 
 

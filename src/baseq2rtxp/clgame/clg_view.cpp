@@ -1105,7 +1105,7 @@ void PF_PrepareViewEntites( void ) {
     CLG_AddLocalEntities();
 
     // Add special effects 'refresh entities'.
-    CLG_AddTEnts();
+    CLG_TemporaryEntities_Add();
     CLG_AddParticles();
     CLG_AddDLights();
     CLG_AddLightStyles();

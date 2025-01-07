@@ -347,7 +347,7 @@ const qboolean PF_ParseServerMessage( const int32_t serverMessage ) {
     break;
     case svc_temp_entity:
         CLG_ParseTEntPacket();
-        CLG_ParseTEnt();
+        CLG_TemporaryEntities_Parse();
         return true;
     break;
 	default:

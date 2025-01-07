@@ -116,6 +116,8 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 		"COLOR_SHELL", EF_COLOR_SHELL,
 		"QUAD", EF_QUAD,
 		"PENT", EF_PENT,
+		"DOUBLE", EF_DOUBLE,
+		"HALF_DAMAGE", EF_HALF_DAMAGE,
 		"TELEPORTER", EF_TELEPORTER
 	);
 	//

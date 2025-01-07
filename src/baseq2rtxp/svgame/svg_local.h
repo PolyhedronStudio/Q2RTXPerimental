@@ -1453,9 +1453,9 @@ typedef struct mm_ground_info_s {
 *   @brief  Stores the final 'liquid' information results. This can be lava, slime, or water, or none.
 **/
 typedef struct mm_liquid_info_s {
-    //! The actual BSP liquid 'contents' type we're residing in.
+    //! The actual BSP liquid 'contents' type we're intersecting with, or inside of.
     contents_t      type;
-    //! The depth of the player in the actual liquid.
+    //! The level of degree at which we're intersecting with, or inside of the liquid 'solid' brush.
     liquid_level_t	level;
 } mm_liquid_info_t;
 
@@ -1864,8 +1864,6 @@ struct edict_s {
     //! Used for deferring client info so that disconnected, etc works
     sg_time_t	timestamp;
 
-    //! Entity spawnflags key/value.
-    int32_t     spawnflags;
     //! Entity classname key/value.
     const char  *classname;
     //! Path to model.
@@ -1875,8 +1873,25 @@ struct edict_s {
     // Key Spawn Angle.
     float       angle;          // set in qe3, -1 = up, -2 = down
 
+    //! Entity spawnflags key/value.
+    int32_t     spawnflags;
     //! Generic Entity flags.
     entity_flags_t flags;
+
+
+    //
+    // Health Conditions:
+    //
+    //! Current Health.
+    int32_t             health;
+    //! Maximum Health. (Usually used to reset health with in respawn scenarios.)
+    int32_t             max_health;
+    int32_t             gib_health;
+    //! Officially dead, or still respawnable etc.
+    entity_deathflag_t  deadflag;
+    //! To take damage or not.
+    entity_takedamage_t takedamage;
+
 
     //
     // UseTarget Properties and State:
@@ -1895,6 +1910,7 @@ struct edict_s {
         //! The time at which this entity was last (+usetarget) activated.
         //sg_time_t timeChanged;
     } useTarget;
+
 
     //
     // Target Fields:
@@ -1918,6 +1934,7 @@ struct edict_s {
         const char *movewith;
     } targetNames;
 
+
     //
     // Target Entities:
     //
@@ -1930,6 +1947,7 @@ struct edict_s {
         //edict_t *movewith_next;
     } targetEntities;
 
+
     //
     // Lua Properties:
     //
@@ -1937,6 +1955,7 @@ struct edict_s {
         //! The name which its script methods are prepended by.
         const char *luaName;
     } luaProperties;
+
 
     //
     // "Delay" entities, these are created when (UseTargets/SignalOut) and a
@@ -1962,6 +1981,7 @@ struct edict_s {
             std::vector<svg_signal_argument_t> arguments;
         } signalOut;
     } delayed;
+
 
     //
     // Physics Related:
@@ -1990,7 +2010,6 @@ struct edict_s {
         //! The child entity will be pointing to the next in line, and so on.
         edict_t *moveNextEntity;
     } moveWith;
-
     //! Specified physics movetype.
     int32_t     movetype;
     //! Move velocity.
@@ -2033,6 +2052,7 @@ struct edict_s {
     Vector3 lastAngles;
     //! For func_train, next path to move to.
     edict_t *movetarget;
+
 
     //
     // NextThinkg + Entity Callbacks:
@@ -2099,6 +2119,7 @@ struct edict_s {
     //! The entity that called upon the SignalOut/UseTarget
     edict_t *other;
 
+
     //
     //  Player Noise/Trail:
     //
@@ -2148,8 +2169,6 @@ struct edict_s {
 
     //! The entity's height above its 'origin', used to state where eyesight is determined.
     int32_t     viewheight;
-    //! To take damage or not.
-    entity_takedamage_t takedamage;
     //! Damage entity will do.
     int32_t     dmg;
     //! Size of the radius where entities within will be damaged.
@@ -2162,14 +2181,6 @@ struct edict_s {
     //! Count of ... whichever depends on entity.
     int32_t     count;
 
-
-    //
-    // Health Conditions:
-    //
-    int32_t             health;
-    int32_t             max_health;
-    int32_t             gib_health;
-    entity_deathflag_t  deadflag;
 
     //
     //  Lights:
@@ -2189,7 +2200,6 @@ struct edict_s {
     //
     //  Monster Related:
     // 
-    
     //! How many degrees the yaw should rotate per frame in order to reach its 'ideal_yaw'.
     float   yaw_speed;
     //! Ideal yaw to face to.

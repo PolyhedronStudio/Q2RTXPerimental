@@ -1570,6 +1570,15 @@ destroy_vulkan(void)
 	return 0;
 }
 
+
+
+/**
+*
+*
+*	Instancing of entities and their mesh materials.
+* 
+* 
+**/
 typedef struct entity_hash_s {
 	unsigned int mesh : 8;
 	unsigned int model : 9;
@@ -1608,7 +1617,7 @@ typedef struct {
 	uint32_t shell;
 } material_and_shell_t;
 
-static material_and_shell_t compute_mesh_material_flags(const entity_t* entity, const model_t* model,
+static material_and_shell_t compute_aliasmesh_material_flags(const entity_t* entity, const model_t* model,
 	const maliasmesh_t* mesh, bool is_viewer_weapon, bool is_double_sided, float alpha)
 {
 	pbr_material_t const* material = get_mesh_material(entity, mesh);
@@ -1674,6 +1683,55 @@ static material_and_shell_t compute_mesh_material_flags(const entity_t* entity, 
 
 	return mat_shell;
 }
+
+//static material_and_shell_t compute_bspmesh_material_flags( const entity_t *entity, const bsp_model_t *model, float alpha ) {
+//	//pbr_material_t const *material = get_mesh_material( entity, mesh );
+//	material_and_shell_t mat_shell = { .material_id = 0, .shell = 0 };
+//
+//
+//	//if ( !material ) {
+//	//	Com_EPrintf( "Cannot find material for model '%s'\n", model->name );
+//	//	return mat_shell;
+//	//}
+//
+//	uint32_t material_id = 0;// material->flags;
+//
+//	//if ( MAT_IsKind( material_id, MATERIAL_KIND_INVISIBLE ) )
+//	//	return mat_shell; // skip the mesh
+//
+//	//if ( MAT_IsKind( material_id, MATERIAL_KIND_CHROME ) )
+//	//	material_id = MAT_SetKind( material_id, MATERIAL_KIND_CHROME_MODEL );
+//
+//	//if ( MAT_IsKind( material_id, MATERIAL_KIND_TRANSPARENT ) || ( MAT_IsKind( material_id, MATERIAL_KIND_REGULAR ) && ( alpha < 1.0f ) ) )
+//	//	material_id = MAT_SetKind( material_id, MATERIAL_KIND_TRANSP_MODEL );
+//
+//	//if ( !MAT_IsKind( material_id, MATERIAL_KIND_GLASS ) ) {
+//		#if USE_DEBUG
+//		if ( cvar_pt_test_shell->integer != 0 )
+//			mat_shell.shell = cvar_pt_test_shell->integer;
+//		#endif
+//
+//		if ( ( entity->flags & RF_IR_VISIBLE ) && ( vkpt_refdef.fd->rdflags & RDF_IRGOGGLES ) ) {
+//			// IR googgles: force red shell
+//			mat_shell.shell |= SHELL_RED;
+//		} else {
+//			if ( entity->flags & RF_SHELL_HALF_DAM )
+//				mat_shell.shell |= SHELL_HALF_DAM;
+//			if ( entity->flags & RF_SHELL_DOUBLE )
+//				mat_shell.shell |= SHELL_DOUBLE;
+//			if ( entity->flags & RF_SHELL_RED )
+//				mat_shell.shell |= SHELL_RED;
+//			if ( entity->flags & RF_SHELL_GREEN )
+//				mat_shell.shell |= SHELL_GREEN;
+//			if ( entity->flags & RF_SHELL_BLUE )
+//				mat_shell.shell |= SHELL_BLUE;
+//		}
+//	//}
+//
+//	mat_shell.material_id = material_id;
+//
+//	return mat_shell;
+//}
 
 static void fill_model_instance(ModelInstance* instance, const entity_t* entity, const model_t* model, const maliasmesh_t* mesh,
 	const float* transform, material_and_shell_t mat_shell, int instance_index, int iqm_matrix_index)
@@ -1792,7 +1850,7 @@ static void instance_model_lights(const entity_t *entity, int num_light_polys, c
 		transform_point(src_light->off_center, transform, dst_light->off_center);
 
 		// Assign entity.
-		//dst_light->entity = entity;
+		dst_light->entity = entity;
 		// Find the cluster based on the center. Maybe it's OK to use the model's cluster, need to test.
 		dst_light->cluster = BSP_PointLeaf(bsp_world_model->nodes, dst_light->off_center)->cluster;
 		
@@ -1846,7 +1904,6 @@ static void process_bsp_entity(const entity_t* entity, int* instance_count)
 		// In some cases, a model slides into a wall, like a push button, so that its center 
 		// is no longer in any BSP node. We still need to assign a cluster to the model,
 		// so try the corners of the model instead, see if any of them has a valid cluster.
-
 		for (int corner = 0; corner < 8; corner++)
 		{
 			vec3_t corner_pt = {
@@ -1873,11 +1930,18 @@ static void process_bsp_entity(const entity_t* entity, int* instance_count)
 
 	memcpy(&model_entity_ids[entity_frame_num][current_instance_idx], &hash, sizeof(uint32_t));
 
+	// Alpha?
 	float model_alpha = (entity->flags & RF_TRANSLUCENT) ? entity->alpha : 1.f;
+	
+	// <Q2RTXP>: WID: Shell?
+	//material_and_shell_t mat_shell = compute_bspmesh_material_flags( entity, model, model_alpha );
+
+	// BSP Mesh Model Instance:
 	ModelInstance* mi = uniform_instance_buffer->model_instances + current_instance_idx;
 	memcpy(&mi->transform, transform, sizeof(transform));
 	memcpy(&mi->transform_prev, transform, sizeof(transform));
 	mi->material = 0;
+	//mi->shell = mat_shell.shell;	// <Q2RTXP>: WID: Apply fetched material shell.
 	mi->cluster = cluster;
 	mi->source_buffer_idx = VERTEX_BUFFER_WORLD;
 	mi->prim_count = model->geometry.prim_counts[0];
@@ -2026,7 +2090,7 @@ static void process_regular_entity(
 			continue;
 		}
 
-		material_and_shell_t mat_shell = compute_mesh_material_flags(entity, model, mesh, is_viewer_weapon, is_double_sided, alpha);
+		material_and_shell_t mat_shell = compute_aliasmesh_material_flags(entity, model, mesh, is_viewer_weapon, is_double_sided, alpha);
 
 		if (!mat_shell.material_id)
 			continue;
