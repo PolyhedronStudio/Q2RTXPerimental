@@ -1,17 +1,20 @@
 //
-// Quake 2 game definition file (.fgd)
+// Quake 2 RTXPerimental game definition file (.fgd)
 //
 // Originally written by by autolycus
 // Special thanks to: Disruptor, Zoid, Zaphod, Imaginos, and EutecTic.
 //
-// Lasted updated by xaGe : 20200415
+// Thank you too, xaGe :-P
+//
+// Lasted updated by WatIsDeze : 2025-01-08
 
 //
-// worldspawn
+//	WorldSpawn:
 //
 // 0302 - added "nextmap" key
 @SolidClass = worldspawn : "World entity"
 [
+	// <Q2RTXP> WID: Add in default RTX environment setting possibilities.
 	sky(string) : "Environment map name"
 	skyaxis(string) : "Vector axis for rotating sky"
 	skyrotate(string) : "Speed of rotation (degrees/second)"
@@ -21,9 +24,11 @@
 	nextmap(string) : "Next map (DM only)"
 ]
 
+
+
 //
-// base marker definitions
-//model({ "path": ":models/items/keys/target/tris.md2" }) =
+//	AppearFlags BaseClass:
+//
 @baseclass = Appearflags [
 	spawnflags(Flags) =
 	[
@@ -34,8 +39,17 @@
 		8388608 : "Not in Hard" : 0
 	]
 ]
+//
+//	Angle BaseClass:
+//
 @baseclass = Angle [ angle(integer) : "Direction" ]
+//
+//	TargetName BaseClass:
+//
 @baseclass = Targetname [ targetname(target_source) : "Name" ]
+//
+//	Target BaseClass:
+//
 @baseclass = Target [ target(target_destination) : "Target" ]
 // <Q2RTXP>
 //
@@ -56,23 +70,50 @@
 ]
 // </Q2RTXP>
 
+//
+// Light BaseClass:
+//
+@baseclass base(Luaname, Targetname) 
+	size( -16 -16 -16, 16 16 16 )
+	color( 196 125 85 )
+	sprite( { "path": "_tb_icons/light.tga", "scale":1 } )
+= LightEntity[]
+
+//
+//	Player BaseClass:
+//
+@baseclass base(Appearflags, Targetname) 
+	size( -16 -16 -36, 16 16 36 ) 
+	color( 0 255 0 ) 
+	model( { "path": "players/playerdummy/tris.iqm" } ) 
+= PlayerClass []
+
 
 
 //
-// player start, deathmatch, coop, deathmatch intermission
+//	Player start, deathmatch, coop, deathmatch intermission
 //
-
-@baseclass base(Appearflags, Targetname) size(-16 -16 -36, 16 16 36) color(0 255 0) model({ "path": ":players/playerdummy/tris.iqm", "frame":1, "skin":0}) = PlayerClass []
-@PointClass base(PlayerClass) = info_player_start : "Player 1 start" []
-@PointClass base(PlayerClass) = info_player_deathmatch : "Player deathmatch start" []
-@PointClass base(PlayerClass) = info_player_coop : "Player cooperative start" []
-@PointClass base(PlayerClass) = info_player_intermission : "Deathmatch intermission point"
+//@baseclass base(Appearflags, Targetname) size(-16 -16 -36, 16 16 36) color(0 255 0) model({ "path": ":players/playerdummy/tris.iqm", "frame":1, "skin":0}) = PlayerClass []
+@PointClass base(PlayerClass)
+	sprite( { "path": "_tb_icons/info_player_start.tga", "scale":0.5 } )
+= info_player_start : "Player 1 start" []
+@PointClass base(PlayerClass) 
+	sprite( { "path": "_tb_icons/info_player_deathmatch.tga", "scale":0.5 } )
+= info_player_deathmatch : "Player deathmatch start" []
+@PointClass base(PlayerClass) 
+	sprite( { "path": "_tb_icons/info_player_coop.tga", "scale":0.5 } )
+= info_player_coop : "Player cooperative start" []
+@PointClass base(PlayerClass) 
+	sprite( { "path": "_tb_icons/info_player_intermission.tga", "scale":0.5 } )
+= info_player_intermission : "Deathmatch intermission point"
 [
 	angles(string) : "pitch yaw roll"
 ]
 
+
+
 //
-//	WID: Client Local Entities
+//	Q2RTXP: Client Local Entities
 //
 // client_misc_model
 @baseclass base(Appearflags, Targetname, Target) size( -16 -16 -24, 16 16 24 ) color( 128 128 0 ) model({
@@ -85,9 +126,11 @@
 	frame(integer) : "model frame" : 0
 	skin(integer) : "model_skin" : 0
 ]
-
 // client_env_sound
-@PointClass base(Appearflags, Target, Targetname) color(0 128 204) = client_env_sound : "Client EAX Reverb Effect Area"
+@PointClass base(Appearflags, Target, Targetname) 
+	color(0 128 204) 
+	sprite( { "path": "_tb_icons/client_env_sound.tga", "scale":0.5 } )
+= client_env_sound : "Client EAX Reverb Effect Area"
 [
 	radius(float) : "The radius of within the desired reverb effect area, where it will try and clip to the client."
 	reverb_effect_id(choices) : "Reverb EAX Effects" : 0 =
@@ -140,11 +183,11 @@
 	_minlight(integer) : "Minimum light (optional)"
 ]
 
-//
-// WID: Rest of FGD as it was:
-//
 
 
+//
+// Ammo Entities
+//
 // Notes on the 'team' key: First of all, it's really only useful in DM because it creates a
 // random respawn pattern. Let's say that in one spot, you want to have the shotgun, Quad
 // damage and mega health item to respawn in alternance. Place all of them in approximately
@@ -153,26 +196,27 @@
 // to spawn. Once the Master is picked up, the respawn pattern becomes RANDOM: it could be
 // the same or one of the other 2. If you try to use this in a Single Player map, it's
 // pretty useless because only the team MASTER spawns and the others never appear obviously.
-
 @BaseClass base(Appearflags, Target) color(76 76 255) size(-16 -16 -16, 16 16 16) = Ammo
 [
 	team(string) : "Team"
 ]
+@PointClass base(Ammo) model({ "path": ":models/items/ammo/bullets_pistol/tris.iqm" }) = ammo_bullets_pistol : "Pistol Ammo Bullets " []
+@PointClass base(Ammo) model({ "path": ":models/items/ammo/bullets_rifle/tris.iqm" }) = ammo_bullets_rifle : "Rifle Ammo Bullets " []
+@PointClass base(Ammo) model({ "path": ":models/items/ammo/bullets_smg/tris.iqm" }) = ammo_bullets_smg : "SMG Ammo Bullets " []
+@PointClass base(Ammo) model({ "path": ":models/items/ammo/bullets_sniper/tris.iqm" }) = ammo_bullets_sniper : "Sniper Ammo Bullets " []
+@PointClass base(Ammo) model({ "path": ":models/items/ammo/shells_shotgun/tris.iqm" }) = ammo_shells_shotgun : "Shotgun Ammo Shells" []
 
-@PointClass base(Ammo) model({ "path": ":models/items/ammo/shells/medium/tris.md2" }) = ammo_shells : "Shotgun ammo" []
-@PointClass base(Ammo) model({ "path": ":models/items/ammo/bullets/medium/tris.md2" }) = ammo_bullets : "Machine/Chain gun ammo" []
-@PointClass base(Ammo) model({ "path": ":models/items/ammo/cells/medium/tris.md2" }) = ammo_cells : "Blaster/BFG ammo" []
-@PointClass base(Ammo) model({ "path": ":models/items/ammo/grenades/medium/tris.md2" }) = ammo_grenades : "Grenades" []
-@PointClass base(Ammo) model({ "path": ":models/items/ammo/rockets/medium/tris.md2" }) = ammo_rockets : "Rockets" []
-@PointClass base(Ammo) model({ "path": ":models/items/ammo/slugs/medium/tris.md2" }) = ammo_slugs : "Rail gun ammo" []
 
+
+//
+//	FUNC_ entities:
+//
 // Keep in mind when using func_areaportal that it must
 // *completely* separate two areas.  otherwise, you will
 // get an error message and the areaportal will not work
 //
 // 0221 - is there any point in a "style" key?
 @SolidClass base(Appearflags, Targetname) = func_areaportal : "Area portal (Vis blocker)" []
-
 // 0221 - added "pathtarget"
 // 0221 - changed "sounds" information
 @SolidClass base(Appearflags, Luaname, UseTargetFlags, Target, Targetname) color(0 128 204) = func_button : "Button"
@@ -211,7 +255,6 @@
 	message(string) : "Activation message"
 	_minlight(integer) : "Minimum light (optional)"
 ]
-
 // 0221 - added "count" key...oops :)
 @PointClass base(Appearflags, Targetname) color(0 0 255) size(-8 -8 -8, 8 8 8) = func_clock : "Clock"
 [
@@ -231,7 +274,6 @@
 		2 : "xx:xx:xx"
 	]
 ]
-
 // func_conveyor code is incomplete.  use the surface attribute "flowing"
 // and the "current" content flag.  (texture won't scroll)
 //
@@ -246,7 +288,6 @@
 	speed(integer) : "Speed" : 100
 	_minlight(integer) : "Minimum light (optional)"
 ]
-
 // 0221 - updated "sounds" information
 // 0221 - added "killtarget"
 @SolidClass base(Angle, Appearflags, Luaname, UseTargetFlags, Targetname, Target) color(0 128 204) = func_door : "Door"
@@ -291,11 +332,12 @@
 //	]
 	_minlight(integer) : "Minimum light (optional)"
 ]
-
 // 0221 - added "killtarget" and "target" keys
 // 0221 - updated "sounds" info
 // 0221 - removed "lip" key
-@SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) color(0 128 204) = func_door_rotating : "Rotating Door"
+@SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) 
+	color(0 128 204)
+= func_door_rotating : "Rotating Door"
 [
 	spawnflags(Flags) =
 	[
@@ -337,7 +379,6 @@
 //	]
 	_minlight(integer) : "Minimum light (optional)"
 ]
-
 // 0221 - added "_minlight" key (even tho you dont want it to stand out)
 // 0221 - added "message" key
 // 0221 - removed "team" key
@@ -359,7 +400,6 @@
 // 	_minlight(integer) : "Minimum light (optional)"
 // ]
 // </Q2RTXP>
-
 // not visible in DM mode
 //
 // 0221 - added "_minlight" key (even tho you dont want it to stand out)
@@ -376,7 +416,6 @@
 	dmg(integer) : "Damage" : 0
 	_minlight(integer) : "Minimum light (optional)"
 ]
-
 @SolidClass base(Appearflags, Targetname) color(255 0 0) = func_killbox : "Instant death" 
 [
 	spawnflags(Flags) =
@@ -387,7 +426,6 @@
 		32 : "Trigger on Brush Clip" : 0
 	]
 ]
-
 // 0221 - added "_minlight" key
 @SolidClass base(Appearflags, Targetname) color (0 128 204) = func_object : "Solid bmodel, will fall if its support is removed"
 [
@@ -397,7 +435,6 @@
 	]
 	_minlight(integer) : "Minimum light (optional)"
 ]
-
 // 0221 - removed "sounds" key
 @SolidClass base(Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_plat : "Platform"
 [
@@ -411,7 +448,6 @@
 	height(integer) : "Movement distance"
 	_minlight(integer) : "Minimum light (optional)"
 ]
-
 // 0222 - added "team" key
 @SolidClass base(Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_rotating : "Rotating brush"
 [
@@ -431,7 +467,6 @@
 	dmg(integer) : "Damage when blocked" : 2
 	_minlight(integer) : "Minimum light (optional)"
 ]
-
 @PointClass base(Appearflags, Targetname, Target) color(76 25 153) size(-8 -8 -8, 8 8 8) = func_timer : "Timer"
 [
 	spawnflags(Flags) =
@@ -443,7 +478,6 @@
 	delay(integer) : "Delay before first firing"
 	pausetime(integer) : "Additional delay"
 ]
-
 // 0219 - added "team" key
 @SolidClass base(Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_train : "Moving platform"
 [
@@ -460,7 +494,6 @@
 	noise(string) : "Sound (path/file.wav)"
 	_minlight(integer) : "Minimum light (optional)"
 ]
-
 // 0221 - added a "_minlight" key
 @SolidClass base(Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_wall : "Solid Wall"
 [
@@ -474,7 +507,6 @@
 	]
 	_minlight(integer) : "Minimum light (optional)"
 ]
-
 // must never be transparent?
 //
 // 0221 - added a "_minlight" key
@@ -500,73 +532,56 @@
 	_minlight(integer) : "Minimum light (optional)"
 ]
 
-@PointClass base(Appearflags, Targetname) color(0 128 0) size(-4 -4 -4, 4 4 4) = info_null : "Spotlight target" []
-@PointClass base(info_null) = info_notnull : "Lightning target" []
+
+
+//
+//	Info && InfoNull Entities:
+//
+@PointClass base(Appearflags, Targetname) 
+	color(0 128 0) 
+	size(-4 -4 -4, 4 4 4) 
+	sprite( { "path": "_tb_icons/info_null.tga", "scale":0.25 } )
+= info_null : "Spotlight target" []
+
+@PointClass base(info_null) 
+	sprite( { "path": "_tb_icons/info_notnull.tga", "scale":0.25 } )
+= info_notnull : "Lightning target" []
 
 @BaseClass base(Appearflags, Target) color(76 76 255) size(-16 -16 -16, 16 16 16) = Items
 [
 	team(string) : "Team"
 ]
 
-@PointClass base(Items) model({ "path": ":models/items/adrenal/tris.md2" }) = item_adrenaline : "+1 to max health" []
-@PointClass base(Items) model({ "path": ":models/items/c_head/tris.md2" }) = item_ancient_head : "+2 to max health" []
-@PointClass base(Items) model({ "path": ":models/items/armor/body/tris.md2" }) = item_armor_body : "Body armor" []
-@PointClass base(Items) model({ "path": ":models/items/armor/combat/tris.md2" }) = item_armor_combat : "Combat armor" []
-@PointClass base(Items) model({ "path": ":models/items/armor/jacket/tris.md2" }) = item_armor_jacket : "Jacket armor" []
-@PointClass base(Items) model({ "path": ":models/items/armor/shard/tris.md2" }) = item_armor_shard : "Armor shard" []
-@PointClass base(Items) model({ "path": ":models/items/band/tris.md2" }) = item_bandolier : "Equipment belt" []
-@PointClass base(Items) model({ "path": ":models/items/breather/tris.md2" }) = item_breather : "Underwater breather" []
-@PointClass base(Items) model({ "path": ":models/items/enviro/tris.md2" }) = item_enviro : "Enviro-Suit" []
-@PointClass base(Items) model({ "path": ":models/items/healing/medium/tris.md2" }) = item_health : "+10 health" []
-@PointClass base(Items) model({ "path": ":models/items/healing/stimpack/tris.md2" }) = item_health_small : "+2 health" []
-@PointClass base(Items) model({ "path": ":models/items/healing/large/tris.md2" }) = item_health_large : "+25 health" []
-@PointClass base(Items) model({ "path": ":models/items/mega_h/tris.md2" }) = item_health_mega : "+100 health" []
-@PointClass base(Items) model({ "path": ":models/items/invulner/tris.md2" }) = item_invulnerability : "Invulnerability" []
-@PointClass base(Items) model({ "path": ":models/items/pack/tris.md2" }) = item_pack : "Heavy backpack" []
-@PointClass base(Items) model({ "path": ":models/items/armor/screen/tris.md2" }) = item_power_screen : "Power screen" []
-@PointClass base(Items) model({ "path": ":models/items/armor/shield/tris.md2" }) = item_power_shield : "Power shield" []
-@PointClass base(Items) model({ "path": ":models/items/quaddama/tris.md2" }) = item_quad : "Quad damage" []
-@PointClass base(Items) model({ "path": ":models/items/silencer/tris.md2" }) = item_silencer : "Silencer" []
 
-@BaseClass base(Appearflags, Target) color(0 128 204) size(-16 -16 -16, 16 16 16) = Keys []
 
-@PointClass base(Keys) model({ "path": ":models/items/keys/target/tris.md2" }) = key_airstrike_target : "Tank commander's head" []
-@PointClass base(Keys) model({ "path": ":models/items/keys/key/tris.md2" }) = key_blue_key : "Normal door key - blue" []
-@PointClass base(Keys) model({ "path": ":models/monsters/commandr/head/tris.md2" }) = key_commander_head : "Tank commander's head" []
-@PointClass base(Keys) model({ "path": ":models/items/keys/data_cd/tris.md2" }) = key_data_cd : "Key for computer centers" []
-@PointClass base(Keys) model({ "path": ":models/items/keys/spinner/tris.md2" }) = key_data_spinner : "Key for city computer" []
-@PointClass base(Keys) model({ "path": ":models/items/keys/pass/tris.md2" }) = key_pass : "Security pass for secret level" []
-
-// 0301 - added "targetname" key
-@PointClass base(Keys, Targetname) model({ "path": ":models/items/keys/power/tris.md2" }) = key_power_cube : "Warehouse circuits"
-[
-	spawnflags(Flags) =
-	[
-		1 : "Trigger Spawn" : 0
-		2 : "No Touch" : 0
-	]
+//
+//	Light Entities:
+//
+@PointClass base(LightEntity) = light : "Light Entity" [
+		customLightStyle(string) : "A custom light style to be applied to this light its style index, leave empty if set by other light entity." : ""
+		style(integer) : "The style number that this light relies on." : 0
+		spawnflags(Flags) =
+		[
+			1 : "Start Off" : 0
+		]
 ]
-@PointClass base(Keys) model({ "path": ":models/items/keys/pyramid/tris.md2" }) = key_pyramid : "Key for entrance to jail3" []
-@PointClass base(Keys) model({ "path": ":models/items/keys/red_key/tris.md2" }) = key_red_key : "normal door key - red" []
-
 @PointClass base(light) color(0 255 0) size(-8 -8 -8, 8 8 8) = spotlight : "Spotlight"
 [
 	spawnflags(Flags) =
 	[
 		1 : "Start Off" : 0
 	]
-	intensity(float) : "Brightness" : 100
-	customLightStyle(string) : "The lightstyle string to apply."
-	angle_width(float) : "Size of spotlight" : 15
-	angle_falloff(float) : "Falloff for spotlight" : 45
+	intensity(float) : "Brightness" : "100.0"
+	customLightStyle(string) : "The lightstyle string to apply." : ""
+	angle_width(float) : "Size of spotlight" : "15.0"
+	angle_falloff(float) : "Falloff for spotlight" : "45.0"
 ]
 
-@PointClass base(light) color(0 255 0) size(-2 -2 -12, 2 2 12) model({ "path": ":models/objects/minelite/light1/tris.md2", "skin": 0 }) = light_mine1 : "Clean fluorescent light fixture"	[spawnflags(Flags) =	[	1 : "" : 0	]]
-@PointClass base(light) color(0 255 0) size(-2 -2 -12, 2 2 12) model({ "path": ":models/objects/minelite/light2/tris.md2", "skin": 0 }) = light_mine2 : "Dusty fluorescent light fixture"	[spawnflags(Flags) = [	1 : "" : 0]]
 
 
-
-
+//
+//	Misc Entities:
+//
 // actor code is still broken...leaving this in because i know *someone* will fix
 // this because its pretty damn cool.
 @PointClass base(PlayerClass, Target) = misc_actor : "Actor"
@@ -590,37 +605,6 @@
 	speed(integer) : "Forward (jump)" : 200
 	height(integer) : "Height (jump)" : 200
 ]
-
-// 0224 - changed banner size from (-4 -4 -4, 4 4 4) to (-4 -4 0, 4 4 246)
-@PointClass base(Appearflags) color(255 128 0) size(-4 -4 0, 4 4 246) model({ "path": ":models/objects/banner/tris.md2" }) = misc_banner : "Flowing banner" []
-
-@PointClass base(Appearflags) color(255 128 0) size(-8 -8 -8, 8 8 8) model({ "path": ":models/objects/black/tris.md2" }) = misc_blackhole : "Blackhole" []
-
-@PointClass base(Appearflags) color(255 128 0) size(-16 -16 0, 16 16 16)	model({{
-  spawnflags & 32 -> { "path": ":models/deadbods/dude/tris.md2", "frame": 5 },
-  spawnflags & 16 -> { "path": ":models/deadbods/dude/tris.md2", "frame": 4 },
-  spawnflags &  8 -> { "path": ":models/deadbods/dude/tris.md2", "frame": 3 },
-  spawnflags &  4 -> { "path": ":models/deadbods/dude/tris.md2", "frame": 2 },
-  spawnflags &  2 -> { "path": ":models/deadbods/dude/tris.md2", "frame": 1 },
-                             	":models/deadbods/dude/tris.md2"
-  }}) = misc_deadsoldier : "Dead guys! 6 of em!"
-[
-	spawnflags(Flags) =
-	[
-		1 : "On Back" : 0
-		2 : "On Stomach" : 0
-		4 : "Back, Decap" : 0
-		8 : "Fetal Position" : 0
-		16 : "Sitting, Decap" : 0
-		32 : "Impaled" : 0
-	]
-]
-
-// The following three entities are eye-candy - they don't do anything
-@PointClass base(Appearflags) color(255 128 0) size(-32 -32 -16, 32 32 32) model({ "path": ":models/monsters/tank/tris.md2",	"frame":254, "skin": 0}) = misc_eastertank : "Tank sitting down. Make him a chair out of brushes." []
-@PointClass base(Appearflags) color(255 128 0) size(-32 -32 0, 32 32 32) model({ "path": ":models/monsters/bitch/tris.md2", "frame":208}) = misc_easterchick : "Chick #1 sitting: Place her near misc_eastertank." []
-@PointClass base(Appearflags) color(255 128 0) size(-32 -32 0, 32 32 32) model({ "path": ":models/monsters/bitch/tris.md2", "frame":248}) = misc_easterchick2 : "Chick #2 sitting w/ different pose. Can be placed close to misc_eastertank's for full effect." []
-
 // 0225 - removed "target" key - id concluded being able to target
 // something with a movable barrel was a bug and removed that function :(
 @PointClass base(Appearflags, Targetname) color(0 128 204) size(-16 -16 0, 16 16 40) model({ "path": ":models/objects/barrels/tris.md2" }) = misc_explobox : "Large exploding box"
@@ -629,64 +613,14 @@
 	health(integer) : "Health" : 80
 	dmg(integer) : "Damage" : 150
 ]
-
-// set angle for gib direction, otherwise it just drops
-@PointClass base(Appearflags) color(255 0 0) size(-8 -8 -8, 8 8 8) model({ "path": ":models/objects/gibs/arm/tris.md2" }) = misc_gib_arm : "arm gib, use with target_spawner" []
-@PointClass base(Appearflags) color(255 0 0) size(-8 -8 -8, 8 8 8) model({ "path": ":models/objects/gibs/head/tris.md2" }) = misc_gib_head : "head gib, use with target_spawner" []
-@PointClass base(Appearflags) color(255 0 0) size(-8 -8 -8, 8 8 8) model({ "path": ":models/objects/gibs/arm/tris.md2" }) = misc_gib_leg : "leg gib, use with target_spawner" []
-
-
-
-// new
-@PointClass base(Appearflags, Targetname, Target) color(255 128 0) size(-16 -16 -24, 16 16 32) model({{
-  spawnflags & 32 -> { "path": ":models/monsters/insane/tris.md2", "frame": 0 },
-  spawnflags & 16 -> { "path": ":models/monsters/insane/tris.md2", "frame": 74 },
-  spawnflags &  8 -> { "path": ":models/monsters/insane/tris.md2", "frame": 252 },
-  spawnflags &  4 -> { "path": ":models/monsters/insane/tris.md2", "frame": 38 },
-  spawnflags &  2 -> { "path": ":models/monsters/insane/tris.md2", "frame": 0 },
-                             	":models/monsters/insane/tris.md2"
-  }}) = misc_insane : "Insane Soldiers"
-[
-	spawnflags(Flags) =
-	[
-    1 : "Ambush" : 0
-    2 : "Trigger Spawn" : 0
-    4 : "Crawl" : 0
-    8 : "Crucified" : 0
-   16 : "Stand Ground" : 0
-   32 : "Always Stand" : 0
-	]
-  deathtarget(string) : "Entity to trigger at death"
-  killtarget(string) : "Entity to remove at death"
-  item(string) : "Item to spawn at death"
-]
-
-@PointClass base(Appearflags, Targetname) color(255 128 0) size(-64 -64 0, 64 64 128) model({ "path": ":models/objects/satellite/tris.md2" }) = misc_satellite_dish : "Satellite Dish" []
-@PointClass base(Appearflags, Targetname) color(255 128 0) size(-16 -16 0, 16 16 32) model({ "path": ":models/ships/strogg1/tris.md2" }) = misc_strogg_ship : "Strogg ship for flybys"
-[
-	target(string) : "First path target"
-	speed(integer) : "Speed"
-
-]
-
 @PointClass base(Appearflags, Targetname) color(255 0 0) size(-32 -32 -24, 32 32 -16) model({ "path": ":models/objects/dmspot/tris.md2", "skin": 1 }) = misc_teleporter : "Teleporter: To hide the teleport pads, place them units 10 units into a brush."	[	target(string) : "Teleport Destination"	]
 @PointClass base(Appearflags, Targetname) color(255 0 0) size(-32 -32 -24, 32 32 -16) model({ "path": ":models/objects/dmspot/tris.md2", "skin": 0 }) = misc_teleporter_dest : "Teleport Destination: To hide the teleport pads, place them units 10 units into a brush." []
-@PointClass base(Appearflags) color(255 128 0) size(-176 -120 -24, 176 120 72) model({ "path": ":models/ships/bigviper/tris.md2" }) = misc_bigviper : "Large stationary Viper" []
-@PointClass base(Appearflags, Targetname) color(255 128 0) size(-16 -16 0, 16 16 32) model({ "path": ":models/ships/viper/tris.md2" }) = misc_viper : "Viper for flybys"
-[
-	target(string) : "First path target"
-	speed(integer) : "Speed"
 
-]
-@PointClass base(Appearflags, Targetname) color(255 0 0) size(-8 -8 -8, 8 8 8) model({ "path": ":models/objects/bomb/tris.md2" }) = misc_viper_bomb : "Viper Bomb"
-[
-	dmg(integer) : "Damage"
-]
+
 
 //
-// Monsters!
+//	Monsters Entities:
 //
-
 @BaseClass base(Appearflags, Target, Targetname) color(255 128 0) size(-16 -16 -24, 16 16 32) = Monsters
 [
 	spawnflags(Flags) =
@@ -701,41 +635,50 @@
 	item(string) : "Spawn Item"
 ]
 
-@PointClass base(Monsters) model({ "path": ":models/monsters/berserk/tris.md2" }) = monster_berserk : "Berserker" []
-@PointClass base(Monsters) size(-56 -56 0, 56 56 80) model({ "path": ":models/monsters/boss2/tris.md2" }) = monster_boss2 : "Hornet" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/berserk/tris.md2" }) = monster_berserk : "Berserker" []
+//@PointClass base(Monsters) size(-56 -56 0, 56 56 80) model({ "path": ":models/monsters/boss2/tris.md2" }) = monster_boss2 : "Hornet" []
 
 // Just fidgets in one spot and teleports away when triggered
 //
 // 0221 - removed Monsters class inheritance
-@PointClass base(Appearflags, Targetname) size(-32 -32 0, 32 32 80) model({ "path": ":models/monsters/boss3/rider/tris.md2", "frame": 414}) = monster_boss3_stand : "Stationnary Makron" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/brain/tris.md2" }) = monster_brain : "Brains" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/bitch/tris.md2" }) = monster_chick : "Iron Maiden" []
-@PointClass base(Appearflags, Targetname) color(255 128 0) size(-32 -32 0, 32 32 48) model({ "path": ":models/monsters/commandr/tris.md2" }) = monster_commander_body : "Tank commander's decapitated body" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/flipper/tris.md2" }) = monster_flipper : "Barracuda shark" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/float/tris.md2" }) = monster_floater : "Technician" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/flyer/tris.md2" }) = monster_flyer : "Flyer" []
-@PointClass base(Monsters) size(-32 -32 -24, 32 32 64) model({ "path": ":models/monsters/gladiatr/tris.md2" }) = monster_gladiator : "Gladiator" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/gunner/tris.md2" }) = monster_gunner : "Gunner" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/hover/tris.md2" }) = monster_hover : "Icarus" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/infantry/tris.md2", "frame": 64}) = monster_infantry : "Infantry" []
-@PointClass base(Monsters) size(-80 -80 0, 90 90 140) model({ "path": ":models/monsters/boss3/jorg/tris.md2" }) = monster_jorg : "Jorg" []
+//@PointClass base(Appearflags, Targetname) size(-32 -32 0, 32 32 80) model({ "path": ":models/monsters/boss3/rider/tris.md2", "frame": 414}) = monster_boss3_stand : "Stationnary Makron" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/brain/tris.md2" }) = monster_brain : "Brains" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/bitch/tris.md2" }) = monster_chick : "Iron Maiden" []
+//@PointClass base(Appearflags, Targetname) color(255 128 0) size(-32 -32 0, 32 32 48) model({ "path": ":models/monsters/commandr/tris.md2" }) = monster_commander_body : "Tank commander's decapitated body" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/flipper/tris.md2" }) = monster_flipper : "Barracuda shark" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/float/tris.md2" }) = monster_floater : "Technician" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/flyer/tris.md2" }) = monster_flyer : "Flyer" []
+//@PointClass base(Monsters) size(-32 -32 -24, 32 32 64) model({ "path": ":models/monsters/gladiatr/tris.md2" }) = monster_gladiator : "Gladiator" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/gunner/tris.md2" }) = monster_gunner : "Gunner" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/hover/tris.md2" }) = monster_hover : "Icarus" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/infantry/tris.md2", "frame": 64}) = monster_infantry : "Infantry" []
+//@PointClass base(Monsters) size(-80 -80 0, 90 90 140) model({ "path": ":models/monsters/boss3/jorg/tris.md2" }) = monster_jorg : "Jorg" []
 
 // 0221 - this entity can only spawn once the Jorg dies ... im sure someone will change that tho
-@PointClass base(Monsters) size(-32 -32 0, 32 32 80) model({ "path": ":models/monsters/boss3/rider/tris.md2", "frame": 414}) = monster_makron : "Makron" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/medic/tris.md2" }) = monster_medic : "Medic" []
-@PointClass base(Monsters) size(-32 -32 -24, 32 32 32) model({ "path": ":models/monsters/mutant/tris.md2" }) = monster_mutant : "Mutant" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/parasite/tris.md2" }) = monster_parasite : "Parasite" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/soldier/tris.md2", "skin": 0 }) = monster_soldier_light : "Light Soldier" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/soldier/tris.md2", "skin": 2 }) = monster_soldier : "Soldier" []
-@PointClass base(Monsters) model({ "path": ":models/monsters/soldier/tris.md2", "skin": 4 }) = monster_soldier_ss : "SS Soldier" []
-@PointClass base(Monsters) size(-32 -32 -16, 32 32 72) model({ "path": ":models/monsters/tank/tris.md2" }) = monster_tank : "Tank" []
-@PointClass base(Monsters) size(-32 -32 -16, 32 32 72) model({ "path": ":models/monsters/tank/tris.md2", "skin": 2 }) = monster_tank_commander : "Tank Commander" []
-@PointClass base(Monsters) size(-64 -64 0, 64 64 72) model({ "path": ":models/monsters/boss1/tris.md2" }) = monster_supertank : "Super Tank Boss" []
+//@PointClass base(Monsters) size(-32 -32 0, 32 32 80) model({ "path": ":models/monsters/boss3/rider/tris.md2", "frame": 414}) = monster_makron : "Makron" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/medic/tris.md2" }) = monster_medic : "Medic" []
+//@PointClass base(Monsters) size(-32 -32 -24, 32 32 32) model({ "path": ":models/monsters/mutant/tris.md2" }) = monster_mutant : "Mutant" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/parasite/tris.md2" }) = monster_parasite : "Parasite" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/soldier/tris.md2", "skin": 0 }) = monster_soldier_light : "Light Soldier" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/soldier/tris.md2", "skin": 2 }) = monster_soldier : "Soldier" []
+//@PointClass base(Monsters) model({ "path": ":models/monsters/soldier/tris.md2", "skin": 4 }) = monster_soldier_ss : "SS Soldier" []
+//@PointClass base(Monsters) size(-32 -32 -16, 32 32 72) model({ "path": ":models/monsters/tank/tris.md2" }) = monster_tank : "Tank" []
+//@PointClass base(Monsters) size(-32 -32 -16, 32 32 72) model({ "path": ":models/monsters/tank/tris.md2", "skin": 2 }) = monster_tank_commander : "Tank Commander" []
+//@PointClass base(Monsters) size(-64 -64 0, 64 64 72) model({ "path": ":models/monsters/boss1/tris.md2" }) = monster_supertank : "Super Tank Boss" []
 
+
+
+//
+//	Path Entities:
+//
 // using a "wait" value of -1 on a path corner causes a func_train to go silent between
 // itself and the next path corner when the train is restarted. The train's sound will
 // resume as soon as it reaches a path corner with a "wait" value other than -1
-@PointClass base(Appearflags, Targetname) color(128 76 0) size(-8 -8 -8, 8 8 8) = path_corner : "Path marker"
+@PointClass base(Appearflags, Targetname) 
+	color( 128 76 0 ) 
+	size(-8 -8 -8, 8 8 8) 
+	sprite( { "path": "_tb_icons/path_corner.tga", "scale":0.25 } )	
+= path_corner : "Path marker"
 [
 	spawnflags(Flags) =
 	[
@@ -749,15 +692,11 @@
 	]
 ]
 
-// "target" doesn't work (for now)...a separate trigger is needed
-@PointClass base(Appearflags, Targetname, Target) color(128 76 9) size(-8 -8 -8, 8 8 8) = point_combat : "1st point of combat"
-[
-	spawnflags(Flags) =
-	[
-		1 : "Hold" : 0
-	]
-]
 
+
+//
+//	Target Entities:
+//
 @PointClass base(Appearflags, Targetname) color(255 0 0) size(-8 -8 -8, 8 8 8) = target_blaster : "Blaster"
 [
 	spawnflags(Flags) =
@@ -768,7 +707,6 @@
 	dmg(integer) : "Damage" : 15
 	speed(integer) : "Speed" : 1000
 ]
-
 // set "map" value to "mapname$playername" where playername equals
 // the targetname of a corresponding info_player_start in the
 // next map.  To play a cinematic before starting the level, the
@@ -780,7 +718,6 @@
 [
 	map(string) : "Next map"
 ]
-
 // 0221 - added "_minlight" key
 @SolidClass base(Appearflags, Targetname) color(0 0 255) = target_character : "Use with target_string and func_clock"
 [
@@ -788,7 +725,6 @@
 	count(integer) : "Position in the string"
 	_minlight(string) : "Minimum light (optional)"
 ]
-
 @PointClass base(Appearflags, Targetname, Target) color(128 128 128) size(-8 -8 -8, 8 8 8) = target_crosslevel_trigger : "Cross-level trigger"
 [
 	spawnflags(Flags) =
@@ -806,7 +742,6 @@
 	message(string) : "Message"
 	delay(integer) : "Trigger delay"
 ]
-
 @PointClass base(Appearflags, Targetname, Target) color(128 128 128) size(-8 -8 -8, 8 8 8) = target_crosslevel_target : "Cross-level trigger"
 [
 	spawnflags(Flags) =
@@ -823,21 +758,17 @@
 	killtarget(string) : "Kill Target"
 	delay(integer) : "Trigger delay (if activated)" : 1
 ]
-
 @PointClass base(Appearflags, Targetname) color(255 0 0) size(-8 -8 -8, 8 8 8) = target_earthquake : "Level wide earthquake"
 [
 	speed(integer) : "Severity of quake" : 200
 	count(integer) : "Duration" : 5
 ]
-
 @PointClass base(Appearflags, Targetname) color(255 0 0) size(-8 -8 -8, 8 8 8) = target_explosion : "Explosion"
 [
 	delay(integer) : "Delay before explosion"
 	dmg(integer) : "Radius damage" : 0
 ]
-
 @PointClass base(Appearflags, Targetname) color(255 0 255) size(-8 -8 -8, 8 8 8) = target_goal : "Counts a goal completed" []
-
 @PointClass base(Appearflags, Targetname) color(255 0 255) size(-8 -8 -8, 8 8 8) = target_help : "Computer help message"
 [
 	spawnflags(Flags) =
@@ -846,7 +777,6 @@
 	]
 	message(string) : "Computer message"
 ]
-
 // if no color spawnflags are set, the laser color defaults to dim gray (and hard to see
 // setting the damage to 0 makes it use the default damage of 1
 // setting the damage to a negative number will actually give health
@@ -864,7 +794,6 @@
 	]
 	dmg(integer) : "Damage"
 ]
-
 // 0221 - added "target" key
 @PointClass base(Appearflags, Targetname, Target) color(0 128 204) size(-8 -8 -8, 8 8 8) = target_lightramp : "Light ramp"
 [
@@ -875,12 +804,10 @@
 	speed(integer) : "Speed"
 	message(string) : "start/end light level"
 ]
-
 @PointClass base(Appearflags, Targetname) color(255 0 255) size(-8 -8 -8, 8 8 8) = target_secret : "Counts a secret found"
 [
 	message(string) : "Message to print" : "You have found a secret."
 ]
-
 // set speed and angle, otherwise spawned object drops
 //
 // 0221 - changed "target" key description for clarity
@@ -889,9 +816,12 @@
 	target(string) : "Monster/Item to spawn"
 	speed(integer) : "Speed"
 ]
-
 // looped sounds are automatically volume 1, attenuation 3 :\
-@PointClass base(Appearflags, Targetname) color(255 0 0) size(-8 -8 -8, 8 8 8) = target_speaker : "Sound player"
+@PointClass base(Appearflags, Targetname) 
+	color(255 0 0) 
+	size(-8 -8 -8, 8 8 8) 
+	sprite( { "path": "_tb_icons/target_speaker.tga", "scale":0.5 } )
+= target_speaker : "Sound player"
 [
 	spawnflags(Flags) =
 	[
@@ -909,7 +839,6 @@
 	]
 	volume(integer) : "Volume (0.0 - 1.0)" : 1
 ]
-
 // "sounds" values other than 1 are silent.  leaving in the other
 // options for availability to mods/fixes
 //
@@ -928,13 +857,11 @@
 	count(integer) : "Number of pixels in splash (1 - 255)"
 	dmg(integer) : "Radius damage"
 ]
-
 // 0221 - removed "message" key (?)
 @PointClass base(Appearflags, Targetname) color(0 0 255) size(-8 -8 -8, 8 8 8) = target_string : "String"
 [
 	team(string) : "Team"
 ]
-
 // eye candy... Particles #2 (style 22) is quite cool
 @PointClass base(Appearflags, Targetname) color(255 0 0) size(-8 -8 -8, 8 8 8) = target_temp_entity : "Temp entity"
 [
@@ -946,13 +873,17 @@
 	]
 ]
 
+
+
+//
+//	Trigger Entities:
+//
 // 0221 - added "delay" and "killtarget" keys
 @PointClass base(Appearflags, Target) color(128 128 128) size(-8 -8 -8, 8 8 8) = trigger_always : "Always triggers"
 [
 	killtarget(string) : "Kill Target"
 	delay(integer) : "Time before triggering"
 ]
-
 @SolidClass base(Appearflags, Targetname, Target) color(128 128 128) = trigger_counter : "Counter"
 [
 	spawnflags(Flags) =
@@ -1004,7 +935,10 @@
 ]
 
 // 0221 - switched around _relay, _once, and _multiple
-@PointClass base(Appearflags, Targetname, Target) color(128 128 128) = trigger_relay : "Relay trigger"
+@PointClass base(Appearflags, Targetname, Target) 
+	color(128 128 128) 
+	sprite( { "path": "_tb_icons/trigger_relay.tga", "scale":0.35 } )
+= trigger_relay : "Relay trigger"
 [
 	killtarget(string) : "Kill Target"
 	delay(integer) : "Time before triggering"
@@ -1041,40 +975,43 @@
 	speed(integer) : "Speed of push" : 1000
 ]
 
-// 0221 - added "_minlight" key to _breach and _base
-@SolidClass base(Appearflags, Targetname, Target) color(128 255 128) = turret_breach : "Turret breach"
-[
-	speed(integer) : "Speed" : 50
-	dmg(integer) : "Damage" : 10
-	minpitch(integer) : "Miminum pitch angle" : -30
-	maxpitch(integer) : "Maximum pitch angle" : 30
-	minyaw(integer) : "Minimum yaw angle" : 0
-	maxyaw(integer) : "Maximum yaw angle" : 360
-	team(string) : "Team"
-	_minlight(string) : "Minimum light (optional)"
-]
-@SolidClass base(Appearflags) color(128 255 128) = turret_base : "Turret base"
-[
-	team(string) : "Team"
-	_minlight(string) : "Minimum light (optional)"
-]
-@PointClass base(Appearflags) color(128 255 128) size(-16 -16 -24, 16 16 32) model({ "path": ":models/monsters/infantry/tris.md2"}) = turret_driver : "Turret driver"	[	target(string) : "Target (turret_breach)"	]
-@PointClass base(Appearflags) color(0 128 204) size(-8 -8 -8, 8 8 8) = viewthing : "Just for debugging level - dont use" []
-@BaseClass base(Appearflags, Target) color(76 76 255) size(-16 -16 -16, 16 16 16) = Weapons
-[
-	team(string) : "Team"
-]
+
 
 //
 // Weapons!
 //
+@baseclass base(Luaname, Targetname) 
+	size( -16 -16 -16, 16 16 16 )
+	color( 10 40 255 )
+	//sprite( { "path": "_tb_icons/weapon.tga", "scale":1 } )
+= WeaponEntity[]
+@PointClass base(WeaponEntity) model({ "path": ":models/g_wep/pistol/tris.iqm" }) = weapon_pistol : "Pistol Weapon" []
 
-@PointClass base(Weapons) model({ "path": ":models/weapons/g_shotg/tris.md2" }) = weapon_shotgun : "Shotgun" []
-@PointClass base(Weapons) model({ "path": ":models/weapons/g_shotg2/tris.md2" }) = weapon_supershotgun : "Super shotgun" []
-@PointClass base(Weapons) model({ "path": ":models/weapons/g_machn/tris.md2" }) = weapon_machinegun : "Machinegun" []
-@PointClass base(Weapons) model({ "path": ":models/weapons/g_chain/tris.md2" }) = weapon_chaingun : "Chain gun" []
-@PointClass base(Weapons) model({ "path": ":models/weapons/g_launch/tris.md2" }) = weapon_grenadelauncher : "Grenade launcher" []
-@PointClass base(Weapons) model({ "path": ":models/weapons/g_rocket/tris.md2" }) = weapon_rocketlauncher : "Rocket launcher" []
-@PointClass base(Weapons) model({ "path": ":models/weapons/g_hyperb/tris.md2" }) = weapon_hyperblaster : "Hyperblaster" []
-@PointClass base(Weapons) model({ "path": ":models/weapons/g_rail/tris.md2" }) = weapon_railgun : "Rail gun" []
-@PointClass base(Weapons) model({ "path": ":models/weapons/g_bfg/tris.md2" }) = weapon_bfg : "Big Freakin Gun!" []
+
+
+//
+//	Brush Turret Entities:
+//
+// // 0221 - added "_minlight" key to _breach and _base
+// @SolidClass base(Appearflags, Targetname, Target) color(128 255 128) = turret_breach : "Turret breach"
+// [
+// 	speed(integer) : "Speed" : 50
+// 	dmg(integer) : "Damage" : 10
+// 	minpitch(integer) : "Miminum pitch angle" : -30
+// 	maxpitch(integer) : "Maximum pitch angle" : 30
+// 	minyaw(integer) : "Minimum yaw angle" : 0
+// 	maxyaw(integer) : "Maximum yaw angle" : 360
+// 	team(string) : "Team"
+// 	_minlight(string) : "Minimum light (optional)"
+// ]
+// @SolidClass base(Appearflags) color(128 255 128) = turret_base : "Turret base"
+// [
+// 	team(string) : "Team"
+// 	_minlight(string) : "Minimum light (optional)"
+// ]
+// @PointClass base(Appearflags) color(128 255 128) size(-16 -16 -24, 16 16 32) model({ "path": ":models/monsters/infantry/tris.md2"}) = turret_driver : "Turret driver"	[	target(string) : "Target (turret_breach)"	]
+// @PointClass base(Appearflags) color(0 128 204) size(-8 -8 -8, 8 8 8) = viewthing : "Just for debugging level - dont use" []
+// @BaseClass base(Appearflags, Target) color(76 76 255) size(-16 -16 -16, 16 16 16) = Weapons
+// [
+// 	team(string) : "Team"
+// ]

@@ -83,4 +83,7 @@ baseq2rtxp/maps/*.bsp
 /baseq2rtxp/maps/mapsrc/q2rtxp_dev_sigio_targetrange-compile.map
 /baseq2rtxp/maps/mapsrc/q2rtxp_dev_sigio_targetrange.prt
 
+
+!/baseq2rtxp/_tb_icons/*
+!/baseq2rtxp/_tb_icons/unused/*
 !/trenchbroom/games/Q2RTXP/*
