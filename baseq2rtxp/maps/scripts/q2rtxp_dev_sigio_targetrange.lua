@@ -1,3 +1,5 @@
+local common = require( "common/common")
+local entities = require( "utilities/entities" )
 ----------------------------------------------------------------------
 --
 --
@@ -15,14 +17,14 @@ mapStates = {
 
 
 
-----------------------------------------------------------------------
+-----------------------------------------------------------------------------
 --
 --
 --    Stores references to precached resources for easy and efficient
 --    access.
 --
 --
-----------------------------------------------------------------------
+-----------------------------------------------------------------------------
 mapMedia = {
     -- Filled by precaching.
     sound = {}
@@ -30,16 +32,20 @@ mapMedia = {
 
 
 
-----------------------------------------------------------------------
+-----------------------------------------------------------------------------
 --
 --
 --    Target Range Implementation:
 --
 --
-----------------------------------------------------------------------
+-----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
 -- The following function is called upon by each individual target entity
--- that had a SignalIn and processes the response for the designated signal.
+-- that had a SignalIn. This prevents us from having to rewrite the same code
+-- with the same functionality, over, and over, and over, and over...
+--
+-- The function, implements the necessary responses to the various incoming
+-- 'func_door_rotating' signals, that are Signaled In.
 -----------------------------------------------------------------------------
 -- L Target:
 function Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, displayName, targetName, trainTargetName, lightTargetName, lightBrushTargetName )
@@ -84,6 +90,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         if ( mapStates.targetRange.targetsAlive <= 0 ) then
             -- Turn on all lights for the target range.
             local targetRangeLights = Game.GetEntitiesForTargetName( "light_ceil_range" )
+            -- Iterate over the matching targetname light entities.
             for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
                 -- Turn on the light for this target.
                 Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.ON, 1 )
@@ -159,7 +166,8 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
 end
 
 ----------------------------------------------------------------------
-----    Range Targets SignalIn:
+--    Range Targets SignalIn:
+--
 ----------------------------------------------------------------------
 -- XXL Target:
 function TargetXXL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
@@ -221,10 +229,14 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
 
             -- Turn off all lights for the target range.
             local targetRangeLights = Game.GetEntitiesForTargetName( "light_ceil_range" )
-            for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
-                -- Turn off the light for this target.
-                Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.OFF, 0 )
-            end
+            -- -- Iterate over the matching targetname light entities.
+            -- for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
+            --     -- Turn off the light for this target.
+            --     Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.OFF, 0 )
+            -- end
+            entities:for_each_entity( targetRangeLights, function(entityKey,entityValue)
+                Game.UseTarget( entityValue, self, activator, EntityUseTarget.OFF, 0 )
+            end)
         end
     end
     return true

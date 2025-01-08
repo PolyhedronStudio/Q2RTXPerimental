@@ -105,6 +105,59 @@ static struct LuaMapInstance {
 *
 *
 *
+*	Lua Custom Require File Handler:
+*
+*
+*
+**/
+static int LUA_Require_LoadFile( lua_State *L ) {
+	// Use the stack API to pull the first argument, the path passed to require(...) by lua.
+	std::string require_path = sol::stack::get<std::string>( L, 1 );
+
+	// Generate the actual relative to gamedir path that this file would reside at.
+	std::string final_path = "maps/scripts/" + require_path + ".lua";
+
+	// Check if the file exists.
+	if ( !gi.FS_FileExistsEx( final_path.c_str(), 0 ) ) {
+		sol::stack::push( L, "Required module file:\"" + require_path + "\" is nonexistent!\n" );
+		return 1;
+	}
+
+	// Read in the file its data.
+	char *file_buffer = nullptr;
+	size_t file_read_length = gi.FS_LoadFile( final_path.c_str(), (void **)&file_buffer );
+	
+	// Ensure that the file loaded properly.
+	if ( file_read_length < 0 ) {
+		sol::stack::push( L, "Required module file:\"" + require_path + "\" failed to load! [" + std::string( gi.Q_ErrorString( file_read_length )) + "\"]\n" );
+		// In case buffer was allocated still.
+		if ( file_buffer ) {
+			gi.FS_FreeFile( file_buffer );
+		}
+		return 1;
+	}
+
+	// load "module", but don't run it
+	luaL_loadbuffer(
+		L, file_buffer, file_read_length, ( require_path + ".lua" ).c_str());
+	// returning 1 object left on Lua stack:
+	// a function that, when called, executes the script
+	// (this is what lua_loadX/luaL_loadX functions return
+
+	// Clean up.
+	if ( file_buffer ) {
+		gi.FS_FreeFile( file_buffer );
+	}
+
+	return 1;
+}
+
+
+
+/**
+*
+*
+*
 *	Lua Core:
 *
 *
@@ -127,7 +180,7 @@ static void LUA_UnloadMapScript() {
 
 	// TODO: This is technically not safe, we need to store the buffer elsewhere ... expose FS_LoadFileEx!
 	if ( luaMapInstance.scriptBuffer ) {
-		SG_FS_FreeFile( luaMapInstance.scriptBuffer );
+		gi.FS_FreeFile( luaMapInstance.scriptBuffer );
 		luaMapInstance.scriptBuffer = nullptr;
 	}
 }
@@ -294,13 +347,13 @@ void SVG_Lua_Initialize() {
 		// print, assert, and other base functions
 		sol::lib::base
 		// require and other package functions
-		//| sol::lib::package
+		, sol::lib::package
 		// coroutine functions and utilities
-		//| sol::lib::coroutine
+		//, sol::lib::coroutine
 		// string library
 		, sol::lib::string
 		// functionality from the OS
-		//| sol::lib::os
+		//, sol::lib::os
 		// all things math
 		, sol::lib::math
 		// the table manipulator and observer functions
@@ -324,6 +377,11 @@ void SVG_Lua_Initialize() {
 		//count
 		#endif
 	);
+
+	// Clear out any default package loaders.
+	luaMapInstance.solState.clear_package_loaders();
+	// Add our own custom 'sandboxed' package loader.
+	luaMapInstance.solState.add_package_loader( LUA_Require_LoadFile );
 
 	//
 	luaMapInstance.lState = luaMapInstance.solState.lua_state();
@@ -453,9 +511,9 @@ const bool SVG_Lua_LoadMapScript( const std::string &scriptName ) {
 	SVG_Lua_Initialize();
 
 	// Ensure file exists.
-	if ( SG_FS_FileExistsEx( filePath.c_str(), 0 ) ) {
+	if ( gi.FS_FileExistsEx( filePath.c_str(), 0 ) ) {
 		// Load Lua file.
-		size_t scriptFileLength = SG_FS_LoadFile( filePath.c_str(), (void **)&luaMapInstance.scriptBuffer );
+		size_t scriptFileLength = gi.FS_LoadFile( filePath.c_str(), (void **)&luaMapInstance.scriptBuffer );
 
 		if ( luaMapInstance.scriptBuffer && scriptFileLength != Q_ERR( ENOENT ) ) {
 			// Debug output.			

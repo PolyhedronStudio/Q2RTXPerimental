@@ -768,14 +768,14 @@ static const qboolean PF_AreasConnected(const int32_t area1, const int32_t area2
 *	@brief	Returns non 0 in case of existance.
 **/
 static const int32_t PF_FS_FileExistsEx( const char *path, const uint32_t flags ) {
-    return FS_FileExistsEx( path, flags );
+    return FS_FileExistsEx( path, flags | FS_TYPE_ANY | FS_PATH_GAME );
 }
 /**
 *	@brief	Loads file into designated buffer. A nul buffer will return the file length without loading.
 *	@return	length < 0 indicates error.
 **/
 static const int32_t PF_FS_LoadFile( const char *path, void **buffer ) {
-    return FS_LoadFile( path, buffer );
+    return FS_LoadFileEx( path, buffer, 0 | FS_TYPE_ANY | FS_PATH_GAME, TAG_FILESYSTEM );
 }
 /**
 *	@brief	Frees FS_FILESYSTEM Tag Malloc file buffer.
