@@ -1,5 +1,9 @@
 ----------------------------------------------------------------------
----- Map State Variables - These are stored for save/load game states.
+--
+--
+--    Map State Variables - These are stored for save/load game states:
+--
+--
 ----------------------------------------------------------------------
 mapStates = {
     -- there are none yet.
@@ -8,36 +12,48 @@ mapStates = {
         roundActive = false    -- True when the targetrange has been (re-)started and actively moving the targets.
     }
 }
+
+
+
+----------------------------------------------------------------------
+--
+--
+--    Stores references to precached resources for easy and efficient
+--    access.
+--
+--
+----------------------------------------------------------------------
 mapMedia = {
     -- Filled by precaching.
     sound = {}
 }
--- Debug Function, iterates the signalArguments table.
-function DEBUG_ITERATE_TABLE( table )
-    if ( type( table ) == "table" ) then
-        Core.DPrint( "  DEBUG_ITERATE_TABLE: table = {\n" )
-        for key, value in pairs(table) do
-            Core.DPrint( "      [" .. key .. "] => [" .. value .. "]\n" )
-        end
-        Core.DPrint( "}\n" )
-    else
-    --    Core.DPrint( "DEBUG_ITERATE_TABLE: NO TABLE FOUND\n" )
-    end
-end
+
+
+
 ----------------------------------------------------------------------
--- Target Logic:
+--
+--
+--    Target Range Implementation:
+--
+--
 ----------------------------------------------------------------------
+-----------------------------------------------------------------------------
+-- The following function is called upon by each individual target entity
+-- that had a SignalIn and processes the response for the designated signal.
+-----------------------------------------------------------------------------
 -- L Target:
 function Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, displayName, targetName, trainTargetName, lightTargetName, lightBrushTargetName )
-    --[[
+    --
     -- Handles its death, turns off the train track and the light.
-    ]]--
+    --
     if ( signalName == "OnPain" ) then
         -- Play speciual 'pain' sound effect.
         Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_pain, 1.0, SoundAttenuation.NORMAL, 0.0 )
         -- Done handling signal.
         return true
+    --
     -- It just got killed, stop the train track, notify, and add score.
+    --
     elseif ( signalName == "OnKilled" ) then
         -- Notify of the kill.
         Game.Print( PrintLevel.NOTICE, "Shot down the \"" .. displayName .. "\" target! Only #".. mapStates.targetRange.targetsAlive .. " targets remaining!\n" )
@@ -59,8 +75,10 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
         lightBrushEntity.state.frame = 1
 
-        -- Turn on the light for this target.
-        --Game.UseTarget( lightBrushEntity, signaller, activator, EntityUseTarget.ON, 1 )
+        -- Get target entity
+        --local targetEntity = Game.GetEntityForTargetName( targetName )
+        -- Apply a 'GIB' effect to signify respawn.
+        --targetEntity.state.effects = EntityEffects.GIB
 
         -- Turn on all lights for the target range if we killed all 4 targets.
         if ( mapStates.targetRange.targetsAlive <= 0 ) then
@@ -68,7 +86,6 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
             local targetRangeLights = Game.GetEntitiesForTargetName( "light_ceil_range" )
             for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
                 -- Turn on the light for this target.
-                Core.DPrint( "UseTarget on light entity #".. targetRangeLight.number .. ", EntityUseTarget.ON\n" )
                 Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.ON, 1 )
             end
 
@@ -84,47 +101,57 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         end
         -- Done handling signal.
         return true
-    -- It finished the 'open movement' and arrived at destination:
-    elseif ( signalName == "OnOpened" ) then
-        -- Turn off the light for this target.
-        --Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, EntityUseTarget.OFF, 0 )
-        -- Done handling signal.
-        return true
-    --[[
+    --
     -- If the target is engaging in "Closing", it means a new range round has begun.
     -- The following turns on the light, revives the 'door', and reactivates he train
     -- track when it has reached 'closed' state.
-    ]]--
-    -- A new round has begun, so the target got told to "close", turn on the light so we can see it close.
+    --
     elseif ( signalName == "OnClose" ) then
+        -- Get target entity
+        local targetEntity = Game.GetEntityForTargetName( targetName )
+        -- Apply a 'TELEPORTER' effect to signify respawn.
+        targetEntity.state.effects = EntityEffects.TELEPORTER
         -- Turn on the light for this target.
         Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, EntityUseTarget.ON, 1 )
         -- Play speciual closing sound effect.
         Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_close, 1.0, SoundAttenuation.IDLE, 0.0 )
         -- Done handling signal.
         return true
+    --
     -- A new round has begun, so the target got told to "close", turn on the train.
+    --
     elseif ( signalName == "OnClosed") then
         -- Get LightBrush Entity.
         local lightBrushEntity = Game.GetEntityForTargetName( lightBrushTargetName )
         -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
         lightBrushEntity.state.frame = 0
-        -- Turn off the light for this target.
-        --Game.UseTarget( lightBrushEntity, signaller, activator, EntityUseTarget.OFF, 0 )
-
-        -- Let it glow? lol.
-        self.state.effects = EntityEffects.COLOR_SHELL
-        self.state.renderFx = RenderFx.SHELL_GREEN
-
+        -- Get target entity
+        local targetEntity = Game.GetEntityForTargetName( targetName )
+        -- Reset effects.
+        targetEntity.state.effects = EntityEffects.NONE
         -- Turn on the train for this target.
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTarget.ON, 1 )
         -- Done handling signal.
         return true
+    --
+    -- It started opening.
+    --
     elseif ( signalName == "OnOpen" ) then
-        -- Do nothing here.
+        -- Done handling signal.
+        return true
+    --
+    -- It finished the 'open movement' and arrived at destination:
+    --
+    elseif ( signalName == "OnOpened" ) then
+        -- Get target entity
+        --local targetEntity = Game.GetEntityForTargetName( targetName )
+        -- Reset effects.
+        --targetEntity.state.effects = EntityEffects.NONE
+        -- Done handling signal.
+        return true
     --elseif ( signalName == "DoorClose") then
     --elseif ( signalName == "DoorOpen") then
-    else
+    --else
         -- Nothing.
     end
     -- Done handling signal.
@@ -132,7 +159,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
 end
 
 ----------------------------------------------------------------------
-----    Range Target(s) Implementations:
+----    Range Targets SignalIn:
 ----------------------------------------------------------------------
 -- XXL Target:
 function TargetXXL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
@@ -151,7 +178,9 @@ function Target_OnSignalIn( self, signaller, activator, signalName, signalArgume
     return Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "S", "t_target", "train_target", "light_target", "light_brush_target_s" )
 end
 
--- Button that resets the range.
+----------------------------------------------------------------------
+----    Target Range Start Button SignalIn:
+----------------------------------------------------------------------
 function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     if ( signalName == "OnPressed" ) then
         -- Multiple targets left:
@@ -194,7 +223,6 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
             local targetRangeLights = Game.GetEntitiesForTargetName( "light_ceil_range" )
             for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
                 -- Turn off the light for this target.
-                Core.DPrint( "UseTarget on light entity #".. targetRangeLight.number .. " EntityUseTarget.OFF\n" )
                 Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.OFF, 0 )
             end
         end
@@ -205,10 +233,14 @@ end
 
 
 ----------------------------------------------------------------------
--- WareHouse Locked Doors Implementations:
+--
+--
+--    WareHouse Locked Doors Implementations:
+--
+--
 ----------------------------------------------------------------------
 ----------------------------------------------------------------------
--- The Buttons
+-- The Button SignalIn:
 ----------------------------------------------------------------------
 function WareHouseLockingButton_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     -- Open the doors.
@@ -228,35 +260,25 @@ function WareHouseLockingButton_OnSignalIn( self, signaller, activator, signalNa
     end
     return true
 end
-
 ----------------------------------------------------------------------
--- The Doors
+-- The Doors SignalIn:
 ----------------------------------------------------------------------
 function WareHouseDoor00_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    -- Open the doors.
-    if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
-        -- -- Get entity
-        -- local entityWareHouseDoor01 = Game.GetEntityForLuaName( "WareHouseDoor01" )
-        -- -- Determine its move state.
-        -- local doorMoveState = Game.GetPushMoverState( entityWareHouseDoor01 )
-
-        -- -- Only SignalOut a "DoorOpen" when the elevator is NOT moving.
-        -- if ( doorMoveState ~= PUSHMOVE_STATE_MOVING_DOWN and doorMoveState~= PUSHMOVE_STATE_MOVING_UP ) then
-        --     -- Send the lock toggle signal.
-        --     Game.SignalOut( entityWareHouseDoor01, self, activator, "DoorLockToggle" )
-        -- end
-    end
     return true
 end
 
 
 
 ----------------------------------------------------------------------
-----    Map CallBack Hooks:
+--
+--
+--    Map CallBack Hooks:
+--
+--
 ----------------------------------------------------------------------
---[[
+--
 --  Precache all map specific related media.
-]]--
+--
 function OnPrecacheMedia()
     mapMedia.sound = {
         rangetarget_close = Media.PrecacheSound( "maps/targetrange/rangetarget_close.wav" ),
@@ -267,11 +289,11 @@ function OnPrecacheMedia()
     }
     return true
 end
---[[ TODO: --]]
+-- TODO:
 function OnBeginMap()
     return true
 end
---[[ TODO: --]]
+-- TODO:
 function OnExitMap()
     return true
 end
@@ -279,43 +301,41 @@ end
 
 
 ----------------------------------------------------------------------
-----
-----
-----    Client CallBack Hooks:
-----
-----
+--
+--
+--    Client CallBack Hooks:
+--
+--
 ----------------------------------------------------------------------
---[[ TODO: --]]
+-- TODO:
 function OnClientEnterLevel( clientEntity )
     Core.DPrint( "OnClientEnterLevel: A client connected with entityID(#" .. clientEntity.number .. ")\n")
-    --Core.DPrint( "OnClientEnterLevel: A client connected with entityID(#" .. clientEntity .. ")\n")
     return true
 end
---[[ TODO: --]]
+-- TODO:
 function OnClientExitLevel( clientEntity )
     Core.DPrint( "OnClientEnterLevel: A client disconnected with entityID(#" .. clientEntity.number .. ")\n")
-    --Core.DPrint( "OnClientEnterLevel: A client disconnected with entityID(#" .. clientEntity .. ")\n")
     return true
 end
 
 
 
 ----------------------------------------------------------------------
-----
-----
-----    Frame CallBack Hooks:
-----
-----
+--
+--
+--    Frame CallBack Hooks:
+--
+--
 ----------------------------------------------------------------------
---[[ TODO: --]]
+-- TODO:
 function OnBeginServerFrame()
     return true
 end
---[[ TODO: --]]
+-- TODO:
 function OnEndServerFrame()
     return true
 end
---[[ TODO: --]]
+-- TODO:
 function OnRunFrame( frameNumber )
     --Core.DPrint( "framenumber = " .. frameNumber .. "\n" )
     return true
