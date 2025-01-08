@@ -229,14 +229,22 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
 
             -- Turn off all lights for the target range.
             local targetRangeLights = Game.GetEntitiesForTargetName( "light_ceil_range" )
+
+            -- This is how you'd normally do it.
             -- -- Iterate over the matching targetname light entities.
             -- for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
             --     -- Turn off the light for this target.
             --     Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.OFF, 0 )
             -- end
-            entities:for_each_entity( targetRangeLights, function(entityKey,entityValue)
-                Game.UseTarget( entityValue, self, activator, EntityUseTarget.OFF, 0 )
-            end)
+
+            -- This is used just as for testing purposes of the 'require' functionality.
+            -- The implementation resides in /maps/scripts/utilities/entities.lua
+            entities:for_each_entity(
+                targetRangeLights, 
+                function( entityKey, entityValue )
+                    Game.UseTarget( entityValue, self, activator, EntityUseTarget.OFF, 0 )
+                end
+            )
         end
     end
     return true
