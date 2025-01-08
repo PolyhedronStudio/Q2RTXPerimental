@@ -113,13 +113,15 @@ static struct LuaMapInstance {
 static int LUA_Require_LoadFile( lua_State *L ) {
 	// Use the stack API to pull the first argument, the path passed to require(...) by lua.
 	std::string require_path = sol::stack::get<std::string>( L, 1 );
+	// Require path with file extension.
+	std::string require_path_ext = require_path + ".lua";
 
 	// Generate the actual relative to gamedir path that this file would reside at.
-	std::string final_path = "maps/scripts/" + require_path + ".lua";
+	std::string final_path = "maps/scripts/" + require_path_ext;
 
 	// Check if the file exists.
 	if ( !gi.FS_FileExistsEx( final_path.c_str(), 0 ) ) {
-		sol::stack::push( L, "Required module file:\"" + require_path + "\" is nonexistent!\n" );
+		sol::stack::push( L, "Required module file:\"" + require_path_ext + "\" is nonexistent!\n" );
 		return 1;
 	}
 
@@ -129,26 +131,28 @@ static int LUA_Require_LoadFile( lua_State *L ) {
 	
 	// Ensure that the file loaded properly.
 	if ( file_read_length < 0 ) {
-		sol::stack::push( L, "Required module file:\"" + require_path + "\" failed to load! [" + std::string( gi.Q_ErrorString( file_read_length )) + "\"]\n" );
+		sol::stack::push( L, "Required module file:\"" + require_path_ext + "\" failed to load! [" + std::string( gi.Q_ErrorString( file_read_length )) + "\"]\n" );
 		// In case buffer was allocated still.
 		if ( file_buffer ) {
 			gi.FS_FreeFile( file_buffer );
 		}
 		return 1;
 	}
-
 	// load "module", but don't run it
-	luaL_loadbuffer(
-		L, file_buffer, file_read_length, ( require_path + ".lua" ).c_str());
-	// returning 1 object left on Lua stack:
-	// a function that, when called, executes the script
-	// (this is what lua_loadX/luaL_loadX functions return
+	//	luaL_loadbuffer(
+	//		L, file_buffer, file_read_length, ( require_path + ".lua" ).c_str());
+	// Allow loading binary(precompiled) and text lua. Also pass it along the require_path_ext as its chunkname.
+	luaL_loadbufferx(
+		L, file_buffer, file_read_length, ( require_path_ext.c_str() ), "bt" );
 
-	// Clean up.
+	// Clean up the file buffer now it has been pushed to lua stack.
 	if ( file_buffer ) {
 		gi.FS_FreeFile( file_buffer );
 	}
 
+	// returning 1 object left on Lua stack:
+	// a function that, when called, executes the script
+	// (this is what lua_loadX/luaL_loadX functions return
 	return 1;
 }
 

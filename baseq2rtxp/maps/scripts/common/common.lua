@@ -1,5 +1,5 @@
 -- Require entities utilities.
-require( "utilities/entities" )
+require( "utilities/sdentities" )
 -- Lua 'require' Module Table.
 local common = {}
 
