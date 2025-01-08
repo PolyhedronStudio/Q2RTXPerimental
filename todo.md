@@ -55,8 +55,11 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 		    doing a silly light animation either way.
 	- [ ] fill_model_instance, use a proper bbox check for BSP_WORLD_MODEL isntead of pointleaf.
 			(See doors in target range map which bug out cluster testing, remaining unlit by interior lights.)
-- [ ] **Entities**:
+
+- [ ] - [ ] **Entities**:
 	- [ ] 0. Fix func_button, KISS for now.
+	- [ ] 1. Calculate the proper entity matrixes/quaternions during Link time.
+		- [ ] Reimplement the 'movewith' system using matrixes/quaternions instead of those silly vector maths.
 
 - [X] The **IQM Animation** Scenario:
 	- [X] 0. Add in proper usage of entity type and adjust the client code to handle adding packet entities based on its type.
@@ -190,7 +193,6 @@ These are things to fix, or randomly implement(features, ideas), but definitely 
 * [ ] Modify the code so it does not generate ``hulls`` on the fly, but instead set them at ``LinkEntity`` time. 
 	* [ ] Generate and store entity ``hulls`` in their server-side counterpart for later ``collision model`` rework.
 	* [ ] Then for tracing, retreives them from their **client/server** counterpart. In case of the **client** they will be regenerated in case of a ``new`` entity, or general ``bounds changes`` has occured for the **client** entity.
-* [ ] Calculate the proper entity matrixes/quaternions during Link time.
 * [ ] Integrate support for now still commented ATTN_ types.
 * [ ] Look into allowing each entity classtype/group-type to have its own baseline states as well as matching custom implementations of Read/Write-EntityDeltaState.
 * [ ] Look into JoltPhysics and see if it's something realistic for Jolt Physics.
