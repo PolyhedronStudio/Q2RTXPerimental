@@ -91,10 +91,11 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 	- [ ] 2. I am most likely forgetting some things, so first finish this entire list.
 
 - [ ] The **LUA** Scenario:
-	- [ ] (Somewhat optional, but useful really..) Add a stack debugger.
-	- [ ] Implement custom TagMalloc like allocator for Lua memory management.
-	- [-] Add proper file chunk loading.
-		- [ ] Add support for 'including/requiring' other Lua files in their own chunks.
+	- [/] (Somewhat optional, but useful really..) Add a stack debugger.
+		- It is cheap but we got one, as does Lua itself if needed, so does sol.
+	- [X] Implement custom TagMalloc like allocator for Lua memory management.
+	- [X] Add proper file chunk loading.
+		- [X] Add support for 'including/requiring' other Lua files in their own chunks.
 	- [X] Add support for edicts on the C side of life to implement OnSignal functionalities.
 	- [X] Add SignalOut funcionality to Lua, so it can fire signals.
 	- [X] Add for PushMovers a function to acquire their current state.

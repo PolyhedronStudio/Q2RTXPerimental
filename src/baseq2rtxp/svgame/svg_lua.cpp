@@ -101,6 +101,82 @@ static struct LuaMapInstance {
 
 
 
+
+/**
+*
+*
+*
+*	Custom ZoneTag Memory Allocator for Lua:
+*
+*
+*
+**/
+// 
+// <Q2RTXP>: WID: This works fine as custom memory allocator.
+//
+#if 0 
+struct Tracker {
+	size_t m_usage;
+};
+static Tracker svg_lua_memory_tracker;
+static void *
+LUA_Allocator( void *ud, void *ptr, size_t osize, size_t nsize ) {
+	Tracker *pTracker = (Tracker *)ud;
+	void *pRet = NULL;
+	if ( nsize == 0 ) {
+		pTracker->m_usage -= osize;
+		//printf("Free %d bytes; ", osize);
+		free( ptr );
+	} else {
+		pTracker->m_usage -= osize;
+		//printf("first Free %d bytes; ", osize);
+		pTracker->m_usage += nsize;
+		//printf("then alloc %d bytes; ", nsize);
+		if ( osize != 0 ) {
+			pRet = realloc( ptr, nsize );
+		} else {
+			pRet = malloc( nsize );
+		}
+	}
+
+	//printf("current usage: %d bytes\n", pTracker->m_usage);
+	return pRet;
+}
+#else
+// 
+// <Q2RTXP>: WID: But we want this instead :-)
+//
+struct ZoneTagTracker {
+	size_t m_usage;
+};
+static ZoneTagTracker svg_lua_memory_tracker;
+static void *
+LUA_ZoneTagAllocator( void *ud, void *ptr, size_t osize, size_t nsize ) {
+	ZoneTagTracker *pTracker = (ZoneTagTracker *)ud;
+	void *pRet = nullptr;
+	if ( nsize == 0 ) {
+		pTracker->m_usage -= osize;
+		//printf("Free %d bytes; ", osize);
+		gi.TagFree( ptr );//free( ptr );
+	} else {
+		pTracker->m_usage -= osize;
+		//printf("first Free %d bytes; ", osize);
+		pTracker->m_usage += nsize;
+		//printf("then alloc %d bytes; ", nsize);
+		if ( osize != 0 ) {
+			pRet = gi.TagReMalloc( ptr, nsize );//pRet = realloc( ptr, nsize );
+		} else {
+			pRet = gi.TagMalloc( nsize, 767 /*TAG_SVGAME_LUA*/ );//pRet = malloc( nsize );
+		}
+	}
+
+	//printf("current usage: %d bytes\n", pTracker->m_usage);
+	return pRet;
+}
+#endif
+
+
+
 /**
 *
 *
@@ -345,7 +421,7 @@ void SVG_Lua_DumpStack( lua_State *L ) {
 void SVG_Lua_Initialize() {
 	// Get our sol state view.
 	if ( !luaMapInstance.solState.lua_state() ) {
-		luaMapInstance.solState = sol::state();
+		luaMapInstance.solState = sol::state( sol::default_at_panic, LUA_ZoneTagAllocator, &svg_lua_memory_tracker );
 	}
 	luaMapInstance.solState.open_libraries(
 		// print, assert, and other base functions
@@ -381,20 +457,32 @@ void SVG_Lua_Initialize() {
 		//count
 		#endif
 	);
+	// Acquire the lua State.
+	luaMapInstance.lState = luaMapInstance.solState.lua_state();
 
+	/**
+	*	Setup the memory allocator functions.
+	**/
+	
+
+	/**
+	*	Setup 'require' method 'package loader'.
+	**/
 	// Clear out any default package loaders.
 	luaMapInstance.solState.clear_package_loaders();
 	// Add our own custom 'sandboxed' package loader.
 	luaMapInstance.solState.add_package_loader( LUA_Require_LoadFile );
 
-	//
-	luaMapInstance.lState = luaMapInstance.solState.lua_state();
-	// Initialize UserTypes:
+	/**
+	*	Initialize UserTypes:
+	**/
 	// First comes the member of edict_t: entity_state_t
 	UserType_Register_EdictState_t( luaMapInstance.solState );
 	UserType_Register_Edict_t( luaMapInstance.solState );
 
-	// Initialize Game Libraries.
+	/**
+	*	Initialize Game Libraries.
+	**/
 	CoreLib_Initialize( luaMapInstance.solState );
 	GameLib_Initialize( luaMapInstance.solState );
 	MediaLib_Initialize( luaMapInstance.solState );

@@ -277,6 +277,7 @@ typedef struct {
 	*	'Tag' Managed Memory Allocation:
 	*
 	**/
+    void *(*TagReMalloc)( void *ptr, unsigned newsize );
     void *(*TagMalloc)(unsigned size, unsigned tag);
     void (*TagFree)(void *block);
     void (*FreeTags)(unsigned tag);

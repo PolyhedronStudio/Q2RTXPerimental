@@ -792,6 +792,9 @@ static void PF_FS_FreeFile( void *buffer ) {
 * 
 * 
 **/
+static void *PF_TagReMalloc( void *ptr, unsigned newsize ) {
+    return Z_Realloc( ptr, newsize );
+}
 static void *PF_TagMalloc(unsigned size, unsigned tag)
 {
     Q_assert(tag <= UINT16_MAX - TAG_MAX);
@@ -1065,6 +1068,7 @@ void SV_InitGameProgs(void) {
     imports.WriteAngle8 = MSG_WriteAngle8;
 	imports.WriteAngle16 = MSG_WriteAngle16;
 
+    imports.TagReMalloc = PF_TagReMalloc;
     imports.TagMalloc = PF_TagMalloc;
     imports.TagFree = Z_Free;
     imports.FreeTags = PF_FreeTags;

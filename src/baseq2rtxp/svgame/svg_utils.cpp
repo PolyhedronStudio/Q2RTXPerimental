@@ -894,6 +894,10 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
     // Pos2.
     if ( strcmp( childMover->classname, "func_door_rotating" ) != 0 ) {
         childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos1, childMover->pushMoveInfo.distance, childMover->movedir );
+        //childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
+        //childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.y, parentVRight );
+        //childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.z, parentVUp );
+        //childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, childMover->pushMoveInfo.distance, childMover->movedir );
     } else {
         childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
         childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.y, parentVRight );
