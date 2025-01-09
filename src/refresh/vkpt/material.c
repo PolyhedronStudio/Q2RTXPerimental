@@ -962,6 +962,7 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 		}
 		
 		if (mat->filename_mask[0]) {
+			//load_material_image( mat->image_mask, mat->filename_mask, mat, type, flags | IF_EXACT | ( mat->image_flags & IF_SRC_MASK ) );
 			mat->image_mask = IMG_Find(mat->filename_mask, type, flags | IF_EXACT | (mat->image_flags & IF_SRC_MASK));
 			if (mat->image_mask == R_NOTEXTURE) {
 				Com_WPrintf("Texture '%s' specified in material '%s' could not be found.\n", mat->filename_mask, mat_name_no_ext);
@@ -975,6 +976,7 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 		// Assign its internal material name.
 		Q_strlcpy(mat->name, mat_name_no_ext, sizeof(mat->name));
 		
+		// <Q2RTXP>: Fixed materials not loading kindly with a lack of a .wall and/or material definition.
 		#if 1
 		MAT_FindBaseTexture( mat, name, type, flags );
 		#else
@@ -990,25 +992,31 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 		#endif
 		// Normal map:
 		char file_name[MAX_QPATH];
-		
 		Q_snprintf(file_name, sizeof(file_name), "%s_n.tga", mat_name_no_ext);
 		mat->image_normals = IMG_Find(file_name, type, flags);
-		if (mat->image_normals == R_NOTEXTURE)
+		if ( mat->image_normals == R_NOTEXTURE ) {
 			mat->image_normals = NULL;
-		else
-			Q_strlcpy(mat->filename_normals, mat->image_normals->filepath, sizeof(mat->filename_normals));
-
+		} else {
+			Q_strlcpy( mat->filename_normals, mat->image_normals->filepath, sizeof( mat->filename_normals ) );
+		}
 		// Emissive Map:
 		Q_snprintf(file_name, sizeof(file_name), "%s_light.tga", mat_name_no_ext);
 		mat->image_emissive = IMG_Find(file_name, type, flags | IF_SRGB);
-		if (mat->image_emissive == R_NOTEXTURE)
+		if ( mat->image_emissive == R_NOTEXTURE ) {
 			mat->image_emissive = NULL;
-		else
-			Q_strlcpy(mat->filename_emissive, mat->image_emissive->filepath, sizeof(mat->filename_emissive));
-
+		} else {
+			Q_strlcpy( mat->filename_emissive, mat->image_emissive->filepath, sizeof( mat->filename_emissive ) );
+		}
+		// Mask Map:
+		Q_snprintf( file_name, sizeof( file_name ), "%s_m.tga", mat_name_no_ext );
+		mat->image_mask = IMG_Find( file_name, type, flags | IF_SRGB );
+		if ( mat->image_mask == R_NOTEXTURE ){
+			mat->image_mask = NULL;
+		|else{
+			Q_strlcpy( mat->filename_mask, mat->image_mask->filepath, sizeof( mat->filename_mask ) );
+		}
 		// If there is no normals/metalness image, assume that the material is a basic diffuse one.
-		if (!mat->image_normals)
-		{
+		if (!mat->image_normals) {
 			mat->specular_factor = 0.f;
 			mat->metalness_factor = 0.f;
 		}
