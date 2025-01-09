@@ -166,7 +166,7 @@ LUA_ZoneTagAllocator( void *ud, void *ptr, size_t osize, size_t nsize ) {
 		if ( osize != 0 ) {
 			pRet = gi.TagReMalloc( ptr, nsize );//pRet = realloc( ptr, nsize );
 		} else {
-			pRet = gi.TagMalloc( nsize, 767 /*TAG_SVGAME_LUA*/ );//pRet = malloc( nsize );
+			pRet = gi.TagMalloc( nsize, TAG_SVGAME_LUA /*TAG_SVGAME_LUA*/ );//pRet = malloc( nsize );
 		}
 	}
 
@@ -263,6 +263,9 @@ static void LUA_UnloadMapScript() {
 		gi.FS_FreeFile( luaMapInstance.scriptBuffer );
 		luaMapInstance.scriptBuffer = nullptr;
 	}
+
+	// Free up any remaining Lua data.
+	gi.FreeTags( TAG_SVGAME_LUA );
 }
 /**
 *	@brief	Finds all references to neccessary core map hook callbacks.

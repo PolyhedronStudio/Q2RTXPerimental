@@ -1010,34 +1010,36 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 		// Mask Map:
 		Q_snprintf( file_name, sizeof( file_name ), "%s_m.tga", mat_name_no_ext );
 		mat->image_mask = IMG_Find( file_name, type, flags | IF_SRGB );
-		if ( mat->image_mask == R_NOTEXTURE ){
+		if ( mat->image_mask == R_NOTEXTURE ) {
 			mat->image_mask = NULL;
-		|else{
+		} else {
 			Q_strlcpy( mat->filename_mask, mat->image_mask->filepath, sizeof( mat->filename_mask ) );
 		}
 		// If there is no normals/metalness image, assume that the material is a basic diffuse one.
-		if (!mat->image_normals) {
+		if ( !mat->image_normals ) {
 			mat->specular_factor = 0.f;
 			mat->metalness_factor = 0.f;
 		}
 	}
 
-	if(mat->synth_emissive && !mat->image_emissive)
-		MAT_SynthesizeEmissive(mat);
+	if ( mat->synth_emissive && !mat->image_emissive ) {
+		MAT_SynthesizeEmissive( mat );
+	}
 
-	if (mat->image_normals)
+	if ( mat->image_normals ) {
 		mat->image_normals->flags |= IF_NORMAL_MAP;
-
-	if (mat->image_emissive && !mat->image_emissive->processing_complete)
-		vkpt_extract_emissive_texture_info(mat->image_emissive);
+	}
+	if ( mat->image_emissive && !mat->image_emissive->processing_complete ) {
+		vkpt_extract_emissive_texture_info( mat->image_emissive );
+	}
 
 	mat->image_type = type;
 	mat->image_flags |= flags;
 
-	MAT_SetIndex(mat);
-	MAT_UpdateRegistration(mat);
+	MAT_SetIndex( mat );
+	MAT_UpdateRegistration( mat );
 
-	List_Append(&r_materialsHash[hash], &mat->entry);
+	List_Append( &r_materialsHash[ hash ], &mat->entry );
 
 	return mat;
 }

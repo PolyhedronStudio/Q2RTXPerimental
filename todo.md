@@ -48,6 +48,7 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 	      Turn that into a DEFINE_ENUM_BITFLAGS(enumtypename) instead._
 		  **HIGH PRIORITY -->:** Without this it may actually be breaking code without us being aware.
 	- [ ] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly.
+		- [ ] Add Save/Load for the (optional) Lua's in-game mapState table data.
 
 - [ ] The **VKPT** Scenario:
 	- [X] Target Range -> Animated Textures which lol, do not animate, we merely use them right now
@@ -56,8 +57,9 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 	- [ ] fill_model_instance, use a proper bbox check for BSP_WORLD_MODEL isntead of pointleaf.
 			(See doors in target range map which bug out cluster testing, remaining unlit by interior lights.)
 
-- [ ] - [ ] **Entities**:
-	- [ ] 0. Fix func_button, KISS for now.
+- [ ] The **Entities** Scenario:
+	- [/] 0. Fix func_button, KISS for now.
+		- [ ] Test func_button map properly and add a few extra signal related features.
 	- [ ] 1. Calculate the proper entity matrixes/quaternions during Link time.
 		- [ ] Reimplement the 'movewith' system using matrixes/quaternions instead of those silly vector maths.
 

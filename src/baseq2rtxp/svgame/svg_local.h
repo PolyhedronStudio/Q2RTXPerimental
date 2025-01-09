@@ -73,6 +73,8 @@ constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64
 static constexpr int32_t TAG_SVGAME = 765;
 //! Clear when loading a new level.
 static constexpr int32_t TAG_SVGAME_LEVEL = 766;
+//! Clear when loading a new level.
+static constexpr int32_t TAG_SVGAME_LUA = 767;
 
 /**
 *   Other:

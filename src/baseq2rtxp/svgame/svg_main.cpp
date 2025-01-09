@@ -161,9 +161,10 @@ void ShutdownGame(void)
     // Shutdown the Lua VM.
     SVG_Lua_Shutdown();
 
-    // Free level and game module allocated ram.
-    gi.FreeTags(TAG_SVGAME_LEVEL);
-    gi.FreeTags(TAG_SVGAME);
+    // Free level, lua AND the game module its allocated ram.
+    gi.FreeTags( TAG_SVGAME_LEVEL );
+    gi.FreeTags( TAG_SVGAME );
+    gi.FreeTags( TAG_SVGAME_LUA );
 }
 
 /**
