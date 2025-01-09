@@ -61,13 +61,18 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
     -- It just got killed, stop the train track, notify, and add score.
     --
     elseif ( signalName == "OnKilled" ) then
-        -- Notify of the kill.
-        Game.Print( PrintLevel.NOTICE, "Shot down the \"" .. displayName .. "\" target! Only #".. mapStates.targetRange.targetsAlive .. " targets remaining!\n" )
-
         -- Decrement number of targets alive count, only if we're the team master that is being signalled.
         if ( self.teamMaster == self.targetName ) then
             mapStates.targetRange.targetsAlive = mapStates.targetRange.targetsAlive - 1
+
+            -- Set score counter frame.
+            local scoreCounterEntity = Game.GetEntityForTargetName( "targetsleftcounter" )
+            -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
+            scoreCounterEntity.state.frame = mapStates.targetRange.targetsAlive            
         end
+
+        -- Notify of the kill.
+        Game.Print( PrintLevel.NOTICE, "Shot down the \"" .. displayName .. "\" target! Only #".. mapStates.targetRange.targetsAlive .. " targets remaining!\n" )
 
         -- Stop the train for this target.
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTarget.OFF, 0 )
@@ -96,6 +101,9 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
                 Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.ON, 1 )
             end
 
+            -- Turn off the targets left light
+            Game.UseTarget( Game.GetEntityForTargetName( "light_targetsleft" ), signaller, activator, EntityUseTarget.OFF, 0 )
+
             -- Switch off the target lights. (Round ended.)
             Game.UseTargets( Game.GetEntityForTargetName( "light_target_xxl" ), signaller, activator, EntityUseTarget.OFF, 0 )
             Game.UseTargets( Game.GetEntityForTargetName( "light_target_xl" ), signaller, activator, EntityUseTarget.OFF, 0 )
@@ -105,6 +113,12 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
             -- The target range isn't in an active round anymore.
             mapStates.targetRange.roundActive = false
             mapStates.targetRange.targetsAlive = 0
+            
+            -- Turn off the HoloGram text displays.
+            local scoreCounterEntity = Game.GetEntityForTargetName( "targetsleftcounter" )
+            local scoreCounterTextEntity = Game.GetEntityForTargetName( "wall_hologram" )
+            Game.UseTarget( scoreCounterTextEntity, self, activator, EntityUseTarget.OFF, 0 )
+            Game.UseTarget( scoreCounterEntity, self, activator, EntityUseTarget.OFF, 0 )
         end
         -- Done handling signal.
         return true
@@ -122,12 +136,16 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, EntityUseTarget.ON, 1 )
         -- Play speciual closing sound effect.
         Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_close, 1.0, SoundAttenuation.IDLE, 0.0 )
+
+
         -- Done handling signal.
         return true
     --
     -- A new round has begun, so the target got told to "close", turn on the train.
     --
     elseif ( signalName == "OnClosed") then
+        -- Turn off the targets left light
+        Game.UseTarget( Game.GetEntityForTargetName( "light_targetsleft" ), signaller, activator, EntityUseTarget.ON, 1 )
         -- Get LightBrush Entity.
         local lightBrushEntity = Game.GetEntityForTargetName( lightBrushTargetName )
         -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
@@ -245,7 +263,19 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
                     Game.UseTarget( entityValue, self, activator, EntityUseTarget.OFF, 0 )
                 end
             )
+
+            -- Turn off the HoloGram text displays.
+            local scoreCounterEntity = Game.GetEntityForTargetName( "targetsleftcounter" )
+            local scoreCounterTextEntity = Game.GetEntityForTargetName( "wall_hologram" )
+
+            Game.UseTarget( scoreCounterTextEntity, self, activator, EntityUseTarget.ON, 0 )
+            Game.UseTarget( scoreCounterEntity, self, activator, EntityUseTarget.ON, 0 )
         end
+
+        -- Set score counter frame.
+        local scoreCounterEntity = Game.GetEntityForTargetName( "targetsleftcounter" )
+        -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
+        scoreCounterEntity.state.frame = mapStates.targetRange.targetsAlive
     end
     return true
 end

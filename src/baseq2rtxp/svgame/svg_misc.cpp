@@ -520,17 +520,30 @@ START_ON        only valid for TRIGGER_SPAWN walls
                 the wall will initially be present
 */
 
-void func_wall_use(edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue )
-{
-    if (self->solid == SOLID_NOT) {
+void func_wall_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    //
+    // usetype: TOGGLE
+    //
+    if ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_ON ) {
         self->solid = SOLID_BSP;
         self->svflags &= ~SVF_NOCLIENT;
-        KillBox(self, false);
-    } else {
+        KillBox( self, false );
+    } else if ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_OFF ) {
         self->solid = SOLID_NOT;
         self->svflags |= SVF_NOCLIENT;
+    // Otherwise, regular toggle behavior.
+    } else {
+        if ( self->solid == SOLID_NOT ) {
+            self->solid = SOLID_BSP;
+            self->svflags &= ~SVF_NOCLIENT;
+            KillBox( self, false );
+        } else {
+            self->solid = SOLID_NOT;
+            self->svflags |= SVF_NOCLIENT;
+        }
+
+        gi.linkentity( self );
     }
-    gi.linkentity(self);
 
     if (!(self->spawnflags & 2))
         self->use = NULL;
