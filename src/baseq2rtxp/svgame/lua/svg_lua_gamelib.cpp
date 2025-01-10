@@ -150,6 +150,35 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 		"BRUSHTEXTURE_SET_FRAME_INDEX", RF_BRUSHTEXTURE_SET_FRAME_INDEX
 	);
 
+
+	//
+	// UseTargets:
+	//
+	// UseTarget Flags:
+	solStateView.new_enum( "EntityUseTargetFlags",
+		"NONE", ENTITY_USETARGET_FLAG_NONE,
+		"PRESS", ENTITY_USETARGET_FLAG_PRESS,
+		"TOGGLE", ENTITY_USETARGET_FLAG_TOGGLE,
+		"CONTINUOUS", ENTITY_USETARGET_FLAG_CONTINUOUS,
+		"DISABLED", ENTITY_USETARGET_FLAG_DISABLED
+	);
+	// UseTarget State:
+	solStateView.new_enum( "EntityUseTargetState",
+		"DEFAULT", ENTITY_USETARGET_STATE_DEFAULT,
+		"OFF", ENTITY_USETARGET_STATE_OFF,
+		"ON", ENTITY_USETARGET_STATE_ON,
+		"TOGGLED", ENTITY_USETARGET_STATE_TOGGLED,
+		"CONTINUOUS", ENTITY_USETARGET_STATE_CONTINUOUS
+	);
+	// UseTarget Types:
+	solStateView.new_enum( "EntityUseTargetType",
+		"OFF", ENTITY_USETARGET_TYPE_OFF,
+		"ON", ENTITY_USETARGET_TYPE_ON,
+		"SET", ENTITY_USETARGET_TYPE_SET,
+		"TOGGLE", ENTITY_USETARGET_TYPE_TOGGLE
+	);
+
+
 	//
 	// PushMove(as in a Door) Toggle Types:
 	//
@@ -167,15 +196,6 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 		"MOVING_DOWN",	PUSHMOVE_STATE_MOVING_DOWN
 	);
 	
-	//
-	// UseTarget Types:
-	//
-	solStateView.new_enum( "EntityUseTarget",
-		"OFF",		ENTITY_USETARGET_TYPE_OFF,
-		"ON",		ENTITY_USETARGET_TYPE_ON,
-		"SET",		ENTITY_USETARGET_TYPE_SET,
-		"TOGGLE",	ENTITY_USETARGET_TYPE_TOGGLE
-	);
 
 	//
 	// Game Message Print Levels:

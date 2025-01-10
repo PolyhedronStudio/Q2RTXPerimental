@@ -18,13 +18,13 @@ function ButtonLight03_OnSignalIn( self, signaller, activator, signalName, signa
         -- Get light entity.
         local lightEntity = Game.GetEntityForTargetName( "button_light03" )
         -- Turn it off.
-        Game.UseTarget( lightEntity, signaller, activator, EntityUseTarget.SET, 0 )
+        Game.UseTarget( lightEntity, signaller, activator, EntityUseTargetType.SET, 0 )
         Core.DPrint( "ButtonLight03_OnSignalName " .. signalName .. " turned OFF the Light!\n" )
     elseif ( signalName == "OnContinuousPressed" ) then
         -- Get light entity.
         local lightEntity = Game.GetEntityForTargetName( "button_light03" )
         -- Turn it on.
-        Game.UseTarget( lightEntity, signaller, activator, EntityUseTarget.SET, 1 )
+        Game.UseTarget( lightEntity, signaller, activator, EntityUseTargetType.SET, 1 )
         Core.DPrint( "ButtonLight03_OnSignalName " .. signalName .. " turned ON the Light!\n" )
     elseif ( signalName == "OnContinuousPress" or signalName == "OnContinuousUnPress" ) then
         --Core.DPrint( "ButtonLight03_OnSignalName " .. signalName .. "\n" )

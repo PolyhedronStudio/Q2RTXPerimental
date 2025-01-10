@@ -366,6 +366,16 @@ void button_unpress_move( edict_t *self ) {
     }
 }
 
+/**
+*   @brief  Used for "Toggle" Signalling.
+**/
+void button_toggle_move( edict_t *self ) {
+    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM || self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN ) {
+        button_unpress_move( self );
+    } else {
+        button_press_move( self );
+    }
+}
 
 
 /**
@@ -738,6 +748,61 @@ void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 }
 
 
+
+/***
+*
+*
+*
+*   Signal Handling:
+*
+*
+*
+***/
+/**
+*   @brief  Signal Receiving:
+**/
+void button_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+    // Press:
+    if ( Q_strcasecmp( signalName, "ButtonPress" ) == 0 ) {
+        // Unpress,
+        self->activator = activator;
+        self->other = other;
+        button_press_move( self );
+    }
+    // UnPress:
+    if ( Q_strcasecmp( signalName, "ButtonUnPress" ) == 0 ) {
+        // Unpress,
+        self->activator = activator;
+        self->other = other;
+        button_unpress_move( self );
+    }
+    // ButtonToggle:
+    if ( Q_strcasecmp( signalName, "ButtonToggle" ) == 0 ) {
+        self->activator = activator;
+        self->other = other;
+        // Toggle Move.
+        button_toggle_move( self );
+    }
+
+    // WID: Useful for debugging.
+    #if 0
+    const int32_t otherNumber = ( other ? other->s.number : -1 );
+    const int32_t activatorNumber = ( activator ? activator->s.number : -1 );
+    gi.dprintf( "door_onsignalin[ self(#%d), \"%s\", other(#%d), activator(%d) ]\n", self->s.number, signalName, otherNumber, activatorNumber );
+    #endif
+}
+
+
+
+/***
+*
+*
+*
+*   Spawn:
+*
+*
+*
+***/
 /**
 *   @brief  Spawn function.
 **/
@@ -754,6 +819,7 @@ void SP_func_button( edict_t *ent ) {
     ent->movetype = MOVETYPE_STOP;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
+    ent->onsignalin = button_onsignalin;
     // BSP Model, or otherwise, specified external model.
     gi.setmodel( ent, ent->model );
 

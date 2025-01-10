@@ -78,6 +78,9 @@ const int32_t lua_edict_t::get_number( sol::this_state s ) const {
 //	LUA_ErrorPrintf( "%s: Can't change an entities number!\n", __func__ );
 //}
 
+//
+// State:
+//
 /**
 *	@return	Returns a lua userdata object for accessing the entity's entity_state_t.
 **/
@@ -89,6 +92,46 @@ sol::object lua_edict_t::get_state( sol::this_state s ) {
 	sol::state_view solState( s );
 	// Create a reference object of entity state userdata.
 	return sol::make_object_userdata<lua_edict_state_t>(solState, this->edict);
+}
+
+//
+// UseTargets:
+//
+/**
+*	@brief
+**/
+const int32_t lua_edict_t::get_usetarget_flags( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( 0 );
+	// Return number.
+	return this->edict->useTarget.flags;
+}
+/**
+*	@brief
+**/
+void lua_edict_t::set_usetarget_flags( sol::this_state s, const entity_usetarget_flags_t flags ) {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
+	// Assign new flags.
+	this->edict->useTarget.flags = flags;
+}
+/**
+*	@brief
+**/
+const int32_t lua_edict_t::get_usetarget_state( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( 0 );
+	// Return number.
+	return this->edict->useTarget.state;
+}
+/**
+*	@brief
+**/
+void lua_edict_t::set_usetarget_state( sol::this_state s, const entity_usetarget_state_t state ) {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
+	// Assign new flags.
+	this->edict->useTarget.state = state;
 }
 
 /**
@@ -114,4 +157,8 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	**/
 	// Returns the member entity_state_t of edict_t.
 	lua_edict_type[ "state" ] = sol::property( &lua_edict_t::get_state );
+
+	// For useTargets.
+	lua_edict_type[ "useTargetFlags" ] = sol::property( &lua_edict_t::get_usetarget_flags, &lua_edict_t::set_usetarget_flags );
+	lua_edict_type[ "useTargetState" ] = sol::property( &lua_edict_t::get_usetarget_state, &lua_edict_t::set_usetarget_state );
 }

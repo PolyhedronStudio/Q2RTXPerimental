@@ -244,6 +244,7 @@ void door_unlock( edict_t *self ) {
         self->pushMoveInfo.lockState.isLocked = false;
     }
 }
+
 /**
 *   @brief  Signal Receiving:
 **/

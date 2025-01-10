@@ -19237,8 +19237,8 @@
 // entity 180
 {
 "classname" "client_env_sound"
-"origin" "256 233 140"
-"radius" "1320"
+"origin" "256 233 168"
+"radius" "1548"
 "reverb_effect_id" "18"
 }
 // entity 181
@@ -19614,6 +19614,7 @@
 "spawnflags" "131088"
 "angle" "90"
 "luaName" "button_toggle_targetrange"
+"targetname" "button_toggle_targetrange"
 "_tb_group" "102"
 // brush 0
 {
