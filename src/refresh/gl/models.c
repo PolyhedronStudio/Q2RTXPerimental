@@ -305,6 +305,7 @@ static int MOD_LoadMD3Mesh(model_t *model, maliasmesh_t *mesh,
             return Q_ERR_STRING_TRUNCATED;
         FS_NormalizePath(skinname);
         mesh->skins[i] = IMG_Find(skinname, IT_SKIN, IF_NONE);
+        src_skin++; // <Q2RTXP>: https://github.com/NVIDIA/Q2RTX/pull/424/commits/36a81fe2fc059881cdcd6c47b42dad8cbdeaef80
     }
 
     // load all vertices

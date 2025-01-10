@@ -41,16 +41,16 @@ mapMedia = {
 -----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
 -- The following function is called upon by each individual target entity
--- that had a SignalIn. This prevents us from having to rewrite the same code
--- with the same functionality, over, and over, and over, and over...
+-- that has a SignalIn. Saves us a lot of headache.
 --
 -- The function, implements the necessary responses to the various incoming
--- 'func_door_rotating' signals, that are Signaled In.
+-- 'func_door_rotating' signals received by Signalling in order to imiate a
+-- target range target behavior.
 -----------------------------------------------------------------------------
 -- L Target:
 function Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, displayName, targetName, trainTargetName, lightTargetName, lightBrushTargetName )
     --
-    -- Handles its death, turns off the train track and the light.
+    -- Play special pain audio:
     --
     if ( signalName == "OnPain" ) then
         -- Play speciual 'pain' sound effect.
@@ -58,13 +58,12 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         -- Done handling signal.
         return true
     --
-    -- It just got killed, stop the train track, notify, and add score.
+    -- It just got killed, stop the train track, 'open' the door, notify players, and update score.
     --
     elseif ( signalName == "OnKilled" ) then
         -- Decrement number of targets alive count, only if we're the team master that is being signalled.
         if ( self.teamMaster == self.targetName ) then
             mapStates.targetRange.targetsAlive = mapStates.targetRange.targetsAlive - 1
-
             -- Set score counter frame.
             local scoreCounterEntity = Game.GetEntityForTargetName( "targetsleftcounter" )
             -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
@@ -73,10 +72,8 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
 
         -- Notify of the kill.
         Game.Print( PrintLevel.NOTICE, "Shot down the \"" .. displayName .. "\" target! Only #".. mapStates.targetRange.targetsAlive .. " targets remaining!\n" )
-
         -- Stop the train for this target.
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTarget.OFF, 0 )
-        
         -- Play special 'opening' sound effect.
         Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_open, 1.0, SoundAttenuation.IDLE, 0.0 )
 
@@ -100,10 +97,8 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
                 -- Turn on the light for this target.
                 Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.ON, 1 )
             end
-
             -- Turn off the targets left light
             Game.UseTarget( Game.GetEntityForTargetName( "light_targetsleft" ), signaller, activator, EntityUseTarget.OFF, 0 )
-
             -- Switch off the target lights. (Round ended.)
             Game.UseTargets( Game.GetEntityForTargetName( "light_target_xxl" ), signaller, activator, EntityUseTarget.OFF, 0 )
             Game.UseTargets( Game.GetEntityForTargetName( "light_target_xl" ), signaller, activator, EntityUseTarget.OFF, 0 )
@@ -112,20 +107,17 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
 
             -- The target range isn't in an active round anymore.
             mapStates.targetRange.roundActive = false
+            -- Just make sure it is 0.
             mapStates.targetRange.targetsAlive = 0
             
             -- Turn off the HoloGram text displays.
-            local scoreCounterEntity = Game.GetEntityForTargetName( "targetsleftcounter" )
-            local scoreCounterTextEntity = Game.GetEntityForTargetName( "wall_hologram" )
-            Game.UseTarget( scoreCounterTextEntity, self, activator, EntityUseTarget.OFF, 0 )
-            Game.UseTarget( scoreCounterEntity, self, activator, EntityUseTarget.OFF, 0 )
+            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter" ), self, activator, EntityUseTarget.OFF, 0 )
+            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram" ), self, activator, EntityUseTarget.OFF, 0 )
         end
         -- Done handling signal.
         return true
     --
-    -- If the target is engaging in "Closing", it means a new range round has begun.
-    -- The following turns on the light, revives the 'door', and reactivates he train
-    -- track when it has reached 'closed' state.
+    -- If the target is engaging in "Closing", it means a new range round has begun:
     --
     elseif ( signalName == "OnClose" ) then
         -- Get target entity
@@ -136,8 +128,6 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         Game.UseTarget( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, EntityUseTarget.ON, 1 )
         -- Play speciual closing sound effect.
         Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_close, 1.0, SoundAttenuation.IDLE, 0.0 )
-
-
         -- Done handling signal.
         return true
     --
@@ -169,23 +159,20 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
     --
     elseif ( signalName == "OnOpened" ) then
         -- Get target entity
-        --local targetEntity = Game.GetEntityForTargetName( targetName )
+        local targetEntity = Game.GetEntityForTargetName( targetName )
         -- Reset effects.
-        --targetEntity.state.effects = EntityEffects.NONE
+        targetEntity.state.effects = EntityEffects.NONE
         -- Done handling signal.
         return true
-    --elseif ( signalName == "DoorClose") then
-    --elseif ( signalName == "DoorOpen") then
-    --else
-        -- Nothing.
     end
     -- Done handling signal.
     return true
 end
 
 ----------------------------------------------------------------------
---    Range Targets SignalIn:
+--  Range Targets SignalIn:
 --
+--  All rely on Target_ProcessSignals.
 ----------------------------------------------------------------------
 -- XXL Target:
 function TargetXXL_OnSignalIn( self, signaller, activator, signalName, signalArguments )
@@ -208,32 +195,32 @@ end
 ----    Target Range Start Button SignalIn:
 ----------------------------------------------------------------------
 function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+    -- If the button is pressed.
     if ( signalName == "OnPressed" ) then
         -- Multiple targets left:
         if ( mapStates.targetRange.targetsAlive > 1 ) then
+            -- Notify players.
             Game.Print( PrintLevel.NOTICE, "Round Active, #" .. mapStates.targetRange.targetsAlive .. " targets remaining!\n" )
         -- One target left:
         elseif ( mapStates.targetRange.targetsAlive == 1 ) then
+            -- Notify players.
             Game.Print( PrintLevel.NOTICE, "Round Active, last target remaining!\n" )
-        -- Proceed (re-)activating range:
+        -- All targets dead, (re-)activate range course.
         else
+            -- Notify players.
             Game.Print( PrintLevel.NOTICE, "New Round Started! Kill all 4 targets as quickly as you can!\n" )
-
             -- Play speciual 'restart' sound effect.
             Media.Sound( signaller, SoundChannel.ITEM, mapMedia.sound.newround, 1.0, SoundAttenuation.NORMAL, 0.0 )
-
             -- Signal all targetrange lane targets to "close" again, effectively reactivating our target range course.
             Game.SignalOut( Game.GetEntityForTargetName( "t_target_xxl" ), signaller, activator, "DoorClose", {} )
             Game.SignalOut( Game.GetEntityForTargetName( "t_target_xl" ), signaller, activator, "DoorClose", {} )
             Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "DoorClose", {} )
             Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "DoorClose", {} )
-
             -- Engage all func_train into moving again.
             Game.UseTargets( Game.GetEntityForTargetName( "train_target_xxl" ), signaller, activator, EntityUseTarget.ON, 1 )
             Game.UseTargets( Game.GetEntityForTargetName( "train_target_xl" ), signaller, activator, EntityUseTarget.ON, 1 )
             Game.UseTargets( Game.GetEntityForTargetName( "train_target_l" ), signaller, activator, EntityUseTarget.ON, 1 )
             Game.UseTargets( Game.GetEntityForTargetName( "train_target" ), signaller, activator, EntityUseTarget.ON, 1 )
-
             -- Switch on the target lights. (New round has begun.)
             Game.UseTargets( Game.GetEntityForTargetName( "light_target_xxl" ), signaller, activator, EntityUseTarget.ON, 1 )
             Game.UseTargets( Game.GetEntityForTargetName( "light_target_xl" ), signaller, activator, EntityUseTarget.ON, 1 )
@@ -247,14 +234,6 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
 
             -- Turn off all lights for the target range.
             local targetRangeLights = Game.GetEntitiesForTargetName( "light_ceil_range" )
-
-            -- This is how you'd normally do it.
-            -- -- Iterate over the matching targetname light entities.
-            -- for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
-            --     -- Turn off the light for this target.
-            --     Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.OFF, 0 )
-            -- end
-
             -- This is used just as for testing purposes of the 'require' functionality.
             -- The implementation resides in /maps/scripts/utilities/entities.lua
             entities:for_each_entity(
@@ -263,13 +242,16 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
                     Game.UseTarget( entityValue, self, activator, EntityUseTarget.OFF, 0 )
                 end
             )
+            -- This is how you'd normally do it.
+            -- -- Iterate over the matching targetname light entities.
+            -- for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
+            --     -- Turn off the light for this target.
+            --     Game.UseTarget( targetRangeLight, self, activator, EntityUseTarget.OFF, 0 )
+            -- end
 
             -- Turn off the HoloGram text displays.
-            local scoreCounterEntity = Game.GetEntityForTargetName( "targetsleftcounter" )
-            local scoreCounterTextEntity = Game.GetEntityForTargetName( "wall_hologram" )
-
-            Game.UseTarget( scoreCounterTextEntity, self, activator, EntityUseTarget.ON, 0 )
-            Game.UseTarget( scoreCounterEntity, self, activator, EntityUseTarget.ON, 0 )
+            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter" ), self, activator, EntityUseTarget.ON, 0 )
+            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram" ), self, activator, EntityUseTarget.ON, 0 )
         end
 
         -- Set score counter frame.
@@ -285,29 +267,27 @@ end
 ----------------------------------------------------------------------
 --
 --
---    WareHouse Locked Doors Implementations:
+--    WareHouse:
 --
 --
 ----------------------------------------------------------------------
 ----------------------------------------------------------------------
--- The Button SignalIn:
+-- The WareHouseLockingButton SignalIn:
 ----------------------------------------------------------------------
 function WareHouseLockingButton_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     -- Open the doors.
     if ( signalName == "OnPressed" or signalName == "OnUnPressed" ) then
-        -- Get entity
+        -- Get the teamed up door entity
         local entityWareHouseDoor00 = Game.GetEntityForLuaName( "WareHouseDoor00" )
-        Core.DPrint( "entityWareHouseDoor00(#"..entityWareHouseDoor00.number..")\n")
-
         -- Determine its move state.
         local doorMoveState = Game.GetPushMoverState( entityWareHouseDoor00 )
-
-        -- Only SignalOut a "DoorOpen" when the elevator is NOT moving.
+        -- Only SignalOut a "DoorLockToggle" when the doors are NOT moving.
         if ( doorMoveState ~= PushMoveState.MOVING_DOWN and doorMoveState ~= PushMoveState.MOVING_UP ) then
             -- Send the lock toggle signal.
             Game.SignalOut( entityWareHouseDoor00, self, activator, "DoorLockToggle", {} )
         end
     end
+    -- Done Signalling.
     return true
 end
 ----------------------------------------------------------------------
