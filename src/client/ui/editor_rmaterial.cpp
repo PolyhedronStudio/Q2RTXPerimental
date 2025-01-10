@@ -9,11 +9,11 @@
 #include "../cl_client.h"
 
 //! We need these here.
-extern "C" {
+QEXTERN_C_OPEN
     #include "refresh/vkpt/vkpt.h"
     #include "refresh/vkpt/material.h"
     #include "refresh/vkpt/shader/constants.h"
-}
+QEXTERN_C_CLOSE
 //! Enables material test model rendering.
 //#define ENABLE_MATERIAL_TEST_MODEL_RENDERING
 

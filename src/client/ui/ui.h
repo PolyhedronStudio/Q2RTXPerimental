@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
 #include "shared/shared.h"
 #include "shared/util_list.h"
@@ -29,12 +30,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/client.h"
 #include "client/ui.h"
 #include "refresh/refresh.h"
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
 
 #define UI_Malloc(s)        Z_TagMalloc(s, TAG_UI)
 #define UI_Mallocz(s)       Z_TagMallocz(s, TAG_UI)
@@ -338,7 +333,7 @@ typedef struct uiStatic_s {
     bool bloomEnabled;
 } uiStatic_t;
 
-extern uiStatic_t   uis;
+QEXTERN_C_ENCLOSE( extern uiStatic_t   uis; );
 
 extern list_t       ui_menus;
 
@@ -389,9 +384,3 @@ void M_Menu_PlayerConfig(void);
 void M_Menu_Demos(void);
 void M_Menu_Servers(void);
 void M_Menu_Scoreboard( void );
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif

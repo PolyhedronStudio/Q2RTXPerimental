@@ -19,11 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef CMODEL_H
 #define CMODEL_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
 
 #include "shared/format_bsp.h"
 
@@ -32,8 +27,8 @@ extern "C" {
 //
 //  common/collisionmodel.cpp
 //
-extern mtexinfo_t nulltexinfo;
-extern cm_material_t cm_default_material;
+QEXTERN_C_ENCLOSE( extern mtexinfo_t nulltexinfo; );
+QEXTERN_C_ENCLOSE( extern cm_material_t cm_default_material; );
 
 /**
 *   @brief
@@ -262,11 +257,5 @@ void        CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
 **/
 void        CM_ClipEntity( cm_t *cm, trace_t *dst, const trace_t *src, struct edict_s *ent );
 
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
 
 #endif // CMODEL_H

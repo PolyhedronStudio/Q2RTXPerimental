@@ -19,11 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef HUNK_H
 #define HUNK_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
+// Extern C
+QEXTERN_C_OPEN
 
 /**
 *
@@ -47,10 +44,7 @@ void    *Hunk_Alloc(memhunk_t *hunk, size_t size);
 void    Hunk_End(memhunk_t *hunk);
 void    Hunk_Free(memhunk_t *hunk);
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // HUNK_H

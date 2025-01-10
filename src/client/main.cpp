@@ -29,9 +29,7 @@ cvar_t  *cl_timeout;
 cvar_t  *cl_predict;
 //cvar_t  *cl_gunalpha;
 // WID: C++20: For linkage with .c
-extern "C" {
-	cvar_t *cl_gunfov;
-}
+QEXTERN_C_ENCLOSE( cvar_t *cl_gunfov; );
 //cvar_t  *cl_gunscale;
 //cvar_t  *cl_gun_x;
 //cvar_t  *cl_gun_y;
@@ -53,7 +51,7 @@ cvar_t  *cl_showmiss;
 cvar_t  *cl_showclamp;
 #endif
 
-cvar_t  *cl_player_model;
+QEXTERN_C_ENCLOSE( cvar_t *cl_player_model; );
 //cvar_t  *cl_thirdperson_angle;
 //cvar_t  *cl_thirdperson_range;
 
@@ -81,25 +79,25 @@ cvar_t  *info_password;
 cvar_t  *info_spectator;
 cvar_t  *info_name;
 cvar_t  *info_skin;
-extern "C" { cvar_t* info_rate; };// WID: C++20: Needed for linkage.
+QEXTERN_C_ENCLOSE( cvar_t* info_rate; );// WID: C++20: Needed for linkage.
 cvar_t  *info_fov;
 cvar_t  *info_msg;
-cvar_t  *info_hand;
+QEXTERN_C_ENCLOSE( cvar_t *info_hand; );
 //cvar_t  *info_gender;
 cvar_t  *info_uf;
 
 #if USE_REF == REF_GL
 // WID: C++20: Linkage.
-extern "C" {
+QEXTERN_C_OPEN
 	extern cvar_t *gl_modulate_world;
 	extern cvar_t *gl_modulate_entities;
 	extern cvar_t *gl_brightness;
-};
+QEXTERN_C_CLOSE
 #endif
 
 
-client_static_t cls;
-client_state_t  cl;
+QEXTERN_C_ENCLOSE( client_static_t cls; );
+QEXTERN_C_ENCLOSE( client_state_t  cl; );
 
 centity_t   *cl_entities = nullptr;
 

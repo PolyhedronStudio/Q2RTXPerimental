@@ -15,9 +15,8 @@
 ********************************************************************/
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif // #ifdef __cplusplus
+// Extern C
+QEXTERN_C_OPEN
 
 /**
 *	@brief	Allocates another pose cache and returns the index handle.
@@ -51,6 +50,5 @@ void SKM_PoseCache_ResetCache( qhandle_t *poseCacheHandle );
 **/
 skm_transform_t *SKM_PoseCache_AcquireCachedMemoryBlock( const qhandle_t poseCacheHandle, const uint32_t size );
 
-#ifdef __cplusplus
-}
-#endif // #ifdef __cplusplus
+// Extern C
+QEXTERN_C_CLOSE

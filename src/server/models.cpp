@@ -107,9 +107,8 @@ static int32_t sv_numModels = 0;
 int32_t sv_model_registration_sequence = 0;
 
 // Resides in /refresh/model_iqm.c ...
-extern "C" {
-    int MOD_LoadIQM_Base( model_t *model, const void *rawdata, size_t length, const char *mod_name );
-}
+QEXTERN_C_ENCLOSE( int MOD_LoadIQM_Base( model_t *model, const void *rawdata, size_t length, const char *mod_name ); );
+
 
 /**
 *   @brief  

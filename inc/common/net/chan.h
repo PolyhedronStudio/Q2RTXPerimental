@@ -19,12 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef NET_CHAN_H
 #define NET_CHAN_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "common/messaging.h"
 #include "common/net/net.h"
 #include "common/sizebuf.h"
@@ -112,9 +106,7 @@ void Netchan_Close(netchan_t *netchan);
 #define OOB_PRINT(sock, addr, data) \
     NET_SendPacket(sock, CONST_STR_LEN("\xff\xff\xff\xff" data), addr)
 
+// Include the Q2RTXP Netchan
 #include "Q2RTXPerimentalNetChan.h"
 
-#ifdef __cplusplus
-};
-#endif
 #endif // NET_CHAN_H

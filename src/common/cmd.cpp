@@ -44,7 +44,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 char            cmd_buffer_text[CMD_BUFFER_SIZE];
-cmdbuf_t        cmd_buffer;
+QEXTERN_C_ENCLOSE( cmdbuf_t        cmd_buffer; );
 
 // points to the buffer current command is executed from
 cmdbuf_t        *cmd_current;

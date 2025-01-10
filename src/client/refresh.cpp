@@ -28,21 +28,18 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "refresh/models.h"
 
 // Console variables that we need to access from this module
-extern "C" {
-    cvar_t *vid_rtx;
-    cvar_t *vid_geometry;
-    cvar_t *vid_modelist;
-    cvar_t *vid_fullscreen;
-    cvar_t *_vid_fullscreen;
-    cvar_t *vid_display;
-    cvar_t *vid_displaylist;
-};
+QEXTERN_C_ENCLOSE( cvar_t *vid_rtx; );
+QEXTERN_C_ENCLOSE( cvar_t *vid_geometry; );
+QEXTERN_C_ENCLOSE( cvar_t *vid_modelist; );
+QEXTERN_C_ENCLOSE( cvar_t *vid_fullscreen; );
+QEXTERN_C_ENCLOSE( cvar_t *_vid_fullscreen; );
+QEXTERN_C_ENCLOSE( cvar_t *vid_display; );
+QEXTERN_C_ENCLOSE( cvar_t *vid_displaylist; );
 // used in gl and vkpt renderers
 int registration_sequence;
 
-extern "C" {
-    vid_driver_t    vid;
-}
+QEXTERN_C_ENCLOSE( vid_driver_t    vid; );
+
 #define MODE_GEOMETRY   1
 #define MODE_FULLSCREEN 2
 #define MODE_MODELIST   4
@@ -452,86 +449,88 @@ void CL_ShutdownRefresh(void)
     Z_LeakTest(TAG_RENDERER);
 }
 
-// WID: C++20: Need to 'extern C' this.
-extern "C" {
+// Extern C
+QEXTERN_C_OPEN
 
-    refcfg_t r_config;
+refcfg_t r_config;
 
-    ref_type_t( *R_Init )( bool total ) = NULL;
-    void( *R_Shutdown )( bool total ) = NULL;
-    void( *R_BeginRegistration )( const char *map ) = NULL;
-    void( *R_SetSky )( const char *name, float rotate, int autorotate, const vec3_t axis ) = NULL;
-    void( *R_EndRegistration )( void ) = NULL;
-    void( *R_RenderFrame )( refdef_t *fd ) = NULL;
-    void( *R_LightPoint )( const vec3_t origin, vec3_t light ) = NULL;
-    void( *R_ClearColor )( void ) = NULL;
-    void( *R_SetAlpha )( float clpha ) = NULL;
-    void( *R_SetAlphaScale )( float alpha ) = NULL;
-    void( *R_SetColor )( uint32_t color ) = NULL;
-    void( *R_SetClipRect )( const clipRect_t *clip ) = NULL;
-    void( *R_SetScale )( float scale ) = NULL;
-    void( *R_DrawChar )( int x, int y, int flags, int ch, qhandle_t font ) = NULL;
-    int( *R_DrawString )( int x, int y, int flags, size_t maxChars,
-        const char *string, qhandle_t font ) = NULL;
-    void( *R_DrawPic )( int x, int y, qhandle_t pic ) = NULL;
-    void( *R_DrawStretchPic )( int x, int y, int w, int h, qhandle_t pic ) = NULL;
-    void( *R_DrawRotateStretchPic )( int x, int y, int w, int h, float angle, int pivot_x, int pivot_y, qhandle_t pic ) = NULL;
-    void( *R_DrawKeepAspectPic )( int x, int y, int w, int h, qhandle_t pic ) = NULL;
-    void( *R_DrawStretchRaw )( int x, int y, int w, int h ) = NULL;
-    void( *R_TileClear )( int x, int y, int w, int h, qhandle_t pic ) = NULL;
-    void( *R_DrawFill8 )( int x, int y, int w, int h, int c ) = NULL;
-    void( *R_DrawFill32 )( int x, int y, int w, int h, uint32_t color ) = NULL;
-    void( *R_UpdateRawPic )( int pic_w, int pic_h, const uint32_t *pic ) = NULL;
-    void( *R_DiscardRawPic )( void ) = NULL;
-    void( *R_BeginFrame )( void ) = NULL;
-    void( *R_EndFrame )( void ) = NULL;
-    void( *R_ModeChanged )( int width, int height, int flags ) = NULL;
-    void( *R_AddDecal )( decal_t *d ) = NULL;
-    bool( *R_InterceptKey )( unsigned key, bool down ) = NULL;
-    bool( *R_IsHDR )( void ) = NULL;
+ref_type_t( *R_Init )( bool total ) = NULL;
+void( *R_Shutdown )( bool total ) = NULL;
+void( *R_BeginRegistration )( const char *map ) = NULL;
+void( *R_SetSky )( const char *name, float rotate, int autorotate, const vec3_t axis ) = NULL;
+void( *R_EndRegistration )( void ) = NULL;
+void( *R_RenderFrame )( refdef_t *fd ) = NULL;
+void( *R_LightPoint )( const vec3_t origin, vec3_t light ) = NULL;
+void( *R_ClearColor )( void ) = NULL;
+void( *R_SetAlpha )( float clpha ) = NULL;
+void( *R_SetAlphaScale )( float alpha ) = NULL;
+void( *R_SetColor )( uint32_t color ) = NULL;
+void( *R_SetClipRect )( const clipRect_t *clip ) = NULL;
+void( *R_SetScale )( float scale ) = NULL;
+void( *R_DrawChar )( int x, int y, int flags, int ch, qhandle_t font ) = NULL;
+int( *R_DrawString )( int x, int y, int flags, size_t maxChars,
+    const char *string, qhandle_t font ) = NULL;
+void( *R_DrawPic )( int x, int y, qhandle_t pic ) = NULL;
+void( *R_DrawStretchPic )( int x, int y, int w, int h, qhandle_t pic ) = NULL;
+void( *R_DrawRotateStretchPic )( int x, int y, int w, int h, float angle, int pivot_x, int pivot_y, qhandle_t pic ) = NULL;
+void( *R_DrawKeepAspectPic )( int x, int y, int w, int h, qhandle_t pic ) = NULL;
+void( *R_DrawStretchRaw )( int x, int y, int w, int h ) = NULL;
+void( *R_TileClear )( int x, int y, int w, int h, qhandle_t pic ) = NULL;
+void( *R_DrawFill8 )( int x, int y, int w, int h, int c ) = NULL;
+void( *R_DrawFill32 )( int x, int y, int w, int h, uint32_t color ) = NULL;
+void( *R_UpdateRawPic )( int pic_w, int pic_h, const uint32_t *pic ) = NULL;
+void( *R_DiscardRawPic )( void ) = NULL;
+void( *R_BeginFrame )( void ) = NULL;
+void( *R_EndFrame )( void ) = NULL;
+void( *R_ModeChanged )( int width, int height, int flags ) = NULL;
+void( *R_AddDecal )( decal_t *d ) = NULL;
+bool( *R_InterceptKey )( unsigned key, bool down ) = NULL;
+bool( *R_IsHDR )( void ) = NULL;
 
-    void( *IMG_Unload )( image_t *image ) = NULL;
-    void( *IMG_Load )( image_t *image, byte *pic ) = NULL;
-    void( *IMG_ReadPixels )( screenshot_t *s ) = NULL;
-    void( *IMG_ReadPixelsHDR )( screenshot_t *s ) = NULL;
+void( *IMG_Unload )( image_t *image ) = NULL;
+void( *IMG_Load )( image_t *image, byte *pic ) = NULL;
+void( *IMG_ReadPixels )( screenshot_t *s ) = NULL;
+void( *IMG_ReadPixelsHDR )( screenshot_t *s ) = NULL;
 
-    int( *MOD_LoadMD2 )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = NULL;
-    #if USE_MD3
-    int( *MOD_LoadMD3 )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = NULL;
-    #endif
-    int( *MOD_LoadIQM )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = NULL;
-    void( *MOD_Reference )( model_t *model ) = NULL;
+int( *MOD_LoadMD2 )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = NULL;
+#if USE_MD3
+int( *MOD_LoadMD3 )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = NULL;
+#endif
+int( *MOD_LoadIQM )( model_t *model, const void *rawdata, size_t length, const char *mod_name ) = NULL;
+void( *MOD_Reference )( model_t *model ) = NULL;
 
-    int get_auto_scale( void ) {
-        int scale = 1;
+int get_auto_scale( void ) {
+    int scale = 1;
 
-        if ( r_config.height < r_config.width ) {
-            if ( r_config.height >= 2160 )
-                scale = 4;
-            else if ( r_config.height >= 1080 )
-                scale = 2;
-        } else {
-            if ( r_config.width >= 3840 )
-                scale = 4;
-            else if ( r_config.width >= 1920 )
-                scale = 2;
-        }
-
-        if ( vid.get_dpi_scale ) {
-            int min_scale = vid.get_dpi_scale();
-            return max( scale, min_scale );
-        }
-
-        return scale;
+    if ( r_config.height < r_config.width ) {
+        if ( r_config.height >= 2160 )
+            scale = 4;
+        else if ( r_config.height >= 1080 )
+            scale = 2;
+    } else {
+        if ( r_config.width >= 3840 )
+            scale = 4;
+        else if ( r_config.width >= 1920 )
+            scale = 2;
     }
 
-    float R_ClampScale( cvar_t *var ) {
-        if ( !var )
-            return 1.0f;
-
-        if ( var->value )
-            return 1.0f / Cvar_ClampValue( var, 1.0f, 10.0f );
-
-        return 1.0f / get_auto_scale();
+    if ( vid.get_dpi_scale ) {
+        int min_scale = vid.get_dpi_scale();
+        return max( scale, min_scale );
     }
+
+    return scale;
 }
+
+float R_ClampScale( cvar_t *var ) {
+    if ( !var )
+        return 1.0f;
+
+    if ( var->value )
+        return 1.0f / Cvar_ClampValue( var, 1.0f, 10.0f );
+
+    return 1.0f / get_auto_scale();
+}
+
+// Extern C
+QEXTERN_C_CLOSE

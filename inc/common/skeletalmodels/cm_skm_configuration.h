@@ -10,9 +10,8 @@
 ********************************************************************/
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif // #ifdef __cplusplus
+// Extern C
+QEXTERN_C_OPEN
 
 /**
 *
@@ -45,7 +44,5 @@ char *SKM_LoadConfigurationFile( model_t *model, const char *configurationFilePa
 **/
 const int32_t SKM_ParseConfigurationBuffer( model_t *model, const char *configurationFilePath, char *fileBuffer );
 
-
-#ifdef __cplusplus
-}
-#endif // #ifdef __cplusplus
+// Extern C
+QEXTERN_C_CLOSE

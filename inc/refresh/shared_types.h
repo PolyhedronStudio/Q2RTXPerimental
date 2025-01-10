@@ -20,12 +20,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef REFRESH_SHARED_TYPES_H
 #define REFRESH_SHARED_TYPES_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 
 /**
 *
@@ -817,6 +811,8 @@ typedef enum {
     IF_SRC_GAME = ( 0x2 << 16 ),
     IF_SRC_MASK = ( 0x3 << 16 ),
 } imageflags_t;
+QENUM_BIT_FLAGS( imageflags_t );
+
 // Shift amount for storing fake emissive synthesis threshold
 #define IF_FAKE_EMISSIVE_THRESH_SHIFT 20
 
@@ -842,10 +838,5 @@ typedef enum ref_type_e {
     REF_TYPE_GL,
     REF_TYPE_VKPT
 } ref_type_t;
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-};
-#endif
 
 #endif // REFRESH_H

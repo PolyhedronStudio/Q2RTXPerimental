@@ -7,13 +7,8 @@
 ********************************************************************/
 #pragma once
 
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif // #ifdef __cplusplus
-
-
+// Extern C
+QEXTERN_C_OPEN
 
 /**
 *	@brief	Support method for calculating the exact translation of the root bone, in between frame poses.
@@ -90,8 +85,5 @@ void SKM_TransformBonePosesLocalSpace( const skm_model_t *model, const skm_trans
 **/
 void SKM_TransformBonePosesWorldSpace( const skm_model_t *model, const skm_transform_t *relativeBonePose, float *pose_matrices );
 
-
-
-#ifdef __cplusplus
-}
-#endif // #ifdef __cplusplus
+// Extern C
+QEXTERN_C_CLOSE

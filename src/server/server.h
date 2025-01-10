@@ -47,12 +47,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 //=============================================================================
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #define SV_Malloc(size)         Z_TagMalloc(size, TAG_SERVER)
 #define SV_Mallocz(size)        Z_TagMallocz(size, TAG_SERVER)
 #define SV_CopyString(s)        Z_TagCopyString(s, TAG_SERVER)
@@ -738,7 +732,3 @@ const trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
 **/
 const trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
 						  const vec3_t maxs, const vec3_t end, const contents_t contentmask );
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif

@@ -7,9 +7,6 @@
 ********************************************************************/
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 //
 // clgame.h -- client game dll information visible to client
@@ -53,6 +50,9 @@ typedef struct clientinfo_s clientinfo_t;
 
 // Include needed shared refresh types.
 #include "refresh/shared_types.h"
+
+// Extern C
+QEXTERN_C_OPEN
 
 #ifndef CLGAME_INCLUDE
 /**
@@ -1094,6 +1094,5 @@ typedef struct {
 	int32_t	max_entities;
 } clgame_export_t;
 
-#ifdef __cplusplus
-}
-#endif
+// Extern C
+QEXTERN_C_CLOSE

@@ -19,11 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UTILS_H
 #define UTILS_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
+// Extern C
+QEXTERN_C_OPEN
 
 // Moved to shared.h for client game usage.
 //typedef enum {
@@ -98,10 +95,6 @@ color_index_t Com_ParseColor(const char *s);
 unsigned Com_ParseExtensionString(const char* s, const char* const extnames[]);
 #endif
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+QEXTERN_C_CLOSE
 
 #endif // UTILS_H

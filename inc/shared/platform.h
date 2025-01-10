@@ -20,12 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // platform.h -- platform-specific definitions
 //
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
+//// WID: C++20: In case of C++ including this..
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -164,9 +159,3 @@ extern "C" {
 #define q_unused
 
 #endif /* !__GNUC__ */
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif

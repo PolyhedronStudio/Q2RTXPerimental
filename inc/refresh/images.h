@@ -25,16 +25,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // images.h -- common image manager
 //
 // WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "shared/util_list.h"
 #include "common/files.h"
 #include "common/zone.h"
 #include "common/error.h"
 #include "refresh/refresh.h"
+
+// Extern C
+QEXTERN_C_OPEN
 
 #define R_Malloc(size)      Z_TagMalloc(size, TAG_RENDERER)
 #define R_Mallocz(size)     Z_TagMallocz(size, TAG_RENDERER)
@@ -150,11 +148,9 @@ typedef struct screenshot_s {
 
 extern void (*IMG_ReadPixels)(screenshot_t *s);
 extern void (*IMG_ReadPixelsHDR)(screenshot_t *s);
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // IMAGES_H
 

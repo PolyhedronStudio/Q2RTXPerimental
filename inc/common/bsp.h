@@ -30,15 +30,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef BSP_H
 #define BSP_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "shared/util_list.h"
 #include "common/error.h"
 #include "system/hunk.h"
+
+// Extern C
+QEXTERN_C_OPEN
 
 int BSP_Load(const char *name, bsp_t **bsp_p);
 void BSP_Free(bsp_t *bsp);
@@ -72,10 +69,7 @@ void BSP_Init(void);
 // WID: materials
 void BSP_LoadMaterials( void );
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // BSP_H

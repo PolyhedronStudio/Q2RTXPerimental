@@ -41,11 +41,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "server/server.h"
 #include "system/system.h"
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
 
 #include "client/client.h"
 #include "client/input.h"
@@ -81,9 +76,9 @@ extern "C" {
 // Will point to the actual client game its client entity array.
 extern centity_t *cl_entities;
 // Extern it so we got access to it anywhere in the client.
-extern clgame_export_t *clge;
+QEXTERN_C_ENCLOSE( extern clgame_export_t *clge; );
 //! Extern client_state_t so we can access it anyhwere.
-extern client_state_t cl;
+QEXTERN_C_ENCLOSE( extern client_state_t cl; );
 
 /**
 *   @return A pointer to the entity which matches by array index number.
@@ -327,7 +322,7 @@ typedef struct client_static_s {
 } client_static_t;
 
 //! Extern for access anywhere.
-extern client_static_t    cls;
+QEXTERN_C_ENCLOSE( extern client_static_t cls; );
 
 //! Extern for access anywhere.
 extern cmdbuf_t    cl_cmdbuf;
@@ -387,7 +382,7 @@ extern cvar_t    *cl_beginmapcmd;
 // Moved to CLGame:
 //extern cvar_t    *cl_gibs;
 
-extern cvar_t    *cl_player_model;
+QEXTERN_C_ENCLOSE( extern cvar_t *cl_player_model; );
 // Moved to CLGame:
 //extern cvar_t    *cl_thirdperson_angle;
 //extern cvar_t    *cl_thirdperson_range;
@@ -401,29 +396,27 @@ extern cvar_t    *info_password;
 extern cvar_t    *info_spectator;
 extern cvar_t    *info_name;
 extern cvar_t    *info_skin;
-extern cvar_t	 *info_rate; // WID: C++20: Linkage
+QEXTERN_C_ENCLOSE( extern cvar_t	 *info_rate; )// WID: C++20: Linkage
 extern cvar_t    *info_fov;
 extern cvar_t    *info_msg;
-extern cvar_t    *info_hand;
+QEXTERN_C_ENCLOSE( extern cvar_t *info_hand; );
 //extern cvar_t    *info_gender;
 extern cvar_t    *info_uf;
 
 //
 // models.c
 //
-extern cvar_t    *cl_testmodel;
-extern cvar_t    *cl_testfps;
-extern cvar_t    *cl_testalpha;
-extern qhandle_t  cl_testmodel_handle;
-extern vec3_t     cl_testmodel_position;
+QEXTERN_C_ENCLOSE( extern cvar_t *cl_testmodel; )
+QEXTERN_C_ENCLOSE( extern cvar_t *cl_testfps; )
+QEXTERN_C_ENCLOSE( extern cvar_t *cl_testalpha; )
+QEXTERN_C_ENCLOSE( extern qhandle_t  cl_testmodel_handle; )
+QEXTERN_C_ENCLOSE( extern vec3_t     cl_testmodel_position; )
 
 //=============================================================================
 
 //
 // clgame.cpp
 // 
-extern clgame_export_t *clge;
-
 void CL_GM_LoadProgs( );
 void CL_GM_Init();
 void CL_GM_PreInit();
@@ -465,7 +458,7 @@ void CL_PrecacheViewModels(void);
 /**
 *   @brief  Called before entering a new level, or after changing dlls
 **/
-void CL_PrepRefresh(void);
+QEXTERN_C_ENCLOSE( void CL_PrepRefresh( void ); );
 /**
 *   @brief  
 **/
@@ -577,16 +570,16 @@ void CL_CalculateViewValues( void );
 *   @brief  The sound code makes callbacks to the client for entitiy position
 *           information, so entities can be dynamically re-spatialized.
 **/
-void CL_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t origin );
+QEXTERN_C_ENCLOSE( void CL_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t origin ); )
 /**
 *   @brief  Used by the sound code in order to determine the reverb effect to apply for the entity's origin.
 **/
-qhandle_t CL_GetEAXBySoundOrigin( const int32_t entityNumber, vec3_t org );
+QEXTERN_C_ENCLOSE( qhandle_t CL_GetEAXBySoundOrigin( const int32_t entityNumber, vec3_t org ); )
 /**
 *   @brief  For debugging problems when out-of-date entity origin is referenced.
 **/
 #if USE_DEBUG
-void CL_CheckEntityPresent( const int32_t entityNumber, const char *what );
+QEXTERN_C_ENCLOSE( void CL_CheckEntityPresent( const int32_t entityNumber, const char *what ); );
 #endif
 
 
@@ -715,14 +708,14 @@ void    SCR_ModeChanged(void);
 void    SCR_LagSample(void);
 void    SCR_LagClear(void);
 void    SCR_DeltaFrame(void);
-const qhandle_t SCR_GetFont(void);
-void    SCR_SetHudAlpha( const float alpha);
+QEXTERN_C_ENCLOSE( const qhandle_t SCR_GetFont( void ); );
+QEXTERN_C_ENCLOSE( void    SCR_SetHudAlpha( const float alpha ); );
 /**
 *   @brief Fades alpha in and out, keeping the alpha visible for 'visTime' amount.
 *   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
 **/
 const float SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime );
-int     SCR_DrawStringEx(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
+QEXTERN_C_ENCLOSE( int     SCR_DrawStringEx( int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font ); );
 void    SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
 
 /**
@@ -811,9 +804,3 @@ const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const ve
 *   @return The type of 'contents' at the given point.
 **/
 const contents_t q_gameabi CL_PointContents( const vec3_t point );
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif

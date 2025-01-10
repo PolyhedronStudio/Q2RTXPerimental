@@ -13,7 +13,7 @@
 #include "common/zone.h"
 
 // C Linkage, required for GL/VKPT C refresh codes.
-extern "C" {
+QEXTERN_C_OPEN
     mtexinfo_t nulltexinfo = {
         .c = {
             .name = "nulltexinfo",
@@ -21,7 +21,7 @@ extern "C" {
         .name = "nulltexinfo",
         .texInfoID = 0
     };
-};
+QEXTERN_C_CLOSE
 
 cvar_t       *map_noareas;
 cvar_t       *map_allsolid_bug;

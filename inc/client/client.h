@@ -19,12 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef CLIENT_H
 #define CLIENT_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "common/cmd.h"
 #include "common/net/net.h"
 #include "common/utils.h"
@@ -60,6 +54,7 @@ typedef enum {
     ACT_RESTORED,
     ACT_ACTIVATED
 } active_t;
+QENUM_BIT_FLAGS( active_t );
 
 bool CL_ProcessEvents(void);
 #if USE_ICMP
@@ -75,7 +70,7 @@ void CL_UpdateUserinfo(cvar_t *var, from_t from);
 void CL_SendStatusRequest(const netadr_t *address);
 demoInfo_t *CL_GetDemoInfo(const char *path, demoInfo_t *info);
 bool CL_CheatsOK(void);
-void CL_SetSky(void);
+QEXTERN_C_ENCLOSE( void CL_SetSky( void ); );
 const int32_t CL_GetClientFps( void );
 const int32_t CL_GetRefreshFps( void );
 const int32_t CL_GetResolutionScale( void );
@@ -129,7 +124,7 @@ extern const uint32_t   colorTable[8];
 
 const qboolean SCR_ParseColor(const char *s, color_t *color);
 
-const float V_CalcFov( const float fov_x, const float width, const float height );
+QEXTERN_C_ENCLOSE( const float V_CalcFov( const float fov_x, const float width, const float height ); );
 
 #else // USE_CLIENT
 
@@ -150,11 +145,5 @@ const float V_CalcFov( const float fov_x, const float width, const float height 
 #define SCR_EndLoadingPlaque()          (void)0
 
 #endif // !USE_CLIENT
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
 
 #endif // CLIENT_H

@@ -19,11 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef PROMPT_H
 #define PROMPT_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
 
 #include "common/field.h"
 #include "common/cmd.h"
@@ -49,7 +44,7 @@ typedef struct commandPrompt_s {
 } commandPrompt_t;
 
 void Prompt_Init(void);
-void Prompt_AddMatch(genctx_t *ctx, const char *s);
+QEXTERN_C_ENCLOSE( void Prompt_AddMatch(genctx_t *ctx, const char *s); )
 void Prompt_CompleteCommand(commandPrompt_t *prompt, bool backslash);
 void Prompt_CompleteHistory(commandPrompt_t *prompt, bool forward);
 void Prompt_ClearState(commandPrompt_t *prompt);
@@ -59,11 +54,5 @@ void Prompt_HistoryDown(commandPrompt_t *prompt);
 void Prompt_Clear(commandPrompt_t *prompt);
 void Prompt_SaveHistory(commandPrompt_t *prompt, const char *filename, int lines);
 void Prompt_LoadHistory(commandPrompt_t *prompt, const char *filename);
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
 
 #endif // PROMPT_H

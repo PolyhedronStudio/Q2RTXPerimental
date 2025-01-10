@@ -22,9 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/prompt.h"
 
 // WID: C++20: Linkage.
-extern "C" {
-	uiStatic_t uis;
-};
+QEXTERN_C_ENCLOSE(	uiStatic_t uis; );
 
 LIST_DECL(ui_menus);
 

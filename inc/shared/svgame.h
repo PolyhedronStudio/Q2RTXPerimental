@@ -19,12 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SVGAME_H
 #define SVGAME_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "shared/util_list.h"
 
 // Include needed shared refresh types.
@@ -451,11 +445,5 @@ typedef struct {
     int32_t num_edicts;     // current number, <= max_edicts
     int32_t max_edicts;
 } svgame_export_t;
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
 
 #endif // SVGAME_H

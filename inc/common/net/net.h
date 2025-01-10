@@ -19,12 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef NET_H
 #define NET_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "common/fifo.h"
 
 // net.h -- quake's interface to the networking layer
@@ -74,18 +68,20 @@ typedef enum {
     NA_IP,
     NA_IP6
 } netadrtype_t;
-
+QENUM_BIT_FLAGS( netadrtype_t );
 typedef enum {
     NS_CLIENT,
     NS_SERVER,
     NS_COUNT
 } netsrc_t;
+QENUM_BIT_FLAGS( netsrc_t );
 
 typedef enum {
     NET_NONE    = 0,
     NET_CLIENT  = (1 << 0),
     NET_SERVER  = (1 << 1)
 } netflag_t;
+QENUM_BIT_FLAGS( netflag_t );
 
 typedef union {
     uint8_t u8[16];
@@ -108,6 +104,7 @@ typedef enum netstate_e {
     NS_CLOSED,      // peer has preformed orderly shutdown
     NS_BROKEN       // fatal error has been signaled
 } netstate_t;
+QENUM_BIT_FLAGS( netstate_t );
 
 typedef struct netstream_s {
     qsocket_t   socket;
@@ -239,11 +236,5 @@ extern cvar_t       *net_ip;
 extern cvar_t       *net_port;
 
 extern netadr_t     net_from;
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
 
 #endif // NET_H

@@ -20,17 +20,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef REFRESH_H
 #define REFRESH_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "common/cvar.h"
 #include "common/error.h"
 
 // Include the with client/client-game shared types.
 #include "shared_types.h"
+
+QEXTERN_C_OPEN
 
 extern refcfg_t r_config;
 
@@ -64,22 +60,12 @@ void R_UnregisterImage(qhandle_t handle);
 extern void (*R_SetSky)(const char* name, float rotate, int autorotate, const vec3_t axis);
 extern void (*R_EndRegistration)(void);
 
-// WID: C++20: We need to perform certain casts here in order for this to work. (Wish I could leave it untouched.)
-#ifdef __cplusplus
-#define R_RegisterPic(name) R_RegisterImage(name, IT_PIC, static_cast<imageflags_t>(IF_PERMANENT | IF_SRGB))
-#define R_RegisterPic2(name) R_RegisterImage(name, IT_PIC, static_cast<imageflags_t>(IF_SRGB))
-#define R_RegisterFont(name) R_RegisterImage(name, IT_FONT, static_cast<imageflags_t>(IF_PERMANENT | IF_SRGB))
-#define R_RegisterSkin(name) R_RegisterImage(name, IT_SKIN, static_cast<imageflags_t>(IF_SRGB))
-#else // __cplusplus
+
 #define R_RegisterPic(name) R_RegisterImage(name, IT_PIC, IF_PERMANENT | IF_SRGB)
 #define R_RegisterPic2(name) R_RegisterImage(name, IT_PIC, IF_SRGB)
 #define R_RegisterFont(name) R_RegisterImage(name, IT_FONT, IF_PERMANENT | IF_SRGB)
 #define R_RegisterSkin(name) R_RegisterImage(name, IT_SKIN, IF_SRGB)
-#endif // __cplusplus
 
-#ifdef __cplusplus
-extern "C" {
-#endif // __cplusplus
 extern void (*R_RenderFrame)(refdef_t* fd);
 extern void (*R_LightPoint)(const vec3_t origin, vec3_t light);
 extern void    (*R_ClearColor)(void);
@@ -137,13 +123,7 @@ typedef struct {
 
 r_opengl_config_t *R_GetGLConfig( void );
 
-#ifdef __cplusplus
-};
-#endif // __cplusplus
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // REFRESH_H

@@ -1,5 +1,8 @@
 #pragma once
 
+// Extern C
+QEXTERN_C_OPEN
+
 typedef float vec_t;
 typedef vec_t vec2_t[ 2 ];
 typedef vec_t vec3_t[ 3 ];
@@ -240,3 +243,6 @@ extern const vec3_t bytedirs[NUMVERTEXNORMALS];
 
 const int32_t DirToByte( const vec3_t dir );
 void ByteToDir(const int32_t index, vec3_t dir );
+
+// Extern C
+QEXTERN_C_CLOSE

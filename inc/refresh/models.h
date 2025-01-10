@@ -21,12 +21,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef MODELS_H
 #define MODELS_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 //
 // models.h -- common models manager
 //
@@ -34,11 +28,14 @@ extern "C" {
 #include "system/hunk.h"
 #include "common/error.h"
 
+#include "refresh/shared_types.h"
+
 #define MOD_Malloc(size)    Hunk_TryAlloc(&model->hunk, size)
 
 #define CHECK(x)    if (!(x)) { ret = Q_ERR(ENOMEM); goto fail; }
 
-#include "refresh/shared_types.h"
+// Extern C
+QEXTERN_C_OPEN
 
 extern model_t      r_models[];
 extern int          r_numModels;
@@ -81,10 +78,7 @@ extern int (*MOD_LoadMD3)(model_t *model, const void *rawdata, size_t length, co
 extern int(*MOD_LoadIQM)(model_t* model, const void* rawdata, size_t length, const char* mod_name);
 extern void (*MOD_Reference)(model_t *model);
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // MODELS_H

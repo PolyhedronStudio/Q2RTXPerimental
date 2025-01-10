@@ -17,9 +17,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+
+// Extern C
+QEXTERN_C_OPEN
+
     typedef struct asyncwork_s {
         void ( *work_cb )( void * );
         void ( *done_cb )( void * );
@@ -41,6 +42,5 @@ void Com_ShutdownAsyncWork(void);
 
 #endif
 
-#ifdef __cplusplus
-}
-#endif
+// Extern C
+QEXTERN_C_CLOSE

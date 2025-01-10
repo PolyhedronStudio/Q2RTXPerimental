@@ -46,7 +46,8 @@ PFN_SetProcessDpiAwareness_t PFN_SetProcessDpiAwareness = NULL;
 HMODULE h_ShCoreDLL = 0;
 #endif
 
-extern "C" {
+// Extern C
+QEXTERN_C_OPEN
 	SDL_Window* sdl_window;
     static vidFlags_t       sdl_flags;
 
@@ -72,7 +73,8 @@ extern "C" {
     SDL_Window *get_sdl_window( void ) {
         return sdl.window;
     }
-}
+// Extern C
+QEXTERN_C_CLOSE
 
 /*
 ===============================================================================
@@ -695,7 +697,9 @@ static bool probe(void)
 {
     return true;
 }
-extern "C" {
+
+// Extern C
+QEXTERN_C_OPEN
     const vid_driver_t vid_sdl = {
         .name = "sdl",
 
@@ -723,4 +727,5 @@ extern "C" {
         .warp_mouse = warp_mouse,
         .get_mouse_motion = get_mouse_motion,
     };
-}
+// Extern C
+QEXTERN_C_CLOSE

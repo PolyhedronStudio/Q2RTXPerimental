@@ -19,15 +19,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef FILES_H
 #define FILES_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "common/cmd.h"
 #include "common/error.h"
 #include "common/zone.h"
+
+// Extern C
+QEXTERN_C_OPEN
 
 #define MIN_LISTED_FILES    1024
 #define MAX_LISTED_FILES    250000000
@@ -196,10 +193,7 @@ extern cvar_t   *fs_game;
 
 extern char     fs_gamedir[];
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // FILES_H

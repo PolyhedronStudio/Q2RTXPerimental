@@ -19,11 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef CMD_H
 #define CMD_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
 
 //
 // cmd.h -- command text buffering and command execution
@@ -56,7 +51,7 @@ extern "C" {
 
 // generic console buffer
 extern char         cmd_buffer_text[CMD_BUFFER_SIZE];
-extern cmdbuf_t     cmd_buffer;
+QEXTERN_C_ENCLOSE( extern cmdbuf_t     cmd_buffer; );
 
 extern cmdbuf_t     *cmd_current;
 
@@ -69,7 +64,7 @@ servers can also send across commands and entire text files can be execed.
 void Cbuf_Init(void);
 // allocates an initial text buffer that will grow as needed
 
-void Cbuf_AddText(cmdbuf_t *buf, const char *text);
+QEXTERN_C_ENCLOSE( void Cbuf_AddText( cmdbuf_t *buf, const char *text ); );
 // as new commands are generated from the console or keybindings,
 // the text is added to the end of the command buffer.
 
@@ -126,6 +121,9 @@ then searches for a command or variable that matches the first token.
 //    xcommand_t      function;
 //    xcompleter_t    completer;
 //} cmdreg_t;
+
+// Extern C
+QEXTERN_C_OPEN
 
 void Cmd_Init(void);
 
@@ -219,10 +217,7 @@ void Cmd_PrintHelp(const cmd_option_t *opt);
 void Cmd_PrintUsage(const cmd_option_t *opt, const char *suffix);
 void Cmd_PrintHint(void);
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // CMD_H

@@ -19,12 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SERVER_H
 #define SERVER_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "common/net/net.h"
 
 /**
@@ -57,12 +51,6 @@ void SV_SetConsoleTitle(void);
 
 #if USE_CLIENT
 char *SV_GetSaveInfo(const char *dir);
-#endif
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
 #endif
 
 #endif // SERVER_H

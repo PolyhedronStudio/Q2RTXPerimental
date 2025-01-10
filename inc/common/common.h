@@ -19,12 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef COMMON_H
 #define COMMON_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "common/cmd.h"
 #include "common/utils.h"
 
@@ -92,8 +86,8 @@ void        Com_AbortFunc(void (*func)(void *), void *arg);
 void        Com_AbortFrame(void);
 #endif
 
-char        *Com_GetLastError(void);
-void        Com_SetLastError(const char *msg);
+QEXTERN_C_ENCLOSE( char *Com_GetLastError( void ); );
+QEXTERN_C_ENCLOSE( void        Com_SetLastError( const char *msg ); );
 
 void        Com_Quit(const char *reason, error_type_t type) q_noreturn;
 
@@ -113,7 +107,7 @@ size_t      Com_UptimeLong_m(char *buffer, size_t size);
 void        Com_FlushLogs(void);
 #endif
 
-void        Com_AddConfigFile(const char *name, unsigned flags);
+QEXTERN_C_ENCLOSE( void        Com_AddConfigFile( const char *name, unsigned flags ); );
 
 #if USE_CLIENT
 #define COM_DEDICATED   (dedicated->integer != 0)
@@ -146,20 +140,20 @@ extern cvar_t   *z_perturb;
 #endif
 
 #if USE_DEBUG
-extern cvar_t   *developer;
+QEXTERN_C_ENCLOSE( extern cvar_t *developer; );
 #endif
-extern cvar_t   *dedicated;
+QEXTERN_C_ENCLOSE( extern cvar_t *dedicated; );
 #if USE_CLIENT
 extern cvar_t   *host_speeds;
 #endif
 extern cvar_t   *com_version;
 
 #if USE_CLIENT
-extern cvar_t   *cl_running;
-extern cvar_t   *cl_paused;
+QEXTERN_C_ENCLOSE( extern cvar_t *cl_running; );
+QEXTERN_C_ENCLOSE( extern cvar_t *cl_paused; );
 #endif
-extern cvar_t   *sv_running;
-extern cvar_t   *sv_paused;
+QEXTERN_C_ENCLOSE( extern cvar_t *sv_running; );
+QEXTERN_C_ENCLOSE( extern cvar_t *sv_paused; );
 extern cvar_t   *com_timedemo;
 extern cvar_t   *com_sleep;
 
@@ -194,11 +188,5 @@ extern time_t       com_startTime;
 
 void Qcommon_Init(int argc, char **argv);
 void Qcommon_Frame(void);
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
 
 #endif // COMMON_H

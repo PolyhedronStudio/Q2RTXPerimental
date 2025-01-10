@@ -19,11 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef DMA_H
 #define DMA_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
+// Extern C
+QEXTERN_C_OPEN
 
 typedef struct dma_s {
     int         channels;
@@ -55,10 +52,7 @@ extern int64_t  s_paintedtime;
 
 extern cvar_t   *s_khz;
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // DMA_H

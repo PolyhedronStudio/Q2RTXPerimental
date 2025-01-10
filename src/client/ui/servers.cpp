@@ -666,7 +666,7 @@ static void FinishPingStage(void)
     UpdateSelection();
 }
 
-extern "C" cvar_t* info_rate;
+QEXTERN_C_ENCLOSE( extern cvar_t *info_rate; );
 static void CalcPingRate(void)
 {
      // WID: C++20: Linkage

@@ -188,9 +188,7 @@ void CL_Scoreboard_CheckVisibility() {
 *   @brief  Will toggle ignore/unignore for client name.
 *   @return True if the client is ignored.
 **/
-extern "C" {
-    qboolean CL_CheckForIgnore( const char *s );
-}
+qboolean CL_CheckForIgnore( const char *s );
 static qboolean ToggleClientIgnore( const char *clientName ) {
     if ( CL_CheckForIgnore( clientName ) ) {
         char command_str[ 1024 ];

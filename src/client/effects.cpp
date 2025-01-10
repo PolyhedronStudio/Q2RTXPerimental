@@ -23,8 +23,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // We extern "C" so that C files can extern link
 extern "C" {
 
-cvar_t* cvar_pt_particle_emissive = NULL;
-static cvar_t* cl_particle_num_factor = NULL;
+	cvar_t* cvar_pt_particle_emissive = NULL;
+	static cvar_t* cl_particle_num_factor = NULL;
 
 };
 

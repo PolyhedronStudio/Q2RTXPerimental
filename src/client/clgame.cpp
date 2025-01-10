@@ -5,7 +5,6 @@
 #include "common/skeletalmodels/cm_skm.h"
 #include "common/skeletalmodels/cm_skm_posecache.h"
 
-extern "C" {
 
 /**
 *
@@ -615,7 +614,7 @@ const qboolean PF_IsValidSpriteModelHandle( const qhandle_t spriteHandle ) {
 // Stores actual game library.
 static void *game_library;
 
-clgame_export_t *clge;
+QEXTERN_C_ENCLOSE( clgame_export_t *clge; );
 
 // WID: C++20: Typedef this for casting
 typedef clgame_export_t *( GameEntryFunctionPointer( clgame_import_t * ) );
@@ -693,6 +692,7 @@ static GameEntryFunctionPointer *CL_LoadGameLibrary( const char *game, const cha
 
 	return _CL_LoadGameLibrary( path );
 }
+
 
 /*
 ===============
@@ -995,4 +995,3 @@ void CL_GM_Init( void ) {
 	cl_entities = clge->entities;
 }
 
-}; // extern "C"

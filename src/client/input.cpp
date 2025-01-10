@@ -44,18 +44,14 @@ static cvar_t *m_filter;
 //static cvar_t *lookstrafe;
 
 // WID: C++20:
-extern "C" {
-    cvar_t *m_accel;
-    cvar_t *m_autosens;
-    cvar_t *m_pitch;
-    cvar_t *m_invert;
-    cvar_t *m_yaw;
-};
+QEXTERN_C_ENCLOSE( cvar_t *m_accel; );
+QEXTERN_C_ENCLOSE( cvar_t *m_autosens; );
+QEXTERN_C_ENCLOSE( cvar_t *m_pitch; );
+QEXTERN_C_ENCLOSE( cvar_t *m_invert; );
+QEXTERN_C_ENCLOSE( cvar_t *m_yaw; );
 static cvar_t *m_forward;
 static cvar_t *m_side;
-extern "C" {
-    cvar_t *sensitivity;
-};
+QEXTERN_C_ENCLOSE( cvar_t *sensitivity; );
 /*
 ===============================================================================
 
@@ -347,10 +343,9 @@ const double CL_KeyState( keybutton_t *key ) {
 //==========================================================================
 
 // WID: C++20: Linkage
-extern "C" {
-    float autosens_x;
-    float autosens_y;
-};
+QEXTERN_C_ENCLOSE( float autosens_x; );
+QEXTERN_C_ENCLOSE( float autosens_y; );
+
 
 /**
 *   @brief  A somewhat of a hack, we first read in mouse-movement, to then later on in

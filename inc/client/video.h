@@ -20,11 +20,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef VIDEO_H
 #define VIDEO_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
+// Extern C
+QEXTERN_C_OPEN
 
 typedef enum { GAPI_OPENGL, GAPI_VULKAN } graphics_api_t;
 
@@ -71,10 +68,7 @@ bool VID_GetGeometry(vrect_t *rc);
 void VID_SetGeometry(vrect_t *rc);
 void VID_ToggleFullscreen(void);
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // VIDEO_H

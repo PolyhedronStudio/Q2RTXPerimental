@@ -49,9 +49,7 @@ static cvar_t   *cl_stats;
 #endif
 
 // WID: C++20: For linkage with .c
-extern "C" {
-	cvar_t *cl_adjustfov;
-}
+QEXTERN_C_ENCLOSE( cvar_t *cl_adjustfov; );
 
 
 /*

@@ -52,9 +52,7 @@ static struct {
 } scr;
 
 // WID: C++20:
-extern "C" {
-cvar_t* scr_viewsize;
-};
+QEXTERN_C_ENCLOSE( cvar_t *scr_viewsize; );
 
 static cvar_t   *scr_centertime;
 static cvar_t   *scr_showpause;

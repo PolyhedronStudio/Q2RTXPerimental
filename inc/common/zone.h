@@ -19,11 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef ZONE_H
 #define ZONE_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
+// Extern C
+QEXTERN_C_OPEN
 
 //! Copy String Utility.
 #define Z_CopyString(string)    Z_TagCopyString(string, TAG_GENERAL)
@@ -73,10 +70,7 @@ void    Z_Stats_f(void);
 // may return pointer to static memory
 char    *Z_CvarCopyString(const char *in);
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // ZONE_H

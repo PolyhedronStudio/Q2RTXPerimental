@@ -19,11 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef COMMON_ERROR_H
 #define COMMON_ERROR_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
+// Extern C
+QEXTERN_C_OPEN
 
 // <Q2RTXP> WID: Moved to shared/qerror.h
 #if 0
@@ -77,10 +74,8 @@ static inline const int32_t Q_ErrorNumber(void) {
 }
 
 const char *Q_ErrorString( const int32_t error );
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // COMMON_ERROR_H

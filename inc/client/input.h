@@ -19,11 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef INPUT_H
 #define INPUT_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
+// Extern C
+QEXTERN_C_OPEN
 
 //
 // input.h -- external (non-keyboard) input devices
@@ -33,10 +30,7 @@ void IN_Frame(void);
 void IN_Activate(void);
 void IN_WarpMouse(int x, int y);
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // INPUT_H

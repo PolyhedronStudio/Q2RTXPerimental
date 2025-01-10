@@ -29,7 +29,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 cvar_t  *cvar_vars;
 
-int     cvar_modified;
+QEXTERN_C_ENCLOSE( int     cvar_modified; );
 
 #define Cvar_Malloc(size)   Z_TagMalloc(size, TAG_CVAR)
 

@@ -19,11 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef FIELD_H
 #define FIELD_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
+// Extern C
+QEXTERN_C_OPEN
 
 //
 // field.h -- line editing
@@ -45,10 +42,7 @@ void        IF_Clear(inputField_t *field);
 void        IF_Replace(inputField_t *field, const char *text);
 int         IF_Draw(inputField_t *field, int x, int y, int flags, qhandle_t font);
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // FIELD_H

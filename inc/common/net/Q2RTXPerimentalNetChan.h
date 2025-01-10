@@ -19,10 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef NET_CHAN_Q2RTXPERIMENTAL_H
 #define NET_CHAN_Q2RTXPERIMENTAL_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-extern "C" {
-#endif // #ifdef __cplusplus
 
 #include "common/messaging.h"
 #include "common/net/net.h"
@@ -52,10 +48,5 @@ bool NetchanQ2RTXPerimental_Process( netchan_t *chan );
 **/
 bool NetchanQ2RTXPerimental_ShouldUpdate( netchan_t *chan );
 
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-};
-#endif // #ifdef __cplusplus
 
 #endif // NET_CHAN_H

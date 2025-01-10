@@ -34,6 +34,8 @@
 // tests if specified character has special meaning to quake console
 #define Q_isspecial( c )  ( ( c ) == '\r' || ( c ) == '\n' || ( c ) == 127 )
 
+QEXTERN_C_OPEN
+
 static inline int Q_tolower( int c ) {
 	if ( Q_isupper( c ) ) {
 		c += ( 'a' - 'A' );
@@ -186,3 +188,5 @@ size_t Q_scnprintf( char *dest, size_t size, const char *fmt, ... ) q_printf( 3,
 
 char *va( const char *format, ... ) q_printf( 1, 2 );
 char *vtos( const vec3_t v );
+
+QEXTERN_C_CLOSE

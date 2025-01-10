@@ -79,11 +79,11 @@ cvar_t  *z_perturb;
 #endif
 
 #if USE_DEBUG
-cvar_t  *developer;
+QEXTERN_C_ENCLOSE( cvar_t *developer; );
 #endif
 cvar_t  *timescale;
 cvar_t  *fixedtime;
-cvar_t  *dedicated;
+QEXTERN_C_ENCLOSE( cvar_t *dedicated; );
 cvar_t  *backdoor;
 cvar_t  *com_version;
 
@@ -94,11 +94,11 @@ cvar_t  *logfile_prefix;
 cvar_t  *console_prefix;
 
 #if USE_CLIENT
-cvar_t  *cl_running;
-cvar_t  *cl_paused;
+QEXTERN_C_ENCLOSE( cvar_t *cl_running; );
+QEXTERN_C_ENCLOSE( cvar_t *cl_paused; );
 #endif
-cvar_t  *sv_running;
-cvar_t  *sv_paused;
+QEXTERN_C_ENCLOSE( cvar_t *sv_running; );
+QEXTERN_C_ENCLOSE( cvar_t *sv_paused; );
 cvar_t  *com_timedemo;
 cvar_t  *com_date_format;
 cvar_t  *com_time_format;

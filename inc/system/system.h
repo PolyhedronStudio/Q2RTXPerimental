@@ -19,13 +19,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "common/utils.h"
+
+// Extern C
+QEXTERN_C_OPEN
 
 typedef struct {
     const char  *filter;
@@ -84,10 +81,7 @@ extern cvar_t   *sys_libdir;
 extern cvar_t   *sys_homedir;
 extern cvar_t   *sys_forcesvgamelib;
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // SYSTEM_H

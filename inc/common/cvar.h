@@ -19,12 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef CVAR_H
 #define CVAR_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
-
 #include "common/cmd.h"
 
 /*
@@ -58,7 +52,7 @@ interface from being ambiguous.
 #define CVAR_EXTENDED_MASK  (~31)
 
 extern cvar_t   *cvar_vars;
-extern int      cvar_modified;
+QEXTERN_C_ENCLOSE( extern int      cvar_modified; );
 
 void Cvar_Init(void);
 
@@ -85,11 +79,11 @@ void Cvar_WriteVariables(qhandle_t f, int mask, bool modified);
 
 size_t Cvar_BitInfo(char *info, int bit);
 
-cvar_t *Cvar_FindVar(const char *var_name);
+QEXTERN_C_ENCLOSE( cvar_t *Cvar_FindVar( const char *var_name ); );
 xgenerator_t Cvar_FindGenerator(const char *var_name);
 bool Cvar_Exists(const char *name, bool weak);
 
-cvar_t *Cvar_Get(const char *var_name, const char *value, int flags);
+QEXTERN_C_ENCLOSE( cvar_t *Cvar_Get( const char *var_name, const char *value, int flags ); );
 // creates the variable if it doesn't exist, or returns the existing one
 // if it exists, the value will not be changed, but flags will be ORed in
 // that allows variables to be unarchived without needing bitflags
@@ -97,30 +91,32 @@ cvar_t *Cvar_Get(const char *var_name, const char *value, int flags);
 cvar_t *Cvar_WeakGet(const char *var_name);
 // creates weak variable without value
 
-void Cvar_SetByVar(cvar_t *var, const char *value, from_t from);
+QEXTERN_C_ENCLOSE( void Cvar_SetByVar( cvar_t *var, const char *value, from_t from ); );
 // set by cvar pointer
 
-cvar_t *Cvar_SetEx(const char *var_name, const char *value, from_t from);
+QEXTERN_C_ENCLOSE( cvar_t *Cvar_SetEx( const char *var_name, const char *value, from_t from ); );
 // will create the variable if it doesn't exist
-cvar_t *Cvar_Set(const char *var_name, const char *value);
+QEXTERN_C_ENCLOSE( cvar_t *Cvar_Set( const char *var_name, const char *value ); );
 // will set the variable even if NOSET or LATCH
-cvar_t *Cvar_UserSet(const char *var_name, const char *value);
-cvar_t *Cvar_FullSet(const char *var_name, const char *value,
-                     int flags, from_t from);
+QEXTERN_C_ENCLOSE( cvar_t *Cvar_UserSet( const char *var_name, const char *value ); );
+QEXTERN_C_ENCLOSE( cvar_t *Cvar_FullSet(const char *var_name, const char *value,
+                     int flags, from_t from); );
 
 //#define Cvar_Reset(x) \
 //    Cvar_SetByVar(x, (x)->default_string, FROM_CODE)
+QEXTERN_C_OPEN
 static inline void Cvar_Reset( cvar_t *x ) {
     Cvar_SetByVar( x, ( x )->default_string, FROM_CODE );
 }
+QEXTERN_C_CLOSE
 
-void Cvar_SetValue(cvar_t *var, float value, from_t from);
-void Cvar_SetInteger(cvar_t *var, int value, from_t from);
+QEXTERN_C_ENCLOSE( void Cvar_SetValue( cvar_t *var, float value, from_t from ); );
+QEXTERN_C_ENCLOSE( void Cvar_SetInteger( cvar_t *var, int value, from_t from ); );
 //void Cvar_SetHex(cvar_t *var, int value, from_t from);
 // expands value to a string and calls Cvar_Set
 
-int Cvar_ClampInteger(cvar_t *var, int min, int max);
-float Cvar_ClampValue(cvar_t *var, float min, float max);
+QEXTERN_C_ENCLOSE( int Cvar_ClampInteger( cvar_t *var, int min, int max ); );
+QEXTERN_C_ENCLOSE( float Cvar_ClampValue( cvar_t *var, float min, float max ); );
 
 float Cvar_VariableValue(const char *var_name);
 int Cvar_VariableInteger(const char *var_name);
@@ -133,11 +129,5 @@ const char *Cvar_VariableString(const char *var_name);
     Q_strlcpy(buffer, Cvar_VariableString(name), size)
 
 void Cvar_Set_f(void);
-
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
 
 #endif // CVAR_H

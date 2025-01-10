@@ -18,7 +18,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // sv_game.c -- interface to the game dll
 
 #include "server.h"
-extern "C" {
 
 svgame_export_t    *ge;
 
@@ -1105,4 +1104,3 @@ void SV_InitGameProgs(void) {
     }
 }
 
-};

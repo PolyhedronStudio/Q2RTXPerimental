@@ -19,11 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SIZEBUF_H
 #define SIZEBUF_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
+// Extern C
+QEXTERN_C_OPEN
 
 	/**
 	*	@brief	"SizeBuffer", used as a safe memory buffer(mainly for net-code).
@@ -95,9 +92,7 @@ extern "C" {
 	const float SZ_ReadFloat( sizebuf_t *sb );
 	const float SZ_ReadTruncatedFloat( sizebuf_t *sb );
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
+
 #endif // SIZEBUF_H

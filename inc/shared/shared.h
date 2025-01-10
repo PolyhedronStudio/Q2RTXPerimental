@@ -124,14 +124,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 	#ifndef NULL
 	#define NULL ((void *)0)
 	#endif
-    #define QENUM_OPERATORS(...)
+    // No implementation needed in C translation units.
+    #define QENUM_BIT_FLAGS(...)
+    #define QEXTERN_C_ENCLOSE(ENCLOSED_CODE) ENCLOSED_CODE
+    #define QEXTERN_C_OPEN
+    #define QEXTERN_C_CLOSE
 #endif //__cplusplus
 
 
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
 /**
 *   Angle Indices:
 **/
@@ -201,10 +201,6 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 // possible new bugs and takes a lot of time to invest.
 #include "shared/math/q2rtx_legacy.h"
 
-#ifdef __cplusplus
-};  // Escape extern "C" for raymath.h include. ( This is because we got some C++ specifics code in there. )
-#endif
-
 //! Currently used for Skeletal Model Stuff:
 typedef float mat3x4[ 12 ];
 
@@ -213,10 +209,10 @@ typedef float mat3x4[ 12 ];
 //! Include our own custom version of raylib1.5 its raymath library.
 #include <shared/math/qm_math.h>
 
-#ifdef __cplusplus
-// We extern back to "C"
-extern "C" {
-#endif
+//#ifdef __cplusplus
+//// We extern back to "C"
+//extern "C" {
+//#endif
 
 //! Color Index Table:
 #include "shared/color_index_table.h"
@@ -376,8 +372,8 @@ typedef enum {
 #include "shared/player_move.h"
 
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+//// WID: C++20: In case of C++ including this..
+//#ifdef __cplusplus
+//// We extern "C"
+//};
+//#endif

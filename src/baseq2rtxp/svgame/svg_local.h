@@ -244,7 +244,8 @@ typedef enum {
     FL_RESPAWN              = BIT( 14 ) //! Used for item respawning.
     //FL_POWER_ARMOR          = BIT( 15 ),//! Power armor (if any) is active
 } entity_flags_t;
-
+// Enumerator Type Bit Flags Support:
+QENUM_BIT_FLAGS( entity_flags_t );
 
 
 /**
@@ -270,6 +271,8 @@ typedef enum {
     //! For temporarily disabling this useTarget.
     ENTITY_USETARGET_FLAG_DISABLED      = BIT( 4 ),
 } entity_usetarget_flags_t;
+// Enumerator Type Bit Flags Support:
+QENUM_BIT_FLAGS( entity_usetarget_flags_t );
 //! edict->entityUseState
 typedef enum {
     //! Generic state.
@@ -283,6 +286,8 @@ typedef enum {
     //! Entity is continuously 'usetargetted'.
     ENTITY_USETARGET_STATE_CONTINUOUS   = BIT( 3 ),
 } entity_usetarget_state_t;
+// Enumerator Type Bit Flags Support:
+QENUM_BIT_FLAGS( entity_usetarget_state_t );
 /**
 *   @brief  For SVG_UseTargets
 **/
@@ -296,6 +301,8 @@ typedef enum {
     //! Triggers as 'Toggle' type.
     ENTITY_USETARGET_TYPE_TOGGLE
 } entity_usetarget_type_t;
+// Enumerator Type Bit Flags Support:
+QENUM_BIT_FLAGS( entity_usetarget_type_t );
 
 
 

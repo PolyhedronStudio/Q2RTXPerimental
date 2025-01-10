@@ -33,9 +33,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/utils.h"
 #include "system/hunk.h"
 
-extern "C" {
-    extern mtexinfo_t nulltexinfo;
-};
+QEXTERN_C_ENCLOSE( extern mtexinfo_t nulltexinfo; );
 
 // WID: Not needed anymore.
 //static cvar_t *map_visibility_patch;

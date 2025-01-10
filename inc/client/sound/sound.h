@@ -19,11 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SOUND_H
 #define SOUND_H
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-extern "C" {
-#endif
+// Extern C
+QEXTERN_C_OPEN
 
 void S_Init(void);
 void S_Shutdown(void);
@@ -86,10 +83,7 @@ extern sndstarted_t s_started;
 //extern vec3_t   listener_up;
 //extern int      listener_entnum;
 
-// WID: C++20: In case of C++ including this..
-#ifdef __cplusplus
-// We extern "C"
-};
-#endif
+// Extern C
+QEXTERN_C_CLOSE
 
 #endif // SOUND_H

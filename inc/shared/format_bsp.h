@@ -8,6 +8,8 @@
 **/
 #pragma once 
 
+// Extern C
+QEXTERN_C_OPEN
 
 /**
 *   When not compiling with USE_REF defined by CMake, we know we're not dealing
@@ -396,9 +398,13 @@ typedef struct {
 } lightpoint_t;
 #endif
 
+// Extern C
+QEXTERN_C_CLOSE
+
 /**
 *   The END of USE_REF Header hack.
 **/
 #ifdef USE_REF_HEADER_HACK
 #undef USE_REF
 #endif
+
