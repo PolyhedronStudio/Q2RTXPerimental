@@ -15,9 +15,13 @@
 
 
 
-#define TRAIN_START_ON      1
-#define TRAIN_TOGGLE        2
-#define TRAIN_BLOCK_STOPS   4
+//! Has the train moving instantly after spawning.
+static constexpr int32_t TRAIN_START_ON = BIT( 0 );
+//! Train movement can be toggled on/off.
+static constexpr int32_t TRAIN_TOGGLE = BIT( 1 );
+//! The train will stop instead of destructing the blocking entity.
+static constexpr int32_t TRAIN_BLOCK_STOPS = BIT( 2 );
+
 
 /*QUAKED func_train (0 .5 .8) ? START_ON TOGGLE BLOCK_STOPS
 Trains are moving platforms that players can ride.

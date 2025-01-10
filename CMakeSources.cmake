@@ -300,12 +300,15 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/func/svg_func_conveyor.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_door.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_door_rotating.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_explosive.cpp
 	#baseq2rtxp/svgame/entities/func/svg_func_door_secret.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_killbox.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_object.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_plat.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_rotating.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_timer.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_train.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_wall.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_water.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_entities.cpp
 	baseq2rtxp/svgame/entities/light/svg_light_light.cpp
@@ -360,11 +363,14 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/func/svg_func_door.h
 	baseq2rtxp/svgame/entities/func/svg_func_door_rotating.h
 	#baseq2rtxp/svgame/entities/func/svg_func_door_secret.h
+	baseq2rtxp/svgame/entities/func/svg_func_explosive.h
 	baseq2rtxp/svgame/entities/func/svg_func_killbox.h
+	baseq2rtxp/svgame/entities/func/svg_func_object.h
 	baseq2rtxp/svgame/entities/func/svg_func_plat.h
 	baseq2rtxp/svgame/entities/func/svg_func_rotating.h
 	baseq2rtxp/svgame/entities/func/svg_func_timer.h
 	baseq2rtxp/svgame/entities/func/svg_func_train.h
+	baseq2rtxp/svgame/entities/func/svg_func_wall.h
 	baseq2rtxp/svgame/entities/func/svg_func_water.h
 	baseq2rtxp/svgame/entities/func/svg_func_entities.h
 	#baseq2rtxp/svgame/entities/monsters/svg_monster_testdummy_puppet.h
