@@ -44,7 +44,7 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 
 ## For v0.0.5(Being idealistic here, not realistic, that is when it comes to time lol):
 - [ ] Core/Generic/Code-Style/Important(DoNotForget):
-	- [ ] C++ Global Enum BitFlag Operators SCREAM AND CURSE AT YOU! BOOHOO!
+	- [X] C++ Global Enum BitFlag Operators SCREAM AND CURSE AT YOU! BOOHOO!
 	      Turn that into a DEFINE_ENUM_BITFLAGS(enumtypename) instead._
 		  **HIGH PRIORITY -->:** Without this it may actually be breaking code without us being aware.
 	- [ ] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly.
@@ -62,7 +62,9 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 		- [ ] Test func_button map properly and add a few extra signal related features.
 	- [ ] 1. Calculate the proper entity matrixes/quaternions during Link time.
 		- [ ] Reimplement the 'movewith' system using matrixes/quaternions instead of those silly vector maths.
-
+	- [ ] Can we use some form of inheritance for entity type specific information?
+		- [ ] composition or something?
+		- [ ] we can't malloc classes can we?
 - [X] The **IQM Animation** Scenario:
 	- [X] 0. Add in proper usage of entity type and adjust the client code to handle adding packet entities based on its type.
 			 This will simplify life in the future.
@@ -109,11 +111,14 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 			- [ ] func_conveyor
 			- [x] func_door
 			- [x] func_door_rotating
+			- [ ] func_explosive
 			- [ ] func_rotating
 			- [ ] func_killbox
+			- [ ] func_object
 			- [ ] func_plat
 			- [ ] func_timer
 			- [ ] func_train
+			- [ ] func_wall
 		- [ ] (Point-)Triggers Signal I/O Support:
 			- [ ] trigger_always
 			- [ ] trigger_counter

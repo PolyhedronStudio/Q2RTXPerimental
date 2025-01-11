@@ -102,8 +102,9 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 	*	It makes things easier to write and read. We won't be having duplicates anyway.
 	**/
 	//
-	// EntityEffects:
+	// Effects/RenderFX:
 	//
+	// Effects:
 	solStateView.new_enum( "EntityEffects",
 		"NONE", EF_NONE,
 		"SPOTLIGHT", EF_SPOTLIGHT,
@@ -120,9 +121,7 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 		"HALF_DAMAGE", EF_HALF_DAMAGE,
 		"TELEPORTER", EF_TELEPORTER
 	);
-	//
 	// RenderFx:
-	//
 	solStateView.new_enum( "RenderFx",
 		"NONE", RF_NONE,
 		"MINLIGHT", RF_MINLIGHT,

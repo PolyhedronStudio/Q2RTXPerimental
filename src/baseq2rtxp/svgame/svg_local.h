@@ -280,11 +280,11 @@ typedef enum {
     //! 'OFF' state.
     ENTITY_USETARGET_STATE_OFF          = ENTITY_USETARGET_STATE_DEFAULT,//BIT( 0 ),
     //! 'ON' state.
-    ENTITY_USETARGET_STATE_ON           = BIT( 1 ),
+    ENTITY_USETARGET_STATE_ON           = BIT( 0 ),
     //! The entity its usetarget state has been toggled.
-    ENTITY_USETARGET_STATE_TOGGLED      = BIT( 2 ),
+    ENTITY_USETARGET_STATE_TOGGLED      = BIT( 1 ),
     //! Entity is continuously 'usetargetted'.
-    ENTITY_USETARGET_STATE_CONTINUOUS   = BIT( 3 ),
+    ENTITY_USETARGET_STATE_CONTINUOUS   = BIT( 2 ),
 } entity_usetarget_state_t;
 // Enumerator Type Bit Flags Support:
 QENUM_BIT_FLAGS( entity_usetarget_state_t );
@@ -2151,8 +2151,11 @@ struct edict_s {
     //
     // Trigger(s):
     //
+    //! Wait time, usually for movers as a time before engaging movement back to their original state.
     float   wait;
-    float   delay;          // before firing targets
+    //! The delay(in seconds) to wait when triggered before triggering, or signalling the specified target.
+    float   delay;
+    //!
     float   random;
 
 

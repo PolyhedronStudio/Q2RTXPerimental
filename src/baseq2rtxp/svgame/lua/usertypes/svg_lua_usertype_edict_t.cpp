@@ -78,6 +78,7 @@ const int32_t lua_edict_t::get_number( sol::this_state s ) const {
 //	LUA_ErrorPrintf( "%s: Can't change an entities number!\n", __func__ );
 //}
 
+
 //
 // State:
 //
@@ -94,6 +95,7 @@ sol::object lua_edict_t::get_state( sol::this_state s ) {
 	return sol::make_object_userdata<lua_edict_state_t>(solState, this->edict);
 }
 
+
 //
 // UseTargets:
 //
@@ -102,38 +104,90 @@ sol::object lua_edict_t::get_state( sol::this_state s ) {
 **/
 const int32_t lua_edict_t::get_usetarget_flags( sol::this_state s ) const {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL( 0 );
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( entity_usetarget_flags_t::ENTITY_USETARGET_FLAG_NONE );
 	// Return number.
 	return this->edict->useTarget.flags;
 }
 /**
 *	@brief
 **/
-void lua_edict_t::set_usetarget_flags( sol::this_state s, const entity_usetarget_flags_t flags ) {
+void lua_edict_t::set_usetarget_flags( sol::this_state s, const int32_t flags ) {
 	// Returns if invalid.
 	LUA_VALIDATE_EDICT_POINTER();
 	// Assign new flags.
-	this->edict->useTarget.flags = flags;
+	this->edict->useTarget.flags = (entity_usetarget_flags_t)flags;
 }
 /**
 *	@brief
 **/
 const int32_t lua_edict_t::get_usetarget_state( sol::this_state s ) const {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL( 0 );
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( entity_usetarget_state_t::ENTITY_USETARGET_STATE_DEFAULT );
 	// Return number.
 	return this->edict->useTarget.state;
 }
 /**
 *	@brief
 **/
-void lua_edict_t::set_usetarget_state( sol::this_state s, const entity_usetarget_state_t state ) {
+void lua_edict_t::set_usetarget_state( sol::this_state s, const int32_t state ) {
 	// Returns if invalid.
 	LUA_VALIDATE_EDICT_POINTER();
 	// Assign new flags.
-	this->edict->useTarget.state = state;
+	this->edict->useTarget.state = (entity_usetarget_state_t)state;
 }
 
+
+//
+// Triggers
+//
+/**
+*	@brief
+**/
+const double lua_edict_t::get_trigger_wait( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( 0 );
+	// Return value.
+	return this->edict->wait;
+}
+/**
+*	@return
+**/
+void lua_edict_t::set_trigger_wait( sol::this_state s, const double wait ) {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
+	// Assign new value.
+	this->edict->wait = wait;
+}
+
+/**
+*	@brief
+**/
+const double lua_edict_t::get_trigger_delay( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL(0);
+	// Return value.
+	return this->edict->delay;
+}
+/**
+*	@return
+**/
+void lua_edict_t::set_trigger_delay( sol::this_state s, const double delay ) {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
+	// Assign new value.
+	this->edict->delay = delay;
+}
+
+
+/***
+*
+*
+*
+*	Registering of Lua Type:
+*
+*
+*
+**/
 /**
 *	@brief	Register a usertype for passing along edict_t into lua.
 **/
@@ -158,7 +212,11 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	// Returns the member entity_state_t of edict_t.
 	lua_edict_type[ "state" ] = sol::property( &lua_edict_t::get_state );
 
-	// For useTargets.
+	// For useTargets:
 	lua_edict_type[ "useTargetFlags" ] = sol::property( &lua_edict_t::get_usetarget_flags, &lua_edict_t::set_usetarget_flags );
 	lua_edict_type[ "useTargetState" ] = sol::property( &lua_edict_t::get_usetarget_state, &lua_edict_t::set_usetarget_state );
+
+	// Triggers:
+	lua_edict_type[ "wait" ] = sol::property( &lua_edict_t::get_trigger_wait, &lua_edict_t::set_trigger_wait );
+	lua_edict_type[ "delay" ] = sol::property( &lua_edict_t::get_trigger_delay, &lua_edict_t::set_trigger_delay );
 }

@@ -39,23 +39,35 @@ public:
 	lua_edict_t();
 	lua_edict_t( edict_t *_edict );
 
+
 	/**
 	*
 	* 
-	*	Entity State Properties
+	*	Entity Properties
 	*
 	* 
 	**/
+	//
+	// General:
+	//
 	/**
-	*	@brief
+	*	@return	The entity's number(stored in state, but, this is easy access route.)
 	**/
 	const int32_t get_number( sol::this_state s ) const;
 
+
+	//
+	// State:
+	//
 	/**
 	*	@return	Returns a lua userdata object for accessing the entity's entity_state_t.
 	**/
 	sol::object get_state( sol::this_state s );
 
+
+	//
+	//	UseTarget(s)
+	//
 	/**
 	*	@brief
 	**/
@@ -63,8 +75,7 @@ public:
 	/**
 	*	@return	
 	**/
-	void set_usetarget_flags( sol::this_state s, const entity_usetarget_flags_t flags );
-
+	void set_usetarget_flags( sol::this_state s, const int32_t flags );
 	/**
 	*	@brief
 	**/
@@ -72,7 +83,28 @@ public:
 	/**
 	*	@return	
 	**/
-	void set_usetarget_state( sol::this_state s, const entity_usetarget_state_t state );
+	void set_usetarget_state( sol::this_state s, const int32_t state );
+
+
+	//
+	// Triggers
+	//
+	/**
+	*	@brief
+	**/
+	const double get_trigger_wait( sol::this_state s ) const;
+	/**
+	*	@return
+	**/
+	void set_trigger_wait( sol::this_state s, const double wait );
+	/**
+	*	@brief
+	**/
+	const double get_trigger_delay( sol::this_state s ) const;
+	/**
+	*	@return
+	**/
+	void set_trigger_delay( sol::this_state s, const double delay );
 };
 
 /**
