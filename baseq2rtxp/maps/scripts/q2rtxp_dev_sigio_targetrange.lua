@@ -65,9 +65,11 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         if ( self.teamMaster == self.targetName ) then
             mapStates.targetRange.targetsAlive = mapStates.targetRange.targetsAlive - 1
             -- Set score counter frame.
-            local scoreCounterEntity = Game.GetEntityForTargetName( "targetsleftcounter" )
+            local scoreCounterEntityA = Game.GetEntityForTargetName( "targetsleftcounter0" )
+            local scoreCounterEntityB = Game.GetEntityForTargetName( "targetsleftcounter1" )
             -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
-            scoreCounterEntity.state.frame = mapStates.targetRange.targetsAlive            
+            scoreCounterEntityA.state.frame = mapStates.targetRange.targetsAlive
+            scoreCounterEntityB.state.frame = mapStates.targetRange.targetsAlive
         end
 
         -- Notify of the kill.
@@ -119,9 +121,11 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
             -- Adjust frame to match it being pressable again, signalling red animation style that target range is inactive.
             targetRangeButtonEntity.state.frame = 0
 
-            -- Turn off the HoloGram text displays.
-            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter" ), self, activator, EntityUseTargetType.OFF, 0 )
-            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram" ), self, activator, EntityUseTargetType.OFF, 0 )
+            -- Turn on the HoloGram text displays.
+            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter0" ), self, activator, EntityUseTargetType.OFF, 0 )
+            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter1" ), self, activator, EntityUseTargetType.OFF, 0 )
+            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram0" ), self, activator, EntityUseTargetType.OFF, 0 )
+            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram1" ), self, activator, EntityUseTargetType.OFF, 0 )
         end
         -- Done handling signal.
         return true
@@ -245,18 +249,23 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
             local targetRangeLights = Game.GetEntitiesForTargetName( "light_ceil_range" )
             -- This is used just as for testing purposes of the 'require' functionality.
             -- The implementation resides in /maps/scripts/utilities/entities.lua
-            entities:for_each_entity(
-                targetRangeLights, 
-                function( entityKey, entityValue )
-                    Game.UseTarget( entityValue, self, activator, EntityUseTargetType.OFF, 0 )
-                end
-            )
+            -- entities:for_each_entity(
+            --     targetRangeLights, 
+            --     function( entityKey, entityValue )
+            --         -- Let there be a delay before actually triggering. Otherwise things look too instant/snappy.
+            --         entityValue.delay = 4.0
+            --         -- Turn on the light for this target.
+            --         Game.UseTarget( entityValue, self, activator, EntityUseTargetType.OFF, 0 )
+            --         -- Reset the delay back to 0.
+            --         entityValue.delay = 0
+            --     end
+            -- )
             -- This is how you'd normally do it.
             -- -- Iterate over the matching targetname light entities.
-            -- for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
-            --     -- Turn off the light for this target.
-            --     Game.UseTarget( targetRangeLight, self, activator, EntityUseTargetType.OFF, 0 )
-            -- end
+            for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
+                -- Turn off the light for this target.
+                Game.UseTarget( targetRangeLight, self, activator, EntityUseTargetType.OFF, 0 )
+            end
 
             -- Set its frame to 'orange' state.
             self.state.frame = 4
@@ -264,14 +273,18 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
             self.useTargetFlags = self.useTargetFlags + EntityUseTargetFlags.DISABLED
 
             -- Turn on the HoloGram text displays.
-            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter" ), self, activator, EntityUseTargetType.ON, 0 )
-            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram" ), self, activator, EntityUseTargetType.ON, 0 )
+            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter0" ), self, activator, EntityUseTargetType.ON, 1 )
+            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter1" ), self, activator, EntityUseTargetType.ON, 1 )
+            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram0" ), self, activator, EntityUseTargetType.ON, 1 )
+            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram1" ), self, activator, EntityUseTargetType.ON, 1 )
         end
 
         -- Set score counter frame.
-        local scoreCounterEntity = Game.GetEntityForTargetName( "targetsleftcounter" )
+        local scoreCounterEntityA = Game.GetEntityForTargetName( "targetsleftcounter0" )
+        local scoreCounterEntityB = Game.GetEntityForTargetName( "targetsleftcounter1" )
         -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
-        scoreCounterEntity.state.frame = mapStates.targetRange.targetsAlive
+        scoreCounterEntityA.state.frame = mapStates.targetRange.targetsAlive
+        scoreCounterEntityB.state.frame = mapStates.targetRange.targetsAlive
     end
     return true
 end
