@@ -17,5 +17,49 @@ function entities:for_each_entity( entities, callbackFunction )
     end
 end
 
+--
+-- UseTarget, but with a delay time in seconds.
+--
+-- Will store the entity's original delay, override it with a new one, call upon UseTargets, and reset delay to the original value.
+--
+function entities:UseTargetDelay( targetEntity, otherEntity, activatorEntity, useTargetType, useTargetValue, delaySeconds )
+    -- -- Ensure we have a table.
+    if targetEntity == nil then
+         error( "targetEntity == nil" )
+    end
+    -- Store original delay.
+    local originalDelay = targetEntity.delay
+    -- Set temporary delay.
+    targetEntity.delay = delaySeconds
+    -- Use the target entity.
+    local useTargetResult = Game.UseTarget( targetEntity, otherEntity, activatorEntity, useTargetType, useTargetValue )
+    -- Reset its deilay.
+    targetEntity.delay = 0.0
+    -- Return results of UseTarget.
+    return useTargetResult
+end
+
+--
+-- UseTarget, but with a delay time in seconds.
+--
+-- Will store the entity's original delay, override it with a new one, call upon UseTargets, and reset delay to the original value.
+--
+function entities:UseTargetsDelay( targetEntity, otherEntity, activatorEntity, useTargetType, useTargetValue, delaySeconds )
+    -- -- Ensure we have a table.
+    if targetEntity == nil then
+         error( "targetEntity == nil" )
+    end
+    -- Store original delay.
+    local originalDelay = targetEntity.delay
+    -- Set temporary delay.
+    targetEntity.delay = delaySeconds
+    -- Use the target entity.
+    local useTargetResult = Game.UseTargets( targetEntity, otherEntity, activatorEntity, useTargetType, useTargetValue )
+    -- Reset its deilay.
+    targetEntity.delay = 0.0
+    -- Return results of UseTarget.
+    return useTargetResult
+end
+
 -- Return the Lua 'require' Module Table.
 return entities

@@ -49,10 +49,10 @@ static const bool SVG_Lua_SignalOut( sol::state_view &stateView, edict_t *ent, e
 	const std::string luaName = ent->luaProperties.luaName;
 	const std::string functionName = luaName + "_OnSignalIn";
 
-	if ( !LUA_HasFunction( stateView, functionName ) ) {
-		gi.dprintf( "%s: Trying to call upon Lua \"%s\" function, but it is nonexistent!\n", __func__, functionName.c_str() );
-		return false;
-	}
+	//if ( !LUA_HasFunction( stateView, functionName ) ) {
+	//	gi.dprintf( "%s: Trying to call upon Lua \"%s\" function, but it is nonexistent!\n", __func__, functionName.c_str() );
+	//	return false;
+	//}
 
 	// Get function object.
 	sol::protected_function funcRefSignalOut = stateView[ functionName ];

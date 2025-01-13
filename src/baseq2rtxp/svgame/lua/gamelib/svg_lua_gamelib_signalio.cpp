@@ -27,7 +27,7 @@
 **/
 void LUA_Think_SignalOutDelay( edict_t *entity ) {
 	edict_t *creatorEntity = entity->delayed.signalOut.creatorEntity;
-	if ( !creatorEntity ) {
+	if ( !SVG_IsActiveEntity( creatorEntity ) ) {
 		return;
 	}
 	const char *signalName = entity->delayed.signalOut.name;
@@ -41,7 +41,7 @@ void LUA_Think_SignalOutDelay( edict_t *entity ) {
 	// If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
 	if ( propogateToLua ) {
 		SVG_Lua_SignalOut( SVG_Lua_GetSolState(),
-			entity, entity->other, entity->activator,
+			creatorEntity, entity->other, entity->activator,
 			signalName, entity->delayed.signalOut.arguments
 		);
 	}
@@ -205,6 +205,10 @@ const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict
 	if ( entity->delay ) {
 		// create a temp object to UseTarget at a later time.
 		edict_t *delayEntity = SVG_AllocateEdict();
+		// In case it failed to allocate of course.
+		if ( !SVG_IsActiveEntity( delayEntity ) ) {
+			return -1; // SIGNALOUT_FAILED
+		}
 		delayEntity->classname = "DelayedLuaSignalOut";
 
 		delayEntity->nextthink = level.time + sg_time_t::from_sec( entity->delay );

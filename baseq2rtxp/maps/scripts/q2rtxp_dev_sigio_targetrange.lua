@@ -39,6 +39,25 @@ mapMedia = {
 --
 --
 -----------------------------------------------------------------------------
+--
+--
+--
+function TargetsLeftHoloGram_ToggleState( delaySeconds, lightsOn, other, activator ) 
+    -- Use them.
+    local useTargetType = EntityUseTargetType.ON
+    local useTargetValue = 1
+    if ( lightsOn ~= true ) then
+        useTargetType = EntityUseTargetType.OFF
+        useTargetValue = 0
+    end
+    -- Turn toggle the targets left light and holgoram entities.
+    entities:UseTargetDelay( Game.GetEntityForTargetName( "light_targetsleft" ), other, activator, useTargetType, useTargetValue, delaySeconds )
+    entities:UseTargetDelay( Game.GetEntityForTargetName( "targetsleftcounter0" ), other, activator, useTargetType, useTargetValue, delaySeconds )
+    entities:UseTargetDelay( Game.GetEntityForTargetName( "targetsleftcounter1" ), other, activator, useTargetType, useTargetValue, delaySeconds )
+    entities:UseTargetDelay( Game.GetEntityForTargetName( "wall_hologram0" ), other, activator, useTargetType, useTargetValue, delaySeconds )
+    entities:UseTargetDelay( Game.GetEntityForTargetName( "wall_hologram1" ), other, activator, useTargetType, useTargetValue, delaySeconds )
+end
+
 -----------------------------------------------------------------------------
 -- The following function is called upon by each individual target entity
 -- that has a SignalIn. Saves us a lot of headache.
@@ -74,8 +93,9 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
 
         -- Notify of the kill.
         Game.Print( PrintLevel.NOTICE, "Shot down the \"" .. displayName .. "\" target! Only #".. mapStates.targetRange.targetsAlive .. " targets remaining!\n" )
-        -- Stop the train for this target.
-        Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTargetType.OFF, 0 )
+        -- Turn on the train for this target.
+        local trainTargetEntity = Game.GetEntityForTargetName( trainTargetName )
+        Game.UseTarget( trainTargetEntity, signaller, activator, EntityUseTargetType.OFF, 0 )
         -- Play special 'opening' sound effect.
         Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_open, 1.0, SoundAttenuation.IDLE, 0.0 )
 
@@ -97,10 +117,9 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
             -- Iterate over the matching targetname light entities.
             for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
                 -- Turn on the light for this target.
-                Game.UseTarget( targetRangeLight, self, activator, EntityUseTargetType.ON, 1 )
+                entities:UseTargetDelay( targetRangeLight, self, activator, EntityUseTargetType.ON, 1, 0.5 )
             end
-            -- Turn off the targets left light
-            Game.UseTarget( Game.GetEntityForTargetName( "light_targetsleft" ), signaller, activator, EntityUseTargetType.OFF, 0 )
+
             -- Switch off the target lights. (Round ended.)
             Game.UseTargets( Game.GetEntityForTargetName( "light_target_xxl" ), signaller, activator, EntityUseTargetType.OFF, 0 )
             Game.UseTargets( Game.GetEntityForTargetName( "light_target_xl" ), signaller, activator, EntityUseTargetType.OFF, 0 )
@@ -121,11 +140,8 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
             -- Adjust frame to match it being pressable again, signalling red animation style that target range is inactive.
             targetRangeButtonEntity.state.frame = 0
 
-            -- Turn on the HoloGram text displays.
-            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter0" ), self, activator, EntityUseTargetType.OFF, 0 )
-            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter1" ), self, activator, EntityUseTargetType.OFF, 0 )
-            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram0" ), self, activator, EntityUseTargetType.OFF, 0 )
-            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram1" ), self, activator, EntityUseTargetType.OFF, 0 )
+            -- Turn off the HoloGram text displays.
+            TargetsLeftHoloGram_ToggleState( 0.75, false, signaller, activator )
         end
         -- Done handling signal.
         return true
@@ -147,8 +163,6 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
     -- A new round has begun, so the target got told to "close", turn on the train.
     --
     elseif ( signalName == "OnClosed") then
-        -- Turn off the targets left light
-        Game.UseTarget( Game.GetEntityForTargetName( "light_targetsleft" ), signaller, activator, EntityUseTargetType.ON, 1 )
         -- Get LightBrush Entity.
         local lightBrushEntity = Game.GetEntityForTargetName( lightBrushTargetName )
         -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
@@ -158,7 +172,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         -- Reset effects.
         targetEntity.state.effects = EntityEffects.NONE
         -- Turn on the train for this target.
-        Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTargetType.ON, 1 )
+        entities:UseTargetDelay( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTargetType.ON, 1, 1.5 )
         -- Done handling signal.
         return true
     --
@@ -204,6 +218,7 @@ function Target_OnSignalIn( self, signaller, activator, signalName, signalArgume
     return Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, "S", "t_target", "train_target", "light_target", "light_brush_target_s" )
 end
 
+
 ----------------------------------------------------------------------
 ----    Target Range Start Button SignalIn:
 ----------------------------------------------------------------------
@@ -229,11 +244,11 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
             Game.SignalOut( Game.GetEntityForTargetName( "t_target_xl" ), signaller, activator, "DoorClose", {} )
             Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "DoorClose", {} )
             Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "DoorClose", {} )
-            -- Engage all func_train into moving again.
-            Game.UseTargets( Game.GetEntityForTargetName( "train_target_xxl" ), signaller, activator, EntityUseTargetType.ON, 1 )
-            Game.UseTargets( Game.GetEntityForTargetName( "train_target_xl" ), signaller, activator, EntityUseTargetType.ON, 1 )
-            Game.UseTargets( Game.GetEntityForTargetName( "train_target_l" ), signaller, activator, EntityUseTargetType.ON, 1 )
-            Game.UseTargets( Game.GetEntityForTargetName( "train_target" ), signaller, activator, EntityUseTargetType.ON, 1 )
+            -- Engage all func_train into moving again, 1.5sec delay.
+            entities:UseTargetsDelay( Game.GetEntityForTargetName( "train_target_xxl" ), signaller, activator, EntityUseTargetType.ON, 1, 1.5 )
+            entities:UseTargetsDelay( Game.GetEntityForTargetName( "train_target_xl" ), signaller, activator, EntityUseTargetType.ON, 1, 1.5 )
+            entities:UseTargetsDelay( Game.GetEntityForTargetName( "train_target_l" ), signaller, activator, EntityUseTargetType.ON, 1, 1.5 )
+            entities:UseTargetsDelay( Game.GetEntityForTargetName( "train_target" ), signaller, activator, EntityUseTargetType.ON, 1, 1.5 )
             -- Switch on the target lights. (New round has begun.)
             Game.UseTargets( Game.GetEntityForTargetName( "light_target_xxl" ), signaller, activator, EntityUseTargetType.ON, 1 )
             Game.UseTargets( Game.GetEntityForTargetName( "light_target_xl" ), signaller, activator, EntityUseTargetType.ON, 1 )
@@ -252,12 +267,8 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
             -- entities:for_each_entity(
             --     targetRangeLights, 
             --     function( entityKey, entityValue )
-            --         -- Let there be a delay before actually triggering. Otherwise things look too instant/snappy.
-            --         entityValue.delay = 4.0
             --         -- Turn on the light for this target.
-            --         Game.UseTarget( entityValue, self, activator, EntityUseTargetType.OFF, 0 )
-            --         -- Reset the delay back to 0.
-            --         entityValue.delay = 0
+            --         entities:UseTarget( entityValue, self, activator, EntityUseTargetType.OFF, 0, 1.5 )
             --     end
             -- )
             -- This is how you'd normally do it.
@@ -269,14 +280,10 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
 
             -- Set its frame to 'orange' state.
             self.state.frame = 4
-            -- Disable the button from being reused.
+            -- Disable the button for reuse.
             self.useTargetFlags = self.useTargetFlags + EntityUseTargetFlags.DISABLED
-
             -- Turn on the HoloGram text displays.
-            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter0" ), self, activator, EntityUseTargetType.ON, 1 )
-            Game.UseTarget( Game.GetEntityForTargetName( "targetsleftcounter1" ), self, activator, EntityUseTargetType.ON, 1 )
-            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram0" ), self, activator, EntityUseTargetType.ON, 1 )
-            Game.UseTarget( Game.GetEntityForTargetName( "wall_hologram1" ), self, activator, EntityUseTargetType.ON, 1 )
+            TargetsLeftHoloGram_ToggleState( 1.5, true, signaller, activator )
         end
 
         -- Set score counter frame.

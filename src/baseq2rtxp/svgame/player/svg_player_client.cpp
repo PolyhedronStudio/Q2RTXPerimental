@@ -1892,11 +1892,27 @@ void ClientTraceForUseTarget( edict_t *ent, gclient_t *client ) {
     if ( currentTargetEntity && ( currentTargetEntity->inuse && currentTargetEntity->s.number != 0 ) ) {
         // Play audio sound for when pressing onto a valid entity.
         if ( isTargetUseKeyPressed ) {
-            if ( currentTargetEntity->useTarget.flags != ENTITY_USETARGET_FLAG_NONE
-                && !SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_DISABLED ) ) {
-                gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_use.wav" ), 0.25, ATTN_NORM, 0 );
-            } else {
-                gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.8, ATTN_NORM, 0 );
+            if ( currentTargetEntity->useTarget.flags != ENTITY_USETARGET_FLAG_NONE ) {
+                if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_DISABLED ) ) {
+                    // Invalid, disabled, sound.
+                    gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.8, ATTN_NORM, 0 );
+
+                    // Stop with the continous entity usage in case we were doing so:
+                    if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
+                        // Remove continuous state flag.
+                        currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
+                        // Continous entity husage:
+                        if ( currentTargetEntity->use ) {
+                            currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
+                        }
+                    }
+
+                    // Exit, it is disabled!
+                    return;
+                } else {
+                    // Use sound.
+                    gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_use.wav" ), 0.25, ATTN_NORM, 0 );
+                }
             }
         }
 

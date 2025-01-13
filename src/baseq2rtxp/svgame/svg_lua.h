@@ -80,7 +80,11 @@ static inline const bool LUA_GetFunction( sol::state_view &stateView, const std:
 	if ( functionReferenceType != sol::type::function /*|| !functionReference.is<std::function<bool()>>()*/ ) {
 		// Reset it so it is LUA_NOREF and luaState == nullptr again.
 		functionReference.reset();
+		//
+		return false;
 	}
+
+	return true;
 }
 /**
 *	@brief	 

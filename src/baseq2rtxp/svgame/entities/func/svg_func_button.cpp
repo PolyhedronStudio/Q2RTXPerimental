@@ -941,7 +941,7 @@ void SP_func_button( edict_t *ent ) {
 
         // Is usetargetting disabled by default?
         if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_DISABLED ) ) {
-            ent->useTarget.flags = (entity_usetarget_flags_t)( ent->useTarget.flags | ENTITY_USETARGET_FLAG_DISABLED );
+            ent->useTarget.flags |= ENTITY_USETARGET_FLAG_DISABLED;
         }
     }
 

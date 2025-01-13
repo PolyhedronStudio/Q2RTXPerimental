@@ -168,7 +168,7 @@ void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const 
         ent->other = signaller;
 
         // Notify of the signal coming in.
-        /*propogateToLua = */ent->onsignalin(ent, signaller, activator, signalName, signalArguments );
+        /*propogateToLua = */ent->onsignalin( ent, signaller, activator, signalName, signalArguments );
     }
     // If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
     if ( propogateToLua ) {
@@ -406,7 +406,7 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
                         // Convert.
                         bool signalHandled = callResult.get<bool>();
                         // Debug print.
-                        // We got an error:
+                    // We got an error:
                     } else {
                         // Acquire error object.
                         sol::error resultError = callResult;
@@ -425,7 +425,8 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
     }
 }
 /**
-*   @brief  True if the entity should 'toggle'.
+*   @brief  Use to check and prevent an entity from reacting in case it is spammed by
+*           ON or OFF typed triggering.
 **/
 const bool SVG_UseTarget_ShouldToggle( const entity_usetarget_type_t useType, const int32_t currentState ) {
     // We always toggle for USE_TOGGLE and USE_SET:

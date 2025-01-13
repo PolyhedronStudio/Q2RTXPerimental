@@ -422,10 +422,15 @@ void SVG_Lua_DumpStack( lua_State *L ) {
 *	@brief
 **/
 void SVG_Lua_Initialize() {
+
+	/**
+	*	Setup Lua State, with our own tag allocating memory allocator.
+	**/
 	// Get our sol state view.
 	if ( !luaMapInstance.solState.lua_state() ) {
 		luaMapInstance.solState = sol::state( sol::default_at_panic, LUA_ZoneTagAllocator, &svg_lua_memory_tracker );
 	}
+	// Open the default libs:
 	luaMapInstance.solState.open_libraries(
 		// print, assert, and other base functions
 		sol::lib::base
@@ -441,8 +446,8 @@ void SVG_Lua_Initialize() {
 		, sol::lib::math
 		// the table manipulator and observer functions
 		, sol::lib::table
-		// the bit library: different based on which you're using
-		, sol::lib::bit32
+		// WID: Seems to be a LuaJIT only thing.
+		//, sol::lib::bit32
 		#if USE_DEBUG || _DEBUG
 		// the debug library
 		, sol::lib::debug
@@ -462,11 +467,6 @@ void SVG_Lua_Initialize() {
 	);
 	// Acquire the lua State.
 	luaMapInstance.lState = luaMapInstance.solState.lua_state();
-
-	/**
-	*	Setup the memory allocator functions.
-	**/
-	
 
 	/**
 	*	Setup 'require' method 'package loader'.

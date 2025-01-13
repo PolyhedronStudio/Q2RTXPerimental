@@ -302,7 +302,7 @@ typedef enum {
     ENTITY_USETARGET_TYPE_TOGGLE
 } entity_usetarget_type_t;
 // Enumerator Type Bit Flags Support:
-QENUM_BIT_FLAGS( entity_usetarget_type_t );
+//QENUM_BIT_FLAGS( entity_usetarget_type_t );
 
 
 
@@ -2086,7 +2086,7 @@ struct edict_s {
     
     //! Called to 'trigger' the entity.
     void        ( *use )( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
-    //! Called when the entity is being 'Signalled', happens when another entity fires an OutSignal to it.
+    //! Called when the entity is being 'Signalled', happens when another entity emits an OutSignal to it.
     void        ( *onsignalin )( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 
     #if 0
@@ -2334,7 +2334,8 @@ static inline const bool SVG_UseTarget_HasUseTargetState( const edict_t *ent, co
 }
 
 /**
-*   @brief  True if the entity should 'toggle'.
+*   @brief  Use to check and prevent an entity from reacting in case it is spammed by
+*           ON or OFF typed triggering.
 **/
 const bool SVG_UseTarget_ShouldToggle( const entity_usetarget_type_t useType, const int32_t currentState );
 #if 0
