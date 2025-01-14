@@ -18,7 +18,7 @@ function entities:for_each_entity( entities, callbackFunction )
 end
 
 --
--- UseTarget, but with a delay time in seconds.
+-- UseTarget: but with a delay time in seconds.
 --
 -- Will store the entity's original delay, override it with a new one, call upon UseTargets, and reset delay to the original value.
 --
@@ -34,13 +34,14 @@ function entities:UseTargetDelay( targetEntity, otherEntity, activatorEntity, us
     -- Use the target entity.
     local useTargetResult = Game.UseTarget( targetEntity, otherEntity, activatorEntity, useTargetType, useTargetValue )
     -- Reset its deilay.
-    targetEntity.delay = 0.0
+    targetEntity.delay = originalDelay
     -- Return results of UseTarget.
     return useTargetResult
 end
 
+
 --
--- UseTarget, but with a delay time in seconds.
+-- UseTargets: but with a delay time in seconds.
 --
 -- Will store the entity's original delay, override it with a new one, call upon UseTargets, and reset delay to the original value.
 --
@@ -56,10 +57,34 @@ function entities:UseTargetsDelay( targetEntity, otherEntity, activatorEntity, u
     -- Use the target entity.
     local useTargetResult = Game.UseTargets( targetEntity, otherEntity, activatorEntity, useTargetType, useTargetValue )
     -- Reset its deilay.
-    targetEntity.delay = 0.0
+    targetEntity.delay = originalDelay
     -- Return results of UseTarget.
     return useTargetResult
 end
+
+
+--
+-- SignalOut: but with a delay time in seconds.
+--
+-- Will store the entity's original delay, override it with a new one, call upon SignalOut, and reset delay to the original value.
+--
+function entities:SignalOutDelay( targetEntity, signallerEntity, activatorEntity, signalName, signalArguments, delaySeconds )
+    -- -- Ensure we have a table.
+    if targetEntity == nil then
+         error( "targetEntity == nil" )
+    end
+    -- Store original delay.
+    local originalDelay = targetEntity.delay
+    -- Set temporary delay.
+    targetEntity.delay = delaySeconds
+    -- Use the target entity.
+    local signalOutResult = Game.SignalOut( targetEntity, signallerEntity, activatorEntity, signalName, signalArguments )
+    -- Reset its deilay.
+    targetEntity.delay = originalDelay
+    -- Return results of UseTarget.
+    return signalOutResult
+end
+
 
 -- Return the Lua 'require' Module Table.
 return entities

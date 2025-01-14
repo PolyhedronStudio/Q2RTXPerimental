@@ -254,8 +254,10 @@ const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict
 		// Set activator/other.
 		entity->activator = activator;
 		entity->other = signaller;
+		// Get view for state.
+		sol::state_view solStateView = sol::state_view( s );
 		// Fire away.
-		SVG_Lua_SignalOut( SVG_Lua_GetSolState(), entity, signaller, activator, signalName.c_str(), signalArgumentsArray );
+		SVG_Lua_SignalOut( solStateView, entity, signaller, activator, signalName.c_str(), signalArgumentsArray );
 		sentSignalOut = true;
 	}
 

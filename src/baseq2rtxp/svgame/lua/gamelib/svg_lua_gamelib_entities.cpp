@@ -22,13 +22,45 @@
 *
 **/
 /**
-*	@return	The number of the entity if it has a matching luaName, -1 otherwise.
+*	@return	The number of the first entity with a matching luaName, -1 otherwise.
 **/
 sol::userdata GameLib_GetEntityForLuaName( sol::this_state s, const std::string &luaName ) {
 	// Get the first matching entity for the luaName.
 	edict_t *luaNameEntity = SVG_Find( NULL, FOFS( luaProperties.luaName ), luaName.c_str() );
 	// Return it.
 	return sol::make_object<lua_edict_t>( s, lua_edict_t( luaNameEntity ) );
+}
+/**
+*	@return	The number of the targetname matching entities found in the entity array, -1 if none found.
+*	@note	In Lua, it returns a table containing the entity number(s) with a matching targetname.
+**/
+sol::table GameLib_GetEntitiesForLuaName( sol::this_state s, const std::string &luaName ) {
+	// Table to push lua_edict_t types onto.
+	sol::table luaNameEntities = sol::state_view( s ).create_table();
+
+	// Find our first targetnamed entity, if any at all.
+	edict_t *luaNameEntity = SVG_Find( NULL, FOFS( luaProperties.luaName ), luaName.c_str() );
+	if ( !luaNameEntity ) {
+		return luaNameEntities;
+	}
+
+	// Add to the table.
+	luaNameEntities.add( sol::make_object<lua_edict_t>( s, lua_edict_t( luaNameEntity ) ) );
+
+	// Iterate over all entities seeking for targetnamed ents.
+	while ( 1 ) {
+		// Find next entity in line.
+		luaNameEntity = SVG_Find( luaNameEntity, FOFS( luaProperties.luaName ), luaName.c_str() );
+		// Exit if it's nullptr.
+		if ( !luaNameEntity ) {
+			break;
+		}
+
+		// Add to the table.
+		luaNameEntities.add( sol::make_object<lua_edict_t>( s, lua_edict_t( luaNameEntity ) ) );
+	}
+
+	return luaNameEntities;
 }
 
 /**
@@ -41,7 +73,7 @@ sol::userdata GameLib_GetEntityForTargetName( sol::this_state s, const std::stri
 	return sol::make_object<lua_edict_t>( s, lua_edict_t( targetNameEntity ) );
 }
 /**
-*	@return	The number of the team matching entities found in the entity array, -1 if none found.
+*	@return	The number of the targetname matching entities found in the entity array, -1 if none found.
 *	@note	In Lua, it returns a table containing the entity number(s) with a matching targetname.
 **/
 sol::table GameLib_GetEntitiesForTargetName( sol::this_state s, const std::string &targetName ) {
