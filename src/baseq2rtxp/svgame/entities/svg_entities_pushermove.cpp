@@ -30,8 +30,8 @@
 **/
 void SVG_PushMove_MoveDone( edict_t *ent ) {
     // WID: MoveWith: Clear last velocity also.
-    VectorClear( ent->velocity );
-
+    ent->velocity = {};
+    // Fire the endMoveCallback.
     if ( ent->pushMoveInfo.endMoveCallback ) {
         ent->pushMoveInfo.endMoveCallback( ent );
     }
@@ -192,6 +192,15 @@ void SVG_PushMove_AngleMoveBegin( edict_t *ent ) {
             ent->pushMoveInfo.speed = ent->speed;
         }
     }
+    // PGM
+    
+    // set destdelta to the vector needed to move
+    if (/* ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP || */ ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
+        destinationDelta = ent->pushMoveInfo.endAngles - ent->s.angles;
+    } else {
+        destinationDelta = ent->pushMoveInfo.startAngles - ent->s.angles;
+    }
+
 
     // Calculate length of vector
     const float len = QM_Vector3Length( destinationDelta );
@@ -231,6 +240,13 @@ void SVG_PushMove_AngleMoveCalculate( edict_t *ent, svg_pushmove_endcallback end
     // Set function pointer for end position callback.
     ent->pushMoveInfo.endMoveCallback = endMoveCallback;
      
+    // PGM
+//  if we're supposed to accelerate, this will tell anglemove_begin to do so
+    if ( ent->accel != ent->speed ) {
+        ent->pushMoveInfo.speed = 0;
+    }
+    // PGM
+    // 
     // If the current level entity that is being processed, happens to be in front of the
     // entity array queue AND is a teamslave, begin moving its team master instead.
     if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {

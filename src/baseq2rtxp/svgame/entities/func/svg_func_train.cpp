@@ -38,7 +38,7 @@ void train_next( edict_t *self );
 void train_blocked( edict_t *self, edict_t *other ) {
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
         // give it a chance to go away on it's own terms (like gibs)
-        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MEANS_OF_DEATH_CRUSHED );
+        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
         if ( other )
             SVG_Misc_BecomeExplosion1( other );
@@ -51,7 +51,7 @@ void train_blocked( edict_t *self, edict_t *other ) {
     if ( !self->dmg )
         return;
     self->touch_debounce_time = level.time + 0.5_sec;
-    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
+    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 
 void train_wait( edict_t *self ) {

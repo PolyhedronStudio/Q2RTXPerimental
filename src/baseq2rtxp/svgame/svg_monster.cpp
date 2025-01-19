@@ -165,13 +165,13 @@ void M_WorldEffects( edict_t *ent ) {
     if ((ent->liquidInfo.type & CONTENTS_LAVA) && !(ent->flags & FL_IMMUNE_LAVA)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 0.2_sec;
-            SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidInfo.level, 0, 0, MEANS_OF_DEATH_LAVA );
+            SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidInfo.level, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );
         }
     }
     if ((ent->liquidInfo.type & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME)) {
         if (ent->damage_debounce_time < level.time ) {
             ent->damage_debounce_time = level.time + 1_sec;
-            SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidInfo.level, 0, 0, MEANS_OF_DEATH_SLIME );
+            SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidInfo.level, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
         }
     }
 

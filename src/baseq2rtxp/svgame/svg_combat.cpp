@@ -273,7 +273,7 @@ bool CheckTeamDamage(edict_t *targ, edict_t *attacker)
     return false;
 }
 
-void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const int32_t dflags, const sg_means_of_death_t meansOfDeath ) {
+void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
     // Final means of death.
     sg_means_of_death_t finalMeansOfDeath = meansOfDeath;
     
@@ -310,12 +310,12 @@ void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, con
     // Default TE that got us was sparks.
     int32_t te_sparks = TE_SPARKS;
     // Special sparks for a bullet.
-    if ( dflags & DAMAGE_BULLET ) {
+    if ( damageFlags & DAMAGE_BULLET ) {
         te_sparks = TE_BULLET_SPARKS;
     }
 
     // Bonus damage for suprising a monster.
-    if (!(dflags & DAMAGE_RADIUS) && (targ->svflags & SVF_MONSTER) 
+    if (!( damageFlags & DAMAGE_RADIUS) && (targ->svflags & SVF_MONSTER)
         && (attacker->client) && (!targ->enemy) && (targ->health > 0)) {
         finalDamage *= 2;
     }
@@ -324,7 +324,7 @@ void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, con
     const int32_t finalKnockBack = ( targ->flags & FL_NO_KNOCKBACK ? 0 : knockBack );
 
     // Figure momentum add.
-    if ( !( dflags & DAMAGE_NO_KNOCKBACK ) ) {
+    if ( !( damageFlags & DAMAGE_NO_KNOCKBACK ) ) {
         if ( ( finalKnockBack ) && (targ->movetype != MOVETYPE_NONE) && (targ->movetype != MOVETYPE_BOUNCE) 
             && (targ->movetype != MOVETYPE_PUSH) && (targ->movetype != MOVETYPE_STOP)) {
                 vec3_t  kvel;
@@ -351,7 +351,7 @@ void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, con
     int32_t save = 0;
 
     // check for godmode
-    if ((targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION)) {
+    if ((targ->flags & FL_GODMODE) && !( damageFlags & DAMAGE_NO_PROTECTION)) {
         take = 0;
         save = finalDamage;
         SpawnDamage(te_sparks, point, normal, save);
@@ -371,7 +371,7 @@ void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, con
     int32_t asave = save;
 
     // team damage avoidance
-    if ( !( dflags & DAMAGE_NO_PROTECTION ) && CheckTeamDamage( targ, attacker ) ) {
+    if ( !( damageFlags & DAMAGE_NO_PROTECTION ) && CheckTeamDamage( targ, attacker ) ) {
         return;
     }
 
@@ -444,7 +444,7 @@ void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, con
         VectorCopy(point, client->frameDamage.from);
                 //client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
 
-        if ( !( dflags & DAMAGE_NO_INDICATOR ) 
+        if ( !( damageFlags & DAMAGE_NO_INDICATOR )
             && inflictor != world && attacker != world 
             && ( take || asave ) ) 
         {
@@ -463,7 +463,7 @@ void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, con
                 indicator = &client->frameDamage.damage_indicators[ i ];
                 // for projectile direct hits, use the attacker; otherwise
                 // use the inflictor (rocket splash should point to the rocket)
-                indicator->from = ( dflags & DAMAGE_RADIUS ) ? inflictor->s.origin : attacker->s.origin;
+                indicator->from = ( damageFlags & DAMAGE_RADIUS ) ? inflictor->s.origin : attacker->s.origin;
                 indicator->health = indicator->armor = 0;
                 client->frameDamage.num_damage_indicators++;
             }

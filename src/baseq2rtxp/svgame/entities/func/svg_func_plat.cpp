@@ -216,16 +216,29 @@ void plat_blocked( edict_t *self, edict_t *other ) {
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
         const bool knockBack = true;
         // give it a chance to go away on it's own terms (like gibs)
-        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, knockBack, 0, MEANS_OF_DEATH_CRUSHED );
+        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, knockBack, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
-        if ( other ) {
+        if ( other && other->inuse && other->solid ) { // PGM)
             SVG_Misc_BecomeExplosion1( other );
         }
         return;
     }
 
+    // PGM
+    //  gib dead things
+    if ( other->health < 1 )
+        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+    // PGM
+
     const bool knockBack = false;
-    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, knockBack, 0, MEANS_OF_DEATH_CRUSHED );
+    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+    
+    // [Paril-KEX] killed the thing, so don't switch directions
+    //if ( !other->inuse || other->solid == SOLID_NOT ) {
+    // WID: Seems more appropriate since solid_not can still be inuse and alive but whatever.
+    if ( !other->inuse || ( other->inuse && other->solid == SOLID_NOT ) ) {
+        return;
+    }
 
     if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
         plat_go_down( self );

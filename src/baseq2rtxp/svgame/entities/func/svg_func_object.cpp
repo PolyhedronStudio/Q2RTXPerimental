@@ -29,7 +29,7 @@ void func_object_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface
     if ( other && other->takedamage == DAMAGE_NO ) {
         return;
     }
-    SVG_TriggerDamage( other, self, self, vec3_origin, self->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
+    SVG_TriggerDamage( other, self, self, vec3_origin, self->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 
 void func_object_release( edict_t *self ) {

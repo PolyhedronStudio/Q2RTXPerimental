@@ -693,11 +693,11 @@ static void P_CheckWorldEffects( void ) {
 				current_player->pain_debounce_time = level.time + 1_sec;
 			}
 
-			SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MEANS_OF_DEATH_LAVA );
+			SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );
 		}
 
 		if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
-			SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MEANS_OF_DEATH_SLIME );
+			SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
 		}
 	}
 }

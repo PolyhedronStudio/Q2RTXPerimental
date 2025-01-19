@@ -761,7 +761,7 @@ extern spawn_temp_t st;
 *	@brief	State Constants, top and down are synonymous to open and close, up to opening, down to closing.
 **/
 typedef enum svg_pushmove_state_e {
-    PUSHMOVE_STATE_TOP = 0,
+    PUSHMOVE_STATE_TOP          = 0,
     PUSHMOVE_STATE_BOTTOM = 1,
     PUSHMOVE_STATE_MOVING_UP = 2,
     PUSHMOVE_STATE_MOVING_DOWN = 3,
@@ -1211,20 +1211,24 @@ edict_t *SVG_FindWithinRadius( edict_t *from, const vec3_t org, const float rad 
 //
 // g_combat.c
 //
+// Damage flags
+typedef enum damageflags_e {
+    DAMAGE_NONE = 0,
+    DAMAGE_RADIUS = BIT( 0 ),  // Damage was indirect.
+    DAMAGE_NO_ARMOR = BIT( 1 ),  // Armour does not protect from this damage.
+    DAMAGE_ENERGY = BIT( 2 ),  // Damage is from an energy based weapon.
+    DAMAGE_NO_KNOCKBACK = BIT( 3 ),  // Do not affect velocity, just view angles.
+    DAMAGE_BULLET = BIT( 4 ),  // Damage is from a bullet (used for ricochets).
+    DAMAGE_NO_PROTECTION = BIT( 5 ),  // Armor, shields, invulnerability, and godmode have no effect.
+    DAMAGE_NO_INDICATOR = BIT( 6 )  // For clients: No damage indicators.
+} damageflags_t;
+// Bit Operators:
+QENUM_BIT_FLAGS( damageflags_t );
+
 const bool SVG_OnSameTeam( edict_t *ent1, edict_t *ent2 );
 const bool SVG_CanDamage( edict_t *targ, edict_t *inflictor );
 void SVG_TriggerDamage( edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const int32_t dflags, const sg_means_of_death_t meansOfDeath );
 void SVG_RadiusDamage( edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath );
-
-// damage flags
-#define DAMAGE_NONE             BIT( 0 )
-#define DAMAGE_RADIUS           BIT( 1 )  // Damage was indirect.
-#define DAMAGE_NO_ARMOR         BIT( 2 )  // Armour does not protect from this damage.
-#define DAMAGE_ENERGY           BIT( 3 )  // Damage is from an energy based weapon.
-#define DAMAGE_NO_KNOCKBACK     BIT( 4 )  // Do not affect velocity, just view angles.
-#define DAMAGE_BULLET           BIT( 5 )  // Damage is from a bullet (used for ricochets).
-#define DAMAGE_NO_PROTECTION    BIT( 6 )  // Armor, shields, invulnerability, and godmode have no effect.
-#define DAMAGE_NO_INDICATOR     BIT( 7 )  // For clients: No damage indicators.
 
 
 //

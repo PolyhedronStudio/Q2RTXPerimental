@@ -29,12 +29,12 @@ STOP mean it will stop moving instead of pushing entities
 */
 
 void rotating_blocked( edict_t *self, edict_t *other ) {
-    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
+    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 
 void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
     if ( !VectorEmpty( self->avelocity ) )
-        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MEANS_OF_DEATH_CRUSHED );
+        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 
 void rotating_set_avelocity( edict_t *self ) {
@@ -122,7 +122,7 @@ void SP_func_rotating( edict_t *ent ) {
     }
 
     if ( ent->spawnflags & 1 ) {
-        ent->use( ent, NULL, NULL, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_ON, 1 );
+        ent->use( ent, NULL, NULL, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_SET, 1 );
     }
 
     if ( ent->spawnflags & 64 ) {
