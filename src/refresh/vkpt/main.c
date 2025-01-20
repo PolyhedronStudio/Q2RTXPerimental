@@ -3760,7 +3760,10 @@ R_Init_RTX(bool total)
 	cvar_pt_surface_lights_threshold = Cvar_Get("pt_surface_lights_threshold", "215", CVAR_FILES);
 
 	// Multiplier for texinfo radiance field to convert radiance to emissive factors
-	cvar_pt_bsp_radiance_scale = Cvar_Get("pt_bsp_radiance_scale", "0.001", CVAR_FILES);
+	// <Q2RTXP>: WID: This 0.001 value only allows max a light of 0.35 brightness.
+	//cvar_pt_bsp_radiance_scale = Cvar_Get( "pt_bsp_radiance_scale", "0.001", CVAR_FILES );
+	//<Q2RTXP>: WID: This value allows up to 1.0 brightness.
+	cvar_pt_bsp_radiance_scale = Cvar_Get("pt_bsp_radiance_scale", "0.003921568627451", CVAR_FILES);
 
 	// Controls which sky surfaces become poly-lights.
 	// 0 -> only the SKY surfaces in clusters listed in sky_clusters.txt
