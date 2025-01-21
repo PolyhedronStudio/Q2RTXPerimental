@@ -24,7 +24,7 @@
 /**
 *   @brief  Calls the (usually key/value field luaName).."_Use" matching Lua function.
 **/
-const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, edict_t *entity, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType = entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, const int32_t useValue = 0, const bool verboseIfMissing = true );
+const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, edict_t *entity, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType = entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, const int32_t useValue = 0, const bool verboseIfMissing = true );
 /**
 *   @brief  Centerprints the trigger message and plays a set sound, or default chat hud sound.
 **/
@@ -204,17 +204,21 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 	if ( entity->luaProperties.luaName ) {
 		// Get view for state.
 		sol::state_view solStateView = sol::state_view( s );
+		// Return value.
+		bool returnValue = false;
 		// Dispatch Callback.
 		useResult = ( SVG_Trigger_DispatchLuaUseCallback(
 			// Sol State.
 			solStateView,
 			// LuaName of entity/entities, appended with "_Use".
 			entity->luaProperties.luaName,
+			// Return value.
+			returnValue,
 			// Entities.
 			entity, other, activator,
 			// UseType n Value.
 			useType, useValue
-		) ? 1 : -1 ); // 1 == USETARGET_FIRED, -1 == USETARGET_INVALID
+		) ? 1/*USETARGET_FIRED*/ : -1/*USETARGET_INVALID*/ );
 	}
 
 	if ( !entity->inuse ) {
@@ -348,17 +352,21 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 				if ( fireTargetEntity->luaProperties.luaName ) {
 					// Get view for state.
 					sol::state_view solStateView = sol::state_view( s );
+					// Return value.
+					bool returnValue = false;
 					// Dispatch Callback.
 					useResult = ( SVG_Trigger_DispatchLuaUseCallback(
 						// Sol State.
 						solStateView,
 						// LuaName of entity/entities, appended with "_Use".
 						fireTargetEntity->luaProperties.luaName,
+						// Return value.
+						returnValue,
 						// Entities.
 						fireTargetEntity, other, activator,
 						// UseType n Value.
 						useType, useValue
-					) ? 1 : -1 ); // 1 == USETARGET_FIRED, -1 == USETARGET_INVALID
+					) ? 1/*USETARGET_FIRED*/ : -1/*USETARGET_INVALID*/ );
 				}
 
 				if ( !entity->inuse ) {

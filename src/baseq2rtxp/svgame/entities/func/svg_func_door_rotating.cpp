@@ -16,16 +16,6 @@
 
 
 
-/**
-*   For readability's sake:
-**/
-static constexpr svg_pushmove_state_t DOOR_STATE_OPENED = PUSHMOVE_STATE_TOP;
-static constexpr svg_pushmove_state_t DOOR_STATE_CLOSED = PUSHMOVE_STATE_BOTTOM;
-static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_OPENED_STATE = PUSHMOVE_STATE_MOVING_UP;
-static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_CLOSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
-
-
-
 /*QUAKED func_door_rotating (0 .5 .8) ? START_OPEN REVERSE CRUSHER NOMONSTER ANIMATED TOGGLE X_AXIS Y_AXIS
 TOGGLE causes the door to wait in both the start and end states for a trigger event.
 
@@ -196,7 +186,7 @@ void SP_func_door_rotating( edict_t *ent ) {
 
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = Think_CalcMoveSpeed;
+        ent->think = SVG_PushMove_Think_CalculateMoveSpeed;
     // Touch based door:DOOR_SPAWNFLAG_DAMAGE_ACTIVATES
     } else if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
         // Set its next think to create the trigger area.
@@ -205,7 +195,7 @@ void SP_func_door_rotating( edict_t *ent ) {
     } else {
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = Think_CalcMoveSpeed;
+        ent->think = SVG_PushMove_Think_CalculateMoveSpeed;
 
         // This door is only toggled, never untoggled, by each (+usetarget) interaction.
         if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_PRESSABLE ) ) {

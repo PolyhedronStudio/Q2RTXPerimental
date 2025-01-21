@@ -39,6 +39,15 @@ static constexpr int32_t DOOR_SPAWNFLAG_Y_AXIS			= BIT( 11 );
 static constexpr int32_t DOOR_SPAWNFLAG_BOTH_DIRECTIONS = BIT( 12 );
 
 
+/**
+*   For readability's sake:
+**/
+static constexpr svg_pushmove_state_t DOOR_STATE_OPENED = PUSHMOVE_STATE_TOP;
+static constexpr svg_pushmove_state_t DOOR_STATE_CLOSED = PUSHMOVE_STATE_BOTTOM;
+static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_OPENED_STATE = PUSHMOVE_STATE_MOVING_UP;
+static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_CLOSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
+
+
 
 /**
 *	@brief

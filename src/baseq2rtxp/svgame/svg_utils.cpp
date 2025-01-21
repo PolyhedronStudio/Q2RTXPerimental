@@ -190,7 +190,7 @@ void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const 
 /**
 *   @brief  Calls the (usually key/value field luaName).."_Use" matching Lua function.
 **/
-const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, edict_t *entity, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool verboseIfMissing ) {
+const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, edict_t *entity, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool verboseIfMissing ) {
     if ( luaName.empty() ) {
         return false;
     }
@@ -382,39 +382,43 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
                     // Generate function 'callback' name.
                     const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
                     // Get reference to sol lua state view.
-                    sol::state_view &solState = SVG_Lua_GetSolState();
+                    sol::state_view &solStateView = SVG_Lua_GetSolState();
 
-                    // Get function object.
-                    sol::protected_function funcRefUse = solState[ luaFunctionName ];
-                    // Get type.
-                    sol::type funcRefType = funcRefUse.get_type();
-                    // Ensure it matches, accordingly
-                    if ( funcRefType != sol::type::function /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
-                        // Return if it is LUA_NOREF and luaState == nullptr again.
-                        // TODO: Error?
-                        return;
-                    }
+                    bool returnValue = false;
+                    const bool functionCalled = SVG_Trigger_DispatchLuaUseCallback( solStateView, fireTargetEntity->luaProperties.luaName,
+                        returnValue,
+                        fireTargetEntity, ent, activator, useType, useValue, true );
+                    //// Get function object.
+                    //sol::protected_function funcRefUse = solState[ luaFunctionName ];
+                    //// Get type.
+                    //sol::type funcRefType = funcRefUse.get_type();
+                    //// Ensure it matches, accordingly
+                    //if ( funcRefType != sol::type::function /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
+                    //    // Return if it is LUA_NOREF and luaState == nullptr again.
+                    //    // TODO: Error?
+                    //    return;
+                    //}
 
-                    // Create lua userdata object references to the entities.
-                    auto leSelf = sol::make_object<lua_edict_t>( solState, lua_edict_t( fireTargetEntity ) );
-                    auto leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( ent ) );
-                    auto leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
-                    // Fire SignalOut callback.
-                    auto callResult = funcRefUse( leSelf, leOther, leActivator, useType, useValue );
-                    // If valid, convert result to boolean.
-                    if ( callResult.valid() ) {
-                        // Convert.
-                        bool signalHandled = callResult.get<bool>();
-                        // Debug print.
-                    // We got an error:
-                    } else {
-                        // Acquire error object.
-                        sol::error resultError = callResult;
-                        // Get error string.
-                        const std::string errorStr = resultError.what();
-                        // Print the error in case of failure.
-                        gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
-                    }
+                    //// Create lua userdata object references to the entities.
+                    //auto leSelf = sol::make_object<lua_edict_t>( solState, lua_edict_t( fireTargetEntity ) );
+                    //auto leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( ent ) );
+                    //auto leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
+                    //// Fire SignalOut callback.
+                    //auto callResult = funcRefUse( leSelf, leOther, leActivator, useType, useValue );
+                    //// If valid, convert result to boolean.
+                    //if ( callResult.valid() ) {
+                    //    // Convert.
+                    //    bool signalHandled = callResult.get<bool>();
+                    //    // Debug print.
+                    //// We got an error:
+                    //} else {
+                    //    // Acquire error object.
+                    //    sol::error resultError = callResult;
+                    //    // Get error string.
+                    //    const std::string errorStr = resultError.what();
+                    //    // Print the error in case of failure.
+                    //    gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
+                    //}
                 }
             }
             if ( !ent->inuse ) {

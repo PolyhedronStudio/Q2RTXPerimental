@@ -40,46 +40,6 @@ void Touch_DoorTrigger( edict_t *self, edict_t *other, cplane_t *plane, csurface
 /**
 *	@brief
 **/
-void Think_CalcMoveSpeed( edict_t *self ) {
-    edict_t *ent;
-    float   minDist;
-    float   time;
-    float   newspeed;
-    float   ratio;
-    float   dist;
-
-    if ( self->flags & FL_TEAMSLAVE )
-        return;     // only the team master does this
-
-    // find the smallest distance any member of the team will be moving
-    minDist = fabsf( self->pushMoveInfo.distance );
-    for ( ent = self->teamchain; ent; ent = ent->teamchain ) {
-        dist = fabsf( ent->pushMoveInfo.distance );
-        if ( dist < minDist )
-            minDist = dist;
-    }
-
-    time = minDist / self->pushMoveInfo.speed;
-
-    // adjust speeds so they will all complete at the same time
-    for ( ent = self; ent; ent = ent->teamchain ) {
-        newspeed = fabsf( ent->pushMoveInfo.distance ) / time;
-        ratio = newspeed / ent->pushMoveInfo.speed;
-        if ( ent->pushMoveInfo.accel == ent->pushMoveInfo.speed )
-            ent->pushMoveInfo.accel = newspeed;
-        else
-            ent->pushMoveInfo.accel *= ratio;
-        if ( ent->pushMoveInfo.decel == ent->pushMoveInfo.speed )
-            ent->pushMoveInfo.decel = newspeed;
-        else
-            ent->pushMoveInfo.decel *= ratio;
-        ent->pushMoveInfo.speed = newspeed;
-    }
-}
-
-/**
-*	@brief
-**/
 void Think_SpawnDoorTrigger( edict_t *ent ) {
     edict_t *other;
     vec3_t      mins, maxs;
@@ -114,7 +74,7 @@ void Think_SpawnDoorTrigger( edict_t *ent ) {
     if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN )
         door_use_areaportals( ent, true );
 
-    Think_CalcMoveSpeed( ent );
+    SVG_PushMove_Think_CalculateMoveSpeed( ent );
 }
 
 

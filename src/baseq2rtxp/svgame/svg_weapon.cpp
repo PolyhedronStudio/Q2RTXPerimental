@@ -224,8 +224,6 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
     vec3_t      v, point;
 
     if ( tr.ent != nullptr && ( tr.ent != &g_edicts[ 0 ] ) ) {
-        gi.dprintf( "%s: punched mofuckah '%s' in the sack dawg!\n", __func__, tr.ent->classname );
-
         // Do our special form of knockback here
         VectorMA( tr.ent->absmin, 0.5f, tr.ent->size, v );
         VectorSubtract( v, point, v );

@@ -218,6 +218,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 * [X] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
 	- [X] Filter so it doesn't clip to all entities.
 ### Low Priority:
+*	[ ] // TODO: Fix the whole max shenanigan in shared.h,  because this is wrong... #undef max in svg_local.h etc_
 * [x] None
 ### Lowest, nearly redundant Priority:
 * [ ] Remove the if statement for cl_batchcmds in the (client/input.c)``ready_to_send``_to re-enable the bug for batched commands movement. The bug is that pushers have a steady pattern of 'spiking', moving neatly 5 units a frame as expected up to suddenly the double.

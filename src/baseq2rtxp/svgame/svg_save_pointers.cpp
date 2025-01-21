@@ -63,24 +63,20 @@ extern void monster_testdummy_puppet_think( edict_t *self );
 extern void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void monster_testdummy_puppet_post_spawn( edict_t *self );
 // </Q2RTXP>
+extern void SVG_PushMove_Think_CalculateMoveSpeed( edict_t *self );
 
 extern void SVG_PushMove_AngleMoveBegin( edict_t *ent );
 extern void SVG_PushMove_AngleMoveDone( edict_t *ent );
 extern void SVG_PushMove_AngleMoveFinal( edict_t *ent );
+
 extern void barrel_delay( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void barrel_explode( edict_t *self );
 extern void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void body_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 
-#if 0
-extern void button_reached_pressed_state( edict_t *self );
-extern void button_return_to_unpressed_state( edict_t *self );
-extern void button_trigger_and_wait( edict_t *self );
-#else
 extern void button_unpress_move_done( edict_t *self );
 extern void button_think_return( edict_t *self );
 extern void button_press_move_done( edict_t *self );
-#endif
 extern void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void button_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void button_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
@@ -160,6 +156,7 @@ extern void SVG_PushMove_MoveBegin( edict_t *ent );
 extern void SVG_PushMove_MoveDone( edict_t *ent );
 extern void SVG_PushMove_MoveFinal( edict_t *ent );
 extern void SVG_PushMove_Think_AccelerateMove( edict_t *self );
+extern void SVG_PushMove_Think_AccelerateMoveNew( edict_t *self );
 
 extern void multi_wait( edict_t *ent );
 
@@ -311,6 +308,8 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void *)SVG_PushMove_MoveDone },
 { P_think,  (void *)SVG_PushMove_MoveFinal },
 { P_think,  (void *)SVG_PushMove_Think_AccelerateMove },
+{ P_think,	(void *)SVG_PushMove_Think_AccelerateMoveNew },
+{ P_think,  (void *)SVG_PushMove_Think_CalculateMoveSpeed },
 
 { P_think,  (void *)multi_wait },
 
@@ -327,7 +326,6 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void *)target_lightramp_think },
 
 { P_think,  (void *)TH_viewthing },
-{ P_think,  (void *)Think_CalcMoveSpeed },
 { P_think,  (void *)Think_UseTargetsDelay },
 { P_think,  (void *)Think_SignalOutDelay },
 { P_think,  (void *)Think_SpawnDoorTrigger },

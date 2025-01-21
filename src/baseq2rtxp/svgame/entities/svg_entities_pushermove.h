@@ -93,6 +93,11 @@ void SVG_PushMove_AngleMoveCalculateSign( edict_t *ent, const float sign, svg_pu
 *			the speed required for a move during the next game frame.
 **/
 void SVG_PushMove_Think_AccelerateMove( edict_t *ent );
+void SVG_PushMove_Think_AccelerateMoveNew( edict_t *ent );
+/**
+*	@brief	Readjust speeds so that teamed movers start/end synchronized.
+**/
+void SVG_PushMove_Think_CalculateMoveSpeed( edict_t *self );
 
 
 

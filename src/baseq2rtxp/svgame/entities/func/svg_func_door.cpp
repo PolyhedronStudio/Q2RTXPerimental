@@ -15,16 +15,6 @@
 
 
 
-/**
-*   For readability's sake:
-**/
-static constexpr svg_pushmove_state_t DOOR_STATE_OPENED = PUSHMOVE_STATE_TOP;
-static constexpr svg_pushmove_state_t DOOR_STATE_CLOSED = PUSHMOVE_STATE_BOTTOM;
-static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_OPENED_STATE = PUSHMOVE_STATE_MOVING_UP;
-static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_CLOSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
-
-
-
 /*
 ======================================================================
 
@@ -82,6 +72,23 @@ void door_use_areaportals( edict_t *self, const bool open ) {
 *   @brief  Fire use target lua function implementation if existant.
 **/
 void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t &useType, const int32_t useValue ) {
+    #if 1
+    //SVG_UseTargets( self, self->activator, useType, useValue );
+    // Get reference to sol lua state view.
+    sol::state_view &solStateView = SVG_Lua_GetSolStateView();
+    // We create these ourselves to make sure they are the appropriate type. 
+    // (Other types got a constructor(edict_t*) as well. So we won't rely on it automatically resolving it, although it does at this moment VS2022)
+    auto leSelf = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( self ) );
+    auto leOther = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( other ) );
+    auto leActivator = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( activator ) );
+    // Call into function.
+    bool callReturnValue = false;
+    bool calledFunction = LUA_CallLuaNameEntityFunction( self, "Use", 
+        solStateView, 
+        callReturnValue, LUA_CALLFUNCTION_VERBOSE_MISSING,
+        leSelf, leOther, leActivator, useType, useValue 
+    );
+    #else
     // Need the luaName.
     if ( self->luaProperties.luaName ) {
         //// Generate function 'callback' name.
@@ -122,6 +129,7 @@ void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const enti
             gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
         }
     }
+    #endif
 }
 
 
@@ -334,9 +342,14 @@ void door_open_move_done( edict_t *self ) {
     }
     // Apply state.
     self->pushMoveInfo.state = DOOR_STATE_OPENED;
-
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnOpened" );
+
+    // Adjust areaportal.
+    if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
+        // Update areaportals for PVS awareness.
+        door_use_areaportals( self, false );
+    }
 
     // If it is a toggle door, don't set any next think to 'go down' again.
     if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
@@ -351,6 +364,7 @@ void door_open_move_done( edict_t *self ) {
         // Tell it when to start closing.
         self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
     }
+
 }
 
 /**
@@ -376,11 +390,16 @@ void door_close_move_done( edict_t *self ) {
         }
     }
 
+    // Adjust state.
     self->pushMoveInfo.state = DOOR_STATE_CLOSED;
-    door_use_areaportals( self, false );
-
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnClosed" );
+
+    // Adjust areaportal.
+    if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
+        // Update areaportals for PVS awareness.
+        door_use_areaportals( self, false );
+    }
 }
 
 
@@ -431,6 +450,12 @@ void door_close_move( edict_t *self ) {
 
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnClose" );
+
+    // Adjust areaportal.
+    if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
+        // Update areaportals for PVS awareness.
+        door_use_areaportals( self, true );
+    }
 }
 
 /**
@@ -477,11 +502,13 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
 
     // Fire use targets.
     SVG_UseTargets( self, self->activator );
-    // Update areaportals for PVS awareness.
-    door_use_areaportals( self, true );
-
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnOpen" );
+
+    if ( !SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
+        // Update areaportals for PVS awareness.
+        door_use_areaportals( self, true );
+    }
 }
 
 /**
@@ -833,7 +860,7 @@ void SP_func_door( edict_t *ent ) {
         ent->pain = door_pain;
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = Think_CalcMoveSpeed;
+        ent->think = SVG_PushMove_Think_CalculateMoveSpeed;
     // Touch based door:DOOR_SPAWNFLAG_DAMAGE_ACTIVATES
     } else if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
         // Set its next think to create the trigger area.
@@ -842,7 +869,7 @@ void SP_func_door( edict_t *ent ) {
     } else {
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = Think_CalcMoveSpeed;
+        ent->think = SVG_PushMove_Think_CalculateMoveSpeed;
 
         // This door is only toggled, never untoggled, by each (+usetarget) interaction.
         if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_PRESSABLE ) ) {

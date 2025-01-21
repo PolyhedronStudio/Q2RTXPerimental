@@ -190,12 +190,14 @@ static const bool LUA_CallFunction( sol::state_view &stateView,
 
 	// Error if invalid.
 	if ( !callResult.valid() || callResult.status() == sol::call_status::yielded ) { // We don't support yielding. (Impossible to save/load aka restore state.)
-		// Acquire error object.
-		sol::error resultError = callResult;
-		// Get error string.
-		const std::string errorStr = resultError.what();
-		// Print the error in case of failure.
-		gi.bprintf( PRINT_ERROR, "%s:\nCallStatus[%s]: %s\n ", __func__, sol::to_string( callResult.status() ).c_str(), errorStr.c_str() );
+		if ( verbosity != LUA_CALLFUNCTION_VERBOSE_MISSING ) {
+			// Acquire error object.
+			sol::error resultError = callResult;
+			// Get error string.
+			const std::string errorStr = resultError.what();
+			// Print the error in case of failure.
+			gi.bprintf( PRINT_ERROR, "%s:\nCallStatus[%s]: %s\n ", __func__, sol::to_string( callResult.status() ).c_str(), errorStr.c_str() );
+		}
 	} else {
 		// Cast to expected return value type.
 		returnValue = callResult.get<RetType>();
@@ -206,4 +208,33 @@ static const bool LUA_CallFunction( sol::state_view &stateView,
 
 	// Return success or failure.
 	return executedSuccessfully;
+}
+
+/**
+*	@brief	Looks up the specified function, if it exists, will call it with the variadic arguments supplied( if any ).
+*	@param	numExpectedArgs	If left at 0 it ignores checking the stack for number of valid arguments.
+*	@return	True in case it was a success, meaning the return values are now in the lua stack and need to be popped.
+*	@note	One has to deal and pop return values themselves.
+**/
+template <typename RetType, typename... Rest>
+static const bool LUA_CallLuaNameEntityFunction( edict_t *ent, const std::string callBackName, sol::state_view &stateView,
+	RetType &returnValue,
+	// WID: TODO: Do proper argument inspectations perhaps?
+	//const int32_t numExpectedArgs = 0, const int32_t numReturnValues = 0,
+	const Rest&... rest ) {
+
+	bool calledFunction = false;
+	
+	// Generate function 'callback' name.
+	if ( ent->luaProperties.luaName ) {
+		const std::string luaFunctionName = std::string( ent->luaProperties.luaName ) + "_" + callBackName;
+		calledFunction = LUA_CallFunction( 
+			stateView, luaFunctionName,
+			// WID: TODO: Do proper argument inspectations perhaps?
+			//const int32_t numExpectedArgs = 0, const int32_t numReturnValues = 0,
+			returnValue, LUA_CALLFUNCTION_VERBOSE_MISSING, rest ... );
+	}
+
+	// There was no luaName set, so we didn't know which function to callback into.
+	return calledFunction;
 }

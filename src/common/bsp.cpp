@@ -419,7 +419,9 @@ LOAD( Faces ) {
         for ( j = 0; j < 4 && in[ j ] != 255; j++ ) {
             out->styles[ j ] = in[ j ];
         }
+        // <Q2RTXP>: WID: We need to 'fill up' all actual lightstyles, also those that will come in by BSPX
         for ( out->numstyles = j; j < 4; j++ ) {
+        //for ( out->numstyles = j; j < MAX_LIGHTSTYLES; j++ ) {
             out->styles[ j ] = 255;
         }
         in += 4;

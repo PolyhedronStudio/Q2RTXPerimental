@@ -235,7 +235,7 @@ typedef struct Vector3 {
     /**
     *   @brief  Vector3 Constructors, including support for passing in a vec3_t
     **/
-    [[nodiscard]] inline Vector3() {
+    [[nodiscard]] constexpr inline Vector3() {
         this->x = 0;
         this->y = 0;
         this->z = 0;

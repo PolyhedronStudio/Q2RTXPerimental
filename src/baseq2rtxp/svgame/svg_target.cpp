@@ -714,7 +714,7 @@ void target_earthquake_use( edict_t *self, edict_t *other, edict_t *activator, c
 		uint32_t i;
 		edict_t *e;
 
-		for ( i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++ ) {
+        for ( i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++ ) {
 			if ( !e->inuse )
 				continue;
 			if ( !e->client )

@@ -762,9 +762,9 @@ extern spawn_temp_t st;
 **/
 typedef enum svg_pushmove_state_e {
     PUSHMOVE_STATE_TOP          = 0,
-    PUSHMOVE_STATE_BOTTOM = 1,
-    PUSHMOVE_STATE_MOVING_UP = 2,
-    PUSHMOVE_STATE_MOVING_DOWN = 3,
+    PUSHMOVE_STATE_BOTTOM       = 1,
+    PUSHMOVE_STATE_MOVING_UP    = 2,
+    PUSHMOVE_STATE_MOVING_DOWN  = 3,
 } svg_pushmove_state_t;
 //typedef int32_t svg_pushmove_state_t;
 //static constexpr svg_pushmove_state_t PUSHMOVE_STATE_TOP = 0;
@@ -799,6 +799,9 @@ typedef struct {
     // Dynamic State Data
     //
     svg_pushmove_state_t state;
+    //! Destination origin.
+    Vector3     dest;
+    //! Direction vector(not normalized.)
     Vector3     dir;
     bool        in_motion;  //! Hard set by begin and final functions.
     float       current_speed;
@@ -820,6 +823,27 @@ typedef struct {
     float       distance;
     //! Time to wait before returning back to initial state. (Non toggleables).
     float       wait;
+
+    //
+    // SubMove Data(Q2RE Style):
+    //
+    // Curve reference.
+    struct {
+        //! Origin position we're currently at.
+        Vector3 referenceOrigin;
+        //! Number of curve positions.
+        uint64_t countPositions;
+        //! Dynamically (re-)allocated in-game.
+        float *positions;
+        //savable_allocated_memory_t<float, TAG_LEVEL> curve.positions;
+        //float positions[ 1024 ]; // WID:TODO: Make saveable dynamic alloc block.
+        // Frame index.
+        uint64_t frame;
+        //! Current curve.subFrame, total number of subframes.
+        uint8_t subFrame, numberSubFrames;
+        //! Number of subframes processed.
+        uint64_t numberFramesDone;
+    } curve;
 
     //
     // Lock/Unlock Data
@@ -1227,7 +1251,7 @@ QENUM_BIT_FLAGS( damageflags_t );
 
 const bool SVG_OnSameTeam( edict_t *ent1, edict_t *ent2 );
 const bool SVG_CanDamage( edict_t *targ, edict_t *inflictor );
-void SVG_TriggerDamage( edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const int32_t dflags, const sg_means_of_death_t meansOfDeath );
+void SVG_TriggerDamage( edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath );
 void SVG_RadiusDamage( edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath );
 
 

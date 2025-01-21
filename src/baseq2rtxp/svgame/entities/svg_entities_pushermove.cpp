@@ -49,8 +49,8 @@ void SVG_PushMove_MoveFinal( edict_t *ent ) {
         return;
     }
 
-    VectorScale( ent->pushMoveInfo.dir, ent->pushMoveInfo.remaining_distance / FRAMETIME, ent->velocity );
-
+    // [Paril-KEX] use exact remaining distance
+    ent->velocity = ( ent->pushMoveInfo.dest - ent->s.origin ) * ( 1.f / gi.frame_time_s );
     //if ( ent->targetEntities.movewith ) {
     //    VectorAdd( ent->targetEntities.movewith->velocity, ent->velocity, ent->velocity );
     //}
@@ -69,7 +69,8 @@ void SVG_PushMove_MoveBegin( edict_t *ent ) {
         SVG_PushMove_MoveFinal( ent );
         return;
     }
-    VectorScale( ent->pushMoveInfo.dir, ent->pushMoveInfo.speed, ent->velocity );
+    // Recalculate velocity into current direction.
+    ent->velocity = ent->pushMoveInfo.dir * ent->pushMoveInfo.speed;
 
     //if ( ent->targetEntities.movewith ) {
     //    VectorAdd( ent->targetEntities.movewith->velocity, ent->velocity, ent->velocity );
@@ -87,16 +88,46 @@ void SVG_PushMove_MoveBegin( edict_t *ent ) {
     //    SVG_MoveWith_SetChildEntityMovement( ent );
     //}
 }
+
 /**
 *   @brief
 **/
-void SVG_PushMove_Think_AccelerateMove( edict_t *ent );
+void SVG_PushMove_MoveRegular( edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
+    // If the current level entity that is being processed, happens to be in front of the
+    // entity array queue AND is a teamslave, begin moving its team master instead.
+    if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
+        SVG_PushMove_MoveBegin( ent );
+        //} else if ( ent->targetEntities.movewith ) {
+        //    SVG_PushMove_MoveBegin( ent );
+        //} else {
+    // Team Slaves start moving next frame:
+    } else {
+        ent->nextthink = level.time + FRAME_TIME_S;
+        ent->think = SVG_PushMove_MoveBegin;
+    }
+}
+/**
+*   @brief
+**/
+void PushMove_CalculateAcceleratedMove( svg_pushmove_info_t *moveinfo );
+void PushMove_Accelerate( svg_pushmove_info_t *moveinfo );
+bool Think_AccelMove_MoveInfo( svg_pushmove_info_t *moveinfo ) {
+    if ( moveinfo->current_speed == 0 )		// starting or blocked
+        PushMove_CalculateAcceleratedMove( moveinfo );
+
+    PushMove_Accelerate( moveinfo );
+
+    // will the entire move complete on next frame?
+    return moveinfo->remaining_distance > moveinfo->current_speed;
+}
 /**
 *   @brief
 **/
 void SVG_PushMove_MoveCalculate( edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
     // Reset velocity.
     VectorClear( ent->velocity );
+    // Assign new destination.
+    ent->pushMoveInfo.dest = destination;
     // Subtract destination and origin to acquire move direction.
     VectorSubtract( destination, ent->s.origin, ent->pushMoveInfo.dir );
     // Use the normalized direction vector's length to determine the remaining move idstance.
@@ -104,24 +135,70 @@ void SVG_PushMove_MoveCalculate( edict_t *ent, const Vector3 &destination, svg_p
     // Setup end move callback function.
     ent->pushMoveInfo.endMoveCallback = endMoveCallback;
 
+    // Non Accelerating Movement:
     if ( ent->pushMoveInfo.speed == ent->pushMoveInfo.accel && ent->pushMoveInfo.speed == ent->pushMoveInfo.decel ) {
-        // If the current level entity that is being processed, happens to be in front of the
-        // entity array queue AND is a teamslave, begin moving its team master instead.
-        if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
-            SVG_PushMove_MoveBegin( ent );
-            //} else if ( ent->targetEntities.movewith ) {
-            //    SVG_PushMove_MoveBegin( ent );
-            //} else {
-        // Team Slaves start moving next frame:
-        } else {
-            ent->nextthink = level.time + FRAME_TIME_S;
-            ent->think = SVG_PushMove_MoveBegin;
-        }
-    // We're accelerating still:
+        SVG_PushMove_MoveRegular( ent, destination, endMoveCallback );
+    // Accelerative Movement: We're still accelerating up/down:
     } else {
         ent->pushMoveInfo.current_speed = 0;
-        ent->think = SVG_PushMove_Think_AccelerateMove;
+        // Set think time.
         ent->nextthink = level.time + FRAME_TIME_S;
+
+        // Regular accelerate_think for 10hz.
+        if ( gi.tick_rate == 10 ) {
+            ent->think = SVG_PushMove_Think_AccelerateMove;
+        // Specialized accelerate > 10hz.
+        } else {
+            // [Paril-KEX] rewritten to work better at higher tickrates
+            ent->pushMoveInfo.curve.frame = 0;
+            ent->pushMoveInfo.curve.numberSubFrames = ( 0.1f / gi.frame_time_s ) - 1;
+
+            float total_dist = ent->pushMoveInfo.remaining_distance;
+
+            std::vector<float> distances;
+
+            if ( ent->pushMoveInfo.curve.numberSubFrames ) {
+                distances.push_back( 0 );
+                ent->pushMoveInfo.curve.frame = 1;
+            } else
+                ent->pushMoveInfo.curve.frame = 0;
+
+            // simulate 10hz movement
+            while ( ent->pushMoveInfo.remaining_distance ) {
+                if ( !Think_AccelMove_MoveInfo( &ent->pushMoveInfo ) )
+                    break;
+
+                ent->pushMoveInfo.remaining_distance -= ent->pushMoveInfo.current_speed;
+                distances.push_back( total_dist - ent->pushMoveInfo.remaining_distance );
+            }
+
+            if ( ent->pushMoveInfo.curve.numberSubFrames )
+                distances.push_back( total_dist );
+
+            ent->pushMoveInfo.curve.subFrame = 0;
+            ent->pushMoveInfo.curve.referenceOrigin = ent->s.origin;
+            
+            // Q2RE: We dun have this kinda stuff 'yet'.
+            //ent->pushMoveInfo.curve.positions = make_savable_memory<float, TAG_LEVEL>( distances.size() );
+            //std::copy( distances.begin(), distances.end(), ent->pushMoveInfo.curve.positions.ptr );
+            // First time around, it will be nullptr of course.
+            if ( ent->pushMoveInfo.curve.positions == nullptr ) {
+                ent->pushMoveInfo.curve.countPositions = distances.size();
+                ent->pushMoveInfo.curve.positions = (float*)gi.TagMalloc( sizeof( float ) * distances.size(), TAG_SVGAME );
+                // Copy in the actual distances.
+                std::copy( distances.begin(), distances.end(), ent->pushMoveInfo.curve.positions );
+            }
+            // Second time around, we'll be reallocating it instead.
+            if ( ent->pushMoveInfo.curve.positions != nullptr && ent->pushMoveInfo.curve.countPositions != distances.size() ) {
+                ent->pushMoveInfo.curve.countPositions = distances.size();
+                gi.TagReMalloc( ent->pushMoveInfo.curve.positions, ent->pushMoveInfo.curve.countPositions );
+                // Copy in the actual distances.
+                std::copy( distances.begin(), distances.end(), ent->pushMoveInfo.curve.positions );
+            }
+
+            ent->pushMoveInfo.curve.numberFramesDone = 0;
+            ent->think = SVG_PushMove_Think_AccelerateMoveNew;
+        }
     }
 }
 
@@ -176,13 +253,6 @@ void SVG_PushMove_AngleMoveFinal( edict_t *ent ) {
 **/
 void SVG_PushMove_AngleMoveBegin( edict_t *ent ) {
     Vector3 destinationDelta = {};
-
-    // set destdelta to the vector needed to move
-    if (/* ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP || */ ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
-        destinationDelta = ent->pushMoveInfo.endAngles - ent->s.angles;
-    } else {
-        destinationDelta = ent->pushMoveInfo.startAngles - ent->s.angles;
-    }
 
     // PGM
     // accelerate as needed
@@ -381,6 +451,49 @@ void PushMove_Accelerate( svg_pushmove_info_t *moveinfo ) {
     return;
 }
 /**
+*	@brief	Readjust speeds so that teamed movers start/end synchronized.
+**/
+void SVG_PushMove_Think_CalculateMoveSpeed( edict_t *self ) {
+    edict_t *ent;
+    float   minDist;
+    float   time;
+    float   newspeed;
+    float   ratio;
+    float   dist;
+
+    if ( self->flags & FL_TEAMSLAVE ) {
+        return;     // only the team master does this
+    }
+
+    // find the smallest distance any member of the team will be moving
+    minDist = fabsf( self->pushMoveInfo.distance );
+    for ( ent = self->teamchain; ent; ent = ent->teamchain ) {
+        dist = fabsf( ent->pushMoveInfo.distance );
+        if ( dist < minDist ) {
+            minDist = dist;
+        }
+    }
+
+    time = minDist / self->pushMoveInfo.speed;
+
+    // adjust speeds so they will all complete at the same time
+    for ( ent = self; ent; ent = ent->teamchain ) {
+        newspeed = fabsf( ent->pushMoveInfo.distance ) / time;
+        ratio = newspeed / ent->pushMoveInfo.speed;
+        if ( ent->pushMoveInfo.accel == ent->pushMoveInfo.speed ) {
+            ent->pushMoveInfo.accel = newspeed;
+        } else {
+            ent->pushMoveInfo.accel *= ratio;
+        }
+        if ( ent->pushMoveInfo.decel == ent->pushMoveInfo.speed ) {
+            ent->pushMoveInfo.decel = newspeed;
+        } else {
+            ent->pushMoveInfo.decel *= ratio;
+        }
+        ent->pushMoveInfo.speed = newspeed;
+    }
+}
+/**
 *   @brief  The team has completed a frame of movement, so calculate
 *			the speed required for a move during the next game frame.
 **/
@@ -408,6 +521,41 @@ void SVG_PushMove_Think_AccelerateMove( edict_t *ent ) {
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
     //    SVG_MoveWith_SetChildEntityMovement( ent );
     //}
+}
+
+void SVG_PushMove_Think_AccelerateMoveNew( edict_t *ent ) {
+    float t = 0.f;
+    float target_dist;
+
+    if ( ent->pushMoveInfo.curve.numberSubFrames ) {
+        if ( ent->pushMoveInfo.curve.subFrame == ent->pushMoveInfo.curve.numberSubFrames + 1 ) {
+            ent->pushMoveInfo.curve.subFrame = 0;
+            ent->pushMoveInfo.curve.frame++;
+
+            if ( ent->pushMoveInfo.curve.frame == ent->pushMoveInfo.curve.countPositions ) {
+                SVG_PushMove_MoveFinal( ent );
+                return;
+            }
+        }
+
+        t = ( ent->pushMoveInfo.curve.subFrame + 1 ) / ( (float)ent->pushMoveInfo.curve.numberSubFrames + 1 );
+
+        target_dist = QM_Lerp( ent->pushMoveInfo.curve.positions[ ent->pushMoveInfo.curve.frame - 1 ], ent->pushMoveInfo.curve.positions[ ent->pushMoveInfo.curve.frame ], t );
+        ent->pushMoveInfo.curve.subFrame++;
+    } else {
+        if ( ent->pushMoveInfo.curve.frame == ent->pushMoveInfo.curve.countPositions ) {
+            //Move_Final( ent );
+            SVG_PushMove_MoveFinal( ent );
+            return;
+        }
+
+        target_dist = ent->pushMoveInfo.curve.positions[ ent->pushMoveInfo.curve.frame++ ];
+    }
+
+    ent->pushMoveInfo.curve.numberFramesDone++;
+    Vector3 target_pos = ent->pushMoveInfo.curve.referenceOrigin + ( ent->pushMoveInfo.dir * target_dist );
+    ent->velocity = ( target_pos - ent->s.origin ) * ( 1.f / gi.frame_time_s );
+    ent->nextthink = level.time + FRAME_TIME_S;
 }
 
 

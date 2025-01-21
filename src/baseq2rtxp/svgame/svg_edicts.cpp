@@ -77,6 +77,12 @@ void SVG_FreeEdict( edict_t *ed ) {
 
     int32_t id = ed->spawn_count + 1;
     //memset( ed, 0, sizeof( *ed ) );
+    
+    // We actually got to make sure that we free the pushmover curve positions data block.
+    if ( ed->pushMoveInfo.curve.positions ) {
+        gi.TagFree( ed->pushMoveInfo.curve.positions );
+    }
+
     // Clear the arguments std::vector just to be sure.
     ed->delayed.signalOut.arguments.clear();
     // Ues C++ method of 'memset' I guess, since we got a C++ container up there.

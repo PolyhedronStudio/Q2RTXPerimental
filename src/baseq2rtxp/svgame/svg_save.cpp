@@ -1145,7 +1145,7 @@ void ReadLevel(const char *filename)
         if (entnum >= globals.num_edicts)
             globals.num_edicts = entnum + 1;
 
-        ent = &g_edicts[entnum];
+        ent = g_edicts + entnum;
         read_fields(&ctx, entityfields, ent);
         ent->inuse = true;
         ent->s.number = entnum;

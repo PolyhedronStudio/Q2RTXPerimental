@@ -101,44 +101,20 @@ void plat_hit_top( edict_t *ent ) {
     #else
     plat_think_idle( ent );
     #endif
-    // WID: LUA: Call the HitTop function if it exists.
-    if ( ent->luaProperties.luaName ) {
-        // Generate function 'callback' name.
-        const std::string luaFunctionName = std::string( ent->luaProperties.luaName ) + "_OnPlatformHitTop";
-        // Get reference to sol lua state view.
-        sol::state_view &solState = SVG_Lua_GetSolState();
 
-        // Get function object.
-        sol::protected_function funcRefUse = solState[ luaFunctionName ];
-        // Get type.
-        sol::type funcRefType = funcRefUse.get_type();
-        // Ensure it matches, accordingly
-        if ( funcRefType != sol::type::function /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
-            // Return if it is LUA_NOREF and luaState == nullptr again.
-            // TODO: Error?
-            return;
-        }
-
-        // Create lua userdata object references to the entities.
-        auto leEnt= sol::make_object<lua_edict_t>( solState, lua_edict_t( ent ) );
-        auto leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( ent->activator ) );
-        // Fire SignalOut callback.
-        auto callResult = funcRefUse( leEnt, leActivator );
-        // If valid, convert result to boolean.
-        if ( callResult.valid() ) {
-            // Convert.
-            bool signalHandled = callResult.get<bool>();
-            // Debug print.
-            // We got an error:
-        } else {
-            // Acquire error object.
-            sol::error resultError = callResult;
-            // Get error string.
-            const std::string errorStr = resultError.what();
-            // Print the error in case of failure.
-            gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
-        }
-    }
+    // Get reference to sol lua state view.
+    sol::state_view &solStateView = SVG_Lua_GetSolStateView();
+    // Create temporary objects encapsulating access to edict_t's.
+    auto leSelf = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent ) );
+    auto leOther = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->other ) );
+    auto leActivator = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->activator ) );
+    // Call into function.
+    bool callReturnValue = false;
+    bool calledFunction = LUA_CallLuaNameEntityFunction( ent, "OnPlatformHitTop",
+        solStateView,
+        callReturnValue,
+        leSelf, leOther, leActivator, ENTITY_USETARGET_TYPE_ON, 1
+    );
 }
 
 void plat_hit_bottom( edict_t *ent ) {
@@ -152,44 +128,19 @@ void plat_hit_bottom( edict_t *ent ) {
     // Engage into idle thinking.
     plat_think_idle( ent );
 
-    // WID: LUA: Call the HitTop function if it exists.
-    if ( ent->luaProperties.luaName ) {
-        // Generate function 'callback' name.
-        const std::string luaFunctionName = std::string( ent->luaProperties.luaName ) + "_OnPlatformHitBottom";
-        // Get reference to sol lua state view.
-        sol::state_view &solState = SVG_Lua_GetSolState();
-
-        // Get function object.
-        sol::protected_function funcRefUse = solState[ luaFunctionName ];
-        // Get type.
-        sol::type funcRefType = funcRefUse.get_type();
-        // Ensure it matches, accordingly
-        if ( funcRefType != sol::type::function /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
-            // Return if it is LUA_NOREF and luaState == nullptr again.
-            // TODO: Error?
-            return;
-        }
-
-        // Create lua userdata object references to the entities.
-        auto leEnt = sol::make_object<lua_edict_t>( solState, lua_edict_t( ent ) );
-        auto leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( ent->activator ) );
-        // Fire SignalOut callback.
-        auto callResult = funcRefUse( leEnt, leActivator );
-        // If valid, convert result to boolean.
-        if ( callResult.valid() ) {
-            // Convert.
-            bool signalHandled = callResult.get<bool>();
-            // Debug print.
-            // We got an error:
-        } else {
-            // Acquire error object.
-            sol::error resultError = callResult;
-            // Get error string.
-            const std::string errorStr = resultError.what();
-            // Print the error in case of failure.
-            gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
-        }
-    }
+    // Get reference to sol lua state view.
+    sol::state_view &solStateView = SVG_Lua_GetSolStateView();
+    // Create temporary objects encapsulating access to edict_t's.
+    auto leSelf = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent ) );
+    auto leOther = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->other ) );
+    auto leActivator = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->activator ) );
+    // Call into function.
+    bool callReturnValue = false;
+    bool calledFunction = LUA_CallLuaNameEntityFunction( ent, "OnPlatformHitBottom",
+        solStateView,
+        callReturnValue, LUA_CALLFUNCTION_VERBOSE_MISSING,
+        leSelf, leOther, leActivator, ENTITY_USETARGET_TYPE_OFF, 0
+    );
 }
 
 void plat_go_down( edict_t *ent ) {
@@ -240,9 +191,11 @@ void plat_blocked( edict_t *self, edict_t *other ) {
         return;
     }
 
-    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
+    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_TOP || self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
+    //if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
         plat_go_down( self );
-    } else if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN ) {
+    } else {
+    //} else if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN ) {
         plat_go_up( self );
     }
 }
