@@ -155,6 +155,8 @@ void button_unpress_move_done( edict_t *self ) {
 
     // Signal its unpress.
     if ( isContinuousUseTarget && !isContinuousState ) {
+        // Fire use targets.
+        SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
         // Dispatch a signal.
         SVG_SignalOut( self, self->other, self->activator, "OnContinuousUnPressed" );
     }

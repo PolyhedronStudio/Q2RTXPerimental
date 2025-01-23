@@ -87,7 +87,7 @@ void rotating_decelerate( edict_t *self ) {
     } else {
         const float new_speed = current_speed - self->decel;
         self->avelocity = self->movedir * new_speed;
-        self->think = rotating_accelerate;
+        self->think = rotating_decelerate;
         self->nextthink = level.time + FRAME_TIME_S;
     }
     #else
@@ -152,12 +152,9 @@ void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t 
 void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // Continuous useage support:
     if ( useType == ENTITY_USETARGET_TYPE_SET ) {
-        gi.dprintf( "%s: ENTITY_USETARGET_TYPE_SET\n", __func__ );
-        if ( useValue == 1 ) {
-            gi.dprintf( "%s: ENTITY_USETARGET_TYPE_SET USEVALUE == 1\n", __func__ );
+        if ( useValue != 0 ) {
             rotating_accelerate( self );
         } else {
-            gi.dprintf( "%s: ENTITY_USETARGET_TYPE_SET USEVALUE == 0\n", __func__ );
             rotating_decelerate( self );
         }
         // Return.
@@ -166,14 +163,11 @@ void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const enti
     } else {
         if ( useType == ENTITY_USETARGET_TYPE_TOGGLE ) {
             rotating_toggle( self );
-            gi.dprintf( "%s: ENTITY_USETARGET_TYPE_TOGGLE USEVALUE(%d)\n", __func__, useValue );
         } else {
             if ( useType == ENTITY_USETARGET_TYPE_ON ) {
                 rotating_accelerate( self );
-                gi.dprintf( "%s: ENTITY_USETARGET_TYPE_ON USEVALUE(%d)\n", __func__, useValue );
             } else if ( useType == ENTITY_USETARGET_TYPE_OFF ) {
                 rotating_decelerate( self );
-                gi.dprintf( "%s: ENTITY_USETARGET_TYPE_OFF USEVALUE(%d)\n", __func__, useValue );
             }
         }
     }
