@@ -183,7 +183,8 @@ typedef enum {
     //! Caused by a friendly fire.
     MEANS_OF_DEATH_FRIENDLY_FIRE
 } sg_means_of_death_t;
-
+// Enumerator Type Bit Flags Support:
+QENUM_BIT_FLAGS( sg_means_of_death_t );
 
 
 /**
@@ -1026,6 +1027,12 @@ const bool SVG_GetGamemodeNoSaveGames( const bool isDedicatedServer );
 void SVG_Command_Score_f(edict_t *ent);
 
 //
+// g_edicts.cpp
+// 
+void SVG_InitBodyQue( void );
+void SVG_CopyToBodyQue( edict_t *ent );
+
+// 
 // g_items.c
 //
 void PrecacheItem( const gitem_t *it);
@@ -1336,17 +1343,20 @@ edict_t *PlayerTrail_LastSpot( void );
 //
 // g_client.c
 //
-void SVG_Client_Respawn( edict_t *ent );
 void SVG_HUD_BeginIntermission( edict_t *targ );
+
 /**
 *   @brief  Will reset the entity client's 'Field of View' back to its defaults.
 **/
-void SVG_Player_ResetPlayerStateFOV( gclient_t *client );
-void SVG_Client_PutInServer( edict_t *ent );
+void SVG_Client_ResetPlayerStateFOV( gclient_t *client );
 void SVG_Client_InitPersistantData( edict_t *ent, gclient_t *client );
 void SVG_Client_InitRespawnData( gclient_t *client );
-void SVG_InitBodyQue( void );
+void SVG_Client_PutInServer( edict_t *ent );
+void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo );
+void SVG_Client_Respawn( edict_t *self );
 void SVG_Client_BeginServerFrame( edict_t *ent );
+void SVG_Client_SelectSpawnPoint( edict_t *ent, Vector3 &origin, Vector3 &angles );
+void SVG_Client_Obituary( edict_t *self, edict_t *inflictor, edict_t *attacker );
 
 //
 // g_player.c

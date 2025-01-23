@@ -393,7 +393,7 @@ typedef struct {
     **/
     qboolean (*ClientConnect)(edict_t *ent, char *userinfo);
     void (*ClientBegin)(edict_t *ent);
-    void (*ClientUserinfoChanged)(edict_t *ent, char *userinfo);
+    void (*SVG_Client_UserinfoChanged)(edict_t *ent, char *userinfo);
     void (*ClientDisconnect)(edict_t *ent);
     void (*ClientCommand)(edict_t *ent);
     void (*ClientThink)(edict_t *ent, usercmd_t *cmd);

@@ -74,9 +74,11 @@ begin developer_menu
     action --align "CollisionModel - Friction Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_materials force"
     blank
     action --align "Entities - func_button" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_buttons force"
+    action --align "Entities - func_doors & areaportals" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_doors_areaportal force"
     action --align "Entities - func_door/func_door_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_doors force"
     action --align "Entities - func_plat & func_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_plat_rot force"
-    action --align "Entities - func_doors & areaportals" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_doors_areaportal force"
+    action --align "Entities - more func_ entities" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_more force"
+
     blank
     action --align "Graphical - Makkon Textures PBR (pt_nearest 1)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_makkon force"
     action --align "Graphical - SpotLights" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_spotlights force"

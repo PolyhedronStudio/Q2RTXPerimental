@@ -3,17 +3,26 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 
 ## Notes:
 * Make sure that client and server both deduce frameTime based on animation framerates instead.
-* Is the hard coded speed value limit of 400.0f in CLG_ClampSpeed matching that to pmove's maxspeed? No I don't think so.
-	- [X] Fixed..
-* Is the actual bobCycle predicting working or necessary? We can do this in PMove right?
+---
+* Is the actual bobCycle predicting working and necessary? We can do this in PMove right?
+---
+
+## Random Todo for The Day:
 * If we had event entities and then 'morphentity' function, for example: a blaster bullet could convert to an entity, eliminating
 the need for temp_entity_t behavior. For hit trace based weapons I suppose the hits could be done client side but that'd require
 simulating a frame ahead for all things. Either way, weapon could looks like it might be better off to go to shared some day.
+---
 * [X] It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
 	- It is a mistake in client game loop.
 	- [X] This actually seems fixed now, yay.
-* Animated Brush Textures: Any brush entity with an animated texture needs to be able to configure its
+---
+* [ ] Animated Brush Textures: Any brush entity with an animated texture needs to be able to configure its
 animations for open/closed/transit-in/transit-out states throughout TB editor. (``func_button,func_door etc``)
+---
+* [ ] Add trigger_state_t and trigger_type_t to store the entity trigger state, entity_usetarget_type_t, the latter holds the usetarget type for +usetarget interaction.
+* [ ] Add in the FGD, the basis for triggertype and triggervalue.
+* [ ] This'll allow us to determine how an entity should proceed to trigger any other entity.
+---
 
 ## For v0.0.6 or so:
 - [ ] The **Monster** Scenario:
@@ -42,6 +51,7 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 - [ ] The **IQM Animation** Scenario:
 	- [ ] Allow attaching models configured by bone tags setup.
 
+---
 ## For v0.0.5(Being idealistic here, not realistic, that is when it comes to time lol):
 - [ ] Core/Generic/Code-Style/Important(DoNotForget):
 	- [X] C++ Global Enum BitFlag Operators SCREAM AND CURSE AT YOU! BOOHOO!
@@ -112,13 +122,21 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 			- [x] func_door
 			- [x] func_door_rotating
 			- [ ] func_explosive
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_rotating
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_killbox
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_object
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_plat
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_timer
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_train
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_wall
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 		- [ ] (Point-)Triggers Signal I/O Support:
 			- [ ] trigger_always
 			- [ ] trigger_counter
@@ -135,9 +153,10 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 			- [ ] target_ entities.
 	- [X] Add support for passing along values for Signals to be processed.
 
-
+---
 ## Technical Things prioritized, not catagorized however:
 These are things to fix, or randomly implement(features, ideas), but definitely need to be dealt with before we can call it a day.
+
 
 ### Highest Priority:
 * [X] Get a test dummy model that we can use to replace the current player with.
@@ -206,6 +225,7 @@ These are things to fix, or randomly implement(features, ideas), but definitely 
 * [ ] Look into JoltPhysics and see if it's something realistic for Jolt Physics.
 	* [ ] If that fails, look into some library to deal with at least 'tracing' through geometric shapes properly.
 
+---
 ## Bugfixes: 
 Ideally this list would never exist, but in this world we can't have it all so, let me introduce you to a highly most pleasant list of bugs to fix!
 ### Highest:
@@ -223,6 +243,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 ### Lowest, nearly redundant Priority:
 * [ ] Remove the if statement for cl_batchcmds in the (client/input.c)``ready_to_send``_to re-enable the bug for batched commands movement. The bug is that pushers have a steady pattern of 'spiking', moving neatly 5 units a frame as expected up to suddenly the double.
 
+---
 ## Resources:
 ### Audio:
 * [X] Replace pain25 up to pain100 audio files. (And/or rework its code a bit.)
@@ -259,6 +280,7 @@ And here a list of things that I keep an eye out and/or may (fail multiple times
 - [ ] Research and implement Vulkan support for debug shapes rendering.
 - [ ] Research and implement Vulkan support for textured particle effects.
 
+---
 ## General Ideas:
 - [ ] Weapon Recoil Scale Factors:
 	- 1. Each stance has its min/max spread scale variables.

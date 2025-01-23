@@ -35,13 +35,15 @@ static const bool SVG_Lua_SignalOut( sol::state_view &stateView, edict_t *ent, e
 	bool executedSuccessfully = false;
 
 	// Entity has to be non (nullptr) and active(in use).
-	if ( !SVG_IsValidLuaEntity( ent, true ) 
+	if ( !SVG_IsValidLuaEntity( ent, true )
 		// has to be non (nullptr) and active(in use).
-		|| ( activator && !SVG_IsActiveEntity( activator ) ) 
+		|| ( activator && !SVG_IsActiveEntity( activator ) )
 		// Other is optional.
 		//|| ( other && !SVG_IsActiveEntity( other ) )
 		// And a valid Signal Name.
-		|| !signalName ) {
+		|| !signalName
+		// And the entity has a valid luaName
+	|| !ent->luaProperties.luaName ) {
 		return executedSuccessfully;
 	}
 
@@ -62,7 +64,7 @@ static const bool SVG_Lua_SignalOut( sol::state_view &stateView, edict_t *ent, e
 	// Ensure it matches, accordingly
 	if ( funcRefType != sol::type::function && verbosity == LUA_CALLFUNCTION_VERBOSE_MISSING /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */) {
 		// Return if it is LUA_NOREF and luaState == nullptr again.
-		gi.bprintf( PRINT_ERROR, "%s: %s but is %s instead!\n", __func__, "funcRefType != sol::type::function", sol::type_name( stateView, funcRefType ).c_str() );
+		gi.bprintf( PRINT_ERROR, "%s: %s but is %s instead! function(%s) not found!\n", __func__, "funcRefType != sol::type::function", sol::type_name( stateView, funcRefType ).c_str(), functionName.c_str() );
 		return false;
 	}
 

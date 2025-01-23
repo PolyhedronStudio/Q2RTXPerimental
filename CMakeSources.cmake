@@ -311,6 +311,12 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/func/svg_func_wall.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_water.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_entities.cpp
+	baseq2rtxp/svgame/entities/info/svg_info_notnull.cpp
+	baseq2rtxp/svgame/entities/info/svg_info_null.cpp
+	baseq2rtxp/svgame/entities/info/svg_info_player_coop.cpp
+	baseq2rtxp/svgame/entities/info/svg_info_player_deathmatch.cpp
+	baseq2rtxp/svgame/entities/info/svg_info_player_intermission.cpp
+	baseq2rtxp/svgame/entities/info/svg_info_player_start.cpp
 	baseq2rtxp/svgame/entities/light/svg_light_light.cpp
 	baseq2rtxp/svgame/entities/light/svg_light_spotlight.cpp
 	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_puppet.cpp
@@ -340,6 +346,8 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/player/svg_player_client.cpp
 	baseq2rtxp/svgame/player/svg_player_events.cpp
 	baseq2rtxp/svgame/player/svg_player_hud.cpp
+	baseq2rtxp/svgame/player/svg_player_obituary.cpp
+	baseq2rtxp/svgame/player/svg_player_spawn.cpp
 	baseq2rtxp/svgame/player/svg_player_trail.cpp
 	baseq2rtxp/svgame/player/svg_player_view.cpp
 	baseq2rtxp/svgame/player/svg_player_weapon.cpp

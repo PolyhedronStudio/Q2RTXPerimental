@@ -407,7 +407,7 @@
 [
 	spawnflags(Flags) =
 	[
-		1 : "Trigger Spawn" : 0
+		1 : "Spawn On Trigger" : 0
 		2 : "Animated" : 0
 		4 : "Animated Fast" : 0
 	]

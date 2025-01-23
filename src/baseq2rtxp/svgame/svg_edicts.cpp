@@ -10,6 +10,15 @@
 
 
 /**
+*
+*
+*
+*   Edict (Utility-) Functions:
+*
+*
+*
+**/
+/**
 *   @brief  (Re-)initialize an edict.
 **/
 void SVG_InitEdict( edict_t *e ) {
@@ -154,4 +163,97 @@ edict_t *SVG_FindWithinRadius( edict_t *from, const vec3_t org, const float rad 
     }
 
     return NULL;
+}
+
+
+
+/**
+*
+*
+*   Dead Body Queue
+*
+*
+**/
+/**
+*   @brief
+**/
+void SVG_InitBodyQue( void ) {
+    int     i;
+    edict_t *ent;
+
+    level.body_que = 0;
+    for ( i = 0; i < BODY_QUEUE_SIZE; i++ ) {
+        ent = SVG_AllocateEdict();
+        ent->classname = "bodyque";
+    }
+}
+/**
+*   @brief
+**/
+void body_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
+    int n;
+
+    if ( self->health < -40 ) {
+        gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
+        for ( n = 0; n < 4; n++ ) {
+            SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
+        }
+        self->s.origin[ 2 ] -= 48;
+        SVG_Misc_ThrowClientHead( self, damage );
+        self->takedamage = DAMAGE_NO;
+    }
+}
+
+/**
+*   @brief  Get a que slot, leave an effect, and remove body into the queue.
+**/
+void SVG_CopyToBodyQue( edict_t *ent ) {
+    edict_t *body;
+
+    gi.unlinkentity( ent );
+
+    // grab a body que and cycle to the next one
+    body = &g_edicts[ game.maxclients + level.body_que + 1 ];
+    level.body_que = ( level.body_que + 1 ) % BODY_QUEUE_SIZE;
+
+    // send an effect on the removed body
+    if ( body->s.modelindex ) {
+        gi.WriteUint8( svc_temp_entity );
+        gi.WriteUint8( TE_BLOOD );
+        gi.WritePosition( body->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        gi.WriteDir8( vec3_origin );
+        gi.multicast( body->s.origin, MULTICAST_PVS, false );
+    }
+
+    gi.unlinkentity( body );
+
+    body->s.number = body - g_edicts;
+    VectorCopy( ent->s.origin, body->s.origin );
+    VectorCopy( ent->s.origin, body->s.old_origin );
+    VectorCopy( ent->s.angles, body->s.angles );
+    body->s.modelindex = ent->s.modelindex;
+    body->s.frame = ent->s.frame;
+    body->s.skinnum = ent->s.skinnum;
+    body->s.event = EV_OTHER_TELEPORT;
+
+    body->svflags = ent->svflags;
+    VectorCopy( ent->mins, body->mins );
+    VectorCopy( ent->maxs, body->maxs );
+    VectorCopy( ent->absmin, body->absmin );
+    VectorCopy( ent->absmax, body->absmax );
+    VectorCopy( ent->size, body->size );
+    VectorCopy( ent->velocity, body->velocity );
+    VectorCopy( ent->avelocity, body->avelocity );
+    body->solid = ent->solid;
+    body->clipmask = ent->clipmask;
+    body->owner = ent->owner;
+    body->movetype = ent->movetype;
+    body->groundInfo.entity = ent->groundInfo.entity;
+
+    body->s.entityType = ET_PLAYER_CORPSE;
+
+    body->die = body_die;
+    body->takedamage = DAMAGE_YES;
+
+    gi.linkentity( body );
 }

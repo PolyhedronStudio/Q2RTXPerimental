@@ -254,7 +254,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                 // Switch to aim out mode.
                 SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_OUT, pistolItemInfo.modeAnimations, false );
                 // Revert POV.
-                SVG_Player_ResetPlayerStateFOV( ent->client );
+                SVG_Client_ResetPlayerStateFOV( ent->client );
                 // Exit.
                 return;
             }
@@ -276,7 +276,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                         // Exit isAiming mode.
                         weaponState->aimState.isAiming = false;
                         // Restore the original FOV.
-                        SVG_Player_ResetPlayerStateFOV( ent->client );
+                        SVG_Client_ResetPlayerStateFOV( ent->client );
                         // Screen should be lerping back to FOV, engage into reload mode.
                         SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_RELOADING, pistolItemInfo.modeFrames, false );
                     } else {
@@ -456,7 +456,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
         // isAiming -> "Aim Out":
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_OUT ) {
             // Restore the original FOV.
-            SVG_Player_ResetPlayerStateFOV( ent->client );
+            SVG_Client_ResetPlayerStateFOV( ent->client );
 
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
             // any earlier/double firing.

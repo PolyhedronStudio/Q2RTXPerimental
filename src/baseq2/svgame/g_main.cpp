@@ -111,7 +111,7 @@ cvar_t *g_instant_weapon_switch;
 void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 void ClientThink(edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect(edict_t *ent, char *userinfo);
-void ClientUserinfoChanged(edict_t *ent, char *userinfo);
+void SVG_Client_UserinfoChanged(edict_t *ent, char *userinfo);
 void ClientDisconnect(edict_t *ent);
 void ClientBegin(edict_t *ent);
 void ClientCommand(edict_t *ent);
@@ -355,7 +355,7 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.ClientThink = ClientThink;
 		globals.ClientConnect = ClientConnect;
-		globals.ClientUserinfoChanged = ClientUserinfoChanged;
+		globals.SVG_Client_UserinfoChanged = SVG_Client_UserinfoChanged;
 		globals.ClientDisconnect = ClientDisconnect;
 		globals.ClientBegin = ClientBegin;
 		globals.ClientCommand = ClientCommand;

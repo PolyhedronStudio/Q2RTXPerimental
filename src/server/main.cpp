@@ -1879,7 +1879,7 @@ void SV_UserinfoChanged(client_t *cl)
     int     i;
 
     // call prog code to allow overrides
-    ge->ClientUserinfoChanged(cl->edict, cl->userinfo);
+    ge->SVG_Client_UserinfoChanged(cl->edict, cl->userinfo);
 
     // name for C code
     val = Info_ValueForKey(cl->userinfo, "name");

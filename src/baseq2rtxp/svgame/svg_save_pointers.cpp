@@ -176,9 +176,6 @@ extern void rotating_blocked( edict_t *self, edict_t *other );
 extern void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
-extern void SP_CreateCoopSpots( edict_t *self  );
-extern void SP_FixCoopSpots( edict_t *self );
-
 extern void target_crosslevel_target_think( edict_t *self );
 
 extern void target_earthquake_think( edict_t *self );
@@ -314,9 +311,6 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void *)multi_wait },
 
 { P_think,  (void *)plat_go_down },
-
-{ P_think,  (void *)SP_CreateCoopSpots },
-{ P_think,  (void *)SP_FixCoopSpots },
 
 { P_think,  (void *)target_crosslevel_target_think },
 { P_think,  (void *)target_earthquake_think },

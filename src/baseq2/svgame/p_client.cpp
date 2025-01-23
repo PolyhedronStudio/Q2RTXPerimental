@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "g_local.h"
 #include "m_player.h"
 
-void ClientUserinfoChanged(edict_t *ent, char *userinfo);
+void SVG_Client_UserinfoChanged(edict_t *ent, char *userinfo);
 
 void SP_misc_teleporter_dest(edict_t *ent);
 
@@ -199,7 +199,7 @@ bool IsNeutral(edict_t *ent)
     return false;
 }
 
-void ClientObituary(edict_t *self, edict_t *inflictor, edict_t *attacker)
+void SVG_Client_Obituary(edict_t *self, edict_t *inflictor, edict_t *attacker)
 {
     int         mod;
 	// WID: C++20: Added const.
@@ -508,7 +508,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 		self->client->respawn_time = ( level.time + 1_sec );
         LookAtKiller(self, inflictor, attacker);
         self->client->ps.pmove.pm_type = PM_DEAD;
-        ClientObituary(self, inflictor, attacker);
+        SVG_Client_Obituary(self, inflictor, attacker);
         TossClientWeapon(self);
         if (deathmatch->value)
             SVG_Cmd_Help_f(self);       // show scores
@@ -1130,7 +1130,7 @@ void SVG_Client_PutInServer(edict_t *ent)
         resp = client->resp;
         memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
         SVG_Client_InitPersistantData( ent, client );
-        ClientUserinfoChanged( ent, userinfo );
+        SVG_Client_UserinfoChanged( ent, userinfo );
     } else {
 //      int         n;
         char        userinfo[ MAX_INFO_STRING ];
@@ -1145,7 +1145,7 @@ void SVG_Client_PutInServer(edict_t *ent)
         resp.coop_respawn.game_helpchanged = client->pers.game_helpchanged;
         resp.coop_respawn.helpchanged = client->pers.helpchanged;
         client->pers = resp.coop_respawn;
-        ClientUserinfoChanged( ent, userinfo );
+        SVG_Client_UserinfoChanged( ent, userinfo );
         if (resp.score > client->pers.score)
             client->pers.score = resp.score;
     } 
@@ -1399,7 +1399,7 @@ The game can override any of the settings in place
 (forcing skins or names, etc) before copying it off.
 ============
 */
-void ClientUserinfoChanged(edict_t *ent, char *userinfo)
+void SVG_Client_UserinfoChanged(edict_t *ent, char *userinfo)
 {
     char    *s;
     int     playernum;
@@ -1521,7 +1521,7 @@ qboolean ClientConnect(edict_t *ent, char *userinfo)
     // make sure we start with known default(s)
     //ent->svflags = SVF_PLAYER;
 
-    ClientUserinfoChanged(ent, userinfo);
+    SVG_Client_UserinfoChanged(ent, userinfo);
 
     if ( game.maxclients > 1 ) {
         gi.dprintf( "%s connected\n", ent->client->pers.netname );

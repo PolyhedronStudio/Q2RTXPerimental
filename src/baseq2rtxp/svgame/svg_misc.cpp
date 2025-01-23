@@ -487,25 +487,6 @@ void SP_viewthing(edict_t *ent)
 }
 
 
-/*QUAKED info_null (0 0.5 0) (-4 -4 -4) (4 4 4)
-Used as a positional target for spotlights, etc.
-*/
-void SP_info_null(edict_t *self)
-{
-    SVG_FreeEdict(self);
-}
-
-
-/*QUAKED info_notnull (0 0.5 0) (-4 -4 -4) (4 4 4)
-Used as a positional target for lightning.
-*/
-void SP_info_notnull(edict_t *self)
-{
-    VectorCopy(self->s.origin, self->absmin);
-    VectorCopy(self->s.origin, self->absmax);
-}
-
-
 /*QUAKED misc_explobox (0 .5 .8) (-16 -16 0) (16 16 40)
 Large exploding box.  You can override its mass (100),
 health (80), and dmg (150).
