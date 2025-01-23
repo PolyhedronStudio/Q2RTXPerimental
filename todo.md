@@ -249,6 +249,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 * [X] Replace pain25 up to pain100 audio files. (And/or rework its code a bit.)
 * [X] Replace explosion sounds.
 * [ ] Replace ricochet sounds.
+* [ ] Look for unique func_rotating audio, right now it uses func_plat audio instead.
 * [X] Replace water in/out/head-under sounds.
 * [X] Replace 'heat' in lava sounds.
 * [X] Replace UI(menu) sounds.
@@ -261,6 +262,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 * [X] Get ourselves a basic version of the Mixamo testdummy that works in-game.
 * [ ] Get ourselves some environment props to use for ``client_misc_model`` decorating purposes.
 ### Textures:
+* [ ] Replace explosions, use and customize Kenney Smoke Particles or something.
 * [/] Find some consistent themed PBR texture set?
 	- [ ] Want more :-)
 	- [ ] 

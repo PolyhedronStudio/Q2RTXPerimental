@@ -172,6 +172,10 @@ extern void player_pain( edict_t *self, edict_t *other, float kick, int damage )
 
 extern void point_combat_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 
+extern void rotating_start( edict_t *self );
+extern void rotating_end( edict_t *self );
+extern void rotating_accelerate( edict_t *self );
+extern void rotating_decelerate( edict_t *self );
 extern void rotating_blocked( edict_t *self, edict_t *other );
 extern void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
@@ -278,9 +282,27 @@ const save_ptr_t save_ptrs[] = {
 //
 //	Think Callback Pointers:
 //
+{ P_think,  (void *)drop_make_touchable },
+{ P_think,  (void *)droptofloor },
+{ P_think,  (void *)M_droptofloor },
+
+{ P_think,  (void *)DoRespawn },
+{ P_think,  (void *)gib_think },
+{ P_think,  (void *)MegaHealth_think },
+
+{ P_think,  (void *)SVG_FreeEdict },
+
+{ P_think,  (void *)SVG_PushMove_MoveBegin },
+{ P_think,  (void *)SVG_PushMove_MoveDone },
+{ P_think,  (void *)SVG_PushMove_MoveFinal },
 { P_think,  (void *)SVG_PushMove_AngleMoveBegin },
 { P_think,  (void *)SVG_PushMove_AngleMoveDone },
 { P_think,  (void *)SVG_PushMove_AngleMoveFinal },
+
+{ P_think,  (void *)SVG_PushMove_Think_AccelerateMove },
+{ P_think,	(void *)SVG_PushMove_Think_AccelerateMoveNew },
+{ P_think,  (void *)SVG_PushMove_Think_CalculateMoveSpeed },
+
 { P_think,  (void *)barrel_explode },
 #if 0
 { P_think,  (void *)button_return_to_unpressed_state },
@@ -290,23 +312,17 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void *)door_close_move },
 { P_think,  (void *)door_open_move },
 
-{ P_think,  (void *)DoRespawn },
-{ P_think,  (void *)drop_make_touchable },
-{ P_think,  (void *)droptofloor },
 { P_think,  (void *)func_clock_think },
 { P_think,  (void *)func_object_release },
 { P_think,  (void *)func_timer_think },
+
+//{ P_think,  (void *)rotating_start },
+//{ P_think,  (void *)rotating_end},
+
+{ P_think,  (void *)rotating_accelerate },
+{ P_think,  (void *)rotating_decelerate},
+
 { P_think,  (void *)func_train_find },
-{ P_think,  (void *)SVG_FreeEdict },
-{ P_think,  (void *)gib_think },
-{ P_think,  (void *)M_droptofloor },
-{ P_think,  (void *)MegaHealth_think },
-{ P_think,  (void *)SVG_PushMove_MoveBegin },
-{ P_think,  (void *)SVG_PushMove_MoveDone },
-{ P_think,  (void *)SVG_PushMove_MoveFinal },
-{ P_think,  (void *)SVG_PushMove_Think_AccelerateMove },
-{ P_think,	(void *)SVG_PushMove_Think_AccelerateMoveNew },
-{ P_think,  (void *)SVG_PushMove_Think_CalculateMoveSpeed },
 
 { P_think,  (void *)multi_wait },
 

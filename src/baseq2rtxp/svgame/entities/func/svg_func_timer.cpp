@@ -17,7 +17,7 @@
 
 /*QUAKED func_timer (0.3 0.1 0.6) (-8 -8 -8) (8 8 8) START_ON
 "wait"          base time between triggering all targets, default is 1
-"random"        wait variance, default is 0
+"random"        wait variance(0 to #max), default is 0
 
 so, the basic time between firing is a random time between
 (wait - random) and (wait + random)

@@ -353,7 +353,7 @@ void SP_func_plat( edict_t *ent ) {
     VectorCopy( ent->pos2, ent->pushMoveInfo.endOrigin );
     VectorCopy( ent->s.angles, ent->pushMoveInfo.endAngles );
 
-    ent->pushMoveInfo.sounds.start = gi.soundindex( "plats/plat_start_01.wav" );
-    ent->pushMoveInfo.sounds.middle = gi.soundindex( "plats/plat_mid_01.wav" );
-    ent->pushMoveInfo.sounds.end = gi.soundindex( "plats/plat_end_01.wav" );
+    ent->pushMoveInfo.sounds.start = gi.soundindex( "pushers/plat_start_01.wav" );
+    ent->pushMoveInfo.sounds.middle = gi.soundindex( "pushers/plat_mid_01.wav" );
+    ent->pushMoveInfo.sounds.end = gi.soundindex( "pushers/plat_end_01.wav" );
 }

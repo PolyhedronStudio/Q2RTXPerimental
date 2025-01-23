@@ -78,11 +78,11 @@ end
 --
 function OnPrecacheMedia()
     mapMedia.sound = {
-        rangetarget_close = Media.PrecacheSound( "maps/targetrange/rangetarget_close.wav" ),
-        rangetarget_open = Media.PrecacheSound( "maps/targetrange/rangetarget_open.wav" ),
-        rangetarget_pain = Media.PrecacheSound( "maps/targetrange/rangetarget_pain.wav" ),
+        -- rangetarget_close = Media.PrecacheSound( "maps/targetrange/rangetarget_close.wav" ),
+        -- rangetarget_open = Media.PrecacheSound( "maps/targetrange/rangetarget_open.wav" ),
+        -- rangetarget_pain = Media.PrecacheSound( "maps/targetrange/rangetarget_pain.wav" ),
 
-        newround = Media.PrecacheSound( "maps/targetrange/newround.wav" )
+        -- newround = Media.PrecacheSound( "maps/targetrange/newround.wav" )
     }
     return true
 end

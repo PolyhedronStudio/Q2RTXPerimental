@@ -32,6 +32,35 @@ STOP mean it will stop moving instead of pushing entities
 /**
 *
 *
+*
+*   Sound Handling:
+*
+*
+*
+**/
+/**
+*   @brief
+**/
+void rotating_sound_play_start( edict_t *self ) {
+    if ( !( self->flags & FL_TEAMSLAVE ) ) {
+        if ( self->pushMoveInfo.sounds.start ) {
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+        }
+    }
+}
+/**
+*   @brief  
+**/
+void rotating_sound_play_end( edict_t *self ) {
+    if ( !( self->flags & FL_TEAMSLAVE ) ) {
+        if ( self->pushMoveInfo.sounds.end ) {
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
+        }
+    }
+}
+/**
+*
+*
 * 
 *   Accelerated Velocity Handling:
 *
@@ -41,67 +70,120 @@ STOP mean it will stop moving instead of pushing entities
 /**
 *   @brief
 **/
-void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-void rotating_accelerate( edict_t *self ) {
-    #if 1
-    // Get angular velocity speed.
-    const float current_speed = QM_Vector3Length( self->avelocity );
-    // It has finished Accelerating.
-    if ( current_speed >= ( self->speed - self->accel ) )
-    {
-        self->avelocity = self->movedir * self->speed;
-        // On:
-        SVG_UseTargets( self, self, ENTITY_USETARGET_TYPE_ON, 1 );
-    // 'Starts/Still is' Accelerating:
-    } else {
-        const float new_speed = current_speed + self->accel;
-        self->avelocity = self->movedir * new_speed;
-        self->think = rotating_accelerate;
-        self->nextthink = level.time + FRAME_TIME_S;
-    }
-    #else
-    // Set sound.
-    self->s.sound = self->pushMoveInfo.sounds.middle;
-    // Scale speed into movedir velocity.
-    VectorScale( self->movedir, self->speed, self->avelocity );
-    // Reapply touch for blocking.
-    if ( self->spawnflags & FUNC_ROTATING_SPAWNFLAG_PAIN_ON_TOUCH ) {
-        self->touch = rotating_touch;
-    }
-    #endif
+void rotating_full_halted( edict_t *self ) {
+
 }
 /**
 *   @brief
 **/
+void rotating_full_speeded( edict_t *self ) {
+
+}
+/**
+*   @brief
+**/
+void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+void rotating_accelerate( edict_t *self ) {
+    // Get angular velocity speed.
+    const float current_speed = QM_Vector3Length( self->avelocity );
+    // It has finished Accelerating.
+    if ( current_speed >= ( self->speed - self->accel ) ) {
+        // 'Moving' sound.
+        self->s.sound = self->pushMoveInfo.sounds.middle;
+        // Set velocity.
+        self->avelocity = self->movedir * self->speed;
+        // On:
+        //SVG_UseTargets( self, self, useType, useValue );
+        SVG_UseTargets( self, self, ENTITY_USETARGET_TYPE_ON, 1 );
+    // 'Starts/Still is' Accelerating:
+    } else {
+        // Moving sound.
+        self->s.sound = self->pushMoveInfo.sounds.middle;
+        // Calculate new speed based movedir velocity.
+        const float new_speed = current_speed + self->accel;
+        self->avelocity = self->movedir * new_speed;
+        // Apply nextthink.
+        self->think = rotating_accelerate;
+        self->nextthink = level.time + FRAME_TIME_S;
+    }
+    // Reapply touch for blocking.
+    if ( self->spawnflags & FUNC_ROTATING_SPAWNFLAG_PAIN_ON_TOUCH ) {
+        self->touch = rotating_touch;
+    }
+}
+
+/**
+*   @brief
+**/
 void rotating_decelerate( edict_t *self ) {
-    #if 1
     // Get angular velocity speed.
     const float current_speed = QM_Vector3Length( self->avelocity );
     // It has finished Decelerating.
     if ( current_speed <= self->decel ) {
+        // End sound.
+        rotating_sound_play_end( self );
+        // No sound.
+        self->s.sound = 0;
+        // Set velocity.
         self->avelocity = {};
         // Off:
-        SVG_UseTargets( self, self, ENTITY_USETARGET_TYPE_OFF, 0 );
+        //SVG_UseTargets( self, self, useType, useValue );
+        SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_OFF, 0 );
         self->touch = nullptr;
-    // 'Starts/Still is' Decelerating:
+        // 'Starts/Still is' Decelerating:
     } else {
+        // Set sound.
+        self->s.sound = self->pushMoveInfo.sounds.middle;
+        // Calculate new speed based movedir velocity.
         const float new_speed = current_speed - self->decel;
         self->avelocity = self->movedir * new_speed;
+        // Setup nextthink.
         self->think = rotating_decelerate;
         self->nextthink = level.time + FRAME_TIME_S;
     }
-    #else
-    if ( !VectorEmpty( self->avelocity ) ) {
-        self->s.sound = 0;
-        VectorClear( self->avelocity );
-        self->touch = nullptr;
-    }
-    #endif
 }
+/**
+*   @brief
+**/
+void rotating_decelerate_engage( edict_t *self ) {
+    // Get angular velocity speed.
+    const float current_speed = QM_Vector3Length( self->avelocity );
+    // It has finished Decelerating.
+    if ( current_speed <= self->decel ) {
+        // End sound.
+        rotating_sound_play_end( self );
+        // No sound.
+        self->s.sound = 0;
+        // Set velocity.
+        self->avelocity = {};
+        // Off:
+        //SVG_UseTargets( self, self, useType, useValue );
+        SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_OFF, 0 );
+        self->touch = nullptr;
+    // 'Starts/Still is' Decelerating:
+    } else {
+        // Set sound.
+        self->s.sound = self->pushMoveInfo.sounds.middle;
+        // Calculate new speed based movedir velocity.
+        const float new_speed = current_speed - self->decel;
+        self->avelocity = self->movedir * new_speed;
+        // Setup nextthink.
+        self->think = rotating_decelerate;
+        self->nextthink = level.time + FRAME_TIME_S;
+    }
+}
+
+/**
+*   @brief  
+**/
 void rotating_toggle( edict_t *self ) {
     if ( VectorEmpty( self->avelocity ) ) {
+        // Start sound.
+        rotating_sound_play_start( self );
+        // Accelerate.
         rotating_accelerate( self );
     } else {
+        // Decelerate.
         rotating_decelerate( self );
     }
 }
@@ -121,18 +203,32 @@ void rotating_toggle( edict_t *self ) {
 *   @brief
 **/
 void rotating_blocked( edict_t *self, edict_t *other ) {
+    // Only do damage if we had any set.
+    if ( !self->dmg ) {
+        return;
+    }
+    // Debounce time to prevent trigger damaging the entity too rapidly each frame.
+    if ( level.time < self->touch_debounce_time ) {
+        return;
+    }
+    // Take 100ms before going at it again.
+    self->touch_debounce_time = level.time + 10_hz;
+    // Perform damaging.
     SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 /**
 *   @brief
 **/
 void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+    // Exit if touching isn't hurting.
     if ( !( self->spawnflags & FUNC_ROTATING_SPAWNFLAG_PAIN_ON_TOUCH ) ) {
         return;
     }
 
-    if ( !VectorEmpty( self->avelocity ) )
+    // Perform damage if we got angular velocity.
+    if ( !VectorEmpty( self->avelocity ) ) {
         SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+    }
 }
 
 
@@ -150,23 +246,42 @@ void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t 
 *   @brief
 **/
 void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    // Default to 'self' being its activator if this was called with none.
+    self->activator = ( activator != nullptr ? activator : self );
+    // Store other.
+    self->other = other;
+
     // Continuous useage support:
     if ( useType == ENTITY_USETARGET_TYPE_SET ) {
+        // On:
         if ( useValue != 0 ) {
+            // Start sound.
+            rotating_sound_play_start( self );
+            // Accelerate.
             rotating_accelerate( self );
+        // Off:
         } else {
+            // Decelerate.
             rotating_decelerate( self );
         }
         // Return.
         return;
     // On/Off and Toggle usage support:
     } else {
+        // Toggle:
         if ( useType == ENTITY_USETARGET_TYPE_TOGGLE ) {
             rotating_toggle( self );
+        // On/Off:
         } else {
+            // On:
             if ( useType == ENTITY_USETARGET_TYPE_ON ) {
+                // Start sound.
+                rotating_sound_play_start( self );
+                // Accelerate.
                 rotating_accelerate( self );
+            // Off:
             } else if ( useType == ENTITY_USETARGET_TYPE_OFF ) {
+                // Decelerate.
                 rotating_decelerate( self );
             }
         }
@@ -261,6 +376,17 @@ void SP_func_rotating( edict_t *ent ) {
     }
     // PGM
 
+    // <Q2RTXP>: WID: TODO: Get unique audio for func_rotating.
+    if ( ent->sounds ) {
+        ent->pushMoveInfo.sounds.start = gi.soundindex( "pushers/rotating_start_01.wav" );
+        ent->pushMoveInfo.sounds.middle = gi.soundindex( "pushers/rotating_mid_01.wav" );
+        ent->pushMoveInfo.sounds.end = gi.soundindex( "pushers/rotating_end_01.wav" );
+    } else {
+        ent->pushMoveInfo.sounds = {};
+    }
+
+    // Set (Assumed)brush model and thus also its bounds.
     gi.setmodel( ent, ent->model );
+    // Link it in.
     gi.linkentity( ent );
 }
