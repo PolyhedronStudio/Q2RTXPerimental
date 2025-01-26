@@ -30,6 +30,13 @@ it explodes.  You get one large chunk per 100 of mass (up to 8) and
 one small chunk per 25 of mass (up to 16).  So 800 gives the most.
 */
 
+void explosive_become_explosive( edict_t *self ) {
+    gi.WriteUint8( svc_temp_entity );
+    gi.WriteUint8( TE_EXPLOSION1 );
+    gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    gi.multicast( self->s.origin, MULTICAST_PVS, false );
+}
+
 /**
 *   @brief
 **/
@@ -84,10 +91,17 @@ void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
 
     // Free, or become an explosion if we had radius damage set.
     if ( self->dmg ) {
-        SVG_Misc_BecomeExplosion1( self );
+        // Turn into explosion.
+        explosive_become_explosive( self );
+        // Signal that we just exploded..
+        SVG_SignalOut( self, inflictor, attacker, "OnExplode", {} );
     } else {
-        SVG_FreeEdict( self );
+        // Signal that we just trigger spawned.
+        SVG_SignalOut( self, inflictor, attacker, "OnBreak", {} );
     }
+
+    // Free it.
+    SVG_FreeEdict( self );
 }
 
 /**
@@ -106,6 +120,9 @@ void func_explosive_spawn( edict_t *self, edict_t *other, edict_t *activator, co
     self->use = NULL;
     KillBox( self, false );
     gi.linkentity( self );
+
+    // Signal that we just trigger spawned.
+    SVG_SignalOut( self, other, activator, "OnTriggerSpawn", {} );
 }
 
 /**
@@ -132,12 +149,12 @@ void SP_func_explosive( edict_t *self ) {
     // Apply brush model to self. (Will be of the *number type.)
     gi.setmodel( self, self->model );
 
-    // Spawn when triggered instead of immediately:
+    // Spawn after being triggered instead of immediately at level start:
     if ( SVG_HasSpawnFlags( self, FUNC_EXPLOSIVE_SPAWNFLAG_SPAWN_ON_TRIGGER ) ) {
         self->svflags |= SVF_NOCLIENT;
         self->solid = SOLID_NOT;
         self->use = func_explosive_spawn;
-    // Setup for being spawned immediately.
+    // Spawned immediately:
     } else {
         // Solid now that it's destroyable.
         self->solid = SOLID_BSP;
