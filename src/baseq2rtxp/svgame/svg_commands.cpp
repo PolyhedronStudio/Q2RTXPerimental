@@ -806,9 +806,9 @@ void SVG_Command_PlayerList_f(edict_t *ent)
             continue;
 
         Q_snprintf(st, sizeof(st), "%02ld:%02ld %4d %3d %s%s\n",
-                   (level.framenum - e2->client->resp.enterframe) / 600,
-                   //((level.framenum - e2->client->resp.enterframe) % 600) / 10,
-				   ( ( level.framenum - e2->client->resp.enterframe ) % 600 ) / BASE_FRAMERATE,
+                   (level.frameNumber - e2->client->resp.enterframe) / 600,
+                   //((level.frameNumber - e2->client->resp.enterframe) % 600) / 10,
+				   ( ( level.frameNumber - e2->client->resp.enterframe ) % 600 ) / BASE_FRAMERATE,
                    e2->client->ping,
                    e2->client->resp.score,
                    e2->client->pers.netname,
@@ -830,7 +830,7 @@ void SVG_Command_PlayerList_f(edict_t *ent)
 ClientCommand
 =================
 */
-void ClientCommand( edict_t *ent ) {
+void SVG_Client_Command( edict_t *ent ) {
     char *cmd;
 
     if ( !ent->client )
@@ -855,7 +855,7 @@ void ClientCommand( edict_t *ent ) {
         return;
     }
 
-    if ( level.intermission_framenum ) {
+    if ( level.intermissionFrameNumber ) {
         return;
     }
 

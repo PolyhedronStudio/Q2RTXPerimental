@@ -76,21 +76,21 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
     edict_t *ent = nullptr;
     edict_t *client = nullptr;
 
-    if (level.intermission_framenum)
+    if (level.intermissionFrameNumber)
         return;     // already activated
 
     game.autosaved = false;
 
-    // SVG_Client_Respawn any dead clients
+    // Respawn any dead clients
     for (i = 0 ; i < maxclients->value ; i++) {
         client = g_edicts + 1 + i;
         if (!client->inuse)
             continue;
         if (client->health <= 0)
-            SVG_Client_Respawn(client);
+            SVG_Client_RespawnPlayer(client);
     }
 
-    level.intermission_framenum = level.framenum;
+    level.intermissionFrameNumber = level.frameNumber;
     level.changemap = targ->map;
 
     if (strchr(level.changemap, '*')) {
@@ -225,7 +225,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
         // send the layout
         Q_snprintf(entry, sizeof(entry),
                    "client %i %i %i %i %i %li ",
-                   x, y, sorted[i], cl->resp.score, cl->ping, (level.framenum - cl->resp.enterframe) / 600);
+                   x, y, sorted[i], cl->resp.score, cl->ping, (level.frameNumber - cl->resp.enterframe) / 600);
         j = strlen(entry);
         if (stringlength + j > 1024)
             break;
@@ -463,7 +463,7 @@ void SVG_HUD_SetStats(edict_t *ent) {
     ent->client->ps.stats[STAT_LAYOUTS] = 0;
 
     if (deathmatch->value) {
-        if (ent->client->pers.health <= 0 || level.intermission_framenum
+        if (ent->client->pers.health <= 0 || level.intermissionFrameNumber
             || ent->client->showscores)
             ent->client->ps.stats[STAT_LAYOUTS] |= 1;
         if (ent->client->showinventory && ent->client->pers.health > 0)
@@ -532,7 +532,7 @@ void SVG_HUD_SetSpectatorStats(edict_t *ent)
 
     // layouts are independant in spectator
     cl->ps.stats[STAT_LAYOUTS] = 0;
-    if (cl->pers.health <= 0 || level.intermission_framenum || cl->showscores)
+    if (cl->pers.health <= 0 || level.intermissionFrameNumber || cl->showscores)
         cl->ps.stats[STAT_LAYOUTS] |= 1;
     if (cl->showinventory && cl->pers.health > 0)
         cl->ps.stats[STAT_LAYOUTS] |= 2;

@@ -431,7 +431,7 @@ typedef struct {
     char        nextmap[MAX_QPATH];     // go here when fraglimit is hit
 
     // intermission state
-    int64_t         intermission_framenum;  // time the intermission was started
+    int64_t         intermissionFrameNumber;  // time the intermission was started
 
 	// WID: C++20: Added const.
     const char	*changemap;
@@ -890,10 +890,10 @@ edict_t *PlayerTrail_LastSpot(void);
 //
 // g_client.c
 //
-void SVG_Client_Respawn(edict_t *ent);
-void SVG_Client_PutInServer(edict_t *ent);
-void SVG_Client_InitPersistantData(edict_t *ent, gclient_t *client);
-void SVG_Client_InitRespawnData(gclient_t *client);
+void SVG_Client_RespawnPlayer(edict_t *ent);
+void SVG_Player_PutInServer(edict_t *ent);
+void SVG_Player_InitPersistantData(edict_t *ent, gclient_t *client);
+void SVG_Player_InitRespawnData(gclient_t *client);
 void SVG_Client_BeginServerFrame(edict_t *ent);
 
 void SVG_InitBodyQue( void );
@@ -948,8 +948,8 @@ void SVG_RunEntity(edict_t *ent);
 //
 // g_main.c
 //
-void SVG_SaveClientData(void);
-void SVG_FetchClientEntData(edict_t *ent);
+void SVG_Player_SaveClientData(void);
+void SVG_Player_RestoreClientData(edict_t *ent);
 
 //
 // g_chase.c
@@ -1010,9 +1010,9 @@ typedef struct {
 
 // Client data that stays across deathmatch respawns
 typedef struct {
-    client_persistant_t coop_respawn;	// what to set client->pers to on a SVG_Client_Respawn
+    client_persistant_t coop_respawn;	// what to set client->pers to on a SVG_Client_RespawnPlayer
 
-    int64_t enterframe;     // level.framenum the client entered the game
+    int64_t enterframe;     // level.frameNumber the client entered the game
     sg_time_t entertime;    // the moment in time the client entered the game.
 
     int32_t score;      // Frags, etc
@@ -1021,7 +1021,7 @@ typedef struct {
     bool spectator;     // Client is a spectator
 } client_respawn_t;
 
-// this structure is cleared on each SVG_Client_PutInServer(),
+// this structure is cleared on each SVG_Player_PutInServer(),
 // except for 'client->pers'
 struct gclient_s {
     /**
@@ -1173,7 +1173,7 @@ struct gclient_s {
     sg_time_t	flood_when[10];     // when messages were said
     int64_t		flood_whenhead;     // head pointer for when said
 
-    sg_time_t	respawn_time;		// can SVG_Client_Respawn when time > this
+    sg_time_t	respawn_time;		// can SVG_Client_RespawnPlayer when time > this
 
     edict_t     *chase_target;      // player we are chasing
     bool        update_chase;       // need to update chase info?

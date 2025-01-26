@@ -63,11 +63,11 @@ void SVG_Player_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
     if ( type == PNOISE_SELF || type == PNOISE_WEAPON ) {
         noise = who->mynoise;
         level.sound_entity = noise;
-        level.sound_entity_framenum = level.framenum;
+        level.sound_entity_framenum = level.frameNumber;
     } else { // type == PNOISE_IMPACT
         noise = who->mynoise2;
         level.sound2_entity = noise;
-        level.sound2_entity_framenum = level.framenum;
+        level.sound2_entity_framenum = level.frameNumber;
     }
 
     VectorCopy( where, noise->s.origin );
@@ -693,7 +693,7 @@ void SVG_Player_Weapon_Think( edict_t *ent, const bool processUserInputOnly ) {
         // Apply an instant change since we're dead.
         SVG_Player_Weapon_Change( ent );
         
-        // Escape, since we won't be performing any more weapon thinking from this point on until we SVG_Client_Respawn properly.
+        // Escape, since we won't be performing any more weapon thinking from this point on until we respawn properly.
         return;
     }
 

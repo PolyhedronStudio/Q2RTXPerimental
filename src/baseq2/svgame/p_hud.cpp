@@ -89,21 +89,21 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
     int     i, n;
     edict_t *ent, *client;
 
-    if (level.intermission_framenum)
+    if (level.intermissionFrameNumber)
         return;     // already activated
 
     game.autosaved = false;
 
-    // SVG_Client_Respawn any dead clients
+    // SVG_Client_RespawnPlayer any dead clients
     for (i = 0 ; i < maxclients->value ; i++) {
         client = g_edicts + 1 + i;
         if (!client->inuse)
             continue;
         if (client->health <= 0)
-            SVG_Client_Respawn(client);
+            SVG_Client_RespawnPlayer(client);
     }
 
-    level.intermission_framenum = level.framenum;
+    level.intermissionFrameNumber = level.frameNumber;
     level.changemap = targ->map;
 
     if (strchr(level.changemap, '*')) {
@@ -238,7 +238,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
         // send the layout
         Q_snprintf(entry, sizeof(entry),
                    "client %i %i %i %i %i %li ",
-                   x, y, sorted[i], cl->resp.score, cl->ping, (level.framenum - cl->resp.enterframe) / 600);
+                   x, y, sorted[i], cl->resp.score, cl->ping, (level.frameNumber - cl->resp.enterframe) / 600);
         j = strlen(entry);
         if (stringlength + j > 1024)
             break;
@@ -451,7 +451,7 @@ void SVG_HUD_SetStats(edict_t *ent)
     }
 
     index = ArmorIndex(ent);
-    if (power_armor_type && (!index || (level.framenum & 8))) {
+    if (power_armor_type && (!index || (level.frameNumber & 8))) {
         // flash between power armor and other armor icon
         if (power_armor_type == POWER_ARMOR_SHIELD)
             ent->client->ps.stats[STAT_ARMOR_ICON] = gi.imageindex("i_powershield");
@@ -527,7 +527,7 @@ void SVG_HUD_SetStats(edict_t *ent)
     ent->client->ps.stats[STAT_LAYOUTS] = 0;
 
     if (deathmatch->value) {
-        if (ent->client->pers.health <= 0 || level.intermission_framenum
+        if (ent->client->pers.health <= 0 || level.intermissionFrameNumber
             || ent->client->showscores)
             ent->client->ps.stats[STAT_LAYOUTS] |= 1;
         if (ent->client->showinventory && ent->client->pers.health > 0)
@@ -559,7 +559,7 @@ void SVG_HUD_SetStats(edict_t *ent)
     //
     // Help icon / Current weapon if not shown
     //
-    if (ent->client->pers.helpchanged && (level.framenum & 8))
+    if (ent->client->pers.helpchanged && (level.frameNumber & 8))
         ent->client->ps.stats[STAT_HELPICON] = gi.imageindex("i_help");
     else if ((ent->client->pers.hand == CENTER_HANDED || ent->client->ps.fov > 91)
              && ent->client->pers.weapon)
@@ -607,7 +607,7 @@ void SVG_HUD_SetSpectatorStats(edict_t *ent)
 
     // layouts are independant in spectator
     cl->ps.stats[STAT_LAYOUTS] = 0;
-    if (cl->pers.health <= 0 || level.intermission_framenum || cl->showscores)
+    if (cl->pers.health <= 0 || level.intermissionFrameNumber || cl->showscores)
         cl->ps.stats[STAT_LAYOUTS] |= 1;
     if (cl->showinventory && cl->pers.health > 0)
         cl->ps.stats[STAT_LAYOUTS] |= 2;

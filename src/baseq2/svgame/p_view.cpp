@@ -703,7 +703,7 @@ void G_SetClientEffects( edict_t *ent ) {
 	ent->s.effects = 0;
 	ent->s.renderfx = 0;
 
-	if ( ent->health <= 0 || level.intermission_framenum )
+	if ( ent->health <= 0 || level.intermissionFrameNumber )
 		return;
 
 	if ( ent->powerarmor_time > level.time ) {
@@ -717,14 +717,14 @@ void G_SetClientEffects( edict_t *ent ) {
 	}
 
 	if ( ent->client->quad_time > level.time ) {
-		//remaining = ent->client->quad_framenum - level.framenum;
+		//remaining = ent->client->quad_framenum - level.frameNumber;
 		//if (remaining > 30 || (remaining & 4))
 		if ( G_PowerUpExpiring( ent->client->quad_time ) )
 			ent->s.effects |= EF_QUAD;
 	}
 
 	if ( ent->client->invincible_time > level.time ) {
-		//remaining = ent->client->invincible_framenum - level.framenum;
+		//remaining = ent->client->invincible_framenum - level.frameNumber;
 		//if (remaining > 30 || (remaining & 4))
 		if ( G_PowerUpExpiring( ent->client->invincible_time ) )
 			ent->s.effects |= EF_PENT;
@@ -785,7 +785,7 @@ void G_SetClientSound( edict_t *ent ) {
 	}
 
 	// help beep (no more than ONE time - that's annoying enough)
-	if ( ent->client->pers.helpchanged && ent->client->pers.helpchanged <= 1 && !( level.framenum & 63 ) ) {
+	if ( ent->client->pers.helpchanged && ent->client->pers.helpchanged <= 1 && !( level.frameNumber & 63 ) ) {
 		ent->client->pers.helpchanged++;
 		gi.sound( ent, CHAN_VOICE, gi.soundindex( "misc/pc_up.wav" ), 1, ATTN_STATIC, 0 );
 	}
@@ -948,7 +948,7 @@ void SVG_Client_EndServerFrame( edict_t *ent ) {
 	// If the end of unit layout is displayed, don't give
 	// the player any normal movement attributes
 	//
-	if ( level.intermission_framenum ) {
+	if ( level.intermissionFrameNumber ) {
 		// FIXME: add view drifting here?
 		current_client->ps.screen_blend[ 3 ] = 0;
 		current_client->ps.fov = 90;
@@ -1056,7 +1056,7 @@ void SVG_Client_EndServerFrame( edict_t *ent ) {
 	//VectorClear( ent->client->kick_angles );
 
 	// if the scoreboard is up, update it
-	if ( ent->client->showscores && !( level.framenum & 31 ) ) {
+	if ( ent->client->showscores && !( level.frameNumber & 31 ) ) {
 		SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy );
 		gi.unicast( ent, false );
 	}

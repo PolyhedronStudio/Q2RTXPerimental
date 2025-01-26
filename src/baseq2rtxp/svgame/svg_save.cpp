@@ -300,14 +300,14 @@ static const save_field_t entityfields[] = {
 
 static const save_field_t levelfields[] = {
 #define _OFS LLOFS
-	I64( framenum ),
+	I64( frameNumber ),
 	I64( time ), // WID: 64-bit-frame
 
 	SZ( level_name, MAX_QPATH ),
 	SZ( mapname, MAX_QPATH ),
 	SZ( nextmap, MAX_QPATH ),
 
-	I64( intermission_framenum ),
+	I64( intermissionFrameNumber ),
 
 	L( changemap ),
 	I64( exitintermission ),
@@ -947,13 +947,13 @@ A single player death will automatically restore from the
 last save position.
 ============
 */
-void WriteGame(const char *filename, qboolean autosave)
+void SVG_WriteGame(const char *filename, qboolean autosave)
 {
     gzFile  f;
     int     i;
 
     if (!autosave)
-        SVG_SaveClientData();
+        SVG_Player_SaveClientData();
 
     f = gzopen(filename, "wb");
     if (!f)
@@ -983,7 +983,7 @@ static game_read_context_t make_read_context(gzFile f, int version)
     return ctx;
 }
 
-void ReadGame(const char *filename)
+void SVG_ReadGame(const char *filename)
 {
     gzFile	f;
     int     i;
@@ -1047,7 +1047,7 @@ WriteLevel
 
 =================
 */
-void WriteLevel(const char *filename)
+void SVG_WriteLevel(const char *filename)
 {
     int     i;
     edict_t *ent;
@@ -1093,7 +1093,7 @@ calling ReadLevel.
 No clients are connected yet.
 =================
 */
-void ReadLevel(const char *filename)
+void SVG_ReadLevel(const char *filename)
 {
     int     entnum;
     gzFile  f;

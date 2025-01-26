@@ -112,8 +112,8 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
 void ClientThink(edict_t *ent, usercmd_t *cmd);
 qboolean ClientConnect(edict_t *ent, char *userinfo);
 void SVG_Client_UserinfoChanged(edict_t *ent, char *userinfo);
-void ClientDisconnect(edict_t *ent);
-void ClientBegin(edict_t *ent);
+void SVG_Client_Disconnect(edict_t *ent);
+void SVG_Client_Begin(edict_t *ent);
 void ClientCommand(edict_t *ent);
 void SVG_RunEntity(edict_t *ent);
 void WriteGame(const char *filename, qboolean autosave);
@@ -355,7 +355,7 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.ClientThink = ClientThink;
 		globals.ClientConnect = ClientConnect;
-		globals.SVG_Client_UserinfoChanged = SVG_Client_UserinfoChanged;
+		globals.ClientUserinfoChanged = SVG_Client_UserinfoChanged;
 		globals.ClientDisconnect = ClientDisconnect;
 		globals.ClientBegin = ClientBegin;
 		globals.ClientCommand = ClientCommand;
@@ -552,7 +552,7 @@ void CheckDMRules(void)
     int         i;
     gclient_t   *cl;
 
-    if (level.intermission_framenum)
+    if (level.intermissionFrameNumber)
         return;
 
     if (!deathmatch->value)
@@ -597,7 +597,7 @@ void ExitLevel(void)
     gi.AddCommandString(command);
     level.changemap = NULL;
     level.exitintermission = 0;
-    level.intermission_framenum = 0;
+    level.intermissionFrameNumber = 0;
 
     // clear some things before going to next level
     for (i = 0 ; i < maxclients->value ; i++) {
@@ -626,7 +626,7 @@ void G_RunFrame(void)
     //G_CheckCVarConfigStrings();
 
     // Increase the frame number we're in for this level..
-    level.framenum++;
+    level.frameNumber++;
     // Increase the amount of time that has passed for this level.
     level.time += FRAME_TIME_MS;
 

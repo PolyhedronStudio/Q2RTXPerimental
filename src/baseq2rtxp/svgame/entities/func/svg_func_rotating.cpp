@@ -15,6 +15,15 @@
 
 
 
+/**
+*   For readability's sake:
+**/
+static constexpr svg_pushmove_state_t ROTATING_STATE_DECELERATE_END     = PUSHMOVE_STATE_TOP;
+static constexpr svg_pushmove_state_t ROTATING_STATE_ACCELERATE_END     = PUSHMOVE_STATE_BOTTOM;
+static constexpr svg_pushmove_state_t ROTATING_STATE_MOVE_DECELERATING  = PUSHMOVE_STATE_MOVING_UP;
+static constexpr svg_pushmove_state_t ROTATING_STATE_MOVE_ACCELERATING  = PUSHMOVE_STATE_MOVING_DOWN;
+
+
 /*QUAKED func_rotating (0 .5 .8) ? START_ON REVERSE X_AXIS Y_AXIS TOUCH_PAIN STOP ANIMATED ANIMATED_FAST
 
 You need to have an origin brush as part of this entity. The center of that brush will be
@@ -88,6 +97,8 @@ void rotating_accelerate( edict_t *self ) {
     const float current_speed = QM_Vector3Length( self->avelocity );
     // It has finished Accelerating.
     if ( current_speed >= ( self->speed - self->accel ) ) {
+        // Decelerated state.
+        self->pushMoveInfo.state = ROTATING_STATE_ACCELERATE_END;
         // 'Moving' sound.
         self->s.sound = self->pushMoveInfo.sounds.middle;
         // Set velocity.
@@ -111,7 +122,23 @@ void rotating_accelerate( edict_t *self ) {
         self->touch = rotating_touch;
     }
 }
+/**
+*   @brief
+**/
+void rotating_accelerate_start( edict_t *self ) {
+    if ( self->pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING) {// || self->pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING ) {
+        return;
+    }
 
+    // We are now accelerating.
+    self->pushMoveInfo.state = ROTATING_STATE_MOVE_ACCELERATING;
+
+    // Play start sound.
+    rotating_sound_play_start( self );
+
+    // Start accelerating/immediate start.
+    rotating_accelerate( self );
+}
 /**
 *   @brief
 **/
@@ -120,6 +147,8 @@ void rotating_decelerate( edict_t *self ) {
     const float current_speed = QM_Vector3Length( self->avelocity );
     // It has finished Decelerating.
     if ( current_speed <= self->decel ) {
+        // Decelerated state.
+        self->pushMoveInfo.state = ROTATING_STATE_DECELERATE_END;
         // End sound.
         rotating_sound_play_end( self );
         // No sound.
@@ -145,46 +174,28 @@ void rotating_decelerate( edict_t *self ) {
 /**
 *   @brief
 **/
-void rotating_decelerate_engage( edict_t *self ) {
-    // Get angular velocity speed.
-    const float current_speed = QM_Vector3Length( self->avelocity );
-    // It has finished Decelerating.
-    if ( current_speed <= self->decel ) {
-        // End sound.
-        rotating_sound_play_end( self );
-        // No sound.
-        self->s.sound = 0;
-        // Set velocity.
-        self->avelocity = {};
-        // Off:
-        //SVG_UseTargets( self, self, useType, useValue );
-        SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_OFF, 0 );
-        self->touch = nullptr;
-    // 'Starts/Still is' Decelerating:
-    } else {
-        // Set sound.
-        self->s.sound = self->pushMoveInfo.sounds.middle;
-        // Calculate new speed based movedir velocity.
-        const float new_speed = current_speed - self->decel;
-        self->avelocity = self->movedir * new_speed;
-        // Setup nextthink.
-        self->think = rotating_decelerate;
-        self->nextthink = level.time + FRAME_TIME_S;
+void rotating_decelerate_start( edict_t *self ) {
+    if ( self->pushMoveInfo.state == ROTATING_STATE_MOVE_DECELERATING ) { // } || self->pushMoveInfo.state == ROTATING_STATE_MOVE_DECELERATING ) {
+        return;
     }
+    
+    // We are now accelerating.
+    self->pushMoveInfo.state = ROTATING_STATE_MOVE_DECELERATING;
+
+    // End decelerating/immediate halt.
+    rotating_decelerate( self );
 }
 
 /**
 *   @brief  
 **/
-void rotating_toggle( edict_t *self ) {
-    if ( VectorEmpty( self->avelocity ) ) {
-        // Start sound.
-        rotating_sound_play_start( self );
+void rotating_toggle( edict_t *self, const int32_t useValue ) {
+    if ( useValue != 0 ) {
         // Accelerate.
-        rotating_accelerate( self );
+        rotating_accelerate_start( self );
     } else {
         // Decelerate.
-        rotating_decelerate( self );
+        rotating_decelerate_start( self );
     }
 }
 
@@ -255,14 +266,12 @@ void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const enti
     if ( useType == ENTITY_USETARGET_TYPE_SET ) {
         // On:
         if ( useValue != 0 ) {
-            // Start sound.
-            rotating_sound_play_start( self );
             // Accelerate.
-            rotating_accelerate( self );
+            rotating_accelerate_start( self );
         // Off:
         } else {
             // Decelerate.
-            rotating_decelerate( self );
+            rotating_decelerate_start( self );
         }
         // Return.
         return;
@@ -270,19 +279,17 @@ void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const enti
     } else {
         // Toggle:
         if ( useType == ENTITY_USETARGET_TYPE_TOGGLE ) {
-            rotating_toggle( self );
+            rotating_toggle( self, useValue );
         // On/Off:
         } else {
             // On:
             if ( useType == ENTITY_USETARGET_TYPE_ON ) {
-                // Start sound.
-                rotating_sound_play_start( self );
                 // Accelerate.
-                rotating_accelerate( self );
+                rotating_accelerate_start( self );
             // Off:
             } else if ( useType == ENTITY_USETARGET_TYPE_OFF ) {
                 // Decelerate.
-                rotating_decelerate( self );
+                rotating_decelerate_start( self );
             }
         }
     }
@@ -312,9 +319,11 @@ void SP_func_rotating( edict_t *ent ) {
     }
     // Pusher Type.
     ent->s.entityType = ET_PUSHER;
+    // Default state.
+    ent->pushMoveInfo.state = ROTATING_STATE_DECELERATE_END;
 
     // Set the axis of rotation.
-    VectorClear( ent->movedir );
+    ent->movedir = {};
     // X Axis:
     if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_ROTATE_X ) {
         ent->movedir[ 2 ] = 1.0f;
@@ -328,7 +337,8 @@ void SP_func_rotating( edict_t *ent ) {
 
     // Check for reverse rotation.
     if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_START_REVERSE ) {
-        VectorNegate( ent->movedir, ent->movedir );
+        // Negate the move direction.
+        ent->movedir = QM_Vector3Negate( ent->movedir );
     }
 
     // Apply default speed.
@@ -344,14 +354,17 @@ void SP_func_rotating( edict_t *ent ) {
     ent->touch = rotating_touch;
     ent->use = rotating_use;
 
+    // Blockading entities get damaged if dmg is set.
     if ( ent->dmg ) {
         ent->blocked = rotating_blocked;
     }
 
+    // Start already rotating.
     if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_START_ON ) {
         ent->use( ent, NULL, NULL, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_SET, 1 );
     }
 
+    // Animation.
     if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_ANIMATE_ALL ) {
         ent->s.effects |= EF_ANIM_ALL;
     }
@@ -360,6 +373,7 @@ void SP_func_rotating( edict_t *ent ) {
     }
 
     // PGM
+    // Has acceleration and deceleration support.
     if ( SVG_HasSpawnFlags( ent, FUNC_ROTATING_SPAWNFLAG_ACCELERATED ) ) {
         // Acceleration:
         if ( !ent->accel ) {

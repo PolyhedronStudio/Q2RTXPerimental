@@ -370,7 +370,7 @@ void actor_attack(edict_t *self)
 {
 	M_SetAnimation( self, &actor_move_attack );
     //int n = (Q_rand() & 15) + 3 + 7;
-    //self->monsterinfo.pause_framenum = level.framenum + n;
+    //self->monsterinfo.pause_framenum = level.frameNumber + n;
 	self->monsterinfo.pause_time = level.time + random_time( 1_sec, 2.6_sec );
 }
 

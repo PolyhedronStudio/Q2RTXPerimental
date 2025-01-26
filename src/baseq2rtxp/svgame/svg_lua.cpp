@@ -850,7 +850,7 @@ void SVG_Lua_CallBack_RunFrame() {
 
 	// Expect true.
 	bool retval = true;
-	auto callResult = luaMapInstance.callBacks.OnRunFrame( level.framenum );
+	auto callResult = luaMapInstance.callBacks.OnRunFrame( level.frameNumber );
 	// If valid, convert result to boolean.
 	if ( callResult.valid() ) {
 		// Convert.

@@ -1879,56 +1879,56 @@ void SV_UserinfoChanged(client_t *cl)
     int     i;
 
     // call prog code to allow overrides
-    ge->SVG_Client_UserinfoChanged(cl->edict, cl->userinfo);
+    ge->ClientUserinfoChanged( cl->edict, cl->userinfo );
 
     // name for C code
-    val = Info_ValueForKey(cl->userinfo, "name");
-    len = Q_strlcpy(name, val, sizeof(name));
-    if (len >= sizeof(name)) {
-        len = sizeof(name) - 1;
+    val = Info_ValueForKey( cl->userinfo, "name" );
+    len = Q_strlcpy( name, val, sizeof( name ) );
+    if ( len >= sizeof( name ) ) {
+        len = sizeof( name ) - 1;
     }
     // mask off high bit
-    for (i = 0; i < len; i++)
-        name[i] &= 127;
-    if (cl->name[0] && strcmp(cl->name, name)) {
-        if (COM_DEDICATED) {
-            Com_Printf("%s[%s] changed name to %s\n", cl->name,
-                       NET_AdrToString(&cl->netchan.remote_address), name);
+    for ( i = 0; i < len; i++ )
+        name[ i ] &= 127;
+    if ( cl->name[ 0 ] && strcmp( cl->name, name ) ) {
+        if ( COM_DEDICATED ) {
+            Com_Printf( "%s[%s] changed name to %s\n", cl->name,
+                NET_AdrToString( &cl->netchan.remote_address ), name );
         }
 
-        if (sv_show_name_changes->integer > 1 ||
-            (sv_show_name_changes->integer == 1 && cl->state == cs_spawned)) {
-            SV_BroadcastPrintf(PRINT_HIGH, "%s changed name to %s\n",
-                               cl->name, name);
+        if ( sv_show_name_changes->integer > 1 ||
+            ( sv_show_name_changes->integer == 1 && cl->state == cs_spawned ) ) {
+            SV_BroadcastPrintf( PRINT_HIGH, "%s changed name to %s\n",
+                                cl->name, name );
         }
     }
-    memcpy(cl->name, name, len + 1);
+    memcpy( cl->name, name, len + 1 );
 
     // rate command
-    val = Info_ValueForKey(cl->userinfo, "rate");
-    if (*val) {
-        cl->rate = atoi(val);
-        clamp(cl->rate, sv_min_rate->integer, sv_max_rate->integer);
+    val = Info_ValueForKey( cl->userinfo, "rate" );
+    if ( *val ) {
+        cl->rate = atoi( val );
+        clamp( cl->rate, sv_min_rate->integer, sv_max_rate->integer );
     } else {
         cl->rate = CLIENT_RATE_MIN;
     }
 
     // never drop over the loopback
-    if (NET_IsLocalAddress(&cl->netchan.remote_address)) {
+    if ( NET_IsLocalAddress( &cl->netchan.remote_address ) ) {
         cl->rate = 0;
     }
 
     // don't drop over LAN connections
-    if (sv_lan_force_rate->integer &&
-        NET_IsLanAddress(&cl->netchan.remote_address)) {
+    if ( sv_lan_force_rate->integer &&
+        NET_IsLanAddress( &cl->netchan.remote_address ) ) {
         cl->rate = 0;
     }
 
     // msg command
-    val = Info_ValueForKey(cl->userinfo, "msg");
-    if (*val) {
-        cl->messagelevel = atoi(val);
-        clamp(cl->messagelevel, PRINT_LOW, PRINT_CHAT + 1);
+    val = Info_ValueForKey( cl->userinfo, "msg" );
+    if ( *val ) {
+        cl->messagelevel = atoi( val );
+        clamp( cl->messagelevel, PRINT_LOW, PRINT_CHAT + 1 );
     }
 }
 

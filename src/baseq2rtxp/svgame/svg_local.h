@@ -676,7 +676,7 @@ extern  int snd_fry;
 *           it is read/written to the level.sav file for savegames
 **/
 typedef struct {
-    int64_t         framenum;
+    uint64_t        frameNumber;
     sg_time_t		time;
 
     char        level_name[MAX_QPATH];  // the descriptive name (Outer Base, etc)
@@ -684,7 +684,7 @@ typedef struct {
     char        nextmap[MAX_QPATH];     // go here when fraglimit is hit
 
     // intermission state
-    int64_t         intermission_framenum;  // time the intermission was started
+    int64_t         intermissionFrameNumber;  // time the intermission was started
 
 	// WID: C++20: Added const.
     const char	*changemap;
@@ -1343,20 +1343,29 @@ edict_t *PlayerTrail_LastSpot( void );
 //
 // g_client.c
 //
-void SVG_HUD_BeginIntermission( edict_t *targ );
+
 
 /**
 *   @brief  Will reset the entity client's 'Field of View' back to its defaults.
 **/
-void SVG_Client_ResetPlayerStateFOV( gclient_t *client );
-void SVG_Client_InitPersistantData( edict_t *ent, gclient_t *client );
-void SVG_Client_InitRespawnData( gclient_t *client );
-void SVG_Client_PutInServer( edict_t *ent );
+void SVG_Player_ResetPlayerStateFOV( gclient_t *client );
 void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo );
-void SVG_Client_Respawn( edict_t *self );
-void SVG_Client_BeginServerFrame( edict_t *ent );
-void SVG_Client_SelectSpawnPoint( edict_t *ent, Vector3 &origin, Vector3 &angles );
-void SVG_Client_Obituary( edict_t *self, edict_t *inflictor, edict_t *attacker );
+
+void SVG_Player_InitPersistantData( edict_t *ent, gclient_t *client );
+void SVG_Player_InitRespawnData( gclient_t *client );
+void SVG_Player_SaveClientData( void );
+void SVG_Player_RestoreClientData( edict_t *ent );
+void SVG_Player_PutInServer( edict_t *ent );
+
+void SVG_Client_RespawnPlayer( edict_t *self );
+
+/**
+*   @brief  Only called when pers.spectator changes.
+*   @note   That resp.spectator should be the opposite of pers.spectator here
+**/
+void SVG_Client_RespawnSpectator( edict_t *ent );
+void SVG_Player_SelectSpawnPoint( edict_t *ent, Vector3 &origin, Vector3 &angles );
+void SVG_Player_Obituary( edict_t *self, edict_t *inflictor, edict_t *attacker );
 
 //
 // g_player.c
@@ -1373,11 +1382,13 @@ bool SVG_FilterPacket( char *from );
 //
 // p_view.c
 //
+void SVG_Client_BeginServerFrame( edict_t *ent );
 void SVG_Client_EndServerFrame( edict_t *ent );
 
 //
 // p_hud.c
 //
+void SVG_HUD_BeginIntermission( edict_t *targ );
 void SVG_HUD_MoveClientToIntermission( edict_t *client );
 void SVG_HUD_SetStats( edict_t *ent );
 void SVG_HUD_SetSpectatorStats( edict_t *ent );
@@ -1459,8 +1470,7 @@ void SVG_RunEntity( edict_t *ent );
 //
 // g_main.c
 //
-void SVG_SaveClientData( void );
-void SVG_FetchClientEntData( edict_t *ent );
+
 
 
 //
@@ -1573,12 +1583,12 @@ typedef struct {
 } client_persistant_t;
 
 /**
-*   @brief  Client SVG_Client_Respawn data that stays across multiplayer mode respawns.
+*   @brief  Client respawn data that stays across multiplayer mode respawns.
 **/
 typedef struct {
-    client_persistant_t pers_respawn;	// what to set client->pers to on a SVG_Client_Respawn
+    client_persistant_t pers_respawn;	// what to set client->pers to on a respawn.
 
-    int64_t enterframe;     // level.framenum the client entered the game
+    int64_t enterframe;     // level.frameNumber the client entered the game
     sg_time_t entertime;    // the moment in time the client entered the game.
 
     int32_t score;      // Frags, etc
@@ -1587,7 +1597,7 @@ typedef struct {
     bool spectator;     // Client is a spectator
 } client_respawn_t;
 
-// this structure is cleared on each SVG_Client_PutInServer(),
+// this structure is cleared on each SVG_Player_PutInServer(),
 // except for 'client->pers'
 struct gclient_s {
     /**
@@ -1820,7 +1830,7 @@ struct gclient_s {
         edict_t *previousEntity;
 
         //! To ensure we check for processing useTargets only once.
-        bool tracedForFrame;
+        uint64_t tracedFrameNumber;
     } useTarget;
 
 	/**
@@ -1836,7 +1846,7 @@ struct gclient_s {
 	*	Item/Use Event Timers:
 	**/
     sg_time_t	pickup_msg_time;
-    sg_time_t	respawn_time;		// can SVG_Client_Respawn when time > this
+    sg_time_t	respawn_time;		// can respawn when time > this
 
 
     /**

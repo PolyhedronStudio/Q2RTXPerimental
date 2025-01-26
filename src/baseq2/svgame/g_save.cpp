@@ -303,7 +303,7 @@ static const save_field_t levelfields[] = {
 	SZ( mapname, MAX_QPATH ),
 	SZ( nextmap, MAX_QPATH ),
 
-	I64( intermission_framenum ),
+	I64( intermissionFrameNumber ),
 	L( changemap ),
 	I64( exitintermission ),
 	V( intermission_origin ),
@@ -925,7 +925,7 @@ void WriteGame(const char *filename, qboolean autosave)
     int     i;
 
     if (!autosave)
-        SVG_SaveClientData();
+        SVG_Player_SaveClientData();
 
     f = gzopen(filename, "wb");
     if (!f)
@@ -1019,7 +1019,7 @@ WriteLevel
 
 =================
 */
-void WriteLevel(const char *filename)
+void SVG_WriteLevel(const char *filename)
 {
     int     i;
     edict_t *ent;

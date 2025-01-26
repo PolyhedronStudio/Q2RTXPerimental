@@ -104,19 +104,20 @@ cvar_t *g_select_empty;
 //
 // Func Declarations:
 //
-void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
-void ClientThink(edict_t *ent, usercmd_t *cmd);
-qboolean ClientConnect(edict_t *ent, char *userinfo);
-void SVG_Client_UserinfoChanged(edict_t *ent, char *userinfo);
-void ClientDisconnect(edict_t *ent);
-void ClientBegin(edict_t *ent);
-void ClientCommand(edict_t *ent);
+void SVG_Client_Begin( edict_t *ent );
+void SVG_Client_Command( edict_t *ent );
+qboolean SVG_Client_Connect( edict_t *ent, char *userinfo );
+void SVG_Client_Disconnect( edict_t *ent );
+void SVG_Client_Think( edict_t *ent, usercmd_t *cmd );
+void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo );
+
+void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 void SVG_RunEntity(edict_t *ent);
-void WriteGame(const char *filename, qboolean autosave);
-void ReadGame(const char *filename);
-void WriteLevel(const char *filename);
-void ReadLevel(const char *filename);
-void InitGame(void);
+void SVG_WriteGame(const char *filename, qboolean autosave);
+void SVG_ReadGame(const char *filename);
+void SVG_WriteLevel(const char *filename);
+void SVG_ReadLevel(const char *filename);
+void SVG_InitGame(void);
 void SVG_RunFrame(void);
 
 //===================================================================
@@ -154,7 +155,7 @@ static void cvar_sv_gamemode_changed( cvar_t *self ) {
 *			is loaded from the main menu without having a game running
 *			in the background.
 **/
-void ShutdownGame(void)
+void SVG_ShutdownGame(void)
 {
     // Notify of shutdown.
     gi.dprintf("==== Shutdown ServerGame ====\n");
@@ -174,7 +175,7 @@ void ShutdownGame(void)
 *			is loaded from the main menu without having a game running
 *			in the background.
 **/
-void PreInitGame( void ) {
+void SVG_PreInitGame( void ) {
 	// Notify 
 	gi.dprintf( "==== PreInit ServerGame ====\n" );
 
@@ -242,7 +243,7 @@ void PreInitGame( void ) {
 /**
 *	@brief	Called after PreInitGame when the game has set up gamemode specific cvars.
 **/
-void InitGame( void )
+void SVG_InitGame( void )
 {
 	// Notify 
     gi.dprintf("==== Init ServerGame(Gamemode: \"%s\", maxclients=%d, maxspectators=%d, maxentities=%d) ====\n",
@@ -386,10 +387,10 @@ extern "C" { // WID: C++20: extern "C".
         FRAME_TIME_MS = sg_time_t::from_ms( gi.frame_time_ms );
 
 		globals.apiversion = SVGAME_API_VERSION;
-		globals.PreInit = PreInitGame;
-		globals.Init = InitGame;
-		globals.Shutdown = ShutdownGame;
-		globals.SpawnEntities = SpawnEntities;
+		globals.PreInit = SVG_PreInitGame;
+		globals.Init = SVG_InitGame;
+		globals.Shutdown = SVG_ShutdownGame;
+		globals.SpawnEntities = SVG_SpawnEntities;
 
 		globals.GetActiveGameModeType = _Exports_SG_GetActiveGameModeType;
         globals.IsValidGameModeType = _Exports_SG_IsValidGameModeType;
@@ -398,17 +399,17 @@ extern "C" { // WID: C++20: extern "C".
 		globals.GetGamemodeName = _Exports_SG_GetGameModeName;
 		globals.GamemodeNoSaveGames = SVG_GetGamemodeNoSaveGames;
 
-		globals.WriteGame = WriteGame;
-		globals.ReadGame = ReadGame;
-		globals.WriteLevel = WriteLevel;
-		globals.ReadLevel = ReadLevel;
+		globals.WriteGame = SVG_WriteGame;
+		globals.ReadGame = SVG_ReadGame;
+		globals.WriteLevel = SVG_WriteLevel;
+		globals.ReadLevel = SVG_ReadLevel;
 
-		globals.ClientThink = ClientThink;
-		globals.ClientConnect = ClientConnect;
-		globals.SVG_Client_UserinfoChanged = SVG_Client_UserinfoChanged;
-		globals.ClientDisconnect = ClientDisconnect;
-		globals.ClientBegin = ClientBegin;
-		globals.ClientCommand = ClientCommand;
+		globals.ClientThink = SVG_Client_Think;
+		globals.ClientConnect = SVG_Client_Connect;
+        globals.ClientBegin = SVG_Client_Begin;
+        globals.ClientDisconnect = SVG_Client_Disconnect;
+		globals.ClientUserinfoChanged = SVG_Client_UserinfoChanged;
+		globals.ClientCommand = SVG_Client_Command;
 
 		globals.PlayerMove = SG_PlayerMove;
 		globals.ConfigurePlayerMoveParameters = SG_ConfigurePlayerMoveParameters;
@@ -586,7 +587,7 @@ void CheckDMRules(void) {
     int         i;
     gclient_t   *cl;
 
-    if ( level.intermission_framenum ) {
+    if ( level.intermissionFrameNumber ) {
         return;
     }
 
@@ -634,7 +635,7 @@ void ExitLevel(void) {
     gi.AddCommandString(command);
     level.changemap = NULL;
     level.exitintermission = 0;
-    level.intermission_framenum = 0;
+    level.intermissionFrameNumber = 0;
 
     // clear some things before going to next level
     for (i = 0 ; i < maxclients->value ; i++) {
@@ -657,7 +658,7 @@ void SVG_RunFrame(void) {
     //G_CheckCVarConfigStrings();
 
     // Increase the frame number we're in for this level..
-    level.framenum++;
+    level.frameNumber++;
     // Increase the amount of time that has passed for this level.
     level.time += FRAME_TIME_MS;
 

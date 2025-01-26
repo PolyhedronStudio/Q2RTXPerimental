@@ -245,7 +245,7 @@ const bool Pickup_Ammo(edict_t *itemEntity, edict_t *other) {
         }
     }
 
-    // Set an item SVG_Client_Respawn for DM mode.
+    // Set an item respawn for DM mode.
     if ( !( itemEntity->spawnflags & ( DROPPED_ITEM | DROPPED_PLAYER_ITEM ) ) && ( deathmatch->value ) ) {
         SetRespawn( itemEntity, 30 );
     }

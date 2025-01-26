@@ -346,6 +346,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/player/svg_player_client.cpp
 	baseq2rtxp/svgame/player/svg_player_events.cpp
 	baseq2rtxp/svgame/player/svg_player_hud.cpp
+	baseq2rtxp/svgame/player/svg_player_move.cpp
 	baseq2rtxp/svgame/player/svg_player_obituary.cpp
 	baseq2rtxp/svgame/player/svg_player_spawn.cpp
 	baseq2rtxp/svgame/player/svg_player_trail.cpp

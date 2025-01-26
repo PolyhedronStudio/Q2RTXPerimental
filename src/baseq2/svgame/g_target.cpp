@@ -263,7 +263,7 @@ Changes level to "map" when fired
 */
 void use_target_changelevel(edict_t *self, edict_t *other, edict_t *activator)
 {
-    if (level.intermission_framenum)
+    if (level.intermissionFrameNumber)
         return;     // already activated
 
     if (!deathmatch->value && !coop->value) {

@@ -340,7 +340,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //    // let other monsters see this monster for a while
 //    if (self->enemy->client) {
 //        level.sight_entity = self;
-//        level.sight_entity_framenum = level.framenum;
+//        level.sight_entity_framenum = level.frameNumber;
 //    }
 //
 //    self->show_hostile = level.time + 1_sec;   // wake up other monsters
@@ -419,15 +419,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //// but not weapon impact/explosion noises
 //
 //    heardit = false;
-//    if ((level.sight_entity_framenum >= (level.framenum - 1)) && !(self->spawnflags & 1)) {
+//    if ((level.sight_entity_framenum >= (level.frameNumber - 1)) && !(self->spawnflags & 1)) {
 //        client = level.sight_entity;
 //        if (client->enemy == self->enemy) {
 //            return false;
 //        }
-//    } else if (level.sound_entity_framenum >= (level.framenum - 1)) {
+//    } else if (level.sound_entity_framenum >= (level.frameNumber - 1)) {
 //        client = level.sound_entity;
 //        heardit = true;
-//    } else if (!(self->enemy) && (level.sound2_entity_framenum >= (level.framenum - 1)) && !(self->spawnflags & 1)) {
+//    } else if (!(self->enemy) && (level.sound2_entity_framenum >= (level.frameNumber - 1)) && !(self->spawnflags & 1)) {
 //        client = level.sound2_entity;
 //        heardit = true;
 //    } else {
@@ -792,7 +792,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //    }
 //
 //// look for other coop players here
-////  if (coop && self->monsterinfo.search_framenum < level.framenum)
+////  if (coop && self->monsterinfo.search_framenum < level.frameNumber)
 ////  {
 ////      if (FindTarget (self))
 ////          return true;

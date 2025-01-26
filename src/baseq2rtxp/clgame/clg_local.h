@@ -716,7 +716,7 @@ extern game_locals_t game;
 **/
 struct level_locals_t {
 	//! Frame number, starts incrementing when the level session has begun..
-	int64_t		framenum;
+	uint64_t	frameNumber;
 	//! Time passed, also starts incrementing when the level session has begun.
 	sg_time_t	time;
 

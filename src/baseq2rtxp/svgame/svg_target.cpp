@@ -228,7 +228,7 @@ void SP_target_explosion(edict_t *ent)
 Changes level to "map" when fired
 */
 void use_target_changelevel( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    if (level.intermission_framenum)
+    if (level.intermissionFrameNumber)
         return;     // already activated
 
     if (!deathmatch->value && !coop->value) {

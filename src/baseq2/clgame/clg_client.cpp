@@ -66,7 +66,7 @@ static void CLG_ClientEndLocalFrame( void ) {
 **/
 void PF_ClientLocalFrame( void ) {
 	// Increase the frame number we're in for this level..
-	level.framenum++;
+	level.frameNumber++;
 	// Increase the amount of time that has passed for this level.
 	level.time += FRAME_TIME_MS;
 
@@ -93,7 +93,7 @@ void PF_ClientLocalFrame( void ) {
 // Debug print: framenum, level time.
 #if 0
 	clgi.Print( PRINT_DEVELOPER, "%s: framenum(%ld), time(%ld)\n", 
-		__func__, level.framenum, level.time.milliseconds() );
+		__func__, level.frameNumber, level.time.milliseconds() );
 #endif
 }
 /**

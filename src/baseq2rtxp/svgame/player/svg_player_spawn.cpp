@@ -196,7 +196,7 @@ static edict_t *SelectCoopSpawnPoint( edict_t *ent ) {
 * 
 *           If that fails, errors out.
 **/
-void SVG_Client_SelectSpawnPoint( edict_t *ent, Vector3 &origin, Vector3 &angles ) {
+void SVG_Player_SelectSpawnPoint( edict_t *ent, Vector3 &origin, Vector3 &angles ) {
     edict_t *spot = NULL;
 
     if ( deathmatch->value ) {

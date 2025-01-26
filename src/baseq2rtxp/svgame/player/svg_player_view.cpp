@@ -712,7 +712,7 @@ void SVG_SetClientEffects( edict_t *ent ) {
 	ent->s.effects = 0;
 	ent->s.renderfx = 0;
 
-	if ( ent->health <= 0 || level.intermission_framenum ) {
+	if ( ent->health <= 0 || level.intermissionFrameNumber ) {
 		return;
 	}
 
@@ -843,15 +843,102 @@ void SVG_SetClientFrame( edict_t *ent ) {
 }
 
 
-/*
-=================
-SVG_Client_EndServerFrame
+/**
+*   @brief
+**/
+void SVG_Client_TraceForUseTarget( edict_t *ent, gclient_t *client, const bool processUserInput = false );
+/**
+*   @brief  This will be called once for each server frame, before running any other entities in the world.
+**/
+void SVG_Client_BeginServerFrame( edict_t *ent ) {
+	gclient_t *client;
+	int32_t buttonMask;
 
-Called for each player at the end of the server frame
-and right after spawning
-=================
-*/
-void ClientCheckPlayerstateEvents( const edict_t *ent, player_state_t *ops, player_state_t *ps );
+	/**
+	*   Remove RF_STAIR_STEP if we're in a new frame, not stepping.
+	**/
+	if ( gi.GetServerFrameNumber() != ent->client->last_stair_step_frame ) {
+		ent->s.renderfx &= ~RF_STAIR_STEP;
+	}
+
+	/**
+	*   Opt out of function if we're in intermission mode.
+	**/
+	if ( level.intermissionFrameNumber ) {
+		return;
+	}
+
+	/**
+	*   Handle respawning as a spectating client:
+	**/
+	client = ent->client;
+
+	if ( deathmatch->value && client->pers.spectator != client->resp.spectator &&
+		( level.time - client->respawn_time ) >= 5_sec ) {
+		SVG_Client_RespawnSpectator( ent );
+		return;
+	}
+
+	/**
+	*   Run (+usetarget) logics.
+	**/
+	// Update the (+/-usetarget) key state actions if not done so already by ClientUserThink.
+	if ( client->useTarget.tracedFrameNumber < level.frameNumber && !client->resp.spectator ) {
+		SVG_Client_TraceForUseTarget( ent, client, false );
+	} else {
+		client->useTarget.tracedFrameNumber = level.frameNumber;
+	}
+
+	/**
+	*   Run weapon logic if it hasn't been done by a usercmd_t in ClientThink.
+	**/
+	if ( client->weapon_thunk == false && !client->resp.spectator ) {
+		SVG_Player_Weapon_Think( ent, false );
+	} else {
+		client->weapon_thunk = false;
+	}
+
+	/**
+	*   If dead, check for any user input after the client's respawn_time has expired.
+	**/
+	if ( ent->deadflag ) {
+		// wait for any button just going down
+		if ( level.time > client->respawn_time ) {
+			// in deathmatch, only wait for attack button
+			if ( deathmatch->value ) {
+				buttonMask = BUTTON_PRIMARY_FIRE;
+			} else {
+				buttonMask = -1;
+			}
+
+			if ( ( client->latched_buttons & buttonMask ) ||
+				( deathmatch->value && ( (int)dmflags->value & DF_FORCE_RESPAWN ) ) ) {
+				SVG_Client_RespawnPlayer( ent );
+				client->latched_buttons = BUTTON_NONE;
+			}
+		}
+		return;
+	}
+
+	/**
+	*   Add player trail so monsters can follow
+	**/
+	if ( !deathmatch->value ) {
+		// WID: TODO: Monster Reimplement.
+		//if ( !visible( ent, PlayerTrail_LastSpot() ) ) {
+		PlayerTrail_Add( ent->s.old_origin );
+		//}
+	}
+
+	/**
+	*   UNLATCH ALL LATCHED BUTTONS:
+	**/
+	client->latched_buttons = BUTTON_NONE;
+}
+
+/**
+*	@brief	Called for each player at the end of the server frame, and right after spawning.
+**/
 void SVG_Client_EndServerFrame( edict_t *ent ) {
 	int     i;
 
@@ -881,7 +968,7 @@ void SVG_Client_EndServerFrame( edict_t *ent ) {
 	// If the end of unit layout is displayed, don't give
 	// the player any normal movement attributes
 	//
-	if ( level.intermission_framenum ) {
+	if ( level.intermissionFrameNumber ) {
 		// FIXME: add view drifting here?
 		current_client->ps.screen_blend[ 3 ] = 0;
 		current_client->ps.fov = 90;
@@ -945,7 +1032,7 @@ void SVG_Client_EndServerFrame( edict_t *ent ) {
 	SVG_SetClientEffects( ent );
 	// Sound.
 	SVG_SetClientSound( ent );
-	// Check for client plaerstate its pmove generated events.
+	// Check for client playerstate its pmove generated events.
 	SVG_CheckClientPlayerstateEvents( ent, &current_client->ops, &current_client->ps );
 	// Animation Frame.
 	SVG_SetClientFrame( ent );
@@ -959,7 +1046,7 @@ void SVG_Client_EndServerFrame( edict_t *ent ) {
 	ent->client->weaponKicks = {};
 	
 	// If the scoreboard is up, update it.
-	if ( ent->client->showscores && !( level.framenum & 31 ) ) {
+	if ( ent->client->showscores && !( level.frameNumber & 31 ) ) {
 		SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy );
 		gi.unicast( ent, false );
 	}

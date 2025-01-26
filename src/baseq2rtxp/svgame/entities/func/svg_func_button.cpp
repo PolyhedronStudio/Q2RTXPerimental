@@ -224,14 +224,15 @@ void button_press_move_done( edict_t *self ) {
         }
     }
     
-    // If button has to remain pushed,
+    // If button has to remain pushed.
     if ( stayPressed 
         // or is a 'Touchable',
         /* || isTouchButton || */
         // or is a 'Toggleable',
         || ( isToggleButton && isToggleUseTarget ) 
         // or a 'Continuous Usable':
-        || ( isContinuousState || isContinuousUseTarget ) ) 
+        || ( isContinuousState || isContinuousUseTarget ) )
+        //|| ( isContinuousUseTarget ) ) 
     {
             // Don't do anything in regards to applying the wait time.
     // If a wait time has been set, use it for when to trigger the button's return(unpressing).
@@ -492,14 +493,14 @@ void button_use( edict_t *self, edict_t *other, edict_t *activator, const entity
 **/
 void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // Only react if it is a client entity which is touch triggering this button.
-// If it is a dead client, ignore triggering it.
+    // If it is a dead client, ignore triggering it.
     if ( !SVG_IsClientEntity( activator, /* healthCheck=*/true ) ) {
         return;
     }
 
-    // Ignore triggers calling into fire when the button is still actively moving.
-    if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
-        || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
+    // Are we locked?
+    if ( self->pushMoveInfo.lockState.isLocked ) {
+        // TODO: Play some locked sound.
         return;
     }
 
@@ -515,6 +516,11 @@ void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *
         return;
     }
 
+    // Ignore triggers calling into fire when the button is still actively moving.
+    if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
+        || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
+        return;
+    }
     
     // Continuous button?
     const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
@@ -595,12 +601,6 @@ void button_usetarget_press( edict_t *self, edict_t *other, edict_t *activator, 
 *   @brief  For when '+usetarget' press triggered.
 **/
 void button_usetarget_toggle( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    // Ignore triggers calling into fire when the button is still actively moving.
-    if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
-        || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
-        return;
-    }
-
     // Only react if it is a client entity which is touch triggering this button.
     // If it is a dead client, ignore triggering it.
     if ( !SVG_IsClientEntity( activator, /* healthCheck=*/true ) ) {
@@ -613,6 +613,12 @@ void button_usetarget_toggle( edict_t *self, edict_t *other, edict_t *activator,
         return;
     }
 
+    // Ignore triggers calling into fire when the button is still actively moving.
+    if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
+        || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
+        return;
+    }
+
     // Set activator.
     self->activator = activator;
     // Set other.
@@ -621,7 +627,7 @@ void button_usetarget_toggle( edict_t *self, edict_t *other, edict_t *activator,
     if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED ) {
         // Engage in unpress movement.
         button_unpress_move( self );
-    } else {
+    } else if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED ) {
         // Engage in press movement.
         button_press_move( self );
     }

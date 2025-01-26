@@ -588,7 +588,7 @@ static void WritePairToEdictKeyField( byte *writeAddress, const spawn_field_t *k
 *           pairs in order to spawn entities appropriately matching the pair dictionary fields
 *           of each entity.
 **/
-void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities ) {
+void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities ) {
     // Acquire the 'skill' level cvar value in order to exlude various entities for various
     // skill levels.
     float skill_level = floor( skill->value );
@@ -599,15 +599,17 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
         gi.cvar_forceset( "skill", va( "%f", skill_level ) );
     }
 
-    // If we were running a previous session, make sure to save the session's client data.
-    SVG_SaveClientData();
+    // If we were running a previous session, make sure to save the session's client data before cleaning all level memory.
+    SVG_Player_SaveClientData();
 
     // Free up all SVGAME_LEVEL tag memory.
     gi.FreeTags(TAG_SVGAME_LEVEL);
 
     // Zero out all level struct data as well as all the entities(edicts).
-    memset( &level, 0, sizeof( level ) );
-    memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
+    level = {}; //memset( &level, 0, sizeof( level ) );
+    for ( int32_t i = 0; i < game.maxentities; i++ ) {
+        g_edicts[ i ] = {}; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
+    }
 
     // Copy over the mapname and the spawn point. (Optionally set by appending a map name with a $spawntarget)
     Q_strlcpy( level.mapname, mapname, sizeof( level.mapname ) );

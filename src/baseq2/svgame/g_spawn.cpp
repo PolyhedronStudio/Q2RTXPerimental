@@ -633,7 +633,7 @@ void SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity
     }
 
     // If we were running a previous session, make sure to save the session's client data.
-    SVG_SaveClientData();
+    SVG_Player_SaveClientData();
 
     // Free up all SVGAME_LEVEL tag memory.
     gi.FreeTags(TAG_SVGAME_LEVEL);

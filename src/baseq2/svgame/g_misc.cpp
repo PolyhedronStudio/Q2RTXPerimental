@@ -84,11 +84,11 @@ gibs
 void gib_think(edict_t *self)
 {
     self->s.frame++;
-    //self->nextthink = level.framenum + 1;
+    //self->nextthink = level.frameNumber + 1;
 	self->nextthink = level.time + FRAME_TIME_S;
     if (self->s.frame == 10) {
         self->think = SVG_FreeEdict;
-        self->nextthink = level.time + random_time(8_sec, 10_sec);//= level.framenum + (8 + random() * 10) * BASE_FRAMERATE;
+        self->nextthink = level.time + random_time(8_sec, 10_sec);//= level.frameNumber + (8 + random() * 10) * BASE_FRAMERATE;
     }
 }
 
@@ -111,7 +111,7 @@ void gib_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
         if (self->s.modelindex == sm_meat_index) {
             self->s.frame++;
             self->think = gib_think;
-            self->nextthink = level.time + FRAME_TIME_S;//level.framenum + 1;
+            self->nextthink = level.time + FRAME_TIME_S;//level.frameNumber + 1;
         }
     }
 }
@@ -160,7 +160,7 @@ void SVG_Misc_ThrowGib(edict_t *self, const char *gibname, int damage, int type)
     gib->avelocity[2] = random() * 600;
 
     gib->think = SVG_FreeEdict;
-    gib->nextthink = level.time + random_time(10_sec, 20_sec);//= level.framenum + (10 + random() * 10) * BASE_FRAMERATE;
+    gib->nextthink = level.time + random_time(10_sec, 20_sec);//= level.frameNumber + (10 + random() * 10) * BASE_FRAMERATE;
 
     gi.linkentity(gib);
 }
@@ -203,7 +203,7 @@ void SVG_Misc_ThrowHead(edict_t *self, const char *gibname, int damage, int type
     self->avelocity[YAW] = crandom() * 600;
 
     self->think = SVG_FreeEdict;
-    self->nextthink = level.time + random_time( 10_sec, 20_sec ); //level.framenum + (10 + random() * 10) * BASE_FRAMERATE;
+    self->nextthink = level.time + random_time( 10_sec, 20_sec ); //level.frameNumber + (10 + random() * 10) * BASE_FRAMERATE;
 
     gi.linkentity(self);
 }
@@ -280,7 +280,7 @@ void SVG_Misc_ThrowDebris(edict_t *self, const char *modelname, float speed, vec
     chunk->avelocity[1] = random() * 600;
     chunk->avelocity[2] = random() * 600;
     chunk->think = SVG_FreeEdict;
-    chunk->nextthink = level.time + random_time( 5_sec, 10_sec );//= level.framenum + (5 + random() * 5) * BASE_FRAMERATE;
+    chunk->nextthink = level.time + random_time( 5_sec, 10_sec );//= level.frameNumber + (5 + random() * 5) * BASE_FRAMERATE;
     chunk->s.frame = 0;
     chunk->flags = FL_NONE;
     chunk->classname = "debris";
@@ -458,7 +458,7 @@ Just for the debugging level.  Don't use
 void TH_viewthing(edict_t *ent)
 {
     ent->s.frame = (ent->s.frame + 1) % 7;
-    ent->nextthink = level.time + FRAME_TIME_S;//level.framenum + 1;
+    ent->nextthink = level.time + FRAME_TIME_S;//level.frameNumber + 1;
 }
 
 void SP_viewthing(edict_t *ent)
@@ -472,7 +472,7 @@ void SP_viewthing(edict_t *ent)
     VectorSet(ent->maxs, 16, 16, 32);
     ent->s.modelindex = gi.modelindex("models/objects/banner/tris.md2");
     gi.linkentity(ent);
-    ent->nextthink = level.time + 0.5_sec; //level.framenum + 0.5f * BASE_FRAMERATE;
+    ent->nextthink = level.time + 0.5_sec; //level.frameNumber + 0.5f * BASE_FRAMERATE;
     ent->think = TH_viewthing;
     return;
 }
