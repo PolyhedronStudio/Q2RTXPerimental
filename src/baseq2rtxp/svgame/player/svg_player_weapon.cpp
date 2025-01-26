@@ -18,7 +18,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // g_weapon.c
 
 #include "svgame/svg_local.h"
-#include "svg_m_player.h"
 
 
 static bool     is_quad;
@@ -101,7 +100,7 @@ const bool SVG_Player_Weapon_Pickup( edict_t *ent, edict_t *other ) {
         // Pointer to ammo type.
         const gitem_t *ammo;
         // give them some ammo with it
-        ammo = FindItem(ent->item->ammo);
+        ammo = SVG_FindItem(ent->item->ammo);
         if ( (int)dmflags->value & DF_INFINITE_AMMO ) {
             Add_Ammo( other, ammo, 1000 );
         } else {
@@ -117,7 +116,7 @@ const bool SVG_Player_Weapon_Pickup( edict_t *ent, edict_t *other ) {
                     ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
                 // Set a duration for respawning:
                 } else {
-                    SetRespawn( ent, 30 );
+                    SVG_SetItemRespawn( ent, 30 );
                 }
             }
             // Coop Path:
@@ -131,7 +130,7 @@ const bool SVG_Player_Weapon_Pickup( edict_t *ent, edict_t *other ) {
     // Set item as the new weapon to switch to.
     if ( other->client->pers.weapon != ent->item &&
         ( other->client->pers.inventory[ index ] == 1 ) &&
-        ( !deathmatch->value || other->client->pers.weapon == FindItem( "pistol" ) ) ) {
+        ( !deathmatch->value || other->client->pers.weapon == SVG_FindItem( "pistol" ) ) ) {
         other->client->newweapon = ent->item;
     }
 
@@ -208,7 +207,7 @@ allowchange:
 
     // Find the appropriate matching ammo index.
     if ( ent->client->pers.weapon && ent->client->pers.weapon->ammo ) {
-        ent->client->ammo_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->ammo ) );
+        ent->client->ammo_index = ITEM_INDEX( SVG_FindItem( ent->client->pers.weapon->ammo ) );
     } else {
         ent->client->ammo_index = 0;
     }
@@ -255,24 +254,24 @@ allowchange:
 //	}
 //
 //    // Find the next best weapon to utilize.
-//    //if (ent->client->pers.inventory[ITEM_INDEX(FindItem("bullets"))]
-//    //    &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("machinegun"))]) {
-//    //    ent->client->newweapon = FindItem("machinegun");
+//    //if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("bullets"))]
+//    //    &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("machinegun"))]) {
+//    //    ent->client->newweapon = SVG_FindItem("machinegun");
 //    //    return;
 //    //}
-//    //if (ent->client->pers.inventory[ITEM_INDEX(FindItem("shells"))] > 1
-//    //    &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("super shotgun"))]) {
-//    //    ent->client->newweapon = FindItem("super shotgun");
+//    //if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("shells"))] > 1
+//    //    &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("super shotgun"))]) {
+//    //    ent->client->newweapon = SVG_FindItem("super shotgun");
 //    //    return;
 //    //}
-//    //if (ent->client->pers.inventory[ITEM_INDEX(FindItem("shells"))]
-//    //    &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("shotgun"))]) {
-//    //    ent->client->newweapon = FindItem("shotgun");
+//    //if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("shells"))]
+//    //    &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("shotgun"))]) {
+//    //    ent->client->newweapon = SVG_FindItem("shotgun");
 //    //    return;
 //    //}
 //    
 //    // We got no other weapons yet.
-//    ent->client->newweapon = FindItem( "fists" );
+//    ent->client->newweapon = SVG_FindItem( "fists" );
 //}
 
 
@@ -300,7 +299,7 @@ void SVG_Player_Weapon_Use( edict_t *ent, const gitem_t *item ) {
     //}
 
     if ( item->ammo && !g_select_empty->value && !( item->flags & ITEM_FLAG_AMMO ) ) {
-        ammo_item = FindItem( item->ammo );
+        ammo_item = SVG_FindItem( item->ammo );
         ammo_index = ITEM_INDEX( ammo_item );
 
         if ( ent->client->pers.weapon_clip_ammo[ ammo_index] && ent->client->pers.inventory[ent->client->ammo_index] <= 0 ) {

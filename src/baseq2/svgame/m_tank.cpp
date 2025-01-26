@@ -724,16 +724,16 @@ void tank_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
             SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", damage, GIB_TYPE_METALLIC);
         SVG_Misc_ThrowGib(self, "models/objects/gibs/chest/tris.md2", damage, GIB_TYPE_ORGANIC);
         SVG_Misc_ThrowHead(self, "models/objects/gibs/gear/tris.md2", damage, GIB_TYPE_METALLIC);
-        self->deadflag = DEADFLAG_DEAD;
+        self->lifeStatus = LIFESTATUS_DEAD;
         return;
     }
 
-    if (self->deadflag == DEADFLAG_DEAD)
+    if (self->lifeStatus == LIFESTATUS_DEAD)
         return;
 
 // regular death
     gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
-    self->deadflag = DEADFLAG_DEAD;
+    self->lifeStatus = LIFESTATUS_DEAD;
     self->takedamage = DAMAGE_YES;
 
 	M_SetAnimation( self, &tank_move_death );

@@ -237,7 +237,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 	Vector3 viewAnglesOffset = ent->client->weaponKicks.offsetAngles;//ent->client->ps.kick_angles;
 
 	// If dead, fix the angle and don't add any kicks
-	if ( ent->deadflag ) {
+	if ( ent->lifeStatus ) {
 		// Clear out weapon kick angles.
 		VectorClear( ent->client->ps.kick_angles );
 

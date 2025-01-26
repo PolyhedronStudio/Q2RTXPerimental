@@ -935,7 +935,7 @@ void SV_Physics_Step(edict_t *ent)
                 friction = sv_friction;
 
                 // Paril: lower friction for dead monsters
-                if ( ent->deadflag )
+                if ( ent->lifeStatus )
                     friction *= 0.5f;
 
                 //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;
@@ -1193,7 +1193,7 @@ void SV_Physics_RootMotion( edict_t *ent ) {
                 friction = sv_friction;
 
                 // Paril: lower friction for dead monsters
-                if ( ent->deadflag )
+                if ( ent->lifeStatus )
                     friction *= 0.5f;
 
                 //control = speed < sv_stopspeed->value ? sv_stopspeed->value : speed;

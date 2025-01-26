@@ -357,9 +357,19 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
+	baseq2rtxp/svgame/svg_combat.h
+	baseq2rtxp/svgame/svg_game_client.h
+	baseq2rtxp/svgame/svg_game_edict.h
+	baseq2rtxp/svgame/svg_game_items.h
+	baseq2rtxp/svgame/svg_game_locals.h
+	baseq2rtxp/svgame/svg_level_locals.h
 	baseq2rtxp/svgame/svg_local.h
+
 	baseq2rtxp/svgame/svg_lua.h
+	baseq2rtxp/svgame/svg_pushmove_info.h
 	baseq2rtxp/svgame/svg_save.h
+	baseq2rtxp/svgame/svg_usetargets.h
+	baseq2rtxp/svgame/svg_weapons.h
 
 	baseq2rtxp/svgame/lua/svg_lua_callfunction.hpp
 	baseq2rtxp/svgame/lua/svg_lua_signals.hpp
@@ -386,7 +396,9 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_elevator.h
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.h
 
-	baseq2rtxp/svgame/player/svg_m_player.h
+	baseq2rtxp/svgame/player/svg_player_hud.h
+	baseq2rtxp/svgame/player/svg_player_trail.h
+	baseq2rtxp/svgame/player/svg_player_weapon.h
 
 	baseq2rtxp/svgame/monsters/svg_mmove.h
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.h

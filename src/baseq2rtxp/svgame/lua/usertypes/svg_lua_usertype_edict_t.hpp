@@ -105,6 +105,33 @@ public:
 	*	@return
 	**/
 	void set_trigger_delay( sol::this_state s, const double delay );
+
+
+	//
+	// Strings.
+	//
+	/**
+	*	@brief
+	**/
+	const std::string get_string_classname( sol::this_state s ) const;
+
+	/**
+	*	@brief	
+	**/
+	const std::string get_string_target( sol::this_state s ) const;
+	/**
+	*	@brief	
+	**/
+	void set_string_target( sol::this_state s, const char *luaStrTarget );
+
+	/**
+	*	@brief
+	**/
+	const std::string get_string_targetname( sol::this_state s ) const;
+	/**
+	*	@brief
+	**/
+	void set_string_targetname( sol::this_state s, const char *luaStrTargetName );
 };
 
 /**

@@ -130,19 +130,19 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
     level.exitintermission = 0;
 
     // find an intermission spot
-    ent = SVG_Find(NULL, FOFS(classname), "info_player_intermission");
+    ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_intermission");
     if (!ent) {
         // the map creator forgot to put in an intermission point...
-        ent = SVG_Find(NULL, FOFS(classname), "info_player_start");
+        ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_start");
         if (!ent)
-            ent = SVG_Find(NULL, FOFS(classname), "info_player_deathmatch");
+            ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_deathmatch");
     } else {
         // chose one of four spots
         i = Q_rand() & 3;
         while (i--) {
-            ent = SVG_Find(ent, FOFS(classname), "info_player_intermission");
+            ent = SVG_Find(ent, FOFS_GENTITY(classname), "info_player_intermission");
             if (!ent)   // wrap around the list
-                ent = SVG_Find(ent, FOFS(classname), "info_player_intermission");
+                ent = SVG_Find(ent, FOFS_GENTITY(classname), "info_player_intermission");
         }
     }
 
@@ -441,7 +441,7 @@ void SVG_HUD_SetStats(edict_t *ent)
     //
     power_armor_type = PowerArmorType(ent);
     if (power_armor_type) {
-        cells = ent->client->pers.inventory[ITEM_INDEX(FindItem("cells"))];
+        cells = ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("cells"))];
         if (cells == 0) {
             // ran out of cells for power armor
             ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_POWER_ARMOR );
@@ -459,7 +459,7 @@ void SVG_HUD_SetStats(edict_t *ent)
             ent->client->ps.stats[STAT_ARMOR_ICON] = gi.imageindex("i_powerscreen");
         ent->client->ps.stats[STAT_ARMOR] = cells;
     } else if (index) {
-        item = GetItemByIndex(index);
+        item = SVG_GetItemByIndex(index);
         ent->client->ps.stats[STAT_ARMOR_ICON] = gi.imageindex(item->icon);
         ent->client->ps.stats[STAT_ARMOR] = ent->client->pers.inventory[index];
     } else {

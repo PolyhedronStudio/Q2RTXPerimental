@@ -15,7 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-#include "svg_local.h"
+#include "svgame/svg_local.h"
+#include "svgame/player/svg_player_hud.h"
 
 
 
@@ -56,7 +57,7 @@ static constexpr int32_t HEALTH_TIMED = 2;
 /**
 *   @brief  Will return a pointer to the matching index item, nullptr on failure.
 **/
-const gitem_t *GetItemByIndex(int index) {
+const gitem_t *SVG_GetItemByIndex(int index) {
     if ( index == 0 || index >= game.num_items ) {
         return nullptr;
     }
@@ -66,7 +67,7 @@ const gitem_t *GetItemByIndex(int index) {
 /**
 *   @brief  Will return a pointer to the matching classname item, nullptr on failure.
 **/
-const gitem_t *FindItemByClassname(const char *classname) {
+const gitem_t *SVG_FindItemByClassname(const char *classname) {
     const gitem_t *it = itemlist;
     for ( int32_t i = 0 ; i < game.num_items ; i++, it++) {
         if (!it->classname)
@@ -80,7 +81,7 @@ const gitem_t *FindItemByClassname(const char *classname) {
 /**
 *   @brief  Will return a pointer to the matching pickup_name item, nullptr on failure.
 **/
-const gitem_t *FindItem(const char *pickup_name) {
+const gitem_t *SVG_FindItem(const char *pickup_name) {
     gitem_t *it = itemlist;
     for ( int32_t i = 0 ; i < game.num_items ; i++, it++ ) {
         if (!it->pickup_name)
@@ -127,7 +128,7 @@ void DoRespawn(edict_t *ent)
     ent->s.event = EV_ITEM_RESPAWN;
 }
 
-void SetRespawn(edict_t *ent, float delay)
+void SVG_SetItemRespawn(edict_t *ent, float delay)
 {
     ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
     ent->svflags |= SVF_NOCLIENT;
@@ -238,7 +239,7 @@ const bool Pickup_Ammo(edict_t *itemEntity, edict_t *other) {
 
     // If it is a weapon and we did NOT have it in our inventory yet:
     if (isWeapon && !oldCount) {
-        //if (other->client->pers.weapon != itemEntity->item && (!deathmatch->value || other->client->pers.weapon == FindItem("blaster")))
+        //if (other->client->pers.weapon != itemEntity->item && (!deathmatch->value || other->client->pers.weapon == SVG_FindItem("blaster")))
         //    other->client->newweapon = itemEntity->item;
         if ( other->client->pers.weapon != itemEntity->item ) {
             other->client->newweapon = itemEntity->item;
@@ -247,7 +248,7 @@ const bool Pickup_Ammo(edict_t *itemEntity, edict_t *other) {
 
     // Set an item respawn for DM mode.
     if ( !( itemEntity->spawnflags & ( DROPPED_ITEM | DROPPED_PLAYER_ITEM ) ) && ( deathmatch->value ) ) {
-        SetRespawn( itemEntity, 30 );
+        SVG_SetItemRespawn( itemEntity, 30 );
     }
     return true;
 }
@@ -296,7 +297,7 @@ void MegaHealth_think(edict_t *self)
     }
 
     if (!(self->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SetRespawn(self, 20);
+        SVG_SetItemRespawn(self, 20);
     else
         SVG_FreeEdict(self);
 }
@@ -325,7 +326,7 @@ const bool Pickup_Health(edict_t *ent, edict_t *other)
         ent->solid = SOLID_NOT;
     } else {
         if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-            SetRespawn(ent, 30);
+            SVG_SetItemRespawn(ent, 30);
     }
 
     return true;
@@ -335,9 +336,11 @@ const bool Pickup_Health(edict_t *ent, edict_t *other)
 
 /**
 *
+* 
 *
 *   Item Entity:
 *
+* 
 *
 **/
 /**
@@ -565,7 +568,7 @@ void droptofloor(edict_t *ent)
 *           This will be called for each item spawned in a level,
 *           and for each item in each client's inventory.
 **/
-void PrecacheItem( const gitem_t *it)
+void SVG_PrecacheItem( const gitem_t *it)
 {
 	// WID: C++20: Added const.
     const char *s = nullptr;
@@ -592,9 +595,9 @@ void PrecacheItem( const gitem_t *it)
 
     // parse everything for its ammo
     if ( it->ammo && it->ammo[ 0 ] ) {
-        const gitem_t *ammo = FindItem( it->ammo );
+        const gitem_t *ammo = SVG_FindItem( it->ammo );
         if ( ammo != it ) {
-            PrecacheItem( ammo );
+            SVG_PrecacheItem( ammo );
         }
     }
 
@@ -612,7 +615,7 @@ void PrecacheItem( const gitem_t *it)
 
         len = s - start;
         if ( len >= MAX_QPATH || len < 5 ) {
-            gi.error( "PrecacheItem: %s has bad precache string", it->classname );
+            gi.error( "SVG_PrecacheItem: %s has bad precache string", it->classname );
         }
         memcpy(data, start, len);
         data[len] = 0;
@@ -645,9 +648,9 @@ void PrecacheItem( const gitem_t *it)
 *           Items can't be immediately dropped to floor, because they might
 *           be on an entity that hasn't spawned yet.
 **/
-void SpawnItem(edict_t *ent, const gitem_t *item)
+void SVG_SpawnItem(edict_t *ent, const gitem_t *item)
 {
-    PrecacheItem(item);
+    SVG_PrecacheItem(item);
 
     if (ent->spawnflags) {
         if (strcmp(ent->classname, "key_power_cube") != 0) {
@@ -1019,7 +1022,7 @@ void SP_item_health(edict_t *self)
 
     self->model = "models/items/healing/medium/tris.md2";
     self->count = 10;
-    SpawnItem(self, FindItem("Health"));
+    SVG_SpawnItem(self, SVG_FindItem("Health"));
     gi.soundindex("items/n_health.wav");
 }
 
@@ -1035,7 +1038,7 @@ void SP_item_health_small(edict_t *self)
 
     self->model = "models/items/healing/stimpack/tris.md2";
     self->count = 2;
-    SpawnItem(self, FindItem("Health"));
+    SVG_SpawnItem(self, SVG_FindItem("Health"));
     self->style = HEALTH_IGNORE_MAX;
     gi.soundindex("items/s_health.wav");
 }
@@ -1052,7 +1055,7 @@ void SP_item_health_large(edict_t *self)
 
     self->model = "models/items/healing/large/tris.md2";
     self->count = 25;
-    SpawnItem(self, FindItem("Health"));
+    SVG_SpawnItem(self, SVG_FindItem("Health"));
     gi.soundindex("items/l_health.wav");
 }
 
@@ -1068,7 +1071,7 @@ void SP_item_health_mega(edict_t *self)
 
     self->model = "models/items/mega_h/tris.md2";
     self->count = 100;
-    SpawnItem(self, FindItem("Health"));
+    SVG_SpawnItem(self, SVG_FindItem("Health"));
     gi.soundindex("items/m_health.wav");
     self->style = HEALTH_IGNORE_MAX | HEALTH_TIMED;
 }
@@ -1076,7 +1079,7 @@ void SP_item_health_mega(edict_t *self)
 /**
 *   @brief  Calculate the number of items value.
 **/
-void InitItems(void)
+void SVG_InitItems(void)
 {
     game.num_items = sizeof(itemlist) / sizeof(itemlist[0]) - 1;
 }
@@ -1085,12 +1088,12 @@ void InitItems(void)
 
 /*
 ===============
-SetItemNames
+SVG_SetItemNames
 
 Called by worldspawn
 ===============
 */
-void SetItemNames(void)
+void SVG_SetItemNames(void)
 {
     int     i;
     gitem_t *it;
@@ -1100,9 +1103,9 @@ void SetItemNames(void)
         gi.configstring(CS_ITEMS + i, it->pickup_name);
     }
 
-    //jacket_armor_index = ITEM_INDEX(FindItem("Jacket Armor"));
-    //combat_armor_index = ITEM_INDEX(FindItem("Combat Armor"));
-    //body_armor_index   = ITEM_INDEX(FindItem("Body Armor"));
-    //power_screen_index = ITEM_INDEX(FindItem("Power Screen"));
-    //power_shield_index = ITEM_INDEX(FindItem("Power Shield"));
+    //jacket_armor_index = ITEM_INDEX(SVG_FindItem("Jacket Armor"));
+    //combat_armor_index = ITEM_INDEX(SVG_FindItem("Combat Armor"));
+    //body_armor_index   = ITEM_INDEX(SVG_FindItem("Body Armor"));
+    //power_screen_index = ITEM_INDEX(SVG_FindItem("Power Screen"));
+    //power_shield_index = ITEM_INDEX(SVG_FindItem("Power Shield"));
 }

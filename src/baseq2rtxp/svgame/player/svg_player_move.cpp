@@ -7,7 +7,6 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_lua.h"
-#include "svg_m_player.h"
 
 
 
@@ -240,7 +239,7 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, gclient_t *client, const bool p
             // Apply continuous hold state.
             //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_CONTINUOUS );
             currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_CONTINUOUS;
-            // Holding (+usetarget) key, thus we continously USE the target entity.
+        // Holding (+usetarget) key, thus we continously USE the target entity.
         } //else if ( !isTargetUseKeyPressed && isTargetUseKeyHolding  
         //    && SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
         //    && SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) 
@@ -337,7 +336,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     vec3_t dir;
 
     // Dead stuff can't crater.
-    if ( ent->health <= 0 || ent->deadflag ) {
+    if ( ent->health <= 0 || ent->lifeStatus ) {
         return;
     }
 
@@ -429,8 +428,8 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
         ent->s.event = EV_FALLSHORT;
     }
 
-    // Paril: falling damage noises alert monsters
-    if ( ent->health ) {
+    // Falling damage noises alert monsters
+    if ( ent->health >= 0 ) { // Was: if ( ent->health )
         SVG_Player_PlayerNoise( ent, &pm.playerState->pmove.origin[ 0 ], PNOISE_SELF );
     }
 }
@@ -451,7 +450,7 @@ static void ClientRunPlayerMove( edict_t *ent, gclient_t *client, usercmd_t *use
     } else if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
         client->ps.pmove.pm_type = PM_GIB;
         // Dead:
-    } else if ( ent->deadflag ) {
+    } else if ( ent->lifeStatus ) {
         client->ps.pmove.pm_type = PM_DEAD;
         // Otherwise, default, normal movement behavior:
     } else {
@@ -485,7 +484,7 @@ static void ClientRunPlayerMove( edict_t *ent, gclient_t *client, usercmd_t *use
     client->ps = *pm->playerState;
     //client->ps = pm.playerState;
     client->old_pmove = pm->playerState->pmove;
-    // Backup the command angles given from ast command.
+    // Backup the command angles given from last command.
     VectorCopy( userCommand->angles, client->resp.cmd_angles );
 
     // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those:
@@ -548,7 +547,7 @@ static const Vector3 ClientPostPlayerMove( edict_t *ent, gclient_t *client, pmov
     }
 
     // Apply a specific view angle if dead:
-    if ( ent->deadflag ) {
+    if ( ent->lifeStatus ) {
         client->ps.viewangles[ ROLL ] = 40;
         client->ps.viewangles[ PITCH ] = -15;
         client->ps.viewangles[ YAW ] = client->killer_yaw;

@@ -43,29 +43,6 @@ bool        trail_active = false;
 #define NEXT(n)     (((n) + 1) & (TRAIL_LENGTH - 1))
 #define PREV(n)     (((n) - 1) & (TRAIL_LENGTH - 1))
 
-/*
-=============
-visible
-
-returns 1 if the entity is visible to self, even if not infront ()
-=============
-*/
-static const bool visible( edict_t *self, edict_t *other ) {
-    vec3_t  spot1;
-    vec3_t  spot2;
-    trace_t trace;
-
-    VectorCopy( self->s.origin, spot1 );
-    spot1[ 2 ] += self->viewheight;
-    VectorCopy( other->s.origin, spot2 );
-    spot2[ 2 ] += other->viewheight;
-    trace = gi.trace( spot1, vec3_origin, vec3_origin, spot2, self, MASK_OPAQUE );
-
-    if ( trace.fraction == 1.0f )
-        return true;
-    return false;
-}
-
 void PlayerTrail_Init(void)
 {
     int     n;
@@ -120,18 +97,18 @@ edict_t *PlayerTrail_PickFirst(edict_t *self)
         return NULL;
 
     // WID: TODO: Monster Reimplement.
-    //for (marker = trail_head, n = TRAIL_LENGTH; n; n--) {
-    //    if (trail[marker]->timestamp <= self->monsterinfo.trail_time )
-    //        marker = NEXT(marker);
-    //    else
-    //        break;
-    //}
+    for (marker = trail_head, n = TRAIL_LENGTH; n; n--) {
+        if (trail[marker]->timestamp <= self->trail_time )
+            marker = NEXT(marker);
+        else
+            break;
+    }
 
-    if (visible(self, trail[marker])) {
+    if ( SVG_IsEntityVisible(self, trail[marker])) {
         return trail[marker];
     }
 
-    if (visible(self, trail[PREV(marker)])) {
+    if ( SVG_IsEntityVisible(self, trail[PREV(marker)])) {
         return trail[PREV(marker)];
     }
 
@@ -147,12 +124,12 @@ edict_t *PlayerTrail_PickNext(edict_t *self)
         return NULL;
 
     // WID: TODO: Monster Reimplement.
-    //for (marker = trail_head, n = TRAIL_LENGTH; n; n--) {
-    //    if (trail[marker]->timestamp <= self->monsterinfo.trail_time)
-    //        marker = NEXT(marker);
-    //    else
-    //        break;
-    //}
+    for (marker = trail_head, n = TRAIL_LENGTH; n; n--) {
+        if (trail[marker]->timestamp <= self->trail_time)
+            marker = NEXT(marker);
+        else
+            break;
+    }
 
     return trail[marker];
 }

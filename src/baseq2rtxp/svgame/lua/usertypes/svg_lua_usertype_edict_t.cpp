@@ -179,6 +179,69 @@ void lua_edict_t::set_trigger_delay( sol::this_state s, const double delay ) {
 }
 
 
+
+//
+// Strings.
+//
+/**
+*	@brief
+**/
+const std::string lua_edict_t::get_string_classname( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( "\0" );
+	// Return pointer to copy into std::string
+	return ( this->edict->classname ? this->edict->classname : "\0" );
+}
+
+/**
+*	@brief
+**/
+const std::string lua_edict_t::get_string_target( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( "" );
+	// Return pointer to copy into std::string
+	return ( this->edict->targetNames.target ? this->edict->targetNames.target : "" );
+}
+/**
+*	@brief
+**/
+void lua_edict_t::set_string_target( sol::this_state s, const char *luaStrTarget ) {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
+	// nullptr it if the string is empty.
+	if ( !luaStrTarget || luaStrTarget[ 0 ] == '\0' ) {
+		this->edict->targetNames.target = nullptr;
+	}
+	// Assign new value.
+	this->edict->targetNames.target = SVG_CopyString( luaStrTarget );
+}
+
+/**
+*	@brief
+**/
+const std::string lua_edict_t::get_string_targetname( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( "\0" );
+	// Return pointer to copy into std::string
+	return ( this->edict->targetname ? this->edict->targetname : "\0" );
+}
+/**
+*	@brief
+**/
+void lua_edict_t::set_string_targetname( sol::this_state s, const char *luaStrTargetName ) {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
+	// nullptr it if the string is empty.
+	if ( !luaStrTargetName || luaStrTargetName[ 0 ] == '\0' ) {
+		this->edict->targetname = nullptr;
+	}
+	// Assign new value.
+	this->edict->targetname = SVG_CopyString( luaStrTargetName );
+}
+
+
+
+
 /***
 *
 *
@@ -219,4 +282,9 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	// Triggers:
 	lua_edict_type[ "wait" ] = sol::property( &lua_edict_t::get_trigger_wait, &lua_edict_t::set_trigger_wait );
 	lua_edict_type[ "delay" ] = sol::property( &lua_edict_t::get_trigger_delay, &lua_edict_t::set_trigger_delay );
+
+	// Strings:
+	lua_edict_type[ "className" ] = sol::property( &lua_edict_t::get_string_classname /*, &lua_edict_t::set_string_classname */ );
+	lua_edict_type[ "target" ] = sol::property( &lua_edict_t::get_string_target, &lua_edict_t::set_string_target );
+	lua_edict_type[ "targetName" ] = sol::property( &lua_edict_t::get_string_targetname, &lua_edict_t::set_string_targetname );
 }

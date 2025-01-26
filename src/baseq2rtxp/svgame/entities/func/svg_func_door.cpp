@@ -66,7 +66,7 @@ void door_use_areaportals( edict_t *self, const bool open ) {
     if ( !self->targetNames.target )
         return;
 
-    while ( ( t = SVG_Find( t, FOFS( targetname ), self->targetNames.target ) ) ) {
+    while ( ( t = SVG_Find( t, FOFS_GENTITY( targetname ), self->targetNames.target ) ) ) {
         //if (Q_stricmp(t->classname, "func_areaportal") == 0) {
         if ( t->s.entityType == ET_AREA_PORTAL ) {
             gi.SetAreaPortalState( t->style, open );
@@ -422,7 +422,7 @@ void door_close_move_done( edict_t *self ) {
     if ( damageActivates ) {
         if ( self->max_health ) {
             self->takedamage = DAMAGE_YES;
-            self->deadflag = DEADFLAG_DEAD;
+            self->lifeStatus = LIFESTATUS_DEAD;
             self->health = self->max_health;
             self->pain = door_pain;
         }

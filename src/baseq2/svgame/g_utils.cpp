@@ -33,7 +33,7 @@ void SVG_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t f
 SVG_Find
 
 Searches all active entities for the next one that holds
-the matching string at fieldofs (use the FOFS() macro) in the structure.
+the matching string at fieldofs (use the FOFS_GENTITY() macro) in the structure.
 
 Searches beginning at the edict after from, or the beginning if NULL
 NULL will be returned if the end of the list is reached.
@@ -103,7 +103,7 @@ edict_t *SVG_FindWithinRadius(edict_t *from, vec3_t org, float rad)
 SVG_PickTarget
 
 Searches all active entities for the next one that holds
-the matching string at fieldofs (use the FOFS() macro) in the structure.
+the matching string at fieldofs (use the FOFS_GENTITY() macro) in the structure.
 
 Searches beginning at the edict after from, or the beginning if NULL
 NULL will be returned if the end of the list is reached.
@@ -124,7 +124,7 @@ edict_t *SVG_PickTarget(char *targetname)
     }
 
     while (1) {
-        ent = SVG_Find(ent, FOFS(targetname), targetname);
+        ent = SVG_Find(ent, FOFS_GENTITY(targetname), targetname);
         if (!ent)
             break;
         choice[num_choices++] = ent;
@@ -203,7 +203,7 @@ void SVG_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->targetNames.kill) {
         t = NULL;
-        while ((t = SVG_Find(t, FOFS(targetname), ent->targetNames.kill))) {
+        while ((t = SVG_Find(t, FOFS_GENTITY(targetname), ent->targetNames.kill))) {
             SVG_FreeEdict(t);
             if (!ent->inuse) {
                 gi.dprintf("entity was removed while using killtargets\n");
@@ -217,7 +217,7 @@ void SVG_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->target) {
         t = NULL;
-        while ((t = SVG_Find(t, FOFS(targetname), ent->target))) {
+        while ((t = SVG_Find(t, FOFS_GENTITY(targetname), ent->target))) {
             // doors fire area portals in a specific way
             if (!Q_stricmp(t->classname, "func_areaportal") &&
                 (!Q_stricmp(ent->classname, "func_door") || !Q_stricmp(ent->classname, "func_door_rotating")))

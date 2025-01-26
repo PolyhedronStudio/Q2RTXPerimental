@@ -21,20 +21,21 @@ typedef struct centity_s sgentity_s;
 typedef struct edict_s sgentity_s;
 #endif
 
-#include "sg_time.h"
+#include "sharedgame/sg_time.h"
 
 // Include other shared game headers.
-#include "sg_cmd_messages.h"
-#include "sg_entity_effects.h"
-#include "sg_entity_events.h"
-#include "sg_entity_types.h"
-#include "sg_gamemode.h"
-#include "sg_misc.h"
-#include "sg_muzzleflashes.h"
-#include "sg_pmove.h"
-#include "sg_pmove_slidemove.h"
-#include "sg_skm.h"
-#include "sg_tempentity_events.h"
+#include "sharedgame/sg_cmd_messages.h"
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_events.h"
+#include "sharedgame/sg_entity_types.h"
+#include "sharedgame/sg_gamemode.h"
+#include "sharedgame/sg_means_of_death.h"
+#include "sharedgame/sg_misc.h"
+#include "sharedgame/sg_muzzleflashes.h"
+#include "sharedgame/sg_pmove.h"
+#include "sharedgame/sg_pmove_slidemove.h"
+#include "sharedgame/sg_skm.h"
+#include "sharedgame/sg_tempentity_events.h"
 
 
 

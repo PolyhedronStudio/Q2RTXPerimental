@@ -400,7 +400,7 @@ void SP_turret_driver(edict_t *self)
     self->monsterinfo.aiflags |= AI_STAND_GROUND | AI_DUCKED;
 
     if (st.item) {
-        self->item = FindItemByClassname(st.item);
+        self->item = SVG_FindItemByClassname(st.item);
         if (!self->item)
             gi.dprintf("%s at %s has bad item: %s\n", self->classname, vtos(self->s.origin), st.item);
     }

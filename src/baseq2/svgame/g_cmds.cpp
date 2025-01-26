@@ -203,13 +203,13 @@ void Cmd_Give_f(edict_t *ent)
     if (give_all || Q_stricmp(name, "armor") == 0) {
         gitem_armor_t   *info;
 
-        it = FindItem("Jacket Armor");
+        it = SVG_FindItem("Jacket Armor");
         ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-        it = FindItem("Combat Armor");
+        it = SVG_FindItem("Combat Armor");
         ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-        it = FindItem("Body Armor");
+        it = SVG_FindItem("Body Armor");
         info = (gitem_armor_t *)it->info;
         ent->client->pers.inventory[ITEM_INDEX(it)] = info->max_count;
 
@@ -218,10 +218,10 @@ void Cmd_Give_f(edict_t *ent)
     }
 
     if (give_all || Q_stricmp(name, "Power Shield") == 0) {
-        it = FindItem("Power Shield");
+        it = SVG_FindItem("Power Shield");
         it_ent = SVG_AllocateEdict();
         it_ent->classname = it->classname;
-        SpawnItem(it_ent, it);
+        SVG_SpawnItem(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);
         if (it_ent->inuse)
             SVG_FreeEdict(it_ent);
@@ -242,10 +242,10 @@ void Cmd_Give_f(edict_t *ent)
         return;
     }
 
-    it = FindItem(name);
+    it = SVG_FindItem(name);
     if (!it) {
         name = gi.argv(1);
-        it = FindItem(name);
+        it = SVG_FindItem(name);
         if (!it) {
             gi.cprintf(ent, PRINT_HIGH, "unknown item\n");
             return;
@@ -267,7 +267,7 @@ void Cmd_Give_f(edict_t *ent)
     } else {
         it_ent = SVG_AllocateEdict();
         it_ent->classname = it->classname;
-        SpawnItem(it_ent, it);
+        SVG_SpawnItem(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);
         if (it_ent->inuse)
             SVG_FreeEdict(it_ent);
@@ -361,7 +361,7 @@ void Cmd_Use_f(edict_t *ent)
     char        *s;
 
     s = gi.args();
-    it = FindItem(s);
+    it = SVG_FindItem(s);
     if (!it) {
         gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
         return;
@@ -394,7 +394,7 @@ void Cmd_Drop_f(edict_t *ent)
     char        *s;
 
     s = gi.args();
-    it = FindItem(s);
+    it = SVG_FindItem(s);
     if (!it) {
         gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
         return;
@@ -577,7 +577,7 @@ void Cmd_WeapFlare_f(edict_t* ent)
     if (cl->pers.weapon && strcmp(cl->pers.weapon->pickup_name, "Flare Gun") == 0) {
         Cmd_WeapLast_f(ent);
     } else {
-        it = FindItem("Flare Gun");
+        it = SVG_FindItem("Flare Gun");
         it->use(ent, it);
     }
 }

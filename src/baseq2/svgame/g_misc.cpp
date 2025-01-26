@@ -1182,7 +1182,7 @@ void SP_misc_deadsoldier(edict_t *ent)
 
     VectorSet(ent->mins, -16, -16, 0);
     VectorSet(ent->maxs, 16, 16, 16);
-    ent->deadflag = DEADFLAG_DEAD;
+    ent->lifeStatus = LIFESTATUS_DEAD;
     ent->takedamage = DAMAGE_YES;
     ent->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
     ent->die = misc_deadsoldier_die;
@@ -1294,7 +1294,7 @@ void misc_viper_bomb_use(edict_t *self, edict_t *other, edict_t *activator)
     self->activator = activator;
 	self->timestamp = level.time;
 
-    viper = SVG_Find(NULL, FOFS(classname), "misc_viper");
+    viper = SVG_Find(NULL, FOFS_GENTITY(classname), "misc_viper");
 	if ( viper ) {
 		VectorScale( viper->moveinfo.dir, viper->moveinfo.speed, self->velocity );
 		VectorCopy( viper->moveinfo.dir, self->moveinfo.dir );
@@ -1427,7 +1427,7 @@ void SP_misc_gib_arm(edict_t *ent)
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
     ent->svflags |= SVF_MONSTER;
-    ent->deadflag = DEADFLAG_DEAD;
+    ent->lifeStatus = LIFESTATUS_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;
     ent->avelocity[2] = random() * 200;
@@ -1448,7 +1448,7 @@ void SP_misc_gib_leg(edict_t *ent)
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
     ent->svflags |= SVF_MONSTER;
-    ent->deadflag = DEADFLAG_DEAD;
+    ent->lifeStatus = LIFESTATUS_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;
     ent->avelocity[2] = random() * 200;
@@ -1469,7 +1469,7 @@ void SP_misc_gib_head(edict_t *ent)
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
     ent->svflags |= SVF_MONSTER;
-    ent->deadflag = DEADFLAG_DEAD;
+    ent->lifeStatus = LIFESTATUS_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;
     ent->avelocity[2] = random() * 200;
@@ -1587,7 +1587,7 @@ static void func_clock_format_countdown(edict_t *self)
 void func_clock_think(edict_t *self)
 {
     if (!self->enemy) {
-        self->enemy = SVG_Find(NULL, FOFS(targetname), self->targetNames.target);
+        self->enemy = SVG_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
         if (!self->enemy)
             return;
     }
@@ -1693,7 +1693,7 @@ void teleporter_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t
 
     if (!other->client)
         return;
-    dest = SVG_Find(NULL, FOFS(targetname), self->targetNames.target);
+    dest = SVG_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
     if (!dest) {
         gi.dprintf("Couldn't find destination\n");
         return;

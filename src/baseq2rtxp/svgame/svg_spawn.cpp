@@ -236,51 +236,50 @@ static const spawn_func_t spawn_funcs[] = {
 **/
 static const spawn_field_t spawn_fields[] = {
 	// ET_GENERIC:
-	{"classname", FOFS( classname ), F_LSTRING},
-	{"model", FOFS( model ), F_LSTRING},
-	{"spawnflags", FOFS( spawnflags ), F_INT},
-	{"speed", FOFS( speed ), F_FLOAT},
-	{"accel", FOFS( accel ), F_FLOAT},
-	{"decel", FOFS( decel ), F_FLOAT},
-	{"target", FOFS( targetNames.target ), F_LSTRING},
-	{"targetname", FOFS( targetname ), F_LSTRING},
-	{"path", FOFS( targetNames.path ), F_LSTRING},
-	{"death", FOFS( targetNames.death ), F_LSTRING},
-	{"kill", FOFS( targetNames.kill ), F_LSTRING},
-	{"combat", FOFS( targetNames.combat ), F_LSTRING},
-    {"message", FOFS( message ), F_LSTRING},
-	{"team", FOFS( targetNames.team ), F_LSTRING},
-	{"wait", FOFS( wait ), F_FLOAT},
-	{"delay", FOFS( delay ), F_FLOAT},
-	{"random", FOFS( random ), F_FLOAT},
-	{"move_origin", FOFS( move_origin ), F_VECTOR},
-	{"move_angles", FOFS( move_angles ), F_VECTOR},
-	{"style", FOFS( style ), F_INT},
-	{"count", FOFS( count ), F_INT},
-    {"maxhealth", FOFS( max_health ), F_INT},
-    {"health", FOFS( health ), F_INT},
-	{"sounds", FOFS( sounds ), F_INT},
-	{"light", FOFS( light ), F_FLOAT},
-	{"dmg", FOFS( dmg ), F_INT},
-	{"mass", FOFS( mass ), F_INT},
-	{"volume", FOFS( volume ), F_FLOAT},
-	{"attenuation", FOFS( attenuation ), F_FLOAT},
-	{"map", FOFS( map ), F_LSTRING},
-	{"origin", FOFS( s.origin ), F_VECTOR},
-	{"angles", FOFS( s.angles ), F_VECTOR},
-	{"angle", FOFS( s.angles ), F_ANGLEHACK},
+	{"classname", FOFS_GENTITY( classname ), F_LSTRING},
+	{"model", FOFS_GENTITY( model ), F_LSTRING},
+	{"spawnflags", FOFS_GENTITY( spawnflags ), F_INT},
+	{"speed", FOFS_GENTITY( speed ), F_FLOAT},
+	{"accel", FOFS_GENTITY( accel ), F_FLOAT},
+	{"decel", FOFS_GENTITY( decel ), F_FLOAT},
+	{"target", FOFS_GENTITY( targetNames.target ), F_LSTRING},
+	{"targetname", FOFS_GENTITY( targetname ), F_LSTRING},
+	{"path", FOFS_GENTITY( targetNames.path ), F_LSTRING},
+	{"death", FOFS_GENTITY( targetNames.death ), F_LSTRING},
+	{"kill", FOFS_GENTITY( targetNames.kill ), F_LSTRING},
+    {"message", FOFS_GENTITY( message ), F_LSTRING},
+	{"team", FOFS_GENTITY( targetNames.team ), F_LSTRING},
+	{"wait", FOFS_GENTITY( wait ), F_FLOAT},
+	{"delay", FOFS_GENTITY( delay ), F_FLOAT},
+	{"random", FOFS_GENTITY( random ), F_FLOAT},
+	{"move_origin", FOFS_GENTITY( move_origin ), F_VECTOR},
+	{"move_angles", FOFS_GENTITY( move_angles ), F_VECTOR},
+	{"style", FOFS_GENTITY( style ), F_INT},
+	{"count", FOFS_GENTITY( count ), F_INT},
+    {"maxhealth", FOFS_GENTITY( max_health ), F_INT},
+    {"health", FOFS_GENTITY( health ), F_INT},
+	{"sounds", FOFS_GENTITY( sounds ), F_INT},
+	{"light", FOFS_GENTITY( light ), F_FLOAT},
+	{"dmg", FOFS_GENTITY( dmg ), F_INT},
+	{"mass", FOFS_GENTITY( mass ), F_INT},
+	{"volume", FOFS_GENTITY( volume ), F_FLOAT},
+	{"attenuation", FOFS_GENTITY( attenuation ), F_FLOAT},
+	{"map", FOFS_GENTITY( map ), F_LSTRING},
+	{"origin", FOFS_GENTITY( s.origin ), F_VECTOR},
+	{"angles", FOFS_GENTITY( s.angles ), F_VECTOR},
+	{"angle", FOFS_GENTITY( s.angles ), F_ANGLEHACK},
 
     // <Q2RTXP>:
     // MoveWith:
-    { "movewith", FOFS( targetNames.movewith ), F_LSTRING },
+    { "movewith", FOFS_GENTITY( targetNames.movewith ), F_LSTRING },
     // Lua:
-    { "luaName", FOFS( luaProperties.luaName ), F_LSTRING },
+    { "luaName", FOFS_GENTITY( luaProperties.luaName ), F_LSTRING },
     // (Spot-)light:
-    {"customLightStyle", FOFS( customLightStyle ), F_LSTRING},
-    {"rgb", FOFS( s.spotlight.rgb ), F_VECTOR},
-	{"intensity", FOFS( s.spotlight.intensity ), F_FLOAT},
-	{"angle_width", FOFS( s.spotlight.angle_width ), F_FLOAT},
-	{"angle_falloff", FOFS( s.spotlight.angle_falloff ), F_FLOAT},
+    {"customLightStyle", FOFS_GENTITY( customLightStyle ), F_LSTRING},
+    {"rgb", FOFS_GENTITY( s.spotlight.rgb ), F_VECTOR},
+	{"intensity", FOFS_GENTITY( s.spotlight.intensity ), F_FLOAT},
+	{"angle_width", FOFS_GENTITY( s.spotlight.angle_width ), F_FLOAT},
+	{"angle_falloff", FOFS_GENTITY( s.spotlight.angle_falloff ), F_FLOAT},
     // </Q2RTXP>
 
     {NULL}
@@ -294,24 +293,24 @@ static const spawn_field_t spawn_fields[] = {
 **/
 // temp spawn vars -- only valid when the spawn function is called
 static const spawn_field_t temp_fields[] = {
-    {"lip", STOFS(lip), F_INT},
-    {"distance", STOFS(distance), F_INT},
-    {"height", STOFS(height), F_INT},
-    {"noise", STOFS(noise), F_LSTRING},
-    {"pausetime", STOFS(pausetime), F_FLOAT},
-    {"item", STOFS(item), F_LSTRING},
+    {"lip", FOFS_SPAWN_TEMP(lip), F_INT},
+    {"distance", FOFS_SPAWN_TEMP(distance), F_INT},
+    {"height", FOFS_SPAWN_TEMP(height), F_INT},
+    {"noise", FOFS_SPAWN_TEMP(noise), F_LSTRING},
+    {"pausetime", FOFS_SPAWN_TEMP(pausetime), F_FLOAT},
+    {"item", FOFS_SPAWN_TEMP(item), F_LSTRING},
 
-    {"gravity", STOFS(gravity), F_LSTRING},
-    {"sky", STOFS(sky), F_LSTRING},
-    {"skyrotate", STOFS(skyrotate), F_FLOAT},
-    {"skyautorotate", STOFS(skyautorotate), F_INT},
-    {"skyaxis", STOFS(skyaxis), F_VECTOR},
-    {"minyaw", STOFS(minyaw), F_FLOAT},
-    {"maxyaw", STOFS(maxyaw), F_FLOAT},
-    {"minpitch", STOFS(minpitch), F_FLOAT},
-    {"maxpitch", STOFS(maxpitch), F_FLOAT},
-    {"nextmap", STOFS(nextmap), F_LSTRING},
-    {"musictrack", STOFS(musictrack), F_LSTRING},
+    {"gravity", FOFS_SPAWN_TEMP(gravity), F_LSTRING},
+    {"sky", FOFS_SPAWN_TEMP(sky), F_LSTRING},
+    {"skyrotate", FOFS_SPAWN_TEMP(skyrotate), F_FLOAT},
+    {"skyautorotate", FOFS_SPAWN_TEMP(skyautorotate), F_INT},
+    {"skyaxis", FOFS_SPAWN_TEMP(skyaxis), F_VECTOR},
+    {"minyaw", FOFS_SPAWN_TEMP(minyaw), F_FLOAT},
+    {"maxyaw", FOFS_SPAWN_TEMP(maxyaw), F_FLOAT},
+    {"minpitch", FOFS_SPAWN_TEMP(minpitch), F_FLOAT},
+    {"maxpitch", FOFS_SPAWN_TEMP(maxpitch), F_FLOAT},
+    {"nextmap", FOFS_SPAWN_TEMP(nextmap), F_LSTRING},
+    {"musictrack", FOFS_SPAWN_TEMP(musictrack), F_LSTRING},
 
     {NULL}
 };
@@ -351,10 +350,10 @@ void ED_CallSpawn(edict_t *ent)
         // Skip if the item's classname is empty.
         if (!item->classname)
             continue;
-        // If the classnames are an equal match, defer to SpawnItem and exit.
+        // If the classnames are an equal match, defer to SVG_SpawnItem and exit.
         if (!strcmp(item->classname, ent->classname)) {
             // found it
-            SpawnItem(ent, item);
+            SVG_SpawnItem(ent, item);
             return;
         }
     }
@@ -442,7 +441,7 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
         }
 
         // Fetch 'parent' target entity.
-        edict_t *parentMover = SVG_Find( NULL, FOFS( targetname ), ent->targetNames.movewith );
+        edict_t *parentMover = SVG_Find( NULL, FOFS_GENTITY( targetname ), ent->targetNames.movewith );
         // Apply.
         if ( parentMover ) {
             // Set.
@@ -974,7 +973,7 @@ void SP_worldspawn(edict_t *ent)
     SVG_InitBodyQue();
 
     // set configstrings for items
-    SetItemNames();
+    SVG_SetItemNames();
 
     if (st.nextmap)
         Q_strlcpy(level.nextmap, st.nextmap, sizeof(level.nextmap));
@@ -1034,8 +1033,8 @@ void SP_worldspawn(edict_t *ent)
     gi.imageindex("help");
     gi.imageindex("field_3");
 
-    PrecacheItem(FindItem( "Fists" ));
-    PrecacheItem(FindItem("Pistol"));
+    SVG_PrecacheItem(SVG_FindItem( "Fists" ));
+    SVG_PrecacheItem(SVG_FindItem("Pistol"));
 
     // HUD Chat.
     gi.soundindex("hud/chat01.wav");

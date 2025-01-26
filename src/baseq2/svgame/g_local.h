@@ -233,11 +233,11 @@ typedef enum {
 } ammo_t;
 
 
-//deadflag
-#define DEADFLAG_NO                 0
-#define DEADFLAG_DYING              1
-#define DEADFLAG_DEAD               2
-#define DEADFLAG_RESPAWNABLE        3
+//lifeStatus
+#define LIFESTATUS_ALIVE                 0
+#define LIFESTATUS_DYING              1
+#define LIFESTATUS_DEAD               2
+#define LIFESTATUS_RESPAWNABLE        3
 
 //range
 #define RANGE_DISTANCE_MELEE             0
@@ -631,11 +631,11 @@ extern  int meansOfDeath;
 
 extern  edict_t         *g_edicts;
 
-#define FOFS(x) q_offsetof(edict_t, x)
-#define STOFS(x) q_offsetof(spawn_temp_t, x)
-#define LLOFS(x) q_offsetof(level_locals_t, x)
-#define GLOFS(x) q_offsetof(game_locals_t, x)
-#define CLOFS(x) q_offsetof(gclient_t, x)
+#define FOFS_GENTITY(x) q_offsetof(edict_t, x)
+#define FOFS_SPAWN_TEMP(x) q_offsetof(spawn_temp_t, x)
+#define FOFS_LEVEL_LOCALS(x) q_offsetof(level_locals_t, x)
+#define FOFS_GAME_LOCALS(x) q_offsetof(game_locals_t, x)
+#define FOFS_GCLIENT(x) q_offsetof(gclient_t, x)
 
 #define random()    frand()
 #define crandom()   crand()
@@ -742,20 +742,20 @@ void SVG_Cmd_Score_f(edict_t *ent);
 //
 // g_items.c
 //
-void PrecacheItem(gitem_t *it);
-void InitItems(void);
-void SetItemNames(void);
-gitem_t *FindItem(const char *pickup_name);
-gitem_t *FindItemByClassname(const char *classname);
+void SVG_PrecacheItem(gitem_t *it);
+void SVG_InitItems(void);
+void SVG_SetItemNames(void);
+gitem_t *SVG_FindItem(const char *pickup_name);
+gitem_t *SVG_FindItemByClassname(const char *classname);
 #define ITEM_INDEX(x) ((x)-itemlist)
 edict_t *Drop_Item(edict_t *ent, gitem_t *item);
-void SetRespawn(edict_t *ent, float delay);
+void SVG_SetItemRespawn(edict_t *ent, float delay);
 void ChangeWeapon(edict_t *ent);
-void SpawnItem(edict_t *ent, gitem_t *item);
+void SVG_SpawnItem(edict_t *ent, gitem_t *item);
 void Think_Weapon(edict_t *ent);
 int ArmorIndex(edict_t *ent);
 int PowerArmorType(edict_t *ent);
-gitem_t *GetItemByIndex(int index);
+gitem_t *SVG_GetItemByIndex(int index);
 bool Add_Ammo(edict_t *ent, gitem_t *item, int count);
 void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
 
@@ -1277,7 +1277,7 @@ struct edict_s {
     int32_t     health;
     int32_t     max_health;
     int32_t     gib_health;
-    int32_t     deadflag;
+    int32_t     lifeStatus;
     sg_time_t   show_hostile;
 
 	sg_time_t   powerarmor_time;

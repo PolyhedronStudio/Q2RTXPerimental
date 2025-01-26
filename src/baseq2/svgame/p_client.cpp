@@ -43,7 +43,7 @@ void SP_FixCoopSpots(edict_t *self)
     spot = NULL;
 
     while (1) {
-        spot = SVG_Find(spot, FOFS(classname), "info_player_start");
+        spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_start");
         if (!spot)
             return;
         if (!spot->targetname)
@@ -425,7 +425,7 @@ void TossClientWeapon(edict_t *self)
 
     if (quad) {
         self->client->v_angle[YAW] += spread;
-        drop = Drop_Item(self, FindItemByClassname("item_quad"));
+        drop = Drop_Item(self, SVG_FindItemByClassname("item_quad"));
         self->client->v_angle[YAW] -= spread;
         drop->spawnflags |= DROPPED_PLAYER_ITEM;
 
@@ -504,7 +504,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
     // Flag as to be treated as 'deadmonster' collision.
     self->svflags |= SVF_DEADMONSTER;
 
-    if (!self->deadflag) {
+    if (!self->lifeStatus) {
 		self->client->respawn_time = ( level.time + 1_sec );
         LookAtKiller(self, inflictor, attacker);
         self->client->ps.pmove.pm_type = PM_DEAD;
@@ -544,7 +544,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         self->takedamage = DAMAGE_NO;
     // Normal death:
     } else {
-        if (!self->deadflag) {
+        if (!self->lifeStatus) {
             static int i;
 
             i = (i + 1) % 3;
@@ -573,7 +573,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         }
     }
 
-    self->deadflag = DEADFLAG_DEAD;
+    self->lifeStatus = LIFESTATUS_DEAD;
 
     gi.linkentity(self);
 }
@@ -596,7 +596,7 @@ void SVG_Player_InitPersistantData(edict_t *ent, gclient_t *client)
     client->pers = {};
 
     // Find the blaster item, add it to our inventory and appoint it as the selected weapon.
-	item = FindItem("Blaster");
+	item = SVG_FindItem("Blaster");
 	client->pers.selected_item = ITEM_INDEX(item);
 	client->pers.inventory[client->pers.selected_item] = 1;
 
@@ -606,14 +606,14 @@ void SVG_Player_InitPersistantData(edict_t *ent, gclient_t *client)
 	{
 		// Q2RTX: Spawn with a flare gun and some grenades to use with it.
 		// Flare gun is new and not found anywhere in the game as a pickup item.
-		gitem_t* item_flareg = FindItem("Flare Gun");
+		gitem_t* item_flareg = SVG_FindItem("Flare Gun");
 		if (item_flareg)
 		{
 			client->pers.inventory[ITEM_INDEX(item_flareg)] = 1;
 
 			if (sv_flaregun->value == 2)
 			{
-				gitem_t* item_grenades = FindItem("Grenades");
+				gitem_t* item_grenades = SVG_FindItem("Grenades");
 				client->pers.inventory[ITEM_INDEX(item_grenades)] = 5;
 			}
 		}
@@ -751,7 +751,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint(void)
     range1 = range2 = 99999;
     spot1 = spot2 = NULL;
 
-    while ((spot = SVG_Find(spot, FOFS(classname), "info_player_deathmatch")) != NULL) {
+    while ((spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch")) != NULL) {
         count++;
         range = PlayersRangeFromSpot(spot);
         if (range < range1) {
@@ -775,7 +775,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint(void)
 
     spot = NULL;
     do {
-        spot = SVG_Find(spot, FOFS(classname), "info_player_deathmatch");
+        spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch");
         if (spot == spot1 || spot == spot2)
             selection++;
     } while (selection--);
@@ -799,7 +799,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint(void)
     spot = NULL;
     bestspot = NULL;
     bestdistance = 0;
-    while ((spot = SVG_Find(spot, FOFS(classname), "info_player_deathmatch")) != NULL) {
+    while ((spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch")) != NULL) {
         bestplayerdistance = PlayersRangeFromSpot(spot);
 
         if (bestplayerdistance > bestdistance) {
@@ -814,7 +814,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint(void)
 
     // if there is a player just spawned on each and every start spot
     // we have no choice to turn one into a telefrag meltdown
-    spot = SVG_Find(NULL, FOFS(classname), "info_player_deathmatch");
+    spot = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_deathmatch");
 
     return spot;
 }
@@ -845,7 +845,7 @@ edict_t *SelectCoopSpawnPoint(edict_t *ent)
 
     // assume there are four coop spots at each spawnpoint
     while (1) {
-        spot = SVG_Find(spot, FOFS(classname), "info_player_coop");
+        spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_coop");
         if (!spot)
             return NULL;    // we didn't have enough...
 
@@ -883,7 +883,7 @@ void    SelectSpawnPoint(edict_t *ent, vec3_t origin, vec3_t angles)
 
     // find a single player start spot
     if (!spot) {
-        while ((spot = SVG_Find(spot, FOFS(classname), "info_player_start")) != NULL) {
+        while ((spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_start")) != NULL) {
             if (!game.spawnpoint[0] && !spot->targetname)
                 break;
 
@@ -897,7 +897,7 @@ void    SelectSpawnPoint(edict_t *ent, vec3_t origin, vec3_t angles)
         if (!spot) {
             if (!game.spawnpoint[0]) {
                 // there wasn't a spawnpoint without a target, so use any
-                spot = SVG_Find(spot, FOFS(classname), "info_player_start");
+                spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_start");
             }
             if (!spot)
                 gi.error("Couldn't find spawn point %s", game.spawnpoint);
@@ -1175,7 +1175,7 @@ void SVG_Player_PutInServer(edict_t *ent)
     ent->classname = "player";
     ent->mass = 200;
     ent->solid = SOLID_BOUNDS_BOX;
-    ent->deadflag = DEADFLAG_NO;
+    ent->lifeStatus = LIFESTATUS_ALIVE;
     ent->air_finished_time = level.time + 12_sec;
     ent->clipmask = ( MASK_PLAYERSOLID );
     ent->model = "players/male/tris.md2";
@@ -1618,7 +1618,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     vec3_t dir;
 
     // dead stuff can't crater
-    if ( ent->health <= 0 || ent->deadflag ) {
+    if ( ent->health <= 0 || ent->lifeStatus ) {
         return;
     }
 
@@ -1766,7 +1766,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 		} else if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
 			client->ps.pmove.pm_type = PM_GIB;
         // Dead:
-		} else if ( ent->deadflag ) {
+		} else if ( ent->lifeStatus ) {
 			client->ps.pmove.pm_type = PM_DEAD;
         // Otherwise, default, normal movement behavior:
 		} else {
@@ -1868,7 +1868,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             ent->groundentity_linkcount = pm.ground.entity->linkcount;
         }
 
-        if ( ent->deadflag ) {
+        if ( ent->lifeStatus ) {
             client->ps.viewangles[ROLL] = 40;
             client->ps.viewangles[PITCH] = -15;
             client->ps.viewangles[YAW] = client->killer_yaw;
@@ -2001,7 +2001,7 @@ void SVG_Client_BeginServerFrame(edict_t *ent)
         client->weapon_thunk = false;
     }
 
-    if ( ent->deadflag ) {
+    if ( ent->lifeStatus ) {
         // wait for any button just going down
         if ( level.time > client->respawn_time ) {
             // in deathmatch, only wait for attack button

@@ -17,7 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
-#include "svg_m_player.h"
+#include "svgame/player/svg_player_hud.h"
 
 
 
@@ -289,7 +289,7 @@ static void P_CalculateViewOffset( edict_t *ent ) {
 	Vector3 viewAnglesOffset = ent->client->weaponKicks.offsetAngles;//ent->client->ps.kick_angles;
 
 	// If dead, fix the angle and don't add any kicks
-	if ( ent->deadflag ) {
+	if ( ent->lifeStatus ) {
 		// Clear out weapon kick angles.
 		VectorClear( ent->client->ps.kick_angles );
 
@@ -901,7 +901,7 @@ void SVG_Client_BeginServerFrame( edict_t *ent ) {
 	/**
 	*   If dead, check for any user input after the client's respawn_time has expired.
 	**/
-	if ( ent->deadflag ) {
+	if ( ent->lifeStatus ) {
 		// wait for any button just going down
 		if ( level.time > client->respawn_time ) {
 			// in deathmatch, only wait for attack button
@@ -925,9 +925,9 @@ void SVG_Client_BeginServerFrame( edict_t *ent ) {
 	**/
 	if ( !deathmatch->value ) {
 		// WID: TODO: Monster Reimplement.
-		//if ( !visible( ent, PlayerTrail_LastSpot() ) ) {
-		PlayerTrail_Add( ent->s.old_origin );
-		//}
+		if ( !SVG_IsEntityVisible( ent, PlayerTrail_LastSpot() ) ) {
+			PlayerTrail_Add( ent->s.old_origin );
+		}
 	}
 
 	/**

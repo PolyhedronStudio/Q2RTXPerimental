@@ -486,7 +486,7 @@ void boss2_dead(edict_t *self)
 void boss2_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
     gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
-    self->deadflag = DEADFLAG_DEAD;
+    self->lifeStatus = LIFESTATUS_DEAD;
     self->takedamage = DAMAGE_NO;
     self->count = 0;
     M_SetAnimation( self, &boss2_move_death );
@@ -502,14 +502,14 @@ void boss2_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
         for (n = 0; n < 4; n++)
             SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
         SVG_Misc_ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
-        self->deadflag = DEADFLAG_DEAD;
+        self->lifeStatus = LIFESTATUS_DEAD;
         return;
     }
 
-    if (self->deadflag == DEADFLAG_DEAD)
+    if (self->lifeStatus == LIFESTATUS_DEAD)
         return;
 
-    self->deadflag = DEADFLAG_DEAD;
+    self->lifeStatus = LIFESTATUS_DEAD;
     self->takedamage = DAMAGE_YES;
     M_SetAnimation( self, &boss2_move_death;
 #endif

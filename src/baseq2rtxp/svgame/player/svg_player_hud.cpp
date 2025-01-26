@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/player/svg_player_hud.h"
 
 
 /*
@@ -16,6 +17,9 @@ INTERMISSION
 ======================================================================
 */
 
+/**
+*   @brief
+**/
 void SVG_HUD_MoveClientToIntermission(edict_t *ent)
 {
     if ( deathmatch->value || coop->value ) {
@@ -70,6 +74,9 @@ void SVG_HUD_MoveClientToIntermission(edict_t *ent)
 
 }
 
+/**
+*   @brief
+**/
 void SVG_HUD_BeginIntermission(edict_t *targ)
 {
     int     i = 0;
@@ -117,19 +124,19 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
     level.exitintermission = 0;
 
     // find an intermission spot
-    ent = SVG_Find(NULL, FOFS(classname), "info_player_intermission");
+    ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_intermission");
     if (!ent) {
         // the map creator forgot to put in an intermission point...
-        ent = SVG_Find(NULL, FOFS(classname), "info_player_start");
+        ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_start");
         if (!ent)
-            ent = SVG_Find(NULL, FOFS(classname), "info_player_deathmatch");
+            ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_deathmatch");
     } else {
         // chose one of four spots
         i = Q_rand() & 3;
         while (i--) {
-            ent = SVG_Find(ent, FOFS(classname), "info_player_intermission");
+            ent = SVG_Find(ent, FOFS_GENTITY(classname), "info_player_intermission");
             if (!ent)   // wrap around the list
-                ent = SVG_Find(ent, FOFS(classname), "info_player_intermission");
+                ent = SVG_Find(ent, FOFS_GENTITY(classname), "info_player_intermission");
         }
     }
 
@@ -148,12 +155,9 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
 }
 
 
-/*
-==================
-SVG_HUD_DeathmatchScoreboardMessage
-
-==================
-*/
+/**
+*   @brief
+**/
 void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 {
     char    entry[1024];
@@ -349,7 +353,7 @@ void SVG_SetWeaponStats( edict_t *ent ) {
         ent->client->ps.stats[ STAT_WEAPON_CLIP_AMMO ] = 0;
     } else {
         // Find the item matching the 
-        //int32_t clip_ammo_item_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->pickup_name ) );
+        //int32_t clip_ammo_item_index = ITEM_INDEX( SVG_FindItem( ent->client->pers.weapon->pickup_name ) );
         const int32_t clip_ammo_item_index = ent->client->pers.weapon->weapon_index;
         //item = &itemlist[ ent->client->ammo_index ];
         //ent->client->ps.stats[ STAT_WEAPON_CLIP_AMMO_ICON ] = gi.imageindex( item->icon );
@@ -401,7 +405,7 @@ void SVG_HUD_SetStats(edict_t *ent) {
     //
     //index = ArmorIndex(ent);
     //if (index) {
-    //    item = GetItemByIndex(index);
+    //    item = SVG_GetItemByIndex(index);
     //    if ( item && item->flags == ITEM_FLAG_ARMOR ) {
     //        ent->client->ps.stats[ STAT_ARMOR_ICON ] = gi.imageindex( item->icon );
     //        ent->client->ps.stats[ STAT_ARMOR ] = ent->client->pers.inventory[ index ];
@@ -496,11 +500,9 @@ void SVG_HUD_SetStats(edict_t *ent) {
     ent->client->ps.stats[STAT_SPECTATOR] = 0;
 }
 
-/*
-===============
-SVG_HUD_CheckChaseStats
-===============
-*/
+/**
+*   @brief
+**/
 void SVG_HUD_CheckChaseStats(edict_t *ent)
 {
     int i;
@@ -515,11 +517,9 @@ void SVG_HUD_CheckChaseStats(edict_t *ent)
     }
 }
 
-/*
-===============
-SVG_HUD_SetSpectatorStats
-===============
-*/
+/**
+*   @brief
+**/
 void SVG_HUD_SetSpectatorStats(edict_t *ent)
 {
     gclient_t *cl = ent->client;

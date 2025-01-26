@@ -333,16 +333,16 @@ void gunner_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
         for (n = 0; n < 4; n++)
             SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
         SVG_Misc_ThrowHead(self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC);
-        self->deadflag = DEADFLAG_DEAD;
+        self->lifeStatus = LIFESTATUS_DEAD;
         return;
     }
 
-    if (self->deadflag == DEADFLAG_DEAD)
+    if (self->lifeStatus == LIFESTATUS_DEAD)
         return;
 
 // regular death
     gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
-    self->deadflag = DEADFLAG_DEAD;
+    self->lifeStatus = LIFESTATUS_DEAD;
     self->takedamage = DAMAGE_YES;
     M_SetAnimation( self, &gunner_move_death );
 }

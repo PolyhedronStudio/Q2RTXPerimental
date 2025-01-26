@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
+#include "svgame/player/svg_player_hud.h"
 #include "svgame/svg_lua.h"
 
 #include "svgame/entities/svg_entities_pushermove.h"
@@ -313,7 +314,7 @@ void SVG_InitGame( void )
     //}
 
     // items
-    InitItems();
+    SVG_InitItems();
 
     // initialize all entities for this game
     game.maxentities = maxentities->value;
@@ -545,7 +546,7 @@ void EndDMLevel(void) {
     if ( level.nextmap[ 0 ] ) {// go to a specific map
         SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.nextmap ) );
     } else {  // search for a changelevel
-        ent = SVG_Find(NULL, FOFS(classname), "target_changelevel");
+        ent = SVG_Find(NULL, FOFS_GENTITY(classname), "target_changelevel");
         if (!ent) {
             // the map designer didn't include a changelevel,
             // so create a fake ent that goes back to the same level

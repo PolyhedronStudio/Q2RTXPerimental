@@ -122,7 +122,7 @@ void func_explosive_spawn( edict_t *self, edict_t *other, edict_t *activator, co
     gi.linkentity( self );
 
     // Signal that we just trigger spawned.
-    SVG_SignalOut( self, other, activator, "OnTriggerSpawn", {} );
+    SVG_SignalOut( self, other, activator, "OnTriggerSpawned", {} );
 }
 
 /**

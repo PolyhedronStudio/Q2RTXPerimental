@@ -6,8 +6,9 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/player/svg_player_hud.h"
 #include "svgame/svg_lua.h"
-#include "svg_m_player.h"
+
 
 /**
 *   @brief
@@ -131,7 +132,7 @@ void player_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
         // Flag as to be treated as 'deadmonster' collision.
     self->svflags |= SVF_DEADMONSTER;
 
-    if ( !self->deadflag ) {
+    if ( !self->lifeStatus ) {
         // Determine respawn time.
         self->client->respawn_time = ( level.time + 1_sec );
         // Make sure the playerstate its pmove knows we're dead.
@@ -167,7 +168,7 @@ void player_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
         self->takedamage = DAMAGE_NO;
         // Normal death:
     } else {
-        if ( !self->deadflag ) {
+        if ( !self->lifeStatus ) {
             static int i;
 
             gi.dprintf( "%s: WID: TODO: Implement a player death player animation here\n", __func__ );
@@ -197,7 +198,7 @@ void player_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
         }
     }
 
-    self->deadflag = DEADFLAG_DEAD;
+    self->lifeStatus = LIFESTATUS_DEAD;
 
     gi.linkentity( self );
 }
@@ -367,12 +368,12 @@ void SVG_Player_InitPersistantData( edict_t *ent, gclient_t *client ) {
     client->pers = {};
 
     // Find the fists item, add it to our inventory.
-    const gitem_t *item_fists = FindItem( "Fists" );
+    const gitem_t *item_fists = SVG_FindItem( "Fists" );
     client->pers.selected_item = ITEM_INDEX( item_fists );
     client->pers.inventory[ client->pers.selected_item ] = 1;
 
     // Find the Pistol item, add it to our inventory and appoint it as the selected weapon.
-    const gitem_t *item_pistol = FindItem( "Pistol" );
+    const gitem_t *item_pistol = SVG_FindItem( "Pistol" );
     client->pers.selected_item = ITEM_INDEX( item_pistol );
     client->pers.inventory[ client->pers.selected_item ] = 1;
     // Assign it as our selected weapon.
@@ -380,7 +381,7 @@ void SVG_Player_InitPersistantData( edict_t *ent, gclient_t *client ) {
     // Give it a single full clip of ammo.
     client->pers.weapon_clip_ammo[ client->pers.weapon->weapon_index ] = item_pistol->clip_capacity;
     // And some extra bullets to reload with.
-    ent->client->ammo_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->ammo ) );
+    ent->client->ammo_index = ITEM_INDEX( SVG_FindItem( ent->client->pers.weapon->ammo ) );
     client->pers.inventory[ ent->client->ammo_index ] = 78;
 
     // Obviously we need to allow this.
@@ -766,7 +767,7 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     ent->classname = "player";
     ent->mass = 200;
     ent->solid = SOLID_BOUNDS_BOX;
-    ent->deadflag = DEADFLAG_NO;
+    ent->lifeStatus = LIFESTATUS_ALIVE;
     ent->air_finished_time = level.time + 12_sec;
     ent->clipmask = ( MASK_PLAYERSOLID );
     ent->model = "players/playerdummy/tris.iqm";
@@ -859,8 +860,9 @@ void SVG_Player_PutInServer( edict_t *ent ) {
         ent->client->ps.gun.animationID = 0;
         gi.linkentity( ent );
         return;
-    } else
+    } else {
         client->resp.spectator = false;
+    }
 
     if ( !KillBox( ent, true ) ) {
         // could't spawn in?

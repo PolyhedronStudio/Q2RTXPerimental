@@ -303,7 +303,7 @@ void InitGame( void )
     //}
 
     // items
-    InitItems();
+    SVG_InitItems();
 
     game.helpmessage1[0] = 0;
     game.helpmessage2[0] = 0;
@@ -505,7 +505,7 @@ void EndDMLevel(void)
     if (level.nextmap[0]) // go to a specific map
         SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.nextmap));
     else {  // search for a changelevel
-        ent = SVG_Find(NULL, FOFS(classname), "target_changelevel");
+        ent = SVG_Find(NULL, FOFS_GENTITY(classname), "target_changelevel");
         if (!ent) {
             // the map designer didn't include a changelevel,
             // so create a fake ent that goes back to the same level

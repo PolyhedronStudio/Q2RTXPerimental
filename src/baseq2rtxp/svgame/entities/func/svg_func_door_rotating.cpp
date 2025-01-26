@@ -167,7 +167,7 @@ void SP_func_door_rotating( edict_t *ent ) {
         if ( ent->max_health > 0 && ent->health <= 0 ) {
             // Don't allow damaging.
             ent->takedamage = DAMAGE_NO;
-            ent->deadflag = DEADFLAG_DEAD;
+            ent->lifeStatus = LIFESTATUS_DEAD;
             // Die callback.
             ent->die = door_killed;
             ent->pain = door_pain;
@@ -178,7 +178,7 @@ void SP_func_door_rotating( edict_t *ent ) {
             }
             // Let it take damage.
             ent->takedamage = DAMAGE_YES;
-            ent->deadflag = DEADFLAG_NO;
+            ent->lifeStatus = LIFESTATUS_ALIVE;
             // Die callback.
             ent->die = door_killed;
             ent->pain = door_pain;

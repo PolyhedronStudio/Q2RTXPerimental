@@ -16,7 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
-#include "svgame/player/svg_m_player.h"
+#include "svgame/player/svg_player_hud.h"
 #include "svgame/svg_lua.h"
 
 
@@ -141,6 +141,9 @@ void SelectPrevItem(edict_t *ent, int itflags)
     cl->pers.selected_item = -1;
 }
 
+/**
+*   @brief
+**/
 void SVG_HUD_ValidateSelectedItem(edict_t *ent)
 {
     gclient_t   *cl;
@@ -222,13 +225,13 @@ void SVG_Command_Give_f(edict_t *ent)
     //if (give_all || Q_stricmp(name, "armor") == 0) {
     //    gitem_armor_t   *info;
 
-    //    it = FindItem("Jacket Armor");
+    //    it = SVG_FindItem("Jacket Armor");
     //    ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-    //    it = FindItem("Combat Armor");
+    //    it = SVG_FindItem("Combat Armor");
     //    ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-    //    it = FindItem("Body Armor");
+    //    it = SVG_FindItem("Body Armor");
     //    info = (gitem_armor_t *)it->info;
     //    ent->client->pers.inventory[ITEM_INDEX(it)] = info->max_count;
 
@@ -237,10 +240,10 @@ void SVG_Command_Give_f(edict_t *ent)
     //}
 
     //if (give_all || Q_stricmp(name, "Power Shield") == 0) {
-    //    it = FindItem("Power Shield");
+    //    it = SVG_FindItem("Power Shield");
     //    it_ent = SVG_AllocateEdict();
     //    it_ent->classname = it->classname;
-    //    SpawnItem(it_ent, it);
+    //    SVG_SpawnItem(it_ent, it);
     //    Touch_Item(it_ent, ent, NULL, NULL);
     //    if (it_ent->inuse)
     //        SVG_FreeEdict(it_ent);
@@ -261,10 +264,10 @@ void SVG_Command_Give_f(edict_t *ent)
         return;
     }
 
-    it = FindItem(name);
+    it = SVG_FindItem(name);
     if (!it) {
         name = gi.argv(1);
-        it = FindItem(name);
+        it = SVG_FindItem(name);
         if (!it) {
             gi.cprintf(ent, PRINT_HIGH, "unknown item\n");
             return;
@@ -286,7 +289,7 @@ void SVG_Command_Give_f(edict_t *ent)
     } else {
         it_ent = SVG_AllocateEdict();
         it_ent->classname = it->classname;
-        SpawnItem(it_ent, it);
+        SVG_SpawnItem(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);
         if (it_ent->inuse)
             SVG_FreeEdict(it_ent);
@@ -375,7 +378,7 @@ Use an inventory item
 */
 void SVG_Command_UseItem_f(edict_t *ent) {
     const char *s = gi.args();
-    const gitem_t *it = FindItem(s);
+    const gitem_t *it = SVG_FindItem(s);
     if (!it) {
         gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
         return;
@@ -405,7 +408,7 @@ Drop an inventory item
 */
 void SVG_Command_Drop_f(edict_t *ent) {
     const char *s = gi.args();
-    const gitem_t *it = FindItem(s);
+    const gitem_t *it = SVG_FindItem(s);
     if (!it) {
         gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
         return;
@@ -584,7 +587,7 @@ void SVG_Command_WeapFlare_f(edict_t* ent) {
     if (cl->pers.weapon && strcmp(cl->pers.weapon->pickup_name, "Flare Gun") == 0) {
         SVG_Command_WeapLast_f(ent);
     } else {
-        const gitem_t *it = FindItem("Flare Gun");
+        const gitem_t *it = SVG_FindItem("Flare Gun");
         it->use(ent, it);
     }
 }

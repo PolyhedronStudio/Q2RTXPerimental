@@ -140,7 +140,7 @@ bool Pickup_Weapon(edict_t *ent, edict_t *other)
 
     if (!(ent->spawnflags & DROPPED_ITEM)) {
         // give them some ammo with it
-        ammo = FindItem(ent->item->ammo);
+        ammo = SVG_FindItem(ent->item->ammo);
         if ((int)dmflags->value & DF_INFINITE_AMMO)
             Add_Ammo(other, ammo, 1000);
         else
@@ -151,7 +151,7 @@ bool Pickup_Weapon(edict_t *ent, edict_t *other)
                 if ( (int)( dmflags->value ) & DF_WEAPONS_STAY ) {
                     ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
                 } else {
-                    SetRespawn( ent, 30 );
+                    SVG_SetItemRespawn( ent, 30 );
                 }
             }
             if ( coop->value ) {
@@ -162,7 +162,7 @@ bool Pickup_Weapon(edict_t *ent, edict_t *other)
 
     if (other->client->pers.weapon != ent->item &&
         (other->client->pers.inventory[index] == 1) &&
-        (!deathmatch->value || other->client->pers.weapon == FindItem("blaster")))
+        (!deathmatch->value || other->client->pers.weapon == SVG_FindItem("blaster")))
         other->client->newweapon = ent->item;
 
     return true;
@@ -204,7 +204,7 @@ void ChangeWeapon(edict_t *ent)
     }
 
     if ( ent->client->pers.weapon && ent->client->pers.weapon->ammo ) {
-        ent->client->ammo_index = ITEM_INDEX( FindItem( ent->client->pers.weapon->ammo ) );
+        ent->client->ammo_index = ITEM_INDEX( SVG_FindItem( ent->client->pers.weapon->ammo ) );
     } else {
         ent->client->ammo_index = 0;
     }
@@ -244,37 +244,37 @@ void NoAmmoWeaponChange( edict_t *ent, bool sound = false )
 		}
 	}
 
-    if (ent->client->pers.inventory[ITEM_INDEX(FindItem("slugs"))]
-        &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("railgun"))]) {
-        ent->client->newweapon = FindItem("railgun");
+    if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("slugs"))]
+        &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("railgun"))]) {
+        ent->client->newweapon = SVG_FindItem("railgun");
         return;
     }
-    if (ent->client->pers.inventory[ITEM_INDEX(FindItem("cells"))]
-        &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("hyperblaster"))]) {
-        ent->client->newweapon = FindItem("hyperblaster");
+    if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("cells"))]
+        &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("hyperblaster"))]) {
+        ent->client->newweapon = SVG_FindItem("hyperblaster");
         return;
     }
-    if (ent->client->pers.inventory[ITEM_INDEX(FindItem("bullets"))]
-        &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("chaingun"))]) {
-        ent->client->newweapon = FindItem("chaingun");
+    if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("bullets"))]
+        &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("chaingun"))]) {
+        ent->client->newweapon = SVG_FindItem("chaingun");
         return;
     }
-    if (ent->client->pers.inventory[ITEM_INDEX(FindItem("bullets"))]
-        &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("machinegun"))]) {
-        ent->client->newweapon = FindItem("machinegun");
+    if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("bullets"))]
+        &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("machinegun"))]) {
+        ent->client->newweapon = SVG_FindItem("machinegun");
         return;
     }
-    if (ent->client->pers.inventory[ITEM_INDEX(FindItem("shells"))] > 1
-        &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("super shotgun"))]) {
-        ent->client->newweapon = FindItem("super shotgun");
+    if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("shells"))] > 1
+        &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("super shotgun"))]) {
+        ent->client->newweapon = SVG_FindItem("super shotgun");
         return;
     }
-    if (ent->client->pers.inventory[ITEM_INDEX(FindItem("shells"))]
-        &&  ent->client->pers.inventory[ITEM_INDEX(FindItem("shotgun"))]) {
-        ent->client->newweapon = FindItem("shotgun");
+    if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("shells"))]
+        &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("shotgun"))]) {
+        ent->client->newweapon = SVG_FindItem("shotgun");
         return;
     }
-    ent->client->newweapon = FindItem("blaster");
+    ent->client->newweapon = SVG_FindItem("blaster");
 }
 
 // [Paril-KEX] get time per animation frame
@@ -349,7 +349,7 @@ void Use_Weapon(edict_t *ent, gitem_t *item)
         return;
 
     if (item->ammo && !g_select_empty->value && !(item->flags & IT_AMMO)) {
-        ammo_item = FindItem(item->ammo);
+        ammo_item = SVG_FindItem(item->ammo);
         ammo_index = ITEM_INDEX(ammo_item);
 
         if (!ent->client->pers.inventory[ammo_index]) {
@@ -406,7 +406,7 @@ inline void Weapon_PowerupSound( edict_t *ent ) {
 
 inline bool Weapon_CanAnimate( edict_t *ent ) {
 	// VWep animations screw up corpses
-	return !ent->deadflag && ent->s.modelindex == MODELINDEX_PLAYER;
+	return !ent->lifeStatus && ent->s.modelindex == MODELINDEX_PLAYER;
 }
 
 // [Paril-KEX] called when finished to set time until
@@ -695,7 +695,7 @@ void weapon_grenade_fire(edict_t *ent, bool held)
 
     ent->client->grenade_time = level.time + 1.0_sec;
 
-    if (ent->deadflag || ent->s.modelindex != 255) { // VWep animations screw up corpses
+    if (ent->lifeStatus || ent->s.modelindex != 255) { // VWep animations screw up corpses
         return;
     }
 

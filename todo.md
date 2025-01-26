@@ -53,6 +53,11 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 - [ ] The **IQM Animation** Scenario:
 	- [ ] Allow attaching models configured by bone tags setup.
 
+- [ ] **Lua**:
+	- [ ] SVG_CopyString is used for assigning targetname related strings. This needs to be tucked
+		  into a wrapper object so that we can just assign it a const char*, allocate, copy, and if it
+	- [ ] already had a value, destroy its previous value.
+
 ---
 ## For v0.0.5(Being idealistic here, not realistic, that is when it comes to time lol):
 - [ ] Core/Generic/Code-Style/Important(DoNotForget):
@@ -123,18 +128,18 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 			- [ ] func_conveyor
 			- [x] func_door
 			- [x] func_door_rotating
-			- [ ] func_explosive
-				Just rework the whole thing since its 'vanilla' behavior is really limited.
+			- [X] func_explosive
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_rotating
-				Just rework the whole thing since its 'vanilla' behavior is really limited.
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_killbox
-				Just rework the whole thing since its 'vanilla' behavior is really limited.
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_object
-				Just rework the whole thing since its 'vanilla' behavior is really limited.
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_plat
-				Just rework the whole thing since its 'vanilla' behavior is really limited.
-			- [/] func_rotating:
-			- [ ] - [ ] func_timer
+				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
+			- [X] func_rotating
+			- [ ] func_timer
 				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_train
 				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.

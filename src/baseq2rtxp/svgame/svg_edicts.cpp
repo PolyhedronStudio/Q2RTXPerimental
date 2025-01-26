@@ -8,16 +8,6 @@
 #include "svgame/svg_local.h"
 
 
-
-/**
-*
-*
-*
-*   Edict (Utility-) Functions:
-*
-*
-*
-**/
 /**
 *   @brief  (Re-)initialize an edict.
 **/
@@ -107,7 +97,7 @@ void SVG_FreeEdict( edict_t *ed ) {
 
 /**
 *   @brief  Searches all active entities for the next one that holds
-*           the matching string at fieldofs (use the FOFS() macro) in the structure.
+*           the matching string at fieldofs (use the FOFS_GENTITY() macro) in the structure.
 *
 *   @remark Searches beginning at the edict after from, or the beginning if NULL
 *           NULL will be returned if the end of the list is reached.
@@ -169,10 +159,12 @@ edict_t *SVG_FindWithinRadius( edict_t *from, const vec3_t org, const float rad 
 
 /**
 *
+* 
 *
-*   Dead Body Queue
+*   Dead Body Queue:
 *
 *
+* 
 **/
 /**
 *   @brief
@@ -256,4 +248,85 @@ void SVG_CopyToBodyQue( edict_t *ent ) {
     body->takedamage = DAMAGE_YES;
 
     gi.linkentity( body );
+}
+
+
+
+/**
+*
+*
+*
+*   Visibility Testing:
+*
+*
+*
+**/
+/**
+*   @return True if the entity is visible to self, even if not infront ()
+**/
+const bool SVG_IsEntityVisible( edict_t *self, edict_t *other ) {
+    vec3_t  spot1;
+    vec3_t  spot2;
+    trace_t trace;
+
+    VectorCopy( self->s.origin, spot1 );
+    spot1[ 2 ] += self->viewheight;
+    VectorCopy( other->s.origin, spot2 );
+    spot2[ 2 ] += other->viewheight;
+    trace = gi.trace( spot1, vec3_origin, vec3_origin, spot2, self, MASK_OPAQUE );
+
+    if ( trace.fraction == 1.0f )
+        return true;
+    return false;
+}
+
+/**
+*   @return True if the entity is in front (in sight) of self
+**/
+const bool SVG_IsEntityInFrontOf( edict_t *self, edict_t *other ) {
+    // If a client, use its forward vector.
+    Vector3 forward = {};
+    if ( SVG_IsClientEntity( self ) ) {
+        self->client->viewMove.viewForward;
+    // Calculate forward vector:
+    } else {
+        QM_AngleVectors( self->s.angles, &forward, nullptr, nullptr );
+    }
+    // Get direction.
+    Vector3 direction = Vector3( other->s.origin ) - Vector3( self->s.origin );
+    // Normalize direction.
+    Vector3 normalizedDirection = QM_Vector3Normalize( direction );
+    // Get dot product from normalized direction / forward.
+    const float dot = QM_Vector3DotProduct( normalizedDirection, forward );
+    // In 'front' of.
+    if ( dot > 0.3f ) {
+        return true;
+    }
+    // Not in 'front' of.
+    return false;
+}
+/**
+*   @return True if the testOrigin point is in front of entity 'self'.
+**/
+const bool SVG_IsEntityInFrontOf( edict_t *self, const Vector3 &testOrigin ) {
+    // If a client, use its forward vector.
+    Vector3 forward = {};
+    if ( SVG_IsClientEntity( self ) ) {
+        self->client->viewMove.viewForward;
+        // Calculate forward vector:
+    } else {
+        QM_AngleVectors( self->s.angles, &forward, nullptr, nullptr );
+    }
+    // Get direction.
+    Vector3 direction = testOrigin - self->s.origin;
+    // Normalize direction.
+    Vector3 normalizedDirection = QM_Vector3Normalize( direction );
+    // Get dot product from normalized direction / forward.
+    const float dot = QM_Vector3DotProduct( normalizedDirection, forward );
+    // In 'front' of.
+    if ( dot > 0.3f ) {
+        return true;
+    }
+    // Not in 'front' of.
+    return false;
 }

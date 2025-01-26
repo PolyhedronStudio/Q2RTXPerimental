@@ -94,7 +94,7 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
 
     targ->enemy = attacker;
 
-    if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEADFLAG_DEAD)) {
+    if ((targ->svflags & SVF_MONSTER) && (targ->lifeStatus != LIFESTATUS_DEAD)) {
             //targ->svflags |= SVF_DEADMONSTER;   // now treat as a different content type
             // WID: TODO: Monster Reimplement.        
             //if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
@@ -115,7 +115,7 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
         return;
     }
 
-    if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEADFLAG_DEAD)) {
+    if ((targ->svflags & SVF_MONSTER) && (targ->lifeStatus != LIFESTATUS_DEAD)) {
         targ->touch = NULL;
         // WID: TODO: Actually trigger death.
         //monster_death_use(targ);
@@ -273,7 +273,7 @@ bool CheckTeamDamage(edict_t *targ, edict_t *attacker)
     return false;
 }
 
-void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
+void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
     // Final means of death.
     sg_means_of_death_t finalMeansOfDeath = meansOfDeath;
     

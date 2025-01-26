@@ -602,7 +602,7 @@ bool monster_start( edict_t *self ) {
     self->clipmask = MASK_MONSTERSOLID;
 
 	self->s.skinnum = 0;
-	self->deadflag = DEADFLAG_NO;
+	self->lifeStatus = LIFESTATUS_ALIVE;
 	self->svflags &= ~SVF_DEADMONSTER;
 
 	if ( !self->monsterinfo.checkattack )
@@ -610,7 +610,7 @@ bool monster_start( edict_t *self ) {
 	VectorCopy( self->s.origin, self->s.old_origin );
 
 	if ( st.item ) {
-		self->item = FindItemByClassname( st.item );
+		self->item = SVG_FindItemByClassname( st.item );
 		if ( !self->item )
 			gi.dprintf( "%s at %s has bad item: %s\n", self->classname, vtos( self->s.origin ), st.item );
 	}
@@ -637,7 +637,7 @@ void monster_start_go( edict_t *self ) {
 		target = NULL;
 		notcombat = false;
 		fixup = false;
-		while ( ( target = SVG_Find( target, FOFS( targetname ), self->targetNames.target ) ) != NULL ) {
+		while ( ( target = SVG_Find( target, FOFS_GENTITY( targetname ), self->targetNames.target ) ) != NULL ) {
 			if ( strcmp( target->classname, "point_combat" ) == 0 ) {
 				self->targetNames.combat = self->targetNames.target;
 				fixup = true;
@@ -656,7 +656,7 @@ void monster_start_go( edict_t *self ) {
 		edict_t *target;
 
 		target = NULL;
-		while ( ( target = SVG_Find( target, FOFS( targetname ), self->targetNames.combat ) ) != NULL ) {
+		while ( ( target = SVG_Find( target, FOFS_GENTITY( targetname ), self->targetNames.combat ) ) != NULL ) {
 			if ( strcmp( target->classname, "point_combat" ) != 0 ) {
 				gi.dprintf( "%s at %s has a bad targetNames.combat %s : %s at %s\n",
 						   self->classname, vtos( self->s.origin ),

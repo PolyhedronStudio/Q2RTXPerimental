@@ -93,7 +93,7 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
 
     targ->enemy = attacker;
 
-    if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEADFLAG_DEAD)) {
+    if ((targ->svflags & SVF_MONSTER) && (targ->lifeStatus != LIFESTATUS_DEAD)) {
 //      targ->svflags |= SVF_DEADMONSTER;   // now treat as a different content type
         if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
             level.killed_monsters++;
@@ -111,7 +111,7 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
         return;
     }
 
-    if ((targ->svflags & SVF_MONSTER) && (targ->deadflag != DEADFLAG_DEAD)) {
+    if ((targ->svflags & SVF_MONSTER) && (targ->lifeStatus != LIFESTATUS_DEAD)) {
         targ->touch = NULL;
         monster_death_use(targ);
     }
@@ -186,7 +186,7 @@ static int CheckPowerArmor(edict_t *ent, const vec3_t point, const vec3_t normal
     if (client) {
         power_armor_type = PowerArmorType(ent);
         if (power_armor_type != POWER_ARMOR_NONE) {
-            index = ITEM_INDEX(FindItem("Cells"));
+            index = ITEM_INDEX(SVG_FindItem("Cells"));
             power = client->pers.inventory[index];
         }
     } else if (ent->svflags & SVF_MONSTER) {
@@ -262,7 +262,7 @@ static int CheckArmor(edict_t *ent, const vec3_t point, const vec3_t normal, int
     if (!index)
         return 0;
 
-    armor = GetItemByIndex(index);
+    armor = SVG_GetItemByIndex(index);
 
     if (dflags & DAMAGE_ENERGY)
         save = ceil(((gitem_armor_t *)armor->info)->energy_protection * damage);

@@ -242,7 +242,7 @@ void SVG_Trigger_PrintMessage( edict_t *self, edict_t *activator ) {
 const int32_t SVG_Trigger_KillTargets( edict_t *self ) {
     if ( self->targetNames.kill ) {
         edict_t *killTargetEntity = nullptr;
-        while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS( targetname ), self->targetNames.kill ) ) ) {
+        while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS_GENTITY( targetname ), self->targetNames.kill ) ) ) {
             SVG_FreeEdict( killTargetEntity );
             if ( !self->inuse ) {
                 gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, self->s.number, self->classname );
@@ -281,7 +281,7 @@ edict_t *SVG_PickTarget( char *targetname ) {
     }
 
     while ( 1 ) {
-        ent = SVG_Find( ent, FOFS( targetname ), targetname );
+        ent = SVG_Find( ent, FOFS_GENTITY( targetname ), targetname );
         if ( !ent )
             break;
         choice[ num_choices++ ] = ent;
@@ -364,7 +364,7 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
     //
     if ( ent->targetNames.target ) {
         edict_t *fireTargetEntity = nullptr;
-        while ( ( fireTargetEntity = SVG_Find( fireTargetEntity, FOFS( targetname ), ent->targetNames.target ) ) ) {
+        while ( ( fireTargetEntity = SVG_Find( fireTargetEntity, FOFS_GENTITY( targetname ), ent->targetNames.target ) ) ) {
             // Doors fire area portals in a specific way
             if ( !Q_stricmp( fireTargetEntity->classname, "func_areaportal" )
                 && ( !Q_stricmp( ent->classname, "func_door" ) || !Q_stricmp( ent->classname, "func_door_rotating" ) ) ) {
@@ -487,11 +487,11 @@ void SVG_SetMoveDir( vec3_t angles, Vector3 &movedir ) {
 *
 *
 **/
-char *SVG_CopyString(char *in)
-{
+/**
+*   @brief  Keep in mind that actually doing this continuously will lead to substantial problems...
+**/
+char *SVG_CopyString(const char *in) {
     char    *out;
-
-	// WID: C++20: Addec cast.
     out = (char*)gi.TagMalloc(strlen(in) + 1, TAG_SVGAME_LEVEL);
     strcpy(out, in);
     return out;
@@ -736,7 +736,7 @@ const bool KillBox( edict_t *ent, const bool bspClipping ) {
         // Don't killbox ourselves.
         if ( hit == ent ) {
             continue;
-            // Skip entities that are not in use, no takedamage, not solid, or solid_bsp/solid_trigger.
+        // Skip entities that are not in use, no takedamage, not solid, or solid_bsp/solid_trigger.
         } else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP ) {
             continue;
         } else if ( hit->client && !( mask & CONTENTS_PLAYER ) ) {

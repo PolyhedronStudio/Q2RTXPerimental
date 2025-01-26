@@ -4,6 +4,7 @@
 // Save related types.
 #include "svg_save.h"
 
+#if 0
 extern mmove_t actor_move_attack;
 extern mmove_t actor_move_death1;
 extern mmove_t actor_move_death2;
@@ -51,6 +52,7 @@ extern mmove_t soldier_move_stand3;
 extern mmove_t soldier_move_start_run;
 extern mmove_t soldier_move_walk1;
 extern mmove_t soldier_move_walk2;
+#endif
 
 // <Q2RTXP>:
 // Lua. (Certain things as Thinks for DelayedUse)

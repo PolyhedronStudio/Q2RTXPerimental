@@ -48,11 +48,11 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
     //self->nextthink = level.time + 20_hz;
     //self->think = barrel_explode;
 
-    if ( self->deadflag == DEADFLAG_DEAD ) {
+    if ( self->lifeStatus == LIFESTATUS_DEAD ) {
         return;
     }
 
-    if ( self->deadflag == DEADFLAG_DYING ) {
+    if ( self->lifeStatus == LIFESTATUS_DYING ) {
         // Gib Death:
         if ( self->health < -40 ) {
             // Play gib sound.
@@ -67,8 +67,8 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
             // Gibs don't take damage, but fade away as time passes.
             self->takedamage = DAMAGE_NO;
 
-            // Set deadflag.
-            self->deadflag = DEADFLAG_DEAD;
+            // Set lifeStatus.
+            self->lifeStatus = LIFESTATUS_DEAD;
         }
     }
     // Set activator.
@@ -77,7 +77,7 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
     //---------------------------
     // <TEMPORARY FOR TESTING>
     //---------------------------
-    if ( self->deadflag == DEADFLAG_NO ) {
+    if ( self->lifeStatus == LIFESTATUS_ALIVE ) {
         // Pick a random death animation.
         int32_t deathanim = irandom( 3 );
         if ( deathanim == 0 ) {
@@ -88,7 +88,7 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
             self->s.frame = 801;
         }
          
-        self->deadflag = DEADFLAG_DYING;
+        self->lifeStatus = LIFESTATUS_DYING;
         // Set this here so the entity does not block traces while playing death animation.
         self->svflags |= SVF_DEADMONSTER;
     } else if ( self->s.frame == 643 ) {
@@ -233,6 +233,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 #endif
             #endif
 
+
             // Calculate ideal yaw to turn into.
             self->ideal_yaw = QM_Vector3ToYaw(
                 QM_Vector3Normalize( Vector3( self->activator->s.origin ) - Vector3(self->s.origin) )
@@ -242,6 +243,11 @@ void monster_testdummy_puppet_think( edict_t *self ) {
 
             // Move yaw a frame into ideal yaw position.
             SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
+
+            // Set follow trail time.
+            if ( SVG_IsEntityVisible( self->activator, self ) ) {
+                self->trail_time = level.time;
+            }
 
             // Generate frame velocity vector.
             Vector3 entityVelocity = self->velocity;
@@ -305,7 +311,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 // Last but not least, make sure to link it back in.
                 gi.linkentity( self );
             }
-        } else if ( self->deadflag == DEADFLAG_NO ) {
+        } else if ( self->lifeStatus == LIFESTATUS_ALIVE ) {
             self->s.frame++;
             if ( self->s.frame >= 82 ) {
                 self->s.frame = 0;
@@ -315,7 +321,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
         // </TEMPORARY FOR TESTING>
         //---------------------------
     } else {
-        if ( self->deadflag != DEADFLAG_NO ) {
+        if ( self->lifeStatus != LIFESTATUS_ALIVE ) {
             if ( self->s.frame >= 512 && self->s.frame < 642 ) {
                 // Forward Death 01.
                 self->s.frame++;
@@ -417,7 +423,7 @@ void SP_monster_testdummy_puppet( edict_t *self ) {
     //self->use = monster_use;
     self->max_health = self->health;
     self->clipmask = MASK_MONSTERSOLID;
-    self->deadflag = DEADFLAG_NO;
+    self->lifeStatus = LIFESTATUS_ALIVE;
     self->svflags &= ~SVF_DEADMONSTER;
 
     // Touch:

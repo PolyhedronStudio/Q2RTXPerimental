@@ -524,11 +524,11 @@ void hover_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
         for (n = 0; n < 2; n++)
             SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
         SVG_Misc_ThrowHead(self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC);
-        self->deadflag = DEADFLAG_DEAD;
+        self->lifeStatus = LIFESTATUS_DEAD;
         return;
     }
 
-    if (self->deadflag == DEADFLAG_DEAD)
+    if (self->lifeStatus == LIFESTATUS_DEAD)
         return;
 
 // regular death
@@ -536,7 +536,7 @@ void hover_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
         gi.sound(self, CHAN_VOICE, sound_death1, 1, ATTN_NORM, 0);
     else
         gi.sound(self, CHAN_VOICE, sound_death2, 1, ATTN_NORM, 0);
-    self->deadflag = DEADFLAG_DEAD;
+    self->lifeStatus = LIFESTATUS_DEAD;
     self->takedamage = DAMAGE_YES;
     M_SetAnimation( self, &hover_move_death1 );
 }

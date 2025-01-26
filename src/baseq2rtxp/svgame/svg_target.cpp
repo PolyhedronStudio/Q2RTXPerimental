@@ -15,7 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-#include "svg_local.h"
+#include "svgame/svg_local.h"
+#include "svgame/player/svg_player_hud.h"
 
 /*QUAKED target_temp_entity (1 0 0) (-8 -8 -8) (8 8 8)
 Fire an origin based temp entity event to the clients.
@@ -402,7 +403,7 @@ void SP_target_blaster(edict_t *self)
 Once this trigger is touched/used, any trigger_crosslevel_target with the same trigger number is automatically used when a level is started within the same unit.  It is OK to check multiple triggers.  Message, delay, target, and targetNames.kill also work.
 */
 void trigger_crosslevel_trigger_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    game.serverflags |= self->spawnflags;
+    game.serverflags |= static_cast<crosslevel_target_flags_t>( self->spawnflags );
     SVG_FreeEdict(self);
 }
 
@@ -558,7 +559,7 @@ void target_laser_start(edict_t *self)
 
     if (!self->enemy) {
         if (self->targetNames.target) {
-            ent = SVG_Find(NULL, FOFS(targetname), self->targetNames.target);
+            ent = SVG_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
             if (!ent)
                 gi.dprintf("%s at %s: %s is a bad target\n", self->classname, vtos(self->s.origin), self->targetNames.target);
             self->enemy = ent;
@@ -623,7 +624,7 @@ void target_lightramp_use( edict_t *self, edict_t *other, edict_t *activator, co
         // check all the targets
         e = NULL;
         while (1) {
-            e = SVG_Find(e, FOFS(targetname), self->targetNames.target);
+            e = SVG_Find(e, FOFS_GENTITY(targetname), self->targetNames.target);
             if (!e)
                 break;
             if (strcmp(e->classname, "light") != 0) {

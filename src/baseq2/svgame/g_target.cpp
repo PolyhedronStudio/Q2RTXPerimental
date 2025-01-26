@@ -597,7 +597,7 @@ void target_laser_start(edict_t *self)
 
     if (!self->enemy) {
         if (self->targetNames.target) {
-            ent = SVG_Find(NULL, FOFS(targetname), self->targetNames.target);
+            ent = SVG_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
             if (!ent)
                 gi.dprintf("%s at %s: %s is a bad target\n", self->classname, vtos(self->s.origin), self->targetNames.target);
             self->enemy = ent;
@@ -663,7 +663,7 @@ void target_lightramp_use(edict_t *self, edict_t *other, edict_t *activator)
         // check all the targets
         e = NULL;
         while (1) {
-            e = SVG_Find(e, FOFS(targetname), self->targetNames.target);
+            e = SVG_Find(e, FOFS_GENTITY(targetname), self->targetNames.target);
             if (!e)
                 break;
             if (strcmp(e->classname, "light") != 0) {

@@ -82,7 +82,7 @@ void SVG_ChaseCam_Update(edict_t *ent)
         goal[2] += 6;
     }
 
-    if (targ->deadflag)
+    if (targ->lifeStatus)
         ent->client->ps.pmove.pm_type = PM_DEAD;
     else
         ent->client->ps.pmove.pm_type = PM_FREEZE;
@@ -91,7 +91,7 @@ void SVG_ChaseCam_Update(edict_t *ent)
     for (i = 0 ; i < 3 ; i++)
         ent->client->ps.pmove.delta_angles[i] = /*ANGLE2SHORT*/(targ->client->viewMove.viewAngles[i] - ent->client->resp.cmd_angles[i]);
 
-    if (targ->deadflag) {
+    if (targ->lifeStatus) {
         ent->client->ps.viewangles[ROLL] = 40;
         ent->client->ps.viewangles[PITCH] = -15;
         ent->client->ps.viewangles[YAW] = targ->client->killer_yaw; // targ->client->ps.stats[ STAT_KILLER_YAW ];

@@ -557,7 +557,7 @@ void jorg_dead(edict_t *self)
 void jorg_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
     gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
-    self->deadflag = DEADFLAG_DEAD;
+    self->lifeStatus = LIFESTATUS_DEAD;
     self->takedamage = DAMAGE_NO;
     self->s.sound = 0;
     self->count = 0;

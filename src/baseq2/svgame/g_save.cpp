@@ -68,7 +68,7 @@ typedef struct {
 #define I64(name) IA(name, 1)
 
 static const save_field_t entityfields[] = {
-#define _OFS FOFS
+#define _OFS FOFS_GENTITY
     // [entity_state_s]:
     I( s.number ),
     //S( s.client ),
@@ -176,7 +176,7 @@ static const save_field_t entityfields[] = {
     I(health),
     I(max_health),
     I(gib_health),
-    I(deadflag),
+    I(lifeStatus),
     I64(show_hostile),
 
     I64( powerarmor_time ), // WID: 64-bit-frame
@@ -295,7 +295,7 @@ static const save_field_t entityfields[] = {
 };
 
 static const save_field_t levelfields[] = {
-#define _OFS LLOFS
+#define _OFS FOFS_LEVEL_LOCALS
 	I64( framenum ),
 	I64( time ), // WID: 64-bit-frame
 
@@ -339,7 +339,7 @@ static const save_field_t levelfields[] = {
 };
 
 static const save_field_t clientfields[] = {
-#define _OFS CLOFS
+#define _OFS FOFS_GCLIENT
 	I( ps.pmove.pm_type ),
 
 	V( ps.pmove.origin ),
@@ -467,7 +467,7 @@ static const save_field_t clientfields[] = {
 };
 
 static const save_field_t gamefields[] = {
-#define _OFS GLOFS
+#define _OFS FOFS_GAME_LOCALS
     SZ(helpmessage1, 512),
     SZ(helpmessage2, 512),
 

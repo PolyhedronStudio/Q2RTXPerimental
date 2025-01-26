@@ -424,7 +424,7 @@ void hurt_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
 *	@brief	
 **/
 void hurt_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-	damageflags_t dflags;
+	entity_damageflags_t dflags;
 
 	if ( !other->takedamage ) {
 		return;

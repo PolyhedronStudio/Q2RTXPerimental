@@ -25,6 +25,22 @@ mapMedia = {
     sound = {}
 }
 
+-----------------------------------------------------------------------------
+--
+--
+--
+--    func_explosive map stuff:
+--
+--
+--
+-----------------------------------------------------------------------------
+function FuncExplosives00_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+    -- Notify players.
+    Game.Print( PrintLevel.NOTICE, "FuncExplosives(number:#"..self.number..") received Signal(\""..signalName.."\")...\n" )
+    -- Done handling signal.
+    return true
+end
+
 
 
 -----------------------------------------------------------------------------
@@ -41,7 +57,7 @@ mapMedia = {
 -----------------------------------------------------------------------------
 function func_rotating_00_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     -- Notify players.
-    Game.Print( PrintLevel.NOTICE, "Rotator received Signal(\""..signalName.."\")...\n" )
+    Game.Print( PrintLevel.NOTICE, self.targetName .. " received Signal(\""..signalName.."\")...\n" )
 
     -- Done handling signal.
     return true
@@ -58,7 +74,7 @@ function button_func_rotating00_lock_OnSignalIn( self, signaller, activator, sig
     -- Lock the rotator from accelerating/decelearting, and lock its toggle button.
     if ( signalName == "OnPressed" ) then
         -- Notify players.
-        Game.Print( PrintLevel.NOTICE, "Locking Rotator...\n" )
+        Game.Print( PrintLevel.NOTICE, "Locking Rotator(\""..rotatorEntity.targetName.."\")...\n" )
         -- Lock Signal.
         Game.SignalOut( rotatorEntity, signaller, activator, "Lock", {} )
         --
@@ -67,7 +83,7 @@ function button_func_rotating00_lock_OnSignalIn( self, signaller, activator, sig
     -- UnLock the rotator from accelerating/decelearting, and unlock its toggle button.
     if ( signalName == "OnUnPressed" ) then 
         -- Notify players.
-        Game.Print( PrintLevel.NOTICE, "Unlocking Rotator...\n" )
+        Game.Print( PrintLevel.NOTICE, "Unlocking Rotator (\""..rotatorEntity.targetName.."\")...\n" )
         -- Unlock Signal.
         Game.SignalOut( rotatorEntity, signaller, activator, "Unlock", {} )
         --Game.SignalOut( buttonEntity, signaller, activator, "ButtonUnLock", {} )

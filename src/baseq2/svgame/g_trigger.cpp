@@ -331,7 +331,7 @@ void SP_trigger_key( edict_t *self ) {
 		gi.dprintf( "no key item for trigger_key at %s\n", vtos( self->s.origin ) );
 		return;
 	}
-	self->item = FindItemByClassname( st.item );
+	self->item = SVG_FindItemByClassname( st.item );
 
 	if ( !self->item ) {
 		gi.dprintf( "item %s not found for trigger_key at %s\n", st.item, vtos( self->s.origin ) );

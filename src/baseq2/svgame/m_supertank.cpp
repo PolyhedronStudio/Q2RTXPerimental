@@ -615,7 +615,7 @@ void BossExplode(edict_t *self)
             SVG_Misc_ThrowGib(self, "models/objects/gibs/sm_metal/tris.md2", 500, GIB_TYPE_METALLIC);
         SVG_Misc_ThrowGib(self, "models/objects/gibs/chest/tris.md2", 500, GIB_TYPE_ORGANIC);
         SVG_Misc_ThrowHead(self, "models/objects/gibs/gear/tris.md2", 500, GIB_TYPE_METALLIC);
-        self->deadflag = DEADFLAG_DEAD;
+        self->lifeStatus = LIFESTATUS_DEAD;
         return;
     }
 
@@ -631,7 +631,7 @@ void BossExplode(edict_t *self)
 void supertank_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
     gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
-    self->deadflag = DEADFLAG_DEAD;
+    self->lifeStatus = LIFESTATUS_DEAD;
     self->takedamage = DAMAGE_NO;
     self->count = 0;
     M_SetAnimation( self, &supertank_move_death );
