@@ -23,6 +23,8 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 * [ ] Add in the FGD, the basis for triggertype and triggervalue.
 * [ ] This'll allow us to determine how an entity should proceed to trigger any other entity.
 ---
+* [ ] Unify signal names, i.e DoorLock RotatingLock just use Lock, etc etc.
+* [ ] 
 
 ## For v0.0.6 or so:
 - [ ] The **Monster** Scenario:
@@ -122,16 +124,17 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 			- [x] func_door
 			- [x] func_door_rotating
 			- [ ] func_explosive
-				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
+				Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_rotating
-				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
+				Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_killbox
-				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
+				Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_object
-				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
+				Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_plat
-				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
-			- [ ] func_timer
+				Just rework the whole thing since its 'vanilla' behavior is really limited.
+			- [/] func_rotating:
+			- [ ] - [ ] func_timer
 				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_train
 				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.

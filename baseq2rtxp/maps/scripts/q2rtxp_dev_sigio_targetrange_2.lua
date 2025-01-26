@@ -48,7 +48,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         --end
         return
     -- It finished the 'open movement' and arrived at destination:
-    elseif ( signalName == "DoorOpen" ) then
+    elseif ( signalName == "Open" ) then
         -- Turn off the light for this target.
         entityUseType = "ENTITY_USETARGET_TYPE_OFF"
         entityUseValue = 0
@@ -61,7 +61,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
     -- track when it has reached 'closed' state.
     ]]--
     -- A new round has begun, so the target got told to "close", turn on the light so we can see it close.
-    elseif ( signalName == "DoorClose" ) then
+    elseif ( signalName == "Close" ) then
         -- Turn on the light for this target.
         entityUseType = "ENTITY_USETARGET_TYPE_ON"
         entityUseValue = 1
@@ -80,8 +80,8 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         entityTargetName = trainTargetName
         Game.UseTarget( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, ENTITY_USETARGET_TYPE_ON, 1 )
         return
-    --elseif ( signalName == "DoorClose") then
-    --elseif ( signalName == "DoorOpen") then
+    --elseif ( signalName == "Close") then
+    --elseif ( signalName == "Open") then
     end
 
     -- Debugging
@@ -128,10 +128,10 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
         Game.UseTarget( Game.GetEntityForTargetName( "train_target" ), signaller, activator, ENTITY_USETARGET_TYPE_ON, 1 )
 
         -- Signal all targetrange lane targets to "close" again, effectively reactivating our target range course.
-        Game.SignalOut( Game.GetEntityForTargetName( "t_target_xxl" ), signaller, activator, "DoorClose" )
-        Game.SignalOut( Game.GetEntityForTargetName( "t_target_xl" ), signaller, activator, "DoorClose" )
-        Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "DoorClose" )
-        Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "DoorClose" )
+        Game.SignalOut( Game.GetEntityForTargetName( "t_target_xxl" ), signaller, activator, "Close" )
+        Game.SignalOut( Game.GetEntityForTargetName( "t_target_xl" ), signaller, activator, "Close" )
+        Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "Close" )
+        Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "Close" )
 
         -- -- Turn on all the lights again.
         Game.UseTarget( Game.GetEntityForTargetName( "light_target_xxl" ), signaller, activator, ENTITY_USETARGET_TYPE_ON, 1 )
@@ -161,10 +161,10 @@ function WareHouseLockingButton_OnSignalIn( self, signaller, activator, signalNa
         -- Determine its move state.
         local doorMoveState = Game.GetPushMoverState( entityWareHouseDoor01 )
 
-        -- Only SignalOut a "DoorOpen" when the elevator is NOT moving.
+        -- Only SignalOut a "Open" when the elevator is NOT moving.
         if ( doorMoveState ~= PUSHMOVE_STATE_MOVING_DOWN and doorMoveState~= PUSHMOVE_STATE_MOVING_UP ) then
             -- Send the lock toggle signal.
-            Game.SignalOut( entityWareHouseDoor01, self, activator, "DoorLockToggle" )
+            Game.SignalOut( entityWareHouseDoor01, self, activator, "LockToggle" )
         end
     end
     return true
@@ -178,10 +178,10 @@ function WareHouseDoor_OnSignalIn( self, signaller, activator, signalName, signa
         -- -- Determine its move state.
         -- local doorMoveState = Game.GetPushMoverState( entityWareHouseDoor01 )
 
-        -- -- Only SignalOut a "DoorOpen" when the elevator is NOT moving.
+        -- -- Only SignalOut a "Open" when the elevator is NOT moving.
         -- if ( doorMoveState ~= PUSHMOVE_STATE_MOVING_DOWN and doorMoveState~= PUSHMOVE_STATE_MOVING_UP ) then
         --     -- Send the lock toggle signal.
-        --     Game.SignalOut( entityWareHouseDoor01, self, activator, "DoorLockToggle" )
+        --     Game.SignalOut( entityWareHouseDoor01, self, activator, "LockToggle" )
         -- end
     end
     return true

@@ -47,6 +47,16 @@ NOMONSTER   Monsters will not trigger this door.
 4)  heavy
 */
 
+
+/**
+*
+*
+*
+*   Use Callbacks:
+*
+*
+*
+**/
 /**
 *	@brief  Open/Close the door's area portals.
 **/
@@ -133,6 +143,16 @@ void door_lua_use( edict_t *self, edict_t *other, edict_t *activator, const enti
 }
 
 
+
+/**
+*
+*
+*
+*   Open/Close/Toggle, Lock/UnLock:
+*
+*
+*
+**/
 /**
 *   @brief  Toggles the entire door team.
 **/
@@ -253,12 +273,26 @@ void door_unlock( edict_t *self ) {
     }
 }
 
+
+
+/**
+*
+*
+*
+*   SignalIn:
+*
+*
+*
+**/
 /**
 *   @brief  Signal Receiving:
 **/
 void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+    /**
+    *   Open/Close:
+    **/
     // DoorOpen:
-    if ( Q_strcasecmp( signalName, "DoorOpen" ) == 0 ) {
+    if ( Q_strcasecmp( signalName, "Open" ) == 0 ) {
         self->activator = activator;
         self->other = other;
 
@@ -270,7 +304,7 @@ void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const c
         //}
     }
     // DoorClose:
-    if ( Q_strcasecmp( signalName, "DoorClose" ) == 0 ) {
+    if ( Q_strcasecmp( signalName, "Close" ) == 0 ) {
         self->activator = activator;
         self->other = other;
         // Signal all paired doors to open. (Presuming they are the same state, closed)
@@ -281,21 +315,24 @@ void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const c
         //}
     }
 
+    /**
+    *   Lock/UnLock:
+    **/
     // DoorLock:
-    if ( Q_strcasecmp( signalName, "DoorLock" ) == 0 ) {
+    if ( Q_strcasecmp( signalName, "Lock" ) == 0 ) {
         self->activator = activator;
         self->other = other;
         door_lock( self );
     }
     // DoorUnlock:
-    if ( Q_strcasecmp( signalName, "DoorUnlock" ) == 0 ) {
+    if ( Q_strcasecmp( signalName, "UnLock" ) == 0 ) {
         self->activator = activator;
         self->other = other;
         // If we're locked while in either opened, or closed state, unlock the door.
         door_unlock( self );
     }
     // DoorLockToggle:
-    if ( Q_strcasecmp( signalName, "DoorLockToggle" ) == 0 ) {
+    if ( Q_strcasecmp( signalName, "LockToggle" ) == 0 ) {
         self->activator = activator;
         self->other = other;
         // Lock if unlocked:
@@ -314,6 +351,7 @@ void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const c
     gi.dprintf( "door_onsignalin[ self(#%d), \"%s\", other(#%d), activator(%d) ]\n", self->s.number, signalName, otherNumber, activatorNumber );
     #endif
 }
+
 
 
 /**

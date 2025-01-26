@@ -361,18 +361,21 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
     //        ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY ) )
     //    return;
     // ZOID
-
+    
+    // Get impact delta.
     float delta = pm.impact_delta;
-
+    // Determine fall damage based on impact delta.
     delta = delta * delta * 0.0001f;
-
+    // Soften damage if inside liquid by the waist.
     if ( pm.liquid.level == LIQUID_WAIST ) {
         delta *= 0.25f;
     }
+    // Soften damage if inside liquid by the feet.
     if ( pm.liquid.level == LIQUID_FEET ) {
         delta *= 0.5f;
     }
 
+    // Damage is too small to be taken into consideration.
     if ( delta < 1 ) {
         return;
     }
@@ -395,12 +398,14 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
         return;
     }
 
+    // Calculate the fall value for view adjustments.
     ent->client->viewMove.fallValue = delta * 0.5f;
     if ( ent->client->viewMove.fallValue > 40 ) {
         ent->client->viewMove.fallValue = 40;
     }
     ent->client->viewMove.fallTime = level.time + FALL_TIME();
 
+    // Apply fall event based on delta.
     if ( delta > 30 ) {
         if ( delta >= 55 ) {
             ent->s.event = EV_FALLFAR;

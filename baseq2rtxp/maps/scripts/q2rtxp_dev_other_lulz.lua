@@ -32,10 +32,10 @@ function HallElevatorButtonOutside_OnSignalIn( self, signaller, activator, signa
     if ( signalName == "OnPressed" ) then
         -- Determine its move state.
         local elevatorMoveState = Game.GetPushMoverState( Game.GetEntityForLuaName( "HallElevator" ) )
-        -- Only SignalOut a "DoorOpen" when the elevator is NOT moving.
+        -- Only SignalOut a "Open" when the elevator is NOT moving.
         if ( elevatorMoveState ~= PUSHMOVE_STATE_MOVING_DOWN and elevatorMoveState ~= PUSHMOVE_STATE_MOVING_UP ) then
             -- Send open signal, as a toggle, so it remains opened  until further actioning.
-            Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "DoorOpen", { testInteger = 10, testString = "Hello World!", testNumber = 13.37 } )
+            Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "Open", { testInteger = 10, testString = "Hello World!", testNumber = 13.37 } )
         end
     end
     return true
@@ -51,10 +51,10 @@ function HallElevatorButtonInside_OnSignalIn( self, signaller, activator, signal
             -- Open the door if closed:
             if ( doorMoveState == PUSHMOVE_STATE_MOVING_DOWN or doorMoveState == PUSHMOVE_STATE_BOTTOM ) then
                 -- Send close signal, as a toggle, so it remains closed until further actioning.
-                Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "DoorOpen" )
+                Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "Open" )
             elseif ( doorMoveState == PUSHMOVE_STATE_MOVING_UP or doorMoveState == PUSHMOVE_STATE_TOP ) then
                 -- Send close signal, as a toggle, so it remains closed until further actioning.
-                Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "DoorClose" )
+                Game.SignalOut( Game.GetEntityForLuaName( "HallElevatorDoor00" ), self, activator, "Close" )
             end
         end
     end

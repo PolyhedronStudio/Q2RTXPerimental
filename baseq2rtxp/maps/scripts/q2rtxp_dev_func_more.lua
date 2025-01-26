@@ -30,37 +30,76 @@ mapMedia = {
 -----------------------------------------------------------------------------
 --
 --
+--
 --    func_rotating map stuff:
 --
 --
+--
 -----------------------------------------------------------------------------
---
---
---
-function TargetsLeftHoloGram_ToggleState( delaySeconds, lightsOn, other, activator ) 
-    -- Use them.
-    local useTargetType = EntityUseTargetType.ON
-    local useTargetValue = 1
-    if ( lightsOn ~= true ) then
-        useTargetType = EntityUseTargetType.OFF
-        useTargetValue = 0
-    end
-    -- Turn toggle the targets left light and holgoram entities.
-    entities:UseTargetDelay( Game.GetEntityForTargetName( "light_targetsleft" ), other, activator, useTargetType, useTargetValue, delaySeconds )
-    entities:UseTargetDelay( Game.GetEntityForTargetName( "targetsleftcounter0" ), other, activator, useTargetType, useTargetValue, delaySeconds )
-    entities:UseTargetDelay( Game.GetEntityForTargetName( "targetsleftcounter1" ), other, activator, useTargetType, useTargetValue, delaySeconds )
-    entities:UseTargetDelay( Game.GetEntityForTargetName( "wall_hologram0" ), other, activator, useTargetType, useTargetValue, delaySeconds )
-    entities:UseTargetDelay( Game.GetEntityForTargetName( "wall_hologram1" ), other, activator, useTargetType, useTargetValue, delaySeconds )
-end
+-----------------------------------------------------------------------------
+--  SignalIn: func_rotating_00
+-----------------------------------------------------------------------------
+function func_rotating_00_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+    -- Notify players.
+    Game.Print( PrintLevel.NOTICE, "Rotator received Signal(\""..signalName.."\")...\n" )
 
------------------------------------------------------------------------------
---
------------------------------------------------------------------------------
-function button_func_rotating_toggle_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     -- Done handling signal.
     return true
 end
-function button_func_rotating_continuous_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+-----------------------------------------------------------------------------
+--  SignalIn: button_func_rotating00_lock
+-----------------------------------------------------------------------------
+function button_func_rotating00_lock_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+    -- Get rotator target entity.
+    local rotatorEntity = Game.GetEntityForTargetName( "func_rotating_00" )
+    -- Get toggle button entity.
+    --local buttonEntity = Game.GetEntityForTargetName( "button_func_rotating00_toggle" )
+
+    -- Lock the rotator from accelerating/decelearting, and lock its toggle button.
+    if ( signalName == "OnPressed" ) then
+        -- Notify players.
+        Game.Print( PrintLevel.NOTICE, "Locking Rotator...\n" )
+        -- Lock Signal.
+        Game.SignalOut( rotatorEntity, signaller, activator, "Lock", {} )
+        --
+        --Game.SignalOut( buttonEntity, signaller, activator, "ButtonLock", {} )
+    end
+    -- UnLock the rotator from accelerating/decelearting, and unlock its toggle button.
+    if ( signalName == "OnUnPressed" ) then 
+        -- Notify players.
+        Game.Print( PrintLevel.NOTICE, "Unlocking Rotator...\n" )
+        -- Unlock Signal.
+        Game.SignalOut( rotatorEntity, signaller, activator, "Unlock", {} )
+        --Game.SignalOut( buttonEntity, signaller, activator, "ButtonUnLock", {} )
+    end
+    
+    -- Done handling signal.
+    return true
+end
+-----------------------------------------------------------------------------
+--  SignalIn: button_func_rotating00_toggle
+-----------------------------------------------------------------------------
+function button_func_rotating00_toggle_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+    -- Get rotator target entity.
+    local rotatorEntity = Game.GetEntityForTargetName( "func_rotating_00" )
+    -- Get toggle button entity.
+    --local buttonEntity = Game.GetEntityForTargetName( "button_func_rotating00_toggle" )
+
+    -- Toggle into accelerating.
+    if ( signalName == "OnPressed" ) then
+        -- Notify players.
+        Game.Print( PrintLevel.NOTICE, "Toggled into Accelerating...\n" )
+        -- Signal.
+        Game.SignalOut( rotatorEntity, signaller, activator, "Accelerate", {} )
+    end
+    -- Toggle into decelerating.
+    if ( signalName == "OnUnPressed" ) then 
+        -- Notify players.
+        Game.Print( PrintLevel.NOTICE, "Toggled into Decelerating...\n" )
+        -- Signal.
+        Game.SignalOut( rotatorEntity, signaller, activator, "Decelerate", {} )
+    end
+    
     -- Done handling signal.
     return true
 end

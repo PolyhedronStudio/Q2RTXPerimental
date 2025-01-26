@@ -67,6 +67,43 @@ void rotating_sound_play_end( edict_t *self ) {
         }
     }
 }
+
+
+
+/**
+*
+*
+*
+*   Lock/UnLock:
+*
+*
+*
+**/
+/**
+*   @brief
+**/
+void rotating_lock( edict_t *self ) {
+    // Of course it has to be locked if we want to play a sound.
+    if ( !self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockingSound ) {
+        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
+    }
+    // Last but not least, unlock its state.
+    self->pushMoveInfo.lockState.isLocked = true;
+}
+/**
+*   @brief
+**/
+void rotating_unlock( edict_t *self ) {
+    // Of course it has to be locked if we want to play a sound.
+    if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.unlockingSound ) {
+        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
+    }
+    // Last but not least, unlock its state.
+    self->pushMoveInfo.lockState.isLocked = false;
+}
+
+
+
 /**
 *
 *
@@ -79,7 +116,7 @@ void rotating_sound_play_end( edict_t *self ) {
 /**
 *   @brief
 **/
-void rotating_full_halted( edict_t *self ) {
+void rotating_halt( edict_t *self ) {
 
 }
 /**
@@ -95,6 +132,18 @@ void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t 
 void rotating_accelerate( edict_t *self ) {
     // Get angular velocity speed.
     const float current_speed = QM_Vector3Length( self->avelocity );
+
+    // If locked, maintain current speed.
+    if ( self->pushMoveInfo.lockState.isLocked ) {
+        // Calculate new speed based movedir velocity.
+        const float new_speed = current_speed;
+        self->avelocity = self->movedir * new_speed;
+        // Setup nextthink.
+        self->think = rotating_accelerate;
+        self->nextthink = level.time + FRAME_TIME_S;
+        return;
+    }
+
     // It has finished Accelerating.
     if ( current_speed >= ( self->speed - self->accel ) ) {
         // Decelerated state.
@@ -126,7 +175,13 @@ void rotating_accelerate( edict_t *self ) {
 *   @brief
 **/
 void rotating_accelerate_start( edict_t *self ) {
-    if ( self->pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING) {// || self->pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING ) {
+    // Already Accelerating:
+    if ( self->pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING ) {// || self->pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING ) {
+        return;
+    }
+
+    // Locked.
+    if ( self->pushMoveInfo.lockState.isLocked ) {
         return;
     }
 
@@ -145,6 +200,18 @@ void rotating_accelerate_start( edict_t *self ) {
 void rotating_decelerate( edict_t *self ) {
     // Get angular velocity speed.
     const float current_speed = QM_Vector3Length( self->avelocity );
+
+    // If locked, maintain current speed.
+    if ( self->pushMoveInfo.lockState.isLocked ) {
+        // Calculate new speed based movedir velocity.
+        const float new_speed = current_speed;
+        self->avelocity = self->movedir * new_speed;
+        // Setup nextthink.
+        self->think = rotating_decelerate;
+        self->nextthink = level.time + FRAME_TIME_S;
+        return;
+    }
+
     // It has finished Decelerating.
     if ( current_speed <= self->decel ) {
         // Decelerated state.
@@ -175,7 +242,13 @@ void rotating_decelerate( edict_t *self ) {
 *   @brief
 **/
 void rotating_decelerate_start( edict_t *self ) {
+    // Already decelerating.
     if ( self->pushMoveInfo.state == ROTATING_STATE_MOVE_DECELERATING ) { // } || self->pushMoveInfo.state == ROTATING_STATE_MOVE_DECELERATING ) {
+        return;
+    }
+
+    // Locked.
+    if ( self->pushMoveInfo.lockState.isLocked ) {
         return;
     }
     
@@ -227,6 +300,7 @@ void rotating_blocked( edict_t *self, edict_t *other ) {
     // Perform damaging.
     SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
+
 /**
 *   @brief
 **/
@@ -298,6 +372,94 @@ void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const enti
 
 
 /**
+* 
+* 
+* 
+*   SignalIn:
+* 
+* 
+* 
+**/
+void rotating_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+    /**
+    *   Accelerate/Decelerate:
+    **/
+    // RotatingAccelerate:
+    if ( Q_strcasecmp( signalName, "Accelerate" ) == 0 ) {
+        self->activator = activator;
+        self->other = other;
+
+        // Starts accelerating if it is not doing so yet.
+        rotating_accelerate_start( self );
+    }
+    // RotatingDecelerate:
+    if ( Q_strcasecmp( signalName, "Decelerate" ) == 0 ) {
+        self->activator = activator;
+        self->other = other;
+
+        // Starts decelerating if it is not doing so yet.
+        rotating_decelerate_start( self );
+    }
+
+    /**
+    *   Pause/Continue:
+    **/
+    // WID: TODO: Mayhaps? 
+    //// RotatingPause:
+    //if ( Q_strcasecmp( signalName, "RotatingPause" ) == 0 ) {
+    //    self->activator = activator;
+    //    self->other = other;
+    //}
+    //// RotatingContinue:
+    //if ( Q_strcasecmp( signalName, "RotatingContinue" ) == 0 ) {
+    //    self->activator = activator;
+    //    self->other = other;
+    //}
+    //// RotatingHalt:
+    //if ( Q_strcasecmp( signalName, "RotatingHalt" ) == 0 ) {
+    //    self->activator = activator;
+    //    self->other = other;
+    //}
+
+    /**
+    *   Lock/UnLock:
+    **/
+    // RotatingLock:
+    if ( Q_strcasecmp( signalName, "Lock" ) == 0 ) {
+        self->activator = activator;
+        self->other = other;
+        rotating_lock( self );
+    }
+    // RotatingUnlock:
+    if ( Q_strcasecmp( signalName, "Unlock" ) == 0 ) {
+        self->activator = activator;
+        self->other = other;
+        rotating_unlock( self );
+    }
+    // RotatingLockToggle:
+    if ( Q_strcasecmp( signalName, "LockToggle" ) == 0 ) {
+        self->activator = activator;
+        self->other = other;
+        // Lock if unlocked:
+        if ( !self->pushMoveInfo.lockState.isLocked ) {
+            rotating_lock( self );
+            // Unlock if locked:
+        } else {
+            rotating_unlock( self );
+        }
+    }
+
+    // WID: Useful for debugging.
+    #if 0
+    const int32_t otherNumber = ( other ? other->s.number : -1 );
+    const int32_t activatorNumber = ( activator ? activator->s.number : -1 );
+    gi.dprintf( "rotating_onsignalin[ self(#%d), \"%s\", other(#%d), activator(%d) ]\n", self->s.number, signalName, otherNumber, activatorNumber );
+    #endif
+}
+
+
+
+/**
 *
 *
 *   func_rotating:
@@ -310,6 +472,7 @@ void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const enti
 void SP_func_rotating( edict_t *ent ) {
     // Solid.
     ent->solid = SOLID_BSP;
+
     // Blocking STOPS the rotation:
     if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_BLOCK_STOPS ) {
         ent->movetype = MOVETYPE_STOP;
@@ -317,6 +480,7 @@ void SP_func_rotating( edict_t *ent ) {
     } else {
         ent->movetype = MOVETYPE_PUSH;
     }
+
     // Pusher Type.
     ent->s.entityType = ET_PUSHER;
     // Default state.
@@ -353,6 +517,7 @@ void SP_func_rotating( edict_t *ent ) {
     //  ent->pushMoveInfo.sounds.middle = "doors/hydro1.wav";
     ent->touch = rotating_touch;
     ent->use = rotating_use;
+    ent->onsignalin = rotating_onsignalin;
 
     // Blockading entities get damaged if dmg is set.
     if ( ent->dmg ) {

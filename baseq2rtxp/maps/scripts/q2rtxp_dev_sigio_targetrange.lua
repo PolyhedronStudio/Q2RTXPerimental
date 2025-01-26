@@ -136,7 +136,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
             -- Enable the button for reuse.
             targetRangeButtonEntity.useTargetFlags = targetRangeButtonEntity.useTargetFlags - EntityUseTargetFlags.DISABLED
             -- Signal it to be unpressed again.
-            Game.SignalOut( targetRangeButtonEntity, signaller, activator, "ButtonUnPress", {}, 0.1 )
+            Game.SignalOut( targetRangeButtonEntity, signaller, activator, "UnPress", {}, 0.1 )
             -- Adjust frame to match it being pressable again, signalling red animation style that target range is inactive.
             --targetRangeButtonEntity.state.frame = 0
 
@@ -254,10 +254,10 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
             -- Play speciual 'restart' sound effect.
             Media.Sound( signaller, SoundChannel.ITEM, mapMedia.sound.newround, 1.0, SoundAttenuation.NORMAL, 0.0 )
             -- Signal all targetrange lane targets to "close" again, effectively reactivating our target range course.
-            Game.SignalOut( Game.GetEntityForTargetName( "t_target_xxl" ), signaller, activator, "DoorClose", {} )
-            Game.SignalOut( Game.GetEntityForTargetName( "t_target_xl" ), signaller, activator, "DoorClose", {} )
-            Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "DoorClose", {} )
-            Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "DoorClose", {} )
+            Game.SignalOut( Game.GetEntityForTargetName( "t_target_xxl" ), signaller, activator, "Close", {} )
+            Game.SignalOut( Game.GetEntityForTargetName( "t_target_xl" ), signaller, activator, "Close", {} )
+            Game.SignalOut( Game.GetEntityForTargetName( "t_target_l" ), signaller, activator, "Close", {} )
+            Game.SignalOut( Game.GetEntityForTargetName( "t_target" ), signaller, activator, "Close", {} )
 
             -- Reset targets alive count.
             mapStates.targetRange.targetsAlive = 4
@@ -319,10 +319,10 @@ function WareHouseLockingButton_OnSignalIn( self, signaller, activator, signalNa
         local entityWareHouseDoor00 = Game.GetEntityForLuaName( "WareHouseDoor00" )
         -- Determine its move state.
         local doorMoveState = Game.GetPushMoverState( entityWareHouseDoor00 )
-        -- Only SignalOut a "DoorLockToggle" when the doors are NOT moving.
+        -- Only SignalOut a "LockToggle" when the doors are NOT moving.
         if ( doorMoveState ~= PushMoveState.MOVING_DOWN and doorMoveState ~= PushMoveState.MOVING_UP ) then
             -- Send the lock toggle signal.
-            Game.SignalOut( entityWareHouseDoor00, self, activator, "DoorLockToggle", {} )
+            Game.SignalOut( entityWareHouseDoor00, self, activator, "LockToggle", {} )
         end
     end
     -- Done Signalling.

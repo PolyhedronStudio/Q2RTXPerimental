@@ -696,11 +696,14 @@ void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int da
         return;
     }
 
+    // WID: TODO: ?? Dead == Dead...
+    #if 0 
     // Are we locked?
     if ( self->pushMoveInfo.lockState.isLocked ) {
         // TODO: Play some locked sound.
         return;
     }
+    #endif
 
     // Of course, only process if we're dealing with a damage trigger button.
     if ( SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES ) && self->max_health ) {
@@ -732,6 +735,39 @@ void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 }
 
 
+/**
+*
+*
+*
+*   Lock/UnLock:
+*
+*
+*
+**/
+/**
+*   @brief
+**/
+void button_lock( edict_t *self ) {
+    // Of course it has to be locked if we want to play a sound.
+    if ( !self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockingSound ) {
+        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
+    }
+    // Last but not least, unlock its state.
+    self->pushMoveInfo.lockState.isLocked = true;
+}
+/**
+*   @brief
+**/
+void button_unlock( edict_t *self ) {
+    // Of course it has to be locked if we want to play a sound.
+    if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.unlockingSound ) {
+        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
+    }
+    // Last but not least, unlock its state.
+    self->pushMoveInfo.lockState.isLocked = false;
+}
+
+
 
 /***
 *
@@ -746,33 +782,66 @@ void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 *   @brief  Signal Receiving:
 **/
 void button_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+    /**
+    *   Press/UnPress/Toggle:
+    **/
     // Press:
-    if ( Q_strcasecmp( signalName, "ButtonPress" ) == 0 ) {
+    if ( Q_strcasecmp( signalName, "Press" ) == 0 ) {
         // Unpress,
         self->activator = activator;
         self->other = other;
         button_press_move( self );
     }
     // UnPress:
-    if ( Q_strcasecmp( signalName, "ButtonUnPress" ) == 0 ) {
+    if ( Q_strcasecmp( signalName, "UnPress" ) == 0 ) {
         // Unpress,
         self->activator = activator;
         self->other = other;
         button_unpress_move( self );
     }
     // ButtonToggle:
-    if ( Q_strcasecmp( signalName, "ButtonToggle" ) == 0 ) {
+    if ( Q_strcasecmp( signalName, "Toggle" ) == 0 ) {
         self->activator = activator;
         self->other = other;
         // Toggle Move.
         button_toggle_move( self );
     }
 
+    /**
+    *   Lock/UnLock:
+    **/
+    // RotatingLock:
+    if ( Q_strcasecmp( signalName, "Lock" ) == 0 ) {
+        self->activator = activator;
+        self->other = other;
+        // Lock itself.
+        button_lock( self );
+    }
+    // RotatingUnlock:
+    if ( Q_strcasecmp( signalName, "Unlock" ) == 0 ) {
+        self->activator = activator;
+        self->other = other;
+        // Unlock itself.
+        button_unlock( self );
+    }
+    // RotatingLockToggle:
+    if ( Q_strcasecmp( signalName, "LockToggle" ) == 0 ) {
+        self->activator = activator;
+        self->other = other;
+        // Lock if unlocked:
+        if ( !self->pushMoveInfo.lockState.isLocked ) {
+            button_lock( self );
+        // Unlock if locked:
+        } else {
+            button_unlock( self );
+        }
+    }
+
     // WID: Useful for debugging.
     #if 0
     const int32_t otherNumber = ( other ? other->s.number : -1 );
     const int32_t activatorNumber = ( activator ? activator->s.number : -1 );
-    gi.dprintf( "door_onsignalin[ self(#%d), \"%s\", other(#%d), activator(%d) ]\n", self->s.number, signalName, otherNumber, activatorNumber );
+    gi.dprintf( "button_onsignalin[ self(#%d), \"%s\", other(#%d), activator(%d) ]\n", self->s.number, signalName, otherNumber, activatorNumber );
     #endif
 }
 
