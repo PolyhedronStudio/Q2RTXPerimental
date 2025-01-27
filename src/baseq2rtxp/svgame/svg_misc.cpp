@@ -16,58 +16,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 // g_misc.c
-
 #include "svg_local.h"
 
 
-/*QUAKED func_group (0 0 0) ?
-Used to group brushes together just for editor convenience.
-*/
 
-//=====================================================
-
-void Use_Areaportal(edict_t *ent, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue )
-{
-    //ent->count ^= 1;        // toggle state
-    int32_t areaPortalState = gi.GetAreaPortalState( ent->style );
-    areaPortalState ^= 1;
-//  gi.dprintf ("portalstate: %i = %i\n", ent->style, ent->count);
-    gi.SetAreaPortalState(ent->style, areaPortalState );
-}
-
-/*QUAKED func_areaportal (0 0 0) ?
-
-This is a non-visible object that divides the world into
-areas that are seperated when this portal is not activated.
-Usually enclosed in the middle of a door.
-*/
-void SP_func_areaportal(edict_t *ent)
-{
-    ent->s.entityType = ET_AREA_PORTAL;
-    ent->use = Use_Areaportal;
-    // always start closed;
-    ent->count = 0; // gi.GetAreaPortalState( ent->style );     
-}
-
-//=====================================================
-
-
-/*
-=================
-Misc functions
-=================
-*/
-void VelocityForDamage(int damage, vec3_t v)
-{
-    v[0] = 100.0f * crandom();
-    v[1] = 100.0f * crandom();
-    v[2] = 200.0f + 100.0f * random();
-
-    if (damage < 50)
-        VectorScale(v, 0.7f, v);
-    else
-        VectorScale(v, 1.2f, v);
-}
 
 void ClipGibVelocity(edict_t *ent)
 {
@@ -77,13 +29,19 @@ void ClipGibVelocity(edict_t *ent)
 }
 
 
-/*
-=================
-gibs
-=================
-*/
-void gib_think(edict_t *self)
-{
+/***
+*
+*
+*
+*   Gib Entity Logics:
+*
+*
+*
+***/
+/**
+*   @brief
+**/
+void gib_think(edict_t *self) {
     self->s.frame++;
     //self->nextthink = level.frameNumber + 1;
 	self->nextthink = level.time + FRAME_TIME_S;
@@ -92,9 +50,10 @@ void gib_think(edict_t *self)
         self->nextthink = level.time + random_time(8_sec, 10_sec);//= level.frameNumber + (8 + random() * 10) * BASE_FRAMERATE;
     }
 }
-
-void gib_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
-{
+/**
+*   @brief
+**/
+void gib_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
     vec3_t  normal_angles, right;
 
     if ( !self->groundInfo.entity ) {
@@ -117,22 +76,33 @@ void gib_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
         }
     }
 }
-
-void gib_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
-{
+/**
+*   @brief
+**/
+void gib_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
     SVG_FreeEdict(self);
 }
 
-// WID: C++20: Added const.
-void SVG_Misc_ThrowGib(edict_t *self, const char *gibname, int damage, int type)
-{
-    edict_t *gib;
-    vec3_t  vd;
+
+
+/***
+*
+*
+*
+*   Throw Gib Entity Utilities:
+*
+*
+*
+***/
+/**
+*   @brief
+**/
+void SVG_Misc_ThrowGib( edict_t *self, const char *gibname, const int32_t damage, const int32_t type ) {
     vec3_t  origin;
     vec3_t  size;
     float   vscale;
 
-    gib = SVG_AllocateEdict();
+    edict_t *gib = SVG_AllocateEdict();
 
     VectorScale(self->size, 0.5f, size);
     VectorAdd(self->absmin, size, origin);
@@ -155,8 +125,8 @@ void SVG_Misc_ThrowGib(edict_t *self, const char *gibname, int damage, int type)
         vscale = 1.0f;
     }
 
-    VelocityForDamage(damage, vd);
-    VectorMA(self->velocity, vscale, vd, gib->velocity);
+    Vector3 velocityDamage = VelocityForDamage(damage);
+    VectorMA(self->velocity, vscale, velocityDamage, gib->velocity);
     ClipGibVelocity(gib);
     gib->avelocity[0] = random() * 600;
     gib->avelocity[1] = random() * 600;
@@ -167,10 +137,10 @@ void SVG_Misc_ThrowGib(edict_t *self, const char *gibname, int damage, int type)
 
     gi.linkentity(gib);
 }
-
-// WID: C++20: Added const.
-void SVG_Misc_ThrowHead(edict_t *self, const char *gibname, int damage, int type)
-{
+/**
+*   @brief
+**/
+void SVG_Misc_ThrowHead( edict_t *self, const char *gibname, const int32_t damage, const int32_t type ) {
     vec3_t  vd;
     float   vscale;
 
@@ -200,7 +170,7 @@ void SVG_Misc_ThrowHead(edict_t *self, const char *gibname, int damage, int type
         vscale = 1.0f;
     }
 
-    VelocityForDamage(damage, vd);
+    Vector3 velocityDamage = VelocityForDamage(damage);
     VectorMA(self->velocity, vscale, vd, self->velocity);
     ClipGibVelocity(self);
 
@@ -211,10 +181,10 @@ void SVG_Misc_ThrowHead(edict_t *self, const char *gibname, int damage, int type
 
     gi.linkentity(self);
 }
-
-
-void SVG_Misc_ThrowClientHead(edict_t *self, int damage)
-{
+/**
+*   @brief
+**/
+void SVG_Misc_ThrowClientHead( edict_t *self, const int32_t damage ) {
     vec3_t  vd;
 	// WID: C++20: Added const.
     const char    *gibname;
@@ -240,8 +210,8 @@ void SVG_Misc_ThrowClientHead(edict_t *self, int damage)
     self->flags = static_cast<entity_flags_t>( self->flags | FL_NO_KNOCKBACK );
 
     self->movetype = MOVETYPE_BOUNCE;
-    VelocityForDamage(damage, vd);
-    VectorAdd(self->velocity, vd, self->velocity);
+    Vector3 velocityDamage = VelocityForDamage( damage );
+    self->velocity += velocityDamage;
 
     if (self->client) { // bodies in the queue don't have a client anymore
         gi.dprintf( "%s: WID: TODO: Implement client death animation here!\n", __func__ );
@@ -256,28 +226,35 @@ void SVG_Misc_ThrowClientHead(edict_t *self, int damage)
 }
 
 
-/*
-=================
-debris
-=================
-*/
+
+/***
+*
+* 
+* 
+*   Debris
+* 
+* 
+* 
+***/
 void debris_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
     SVG_FreeEdict(self);
 }
 
-// WID: C++20: Added const.
-void SVG_Misc_ThrowDebris(edict_t *self, const char *modelname, float speed, vec3_t origin)
+/**
+*   @brief  
+**/
+void SVG_Misc_ThrowDebris(edict_t *self, const char *modelname, const float speed, vec3_t origin)
 {
-    edict_t *chunk;
-    vec3_t  v;
 
-    chunk = SVG_AllocateEdict();
+    edict_t *chunk = SVG_AllocateEdict();
     VectorCopy(origin, chunk->s.origin);
     gi.setmodel(chunk, modelname);
-    v[0] = 100 * crandom();
-    v[1] = 100 * crandom();
-    v[2] = 100 + 100 * crandom();
+    Vector3 v = {
+        100 * crandom(),
+        100 * crandom(),
+        100 + 100 * crandom()
+    };
     VectorMA(self->velocity, speed, v, chunk->velocity);
     chunk->movetype = MOVETYPE_BOUNCE;
     chunk->solid = SOLID_NOT;
@@ -295,6 +272,19 @@ void SVG_Misc_ThrowDebris(edict_t *self, const char *modelname, float speed, vec
 }
 
 
+
+/***
+*
+*
+*
+*   Explosions:
+*
+*
+*
+***/
+/**
+*   @brief	Spawns a temp entity explosion effect at the entity's origin, and frees the entity.
+**/
 void SVG_Misc_BecomeExplosion1(edict_t *self)
 {
     gi.WriteUint8(svc_temp_entity);
@@ -304,9 +294,10 @@ void SVG_Misc_BecomeExplosion1(edict_t *self)
 
     SVG_FreeEdict(self);
 }
-
-
-void BecomeExplosion2(edict_t *self)
+/**
+*   @brief	Spawns a temp entity explosion effect at the entity's origin, and frees the entity.
+**/
+void SVG_Misc_BecomeExplosion2(edict_t *self)
 {
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_EXPLOSION2);
@@ -392,262 +383,29 @@ void SP_path_corner(edict_t *self)
     gi.linkentity(self);
 }
 
+/**
+*   @brief	Returns a random velocity matching the specified damage count.
+**/
+const Vector3 &VelocityForDamage( const int32_t damage ) {
+    // Generate random velocity vector.
+    Vector3 v = {
+        100.0f * crandom(),
+        100.0f * crandom(),
+        200.0f + 100.0f * random()
+    };
 
-/*QUAKED point_combat (0.5 0.3 0) (-8 -8 -8) (8 8 8) Hold
-Makes this the target of a monster and it will head here
-when first activated before going after the activator.  If
-hold is selected, it will stay here.
-*/
-void point_combat_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
-{
-    edict_t *activator;
-
-    if (other->movetarget != self)
-        return;
-
-    if (self->targetNames.target) {
-        other->targetNames.target = self->targetNames.target;
-        other->goalentity = other->movetarget = SVG_PickTarget(other->targetNames.target);
-        if (!other->goalentity) {
-            gi.dprintf("%s at %s target %s does not exist\n", self->classname, vtos(self->s.origin), self->targetNames.target);
-            other->movetarget = self;
-        }
-        self->targetNames.target = NULL;
-    // WID: TODO: Monster Reimplement.
-    }// else if ((self->spawnflags & 1) && !(other->flags & (FL_SWIM | FL_FLY))) {
-    //    other->monsterinfo.pause_time = HOLD_FOREVER;
-    //    other->monsterinfo.aiflags |= AI_STAND_GROUND;
-    //    other->monsterinfo.stand(other);
-    //}
-
-    if (other->movetarget == self) {
-        other->targetNames.target = NULL;
-        other->movetarget = NULL;
-        other->goalentity = other->enemy;
-        // WID: TODO: Monster Reimplement.
-        //other->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
-    }
-
-    if (self->targetNames.path) {
-        char *savetarget;
-
-        savetarget = self->targetNames.target;
-        self->targetNames.target = self->targetNames.path;
-        if (other->enemy && other->enemy->client)
-            activator = other->enemy;
-        else if (other->oldenemy && other->oldenemy->client)
-            activator = other->oldenemy;
-        else if (other->activator && other->activator->client)
-            activator = other->activator;
-        else
-            activator = other;
-        SVG_UseTargets(self, activator);
-        self->targetNames.target = savetarget;
-    }
-}
-
-void SP_point_combat(edict_t *self)
-{
-    if (deathmatch->value) {
-        SVG_FreeEdict(self);
-        return;
-    }
-    self->solid = SOLID_TRIGGER;
-    self->touch = point_combat_touch;
-    VectorSet(self->mins, -8, -8, -16);
-    VectorSet(self->maxs, 8, 8, 16);
-    self->svflags = SVF_NOCLIENT;
-    gi.linkentity(self);
-}
-
-
-/*QUAKED viewthing (0 .5 .8) (-8 -8 -8) (8 8 8)
-Just for the debugging level.  Don't use
-*/
-void TH_viewthing(edict_t *ent)
-{
-    ent->s.frame = (ent->s.frame + 1) % 7;
-    ent->nextthink = level.time + FRAME_TIME_S;//level.frameNumber + 1;
-}
-
-void SP_viewthing(edict_t *ent)
-{
-    gi.dprintf("viewthing spawned\n");
-
-    ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BOUNDS_BOX;
-    ent->s.renderfx = RF_FRAMELERP;
-    VectorSet(ent->mins, -16, -16, -24);
-    VectorSet(ent->maxs, 16, 16, 32);
-    ent->s.modelindex = gi.modelindex("models/objects/banner/tris.md2");
-    gi.linkentity(ent);
-    ent->nextthink = level.time + 0.5_sec; //level.frameNumber + 0.5f * BASE_FRAMERATE;
-    ent->think = TH_viewthing;
-    return;
-}
-
-
-/*QUAKED misc_explobox (0 .5 .8) (-16 -16 0) (16 16 40)
-Large exploding box.  You can override its mass (100),
-health (80), and dmg (150).
-*/
-
-void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-    
-    if ( ( !other->groundInfo.entity ) || ( other->groundInfo.entity == self ) ) {
-        return;
-    }
-
-    // Calculate direction.
-    vec3_t v = { };
-    VectorSubtract(self->s.origin, other->s.origin, v);
-
-    // Move ratio(based on their masses).
-    const float ratio = (float)other->mass / (float)self->mass;
-
-    // Yaw direction angle.
-    const float yawAngle = QM_Vector3ToYaw( v );
-    const float direction = yawAngle;
-    // Distance to travel.
-    float distance = 20 * ratio * FRAMETIME;
-
-    // Debug output:
-    if ( plane ) {
-        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
-        gi.dprintf( "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
+    if ( damage < 50 ) {
+        v = QM_Vector3Scale( v, 0.7f );
     } else {
-        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
-        gi.dprintf( "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
-    }
-
-    // WID: TODO: Use new monster walkmove/slidebox implementation.
-    // Perform move.
-    //M_walkmove( self, direction, distance );
-}
-
-void barrel_explode(edict_t *self)
-{
-    vec3_t  org;
-    float   spd;
-    vec3_t  save;
-    int     i;
-
-    SVG_RadiusDamage(self, self->activator, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLODED_BARREL);
-
-    VectorCopy(self->s.origin, save);
-    VectorMA(self->absmin, 0.5f, self->size, self->s.origin);
-
-    // a few big chunks
-    spd = 1.5f * (float)self->dmg / 200.0f;
-    VectorMA(self->s.origin, crandom(), self->size, org);
-    SVG_Misc_ThrowDebris(self, "models/objects/debris1/tris.md2", spd, org);
-    VectorMA(self->s.origin, crandom(), self->size, org);
-    SVG_Misc_ThrowDebris(self, "models/objects/debris1/tris.md2", spd, org);
-
-    // bottom corners
-    spd = 1.75f * (float)self->dmg / 200.0f;
-    VectorCopy(self->absmin, org);
-    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
-    VectorCopy(self->absmin, org);
-    org[0] += self->size[0];
-    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
-    VectorCopy(self->absmin, org);
-    org[1] += self->size[1];
-    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
-    VectorCopy(self->absmin, org);
-    org[0] += self->size[0];
-    org[1] += self->size[1];
-    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
-
-    // a bunch of little chunks
-    spd = 2 * self->dmg / 200;
-    for (i = 0; i < 8; i++) {
-        VectorMA(self->s.origin, crandom(), self->size, org);
-        SVG_Misc_ThrowDebris(self, "models/objects/debris2/tris.md2", spd, org);
-    }
-
-    VectorCopy(save, self->s.origin);
-    if ( self->groundInfo.entity ) {
-        BecomeExplosion2( self );
-    } else {
-        SVG_Misc_BecomeExplosion1( self );
+        v = QM_Vector3Scale( v, 1.2f );
     }
 }
 
-void barrel_delay(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
-{
-    self->takedamage = DAMAGE_NO;
-    self->nextthink = level.time + random_time( 150_ms );
-    self->think = barrel_explode;
-    self->activator = attacker;
-}
 
-void SP_misc_explobox(edict_t *self)
-{
-    if (deathmatch->value) {
-        // auto-remove for deathmatch
-        SVG_FreeEdict(self);
-        return;
-    }
-
-    gi.modelindex("models/objects/debris1/tris.md2");
-    gi.modelindex("models/objects/debris2/tris.md2");
-    gi.modelindex("models/objects/debris3/tris.md2");
-
-    self->solid = SOLID_BOUNDS_OCTAGON;
-    self->movetype = MOVETYPE_STEP;
-
-    self->model = "models/objects/barrels/tris.md2";
-    self->s.modelindex = gi.modelindex(self->model);
-    VectorSet(self->mins, -16, -16, 0);
-    VectorSet(self->maxs, 16, 16, 40);
-
-    if (!self->mass)
-        self->mass = 400;
-    if (!self->health)
-        self->health = 10;
-    if (!self->dmg)
-        self->dmg = 150;
-
-    self->die = barrel_delay;
-    self->takedamage = DAMAGE_YES;
-    //self->monsterinfo.aiflags = AI_NOSTEP;
-
-    self->touch = barrel_touch;
-
-    self->think = M_droptofloor;
-	self->nextthink = level.time + 20_hz;
-
-    gi.linkentity(self);
-}
-
-
-//
-// miscellaneous specialty items
-//
-
-/*QUAKED light_mine1 (0 1 0) (-2 -2 -12) (2 2 12)
-*/
-void SP_light_mine1(edict_t *ent)
-{
-    ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BOUNDS_BOX;
-    ent->s.modelindex = gi.modelindex("models/objects/minelite/light1/tris.md2");
-    gi.linkentity(ent);
-}
-
-
-/*QUAKED light_mine2 (0 1 0) (-2 -2 -12) (2 2 12)
-*/
-void SP_light_mine2(edict_t *ent)
-{
-    ent->movetype = MOVETYPE_NONE;
-    ent->solid = SOLID_BOUNDS_BOX;
-    ent->s.modelindex = gi.modelindex("models/objects/minelite/light2/tris.md2");
-    gi.linkentity(ent);
-}
-
-
+/**
+*   Enable and/or modify in the future, disabled for now, just acts as a reference.
+**/
+#if 0
 /*QUAKED misc_gib_arm (1 0 0) (-8 -8 -8) (8 8 8)
 Intended for use with the target_spawner
 */
@@ -713,213 +471,7 @@ void SP_misc_gib_head(edict_t *ent)
     ent->nextthink = level.time + 30_sec;
     gi.linkentity(ent);
 }
-
-//=====================================================
-
-/*QUAKED target_character (0 0 1) ?
-used with target_string (must be on same "team")
-"count" is position in the string (starts at 1)
-*/
-
-void SP_target_character(edict_t *self)
-{
-    self->movetype = MOVETYPE_PUSH;
-    self->s.entityType = ET_PUSHER;
-    gi.setmodel(self, self->model);
-    self->solid = SOLID_BSP;
-    self->s.frame = 12;
-    gi.linkentity(self);
-    return;
-}
-
-
-/*QUAKED target_string (0 0 1) (-8 -8 -8) (8 8 8)
-*/
-
-void target_string_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue )
-{
-    edict_t *e;
-    int     n, l;
-    char    c;
-
-    l = strlen(self->message);
-    for (e = self->teammaster; e; e = e->teamchain) {
-        if (!e->count)
-            continue;
-        n = e->count - 1;
-        if (n > l) {
-            e->s.frame = 12;
-            continue;
-        }
-
-        c = self->message[n];
-        if (c >= '0' && c <= '9')
-            e->s.frame = c - '0';
-        else if (c == '-')
-            e->s.frame = 10;
-        else if (c == ':')
-            e->s.frame = 11;
-        else
-            e->s.frame = 12;
-    }
-}
-
-void SP_target_string(edict_t *self)
-{
-    if (!self->message)
-        self->message = const_cast<char*>(""); // WID: C++20: Added cast.
-    self->use = target_string_use;
-}
-
-
-/*QUAKED func_clock (0 0 1) (-8 -8 -8) (8 8 8) TIMER_UP TIMER_DOWN START_OFF MULTI_USE
-target a target_string with this
-
-The default is to be a time of day clock
-
-TIMER_UP and TIMER_DOWN run for "count" seconds and the fire "targetNames.path"
-If START_OFF, this entity must be used before it starts
-
-"style"     0 "xx"
-            1 "xx:xx"
-            2 "xx:xx:xx"
-*/
-
-static void func_clock_reset(edict_t *self)
-{
-    self->activator = NULL;
-    if (self->spawnflags & 1) {
-        self->health = 0;
-        self->wait = self->count;
-    } else if (self->spawnflags & 2) {
-        self->health = self->count;
-        self->wait = 0;
-    }
-}
-
-static void func_clock_format_countdown(edict_t *self)
-{
-    if (self->style == 0) {
-        Q_snprintf(self->message, CLOCK_MESSAGE_SIZE, "%2i", self->health);
-        return;
-    }
-
-    if (self->style == 1) {
-        Q_snprintf(self->message, CLOCK_MESSAGE_SIZE, "%2i:%2i", self->health / 60, self->health % 60);
-        if (self->message[3] == ' ')
-            self->message[3] = '0';
-        return;
-    }
-
-    if (self->style == 2) {
-        Q_snprintf(self->message, CLOCK_MESSAGE_SIZE, "%2i:%2i:%2i", self->health / 3600, (self->health - (self->health / 3600) * 3600) / 60, self->health % 60);
-        if (self->message[3] == ' ')
-            self->message[3] = '0';
-        if (self->message[6] == ' ')
-            self->message[6] = '0';
-        return;
-    }
-}
-
-void func_clock_think(edict_t *self)
-{
-    if (!self->enemy) {
-        self->enemy = SVG_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
-        if (!self->enemy)
-            return;
-    }
-
-    if (self->spawnflags & 1) {
-        func_clock_format_countdown(self);
-        self->health++;
-    } else if (self->spawnflags & 2) {
-        func_clock_format_countdown(self);
-        self->health--;
-    } else {
-        struct tm   *ltime;
-        time_t      gmtime;
-
-        gmtime = time(NULL);
-        ltime = localtime(&gmtime);
-        if (ltime)
-            Q_snprintf(self->message, CLOCK_MESSAGE_SIZE, "%2i:%2i:%2i", ltime->tm_hour, ltime->tm_min, ltime->tm_sec);
-        else
-            strcpy(self->message, "00:00:00");
-        if (self->message[3] == ' ')
-            self->message[3] = '0';
-        if (self->message[6] == ' ')
-            self->message[6] = '0';
-    }
-
-    self->enemy->message = self->message;
-    self->enemy->use(self->enemy, self, self, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
-
-    if (((self->spawnflags & 1) && (self->health > self->wait)) ||
-        ((self->spawnflags & 2) && (self->health < self->wait))) {
-        if (self->targetNames.path) {
-            char *savetarget;
-            char *savemessage;
-
-            savetarget = self->targetNames.target;
-            savemessage = self->message;
-            self->targetNames.target = self->targetNames.path;
-            self->message = NULL;
-            SVG_UseTargets(self, self->activator);
-            self->targetNames.target = savetarget;
-            self->message = savemessage;
-        }
-
-        if (!(self->spawnflags & 8))
-            return;
-
-        func_clock_reset(self);
-
-        if (self->spawnflags & 4)
-            return;
-    }
-
-	self->nextthink = level.time + 1_sec;
-}
-
-void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue  )
-{
-    if (!(self->spawnflags & 8))
-        self->use = NULL;
-    if (self->activator)
-        return;
-    self->activator = activator;
-    self->think(self);
-}
-
-void SP_func_clock(edict_t *self)
-{
-    if (!self->targetNames.target) {
-        gi.dprintf("%s with no target at %s\n", self->classname, vtos(self->s.origin));
-        SVG_FreeEdict(self);
-        return;
-    }
-
-    if ((self->spawnflags & 2) && (!self->count)) {
-        gi.dprintf("%s with no count at %s\n", self->classname, vtos(self->s.origin));
-        SVG_FreeEdict(self);
-        return;
-    }
-
-    if ((self->spawnflags & 1) && (!self->count))
-        self->count = 60 * 60;;
-
-    func_clock_reset(self);
-
-	// WID: C++20: Addec cast.
-    self->message = (char*)gi.TagMalloc(CLOCK_MESSAGE_SIZE, TAG_SVGAME_LEVEL);
-
-    self->think = func_clock_think;
-
-    if (self->spawnflags & 4)
-        self->use = func_clock_use;
-    else
-		self->nextthink = level.time + 1_sec;
-}
+#endif
 
 //=================================================================================
 
