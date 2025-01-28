@@ -198,13 +198,13 @@ public:
 	*	@brief	Allocates a block of sg_qstring_t for the specified count of characters.
 	**/
 	//inline sg_qstring_t<T, tag> from_char_str( const char *charStr ) {
-	static inline sg_qstring_t<T, tag> new_for_size( size_t count ) {
+	static inline sg_qstring_t<T, tag> new_for_size( size_t _count ) {
 		// Empty null string.
-		if ( !count ) {
+		if ( _count <= 0 ) {
 			return { nullptr, 0 };
 		}
 		// Allocate the space for the specified amount of characters and pass it into the sg_qstring_t.
-		return { reinterpret_cast<T *>( SG_Z_TagMalloc( sizeof( T ) * count, tag ) ), count };
+		return { reinterpret_cast<T *>( SG_Z_TagMalloc( sizeof( T ) * _count + 1, tag ) ), _count };
 	}
 	/**
 	*	@brief	Allocates a block of sg_qstring_t with a copy of the string argument.
@@ -213,21 +213,25 @@ public:
 	//template<typename T = char, int32_t tag>
 	//inline sg_qstring_t<T, tag> from_char_str( const char *charStr ) {
 	static inline sg_qstring_t<T, tag> from_char_str( const char *charStr ) {
-		// Acquire size.
-		size_t count = strlen( charStr );
 		// Empty null string.
-		if ( !count ) {
+		if ( !charStr ) {
+			return { nullptr, 0 };
+		}
+		// Acquire size.
+		size_t _count = strlen( charStr );
+		// Empty null string.
+		if ( _count <= 0 ) {
 			return { nullptr, 0 };
 		}
 		// Add one for eol.
-		count += 1;
+		//count += 1;
 
 		// Allocate the space for the specified amount of characters.
-		T *_ptr = reinterpret_cast<T *>( SG_Z_TagMalloc( sizeof( T ) * count, tag ) );
+		T *_ptr = reinterpret_cast<T *>( SG_Z_TagMalloc( sizeof( T ) * _count + 1, tag ) );
 		// Copy over the string data.
-		memcpy( _ptr, charStr, sizeof( T ) * count );
+		memcpy( _ptr, charStr, sizeof( T ) * _count );
 		// Return a charstring_t with the designated pointer.
-		return { _ptr, count };
+		return { _ptr, _count + 1 };
 	}
 	/**
 	*	@brief	Allocates a block of sg_qstring_t with a copy of the string argument.

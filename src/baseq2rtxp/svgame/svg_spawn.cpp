@@ -232,19 +232,19 @@ static const spawn_func_t spawn_funcs[] = {
 **/
 static const spawn_field_t spawn_fields[] = {
 	// ET_GENERIC:
-	{"classname", FOFS_GENTITY( classname ), F_LSTRING},
+	{"classname", FOFS_GENTITY( classname ), F_LQSTRING},
 	{"model", FOFS_GENTITY( model ), F_LSTRING},
 	{"spawnflags", FOFS_GENTITY( spawnflags ), F_INT},
 	{"speed", FOFS_GENTITY( speed ), F_FLOAT},
 	{"accel", FOFS_GENTITY( accel ), F_FLOAT},
 	{"decel", FOFS_GENTITY( decel ), F_FLOAT},
-	{"target", FOFS_GENTITY( targetNames.target ), F_LSTRING},
-	{"targetname", FOFS_GENTITY( targetname ), F_LSTRING},
-	{"path", FOFS_GENTITY( targetNames.path ), F_LSTRING},
-	{"death", FOFS_GENTITY( targetNames.death ), F_LSTRING},
-	{"kill", FOFS_GENTITY( targetNames.kill ), F_LSTRING},
+	{"target", FOFS_GENTITY( targetNames.target ), F_LQSTRING},
+	{"targetname", FOFS_GENTITY( targetname ), F_LQSTRING},
+	{"path", FOFS_GENTITY( targetNames.path ), F_LQSTRING},
+	{"death", FOFS_GENTITY( targetNames.death ), F_LQSTRING},
+	{"kill", FOFS_GENTITY( targetNames.kill ), F_LQSTRING},
     {"message", FOFS_GENTITY( message ), F_LSTRING},
-	{"team", FOFS_GENTITY( targetNames.team ), F_LSTRING},
+	{"team", FOFS_GENTITY( targetNames.team ), F_LQSTRING},
 	{"wait", FOFS_GENTITY( wait ), F_FLOAT},
 	{"delay", FOFS_GENTITY( delay ), F_FLOAT},
 	{"random", FOFS_GENTITY( random ), F_FLOAT},
@@ -267,7 +267,7 @@ static const spawn_field_t spawn_fields[] = {
 
     // <Q2RTXP>:
     // MoveWith:
-    { "movewith", FOFS_GENTITY( targetNames.movewith ), F_LSTRING },
+    { "movewith", FOFS_GENTITY( targetNames.movewith ), F_LQSTRING },
     // Lua:
     { "luaName", FOFS_GENTITY( luaProperties.luaName ), F_LSTRING },
     // (Spot-)light:
@@ -437,11 +437,11 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
         }
 
         // Fetch 'parent' target entity.
-        edict_t *parentMover = SVG_Find( NULL, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.movewith );
+        edict_t *parentMover = SVG_Find( NULL, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.movewith.ptr );
         // Apply.
         if ( parentMover ) {
             // Set.
-            SVG_MoveWith_SetTargetParentEntity( (const char *)ent->targetNames.movewith, parentMover, ent );
+            SVG_MoveWith_SetTargetParentEntity( (const char *)ent->targetNames.movewith.ptr, parentMover, ent );
             // Increment.
             game.num_movewithEntityStates++;
         }
@@ -546,6 +546,12 @@ static void WritePairToEdictKeyField( byte *writeAddress, const spawn_field_t *k
             break;
         case F_LSTRING:
             *(char **)( writeAddress + keyOffsetField->ofs ) = ED_NewString( kv->string );
+            break;
+        case F_LQSTRING:
+            *(svg_lstring_t *)( writeAddress + keyOffsetField->ofs ) = svg_lstring_t::from_char_str( kv->string );
+            break;
+        case F_GQSTRING:
+            *(svg_gstring_t *)( writeAddress + keyOffsetField->ofs ) = svg_gstring_t::from_char_str( kv->string );
             break;
         case F_VECTOR:
             if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR4 ) {

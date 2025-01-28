@@ -24,6 +24,9 @@ enum fieldtype_t : int32_t {
 	F_FLOAT,
 	F_DOUBLE,
 
+	F_LQSTRING,          // string on disk, sg_qstring_t in memory, TAG_SVGAME_LEVEL
+	F_GQSTRING,          // string on disk, sg_qstring_t in memory, TAG_SVGAME,
+
 	F_LSTRING,          // string on disk, pointer in memory, TAG_SVGAME_LEVEL
 	F_GSTRING,          // string on disk, pointer in memory, TAG_SVGAME
 	F_ZSTRING,          // string on disk, string in memory

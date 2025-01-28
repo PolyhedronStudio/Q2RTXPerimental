@@ -620,7 +620,7 @@ void droptofloor(edict_t *ent)
 
     tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, dest, ent, MASK_SOLID);
     if (tr.startsolid) {
-        gi.dprintf("droptofloor: %s startsolid at %s\n", ent->classname, vtos(ent->s.origin));
+        gi.dprintf("droptofloor: %s startsolid at %s\n", (const char *)ent->classname, vtos(ent->s.origin));
         SVG_FreeEdict(ent);
         return;
     }
@@ -749,7 +749,7 @@ void SVG_SpawnItem(edict_t *ent, const gitem_t *item)
     if (ent->spawnflags) {
         if (strcmp((const char *)ent->classname, "key_power_cube") != 0) {
             ent->spawnflags = 0;
-            gi.dprintf("%s at %s has invalid spawnflags set\n", ent->classname, vtos(ent->s.origin));
+            gi.dprintf("%s at %s has invalid spawnflags set\n", (const char *)ent->classname, vtos(ent->s.origin));
         }
     }
 

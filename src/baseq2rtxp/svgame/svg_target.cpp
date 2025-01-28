@@ -563,7 +563,7 @@ void target_laser_start(edict_t *self)
         if (self->targetNames.target) {
             ent = SVG_Find(NULL, FOFS_GENTITY(targetname), (const char *)self->targetNames.target);
             if (!ent)
-                gi.dprintf("%s at %s: %s is a bad target\n", self->classname, vtos(self->s.origin), self->targetNames.target);
+                gi.dprintf("%s at %s: %s is a bad target\n", (const char *)self->classname, vtos(self->s.origin), (const char *)self->targetNames.target);
             self->enemy = ent;
         } else {
             SVG_Util_SetMoveDir(self->s.angles, self->movedir );
@@ -662,7 +662,7 @@ void SP_target_lightramp(edict_t *self)
     }
 
     if (!self->targetNames.target) {
-        gi.dprintf("%s with no target at %s\n", self->classname, vtos(self->s.origin));
+        gi.dprintf("%s with no target at %s\n", (const char *)self->classname, vtos(self->s.origin));
         SVG_FreeEdict(self);
         return;
     }
@@ -750,7 +750,7 @@ void target_earthquake_use( edict_t *self, edict_t *other, edict_t *activator, c
 void SP_target_earthquake(edict_t *self)
 {
     if (!self->targetname)
-        gi.dprintf("untargeted %s at %s\n", self->classname, vtos(self->s.origin));
+        gi.dprintf("untargeted %s at %s\n", (const char *)self->classname, vtos(self->s.origin));
 
     if (!self->count)
         self->count = 5;

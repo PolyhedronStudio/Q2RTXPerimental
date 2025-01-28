@@ -95,7 +95,7 @@ void SP_func_door_rotating( edict_t *ent ) {
 
     // Default distance to 90 degrees if not set.
     if ( !st.distance ) {
-        gi.dprintf( "%s at %s with no distance set\n", ent->classname, vtos( ent->s.origin ) );
+        gi.dprintf( "%s at %s with no distance set\n", (const char *)ent->classname, vtos( ent->s.origin ) );
         st.distance = 90;
     }
 

@@ -222,7 +222,7 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 	}
 
 	if ( !entity->inuse ) {
-		gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, entity->classname );
+		gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, (const char *)entity->classname );
 		return -1; // USETARGET_INVALID
 	}
 

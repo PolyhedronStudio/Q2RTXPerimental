@@ -65,6 +65,8 @@ typedef struct {
 #define F(name) FA(name, 1)
 #define DA(name, size) _DA(F_DOUBLE, name, size)
 #define D(name) DA(name, 1)
+#define LQSTR(name) _F(F_LQSTRING, name)
+#define GQSTR(name) _F(F_GQSTRING, name)
 #define L(name) _F(F_LSTRING, name)
 #define V(name) _F(F_VECTOR, name)
 #define T(name) _F(F_ITEM, name)
@@ -133,20 +135,20 @@ static const save_field_t entityfields[] = {
     I64( freetime ), // WID: 64-bit-frame
 
     L( message ),
-    L( classname ),
+    LQSTR( classname ),
     I( spawnflags ),
 
     I64( timestamp ), // WID: 64-bit-frame FT(timestamp),
 
     F( angle ),
 
-    L( targetname ),
-    L( targetNames.target ),
-    L( targetNames.kill ),
-    L( targetNames.team ),
-    L( targetNames.path ),
-    L( targetNames.death ),
-    L( targetNames.movewith ),
+    LQSTR( targetname ),
+    LQSTR( targetNames.target ),
+    LQSTR( targetNames.kill ),
+    LQSTR( targetNames.team ),
+    LQSTR( targetNames.path ),
+    LQSTR( targetNames.death ),
+    LQSTR( targetNames.movewith ),
 
     E( targetEntities.target ),
     E( targetEntities.movewith ),
@@ -483,6 +485,8 @@ static const save_field_t gamefields[] = {
 
     O(autosaved),
 
+    I( num_movewithEntityStates ),
+
 	// WID: C++20: Replaced {0}
     {}
 #undef _OFS
@@ -542,6 +546,46 @@ static void write_string(gzFile f, char *s)
     }
     write_int(f, len);
     write_data(s, len, f);
+}
+
+static void write_level_qstring( gzFile f, svg_lstring_t *qstr ) {
+    if ( !qstr || !qstr->ptr || qstr->count <= 0 ) {
+        write_int( f, -1 );
+        return;
+    }
+
+    const size_t len = qstr->count;
+    if ( len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+    if ( len > 0 ) {
+        int x = 10;
+        gi.dprintf( "%s:(\"%s\": #%d)\n", __func__, qstr->ptr, len );
+    }
+    write_int( f, len );
+    write_data( qstr->ptr, len * sizeof( char ), f);
+    return;
+}
+
+static void write_game_qstring( gzFile f, svg_gstring_t *qstr ) {
+    if ( !qstr || !qstr->ptr || qstr->count <= 0 ) {
+        write_int( f, -1 );
+        return;
+    }
+
+    const size_t len = qstr->count;
+    if ( len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+    if ( len > 0 ) {
+        int x = 10;
+        gi.dprintf( "%s:(\"%s\": #%d)\n", __func__, qstr->ptr, len );
+    }
+    write_int( f, len );
+    write_data( qstr->ptr, len * sizeof( char ), f );
+    return;
 }
 
 static void write_vector(gzFile f, vec_t *v)
@@ -639,7 +683,13 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
     case F_LSTRING:
         write_string(f, *(char **)p);
         break;
-
+        break;
+    case F_LQSTRING:
+        write_level_qstring( f, (svg_lstring_t*)p );
+        break;
+    case F_GQSTRING:
+        write_game_qstring( f, (svg_gstring_t *)p );
+        break;
     case F_EDICT:
         write_index(f, *(void **)p, sizeof(edict_t), g_edicts, MAX_EDICTS - 1);
         break;
@@ -767,6 +817,71 @@ static char *read_string(gzFile f)
     return s;
 }
 
+static const svg_lstring_t read_level_qstring( gzFile f ) {
+    int len;
+
+    len = read_int( f );
+    if ( len == -1 ) {
+        return nullptr;
+    }
+
+    if ( len < 0 || len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+
+    // Allocate temporary buffer for reading.
+    char *s = (char *)gi.TagMalloc( len + 1, TAG_SVGAME_LEVEL );
+    // Delete temporary buffer.
+    read_data( s, len, f );
+    // Ensure last char = 0.
+    s[ len ] = 0;
+
+    // Allocate level tag string space.
+    svg_lstring_t lstring = svg_lstring_t::from_char_str( s );
+    if ( len > 0 ) {
+        int x = 10;
+        gi.dprintf( "%s:s(\"%s\": #%d)\n", __func__, s, len );
+        gi.dprintf( "%s:lstring(\"%s\": #%d)\n", __func__, lstring.ptr, lstring.count );
+    }
+    gi.TagFree( s );
+
+    return lstring;
+}
+
+static const svg_gstring_t read_game_qstring( gzFile f ) {
+    int len;
+
+    len = read_int( f );
+    if ( len == -1 ) {
+        return nullptr;
+    }
+
+    if ( len < 0 || len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+
+    // Allocate temporary buffer for reading.
+    char *s = (char *)gi.TagMalloc( len + 1, TAG_SVGAME_LEVEL );
+    // Delete temporary buffer.
+    read_data( s, len, f );
+    // Ensure last char = 0.
+    s[ len ] = 0;
+
+    // Allocate level tag string space.
+    svg_gstring_t gstring = svg_gstring_t::from_char_str( s );
+    if ( len > 0 ) {
+        int x = 10;
+        gi.dprintf( "%s:s(\"%s\": #%d)\n", __func__, s, len );
+        gi.dprintf( "%s:gstring(\"%s\": #%d)\n", __func__, gstring.ptr, gstring.count );
+    }
+    gi.TagFree( s );
+
+    return gstring;
+}
+
+
 static void read_zstring(gzFile f, char *s, size_t size)
 {
     int len;
@@ -870,6 +985,12 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
         break;
     case F_LSTRING:
         *(char **)p = read_string(ctx->f);
+        break;
+    case F_LQSTRING:
+        ( *(svg_lstring_t *)p ) = read_level_qstring( ctx->f );
+        break;
+    case F_GQSTRING:
+        ( *(svg_gstring_t *)p ) = read_game_qstring( ctx->f );
         break;
     case F_ZSTRING:
         read_zstring(ctx->f, (char *)p, field->size);
@@ -1095,6 +1216,7 @@ calling ReadLevel.
 No clients are connected yet.
 =================
 */
+void SVG_MoveWith_FindParentTargetEntities( void );
 void SVG_ReadLevel(const char *filename)
 {
     int     entnum;
@@ -1113,7 +1235,10 @@ void SVG_ReadLevel(const char *filename)
     gzbuffer(f, 65536);
 
     // wipe all the entities
-    memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
+    for ( int32_t i = 0; i < game.maxentities; i++ ) {
+        g_edicts[ i ] = {};
+    }
+    //memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
     globals.num_edicts = maxclients->value + 1;
 
     i = read_int(f);
@@ -1190,5 +1315,8 @@ void SVG_ReadLevel(const char *filename)
         }
         #endif
     }
+
+    // Connect all movewith entities.
+    SVG_MoveWith_FindParentTargetEntities();
 }
 
