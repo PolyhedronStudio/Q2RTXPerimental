@@ -1,22 +1,18 @@
-/*
-Copyright (C) 1997-2001 Id Software, Inc.
+/*********************************************************************
+*
+*
+*	SVGame: Spectator Chase Camera:
+*
+*
+********************************************************************/
+#include "svgame/svg_local.h"
+#include "svgame/svg_chase.h"
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
-#include "svg_local.h"
-
+/**
+*   @brief
+**/
 void SVG_ChaseCam_Update(edict_t *ent)
 {
     vec3_t o, ownerv, goal;
@@ -106,6 +102,11 @@ void SVG_ChaseCam_Update(edict_t *ent)
     gi.linkentity(ent);
 }
 
+
+
+/**
+*   @brief
+**/
 void SVG_ChaseCam_Next(edict_t *ent)
 {
     int i;
@@ -130,6 +131,11 @@ void SVG_ChaseCam_Next(edict_t *ent)
     ent->client->update_chase = true;
 }
 
+
+
+/**
+*   @brief
+**/
 void SVG_ChaseCam_Previous(edict_t *ent)
 {
     int i;
@@ -154,6 +160,11 @@ void SVG_ChaseCam_Previous(edict_t *ent)
     ent->client->update_chase = true;
 }
 
+
+
+/**
+*   @brief
+**/
 void SVG_ChaseCam_GetTarget(edict_t *ent)
 {
     int i;

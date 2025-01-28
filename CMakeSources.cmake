@@ -277,7 +277,8 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	# ServerGame
 	baseq2rtxp/svgame/svg_ai.cpp
 	baseq2rtxp/svgame/svg_chase.cpp
-	baseq2rtxp/svgame/svg_commands.cpp
+	baseq2rtxp/svgame/svg_commands_game.cpp
+	baseq2rtxp/svgame/svg_commands_server.cpp
 	baseq2rtxp/svgame/svg_combat.cpp
 	baseq2rtxp/svgame/svg_edicts.cpp
 	baseq2rtxp/svgame/svg_gamemode.cpp
@@ -289,13 +290,14 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_physics.cpp
 	baseq2rtxp/svgame/svg_save_pointers.cpp
 	baseq2rtxp/svgame/svg_save.cpp
+	baseq2rtxp/svgame/svg_signalio.cpp
 	baseq2rtxp/svgame/svg_spawn.cpp
-	baseq2rtxp/svgame/svg_server_commands.cpp
 	baseq2rtxp/svgame/svg_target.cpp
 	baseq2rtxp/svgame/svg_trigger.cpp
 	baseq2rtxp/svgame/svg_utils.cpp
 	baseq2rtxp/svgame/svg_weapon.cpp
 
+	baseq2rtxp/svgame/entities/func/svg_func_areaportal.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_button.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_conveyor.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_door.cpp
@@ -311,16 +313,37 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/func/svg_func_wall.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_water.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_entities.cpp
+
 	baseq2rtxp/svgame/entities/info/svg_info_notnull.cpp
 	baseq2rtxp/svgame/entities/info/svg_info_null.cpp
 	baseq2rtxp/svgame/entities/info/svg_info_player_coop.cpp
 	baseq2rtxp/svgame/entities/info/svg_info_player_deathmatch.cpp
 	baseq2rtxp/svgame/entities/info/svg_info_player_intermission.cpp
 	baseq2rtxp/svgame/entities/info/svg_info_player_start.cpp
+
 	baseq2rtxp/svgame/entities/light/svg_light_light.cpp
 	baseq2rtxp/svgame/entities/light/svg_light_spotlight.cpp
+
+	baseq2rtxp/svgame/entities/misc/svg_misc_explobox.cpp
+	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter.cpp
+	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter_dest.cpp
+
 	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_puppet.cpp
+	
+	baseq2rtxp/svgame/entities/path/svg_path_corner.cpp
+
+	#baseq2rtxp/svgame/entities/target/svg_target_character.cpp
+
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_always.cpp
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_counter.cpp
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_elevator.cpp
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_gravity.cpp
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_hurt.cpp
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_multiple.cpp
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_once.cpp
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_push.cpp
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_relay.cpp
+
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
 
 	baseq2rtxp/svgame/lua/svg_lua_corelib.cpp
@@ -357,6 +380,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
+	baseq2rtxp/svgame/svg_chase.h
 	baseq2rtxp/svgame/svg_combat.h
 	baseq2rtxp/svgame/svg_game_client.h
 	baseq2rtxp/svgame/svg_game_edict.h
@@ -364,10 +388,13 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_game_locals.h
 	baseq2rtxp/svgame/svg_level_locals.h
 	baseq2rtxp/svgame/svg_local.h
-
 	baseq2rtxp/svgame/svg_lua.h
+	baseq2rtxp/svgame/svg_misc.h
 	baseq2rtxp/svgame/svg_pushmove_info.h
 	baseq2rtxp/svgame/svg_save.h
+	baseq2rtxp/svgame/svg_signalio.cpp
+	baseq2rtxp/svgame/svg_trigger.h
+	baseq2rtxp/svgame/svg_utils.h
 	baseq2rtxp/svgame/svg_usetargets.h
 	baseq2rtxp/svgame/svg_weapons.h
 
@@ -377,6 +404,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/lua/svg_lua_gamelib.hpp
 	baseq2rtxp/svgame/lua/svg_lua_medialib.hpp
 
+	baseq2rtxp/svgame/entities/func/svg_func_areaportal.h
 	baseq2rtxp/svgame/entities/func/svg_func_button.h
 	baseq2rtxp/svgame/entities/func/svg_func_conveyor.h
 	baseq2rtxp/svgame/entities/func/svg_func_door.h
@@ -392,13 +420,34 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/func/svg_func_wall.h
 	baseq2rtxp/svgame/entities/func/svg_func_water.h
 	baseq2rtxp/svgame/entities/func/svg_func_entities.h
+
 	#baseq2rtxp/svgame/entities/monsters/svg_monster_testdummy_puppet.h
+	
+	baseq2rtxp/svgame/entities/misc/svg_misc_explobox.h
+	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter.h
+	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter_dest.h
+
+	baseq2rtxp/svgame/entities/path/svg_path_corner.h
+	
+	#baseq2rtxp/svgame/entities/target/svg_target_character.h
+
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_always.h
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_counter.h
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_elevator.h
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_gravity.h
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_hurt.h
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_multiple.h
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_once.h
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_push.h
+	baseq2rtxp/svgame/entities/trigger/svg_trigger_relay.h
+
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.h
 
+	baseq2rtxp/svgame/player/svg_player_client.h
 	baseq2rtxp/svgame/player/svg_player_hud.h
 	baseq2rtxp/svgame/player/svg_player_trail.h
 	baseq2rtxp/svgame/player/svg_player_weapon.h
+	baseq2rtxp/svgame/player/svg_player_view.h
 
 	baseq2rtxp/svgame/monsters/svg_mmove.h
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.h

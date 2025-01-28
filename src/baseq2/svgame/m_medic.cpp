@@ -338,7 +338,7 @@ void medic_fire_blaster(edict_t *self)
         effect = 0;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MEDIC_BLASTER_1], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MEDIC_BLASTER_1], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, end);
     end[2] += self->enemy->viewheight;
@@ -562,7 +562,7 @@ void medic_cable_attack(edict_t *self)
 
     AngleVectors(self->s.angles, f, r, NULL);
     VectorCopy(medic_cable_offsets[self->s.frame - FRAME_attack42], offset);
-    SVG_ProjectSource(self->s.origin, offset, f, r, start);
+    SVG_Util_ProjectSource(self->s.origin, offset, f, r, start);
 
     // check for max distance
     VectorSubtract(start, self->enemy->s.origin, dir);

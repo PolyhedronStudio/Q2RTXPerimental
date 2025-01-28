@@ -17,9 +17,18 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "svg_local.h"
+#include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
+
+#include "svgame/player/svg_player_client.h"
+#include "svgame/player/svg_player_hud.h"
+#include "svgame/player/svg_player_trail.h"
+
 #include "svg_save.h"
+
 #include "svg_lua.h"
+
+
 
 /**
 *
@@ -92,7 +101,7 @@ void SP_func_object(edict_t *self);
 void SP_func_explosive(edict_t *self);
 void SP_func_timer(edict_t *self);
 void SP_func_areaportal(edict_t *ent);
-void SP_func_clock(edict_t *ent);
+//void SP_func_clock(edict_t *ent);
 void SP_func_killbox(edict_t *ent);
 
 void SP_trigger_always(edict_t *ent);
@@ -104,7 +113,6 @@ void SP_trigger_hurt(edict_t *ent);
 void SP_trigger_counter(edict_t *ent);
 void SP_trigger_elevator(edict_t *ent);
 void SP_trigger_gravity(edict_t *ent);
-void SP_trigger_monsterjump(edict_t *ent);
 
 void SP_target_temp_entity(edict_t *ent);
 void SP_target_speaker(edict_t *ent);
@@ -120,20 +128,14 @@ void SP_target_crosslevel_target(edict_t *ent);
 void SP_target_laser(edict_t *self);
 void SP_target_lightramp(edict_t *self);
 void SP_target_earthquake(edict_t *ent);
-void SP_target_character(edict_t *ent);
-void SP_target_string(edict_t *ent);
 
 void SP_worldspawn(edict_t *ent);
-void SP_viewthing(edict_t *ent);
 
 void SP_spotlight(edict_t *self);
 void SP_light(edict_t *self);
-void SP_light_mine1(edict_t *ent);
-void SP_light_mine2(edict_t *ent);
 void SP_info_null(edict_t *self);
 void SP_info_notnull(edict_t *self);
 void SP_path_corner(edict_t *self);
-void SP_point_combat(edict_t *self);
 
 void SP_misc_explobox(edict_t *self);
 void SP_misc_gib_arm(edict_t *self);
@@ -172,7 +174,6 @@ static const spawn_func_t spawn_funcs[] = {
     {"func_water", SP_func_water},
     {"func_conveyor", SP_func_conveyor},
     {"func_areaportal", SP_func_areaportal},
-    {"func_clock", SP_func_clock},
     {"func_wall", SP_func_wall},
     {"func_object", SP_func_object},
     {"func_timer", SP_func_timer},
@@ -188,7 +189,6 @@ static const spawn_func_t spawn_funcs[] = {
     {"trigger_counter", SP_trigger_counter},
     {"trigger_elevator", SP_trigger_elevator},
     {"trigger_gravity", SP_trigger_gravity},
-    {"trigger_monsterjump", SP_trigger_monsterjump},
 
     {"target_temp_entity", SP_target_temp_entity},
     {"target_speaker", SP_target_speaker},
@@ -204,26 +204,22 @@ static const spawn_func_t spawn_funcs[] = {
     {"target_laser", SP_target_laser},
     {"target_lightramp", SP_target_lightramp},
     {"target_earthquake", SP_target_earthquake},
-    {"target_character", SP_target_character},
-    {"target_string", SP_target_string},
 
     {"worldspawn", SP_worldspawn},
-    {"viewthing", SP_viewthing},
 
 	{"spotlight", SP_spotlight},
     {"light", SP_light},
-    {"light_mine1", SP_light_mine1},
-    {"light_mine2", SP_light_mine2},
     {"info_null", SP_info_null},
     {"func_group", SP_info_null},
     {"info_notnull", SP_info_notnull},
     {"path_corner", SP_path_corner},
-    {"point_combat", SP_point_combat},
 
     {"misc_explobox", SP_misc_explobox},
+    #if 0
     {"misc_gib_arm", SP_misc_gib_arm},
     {"misc_gib_leg", SP_misc_gib_leg},
     {"misc_gib_head", SP_misc_gib_head},
+    #endif
     {"misc_teleporter", SP_misc_teleporter},
     {"misc_teleporter_dest", SP_misc_teleporter_dest},
 
@@ -331,13 +327,13 @@ void ED_CallSpawn(edict_t *ent)
     }
 
     #ifdef ENTITY_SPAWN_EXIT_EARLY_ON_RESERVED_NAMES
-    if ( strcmp( ent->classname, "noclass" ) == 0 ) {
+    if ( strcmp( (const char *)ent->classname, "noclass" ) == 0 ) {
         #ifdef DEBUG_ENTITY_SPAWN_PROCESS
         gi.dprintf( "%s: 'noclass' classname for entity(#%d).\n", __func__, ent->s.number );
         #endif
         return;
     }
-    if ( strcmp( ent->classname, "freed" ) == 0 ) {
+    if ( strcmp( (const char *)ent->classname, "freed" ) == 0 ) {
         #ifdef DEBUG_ENTITY_SPAWN_PROCESS
         gi.dprintf( "%s: 'freed' classname for entity(#%d).\n", __func__, ent->s.number );
         #endif
@@ -351,7 +347,7 @@ void ED_CallSpawn(edict_t *ent)
         if (!item->classname)
             continue;
         // If the classnames are an equal match, defer to SVG_SpawnItem and exit.
-        if (!strcmp(item->classname, ent->classname)) {
+        if (!strcmp(item->classname, (const char *)ent->classname)) {
             // found it
             SVG_SpawnItem(ent, item);
             return;
@@ -361,7 +357,7 @@ void ED_CallSpawn(edict_t *ent)
     // Check normal entity spawn functions.
     for (s = spawn_funcs ; s->name ; s++) {
         // Matching classname.
-        if (!strcmp(s->name, ent->classname)) {
+        if (!strcmp(s->name, (const char *)ent->classname)) {
             // Spawn entity.
             s->spawn(ent);
             // Exit.
@@ -405,7 +401,7 @@ void SVG_FindTeams( void ) {
                 continue;
             if ( e2->flags & FL_TEAMSLAVE )
                 continue;
-            if ( !strcmp( e->targetNames.team, e2->targetNames.team ) ) {
+            if ( !strcmp( (const char *)e->targetNames.team, (const char *)e2->targetNames.team ) ) {
                 c2++;
                 chain->teamchain = e2;
                 e2->teammaster = e;
@@ -441,11 +437,11 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
         }
 
         // Fetch 'parent' target entity.
-        edict_t *parentMover = SVG_Find( NULL, FOFS_GENTITY( targetname ), ent->targetNames.movewith );
+        edict_t *parentMover = SVG_Find( NULL, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.movewith );
         // Apply.
         if ( parentMover ) {
             // Set.
-            SVG_MoveWith_SetTargetParentEntity( ent->targetNames.movewith, parentMover, ent );
+            SVG_MoveWith_SetTargetParentEntity( (const char *)ent->targetNames.movewith, parentMover, ent );
             // Increment.
             game.num_movewithEntityStates++;
         }
@@ -730,7 +726,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         // See if we need to remove things (except the world) from different skill levels or game mode.
         if ( spawnEdict != g_edicts ) {
             // When nomonsters is set, remove any entities that have the word monster in their classname.
-            if ( nomonsters->value && ( strstr( spawnEdict->classname, "monster" )
+            if ( nomonsters->value && ( strstr( (const char *)spawnEdict->classname, "monster" )
             /*  || strstr( spawnEdict->classname, "misc_deadsoldier" )
                 || strstr( spawnEdict->classname, "misc_insane" )*/ ) ) {
                 // Free entity.

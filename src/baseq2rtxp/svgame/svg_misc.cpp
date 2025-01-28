@@ -15,9 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-// g_misc.c
-#include "svg_local.h"
-
+#include "svgame/svg_local.h"
+#include "svg_misc.h"
 
 
 
@@ -125,7 +124,7 @@ void SVG_Misc_ThrowGib( edict_t *self, const char *gibname, const int32_t damage
         vscale = 1.0f;
     }
 
-    Vector3 velocityDamage = VelocityForDamage(damage);
+    Vector3 velocityDamage = SVG_Misc_VelocityForDamage(damage);
     VectorMA(self->velocity, vscale, velocityDamage, gib->velocity);
     ClipGibVelocity(gib);
     gib->avelocity[0] = random() * 600;
@@ -170,7 +169,7 @@ void SVG_Misc_ThrowHead( edict_t *self, const char *gibname, const int32_t damag
         vscale = 1.0f;
     }
 
-    Vector3 velocityDamage = VelocityForDamage(damage);
+    Vector3 velocityDamage = SVG_Misc_VelocityForDamage(damage);
     VectorMA(self->velocity, vscale, vd, self->velocity);
     ClipGibVelocity(self);
 
@@ -185,7 +184,6 @@ void SVG_Misc_ThrowHead( edict_t *self, const char *gibname, const int32_t damag
 *   @brief
 **/
 void SVG_Misc_ThrowClientHead( edict_t *self, const int32_t damage ) {
-    vec3_t  vd;
 	// WID: C++20: Added const.
     const char    *gibname;
 
@@ -210,7 +208,7 @@ void SVG_Misc_ThrowClientHead( edict_t *self, const int32_t damage ) {
     self->flags = static_cast<entity_flags_t>( self->flags | FL_NO_KNOCKBACK );
 
     self->movetype = MOVETYPE_BOUNCE;
-    Vector3 velocityDamage = VelocityForDamage( damage );
+    Vector3 velocityDamage = SVG_Misc_VelocityForDamage( damage );
     self->velocity += velocityDamage;
 
     if (self->client) { // bodies in the queue don't have a client anymore
@@ -307,86 +305,10 @@ void SVG_Misc_BecomeExplosion2(edict_t *self)
     SVG_FreeEdict(self);
 }
 
-
-/*QUAKED path_corner (.5 .3 0) (-8 -8 -8) (8 8 8) TELEPORT
-Target: next path corner
-Pathtarget: gets used when an entity that has
-    this path_corner targeted touches it
-*/
-
-void path_corner_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
-{
-    vec3_t      v;
-    edict_t     *next;
-
-    if (other->movetarget != self)
-        return;
-
-    if (other->enemy)
-        return;
-
-    if (self->targetNames.path) {
-        char *savetarget;
-
-        savetarget = self->targetNames.target;
-        self->targetNames.target = self->targetNames.path;
-        SVG_UseTargets(self, other);
-        self->targetNames.target = savetarget;
-    }
-
-    if (self->targetNames.target)
-        next = SVG_PickTarget(self->targetNames.target);
-    else
-        next = NULL;
-
-    if ((next) && (next->spawnflags & 1)) {
-        VectorCopy(next->s.origin, v);
-        v[2] += next->mins[2];
-        v[2] -= other->mins[2];
-        VectorCopy(v, other->s.origin);
-        next = SVG_PickTarget(next->targetNames.target);
-        other->s.event = EV_OTHER_TELEPORT;
-    }
-
-    other->goalentity = other->movetarget = next;
-
-    if (self->wait) {
-        // WID: TODO: Monster Reimplement.
-        //other->monsterinfo.pause_time = level.time + sg_time_t::from_sec( self->wait );
-        //other->monsterinfo.stand(other);
-        return;
-    }
-
-    if (!other->movetarget) {
-        // WID: TODO: Monster Reimplement.
-        //other->monsterinfo.pause_time = HOLD_FOREVER;
-        //other->monsterinfo.stand(other);
-    } else {
-        VectorSubtract(other->goalentity->s.origin, other->s.origin, v);
-        other->ideal_yaw = QM_Vector3ToYaw(v);
-    }
-}
-
-void SP_path_corner(edict_t *self)
-{
-    if (!self->targetname) {
-        gi.dprintf("path_corner with no targetname at %s\n", vtos(self->s.origin));
-        SVG_FreeEdict(self);
-        return;
-    }
-
-    self->solid = SOLID_TRIGGER;
-    self->touch = path_corner_touch;
-    VectorSet(self->mins, -8, -8, -8);
-    VectorSet(self->maxs, 8, 8, 8);
-    self->svflags |= SVF_NOCLIENT;
-    gi.linkentity(self);
-}
-
 /**
 *   @brief	Returns a random velocity matching the specified damage count.
 **/
-const Vector3 &VelocityForDamage( const int32_t damage ) {
+const Vector3 SVG_Misc_VelocityForDamage( const int32_t damage ) {
     // Generate random velocity vector.
     Vector3 v = {
         100.0f * crandom(),
@@ -394,11 +316,16 @@ const Vector3 &VelocityForDamage( const int32_t damage ) {
         200.0f + 100.0f * random()
     };
 
+    // Scale it less intense if damage < 50
     if ( damage < 50 ) {
         v = QM_Vector3Scale( v, 0.7f );
+    // Otherwise, intensify.
     } else {
         v = QM_Vector3Scale( v, 1.2f );
     }
+
+    // Return velocity.
+    return v;
 }
 
 
@@ -475,100 +402,7 @@ void SP_misc_gib_head(edict_t *ent)
 
 //=================================================================================
 
-void teleporter_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
-{
-    edict_t     *dest;
-    int         i;
 
-    if (!other->client)
-        return;
-    dest = SVG_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
-    if (!dest) {
-        gi.dprintf("Couldn't find destination\n");
-        return;
-    }
 
-    // unlink to make sure it can't possibly interfere with KillBox
-    gi.unlinkentity(other);
 
-    VectorCopy(dest->s.origin, other->s.origin);
-    VectorCopy(dest->s.origin, other->s.old_origin);
-    other->s.origin[2] += 10;
-
-    // clear the velocity and hold them in place briefly
-    VectorClear(other->velocity);
-    other->client->ps.pmove.pm_time = 160 >> 3;     // hold time
-    other->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
-
-    // draw the teleport splash at source and on the player
-    self->owner->s.event = EV_PLAYER_TELEPORT;
-    other->s.event = EV_PLAYER_TELEPORT;
-
-    // set angles
-    for (i = 0 ; i < 3 ; i++) {
-        other->client->ps.pmove.delta_angles[i] = /*ANGLE2SHORT*/(dest->s.angles[i] - other->client->resp.cmd_angles[i]);
-    }
-
-    VectorClear(other->s.angles);
-    VectorClear(other->client->ps.viewangles);
-    VectorClear(other->client->viewMove.viewAngles);
-    QM_AngleVectors( other->client->viewMove.viewAngles, &other->client->viewMove.viewForward, nullptr, nullptr );
-
-    // kill anything at the destination
-    KillBox(other, !!other->client );
-
-    gi.linkentity(other);
-}
-
-/*QUAKED misc_teleporter (1 0 0) (-32 -32 -24) (32 32 -16)
-Stepping onto this disc will teleport players to the targeted misc_teleporter_dest object.
-*/
-void SP_misc_teleporter(edict_t *ent)
-{
-    edict_t     *trig;
-
-    if (!ent->targetNames.target) {
-        gi.dprintf("teleporter without a target.\n");
-        SVG_FreeEdict(ent);
-        return;
-    }
-
-    gi.setmodel(ent, "models/objects/dmspot/tris.md2");
-    ent->s.skinnum = 1;
-    ent->s.effects = EF_TELEPORTER;
-    ent->s.renderfx = RF_NOSHADOW;
-    //ent->s.sound = gi.soundindex("world/amb10.wav");
-    ent->solid = SOLID_BOUNDS_BOX;
-
-    VectorSet(ent->mins, -32, -32, -24);
-    VectorSet(ent->maxs, 32, 32, -16);
-    gi.linkentity(ent);
-
-    trig = SVG_AllocateEdict();
-    trig->touch = teleporter_touch;
-    trig->solid = SOLID_TRIGGER;
-    trig->s.entityType = ET_TELEPORT_TRIGGER;
-    trig->targetNames.target = ent->targetNames.target;
-    trig->owner = ent;
-    VectorCopy(ent->s.origin, trig->s.origin);
-    VectorSet(trig->mins, -8, -8, 8);
-    VectorSet(trig->maxs, 8, 8, 24);
-    gi.linkentity(trig);
-
-}
-
-/*QUAKED misc_teleporter_dest (1 0 0) (-32 -32 -24) (32 32 -16)
-Point teleporters at these.
-*/
-void SP_misc_teleporter_dest(edict_t *ent)
-{
-    gi.setmodel(ent, "models/objects/dmspot/tris.md2");
-    ent->s.skinnum = 0;
-    ent->solid = SOLID_BOUNDS_BOX;
-//  ent->s.effects |= EF_FLIES;
-    ent->s.renderfx |= RF_NOSHADOW;
-    VectorSet(ent->mins, -32, -32, -24);
-    VectorSet(ent->maxs, 32, 32, -16);
-    gi.linkentity(ent);
-}
 

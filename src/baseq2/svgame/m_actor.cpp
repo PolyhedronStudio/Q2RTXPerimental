@@ -260,7 +260,7 @@ void actorMachineGun(edict_t *self)
     vec3_t  forward, right;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_ACTOR_MACHINEGUN_1], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_ACTOR_MACHINEGUN_1], forward, right, start);
     if (self->enemy) {
         if (self->enemy->health > 0) {
             VectorMA(self->enemy->s.origin, -0.2f, self->enemy->velocity, target);

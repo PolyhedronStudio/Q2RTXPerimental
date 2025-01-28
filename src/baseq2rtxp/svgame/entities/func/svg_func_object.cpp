@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
+
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
 
@@ -41,7 +43,7 @@ void func_object_use( edict_t *self, edict_t *other, edict_t *activator, const e
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
     self->use = NULL;
-    KillBox( self, false );
+    SVG_Util_KillBox( self, false );
     func_object_release( self );
 }
 

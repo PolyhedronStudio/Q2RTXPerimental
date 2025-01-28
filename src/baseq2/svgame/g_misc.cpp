@@ -56,7 +56,7 @@ void SP_func_areaportal(edict_t *ent)
 Misc functions
 =================
 */
-void VelocityForDamage(int damage, vec3_t v)
+void SVG_Misc_VelocityForDamage(int damage, vec3_t v)
 {
     v[0] = 100.0f * crandom();
     v[1] = 100.0f * crandom();
@@ -152,7 +152,7 @@ void SVG_Misc_ThrowGib(edict_t *self, const char *gibname, int damage, int type)
         vscale = 1.0f;
     }
 
-    VelocityForDamage(damage, vd);
+    SVG_Misc_VelocityForDamage(damage, vd);
     VectorMA(self->velocity, vscale, vd, gib->velocity);
     ClipGibVelocity(gib);
     gib->avelocity[0] = random() * 600;
@@ -196,7 +196,7 @@ void SVG_Misc_ThrowHead(edict_t *self, const char *gibname, int damage, int type
         vscale = 1.0f;
     }
 
-    VelocityForDamage(damage, vd);
+    SVG_Misc_VelocityForDamage(damage, vd);
     VectorMA(self->velocity, vscale, vd, self->velocity);
     ClipGibVelocity(self);
 
@@ -236,7 +236,7 @@ void SVG_Misc_ThrowClientHead(edict_t *self, int damage)
     self->flags = static_cast<entity_flags_t>( self->flags | FL_NO_KNOCKBACK );
 
     self->movetype = MOVETYPE_BOUNCE;
-    VelocityForDamage(damage, vd);
+    SVG_Misc_VelocityForDamage(damage, vd);
     VectorAdd(self->velocity, vd, self->velocity);
 
     if (self->client) { // bodies in the queue don't have a client anymore
@@ -301,7 +301,7 @@ void SVG_Misc_BecomeExplosion1(edict_t *self)
 }
 
 
-void BecomeExplosion2(edict_t *self)
+void SVG_Misc_BecomeExplosion2(edict_t *self)
 {
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_EXPLOSION2);
@@ -555,7 +555,7 @@ void func_wall_use(edict_t *self, edict_t *other, edict_t *activator)
     if (self->solid == SOLID_NOT) {
         self->solid = SOLID_BSP;
         self->svflags &= ~SVF_NOCLIENT;
-        KillBox(self, false);
+        SVG_Util_KillBox(self, false);
     } else {
         self->solid = SOLID_NOT;
         self->svflags |= SVF_NOCLIENT;
@@ -635,7 +635,7 @@ void func_object_use(edict_t *self, edict_t *other, edict_t *activator)
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
     self->use = NULL;
-    KillBox(self, false);
+    SVG_Util_KillBox(self, false);
     func_object_release(self);
 }
 
@@ -756,7 +756,7 @@ void func_explosive_spawn(edict_t *self, edict_t *other, edict_t *activator)
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
     self->use = NULL;
-    KillBox(self, false);
+    SVG_Util_KillBox(self, false);
     gi.linkentity(self);
 }
 
@@ -881,7 +881,7 @@ void barrel_explode(edict_t *self)
 
     VectorCopy(save, self->s.origin);
     if (self->groundentity)
-        BecomeExplosion2(self);
+        SVG_Misc_BecomeExplosion2(self);
     else
         SVG_Misc_BecomeExplosion1(self);
 }
@@ -1259,7 +1259,7 @@ void misc_viper_bomb_touch(edict_t *self, edict_t *other, cplane_t *plane, csurf
 
     self->s.origin[2] = self->absmin[2] + 1;
     SVG_RadiusDamage(self, self, self->dmg, NULL, self->dmg + 40, MOD_BOMB);
-    BecomeExplosion2(self);
+    SVG_Misc_BecomeExplosion2(self);
 }
 
 void misc_viper_bomb_prethink(edict_t *self)
@@ -1699,7 +1699,7 @@ void teleporter_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t
         return;
     }
 
-    // unlink to make sure it can't possibly interfere with KillBox
+    // unlink to make sure it can't possibly interfere with SVG_Util_KillBox
     gi.unlinkentity(other);
 
     VectorCopy(dest->s.origin, other->s.origin);
@@ -1726,7 +1726,7 @@ void teleporter_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t
     AngleVectors( other->client->v_angle, other->client->v_forward, nullptr, nullptr );
 
     // kill anything at the destination
-    KillBox(other, !!other->client );
+    SVG_Util_KillBox(other, !!other->client );
 
     gi.linkentity(other);
 }

@@ -17,7 +17,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // g_phys.c
 
-#include "svg_local.h"
+#include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 
 /*
 
@@ -411,7 +412,7 @@ retry:
     }
 
     if (ent->inuse)
-        SVG_TouchTriggers(ent);
+        SVG_Util_TouchTriggers(ent);
 
     return trace;
 }
@@ -591,7 +592,7 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
 //FIXME: is there a better way to handle this?
     // see if anything we moved has touched a trigger
     for (i = (pushed_p - pushed) - 1; i >= 0; i--)
-        SVG_TouchTriggers(pushed[i].ent);
+        SVG_Util_TouchTriggers(pushed[i].ent);
 
     return true;
 }
@@ -955,7 +956,7 @@ void SV_Physics_Step(edict_t *ent)
 
         SV_FlyMove( ent, gi.frame_time_s, mask );
 
-        SVG_TouchProjectiles( ent, old_origin );
+        SVG_Util_TouchProjectiles( ent, old_origin );
 
         M_CheckGround( ent, mask );
 
@@ -970,7 +971,7 @@ void SV_Physics_Step(edict_t *ent)
         // [Paril-KEX] this is something N64 does to avoid doors opening
         // at the start of a level, which triggers some monsters to spawn.
         if ( /*!level.is_n64 || */level.time > FRAME_TIME_S ) {
-            SVG_TouchTriggers( ent );
+            SVG_Util_TouchTriggers( ent );
         }
 
         if ( !ent->inuse ) {
@@ -1093,10 +1094,10 @@ void SV_Physics_Step(edict_t *ent)
 //
 //        const Vector3 oldOrigin = ent->s.origin;
 //        SV_FlyMove(ent, FRAMETIME, mask);
-//        SVG_TouchProjectiles( ent, oldOrigin );
+//        SVG_Util_TouchProjectiles( ent, oldOrigin );
 //
 //        gi.linkentity(ent);
-//        SVG_TouchTriggers(ent);
+//        SVG_Util_TouchTriggers(ent);
 //        if (!ent->inuse)
 //            return;
 //
@@ -1213,7 +1214,7 @@ void SV_Physics_RootMotion( edict_t *ent ) {
 
         SV_FlyMove( ent, gi.frame_time_s, mask );
 
-        SVG_TouchProjectiles( ent, old_origin );
+        SVG_Util_TouchProjectiles( ent, old_origin );
 
         M_CheckGround( ent, mask );
 
@@ -1228,7 +1229,7 @@ void SV_Physics_RootMotion( edict_t *ent ) {
         // [Paril-KEX] this is something N64 does to avoid doors opening
         // at the start of a level, which triggers some monsters to spawn.
         if ( /*!level.is_n64 || */level.time > FRAME_TIME_S ) {
-            SVG_TouchTriggers( ent );
+            SVG_Util_TouchTriggers( ent );
         }
 
         if ( !ent->inuse ) {

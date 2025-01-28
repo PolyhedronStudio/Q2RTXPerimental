@@ -1,5 +1,5 @@
 // Game related types.
-#include "svg_local.h"
+#include "svgame/svg_local.h"
 
 // Save related types.
 #include "svg_save.h"
@@ -117,8 +117,8 @@ extern void drop_make_touchable( edict_t *self );
 extern void drop_temp_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void droptofloor( edict_t *self );
 
-extern void func_clock_think( edict_t *self );
-extern void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+//extern void func_clock_think( edict_t *self );
+//extern void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void func_conveyor_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
@@ -172,10 +172,10 @@ extern void plat_hit_top( edict_t *self );
 extern void player_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void player_pain( edict_t *self, edict_t *other, float kick, int damage );
 
-extern void point_combat_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+//extern void point_combat_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 
-extern void rotating_start( edict_t *self );
-extern void rotating_end( edict_t *self );
+//extern void rotating_start( edict_t *self );
+//extern void rotating_end( edict_t *self );
 extern void rotating_accelerate( edict_t *self );
 extern void rotating_decelerate( edict_t *self );
 extern void rotating_blocked( edict_t *self, edict_t *other );
@@ -196,11 +196,11 @@ extern void target_laser_use( edict_t *self, edict_t *other, edict_t *activator,
 extern void target_lightramp_think( edict_t *self );
 extern void target_lightramp_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
-extern void target_string_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+//extern void target_string_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void teleporter_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 
-extern void TH_viewthing( edict_t *ent );
+//extern void TH_viewthing( edict_t *ent );
 
 
 extern void Think_CalcMoveSpeed( edict_t *self );
@@ -228,8 +228,6 @@ extern void trigger_elevator_use( edict_t *self, edict_t *other, edict_t *activa
 extern void trigger_enable( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void trigger_gravity_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-
-extern void trigger_monsterjump_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 
 extern void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 
@@ -314,7 +312,7 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void *)door_close_move },
 { P_think,  (void *)door_open_move },
 
-{ P_think,  (void *)func_clock_think },
+//{ P_think,  (void *)func_clock_think },
 { P_think,  (void *)func_object_release },
 { P_think,  (void *)func_timer_think },
 
@@ -337,7 +335,7 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void *)target_laser_think },
 { P_think,  (void *)target_lightramp_think },
 
-{ P_think,  (void *)TH_viewthing },
+//{ P_think,  (void *)TH_viewthing },
 { P_think,  (void *)Think_UseTargetsDelay },
 { P_think,  (void *)Think_SignalOutDelay },
 { P_think,  (void *)Think_SpawnDoorTrigger },
@@ -370,7 +368,7 @@ const save_ptr_t save_ptrs[] = {
 { P_touch, (void*)gib_touch },
 { P_touch, (void*)hurt_touch },
 { P_touch, (void*)path_corner_touch },
-{ P_touch, (void*)point_combat_touch },
+//{ P_touch, (void*)point_combat_touch },
 { P_touch, (void*)rotating_touch },
 { P_touch, (void*)teleporter_touch },
 { P_touch, (void*)Touch_DoorTrigger },
@@ -378,7 +376,6 @@ const save_ptr_t save_ptrs[] = {
 { P_touch, (void*)Touch_Multi },
 { P_touch, (void*)Touch_Plat_Center },
 { P_touch, (void*)trigger_gravity_touch },
-{ P_touch, (void*)trigger_monsterjump_touch },
 { P_touch, (void*)trigger_push_touch },
 
 //
@@ -391,7 +388,7 @@ const save_ptr_t save_ptrs[] = {
 
 { P_use, (void*)door_use },
 
-{ P_use, (void*)func_clock_use },
+//{ P_use, (void*)func_clock_use },
 { P_use, (void*)func_conveyor_use },
 { P_use, (void*)func_explosive_spawn },
 { P_use, (void*)func_explosive_use },
@@ -409,7 +406,7 @@ const save_ptr_t save_ptrs[] = {
 { P_use, (void*)target_earthquake_use },
 { P_use, (void*)target_laser_use },
 { P_use, (void*)target_lightramp_use },
-{ P_use, (void*)target_string_use },
+//{ P_use, (void*)target_string_use },
 
 { P_use, (void*)train_use },
 

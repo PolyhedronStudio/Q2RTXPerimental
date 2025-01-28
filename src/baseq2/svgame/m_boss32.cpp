@@ -404,7 +404,7 @@ void makronBFG(edict_t *self)
     vec3_t  vec;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MAKRON_BFG], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MAKRON_BFG], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, vec);
     vec[2] += self->enemy->viewheight;
@@ -491,7 +491,7 @@ void MakronRailgun(edict_t *self)
     vec3_t  forward, right;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MAKRON_RAILGUN_1], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_MAKRON_RAILGUN_1], forward, right, start);
 
     // calc direction to where we targted
     VectorSubtract(self->pos1, start, dir);
@@ -512,7 +512,7 @@ void MakronHyperblaster(edict_t *self)
     flash_number = MZ2_MAKRON_BLASTER_1 + (self->s.frame - FRAME_attak405);
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     if (self->enemy) {
         VectorCopy(self->enemy->s.origin, vec);

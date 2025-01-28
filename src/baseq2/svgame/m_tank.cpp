@@ -327,7 +327,7 @@ void TankBlaster(edict_t *self)
         flash_number = MZ2_TANK_BLASTER_3;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, end);
     end[2] += self->enemy->viewheight;
@@ -357,7 +357,7 @@ void TankRocket(edict_t *self)
         flash_number = MZ2_TANK_ROCKET_3;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, vec);
     vec[2] += self->enemy->viewheight;
@@ -378,7 +378,7 @@ void TankMachineGun(edict_t *self)
     flash_number = MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406);
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     if (self->enemy) {
         VectorCopy(self->enemy->s.origin, vec);

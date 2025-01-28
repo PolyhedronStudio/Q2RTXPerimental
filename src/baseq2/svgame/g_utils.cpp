@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "g_local.h"
 
 
-void SVG_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result)
+void SVG_Util_ProjectSource(const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result)
 {
     result[0] = point[0] + forward[0] * distance[0] + right[0] * distance[1];
     result[1] = point[1] + forward[1] * distance[0] + right[1] * distance[1];
@@ -256,7 +256,7 @@ void SVG_SetMovedir(vec3_t angles, vec3_t movedir)
     VectorClear(angles);
 }
 
-char *SVG_CopyString(char *in)
+char *SVG_Util_CopyString(char *in)
 {
     char    *out;
 
@@ -353,11 +353,11 @@ void SVG_FreeEdict(edict_t *ed)
 
 /*
 ============
-SVG_TouchTriggers
+SVG_Util_TouchTriggers
 
 ============
 */
-void    SVG_TouchTriggers(edict_t *ent)
+void    SVG_Util_TouchTriggers(edict_t *ent)
 {
     int         i, num;
     edict_t     *touch[MAX_EDICTS], *hit;
@@ -384,13 +384,13 @@ void    SVG_TouchTriggers(edict_t *ent)
 
 /*
 ============
-SVG_TouchSolids
+SVG_Util_TouchSolids
 
 Call after linking a new trigger in during gameplay
 to force all entities it covers to immediately touch it
 ============
 */
-void    SVG_TouchSolids(edict_t *ent)
+void    SVG_Util_TouchSolids(edict_t *ent)
 {
     int         i, num;
     edict_t     *touch[MAX_EDICTS], *hit;
@@ -414,7 +414,7 @@ void    SVG_TouchSolids(edict_t *ent)
 
 // [Paril-KEX] scan for projectiles between our movement positions
 // to see if we need to collide against them
-void SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
+void SVG_Util_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
     struct skipped_projectile {
         edict_t *projectile;
         int32_t spawn_count;
@@ -467,13 +467,13 @@ Kill box
 
 /*
 =================
-KillBox
+SVG_Util_KillBox
 
 Kills all entities that would touch the proposed new positioning
 of ent.  Ent should be unlinked before calling this!
 =================
 */
-const bool KillBox(edict_t *ent, const bool bspClipping ) {
+const bool SVG_Util_KillBox(edict_t *ent, const bool bspClipping ) {
     // don't telefrag as spectator... or in noclip
     if ( ent->movetype == MOVETYPE_NOCLIP ) {
         return true;

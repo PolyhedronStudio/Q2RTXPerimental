@@ -6,6 +6,9 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_misc.h"
+#include "svgame/svg_utils.h"
+
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
 
@@ -118,7 +121,7 @@ void func_explosive_spawn( edict_t *self, edict_t *other, edict_t *activator, co
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
     self->use = NULL;
-    KillBox( self, false );
+    SVG_Util_KillBox( self, false );
     gi.linkentity( self );
 
     // Signal that we just trigger spawned.

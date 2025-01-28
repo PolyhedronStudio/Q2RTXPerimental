@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
+
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
 
@@ -33,7 +35,7 @@ void func_wall_use( edict_t *self, edict_t *other, edict_t *activator, const ent
     if ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_ON ) {
         self->solid = SOLID_BSP;
         self->svflags &= ~SVF_NOCLIENT;
-        KillBox( self, false );
+        SVG_Util_KillBox( self, false );
     } else if ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_OFF ) {
         self->solid = SOLID_NOT;
         self->svflags |= SVF_NOCLIENT;
@@ -42,7 +44,7 @@ void func_wall_use( edict_t *self, edict_t *other, edict_t *activator, const ent
         if ( self->solid == SOLID_NOT ) {
             self->solid = SOLID_BSP;
             self->svflags &= ~SVF_NOCLIENT;
-            KillBox( self, false );
+            SVG_Util_KillBox( self, false );
         } else {
             self->solid = SOLID_NOT;
             self->svflags |= SVF_NOCLIENT;

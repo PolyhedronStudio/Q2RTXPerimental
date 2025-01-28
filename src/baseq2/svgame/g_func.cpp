@@ -1959,7 +1959,7 @@ void use_killbox(edict_t *self, edict_t *other, edict_t *activator)
     self->solid = SOLID_TRIGGER;
     gi.linkentity( self );
 
-    KillBox(self, self->spawnflags & SPAWNFLAG_KILLBOX_TRIGGER_BRUSH_CLIP );
+    SVG_Util_KillBox(self, self->spawnflags & SPAWNFLAG_KILLBOX_TRIGGER_BRUSH_CLIP );
 
     self->solid = SOLID_NOT;
     gi.linkentity( self );

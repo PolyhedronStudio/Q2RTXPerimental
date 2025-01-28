@@ -6,6 +6,9 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_misc.h"
+#include "svgame/svg_utils.h"
+
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_gamelib.hpp"
 
@@ -66,7 +69,7 @@ void door_use_areaportals( edict_t *self, const bool open ) {
     if ( !self->targetNames.target )
         return;
 
-    while ( ( t = SVG_Find( t, FOFS_GENTITY( targetname ), self->targetNames.target ) ) ) {
+    while ( ( t = SVG_Find( t, FOFS_GENTITY( targetname ), (const char *)self->targetNames.target ) ) ) {
         //if (Q_stricmp(t->classname, "func_areaportal") == 0) {
         if ( t->s.entityType == ET_AREA_PORTAL ) {
             gi.SetAreaPortalState( t->style, open );
@@ -474,12 +477,12 @@ void door_close_move( edict_t *self ) {
 
 
     // Engage moving to closed state.
-    if ( strcmp( self->classname, "func_door" ) == 0 ) {
+    if ( strcmp( (const char *)self->classname, "func_door" ) == 0 ) {
         // Set state to closing.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
         // Engage moving to closed state.
         SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.startOrigin, door_close_move_done );
-    } else if ( strcmp( self->classname, "func_door_rotating" ) == 0 ) {
+    } else if ( strcmp( (const char *)self->classname, "func_door_rotating" ) == 0 ) {
         // Set state to closing.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
         // Engage moving to closed state.
@@ -525,13 +528,13 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
     }
 
     // Path for: func_door
-    if ( strcmp( self->classname, "func_door" ) == 0 ) {
+    if ( strcmp( (const char *)self->classname, "func_door" ) == 0 ) {
         // Set state to opening.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
         // Engage door opening movement.
         SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.endOrigin, door_open_move_done );
     // Path for: func_door_rotating:
-    } else if ( strcmp( self->classname, "func_door_rotating" ) == 0 ) {
+    } else if ( strcmp( (const char *)self->classname, "func_door_rotating" ) == 0 ) {
         // Set state to opening.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
         // Engage door opening movement.
@@ -596,7 +599,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
     // Get some info.
     const bool isToggle = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE );
     const bool isBothDirections = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_BOTH_DIRECTIONS );
-    const bool isRotating = strcmp( self->classname, "func_door_rotating" ) == 0;
+    const bool isRotating = strcmp( (const char *)self->classname, "func_door_rotating" ) == 0;
     const bool isReversed = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_REVERSE );
 
     // Default sign, multiplied by -1 later on in case we're on the other side.
@@ -813,7 +816,7 @@ void door_postspawn( edict_t *self ) {
 **/
 void SP_func_door( edict_t *ent ) {
 
-    SVG_SetMoveDir( ent->s.angles, ent->movedir );
+    SVG_Util_SetMoveDir( ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;

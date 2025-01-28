@@ -426,7 +426,7 @@ void hover_fire_blaster(edict_t *self)
         effect = 0;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_HOVER_BLASTER_1], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_HOVER_BLASTER_1], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, end);
     end[2] += self->enemy->viewheight;

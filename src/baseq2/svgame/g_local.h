@@ -762,8 +762,8 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 //
 // g_utils.c
 //
-const bool    KillBox( edict_t *ent, const bool bspClipping );
-void    SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
+const bool    SVG_Util_KillBox( edict_t *ent, const bool bspClipping );
+void    SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
 edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
 edict_t *SVG_FindWithinRadius( edict_t *from, vec3_t org, float rad );
 edict_t *SVG_PickTarget( char *targetname );
@@ -774,11 +774,11 @@ void    SVG_InitEdict( edict_t *e );
 edict_t *SVG_AllocateEdict( void );
 void    SVG_FreeEdict( edict_t *e );
 
-void    SVG_TouchSolids( edict_t *ent );
-void    SVG_TouchTriggers( edict_t *ent );
-void    SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
+void    SVG_Util_TouchSolids( edict_t *ent );
+void    SVG_Util_TouchTriggers( edict_t *ent );
+void    SVG_Util_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
 
-char *SVG_CopyString( char *in );
+char *SVG_Util_CopyString( char *in );
 
 //
 // g_combat.c
@@ -922,7 +922,7 @@ void SVG_HUD_MoveClientToIntermission(edict_t *client);
 void SVG_HUD_SetStats(edict_t *ent);
 void SVG_HUD_SetSpectatorStats(edict_t *ent);
 void SVG_HUD_CheckChaseStats(edict_t *ent);
-void SVG_HUD_ValidateSelectedItem(edict_t *ent);
+void SVG_Inventory_ValidateSelectedItem(edict_t *ent);
 void SVG_HUD_DeathmatchScoreboardMessage(edict_t *client, edict_t *killer);
 
 //

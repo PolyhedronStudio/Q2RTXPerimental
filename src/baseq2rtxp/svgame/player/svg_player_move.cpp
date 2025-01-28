@@ -6,7 +6,8 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
-#include "svgame/svg_lua.h"
+#include "svgame/svg_chase.h"
+#include "svgame/svg_utils.h"
 
 
 
@@ -567,8 +568,8 @@ static const Vector3 ClientPostPlayerMove( edict_t *ent, gclient_t *client, pmov
 static void ClientProcessTouches( edict_t *ent, gclient_t *client, pmove_t &pm, const Vector3 &oldOrigin ) {
     // If we're not 'No-Clipping', or 'Spectating', touch triggers and projectfiles.
     if ( ent->movetype != MOVETYPE_NOCLIP ) {
-        SVG_TouchTriggers( ent );
-        SVG_TouchProjectiles( ent, oldOrigin );
+        SVG_Util_TouchTriggers( ent );
+        SVG_Util_TouchProjectiles( ent, oldOrigin );
     }
 
     // Dispatch touch callbacks on all the remaining 'Solid' traced objects during our PMove.
@@ -649,7 +650,7 @@ void SVG_Client_Think( edict_t *ent, usercmd_t *ucmd ) {
         //    ent->client->landmark_free_fall = false;
         //    ent->client->landmark_noise_time = level.time + 100_ms;
         //}
-        // [Paril-KEX] save old position for SVG_TouchProjectiles
+        // [Paril-KEX] save old position for SVG_Util_TouchProjectiles
         //vec3_t old_origin = ent->s.origin;
 
         // Updates the entity origin, angles, bbox, groundinfo, etc.

@@ -1,22 +1,17 @@
-/*
-Copyright (C) 1997-2001 Id Software, Inc.
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+/********************************************************************
+*
+*
+*	SVGame: Game(Player like) Console Commands:
+*
+*
+********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_chase.h"
+#include "svgame/svg_utils.h"
+
+#include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
+
 #include "svgame/svg_lua.h"
 
 
@@ -38,134 +33,23 @@ void SVG_Command_Lua_ReloadMapScript( ) {
 }
 
 
-char *ClientTeam(edict_t *ent)
-{
-    char        *p;
-    static char value[512];
-
-    value[0] = 0;
-
-    if (!ent->client)
-        return value;
-
-    strcpy(value, Info_ValueForKey(ent->client->pers.userinfo, "skin"));
-    p = strchr(value, '/');
-    if (!p)
-        return value;
-
-    if ((int)(dmflags->value) & DF_MODELTEAMS) {
-        *p = 0;
-        return value;
-    }
-
-    // if ((int)(dmflags->value) & DF_SKINTEAMS)
-    return ++p;
-}
-
-const bool SVG_OnSameTeam(edict_t *ent1, edict_t *ent2)
-{
-    char    ent1Team [512];
-    char    ent2Team [512];
-
-    if (!((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS)))
-        return false;
-
-    strcpy(ent1Team, ClientTeam(ent1));
-    strcpy(ent2Team, ClientTeam(ent2));
-
-    if (strcmp(ent1Team, ent2Team) == 0)
-        return true;
-    return false;
-}
-
-
-void SelectNextItem(edict_t *ent, int itflags)
-{
-    gclient_t   *cl;
-    int         i, index;
-    gitem_t     *it;
-
-    cl = ent->client;
-
-    if (cl->chase_target) {
-        SVG_ChaseCam_Next(ent);
-        return;
-    }
-
-    // scan  for the next valid one
-    for (i = 1 ; i <= MAX_ITEMS ; i++) {
-        index = (cl->pers.selected_item + i) % MAX_ITEMS;
-        if (!cl->pers.inventory[index])
-            continue;
-        it = &itemlist[index];
-        if (!it->use)
-            continue;
-        if (!(it->flags & itflags))
-            continue;
-
-        cl->pers.selected_item = index;
-        return;
-    }
-
-    cl->pers.selected_item = -1;
-}
-
-void SelectPrevItem(edict_t *ent, int itflags)
-{
-    gclient_t   *cl;
-    int         i, index;
-    gitem_t     *it;
-
-    cl = ent->client;
-
-    if (cl->chase_target) {
-        SVG_ChaseCam_Previous(ent);
-        return;
-    }
-
-    // scan  for the next valid one
-    for (i = 1 ; i <= MAX_ITEMS ; i++) {
-        index = (cl->pers.selected_item + MAX_ITEMS - i) % MAX_ITEMS;
-        if (!cl->pers.inventory[index])
-            continue;
-        it = &itemlist[index];
-        if (!it->use)
-            continue;
-        if (!(it->flags & itflags))
-            continue;
-
-        cl->pers.selected_item = index;
-        return;
-    }
-
-    cl->pers.selected_item = -1;
-}
-
+//=================================================================================
 /**
 *   @brief
 **/
-void SVG_HUD_ValidateSelectedItem(edict_t *ent)
-{
-    gclient_t   *cl;
-
-    cl = ent->client;
-
-    if (cl->pers.inventory[cl->pers.selected_item])
-        return;     // valid
-
-    SelectNextItem(ent, -1);
-}
-
-
+void SVG_Inventory_SelectNextItem( edict_t *ent, int itflags );
+/**
+*   @brief
+**/
+void SVG_Inventory_SelectPrevItem( edict_t *ent, int itflags );
+/**
+*   @brief  Validates current selected item, if invalid, moves to the next valid item.
+**/
+void SVG_Inventory_ValidateSelectedItem( edict_t *ent );
 //=================================================================================
-
-/*
-==================
-SVG_Command_Give_f
-
-Give items to a client
-==================
-*/
+/**
+*   @brief  Give items to a client
+**/
 void SVG_Command_Give_f(edict_t *ent)
 {
     char        *name;
@@ -296,16 +180,10 @@ void SVG_Command_Give_f(edict_t *ent)
     }
 }
 
-
-/*
-==================
-SVG_Command_God_f
-
-Sets client to godmode
-
-argv(0) god
-==================
-*/
+/**
+*   @brief  Sets client to godmode
+*   @note   argv(0) god
+**/
 void SVG_Command_God_f(edict_t *ent)
 {
     if ((deathmatch->value || coop->value) && !sv_cheats->value) {
@@ -320,16 +198,10 @@ void SVG_Command_God_f(edict_t *ent)
         gi.cprintf(ent, PRINT_HIGH, "godmode ON\n");
 }
 
-
-/*
-==================
-SVG_Command_Notarget_f
-
-Sets client to notarget
-
-argv(0) notarget
-==================
-*/
+/**
+*   @brief  Sets client to notarget
+*   @note   argv(0) notarget
+**/
 void SVG_Command_Notarget_f(edict_t *ent)
 {
     if ((deathmatch->value || coop->value) && !sv_cheats->value) {
@@ -344,14 +216,10 @@ void SVG_Command_Notarget_f(edict_t *ent)
         gi.cprintf(ent, PRINT_HIGH, "notarget ON\n");
 }
 
-
-/*
-==================
-SVG_Command_Noclip_f
-
-argv(0) noclip
-==================
-*/
+/**
+*   @brief  Toggles NoClipping
+*   @note   argv(0) noclip
+**/
 void SVG_Command_Noclip_f(edict_t *ent)
 {
     if ((deathmatch->value || coop->value) && !sv_cheats->value) {
@@ -456,6 +324,7 @@ void SVG_Command_Inven_f(edict_t *ent)
     gi.unicast(ent, true);
 }
 
+
 /*
 =================
 SVG_Command_InvUseSelectedItem_f
@@ -465,7 +334,7 @@ void SVG_Command_InvUseSelectedItem_f(edict_t *ent)
 {
     gitem_t     *it;
 
-    SVG_HUD_ValidateSelectedItem(ent);
+    SVG_Inventory_ValidateSelectedItem(ent);
 
     if (ent->client->pers.selected_item == -1) {
         gi.cprintf(ent, PRINT_HIGH, "No item to use.\n");
@@ -600,7 +469,7 @@ SVG_Command_InvDrop_f
 void SVG_Command_InvDrop_f(edict_t *ent) {
     gitem_t     *it;
 
-    SVG_HUD_ValidateSelectedItem(ent);
+    SVG_Inventory_ValidateSelectedItem(ent);
 
     if (ent->client->pers.selected_item == -1) {
         gi.cprintf(ent, PRINT_HIGH, "No item to drop.\n");
@@ -795,6 +664,25 @@ void SVG_Command_Say_f(edict_t *ent, bool team, bool arg0)
     }
 }
 
+/**
+*   @brief  Display the scoreboard
+**/
+void SVG_Command_Score_f( edict_t *ent ) {
+    ent->client->showinventory = false;
+    ent->client->showhelp = false;
+
+    if ( !deathmatch->value && !coop->value )
+        return;
+
+    if ( ent->client->showscores ) {
+        ent->client->showscores = false;
+        return;
+    }
+
+    ent->client->showscores = true;
+    SVG_HUD_DeathmatchScoreboard( ent );
+}
+
 void SVG_Command_PlayerList_f(edict_t *ent)
 {
     int i;
@@ -873,13 +761,13 @@ void SVG_Client_Command( edict_t *ent ) {
     if ( Q_stricmp( cmd, "inven" ) == 0 ) {
         SVG_Command_Inven_f( ent );
     } else if ( Q_stricmp( cmd, "invnext" ) == 0 ) {
-        SelectNextItem( ent, -1 );
+        SVG_Inventory_SelectNextItem( ent, -1 );
     } else if ( Q_stricmp( cmd, "invprev" ) == 0 ) {
-        SelectPrevItem( ent, -1 );
+        SVG_Inventory_SelectPrevItem( ent, -1 );
     } else if ( Q_stricmp( cmd, "invnextw" ) == 0 ) {
-        SelectNextItem( ent, ITEM_FLAG_WEAPON );
+        SVG_Inventory_SelectNextItem( ent, ITEM_FLAG_WEAPON );
     } else if ( Q_stricmp( cmd, "invprevw" ) == 0 ) {
-        SelectPrevItem( ent, ITEM_FLAG_WEAPON );
+        SVG_Inventory_SelectPrevItem( ent, ITEM_FLAG_WEAPON );
     } else if ( Q_stricmp( cmd, "invuse" ) == 0 ) {
         SVG_Command_InvUseSelectedItem_f( ent );
     } else if ( Q_stricmp( cmd, "invdrop" ) == 0 ) {

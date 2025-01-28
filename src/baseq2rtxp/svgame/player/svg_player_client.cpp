@@ -6,7 +6,14 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_commands_server.h"
+#include "svgame/svg_misc.h"
+#include "svgame/svg_utils.h"
+
+#include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
+#include "svgame/player/svg_player_view.h"
+
 #include "svgame/svg_lua.h"
 
 
@@ -864,7 +871,7 @@ void SVG_Player_PutInServer( edict_t *ent ) {
         client->resp.spectator = false;
     }
 
-    if ( !KillBox( ent, true ) ) {
+    if ( !SVG_Util_KillBox( ent, true ) ) {
         // could't spawn in?
     }
 

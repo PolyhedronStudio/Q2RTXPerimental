@@ -184,7 +184,7 @@ void Drop_General(edict_t *ent, gitem_t *item)
 {
     Drop_Item(ent, item);
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    SVG_HUD_ValidateSelectedItem(ent);
+    SVG_Inventory_ValidateSelectedItem(ent);
 }
 
 
@@ -329,7 +329,7 @@ void Use_Quad(edict_t *ent, gitem_t *item)
     sg_time_t     timeout;
 
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    SVG_HUD_ValidateSelectedItem(ent);
+    SVG_Inventory_ValidateSelectedItem(ent);
 
     if (quad_drop_timeout_hack) {
         timeout = quad_drop_timeout_hack;
@@ -351,7 +351,7 @@ void Use_Quad(edict_t *ent, gitem_t *item)
 void Use_Breather(edict_t *ent, gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    SVG_HUD_ValidateSelectedItem(ent);
+    SVG_Inventory_ValidateSelectedItem(ent);
 
 	ent->client->breather_time = std::max( level.time, ent->client->breather_time ) + 30_sec;
 
@@ -363,7 +363,7 @@ void Use_Breather(edict_t *ent, gitem_t *item)
 void Use_Envirosuit(edict_t *ent, gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    SVG_HUD_ValidateSelectedItem(ent);
+    SVG_Inventory_ValidateSelectedItem(ent);
 
 	ent->client->enviro_time = std::max( level.time, ent->client->enviro_time ) + 30_sec;
 
@@ -375,7 +375,7 @@ void Use_Envirosuit(edict_t *ent, gitem_t *item)
 void    Use_Invulnerability(edict_t *ent, gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    SVG_HUD_ValidateSelectedItem(ent);
+    SVG_Inventory_ValidateSelectedItem(ent);
 
 	ent->client->invincible_time = std::max( level.time, ent->client->invincible_time ) + 30_sec;
 
@@ -387,7 +387,7 @@ void    Use_Invulnerability(edict_t *ent, gitem_t *item)
 void    Use_Silencer(edict_t *ent, gitem_t *item)
 {
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    SVG_HUD_ValidateSelectedItem(ent);
+    SVG_Inventory_ValidateSelectedItem(ent);
     ent->client->silencer_shots += 30;
 
 //  gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
@@ -503,7 +503,7 @@ void Drop_Ammo(edict_t *ent, gitem_t *item)
     }
 
     ent->client->pers.inventory[index] -= dropped->count;
-    SVG_HUD_ValidateSelectedItem(ent);
+    SVG_Inventory_ValidateSelectedItem(ent);
 }
 
 
@@ -815,7 +815,7 @@ edict_t *Drop_Item(edict_t *ent, gitem_t *item)
 
         AngleVectors(ent->client->v_angle, forward, right, NULL);
         VectorSet(offset, 24, 0, -16);
-        SVG_ProjectSource(ent->s.origin, offset, forward, right, dropped->s.origin);
+        SVG_Util_ProjectSource(ent->s.origin, offset, forward, right, dropped->s.origin);
         trace = gi.trace(ent->s.origin, dropped->mins, dropped->maxs,
                          dropped->s.origin, ent, CONTENTS_SOLID);
         VectorCopy(trace.endpos, dropped->s.origin);

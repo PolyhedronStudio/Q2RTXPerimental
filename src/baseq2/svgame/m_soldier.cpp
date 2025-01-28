@@ -458,7 +458,7 @@ void soldier_fire(edict_t *self, int flash_number)
         flash_index = machinegun_flash[flash_number];
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_index], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[flash_index], forward, right, start);
 
     if (flash_number == 5 || flash_number == 6) {
         VectorCopy(forward, aim);

@@ -12,7 +12,7 @@
 // short, server-visible gclient_t and edict_t structures,
 // because we define the full size ones in this file
 #include "shared/svgame.h"
-#include "../../svgame/svg_local.h"
+#include "svgame/svg_local.h"
 
 // Extern here right after including shared/clgame.h
 extern svgame_import_t gi;
@@ -146,6 +146,12 @@ const model_t *SG_GetModelDataForHandle( const qhandle_t handle ) {
 **/
 void *SG_Z_TagMalloc( const uint32_t size, const uint32_t tag ) {
 	return gi.TagMalloc( size, tag );
+}
+/**
+*	@brief
+**/
+void *SG_Z_TagReMalloc( void *ptr, const uint32_t size ) {
+	return gi.TagReMalloc( ptr, size );
 }
 /**
 *	@brief

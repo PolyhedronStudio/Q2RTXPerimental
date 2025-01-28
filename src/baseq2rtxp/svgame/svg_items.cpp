@@ -16,6 +16,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_chase.h"
+#include "svgame/svg_utils.h"
+
 #include "svgame/player/svg_player_hud.h"
 
 
@@ -45,6 +48,96 @@ extern weapon_item_info_t pistolItemInfo;
 
 static constexpr int32_t HEALTH_IGNORE_MAX = 1;
 static constexpr int32_t HEALTH_TIMED = 2;
+
+
+/**
+*
+*
+*
+*   Inventory Items:
+*
+*
+*
+**/
+/**
+*   @brief
+**/
+void SVG_Inventory_SelectNextItem( edict_t *ent, int itflags ) {
+    gclient_t *cl;
+    int         i, index;
+    gitem_t *it;
+
+    cl = ent->client;
+
+    if ( cl->chase_target ) {
+        SVG_ChaseCam_Next( ent );
+        return;
+    }
+
+    // scan  for the next valid one
+    for ( i = 1; i <= MAX_ITEMS; i++ ) {
+        index = ( cl->pers.selected_item + i ) % MAX_ITEMS;
+        if ( !cl->pers.inventory[ index ] )
+            continue;
+        it = &itemlist[ index ];
+        if ( !it->use )
+            continue;
+        if ( !( it->flags & itflags ) )
+            continue;
+
+        cl->pers.selected_item = index;
+        return;
+    }
+
+    cl->pers.selected_item = -1;
+}
+
+/**
+*   @brief
+**/
+void SVG_Inventory_SelectPrevItem( edict_t *ent, int itflags ) {
+    gclient_t *cl;
+    int         i, index;
+    gitem_t *it;
+
+    cl = ent->client;
+
+    if ( cl->chase_target ) {
+        SVG_ChaseCam_Previous( ent );
+        return;
+    }
+
+    // scan  for the next valid one
+    for ( i = 1; i <= MAX_ITEMS; i++ ) {
+        index = ( cl->pers.selected_item + MAX_ITEMS - i ) % MAX_ITEMS;
+        if ( !cl->pers.inventory[ index ] )
+            continue;
+        it = &itemlist[ index ];
+        if ( !it->use )
+            continue;
+        if ( !( it->flags & itflags ) )
+            continue;
+
+        cl->pers.selected_item = index;
+        return;
+    }
+
+    cl->pers.selected_item = -1;
+}
+/**
+*   @brief  Validates current selected item, if invalid, moves to the next valid item.
+**/
+void SVG_Inventory_ValidateSelectedItem( edict_t *ent ) {
+    gclient_t *cl;
+
+    cl = ent->client;
+
+    if ( cl->pers.inventory[ cl->pers.selected_item ] )
+        return;     // valid
+
+    SVG_Inventory_SelectNextItem( ent, -1 );
+}
+
 
 
 /**
@@ -92,6 +185,7 @@ const gitem_t *SVG_FindItem(const char *pickup_name) {
 
     return nullptr;
 }
+
 
 //======================================================================
 /**
@@ -145,7 +239,7 @@ void Drop_General(edict_t *ent, gitem_t *item)
 {
     Drop_Item(ent, item);
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
-    SVG_HUD_ValidateSelectedItem(ent);
+    SVG_Inventory_ValidateSelectedItem(ent);
 }
 
 
@@ -274,7 +368,7 @@ void Drop_Ammo(edict_t *ent, const gitem_t *item) {
     //}
 
     ent->client->pers.inventory[index] -= dropped->count;
-    SVG_HUD_ValidateSelectedItem(ent);
+    SVG_Inventory_ValidateSelectedItem(ent);
 }
 
 
@@ -453,7 +547,7 @@ edict_t *Drop_Item(edict_t *ent, const gitem_t *item)
 
         AngleVectors( &ent->client->viewMove.viewAngles.x, forward, right, NULL );
         VectorSet(offset, 24, 0, -16);
-        SVG_ProjectSource(ent->s.origin, offset, forward, right, dropped->s.origin);
+        SVG_Util_ProjectSource(ent->s.origin, offset, forward, right, dropped->s.origin);
         trace = gi.trace(ent->s.origin, dropped->mins, dropped->maxs,
                          dropped->s.origin, ent, CONTENTS_SOLID);
         VectorCopy(trace.endpos, dropped->s.origin);
@@ -653,7 +747,7 @@ void SVG_SpawnItem(edict_t *ent, const gitem_t *item)
     SVG_PrecacheItem(item);
 
     if (ent->spawnflags) {
-        if (strcmp(ent->classname, "key_power_cube") != 0) {
+        if (strcmp((const char *)ent->classname, "key_power_cube") != 0) {
             ent->spawnflags = 0;
             gi.dprintf("%s at %s has invalid spawnflags set\n", ent->classname, vtos(ent->s.origin));
         }

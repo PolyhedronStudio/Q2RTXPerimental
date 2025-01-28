@@ -8,6 +8,8 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
+
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
 
@@ -44,7 +46,7 @@ START_OPEN causes the water to move to its destination when spawned and operate 
 void SP_func_water( edict_t *self ) {
     vec3_t  abs_movedir;
 
-    SVG_SetMoveDir( self->s.angles, self->movedir );
+    SVG_Util_SetMoveDir( self->s.angles, self->movedir );
     self->movetype = MOVETYPE_PUSH;
     self->solid = SOLID_BSP;
     self->s.entityType = ET_PUSHER;

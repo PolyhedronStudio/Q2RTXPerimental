@@ -511,7 +511,7 @@ void monster_start_go( edict_t *self );
 
 void monster_triggered_spawn( edict_t *self ) {
 	self->s.origin[ 2 ] += 1;
-	KillBox( self, false );
+	SVG_Util_KillBox( self, false );
 
     self->solid = SOLID_BOUNDS_BOX;
     self->movetype = MOVETYPE_STEP;

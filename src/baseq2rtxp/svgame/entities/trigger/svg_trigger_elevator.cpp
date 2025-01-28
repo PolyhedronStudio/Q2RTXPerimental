@@ -32,7 +32,7 @@ void trigger_elevator_use( edict_t *self, edict_t *other, edict_t *activator, co
         return;
     }
 
-    target = SVG_PickTarget( other->targetNames.path );
+    target = SVG_PickTarget( (const char *)other->targetNames.path );
     if ( !target ) {
         gi.dprintf( "elevator used with bad targetNames.path: %s\n", other->targetNames.path );
         return;
@@ -47,13 +47,13 @@ void trigger_elevator_init( edict_t *self ) {
         gi.dprintf( "trigger_elevator has no target\n" );
         return;
     }
-    self->movetarget = SVG_PickTarget( self->targetNames.target );
+    self->movetarget = SVG_PickTarget( (const char *)self->targetNames.target );
     if ( !self->movetarget ) {
-        gi.dprintf( "trigger_elevator unable to find target %s\n", self->targetNames.target );
+        gi.dprintf( "trigger_elevator unable to find target %s\n", (const char *)self->targetNames.target );
         return;
     }
-    if ( strcmp( self->movetarget->classname, "func_train" ) != 0 ) {
-        gi.dprintf( "trigger_elevator target %s is not a train\n", self->targetNames.target );
+    if ( strcmp( (const char *)self->movetarget->classname, "func_train" ) != 0 ) {
+        gi.dprintf( "trigger_elevator target %s is not a train\n", (const char *)self->targetNames.target );
         return;
     }
 

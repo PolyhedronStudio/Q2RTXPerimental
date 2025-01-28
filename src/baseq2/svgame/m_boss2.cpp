@@ -60,7 +60,7 @@ void Boss2Rocket(edict_t *self)
     AngleVectors(self->s.angles, forward, right, NULL);
 
 //1
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_ROCKET_1], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_ROCKET_1], forward, right, start);
     VectorCopy(self->enemy->s.origin, vec);
     vec[2] += self->enemy->viewheight;
     VectorSubtract(vec, start, dir);
@@ -68,7 +68,7 @@ void Boss2Rocket(edict_t *self)
     monster_fire_rocket(self, start, dir, 50, 500, MZ2_BOSS2_ROCKET_1);
 
 //2
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_ROCKET_2], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_ROCKET_2], forward, right, start);
     VectorCopy(self->enemy->s.origin, vec);
     vec[2] += self->enemy->viewheight;
     VectorSubtract(vec, start, dir);
@@ -76,7 +76,7 @@ void Boss2Rocket(edict_t *self)
     monster_fire_rocket(self, start, dir, 50, 500, MZ2_BOSS2_ROCKET_2);
 
 //3
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right, start);
     VectorCopy(self->enemy->s.origin, vec);
     vec[2] += self->enemy->viewheight;
     VectorSubtract(vec, start, dir);
@@ -84,7 +84,7 @@ void Boss2Rocket(edict_t *self)
     monster_fire_rocket(self, start, dir, 50, 500, MZ2_BOSS2_ROCKET_3);
 
 //4
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_ROCKET_4], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_ROCKET_4], forward, right, start);
     VectorCopy(self->enemy->s.origin, vec);
     vec[2] += self->enemy->viewheight;
     VectorSubtract(vec, start, dir);
@@ -98,7 +98,7 @@ void boss2_firebullet_right(edict_t *self)
     vec3_t  start;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_R1], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_R1], forward, right, start);
 
     VectorMA(self->enemy->s.origin, -0.2f, self->enemy->velocity, target);
     target[2] += self->enemy->viewheight;
@@ -114,7 +114,7 @@ void boss2_firebullet_left(edict_t *self)
     vec3_t  start;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_L1], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_L1], forward, right, start);
 
     VectorMA(self->enemy->s.origin, -0.2f, self->enemy->velocity, target);
 
@@ -136,7 +136,7 @@ void Boss2MachineGun(edict_t *self)
         AngleVectors (self->s.angles, forward, right, NULL);
 
         flash_number = MZ2_BOSS2_MACHINEGUN_1 + (self->s.frame - FRAME_attack10);
-        SVG_ProjectSource (self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+        SVG_Util_ProjectSource (self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
         VectorCopy (self->enemy->s.origin, vec);
         vec[2] += self->enemy->viewheight;

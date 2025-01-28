@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_misc.h"
 
 // TODO: Move elsewhere.. ?
 #include "refresh/shared_types.h"
@@ -153,6 +154,7 @@ void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *pl
     if ( other && other->client ) {
         // Assign enemy.
         self->activator = other;
+        self->goalentity = other;
         // Get the root motion.
         skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
         // Transition to its animation.
@@ -233,10 +235,14 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 #endif
             #endif
 
-
+            // Goal Origin:
+            Vector3 goalOrigin = self->activator->s.origin;
+            if ( self->goalentity) {
+                goalOrigin = self->goalentity->s.origin;
+            }
             // Calculate ideal yaw to turn into.
             self->ideal_yaw = QM_Vector3ToYaw(
-                QM_Vector3Normalize( Vector3( self->activator->s.origin ) - Vector3(self->s.origin) )
+                QM_Vector3Normalize( goalOrigin - Vector3(self->s.origin) )
             );
             // Setup decent yaw turning speed.
             self->yaw_speed = 10;
@@ -416,7 +422,7 @@ void SP_monster_testdummy_puppet( edict_t *self ) {
 
     // Monster Entity Faking:
     self->svflags |= SVF_MONSTER;
-    self->s.renderfx |= RF_FRAMELERP;
+    //self->s.renderfx |= RF_FRAMELERP;
     self->s.skinnum = 0;
     self->takedamage = DAMAGE_AIM;
     self->air_finished_time = level.time + 12_sec;

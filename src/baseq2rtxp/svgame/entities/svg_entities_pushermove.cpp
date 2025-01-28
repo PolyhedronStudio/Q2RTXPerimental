@@ -9,6 +9,8 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
+
 #include "svgame/entities/svg_entities_pushermove.h"
 
 #include "svgame/svg_lua.h"

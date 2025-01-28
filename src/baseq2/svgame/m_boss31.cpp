@@ -457,7 +457,7 @@ void jorgBFG(edict_t *self)
     vec3_t  vec;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_JORG_BFG_1], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_JORG_BFG_1], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, vec);
     vec[2] += self->enemy->viewheight;
@@ -481,7 +481,7 @@ void jorg_firebullet_right(edict_t *self)
     vec3_t  start;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_JORG_MACHINEGUN_R1], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_JORG_MACHINEGUN_R1], forward, right, start);
 
     VectorMA(self->enemy->s.origin, -0.2f, self->enemy->velocity, target);
     target[2] += self->enemy->viewheight;
@@ -497,7 +497,7 @@ void jorg_firebullet_left(edict_t *self)
     vec3_t  start;
 
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_JORG_MACHINEGUN_L1], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_JORG_MACHINEGUN_L1], forward, right, start);
 
     VectorMA(self->enemy->s.origin, -0.2f, self->enemy->velocity, target);
     target[2] += self->enemy->viewheight;

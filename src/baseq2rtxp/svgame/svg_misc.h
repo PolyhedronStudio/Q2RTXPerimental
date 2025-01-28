@@ -11,12 +11,16 @@
 /**
 *   @brief	Returns a random velocity matching the specified damage count.
 **/
-const Vector3 &VelocityForDamage( const int32_t damage );
+const Vector3 SVG_Misc_VelocityForDamage( const int32_t damage );
 
 /**
 *   @brief
 **/
 void SVG_Misc_ThrowGib( edict_t *self, const char *gibname, const int32_t damage, const int32_t type );
+/**
+*   @brief
+**/
+void SVG_Misc_ThrowHead( edict_t *self, const char *gibname, const int32_t damage, const int32_t type );
 /**
 *   @brief
 **/

@@ -362,7 +362,7 @@ void flyer_fire(edict_t *self, int flash_number)
     else
         effect = 0;
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, end);
     end[2] += self->enemy->viewheight;

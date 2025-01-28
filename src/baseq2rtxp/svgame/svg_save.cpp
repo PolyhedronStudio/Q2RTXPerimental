@@ -16,9 +16,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 // Game related types.
-#include "svg_local.h"
+#include "svgame/svg_local.h"
 // Save related types.
 #include "svg_save.h"
+
+// Function Pointer Needs:
+#include "svgame/player/svg_player_client.h"
 
 #if USE_ZLIB
 #include <zlib.h>
@@ -1173,9 +1176,9 @@ void SVG_ReadLevel(const char *filename)
 
         // fire any cross-level triggers
         if (ent->classname)
-            if (strcmp(ent->classname, "target_crosslevel_target") == 0)
+            if (strcmp( (const char *)ent->classname, "target_crosslevel_target") == 0)
                 ent->nextthink = level.time + sg_time_t::from_sec( ent->delay );
-
+        #if 0
         if (ent->think == func_clock_think || ent->use == func_clock_use) {
             char *msg = ent->message;
 			// WID: C++20: Added cast.
@@ -1185,6 +1188,7 @@ void SVG_ReadLevel(const char *filename)
                 gi.TagFree(msg);
             }
         }
+        #endif
     }
 }
 

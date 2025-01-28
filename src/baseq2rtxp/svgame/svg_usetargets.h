@@ -72,4 +72,18 @@ typedef enum {
 *   @brief  Use to check and prevent an entity from reacting in case it is spammed by
 *           ON or OFF typed triggering.
 **/
-const bool SVG_UseTarget_ShouldToggle( const entity_usetarget_type_t useType, const int32_t currentState );
+static inline const bool SVG_UseTarget_ShouldToggle( const entity_usetarget_type_t useType, const int32_t currentState ) {
+    // We always toggle for USE_TOGGLE and USE_SET:
+    if ( useType != ENTITY_USETARGET_TYPE_TOGGLE && useType != ENTITY_USETARGET_TYPE_SET ) {
+        // If its current state is 'ON' and useType is 'ON', don't toggle:
+        if ( currentState && useType == ENTITY_USETARGET_TYPE_ON ) {
+            return false;
+        }
+        // If its current state is 'OFF' and useType is 'OFF', don't toggle:
+        if ( !currentState && useType == ENTITY_USETARGET_TYPE_OFF ) {
+            return false;
+        }
+    }
+
+    return true;
+}

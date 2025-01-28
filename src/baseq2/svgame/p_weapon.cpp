@@ -37,7 +37,7 @@ static void SVG_Player_ProjectSource(edict_t* ent, vec3_t point, vec3_t distance
         _distance[1] *= -1;
     else if (ent->client->pers.hand == CENTER_HANDED)
         _distance[1] = 0;
-    SVG_ProjectSource(point, _distance, forward, right, result);
+    SVG_Util_ProjectSource(point, _distance, forward, right, result);
 
     // Aim fix from Yamagi Quake 2.
     // Now the projectile hits exactly where the scope is pointing.

@@ -17,7 +17,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
+#include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
+#include "svgame/player/svg_player_trail.h"
 
 
 

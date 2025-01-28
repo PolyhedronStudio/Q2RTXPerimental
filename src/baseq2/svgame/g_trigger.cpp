@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *	@brief	Basic Trigger initialization mechanism.
 **/
-void InitTrigger( edict_t *self ) {
+void SVG_Util_InitTrigger( edict_t *self ) {
 	if ( !VectorEmpty( self->s.angles ) ) {
 		SVG_SetMovedir( self->s.angles, self->movedir );
 	}
@@ -154,7 +154,7 @@ void SP_trigger_multiple( edict_t *ent ) {
 		ent->wait = 0.2f;
 
 	// WID: Initialize triggers properly.
-	InitTrigger( ent );
+	SVG_Util_InitTrigger( ent );
 
 	ent->touch = Touch_Multi;
 	ent->movetype = MOVETYPE_NONE;
@@ -477,7 +477,7 @@ Pushes the player
 */
 void SP_trigger_push( edict_t *self ) {
 	// WID: Initialize triggers properly.
-	InitTrigger( self );
+	SVG_Util_InitTrigger( self );
 
 	if ( !windsound ) {
 		windsound = gi.soundindex( "misc/windfly.wav" );
@@ -581,7 +581,7 @@ NO_PROTECTION   *nothing* stops the damage
 */
 void SP_trigger_hurt( edict_t *self ) {
 	// WID: Initialize triggers properly.
-	InitTrigger( self );
+	SVG_Util_InitTrigger( self );
 
 	self->noise_index = gi.soundindex( "world/electro.wav" );
 	self->touch = hurt_touch;
@@ -642,7 +642,7 @@ void SP_trigger_gravity( edict_t *self ) {
 		return;
 	}
 
-	InitTrigger( self );
+	SVG_Util_InitTrigger( self );
 
 	self->gravity = atof( st.gravity );
 	self->touch = trigger_gravity_touch;
@@ -710,7 +710,7 @@ void SP_trigger_monsterjump( edict_t *self ) {
 	if ( self->s.angles[ YAW ] == 0 ) {
 		self->s.angles[ YAW ] = 360;
 	}
-	InitTrigger( self );
+	SVG_Util_InitTrigger( self );
 	self->touch = trigger_monsterjump_touch;
 	self->movedir[ 2 ] = st.height;
 

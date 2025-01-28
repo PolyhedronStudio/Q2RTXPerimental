@@ -17,7 +17,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
+#include "svgame/svg_gamemode.h"
+#include "svgame/svg_commands_server.h"
+
 #include "svgame/player/svg_player_hud.h"
+#include "svgame/player/svg_player_view.h"
+
 #include "svgame/svg_lua.h"
 
 #include "svgame/entities/svg_entities_pushermove.h"

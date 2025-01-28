@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	ServerGame: Player Weapon Functionality:
+*	ServerGame: Player HUD Functionality:
 *	NameSpace: "".
 *
 *
@@ -31,10 +31,11 @@ void SVG_HUD_SetSpectatorStats( edict_t *ent );
 **/
 void SVG_HUD_CheckChaseStats( edict_t *ent );
 /**
-*   @brief
+*   @brief  Draw instead of help message.
+*   @note that it isn't that hard to overflow the 1400 byte message limit!
 **/
-void SVG_HUD_ValidateSelectedItem( edict_t *ent );
+void SVG_HUD_DeathmatchScoreboard( edict_t *ent );
 /**
 *   @brief
 **/
-void SVG_HUD_DeathmatchScoreboardMessage( edict_t *client, edict_t *killer );
+void SVG_HUD_DeathmatchScoreboardMessage( edict_t *ent, edict_t *killer );

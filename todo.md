@@ -54,7 +54,7 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 	- [ ] Allow attaching models configured by bone tags setup.
 
 - [ ] **Lua**:
-	- [ ] SVG_CopyString is used for assigning targetname related strings. This needs to be tucked
+	- [ ] SVG_Util_CopyString is used for assigning targetname related strings. This needs to be tucked
 		  into a wrapper object so that we can just assign it a const char*, allocate, copy, and if it
 	- [ ] already had a value, destroy its previous value.
 

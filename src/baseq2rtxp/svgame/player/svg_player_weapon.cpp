@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // g_weapon.c
 
 #include "svgame/svg_local.h"
-
+#include "svgame/svg_utils.h"
 
 static bool     is_quad;
 static byte     is_silenced;
@@ -369,7 +369,7 @@ void SVG_Player_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, ve
     } else if ( ent->client->pers.hand == CENTER_HANDED ) {
         _distance[ 1 ] = 0;
     }
-    const Vector3 _result = SVG_ProjectSource( point, _distance, forward, right );
+    const Vector3 _result = SVG_Util_ProjectSource( point, _distance, forward, right );
     // Copy the resulting values into the result vec3_t array(ptr).
     VectorCopy( _result, result );
 }
@@ -385,7 +385,7 @@ const Vector3 SVG_Player_ProjectDistance( edict_t *ent, const Vector3 &point, co
         _distance[ 1 ] = 0;
     }
 
-    return SVG_ProjectSource( point, _distance, forward, right );
+    return SVG_Util_ProjectSource( point, _distance, forward, right );
 
     // Aim fix from Yamagi Quake 2.
     // Now the projectile hits exactly where the scope is pointing.
@@ -414,7 +414,7 @@ void SVG_Player_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3
     } else if ( ent->client->pers.hand == CENTER_HANDED ) {
         _distance[ 1 ] = 0;
     }
-    SVG_ProjectSource( point, &_distance.x, forward, right, result );
+    SVG_Util_ProjectSource( point, &_distance.x, forward, right, result );
 
     // Aim fix from Yamagi Quake 2.
     // Now the projectile hits exactly where the scope is pointing.

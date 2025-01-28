@@ -35,418 +35,27 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *
 *
 **/
-/**
-*   @brief  Wraps up the new more modern SVG_ProjectSource.
-**/
-void SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result ) {
-    // Call the new more modern SVG_ProjectSource.
-    const Vector3 _result = SVG_ProjectSource( point, distance, forward, right );
-    // Copy the resulting values into the result vec3_t array(ptr).
-    VectorCopy( _result, result );
-}
 
 /**
 *   @brief  Project vector from source.
 **/
-const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
+const Vector3 SVG_Util_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
     return {
         point[ 0 ] + forward[ 0 ] * distance[ 0 ] + right[ 0 ] * distance[ 1 ],
         point[ 1 ] + forward[ 1 ] * distance[ 0 ] + right[ 1 ] * distance[ 1 ],
         point[ 2 ] + forward[ 2 ] * distance[ 0 ] + right[ 2 ] * distance[ 1 ] + distance[ 2 ]
     };
 }
-
-
-
 /**
-*
-*
-*
-*   Signaling:
-*
-*
-*
+*   @brief  Wraps up the new more modern SVG_Util_ProjectSource.
 **/
-/**
-*   @brief  'Think' support routine for delayed SignalOut signalling.
-**/
-void Think_SignalOutDelay( edict_t *ent ) {
-    // SignalOut again, keep in mind that ent now has no delay set, so it will actually
-    // proceed to calling the OnSignalIn functions.
-    SVG_SignalOut( ent, ent->other, ent->activator, ent->delayed.signalOut.name );
-    // Free ourselves again.
-    SVG_FreeEdict( ent );
+void SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result ) {
+    // Call the new more modern SVG_Util_ProjectSource.
+    const Vector3 _result = SVG_Util_ProjectSource( point, distance, forward, right );
+    // Copy the resulting values into the result vec3_t array(ptr).
+    VectorCopy( _result, result );
 }
 
-
-
-/**
-*   @brief  Will iterate over the signal argument list and push all its key/values into the
-*           lua table stack.
-**/
-static void SVG_SignalOut_DebugPrintArguments( const svg_signal_argument_array_t &signalArguments ) {
-    // Need sane signal args and number of signal args.
-    if ( signalArguments.empty() ) {
-        return;
-    }
-    
-    gi.dprintf( "%s:\n", "-------------------------------------------" );
-    gi.dprintf( "%s:\n", __func__ );
-
-    // Iterate the arguments.
-    for ( int32_t argumentIndex = 0; argumentIndex < signalArguments.size(); argumentIndex++ ) {
-        // Get access to argument.
-        const svg_signal_argument_t *signalArgument = &signalArguments[ argumentIndex ];
-
-        // Act based on its type.
-                // Act based on its type.
-        if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_BOOLEAN ) {
-            gi.dprintf( "%s:%s\n", signalArgument->key, ( signalArgument->value.boolean ? "true" : "false" ) );
-            // TODO: Hmm?? Sol has no notion, maybe though using sol::object.as however, of an integer??
-        #if 0
-        } else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_INTEGER ) {
-            gi.dprintf( "%s:%d\n", signalArgument->key, signalArgument->value.integer );
-        #endif
-        } else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NUMBER ) {
-            gi.dprintf( "%s:%f\n", signalArgument->key, signalArgument->value.number );
-        } else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_STRING ) {
-            gi.dprintf( "%s:%s\n", signalArgument->key, signalArgument->value.str );
-        }else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NULLPTR ) {
-            gi.dprintf( "%s:%s\n", signalArgument->key, "(nil)" );
-        // Fall through:
-        //} else if ( signalArgument->type == SIGNAL_ARGUMENT_TYPE_NONE ) {
-        } else {
-            gi.dprintf( "%s:%s\n", signalArgument->key, "(invalid type)");
-        }
-    }
-}
-
-/**
-*   @brief  Will call upon the entity's OnSignalIn(C/Lua) using the signalName.
-*   @param  other   (optional) The entity which Send Out the Signal.
-*   @param  activator   The entity which initiated the process that resulted in sending out a signal.
-**/
-//void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments, const int32_t numberOfSignalArguments ) {
-void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
-    //
-    // check for a delay
-    //
-    if ( ent->delay ) {
-        // create a temp object to fire at a later time
-        edict_t *delayEntity = SVG_AllocateEdict();
-        delayEntity->classname = "DelayedSignalOut";
-        delayEntity->nextthink = level.time + sg_time_t::from_sec( ent->delay );
-        delayEntity->think = Think_SignalOutDelay;
-        delayEntity->activator = activator;
-        delayEntity->other = signaller;
-        if ( !activator ) {
-            gi.dprintf( "Think_SignalOutDelay with no activator\n" );
-        }
-        delayEntity->message = ent->message;
-
-        delayEntity->targetNames.target = ent->targetNames.target;
-        delayEntity->targetNames.kill = ent->targetNames.kill;
-        
-        // The luaName of the actual original entity.
-        delayEntity->luaProperties.luaName = ent->luaProperties.luaName;
-        
-        // The entity which created this temporary delay signal entity.
-        delayEntity->delayed.signalOut.creatorEntity = ent;
-        // The arguments of said signal.
-        delayEntity->delayed.signalOut.arguments = signalArguments;
-        // The actual string comes from lua so we need to copy it in instead.
-        memset( delayEntity->delayed.signalOut.name, 0, sizeof( delayEntity->delayed.signalOut.name ) );
-        Q_strlcpy( delayEntity->delayed.signalOut.name, signalName, strlen( signalName ) + 1 );
-
-        return;
-    }
-
-    // Whether to por
-    bool propogateToLua = true;
-    if ( ent->onsignalin ) {
-        ent->activator = activator;
-        ent->other = signaller;
-
-        // Notify of the signal coming in.
-        /*propogateToLua = */ent->onsignalin( ent, signaller, activator, signalName, signalArguments );
-    }
-    // If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
-    if ( propogateToLua ) {
-        SVG_Lua_SignalOut( SVG_Lua_GetSolState(), ent, signaller, activator, signalName, signalArguments);
-    }
-}
-
-
-
-/**
-* 
-* 
-* 
-*   Utilities, common for UseTargets trigger system. (Also used in lua usetargets code.)
-* 
-* 
-* 
-**/
-/**
-*   @brief  Calls the (usually key/value field luaName).."_Use" matching Lua function.
-**/
-const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, edict_t *entity, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool verboseIfMissing ) {
-    if ( luaName.empty() ) {
-        return false;
-    }
-
-    // Generate function 'callback' name.
-    const std::string luaFunctionName = luaName + "_Use";
-    // Call if it exists.
-    if ( LUA_HasFunction( stateView, luaFunctionName ) ) {
-        // Create  lua edict handle structures to work with.
-        sol::userdata leEntity = sol::make_object<lua_edict_t>( stateView, lua_edict_t( entity ) );
-        sol::userdata leOther = sol::make_object<lua_edict_t>( stateView, lua_edict_t( other ) );
-        sol::userdata leActivator = sol::make_object<lua_edict_t>( stateView, lua_edict_t( activator ) );
-
-            // Call upon the function.
-        bool returnValue = false;
-        bool calledFunction = LUA_CallFunction( 
-            stateView, luaFunctionName, returnValue,
-            ( verboseIfMissing ? LUA_CALLFUNCTION_VERBOSE_MISSING : LUA_CALLFUNCTION_VERBOSE_NOT ),
-            /*[lua args]:*/ 
-            leEntity, leOther, leActivator, useType, useValue 
-        );
-        // Dispatched callback.
-        return returnValue;
-    }
-
-    // Didn't dispatch callback.
-    return false;
-}
-/**
-*   @brief  Centerprints the trigger message and plays a set sound, or default chat hud sound.
-**/
-void SVG_Trigger_PrintMessage( edict_t *self, edict_t *activator ) {
-    // If a message was set, the activator is not a monster, then center print it.
-    if ( ( self->message ) && !( activator->svflags & SVF_MONSTER ) ) {
-        // Print.
-        gi.centerprintf( activator, "%s", self->message );
-        // Play custom set audio.
-        if ( self->noise_index ) {
-            gi.sound( activator, CHAN_AUTO, self->noise_index, 1, ATTN_NORM, 0 );
-            // Play default "chat" hud sound.
-        } else {
-            gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
-        }
-    }
-}
-/**
-*   @brief  Kills all entities matching the killtarget name.
-**/
-const int32_t SVG_Trigger_KillTargets( edict_t *self ) {
-    if ( self->targetNames.kill ) {
-        edict_t *killTargetEntity = nullptr;
-        while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS_GENTITY( targetname ), self->targetNames.kill ) ) ) {
-            SVG_FreeEdict( killTargetEntity );
-            if ( !self->inuse ) {
-                gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, self->s.number, self->classname );
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-
-
-
-/**
-*
-*
-*
-*   UseTarget Functionality:
-*
-*
-*
-**/
-//! Maximum number of entities to pick target from.
-static constexpr int32_t PICKTARGET_MAX = 8;
-/**
-*   @brief  Pick a random target of entities with a matching targetname.
-**/
-edict_t *SVG_PickTarget( char *targetname ) {
-    edict_t *ent = NULL;
-    int     num_choices = 0;
-    edict_t *choice[ PICKTARGET_MAX ];
-
-    if ( !targetname ) {
-        gi.dprintf( "SVG_PickTarget called with NULL targetname\n" );
-        return NULL;
-    }
-
-    while ( 1 ) {
-        ent = SVG_Find( ent, FOFS_GENTITY( targetname ), targetname );
-        if ( !ent )
-            break;
-        choice[ num_choices++ ] = ent;
-        if ( num_choices == PICKTARGET_MAX )
-            break;
-    }
-
-    if ( !num_choices ) {
-        gi.dprintf( "SVG_PickTarget: target %s not found\n", targetname );
-        return NULL;
-    }
-
-    return choice[ Q_rand_uniform( num_choices ) ];
-}
-
-
-
-void Think_UseTargetsDelay( edict_t *ent ) {
-    SVG_UseTargets( ent, ent->activator );
-    SVG_FreeEdict( ent );
-}
-
-/*
-==============================
-SVG_UseTargets
-
-the global "activator" should be set to the entity that initiated the firing.
-
-If self.delay is set, a DelayedUse entity will be created that will actually
-do the SUB_UseTargets after that many seconds have passed.
-
-Centerprints any self.message to the activator.
-
-Search for (string)targetname in all entities that
-match (string)self.target and call their .use function
-
-==============================
-*/
-void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    //
-    // Check for a delay
-    //
-    if ( ent->delay ) {
-        // create a temp object to fire at a later time
-        edict_t *delayEntity = SVG_AllocateEdict();
-        delayEntity->classname = "DelayedUseTargets";
-        delayEntity->nextthink = level.time + sg_time_t::from_sec( ent->delay );
-        delayEntity->think = Think_UseTargetsDelay;
-        if ( !activator ) {
-            gi.dprintf( "Think_UseTargetsDelay with no activator\n" );
-        }
-        delayEntity->activator = activator;
-        delayEntity->other = ent->other;
-        delayEntity->message = ent->message;
-        
-        delayEntity->targetNames.target = ent->targetNames.target;
-        delayEntity->targetNames.kill = ent->targetNames.kill;
-
-        delayEntity->luaProperties.luaName = ent->luaProperties.luaName;
-        delayEntity->delayed.useTarget.creatorEntity = ent;
-        delayEntity->delayed.useTarget.useType = useType;
-        delayEntity->delayed.useTarget.useValue = useValue;
-
-        return;
-    }
-
-
-    //
-    // print the message
-    //
-    SVG_Trigger_PrintMessage( ent, activator );
-
-    //
-    // kill killtargets
-    //
-    SVG_Trigger_KillTargets( ent );
-
-    //
-    // fire targets
-    //
-    if ( ent->targetNames.target ) {
-        edict_t *fireTargetEntity = nullptr;
-        while ( ( fireTargetEntity = SVG_Find( fireTargetEntity, FOFS_GENTITY( targetname ), ent->targetNames.target ) ) ) {
-            // Doors fire area portals in a specific way
-            if ( !Q_stricmp( fireTargetEntity->classname, "func_areaportal" )
-                && ( !Q_stricmp( ent->classname, "func_door" ) || !Q_stricmp( ent->classname, "func_door_rotating" ) ) ) {
-                continue;
-            }
-
-            if ( fireTargetEntity == ent ) {
-                gi.dprintf( "%s: entity(#%d, \"%s\") used itself!\n", __func__, ent->s.number, ent->classname );
-            } else {
-                if ( fireTargetEntity->use ) {
-                    fireTargetEntity->use( fireTargetEntity, ent, activator, useType, useValue );
-                }
-
-                if ( fireTargetEntity->luaProperties.luaName ) {
-                    // Generate function 'callback' name.
-                    const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
-                    // Get reference to sol lua state view.
-                    sol::state_view &solStateView = SVG_Lua_GetSolState();
-
-                    bool returnValue = false;
-                    const bool functionCalled = SVG_Trigger_DispatchLuaUseCallback( solStateView, fireTargetEntity->luaProperties.luaName,
-                        returnValue,
-                        fireTargetEntity, ent, activator, useType, useValue, true );
-                    //// Get function object.
-                    //sol::protected_function funcRefUse = solState[ luaFunctionName ];
-                    //// Get type.
-                    //sol::type funcRefType = funcRefUse.get_type();
-                    //// Ensure it matches, accordingly
-                    //if ( funcRefType != sol::type::function /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
-                    //    // Return if it is LUA_NOREF and luaState == nullptr again.
-                    //    // TODO: Error?
-                    //    return;
-                    //}
-
-                    //// Create lua userdata object references to the entities.
-                    //auto leSelf = sol::make_object<lua_edict_t>( solState, lua_edict_t( fireTargetEntity ) );
-                    //auto leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( ent ) );
-                    //auto leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
-                    //// Fire SignalOut callback.
-                    //auto callResult = funcRefUse( leSelf, leOther, leActivator, useType, useValue );
-                    //// If valid, convert result to boolean.
-                    //if ( callResult.valid() ) {
-                    //    // Convert.
-                    //    bool signalHandled = callResult.get<bool>();
-                    //    // Debug print.
-                    //// We got an error:
-                    //} else {
-                    //    // Acquire error object.
-                    //    sol::error resultError = callResult;
-                    //    // Get error string.
-                    //    const std::string errorStr = resultError.what();
-                    //    // Print the error in case of failure.
-                    //    gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
-                    //}
-                }
-            }
-            if ( !ent->inuse ) {
-                gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, ent->s.number, ent->classname );
-                return;
-            }
-        }
-    }
-}
-/**
-*   @brief  Use to check and prevent an entity from reacting in case it is spammed by
-*           ON or OFF typed triggering.
-**/
-const bool SVG_UseTarget_ShouldToggle( const entity_usetarget_type_t useType, const int32_t currentState ) {
-    // We always toggle for USE_TOGGLE and USE_SET:
-    if ( useType != ENTITY_USETARGET_TYPE_TOGGLE && useType != ENTITY_USETARGET_TYPE_SET ) {
-        // If its current state is 'ON' and useType is 'ON', don't toggle:
-        if ( currentState && useType == ENTITY_USETARGET_TYPE_ON ) {
-            return false;
-        }
-        // If its current state is 'OFF' and useType is 'OFF', don't toggle:
-        if ( !currentState && useType == ENTITY_USETARGET_TYPE_OFF ) {
-            return false;
-        }
-    }
-
-    return true;
-}
 
 
 
@@ -464,7 +73,7 @@ vec3_t MOVEDIR_UP   = {0, 0, 1};
 vec3_t VEC_DOWN     = {0, -2, 0};
 vec3_t MOVEDIR_DOWN = {0, 0, -1};
 
-void SVG_SetMoveDir( vec3_t angles, Vector3 &movedir ) {
+void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir ) {
     if ( VectorCompare( angles, VEC_UP ) ) {
         VectorCopy( MOVEDIR_UP, movedir );
     } else if ( VectorCompare( angles, VEC_DOWN ) ) {
@@ -490,7 +99,7 @@ void SVG_SetMoveDir( vec3_t angles, Vector3 &movedir ) {
 /**
 *   @brief  Keep in mind that actually doing this continuously will lead to substantial problems...
 **/
-char *SVG_CopyString(const char *in) {
+char *SVG_Util_CopyString(const char *in) {
     char    *out;
     out = (char*)gi.TagMalloc(strlen(in) + 1, TAG_SVGAME_LEVEL);
     strcpy(out, in);
@@ -508,14 +117,10 @@ char *SVG_CopyString(const char *in) {
 *
 *
 **/
-/*
-============
-SVG_TouchTriggers
-
-============
-*/
-void    SVG_TouchTriggers(edict_t *ent)
-{
+/**
+*   @brief  
+**/
+void SVG_Util_TouchTriggers(edict_t *ent) {
     int         i, num;
     edict_t     *touch[MAX_EDICTS], *hit;
 
@@ -541,16 +146,11 @@ void    SVG_TouchTriggers(edict_t *ent)
     }
 }
 
-/*
-============
-SVG_TouchSolids
-
-Call after linking a new trigger in during gameplay
-to force all entities it covers to immediately touch it
-============
-*/
-void    SVG_TouchSolids(edict_t *ent)
-{
+/**
+*   @brief  Call after linking a new trigger in during gameplay
+*           to force all entities it covers to immediately touch it
+**/
+void SVG_Util_TouchSolids(edict_t *ent) {
     int         i, num;
     edict_t     *touch[MAX_EDICTS], *hit;
 
@@ -574,9 +174,11 @@ void    SVG_TouchSolids(edict_t *ent)
 }
 
 
-// [Paril-KEX] scan for projectiles between our movement positions
-// to see if we need to collide against them
-void SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
+/**
+*   @brief  Scan for projectiles between our movement positions
+*           to see if we need to collide against them.
+**/
+void SVG_Util_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
     struct skipped_projectile {
         edict_t *projectile;
         int32_t spawn_count;
@@ -625,21 +227,47 @@ void SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
 *
 *
 *
-*   KillBox:
+*   Triggers:
 *
 *
 *
 **/
+/**
+*	@brief	Basic Trigger initialization mechanism.
+**/
+void SVG_Util_InitTrigger( edict_t *self ) {
+    if ( !VectorEmpty( self->s.angles ) ) {
+        SVG_Util_SetMoveDir( self->s.angles, self->movedir );
+    }
 
+    self->solid = SOLID_TRIGGER;
+    self->movetype = MOVETYPE_NONE;
+    if ( self->model ) {
+        gi.setmodel( self, self->model );
+    }
+    self->svflags = SVF_NOCLIENT;
+}
+
+
+
+/**
+*
+*
+*
+*   SVG_Util_KillBox:
+*
+*
+*
+**/
 /*
 =================
-KillBox
+SVG_Util_KillBox
 
 Kills all entities that would touch the proposed new positioning
 of ent.  Ent should be unlinked before calling this!
 =================
 */
-//const bool KillBox(edict_t *ent, const bool bspClipping ) {
+//const bool SVG_Util_KillBox(edict_t *ent, const bool bspClipping ) {
 //    // don't telefrag as spectator... or in noclip
 //    if ( ent->movetype == MOVETYPE_NOCLIP ) {
 //        return true;
@@ -711,7 +339,11 @@ of ent.  Ent should be unlinked before calling this!
 //
 //    return true;        // all clear
 //}
-const bool KillBox( edict_t *ent, const bool bspClipping ) {
+/**
+*   @brief  Kills all entities that would touch the proposed new positioning
+*           of ent.  Ent should be unlinked before calling this!
+**/
+const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping ) {
     // don't telefrag as spectator... or in noclip
     if ( ent->movetype == MOVETYPE_NOCLIP ) {
         return true;
@@ -886,10 +518,10 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
     #else
 //  vec3_t angles;
 //  VectorAdd( ent->s.angles, ent->moveWith.originAnglesOffset, angles );
-//  SVG_SetMoveDir( angles, ent->movedir );
+//  SVG_Util_SetMoveDir( angles, ent->movedir );
     Vector3 newAngles = childMover->s.angles;// +deltaParentAngles;
     Vector3 tempMoveDir = {};
-    SVG_SetMoveDir( &newAngles.x, tempMoveDir );
+    SVG_Util_SetMoveDir( &newAngles.x, tempMoveDir );
 
     Vector3 relativeParentOffset = childMover->moveWith.relativeDeltaOffset;
     childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
@@ -897,7 +529,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
     childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, relativeParentOffset.z, parentVUp );
     // 
     // Pos2.
-    if ( strcmp( childMover->classname, "func_door_rotating" ) != 0 ) {
+    if ( strcmp( (const char *)childMover->classname, "func_door_rotating" ) != 0 ) {
         childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos1, childMover->pushMoveInfo.distance, childMover->movedir );
         //childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
         //childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.y, parentVRight );
@@ -926,7 +558,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
             VectorCopy( childMover->pos2, childMover->s.origin );
         }
     } else {
-        if ( strcmp( childMover->classname, "func_door_rotating" ) != 0 ) {
+        if ( strcmp( (const char *)childMover->classname, "func_door_rotating" ) != 0 ) {
             // Calculate what is expected to be the offset from parent origin.
             Vector3 parentMoverOrigin = parentMover->s.origin;
             Vector3 childMoverRelativeParentOffset = parentMoverOrigin;
@@ -1007,7 +639,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 
 //        vec3_t angles;
 //        VectorAdd( ent->s.angles, ent->moveWith.originAnglesOffset, angles );
-//        SVG_SetMoveDir( angles, ent->movedir );
+//        SVG_Util_SetMoveDir( angles, ent->movedir );
 
 //        VectorMA( moveWithEntity->s.origin, ent->moveWith.originOffset[ 0 ], forward, ent->pos1 );
 //        VectorMA( ent->pos1, ent->moveWith.originOffset[ 1 ], right, ent->pos1 );

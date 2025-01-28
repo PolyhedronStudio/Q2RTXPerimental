@@ -377,7 +377,7 @@ void use_target_spawner(edict_t *self, edict_t *other, edict_t *activator)
     VectorCopy(self->s.angles, ent->s.angles);
     ED_CallSpawn(ent);
     gi.unlinkentity(ent);
-    KillBox(ent, false);
+    SVG_Util_KillBox(ent, false);
     gi.linkentity(ent);
     if (self->speed)
         VectorCopy(self->movedir, ent->velocity);

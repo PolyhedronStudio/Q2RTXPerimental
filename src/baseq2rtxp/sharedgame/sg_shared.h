@@ -153,11 +153,18 @@ void *SG_Z_TagMalloc( const uint32_t size, const uint32_t tag );
 /**
 *	@brief
 **/
+void *SG_Z_TagReMalloc( void *ptr, const uint32_t size );
+/**
+*	@brief
+**/
 void SG_Z_TagFree( void *block );
 /**
 *	@brief	FreeTags
 **/
 void SG_Z_TagFree( const uint32_t tag );
+
+// We need these for this.
+#include "sharedgame/sg_qstring.h"
 
 
 

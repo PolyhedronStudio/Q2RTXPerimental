@@ -16,6 +16,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
+
 #include "svgame/player/svg_player_hud.h"
 
 /*QUAKED target_temp_entity (1 0 0) (-8 -8 -8) (8 8 8)
@@ -307,7 +309,7 @@ void use_target_splash( edict_t *self, edict_t *other, edict_t *activator, const
 void SP_target_splash(edict_t *self)
 {
     self->use = use_target_splash;
-    SVG_SetMoveDir(self->s.angles, self->movedir);
+    SVG_Util_SetMoveDir(self->s.angles, self->movedir);
 
     if (!self->count)
         self->count = 32;
@@ -341,7 +343,7 @@ void use_target_spawner( edict_t *self, edict_t *other, edict_t *activator, cons
     VectorCopy(self->s.angles, ent->s.angles);
     ED_CallSpawn(ent);
     gi.unlinkentity(ent);
-    KillBox(ent, false);
+    SVG_Util_KillBox(ent, false);
     gi.linkentity(ent);
     if (self->speed)
         VectorCopy(self->movedir, ent->velocity);
@@ -352,7 +354,7 @@ void SP_target_spawner(edict_t *self)
     self->use = use_target_spawner;
     self->svflags = SVF_NOCLIENT;
     if (self->speed) {
-        SVG_SetMoveDir(self->s.angles, self->movedir );
+        SVG_Util_SetMoveDir(self->s.angles, self->movedir );
         VectorScale(self->movedir, self->speed, self->movedir);
     }
 }
@@ -385,7 +387,7 @@ void use_target_blaster( edict_t *self, edict_t *other, edict_t *activator, cons
 void SP_target_blaster(edict_t *self)
 {
     self->use = use_target_blaster;
-    SVG_SetMoveDir(self->s.angles, self->movedir );
+    SVG_Util_SetMoveDir(self->s.angles, self->movedir );
     self->noise_index = gi.soundindex("weapons/laser2.wav");
 
     if (!self->dmg)
@@ -559,12 +561,12 @@ void target_laser_start(edict_t *self)
 
     if (!self->enemy) {
         if (self->targetNames.target) {
-            ent = SVG_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
+            ent = SVG_Find(NULL, FOFS_GENTITY(targetname), (const char *)self->targetNames.target);
             if (!ent)
                 gi.dprintf("%s at %s: %s is a bad target\n", self->classname, vtos(self->s.origin), self->targetNames.target);
             self->enemy = ent;
         } else {
-            SVG_SetMoveDir(self->s.angles, self->movedir );
+            SVG_Util_SetMoveDir(self->s.angles, self->movedir );
         }
     }
     self->use = target_laser_use;
@@ -624,19 +626,19 @@ void target_lightramp_use( edict_t *self, edict_t *other, edict_t *activator, co
         // check all the targets
         e = NULL;
         while (1) {
-            e = SVG_Find(e, FOFS_GENTITY(targetname), self->targetNames.target);
+            e = SVG_Find(e, FOFS_GENTITY(targetname), (const char *)self->targetNames.target);
             if (!e)
                 break;
-            if (strcmp(e->classname, "light") != 0) {
-                gi.dprintf("%s at %s ", self->classname, vtos(self->s.origin));
-                gi.dprintf("target %s (%s at %s) is not a light\n", self->targetNames.target, e->classname, vtos(e->s.origin));
+            if (strcmp( (const char *)e->classname, "light") != 0) {
+                gi.dprintf("%s at %s ", (const char *)self->classname, vtos(self->s.origin));
+                gi.dprintf("target %s (%s at %s) is not a light\n", (const char *)self->targetNames.target, (const char *)e->classname, vtos(e->s.origin));
             } else {
                 self->enemy = e;
             }
         }
 
         if (!self->enemy) {
-            gi.dprintf("%s target %s not found at %s\n", self->classname, self->targetNames.target, vtos(self->s.origin));
+            gi.dprintf("%s target %s not found at %s\n", (const char *)self->classname, (const char *)self->targetNames.target, vtos(self->s.origin));
             SVG_FreeEdict(self);
             return;
         }

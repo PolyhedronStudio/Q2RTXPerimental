@@ -17,9 +17,58 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // g_combat.c
 
-#include "svg_local.h"
+#include "svgame/svg_local.h"
 
 #define WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
+
+
+/**
+*   @brief
+**/
+static char *ClientTeam( edict_t *ent ) {
+    char *p;
+    static char value[ 512 ];
+
+    value[ 0 ] = 0;
+
+    if ( !ent->client )
+        return value;
+
+    strcpy( value, Info_ValueForKey( ent->client->pers.userinfo, "skin" ) );
+    p = strchr( value, '/' );
+    if ( !p )
+        return value;
+
+    if ( (int)( dmflags->value ) & DF_MODELTEAMS ) {
+        *p = 0;
+        return value;
+    }
+
+    // if ((int)(dmflags->value) & DF_SKINTEAMS)
+    return ++p;
+}
+
+/**
+*   @brief
+**/
+const bool SVG_OnSameTeam( edict_t *ent1, edict_t *ent2 ) {
+    char    ent1Team[ 512 ];
+    char    ent2Team[ 512 ];
+
+    if ( !( (int)( dmflags->value ) & ( DF_MODELTEAMS | DF_SKINTEAMS ) ) ) {
+        return false;
+    }
+
+    strcpy( ent1Team, ClientTeam( ent1 ) );
+    strcpy( ent2Team, ClientTeam( ent2 ) );
+
+    if ( strcmp( ent1Team, ent2Team ) == 0 )
+        return true;
+    return false;
+}
+
+
+
 /*
 ============
 SVG_CanDamage
@@ -102,7 +151,7 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
             if (coop->value && attacker->client)
                 attacker->client->resp.score++;
             // medics won't heal monsters that they kill themselves
-            if (strcmp(attacker->classname, "monster_medic") == 0)
+            if (strcmp( (const char *)attacker->classname, "monster_medic") == 0)
                 targ->owner = attacker;
         //}
     }
@@ -235,7 +284,7 @@ void M_ReactToDamage(edict_t *targ, edict_t *attacker)
     // it's the same base (walk/swim/fly) type and a different classname and it's not a tank
     // (they spray too much), get mad at them
     if ( ( ( targ->flags & (FL_FLY | FL_SWIM) ) == ( attacker->flags & (FL_FLY | FL_SWIM) ) ) &&
-        ( strcmp( targ->classname, attacker->classname ) != 0) ) {
+        ( strcmp( (const char *)targ->classname, (const char*)attacker->classname ) != 0) ) {
         if ( targ->enemy && targ->enemy->client ) {
             targ->oldenemy = targ->enemy;
         }
@@ -509,3 +558,6 @@ void SVG_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict
         }
     }
 }
+
+
+

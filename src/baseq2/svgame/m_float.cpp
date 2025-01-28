@@ -68,7 +68,7 @@ void floater_fire_blaster(edict_t *self)
     else
         effect = 0;
     AngleVectors(self->s.angles, forward, right, NULL);
-    SVG_ProjectSource(self->s.origin, monster_flash_offset[MZ2_FLOAT_BLASTER_1], forward, right, start);
+    SVG_Util_ProjectSource(self->s.origin, monster_flash_offset[MZ2_FLOAT_BLASTER_1], forward, right, start);
 
     VectorCopy(self->enemy->s.origin, end);
     end[2] += self->enemy->viewheight;
@@ -517,8 +517,8 @@ void floater_zap(edict_t *self)
     AngleVectors(self->s.angles, forward, right, NULL);
     //FIXME use a flash and replace these two lines with the commented one
     VectorSet(offset, 18.5f, -0.9f, 10);
-    SVG_ProjectSource(self->s.origin, offset, forward, right, origin);
-//  SVG_ProjectSource (self->s.origin, monster_flash_offset[flash_number], forward, right, origin);
+    SVG_Util_ProjectSource(self->s.origin, offset, forward, right, origin);
+//  SVG_Util_ProjectSource (self->s.origin, monster_flash_offset[flash_number], forward, right, origin);
 
     gi.sound(self, CHAN_WEAPON, sound_attack2, 1, ATTN_NORM, 0);
 

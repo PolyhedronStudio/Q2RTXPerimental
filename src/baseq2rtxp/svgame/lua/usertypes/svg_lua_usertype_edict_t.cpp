@@ -7,9 +7,13 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
+
+#include "svgame/entities/svg_entities_pushermove.h"
+
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_gamelib.hpp"
-#include "svgame/entities/svg_entities_pushermove.h"
+
 #include "svgame/lua/usertypes/svg_lua_usertype_edict_state_t.hpp"
 
 
@@ -190,7 +194,7 @@ const std::string lua_edict_t::get_string_classname( sol::this_state s ) const {
 	// Returns if invalid.
 	LUA_VALIDATE_EDICT_POINTER_RETVAL( "\0" );
 	// Return pointer to copy into std::string
-	return ( this->edict->classname ? this->edict->classname : "\0" );
+	return ( this->edict->classname ? (const char *)this->edict->classname : "\0" );
 }
 
 /**
@@ -200,7 +204,7 @@ const std::string lua_edict_t::get_string_target( sol::this_state s ) const {
 	// Returns if invalid.
 	LUA_VALIDATE_EDICT_POINTER_RETVAL( "" );
 	// Return pointer to copy into std::string
-	return ( this->edict->targetNames.target ? this->edict->targetNames.target : "" );
+	return ( this->edict->targetNames.target ? (const char *)this->edict->targetNames.target : "" );
 }
 /**
 *	@brief
@@ -213,7 +217,7 @@ void lua_edict_t::set_string_target( sol::this_state s, const char *luaStrTarget
 		this->edict->targetNames.target = nullptr;
 	}
 	// Assign new value.
-	this->edict->targetNames.target = SVG_CopyString( luaStrTarget );
+	this->edict->targetNames.target = SVG_Util_CopyString( luaStrTarget );
 }
 
 /**
@@ -223,7 +227,7 @@ const std::string lua_edict_t::get_string_targetname( sol::this_state s ) const 
 	// Returns if invalid.
 	LUA_VALIDATE_EDICT_POINTER_RETVAL( "\0" );
 	// Return pointer to copy into std::string
-	return ( this->edict->targetname ? this->edict->targetname : "\0" );
+	return ( this->edict->targetname ? (const char *)this->edict->targetname : "\0" );
 }
 /**
 *	@brief
@@ -236,10 +240,8 @@ void lua_edict_t::set_string_targetname( sol::this_state s, const char *luaStrTa
 		this->edict->targetname = nullptr;
 	}
 	// Assign new value.
-	this->edict->targetname = SVG_CopyString( luaStrTargetName );
+	this->edict->targetname = SVG_Util_CopyString( luaStrTargetName );
 }
-
-
 
 
 /***
@@ -255,6 +257,23 @@ void lua_edict_t::set_string_targetname( sol::this_state s, const char *luaStrTa
 *	@brief	Register a usertype for passing along edict_t into lua.
 **/
 void UserType_Register_Edict_t( sol::state &solState ) {
+	// Heap data.
+	const char *thisIsAConstCharPtr = "This is a const char* ptr :-)";
+	const int32_t constCharCount = strlen( thisIsAConstCharPtr );
+	// 
+	auto x = svg_lstring_t::from_char_str( thisIsAConstCharPtr );
+	gi.dprintf( "%s: CHARSTRING X(%s)\n", __func__, (char*)x );
+	x = "asdasd";
+	gi.dprintf( "%s: CHARSTRING X(%s)\n", __func__, (char *)x );
+	x = "new string data my mang";
+	auto y = x;
+	auto z = svg_lstring_t::from_char_str( "Hello World!" );
+	z = y;
+	gi.dprintf( "%s: CHARSTRING X(%s)\n", __func__, (char *)x );
+	gi.dprintf( "%s: CHARSTRING Y(%s)\n", __func__, (char *)y );
+	gi.dprintf( "%s: CHARSTRING Z(%s)\n", __func__, (char *)z );
+
+	//------------------------------------------------------
 	/**
 	*	Register 'User Type':
 	**/

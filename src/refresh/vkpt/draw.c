@@ -44,16 +44,21 @@ static drawStatic_t draw = {
 //! Total number of stretch pics.
 static int num_stretch_pics = 0;
 typedef struct {
-	float x, y;
-	float w, h;
-	float s, t;
-	float w_s, h_t;
-	uint32_t color, tex_handle;
-	float	pivot_x, pivot_y;
+	float x, y, w, h;		// 4 floats = 16 bytes.
+	float s, t, w_s, h_t;	// 4 floats = 16 bytes.
+	// 32 bytes up till here.
+	uint32_t color, tex_handle;	// 2 uint32_t	= 8 bytes.
+	float	pivot_x, pivot_y;	// 2 float		= 8 bytes.
+	// 48 bytes up till here.
 	// These are pads to keep memory properly aligned with GLSL.
-	float	angle, pad01;
-	float	pad02, pad03;
-	float	matTransform[16];
+	float	angle, pad01;	// 2 float = 8 bytes.
+	// 56 bytes up till here.
+	float	pad02, pad03;	// 2 float = 8 bytes.
+	// 64 bytes up till here.
+	//
+	// Now adding the matrix:
+	float	matTransform[16]; // 16 float = 64 bytes.
+	// Total: 128 bytes.
 } StretchPic_t;
 
 //! Not using global UBO b/c it's only filled when a world is drawn, but here we need it all the time

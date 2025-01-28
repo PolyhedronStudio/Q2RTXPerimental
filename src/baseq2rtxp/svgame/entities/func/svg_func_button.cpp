@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 #include "svgame/svg_lua.h"
 
 #include "svgame/entities/svg_entities_pushermove.h"
@@ -861,7 +862,7 @@ void button_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const
 **/
 void SP_func_button( edict_t *ent ) {
     // PushMove Entity Basics:
-    SVG_SetMoveDir( ent->s.angles, ent->movedir );
+    SVG_Util_SetMoveDir( ent->s.angles, ent->movedir );
     #if 0
     if ( ent->targetNames.movewith ) {
         ent->movetype = MOVETYPE_PUSH;

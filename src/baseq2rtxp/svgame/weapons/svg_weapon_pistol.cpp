@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 
+#include "svgame/player/svg_player_client.h"
 
 //! Enable to have the pistol auto reload when an empty clip occures while engaged in target aiming fire mode.
 //#define WEAPON_PISTOL_ENABLE_RELOAD_ON_AIMFIRE_EMPTY_CLIP

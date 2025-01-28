@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_misc.h"
+
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
 
@@ -60,7 +62,7 @@ void train_wait( edict_t *self ) {
         edict_t *ent;
 
         ent = self->targetEntities.target;
-        savetarget = ent->targetNames.target;
+        savetarget = (char *)ent->targetNames.target;
         ent->targetNames.target = ent->targetNames.path;
         SVG_UseTargets( ent, self->activator );
         ent->targetNames.target = savetarget;
@@ -104,9 +106,9 @@ again:
         return;
     }
 
-    ent = SVG_PickTarget( self->targetNames.target );
+    ent = SVG_PickTarget( (const char *)self->targetNames.target );
     if ( !ent ) {
-        gi.dprintf( "train_next: bad target %s\n", self->targetNames.target );
+        gi.dprintf( "train_next: bad target %s\n", (const char *)self->targetNames.target );
         return;
     }
 
@@ -164,9 +166,9 @@ void func_train_find( edict_t *self ) {
         gi.dprintf( "train_find: no target\n" );
         return;
     }
-    ent = SVG_PickTarget( self->targetNames.target );
+    ent = SVG_PickTarget( (const char *)self->targetNames.target );
     if ( !ent ) {
-        gi.dprintf( "train_find: target %s not found\n", self->targetNames.target );
+        gi.dprintf( "train_find: target %s not found\n", (const char *)self->targetNames.target );
         return;
     }
     self->targetNames.target = ent->targetNames.target;

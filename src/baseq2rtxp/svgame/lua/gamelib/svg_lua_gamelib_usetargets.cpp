@@ -189,8 +189,8 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 	int32_t useResult = 0; // USETARGET_DELAYED
 
 	// Doors fire area portals in a specific way
-	if ( !Q_stricmp( entity->classname, "func_areaportal" )
-		&& ( !Q_stricmp( entity->classname, "func_door" ) || !Q_stricmp( entity->classname, "func_door_rotating" ) ) ) {
+	if ( !Q_stricmp( (const char *)entity->classname, "func_areaportal" )
+		&& ( !Q_stricmp( (const char *)entity->classname, "func_door" ) || !Q_stricmp( (const char *)entity->classname, "func_door_rotating" ) ) ) {
 		return 0; // USETARGET_INVALID;
 	}
 
@@ -332,15 +332,15 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 
 	if ( entity->targetNames.target ) {
 		edict_t *fireTargetEntity = nullptr;
-		while ( ( fireTargetEntity = SVG_Find( fireTargetEntity, FOFS_GENTITY( targetname ), entity->targetNames.target ) ) ) {
+		while ( ( fireTargetEntity = SVG_Find( fireTargetEntity, FOFS_GENTITY( targetname ), (const char *)entity->targetNames.target ) ) ) {
 			// Doors fire area portals in a specific way
-			if ( !Q_stricmp( fireTargetEntity->classname, "func_areaportal" )
-				&& ( !Q_stricmp( entity->classname, "func_door" ) || !Q_stricmp( entity->classname, "func_door_rotating" ) ) ) {
+			if ( !Q_stricmp( (const char *)fireTargetEntity->classname, "func_areaportal" )
+				&& ( !Q_stricmp( (const char *)entity->classname, "func_door" ) || !Q_stricmp( (const char *)entity->classname, "func_door_rotating" ) ) ) {
 				continue;
 			}
 
 			if ( fireTargetEntity == entity ) {
-				gi.dprintf( "%s: entity(#%d, \"%s\") used itself!\n", __func__, entity->s.number, entity->classname );
+				gi.dprintf( "%s: entity(#%d, \"%s\") used itself!\n", __func__, entity->s.number, (const char *)entity->classname );
 			} else {
 				// Dispatch C use.
 				if ( fireTargetEntity->use ) {
@@ -370,7 +370,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 				}
 
 				if ( !entity->inuse ) {
-					gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, entity->classname );
+					gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, (const char *)entity->classname );
 					return -1; // USETARGET_INVALID
 				}
 			}

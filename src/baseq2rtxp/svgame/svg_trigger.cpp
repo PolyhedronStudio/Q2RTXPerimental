@@ -15,602 +15,261 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-#include "svg_local.h"
+#include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
+
+#include "svgame/svg_lua.h"
+#include "svgame/lua/svg_lua_gamelib.hpp"
+
 
 
 /**
-*	@brief	Basic Trigger initialization mechanism.
-**/
-void InitTrigger( edict_t *self ) {
-	if ( !VectorEmpty( self->s.angles ) ) {
-		SVG_SetMoveDir( self->s.angles, self->movedir );
-	}
-
-	self->solid = SOLID_TRIGGER;
-	self->movetype = MOVETYPE_NONE;
-	if ( self->model ) {
-		gi.setmodel( self, self->model );
-	}
-	self->svflags = SVF_NOCLIENT;
-}
-
-
-/***
 *
 *
-*	trigger_multiple
+*
+*   Utilities, common for UseTargets trigger system. (Also used in lua usetargets code.)
 *
 *
-***/
-static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_MONSTER = 1;
-static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_NOT_PLAYER = 2;
-static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_TRIGGERED = 4;
-static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP = 32;
-/**
-*	@brief	The wait time has passed, so set back up for another activation
+*
 **/
-void multi_wait( edict_t *ent ) {
-	ent->nextthink = 0_ms;
+/**
+*   @brief  Calls the (usually key/value field luaName).."_Use" matching Lua function.
+**/
+const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, edict_t *entity, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool verboseIfMissing ) {
+    if ( luaName.empty() ) {
+        return false;
+    }
+
+    // Generate function 'callback' name.
+    const std::string luaFunctionName = luaName + "_Use";
+    // Call if it exists.
+    if ( LUA_HasFunction( stateView, luaFunctionName ) ) {
+        // Create  lua edict handle structures to work with.
+        sol::userdata leEntity = sol::make_object<lua_edict_t>( stateView, lua_edict_t( entity ) );
+        sol::userdata leOther = sol::make_object<lua_edict_t>( stateView, lua_edict_t( other ) );
+        sol::userdata leActivator = sol::make_object<lua_edict_t>( stateView, lua_edict_t( activator ) );
+
+        // Call upon the function.
+        bool returnValue = false;
+        bool calledFunction = LUA_CallFunction(
+            stateView, luaFunctionName, returnValue,
+            ( verboseIfMissing ? LUA_CALLFUNCTION_VERBOSE_MISSING : LUA_CALLFUNCTION_VERBOSE_NOT ),
+            /*[lua args]:*/
+            leEntity, leOther, leActivator, useType, useValue
+        );
+        // Dispatched callback.
+        return returnValue;
+    }
+
+    // Didn't dispatch callback.
+    return false;
+}
+/**
+*   @brief  Centerprints the trigger message and plays a set sound, or default chat hud sound.
+**/
+void SVG_Trigger_PrintMessage( edict_t *self, edict_t *activator ) {
+    // If a message was set, the activator is not a monster, then center print it.
+    if ( ( self->message ) && !( activator->svflags & SVF_MONSTER ) ) {
+        // Print.
+        gi.centerprintf( activator, "%s", self->message );
+        // Play custom set audio.
+        if ( self->noise_index ) {
+            gi.sound( activator, CHAN_AUTO, self->noise_index, 1, ATTN_NORM, 0 );
+            // Play default "chat" hud sound.
+        } else {
+            gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+        }
+    }
+}
+/**
+*   @brief  Kills all entities matching the killtarget name.
+**/
+const int32_t SVG_Trigger_KillTargets( edict_t *self ) {
+    if ( self->targetNames.kill ) {
+        edict_t *killTargetEntity = nullptr;
+        while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS_GENTITY( targetname ), (const char *)self->targetNames.kill ) ) ) {
+            SVG_FreeEdict( killTargetEntity );
+            if ( !self->inuse ) {
+                gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, self->s.number, (const char *)self->classname );
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 
-/**
-*	@brief	The trigger was just activated
-*			ent->activator should be set to the activator so it can be held through a delay
-*			so wait for the delay time before firing
-**/
-void multi_trigger( edict_t *ent ) {
-	if ( ent->nextthink )
-		return;     // already been triggered
-
-	SVG_UseTargets( ent, ent->activator );
-
-	if ( ent->wait > 0 ) {
-		ent->think = multi_wait;
-		ent->nextthink = level.time + sg_time_t::from_sec( ent->wait );
-	} else {
-		// we can't just remove (self) here, because this is a touch function
-		// called while looping through area links...
-		ent->touch = NULL;
-		ent->nextthink = level.time + 10_hz;
-		ent->think = SVG_FreeEdict;
-	}
-}
 
 /**
-*	@brief	
+*
+*
+*
+*   UseTarget Functionality:
+*
+*
+*
 **/
-void Use_Multi( edict_t *ent, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-	ent->activator = activator;
-	multi_trigger( ent );
-}
-
+//! Maximum number of entities to pick target from.
+static constexpr int32_t PICKTARGET_MAX = 8;
 /**
-*	@brief
+*   @brief  Pick a random target of entities with a matching targetname.
 **/
-void Touch_Multi( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-	if ( other->client ) {
-		if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_NOT_PLAYER ) {
-			return;
-		}
-	} else if ( other->svflags & SVF_MONSTER ) {
-		if ( !( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_MONSTER ) ) {
-			return;
-		}
-	} else {
-		return;
-	}
+edict_t *SVG_PickTarget( const char *targetname ) {
+    edict_t *ent = NULL;
+    int     num_choices = 0;
+    edict_t *choice[ PICKTARGET_MAX ];
 
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
+    if ( !targetname ) {
+        gi.dprintf( "SVG_PickTarget called with NULL targetname\n" );
+        return NULL;
+    }
 
-		if ( clip.fraction == 1.0f ) {
-			return;
-		}
-	}
+    while ( 1 ) {
+        ent = SVG_Find( ent, FOFS_GENTITY( targetname ), targetname );
+        if ( !ent )
+            break;
+        choice[ num_choices++ ] = ent;
+        if ( num_choices == PICKTARGET_MAX )
+            break;
+    }
 
-	if ( !VectorEmpty( self->movedir ) ) {
-		vec3_t  forward;
+    if ( !num_choices ) {
+        gi.dprintf( "SVG_PickTarget: target %s not found\n", targetname );
+        return NULL;
+    }
 
-		AngleVectors( other->s.angles, forward, NULL, NULL );
-		if ( DotProduct( forward, self->movedir ) < 0 ) {
-			return;
-		}
-	}
-
-	self->activator = other;
-	multi_trigger( self );
+    return choice[ Q_rand_uniform( num_choices ) ];
 }
 
-/**
-*	@brief
-**/
-void trigger_enable( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-	self->solid = SOLID_TRIGGER;
-	self->use = Use_Multi;
-	gi.linkentity( self );
+
+
+void Think_UseTargetsDelay( edict_t *ent ) {
+    SVG_UseTargets( ent, ent->activator );
+    SVG_FreeEdict( ent );
 }
 
-/*QUAKED trigger_multiple (.5 .5 .5) ? MONSTER NOT_PLAYER TRIGGERED
-Variable sized repeatable trigger.  Must be targeted at one or more entities.
-If "delay" is set, the trigger waits some time after activating before firing.
-"wait" : Seconds between triggerings. (.2 default)
-sounds
-1)  secret
-2)  beep beep
-3)  large switch
-4)
-set "message" to text string
+/*
+==============================
+SVG_UseTargets
+
+the global "activator" should be set to the entity that initiated the firing.
+
+If self.delay is set, a DelayedUse entity will be created that will actually
+do the SUB_UseTargets after that many seconds have passed.
+
+Centerprints any self.message to the activator.
+
+Search for (string)targetname in all entities that
+match (string)self.target and call their .use function
+
+==============================
 */
-void SP_trigger_multiple( edict_t *ent ) {
-	if ( ent->sounds )
-		ent->noise_index = gi.soundindex( "hud/chat01.wav" );
-	//if ( ent->sounds == 1 )
-	//	ent->noise_index = gi.soundindex( "misc/secret.wav" );
-	//else if ( ent->sounds == 2 )
-	//	ent->noise_index = gi.soundindex( "misc/talk.wav" );
-	//else if ( ent->sounds == 3 )
-	//	ent->noise_index = gi.soundindex( "misc/trigger1.wav" );
+void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    //
+    // Check for a delay
+    //
+    if ( ent->delay ) {
+        // create a temp object to fire at a later time
+        edict_t *delayEntity = SVG_AllocateEdict();
+        delayEntity->classname = "DelayedUseTargets";
+        delayEntity->nextthink = level.time + sg_time_t::from_sec( ent->delay );
+        delayEntity->think = Think_UseTargetsDelay;
+        if ( !activator ) {
+            gi.dprintf( "Think_UseTargetsDelay with no activator\n" );
+        }
+        delayEntity->activator = activator;
+        delayEntity->other = ent->other;
+        delayEntity->message = ent->message;
 
-	if ( !ent->wait )
-		ent->wait = 0.2f;
+        delayEntity->targetNames.target = ent->targetNames.target;
+        delayEntity->targetNames.kill = ent->targetNames.kill;
 
-	// WID: Initialize triggers properly.
-	InitTrigger( ent );
+        delayEntity->luaProperties.luaName = ent->luaProperties.luaName;
+        delayEntity->delayed.useTarget.creatorEntity = ent;
+        delayEntity->delayed.useTarget.useType = useType;
+        delayEntity->delayed.useTarget.useValue = useValue;
 
-	ent->touch = Touch_Multi;
-	ent->movetype = MOVETYPE_NONE;
-	ent->svflags |= SVF_NOCLIENT;
+        return;
+    }
 
-	if ( ent->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_TRIGGERED ) {
-		ent->solid = SOLID_NOT;
-		ent->use = trigger_enable;
-	} else {
-		ent->solid = SOLID_TRIGGER;
-		ent->use = Use_Multi;
-	}
 
-	if ( !VectorEmpty( ent->s.angles ) )
-		SVG_SetMoveDir( ent->s.angles, ent->movedir );
+    //
+    // print the message
+    //
+    SVG_Trigger_PrintMessage( ent, activator );
 
-	gi.linkentity( ent );
+    //
+    // kill killtargets
+    //
+    SVG_Trigger_KillTargets( ent );
 
-	if ( ent->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP ) {
-		ent->svflags |= SVF_HULL;
-	}
+    //
+    // fire targets
+    //
+    if ( ent->targetNames.target ) {
+        edict_t *fireTargetEntity = nullptr;
+        while ( ( fireTargetEntity = SVG_Find( fireTargetEntity, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.target ) ) ) {
+            // Doors fire area portals in a specific way
+            if ( !Q_stricmp( (const char *)fireTargetEntity->classname, "func_areaportal" )
+                && ( !Q_stricmp( (const char *)ent->classname, "func_door" ) || !Q_stricmp( (const char *)ent->classname, "func_door_rotating" ) ) ) {
+                continue;
+            }
+
+            if ( fireTargetEntity == ent ) {
+                gi.dprintf( "%s: entity(#%d, \"%s\") used itself!\n", __func__, ent->s.number, (const char *)ent->classname );
+            } else {
+                if ( fireTargetEntity->use ) {
+                    fireTargetEntity->use( fireTargetEntity, ent, activator, useType, useValue );
+                }
+
+                if ( fireTargetEntity->luaProperties.luaName ) {
+                    // Generate function 'callback' name.
+                    const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
+                    // Get reference to sol lua state view.
+                    sol::state_view &solStateView = SVG_Lua_GetSolState();
+
+                    bool returnValue = false;
+                    const bool functionCalled = SVG_Trigger_DispatchLuaUseCallback( solStateView, fireTargetEntity->luaProperties.luaName,
+                        returnValue,
+                        fireTargetEntity, ent, activator, useType, useValue, true );
+                    //// Get function object.
+                    //sol::protected_function funcRefUse = solState[ luaFunctionName ];
+                    //// Get type.
+                    //sol::type funcRefType = funcRefUse.get_type();
+                    //// Ensure it matches, accordingly
+                    //if ( funcRefType != sol::type::function /*|| !funcRefSignalOut.is<std::function<void( Rest... )>>() */ ) {
+                    //    // Return if it is LUA_NOREF and luaState == nullptr again.
+                    //    // TODO: Error?
+                    //    return;
+                    //}
+
+                    //// Create lua userdata object references to the entities.
+                    //auto leSelf = sol::make_object<lua_edict_t>( solState, lua_edict_t( fireTargetEntity ) );
+                    //auto leOther = sol::make_object<lua_edict_t>( solState, lua_edict_t( ent ) );
+                    //auto leActivator = sol::make_object<lua_edict_t>( solState, lua_edict_t( activator ) );
+                    //// Fire SignalOut callback.
+                    //auto callResult = funcRefUse( leSelf, leOther, leActivator, useType, useValue );
+                    //// If valid, convert result to boolean.
+                    //if ( callResult.valid() ) {
+                    //    // Convert.
+                    //    bool signalHandled = callResult.get<bool>();
+                    //    // Debug print.
+                    //// We got an error:
+                    //} else {
+                    //    // Acquire error object.
+                    //    sol::error resultError = callResult;
+                    //    // Get error string.
+                    //    const std::string errorStr = resultError.what();
+                    //    // Print the error in case of failure.
+                    //    gi.bprintf( PRINT_ERROR, "%s: %s\n ", __func__, errorStr.c_str() );
+                    //}
+                }
+            }
+            if ( !ent->inuse ) {
+                gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, ent->s.number, (const char *)ent->classname );
+                return;
+            }
+        }
+    }
 }
-
-
-
-/***
-*
-*
-*	trigger_once
-*
-*
-***/
-static constexpr int32_t SPAWNFLAG_TRIGGER_ONCE_TRIGGERED = 4;
-
-/*QUAKED trigger_once (.5 .5 .5) ? x x TRIGGERED
-Triggers once, then removes itself.
-You must set the key "target" to the name of another object in the level that has a matching "targetname".
-
-If TRIGGERED, this trigger must be triggered before it is live.
-
-sounds
- 1) secret
- 2) beep beep
- 3) large switch
- 4)
-
-"message"   string to be displayed when triggered
-*/
-void SP_trigger_once( edict_t *ent ) {
-	// make old maps work because I messed up on flag assignments here
-	// triggered was on bit 1 when it should have been on bit 4
-	if ( ent->spawnflags & 1 ) {
-		vec3_t  v;
-
-		VectorMA( ent->mins, 0.5f, ent->size, v );
-		ent->spawnflags &= ~1;
-		ent->spawnflags |= SPAWNFLAG_TRIGGER_ONCE_TRIGGERED;
-		gi.dprintf( "fixed TRIGGERED flag on %s at %s\n", ent->classname, vtos( v ) );
-	}
-
-	ent->wait = -1;
-	SP_trigger_multiple( ent );
-}
-
-
-
-/***
-*
-*
-*	trigger_relay
-*
-*
-***/
-/**
-*	@brief
-**/
-void trigger_relay_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-	SVG_UseTargets( self, activator, useType, useValue );
-}
-
-/*QUAKED trigger_relay (.5 .5 .5) (-8 -8 -8) (8 8 8)
-This fixed size trigger cannot be touched, it can only be fired by other events.
-*/
-void SP_trigger_relay( edict_t *self ) {
-	self->use = trigger_relay_use;
-}
-
-
-
-/***
-*
-*
-*	trigger_counter
-*
-*
-***/
-static constexpr int32_t SPAWNPFLAG_TRIGGER_COUNTER_NO_MESSAGE = 1;
-
-/**
-*	@brief
-**/
-void trigger_counter_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-	if ( self->count == 0 ) {
-		return;
-	}
-
-	self->count--;
-
-	if ( self->count ) {
-		if ( !( self->spawnflags & SPAWNPFLAG_TRIGGER_COUNTER_NO_MESSAGE ) ) {
-			gi.centerprintf( activator, "%i more to go...", self->count );
-			gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
-		}
-		return;
-	}
-
-	if ( !( self->spawnflags & SPAWNPFLAG_TRIGGER_COUNTER_NO_MESSAGE ) ) {
-		gi.centerprintf( activator, "Sequence completed!" );
-		gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
-	}
-	self->activator = activator;
-	multi_trigger( self );
-}
-
-/*QUAKED trigger_counter (.5 .5 .5) ? nomessage
-Acts as an intermediary for an action that takes multiple inputs.
-
-If nomessage is not set, t will print "1 more.. " etc when triggered and "sequence complete" when finished.
-
-After the counter has been triggered "count" times (default 2), it will fire all of it's targets and remove itself.
-*/
-void SP_trigger_counter( edict_t *self ) {
-	self->wait = -1;
-	if ( !self->count ) {
-		self->count = 2;
-	}
-
-	self->use = trigger_counter_use;
-}
-
-
-
-/***
-*
-*
-*	trigger_always
-*
-*
-***/
-/*QUAKED trigger_always (.5 .5 .5) (-8 -8 -8) (8 8 8)
-This trigger will always fire.  It is activated by the world.
-*/
-void SP_trigger_always( edict_t *ent ) {
-	// we must have some delay to make sure our use targets are present
-	if ( !ent->delay ) {
-		ent->delay = 1.f;
-	}
-	SVG_UseTargets( ent, ent );
-}
-
-
-
-/***
-*
-*
-*	trigger_push
-*
-*
-***/
-static constexpr int32_t SPAWNFLAG_TRIGGER_PUSH_PUSH_ONCE	= 1;
-static constexpr int32_t SPAWNFLAG_TRIGGER_PUSH_BRUSH_CLIP	= 32;
-
-static int windsound = 0;
-
-/**
-*	@brief
-**/
-void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-	
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
-
-		if ( clip.fraction == 1.0f ) {
-			return;
-		}
-	}
-
-	if ( strcmp( other->classname, "grenade" ) == 0 ) {
-		VectorScale( self->movedir, self->speed * 10, other->velocity );
-	} else if ( other->health > 0 ) {
-		VectorScale( self->movedir, self->speed * 10, other->velocity );
-
-		if ( other->client ) {
-			// don't take falling damage immediately from this
-			VectorCopy( other->velocity, other->client->oldvelocity );
-			other->client->oldgroundentity = other->groundInfo.entity;
-
-			if ( other->fly_sound_debounce_time < level.time ) {
-				other->fly_sound_debounce_time = level.time + 1.5_sec;
-				gi.sound( other, CHAN_AUTO, windsound, 1, ATTN_NORM, 0 );
-			}
-		}
-	}
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_PUSH_ONCE ) {
-		SVG_FreeEdict( self );
-	}
-}
-
-
-/*QUAKED trigger_push (.5 .5 .5) ? PUSH_ONCE
-Pushes the player
-"speed"     defaults to 1000
-*/
-void SP_trigger_push( edict_t *self ) {
-	// WID: Initialize triggers properly.
-	InitTrigger( self );
-
-	if ( !windsound ) {
-		windsound = gi.soundindex( "misc/windfly.wav" );
-	}
-	self->touch = trigger_push_touch;
-	if ( !self->speed ) {
-		self->speed = 1000;
-	}
-	gi.linkentity( self );
-
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_BRUSH_CLIP ) {
-		self->svflags |= SVF_HULL;
-	}
-}
-
-
-
-/***
-*
-*
-*	trigger_hurt
-*
-*
-***/
-static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_START_OFF = 1;
-static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_TOGGLE = 2;
-static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_SILENT = 4;
-static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_NO_PROTECTION = 8;
-static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_SLOW_HURT = 16;
-static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP = 32;
-
-/**
-*	@brief
-**/
-void hurt_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-	if ( self->solid == SOLID_NOT ) {
-		self->solid = SOLID_TRIGGER;
-	} else {
-		self->solid = SOLID_NOT;
-	}
-	gi.linkentity( self );
-
-	if ( !( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_TOGGLE ) ) {
-		self->use = NULL;
-	}
-}
-
-/**
-*	@brief	
-**/
-void hurt_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-	entity_damageflags_t dflags;
-
-	if ( !other->takedamage ) {
-		return;
-	}
-
-	if ( self->timestamp > level.time ) {
-		return;
-	}
-
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
-
-		if ( clip.fraction == 1.0f ) {
-			return;
-		}
-	}
-
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_SLOW_HURT ) {
-		self->timestamp = level.time + 1_sec;
-	} else {
-		self->timestamp = level.time + 10_hz;
-	}
-
-	if ( !( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_SILENT ) ) {
-		if ( self->fly_sound_debounce_time < level.time ) {
-			gi.sound( other, CHAN_AUTO, self->noise_index, 1, ATTN_NORM, 0 );
-			self->fly_sound_debounce_time = level.time + 1_sec;
-		}
-	}
-
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_NO_PROTECTION )
-		dflags = DAMAGE_NO_PROTECTION;
-	else
-		dflags = DAMAGE_NONE;
-	SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, self->dmg, dflags, MEANS_OF_DEATH_TRIGGER_HURT );
-}
-
-/*QUAKED trigger_hurt (.5 .5 .5) ? START_OFF TOGGLE SILENT NO_PROTECTION SLOW
-Any entity that touches this will be hurt.
-
-It does dmg points of damage each server frame
-
-SILENT          supresses playing the sound
-SLOW            changes the damage rate to once per second
-NO_PROTECTION   *nothing* stops the damage
-
-"dmg"           default 5 (whole numbers only)
-
-*/
-void SP_trigger_hurt( edict_t *self ) {
-	// WID: Initialize triggers properly.
-	InitTrigger( self );
-
-	self->noise_index = gi.soundindex( "world/lashit01.wav" );
-	self->touch = hurt_touch;
-
-	if ( !self->dmg )
-		self->dmg = 5;
-
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_START_OFF )
-		self->solid = SOLID_NOT;
-	else
-		self->solid = SOLID_TRIGGER;
-
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_TOGGLE )
-		self->use = hurt_use;
-
-	gi.linkentity( self );
-
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP ) {
-		self->svflags |= SVF_HULL;
-	}
-}
-
-
-
-/***
-*
-*
-*	trigger_gravity
-*
-*
-***/
-static constexpr int32_t SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP = 32;
-
-/**
-*	@brief	Touch callback in order to change the gravity of 'other', the touching entity.
-**/
-void trigger_gravity_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
-
-		if ( clip.fraction == 1.0f ) {
-			return;
-		}
-	}
-
-	other->gravity = self->gravity;
-}
-
-/*QUAKED trigger_gravity (.5 .5 .5) ?
-Changes the touching entites gravity to
-the value of "gravity".  1.0 is standard
-gravity for the level.
-*/
-void SP_trigger_gravity( edict_t *self ) {
-	if ( st.gravity == NULL ) {
-		gi.dprintf( "trigger_gravity without gravity set at %s\n", vtos( self->s.origin ) );
-		SVG_FreeEdict( self );
-		return;
-	}
-
-	InitTrigger( self );
-
-	self->gravity = atof( st.gravity );
-	self->touch = trigger_gravity_touch;
-
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP ) {
-		self->svflags |= SVF_HULL;
-	}
-}
-
-
-/***
-*
-*
-*	trigger_monsterjump
-*
-*
-***/
-static constexpr int32_t SPAWNFLAG_TRIGGER_MONSTERJUMP_BRUSH_CLIP = 32;
-/**
-*	@brief	
-**/
-void trigger_monsterjump_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
-	if ( other->flags & ( FL_FLY | FL_SWIM ) ) {
-		return;
-	}
-	if ( other->svflags & SVF_DEADMONSTER ) {
-		return;
-	}
-	if ( !( other->svflags & SVF_MONSTER ) ) {
-		return;
-	}
-
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MONSTERJUMP_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
-
-		if ( clip.fraction == 1.0f ) {
-			return;
-		}
-	}
-
-	// set XY even if not on ground, so the jump will clear lips
-	other->velocity[ 0 ] = self->movedir[ 0 ] * self->speed;
-	other->velocity[ 1 ] = self->movedir[ 1 ] * self->speed;
-
-	if ( !other->groundInfo.entity ) {
-		return;
-	}
-
-	other->groundInfo.entity = nullptr;
-	other->velocity[ 2 ] = self->movedir[ 2 ];
-}
-
-/*QUAKED trigger_monsterjump (.5 .5 .5) ?
-Walking monsters that touch this will jump in the direction of the trigger's angle
-"speed" default to 200, the speed thrown forward
-"height" default to 200, the speed thrown upwards
-*/
-void SP_trigger_monsterjump( edict_t *self ) {
-	if ( !self->speed ) {
-		self->speed = 200;
-	}
-	if ( !st.height ) {
-		st.height = 200;
-	}
-	if ( self->s.angles[ YAW ] == 0 ) {
-		self->s.angles[ YAW ] = 360;
-	}
-	InitTrigger( self );
-	self->touch = trigger_monsterjump_touch;
-	self->movedir[ 2 ] = st.height;
-
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MONSTERJUMP_BRUSH_CLIP ) {
-		self->svflags |= SVF_HULL;
-	}
-}
-

@@ -1276,7 +1276,7 @@ void SVG_Player_PutInServer(edict_t *ent)
     } else
         client->resp.spectator = false;
 
-    if (!KillBox(ent, true)) {
+    if (!SVG_Util_KillBox(ent, true)) {
         // could't spawn in?
     }
 
@@ -1823,7 +1823,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         //    ent->client->landmark_noise_time = level.time + 100_ms;
         //}
 
-        //// [Paril-KEX] save old position for SVG_TouchProjectiles
+        //// [Paril-KEX] save old position for SVG_Util_TouchProjectiles
         //vec3_t old_origin = ent->s.origin;
         
         // [Paril-KEX] if we stepped onto/off of a ladder, reset the
@@ -1840,7 +1840,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
             }
         }
         
-        // [Paril-KEX] save old position for SVG_TouchProjectiles
+        // [Paril-KEX] save old position for SVG_Util_TouchProjectiles
         const Vector3 old_origin = ent->s.origin;
 
 		// Copy back into the entity, both the resulting origin and velocity.
@@ -1885,8 +1885,8 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         // PGM
 
 		if ( ent->movetype != MOVETYPE_NOCLIP ) {
-			SVG_TouchTriggers( ent );
-            SVG_TouchProjectiles( ent, old_origin );
+			SVG_Util_TouchTriggers( ent );
+            SVG_Util_TouchProjectiles( ent, old_origin );
 		}
 
         // Touch other objects

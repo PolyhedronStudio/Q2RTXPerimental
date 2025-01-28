@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "shared/util_list.h"
 
 
-// Should already have been defined by CMake for this ClientGame target.
+// Should already have been defined by CMake for this ServerGame target.
 //
 // Define SVGAME_INCLUDE so that game.h does not define the
 // short, server-visible gclient_t and edict_t structures,
@@ -29,42 +29,49 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SVGAME_INCLUDE
 #define SVGAME_INCLUDE
 #endif
+// Include the servergame import/export structures.
 #include "shared/svgame.h"
-
-// Extern here right after including shared/svgame.h
+/**
+*   Extern here right after including shared/svgame.h
+**/
+// Imported engine API and vars.
 extern svgame_import_t gi;
+// Exported game API and vars.
 extern svgame_export_t globals;
+
 
 // SharedGame includes:
 #include "../sharedgame/sg_shared.h"
+/**
+*   Extern here right after including sharedgame/sg_shared.h
+**/
+//! Frame time in seconds.
+extern sg_time_t FRAME_TIME_S;
+//! Frame time in miliseconds.
+extern sg_time_t FRAME_TIME_MS;
+// TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
+#undef max
+//! Just to, 'hold time', 'forever and ever'.
+constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64_t>::max() );
+//! For backwards compatibilities.
+#define FRAMETIME BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
 
 
 
+/**
+*
+*   ServerGame Configuration:
+*
+**/
 //! Features this game supports.
 static constexpr int32_t SVG_FEATURES = ( GMF_PROPERINUSE | GMF_WANT_ALL_DISCONNECTS );
 // The "gameversion" client command will print this plus compile date.
 static constexpr const char *GAMEVERSION = "BaseQ2RTXP";
 
+//! Number of entities reserved for display use of dead player bodies.
+static constexpr int32_t BODY_QUEUE_SIZE = 8;
 
 
-/***
-*
-* 
-*
-*   General
-*
-*
-* 
-***/
-// extern times.
-extern sg_time_t FRAME_TIME_S;
-extern sg_time_t FRAME_TIME_MS;
-
-// For backwards compatibilities.
-#define FRAMETIME BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
-
-//! Spawnflag type.
-typedef int32_t spawnflag_t;
 
 /**
 *	Memory tag IDs for specified group memory types, allowing for efficient cleanup of said group's memory.
@@ -76,6 +83,33 @@ static constexpr int32_t TAG_SVGAME_LEVEL = 766;
 //! Clear when loading a new level.
 static constexpr int32_t TAG_SVGAME_LUA = 767;
 
+
+
+/**
+*   String Utility Objects:
+**/
+// Simple wrapper around char, dynamic string block allocated in TAG_SVGAME_LEVEL.
+using svg_lstring_t = sg_qstring_t<char, TAG_SVGAME_LEVEL>;
+// Simple wrapper around char, dynamic string block allocated in TAG_SVGAME space.
+using svg_gstring_t = sg_qstring_t<char, TAG_SVGAME>;
+
+
+
+/***
+*
+* 
+*
+*   General:
+*
+*
+* 
+***/
+
+//! Spawnflag type.
+typedef int32_t spawnflag_t;
+
+
+
 /**
 *   Handedness values
 **/
@@ -86,16 +120,11 @@ static constexpr int32_t CENTER_HANDED = 2;
 /**
 *   Other:
 **/
-// TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
-#undef max
-//! Just to, 'hold time', 'forever and ever'.
-constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64_t>::max() );
 
 //! Actual Melee attack distance used for AI.
 static constexpr float AI_MELEE_DISTANCE = 80.f;
 
-//! Number of entities reserved for display use of dead player bodies.
-static constexpr int32_t BODY_QUEUE_SIZE = 8;
+
 
 
 
@@ -161,29 +190,45 @@ extern cvar_t *g_select_empty;
 
 
 /**
-*   Combat:
+*
+*
+*
+*   Common Includes:
+*
+*
+*
 **/
-//! Combat related enums etc.
+/**
+*   Combat related enums etc.
+**/
 #include "svgame/svg_combat.h"
 /**
-*   Entity UseTargets:
+*   Pusher/Mover- Move Info Data Structures:
 **/
-//! UseTargets related enums etc.
+#include "svgame/svg_pushmove_info.h"
+/**
+*   Signal I/O:
+**/
+#include "svgame/svg_signalio.h"
+/**
+*   UseTargets related enums etc.
+**/
 #include "svgame/svg_usetargets.h"
 /**
-*   Weaponry:
+*   Signal I/O:
+**/
+#include "svgame/svg_trigger.h"
+/**
+*   (Player-)Weapon Related.
 **/
 #include "svgame/svg_weapons.h"
+
 /**
-*   Items:
+*   Include items data structures.
 **/
-//! Include items data structures.
 #include "svgame/svg_game_items.h"
 //! For access all over.
 extern  gitem_t itemlist[];
-
-
-
 /**
 *   Include the GAME locals.
 **/
@@ -198,7 +243,6 @@ extern  int snd_fry;
 #include "svgame/svg_level_locals.h"
 //! Extern, access all over game dll code.
 extern level_locals_t level;
-
 /**
 *   SpawnTemp:
 **/
@@ -206,17 +250,6 @@ extern level_locals_t level;
 //! Extern, access all over game dll code.
 extern spawn_temp_t st;
 
-
-/***
-*
-* 
-*
-*   Pusher/Mover- Move Info Data Structures:
-*
-* 
-*
-**/
-#include "svgame/svg_pushmove_info.h"
 
 
 
@@ -229,27 +262,33 @@ extern spawn_temp_t st;
 * 
 * 
 **/
+//! For game entity fields.
 #define FOFS_GENTITY( field )       q_offsetof( edict_t, field )
+//! For game client fields.
 #define FOFS_GCLIENT( field )       q_offsetof( gclient_t, field )
+//! For game locals fields.
 #define FOFS_GAME_LOCALS( field )   q_offsetof( game_locals_t, field )
+//! For level locals fields.
 #define FOFS_LEVEL_LOCALS( field )  q_offsetof( level_locals_t, field )
+//! For spawn temp fields.
 #define FOFS_SPAWN_TEMP( field )    q_offsetof( spawn_temp_t, field )
 
+///**
+//*   @return
+//**/
+//static inline const float _frand() {
+//    return ( (int32_t)Q_rand() * 0x1p-32f + 0.5f );
+//}
+///**
+//*   @return 
+//**/
+//static inline const float _crand() {
+//    return ( (int32_t)Q_rand() * 0x1p-31f );
+//}
+
+//! Define.
 #define random()    frand()
 #define crandom()   crand()
-
-
-
-
-/**
-*	@return	True in case the current gamemode allows for saving the game.
-*			(This should only be true for single and cooperative play modes.)
-**/
-const bool SVG_GetGamemodeNoSaveGames( const bool isDedicatedServer );
-/**
-*   @brief  
-**/
-void SVG_Command_Score_f(edict_t *ent);
 
 
 
@@ -315,155 +354,8 @@ const bool Add_Ammo(edict_t *ent, const gitem_t *item, const int32_t count);
 **/
 void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
 
-//
-// g_utils.c
-//
-/**
-*   @brief
-**/
-const bool    KillBox( edict_t *ent, const bool bspClipping );
 
 
-
-/**
-*
-*
-*
-*   MoveWith Functionality:
-*
-*
-*
-**/
-/**
-*   @brief
-**/
-void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, edict_t *parentMover, edict_t *childMover );
-/**
-*   @brief
-**/
-//void SVG_MoveWith_Init( edict_t *self, edict_t *parent );
-/**
-*   @brief
-**/
-void SVG_MoveWith_SetChildEntityMovement( edict_t *self );
-/**
-*   @note   At the time of calling, parent entity has to reside in its default state.
-*           (This so the actual offsets can be calculated easily.)
-**/
-void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover );
-
-
-
-/**
-*
-*
-*
-*   Signals:
-*
-*
-*
-**/
-/**
-*   @brief  Describes the value type of a signal's argument.
-**/
-typedef enum {
-    //! Argument type wasn't set!
-    SIGNAL_ARGUMENT_TYPE_NONE = 0,
-
-    //! Boolean type.
-    SIGNAL_ARGUMENT_TYPE_BOOLEAN,
-    //! Integer type.
-    //SIGNAL_ARGUMENT_TYPE_INTEGER,
-    //! Double type.
-    SIGNAL_ARGUMENT_TYPE_NUMBER,
-    //! String type.
-    SIGNAL_ARGUMENT_TYPE_STRING,
-    //! (Nullptr) type.
-    SIGNAL_ARGUMENT_TYPE_NULLPTR,
-} svg_signal_argument_type_t;
-/**
-*   @brief  Holds a Signal's argument its key, type, as well as its value.
-**/
-typedef struct svg_signal_argument_s {
-    //! Type.
-    svg_signal_argument_type_t type;
-    //! Key index name of the argument for usage within the lua table.
-    const char *key;
-    //! Value.
-    union {
-        // Boolean representation.
-        bool boolean;
-        //! Integer representation.
-        int64_t integer;
-        //! Number(double) representation.
-        double number;
-        //! String representation.
-        const char *str;
-    } value;
-} svg_signal_argument_t;
-//! Typedef an std::vector for varying argument counts.
-typedef std::vector<svg_signal_argument_t> svg_signal_argument_array_t;
-
-/**
-*   @brief
-**/
-//void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments = nullptr, const int32_t numberOfSignalArguments = 0 );
-void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments = {} );
-
-
-
-/**
-*
-*
-*
-*   Utilities:
-*
-*
-*
-**/
-/**
-*   @brief  Wraps up the new more modern SVG_ProjectSource.
-**/
-void    SVG_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
-/**
-*   @brief  Project vector from source. 
-**/
-const Vector3 SVG_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
-
-/**
-*   @brief
-**/
-char *SVG_CopyString( const char *in );
-
-/**
-*   @brief
-**/
-void SVG_TouchTriggers( edict_t *ent );
-/**
-*   @brief
-**/
-void SVG_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
-/**
-*   @brief
-**/
-void SVG_TouchSolids( edict_t *ent );
-/**
-*   @brief
-**/
-
-/**
-*   @brief
-**/
-void SVG_SetMoveDir( vec3_t angles, Vector3 &movedir );
-
-/**
-*   @brief
-**/
-edict_t *SVG_PickTarget( char *targetname );
-/**
-*   @brief
-**/
-void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_type_t useType = entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, const int32_t useValue = 0 );
 
 
 
@@ -476,10 +368,6 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
 *
 * 
 **/
-
-//
-// g_monster.c
-//
 /**
 *   @brief
 **/
@@ -506,39 +394,6 @@ void M_CheckGround( edict_t *ent, const contents_t mask );
 void M_WorldEffects( edict_t *ent );
 
 
-//
-// g_misc.c
-//
-/**
-*   @brief
-**/
-void SVG_Misc_ThrowHead( edict_t *self, const char *gibname, int damage, int type );
-/**
-*   @brief
-**/
-void SVG_Misc_ThrowClientHead( edict_t *self, int damage );
-/**
-*   @brief
-**/
-void SVG_Misc_ThrowGib( edict_t *self, const char *gibname, int damage, int type );
-/**
-*   @brief
-**/
-void SVG_Misc_ThrowDebris( edict_t *self, const char *modelname, float speed, vec3_t origin );
-/**
-*   @brief
-**/
-void SVG_Misc_BecomeExplosion1( edict_t *self );
-
-#define CLOCK_MESSAGE_SIZE  16
-/**
-*   @brief
-**/
-void func_clock_think( edict_t *self );
-/**
-*   @brief
-**/
-void func_clock_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 /**
 *   Weapon:
@@ -560,167 +415,6 @@ void fire_bullet( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int ki
 *   @brief  Shoots shotgun pellets.  Used by shotgun and super shotgun.
 **/
 void fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, const sg_means_of_death_t meansOfDeath );
-
-
-/**
-*   Player:
-**/
-/**
-*   @brief
-**/
-void player_pain( edict_t *self, edict_t *other, float kick, int damage );
-/**
-*   @brief
-**/
-void player_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
-/**
-*   @brief  Will reset the entity client's 'Field of View' back to its defaults.
-**/
-void SVG_Player_ResetPlayerStateFOV( gclient_t *client );
-/**
-*   @brief  For SinglePlayer: Called only once, at game first initialization.
-*           For Multiplayer Modes: Called after each death, and level change.
-**/
-void SVG_Player_InitPersistantData( edict_t *ent, gclient_t *client );
-/**
-*   @brief  Clears respawnable client data, which stores the timing of respawn as well as a copy of
-*           the client persistent data, to reapply after respawn.
-**/
-void SVG_Player_InitRespawnData( gclient_t *client );
-/**
-*    @brief  Some information that should be persistant, like health, is still stored in the edict structure.
-*            So it needs to be mirrored out to the client structure before all the edicts are wiped.
-**/
-void SVG_Player_SaveClientData( void );
-/**
-*   @brief  Restore the client stored persistent data to reinitialize several client entity fields.
-**/
-void SVG_Player_RestoreClientData( edict_t *ent );
-/**
-*   @brief  Only called when pers.spectator changes.
-*   @note   That resp.spectator should be the opposite of pers.spectator here
-**/
-void SVG_Player_SelectSpawnPoint( edict_t *ent, Vector3 &origin, Vector3 &angles );
-/**
-*   @brief
-**/
-void SVG_Player_Obituary( edict_t *self, edict_t *inflictor, edict_t *attacker );
-/**
-*   @brief  Called either when a player connects to a server, OR respawns in a multiplayer game.
-*
-*           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
-*           saved entity and persistant data. (This includes actually raising the weapon up.)
-**/
-void SVG_Player_PutInServer( edict_t *ent );
-
-/**
-*   @brief
-**/
-void SVG_Client_RespawnPlayer( edict_t *self );
-/**
-*   @brief  Only called when pers.spectator changes.
-*   @note   That resp.spectator should be the opposite of pers.spectator here
-**/
-void SVG_Client_RespawnSpectator( edict_t *ent );
-/**
-*   @brief  called whenever the player updates a userinfo variable.
-*
-*           The game can override any of the settings in place
-*           (forcing skins or names, etc) before copying it off.
-**/
-void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo );
-
-
-
-/**
-* 
-* 
-* 
-*   Player Trail:
-* 
-* 
-* 
-**/
-/**
-*   @brief
-**/
-void PlayerTrail_Init( void );
-/**
-*   @brief
-**/
-void PlayerTrail_Add( vec3_t spot );
-/**
-*   @brief
-**/
-void PlayerTrail_New( vec3_t spot );
-/**
-*   @brief
-**/
-edict_t *PlayerTrail_PickFirst( edict_t *self );
-/**
-*   @brief
-**/
-edict_t *PlayerTrail_PickNext( edict_t *self );
-/**
-*   @brief
-**/
-edict_t *PlayerTrail_LastSpot( void );
-
-
-
-
-/**
-* 
-* 
-* 
-*   Server Commands:
-* 
-* 
-* 
-**/
-/**
-*   @brief  SVG_ServerCommand will be called when an "sv" command is issued.
-*           The game can issue gi.argc() / gi.argv() commands to get the rest
-*           of the parameters.
-**/
-void SVG_ServerCommand( void );
-/**
-*   @brief
-**/
-bool SVG_FilterPacket( char *from );
-
-
-
-/**
-* 
-* 
-* 
-*   View:
-* 
-* 
-* 
-**/
-/**
-*   @brief  This will be called once for each server frame, before running any other entities in the world.
-**/
-void SVG_Client_BeginServerFrame( edict_t *ent );
-/**
-*	@brief	Called for each player at the end of the server frame, and right after spawning.
-**/
-void SVG_Client_EndServerFrame( edict_t *ent );
-
-
-
-/**
-* 
-* 
-* 
-*   HUD:
-* 
-* 
-* 
-**/
-//#include "svgame/player/svg_player_hud.h"
 
 
 /**
@@ -749,24 +443,7 @@ void SVG_Impact( edict_t *e1, trace_t *trace );
 const contents_t SVG_GetClipMask( edict_t *ent );
 void SVG_RunEntity( edict_t *ent );
 
-
-
-/**
-* 
-* 
-* 
-*   ChaseCam:
-* 
-* 
-* 
-**/
-void SVG_ChaseCam_Update( edict_t *ent );
-void SVG_ChaseCam_Next( edict_t *ent );
-void SVG_ChaseCam_Previous( edict_t *ent );
-void SVG_ChaseCam_GetTarget( edict_t *ent );
 //============================================================================
-
-
 
 /**
 *   @brief  Stores the final ground information results.
@@ -826,13 +503,7 @@ QENUM_BIT_FLAGS( entity_flags_t );
 **/
 #include "svgame/svg_game_client.h"
 /**
-*
-* 
-*
 *   ServerGame Side Entity:
-* 
-* 
-* 
 **/
 #include "svgame/svg_game_edict.h"
 // Extern access.

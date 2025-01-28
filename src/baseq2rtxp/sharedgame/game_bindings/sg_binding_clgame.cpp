@@ -179,6 +179,12 @@ void *SG_Z_TagMalloc( const uint32_t size, const uint32_t tag ) {
 /**
 *	@brief
 **/
+void *SG_Z_TagReMalloc( void *ptr, const uint32_t size ) {
+	return clgi.TagReMalloc( ptr, size );
+}
+/**
+*	@brief
+**/
 void SG_Z_TagFree( void *block ) {
 	clgi.TagFree( block );
 }

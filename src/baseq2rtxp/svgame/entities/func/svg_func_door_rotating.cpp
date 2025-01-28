@@ -53,7 +53,7 @@ extern void door_postspawn( edict_t *self );
 /**
 *	@brief
 **/
-void SVG_SetMoveDir( vec3_t angles, Vector3 &movedir );
+void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir );
 void SP_func_door_rotating( edict_t *ent ) {
     //vec3_t  abs_movedir;
 
@@ -71,7 +71,7 @@ void SP_func_door_rotating( edict_t *ent ) {
     #if 0
     const bool isBothDirections = SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_BOTH_DIRECTIONS );
     if ( isBothDirections ) {
-        SVG_SetMoveDir( ent->s.angles, ent->pushMoveInfo.dir);
+        SVG_Util_SetMoveDir( ent->s.angles, ent->pushMoveInfo.dir);
     }
     #endif
 
@@ -105,7 +105,7 @@ void SP_func_door_rotating( edict_t *ent ) {
     VectorMA( ent->s.angles, distance, ent->movedir, ent->angles2 );
     ent->pushMoveInfo.distance = distance;
 
-    //SVG_SetMoveDir( ent->s.angles, ent->movedir );
+    //SVG_Util_SetMoveDir( ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;
     ent->s.renderfx |= RF_BRUSHTEXTURE_SET_FRAME_INDEX;

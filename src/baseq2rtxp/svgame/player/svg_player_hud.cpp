@@ -6,17 +6,21 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_game_items.h"
+#include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
 
 
-/*
-======================================================================
 
-INTERMISSION
-
-======================================================================
-*/
-
+/***
+*
+*
+*
+*   Intermission:
+*
+*
+*
+***/
 /**
 *   @brief
 **/
@@ -155,6 +159,17 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
 }
 
 
+
+/***
+*
+*
+*
+*   Scoreboard:
+*
+*
+*
+***/
+
 /**
 *   @brief
 **/
@@ -276,15 +291,10 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 #endif
 }
 
-
-/*
-==================
-DeathmatchScoreboard
-
-Draw instead of help message.
-Note that it isn't that hard to overflow the 1400 byte message limit!
-==================
-*/
+/**
+*   @brief  Draw instead of help message.
+*   @note that it isn't that hard to overflow the 1400 byte message limit!
+**/
 void SVG_HUD_DeathmatchScoreboard(edict_t *ent)
 {
     SVG_HUD_DeathmatchScoreboardMessage(ent, ent->enemy);
@@ -292,29 +302,9 @@ void SVG_HUD_DeathmatchScoreboard(edict_t *ent)
 }
 
 
-/*
-==================
-SVG_Cmd_Score_f
 
-Display the scoreboard
-==================
-*/
-void SVG_Command_Score_f(edict_t *ent)
-{
-    ent->client->showinventory = false;
-    ent->client->showhelp = false;
 
-    if (!deathmatch->value && !coop->value)
-        return;
 
-    if (ent->client->showscores) {
-        ent->client->showscores = false;
-        return;
-    }
-
-    ent->client->showscores = true;
-    SVG_HUD_DeathmatchScoreboard(ent);
-}
 
 //=======================================================================
 
@@ -503,6 +493,32 @@ void SVG_HUD_SetStats(edict_t *ent) {
 /**
 *   @brief
 **/
+void SVG_HUD_SetSpectatorStats( edict_t *ent ) {
+    gclient_t *cl = ent->client;
+
+    if ( !cl->chase_target )
+        SVG_HUD_SetStats( ent );
+
+    // If this function was called, enable spectator mode stats.
+    cl->ps.stats[ STAT_SPECTATOR ] = 1;
+
+    // layouts are independant in spectator
+    cl->ps.stats[ STAT_LAYOUTS ] = 0;
+    if ( cl->pers.health <= 0 || level.intermissionFrameNumber || cl->showscores )
+        cl->ps.stats[ STAT_LAYOUTS ] |= 1;
+    if ( cl->showinventory && cl->pers.health > 0 )
+        cl->ps.stats[ STAT_LAYOUTS ] |= 2;
+
+    if ( cl->chase_target && cl->chase_target->inuse )
+        cl->ps.stats[ STAT_CHASE ] = CS_PLAYERSKINS +
+        ( cl->chase_target - g_edicts ) - 1;
+    else
+        cl->ps.stats[ STAT_CHASE ] = 0;
+}
+
+/**
+*   @brief
+**/
 void SVG_HUD_CheckChaseStats(edict_t *ent)
 {
     int i;
@@ -516,31 +532,3 @@ void SVG_HUD_CheckChaseStats(edict_t *ent)
         SVG_HUD_SetSpectatorStats(g_edicts + i);
     }
 }
-
-/**
-*   @brief
-**/
-void SVG_HUD_SetSpectatorStats(edict_t *ent)
-{
-    gclient_t *cl = ent->client;
-
-    if (!cl->chase_target)
-        SVG_HUD_SetStats(ent);
-
-    // If this function was called, enable spectator mode stats.
-    cl->ps.stats[STAT_SPECTATOR] = 1;
-
-    // layouts are independant in spectator
-    cl->ps.stats[STAT_LAYOUTS] = 0;
-    if (cl->pers.health <= 0 || level.intermissionFrameNumber || cl->showscores)
-        cl->ps.stats[STAT_LAYOUTS] |= 1;
-    if (cl->showinventory && cl->pers.health > 0)
-        cl->ps.stats[STAT_LAYOUTS] |= 2;
-
-    if (cl->chase_target && cl->chase_target->inuse)
-        cl->ps.stats[STAT_CHASE] = CS_PLAYERSKINS +
-                                   (cl->chase_target - g_edicts) - 1;
-    else
-        cl->ps.stats[STAT_CHASE] = 0;
-}
-

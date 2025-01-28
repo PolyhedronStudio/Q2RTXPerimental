@@ -17,7 +17,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
-#include "svgame/svg_lua.h"
 
 
 
@@ -170,7 +169,7 @@ static edict_t *SelectCoopSpawnPoint( edict_t *ent ) {
         if ( !spot )
             return NULL;    // we didn't have enough...
 
-        target = spot->targetname;
+        target = (const char *)spot->targetname;
         if ( !target )
             target = "";
         if ( Q_stricmp( game.spawnpoint, target ) == 0 ) {
@@ -214,7 +213,7 @@ void SVG_Player_SelectSpawnPoint( edict_t *ent, Vector3 &origin, Vector3 &angles
                 continue;
 
             // Break out in case we found the game.spawnpoint matching info_player_start 'targetname'.
-            if ( Q_stricmp( game.spawnpoint, spot->targetname ) == 0 )
+            if ( Q_stricmp( game.spawnpoint, (const char *)spot->targetname ) == 0 )
                 break;
         }
 

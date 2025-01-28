@@ -308,7 +308,7 @@ void parasite_drain_attack(edict_t *self)
 
     AngleVectors(self->s.angles, f, r, NULL);
     VectorSet(offset, 24, 0, 6);
-    SVG_ProjectSource(self->s.origin, offset, f, r, start);
+    SVG_Util_ProjectSource(self->s.origin, offset, f, r, start);
 
     VectorCopy(self->enemy->s.origin, end);
     if (!parasite_drain_attack_ok(start, end)) {
