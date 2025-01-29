@@ -1278,7 +1278,7 @@ struct edict_s {
     int32_t     max_health;
     int32_t     gib_health;
     int32_t     lifeStatus;
-    sg_time_t   show_hostile;
+    sg_time_t   show_hostile_time;
 
 	sg_time_t   powerarmor_time;
 

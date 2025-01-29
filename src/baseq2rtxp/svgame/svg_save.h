@@ -40,6 +40,9 @@ enum fieldtype_t : int32_t {
 	F_FUNCTION,
 	F_POINTER,
 
+	// WID: TODO: Store signal args array.
+	//F_SIGNAL_ARGUMENTS,
+
 	F_IGNORE,
 
 	// WID: This was from Q2RTX 1.7.0
@@ -65,6 +68,7 @@ enum ptr_type_t : int32_t {
     P_blocked,
     P_touch,
     P_use,
+	P_onsignalin,
     P_pain,
     P_die,
 

@@ -260,11 +260,12 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, gclient_t *client, const bool p
     }
 
     if ( SVG_IsActiveEntity( currentTargetEntity ) ) {
-        gi.dprintf( "targetname(\"%s\", %d)target(\"%s\", %d)\n", 
+        gi.dprintf( "targetname(\"%s\", %d)target(\"%s\", %d), isLocked(%s)\n", 
             currentTargetEntity->targetname.ptr, 
             currentTargetEntity->targetname.count,
             currentTargetEntity->targetNames.target.ptr, 
-            currentTargetEntity->targetNames.target.count
+            currentTargetEntity->targetNames.target.count,
+            currentTargetEntity->pushMoveInfo.lockState.isLocked ? "true" : "false"
         );
         int x = 10;
     }

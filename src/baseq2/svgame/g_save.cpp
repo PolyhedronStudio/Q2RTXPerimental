@@ -177,7 +177,7 @@ static const save_field_t entityfields[] = {
     I(max_health),
     I(gib_health),
     I(lifeStatus),
-    I64(show_hostile),
+    I64(show_hostile_time),
 
     I64( powerarmor_time ), // WID: 64-bit-frame
 

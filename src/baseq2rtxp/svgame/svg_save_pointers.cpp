@@ -59,6 +59,10 @@ extern mmove_t soldier_move_walk2;
 void LUA_Think_UseTargetDelay( edict_t *entity );
 void LUA_Think_SignalOutDelay( edict_t *entity );
 
+void button_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
+void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
+void rotating_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
+
 extern void SP_monster_testdummy_puppet( edict_t *self );
 extern void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 extern void monster_testdummy_puppet_think( edict_t *self );
@@ -268,6 +272,12 @@ const save_ptr_t save_ptrs[] = {
 #endif
 
 // <Q2RTXP>
+// OnSignalIn
+{ P_onsignalin, ( void * )button_onsignalin },
+{ P_onsignalin, (void *)door_onsignalin },
+{ P_onsignalin, (void *)rotating_onsignalin },
+
+
 { P_die, (void *)monster_testdummy_puppet_die },
 { P_think, (void *)monster_testdummy_puppet_think },
 { P_touch, (void *)monster_testdummy_puppet_touch },

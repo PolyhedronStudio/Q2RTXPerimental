@@ -78,7 +78,9 @@ typedef struct {
 
 static const save_field_t entityfields[] = {
 #define _OFS FOFS_GENTITY
-    // [entity_state_s]:
+    /**
+    *   Server Edict Entity State Data:
+    **/
     I( s.number ),
     //S( s.client ),
     I( s.entityType ),
@@ -115,7 +117,9 @@ static const save_field_t entityfields[] = {
     F( s.spotlight.angle_width ),
     F( s.spotlight.angle_falloff ),
 
-    // [...]
+    /**
+    *   Server Edict Data:
+    **/
     I( svflags ),
     V( mins ),
     V( maxs ),
@@ -127,21 +131,38 @@ static const save_field_t entityfields[] = {
     I( hullContents ),
     E( owner ),
 
+    /**
+    *   Start of Game Edict data:
+    **/
     I( spawn_count ),
-    I( movetype ),
-    I( flags ),
+    I64( freetime ),
+    I64( timestamp ),
 
-    L( model ),
-    I64( freetime ), // WID: 64-bit-frame
-
-    L( message ),
     LQSTR( classname ),
-    I( spawnflags ),
-
-    I64( timestamp ), // WID: 64-bit-frame FT(timestamp),
-
+    L( model ),
     F( angle ),
 
+    I( spawnflags ),
+    I( flags ),
+
+    /**
+    *   Health/Body Status Conditions:
+    **/
+    I( health ),
+    I( max_health ),
+    I( gib_health ),
+    I( lifeStatus ),
+    I( takedamage ),
+
+    /**
+    *   UseTarget Properties and State:
+    **/
+    I( useTarget.flags ),
+    I( useTarget.state ),
+
+    /**
+    *   Target Name Fields:
+    **/
     LQSTR( targetname ),
     LQSTR( targetNames.target ),
     LQSTR( targetNames.kill ),
@@ -150,28 +171,120 @@ static const save_field_t entityfields[] = {
     LQSTR( targetNames.death ),
     LQSTR( targetNames.movewith ),
 
+    /**
+    *   Target Entities:
+    **/
     E( targetEntities.target ),
     E( targetEntities.movewith ),
 
+    /**
+    *   Lua Properties:
+    **/
+    L( luaProperties.luaName ),
+
+    /**
+    *   "Delay" entities:
+    **/
+    E( delayed.useTarget.creatorEntity ),
+    I( delayed.useTarget.useType ),
+    I( delayed.useTarget.useValue ),
+    E( delayed.signalOut.creatorEntity ),
+    SZ( delayed.signalOut.name, 256 ),
+    // WID: TODO: We can't save these with a system like these, can we?
+    // WID: We can I guess, but it requires a specified save type for signal argument array indices.
+    //SIGNALARGUMENTS( delayed.signalOut.arguments ),
+
+    /**
+    *   Physics Related:
+    **/
+    V( moveWith.absoluteOrigin ),
+    V( moveWith.originOffset ),
+    V( moveWith.relativeDeltaOffset ),
+    V( moveWith.spawnDeltaAngles ),
+    V( moveWith.spawnParentAttachAngles ),
+    V( moveWith.totalVelocity ),
+    E( moveWith.parentMoveEntity ),
+    E( moveWith.moveNextEntity),
+
+    I( movetype ),
+    V( velocity ),
+    V( avelocity ),
+    I( viewheight ),
+
+    // WID: Are these actually needed? Would they not be recalculated the first frame around?
+    // WID: TODO: mm_ground_info_t
+    // WID: TODO: mm_liquid_info_t
+    I( mass ),
+    F( gravity ),
+
+    /**
+    *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
+    **/
+    // Start/End Data:
+    V( pushMoveInfo.startOrigin ),
+    V( pushMoveInfo.startAngles ),
+    V( pushMoveInfo.endOrigin ),
+    V( pushMoveInfo.endAngles ),
+    I( pushMoveInfo.startFrame ),
+    I( pushMoveInfo.endFrame ),
+    // Dynamic State Data
+    I( pushMoveInfo.state ),
+    V( pushMoveInfo.dir ),
+    V( pushMoveInfo.dest ),
+    O( pushMoveInfo.in_motion ),
+    F( pushMoveInfo.current_speed ),
+    F( pushMoveInfo.move_speed ),
+    F( pushMoveInfo.next_speed ),
+    F( pushMoveInfo.remaining_distance ),
+    F( pushMoveInfo.decel_distance ),
+    //  Acceleration Data.
+    F( pushMoveInfo.accel ),
+    F( pushMoveInfo.speed ),
+    F( pushMoveInfo.decel ),
+    F( pushMoveInfo.distance ),
+    F( pushMoveInfo.wait ),
+    // Curve.
+    V( pushMoveInfo.curve.referenceOrigin ),
+    //I64( pushMoveInfo.curve.countPositions ),
+    // WID: TODO: This is problematic with this save system, size has to be dynamic in the future.
+    //FA( pushMoveInfo.curve.positions, 1024 ),
+    I64( pushMoveInfo.curve.frame ),
+    I64( pushMoveInfo.curve.subFrame ),
+    I64( pushMoveInfo.curve.numberSubFrames ),
+    I64( pushMoveInfo.curve.numberFramesDone ),
+    // LockState
+    O( pushMoveInfo.lockState.isLocked ),
+    I( pushMoveInfo.lockState.lockedSound ),
+    I( pushMoveInfo.lockState.lockingSound ),
+    I( pushMoveInfo.lockState.unlockingSound ),
+    // Sounds
+    I( pushMoveInfo.sounds.start ),
+    I( pushMoveInfo.sounds.middle ),
+    I( pushMoveInfo.sounds.end ),
+    // Callback
+    P( pushMoveInfo.endMoveCallback, P_pusher_moveinfo_endmovecallback ),
+    // Movewith
+    V( pushMoveInfo.lastVelocity ),
+    // WID: Are these actually needed? Would they not be recalculated the first frame around?
+    // WID: TODO: PushmoveInfo
     F( speed ),
     F( accel ),
     F( decel ),
+
     V( movedir ),
     V( pos1 ),
+    V( angles1 ),
     V( pos2 ),
-
-    V( velocity ),
-    V( avelocity ),
-    I( mass ),
-    I64( air_finished_time ), // WID: 64-bit-frame FT(air_finished_time), FT(air_finished_time),
-    F( gravity ),
-
-    E( goalentity ),
+    V( angles2 ),
+    V( lastOrigin ),
+    V( lastAngles ),
     E( movetarget ),
-    F( yaw_speed ),
-    F( ideal_yaw ),
 
+    /**
+    *   NextThink AND Entity Callbacks:
+    **/
     I64( nextthink ),
+
     P( postspawn, P_postspawn ),
     P( prethink, P_prethink ),
     P( think, P_think ),
@@ -180,24 +293,84 @@ static const save_field_t entityfields[] = {
     P( touch, P_touch ),
     P( use, P_use ),
     P( pain, P_pain ),
+    P( onsignalin, P_onsignalin ),
     P( die, P_die ),
 
-    I64( touch_debounce_time ),		// WID: 64-bit-frame FT(touch_debounce_time),
-    I64( pain_debounce_time ),		// WID: 64-bit-frame FT(pain_debounce_time),
-    I64( damage_debounce_time ),	// WID: 64-bit-frame FT(damage_debounce_time),
-    I64( fly_sound_debounce_time ),	// WID: 64-bit-frame FT(fly_sound_debounce_time),
-    I64( last_move_time ),			// WID: 64-bit-frame FT(last_move_time),
+    /**
+    *   Entity Pointers:
+    **/
+    E( enemy ),
+    E( oldenemy ),
+    E( goalentity ),
+    E( chain ),
+    E( teamchain ),
+    E( teammaster ),
+    E( activator ),
+    E( other ),
 
-    I( health ),
-    I( max_health ),
-    I( gib_health ),
-    I( lifeStatus ),
-    I64( show_hostile ),
+    /**
+    *   Light Data:
+    **/
+    I( style ),
+    L( customLightStyle ),
 
+    /**
+    *   Item Data:
+    **/
+    T( item ),
+
+    /**
+    *   Monster Data:
+    **/
+    F( yaw_speed ),
+    F( ideal_yaw ),
+
+    /**
+    *   Player Noise/Trail:
+    **/
+    E( mynoise ),
+    E( mynoise2 ),
+
+    I( noise_index ),
+    I( noise_index2 ),
+
+    /**
+    *   Sound Data:
+    **/
+    F( volume ),
+    F( attenuation ),
+    I64( last_sound_time ),
+
+    /**
+    *   Trigger(s) Data:
+    **/
+    L( message ),
+    F( wait ),
+    F( delay ),
+
+    // WID: TODO: Fix this, wtf at the name of plain 'random'.
+    #undef random
+    F( random ),
+
+    /**
+    *   Timers Data:
+    **/
+    I64( air_finished_time ),
+    I64( damage_debounce_time ),
+    I64( fly_sound_debounce_time ),
+    I64( last_move_time ),
+    I64( touch_debounce_time ),
+    I64( pain_debounce_time ),
+    I64( show_hostile_time ),
+    I64( trail_time ),
+
+
+    /**
+    *   Various Data:
+    **/
+    I( meansOfDeath ),
     L( map ),
 
-    I( viewheight ),
-    I( takedamage ),
     I( dmg ),
     I( radius_dmg ),
     F( dmg_radius ),
@@ -205,64 +378,12 @@ static const save_field_t entityfields[] = {
     I( sounds ),
     I( count ),
 
-    E( chain ),
-    E( enemy ),
-    E( oldenemy ),
-    E( activator ),
-    E( groundInfo.entity ),
-    I( groundInfo.entityLinkCount ),
-    E( teamchain ),
-    E( teammaster ),
 
-    E( mynoise ),
-    E( mynoise2 ),
-
-    I( noise_index ),
-    I( noise_index2 ),
-    F( volume ),
-    F( attenuation ),
-
-    F( wait ),
-    F( delay ),
-    F( random ),
-
-    I64( last_sound_time ), // WID: 64-bit-frame  FT(last_sound_time),
-
-    I( liquidInfo.type ),
-    I( liquidInfo.level ),
-
+    /**
+    *   Only used for g_turret.cpp - WID: Remove?:
+    **/
     V( move_origin ),
     V( move_angles ),
-
-    I( style ),
-    L( customLightStyle ),
-
-    T( item ),
-
-    V( pushMoveInfo.startOrigin ),
-    V( pushMoveInfo.startAngles ),
-    V( pushMoveInfo.endOrigin ),
-    V( pushMoveInfo.endAngles ),
-
-    I( pushMoveInfo.sounds.start ),
-    I( pushMoveInfo.sounds.middle ),
-    I( pushMoveInfo.sounds.end ),
-
-    F( pushMoveInfo.accel ),
-    F( pushMoveInfo.speed ),
-    F( pushMoveInfo.decel ),
-    F( pushMoveInfo.distance ),
-
-    F( pushMoveInfo.wait ),
-
-    I( pushMoveInfo.state ),
-    V( pushMoveInfo.dir ),
-    F( pushMoveInfo.current_speed ),
-    F( pushMoveInfo.move_speed ),
-    F( pushMoveInfo.next_speed ),
-    F( pushMoveInfo.remaining_distance ),
-    F( pushMoveInfo.decel_distance ),
-    P( pushMoveInfo.endMoveCallback, P_pusher_moveinfo_endmovecallback ),
 
     // WID: TODO: Monster Reimplement.
     //P( monsterinfo.currentmove, P_monsterinfo_currentmove ),
@@ -1317,6 +1438,6 @@ void SVG_ReadLevel(const char *filename)
     }
 
     // Connect all movewith entities.
-    SVG_MoveWith_FindParentTargetEntities();
+    //SVG_MoveWith_FindParentTargetEntities();
 }
 

@@ -407,7 +407,7 @@ struct edict_s {
     sg_time_t   last_move_time;
     sg_time_t   touch_debounce_time;        // are all these legit?  do we need more/less of them?
     sg_time_t   pain_debounce_time;
-    sg_time_t   show_hostile;
+    sg_time_t   show_hostile_time;
     //! Used for player trail.
     sg_time_t   trail_time;
 
