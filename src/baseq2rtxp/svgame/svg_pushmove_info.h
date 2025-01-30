@@ -82,8 +82,8 @@ typedef struct {
         //! Number of curve positions.
         uint64_t countPositions;
         //! Dynamically (re-)allocated in-game.
-        float *positions;
-        //savable_allocated_memory_t<float, TAG_LEVEL> curve.positions;
+        //float *positions;
+        sg_qtag_memory_t<float, TAG_SVGAME_LEVEL> positions;
         //float positions[ 1024 ]; // WID:TODO: Make saveable dynamic alloc block.
         // Frame index.
         uint64_t frame;

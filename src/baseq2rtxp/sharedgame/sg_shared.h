@@ -143,7 +143,7 @@ const sg_skm_rootmotion_set_t SG_SKM_GenerateRootMotionSet( const model_t *skm, 
 
 /**
 *
-*	Zone (Tag-)Malloc:
+*	Zone (Tag-)Malloc and scoped ptr object wrap utilities:
 *
 **/
 /**
@@ -164,7 +164,8 @@ void SG_Z_TagFree( void *block );
 void SG_Z_TagFree( const uint32_t tag );
 
 // We need these for this.
-#include "sharedgame/sg_qstring.h"
+#include "sharedgame/sg_qstring.hpp"
+#include "sharedgame/sg_qtag_memory.hpp"
 
 
 

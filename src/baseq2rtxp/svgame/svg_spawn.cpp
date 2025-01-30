@@ -232,24 +232,24 @@ static const spawn_func_t spawn_funcs[] = {
 **/
 static const spawn_field_t spawn_fields[] = {
 	// ET_GENERIC:
-	{"classname", FOFS_GENTITY( classname ), F_LQSTRING},
+	{"classname", FOFS_GENTITY( classname ), F_LEVEL_QSTRING},
 	{"model", FOFS_GENTITY( model ), F_LSTRING},
 	{"spawnflags", FOFS_GENTITY( spawnflags ), F_INT},
 	{"speed", FOFS_GENTITY( speed ), F_FLOAT},
 	{"accel", FOFS_GENTITY( accel ), F_FLOAT},
 	{"decel", FOFS_GENTITY( decel ), F_FLOAT},
-	{"target", FOFS_GENTITY( targetNames.target ), F_LQSTRING},
-	{"targetname", FOFS_GENTITY( targetname ), F_LQSTRING},
-	{"path", FOFS_GENTITY( targetNames.path ), F_LQSTRING},
-	{"death", FOFS_GENTITY( targetNames.death ), F_LQSTRING},
-	{"kill", FOFS_GENTITY( targetNames.kill ), F_LQSTRING},
+	{"target", FOFS_GENTITY( targetNames.target ), F_LEVEL_QSTRING},
+	{"targetname", FOFS_GENTITY( targetname ), F_LEVEL_QSTRING},
+	{"path", FOFS_GENTITY( targetNames.path ), F_LEVEL_QSTRING},
+	{"death", FOFS_GENTITY( targetNames.death ), F_LEVEL_QSTRING},
+	{"kill", FOFS_GENTITY( targetNames.kill ), F_LEVEL_QSTRING},
     {"message", FOFS_GENTITY( message ), F_LSTRING},
-	{"team", FOFS_GENTITY( targetNames.team ), F_LQSTRING},
+	{"team", FOFS_GENTITY( targetNames.team ), F_LEVEL_QSTRING},
 	{"wait", FOFS_GENTITY( wait ), F_FLOAT},
 	{"delay", FOFS_GENTITY( delay ), F_FLOAT},
 	{"random", FOFS_GENTITY( random ), F_FLOAT},
-	{"move_origin", FOFS_GENTITY( move_origin ), F_VECTOR},
-	{"move_angles", FOFS_GENTITY( move_angles ), F_VECTOR},
+	{"move_origin", FOFS_GENTITY( move_origin ), F_VECTOR3},
+	{"move_angles", FOFS_GENTITY( move_angles ), F_VECTOR3},
 	{"style", FOFS_GENTITY( style ), F_INT},
 	{"count", FOFS_GENTITY( count ), F_INT},
     {"maxhealth", FOFS_GENTITY( max_health ), F_INT},
@@ -261,18 +261,18 @@ static const spawn_field_t spawn_fields[] = {
 	{"volume", FOFS_GENTITY( volume ), F_FLOAT},
 	{"attenuation", FOFS_GENTITY( attenuation ), F_FLOAT},
 	{"map", FOFS_GENTITY( map ), F_LSTRING},
-	{"origin", FOFS_GENTITY( s.origin ), F_VECTOR},
-	{"angles", FOFS_GENTITY( s.angles ), F_VECTOR},
+	{"origin", FOFS_GENTITY( s.origin ), F_VECTOR3},
+	{"angles", FOFS_GENTITY( s.angles ), F_VECTOR3},
 	{"angle", FOFS_GENTITY( s.angles ), F_ANGLEHACK},
 
     // <Q2RTXP>:
     // MoveWith:
-    { "movewith", FOFS_GENTITY( targetNames.movewith ), F_LQSTRING },
+    { "movewith", FOFS_GENTITY( targetNames.movewith ), F_LEVEL_QSTRING },
     // Lua:
     { "luaName", FOFS_GENTITY( luaProperties.luaName ), F_LSTRING },
     // (Spot-)light:
     {"customLightStyle", FOFS_GENTITY( customLightStyle ), F_LSTRING},
-    {"rgb", FOFS_GENTITY( s.spotlight.rgb ), F_VECTOR},
+    {"rgb", FOFS_GENTITY( s.spotlight.rgb ), F_VECTOR3},
 	{"intensity", FOFS_GENTITY( s.spotlight.intensity ), F_FLOAT},
 	{"angle_width", FOFS_GENTITY( s.spotlight.angle_width ), F_FLOAT},
 	{"angle_falloff", FOFS_GENTITY( s.spotlight.angle_falloff ), F_FLOAT},
@@ -300,7 +300,7 @@ static const spawn_field_t temp_fields[] = {
     {"sky", FOFS_SPAWN_TEMP(sky), F_LSTRING},
     {"skyrotate", FOFS_SPAWN_TEMP(skyrotate), F_FLOAT},
     {"skyautorotate", FOFS_SPAWN_TEMP(skyautorotate), F_INT},
-    {"skyaxis", FOFS_SPAWN_TEMP(skyaxis), F_VECTOR},
+    {"skyaxis", FOFS_SPAWN_TEMP(skyaxis), F_VECTOR3},
     {"minyaw", FOFS_SPAWN_TEMP(minyaw), F_FLOAT},
     {"maxyaw", FOFS_SPAWN_TEMP(maxyaw), F_FLOAT},
     {"minpitch", FOFS_SPAWN_TEMP(minpitch), F_FLOAT},
@@ -547,20 +547,14 @@ static void WritePairToEdictKeyField( byte *writeAddress, const spawn_field_t *k
         case F_LSTRING:
             *(char **)( writeAddress + keyOffsetField->ofs ) = ED_NewString( kv->string );
             break;
-        case F_LQSTRING:
-            *(svg_lstring_t *)( writeAddress + keyOffsetField->ofs ) = svg_lstring_t::from_char_str( kv->string );
+        case F_LEVEL_QSTRING:
+            *(svg_level_qstring_t *)( writeAddress + keyOffsetField->ofs ) = svg_level_qstring_t::from_char_str( kv->string );
             break;
-        case F_GQSTRING:
-            *(svg_gstring_t *)( writeAddress + keyOffsetField->ofs ) = svg_gstring_t::from_char_str( kv->string );
+        case F_GAME_QSTRING:
+            *(svg_game_qstring_t *)( writeAddress + keyOffsetField->ofs ) = svg_game_qstring_t::from_char_str( kv->string );
             break;
-        case F_VECTOR:
-            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR4 ) {
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec4[ 0 ];
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec4[ 1 ];
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = kv->vec4[ 2 ];
-                // TODO: We don't support vector4 yet, so just behave as if it were a Vector3 for now.
-                //( (float *)( b + f->ofs ) )[ 3 ] = pair->vec4[ 3 ];
-            } else if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
+        case F_VECTOR3:
+            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec3[ 0 ];
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec3[ 1 ];
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = kv->vec3[ 2 ];
@@ -569,6 +563,21 @@ static void WritePairToEdictKeyField( byte *writeAddress, const spawn_field_t *k
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec2[ 1 ];
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = 0;
                 //( (float *)( b + f->ofs ) )[ 2 ] = vec[ 2 ];
+            } else {
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = 0;
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = 0;
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = 0;
+                gi.dprintf( "%s: couldn't parse field '%s' as vector type.\n", __func__, kv->key );
+            }
+            break;
+        case F_VECTOR4:
+            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR4 ) {
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec4[ 0 ];
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec4[ 1 ];
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = kv->vec4[ 2 ];
+                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 3 ] = kv->vec4[ 3 ];
+                // TODO: We don't support vector4 yet, so just behave as if it were a Vector3 for now.
+                //( (float *)( b + f->ofs ) )[ 3 ] = pair->vec4[ 3 ];
             } else {
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = 0;
                 ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = 0;

@@ -257,7 +257,7 @@ const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict
 		// Get view for state.
 		sol::state_view solStateView = sol::state_view( s );
 		// Fire away.
-		SVG_Lua_SignalOut( solStateView, entity, signaller, activator, signalName.c_str(), signalArgumentsArray );
+		SVG_Lua_SignalOut( solStateView, entity, signaller, activator, signalName.c_str(), signalArgumentsArray, LUA_CALLFUNCTION_VERBOSE_NOT );
 		sentSignalOut = true;
 	}
 

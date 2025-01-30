@@ -179,24 +179,14 @@ void SVG_PushMove_MoveCalculate( edict_t *ent, const Vector3 &destination, svg_p
 
             ent->pushMoveInfo.curve.subFrame = 0;
             ent->pushMoveInfo.curve.referenceOrigin = ent->s.origin;
-            
+            ent->pushMoveInfo.curve.countPositions = distances.size();
+
             // Q2RE: We dun have this kinda stuff 'yet'.
-            //ent->pushMoveInfo.curve.positions = make_savable_memory<float, TAG_LEVEL>( distances.size() );
-            //std::copy( distances.begin(), distances.end(), ent->pushMoveInfo.curve.positions.ptr );
-            // First time around, it will be nullptr of course.
-            if ( ent->pushMoveInfo.curve.positions == nullptr ) {
-                ent->pushMoveInfo.curve.countPositions = distances.size();
-                ent->pushMoveInfo.curve.positions = (float*)gi.TagMalloc( sizeof( float ) * distances.size(), TAG_SVGAME );
-                // Copy in the actual distances.
-                std::copy( distances.begin(), distances.end(), ent->pushMoveInfo.curve.positions );
-            }
             // Second time around, we'll be reallocating it instead.
-            if ( ent->pushMoveInfo.curve.positions != nullptr && ent->pushMoveInfo.curve.countPositions != distances.size() ) {
-                ent->pushMoveInfo.curve.countPositions = distances.size();
-                gi.TagReMalloc( ent->pushMoveInfo.curve.positions, ent->pushMoveInfo.curve.countPositions );
-                // Copy in the actual distances.
-                std::copy( distances.begin(), distances.end(), ent->pushMoveInfo.curve.positions );
-            }
+            ent->pushMoveInfo.curve.positions.release();
+            allocate_qtag_memory<float, TAG_SVGAME_LEVEL>( &ent->pushMoveInfo.curve.positions, ent->pushMoveInfo.curve.countPositions );
+            // Copy in the actual distances.
+            std::copy( distances.begin(), distances.end(), ent->pushMoveInfo.curve.positions.ptr );
 
             ent->pushMoveInfo.curve.numberFramesDone = 0;
             ent->think = SVG_PushMove_Think_AccelerateMoveNew;

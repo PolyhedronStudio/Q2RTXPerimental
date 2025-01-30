@@ -56,8 +56,9 @@ end
 --  SignalIn: func_rotating_00
 -----------------------------------------------------------------------------
 function func_rotating_00_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+    self.target = "hello"
     -- Notify players.
-    Game.Print( PrintLevel.NOTICE, self.targetName .. " received Signal(\""..signalName.."\")...\n" )
+    Game.Print( PrintLevel.NOTICE, self.targetName .. " " .. self.target .. " received Signal(\""..signalName.."\")...\n" )
 
     -- Done handling signal.
     return true
@@ -68,6 +69,8 @@ end
 function button_func_rotating00_lock_OnSignalIn( self, signaller, activator, signalName, signalArguments )
     -- Get rotator target entity.
     local rotatorEntity = Game.GetEntityForTargetName( "func_rotating_00" )
+    local buttonToggleEntity = Game.GetEntityForTargetName( "button_func_rotating00_toggle" )
+
     -- Get toggle button entity.
     --local buttonEntity = Game.GetEntityForTargetName( "button_func_rotating00_toggle" )
 
@@ -77,6 +80,11 @@ function button_func_rotating00_lock_OnSignalIn( self, signaller, activator, sig
         Game.Print( PrintLevel.NOTICE, "Locking Rotator(\""..rotatorEntity.targetName.."\")...\n" )
         -- Lock Signal.
         Game.SignalOut( rotatorEntity, signaller, activator, "Lock", {} )
+
+        -- Set its frame to 'orange' state.
+        buttonToggleEntity.state.frame = 4
+        -- Disable it from being used.
+        buttonToggleEntity.useTargetFlags = buttonToggleEntity.useTargetFlags + EntityUseTargetFlags.DISABLED
         --
         --Game.SignalOut( buttonEntity, signaller, activator, "ButtonLock", {} )
     end
@@ -86,7 +94,18 @@ function button_func_rotating00_lock_OnSignalIn( self, signaller, activator, sig
         Game.Print( PrintLevel.NOTICE, "Unlocking Rotator (\""..rotatorEntity.targetName.."\")...\n" )
         -- Unlock Signal.
         Game.SignalOut( rotatorEntity, signaller, activator, "Unlock", {} )
-        --Game.SignalOut( buttonEntity, signaller, activator, "ButtonUnLock", {} )
+
+        -- Assign new frame determined by buttonMoveState state. (Since we either locked pressed or unpressed.)
+        local buttonMoveState = Game.GetPushMoverState( buttonToggleEntity )
+        if ( buttonMoveState ~= PushMoveState.TOP and buttonMoveState ~= PushMoveState.MOVING_UP ) then
+            -- Set its frame to 'red' state.
+            buttonToggleEntity.state.frame = 2
+        else
+            -- Set its frame to 'green' state.
+            buttonToggleEntity.state.frame = 0
+        end
+        -- Enable it to be used again.
+        buttonToggleEntity.useTargetFlags = buttonToggleEntity.useTargetFlags - EntityUseTargetFlags.DISABLED
     end
     
     -- Done handling signal.

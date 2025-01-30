@@ -74,7 +74,7 @@ static constexpr int32_t BODY_QUEUE_SIZE = 8;
 
 
 /**
-*	Memory tag IDs for specified group memory types, allowing for efficient cleanup of said group's memory.
+*	Zone Tag Memory: tag IDs for specified group memory types, allowing for efficient cleanup of said group's memory.
 **/
 //! Clear when unloading the dll.
 static constexpr int32_t TAG_SVGAME = 765;
@@ -82,16 +82,20 @@ static constexpr int32_t TAG_SVGAME = 765;
 static constexpr int32_t TAG_SVGAME_LEVEL = 766;
 //! Clear when loading a new level.
 static constexpr int32_t TAG_SVGAME_LUA = 767;
-
-
+#if 0
+// Simple wrapper for variable sized tag memory blocks (re-)allocated in TAG_SVGAME_LEVEL.
+using svg_level_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME_LEVEL>;
+// Simple wrapper for variable sized tag memory blocks (re-)allocated in TAG_SVGAME.
+using svg_game_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME>;
+#endif
 
 /**
 *   String Utility Objects:
 **/
 // Simple wrapper around char, dynamic string block allocated in TAG_SVGAME_LEVEL.
-using svg_lstring_t = sg_qstring_t<char, TAG_SVGAME_LEVEL>;
+using svg_level_qstring_t = sg_qstring_t<char, TAG_SVGAME_LEVEL>;
 // Simple wrapper around char, dynamic string block allocated in TAG_SVGAME space.
-using svg_gstring_t = sg_qstring_t<char, TAG_SVGAME>;
+using svg_game_qstring_t = sg_qstring_t<char, TAG_SVGAME>;
 
 
 

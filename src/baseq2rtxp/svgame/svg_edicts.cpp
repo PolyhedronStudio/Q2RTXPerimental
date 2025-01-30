@@ -80,7 +80,8 @@ void SVG_FreeEdict( edict_t *ed ) {
     
     // We actually got to make sure that we free the pushmover curve positions data block.
     if ( ed->pushMoveInfo.curve.positions ) {
-        gi.TagFree( ed->pushMoveInfo.curve.positions );
+        ed->pushMoveInfo.curve.positions.release();// = nullptr;
+        //gi.TagFree( ed->pushMoveInfo.curve.positions );
     }
 
     // Clear the arguments std::vector just to be sure.

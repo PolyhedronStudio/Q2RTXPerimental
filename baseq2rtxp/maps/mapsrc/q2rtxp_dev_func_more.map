@@ -1430,6 +1430,8 @@
 "spawnflags" "131088"
 "angle" "180"
 "target" "func_rotating_01"
+"luaName" "button_func_rotating01_toggle"
+"targetname" "button_func_rotating01_toggle"
 "_tb_group" "137"
 "_tb_protected_properties" "message"
 // brush 0
@@ -1549,6 +1551,8 @@
 "spawnflags" "262144"
 "angle" "180"
 "target" "func_rotating_02"
+"targetname" "button_func_rotating02_toggle"
+"luaName" "button_func_rotating02_toggle"
 "_tb_group" "139"
 "_tb_protected_properties" "message"
 // brush 0

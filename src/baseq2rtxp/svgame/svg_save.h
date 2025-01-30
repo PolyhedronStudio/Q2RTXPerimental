@@ -24,15 +24,19 @@ enum fieldtype_t : int32_t {
 	F_FLOAT,
 	F_DOUBLE,
 
-	F_LQSTRING,          // string on disk, sg_qstring_t in memory, TAG_SVGAME_LEVEL
-	F_GQSTRING,          // string on disk, sg_qstring_t in memory, TAG_SVGAME,
+	F_VECTOR3,
+	F_VECTOR4,
+	F_ANGLEHACK,
 
 	F_LSTRING,          // string on disk, pointer in memory, TAG_SVGAME_LEVEL
 	F_GSTRING,          // string on disk, pointer in memory, TAG_SVGAME
 	F_ZSTRING,          // string on disk, string in memory
 
-	F_VECTOR,
-	F_ANGLEHACK,
+	F_LEVEL_QSTRING,	// string on disk, sg_qstring_t in memory, TAG_SVGAME_LEVEL
+	F_GAME_QSTRING,		// string on disk, sg_qstring_t in memory, TAG_SVGAME,
+
+	F_LEVEL_QTAG_MEMORY,	// variable sized memory blob on disk, sg_qtag-memory_t in memory, TAG_SVGAME_LEVEL
+	F_GAME_QTAG_MEMORY,		// variable sized memory blob on disk, sg_qtag-memory_t in memory, TAG_SVGAME,
 
 	F_EDICT,            // index on disk, pointer in memory
 	F_ITEM,             // index on disk, pointer in memory

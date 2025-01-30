@@ -64,9 +64,11 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 	- [X] C++ Global Enum BitFlag Operators SCREAM AND CURSE AT YOU! BOOHOO!
 	      Turn that into a DEFINE_ENUM_BITFLAGS(enumtypename) instead._
 		  **HIGH PRIORITY -->:** Without this it may actually be breaking code without us being aware.
-	- [ ] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly.
+	- [X] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly.
 		- [ ] Add Save/Load for the (optional) Lua's in-game mapState table data.
-
+		- [ ] Add in support for signal_argument_t array.
+		- [X] Fix pushMoveInfo.curve.positions array, it is dynamic, oof..
+			- [ ] Fixed by implementing sg_qtag_memory_t however, it needs support for multiple types?
 - [ ] The **VKPT** Scenario:
 	- [X] Target Range -> Animated Textures which lol, do not animate, we merely use them right now
 			for visual trickstery. Such as a light switching colors. However, this fails, it ends up

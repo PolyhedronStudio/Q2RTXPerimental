@@ -128,6 +128,6 @@ void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const 
     }
     // If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
     if ( propogateToLua ) {
-        SVG_Lua_SignalOut( SVG_Lua_GetSolState(), ent, signaller, activator, signalName, signalArguments );
+        SVG_Lua_SignalOut( SVG_Lua_GetSolState(), ent, signaller, activator, signalName, signalArguments, LUA_CALLFUNCTION_VERBOSE_NOT );
     }
 }

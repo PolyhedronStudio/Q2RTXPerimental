@@ -107,7 +107,7 @@ struct edict_s {
     sg_time_t	timestamp;
 
     //! [SpawnKey]: Entity classname key/value.
-    svg_lstring_t classname;
+    svg_level_qstring_t classname;
     //! [SpawnKey]: Path to model.
     const char *model;
     //! [SpawnKey]: Key Spawn Angle.
@@ -154,20 +154,20 @@ struct edict_s {
     *   Target Name Fields:
     **/
     //! [SpawnKey]: Targetname of this entity.
-    svg_lstring_t targetname;
+    svg_level_qstring_t targetname;
     struct {
         //! [SpawnKey]: Name of the entity with a matching 'targetname' to (trigger-)use target.
-        svg_lstring_t target;
+        svg_level_qstring_t target;
         //! [SpawnKey]: Name of entity to kill if triggered.
-        svg_lstring_t kill;
+        svg_level_qstring_t kill;
         //! [SpawnKey]: Name of the team this entity is on. (For movers.)
-        svg_lstring_t team;
+        svg_level_qstring_t team;
         //! [SpawnKey]: The path to traverse (For certain movers.)
-        svg_lstring_t path;
+        svg_level_qstring_t path;
         //! [SpawnKey]: The targetted entity to trigger when this entity dies.
-        svg_lstring_t death;
+        svg_level_qstring_t death;
         //! [SpawnKey]: Name of the entity with a matching 'targetname' to move along with. (PushMovers).
-        svg_lstring_t movewith;
+        svg_level_qstring_t movewith;
     } targetNames;
 
     /**

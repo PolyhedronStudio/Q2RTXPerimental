@@ -65,13 +65,20 @@ typedef struct {
 #define F(name) FA(name, 1)
 #define DA(name, size) _DA(F_DOUBLE, name, size)
 #define D(name) DA(name, 1)
-#define LQSTR(name) _F(F_LQSTRING, name)
-#define GQSTR(name) _F(F_GQSTRING, name)
-#define L(name) _F(F_LSTRING, name)
-#define V(name) _F(F_VECTOR, name)
-#define T(name) _F(F_ITEM, name)
-#define E(name) _F(F_EDICT, name)
-#define P(name, type) _FA(F_POINTER, name, type)
+
+#define LQSTR(name) _F(F_LEVEL_QSTRING, name)
+#define GQSTR(name) _F(F_GAME_QSTRING, name)
+#define CHARPTR(name) _F(F_LSTRING, name)
+
+#define LEVEL_QTAG_MEMORY(name) _F(F_LEVEL_QTAG_MEMORY, name)
+#define GAME_QTAG_MEMORY(name) _F(F_GAME_QTAG_MEMORY, name)
+
+#define VEC3(name) _F(F_VECTOR3, name)
+#define VEC4(name) _F(F_VECTOR4, name)
+#define ITEM(name) _F(F_ITEM, name)
+
+#define ENTITY(name) _F(F_EDICT, name)
+#define POINTER(name, type) _FA(F_POINTER, name, type)
 #define FT(name) _F(F_FRAMETIME, name)
 #define I64A(name, size) _FA(F_INT64, name, size)
 #define I64(name) IA(name, 1)
@@ -85,9 +92,9 @@ static const save_field_t entityfields[] = {
     //S( s.client ),
     I( s.entityType ),
 
-    V( s.origin ),
-    V( s.angles ),
-    V( s.old_origin ),
+    VEC3( s.origin ),
+    VEC3( s.angles ),
+    VEC3( s.old_origin ),
 
     I( s.solid ),
     I( s.clipmask ),
@@ -112,7 +119,7 @@ static const save_field_t entityfields[] = {
 
     // TODO: Do we really need to save this? Perhaps.
     // For spotlights.
-    V( s.spotlight.rgb ),
+    VEC3( s.spotlight.rgb ),
     F( s.spotlight.intensity ),
     F( s.spotlight.angle_width ),
     F( s.spotlight.angle_falloff ),
@@ -121,15 +128,15 @@ static const save_field_t entityfields[] = {
     *   Server Edict Data:
     **/
     I( svflags ),
-    V( mins ),
-    V( maxs ),
-    V( absmin ),
-    V( absmax ),
-    V( size ),
+    VEC3( mins ),
+    VEC3( maxs ),
+    VEC3( absmin ),
+    VEC3( absmax ),
+    VEC3( size ),
     I( solid ),
     I( clipmask ),
     I( hullContents ),
-    E( owner ),
+    ENTITY( owner ),
 
     /**
     *   Start of Game Edict data:
@@ -139,7 +146,7 @@ static const save_field_t entityfields[] = {
     I64( timestamp ),
 
     LQSTR( classname ),
-    L( model ),
+    CHARPTR( model ),
     F( angle ),
 
     I( spawnflags ),
@@ -174,21 +181,21 @@ static const save_field_t entityfields[] = {
     /**
     *   Target Entities:
     **/
-    E( targetEntities.target ),
-    E( targetEntities.movewith ),
+    ENTITY( targetEntities.target ),
+    ENTITY( targetEntities.movewith ),
 
     /**
     *   Lua Properties:
     **/
-    L( luaProperties.luaName ),
+    CHARPTR( luaProperties.luaName ),
 
     /**
     *   "Delay" entities:
     **/
-    E( delayed.useTarget.creatorEntity ),
+    ENTITY( delayed.useTarget.creatorEntity ),
     I( delayed.useTarget.useType ),
     I( delayed.useTarget.useValue ),
-    E( delayed.signalOut.creatorEntity ),
+    ENTITY( delayed.signalOut.creatorEntity ),
     SZ( delayed.signalOut.name, 256 ),
     // WID: TODO: We can't save these with a system like these, can we?
     // WID: We can I guess, but it requires a specified save type for signal argument array indices.
@@ -197,18 +204,18 @@ static const save_field_t entityfields[] = {
     /**
     *   Physics Related:
     **/
-    V( moveWith.absoluteOrigin ),
-    V( moveWith.originOffset ),
-    V( moveWith.relativeDeltaOffset ),
-    V( moveWith.spawnDeltaAngles ),
-    V( moveWith.spawnParentAttachAngles ),
-    V( moveWith.totalVelocity ),
-    E( moveWith.parentMoveEntity ),
-    E( moveWith.moveNextEntity),
+    VEC3( moveWith.absoluteOrigin ),
+    VEC3( moveWith.originOffset ),
+    VEC3( moveWith.relativeDeltaOffset ),
+    VEC3( moveWith.spawnDeltaAngles ),
+    VEC3( moveWith.spawnParentAttachAngles ),
+    VEC3( moveWith.totalVelocity ),
+    ENTITY( moveWith.parentMoveEntity ),
+    ENTITY( moveWith.moveNextEntity),
 
     I( movetype ),
-    V( velocity ),
-    V( avelocity ),
+    VEC3( velocity ),
+    VEC3( avelocity ),
     I( viewheight ),
 
     // WID: Are these actually needed? Would they not be recalculated the first frame around?
@@ -221,16 +228,16 @@ static const save_field_t entityfields[] = {
     *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
     **/
     // Start/End Data:
-    V( pushMoveInfo.startOrigin ),
-    V( pushMoveInfo.startAngles ),
-    V( pushMoveInfo.endOrigin ),
-    V( pushMoveInfo.endAngles ),
+    VEC3( pushMoveInfo.startOrigin ),
+    VEC3( pushMoveInfo.startAngles ),
+    VEC3( pushMoveInfo.endOrigin ),
+    VEC3( pushMoveInfo.endAngles ),
     I( pushMoveInfo.startFrame ),
     I( pushMoveInfo.endFrame ),
     // Dynamic State Data
     I( pushMoveInfo.state ),
-    V( pushMoveInfo.dir ),
-    V( pushMoveInfo.dest ),
+    VEC3( pushMoveInfo.dir ),
+    VEC3( pushMoveInfo.dest ),
     O( pushMoveInfo.in_motion ),
     F( pushMoveInfo.current_speed ),
     F( pushMoveInfo.move_speed ),
@@ -244,10 +251,11 @@ static const save_field_t entityfields[] = {
     F( pushMoveInfo.distance ),
     F( pushMoveInfo.wait ),
     // Curve.
-    V( pushMoveInfo.curve.referenceOrigin ),
+    VEC3( pushMoveInfo.curve.referenceOrigin ),
     //I64( pushMoveInfo.curve.countPositions ),
     // WID: TODO: This is problematic with this save system, size has to be dynamic in the future.
     //FA( pushMoveInfo.curve.positions, 1024 ),
+    LEVEL_QTAG_MEMORY( pushMoveInfo.curve.positions ),
     I64( pushMoveInfo.curve.frame ),
     I64( pushMoveInfo.curve.subFrame ),
     I64( pushMoveInfo.curve.numberSubFrames ),
@@ -262,62 +270,62 @@ static const save_field_t entityfields[] = {
     I( pushMoveInfo.sounds.middle ),
     I( pushMoveInfo.sounds.end ),
     // Callback
-    P( pushMoveInfo.endMoveCallback, P_pusher_moveinfo_endmovecallback ),
+    POINTER( pushMoveInfo.endMoveCallback, P_pusher_moveinfo_endmovecallback ),
     // Movewith
-    V( pushMoveInfo.lastVelocity ),
+    VEC3( pushMoveInfo.lastVelocity ),
     // WID: Are these actually needed? Would they not be recalculated the first frame around?
     // WID: TODO: PushmoveInfo
     F( speed ),
     F( accel ),
     F( decel ),
 
-    V( movedir ),
-    V( pos1 ),
-    V( angles1 ),
-    V( pos2 ),
-    V( angles2 ),
-    V( lastOrigin ),
-    V( lastAngles ),
-    E( movetarget ),
+    VEC3( movedir ),
+    VEC3( pos1 ),
+    VEC3( angles1 ),
+    VEC3( pos2 ),
+    VEC3( angles2 ),
+    VEC3( lastOrigin ),
+    VEC3( lastAngles ),
+    ENTITY( movetarget ),
 
     /**
     *   NextThink AND Entity Callbacks:
     **/
     I64( nextthink ),
 
-    P( postspawn, P_postspawn ),
-    P( prethink, P_prethink ),
-    P( think, P_think ),
-    P( postthink, P_postthink ),
-    P( blocked, P_blocked ),
-    P( touch, P_touch ),
-    P( use, P_use ),
-    P( pain, P_pain ),
-    P( onsignalin, P_onsignalin ),
-    P( die, P_die ),
+    POINTER( postspawn, P_postspawn ),
+    POINTER( prethink, P_prethink ),
+    POINTER( think, P_think ),
+    POINTER( postthink, P_postthink ),
+    POINTER( blocked, P_blocked ),
+    POINTER( touch, P_touch ),
+    POINTER( use, P_use ),
+    POINTER( pain, P_pain ),
+    POINTER( onsignalin, P_onsignalin ),
+    POINTER( die, P_die ),
 
     /**
     *   Entity Pointers:
     **/
-    E( enemy ),
-    E( oldenemy ),
-    E( goalentity ),
-    E( chain ),
-    E( teamchain ),
-    E( teammaster ),
-    E( activator ),
-    E( other ),
+    ENTITY( enemy ),
+    ENTITY( oldenemy ),
+    ENTITY( goalentity ),
+    ENTITY( chain ),
+    ENTITY( teamchain ),
+    ENTITY( teammaster ),
+    ENTITY( activator ),
+    ENTITY( other ),
 
     /**
     *   Light Data:
     **/
     I( style ),
-    L( customLightStyle ),
+    CHARPTR( customLightStyle ),
 
     /**
     *   Item Data:
     **/
-    T( item ),
+    ITEM( item ),
 
     /**
     *   Monster Data:
@@ -328,8 +336,8 @@ static const save_field_t entityfields[] = {
     /**
     *   Player Noise/Trail:
     **/
-    E( mynoise ),
-    E( mynoise2 ),
+    ENTITY( mynoise ),
+    ENTITY( mynoise2 ),
 
     I( noise_index ),
     I( noise_index2 ),
@@ -344,7 +352,7 @@ static const save_field_t entityfields[] = {
     /**
     *   Trigger(s) Data:
     **/
-    L( message ),
+    CHARPTR( message ),
     F( wait ),
     F( delay ),
 
@@ -364,12 +372,11 @@ static const save_field_t entityfields[] = {
     I64( show_hostile_time ),
     I64( trail_time ),
 
-
     /**
     *   Various Data:
     **/
     I( meansOfDeath ),
-    L( map ),
+    CHARPTR( map ),
 
     I( dmg ),
     I( radius_dmg ),
@@ -378,30 +385,29 @@ static const save_field_t entityfields[] = {
     I( sounds ),
     I( count ),
 
-
     /**
     *   Only used for g_turret.cpp - WID: Remove?:
     **/
-    V( move_origin ),
-    V( move_angles ),
+    VEC3( move_origin ),
+    VEC3( move_angles ),
 
     // WID: TODO: Monster Reimplement.
-    //P( monsterinfo.currentmove, P_monsterinfo_currentmove ),
-    //P( monsterinfo.nextmove, P_monsterinfo_nextmove ),
+    //POINTER( monsterinfo.currentmove, P_monsterinfo_currentmove ),
+    //POINTER( monsterinfo.nextmove, P_monsterinfo_nextmove ),
     //I( monsterinfo.aiflags ),
     //I64( monsterinfo.nextframe ), // WID: 64-bit-frame
     //F( monsterinfo.scale ),
 
-    //P( monsterinfo.stand, P_monsterinfo_stand ),
-    //P( monsterinfo.idle, P_monsterinfo_idle ),
-    //P( monsterinfo.search, P_monsterinfo_search ),
-    //P( monsterinfo.walk, P_monsterinfo_walk ),
-    //P( monsterinfo.run, P_monsterinfo_run ),
-    //P( monsterinfo.dodge, P_monsterinfo_dodge ),
-    //P( monsterinfo.attack, P_monsterinfo_attack ),
-    //P( monsterinfo.melee, P_monsterinfo_melee ),
-    //P( monsterinfo.sight, P_monsterinfo_sight ),
-    //P( monsterinfo.checkattack, P_monsterinfo_checkattack ),
+    //POINTER( monsterinfo.stand, P_monsterinfo_stand ),
+    //POINTER( monsterinfo.idle, P_monsterinfo_idle ),
+    //POINTER( monsterinfo.search, P_monsterinfo_search ),
+    //POINTER( monsterinfo.walk, P_monsterinfo_walk ),
+    //POINTER( monsterinfo.run, P_monsterinfo_run ),
+    //POINTER( monsterinfo.dodge, P_monsterinfo_dodge ),
+    //POINTER( monsterinfo.attack, P_monsterinfo_attack ),
+    //POINTER( monsterinfo.melee, P_monsterinfo_melee ),
+    //POINTER( monsterinfo.sight, P_monsterinfo_sight ),
+    //POINTER( monsterinfo.checkattack, P_monsterinfo_checkattack ),
 
     //I64( monsterinfo.next_move_time ),
 
@@ -409,10 +415,10 @@ static const save_field_t entityfields[] = {
     //I64( monsterinfo.attack_finished ),// WID: 64-bit-frame FT(monsterinfo.attack_finished),
     //I64( monsterinfo.fire_wait ),
 
-    //V( monsterinfo.saved_goal ),
+    //VEC3( monsterinfo.saved_goal ),
     //I64( monsterinfo.search_time ),// WID: 64-bit-frame FT(monsterinfo.search_time),
     //I64( monsterinfo.trail_time ),// WID: 64-bit-frame FT(monsterinfo.trail_time),
-    //V( monsterinfo.last_sighting ),
+    //VEC3( monsterinfo.last_sighting ),
     //I( monsterinfo.attack_state ),
     //I( monsterinfo.lefty ),
     //I64( monsterinfo.idle_time ),// WID: 64-bit-frame FT(monsterinfo.idle_time),
@@ -434,18 +440,18 @@ static const save_field_t levelfields[] = {
 
 	I64( intermissionFrameNumber ),
 
-	L( changemap ),
+	CHARPTR( changemap ),
 	I64( exitintermission ),
-	V( intermission_origin ),
-	V( intermission_angle ),
+	VEC3( intermission_origin ),
+	VEC3( intermission_angle ),
 
-	E( sight_client ),
+	ENTITY( sight_client ),
 
-	E( sight_entity ),
+	ENTITY( sight_entity ),
 	I64( sight_entity_framenum ), // WID: 64-bit-frame
-	E( sound_entity ),
+	ENTITY( sound_entity ),
 	I64( sound_entity_framenum ), // WID: 64-bit-frame
-	E( sound2_entity ),
+	ENTITY( sound2_entity ),
 	I64( sound2_entity_framenum ),// WID: 64-bit-frame
 
 	I( pic_health ),
@@ -459,7 +465,7 @@ static const save_field_t levelfields[] = {
 	I( total_monsters ),
 	I( killed_monsters ),
 
-    E( current_entity ),
+    ENTITY( current_entity ),
 
 	I( body_que ),
 
@@ -474,17 +480,17 @@ static const save_field_t clientfields[] = {
     S( ps.pmove.pm_flags ),
     S( ps.pmove.pm_time ),
     S( ps.pmove.gravity ),
-	V( ps.pmove.origin ),
-    V( ps.pmove.delta_angles ),
-	V( ps.pmove.velocity ),
+	VEC3( ps.pmove.origin ),
+    VEC3( ps.pmove.delta_angles ),
+	VEC3( ps.pmove.velocity ),
     B( ps.pmove.viewheight ),
 
-	V( ps.viewangles ),
-	V( ps.viewoffset ),
-	V( ps.kick_angles ),
+	VEC3( ps.viewangles ),
+	VEC3( ps.viewoffset ),
+	VEC3( ps.kick_angles ),
 
-	//V( ps.gunangles ),
-	//V( ps.gunoffset ),
+	//VEC3( ps.gunangles ),
+	//VEC3( ps.gunoffset ),
 	I( ps.gun.modelIndex ),
 	I( ps.gun.animationID ),
 
@@ -509,8 +515,8 @@ static const save_field_t clientfields[] = {
 	I( pers.selected_item ),
 	IA( pers.inventory, MAX_ITEMS ),
     
-    T( pers.weapon ),
-    T( pers.lastweapon ),
+    ITEM( pers.weapon ),
+    ITEM( pers.lastweapon ),
     IA( pers.weapon_clip_ammo, MAX_ITEMS ),
 
 	I( pers.ammoCapacities.pistol ),
@@ -534,7 +540,7 @@ static const save_field_t clientfields[] = {
 
 	I( ammo_index ),
 
-	T( newweapon ),
+	ITEM( newweapon ),
 
     O( weapon_thunk ),
 
@@ -545,7 +551,7 @@ static const save_field_t clientfields[] = {
 	I( frameDamage.armor ),
 	I( frameDamage.blood ),
 	I( frameDamage.knockBack ),
-	V( frameDamage.from ),
+	VEC3( frameDamage.from ),
 
 	F( killer_yaw ),
 
@@ -561,10 +567,10 @@ static const save_field_t clientfields[] = {
     I64( weaponState.timers.lastDrawn ),
     I64( weaponState.timers.lastHolster ),
 
-    V( weaponKicks.offsetAngles ),
-    V( weaponKicks.offsetOrigin ),
+    VEC3( weaponKicks.offsetAngles ),
+    VEC3( weaponKicks.offsetOrigin ),
 
-    V( viewMove.viewAngles ), V( viewMove.viewForward ),   
+    VEC3( viewMove.viewAngles ), VEC3( viewMove.viewForward ),   
     I64( viewMove.damageTime ),
     I64( viewMove.fallTime ),
     I64( viewMove.quakeTime ),
@@ -573,17 +579,17 @@ static const save_field_t clientfields[] = {
 
 	F( damage_alpha ),
 	F( bonus_alpha ),
-	V( damage_blend ),
+	VEC3( damage_blend ),
 	I64( bobCycle ),
     I64( oldBobCycle ),
     D( bobFracSin ),
     I64( last_stair_step_frame ),
-    V( last_ladder_pos ),
+    VEC3( last_ladder_pos ),
     I64( last_ladder_sound ),
 
-	V( oldviewangles ),
-	V( oldvelocity ),
-    E( oldgroundentity ),
+	VEC3( oldviewangles ),
+	VEC3( oldvelocity ),
+    ENTITY( oldgroundentity ),
     I( old_waterlevel ),
 	I64( next_drown_time ),
 
@@ -669,7 +675,7 @@ static void write_string(gzFile f, char *s)
     write_data(s, len, f);
 }
 
-static void write_level_qstring( gzFile f, svg_lstring_t *qstr ) {
+static void write_level_qstring( gzFile f, svg_level_qstring_t *qstr ) {
     if ( !qstr || !qstr->ptr || qstr->count <= 0 ) {
         write_int( f, -1 );
         return;
@@ -680,16 +686,13 @@ static void write_level_qstring( gzFile f, svg_lstring_t *qstr ) {
         gzclose( f );
         gi.error( "%s: bad length(%d)", __func__, len );
     }
-    if ( len > 0 ) {
-        int x = 10;
-        gi.dprintf( "%s:(\"%s\": #%d)\n", __func__, qstr->ptr, len );
-    }
+    
     write_int( f, len );
     write_data( qstr->ptr, len * sizeof( char ), f);
     return;
 }
 
-static void write_game_qstring( gzFile f, svg_gstring_t *qstr ) {
+static void write_game_qstring( gzFile f, svg_game_qstring_t *qstr ) {
     if ( !qstr || !qstr->ptr || qstr->count <= 0 ) {
         write_int( f, -1 );
         return;
@@ -700,20 +703,63 @@ static void write_game_qstring( gzFile f, svg_gstring_t *qstr ) {
         gzclose( f );
         gi.error( "%s: bad length(%d)", __func__, len );
     }
-    if ( len > 0 ) {
-        int x = 10;
-        gi.dprintf( "%s:(\"%s\": #%d)\n", __func__, qstr->ptr, len );
-    }
+
     write_int( f, len );
     write_data( qstr->ptr, len * sizeof( char ), f );
     return;
 }
 
-static void write_vector(gzFile f, vec_t *v)
+/**
+*   @brief  Write level qtag memory block to disk.
+**/
+template<typename T, int32_t tag = TAG_SVGAME_LEVEL>
+static void write_level_qtag_memory( gzFile f, sg_qtag_memory_t<T, tag> *qtagMemory ) {
+    if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->count <= 0 ) {
+        write_int( f, -1 );
+        return;
+    }
+
+    const size_t len = qtagMemory->count;
+    if ( len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+    write_int( f, len );
+    write_data( qtagMemory->ptr, len * sizeof( T ), f );
+    return;
+}
+/**
+*   @brief  Write game qtag memory block to disk.
+**/
+template<typename T, int32_t tag = TAG_SVGAME>
+static void write_game_qtag_memory( gzFile f, sg_qtag_memory_t<T, tag> *qtagMemory ) {
+    if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->count <= 0 ) {
+        write_int( f, -1 );
+        return;
+    }
+
+    const size_t len = qtagMemory->count;
+    if ( len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+    write_int( f, len );
+    write_data( qtagMemory->ptr, len * sizeof( T ), f );
+    return;
+}
+
+static void write_vector3(gzFile f, vec_t *v)
 {
     write_float(f, v[0]);
     write_float(f, v[1]);
     write_float(f, v[2]);
+}
+
+static void write_vector4( gzFile f, vec_t *v ) {
+    write_float( f, v[ 0 ] );
+    write_float( f, v[ 1 ] );
+    write_float( f, v[ 2 ] );
+    write_float( f, v[ 3 ] );
 }
 
 static void write_index(gzFile f, void *p, size_t size, void *start, int max_index)
@@ -795,8 +841,11 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
             write_double( f, ( (double *)p )[ i ] );
         }
         break;
-    case F_VECTOR:
-        write_vector(f, (vec_t *)p);
+    case F_VECTOR3:
+        write_vector3(f, (vec_t *)p);
+        break;
+    case F_VECTOR4:
+        write_vector4( f, (vec_t *)p );
         break;
     case F_ZSTRING:
         write_string(f, (char *)p);
@@ -804,12 +853,17 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
     case F_LSTRING:
         write_string(f, *(char **)p);
         break;
+    case F_LEVEL_QSTRING:
+        write_level_qstring( f, (svg_level_qstring_t*)p );
         break;
-    case F_LQSTRING:
-        write_level_qstring( f, (svg_lstring_t*)p );
+    case F_GAME_QSTRING:
+        write_game_qstring( f, (svg_game_qstring_t *)p );
         break;
-    case F_GQSTRING:
-        write_game_qstring( f, (svg_gstring_t *)p );
+    case F_LEVEL_QTAG_MEMORY:
+        write_level_qtag_memory<float>( f, ( ( sg_qtag_memory_t<float, TAG_SVGAME_LEVEL> * )p ) );
+        break;
+    case F_GAME_QTAG_MEMORY:
+        write_game_qtag_memory<float>( f, ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
         break;
     case F_EDICT:
         write_index(f, *(void **)p, sizeof(edict_t), g_edicts, MAX_EDICTS - 1);
@@ -839,7 +893,11 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
 		break;
 
     default:
-        gi.error("%s: unknown field type", __func__);
+        #if USE_DEBUG
+        gi.error( "%s: unknown field type(%d)", __func__, field->type );
+        #else
+        gi.error( "%s: unknown field type(%d), name(%s)", __func__, field->type, field->name );
+        #endif
     }
 }
 
@@ -938,7 +996,7 @@ static char *read_string(gzFile f)
     return s;
 }
 
-static const svg_lstring_t read_level_qstring( gzFile f ) {
+static const svg_level_qstring_t read_level_qstring( gzFile f ) {
     int len;
 
     len = read_int( f );
@@ -951,26 +1009,15 @@ static const svg_lstring_t read_level_qstring( gzFile f ) {
         gi.error( "%s: bad length(%d)", __func__, len );
     }
 
-    // Allocate temporary buffer for reading.
-    char *s = (char *)gi.TagMalloc( len + 1, TAG_SVGAME_LEVEL );
-    // Delete temporary buffer.
-    read_data( s, len, f );
-    // Ensure last char = 0.
-    s[ len ] = 0;
-
     // Allocate level tag string space.
-    svg_lstring_t lstring = svg_lstring_t::from_char_str( s );
-    if ( len > 0 ) {
-        int x = 10;
-        gi.dprintf( "%s:s(\"%s\": #%d)\n", __func__, s, len );
-        gi.dprintf( "%s:lstring(\"%s\": #%d)\n", __func__, lstring.ptr, lstring.count );
-    }
-    gi.TagFree( s );
+    svg_level_qstring_t lstring = svg_level_qstring_t::new_for_size( len );
+    // Delete temporary buffer.
+    read_data( lstring.ptr, len, f );
 
     return lstring;
 }
 
-static const svg_gstring_t read_game_qstring( gzFile f ) {
+static const svg_game_qstring_t read_game_qstring( gzFile f ) {
     int len;
 
     len = read_int( f );
@@ -983,25 +1030,59 @@ static const svg_gstring_t read_game_qstring( gzFile f ) {
         gi.error( "%s: bad length(%d)", __func__, len );
     }
 
-    // Allocate temporary buffer for reading.
-    char *s = (char *)gi.TagMalloc( len + 1, TAG_SVGAME_LEVEL );
-    // Delete temporary buffer.
-    read_data( s, len, f );
-    // Ensure last char = 0.
-    s[ len ] = 0;
-
     // Allocate level tag string space.
-    svg_gstring_t gstring = svg_gstring_t::from_char_str( s );
-    if ( len > 0 ) {
-        int x = 10;
-        gi.dprintf( "%s:s(\"%s\": #%d)\n", __func__, s, len );
-        gi.dprintf( "%s:gstring(\"%s\": #%d)\n", __func__, gstring.ptr, gstring.count );
-    }
-    gi.TagFree( s );
-
+    svg_game_qstring_t gstring = svg_game_qstring_t::new_for_size( len );
+    // Delete temporary buffer.
+    read_data( gstring.ptr, len, f );
     return gstring;
 }
 
+/**
+*   @brief 
+**/
+template<typename T>
+static sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *read_level_qtag_memory( gzFile f, sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *p ) {
+    int len;
+
+    len = read_int( f );
+    if ( len == -1 ) {
+        return allocate_qtag_memory<T, TAG_SVGAME_LEVEL>( p, 0 );
+    }
+
+    if ( len < 0 || len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+
+    // Allocate level tag string space.
+    allocate_qtag_memory<T, TAG_SVGAME_LEVEL>( p, len );
+    // Delete temporary buffer.
+    read_data( p->ptr, /*len*/p->size(), f );
+    return p;
+}
+/**
+*   @brief
+**/
+template<typename T>
+static sg_qtag_memory_t<T, TAG_SVGAME> *read_game_qtag_memory( gzFile f, sg_qtag_memory_t<T, TAG_SVGAME> *p ) {
+    int len;
+
+    len = read_int( f );
+    if ( len == -1 ) {
+        return allocate_qtag_memory<T, TAG_SVGAME>( p, 0 );
+    }
+
+    if ( len < 0 || len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+
+    // Allocate level tag string space.
+    allocate_qtag_memory<T, TAG_SVGAME>( p, len );
+    // Delete temporary buffer.
+    read_data( p->ptr, /*len*/p->size(), f);
+    return p;
+}
 
 static void read_zstring(gzFile f, char *s, size_t size)
 {
@@ -1017,11 +1098,17 @@ static void read_zstring(gzFile f, char *s, size_t size)
     s[len] = 0;
 }
 
-static void read_vector(gzFile f, vec_t *v)
+static void read_vector3(gzFile f, vec_t *v)
 {
     v[0] = static_cast<vec_t>( read_float(f) );
     v[1] = static_cast<vec_t>( read_float( f ) );
     v[2] = static_cast<vec_t>( read_float( f ) );
+}
+static void read_vector4( gzFile f, vec_t *v ) {
+    v[ 0 ] = static_cast<vec_t>( read_float( f ) );
+    v[ 1 ] = static_cast<vec_t>( read_float( f ) );
+    v[ 2 ] = static_cast<vec_t>( read_float( f ) );
+    v[ 3 ] = static_cast<vec_t>( read_float( f ) );
 }
 
 static void *read_index(gzFile f, size_t size, void *start, int max_index)
@@ -1101,17 +1188,26 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
             ( (double *)p )[ i ] = read_double( ctx->f );
         }
         break;
-    case F_VECTOR:
-        read_vector(ctx->f, (vec_t *)p);
+    case F_VECTOR3:
+        read_vector3(ctx->f, (vec_t *)p);
+        break;
+    case F_VECTOR4:
+        read_vector4( ctx->f, (vec_t *)p );
         break;
     case F_LSTRING:
         *(char **)p = read_string(ctx->f);
         break;
-    case F_LQSTRING:
-        ( *(svg_lstring_t *)p ) = read_level_qstring( ctx->f );
+    case F_LEVEL_QSTRING:
+        ( *(svg_level_qstring_t *)p ) = read_level_qstring( ctx->f );
         break;
-    case F_GQSTRING:
-        ( *(svg_gstring_t *)p ) = read_game_qstring( ctx->f );
+    case F_GAME_QSTRING:
+        ( *(svg_game_qstring_t *)p ) = read_game_qstring( ctx->f );
+        break;
+    case F_LEVEL_QTAG_MEMORY:
+        read_level_qtag_memory<float>( ctx->f, ( ( sg_qtag_memory_t<float, TAG_SVGAME_LEVEL> * )p ) );
+        break;
+    case F_GAME_QTAG_MEMORY:
+        read_game_qtag_memory<float>( ctx->f, ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
         break;
     case F_ZSTRING:
         read_zstring(ctx->f, (char *)p, field->size);
@@ -1148,7 +1244,11 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
 		break;
 
     default:
-        gi.error("%s: unknown field type", __func__);
+        #if USE_DEBUG
+        gi.error("%s: unknown field type(%d)", __func__, field->type );
+        #else
+        gi.error( "%s: unknown field type(%d), name(%s)", __func__, field->type, field->name );
+        #endif
     }
 }
 
@@ -1163,8 +1263,8 @@ static void read_fields(game_read_context_t* ctx, const save_field_t *fields, vo
 
 //=========================================================
 
-#define SAVE_MAGIC1     MakeLittleLong('S','S','V','1')
-#define SAVE_MAGIC2     MakeLittleLong('S','A','V','1')
+#define SAVE_MAGIC1     MakeLittleLong('G','S','V','1')
+#define SAVE_MAGIC2     MakeLittleLong('L','S','V','1')
 // WID: We got our own version number obviously.
 //#define SAVE_VERSION    8
 #define SAVE_VERSION	1337
