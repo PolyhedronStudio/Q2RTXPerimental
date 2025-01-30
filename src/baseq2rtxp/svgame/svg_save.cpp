@@ -52,19 +52,19 @@ typedef struct {
 #define _DA(type, name, size) { type, _OFS(name), size }
 #endif
 #define _F(type, name) _FA(type, name, 1)
-#define SZ(name, size) _FA(F_ZSTRING, name, size)
-#define BA(name, size) _FA(F_BYTE, name, size)
-#define B(name) BA(name, 1)
-#define SA(name, size) _FA(F_SHORT, name, size)
-#define S(name) SA(name, 1)
-#define IA(name, size) _FA(F_INT, name, size)
-#define I(name) IA(name, 1)
-#define OA(name, size) _FA(F_BOOL, name, size)
-#define O(name) OA(name, 1)
-#define FA(name, size) _FA(F_FLOAT, name, size)
-#define F(name) FA(name, 1)
-#define DA(name, size) _DA(F_DOUBLE, name, size)
-#define D(name) DA(name, 1)
+#define ZSTR(name, size) _FA(F_ZSTRING, name, size)
+#define BYTE_ARRAY(name, size) _FA(F_BYTE, name, size)
+#define BYTE(name) BYTE_ARRAY(name, 1)
+#define SHORT_ARRAY(name, size) _FA(F_SHORT, name, size)
+#define SHORT(name) SHORT_ARRAY(name, 1)
+#define INT32_ARRAY(name, size) _FA(F_INT, name, size)
+#define INT32(name) INT32_ARRAY(name, 1)
+#define BOOL_ARRAY(name, size) _FA(F_BOOL, name, size)
+#define BOOL(name) BOOL_ARRAY(name, 1)
+#define FLOAT_ARRAY(name, size) _FA(F_FLOAT, name, size)
+#define FLOAT(name) FLOAT_ARRAY(name, 1)
+#define DOUBLE_ARRAY(name, size) _DA(F_DOUBLE, name, size)
+#define DOUBLE(name) DOUBLE_ARRAY(name, 1)
 
 #define LQSTR(name) _F(F_LEVEL_QSTRING, name)
 #define GQSTR(name) _F(F_GAME_QSTRING, name)
@@ -79,93 +79,238 @@ typedef struct {
 
 #define ENTITY(name) _F(F_EDICT, name)
 #define POINTER(name, type) _FA(F_POINTER, name, type)
-#define FT(name) _F(F_FRAMETIME, name)
-#define I64A(name, size) _FA(F_INT64, name, size)
-#define I64(name) IA(name, 1)
+#define FTIME(name) _F(F_FRAMETIME, name)
+#define I64_ARRAY(name, size) _FA(F_INT64, name, size)
+#define INT64(name) I64_ARRAY(name, 1)
 
+
+
+/***
+*
+*
+*
+*
+*   Save Field Arrays:
+*
+*
+*
+*
+***/
+/**
+*   gclient_t:
+**/
+static const save_field_t clientfields[] = {
+#define _OFS FOFS_GCLIENT
+    INT32( ps.pmove.pm_type ),
+    SHORT( ps.pmove.pm_flags ),
+    SHORT( ps.pmove.pm_time ),
+    SHORT( ps.pmove.gravity ),
+    VEC3( ps.pmove.origin ),
+    VEC3( ps.pmove.delta_angles ),
+    VEC3( ps.pmove.velocity ),
+    BYTE( ps.pmove.viewheight ),
+
+    VEC3( ps.viewangles ),
+    VEC3( ps.viewoffset ),
+    VEC3( ps.kick_angles ),
+
+    //VEC3( ps.gunangles ),
+    //VEC3( ps.gunoffset ),
+    INT32( ps.gun.modelIndex ),
+    INT32( ps.gun.animationID ),
+
+    //FLOAT_ARRAY( ps.damage_blend, 4 ),
+    FLOAT_ARRAY( ps.screen_blend, 4 ),
+    FLOAT( ps.fov ),
+    INT32( ps.rdflags ),
+    INT32( ps.bobCycle ),
+    INT32_ARRAY( ps.stats, MAX_STATS ),
+
+    ZSTR( pers.userinfo, MAX_INFO_STRING ),
+    ZSTR( pers.netname, 16 ),
+    INT32( pers.hand ),
+
+    BOOL( pers.connected ),
+    BOOL( pers.spawned ),
+
+    INT32( pers.health ),
+    INT32( pers.max_health ),
+    INT32( pers.savedFlags ),
+
+    INT32( pers.selected_item ),
+    INT32_ARRAY( pers.inventory, MAX_ITEMS ),
+
+    ITEM( pers.weapon ),
+    ITEM( pers.lastweapon ),
+    INT32_ARRAY( pers.weapon_clip_ammo, MAX_ITEMS ),
+
+    INT32( pers.ammoCapacities.pistol ),
+    INT32( pers.ammoCapacities.rifle ),
+    INT32( pers.ammoCapacities.smg ),
+    INT32( pers.ammoCapacities.sniper ),
+    INT32( pers.ammoCapacities.shotgun ),
+
+    INT32( pers.score ),
+
+    BOOL( pers.spectator ),
+
+    BOOL( showscores ),
+    BOOL( showinventory ),
+    BOOL( showhelp ),
+    BOOL( showhelpicon ),
+
+    //INT32( buttons ),
+    //INT32( oldbuttons ),
+    //INT32( latched_buttons ),
+
+    INT32( ammo_index ),
+
+    ITEM( newweapon ),
+
+    BOOL( weapon_thunk ),
+
+    BOOL( grenade_blew_up ),
+    INT64( grenade_time ),
+    INT64( grenade_finished_time ),
+
+    INT32( frameDamage.armor ),
+    INT32( frameDamage.blood ),
+    INT32( frameDamage.knockBack ),
+    VEC3( frameDamage.from ),
+
+    FLOAT( killer_yaw ),
+
+    INT32( weaponState.mode ),
+    INT32( weaponState.canChangeMode ),
+    INT32( weaponState.aimState.isAiming ),
+    INT32( weaponState.animation.currentFrame ),
+    INT32( weaponState.animation.startFrame ),
+    INT32( weaponState.animation.endFrame ),
+    INT64( weaponState.timers.lastEmptyWeaponClick ),
+    INT64( weaponState.timers.lastPrimaryFire ),
+    INT64( weaponState.timers.lastAimedFire ),
+    INT64( weaponState.timers.lastDrawn ),
+    INT64( weaponState.timers.lastHolster ),
+
+    VEC3( weaponKicks.offsetAngles ),
+    VEC3( weaponKicks.offsetOrigin ),
+
+    VEC3( viewMove.viewAngles ), VEC3( viewMove.viewForward ),
+    INT64( viewMove.damageTime ),
+    INT64( viewMove.fallTime ),
+    INT64( viewMove.quakeTime ),
+    FLOAT( viewMove.damageRoll ), FLOAT( viewMove.damagePitch ),
+    FLOAT( viewMove.fallValue ),
+
+    FLOAT( damage_alpha ),
+    FLOAT( bonus_alpha ),
+    VEC3( damage_blend ),
+    INT64( bobCycle ),
+    INT64( oldBobCycle ),
+    DOUBLE( bobFracSin ),
+    INT64( last_stair_step_frame ),
+    VEC3( last_ladder_pos ),
+    INT64( last_ladder_sound ),
+
+    VEC3( oldviewangles ),
+    VEC3( oldvelocity ),
+    ENTITY( oldgroundentity ),
+    INT32( old_waterlevel ),
+    INT64( next_drown_time ),
+
+    INT64( pickup_msg_time ), // WID: 64-bit-frame
+
+    // WID: C++20: Replaced {0}
+    {}
+#undef _OFS
+};
+
+/**
+*   edict_t:
+**/
 static const save_field_t entityfields[] = {
 #define _OFS FOFS_GENTITY
     /**
     *   Server Edict Entity State Data:
     **/
-    I( s.number ),
-    //S( s.client ),
-    I( s.entityType ),
+    INT32( s.number ),
+    //SHORT( s.client ),
+    INT32( s.entityType ),
 
     VEC3( s.origin ),
     VEC3( s.angles ),
     VEC3( s.old_origin ),
 
-    I( s.solid ),
-    I( s.clipmask ),
-    I( s.clipmask ),
-    I( s.hullContents ),
-    I( s.ownerNumber ),
+    INT32( s.solid ),
+    INT32( s.clipmask ),
+    INT32( s.clipmask ),
+    INT32( s.hullContents ),
+    INT32( s.ownerNumber ),
 
-    I( s.modelindex ),
-    I( s.modelindex2 ),
-    I( s.modelindex3 ),
-    I( s.modelindex4 ),
+    INT32( s.modelindex ),
+    INT32( s.modelindex2 ),
+    INT32( s.modelindex3 ),
+    INT32( s.modelindex4 ),
 
-    I( s.skinnum ),
-    I( s.effects ),
-    I( s.renderfx ),
+    INT32( s.skinnum ),
+    INT32( s.effects ),
+    INT32( s.renderfx ),
 
-    I( s.frame ),
-    I( s.old_frame ),
+    INT32( s.frame ),
+    INT32( s.old_frame ),
 
-    I( s.sound ),
-    I( s.event ),
+    INT32( s.sound ),
+    INT32( s.event ),
 
     // TODO: Do we really need to save this? Perhaps.
     // For spotlights.
     VEC3( s.spotlight.rgb ),
-    F( s.spotlight.intensity ),
-    F( s.spotlight.angle_width ),
-    F( s.spotlight.angle_falloff ),
+    FLOAT( s.spotlight.intensity ),
+    FLOAT( s.spotlight.angle_width ),
+    FLOAT( s.spotlight.angle_falloff ),
 
     /**
     *   Server Edict Data:
     **/
-    I( svflags ),
+    INT32( svflags ),
     VEC3( mins ),
     VEC3( maxs ),
     VEC3( absmin ),
     VEC3( absmax ),
     VEC3( size ),
-    I( solid ),
-    I( clipmask ),
-    I( hullContents ),
+    INT32( solid ),
+    INT32( clipmask ),
+    INT32( hullContents ),
     ENTITY( owner ),
 
     /**
     *   Start of Game Edict data:
     **/
-    I( spawn_count ),
-    I64( freetime ),
-    I64( timestamp ),
+    INT32( spawn_count ),
+    INT64( freetime ),
+    INT64( timestamp ),
 
     LQSTR( classname ),
     CHARPTR( model ),
-    F( angle ),
+    FLOAT( angle ),
 
-    I( spawnflags ),
-    I( flags ),
+    INT32( spawnflags ),
+    INT32( flags ),
 
     /**
     *   Health/Body Status Conditions:
     **/
-    I( health ),
-    I( max_health ),
-    I( gib_health ),
-    I( lifeStatus ),
-    I( takedamage ),
+    INT32( health ),
+    INT32( max_health ),
+    INT32( gib_health ),
+    INT32( lifeStatus ),
+    INT32( takedamage ),
 
     /**
     *   UseTarget Properties and State:
     **/
-    I( useTarget.flags ),
-    I( useTarget.state ),
+    INT32( useTarget.flags ),
+    INT32( useTarget.state ),
 
     /**
     *   Target Name Fields:
@@ -193,10 +338,10 @@ static const save_field_t entityfields[] = {
     *   "Delay" entities:
     **/
     ENTITY( delayed.useTarget.creatorEntity ),
-    I( delayed.useTarget.useType ),
-    I( delayed.useTarget.useValue ),
+    INT32( delayed.useTarget.useType ),
+    INT32( delayed.useTarget.useValue ),
     ENTITY( delayed.signalOut.creatorEntity ),
-    SZ( delayed.signalOut.name, 256 ),
+    ZSTR( delayed.signalOut.name, 256 ),
     // WID: TODO: We can't save these with a system like these, can we?
     // WID: We can I guess, but it requires a specified save type for signal argument array indices.
     //SIGNALARGUMENTS( delayed.signalOut.arguments ),
@@ -213,16 +358,16 @@ static const save_field_t entityfields[] = {
     ENTITY( moveWith.parentMoveEntity ),
     ENTITY( moveWith.moveNextEntity),
 
-    I( movetype ),
+    INT32( movetype ),
     VEC3( velocity ),
     VEC3( avelocity ),
-    I( viewheight ),
+    INT32( viewheight ),
 
     // WID: Are these actually needed? Would they not be recalculated the first frame around?
     // WID: TODO: mm_ground_info_t
     // WID: TODO: mm_liquid_info_t
-    I( mass ),
-    F( gravity ),
+    INT32( mass ),
+    FLOAT( gravity ),
 
     /**
     *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
@@ -232,52 +377,52 @@ static const save_field_t entityfields[] = {
     VEC3( pushMoveInfo.startAngles ),
     VEC3( pushMoveInfo.endOrigin ),
     VEC3( pushMoveInfo.endAngles ),
-    I( pushMoveInfo.startFrame ),
-    I( pushMoveInfo.endFrame ),
+    INT32( pushMoveInfo.startFrame ),
+    INT32( pushMoveInfo.endFrame ),
     // Dynamic State Data
-    I( pushMoveInfo.state ),
+    INT32( pushMoveInfo.state ),
     VEC3( pushMoveInfo.dir ),
     VEC3( pushMoveInfo.dest ),
-    O( pushMoveInfo.in_motion ),
-    F( pushMoveInfo.current_speed ),
-    F( pushMoveInfo.move_speed ),
-    F( pushMoveInfo.next_speed ),
-    F( pushMoveInfo.remaining_distance ),
-    F( pushMoveInfo.decel_distance ),
+    BOOL( pushMoveInfo.in_motion ),
+    FLOAT( pushMoveInfo.current_speed ),
+    FLOAT( pushMoveInfo.move_speed ),
+    FLOAT( pushMoveInfo.next_speed ),
+    FLOAT( pushMoveInfo.remaining_distance ),
+    FLOAT( pushMoveInfo.decel_distance ),
     //  Acceleration Data.
-    F( pushMoveInfo.accel ),
-    F( pushMoveInfo.speed ),
-    F( pushMoveInfo.decel ),
-    F( pushMoveInfo.distance ),
-    F( pushMoveInfo.wait ),
+    FLOAT( pushMoveInfo.accel ),
+    FLOAT( pushMoveInfo.speed ),
+    FLOAT( pushMoveInfo.decel ),
+    FLOAT( pushMoveInfo.distance ),
+    FLOAT( pushMoveInfo.wait ),
     // Curve.
     VEC3( pushMoveInfo.curve.referenceOrigin ),
-    //I64( pushMoveInfo.curve.countPositions ),
+    //INT64( pushMoveInfo.curve.countPositions ),
     // WID: TODO: This is problematic with this save system, size has to be dynamic in the future.
-    //FA( pushMoveInfo.curve.positions, 1024 ),
+    //FLOAT_ARRAY( pushMoveInfo.curve.positions, 1024 ),
     LEVEL_QTAG_MEMORY( pushMoveInfo.curve.positions ),
-    I64( pushMoveInfo.curve.frame ),
-    I64( pushMoveInfo.curve.subFrame ),
-    I64( pushMoveInfo.curve.numberSubFrames ),
-    I64( pushMoveInfo.curve.numberFramesDone ),
+    INT64( pushMoveInfo.curve.frame ),
+    INT64( pushMoveInfo.curve.subFrame ),
+    INT64( pushMoveInfo.curve.numberSubFrames ),
+    INT64( pushMoveInfo.curve.numberFramesDone ),
     // LockState
-    O( pushMoveInfo.lockState.isLocked ),
-    I( pushMoveInfo.lockState.lockedSound ),
-    I( pushMoveInfo.lockState.lockingSound ),
-    I( pushMoveInfo.lockState.unlockingSound ),
+    BOOL( pushMoveInfo.lockState.isLocked ),
+    INT32( pushMoveInfo.lockState.lockedSound ),
+    INT32( pushMoveInfo.lockState.lockingSound ),
+    INT32( pushMoveInfo.lockState.unlockingSound ),
     // Sounds
-    I( pushMoveInfo.sounds.start ),
-    I( pushMoveInfo.sounds.middle ),
-    I( pushMoveInfo.sounds.end ),
+    INT32( pushMoveInfo.sounds.start ),
+    INT32( pushMoveInfo.sounds.middle ),
+    INT32( pushMoveInfo.sounds.end ),
     // Callback
     POINTER( pushMoveInfo.endMoveCallback, P_pusher_moveinfo_endmovecallback ),
     // Movewith
     VEC3( pushMoveInfo.lastVelocity ),
     // WID: Are these actually needed? Would they not be recalculated the first frame around?
     // WID: TODO: PushmoveInfo
-    F( speed ),
-    F( accel ),
-    F( decel ),
+    FLOAT( speed ),
+    FLOAT( accel ),
+    FLOAT( decel ),
 
     VEC3( movedir ),
     VEC3( pos1 ),
@@ -291,7 +436,7 @@ static const save_field_t entityfields[] = {
     /**
     *   NextThink AND Entity Callbacks:
     **/
-    I64( nextthink ),
+    INT64( nextthink ),
 
     POINTER( postspawn, P_postspawn ),
     POINTER( prethink, P_prethink ),
@@ -319,7 +464,7 @@ static const save_field_t entityfields[] = {
     /**
     *   Light Data:
     **/
-    I( style ),
+    INT32( style ),
     CHARPTR( customLightStyle ),
 
     /**
@@ -330,8 +475,8 @@ static const save_field_t entityfields[] = {
     /**
     *   Monster Data:
     **/
-    F( yaw_speed ),
-    F( ideal_yaw ),
+    FLOAT( yaw_speed ),
+    FLOAT( ideal_yaw ),
 
     /**
     *   Player Noise/Trail:
@@ -339,51 +484,51 @@ static const save_field_t entityfields[] = {
     ENTITY( mynoise ),
     ENTITY( mynoise2 ),
 
-    I( noise_index ),
-    I( noise_index2 ),
+    INT32( noise_index ),
+    INT32( noise_index2 ),
 
     /**
     *   Sound Data:
     **/
-    F( volume ),
-    F( attenuation ),
-    I64( last_sound_time ),
+    FLOAT( volume ),
+    FLOAT( attenuation ),
+    INT64( last_sound_time ),
 
     /**
     *   Trigger(s) Data:
     **/
     CHARPTR( message ),
-    F( wait ),
-    F( delay ),
+    FLOAT( wait ),
+    FLOAT( delay ),
 
     // WID: TODO: Fix this, wtf at the name of plain 'random'.
     #undef random
-    F( random ),
+    FLOAT( random ),
 
     /**
     *   Timers Data:
     **/
-    I64( air_finished_time ),
-    I64( damage_debounce_time ),
-    I64( fly_sound_debounce_time ),
-    I64( last_move_time ),
-    I64( touch_debounce_time ),
-    I64( pain_debounce_time ),
-    I64( show_hostile_time ),
-    I64( trail_time ),
+    INT64( air_finished_time ),
+    INT64( damage_debounce_time ),
+    INT64( fly_sound_debounce_time ),
+    INT64( last_move_time ),
+    INT64( touch_debounce_time ),
+    INT64( pain_debounce_time ),
+    INT64( show_hostile_time ),
+    INT64( trail_time ),
 
     /**
     *   Various Data:
     **/
-    I( meansOfDeath ),
+    INT32( meansOfDeath ),
     CHARPTR( map ),
 
-    I( dmg ),
-    I( radius_dmg ),
-    F( dmg_radius ),
-    F( light ),
-    I( sounds ),
-    I( count ),
+    INT32( dmg ),
+    INT32( radius_dmg ),
+    FLOAT( dmg_radius ),
+    FLOAT( light ),
+    INT32( sounds ),
+    INT32( count ),
 
     /**
     *   Only used for g_turret.cpp - WID: Remove?:
@@ -394,9 +539,9 @@ static const save_field_t entityfields[] = {
     // WID: TODO: Monster Reimplement.
     //POINTER( monsterinfo.currentmove, P_monsterinfo_currentmove ),
     //POINTER( monsterinfo.nextmove, P_monsterinfo_nextmove ),
-    //I( monsterinfo.aiflags ),
-    //I64( monsterinfo.nextframe ), // WID: 64-bit-frame
-    //F( monsterinfo.scale ),
+    //INT32( monsterinfo.aiflags ),
+    //INT64( monsterinfo.nextframe ), // WID: 64-bit-frame
+    //FLOAT( monsterinfo.scale ),
 
     //POINTER( monsterinfo.stand, P_monsterinfo_stand ),
     //POINTER( monsterinfo.idle, P_monsterinfo_idle ),
@@ -409,218 +554,109 @@ static const save_field_t entityfields[] = {
     //POINTER( monsterinfo.sight, P_monsterinfo_sight ),
     //POINTER( monsterinfo.checkattack, P_monsterinfo_checkattack ),
 
-    //I64( monsterinfo.next_move_time ),
+    //INT64( monsterinfo.next_move_time ),
 
-    //I64( monsterinfo.pause_time ),// WID: 64-bit-frame FT(monsterinfo.pause_time),
-    //I64( monsterinfo.attack_finished ),// WID: 64-bit-frame FT(monsterinfo.attack_finished),
-    //I64( monsterinfo.fire_wait ),
+    //INT64( monsterinfo.pause_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.pause_time),
+    //INT64( monsterinfo.attack_finished ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.attack_finished),
+    //INT64( monsterinfo.fire_wait ),
 
     //VEC3( monsterinfo.saved_goal ),
-    //I64( monsterinfo.search_time ),// WID: 64-bit-frame FT(monsterinfo.search_time),
-    //I64( monsterinfo.trail_time ),// WID: 64-bit-frame FT(monsterinfo.trail_time),
+    //INT64( monsterinfo.search_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.search_time),
+    //INT64( monsterinfo.trail_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.trail_time),
     //VEC3( monsterinfo.last_sighting ),
-    //I( monsterinfo.attack_state ),
-    //I( monsterinfo.lefty ),
-    //I64( monsterinfo.idle_time ),// WID: 64-bit-frame FT(monsterinfo.idle_time),
-    //I( monsterinfo.linkcount ),
+    //INT32( monsterinfo.attack_state ),
+    //INT32( monsterinfo.lefty ),
+    //INT64( monsterinfo.idle_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.idle_time),
+    //INT32( monsterinfo.linkcount ),
 
 	// WID: C++20: Replaced {0}
     {}
 #undef _OFS
 };
 
+/**
+*   game:
+**/
+static const save_field_t gamefields[] = {
+#define _OFS FOFS_GAME_LOCALS
+    INT32(maxclients),
+    INT32(maxentities),
+    INT32(gamemode),
+
+    INT32(serverflags),
+
+    INT32(num_items),
+
+    BOOL(autosaved),
+
+    INT32( num_movewithEntityStates ),
+
+	// WID: C++20: Replaced {0}
+    {}
+#undef _OFS
+};
+
+/**
+*   level:
+**/
 static const save_field_t levelfields[] = {
 #define _OFS FOFS_LEVEL_LOCALS
-	I64( frameNumber ),
-	I64( time ), // WID: 64-bit-frame
+    INT64( frameNumber ),
+    INT64( time ), // WID: 64-bit-frame
 
-	SZ( level_name, MAX_QPATH ),
-	SZ( mapname, MAX_QPATH ),
-	SZ( nextmap, MAX_QPATH ),
+    ZSTR( level_name, MAX_QPATH ),
+    ZSTR( mapname, MAX_QPATH ),
+    ZSTR( nextmap, MAX_QPATH ),
 
-	I64( intermissionFrameNumber ),
+    INT64( intermissionFrameNumber ),
 
-	CHARPTR( changemap ),
-	I64( exitintermission ),
-	VEC3( intermission_origin ),
-	VEC3( intermission_angle ),
+    CHARPTR( changemap ),
+    INT64( exitintermission ),
+    VEC3( intermission_origin ),
+    VEC3( intermission_angle ),
 
-	ENTITY( sight_client ),
+    ENTITY( sight_client ),
 
-	ENTITY( sight_entity ),
-	I64( sight_entity_framenum ), // WID: 64-bit-frame
-	ENTITY( sound_entity ),
-	I64( sound_entity_framenum ), // WID: 64-bit-frame
-	ENTITY( sound2_entity ),
-	I64( sound2_entity_framenum ),// WID: 64-bit-frame
+    ENTITY( sight_entity ),
+    INT64( sight_entity_framenum ), // WID: 64-bit-frame
+    ENTITY( sound_entity ),
+    INT64( sound_entity_framenum ), // WID: 64-bit-frame
+    ENTITY( sound2_entity ),
+    INT64( sound2_entity_framenum ),// WID: 64-bit-frame
 
-	I( pic_health ),
+    INT32( pic_health ),
 
-	I( total_secrets ),
-	I( found_secrets ),
+    INT32( total_secrets ),
+    INT32( found_secrets ),
 
-	I( total_goals ),
-	I( found_goals ),
+    INT32( total_goals ),
+    INT32( found_goals ),
 
-	I( total_monsters ),
-	I( killed_monsters ),
+    INT32( total_monsters ),
+    INT32( killed_monsters ),
 
     ENTITY( current_entity ),
 
-	I( body_que ),
-
-	// WID: C++20: Replaced {0}
-	{}
-#undef _OFS
-};
-
-static const save_field_t clientfields[] = {
-#define _OFS FOFS_GCLIENT
-	I( ps.pmove.pm_type ),
-    S( ps.pmove.pm_flags ),
-    S( ps.pmove.pm_time ),
-    S( ps.pmove.gravity ),
-	VEC3( ps.pmove.origin ),
-    VEC3( ps.pmove.delta_angles ),
-	VEC3( ps.pmove.velocity ),
-    B( ps.pmove.viewheight ),
-
-	VEC3( ps.viewangles ),
-	VEC3( ps.viewoffset ),
-	VEC3( ps.kick_angles ),
-
-	//VEC3( ps.gunangles ),
-	//VEC3( ps.gunoffset ),
-	I( ps.gun.modelIndex ),
-	I( ps.gun.animationID ),
-
-    //FA( ps.damage_blend, 4 ),
-	FA( ps.screen_blend, 4 ),
-	F( ps.fov ),
-	I( ps.rdflags ),
-    I( ps.bobCycle ),
-	IA( ps.stats, MAX_STATS ),
-
-	SZ( pers.userinfo, MAX_INFO_STRING ),
-	SZ( pers.netname, 16 ),
-	I( pers.hand ),
-
-    O( pers.connected ),
-    O( pers.spawned ),
-
-	I( pers.health ),
-	I( pers.max_health ),
-	I( pers.savedFlags ),
-
-	I( pers.selected_item ),
-	IA( pers.inventory, MAX_ITEMS ),
-    
-    ITEM( pers.weapon ),
-    ITEM( pers.lastweapon ),
-    IA( pers.weapon_clip_ammo, MAX_ITEMS ),
-
-	I( pers.ammoCapacities.pistol ),
-	I( pers.ammoCapacities.rifle ),
-	I( pers.ammoCapacities.smg ),
-	I( pers.ammoCapacities.sniper ),
-	I( pers.ammoCapacities.shotgun ),
-
-	I( pers.score ),
-
-	O( pers.spectator ),
-
-	O( showscores ),
-	O( showinventory ),
-	O( showhelp ),
-	O( showhelpicon ),
-
-    //I( buttons ),
-    //I( oldbuttons ),
-    //I( latched_buttons ),
-
-	I( ammo_index ),
-
-	ITEM( newweapon ),
-
-    O( weapon_thunk ),
-
-    O( grenade_blew_up ),
-    I64( grenade_time ),
-    I64( grenade_finished_time ),
-
-	I( frameDamage.armor ),
-	I( frameDamage.blood ),
-	I( frameDamage.knockBack ),
-	VEC3( frameDamage.from ),
-
-	F( killer_yaw ),
-
-	I( weaponState.mode ),
-    I( weaponState.canChangeMode ),
-    I( weaponState.aimState.isAiming ),
-    I( weaponState.animation.currentFrame ),
-    I( weaponState.animation.startFrame ),
-    I( weaponState.animation.endFrame ),
-    I64( weaponState.timers.lastEmptyWeaponClick ),
-    I64( weaponState.timers.lastPrimaryFire ),
-    I64( weaponState.timers.lastAimedFire ),
-    I64( weaponState.timers.lastDrawn ),
-    I64( weaponState.timers.lastHolster ),
-
-    VEC3( weaponKicks.offsetAngles ),
-    VEC3( weaponKicks.offsetOrigin ),
-
-    VEC3( viewMove.viewAngles ), VEC3( viewMove.viewForward ),   
-    I64( viewMove.damageTime ),
-    I64( viewMove.fallTime ),
-    I64( viewMove.quakeTime ),
-	F( viewMove.damageRoll ), F( viewMove.damagePitch ),
-	F( viewMove.fallValue ),
-
-	F( damage_alpha ),
-	F( bonus_alpha ),
-	VEC3( damage_blend ),
-	I64( bobCycle ),
-    I64( oldBobCycle ),
-    D( bobFracSin ),
-    I64( last_stair_step_frame ),
-    VEC3( last_ladder_pos ),
-    I64( last_ladder_sound ),
-
-	VEC3( oldviewangles ),
-	VEC3( oldvelocity ),
-    ENTITY( oldgroundentity ),
-    I( old_waterlevel ),
-	I64( next_drown_time ),
-
-    I64( pickup_msg_time ), // WID: 64-bit-frame
+    INT32( body_que ),
 
     // WID: C++20: Replaced {0}
-	{}
-#undef _OFS
-};
-
-static const save_field_t gamefields[] = {
-#define _OFS FOFS_GAME_LOCALS
-    I(maxclients),
-    I(maxentities),
-    I(gamemode),
-
-    I(serverflags),
-
-    I(num_items),
-
-    O(autosaved),
-
-    I( num_movewithEntityStates ),
-
-	// WID: C++20: Replaced {0}
     {}
 #undef _OFS
 };
 
-//=========================================================
 
+
+/***
+*
+*
+*
+*
+*   Write:
+*
+*
+*
+*
+***/
 static void write_data(void *buf, size_t len, gzFile f)
 {
     if (gzwrite(f, buf, len) != len) {
@@ -910,6 +946,19 @@ static void write_fields(gzFile f, const save_field_t *fields, void *base)
     }
 }
 
+
+
+/***
+* 
+* 
+* 
+* 
+*   Reading:
+* 
+* 
+* 
+* 
+***/
 typedef struct game_read_context_s {
 	gzFile f;
     //bool frametime_is_float;
@@ -1261,8 +1310,19 @@ static void read_fields(game_read_context_t* ctx, const save_field_t *fields, vo
     }
 }
 
-//=========================================================
 
+
+/***
+*
+*
+*
+*
+*   Game Read/Write:
+*
+*
+*
+*
+***/
 #define SAVE_MAGIC1     MakeLittleLong('G','S','V','1')
 #define SAVE_MAGIC2     MakeLittleLong('L','S','V','1')
 // WID: We got our own version number obviously.
@@ -1382,9 +1442,19 @@ void SVG_ReadGame(const char *filename)
     gzclose(f);
 }
 
-//==========================================================
 
 
+/***
+*
+*
+*
+*
+*   Level Read/Write:
+*
+*
+*
+*
+***/
 /*
 =================
 WriteLevel
