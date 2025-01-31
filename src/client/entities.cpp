@@ -55,7 +55,7 @@ static inline bool entity_is_optimized(const entity_state_t *state)
     // using the entity origin for the player, wouldn't that mean
     // it is a slower update rate than the actual player is?
     if ( cls.serverProtocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
-        return false;
+        return true;
     }
 
     return true;
@@ -220,8 +220,6 @@ static void parse_entity_update(const entity_state_t *state)
         // Was around, sp update some things.
         entity_update_old( ent, state, origin );
     }
-
-
 
     // Assign last received server frame.
     ent->serverframe = cl.frame.number;
