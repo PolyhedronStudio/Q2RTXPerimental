@@ -476,7 +476,7 @@ void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parent
     game.moveWithEntities[ game.num_movewithEntityStates ].parentNumber = parentMover->s.number;
 
     // Debug
-    gi.dprintf( "%s: found parent(%s) for child entity(%s).\n", __func__, parentMover->targetNames.target, childMover->targetNames.movewith );
+    gi.dprintf( "%s: found parent(%s) for child entity(%s).\n", __func__, (const char*)parentMover->targetNames.target, (const char *)childMover->targetNames.movewith );
 }
 
 void SVG_MoveWith_Init( edict_t *self, edict_t *parent ) {
