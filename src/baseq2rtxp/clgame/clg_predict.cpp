@@ -173,10 +173,11 @@ const qboolean PF_UsePrediction( void ) {
     }
 
     // When the server is paused, nothing to predict, make sure to clear any possible predicted state error.
-    if ( sv_paused->integer ) {
+    if ( clgi.GetConnectionState() != ca_active || sv_paused->integer ) {
         clgi.client->predictedState.error = {};
         return false;
     }
+
     // Prediction is disabled by user.
     if ( !cl_predict->integer ) {
         return false;

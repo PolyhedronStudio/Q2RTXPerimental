@@ -1785,7 +1785,7 @@ const bool SCR_ShouldDrawPause() {
         // No.
         return false;
     }
-    // Client paused?
+    // Client also paused?
     if ( !cl_paused->integer ) {
         // No.
         return false;

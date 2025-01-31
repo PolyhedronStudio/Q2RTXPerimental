@@ -903,52 +903,79 @@ static void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const 
     clgi.client->delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 2 ], ps->pmove.delta_angles[ 2 ], lerpFrac ) );
 }
 
+const bool CLG_IsGameplayPaused() {
+    if ( clgi.GetConnectionState() != ca_active || sv_paused->integer ) {
+        return true;
+    }
+    return false;
+}
 /**
 *   @brief  Lerp the client's POV range.
 **/
 static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
     // Amount of MS to lerp FOV over.
-    static constexpr int32_t ZOOM_TIME = 100;
+    static constexpr int32_t FOV_LERP_TIME = 225;
+    static constexpr int32_t FOV_LERP_STATE_IN = 1;
+    static constexpr int32_t FOV_LERP_STATE_OUT = 0;
+    // Keeps track of the client side weapon aim/zooming state its POV transitions.
+    static struct {
+        //! Whether we're going in, or out.
+        int32_t state = FOV_LERP_STATE_OUT;
+        //! The time at when the FOV last changed/
+        uint64_t timeChanged = 0;
+        //! The old FOV to restore back to when we zoom out again.
+        float oldFOV = 0;
+        //! The actual lerp fraction we're at.
+        double lerpFraction = 0.;
+    } povLerp;
+    // Initialize it the first time around.
+    if ( !level.time ) {
+        povLerp = { .state = FOV_LERP_STATE_OUT };
+    }
 
     /**
     *   Determine whether the FOV changed, whether it is zoomed(lower or higher than previous FOV), and
     *   store the old FOV as well as the realtime of change.
     **/
-    static float isZooming = false; // Whether we're zooming in or out.
-    static uint64_t zoom_time = 0; // The time at which the change was detected.
-    static float old_fov = ps->fov; // The initiali FOV we want to lerp out of.
     if ( ops->fov != ps->fov ) {
-        if ( ops->fov > ps->fov ) {
-            isZooming = false;
-            old_fov = ops->fov;
-            zoom_time = clgi.GetRealTime();
+        if ( ops->fov > ps->fov/* && povLerp.state = FOV_LERP_STATE_IN */) {
+            //if ( zoom_time < clgi.GetRealTime() - ZOOM_TIME ) {
+                povLerp.state = FOV_LERP_STATE_OUT;
+                povLerp.oldFOV = ops->fov;
+                povLerp.timeChanged = clgi.GetRealTime();
+            //}
         } else {
-            isZooming = true;
-            old_fov = ops->fov;
-            zoom_time = clgi.GetRealTime();
+            //if ( zoom_time < clgi.GetRealTime() - ZOOM_TIME ) {
+                povLerp.state = FOV_LERP_STATE_IN;
+                povLerp.oldFOV = ops->fov;
+                povLerp.timeChanged = clgi.GetRealTime();
+            //}
         }
     }
 
     /**
     *   Determine the lerp fraction for the FOV to lerp by.
     **/
-    float lerpfrac = 1;
-    //if ( isZooming ) {
-        lerpfrac = (float)( clgi.GetRealTime() - zoom_time ) / (float)ZOOM_TIME;
-    //} else if ( zoom_time >= clgi.GetRealTime() - ZOOM_TIME ) {
-    //    lerpfrac = (float)( clgi.GetRealTime() - zoom_time ) / (float)ZOOM_TIME;
-    //}
-    if ( lerpfrac >= 1.0 ) {
-        lerpfrac = 1.0f;
+    if ( !CLG_IsGameplayPaused() ) {
+        povLerp.lerpFraction = QM_Clampf( (float)( clgi.GetRealTime() - povLerp.timeChanged ) / (float)FOV_LERP_TIME, 0.f, 1.f );
     }
-    if ( lerpfrac <= 0.0f ) {
-        lerpfrac = 0.f;
+
+    // Ease In:
+    float easeLerpFactor = 0.f;
+    if ( povLerp.state == FOV_LERP_STATE_IN ) {
+        //beavFrac = QM_ExponentialEaseI( lerpfrac );
+        easeLerpFactor = QM_CubicEaseIn( povLerp.lerpFraction );
+    // Ease Out:
+    } else {
+        easeLerpFactor = QM_CubicEaseOut( povLerp.lerpFraction );
     }
+    // Clamp the ease result just to be sure:
+    easeLerpFactor = QM_Clampf( easeLerpFactor, 0.f, 1.f );
 
     /**
     *   Calculate appropriate fov for use.
     **/
-    clgi.client->fov_x = lerp_client_fov( old_fov, ps->fov, lerpfrac );
+    clgi.client->fov_x = lerp_client_fov( povLerp.oldFOV, ps->fov, easeLerpFactor );
     clgi.client->fov_y = PF_CalculateFieldOfView( clgi.client->fov_x, 4, 3 );
 }
 /**
