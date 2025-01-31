@@ -300,7 +300,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         **/
         if ( ( ( ent->client->userInput.pressedButtons & BUTTON_SECONDARY_FIRE )
             || ( ent->client->userInput.heldButtons & BUTTON_SECONDARY_FIRE ) ) //( ent->client->buttons & BUTTON_SECONDARY_FIRE ) 
-            && ent->client->weaponState.mode <= WEAPON_MODE_RELOADING ) {
+            && ent->client->weaponState.mode < WEAPON_MODE_RELOADING ) {
                 //gi.dprintf( "%s: NOT isAiming -> SwitchMode( WEAPON_MODE_AIM_IN )\n", __func__ );
                 SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeAnimations, false );
         /**
@@ -427,11 +427,14 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
         if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN ) {
             // Adjust the POV.
             if ( ent->client->weaponState.animation.currentFrame >= ent->client->weaponState.animation.startFrame ) {
+                // Zoomed POV.
                 ent->client->ps.fov = 45;
+                // Disable any possible active sounds.
+                //ent->client->weaponState.activeSound = 0;
             }
 
             // Set the isAiming state value for aiming specific behavior to true right at the end of its animation.
-            if ( level.time >= ent->client->weaponState.animation.endTime ) {
+            if ( level.time == ent->client->weaponState.animation.endTime ) {
                 // Switch to AIM Idle.
                 SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IDLE, pistolItemInfo.modeAnimations, false );
             }
@@ -461,7 +464,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
 
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
             // any earlier/double firing.
-            if ( level.time >= ent->client->weaponState.animation.endTime ) {
+            if ( level.time == ent->client->weaponState.animation.endTime ) {
                 // Disengage aiming state.
                 ent->client->weaponState.aimState = {};
                 // Back to idle.

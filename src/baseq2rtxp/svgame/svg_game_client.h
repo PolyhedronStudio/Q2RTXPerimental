@@ -262,12 +262,12 @@ struct gclient_s {
         Vector3 viewAngles, viewForward, viewRight, viewUp;
 
         // View Movement Timers:
-        sg_time_t	damageTime;
-        sg_time_t	fallTime;
-        sg_time_t	quakeTime;
-        //! View Damage Kicks.
+        sg_time_t	damageTime; //! Time being damaged.
+        sg_time_t	fallTime;   //! Well, time we are in air falling down.
+        sg_time_t	quakeTime;  //! trigger_earthquake
+        //! View Damage Impact Kicks.
         float       damageRoll, damagePitch;
-        //! For view drop on fall.
+        //! For view drop impact during on fall scenarios.
         float		fallValue;
     } viewMove;
 
@@ -292,7 +292,7 @@ struct gclient_s {
 
     vec3_t          oldviewangles;
     vec3_t          oldvelocity;
-    edict_t *oldgroundentity; // [Paril-KEX]
+    edict_t         *oldgroundentity; // [Paril-KEX]
     liquid_level_t	old_waterlevel;
     sg_time_t       flash_time; // [Paril-KEX] for high tickrate
 
@@ -327,18 +327,18 @@ struct gclient_s {
     *	Item/Use Event Timers:
     **/
     sg_time_t	pickup_msg_time;
-    sg_time_t	respawn_time;		// can respawn when time > this
+    sg_time_t	respawn_time;		// Can respawn when time > this.
 
     /**
     *	Chat Flood Related:
     **/
-    sg_time_t	flood_locktill;     // locked from talking
-    sg_time_t	flood_when[ 10 ];     // when messages were said
-    int64_t		flood_whenhead;     // head pointer for when said
+    sg_time_t	flood_locktill;     // Locked from talking.
+    sg_time_t	flood_when[ 10 ];   // When messages were said.
+    int64_t		flood_whenhead;     // Head pointer for when said.
 
     /**
     *   Spectator Chasing:
     **/
-    edict_t *chase_target;      // player we are chasing
-    bool        update_chase;       // need to update chase info?
+    edict_t     *chase_target;  // Player we are chasing.
+    bool        update_chase;   // Need to update chase info?
 };
