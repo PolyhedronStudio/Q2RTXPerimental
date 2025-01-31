@@ -17,30 +17,78 @@
 *
 **/
 /**
+*   @brief  Check whether two given floats are almost equal
+**/
+RMAPI int QM_FloatEquals( const float x, const float y ) {
+	#if !defined(QM_EPSILON)
+	#define QM_EPSILON 0.000001f
+	#endif
+
+	int result = ( fabsf( x - y ) ) <= ( QM_EPSILON * fmaxf( 1.0f, fmaxf( fabsf( x ), fabsf( y ) ) ) );
+
+	return result;
+}
+
+/**
+*   @brief  Clamps float value within -min/+max range.
+**/
+RMAPI const float QM_Clampf( const float value, const float min, const float max ) {
+	const float result = ( value < min ) ? min : value;
+	//if ( result > max ) result = max;
+	//result;
+	return ( result > max ) ? max : result;
+}
+/**
+*   @brief  Normalize input value within input range
+**/
+RMAPI const float QM_Normalizef( const float value, const float start, const float end ) {
+	const float result = ( value - start ) / ( end - start );
+
+	return result;
+}
+/**
+*   @brief  Remap input value within input range to output range
+**/
+RMAPI const float QM_Remapf( const float value, const float inputStart, const float inputEnd, const float outputStart, const float outputEnd ) {
+	const float result = ( value - inputStart ) / ( inputEnd - inputStart ) * ( outputEnd - outputStart ) + outputStart;
+
+	return result;
+}
+/**
+*   @brief  Wrap float input value from min to max
+**/
+RMAPI const float QM_Wrapf( const float value, const float min, const float max ) {
+	const float result = value - ( max - min ) * floorf( ( value - min ) / ( max - min ) );
+	return result;
+}
+
+/**
 *
 *
-*   Float Utilities:
+*   Double Utilities:
 *
 *
 **/
 /**
 *   @brief  Check whether two given floats are almost equal
 **/
-RMAPI int QM_FloatEquals( const float x, const float y ) {
-    #if !defined(QM_EPSILON)
-    #define QM_EPSILON 0.000001f
+// WID: TODO: Oh boy..
+#undef max
+RMAPI int QM_DoubleEquals( const double x, const double y ) {
+    #if !defined(QM_DOUBLE_EPSILON)
+    #define QM_EPSILON DBL_EPSILON
     #endif
 
-    int result = ( fabsf( x - y ) ) <= ( QM_EPSILON * fmaxf( 1.0f, fmaxf( fabsf( x ), fabsf( y ) ) ) );
+    int result = ( abs( x - y ) ) <= ( QM_EPSILON * std::max( 1.0, std::max( abs( x ), abs( y ) ) ) );
 
     return result;
 }
 
 /**
-*   @brief  Clamps float value within -min/+max range. 
+*   @brief  Clamps double value within -min/+max range. 
 **/
-RMAPI const float QM_Clampf( const float value, const float min, const float max ) {
-    const float result = ( value < min ) ? min : value;
+RMAPI const double QM_Clampd( const double value, const double min, const double max ) {
+    const double result = ( value < min ) ? min : value;
     //if ( result > max ) result = max;
     //result;
     return ( result > max ) ? max : result;
@@ -48,24 +96,24 @@ RMAPI const float QM_Clampf( const float value, const float min, const float max
 /**
 *   @brief  Normalize input value within input range
 **/
-RMAPI const float QM_Normalizef( const float value, const float start, const float end ) {
-    const float result = ( value - start ) / ( end - start );
+RMAPI const double QM_Normalized( const double value, const double start, const double end ) {
+    const double result = ( value - start ) / ( end - start );
 
     return result;
 }
 /**
 *   @brief  Remap input value within input range to output range
 **/
-RMAPI const float QM_Remapf( const float value, const float inputStart, const float inputEnd, const float outputStart, const float outputEnd ) {
-    const float result = ( value - inputStart ) / ( inputEnd - inputStart ) * ( outputEnd - outputStart ) + outputStart;
+RMAPI const double QM_Remapd( const double value, const double inputStart, const double inputEnd, const double outputStart, const double outputEnd ) {
+    const double result = ( value - inputStart ) / ( inputEnd - inputStart ) * ( outputEnd - outputStart ) + outputStart;
 
     return result;
 }
 /**
-*   @brief  Wrap float input value from min to max
+*   @brief  Wrap double input value from min to max
 **/
-RMAPI const float QM_Wrapf( const float value, const float min, const float max ) {
-    const float result = value - ( max - min ) * floorf( ( value - min ) / ( max - min ) );
+RMAPI const double QM_Wrapd( const double value, const double min, const double max ) {
+    const double result = value - ( max - min ) * floor( ( value - min ) / ( max - min ) );
     return result;
 }
 
