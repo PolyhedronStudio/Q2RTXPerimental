@@ -903,12 +903,16 @@ static void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const 
     clgi.client->delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 2 ], ps->pmove.delta_angles[ 2 ], lerpFrac ) );
 }
 
+/**
+*   @return True if the server, or client, is non active(and/or thus paused).
+**/
 const bool CLG_IsGameplayPaused() {
     if ( clgi.GetConnectionState() != ca_active || sv_paused->integer ) {
         return true;
     }
     return false;
 }
+
 /**
 *   @brief  Lerp the client's POV range.
 **/
@@ -954,7 +958,9 @@ static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const 
     }
 
     /**
-    *   Determine the lerp fraction for the FOV to lerp by.
+    *   Determine the lerp fraction and use cubic ease in/out for the FOV to lerp by.
+    * 
+    *   We clamp to avoid discrepancies.
     **/
     if ( !CLG_IsGameplayPaused() ) {
         povLerp.lerpFraction = QM_Clampf( (float)( clgi.GetRealTime() - povLerp.timeChanged ) / (float)FOV_LERP_TIME, 0.f, 1.f );
